@@ -13,58 +13,45 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+# pylint: disable=g-bad-todo, abstract-method, consider-using-with, ungrouped-imports, unspecified-encoding, consider-using-enumerate, consider-using-dict-items, consider-iterating-dictionary
 
 r"""xpk (Accelerated Processing Kit).
 
 Next Steps:
+- Better workload view. Cleaner messaging and option to hide done jobs, etc.
+  - Carefully documented as Job View
+- Attach the submitter's name to the job and visualize it in workload list.
 - Cluster describe is broken by Cacheimage since that counts as a workload.
 - Cluster describe: count by jobset.
 - If any instance goes down, bring down the whole job.
+- Add preemption.
 - How to more gracefully handle job failures, distinguishing between software
   and infra?
+- Migrate MaxText's code copy as an option into workload create.
 - Look into --docker-name and --docker-image.
   Shouldn't one string be adequate to express what we want?
 - Apply learnings from about private, region, coredns, etc:
 - Enable special preheater
+- Create Open Source repo for xpk]
 - Make Argparse logic this a function?
   - Obvious logic that starts in main instead of here in code but args will
     not be a universal argument.
+- Change user facing names to be in terms of v5e instead of v5litepod when
+  supported internally.
 """
 
 import argparse
+import collections
 import datetime
 import os
-import random
 import re
-import string
 import subprocess
 import sys
 import tempfile
 import time
-from dataclasses import dataclass
-
-################### Compatibility Check ###################
-# Check that the user runs the below version or greater.
-
-major_version_supported = 3
-minor_version_supported = 10
-
-user_major_version = sys.version_info[0]
-user_minor_version = sys.version_info[1]
-if (
-    user_major_version < major_version_supported
-    or user_minor_version < minor_version_supported
-):
-  raise RuntimeError('xpk must be run with Python'
-      f' {major_version_supported}.{minor_version_supported} or greater.'
-      f' User currently is running {user_major_version}.{user_minor_version}'
-  )
 
 
 ################### Internally used constants ##############
-
-default_docker_image = 'python:3.10'
-default_script_dir = os.getcwd()
 
 workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
@@ -97,7 +84,7 @@ spec:
               dnsPolicy: ClusterFirstWithHostNet
               containers:
               - name: {args.docker_name}
-                image: {docker_image}
+                image: {args.docker_image}
                 env: {args.env}
                 ports:
                 - containerPort: 8471
@@ -122,17 +109,6 @@ metadata:
     alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool # 1:1 job replica to node pool assignment
 """
 
-script_dir_dockerfile = """FROM {base_docker_image}
-
-# Set the working directory in the container
-WORKDIR /app
-
-# Copy all files from local workspace into docker container
-COPY . .
-
-WORKDIR /app
-"""
-
 cluster_set_crd_yaml = """apiVersion: kueue.x-k8s.io/v1beta1
 kind: ResourceFlavor
 metadata:
@@ -147,9 +123,6 @@ kind: ClusterQueue
 metadata:
   name: "cluster-queue"
 spec:
-  preemption:
-      reclaimWithinCohort: Never # Don't preempt other queues in the cohort.
-      withinClusterQueue: LowerPriority
   namespaceSelector: {{}} # match all.
   resourceGroups:
   - coveredResources: ["google.com/tpu"]
@@ -170,7 +143,7 @@ spec:
 apiVersion: scheduling.k8s.io/v1
 kind: PriorityClass
 metadata:
-  name: very-low
+  name: verylow
 value: 100
 globalDefault: false
 description: "Very Low"
@@ -202,10 +175,10 @@ description: "High"
 apiVersion: scheduling.k8s.io/v1
 kind: PriorityClass
 metadata:
-  name: very-high
+  name: veryhigh
 value: 1000
 globalDefault: false
-description: "Very High"
+description: "Very high"
 """
 
 cluster_preheat_yml = """
@@ -242,19 +215,19 @@ spec:
         command: [ "sleep", "inf" ]
 """
 
-@dataclass
-class SystemCharacteristics:
-  topology: str
-  vms_per_slice: int
-  gke_accelerator: str
-  gce_machine_type: str
-  chips_per_vm: int
+SystemCharacteristics = collections.namedtuple(
+    'SystemCharacteristcs',
+    [
+        'topology',
+        'vms_per_slice',
+        'gke_accelerator',
+        'gce_machine_type',
+        'chips_per_vm',
+    ],
+)
 
-################### Subcommand Helper Functions #############
-""" !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-IF YOU MODIFY THE BELOW UserFacingNameToSystemCharacteristics MAP YOU SHOULD ALSO ADD CORRESPONDING 
-MODICATIONS TO UserFacingNameToSystemCharacteristics IN MaxText/accelerator_to_spec_map.py !!!!! """
-# vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+################### Subcomand Helper Functions #############
+
 UserFacingNameToSystemCharacteristics = {
     'v5litepod-16': SystemCharacteristics(
         '4x4', 4, 'tpu-v5-lite-podslice', 'ct5lp-hightpu-4t', 4
@@ -271,43 +244,8 @@ UserFacingNameToSystemCharacteristics = {
     'v5litepod-256': SystemCharacteristics(
         '16x16', 64, 'tpu-v5-lite-podslice', 'ct5lp-hightpu-4t', 4
     ),
-    'v4-8': SystemCharacteristics(
-      '2x2x1', 1,'tpu-v4-podslice', 'ct4p-hightpu-4t', 4
-    ),
-    'v4-16': SystemCharacteristics(
-      '2x2x2', 2,'tpu-v4-podslice', 'ct4p-hightpu-4t', 4
-    ),
-    'v4-32': SystemCharacteristics(
-      '2x2x4', 4,'tpu-v4-podslice', 'ct4p-hightpu-4t', 4
-    ),
-    'v4-64': SystemCharacteristics(
-      '2x4x4', 8,'tpu-v4-podslice', 'ct4p-hightpu-4t', 4
-    ),
-    'v4-128': SystemCharacteristics(
-      '4x4x4', 16,'tpu-v4-podslice', 'ct4p-hightpu-4t', 4
-    ),
-    'v4-256': SystemCharacteristics(
-      '4x4x8', 32,'tpu-v4-podslice', 'ct4p-hightpu-4t', 4
-    ),
-    'v4-512': SystemCharacteristics(
-      '4x8x8', 64,'tpu-v4-podslice', 'ct4p-hightpu-4t', 4
-    ),
-    'v4-1024': SystemCharacteristics(
-      '8x8x8', 128,'tpu-v4-podslice', 'ct4p-hightpu-4t', 4
-    ),
-    'v4-1536': SystemCharacteristics(
-      '8x8x12', 192,'tpu-v4-podslice', 'ct4p-hightpu-4t', 4
-    ),
-    'v4-2048': SystemCharacteristics(
-      '8x8x16', 256,'tpu-v4-podslice', 'ct4p-hightpu-4t', 4
-    ),
-    'v4-4096': SystemCharacteristics(
-      '8x16x16', 512,'tpu-v4-podslice', 'ct4p-hightpu-4t', 4
-    ),
 }
-""" If you modify UserFacingNameToSystemCharacteristics you should also modify the corresponding
-Map in MaxText/accelerator_to_spec_map.py """
-# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 
 def chunks(lst, n):
   """Return a list of n-sized chunks from lst.
@@ -319,7 +257,10 @@ def chunks(lst, n):
   Returns:
     List of n-sized chunks for lst.
   """
-  return [lst[i:i+n] for i in range(0, len(lst), n)]
+  output = []
+  for i in range(0, len(lst), n):
+    output.append(lst[i : i + n])
+  return output
 
 
 def make_tmp_files(per_command_name):
@@ -393,10 +334,11 @@ def run_command_batch(commands, jobname, per_command_name, output_logs):
   children = []
   start_time = datetime.datetime.now()
   for i, command in enumerate(commands):
-    with subprocess.Popen(
-        command, stdout=output_logs[i], stderr=output_logs[i], shell=True
-    ) as task:
-      children.append(task)
+    children.append(
+        subprocess.Popen(
+            command, stdout=output_logs[i], stderr=output_logs[i], shell=True
+        )
+    )
 
   while True:
     returncodes = [child.poll() for child in children]
@@ -462,7 +404,7 @@ def add_env_config(args):
   if args.env_file:
     print('Setting container environment from', args.env_file)
     pat = re.compile(r'(^[a-zA-Z_][a-zA-Z0-9_]*?)(?:=(.*))$', re.M)
-    with open(file=args.env_file, mode='r', encoding='utf-8') as f:
+    with open(args.env_file, 'r') as f:
       for match in pat.finditer(f.read()):
         variable = match.group(1)
         if len(match.groups()) > 1:
@@ -488,11 +430,11 @@ def write_temporary_file(payload):
   Returns:
     A file object that was written to.
   """
-  with tempfile.NamedTemporaryFile(delete=False) as tmp:
-    with open(file=tmp.name, mode='w', encoding='utf=8') as f:
-      f.write(payload)
-      f.flush()
-    return tmp
+  tmp = tempfile.NamedTemporaryFile(delete=False)
+  f = open(tmp.name, 'w')
+  f.write(payload)
+  f.flush()
+  return tmp
 
 
 def run_command_for_value(
@@ -563,22 +505,22 @@ def run_command_with_updates(command, task, global_args, verbose=True) -> int:
     xpk_print(
         f'Task: `{task}` is implemented by `{command}`, streaming output live.'
     )
-    with subprocess.Popen(
+    child = subprocess.Popen(
         command,
         stdout=sys.stdout,
         stderr=sys.stderr,
         shell=True,
-    ) as child:
-      i = 0
-      while True:
-        return_code = child.poll()
-        if return_code is None:
-          xpk_print(f'Waiting for `{task}`, for {i} seconds')
-          time.sleep(1)
-          i += 1
-        else:
-          xpk_print(f'Task: `{task}` terminated with code `{return_code}`')
-          return return_code
+    )
+    i = 0
+    while True:
+      return_code = child.poll()
+      if return_code is None:
+        xpk_print(f'Waiting for `{task}`, for {i} seconds')
+        time.sleep(1)
+        i += 1
+      else:
+        xpk_print(f'Task: `{task}` terminated with code `{return_code}`')
+        return return_code
   else:
     xpk_print(
         f'Task: `{task}` is implemented by `{command}`, hiding output unless'
@@ -612,10 +554,10 @@ def xpk_print(*args, **kwargs):
 
 
 def xpk_exit(error_code):
-  """Helper function to exit xpk with an associated error code.
+  """Helper function to exit xpk with an associted error code.
 
   Args:
-    error_code: If the code provided is zero, then no issues occurred.
+    error_code: If the code provided is zero, then no issues occured.
   """
   if error_code == 0:
     xpk_print('Exiting XPK cleanly')
@@ -635,7 +577,7 @@ def get_project():
       ['gcloud', 'config', 'get', 'project'], check=True, capture_output=True
   )
   project_outputs = completed_command.stdout.decode().strip().split('\n')
-  if len(project_outputs) < 1 or project_outputs[-1] == '':
+  if len(project_outputs) < 1:
     sys.exit(
         'You must specify the project in the project flag or set it with'
         " 'gcloud config set project <project>'"
@@ -657,7 +599,7 @@ def get_zone():
       capture_output=True,
   )
   zone_outputs = completed_command.stdout.decode().strip().split('\n')
-  if len(zone_outputs) < 1 or zone_outputs[-1] == '':
+  if len(zone_outputs) < 1:
     sys.exit(
         "You must specify the zone in the zone flag or set it with 'gcloud"
         " config set compute/zone <zone>'"
@@ -687,15 +629,18 @@ def run_gke_cluster_create_command(args) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
-
+  # This cpu node pool will handle system jobs + jobset manager.
+  default_cluster_machine_type = 'e2-standard-32'
   # Create the cluster.
+
+  region = zone_to_region(args.zone)
   command = (
       'gcloud beta container clusters create'
       f' {args.cluster} --release-channel rapid  --enable-autoscaling'
       ' --max-nodes 1000 --min-nodes 5'
-      f' --project={args.project} --region={zone_to_region(args.zone)}'
+      f' --project={args.project} --region={region}'
       f' --cluster-version={args.gke_version} --location-policy=BALANCED'
-      f' --machine-type={args.cluster_cpu_machine_type}'
+      f' --machine-type={default_cluster_machine_type}'
       ' --scopes=storage-full,gke-default'
       f' {args.custom_cluster_arguments}'
   )
@@ -727,6 +672,7 @@ def get_all_clusters_programmatic(args) -> tuple[list[str], int]:
     xpk_print(f'Find if Cluster Exists returned ERROR {return_code}')
     return [], return_code
   cluster_names = [x.split(' ')[0] for x in raw_cluster_output.splitlines()]
+  print(cluster_names)
   return cluster_names, 0
 
 
@@ -772,7 +718,7 @@ def run_gke_node_pool_create_command(args, system_characteristics) -> int:
 
   Args:
     args: user provided arguments for running the command.
-    system_characteristics: System characteristics based on TPU type/topology.
+    system_characteristics: System characteristics based on TPU type/toplology.
 
   Returns:
     0 if successful and 1 otherwise.
@@ -814,44 +760,22 @@ def run_gke_node_pool_create_command(args, system_characteristics) -> int:
     commands.append(command)
     task_names.append(task)
 
-  node_pools_to_delete = []
   for existing_node_pool_name in existing_node_pool_names:
     if (
         existing_node_pool_name.find(f'{args.cluster}-np-') == 0
         and existing_node_pool_name not in desired_node_pool_names
     ):
-      node_pools_to_delete.append(existing_node_pool_name)
+      command = (
+          'gcloud beta container node-pools delete'
+          f' {existing_node_pool_name} --cluster={args.cluster}'
+          f' --zone={zone_to_region(args.zone)} --project={args.project} --quiet'
+      )
+      task = f'Nodepool-Delete-{existing_node_pool_name}'
+      commands.append(command)
+      task_names.append(task)
 
-  will_delete = True
-  if node_pools_to_delete and not args.force:
-    user_input = input(
-      f'Planning to delete {len(node_pools_to_delete)} node pools including '
-      f'{node_pools_to_delete}. \nDo you wish to delete: y (yes) / n (no):\n'
-    )
-    user_input_approves_delete = user_input in ('y', 'yes')
-    if not user_input_approves_delete:
-      will_delete = False
-
-  if not will_delete:
-    xpk_print('Skipping delete commands. Continuing to next step.')
-  else:
-    for existing_node_pool_name in node_pools_to_delete:
-      if (
-          existing_node_pool_name.find(f'{args.cluster}-np-') == 0
-          and existing_node_pool_name not in desired_node_pool_names
-      ):
-        command = (
-            'gcloud beta container node-pools delete'
-            f' {existing_node_pool_name} --cluster={args.cluster}'
-            f' --zone={zone_to_region(args.zone)}'
-            f' --project={args.project} --quiet'
-        )
-        task = f'Nodepool-Delete-{existing_node_pool_name}'
-        commands.append(command)
-        task_names.append(task)
-
-  for i, command in enumerate(commands):
-    xpk_print(f'To complete {task_names[i]} we are executing {command}')
+  for i in range(len(commands)):
+    xpk_print(f'To complete {task_names[i]} we are executing {commands[i]}')
   max_return_code = run_commands(
       commands, 'Create and Delete Nodepools', task_names, dry_run=args.dry_run
   )
@@ -900,6 +824,7 @@ def run_gke_clusters_list_command(args) -> int:
       f' --project={args.project} --region={zone_to_region(args.zone)}'
   )
   return_code = run_command_with_updates(command, 'Cluster List', args)
+
   if return_code != 0:
     xpk_print(f'Cluster list request returned ERROR {return_code}')
     return 1
@@ -943,7 +868,7 @@ def install_kueue_on_cluster(args) -> int:
   """
   command = (
       'kubectl apply -f'
-      ' https://github.com/kubernetes-sigs/kueue/releases/download/v0.4.1/manifests.yaml'
+      ' xpk/kueue_manifests.yml'
   )
   return_code = run_command_with_updates(command, 'Set Kueue On Cluster', args)
 
@@ -973,16 +898,7 @@ def enable_kueue_crds(args, system) -> int:
   )
   tmp = write_temporary_file(yml_string)
   command = f'kubectl apply -f {str(tmp.file.name)}'
-  # For kueue setup, we see a timeout error due to the webhook not
-  # being ready. Let's retry and wait a few seconds.
-  retry_limit = 5
-  i = 0
-  return_code = -1
-  while (return_code != 0 and i < retry_limit):
-    time.sleep(5)
-    i += 1
-    xpk_print(f'Try {i}: Applying Kueue CRDs')
-    return_code = run_command_with_updates(command, 'Applying Kueue CRDs', args)
+  return_code = run_command_with_updates(command, 'Applying Kueue CRDs', args)
 
   if return_code != 0:
     xpk_print(f'Applying Kueue CRDS returned ERROR {return_code}')
@@ -1120,10 +1036,6 @@ def cluster_cacheimage(args) -> int:
   )
   add_zone_and_project(args)
 
-  set_cluster_command_code = set_cluster_command(args)
-  if set_cluster_command_code != 0:
-    xpk_exit(set_cluster_command_code)
-
   yml_string = cluster_preheat_yml.format(
       cachekey=args.cache_key, image_name=args.docker_image
   )
@@ -1150,7 +1062,7 @@ def cluster_cacheimage(args) -> int:
 
 
 def cluster_describe(args) -> int:
-  """Function around cluster describe.
+  """Function around cluster dewscribe.
 
   Args:
     args: user provided arguments for running the command.
@@ -1218,17 +1130,17 @@ def cluster_list(args) -> int:
   return 0
 
 
-def validate_docker_image(docker_image, args) -> int:
+def validate_docker_image(args) -> int:
   """Validates that the user provided docker image exists in your project.
 
   Args:
-    docker_image: The docker image to verify.
     args: user provided arguments for running the command.
 
   Returns:
     0 if successful and 1 otherwise.
   """
 
+  docker_image = args.docker_image
   project = args.project
 
   if docker_image.find('gcr.io') == -1:
@@ -1250,85 +1162,6 @@ def validate_docker_image(docker_image, args) -> int:
     return 0
 
 
-def build_docker_image_from_base_image(args, verbose=True) -> tuple[int, str]:
-  """Adds script dir to the base docker image and uploads the image.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    Tuple of:
-      0 if successful and 1 otherwise.
-      Name of the Docker image created.
-  """
-
-  # Pick a name for the docker image.
-  docker_image_prefix = os.getenv('USER', 'unknown')
-  docker_name = f'{docker_image_prefix}-runner'
-
-  docker_file = script_dir_dockerfile.format(
-      base_docker_image=args.base_docker_image,
-  )
-  tmp = write_temporary_file(docker_file)
-  docker_build_command = (
-      f'docker build -f {str(tmp.file.name)} -t {docker_name}'
-      f' {args.script_dir}'
-  )
-  xpk_print(f'Building {args.script_dir} into docker image.')
-  return_code = run_command_with_updates(
-      docker_build_command, 'Building script_dir into docker image', args,
-      verbose=verbose
-  )
-  if return_code != 0:
-    xpk_print(
-        'Failed to add script_dir to docker image, check the base docker image.'
-        f' You should be able to navigate to the URL {args.base_docker_image}'
-        f' in {args.project}.'
-    )
-    xpk_exit(1)
-
-  # Pick a randomly generated `tag_length` character docker tag.
-  tag_length = 4
-  tag_random_prefix = ''.join(random.choices(string.ascii_lowercase, k=tag_length))
-  tag_datetime = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-  tag_name = f'{tag_random_prefix}-{tag_datetime}'
-  cloud_docker_image = f'gcr.io/{args.project}/{docker_name}:{tag_name}'
-  xpk_print(f'Adding Docker Image: {cloud_docker_image} to {args.project}')
-
-  # Tag the docker image.
-  tag_docker_image_command = (
-      f'docker tag {docker_name} {cloud_docker_image}'
-  )
-  return_code = run_command_with_updates(
-      tag_docker_image_command, 'Tag Docker Image', args,
-      verbose=verbose
-  )
-  if return_code != 0:
-    xpk_print(
-        f'Failed to tag docker image with tag: {tag_name}.'
-        f' You should be able to navigate to the URL {cloud_docker_image} in'
-        f' {args.project}.'
-    )
-    xpk_exit(1)
-
-  # Upload image to Artifact Registry.
-  upload_docker_image_command = (
-      f'docker push {cloud_docker_image}'
-  )
-  return_code = run_command_with_updates(
-      upload_docker_image_command, 'Upload Docker Image', args,
-      verbose=verbose
-  )
-  if return_code != 0:
-    xpk_print(
-        f'Failed to upload docker image.'
-        f' You should be able to navigate to the URL {cloud_docker_image} in'
-        f' {args.project}.'
-    )
-    xpk_exit(1)
-  return return_code, cloud_docker_image
-
-
 def check_if_workload_exists(args) -> bool:
   """Check if workload exists.
 
@@ -1342,7 +1175,7 @@ def check_if_workload_exists(args) -> bool:
       'Jobset': '.metadata.ownerReferences[0].name',
   }
 
-  s = ','.join([key + ':' + value for key, value in columns.items()])
+  s = ','.join([key + ':' + columns[key] for key in columns.keys()])
 
   command = f"kubectl get workloads -o=custom-columns='{s}'"
   return_code, return_msg = run_command_for_value(
@@ -1354,73 +1187,11 @@ def check_if_workload_exists(args) -> bool:
     xpk_exit(return_code)
 
   lines = return_msg.split('\n')
-  new_workload_name = args.workload
+  prefix = args.workload
   for line in lines:
-    if line == new_workload_name:
+    if line.startswith(prefix):
       return True
   return False
-
-
-def use_base_docker_image_or_docker_image(args) -> bool:
-  """Checks for correct docker image arguments.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    True if intended to use base docker image, False to use docker image.
-  """
-  use_base_docker_image = True
-  # Check if (base_docker_image and script_dir) or (docker_image) is set.
-  if args.docker_image is not None:
-    if args.script_dir is not default_script_dir:
-      xpk_print(
-          '`--script-dir` and --docker-image can not be used together. Please'
-          ' see `--help` command for more details.'
-      )
-      xpk_exit(1)
-    if args.base_docker_image is not default_docker_image:
-      xpk_print(
-          '`--base-docker-image` and --docker-image can not be used together.'
-          ' Please see `--help` command for more details.'
-      )
-      xpk_exit(1)
-    use_base_docker_image = False
-  return use_base_docker_image
-
-
-def setup_docker_image(args) -> tuple[int, str]:
-  """Does steps to verify docker args, check image, and build image (if asked).
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    tuple:
-      0 if successful and 1 otherwise.
-      Name of the docker image to use.
-  """
-  use_base_docker_image = use_base_docker_image_or_docker_image(args)
-
-  docker_image = args.base_docker_image
-  if use_base_docker_image:
-    validate_docker_image_code = validate_docker_image(
-        docker_image, args
-    )
-    if validate_docker_image_code != 0:
-      xpk_exit(validate_docker_image_code)
-    build_docker_image_code, docker_image = build_docker_image_from_base_image(args)
-    if build_docker_image_code != 0:
-      xpk_exit(build_docker_image_code)
-  else:
-    docker_image = args.docker_image
-    validate_docker_image_code = validate_docker_image(
-        args.docker_image, args
-    )
-    if validate_docker_image_code != 0:
-      xpk_exit(validate_docker_image_code)
-
-  return 0, docker_image
 
 
 def workload_create(args) -> int:
@@ -1450,12 +1221,12 @@ def workload_create(args) -> int:
   xpk_print('Starting workload create', flush=True)
   system = UserFacingNameToSystemCharacteristics[args.tpu_type]
 
-  setup_docker_image_code, docker_image = setup_docker_image(args)
-  if setup_docker_image_code != 0:
-    xpk_exit(setup_docker_image_code)
+  validate_docker_image_code = validate_docker_image(args)
+  if validate_docker_image_code != 0:
+    xpk_exit(validate_docker_image_code)
 
   add_env_config(args)
-  yml_string = workload_create_yaml.format(args=args, system=system, docker_image=docker_image)
+  yml_string = workload_create_yaml.format(args=args, system=system)
   tmp = write_temporary_file(yml_string)
   command = f'kubectl apply -f {str(tmp.file.name)}'
 
@@ -1528,7 +1299,7 @@ def workload_list(args) -> None:
       'All Done': '.status.reclaimablePods[0].count',
   }
 
-  s = ','.join([key + ':' + value for key, value in columns.items()])
+  s = ','.join([key + ':' + columns[key] for key in columns.keys()])
 
   command = f"kubectl get workloads -o=custom-columns='{s}'"
   return_code = run_command_with_updates(command, 'List Jobs', args)
@@ -1596,14 +1367,6 @@ def workload_name_type(value, pat=re.compile(r'[a-z]([-a-z0-9]*[a-z0-9])?')):
   return value
 
 
-def directory_path_type(value):
-  if not os.path.isdir(value):
-    raise argparse.ArgumentTypeError(
-      f'Directory path is invalid. User provided path was {value}'
-    )
-  return value
-
-
 #### "cluster" command parser. ####
 cluster_parser = xpk_subcommands.add_parser(
     'cluster',
@@ -1646,7 +1409,7 @@ cluster_create_required_arguments.add_argument(
     '--tpu-type',
     type=str,
     default='v5litepod-16',
-    help='The type of the TPU. v5litepod and v4 are the only supported types.',
+    help='The type of the TPU.',
     required=True,
 )
 
@@ -1656,14 +1419,14 @@ cluster_create_optional_arguments.add_argument(
     type=str,
     choices=['AS_NEEDED', 'PERIODIC'],
     default='AS_NEEDED',
-    help='The maintenance policy of the cluster and respective clusters.',
+    help='The maintenance policy of the cluster and repective clusters.',
 )
 cluster_create_optional_arguments.add_argument(
     '--gke-version',
     type=str,
     default='1.27.4-gke.900',
     help=(
-        'The GKE version of the cluster and respective clusters. The default is'
+        'The GKE version of the cluster and repective clusters. The default is'
         ' "1.27.4-gke.900".'
     ),
 )
@@ -1674,16 +1437,7 @@ cluster_create_optional_arguments.add_argument(
     help='The number of slices to run the job on, defaults to 1.',
     required=True,
 )
-cluster_create_optional_arguments.add_argument(
-  '--cluster-cpu-machine-type',
-    type=str,
-    default='e2-standard-32',
-    help=(
-      'Set the machine tpu within the default cpu node pool. For zonal '
-      'clusters, make sure that the zone supports the machine type, and for '
-      'regional clusters, all zones in the region supports the machine type.'
-    )
-)
+add_shared_arguments(cluster_create_optional_arguments)
 cluster_create_optional_arguments.add_argument(
     '--custom-cluster-arguments',
     type=str,
@@ -1706,15 +1460,6 @@ cluster_create_optional_arguments.add_argument(
         " --custom-tpu-nodepool-arguments='--enable-ip-alias'"
     ),
 )
-cluster_create_optional_arguments.add_argument(
-    '--force',
-    action='store_true',
-    help=(
-      'Forces node pool creation and delete commands to run without additional'
-      ' approval.'
-    ),
-)
-add_shared_arguments(cluster_create_optional_arguments)
 
 cluster_create_parser.set_defaults(func=cluster_create)
 
@@ -1747,7 +1492,7 @@ cluster_delete_parser.set_defaults(func=cluster_delete)
 ### "cluster cacheimage" command parser ###
 cluster_cacheimage_parser = cluster_subcommands.add_parser(
     'cacheimage',
-    help='Cache image.',
+    help='Cache imaage.',
 )
 cluster_cacheimage_required_arguments = (
     cluster_cacheimage_parser.add_argument_group(
@@ -1848,43 +1593,60 @@ workload_subcommands = workload_parser.add_subparsers(
 workload_create_parser = workload_subcommands.add_parser(
     'create', help='Create a new job.'
 )
-workload_create_parser_required_arguments = (
-    workload_create_parser.add_argument_group(
-        'Workload Built-in Arguments',
-        'Configure xpk to create a Workload for you.'
-    )
+workload_custom_arguments = workload_create_parser.add_argument_group(
+    'Workload Built-in Arguments', 'Configure xpk to create a Workload for you.'
 )
+
 workload_create_parser_optional_arguments = (
     workload_create_parser.add_argument_group(
         'Optional Arguments', 'Arguments optional for `job create`.'
     )
 )
-workload_base_docker_image_arguments = (
-    workload_create_parser.add_argument_group(
-        'Base Docker Image Arguments',
-        'User supplies a base image or by default the image is set by xpk.'
-        ' Xpk will add the `script_dir` to the base image creating an anonymous'
-        ' docker image. These arguments are exclusive to `--docker-image`.'
-    )
-)
-workload_docker_image_arguments = (
-    workload_create_parser.add_argument_group(
-        'Docker Image Arguments',
-        '`--base-docker-image` is used by default. Set this argument if the'
-        ' user wants the docker image to be used directly by the xpk workload.'
-    )
-)
-
-
-### Workload required arguments
-workload_create_parser_required_arguments.add_argument(
+### Workload arguments
+workload_custom_arguments.add_argument(
     '--workload',
     type=workload_name_type,
     default=None,
     help='The name of the workload to run.',
     required=True,
 )
-workload_create_parser_required_arguments.add_argument(
+workload_custom_arguments.add_argument(
+    '--docker-name',
+    type=str,
+    default='jax-tpu',
+    help=(
+        'The name of the docker-image to use, default and typically `jax-tpu`.'
+    ),
+)
+workload_custom_arguments.add_argument(
+    '--docker-image',
+    type=str,
+    default='python:3.8',
+    help=(
+        'The version of the docker-image to use, default `python:3.8`. If using'
+        ' a custom docker image it is typically addressed as'
+        ' gcr.io/${PROJECT}/${NAME}:latest'
+    ),
+)
+
+workload_custom_arguments.add_argument(
+    '--num-slices',
+    type=str,
+    default=1,
+    help='The number of slices to use, default=1.',
+)
+workload_custom_arguments.add_argument(
+    '--env-file',
+    type=str,
+    default=None,
+    help=(
+        'Environment file to be applied to the container.  This file should '
+        'use the syntax <variable>=value (which sets the variable to the given '
+        'value) or <variable> (which takes the value from the local '
+        'environment), and # for comments.'
+    ),
+)
+workload_custom_arguments.add_argument(
     '--command',
     type=str,
     default=None,
@@ -1896,14 +1658,14 @@ workload_create_parser_required_arguments.add_argument(
     ),
     required=True,
 )
-workload_create_parser_required_arguments.add_argument(
+workload_custom_arguments.add_argument(
     '--tpu-type',
     type=str,
     default=None,
     help='The tpu type to use, v5litepod-16, etc.',
     required=True,
 )
-workload_create_parser_required_arguments.add_argument(
+workload_custom_arguments.add_argument(
     '--cluster',
     type=str,
     default=None,
@@ -1911,76 +1673,20 @@ workload_create_parser_required_arguments.add_argument(
     required=True,
 )
 
-### Workload Optional Arguments
-add_shared_arguments(workload_create_parser_optional_arguments)
+### Optional Arguments
+add_shared_arguments(workload_custom_arguments)
 
-workload_create_parser_optional_arguments.add_argument(
-    '--docker-name',
-    type=str,
-    default='jax-tpu',
-    help=(
-        'The name of the docker-image to use, default and typically `jax-tpu`.'
-    ),
-)
-workload_docker_image_arguments.add_argument(
-    '--docker-image',
-    type=str,
-    help=(
-        'The version of the docker-image to use. By default, '
-        ' `--base-docker-image` is used. Set this argument if the user wants'
-        ' the docker image to be used directly by the xpk workload.'
-        ' a custom docker image it is typically addressed as'
-        ' gcr.io/${PROJECT}/${NAME}:latest. This docker image will be used'
-        ' directly by the xpk workload.'
-    ),
-)
-workload_base_docker_image_arguments.add_argument(
-    '--base-docker-image',
-    type=str,
-    default=default_docker_image,
-    help=(
-        f'The base docker-image to use, default {default_docker_image}. If'
-        ' using a custom docker image it is typically addressed as'
-        ' gcr.io/${PROJECT}/${NAME}:latest. This docker image will be used as a'
-        ' base image by default and the `--script-dir` by default'
-        ' will be added to the image.'
-    ),
-)
-workload_base_docker_image_arguments.add_argument(
-    '--script-dir',
-     type=directory_path_type,
-     default=default_script_dir,
-    help='The local location of the directory to copy to the docker image and'
-        ' run the main command from. Defaults to current working directory.'
-)
-workload_create_parser_optional_arguments.add_argument(
-    '--num-slices',
-    type=str,
-    default=1,
-    help='The number of slices to use, default=1.',
-)
-workload_create_parser_optional_arguments.add_argument(
-    '--env-file',
-    type=str,
-    default=None,
-    help=(
-        'Environment file to be applied to the container.  This file should '
-        'use the syntax <variable>=value (which sets the variable to the given '
-        'value) or <variable> (which takes the value from the local '
-        'environment), and # for comments.'
-    ),
-)
-workload_create_parser_optional_arguments.add_argument(
+workload_custom_arguments.add_argument(
     '--priority',
     type=str,
     default='medium',
-    choices=['very-low', 'low', 'medium', 'high', 'very-high'],
     help=(
-        'A priority, one of `very-low`, `low`, `medium`, `high` or `very-high`.'
+        'A priority, one of `verylow`, `low`, `medium`, `high` or `veryhigh`.'
         ' Defaults to `medium`.'
     ),
 )
-workload_create_parser_optional_arguments.add_argument(
+
+workload_custom_arguments.add_argument(
     '--scheduler',
     type=str,
     default='default-scheduler',
@@ -1990,7 +1696,9 @@ workload_create_parser_optional_arguments.add_argument(
         'want to use `gke.io/high-throughput-scheduler`.'
     ),
 )
-workload_create_parser_optional_arguments.add_argument(
+
+
+workload_custom_arguments.add_argument(
     '--max-restarts',
     type=str,
     default='0',

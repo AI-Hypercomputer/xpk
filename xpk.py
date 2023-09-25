@@ -577,7 +577,7 @@ def get_project():
       ['gcloud', 'config', 'get', 'project'], check=True, capture_output=True
   )
   project_outputs = completed_command.stdout.decode().strip().split('\n')
-  if len(project_outputs) < 1 or project_outputs[-1] == '':
+  if len(project_outputs) < 1:
     sys.exit(
         'You must specify the project in the project flag or set it with'
         " 'gcloud config set project <project>'"
@@ -599,7 +599,7 @@ def get_zone():
       capture_output=True,
   )
   zone_outputs = completed_command.stdout.decode().strip().split('\n')
-  if len(zone_outputs) < 1 or zone_outputs[-1] == '':
+  if len(zone_outputs) < 1:
     sys.exit(
         "You must specify the zone in the zone flag or set it with 'gcloud"
         " config set compute/zone <zone>'"
@@ -868,7 +868,7 @@ def install_kueue_on_cluster(args) -> int:
   """
   command = (
       'kubectl apply -f'
-      ' https://github.com/kubernetes-sigs/kueue/releases/download/v0.4.1/manifests.yaml'
+      ' xpk/kueue_manifests.yml'
   )
   return_code = run_command_with_updates(command, 'Set Kueue On Cluster', args)
 
@@ -898,16 +898,7 @@ def enable_kueue_crds(args, system) -> int:
   )
   tmp = write_temporary_file(yml_string)
   command = f'kubectl apply -f {str(tmp.file.name)}'
-  # For kueue setup, we see a timeout error due to the webhook not
-  # being ready. Let's retry and wait a few seconds.
-  retry_limit = 5
-  i = 0
-  return_code = -1
-  while (return_code != 0 and i < retry_limit):
-    time.sleep(5)
-    i += 1
-    xpk_print(f'Try {i}: Applying Kueue CRDs')
-    return_code = run_command_with_updates(command, 'Applying Kueue CRDs', args)
+  return_code = run_command_with_updates(command, 'Applying Kueue CRDs', args)
 
   if return_code != 0:
     xpk_print(f'Applying Kueue CRDS returned ERROR {return_code}')
@@ -1044,10 +1035,6 @@ def cluster_cacheimage(args) -> int:
       f'Starting cluster cacheimage for cluster: {args.cluster}', flush=True
   )
   add_zone_and_project(args)
-
-  set_cluster_command_code = set_cluster_command(args)
-  if set_cluster_command_code != 0:
-    xpk_exit(set_cluster_command_code)
 
   yml_string = cluster_preheat_yml.format(
       cachekey=args.cache_key, image_name=args.docker_image
@@ -1505,7 +1492,7 @@ cluster_delete_parser.set_defaults(func=cluster_delete)
 ### "cluster cacheimage" command parser ###
 cluster_cacheimage_parser = cluster_subcommands.add_parser(
     'cacheimage',
-    help='Cache image.',
+    help='Cache imaage.',
 )
 cluster_cacheimage_required_arguments = (
     cluster_cacheimage_parser.add_argument_group(
@@ -1634,9 +1621,9 @@ workload_custom_arguments.add_argument(
 workload_custom_arguments.add_argument(
     '--docker-image',
     type=str,
-    default='python:3.10',
+    default='python:3.8',
     help=(
-        'The version of the docker-image to use, default `python:3.10`. If using'
+        'The version of the docker-image to use, default `python:3.8`. If using'
         ' a custom docker image it is typically addressed as'
         ' gcr.io/${PROJECT}/${NAME}:latest'
     ),

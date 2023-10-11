@@ -1,6 +1,9 @@
-Fixes #<issue_number_goes_here>
+## Fixes / Features
+-
+-
 
-> It's a good idea to open an issue first for discussion.
+## Testing / Documentation
+Testing details.
 
-- [ ] Tests pass
-- [ ] Appropriate changes to documentation are included in the PR
+- [ y/n ] Tests pass
+- [ y/n ] Appropriate changes to documentation are included in the PR

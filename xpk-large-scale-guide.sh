@@ -137,19 +137,20 @@ export TPU_NODEPOOL_ARGUMENTS=" \
 # Git clone and go to the correct directory.
 ##### 2B #####################
 
-git clone https://github.com/google/xpk.git && cd xpk
+git clone https://github.com/google/maxtext.git && cd maxtext
+
 
 ##### 2C #####################
 # Confirm that variables are correctly set:
 ##### 2C #####################
-echo python3 xpk.py cluster create \
+echo python3 xpk/xpk.py cluster create \
   --cluster "${CLUSTER}" --tpu-type=v5litepod-256 \
   --num-slices="${NUMSLICES}" \
   --host-maintenance-interval=PERIODIC \
   --custom-cluster-arguments="${CLUSTER_ARGUMENTS}" \
   --custom-tpu-nodepool-arguments="${TPU_NODEPOOL_ARGUMENTS}"
 
-# python3 xpk.py cluster create --cluster NAME \
+# python3 xpk/xpk.py cluster create --cluster NAME \
 #  --tpu-type=v5litepod-256 --num-slices=4 \
 #  --host-maintenance-interval=PERIODIC \
 # --custom-cluster-arguments=  --network=NETWORK  --subnetwork=SUBNET  --scopes=storage-full,gke-default  --enable-ip-alias  --enable-private-nodes  --master-ipv4-cidr 172.16.0.32/28  --cluster-ipv4-cidr=10.224.0.0/12  --no-enable-master-authorized-networks
@@ -161,7 +162,7 @@ echo python3 xpk.py cluster create \
 ##### 2D #####################
 
 # Rerun create command to update the cluster (with a new slice size) or if the create command fails.
-python3 xpk.py cluster create \
+python3 xpk/xpk.py cluster create \
   --cluster "${CLUSTER}" --tpu-type=v5litepod-256 \
   --num-slices="${NUMSLICES}" \
   --host-maintenance-interval=PERIODIC \
@@ -256,7 +257,7 @@ cd ../..
 
 # Cluster create is the same command as run previously in step 2D. It will
 # not recreate the cluster but just update it.
-python3 xpk.py cluster create \
+python3 xpk/xpk.py cluster create \
   --cluster "${CLUSTER}" --tpu-type=v5litepod-256 \
   --num-slices="${NUMSLICES}" \
   --host-maintenance-interval=PERIODIC \
@@ -323,14 +324,14 @@ export TPU_NODEPOOL_ARGUMENTS=" \
 # Confirm that variables are correctly set:
 ##### 5B #####################
 
-echo python3 xpk.py cluster create \
+echo python3 xpk/xpk.py cluster create \
   --cluster "${CLUSTER}" --tpu-type=v5litepod-256 \
   --num-slices="${NUMSLICES}" \
   --host-maintenance-interval=PERIODIC \
   --custom-cluster-arguments="${CLUSTER_ARGUMENTS}" \
   --custom-tpu-nodepool-arguments="${TPU_NODEPOOL_ARGUMENTS}"
 
-# python3 xpk.py cluster create --cluster NAME \
+# python3 xpk/xpk.py cluster create --cluster NAME \
 #  --tpu-type=v5litepod-256 --num-slices=64 \
 #  --host-maintenance-interval=PERIODIC \
 # --custom-cluster-arguments=  --network=NETWORK  --subnetwork=SUBNET  --scopes=storage-full,gke-default  --enable-ip-alias  --enable-private-nodes  --master-ipv4-cidr 172.16.0.32/28  --cluster-ipv4-cidr=10.224.0.0/12  --no-enable-master-authorized-networks
@@ -340,7 +341,7 @@ echo python3 xpk.py cluster create \
 # Scale up to NUMSLICES (64 in the provided case) V5e-256s.
 ##### 5C #####################
 
-python3 xpk.py cluster create \
+python3 xpk/xpk.py cluster create \
   --cluster "${CLUSTER}" --tpu-type=v5litepod-256 \
   --num-slices="${NUMSLICES}" \
   --host-maintenance-interval=PERIODIC \
@@ -383,7 +384,7 @@ echo "https://console.cloud.google.com/kubernetes/clusters/details/us-central2/$
 
 # Set  --scheduler=gke.io/high-throughput-scheduler to use the high throughput scheduler.
 
-python3 xpk.py workload create \
+python3 xpk/xpk.py workload create \
  --scheduler=gke.io/high-throughput-scheduler \
  --workload xpk-test-workload --command "echo hello world" --cluster ${CLUSTER} \
  --tpu-type=v5litepod-256 --num-slices=${NUMSLICES}
@@ -427,7 +428,7 @@ python3 xpk.py workload create \
 
 # Use the link in the above "WORKLOAD_LOGS_LINK" view logs. You should see
 # the echo command in cloud logs.
-python3 xpk.py workload list \
+python3 xpk/xpk.py workload list \
  --cluster ${CLUSTER}
 
 ###############################
@@ -481,8 +482,7 @@ bash docker_upload_runner.sh CLOUD_IMAGE_NAME="${USER}"_runner
 # Cluster cacheimage to enable faster start times.
 # XPK offers cacheimage as a wrapper around daemonset.
 ##### 7C #####################
-cd ../xpk
-python3 xpk.py cluster cacheimage \
+python3 xpk/xpk.py cluster cacheimage \
  --cluster ${CLUSTER} --docker-image gcr.io/"${PROJECT}"/"${USER}"_runner
 
 # [XPK] Starting xpk
@@ -505,8 +505,8 @@ python3 xpk.py cluster cacheimage \
 
 export NUMSLICES=64
 
-# Make sure you are in the xpk github root directory when running this command
-python3 xpk.py workload create \
+# Make sure you are in the maxtext github root directory when running this command
+python3 xpk/xpk.py workload create \
  --cluster ${CLUSTER} \
  --docker-image gcr.io/${PROJECT}/"${USER}"_runner \
  --workload "${USER}"-first-job \

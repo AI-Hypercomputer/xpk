@@ -72,9 +72,11 @@ sudo apt update && sudo apt-get install google-cloud-sdk-gke-gcloud-auth-plugin
       gcloud config set project $PROJECT_ID
       gcloud config set compute/zone $ZONE
 
-      # Make sure you are in the maxtext github root directory when running this command
+      # Make sure you are in the xpk github root directory when running this command
+      git clone https://github.com/google/xpk.git
+      cd xpk
 
-      python3 xpk/xpk.py workload create \
+      python3 xpk.py workload create \
       --cluster ${CLUSTER_NAME} \
       --base-docker-image gcr.io/${PROJECT_ID}/${USER}_runner \
       --workload ${USER}-first-job \

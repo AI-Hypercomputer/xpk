@@ -58,7 +58,7 @@ cleanup with a `Cluster Delete`.
 *   Cluster Create (provision on-demand capacity):
 
     ```shell
-    python3 xpk/xpk.py cluster create \
+    python3 xpk.py cluster create \
     --cluster xpk-test --tpu-type=v5litepod-16 \
     --num-slices=4
     ```
@@ -67,7 +67,7 @@ cleanup with a `Cluster Delete`.
 *   Cluster Create (provision reserved capacity):
 
     ```shell
-    python3 xpk/xpk.py cluster create \
+    python3 xpk.py cluster create \
     --cluster xpk-test --tpu-type=v5litepod-256 \
     --num-slices=2 \
     --custom-tpu-nodepool-arguments="--reservation-affinity=specific --reservation=RESERVATION_ID"
@@ -79,7 +79,7 @@ cleanup with a `Cluster Delete`.
     For example, if a user creates a cluster with 4 slices:
 
     ```shell
-    python3 xpk/xpk.py cluster create \
+    python3 xpk.py cluster create \
     --cluster xpk-test --tpu-type=v5litepod-16 \
     --num-slices=4
     ```
@@ -88,7 +88,7 @@ cleanup with a `Cluster Delete`.
     new slices:
 
     ```shell
-    python3 xpk/xpk.py cluster create \
+    python3 xpk.py cluster create \
     --cluster xpk-test --tpu-type=v5litepod-16 \
     --num-slices=8
     ```
@@ -98,13 +98,13 @@ cleanup with a `Cluster Delete`.
     Use `--force` to skip prompts.
 
     ```shell
-    python3 xpk/xpk.py cluster create \
+    python3 xpk.py cluster create \
     --cluster xpk-test --tpu-type=v5litepod-16 \
     --num-slices=6
 
     # Skip delete prompts using --force.
 
-    python3 xpk/xpk.py cluster create --force \
+    python3 xpk.py cluster create --force \
     --cluster xpk-test --tpu-type=v5litepod-16 \
     --num-slices=6
 
@@ -113,20 +113,20 @@ cleanup with a `Cluster Delete`.
 *   Cluster Delete (deprovision capacity):
 
     ```shell
-    python3 xpk/xpk.py cluster delete \
+    python3 xpk.py cluster delete \
     --cluster xpk-test
     ```
 ## Cluster List
 *   Cluster List (see provisioned capacity):
 
     ```shell
-    python3 xpk/xpk.py cluster list
+    python3 xpk.py cluster list
     ```
 ## Cluster Describe
 *   Cluster Describe (see capacity):
 
     ```shell
-    python3 xpk/xpk.py cluster describe \
+    python3 xpk.py cluster describe \
     --cluster xpk-test
     ```
 
@@ -134,7 +134,7 @@ cleanup with a `Cluster Delete`.
 *   Cluster Cacheimage (enables faster start times):
 
     ```shell
-    python3 xpk/xpk.py cluster cacheimage \
+    python3 xpk.py cluster cacheimage \
     --cluster xpk-test --docker-image gcr.io/your_docker_image
     ```
 
@@ -142,7 +142,7 @@ cleanup with a `Cluster Delete`.
 *   Workload Create (submit training job):
 
     ```shell
-    python3 xpk/xpk.py workload create \
+    python3 xpk.py workload create \
     --workload xpk-test-workload --command "echo goodbye" --cluster \
     xpk-test --tpu-type=v5litepod-16
     ```
@@ -151,7 +151,7 @@ cleanup with a `Cluster Delete`.
 *   Workload Delete (delete training job):
 
     ```shell
-    python3 xpk/xpk.py workload delete \
+    python3 xpk.py workload delete \
     --workload xpk-test-workload --cluster xpk-test
     ```
 
@@ -159,7 +159,7 @@ cleanup with a `Cluster Delete`.
 *   Workload List (see training jobs):
 
     ```shell
-    python3 xpk/xpk.py workload list \
+    python3 xpk.py workload list \
     --cluster xpk-test
     ```
 
@@ -179,19 +179,19 @@ This flow pulls the `--script-dir` into the `--base-docker-image` and runs the n
 
   - `--script-dir` sets which directory to pull into the image. This defaults to the current working directory.
 
-  See `python3 xpk/xpk.py workload create --help` for more info.
+  See `python3 xpk.py workload create --help` for more info.
 
 * Example with defaults which pulls the local directory into the base image:
   ```shell
   echo -e '#!/bin/bash \n echo "Hello world from a test script!"' > test.sh
-  python3 xpk/xpk.py workload create --cluster xpk-test \
+  python3 xpk.py workload create --cluster xpk-test \
   --workload xpk-test-workload-base-image --command "bash test.sh" \
   --tpu-type=v5litepod-16 --num-slices=1
   ```
 
 * Recommended Flow For Normal Sized Jobs (fewer than 10k accelerators):
   ```shell
-  python3 xpk/xpk.py workload create --cluster xpk-test \
+  python3 xpk.py workload create --cluster xpk-test \
   --workload xpk-test-workload-base-image --command "bash custom_script.sh" \
   --base-docker-image=gcr.io/your_dependencies_docker_image \
   --tpu-type=v5litepod-16 --num-slices=1
@@ -204,17 +204,17 @@ workload.
 
 * Running with `--docker-image`:
   ```shell
-  python3 xpk/xpk.py workload create --cluster xpk-test \
+  python3 xpk.py workload create --cluster xpk-test \
   --workload xpk-test-workload-base-image --command "bash test.sh" \
   --tpu-type=v5litepod-16 --num-slices=1 --docker-image=gcr.io/your_docker_image
   ```
 
 * Recommended Flow For Large Sized Jobs (more than 10k accelerators):
   ```shell
-  python3 xpk/xpk.py cluster cacheimage \
+  python3 xpk.py cluster cacheimage \
   --cluster xpk-test --docker-image gcr.io/your_docker_image
   # Run workload create with the same image.
-  python3 xpk/xpk.py workload create --cluster xpk-test \
+  python3 xpk.py workload create --cluster xpk-test \
   --workload xpk-test-workload-base-image --command "bash test.sh" \
   --tpu-type=v5litepod-16 --num-slices=1 --docker-image=gcr.io/your_docker_image
   ```
@@ -245,5 +245,5 @@ Please select a CPU type that exists in all zones in the region.
 # Find CPU Types supported in zones.
 gcloud compute machine-types list --zones=$ZONE_LIST
 # Adjust default cpu machine type.
-python3 xpk/xpk.py cluster create --cluster-cpu-machine-type=CPU_TYPE ...
+python3 xpk.py cluster create --cluster-cpu-machine-type=CPU_TYPE ...
 ```

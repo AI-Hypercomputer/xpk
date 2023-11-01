@@ -17,26 +17,18 @@
 r"""xpk (Accelerated Processing Kit).
 
 Next Steps:
-- Better workload view. Cleaner messaging and option to hide done jobs, etc.
-  - Carefully documented as Job View
-- Attach the submitter's name to the job and visualize it in workload list.
 - Cluster describe is broken by Cacheimage since that counts as a workload.
 - Cluster describe: count by jobset.
 - If any instance goes down, bring down the whole job.
-- Add preemption.
 - How to more gracefully handle job failures, distinguishing between software
   and infra?
-- Migrate MaxText's code copy as an option into workload create.
 - Look into --docker-name and --docker-image.
   Shouldn't one string be adequate to express what we want?
 - Apply learnings from about private, region, coredns, etc:
 - Enable special preheater
-- Create Open Source repo for xpk]
 - Make Argparse logic this a function?
   - Obvious logic that starts in main instead of here in code but args will
     not be a universal argument.
-- Change user facing names to be in terms of v5e instead of v5litepod when
-  supported internally.
 """
 
 import argparse

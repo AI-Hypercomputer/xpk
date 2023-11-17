@@ -36,6 +36,13 @@ return the hardware back to the shared pool when they complete, developers can
 achieve better use of finite hardware resources. And automated tests can run
 overnight while resources tend to be underutilized.
 
+# Installation
+To install xpk, run the following command:
+
+```shell
+pip install xpk
+```
+
 # XPK for Large Scale (>1k VMs)
 
 Follow user instructions in [xpk-large-scale-guide.sh](xpk-large-scale-guide.sh)

@@ -1112,7 +1112,7 @@ def set_jobset_on_cluster(args) -> int:
       ' `PROJECT_ID=my-project-id; CURRENT_GKE_USER=$(gcloud config get account);'
       ' gcloud projects get-iam-policy $PROJECT_ID'
       ' --filter="bindings.members:$CURRENT_GKE_USER"'
-      ' --flatten="bindings[].members"`\n.'
+      ' --flatten="bindings[].members"`.\n'
     )
     return 1
   return 0

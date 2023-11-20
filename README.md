@@ -321,3 +321,27 @@ gcloud compute machine-types list --zones=$ZONE_LIST
 # Adjust default cpu machine type.
 python3 xpk.py cluster create --cluster-cpu-machine-type=CPU_TYPE ...
 ```
+
+## Permission Issues: `requires one of ["permission_name"] permission(s)`.
+
+Check the permissions for users on your project. Go to [iam-admin](https://console.cloud.google.com/iam-admin/) or use gcloud cli:
+
+```shell
+CURRENT_GKE_USER=$(gcloud config get account)
+PROJECT_ID=my-project-id
+gcloud projects get-iam-policy $PROJECT_ID --filter="bindings.members:$CURRENT_GKE_USER" --flatten="bindings[].members"
+```
+
+Add a role for user on your project. Go to [iam-admin](https://console.cloud.google.com/iam-admin/) or use gcloud cli:
+```
+PROJECT_ID=my-project-id
+CURRENT_GKE_USER=$(gcloud config get account)
+ROLE=my-role-needed
+gcloud projects add-iam-policy-binding $PROJECT_ID --member user:$CURRENT_GKE_USER --role=$ROLE
+```
+
+### Roles needed based on permission errors:
+
+* `requires one of ["container.*"] permission(s)`
+
+  Add [Kubernetes Engine Admin](https://cloud.google.com/iam/docs/understanding-roles#kubernetes-engine-roles) to your user.

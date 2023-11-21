@@ -62,22 +62,25 @@ might want to use `Cluster List` or `Workload List` commands. Finally, you can
 cleanup with a `Cluster Delete`.
 
 ## Cluster Create
+
+*   Cluster Create (provision reserved capacity):
+
+    ```shell
+    # Find your reservations
+    gcloud compute reservations list --project=$PROJECT_ID
+    # Run cluster create with reservation
+    python3 xpk.py cluster create \
+    --cluster xpk-test --tpu-type=v5litepod-256 \
+    --num-slices=2 \
+    --reservation=$RESERVATION_ID
+    ```
+
 *   Cluster Create (provision on-demand capacity):
 
     ```shell
     python3 xpk.py cluster create \
     --cluster xpk-test --tpu-type=v5litepod-16 \
-    --num-slices=4
-    ```
-
-
-*   Cluster Create (provision reserved capacity):
-
-    ```shell
-    python3 xpk.py cluster create \
-    --cluster xpk-test --tpu-type=v5litepod-256 \
-    --num-slices=2 \
-    --custom-tpu-nodepool-arguments="--reservation-affinity=specific --reservation=RESERVATION_ID"
+    --num-slices=4 --on-demand
     ```
 
 *   Cluster Create can be called again with the same `--cluster name` to modify

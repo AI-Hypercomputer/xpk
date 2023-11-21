@@ -393,10 +393,12 @@ def run_command_batch(commands, jobname, per_command_name, output_logs):
   children = []
   start_time = datetime.datetime.now()
   for i, command in enumerate(commands):
-    with subprocess.Popen(
-        command, stdout=output_logs[i], stderr=output_logs[i], shell=True
-    ) as task:
-      children.append(task)
+    children.append(
+        # subprocess managed by list pylint: disable=consider-using-with
+        subprocess.Popen(
+            command, stdout=output_logs[i], stderr=output_logs[i], shell=True
+        )
+    )
 
   while True:
     returncodes = [child.poll() for child in children]

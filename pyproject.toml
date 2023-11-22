@@ -32,7 +32,7 @@ keywords = []
 dependencies = []
 
 [project.urls]
-"Homepage" = "https://github.com/google/cloud-tpu-monitoring-debugging"
+"Homepage" = "https://github.com/google/xpk"
 "Bug Tracker" = "https://github.com/google/xpk/issues"
 
 [build-system]

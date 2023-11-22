@@ -63,6 +63,9 @@ cleanup with a `Cluster Delete`.
 
 ## Cluster Create
 
+The cluster created is a regional cluster to enable the GKE control plane across
+all zones.
+
 *   Cluster Create (provision reserved capacity):
 
     ```shell

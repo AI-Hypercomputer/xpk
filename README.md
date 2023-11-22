@@ -321,3 +321,46 @@ gcloud compute machine-types list --zones=$ZONE_LIST
 # Adjust default cpu machine type.
 python3 xpk.py cluster create --cluster-cpu-machine-type=CPU_TYPE ...
 ```
+
+## Permission Issues: `requires one of ["permission_name"] permission(s)`.
+
+1) Determine the role needed based on the permission error:
+
+    ```shell
+    # For example: `requires one of ["container.*"] permission(s)`
+    # Add [Kubernetes Engine Admin](https://cloud.google.com/iam/docs/understanding-roles#kubernetes-engine-roles) to your user.
+    ```
+
+2) Add the role to the user in your project.
+
+    Go to [iam-admin](https://console.cloud.google.com/iam-admin/) or use gcloud cli:
+    ```shell
+    PROJECT_ID=my-project-id
+    CURRENT_GKE_USER=$(gcloud config get account)
+    ROLE=roles/container.admin  # container.admin is the role needed for Kubernetes Engine Admin
+    gcloud projects add-iam-policy-binding $PROJECT_ID --member user:$CURRENT_GKE_USER --role=$ROLE
+    ```
+
+3) Check the permissions are correct for the users.
+
+    Go to [iam-admin](https://console.cloud.google.com/iam-admin/) or use gcloud cli:
+
+    ```shell
+    PROJECT_ID=my-project-id
+    CURRENT_GKE_USER=$(gcloud config get account)
+    gcloud projects get-iam-policy $PROJECT_ID --filter="bindings.members:$CURRENT_GKE_USER" --flatten="bindings[].members"
+    ```
+
+4) Confirm you have logged in locally with the correct user.
+
+    ```shell
+    gcloud auth login
+    ```
+
+
+
+### Roles needed based on permission errors:
+
+* `requires one of ["container.*"] permission(s)`
+
+  Add [Kubernetes Engine Admin](https://cloud.google.com/iam/docs/understanding-roles#kubernetes-engine-roles) to your user.

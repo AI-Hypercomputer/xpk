@@ -1096,6 +1096,13 @@ def set_jobset_on_cluster(args) -> int:
         'jobset command on server side returned with ERROR returncode'
         f' {return_code}.\n'
     )
+    xpk_print(
+      'This likely means you\'re missing Kubernetes Permissions, you can'
+      ' validate this by checking if the error references permission'
+      ' problems such as `requires one of ["container.*"] permission(s)`.'
+      ' Follow our readme: https://github.com/google/xpk/blob/main/README.md#troubleshooting'
+      ' for instructions on how to fix these permissions.'
+    )
     return 1
   return 0
 

@@ -1005,7 +1005,7 @@ def set_cluster_command(args) -> int:
   command = (
       'gcloud container clusters get-credentials'
       f' {args.cluster} --region={zone_to_region(args.zone)} --project={args.project} &&'
-      ' kubectl config view'
+      ' kubectl config view && kubectl config set-context --current --namespace=default'
   )
   return_code = run_command_with_updates(
       command, 'Set Cluster', args, verbose=False
@@ -1558,7 +1558,7 @@ def workload_create(args) -> int:
                                            docker_image=docker_image,
                                            command=command)
   tmp = write_temporary_file(yml_string)
-  command = f'kubectl apply -f {str(tmp.file.name)} --namespace=default'
+  command = f'kubectl apply -f {str(tmp.file.name)}'
 
   return_code = run_command_with_updates(command, 'Creating Workload', args)
 
@@ -1591,7 +1591,7 @@ def workload_delete(args) -> int:
 
   yml_string = workload_delete_yaml.format(args=args)
   tmp = write_temporary_file(yml_string)
-  command = f'kubectl delete -f {str(tmp.file.name)}  --namespace=default'
+  command = f'kubectl delete -f {str(tmp.file.name)}'
   return_code = run_command_with_updates(command, 'Delete Workload', args)
 
   if return_code != 0:

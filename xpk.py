@@ -1100,19 +1100,8 @@ def set_jobset_on_cluster(args) -> int:
       'This likely means you\'re missing Kubernetes Permissions, you can'
       ' validate this by checking if the error references permission'
       ' problems such as `requires one of ["container.*"] permission(s)`.'
-      ' Users fix this permission issue by applying the role '
-      ' `Kubernetes Engine Admin` in https://console.cloud.google.com/iam-admin/'
-      ' Run the following command to add this permission to your current user:\n\n'
-      ' `PROJECT_ID=my-project-id; CURRENT_GKE_USER=$(gcloud config get account);'
-      ' gcloud projects add-iam-policy-binding $PROJECT_ID'
-      ' --member user:$CURRENT_GKE_USER --role=roles/container.admin`\n'
-      ' \nIf you see other missing permissions, please add the correct role to'
-      ' your user. Then remember to `gcloud auth login` and make sure you have'
-      ' the right permissions by running:\n\n'
-      ' `PROJECT_ID=my-project-id; CURRENT_GKE_USER=$(gcloud config get account);'
-      ' gcloud projects get-iam-policy $PROJECT_ID'
-      ' --filter="bindings.members:$CURRENT_GKE_USER"'
-      ' --flatten="bindings[].members"`.\n'
+      ' Follow our readme: https://github.com/google/xpk/blob/main/README.md#troubleshooting'
+      ' for instructions on how to fix these permissions.'
     )
     return 1
   return 0

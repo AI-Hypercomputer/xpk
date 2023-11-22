@@ -1559,7 +1559,7 @@ def workload_create(args) -> int:
                                            command=command)
   tmp = write_temporary_file(yml_string)
   namespace_arg = ''
-  if (args.namespace):
+  if args.namespace:
     namespace_arg = f'--namespace={args.namespace}'
   command = f'kubectl apply -f {str(tmp.file.name)} {namespace_arg}'
 
@@ -1595,7 +1595,7 @@ def workload_delete(args) -> int:
   yml_string = workload_delete_yaml.format(args=args)
   tmp = write_temporary_file(yml_string)
   namespace_arg = ''
-  if (args.namespace):
+  if args.namespace:
     namespace_arg = f'--namespace={args.namespace}'
   command = f'kubectl delete -f {str(tmp.file.name)}  {namespace_arg}'
   return_code = run_command_with_updates(command, 'Delete Workload', args)

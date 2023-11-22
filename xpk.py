@@ -1558,10 +1558,7 @@ def workload_create(args) -> int:
                                            docker_image=docker_image,
                                            command=command)
   tmp = write_temporary_file(yml_string)
-  namespace_arg = ''
-  if args.namespace:
-    namespace_arg = f'--namespace={args.namespace}'
-  command = f'kubectl apply -f {str(tmp.file.name)} {namespace_arg}'
+  command = f'kubectl apply -f {str(tmp.file.name)} --namespace=default'
 
   return_code = run_command_with_updates(command, 'Creating Workload', args)
 
@@ -1594,10 +1591,7 @@ def workload_delete(args) -> int:
 
   yml_string = workload_delete_yaml.format(args=args)
   tmp = write_temporary_file(yml_string)
-  namespace_arg = ''
-  if args.namespace:
-    namespace_arg = f'--namespace={args.namespace}'
-  command = f'kubectl delete -f {str(tmp.file.name)}  {namespace_arg}'
+  command = f'kubectl delete -f {str(tmp.file.name)}  --namespace=default'
   return_code = run_command_with_updates(command, 'Delete Workload', args)
 
   if return_code != 0:
@@ -2210,14 +2204,6 @@ workload_create_parser_optional_arguments.add_argument(
     ),
 )
 workload_create_parser_optional_arguments.add_argument(
-    '--namespace',
-    type=str,
-    default='',
-    help=(
-        'Set the kubernetes namespace that the job will be applied to.'
-    ),
-)
-workload_create_parser_optional_arguments.add_argument(
     '--debug-dump-gcs',
     type=str,
     default=None,
@@ -2260,16 +2246,6 @@ workload_delete_parser_required_arguments.add_argument(
     default=None,
     help='The name of the cluster to delete the job on.',
     required=True,
-)
-
-### Optional Arguments
-workload_delete_parser_optional_arguments.add_argument(
-    '--namespace',
-    type=str,
-    default='',
-    help=(
-        'Set the kubernetes namespace that the job will be applied to.'
-    ),
 )
 
 workload_delete_parser.set_defaults(func=workload_delete)

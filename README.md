@@ -337,7 +337,7 @@ python3 xpk.py cluster create --cluster-cpu-machine-type=CPU_TYPE ...
     ```shell
     PROJECT_ID=my-project-id
     CURRENT_GKE_USER=$(gcloud config get account)
-    ROLE=my-role-needed
+    ROLE=roles/container.admin  # container.admin is the role needed for Kubernetes Engine Admin
     gcloud projects add-iam-policy-binding $PROJECT_ID --member user:$CURRENT_GKE_USER --role=$ROLE
     ```
 

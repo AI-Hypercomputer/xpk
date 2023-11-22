@@ -775,6 +775,76 @@ def get_all_nodepools_programmatic(args) -> tuple[list[str], int]:
   return all_nodepools, 0
 
 
+def print_reservations(args) -> int:
+  """Print the reservations in the project.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  command = (
+        f'gcloud compute reservations list --project={args.project}'
+    )
+  return_code = (
+      run_command_with_updates(
+          command, 'Get all reservations in the project', args)
+  )
+  if return_code != 0:
+    xpk_print(f'Get all reservations returned ERROR {return_code}')
+    return 1
+  return 0
+
+
+def get_capacity_arguments(args) -> tuple[str, int]:
+  """Determine the TPU Nodepool creation capacity arguments needed.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    Tuple with string with the capacity argument to use and
+    int of 0 if successful and 1 otherwise.
+  """
+  capacity_args = ""
+  num_types = 0
+  return_code = 0
+
+  # Determine the capacity argument.
+  if args.on_demand:
+    capacity_args = ""
+    num_types+=1
+  if args.reservation:
+    capacity_args = (
+      f'--reservation-affinity=specific --reservation={args.reservation}'
+    )
+    num_types+=1
+  if args.spot:
+    capacity_args = "--spot"
+    num_types+=1
+
+  # Check that the number of arguments provided is valid.
+  if num_types == 0:
+    return_code = print_reservations(args)
+    xpk_print(
+      'ERROR: User needs to provide the capacity type. Please specify one of'
+      ' the following `--reservation=$RESERVATION_NAME`, `--on-demand`'
+      ' or `--spot`. See the above list of reservations to choose from.'
+    )
+    if return_code > 0:
+      xpk_print('Listing all reservations failed!')
+    return_code = 1
+  elif num_types != 1:
+    xpk_print(
+      'ERROR: User specified more than one of the following arguments. Please'
+      ' specify only one of `--reservation=$RESERVATION_NAME`, `--on-demand`'
+      ' or `--spot`.'
+    )
+    return_code = 1
+
+  return capacity_args, return_code
+
 def run_gke_node_pool_create_command(args, system_characteristics) -> int:
   """Run the Create GKE Node Pool request.
 
@@ -799,6 +869,11 @@ def run_gke_node_pool_create_command(args, system_characteristics) -> int:
       f'{args.cluster}-np-{slice_num}' for slice_num in range(args.num_slices)
   ]
 
+  capacity_args, return_code = get_capacity_arguments(args)
+  if return_code > 0:
+    xpk_print('Parsing capacity arguments failed!')
+    return return_code
+
   commands = []
   task_names = []
   for node_pool_name in desired_node_pool_names:
@@ -814,6 +889,7 @@ def run_gke_node_pool_create_command(args, system_characteristics) -> int:
         f' --machine-type={system_characteristics.gce_machine_type}'
         f' --tpu-topology={system_characteristics.topology}'
         f' --host-maintenance-interval={args.host_maintenance_interval}'
+        f' {capacity_args}'
         ' --scopes=storage-full,gke-default'
         ' --enable-gvnic --max-pods-per-node 15'
         f' {args.custom_tpu_nodepool_arguments}'
@@ -1719,6 +1795,9 @@ cluster_create_required_arguments = cluster_create_parser.add_argument_group(
 cluster_create_optional_arguments = cluster_create_parser.add_argument_group(
     'Optional Arguments', 'Arguments optional for cluster create.'
 )
+cluster_create_capacity_arguments = cluster_create_parser.add_argument_group(
+    'Capacity Arguments', 'Arguments related to capacity for cluster create.'
+)
 
 ### Required arguments.
 cluster_create_required_arguments.add_argument(
@@ -1737,6 +1816,33 @@ cluster_create_required_arguments.add_argument(
     default='v5litepod-16',
     help='The type of the TPU. v5litepod and v4 are the only supported types.',
     required=True,
+)
+
+# Capacity Arguments
+cluster_create_capacity_arguments.add_argument(
+    '--on-demand',
+    action='store_true',
+    help=(
+        'Sets node pool creation to use on-demand resources. '
+        ' See `--reservation` or `--spot` for other capacity types.'
+    ),
+)
+cluster_create_capacity_arguments.add_argument(
+    '--reservation',
+    type=str,
+    help=(
+        'The reservation to be used for acquiring resources in the'
+        ' cluster. This will attempt to find the provided reservation.'
+        ' See `--spot` or `--on-demand` for other capacity types.'
+    ),
+)
+cluster_create_capacity_arguments.add_argument(
+    '--spot',
+    action='store_true',
+    help=(
+        'Sets node pool creation to use spot resources.'
+        ' See `--reservation` or `--on-demand` for other capacity types.'
+    ),
 )
 
 ### Optional Arguments

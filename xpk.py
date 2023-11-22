@@ -698,11 +698,13 @@ def run_gke_cluster_create_command(args) -> int:
     0 if successful and 1 otherwise.
   """
 
-  # Create the cluster.
+  # Create the regional cluster with one CPU nodepool in the requested zone.
+  # Set the number of cpu nodes to start a 1 and auto-scale to fit the need.
   command = (
       'gcloud beta container clusters create'
-      f' {args.cluster} --release-channel rapid  --enable-autoscaling'
-      ' --max-nodes 1000 --min-nodes 5'
+      f' {args.cluster} --release-channel rapid --enable-autoscaling'
+      f' --max-nodes 1000 --min-nodes 1 --node-locations={args.zone}'
+      ' --num-nodes=1'
       f' --project={args.project} --region={zone_to_region(args.zone)}'
       f' --cluster-version={args.gke_version} --location-policy=BALANCED'
       f' --machine-type={args.cluster_cpu_machine_type}'
@@ -1005,7 +1007,7 @@ def set_cluster_command(args) -> int:
   command = (
       'gcloud container clusters get-credentials'
       f' {args.cluster} --region={zone_to_region(args.zone)} --project={args.project} &&'
-      ' kubectl config view'
+      ' kubectl config view && kubectl config set-context --current --namespace=default'
   )
   return_code = run_command_with_updates(
       command, 'Set Cluster', args, verbose=False
@@ -1097,6 +1099,13 @@ def set_jobset_on_cluster(args) -> int:
     xpk_print(
         'jobset command on server side returned with ERROR returncode'
         f' {return_code}.\n'
+    )
+    xpk_print(
+      'This likely means you\'re missing Kubernetes Permissions, you can'
+      ' validate this by checking if the error references permission'
+      ' problems such as `requires one of ["container.*"] permission(s)`.'
+      ' Follow our readme: https://github.com/google/xpk/blob/main/README.md#troubleshooting'
+      ' for instructions on how to fix these permissions.'
     )
     return 1
   return 0
@@ -1874,7 +1883,7 @@ cluster_create_optional_arguments.add_argument(
 cluster_create_optional_arguments.add_argument(
   '--cluster-cpu-machine-type',
     type=str,
-    default='e2-standard-32',
+    default='e2-standard-4',
     help=(
       'Set the machine tpu within the default cpu node pool. For zonal '
       'clusters, make sure that the zone supports the machine type, and for '

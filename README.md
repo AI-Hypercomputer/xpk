@@ -94,7 +94,7 @@ all zones.
     ```shell
     python3 xpk.py cluster create \
     --cluster xpk-test --tpu-type=v5litepod-16 \
-    --num-slices=4  --on-demand
+    --num-slices=4  --reservation=$RESERVATION_ID
     ```
 
     and recreates the cluster with 8 slices. The command will rerun to create 4
@@ -103,7 +103,7 @@ all zones.
     ```shell
     python3 xpk.py cluster create \
     --cluster xpk-test --tpu-type=v5litepod-16 \
-    --num-slices=8  --on-demand
+    --num-slices=8  --reservation=$RESERVATION_ID
     ```
 
     and recreates the cluster with 6 slices. The command will rerun to delete 2
@@ -113,13 +113,13 @@ all zones.
     ```shell
     python3 xpk.py cluster create \
     --cluster xpk-test --tpu-type=v5litepod-16 \
-    --num-slices=6  --on-demand
+    --num-slices=6  --reservation=$RESERVATION_ID
 
     # Skip delete prompts using --force.
 
     python3 xpk.py cluster create --force \
     --cluster xpk-test --tpu-type=v5litepod-16 \
-    --num-slices=6  --on-demand
+    --num-slices=6  --reservation=$RESERVATION_ID
 
     ```
 ## Cluster Delete
@@ -162,11 +162,11 @@ all zones.
 
 ### Set `max-restarts` for production jobs
 
-* `--max-restarts <value>`: By default, this is 0. This will restart the job N times
-when the job terminates. For production jobs, it is recommended to increase
-`<value>` to 50. Real jobs can be interrupted due to hardware failures and
-software updates. This works with checkpoints to restart your job where it last
-left off.
+* `--max-restarts <value>`: By default, this is 0. This will restart the job ""
+times when the job terminates. For production jobs, it is recommended to
+increase this to a large number, say 50. Real jobs can be interrupted due to
+hardware failures and software updates. We assume your job has implemented
+checkpointing so the job restarts near where it was interrupted.
 
 ### Workload Priority and Preemption
 * Set the priority level of your workload with `--priority=LEVEL`

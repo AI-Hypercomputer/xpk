@@ -256,19 +256,19 @@ IF YOU MODIFY THE BELOW UserFacingNameToSystemCharacteristics MAP YOU SHOULD ALS
 MODIFICATIONS TO UserFacingNameToSystemCharacteristics IN MaxText/accelerator_to_spec_map.py !!!!! """
 # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 UserFacingNameToSystemCharacteristics = {
-    'v5litepod-16': SystemCharacteristics(
+    'v5e-16': SystemCharacteristics(
         '4x4', 4, 'tpu-v5-lite-podslice', 'ct5lp-hightpu-4t', 4
     ),
-    'v5litepod-32': SystemCharacteristics(
+    'v5e-32': SystemCharacteristics(
         '4x8', 8, 'tpu-v5-lite-podslice', 'ct5lp-hightpu-4t', 4
     ),
-    'v5litepod-64': SystemCharacteristics(
+    'v5e-64': SystemCharacteristics(
         '8x8', 16, 'tpu-v5-lite-podslice', 'ct5lp-hightpu-4t', 4
     ),
-    'v5litepod-128': SystemCharacteristics(
+    'v5e-128': SystemCharacteristics(
         '8x16', 32, 'tpu-v5-lite-podslice', 'ct5lp-hightpu-4t', 4
     ),
-    'v5litepod-256': SystemCharacteristics(
+    'v5e-256': SystemCharacteristics(
         '16x16', 64, 'tpu-v5-lite-podslice', 'ct5lp-hightpu-4t', 4
     ),
     'v4-8': SystemCharacteristics(
@@ -1128,6 +1128,25 @@ def default_subcommand_function(_args) -> int:  # args is unused, so pylint: dis
   return 0
 
 
+def exit_if_v5litepod_found(args):
+  """Depreciation error for v5litepod term.
+
+  Args:
+    args: user provided arguments for running the command.
+  """
+  depreciated_tpu_type = 'v5litepod'
+  replaced_tpu_type = 'v5e'
+  if args.tpu_type.startswith(depreciated_tpu_type):
+    new_tpu_type = args.tpu_type.replace(depreciated_tpu_type, replaced_tpu_type)
+    xpk_print(
+      f'Error: `{depreciated_tpu_type}` is depreciated. Please use'
+      f' `{replaced_tpu_type}` instead. User provided'
+      f' `--tpu-type={args.tpu_type}` which should be'
+      f' `--tpu-type={new_tpu_type}.`'
+    )
+    xpk_exit(1)
+
+
 def cluster_create(args) -> int:
   """Function around cluster creation.
 
@@ -1137,6 +1156,7 @@ def cluster_create(args) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
+  exit_if_v5litepod_found(args)
   system_characteristics = UserFacingNameToSystemCharacteristics[args.tpu_type]
 
   xpk_print(f'Starting cluster create for cluster {args.cluster}:', flush=True)
@@ -1543,6 +1563,7 @@ def workload_create(args) -> int:
     xpk_exit(1)
 
   xpk_print('Starting workload create', flush=True)
+  exit_if_v5litepod_found(args)
   system = UserFacingNameToSystemCharacteristics[args.tpu_type]
 
   setup_docker_image_code, docker_image = setup_docker_image(args)
@@ -1824,8 +1845,8 @@ cluster_create_required_arguments.add_argument(
 cluster_create_required_arguments.add_argument(
     '--tpu-type',
     type=str,
-    default='v5litepod-16',
-    help='The type of the TPU. v5litepod and v4 are the only supported types.',
+    default='v5e-16',
+    help='The type of the TPU.',
     required=True,
 )
 
@@ -2106,7 +2127,7 @@ workload_create_parser_required_arguments.add_argument(
     '--tpu-type',
     type=str,
     default=None,
-    help='The tpu type to use, v5litepod-16, etc.',
+    help='The tpu type to use, v5e-16, etc.',
     required=True,
 )
 workload_create_parser_required_arguments.add_argument(

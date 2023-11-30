@@ -36,6 +36,10 @@ return the hardware back to the shared pool when they complete, developers can
 achieve better use of finite hardware resources. And automated tests can run
 overnight while resources tend to be underutilized.
 
+## Supported TPU Types:
+* v5e
+* v4
+
 # Installation
 To install xpk, run the following command:
 
@@ -73,7 +77,7 @@ all zones.
     gcloud compute reservations list --project=$PROJECT_ID
     # Run cluster create with reservation
     python3 xpk.py cluster create \
-    --cluster xpk-test --tpu-type=v5litepod-256 \
+    --cluster xpk-test --tpu-type=v5e-256 \
     --num-slices=2 \
     --reservation=$RESERVATION_ID
     ```
@@ -82,7 +86,7 @@ all zones.
 
     ```shell
     python3 xpk.py cluster create \
-    --cluster xpk-test --tpu-type=v5litepod-16 \
+    --cluster xpk-test --tpu-type=v5e-16 \
     --num-slices=4 --on-demand
     ```
 
@@ -93,7 +97,7 @@ all zones.
 
     ```shell
     python3 xpk.py cluster create \
-    --cluster xpk-test --tpu-type=v5litepod-16 \
+    --cluster xpk-test --tpu-type=v5e-16 \
     --num-slices=4
     ```
 
@@ -102,7 +106,7 @@ all zones.
 
     ```shell
     python3 xpk.py cluster create \
-    --cluster xpk-test --tpu-type=v5litepod-16 \
+    --cluster xpk-test --tpu-type=v5e-16 \
     --num-slices=8
     ```
 
@@ -112,13 +116,13 @@ all zones.
 
     ```shell
     python3 xpk.py cluster create \
-    --cluster xpk-test --tpu-type=v5litepod-16 \
+    --cluster xpk-test --tpu-type=v5e-16 \
     --num-slices=6
 
     # Skip delete prompts using --force.
 
     python3 xpk.py cluster create --force \
-    --cluster xpk-test --tpu-type=v5litepod-16 \
+    --cluster xpk-test --tpu-type=v5e-16 \
     --num-slices=6
 
     ```
@@ -157,7 +161,7 @@ all zones.
     ```shell
     python3 xpk.py workload create \
     --workload xpk-test-workload --command "echo goodbye" --cluster \
-    xpk-test --tpu-type=v5litepod-16
+    xpk-test --tpu-type=v5e-16
     ```
 
 ### Workload Priority and Preemption
@@ -182,7 +186,7 @@ all zones.
   ```shell
   python3 xpk.py workload create \
   --workload xpk-test-medium-workload --command "echo goodbye" --cluster \
-  xpk-test --tpu-type=v5litepod-16 --priority=medium
+  xpk-test --tpu-type=v5e-16 --priority=medium
   ```
 
 ## Workload Delete
@@ -259,7 +263,7 @@ This flow pulls the `--script-dir` into the `--base-docker-image` and runs the n
   echo -e '#!/bin/bash \n echo "Hello world from a test script!"' > test.sh
   python3 xpk.py workload create --cluster xpk-test \
   --workload xpk-test-workload-base-image --command "bash test.sh" \
-  --tpu-type=v5litepod-16 --num-slices=1
+  --tpu-type=v5e-16 --num-slices=1
   ```
 
 * Recommended Flow For Normal Sized Jobs (fewer than 10k accelerators):
@@ -267,7 +271,7 @@ This flow pulls the `--script-dir` into the `--base-docker-image` and runs the n
   python3 xpk.py workload create --cluster xpk-test \
   --workload xpk-test-workload-base-image --command "bash custom_script.sh" \
   --base-docker-image=gcr.io/your_dependencies_docker_image \
-  --tpu-type=v5litepod-16 --num-slices=1
+  --tpu-type=v5e-16 --num-slices=1
   ```
 
 ## Optional Direct Docker Image Configuration: `--docker-image`
@@ -279,7 +283,7 @@ workload.
   ```shell
   python3 xpk.py workload create --cluster xpk-test \
   --workload xpk-test-workload-base-image --command "bash test.sh" \
-  --tpu-type=v5litepod-16 --num-slices=1 --docker-image=gcr.io/your_docker_image
+  --tpu-type=v5e-16 --num-slices=1 --docker-image=gcr.io/your_docker_image
   ```
 
 * Recommended Flow For Large Sized Jobs (more than 10k accelerators):
@@ -289,7 +293,7 @@ workload.
   # Run workload create with the same image.
   python3 xpk.py workload create --cluster xpk-test \
   --workload xpk-test-workload-base-image --command "bash test.sh" \
-  --tpu-type=v5litepod-16 --num-slices=1 --docker-image=gcr.io/your_docker_image
+  --tpu-type=v5e-16 --num-slices=1 --docker-image=gcr.io/your_docker_image
   ```
 
 # More advanced facts:

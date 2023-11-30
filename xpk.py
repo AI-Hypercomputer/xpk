@@ -1619,13 +1619,13 @@ def workload_create(args) -> int:
   if args.debug_dump_gcs:
     command += ('; WORKER_ID=$HOSTNAME;'
                 f'gsutil cp -r /tmp/xla_dump/ {args.debug_dump_gcs}/$WORKER_ID')
-
+  
   if args.deploy_stacktrace_sidecar == 'true':
     xpk_print('Sidecar container to display stack traces will also be deployed.')
     container = get_main_and_sidecar_container(args, system, docker_image, command)
   else:
     container = get_main_container(args, system, docker_image, command)
-
+  
   yml_string = workload_create_yaml.format(args=args,
                                            system=system,
                                            docker_image=docker_image,

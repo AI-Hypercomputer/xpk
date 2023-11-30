@@ -97,6 +97,7 @@ spec:
               dnsPolicy: ClusterFirstWithHostNet
               containers:
               {container}
+              {container}
 """
 
 workload_delete_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2

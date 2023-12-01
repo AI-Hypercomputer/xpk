@@ -187,7 +187,7 @@ all zones.
 
 ### Workload Debugging
 #### Collect Stack Traces
-`cloud-tpu-diagnostics` PyPI package can be used to generate stack traces for workloads running in GKE. This package dumps the Python traces when a fault such as segmentation fault, floating-point exception, or illegal operation exception occurs in the program. Additionally, it will also periodically collect stack traces to help you debug situations when the program is unresponsive. You must make the following changes in the docker image running in a Kubernetes main container.
+[cloud-tpu-diagnostics](https://pypi.org/project/cloud-tpu-diagnostics/) PyPI package can be used to generate stack traces for workloads running in GKE. This package dumps the Python traces when a fault such as segmentation fault, floating-point exception, or illegal operation exception occurs in the program. Additionally, it will also periodically collect stack traces to help you debug situations when the program is unresponsive. You must make the following changes in the docker image running in a Kubernetes main container to enable periodic stack trace collection.
 ```shell
 # main.py
 
@@ -214,7 +214,7 @@ To explore the stack traces collected in a temporary directory in Kubernetes Pod
  ```shell
  python3 xpk.py workload create \
   --workload xpk-test-workload --command "python3 main.py" --cluster \
-  xpk-test --tpu-type=v5litepod-16 --deploy-stacktrace-sidecar=true
+  xpk-test --tpu-type=v5litepod-16 --deploy-stacktrace-sidecar
  ```
 
 ## Workload Delete

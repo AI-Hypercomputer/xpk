@@ -1514,6 +1514,7 @@ def get_main_and_sidecar_container(args, system, docker_image, command) -> str:
     str:
       yaml for main and sidecar container
   """
+  main_container = get_main_container(args, system, docker_image, command)
   yaml = """- name: stacktrace-explorer
                 image: busybox:1.28
                 args: [/bin/sh, -c, "while [ ! -d /tmp/debugging ]; do sleep 60; done; while [ ! -e /tmp/debugging/* ]; do sleep 60; done; tail -n+1 -f /tmp/debugging/*"]
@@ -1521,32 +1522,18 @@ def get_main_and_sidecar_container(args, system, docker_image, command) -> str:
                 - name: tpu-stack-trace
                   readOnly: true
                   mountPath: /tmp/debugging
-              - name: {args.docker_name}
-                image: {docker_image}
-                env: {args.env}
-                ports:
-                - containerPort: 8471
-                - containerPort: 8080
-                securityContext:
-                  privileged: true
-                command:
-                - bash
-                - -c
-                - |
-                  echo XPK Start: $(date) ; {command} ; EXIT_CODE=$? ; echo XPK End: $(date); echo EXIT_CODE=$EXIT_CODE ; sleep 5; exit $EXIT_CODE
+              {main_container}
                 volumeMounts:
                 - name: tpu-stack-trace
                   mountPath: /tmp/debugging
-                resources:
-                  limits:
-                    google.com/tpu: {system.chips_per_vm}
               volumes:
               - name: tpu-stack-trace
   """
   return yaml.format(args=args,
                    system=system,
                    docker_image=docker_image,
-                   command=command)
+                   command=command,
+                   main_container=main_container)
 
 def get_main_container(args, system, docker_image, command) -> str:
   """Generate yaml for main container.
@@ -1619,7 +1606,7 @@ def workload_create(args) -> int:
     command += ('; WORKER_ID=$HOSTNAME;'
                 f'gsutil cp -r /tmp/xla_dump/ {args.debug_dump_gcs}/$WORKER_ID')
 
-  if args.deploy_stacktrace_sidecar == 'true':
+  if args.deploy_stacktrace_sidecar:
     xpk_print('Sidecar container to display stack traces will also be deployed.')
     container = get_main_and_sidecar_container(args, system, docker_image, command)
   else:
@@ -2288,11 +2275,10 @@ workload_create_parser_optional_arguments.add_argument(
 
 workload_create_parser_optional_arguments.add_argument(
     '--deploy-stacktrace-sidecar',
-    type=str,
-    default='false',
+    action='store_true',
     help=(
-        'Set this to true to deploy a sidecar container that will read '
-        'the stack traces collected in /tmp/debugging directory.'
+        'Add this argument to deploy a sidecar container that will '
+        'read the stack traces collected in /tmp/debugging directory.'
     ),
 )
 

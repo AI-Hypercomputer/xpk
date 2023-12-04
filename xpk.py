@@ -698,14 +698,15 @@ def run_gke_cluster_create_command(args) -> int:
     0 if successful and 1 otherwise.
   """
 
-  # Create the regional cluster with `num-nodes` CPU nodes in each zones.
-  # This multi-zone setup provides the best performance for creating the cluster
-  # and TPU nodepools. After the cluster is created, the auto-scaler can
-  # reduce/increase the nodes based on the load.
+  # Create the regional cluster with `num-nodes` CPU nodes in the same zone as
+  # TPUs. This has been tested with clusters of 300 VMs. Larger clusters will
+  # benefit from a larger initial `--num-nodes`. After the cluster is created,
+  # the auto-scaler can reduce/increase the nodes based on the load.
   command = (
       'gcloud beta container clusters create'
       f' {args.cluster} --release-channel rapid --enable-autoscaling'
-      ' --total-min-nodes 1 --total-max-nodes 1000 --num-nodes 2'
+      ' --total-min-nodes 1 --total-max-nodes 1000 --num-nodes 6'
+      f' --node-locations={args.zone}'
       f' --project={args.project} --region={zone_to_region(args.zone)}'
       f' --cluster-version={args.gke_version} --location-policy=BALANCED'
       f' --machine-type={args.cluster_cpu_machine_type}'
@@ -1886,9 +1887,8 @@ cluster_create_optional_arguments.add_argument(
     type=str,
     default='e2-standard-16',
     help=(
-      'Set the machine tpu within the default cpu node pool. For zonal '
-      'clusters, make sure that the zone supports the machine type, and for '
-      'regional clusters, all zones in the region supports the machine type.'
+      'Set the machine tpu within the default cpu node pool. For'
+      ' regional clusters, all zones must support the machine type.'
     )
 )
 cluster_create_optional_arguments.add_argument(

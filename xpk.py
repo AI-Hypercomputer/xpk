@@ -791,7 +791,7 @@ def print_reservations(args) -> int:
     0 if successful and 1 otherwise.
   """
   command = (
-        f'gcloud compute reservations list --project={args.project}'
+        f'gcloud beta compute reservations list --project={args.project}'
     )
   return_code = (
       run_command_with_updates(
@@ -799,6 +799,30 @@ def print_reservations(args) -> int:
   )
   if return_code != 0:
     xpk_print(f'Get all reservations returned ERROR {return_code}')
+    return 1
+  return 0
+
+
+def verify_reservation_exists(args) -> int:
+  """Verify the reservation exists.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  command = (
+        f'gcloud beta compute reservations describe {args.reservation}'
+        f' --project={args.project} --zone={args.zone}'
+    )
+  return_code = (
+      run_command_with_updates(
+          command, 'Describe reservation', args)
+  )
+  if return_code != 0:
+    xpk_print(f'Describe reservation returned ERROR {return_code}')
+    xpk_print('Please confirm that your reservation name is correct.')
     return 1
   return 0
 
@@ -822,6 +846,9 @@ def get_capacity_arguments(args) -> tuple[str, int]:
     capacity_args = ""
     num_types+=1
   if args.reservation:
+    return_code = verify_reservation_exists(args)
+    if return_code > 0:
+      return capacity_args, return_code
     capacity_args = (
       f'--reservation-affinity=specific --reservation={args.reservation}'
     )

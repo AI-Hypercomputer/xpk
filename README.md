@@ -99,6 +99,14 @@ all zones.
     --num-slices=4 --on-demand
     ```
 
+*   Cluster Create (provision spot / preemptable capacity):
+
+    ```shell
+    python3 xpk.py cluster create \
+    --cluster xpk-test --tpu-type=v5litepod-16 \
+    --num-slices=4 --spot
+    ```
+
 *   Cluster Create can be called again with the same `--cluster name` to modify
     the number of slices or retry failed steps.
 
@@ -391,7 +399,7 @@ python3 xpk.py cluster create --cluster-cpu-machine-type=CPU_TYPE ...
 
 ## Reservation Troubleshooting:
 
-### How to determine your reservation and current utilization:
+### How to determine your reservation and its size / utilization:
 
 ```shell
 PROJECT_ID=my-project

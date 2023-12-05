@@ -63,6 +63,19 @@ cleanup with a `Cluster Delete`.
 
 ## Cluster Create
 
+First set the project and zone through gcloud config or xpk arguments.
+
+```shell
+PROJECT_ID=my-project-id
+ZONE=us-east5-b
+# gcloud config:
+gcloud config set project $PROJECT_ID
+gcloud config set compute/zone $ZONE
+# xpk arguments
+xpk .. --zone $ZONE --project $PROJECT_ID
+```
+
+
 The cluster created is a regional cluster to enable the GKE control plane across
 all zones.
 
@@ -71,7 +84,7 @@ all zones.
     ```shell
     # Find your reservations
     gcloud compute reservations list --project=$PROJECT_ID
-    # Run cluster create with reservation
+    # Run cluster create with reservation.
     python3 xpk.py cluster create \
     --cluster xpk-test --tpu-type=v5litepod-256 \
     --num-slices=2 \
@@ -84,6 +97,14 @@ all zones.
     python3 xpk.py cluster create \
     --cluster xpk-test --tpu-type=v5litepod-16 \
     --num-slices=4 --on-demand
+    ```
+
+*   Cluster Create (provision spot / preemptable capacity):
+
+    ```shell
+    python3 xpk.py cluster create \
+    --cluster xpk-test --tpu-type=v5litepod-16 \
+    --num-slices=4 --spot
     ```
 
 *   Cluster Create can be called again with the same `--cluster name` to modify
@@ -375,3 +396,17 @@ python3 xpk.py cluster create --cluster-cpu-machine-type=CPU_TYPE ...
 * `requires one of ["container.*"] permission(s)`
 
   Add [Kubernetes Engine Admin](https://cloud.google.com/iam/docs/understanding-roles#kubernetes-engine-roles) to your user.
+
+## Reservation Troubleshooting:
+
+### How to determine your reservation and its size / utilization:
+
+```shell
+PROJECT_ID=my-project
+ZONE=us-east5-b
+RESERVATION=my-reservation-name
+# Find the reservations in your project
+gcloud beta compute reservations list --project=$PROJECT_ID
+# Find the tpu machine type and current utilization of a reservation.
+gcloud beta compute reservations describe $RESERVATION --project=$PROJECT_ID --zone=$ZONE
+```

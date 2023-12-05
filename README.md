@@ -94,7 +94,7 @@ all zones.
     ```shell
     python3 xpk.py cluster create \
     --cluster xpk-test --tpu-type=v5litepod-16 \
-    --num-slices=4
+    --num-slices=4  --reservation=$RESERVATION_ID
     ```
 
     and recreates the cluster with 8 slices. The command will rerun to create 4
@@ -103,7 +103,7 @@ all zones.
     ```shell
     python3 xpk.py cluster create \
     --cluster xpk-test --tpu-type=v5litepod-16 \
-    --num-slices=8
+    --num-slices=8  --reservation=$RESERVATION_ID
     ```
 
     and recreates the cluster with 6 slices. The command will rerun to delete 2
@@ -113,13 +113,13 @@ all zones.
     ```shell
     python3 xpk.py cluster create \
     --cluster xpk-test --tpu-type=v5litepod-16 \
-    --num-slices=6
+    --num-slices=6  --reservation=$RESERVATION_ID
 
     # Skip delete prompts using --force.
 
     python3 xpk.py cluster create --force \
     --cluster xpk-test --tpu-type=v5litepod-16 \
-    --num-slices=6
+    --num-slices=6  --reservation=$RESERVATION_ID
 
     ```
 ## Cluster Delete
@@ -159,6 +159,14 @@ all zones.
     --workload xpk-test-workload --command "echo goodbye" --cluster \
     xpk-test --tpu-type=v5litepod-16
     ```
+
+### Set `max-restarts` for production jobs
+
+* `--max-restarts <value>`: By default, this is 0. This will restart the job ""
+times when the job terminates. For production jobs, it is recommended to
+increase this to a large number, say 50. Real jobs can be interrupted due to
+hardware failures and software updates. We assume your job has implemented
+checkpointing so the job restarts near where it was interrupted.
 
 ### Workload Priority and Preemption
 * Set the priority level of your workload with `--priority=LEVEL`
@@ -294,13 +302,15 @@ workload.
 
 # More advanced facts:
 
-* Workload create accepts a --docker-name and --docker-image.
-By using custom images you can achieve very fast boots and hence very fast
-feedback.
-
 * Workload create accepts a --env-file flag to allow specifying the container's
 environment from a file. Usage is the same as Docker's
 [--env-file flag](https://docs.docker.com/engine/reference/commandline/run/#env)
+
+    Example File:
+    ```shell
+    LIBTPU_INIT_ARGS=--my-flag=true --performance=high
+    MY_ENV_VAR=hello
+    ```
 
 * Workload create accepts a --debug-dump-gcs flag which is a path to GCS bucket.
 Passing this flag sets the XLA_FLAGS='--xla_dump_to=/tmp/xla_dump/' and uploads
@@ -359,8 +369,6 @@ python3 xpk.py cluster create --cluster-cpu-machine-type=CPU_TYPE ...
     ```shell
     gcloud auth login
     ```
-
-
 
 ### Roles needed based on permission errors:
 

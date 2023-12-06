@@ -65,6 +65,7 @@ if (
 
 default_docker_image = 'python:3.10'
 default_script_dir = os.getcwd()
+default_gke_version="1.28.3-gke.1286000"
 
 workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
@@ -2158,10 +2159,10 @@ cluster_create_optional_arguments.add_argument(
 cluster_create_optional_arguments.add_argument(
     '--gke-version',
     type=str,
-    default='1.27.4-gke.900',
+    default=default_gke_version,
     help=(
         'The GKE version of the cluster and respective clusters. The default is'
-        ' "1.27.4-gke.900".'
+        f' "{default_gke_version}".'
     ),
 )
 cluster_create_optional_arguments.add_argument(

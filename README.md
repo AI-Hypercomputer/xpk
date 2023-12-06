@@ -68,6 +68,19 @@ cleanup with a `Cluster Delete`.
 
 ## Cluster Create
 
+First set the project and zone through gcloud config or xpk arguments.
+
+```shell
+PROJECT_ID=my-project-id
+ZONE=us-east5-b
+# gcloud config:
+gcloud config set project $PROJECT_ID
+gcloud config set compute/zone $ZONE
+# xpk arguments
+xpk .. --zone $ZONE --project $PROJECT_ID
+```
+
+
 The cluster created is a regional cluster to enable the GKE control plane across
 all zones.
 
@@ -76,7 +89,7 @@ all zones.
     ```shell
     # Find your reservations
     gcloud compute reservations list --project=$PROJECT_ID
-    # Run cluster create with reservation
+    # Run cluster create with reservation.
     python3 xpk.py cluster create \
     --cluster xpk-test --tpu-type=v5litepod-256 \
     --num-slices=2 \
@@ -91,6 +104,14 @@ all zones.
     --num-slices=4 --on-demand
     ```
 
+*   Cluster Create (provision spot / preemptable capacity):
+
+    ```shell
+    python3 xpk.py cluster create \
+    --cluster xpk-test --tpu-type=v5litepod-16 \
+    --num-slices=4 --spot
+    ```
+
 *   Cluster Create can be called again with the same `--cluster name` to modify
     the number of slices or retry failed steps.
 
@@ -99,7 +120,7 @@ all zones.
     ```shell
     python3 xpk.py cluster create \
     --cluster xpk-test --tpu-type=v5litepod-16 \
-    --num-slices=4
+    --num-slices=4  --reservation=$RESERVATION_ID
     ```
 
     and recreates the cluster with 8 slices. The command will rerun to create 4
@@ -108,7 +129,7 @@ all zones.
     ```shell
     python3 xpk.py cluster create \
     --cluster xpk-test --tpu-type=v5litepod-16 \
-    --num-slices=8
+    --num-slices=8  --reservation=$RESERVATION_ID
     ```
 
     and recreates the cluster with 6 slices. The command will rerun to delete 2
@@ -118,13 +139,13 @@ all zones.
     ```shell
     python3 xpk.py cluster create \
     --cluster xpk-test --tpu-type=v5litepod-16 \
-    --num-slices=6
+    --num-slices=6  --reservation=$RESERVATION_ID
 
     # Skip delete prompts using --force.
 
     python3 xpk.py cluster create --force \
     --cluster xpk-test --tpu-type=v5litepod-16 \
-    --num-slices=6
+    --num-slices=6  --reservation=$RESERVATION_ID
 
     ```
 ## Cluster Delete
@@ -164,6 +185,14 @@ all zones.
     --workload xpk-test-workload --command "echo goodbye" --cluster \
     xpk-test --tpu-type=v5litepod-16
     ```
+
+### Set `max-restarts` for production jobs
+
+* `--max-restarts <value>`: By default, this is 0. This will restart the job ""
+times when the job terminates. For production jobs, it is recommended to
+increase this to a large number, say 50. Real jobs can be interrupted due to
+hardware failures and software updates. We assume your job has implemented
+checkpointing so the job restarts near where it was interrupted.
 
 ### Workload Priority and Preemption
 * Set the priority level of your workload with `--priority=LEVEL`
@@ -299,13 +328,15 @@ workload.
 
 # More advanced facts:
 
-* Workload create accepts a --docker-name and --docker-image.
-By using custom images you can achieve very fast boots and hence very fast
-feedback.
-
 * Workload create accepts a --env-file flag to allow specifying the container's
 environment from a file. Usage is the same as Docker's
 [--env-file flag](https://docs.docker.com/engine/reference/commandline/run/#env)
+
+    Example File:
+    ```shell
+    LIBTPU_INIT_ARGS=--my-flag=true --performance=high
+    MY_ENV_VAR=hello
+    ```
 
 * Workload create accepts a --debug-dump-gcs flag which is a path to GCS bucket.
 Passing this flag sets the XLA_FLAGS='--xla_dump_to=/tmp/xla_dump/' and uploads
@@ -365,10 +396,22 @@ python3 xpk.py cluster create --cluster-cpu-machine-type=CPU_TYPE ...
     gcloud auth login
     ```
 
-
-
 ### Roles needed based on permission errors:
 
 * `requires one of ["container.*"] permission(s)`
 
   Add [Kubernetes Engine Admin](https://cloud.google.com/iam/docs/understanding-roles#kubernetes-engine-roles) to your user.
+
+## Reservation Troubleshooting:
+
+### How to determine your reservation and its size / utilization:
+
+```shell
+PROJECT_ID=my-project
+ZONE=us-east5-b
+RESERVATION=my-reservation-name
+# Find the reservations in your project
+gcloud beta compute reservations list --project=$PROJECT_ID
+# Find the tpu machine type and current utilization of a reservation.
+gcloud beta compute reservations describe $RESERVATION --project=$PROJECT_ID --zone=$ZONE
+```

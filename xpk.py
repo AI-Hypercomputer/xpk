@@ -1873,7 +1873,10 @@ def get_gke_outlier_dashboard(args):
 
   dashboards = return_value.strip().split('\n')
   if len(dashboards) > 1:
-    xpk_print(f'Multiple dashboards with same {outlier_dashboard_filter} exist in the project:{args.project}.')
+    xpk_print(
+      f'Multiple dashboards with same {outlier_dashboard_filter} exist in the project:{args.project}.'
+      'Delete all but one monitoring dashboard deployed using https://github.com/google/cloud-tpu-monitoring-debugging.'
+    )
     return None
 
   if dashboards[0]:
@@ -1943,9 +1946,10 @@ def workload_create(args) -> int:
 
   if outlier_dashboard_id is not None:
     xpk_print(
-        'Check statistics and outlier mode of GKE metrics for your workload here:'
+        'Check statistics and outlier mode of GKE metrics here:'
         # pylint: disable=line-too-long
-        f'https://console.cloud.google.com/monitoring/dashboards/builder/{outlier_dashboard_id}?project={args.project}&f.rlabel.cluster_name.ClusterName={args.cluster}'
+        f' https://console.cloud.google.com/monitoring/dashboards/builder/{outlier_dashboard_id}?project={args.project}&f.rlabel.cluster_name.ClusterName={args.cluster}.'
+        f' To view the metric data for your workload, select {args.workload} from the JobName filter on the dashboard.'
     )
 
   xpk_exit(0)

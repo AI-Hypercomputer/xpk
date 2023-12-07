@@ -1839,14 +1839,14 @@ def setup_docker_image(args) -> tuple[int, str]:
   return 0, docker_image
 
 def get_gke_outlier_dashboard(args):
-  """Get the url of GKE outlier dashboard deployed in the project.
+  """Get the identifier of GKE outlier dashboard deployed in the project.
 
   Args:
     args: user provided arguments for running the command.
 
   Returns:
     str:
-      url of outlier dashbord if deployed in project,
+      identifier of outlier dashbord if deployed in project,
       None otherwise.
   """
   outlier_dashboard_filter = "displayName:'GKE - TPU Monitoring Dashboard'"
@@ -1877,9 +1877,7 @@ def get_gke_outlier_dashboard(args):
     return None
 
   if dashboards[0]:
-    outlier_dashboard_id = dashboards[0].strip().split('/')[-1]
-    outlier_dashboard_url = f'http://console.cloud.google.com/monitoring/dashboards/builder/{outlier_dashboard_id}'
-    return outlier_dashboard_url
+    return dashboards[0].strip().split('/')[-1]
 
   return None
 
@@ -1935,7 +1933,7 @@ def workload_create(args) -> int:
     xpk_exit(return_code)
 
   # Get GKE outlier dashboard
-  outlier_dashboard_url = get_gke_outlier_dashboard(args)
+  outlier_dashboard_id = get_gke_outlier_dashboard(args)
 
   xpk_print(
       'Follow your workload here:'
@@ -1943,11 +1941,11 @@ def workload_create(args) -> int:
       f' https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
   )
 
-  if outlier_dashboard_url is not None:
+  if outlier_dashboard_id is not None:
     xpk_print(
         'Check statistics and outlier mode of GKE metrics for your workload here:'
         # pylint: disable=line-too-long
-        f'{outlier_dashboard_url}?project={args.project}'
+        f'http://console.cloud.google.com/monitoring/dashboards/builder/{outlier_dashboard_id}?project={args.project}'
     )
 
   xpk_exit(0)

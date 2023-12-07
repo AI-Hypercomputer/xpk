@@ -1945,7 +1945,7 @@ def workload_create(args) -> int:
     xpk_print(
         'Check statistics and outlier mode of GKE metrics for your workload here:'
         # pylint: disable=line-too-long
-        f'http://console.cloud.google.com/monitoring/dashboards/builder/{outlier_dashboard_id}?project={args.project}'
+        f'https://console.cloud.google.com/monitoring/dashboards/builder/{outlier_dashboard_id}?project={args.project}&f.rlabel.cluster_name.ClusterName={args.cluster}'
     )
 
   xpk_exit(0)

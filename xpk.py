@@ -1839,26 +1839,35 @@ def setup_docker_image(args) -> tuple[int, str]:
   return 0, docker_image
 
 def get_gke_outlier_dashboard(args):
+  """Get the url of GKE outlier dashboard deployed in the project.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    str:
+      url of outlier dashbord if deployed in project,
+      None otherwise.
+  """
   outlier_dashboard_filter = "displayName:'GKE - TPU Monitoring Dashboard'"
   command = (
       'gcloud monitoring dashboards list'
       f' --project={args.project} --filter="{outlier_dashboard_filter}" --format="value(name)"'
   )
-  
+
   return_code, return_value = run_command_for_value(command, 'GKE Dashboard List', args)
-  
+
   if return_code != 0:
     xpk_print(f'GKE Dashboard List request returned ERROR {return_code}')
     return None
-  
+
   if not return_value:
     xpk_print(
         f'No dashboard with {outlier_dashboard_filter} found in the'
         f' project:{args.project}.'
     )
     xpk_print(
-        'Follow'
-        ' https://github.com/google/cloud-tpu-monitoring-debugging/tree/main?tab=readme-ov-file#deploy-resources-for-workloads-on-gke'
+        'Follow https://github.com/google/cloud-tpu-monitoring-debugging'
         ' to deploy monitoring dashboard to view statistics and outlier mode of GKE metrics.'
     )
 
@@ -1866,12 +1875,12 @@ def get_gke_outlier_dashboard(args):
   if len(dashboards) > 1:
     xpk_print(f'Multiple dashboards with same {outlier_dashboard_filter} exist in the project:{args.project}.')
     return None
-  
+
   if dashboards[0]:
     outlier_dashboard_id = dashboards[0].strip().split('/')[-1]
     outlier_dashboard_url = f'http://console.cloud.google.com/monitoring/dashboards/builder/{outlier_dashboard_id}'
     return outlier_dashboard_url
-  
+
   return None
 
 

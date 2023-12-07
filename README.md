@@ -36,6 +36,11 @@ return the hardware back to the shared pool when they complete, developers can
 achieve better use of finite hardware resources. And automated tests can run
 overnight while resources tend to be underutilized.
 
+xpk supports the following TPU types:
+* v4
+* v5e
+* v5p
+
 # Installation
 To install xpk, run the following command:
 

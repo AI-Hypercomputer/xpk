@@ -1946,9 +1946,9 @@ def determine_workload_list_filter_by_status(args) -> str:
     the argument needed to filter by status of jobs in workload list.
   """
   # Argument positions related to columns created by workload list command.
-  status_arg='$8'
+  status_arg='$7'
   running_vms_arg='$5'
-  status_verbose_arg='$10'
+  status_verbose_arg='$9'
   if args.filter_by_status == 'EVERYTHING':
     return ''
   elif args.filter_by_status == 'RUNNING':

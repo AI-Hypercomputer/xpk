@@ -219,38 +219,6 @@ checkpointing so the job restarts near where it was interrupted.
   xpk-test --tpu-type=v5litepod-16 --priority=medium
   ```
 
-### Workload Debugging
-#### Collect Stack Traces
-[cloud-tpu-diagnostics](https://pypi.org/project/cloud-tpu-diagnostics/) PyPI package can be used to generate stack traces for workloads running in GKE. This package dumps the Python traces when a fault such as segmentation fault, floating-point exception, or illegal operation exception occurs in the program. Additionally, it will also periodically collect stack traces to help you debug situations when the program is unresponsive. You must make the following changes in the docker image running in a Kubernetes main container to enable periodic stack trace collection.
-```shell
-# main.py
-
-from cloud_tpu_diagnostics import diagnostic
-from cloud_tpu_diagnostics.configuration import debug_configuration
-from cloud_tpu_diagnostics.configuration import diagnostic_configuration
-from cloud_tpu_diagnostics.configuration import stack_trace_configuration
-
-stack_trace_config = stack_trace_configuration.StackTraceConfig(
-                      collect_stack_trace = True,
-                      stack_trace_to_cloud = True)
-debug_config = debug_configuration.DebugConfig(
-                stack_trace_config = stack_trace_config)
-diagnostic_config = diagnostic_configuration.DiagnosticConfig(
-                      debug_config = debug_config)
-
-with diagnostic.diagnose(diagnostic_config):
-	main_method()  # this is the main method to run
-```
-This configuration will start collecting stack traces inside the `/tmp/debugging` directory on each Kubernetes Pod.
-
-#### Explore Stack Traces
-To explore the stack traces collected in a temporary directory in Kubernetes Pod, you can run the following command to configure a sidecar container that will read the traces from `/tmp/debugging` directory.
- ```shell
- python3 xpk.py workload create \
-  --workload xpk-test-workload --command "python3 main.py" --cluster \
-  xpk-test --tpu-type=v5litepod-16 --deploy-stacktrace-sidecar
- ```
-
 ## Workload Delete
 *   Workload Delete (delete training job):
 
@@ -447,3 +415,37 @@ gcloud beta compute reservations list --project=$PROJECT_ID
 # Find the tpu machine type and current utilization of a reservation.
 gcloud beta compute reservations describe $RESERVATION --project=$PROJECT_ID --zone=$ZONE
 ```
+
+# Workload Debugging
+
+## Collect Stack Traces
+[cloud-tpu-diagnostics](https://pypi.org/project/cloud-tpu-diagnostics/) PyPI package can be used to generate stack traces for workloads running in GKE. This package dumps the Python traces when a fault such as segmentation fault, floating-point exception, or illegal operation exception occurs in the program. Additionally, it will also periodically collect stack traces to help you debug situations when the program is unresponsive. You must make the following changes in the docker image running in a Kubernetes main container to enable periodic stack trace collection.
+```shell
+# main.py
+
+from cloud_tpu_diagnostics import diagnostic
+from cloud_tpu_diagnostics.configuration import debug_configuration
+from cloud_tpu_diagnostics.configuration import diagnostic_configuration
+from cloud_tpu_diagnostics.configuration import stack_trace_configuration
+
+stack_trace_config = stack_trace_configuration.StackTraceConfig(
+                      collect_stack_trace = True,
+                      stack_trace_to_cloud = True)
+debug_config = debug_configuration.DebugConfig(
+                stack_trace_config = stack_trace_config)
+diagnostic_config = diagnostic_configuration.DiagnosticConfig(
+                      debug_config = debug_config)
+
+with diagnostic.diagnose(diagnostic_config):
+	main_method()  # this is the main method to run
+```
+This configuration will start collecting stack traces inside the `/tmp/debugging` directory on each Kubernetes Pod.
+
+### Explore Stack Traces
+To explore the stack traces collected in a temporary directory in Kubernetes Pod, you can run the following command to configure a sidecar container that will read the traces from `/tmp/debugging` directory.
+ ```shell
+ python3 xpk.py workload create \
+  --workload xpk-test-workload --command "python3 main.py" --cluster \
+  xpk-test --tpu-type=v5litepod-16 --deploy-stacktrace-sidecar
+ ```
+ 

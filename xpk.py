@@ -65,6 +65,7 @@ if (
 
 default_docker_image = 'python:3.10'
 default_script_dir = os.getcwd()
+default_gke_version="1.28.3-gke.1286000"
 
 workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
@@ -72,6 +73,7 @@ metadata:
   name: {args.workload}
   labels:
     kueue.x-k8s.io/queue-name: multislice-queue  # Name of the LocalQueue
+    xpk.google.com/workload: {args.workload}
   annotations:
     alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool # 1:1 job replica to node pool assignment
 spec:
@@ -241,6 +243,296 @@ IF YOU MODIFY THE BELOW UserFacingNameToSystemCharacteristics MAP YOU SHOULD ALS
 MODIFICATIONS TO UserFacingNameToSystemCharacteristics IN MaxText/accelerator_to_spec_map.py !!!!! """
 # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 UserFacingNameToSystemCharacteristics = {
+    # v5p
+    'v5p-8': SystemCharacteristics(
+      '2x2x1', 1, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-16': SystemCharacteristics(
+      '2x2x2', 2, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-32': SystemCharacteristics(
+      '2x2x4', 4, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-64': SystemCharacteristics(
+      '2x4x4', 8, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-128': SystemCharacteristics(
+      '4x4x4', 16, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-256': SystemCharacteristics(
+      '4x4x8', 32, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-384': SystemCharacteristics(
+      '4x4x12', 48, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-512': SystemCharacteristics(
+      '4x8x8', 64, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-640': SystemCharacteristics(
+      '4x4x20', 80, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-768': SystemCharacteristics(
+      '4x8x12', 96, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-896': SystemCharacteristics(
+      '4x4x28', 112, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-1024': SystemCharacteristics(
+      '8x8x8', 128, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-1152': SystemCharacteristics(
+      '4x12x12', 144, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-1280': SystemCharacteristics(
+      '4x8x20', 160, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-1408': SystemCharacteristics(
+      '4x4x44', 176, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-1536': SystemCharacteristics(
+      '8x8x12', 192, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-1664': SystemCharacteristics(
+      '4x4x52', 208, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-1792': SystemCharacteristics(
+      '4x8x28', 224, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-1920': SystemCharacteristics(
+      '4x12x20', 240, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-2048': SystemCharacteristics(
+      '8x8x16', 256, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-2176': SystemCharacteristics(
+      '4x4x68', 272, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-2304': SystemCharacteristics(
+      '8x12x12', 288, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-2432': SystemCharacteristics(
+      '4x4x76', 304, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-2560': SystemCharacteristics(
+      '8x8x20', 320, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-2688': SystemCharacteristics(
+      '4x12x28', 336, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-2816': SystemCharacteristics(
+      '4x8x44', 352, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-2944': SystemCharacteristics(
+      '4x4x92', 368, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-3072': SystemCharacteristics(
+      '4x12x16', 384, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-3200': SystemCharacteristics(
+      '4x20x20', 400, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-3328': SystemCharacteristics(
+      '4x8x52', 416, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-3456': SystemCharacteristics(
+      '12x12x12', 432, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-3584': SystemCharacteristics(
+      '8x8x28', 448, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-3712': SystemCharacteristics(
+      '4x4x116', 464, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-3840': SystemCharacteristics(
+      '8x12x20', 480, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-3968': SystemCharacteristics(
+      '4x4x124', 496, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-4096': SystemCharacteristics(
+      '8x16x16', 512, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-4224': SystemCharacteristics(
+      '4x12x44', 528, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-4352': SystemCharacteristics(
+      '4x8x68', 544, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-4480': SystemCharacteristics(
+      '4x20x28', 560, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-4608': SystemCharacteristics(
+      '12x12x16', 576, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-4736': SystemCharacteristics(
+      '4x4x148', 592, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-4864': SystemCharacteristics(
+      '4x8x76', 608, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-4992': SystemCharacteristics(
+      '4x12x52', 624, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-5120': SystemCharacteristics(
+      '8x16x20', 640, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-5248': SystemCharacteristics(
+      '4x4x164', 656, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-5376': SystemCharacteristics(
+      '8x12x28', 672, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-5504': SystemCharacteristics(
+      '4x4x172', 688, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-5632': SystemCharacteristics(
+      '8x8x44', 704, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-5760': SystemCharacteristics(
+      '12x12x20', 720, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-5888': SystemCharacteristics(
+      '4x8x92', 736, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-6016': SystemCharacteristics(
+      '4x4x188', 752, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-6144': SystemCharacteristics(
+      '12x16x16', 768, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-6272': SystemCharacteristics(
+      '4x28x28', 784, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-6400': SystemCharacteristics(
+      '8x20x20', 800, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-6528': SystemCharacteristics(
+      '4x12x68', 816, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-6656': SystemCharacteristics(
+      '8x8x52', 832, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-6784': SystemCharacteristics(
+      '4x4x212', 848, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-6912': SystemCharacteristics(
+      '12x12x24', 864, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-7040': SystemCharacteristics(
+      '4x20x44', 880, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-7168': SystemCharacteristics(
+      '8x16x28', 896, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-7296': SystemCharacteristics(
+      '4x12x76', 912, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-7424': SystemCharacteristics(
+      '4x8x116', 928, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-7552': SystemCharacteristics(
+      '4x4x236', 944, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-7680': SystemCharacteristics(
+      '12x16x20', 960, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-7808': SystemCharacteristics(
+      '4x4x244', 976, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-7936': SystemCharacteristics(
+      '4x8x124', 992, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-8064': SystemCharacteristics(
+      '12x12x28', 1008, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-8192': SystemCharacteristics(
+      '16x16x16', 1024, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-8320': SystemCharacteristics(
+      '4x20x52', 1040, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-8448': SystemCharacteristics(
+      '8x12x44', 1056, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-8704': SystemCharacteristics(
+      '8x8x68', 1088, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-8832': SystemCharacteristics(
+      '4x12x92', 1104, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-8960': SystemCharacteristics(
+      '8x20x28', 1120, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-9216': SystemCharacteristics(
+      '12x16x24', 1152, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-9472': SystemCharacteristics(
+      '4x8x148', 1184, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-9600': SystemCharacteristics(
+      '12x20x20', 1200, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-9728': SystemCharacteristics(
+      '8x8x76', 1216, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-9856': SystemCharacteristics(
+      '4x28x44', 1232, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-9984': SystemCharacteristics(
+      '8x12x52', 1248, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-10240': SystemCharacteristics(
+      '16x16x20', 1280, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-10368': SystemCharacteristics(
+      '12x12x36', 1296, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-10496': SystemCharacteristics(
+      '4x8x164', 1312, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-10752': SystemCharacteristics(
+      '12x16x28', 1344, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-10880': SystemCharacteristics(
+      '4x20x68', 1360, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-11008': SystemCharacteristics(
+      '4x8x172', 1376, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-11136': SystemCharacteristics(
+      '4x12x116', 1392, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-11264': SystemCharacteristics(
+      '8x16x44', 1408, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-11520': SystemCharacteristics(
+      '12x20x24', 1440, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-11648': SystemCharacteristics(
+      '4x28x52', 1456, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-11776': SystemCharacteristics(
+      '8x8x92', 1472, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-11904': SystemCharacteristics(
+      '4x12x124', 1488, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-12032': SystemCharacteristics(
+      '4x8x188', 1504, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-12160': SystemCharacteristics(
+      '4x20x76', 1520, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-12288': SystemCharacteristics(
+      '16x16x24', 1536, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-13824': SystemCharacteristics(
+      '12x24x24', 1728, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    'v5p-17920': SystemCharacteristics(
+      '16x20x28', 2240, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4
+    ),
+    # v5litepod
     'v5litepod-16': SystemCharacteristics(
         '4x4', 4, 'tpu-v5-lite-podslice', 'ct5lp-hightpu-4t', 4
     ),
@@ -256,6 +548,7 @@ UserFacingNameToSystemCharacteristics = {
     'v5litepod-256': SystemCharacteristics(
         '16x16', 64, 'tpu-v5-lite-podslice', 'ct5lp-hightpu-4t', 4
     ),
+    # v4
     'v4-8': SystemCharacteristics(
       '2x2x1', 1,'tpu-v4-podslice', 'ct4p-hightpu-4t', 4
     ),
@@ -683,13 +976,15 @@ def run_gke_cluster_create_command(args) -> int:
     0 if successful and 1 otherwise.
   """
 
-  # Create the regional cluster with one CPU nodepool in the requested zone.
-  # Set the number of cpu nodes to start a 1 and auto-scale to fit the need.
+  # Create the regional cluster with `num-nodes` CPU nodes in the same zone as
+  # TPUs. This has been tested with clusters of 300 VMs. Larger clusters will
+  # benefit from a larger initial `--num-nodes`. After the cluster is created,
+  # the auto-scaler can reduce/increase the nodes based on the load.
   command = (
       'gcloud beta container clusters create'
       f' {args.cluster} --release-channel rapid --enable-autoscaling'
-      f' --max-nodes 1000 --min-nodes 1 --node-locations={args.zone}'
-      ' --num-nodes=1'
+      ' --total-min-nodes 1 --total-max-nodes 1000 --num-nodes 6'
+      f' --node-locations={args.zone}'
       f' --project={args.project} --region={zone_to_region(args.zone)}'
       f' --cluster-version={args.gke_version} --location-policy=BALANCED'
       f' --machine-type={args.cluster_cpu_machine_type}'
@@ -774,7 +1069,7 @@ def print_reservations(args) -> int:
     0 if successful and 1 otherwise.
   """
   command = (
-        f'gcloud compute reservations list --project={args.project}'
+        f'gcloud beta compute reservations list --project={args.project}'
     )
   return_code = (
       run_command_with_updates(
@@ -782,6 +1077,30 @@ def print_reservations(args) -> int:
   )
   if return_code != 0:
     xpk_print(f'Get all reservations returned ERROR {return_code}')
+    return 1
+  return 0
+
+
+def verify_reservation_exists(args) -> int:
+  """Verify the reservation exists.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  command = (
+        f'gcloud beta compute reservations describe {args.reservation}'
+        f' --project={args.project} --zone={args.zone}'
+    )
+  return_code = (
+      run_command_with_updates(
+          command, 'Describe reservation', args)
+  )
+  if return_code != 0:
+    xpk_print(f'Describe reservation returned ERROR {return_code}')
+    xpk_print('Please confirm that your reservation name is correct.')
     return 1
   return 0
 
@@ -805,6 +1124,9 @@ def get_capacity_arguments(args) -> tuple[str, int]:
     capacity_args = ""
     num_types+=1
   if args.reservation:
+    return_code = verify_reservation_exists(args)
+    if return_code > 0:
+      return capacity_args, return_code
     capacity_args = (
       f'--reservation-affinity=specific --reservation={args.reservation}'
     )
@@ -1255,7 +1577,7 @@ def cluster_describe(args) -> int:
     xpk_exit(return_code)
 
   return_code_node_output, node_output = run_command_for_value(
-      r"kubectl get node --no-headers=true | grep '\-tpu\-' | wc -l",
+      r"kubectl get node --no-headers=true --selector='cloud.google.com/gke-tpu-accelerator' | wc -l",
       'Count TPU Nodes',
       args,
   )
@@ -1565,6 +1887,53 @@ def get_main_container(args, system, docker_image, command) -> str:
                    docker_image=docker_image,
                    command=command)
 
+def get_gke_outlier_dashboard(args):
+  """Get the identifier of GKE outlier dashboard deployed in the project.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    str:
+      identifier of outlier dashbord if deployed in project,
+      None otherwise.
+  """
+  outlier_dashboard_filter = "displayName:'GKE - TPU Monitoring Dashboard'"
+  command = (
+      'gcloud monitoring dashboards list'
+      f' --project={args.project} --filter="{outlier_dashboard_filter}" --format="value(name)"'
+  )
+
+  return_code, return_value = run_command_for_value(command, 'GKE Dashboard List', args)
+
+  if return_code != 0:
+    xpk_print(f'GKE Dashboard List request returned ERROR {return_code}')
+    return None
+
+  if not return_value:
+    xpk_print(
+        f'No dashboard with {outlier_dashboard_filter} found in the'
+        f' project:{args.project}.'
+    )
+    xpk_print(
+        'Follow https://github.com/google/cloud-tpu-monitoring-debugging'
+        ' to deploy monitoring dashboard to view statistics and outlier mode of GKE metrics.'
+    )
+
+  dashboards = return_value.strip().split('\n')
+  if len(dashboards) > 1:
+    xpk_print(
+      f'Multiple dashboards with same {outlier_dashboard_filter} exist in the project:{args.project}.'
+      'Delete all but one monitoring dashboard deployed using https://github.com/google/cloud-tpu-monitoring-debugging.'
+    )
+    return None
+
+  if dashboards[0]:
+    return dashboards[0].strip().split('/')[-1]
+
+  return None
+
+
 def workload_create(args) -> int:
   """Run jobset apply command for a file.
 
@@ -1622,11 +1991,23 @@ def workload_create(args) -> int:
     xpk_print(f'Create Workload request returned ERROR {return_code}')
     xpk_exit(return_code)
 
+  # Get GKE outlier dashboard
+  outlier_dashboard_id = get_gke_outlier_dashboard(args)
+
   xpk_print(
       'Follow your workload here:'
       # pylint: disable=line-too-long
       f' https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
   )
+
+  if outlier_dashboard_id is not None:
+    xpk_print(
+        'Check statistics and outlier mode of GKE metrics here:'
+        # pylint: disable=line-too-long
+        f' https://console.cloud.google.com/monitoring/dashboards/builder/{outlier_dashboard_id}?project={args.project}&f.rlabel.cluster_name.ClusterName={args.cluster}.'
+        f' To view the metric data for your workload, select {args.workload} from the JobName filter on the dashboard.'
+    )
+
   xpk_exit(0)
 
 
@@ -1679,9 +2060,9 @@ def determine_workload_list_filter_by_status(args) -> str:
     the argument needed to filter by status of jobs in workload list.
   """
   # Argument positions related to columns created by workload list command.
-  status_arg='$8'
+  status_arg='$7'
   running_vms_arg='$5'
-  status_verbose_arg='$10'
+  status_verbose_arg='$9'
   if args.filter_by_status == 'EVERYTHING':
     return ''
   elif args.filter_by_status == 'RUNNING':
@@ -1921,10 +2302,10 @@ cluster_create_optional_arguments.add_argument(
 cluster_create_optional_arguments.add_argument(
     '--gke-version',
     type=str,
-    default='1.27.4-gke.900',
+    default=default_gke_version,
     help=(
         'The GKE version of the cluster and respective clusters. The default is'
-        ' "1.27.4-gke.900".'
+        f' "{default_gke_version}".'
     ),
 )
 cluster_create_optional_arguments.add_argument(
@@ -1937,11 +2318,10 @@ cluster_create_optional_arguments.add_argument(
 cluster_create_optional_arguments.add_argument(
   '--cluster-cpu-machine-type',
     type=str,
-    default='e2-standard-4',
+    default='e2-standard-16',
     help=(
-      'Set the machine tpu within the default cpu node pool. For zonal '
-      'clusters, make sure that the zone supports the machine type, and for '
-      'regional clusters, all zones in the region supports the machine type.'
+      'Set the machine tpu within the default cpu node pool. For'
+      ' regional clusters, all zones must support the machine type.'
     )
 )
 cluster_create_optional_arguments.add_argument(

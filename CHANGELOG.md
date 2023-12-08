@@ -35,7 +35,20 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 -->
 
 ## [Unreleased]
+- Move away from static GKE version and use RAPID release default.
 
+## [0.2.0] - 2023-12-07
+
+### Added
+- Add a reservation exists check and provide help if this errors
+- Add error message and self-help instructions to readme for troubleshooting problems
+- Add v5p support
+- Add xpk cluster create flags for reservation/on-demand/spot
+- Change GKE version to 1.28.3-gke.1286000
+- Change cpu node pool defaults to be better adapted to demand
+- Fix empty results from filter-by-status=QUEUED / FAILED / RUNNING
+- Fix parallel execution of node pool commands (concurrent ops)
+- Fix pip-changelog to the wrong package
 
 ## [0.1.0] - 2023-11-17
 
@@ -43,3 +56,4 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 - Initial release of xpk PyPI package
 
 [0.1.0]: https://github.com/google/xpk/releases/tag/v0.1.0
+[0.2.0]: https://github.com/google/xpk/compare/v0.1.0...v0.2.0

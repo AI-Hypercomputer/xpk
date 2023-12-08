@@ -1839,6 +1839,52 @@ def setup_docker_image(args) -> tuple[int, str]:
 
   return 0, docker_image
 
+def get_gke_outlier_dashboard(args):
+  """Get the identifier of GKE outlier dashboard deployed in the project.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    str:
+      identifier of outlier dashbord if deployed in project,
+      None otherwise.
+  """
+  outlier_dashboard_filter = "displayName:'GKE - TPU Monitoring Dashboard'"
+  command = (
+      'gcloud monitoring dashboards list'
+      f' --project={args.project} --filter="{outlier_dashboard_filter}" --format="value(name)"'
+  )
+
+  return_code, return_value = run_command_for_value(command, 'GKE Dashboard List', args)
+
+  if return_code != 0:
+    xpk_print(f'GKE Dashboard List request returned ERROR {return_code}')
+    return None
+
+  if not return_value:
+    xpk_print(
+        f'No dashboard with {outlier_dashboard_filter} found in the'
+        f' project:{args.project}.'
+    )
+    xpk_print(
+        'Follow https://github.com/google/cloud-tpu-monitoring-debugging'
+        ' to deploy monitoring dashboard to view statistics and outlier mode of GKE metrics.'
+    )
+
+  dashboards = return_value.strip().split('\n')
+  if len(dashboards) > 1:
+    xpk_print(
+      f'Multiple dashboards with same {outlier_dashboard_filter} exist in the project:{args.project}.'
+      'Delete all but one monitoring dashboard deployed using https://github.com/google/cloud-tpu-monitoring-debugging.'
+    )
+    return None
+
+  if dashboards[0]:
+    return dashboards[0].strip().split('/')[-1]
+
+  return None
+
 
 def workload_create(args) -> int:
   """Run jobset apply command for a file.
@@ -1890,11 +1936,23 @@ def workload_create(args) -> int:
     xpk_print(f'Create Workload request returned ERROR {return_code}')
     xpk_exit(return_code)
 
+  # Get GKE outlier dashboard
+  outlier_dashboard_id = get_gke_outlier_dashboard(args)
+
   xpk_print(
       'Follow your workload here:'
       # pylint: disable=line-too-long
       f' https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
   )
+
+  if outlier_dashboard_id is not None:
+    xpk_print(
+        'Check statistics and outlier mode of GKE metrics here:'
+        # pylint: disable=line-too-long
+        f' https://console.cloud.google.com/monitoring/dashboards/builder/{outlier_dashboard_id}?project={args.project}&f.rlabel.cluster_name.ClusterName={args.cluster}.'
+        f' To view the metric data for your workload, select {args.workload} from the JobName filter on the dashboard.'
+    )
+
   xpk_exit(0)
 
 

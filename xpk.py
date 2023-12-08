@@ -1591,7 +1591,7 @@ def cluster_describe(args) -> int:
     xpk_exit(return_code)
 
   return_code_node_output, node_output = run_command_for_value(
-      r"kubectl get node --no-headers=true | grep '\-tpu\-' | wc -l",
+      r"kubectl get node --no-headers=true --selector='cloud.google.com/gke-tpu-accelerator' | wc -l",
       'Count TPU Nodes',
       args,
   )

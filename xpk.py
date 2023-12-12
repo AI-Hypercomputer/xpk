@@ -98,22 +98,7 @@ spec:
               hostNetwork: true
               dnsPolicy: ClusterFirstWithHostNet
               containers:
-              - name: {args.docker_name}
-                image: {docker_image}
-                env: {args.env}
-                ports:
-                - containerPort: 8471
-                - containerPort: 8080
-                securityContext:
-                  privileged: true
-                command:
-                - bash
-                - -c
-                - |
-                  echo XPK Start: $(date) ; {command} ; EXIT_CODE=$? ; echo XPK End: $(date); echo EXIT_CODE=$EXIT_CODE ; sleep 5; exit $EXIT_CODE
-                resources:
-                  limits:
-                    google.com/tpu: {system.chips_per_vm}
+              {container}
 """
 
 workload_delete_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
@@ -1839,6 +1824,69 @@ def setup_docker_image(args) -> tuple[int, str]:
 
   return 0, docker_image
 
+def get_main_and_sidecar_container(args, system, docker_image, command) -> str:
+  """Generate yaml for main and sidecar container.
+  Args:
+    args: user provided arguments for running the command.
+    system: system characteristics
+    docker_image: docker image
+    command: command to run in the main container
+
+  Returns:
+    str:
+      yaml for main and sidecar container
+  """
+  main_container = get_main_container(args, system, docker_image, command)
+  yaml = """- name: stacktrace-explorer
+                image: busybox:1.28
+                args: [/bin/sh, -c, "while [ ! -d /tmp/debugging ]; do sleep 60; done; while [ ! -e /tmp/debugging/* ]; do sleep 60; done; tail -n+1 -f /tmp/debugging/*"]
+                volumeMounts:
+                - name: tpu-stack-trace
+                  readOnly: true
+                  mountPath: /tmp/debugging
+              {main_container}
+                volumeMounts:
+                - name: tpu-stack-trace
+                  mountPath: /tmp/debugging
+              volumes:
+              - name: tpu-stack-trace
+  """
+  return yaml.format(main_container=main_container)
+
+def get_main_container(args, system, docker_image, command) -> str:
+  """Generate yaml for main container.
+  Args:
+    args: user provided arguments for running the command.
+    system: system characteristics
+    docker_image: docker image
+    command: command to run in the main container
+
+  Returns:
+    str:
+      yaml for main container
+  """
+  yaml = """- name: {args.docker_name}
+                image: {docker_image}
+                env: {args.env}
+                ports:
+                - containerPort: 8471
+                - containerPort: 8080
+                securityContext:
+                  privileged: true
+                command:
+                - bash
+                - -c
+                - |
+                  echo XPK Start: $(date) ; {command} ; EXIT_CODE=$? ; echo XPK End: $(date); echo EXIT_CODE=$EXIT_CODE ; sleep 5; exit $EXIT_CODE
+                resources:
+                  limits:
+                    google.com/tpu: {system.chips_per_vm}
+  """
+  return yaml.format(args=args,
+                   system=system,
+                   docker_image=docker_image,
+                   command=command)
+
 def get_gke_outlier_dashboard(args):
   """Get the identifier of GKE outlier dashboard deployed in the project.
 
@@ -1923,10 +1971,17 @@ def workload_create(args) -> int:
     command += ('; WORKER_ID=$HOSTNAME;'
                 f'gsutil cp -r /tmp/xla_dump/ {args.debug_dump_gcs}/$WORKER_ID')
 
+  if args.deploy_stacktrace_sidecar:
+    xpk_print('Sidecar container to display stack traces will also be deployed.')
+    container = get_main_and_sidecar_container(args, system, docker_image, command)
+  else:
+    container = get_main_container(args, system, docker_image, command)
+
   yml_string = workload_create_yaml.format(args=args,
                                            system=system,
                                            docker_image=docker_image,
-                                           command=command)
+                                           command=command,
+                                           container=container)
   tmp = write_temporary_file(yml_string)
   command = f'kubectl apply -f {str(tmp.file.name)}'
 
@@ -2591,6 +2646,15 @@ workload_create_parser_optional_arguments.add_argument(
     help=(
         'GCS bucket or a directory within a bucket, e.g gs://bucket/subdir, '
         'where debugging information such as HLO dumps are uploaded'
+    ),
+)
+
+workload_create_parser_optional_arguments.add_argument(
+    '--deploy-stacktrace-sidecar',
+    action='store_true',
+    help=(
+        'Add this argument to deploy a sidecar container that will '
+        'read the stack traces collected in /tmp/debugging directory.'
     ),
 )
 

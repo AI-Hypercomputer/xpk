@@ -1895,7 +1895,7 @@ def get_gke_dashboard(args, dashboard_filter):
 
   Returns:
     str:
-      identifier of dashbord if deployed in project,
+      identifier of dashboard if deployed in project,
       None otherwise.
   """
   command = (
@@ -1906,7 +1906,10 @@ def get_gke_dashboard(args, dashboard_filter):
   return_code, return_value = run_command_for_value(command, 'GKE Dashboard List', args)
 
   if return_code != 0:
-    xpk_print(f'GKE Dashboard List request returned ERROR {return_code}')
+    xpk_print(f'GKE Dashboard List request returned ERROR {return_code}. '
+              'If there is a permissions error, please check '
+              'https://github.com/google/xpk/blob/main/README.md#roles-needed-based-on-permission-errors '
+              'for possible solutions.')
     return None
 
   if not return_value:
@@ -1936,7 +1939,7 @@ def get_gke_outlier_dashboard(args):
 
   Returns:
     str:
-      identifier of outlier dashbord if deployed in project,
+      identifier of outlier dashboard if deployed in project,
       None otherwise.
   """
   outlier_dashboard_filter = "displayName:'GKE - TPU Monitoring Dashboard'"
@@ -1961,7 +1964,7 @@ def get_gke_debugging_dashboard(args):
 
   Returns:
     str:
-      identifier of debugging dashbord if deployed in project,
+      identifier of debugging dashboard if deployed in project,
       None otherwise.
   """
   debugging_dashboard_filter = "displayName:'GKE - TPU Logging Dashboard'"

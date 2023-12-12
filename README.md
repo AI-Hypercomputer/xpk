@@ -402,6 +402,11 @@ python3 xpk.py cluster create --cluster-cpu-machine-type=CPU_TYPE ...
 
   Add [Kubernetes Engine Admin](https://cloud.google.com/iam/docs/understanding-roles#kubernetes-engine-roles) to your user.
 
+* `ERROR: (gcloud.monitoring.dashboards.list) User does not have permission to access projects instance (or it may not exist)`
+
+  Add [Monitoring Viewer](https://cloud.google.com/iam/docs/understanding-roles#monitoring.viewer) to your user.
+
+
 ## Reservation Troubleshooting:
 
 ### How to determine your reservation and its size / utilization:

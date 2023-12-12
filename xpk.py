@@ -1853,7 +1853,7 @@ def get_gke_outlier_dashboard(args):
   outlier_dashboard_filter = "displayName:'GKE - TPU Monitoring Dashboard'"
   command = (
       'gcloud monitoring dashboards list'
-      f' --project={args.project} --filter="{outlier_dashboard_filter}" --format="value(name)"'
+      f' --project={args.project} --filter="{outlier_dashboard_filter}" --format="value(name)" --verbosity=error'
   )
 
   return_code, return_value = run_command_for_value(command, 'GKE Dashboard List', args)

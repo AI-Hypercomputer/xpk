@@ -1894,6 +1894,10 @@ def get_gke_dashboard(args, dashboard_filter):
     args: user provided arguments for running the command.
 
   Returns:
+    bool:
+      True if 'gcloud monitoring dashboards list' returned an error or
+      multiple dashboards with same filter exist in the project,
+      False otherwise.
     str:
       identifier of dashboard if deployed in project,
       None otherwise.
@@ -1910,26 +1914,26 @@ def get_gke_dashboard(args, dashboard_filter):
               'If there is a permissions error, please check '
               'https://github.com/google/xpk/blob/main/README.md#roles-needed-based-on-permission-errors '
               'for possible solutions.')
-    return None
+    return True, None
 
   if not return_value:
     xpk_print(
         f'No dashboard with {dashboard_filter} found in the project:{args.project}.'
     )
-    return return_value
+    return False, return_value
 
   dashboards = return_value.strip().split('\n')
   if len(dashboards) > 1:
     xpk_print(
-      f'Multiple dashboards with same {dashboard_filter} exist in the project:{args.project}.'
+      f'Multiple dashboards with same {dashboard_filter} exist in the project:{args.project}. '
       'Delete all but one dashboard deployed using https://github.com/google/cloud-tpu-monitoring-debugging.'
     )
-    return None
+    return True, None
 
   if dashboards[0]:
-    return dashboards[0].strip().split('/')[-1]
+    return False, dashboards[0].strip().split('/')[-1]
 
-  return None
+  return True, None
 
 def get_gke_outlier_dashboard(args):
   """Get the identifier of GKE outlier dashboard deployed in the project.
@@ -1938,16 +1942,23 @@ def get_gke_outlier_dashboard(args):
     args: user provided arguments for running the command.
 
   Returns:
+    bool:
+      True if 'gcloud monitoring dashboards list' returned an error or
+      multiple dashboards with same filter exist in the project,
+      False otherwise.
     str:
       identifier of outlier dashboard if deployed in project,
       None otherwise.
   """
   outlier_dashboard_filter = "displayName:'GKE - TPU Monitoring Dashboard'"
-  dashboard_id = get_gke_dashboard(args, outlier_dashboard_filter)
-  if dashboard_id is None:
+  is_error, dashboard_id = get_gke_dashboard(args, outlier_dashboard_filter)
+
+  # 'gcloud monitoring dashboards list' returned an error or multiple dashboards with same filter exist in the project
+  if is_error:
     return None
 
-  if not dashboard_id:
+  # 'gcloud monitoring dashboards list' succeeded but no dashboard for the filter exist in the project
+  if not is_error and not dashboard_id:
     xpk_print(
         'Follow https://github.com/google/cloud-tpu-monitoring-debugging'
         ' to deploy monitoring dashboard to view statistics and outlier mode of GKE metrics.'
@@ -1968,11 +1979,14 @@ def get_gke_debugging_dashboard(args):
       None otherwise.
   """
   debugging_dashboard_filter = "displayName:'GKE - TPU Logging Dashboard'"
-  dashboard_id = get_gke_dashboard(args, debugging_dashboard_filter)
-  if dashboard_id is None:
+  is_error, dashboard_id = get_gke_dashboard(args, debugging_dashboard_filter)
+
+  # 'gcloud monitoring dashboards list' returned an error or multiple dashboards with same filter exist in the project
+  if is_error:
     return None
 
-  if not dashboard_id:
+  # 'gcloud monitoring dashboards list' succeeded but no dashboard for the filter exist in the project
+  if not is_error and not dashboard_id:
     xpk_print(
         'Follow https://github.com/google/cloud-tpu-monitoring-debugging'
         ' to deploy debugging dashboard to view stack traces collected in Cloud Logging.'

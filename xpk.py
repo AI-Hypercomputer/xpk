@@ -1942,10 +1942,6 @@ def get_gke_outlier_dashboard(args):
     args: user provided arguments for running the command.
 
   Returns:
-    bool:
-      True if 'gcloud monitoring dashboards list' returned an error or
-      multiple dashboards with same filter exist in the project,
-      False otherwise.
     str:
       identifier of outlier dashboard if deployed in project,
       None otherwise.

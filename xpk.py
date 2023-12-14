@@ -1887,6 +1887,54 @@ def get_main_container(args, system, docker_image, command) -> str:
                    docker_image=docker_image,
                    command=command)
 
+def get_gke_dashboard(args, dashboard_filter):
+  """Get the identifier of GKE dashboard deployed in the project.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    bool:
+      True if 'gcloud monitoring dashboards list' returned an error or
+      multiple dashboards with same filter exist in the project,
+      False otherwise.
+    str:
+      identifier of dashboard if deployed in project,
+      None otherwise.
+  """
+  command = (
+      'gcloud monitoring dashboards list'
+      f' --project={args.project} --filter="{dashboard_filter}" --format="value(name)" --verbosity=error'
+  )
+
+  return_code, return_value = run_command_for_value(command, 'GKE Dashboard List', args)
+
+  if return_code != 0:
+    xpk_print(f'GKE Dashboard List request returned ERROR {return_code}. '
+              'If there is a permissions error, please check '
+              'https://github.com/google/xpk/blob/main/README.md#roles-needed-based-on-permission-errors '
+              'for possible solutions.')
+    return True, None
+
+  if not return_value:
+    xpk_print(
+        f'No dashboard with {dashboard_filter} found in the project:{args.project}.'
+    )
+    return False, return_value
+
+  dashboards = return_value.strip().split('\n')
+  if len(dashboards) > 1:
+    xpk_print(
+      f'Multiple dashboards with same {dashboard_filter} exist in the project:{args.project}. '
+      'Delete all but one dashboard deployed using https://github.com/google/cloud-tpu-monitoring-debugging.'
+    )
+    return True, None
+
+  if dashboards[0]:
+    return False, dashboards[0].strip().split('/')[-1]
+
+  return True, None
+
 def get_gke_outlier_dashboard(args):
   """Get the identifier of GKE outlier dashboard deployed in the project.
 
@@ -1895,43 +1943,53 @@ def get_gke_outlier_dashboard(args):
 
   Returns:
     str:
-      identifier of outlier dashbord if deployed in project,
+      identifier of outlier dashboard if deployed in project,
       None otherwise.
   """
   outlier_dashboard_filter = "displayName:'GKE - TPU Monitoring Dashboard'"
-  command = (
-      'gcloud monitoring dashboards list'
-      f' --project={args.project} --filter="{outlier_dashboard_filter}" --format="value(name)" --verbosity=error'
-  )
+  is_error, dashboard_id = get_gke_dashboard(args, outlier_dashboard_filter)
 
-  return_code, return_value = run_command_for_value(command, 'GKE Dashboard List', args)
-
-  if return_code != 0:
-    xpk_print(f'GKE Dashboard List request returned ERROR {return_code}')
+  # 'gcloud monitoring dashboards list' returned an error or multiple dashboards with same filter exist in the project
+  if is_error:
     return None
 
-  if not return_value:
-    xpk_print(
-        f'No dashboard with {outlier_dashboard_filter} found in the'
-        f' project:{args.project}.'
-    )
+  # 'gcloud monitoring dashboards list' succeeded but no dashboard for the filter exist in the project
+  if not is_error and not dashboard_id:
     xpk_print(
         'Follow https://github.com/google/cloud-tpu-monitoring-debugging'
         ' to deploy monitoring dashboard to view statistics and outlier mode of GKE metrics.'
     )
+    return None
 
-  dashboards = return_value.strip().split('\n')
-  if len(dashboards) > 1:
+  return dashboard_id
+
+def get_gke_debugging_dashboard(args):
+  """Get the identifier of GKE debugging dashboard deployed in the project.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    str:
+      identifier of debugging dashboard if deployed in project,
+      None otherwise.
+  """
+  debugging_dashboard_filter = "displayName:'GKE - TPU Logging Dashboard'"
+  is_error, dashboard_id = get_gke_dashboard(args, debugging_dashboard_filter)
+
+  # 'gcloud monitoring dashboards list' returned an error or multiple dashboards with same filter exist in the project
+  if is_error:
+    return None
+
+  # 'gcloud monitoring dashboards list' succeeded but no dashboard for the filter exist in the project
+  if not is_error and not dashboard_id:
     xpk_print(
-      f'Multiple dashboards with same {outlier_dashboard_filter} exist in the project:{args.project}.'
-      'Delete all but one monitoring dashboard deployed using https://github.com/google/cloud-tpu-monitoring-debugging.'
+        'Follow https://github.com/google/cloud-tpu-monitoring-debugging'
+        ' to deploy debugging dashboard to view stack traces collected in Cloud Logging.'
     )
     return None
 
-  if dashboards[0]:
-    return dashboards[0].strip().split('/')[-1]
-
-  return None
+  return dashboard_id
 
 
 def workload_create(args) -> int:
@@ -1971,9 +2029,12 @@ def workload_create(args) -> int:
     command += ('; WORKER_ID=$HOSTNAME;'
                 f'gsutil cp -r /tmp/xla_dump/ {args.debug_dump_gcs}/$WORKER_ID')
 
+  debugging_dashboard_id = None
   if args.deploy_stacktrace_sidecar:
     xpk_print('Sidecar container to display stack traces will also be deployed.')
     container = get_main_and_sidecar_container(args, system, docker_image, command)
+    # Get GKE debugging dashboard only when sidecar container is deployed
+    debugging_dashboard_id = get_gke_debugging_dashboard(args)
   else:
     container = get_main_container(args, system, docker_image, command)
 
@@ -2006,6 +2067,14 @@ def workload_create(args) -> int:
         # pylint: disable=line-too-long
         f' https://console.cloud.google.com/monitoring/dashboards/builder/{outlier_dashboard_id}?project={args.project}&f.rlabel.cluster_name.ClusterName={args.cluster}.'
         f' To view the metric data for your workload, select {args.workload} from the JobName filter on the dashboard.'
+    )
+
+  if debugging_dashboard_id is not None:
+    xpk_print(
+        'Check stack traces collected in Cloud Logging here:'
+        # pylint: disable=line-too-long
+        f' https://console.cloud.google.com/monitoring/dashboards/builder/{debugging_dashboard_id}?project={args.project}&f.rlabel.cluster_name.ClusterName={args.cluster}.'
+        f' To view the stack traces for your workload, select {args.workload} from the JobName filter on the dashboard.'
     )
 
   xpk_exit(0)
@@ -2654,7 +2723,8 @@ workload_create_parser_optional_arguments.add_argument(
     action='store_true',
     help=(
         'Add this argument to deploy a sidecar container that will '
-        'read the stack traces collected in /tmp/debugging directory.'
+        'read the stack traces collected in /tmp/debugging directory '
+        'and forward them to Cloud Logging.'
     ),
 )
 

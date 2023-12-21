@@ -232,7 +232,7 @@ spec:
 cluster_configmap_yaml = """kind: ConfigMap
 apiVersion: v1 
 metadata:
-  name: {args.cluster}-configmap 
+  name: {args.cluster}-resources-configmap 
 data:
   {data}
 """
@@ -1007,16 +1007,17 @@ def run_gke_cluster_create_command(args) -> int:
   return 0
 
 
-def create_cluster_configmap(args):
+def create_cluster_configmap(args, system):
   """Run the Create GKE Cluster ConfigMap request.
 
   Args:
     args: user provided arguments for running the command.
+    system: system characteristics.
 
   Returns:
     0 if successful and 1 otherwise.
   """
-  system = UserFacingNameToSystemCharacteristics[args.tpu_type]
+  # TODO: Update when GPU support is enabled
   data = f'{args.tpu_type}: "{int(args.num_slices) * system.vms_per_slice}"'
   yml_string = cluster_configmap_yaml.format(args=args,
                                            data=data)
@@ -1041,7 +1042,7 @@ def get_cluster_configmap(args):
     key:value pairs stored in cluster ConfigMap.
   """
   command = (
-    f'kubectl get configmap {args.cluster}-configmap -o=custom-columns="ConfigData:data" --no-headers=true'
+    f'kubectl get configmap {args.cluster}-resources-configmap -o=custom-columns="ConfigData:data" --no-headers=true'
   )
 
   return_code, return_value = run_command_for_value(command, 'GKE Cluster Get ConfigMap', args)
@@ -1543,7 +1544,7 @@ def cluster_create(args) -> int:
     xpk_exit(enable_kueue_creds_code)
 
   xpk_print('Creating ConfigMap for cluster')
-  create_cluster_configmap_code = create_cluster_configmap(args)
+  create_cluster_configmap_code = create_cluster_configmap(args, system_characteristics)
   if create_cluster_configmap_code != 0:
     xpk_exit(create_cluster_configmap_code)
 
@@ -1829,8 +1830,9 @@ def check_if_workload_exists(args) -> bool:
   return False
 
 
+# TODO: Update when GPU support is enabled
 def check_if_workload_can_schedule(args, system):
-  """Check if workload can schedule based on the cluster resources (tpu_type and maximu VM in cluster).
+  """Check if workload can schedule based on the cluster resources (tpu_type and maximum VM in cluster).
 
   Args:
     args: user provided arguments for running the command.
@@ -1857,7 +1859,8 @@ def check_if_workload_can_schedule(args, system):
   vm_required_by_workload = int(args.num_slices) * system.vms_per_slice
   if vm_required_by_workload > max_vm_in_cluster:
     xpk_print(
-        f'{args.workload} is requesting {vm_required_by_workload} VMs of {args.tpu_type} '
+        f'{args.workload} is requesting {args.num_slices} slice/slices of {args.tpu_type}, '
+        f'which is {vm_required_by_workload} VMs, '
         f'but the cluster only contains {max_vm_in_cluster} VMs of {args.tpu_type}. '
         'XPK will not create this workload.'
     )

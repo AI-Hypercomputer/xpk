@@ -1460,7 +1460,7 @@ def set_jobset_on_cluster(args) -> int:
   """
   command = (
       'kubectl apply --server-side -f'
-      ' https://github.com/kubernetes-sigs/jobset/releases/download/v0.2.3/manifests.yaml'
+      ' https://github.com/kubernetes-sigs/jobset/releases/download/v0.3.1/manifests.yaml'
   )
   return_code = run_command_with_updates(command, 'Set Jobset On Cluster', args)
 

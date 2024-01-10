@@ -41,6 +41,10 @@ xpk supports the following TPU types:
 * v5e
 * v5p
 
+and the following GPU types:
+* a100
+* h100
+
 # Installation
 To install xpk, run the following command:
 
@@ -269,6 +273,46 @@ checkpointing so the job restarts near where it was interrupted.
     python3 xpk.py workload list \
     --cluster xpk-test --filter-by-job=$USER
     ```
+
+
+## GPU usage
+
+In order to use XPK for GPU, you can do so by using `device-type` flag.
+
+*   Cluster Create (provision reserved capacity):
+
+    ```shell
+    # Find your reservations
+    gcloud compute reservations list --project=$PROJECT_ID
+    
+    # Run cluster create with reservation.
+    python3 xpk.py cluster create \
+    --cluster xpk-test --device-type=h100-80gb-8 \
+    --num-slices=2 \
+    --reservation=$RESERVATION_ID
+    ```
+
+*   [Install NVIDIA GPU device drivers](https://cloud.google.com/container-optimized-os/docs/how-to/run-gpus#install)
+    ```shell
+    # List available driver versions
+    gcloud compute ssh $NODE_NAME --command "sudo cos-extensions list"
+
+    # Install the default driver 
+    gcloud compute ssh $NODE_NAME --command "sudo cos-extensions install gpu"
+    # OR install a specific version of the driver
+    gcloud compute ssh $NODE_NAME --command "sudo cos-extensions install gpu -- -version=DRIVER_VERSION"
+    ```
+
+*   Run a workload:
+
+    ```shell
+    # Submit a workload
+    python3 xpk.py workload create \
+    --cluster xpk-test --device-type h100-80gb-8 \
+    --workload xpk-test-workload \
+    --command="echo hello world"
+    ```
+
 
 # How to add docker images to a xpk workload
 

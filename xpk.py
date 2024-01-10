@@ -1069,7 +1069,8 @@ def create_cluster_configmap(args, system):
   Returns:
     0 if successful and 1 otherwise.
   """
-  data = f'{args.device_type}: "{int(args.num_slices) * system.vms_per_slice}"'
+  device_type = args.tpu_type if args.tpu_type else args.device_type
+  data = f'{device_type}: "{int(args.num_slices) * system.vms_per_slice}"'
   yml_string = cluster_configmap_yaml.format(args=args,
                                            data=data)
   tmp = write_temporary_file(yml_string)
@@ -1279,8 +1280,9 @@ def run_gke_node_pool_create_command(args, system) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
+  device_type = args.tpu_type if args.tpu_type else args.device_type
   xpk_print(
-      f'Creating {args.num_slices} node pool or pools of {system.device_type}\n'
+      f'Creating {args.num_slices} node pool or pools of {device_type}\n'
       f'Underlyingly, we assume that means: {system}'
   )
   existing_node_pool_names, return_code = get_all_nodepools_programmatic(args)
@@ -1474,7 +1476,8 @@ def enable_kueue_crds(args, system) -> int:
     0 if successful and 1 otherwise.
   """
 
-  cluster_hardware_name = f'{args.num_slices}x{system.device_type}'
+  device_type = args.tpu_type if args.tpu_type else args.device_type
+  cluster_hardware_name = f'{args.num_slices}x{device_type}'
   total_chips = args.num_slices * system.vms_per_slice * system.chips_per_vm
   yml_string = cluster_set_crd_yaml.format(
       system=system,
@@ -1916,20 +1919,21 @@ def check_if_workload_can_schedule(args, system):
     xpk_print(f'No ConfigMap exist for cluster with the name {args.cluster}-configmap.')
     return True
 
-  if args.device_type not in cluster_config_map:
-    xpk_print(f'{args.workload} is requesting {args.device_type} but '
+  device_type = args.tpu_type if args.tpu_type else args.device_type
+  if device_type not in cluster_config_map:
+    xpk_print(f'{args.workload} is requesting {device_type} but '
       f'cluster only contains {cluster_config_map.keys()}. '
       'XPK will not create this workload.'
     )
     return False
 
-  max_vm_in_cluster = cluster_config_map[args.device_type]
+  max_vm_in_cluster = cluster_config_map[device_type]
   vm_required_by_workload = int(args.num_slices) * system.vms_per_slice
   if vm_required_by_workload > max_vm_in_cluster:
     xpk_print(
-        f'{args.workload} is requesting {args.num_slices} slice/slices of {args.device_type}, '
+        f'{args.workload} is requesting {args.num_slices} slice/slices of {device_type}, '
         f'which is {vm_required_by_workload} VMs, '
-        f'but the cluster only contains {max_vm_in_cluster} VMs of {args.device_type}. '
+        f'but the cluster only contains {max_vm_in_cluster} VMs of {device_type}. '
         'XPK will not create this workload.'
     )
     return False

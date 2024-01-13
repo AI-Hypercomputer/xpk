@@ -2712,6 +2712,21 @@ cluster_cacheimage_optional_arguments = (
         'Optional Arguments', 'Arguments optional for cluster cacheimage.'
     )
 )
+cluster_cacheimage_group = cluster_cacheimage_parser.add_mutually_exclusive_group(required=True)
+
+### Device Type Argument
+cluster_cacheimage_group.add_argument(
+    '--tpu-type',
+    type=str,
+    default=None,
+    help='The tpu type to cache images on, v5litepod-16, etc.'
+)
+cluster_cacheimage_group.add_argument(
+    '--device-type',
+    type=str,
+    default=None,
+    help='The device type to cache images on (can be tpu or gpu), v5litepod-16, h100-80gb-8, etc.'
+)
 
 ### Required arguments
 cluster_cacheimage_required_arguments.add_argument(

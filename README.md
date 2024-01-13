@@ -178,7 +178,8 @@ all zones.
 
     ```shell
     python3 xpk.py cluster cacheimage \
-    --cluster xpk-test --docker-image gcr.io/your_docker_image
+    --cluster xpk-test --docker-image gcr.io/your_docker_image \
+    --tpu-type=v5litepod-16
     ```
 
 ## Workload Create
@@ -284,7 +285,7 @@ In order to use XPK for GPU, you can do so by using `device-type` flag.
     ```shell
     # Find your reservations
     gcloud compute reservations list --project=$PROJECT_ID
-    
+
     # Run cluster create with reservation.
     python3 xpk.py cluster create \
     --cluster xpk-test --device-type=h100-80gb-8 \
@@ -297,7 +298,7 @@ In order to use XPK for GPU, you can do so by using `device-type` flag.
     # List available driver versions
     gcloud compute ssh $NODE_NAME --command "sudo cos-extensions list"
 
-    # Install the default driver 
+    # Install the default driver
     gcloud compute ssh $NODE_NAME --command "sudo cos-extensions install gpu"
     # OR install a specific version of the driver
     gcloud compute ssh $NODE_NAME --command "sudo cos-extensions install gpu -- -version=DRIVER_VERSION"
@@ -497,4 +498,3 @@ To explore the stack traces collected in a temporary directory in Kubernetes Pod
   --workload xpk-test-workload --command "python3 main.py" --cluster \
   xpk-test --tpu-type=v5litepod-16 --deploy-stacktrace-sidecar
  ```
- 

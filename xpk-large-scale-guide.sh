@@ -483,7 +483,8 @@ bash docker_upload_runner.sh CLOUD_IMAGE_NAME="${USER}"_runner
 ##### 7C #####################
 cd ../xpk
 python3 xpk.py cluster cacheimage \
- --cluster ${CLUSTER} --docker-image gcr.io/"${PROJECT}"/"${USER}"_runner
+ --cluster ${CLUSTER} --docker-image gcr.io/"${PROJECT}"/"${USER}"_runner \
+ --tpu-type=v5litepod-256
 
 # [XPK] Starting xpk
 # [XPK] Starting cluster cacheimage for cluster: xpk-test

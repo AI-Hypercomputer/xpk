@@ -373,7 +373,10 @@ workload.
 
 # More advanced facts:
 
-* Workload create accepts a --env-file flag to allow specifying the container's
+* `xpk cluster create` accepts a `--tpu-topology` flag to allow for custom tpu topologies.
+See https://cloud.google.com/kubernetes-engine/docs/concepts/tpus#topology for more details.
+
+* `xpk workload create` accepts a `--env-file`` flag to allow specifying the container's
 environment from a file. Usage is the same as Docker's
 [--env-file flag](https://docs.docker.com/engine/reference/commandline/run/#env)
 
@@ -383,7 +386,7 @@ environment from a file. Usage is the same as Docker's
     MY_ENV_VAR=hello
     ```
 
-* Workload create accepts a --debug-dump-gcs flag which is a path to GCS bucket.
+* `xpk workload create` accepts a --debug-dump-gcs flag which is a path to GCS bucket.
 Passing this flag sets the XLA_FLAGS='--xla_dump_to=/tmp/xla_dump/' and uploads
 hlo dumps to the specified GCS bucket for each worker.
 

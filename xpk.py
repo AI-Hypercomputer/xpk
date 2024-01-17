@@ -1319,7 +1319,11 @@ def run_gke_node_pool_create_command(args, system) -> int:
         f' {args.custom_tpu_nodepool_arguments}'
     )
     if system.accelerator_type == AcceleratorType['TPU']:
-      command += (f' --tpu-topology={system.topology}')
+      tpu_topology, return_code = get_tpu_topology(system, args)
+      if return_code > 0:
+        xpk_print('Parsing tpu_topology failed!')
+        return return_code
+      command += (f' --tpu-topology={tpu_topology}')
     elif system.accelerator_type == AcceleratorType['GPU']:
       command += f' --accelerator type={system.gke_accelerator},count={str(system.chips_per_vm)}'
     task = f'NodepoolCreate-{node_pool_name}'
@@ -1555,6 +1559,35 @@ def default_subcommand_function(_args) -> int:  # args is unused, so pylint: dis
   cluster_parser.print_help()
   workload_parser.print_help()
   return 0
+
+
+def get_tpu_topology(system: SystemCharacteristics, args) -> tuple[str, int]:
+  """Function around parsing tpu-topology argument and obtaining the tpu-topology.
+
+  Args:
+    system: SystemCharacteristics for the device type.
+    args: User provided arguments for running commands.
+
+  Returns:
+  A tuple of:
+    str: topology type to use
+    int: 0 if successful and 1 otherwise.
+  """
+  if system.accelerator_type != AcceleratorType['TPU']:
+    xpk_print(
+      'tpu_topology argument is only supported when the AcceleratorType is TPU.'
+      f' The AcceleratorType you are using is: {system.accelerator_type}'
+    )
+    return None, 1
+  tpu_topology = system.topology
+  if args.tpu_topology is not None:
+    tpu_topology = args.tpu_topology
+    xpk_print(
+      f'Using custom tpu topology of {args.tpu_topology} for {system.device_type}'
+      ' in node pool creation.'
+    )
+
+  return tpu_topology, 0
 
 
 def cluster_create(args) -> int:
@@ -2519,6 +2552,18 @@ def directory_path_type(value):
   return value
 
 
+def tpu_topology_type(value, pat=re.compile(r'^[\d]+(x[\d.*]+){1,2}$')):
+  match = pat.fullmatch(value)
+  if not match:
+    raise argparse.ArgumentTypeError(
+        f'Custom TPU Topology must match the pattern `{pat.pattern}` such as 1x2x3'
+        f' or 10x10. TPU Topology set through `--tpu-topology` is currently {value}.'
+        ' See https://cloud.google.com/kubernetes-engine/docs/concepts/tpus#topology'
+        ' for more details.'
+    )
+  return value
+
+
 #### "cluster" command parser. ####
 cluster_parser = xpk_subcommands.add_parser(
     'cluster',
@@ -2605,6 +2650,16 @@ cluster_create_capacity_arguments.add_argument(
 )
 
 ### Optional Arguments
+cluster_create_optional_arguments.add_argument(
+    '--tpu-topology',
+    type=tpu_topology_type,
+    default=None,
+    help=(
+      'The slice topology to create the TPU slice with. This only supports TPUs.'
+      'By default, tpu node pool creation will use the tpu-topology defined in'
+      ' the SystemCharacteristics within xpk code.'
+    )
+)
 cluster_create_optional_arguments.add_argument(
     '--host-maintenance-interval',
     type=str,

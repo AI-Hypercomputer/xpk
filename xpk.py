@@ -97,6 +97,7 @@ spec:
               priorityClassName: {args.priority}
               hostNetwork: true
               dnsPolicy: ClusterFirstWithHostNet
+              terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
               containers:
               {container}
                 volumeMounts:
@@ -2991,6 +2992,16 @@ workload_create_parser_optional_arguments.add_argument(
         'Add this argument to deploy a sidecar container that will '
         'read the stack traces collected in /tmp/debugging directory '
         'and forward them to Cloud Logging.'
+    ),
+)
+
+workload_create_parser_optional_arguments.add_argument(
+    '-tgps', '--termination-grace-period-seconds', 
+    type=str,
+    default='30',
+    help=(
+        'Maximum wait time for a workload Pod to wrap up after a disruption event or deletion request.'
+        'Defaults to 30 seconds.'
     ),
 )
 

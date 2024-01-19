@@ -98,6 +98,17 @@ spec:
               hostNetwork: true
               dnsPolicy: ClusterFirstWithHostNet
               terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
+              env:
+              - name: TPU_WORKER_ID
+                value: metadata.annotations['batch.kubernetes.io/job-completion-index']
+              - name: TPU_WORKER_HOSTNAMES
+                value: <job-name>-0.<subdomain>,........,<job-name>-<n-1>.<subdomain>
+              - name: MEGASCALE_NUM_SLICES
+                value: {args.num_slices}
+              - name: MEGASCALE_SLICE_ID
+                value: metadata.annotations['jobset.sigs.k8s.io/job-index']
+              - name: MEGASCALE_COORDINATOR_ADDRESS
+                value: {args.workload}-slice-job-0-0.{args.workload}
               containers:
               {container}
                 volumeMounts:

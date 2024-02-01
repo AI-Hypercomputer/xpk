@@ -466,7 +466,7 @@ gcloud beta compute reservations list --project=$PROJECT_ID
 gcloud beta compute reservations describe $RESERVATION --project=$PROJECT_ID --zone=$ZONE
 ```
 
-# Workload Debugging
+# TPU Workload Debugging
 
 ## Collect Stack Traces
 [cloud-tpu-diagnostics](https://pypi.org/project/cloud-tpu-diagnostics/) PyPI package can be used to generate stack traces for workloads running in GKE. This package dumps the Python traces when a fault such as segmentation fault, floating-point exception, or illegal operation exception occurs in the program. Additionally, it will also periodically collect stack traces to help you debug situations when the program is unresponsive. You must make the following changes in the docker image running in a Kubernetes main container to enable periodic stack trace collection.

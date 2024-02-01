@@ -2262,10 +2262,10 @@ def workload_create(args) -> int:
 
   debugging_dashboard_id = None
   resource_type = AcceleratorTypeToAcceleratorCharacteristics[system.accelerator_type].resource_type
-  if args.deploy_stacktrace_sidecar:
-    xpk_print('Sidecar container to display stack traces will also be deployed.')
+  if system.accelerator_type == AcceleratorType['TPU'] and args.deploy_stacktrace_sidecar:
+    xpk_print('Sidecar container to display stack traces for TPU workloads will also be deployed.')
     container = get_main_and_sidecar_container(args, system, docker_image, command)
-    # Get GKE debugging dashboard only when sidecar container is deployed
+    # Get GKE debugging dashboard only when sidecar container is deployed for TPU workloads
     debugging_dashboard_id = get_gke_debugging_dashboard(args)
   else:
     container = get_main_container(args, system, docker_image, command, resource_type)
@@ -2287,8 +2287,10 @@ def workload_create(args) -> int:
     xpk_print(f'Create Workload request returned ERROR {return_code}')
     xpk_exit(return_code)
 
-  # Get GKE outlier dashboard
-  outlier_dashboard_id = get_gke_outlier_dashboard(args)
+  # Get GKE outlier dashboard for TPU
+  outlier_dashboard_id = None
+  if system.accelerator_type == AcceleratorType['TPU']:
+    outlier_dashboard_id = get_gke_outlier_dashboard(args)
 
   xpk_print(
       'Follow your workload here:'
@@ -2991,7 +2993,7 @@ workload_create_parser_optional_arguments.add_argument(
     help=(
         'Add this argument to deploy a sidecar container that will '
         'read the stack traces collected in /tmp/debugging directory '
-        'and forward them to Cloud Logging.'
+        'and forward them to Cloud Logging for TPU workloads.'
     ),
 )
 

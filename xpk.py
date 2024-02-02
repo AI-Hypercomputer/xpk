@@ -2435,7 +2435,7 @@ def determine_workload_list_filter_by_job(args) -> str:
 
 
 def get_workload_list(args, columns) -> None:
-  """
+  """Function to get the list of the workloads in the cluster.
 
   Args:
     args: user provided arguments for running the command.

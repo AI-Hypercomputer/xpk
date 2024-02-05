@@ -18,8 +18,8 @@
 
 xpk (Accelerated Processing Kit, pronounced x-p-k,) is a software tool to help
 Cloud developers to orchestrate training jobs on accelerators such as TPUs and
-GPUs on GKE. xpk handles the "multihost pods" of TPUs and GPUs (HGX H100) as
-first class citizens.
+GPUs on GKE. xpk handles the "multihost pods" of TPUs, GPUs (HGX H100) and CPUs
+(n2-standard-32) as first class citizens.
 
 xpk decouples provisioning capacity from running jobs. There are two structures:
 clusters (provisioned VMs) and workloads (training jobs). Clusters represent the
@@ -44,6 +44,9 @@ xpk supports the following TPU types:
 and the following GPU types:
 * a100
 * h100
+
+and the following CPU types:
+* n2-standard-32
 
 # Installation
 To install xpk, run the following command:
@@ -335,6 +338,36 @@ In order to use XPK for GPU, you can do so by using `device-type` flag.
     --command="echo hello world"
     ```
 
+## CPU usage
+
+In order to use XPK for CPU, you can do so by using `device-type` flag.
+
+*   Cluster Create (provision on-demand capacity):
+
+    ```shell
+    # Run cluster create with on demand capacity.
+    python3 xpk.py cluster create \
+    --cluster xpk-test \
+    --device-type=n2-standard-32-256 \
+    --num-slices=1 \
+    --default-pool-cpu-machine-type=n2-standard-32 \
+    --on-demand
+    ```
+    Note that `device-type` for CPUs is of the format <cpu-machine-type>-<number of VMs>, thus in the above example, user requests for 256 VMs of type n2-standard-32.
+    Currently workloads using < 1000 VMs are supported.
+
+*   Run a workload:
+
+    ```shell
+    # Submit a workload
+    python3 xpk.py workload create \
+    --cluster xpk-test \
+    --num-slices=1 \
+    --device-type=n2-standard-32-256 \
+    --workload xpk-test-workload \
+    --command="echo hello world"
+    ```
+
 
 # How to add docker images to a xpk workload
 
@@ -424,7 +457,7 @@ Please select a CPU type that exists in all zones in the region.
 # Find CPU Types supported in zones.
 gcloud compute machine-types list --zones=$ZONE_LIST
 # Adjust default cpu machine type.
-python3 xpk.py cluster create --cluster-cpu-machine-type=CPU_TYPE ...
+python3 xpk.py cluster create --default-pool-cpu-machine-type=CPU_TYPE ...
 ```
 
 ## Permission Issues: `requires one of ["permission_name"] permission(s)`.

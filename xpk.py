@@ -1325,6 +1325,15 @@ def get_capacity_arguments(args) -> tuple[str, int]:
 
   return capacity_args, return_code
 
+
+def get_user_input(input_msg):
+  user_input = input(input_msg)
+  user_input_approves = user_input in ('y', 'yes')
+  if not user_input_approves:
+    return False
+  return True
+
+
 def run_gke_node_pool_create_command(args, system) -> int:
   """Run the Create GKE Node Pool request.
 
@@ -1392,13 +1401,9 @@ def run_gke_node_pool_create_command(args, system) -> int:
 
   will_delete = True
   if node_pools_to_delete and not args.force:
-    user_input = input(
+    will_delete = get_user_input(
       f'Planning to delete {len(node_pools_to_delete)} node pools including '
-      f'{node_pools_to_delete}. \nDo you wish to delete: y (yes) / n (no):\n'
-    )
-    user_input_approves_delete = user_input in ('y', 'yes')
-    if not user_input_approves_delete:
-      will_delete = False
+      f'{node_pools_to_delete}. \nDo you wish to delete: y (yes) / n (no):\n')
 
   if not will_delete:
     xpk_print('Skipping delete commands. Continuing to next step.')
@@ -2481,6 +2486,7 @@ def workload_delete(args) -> int:
   if set_cluster_command_code != 0:
     xpk_exit(set_cluster_command_code)
 
+  will_delete = True
   if not args.workload:
     args.filter_by_status = "EVERYTHING"
     columns = {
@@ -2494,15 +2500,19 @@ def workload_delete(args) -> int:
       xpk_exit(return_code)
     # Skip the header
     workloads = return_value.strip().split("\n")[1:]
+    if workloads and not args.force:
+      will_delete = get_user_input(
+        f'Planning to delete {len(workloads)} workloads in the cluster {args.cluster} '
+        f'including {workloads}. \nDo you wish to delete: y (yes) / n (no):\n')
   else:
     workloads = [args.workload]
 
   if not workloads:
     xpk_print("There are no workloads to delete matching the filter in the cluster.")
-
-  for workload in workloads:
-    result = input(f'Do you want to delete the workload: {workload} (Y/n)? ')
-    if result and result == 'Y':
+  elif not will_delete:
+    xpk_print("Skipping delete command.")
+  else:
+    for workload in workloads:
       args.workload = workload
       yml_string = workload_delete_yaml.format(args=args)
       tmp = write_temporary_file(yml_string)
@@ -3236,13 +3246,21 @@ workload_delete_parser_optional_arguments.add_argument(
     '--workload',
     type=workload_name_type,
     default=None,
-    help='The name of the workload to delete.',
+    help='The name of the workload to delete. If the workload is not specified, '
+    'all workloads will be deleted from the cluster.',
 )
 workload_delete_parser_optional_arguments.add_argument(
     '--filter-by-job',
     type=str,
     help='Filters the arguments based on job name. Provide a regex expression'
           'to parse jobs that match the pattern or provide a job name to delete a single job.',
+)
+workload_delete_parser_optional_arguments.add_argument(
+    '--force',
+    action='store_true',
+    help=(
+      'Forces workload deletion command to run without additional approval.'
+    ),
 )
 
 workload_delete_parser.set_defaults(func=workload_delete)

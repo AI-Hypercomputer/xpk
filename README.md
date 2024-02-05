@@ -235,7 +235,7 @@ checkpointing so the job restarts near where it was interrupted.
     --workload xpk-test-workload --cluster xpk-test
     ```
 
-    This will only delete `xpk-test-workload` workload in `xpk-test` cluster. Deletion will only begin if you type `Y` at the prompt.
+    This will only delete `xpk-test-workload` workload in `xpk-test` cluster.
 
 *   Workload Delete (delete all training jobs in the cluster):
 
@@ -244,7 +244,7 @@ checkpointing so the job restarts near where it was interrupted.
     --cluster xpk-test
     ```
 
-    This will delete all the workloads in `xpk-test` cluster. Deletion will only begin if you type `Y` at the prompt for every workload.
+    This will delete all the workloads in `xpk-test` cluster. Deletion will only begin if you type `y` or `yes` at the prompt.
 
 *   Workload Delete supports filtering. Delete a portion of jobs that match user criteria.
     * Filter by Job: `filter-by-job`
@@ -254,7 +254,7 @@ checkpointing so the job restarts near where it was interrupted.
     --cluster xpk-test --filter-by-job=$USER
     ```
 
-    This will delete all the workloads in `xpk-test` cluster whose names start with `$USER`. Deletion will only begin if you type `Y` at the prompt for every workload.
+    This will delete all the workloads in `xpk-test` cluster whose names start with `$USER`. Deletion will only begin if you type `y` or `yes` at the prompt.
 
 ## Workload List
 *   Workload List (see training jobs):

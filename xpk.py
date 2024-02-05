@@ -1327,11 +1327,15 @@ def get_capacity_arguments(args) -> tuple[str, int]:
 
 
 def get_user_input(input_msg):
+  """Function to get the user input for a prompt.
+
+  Args:
+    input_msg: message to be displayed by the prompt.
+  Returns:
+    True if user enter y or yes at the prompt, False otherwise.
+  """
   user_input = input(input_msg)
-  user_input_approves = user_input in ('y', 'yes')
-  if not user_input_approves:
-    return False
-  return True
+  return user_input in ('y', 'yes')
 
 
 def run_gke_node_pool_create_command(args, system) -> int:

@@ -91,6 +91,7 @@ spec:
             spec:
               schedulerName: {args.scheduler}
               restartPolicy: Never
+              {affinity}
               nodeSelector:
                 {accelerator_label}
                 {machine_label}
@@ -100,6 +101,7 @@ spec:
               terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
               containers:
               {container}
+                {env}
                 volumeMounts:
                 - mountPath: /dev/shm
                   name: dshm-2
@@ -247,7 +249,8 @@ data:
 
 AcceleratorType = {
   'TPU': 1,
-  'GPU': 2
+  'GPU': 2,
+  'CPU': 3
 }
 
 @dataclass
@@ -264,6 +267,10 @@ AcceleratorTypeToAcceleratorCharacteristics = {
      # GPU
       AcceleratorType['GPU']: AcceleratorCharacteristics(
       'nvidia.com/gpu', 'cloud.google.com/gke-accelerator', 'cloud.google.com/gce-machine-type'
+      ),
+     # CPU
+      AcceleratorType['CPU']: AcceleratorCharacteristics(
+      'cpu', '', 'cloud.google.com/gke-nodepool' 
       )
 }
 
@@ -642,6 +649,45 @@ UserFacingNameToSystemCharacteristics = {
     ),
     'v4-4096': SystemCharacteristics(
       '8x16x16', 512,'tpu-v4-podslice', 'ct4p-hightpu-4t', 4, AcceleratorType['TPU'], 'v4-4096'
+    ),
+
+    # CPU system characteristics
+    # n2-standard-32-$VMs
+    'n2-standard-32-1': SystemCharacteristics(
+      'N/A', 1,'N/A', 'n2-standard-32', 1, AcceleratorType['CPU'], 'n2-standard-32-1'
+    ),
+    'n2-standard-32-2': SystemCharacteristics(
+      'N/A', 2,'N/A', 'n2-standard-32', 1, AcceleratorType['CPU'], 'n2-standard-32-2'
+    ),
+    'n2-standard-32-4': SystemCharacteristics(
+      'N/A', 4,'N/A', 'n2-standard-32', 1, AcceleratorType['CPU'], 'n2-standard-32-4'
+    ),
+    'n2-standard-32-8': SystemCharacteristics(
+      'N/A', 8,'N/A', 'n2-standard-32', 1, AcceleratorType['CPU'], 'n2-standard-32-8'
+    ),
+    'n2-standard-32-16': SystemCharacteristics(
+      'N/A', 16,'N/A', 'n2-standard-32', 1, AcceleratorType['CPU'], 'n2-standard-32-16'
+    ),
+    'n2-standard-32-32': SystemCharacteristics(
+      'N/A', 32,'N/A', 'n2-standard-32', 1, AcceleratorType['CPU'], 'n2-standard-32-32'
+    ),
+    'n2-standard-32-64': SystemCharacteristics(
+      'N/A', 64,'N/A', 'n2-standard-32', 1, AcceleratorType['CPU'], 'n2-standard-32-64'
+    ),
+    'n2-standard-32-128': SystemCharacteristics(
+      'N/A', 128,'N/A', 'n2-standard-32', 1, AcceleratorType['CPU'], 'n2-standard-32-128'
+    ),
+    'n2-standard-32-256': SystemCharacteristics(
+      'N/A', 256,'N/A', 'n2-standard-32', 1, AcceleratorType['CPU'], 'n2-standard-32-256'
+    ),
+    'n2-standard-32-512': SystemCharacteristics(
+      'N/A', 512,'N/A', 'n2-standard-32', 1, AcceleratorType['CPU'], 'n2-standard-32-512'
+    ),
+    'n2-standard-32-1024': SystemCharacteristics(
+      'N/A', 1024,'N/A', 'n2-standard-32', 1, AcceleratorType['CPU'], 'n2-standard-32-1024'
+    ),
+    'n2-standard-32-2048': SystemCharacteristics(
+      'N/A', 2048,'N/A', 'n2-standard-32', 1, AcceleratorType['CPU'], 'n2-standard-32-2048'
     ),
 }
 """ If you modify UserFacingNameToSystemCharacteristics you should also modify the corresponding
@@ -1036,6 +1082,14 @@ def run_gke_cluster_create_command(args) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
+  # cluster_cpu_machine_type is soon to be deprecated!
+  machine_type = args.default_pool_cpu_machine_type
+  if args.cluster_cpu_machine_type != '':
+    xpk_print('Warning: Note that cluster-cpu-machine-type is soon to be',
+              ' deprecated. Please use --default-pool-cpu-machine-type instead,'
+              ' to denote the machine type of the default cpu node pool. Set'
+              ' the machine type of other cpu nodepools using `--device-type`.')
+    machine_type = args.cluster_cpu_machine_type
 
   # Create the regional cluster with `num-nodes` CPU nodes in the same zone as
   # TPUs. This has been tested with clusters of 300 VMs. Larger clusters will
@@ -1048,7 +1102,7 @@ def run_gke_cluster_create_command(args) -> int:
       f' --node-locations={args.zone}'
       f' --project={args.project} --region={zone_to_region(args.zone)}'
       f' --cluster-version={args.gke_version} --location-policy=BALANCED'
-      f' --machine-type={args.cluster_cpu_machine_type}'
+      f' --machine-type={machine_type}'
       ' --scopes=storage-full,gke-default'
       f' {args.custom_cluster_arguments}'
   )
@@ -1307,7 +1361,7 @@ def run_gke_node_pool_create_command(args, system) -> int:
     command = (
         'gcloud beta container node-pools create'
         f' {node_pool_name} --node-version={args.gke_version}'
-        f' --placement-type=COMPACT --cluster={args.cluster}'
+        f' --cluster={args.cluster}'
         f' --project={args.project} --node-locations={args.zone}'
         f' --region={zone_to_region(args.zone)}'
         f' --num-nodes={system.vms_per_slice}'
@@ -1316,11 +1370,13 @@ def run_gke_node_pool_create_command(args, system) -> int:
         f' {capacity_args}'
         ' --scopes=storage-full,gke-default'
         ' --enable-gvnic --max-pods-per-node 15'
-        f' {args.custom_tpu_nodepool_arguments}'
     )
     if system.accelerator_type == AcceleratorType['TPU']:
+      command += (' --placement-type=COMPACT ')
       command += (f' --tpu-topology={system.topology}')
+      command += (f' {args.custom_tpu_nodepool_arguments}')
     elif system.accelerator_type == AcceleratorType['GPU']:
+      command += (' --placement-type=COMPACT ')
       command += f' --accelerator type={system.gke_accelerator},count={str(system.chips_per_vm)}'
     task = f'NodepoolCreate-{node_pool_name}'
     commands.append(command)
@@ -1612,7 +1668,7 @@ def cluster_create(args) -> int:
   if create_cluster_configmap_code != 0:
     xpk_exit(create_cluster_configmap_code)
 
-  xpk_print('GKE commands done! TPUs are created.')
+  xpk_print('GKE commands done! Resources are created.')
   xpk_print(
       'See your GKE Cluster here:'
       # pylint: disable=line-too-long
@@ -2051,6 +2107,7 @@ def get_main_container(args, system, docker_image, command, resource_type) -> st
                 ports:
                 - containerPort: 8471
                 - containerPort: 8080
+                {jax_coordinator_port}
                 securityContext:
                   privileged: true
                 command:
@@ -2064,9 +2121,24 @@ def get_main_container(args, system, docker_image, command, resource_type) -> st
   """
   return yaml.format(args=args,
                    system=system,
+                   jax_coordinator_port=add_jax_coordinator_port(system),
                    docker_image=docker_image,
                    command=command,
                    resource_type=resource_type)
+
+def add_jax_coordinator_port(system):
+  """Add jax coordinator port only for CPUs
+
+  Args:
+    system: system characteristics.
+
+  Returns:
+    str:
+      jax coordinator port as a YAML string
+  """
+  if system.accelerator_type == AcceleratorType['CPU']:
+    return '- containerPort: 1234'
+  return ""
 
 def get_gke_dashboard(args, dashboard_filter):
   """Get the identifier of GKE dashboard deployed in the project.
@@ -2182,6 +2254,8 @@ def create_accelerator_label(accelerator_type, system) -> str:
   Returns:
     The accelerator label.
   """
+  if accelerator_type == AcceleratorType['CPU']:
+    return ""
   return f"{AcceleratorTypeToAcceleratorCharacteristics[accelerator_type].accelerator_label}: {system.gke_accelerator}"
 
 def create_machine_label(accelerator_type, system) -> str:
@@ -2196,6 +2270,79 @@ def create_machine_label(accelerator_type, system) -> str:
   """
   if accelerator_type == AcceleratorType['TPU']:
     return f"{AcceleratorTypeToAcceleratorCharacteristics[accelerator_type].machine_label}: {system.topology}"
+  return ""
+
+def calculate_process_count(num_slices, vms_per_slice) -> str:
+  """ Calculates the total number of processes in the workload.
+  Args:
+    num_slices: Number of slices to be used in the workload.
+    vms_per_slice: number of VMs in each slice.
+
+  Returns:
+    str: total number of processes. 
+  """
+  num_processes = int(num_slices) * int(vms_per_slice)
+  return f"{num_processes}"
+
+def get_cpu_env(num_slices, system) -> str:
+  """Generate environment variables for CPU nodepools
+  Args:
+    num_slices: Number of slices to be used in the workload.
+    system: system characteristics
+
+  Returns:
+    str: yaml containing env variables 
+  """
+  yaml = """env:
+                - name: REPLICATED_JOB_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.annotations['jobset.sigs.k8s.io/replicatedjob-name']
+                - name: JOBSET_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.annotations['jobset.sigs.k8s.io/jobset-name']
+                - name: JAX_COORDINATOR_ADDRESS
+                  value: "$(JOBSET_NAME)-$(REPLICATED_JOB_NAME)-0-0.$(JOBSET_NAME)"
+                - name: JOB_INDEX
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.annotations['jobset.sigs.k8s.io/job-index']
+                - name: JOB_COMPLETION_INDEX
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.annotations['batch.kubernetes.io/job-completion-index']
+                - name: PROCESSES_IN_JOB
+                  value: "{processes_in_job}"
+                - name: JAX_PROCESS_COUNT
+                  value: "{process_count}"
+  """
+  if system.accelerator_type == AcceleratorType['CPU']:
+    return yaml.format(processes_in_job = system.vms_per_slice,
+                      process_count=calculate_process_count(num_slices,system.vms_per_slice))
+  return ""
+
+def get_cpu_affinity(accelerator_type) -> str:
+  """Generate affinity rules for CPU nodepools, so that workload pods are 
+  not scheduled on the default pool machines.
+  Args:
+    accelerator_type: TPU / GPU / CPU
+
+  Returns:
+    str: yaml containing affinity constraints 
+  """
+  yaml = """affinity:
+                nodeAffinity:
+                  requiredDuringSchedulingIgnoredDuringExecution:
+                    nodeSelectorTerms:
+                    - matchExpressions:
+                      - key: cloud.google.com/gke-nodepool
+                        operator: NotIn
+                        values:
+                        - default-pool
+  """
+  if accelerator_type == AcceleratorType['CPU']:
+    return yaml
   return ""
 
 def get_system_characteristics(args) -> tuple[SystemCharacteristics|None, int]:
@@ -2275,6 +2422,8 @@ def workload_create(args) -> int:
                                            docker_image=docker_image,
                                            command=command,
                                            container=container,
+                                           affinity=get_cpu_affinity(system.accelerator_type),
+                                           env=get_cpu_env(args.num_slices,system),
                                            accelerator_label=create_accelerator_label(system.accelerator_type, system),
                                            machine_label=create_machine_label(system.accelerator_type, system),
                                            resource_type=resource_type)
@@ -2612,7 +2761,7 @@ cluster_device_group.add_argument(
     '--device-type',
     type=str,
     default=None,
-    help='The device type to use (can be tpu or gpu), v5litepod-16, h100-80gb-8, etc.'
+    help='The device type to use (can be tpu or gpu or cpu), v5litepod-16, h100-80gb-8, n2-standard-32-4 etc.'
 )
 
 
@@ -2668,12 +2817,22 @@ cluster_create_optional_arguments.add_argument(
     required=True,
 )
 cluster_create_optional_arguments.add_argument(
-  '--cluster-cpu-machine-type',
+  '--default-pool-cpu-machine-type',
     type=str,
     default='e2-standard-16',
     help=(
-      'Set the machine tpu within the default cpu node pool. For'
+      'Set the machine type within the default cpu node pool. For'
       ' regional clusters, all zones must support the machine type.'
+    )
+)
+cluster_create_optional_arguments.add_argument(
+  '--cluster-cpu-machine-type',
+    type=str,
+    default='',
+    help=(
+      'Getting deprecated soon! Please use --default-pool-cpu-machine-type'
+      'instead, to denote the machine type of the default cpu node pool. Set'
+      ' the machine type of other cpu nodepools using --device-type.'
     )
 )
 cluster_create_optional_arguments.add_argument(
@@ -2923,7 +3082,7 @@ workload_device_group.add_argument(
     '--device-type',
     type=str,
     default=None,
-    help='The device type to use (can be tpu or gpu), v5litepod-16, h100-80gb-8, etc.'
+    help='The device type to use (can be tpu or gpu or cpu), v5litepod-16, h100-80gb-8, n2-standard-32-4 etc.'
 )
 
 ### Workload Optional Arguments

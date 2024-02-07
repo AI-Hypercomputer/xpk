@@ -2123,7 +2123,7 @@ def get_main_container(args, system, docker_image, command, resource_type) -> st
                 - bash
                 - -c
                 - |
-                  echo XPK Start: $(date) ; {command} ; EXIT_CODE=$? ; echo XPK End: $(date); echo EXIT_CODE=$EXIT_CODE ; sleep 5; exit $EXIT_CODE
+                  echo XPK Start: $(date) ; _sigterm() ( kill -SIGTERM $!;); trap _sigterm SIGTERM; ({command}) & PID=$!; while kill -0 $PID 2>/dev/null; do sleep 5; done; EXIT_CODE=$? ; echo XPK End: $(date); echo EXIT_CODE=$EXIT_CODE
                 resources:
                   limits:
                     {resource_type}: {system.chips_per_vm}

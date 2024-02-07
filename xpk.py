@@ -2492,18 +2492,14 @@ def workload_delete(args) -> int:
 
   will_delete = True
   if not args.workload:
-    args.filter_by_status = "EVERYTHING"
-    columns = {
-      'Jobset Name': '.metadata.ownerReferences[0].name',
-    }
     xpk_print("Get the name of the workloads in the cluster.")
-    return_code, return_value = get_workload_list(args, columns)
+    return_code, return_value = get_workload_list(args)
 
     if return_code != 0:
       xpk_print(f'List Job request returned ERROR {return_code}')
       xpk_exit(return_code)
     # Skip the header
-    workloads = return_value.strip().split("\n")[1:]
+    workloads = [x.split(' ')[0] for x in return_value.splitlines()][1:]
     if workloads and not args.force:
       will_delete = get_user_input(
         f'Planning to delete {len(workloads)} workloads in the cluster {args.cluster} '
@@ -2597,7 +2593,7 @@ def determine_workload_list_filter_by_job(args) -> str:
     return workload_list_awk_command(f'{job_name_arg} ~ \"{args.filter_by_job}\"')
 
 
-def get_workload_list(args, columns) -> None:
+def get_workload_list(args) -> None:
   """Function to get the list of the workloads in the cluster.
 
   Args:
@@ -2607,6 +2603,17 @@ def get_workload_list(args, columns) -> None:
     return_code: 0 if successful and 1 otherwise.
     return_value: workloads in the cluster matching the criteria.
   """
+  columns = {
+      'Jobset Name': '.metadata.ownerReferences[0].name',
+      'Created Time': '.metadata.creationTimestamp',
+      'Priority': '.spec.priorityClassName',
+      'TPU VMs Needed': '.spec.podSets[0].count',
+      'TPU VMs Running/Ran': '.status.admission.podSetAssignments[-1].count',
+      'TPU VMs Done': '.status.reclaimablePods[0].count',
+      'Status': '.status.conditions[-1].type',
+      'Status Message': '.status.conditions[-1].message',
+      'Status Time': '.status.conditions[-1].lastTransitionTime',
+    }
   s = ','.join([key + ':' + value for key, value in columns.items()])
 
   workload_list_filter_status_cmd = determine_workload_list_filter_by_status(args)
@@ -2636,18 +2643,7 @@ def workload_list(args) -> None:
   if set_cluster_command_code != 0:
     xpk_exit(set_cluster_command_code)
 
-  columns = {
-      'Jobset Name': '.metadata.ownerReferences[0].name',
-      'Created Time': '.metadata.creationTimestamp',
-      'Priority': '.spec.priorityClassName',
-      'TPU VMs Needed': '.spec.podSets[0].count',
-      'TPU VMs Running/Ran': '.status.admission.podSetAssignments[-1].count',
-      'TPU VMs Done': '.status.reclaimablePods[0].count',
-      'Status': '.status.conditions[-1].type',
-      'Status Message': '.status.conditions[-1].message',
-      'Status Time': '.status.conditions[-1].lastTransitionTime',
-  }
-  return_code, return_value = get_workload_list(args, columns)
+  return_code, return_value = get_workload_list(args)
 
   if return_code != 0:
     xpk_print(f'List Job request returned ERROR {return_code}')
@@ -3258,6 +3254,15 @@ workload_delete_parser_optional_arguments.add_argument(
     type=str,
     help='Filters the arguments based on job name. Provide a regex expression'
           'to parse jobs that match the pattern or provide a job name to delete a single job.',
+)
+workload_delete_parser_optional_arguments.add_argument(
+    '--filter-by-status',
+    type=str,
+    default='EVERYTHING',
+    choices=['EVERYTHING', 'FINISHED', 'RUNNING', 'QUEUED', 'FAILED', 'SUCCESSFUL'],
+    help='Filters the arguments based on status. Selected filters are listed'
+        ' above. FAILED and SUCCESSFUL are sub-states of FINISHED.',
+    required=False,
 )
 workload_delete_parser_optional_arguments.add_argument(
     '--force',

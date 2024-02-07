@@ -65,7 +65,7 @@ if (
 
 default_docker_image = 'python:3.10'
 default_script_dir = os.getcwd()
-default_gke_version="1.28.3-gke.1286000"
+default_gke_version='1.28.3-gke.1286000'
 
 workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet

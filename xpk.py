@@ -65,7 +65,11 @@ if (
 
 default_docker_image = 'python:3.10'
 default_script_dir = os.getcwd()
+<<<<<<< HEAD
 default_gke_version='1.28.3-gke.1286000'
+=======
+default_gke_version = '1.28.3-gke.1286000'
+>>>>>>> e48ed2f95db25e994a5810bdc4127d29b6e1d5da
 h100_device_type = 'h100-80gb-8'
 
 workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
@@ -1201,7 +1205,11 @@ def run_gke_cluster_create_command(args) -> int:
         ' --scopes=storage-full,gke-default'
         f' {args.custom_cluster_arguments}'
     )
+<<<<<<< HEAD
   
+=======
+
+>>>>>>> e48ed2f95db25e994a5810bdc4127d29b6e1d5da
   return_code = run_command_with_updates(command, 'GKE Cluster Create', args)
   if return_code != 0:
     xpk_print(f'GKE Cluster Create request returned ERROR {return_code}')
@@ -1211,6 +1219,7 @@ def run_gke_cluster_create_command(args) -> int:
 
 
 def set_up_cluster_network(args) -> int:
+<<<<<<< HEAD
   """Set up GKE Cluster networks, subnets and firewall rules.
 
   Args:
@@ -1219,6 +1228,8 @@ def set_up_cluster_network(args) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
+=======
+>>>>>>> e48ed2f95db25e994a5810bdc4127d29b6e1d5da
   for i in range (1, 5):
     return_code = create_cluster_network(args, i)
     if return_code != 0:
@@ -1233,6 +1244,7 @@ def set_up_cluster_network(args) -> int:
 
 
 def create_cluster_network(args, index) -> int:
+<<<<<<< HEAD
   """Create one GKE Cluster network.
 
   Args:
@@ -1242,6 +1254,8 @@ def create_cluster_network(args, index) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
+=======
+>>>>>>> e48ed2f95db25e994a5810bdc4127d29b6e1d5da
   command = (
     f'gcloud compute --project={args.project}'
     f' networks create {args.cluster}-net-{index}'
@@ -1259,6 +1273,7 @@ def create_cluster_network(args, index) -> int:
 
 
 def create_cluster_subnet(args, index) -> int:
+<<<<<<< HEAD
   """Create one GKE Cluster subnet.
 
   Args:
@@ -1268,6 +1283,8 @@ def create_cluster_subnet(args, index) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
+=======
+>>>>>>> e48ed2f95db25e994a5810bdc4127d29b6e1d5da
   command = (
     f'gcloud compute --project={args.project}'
     f' networks subnets create {args.cluster}-sub-{index}'
@@ -1286,6 +1303,7 @@ def create_cluster_subnet(args, index) -> int:
 
 
 def create_cluster_firewall_rule(args, index) -> int:
+<<<<<<< HEAD
   """Create one GKE Cluster firewall rule.
 
   Args:
@@ -1295,6 +1313,8 @@ def create_cluster_firewall_rule(args, index) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
+=======
+>>>>>>> e48ed2f95db25e994a5810bdc4127d29b6e1d5da
   command = (
     f'gcloud compute --project={args.project}'
     f' firewall-rules create {args.cluster}-internal-{index}'
@@ -1312,7 +1332,11 @@ def create_cluster_firewall_rule(args, index) -> int:
   return 0
 
 
+<<<<<<< HEAD
 def create_cluster_network_config(args) -> int:
+=======
+def create_cluster_network_config(args):
+>>>>>>> e48ed2f95db25e994a5810bdc4127d29b6e1d5da
   """Run the Create GKE Cluster Network Config request.
 
   Args:
@@ -1333,7 +1357,11 @@ def create_cluster_network_config(args) -> int:
   return 0
 
 
+<<<<<<< HEAD
 def create_cluster_configmap(args, system) -> int:
+=======
+def create_cluster_configmap(args, system):
+>>>>>>> e48ed2f95db25e994a5810bdc4127d29b6e1d5da
   """Run the Create GKE Cluster ConfigMap request.
 
   Args:
@@ -1544,19 +1572,6 @@ def get_capacity_arguments(args) -> tuple[str, int]:
 
   return capacity_args, return_code
 
-
-def get_user_input(input_msg):
-  """Function to get the user input for a prompt.
-
-  Args:
-    input_msg: message to be displayed by the prompt.
-  Returns:
-    True if user enter y or yes at the prompt, False otherwise.
-  """
-  user_input = input(input_msg)
-  return user_input in ('y', 'yes')
-
-
 def run_gke_node_pool_create_command(args, system) -> int:
   """Run the Create GKE Node Pool request.
 
@@ -1586,8 +1601,16 @@ def run_gke_node_pool_create_command(args, system) -> int:
         f'Creating 1 node pool of {device_type}\n'
         f'Underlyingly, we assume that means: {system}'
     )
+<<<<<<< HEAD
     node_pool_name = f'{args.cluster}-np-0'
     if node_pool_name not in existing_node_pool_names:
+=======
+    desired_node_pool_names = [f'{args.cluster}-np-0']
+
+    for node_pool_name in desired_node_pool_names:
+      if node_pool_name in existing_node_pool_names:
+        continue
+>>>>>>> e48ed2f95db25e994a5810bdc4127d29b6e1d5da
       command = (
           'gcloud beta container node-pools create'
           f' {node_pool_name} --region={zone_to_region(args.zone)}'
@@ -1853,6 +1876,49 @@ def set_jobset_on_cluster(args) -> int:
       ' for instructions on how to fix these permissions.'
     )
     return 1
+  return 0
+
+def install_gpu_driver_on_cluster(args) -> int:
+  """Install GPU driver on the cluster.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  command = (
+      'kubectl apply -f'
+      'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/nvidia-driver-installer/cos/daemonset-preloaded-latest.yaml'
+  )
+  return_code = run_command_with_updates(command, 'Install GPU Driver On Cluster', args)
+
+  if return_code != 0:
+    xpk_print(f'Install GPU Driver On Cluster request returned ERROR {return_code}')
+    return 1
+
+  return 0
+
+
+def install_nccl_on_cluster(args) -> int:
+  """Install NCCL plugin on the cluster.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  command = (
+      'kubectl apply -f'
+      'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpx/nccl-tcpx-installer.yaml'
+  )
+  return_code = run_command_with_updates(command, 'Install NCCL Plugin On Cluster', args)
+
+  if return_code != 0:
+    xpk_print(f'Install NCCL Plugin On Cluster request returned ERROR {return_code}')
+    return 1
+
   return 0
 
 
@@ -2808,6 +2874,7 @@ def workload_delete(args) -> int:
   if set_cluster_command_code != 0:
     xpk_exit(set_cluster_command_code)
 
+<<<<<<< HEAD
   will_delete = True
   if not args.workload:
     xpk_print("Get the name of the workloads in the cluster.")
@@ -2840,6 +2907,16 @@ def workload_delete(args) -> int:
       if return_code != 0:
         xpk_print(f'Delete Workload request returned ERROR {return_code}')
         xpk_exit(return_code)
+=======
+  yml_string = workload_delete_yaml.format(args=args)
+  tmp = write_temporary_file(yml_string)
+  command = f'kubectl delete -f {str(tmp.file.name)}'
+  return_code = run_command_with_updates(command, 'Delete Workload', args)
+
+  if return_code != 0:
+    xpk_print(f'Delete Workload request returned ERROR {return_code}')
+    xpk_exit(return_code)
+>>>>>>> e48ed2f95db25e994a5810bdc4127d29b6e1d5da
   xpk_exit(0)
 
 
@@ -2911,6 +2988,7 @@ def determine_workload_list_filter_by_job(args) -> str:
     return workload_list_awk_command(f'{job_name_arg} ~ \"{args.filter_by_job}\"')
 
 
+<<<<<<< HEAD
 def get_workload_list(args) -> None:
   """Function to get the list of the workloads in the cluster.
 
@@ -2944,6 +3022,8 @@ def get_workload_list(args) -> None:
   return return_code, return_value
 
 
+=======
+>>>>>>> e48ed2f95db25e994a5810bdc4127d29b6e1d5da
 def workload_list(args) -> None:
   """Function around workload list.
 
@@ -2961,12 +3041,35 @@ def workload_list(args) -> None:
   if set_cluster_command_code != 0:
     xpk_exit(set_cluster_command_code)
 
+<<<<<<< HEAD
   return_code, return_value = get_workload_list(args)
+=======
+  columns = {
+      'Jobset Name': '.metadata.ownerReferences[0].name',
+      'Created Time': '.metadata.creationTimestamp',
+      'Priority': '.spec.priorityClassName',
+      'TPU VMs Needed': '.spec.podSets[0].count',
+      'TPU VMs Running/Ran': '.status.admission.podSetAssignments[-1].count',
+      'TPU VMs Done': '.status.reclaimablePods[0].count',
+      'Status': '.status.conditions[-1].type',
+      'Status Message': '.status.conditions[-1].message',
+      'Status Time': '.status.conditions[-1].lastTransitionTime',
+  }
+
+  s = ','.join([key + ':' + value for key, value in columns.items()])
+
+  workload_list_filter_status_cmd = determine_workload_list_filter_by_status(args)
+  workload_list_filter_job_cmd = determine_workload_list_filter_by_job(args)
+  command = (f'kubectl get workloads -o=custom-columns="{s}" '
+             f'{workload_list_filter_status_cmd} {workload_list_filter_job_cmd}'
+             )
+
+  return_code = run_command_with_updates(command, 'List Jobs', args)
+>>>>>>> e48ed2f95db25e994a5810bdc4127d29b6e1d5da
 
   if return_code != 0:
     xpk_print(f'List Job request returned ERROR {return_code}')
     xpk_exit(return_code)
-  xpk_print(return_value)
   xpk_exit(0)
 
 
@@ -3552,6 +3655,13 @@ add_shared_arguments(workload_delete_parser_optional_arguments)
 
 ### Required arguments
 workload_delete_parser_required_arguments.add_argument(
+    '--workload',
+    type=workload_name_type,
+    default=None,
+    help='The name of the workload to delete.',
+    required=True,
+)
+workload_delete_parser_required_arguments.add_argument(
     '--cluster',
     type=str,
     default=None,
@@ -3559,6 +3669,7 @@ workload_delete_parser_required_arguments.add_argument(
     required=True,
 )
 
+<<<<<<< HEAD
 ### Optional arguments
 workload_delete_parser_optional_arguments.add_argument(
     '--workload',
@@ -3590,6 +3701,8 @@ workload_delete_parser_optional_arguments.add_argument(
     ),
 )
 
+=======
+>>>>>>> e48ed2f95db25e994a5810bdc4127d29b6e1d5da
 workload_delete_parser.set_defaults(func=workload_delete)
 
 # "workload list" command parser.

@@ -88,6 +88,9 @@ spec:
           completions: {system.vms_per_slice}    # Same as the above.
           backoffLimit: 0   # When any pod fails, the job is failed
           template:
+            metadata:
+              labels:
+                xpk.google.com/workload: {args.workload}
             spec:
               schedulerName: {args.scheduler}
               restartPolicy: Never

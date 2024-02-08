@@ -1862,6 +1862,7 @@ def install_gpu_driver_on_cluster(args) -> int:
   """
   command = (
       'kubectl apply -f'
+      # pylint: disable=line-too-long
       'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/nvidia-driver-installer/cos/daemonset-preloaded-latest.yaml'
   )
   return_code = run_command_with_updates(command, 'Install GPU Driver On Cluster', args)
@@ -1884,6 +1885,7 @@ def install_nccl_on_cluster(args) -> int:
   """
   command = (
       'kubectl apply -f'
+      # pylint: disable=line-too-long
       'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpx/nccl-tcpx-installer.yaml'
   )
   return_code = run_command_with_updates(command, 'Install NCCL Plugin On Cluster', args)

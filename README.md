@@ -531,6 +531,15 @@ gcloud beta compute reservations describe $RESERVATION --project=$PROJECT_ID --z
 
 # TPU Workload Debugging
 
+## Verbose Logging
+If you are having trouble with your workload, try setting the `--enable-debug-logs` when you schedule it. This will give you more detailed logs to help pinpoint the issue. For example:
+```shell
+python3 xpk.py workload create \
+--cluster --workload xpk-test-workload \
+--command="echo hello world" --enable-debug-logs
+```
+Please check [libtpu logging](https://cloud.google.com/tpu/docs/troubleshooting/trouble-tf#debug_logs) and [Tensorflow logging](https://deepreg.readthedocs.io/en/latest/docs/logging.html#tensorflow-logging) for more information about the flags that are enabled to get the logs.
+
 ## Collect Stack Traces
 [cloud-tpu-diagnostics](https://pypi.org/project/cloud-tpu-diagnostics/) PyPI package can be used to generate stack traces for workloads running in GKE. This package dumps the Python traces when a fault such as segmentation fault, floating-point exception, or illegal operation exception occurs in the program. Additionally, it will also periodically collect stack traces to help you debug situations when the program is unresponsive. You must make the following changes in the docker image running in a Kubernetes main container to enable periodic stack trace collection.
 ```shell

@@ -2419,6 +2419,10 @@ def workload_create(args) -> int:
     command += ('; WORKER_ID=$HOSTNAME;'
                 f'gsutil cp -r /tmp/xla_dump/ {args.debug_dump_gcs}/$WORKER_ID')
 
+  if args.enable_debug_flag:
+    command = ('TPU_STDERR_LOG_LEVEL=0 TPU_MIN_LOG_LEVEL=0 TF_CPP_MIN_LOG_LEVEL=0'
+               f' TPU_VMODULE=real_program_continuator=1 {command}')
+
   debugging_dashboard_id = None
   resource_type = AcceleratorTypeToAcceleratorCharacteristics[system.accelerator_type].resource_type
   if system.accelerator_type == AcceleratorType['TPU'] and args.deploy_stacktrace_sidecar:
@@ -3195,7 +3199,13 @@ workload_create_parser_optional_arguments.add_argument(
         'where debugging information such as HLO dumps are uploaded'
     ),
 )
-
+workload_create_parser_optional_arguments.add_argument(
+    '--enable-debug-flag',
+    action='store_true',
+    help=(
+        'Set this flag to get verbose logging to investigate the issue in the workload.'
+    ),
+)
 workload_create_parser_optional_arguments.add_argument(
     '--deploy-stacktrace-sidecar',
     action='store_true',

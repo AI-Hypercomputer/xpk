@@ -2419,7 +2419,7 @@ def workload_create(args) -> int:
     command += ('; WORKER_ID=$HOSTNAME;'
                 f'gsutil cp -r /tmp/xla_dump/ {args.debug_dump_gcs}/$WORKER_ID')
 
-  if args.enable_debug_flag:
+  if args.enable_debug_logs:
     command = ('TPU_STDERR_LOG_LEVEL=0 TPU_MIN_LOG_LEVEL=0 TF_CPP_MIN_LOG_LEVEL=0'
                f' TPU_VMODULE=real_program_continuator=1 {command}')
 
@@ -3200,7 +3200,7 @@ workload_create_parser_optional_arguments.add_argument(
     ),
 )
 workload_create_parser_optional_arguments.add_argument(
-    '--enable-debug-flag',
+    '--enable-debug-logs',
     action='store_true',
     help=(
         'Set this flag to get verbose logging to investigate the issue in the workload.'

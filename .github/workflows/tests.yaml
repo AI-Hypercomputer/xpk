@@ -16,7 +16,7 @@ name: Integration Test
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "integration-tests" ]
   pull_request:
     branches: [ "main" ]
   schedule: #schedule the job run at 12AM daily

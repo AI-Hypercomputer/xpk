@@ -10,4 +10,38 @@
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
-# limitations under the License.
+# limitations under the License
+name: Integration Test
+
+on:
+  pull_request:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  schedule: #schedule the job run at 12AM daily
+    - cron: '0 0 * * *' 
+
+jobs:
+  empty-cluster:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup_python@v5
+      with:
+        python-version: '3.10'
+    - run: pwd 
+
+
+
+
+
+
+
+
+
+
+
+
+
+

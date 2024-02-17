@@ -120,50 +120,51 @@ spec:
                 name: dshm-2
 """
 
-pw_workload_create_yaml = """apiVersion: batch/v1
-kind: Job
-metadata:
-  name: user-deploy
-spec:
-  backoffLimit: 0
-  completions: 1
-  parallelism: 1
-  template:
-    metadata:
-      labels:
-        xpk.google.com/workload: {args.workload}
-        app: user
-    spec:
-      containers:
-      - args:
-        {user_workload_args}
-        env:
-        - name: XCLOUD_ENVIRONMENT
-          value: GCP
-        - name: JAX_PLATFORMS
-          value: proxy
-        - name: JAX_BACKEND_TARGET
-          value: grpc://pathways-proxy-0-0.pathways:38676
-        image: {args.user_workload_image} 
-        imagePullPolicy: Always
-        name: user-deploy
-        resources:
-          limits:
-            cpu: "24"
-            memory: 100G
-        volumeMounts:
-        - mountPath: /tmp
-          name: shared-tmp
-      nodeSelector:
-        cloud.google.com/gke-nodepool: cpu-user-np
-      restartPolicy: OnFailure
-      volumes:
-      - hostPath:
-          path: /tmp
-          type: DirectoryOrCreate
-        name: shared-tmp
----
-apiVersion: jobset.x-k8s.io/v1alpha2
+
+# apiVersion: batch/v1
+# kind: Job
+# metadata:
+#   name: user-deploy
+# spec:
+#   backoffLimit: 0
+#   completions: 1
+#   parallelism: 1
+#   template:
+#     metadata:
+#       labels:
+#         xpk.google.com/workload: {args.workload}
+#         app: user
+#     spec:
+#       containers:
+#       - args:
+#         {user_workload_args}
+#         env:
+#         - name: XCLOUD_ENVIRONMENT
+#           value: GCP
+#         - name: JAX_PLATFORMS
+#           value: proxy
+#         - name: JAX_BACKEND_TARGET
+#           value: grpc://pathways-proxy-0-0.pathways:38676
+#         image: {args.user_workload_image} 
+#         imagePullPolicy: Always
+#         name: user-deploy
+#         resources:
+#           limits:
+#             cpu: "24"
+#             memory: 100G
+#         volumeMounts:
+#         - mountPath: /tmp
+#           name: shared-tmp
+#       nodeSelector:
+#         cloud.google.com/gke-nodepool: cpu-user-np
+#       restartPolicy: OnFailure
+#       volumes:
+#       - hostPath:
+#           path: /tmp
+#           type: DirectoryOrCreate
+#         name: shared-tmp
+# ---
+pw_workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
 metadata:
   annotations:
@@ -305,6 +306,46 @@ spec:
                   memory: 100G
             nodeSelector:
               cloud.google.com/gke-nodepool: cpu-proxy-np
+  - name: user-deploy
+    replicas: 1
+    template:
+      metadata:
+        labels:
+          xpk.google.com/workload: {args.workload}
+      spec:
+        backoffLimit: 0
+        completions: 1
+        parallelism: 1
+        template:
+          spec:
+            containers:
+            - args:
+              {user_workload_args}
+              env:
+              - name: XCLOUD_ENVIRONMENT
+                value: GCP
+              - name: JAX_PLATFORMS
+                value: proxy
+              - name: JAX_BACKEND_TARGET
+                value: grpc://pathways-proxy-0-0.pathways:38676
+              image: {args.user_workload_image} 
+              imagePullPolicy: Always
+              name: user-deploy
+              resources:
+                limits:
+                  cpu: "24"
+                  memory: 100G
+              volumeMounts:
+              - mountPath: /tmp
+                name: shared-tmp
+            nodeSelector:
+              cloud.google.com/gke-nodepool: cpu-user-np
+            restartPolicy: OnFailure
+            volumes:
+            - hostPath:
+                path: /tmp
+                type: DirectoryOrCreate
+              name: shared-tmp
 """
 pw_workload_delete_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
@@ -386,20 +427,26 @@ spec:
       resources:
       - name: "{resource_type}"
         nominalQuota: {total_chips}  # Number of slices * number of chips in each slice
-  - coveredResources: ["cpu"]    
+  - coveredResources: ["cpu", "memory"]    
     flavors:
     - name: cpu-rm
       resources:
       - name: "cpu"
-        nominalQuota: 10
+        nominalQuota: 6
+      - name: "memory"
+        nominalQuota: 10G
     - name: cpu-proxy
       resources:
       - name: "cpu"
-        nominalQuota: 10
+        nominalQuota: 24
+      - name: "memory"
+        nominalQuota: 105G
     - name: cpu-user
       resources:
       - name: "cpu"
-        nominalQuota: 10
+        nominalQuota: 24
+      - name: "memory"
+        nominalQuota: 105G
 ---
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: LocalQueue
@@ -2771,22 +2818,20 @@ def get_proxy_args(args, system) -> str:
 
 def get_user_workload_args(args, system) -> str:
   yaml="""- base_output_directory=gs://cloud-pathways-staging
-        - dataset_path=gs://maxtext-dataset/
-        - per_device_batch_size=1
-        - enable_checkpointing=false
-        - enable_profiler=false
-        - remat_policy=full
-        - ici_fsdp_parallelism=-1
-        - ici_tensor_parallelism=16
-        - global_parameter_scale=4
-        - steps=30
-        - max_target_length=2048
-        - use_iota_embed=true
-        - reuse_example_batch=1
-        - dataset_type=synthetic
-        - attention=flash
-        - gcs_metrics=True
-        - run_name={args.workload}-maxtext-4b-slice-2x"""
+              - dataset_path=gs://maxtext-dataset/
+              - per_device_batch_size=1
+              - enable_checkpointing=false
+              - enable_profiler=false
+              - remat_policy=full
+              - global_parameter_scale=4
+              - steps=30
+              - max_target_length=2048
+              - use_iota_embed=true
+              - reuse_example_batch=1
+              - dataset_type=synthetic
+              - attention=flash
+              - gcs_metrics=True
+              - run_name={args.workload}-maxtext-4b-slice-2x"""
   if args.use_pathways:
     return yaml.format(args=args)
   else:

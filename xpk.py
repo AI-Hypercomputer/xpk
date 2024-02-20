@@ -2519,16 +2519,26 @@ def workload_delete(args) -> int:
   elif not will_delete:
     xpk_print("Skipping delete command.")
   else:
+    commands = []
+    task_names = []
     for workload in workloads:
       args.workload = workload
       yml_string = workload_delete_yaml.format(args=args)
       tmp = write_temporary_file(yml_string)
       command = f'kubectl delete -f {str(tmp.file.name)}'
-      return_code = run_command_with_updates(command, 'Delete Workload', args)
+      task_name = f'WorkloadDelete-{workload}'
+      commands.append(command)
+      task_names.append(task_name)
 
-      if return_code != 0:
-        xpk_print(f'Delete Workload request returned ERROR {return_code}')
-        xpk_exit(return_code)
+    # Not batching deletion for single workload
+    if len(workloads) == 1:
+      return_code = run_command_with_updates(commands[0], 'Delete Workload', args)
+    else:
+      return_code = run_commands(commands, 'Delete Workload', task_names, batch=100)
+
+    if return_code != 0:
+      xpk_print(f'Delete Workload request returned ERROR {return_code}')
+      xpk_exit(return_code)
   xpk_exit(0)
 
 

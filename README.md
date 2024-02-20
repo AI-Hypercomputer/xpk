@@ -246,9 +246,9 @@ checkpointing so the job restarts near where it was interrupted.
     --cluster xpk-test
     ```
 
-    This will delete all the workloads in `xpk-test` cluster. Deletion will only begin if you type `y` or `yes` at the prompt.
+    This will delete all the workloads in `xpk-test` cluster. Deletion will only begin if you type `y` or `yes` at the prompt. Multiple workload deletions are processed in batches for optimized processing.
 
-*   Workload Delete supports filtering. Delete a portion of jobs that match user criteria.
+*   Workload Delete supports filtering. Delete a portion of jobs that match user criteria. Multiple workload deletions are processed in batches for optimized processing.
     * Filter by Job: `filter-by-job`
 
     ```shell

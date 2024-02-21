@@ -276,23 +276,6 @@ spec:
           spec:
             containers:
             {container}
-            #   env:
-            #   - name: XCLOUD_ENVIRONMENT
-            #     value: GCP
-            #   - name: JAX_PLATFORMS
-            #     value: proxy
-            #   - name: JAX_BACKEND_TARGET
-            #     value: grpc://pathways-proxy-0-0.pathways:38676
-            #   image: {args.user_workload_image} 
-            #   imagePullPolicy: Always
-            #   name: user-deploy
-            #   resources:
-            #     limits:
-            #       cpu: "24"
-            #       memory: 100G
-            #   volumeMounts:
-            #   - mountPath: /tmp
-            #     name: shared-tmp
             nodeSelector:
               cloud.google.com/gke-nodepool: cpu-user-np
             restartPolicy: OnFailure
@@ -2801,7 +2784,8 @@ def get_cpu_affinity(accelerator_type) -> str:
     return yaml
   return ""
 
-def get_pathways_rm_args(args, system) -> str:
+def get_pathways_rm_args(args) -> str:
+  """ Arguments for the Pathways resource manager."""
   yaml="""- --alsologtostderr
               - --pathways_server_port=38677
               - --pathways_server_provides_devices=false
@@ -2815,7 +2799,8 @@ def get_pathways_rm_args(args, system) -> str:
   else:
     return ""
 
-def get_pathways_worker_args(args, system) -> str:
+def get_pathways_worker_args(args) -> str:
+  """ Arguments for the Pathways workers."""
   yaml="""- --alsologtostderr
               - --pathways_server_port=38677
               - --pathways_resource_manager=pathways-rm-0-0.pathways:38677
@@ -2834,7 +2819,8 @@ def get_pathways_worker_args(args, system) -> str:
   else:
     return ""
 
-def get_proxy_args(args, system) -> str:
+def get_proxy_args(args) -> str:
+  """ Arguments for the Pathways proxy."""
   yaml="""- --alsologtostderr
               - --v=0
               - --pathways_ifrt_proxy_server_resource_manager=pathways-rm-0-0.pathways:38677
@@ -2846,27 +2832,6 @@ def get_proxy_args(args, system) -> str:
     return yaml.format(args=args)
   else:
     return ""
-
-# def get_user_workload_args(args, system) -> str:
-#   yaml="""- base_output_directory=gs://cloud-pathways-staging
-#               - dataset_path=gs://maxtext-dataset/
-#               - per_device_batch_size=1
-#               - enable_checkpointing=false
-#               - enable_profiler=false
-#               - remat_policy=full
-#               - global_parameter_scale=4
-#               - steps=30
-#               - max_target_length=2048
-#               - use_iota_embed=true
-#               - reuse_example_batch=1
-#               - dataset_type=synthetic
-#               - attention=flash
-#               - gcs_metrics=True
-#               - run_name={args.workload}-maxtext-4b-slice-2x"""
-#   if args.use_pathways:
-#     return yaml.format(args=args)
-#   else:
-#     return ""
 
 def get_system_characteristics(args) -> tuple[SystemCharacteristics|None, int]:
   """Get system characteristics based on user provided arguments.
@@ -2942,13 +2907,13 @@ def workload_create(args) -> int:
                                         container=container,
                                         accelerator_label=create_accelerator_label(system.accelerator_type, system),
                                         machine_label=create_machine_label(system.accelerator_type, system),
-                                        pathways_rm_args = get_pathways_rm_args(args, system),
-                                        pathways_worker_args = get_pathways_worker_args(args, system),
-                                        proxy_args = get_proxy_args(args, system),
+                                        pathways_rm_args = get_pathways_rm_args(args),
+                                        pathways_worker_args = get_pathways_worker_args(args),
+                                        proxy_args = get_proxy_args(args),
                                         resource_type=resource_type)
     tmp = write_temporary_file(yml_string)
     command = f'kubectl apply -f {str(tmp.file.name)}'
-    return_code = run_command_with_updates(command, 'Creating a Pathways Workload', args) 
+    return_code = run_command_with_updates(command, 'Creating a Pathways Workload', args)
 
   else:
     yml_string = workload_create_yaml.format(args=args,
@@ -2972,11 +2937,18 @@ def workload_create(args) -> int:
   if system.accelerator_type == AcceleratorType['TPU']:
     outlier_dashboard_id = get_gke_outlier_dashboard(args)
 
-  xpk_print(
-    'Follow your workload here:'
+  if args.use_pathways:
+    xpk_print(
+    'Follow your Pathways workload here:'
     # pylint: disable=line-too-long
-    f' https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
-)
+    f' https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/pathways-{args.docker_name}-0/details?project={args.project}'
+    )
+  else:
+    xpk_print(
+      'Follow your workload here:'
+      # pylint: disable=line-too-long
+      f' https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
+    )
 
   if outlier_dashboard_id is not None:
     xpk_print(

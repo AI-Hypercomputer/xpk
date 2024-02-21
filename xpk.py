@@ -273,7 +273,7 @@ AcceleratorTypeToAcceleratorCharacteristics = {
       ),
      # CPU
       AcceleratorType['CPU']: AcceleratorCharacteristics(
-      'cpu', '', 'cloud.google.com/gke-nodepool' 
+      'cpu', '', 'cloud.google.com/gke-nodepool'
       )
 }
 
@@ -294,7 +294,7 @@ IF YOU MODIFY THE BELOW UserFacingNameToSystemCharacteristics MAP YOU SHOULD ALS
 MODIFICATIONS TO UserFacingNameToSystemCharacteristics IN MaxText/accelerator_to_spec_map.py !!!!! """
 # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 UserFacingNameToSystemCharacteristics = {
-    # GPU system charcteristics
+    # GPU system characteristics
     # A100-40gb-$CHIPS
     'a100-40gb-1': SystemCharacteristics(
       'N/A', 1, 'nvidia-tesla-a100', 'a2-highgpu-1g', 1, AcceleratorType['GPU'], 'a100-40gb-1'
@@ -313,7 +313,7 @@ UserFacingNameToSystemCharacteristics = {
       'N/A', 1, 'nvidia-h100-80gb', 'a3-highgpu-8g', 8, AcceleratorType['GPU'], 'h100-80gb-8'
     ),
 
-    # TPU system charcteristics
+    # TPU system characteristics
     # v5p
     'v5p-8': SystemCharacteristics(
       '2x2x1', 1, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-8'
@@ -2071,20 +2071,19 @@ def setup_docker_image(args) -> tuple[int, str]:
 
   return 0, docker_image
 
-def get_main_and_sidecar_container(args, system, docker_image, command) -> str:
+def get_main_and_sidecar_container(args, system, docker_image) -> str:
   """Generate yaml for main and sidecar container.
   Args:
     args: user provided arguments for running the command.
     system: system characteristics
     docker_image: docker image
-    command: command to run in the main container
 
   Returns:
     str:
       yaml for main and sidecar container
   """
   resource_type = AcceleratorTypeToAcceleratorCharacteristics[system.accelerator_type].resource_type
-  main_container = get_main_container(args, system, docker_image, command, resource_type)
+  main_container = get_main_container(args, system, docker_image, resource_type)
   yaml = """- name: stacktrace-explorer
                 image: busybox:1.28
                 args: [/bin/sh, -c, "while [ ! -d /tmp/debugging ]; do sleep 60; done; while [ ! -e /tmp/debugging/* ]; do sleep 60; done; tail -n+1 -f /tmp/debugging/*"]
@@ -2101,18 +2100,29 @@ def get_main_and_sidecar_container(args, system, docker_image, command) -> str:
   """
   return yaml.format(main_container=main_container)
 
-def get_main_container(args, system, docker_image, command, resource_type) -> str:
-  """Generate yaml for main container.
+def get_main_container(args, system, docker_image, resource_type) -> str:
+  """Generate yaml for main container including the xpk command.
   Args:
     args: user provided arguments for running the command.
     system: system characteristics
     docker_image: docker image
-    command: command to run in the main container
+    resource_type: The label to describe the resource type for TPUs/GPUs/CPUs.
 
   Returns:
     str:
       yaml for main container
   """
+
+  xpk_internal_commands = ""
+  if args.debug_dump_gcs:
+    xpk_internal_commands += ('WORKER_ID=$HOSTNAME;'
+                f'gsutil cp -r /tmp/xla_dump/ {args.debug_dump_gcs}/$WORKER_ID')
+
+  command = args.command
+  if args.enable_debug_logs:
+    command = ('TPU_STDERR_LOG_LEVEL=0 TPU_MIN_LOG_LEVEL=0 TF_CPP_MIN_LOG_LEVEL=0'
+               f' TPU_VMODULE=real_program_continuator=1 {args.command}')
+
   yaml = """- name: {args.docker_name}
                 image: {docker_image}
                 env: {args.env}
@@ -2126,7 +2136,7 @@ def get_main_container(args, system, docker_image, command, resource_type) -> st
                 - bash
                 - -c
                 - |
-                  echo XPK Start: $(date) ; _sigterm() ( kill -SIGTERM $!;); trap _sigterm SIGTERM; ({command}) & PID=$!; while kill -0 $PID 2>/dev/null; do sleep 5; done; EXIT_CODE=$? ; echo XPK End: $(date); echo EXIT_CODE=$EXIT_CODE
+                  echo XPK Start: $(date) ; _sigterm() ( kill -SIGTERM $!;); trap _sigterm SIGTERM; ({command}) & PID=$!; while kill -0 $PID 2>/dev/null; do sleep 5; done; wait $PID; EXIT_CODE=$? ; {xpk_internal_commands}; echo XPK End: $(date); echo EXIT_CODE=$EXIT_CODE; exit $EXIT_CODE
                 resources:
                   limits:
                     {resource_type}: {system.chips_per_vm}
@@ -2136,6 +2146,7 @@ def get_main_container(args, system, docker_image, command, resource_type) -> st
                    jax_coordinator_port=add_jax_coordinator_port(system),
                    docker_image=docker_image,
                    command=command,
+                   xpk_internal_commands=xpk_internal_commands,
                    resource_type=resource_type)
 
 def add_jax_coordinator_port(system):
@@ -2291,7 +2302,7 @@ def calculate_process_count(num_slices, vms_per_slice) -> str:
     vms_per_slice: number of VMs in each slice.
 
   Returns:
-    str: total number of processes. 
+    str: total number of processes.
   """
   num_processes = int(num_slices) * int(vms_per_slice)
   return f"{num_processes}"
@@ -2303,7 +2314,7 @@ def get_cpu_env(num_slices, system) -> str:
     system: system characteristics
 
   Returns:
-    str: yaml containing env variables 
+    str: yaml containing env variables
   """
   yaml = """env:
                 - name: REPLICATED_JOB_NAME
@@ -2335,13 +2346,13 @@ def get_cpu_env(num_slices, system) -> str:
   return ""
 
 def get_cpu_affinity(accelerator_type) -> str:
-  """Generate affinity rules for CPU nodepools, so that workload pods are 
+  """Generate affinity rules for CPU nodepools, so that workload pods are
   not scheduled on the default pool machines.
   Args:
     accelerator_type: TPU / GPU / CPU
 
   Returns:
-    str: yaml containing affinity constraints 
+    str: yaml containing affinity constraints
   """
   yaml = """affinity:
                 nodeAffinity:
@@ -2414,38 +2425,26 @@ def workload_create(args) -> int:
     xpk_exit(setup_docker_image_code)
 
   add_env_config(args)
-  command = args.command
-  if args.debug_dump_gcs:
-    command += ('; WORKER_ID=$HOSTNAME;'
-                f'gsutil cp -r /tmp/xla_dump/ {args.debug_dump_gcs}/$WORKER_ID')
-
-  if args.enable_debug_logs:
-    command = ('TPU_STDERR_LOG_LEVEL=0 TPU_MIN_LOG_LEVEL=0 TF_CPP_MIN_LOG_LEVEL=0'
-               f' TPU_VMODULE=real_program_continuator=1 {command}')
 
   debugging_dashboard_id = None
   resource_type = AcceleratorTypeToAcceleratorCharacteristics[system.accelerator_type].resource_type
   if system.accelerator_type == AcceleratorType['TPU'] and args.deploy_stacktrace_sidecar:
     xpk_print('Sidecar container to display stack traces for TPU workloads will also be deployed.')
-    container = get_main_and_sidecar_container(args, system, docker_image, command)
+    container = get_main_and_sidecar_container(args, system, docker_image)
     # Get GKE debugging dashboard only when sidecar container is deployed for TPU workloads
     debugging_dashboard_id = get_gke_debugging_dashboard(args)
   else:
-    container = get_main_container(args, system, docker_image, command, resource_type)
+    container = get_main_container(args, system, docker_image, resource_type)
 
   yml_string = workload_create_yaml.format(args=args,
                                            system=system,
-                                           docker_image=docker_image,
-                                           command=command,
                                            container=container,
                                            affinity=get_cpu_affinity(system.accelerator_type),
                                            env=get_cpu_env(args.num_slices,system),
                                            accelerator_label=create_accelerator_label(system.accelerator_type, system),
-                                           machine_label=create_machine_label(system.accelerator_type, system),
-                                           resource_type=resource_type)
+                                           machine_label=create_machine_label(system.accelerator_type, system))
   tmp = write_temporary_file(yml_string)
   command = f'kubectl apply -f {str(tmp.file.name)}'
-
   return_code = run_command_with_updates(command, 'Creating Workload', args)
 
   if return_code != 0:
@@ -3227,7 +3226,7 @@ workload_create_parser_optional_arguments.add_argument(
 )
 
 workload_create_parser_optional_arguments.add_argument(
-    '-tgps', '--termination-grace-period-seconds', 
+    '-tgps', '--termination-grace-period-seconds',
     type=str,
     default='30',
     help=(

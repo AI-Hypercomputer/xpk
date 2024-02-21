@@ -120,50 +120,6 @@ spec:
                 name: dshm-2
 """
 
-
-# apiVersion: batch/v1
-# kind: Job
-# metadata:
-#   name: user-deploy
-# spec:
-#   backoffLimit: 0
-#   completions: 1
-#   parallelism: 1
-#   template:
-#     metadata:
-#       labels:
-#         xpk.google.com/workload: {args.workload}
-#         app: user
-#     spec:
-#       containers:
-#       - args:
-#         {user_workload_args}
-#         env:
-#         - name: XCLOUD_ENVIRONMENT
-#           value: GCP
-#         - name: JAX_PLATFORMS
-#           value: proxy
-#         - name: JAX_BACKEND_TARGET
-#           value: grpc://pathways-proxy-0-0.pathways:38676
-#         image: {args.user_workload_image} 
-#         imagePullPolicy: Always
-#         name: user-deploy
-#         resources:
-#           limits:
-#             cpu: "24"
-#             memory: 100G
-#         volumeMounts:
-#         - mountPath: /tmp
-#           name: shared-tmp
-#       nodeSelector:
-#         cloud.google.com/gke-nodepool: cpu-user-np
-#       restartPolicy: OnFailure
-#       volumes:
-#       - hostPath:
-#           path: /tmp
-#           type: DirectoryOrCreate
-#         name: shared-tmp
-# ---
 pw_workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
 metadata:
@@ -210,7 +166,7 @@ spec:
               - containerPort: 8080
               resources:
                 limits:
-                  google.com/tpu: 4
+                  {resource_type}: {system.chips_per_vm}
               securityContext:
                 privileged: true
               volumeMounts:
@@ -319,25 +275,24 @@ spec:
         template:
           spec:
             containers:
-            - args:
-              {user_workload_args}
-              env:
-              - name: XCLOUD_ENVIRONMENT
-                value: GCP
-              - name: JAX_PLATFORMS
-                value: proxy
-              - name: JAX_BACKEND_TARGET
-                value: grpc://pathways-proxy-0-0.pathways:38676
-              image: {args.user_workload_image} 
-              imagePullPolicy: Always
-              name: user-deploy
-              resources:
-                limits:
-                  cpu: "24"
-                  memory: 100G
-              volumeMounts:
-              - mountPath: /tmp
-                name: shared-tmp
+            {container}
+            #   env:
+            #   - name: XCLOUD_ENVIRONMENT
+            #     value: GCP
+            #   - name: JAX_PLATFORMS
+            #     value: proxy
+            #   - name: JAX_BACKEND_TARGET
+            #     value: grpc://pathways-proxy-0-0.pathways:38676
+            #   image: {args.user_workload_image} 
+            #   imagePullPolicy: Always
+            #   name: user-deploy
+            #   resources:
+            #     limits:
+            #       cpu: "24"
+            #       memory: 100G
+            #   volumeMounts:
+            #   - mountPath: /tmp
+            #     name: shared-tmp
             nodeSelector:
               cloud.google.com/gke-nodepool: cpu-user-np
             restartPolicy: OnFailure
@@ -353,10 +308,10 @@ metadata:
   name: pathways
   annotations:
     alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool # 1:1 job replica to node pool assignment
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: user-deploy
+# apiVersion: batch/v1
+# kind: Job
+# metadata:
+#   name: user-deploy
 """
 
 workload_delete_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
@@ -2508,6 +2463,7 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
     str:
       yaml for main container
   """
+  xpk_print("Getting main container .... \n", command)
 
   xpk_internal_commands = ''
   gsutil_test_command = ''
@@ -2524,12 +2480,12 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
     command = ('TPU_STDERR_LOG_LEVEL=0 TPU_MIN_LOG_LEVEL=0 TF_CPP_MIN_LOG_LEVEL=0'
                f' TPU_VMODULE=real_program_continuator=1 {args.command}')
 
-  yaml = """- name: {args.docker_name}
+  yaml = """  - name: {args.docker_name}
                 image: {docker_image}
-                env: {args.env}
+                imagePullPolicy: Always
+                env: {env}
                 ports:
-                - containerPort: 8471
-                - containerPort: 8080
+                {container_ports}
                 {jax_coordinator_port}
                 securityContext:
                   privileged: true
@@ -2540,18 +2496,93 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
                   echo XPK Start: $(date) ; _sigterm() ( kill -SIGTERM $! 2>/dev/null;); trap _sigterm SIGTERM;{gsutil_test_command}({command}) & PID=$!; while kill -0 $PID 2>/dev/null; do sleep 5; done; wait $PID; EXIT_CODE=$? ; {xpk_internal_commands} echo XPK End: $(date); echo EXIT_CODE=$EXIT_CODE; exit $EXIT_CODE
                 resources:
                   limits:
-                    {resource_type}: {system.chips_per_vm}
+                    {resources}
+                volumeMounts:
+                {pw_volume_mounts}
   """
   return yaml.format(args=args,
                    system=system,
+                   env=get_env_container(args),
+                   container_ports=add_container_ports(args),
                    jax_coordinator_port=add_jax_coordinator_port(system),
                    docker_image=docker_image,
                    gsutil_test_command=gsutil_test_command,
                    command=command,
                    xpk_internal_commands=xpk_internal_commands,
-                   resource_type=resource_type)
+                   resources=get_main_container_resources(args, system, resource_type),
+                   pw_volume_mounts= get_pw_volume_mounts(args))
 
-def add_jax_coordinator_port(system):
+def get_env_container(args):
+  """ Environment configuration for the main container.
+  Args:
+    args: user provided args.
+
+  Returns:
+    str:
+      YAML with the env config for the main container, as a YAML string.
+  """
+  env_yaml="""
+                - name: XCLOUD_ENVIRONMENT
+                  value: GCP
+                - name: JAX_PLATFORMS
+                  value: proxy
+                - name: JAX_BACKEND_TARGET
+                  value: grpc://pathways-proxy-0-0.pathways:38676"""
+  if args.use_pathways:
+    return env_yaml
+  return args.env
+
+def get_pw_volume_mounts(args) -> str:
+  """ Resources for the main container.
+  Args:
+    args: user provided args.
+
+  Returns:
+    str:
+      YAML for the volumes mounted within a Pathways container as a YAML string.
+  """
+  volume_yaml="""- mountPath: /tmp
+                  name: shared-tmp"""
+  if args.use_pathways:
+    return volume_yaml
+  return ""
+
+def get_main_container_resources(args, system, resource_type) -> str:
+  """ Resources for the main container.
+  Args:
+    args: user provided args.
+    system: system characteristics.
+    resource_type: TPU / GPU / CPU 
+
+  Returns:
+    str:
+      Pathways resources port as a YAML string
+  """
+  # Resources for Pathways workload containers are known.
+  resources_yaml="""cpu: "24"
+                    memory: 100G"""
+  if args.use_pathways:
+    return resources_yaml
+  return f'{resource_type}: {system.chips_per_vm}'
+
+def add_container_ports(args) -> str:
+  """ Add slice builder and megascale container ports,
+  for non-pathways workloads.
+  
+  Args:
+    args: user provided args.
+
+  Returns:
+    str:
+      Pathways server port as a YAML string
+  """
+  port_yaml ="""- containerPort: 8471
+                - containerPort: 8080"""
+  if args.use_pathways:
+    return ''
+  return port_yaml
+
+def add_jax_coordinator_port(system) -> str:
   """Add jax coordinator port only for CPUs
 
   Args:
@@ -2563,7 +2594,7 @@ def add_jax_coordinator_port(system):
   """
   if system.accelerator_type == AcceleratorType['CPU']:
     return '- containerPort: 1234'
-  return ""
+  return ''
 
 def get_gke_dashboard(args, dashboard_filter):
   """Get the identifier of GKE dashboard deployed in the project.
@@ -2816,26 +2847,26 @@ def get_proxy_args(args, system) -> str:
   else:
     return ""
 
-def get_user_workload_args(args, system) -> str:
-  yaml="""- base_output_directory=gs://cloud-pathways-staging
-              - dataset_path=gs://maxtext-dataset/
-              - per_device_batch_size=1
-              - enable_checkpointing=false
-              - enable_profiler=false
-              - remat_policy=full
-              - global_parameter_scale=4
-              - steps=30
-              - max_target_length=2048
-              - use_iota_embed=true
-              - reuse_example_batch=1
-              - dataset_type=synthetic
-              - attention=flash
-              - gcs_metrics=True
-              - run_name={args.workload}-maxtext-4b-slice-2x"""
-  if args.use_pathways:
-    return yaml.format(args=args)
-  else:
-    return ""
+# def get_user_workload_args(args, system) -> str:
+#   yaml="""- base_output_directory=gs://cloud-pathways-staging
+#               - dataset_path=gs://maxtext-dataset/
+#               - per_device_batch_size=1
+#               - enable_checkpointing=false
+#               - enable_profiler=false
+#               - remat_policy=full
+#               - global_parameter_scale=4
+#               - steps=30
+#               - max_target_length=2048
+#               - use_iota_embed=true
+#               - reuse_example_batch=1
+#               - dataset_type=synthetic
+#               - attention=flash
+#               - gcs_metrics=True
+#               - run_name={args.workload}-maxtext-4b-slice-2x"""
+#   if args.use_pathways:
+#     return yaml.format(args=args)
+#   else:
+#     return ""
 
 def get_system_characteristics(args) -> tuple[SystemCharacteristics|None, int]:
   """Get system characteristics based on user provided arguments.
@@ -2889,28 +2920,9 @@ def workload_create(args) -> int:
 
   xpk_print("Starting workload create", flush=True)
 
-  debugging_dashboard_id = None
-
-
-  if args.use_pathways:
-    yml_string = pw_workload_create_yaml.format(
-        args=args,
-        system=system,
-        accelerator_label=create_accelerator_label(system.accelerator_type, system),
-        machine_label=create_machine_label(system.accelerator_type, system),
-        pathways_rm_args = get_pathways_rm_args(args, system),
-        pathways_worker_args = get_pathways_worker_args(args, system),
-        proxy_args = get_proxy_args(args, system),
-        user_workload_args = get_user_workload_args(args, system)
-    )
-    tmp = write_temporary_file(yml_string)
-    command = f'kubectl apply -f {str(tmp.file.name)}'
-    return_code = run_command_with_updates(command, 'Creating Workload', args) 
-
-  else:
-    setup_docker_image_code, docker_image = setup_docker_image(args)
-    if setup_docker_image_code != 0:
-      xpk_exit(setup_docker_image_code)
+  setup_docker_image_code, docker_image = setup_docker_image(args)
+  if setup_docker_image_code != 0:
+    xpk_exit(setup_docker_image_code)
 
   add_env_config(args)
 
@@ -2923,17 +2935,33 @@ def workload_create(args) -> int:
   else:
     container = get_main_container(args, system, docker_image, resource_type)
 
-  yml_string = workload_create_yaml.format(args=args,
-                                           system=system,
-                                           container=container,
-                                           affinity=get_cpu_affinity(system.accelerator_type),
-                                           env=get_cpu_env(args.num_slices,system),
-                                           accelerator_label=create_accelerator_label(system.accelerator_type, system),
-                                           machine_label=create_machine_label(system.accelerator_type, system),
-                                           local_queue_name=_LOCAL_QUEUE_NAME)
-  tmp = write_temporary_file(yml_string)
-  command = f'kubectl apply -f {str(tmp.file.name)}'
-  return_code = run_command_with_updates(command, 'Creating Workload', args)
+  if args.use_pathways:
+    yml_string = pw_workload_create_yaml.format(args=args,
+                                        system=system,
+                                        command=command,
+                                        container=container,
+                                        accelerator_label=create_accelerator_label(system.accelerator_type, system),
+                                        machine_label=create_machine_label(system.accelerator_type, system),
+                                        pathways_rm_args = get_pathways_rm_args(args, system),
+                                        pathways_worker_args = get_pathways_worker_args(args, system),
+                                        proxy_args = get_proxy_args(args, system),
+                                        resource_type=resource_type)
+    tmp = write_temporary_file(yml_string)
+    command = f'kubectl apply -f {str(tmp.file.name)}'
+    return_code = run_command_with_updates(command, 'Creating a Pathways Workload', args) 
+
+  else:
+    yml_string = workload_create_yaml.format(args=args,
+                                      system=system,
+                                      container=container,
+                                      affinity=get_cpu_affinity(system.accelerator_type),
+                                      env=get_cpu_env(args.num_slices,system),
+                                      accelerator_label=create_accelerator_label(system.accelerator_type, system),
+                                      machine_label=create_machine_label(system.accelerator_type, system),
+                                      local_queue_name=_LOCAL_QUEUE_NAME)
+    tmp = write_temporary_file(yml_string)
+    command = f'kubectl apply -f {str(tmp.file.name)}'
+    return_code = run_command_with_updates(command, 'Creating Workload', args)
 
   if return_code != 0:
     xpk_print(f'Create Workload request returned ERROR {return_code}')

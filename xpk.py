@@ -125,13 +125,17 @@ kind: JobSet
 metadata:
   annotations:
     alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool
-  name: pathways
+  name: {args.workload}-pathways
   labels:
     kueue.x-k8s.io/queue-name: multislice-queue  # Name of the LocalQueue
     xpk.google.com/workload: {args.workload}
 spec:
   failurePolicy:
-    maxRestarts: 4
+    maxRestarts: {args.max_restarts}
+  successPolicy:
+    operator: "All"
+    targetReplicatedJobs: 
+    - "user-deploy"
   replicatedJobs:
   - name: worker
     replicas: {args.num_slices}
@@ -291,10 +295,6 @@ metadata:
   name: pathways
   annotations:
     alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool # 1:1 job replica to node pool assignment
-# apiVersion: batch/v1
-# kind: Job
-# metadata:
-#   name: user-deploy
 """
 
 workload_delete_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
@@ -2510,9 +2510,9 @@ def get_env_container(args):
                 - name: JAX_PLATFORMS
                   value: proxy
                 - name: JAX_BACKEND_TARGET
-                  value: grpc://pathways-proxy-0-0.pathways:38676"""
+                  value: grpc://{args.workload}-pathways-proxy-0-0.{args.workload}-pathways:38676"""
   if args.use_pathways:
-    return env_yaml
+    return env_yaml.format(args=args)
   return args.env
 
 def get_pw_volume_mounts(args) -> str:
@@ -2803,7 +2803,7 @@ def get_pathways_worker_args(args) -> str:
   """ Arguments for the Pathways workers."""
   yaml="""- --alsologtostderr
               - --pathways_server_port=38677
-              - --pathways_resource_manager=pathways-rm-0-0.pathways:38677
+              - --pathways_resource_manager={args.workload}-pathways-rm-0-0.{args.workload}-pathways:38677
               - --pathways_persistent_compilation_cache=false
               - --pathways_compilation_mode=compile_at_worker
               - --xla_tpu_enable_data_parallel_all_reduce_opt=true
@@ -2815,7 +2815,7 @@ def get_pathways_worker_args(args) -> str:
               - --xla_enable_async_all_gather=true
               - --pathways_tmp_dir_pattern=gs://cloud-pathways-staging/tmp"""
   if args.use_pathways:
-    return yaml
+    return yaml.format(args=args)
   else:
     return ""
 
@@ -2823,7 +2823,7 @@ def get_proxy_args(args) -> str:
   """ Arguments for the Pathways proxy."""
   yaml="""- --alsologtostderr
               - --v=0
-              - --pathways_ifrt_proxy_server_resource_manager=pathways-rm-0-0.pathways:38677
+              - --pathways_ifrt_proxy_server_resource_manager={args.workload}-pathways-rm-0-0.{args.workload}-pathways:38677
               - --pathways_ifrt_proxy_server_port=38676
               - --pathways_tmp_dir_pattern=gs://cloud-pathways-staging/tmp
               - --pathways_xprof_trace_enable_bulk_upload=true
@@ -2941,7 +2941,7 @@ def workload_create(args) -> int:
     xpk_print(
     'Follow your Pathways workload here:'
     # pylint: disable=line-too-long
-    f' https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/pathways-{args.docker_name}-0/details?project={args.project}'
+    f' https://console.cloud.google.com/kubernetes/job/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}-pathways-user-deploy-0/details?project={args.project}'
     )
   else:
     xpk_print(

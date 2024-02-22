@@ -2446,7 +2446,7 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
     str:
       yaml for main container
   """
-  xpk_print("Getting main container .... \n", command)
+  xpk_print("Getting main container .... \n", args.command)
 
   xpk_internal_commands = ''
   gsutil_test_command = ''
@@ -2891,6 +2891,7 @@ def workload_create(args) -> int:
 
   add_env_config(args)
 
+  debugging_dashboard_id = None
   resource_type = AcceleratorTypeToAcceleratorCharacteristics[system.accelerator_type].resource_type
   if system.accelerator_type == AcceleratorType['TPU'] and args.deploy_stacktrace_sidecar:
     xpk_print('Sidecar container to display stack traces for TPU workloads will also be deployed.')
@@ -2903,7 +2904,6 @@ def workload_create(args) -> int:
   if args.use_pathways:
     yml_string = pw_workload_create_yaml.format(args=args,
                                         system=system,
-                                        command=command,
                                         container=container,
                                         accelerator_label=create_accelerator_label(system.accelerator_type, system),
                                         machine_label=create_machine_label(system.accelerator_type, system),

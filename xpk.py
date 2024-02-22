@@ -2116,7 +2116,7 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
   xpk_internal_commands = ""
   if args.debug_dump_gcs:
     xpk_internal_commands += ('WORKER_ID=$HOSTNAME;'
-                f'gsutil cp -r /tmp/xla_dump/ {args.debug_dump_gcs}/$WORKER_ID')
+                f'gsutil cp -r /tmp/xla_dump/ {args.debug_dump_gcs}/$WORKER_ID;')
 
   command = args.command
   if args.enable_debug_logs:
@@ -2136,7 +2136,7 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
                 - bash
                 - -c
                 - |
-                  echo XPK Start: $(date) ; _sigterm() ( kill -SIGTERM $!;); trap _sigterm SIGTERM; ({command}) & PID=$!; while kill -0 $PID 2>/dev/null; do sleep 5; done; wait $PID; EXIT_CODE=$? ; {xpk_internal_commands}; echo XPK End: $(date); echo EXIT_CODE=$EXIT_CODE; exit $EXIT_CODE
+                  echo XPK Start: $(date) ; _sigterm() ( kill -SIGTERM $!;); trap _sigterm SIGTERM; ({command}) & PID=$!; while kill -0 $PID 2>/dev/null; do sleep 5; done; wait $PID; EXIT_CODE=$? ; {xpk_internal_commands} echo XPK End: $(date); echo EXIT_CODE=$EXIT_CODE; exit $EXIT_CODE
                 resources:
                   limits:
                     {resource_type}: {system.chips_per_vm}

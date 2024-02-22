@@ -3964,14 +3964,6 @@ workload_pathways_image_arguments.add_argument(
     ),
 )
 workload_pathways_image_arguments.add_argument(
-    '--user-workload-image', 
-    type=str,
-    default='gcr.io/cloud-tpu-multipod-dev/pathways-prototype/gke/roshanin:maxtext',
-    help=(
-        'Please provide the user workload image to be used with Pathways.'
-    ),
-)
-workload_pathways_image_arguments.add_argument(
     '--proxy-server-image', 
     type=str,
     default='gcr.io/cloud-tpu-multipod-dev/pathways-prototype/gke/roshanin:proxy_server',

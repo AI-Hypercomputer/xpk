@@ -23,16 +23,20 @@ on:
     - cron: '0 0 * * *' 
 
 jobs:
-  empty-cluster:
+  cluster-create-and-delete:   
     runs-on: [ubuntu-20.04]
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-python@v5
       with:
         python-version: '3.10'
-    - run: pwd 
-
-
+    - uses: google-github-actions/setup-gcloud@master
+      with:
+        service_account_email: ${{ secrets.GCP_SA_EMAIL }}
+        service_account_key: ${{ secrets.GCP_SA_KEY }}
+        export_default_credentials: true
+    - name: gcp credentials
+      run: gcloud info
 
 
 

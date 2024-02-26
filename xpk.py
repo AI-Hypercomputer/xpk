@@ -1522,8 +1522,8 @@ def install_kueue_on_cluster(args) -> int:
     0 if successful and 1 otherwise.
   """
   command = (
-      'kubectl apply -f'
-      ' https://github.com/kubernetes-sigs/kueue/releases/download/v0.4.1/manifests.yaml'
+      'kubectl apply --server-side --force-conflicts -f'
+      ' https://github.com/kubernetes-sigs/kueue/releases/download/v0.6.0/manifests.yaml'
   )
   return_code = run_command_with_updates(command, 'Set Kueue On Cluster', args)
 
@@ -1970,7 +1970,6 @@ def check_if_workload_exists(args) -> bool:
   return False
 
 
-# TODO: Update when GPU support is enabled
 def check_if_workload_can_schedule(args, system):
   """Check if workload can schedule based on the cluster resources (tpu_type and maximum VM in cluster).
 
@@ -2136,7 +2135,7 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
                 - bash
                 - -c
                 - |
-                  echo XPK Start: $(date) ; _sigterm() ( kill -SIGTERM $!;); trap _sigterm SIGTERM; ({command}) & PID=$!; while kill -0 $PID 2>/dev/null; do sleep 5; done; wait $PID; EXIT_CODE=$? ; {xpk_internal_commands} echo XPK End: $(date); echo EXIT_CODE=$EXIT_CODE; exit $EXIT_CODE
+                  echo XPK Start: $(date) ; _sigterm() ( kill -SIGTERM $! 2>/dev/null;); trap _sigterm SIGTERM; ({command}) & PID=$!; while kill -0 $PID 2>/dev/null; do sleep 5; done; wait $PID; EXIT_CODE=$? ; {xpk_internal_commands} echo XPK End: $(date); echo EXIT_CODE=$EXIT_CODE; exit $EXIT_CODE
                 resources:
                   limits:
                     {resource_type}: {system.chips_per_vm}
@@ -2579,7 +2578,7 @@ def determine_workload_list_filter_by_status(args) -> str:
     # Queued includes the status Admitted or Evicted, and when the number of
     # vms running is 0.
     return workload_list_awk_command(
-        f'({status_arg} ~ \"Admitted|Evicted\" && ({running_vms_arg} ~ \"<none>\" || {running_vms_arg} == 0))'
+        f'({status_arg} ~ \"Admitted|Evicted|QuotaReserved\" && ({running_vms_arg} ~ \"<none>\" || {running_vms_arg} == 0))'
     )
   elif args.filter_by_status == 'FINISHED':
     return workload_list_awk_command(f'{status_arg} == \"Finished\"')

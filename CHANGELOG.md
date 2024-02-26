@@ -37,6 +37,20 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 ## [Unreleased]
 - Move away from static GKE version and use RAPID release default.
 
+## [0.3.0] - 2023-02-26
+
+- Bump Jobset version to 0.3.2.
+- Bump Kueue version to 0.6.0.
+- Add single GPU support. Multislice, and A3 GPU optimizations in progress.
+- Add CPU single and multislice support to XPK. Tested up to 1500 VMs.
+- Fail workload creation early if the cluster doesn't have that resource type.
+- Enable multiple workload deletion in parallel based on cluster name, and filters.
+- Add `--enable-debug-logs` to workload create to add debug logs to a workload.
+- Support SIGTERM handling in xpk workload command, and propagate exit code from
+  user jobs to cloud composer UI.
+- Add sidecar container to display stack traces, and README details.
+- Add label for xpk initiated TPU pods.
+
 ## [0.2.0] - 2023-12-07
 
 ### Added
@@ -57,3 +71,4 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 
 [0.1.0]: https://github.com/google/xpk/releases/tag/v0.1.0
 [0.2.0]: https://github.com/google/xpk/compare/v0.1.0...v0.2.0
+[0.3.0]: https://github.com/google/xpk/compare/v0.2.0...v0.3.0

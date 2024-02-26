@@ -38,8 +38,8 @@ jobs:
         version: '>= 363.0.0' 
     - name: Verify gcp setup 
       run: gcloud info
-    - name: Create an XPK Cluster with one node pool
-      run: python xpk.py cluster create --cluster xpk-integration-test --tpu-type=v5litepod-16  --num-slices=1 --spot
+    - name: Create an XPK Cluster with zero node pools
+      run: python xpk.py cluster create --cluster integration-test --device-type=v4-8  --num-slices=0 --zone=us-central2-b
 
 
 

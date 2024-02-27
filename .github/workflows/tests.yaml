@@ -40,7 +40,7 @@ jobs:
     - name: Verify gcp setup 
       run: gcloud info
     - name: Create an XPK Cluster with zero node pools
-      run: python xpk.py cluster create --cluster integration-test --device-type=v4-8  --num-slices=0 --zone=us-central2-b
+      run: python xpk.py cluster create --cluster integration-test --device-type=v4-8  --num-slices=0 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-8 
 
 
 

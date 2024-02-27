@@ -112,12 +112,160 @@ spec:
                 name: dshm-2
 """
 
+gpu_workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
+kind: JobSet
+metadata:
+  name: {args.workload}
+  labels:
+    kueue.x-k8s.io/queue-name: multislice-queue  # Name of the LocalQueue
+    xpk.google.com/workload: {args.workload}
+spec:
+  failurePolicy:
+    maxRestarts: {args.max_restarts}
+  replicatedJobs:
+    - name: slice-job
+      replicas: 1
+      template:
+        spec:
+          parallelism: {args.num_slices}
+          completions: {args.num_slices}
+          backoffLimit: 0   # When any pod fails, the job is failed
+          template:
+            metadata:
+              labels:
+                xpk.google.com/workload: {args.workload}
+            spec:
+              schedulerName: {args.scheduler}
+              restartPolicy: Never
+              affinity:
+                nodeAffinity:
+                  requiredDuringSchedulingIgnoredDuringExecution:
+                    nodeSelectorTerms:
+                    - matchExpressions:
+                      - key: cloud.google.com/gke-accelerator
+                        operator: Exists
+                      - key: cloud.google.com/gke-nodepool
+                        operator: In
+                        values: [{node_pool_name}]
+              nodeSelector:
+                {accelerator_label}
+                {machine_label}
+              priorityClassName: {args.priority}
+              hostNetwork: true
+              dnsPolicy: ClusterFirstWithHostNet
+              terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
+              tolerations:
+              - operator: "Exists"
+                key: nvidia.com/gpu
+              volumes:
+              - name: nvidia-install-dir-host
+                hostPath:
+                  path: /home/kubernetes/bin/nvidia/lib64
+              - name: tcpd-socket
+                hostPath:
+                  path: /run/tcpx
+              - name: shared-memory
+                emptyDir:
+                  medium: "Memory"
+                  sizeLimit: 200Gi
+              - name: workload-terminated-volume
+                emptyDir:
+              - name: tcpx-nccl-plugin-volume
+                emptyDir:
+              initContainers:
+              - name: tcpx-nccl-plugin-installer
+                image: us-docker.pkg.dev/gce-ai-infra/gpudirect-tcpx/nccl-plugin-gpudirecttcpx-dev:v3.1.6_2023_10_06
+                imagePullPolicy: Always
+                restartPolicy: Always
+                volumeMounts:
+                - name: tcpx-nccl-plugin-volume
+                  mountPath: /var/lib/tcpx
+                resources:
+                  requests:
+                    cpu: 150m
+              containers:
+              - name: tcpd-daemon
+                image: us-docker.pkg.dev/gce-ai-infra/gpudirect-tcpx/tcpgpudmarxd-dev:v2.0.9
+                imagePullPolicy: Always
+                command:
+                - "bash"
+                - "-c"
+                - |
+                  /tcpgpudmarxd/build/app/tcpgpudmarxd --gpu_nic_preset a3vm --gpu_shmem_type fd --setup_param "--verbose 128 2 0" &
+                  while [ ! -e "/usr/share/maxtext/workload_terminated" ]; do sleep 10; echo "sleeping"; done
+                securityContext:
+                  privileged: true
+                volumeMounts:
+                - name: nvidia-install-dir-host
+                  mountPath: /usr/local/nvidia/lib64
+                - name: tcpd-socket
+                  mountPath: /tmp
+                - name: workload-terminated-volume
+                  mountPath: /usr/share/maxtext
+                env:
+                - name: LD_LIBRARY_PATH
+                  value: /usr/local/nvidia/lib64
+              - name: maxtext-tcpx
+                image: {docker_image}
+                imagePullPolicy: Always
+                securityContext:
+                  privileged: true
+                ports:
+                    - containerPort: 6002
+                env:
+                  - name: REPLICATED_JOB_NAME
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.annotations['jobset.sigs.k8s.io/replicatedjob-name']
+                  - name: JOBSET_NAME
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.annotations['jobset.sigs.k8s.io/jobset-name']
+                  - name: JAX_COORDINATOR_ADDRESS
+                    value: "$(JOBSET_NAME)-$(REPLICATED_JOB_NAME)-0-0.$(JOBSET_NAME)"
+                  - name: NNODES
+                    value: "{args.num_slices}"
+                  - name: NODE_RANK
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.annotations['batch.kubernetes.io/job-completion-index']
+                  - name: USE_GPUDIRECT_TCPX
+                    value: "yes"
+                  - name: GPUS_PER_NODE
+                    value: "{chips_per_vm}"
+                  - name: JAX_COORDINATOR_PORT
+                    value: "6002"
+                  - name: LD_LIBRARY_PATH
+                    value: /usr/local/nvidia/lib64
+                  - name: RUN_NAME
+                    value: "{args.workload}"
+                  {args.env}
+                command:
+                  - "bash"
+                  - "-c"
+                  - |
+                    echo XPK Start: $(date) ; _sigterm() ( kill -SIGTERM $!;); trap _sigterm SIGTERM; ({command}) & PID=$!; while kill -0 $PID 2>/dev/null; do sleep 5; done; EXIT_CODE=$? ; echo XPK End: $(date); echo EXIT_CODE=$EXIT_CODE; echo Main app is done > /usr/share/maxtext/workload_terminated
+                volumeMounts:
+                  - name: nvidia-install-dir-host
+                    mountPath: /usr/local/nvidia/lib64
+                  - name: tcpx-nccl-plugin-volume
+                    mountPath: /usr/local/tcpx
+                  - name: tcpd-socket
+                    mountPath: /tmp
+                  - name: shared-memory
+                    mountPath: /dev/shm
+                  - name: workload-terminated-volume
+                    mountPath: /usr/share/maxtext
+                resources:
+                  limits:
+                    nvidia.com/gpu: {chips_per_vm}
+"""
+
 workload_delete_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
 metadata:
   name: {args.workload}
-  annotations:
-    alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool # 1:1 job replica to node pool assignment
+  {annotation_config}
 """
 
 script_dir_dockerfile = """FROM {base_docker_image}
@@ -156,6 +304,7 @@ spec:
       resources:
       - name: "{resource_type}"
         nominalQuota: {total_chips}  # Number of slices * number of chips in each slice
+      {additional_resources_config}
 ---
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: LocalQueue
@@ -928,7 +1077,8 @@ def add_env_config(args):
   Args:
     args: user provided arguments for running the command.
   """
-  env = {'JOBSET_NAME': args.workload}
+  device_type = args.tpu_type if args.tpu_type else args.device_type
+  env = {} if device_type == h100_device_type else {'JOBSET_NAME': args.workload}
   if args.env_file:
     print('Setting container environment from', args.env_file)
     pat = re.compile(r'(^[a-zA-Z_][a-zA-Z0-9_]*?)(?:=(.*))$', re.M)
@@ -951,7 +1101,12 @@ def add_env_config(args):
                        'XLA_FLAGS.')
     env['XLA_FLAGS'] = '--xla_dump_to=/tmp/xla_dump/'
 
-  env_format = '''
+  if device_type == h100_device_type:
+    env_format = '''
+                  - name: {key}
+                    value: "{value}"'''
+  else:
+    env_format = '''
                 - name: {key}
                   value: "{value}"'''
   args.env = ''.join(env_format.format(key=k, value=v) for k, v in env.items())
@@ -1182,6 +1337,7 @@ def run_gke_cluster_create_command(args) -> int:
         f' --region={zone_to_region(args.zone)}'
         f' --node-locations={args.zone}'
         f' --cluster-version={args.gke_version}'
+        f' --machine-type={machine_type}'
         ' --enable-dataplane-v2 --enable-ip-alias'
         ' --enable-multi-networking --no-enable-autoupgrade'
     )
@@ -1798,7 +1954,8 @@ def enable_kueue_crds(args, system) -> int:
       total_chips=total_chips,
       accelerator_label=create_accelerator_label(system.accelerator_type, system),
       machine_label=create_machine_label(system.accelerator_type, system),
-      resource_type=AcceleratorTypeToAcceleratorCharacteristics[system.accelerator_type].resource_type
+      resource_type=AcceleratorTypeToAcceleratorCharacteristics[system.accelerator_type].resource_type,
+      additional_resources_config=get_additional_kueue_crds_config(args)
   )
   tmp = write_temporary_file(yml_string)
   command = f'kubectl apply -f {str(tmp.file.name)}'
@@ -1817,6 +1974,27 @@ def enable_kueue_crds(args, system) -> int:
     xpk_print(f'Applying Kueue CRDS returned ERROR {return_code}')
     return return_code
   return 0
+
+
+def get_additional_kueue_crds_config(args) -> str:
+  """Gets additional Kueue crds configurations when needed.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    A string of resource configuration to be added to Kueue crds configurations.
+  """
+  device_type = args.tpu_type if args.tpu_type else args.device_type
+  config_string = ''
+  if device_type == h100_device_type:
+    config_format = '''
+      - name: "cpu"
+        nominalQuota: {num_slices}
+      - name: "memory"
+        nominalQuota: 150Mi'''
+    config_string = config_format.format(num_slices=args.num_slices)
+  return config_string
 
 
 # TODO(vbarr): Remove this function when jobsets gets enabled by default on
@@ -2733,24 +2911,35 @@ def workload_create(args) -> int:
 
   debugging_dashboard_id = None
   resource_type = AcceleratorTypeToAcceleratorCharacteristics[system.accelerator_type].resource_type
-  if system.accelerator_type == AcceleratorType['TPU'] and args.deploy_stacktrace_sidecar:
-    xpk_print('Sidecar container to display stack traces for TPU workloads will also be deployed.')
-    container = get_main_and_sidecar_container(args, system, docker_image, command)
-    # Get GKE debugging dashboard only when sidecar container is deployed for TPU workloads
-    debugging_dashboard_id = get_gke_debugging_dashboard(args)
-  else:
-    container = get_main_container(args, system, docker_image, command, resource_type)
 
-  yml_string = workload_create_yaml.format(args=args,
-                                           system=system,
-                                           docker_image=docker_image,
-                                           command=command,
-                                           container=container,
-                                           affinity=get_cpu_affinity(system.accelerator_type),
-                                           env=get_cpu_env(args.num_slices,system),
-                                           accelerator_label=create_accelerator_label(system.accelerator_type, system),
-                                           machine_label=create_machine_label(system.accelerator_type, system),
-                                           resource_type=resource_type)
+  device_type = args.tpu_type if args.tpu_type else args.device_type
+  if device_type == h100_device_type:
+    yml_string = gpu_workload_create_yaml.format(args=args,
+                                                 docker_image=docker_image,
+                                                 command=command,
+                                                 accelerator_label=create_accelerator_label(system.accelerator_type, system),
+                                                 machine_label=create_machine_label(system.accelerator_type, system),
+                                                 node_pool_name=f'{args.cluster}-np-0',
+                                                 chips_per_vm=system.chips_per_vm)
+  else:
+    if system.accelerator_type == AcceleratorType['TPU'] and args.deploy_stacktrace_sidecar:
+      xpk_print('Sidecar container to display stack traces for TPU workloads will also be deployed.')
+      container = get_main_and_sidecar_container(args, system, docker_image, command)
+      # Get GKE debugging dashboard only when sidecar container is deployed for TPU workloads
+      debugging_dashboard_id = get_gke_debugging_dashboard(args)
+    else:
+      container = get_main_container(args, system, docker_image, command, resource_type)
+
+    yml_string = workload_create_yaml.format(args=args,
+                                            system=system,
+                                            docker_image=docker_image,
+                                            command=command,
+                                            container=container,
+                                            affinity=get_cpu_affinity(system.accelerator_type),
+                                            env=get_cpu_env(args.num_slices,system),
+                                            accelerator_label=create_accelerator_label(system.accelerator_type, system),
+                                            machine_label=create_machine_label(system.accelerator_type, system),
+                                            resource_type=resource_type)
   tmp = write_temporary_file(yml_string)
   command = f'kubectl apply -f {str(tmp.file.name)}'
 
@@ -2829,7 +3018,7 @@ def workload_delete(args) -> int:
   else:
     for workload in workloads:
       args.workload = workload
-      yml_string = workload_delete_yaml.format(args=args)
+      yml_string = get_workload_delete_config(args=args)
       tmp = write_temporary_file(yml_string)
       command = f'kubectl delete -f {str(tmp.file.name)}'
       return_code = run_command_with_updates(command, 'Delete Workload', args)
@@ -2838,6 +3027,25 @@ def workload_delete(args) -> int:
         xpk_print(f'Delete Workload request returned ERROR {return_code}')
         xpk_exit(return_code)
   xpk_exit(0)
+
+
+def get_workload_delete_config(args) -> str:
+  """Gets workload delete configuration.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    A string of workload delete configuration.
+  """
+  device_type = args.tpu_type if args.tpu_type else args.device_type
+  if device_type == h100_device_type:
+    annotation_config = ''
+  else:
+    annotation_config = '''
+  annotations:
+    alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool # 1:1 job replica to node pool assignment'''
+  return workload_delete_yaml.format(args=args, annotation_config=annotation_config)
 
 
 def workload_list_awk_command(filter_key) -> str:
@@ -3554,6 +3762,21 @@ workload_delete_parser_required_arguments.add_argument(
     default=None,
     help='The name of the cluster to delete the job on.',
     required=True,
+)
+
+workload_delete_device_group = workload_delete_parser_required_arguments.add_mutually_exclusive_group(required=True)
+
+workload_delete_device_group.add_argument(
+    '--tpu-type',
+    type=str,
+    default=None,
+    help='The tpu type to use, v5litepod-16, etc.'
+)
+workload_delete_device_group.add_argument(
+    '--device-type',
+    type=str,
+    default=None,
+    help='The device type to use (can be tpu or gpu or cpu), v5litepod-16, h100-80gb-8, n2-standard-32-4 etc.'
 )
 
 ### Optional arguments

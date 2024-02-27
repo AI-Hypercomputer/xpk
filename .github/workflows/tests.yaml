@@ -35,11 +35,12 @@ jobs:
         credentials_json: '${{ secrets.GCP_SA_KEY }}'
     - uses: google-github-actions/setup-gcloud@v2
       with:
-        version: '>= 363.0.0' 
+        version: '>= 363.0.0'
+      install_components: 'beta' 
     - name: Verify gcp setup 
       run: gcloud info
     - name: Create an XPK Cluster with zero node pools
-      run: python xpk.py cluster create --cluster integration-test --device-type=v4-8  --num-slices=0 --zone=us-central2-b --quiet
+      run: python xpk.py cluster create --cluster integration-test --device-type=v4-8  --num-slices=0 --zone=us-central2-b
 
 
 

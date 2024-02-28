@@ -298,13 +298,7 @@ spec:
       withinClusterQueue: LowerPriority
   namespaceSelector: {{}} # match all.
   resourceGroups:
-  - coveredResources: ["{resource_type}"]
-    flavors:
-    - name: {cluster_hardware_name}
-      resources:
-      - name: "{resource_type}"
-        nominalQuota: {total_chips}  # Number of slices * number of chips in each slice
-      {additional_resources_config}
+  {covered_resources_config}
 ---
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: LocalQueue
@@ -1947,15 +1941,19 @@ def enable_kueue_crds(args, system) -> int:
 
   device_type = args.tpu_type if args.tpu_type else args.device_type
   cluster_hardware_name = f'{args.num_slices}x{device_type}'
+  resource_type=AcceleratorTypeToAcceleratorCharacteristics[system.accelerator_type].resource_type
   total_chips = args.num_slices * system.vms_per_slice * system.chips_per_vm
+  covered_resources_config = get_kueue_covered_resources_config(
+    args=args,
+    cluster_hardware_name=cluster_hardware_name,
+    resource_type=resource_type,
+    total_chips=total_chips)
   yml_string = cluster_set_crd_yaml.format(
       system=system,
       cluster_hardware_name=cluster_hardware_name,
-      total_chips=total_chips,
       accelerator_label=create_accelerator_label(system.accelerator_type, system),
       machine_label=create_machine_label(system.accelerator_type, system),
-      resource_type=AcceleratorTypeToAcceleratorCharacteristics[system.accelerator_type].resource_type,
-      additional_resources_config=get_additional_kueue_crds_config(args)
+      covered_resources_config=covered_resources_config
   )
   tmp = write_temporary_file(yml_string)
   command = f'kubectl apply -f {str(tmp.file.name)}'
@@ -1976,24 +1974,48 @@ def enable_kueue_crds(args, system) -> int:
   return 0
 
 
-def get_additional_kueue_crds_config(args) -> str:
-  """Gets additional Kueue crds configurations when needed.
+def get_kueue_covered_resources_config(args, cluster_hardware_name, resource_type, total_chips) -> str:
+  """Gets Kueue covered resources configuration.
 
   Args:
     args: user provided arguments for running the command.
+    cluster_hardware_name: cluster hardware name.
+    resource_type: resource type of tpu or gpu.
+    total_chips: total number of chips for the specific resource type.
 
   Returns:
-    A string of resource configuration to be added to Kueue crds configurations.
+    A string of Kueue covered resources configuration.
   """
   device_type = args.tpu_type if args.tpu_type else args.device_type
-  config_string = ''
   if device_type == h100_device_type:
     config_format = '''
+  - coveredResources: ["cpu", "memory", "{resource_type}"]
+    flavors:
+    - name: {cluster_hardware_name}
+      resources:
       - name: "cpu"
         nominalQuota: {num_slices}
       - name: "memory"
-        nominalQuota: 150Mi'''
-    config_string = config_format.format(num_slices=args.num_slices)
+        nominalQuota: 150Mi
+      - name: "{resource_type}"
+        nominalQuota: {total_chips}'''
+    config_string = config_format.format(
+      cluster_hardware_name=cluster_hardware_name,
+      resource_type=resource_type,
+      total_chips=total_chips,
+      num_slices=args.num_slices)
+  else:
+    config_format = '''
+  - coveredResources: ["{resource_type}"]
+    flavors:
+    - name: {cluster_hardware_name}
+      resources:
+      - name: "{resource_type}"
+        nominalQuota: {total_chips}'''
+    config_string = config_format.format(
+      cluster_hardware_name=cluster_hardware_name,
+      resource_type=resource_type,
+      total_chips=total_chips)
   return config_string
 
 

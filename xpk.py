@@ -2112,8 +2112,13 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
       yaml for main container
   """
 
-  xpk_internal_commands = ""
+  xpk_internal_commands = ''
+  gsutil_test_command = ''
   if args.debug_dump_gcs:
+    gsutil_test_command = (
+      'which gsutil >/dev/null 2>&1 || { echo >&2 "gsutil'
+      ' is required but not installed. Aborting"; exit 24;};'
+    )
     xpk_internal_commands += ('WORKER_ID=$HOSTNAME;'
                 f'gsutil cp -r /tmp/xla_dump/ {args.debug_dump_gcs}/$WORKER_ID;')
 
@@ -2135,7 +2140,7 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
                 - bash
                 - -c
                 - |
-                  echo XPK Start: $(date) ; _sigterm() ( kill -SIGTERM $! 2>/dev/null;); trap _sigterm SIGTERM; ({command}) & PID=$!; while kill -0 $PID 2>/dev/null; do sleep 5; done; wait $PID; EXIT_CODE=$? ; {xpk_internal_commands} echo XPK End: $(date); echo EXIT_CODE=$EXIT_CODE; exit $EXIT_CODE
+                  echo XPK Start: $(date) ; _sigterm() ( kill -SIGTERM $! 2>/dev/null;); trap _sigterm SIGTERM;{gsutil_test_command}({command}) & PID=$!; while kill -0 $PID 2>/dev/null; do sleep 5; done; wait $PID; EXIT_CODE=$? ; {xpk_internal_commands} echo XPK End: $(date); echo EXIT_CODE=$EXIT_CODE; exit $EXIT_CODE
                 resources:
                   limits:
                     {resource_type}: {system.chips_per_vm}
@@ -2144,6 +2149,7 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
                    system=system,
                    jax_coordinator_port=add_jax_coordinator_port(system),
                    docker_image=docker_image,
+                   gsutil_test_command=gsutil_test_command,
                    command=command,
                    xpk_internal_commands=xpk_internal_commands,
                    resource_type=resource_type)

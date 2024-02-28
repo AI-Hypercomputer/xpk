@@ -41,7 +41,8 @@ jobs:
       run: gcloud info
     - name: Create an XPK Cluster with zero node pools
       run: python xpk.py cluster create --cluster integration-test --device-type=v4-8  --num-slices=0 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-8 --spot
-
+    - name: Delete the cluster created
+      run: python xpk.py cluster delete --cluster integration-test 
 
 
 

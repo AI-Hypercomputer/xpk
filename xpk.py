@@ -135,7 +135,7 @@ spec:
   successPolicy:
     operator: "All"
     targetReplicatedJobs: 
-    - "user-deploy"
+    - "main"
   replicatedJobs:
   - name: worker
     replicas: {args.num_slices}
@@ -251,7 +251,7 @@ spec:
                   memory: 100G
             nodeSelector:
               cloud.google.com/gke-nodepool: cpu-proxy-np
-  - name: user-deploy
+  - name: main
     replicas: 1
     template:
       metadata:
@@ -273,13 +273,6 @@ spec:
                 path: /tmp
                 type: DirectoryOrCreate
               name: shared-tmp
-"""
-pw_workload_delete_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
-kind: JobSet
-metadata:
-  name: {args.workload}-pathways
-  annotations:
-    alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool # 1:1 job replica to node pool assignment
 """
 
 workload_delete_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
@@ -2431,7 +2424,6 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
     str:
       yaml for main container
   """
-  xpk_print("Getting main container .... \n", args.command)
 
   xpk_internal_commands = ''
   gsutil_test_command = ''
@@ -2851,7 +2843,7 @@ def workload_create(args) -> int:
 
   if workload_exists:
     xpk_print(
-    f'{args.workload} already exist, XPK will not create this workload.'
+    f'{args.workload} already exists, XPK will not create this workload.'
     ' Please pick a new workload name'
   )
     xpk_exit(1)
@@ -2924,7 +2916,7 @@ def workload_create(args) -> int:
     xpk_print(
     'Follow your Pathways workload here:'
     # pylint: disable=line-too-long
-    f' https://console.cloud.google.com/kubernetes/job/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}-pathways-user-deploy-0/details?project={args.project}'
+    f' https://console.cloud.google.com/kubernetes/job/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}-pathways-main-0/details?project={args.project}'
     )
   else:
     xpk_print(
@@ -3949,7 +3941,7 @@ workload_pathways_workload_arguments.add_argument(
 workload_pathways_workload_arguments.add_argument(
     '--proxy-server-image', 
     type=str,
-    default='gcr.io/cloud-tpu-multipod-dev/pathways-prototype/gke/roshanin:proxy_server',
+    default='gcr.io/cloud-tpu-multipod-dev/pathways-prototype/gke/pathways-demo:proxy_server',
     help=(
         'Please provide the proxy server image for Pathways.'
     ),
@@ -3957,7 +3949,7 @@ workload_pathways_workload_arguments.add_argument(
 workload_pathways_workload_arguments.add_argument(
     '--server-image', 
     type=str,
-    default='gcr.io/cloud-tpu-multipod-dev/pathways-prototype/gke/roshanin:server',
+    default='gcr.io/cloud-tpu-multipod-dev/pathways-prototype/gke/pathways-demo:server',
     help=(
         'Please provide the server image for Pathways.'
     ),

@@ -152,15 +152,6 @@ spec:
             containers:
             - args:
               {pathways_worker_args}
-              env:
-              - name: TPU_STDERR_LOG_LEVEL
-                value: "0"
-              - name: TPU_MIN_LOG_LEVEL
-                value: "0"
-              - name: TF_CPP_MIN_LOG_LEVEL
-                value: "0"
-              - name: XCLOUD_ENVIRONMENT
-                value: GCP
               image: {args.server_image}
               imagePullPolicy: Always
               name: pathways-worker
@@ -180,8 +171,6 @@ spec:
               {accelerator_label}
               {machine_label}
             priorityClassName: {args.priority}
-            # hostNetwork: true
-            # dnsPolicy: ClusterFirstWithHostNet
             volumes:
             - hostPath:
                 path: /tmp
@@ -203,8 +192,6 @@ spec:
             - args:
               {pathways_rm_args}
               env:
-              - name: TPU_STDERR_LOG_LEVEL
-                value: "0"
               - name: REPLICATED_JOB_NAME
                 valueFrom:
                   fieldRef:
@@ -217,8 +204,6 @@ spec:
                 value: $(JOBSET_NAME)-$(REPLICATED_JOB_NAME)-0-0.$(JOBSET_NAME)
               - name: TPU_SKIP_MDS_QUERY
                 value: "true"
-              - name: XCLOUD_ENVIRONMENT
-                value: GCP
               image: {args.server_image}
               imagePullPolicy: Always
               name: pathways-rm
@@ -292,7 +277,7 @@ spec:
 pw_workload_delete_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
 metadata:
-  name: pathways
+  name: {args.workload}-pathways
   annotations:
     alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool # 1:1 job replica to node pool assignment
 """
@@ -2505,8 +2490,6 @@ def get_env_container(args):
       YAML with the env config for the main container, as a YAML string.
   """
   env_yaml="""
-                - name: XCLOUD_ENVIRONMENT
-                  value: GCP
                 - name: JAX_PLATFORMS
                   value: proxy
                 - name: JAX_BACKEND_TARGET
@@ -2792,7 +2775,7 @@ def get_pathways_rm_args(args) -> str:
               - --pathways_device_type=NONE
               - --pathways_persistent_compilation_cache=false
               - --pathways_compilation_mode=compile_at_worker
-              - --pathways_tmp_dir_pattern=gs://cloud-pathways-staging/tmp
+              - --pathways_tmp_dir_pattern={args.pathways_gcs_location}
               - --pathways_resource_manager_expected_num_worker_jobs={args.num_slices}"""
   if args.use_pathways:
     return yaml.format(args=args)
@@ -2813,7 +2796,7 @@ def get_pathways_worker_args(args) -> str:
               - --xla_tpu_enable_async_collective_fusion_multiple_steps=true
               - --xla_tpu_overlap_compute_collective_tc=true
               - --xla_enable_async_all_gather=true
-              - --pathways_tmp_dir_pattern=gs://cloud-pathways-staging/tmp"""
+              - --pathways_tmp_dir_pattern={args.pathways_gcs_location}"""
   if args.use_pathways:
     return yaml.format(args=args)
   else:
@@ -2825,7 +2808,7 @@ def get_proxy_args(args) -> str:
               - --v=0
               - --pathways_ifrt_proxy_server_resource_manager={args.workload}-pathways-rm-0-0.{args.workload}-pathways:38677
               - --pathways_ifrt_proxy_server_port=38676
-              - --pathways_tmp_dir_pattern=gs://cloud-pathways-staging/tmp
+              - --pathways_tmp_dir_pattern={args.pathways_gcs_location}
               - --pathways_xprof_trace_enable_bulk_upload=true
               - --pathways_plaque_network=gcp"""
   if args.use_pathways:
@@ -3783,7 +3766,7 @@ workload_docker_image_arguments = (
         ' user wants the docker image to be used directly by the xpk workload.'
     )
 )
-workload_pathways_image_arguments = (
+workload_pathways_workload_arguments = (
     workload_create_parser.add_argument_group(
         'Pathways Image Arguments',
         'If --use-pathways is provided, user wants to set up a'
@@ -3956,14 +3939,14 @@ workload_create_parser_optional_arguments.add_argument(
         'Defaults to 30 seconds.'
     ),
 )
-workload_pathways_image_arguments.add_argument(
+workload_pathways_workload_arguments.add_argument(
     '--use-pathways', 
     action='store_true',
     help=(
         'Provide this argument to create Pathways workloads.'
     ),
 )
-workload_pathways_image_arguments.add_argument(
+workload_pathways_workload_arguments.add_argument(
     '--proxy-server-image', 
     type=str,
     default='gcr.io/cloud-tpu-multipod-dev/pathways-prototype/gke/roshanin:proxy_server',
@@ -3971,12 +3954,20 @@ workload_pathways_image_arguments.add_argument(
         'Please provide the proxy server image for Pathways.'
     ),
 )
-workload_pathways_image_arguments.add_argument(
+workload_pathways_workload_arguments.add_argument(
     '--server-image', 
     type=str,
     default='gcr.io/cloud-tpu-multipod-dev/pathways-prototype/gke/roshanin:server',
     help=(
         'Please provide the server image for Pathways.'
+    ),
+)
+workload_pathways_workload_arguments.add_argument(
+    '--pathways-gcs-location', 
+    type=str,
+    default='gs://cloud-pathways-staging/tmp',
+    help=(
+        'Please provide the GCS location to store Pathways artifacts.'
     ),
 )
 workload_create_parser.set_defaults(func=workload_create)

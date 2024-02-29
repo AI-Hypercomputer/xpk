@@ -264,7 +264,7 @@ spec:
         template:
           spec:
             containers:
-            {container}
+              {container}
             nodeSelector:
               cloud.google.com/gke-nodepool: cpu-user-np
             restartPolicy: OnFailure
@@ -2448,7 +2448,7 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
     command = ('TPU_STDERR_LOG_LEVEL=0 TPU_MIN_LOG_LEVEL=0 TF_CPP_MIN_LOG_LEVEL=0'
                f' TPU_VMODULE=real_program_continuator=1 {args.command}')
 
-  yaml = """  - name: {args.docker_name}
+  yaml = """- name: {args.docker_name}
                 image: {docker_image}
                 imagePullPolicy: Always
                 env: {env}

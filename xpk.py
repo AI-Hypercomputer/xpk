@@ -237,14 +237,14 @@ spec:
                     value: "6002"
                   - name: LD_LIBRARY_PATH
                     value: /usr/local/nvidia/lib64
-                  - name: RUN_NAME
-                    value: "{args.workload}"
+                  - name: COMMAND
+                    value: "{command}"
                   {args.env}
                 command:
                   - "bash"
                   - "-c"
                   - |
-                    echo XPK Start: $(date) ; _sigterm() ( kill -SIGTERM $!;); trap _sigterm SIGTERM; ({command}) & PID=$!; while kill -0 $PID 2>/dev/null; do sleep 5; done; EXIT_CODE=$? ; echo XPK End: $(date); echo EXIT_CODE=$EXIT_CODE; echo Main app is done > /usr/share/maxtext/workload_terminated
+                    echo XPK Start: $(date) ; _sigterm() ( kill -SIGTERM $!;); trap _sigterm SIGTERM; (cd /deps && bash gpu_multi_process_run.sh) & PID=$!; while kill -0 $PID 2>/dev/null; do sleep 5; done; EXIT_CODE=$? ; echo XPK End: $(date); echo EXIT_CODE=$EXIT_CODE; echo Main app is done > /usr/share/maxtext/workload_terminated
                 volumeMounts:
                   - name: nvidia-install-dir-host
                     mountPath: /usr/local/nvidia/lib64

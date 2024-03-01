@@ -16,12 +16,7 @@ name: Build Tests
 
 on:
   push:
-    branches: ["main"]
-  pull_request_review:
-    types: [submitted]
-  workflow_dispatch:
-  schedule: #schedule the job run at 12AM daily
-    - cron: '0 0 * * *' 
+    branches: ["main", "integration-tests"]
 
 jobs:
   cluster-create-and-delete:   
@@ -44,12 +39,6 @@ jobs:
       run: python xpk.py cluster create --cluster test-zero-nodepool --device-type=v4-8  --num-slices=0 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-8 --spot
     - name: Delete the cluster created
       run: python xpk.py cluster delete --cluster test-zero-nodepool --zone=us-central2-b
-    - name: Create an XPK Cluster with 2x v4-8 nodepools
-      if: ${{ github.event.review.state == 'approved' }}  
-      run: python xpk.py cluster create --cluster test-2-v4-8-nodepool --device-type=v4-8  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-8 --spot
-    - name: Delete the cluster created
-      if: ${{ github.event.review.state == 'approved' }}
-      run: python xpk.py cluster delete --cluster test-2-v4-8-nodepool --zone=us-central2-b
 
 
 

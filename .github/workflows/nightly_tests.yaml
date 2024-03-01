@@ -12,15 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License
 
-name: Integration Test
+name: Nightly Tests
 
 on:
-  push:
-    branches: [ "main", "integration-tests" ]
-  pull_request:
-    branches: [ "main" ]
-  schedule: #schedule the job run at 12AM daily
-    - cron: '0 0 * * *' 
+  workflow_dispatch:
+  schedule: #schedule the job run at 12AM PST daily
+    - cron: '0 8 * * *' 
 
 jobs:
   cluster-create-and-delete:   

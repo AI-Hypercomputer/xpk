@@ -14,7 +14,7 @@
  limitations under the License.
  -->
 
-# Integration test Workflows Implemented
+# Integration Test Workflows
 The following tests are currently implemented through Github Actions:
 * Create an XPK Cluster with zero node pools
 * Delete the cluster created

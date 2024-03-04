@@ -14,6 +14,8 @@
  limitations under the License.
  -->
 
+[![Builds](https://github.com/google/xpk/actions/workflows/build_tests.yaml/badge.svg)](https://github.com/google/xpk/actions/workflows/build_tests.yml)
+
 # Overview
 
 xpk (Accelerated Processing Kit, pronounced x-p-k,) is a software tool to help

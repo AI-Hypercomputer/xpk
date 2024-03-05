@@ -125,9 +125,9 @@ kind: JobSet
 metadata:
   annotations:
     alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool
-  name: {args.workload}-pathways
+  name: {args.workload}
   labels:
-    kueue.x-k8s.io/queue-name: multislice-queue  # Name of the LocalQueue
+    kueue.x-k8s.io/queue-name: {local_queue_name}  # Name of the LocalQueue
     xpk.google.com/workload: {args.workload}
 spec:
   failurePolicy:
@@ -348,21 +348,21 @@ spec:
     - name: cpu-rm
       resources:
       - name: "cpu"
-        nominalQuota: 6
+        nominalQuota: 80
       - name: "memory"
-        nominalQuota: 10G
+        nominalQuota: 160G
     - name: cpu-proxy
       resources:
       - name: "cpu"
-        nominalQuota: 24
+        nominalQuota: 480
       - name: "memory"
-        nominalQuota: 105G
+        nominalQuota: 2000G
     - name: cpu-user
       resources:
       - name: "cpu"
-        nominalQuota: 24
+        nominalQuota: 480
       - name: "memory"
-        nominalQuota: 105G
+        nominalQuota: 2000G
 ---
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: LocalQueue
@@ -1684,10 +1684,10 @@ def run_gke_node_pool_create_command(args, system) -> int:
           f' --cluster={args.cluster}'
           f' --project={args.project} --node-locations={args.zone}'
           f' --region={zone_to_region(args.zone)}'
-          f' --num-nodes=1'
+          f' --num-nodes=4'
           f' --machine-type={args.pathways_gce_machine_type}'
           ' --scopes=storage-full,gke-default'
-          ' --enable-autoscaling --min-nodes=1 --max-nodes=20'
+          ' --enable-autoscaling --min-nodes=4 --max-nodes=20'
       )
       task = f'NodepoolCreate-{node_pool_name}'
       commands.append(command)
@@ -1822,35 +1822,6 @@ def install_kueue_on_cluster(args) -> int:
   if return_code != 0:
     xpk_print(f'{task} returned ERROR {return_code}')
   return return_code
-
-# def add_pw_cpu_resource_flavor(args, system) -> str:
-#   """ Adds CPU resource flavor to kueue CRDs to support Pathways
-#   workloads.
-
-#   Args:
-#     args: user provided arguments for running the command.
-#     system: system level arguments.
-
-#   Returns:
-#     Formatted YAML
-#   """
-
-# def add_pw_flavors_cluster_queue(args, system) -> str:
-#   yaml="""---
-# apiVersion: kueue.x-k8s.io/v1beta1
-# kind: ResourceFlavor
-# metadata:
-#   name: "pw-cpu-resources"
-# spec:
-#   nodeLabels:
-#     {accelerator_label}
-#     {machine_label}"""
-#   if args.enable_pathways:
-#     return yaml.format(
-#       cpu_resource=AcceleratorTypeToAcceleratorCharacteristics['CPU'].resource_type
-#     )
-#   else:
-#     return ""
 
 
 def enable_kueue_crds(args, system) -> int:
@@ -2482,10 +2453,12 @@ def get_env_container(args):
       YAML with the env config for the main container, as a YAML string.
   """
   env_yaml="""
+                - name: XCLOUD_ENVIRONMENT
+                  value: GCP
                 - name: JAX_PLATFORMS
                   value: proxy
                 - name: JAX_BACKEND_TARGET
-                  value: grpc://{args.workload}-pathways-proxy-0-0.{args.workload}-pathways:38676"""
+                  value: grpc://{args.workload}-proxy-0-0.{args.workload}:38676"""
   if args.use_pathways:
     return env_yaml.format(args=args)
   return args.env
@@ -2516,7 +2489,7 @@ def get_main_container_resources(args, system, resource_type) -> str:
     str:
       Pathways resources port as a YAML string
   """
-  # Resources for Pathways workload containers are known.
+  # Resources requirements for Pathways workload containers are known.
   resources_yaml="""cpu: "24"
                     memory: 100G"""
   if args.use_pathways:
@@ -2778,7 +2751,7 @@ def get_pathways_worker_args(args) -> str:
   """ Arguments for the Pathways workers."""
   yaml="""- --alsologtostderr
               - --pathways_server_port=38677
-              - --pathways_resource_manager={args.workload}-pathways-rm-0-0.{args.workload}-pathways:38677
+              - --pathways_resource_manager={args.workload}-rm-0-0.{args.workload}:38677
               - --pathways_persistent_compilation_cache=false
               - --pathways_compilation_mode=compile_at_worker
               - --xla_tpu_enable_data_parallel_all_reduce_opt=true
@@ -2798,7 +2771,7 @@ def get_proxy_args(args) -> str:
   """ Arguments for the Pathways proxy."""
   yaml="""- --alsologtostderr
               - --v=0
-              - --pathways_ifrt_proxy_server_resource_manager={args.workload}-pathways-rm-0-0.{args.workload}-pathways:38677
+              - --pathways_ifrt_proxy_server_resource_manager={args.workload}-rm-0-0.{args.workload}:38677
               - --pathways_ifrt_proxy_server_port=38676
               - --pathways_tmp_dir_pattern={args.pathways_gcs_location}
               - --pathways_xprof_trace_enable_bulk_upload=true
@@ -2885,7 +2858,8 @@ def workload_create(args) -> int:
                                         pathways_rm_args = get_pathways_rm_args(args),
                                         pathways_worker_args = get_pathways_worker_args(args),
                                         proxy_args = get_proxy_args(args),
-                                        resource_type=resource_type)
+                                        resource_type=resource_type,
+                                        local_queue_name=_LOCAL_QUEUE_NAME)
     tmp = write_temporary_file(yml_string)
     command = f'kubectl apply -f {str(tmp.file.name)}'
     return_code = run_command_with_updates(command, 'Creating a Pathways Workload', args)
@@ -2916,7 +2890,7 @@ def workload_create(args) -> int:
     xpk_print(
     'Follow your Pathways workload here:'
     # pylint: disable=line-too-long
-    f' https://console.cloud.google.com/kubernetes/job/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}-pathways-main-0/details?project={args.project}'
+    f' https://console.cloud.google.com/kubernetes/job/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}-main-0/details?project={args.project}'
     )
   else:
     xpk_print(
@@ -3784,7 +3758,7 @@ workload_create_parser_required_arguments.add_argument(
         'but if your docker container is missing the dependencies, it might '
         'look more like "--command=\'bash setup.sh && python3 train.py\'".'
     ),
-    required=False,
+    required=True,
 )
 workload_create_parser_required_arguments.add_argument(
     '--cluster',

@@ -497,7 +497,7 @@ environment from a file. Usage is the same as Docker's
 Passing this flag sets the XLA_FLAGS='--xla_dump_to=/tmp/xla_dump/' and uploads
 hlo dumps to the specified GCS bucket for each worker.
 
-# Build Test Workflows
+# Integration Test Workflows
 The repository code is tested through Github Workflows and Actions. Currently three kinds of tests are performed:
 * A nightly build that runs every 24 hours
 * A build that runs on push to `main` branch

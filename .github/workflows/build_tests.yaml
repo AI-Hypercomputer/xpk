@@ -1,4 +1,4 @@
-# Copyright 2023 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@ name: Build Tests
 
 on:
   push:
-    branches: ["main", "integration-tests"]
+    branches: ["main"]
   pull_request_review:
     types: [submitted]
 
@@ -41,7 +41,7 @@ jobs:
       if: ${{ (github.event.review.state == 'approved') || (github.event_name == 'push')}}
       run: python xpk.py cluster create --cluster test-2-v4-8-nodepool --device-type=v4-8  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-8 --spot --custom-cluster-arguments='${{ secrets.CLUSTER_ARGUMENTS }}'
     - name: Delete the cluster created
-      if: github.event.review.state == 'approved'
+      if: ${{ (github.event.review.state == 'approved') || (github.event_name == 'push')}} 
       run: python xpk.py cluster delete --cluster test-2-v4-8-nodepool --zone=us-central2-b
 
 

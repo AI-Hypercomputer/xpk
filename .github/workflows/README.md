@@ -1,5 +1,5 @@
 <!--
- Copyright 2023 Google LLC
+ Copyright 2024 Google LLC
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -24,5 +24,5 @@ The following tests are currently implemented through Github Actions:
 ## Nightly Tests:
 A cron job is scheduled to run at 12AM PST daily. The details of the jobs run are in `xpk/.github/workflows/nightly_tests.yaml`
 
-## Build Tests:
-Build tests are run on a push to the `main` branch and on an approved PR. `xpk/.github/workflows/build_tests.yaml`
+## Integration Tests:
+Integration tests are run on a push to the `main` branch and on an approved PR. The details of the jobs run are in `xpk/.github/workflows/build_tests.yaml`

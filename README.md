@@ -14,6 +14,8 @@
  limitations under the License.
  -->
 
+[![Builds](https://github.com/google/xpk/actions/workflows/build_tests.yaml/badge.svg)](https://github.com/google/xpk/actions/workflows/build_tests.yml)
+
 # Overview
 
 xpk (Accelerated Processing Kit, pronounced x-p-k,) is a software tool to help
@@ -495,6 +497,13 @@ environment from a file. Usage is the same as Docker's
 Passing this flag sets the XLA_FLAGS='--xla_dump_to=/tmp/xla_dump/' and uploads
 hlo dumps to the specified GCS bucket for each worker.
 
+# Integration Test Workflows
+The repository code is tested through Github Workflows and Actions. Currently three kinds of tests are performed:
+* A nightly build that runs every 24 hours
+* A build that runs on push to `main` branch
+* A build that runs for every PR approval
+
+More information is documented [here](https://github.com/google/xpk/tree/main/.github/workflows)
 
 # Troubleshooting
 

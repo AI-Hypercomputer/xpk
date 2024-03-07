@@ -2413,7 +2413,7 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
 
   yaml = """- name: {args.docker_name}
                 image: {docker_image}
-                imagePullPolicy: Always
+                {image_pull_policy}
                 env: {env}
                 ports:
                 {container_ports}
@@ -2433,6 +2433,7 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
   """
   return yaml.format(args=args,
                    system=system,
+                   image_pull_policy=add_image_pull_policy_for_pw(args),
                    env=get_env_container(args),
                    container_ports=add_container_ports(args),
                    jax_coordinator_port=add_jax_coordinator_port(system),
@@ -2442,6 +2443,20 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
                    xpk_internal_commands=xpk_internal_commands,
                    resources=get_main_container_resources(args, system, resource_type),
                    pw_volume_mounts= get_pw_volume_mounts(args))
+
+def add_image_pull_policy_for_pw(args):
+  """ Add image pull policy only for Pathways containers.
+  Args:
+    args: user provided args.
+
+  Returns:
+    str:
+      YAML stating that the image will be pulled fro GCR every time.
+  """
+  yaml="""imagePullPolicy: Always"""
+  if args.use_pathways:
+    return yaml.format(args=args)
+  return ""
 
 def get_env_container(args):
   """ Environment configuration for the main container.
@@ -2733,7 +2748,13 @@ def get_cpu_affinity(accelerator_type) -> str:
   return ""
 
 def get_pathways_rm_args(args) -> str:
-  """ Arguments for the Pathways resource manager."""
+  """Arguments for the Pathways resource manager.
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    str: yaml containing arguments for the Pathways resource manager.
+  """
   yaml="""- --alsologtostderr
               - --pathways_server_port=38677
               - --pathways_server_provides_devices=false
@@ -2748,7 +2769,13 @@ def get_pathways_rm_args(args) -> str:
     return ""
 
 def get_pathways_worker_args(args) -> str:
-  """ Arguments for the Pathways workers."""
+  """Arguments for the Pathways workers.
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    str: yaml containing arguments for the Pathways workers.
+  """
   yaml="""- --alsologtostderr
               - --pathways_server_port=38677
               - --pathways_resource_manager={args.workload}-rm-0-0.{args.workload}:38677
@@ -2768,7 +2795,13 @@ def get_pathways_worker_args(args) -> str:
     return ""
 
 def get_proxy_args(args) -> str:
-  """ Arguments for the Pathways proxy."""
+  """Arguments for the Pathways proxy.
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    str: yaml containing arguments for the Pathways proxy.
+  """
   yaml="""- --alsologtostderr
               - --v=0
               - --pathways_ifrt_proxy_server_resource_manager={args.workload}-rm-0-0.{args.workload}:38677

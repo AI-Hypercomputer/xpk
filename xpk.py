@@ -123,8 +123,6 @@ spec:
 pw_workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
 metadata:
-  annotations:
-    alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool
   name: {args.workload}
   labels:
     kueue.x-k8s.io/queue-name: {local_queue_name}  # Name of the LocalQueue
@@ -141,6 +139,8 @@ spec:
     replicas: {args.num_slices}
     template:
       metadata:
+        annotations:
+          alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool
         labels:
           xpk.google.com/workload: {args.workload}
       spec:
@@ -1684,10 +1684,10 @@ def run_gke_node_pool_create_command(args, system) -> int:
           f' --cluster={args.cluster}'
           f' --project={args.project} --node-locations={args.zone}'
           f' --region={zone_to_region(args.zone)}'
-          f' --num-nodes=4'
+          f' --num-nodes=1'
           f' --machine-type={args.pathways_gce_machine_type}'
           ' --scopes=storage-full,gke-default'
-          ' --enable-autoscaling --min-nodes=4 --max-nodes=20'
+          ' --enable-autoscaling --min-nodes=1 --max-nodes=20'
       )
       task = f'NodepoolCreate-{node_pool_name}'
       commands.append(command)
@@ -1874,7 +1874,7 @@ def set_jobset_on_cluster(args) -> int:
   """
   command = (
       'kubectl apply --server-side -f'
-      ' https://github.com/kubernetes-sigs/jobset/releases/download/v0.3.2/manifests.yaml'
+      ' https://github.com/kubernetes-sigs/jobset/releases/download/v0.4.0/manifests.yaml'
   )
   task = f'Install Jobset on {args.cluster}'
   return_code = run_command_with_updates_retry(command, task, args)

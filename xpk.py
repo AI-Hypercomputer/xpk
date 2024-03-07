@@ -1356,11 +1356,14 @@ def run_gke_cluster_create_command(args) -> int:
       f' --project={args.project} --region={zone_to_region(args.zone)}'
       f' --cluster-version={args.gke_version} --location-policy=BALANCED'
       f' --machine-type={machine_type}'
-      ' --scopes=storage-full,gke-default'
-      ' --enable-ip-alias '
-      f' --create-subnetwork name={args.cluster}-subnetwork '
+      ' --scopes=storage-full,gke-default' 
       f' {args.custom_cluster_arguments}'
   )
+
+  if args.enable_pathways:
+    command += (' --enable-ip-alias ')
+    command += (f' --create-subnetwork name={args.cluster}-subnetwork')
+
   return_code = run_command_with_updates(command, 'GKE Cluster Create', args)
   if return_code != 0:
     xpk_print(f'GKE Cluster Create request returned ERROR {return_code}')
@@ -2883,6 +2886,15 @@ def workload_create(args) -> int:
     container = get_main_container(args, system, docker_image, resource_type)
 
   if args.use_pathways:
+    # Ensure the cluster and CPU nodepools were created with --enable-pathways
+    all_node_pools = get_all_nodepools_programmatic(args)
+    desired_pw_cpu_node_pools = {'cpu-user-np', 'cpu-rm-np', 'cpu-proxy-np'}
+    if not desired_pw_cpu_node_pools.issubset(set(all_node_pools[0])):
+      xpk_print(
+          'Cluster needs to be created with --enable-pathways to run Pathways workloads.'
+      )
+      xpk_exit(1)
+
     yml_string = pw_workload_create_yaml.format(args=args,
                                         system=system,
                                         container=container,

@@ -1356,7 +1356,7 @@ def run_gke_cluster_create_command(args) -> int:
       f' --project={args.project} --region={zone_to_region(args.zone)}'
       f' --cluster-version={args.gke_version} --location-policy=BALANCED'
       f' --machine-type={machine_type}'
-      ' --scopes=storage-full,gke-default' 
+      ' --scopes=storage-full,gke-default'
       f' {args.custom_cluster_arguments}'
   )
 
@@ -1851,7 +1851,6 @@ def enable_kueue_crds(args, system) -> int:
       cluster_queue_name=_CLUSTER_QUEUE_NAME,
       local_queue_name=_LOCAL_QUEUE_NAME,
   )
-  print(yml_string)
 
   tmp = write_temporary_file(yml_string)
   command = f'kubectl apply -f {str(tmp.file.name)}'

@@ -962,6 +962,33 @@ def run_command_for_value(
     return 0, str(output, 'UTF-8')
 
 
+def run_command_with_updates_retry(command, task, args, verbose=True, num_retry_attempts=5, wait_seconds=5) -> int:
+  """Generic run commands function with updates and retry logic.
+
+  Args:
+    command: command to execute
+    task: user-facing name of the task
+    args: user provided arguments for running the command.
+    verbose: shows stdout and stderr if set to true. Set to True by default.
+    num_retry_attempts: number of attempts to retry the command. This has a default value in the function arguments.
+    wait_seconds: Seconds to wait between attempts. Has a default value in the function arguments.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+
+  i = 0
+  return_code = -1
+  while (return_code != 0 and i < num_retry_attempts):
+    # Do not sleep before first try.
+    if i != 0:
+      time.sleep(wait_seconds)
+    i += 1
+    xpk_print(f'Try {i}: {task}')
+    return_code = run_command_with_updates(command, task, args, verbose=verbose)
+  return return_code
+
+
 def run_command_with_updates(command, task, global_args, verbose=True) -> int:
   """Generic run commands function with updates.
 
@@ -1547,15 +1574,11 @@ def set_cluster_command(args) -> int:
       f' {args.cluster} --region={zone_to_region(args.zone)} --project={args.project} &&'
       ' kubectl config view && kubectl config set-context --current --namespace=default'
   )
-  return_code = run_command_with_updates(
-      command, 'Set Cluster', args, verbose=False
-  )
-
+  task = f'get-credentials to cluster {args.cluster}'
+  return_code = run_command_with_updates_retry(command, task, args, verbose=False)
   if return_code != 0:
-    xpk_print(f'Set Cluster request returned ERROR {return_code}')
-    return 1
-
-  return 0
+    xpk_print(f'{task} returned ERROR {return_code}')
+  return return_code
 
 
 def install_kueue_on_cluster(args) -> int:
@@ -1571,13 +1594,11 @@ def install_kueue_on_cluster(args) -> int:
       'kubectl apply --server-side --force-conflicts -f'
       ' https://github.com/kubernetes-sigs/kueue/releases/download/v0.6.0/manifests.yaml'
   )
-  return_code = run_command_with_updates(command, 'Set Kueue On Cluster', args)
-
+  task = 'Set Kueue On Cluster'
+  return_code = run_command_with_updates_retry(command, task, args)
   if return_code != 0:
-    xpk_print(f'Set Cluster request returned ERROR {return_code}')
-    return 1
-
-  return 0
+    xpk_print(f'{task} returned ERROR {return_code}')
+  return return_code
 
 
 def enable_kueue_crds(args, system) -> int:
@@ -1608,19 +1629,11 @@ def enable_kueue_crds(args, system) -> int:
   command = f'kubectl apply -f {str(tmp.file.name)}'
   # For kueue setup, we see a timeout error due to the webhook not
   # being ready. Let's retry and wait a few seconds.
-  retry_limit = 5
-  i = 0
-  return_code = -1
-  while (return_code != 0 and i < retry_limit):
-    time.sleep(5)
-    i += 1
-    xpk_print(f'Try {i}: Applying Kueue CRDs')
-    return_code = run_command_with_updates(command, 'Applying Kueue CRDs', args)
-
+  task = 'Applying Kueue CRDs'
+  return_code = run_command_with_updates_retry(command, task, args)
   if return_code != 0:
-    xpk_print(f'Applying Kueue CRDS returned ERROR {return_code}')
-    return return_code
-  return 0
+    xpk_print(f'{task} returned ERROR {return_code}')
+  return return_code
 
 
 # TODO(vbarr): Remove this function when jobsets gets enabled by default on
@@ -1638,22 +1651,19 @@ def set_jobset_on_cluster(args) -> int:
       'kubectl apply --server-side -f'
       ' https://github.com/kubernetes-sigs/jobset/releases/download/v0.3.2/manifests.yaml'
   )
-  return_code = run_command_with_updates(command, 'Set Jobset On Cluster', args)
+  task = f'Install Jobset on {args.cluster}'
+  return_code = run_command_with_updates_retry(command, task, args)
 
   if return_code != 0:
+    xpk_print(f'{task} returned with ERROR {return_code}.\n')
     xpk_print(
-        'jobset command on server side returned with ERROR returncode'
-        f' {return_code}.\n'
-    )
-    xpk_print(
-      'This likely means you\'re missing Kubernetes Permissions, you can'
+      'This LIKELY means you\'re missing Kubernetes Permissions, you can'
       ' validate this by checking if the error references permission'
       ' problems such as `requires one of ["container.*"] permission(s)`.'
       ' Follow our readme: https://github.com/google/xpk/blob/main/README.md#troubleshooting'
       ' for instructions on how to fix these permissions.'
     )
-    return 1
-  return 0
+  return return_code
 
 
 ################### Subcommand Functions ###################

@@ -229,8 +229,8 @@ spec:
                     valueFrom:
                       fieldRef:
                         fieldPath: metadata.annotations['batch.kubernetes.io/job-completion-index']
-                  - name: USE_GPUDIRECT_TCPX
-                    value: "yes"
+                  - name: USE_GPUDIRECT
+                    value: "tcpx"
                   - name: GPUS_PER_NODE
                     value: "{chips_per_vm}"
                   - name: JAX_COORDINATOR_PORT

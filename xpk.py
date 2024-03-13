@@ -67,6 +67,7 @@ default_docker_image = 'python:3.10'
 default_script_dir = os.getcwd()
 default_gke_version = '1.28.3-gke.1286000'
 h100_device_type = 'h100-80gb-8'
+h150_device_type = 'h150-80gb-8'
 
 workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
@@ -112,7 +113,7 @@ spec:
                 name: dshm-2
 """
 
-gpu_workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
+a3_workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
 metadata:
   name: {args.workload}
@@ -252,6 +253,153 @@ spec:
                     mountPath: /usr/local/tcpx
                   - name: tcpd-socket
                     mountPath: /tmp
+                  - name: shared-memory
+                    mountPath: /dev/shm
+                  - name: workload-terminated-volume
+                    mountPath: /usr/share/maxtext
+                resources:
+                  limits:
+                    nvidia.com/gpu: {chips_per_vm}
+"""
+
+a3_plus_workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
+kind: JobSet
+metadata:
+  name: {args.workload}
+  labels:
+    xpk.google.com/workload: {args.workload}
+spec:
+  failurePolicy:
+    maxRestarts: {args.max_restarts}
+  replicatedJobs:
+    - name: slice-job
+      replicas: 1
+      template:
+        spec:
+          parallelism: {args.num_slices}
+          completions: {args.num_slices}
+          backoffLimit: 0   # When any pod fails, the job is failed
+          template:
+            metadata:
+              labels:
+                xpk.google.com/workload: {args.workload}
+            spec:
+              schedulerName: {args.scheduler}
+              restartPolicy: Never
+              affinity:
+                nodeAffinity:
+                  requiredDuringSchedulingIgnoredDuringExecution:
+                    nodeSelectorTerms:
+                    - matchExpressions:
+                      - key: cloud.google.com/gke-accelerator
+                        operator: Exists
+                      - key: cloud.google.com/gke-nodepool
+                        operator: In
+                        values: [{node_pool_name}]
+              nodeSelector:
+                {accelerator_label}
+                {machine_label}
+              priorityClassName: {args.priority}
+              hostNetwork: true
+              dnsPolicy: ClusterFirstWithHostNet
+              terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
+              tolerations:
+              - operator: "Exists"
+                key: nvidia.com/gpu
+              volumes:
+              - name: nvidia-install-dir-host
+                hostPath:
+                  path: /home/kubernetes/bin/nvidia/lib64
+              - name: shared-memory
+                emptyDir:
+                  medium: "Memory"
+                  sizeLimit: 1Gi
+              - name: workload-terminated-volume
+                emptyDir:
+              - name: fastrak-nccl-plugin-volume
+                emptyDir:
+              initContainers:
+              - name: tcpx-nccl-plugin-installer
+                image: us-docker.pkg.dev/gce-ai-infra/gpudirect-tcpx/nccl-plugin-gpudirecttcpx-nightly-cuda12.0:2024_03_04
+                imagePullPolicy: Always
+                restartPolicy: Always
+                volumeMounts:
+                - name: fastrak-nccl-plugin-volume
+                  mountPath: /var/lib/fastrak
+                resources:
+                  requests:
+                    cpu: 150m
+                command: ["/bin/sh", "-c"]
+                args:
+                  - |
+                    set -ex
+                    chmod 755 /scripts/container_entry.sh
+                    /scripts/container_entry.sh install --install-nccl
+              containers:
+              - name: fastrak-daemon
+                image: us-docker.pkg.dev/gce-ai-infra/gpudirect-tcpxo/tcpgpudmarxd-dev:v1.0.3
+                imagePullPolicy: Always
+                command:
+                - "bash"
+                - "-c"
+                - |
+                  set -ex; chmod 755 /fts/entrypoint_rxdm_container.sh; /fts/entrypoint_rxdm_container.sh --num_hops=2 --num_nics=8 --uid= --alsologtostderr &
+                  while [ ! -e "/usr/share/maxtext/workload_terminated" ]; do sleep 10; echo "sleeping"; done
+                securityContext:
+                  privileged: true
+                volumeMounts:
+                - name: nvidia-install-dir-host
+                  mountPath: /usr/local/nvidia/lib64
+                - name: workload-terminated-volume
+                  mountPath: /usr/share/maxtext
+                env:
+                - name: LD_LIBRARY_PATH
+                  value: /usr/local/nvidia/lib64
+              - name: maxtext-fastrak
+                image: {docker_image}
+                imagePullPolicy: Always
+                securityContext:
+                  privileged: true
+                ports:
+                    - containerPort: 6002
+                env:
+                  - name: REPLICATED_JOB_NAME
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.annotations['jobset.sigs.k8s.io/replicatedjob-name']
+                  - name: JOBSET_NAME
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.annotations['jobset.sigs.k8s.io/jobset-name']
+                  - name: JAX_COORDINATOR_ADDRESS
+                    value: "$(JOBSET_NAME)-$(REPLICATED_JOB_NAME)-0-0.$(JOBSET_NAME)"
+                  - name: NNODES
+                    value: "{args.num_slices}"
+                  - name: NODE_RANK
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.annotations['batch.kubernetes.io/job-completion-index']
+                  - name: USE_GPUDIRECT
+                    value: "fastrak"
+                  - name: GPUS_PER_NODE
+                    value: "{chips_per_vm}"
+                  - name: JAX_COORDINATOR_PORT
+                    value: "6002"
+                  - name: LD_LIBRARY_PATH
+                    value: /usr/local/nvidia/lib64
+                  - name: COMMAND
+                    value: "{command}"
+                  {args.env}
+                command:
+                  - "bash"
+                  - "-c"
+                  - |
+                    echo XPK Start: $(date) ; _sigterm() ( kill -SIGTERM $!;); trap _sigterm SIGTERM; (cd /deps && bash gpu_multi_process_run.sh); echo XPK End: $(date); echo Main app is done > /usr/share/maxtext/workload_terminated
+                volumeMounts:
+                  - name: nvidia-install-dir-host
+                    mountPath: /usr/local/nvidia/lib64
+                  - name: fastrak-nccl-plugin-volume
+                    mountPath: /usr/local/fastrak
                   - name: shared-memory
                     mountPath: /dev/shm
                   - name: workload-terminated-volume
@@ -534,6 +682,10 @@ UserFacingNameToSystemCharacteristics = {
     # H100-80gb-$CHIPS
     'h100-80gb-8': SystemCharacteristics(
       'N/A', 1, 'nvidia-h100-80gb', 'a3-highgpu-8g', 8, AcceleratorType['GPU'], 'h100-80gb-8'
+    ),
+    # H150-80gb-$CHIPS
+    'h150-80gb-8': SystemCharacteristics(
+      'N/A', 1, 'nvidia-h100-80gb', 'a3-megagpu-8g', 8, AcceleratorType['GPU'], 'h150-80gb-8'
     ),
 
     # TPU system charcteristics
@@ -1072,7 +1224,8 @@ def add_env_config(args):
     args: user provided arguments for running the command.
   """
   device_type = args.tpu_type if args.tpu_type else args.device_type
-  env = {} if device_type == h100_device_type else {'JOBSET_NAME': args.workload}
+  is_gpu_device = (device_type == h100_device_type or device_type == h150_device_type)
+  env = {} if is_gpu_device else {'JOBSET_NAME': args.workload}
   if args.env_file:
     print('Setting container environment from', args.env_file)
     pat = re.compile(r'(^[a-zA-Z_][a-zA-Z0-9_]*?)(?:=(.*))$', re.M)
@@ -1095,7 +1248,7 @@ def add_env_config(args):
                        'XLA_FLAGS.')
     env['XLA_FLAGS'] = '--xla_dump_to=/tmp/xla_dump/'
 
-  if device_type == h100_device_type:
+  if is_gpu_device:
     env_format = '''
                   - name: {key}
                     value: "{value}"'''
@@ -1892,7 +2045,7 @@ def set_cluster_command(args) -> int:
   """
   command = (
       'gcloud container clusters get-credentials'
-      f' {args.cluster} --region={zone_to_region(args.zone)} --project={args.project} &&'
+      f' {args.cluster} --zone={args.zone} --project={args.project} &&'
       ' kubectl config view && kubectl config set-context --current --namespace=default'
   )
   return_code = run_command_with_updates(
@@ -2132,31 +2285,9 @@ def cluster_create(args) -> int:
   xpk_print(f'Starting cluster create for cluster {args.cluster}:', flush=True)
   add_zone_and_project(args)
 
-  create_cluster_command_code = create_cluster_if_necessary(args)
-  if create_cluster_command_code != 0:
-    xpk_exit(create_cluster_command_code)
-
   set_cluster_command_code = set_cluster_command(args)
   if set_cluster_command_code != 0:
     xpk_exit(set_cluster_command_code)
-
-  device_type = args.tpu_type if args.tpu_type else args.device_type
-  if device_type == h100_device_type:
-    xpk_print('Setting up Network for cluster')
-    set_up_cluster_network_code = set_up_cluster_network(args)
-    if set_up_cluster_network_code != 0:
-      xpk_exit(set_up_cluster_network_code)
-
-    xpk_print('Creating Network Config for cluster')
-    create_cluster_network_config_code = create_cluster_network_config(args)
-    if create_cluster_network_config_code != 0:
-      xpk_exit(create_cluster_network_config_code)
-
-  run_gke_node_pool_create_command_code = run_gke_node_pool_create_command(
-      args, system
-  )
-  if run_gke_node_pool_create_command_code != 0:
-    xpk_exit(run_gke_node_pool_create_command_code)
 
   xpk_print(
       'Enabling the jobset API on our cluster, to be deprecated when Jobset is'
@@ -2171,26 +2302,15 @@ def cluster_create(args) -> int:
   if install_kueue_on_cluster_code != 0:
     xpk_exit(install_kueue_on_cluster_code)
 
-  xpk_print('Enable Kueue CRDs')
-  enable_kueue_creds_code = enable_kueue_crds(args, system)
-  if enable_kueue_creds_code != 0:
-    xpk_exit(enable_kueue_creds_code)
+  # xpk_print('Enable Kueue CRDs')
+  # enable_kueue_creds_code = enable_kueue_crds(args, system)
+  # if enable_kueue_creds_code != 0:
+  #  xpk_exit(enable_kueue_creds_code)
 
   xpk_print('Creating ConfigMap for cluster')
   create_cluster_configmap_code = create_cluster_configmap(args, system)
   if create_cluster_configmap_code != 0:
     xpk_exit(create_cluster_configmap_code)
-
-  if device_type == h100_device_type:
-    xpk_print('Installing GPU Driver for cluster')
-    install_gpu_driver_code = install_gpu_driver_on_cluster(args)
-    if install_gpu_driver_code != 0:
-      xpk_exit(install_gpu_driver_code)
-
-    xpk_print('Installing NCCL Plugin for cluster')
-    install_nccl_code = install_nccl_on_cluster(args)
-    if install_nccl_code != 0:
-      xpk_exit(install_nccl_code)
 
   xpk_print('GKE commands done! Resources are created.')
   xpk_print(
@@ -2936,12 +3056,20 @@ def workload_create(args) -> int:
 
   device_type = args.tpu_type if args.tpu_type else args.device_type
   if device_type == h100_device_type:
-    yml_string = gpu_workload_create_yaml.format(args=args,
+    yml_string = a3_workload_create_yaml.format(args=args,
                                                  docker_image=docker_image,
                                                  command=command,
                                                  accelerator_label=create_accelerator_label(system.accelerator_type, system),
                                                  machine_label=create_machine_label(system.accelerator_type, system),
                                                  node_pool_name=f'{args.cluster}-np-0',
+                                                 chips_per_vm=system.chips_per_vm)
+  elif device_type == h150_device_type:
+    yml_string = a3_plus_workload_create_yaml.format(args=args,
+                                                 docker_image=docker_image,
+                                                 command=command,
+                                                 accelerator_label=create_accelerator_label(system.accelerator_type, system),
+                                                 machine_label=create_machine_label(system.accelerator_type, system),
+                                                 node_pool_name=f'a3plus-multi-nic',
                                                  chips_per_vm=system.chips_per_vm)
   else:
     if system.accelerator_type == AcceleratorType['TPU'] and args.deploy_stacktrace_sidecar:

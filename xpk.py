@@ -2009,8 +2009,10 @@ def install_kueue_on_cluster(args) -> int:
     0 if successful and 1 otherwise.
   """
   command = (
-      'kubectl apply --server-side --force-conflicts -f'
-      ' https://github.com/kubernetes-sigs/kueue/releases/download/v0.6.0/manifests.yaml'
+      # 'kubectl apply --server-side --force-conflicts -f'
+      # ' https://github.com/kubernetes-sigs/kueue/releases/download/v0.6.0/manifests.yaml'
+          'kubectl apply -f'
+      ' https://github.com/kubernetes-sigs/kueue/releases/download/v0.4.1/manifests.yaml'
   )
   return_code = run_command_with_updates(command, 'Set Kueue On Cluster', args)
 
@@ -3038,7 +3040,11 @@ def workload_create(args) -> int:
     xpk_exit(setup_docker_image_code)
 
   add_env_config(args)
-
+  command = args.command
+  if args.debug_dump_gcs:
+    command += ('; WORKER_ID=$HOSTNAME;'
+                f'gsutil cp -r /tmp/xla_dump/ {args.debug_dump_gcs}/$WORKER_ID')
+    
   debugging_dashboard_id = None
   resource_type = AcceleratorTypeToAcceleratorCharacteristics[system.accelerator_type].resource_type
 
@@ -3060,7 +3066,7 @@ def workload_create(args) -> int:
     else:
       container = get_main_container(args, system, docker_image, command, resource_type)
       
-      yml_string = workload_create_yaml.format(args=args,
+    yml_string = workload_create_yaml.format(args=args,
                                            system=system,
                                            container=container,
                                            affinity=get_cpu_affinity(system.accelerator_type),

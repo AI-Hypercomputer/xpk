@@ -17,8 +17,7 @@ name: Build Tests
 on:
   push:
     branches: ["main"]
-  pull_request_review:
-    types: [submitted]
+  pull_request: #by default this runs for types assigned, opened and synchronize
 
 jobs:
   cluster-create-and-delete:

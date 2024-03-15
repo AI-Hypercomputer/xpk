@@ -1353,7 +1353,6 @@ def run_gke_cluster_create_command(args) -> int:
       f' --region={zone_to_region(args.zone)}'
       f' --node-locations={args.zone}'
       f' --cluster-version={args.gke_version}'
-      ' --total-min-nodes 1 --total-max-nodes 1000 --num-nodes 6'
       f' --machine-type={machine_type}'
   )
   device_type = args.tpu_type if args.tpu_type else args.device_type
@@ -1368,6 +1367,7 @@ def run_gke_cluster_create_command(args) -> int:
 
     command += ('--release-channel rapid --enable-autoscaling --location-policy=BALANCED'
         ' --scopes=storage-full,gke-default'
+        ' --total-min-nodes 1 --total-max-nodes 1000 --num-nodes 6'
         f' {args.custom_cluster_arguments}'
     )
 
@@ -1840,29 +1840,33 @@ def run_gke_node_pool_create_command(args, system) -> int:
       f'Creating {args.num_slices} node pool or pools of {system.device_type}\n'
       f'Underlyingly, we assume that means: {system}'
   )
-  desired_node_pool_names = [
+
+  if system.device_type == h100_device_type:
+    desired_node_pool_names = [f'{args.cluster}-np-0']
+  else:
+    desired_node_pool_names = [
       f'{args.cluster}-np-{slice_num}' for slice_num in range(args.num_slices)
-  ]
-  desired_node_pool_names = [f'{args.cluster}-np-0']
+    ]
+    
   for node_pool_name in desired_node_pool_names:
     if node_pool_name in existing_node_pool_names:
       continue
     command = (
         'gcloud beta container node-pools create'
         f' {node_pool_name}'
+        f' --region={zone_to_region(args.zone)}' 
         f' --cluster={args.cluster}'
         f' --project={args.project} --node-locations={args.zone}'
-        f' --region={zone_to_region(args.zone)}'     
         f' --machine-type={system.gce_machine_type}'
         f' --host-maintenance-interval={args.host_maintenance_interval}'
         f' {capacity_args}'
-        ' --scopes=storage-full,gke-default'
-        ' --enable-gvnic --max-pods-per-node 15'
+        ' --enable-gvnic'
     )
     if system.accelerator_type == AcceleratorType['TPU']:
       command += (f' --node-version={args.gke_version}')
       command += (f' --num-nodes={system.vms_per_slice}')
-      command += (' --placement-type=COMPACT ')
+      command += (' --placement-type=COMPACT  --max-pods-per-node 15')
+      command += (' --scopes=storage-full,gke-default')
       command += (f' --tpu-topology={system.topology}')
       command += (f' {args.custom_tpu_nodepool_arguments}')
     elif system.device_type == h100_device_type:
@@ -1875,7 +1879,7 @@ def run_gke_node_pool_create_command(args, system) -> int:
         ' --no-enable-autoupgrade  --scopes="https://www.googleapis.com/auth/cloud-platform"'
         )
     else: # other gpu types
-      command += (' --placement-type=COMPACT ')
+      command += (' --placement-type=COMPACT  --max-pods-per-node 15')
       command += f' --accelerator type={system.gke_accelerator},count={str(system.chips_per_vm)}'
     task = f'NodepoolCreate-{node_pool_name}'
     commands.append(command)

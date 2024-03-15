@@ -14,7 +14,8 @@
  limitations under the License.
  -->
 
-[![Builds](https://github.com/google/xpk/actions/workflows/build_tests.yaml/badge.svg)](https://github.com/google/xpk/actions/workflows/build_tests.yml)
+![Build Tests](https://github.com/google/xpk/actions/workflows/build_tests.yaml/badge.svg)
+![Nightly Tests](https://github.com/google/xpk/actions/workflows/nightly_tests.yaml/badge.svg)
 
 # Overview
 

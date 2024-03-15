@@ -15,6 +15,7 @@
 name: Build Tests
 
 on:
+  pull_request:
   push:
     branches: ["main"]
   pull_request_review:

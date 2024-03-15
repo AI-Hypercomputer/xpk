@@ -316,25 +316,6 @@ spec:
                   sizeLimit: 1Gi
               - name: workload-terminated-volume
                 emptyDir:
-              - name: fastrak-nccl-plugin-volume
-                emptyDir:
-              initContainers:
-              - name: tcpx-nccl-plugin-installer
-                image: us-docker.pkg.dev/gce-ai-infra/gpudirect-tcpx/nccl-plugin-gpudirecttcpx-nightly-cuda12.0:2024_03_04
-                imagePullPolicy: Always
-                restartPolicy: Always
-                volumeMounts:
-                - name: fastrak-nccl-plugin-volume
-                  mountPath: /var/lib/fastrak
-                resources:
-                  requests:
-                    cpu: 150m
-                command: ["/bin/sh", "-c"]
-                args:
-                  - |
-                    set -ex
-                    chmod 755 /scripts/container_entry.sh
-                    /scripts/container_entry.sh install --install-nccl
               containers:
               - name: fastrak-daemon
                 image: us-docker.pkg.dev/gce-ai-infra/gpudirect-tcpxo/tcpgpudmarxd-dev:v1.0.3
@@ -394,12 +375,10 @@ spec:
                   - "bash"
                   - "-c"
                   - |
-                    echo XPK Start: $(date) ; _sigterm() ( kill -SIGTERM $!;); trap _sigterm SIGTERM; (cd /deps && bash gpu_multi_process_run.sh); echo XPK End: $(date); echo Main app is done > /usr/share/maxtext/workload_terminated
+                    echo XPK Start: $(date) ; _sigterm() ( kill -SIGTERM $!;); trap _sigterm SIGTERM; (cd /deps && bash gpu_multi_process_run.sh) & PID=$!; while kill -0 $PID 2>/dev/null; do sleep 5; done; EXIT_CODE=$? ; echo XPK End: $(date); echo EXIT_CODE=$EXIT_CODE; echo Main app is done > /usr/share/maxtext/workload_terminated
                 volumeMounts:
                   - name: nvidia-install-dir-host
                     mountPath: /usr/local/nvidia/lib64
-                  - name: fastrak-nccl-plugin-volume
-                    mountPath: /usr/local/fastrak
                   - name: shared-memory
                     mountPath: /dev/shm
                   - name: workload-terminated-volume

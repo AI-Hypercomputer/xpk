@@ -2042,7 +2042,7 @@ def enable_kueue_crds(args, system) -> int:
       cluster_hardware_name=cluster_hardware_name,
       accelerator_label=create_accelerator_label(system.accelerator_type, system),
       machine_label=create_machine_label(system.accelerator_type, system),
-      covered_resources_config=covered_resources_config
+      covered_resources_config=covered_resources_config,
       resource_type=AcceleratorTypeToAcceleratorCharacteristics[system.accelerator_type].resource_type,
       cluster_queue_name=_CLUSTER_QUEUE_NAME,
       local_queue_name=_LOCAL_QUEUE_NAME,

@@ -66,8 +66,11 @@ if (
 default_docker_image = 'python:3.10'
 default_script_dir = os.getcwd()
 default_gke_version="1.29.1-gke.1589017"
+xpk_current_version = "0.3.0"
 _CLUSTER_QUEUE_NAME='cluster-queue'
 _LOCAL_QUEUE_NAME='multislice-queue'
+_CLUSTER_RESOURCES_CONFIGMAP = 'resources-configmap'
+_CLUSTER_METADATA_CONFIGMAP = 'metadata-configmap'
 
 
 workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
@@ -248,7 +251,7 @@ spec:
 cluster_configmap_yaml = """kind: ConfigMap
 apiVersion: v1
 metadata:
-  name: {args.cluster}-resources-configmap
+  name: {name}
 data:
   {data}
 """
@@ -1148,14 +1151,32 @@ def create_cluster_configmap(args, system):
   Returns:
     0 if successful and 1 otherwise.
   """
+  configmap_yml = {}
   device_type = args.tpu_type if args.tpu_type else args.device_type
-  data = f'{device_type}: "{int(args.num_slices) * system.vms_per_slice}"'
-  yml_string = cluster_configmap_yaml.format(args=args,
-                                           data=data)
-  tmp = write_temporary_file(yml_string)
-  command = f'kubectl apply -f {str(tmp.file.name)}'
+  resources_data = f'{device_type}: "{int(args.num_slices) * system.vms_per_slice}"'
+  resources_configmap_name = f'{args.cluster}-{_CLUSTER_RESOURCES_CONFIGMAP}'
+  resources_yml = cluster_configmap_yaml.format(args=args,
+                                                name=resources_configmap_name,
+                                                data=resources_data)
+  configmap_yml[resources_configmap_name] = resources_yml
 
-  return_code = run_command_with_updates(command, 'GKE Cluster Create ConfigMap', args)
+  metadata = f'xpk_version: {xpk_current_version}'
+  metadata_configmap_name = f'{args.cluster}-{_CLUSTER_METADATA_CONFIGMAP}'
+  metadata_yml = cluster_configmap_yaml.format(args=args,
+                                               name=metadata_configmap_name,
+                                               data=metadata)
+  configmap_yml[metadata_configmap_name] = metadata_yml
+
+  commands = []
+  task_names = []
+  for configmap_name, yml_string in configmap_yml.items():
+    tmp = write_temporary_file(yml_string)
+    command = f'kubectl apply -f {str(tmp.file.name)}'
+    commands.append(command)
+    task_name = f'ConfigMapCreate-{configmap_name}'
+    task_names.append(task_name)
+
+  return_code = run_commands(commands, 'GKE Cluster Create ConfigMap', task_names)
   if return_code != 0:
     xpk_print(f'GKE Cluster Create ConfigMap request returned ERROR {return_code}')
     return 1
@@ -1163,17 +1184,18 @@ def create_cluster_configmap(args, system):
   return 0
 
 
-def get_cluster_configmap(args):
+def get_cluster_configmap(args, configmap_name):
   """Run the Get GKE Cluster ConfigMap request.
 
   Args:
     args: user provided arguments for running the command.
+    configmap_name: name of the configmap.
 
   Returns:
     key:value pairs stored in cluster ConfigMap.
   """
   command = (
-    f'kubectl get configmap {args.cluster}-resources-configmap -o=custom-columns="ConfigData:data" --no-headers=true'
+    f'kubectl get configmap {configmap_name} -o=custom-columns="ConfigData:data" --no-headers=true'
   )
 
   return_code, return_value = run_command_for_value(command, 'GKE Cluster Get ConfigMap', args)
@@ -2003,11 +2025,12 @@ def check_if_workload_can_schedule(args, system):
   Returns:
     returns true if workload can schedule, otherwise returns false.
   """
-  cluster_config_map = get_cluster_configmap(args)
+  resources_configmap_name = f'{args.cluster}-{_CLUSTER_RESOURCES_CONFIGMAP}'
+  cluster_config_map = get_cluster_configmap(args, resources_configmap_name)
 
   # Prevents workload creation failure for existing clusters with no ConfigMap
   if cluster_config_map is None:
-    xpk_print(f'No ConfigMap exist for cluster with the name {args.cluster}-configmap.')
+    xpk_print(f'No ConfigMap exist for cluster with the name {resources_configmap_name}.')
     return True
 
   device_type = args.tpu_type if args.tpu_type else args.device_type
@@ -2802,6 +2825,10 @@ def inspector(args) -> int:
      'Local Setup: Project / Zone / Region'),
     (f'gcloud beta container clusters list --project {args.project} --region {zone_to_region(args.zone)}'
      f' | grep -e NAME -e {args.cluster}','GKE: Cluster Details'),
+    (f'kubectl get configmap {args.cluster}-{_CLUSTER_METADATA_CONFIGMAP} -o yaml',
+     'GKE: Cluster Metadata ConfigMap Details'),
+    (f'kubectl get configmap {args.cluster}-{_CLUSTER_RESOURCES_CONFIGMAP} -o yaml',
+     'GKE: Cluster Resources ConfigMap Details'),
     (f'gcloud beta container node-pools list --cluster {args.cluster}  --project={args.project} '
      f'--region={zone_to_region(args.zone)}', 'GKE: Node pool Details'),
     ('kubectl get node -o custom-columns=\'NODE_NAME:metadata.name,'

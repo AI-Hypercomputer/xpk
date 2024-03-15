@@ -65,7 +65,9 @@ if (
 
 default_docker_image = 'python:3.10'
 default_script_dir = os.getcwd()
-default_gke_version = '1.28.3-gke.1286000'
+default_gke_version="1.29.1-gke.1589017"
+_CLUSTER_QUEUE_NAME='cluster-queue'
+_LOCAL_QUEUE_NAME='multislice-queue'
 h100_device_type = 'h100-80gb-8'
 
 workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
@@ -73,7 +75,7 @@ kind: JobSet
 metadata:
   name: {args.workload}
   labels:
-    kueue.x-k8s.io/queue-name: multislice-queue  # Name of the LocalQueue
+    kueue.x-k8s.io/queue-name: {local_queue_name}  # Name of the LocalQueue
     xpk.google.com/workload: {args.workload}
   annotations:
     alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool # 1:1 job replica to node pool assignment
@@ -89,6 +91,9 @@ spec:
           completions: {system.vms_per_slice}    # Same as the above.
           backoffLimit: 0   # When any pod fails, the job is failed
           template:
+            metadata:
+              labels:
+                xpk.google.com/workload: {args.workload}
             spec:
               schedulerName: {args.scheduler}
               restartPolicy: Never
@@ -291,7 +296,7 @@ spec:
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: ClusterQueue
 metadata:
-  name: "cluster-queue"
+  name: {cluster_queue_name}
 spec:
   preemption:
       reclaimWithinCohort: Never # Don't preempt other queues in the cohort.
@@ -304,9 +309,9 @@ apiVersion: kueue.x-k8s.io/v1beta1
 kind: LocalQueue
 metadata:
   namespace: default
-  name: multislice-queue
+  name: {local_queue_name}
 spec:
-  clusterQueue: cluster-queue
+  clusterQueue: {cluster_queue_name}
 ---
 apiVersion: scheduling.k8s.io/v1
 kind: PriorityClass
@@ -497,7 +502,7 @@ AcceleratorTypeToAcceleratorCharacteristics = {
       ),
      # CPU
       AcceleratorType['CPU']: AcceleratorCharacteristics(
-      'cpu', '', 'cloud.google.com/gke-nodepool' 
+      'cpu', '', 'cloud.google.com/gke-nodepool'
       )
 }
 
@@ -509,7 +514,7 @@ class SystemCharacteristics:
   gke_accelerator: str
   gce_machine_type: str
   chips_per_vm: int
-  accelerator_type: AcceleratorType
+  accelerator_type: AcceleratorType # type: ignore
   device_type: str
 
 ################### Subcommand Helper Functions #############
@@ -518,7 +523,7 @@ IF YOU MODIFY THE BELOW UserFacingNameToSystemCharacteristics MAP YOU SHOULD ALS
 MODIFICATIONS TO UserFacingNameToSystemCharacteristics IN MaxText/accelerator_to_spec_map.py !!!!! """
 # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 UserFacingNameToSystemCharacteristics = {
-    # GPU system charcteristics
+    # GPU system characteristics
     # A100-40gb-$CHIPS
     'a100-40gb-1': SystemCharacteristics(
       'N/A', 1, 'nvidia-tesla-a100', 'a2-highgpu-1g', 1, AcceleratorType['GPU'], 'a100-40gb-1'
@@ -537,7 +542,7 @@ UserFacingNameToSystemCharacteristics = {
       'N/A', 1, 'nvidia-h100-80gb', 'a3-highgpu-8g', 8, AcceleratorType['GPU'], 'h100-80gb-8'
     ),
 
-    # TPU system charcteristics
+    # TPU system characteristics
     # v5p
     'v5p-8': SystemCharacteristics(
       '2x2x1', 1, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-8'
@@ -621,7 +626,7 @@ UserFacingNameToSystemCharacteristics = {
       '4x4x92', 368, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-2944'
     ),
     'v5p-3072': SystemCharacteristics(
-      '4x12x16', 384, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-3072'
+      '8x12x16', 384, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-3072'
     ),
     'v5p-3200': SystemCharacteristics(
       '4x20x20', 400, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-3200'
@@ -1121,6 +1126,24 @@ def write_temporary_file(payload):
       f.write(payload)
       f.flush()
     return tmp
+
+
+def append_temporary_file(payload, file):
+  """Appends `payload` to an already created file.
+
+  Use `write_temporary_file` to create a file.
+
+  Args:
+    payload: The string to be written to the file.
+    file: The file to append to.
+
+  Returns:
+    A file object that was written to.
+  """
+  with open(file=file.name, mode='a', encoding='utf=8') as f:
+    f.write(payload)
+    f.flush()
+  return file
 
 
 def run_command_for_value(
@@ -1982,8 +2005,8 @@ def install_kueue_on_cluster(args) -> int:
     0 if successful and 1 otherwise.
   """
   command = (
-      'kubectl apply -f'
-      ' https://github.com/kubernetes-sigs/kueue/releases/download/v0.4.1/manifests.yaml'
+      'kubectl apply --server-side --force-conflicts -f'
+      ' https://github.com/kubernetes-sigs/kueue/releases/download/v0.6.0/manifests.yaml'
   )
   return_code = run_command_with_updates(command, 'Set Kueue On Cluster', args)
 
@@ -2020,6 +2043,9 @@ def enable_kueue_crds(args, system) -> int:
       accelerator_label=create_accelerator_label(system.accelerator_type, system),
       machine_label=create_machine_label(system.accelerator_type, system),
       covered_resources_config=covered_resources_config
+      resource_type=AcceleratorTypeToAcceleratorCharacteristics[system.accelerator_type].resource_type,
+      cluster_queue_name=_CLUSTER_QUEUE_NAME,
+      local_queue_name=_LOCAL_QUEUE_NAME,
   )
   tmp = write_temporary_file(yml_string)
   command = f'kubectl apply -f {str(tmp.file.name)}'
@@ -2098,7 +2124,7 @@ def set_jobset_on_cluster(args) -> int:
   """
   command = (
       'kubectl apply --server-side -f'
-      ' https://github.com/kubernetes-sigs/jobset/releases/download/v0.3.1/manifests.yaml'
+      ' https://github.com/kubernetes-sigs/jobset/releases/download/v0.3.2/manifests.yaml'
   )
   return_code = run_command_with_updates(command, 'Set Jobset On Cluster', args)
 
@@ -2548,7 +2574,6 @@ def check_if_workload_exists(args) -> bool:
   return False
 
 
-# TODO: Update when GPU support is enabled
 def check_if_workload_can_schedule(args, system):
   """Check if workload can schedule based on the cluster resources (tpu_type and maximum VM in cluster).
 
@@ -2649,20 +2674,19 @@ def setup_docker_image(args) -> tuple[int, str]:
 
   return 0, docker_image
 
-def get_main_and_sidecar_container(args, system, docker_image, command) -> str:
+def get_main_and_sidecar_container(args, system, docker_image) -> str:
   """Generate yaml for main and sidecar container.
   Args:
     args: user provided arguments for running the command.
     system: system characteristics
     docker_image: docker image
-    command: command to run in the main container
 
   Returns:
     str:
       yaml for main and sidecar container
   """
   resource_type = AcceleratorTypeToAcceleratorCharacteristics[system.accelerator_type].resource_type
-  main_container = get_main_container(args, system, docker_image, command, resource_type)
+  main_container = get_main_container(args, system, docker_image, resource_type)
   yaml = """- name: stacktrace-explorer
                 image: busybox:1.28
                 args: [/bin/sh, -c, "while [ ! -d /tmp/debugging ]; do sleep 60; done; while [ ! -e /tmp/debugging/* ]; do sleep 60; done; tail -n+1 -f /tmp/debugging/*"]
@@ -2679,18 +2703,34 @@ def get_main_and_sidecar_container(args, system, docker_image, command) -> str:
   """
   return yaml.format(main_container=main_container)
 
-def get_main_container(args, system, docker_image, command, resource_type) -> str:
-  """Generate yaml for main container.
+def get_main_container(args, system, docker_image, resource_type) -> str:
+  """Generate yaml for main container including the xpk command.
   Args:
     args: user provided arguments for running the command.
     system: system characteristics
     docker_image: docker image
-    command: command to run in the main container
+    resource_type: The label to describe the resource type for TPUs/GPUs/CPUs.
 
   Returns:
     str:
       yaml for main container
   """
+
+  xpk_internal_commands = ''
+  gsutil_test_command = ''
+  if args.debug_dump_gcs:
+    gsutil_test_command = (
+      'which gsutil >/dev/null 2>&1 || { echo >&2 "gsutil'
+      ' is required but not installed. Aborting"; exit 24;};'
+    )
+    xpk_internal_commands += ('WORKER_ID=$HOSTNAME;'
+                f'gsutil cp -r /tmp/xla_dump/ {args.debug_dump_gcs}/$WORKER_ID;')
+
+  command = args.command
+  if args.enable_debug_logs:
+    command = ('TPU_STDERR_LOG_LEVEL=0 TPU_MIN_LOG_LEVEL=0 TF_CPP_MIN_LOG_LEVEL=0'
+               f' TPU_VMODULE=real_program_continuator=1 {args.command}')
+
   yaml = """- name: {args.docker_name}
                 image: {docker_image}
                 env: {args.env}
@@ -2704,7 +2744,7 @@ def get_main_container(args, system, docker_image, command, resource_type) -> st
                 - bash
                 - -c
                 - |
-                  echo XPK Start: $(date) ; _sigterm() ( kill -SIGTERM $!;); trap _sigterm SIGTERM; ({command}) & PID=$!; while kill -0 $PID 2>/dev/null; do sleep 5; done; EXIT_CODE=$? ; echo XPK End: $(date); echo EXIT_CODE=$EXIT_CODE
+                  echo XPK Start: $(date) ; _sigterm() ( kill -SIGTERM $! 2>/dev/null;); trap _sigterm SIGTERM;{gsutil_test_command}({command}) & PID=$!; while kill -0 $PID 2>/dev/null; do sleep 5; done; wait $PID; EXIT_CODE=$? ; {xpk_internal_commands} echo XPK End: $(date); echo EXIT_CODE=$EXIT_CODE; exit $EXIT_CODE
                 resources:
                   limits:
                     {resource_type}: {system.chips_per_vm}
@@ -2713,7 +2753,9 @@ def get_main_container(args, system, docker_image, command, resource_type) -> st
                    system=system,
                    jax_coordinator_port=add_jax_coordinator_port(system),
                    docker_image=docker_image,
+                   gsutil_test_command=gsutil_test_command,
                    command=command,
+                   xpk_internal_commands=xpk_internal_commands,
                    resource_type=resource_type)
 
 def add_jax_coordinator_port(system):
@@ -2869,7 +2911,7 @@ def calculate_process_count(num_slices, vms_per_slice) -> str:
     vms_per_slice: number of VMs in each slice.
 
   Returns:
-    str: total number of processes. 
+    str: total number of processes.
   """
   num_processes = int(num_slices) * int(vms_per_slice)
   return f"{num_processes}"
@@ -2881,7 +2923,7 @@ def get_cpu_env(num_slices, system) -> str:
     system: system characteristics
 
   Returns:
-    str: yaml containing env variables 
+    str: yaml containing env variables
   """
   yaml = """env:
                 - name: REPLICATED_JOB_NAME
@@ -2913,13 +2955,13 @@ def get_cpu_env(num_slices, system) -> str:
   return ""
 
 def get_cpu_affinity(accelerator_type) -> str:
-  """Generate affinity rules for CPU nodepools, so that workload pods are 
+  """Generate affinity rules for CPU nodepools, so that workload pods are
   not scheduled on the default pool machines.
   Args:
     accelerator_type: TPU / GPU / CPU
 
   Returns:
-    str: yaml containing affinity constraints 
+    str: yaml containing affinity constraints
   """
   yaml = """affinity:
                 nodeAffinity:
@@ -2992,10 +3034,6 @@ def workload_create(args) -> int:
     xpk_exit(setup_docker_image_code)
 
   add_env_config(args)
-  command = args.command
-  if args.debug_dump_gcs:
-    command += ('; WORKER_ID=$HOSTNAME;'
-                f'gsutil cp -r /tmp/xla_dump/ {args.debug_dump_gcs}/$WORKER_ID')
 
   debugging_dashboard_id = None
   resource_type = AcceleratorTypeToAcceleratorCharacteristics[system.accelerator_type].resource_type
@@ -3017,20 +3055,18 @@ def workload_create(args) -> int:
       debugging_dashboard_id = get_gke_debugging_dashboard(args)
     else:
       container = get_main_container(args, system, docker_image, command, resource_type)
+      
+      yml_string = workload_create_yaml.format(args=args,
+                                           system=system,
+                                           container=container,
+                                           affinity=get_cpu_affinity(system.accelerator_type),
+                                           env=get_cpu_env(args.num_slices,system),
+                                           accelerator_label=create_accelerator_label(system.accelerator_type, system),
+                                           machine_label=create_machine_label(system.accelerator_type, system),
+                                           local_queue_name=_LOCAL_QUEUE_NAME)
 
-    yml_string = workload_create_yaml.format(args=args,
-                                            system=system,
-                                            docker_image=docker_image,
-                                            command=command,
-                                            container=container,
-                                            affinity=get_cpu_affinity(system.accelerator_type),
-                                            env=get_cpu_env(args.num_slices,system),
-                                            accelerator_label=create_accelerator_label(system.accelerator_type, system),
-                                            machine_label=create_machine_label(system.accelerator_type, system),
-                                            resource_type=resource_type)
   tmp = write_temporary_file(yml_string)
   command = f'kubectl apply -f {str(tmp.file.name)}'
-
   return_code = run_command_with_updates(command, 'Creating Workload', args)
 
   if return_code != 0:
@@ -3104,16 +3140,26 @@ def workload_delete(args) -> int:
   elif not will_delete:
     xpk_print("Skipping delete command.")
   else:
+    commands = []
+    task_names = []
     for workload in workloads:
       args.workload = workload
       yml_string = get_workload_delete_config(args=args)
       tmp = write_temporary_file(yml_string)
       command = f'kubectl delete -f {str(tmp.file.name)}'
-      return_code = run_command_with_updates(command, 'Delete Workload', args)
+      task_name = f'WorkloadDelete-{workload}'
+      commands.append(command)
+      task_names.append(task_name)
 
-      if return_code != 0:
-        xpk_print(f'Delete Workload request returned ERROR {return_code}')
-        xpk_exit(return_code)
+    # Not batching deletion for single workload
+    if len(workloads) == 1:
+      return_code = run_command_with_updates(commands[0], 'Delete Workload', args)
+    else:
+      return_code = run_commands(commands, 'Delete Workload', task_names, batch=100)
+
+    if return_code != 0:
+      xpk_print(f'Delete Workload request returned ERROR {return_code}')
+      xpk_exit(return_code)
   xpk_exit(0)
 
 
@@ -3174,7 +3220,7 @@ def determine_workload_list_filter_by_status(args) -> str:
     # Queued includes the status Admitted or Evicted, and when the number of
     # vms running is 0.
     return workload_list_awk_command(
-        f'({status_arg} ~ \"Admitted|Evicted\" && ({running_vms_arg} ~ \"<none>\" || {running_vms_arg} == 0))'
+        f'({status_arg} ~ \"Admitted|Evicted|QuotaReserved\" && ({running_vms_arg} ~ \"<none>\" || {running_vms_arg} == 0))'
     )
   elif args.filter_by_status == 'FINISHED':
     return workload_list_awk_command(f'{status_arg} == \"Finished\"')
@@ -3204,7 +3250,7 @@ def determine_workload_list_filter_by_job(args) -> str:
     return workload_list_awk_command(f'{job_name_arg} ~ \"{args.filter_by_job}\"')
 
 
-def get_workload_list(args) -> None:
+def get_workload_list(args) -> tuple[int, str]:
   """Function to get the list of the workloads in the cluster.
 
   Args:
@@ -3233,11 +3279,13 @@ def get_workload_list(args) -> None:
              f'{workload_list_filter_status_cmd} {workload_list_filter_job_cmd}'
              )
 
-  return_code, return_value = run_command_for_value(command, 'List Jobs', args)
+  return_code, return_value = run_command_for_value(
+    command, f'List Jobs with filter-by-status={args.filter_by_status}'
+    f' with filter-by-jobs={args.filter_by_job}', args)
   return return_code, return_value
 
 
-def workload_list(args) -> None:
+def workload_list(args) -> int:
   """Function around workload list.
 
   Args:
@@ -3246,7 +3294,7 @@ def workload_list(args) -> None:
   Returns:
     0 if successful and 1 otherwise.
   """
-  print(args)
+  xpk_print(args)
 
   xpk_print('Starting workload list', flush=True)
   add_zone_and_project(args)
@@ -3261,6 +3309,216 @@ def workload_list(args) -> None:
     xpk_exit(return_code)
   xpk_print(return_value)
   xpk_exit(0)
+
+
+def inspector_run_command_helper(args, command, command_description, file) -> int:
+  """Runs a command for xpk inspector, and build the output file.
+
+  Args:
+    args: user provided arguments for running the command.
+    command: the cli command to run.
+    command_description: a brief description of the command run.
+    file: file to add command output to.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  prefix = f'Command: {command}\nCommand Description: {command_description}\n'
+  postfix = '========================================================'
+  return_code, command_output = run_command_for_value(command, f'{command_description}', args)
+
+  if return_code != 0:
+    xpk_print(f'{command} returned ERROR {return_code} with output: {command_output}')
+    return 1
+
+  inspector_command_output = f'{prefix} \n{command_output} \n{postfix} \n'
+  append_temporary_file(inspector_command_output, file)
+
+  if args.print_to_terminal:
+    xpk_print(inspector_command_output)
+  return 0
+
+
+def inspector_run_workload_list_helper(args, command_description, file) -> int:
+  """Runs a workload list command for xpk inspector, and build the output file.
+
+  Args:
+    args: user provided arguments for running the command.
+    command_description: a brief description of the command run.
+    file: file to add command output to.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  prefix = f'Command Description: {command_description}\n'
+  postfix = '========================================================'
+  return_code, command_output = get_workload_list(args)
+  if return_code != 0:
+    xpk_exit(return_code)
+  inspector_command_output = f'{prefix} \n{command_output} \n{postfix} \n'
+  append_temporary_file(inspector_command_output, file)
+  if args.print_to_terminal:
+    xpk_print(inspector_command_output)
+  return 0
+
+
+def inspector_output_link_helper(args, link, link_description, file) -> int:
+  """Outputs a link for xpk inspector to the output file.
+
+  Args:
+    args: user provided arguments for.
+    link: link to output.
+    link_description: describes what the link is for.
+    file: file to add command output to.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  inspector_link = (
+    f'Link Description: {link_description}\n'
+    f'Link: {link}\n'
+    '========================================================'
+  )
+  append_temporary_file(inspector_link, file)
+  if args.print_to_terminal:
+    xpk_print(inspector_link)
+  return 0
+
+
+def inspector(args) -> int:
+  """Function around inspector which investigates failures in the kueue.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  # Future Improvements for inspector:
+  # 1. Print out the resource flavor.
+  # 2. List what is next in Queue.
+  # 3. Split inspector into different subcommands to parse info easier.
+
+  final_return_code = 0
+  xpk_print(args)
+
+  add_zone_and_project(args)
+  set_cluster_command_code = set_cluster_command(args)
+  if set_cluster_command_code != 0:
+    xpk_exit(set_cluster_command_code)
+
+  inspector_file = write_temporary_file("==================\nXPK inspector OUTPUT:\n==================\n")
+  command_and_descriptions = [
+    ('gcloud version', 'Local Setup: gcloud version'),
+    ('gcloud config get project; gcloud config get compute/zone; gcloud config get compute/region',
+     'Local Setup: Project / Zone / Region'),
+    (f'gcloud beta container clusters list --project {args.project} --region {zone_to_region(args.zone)}'
+     f' | grep -e NAME -e {args.cluster}','GKE: Cluster Details'),
+    (f'gcloud beta container node-pools list --cluster {args.cluster}  --project={args.project} '
+     f'--region={zone_to_region(args.zone)}', 'GKE: Node pool Details'),
+    ('kubectl get node -o custom-columns=\'NODE_NAME:metadata.name,'
+     ' READY_STATUS:.status.conditions[?(@.type=="Ready")].status,'
+     ' NODEPOOL:metadata.labels.cloud\\.google\\.com/gke-nodepool\'', 'Kubectl: All Nodes'),
+    ('kubectl get node -o custom-columns=\':metadata.labels.cloud\\.google\\.com/gke-nodepool\''
+     ' | sort | uniq -c', 'Kubectl: Number of Nodes per Node Pool'),
+    ('kubectl get node -o custom-columns=\'NODE_NAME:metadata.name,'
+     ' READY_STATUS:.status.conditions[?(@.type=="Ready")].status,'
+     ' NODEPOOL:metadata.labels.cloud\\.google\\.com/gke-nodepool\' | grep -w True | awk {\'print $3\'} | sort | uniq -c',
+     'Kubectl: Healthy Node Count Per Node Pool'),
+    (f'kubectl describe ClusterQueue {_CLUSTER_QUEUE_NAME}', 'Kueue: ClusterQueue Details'),
+    (f'kubectl describe LocalQueue {_LOCAL_QUEUE_NAME}', 'Kueue: LocalQueue Details'),
+    ('kubectl describe Deployment kueue-controller-manager -n kueue-system', 'Kueue: Kueue Deployment Details'),
+    ('kubectl describe Deployment jobset-controller-manager -n jobset-system', 'Jobset: Deployment Details'),
+    ('kubectl logs deployment/kueue-controller-manager -n kueue-system --tail=100 --prefix=True', 'Kueue Manager Logs'),
+    ('kubectl logs deployment/jobset-controller-manager -n jobset-system --tail=100 --prefix=True', 'Jobset Manager Logs'),
+  ]
+
+  for command, description in command_and_descriptions:
+    return_code = inspector_run_command_helper(args, command, description, inspector_file)
+    if return_code != 0:
+      final_return_code = return_code
+      xpk_print(f'inspector failed in command: {command} description: {description} return code: {return_code}')
+
+  # Workload list views:
+  filter_by_statuses = ['EVERYTHING','QUEUED','RUNNING']
+  for filter_by_status in filter_by_statuses:
+    args.filter_by_job=None
+    args.filter_by_status=filter_by_status
+    command_description = (
+      f'xpk workload list --filter-by-status={args.filter_by_status}'
+      f' --filter-by-job={args.filter_by_job} --project={args.project} --zone={args.zone}'
+      f' --cluster={args.cluster}'
+    )
+    return_code = inspector_run_workload_list_helper(args, command_description, inspector_file)
+    if return_code != 0:
+      final_return_code = return_code
+      xpk_print(f'inspector failed in description: {command_description} return code: {return_code}')
+
+  # If a workload argument is provided, list out workload specific details.
+  if args.workload:
+    xpk_print(args.workload)
+    args.filter_by_job=args.workload
+    args.filter_by_status='EVERYTHING'
+    command_description = (
+      f'xpk workload list --filter-by-status={args.filter_by_status}'
+      f' --filter-by-job={args.filter_by_job} --project={args.project} --zone={args.zone}'
+      f' --cluster={args.cluster}'
+    )
+    return_code = inspector_run_workload_list_helper(args, command_description, inspector_file)
+    if return_code != 0:
+      final_return_code = return_code
+      xpk_print(f'inspector failed in description: {command_description} return code: {return_code}')
+
+    command = f'kubectl describe jobsets {args.workload}'
+    command_description = f'Jobset config for {args.workload}'
+    return_code = inspector_run_command_helper(args, command, command_description, inspector_file)
+    if return_code != 0:
+      final_return_code = return_code
+      xpk_print(f'inspector failed in command: {command} description: {command_description} return code: {return_code}')
+
+    command = f'kubectl describe workloads jobset-{args.workload}'
+    command_description = f'Workload config for {args.workload}'
+    return_code = inspector_run_command_helper(args, command, command_description, inspector_file)
+    if return_code != 0:
+      final_return_code = return_code
+      xpk_print(f'inspector failed in command: {command} description: {command_description} return code: {return_code}')
+
+  # Cloud Console Links:
+  workload_links = []
+  if args.workload:
+    workload_links = [
+      (f'Cloud Console for the workload {args.workload}',
+      # pylint: disable=line-too-long
+       f'https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}')
+    ]
+
+  links = [
+    ('Cloud Console for the GKE Cluster',
+      # pylint: disable=line-too-long
+     f'https://console.cloud.google.com/kubernetes/clusters/details/{zone_to_region(args.zone)}/{args.cluster}/details?project={args.project}'),
+    ('Cloud Console for all workloads in GKE Cluster',
+      # pylint: disable=line-too-long
+     f'https://console.cloud.google.com/kubernetes/workload/overview?project={args.project}&pageState=((gke%2F{zone_to_region(args.zone)}%2F{args.cluster}))'),
+    ('Cloud Console for IAM Permissions', f'https://console.cloud.google.com/iam-admin/iam?project={args.project}'),
+    ('Cloud Console for Quotas', f'https://console.cloud.google.com/iam-admin/quotas?project={args.project}'),
+  ]
+  links.extend(workload_links)
+
+  for description, workload_link in links:
+    return_code = inspector_output_link_helper(args, workload_link, description, inspector_file)
+    if return_code != 0:
+      final_return_code = return_code
+      xpk_print(f'inspector failed in link: {workload_link} description: {description} return code: {return_code}')
+
+  # Summarize inspector:
+  xpk_print(f'Find xpk inspector output file: {inspector_file.name}')
+
+  if final_return_code != 0:
+    xpk_print(
+      'Something was unable to run in xpk inspector, please look through the output'
+      f' as it may clue to the failure reason. Return Code: {final_return_code}'
+    )
+  xpk_exit(final_return_code)
 
 
 def add_shared_arguments(custom_parser):
@@ -3643,7 +3901,7 @@ workload_create_parser_required_arguments = (
 )
 workload_create_parser_optional_arguments = (
     workload_create_parser.add_argument_group(
-        'Optional Arguments', 'Arguments optional for `job create`.'
+        'Optional Arguments', 'Arguments optional for `workload create`.'
     )
 )
 workload_base_docker_image_arguments = (
@@ -3663,7 +3921,7 @@ workload_docker_image_arguments = (
 )
 
 
-### Workload required arguments
+### "workload create" Required arguments
 workload_create_parser_required_arguments.add_argument(
     '--workload',
     type=workload_name_type,
@@ -3706,7 +3964,7 @@ workload_device_group.add_argument(
     help='The device type to use (can be tpu or gpu or cpu), v5litepod-16, h100-80gb-8, n2-standard-32-4 etc.'
 )
 
-### Workload Optional Arguments
+### "workload create" Optional Arguments
 add_shared_arguments(workload_create_parser_optional_arguments)
 
 workload_create_parser_optional_arguments.add_argument(
@@ -3803,7 +4061,13 @@ workload_create_parser_optional_arguments.add_argument(
         'where debugging information such as HLO dumps are uploaded'
     ),
 )
-
+workload_create_parser_optional_arguments.add_argument(
+    '--enable-debug-logs',
+    action='store_true',
+    help=(
+        'Set this flag to get verbose logging to investigate the issue in the workload.'
+    ),
+)
 workload_create_parser_optional_arguments.add_argument(
     '--deploy-stacktrace-sidecar',
     action='store_true',
@@ -3815,7 +4079,7 @@ workload_create_parser_optional_arguments.add_argument(
 )
 
 workload_create_parser_optional_arguments.add_argument(
-    '-tgps', '--termination-grace-period-seconds', 
+    '-tgps', '--termination-grace-period-seconds',
     type=str,
     default='30',
     help=(
@@ -3826,7 +4090,7 @@ workload_create_parser_optional_arguments.add_argument(
 
 workload_create_parser.set_defaults(func=workload_create)
 
-# "job delete" command parser.
+# "workload delete" command parser.
 workload_delete_parser = workload_subcommands.add_parser(
     'delete', help='Delete job.'
 )
@@ -3843,7 +4107,7 @@ workload_delete_parser_optional_arguments = (
 )
 add_shared_arguments(workload_delete_parser_optional_arguments)
 
-### Required arguments
+### "workload delete" Required arguments
 workload_delete_parser_required_arguments.add_argument(
     '--cluster',
     type=str,
@@ -3867,7 +4131,8 @@ workload_delete_device_group.add_argument(
     help='The device type to use (can be tpu or gpu or cpu), v5litepod-16, h100-80gb-8, n2-standard-32-4 etc.'
 )
 
-### Optional arguments
+### "workload delete" Optional arguments
+
 workload_delete_parser_optional_arguments.add_argument(
     '--workload',
     type=workload_name_type,
@@ -3932,8 +4197,65 @@ workload_list_parser.add_argument(
 )
 add_shared_arguments(workload_list_parser)
 
-
 workload_list_parser.set_defaults(func=workload_list)
+
+
+#### "inspector" command parser. ####
+inspector_parser = xpk_subcommands.add_parser(
+    'inspector', help='commands around investigating workload, and Kueue failures.'
+)
+
+inspector_parser.set_defaults(func=default_subcommand_function)
+inspector_subcommands = inspector_parser.add_subparsers(
+    title='inspector subcommands',
+    dest='xpk_inspector_subcommands',
+    help='Investigate workload, and Kueue failures.',
+)
+
+inspector_parser_required_arguments = (
+    inspector_parser.add_argument_group(
+        'inspector Built-in Arguments',
+        'Arguments required for `inspector`.'
+    )
+)
+inspector_parser_optional_arguments = (
+    inspector_parser.add_argument_group(
+        'Optional Arguments', 'Arguments optional for `inspector`.'
+    )
+)
+
+### "inspector" Required arguments
+
+inspector_parser_required_arguments.add_argument(
+    '--cluster',
+    type=str,
+    default=None,
+    help='The name of the cluster to investigate.',
+    required=True,
+)
+
+### "inspector" Optional Arguments
+add_shared_arguments(inspector_parser_optional_arguments)
+
+inspector_parser_optional_arguments.add_argument(
+    '--workload',
+    type=workload_name_type,
+    default=None,
+    help='The name of the workload to investigate.',
+)
+
+inspector_parser_optional_arguments.add_argument(
+    '--print-to-terminal',
+    action='store_true',
+    help=(
+      'Prints inspector output to terminal. A user can always look at the returned file.'
+    ),
+  
+  
+  
+)
+
+inspector_parser.set_defaults(func=inspector)
 
 xpk_print('Starting xpk', flush=True)
 main_args = parser.parse_args()

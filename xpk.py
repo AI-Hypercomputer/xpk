@@ -391,6 +391,7 @@ data:
   {data}
 """
 
+# cluster_network_yaml: the config when creating the network for a3 cluster
 cluster_network_yaml = """
 apiVersion: networking.gke.io/v1
 kind: Network
@@ -1323,31 +1324,26 @@ def run_gke_cluster_create_command(args) -> int:
               ' the machine type of other cpu nodepools using `--device-type`.')
     machine_type = args.cluster_cpu_machine_type
 
+  command = (
+      'gcloud beta container clusters create'
+      f' {args.cluster} --project={args.project}'
+      f' --region={zone_to_region(args.zone)}'
+      f' --node-locations={args.zone}'
+      f' --cluster-version={args.gke_version}'
+      ' --total-min-nodes 1 --total-max-nodes 1000 --num-nodes 6'
+      f' --machine-type={machine_type}'
+  )
   device_type = args.tpu_type if args.tpu_type else args.device_type
   if device_type == h100_device_type:
-    command = (
-        'gcloud beta container clusters create'
-        f' {args.cluster} --project={args.project}'
-        f' --region={zone_to_region(args.zone)}'
-        f' --node-locations={args.zone}'
-        f' --cluster-version={args.gke_version}'
-        f' --machine-type={machine_type}'
-        ' --enable-dataplane-v2 --enable-ip-alias'
-        ' --enable-multi-networking --no-enable-autoupgrade'
-    )
+    command += (' --enable-dataplane-v2 --enable-ip-alias'
+        ' --enable-multi-networking --no-enable-autoupgrade')
   else:
     # Create the regional cluster with `num-nodes` CPU nodes in the same zone as
     # TPUs. This has been tested with clusters of 300 VMs. Larger clusters will
     # benefit from a larger initial `--num-nodes`. After the cluster is created,
     # the auto-scaler can reduce/increase the nodes based on the load.
-    command = (
-        'gcloud beta container clusters create'
-        f' {args.cluster} --release-channel rapid --enable-autoscaling'
-        ' --total-min-nodes 1 --total-max-nodes 1000 --num-nodes 6'
-        f' --node-locations={args.zone}'
-        f' --project={args.project} --region={zone_to_region(args.zone)}'
-        f' --cluster-version={args.gke_version} --location-policy=BALANCED'
-        f' --machine-type={machine_type}'
+
+    command += ('--release-channel rapid --enable-autoscaling --location-policy=BALANCED'
         ' --scopes=storage-full,gke-default'
         f' {args.custom_cluster_arguments}'
     )
@@ -1360,8 +1356,9 @@ def run_gke_cluster_create_command(args) -> int:
   return 0
 
 
-def set_up_cluster_network(args) -> int:
-  """Set up GKE Cluster networks, subnets and firewall rules.
+def set_up_cluster_network_for_a3(args) -> int:
+  """Set up GKE Cluster networks, subnets and firewall rules for A3.
+  Note: there are 4 NICs for GPU-GPU bw and 1 NIC for host in a A3 node
 
   Args:
     args: user provided arguments for running the command.
@@ -1392,18 +1389,25 @@ def create_cluster_network(args, index) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
-  command = (
-    f'gcloud compute --project={args.project}'
-    f' networks create {args.cluster}-net-{index}'
-    ' --subnet-mode=custom --mtu=8244'
-  )
-  return_code = run_command_with_updates(
-      command, 'Create Cluster Network', args, verbose=False
-  )
+  existing_network_names, return_code = get_all_networks_programmatic(args)
+  if return_code > 0:
+    xpk_print('Listing all networks failed!')
+    return return_code
+  
+  network_name = f'{args.cluster}-net-{index}'
+  if network_name not in existing_network_names:
+    command = (
+      f'gcloud compute --project={args.project}'
+      f' networks create {network_name}'
+      ' --subnet-mode=custom --mtu=8244'
+    )
+    return_code = run_command_with_updates(
+        command, 'Create Cluster Network', args, verbose=False
+    )
 
-  if return_code != 0:
-    xpk_print(f'Create Cluster Network request returned ERROR {return_code}')
-    return 1
+    if return_code != 0:
+      xpk_print(f'Create Cluster Network request returned ERROR {return_code}')
+      return 1
 
   return 0
 
@@ -1418,19 +1422,25 @@ def create_cluster_subnet(args, index) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
-  command = (
-    f'gcloud compute --project={args.project}'
-    f' networks subnets create {args.cluster}-sub-{index}'
-    f' --network={args.cluster}-net-{index}'
-    f' --region={zone_to_region(args.zone)} --range=192.168.{index}.0/24'
-  )
-  return_code = run_command_with_updates(
-      command, 'Create Cluster Subnet', args, verbose=False
-  )
+  existing_subnet_names, return_code = get_all_subnets_programmatic(args)
+  if return_code > 0:
+    xpk_print('Listing all subnets failed!')
+    return return_code
+  subnet_name = f'{args.cluster}-sub-{index}'
+  if subnet_name not in existing_subnet_names:
+    command = (
+      f'gcloud compute --project={args.project}'
+      f' networks subnets create {subnet_name}'
+      f' --network={args.cluster}-net-{index}'
+      f' --region={zone_to_region(args.zone)} --range=192.168.{index}.0/24'
+    )
+    return_code = run_command_with_updates(
+        command, 'Create Cluster Subnet', args, verbose=False
+    )
 
-  if return_code != 0:
-    xpk_print(f'Create Cluster Subnet request returned ERROR {return_code}')
-    return 1
+    if return_code != 0:
+      xpk_print(f'Create Cluster Subnet request returned ERROR {return_code}')
+      return 1
 
   return 0
 
@@ -1445,19 +1455,25 @@ def create_cluster_firewall_rule(args, index) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
-  command = (
-    f'gcloud compute --project={args.project}'
-    f' firewall-rules create {args.cluster}-internal-{index}'
-    f' --network={args.cluster}-net-{index}'
-    ' --action=ALLOW --rules=tcp:0-65535,udp:0-65535,icmp --source-ranges=192.168.0.0/16'
-  )
-  return_code = run_command_with_updates(
-      command, 'Create Cluster Firewall Rule', args, verbose=False
-  )
+  existing_firewall_rules_names, return_code = get_all_firewall_rules_programmatic(args)
+  if return_code > 0:
+    xpk_print('Listing all firewall rules failed!')
+    return return_code
+  firewall_rule_name = f'{args.cluster}-internal-{index}'
+  if firewall_rule_name not in existing_firewall_rules_names:
+    command = (
+      f'gcloud compute --project={args.project}'
+      f' firewall-rules create {firewall_rule_name}'
+      f' --network={args.cluster}-net-{index}'
+      ' --action=ALLOW --rules=tcp:0-65535,udp:0-65535,icmp --source-ranges=192.168.0.0/16'
+    )
+    return_code = run_command_with_updates(
+        command, 'Create Cluster Firewall Rule', args, verbose=False
+    )
 
-  if return_code != 0:
-    xpk_print(f'Create Cluster Firewall Rule request returned ERROR {return_code}')
-    return 1
+    if return_code != 0:
+      xpk_print(f'Create Cluster Firewall Rule request returned ERROR {return_code}')
+      return 1
 
   return 0
 
@@ -1596,6 +1612,73 @@ def get_all_nodepools_programmatic(args) -> tuple[list[str], int]:
   all_nodepools = [x.split(' ')[0] for x in raw_nodepool_output.splitlines()]
   return all_nodepools, 0
 
+def get_all_networks_programmatic(args) -> tuple[list[str], int]:
+  """Gets all the networks associated with project .
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    List of networks and 0 if successful and 1 otherwise.
+  """
+  command = (
+      'gcloud compute networks list'
+  )
+  return_code, raw_network_output = (
+      run_command_for_value(command, 'Get All Networks', args)
+  )
+  if return_code != 0:
+    xpk_print(f'Get All Networks returned ERROR {return_code}')
+    return [], 1
+
+  all_networks = [x.split(' ')[0] for x in raw_network_output.splitlines()]
+  return all_networks, 0
+
+def get_all_subnets_programmatic(args) -> tuple[list[str], int]:
+  """Gets all the subnets associated with the project.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    List of subnets and 0 if successful and 1 otherwise.
+  """
+  command = (
+      'gcloud compute networks subnets list'
+  )
+  return_code, raw_subnets_output = (
+      run_command_for_value(command, 'Get All Subnets', args)
+  )
+  if return_code != 0:
+    xpk_print(f'Get All Subnets returned ERROR {return_code}')
+    return [], 1
+
+  all_networks = [x.split(' ')[0] for x in raw_subnets_output.splitlines()]
+  return all_networks, 0
+
+
+def get_all_firewall_rules_programmatic(args) -> tuple[list[str], int]:
+  """Gets all the firewall rules associated with the project.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    List of firewall rules and 0 if successful and 1 otherwise.
+  """
+  command = (
+      'gcloud compute firewall-rules list'
+  )
+  return_code, raw_subnets_output = (
+      run_command_for_value(command, 'Get All Firewall Rules', args)
+  )
+  if return_code != 0:
+    xpk_print(f'Get All Firewall Rules returned ERROR {return_code}')
+    return [], 1
+
+  all_networks = [x.split(' ')[0] for x in raw_subnets_output.splitlines()]
+  return all_networks, 0
+
 
 def print_reservations(args) -> int:
   """Print the reservations in the project.
@@ -1730,67 +1813,50 @@ def run_gke_node_pool_create_command(args, system) -> int:
   commands = []
   task_names = []
 
-  device_type = args.tpu_type if args.tpu_type else args.device_type
-  if device_type == h100_device_type:
-    xpk_print(
-        f'Creating 1 node pool of {device_type}\n'
-        f'Underlyingly, we assume that means: {system}'
+  xpk_print(
+      f'Creating {args.num_slices} node pool or pools of {system.device_type}\n'
+      f'Underlyingly, we assume that means: {system}'
+  )
+  desired_node_pool_names = [
+      f'{args.cluster}-np-{slice_num}' for slice_num in range(args.num_slices)
+  ]
+  desired_node_pool_names = [f'{args.cluster}-np-0']
+  for node_pool_name in desired_node_pool_names:
+    if node_pool_name in existing_node_pool_names:
+      continue
+    command = (
+        'gcloud beta container node-pools create'
+        f' {node_pool_name}'
+        f' --cluster={args.cluster}'
+        f' --project={args.project} --node-locations={args.zone}'
+        f' --region={zone_to_region(args.zone)}'     
+        f' --machine-type={system.gce_machine_type}'
+        f' --host-maintenance-interval={args.host_maintenance_interval}'
+        f' {capacity_args}'
+        ' --scopes=storage-full,gke-default'
+        ' --enable-gvnic --max-pods-per-node 15'
     )
-    node_pool_name = f'{args.cluster}-np-0'
-    if node_pool_name not in existing_node_pool_names:
-      command = (
-          'gcloud beta container node-pools create'
-          f' {node_pool_name} --region={zone_to_region(args.zone)}'
-          f' --node-locations={args.zone}'
-          f' --cluster={args.cluster} --project={args.project}'
-          f' --machine-type={system.gce_machine_type}'
-          f' --num-nodes={args.num_slices}'
-          f' --accelerator="type={system.gke_accelerator},count={str(system.chips_per_vm)}"'
-          f' --additional-node-network network={args.cluster}-net-1,subnetwork={args.cluster}-sub-1'
-          f' --additional-node-network network={args.cluster}-net-2,subnetwork={args.cluster}-sub-2'
-          f' --additional-node-network network={args.cluster}-net-3,subnetwork={args.cluster}-sub-3'
-          f' --additional-node-network network={args.cluster}-net-4,subnetwork={args.cluster}-sub-4'
-          ' --no-enable-autoupgrade --enable-gvnic --scopes="https://www.googleapis.com/auth/cloud-platform"'
-          f' {capacity_args}'
-      )
-      task = f'NodepoolCreate-{node_pool_name}'
-      commands.append(command)
-      task_names.append(task)
-  else:
-    xpk_print(
-        f'Creating {args.num_slices} node pool or pools of {device_type}\n'
-        f'Underlyingly, we assume that means: {system}'
-    )
-    desired_node_pool_names = [
-        f'{args.cluster}-np-{slice_num}' for slice_num in range(args.num_slices)
-    ]
-
-    for node_pool_name in desired_node_pool_names:
-      if node_pool_name in existing_node_pool_names:
-        continue
-      command = (
-          'gcloud beta container node-pools create'
-          f' {node_pool_name} --node-version={args.gke_version}'
-          f' --cluster={args.cluster}'
-          f' --project={args.project} --node-locations={args.zone}'
-          f' --region={zone_to_region(args.zone)}'
-          f' --num-nodes={system.vms_per_slice}'
-          f' --machine-type={system.gce_machine_type}'
-          f' --host-maintenance-interval={args.host_maintenance_interval}'
-          f' {capacity_args}'
-          ' --scopes=storage-full,gke-default'
-          ' --enable-gvnic --max-pods-per-node 15'
-      )
-      if system.accelerator_type == AcceleratorType['TPU']:
-        command += (' --placement-type=COMPACT ')
-        command += (f' --tpu-topology={system.topology}')
-        command += (f' {args.custom_tpu_nodepool_arguments}')
-      elif system.accelerator_type == AcceleratorType['GPU']:
-        command += (' --placement-type=COMPACT ')
-        command += f' --accelerator type={system.gke_accelerator},count={str(system.chips_per_vm)}'
-      task = f'NodepoolCreate-{node_pool_name}'
-      commands.append(command)
-      task_names.append(task)
+    if system.accelerator_type == AcceleratorType['TPU']:
+      command += (f' --node-version={args.gke_version}')
+      command += (f' --num-nodes={system.vms_per_slice}')
+      command += (' --placement-type=COMPACT ')
+      command += (f' --tpu-topology={system.topology}')
+      command += (f' {args.custom_tpu_nodepool_arguments}')
+    elif system.device_type == h100_device_type:
+      command += (f' --num-nodes={args.num_slices}')
+      command += (f' --accelerator type={system.gke_accelerator},count={str(system.chips_per_vm)}'
+        f' --additional-node-network network={args.cluster}-net-1,subnetwork={args.cluster}-sub-1'
+        f' --additional-node-network network={args.cluster}-net-2,subnetwork={args.cluster}-sub-2'
+        f' --additional-node-network network={args.cluster}-net-3,subnetwork={args.cluster}-sub-3'
+        f' --additional-node-network network={args.cluster}-net-4,subnetwork={args.cluster}-sub-4'
+        ' --no-enable-autoupgrade  --scopes="https://www.googleapis.com/auth/cloud-platform"'
+        )
+    else: # other gpu types
+      command += (' --placement-type=COMPACT ')
+      command += f' --accelerator type={system.gke_accelerator},count={str(system.chips_per_vm)}'
+    task = f'NodepoolCreate-{node_pool_name}'
+    commands.append(command)
+    task_names.append(task)
 
   node_pools_to_delete = []
   for existing_node_pool_name in existing_node_pool_names:
@@ -2143,7 +2209,7 @@ def cluster_create(args) -> int:
   device_type = args.tpu_type if args.tpu_type else args.device_type
   if device_type == h100_device_type:
     xpk_print('Setting up Network for cluster')
-    set_up_cluster_network_code = set_up_cluster_network(args)
+    set_up_cluster_network_code = set_up_cluster_network_for_a3(args)
     if set_up_cluster_network_code != 0:
       xpk_exit(set_up_cluster_network_code)
 

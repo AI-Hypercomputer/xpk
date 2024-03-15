@@ -326,6 +326,36 @@ In order to use XPK for GPU, you can do so by using `device-type` flag.
     --reservation=$RESERVATION_ID
     ```
 
+*   Cluster Delete (deprovision capacity):
+
+    ```shell
+    python3 xpk.py cluster delete \
+    --cluster xpk-test
+    ```
+
+*   Cluster List (see provisioned capacity):
+
+    ```shell
+    python3 xpk.py cluster list
+    ```
+
+*   Cluster Describe (see capacity):
+
+    ```shell
+    python3 xpk.py cluster describe \
+    --cluster xpk-test
+    ```
+
+
+*   Cluster Cacheimage (enables faster start times):
+
+    ```shell
+    python3 xpk.py cluster cacheimage \
+    --cluster xpk-test --docker-image gcr.io/your_docker_image \
+    --device-type=h100-80gb-8
+    ```
+
+
 *   [Install NVIDIA GPU device drivers](https://cloud.google.com/container-optimized-os/docs/how-to/run-gpus#install)
     ```shell
     # List available driver versions
@@ -345,6 +375,85 @@ In order to use XPK for GPU, you can do so by using `device-type` flag.
     --cluster xpk-test --device-type h100-80gb-8 \
     --workload xpk-test-workload \
     --command="echo hello world"
+    ```
+
+*   Workload Delete (delete training job):
+
+    ```shell
+    python3 xpk.py workload delete \
+    --workload xpk-test-workload --cluster xpk-test
+    ```
+
+    This will only delete `xpk-test-workload` workload in `xpk-test` cluster.
+
+*   Workload Delete (delete all training jobs in the cluster):
+
+    ```shell
+    python3 xpk.py workload delete \
+    --cluster xpk-test
+    ```
+
+    This will delete all the workloads in `xpk-test` cluster. Deletion will only begin if you type `y` or `yes` at the prompt.
+
+*   Workload Delete supports filtering. Delete a portion of jobs that match user criteria.
+    * Filter by Job: `filter-by-job`
+
+    ```shell
+    python3 xpk.py workload delete \
+    --cluster xpk-test --filter-by-job=$USER --device-type=h100-80gb-8
+    ```
+
+    This will delete all the workloads in `xpk-test` cluster whose names start with `$USER`. Deletion will only begin if you type `y` or `yes` at the prompt.
+
+    * Filter by Status: `filter-by-status`
+
+    ```shell
+    python3 xpk.py workload delete \
+    --cluster xpk-test --filter-by-status=QUEUED --device-type=h100-80gb-8
+    ```
+    
+    This will delete all the workloads in `xpk-test` cluster that have the status as Admitted or Evicted, and the number of running VMs is 0. Deletion will only begin if you type `y` or `yes` at the prompt. Status can be: `EVERYTHING`,`FINISHED`, `RUNNING`, `QUEUED`, `FAILED`, `SUCCESSFUL`.
+
+*   Workload List (see training jobs):
+
+    ```shell
+    python3 xpk.py workload list \
+    --cluster xpk-test
+    ```
+
+* Example Workload List Output:
+
+  The below example shows four jobs of different statuses:
+
+  * `user-first-job-failed`: **filter-status** is `FINISHED` and `FAILED`.
+  * `user-second-job-success`: **filter-status** is `FINISHED` and `SUCCESSFUL`.
+  * `user-third-job-running`: **filter-status** is `RUNNING`.
+  * `user-forth-job-in-queue`: **filter-status** is `QUEUED`.
+  * `user-fifth-job-in-queue-preempted`: **filter-status** is `QUEUED`.
+
+  ```
+  Jobset Name                     Created Time           Priority   TPU VMs Needed   TPU VMs Running/Ran   TPU VMs Done      Status     Status Message                                                  Status Time
+  user-first-job-failed           2023-1-1T1:00:00Z      medium     4                4                     <none>            Finished   JobSet failed                                                   2023-1-1T1:05:00Z
+  user-second-job-success         2023-1-1T1:10:00Z      medium     4                4                     4                 Finished   JobSet finished successfully                                    2023-1-1T1:14:00Z
+  user-third-job-running          2023-1-1T1:15:00Z      medium     4                4                     <none>            Admitted   Admitted by ClusterQueue cluster-queue                          2023-1-1T1:16:00Z
+  user-forth-job-in-queue         2023-1-1T1:16:05Z      medium     4                <none>                <none>            Admitted   couldn't assign flavors to pod set slice-job: insufficient unused quota for google.com/tpu in flavor 2xv4-8, 4 more need   2023-1-1T1:16:10Z
+  user-fifth-job-preempted        2023-1-1T1:10:05Z      low        4                <none>                <none>            Evicted    Preempted to accommodate a higher priority Workload             2023-1-1T1:10:00Z
+  ```
+
+* Workload List supports filtering. Observe a portion of jobs that match user criteria.
+
+  * Filter by Status: `filter-by-status`
+
+  Filter the workload list by the status of respective jobs.
+  Status can be: `EVERYTHING`,`FINISHED`, `RUNNING`, `QUEUED`, `FAILED`, `SUCCESSFUL`
+
+  * Filter by Job: `filter-by-job`
+
+  Filter the workload list by the name of a job.
+
+    ```shell
+    python3 xpk.py workload list \
+    --cluster xpk-test --filter-by-job=$USER
     ```
 
 ## CPU usage

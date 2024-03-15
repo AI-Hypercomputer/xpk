@@ -160,6 +160,9 @@ all zones.
     --num-slices=6  --reservation=$RESERVATION_ID
 
     ```
+
+Cluster Create command will also create a project-specific Service Account. Note that only one service account will be created per project. This service account will be attached to the node pools to use instead of [Compute Engine default service account](https://cloud.google.com/compute/docs/access/service-accounts#default_service_account). Make sure you have [Service Account Admin](https://cloud.google.com/iam/docs/understanding-roles#iam.serviceAccountAdmin) and [Project IAM Admin](https://cloud.google.com/iam/docs/understanding-roles#resourcemanager.projectIamAdmin) roles assigned to your user account.
+
 ## Cluster Delete
 *   Cluster Delete (deprovision capacity):
 

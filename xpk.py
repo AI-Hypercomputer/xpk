@@ -1567,9 +1567,12 @@ def get_cluster_configmap(args):
 
   config_map = {}
   return_value = return_value.strip()
+
   if return_value:
     # Format of ConfigMap: map[key1:value1 key2:value2]
+    return_value = return_value[return_value.index("map"):]
     configs = return_value[4:-1].split(" ")
+
     for config in configs:
       key, value = config.strip().split(":")
       config_map[key] = int(value)
@@ -2009,10 +2012,8 @@ def install_kueue_on_cluster(args) -> int:
     0 if successful and 1 otherwise.
   """
   command = (
-      # 'kubectl apply --server-side --force-conflicts -f'
-      # ' https://github.com/kubernetes-sigs/kueue/releases/download/v0.6.0/manifests.yaml'
-          'kubectl apply -f'
-      ' https://github.com/kubernetes-sigs/kueue/releases/download/v0.4.1/manifests.yaml'
+      'kubectl apply --server-side --force-conflicts -f'
+      ' https://github.com/kubernetes-sigs/kueue/releases/download/v0.6.0/manifests.yaml'
   )
   return_code = run_command_with_updates(command, 'Set Kueue On Cluster', args)
 

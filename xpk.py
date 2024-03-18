@@ -1141,7 +1141,7 @@ def run_gke_cluster_create_command(args) -> int:
   return 0
 
 
-def create_cluster_configmap(args, system):
+def create_cluster_configmaps(args, system):
   """Run the Create GKE Cluster ConfigMap request.
 
   Args:
@@ -1152,6 +1152,8 @@ def create_cluster_configmap(args, system):
     0 if successful and 1 otherwise.
   """
   configmap_yml = {}
+
+  # ConfigMap to store resources available in the cluster
   device_type = args.tpu_type if args.tpu_type else args.device_type
   resources_data = f'{device_type}: "{int(args.num_slices) * system.vms_per_slice}"'
   resources_configmap_name = f'{args.cluster}-{_CLUSTER_RESOURCES_CONFIGMAP}'
@@ -1160,6 +1162,7 @@ def create_cluster_configmap(args, system):
                                                 data=resources_data)
   configmap_yml[resources_configmap_name] = resources_yml
 
+  # ConfigMap to store cluster metadata like xpk_version
   metadata = f'xpk_version: {xpk_current_version}'
   metadata_configmap_name = f'{args.cluster}-{_CLUSTER_METADATA_CONFIGMAP}'
   metadata_yml = cluster_configmap_yaml.format(args=args,
@@ -1176,7 +1179,7 @@ def create_cluster_configmap(args, system):
     task_name = f'ConfigMapCreate-{configmap_name}'
     task_names.append(task_name)
 
-  return_code = run_commands(commands, 'GKE Cluster Create ConfigMap', task_names)
+  return_code = run_commands(commands, 'GKE Cluster Create ConfigMap(s)', task_names)
   if return_code != 0:
     xpk_print(f'GKE Cluster Create ConfigMap request returned ERROR {return_code}')
     return 1
@@ -1721,9 +1724,9 @@ def cluster_create(args) -> int:
     xpk_exit(enable_kueue_creds_code)
 
   xpk_print('Creating ConfigMap for cluster')
-  create_cluster_configmap_code = create_cluster_configmap(args, system)
-  if create_cluster_configmap_code != 0:
-    xpk_exit(create_cluster_configmap_code)
+  create_cluster_configmaps_code = create_cluster_configmaps(args, system)
+  if create_cluster_configmaps_code != 0:
+    xpk_exit(create_cluster_configmaps_code)
 
   xpk_print('GKE commands done! Resources are created.')
   xpk_print(

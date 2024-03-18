@@ -3061,11 +3061,11 @@ def workload_create(args) -> int:
   else:
     if system.accelerator_type == AcceleratorType['TPU'] and args.deploy_stacktrace_sidecar:
       xpk_print('Sidecar container to display stack traces for TPU workloads will also be deployed.')
-      container = get_main_and_sidecar_container(args, system, docker_image, command)
+      container = get_main_and_sidecar_container(args, system, docker_image)
       # Get GKE debugging dashboard only when sidecar container is deployed for TPU workloads
       debugging_dashboard_id = get_gke_debugging_dashboard(args)
     else:
-      container = get_main_container(args, system, docker_image, command, resource_type)
+      container = get_main_container(args, system, docker_image, resource_type)
 
     yml_string = workload_create_yaml.format(args=args,
                                            system=system,

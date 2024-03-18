@@ -1857,7 +1857,7 @@ def run_gke_node_pool_create_command(args, system) -> int:
     command = (
         'gcloud beta container node-pools create'
         f' {node_pool_name}'
-        f' --region={zone_to_region(args.zone)}' 
+        f' --region={zone_to_region(args.zone)}'
         f' --cluster={args.cluster}'
         f' --project={args.project} --node-locations={args.zone}'
         f' --machine-type={system.gce_machine_type}'
@@ -4261,9 +4261,6 @@ inspector_parser_optional_arguments.add_argument(
     help=(
       'Prints inspector output to terminal. A user can always look at the returned file.'
     ),
-  
-  
-  
 )
 
 inspector_parser.set_defaults(func=inspector)

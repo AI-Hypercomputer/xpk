@@ -2013,7 +2013,7 @@ def install_kueue_on_cluster(args) -> int:
   """
   command = (
       'kubectl apply --server-side --force-conflicts -f'
-      ' https://github.com/kubernetes-sigs/kueue/releases/download/v0.6.0/manifests.yaml'
+      ' https://github.com/kubernetes-sigs/kueue/releases/download/v0.6.1/manifests.yaml'
   )
   return_code = run_command_with_updates(command, 'Set Kueue On Cluster', args)
 

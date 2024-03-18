@@ -1416,7 +1416,7 @@ def create_cluster_network(args, index) -> int:
   if return_code > 0:
     xpk_print('Listing all networks failed!')
     return return_code
-  
+
   network_name = f'{args.cluster}-net-{index}'
   if network_name not in existing_network_names:
     command = (
@@ -1850,7 +1850,7 @@ def run_gke_node_pool_create_command(args, system) -> int:
     desired_node_pool_names = [
       f'{args.cluster}-np-{slice_num}' for slice_num in range(args.num_slices)
     ]
-    
+
   for node_pool_name in desired_node_pool_names:
     if node_pool_name in existing_node_pool_names:
       continue
@@ -3045,7 +3045,7 @@ def workload_create(args) -> int:
   if args.debug_dump_gcs:
     command += ('; WORKER_ID=$HOSTNAME;'
                 f'gsutil cp -r /tmp/xla_dump/ {args.debug_dump_gcs}/$WORKER_ID')
-    
+
   debugging_dashboard_id = None
   resource_type = AcceleratorTypeToAcceleratorCharacteristics[system.accelerator_type].resource_type
 
@@ -3066,7 +3066,7 @@ def workload_create(args) -> int:
       debugging_dashboard_id = get_gke_debugging_dashboard(args)
     else:
       container = get_main_container(args, system, docker_image, command, resource_type)
-      
+
     yml_string = workload_create_yaml.format(args=args,
                                            system=system,
                                            container=container,

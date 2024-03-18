@@ -41,8 +41,10 @@ jobs:
     - name: Delete the cluster created
       run: python xpk.py cluster delete --cluster test-zero-nodepool --zone=us-central2-b
     - name: Create an XPK Cluster with 2x v4-8 nodepools
+      if: always()
       run: python xpk.py cluster create --cluster test-2-v4-8-nodepool --device-type=v4-8  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --spot --custom-cluster-arguments='${{ secrets.CLUSTER_ARGUMENTS }}'
     - name: Delete the cluster created
+      if: always()
       run: python xpk.py cluster delete --cluster test-2-v4-8-nodepool --zone=us-central2-b
 
 

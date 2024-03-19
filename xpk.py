@@ -120,6 +120,161 @@ spec:
                 name: dshm-2
 """
 
+pw_workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
+kind: JobSet
+metadata:
+  name: {args.workload}
+  labels:
+    kueue.x-k8s.io/queue-name: {local_queue_name}  # Name of the LocalQueue
+    xpk.google.com/workload: {args.workload}
+spec:
+  failurePolicy:
+    maxRestarts: {args.max_restarts}
+  successPolicy:
+    operator: "All"
+    targetReplicatedJobs: 
+    - "main"
+  replicatedJobs:
+  - name: worker
+    replicas: {args.num_slices}
+    template:
+      metadata:
+        annotations:
+          alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool
+        labels:
+          xpk.google.com/workload: {args.workload}
+      spec:
+        backoffLimit: 0
+        completions: {system.vms_per_slice}
+        parallelism: {system.vms_per_slice}
+        template:
+          spec:
+            containers:
+            - args:
+              {pathways_worker_args}
+              image: {args.server_image}
+              imagePullPolicy: Always
+              name: pathways-worker
+              ports:
+              - containerPort: 38677
+              - containerPort: 8471
+              - containerPort: 8080
+              resources:
+                limits:
+                  {resource_type}: {system.chips_per_vm}
+              securityContext:
+                privileged: true
+              volumeMounts:
+              - mountPath: /tmp
+                name: shared-tmp
+            nodeSelector:
+              {accelerator_label}
+              {machine_label}
+            priorityClassName: {args.priority}
+            volumes:
+            - hostPath:
+                path: /tmp
+                type: DirectoryOrCreate
+              name: shared-tmp
+  - name: rm
+    replicas: 1
+    template:
+      metadata:
+        labels:
+          xpk.google.com/workload: {args.workload}
+      spec:
+        backoffLimit: 0
+        completions: 1
+        parallelism: 1
+        template:
+          spec:
+            containers:
+            - args:
+              {pathways_rm_args}
+              env:
+              - name: REPLICATED_JOB_NAME
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.annotations['jobset.sigs.k8s.io/replicatedjob-name']
+              - name: JOBSET_NAME
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.annotations['jobset.sigs.k8s.io/jobset-name']
+              - name: HOST_ADDRESS
+                value: $(JOBSET_NAME)-$(REPLICATED_JOB_NAME)-0-0.$(JOBSET_NAME)
+              - name: TPU_SKIP_MDS_QUERY
+                value: "true"
+              image: {args.server_image}
+              imagePullPolicy: Always
+              name: pathways-rm
+              ports:
+              - containerPort: 38677
+              resources:
+                limits:
+                  cpu: "4"
+                  memory: 8G
+              securityContext:
+                privileged: true
+              volumeMounts:
+              - mountPath: /tmp
+                name: shared-tmp
+            nodeSelector:
+              cloud.google.com/gke-nodepool: cpu-rm-np
+            volumes:
+            - hostPath:
+                path: /tmp
+                type: DirectoryOrCreate
+              name: shared-tmp
+  - name: proxy
+    replicas: 1
+    template:
+      metadata:
+        labels:
+          xpk.google.com/workload: {args.workload}
+      spec:
+        backoffLimit: 0
+        completions: 1
+        parallelism: 1
+        template:
+          spec:
+            containers:
+            - args:
+              {pathways_proxy_args}
+              image: {args.proxy_server_image}
+              imagePullPolicy: Always
+              name: pathways-proxy
+              ports:
+              - containerPort: 38676
+              resources:
+                limits:
+                  cpu: "24"
+                  memory: 100G
+            nodeSelector:
+              cloud.google.com/gke-nodepool: cpu-proxy-np
+  - name: main
+    replicas: 1
+    template:
+      metadata:
+        labels:
+          xpk.google.com/workload: {args.workload}
+      spec:
+        backoffLimit: 0
+        completions: 1
+        parallelism: 1
+        template:
+          spec:
+            containers:
+              {container}
+            nodeSelector:
+              cloud.google.com/gke-nodepool: cpu-user-np
+            restartPolicy: OnFailure
+            volumes:
+            - hostPath:
+                path: /tmp
+                type: DirectoryOrCreate
+              name: shared-tmp
+"""
+
 workload_delete_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
 metadata:
@@ -148,6 +303,7 @@ spec:
     {accelerator_label}
     {machine_label}
 ---
+{pw_resource_flavors}
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: ClusterQueue
 metadata:
@@ -164,6 +320,7 @@ spec:
       resources:
       - name: "{resource_type}"
         nominalQuota: {total_chips}  # Number of slices * number of chips in each slice
+  {pw_resources_kueue}
 ---
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: LocalQueue
@@ -871,6 +1028,10 @@ def add_env_config(args):
           env[variable] = os.environ[variable]
 
   if args.debug_dump_gcs:
+    if args.use_pathways:
+      xpk_print('HLO dumps need to be taken by Pathways workers.')
+      xpk_exit(1)
+
     if 'XLA_FLAGS' in env:
       raise ValueError('Conflict: XLA_FLAGS defined in both --debug_dump_gcs '
                        'and environment file. Please choose one way to define '
@@ -1160,6 +1321,11 @@ def run_gke_cluster_create_command(args) -> int:
       ' --scopes=storage-full,gke-default'
       f' {args.custom_cluster_arguments}'
   )
+
+  if args.enable_pathways:
+    command += (' --enable-ip-alias ')
+    command += (f' --create-subnetwork name={args.cluster}-subnetwork')
+
   return_code = run_command_with_updates(command, 'GKE Cluster Create', args)
   if return_code != 0:
     xpk_print(f'GKE Cluster Create request returned ERROR {return_code}')
@@ -1427,7 +1593,7 @@ def run_gke_node_pool_create_command(args, system) -> int:
   device_type = args.tpu_type if args.tpu_type else args.device_type
   xpk_print(
       f'Creating {args.num_slices} node pool or pools of {device_type}\n'
-      f'Underlyingly, we assume that means: {system}'
+      f'We assume that the underlying system is: {system}'
   )
   existing_node_pool_names, return_code = get_all_nodepools_programmatic(args)
   if return_code > 0:
@@ -1471,6 +1637,28 @@ def run_gke_node_pool_create_command(args, system) -> int:
     commands.append(command)
     task_names.append(task)
 
+  desired_pw_cpu_node_pools = ['cpu-user-np', 'cpu-rm-np', 'cpu-proxy-np']
+  if args.enable_pathways:
+    # Pathways needs CPU nodepools in addition to TPU nodepools
+    for node_pool_name in desired_pw_cpu_node_pools:
+      if node_pool_name in existing_node_pool_names:
+        continue
+      command = (
+          'gcloud beta container node-pools create'
+          f' {node_pool_name} --node-version={args.gke_version}'
+          f' --cluster={args.cluster}'
+          f' --project={args.project} --node-locations={args.zone}'
+          f' --region={zone_to_region(args.zone)}'
+          f' --num-nodes=1'
+          f' --machine-type={args.pathways_gce_machine_type}'
+          ' --scopes=storage-full,gke-default'
+          ' --enable-autoscaling --min-nodes=1 --max-nodes=20'
+      )
+      task = f'NodepoolCreate-{node_pool_name}'
+      commands.append(command)
+      task_names.append(task)
+
+  # Deletion logic would leave behind any Pathways CPU nodepools.
   node_pools_to_delete = []
   for existing_node_pool_name in existing_node_pool_names:
     if (
@@ -1622,9 +1810,12 @@ def enable_kueue_crds(args, system) -> int:
       accelerator_label=create_accelerator_label(system.accelerator_type, system),
       machine_label=create_machine_label(system.accelerator_type, system),
       resource_type=AcceleratorTypeToAcceleratorCharacteristics[system.accelerator_type].resource_type,
+      pw_resource_flavors=add_pw_resource_flavors(args),
+      pw_resources_kueue=add_pw_resources_to_kueue(args),
       cluster_queue_name=_CLUSTER_QUEUE_NAME,
       local_queue_name=_LOCAL_QUEUE_NAME,
   )
+
   tmp = write_temporary_file(yml_string)
   command = f'kubectl apply -f {str(tmp.file.name)}'
   # For kueue setup, we see a timeout error due to the webhook not
@@ -1635,6 +1826,66 @@ def enable_kueue_crds(args, system) -> int:
     xpk_print(f'{task} returned ERROR {return_code}')
   return return_code
 
+# TODO(roshanin): Organize Pathways helpers in another file.
+
+def add_pw_resource_flavors(args):
+  """Add resource flavors required for Pathways enabled clusters.
+  """
+  resource_flavor_yaml="""apiVersion: kueue.x-k8s.io/v1beta1
+kind: ResourceFlavor
+metadata:
+  name: cpu-rm
+spec:
+  nodeLabels:
+    cloud.google.com/gke-nodepool: cpu-rm-np
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ResourceFlavor
+metadata:
+  name: cpu-proxy
+spec:
+  nodeLabels:
+    cloud.google.com/gke-nodepool: cpu-proxy-np
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ResourceFlavor
+metadata:
+  name: cpu-user
+spec:
+  nodeLabels:
+    cloud.google.com/gke-nodepool: cpu-user-np
+---"""
+  if args.enable_pathways:
+    return resource_flavor_yaml
+  return ""
+
+
+def add_pw_resources_to_kueue(args):
+  """Add resource flavors required for Pathways, to the cluster queue.
+  """
+  resources_yaml="""- coveredResources: ["cpu", "memory"]
+    flavors:
+    - name: cpu-rm
+      resources:
+      - name: "cpu"
+        nominalQuota: 80
+      - name: "memory"
+        nominalQuota: 160G
+    - name: cpu-proxy
+      resources:
+      - name: "cpu"
+        nominalQuota: 480
+      - name: "memory"
+        nominalQuota: 2000G
+    - name: cpu-user
+      resources:
+      - name: "cpu"
+        nominalQuota: 480
+      - name: "memory"
+        nominalQuota: 2000G"""
+  if args.enable_pathways:
+    return resources_yaml
+  return ""
 
 # TODO(vbarr): Remove this function when jobsets gets enabled by default on
 # GKE clusters.
@@ -1649,7 +1900,7 @@ def set_jobset_on_cluster(args) -> int:
   """
   command = (
       'kubectl apply --server-side -f'
-      ' https://github.com/kubernetes-sigs/jobset/releases/download/v0.3.2/manifests.yaml'
+      ' https://github.com/kubernetes-sigs/jobset/releases/download/v0.4.0/manifests.yaml'
   )
   task = f'Install Jobset on {args.cluster}'
   return_code = run_command_with_updates_retry(command, task, args)
@@ -2188,10 +2439,10 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
 
   yaml = """- name: {args.docker_name}
                 image: {docker_image}
-                env: {args.env}
+                {image_pull_policy}
+                env: {env}
                 ports:
-                - containerPort: 8471
-                - containerPort: 8080
+                {container_ports}
                 {jax_coordinator_port}
                 securityContext:
                   privileged: true
@@ -2202,18 +2453,179 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
                   echo XPK Start: $(date) ; _sigterm() ( kill -SIGTERM $! 2>/dev/null;); trap _sigterm SIGTERM;{gsutil_test_command}({command}) & PID=$!; while kill -0 $PID 2>/dev/null; do sleep 5; done; wait $PID; EXIT_CODE=$? ; {xpk_internal_commands} echo XPK End: $(date); echo EXIT_CODE=$EXIT_CODE; exit $EXIT_CODE
                 resources:
                   limits:
-                    {resource_type}: {system.chips_per_vm}
+                    {resources}
+                volumeMounts:
+                {pw_volume_mounts}
   """
   return yaml.format(args=args,
                    system=system,
+                   image_pull_policy=add_image_pull_policy_for_pw(args),
+                   env=get_env_container(args),
+                   container_ports=add_container_ports(args),
                    jax_coordinator_port=add_jax_coordinator_port(system),
                    docker_image=docker_image,
                    gsutil_test_command=gsutil_test_command,
                    command=command,
                    xpk_internal_commands=xpk_internal_commands,
-                   resource_type=resource_type)
+                   resources=get_main_container_resources(args, system, resource_type),
+                   pw_volume_mounts=get_pw_volume_mounts(args))
 
-def add_jax_coordinator_port(system):
+def add_image_pull_policy_for_pw(args):
+  """ Add image pull policy only for Pathways containers.
+  Args:
+    args: user provided args.
+
+  Returns:
+    str:
+      YAML stating that the image will be pulled fro GCR every time.
+  """
+  yaml="""imagePullPolicy: Always"""
+  if args.use_pathways:
+    return yaml.format(args=args)
+  return ""
+
+def get_pw_volume_mounts(args) -> str:
+  """ Resources for the main container.
+  Args:
+    args: user provided args.
+
+  Returns:
+    str:
+      YAML for the volumes mounted within a Pathways container as a YAML string.
+  """
+  volume_yaml="""- mountPath: /tmp
+                  name: shared-tmp"""
+  if args.use_pathways:
+    return volume_yaml
+  return ""
+
+def get_pathways_rm_args(args) -> str:
+  """Arguments for the Pathways resource manager.
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    str: yaml containing arguments for the Pathways resource manager.
+  """
+  yaml="""- --alsologtostderr
+              - --pathways_server_port=38677
+              - --pathways_server_provides_devices=false
+              - --pathways_device_type=NONE
+              - --pathways_persistent_compilation_cache=false
+              - --pathways_compilation_mode=compile_at_worker
+              - --pathways_tmp_dir_pattern={args.pathways_gcs_location}
+              - --pathways_resource_manager_expected_num_worker_jobs={args.num_slices}"""
+  if args.use_pathways:
+    return yaml.format(args=args)
+  else:
+    return ""
+
+def get_pathways_worker_args(args) -> str:
+  """Arguments for the Pathways workers.
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    str: yaml containing arguments for the Pathways workers.
+  """
+  yaml="""- --alsologtostderr
+              - --pathways_server_port=38677
+              - --pathways_resource_manager={args.workload}-rm-0-0.{args.workload}:38677
+              - --pathways_persistent_compilation_cache=false
+              - --pathways_compilation_mode=compile_at_worker
+              - --xla_tpu_enable_data_parallel_all_reduce_opt=true
+              - --xla_tpu_data_parallel_opt_different_sized_ops=true
+              - --xla_tpu_enable_async_collective_fusion=true
+              - --xla_tpu_enable_async_collective_fusion_fuse_all_gather=true
+              - --xla_tpu_enable_async_collective_fusion_multiple_steps=true
+              - --xla_tpu_overlap_compute_collective_tc=true
+              - --xla_enable_async_all_gather=true
+              - --pathways_tmp_dir_pattern={args.pathways_gcs_location}"""
+  if args.use_pathways:
+    return yaml.format(args=args)
+  else:
+    return ""
+
+def get_pathways_proxy_args(args) -> str:
+  """Arguments for the Pathways proxy.
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    str: yaml containing arguments for the Pathways proxy.
+  """
+  yaml="""- --alsologtostderr
+              - --v=0
+              - --pathways_ifrt_proxy_server_resource_manager={args.workload}-rm-0-0.{args.workload}:38677
+              - --pathways_ifrt_proxy_server_port=38676
+              - --pathways_tmp_dir_pattern={args.pathways_gcs_location}
+              - --pathways_xprof_trace_enable_bulk_upload=true
+              - --pathways_plaque_network=gcp"""
+  if args.use_pathways:
+    return yaml.format(args=args)
+  else:
+    return ""
+
+def get_env_container(args):
+  """ Environment configuration for the main container.
+  Args:
+    args: user provided args.
+
+  Returns:
+    str:
+      YAML with the env config for the main container, as a YAML string.
+  """
+  env_yaml="""
+                - name: XCLOUD_ENVIRONMENT
+                  value: GCP
+                - name: JAX_PLATFORMS
+                  value: proxy
+                - name: JAX_BACKEND_TARGET
+                  value: grpc://{args.workload}-proxy-0-0.{args.workload}:38676
+                - name: JOBSET_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.annotations['jobset.sigs.k8s.io/jobset-name']"""
+  if args.use_pathways:
+    return env_yaml.format(args=args)
+  return args.env
+
+def get_main_container_resources(args, system, resource_type) -> str:
+  """ Resources for the main container.
+  Args:
+    args: user provided args.
+    system: system characteristics.
+    resource_type: TPU / GPU / CPU 
+
+  Returns:
+    str:
+      Workload resources port as a YAML string
+  """
+  # Resources requirements for Pathways workload containers are known.
+  resources_yaml="""cpu: "24"
+                    memory: 100G"""
+  if args.use_pathways:
+    return resources_yaml
+  return f'{resource_type}: {system.chips_per_vm}'
+
+def add_container_ports(args) -> str:
+  """ Add slice builder and megascale container ports,
+  for non-pathways workloads.
+  
+  Args:
+    args: user provided args.
+
+  Returns:
+    str:
+      Pathways server port as a YAML string
+  """
+  port_yaml ="""- containerPort: 8471
+                - containerPort: 8080"""
+  if args.use_pathways:
+    return ''
+  return port_yaml
+
+def add_jax_coordinator_port(system) -> str:
   """Add jax coordinator port only for CPUs
 
   Args:
@@ -2225,7 +2637,7 @@ def add_jax_coordinator_port(system):
   """
   if system.accelerator_type == AcceleratorType['CPU']:
     return '- containerPort: 1234'
-  return ""
+  return ''
 
 def get_gke_dashboard(args, dashboard_filter):
   """Get the identifier of GKE dashboard deployed in the project.
@@ -2427,7 +2839,7 @@ def get_cpu_affinity(accelerator_type) -> str:
                         operator: NotIn
                         values:
                         - default-pool
-  """
+"""
   if accelerator_type == AcceleratorType['CPU']:
     return yaml
   return ""
@@ -2467,22 +2879,22 @@ def workload_create(args) -> int:
 
   if workload_exists:
     xpk_print(
-        f'{args.workload} already exist, XPK will not create this workload.'
-        ' Please pick a new workload name'
-    )
+    f'{args.workload} already exists, XPK will not create this workload.'
+    ' Please pick a new workload name'
+  )
     xpk_exit(1)
 
-  xpk_print('Starting workload create', flush=True)
+  xpk_print("Starting workload create", flush=True)
   system, return_code = get_system_characteristics(args)
 
   if return_code > 0:
-    xpk_print('Fetching system characteristics failed!')
+    xpk_print("Fetching system characteristics failed!")
     xpk_exit(return_code)
 
   if not check_if_workload_can_schedule(args, system):
     xpk_exit(1)
 
-  xpk_print('Starting workload create', flush=True)
+  xpk_print("Starting workload create", flush=True)
 
   setup_docker_image_code, docker_image = setup_docker_image(args)
   if setup_docker_image_code != 0:
@@ -2500,17 +2912,49 @@ def workload_create(args) -> int:
   else:
     container = get_main_container(args, system, docker_image, resource_type)
 
-  yml_string = workload_create_yaml.format(args=args,
-                                           system=system,
-                                           container=container,
-                                           affinity=get_cpu_affinity(system.accelerator_type),
-                                           env=get_cpu_env(args.num_slices,system),
-                                           accelerator_label=create_accelerator_label(system.accelerator_type, system),
-                                           machine_label=create_machine_label(system.accelerator_type, system),
-                                           local_queue_name=_LOCAL_QUEUE_NAME)
-  tmp = write_temporary_file(yml_string)
-  command = f'kubectl apply -f {str(tmp.file.name)}'
-  return_code = run_command_with_updates(command, 'Creating Workload', args)
+  if args.use_pathways:
+    # Ensure the cluster and CPU nodepools were created with --enable-pathways
+    all_node_pools = get_all_nodepools_programmatic(args)
+    desired_pw_cpu_node_pools = {'cpu-user-np', 'cpu-rm-np', 'cpu-proxy-np'}
+    if not desired_pw_cpu_node_pools.issubset(set(all_node_pools[0])):
+      xpk_print(
+          'Cluster needs to be created with --enable-pathways to run Pathways workloads.'
+      )
+      xpk_exit(1)
+
+    # Ensure device type is TPUs - currently Pathways supports TPUs only.
+    if system.accelerator_type != AcceleratorType['TPU']:
+      xpk_print(
+          'Currently, Pathways workloads can only be run on TPUs.'
+      )
+      xpk_exit(1)
+
+    yml_string = pw_workload_create_yaml.format(args=args,
+                                        system=system,
+                                        container=container,
+                                        accelerator_label=create_accelerator_label(system.accelerator_type, system),
+                                        machine_label=create_machine_label(system.accelerator_type, system),
+                                        pathways_rm_args = get_pathways_rm_args(args),
+                                        pathways_worker_args = get_pathways_worker_args(args),
+                                        pathways_proxy_args = get_pathways_proxy_args(args),
+                                        resource_type=resource_type,
+                                        local_queue_name=_LOCAL_QUEUE_NAME)
+    tmp = write_temporary_file(yml_string)
+    command = f'kubectl apply -f {str(tmp.file.name)}'
+    return_code = run_command_with_updates(command, 'Creating a Pathways Workload', args)
+
+  else:
+    yml_string = workload_create_yaml.format(args=args,
+                                      system=system,
+                                      container=container,
+                                      affinity=get_cpu_affinity(system.accelerator_type),
+                                      env=get_cpu_env(args.num_slices,system),
+                                      accelerator_label=create_accelerator_label(system.accelerator_type, system),
+                                      machine_label=create_machine_label(system.accelerator_type, system),
+                                      local_queue_name=_LOCAL_QUEUE_NAME)
+    tmp = write_temporary_file(yml_string)
+    command = f'kubectl apply -f {str(tmp.file.name)}'
+    return_code = run_command_with_updates(command, 'Creating Workload', args)
 
   if return_code != 0:
     xpk_print(f'Create Workload request returned ERROR {return_code}')
@@ -2521,27 +2965,34 @@ def workload_create(args) -> int:
   if system.accelerator_type == AcceleratorType['TPU']:
     outlier_dashboard_id = get_gke_outlier_dashboard(args)
 
-  xpk_print(
+  if args.use_pathways:
+    xpk_print(
+    'Follow your Pathways workload here:'
+    # pylint: disable=line-too-long
+    f' https://console.cloud.google.com/kubernetes/job/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}-main-0/details?project={args.project}'
+    )
+  else:
+    xpk_print(
       'Follow your workload here:'
       # pylint: disable=line-too-long
       f' https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
-  )
+    )
 
   if outlier_dashboard_id is not None:
     xpk_print(
-        'Check statistics and outlier mode of GKE metrics here:'
-        # pylint: disable=line-too-long
-        f' https://console.cloud.google.com/monitoring/dashboards/builder/{outlier_dashboard_id}?project={args.project}&f.rlabel.cluster_name.ClusterName={args.cluster}.'
-        f' To view the metric data for your workload, select {args.workload} from the JobName filter on the dashboard.'
-    )
+    'Check statistics and outlier mode of GKE metrics here:'
+    # pylint: disable=line-too-long
+    f' https://console.cloud.google.com/monitoring/dashboards/builder/{outlier_dashboard_id}?project={args.project}&f.rlabel.cluster_name.ClusterName={args.cluster}.'
+    f' To view the metric data for your workload, select {args.workload} from the JobName filter on the dashboard.'
+  )
 
   if debugging_dashboard_id is not None:
     xpk_print(
-        'Check stack traces collected in Cloud Logging here:'
-        # pylint: disable=line-too-long
-        f' https://console.cloud.google.com/monitoring/dashboards/builder/{debugging_dashboard_id}?project={args.project}&f.rlabel.cluster_name.ClusterName={args.cluster}.'
-        f' To view the stack traces for your workload, select {args.workload} from the JobName filter on the dashboard.'
-    )
+    'Check stack traces collected in Cloud Logging here:'
+    # pylint: disable=line-too-long
+    f' https://console.cloud.google.com/monitoring/dashboards/builder/{debugging_dashboard_id}?project={args.project}&f.rlabel.cluster_name.ClusterName={args.cluster}.'
+    f' To view the stack traces for your workload, select {args.workload} from the JobName filter on the dashboard.'
+  )
 
   xpk_exit(0)
 
@@ -3124,6 +3575,17 @@ cluster_create_optional_arguments.add_argument(
     required=True,
 )
 cluster_create_optional_arguments.add_argument(
+    '--enable-pathways',
+    action='store_true',
+    help='Enable cluster to accept Pathways workloads.',
+)
+cluster_create_optional_arguments.add_argument(
+    '--pathways-gce-machine-type',
+    type=str,
+    default="n1-standard-32",
+    help='The CPU type for Pathways CPU nodepools'
+)
+cluster_create_optional_arguments.add_argument(
   '--default-pool-cpu-machine-type',
     type=str,
     default='e2-standard-16',
@@ -3347,7 +3809,13 @@ workload_docker_image_arguments = (
         ' user wants the docker image to be used directly by the xpk workload.'
     )
 )
-
+workload_pathways_workload_arguments = (
+    workload_create_parser.add_argument_group(
+        'Pathways Image Arguments',
+        'If --use-pathways is provided, user wants to set up a'
+        'Pathways workload on xpk.'
+    )
+)
 
 ### "workload create" Required arguments
 workload_create_parser_required_arguments.add_argument(
@@ -3505,7 +3973,6 @@ workload_create_parser_optional_arguments.add_argument(
         'and forward them to Cloud Logging for TPU workloads.'
     ),
 )
-
 workload_create_parser_optional_arguments.add_argument(
     '-tgps', '--termination-grace-period-seconds',
     type=str,
@@ -3515,7 +3982,37 @@ workload_create_parser_optional_arguments.add_argument(
         'Defaults to 30 seconds.'
     ),
 )
-
+workload_pathways_workload_arguments.add_argument(
+    '--use-pathways', 
+    action='store_true',
+    help=(
+        'Provide this argument to create Pathways workloads.'
+    ),
+)
+workload_pathways_workload_arguments.add_argument(
+    '--proxy-server-image', 
+    type=str,
+    default='gcr.io/cloud-tpu-v2-images/pathways/pathways-demo:proxy_server',
+    help=(
+        'Please provide the proxy server image for Pathways.'
+    ),
+)
+workload_pathways_workload_arguments.add_argument(
+    '--server-image', 
+    type=str,
+    default='gcr.io/cloud-tpu-v2-images/pathways/pathways-demo:server',
+    help=(
+        'Please provide the server image for Pathways.'
+    ),
+)
+workload_pathways_workload_arguments.add_argument(
+    '--pathways-gcs-location', 
+    type=str,
+    default='gs://cloud-pathways-staging/tmp',
+    help=(
+        'Please provide the GCS location to store Pathways artifacts.'
+    ),
+)
 workload_create_parser.set_defaults(func=workload_create)
 
 # "workload delete" command parser.

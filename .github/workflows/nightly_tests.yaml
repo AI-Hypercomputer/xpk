@@ -22,6 +22,9 @@ on:
 jobs:
   cluster-create-and-delete:
     runs-on: [ubuntu-20.04]
+    concurrency: # We support one build test to run at a time currently.
+      group: cluster-test-group
+      cancel-in-progress: false
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-python@v5

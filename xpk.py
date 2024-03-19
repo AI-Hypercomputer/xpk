@@ -71,6 +71,9 @@ _CLUSTER_QUEUE_NAME='cluster-queue'
 _LOCAL_QUEUE_NAME='multislice-queue'
 _CLUSTER_RESOURCES_CONFIGMAP = 'resources-configmap'
 _CLUSTER_METADATA_CONFIGMAP = 'metadata-configmap'
+_XPK_SERVICE_ACCOUNT = 'xpk-sa'
+# Set to True to attach a service account to cluster & node pools
+_USE_SERVICE_ACCOUNT = False
 
 
 workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
@@ -1112,8 +1115,18 @@ def zone_to_region(zone) -> str:
   return zone_terms[0] + '-' + zone_terms[1]
 
 
-def check_if_service_account_exist(args):
-  """Check if a service account with the given name exist in the project.
+def get_service_account_name(args) -> str:
+  """Get the name for the service account.
+  Args:
+    args: user provided arguments.
+
+  Returns:
+    the name of the service account.
+  """
+  return f'{args.project}-{_XPK_SERVICE_ACCOUNT}@{args.project}.iam.gserviceaccount.com'
+
+def check_if_service_account_exists(args) -> bool:
+  """Check if a service account with the given name exists in the project.
 
   Args:
     args: user provided arguments for running the command.
@@ -1121,56 +1134,90 @@ def check_if_service_account_exist(args):
   Returns:
     True if service account exist, False otherwise.
   """
+  service_account_name = get_service_account_name(args)
   command = (
-    f'gcloud iam service-accounts describe {args.project}-xpk-sa@{args.project}.iam.gserviceaccount.com'
+    f'gcloud iam service-accounts describe {service_account_name}'
   )
   return_code = run_command_with_updates(command, 'Service Account Describe', args, verbose=False)
   if return_code != 0:
-    xpk_print(f'Service Account Describe request returned ERROR {return_code}')
+    xpk_print(f'Service Account Describe did not find the service account {service_account_name}.')
     return False
   return True
 
-def create_sevice_account(args):
+def create_service_account(args) -> int:
   """Creates a service account in the project.
 
   Args:
     args: user provided arguments for running the command.
-  """
-  service_account_exist = check_if_service_account_exist(args)
-  if service_account_exist:
-    xpk_print(f'Service Account: {args.project}-xpk-sa@{args.project}.iam.gserviceaccount.com'
-              ' already exist in the project. Will not create a new one.')
-    return
 
+  Returns:
+    0 if successful and 1 otherwise.
+  """
   command = (
-    f'gcloud iam service-accounts create {args.project}-xpk-sa \
+    f'gcloud iam service-accounts create {args.project}-{_XPK_SERVICE_ACCOUNT} \
     --description="Service Account for XPK" \
-    --display-name="{args.project}-xpk-sa"'
+    --display-name="{args.project}-{_XPK_SERVICE_ACCOUNT}"'
   )
   return_code = run_command_with_updates(command, 'Service Account Create', args)
   if return_code != 0:
     xpk_print(f'Service Account Create request returned ERROR {return_code}')
     xpk_print('Make sure you have Service Account Admin Role attached to your user.')
+    return 1
+  return 0
+
+def get_existing_roles_in_service_account(args) -> set:
+  """
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    set of IAM roles already attached to the service account.
+  """
+  roles = []
+  service_account_name = get_service_account_name(args)
+  command = (
+    f'gcloud projects get-iam-policy {args.project}'
+    f' --filter="bindings.members:{service_account_name}"'
+    ' --flatten="bindings[].members" --format="table(bindings.role)"'
+  )
+  return_code, return_value = run_command_for_value(command, 'Get IAM Roles For Service Account', args)
+  if return_code != 0:
+    xpk_print(f'Get IAM Roles For Service Account request returned ERROR {return_code}')
+  else:
+    return_value = return_value.strip()
+    roles = set(return_value.split('\n'))
+    """Format of return_value is:
+          ROLE
+          roles/storage.admin
+          roles/logging.admin
+      removing `ROLE` from the list
+    """
+    if 'ROLE' in roles:
+      roles.remove('ROLE')
+  return roles
 
 
-def add_roles_to_service_account(args):
+def add_roles_to_service_account(args) -> int:
   """Add IAM roles to service account.
 
   Args:
     args: user provided arguments for running the command.
+  
+  Returns:
+    0 if successful and 1 otherwise.
   """
-  service_account_exist = check_if_service_account_exist(args)
-  if not service_account_exist:
-    xpk_print('Will not be adding IAM roles to service account:'
-              f' {args.project}-xpk-sa@{args.project}.iam.gserviceaccount.com'
-              ' since it does not exist.')
-    return
+  service_account_name = get_service_account_name(args)
+  existing_roles = get_existing_roles_in_service_account(args)
+  xpk_print(f'IAM roles already attached to service account: {existing_roles}')
 
   for name, role in IAMRoles.items():
-    xpk_print(f'Adding {name} role to service account: {args.project}-xpk-sa@{args.project}.iam.gserviceaccount.com.')
+    if role in existing_roles:
+      continue
+
+    xpk_print(f'Adding {name} role to service account: {service_account_name}.')
     command = (
       f'gcloud projects add-iam-policy-binding {args.project} \
-      --member="serviceAccount:{args.project}-xpk-sa@{args.project}.iam.gserviceaccount.com" \
+      --member="serviceAccount:{service_account_name}" \
       --role="{role}" \
       --condition=None'
     )
@@ -1178,6 +1225,8 @@ def add_roles_to_service_account(args):
     if return_code != 0:
       xpk_print(f'Add IAM Role to Service Account request returned ERROR {return_code}')
       xpk_print('Make sure you have Project IAM Admin Role attached to your user.')
+      return 1
+  return 0
 
 
 def run_gke_cluster_create_command(args) -> int:
@@ -1213,13 +1262,19 @@ def run_gke_cluster_create_command(args) -> int:
       ' --scopes=storage-full,gke-default'
       f' {args.custom_cluster_arguments}'
   )
+  if _USE_SERVICE_ACCOUNT:
+    service_account_name = get_service_account_name(args)
+    service_account_exists = check_if_service_account_exists(args)
+    if service_account_exists:
+      command += f' --service-account={service_account_name}'
+    else:
+      xpk_print(f'Service Account: {service_account_name} does not exist in the project.'
+              ' Will attach the default service account to the cluster.')
   return_code = run_command_with_updates(command, 'GKE Cluster Create', args)
   if return_code != 0:
     xpk_print(f'GKE Cluster Create request returned ERROR {return_code}')
     return 1
 
-  create_sevice_account(args)
-  add_roles_to_service_account(args)
   return 0
 
 
@@ -1522,6 +1577,14 @@ def run_gke_node_pool_create_command(args, system) -> int:
     elif system.accelerator_type == AcceleratorType['GPU']:
       command += (' --placement-type=COMPACT ')
       command += f' --accelerator type={system.gke_accelerator},count={str(system.chips_per_vm)}'
+    if _USE_SERVICE_ACCOUNT:
+      service_account_name = get_service_account_name(args)
+      service_account_exists = check_if_service_account_exists(args)
+      if service_account_exists:
+        command += f' --service-account={service_account_name}'
+      else:
+        xpk_print(f'Service Account: {service_account_name} does not exist in the project.'
+                ' Will attach the default service account to the node pools.')
     task = f'NodepoolCreate-{node_pool_name}'
     commands.append(command)
     task_names.append(task)
@@ -1772,6 +1835,23 @@ def cluster_create(args) -> int:
 
   xpk_print(f'Starting cluster create for cluster {args.cluster}:', flush=True)
   add_zone_and_project(args)
+
+  if _USE_SERVICE_ACCOUNT:
+    service_account_name = get_service_account_name(args)
+    service_account_exists = check_if_service_account_exists(args)
+    if service_account_exists:
+      xpk_print(f'Service Account: {service_account_name} already exist in the project.'
+            ' Will not create a new service account.')
+    else:
+      # create a service account in the project
+      create_service_account_code = create_service_account(args)
+      if create_service_account_code != 0:
+        xpk_exit(create_service_account_code)
+
+    # add IAM roles to the service account
+    add_roles_to_service_account_code = add_roles_to_service_account(args)
+    if add_roles_to_service_account_code != 0:
+      xpk_exit(add_roles_to_service_account_code)
 
   create_cluster_command_code = create_cluster_if_necessary(args)
   if create_cluster_command_code != 0:

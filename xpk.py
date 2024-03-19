@@ -41,7 +41,6 @@ import subprocess
 import sys
 import tempfile
 import time
-import xpk_helpers.pathways_xpk_helpers as pw
 from dataclasses import dataclass
 
 ################### Compatibility Check ###################
@@ -240,7 +239,7 @@ spec:
           spec:
             containers:
             - args:
-              {proxy_args}
+              {pathways_proxy_args}
               image: {args.proxy_server_image}
               imagePullPolicy: Always
               name: pathways-proxy
@@ -304,30 +303,7 @@ spec:
     {accelerator_label}
     {machine_label}
 ---
-apiVersion: kueue.x-k8s.io/v1beta1
-kind: ResourceFlavor
-metadata:
-  name: cpu-rm
-spec:
-  nodeLabels:
-    cloud.google.com/gke-nodepool: cpu-rm-np
----
-apiVersion: kueue.x-k8s.io/v1beta1
-kind: ResourceFlavor
-metadata:
-  name: cpu-proxy
-spec:
-  nodeLabels:
-    cloud.google.com/gke-nodepool: cpu-proxy-np
----
-apiVersion: kueue.x-k8s.io/v1beta1
-kind: ResourceFlavor
-metadata:
-  name: cpu-user
-spec:
-  nodeLabels:
-    cloud.google.com/gke-nodepool: cpu-user-np
----
+{pw_resource_flavors}
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: ClusterQueue
 metadata:
@@ -344,26 +320,7 @@ spec:
       resources:
       - name: "{resource_type}"
         nominalQuota: {total_chips}  # Number of slices * number of chips in each slice
-  - coveredResources: ["cpu", "memory"]    
-    flavors:
-    - name: cpu-rm
-      resources:
-      - name: "cpu"
-        nominalQuota: 80
-      - name: "memory"
-        nominalQuota: 160G
-    - name: cpu-proxy
-      resources:
-      - name: "cpu"
-        nominalQuota: 480
-      - name: "memory"
-        nominalQuota: 2000G
-    - name: cpu-user
-      resources:
-      - name: "cpu"
-        nominalQuota: 480
-      - name: "memory"
-        nominalQuota: 2000G
+  {pw_resources_kueue}
 ---
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: LocalQueue
@@ -1071,6 +1028,10 @@ def add_env_config(args):
           env[variable] = os.environ[variable]
 
   if args.debug_dump_gcs:
+    if args.use_pathways:
+      xpk_print('HLO dumps need to be taken by Pathways workers.')
+      xpk_exit(1)
+
     if 'XLA_FLAGS' in env:
       raise ValueError('Conflict: XLA_FLAGS defined in both --debug_dump_gcs '
                        'and environment file. Please choose one way to define '
@@ -1849,6 +1810,8 @@ def enable_kueue_crds(args, system) -> int:
       accelerator_label=create_accelerator_label(system.accelerator_type, system),
       machine_label=create_machine_label(system.accelerator_type, system),
       resource_type=AcceleratorTypeToAcceleratorCharacteristics[system.accelerator_type].resource_type,
+      pw_resource_flavors=add_pw_resource_flavors(args),
+      pw_resources_kueue=add_pw_resources_to_kueue(args),
       cluster_queue_name=_CLUSTER_QUEUE_NAME,
       local_queue_name=_LOCAL_QUEUE_NAME,
   )
@@ -1863,6 +1826,66 @@ def enable_kueue_crds(args, system) -> int:
     xpk_print(f'{task} returned ERROR {return_code}')
   return return_code
 
+# TODO(roshanin): Organize Pathways helpers in another file.
+
+def add_pw_resource_flavors(args):
+  """Add resource flavors required for Pathways enabled clusters.
+  """
+  resource_flavor_yaml="""apiVersion: kueue.x-k8s.io/v1beta1
+kind: ResourceFlavor
+metadata:
+  name: cpu-rm
+spec:
+  nodeLabels:
+    cloud.google.com/gke-nodepool: cpu-rm-np
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ResourceFlavor
+metadata:
+  name: cpu-proxy
+spec:
+  nodeLabels:
+    cloud.google.com/gke-nodepool: cpu-proxy-np
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ResourceFlavor
+metadata:
+  name: cpu-user
+spec:
+  nodeLabels:
+    cloud.google.com/gke-nodepool: cpu-user-np
+---"""
+  if args.enable_pathways:
+    return resource_flavor_yaml
+  return ""
+
+
+def add_pw_resources_to_kueue(args):
+  """Add resource flavors required for Pathways, to the cluster queue.
+  """
+  resources_yaml="""- coveredResources: ["cpu", "memory"]
+    flavors:
+    - name: cpu-rm
+      resources:
+      - name: "cpu"
+        nominalQuota: 80
+      - name: "memory"
+        nominalQuota: 160G
+    - name: cpu-proxy
+      resources:
+      - name: "cpu"
+        nominalQuota: 480
+      - name: "memory"
+        nominalQuota: 2000G
+    - name: cpu-user
+      resources:
+      - name: "cpu"
+        nominalQuota: 480
+      - name: "memory"
+        nominalQuota: 2000G"""
+  if args.enable_pathways:
+    return resources_yaml
+  return ""
 
 # TODO(vbarr): Remove this function when jobsets gets enabled by default on
 # GKE clusters.
@@ -2436,7 +2459,7 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
   """
   return yaml.format(args=args,
                    system=system,
-                   image_pull_policy=pw.add_image_pull_policy_for_pw(args),
+                   image_pull_policy=add_image_pull_policy_for_pw(args),
                    env=get_env_container(args),
                    container_ports=add_container_ports(args),
                    jax_coordinator_port=add_jax_coordinator_port(system),
@@ -2445,7 +2468,103 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
                    command=command,
                    xpk_internal_commands=xpk_internal_commands,
                    resources=get_main_container_resources(args, system, resource_type),
-                   pw_volume_mounts=pw.get_pw_volume_mounts(args))
+                   pw_volume_mounts=get_pw_volume_mounts(args))
+
+def add_image_pull_policy_for_pw(args):
+  """ Add image pull policy only for Pathways containers.
+  Args:
+    args: user provided args.
+
+  Returns:
+    str:
+      YAML stating that the image will be pulled fro GCR every time.
+  """
+  yaml="""imagePullPolicy: Always"""
+  if args.use_pathways:
+    return yaml.format(args=args)
+  return ""
+
+def get_pw_volume_mounts(args) -> str:
+  """ Resources for the main container.
+  Args:
+    args: user provided args.
+
+  Returns:
+    str:
+      YAML for the volumes mounted within a Pathways container as a YAML string.
+  """
+  volume_yaml="""- mountPath: /tmp
+                  name: shared-tmp"""
+  if args.use_pathways:
+    return volume_yaml
+  return ""
+
+def get_pathways_rm_args(args) -> str:
+  """Arguments for the Pathways resource manager.
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    str: yaml containing arguments for the Pathways resource manager.
+  """
+  yaml="""- --alsologtostderr
+              - --pathways_server_port=38677
+              - --pathways_server_provides_devices=false
+              - --pathways_device_type=NONE
+              - --pathways_persistent_compilation_cache=false
+              - --pathways_compilation_mode=compile_at_worker
+              - --pathways_tmp_dir_pattern={args.pathways_gcs_location}
+              - --pathways_resource_manager_expected_num_worker_jobs={args.num_slices}"""
+  if args.use_pathways:
+    return yaml.format(args=args)
+  else:
+    return ""
+
+def get_pathways_worker_args(args) -> str:
+  """Arguments for the Pathways workers.
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    str: yaml containing arguments for the Pathways workers.
+  """
+  yaml="""- --alsologtostderr
+              - --pathways_server_port=38677
+              - --pathways_resource_manager={args.workload}-rm-0-0.{args.workload}:38677
+              - --pathways_persistent_compilation_cache=false
+              - --pathways_compilation_mode=compile_at_worker
+              - --xla_tpu_enable_data_parallel_all_reduce_opt=true
+              - --xla_tpu_data_parallel_opt_different_sized_ops=true
+              - --xla_tpu_enable_async_collective_fusion=true
+              - --xla_tpu_enable_async_collective_fusion_fuse_all_gather=true
+              - --xla_tpu_enable_async_collective_fusion_multiple_steps=true
+              - --xla_tpu_overlap_compute_collective_tc=true
+              - --xla_enable_async_all_gather=true
+              - --pathways_tmp_dir_pattern={args.pathways_gcs_location}"""
+  if args.use_pathways:
+    return yaml.format(args=args)
+  else:
+    return ""
+
+def get_pathways_proxy_args(args) -> str:
+  """Arguments for the Pathways proxy.
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    str: yaml containing arguments for the Pathways proxy.
+  """
+  yaml="""- --alsologtostderr
+              - --v=0
+              - --pathways_ifrt_proxy_server_resource_manager={args.workload}-rm-0-0.{args.workload}:38677
+              - --pathways_ifrt_proxy_server_port=38676
+              - --pathways_tmp_dir_pattern={args.pathways_gcs_location}
+              - --pathways_xprof_trace_enable_bulk_upload=true
+              - --pathways_plaque_network=gcp"""
+  if args.use_pathways:
+    return yaml.format(args=args)
+  else:
+    return ""
 
 def get_env_container(args):
   """ Environment configuration for the main container.
@@ -2815,9 +2934,9 @@ def workload_create(args) -> int:
                                         container=container,
                                         accelerator_label=create_accelerator_label(system.accelerator_type, system),
                                         machine_label=create_machine_label(system.accelerator_type, system),
-                                        pathways_rm_args = pw.get_pathways_rm_args(args),
-                                        pathways_worker_args = pw.get_pathways_worker_args(args),
-                                        proxy_args = pw.get_proxy_args(args),
+                                        pathways_rm_args = get_pathways_rm_args(args),
+                                        pathways_worker_args = get_pathways_worker_args(args),
+                                        pathways_proxy_args = get_pathways_proxy_args(args),
                                         resource_type=resource_type,
                                         local_queue_name=_LOCAL_QUEUE_NAME)
     tmp = write_temporary_file(yml_string)

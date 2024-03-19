@@ -161,7 +161,6 @@ all zones.
     --num-slices=6  --reservation=$RESERVATION_ID
 
     ```
-
 ## Cluster Delete
 *   Cluster Delete (deprovision capacity):
 

@@ -962,7 +962,7 @@ def run_command_for_value(
     return 0, str(output, 'UTF-8')
 
 
-def run_command_with_updates_retry(command, task, args, verbose=True, num_retry_attempts=5, wait_seconds=5) -> int:
+def run_command_with_updates_retry(command, task, args, verbose=True, num_retry_attempts=5, wait_seconds=10) -> int:
   """Generic run commands function with updates and retry logic.
 
   Args:
@@ -1592,7 +1592,7 @@ def install_kueue_on_cluster(args) -> int:
   """
   command = (
       'kubectl apply --server-side --force-conflicts -f'
-      ' https://github.com/kubernetes-sigs/kueue/releases/download/v0.6.0/manifests.yaml'
+      ' https://github.com/kubernetes-sigs/kueue/releases/download/v0.6.1/manifests.yaml'
   )
   task = 'Set Kueue On Cluster'
   return_code = run_command_with_updates_retry(command, task, args)

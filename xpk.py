@@ -1101,16 +1101,12 @@ def add_env_config(args):
                        'XLA_FLAGS.')
     env['XLA_FLAGS'] = '--xla_dump_to=/tmp/xla_dump/'
 
-  if device_type == h100_device_type:
-    env_format = '''
-                  - name: {key}
-                    value: "{value}"'''
-  else:
-    env_format = '''
+
+  env_format = '''
                 - name: {key}
                   value: "{value}"'''
-  args.env = ''.join(env_format.format(key=k, value=v) for k, v in env.items())
 
+  args.env = ''.join(env_format.format(key=k, value=v) for k, v in env.items())
 
 def write_temporary_file(payload):
   """Writes `payload` to a temporary file.
@@ -1431,6 +1427,8 @@ def create_cluster_network(args, index) -> int:
     if return_code != 0:
       xpk_print(f'Create Cluster Network request returned ERROR {return_code}')
       return 1
+  else:
+    xpk_print(f'Reusing existing network {network_name}')
 
   return 0
 
@@ -1464,6 +1462,8 @@ def create_cluster_subnet(args, index) -> int:
     if return_code != 0:
       xpk_print(f'Create Cluster Subnet request returned ERROR {return_code}')
       return 1
+    else:
+      xpk_print(f'Reusing existing subnet {subnet_name}')
 
   return 0
 
@@ -1497,7 +1497,8 @@ def create_cluster_firewall_rule(args, index) -> int:
     if return_code != 0:
       xpk_print(f'Create Cluster Firewall Rule request returned ERROR {return_code}')
       return 1
-
+  else:
+    xpk_print(f'Reusing existing firewall rule {firewall_rule_name}')
   return 0
 
 
@@ -1881,7 +1882,7 @@ def run_gke_node_pool_create_command(args, system) -> int:
         f' --additional-node-network network={args.cluster}-net-4,subnetwork={args.cluster}-sub-4'
         ' --no-enable-autoupgrade  --scopes="https://www.googleapis.com/auth/cloud-platform"'
         )
-    else: # other gpu types
+    elif system.accelerator_type == AcceleratorType['GPU']: # other gpu types
       command += (' --placement-type=COMPACT  --max-pods-per-node 15')
       command += f' --accelerator type={system.gke_accelerator},count={str(system.chips_per_vm)}'
     task = f'NodepoolCreate-{node_pool_name}'
@@ -3041,19 +3042,14 @@ def workload_create(args) -> int:
     xpk_exit(setup_docker_image_code)
 
   add_env_config(args)
-  command = args.command
-  if args.debug_dump_gcs:
-    command += ('; WORKER_ID=$HOSTNAME;'
-                f'gsutil cp -r /tmp/xla_dump/ {args.debug_dump_gcs}/$WORKER_ID')
 
   debugging_dashboard_id = None
   resource_type = AcceleratorTypeToAcceleratorCharacteristics[system.accelerator_type].resource_type
 
-  device_type = args.tpu_type if args.tpu_type else args.device_type
-  if device_type == h100_device_type:
+  if system.device_type == h100_device_type:
     yml_string = gpu_workload_create_yaml.format(args=args,
                                                  docker_image=docker_image,
-                                                 command=command,
+                                                 command=args.command,
                                                  accelerator_label=create_accelerator_label(system.accelerator_type, system),
                                                  machine_label=create_machine_label(system.accelerator_type, system),
                                                  node_pool_name=f'{args.cluster}-np-0',

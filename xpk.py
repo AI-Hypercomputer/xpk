@@ -4231,7 +4231,7 @@ cluster_create_optional_arguments.add_argument(
     type=int,
     default=2,
     help='The number of nodes for a cluster, defaults to 2.',
-    required=True,
+    required=False,
 )
 cluster_create_optional_arguments.add_argument(
     '--enable-pathways',

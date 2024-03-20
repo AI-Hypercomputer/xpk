@@ -530,9 +530,9 @@ UserFacingNameToSystemCharacteristics = {
     'a100-40gb-8': SystemCharacteristics(
       'N/A', 1, 'nvidia-tesla-a100', 'a2-highgpu-8g', 8, AcceleratorType['GPU'], 'a100-40gb-8'
     ),
-    # H100-80gb-$CHIPS
+     # H100-80gb-$CHIPS
     'h100-80gb-8': SystemCharacteristics(
-      'N/A', 1, 'nvidia-h100-80gb', 'a3-highgpu-8g', 8, AcceleratorType['GPU'], 'h100-80gb-8'
+      'N/A', 20, 'nvidia-h100-80gb', 'a3-highgpu-8g', 8, AcceleratorType['GPU'], 'h100-80gb-8'
     ),
 
     # TPU system characteristics
@@ -1845,12 +1845,10 @@ def run_gke_node_pool_create_command(args, system) -> int:
       f'Underlyingly, we assume that means: {system}'
   )
 
-  if system.device_type == h100_device_type:
-    desired_node_pool_names = [f'{args.cluster}-np-0']
-  else:
-    desired_node_pool_names = [
-      f'{args.cluster}-np-{slice_num}' for slice_num in range(args.num_slices)
-    ]
+
+  desired_node_pool_names = [
+    f'{args.cluster}-np-{slice_num}' for slice_num in range(args.num_slices)
+  ]
 
   for node_pool_name in desired_node_pool_names:
     if node_pool_name in existing_node_pool_names:
@@ -1863,18 +1861,17 @@ def run_gke_node_pool_create_command(args, system) -> int:
         f' --project={args.project} --node-locations={args.zone}'
         f' --machine-type={system.gce_machine_type}'
         f' --host-maintenance-interval={args.host_maintenance_interval}'
+        f' --num-nodes={system.vms_per_slice}'
         f' {capacity_args}'
         ' --enable-gvnic'
     )
     if system.accelerator_type == AcceleratorType['TPU']:
       command += (f' --node-version={args.gke_version}')
-      command += (f' --num-nodes={system.vms_per_slice}')
       command += (' --placement-type=COMPACT  --max-pods-per-node 15')
       command += (' --scopes=storage-full,gke-default')
       command += (f' --tpu-topology={system.topology}')
       command += (f' {args.custom_tpu_nodepool_arguments}')
     elif system.device_type == h100_device_type:
-      command += (f' --num-nodes={args.num_slices}')
       command += (f' --accelerator type={system.gke_accelerator},count={str(system.chips_per_vm)}'
         f' --additional-node-network network={args.cluster}-net-1,subnetwork={args.cluster}-sub-1'
         f' --additional-node-network network={args.cluster}-net-2,subnetwork={args.cluster}-sub-2'

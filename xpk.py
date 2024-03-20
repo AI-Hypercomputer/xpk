@@ -4104,19 +4104,6 @@ workload_delete_parser_required_arguments.add_argument(
 
 workload_delete_device_group = workload_delete_parser_required_arguments.add_mutually_exclusive_group(required=True)
 
-workload_delete_device_group.add_argument(
-    '--tpu-type',
-    type=str,
-    default=None,
-    help='The tpu type to use, v5litepod-16, etc.'
-)
-workload_delete_device_group.add_argument(
-    '--device-type',
-    type=str,
-    default=None,
-    help='The device type to use (can be tpu or gpu or cpu), v5litepod-16, h100-80gb-8, n2-standard-32-4 etc.'
-)
-
 ### "workload delete" Optional arguments
 
 workload_delete_parser_optional_arguments.add_argument(

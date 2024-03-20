@@ -447,7 +447,7 @@ In order to use XPK for GPU, you can do so by using `device-type` flag.
 
     ```shell
     python3 xpk.py workload delete \
-    --cluster xpk-test --filter-by-job=$USER --device-type=h100-80gb-8
+    --cluster xpk-test --filter-by-job=$USER
     ```
 
     This will delete all the workloads in `xpk-test` cluster whose names start with `$USER`. Deletion will only begin if you type `y` or `yes` at the prompt.
@@ -456,7 +456,7 @@ In order to use XPK for GPU, you can do so by using `device-type` flag.
 
     ```shell
     python3 xpk.py workload delete \
-    --cluster xpk-test --filter-by-status=QUEUED --device-type=h100-80gb-8
+    --cluster xpk-test --filter-by-status=QUEUED
     ```
     
     This will delete all the workloads in `xpk-test` cluster that have the status as Admitted or Evicted, and the number of running VMs is 0. Deletion will only begin if you type `y` or `yes` at the prompt. Status can be: `EVERYTHING`,`FINISHED`, `RUNNING`, `QUEUED`, `FAILED`, `SUCCESSFUL`.

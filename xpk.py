@@ -1450,7 +1450,7 @@ def run_gke_cluster_create_command(args) -> int:
       ' --scopes=storage-full,gke-default'
       f' {args.custom_cluster_arguments}'
   )
-  
+
   if _SERVICE_ACCOUNT_FEATURE_FLAG:
     service_account_name = get_service_account_name(args)
     service_account_exists = check_if_service_account_exists(args)

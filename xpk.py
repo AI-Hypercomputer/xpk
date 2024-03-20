@@ -266,14 +266,6 @@ spec:
                     nvidia.com/gpu: {chips_per_vm}
 """
 
-workload_delete_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
-kind: JobSet
-metadata:
-  name: {args.workload}
-  annotations:
-    alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool # 1:1 job replica to node pool assignment
-"""
-
 script_dir_dockerfile = """FROM {base_docker_image}
 
 # Set the working directory in the container
@@ -3159,13 +3151,7 @@ def workload_delete(args) -> int:
     task_names = []
     for workload in workloads:
       args.workload = workload
-      yml_string = workload_delete_yaml.format(args=args)
-      tmp = write_temporary_file(yml_string)
-      device_type = args.tpu_type if args.tpu_type else args.device_type
-      if device_type == h100_device_type:
-        command = f'kubectl delete jobset {workload} -n default'
-      else:
-        command = f'kubectl delete -f {str(tmp.file.name)}'
+      command = f'kubectl delete jobset {workload} -n default'
       task_name = f'WorkloadDelete-{workload}'
       commands.append(command)
       task_names.append(task_name)

@@ -270,7 +270,8 @@ workload_delete_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
 metadata:
   name: {args.workload}
-  {annotation_config}
+  annotations:
+    alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool # 1:1 job replica to node pool assignment
 """
 
 script_dir_dockerfile = """FROM {base_docker_image}
@@ -1078,7 +1079,8 @@ def add_env_config(args):
     args: user provided arguments for running the command.
   """
   device_type = args.tpu_type if args.tpu_type else args.device_type
-  env = {} if device_type == h100_device_type else {'JOBSET_NAME': args.workload}
+  env = {'JOBSET_NAME': args.workload}
+
   if args.env_file:
     print('Setting container environment from', args.env_file)
     pat = re.compile(r'(^[a-zA-Z_][a-zA-Z0-9_]*?)(?:=(.*))$', re.M)
@@ -3156,9 +3158,13 @@ def workload_delete(args) -> int:
     task_names = []
     for workload in workloads:
       args.workload = workload
-      yml_string = get_workload_delete_config(args=args)
+      yml_string = workload_delete_yaml.format(args=args)
       tmp = write_temporary_file(yml_string)
-      command = f'kubectl delete -f {str(tmp.file.name)}'
+      device_type = args.tpu_type if args.tpu_type else args.device_type
+      if device_type == h100_device_type:
+        command = f'kubectl delete jobset {workload} -n default'
+      else:
+        command = f'kubectl delete -f {str(tmp.file.name)}'
       task_name = f'WorkloadDelete-{workload}'
       commands.append(command)
       task_names.append(task_name)
@@ -3173,25 +3179,6 @@ def workload_delete(args) -> int:
       xpk_print(f'Delete Workload request returned ERROR {return_code}')
       xpk_exit(return_code)
   xpk_exit(0)
-
-
-def get_workload_delete_config(args) -> str:
-  """Gets workload delete configuration.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    A string of workload delete configuration.
-  """
-  device_type = args.tpu_type if args.tpu_type else args.device_type
-  if device_type == h100_device_type:
-    annotation_config = ''
-  else:
-    annotation_config = '''
-  annotations:
-    alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool # 1:1 job replica to node pool assignment'''
-  return workload_delete_yaml.format(args=args, annotation_config=annotation_config)
 
 
 def workload_list_awk_command(filter_key) -> str:

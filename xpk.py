@@ -132,8 +132,8 @@ spec:
       replicas: 1
       template:
         spec:
-          parallelism: {args.num_slices}
-          completions: {args.num_slices}
+          parallelism: {args.num_nodes}
+          completions: {args.num_nodes}
           backoffLimit: 0   # When any pod fails, the job is failed
           template:
             metadata:
@@ -197,7 +197,7 @@ spec:
                 - "-c"
                 - |
                   /tcpgpudmarxd/build/app/tcpgpudmarxd --gpu_nic_preset a3vm --gpu_shmem_type fd --setup_param "--verbose 128 2 0" &
-                  while [ ! -e "/usr/share/maxtext/workload_terminated" ]; do sleep 10; echo "sleeping"; done
+                  while [ ! -e "/usr/share/workload/workload_terminated" ]; do sleep 10; echo "sleeping"; done
                 securityContext:
                   privileged: true
                 volumeMounts:
@@ -206,7 +206,7 @@ spec:
                 - name: tcpd-socket
                   mountPath: /tmp
                 - name: workload-terminated-volume
-                  mountPath: /usr/share/maxtext
+                  mountPath: /usr/share/workload
                 env:
                 - name: LD_LIBRARY_PATH
                   value: /usr/local/nvidia/lib64
@@ -229,7 +229,7 @@ spec:
                   - name: JAX_COORDINATOR_ADDRESS
                     value: "$(JOBSET_NAME)-$(REPLICATED_JOB_NAME)-0-0.$(JOBSET_NAME)"
                   - name: NNODES
-                    value: "{args.num_slices}"
+                    value: "{args.num_nodes}"
                   - name: NODE_RANK
                     valueFrom:
                       fieldRef:
@@ -249,7 +249,7 @@ spec:
                   - "bash"
                   - "-c"
                   - |
-                    echo XPK Start: $(date) ; _sigterm() ( kill -SIGTERM $!;); trap _sigterm SIGTERM; (cd /deps && bash gpu_multi_process_run.sh) & PID=$!; while kill -0 $PID 2>/dev/null; do sleep 5; done; EXIT_CODE=$? ; echo XPK End: $(date); echo EXIT_CODE=$EXIT_CODE; echo Main app is done > /usr/share/maxtext/workload_terminated
+                    echo XPK Start: $(date) ; _sigterm() ( kill -SIGTERM $!;); trap _sigterm SIGTERM; (cd /deps && bash gpu_multi_process_run.sh) & PID=$!; while kill -0 $PID 2>/dev/null; do sleep 5; done; EXIT_CODE=$? ; echo XPK End: $(date); echo EXIT_CODE=$EXIT_CODE; echo Main app is done > /usr/share/workload/workload_terminated
                 volumeMounts:
                   - name: nvidia-install-dir-host
                     mountPath: /usr/local/nvidia/lib64
@@ -260,7 +260,7 @@ spec:
                   - name: shared-memory
                     mountPath: /dev/shm
                   - name: workload-terminated-volume
-                    mountPath: /usr/share/maxtext
+                    mountPath: /usr/share/workload
                 resources:
                   limits:
                     nvidia.com/gpu: {chips_per_vm}
@@ -532,7 +532,7 @@ UserFacingNameToSystemCharacteristics = {
     ),
      # H100-80gb-$CHIPS
     'h100-80gb-8': SystemCharacteristics(
-      'N/A', 20, 'nvidia-h100-80gb', 'a3-highgpu-8g', 8, AcceleratorType['GPU'], 'h100-80gb-8'
+      'N/A', 1, 'nvidia-h100-80gb', 'a3-highgpu-8g', 8, AcceleratorType['GPU'], 'h100-80gb-8'
     ),
 
     # TPU system characteristics
@@ -1534,7 +1534,10 @@ def create_cluster_configmap(args, system) -> int:
     0 if successful and 1 otherwise.
   """
   device_type = args.tpu_type if args.tpu_type else args.device_type
-  data = f'{device_type}: "{int(args.num_slices) * system.vms_per_slice}"'
+  if device_type == h100_device_type:
+    data = f'{device_type}: "{1 * int(args.num_nodes)}"'
+  else: 
+    data = f'{device_type}: "{int(args.num_slices) * system.vms_per_slice}"'
   yml_string = cluster_configmap_yaml.format(args=args,
                                            data=data)
   tmp = write_temporary_file(yml_string)
@@ -1840,15 +1843,20 @@ def run_gke_node_pool_create_command(args, system) -> int:
   commands = []
   task_names = []
 
-  xpk_print(
+  if system.device_type == h100_device_type:
+    xpk_print(
+      f'Creating 1 node pool with {args.num_nodes} nodes of {system.device_type}\n'
+      f'Underlyingly, we assume that means: {system}'
+    )
+    desired_node_pool_names = [f'{args.cluster}-np-0']
+  else:
+    xpk_print(
       f'Creating {args.num_slices} node pool or pools of {system.device_type}\n'
       f'Underlyingly, we assume that means: {system}'
-  )
-
-
-  desired_node_pool_names = [
-    f'{args.cluster}-np-{slice_num}' for slice_num in range(args.num_slices)
-  ]
+    )
+    desired_node_pool_names = [
+      f'{args.cluster}-np-{slice_num}' for slice_num in range(args.num_slices)
+    ]
 
   for node_pool_name in desired_node_pool_names:
     if node_pool_name in existing_node_pool_names:
@@ -1861,17 +1869,18 @@ def run_gke_node_pool_create_command(args, system) -> int:
         f' --project={args.project} --node-locations={args.zone}'
         f' --machine-type={system.gce_machine_type}'
         f' --host-maintenance-interval={args.host_maintenance_interval}'
-        f' --num-nodes={system.vms_per_slice}'
         f' {capacity_args}'
         ' --enable-gvnic'
     )
     if system.accelerator_type == AcceleratorType['TPU']:
       command += (f' --node-version={args.gke_version}')
+      command += (f' --num-nodes={system.vms_per_slice}')
       command += (' --placement-type=COMPACT  --max-pods-per-node 15')
       command += (' --scopes=storage-full,gke-default')
       command += (f' --tpu-topology={system.topology}')
       command += (f' {args.custom_tpu_nodepool_arguments}')
     elif system.device_type == h100_device_type:
+      command += (f' --num-nodes={args.num_nodes}')
       command += (f' --accelerator type={system.gke_accelerator},count={str(system.chips_per_vm)}'
         f' --additional-node-network network={args.cluster}-net-1,subnetwork={args.cluster}-sub-1'
         f' --additional-node-network network={args.cluster}-net-2,subnetwork={args.cluster}-sub-2'
@@ -2036,7 +2045,10 @@ def enable_kueue_crds(args, system) -> int:
   device_type = args.tpu_type if args.tpu_type else args.device_type
   cluster_hardware_name = f'{args.num_slices}x{device_type}'
   resource_type=AcceleratorTypeToAcceleratorCharacteristics[system.accelerator_type].resource_type
-  total_chips = args.num_slices * system.vms_per_slice * system.chips_per_vm
+  if system.device_type == h100_device_type:
+    total_chips = args.num_nodes * system.chips_per_vm
+  else:
+    total_chips = args.num_slices * system.vms_per_slice * system.chips_per_vm
   covered_resources_config = get_kueue_covered_resources_config(
     args=args,
     cluster_hardware_name=cluster_hardware_name,
@@ -2091,7 +2103,7 @@ def get_kueue_covered_resources_config(args, cluster_hardware_name, resource_typ
     - name: {cluster_hardware_name}
       resources:
       - name: "cpu"
-        nominalQuota: {num_slices}
+        nominalQuota: {num_nodes}
       - name: "memory"
         nominalQuota: 150Mi
       - name: "{resource_type}"
@@ -2100,7 +2112,7 @@ def get_kueue_covered_resources_config(args, cluster_hardware_name, resource_typ
       cluster_hardware_name=cluster_hardware_name,
       resource_type=resource_type,
       total_chips=total_chips,
-      num_slices=args.num_slices)
+      num_nodes=args.num_nodes)
   else:
     config_format = '''
   - coveredResources: ["{resource_type}"]
@@ -2605,7 +2617,10 @@ def check_if_workload_can_schedule(args, system):
     return False
 
   max_vm_in_cluster = cluster_config_map[device_type]
-  vm_required_by_workload = int(args.num_slices) * system.vms_per_slice
+  if system.device_type == h100_device_type:
+    vm_required_by_workload = int(args.num_nodes)
+  else:
+    vm_required_by_workload = int(args.num_slices) * system.vms_per_slice
   if vm_required_by_workload > max_vm_in_cluster:
     xpk_print(
         f'{args.workload} is requesting {args.num_slices} slice/slices of {device_type}, '
@@ -2919,6 +2934,7 @@ def calculate_process_count(num_slices, vms_per_slice) -> str:
     str: total number of processes.
   """
   num_processes = int(num_slices) * int(vms_per_slice)
+
   return f"{num_processes}"
 
 def get_cpu_env(num_slices, system) -> str:
@@ -3676,6 +3692,13 @@ cluster_create_optional_arguments.add_argument(
     type=int,
     default=1,
     help='The number of slices to run the job on, defaults to 1.',
+    required=False,
+)
+cluster_create_optional_arguments.add_argument(
+    '--num-nodes',
+    type=int,
+    default=2,
+    help='The number of nodes for a cluster, defaults to 2.',
     required=True,
 )
 cluster_create_optional_arguments.add_argument(
@@ -3996,6 +4019,12 @@ workload_create_parser_optional_arguments.add_argument(
     help='The number of slices to use, default=1.',
 )
 workload_create_parser_optional_arguments.add_argument(
+    '--num-nodes',
+    type=str,
+    default=1,
+    help='The number of nodes to use, default=1.',
+)
+workload_create_parser_optional_arguments.add_argument(
     '--env-file',
     type=str,
     default=None,
@@ -4098,11 +4127,7 @@ workload_delete_parser_required_arguments.add_argument(
     help='The name of the cluster to delete the job on.',
     required=True,
 )
-
-workload_delete_device_group = workload_delete_parser_required_arguments.add_mutually_exclusive_group(required=True)
-
 ### "workload delete" Optional arguments
-
 workload_delete_parser_optional_arguments.add_argument(
     '--workload',
     type=workload_name_type,

@@ -1105,6 +1105,7 @@ def add_env_config(args):
 
 
   if device_type == h100_device_type:
+    # For H100, it has two more spaces ahead of name and value respectively
     env_format = '''
                   - name: {key}
                     value: "{value}"'''

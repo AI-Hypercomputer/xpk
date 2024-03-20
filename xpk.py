@@ -1102,7 +1102,12 @@ def add_env_config(args):
     env['XLA_FLAGS'] = '--xla_dump_to=/tmp/xla_dump/'
 
 
-  env_format = '''
+  if device_type == h100_device_type:
+    env_format = '''
+                  - name: {key}
+                    value: "{value}"'''
+  else:
+    env_format = '''
                 - name: {key}
                   value: "{value}"'''
 

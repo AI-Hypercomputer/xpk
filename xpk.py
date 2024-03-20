@@ -73,7 +73,7 @@ _CLUSTER_RESOURCES_CONFIGMAP = 'resources-configmap'
 _CLUSTER_METADATA_CONFIGMAP = 'metadata-configmap'
 _XPK_SERVICE_ACCOUNT = 'xpk-sa'
 # Set to True to attach a service account to cluster & node pools
-_USE_SERVICE_ACCOUNT = False
+_SERVICE_ACCOUNT_FEATURE_FLAG = xpk_current_version >= "0.4.0"
 
 
 workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
@@ -1289,7 +1289,7 @@ def run_gke_cluster_create_command(args) -> int:
       ' --scopes=storage-full,gke-default'
       f' {args.custom_cluster_arguments}'
   )
-  if _USE_SERVICE_ACCOUNT:
+  if _SERVICE_ACCOUNT_FEATURE_FLAG:
     service_account_name = get_service_account_name(args)
     service_account_exists = check_if_service_account_exists(args)
     if service_account_exists:
@@ -1604,7 +1604,7 @@ def run_gke_node_pool_create_command(args, system) -> int:
     elif system.accelerator_type == AcceleratorType['GPU']:
       command += (' --placement-type=COMPACT ')
       command += f' --accelerator type={system.gke_accelerator},count={str(system.chips_per_vm)}'
-    if _USE_SERVICE_ACCOUNT:
+    if _SERVICE_ACCOUNT_FEATURE_FLAG:
       service_account_name = get_service_account_name(args)
       service_account_exists = check_if_service_account_exists(args)
       if service_account_exists:
@@ -1846,7 +1846,7 @@ def cluster_create(args) -> int:
   xpk_print(f'Starting cluster create for cluster {args.cluster}:', flush=True)
   add_zone_and_project(args)
 
-  if _USE_SERVICE_ACCOUNT:
+  if _SERVICE_ACCOUNT_FEATURE_FLAG:
     service_account_name = get_service_account_name(args)
     service_account_exists = check_if_service_account_exists(args)
     if service_account_exists:

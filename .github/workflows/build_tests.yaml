@@ -17,13 +17,14 @@ name: Build Tests
 on:
   push:
     branches: ["main"]
-  pull_request_review:
-    types: [submitted]
+  pull_request: #by default this runs for types assigned, opened and synchronize
 
 jobs:
-  cluster-create-and-delete:   
-    if: ${{ (github.event.review.state == 'approved') || (github.event_name == 'push')}} 
+  cluster-create-and-delete:
     runs-on: [ubuntu-20.04]
+    concurrency: # We support one build or nightly test to run at a time currently.
+      group: cluster-test-group
+      cancel-in-progress: false
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-python@v5
@@ -36,11 +37,12 @@ jobs:
       with:
         version: '>= 363.0.0'
         install_components: 'beta,gke-gcloud-auth-plugin'
-    - name: Verify gcp setup 
+    - name: Verify gcp setup
       run: gcloud info
     - name: Create an XPK Cluster with 2x v4-8 nodepools
-      run: python xpk.py cluster create --cluster test-2-v4-8-nodepool --device-type=v4-8  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-8 --spot --custom-cluster-arguments='${{ secrets.CLUSTER_ARGUMENTS }}'
+      run: python xpk.py cluster create --cluster test-2-v4-8-nodepool --device-type=v4-8  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --spot --custom-cluster-arguments='${{ secrets.CLUSTER_ARGUMENTS }}'
     - name: Delete the cluster created
+      if: always()
       run: python xpk.py cluster delete --cluster test-2-v4-8-nodepool --zone=us-central2-b
 
 

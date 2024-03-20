@@ -14,7 +14,8 @@
  limitations under the License.
  -->
 
-[![Builds](https://github.com/google/xpk/actions/workflows/build_tests.yaml/badge.svg)](https://github.com/google/xpk/actions/workflows/build_tests.yml)
+[![Build Tests](https://github.com/google/xpk/actions/workflows/build_tests.yaml/badge.svg)](https://github.com/google/xpk/actions/workflows/build_tests.yaml)
+[![Nightly Tests](https://github.com/google/xpk/actions/workflows/nightly_tests.yaml/badge.svg)](https://github.com/google/xpk/actions/workflows/nightly_tests.yaml)
 
 # Overview
 
@@ -124,6 +125,16 @@ all zones.
     --num-slices=4 --spot
     ```
 
+* Cluster Create for Pathways:
+    Pathways compatible cluster can be created using `--enable-pathways`
+    ```shell
+    python3 xpk.py cluster create \
+    --cluster xpk-pw-test \
+    --num-slices=4 --on-demand \
+    --tpu-type=v5litepod-16 \
+    --enable-pathways
+    ```
+ 
 *   Cluster Create can be called again with the same `--cluster name` to modify
     the number of slices or retry failed steps.
 
@@ -195,8 +206,39 @@ all zones.
 
     ```shell
     python3 xpk.py workload create \
-    --workload xpk-test-workload --command "echo goodbye" --cluster \
-    xpk-test --tpu-type=v5litepod-16
+    --workload xpk-test-workload --command "echo goodbye" \
+    --cluster xpk-test \
+    --tpu-type=v5litepod-16
+    ```
+
+*   Workload Create for Pathways:
+    Pathways workload can be submitted using `--use-pathways` on a Pathways enabled cluster (created with `--enable-pathways`)
+    
+    Pathways workload example:
+    ```shell
+    python3 xpk.py workload create \
+    --workload xpk-pw-test \
+    --num-slices=1 \
+    --tpu-type=v5litepod-16 \
+    --use-pathways \
+    --cluster xpk-pw-test \
+    --docker-name='user-workload' \
+    --docker-image=<maxtext docker image> \
+    --command='bash /usr/pathways/ifrt/maxtext_entrypoint.sh base_output_directory=<output directory> dataset_path=<dataset path> per_device_batch_size=1 enable_checkpointing=false enable_profiler=false remat_policy=full global_parameter_scale=4 steps=300 max_target_length=2048 use_iota_embed=true reuse_example_batch=1 dataset_type=synthetic attention=flash gcs_metrics=True run_name=$(USER)-pw-xpk-test-1'
+    ```
+
+    Regular workload can also be submitted on a Pathways enabled cluster (created with `--enable-pathways`)
+    
+    Pathways workload example:
+    ```shell
+    python3 xpk.py workload create \
+    --workload xpk-regular-test \
+    --num-slices=1 \
+    --tpu-type=v5litepod-16 \
+    --cluster xpk-pw-test \
+    --docker-name='user-workload' \
+    --docker-image=<maxtext docker image> \
+    --command='python3 MaxText/train.py MaxText/configs/base.yml base_output_directory=<output directory> dataset_path=<dataset path> per_device_batch_size=1 enable_checkpointing=false enable_profiler=false remat_policy=full global_parameter_scale=4 steps=300 max_target_length=2048 use_iota_embed=true reuse_example_batch=1 dataset_type=synthetic attention=flash gcs_metrics=True run_name=$(USER)-pw-xpk-test-1'
     ```
 
 ### Set `max-restarts` for production jobs

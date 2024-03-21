@@ -1616,7 +1616,7 @@ def add_roles_to_service_account(args) -> int:
 
   Args:
     args: user provided arguments for running the command.
-  
+
   Returns:
     0 if successful and 1 otherwise.
   """
@@ -1678,7 +1678,7 @@ def run_gke_cluster_create_command(args) -> int:
     else:
       xpk_print(f'Service Account: {service_account_name} does not exist in the project.'
               ' Will attach the default service account to the cluster.')
-      
+
   device_type = args.tpu_type if args.tpu_type else args.device_type
   if device_type == h100_device_type:
     command += (' --enable-dataplane-v2 --enable-ip-alias'
@@ -3363,7 +3363,7 @@ def get_main_container_resources(args, system, resource_type) -> str:
   Args:
     args: user provided args.
     system: system characteristics.
-    resource_type: TPU / GPU / CPU 
+    resource_type: TPU / GPU / CPU
 
   Returns:
     str:
@@ -3379,7 +3379,7 @@ def get_main_container_resources(args, system, resource_type) -> str:
 def add_container_ports(args) -> str:
   """ Add slice builder and megascale container ports,
   for non-pathways workloads.
-  
+
   Args:
     args: user provided args.
 
@@ -3728,7 +3728,7 @@ def workload_create(args) -> int:
   tmp = write_temporary_file(yml_string)
   command = f'kubectl apply -f {str(tmp.file.name)}'
   return_code = run_command_with_updates(command, 'Creating Workload', args)
-  
+
   if args.use_pathways:
     # Ensure the cluster and CPU nodepools were created with --enable-pathways
     all_node_pools = get_all_nodepools_programmatic(args)

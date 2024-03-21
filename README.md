@@ -411,9 +411,39 @@ In order to use XPK for GPU, you can do so by using `device-type` flag.
     # Run cluster create with reservation.
     python3 xpk.py cluster create \
     --cluster xpk-test --device-type=h100-80gb-8 \
-    --num-slices=2 \
+    --num-nodes=2 \
     --reservation=$RESERVATION_ID
     ```
+
+*   Cluster Delete (deprovision capacity):
+
+    ```shell
+    python3 xpk.py cluster delete \
+    --cluster xpk-test
+    ```
+
+*   Cluster List (see provisioned capacity):
+
+    ```shell
+    python3 xpk.py cluster list
+    ```
+
+*   Cluster Describe (see capacity):
+
+    ```shell
+    python3 xpk.py cluster describe \
+    --cluster xpk-test
+    ```
+
+
+*   Cluster Cacheimage (enables faster start times):
+
+    ```shell
+    python3 xpk.py cluster cacheimage \
+    --cluster xpk-test --docker-image gcr.io/your_docker_image \
+    --device-type=h100-80gb-8
+    ```
+
 
 *   [Install NVIDIA GPU device drivers](https://cloud.google.com/container-optimized-os/docs/how-to/run-gpus#install)
     ```shell
@@ -435,6 +465,43 @@ In order to use XPK for GPU, you can do so by using `device-type` flag.
     --workload xpk-test-workload \
     --command="echo hello world"
     ```
+
+*   Workload Delete (delete training job):
+
+    ```shell
+    python3 xpk.py workload delete \
+    --workload xpk-test-workload --cluster xpk-test
+    ```
+
+    This will only delete `xpk-test-workload` workload in `xpk-test` cluster.
+
+*   Workload Delete (delete all training jobs in the cluster):
+
+    ```shell
+    python3 xpk.py workload delete \
+    --cluster xpk-test
+    ```
+
+    This will delete all the workloads in `xpk-test` cluster. Deletion will only begin if you type `y` or `yes` at the prompt.
+
+*   Workload Delete supports filtering. Delete a portion of jobs that match user criteria.
+    * Filter by Job: `filter-by-job`
+
+    ```shell
+    python3 xpk.py workload delete \
+    --cluster xpk-test --filter-by-job=$USER
+    ```
+
+    This will delete all the workloads in `xpk-test` cluster whose names start with `$USER`. Deletion will only begin if you type `y` or `yes` at the prompt.
+
+    * Filter by Status: `filter-by-status`
+
+    ```shell
+    python3 xpk.py workload delete \
+    --cluster xpk-test --filter-by-status=QUEUED
+    ```
+    
+    This will delete all the workloads in `xpk-test` cluster that have the status as Admitted or Evicted, and the number of running VMs is 0. Deletion will only begin if you type `y` or `yes` at the prompt. Status can be: `EVERYTHING`,`FINISHED`, `RUNNING`, `QUEUED`, `FAILED`, `SUCCESSFUL`.
 
 ## CPU usage
 

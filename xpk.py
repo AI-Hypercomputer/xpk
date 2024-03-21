@@ -69,6 +69,7 @@ default_gke_version="1.29.1-gke.1589017"
 xpk_current_version = "0.3.0"
 _CLUSTER_QUEUE_NAME='cluster-queue'
 _LOCAL_QUEUE_NAME='multislice-queue'
+h100_device_type = 'h100-80gb-8'
 _CLUSTER_RESOURCES_CONFIGMAP = 'resources-configmap'
 _CLUSTER_METADATA_CONFIGMAP = 'metadata-configmap'
 _XPK_SERVICE_ACCOUNT = 'xpk-sa'
@@ -123,6 +124,155 @@ spec:
                 name: dshm-2
 """
 
+gpu_workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
+kind: JobSet
+metadata:
+  name: {args.workload}
+  labels:
+    kueue.x-k8s.io/queue-name: multislice-queue  # Name of the LocalQueue
+    xpk.google.com/workload: {args.workload}
+spec:
+  failurePolicy:
+    maxRestarts: {args.max_restarts}
+  replicatedJobs:
+    - name: slice-job
+      replicas: 1
+      template:
+        spec:
+          parallelism: {args.num_nodes}
+          completions: {args.num_nodes}
+          backoffLimit: 0   # When any pod fails, the job is failed
+          template:
+            metadata:
+              labels:
+                xpk.google.com/workload: {args.workload}
+            spec:
+              schedulerName: {args.scheduler}
+              restartPolicy: Never
+              affinity:
+                nodeAffinity:
+                  requiredDuringSchedulingIgnoredDuringExecution:
+                    nodeSelectorTerms:
+                    - matchExpressions:
+                      - key: cloud.google.com/gke-accelerator
+                        operator: Exists
+                      - key: cloud.google.com/gke-nodepool
+                        operator: In
+                        values: [{node_pool_name}]
+              nodeSelector:
+                {accelerator_label}
+                {machine_label}
+              priorityClassName: {args.priority}
+              hostNetwork: true
+              dnsPolicy: ClusterFirstWithHostNet
+              terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
+              tolerations:
+              - operator: "Exists"
+                key: nvidia.com/gpu
+              volumes:
+              - name: nvidia-install-dir-host
+                hostPath:
+                  path: /home/kubernetes/bin/nvidia/lib64
+              - name: tcpd-socket
+                hostPath:
+                  path: /run/tcpx
+              - name: shared-memory
+                emptyDir:
+                  medium: "Memory"
+                  sizeLimit: 200Gi
+              - name: workload-terminated-volume
+                emptyDir:
+              - name: tcpx-nccl-plugin-volume
+                emptyDir:
+              initContainers:
+              - name: tcpx-nccl-plugin-installer
+                image: us-docker.pkg.dev/gce-ai-infra/gpudirect-tcpx/nccl-plugin-gpudirecttcpx-dev:v3.1.6_2023_10_06
+                imagePullPolicy: Always
+                restartPolicy: Always
+                volumeMounts:
+                - name: tcpx-nccl-plugin-volume
+                  mountPath: /var/lib/tcpx
+                resources:
+                  requests:
+                    cpu: 150m
+              containers:
+              - name: tcpd-daemon
+                image: us-docker.pkg.dev/gce-ai-infra/gpudirect-tcpx/tcpgpudmarxd-dev:v2.0.9
+                imagePullPolicy: Always
+                command:
+                - "bash"
+                - "-c"
+                - |
+                  /tcpgpudmarxd/build/app/tcpgpudmarxd --gpu_nic_preset a3vm --gpu_shmem_type fd --setup_param "--verbose 128 2 0" &
+                  while [ ! -e "/usr/share/workload/workload_terminated" ]; do sleep 10; echo "sleeping"; done
+                securityContext:
+                  privileged: true
+                volumeMounts:
+                - name: nvidia-install-dir-host
+                  mountPath: /usr/local/nvidia/lib64
+                - name: tcpd-socket
+                  mountPath: /tmp
+                - name: workload-terminated-volume
+                  mountPath: /usr/share/workload
+                env:
+                - name: LD_LIBRARY_PATH
+                  value: /usr/local/nvidia/lib64
+              - name: maxtext-tcpx
+                image: {docker_image}
+                imagePullPolicy: Always
+                securityContext:
+                  privileged: true
+                ports:
+                    - containerPort: 6002
+                env:
+                  - name: REPLICATED_JOB_NAME
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.annotations['jobset.sigs.k8s.io/replicatedjob-name']
+                  - name: JOBSET_NAME
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.annotations['jobset.sigs.k8s.io/jobset-name']
+                  - name: JAX_COORDINATOR_ADDRESS
+                    value: "$(JOBSET_NAME)-$(REPLICATED_JOB_NAME)-0-0.$(JOBSET_NAME)"
+                  - name: NNODES
+                    value: "{args.num_nodes}"
+                  - name: NODE_RANK
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.annotations['batch.kubernetes.io/job-completion-index']
+                  - name: USE_GPUDIRECT
+                    value: "tcpx"
+                  - name: GPUS_PER_NODE
+                    value: "{chips_per_vm}"
+                  - name: JAX_COORDINATOR_PORT
+                    value: "6002"
+                  - name: LD_LIBRARY_PATH
+                    value: /usr/local/nvidia/lib64
+                  - name: COMMAND
+                    value: "{command}"
+                  {args.env}
+                command:
+                  - "bash"
+                  - "-c"
+                  - |
+                    echo XPK Start: $(date) ; _sigterm() ( kill -SIGTERM $!;); trap _sigterm SIGTERM; (cd /deps && bash gpu_multi_process_run.sh) & PID=$!; while kill -0 $PID 2>/dev/null; do sleep 5; done; EXIT_CODE=$? ; echo XPK End: $(date); echo EXIT_CODE=$EXIT_CODE; echo Main app is done > /usr/share/workload/workload_terminated
+                volumeMounts:
+                  - name: nvidia-install-dir-host
+                    mountPath: /usr/local/nvidia/lib64
+                  - name: tcpx-nccl-plugin-volume
+                    mountPath: /usr/local/tcpx
+                  - name: tcpd-socket
+                    mountPath: /tmp
+                  - name: shared-memory
+                    mountPath: /dev/shm
+                  - name: workload-terminated-volume
+                    mountPath: /usr/share/workload
+                resources:
+                  limits:
+                    nvidia.com/gpu: {chips_per_vm}
+"""
+
 pw_workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
 metadata:
@@ -135,7 +285,7 @@ spec:
     maxRestarts: {args.max_restarts}
   successPolicy:
     operator: "All"
-    targetReplicatedJobs: 
+    targetReplicatedJobs:
     - "main"
   replicatedJobs:
   - name: worker
@@ -277,15 +427,6 @@ spec:
                 type: DirectoryOrCreate
               name: shared-tmp
 """
-
-workload_delete_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
-kind: JobSet
-metadata:
-  name: {args.workload}
-  annotations:
-    alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool # 1:1 job replica to node pool assignment
-"""
-
 script_dir_dockerfile = """FROM {base_docker_image}
 
 # Set the working directory in the container
@@ -317,12 +458,7 @@ spec:
       withinClusterQueue: LowerPriority
   namespaceSelector: {{}} # match all.
   resourceGroups:
-  - coveredResources: ["{resource_type}"]
-    flavors:
-    - name: {cluster_hardware_name}
-      resources:
-      - name: "{resource_type}"
-        nominalQuota: {total_chips}  # Number of slices * number of chips in each slice
+  {covered_resources_config}
   {pw_resources_kueue}
 ---
 apiVersion: kueue.x-k8s.io/v1beta1
@@ -416,6 +552,88 @@ data:
   {data}
 """
 
+# cluster_network_yaml: the config when creating the network for a3 cluster
+cluster_network_yaml = """
+apiVersion: networking.gke.io/v1
+kind: Network
+metadata:
+  name: vpc1
+spec:
+  parametersRef:
+    group: networking.gke.io
+    kind: GKENetworkParamSet
+    name: vpc1
+  type: Device
+---
+apiVersion: networking.gke.io/v1
+kind: Network
+metadata:
+  name: vpc2
+spec:
+  parametersRef:
+    group: networking.gke.io
+    kind: GKENetworkParamSet
+    name: vpc2
+  type: Device
+---
+apiVersion: networking.gke.io/v1
+kind: Network
+metadata:
+  name: vpc3
+spec:
+  parametersRef:
+    group: networking.gke.io
+    kind: GKENetworkParamSet
+    name: vpc3
+  type: Device
+---
+apiVersion: networking.gke.io/v1
+kind: Network
+metadata:
+  name: vpc4
+spec:
+  parametersRef:
+    group: networking.gke.io
+    kind: GKENetworkParamSet
+    name: vpc4
+  type: Device
+---
+apiVersion: networking.gke.io/v1
+kind: GKENetworkParamSet
+metadata:
+  name: vpc1
+spec:
+  vpc: {cluster_name}-net-1
+  vpcSubnet: {cluster_name}-sub-1
+  deviceMode: NetDevice
+---
+apiVersion: networking.gke.io/v1
+kind: GKENetworkParamSet
+metadata:
+  name: vpc2
+spec:
+  vpc: {cluster_name}-net-2
+  vpcSubnet: {cluster_name}-sub-2
+  deviceMode: NetDevice
+---
+apiVersion: networking.gke.io/v1
+kind: GKENetworkParamSet
+metadata:
+  name: vpc3
+spec:
+  vpc: {cluster_name}-net-3
+  vpcSubnet: {cluster_name}-sub-3
+  deviceMode: NetDevice
+---
+apiVersion: networking.gke.io/v1
+kind: GKENetworkParamSet
+metadata:
+  name: vpc4
+spec:
+  vpc: {cluster_name}-net-4
+  vpcSubnet: {cluster_name}-sub-4
+  deviceMode: NetDevice
+"""
 
 # Add IAM roles to attach to service account used by node pools in the cluster
 IAMRoles = {
@@ -486,7 +704,7 @@ UserFacingNameToSystemCharacteristics = {
     'a100-40gb-8': SystemCharacteristics(
       'N/A', 1, 'nvidia-tesla-a100', 'a2-highgpu-8g', 8, AcceleratorType['GPU'], 'a100-40gb-8'
     ),
-    # H100-80gb-$CHIPS
+     # H100-80gb-$CHIPS
     'h100-80gb-8': SystemCharacteristics(
       'N/A', 1, 'nvidia-h100-80gb', 'a3-highgpu-8g', 8, AcceleratorType['GPU'], 'h100-80gb-8'
     ),
@@ -1026,7 +1244,9 @@ def add_env_config(args):
   Args:
     args: user provided arguments for running the command.
   """
+  device_type = args.tpu_type if args.tpu_type else args.device_type
   env = {'JOBSET_NAME': args.workload}
+
   if args.env_file:
     print('Setting container environment from', args.env_file)
     pat = re.compile(r'(^[a-zA-Z_][a-zA-Z0-9_]*?)(?:=(.*))$', re.M)
@@ -1053,11 +1273,18 @@ def add_env_config(args):
                        'XLA_FLAGS.')
     env['XLA_FLAGS'] = '--xla_dump_to=/tmp/xla_dump/'
 
-  env_format = '''
+
+  if device_type == h100_device_type:
+    # For H100, it has two more spaces ahead of name and value respectively
+    env_format = '''
+                  - name: {key}
+                    value: "{value}"'''
+  else:
+    env_format = '''
                 - name: {key}
                   value: "{value}"'''
-  args.env = ''.join(env_format.format(key=k, value=v) for k, v in env.items())
 
+  args.env = ''.join(env_format.format(key=k, value=v) for k, v in env.items())
 
 def write_temporary_file(payload):
   """Writes `payload` to a temporary file.
@@ -1390,7 +1617,7 @@ def add_roles_to_service_account(args) -> int:
 
   Args:
     args: user provided arguments for running the command.
-  
+
   Returns:
     0 if successful and 1 otherwise.
   """
@@ -1435,20 +1662,13 @@ def run_gke_cluster_create_command(args) -> int:
               ' the machine type of other cpu nodepools using `--device-type`.')
     machine_type = args.cluster_cpu_machine_type
 
-  # Create the regional cluster with `num-nodes` CPU nodes in the same zone as
-  # TPUs. This has been tested with clusters of 300 VMs. Larger clusters will
-  # benefit from a larger initial `--num-nodes`. After the cluster is created,
-  # the auto-scaler can reduce/increase the nodes based on the load.
   command = (
       'gcloud beta container clusters create'
-      f' {args.cluster} --release-channel rapid --enable-autoscaling'
-      ' --total-min-nodes 1 --total-max-nodes 1000 --num-nodes 6'
+      f' {args.cluster} --project={args.project}'
+      f' --region={zone_to_region(args.zone)}'
       f' --node-locations={args.zone}'
-      f' --project={args.project} --region={zone_to_region(args.zone)}'
-      f' --cluster-version={args.gke_version} --location-policy=BALANCED'
+      f' --cluster-version={args.gke_version}'
       f' --machine-type={machine_type}'
-      ' --scopes=storage-full,gke-default'
-      f' {args.custom_cluster_arguments}'
   )
 
   if _SERVICE_ACCOUNT_FEATURE_FLAG:
@@ -1460,9 +1680,25 @@ def run_gke_cluster_create_command(args) -> int:
       xpk_print(f'Service Account: {service_account_name} does not exist in the project.'
               ' Will attach the default service account to the cluster.')
 
-  if args.enable_pathways:
-    command += (' --enable-ip-alias ')
-    command += (f' --create-subnetwork name={args.cluster}-subnetwork')
+  device_type = args.tpu_type if args.tpu_type else args.device_type
+  if device_type == h100_device_type:
+    command += (' --enable-dataplane-v2 --enable-ip-alias'
+        ' --enable-multi-networking --no-enable-autoupgrade')
+  else:
+    # Create the regional cluster with `num-nodes` CPU nodes in the same zone as
+    # TPUs. This has been tested with clusters of 300 VMs. Larger clusters will
+    # benefit from a larger initial `--num-nodes`. After the cluster is created,
+    # the auto-scaler can reduce/increase the nodes based on the load.
+
+    command += (' --release-channel rapid --enable-autoscaling --location-policy=BALANCED'
+        ' --scopes=storage-full,gke-default'
+        ' --total-min-nodes 1 --total-max-nodes 1000 --num-nodes 6'
+        f' {args.custom_cluster_arguments}'
+    )
+
+    if args.enable_pathways:
+      command += (' --enable-ip-alias ')
+      command += (f' --create-subnetwork name={args.cluster}-subnetwork')
 
   return_code = run_command_with_updates(command, 'GKE Cluster Create', args)
   if return_code != 0:
@@ -1471,6 +1707,153 @@ def run_gke_cluster_create_command(args) -> int:
 
   return 0
 
+
+def set_up_cluster_network_for_a3(args) -> int:
+  """Set up GKE Cluster networks, subnets and firewall rules for A3.
+  Note: there are 4 NICs for GPU-GPU bw and 1 NIC for host in a A3 node
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  for i in range (1, 5):
+    return_code = create_cluster_network(args, i)
+    if return_code != 0:
+      return 1
+    return_code = create_cluster_subnet(args, i)
+    if return_code != 0:
+      return 1
+    return_code = create_cluster_firewall_rule(args, i)
+    if return_code != 0:
+      return 1
+  return 0
+
+
+def create_cluster_network(args, index) -> int:
+  """Create one GKE Cluster network.
+
+  Args:
+    args: user provided arguments for running the command.
+    index: index number for the network to be created.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  existing_network_names, return_code = get_all_networks_programmatic(args)
+  if return_code > 0:
+    xpk_print('Listing all networks failed!')
+    return return_code
+
+  network_name = f'{args.cluster}-net-{index}'
+  if network_name not in existing_network_names:
+    command = (
+      f'gcloud compute --project={args.project}'
+      f' networks create {network_name}'
+      ' --subnet-mode=custom --mtu=8244'
+    )
+    return_code = run_command_with_updates(
+        command, 'Create Cluster Network', args, verbose=False
+    )
+
+    if return_code != 0:
+      xpk_print(f'Create Cluster Network request returned ERROR {return_code}')
+      return 1
+  else:
+    xpk_print(f'Reusing existing network {network_name}')
+
+  return 0
+
+
+def create_cluster_subnet(args, index) -> int:
+  """Create one GKE Cluster subnet.
+
+  Args:
+    args: user provided arguments for running the command.
+    index: index number for the subnet to be created.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  existing_subnet_names, return_code = get_all_subnets_programmatic(args)
+  if return_code > 0:
+    xpk_print('Listing all subnets failed!')
+    return return_code
+  subnet_name = f'{args.cluster}-sub-{index}'
+  if subnet_name not in existing_subnet_names:
+    command = (
+      f'gcloud compute --project={args.project}'
+      f' networks subnets create {subnet_name}'
+      f' --network={args.cluster}-net-{index}'
+      f' --region={zone_to_region(args.zone)} --range=192.168.{index}.0/24'
+    )
+    return_code = run_command_with_updates(
+        command, 'Create Cluster Subnet', args, verbose=False
+    )
+
+    if return_code != 0:
+      xpk_print(f'Create Cluster Subnet request returned ERROR {return_code}')
+      return 1
+    else:
+      xpk_print(f'Reusing existing subnet {subnet_name}')
+
+  return 0
+
+
+def create_cluster_firewall_rule(args, index) -> int:
+  """Create one GKE Cluster firewall rule.
+
+  Args:
+    args: user provided arguments for running the command.
+    index: index number for the firewall rule to be created.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  existing_firewall_rules_names, return_code = get_all_firewall_rules_programmatic(args)
+  if return_code > 0:
+    xpk_print('Listing all firewall rules failed!')
+    return return_code
+  firewall_rule_name = f'{args.cluster}-internal-{index}'
+  if firewall_rule_name not in existing_firewall_rules_names:
+    command = (
+      f'gcloud compute --project={args.project}'
+      f' firewall-rules create {firewall_rule_name}'
+      f' --network={args.cluster}-net-{index}'
+      ' --action=ALLOW --rules=tcp:0-65535,udp:0-65535,icmp --source-ranges=192.168.0.0/16'
+    )
+    return_code = run_command_with_updates(
+        command, 'Create Cluster Firewall Rule', args, verbose=False
+    )
+
+    if return_code != 0:
+      xpk_print(f'Create Cluster Firewall Rule request returned ERROR {return_code}')
+      return 1
+  else:
+    xpk_print(f'Reusing existing firewall rule {firewall_rule_name}')
+  return 0
+
+
+def create_cluster_network_config(args) -> int:
+  """Run the Create GKE Cluster Network Config request.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  yml_string = cluster_network_yaml.format(cluster_name=args.cluster)
+  tmp = write_temporary_file(yml_string)
+  command = f'kubectl apply -f {str(tmp.file.name)}'
+
+  return_code = run_command_with_updates(command, 'GKE Cluster Create Network Config', args)
+  if return_code != 0:
+    xpk_print(f'GKE Cluster Create ConfigMap request returned ERROR {return_code}')
+    return 1
+
+  return 0
 
 def create_cluster_configmaps(args, system):
   """Run the Create GKE Cluster ConfigMap request.
@@ -1486,7 +1869,10 @@ def create_cluster_configmaps(args, system):
 
   # ConfigMap to store resources available in the cluster
   device_type = args.tpu_type if args.tpu_type else args.device_type
-  resources_data = f'{device_type}: "{int(args.num_slices) * system.vms_per_slice}"'
+  if device_type == h100_device_type:
+    resources_data = f'{device_type}: "{int(args.num_nodes)}"'
+  else:
+    resources_data = f'{device_type}: "{int(args.num_slices) * system.vms_per_slice}"'
   resources_configmap_name = f'{args.cluster}-{_CLUSTER_RESOURCES_CONFIGMAP}'
   resources_yml = cluster_configmap_yaml.format(args=args,
                                                 name=resources_configmap_name,
@@ -1539,9 +1925,12 @@ def get_cluster_configmap(args, configmap_name):
 
   config_map = {}
   return_value = return_value.strip()
+
   if return_value:
     # Format of ConfigMap: map[key1:value1 key2:value2]
+    return_value = return_value[return_value.index("map"):]
     configs = return_value[4:-1].split(" ")
+
     for config in configs:
       key, value = config.strip().split(":")
       config_map[key] = int(value)
@@ -1606,6 +1995,73 @@ def get_all_nodepools_programmatic(args) -> tuple[list[str], int]:
 
   all_nodepools = [x.split(' ')[0] for x in raw_nodepool_output.splitlines()]
   return all_nodepools, 0
+
+def get_all_networks_programmatic(args) -> tuple[list[str], int]:
+  """Gets all the networks associated with project .
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    List of networks and 0 if successful and 1 otherwise.
+  """
+  command = (
+      'gcloud compute networks list'
+  )
+  return_code, raw_network_output = (
+      run_command_for_value(command, 'Get All Networks', args)
+  )
+  if return_code != 0:
+    xpk_print(f'Get All Networks returned ERROR {return_code}')
+    return [], 1
+
+  all_networks = [x.split(' ')[0] for x in raw_network_output.splitlines()]
+  return all_networks, 0
+
+def get_all_subnets_programmatic(args) -> tuple[list[str], int]:
+  """Gets all the subnets associated with the project.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    List of subnets and 0 if successful and 1 otherwise.
+  """
+  command = (
+      'gcloud compute networks subnets list'
+  )
+  return_code, raw_subnets_output = (
+      run_command_for_value(command, 'Get All Subnets', args)
+  )
+  if return_code != 0:
+    xpk_print(f'Get All Subnets returned ERROR {return_code}')
+    return [], 1
+
+  all_networks = [x.split(' ')[0] for x in raw_subnets_output.splitlines()]
+  return all_networks, 0
+
+
+def get_all_firewall_rules_programmatic(args) -> tuple[list[str], int]:
+  """Gets all the firewall rules associated with the project.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    List of firewall rules and 0 if successful and 1 otherwise.
+  """
+  command = (
+      'gcloud compute firewall-rules list'
+  )
+  return_code, raw_subnets_output = (
+      run_command_for_value(command, 'Get All Firewall Rules', args)
+  )
+  if return_code != 0:
+    xpk_print(f'Get All Firewall Rules returned ERROR {return_code}')
+    return [], 1
+
+  all_networks = [x.split(' ')[0] for x in raw_subnets_output.splitlines()]
+  return all_networks, 0
 
 
 def print_reservations(args) -> int:
@@ -1723,7 +2179,7 @@ def run_gke_node_pool_create_command(args, system) -> int:
 
   Args:
     args: user provided arguments for running the command.
-    system: System characteristics based on TPU type/topology.
+    system: System characteristics based on device type/topology.
 
   Returns:
     0 if successful and 1 otherwise.
@@ -1737,9 +2193,6 @@ def run_gke_node_pool_create_command(args, system) -> int:
   if return_code > 0:
     xpk_print('Listing all node pools failed!')
     return return_code
-  desired_node_pool_names = [
-      f'{args.cluster}-np-{slice_num}' for slice_num in range(args.num_slices)
-  ]
 
   capacity_args, return_code = get_capacity_arguments(args)
   if return_code > 0:
@@ -1748,29 +2201,53 @@ def run_gke_node_pool_create_command(args, system) -> int:
 
   commands = []
   task_names = []
+
+  if system.accelerator_type == AcceleratorType['GPU']:
+    xpk_print(
+      f'Creating 1 node pool with {args.num_nodes} nodes of {system.device_type}\n'
+      f'Underlyingly, we assume that means: {system}'
+    )
+    desired_node_pool_names = [f'{args.cluster}-np-0']
+  else:
+    xpk_print(
+      f'Creating {args.num_slices} node pool or pools of {system.device_type}\n'
+      f'Underlyingly, we assume that means: {system}'
+    )
+    desired_node_pool_names = [
+      f'{args.cluster}-np-{slice_num}' for slice_num in range(args.num_slices)
+    ]
+
   for node_pool_name in desired_node_pool_names:
     if node_pool_name in existing_node_pool_names:
       continue
     command = (
         'gcloud beta container node-pools create'
-        f' {node_pool_name} --node-version={args.gke_version}'
+        f' {node_pool_name}'
+        f' --region={zone_to_region(args.zone)}'
         f' --cluster={args.cluster}'
         f' --project={args.project} --node-locations={args.zone}'
-        f' --region={zone_to_region(args.zone)}'
-        f' --num-nodes={system.vms_per_slice}'
         f' --machine-type={system.gce_machine_type}'
         f' --host-maintenance-interval={args.host_maintenance_interval}'
         f' {capacity_args}'
-        ' --scopes=storage-full,gke-default'
-        ' --enable-gvnic --max-pods-per-node 15'
+        ' --enable-gvnic'
     )
     if system.accelerator_type == AcceleratorType['TPU']:
-      command += (' --placement-type=COMPACT ')
+      command += (f' --node-version={args.gke_version}')
+      command += (f' --num-nodes={system.vms_per_slice}')
+      command += (' --placement-type=COMPACT  --max-pods-per-node 15')
+      command += (' --scopes=storage-full,gke-default')
       command += (f' --tpu-topology={system.topology}')
       command += (f' {args.custom_tpu_nodepool_arguments}')
     elif system.accelerator_type == AcceleratorType['GPU']:
-      command += (' --placement-type=COMPACT ')
-      command += f' --accelerator type={system.gke_accelerator},count={str(system.chips_per_vm)}'
+      command += (f' --num-nodes={args.num_nodes}')
+      command += (f' --accelerator type={system.gke_accelerator},count={str(system.chips_per_vm)}'
+        f' --additional-node-network network={args.cluster}-net-1,subnetwork={args.cluster}-sub-1'
+        f' --additional-node-network network={args.cluster}-net-2,subnetwork={args.cluster}-sub-2'
+        f' --additional-node-network network={args.cluster}-net-3,subnetwork={args.cluster}-sub-3'
+        f' --additional-node-network network={args.cluster}-net-4,subnetwork={args.cluster}-sub-4'
+        ' --no-enable-autoupgrade  --scopes="https://www.googleapis.com/auth/cloud-platform"'
+        )
+
     if _SERVICE_ACCOUNT_FEATURE_FLAG:
       service_account_name = get_service_account_name(args)
       service_account_exists = check_if_service_account_exists(args)
@@ -1948,13 +2425,22 @@ def enable_kueue_crds(args, system) -> int:
 
   device_type = args.tpu_type if args.tpu_type else args.device_type
   cluster_hardware_name = f'{args.num_slices}x{device_type}'
-  total_chips = args.num_slices * system.vms_per_slice * system.chips_per_vm
+  resource_type=AcceleratorTypeToAcceleratorCharacteristics[system.accelerator_type].resource_type
+  if system.accelerator_type == AcceleratorType['GPU']:
+    total_chips = args.num_nodes * system.chips_per_vm
+  else:
+    total_chips = args.num_slices * system.vms_per_slice * system.chips_per_vm
+  covered_resources_config = get_kueue_covered_resources_config(
+    args=args,
+    cluster_hardware_name=cluster_hardware_name,
+    resource_type=resource_type,
+    total_chips=total_chips)
   yml_string = cluster_set_crd_yaml.format(
       system=system,
       cluster_hardware_name=cluster_hardware_name,
-      total_chips=total_chips,
       accelerator_label=create_accelerator_label(system.accelerator_type, system),
       machine_label=create_machine_label(system.accelerator_type, system),
+      covered_resources_config=covered_resources_config,
       resource_type=AcceleratorTypeToAcceleratorCharacteristics[system.accelerator_type].resource_type,
       pw_resource_flavors=add_pw_resource_flavors(args),
       pw_resources_kueue=add_pw_resources_to_kueue(args),
@@ -1973,7 +2459,6 @@ def enable_kueue_crds(args, system) -> int:
   return return_code
 
 # TODO(roshanin): Organize Pathways helpers in another file.
-
 def add_pw_resource_flavors(args):
   """Add resource flavors required for Pathways enabled clusters.
   """
@@ -2033,6 +2518,55 @@ def add_pw_resources_to_kueue(args):
     return resources_yaml
   return ""
 
+
+def get_kueue_covered_resources_config(args, cluster_hardware_name, resource_type, total_chips) -> str:
+  """Gets Kueue covered resources configuration.
+
+  Args:
+    args: user provided arguments for running the command.
+    cluster_hardware_name: cluster hardware name.
+    resource_type: resource type of tpu or gpu.
+    total_chips: total number of chips for the specific resource type.
+
+  Returns:
+    A string of Kueue covered resources configuration.
+  """
+  device_type = args.tpu_type if args.tpu_type else args.device_type
+  if device_type == h100_device_type:
+    config_format = '''
+  - coveredResources: ["cpu", "memory", "{resource_type}"]
+    flavors:
+    - name: {cluster_hardware_name}
+      resources:
+      - name: "cpu"
+        nominalQuota: {num_nodes}
+      - name: "memory"
+        nominalQuota: 150Mi
+      - name: "{resource_type}"
+        nominalQuota: {total_chips}'''
+    config_string = config_format.format(
+      cluster_hardware_name=cluster_hardware_name,
+      resource_type=resource_type,
+      total_chips=total_chips,
+      num_nodes=args.num_nodes)
+  else:
+    config_format = '''
+  - coveredResources: ["{resource_type}"]
+    flavors:
+    - name: {cluster_hardware_name}
+      resources:
+      - name: "{resource_type}"
+        nominalQuota: {total_chips}
+  '''
+
+    config_string = config_format.format(
+      cluster_hardware_name=cluster_hardware_name,
+      resource_type=resource_type,
+      total_chips=total_chips)
+  return config_string
+
+
+
 # TODO(vbarr): Remove this function when jobsets gets enabled by default on
 # GKE clusters.
 def set_jobset_on_cluster(args) -> int:
@@ -2061,6 +2595,51 @@ def set_jobset_on_cluster(args) -> int:
       ' for instructions on how to fix these permissions.'
     )
   return return_code
+
+def install_gpu_driver_on_cluster(args) -> int:
+  """Install GPU driver on the cluster.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  command = (
+      'kubectl apply -f'
+      # pylint: disable=line-too-long
+      'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/nvidia-driver-installer/cos/daemonset-preloaded-latest.yaml'
+  )
+  return_code = run_command_with_updates(command, 'Install GPU Driver On Cluster', args)
+
+  if return_code != 0:
+    xpk_print(f'Install GPU Driver On Cluster request returned ERROR {return_code}')
+    return 1
+
+  return 0
+
+
+def install_nccl_on_cluster(args) -> int:
+  """Install NCCL plugin on the cluster.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  command = (
+      'kubectl apply -f'
+      # pylint: disable=line-too-long
+      'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpx/nccl-tcpx-installer.yaml'
+  )
+  return_code = run_command_with_updates(command, 'Install NCCL Plugin On Cluster', args)
+
+  if return_code != 0:
+    xpk_print(f'Install NCCL Plugin On Cluster request returned ERROR {return_code}')
+    return 1
+
+  return 0
 
 
 ################### Subcommand Functions ###################
@@ -2119,15 +2698,27 @@ def cluster_create(args) -> int:
   if create_cluster_command_code != 0:
     xpk_exit(create_cluster_command_code)
 
+  set_cluster_command_code = set_cluster_command(args)
+  if set_cluster_command_code != 0:
+    xpk_exit(set_cluster_command_code)
+
+  device_type = args.tpu_type if args.tpu_type else args.device_type
+  if device_type == h100_device_type:
+    xpk_print('Setting up Network for cluster')
+    set_up_cluster_network_code = set_up_cluster_network_for_a3(args)
+    if set_up_cluster_network_code != 0:
+      xpk_exit(set_up_cluster_network_code)
+
+    xpk_print('Creating Network Config for cluster')
+    create_cluster_network_config_code = create_cluster_network_config(args)
+    if create_cluster_network_config_code != 0:
+      xpk_exit(create_cluster_network_config_code)
+
   run_gke_node_pool_create_command_code = run_gke_node_pool_create_command(
       args, system
   )
   if run_gke_node_pool_create_command_code != 0:
     xpk_exit(run_gke_node_pool_create_command_code)
-
-  set_cluster_command_code = set_cluster_command(args)
-  if set_cluster_command_code != 0:
-    xpk_exit(set_cluster_command_code)
 
   xpk_print(
       'Enabling the jobset API on our cluster, to be deprecated when Jobset is'
@@ -2151,6 +2742,17 @@ def cluster_create(args) -> int:
   create_cluster_configmaps_code = create_cluster_configmaps(args, system)
   if create_cluster_configmaps_code != 0:
     xpk_exit(create_cluster_configmaps_code)
+
+  if device_type == h100_device_type:
+    xpk_print('Installing GPU Driver for cluster')
+    install_gpu_driver_code = install_gpu_driver_on_cluster(args)
+    if install_gpu_driver_code != 0:
+      xpk_exit(install_gpu_driver_code)
+
+    xpk_print('Installing NCCL Plugin for cluster')
+    install_nccl_code = install_nccl_on_cluster(args)
+    if install_nccl_code != 0:
+      xpk_exit(install_nccl_code)
 
   xpk_print('GKE commands done! Resources are created.')
   xpk_print(
@@ -2469,7 +3071,10 @@ def check_if_workload_can_schedule(args, system):
     return False
 
   max_vm_in_cluster = cluster_config_map[device_type]
-  vm_required_by_workload = int(args.num_slices) * system.vms_per_slice
+  if system.accelerator_type == AcceleratorType['GPU']:
+    vm_required_by_workload = int(args.num_nodes)
+  else:
+    vm_required_by_workload = int(args.num_slices) * system.vms_per_slice
   if vm_required_by_workload > max_vm_in_cluster:
     xpk_print(
         f'{args.workload} is requesting {args.num_slices} slice/slices of {device_type}, '
@@ -2758,7 +3363,7 @@ def get_main_container_resources(args, system, resource_type) -> str:
   Args:
     args: user provided args.
     system: system characteristics.
-    resource_type: TPU / GPU / CPU 
+    resource_type: TPU / GPU / CPU
 
   Returns:
     str:
@@ -2774,7 +3379,7 @@ def get_main_container_resources(args, system, resource_type) -> str:
 def add_container_ports(args) -> str:
   """ Add slice builder and megascale container ports,
   for non-pathways workloads.
-  
+
   Args:
     args: user provided args.
 
@@ -2944,6 +3549,7 @@ def calculate_process_count(num_slices, vms_per_slice) -> str:
     str: total number of processes.
   """
   num_processes = int(num_slices) * int(vms_per_slice)
+
   return f"{num_processes}"
 
 def get_cpu_env(num_slices, system) -> str:
@@ -3072,10 +3678,18 @@ def workload_create(args) -> int:
     container = get_main_and_sidecar_container(args, system, docker_image)
     # Get GKE debugging dashboard only when sidecar container is deployed for TPU workloads
     debugging_dashboard_id = get_gke_debugging_dashboard(args)
-  else:
+  elif system.accelerator_type in (AcceleratorType['CPU'], AcceleratorType['TPU']):
     container = get_main_container(args, system, docker_image, resource_type)
 
-  if args.use_pathways:
+  if system.accelerator_type == AcceleratorType['GPU']:
+    yml_string = gpu_workload_create_yaml.format(args=args,
+                                                 docker_image=docker_image,
+                                                 command=args.command,
+                                                 accelerator_label=create_accelerator_label(system.accelerator_type, system),
+                                                 machine_label=create_machine_label(system.accelerator_type, system),
+                                                 node_pool_name=f'{args.cluster}-np-0',
+                                                 chips_per_vm=system.chips_per_vm)
+  elif args.use_pathways:
     # Ensure the cluster and CPU nodepools were created with --enable-pathways
     all_node_pools = get_all_nodepools_programmatic(args)
     desired_pw_cpu_node_pools = {'cpu-user-np', 'cpu-rm-np', 'cpu-proxy-np'}
@@ -3102,10 +3716,6 @@ def workload_create(args) -> int:
                                         pathways_proxy_args = get_pathways_proxy_args(args),
                                         resource_type=resource_type,
                                         local_queue_name=_LOCAL_QUEUE_NAME)
-    tmp = write_temporary_file(yml_string)
-    command = f'kubectl apply -f {str(tmp.file.name)}'
-    return_code = run_command_with_updates(command, 'Creating a Pathways Workload', args)
-
   else:
     yml_string = workload_create_yaml.format(args=args,
                                       system=system,
@@ -3115,9 +3725,9 @@ def workload_create(args) -> int:
                                       accelerator_label=create_accelerator_label(system.accelerator_type, system),
                                       machine_label=create_machine_label(system.accelerator_type, system),
                                       local_queue_name=_LOCAL_QUEUE_NAME)
-    tmp = write_temporary_file(yml_string)
-    command = f'kubectl apply -f {str(tmp.file.name)}'
-    return_code = run_command_with_updates(command, 'Creating Workload', args)
+  tmp = write_temporary_file(yml_string)
+  command = f'kubectl apply -f {str(tmp.file.name)}'
+  return_code = run_command_with_updates(command, 'Creating Workload', args)
 
   if return_code != 0:
     xpk_print(f'Create Workload request returned ERROR {return_code}')
@@ -3201,9 +3811,7 @@ def workload_delete(args) -> int:
     task_names = []
     for workload in workloads:
       args.workload = workload
-      yml_string = workload_delete_yaml.format(args=args)
-      tmp = write_temporary_file(yml_string)
-      command = f'kubectl delete -f {str(tmp.file.name)}'
+      command = f'kubectl delete jobset {workload} -n default'
       task_name = f'WorkloadDelete-{workload}'
       commands.append(command)
       task_names.append(task_name)
@@ -3735,7 +4343,14 @@ cluster_create_optional_arguments.add_argument(
     type=int,
     default=1,
     help='The number of slices to run the job on, defaults to 1.',
-    required=True,
+    required=False,
+)
+cluster_create_optional_arguments.add_argument(
+    '--num-nodes',
+    type=int,
+    default=2,
+    help='The number of nodes for a cluster, defaults to 2.',
+    required=False,
 )
 cluster_create_optional_arguments.add_argument(
     '--enable-pathways',
@@ -4072,6 +4687,12 @@ workload_create_parser_optional_arguments.add_argument(
     help='The number of slices to use, default=1.',
 )
 workload_create_parser_optional_arguments.add_argument(
+    '--num-nodes',
+    type=str,
+    default=1,
+    help='The number of nodes to use, default=1.',
+)
+workload_create_parser_optional_arguments.add_argument(
     '--env-file',
     type=str,
     default=None,
@@ -4146,14 +4767,14 @@ workload_create_parser_optional_arguments.add_argument(
     ),
 )
 workload_pathways_workload_arguments.add_argument(
-    '--use-pathways', 
+    '--use-pathways',
     action='store_true',
     help=(
         'Provide this argument to create Pathways workloads.'
     ),
 )
 workload_pathways_workload_arguments.add_argument(
-    '--proxy-server-image', 
+    '--proxy-server-image',
     type=str,
     default='gcr.io/cloud-tpu-v2-images/pathways/pathways-demo:proxy_server',
     help=(
@@ -4161,7 +4782,7 @@ workload_pathways_workload_arguments.add_argument(
     ),
 )
 workload_pathways_workload_arguments.add_argument(
-    '--server-image', 
+    '--server-image',
     type=str,
     default='gcr.io/cloud-tpu-v2-images/pathways/pathways-demo:server',
     help=(
@@ -4169,7 +4790,7 @@ workload_pathways_workload_arguments.add_argument(
     ),
 )
 workload_pathways_workload_arguments.add_argument(
-    '--pathways-gcs-location', 
+    '--pathways-gcs-location',
     type=str,
     default='gs://cloud-pathways-staging/tmp',
     help=(
@@ -4203,7 +4824,6 @@ workload_delete_parser_required_arguments.add_argument(
     help='The name of the cluster to delete the job on.',
     required=True,
 )
-
 ### "workload delete" Optional arguments
 workload_delete_parser_optional_arguments.add_argument(
     '--workload',

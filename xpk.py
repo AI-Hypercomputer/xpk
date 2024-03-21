@@ -2458,6 +2458,37 @@ def enable_kueue_crds(args, system) -> int:
   return return_code
 
 # TODO(roshanin): Organize Pathways helpers in another file.
+def add_pw_resource_flavors(args):
+  """Add resource flavors required for Pathways enabled clusters.
+  """
+  resource_flavor_yaml="""apiVersion: kueue.x-k8s.io/v1beta1
+kind: ResourceFlavor
+metadata:
+  name: cpu-rm
+spec:
+  nodeLabels:
+    cloud.google.com/gke-nodepool: cpu-rm-np
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ResourceFlavor
+metadata:
+  name: cpu-proxy
+spec:
+  nodeLabels:
+    cloud.google.com/gke-nodepool: cpu-proxy-np
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ResourceFlavor
+metadata:
+  name: cpu-user
+spec:
+  nodeLabels:
+    cloud.google.com/gke-nodepool: cpu-user-np
+---"""
+  if args.enable_pathways:
+    return resource_flavor_yaml
+  return ""
+
 
 def add_pw_resources_to_kueue(args):
   """Add resource flavors required for Pathways, to the cluster queue.

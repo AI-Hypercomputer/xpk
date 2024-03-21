@@ -459,6 +459,7 @@ spec:
   namespaceSelector: {{}} # match all.
   resourceGroups:
   {covered_resources_config}
+  {pw_resources_kueue}
 ---
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: LocalQueue
@@ -2556,7 +2557,6 @@ def get_kueue_covered_resources_config(args, cluster_hardware_name, resource_typ
       resources:
       - name: "{resource_type}"
         nominalQuota: {total_chips}
-  {pw_resources_kueue}
   '''
 
     config_string = config_format.format(

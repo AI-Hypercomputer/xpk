@@ -3729,39 +3729,6 @@ def workload_create(args) -> int:
   command = f'kubectl apply -f {str(tmp.file.name)}'
   return_code = run_command_with_updates(command, 'Creating Workload', args)
 
-  if args.use_pathways:
-    # Ensure the cluster and CPU nodepools were created with --enable-pathways
-    all_node_pools = get_all_nodepools_programmatic(args)
-    desired_pw_cpu_node_pools = {'cpu-user-np', 'cpu-rm-np', 'cpu-proxy-np'}
-    if not desired_pw_cpu_node_pools.issubset(set(all_node_pools[0])):
-      xpk_print(
-          'Cluster needs to be created with --enable-pathways to run Pathways workloads.'
-      )
-      xpk_exit(1)
-
-    # Ensure device type is TPUs - currently Pathways supports TPUs only.
-    if system.accelerator_type != AcceleratorType['TPU']:
-      xpk_print(
-          'Currently, Pathways workloads can only be run on TPUs.'
-      )
-      xpk_exit(1)
-
-    yml_string = pw_workload_create_yaml.format(args=args,
-                                        system=system,
-                                        container=container,
-                                        accelerator_label=create_accelerator_label(system.accelerator_type, system),
-                                        machine_label=create_machine_label(system.accelerator_type, system),
-                                        pathways_rm_args = get_pathways_rm_args(args),
-                                        pathways_worker_args = get_pathways_worker_args(args),
-                                        pathways_proxy_args = get_pathways_proxy_args(args),
-                                        resource_type=resource_type,
-                                        local_queue_name=_LOCAL_QUEUE_NAME)
-    tmp = write_temporary_file(yml_string)
-    command = f'kubectl apply -f {str(tmp.file.name)}'
-    return_code = run_command_with_updates(command, 'Creating a Pathways Workload', args)
-
-
-
   if return_code != 0:
     xpk_print(f'Create Workload request returned ERROR {return_code}')
     xpk_exit(return_code)

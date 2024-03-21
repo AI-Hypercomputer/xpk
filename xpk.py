@@ -2459,35 +2459,31 @@ def enable_kueue_crds(args, system) -> int:
 
 # TODO(roshanin): Organize Pathways helpers in another file.
 
-def add_pw_resource_flavors(args):
-  """Add resource flavors required for Pathways enabled clusters.
+def add_pw_resources_to_kueue(args):
+  """Add resource flavors required for Pathways, to the cluster queue.
   """
-  resource_flavor_yaml="""apiVersion: kueue.x-k8s.io/v1beta1
-kind: ResourceFlavor
-metadata:
-  name: cpu-rm
-spec:
-  nodeLabels:
-    cloud.google.com/gke-nodepool: cpu-rm-np
----
-apiVersion: kueue.x-k8s.io/v1beta1
-kind: ResourceFlavor
-metadata:
-  name: cpu-proxy
-spec:
-  nodeLabels:
-    cloud.google.com/gke-nodepool: cpu-proxy-np
----
-apiVersion: kueue.x-k8s.io/v1beta1
-kind: ResourceFlavor
-metadata:
-  name: cpu-user
-spec:
-  nodeLabels:
-    cloud.google.com/gke-nodepool: cpu-user-np
----"""
+  resources_yaml="""- coveredResources: ["cpu", "memory"]
+    flavors:
+    - name: cpu-rm
+      resources:
+      - name: "cpu"
+        nominalQuota: 80
+      - name: "memory"
+        nominalQuota: 160G
+    - name: cpu-proxy
+      resources:
+      - name: "cpu"
+        nominalQuota: 480
+      - name: "memory"
+        nominalQuota: 2000G
+    - name: cpu-user
+      resources:
+      - name: "cpu"
+        nominalQuota: 480
+      - name: "memory"
+        nominalQuota: 2000G"""
   if args.enable_pathways:
-    return resource_flavor_yaml
+    return resources_yaml
   return ""
 
 

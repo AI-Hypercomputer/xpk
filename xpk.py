@@ -74,6 +74,10 @@ _CLUSTER_METADATA_CONFIGMAP = 'metadata-configmap'
 _XPK_SERVICE_ACCOUNT = 'xpk-sa'
 # Set to True to attach a service account to cluster & node pools
 _SERVICE_ACCOUNT_FEATURE_FLAG = xpk_current_version >= "0.4.0"
+_VERTEX_TENSORBOARD_FEATURE_FLAG = _SERVICE_ACCOUNT_FEATURE_FLAG
+
+if _VERTEX_TENSORBOARD_FEATURE_FLAG:
+  from cloud_accelerator_diagnostics import tensorboard
 
 
 workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
@@ -1472,12 +1476,13 @@ def run_gke_cluster_create_command(args) -> int:
   return 0
 
 
-def create_cluster_configmaps(args, system):
+def create_cluster_configmaps(args, system, tensorboard_config):
   """Run the Create GKE Cluster ConfigMap request.
 
   Args:
     args: user provided arguments for running the command.
     system: system characteristics.
+    tensorboard_config: map that contains Vertex Tensorboard name, id and location
 
   Returns:
     0 if successful and 1 otherwise.
@@ -1493,8 +1498,10 @@ def create_cluster_configmaps(args, system):
                                                 data=resources_data)
   configmap_yml[resources_configmap_name] = resources_yml
 
-  # ConfigMap to store cluster metadata like xpk_version
+  # ConfigMap to store cluster metadata like xpk_version and Vertex Tensorboard information
   metadata = f'xpk_version: {xpk_current_version}'
+  for key, value in tensorboard_config.items():
+    metadata += f'\n  {key}: "{value}"'
   metadata_configmap_name = f'{args.cluster}-{_CLUSTER_METADATA_CONFIGMAP}'
   metadata_yml = cluster_configmap_yaml.format(args=args,
                                                name=metadata_configmap_name,
@@ -1548,6 +1555,28 @@ def get_cluster_configmap(args, configmap_name):
   return config_map
 
 
+def create_vertex_tensorboard(args) -> map:
+  """Creates a Tensorboard instance in Vertex AI.
+
+  Args:
+    args: user provided arguments.
+
+  Returns:
+    map containing Tensorboard instance name, id and location.
+  """
+  tensorboard_config = {}
+  tensorboard_name = f'{args.cluster}-tb-instance' if args.tensorboard_name is None else args.tensorboard_name
+  instance_id = tensorboard.create_instance(project=args.project,  # pylint: disable=used-before-assignment
+                                            location=args.tensorboard_region,
+                                            tensorboard_name=tensorboard_name)
+  if instance_id:
+    xpk_print(f'Tensorboard instance {tensorboard_name} is successfully created.')
+    tensorboard_config['location'] = args.tensorboard_region
+    tensorboard_config['instance_name'] = tensorboard_name
+    tensorboard_config['instance_id'] = instance_id
+  return tensorboard_config
+
+
 def get_all_clusters_programmatic(args) -> tuple[list[str], int]:
   """Gets all the clusters associated with the project / region.
 
@@ -1571,16 +1600,32 @@ def get_all_clusters_programmatic(args) -> tuple[list[str], int]:
   return cluster_names, 0
 
 
-def create_cluster_if_necessary(args) -> int:
+def create_cluster_if_necessary(args) -> tuple[int, map]:
+  """Creates cluster if not present in the project.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise, and map of Vertex Tensorboard information if created.
+  """
   all_clusters, return_code = get_all_clusters_programmatic(args)
   if return_code > 0:
     xpk_print('Listing all clusters failed!')
-    return 1
-  if args.cluster in all_clusters:
+  elif args.cluster in all_clusters:
     xpk_print('Skipping cluster creation since it already exists')
-    return 0
   else:
-    return run_gke_cluster_create_command(args)
+    return_code = run_gke_cluster_create_command(args)
+
+  # do not create Vertex Tensorboard if either listing clusters failed or creating a new cluster failed
+  if return_code != 0:
+    return 1, {}
+
+  # create Vertex Tensorboard for new and existing clusters if create-vertex-tensorboard is set
+  tensorboard_config = {}
+  if _VERTEX_TENSORBOARD_FEATURE_FLAG and args.create_vertex_tensorboard:
+    tensorboard_config = create_vertex_tensorboard(args)
+  return return_code, tensorboard_config
 
 
 def get_all_nodepools_programmatic(args) -> tuple[list[str], int]:
@@ -2115,7 +2160,7 @@ def cluster_create(args) -> int:
     if add_roles_to_service_account_code != 0:
       xpk_exit(add_roles_to_service_account_code)
 
-  create_cluster_command_code = create_cluster_if_necessary(args)
+  create_cluster_command_code, tensorboard_config = create_cluster_if_necessary(args)
   if create_cluster_command_code != 0:
     xpk_exit(create_cluster_command_code)
 
@@ -2148,7 +2193,7 @@ def cluster_create(args) -> int:
     xpk_exit(enable_kueue_creds_code)
 
   xpk_print('Creating ConfigMap for cluster')
-  create_cluster_configmaps_code = create_cluster_configmaps(args, system)
+  create_cluster_configmaps_code = create_cluster_configmaps(args, system, tensorboard_config)
   if create_cluster_configmaps_code != 0:
     xpk_exit(create_cluster_configmaps_code)
 
@@ -3795,6 +3840,32 @@ cluster_create_optional_arguments.add_argument(
     help=(
       'Forces node pool creation and delete commands to run without additional'
       ' approval.'
+    ),
+)
+cluster_create_optional_arguments.add_argument(
+    '--create-vertex-tensorboard',
+    action='store_true',
+    help='Set this flag to create a Tensorboard instance in Vertex AI.',
+)
+cluster_create_optional_arguments.add_argument(
+    '--tensorboard-region',
+    type=str,
+    default='us-central1',
+    help=(
+      'The region to create Vertex Tensorboard instance in. '
+      'Visit https://cloud.google.com/vertex-ai/docs/general/locations#available-regions '
+      'to view regions supported by Vertex AI. By default, Tensorboard instance will '
+      'be created in us-central1.'
+    ),
+)
+cluster_create_optional_arguments.add_argument(
+    '--tensorboard-name',
+    type=str,
+    required=False,
+    help=(
+      'The name of Vertex Tensorboard instance to create. '
+      'If not specified, a Tensorboard instance with the name '
+      '{cluster}-tb-instance will be created.'
     ),
 )
 add_shared_arguments(cluster_create_optional_arguments)

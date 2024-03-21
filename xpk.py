@@ -2518,33 +2518,6 @@ def add_pw_resources_to_kueue(args):
   return ""
 
 
-def add_pw_resources_to_kueue(args):
-  """Add resource flavors required for Pathways, to the cluster queue.
-  """
-  resources_yaml="""- coveredResources: ["cpu", "memory"]
-    flavors:
-    - name: cpu-rm
-      resources:
-      - name: "cpu"
-        nominalQuota: 80
-      - name: "memory"
-        nominalQuota: 160G
-    - name: cpu-proxy
-      resources:
-      - name: "cpu"
-        nominalQuota: 480
-      - name: "memory"
-        nominalQuota: 2000G
-    - name: cpu-user
-      resources:
-      - name: "cpu"
-        nominalQuota: 480
-      - name: "memory"
-        nominalQuota: 2000G"""
-  if args.enable_pathways:
-    return resources_yaml
-  return ""
-
 def get_kueue_covered_resources_config(args, cluster_hardware_name, resource_type, total_chips) -> str:
   """Gets Kueue covered resources configuration.
 

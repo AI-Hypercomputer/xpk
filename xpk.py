@@ -282,7 +282,7 @@ spec:
     maxRestarts: {args.max_restarts}
   successPolicy:
     operator: "All"
-    targetReplicatedJobs: 
+    targetReplicatedJobs:
     - "main"
   replicatedJobs:
   - name: worker
@@ -1551,7 +1551,7 @@ def run_gke_cluster_create_command(args) -> int:
     # benefit from a larger initial `--num-nodes`. After the cluster is created,
     # the auto-scaler can reduce/increase the nodes based on the load.
 
-    command += ('--release-channel rapid --enable-autoscaling --location-policy=BALANCED'
+    command += (' --release-channel rapid --enable-autoscaling --location-policy=BALANCED'
         ' --scopes=storage-full,gke-default'
         ' --total-min-nodes 1 --total-max-nodes 1000 --num-nodes 6'
         f' {args.custom_cluster_arguments}'
@@ -1726,20 +1726,14 @@ def create_cluster_configmaps(args, system):
   Returns:
     0 if successful and 1 otherwise.
   """
-  device_type = args.tpu_type if args.tpu_type else args.device_type
-  if device_type == h100_device_type:
-    data = f'{device_type}: "{1 * int(args.num_nodes)}"'
-  else: 
-    data = f'{device_type}: "{int(args.num_slices) * system.vms_per_slice}"'
-  yml_string = cluster_configmap_yaml.format(args=args,
-                                           data=data)
-  tmp = write_temporary_file(yml_string)
-  command = f'kubectl apply -f {str(tmp.file.name)}'
   configmap_yml = {}
 
   # ConfigMap to store resources available in the cluster
   device_type = args.tpu_type if args.tpu_type else args.device_type
-  resources_data = f'{device_type}: "{int(args.num_slices) * system.vms_per_slice}"'
+  if device_type == h100_device_type:
+    resources_data = f'{device_type}: "{int(args.num_nodes)}"'
+  else:
+    resources_data = f'{device_type}: "{int(args.num_slices) * system.vms_per_slice}"'
   resources_configmap_name = f'{args.cluster}-{_CLUSTER_RESOURCES_CONFIGMAP}'
   resources_yml = cluster_configmap_yaml.format(args=args,
                                                 name=resources_configmap_name,
@@ -2069,7 +2063,7 @@ def run_gke_node_pool_create_command(args, system) -> int:
   commands = []
   task_names = []
 
-  if system.device_type == h100_device_type:
+  if system.accelerator_type == AcceleratorType['GPU']:
     xpk_print(
       f'Creating 1 node pool with {args.num_nodes} nodes of {system.device_type}\n'
       f'Underlyingly, we assume that means: {system}'
@@ -2105,7 +2099,7 @@ def run_gke_node_pool_create_command(args, system) -> int:
       command += (' --scopes=storage-full,gke-default')
       command += (f' --tpu-topology={system.topology}')
       command += (f' {args.custom_tpu_nodepool_arguments}')
-    elif system.device_type == h100_device_type:
+    elif system.accelerator_type == AcceleratorType['GPU']:
       command += (f' --num-nodes={args.num_nodes}')
       command += (f' --accelerator type={system.gke_accelerator},count={str(system.chips_per_vm)}'
         f' --additional-node-network network={args.cluster}-net-1,subnetwork={args.cluster}-sub-1'
@@ -2114,9 +2108,7 @@ def run_gke_node_pool_create_command(args, system) -> int:
         f' --additional-node-network network={args.cluster}-net-4,subnetwork={args.cluster}-sub-4'
         ' --no-enable-autoupgrade  --scopes="https://www.googleapis.com/auth/cloud-platform"'
         )
-    elif system.accelerator_type == AcceleratorType['GPU']: # other gpu types
-      command += (' --placement-type=COMPACT  --max-pods-per-node 15')
-      command += f' --accelerator type={system.gke_accelerator},count={str(system.chips_per_vm)}'
+
     task = f'NodepoolCreate-{node_pool_name}'
     commands.append(command)
     task_names.append(task)
@@ -2287,7 +2279,7 @@ def enable_kueue_crds(args, system) -> int:
   device_type = args.tpu_type if args.tpu_type else args.device_type
   cluster_hardware_name = f'{args.num_slices}x{device_type}'
   resource_type=AcceleratorTypeToAcceleratorCharacteristics[system.accelerator_type].resource_type
-  if system.device_type == h100_device_type:
+  if system.accelerator_type == AcceleratorType['GPU']:
     total_chips = args.num_nodes * system.chips_per_vm
   else:
     total_chips = args.num_slices * system.vms_per_slice * system.chips_per_vm
@@ -2916,7 +2908,7 @@ def check_if_workload_can_schedule(args, system):
     return False
 
   max_vm_in_cluster = cluster_config_map[device_type]
-  if system.device_type == h100_device_type:
+  if system.accelerator_type == AcceleratorType['GPU']:
     vm_required_by_workload = int(args.num_nodes)
   else:
     vm_required_by_workload = int(args.num_slices) * system.vms_per_slice
@@ -3526,7 +3518,7 @@ def workload_create(args) -> int:
   elif system.accelerator_type == AcceleratorType['CPU']:
     container = get_main_container(args, system, docker_image, resource_type)
 
-  if system.device_type == h100_device_type:
+  if system.accelerator_type == AcceleratorType['GPU']:
     yml_string = gpu_workload_create_yaml.format(args=args,
                                                  docker_image=docker_image,
                                                  command=args.command,
@@ -3561,9 +3553,6 @@ def workload_create(args) -> int:
                                         pathways_proxy_args = get_pathways_proxy_args(args),
                                         resource_type=resource_type,
                                         local_queue_name=_LOCAL_QUEUE_NAME)
-    tmp = write_temporary_file(yml_string)
-    command = f'kubectl apply -f {str(tmp.file.name)}'
-    return_code = run_command_with_updates(command, 'Creating a Pathways Workload', args)
   else:
     yml_string = workload_create_yaml.format(args=args,
                                       system=system,
@@ -3573,9 +3562,9 @@ def workload_create(args) -> int:
                                       accelerator_label=create_accelerator_label(system.accelerator_type, system),
                                       machine_label=create_machine_label(system.accelerator_type, system),
                                       local_queue_name=_LOCAL_QUEUE_NAME)
-    tmp = write_temporary_file(yml_string)
-    command = f'kubectl apply -f {str(tmp.file.name)}'
-    return_code = run_command_with_updates(command, 'Creating Workload', args)
+  tmp = write_temporary_file(yml_string)
+  command = f'kubectl apply -f {str(tmp.file.name)}'
+  return_code = run_command_with_updates(command, 'Creating Workload', args)
   
   if args.use_pathways:
     # Ensure the cluster and CPU nodepools were created with --enable-pathways
@@ -4648,14 +4637,14 @@ workload_create_parser_optional_arguments.add_argument(
     ),
 )
 workload_pathways_workload_arguments.add_argument(
-    '--use-pathways', 
+    '--use-pathways',
     action='store_true',
     help=(
         'Provide this argument to create Pathways workloads.'
     ),
 )
 workload_pathways_workload_arguments.add_argument(
-    '--proxy-server-image', 
+    '--proxy-server-image',
     type=str,
     default='gcr.io/cloud-tpu-v2-images/pathways/pathways-demo:proxy_server',
     help=(
@@ -4663,7 +4652,7 @@ workload_pathways_workload_arguments.add_argument(
     ),
 )
 workload_pathways_workload_arguments.add_argument(
-    '--server-image', 
+    '--server-image',
     type=str,
     default='gcr.io/cloud-tpu-v2-images/pathways/pathways-demo:server',
     help=(
@@ -4671,7 +4660,7 @@ workload_pathways_workload_arguments.add_argument(
     ),
 )
 workload_pathways_workload_arguments.add_argument(
-    '--pathways-gcs-location', 
+    '--pathways-gcs-location',
     type=str,
     default='gs://cloud-pathways-staging/tmp',
     help=(

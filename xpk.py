@@ -3678,7 +3678,7 @@ def workload_create(args) -> int:
     container = get_main_and_sidecar_container(args, system, docker_image)
     # Get GKE debugging dashboard only when sidecar container is deployed for TPU workloads
     debugging_dashboard_id = get_gke_debugging_dashboard(args)
-  elif system.accelerator_type == AcceleratorType['CPU'] or system.accelerator_type == AcceleratorType['TPU']:
+  elif system.accelerator_type in (AcceleratorType['CPU'], AcceleratorType['TPU']):
     container = get_main_container(args, system, docker_image, resource_type)
 
   if system.accelerator_type == AcceleratorType['GPU']:

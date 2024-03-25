@@ -2747,6 +2747,9 @@ def cluster_create(args) -> int:
   tensorboard_config = {}
   if _VERTEX_TENSORBOARD_FEATURE_FLAG and args.create_vertex_tensorboard:
     tensorboard_config = create_vertex_tensorboard(args)
+    # exit if failed to create Tensorboard in Vertex AI
+    if not tensorboard_config:
+      xpk_exit(1)
 
   device_type = args.tpu_type if args.tpu_type else args.device_type
   if device_type == h100_device_type:

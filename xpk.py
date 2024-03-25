@@ -1389,6 +1389,7 @@ def run_command_with_updates_retry(command, task, args, verbose=True, num_retry_
   while (return_code != 0 and i < num_retry_attempts):
     # Do not sleep before first try.
     if i != 0:
+      xpk_print(f'Wait {wait_seconds} seconds before retrying.')
       time.sleep(wait_seconds)
     i += 1
     xpk_print(f'Try {i}: {task}')

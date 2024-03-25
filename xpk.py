@@ -76,6 +76,7 @@ _XPK_SERVICE_ACCOUNT = 'xpk-sa'
 # Set to True to attach a service account to cluster & node pools
 _SERVICE_ACCOUNT_FEATURE_FLAG = xpk_current_version >= "0.4.0"
 _VERTEX_TENSORBOARD_FEATURE_FLAG = _SERVICE_ACCOUNT_FEATURE_FLAG
+_DEFAULT_VERTEX_TENSORBOARD_NAME = 'tb-instance'
 
 if _VERTEX_TENSORBOARD_FEATURE_FLAG:
   from cloud_accelerator_diagnostics import tensorboard
@@ -1955,7 +1956,9 @@ def create_vertex_tensorboard(args) -> map:
     map containing Tensorboard instance name, id and location.
   """
   tensorboard_config = {}
-  tensorboard_name = f'{args.cluster}-tb-instance' if args.tensorboard_name is None else args.tensorboard_name
+  tensorboard_name = args.tensorboard_name
+  if tensorboard_name is None:
+    tensorboard_name = f'{args.cluster}-{_DEFAULT_VERTEX_TENSORBOARD_NAME}'
   instance_id = tensorboard.create_instance(project=args.project,  # pylint: disable=used-before-assignment
                                             location=args.tensorboard_region,
                                             tensorboard_name=tensorboard_name)
@@ -1990,32 +1993,24 @@ def get_all_clusters_programmatic(args) -> tuple[list[str], int]:
   return cluster_names, 0
 
 
-def create_cluster_if_necessary(args) -> tuple[int, map]:
+def create_cluster_if_necessary(args) -> int:
   """Creates cluster if not present in the project.
 
   Args:
     args: user provided arguments for running the command.
 
   Returns:
-    0 if successful and 1 otherwise, and map of Vertex Tensorboard information if created.
+    0 if successful and 1 otherwise.
   """
   all_clusters, return_code = get_all_clusters_programmatic(args)
   if return_code > 0:
     xpk_print('Listing all clusters failed!')
-  elif args.cluster in all_clusters:
+    return 1
+  if args.cluster in all_clusters:
     xpk_print('Skipping cluster creation since it already exists')
+    return 0
   else:
-    return_code = run_gke_cluster_create_command(args)
-
-  # do not create Vertex Tensorboard if either listing clusters failed or creating a new cluster failed
-  if return_code != 0:
-    return 1, {}
-
-  # create Vertex Tensorboard for new and existing clusters if create-vertex-tensorboard is set
-  tensorboard_config = {}
-  if _VERTEX_TENSORBOARD_FEATURE_FLAG and args.create_vertex_tensorboard:
-    tensorboard_config = create_vertex_tensorboard(args)
-  return return_code, tensorboard_config
+    return run_gke_cluster_create_command(args)
 
 
 def get_all_nodepools_programmatic(args) -> tuple[list[str], int]:
@@ -2740,13 +2735,18 @@ def cluster_create(args) -> int:
     if add_roles_to_service_account_code != 0:
       xpk_exit(add_roles_to_service_account_code)
 
-  create_cluster_command_code, tensorboard_config = create_cluster_if_necessary(args)
+  create_cluster_command_code = create_cluster_if_necessary(args)
   if create_cluster_command_code != 0:
     xpk_exit(create_cluster_command_code)
 
   set_cluster_command_code = set_cluster_command(args)
   if set_cluster_command_code != 0:
     xpk_exit(set_cluster_command_code)
+
+  # create Vertex Tensorboard for new and existing clusters if create-vertex-tensorboard is set
+  tensorboard_config = {}
+  if _VERTEX_TENSORBOARD_FEATURE_FLAG and args.create_vertex_tensorboard:
+    tensorboard_config = create_vertex_tensorboard(args)
 
   device_type = args.tpu_type if args.tpu_type else args.device_type
   if device_type == h100_device_type:
@@ -4308,6 +4308,9 @@ cluster_create_required_arguments = cluster_create_parser.add_argument_group(
 cluster_create_optional_arguments = cluster_create_parser.add_argument_group(
     'Optional Arguments', 'Arguments optional for cluster create.'
 )
+cluster_create_tensorboard_arguments = cluster_create_parser.add_argument_group(
+    'Optional Vertex AI Tensorboard Arguments', 'Arguments for creating Vertex AI Tensorboard in cluster create.'
+)
 cluster_create_capacity_arguments = cluster_create_parser.add_argument_group(
     'Capacity Arguments', 'Arguments related to capacity for cluster create.'
 )
@@ -4458,12 +4461,12 @@ cluster_create_optional_arguments.add_argument(
       ' approval.'
     ),
 )
-cluster_create_optional_arguments.add_argument(
+cluster_create_tensorboard_arguments.add_argument(
     '--create-vertex-tensorboard',
     action='store_true',
     help='Set this flag to create a Tensorboard instance in Vertex AI.',
 )
-cluster_create_optional_arguments.add_argument(
+cluster_create_tensorboard_arguments.add_argument(
     '--tensorboard-region',
     type=str,
     default='us-central1',
@@ -4474,14 +4477,14 @@ cluster_create_optional_arguments.add_argument(
       'be created in us-central1.'
     ),
 )
-cluster_create_optional_arguments.add_argument(
+cluster_create_tensorboard_arguments.add_argument(
     '--tensorboard-name',
     type=str,
     required=False,
     help=(
       'The name of Vertex Tensorboard instance to create. '
       'If not specified, a Tensorboard instance with the name '
-      '{cluster}-tb-instance will be created.'
+      f'<cluster>-{_DEFAULT_VERTEX_TENSORBOARD_NAME} will be created.'
     ),
 )
 add_shared_arguments(cluster_create_optional_arguments)

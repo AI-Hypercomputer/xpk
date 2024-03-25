@@ -2248,6 +2248,9 @@ def run_gke_node_pool_create_command(args, system) -> int:
         f' --additional-node-network network={args.cluster}-net-4,subnetwork={args.cluster}-sub-4'
         ' --no-enable-autoupgrade  --scopes="https://www.googleapis.com/auth/cloud-platform"'
         )
+    elif system.accelerator_type == AcceleratorType['CPU']:
+      command += (f' --num-nodes={system.vms_per_slice}')
+      command += (' --scopes=storage-full,gke-default')
 
     if _SERVICE_ACCOUNT_FEATURE_FLAG:
       service_account_name = get_service_account_name(args)

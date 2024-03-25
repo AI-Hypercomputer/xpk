@@ -3247,7 +3247,7 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
       ' is required but not installed. Aborting"; exit 24;};'
     )
     xpk_internal_commands += ('WORKER_ID=$HOSTNAME;'
-                f'gsutil cp -r /tmp/xla_dump/ {args.debug_dump_gcs}/$WORKER_ID;')
+                f'gsutil -m cp -r /tmp/xla_dump/ {args.debug_dump_gcs}/$WORKER_ID;')
 
   command = args.command
   if args.enable_debug_logs:

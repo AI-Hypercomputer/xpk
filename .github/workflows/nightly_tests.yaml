@@ -16,14 +16,19 @@ name: Nightly Tests
 
 on:
   workflow_dispatch:
-  schedule: #schedule the job run at 12AM PST daily
+  schedule: # Schedule the job run at 12AM PST daily.
     - cron: '0 8 * * *'
+
+env:
+  # Names must be unique in parallel running tests.
+  EMPTY_CLUSTER_NAME: nightly-test-zero-nodepools
+  TPU_CLUSTER_NAME: nightly-test-2-v4-8-nodepools
 
 jobs:
   cluster-create-and-delete:
     runs-on: [ubuntu-20.04]
     concurrency: # We support one build test to run at a time currently.
-      group: cluster-test-group
+      group: nightly-test-cluster-group
       cancel-in-progress: false
     steps:
     - uses: actions/checkout@v4
@@ -40,15 +45,27 @@ jobs:
     - name: Verify gcp setup
       run: gcloud info
     - name: Create an XPK Cluster with zero node pools
-      run: python xpk.py cluster create --cluster test-zero-nodepool --device-type=v4-8  --num-slices=0 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments='${{ secrets.CLUSTER_ARGUMENTS }}'
+      run: python xpk.py cluster create --cluster $EMPTY_CLUSTER_NAME --device-type=v4-8  --num-slices=0 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments='${{ secrets.CLUSTER_ARGUMENTS }}'
     - name: Delete the cluster created
-      run: python xpk.py cluster delete --cluster test-zero-nodepool --zone=us-central2-b
+      run: python xpk.py cluster delete --cluster $EMPTY_CLUSTER_NAME --zone=us-central2-b
       if: always()
     - name: Create an XPK Cluster with 2x v4-8 nodepools
-      run: python xpk.py cluster create --cluster test-2-v4-8-nodepool --device-type=v4-8  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments='${{ secrets.CLUSTER_ARGUMENTS }}'
+      run: python xpk.py cluster create --cluster $TPU_CLUSTER_NAME --device-type=v4-8  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments='${{ secrets.CLUSTER_ARGUMENTS }}'
+    - name: Authenticate Docker
+      run: gcloud auth configure-docker --quiet
+    - name: Create test script to execute in workloads
+      run: echo -e '#!/bin/bash \n echo "Hello world from a test script!"' > test.sh
+    - name: Run a base-docker-image workload
+      run: python xpk.py workload create --cluster $TPU_CLUSTER_NAME --workload nightly-test-xpk-basic  --command "bash test.sh"  --tpu-type=v4-8 --num-slices=2 --zone=us-central2-b
+    - name: List out the workloads on the cluster
+      run: python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+    - name: Run xpk inspector with the workload created above
+      run: python3 xpk.py inspector --cluster $TPU_CLUSTER_NAME --zone=us-central2-b  --workload nightly-test-xpk-basic
+    - name: Delete the workload on the cluster
+      run: python3 xpk.py workload delete --workload nightly-test-xpk-basic --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
     - name: Delete the cluster created
       if: always()
-      run: python xpk.py cluster delete --cluster test-2-v4-8-nodepool --zone=us-central2-b
+      run: python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
 
 
 

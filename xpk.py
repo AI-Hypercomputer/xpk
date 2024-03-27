@@ -3208,8 +3208,7 @@ def check_use_pathways(args) -> bool:
     args: user provided arguments for running the command.
 
   Returns:
-    bool:
-      yaml for main and sidecar container
+    bool: Whether the expected images are provided with --use-pathways.
   """
   return args.use_pathways == (args.proxy_server_image is not None and args.server_image is not None)
 
@@ -3217,15 +3216,14 @@ def validate_pathways_docker_images(args) -> bool:
   """Validates the existence of Pathways server and proxy docker images in the project.
 
   Args:
-      args (_type_): _description_
+      args: user provided arguments for running the command.
 
   Returns:
-      bool: _description_
+      bool: whether the Pathways proxy and server images are valid.
   """
-  # pylint: disable=line-too-long
   proxy_server_return_code = validate_docker_image(args.proxy_server_image, args)
   server_return_code = validate_docker_image(args.server_image, args)
-  if proxy_server_return_code>0 or server_return_code>0:
+  if proxy_server_return_code > 0 or server_return_code > 0:
     return False
   else:
     return True
@@ -3410,7 +3408,6 @@ def get_pathways_proxy_args(args) -> str:
               - --pathways_ifrt_proxy_server_resource_manager={args.workload}-rm-0-0.{args.workload}:38677
               - --pathways_ifrt_proxy_server_port=38676
               - --pathways_tmp_dir_pattern={args.pathways_gcs_location}
-              - --pathways_xprof_trace_enable_bulk_upload=true
               - --pathways_plaque_network=gcp"""
   if args.use_pathways:
     return yaml.format(args=args)

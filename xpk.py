@@ -3200,6 +3200,37 @@ def setup_docker_image(args) -> tuple[int, str]:
 
   return 0, docker_image
 
+def check_use_pathways(args) -> bool:
+  """ 
+  Both --proxy-server-image and --server-image need to be set if --use-pathways is set. 
+  Neither can be provided if --use-pathways is not provided.
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    bool:
+      yaml for main and sidecar container
+  """
+  return args.use_pathways == (args.proxy_server_image is not None and args.server_image is not None)
+
+def validate_pathways_docker_images(args) -> bool:
+  """Validates the existence of Pathways server and proxy docker images in the project.
+
+  Args:
+      args (_type_): _description_
+
+  Returns:
+      bool: _description_
+  """
+  # pylint: disable=line-too-long
+  proxy_server_return_code = validate_docker_image(args.proxy_server_image, args)
+  server_return_code = validate_docker_image(args.server_image, args)
+  if proxy_server_return_code>0 or server_return_code>0:
+    return False
+  else:
+    return True
+
+
 def get_main_and_sidecar_container(args, system, docker_image) -> str:
   """Generate yaml for main and sidecar container.
   Args:
@@ -3720,6 +3751,15 @@ def workload_create(args) -> int:
   setup_docker_image_code, docker_image = setup_docker_image(args)
   if setup_docker_image_code != 0:
     xpk_exit(setup_docker_image_code)
+
+  if not check_use_pathways(args):
+    xpk_print('--proxy-server-image and --server-image need to be provided',
+              'with --use-pathways.')
+    xpk_exit(1)
+
+  if args.use_pathways and not validate_pathways_docker_images(args):
+    xpk_print('Please check the proxy-server-image or server-image as advised!')
+    xpk_exit(1)
 
   add_env_config(args)
 
@@ -4857,17 +4897,15 @@ workload_pathways_workload_arguments.add_argument(
 workload_pathways_workload_arguments.add_argument(
     '--proxy-server-image',
     type=str,
-    default='gcr.io/cloud-tpu-v2-images/pathways/pathways-demo:proxy_server',
     help=(
-        'Please provide the proxy server image for Pathways.'
+        'Please provide the proxy server image for Pathways. This argument needs to be used with --use-pathways.'
     ),
 )
 workload_pathways_workload_arguments.add_argument(
     '--server-image',
     type=str,
-    default='gcr.io/cloud-tpu-v2-images/pathways/pathways-demo:server',
     help=(
-        'Please provide the server image for Pathways.'
+        'Please provide the server image for Pathways. This argument needs to be used with --use-pathways.'
     ),
 )
 workload_pathways_workload_arguments.add_argument(

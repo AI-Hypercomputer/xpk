@@ -2332,6 +2332,9 @@ def run_gke_node_pool_create_command(args, system) -> int:
         f' --additional-node-network network={args.cluster}-net-4,subnetwork={args.cluster}-sub-4'
         ' --no-enable-autoupgrade  --scopes="https://www.googleapis.com/auth/cloud-platform"'
         )
+    elif system.accelerator_type == AcceleratorType['CPU']:
+      command += (f' --num-nodes={system.vms_per_slice}')
+      command += (' --scopes=storage-full,gke-default')
 
     if _SERVICE_ACCOUNT_FEATURE_FLAG:
       service_account_name = get_service_account_name(args)
@@ -3291,7 +3294,7 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
       ' is required but not installed. Aborting"; exit 24;};'
     )
     xpk_internal_commands += ('WORKER_ID=$HOSTNAME;'
-                f'gsutil cp -r /tmp/xla_dump/ {args.debug_dump_gcs}/$WORKER_ID;')
+                f'gsutil -m cp -r /tmp/xla_dump/ {args.debug_dump_gcs}/$WORKER_ID;')
 
   command = args.command
   if args.enable_debug_logs:

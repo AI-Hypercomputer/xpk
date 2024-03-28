@@ -1951,7 +1951,7 @@ def get_cluster_configmap(args, configmap_name):
   return config_map
 
 
-def create_vertex_tensorboard(args) -> map:
+def create_vertex_tensorboard(args) -> dict:
   """Creates a Tensorboard instance in Vertex AI.
 
   Args:

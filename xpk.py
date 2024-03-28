@@ -66,7 +66,8 @@ if (
 default_docker_image = 'python:3.10'
 default_script_dir = os.getcwd()
 default_gke_version="1.29.1-gke.1589017"
-xpk_current_version = "0.3.0"
+__version__ = "0.3.0"
+xpk_current_version = __version__
 _CLUSTER_QUEUE_NAME='cluster-queue'
 _LOCAL_QUEUE_NAME='multislice-queue'
 h100_device_type = 'h100-80gb-8'

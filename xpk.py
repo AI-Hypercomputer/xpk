@@ -261,7 +261,7 @@ spec:
                   - "bash"
                   - "-c"
                   - |
-                    echo XPK Start: $(date) ; _sigterm() ( kill -SIGTERM $!;); trap _sigterm SIGTERM; (cd /deps && bash gpu_multi_process_run.sh) & PID=$!; while kill -0 $PID 2>/dev/null; do sleep 5; done; EXIT_CODE=$? ; echo XPK End: $(date); echo EXIT_CODE=$EXIT_CODE; echo Main app is done > /usr/share/workload/workload_terminated
+                    echo XPK Start: $(date) ; _sigterm() ( kill -SIGTERM $!;); trap _sigterm SIGTERM; (cd /deps && bash gpu_multi_process_run.sh) & PID=$!; while kill -0 $PID 2>/dev/null; do sleep 5; done; EXIT_CODE=$? ; echo XPK End: $(date); echo EXIT_CODE=$EXIT_CODE; echo Main app is done > /usr/share/workload/workload_terminated; {xpk_return_user_exit_code}
                 volumeMounts:
                   - name: nvidia-install-dir-host
                     mountPath: /usr/local/nvidia/lib64
@@ -3266,6 +3266,12 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
     command = ('TPU_STDERR_LOG_LEVEL=0 TPU_MIN_LOG_LEVEL=0 TF_CPP_MIN_LOG_LEVEL=0'
                f' TPU_VMODULE=real_program_continuator=1 {args.command}')
 
+  xpk_return_user_exit_code = ''
+  if args.restart_on_user_code_failure:
+    if int(args.max_restarts) <= 0:
+      xpk_print(f'Warning: --max-restarts, is set to {args.max_restarts}. Will not restart on user failure.')
+    xpk_return_user_exit_code = 'exit $EXIT_CODE'
+
   yaml = """- name: {args.docker_name}
                 image: {docker_image}
                 {image_pull_policy}
@@ -3279,25 +3285,28 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
                 - bash
                 - -c
                 - |
-                  echo XPK Start: $(date) ; _sigterm() ( kill -SIGTERM $! 2>/dev/null;); trap _sigterm SIGTERM;{gsutil_test_command}({command}) & PID=$!; while kill -0 $PID 2>/dev/null; do sleep 5; done; wait $PID; EXIT_CODE=$? ; {xpk_internal_commands} echo XPK End: $(date); echo EXIT_CODE=$EXIT_CODE; exit $EXIT_CODE
+                  echo XPK Start: $(date) ; _sigterm() ( kill -SIGTERM $! 2>/dev/null;); trap _sigterm SIGTERM;{gsutil_test_command}({command}) & PID=$!; while kill -0 $PID 2>/dev/null; do sleep 5; done; wait $PID; EXIT_CODE=$? ; {xpk_internal_commands} echo XPK End: $(date); echo EXIT_CODE=$EXIT_CODE; {xpk_return_user_exit_code}
                 resources:
                   limits:
                     {resources}
                 volumeMounts:
                 {pw_volume_mounts}
   """
-  return yaml.format(args=args,
-                   system=system,
-                   image_pull_policy=add_image_pull_policy_for_pw(args),
-                   env=get_env_container(args),
-                   container_ports=add_container_ports(args),
-                   jax_coordinator_port=add_jax_coordinator_port(system),
-                   docker_image=docker_image,
-                   gsutil_test_command=gsutil_test_command,
-                   command=command,
-                   xpk_internal_commands=xpk_internal_commands,
-                   resources=get_main_container_resources(args, system, resource_type),
-                   pw_volume_mounts=get_pw_volume_mounts(args))
+  return yaml.format(
+    args=args,
+    system=system,
+    image_pull_policy=add_image_pull_policy_for_pw(args),
+    env=get_env_container(args),
+    container_ports=add_container_ports(args),
+    jax_coordinator_port=add_jax_coordinator_port(system),
+    docker_image=docker_image,
+    gsutil_test_command=gsutil_test_command,
+    command=command,
+    xpk_internal_commands=xpk_internal_commands,
+    resources=get_main_container_resources(args, system, resource_type),
+    pw_volume_mounts=get_pw_volume_mounts(args),
+    xpk_return_user_exit_code=xpk_return_user_exit_code
+  )
 
 def add_image_pull_policy_for_pw(args):
   """ Add image pull policy only for Pathways containers.
@@ -3743,13 +3752,22 @@ def workload_create(args) -> int:
     container = get_main_container(args, system, docker_image, resource_type)
 
   if system.accelerator_type == AcceleratorType['GPU']:
-    yml_string = gpu_workload_create_yaml.format(args=args,
-                                                 docker_image=docker_image,
-                                                 command=args.command,
-                                                 accelerator_label=create_accelerator_label(system.accelerator_type, system),
-                                                 machine_label=create_machine_label(system.accelerator_type, system),
-                                                 node_pool_name=f'{args.cluster}-np-0',
-                                                 chips_per_vm=system.chips_per_vm)
+    xpk_return_user_exit_code = ''
+    if args.restart_on_user_code_failure:
+      if int(args.max_restarts) <= 0:
+        xpk_print(f'Warning: --max-restarts, is set to {args.max_restarts}. Will not restart on user failure.')
+      xpk_return_user_exit_code = 'exit $EXIT_CODE'
+
+    yml_string = gpu_workload_create_yaml.format(
+        args=args,
+        docker_image=docker_image,
+        command=args.command,
+        accelerator_label=create_accelerator_label(system.accelerator_type, system),
+        machine_label=create_machine_label(system.accelerator_type, system),
+        node_pool_name=f'{args.cluster}-np-0',
+        chips_per_vm=system.chips_per_vm,
+        xpk_return_user_exit_code=xpk_return_user_exit_code
+    )
   elif args.use_pathways:
     # Ensure the cluster and CPU nodepools were created with --enable-pathways
     all_node_pools = get_all_nodepools_programmatic(args)
@@ -3767,25 +3785,29 @@ def workload_create(args) -> int:
       )
       xpk_exit(1)
 
-    yml_string = pw_workload_create_yaml.format(args=args,
-                                        system=system,
-                                        container=container,
-                                        accelerator_label=create_accelerator_label(system.accelerator_type, system),
-                                        machine_label=create_machine_label(system.accelerator_type, system),
-                                        pathways_rm_args = get_pathways_rm_args(args),
-                                        pathways_worker_args = get_pathways_worker_args(args),
-                                        pathways_proxy_args = get_pathways_proxy_args(args),
-                                        resource_type=resource_type,
-                                        local_queue_name=_LOCAL_QUEUE_NAME)
+    yml_string = pw_workload_create_yaml.format(
+        args=args,
+        system=system,
+        container=container,
+        accelerator_label=create_accelerator_label(system.accelerator_type, system),
+        machine_label=create_machine_label(system.accelerator_type, system),
+        pathways_rm_args = get_pathways_rm_args(args),
+        pathways_worker_args = get_pathways_worker_args(args),
+        pathways_proxy_args = get_pathways_proxy_args(args),
+        resource_type=resource_type,
+        local_queue_name=_LOCAL_QUEUE_NAME
+    )
   else:
-    yml_string = workload_create_yaml.format(args=args,
-                                      system=system,
-                                      container=container,
-                                      affinity=get_cpu_affinity(system.accelerator_type),
-                                      env=get_cpu_env(args.num_slices,system),
-                                      accelerator_label=create_accelerator_label(system.accelerator_type, system),
-                                      machine_label=create_machine_label(system.accelerator_type, system),
-                                      local_queue_name=_LOCAL_QUEUE_NAME)
+    yml_string = workload_create_yaml.format(
+        args=args,
+        system=system,
+        container=container,
+        affinity=get_cpu_affinity(system.accelerator_type),
+        env=get_cpu_env(args.num_slices,system),
+        accelerator_label=create_accelerator_label(system.accelerator_type, system),
+        machine_label=create_machine_label(system.accelerator_type, system),
+        local_queue_name=_LOCAL_QUEUE_NAME
+    )
   tmp = write_temporary_file(yml_string)
   command = f'kubectl apply -f {str(tmp.file.name)}'
   return_code = run_command_with_updates(command, 'Creating Workload', args)
@@ -4866,6 +4888,18 @@ workload_create_parser_optional_arguments.add_argument(
         'Defaults to 30 seconds.'
     ),
 )
+
+workload_create_parser_optional_arguments.add_argument(
+    '--restart-on-user-code-failure',
+    action='store_true',
+    help=(
+        'Adding this argument will return user failures back to the jobset manager'
+        ' allowing restarts on user code when --max-restarts is set greater than 0.'
+        ' By default, this is not enabled, and workloads will not restart from user code'
+        ' failures.'
+    ),
+)
+
 workload_pathways_workload_arguments.add_argument(
     '--use-pathways',
     action='store_true',

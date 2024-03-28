@@ -3259,7 +3259,7 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
 
   xpk_return_user_exit_code = ''
   if args.restart_on_user_code_failure:
-    if args.max_restarts <= 0:
+    if int(args.max_restarts) <= 0:
       xpk_print(f'Warning: --max-restarts, is set to {args.max_restarts}. Will not restart on user failure.')
     xpk_return_user_exit_code = 'exit $EXIT_CODE'
 
@@ -3745,7 +3745,7 @@ def workload_create(args) -> int:
   if system.accelerator_type == AcceleratorType['GPU']:
     xpk_return_user_exit_code = ''
     if args.restart_on_user_code_failure:
-      if args.max_restarts <= 0:
+      if int(args.max_restarts) <= 0:
         xpk_print(f'Warning: --max-restarts, is set to {args.max_restarts}. Will not restart on user failure.')
       xpk_return_user_exit_code = 'exit $EXIT_CODE'
 

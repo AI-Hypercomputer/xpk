@@ -3911,7 +3911,6 @@ def get_pathways_proxy_args(args) -> str:
               - --pathways_ifrt_proxy_server_resource_manager={args.workload}-rm-0-0.{args.workload}:38677
               - --pathways_ifrt_proxy_server_port=38676
               - --pathways_tmp_dir_pattern={args.pathways_gcs_location}
-              - --pathways_xprof_trace_enable_bulk_upload=true
               - --pathways_plaque_network=gcp"""
   if args.use_pathways:
     return yaml.format(args=args)

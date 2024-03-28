@@ -4874,7 +4874,7 @@ workload_create_parser_optional_arguments.add_argument(
     '--restart-on-user-code-failure',
     action='store_true',
     help=(
-        'Adding this argument will return user failures back to to the jobset manager'
+        'Adding this argument will return user failures back to the jobset manager'
         ' allowing restarts on user code when --max-restarts is set greater than 0.'
         ' By default, this is not enabled, and workloads will not restart from user code'
         ' failures.'

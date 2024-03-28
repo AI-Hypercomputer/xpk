@@ -1281,8 +1281,8 @@ def add_env_config(args, tensorboard_config):
 
   if tensorboard_config:
     env['UPLOAD_DATA_TO_TENSORBOARD'] = True
-  for key, value in tensorboard_config.items():
-    env[key.upper()] = value
+    for key, value in tensorboard_config.items():
+      env[key.upper()] = value
 
   if device_type == h100_device_type:
     # For H100, it has two more spaces ahead of name and value respectively
@@ -4751,7 +4751,7 @@ workload_pathways_workload_arguments = (
 workload_vertex_tensorboard_arguments = (
   workload_create_parser.add_argument_group(
     'Vertex Tensorboard Arguments',
-    ''
+    'Arguments for creating Vertex AI Experiment in workload create.'
   )
 )
 

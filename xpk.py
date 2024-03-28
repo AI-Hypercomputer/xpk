@@ -1975,7 +1975,7 @@ def create_vertex_tensorboard(args) -> map:
   return tensorboard_config
 
 
-def create_vertex_experiment(args) -> map:
+def create_vertex_experiment(args) -> dict:
   """Creates an Experiment in Vertex AI.
 
   Args:
@@ -1992,7 +1992,7 @@ def create_vertex_experiment(args) -> map:
               ' Run `xpk cluster create --create-vertex-tensorboard` before running'
               ' `xpk workload create --use-vertex-tensorboard` to create a Vertex'
               ' Tensorboard instance.')
-    xpk_exit(1)
+    return None
 
   tensorboard_config = {}
   tensorboard_config['tensorboard_project'] = args.project
@@ -2008,7 +2008,7 @@ def create_vertex_experiment(args) -> map:
                                 experiment_name=experiment_name,
                                 tensorboard_name=tensorboard_config['tensorboard_name'])
   if tensorboard_url is None:
-    xpk_exit(1)
+    return None
 
   xpk_print(f'You can view Vertex Tensorboard at: {tensorboard_url}')
   return tensorboard_config
@@ -3768,6 +3768,9 @@ def workload_create(args) -> int:
   tensorboard_config = {}
   if _VERTEX_TENSORBOARD_FEATURE_FLAG and args.use_vertex_tensorboard:
     tensorboard_config = create_vertex_experiment(args)
+    # exit if failed to create Experiment in Vertex AI
+    if not tensorboard_config:
+      xpk_exit(1)
 
   add_env_config(args, tensorboard_config)
 

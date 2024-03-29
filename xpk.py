@@ -1253,13 +1253,13 @@ def add_env_config(args, tensorboard_config):
   device_type = args.tpu_type if args.tpu_type else args.device_type
   env = {'JOBSET_NAME': args.workload}
 
+  env_pat = re.compile(r'(^[a-zA-Z_][a-zA-Z0-9_]*?)(?:=(.*))?$', re.M)
   if args.env_file:
     print('Setting container environment from', args.env_file)
-    pat = re.compile(r'(^[a-zA-Z_][a-zA-Z0-9_]*?)(?:=(.*))$', re.M)
     with open(file=args.env_file, mode='r', encoding='utf-8') as f:
-      for match in pat.finditer(f.read()):
+      for match in env_pat.finditer(f.read()):
         variable = match.group(1)
-        if len(match.groups()) > 1:
+        if match.group(2) is not None:
           env[variable] = match.group(2)
         else:
           assert variable in os.environ, (
@@ -1267,6 +1267,15 @@ def add_env_config(args, tensorboard_config):
               'environment, a value must be specified.'
           )
           env[variable] = os.environ[variable]
+  if args.env:
+    for var in args.env:
+      match = env_pat.match(var)
+      assert match and match.group(2) is not None, (
+          'Invalid environment variable, format must be '
+          f'`--env VARIABLE=value`: {var}'
+      )
+      variable = match.group(1)
+      env[variable] = match.group(2)
 
   if args.debug_dump_gcs:
     if args.use_pathways:
@@ -3010,7 +3019,7 @@ def validate_docker_image(docker_image, args) -> int:
 
   project = args.project
 
-  if docker_image.find('gcr.io') == -1:
+  if not any(repo in docker_image for repo in ['gcr.io', 'docker.pkg.dev']):
     return 0
 
   command = (
@@ -4852,7 +4861,8 @@ workload_create_parser_optional_arguments.add_argument(
     default=1,
     help='The number of nodes to use, default=1.',
 )
-workload_create_parser_optional_arguments.add_argument(
+workload_env_arguments = workload_create_parser_optional_arguments.add_mutually_exclusive_group()
+workload_env_arguments.add_argument(
     '--env-file',
     type=str,
     default=None,
@@ -4862,6 +4872,15 @@ workload_create_parser_optional_arguments.add_argument(
         'value) or <variable> (which takes the value from the local '
         'environment), and # for comments.'
     ),
+)
+workload_env_arguments.add_argument(
+    '--env',
+    action='append',
+    type=str,
+    help=(
+        'Environment variable to set in the container environment. '
+        'The format is <variable>=value'
+    )
 )
 workload_create_parser_optional_arguments.add_argument(
     '--priority',

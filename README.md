@@ -592,11 +592,16 @@ workload.
 
 # More advanced facts:
 
-* Workload create accepts a --env-file flag to allow specifying the container's
+* Workload create has two mutually exclusive ways to override the environment of a workload:
+  *  a `--env` flag to specify each environment variable separately. The format is:
+
+     `--env VARIABLE1=value --env VARIABLE2=value`
+
+  *  a `--env-file` flag to allow specifying the container's
 environment from a file. Usage is the same as Docker's
 [--env-file flag](https://docs.docker.com/engine/reference/commandline/run/#env)
 
-    Example File:
+    Example Env File:
     ```shell
     LIBTPU_INIT_ARGS=--my-flag=true --performance=high
     MY_ENV_VAR=hello

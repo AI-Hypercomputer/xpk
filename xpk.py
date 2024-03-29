@@ -1243,11 +1243,12 @@ def add_zone_and_project(args):
   xpk_print(f'Working on {args.project=} and {args.zone}')
 
 
-def add_env_config(args):
+def add_env_config(args, tensorboard_config):
   """Adds environment configurations to the jobset config.
 
   Args:
     args: user provided arguments for running the command.
+    tensorboard_config: configuration of Vertex Tensorboard.
   """
   device_type = args.tpu_type if args.tpu_type else args.device_type
   env = {'JOBSET_NAME': args.workload}
@@ -1287,6 +1288,10 @@ def add_env_config(args):
                        'XLA_FLAGS.')
     env['XLA_FLAGS'] = '--xla_dump_to=/tmp/xla_dump/'
 
+  if tensorboard_config:
+    env['UPLOAD_DATA_TO_TENSORBOARD'] = True
+    for key, value in tensorboard_config.items():
+      env[key.upper()] = value
 
   if device_type == h100_device_type:
     # For H100, it has two more spaces ahead of name and value respectively
@@ -1951,11 +1956,11 @@ def get_cluster_configmap(args, configmap_name):
 
     for config in configs:
       key, value = config.strip().split(":")
-      config_map[key] = int(value)
+      config_map[key] = value
   return config_map
 
 
-def create_vertex_tensorboard(args) -> map:
+def create_vertex_tensorboard(args) -> dict:
   """Creates a Tensorboard instance in Vertex AI.
 
   Args:
@@ -1973,9 +1978,48 @@ def create_vertex_tensorboard(args) -> map:
                                             tensorboard_name=tensorboard_name)
   if instance_id:
     xpk_print(f'Tensorboard instance {tensorboard_name} is successfully created.')
-    tensorboard_config['location'] = args.tensorboard_region
-    tensorboard_config['instance_name'] = tensorboard_name
-    tensorboard_config['instance_id'] = instance_id
+    tensorboard_config['tensorboard_location'] = args.tensorboard_region
+    tensorboard_config['tensorboard_name'] = tensorboard_name
+    tensorboard_config['tensorboard_id'] = instance_id
+  return tensorboard_config
+
+
+def create_vertex_experiment(args) -> dict:
+  """Creates an Experiment in Vertex AI.
+
+  Args:
+    args: user provided arguments.
+
+  Returns:
+    map containing Vertex Tensorboard configurations.
+  """
+  metadata_configmap_name = f'{args.cluster}-{_CLUSTER_METADATA_CONFIGMAP}'
+  cluster_config_map = get_cluster_configmap(args, metadata_configmap_name)
+
+  if cluster_config_map is None or 'tensorboard_name' not in cluster_config_map:
+    xpk_print('No Vertex Tensorboard instance has been created in cluster create.'
+              ' Run `xpk cluster create --create-vertex-tensorboard` before running'
+              ' `xpk workload create --use-vertex-tensorboard` to create a Vertex'
+              ' Tensorboard instance.')
+    return None
+
+  tensorboard_config = {}
+  tensorboard_config['tensorboard_project'] = args.project
+  tensorboard_config['tensorboard_location'] = cluster_config_map['tensorboard_location']
+  tensorboard_config['tensorboard_name'] = cluster_config_map['tensorboard_name']
+  experiment_name = args.experiment_name
+  if experiment_name is None:
+    experiment_name = f'{args.cluster}-{args.workload}'
+  tensorboard_config['experiment_name'] = experiment_name
+
+  _, tensorboard_url = tensorboard.create_experiment(project=args.project,
+                                location=tensorboard_config['tensorboard_location'],
+                                experiment_name=experiment_name,
+                                tensorboard_name=tensorboard_config['tensorboard_name'])
+  if tensorboard_url is None:
+    return None
+
+  xpk_print(f'You can view Vertex Tensorboard at: {tensorboard_url}')
   return tensorboard_config
 
 
@@ -3131,7 +3175,7 @@ def check_if_workload_can_schedule(args, system):
     )
     return False
 
-  max_vm_in_cluster = cluster_config_map[device_type]
+  max_vm_in_cluster = int(cluster_config_map[device_type])
   if system.accelerator_type == AcceleratorType['GPU']:
     vm_required_by_workload = int(args.num_nodes)
   else:
@@ -3739,7 +3783,14 @@ def workload_create(args) -> int:
   if setup_docker_image_code != 0:
     xpk_exit(setup_docker_image_code)
 
-  add_env_config(args)
+  tensorboard_config = {}
+  if _VERTEX_TENSORBOARD_FEATURE_FLAG and args.use_vertex_tensorboard:
+    tensorboard_config = create_vertex_experiment(args)
+    # exit if failed to create Experiment in Vertex AI
+    if not tensorboard_config:
+      xpk_exit(1)
+
+  add_env_config(args, tensorboard_config)
 
   debugging_dashboard_id = None
   resource_type = AcceleratorTypeToAcceleratorCharacteristics[system.accelerator_type].resource_type
@@ -4706,6 +4757,12 @@ workload_pathways_workload_arguments = (
         'Pathways workload on xpk.'
     )
 )
+workload_vertex_tensorboard_arguments = (
+  workload_create_parser.add_argument_group(
+    'Vertex Tensorboard Arguments',
+    'Arguments for creating Vertex AI Experiment in workload create.'
+  )
+)
 
 ### "workload create" Required arguments
 workload_create_parser_required_arguments.add_argument(
@@ -4929,6 +4986,21 @@ workload_pathways_workload_arguments.add_argument(
     default='gs://cloud-pathways-staging/tmp',
     help=(
         'Please provide the GCS location to store Pathways artifacts.'
+    ),
+)
+workload_vertex_tensorboard_arguments.add_argument(
+    '--use-vertex-tensorboard',
+    action='store_true',
+    help='Set this flag to view workload data on Vertex Tensorboard.',
+)
+workload_vertex_tensorboard_arguments.add_argument(
+    '--experiment-name',
+    type=str,
+    required=False,
+    help=(
+      'The name of Vertex Experiment to create. '
+      'If not specified, a Vertex Experiment with the name '
+      '<cluster>-<workload> will be created.'
     ),
 )
 workload_create_parser.set_defaults(func=workload_create)

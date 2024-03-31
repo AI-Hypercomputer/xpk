@@ -443,6 +443,20 @@ COPY . .
 WORKDIR /app
 """
 
+second_docker_image_dockerfile = """FROM {base_docker_image}
+
+# Copy everything from the second_docker_image
+COPY --from={second_docker_image} / /
+
+# Set the working directory in the container
+WORKDIR /app
+
+# Copy all files from local workspace into docker container
+COPY . .
+
+WORKDIR /app
+"""
+
 cluster_set_crd_yaml = """apiVersion: kueue.x-k8s.io/v1beta1
 kind: ResourceFlavor
 metadata:
@@ -3054,9 +3068,22 @@ def build_docker_image_from_base_image(args, verbose=True) -> tuple[int, str]:
   docker_image_prefix = os.getenv('USER', 'unknown')
   docker_name = f'{docker_image_prefix}-runner'
 
-  docker_file = script_dir_dockerfile.format(
+  # If second_docker_image exist, merge second_docker_image with base_docker_image.
+  if args.second_docker_image:
+    # Validate second_docker_image exist.
+    validate_second_docker_image_code = validate_docker_image(
+        args.second_docker_image, args
+    )
+    if validate_second_docker_image_code != 0:
+      xpk_exit(validate_second_docker_image_code)
+    docker_file = second_docker_image_dockerfile.format(
       base_docker_image=args.base_docker_image,
-  )
+      second_docker_image=args.second_docker_image
+    )
+  else:
+    docker_file = script_dir_dockerfile.format(
+        base_docker_image=args.base_docker_image,
+    )
   tmp = write_temporary_file(docker_file)
   docker_build_command = (
       f'docker build -f {str(tmp.file.name)} -t {docker_name}'
@@ -4840,6 +4867,15 @@ workload_base_docker_image_arguments.add_argument(
         ' gcr.io/${PROJECT}/${NAME}:latest. This docker image will be used as a'
         ' base image by default and the `--script-dir` by default'
         ' will be added to the image.'
+    ),
+)
+workload_base_docker_image_arguments.add_argument(
+    '--second-docker-image',
+    type=str,
+    default=None,
+    help=(
+        'The second docker image to merge with base_docker_image, default None.'
+        'If using a second_docker_image, it will be merged with base_docker_image.'
     ),
 )
 workload_base_docker_image_arguments.add_argument(

@@ -14,7 +14,7 @@
 
 [project]
 name = "xpk"
-version = "0.3.0"
+dynamic = ["version"]
 authors = [
   { name="Cloud TPU Team", email="cloud-tpu-eng@google.com" },
 ]
@@ -41,3 +41,6 @@ build-backend = "setuptools.build_meta"
 
 [project.scripts]
 xpk = "xpk:main"
+
+[tool.setuptools.dynamic]
+version = {attr = "xpk.__version__"}

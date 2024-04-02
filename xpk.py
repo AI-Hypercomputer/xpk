@@ -2479,7 +2479,7 @@ def run_gke_cluster_delete_command(args) -> int:
   if return_code != 0:
     xpk_print(f'Cluster delete request returned ERROR {return_code}')
     return 1
-  
+
   return_code = delete_cluster_subnet(args)
   if return_code != 0:
     return return_code

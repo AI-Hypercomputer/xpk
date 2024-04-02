@@ -1817,8 +1817,42 @@ def create_cluster_subnet(args, index) -> int:
     if return_code != 0:
       xpk_print(f'Create Cluster Subnet request returned ERROR {return_code}')
       return 1
-    else:
-      xpk_print(f'Reusing existing subnet {subnet_name}')
+  else:
+    xpk_print(f'Reusing existing subnet {subnet_name}')
+
+  return 0
+
+def delete_cluster_subnet(args) -> int:
+  """Delete one GKE Cluster subnet.
+
+  Args:
+    args: user provided arguments for running the command.
+    index: index number for the subnet to be created.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  existing_subnet_names, return_code = get_all_subnets_programmatic(args)
+  if return_code > 0:
+    xpk_print('Listing all subnets failed!')
+    return return_code
+  for index in range(1, 5):
+    subnet_name = f'{args.cluster}-sub-{index}'
+    if subnet_name in existing_subnet_names:
+      command = (
+        f'gcloud compute networks subnets delete {subnet_name}'
+        f' --region={zone_to_region(args.zone)} --quiet'
+      )
+
+      return_code = run_command_with_updates(
+          command, 'Delete Cluster Subnet', args, verbose=False
+      )
+
+      if return_code != 0:
+        xpk_print(f'Delete Cluster Subnet request returned ERROR {return_code}')
+        return 1
+      else:
+        xpk_print(f'Deleted existing subnet {subnet_name}')
 
   return 0
 
@@ -2124,7 +2158,7 @@ def get_all_subnets_programmatic(args) -> tuple[list[str], int]:
     List of subnets and 0 if successful and 1 otherwise.
   """
   command = (
-      'gcloud compute networks subnets list'
+      f'gcloud compute networks subnets list --filter=region:{zone_to_region(args.zone)}'
   )
   return_code, raw_subnets_output = (
       run_command_for_value(command, 'Get All Subnets', args)
@@ -2445,6 +2479,10 @@ def run_gke_cluster_delete_command(args) -> int:
   if return_code != 0:
     xpk_print(f'Cluster delete request returned ERROR {return_code}')
     return 1
+  
+  return_code = delete_cluster_subnet(args)
+  if return_code != 0:
+    return return_code
 
   return 0
 

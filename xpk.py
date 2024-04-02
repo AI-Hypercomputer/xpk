@@ -1980,7 +1980,7 @@ def create_vertex_tensorboard(args) -> dict:
                                             tensorboard_name=tensorboard_name)
   if instance_id:
     xpk_print(f'Tensorboard instance {tensorboard_name} is successfully created.')
-    tensorboard_config['tensorboard_location'] = args.tensorboard_region
+    tensorboard_config['tensorboard_region'] = args.tensorboard_region
     tensorboard_config['tensorboard_name'] = tensorboard_name
     tensorboard_config['tensorboard_id'] = instance_id
   return tensorboard_config
@@ -2007,7 +2007,7 @@ def create_vertex_experiment(args) -> dict:
 
   tensorboard_config = {}
   tensorboard_config['tensorboard_project'] = args.project
-  tensorboard_config['tensorboard_location'] = cluster_config_map['tensorboard_location']
+  tensorboard_config['tensorboard_region'] = cluster_config_map['tensorboard_region']
   tensorboard_config['tensorboard_name'] = cluster_config_map['tensorboard_name']
   experiment_name = args.experiment_name
   if experiment_name is None:
@@ -2015,7 +2015,7 @@ def create_vertex_experiment(args) -> dict:
   tensorboard_config['experiment_name'] = experiment_name
 
   _, tensorboard_url = tensorboard.create_experiment(project=args.project,
-                                location=tensorboard_config['tensorboard_location'],
+                                location=tensorboard_config['tensorboard_region'],
                                 experiment_name=experiment_name,
                                 tensorboard_name=tensorboard_config['tensorboard_name'])
   if tensorboard_url is None:

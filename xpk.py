@@ -2511,8 +2511,8 @@ def install_kueue_on_cluster(args) -> int:
   return return_code
 
 
-def enable_kueue_crds(args, system) -> int:
-  """Enable Kueue crds.
+def enable_kueue_credentials(args, system) -> int:
+  """Enable Kueue credentials.
 
   Args:
     args: user provided arguments for running the command.
@@ -2551,11 +2551,26 @@ def enable_kueue_crds(args, system) -> int:
   command = f'kubectl apply -f {str(tmp.file.name)}'
   # For kueue setup, we see a timeout error due to the webhook not
   # being ready. Let's retry and wait a few seconds.
-  task = 'Applying Kueue CRDs'
-  return_code = run_command_with_updates_retry(command, task, args)
+  task = 'Applying Kueue Credentials'
+  retry_attempts = 3
+  return_code = run_command_with_updates_retry(command, task, args, num_retry_attempts=retry_attempts)
   if return_code != 0:
-    xpk_print(f'{task} returned ERROR {return_code}')
+    # We have seen some scenarios where credentials need a few minutes for kueue
+    # and jobset installation to be ready before credentials can be applied.
+    # As a workaround we will retry again with longer wait times.
+    retry_wait_seconds = 60
+    xpk_print(f'{task} still not successful. Retrying {retry_attempts} more times'
+              f'with increased wait time of {retry_wait_seconds} seconds between tries.'
+              ' Kueue Credentials need Kueue system to be ready which can take'
+              ' some time.')
+    return_code = run_command_with_updates_retry(
+        command=command, task=task, args=args,
+        num_retry_attempts=retry_attempts, wait_seconds=retry_wait_seconds
+    )
+    if return_code != 0:
+      xpk_print(f'{task} returned ERROR {return_code}')
   return return_code
+
 
 # TODO(roshanin): Organize Pathways helpers in another file.
 def add_pw_resource_flavors(args):
@@ -2840,10 +2855,10 @@ def cluster_create(args) -> int:
   if install_kueue_on_cluster_code != 0:
     xpk_exit(install_kueue_on_cluster_code)
 
-  xpk_print('Enable Kueue CRDs')
-  enable_kueue_creds_code = enable_kueue_crds(args, system)
-  if enable_kueue_creds_code != 0:
-    xpk_exit(enable_kueue_creds_code)
+  xpk_print('Enable Kueue Credentials')
+  enable_kueue_credentials_code = enable_kueue_credentials(args, system)
+  if enable_kueue_credentials_code != 0:
+    xpk_exit(enable_kueue_credentials_code)
 
   xpk_print('Creating ConfigMap for cluster')
   create_cluster_configmaps_code = create_cluster_configmaps(args, system, tensorboard_config)

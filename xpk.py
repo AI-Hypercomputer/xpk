@@ -1802,7 +1802,7 @@ def create_cluster_subnet(args, index) -> int:
   if return_code > 0:
     xpk_print('Listing all subnets failed!')
     return return_code
-  subnet_name = f'{args.cluster}-sub-{index}'
+  subnet_name = f'{args.cluster}-{zone_to_region(args.zone)}-sub-{index}'
   if subnet_name not in existing_subnet_names:
     command = (
       f'gcloud compute --project={args.project}'
@@ -1817,8 +1817,41 @@ def create_cluster_subnet(args, index) -> int:
     if return_code != 0:
       xpk_print(f'Create Cluster Subnet request returned ERROR {return_code}')
       return 1
-    else:
-      xpk_print(f'Reusing existing subnet {subnet_name}')
+  else:
+    xpk_print(f'Reusing existing subnet {subnet_name}')
+
+  return 0
+
+def delete_cluster_subnets(args) -> int:
+  """Delete one GKE Cluster subnet.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  existing_subnet_names, return_code = get_all_subnets_programmatic(args)
+  if return_code > 0:
+    xpk_print('Listing all subnets failed!')
+    return return_code
+  for index in range(1, 5):
+    subnet_name = f'{args.cluster}-{zone_to_region(args.zone)}-sub-{index}'
+    if subnet_name in existing_subnet_names:
+      command = (
+        f'gcloud compute networks subnets delete {subnet_name}'
+        f' --region={zone_to_region(args.zone)} --project={args.project} --quiet'
+      )
+
+      return_code = run_command_with_updates(
+          command, 'Delete Cluster Subnet', args, verbose=False
+      )
+
+      if return_code != 0:
+        xpk_print(f'Delete Cluster Subnet request returned ERROR {return_code}')
+        return 1
+      else:
+        xpk_print(f'Deleted existing subnet {subnet_name}')
 
   return 0
 
@@ -2124,7 +2157,7 @@ def get_all_subnets_programmatic(args) -> tuple[list[str], int]:
     List of subnets and 0 if successful and 1 otherwise.
   """
   command = (
-      'gcloud compute networks subnets list'
+      f'gcloud compute networks subnets list --filter=region:{zone_to_region(args.zone)} --project={args.project}'
   )
   return_code, raw_subnets_output = (
       run_command_for_value(command, 'Get All Subnets', args)
@@ -2335,12 +2368,13 @@ def run_gke_node_pool_create_command(args, system) -> int:
       command += (f' --tpu-topology={system.topology}')
       command += (f' {args.custom_tpu_nodepool_arguments}')
     elif system.accelerator_type == AcceleratorType['GPU']:
+      subnet_prefix = f'{args.cluster}-{zone_to_region(args.zone)}'
       command += (f' --num-nodes={args.num_nodes}')
       command += (f' --accelerator type={system.gke_accelerator},count={str(system.chips_per_vm)}'
-        f' --additional-node-network network={args.cluster}-net-1,subnetwork={args.cluster}-sub-1'
-        f' --additional-node-network network={args.cluster}-net-2,subnetwork={args.cluster}-sub-2'
-        f' --additional-node-network network={args.cluster}-net-3,subnetwork={args.cluster}-sub-3'
-        f' --additional-node-network network={args.cluster}-net-4,subnetwork={args.cluster}-sub-4'
+        f' --additional-node-network network={args.cluster}-net-1,subnetwork={subnet_prefix}-sub-1'
+        f' --additional-node-network network={args.cluster}-net-2,subnetwork={subnet_prefix}-sub-2'
+        f' --additional-node-network network={args.cluster}-net-3,subnetwork={subnet_prefix}-sub-3'
+        f' --additional-node-network network={args.cluster}-net-4,subnetwork={subnet_prefix}-sub-4'
         ' --no-enable-autoupgrade  --scopes="https://www.googleapis.com/auth/cloud-platform"'
         )
     elif system.accelerator_type == AcceleratorType['CPU']:
@@ -2445,6 +2479,10 @@ def run_gke_cluster_delete_command(args) -> int:
   if return_code != 0:
     xpk_print(f'Cluster delete request returned ERROR {return_code}')
     return 1
+
+  return_code = delete_cluster_subnets(args)
+  if return_code != 0:
+    return return_code
 
   return 0
 

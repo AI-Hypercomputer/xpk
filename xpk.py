@@ -3834,6 +3834,20 @@ def workload_create(args) -> int:
 
   xpk_print("Starting workload create", flush=True)
 
+  metadata_configmap_name = f'{args.cluster}-{_CLUSTER_METADATA_CONFIGMAP}'
+  cluster_config_map = get_cluster_configmap(args, metadata_configmap_name)
+  cluster_xpk_version = None
+  if cluster_config_map is None:
+    xpk_print(f"Warning: Unable to find ConfigMap: {metadata_configmap_name} for the cluster. "
+              "We recommend to upgrade your cluster by running `xpk cluster create`.")
+  else:
+    cluster_xpk_version = cluster_config_map.get("xpk_version")
+  if cluster_xpk_version is not None and cluster_xpk_version < xpk_current_version:
+    xpk_print(f"Warning: Cluster has been created using XPK version: {cluster_config_map['xpk_version']} "
+              f"but the XPK version you are using to schedule workload is: {xpk_current_version}. "
+              "Some features might not be available for this cluster. We recommend to upgrade your "
+              "cluster by running `xpk cluster create` or downgrade your XPK version.")
+
   setup_docker_image_code, docker_image = setup_docker_image(args)
   if setup_docker_image_code != 0:
     xpk_exit(setup_docker_image_code)

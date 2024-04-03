@@ -1802,7 +1802,7 @@ def create_cluster_subnet(args, index) -> int:
   if return_code > 0:
     xpk_print('Listing all subnets failed!')
     return return_code
-  subnet_name = f'{args.cluster}-sub-{index}'
+  subnet_name = f'{args.cluster}-{zone_to_region(args.zone)}-sub-{index}'
   if subnet_name not in existing_subnet_names:
     command = (
       f'gcloud compute --project={args.project}'
@@ -1837,7 +1837,7 @@ def delete_cluster_subnet(args) -> int:
     xpk_print('Listing all subnets failed!')
     return return_code
   for index in range(1, 5):
-    subnet_name = f'{args.cluster}-sub-{index}'
+    subnet_name = f'{args.cluster}-{zone_to_region(args.zone)}-sub-{index}'
     if subnet_name in existing_subnet_names:
       command = (
         f'gcloud compute networks subnets delete {subnet_name}'
@@ -2371,10 +2371,10 @@ def run_gke_node_pool_create_command(args, system) -> int:
     elif system.accelerator_type == AcceleratorType['GPU']:
       command += (f' --num-nodes={args.num_nodes}')
       command += (f' --accelerator type={system.gke_accelerator},count={str(system.chips_per_vm)}'
-        f' --additional-node-network network={args.cluster}-net-1,subnetwork={args.cluster}-sub-1'
-        f' --additional-node-network network={args.cluster}-net-2,subnetwork={args.cluster}-sub-2'
-        f' --additional-node-network network={args.cluster}-net-3,subnetwork={args.cluster}-sub-3'
-        f' --additional-node-network network={args.cluster}-net-4,subnetwork={args.cluster}-sub-4'
+        f' --additional-node-network network={args.cluster}-net-1,subnetwork={args.cluster}-{zone_to_region(args.zone)}-sub-1'
+        f' --additional-node-network network={args.cluster}-net-2,subnetwork={args.cluster}-{zone_to_region(args.zone)}-sub-2'
+        f' --additional-node-network network={args.cluster}-net-3,subnetwork={args.cluster}-{zone_to_region(args.zone)}-sub-3'
+        f' --additional-node-network network={args.cluster}-net-4,subnetwork={args.cluster}-{zone_to_region(args.zone)}-sub-4'
         ' --no-enable-autoupgrade  --scopes="https://www.googleapis.com/auth/cloud-platform"'
         )
     elif system.accelerator_type == AcceleratorType['CPU']:

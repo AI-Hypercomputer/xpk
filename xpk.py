@@ -3320,10 +3320,10 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
   if args.enable_debug_logs:
     command = ('TPU_STDERR_LOG_LEVEL=0 TPU_MIN_LOG_LEVEL=0 TF_CPP_MIN_LOG_LEVEL=0'
                f' TPU_VMODULE=real_program_continuator=1 {args.command}')
-  
+
   device_type = args.tpu_type if args.tpu_type else args.device_type
   gpu_workload_terminate_command = ''
-  if device_type == h100_device_type: 
+  if device_type == h100_device_type:
     command = ('cd /deps && bash gpu_multi_process_run.sh')
     gpu_workload_terminate_command = ('echo Main app is done > /usr/share/workload/workload_terminated; ')
 
@@ -3400,7 +3400,7 @@ def get_main_container_docker_image(args, system) -> str:
 
   if system.accelerator_type == AcceleratorType['GPU']:
     return "maxtext-tcpx"
-  
+
   return f'{args.docker_image}'
 
 def get_volume_mounts(args) -> str:
@@ -3416,7 +3416,7 @@ def get_volume_mounts(args) -> str:
                   name: shared-tmp"""
   if args.use_pathways:
     return pw_volume_yaml
-  
+
   gpu_volume_yaml="""- name: nvidia-install-dir-host
                   mountPath: /usr/local/nvidia/lib64
                 - name: tcpx-nccl-plugin-volume
@@ -3452,7 +3452,7 @@ def get_pathways_rm_args(args) -> str:
     return yaml.format(args=args)
   else:
     return ""
-  
+
 def get_pathways_worker_args(args) -> str:
   """Arguments for the Pathways workers.
   Args:
@@ -3522,7 +3522,7 @@ def get_env_container(args, system):
                       fieldPath: metadata.annotations['jobset.sigs.k8s.io/jobset-name']"""
   if args.use_pathways:
     return pw_env_yaml.format(args=args)
-  
+
   gpu_env_yaml="""
                   - name: REPLICATED_JOB_NAME
                     valueFrom:
@@ -3572,11 +3572,11 @@ def get_main_container_resources(args, system, resource_type) -> str:
                     memory: 100G"""
   if args.use_pathways:
     return resources_yaml
-  
+
   gpu_resources_yaml="""nvidia.com/gpu: {system.chips_per_vm}"""
   if system.accelerator_type == AcceleratorType['GPU']:
     return gpu_resources_yaml.format(system=system)
-  
+
   return f'{resource_type}: {system.chips_per_vm}'
 
 def add_container_ports(args) -> str:
@@ -3594,7 +3594,7 @@ def add_container_ports(args) -> str:
                 - containerPort: 8080"""
   if args.use_pathways:
     return ''
-  
+
   gpu_port_yaml = """- containerPort: 6002"""
   device_type = args.tpu_type if args.tpu_type else args.device_type
   if device_type == h100_device_type:
@@ -3909,7 +3909,7 @@ def workload_create(args) -> int:
     debugging_dashboard_id = get_gke_debugging_dashboard(args)
   else:
     container = get_main_container(args, system, docker_image, resource_type)
-  
+
   if system.accelerator_type == AcceleratorType['GPU']:
     yml_string = gpu_workload_create_yaml.format(
         args=args,

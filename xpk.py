@@ -3417,7 +3417,7 @@ def get_volume_mounts(args) -> str:
   if args.use_pathways:
     return pw_volume_yaml
   
-  gpu_volume_yaml=""" - name: nvidia-install-dir-host
+  gpu_volume_yaml="""- name: nvidia-install-dir-host
                   mountPath: /usr/local/nvidia/lib64
                 - name: tcpx-nccl-plugin-volume
                   mountPath: /usr/local/tcpx

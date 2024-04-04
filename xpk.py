@@ -3321,11 +3321,10 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
     command = ('TPU_STDERR_LOG_LEVEL=0 TPU_MIN_LOG_LEVEL=0 TF_CPP_MIN_LOG_LEVEL=0'
                f' TPU_VMODULE=real_program_continuator=1 {args.command}')
 
-  device_type = args.tpu_type if args.tpu_type else args.device_type
   gpu_workload_terminate_command = ''
-  if device_type == h100_device_type:
-    command = ('cd /deps && bash gpu_multi_process_run.sh')
-    gpu_workload_terminate_command = ('echo Main app is done > /usr/share/workload/workload_terminated; ')
+  if system.accelerator_type == AcceleratorType['GPU']:
+    command = 'cd /deps && bash gpu_multi_process_run.sh'
+    gpu_workload_terminate_command = 'echo Main app is done > /usr/share/workload/workload_terminated; '
 
   xpk_return_user_exit_code = ''
   if args.restart_on_user_code_failure:
@@ -3356,7 +3355,7 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
   return yaml.format(
     args=args,
     system=system,
-    image_pull_policy=add_image_pull_policy_for_pw_or_gpu(args),
+    image_pull_policy=add_image_pull_policy_for_pw_or_gpu(args, system),
     env=get_env_container(args, system),
     container_ports=add_container_ports(args),
     jax_coordinator_port=add_jax_coordinator_port(system),
@@ -3367,11 +3366,11 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
     gpu_workload_terminate_command=gpu_workload_terminate_command,
     xpk_internal_commands=xpk_internal_commands,
     resources=get_main_container_resources(args, system, resource_type),
-    volume_mounts=get_volume_mounts(args),
+    volume_mounts=get_volume_mounts(args, system),
     xpk_return_user_exit_code=xpk_return_user_exit_code
   )
 
-def add_image_pull_policy_for_pw_or_gpu(args):
+def add_image_pull_policy_for_pw_or_gpu(args, system: SystemCharacteristics):
   """ Add image pull policy only for Pathways containers.
   Args:
     args: user provided args.
@@ -3381,12 +3380,12 @@ def add_image_pull_policy_for_pw_or_gpu(args):
       YAML stating that the image will be pulled fro GCR every time.
   """
   yaml="""imagePullPolicy: Always"""
-  device_type = args.tpu_type if args.tpu_type else args.device_type
-  if args.use_pathways or device_type == h100_device_type:
+
+  if args.use_pathways or system.accelerator_type == AcceleratorType['GPU']:
     return yaml.format(args=args)
   return ""
 
-def get_main_container_docker_image(args, system) -> str:
+def get_main_container_docker_image(args, system: SystemCharacteristics) -> str:
   """ Docker name for the main container.
   Args:
     args: user provided args.
@@ -3403,7 +3402,7 @@ def get_main_container_docker_image(args, system) -> str:
 
   return f'{args.docker_image}'
 
-def get_volume_mounts(args) -> str:
+def get_volume_mounts(args, system: SystemCharacteristics) -> str:
   """ Resources for the main container.
   Args:
     args: user provided args.
@@ -3427,8 +3426,8 @@ def get_volume_mounts(args) -> str:
                   mountPath: /dev/shm
                 - name: workload-terminated-volume
                   mountPath: /usr/share/workload"""
-  device_type = args.tpu_type if args.tpu_type else args.device_type
-  if device_type == h100_device_type:
+
+  if system.accelerator_type == AcceleratorType['GPU']:
     return gpu_volume_yaml
   return ""
 
@@ -3499,7 +3498,7 @@ def get_pathways_proxy_args(args) -> str:
   else:
     return ""
 
-def get_env_container(args, system):
+def get_env_container(args, system: SystemCharacteristics):
   """ Environment configuration for the main container.
   Args:
     args: user provided args.
@@ -3556,7 +3555,7 @@ def get_env_container(args, system):
                         system=system)
   return args.env
 
-def get_main_container_resources(args, system, resource_type) -> str:
+def get_main_container_resources(args, system: SystemCharacteristics, resource_type) -> str:
   """ Resources for the main container.
   Args:
     args: user provided args.

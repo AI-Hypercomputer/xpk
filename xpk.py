@@ -1005,6 +1005,14 @@ UserFacingNameToSystemCharacteristics = {
     ),
 
     # CPU system characteristics
+    # m1-megamem-96-$VMs
+    'm1-megamem-96-1': SystemCharacteristics(
+      'N/A', 1,'N/A', 'm1-megamem-96', 1, AcceleratorType['CPU'], 'm1-megamem-96-1'
+    ),
+    # n2-standard-64-$VMs
+    'n2-standard-64-1': SystemCharacteristics(
+      'N/A', 1,'N/A', 'n2-standard-64', 1, AcceleratorType['CPU'], 'n2-standard-64-1'
+    ),
     # n2-standard-32-$VMs
     'n2-standard-32-1': SystemCharacteristics(
       'N/A', 1,'N/A', 'n2-standard-32', 1, AcceleratorType['CPU'], 'n2-standard-32-1'
@@ -2306,6 +2314,7 @@ def run_gke_node_pool_create_command(args, system) -> int:
         f' --host-maintenance-interval={args.host_maintenance_interval}'
         f' {capacity_args}'
         ' --enable-gvnic'
+        f' {args.custom_nodepool_arguments}'
     )
     if system.accelerator_type == AcceleratorType['TPU']:
       command += (f' --node-version={args.gke_version}')
@@ -3864,6 +3873,20 @@ def workload_create(args) -> int:
 
   xpk_print("Starting workload create", flush=True)
 
+  metadata_configmap_name = f'{args.cluster}-{_CLUSTER_METADATA_CONFIGMAP}'
+  cluster_config_map = get_cluster_configmap(args, metadata_configmap_name)
+  cluster_xpk_version = None
+  if cluster_config_map is None:
+    xpk_print(f"Warning: Unable to find ConfigMap: {metadata_configmap_name} for the cluster. "
+              "We recommend to upgrade your cluster by running `xpk cluster create`.")
+  else:
+    cluster_xpk_version = cluster_config_map.get("xpk_version")
+  if cluster_xpk_version is not None and cluster_xpk_version != xpk_current_version:
+    xpk_print(f"Warning: Cluster has been created using XPK version: {cluster_config_map['xpk_version']} "
+              f"but the XPK version you are using to schedule workload is: {xpk_current_version}. "
+              "Some features might not be available for this cluster. We recommend to upgrade/downgrade "
+              "your XPK version or cluster by running `xpk cluster create`.")
+
   setup_docker_image_code, docker_image = setup_docker_image(args)
   if setup_docker_image_code != 0:
     xpk_exit(setup_docker_image_code)
@@ -4618,6 +4641,17 @@ cluster_create_optional_arguments.add_argument(
         ' create command. Do note, these will not override already used node'
         ' pool creation arguments. e.g.'
         ' --custom-tpu-nodepool-arguments="--enable-ip-alias"'
+    ),
+)
+cluster_create_optional_arguments.add_argument(
+    '--custom-nodepool-arguments',
+    type=str,
+    default='',
+    help=(
+        'Users can add their own arguments to customize their node pool '
+        ' create command. Do note, these will not override already used node'
+        ' pool creation arguments. e.g.'
+        ' --custom-nodepool-arguments="--disk-size=300"'
     ),
 )
 cluster_create_optional_arguments.add_argument(

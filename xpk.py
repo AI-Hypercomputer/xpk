@@ -1058,6 +1058,14 @@ UserFacingNameToSystemCharacteristics = {
     ),
 
     # CPU system characteristics
+    # m1-megamem-96-$VMs
+    'm1-megamem-96-1': SystemCharacteristics(
+      'N/A', 1,'N/A', 'm1-megamem-96', 1, AcceleratorType['CPU'], 'm1-megamem-96-1'
+    ),
+    # n2-standard-64-$VMs
+    'n2-standard-64-1': SystemCharacteristics(
+      'N/A', 1,'N/A', 'n2-standard-64', 1, AcceleratorType['CPU'], 'n2-standard-64-1'
+    ),
     # n2-standard-32-$VMs
     'n2-standard-32-1': SystemCharacteristics(
       'N/A', 1,'N/A', 'n2-standard-32', 1, AcceleratorType['CPU'], 'n2-standard-32-1'
@@ -2359,6 +2367,7 @@ def run_gke_node_pool_create_command(args, system) -> int:
         f' --host-maintenance-interval={args.host_maintenance_interval}'
         f' {capacity_args}'
         ' --enable-gvnic'
+        f' {args.custom_nodepool_arguments}'
     )
     if system.accelerator_type == AcceleratorType['TPU']:
       command += (f' --node-version={args.gke_version}')
@@ -4608,6 +4617,17 @@ cluster_create_optional_arguments.add_argument(
         ' create command. Do note, these will not override already used node'
         ' pool creation arguments. e.g.'
         ' --custom-tpu-nodepool-arguments="--enable-ip-alias"'
+    ),
+)
+cluster_create_optional_arguments.add_argument(
+    '--custom-nodepool-arguments',
+    type=str,
+    default='',
+    help=(
+        'Users can add their own arguments to customize their node pool '
+        ' create command. Do note, these will not override already used node'
+        ' pool creation arguments. e.g.'
+        ' --custom-nodepool-arguments="--disk-size=300"'
     ),
 )
 cluster_create_optional_arguments.add_argument(

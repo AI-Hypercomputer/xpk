@@ -3371,23 +3371,6 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
     xpk_return_user_exit_code=xpk_return_user_exit_code
   )
 
-def get_main_container_docker_image(args, system) -> str:
-  """ Docker name for the main container.
-  Args:
-    args: user provided args.
-     system: system characteristics.
-
-  Returns:
-    str:
-      Workload docker image as a YAML string
-  """
-  # Resources requirements for Pathways workload containers are known.
-
-  if system.accelerator_type == AcceleratorType['GPU']:
-    return "maxtext-tcpx"
-  
-  return f'{args.docker_image}'
-
 def add_image_pull_policy_for_pw_or_gpu(args):
   """ Add image pull policy only for Pathways containers.
   Args:
@@ -3402,6 +3385,23 @@ def add_image_pull_policy_for_pw_or_gpu(args):
   if args.use_pathways or device_type == h100_device_type:
     return yaml.format(args=args)
   return ""
+
+def get_main_container_docker_image(args, system) -> str:
+  """ Docker name for the main container.
+  Args:
+    args: user provided args.
+    system: system characteristics.
+
+  Returns:
+    str:
+      Workload docker image as a YAML string
+  """
+  # Resources requirements for Pathways workload containers are known.
+
+  if system.accelerator_type == AcceleratorType['GPU']:
+    return "maxtext-tcpx"
+  
+  return f'{args.docker_image}'
 
 def get_volume_mounts(args) -> str:
   """ Resources for the main container.
@@ -3474,8 +3474,7 @@ def get_pathways_worker_args(args) -> str:
               - --xla_tpu_overlap_compute_collective_tc=true
               - --xla_enable_async_all_gather=true
               - --pathways_tmp_dir_pattern={args.pathways_gcs_location}"""
-  device_type = args.tpu_type if args.tpu_type else args.device_type
-  if device_type == h100_device_type: 
+  if args.use_pathways:
     return yaml.format(args=args)
   else:
     return ""
@@ -3504,6 +3503,7 @@ def get_env_container(args, system):
   """ Environment configuration for the main container.
   Args:
     args: user provided args.
+    system: system characteristics.
 
   Returns:
     str:

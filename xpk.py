@@ -3842,11 +3842,11 @@ def workload_create(args) -> int:
               "We recommend to upgrade your cluster by running `xpk cluster create`.")
   else:
     cluster_xpk_version = cluster_config_map.get("xpk_version")
-  if cluster_xpk_version is not None and cluster_xpk_version < xpk_current_version:
+  if cluster_xpk_version is not None and cluster_xpk_version != xpk_current_version:
     xpk_print(f"Warning: Cluster has been created using XPK version: {cluster_config_map['xpk_version']} "
               f"but the XPK version you are using to schedule workload is: {xpk_current_version}. "
-              "Some features might not be available for this cluster. We recommend to upgrade your "
-              "cluster by running `xpk cluster create` or downgrade your XPK version.")
+              "Some features might not be available for this cluster. We recommend to upgrade/downgrade "
+              "your XPK version or cluster by running `xpk cluster create`.")
 
   setup_docker_image_code, docker_image = setup_docker_image(args)
   if setup_docker_image_code != 0:

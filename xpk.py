@@ -3357,7 +3357,7 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
     system=system,
     image_pull_policy=add_image_pull_policy_for_pw_or_gpu(args, system),
     env=get_env_container(args, system),
-    container_ports=add_container_ports(args),
+    container_ports=add_container_ports(args, system),
     jax_coordinator_port=add_jax_coordinator_port(system),
     docker_name=get_main_container_docker_image(args, system),
     docker_image=docker_image,
@@ -3395,10 +3395,9 @@ def get_main_container_docker_image(args, system: SystemCharacteristics) -> str:
     str:
       Workload docker image as a YAML string
   """
-  # Resources requirements for Pathways workload containers are known.
 
   if system.accelerator_type == AcceleratorType['GPU']:
-    return "maxtext-tcpx"
+    return "gpu-image"
 
   return f'{args.docker_image}'
 
@@ -3578,7 +3577,7 @@ def get_main_container_resources(args, system: SystemCharacteristics, resource_t
 
   return f'{resource_type}: {system.chips_per_vm}'
 
-def add_container_ports(args) -> str:
+def add_container_ports(args, system: SystemCharacteristics) -> str:
   """ Add slice builder and megascale container ports,
   for non-pathways workloads.
 
@@ -3595,8 +3594,7 @@ def add_container_ports(args) -> str:
     return ''
 
   gpu_port_yaml = """- containerPort: 6002"""
-  device_type = args.tpu_type if args.tpu_type else args.device_type
-  if device_type == h100_device_type:
+  if system.accelerator_type == AcceleratorType['GPU']:
     return gpu_port_yaml
   return port_yaml
 

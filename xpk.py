@@ -1297,7 +1297,7 @@ def append_temporary_file(payload, file):
 
 
 def run_command_for_value(
-    command, task, global_args, dry_run_return_val='0'
+    command, task, global_args, dry_run_return_val='0', print_timer=False
 ) -> tuple[int, str]:
   """Runs the command and returns the error code and stdout.
 
@@ -1321,6 +1321,29 @@ def run_command_for_value(
         f' \n{command}'
     )
     return 0, dry_run_return_val
+
+  if print_timer:
+    xpk_print(
+        f'Task: `{task}` is implemented by `{command}`'
+    )
+    with subprocess.Popen(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        shell=True,
+    ) as child:
+      i = 0
+      while True:
+        return_code = child.poll()
+        if return_code is None:
+          xpk_print(f'Waiting for `{task}`, for {i} seconds')
+          time.sleep(1)
+          i += 1
+        else:
+          xpk_print(f'Task: `{task}` terminated with code `{return_code}`')
+          out, err = child.communicate()
+          out, err = str(out, 'UTF-8'), str(err, 'UTF-8')
+          return return_code, f'{out}\n{err}'
   else:
     xpk_print(
         f'Task: `{task}` is implemented by `{command}`, hiding output unless'
@@ -4166,6 +4189,69 @@ def get_workload_list(args) -> tuple[int, str]:
   return return_code, return_value
 
 
+def wait_for_job_completion(args) -> int:
+  """Function to wait for job completion.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    return_code: 0 if successful, 124 if timeout, 125 if unsuccessful job, 1 otherwise
+  """
+  # Check that the workload exists
+  args.workload = args.wait_for_job_completion
+  workload_exists = check_if_workload_exists(args)
+  if not workload_exists:
+    xpk_print(f'Workload named {args.workload} does not exist.')
+    return 1
+
+  # Get the full workload name
+  get_workload_name_cmd = f'kubectl get workloads | grep jobset-{args.workload}'
+  return_code, return_value = run_command_for_value(
+    get_workload_name_cmd, "Get full workload name", args)
+  if return_code != 0:
+    xpk_print(f'Get full workload name request returned ERROR {return_code}')
+    return return_code
+  full_workload_name = return_value.split(' ')[0]
+
+  # Call kubectl wait on the workload using the full workload name
+  timeout_val = args.timeout if args.timeout else -1
+  timeout_msg = f'{timeout_val}s' if timeout_val != -1 else "max timeout (1 week)"
+  wait_cmd = ('kubectl  wait --for jsonpath=\'.status.conditions[-1].type\'=Finished workload '
+              f'{full_workload_name} --timeout={timeout_val}s')
+  return_code, return_value = run_command_for_value(
+    wait_cmd, f'Wait for workload to finish with timeout of {timeout_msg}', args, print_timer=True
+  )
+  if return_code != 0:
+    if "timed out" in return_value:
+      xpk_print(
+        f'Timed out waiting for your workload after {timeout_msg}, see your workload here:'
+        # pylint: disable=line-too-long
+        f' https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
+      )
+      return 124
+    else:
+      xpk_print(f'{return_value}')
+      xpk_print(f'Wait for workload returned ERROR {return_code}')
+      return return_code
+  xpk_print(
+    'Finished waiting for your workload, see your workload here:'
+    # pylint: disable=line-too-long
+    f' https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
+  )
+  status_cmd = f'kubectl get jobset {args.workload} -o jsonpath=\'{{.status.conditions[-1].type}}\''
+  return_code, return_value = run_command_for_value(
+    status_cmd, "Get jobset status", args)
+  if return_code != 0:
+    xpk_print(f'Get workload status request returned ERROR {return_code}')
+    return return_code
+  xpk_print(f'Your workload finished with status: {return_value}')
+  if return_value != "Completed":
+    xpk_print('Your workload did not complete successfully')
+    return 125
+  return 0
+
+
 def workload_list(args) -> int:
   """Function around workload list.
 
@@ -4182,6 +4268,13 @@ def workload_list(args) -> int:
   set_cluster_command_code = set_cluster_command(args)
   if set_cluster_command_code != 0:
     xpk_exit(set_cluster_command_code)
+
+  if args.wait_for_job_completion:
+    return_code = wait_for_job_completion(args)
+    if return_code != 0:
+      xpk_print(f'Wait for job completion returned ERROR {return_code}')
+      xpk_exit(return_code)
+    args.filter_by_job = args.wait_for_job_completion
 
   return_code, return_value = get_workload_list(args)
 
@@ -5205,6 +5298,28 @@ workload_list_parser.add_argument(
           'to parse jobs that match the pattern or provide a job name to view a single job.',
     required=False,
 )
+
+workload_list_wait_for_job_completion_arguments = workload_list_parser.add_argument_group(
+  'Wait for Job Completion Arguments', 
+  'Arguments for waiting on the completion of a job.'
+)
+
+workload_list_wait_for_job_completion_arguments.add_argument(
+    '--wait-for-job-completion',
+    type=str,
+    default=None,
+    help='The name of the job to wait on.',
+    required=False,
+)
+
+workload_list_wait_for_job_completion_arguments.add_argument(
+    '--timeout',
+    type=int,
+    default=None,
+    help='Amount of time to wait for job in seconds. Default is the max wait time, 1 week.',
+    required=False,
+)
+
 add_shared_arguments(workload_list_parser)
 
 workload_list_parser.set_defaults(func=workload_list)

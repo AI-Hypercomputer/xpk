@@ -224,7 +224,60 @@ spec:
                 env:
                 - name: LD_LIBRARY_PATH
                   value: /usr/local/nvidia/lib64
-              {container}
+              - name: maxtext-tcpx
+                image: {docker_image}
+                imagePullPolicy: Always
+                securityContext:
+                  privileged: true
+                ports:
+                    - containerPort: 6002
+                env:
+                  - name: REPLICATED_JOB_NAME
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.annotations['jobset.sigs.k8s.io/replicatedjob-name']
+                  - name: JOBSET_NAME
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.annotations['jobset.sigs.k8s.io/jobset-name']
+                  - name: JAX_COORDINATOR_ADDRESS
+                    value: "$(JOBSET_NAME)-$(REPLICATED_JOB_NAME)-0-0.$(JOBSET_NAME)"
+                  - name: NNODES
+                    value: "{args.num_nodes}"
+                  - name: NODE_RANK
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.annotations['batch.kubernetes.io/job-completion-index']
+                  - name: USE_GPUDIRECT
+                    value: "tcpx"
+                  - name: GPUS_PER_NODE
+                    value: "{chips_per_vm}"
+                  - name: JAX_COORDINATOR_PORT
+                    value: "6002"
+                  - name: LD_LIBRARY_PATH
+                    value: /usr/local/nvidia/lib64
+                  - name: COMMAND
+                    value: "{command}"
+                  {args.env}
+                command:
+                  - "bash"
+                  - "-c"
+                  - |
+                    echo XPK Start: $(date) ; _sigterm() ( kill -SIGTERM $! 2>/dev/null;); trap _sigterm SIGTERM;(cd /deps && bash gpu_multi_process_run.sh) & PID=$!; while kill -0 $PID 2>/dev/null; do sleep 5; done; wait $PID; EXIT_CODE=$? ; echo XPK End: $(date); echo EXIT_CODE=$EXIT_CODE; echo Main app is done > /usr/share/workload/workload_terminated; {xpk_return_user_exit_code}
+                volumeMounts:
+                  - name: nvidia-install-dir-host
+                    mountPath: /usr/local/nvidia/lib64
+                  - name: tcpx-nccl-plugin-volume
+                    mountPath: /usr/local/tcpx
+                  - name: tcpd-socket
+                    mountPath: /tmp
+                  - name: shared-memory
+                    mountPath: /dev/shm
+                  - name: workload-terminated-volume
+                    mountPath: /usr/share/workload
+                resources:
+                  limits:
+                    nvidia.com/gpu: {chips_per_vm}
 """
 
 pw_workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
@@ -3344,18 +3397,13 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
     command = ('TPU_STDERR_LOG_LEVEL=0 TPU_MIN_LOG_LEVEL=0 TF_CPP_MIN_LOG_LEVEL=0'
                f' TPU_VMODULE=real_program_continuator=1 {args.command}')
 
-  gpu_workload_terminate_command = ''
-  if system.accelerator_type == AcceleratorType['GPU']:
-    command = 'cd /deps && bash gpu_multi_process_run.sh'
-    gpu_workload_terminate_command = 'echo Main app is done > /usr/share/workload/workload_terminated; '
-
   xpk_return_user_exit_code = ''
   if args.restart_on_user_code_failure:
     if int(args.max_restarts) <= 0:
       xpk_print(f'Warning: --max-restarts, is set to {args.max_restarts}. Will not restart on user failure.')
     xpk_return_user_exit_code = 'exit $EXIT_CODE'
 
-  yaml = """- name: {docker_name}
+  yaml = """- name: {args.docker_name}
                 image: {docker_image}
                 {image_pull_policy}
                 env: {env}
@@ -3368,32 +3416,30 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
                 - bash
                 - -c
                 - |
-                  echo XPK Start: $(date) ; _sigterm() ( kill -SIGTERM $! 2>/dev/null;); trap _sigterm SIGTERM;{gsutil_test_command}({command}) & PID=$!; while kill -0 $PID 2>/dev/null; do sleep 5; done; wait $PID; EXIT_CODE=$? ; {xpk_internal_commands} echo XPK End: $(date); echo EXIT_CODE=$EXIT_CODE; {gpu_workload_terminate_command} {xpk_return_user_exit_code}
+                  echo XPK Start: $(date) ; _sigterm() ( kill -SIGTERM $! 2>/dev/null;); trap _sigterm SIGTERM;{gsutil_test_command}({command}) & PID=$!; while kill -0 $PID 2>/dev/null; do sleep 5; done; wait $PID; EXIT_CODE=$? ; {xpk_internal_commands} echo XPK End: $(date); echo EXIT_CODE=$EXIT_CODE; {xpk_return_user_exit_code}
                 resources:
                   limits:
                     {resources}
                 volumeMounts:
-                {volume_mounts}
+                {pw_volume_mounts}
   """
   return yaml.format(
     args=args,
     system=system,
-    image_pull_policy=add_image_pull_policy_for_pw_or_gpu(args, system),
-    env=get_env_container(args, system),
-    container_ports=add_container_ports(args, system),
+    image_pull_policy=add_image_pull_policy_for_pw(args),
+    env=get_env_container(args),
+    container_ports=add_container_ports(args),
     jax_coordinator_port=add_jax_coordinator_port(system),
-    docker_name=get_main_container_docker_image(args, system),
     docker_image=docker_image,
     gsutil_test_command=gsutil_test_command,
     command=command,
-    gpu_workload_terminate_command=gpu_workload_terminate_command,
     xpk_internal_commands=xpk_internal_commands,
     resources=get_main_container_resources(args, system, resource_type),
-    volume_mounts=get_volume_mounts(args, system),
+    pw_volume_mounts=get_pw_volume_mounts(args),
     xpk_return_user_exit_code=xpk_return_user_exit_code
   )
 
-def add_image_pull_policy_for_pw_or_gpu(args, system: SystemCharacteristics):
+def add_image_pull_policy_for_pw(args):
   """ Add image pull policy only for Pathways containers.
   Args:
     args: user provided args.
@@ -3403,54 +3449,23 @@ def add_image_pull_policy_for_pw_or_gpu(args, system: SystemCharacteristics):
       YAML stating that the image will be pulled fro GCR every time.
   """
   yaml="""imagePullPolicy: Always"""
-
-  if args.use_pathways or system.accelerator_type == AcceleratorType['GPU']:
+  if args.use_pathways:
     return yaml.format(args=args)
   return ""
 
-def get_main_container_docker_image(args, system: SystemCharacteristics) -> str:
-  """ Docker name for the main container.
-  Args:
-    args: user provided args.
-    system: system characteristics.
-
-  Returns:
-    str:
-      Workload docker image as a YAML string
-  """
-
-  if system.accelerator_type == AcceleratorType['GPU']:
-    return "gpu-image"
-
-  return f'{args.docker_image}'
-
-def get_volume_mounts(args, system: SystemCharacteristics) -> str:
+def get_pw_volume_mounts(args) -> str:
   """ Resources for the main container.
   Args:
     args: user provided args.
 
   Returns:
     str:
-      YAML for the volumes mounted within a Pathways container or GPU container as a YAML string.
+      YAML for the volumes mounted within a Pathways container as a YAML string.
   """
-  pw_volume_yaml="""- mountPath: /tmp
+  volume_yaml="""- mountPath: /tmp
                   name: shared-tmp"""
   if args.use_pathways:
-    return pw_volume_yaml
-
-  gpu_volume_yaml="""- name: nvidia-install-dir-host
-                  mountPath: /usr/local/nvidia/lib64
-                - name: tcpx-nccl-plugin-volume
-                  mountPath: /usr/local/tcpx
-                - name: tcpd-socket
-                  mountPath: /tmp
-                - name: shared-memory
-                  mountPath: /dev/shm
-                - name: workload-terminated-volume
-                  mountPath: /usr/share/workload"""
-
-  if system.accelerator_type == AcceleratorType['GPU']:
-    return gpu_volume_yaml
+    return volume_yaml
   return ""
 
 def get_pathways_rm_args(args) -> str:
@@ -3520,17 +3535,16 @@ def get_pathways_proxy_args(args) -> str:
   else:
     return ""
 
-def get_env_container(args, system: SystemCharacteristics):
+def get_env_container(args):
   """ Environment configuration for the main container.
   Args:
     args: user provided args.
-    system: system characteristics.
 
   Returns:
     str:
       YAML with the env config for the main container, as a YAML string.
   """
-  pw_env_yaml="""
+  env_yaml="""
                 - name: XCLOUD_ENVIRONMENT
                   value: GCP
                 - name: JAX_PLATFORMS
@@ -3542,42 +3556,10 @@ def get_env_container(args, system: SystemCharacteristics):
                     fieldRef:
                       fieldPath: metadata.annotations['jobset.sigs.k8s.io/jobset-name']"""
   if args.use_pathways:
-    return pw_env_yaml.format(args=args)
-
-  gpu_env_yaml="""
-                  - name: REPLICATED_JOB_NAME
-                    valueFrom:
-                      fieldRef:
-                        fieldPath: metadata.annotations['jobset.sigs.k8s.io/replicatedjob-name']
-                  - name: JOBSET_NAME
-                    valueFrom:
-                      fieldRef:
-                        fieldPath: metadata.annotations['jobset.sigs.k8s.io/jobset-name']
-                  - name: JAX_COORDINATOR_ADDRESS
-                    value: "$(JOBSET_NAME)-$(REPLICATED_JOB_NAME)-0-0.$(JOBSET_NAME)"
-                  - name: NNODES
-                    value: "{args.num_nodes}"
-                  - name: NODE_RANK
-                    valueFrom:
-                      fieldRef:
-                        fieldPath: metadata.annotations['batch.kubernetes.io/job-completion-index']
-                  - name: USE_GPUDIRECT
-                    value: "tcpx"
-                  - name: GPUS_PER_NODE
-                    value: "{system.chips_per_vm}"
-                  - name: JAX_COORDINATOR_PORT
-                    value: "6002"
-                  - name: LD_LIBRARY_PATH
-                    value: /usr/local/nvidia/lib64
-                  - name: COMMAND
-                    value: "{args.command}"
-                  {args.env}"""
-  if system.accelerator_type == AcceleratorType['GPU']:
-    return gpu_env_yaml.format(args=args,
-                        system=system)
+    return env_yaml.format(args=args)
   return args.env
 
-def get_main_container_resources(args, system: SystemCharacteristics, resource_type) -> str:
+def get_main_container_resources(args, system, resource_type) -> str:
   """ Resources for the main container.
   Args:
     args: user provided args.
@@ -3593,14 +3575,9 @@ def get_main_container_resources(args, system: SystemCharacteristics, resource_t
                     memory: 100G"""
   if args.use_pathways:
     return resources_yaml
-
-  gpu_resources_yaml="""nvidia.com/gpu: {system.chips_per_vm}"""
-  if system.accelerator_type == AcceleratorType['GPU']:
-    return gpu_resources_yaml.format(system=system)
-
   return f'{resource_type}: {system.chips_per_vm}'
 
-def add_container_ports(args, system: SystemCharacteristics) -> str:
+def add_container_ports(args) -> str:
   """ Add slice builder and megascale container ports,
   for non-pathways workloads.
 
@@ -3615,10 +3592,6 @@ def add_container_ports(args, system: SystemCharacteristics) -> str:
                 - containerPort: 8080"""
   if args.use_pathways:
     return ''
-
-  gpu_port_yaml = """- containerPort: 6002"""
-  if system.accelerator_type == AcceleratorType['GPU']:
-    return gpu_port_yaml
   return port_yaml
 
 def add_jax_coordinator_port(system) -> str:
@@ -3927,19 +3900,25 @@ def workload_create(args) -> int:
     container = get_main_and_sidecar_container(args, system, docker_image)
     # Get GKE debugging dashboard only when sidecar container is deployed for TPU workloads
     debugging_dashboard_id = get_gke_debugging_dashboard(args)
-  else:
+  elif system.accelerator_type in (AcceleratorType['CPU'], AcceleratorType['TPU']):
     container = get_main_container(args, system, docker_image, resource_type)
 
   if system.accelerator_type == AcceleratorType['GPU']:
+    xpk_return_user_exit_code = ''
+    if args.restart_on_user_code_failure:
+      if int(args.max_restarts) <= 0:
+        xpk_print(f'Warning: --max-restarts, is set to {args.max_restarts}. Will not restart on user failure.')
+      xpk_return_user_exit_code = 'exit $EXIT_CODE'
+
     yml_string = gpu_workload_create_yaml.format(
         args=args,
-        container=container,
         docker_image=docker_image,
         command=args.command,
         accelerator_label=create_accelerator_label(system.accelerator_type, system),
         machine_label=create_machine_label(system.accelerator_type, system),
         node_pool_name=f'{args.cluster}-np-0',
-        chips_per_vm=system.chips_per_vm
+        chips_per_vm=system.chips_per_vm,
+        xpk_return_user_exit_code=xpk_return_user_exit_code
     )
   elif args.use_pathways:
     # Ensure the cluster and CPU nodepools were created with --enable-pathways

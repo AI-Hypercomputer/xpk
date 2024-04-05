@@ -33,6 +33,7 @@ Next Steps:
 
 import argparse
 import datetime
+import enum
 import os
 import random
 import re
@@ -69,9 +70,18 @@ default_gke_version="1.29.1-gke.1589017"
 # This is the version for XPK PyPI package
 __version__ = "0.3.0"
 xpk_current_version = __version__
+
+h100_device_type = 'h100-80gb-8'
+
+_AUTOPROVISIONING_CONFIG_VALUE = 'AUTOPROVISION'
+_AUTOPROVISIONING_CONFIG_MINIMUM_KEY = 'minimum_chips'
+_AUTOPROVISIONING_CONFIG_MAXIMUM_KEY = 'maximum_chips'
+
+_CAPACITY_TYPE_CONFIG_KEY = 'capacity_type'
+_RESERVATION_CONFIG_KEY = 'reservation_id'
 _CLUSTER_QUEUE_NAME='cluster-queue'
 _LOCAL_QUEUE_NAME='multislice-queue'
-h100_device_type = 'h100-80gb-8'
+_DEFAULT_POOL_NAME='default-pool'
 _CLUSTER_RESOURCES_CONFIGMAP = 'resources-configmap'
 _CLUSTER_METADATA_CONFIGMAP = 'metadata-configmap'
 _XPK_SERVICE_ACCOUNT = 'xpk-sa'
@@ -82,6 +92,13 @@ _DEFAULT_VERTEX_TENSORBOARD_NAME = 'tb-instance'
 
 if _VERTEX_TENSORBOARD_FEATURE_FLAG:
   from cloud_accelerator_diagnostics import tensorboard
+
+
+class CapacityType(enum.Enum):
+  ON_DEMAND='on_demand'
+  RESERVATION='reservation'
+  SPOT='spot'
+  UNKNOWN='unknown'
 
 
 workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
@@ -115,6 +132,7 @@ spec:
               nodeSelector:
                 {accelerator_label}
                 {machine_label}
+                {autoprovisioning_args}
               priorityClassName: {args.priority}
               hostNetwork: true
               dnsPolicy: ClusterFirstWithHostNet
@@ -169,6 +187,7 @@ spec:
               nodeSelector:
                 {accelerator_label}
                 {machine_label}
+                {autoprovisioning_args}
               priorityClassName: {args.priority}
               hostNetwork: true
               dnsPolicy: ClusterFirstWithHostNet
@@ -277,6 +296,7 @@ spec:
             nodeSelector:
               {accelerator_label}
               {machine_label}
+              {autoprovisioning_args}
             priorityClassName: {args.priority}
             volumes:
             - hostPath:
@@ -381,6 +401,7 @@ spec:
                 type: DirectoryOrCreate
               name: shared-tmp
 """
+
 script_dir_dockerfile = """FROM {base_docker_image}
 
 # Set the working directory in the container
@@ -589,6 +610,31 @@ spec:
   deviceMode: NetDevice
 """
 
+autoprovisioning_config_file = """
+management:
+  autoRepair: true
+  autoUpgrade: true
+autoprovisioningLocations:
+  {zones}
+{resource_limits}
+{service_account}
+"""
+
+autoprovisioning_resource_limits = """
+resourceLimits:
+- resourceType: 'cpu'
+  {cpu_limits}
+- resourceType: 'memory'
+  {memory_limits}
+{custom_resource_type}
+"""
+
+autoprovisioning_custom_resource_type = """
+- resourceType: {resource_type}
+  minimum: {minimum}
+  maximum: {maximum}
+"""
+
 # Add IAM roles to attach to service account used by node pools in the cluster
 IAMRoles = {
   'Kubernetes Engine Admin': 'roles/container.admin',
@@ -607,9 +653,16 @@ AcceleratorType = {
 }
 
 @dataclass
+class AutoprovisioningConfig:
+  config_filename: str
+  minimum_chips: int
+  maximum_chips: int
+
+
+@dataclass
 class AcceleratorCharacteristics:
   resource_type: str
-  accelerator_label: int
+  accelerator_label: str
   machine_label: str
 
 AcceleratorTypeToAcceleratorCharacteristics = {
@@ -1077,10 +1130,32 @@ def make_tmp_files(per_command_name):
   Returns:
     A list of temporary files for each command.
   """
+  # Supports removal of spaces from command names before converting to file name.
   return [
-      tempfile.NamedTemporaryFile(delete=False, prefix=command + '-')
+      tempfile.NamedTemporaryFile(delete=False, prefix=command.replace(" ", "-") + '-')
       for command in per_command_name
   ]
+
+
+def get_value_from_map(key: str, map_to_search: dict) -> tuple[int, str | None]:
+  """Helper function to get value from a map if the key exists.
+
+  Args:
+    key: The key to look for in the map
+    map_to_search: The map to look in for the value
+
+  Returns:
+    Tuple of int, str where
+    int is the return code
+    str is the value if found
+  """
+  value = map_to_search.get(key)
+  if value:
+    return 0, value
+  else:
+    xpk_print(f'Unable to find key: {key} in map: {map_to_search}.'
+              f'The map has the following keys: {map_to_search.keys()}')
+    return 1, value
 
 
 def run_commands(commands, jobname, per_command_name, batch=10, dry_run=False):
@@ -1580,6 +1655,7 @@ def create_service_account(args) -> int:
     return 1
   return 0
 
+
 def get_existing_roles_in_service_account(args) -> set:
   """
   Args:
@@ -1588,7 +1664,7 @@ def get_existing_roles_in_service_account(args) -> set:
   Returns:
     set of IAM roles already attached to the service account.
   """
-  roles = []
+  roles = set()
   service_account_name = get_service_account_name(args)
   command = (
     f'gcloud projects get-iam-policy {args.project}'
@@ -1644,6 +1720,191 @@ def add_roles_to_service_account(args) -> int:
   return 0
 
 
+def get_total_chips_requested_from_args(args, system: SystemCharacteristics) -> int:
+  """Return the total chips requested based on user args.
+
+  Args:
+    args: user provided arguments for running the command.
+    system: system characteristics.
+
+  Returns:
+    num of chips for the current request.
+  """
+  if system.accelerator_type == AcceleratorType['GPU']:
+    num_chips = system.vms_per_slice * system.chips_per_vm * args.num_nodes
+  else:
+    num_chips = system.vms_per_slice * system.chips_per_vm * args.num_slices
+
+  return num_chips
+
+
+def create_autoprovisioning_config(args, system: SystemCharacteristics) -> tuple[AutoprovisioningConfig | None, int]:
+  """Create autoprovisioning config based on template file and user args
+
+  Args:
+    args: user provided arguments for running the command.
+    system: system characteristics.
+
+  Returns:
+    tuple[AutoprovisioningConfig, int]
+    AutoprovisioningConfig: config used to enable autoprovisioning
+    int: return code
+  """
+
+  # CPU Limits and Memory Limits are for user jobs only. The default node pool
+  # is not controlled by NAP.
+  cpu_limits = """
+  minimum: 1
+  maximum: 10000
+  """
+  memory_limits = """
+  minimum: 1
+  maximum: 10000
+  """
+
+  # By default, the maximum chips is set to be the current number of resources used
+  # in the cluster. The minimum is set to zero.
+  minimum = 0
+  maximum = get_total_chips_requested_from_args(args, system)
+  xpk_print(f'Default Chips quota is minimum: {minimum}, maximum: {maximum}.')
+
+  # Check for user overrides.
+  if args.autoprovisioning_min_chips:
+    minimum = args.autoprovisioning_min_chips
+    xpk_print(f'User provided min chip quota of {minimum}. Overriding defaults.')
+  if args.autoprovisioning_max_chips:
+    maximum = args.autoprovisioning_max_chips
+    xpk_print(f'User provided max chip quota of {maximum}. Overriding defaults.')
+
+  # Check for edge cases in min and max chip values.
+  if minimum < 0:
+    xpk_print(f'Error: Minimum chips is set to {minimum}, and must be zero or greater.')
+    return None, 1
+  if maximum <= minimum or maximum < 0:
+    xpk_print(
+      f'Error: Maximum chips is set to {maximum}, and must be greater than zero and'
+      f'greater or equal to minimum: {minimum}.'
+      'Use --autoprovisioning-max-chips=$MAX_CHIPS to adjust.'
+    )
+    return None, 1
+  xpk_print(
+      f'Chips quota is minimum: {minimum}, maximum: {maximum}. XPK will autoprovision {maximum - minimum} chips'
+      f' based on incoming workload requests, keeping at least {minimum} available at all times, and maximum of {maximum}.'
+      f' If the difference ({maximum - minimum} chips) is small, rescaling will not work well.'
+  )
+
+  custom_resource_string = autoprovisioning_custom_resource_type.format(
+      resource_type=system.gke_accelerator,
+      minimum = minimum,
+      maximum = maximum,
+  )
+
+  resource_limits = autoprovisioning_resource_limits.format(
+      cpu_limits=cpu_limits,
+      memory_limits=memory_limits,
+      custom_resource_type=custom_resource_string
+  )
+
+  # Default service_account is the project's default service account.
+  service_account = ""
+  if _SERVICE_ACCOUNT_FEATURE_FLAG:
+    service_account_name = get_service_account_name(args)
+    service_account_exists = check_if_service_account_exists(args)
+    if service_account_exists:
+      service_account = f'serviceAccount: {service_account_name}'
+
+  yml_string = autoprovisioning_config_file.format(
+      service_account=service_account,
+      resource_limits=resource_limits,
+      zones=f'- {args.zone}'
+  )
+  autoprovisioning_config = AutoprovisioningConfig(
+      config_filename=write_temporary_file(yml_string).name,
+      minimum_chips=minimum,
+      maximum_chips=maximum,
+  )
+  return autoprovisioning_config, 0
+
+
+def enable_autoprovisioning_on_cluster(args, system: SystemCharacteristics | None
+                                      ) -> tuple[AutoprovisioningConfig | None, int]:
+  """Enable autoprovisioning on the cluster.
+
+  Args:
+    args: user provided arguments for running the command.
+    system: system characteristics.
+
+  Returns:
+    Autoprovisioning Config or None.
+    0 if successful and 1 otherwise.
+  """
+  if not system:
+    return None, 1
+
+  # TODO(@vbarr): Disable NAP if they call xpk cluster create again without --enable-autoprovisioning.
+  # TODO(@vbarr): Support Pathways.
+  # TODO(@vbarr): Support timeout period for idle np before they are deleted.
+  # TODO(@vbarr): Support for hot idle configuration (timeout period is infinity).
+  return_code = 0
+  if system.accelerator_type == AcceleratorType['CPU']:
+    xpk_print("Error: XPK NAP doesn't support Accelerators of Types: CPUs.")
+    return None, 1
+
+  autoprovisioning_config, return_code = create_autoprovisioning_config(args, system)
+  if return_code != 0 or not autoprovisioning_config:
+    xpk_print("Unable to create autoprovisioning config.")
+    return autoprovisioning_config, return_code
+
+  command = (
+    f'gcloud container clusters update {args.cluster}'
+    f' --project={args.project}'
+    f' --region={zone_to_region(args.zone)}'
+    f' --enable-autoprovisioning --autoprovisioning-config-file {autoprovisioning_config.config_filename}'
+  )
+  task = 'Update cluster with autoprovisioning enabled'
+  return_code = run_command_with_updates(command, task, args)
+  if return_code != 0:
+    xpk_print(f'{task} request returned ERROR {return_code}')
+    return autoprovisioning_config, return_code
+
+  # Update created accelerator node pools to support autoprovisioning.
+  existing_node_pool_names, return_code = get_all_nodepools_programmatic(args)
+  if return_code != 0:
+    xpk_print('Listing all node pools failed!')
+    return autoprovisioning_config, return_code
+
+  desired_node_pool_names = [
+    f'{args.cluster}-np-{slice_num}' for slice_num in range(args.num_slices)
+  ]
+
+  commands = []
+  task_names = []
+  for node_pool_name in desired_node_pool_names:
+    if node_pool_name not in existing_node_pool_names:
+      # Ignore node pools that are not created yet, and not of the accelerator type.
+      continue
+    commands.append(
+        f'gcloud container node-pools update {node_pool_name}'
+        f' --cluster {args.cluster}'
+        f' --project={args.project}'
+        f' --region={zone_to_region(args.zone)}'
+        ' --enable-autoprovisioning'
+        ' --enable-autoscaling'
+    )
+    task_name = f'Update node pool {node_pool_name} with autoprovisioning support.'
+    task_names.append(task_name)
+
+  for i, command in enumerate(commands):
+    xpk_print(f'To complete {task_names[i]} we are executing {command}')
+  max_return_code = run_commands(
+      commands, 'Update node pools with autoprovisioning support', task_names, dry_run=args.dry_run
+  )
+  if max_return_code != 0:
+    xpk_print(f'Update node pools with autoprovisioning support returned ERROR: {max_return_code}')
+    return None, max_return_code
+  return autoprovisioning_config, return_code
+
+
 def run_gke_cluster_create_command(args) -> int:
   """Run the Create GKE Cluster request.
 
@@ -1662,6 +1923,10 @@ def run_gke_cluster_create_command(args) -> int:
               ' the machine type of other cpu nodepools using `--device-type`.')
     machine_type = args.cluster_cpu_machine_type
 
+  # Create the regional cluster with `num-nodes` CPU nodes in the same zone as
+  # TPUs. This has been tested with clusters of 300 VMs. Larger clusters will
+  # benefit from a larger initial `--num-nodes`. After the cluster is created,
+  # the auto-scaler can reduce/increase the nodes based on the load.
   command = (
       'gcloud beta container clusters create'
       f' {args.cluster} --project={args.project}'
@@ -1669,6 +1934,9 @@ def run_gke_cluster_create_command(args) -> int:
       f' --node-locations={args.zone}'
       f' --cluster-version={args.gke_version}'
       f' --machine-type={machine_type}'
+       ' --enable-autoscaling'
+       ' --total-min-nodes 1 --total-max-nodes 1000 --num-nodes 6'
+      f' {args.custom_cluster_arguments}'
   )
 
   if _SERVICE_ACCOUNT_FEATURE_FLAG:
@@ -1682,29 +1950,24 @@ def run_gke_cluster_create_command(args) -> int:
 
   device_type = args.tpu_type if args.tpu_type else args.device_type
   if device_type == h100_device_type:
-    command += (' --enable-dataplane-v2 --enable-ip-alias'
-        ' --enable-multi-networking --no-enable-autoupgrade')
+    command += (
+        ' --enable-dataplane-v2 --enable-ip-alias'
+        ' --enable-multi-networking --no-enable-autoupgrade'
+    )
   else:
-    # Create the regional cluster with `num-nodes` CPU nodes in the same zone as
-    # TPUs. This has been tested with clusters of 300 VMs. Larger clusters will
-    # benefit from a larger initial `--num-nodes`. After the cluster is created,
-    # the auto-scaler can reduce/increase the nodes based on the load.
-
-    command += (' --release-channel rapid --enable-autoscaling --location-policy=BALANCED'
+    command += (
+        ' --release-channel rapid --location-policy=BALANCED'
         ' --scopes=storage-full,gke-default'
-        ' --total-min-nodes 1 --total-max-nodes 1000 --num-nodes 6'
-        f' {args.custom_cluster_arguments}'
     )
 
     if args.enable_pathways:
-      command += (' --enable-ip-alias ')
+      command += (' --enable-ip-alias')
       command += (f' --create-subnetwork name={args.cluster}-subnetwork')
 
   return_code = run_command_with_updates(command, 'GKE Cluster Create', args)
   if return_code != 0:
     xpk_print(f'GKE Cluster Create request returned ERROR {return_code}')
     return 1
-
   return 0
 
 
@@ -1888,23 +2151,176 @@ def create_cluster_network_config(args) -> int:
 
   return 0
 
-def create_cluster_configmaps(args, system, tensorboard_config):
+
+def print_reservations(args) -> int:
+  """Print the reservations in the project.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  command = (
+        f'gcloud beta compute reservations list --project={args.project}'
+    )
+  return_code = (
+      run_command_with_updates(
+          command, 'Get all reservations in the project', args)
+  )
+  if return_code != 0:
+    xpk_print(f'Get all reservations returned ERROR {return_code}')
+    return 1
+  return 0
+
+
+def verify_reservation_exists(args) -> int:
+  """Verify the reservation exists.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  command = (
+        f'gcloud beta compute reservations describe {args.reservation}'
+        f' --project={args.project} --zone={args.zone}'
+    )
+  return_code = (
+      run_command_with_updates(
+          command, 'Describe reservation', args)
+  )
+  if return_code != 0:
+    xpk_print(f'Describe reservation returned ERROR {return_code}')
+    xpk_print('Please confirm that your reservation name is correct.')
+    return 1
+  return 0
+
+
+def get_capacity_type(args) -> tuple[CapacityType, int]:
+  """Determine the capacity type based on user arguments.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    Tuple with string with the system characteristics and
+    int of 0 if successful and 1 otherwise.
+  """
+  capacity_type = CapacityType.UNKNOWN
+  num_types = 0
+  return_code = 0
+
+  # Determine the capacity argument.
+  if args.on_demand:
+    capacity_type = CapacityType.ON_DEMAND
+    num_types+=1
+  if args.reservation:
+    return_code = verify_reservation_exists(args)
+    if return_code > 0:
+      return capacity_type, return_code
+    capacity_type = CapacityType.RESERVATION
+    num_types+=1
+  if args.spot:
+    capacity_type = CapacityType.SPOT
+    num_types+=1
+
+  # Check that the number of user arguments provided is valid.
+  if num_types == 0:
+    capacity_type = CapacityType.UNKNOWN
+  elif num_types != 1:
+    xpk_print(
+      'ERROR: User specified more than one of the following arguments. Please'
+      ' specify only one of `--reservation=$RESERVATION_NAME`, `--on-demand`'
+      ' or `--spot`.'
+    )
+    return_code = 1
+
+  return capacity_type, return_code
+
+
+def get_capacity_arguments_from_capacity_type(args, capacity_type: CapacityType) -> tuple[str, int]:
+  """Determine the TPU Nodepool creation capacity arguments needed.
+
+  Args:
+    args: user provided arguments for running the command.
+    capacity_type: The type of capacity the user configured.
+
+  Returns:
+    Tuple with string with the capacity argument to use and
+    int of 0 if successful and 1 otherwise.
+  """
+  capacity_args = ""
+  return_code = 0
+
+  match capacity_type:
+    case CapacityType.ON_DEMAND:
+      capacity_args = ""
+    case CapacityType.SPOT:
+      capacity_args = "--spot"
+    case CapacityType.RESERVATION:
+      capacity_args = (
+        f'--reservation-affinity=specific --reservation={args.reservation}'
+      )
+    case _:
+      xpk_print(f'Unknown capacity type: {capacity_type}. Unable to determine capacity args.')
+      return_code = 1
+  return capacity_args, return_code
+
+
+def get_capacity_node_selectors_from_capacity_type(args, capacity_type: str) -> tuple[str, int]:
+  """Determine the node selectors for a workload to run on a specific capacity type.
+
+  Args:
+    args: user provided arguments for running the command.
+    capacity_type: The type of capacity the user configured.
+
+  Returns:
+    Tuple with string with the node selectors to use and
+    int of 0 if successful and 1 otherwise.
+  """
+  node_selector = ""
+  return_code = 0
+
+  match capacity_type:
+    case CapacityType.ON_DEMAND.name:
+      node_selector = ""
+    case CapacityType.SPOT.name:
+      node_selector = 'cloud.google.com/gke-spot=\"true\"'
+    case CapacityType.RESERVATION.name:
+      node_selector = (
+        f'cloud.google.com/reservation-name: {args.reservation}'
+      )
+    case _:
+      xpk_print(f'Unknown capacity type: {capacity_type}. Unable to determine the node selectors.')
+      return_code = 1
+  return node_selector, return_code
+
+
+def create_cluster_configmaps(args, system, tensorboard_config: dict,
+                              autoprovisioning_config: AutoprovisioningConfig | None) -> int:
   """Run the Create GKE Cluster ConfigMap request.
 
   Args:
     args: user provided arguments for running the command.
     system: system characteristics.
     tensorboard_config: map that contains Vertex Tensorboard name, id and location
-
+    autoprovisioning_config: Config used in autoprovisioning.
   Returns:
     0 if successful and 1 otherwise.
   """
   configmap_yml = {}
 
-  # ConfigMap to store resources available in the cluster
-  device_type = args.tpu_type if args.tpu_type else args.device_type
+  # ConfigMap to store resources available in the cluster.
+  device_type = system.device_type
   if device_type == h100_device_type:
     resources_data = f'{device_type}: "{int(args.num_nodes)}"'
+  elif args.enable_autoprovisioning and autoprovisioning_config:
+    # Auto provisioning will have variable topologies for a gke accelerator type.
+    resources_data = f'{system.gke_accelerator}: {_AUTOPROVISIONING_CONFIG_VALUE}'
+    resources_data += f'\n  {_AUTOPROVISIONING_CONFIG_MINIMUM_KEY}: "{autoprovisioning_config.minimum_chips}"'
+    resources_data += f'\n  {_AUTOPROVISIONING_CONFIG_MAXIMUM_KEY}: "{autoprovisioning_config.maximum_chips}"'
   else:
     resources_data = f'{device_type}: "{int(args.num_slices) * system.vms_per_slice}"'
   resources_configmap_name = f'{args.cluster}-{_CLUSTER_RESOURCES_CONFIGMAP}'
@@ -1913,10 +2329,21 @@ def create_cluster_configmaps(args, system, tensorboard_config):
                                                 data=resources_data)
   configmap_yml[resources_configmap_name] = resources_yml
 
-  # ConfigMap to store cluster metadata like xpk_version and Vertex Tensorboard information
+  # ConfigMap to store cluster metadata.
+  # XPK Version.
   metadata = f'xpk_version: {xpk_current_version}'
+  # Vertex Tensorboard information
   for key, value in tensorboard_config.items():
     metadata += f'\n  {key}: "{value}"'
+  # Capacity Type.
+  capacity_type, return_code = get_capacity_type(args)
+  if return_code != 0:
+    xpk_print('Unable to determine capacity type.')
+    return return_code
+  metadata += f'\n  {_CAPACITY_TYPE_CONFIG_KEY}: {capacity_type.name}'
+  # Reservation ID if applicable.
+  if capacity_type == CapacityType.RESERVATION:
+    metadata += f'\n  {_RESERVATION_CONFIG_KEY}: {args.reservation}'
   metadata_configmap_name = f'{args.cluster}-{_CLUSTER_METADATA_CONFIGMAP}'
   metadata_yml = cluster_configmap_yaml.format(args=args,
                                                name=metadata_configmap_name,
@@ -1940,7 +2367,7 @@ def create_cluster_configmaps(args, system, tensorboard_config):
   return 0
 
 
-def get_cluster_configmap(args, configmap_name):
+def get_cluster_configmap(args, configmap_name) -> dict[str, str] | None:
   """Run the Get GKE Cluster ConfigMap request.
 
   Args:
@@ -1980,7 +2407,7 @@ def create_vertex_tensorboard(args) -> dict:
     args: user provided arguments.
 
   Returns:
-    map containing Tensorboard instance name, id and location.
+    dict containing Tensorboard instance name, id and location.
   """
   tensorboard_config = {}
   tensorboard_name = args.tensorboard_name
@@ -2103,6 +2530,7 @@ def get_all_nodepools_programmatic(args) -> tuple[list[str], int]:
   all_nodepools = [x.split(' ')[0] for x in raw_nodepool_output.splitlines()]
   return all_nodepools, 0
 
+
 def get_all_networks_programmatic(args) -> tuple[list[str], int]:
   """Gets all the networks associated with project .
 
@@ -2124,6 +2552,7 @@ def get_all_networks_programmatic(args) -> tuple[list[str], int]:
 
   all_networks = [x.split(' ')[0] for x in raw_network_output.splitlines()]
   return all_networks, 0
+
 
 def get_all_subnets_programmatic(args) -> tuple[list[str], int]:
   """Gets all the subnets associated with the project.
@@ -2171,104 +2600,6 @@ def get_all_firewall_rules_programmatic(args) -> tuple[list[str], int]:
   return all_networks, 0
 
 
-def print_reservations(args) -> int:
-  """Print the reservations in the project.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  command = (
-        f'gcloud beta compute reservations list --project={args.project}'
-    )
-  return_code = (
-      run_command_with_updates(
-          command, 'Get all reservations in the project', args)
-  )
-  if return_code != 0:
-    xpk_print(f'Get all reservations returned ERROR {return_code}')
-    return 1
-  return 0
-
-
-def verify_reservation_exists(args) -> int:
-  """Verify the reservation exists.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  command = (
-        f'gcloud beta compute reservations describe {args.reservation}'
-        f' --project={args.project} --zone={args.zone}'
-    )
-  return_code = (
-      run_command_with_updates(
-          command, 'Describe reservation', args)
-  )
-  if return_code != 0:
-    xpk_print(f'Describe reservation returned ERROR {return_code}')
-    xpk_print('Please confirm that your reservation name is correct.')
-    return 1
-  return 0
-
-
-def get_capacity_arguments(args) -> tuple[str, int]:
-  """Determine the TPU Nodepool creation capacity arguments needed.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    Tuple with string with the capacity argument to use and
-    int of 0 if successful and 1 otherwise.
-  """
-  capacity_args = ""
-  num_types = 0
-  return_code = 0
-
-  # Determine the capacity argument.
-  if args.on_demand:
-    capacity_args = ""
-    num_types+=1
-  if args.reservation:
-    return_code = verify_reservation_exists(args)
-    if return_code > 0:
-      return capacity_args, return_code
-    capacity_args = (
-      f'--reservation-affinity=specific --reservation={args.reservation}'
-    )
-    num_types+=1
-  if args.spot:
-    capacity_args = "--spot"
-    num_types+=1
-
-  # Check that the number of arguments provided is valid.
-  if num_types == 0:
-    return_code = print_reservations(args)
-    xpk_print(
-      'ERROR: User needs to provide the capacity type. Please specify one of'
-      ' the following `--reservation=$RESERVATION_NAME`, `--on-demand`'
-      ' or `--spot`. See the above list of reservations to choose from.'
-    )
-    if return_code > 0:
-      xpk_print('Listing all reservations failed!')
-    return_code = 1
-  elif num_types != 1:
-    xpk_print(
-      'ERROR: User specified more than one of the following arguments. Please'
-      ' specify only one of `--reservation=$RESERVATION_NAME`, `--on-demand`'
-      ' or `--spot`.'
-    )
-    return_code = 1
-
-  return capacity_args, return_code
-
-
 def get_user_input(input_msg):
   """Function to get the user input for a prompt.
 
@@ -2301,7 +2632,21 @@ def run_gke_node_pool_create_command(args, system) -> int:
     xpk_print('Listing all node pools failed!')
     return return_code
 
-  capacity_args, return_code = get_capacity_arguments(args)
+  capacity_type, return_code = get_capacity_type(args)
+  if return_code > 0:
+    xpk_print('Parsing capacity type failed!')
+    return return_code
+  if capacity_type == CapacityType.UNKNOWN:
+    return_code = print_reservations(args)
+    xpk_print(
+        'ERROR: User needs to provide the capacity type. Please specify one of'
+        ' the following `--reservation=$RESERVATION_NAME`, `--on-demand`'
+        ' or `--spot`. See the above list of reservations to choose from.'
+    )
+    if return_code > 0:
+      xpk_print('Listing all reservations failed!')
+    return_code = 1
+  capacity_args, return_code = get_capacity_arguments_from_capacity_type(args, capacity_type)
   if return_code > 0:
     xpk_print('Parsing capacity arguments failed!')
     return return_code
@@ -2528,34 +2873,46 @@ def install_kueue_on_cluster(args) -> int:
   return return_code
 
 
-def enable_kueue_credentials(args, system) -> int:
+def enable_kueue_credentials(
+    args,
+    system: SystemCharacteristics,
+    autoprovisioning_config: AutoprovisioningConfig | None
+) -> int:
   """Enable Kueue credentials.
 
   Args:
     args: user provided arguments for running the command.
     system: system level arguments.
+    autoprovisioning_config: Autoprovisioning config to configure kueue with if autoprovisioning is enabled.
 
   Returns:
     0 if successful and 1 otherwise.
   """
-
-  device_type = args.tpu_type if args.tpu_type else args.device_type
+  device_type = system.device_type
   cluster_hardware_name = f'{args.num_slices}x{device_type}'
   resource_type=AcceleratorTypeToAcceleratorCharacteristics[system.accelerator_type].resource_type
-  if system.accelerator_type == AcceleratorType['GPU']:
-    total_chips = args.num_nodes * system.chips_per_vm
+
+  autoprovisioning_enabled = False
+  if autoprovisioning_config:
+    # Determine total resources available based on autoprovisioning max chips if enabled.
+    autoprovisioning_enabled = True
+    total_chips = autoprovisioning_config.maximum_chips
+    cluster_hardware_name = f'{system.gke_accelerator}'
   else:
-    total_chips = args.num_slices * system.vms_per_slice * system.chips_per_vm
+    # Determine total chips based on user specified topology.
+    total_chips = get_total_chips_requested_from_args(args, system)
+
   covered_resources_config = get_kueue_covered_resources_config(
-    args=args,
-    cluster_hardware_name=cluster_hardware_name,
-    resource_type=resource_type,
-    total_chips=total_chips)
+      args=args,
+      cluster_hardware_name=cluster_hardware_name,
+      resource_type=resource_type,
+      total_chips=total_chips
+  )
   yml_string = cluster_set_crd_yaml.format(
       system=system,
       cluster_hardware_name=cluster_hardware_name,
       accelerator_label=create_accelerator_label(system.accelerator_type, system),
-      machine_label=create_machine_label(system.accelerator_type, system),
+      machine_label=create_machine_label(system.accelerator_type, system, autoprovisioning_enabled),
       covered_resources_config=covered_resources_config,
       resource_type=AcceleratorTypeToAcceleratorCharacteristics[system.accelerator_type].resource_type,
       pw_resource_flavors=add_pw_resource_flavors(args),
@@ -2689,7 +3046,6 @@ def get_kueue_covered_resources_config(args, cluster_hardware_name, resource_typ
       - name: "{resource_type}"
         nominalQuota: {total_chips}
   '''
-
     config_string = config_format.format(
       cluster_hardware_name=cluster_hardware_name,
       resource_type=resource_type,
@@ -2872,16 +3228,20 @@ def cluster_create(args) -> int:
   if install_kueue_on_cluster_code != 0:
     xpk_exit(install_kueue_on_cluster_code)
 
+  # Provision node pools dynamically based on incoming workloads:
+  autoprovisioning_config = None
+  if args.enable_autoprovisioning:
+    xpk_print('Enabling Autoprovisioning')
+    autoprovisioning_config, return_code = enable_autoprovisioning_on_cluster(args, system)
+    if return_code != 0:
+      xpk_exit(return_code)
+
   xpk_print('Enable Kueue Credentials')
-  enable_kueue_credentials_code = enable_kueue_credentials(args, system)
+  enable_kueue_credentials_code = enable_kueue_credentials(args, system, autoprovisioning_config)
   if enable_kueue_credentials_code != 0:
     xpk_exit(enable_kueue_credentials_code)
 
-  xpk_print('Creating ConfigMap for cluster')
-  create_cluster_configmaps_code = create_cluster_configmaps(args, system, tensorboard_config)
-  if create_cluster_configmaps_code != 0:
-    xpk_exit(create_cluster_configmaps_code)
-
+  # TODO: Support other GPU Types for driver installation.
   if device_type == h100_device_type:
     xpk_print('Installing GPU Driver for cluster')
     install_gpu_driver_code = install_gpu_driver_on_cluster(args)
@@ -2892,6 +3252,12 @@ def cluster_create(args) -> int:
     install_nccl_code = install_nccl_on_cluster(args)
     if install_nccl_code != 0:
       xpk_exit(install_nccl_code)
+
+  xpk_print('Creating ConfigMap for cluster')
+  create_cluster_configmaps_code = create_cluster_configmaps(
+      args, system, tensorboard_config, autoprovisioning_config)
+  if create_cluster_configmaps_code != 0:
+    xpk_exit(create_cluster_configmaps_code)
 
   xpk_print('GKE commands done! Resources are created.')
   xpk_print(
@@ -3183,7 +3549,7 @@ def check_if_workload_exists(args) -> bool:
   return False
 
 
-def check_if_workload_can_schedule(args, system):
+def check_if_workload_can_schedule(args, system: SystemCharacteristics) -> bool:
   """Check if workload can schedule based on the cluster resources (tpu_type and maximum VM in cluster).
 
   Args:
@@ -3201,27 +3567,52 @@ def check_if_workload_can_schedule(args, system):
     xpk_print(f'No ConfigMap exist for cluster with the name {resources_configmap_name}.')
     return True
 
-  device_type = args.tpu_type if args.tpu_type else args.device_type
-  if device_type not in cluster_config_map:
-    xpk_print(f'{args.workload} is requesting {device_type} but '
-      f'cluster only contains {cluster_config_map.keys()}. '
-      'XPK will not create this workload.'
-    )
-    return False
+  # Check for gke accelerator type:
+  missing_gke_accelerator_type = False
+  if system.gke_accelerator not in cluster_config_map:
+    xpk_print(f'Gke Accelerator Type Check: {args.workload} is requesting {system.gke_accelerator} but '
+    f'cluster only contains {cluster_config_map.keys()}. ')
+    missing_gke_accelerator_type = True
+  elif cluster_config_map[system.gke_accelerator] == _AUTOPROVISIONING_CONFIG_VALUE:
+    # Run total chip check when in autoprovisioning mode.
+    max_chips_in_cluster = int(cluster_config_map[_AUTOPROVISIONING_CONFIG_MAXIMUM_KEY])
+    num_chips_in_workload = get_total_chips_requested_from_args(args, system)
 
-  max_vm_in_cluster = int(cluster_config_map[device_type])
-  if system.accelerator_type == AcceleratorType['GPU']:
-    vm_required_by_workload = int(args.num_nodes)
-  else:
-    vm_required_by_workload = int(args.num_slices) * system.vms_per_slice
-  if vm_required_by_workload > max_vm_in_cluster:
-    xpk_print(
-        f'{args.workload} is requesting {args.num_slices} slice/slices of {device_type}, '
-        f'which is {vm_required_by_workload} VMs, '
-        f'but the cluster only contains {max_vm_in_cluster} VMs of {device_type}. '
-        'XPK will not create this workload.'
+    if num_chips_in_workload > max_chips_in_cluster:
+      xpk_print(f'{args.workload} is requesting {num_chips_in_workload} chips but'
+                f' the cluster {args.cluster} supports up to {max_chips_in_cluster}.'
+                '  Resize the cluster to support more chips with'
+                ' `xpk cluster create --autoprovisioning-max-chips=X ...`')
+      return False
+    return True
+
+  # Check for device type
+  missing_device_type = False
+  device_type = system.device_type
+  if device_type not in cluster_config_map:
+    xpk_print(f'Device Type Check: {args.workload} is requesting {device_type} but '
+      f'cluster only contains {cluster_config_map.keys()}. '
     )
-    return False
+    missing_device_type = True
+
+  if missing_device_type and missing_gke_accelerator_type:
+    xpk_print('Both Device Type and GKE Accelerator Type checks failed.'
+              f' XPK will not create the workload {args.workload}.')
+  else:
+    # Check if the size of the workload will fit in the cluster.
+    max_vm_in_cluster = int(cluster_config_map[device_type])
+    if system.accelerator_type == AcceleratorType['GPU']:
+      vm_required_by_workload = args.num_nodes
+    else:
+      vm_required_by_workload = args.num_slices * system.vms_per_slice
+    if vm_required_by_workload > max_vm_in_cluster:
+      xpk_print(
+          f'{args.workload} is requesting {args.num_slices} slice/slices of {device_type}, '
+          f'which is {vm_required_by_workload} VMs, '
+          f'but the cluster only contains {max_vm_in_cluster} VMs of {device_type}. '
+          'XPK will not create this workload.'
+      )
+      return False
 
   return True
 
@@ -3287,6 +3678,7 @@ def setup_docker_image(args) -> tuple[int, str]:
 
   return 0, docker_image
 
+
 def get_main_and_sidecar_container(args, system, docker_image) -> str:
   """Generate yaml for main and sidecar container.
   Args:
@@ -3315,6 +3707,7 @@ def get_main_and_sidecar_container(args, system, docker_image) -> str:
               - name: tpu-stack-trace
   """
   return yaml.format(main_container=main_container)
+
 
 def get_main_container(args, system, docker_image, resource_type) -> str:
   """Generate yaml for main container including the xpk command.
@@ -3393,6 +3786,7 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
     xpk_return_user_exit_code=xpk_return_user_exit_code
   )
 
+
 def add_image_pull_policy_for_pw_or_gpu(args, system: SystemCharacteristics):
   """ Add image pull policy only for Pathways containers.
   Args:
@@ -3407,6 +3801,7 @@ def add_image_pull_policy_for_pw_or_gpu(args, system: SystemCharacteristics):
   if args.use_pathways or system.accelerator_type == AcceleratorType['GPU']:
     return yaml.format(args=args)
   return ""
+
 
 def get_main_container_docker_image(args, system: SystemCharacteristics) -> str:
   """ Docker name for the main container.
@@ -3453,6 +3848,7 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
     return gpu_volume_yaml
   return ""
 
+
 def get_pathways_rm_args(args) -> str:
   """Arguments for the Pathways resource manager.
   Args:
@@ -3473,6 +3869,7 @@ def get_pathways_rm_args(args) -> str:
     return yaml.format(args=args)
   else:
     return ""
+
 
 def get_pathways_worker_args(args) -> str:
   """Arguments for the Pathways workers.
@@ -3500,6 +3897,7 @@ def get_pathways_worker_args(args) -> str:
   else:
     return ""
 
+
 def get_pathways_proxy_args(args) -> str:
   """Arguments for the Pathways proxy.
   Args:
@@ -3519,6 +3917,7 @@ def get_pathways_proxy_args(args) -> str:
     return yaml.format(args=args)
   else:
     return ""
+
 
 def get_env_container(args, system: SystemCharacteristics):
   """ Environment configuration for the main container.
@@ -3577,6 +3976,7 @@ def get_env_container(args, system: SystemCharacteristics):
                         system=system)
   return args.env
 
+
 def get_main_container_resources(args, system: SystemCharacteristics, resource_type) -> str:
   """ Resources for the main container.
   Args:
@@ -3600,6 +4000,7 @@ def get_main_container_resources(args, system: SystemCharacteristics, resource_t
 
   return f'{resource_type}: {system.chips_per_vm}'
 
+
 def add_container_ports(args, system: SystemCharacteristics) -> str:
   """ Add slice builder and megascale container ports,
   for non-pathways workloads.
@@ -3620,6 +4021,7 @@ def add_container_ports(args, system: SystemCharacteristics) -> str:
   if system.accelerator_type == AcceleratorType['GPU']:
     return gpu_port_yaml
   return port_yaml
+
 
 def add_jax_coordinator_port(system) -> str:
   """Add jax coordinator port only for CPUs
@@ -3683,6 +4085,7 @@ def get_gke_dashboard(args, dashboard_filter):
 
   return True, None
 
+
 def get_gke_outlier_dashboard(args):
   """Get the identifier of GKE outlier dashboard deployed in the project.
 
@@ -3710,6 +4113,7 @@ def get_gke_outlier_dashboard(args):
     return None
 
   return dashboard_id
+
 
 def get_gke_debugging_dashboard(args):
   """Get the identifier of GKE debugging dashboard deployed in the project.
@@ -3739,6 +4143,7 @@ def get_gke_debugging_dashboard(args):
 
   return dashboard_id
 
+
 def create_accelerator_label(accelerator_type, system) -> str:
   """Generates accelerator label.
 
@@ -3753,19 +4158,21 @@ def create_accelerator_label(accelerator_type, system) -> str:
     return ""
   return f"{AcceleratorTypeToAcceleratorCharacteristics[accelerator_type].accelerator_label}: {system.gke_accelerator}"
 
-def create_machine_label(accelerator_type, system) -> str:
+def create_machine_label(accelerator_type, system, autoprovisioning_enabled: bool = False) -> str:
   """Generates machine label.
 
   Args:
     accelerator_type: type of accelerator.
     system: system characteristics.
+    autoprovisioning_enabled: describes autoprovisioning enablement.
 
   Returns:
     The machine label.
   """
-  if accelerator_type == AcceleratorType['TPU']:
+  if accelerator_type == AcceleratorType['TPU'] and not autoprovisioning_enabled:
     return f"{AcceleratorTypeToAcceleratorCharacteristics[accelerator_type].machine_label}: {system.topology}"
   return ""
+
 
 def calculate_process_count(num_slices, vms_per_slice) -> str:
   """ Calculates the total number of processes in the workload.
@@ -3818,6 +4225,7 @@ def get_cpu_env(num_slices, system) -> str:
                       process_count=calculate_process_count(num_slices,system.vms_per_slice))
   return ""
 
+
 def get_cpu_affinity(accelerator_type) -> str:
   """Generate affinity rules for CPU nodepools, so that workload pods are
   not scheduled on the default pool machines.
@@ -3841,6 +4249,7 @@ def get_cpu_affinity(accelerator_type) -> str:
     return yaml
   return ""
 
+
 def get_system_characteristics(args) -> tuple[SystemCharacteristics|None, int]:
   """Get system characteristics based on user provided arguments.
 
@@ -3856,6 +4265,98 @@ def get_system_characteristics(args) -> tuple[SystemCharacteristics|None, int]:
     return UserFacingNameToSystemCharacteristics[device_type], 0
   else:
     return None, 1
+
+
+def is_autoprovisioning_enabled(args, system: SystemCharacteristics) -> tuple[bool, int]:
+  """Determine if autoprovisioning is enabled.
+
+  Args:
+    args: user provided arguments for running the command.
+    system: system characteristics.
+
+  Returns:
+    bool is true if autoprovisioning is enabled, false otherwise.
+    int of 0 if successful and 1 otherwise.
+  """
+  resources_configmap_name = f'{args.cluster}-{_CLUSTER_RESOURCES_CONFIGMAP}'
+  cluster_config_map = get_cluster_configmap(args, resources_configmap_name)
+
+  if cluster_config_map is None:
+    xpk_print(f'Unable to find config map: {resources_configmap_name}. Autoprovisioning is not enabled.')
+    return False, 0
+
+  return_code, autoprovisioning_value = get_value_from_map(system.gke_accelerator, cluster_config_map)
+  if return_code != 0:
+    xpk_print(f'gke_accelerator type not found in config map: {resources_configmap_name}. Autoprovisioning is not enabled.')
+    return False, 0
+
+  if autoprovisioning_value == _AUTOPROVISIONING_CONFIG_VALUE:
+    xpk_print('Autoprovisioning is Enabled.')
+    return True, 0
+  else:
+    xpk_print(
+        'Error: Autoprovisioning not enabled but should be so exiting xpk. Value should be'
+        f' {_AUTOPROVISIONING_CONFIG_VALUE} but instead found value of '
+        f' {cluster_config_map[system.accelerator_type]}'
+    )
+    return False, 1
+
+
+def get_autoprovisioning_node_selector_args(args) -> tuple[str, int]:
+  """Determine the capacity type when autoprovisioning is enabled.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    Tuple with string of autoprovisioning node selector args and
+    int of 0 if successful and 1 otherwise.
+  """
+  return_code = 0
+  node_selector_args = ''
+  # If the user doesn't specify args, then use the cluster settings.
+  capacity_type, return_code = get_capacity_type(args)
+  capacity_type_str = capacity_type.name
+  if return_code != 0:
+    xpk_print('Unable to get capacity type.')
+    return node_selector_args, return_code
+
+  if capacity_type_str == CapacityType.UNKNOWN.name:
+    # Use default settings from cluster creation.
+    metadata_configmap_name = f'{args.cluster}-{_CLUSTER_METADATA_CONFIGMAP}'
+    cluster_config_map = get_cluster_configmap(args, metadata_configmap_name)
+
+    # Error out if the metadata config map doesn't exist, and is attempting to use
+    # autoprovisioning.
+    if cluster_config_map is None:
+      xpk_print('Unable to find config map. Please specify a capacity type'
+                ' --on-demand, --spot, --reservation=$RESERVATION_ID) to continue'
+                ' to use autoprovisioning (--enable-autoprovisioning).')
+      return node_selector_args, 1
+
+    return_code, capacity_type_str = get_value_from_map(_CAPACITY_TYPE_CONFIG_KEY, cluster_config_map)
+    if return_code != 0:
+      return node_selector_args, return_code
+
+    if capacity_type_str == CapacityType.RESERVATION.name:
+      return_code, args.reservation = get_value_from_map(_RESERVATION_CONFIG_KEY, cluster_config_map)
+      if return_code != 0:
+        return node_selector_args, return_code
+      return_code = verify_reservation_exists(args)
+      if return_code > 0:
+        xpk_print('Unable to verify reservation name saved in config map.')
+        return node_selector_args, return_code
+
+  # Check if reservation id is valid. Shared function with cluster creation.
+  node_selector_args, return_code = get_capacity_node_selectors_from_capacity_type(
+    args, capacity_type_str
+  )
+  if return_code != 0:
+    xpk_print('Unable to get node selectors from capacity type.')
+    return node_selector_args, return_code
+
+  return node_selector_args, return_code
+
 
 def workload_create(args) -> int:
   """Run jobset apply command for a file.
@@ -3920,6 +4421,17 @@ def workload_create(args) -> int:
 
   add_env_config(args, tensorboard_config)
 
+  autoprovisioning_args = ""
+  autoprovisioning_enabled, return_code = is_autoprovisioning_enabled(args, system)
+  if return_code != 0:
+    xpk_exit(return_code)
+  if autoprovisioning_enabled:
+    # Determine NAP capacity type
+    autoprovisioning_args, return_code = get_autoprovisioning_node_selector_args(args)
+    if return_code != 0:
+      xpk_exit(return_code)
+
+  # Determine if we deploy a sidecar and if we deploy a container.
   debugging_dashboard_id = None
   resource_type = AcceleratorTypeToAcceleratorCharacteristics[system.accelerator_type].resource_type
   if system.accelerator_type == AcceleratorType['TPU'] and args.deploy_stacktrace_sidecar:
@@ -3930,6 +4442,7 @@ def workload_create(args) -> int:
   else:
     container = get_main_container(args, system, docker_image, resource_type)
 
+  # Create the workload file based on accelerator type or workload type.
   if system.accelerator_type == AcceleratorType['GPU']:
     yml_string = gpu_workload_create_yaml.format(
         args=args,
@@ -3939,7 +4452,8 @@ def workload_create(args) -> int:
         accelerator_label=create_accelerator_label(system.accelerator_type, system),
         machine_label=create_machine_label(system.accelerator_type, system),
         node_pool_name=f'{args.cluster}-np-0',
-        chips_per_vm=system.chips_per_vm
+        chips_per_vm=system.chips_per_vm,
+        autoprovisioning_args=autoprovisioning_args
     )
   elif args.use_pathways:
     # Ensure the cluster and CPU nodepools were created with --enable-pathways
@@ -3968,7 +4482,8 @@ def workload_create(args) -> int:
         pathways_worker_args = get_pathways_worker_args(args),
         pathways_proxy_args = get_pathways_proxy_args(args),
         resource_type=resource_type,
-        local_queue_name=_LOCAL_QUEUE_NAME
+        local_queue_name=_LOCAL_QUEUE_NAME,
+        autoprovisioning_args=autoprovisioning_args
     )
   else:
     yml_string = workload_create_yaml.format(
@@ -3979,7 +4494,8 @@ def workload_create(args) -> int:
         env=get_cpu_env(args.num_slices,system),
         accelerator_label=create_accelerator_label(system.accelerator_type, system),
         machine_label=create_machine_label(system.accelerator_type, system),
-        local_queue_name=_LOCAL_QUEUE_NAME
+        local_queue_name=_LOCAL_QUEUE_NAME,
+        autoprovisioning_args=autoprovisioning_args
     )
   tmp = write_temporary_file(yml_string)
   command = f'kubectl apply -f {str(tmp.file.name)}'
@@ -4367,7 +4883,6 @@ def inspector(args) -> int:
     0 if successful and 1 otherwise.
   """
   # Future Improvements for inspector:
-  # 1. Print out the resource flavor.
   # 2. List what is next in Queue.
   # 3. Split inspector into different subcommands to parse info easier.
 
@@ -4403,6 +4918,7 @@ def inspector(args) -> int:
      'Kubectl: Healthy Node Count Per Node Pool'),
     (f'kubectl describe ClusterQueue {_CLUSTER_QUEUE_NAME}', 'Kueue: ClusterQueue Details'),
     (f'kubectl describe LocalQueue {_LOCAL_QUEUE_NAME}', 'Kueue: LocalQueue Details'),
+    ('kubectl describe ResourceFlavor', 'Kueue: ResourceFlavor Details'),
     ('kubectl describe Deployment kueue-controller-manager -n kueue-system', 'Kueue: Kueue Deployment Details'),
     ('kubectl describe Deployment jobset-controller-manager -n jobset-system', 'Jobset: Deployment Details'),
     ('kubectl logs deployment/kueue-controller-manager -n kueue-system --tail=100 --prefix=True', 'Kueue Manager Logs'),
@@ -4752,6 +5268,7 @@ cluster_create_optional_arguments.add_argument(
       ' approval.'
     ),
 )
+
 cluster_create_tensorboard_arguments.add_argument(
     '--create-vertex-tensorboard',
     action='store_true',
@@ -4778,6 +5295,38 @@ cluster_create_tensorboard_arguments.add_argument(
       f'<cluster>-{_DEFAULT_VERTEX_TENSORBOARD_NAME} will be created.'
     ),
 )
+
+cluster_create_autoprovisioning_arguments = cluster_create_parser.add_argument_group(
+    'Optional Autoprovisioning Arguments',
+    'Arguments optional for enabling autoprovisioning.'
+)
+
+cluster_create_autoprovisioning_arguments.add_argument(
+    '--enable-autoprovisioning',
+    action='store_true',
+    help=(
+      'Enable GKE features for autoprovisioning node pools in GKE clusters.'
+    ),
+)
+
+cluster_create_autoprovisioning_arguments.add_argument(
+    '--autoprovisioning-min-chips',
+    type=int,
+    help=(
+      'Optionally set the minimum autoprovisioning accelerator resources in units of chips.'
+      'By default, autoprovisioning will use the number of resources in the cluster as the minimum, and maximum.'
+    ),
+)
+
+cluster_create_autoprovisioning_arguments.add_argument(
+    '--autoprovisioning-max-chips',
+    type=int,
+    help=(
+      'Optionally set the maximum autoprovisioning accelerator resources in units of chips.'
+      'By default, autoprovisioning will use the number of resources in the cluster as the minimum, and maximum.'
+    ),
+)
+
 add_shared_arguments(cluster_create_optional_arguments)
 
 cluster_create_parser.set_defaults(func=cluster_create)
@@ -4953,6 +5502,12 @@ workload_docker_image_arguments = (
         ' user wants the docker image to be used directly by the xpk workload.'
     )
 )
+workload_create_autoprovisioning_arguments = (
+    workload_create_parser.add_argument_group(
+        'Optional Autoprovisioning Arguments',
+        'Arguments for configuring autoprovisioning.'
+    )
+)
 workload_pathways_workload_arguments = (
     workload_create_parser.add_argument_group(
         'Pathways Image Arguments',
@@ -5054,13 +5609,13 @@ workload_base_docker_image_arguments.add_argument(
 )
 workload_create_parser_optional_arguments.add_argument(
     '--num-slices',
-    type=str,
+    type=int,
     default=1,
     help='The number of slices to use, default=1.',
 )
 workload_create_parser_optional_arguments.add_argument(
     '--num-nodes',
-    type=str,
+    type=int,
     default=1,
     help='The number of nodes to use, default=1.',
 )
@@ -5148,7 +5703,6 @@ workload_create_parser_optional_arguments.add_argument(
         'Defaults to 30 seconds.'
     ),
 )
-
 workload_create_parser_optional_arguments.add_argument(
     '--restart-on-user-code-failure',
     action='store_true',
@@ -5160,6 +5714,34 @@ workload_create_parser_optional_arguments.add_argument(
     ),
 )
 
+# Autoprovisioning workload arguments
+workload_create_autoprovisioning_arguments.add_argument(
+    '--on-demand',
+    action='store_true',
+    help=(
+        'Sets autoprovisioning to use on-demand resources for the workload request.'
+        ' See `--reservation` or `--spot` for other capacity types.'
+    ),
+)
+workload_create_autoprovisioning_arguments.add_argument(
+    '--reservation',
+    type=str,
+    help=(
+        'Sets autoprovisioning to use reservation resources for the workload request.'
+        ' This will attempt to find the provided reservation.'
+        ' See `--spot` or `--on-demand` for other capacity types.'
+    ),
+)
+workload_create_autoprovisioning_arguments.add_argument(
+    '--spot',
+    action='store_true',
+    help=(
+        'Sets autoprovisioning to use spot resources.'
+        ' See `--reservation` or `--on-demand` for other capacity types.'
+    ),
+)
+
+# Pathways workload arguments
 workload_pathways_workload_arguments.add_argument(
     '--use-pathways',
     action='store_true',

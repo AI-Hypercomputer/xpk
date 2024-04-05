@@ -3422,7 +3422,7 @@ def get_main_container_docker_image(args, system: SystemCharacteristics) -> str:
   if system.accelerator_type == AcceleratorType['GPU']:
     return "gpu-image"
 
-  return f'{args.docker_image}'
+  return f'{args.docker_name}'
 
 def get_volume_mounts(args, system: SystemCharacteristics) -> str:
   """ Resources for the main container.
@@ -4213,7 +4213,7 @@ def wait_for_job_completion(args) -> int:
   full_workload_name = return_value.split(' ')[0]
 
   # Call kubectl wait on the workload using the full workload name
-  timeout_val = args.timeout if args.timeout else -1
+  timeout_val = args.timeout if args.timeout is not None else -1
   timeout_msg = f'{timeout_val}s' if timeout_val != -1 else "max timeout (1 week)"
   wait_cmd = ('kubectl  wait --for jsonpath=\'.status.conditions[-1].type\'=Finished workload '
               f'{full_workload_name} --timeout={timeout_val}s')
@@ -5298,7 +5298,7 @@ workload_list_parser.add_argument(
 )
 
 workload_list_wait_for_job_completion_arguments = workload_list_parser.add_argument_group(
-  'Wait for Job Completion Arguments', 
+  'Wait for Job Completion Arguments',
   'Arguments for waiting on the completion of a job.'
 )
 

@@ -3939,7 +3939,7 @@ def workload_create(args) -> int:
         accelerator_label=create_accelerator_label(system.accelerator_type, system),
         machine_label=create_machine_label(system.accelerator_type, system),
         node_pool_name=f'{args.cluster}-np-0',
-        chips_per_vm=f'{system.chips_per_vm}',
+        chips_per_vm=system.chips_per_vm
     )
   elif args.use_pathways:
     # Ensure the cluster and CPU nodepools were created with --enable-pathways

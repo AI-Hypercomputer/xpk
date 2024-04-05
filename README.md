@@ -355,7 +355,7 @@ checkpointing so the job restarts near where it was interrupted.
     --cluster xpk-test --filter-by-job=$USER
     ```
 
-* Workload List supports waiting for the completion of a specific job. XPK will follow an existing job until it has finished or the `timeout`, if provided, has been reached  and then list the job. If no `timeout` is specified, the default value is set to the max value, 1 week.  
+* Workload List supports waiting for the completion of a specific job. XPK will follow an existing job until it has finished or the `timeout`, if provided, has been reached  and then list the job. If no `timeout` is specified, the default value is set to the max value, 1 week. You may also set `timeout=0` to poll the job once.  
 (Note: `restart-on-user-code-failure` must be set
 when creating the workload otherwise the workload will always finish with `Completed` status.)
 

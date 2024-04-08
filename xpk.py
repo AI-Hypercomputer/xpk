@@ -2506,6 +2506,51 @@ def create_cluster_if_necessary(args) -> int:
     return run_gke_cluster_create_command(args)
 
 
+def get_nodepool_zone(args, nodepool_name) -> tuple[int, str]:
+  """Return zone in which nodepool exists in the cluster.
+
+  Args:
+    args: user provided arguments for running the command.
+    nodepool_name: name of nodepool.
+
+  Returns:
+    0 if successful, 1 otherwise and the zone of nodepool.
+  """
+  command = (
+      f'gcloud beta container node-pools describe {nodepool_name}'
+      f' --cluster {args.cluster} --project={args.project}'
+      f' --region={zone_to_region(args.zone)} --format="value(locations)"'
+  )
+  return_code, nodepool_zone = (
+      run_command_for_value(command, 'Get Node Pool Zone', args)
+  )
+  if return_code != 0:
+    xpk_print(f'Get Node Pool Zone returned ERROR {return_code}')
+    return 1, None
+
+  return 0, nodepool_zone.strip()
+
+
+def check_device_type_in_cluster(args, device_type) -> bool:
+  """Check if cluster has resources of a specified device_type.
+
+  Args:
+    args: user provided arguments for running the command.
+    device_type: device_type to check.
+
+  Returns:
+    True if device_type exists in the cluster, False otherwise.
+  """
+  resources_configmap_name = f'{args.cluster}-{_CLUSTER_RESOURCES_CONFIGMAP}'
+  resources_config_map = get_cluster_configmap(args, resources_configmap_name)
+  if resources_config_map is None:
+    xpk_print(f'No ConfigMap exist for cluster with the name {resources_config_map}.')
+    return False
+  if device_type in resources_config_map:
+    return True
+  return False
+
+
 def get_all_nodepools_programmatic(args) -> tuple[list[str], int]:
   """Gets all the nodepools associated with the cluster / project / region.
 
@@ -2528,6 +2573,9 @@ def get_all_nodepools_programmatic(args) -> tuple[list[str], int]:
     return [], 1
 
   all_nodepools = [x.split(' ')[0] for x in raw_nodepool_output.splitlines()]
+  # remove header=NAME from the nodepools list
+  if 'NAME' in all_nodepools:
+    all_nodepools.remove('NAME')
   return all_nodepools, 0
 
 
@@ -2612,6 +2660,38 @@ def get_user_input(input_msg):
   return user_input in ('y', 'yes')
 
 
+def get_node_pools_to_delete(args, existing_node_pool_names, desired_node_pool_names) -> list:
+  """Get list of nodepools to delete from the cluster.
+
+  Args:
+    args: user provided arguments for running the command.
+    existing_node_pool_names: names of nodepools that already exist in the cluster.
+    desired_node_pool_names: names of nodepools that should exist in the cluster.
+
+  Returns:
+    List of nodepool names to delete.
+  """
+  node_pools_to_delete = []
+  desired_node_pool_type = args.tpu_type if args.tpu_type else args.device_type
+  is_requested_device_type_in_cluster = check_device_type_in_cluster(args, desired_node_pool_type)
+  for existing_node_pool_name in existing_node_pool_names:
+    # Deletion logic would leave behind any Pathways CPU nodepools.
+    if existing_node_pool_name.find(f'{args.cluster}-np-') != 0:
+      continue
+
+    # Nodepools will be deleted in two scenarios:
+    # Scenario 1: Cluster exists with 3 nodepools of 'x' device_type and now we are updating
+    # the cluster to 2 nodepools of 'x' device_type. In this case, we will delete
+    # '{args.cluster}-np-2' from the cluster.
+    # Scenario 2: Cluster exists with 2 nodepools of 'x' device_type and now we are updating
+    # the cluster to 2 nodepools of 'y' device_type. In this case, we will delete
+    # '{args.cluster}-np-0' and '{args.cluster}-np-1' from the cluster.
+    if existing_node_pool_name not in desired_node_pool_names or not is_requested_device_type_in_cluster:
+      node_pools_to_delete.append(existing_node_pool_name)
+
+  return node_pools_to_delete
+
+
 def run_gke_node_pool_create_command(args, system) -> int:
   """Run the Create GKE Node Pool request.
 
@@ -2651,9 +2731,6 @@ def run_gke_node_pool_create_command(args, system) -> int:
     xpk_print('Parsing capacity arguments failed!')
     return return_code
 
-  commands = []
-  task_names = []
-
   if system.accelerator_type == AcceleratorType['GPU']:
     xpk_print(
       f'Creating 1 node pool with {args.num_nodes} nodes of {system.device_type}\n'
@@ -2669,8 +2746,36 @@ def run_gke_node_pool_create_command(args, system) -> int:
       f'{args.cluster}-np-{slice_num}' for slice_num in range(args.num_slices)
     ]
 
+  node_pools_to_remain = []
+  delete_commands = []
+  delete_task_names = []
+  if existing_node_pool_names:
+    return_code, existing_node_pool_zone = get_nodepool_zone(args, existing_node_pool_names[0])
+    if return_code == 0:
+      if existing_node_pool_zone and existing_node_pool_zone != args.zone:
+        xpk_print(f'Cluster already has nodepools in zone: {existing_node_pool_zone}.'
+                  ' Use the same zone to update nodepools in the cluster.')
+        xpk_exit(1)
+
+    node_pools_to_delete = get_node_pools_to_delete(args, existing_node_pool_names, desired_node_pool_names)
+    for node_pool_name in existing_node_pool_names:
+      if node_pool_name in node_pools_to_delete:
+        command = (
+            'gcloud beta container node-pools delete'
+            f' {node_pool_name} --cluster={args.cluster}'
+            f' --zone={zone_to_region(args.zone)}'
+            f' --project={args.project} --quiet'
+        )
+        task = f'NodepoolDelete-{node_pool_name}'
+        delete_commands.append(command)
+        delete_task_names.append(task)
+      else:
+        node_pools_to_remain.append(node_pool_name)
+
+  create_commands = []
+  create_task_names = []
   for node_pool_name in desired_node_pool_names:
-    if node_pool_name in existing_node_pool_names:
+    if node_pool_name in node_pools_to_remain:
       continue
     command = (
         'gcloud beta container node-pools create'
@@ -2714,8 +2819,8 @@ def run_gke_node_pool_create_command(args, system) -> int:
         xpk_print(f'Service Account: {service_account_name} does not exist in the project.'
                 ' Will attach the default service account to the node pools.')
     task = f'NodepoolCreate-{node_pool_name}'
-    commands.append(command)
-    task_names.append(task)
+    create_commands.append(command)
+    create_task_names.append(task)
 
   desired_pw_cpu_node_pools = ['cpu-user-np', 'cpu-rm-np', 'cpu-proxy-np']
   if args.enable_pathways:
@@ -2735,17 +2840,8 @@ def run_gke_node_pool_create_command(args, system) -> int:
           ' --enable-autoscaling --min-nodes=1 --max-nodes=20'
       )
       task = f'NodepoolCreate-{node_pool_name}'
-      commands.append(command)
-      task_names.append(task)
-
-  # Deletion logic would leave behind any Pathways CPU nodepools.
-  node_pools_to_delete = []
-  for existing_node_pool_name in existing_node_pool_names:
-    if (
-        existing_node_pool_name.find(f'{args.cluster}-np-') == 0
-        and existing_node_pool_name not in desired_node_pool_names
-    ):
-      node_pools_to_delete.append(existing_node_pool_name)
+      create_commands.append(command)
+      create_task_names.append(task)
 
   will_delete = True
   if node_pools_to_delete and not args.force:
@@ -2754,30 +2850,29 @@ def run_gke_node_pool_create_command(args, system) -> int:
       f'{node_pools_to_delete}. \nDo you wish to delete: y (yes) / n (no):\n')
 
   if not will_delete:
-    xpk_print('Skipping delete commands. Continuing to next step.')
-  else:
-    for existing_node_pool_name in node_pools_to_delete:
-      if (
-          existing_node_pool_name.find(f'{args.cluster}-np-') == 0
-          and existing_node_pool_name not in desired_node_pool_names
-      ):
-        command = (
-            'gcloud beta container node-pools delete'
-            f' {existing_node_pool_name} --cluster={args.cluster}'
-            f' --zone={zone_to_region(args.zone)}'
-            f' --project={args.project} --quiet'
-        )
-        task = f'Nodepool-Delete-{existing_node_pool_name}'
-        commands.append(command)
-        task_names.append(task)
+    xpk_print('You have requested to not delete the existing nodepools in the cluster.'
+              ' There will be no change to the cluster.')
+    xpk_exit(1)
 
-  for i, command in enumerate(commands):
-    xpk_print(f'To complete {task_names[i]} we are executing {command}')
+  # Deletion of nodepools should happen before attempting to create new nodepools for the case
+  # when cluster is getting updated from 'x' device_type to 'y' device_type. In that case,
+  # '{args.cluster}-np-i' nodepool will be re-created for 'y' device_type.
+  for i, command in enumerate(delete_commands):
+    xpk_print(f'To complete {delete_task_names[i]} we are executing {command}')
   max_return_code = run_commands(
-      commands, 'Create and Delete Nodepools', task_names, dry_run=args.dry_run
+      delete_commands, 'Delete Nodepools', delete_task_names, dry_run=args.dry_run
   )
   if max_return_code != 0:
-    xpk_print(f'Create and Delete Nodepools returned ERROR {max_return_code}')
+    xpk_print(f'Delete Nodepools returned ERROR {max_return_code}')
+    return 1
+
+  for i, command in enumerate(create_commands):
+    xpk_print(f'To complete {create_task_names[i]} we are executing {command}')
+  max_return_code = run_commands(
+      create_commands, 'Create Nodepools', create_task_names, dry_run=args.dry_run
+  )
+  if max_return_code != 0:
+    xpk_print(f'Create Nodepools returned ERROR {max_return_code}')
     return 1
 
   xpk_print('Create or delete node pool request complete.')

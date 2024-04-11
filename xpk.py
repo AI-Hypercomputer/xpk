@@ -64,6 +64,8 @@ default_gke_version="1.29.1-gke.1589017"
 __version__ = "0.3.0"
 xpk_current_version = __version__
 
+h100_device_type = 'h100-80gb-8'
+
 _AUTOPROVISIONING_CONFIG_VALUE = 'AUTOPROVISION'
 _AUTOPROVISIONING_CONFIG_MINIMUM_KEY = 'minimum_chips'
 _AUTOPROVISIONING_CONFIG_MAXIMUM_KEY = 'maximum_chips'
@@ -1286,7 +1288,7 @@ def add_env_config(args, system: SystemCharacteristics, tensorboard_config: dict
         if match.group(2) is not None:
           env[variable] = match.group(2)
         else:
-          if not variable in os.environ:
+          if variable not in os.environ:
             xpk_print(f'Variable {variable} is not set in the current '
                       'environment, a value must be specified.')
             return 1
@@ -3191,8 +3193,8 @@ def cluster_create(args) -> int:
     if not tensorboard_config:
       xpk_exit(1)
 
-  if system.accelerator_type == AcceleratorType.GPU:
-    xpk_print(f'Setting up Network for cluster: This is {AcceleratorType.GPU.name} specific.')
+  if system.device_type == h100_device_type:
+    xpk_print('Setting up Network for cluster: This is {h100_device_type} specific.')
     set_up_cluster_network_code = set_up_cluster_network_for_a3(args)
     if set_up_cluster_network_code != 0:
       xpk_exit(set_up_cluster_network_code)
@@ -4376,7 +4378,7 @@ def workload_create(args):
   xpk_print("Starting workload create", flush=True)
   system, return_code = get_system_characteristics(args)
 
-  if return_code > 0 or system is None:
+  if return_code > 0:
     xpk_print("Fetching system characteristics failed!")
     xpk_exit(return_code)
 

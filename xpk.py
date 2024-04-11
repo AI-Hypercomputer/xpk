@@ -16,19 +16,12 @@
 
 r"""xpk (Accelerated Processing Kit).
 
-Next Steps:
+Future Steps (outdated):
 - Cluster describe is broken by Cacheimage since that counts as a workload.
 - Cluster describe: count by jobset.
-- If any instance goes down, bring down the whole job.
-- How to more gracefully handle job failures, distinguishing between software
-  and infra?
 - Look into --docker-name and --docker-image.
   Shouldn't one string be adequate to express what we want?
 - Apply learnings from about private, region, coredns, etc:
-- Enable special preheater
-- Make Argparse logic this a function?
-  - Obvious logic that starts in main instead of here in code but args will
-    not be a universal argument.
 """
 
 import argparse
@@ -70,8 +63,6 @@ default_gke_version="1.29.1-gke.1589017"
 # This is the version for XPK PyPI package
 __version__ = "0.3.0"
 xpk_current_version = __version__
-
-h100_device_type = 'h100-80gb-8'
 
 _AUTOPROVISIONING_CONFIG_VALUE = 'AUTOPROVISION'
 _AUTOPROVISIONING_CONFIG_MINIMUM_KEY = 'minimum_chips'
@@ -646,11 +637,11 @@ IAMRoles = {
 }
 
 
-AcceleratorType = {
-  'TPU': 1,
-  'GPU': 2,
-  'CPU': 3
-}
+class AcceleratorType(enum.Enum):
+  TPU='TPU'
+  GPU='GPU'
+  CPU='CPU'
+
 
 @dataclass
 class AutoprovisioningConfig:
@@ -666,16 +657,13 @@ class AcceleratorCharacteristics:
   machine_label: str
 
 AcceleratorTypeToAcceleratorCharacteristics = {
-     # TPU
-      AcceleratorType['TPU']: AcceleratorCharacteristics(
+      AcceleratorType.TPU: AcceleratorCharacteristics(
       'google.com/tpu', 'cloud.google.com/gke-tpu-accelerator', 'cloud.google.com/gke-tpu-topology'
       ),
-     # GPU
-      AcceleratorType['GPU']: AcceleratorCharacteristics(
+      AcceleratorType.GPU: AcceleratorCharacteristics(
       'nvidia.com/gpu', 'cloud.google.com/gke-accelerator', 'cloud.google.com/gce-machine-type'
       ),
-     # CPU
-      AcceleratorType['CPU']: AcceleratorCharacteristics(
+      AcceleratorType.CPU: AcceleratorCharacteristics(
       'cpu', '', 'cloud.google.com/gke-nodepool'
       )
 }
@@ -688,7 +676,7 @@ class SystemCharacteristics:
   gke_accelerator: str
   gce_machine_type: str
   chips_per_vm: int
-  accelerator_type: AcceleratorType # type: ignore
+  accelerator_type: AcceleratorType
   device_type: str
 
 ################### Subcommand Helper Functions #############
@@ -700,408 +688,408 @@ UserFacingNameToSystemCharacteristics = {
     # GPU system characteristics
     # A100-40gb-$CHIPS
     'a100-40gb-1': SystemCharacteristics(
-      'N/A', 1, 'nvidia-tesla-a100', 'a2-highgpu-1g', 1, AcceleratorType['GPU'], 'a100-40gb-1'
+      'N/A', 1, 'nvidia-tesla-a100', 'a2-highgpu-1g', 1, AcceleratorType.GPU, 'a100-40gb-1'
     ),
     'a100-40gb-2': SystemCharacteristics(
-      'N/A', 1, 'nvidia-tesla-a100', 'a2-highgpu-2g', 2, AcceleratorType['GPU'], 'a100-40gb-2'
+      'N/A', 1, 'nvidia-tesla-a100', 'a2-highgpu-2g', 2, AcceleratorType.GPU, 'a100-40gb-2'
     ),
     'a100-40gb-4': SystemCharacteristics(
-      'N/A', 1, 'nvidia-tesla-a100', 'a2-highgpu-4g', 4, AcceleratorType['GPU'], 'a100-40gb-4'
+      'N/A', 1, 'nvidia-tesla-a100', 'a2-highgpu-4g', 4, AcceleratorType.GPU, 'a100-40gb-4'
     ),
     'a100-40gb-8': SystemCharacteristics(
-      'N/A', 1, 'nvidia-tesla-a100', 'a2-highgpu-8g', 8, AcceleratorType['GPU'], 'a100-40gb-8'
+      'N/A', 1, 'nvidia-tesla-a100', 'a2-highgpu-8g', 8, AcceleratorType.GPU, 'a100-40gb-8'
     ),
      # H100-80gb-$CHIPS
     'h100-80gb-8': SystemCharacteristics(
-      'N/A', 1, 'nvidia-h100-80gb', 'a3-highgpu-8g', 8, AcceleratorType['GPU'], 'h100-80gb-8'
+      'N/A', 1, 'nvidia-h100-80gb', 'a3-highgpu-8g', 8, AcceleratorType.GPU, 'h100-80gb-8'
     ),
 
     # TPU system characteristics
     # v5p
     'v5p-8': SystemCharacteristics(
-      '2x2x1', 1, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-8'
+      '2x2x1', 1, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-8'
     ),
     'v5p-16': SystemCharacteristics(
-      '2x2x2', 2, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-16'
+      '2x2x2', 2, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-16'
     ),
     'v5p-32': SystemCharacteristics(
-      '2x2x4', 4, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-32'
+      '2x2x4', 4, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-32'
     ),
     'v5p-64': SystemCharacteristics(
-      '2x4x4', 8, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-64'
+      '2x4x4', 8, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-64'
     ),
     'v5p-128': SystemCharacteristics(
-      '4x4x4', 16, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-128'
+      '4x4x4', 16, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-128'
     ),
     'v5p-256': SystemCharacteristics(
-      '4x4x8', 32, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-256'
+      '4x4x8', 32, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-256'
     ),
     'v5p-384': SystemCharacteristics(
-      '4x4x12', 48, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-384'
+      '4x4x12', 48, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-384'
     ),
     'v5p-512': SystemCharacteristics(
-      '4x8x8', 64, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-512'
+      '4x8x8', 64, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-512'
     ),
     'v5p-640': SystemCharacteristics(
-      '4x4x20', 80, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-640'
+      '4x4x20', 80, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-640'
     ),
     'v5p-768': SystemCharacteristics(
-      '4x8x12', 96, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-768'
+      '4x8x12', 96, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-768'
     ),
     'v5p-896': SystemCharacteristics(
-      '4x4x28', 112, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-896'
+      '4x4x28', 112, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-896'
     ),
     'v5p-1024': SystemCharacteristics(
-      '8x8x8', 128, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-1024'
+      '8x8x8', 128, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-1024'
     ),
     'v5p-1152': SystemCharacteristics(
-      '4x12x12', 144, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-1152'
+      '4x12x12', 144, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-1152'
     ),
     'v5p-1280': SystemCharacteristics(
-      '4x8x20', 160, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-1280'
+      '4x8x20', 160, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-1280'
     ),
     'v5p-1408': SystemCharacteristics(
-      '4x4x44', 176, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-1408'
+      '4x4x44', 176, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-1408'
     ),
     'v5p-1536': SystemCharacteristics(
-      '8x8x12', 192, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-1536'
+      '8x8x12', 192, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-1536'
     ),
     'v5p-1664': SystemCharacteristics(
-      '4x4x52', 208, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-1664'
+      '4x4x52', 208, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-1664'
     ),
     'v5p-1792': SystemCharacteristics(
-      '4x8x28', 224, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-1792'
+      '4x8x28', 224, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-1792'
     ),
     'v5p-1920': SystemCharacteristics(
-      '4x12x20', 240, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-1920'
+      '4x12x20', 240, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-1920'
     ),
     'v5p-2048': SystemCharacteristics(
-      '8x8x16', 256, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-2048'
+      '8x8x16', 256, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-2048'
     ),
     'v5p-2176': SystemCharacteristics(
-      '4x4x68', 272, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-2176'
+      '4x4x68', 272, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-2176'
     ),
     'v5p-2304': SystemCharacteristics(
-      '8x12x12', 288, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-2304'
+      '8x12x12', 288, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-2304'
     ),
     'v5p-2432': SystemCharacteristics(
-      '4x4x76', 304, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-2432'
+      '4x4x76', 304, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-2432'
     ),
     'v5p-2560': SystemCharacteristics(
-      '8x8x20', 320, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-2560'
+      '8x8x20', 320, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-2560'
     ),
     'v5p-2688': SystemCharacteristics(
-      '4x12x28', 336, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-2688'
+      '4x12x28', 336, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-2688'
     ),
     'v5p-2816': SystemCharacteristics(
-      '4x8x44', 352, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-2816'
+      '4x8x44', 352, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-2816'
     ),
     'v5p-2944': SystemCharacteristics(
-      '4x4x92', 368, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-2944'
+      '4x4x92', 368, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-2944'
     ),
     'v5p-3072': SystemCharacteristics(
-      '8x12x16', 384, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-3072'
+      '8x12x16', 384, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-3072'
     ),
     'v5p-3200': SystemCharacteristics(
-      '4x20x20', 400, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-3200'
+      '4x20x20', 400, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-3200'
     ),
     'v5p-3328': SystemCharacteristics(
-      '4x8x52', 416, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-3328'
+      '4x8x52', 416, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-3328'
     ),
     'v5p-3456': SystemCharacteristics(
-      '12x12x12', 432, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-3456'
+      '12x12x12', 432, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-3456'
     ),
     'v5p-3584': SystemCharacteristics(
-      '8x8x28', 448, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-3584'
+      '8x8x28', 448, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-3584'
     ),
     'v5p-3712': SystemCharacteristics(
-      '4x4x116', 464, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-3712'
+      '4x4x116', 464, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-3712'
     ),
     'v5p-3840': SystemCharacteristics(
-      '8x12x20', 480, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-3840'
+      '8x12x20', 480, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-3840'
     ),
     'v5p-3968': SystemCharacteristics(
-      '4x4x124', 496, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-3968'
+      '4x4x124', 496, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-3968'
     ),
     'v5p-4096': SystemCharacteristics(
-      '8x16x16', 512, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-4096'
+      '8x16x16', 512, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-4096'
     ),
     'v5p-4224': SystemCharacteristics(
-      '4x12x44', 528, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-4224'
+      '4x12x44', 528, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-4224'
     ),
     'v5p-4352': SystemCharacteristics(
-      '4x8x68', 544, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-4352'
+      '4x8x68', 544, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-4352'
     ),
     'v5p-4480': SystemCharacteristics(
-      '4x20x28', 560, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-4480'
+      '4x20x28', 560, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-4480'
     ),
     'v5p-4608': SystemCharacteristics(
-      '12x12x16', 576, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-4608'
+      '12x12x16', 576, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-4608'
     ),
     'v5p-4736': SystemCharacteristics(
-      '4x4x148', 592, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-4736'
+      '4x4x148', 592, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-4736'
     ),
     'v5p-4864': SystemCharacteristics(
-      '4x8x76', 608, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-4864'
+      '4x8x76', 608, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-4864'
     ),
     'v5p-4992': SystemCharacteristics(
-      '4x12x52', 624, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-4992'
+      '4x12x52', 624, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-4992'
     ),
     'v5p-5120': SystemCharacteristics(
-      '8x16x20', 640, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-5120'
+      '8x16x20', 640, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-5120'
     ),
     'v5p-5248': SystemCharacteristics(
-      '4x4x164', 656, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-5248'
+      '4x4x164', 656, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-5248'
     ),
     'v5p-5376': SystemCharacteristics(
-      '8x12x28', 672, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-5376'
+      '8x12x28', 672, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-5376'
     ),
     'v5p-5504': SystemCharacteristics(
-      '4x4x172', 688, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-5504'
+      '4x4x172', 688, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-5504'
     ),
     'v5p-5632': SystemCharacteristics(
-      '8x8x44', 704, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-5632'
+      '8x8x44', 704, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-5632'
     ),
     'v5p-5760': SystemCharacteristics(
-      '12x12x20', 720, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-5760'
+      '12x12x20', 720, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-5760'
     ),
     'v5p-5888': SystemCharacteristics(
-      '4x8x92', 736, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-5888'
+      '4x8x92', 736, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-5888'
     ),
     'v5p-6016': SystemCharacteristics(
-      '4x4x188', 752, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-6016'
+      '4x4x188', 752, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-6016'
     ),
     'v5p-6144': SystemCharacteristics(
-      '12x16x16', 768, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-6144'
+      '12x16x16', 768, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-6144'
     ),
     'v5p-6272': SystemCharacteristics(
-      '4x28x28', 784, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-6272'
+      '4x28x28', 784, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-6272'
     ),
     'v5p-6400': SystemCharacteristics(
-      '8x20x20', 800, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-6400'
+      '8x20x20', 800, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-6400'
     ),
     'v5p-6528': SystemCharacteristics(
-      '4x12x68', 816, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-6528'
+      '4x12x68', 816, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-6528'
     ),
     'v5p-6656': SystemCharacteristics(
-      '8x8x52', 832, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-6656'
+      '8x8x52', 832, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-6656'
     ),
     'v5p-6784': SystemCharacteristics(
-      '4x4x212', 848, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-6784'
+      '4x4x212', 848, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-6784'
     ),
     'v5p-6912': SystemCharacteristics(
-      '12x12x24', 864, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-6912'
+      '12x12x24', 864, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-6912'
     ),
     'v5p-7040': SystemCharacteristics(
-      '4x20x44', 880, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-7040'
+      '4x20x44', 880, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-7040'
     ),
     'v5p-7168': SystemCharacteristics(
-      '8x16x28', 896, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-7168'
+      '8x16x28', 896, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-7168'
     ),
     'v5p-7296': SystemCharacteristics(
-      '4x12x76', 912, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-7296'
+      '4x12x76', 912, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-7296'
     ),
     'v5p-7424': SystemCharacteristics(
-      '4x8x116', 928, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-7424'
+      '4x8x116', 928, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-7424'
     ),
     'v5p-7552': SystemCharacteristics(
-      '4x4x236', 944, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-7552'
+      '4x4x236', 944, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-7552'
     ),
     'v5p-7680': SystemCharacteristics(
-      '12x16x20', 960, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-7680'
+      '12x16x20', 960, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-7680'
     ),
     'v5p-7808': SystemCharacteristics(
-      '4x4x244', 976, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-7808'
+      '4x4x244', 976, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-7808'
     ),
     'v5p-7936': SystemCharacteristics(
-      '4x8x124', 992, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-7936'
+      '4x8x124', 992, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-7936'
     ),
     'v5p-8064': SystemCharacteristics(
-      '12x12x28', 1008, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-8064'
+      '12x12x28', 1008, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-8064'
     ),
     'v5p-8192': SystemCharacteristics(
-      '16x16x16', 1024, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-8192'
+      '16x16x16', 1024, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-8192'
     ),
     'v5p-8320': SystemCharacteristics(
-      '4x20x52', 1040, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-8320'
+      '4x20x52', 1040, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-8320'
     ),
     'v5p-8448': SystemCharacteristics(
-      '8x12x44', 1056, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-8448'
+      '8x12x44', 1056, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-8448'
     ),
     'v5p-8704': SystemCharacteristics(
-      '8x8x68', 1088, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-8704'
+      '8x8x68', 1088, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-8704'
     ),
     'v5p-8832': SystemCharacteristics(
-      '4x12x92', 1104, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-8832'
+      '4x12x92', 1104, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-8832'
     ),
     'v5p-8960': SystemCharacteristics(
-      '8x20x28', 1120, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-8960'
+      '8x20x28', 1120, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-8960'
     ),
     'v5p-9216': SystemCharacteristics(
-      '12x16x24', 1152, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-9216'
+      '12x16x24', 1152, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-9216'
     ),
     'v5p-9472': SystemCharacteristics(
-      '4x8x148', 1184, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-9472'
+      '4x8x148', 1184, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-9472'
     ),
     'v5p-9600': SystemCharacteristics(
-      '12x20x20', 1200, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-9600'
+      '12x20x20', 1200, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-9600'
     ),
     'v5p-9728': SystemCharacteristics(
-      '8x8x76', 1216, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-9728'
+      '8x8x76', 1216, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-9728'
     ),
     'v5p-9856': SystemCharacteristics(
-      '4x28x44', 1232, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-9856'
+      '4x28x44', 1232, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-9856'
     ),
     'v5p-9984': SystemCharacteristics(
-      '8x12x52', 1248, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-9984'
+      '8x12x52', 1248, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-9984'
     ),
     'v5p-10240': SystemCharacteristics(
-      '16x16x20', 1280, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-10240'
+      '16x16x20', 1280, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-10240'
     ),
     'v5p-10368': SystemCharacteristics(
-      '12x12x36', 1296, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-10368'
+      '12x12x36', 1296, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-10368'
     ),
     'v5p-10496': SystemCharacteristics(
-      '4x8x164', 1312, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-10496'
+      '4x8x164', 1312, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-10496'
     ),
     'v5p-10752': SystemCharacteristics(
-      '12x16x28', 1344, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-10752'
+      '12x16x28', 1344, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-10752'
     ),
     'v5p-10880': SystemCharacteristics(
-      '4x20x68', 1360, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-10880'
+      '4x20x68', 1360, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-10880'
     ),
     'v5p-11008': SystemCharacteristics(
-      '4x8x172', 1376, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-11008'
+      '4x8x172', 1376, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-11008'
     ),
     'v5p-11136': SystemCharacteristics(
-      '4x12x116', 1392, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-11136'
+      '4x12x116', 1392, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-11136'
     ),
     'v5p-11264': SystemCharacteristics(
-      '8x16x44', 1408, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-11264'
+      '8x16x44', 1408, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-11264'
     ),
     'v5p-11520': SystemCharacteristics(
-      '12x20x24', 1440, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-11520'
+      '12x20x24', 1440, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-11520'
     ),
     'v5p-11648': SystemCharacteristics(
-      '4x28x52', 1456, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-11648'
+      '4x28x52', 1456, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-11648'
     ),
     'v5p-11776': SystemCharacteristics(
-      '8x8x92', 1472, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-11776'
+      '8x8x92', 1472, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-11776'
     ),
     'v5p-11904': SystemCharacteristics(
-      '4x12x124', 1488, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-11904'
+      '4x12x124', 1488, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-11904'
     ),
     'v5p-12032': SystemCharacteristics(
-      '4x8x188', 1504, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-12032'
+      '4x8x188', 1504, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-12032'
     ),
     'v5p-12160': SystemCharacteristics(
-      '4x20x76', 1520, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-12160'
+      '4x20x76', 1520, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-12160'
     ),
     'v5p-12288': SystemCharacteristics(
-      '16x16x24', 1536, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-12288'
+      '16x16x24', 1536, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-12288'
     ),
     'v5p-13824': SystemCharacteristics(
-      '12x24x24', 1728, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-13824'
+      '12x24x24', 1728, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-13824'
     ),
     'v5p-17920': SystemCharacteristics(
-      '16x20x28', 2240, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-17920'
+      '16x20x28', 2240, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType.TPU, 'v5p-17920'
     ),
     # v5litepod
     'v5litepod-16': SystemCharacteristics(
-        '4x4', 4, 'tpu-v5-lite-podslice', 'ct5lp-hightpu-4t', 4, AcceleratorType['TPU'], 'v5litepod-16'
+        '4x4', 4, 'tpu-v5-lite-podslice', 'ct5lp-hightpu-4t', 4, AcceleratorType.TPU, 'v5litepod-16'
     ),
     'v5litepod-32': SystemCharacteristics(
-        '4x8', 8, 'tpu-v5-lite-podslice', 'ct5lp-hightpu-4t', 4, AcceleratorType['TPU'], 'v5litepod-32'
+        '4x8', 8, 'tpu-v5-lite-podslice', 'ct5lp-hightpu-4t', 4, AcceleratorType.TPU, 'v5litepod-32'
     ),
     'v5litepod-64': SystemCharacteristics(
-        '8x8', 16, 'tpu-v5-lite-podslice', 'ct5lp-hightpu-4t', 4, AcceleratorType['TPU'], 'v5litepod-64'
+        '8x8', 16, 'tpu-v5-lite-podslice', 'ct5lp-hightpu-4t', 4, AcceleratorType.TPU, 'v5litepod-64'
     ),
     'v5litepod-128': SystemCharacteristics(
-        '8x16', 32, 'tpu-v5-lite-podslice', 'ct5lp-hightpu-4t', 4, AcceleratorType['TPU'], 'v5litepod-128'
+        '8x16', 32, 'tpu-v5-lite-podslice', 'ct5lp-hightpu-4t', 4, AcceleratorType.TPU, 'v5litepod-128'
     ),
     'v5litepod-256': SystemCharacteristics(
-        '16x16', 64, 'tpu-v5-lite-podslice', 'ct5lp-hightpu-4t', 4, AcceleratorType['TPU'], 'v5litepod-256'
+        '16x16', 64, 'tpu-v5-lite-podslice', 'ct5lp-hightpu-4t', 4, AcceleratorType.TPU, 'v5litepod-256'
     ),
     # v4
     'v4-8': SystemCharacteristics(
-      '2x2x1', 1,'tpu-v4-podslice', 'ct4p-hightpu-4t', 4, AcceleratorType['TPU'], 'v4-8'
+      '2x2x1', 1,'tpu-v4-podslice', 'ct4p-hightpu-4t', 4, AcceleratorType.TPU, 'v4-8'
     ),
     'v4-16': SystemCharacteristics(
-      '2x2x2', 2,'tpu-v4-podslice', 'ct4p-hightpu-4t', 4, AcceleratorType['TPU'], 'v4-16'
+      '2x2x2', 2,'tpu-v4-podslice', 'ct4p-hightpu-4t', 4, AcceleratorType.TPU, 'v4-16'
     ),
     'v4-32': SystemCharacteristics(
-      '2x2x4', 4,'tpu-v4-podslice', 'ct4p-hightpu-4t', 4, AcceleratorType['TPU'], 'v4-32'
+      '2x2x4', 4,'tpu-v4-podslice', 'ct4p-hightpu-4t', 4, AcceleratorType.TPU, 'v4-32'
     ),
     'v4-64': SystemCharacteristics(
-      '2x4x4', 8,'tpu-v4-podslice', 'ct4p-hightpu-4t', 4, AcceleratorType['TPU'], 'v4-64'
+      '2x4x4', 8,'tpu-v4-podslice', 'ct4p-hightpu-4t', 4, AcceleratorType.TPU, 'v4-64'
     ),
     'v4-128': SystemCharacteristics(
-      '4x4x4', 16,'tpu-v4-podslice', 'ct4p-hightpu-4t', 4, AcceleratorType['TPU'], 'v4-128'
+      '4x4x4', 16,'tpu-v4-podslice', 'ct4p-hightpu-4t', 4, AcceleratorType.TPU, 'v4-128'
     ),
     'v4-256': SystemCharacteristics(
-      '4x4x8', 32,'tpu-v4-podslice', 'ct4p-hightpu-4t', 4, AcceleratorType['TPU'], 'v4-256'
+      '4x4x8', 32,'tpu-v4-podslice', 'ct4p-hightpu-4t', 4, AcceleratorType.TPU, 'v4-256'
     ),
     'v4-512': SystemCharacteristics(
-      '4x8x8', 64,'tpu-v4-podslice', 'ct4p-hightpu-4t', 4, AcceleratorType['TPU'], 'v4-512'
+      '4x8x8', 64,'tpu-v4-podslice', 'ct4p-hightpu-4t', 4, AcceleratorType.TPU, 'v4-512'
     ),
     'v4-1024': SystemCharacteristics(
-      '8x8x8', 128,'tpu-v4-podslice', 'ct4p-hightpu-4t', 4, AcceleratorType['TPU'], 'v4-1024'
+      '8x8x8', 128,'tpu-v4-podslice', 'ct4p-hightpu-4t', 4, AcceleratorType.TPU, 'v4-1024'
     ),
     'v4-1536': SystemCharacteristics(
-      '8x8x12', 192,'tpu-v4-podslice', 'ct4p-hightpu-4t', 4, AcceleratorType['TPU'], 'v4-1536'
+      '8x8x12', 192,'tpu-v4-podslice', 'ct4p-hightpu-4t', 4, AcceleratorType.TPU, 'v4-1536'
     ),
     'v4-2048': SystemCharacteristics(
-      '8x8x16', 256,'tpu-v4-podslice', 'ct4p-hightpu-4t', 4, AcceleratorType['TPU'], 'v4-2048'
+      '8x8x16', 256,'tpu-v4-podslice', 'ct4p-hightpu-4t', 4, AcceleratorType.TPU, 'v4-2048'
     ),
     'v4-4096': SystemCharacteristics(
-      '8x16x16', 512,'tpu-v4-podslice', 'ct4p-hightpu-4t', 4, AcceleratorType['TPU'], 'v4-4096'
+      '8x16x16', 512,'tpu-v4-podslice', 'ct4p-hightpu-4t', 4, AcceleratorType.TPU, 'v4-4096'
     ),
 
     # CPU system characteristics
     # m1-megamem-96-$VMs
     'm1-megamem-96-1': SystemCharacteristics(
-      'N/A', 1,'N/A', 'm1-megamem-96', 1, AcceleratorType['CPU'], 'm1-megamem-96-1'
+      'N/A', 1,'N/A', 'm1-megamem-96', 1, AcceleratorType.CPU, 'm1-megamem-96-1'
     ),
     # n2-standard-64-$VMs
     'n2-standard-64-1': SystemCharacteristics(
-      'N/A', 1,'N/A', 'n2-standard-64', 1, AcceleratorType['CPU'], 'n2-standard-64-1'
+      'N/A', 1,'N/A', 'n2-standard-64', 1, AcceleratorType.CPU, 'n2-standard-64-1'
     ),
     # n2-standard-32-$VMs
     'n2-standard-32-1': SystemCharacteristics(
-      'N/A', 1,'N/A', 'n2-standard-32', 1, AcceleratorType['CPU'], 'n2-standard-32-1'
+      'N/A', 1,'N/A', 'n2-standard-32', 1, AcceleratorType.CPU, 'n2-standard-32-1'
     ),
     'n2-standard-32-2': SystemCharacteristics(
-      'N/A', 2,'N/A', 'n2-standard-32', 1, AcceleratorType['CPU'], 'n2-standard-32-2'
+      'N/A', 2,'N/A', 'n2-standard-32', 1, AcceleratorType.CPU, 'n2-standard-32-2'
     ),
     'n2-standard-32-4': SystemCharacteristics(
-      'N/A', 4,'N/A', 'n2-standard-32', 1, AcceleratorType['CPU'], 'n2-standard-32-4'
+      'N/A', 4,'N/A', 'n2-standard-32', 1, AcceleratorType.CPU, 'n2-standard-32-4'
     ),
     'n2-standard-32-8': SystemCharacteristics(
-      'N/A', 8,'N/A', 'n2-standard-32', 1, AcceleratorType['CPU'], 'n2-standard-32-8'
+      'N/A', 8,'N/A', 'n2-standard-32', 1, AcceleratorType.CPU, 'n2-standard-32-8'
     ),
     'n2-standard-32-16': SystemCharacteristics(
-      'N/A', 16,'N/A', 'n2-standard-32', 1, AcceleratorType['CPU'], 'n2-standard-32-16'
+      'N/A', 16,'N/A', 'n2-standard-32', 1, AcceleratorType.CPU, 'n2-standard-32-16'
     ),
     'n2-standard-32-32': SystemCharacteristics(
-      'N/A', 32,'N/A', 'n2-standard-32', 1, AcceleratorType['CPU'], 'n2-standard-32-32'
+      'N/A', 32,'N/A', 'n2-standard-32', 1, AcceleratorType.CPU, 'n2-standard-32-32'
     ),
     'n2-standard-32-64': SystemCharacteristics(
-      'N/A', 64,'N/A', 'n2-standard-32', 1, AcceleratorType['CPU'], 'n2-standard-32-64'
+      'N/A', 64,'N/A', 'n2-standard-32', 1, AcceleratorType.CPU, 'n2-standard-32-64'
     ),
     'n2-standard-32-128': SystemCharacteristics(
-      'N/A', 128,'N/A', 'n2-standard-32', 1, AcceleratorType['CPU'], 'n2-standard-32-128'
+      'N/A', 128,'N/A', 'n2-standard-32', 1, AcceleratorType.CPU, 'n2-standard-32-128'
     ),
     'n2-standard-32-256': SystemCharacteristics(
-      'N/A', 256,'N/A', 'n2-standard-32', 1, AcceleratorType['CPU'], 'n2-standard-32-256'
+      'N/A', 256,'N/A', 'n2-standard-32', 1, AcceleratorType.CPU, 'n2-standard-32-256'
     ),
     'n2-standard-32-512': SystemCharacteristics(
-      'N/A', 512,'N/A', 'n2-standard-32', 1, AcceleratorType['CPU'], 'n2-standard-32-512'
+      'N/A', 512,'N/A', 'n2-standard-32', 1, AcceleratorType.CPU, 'n2-standard-32-512'
     ),
     'n2-standard-32-1024': SystemCharacteristics(
-      'N/A', 1024,'N/A', 'n2-standard-32', 1, AcceleratorType['CPU'], 'n2-standard-32-1024'
+      'N/A', 1024,'N/A', 'n2-standard-32', 1, AcceleratorType.CPU, 'n2-standard-32-1024'
     ),
     'n2-standard-32-2048': SystemCharacteristics(
-      'N/A', 2048,'N/A', 'n2-standard-32', 1, AcceleratorType['CPU'], 'n2-standard-32-2048'
+      'N/A', 2048,'N/A', 'n2-standard-32', 1, AcceleratorType.CPU, 'n2-standard-32-2048'
     ),
 }
 """ If you modify UserFacingNameToSystemCharacteristics you should also modify the corresponding
@@ -1275,14 +1263,18 @@ def add_zone_and_project(args):
   xpk_print(f'Working on {args.project=} and {args.zone}')
 
 
-def add_env_config(args, tensorboard_config):
+def add_env_config(args, system: SystemCharacteristics, tensorboard_config: dict) -> int:
   """Adds environment configurations to the jobset config.
 
   Args:
     args: user provided arguments for running the command.
+    system: system characteristics
     tensorboard_config: configuration of Vertex Tensorboard.
+
+  Returns:
+    0 if successful and 1 otherwise.
   """
-  device_type = args.tpu_type if args.tpu_type else args.device_type
+  return_code = 0
   env = {'JOBSET_NAME': args.workload}
 
   env_pat = re.compile(r'(^[a-zA-Z_][a-zA-Z0-9_]*?)(?:=(.*))?$', re.M)
@@ -1294,30 +1286,31 @@ def add_env_config(args, tensorboard_config):
         if match.group(2) is not None:
           env[variable] = match.group(2)
         else:
-          assert variable in os.environ, (
-              f'Variable {variable} is not set in the current '
-              'environment, a value must be specified.'
-          )
+          if not variable in os.environ:
+            xpk_print(f'Variable {variable} is not set in the current '
+                      'environment, a value must be specified.')
+            return 1
           env[variable] = os.environ[variable]
   if args.env:
     for var in args.env:
       match = env_pat.match(var)
-      assert match and match.group(2) is not None, (
-          'Invalid environment variable, format must be '
-          f'`--env VARIABLE=value`: {var}'
-      )
+      if not match or match.group(2) is None:
+        xpk_print('Invalid environment variable, format must be '
+                  f'`--env VARIABLE=value`: {var}')
+        return 1
       variable = match.group(1)
       env[variable] = match.group(2)
 
   if args.debug_dump_gcs:
     if args.use_pathways:
       xpk_print('HLO dumps need to be taken by Pathways workers.')
-      xpk_exit(1)
+      return 1
 
     if 'XLA_FLAGS' in env:
-      raise ValueError('Conflict: XLA_FLAGS defined in both --debug_dump_gcs '
-                       'and environment file. Please choose one way to define '
-                       'XLA_FLAGS.')
+      xpk_print('Conflict: XLA_FLAGS defined in both --debug_dump_gcs '
+                'and environment file. Please choose one way to define '
+                'XLA_FLAGS.')
+      return 1
     env['XLA_FLAGS'] = '--xla_dump_to=/tmp/xla_dump/'
 
   if tensorboard_config:
@@ -1325,8 +1318,8 @@ def add_env_config(args, tensorboard_config):
     for key, value in tensorboard_config.items():
       env[key.upper()] = value
 
-  if device_type == h100_device_type:
-    # For H100, it has two more spaces ahead of name and value respectively
+  if system.accelerator_type == AcceleratorType.GPU:
+    # For GPUs, it has two more spaces ahead of name and value respectively
     env_format = '''
                   - name: {key}
                     value: "{value}"'''
@@ -1336,6 +1329,8 @@ def add_env_config(args, tensorboard_config):
                   value: "{value}"'''
 
   args.env = ''.join(env_format.format(key=k, value=v) for k, v in env.items())
+  return return_code
+
 
 def write_temporary_file(payload):
   """Writes `payload` to a temporary file.
@@ -1730,7 +1725,7 @@ def get_total_chips_requested_from_args(args, system: SystemCharacteristics) -> 
   Returns:
     num of chips for the current request.
   """
-  if system.accelerator_type == AcceleratorType['GPU']:
+  if system.accelerator_type == AcceleratorType.GPU:
     num_chips = system.vms_per_slice * system.chips_per_vm * args.num_nodes
   else:
     num_chips = system.vms_per_slice * system.chips_per_vm * args.num_slices
@@ -1846,7 +1841,7 @@ def enable_autoprovisioning_on_cluster(args, system: SystemCharacteristics | Non
   # TODO(@vbarr): Support timeout period for idle np before they are deleted.
   # TODO(@vbarr): Support for hot idle configuration (timeout period is infinity).
   return_code = 0
-  if system.accelerator_type == AcceleratorType['CPU']:
+  if system.accelerator_type == AcceleratorType.CPU:
     xpk_print("Error: XPK NAP doesn't support Accelerators of Types: CPUs.")
     return None, 1
 
@@ -1905,11 +1900,12 @@ def enable_autoprovisioning_on_cluster(args, system: SystemCharacteristics | Non
   return autoprovisioning_config, return_code
 
 
-def run_gke_cluster_create_command(args) -> int:
+def run_gke_cluster_create_command(args, system: SystemCharacteristics) -> int:
   """Run the Create GKE Cluster request.
 
   Args:
     args: user provided arguments for running the command.
+    system: System Characteristics.
 
   Returns:
     0 if successful and 1 otherwise.
@@ -1948,8 +1944,7 @@ def run_gke_cluster_create_command(args) -> int:
       xpk_print(f'Service Account: {service_account_name} does not exist in the project.'
               ' Will attach the default service account to the cluster.')
 
-  device_type = args.tpu_type if args.tpu_type else args.device_type
-  if device_type == h100_device_type:
+  if system.accelerator_type == AcceleratorType.GPU
     command += (
         ' --enable-dataplane-v2 --enable-ip-alias'
         ' --enable-multi-networking --no-enable-autoupgrade'
@@ -2298,7 +2293,7 @@ def get_capacity_node_selectors_from_capacity_type(args, capacity_type: str) -> 
   return node_selector, return_code
 
 
-def create_cluster_configmaps(args, system, tensorboard_config: dict,
+def create_cluster_configmaps(args, system: SystemCharacteristics, tensorboard_config: dict,
                               autoprovisioning_config: AutoprovisioningConfig | None) -> int:
   """Run the Create GKE Cluster ConfigMap request.
 
@@ -2313,8 +2308,7 @@ def create_cluster_configmaps(args, system, tensorboard_config: dict,
   configmap_yml = {}
 
   # ConfigMap to store resources available in the cluster.
-  device_type = system.device_type
-  if device_type == h100_device_type:
+  if system.accelerator_type == AcceleratorType.GPU:
     resources_data = f'{device_type}: "{int(args.num_nodes)}"'
   elif args.enable_autoprovisioning and autoprovisioning_config:
     # Auto provisioning will have variable topologies for a gke accelerator type.
@@ -2486,12 +2480,12 @@ def get_all_clusters_programmatic(args) -> tuple[list[str], int]:
   return cluster_names, 0
 
 
-def create_cluster_if_necessary(args) -> int:
+def create_cluster_if_necessary(args, system: SystemCharacteristics) -> int:
   """Creates cluster if not present in the project.
 
   Args:
     args: user provided arguments for running the command.
-
+    system: System Characteristics.
   Returns:
     0 if successful and 1 otherwise.
   """
@@ -2503,7 +2497,7 @@ def create_cluster_if_necessary(args) -> int:
     xpk_print('Skipping cluster creation since it already exists')
     return 0
   else:
-    return run_gke_cluster_create_command(args)
+    return run_gke_cluster_create_command(args, system)
 
 
 def get_all_nodepools_programmatic(args) -> tuple[list[str], int]:
@@ -2612,7 +2606,7 @@ def get_user_input(input_msg):
   return user_input in ('y', 'yes')
 
 
-def run_gke_node_pool_create_command(args, system) -> int:
+def run_gke_node_pool_create_command(args, system: SystemCharacteristics) -> int:
   """Run the Create GKE Node Pool request.
 
   Args:
@@ -2622,9 +2616,8 @@ def run_gke_node_pool_create_command(args, system) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
-  device_type = args.tpu_type if args.tpu_type else args.device_type
   xpk_print(
-      f'Creating {args.num_slices} node pool or pools of {device_type}\n'
+      f'Creating {args.num_slices} node pool or pools of {system.device_type}\n'
       f'We assume that the underlying system is: {system}'
   )
   existing_node_pool_names, return_code = get_all_nodepools_programmatic(args)
@@ -2653,8 +2646,7 @@ def run_gke_node_pool_create_command(args, system) -> int:
 
   commands = []
   task_names = []
-
-  if system.accelerator_type == AcceleratorType['GPU']:
+  if system.accelerator_type == AcceleratorType.GPU:
     xpk_print(
       f'Creating 1 node pool with {args.num_nodes} nodes of {system.device_type}\n'
       f'Underlyingly, we assume that means: {system}'
@@ -2684,14 +2676,14 @@ def run_gke_node_pool_create_command(args, system) -> int:
         ' --enable-gvnic'
         f' {args.custom_nodepool_arguments}'
     )
-    if system.accelerator_type == AcceleratorType['TPU']:
+    if system.accelerator_type == AcceleratorType.TPU:
       command += (f' --node-version={args.gke_version}')
       command += (f' --num-nodes={system.vms_per_slice}')
       command += (' --placement-type=COMPACT  --max-pods-per-node 15')
       command += (' --scopes=storage-full,gke-default')
       command += (f' --tpu-topology={system.topology}')
       command += (f' {args.custom_tpu_nodepool_arguments}')
-    elif system.accelerator_type == AcceleratorType['GPU']:
+    elif system.accelerator_type == AcceleratorType.GPU:
       subnet_prefix = f'{args.cluster}-{zone_to_region(args.zone)}'
       command += (f' --num-nodes={args.num_nodes}')
       command += (f' --accelerator type={system.gke_accelerator},count={str(system.chips_per_vm)}'
@@ -2701,7 +2693,7 @@ def run_gke_node_pool_create_command(args, system) -> int:
         f' --additional-node-network network={args.cluster}-net-4,subnetwork={subnet_prefix}-sub-4'
         ' --no-enable-autoupgrade  --scopes="https://www.googleapis.com/auth/cloud-platform"'
         )
-    elif system.accelerator_type == AcceleratorType['CPU']:
+    elif system.accelerator_type == AcceleratorType.CPU:
       command += (f' --num-nodes={system.vms_per_slice}')
       command += (' --scopes=storage-full,gke-default')
 
@@ -2904,6 +2896,7 @@ def enable_kueue_credentials(
 
   covered_resources_config = get_kueue_covered_resources_config(
       args=args,
+      system=system
       cluster_hardware_name=cluster_hardware_name,
       resource_type=resource_type,
       total_chips=total_chips
@@ -3007,11 +3000,13 @@ def add_pw_resources_to_kueue(args):
   return ""
 
 
-def get_kueue_covered_resources_config(args, cluster_hardware_name, resource_type, total_chips) -> str:
+def get_kueue_covered_resources_config(args, system: SystemCharacteristics,
+                                       cluster_hardware_name, resource_type, total_chips) -> str:
   """Gets Kueue covered resources configuration.
 
   Args:
     args: user provided arguments for running the command.
+    system: system characteristics.
     cluster_hardware_name: cluster hardware name.
     resource_type: resource type of tpu or gpu.
     total_chips: total number of chips for the specific resource type.
@@ -3019,8 +3014,7 @@ def get_kueue_covered_resources_config(args, cluster_hardware_name, resource_typ
   Returns:
     A string of Kueue covered resources configuration.
   """
-  device_type = args.tpu_type if args.tpu_type else args.device_type
-  if device_type == h100_device_type:
+  if system.accelerator_type == AcceleratorType.GPU:
     config_format = '''
   - coveredResources: ["cpu", "memory", "{resource_type}"]
     flavors:
@@ -3181,7 +3175,7 @@ def cluster_create(args) -> int:
     if add_roles_to_service_account_code != 0:
       xpk_exit(add_roles_to_service_account_code)
 
-  create_cluster_command_code = create_cluster_if_necessary(args)
+  create_cluster_command_code = create_cluster_if_necessary(args, system)
   if create_cluster_command_code != 0:
     xpk_exit(create_cluster_command_code)
 
@@ -3197,9 +3191,8 @@ def cluster_create(args) -> int:
     if not tensorboard_config:
       xpk_exit(1)
 
-  device_type = args.tpu_type if args.tpu_type else args.device_type
-  if device_type == h100_device_type:
-    xpk_print('Setting up Network for cluster')
+  if system.accelerator_type == AcceleratorType.GPU:
+    xpk_print('Setting up Network for cluster: This is {AcceleratorType.GPU.name} specific.')
     set_up_cluster_network_code = set_up_cluster_network_for_a3(args)
     if set_up_cluster_network_code != 0:
       xpk_exit(set_up_cluster_network_code)
@@ -3241,8 +3234,7 @@ def cluster_create(args) -> int:
   if enable_kueue_credentials_code != 0:
     xpk_exit(enable_kueue_credentials_code)
 
-  # TODO: Support other GPU Types for driver installation.
-  if device_type == h100_device_type:
+  if system.accelerator_type == AcceleratorType.GPU:
     xpk_print('Installing GPU Driver for cluster')
     install_gpu_driver_code = install_gpu_driver_on_cluster(args)
     if install_gpu_driver_code != 0:
@@ -3601,7 +3593,7 @@ def check_if_workload_can_schedule(args, system: SystemCharacteristics) -> bool:
   else:
     # Check if the size of the workload will fit in the cluster.
     max_vm_in_cluster = int(cluster_config_map[device_type])
-    if system.accelerator_type == AcceleratorType['GPU']:
+    if system.accelerator_type == AcceleratorType.GPU:
       vm_required_by_workload = args.num_nodes
     else:
       vm_required_by_workload = args.num_slices * system.vms_per_slice
@@ -3679,7 +3671,7 @@ def setup_docker_image(args) -> tuple[int, str]:
   return 0, docker_image
 
 
-def get_main_and_sidecar_container(args, system, docker_image) -> str:
+def get_main_and_sidecar_container(args, system: SystemCharacteristics, docker_image) -> str:
   """Generate yaml for main and sidecar container.
   Args:
     args: user provided arguments for running the command.
@@ -3709,7 +3701,7 @@ def get_main_and_sidecar_container(args, system, docker_image) -> str:
   return yaml.format(main_container=main_container)
 
 
-def get_main_container(args, system, docker_image, resource_type) -> str:
+def get_main_container(args, system: SystemCharacteristics, docker_image, resource_type) -> str:
   """Generate yaml for main container including the xpk command.
   Args:
     args: user provided arguments for running the command.
@@ -3738,7 +3730,7 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
                f' TPU_VMODULE=real_program_continuator=1 {args.command}')
 
   gpu_workload_terminate_command = ''
-  if system.accelerator_type == AcceleratorType['GPU']:
+  if system.accelerator_type == AcceleratorType.GPU:
     command = 'cd /deps && bash gpu_multi_process_run.sh'
     gpu_workload_terminate_command = 'echo Main app is done > /usr/share/workload/workload_terminated; '
 
@@ -3798,7 +3790,7 @@ def add_image_pull_policy_for_pw_or_gpu(args, system: SystemCharacteristics):
   """
   yaml="""imagePullPolicy: Always"""
 
-  if args.use_pathways or system.accelerator_type == AcceleratorType['GPU']:
+  if args.use_pathways or system.accelerator_type == AcceleratorType.GPU:
     return yaml.format(args=args)
   return ""
 
@@ -3814,7 +3806,7 @@ def get_main_container_docker_image(args, system: SystemCharacteristics) -> str:
       Workload docker image as a YAML string
   """
 
-  if system.accelerator_type == AcceleratorType['GPU']:
+  if system.accelerator_type == AcceleratorType.GPU:
     return "gpu-image"
 
   return f'{args.docker_name}'
@@ -3844,7 +3836,7 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
                 - name: workload-terminated-volume
                   mountPath: /usr/share/workload"""
 
-  if system.accelerator_type == AcceleratorType['GPU']:
+  if system.accelerator_type == AcceleratorType.GPU:
     return gpu_volume_yaml
   return ""
 
@@ -3970,7 +3962,7 @@ def get_env_container(args, system: SystemCharacteristics):
                   - name: COMMAND
                     value: "{args.command}"
                   {args.env}"""
-  if system.accelerator_type == AcceleratorType['GPU']:
+  if system.accelerator_type == AcceleratorType.GPU:
     return gpu_env_yaml.format(args=args,
                         system=system)
   return args.env
@@ -3994,7 +3986,7 @@ def get_main_container_resources(args, system: SystemCharacteristics, resource_t
     return resources_yaml
 
   gpu_resources_yaml="""nvidia.com/gpu: {system.chips_per_vm}"""
-  if system.accelerator_type == AcceleratorType['GPU']:
+  if system.accelerator_type == AcceleratorType.GPU:
     return gpu_resources_yaml.format(system=system)
 
   return f'{resource_type}: {system.chips_per_vm}'
@@ -4017,7 +4009,7 @@ def add_container_ports(args, system: SystemCharacteristics) -> str:
     return ''
 
   gpu_port_yaml = """- containerPort: 6002"""
-  if system.accelerator_type == AcceleratorType['GPU']:
+  if system.accelerator_type == AcceleratorType.GPU:
     return gpu_port_yaml
   return port_yaml
 
@@ -4032,9 +4024,10 @@ def add_jax_coordinator_port(system) -> str:
     str:
       jax coordinator port as a YAML string
   """
-  if system.accelerator_type == AcceleratorType['CPU']:
+  if system.accelerator_type == AcceleratorType.CPU:
     return '- containerPort: 1234'
   return ''
+
 
 def get_gke_dashboard(args, dashboard_filter):
   """Get the identifier of GKE dashboard deployed in the project.
@@ -4143,7 +4136,7 @@ def get_gke_debugging_dashboard(args):
   return dashboard_id
 
 
-def create_accelerator_label(accelerator_type, system) -> str:
+def create_accelerator_label(accelerator_type, system: SystemCharacteristics) -> str:
   """Generates accelerator label.
 
   Args:
@@ -4153,11 +4146,12 @@ def create_accelerator_label(accelerator_type, system) -> str:
   Returns:
     The accelerator label.
   """
-  if accelerator_type == AcceleratorType['CPU']:
+  if accelerator_type == AcceleratorType.CPU:
     return ""
   return f"{AcceleratorTypeToAcceleratorCharacteristics[accelerator_type].accelerator_label}: {system.gke_accelerator}"
 
-def create_machine_label(accelerator_type, system, autoprovisioning_enabled: bool = False) -> str:
+
+def create_machine_label(accelerator_type, system: SystemCharacteristics, autoprovisioning_enabled: bool = False) -> str:
   """Generates machine label.
 
   Args:
@@ -4168,7 +4162,7 @@ def create_machine_label(accelerator_type, system, autoprovisioning_enabled: boo
   Returns:
     The machine label.
   """
-  if accelerator_type == AcceleratorType['TPU'] and not autoprovisioning_enabled:
+  if accelerator_type == AcceleratorType.TPU and not autoprovisioning_enabled:
     return f"{AcceleratorTypeToAcceleratorCharacteristics[accelerator_type].machine_label}: {system.topology}"
   return ""
 
@@ -4186,7 +4180,8 @@ def calculate_process_count(num_slices, vms_per_slice) -> str:
 
   return f"{num_processes}"
 
-def get_cpu_env(num_slices, system) -> str:
+
+def get_cpu_env(num_slices, system: SystemCharacteristics) -> str:
   """Generate environment variables for CPU nodepools
   Args:
     num_slices: Number of slices to be used in the workload.
@@ -4219,7 +4214,7 @@ def get_cpu_env(num_slices, system) -> str:
                 - name: JAX_PROCESS_COUNT
                   value: "{process_count}"
   """
-  if system.accelerator_type == AcceleratorType['CPU']:
+  if system.accelerator_type == AcceleratorType.CPU:
     return yaml.format(processes_in_job = system.vms_per_slice,
                       process_count=calculate_process_count(num_slices,system.vms_per_slice))
   return ""
@@ -4244,7 +4239,7 @@ def get_cpu_affinity(accelerator_type) -> str:
                         values:
                         - default-pool
 """
-  if accelerator_type == AcceleratorType['CPU']:
+  if accelerator_type == AcceleratorType.CPU:
     return yaml
   return ""
 
@@ -4357,14 +4352,11 @@ def get_autoprovisioning_node_selector_args(args) -> tuple[str, int]:
   return node_selector_args, return_code
 
 
-def workload_create(args) -> int:
+def workload_create(args):
   """Run jobset apply command for a file.
 
   Args:
     args: user provided arguments for running the command.
-
-  Returns:
-    0 if successful and 1 otherwise.
   """
   add_zone_and_project(args)
 
@@ -4384,7 +4376,7 @@ def workload_create(args) -> int:
   xpk_print("Starting workload create", flush=True)
   system, return_code = get_system_characteristics(args)
 
-  if return_code > 0:
+  if return_code > 0 or system is None:
     xpk_print("Fetching system characteristics failed!")
     xpk_exit(return_code)
 
@@ -4418,7 +4410,9 @@ def workload_create(args) -> int:
     if not tensorboard_config:
       xpk_exit(1)
 
-  add_env_config(args, tensorboard_config)
+  env_config_return_code = add_env_config(args, system, tensorboard_config)
+  if env_config_return_code != 0:
+    xpk_exit(env_config_return_code)
 
   autoprovisioning_args = ""
   autoprovisioning_enabled, return_code = is_autoprovisioning_enabled(args, system)
@@ -4433,7 +4427,7 @@ def workload_create(args) -> int:
   # Determine if we deploy a sidecar and if we deploy a container.
   debugging_dashboard_id = None
   resource_type = AcceleratorTypeToAcceleratorCharacteristics[system.accelerator_type].resource_type
-  if system.accelerator_type == AcceleratorType['TPU'] and args.deploy_stacktrace_sidecar:
+  if system.accelerator_type == AcceleratorType.TPU and args.deploy_stacktrace_sidecar:
     xpk_print('Sidecar container to display stack traces for TPU workloads will also be deployed.')
     container = get_main_and_sidecar_container(args, system, docker_image)
     # Get GKE debugging dashboard only when sidecar container is deployed for TPU workloads
@@ -4442,12 +4436,10 @@ def workload_create(args) -> int:
     container = get_main_container(args, system, docker_image, resource_type)
 
   # Create the workload file based on accelerator type or workload type.
-  if system.accelerator_type == AcceleratorType['GPU']:
+  if system.accelerator_type == AcceleratorType.GPU:
     yml_string = gpu_workload_create_yaml.format(
         args=args,
         container=container,
-        docker_image=docker_image,
-        command=args.command,
         accelerator_label=create_accelerator_label(system.accelerator_type, system),
         machine_label=create_machine_label(system.accelerator_type, system),
         node_pool_name=f'{args.cluster}-np-0',
@@ -4465,7 +4457,7 @@ def workload_create(args) -> int:
       xpk_exit(1)
 
     # Ensure device type is TPUs - currently Pathways supports TPUs only.
-    if system.accelerator_type != AcceleratorType['TPU']:
+    if system.accelerator_type != AcceleratorType.TPU:
       xpk_print(
           'Currently, Pathways workloads can only be run on TPUs.'
       )
@@ -4490,7 +4482,7 @@ def workload_create(args) -> int:
         system=system,
         container=container,
         affinity=get_cpu_affinity(system.accelerator_type),
-        env=get_cpu_env(args.num_slices,system),
+        env=get_cpu_env(args.num_slices, system),
         accelerator_label=create_accelerator_label(system.accelerator_type, system),
         machine_label=create_machine_label(system.accelerator_type, system),
         local_queue_name=_LOCAL_QUEUE_NAME,
@@ -4506,7 +4498,7 @@ def workload_create(args) -> int:
 
   # Get GKE outlier dashboard for TPU
   outlier_dashboard_id = None
-  if system.accelerator_type == AcceleratorType['TPU']:
+  if system.accelerator_type == AcceleratorType.TPU:
     outlier_dashboard_id = get_gke_outlier_dashboard(args)
 
   if args.use_pathways:

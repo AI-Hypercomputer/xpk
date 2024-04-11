@@ -26,7 +26,7 @@ env:
   PATHWAYS_WORKLOAD_NAME: xpkpw-build-${{ github.run_attempt }}
 
 jobs:
-  cluster-create-and-delete:
+  tpu-cluster-workload-workflow:
     runs-on: [ubuntu-20.04]
     concurrency: # We support one build or nightly test to run at a time currently.
       group: build-test-cluster-group
@@ -70,9 +70,3 @@ jobs:
     - name: Delete the cluster created
       if: always()
       run: python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
-
-
-
-
-
-

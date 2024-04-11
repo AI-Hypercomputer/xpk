@@ -1944,7 +1944,7 @@ def run_gke_cluster_create_command(args, system: SystemCharacteristics) -> int:
       xpk_print(f'Service Account: {service_account_name} does not exist in the project.'
               ' Will attach the default service account to the cluster.')
 
-  if system.accelerator_type == AcceleratorType.GPU
+  if system.accelerator_type == AcceleratorType.GPU:
     command += (
         ' --enable-dataplane-v2 --enable-ip-alias'
         ' --enable-multi-networking --no-enable-autoupgrade'
@@ -2309,14 +2309,14 @@ def create_cluster_configmaps(args, system: SystemCharacteristics, tensorboard_c
 
   # ConfigMap to store resources available in the cluster.
   if system.accelerator_type == AcceleratorType.GPU:
-    resources_data = f'{device_type}: "{int(args.num_nodes)}"'
+    resources_data = f'{system.device_type}: "{int(args.num_nodes)}"'
   elif args.enable_autoprovisioning and autoprovisioning_config:
     # Auto provisioning will have variable topologies for a gke accelerator type.
     resources_data = f'{system.gke_accelerator}: {_AUTOPROVISIONING_CONFIG_VALUE}'
     resources_data += f'\n  {_AUTOPROVISIONING_CONFIG_MINIMUM_KEY}: "{autoprovisioning_config.minimum_chips}"'
     resources_data += f'\n  {_AUTOPROVISIONING_CONFIG_MAXIMUM_KEY}: "{autoprovisioning_config.maximum_chips}"'
   else:
-    resources_data = f'{device_type}: "{int(args.num_slices) * system.vms_per_slice}"'
+    resources_data = f'{system.device_type}: "{int(args.num_slices) * system.vms_per_slice}"'
   resources_configmap_name = f'{args.cluster}-{_CLUSTER_RESOURCES_CONFIGMAP}'
   resources_yml = cluster_configmap_yaml.format(args=args,
                                                 name=resources_configmap_name,
@@ -2896,7 +2896,7 @@ def enable_kueue_credentials(
 
   covered_resources_config = get_kueue_covered_resources_config(
       args=args,
-      system=system
+      system=system,
       cluster_hardware_name=cluster_hardware_name,
       resource_type=resource_type,
       total_chips=total_chips
@@ -3192,7 +3192,7 @@ def cluster_create(args) -> int:
       xpk_exit(1)
 
   if system.accelerator_type == AcceleratorType.GPU:
-    xpk_print('Setting up Network for cluster: This is {AcceleratorType.GPU.name} specific.')
+    xpk_print(f'Setting up Network for cluster: This is {AcceleratorType.GPU.name} specific.')
     set_up_cluster_network_code = set_up_cluster_network_for_a3(args)
     if set_up_cluster_network_code != 0:
       xpk_exit(set_up_cluster_network_code)
@@ -4443,7 +4443,6 @@ def workload_create(args):
         accelerator_label=create_accelerator_label(system.accelerator_type, system),
         machine_label=create_machine_label(system.accelerator_type, system),
         node_pool_name=f'{args.cluster}-np-0',
-        chips_per_vm=system.chips_per_vm,
         autoprovisioning_args=autoprovisioning_args
     )
   elif args.use_pathways:

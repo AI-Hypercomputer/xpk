@@ -224,7 +224,7 @@ all zones.
     --cluster xpk-pw-test \
     --docker-name='user-workload' \
     --docker-image=<maxtext docker image> \
-    --command='bash /usr/pathways/ifrt/maxtext_entrypoint.sh base_output_directory=<output directory> dataset_path=<dataset path> per_device_batch_size=1 enable_checkpointing=false enable_profiler=false remat_policy=full global_parameter_scale=4 steps=300 max_target_length=2048 use_iota_embed=true reuse_example_batch=1 dataset_type=synthetic attention=flash gcs_metrics=True run_name=$(USER)-pw-xpk-test-1'
+    --command='python3 MaxText/train.py MaxText/configs/base.yml base_output_directory=<output directory> dataset_path=<dataset path> per_device_batch_size=1 enable_checkpointing=false enable_profiler=false remat_policy=full global_parameter_scale=4 steps=300 max_target_length=2048 use_iota_embed=true reuse_example_batch=1 dataset_type=synthetic attention=flash gcs_metrics=True run_name=$(USER)-pw-xpk-test-1'
     ```
 
     Regular workload can also be submitted on a Pathways enabled cluster (created with `--enable-pathways`)

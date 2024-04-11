@@ -21,8 +21,11 @@ on:
 
 env:
   # Names must be unique in parallel running tests.
-  EMPTY_CLUSTER_NAME: nightly-test-zero-nodepools
-  TPU_CLUSTER_NAME: nightly-test-2-v4-8-nodepools
+  EMPTY_CLUSTER_NAME: nightly-xpk-zero-nodepools
+  TPU_CLUSTER_NAME: nightly-xpk-2-v4-8-nodepools 
+  WORKLOAD_NAME: xpktest-nightly-${{ github.run_attempt }}
+  PATHWAYS_TPU_CLUSTER_NAME: pw-nightly-test-2-v4-8-nodepools
+  PATHWAYS_WORKLOAD_NAME: xpkpw-nightly-${{ github.run_attempt }}
 
 jobs:
   cluster-create-and-delete:
@@ -56,18 +59,49 @@ jobs:
     - name: Create test script to execute in workloads
       run: echo -e '#!/bin/bash \n echo "Hello world from a test script!"' > test.sh
     - name: Run a base-docker-image workload
-      run: python xpk.py workload create --cluster $TPU_CLUSTER_NAME --workload nightly-test-xpk-basic  --command "bash test.sh"  --tpu-type=v4-8 --num-slices=2 --zone=us-central2-b
+      run: python xpk.py workload create --cluster $TPU_CLUSTER_NAME --workload $WORKLOAD_NAME  --command "bash test.sh"  --tpu-type=v4-8 --num-slices=2 --zone=us-central2-b
     - name: List out the workloads on the cluster
       run: python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
     - name: Run xpk inspector with the workload created above
-      run: python3 xpk.py inspector --cluster $TPU_CLUSTER_NAME --zone=us-central2-b  --workload nightly-test-xpk-basic
+      run: python3 xpk.py inspector --cluster $TPU_CLUSTER_NAME --zone=us-central2-b  --workload $WORKLOAD_NAME
     - name: Wait for workload completion and confirm it succeeded
-      run: python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion nightly-test-xpk-basic --timeout 300
+      run: python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion $WORKLOAD_NAME --timeout 300
     - name: Delete the workload on the cluster
-      run: python3 xpk.py workload delete --workload nightly-test-xpk-basic --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+      run: python3 xpk.py workload delete --workload $WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
     - name: Delete the cluster created
       if: always()
       run: python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+
+  pw-cluster-and-workload:
+    runs-on: [ubuntu-20.04]
+    concurrency: # We support one build test to run at a time currently.
+      group: nightly-pw-test-cluster-group
+      cancel-in-progress: false
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+    - uses: 'google-github-actions/auth@v2'
+      with:
+        credentials_json: '${{ secrets.GCP_SA_KEY }}'
+    - uses: google-github-actions/setup-gcloud@v2
+      with:
+        version: '>= 363.0.0'
+        install_components: 'beta,gke-gcloud-auth-plugin'
+    - name: Create an Pathways-enabled XPK Cluster with 2 x v4-8 nodepools
+      run: python xpk.py cluster create --cluster $PATHWAYS_TPU_CLUSTER_NAME --device-type=v4-8  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}'
+    - name: Create test script to execute in workloads
+      run: echo -e '#!/bin/bash \n echo "Hello world from a test script!"' > test.sh
+    - name: Run a Pathways workload on Ubuntu base image
+      run: python xpk.py workload create --cluster $PATHWAYS_TPU_CLUSTER_NAME --workload $PATHWAYS_WORKLOAD_NAME --docker-image='marketplace.gcr.io/google/ubuntu2004' --tpu-type=v4-8 --num-slices=2 --zone=us-central2-b --command "bash test.sh"
+    - name: Wait for Pathways workload completion and confirm it succeeded
+      run: python3 xpk.py workload list --cluster $PATHWAYS_TPU_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion $PATHWAYS_WORKLOAD_NAME --timeout 300
+    - name: Delete the Pathways workload on the cluster
+      run: python3 xpk.py workload delete --workload $PATHWAYS_WORKLOAD_NAME --cluster $PATHWAYS_TPU_CLUSTER_NAME --zone=us-central2-b
+    - name: Delete the Pathways cluster created
+      if: always()
+      run: python xpk.py cluster delete --cluster $PATHWAYS_TPU_CLUSTER_NAME --zone=us-central2-b
 
 
 

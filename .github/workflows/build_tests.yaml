@@ -21,14 +21,14 @@ on:
 
 env:
   # Names must be unique in parallel running tests.
-  TPU_CLUSTER_NAME: build-xpk-2-v4-8-nodepools
+  TPU_CLUSTER_NAME: build-xpk-2-v4-8-nodepools-${{ github.run_attempt }}
   WORKLOAD_NAME: xpktest-build-${{ github.run_attempt }}
   PATHWAYS_WORKLOAD_NAME: xpkpw-build-${{ github.run_attempt }}
 
 jobs:
   tpu-cluster-workload-workflow:
     runs-on: [ubuntu-20.04]
-    concurrency: # We support one build or nightly test to run at a time currently.
+    concurrency: # We support one build test to run at a time currently.
       group: build-test-cluster-group
       cancel-in-progress: false
     steps:

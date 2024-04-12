@@ -47,6 +47,8 @@ jobs:
         install_components: 'beta,gke-gcloud-auth-plugin'
     - name: Verify gcp setup
       run: gcloud info
+    - name: Install dependencies
+      run: pip install cloud-accelerator-diagnostics
     - name: Create an XPK Cluster with zero node pools
       run: python xpk.py cluster create --cluster $EMPTY_CLUSTER_NAME --device-type=v4-8  --num-slices=0 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments='${{ secrets.CLUSTER_ARGUMENTS }}'
     - name: Delete the cluster created

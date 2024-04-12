@@ -109,7 +109,7 @@ jobs:
     - name: XPK Workload List Help
       run: python3 xpk.py workload list --help
     - name: XPK Inspector Help
-      run: python3 xpk.py inspector list --help
+      run: python3 xpk.py inspector --help
   xpk-tpu-autoprovisioning-test:
     runs-on: [ubuntu-20.04]
     concurrency: # We support one build test to run at a time currently.
@@ -127,8 +127,10 @@ jobs:
       with:
         version: '>= 363.0.0'
         install_components: 'beta,gke-gcloud-auth-plugin'
-    - name: Create an autoprovisioned enabled XPK Cluster with 2 x v4-8 nodepools
+    - name: Create an auto-provisioned enabled XPK Cluster with 2 x v4-8 nodepools
       run: python xpk.py cluster create --cluster $AUTOPROVISION_CLUSTER_NAME --enable-autoprovisioning --device-type=v4-8  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments='${{ secrets.CLUSTER_ARGUMENTS }}'
+    - name: Authenticate Docker
+      run: gcloud auth configure-docker --quiet
     - name: Create test script to execute in workloads
       run: echo -e '#!/bin/bash \n echo "Hello world from a test script!"' > test.sh
     - name: Run a 2x v4-8 workload on Ubuntu base image

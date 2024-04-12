@@ -37,7 +37,16 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 ## [Unreleased]
 - Move away from static GKE version and use RAPID release default.
 
-## [0.3.0] - 2023-02-26
+## [0.4.0] - 2024-04-15
+- Enable Autoprovisioning support.
+- Support deletion of subnets when cluster is deleted.
+- Integrate Vertex AI functionality to create Vertex AI Tensorboard and upload logs in Tensorboard directory to Vertex AI Tensorboard.
+- Integrate Pathways.
+- Add retry logic to Kueue, jobset and cluster credential steps.
+- Bump Kueue version to 0.6.1.
+- Add XPK inspector.
+
+## [0.3.0] - 2024-02-26
 
 - Bump Jobset version to 0.3.2.
 - Bump Kueue version to 0.6.0.
@@ -72,3 +81,4 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 [0.1.0]: https://github.com/google/xpk/releases/tag/v0.1.0
 [0.2.0]: https://github.com/google/xpk/compare/v0.1.0...v0.2.0
 [0.3.0]: https://github.com/google/xpk/compare/v0.2.0...v0.3.0
+[0.4.0]: https://github.com/google/xpk/compare/v0.3.0...v0.4.0

@@ -58,6 +58,13 @@ To install xpk, run the following command:
 pip install xpk
 ```
 
+If you are running XPK by cloning GitHub repository, first run the
+following command to begin using XPK commands:
+
+```shell
+pip install cloud-accelerator-diagnostics
+```
+
 # XPK for Large Scale (>1k VMs)
 
 Follow user instructions in [xpk-large-scale-guide.sh](xpk-large-scale-guide.sh)
@@ -93,6 +100,13 @@ gcloud config set compute/zone $ZONE
 xpk .. --zone $ZONE --project $PROJECT_ID
 ```
 
+`Cluster Create` command will create a project-specific Service Account. Note that only one service 
+account will be created per project. This service account will be attached to the node pools instead of default 
+[Compute Engine Service Account](https://cloud.google.com/compute/docs/access/service-accounts#default_service_account). 
+All the required permissions will be assigned to this service account by XPK. Make sure you have 
+[Service Account Admin](https://cloud.google.com/iam/docs/understanding-roles#iam.serviceAccountAdmin) and 
+[Project IAM Admin](https://cloud.google.com/iam/docs/understanding-roles#resourcemanager.projectIamAdmin) 
+roles assigned to your user account.
 
 The cluster created is a regional cluster to enable the GKE control plane across
 all zones.
@@ -171,6 +185,64 @@ all zones.
     --num-slices=6  --reservation=$RESERVATION_ID
 
     ```
+
+### Create Vertex AI Tensorboard
+*Note: This feature is available in XPK >= 0.4.0. Enable [Vertex AI API](https://cloud.google.com/vertex-ai/docs/start/cloud-environment#enable_vertexai_apis) in your Google Cloud console to use this feature.*
+
+Vertex AI Tensorboard is a fully managed version of open-source Tensorboard. To learn more about Vertex AI Tensorboard, visit [this](https://cloud.google.com/vertex-ai/docs/experiments/tensorboard-introduction). Note that Vertex AI Tensorboard is only available in [these](https://cloud.google.com/vertex-ai/docs/general/locations#available-regions) regions.
+
+You can create a Vertex AI Tensorboard for your cluster with `Cluster Create` command. XPK will create a single Vertex AI Tensorboard instance per cluster.
+
+* Create Vertex AI Tensorboard in default region with default Tensorboard name:
+
+```shell
+python3 xpk.py cluster create \
+--cluster xpk-test --num-slices=1 --tpu-type=v4-8 \
+--create-vertex-tensorboard
+```
+
+will create a Vertex AI Tensorboard with the name `xpk-test-tb-instance` (*<args.cluster>-tb-instance*) in `us-central1` (*default region*).
+
+* Create Vertex AI Tensorboard in user-specified region with default Tensorboard name:
+
+```shell
+python3 xpk.py cluster create \
+--cluster xpk-test --num-slices=1 --tpu-type=v4-8 \
+--create-vertex-tensorboard --tensorboard-region=us-west1
+```
+
+will create a Vertex AI Tensorboard with the name `xpk-test-tb-instance` (*<args.cluster>-tb-instance*) in `us-west1`.
+
+* Create Vertex AI Tensorboard in default region with user-specified Tensorboard name:
+
+```shell
+python3 xpk.py cluster create \
+--cluster xpk-test --num-slices=1 --tpu-type=v4-8 \
+--create-vertex-tensorboard --tensorboard-name=tb-testing
+```
+
+will create a Vertex AI Tensorboard with the name `tb-testing` in `us-central1`.
+
+* Create Vertex AI Tensorboard in user-specified region with user-specified Tensorboard name:
+
+```shell
+python3 xpk.py cluster create \
+--cluster xpk-test --num-slices=1 --tpu-type=v4-8 \
+--create-vertex-tensorboard --tensorboard-region=us-west1 --tensorboard-name=tb-testing
+```
+
+will create a Vertex AI Tensorboard instance with the name `tb-testing` in `us-west1`.
+
+* Create Vertex AI Tensorboard in an unsupported region:
+
+```shell
+python3 xpk.py cluster create \
+--cluster xpk-test --num-slices=1 --tpu-type=v4-8 \
+--create-vertex-tensorboard --tensorboard-region=us-central2
+```
+
+will fail the cluster creation process because Vertex AI Tensorboard is not supported in `us-central2`.
+
 ## Cluster Delete
 *   Cluster Delete (deprovision capacity):
 
@@ -273,6 +345,35 @@ checkpointing so the job restarts near where it was interrupted.
   --workload xpk-test-medium-workload --command "echo goodbye" --cluster \
   xpk-test --tpu-type=v5litepod-16 --priority=medium
   ```
+
+### Create Vertex AI Experiment to upload data to Vertex AI Tensorboard
+*Note: This feature is available in XPK >= 0.4.0. Enable [Vertex AI API](https://cloud.google.com/vertex-ai/docs/start/cloud-environment#enable_vertexai_apis) in your Google Cloud console to use this feature.*
+
+Vertex AI Experiment is a tool that helps to track and analyze an experiment run on Vertex AI Tensorboard. To learn more about Vertex AI Experiments, visit [this](https://cloud.google.com/vertex-ai/docs/experiments/intro-vertex-ai-experiments).
+
+XPK will create a Vertex AI Experiment in `workload create` command and attach the Vertex AI Tensorboard created for the cluster during `cluster create`. If there is a cluster created before this feature is released, there will be no Vertex AI Tensorboard created for the cluster and `workload create` will fail. Re-run `cluster create` to create a Vertex AI Tensorboard and then run `workload create` again to schedule your workload.
+
+* Create Vertex AI Experiment with default Experiment name:
+
+```shell
+python3 xpk.py workload create \
+--cluster xpk-test --workload xpk-workload \
+--use-vertex-tensorboard
+```
+
+will create a Vertex AI Experiment with the name `xpk-test-xpk-workload` (*<args.cluster>-<args.workload>*).
+
+* Create Vertex AI Experiment with user-specified Experiment name:
+
+```shell
+python3 xpk.py workload create \
+--cluster xpk-test --workload xpk-workload \
+--use-vertex-tensorboard --experiment-name=test-experiment
+```
+
+will create a Vertex AI Experiment with the name `test-experiment`.
+
+Check out [MaxText example](https://github.com/google/maxtext/pull/570) on how to update your workload to automatically upload logs collected in your Tensorboard directory to the Vertex AI Experiment created by `workload create`.
 
 ## Workload Delete
 *   Workload Delete (delete training job):

@@ -21,7 +21,7 @@ on:
 
 env:
   # Names must be unique in parallel running tests.
-  TPU_CLUSTER_NAME: build-xpk-2-v4-8-nodepools-${{ github.run_attempt }}
+  TPU_CLUSTER_NAME: build-xpk-2-v4-8-nodepools-${{ github.run_id }}-${{ github.run_attempt }}
   WORKLOAD_NAME: xpktest-build-${{ github.run_attempt }}
   PATHWAYS_WORKLOAD_NAME: xpkpw-build-${{ github.run_attempt }}
 

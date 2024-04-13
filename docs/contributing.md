@@ -27,12 +27,7 @@ Guidelines](https://opensource.google/conduct/).
 
 ## Steps
 
-1. Install developer tools including `pyink`, `pylint`, and `precommit` using
-
-```shell
-  git clone https://github.com/google/xpk.git
-  pip install .[dev]
-```
+0. <Optionally needed> Create a virtual environment:
 
 Optionally use a venv to set up and develop xpk. This is needed for Google
 internal xpk development from a cloudtop machine.
@@ -47,6 +42,35 @@ internal xpk development from a cloudtop machine.
   ## Same steps as above.
   git clone https://github.com/google/xpk.git
   pip install .[dev]
+```
+
+1. Install developer tools including `pyink`, `pylint`, and `precommit` using
+
+```shell
+  git clone https://github.com/google/xpk.git
+  pip install .[dev]
+```
+
+2. Install git hook scripts.
+```shell
+cd $XPK_REPO_DIR
+pre-commit install
+# Optionally run against files
+pre-commit run --all-files
+```
+
+3. Write code and commit changes!
+```shell
+# 1. Code will be autoformatted on:
+git commit -m "My cool new feature"
+# 2. If code needs to be reformatted, check what changes were made, and add them to the commit.
+git add -p
+# 3. Run git commit again, which should successfully pass pre-commit checks.
+git commit -m "My cool new feature"
+
+
+# Manually format code by running:
+plink .
 ```
 
 ### Code Reviews

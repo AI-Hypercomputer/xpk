@@ -80,7 +80,7 @@ _AUTOPROVISIONING_CONFIG_MAXIMUM_KEY = 'maximum_chips'
 
 _CAPACITY_TYPE_CONFIG_KEY = 'capacity_type'
 _RESERVATION_CONFIG_KEY = 'reservation_id'
-_CLUSTER_QUEUE_NAME='cluster-queue'
+_CLUSTER_QUEUE_NAME = 'cluster-queue'
 _LOCAL_QUEUE_NAME = 'multislice-queue'
 _DEFAULT_POOL_NAME = 'default-pool'
 _CLUSTER_RESOURCES_CONFIGMAP = 'resources-configmap'
@@ -688,11 +688,12 @@ class SystemCharacteristics:
   device_type: str
 
 
-################### Subcommand Helper Functions #############
+################### Subcommand Helper Functions #############################
 """ !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-IF YOU MODIFY THE BELOW UserFacingNameToSystemCharacteristics MAP YOU SHOULD ALSO ADD CORRESPONDING
-MODIFICATIONS TO UserFacingNameToSystemCharacteristics IN MaxText/accelerator_to_spec_map.py !!!!! """
-# vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+IF YOU MODIFY THE BELOW UserFacingNameToSystemCharacteristics MAP YOU SHOULD
+ALSO ADD CORRESPONDING MODIFICATIONS TO UserFacingNameToSystemCharacteristics
+IN MaxText/accelerator_to_spec_map.py !!!!! """
+# vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 UserFacingNameToSystemCharacteristics = {
     # GPU system characteristics
     # A100-40gb-$CHIPS
@@ -1885,9 +1886,9 @@ UserFacingNameToSystemCharacteristics = {
         'n2-standard-32-2048',
     ),
 }
-""" If you modify UserFacingNameToSystemCharacteristics you should also modify the corresponding
-Map in MaxText/accelerator_to_spec_map.py """
-# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+""" If you modify UserFacingNameToSystemCharacteristics you should also modify
+the corresponding Map in MaxText/accelerator_to_spec_map.py """
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 
 def chunks(lst, n):
@@ -2236,8 +2237,10 @@ def run_command_with_updates_retry(
     task: user-facing name of the task
     args: user provided arguments for running the command.
     verbose: shows stdout and stderr if set to true. Set to True by default.
-    num_retry_attempts: number of attempts to retry the command. This has a default value in the function arguments.
-    wait_seconds: Seconds to wait between attempts. Has a default value in the function arguments.
+    num_retry_attempts: number of attempts to retry the command.
+        This has a default value in the function arguments.
+    wait_seconds: Seconds to wait between attempts.
+        Has a default value in the function arguments.
 
   Returns:
     0 if successful and 1 otherwise.
@@ -2604,7 +2607,7 @@ def create_autoprovisioning_config(
   if maximum <= minimum or maximum < 0:
     xpk_print(
         f'Error: Maximum chips is set to {maximum}, and must be greater than'
-        f' zero andgreater or equal to minimum: {minimum}.Use'
+        f' zero and greater or equal to minimum: {minimum}.Use'
         ' --autoprovisioning-max-chips=$MAX_CHIPS to adjust.'
     )
     return None, 1
@@ -2683,7 +2686,8 @@ def enable_autoprovisioning_on_cluster(
 
   command = (
       'gcloud container clusters update'
-      f' {args.cluster} --project={args.project} --region={zone_to_region(args.zone)} --enable-autoprovisioning'
+      f' {args.cluster} --project={args.project}'
+      f' --region={zone_to_region(args.zone)} --enable-autoprovisioning'
       ' --autoprovisioning-config-file'
       f' {autoprovisioning_config.config_filename}'
   )
@@ -3284,8 +3288,8 @@ def create_vertex_tensorboard(args) -> dict:
   tensorboard_name = args.tensorboard_name
   if tensorboard_name is None:
     tensorboard_name = f'{args.cluster}-{_DEFAULT_VERTEX_TENSORBOARD_NAME}'
-  instance_id = tensorboard.create_instance(
-      project=args.project,  # pylint: disable=used-before-assignment
+  instance_id = tensorboard.create_instance(  # pylint: disable=used-before-assignment
+      project=args.project,
       location=args.tensorboard_region,
       tensorboard_name=tensorboard_name,
   )
@@ -3579,7 +3583,8 @@ def run_gke_node_pool_create_command(args, system) -> int:
       command += f' --num-nodes={args.num_nodes}'
       command += (
           ' --accelerator'
-          f' type={system.gke_accelerator},count={str(system.chips_per_vm)} --additional-node-network'
+          f' type={system.gke_accelerator},count={str(system.chips_per_vm)}'
+          ' --additional-node-network'
           f' network={args.cluster}-net-1,subnetwork={subnet_prefix}-sub-1'
           ' --additional-node-network'
           f' network={args.cluster}-net-2,subnetwork={subnet_prefix}-sub-2'
@@ -3688,7 +3693,8 @@ def run_gke_cluster_delete_command(args) -> int:
   """
   command = (
       'gcloud beta container clusters delete'
-      f' {args.cluster} --project={args.project} --region={zone_to_region(args.zone)} --quiet'
+      f' {args.cluster} --project={args.project}'
+      f' --region={zone_to_region(args.zone)} --quiet'
   )
 
   return_code = run_command_with_updates(command, 'Cluster Delete', args)
@@ -3735,7 +3741,8 @@ def set_cluster_command(args) -> int:
   """
   command = (
       'gcloud container clusters get-credentials'
-      f' {args.cluster} --region={zone_to_region(args.zone)} --project={args.project} &&'
+      f' {args.cluster} --region={zone_to_region(args.zone)}'
+      f' --project={args.project} &&'
       ' kubectl config view && kubectl config set-context --current'
       ' --namespace=default'
   )
@@ -3778,7 +3785,8 @@ def enable_kueue_credentials(
   Args:
     args: user provided arguments for running the command.
     system: system level arguments.
-    autoprovisioning_config: Autoprovisioning config to configure kueue with if autoprovisioning is enabled.
+    autoprovisioning_config: Autoprovisioning config to configure kueue with if
+        autoprovisioning is enabled.
 
   Returns:
     0 if successful and 1 otherwise.
@@ -3791,7 +3799,7 @@ def enable_kueue_credentials(
 
   autoprovisioning_enabled = False
   if autoprovisioning_config:
-    # Determine total resources available based on autoprovisioning max chips if enabled.
+    # Determine total resources available based on autoprovisioning max chips.
     autoprovisioning_enabled = True
     total_chips = autoprovisioning_config.maximum_chips
     cluster_hardware_name = f'{system.gke_accelerator}'

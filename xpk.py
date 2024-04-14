@@ -270,11 +270,12 @@ spec:
         labels:
           xpk.google.com/workload: {args.workload}
       spec:
-        backoffLimit: 0
+        backoffLimit: {args.pw_worker_backoff_limit}
         completions: {system.vms_per_slice}
         parallelism: {system.vms_per_slice}
         template:
           spec:
+            terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
             containers:
             - args:
               {pathways_worker_args}
@@ -310,7 +311,7 @@ spec:
         labels:
           xpk.google.com/workload: {args.workload}
       spec:
-        backoffLimit: 0
+        backoffLimit: {args.pw_rm_backoff_limit}
         completions: 1
         parallelism: 1
         template:
@@ -359,7 +360,7 @@ spec:
         labels:
           xpk.google.com/workload: {args.workload}
       spec:
-        backoffLimit: 0
+        backoffLimit: {args.pw_proxy_backoff_limit}
         completions: 1
         parallelism: 1
         template:
@@ -385,7 +386,7 @@ spec:
         labels:
           xpk.google.com/workload: {args.workload}
       spec:
-        backoffLimit: 0
+        backoffLimit: {args.pw_user_job_backoff_limit}
         completions: 1
         parallelism: 1
         template:
@@ -3864,7 +3865,7 @@ def get_pathways_rm_args(args) -> str:
               - --pathways_persistent_compilation_cache=false
               - --pathways_compilation_mode=compile_at_worker
               - --pathways_tmp_dir_pattern={args.pathways_gcs_location}
-              - --pathways_resource_manager_expected_num_worker_jobs={args.num_slices}"""
+              - --pathways_expected_instances={args.pathways_expected_instances}"""
   if args.use_pathways:
     return yaml.format(args=args)
   else:
@@ -5770,6 +5771,50 @@ workload_pathways_workload_arguments.add_argument(
     default='gs://cloud-pathways-staging/tmp',
     help=(
         'Please provide the GCS location to store Pathways artifacts.'
+    ),
+)
+workload_pathways_workload_arguments.add_argument(
+    '--pathways-expected-instances',
+    type=str,
+    default='',
+    help=(
+        'Please provide the expected instances (eg: tpuv4:2x2x2,tpuv4:2x2x2).'
+    ),
+)
+workload_pathways_workload_arguments.add_argument(
+    '--pw-worker-backoff-limit',
+    type=int,
+    required=False,
+    default=0,
+    help=(
+        'The number of times to restart the job.'
+    ),
+)
+workload_pathways_workload_arguments.add_argument(
+    '--pw-rm-backoff-limit',
+    type=int,
+    required=False,
+    default=0,
+    help=(
+        'The number of times to restart the job.'
+    ),
+)
+workload_pathways_workload_arguments.add_argument(
+    '--pw-proxy-backoff-limit',
+    type=int,
+    required=False,
+    default=0,
+    help=(
+        'The number of times to restart the job.'
+    ),
+)
+workload_pathways_workload_arguments.add_argument(
+    '--pw-user-job-backoff-limit',
+    type=int,
+    required=False,
+    default=0,
+    help=(
+        'The number of times to restart the job.'
     ),
 )
 workload_vertex_tensorboard_arguments.add_argument(

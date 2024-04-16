@@ -136,10 +136,6 @@ spec:
               terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
               containers:
               {container}
-                {env}
-                volumeMounts:
-                - mountPath: /dev/shm
-                  name: dshm-2
               volumes:
               - emptyDir:
                   medium: Memory
@@ -1272,8 +1268,8 @@ def add_zone_and_project(args):
   xpk_print(f'Working on {args.project=} and {args.zone}')
 
 
-def add_env_config(args, tensorboard_config):
-  """Adds environment configurations to the jobset config.
+def parse_env_config(args, tensorboard_config):
+  """Parses the environment configurations to the jobset config.
 
   Args:
     args: user provided arguments for running the command.
@@ -2799,7 +2795,6 @@ def run_gke_cluster_delete_command(args) -> int:
   )
 
   return_code = run_command_with_updates(command, 'Cluster Delete', args)
-
   if return_code != 0:
     xpk_print(f'Cluster delete request returned ERROR {return_code}')
     return 1
@@ -3846,7 +3841,10 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
 
   if system.accelerator_type == AcceleratorType['GPU']:
     return gpu_volume_yaml
-  return ""
+
+  regular_volume_mount_yaml="""- mountPath: /dev/shm
+                  name: dshm-2"""
+  return regular_volume_mount_yaml
 
 
 def get_pathways_rm_args(args) -> str:
@@ -3973,6 +3971,10 @@ def get_env_container(args, system: SystemCharacteristics):
   if system.accelerator_type == AcceleratorType['GPU']:
     return gpu_env_yaml.format(args=args,
                         system=system)
+
+  if system.accelerator_type == AcceleratorType['CPU']:
+    return get_cpu_env(args.num_slices, args.env, system)
+
   return args.env
 
 
@@ -4186,24 +4188,21 @@ def calculate_process_count(num_slices, vms_per_slice) -> str:
 
   return f"{num_processes}"
 
-def get_cpu_env(num_slices, system) -> str:
+def get_cpu_env(num_slices, env_vars, system) -> str:
   """Generate environment variables for CPU nodepools
   Args:
     num_slices: Number of slices to be used in the workload.
+    env_vars: Environment variables, processed from user args.
     system: system characteristics
 
   Returns:
     str: yaml containing env variables
   """
-  yaml = """env:
+  yaml = """
                 - name: REPLICATED_JOB_NAME
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.annotations['jobset.sigs.k8s.io/replicatedjob-name']
-                - name: JOBSET_NAME
-                  valueFrom:
-                    fieldRef:
-                      fieldPath: metadata.annotations['jobset.sigs.k8s.io/jobset-name']
                 - name: JAX_COORDINATOR_ADDRESS
                   value: "$(JOBSET_NAME)-$(REPLICATED_JOB_NAME)-0-0.$(JOBSET_NAME)"
                 - name: JOB_INDEX
@@ -4218,11 +4217,11 @@ def get_cpu_env(num_slices, system) -> str:
                   value: "{processes_in_job}"
                 - name: JAX_PROCESS_COUNT
                   value: "{process_count}"
+                {env_vars}
   """
-  if system.accelerator_type == AcceleratorType['CPU']:
-    return yaml.format(processes_in_job = system.vms_per_slice,
-                      process_count=calculate_process_count(num_slices,system.vms_per_slice))
-  return ""
+  return yaml.format(processes_in_job = system.vms_per_slice,
+                      process_count=calculate_process_count(num_slices,system.vms_per_slice),
+                      env_vars = env_vars)
 
 
 def get_cpu_affinity(accelerator_type) -> str:
@@ -4418,7 +4417,7 @@ def workload_create(args) -> int:
     if not tensorboard_config:
       xpk_exit(1)
 
-  add_env_config(args, tensorboard_config)
+  parse_env_config(args, tensorboard_config)
 
   autoprovisioning_args = ""
   autoprovisioning_enabled, return_code = is_autoprovisioning_enabled(args, system)
@@ -4490,7 +4489,6 @@ def workload_create(args) -> int:
         system=system,
         container=container,
         affinity=get_cpu_affinity(system.accelerator_type),
-        env=get_cpu_env(args.num_slices,system),
         accelerator_label=create_accelerator_label(system.accelerator_type, system),
         machine_label=create_machine_label(system.accelerator_type, system),
         local_queue_name=_LOCAL_QUEUE_NAME,

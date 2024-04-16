@@ -59,10 +59,30 @@ pip install xpk
 ```
 
 If you are running XPK by cloning GitHub repository, first run the
-following command to begin using XPK commands:
+following commands to begin using XPK commands:
 
 ```shell
-pip install cloud-accelerator-diagnostics
+git clone https://github.com/google/xpk.git
+cd xpk
+# Install dependencies such as cloud-accelerator-diagnostics
+pip install .
+```
+
+If you see an error saying: `This environment is externally managed`, please use a virtual environment.
+
+Example:
+
+```shell
+  ## One time step of creating the venv
+  VENV_DIR=~/venvp3
+  python3 -m venv $VENV_DIR
+  ## Enter your venv.
+  source $VENV_DIR/bin/activate
+  ## Clone the repository and installing dependencies.
+  git clone https://github.com/google/xpk.git
+  cd xpk
+  # Install dependencies such as cloud-accelerator-diagnostics
+  pip install .
 ```
 
 # XPK for Large Scale (>1k VMs)

@@ -90,9 +90,6 @@ _SERVICE_ACCOUNT_FEATURE_FLAG = xpk_current_version >= "0.4.0"
 _VERTEX_TENSORBOARD_FEATURE_FLAG = _SERVICE_ACCOUNT_FEATURE_FLAG
 _DEFAULT_VERTEX_TENSORBOARD_NAME = 'tb-instance'
 
-if _VERTEX_TENSORBOARD_FEATURE_FLAG:
-  from cloud_accelerator_diagnostics import tensorboard
-
 
 class CapacityType(enum.Enum):
   ON_DEMAND='on_demand'
@@ -2406,6 +2403,7 @@ def create_vertex_tensorboard(args) -> dict:
   Returns:
     dict containing Tensorboard instance name, id and location.
   """
+  from cloud_accelerator_diagnostics import tensorboard  #pylint: disable=import-outside-toplevel
   tensorboard_config = {}
   tensorboard_name = args.tensorboard_name
   if tensorboard_name is None:
@@ -2430,6 +2428,7 @@ def create_vertex_experiment(args) -> dict:
   Returns:
     map containing Vertex Tensorboard configurations.
   """
+  from cloud_accelerator_diagnostics import tensorboard  #pylint: disable=import-outside-toplevel
   metadata_configmap_name = f'{args.cluster}-{_CLUSTER_METADATA_CONFIGMAP}'
   cluster_config_map = get_cluster_configmap(args, metadata_configmap_name)
 

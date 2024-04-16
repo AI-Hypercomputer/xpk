@@ -1935,7 +1935,8 @@ def run_gke_cluster_create_command(args) -> int:
       f' --cluster-version={args.gke_version}'
       f' --machine-type={machine_type}'
        ' --enable-autoscaling'
-       ' --total-min-nodes 1 --total-max-nodes 1000 --num-nodes 6'
+       ' --total-min-nodes 1 --total-max-nodes 1000'
+      f' --num-nodes {args.default_pool_cpu_num_nodes}'
       f' {args.custom_cluster_arguments}'
   )
 
@@ -5214,6 +5215,16 @@ cluster_create_optional_arguments.add_argument(
     help=(
       'Set the machine type within the default cpu node pool. For'
       ' regional clusters, all zones must support the machine type.'
+    )
+)
+cluster_create_optional_arguments.add_argument(
+  '--default-pool-cpu-num-nodes',
+    type=int,
+    default=6,
+    help=(
+      'Set the number of nodes within the default cpu node pool. This is'
+      ' set to 6 by default. Autoscaling is enabled to scale this value over'
+      ' time.'
     )
 )
 cluster_create_optional_arguments.add_argument(

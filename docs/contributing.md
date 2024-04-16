@@ -70,7 +70,7 @@ git commit -m "My cool new feature"
 
 
 # Manually format code by running:
-plink .
+pyink .
 ```
 
 ### Code Reviews
@@ -98,5 +98,5 @@ To lint the code:
 # Format files in the local directory.
 pyink .
 # Check if files need to be formatted.
-pylink --check .
+pyink --check .
 ```

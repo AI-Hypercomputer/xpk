@@ -45,10 +45,8 @@ jobs:
         install_components: 'beta,gke-gcloud-auth-plugin'
     - name: Verify gcp setup
       run: gcloud info
-    - name: Install dependencies
-      run: pip install cloud-accelerator-diagnostics
-    - name: Create a Pathways-enabled XPK Cluster with 2x v4-8 nodepools.
-      run: python xpk.py cluster create --cluster $TPU_CLUSTER_NAME --enable-pathways  --device-type=v4-8  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}'
+    - name: Create a Pathways-enabled XPK Cluster with 2x v4-8 nodepools. Larger num-nodes to avoid master resizing.
+      run: python xpk.py cluster create --cluster $TPU_CLUSTER_NAME --enable-pathways  --device-type=v4-8  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}'
     - name: Authenticate Docker
       run: gcloud auth configure-docker --quiet
     - name: Create test script to execute in workloads

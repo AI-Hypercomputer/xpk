@@ -90,9 +90,6 @@ _SERVICE_ACCOUNT_FEATURE_FLAG = xpk_current_version >= "0.4.0"
 _VERTEX_TENSORBOARD_FEATURE_FLAG = _SERVICE_ACCOUNT_FEATURE_FLAG
 _DEFAULT_VERTEX_TENSORBOARD_NAME = 'tb-instance'
 
-if _VERTEX_TENSORBOARD_FEATURE_FLAG:
-  from cloud_accelerator_diagnostics import tensorboard
-
 
 class CapacityType(enum.Enum):
   ON_DEMAND='on_demand'
@@ -139,10 +136,6 @@ spec:
               terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
               containers:
               {container}
-                {env}
-                volumeMounts:
-                - mountPath: /dev/shm
-                  name: dshm-2
               volumes:
               - emptyDir:
                   medium: Memory
@@ -1275,8 +1268,8 @@ def add_zone_and_project(args):
   xpk_print(f'Working on {args.project=} and {args.zone}')
 
 
-def add_env_config(args, tensorboard_config):
-  """Adds environment configurations to the jobset config.
+def parse_env_config(args, tensorboard_config):
+  """Parses the environment configurations to the jobset config.
 
   Args:
     args: user provided arguments for running the command.
@@ -1935,7 +1928,8 @@ def run_gke_cluster_create_command(args) -> int:
       f' --cluster-version={args.gke_version}'
       f' --machine-type={machine_type}'
        ' --enable-autoscaling'
-       ' --total-min-nodes 1 --total-max-nodes 1000 --num-nodes 6'
+       ' --total-min-nodes 1 --total-max-nodes 1000'
+      f' --num-nodes {args.default_pool_cpu_num_nodes}'
       f' {args.custom_cluster_arguments}'
   )
 
@@ -2409,6 +2403,7 @@ def create_vertex_tensorboard(args) -> dict:
   Returns:
     dict containing Tensorboard instance name, id and location.
   """
+  from cloud_accelerator_diagnostics import tensorboard  #pylint: disable=import-outside-toplevel
   tensorboard_config = {}
   tensorboard_name = args.tensorboard_name
   if tensorboard_name is None:
@@ -2433,6 +2428,7 @@ def create_vertex_experiment(args) -> dict:
   Returns:
     map containing Vertex Tensorboard configurations.
   """
+  from cloud_accelerator_diagnostics import tensorboard  #pylint: disable=import-outside-toplevel
   metadata_configmap_name = f'{args.cluster}-{_CLUSTER_METADATA_CONFIGMAP}'
   cluster_config_map = get_cluster_configmap(args, metadata_configmap_name)
 
@@ -2799,7 +2795,6 @@ def run_gke_cluster_delete_command(args) -> int:
   )
 
   return_code = run_command_with_updates(command, 'Cluster Delete', args)
-
   if return_code != 0:
     xpk_print(f'Cluster delete request returned ERROR {return_code}')
     return 1
@@ -3846,7 +3841,10 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
 
   if system.accelerator_type == AcceleratorType['GPU']:
     return gpu_volume_yaml
-  return ""
+
+  regular_volume_mount_yaml="""- mountPath: /dev/shm
+                  name: dshm-2"""
+  return regular_volume_mount_yaml
 
 
 def get_pathways_rm_args(args) -> str:
@@ -3973,6 +3971,10 @@ def get_env_container(args, system: SystemCharacteristics):
   if system.accelerator_type == AcceleratorType['GPU']:
     return gpu_env_yaml.format(args=args,
                         system=system)
+
+  if system.accelerator_type == AcceleratorType['CPU']:
+    return get_cpu_env(args.num_slices, args.env, system)
+
   return args.env
 
 
@@ -4186,24 +4188,21 @@ def calculate_process_count(num_slices, vms_per_slice) -> str:
 
   return f"{num_processes}"
 
-def get_cpu_env(num_slices, system) -> str:
+def get_cpu_env(num_slices, env_vars, system) -> str:
   """Generate environment variables for CPU nodepools
   Args:
     num_slices: Number of slices to be used in the workload.
+    env_vars: Environment variables, processed from user args.
     system: system characteristics
 
   Returns:
     str: yaml containing env variables
   """
-  yaml = """env:
+  yaml = """
                 - name: REPLICATED_JOB_NAME
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.annotations['jobset.sigs.k8s.io/replicatedjob-name']
-                - name: JOBSET_NAME
-                  valueFrom:
-                    fieldRef:
-                      fieldPath: metadata.annotations['jobset.sigs.k8s.io/jobset-name']
                 - name: JAX_COORDINATOR_ADDRESS
                   value: "$(JOBSET_NAME)-$(REPLICATED_JOB_NAME)-0-0.$(JOBSET_NAME)"
                 - name: JOB_INDEX
@@ -4218,11 +4217,11 @@ def get_cpu_env(num_slices, system) -> str:
                   value: "{processes_in_job}"
                 - name: JAX_PROCESS_COUNT
                   value: "{process_count}"
+                {env_vars}
   """
-  if system.accelerator_type == AcceleratorType['CPU']:
-    return yaml.format(processes_in_job = system.vms_per_slice,
-                      process_count=calculate_process_count(num_slices,system.vms_per_slice))
-  return ""
+  return yaml.format(processes_in_job = system.vms_per_slice,
+                      process_count=calculate_process_count(num_slices,system.vms_per_slice),
+                      env_vars = env_vars)
 
 
 def get_cpu_affinity(accelerator_type) -> str:
@@ -4418,7 +4417,7 @@ def workload_create(args) -> int:
     if not tensorboard_config:
       xpk_exit(1)
 
-  add_env_config(args, tensorboard_config)
+  parse_env_config(args, tensorboard_config)
 
   autoprovisioning_args = ""
   autoprovisioning_enabled, return_code = is_autoprovisioning_enabled(args, system)
@@ -4490,7 +4489,6 @@ def workload_create(args) -> int:
         system=system,
         container=container,
         affinity=get_cpu_affinity(system.accelerator_type),
-        env=get_cpu_env(args.num_slices,system),
         accelerator_label=create_accelerator_label(system.accelerator_type, system),
         machine_label=create_machine_label(system.accelerator_type, system),
         local_queue_name=_LOCAL_QUEUE_NAME,
@@ -5214,6 +5212,16 @@ cluster_create_optional_arguments.add_argument(
     help=(
       'Set the machine type within the default cpu node pool. For'
       ' regional clusters, all zones must support the machine type.'
+    )
+)
+cluster_create_optional_arguments.add_argument(
+  '--default-pool-cpu-num-nodes',
+    type=int,
+    default=6,
+    help=(
+      'Set the number of nodes within the default cpu node pool. This is'
+      ' set to 6 by default. Autoscaling is enabled to scale this value over'
+      ' time.'
     )
 )
 cluster_create_optional_arguments.add_argument(

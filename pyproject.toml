@@ -44,5 +44,21 @@ build-backend = "setuptools.build_meta"
 [project.scripts]
 xpk = "xpk:main"
 
+[project.optional-dependencies]
+# Development deps (unittest, linting, formating,...)
+# Installed through `pip install .[dev]`
+dev = [
+    "pyink==24.3.0",
+    "pylint>=2.6.0",
+    "pre-commit",
+]
+
 [tool.setuptools.dynamic]
 version = {attr = "xpk.__version__"}
+
+[tool.pyink]
+# Formatting configuration to follow Google style-guide.
+line-length = 80
+unstable = true
+pyink-indentation = 2
+pyink-use-majority-quotes = true

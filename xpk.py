@@ -2418,7 +2418,10 @@ def check_if_service_account_exists(args) -> bool:
     True if service account exist, False otherwise.
   """
   service_account_name = get_service_account_name(args)
-  command = f'gcloud iam service-accounts describe {service_account_name} --project={args.project}'
+  command = (
+      'gcloud iam service-accounts describe'
+      f' {service_account_name} --project={args.project}'
+  )
   return_code = run_command_with_updates(
       command, 'Service Account Describe', args, verbose=False
   )

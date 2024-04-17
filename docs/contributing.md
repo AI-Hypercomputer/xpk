@@ -33,33 +33,29 @@ Optionally use a venv to set up and develop xpk. This is needed for Google
 internal xpk development from a cloudtop machine.
 
 ```shell
-  # Create venv if needed.
-  ## One time step of creating the venv
-  VENV_DIR=~/venvp3
-  python3 -m venv $VENV_DIR
-  ## enter the venv.
-  source $VENV_DIR/bin/activate
-  ## Same steps as above.
-  git clone https://github.com/google/xpk.git
-  pip install .[dev]
+# Create venv if needed.
+## One time step of creating the venv
+VENV_DIR=~/venvp3
+python3 -m venv $VENV_DIR
+## enter the venv.
+source $VENV_DIR/bin/activate
 ```
 
 1. Install developer tools including `pyink`, `pylint`, and `precommit` using
 
 ```shell
-  git clone https://github.com/google/xpk.git
-  pip install .[dev]
+git clone https://github.com/google/xpk.git
+pip install .[dev]
 ```
 
 2. Install git hook scripts.
 ```shell
-cd $XPK_REPO_DIR
 pre-commit install
 # Optionally run against files
 pre-commit run --all-files
 ```
 
-3. Write code and commit changes!
+3. Support auto-formatting when committing changes!
 ```shell
 # 1. Code will be autoformatted on:
 git commit -m "My cool new feature"
@@ -69,7 +65,7 @@ git add -p
 git commit -m "My cool new feature"
 
 
-# Manually format code by running:
+# If you need, you can also manually format code by running:
 pyink .
 ```
 

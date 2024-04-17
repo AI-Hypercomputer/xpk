@@ -12,12 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Pylint
+name: Lint and Format
 
-on: [push]
+on: [push, pull_request]
 
 jobs:
-  build:
+  build-and-test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -31,7 +31,10 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
+        python -m pip install pyink==24.3.0
         pip install pylint
-    - name: Analysing the code with pylint
+    - name: Check the code with pylint
       run: |
         pylint $(git ls-files '*.py')
+    - name: Check format with pyink
+      run: pyink --check .

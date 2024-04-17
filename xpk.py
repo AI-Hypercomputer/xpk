@@ -1113,7 +1113,7 @@ PathwaysExpectedInstancesMap = {
     "v5p": "v5",
     "v5e": "v5e",
     "v4": "v4",
-    "v3"" "v3,
+    "v3"" "v3",
 }
 
 def chunks(lst, n):
@@ -5809,14 +5809,6 @@ workload_pathways_workload_arguments.add_argument(
     default='gs://cloud-pathways-staging/tmp',
     help=(
         'Please provide the GCS location to store Pathways artifacts.'
-    ),
-)
-workload_pathways_workload_arguments.add_argument(
-    '--pathways-expected-instances',
-    type=str,
-    default='',
-    help=(
-        'Please provide the expected instances (eg: tpuv4:2x2x2,tpuv4:2x2x2).'
     ),
 )
 workload_vertex_tensorboard_arguments.add_argument(

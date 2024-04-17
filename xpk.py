@@ -270,7 +270,7 @@ spec:
         labels:
           xpk.google.com/workload: {args.workload}
       spec:
-        backoffLimit: {args.pw_worker_backoff_limit}
+        backoffLimit: 4
         completions: {system.vms_per_slice}
         parallelism: {system.vms_per_slice}
         template:
@@ -311,7 +311,7 @@ spec:
         labels:
           xpk.google.com/workload: {args.workload}
       spec:
-        backoffLimit: {args.pw_rm_backoff_limit}
+        backoffLimit: 0
         completions: 1
         parallelism: 1
         template:
@@ -360,7 +360,7 @@ spec:
         labels:
           xpk.google.com/workload: {args.workload}
       spec:
-        backoffLimit: {args.pw_proxy_backoff_limit}
+        backoffLimit: 0
         completions: 1
         parallelism: 1
         template:
@@ -386,7 +386,7 @@ spec:
         labels:
           xpk.google.com/workload: {args.workload}
       spec:
-        backoffLimit: {args.pw_user_job_backoff_limit}
+        backoffLimit: 0
         completions: 1
         parallelism: 1
         template:
@@ -1108,6 +1108,13 @@ UserFacingNameToSystemCharacteristics = {
 """ If you modify UserFacingNameToSystemCharacteristics you should also modify the corresponding
 Map in MaxText/accelerator_to_spec_map.py """
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+PathwaysExpectedInstancesMap = {
+    "v5p": "v5",
+    "v5e": "v5e",
+    "v4": "v4",
+    "v3"" "v3,
+}
 
 def chunks(lst, n):
   """Return a list of n-sized chunks from lst.
@@ -3850,7 +3857,7 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
   return ""
 
 
-def get_pathways_rm_args(args) -> str:
+def get_pathways_rm_args(args, system: SystemCharacteristics) -> str:
   """Arguments for the Pathways resource manager.
   Args:
     args: user provided arguments for running the command.
@@ -3865,12 +3872,43 @@ def get_pathways_rm_args(args) -> str:
               - --pathways_persistent_compilation_cache=false
               - --pathways_compilation_mode=compile_at_worker
               - --pathways_tmp_dir_pattern={args.pathways_gcs_location}
-              - --pathways_expected_instances={args.pathways_expected_instances}"""
+              - --pathways_expected_instances={expected_instances}"""
   if args.use_pathways:
-    return yaml.format(args=args)
+    return yaml.format(args=args, expected_instances=compute_pathways_expected_instances(args, system))
   else:
     return ""
 
+def compute_pathways_expected_instances(args, system: SystemCharacteristics):
+  """Computes the expected instances from the system characteristics.
+  Args:
+    args: user provided args.
+    system: system characteristics.
+
+  Returns:
+    str: formatted string representing the expected instances (eg: 
+    "tpuv4:2x2x2,tpuv4:2x2x2" for 2 slices of v4-16).
+  """
+  expected_instances = [
+      f'tpu{get_pathways_expected_tpu_type(system.device_type)}:{system.topology}' 
+      for _ in range(args.num_slices)
+  ].join(',')
+
+  xpk_print(f'Pathways expected instances are: {expected_instances}')
+  return expected_instances
+
+def get_pathways_expected_tpu_type(device_type):
+  """Returns the device type expected by Pathways
+  Args:
+    device_type: the system characteristic device type
+
+  Returns:
+    str: the device type expected by pathways.
+  """
+  raw_type = lower(device_type.split('-')[0])
+  pathways_expected_instance = PathwaysExpectedInstancesMap[raw_type]
+  if not pathways_expected_instance:
+    raise argparse.ArgumentTypeError(f'Passed in device_type {device_type} is incorrect. Please pass in a valid device type')
+  return pathways_expected_instance
 
 def get_pathways_worker_args(args) -> str:
   """Arguments for the Pathways workers.
@@ -4478,7 +4516,7 @@ def workload_create(args) -> int:
         container=container,
         accelerator_label=create_accelerator_label(system.accelerator_type, system),
         machine_label=create_machine_label(system.accelerator_type, system),
-        pathways_rm_args = get_pathways_rm_args(args),
+        pathways_rm_args = get_pathways_rm_args(args, system),
         pathways_worker_args = get_pathways_worker_args(args),
         pathways_proxy_args = get_pathways_proxy_args(args),
         resource_type=resource_type,
@@ -5779,42 +5817,6 @@ workload_pathways_workload_arguments.add_argument(
     default='',
     help=(
         'Please provide the expected instances (eg: tpuv4:2x2x2,tpuv4:2x2x2).'
-    ),
-)
-workload_pathways_workload_arguments.add_argument(
-    '--pw-worker-backoff-limit',
-    type=int,
-    required=False,
-    default=0,
-    help=(
-        'The number of times to restart the job.'
-    ),
-)
-workload_pathways_workload_arguments.add_argument(
-    '--pw-rm-backoff-limit',
-    type=int,
-    required=False,
-    default=0,
-    help=(
-        'The number of times to restart the job.'
-    ),
-)
-workload_pathways_workload_arguments.add_argument(
-    '--pw-proxy-backoff-limit',
-    type=int,
-    required=False,
-    default=0,
-    help=(
-        'The number of times to restart the job.'
-    ),
-)
-workload_pathways_workload_arguments.add_argument(
-    '--pw-user-job-backoff-limit',
-    type=int,
-    required=False,
-    default=0,
-    help=(
-        'The number of times to restart the job.'
     ),
 )
 workload_vertex_tensorboard_arguments.add_argument(

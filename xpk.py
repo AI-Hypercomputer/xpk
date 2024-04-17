@@ -2418,7 +2418,7 @@ def check_if_service_account_exists(args) -> bool:
     True if service account exist, False otherwise.
   """
   service_account_name = get_service_account_name(args)
-  command = f'gcloud iam service-accounts describe {service_account_name}'
+  command = f'gcloud iam service-accounts describe {service_account_name} --project={args.project}'
   return_code = run_command_with_updates(
       command, 'Service Account Describe', args, verbose=False
   )
@@ -2441,7 +2441,7 @@ def create_service_account(args) -> int:
     0 if successful and 1 otherwise.
   """
   command = (
-      'gcloud iam service-accounts create'
+      f'gcloud iam service-accounts create --project={args.project}'
       f' {args.project}-{_XPK_SERVICE_ACCOUNT}     --description="Service'
       ' Account for XPK"    '
       f' --display-name="{args.project}-{_XPK_SERVICE_ACCOUNT}"'

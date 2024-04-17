@@ -1113,7 +1113,7 @@ PathwaysExpectedInstancesMap = {
     "v5p": "v5",
     "v5e": "v5e",
     "v4": "v4",
-    "v3"" "v3",
+    "v3": "v3",
 }
 
 def chunks(lst, n):

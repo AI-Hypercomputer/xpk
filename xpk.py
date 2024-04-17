@@ -3905,7 +3905,8 @@ def get_pathways_expected_tpu_type(device_type: str) -> str:
   raw_type = device_type.split('-')[0].lower()
   pathways_expected_instance = PathwaysExpectedInstancesMap[raw_type]
   if not pathways_expected_instance:
-    raise argparse.ArgumentTypeError(f'Passed in device_type {device_type} is incorrect. Please pass in a valid device type')
+    xpk_print(f'Passed in device_type {device_type} is incorrect. Please pass in a valid device type')
+    xpk_exit(1)
   return pathways_expected_instance
 
 def get_pathways_worker_args(args) -> str:

@@ -1111,7 +1111,7 @@ Map in MaxText/accelerator_to_spec_map.py """
 
 PathwaysExpectedInstancesMap = {
     "v5p": "v5",
-    "v5e": "v5e",
+    "v5litepod": "v5e",
     "v4": "v4",
     "v3": "v3",
 }
@@ -3878,7 +3878,7 @@ def get_pathways_rm_args(args, system: SystemCharacteristics) -> str:
   else:
     return ""
 
-def compute_pathways_expected_instances(args, system: SystemCharacteristics):
+def compute_pathways_expected_instances(args, system: SystemCharacteristics) -> str:
   """Computes the expected instances from the system characteristics.
   Args:
     args: user provided args.
@@ -3896,7 +3896,7 @@ def compute_pathways_expected_instances(args, system: SystemCharacteristics):
   xpk_print(f'Pathways expected instances are: {expected_instances}')
   return expected_instances
 
-def get_pathways_expected_tpu_type(device_type):
+def get_pathways_expected_tpu_type(device_type: str) -> str:
   """Returns the device type expected by Pathways
   Args:
     device_type: the system characteristic device type
@@ -3904,7 +3904,7 @@ def get_pathways_expected_tpu_type(device_type):
   Returns:
     str: the device type expected by pathways.
   """
-  raw_type = lower(device_type.split('-')[0])
+  raw_type = device_type.split('-')[0].lower()
   pathways_expected_instance = PathwaysExpectedInstancesMap[raw_type]
   if not pathways_expected_instance:
     raise argparse.ArgumentTypeError(f'Passed in device_type {device_type} is incorrect. Please pass in a valid device type')

@@ -37,7 +37,7 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 ## [Unreleased]
 - Move away from static GKE version and use RAPID release default.
 
-## [0.4.0] - 2024-04-16
+## [0.4.0] - 2024-04-17
 - Enable Autoprovisioning support.
 - Support deletion of subnets when cluster is deleted.
 - Integrate Vertex AI functionality to create Vertex AI Tensorboard and upload logs in Tensorboard directory to Vertex AI Tensorboard.

@@ -3283,7 +3283,8 @@ def create_vertex_tensorboard(args) -> dict:
   Returns:
     dict containing Tensorboard instance name, id and location.
   """
-  from cloud_accelerator_diagnostics import tensorboard  #pylint: disable=import-outside-toplevel
+  from cloud_accelerator_diagnostics import tensorboard  # pylint: disable=import-outside-toplevel
+
   tensorboard_config = {}
   tensorboard_name = args.tensorboard_name
   if tensorboard_name is None:
@@ -3312,7 +3313,8 @@ def create_vertex_experiment(args) -> dict:
   Returns:
     map containing Vertex Tensorboard configurations.
   """
-  from cloud_accelerator_diagnostics import tensorboard  #pylint: disable=import-outside-toplevel
+  from cloud_accelerator_diagnostics import tensorboard  # pylint: disable=import-outside-toplevel
+
   metadata_configmap_name = f'{args.cluster}-{_CLUSTER_METADATA_CONFIGMAP}'
   cluster_config_map = get_cluster_configmap(args, metadata_configmap_name)
 
@@ -4811,7 +4813,7 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
   if system.accelerator_type == AcceleratorType['GPU']:
     return gpu_volume_yaml
 
-  regular_volume_mount_yaml="""- mountPath: /dev/shm
+  regular_volume_mount_yaml = """- mountPath: /dev/shm
                   name: dshm-2"""
   return regular_volume_mount_yaml
 
@@ -4938,8 +4940,7 @@ def get_env_container(args, system: SystemCharacteristics):
                     value: "{args.command}"
                   {args.env}"""
   if system.accelerator_type == AcceleratorType['GPU']:
-    return gpu_env_yaml.format(args=args,
-                        system=system)
+    return gpu_env_yaml.format(args=args, system=system)
 
   if system.accelerator_type == AcceleratorType['CPU']:
     return get_cpu_env(args.num_slices, args.env, system)
@@ -5213,9 +5214,11 @@ def get_cpu_env(num_slices, env_vars, system) -> str:
                   value: "{process_count}"
                 {env_vars}
   """
-  return yaml.format(processes_in_job = system.vms_per_slice,
-                      process_count=calculate_process_count(num_slices,system.vms_per_slice),
-                      env_vars = env_vars)
+  return yaml.format(
+      processes_in_job=system.vms_per_slice,
+      process_count=calculate_process_count(num_slices, system.vms_per_slice),
+      env_vars=env_vars,
+  )
 
 
 def get_cpu_affinity(accelerator_type) -> str:
@@ -5526,7 +5529,9 @@ def workload_create(args) -> int:
         system=system,
         container=container,
         affinity=get_cpu_affinity(system.accelerator_type),
-        accelerator_label=create_accelerator_label(system.accelerator_type, system),
+        accelerator_label=create_accelerator_label(
+            system.accelerator_type, system
+        ),
         machine_label=create_machine_label(system.accelerator_type, system),
         local_queue_name=_LOCAL_QUEUE_NAME,
         autoprovisioning_args=autoprovisioning_args,

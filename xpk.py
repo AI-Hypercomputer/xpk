@@ -69,7 +69,7 @@ default_docker_image = 'python:3.10'
 default_script_dir = os.getcwd()
 default_gke_version = '1.29.1-gke.1589017'
 # This is the version for XPK PyPI package
-__version__ = '0.3.0'
+__version__ = '0.4.0'
 xpk_current_version = __version__
 
 h100_device_type = 'h100-80gb-8'

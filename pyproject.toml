@@ -29,7 +29,9 @@ classifiers = [
 keywords = []
 
 # pip dependencies installed with `pip install -e .`
-dependencies = []
+dependencies = [
+  "cloud-accelerator-diagnostics"
+]
 
 [project.urls]
 "Homepage" = "https://github.com/google/xpk"

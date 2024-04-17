@@ -47,12 +47,12 @@ jobs:
       run: gcloud info
     - name: Set Google Cloud CLI properties
       run: |
-        gcloud config set project ${{ secrets.GCLOUD_PROJECT_NAME }}
+        gcloud config set project '${{ secrets.GCLOUD_PROJECT_NAME }}'
         gcloud config get project
         gcloud config set compute/zone us-east4-a
         gcloud config get compute/zone
     - name: Create a Pathways-enabled XPK Cluster with 2x v4-8 nodepools. Larger num-nodes to avoid master resizing.
-      run: python xpk.py cluster create --cluster $TPU_CLUSTER_NAME --enable-pathways  --device-type=v4-8  --num-slices=2 --project=${{ secrets.TEST_PROJECT_NAME }} --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}'
+      run: python xpk.py cluster create --cluster $TPU_CLUSTER_NAME --enable-pathways  --device-type=v4-8  --num-slices=2 --project='${{ secrets.TEST_PROJECT_NAME }}' --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}'
     - name: Authenticate Docker
       run: gcloud auth configure-docker --quiet
     - name: Create test script to execute in workloads

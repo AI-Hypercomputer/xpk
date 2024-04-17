@@ -3888,10 +3888,10 @@ def compute_pathways_expected_instances(args, system: SystemCharacteristics) -> 
     str: formatted string representing the expected instances (eg: 
     "tpuv4:2x2x2,tpuv4:2x2x2" for 2 slices of v4-16).
   """
-  expected_instances = [
+  expected_instances = ','.join([
       f'tpu{get_pathways_expected_tpu_type(system.device_type)}:{system.topology}' 
       for _ in range(args.num_slices)
-  ].join(',')
+  ])
 
   xpk_print(f'Pathways expected instances are: {expected_instances}')
   return expected_instances

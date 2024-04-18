@@ -1899,6 +1899,7 @@ PathwaysExpectedInstancesMap = {
     'v3': 'v3',
 }
 
+
 def chunks(lst, n):
   """Return a list of n-sized chunks from lst.
 
@@ -4846,27 +4847,34 @@ def get_pathways_rm_args(args, system: SystemCharacteristics) -> str:
               - --pathways_tmp_dir_pattern={args.pathways_gcs_location}
               - --pathways_expected_instances={expected_instances}"""
   if args.use_pathways:
-    return yaml.format(args=args, expected_instances=compute_pathways_expected_instances(args, system))
+    return yaml.format(
+        args=args,
+        expected_instances=compute_pathways_expected_instances(args, system),
+    )
   else:
     return ''
 
-def compute_pathways_expected_instances(args, system: SystemCharacteristics) -> str:
+
+def compute_pathways_expected_instances(
+    args, system: SystemCharacteristics
+) -> str:
   """Computes the expected instances from the system characteristics.
   Args:
     args: user provided args.
     system: system characteristics.
 
   Returns:
-    str: formatted string representing the expected instances (eg: 
+    str: formatted string representing the expected instances (eg:
     "tpuv4:2x2x2,tpuv4:2x2x2" for 2 slices of v4-16).
   """
   expected_instances = ','.join([
-      f'tpu{get_pathways_expected_tpu_type(system.device_type)}:{system.topology}' 
+      f'tpu{get_pathways_expected_tpu_type(system.device_type)}:{system.topology}'
       for _ in range(args.num_slices)
   ])
 
   xpk_print(f'Pathways expected instances are: {expected_instances}')
   return expected_instances
+
 
 def get_pathways_expected_tpu_type(device_type: str) -> str:
   """Returns the device type expected by Pathways
@@ -4879,9 +4887,13 @@ def get_pathways_expected_tpu_type(device_type: str) -> str:
   raw_type = device_type.split('-')[0].lower()
   pathways_expected_instance = PathwaysExpectedInstancesMap[raw_type]
   if not pathways_expected_instance:
-    xpk_print(f'Passed in device_type {device_type} is incorrect. Please pass in a valid device type')
+    xpk_print(
+        f'Passed in device_type {device_type} is incorrect. Please pass in a'
+        ' valid device type'
+    )
     xpk_exit(1)
   return pathways_expected_instance
+
 
 def get_pathways_worker_args(args) -> str:
   """Arguments for the Pathways workers.

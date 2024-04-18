@@ -1893,10 +1893,10 @@ the corresponding Map in MaxText/accelerator_to_spec_map.py """
 
 
 PathwaysExpectedInstancesMap = {
-    "v5p": "v5",
-    "v5litepod": "v5e",
-    "v4": "v4",
-    "v3": "v3",
+    'v5p': 'v5',
+    'v5litepod': 'v5e',
+    'v4': 'v4',
+    'v3': 'v3',
 }
 
 def chunks(lst, n):

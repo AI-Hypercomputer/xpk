@@ -72,6 +72,7 @@ __version__ = "0.3.0"
 xpk_current_version = __version__
 
 h100_device_type = 'h100-80gb-8'
+h150_device_type = 'h150-80gb-8'
 
 _AUTOPROVISIONING_CONFIG_VALUE = 'AUTOPROVISION'
 _AUTOPROVISIONING_CONFIG_MINIMUM_KEY = 'minimum_chips'
@@ -147,7 +148,7 @@ kind: JobSet
 metadata:
   name: {args.workload}
   labels:
-    kueue.x-k8s.io/queue-name: multislice-queue  # Name of the LocalQueue
+    {gpu_queue_name}
     xpk.google.com/workload: {args.workload}
 spec:
   failurePolicy:
@@ -181,7 +182,7 @@ spec:
                 {accelerator_label}
                 {machine_label}
                 {autoprovisioning_args}
-              priorityClassName: {args.priority}
+              {gpu_priority}
               hostNetwork: true
               dnsPolicy: ClusterFirstWithHostNet
               terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
@@ -189,48 +190,22 @@ spec:
               - operator: "Exists"
                 key: nvidia.com/gpu
               volumes:
-              - name: nvidia-install-dir-host
-                hostPath:
-                  path: /home/kubernetes/bin/nvidia/lib64
-              - name: tcpd-socket
-                hostPath:
-                  path: /run/tcpx
-              - name: shared-memory
-                emptyDir:
-                  medium: "Memory"
-                  sizeLimit: 200Gi
-              - name: workload-terminated-volume
-                emptyDir:
-              - name: tcpx-nccl-plugin-volume
-                emptyDir:
-              initContainers:
-              - name: tcpx-nccl-plugin-installer
-                image: us-docker.pkg.dev/gce-ai-infra/gpudirect-tcpx/nccl-plugin-gpudirecttcpx-dev:v3.1.6_2023_10_06
-                imagePullPolicy: Always
-                restartPolicy: Always
-                volumeMounts:
-                - name: tcpx-nccl-plugin-volume
-                  mountPath: /var/lib/tcpx
-                resources:
-                  requests:
-                    cpu: 150m
+              {gpu_volume}
               containers:
-              - name: tcpd-daemon
-                image: us-docker.pkg.dev/gce-ai-infra/gpudirect-tcpx/tcpgpudmarxd-dev:v2.0.9
+              {rxdm_image_config}
                 imagePullPolicy: Always
                 command:
                 - "bash"
                 - "-c"
                 - |
-                  /tcpgpudmarxd/build/app/tcpgpudmarxd --gpu_nic_preset a3vm --gpu_shmem_type fd --setup_param "--verbose 128 2 0" &
+                  {gpu_rxdm_cmd} &
                   while [ ! -e "/usr/share/workload/workload_terminated" ]; do sleep 10; echo "sleeping"; done
                 securityContext:
                   privileged: true
                 volumeMounts:
                 - name: nvidia-install-dir-host
                   mountPath: /usr/local/nvidia/lib64
-                - name: tcpd-socket
-                  mountPath: /tmp
+                {gpu_tcp_volume}
                 - name: workload-terminated-volume
                   mountPath: /usr/share/workload
                 env:
@@ -708,7 +683,10 @@ UserFacingNameToSystemCharacteristics = {
     'h100-80gb-8': SystemCharacteristics(
       'N/A', 1, 'nvidia-h100-80gb', 'a3-highgpu-8g', 8, AcceleratorType['GPU'], 'h100-80gb-8'
     ),
-
+    # H150-80gb-$CHIPS
+    'h150-80gb-8': SystemCharacteristics(
+      'N/A', 1, 'nvidia-h100-80gb', 'a3-megagpu-8g', 8, AcceleratorType['GPU'], 'h150-80gb-8'
+    ),
     # TPU system characteristics
     # v5p
     'v5p-8': SystemCharacteristics(
@@ -1318,7 +1296,7 @@ def parse_env_config(args, tensorboard_config):
     for key, value in tensorboard_config.items():
       env[key.upper()] = value
 
-  if device_type == h100_device_type:
+  if device_type == h100_device_type or device_type == h150_device_type:
     # For H100, it has two more spaces ahead of name and value respectively
     env_format = '''
                   - name: {key}
@@ -2255,7 +2233,7 @@ def get_capacity_arguments_from_capacity_type(args, capacity_type: CapacityType)
       capacity_args = "--spot"
     case CapacityType.RESERVATION:
       capacity_args = (
-        f'--reservation-affinity=specific --reservation={args.reservation}'
+        f'--reservation-affinity=specific --reservation={args.reservation} --placement-policy={args.reservation}'
       )
     case _:
       xpk_print(f'Unknown capacity type: {capacity_type}. Unable to determine capacity args.')
@@ -2836,6 +2814,13 @@ def set_cluster_command(args) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
+  # try:
+  #   command = (
+  #       'gcloud container clusters get-credentials'
+  #       f' {args.cluster} --zone={args.zone} --project={args.project} &&'
+  #       ' kubectl config view && kubectl config set-context --current --namespace=default'
+  #   )
+  # except:
   command = (
       'gcloud container clusters get-credentials'
       f' {args.cluster} --region={zone_to_region(args.zone)} --project={args.project} &&'
@@ -3014,26 +2999,8 @@ def get_kueue_covered_resources_config(args, cluster_hardware_name, resource_typ
   Returns:
     A string of Kueue covered resources configuration.
   """
-  device_type = args.tpu_type if args.tpu_type else args.device_type
-  if device_type == h100_device_type:
-    config_format = '''
-  - coveredResources: ["cpu", "memory", "{resource_type}"]
-    flavors:
-    - name: {cluster_hardware_name}
-      resources:
-      - name: "cpu"
-        nominalQuota: {num_nodes}
-      - name: "memory"
-        nominalQuota: 150Mi
-      - name: "{resource_type}"
-        nominalQuota: {total_chips}'''
-    config_string = config_format.format(
-      cluster_hardware_name=cluster_hardware_name,
-      resource_type=resource_type,
-      total_chips=total_chips,
-      num_nodes=args.num_nodes)
-  else:
-    config_format = '''
+
+  config_format = '''
   - coveredResources: ["{resource_type}"]
     flavors:
     - name: {cluster_hardware_name}
@@ -3041,10 +3008,10 @@ def get_kueue_covered_resources_config(args, cluster_hardware_name, resource_typ
       - name: "{resource_type}"
         nominalQuota: {total_chips}
   '''
-    config_string = config_format.format(
-      cluster_hardware_name=cluster_hardware_name,
-      resource_type=resource_type,
-      total_chips=total_chips)
+  config_string = config_format.format(
+    cluster_hardware_name=cluster_hardware_name,
+    resource_type=resource_type,
+    total_chips=total_chips)
   return config_string
 
 
@@ -3828,7 +3795,7 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
   if args.use_pathways:
     return pw_volume_yaml
 
-  gpu_volume_yaml="""- name: nvidia-install-dir-host
+  h100_volume_yaml="""- name: nvidia-install-dir-host
                   mountPath: /usr/local/nvidia/lib64
                 - name: tcpx-nccl-plugin-volume
                   mountPath: /usr/local/tcpx
@@ -3838,9 +3805,17 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
                   mountPath: /dev/shm
                 - name: workload-terminated-volume
                   mountPath: /usr/share/workload"""
-
+  h150_volume_yaml="""- name: nvidia-install-dir-host
+                  mountPath: /usr/local/nvidia/lib64
+                - name: shared-memory
+                  mountPath: /dev/shm
+                - name: workload-terminated-volume
+                  mountPath: /usr/share/workload"""
   if system.accelerator_type == AcceleratorType['GPU']:
-    return gpu_volume_yaml
+    if args.device_type == h100_device_type:
+      return h100_volume_yaml
+    elif args.device_type == h150_device_type:
+      return h150_volume_yaml
 
   regular_volume_mount_yaml="""- mountPath: /dev/shm
                   name: dshm-2"""
@@ -3941,6 +3916,7 @@ def get_env_container(args, system: SystemCharacteristics):
     return pw_env_yaml.format(args=args)
 
   gpu_env_yaml="""
+                  {nccl_params}
                   - name: REPLICATED_JOB_NAME
                     valueFrom:
                       fieldRef:
@@ -3958,7 +3934,7 @@ def get_env_container(args, system: SystemCharacteristics):
                       fieldRef:
                         fieldPath: metadata.annotations['batch.kubernetes.io/job-completion-index']
                   - name: USE_GPUDIRECT
-                    value: "tcpx"
+                    value: {gpu_direct_name}
                   - name: GPUS_PER_NODE
                     value: "{system.chips_per_vm}"
                   - name: JAX_COORDINATOR_PORT
@@ -3970,13 +3946,47 @@ def get_env_container(args, system: SystemCharacteristics):
                   {args.env}"""
   if system.accelerator_type == AcceleratorType['GPU']:
     return gpu_env_yaml.format(args=args,
-                        system=system)
+                        system=system,
+                        nccl_params=get_gpu_nccl_params(args),
+                        gpu_direct_name=get_gpu_direct_name(args))
 
   if system.accelerator_type == AcceleratorType['CPU']:
     return get_cpu_env(args.num_slices, args.env, system)
 
   return args.env
 
+def get_gpu_nccl_params(args):
+  """Get gpu nccl configs based on user provided arguments.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    str: config containing the nccl config
+  """
+  nccl_params_yaml = """- name: NCCL_FASTRAK_ENABLE_CONTROL_CHANNEL
+                    value: "0"
+                  - name: NCCL_BUFFSIZE
+                    value: "8388608"
+                    """
+  if args.device_type == h150_device_type:
+    return nccl_params_yaml
+  else:
+    return ""
+
+def get_gpu_direct_name(args):
+  """Get tcp protocol name based on user provided arguments.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    str: tcp protocol name
+  """
+  if args.device_type == h100_device_type:
+    return "tcpx"
+  elif args.device_type == h150_device_type:
+    return "fastrak"
 
 def get_main_container_resources(args, system: SystemCharacteristics, resource_type) -> str:
   """ Resources for the main container.
@@ -4144,7 +4154,52 @@ def get_gke_debugging_dashboard(args):
 
   return dashboard_id
 
+def get_gpu_queue_name(args):
+  """Get name of localQueue based on user provided arguments.
 
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    str: name of the localQueue
+  """
+  if args.device_type == h100_device_type:
+    return "kueue.x-k8s.io/queue-name: multislice-queue"  # Name of the LocalQueue
+  else:
+    return "" #A3+ doesn't support Kueue yet
+
+def get_gpu_priority(args):
+  """Get workload priority based on user provided arguments.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    str: config containing the priority of the workload
+  """
+
+  if args.device_type == h100_device_type:
+    return f"priorityClassName: {args.priority}"
+  else:
+    return "" #A3+ doesn't support Kueue yet
+
+def get_rxdm_image_config(args):
+  """Get config of rxdm based on user provided arguments.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    str: yaml containing the rxdm name and image
+  """
+  if args.device_type == h100_device_type:
+    return """- name: tcpd-daemon
+                image: us-docker.pkg.dev/gce-ai-infra/gpudirect-tcpx/tcpgpudmarxd-dev:v2.0.9"""
+  elif args.device_type == h150_device_type:
+    return """- name: fastrak-daemon
+                image: us-docker.pkg.dev/gce-ai-infra/gpudirect-tcpxo/tcpgpudmarxd-dev:v1.0.6-sctp"""
+  return ""
+    
 def create_accelerator_label(accelerator_type, system) -> str:
   """Generates accelerator label.
 
@@ -4174,6 +4229,85 @@ def create_machine_label(accelerator_type, system, autoprovisioning_enabled: boo
     return f"{AcceleratorTypeToAcceleratorCharacteristics[accelerator_type].machine_label}: {system.topology}"
   return ""
 
+def get_node_pool_name(args):
+  """Get nodepool name based on user provided arguments.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    str: name of the nodepool (A3 has cluster-np-0, A3+ has np-1)
+  """
+  if args.device_type == h100_device_type:
+    return f'{args.cluster}-np-0'
+  elif args.device_type == h150_device_type:
+    return 'np-1'
+  return ""
+
+def get_gpu_rxdm_cmd(args):
+  """Get rxdm command based on user provided arguments.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    str: command of running rxdm container
+  """
+  if args.device_type == h100_device_type:
+    return "/tcpgpudmarxd/build/app/tcpgpudmarxd --gpu_nic_preset a3vm --gpu_shmem_type fd --setup_param \"--verbose 128 2 0\""
+  elif args.device_type == h150_device_type:
+    return "set -ex; chmod 755 /fts/entrypoint_rxdm_container.sh; /fts/entrypoint_rxdm_container.sh --num_hops=2 --num_nics=8 --uid= --alsologtostderr"
+
+def get_gpu_tcp_volume(args):
+  """Get gpu tcp volume based on user provided arguments.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    str: yaml containing gpu tcp volume
+  """
+  if args.device_type == h100_device_type:
+    return """- name: tcpd-socket
+                  mountPath: /tmp"""  
+  else:
+    return ""
+
+def get_gpu_volume(args):
+  """Get gpu volume based on user provided arguments.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    str: yaml containing gpu volume
+  """
+  if args.device_type == h100_device_type:
+    return """- name: nvidia-install-dir-host
+                hostPath:
+                  path: /home/kubernetes/bin/nvidia/lib64
+              - name: tcpd-socket
+                hostPath:
+                  path: /run/tcpx
+              - name: shared-memory
+                emptyDir:
+                  medium: "Memory"
+                  sizeLimit: 200Gi
+              - name: workload-terminated-volume
+                emptyDir:
+              - name: tcpx-nccl-plugin-volume
+                emptyDir:"""
+  elif args.device_type == h150_device_type:
+    return """- name: nvidia-install-dir-host
+                hostPath:
+                  path: /home/kubernetes/bin/nvidia/lib64
+              - name: shared-memory
+                emptyDir:
+                  medium: "Memory"
+                  sizeLimit: 1Gi
+              - name: workload-terminated-volume
+                emptyDir:"""
+  return ""
 
 def calculate_process_count(num_slices, vms_per_slice) -> str:
   """ Calculates the total number of processes in the workload.
@@ -4447,10 +4581,16 @@ def workload_create(args) -> int:
         container=container,
         docker_image=docker_image,
         command=args.command,
+        gpu_queue_name=get_gpu_queue_name(args),
+        gpu_priority=get_gpu_priority(args),
+        rxdm_image_config=get_rxdm_image_config(args),
         accelerator_label=create_accelerator_label(system.accelerator_type, system),
         machine_label=create_machine_label(system.accelerator_type, system),
-        node_pool_name=f'{args.cluster}-np-0',
+        node_pool_name=get_node_pool_name(args),
         chips_per_vm=system.chips_per_vm,
+        gpu_rxdm_cmd=get_gpu_rxdm_cmd(args),
+        gpu_tcp_volume=get_gpu_tcp_volume(args),
+        gpu_volume=get_gpu_volume(args),
         autoprovisioning_args=autoprovisioning_args
     )
   elif args.use_pathways:

@@ -5816,6 +5816,7 @@ def get_workload_list(args) -> tuple[int, str]:
       f' with filter-by-jobs={args.filter_by_job}',
       args,
   )
+
   return return_code, return_value
 
 
@@ -5924,7 +5925,7 @@ def workload_list(args) -> int:
   if return_code != 0:
     xpk_print(f'List Job request returned ERROR {return_code}')
     xpk_exit(return_code)
-  xpk_print(return_value)
+  xpk_print(f'Workload List Output:\n{return_value}')
   xpk_exit(0)
 
 

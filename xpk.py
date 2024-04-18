@@ -87,7 +87,7 @@ _CLUSTER_RESOURCES_CONFIGMAP = 'resources-configmap'
 _CLUSTER_METADATA_CONFIGMAP = 'metadata-configmap'
 _XPK_SERVICE_ACCOUNT = 'xpk-sa'
 # Set to True to attach a service account to cluster & node pools
-_SERVICE_ACCOUNT_FEATURE_FLAG = xpk_current_version >= '0.4.0'
+_SERVICE_ACCOUNT_FEATURE_FLAG = False
 _VERTEX_TENSORBOARD_FEATURE_FLAG = _SERVICE_ACCOUNT_FEATURE_FLAG
 _DEFAULT_VERTEX_TENSORBOARD_NAME = 'tb-instance'
 

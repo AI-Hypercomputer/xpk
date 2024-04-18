@@ -87,7 +87,7 @@ _CLUSTER_RESOURCES_CONFIGMAP = 'resources-configmap'
 _CLUSTER_METADATA_CONFIGMAP = 'metadata-configmap'
 _XPK_SERVICE_ACCOUNT = 'xpk-sa'
 # Set to True to attach a service account to cluster & node pools
-_SERVICE_ACCOUNT_FEATURE_FLAG = xpk_current_version >= '0.4.0'
+_SERVICE_ACCOUNT_FEATURE_FLAG = False
 _VERTEX_TENSORBOARD_FEATURE_FLAG = _SERVICE_ACCOUNT_FEATURE_FLAG
 _DEFAULT_VERTEX_TENSORBOARD_NAME = 'tb-instance'
 
@@ -2418,7 +2418,10 @@ def check_if_service_account_exists(args) -> bool:
     True if service account exist, False otherwise.
   """
   service_account_name = get_service_account_name(args)
-  command = f'gcloud iam service-accounts describe {service_account_name}'
+  command = (
+      'gcloud iam service-accounts describe'
+      f' {service_account_name} --project={args.project}'
+  )
   return_code = run_command_with_updates(
       command, 'Service Account Describe', args, verbose=False
   )
@@ -2441,7 +2444,7 @@ def create_service_account(args) -> int:
     0 if successful and 1 otherwise.
   """
   command = (
-      'gcloud iam service-accounts create'
+      f'gcloud iam service-accounts create --project={args.project}'
       f' {args.project}-{_XPK_SERVICE_ACCOUNT}     --description="Service'
       ' Account for XPK"    '
       f' --display-name="{args.project}-{_XPK_SERVICE_ACCOUNT}"'

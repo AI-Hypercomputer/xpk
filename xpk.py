@@ -265,10 +265,20 @@ spec:
           xpk.google.com/workload: {args.workload}
       spec:
         backoffLimit: 4
+        podFailurePolicy:
+          rules:
+          - action: Ignore          # one of: Ignore, FailJob, Count
+            onExitCodes:
+              containerName: "pathways-worker"
+              operator: In          # one of: In, NotIn
+              # TODO: verify this is the correct exit code
+              values: [143]         # Don't count SIGTERMed workers against the backoffLimit
+            onPodConditions: []
         completions: {system.vms_per_slice}
         parallelism: {system.vms_per_slice}
         template:
           spec:
+            restartPolicy: Never
             terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
             containers:
             - args:

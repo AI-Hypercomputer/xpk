@@ -67,7 +67,6 @@ if (
 
 default_docker_image = 'python:3.10'
 default_script_dir = os.getcwd()
-default_gke_version = '1.29.1-gke.1589017'
 # This is the version for XPK PyPI package
 __version__ = '0.4.0'
 xpk_current_version = __version__
@@ -2171,7 +2170,12 @@ def append_temporary_file(payload, file):
 
 
 def run_command_for_value(
-    command, task, global_args, dry_run_return_val='0', print_timer=False
+    command,
+    task,
+    global_args,
+    dry_run_return_val='0',
+    print_timer=False,
+    hide_error=False,
 ) -> tuple[int, str]:
   """Runs the command and returns the error code and stdout.
 
@@ -2182,6 +2186,8 @@ def run_command_for_value(
     task: user provided task name for running the command.
     global_args: user provided arguments for running the command.
     dry_run_return_val: return value of this command for dry run.
+    print_timer: print out the time the command is running.
+    hide_error: hide the error from the command output upon success.
 
   Returns:
     tuple[int, str]
@@ -2225,7 +2231,7 @@ def run_command_for_value(
       output = subprocess.check_output(
           command,
           shell=True,
-          stderr=subprocess.STDOUT,
+          stderr=subprocess.STDOUT if not hide_error else None,
       )
     except subprocess.CalledProcessError as e:
       xpk_print(f'Task {task} failed with {e.returncode}')
@@ -2755,11 +2761,12 @@ def enable_autoprovisioning_on_cluster(
   return autoprovisioning_config, return_code
 
 
-def run_gke_cluster_create_command(args) -> int:
+def run_gke_cluster_create_command(args, gke_control_plane_version: str) -> int:
   """Run the Create GKE Cluster request.
 
   Args:
     args: user provided arguments for running the command.
+    gke_control_plane_version: version used if creating the cluster.
 
   Returns:
     0 if successful and 1 otherwise.
@@ -2784,7 +2791,7 @@ def run_gke_cluster_create_command(args) -> int:
       f' {args.cluster} --project={args.project}'
       f' --region={zone_to_region(args.zone)}'
       f' --node-locations={args.zone}'
-      f' --cluster-version={args.gke_version}'
+      f' --cluster-version={gke_control_plane_version}'
       f' --machine-type={machine_type}'
       ' --enable-autoscaling'
       ' --total-min-nodes 1 --total-max-nodes 1000'
@@ -3388,11 +3395,12 @@ def get_all_clusters_programmatic(args) -> tuple[list[str], int]:
   return cluster_names, 0
 
 
-def create_cluster_if_necessary(args) -> int:
+def create_cluster_if_necessary(args, gke_control_plane_version: str) -> int:
   """Creates cluster if not present in the project.
 
   Args:
     args: user provided arguments for running the command.
+    gke_control_plane_version: version used if creating the cluster.
 
   Returns:
     0 if successful and 1 otherwise.
@@ -3402,10 +3410,10 @@ def create_cluster_if_necessary(args) -> int:
     xpk_print('Listing all clusters failed!')
     return 1
   if args.cluster in all_clusters:
-    xpk_print('Skipping cluster creation since it already exists')
+    xpk_print('Skipping cluster creation since it already exists.')
     return 0
   else:
-    return run_gke_cluster_create_command(args)
+    return run_gke_cluster_create_command(args, gke_control_plane_version)
 
 
 def get_all_nodepools_programmatic(args) -> tuple[list[str], int]:
@@ -3511,12 +3519,15 @@ def get_user_input(input_msg):
   return user_input in ('y', 'yes')
 
 
-def run_gke_node_pool_create_command(args, system) -> int:
+def run_gke_node_pool_create_command(
+    args, system, gke_node_pool_version
+) -> int:
   """Run the Create GKE Node Pool request.
 
   Args:
     args: user provided arguments for running the command.
     system: System characteristics based on device type/topology.
+    gke_node_pool_version: GKE version to use to create node pools.
 
   Returns:
     0 if successful and 1 otherwise.
@@ -3586,7 +3597,7 @@ def run_gke_node_pool_create_command(args, system) -> int:
         f' {args.custom_nodepool_arguments}'
     )
     if system.accelerator_type == AcceleratorType['TPU']:
-      command += f' --node-version={args.gke_version}'
+      command += f' --node-version={gke_node_pool_version}'
       command += f' --num-nodes={system.vms_per_slice}'
       command += ' --placement-type=COMPACT  --max-pods-per-node 15'
       command += ' --scopes=storage-full,gke-default'
@@ -3636,7 +3647,7 @@ def run_gke_node_pool_create_command(args, system) -> int:
         continue
       command = (
           'gcloud beta container node-pools create'
-          f' {node_pool_name} --node-version={args.gke_version}'
+          f' {node_pool_name} --node-version={gke_node_pool_version}'
           f' --cluster={args.cluster}'
           f' --project={args.project} --node-locations={args.zone}'
           f' --region={zone_to_region(args.zone)}'
@@ -4072,6 +4083,184 @@ def install_nccl_on_cluster(args) -> int:
   return 0
 
 
+@dataclass
+class GkeServerConfig:
+  """Stores the valid gke versions based on gcloud recommendations."""
+
+  default_rapid_gke_version: str
+  valid_master_versions: set[str]
+  valid_node_versions: set[str]
+
+
+def get_gke_server_config(args) -> tuple[int, GkeServerConfig | None]:
+  """Determine the GKE versions supported by gcloud currently.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    Tuple of
+    int: 0 if successful and 1 otherwise.
+    GkeServerConfig: stores valid gke version to use in node pool and cluster.
+  """
+  base_command = (
+      'gcloud container get-server-config'
+      f' --project={args.project} --region={zone_to_region(args.zone)}'
+  )
+  default_rapid_gke_version_cmd = (
+      base_command
+      + ' --flatten="channels" --filter="channels.channel=RAPID"'
+      ' --format="value(channels.defaultVersion)"'
+  )
+  valid_master_versions_cmd = (
+      base_command
+      + ' --flatten="channels" --format="value(validMasterVersions)"'
+  )
+  valid_node_versions_cmd = (
+      base_command + ' --flatten="channels" --format="value(validNodeVersions)"'
+  )
+  base_command_description = 'Determine server supported GKE versions for'
+
+  server_config_commands_and_descriptions = [
+      (
+          default_rapid_gke_version_cmd,
+          base_command_description + 'default rapid gke version',
+      ),
+      (
+          valid_master_versions_cmd,
+          base_command_description + 'valid master versions',
+      ),
+      (
+          valid_node_versions_cmd,
+          base_command_description + 'valid node versions',
+      ),
+  ]
+  command_outputs = []
+
+  for command, command_description in server_config_commands_and_descriptions:
+    return_code, cmd_output = run_command_for_value(
+        command,
+        command_description,
+        args,
+        hide_error=True,
+    )
+    if return_code != 0:
+      xpk_print(f'Unable to get server config for {command_description}.')
+      return return_code, None
+    command_outputs.append(cmd_output)
+
+  return 0, GkeServerConfig(
+      default_rapid_gke_version=command_outputs[0].strip(),
+      valid_master_versions=set(command_outputs[1].split(';')),
+      valid_node_versions=set(command_outputs[2].split(';')),
+  )
+
+
+def get_gke_control_plane_version(
+    args, gke_server_config: GkeServerConfig
+) -> tuple[int, str | None]:
+  """Determine gke control plane version for cluster creation.
+
+  Args:
+    args: user provided arguments for running the command.
+    gke_server_config: holds valid gke versions and recommended default version.
+
+  Returns:
+    Tuple of
+    int: 0 if successful and 1 otherwise.
+    str: gke control plane version to use.
+  """
+
+  # Override with user provide gke version if specified.
+  if args.gke_version is not None:
+    master_gke_version = args.gke_version
+  else:
+    master_gke_version = gke_server_config.default_rapid_gke_version
+
+  is_valid_master_version = (
+      master_gke_version in gke_server_config.valid_master_versions
+  )
+  is_valid_node_version = (
+      master_gke_version in gke_server_config.valid_node_versions
+  )
+
+  if not is_valid_master_version or not is_valid_node_version:
+    xpk_print(
+        f'Planned GKE Version: {master_gke_version}\n Valid Master'
+        f' Versions:\n{gke_server_config.valid_master_versions}\nValid Node'
+        f' Versions:\n{gke_server_config.valid_node_versions}\nRecommended GKE'
+        f' Version: {gke_server_config.default_rapid_gke_version}'
+    )
+    xpk_print(
+        f'Error: Planned GKE Version {master_gke_version} is not valid.'
+        f'Checks failed: Is Master Valid: {is_valid_master_version}'
+        f'\nIs Valid Node Version: {is_valid_node_version}'
+    )
+    xpk_print(
+        'Please select a gke version from the above list using --gke-version=x'
+        ' argument or rely on the default gke version:'
+        f' {gke_server_config.default_rapid_gke_version}'
+    )
+    return 1, None
+
+  return 0, master_gke_version
+
+
+def get_gke_node_pool_version(
+    args, gke_server_config: GkeServerConfig
+) -> tuple[int, str | None]:
+  """Determine the gke node pool version for the node pool.
+
+  Args:
+    args: user provided arguments for running the command.
+    gke_server_config: holds valid gke versions and recommended default version.
+
+  Returns:
+    Tuple of
+    int: 0 if successful and 1 otherwise.
+    str: gke control plane version to use.
+  """
+
+  # By default use the current gke master version for creating node pools.
+  command_description = 'Determine current gke master version'
+  command = (
+      f'gcloud beta container clusters describe {args.cluster}'
+      f' --region {zone_to_region(args.zone)} --project {args.project}'
+      ' --format="value(currentMasterVersion)"'
+  )
+
+  return_code, current_gke_master_version = run_command_for_value(
+      command, command_description, args
+  )
+  if return_code != 0:
+    xpk_print(
+        f'Unable to get server config for command: {command_description}.'
+    )
+    return return_code, None
+
+  # Override with user provide gke version if specified.
+  if args.gke_version is not None:
+    node_pool_gke_version = args.gke_version
+  else:
+    node_pool_gke_version = current_gke_master_version.strip()
+
+  is_supported_node_pool_version = (
+      node_pool_gke_version in gke_server_config.valid_node_versions
+  )
+  # In rare cases, user's provided gke version may be invalid, but gke will return an error if so.
+  # An example scenario is if the user provided gke version is greater than the master version.
+  if not is_supported_node_pool_version:
+    xpk_print(
+        f'Planned node pool version {node_pool_gke_version} is not supported in'
+        ' valid node_pool_gke_versions'
+        f' {gke_server_config.valid_node_versions}Please adjust the gke version'
+        ' using --gke-version=x or remove the arg and depend on xpk default of'
+        f' {current_gke_master_version}'
+    )
+    return 1, None
+  return 0, node_pool_gke_version
+
+
 ################### Subcommand Functions ###################
 def default_subcommand_function(
     _args,
@@ -4128,7 +4317,19 @@ def cluster_create(args) -> int:
     if add_roles_to_service_account_code != 0:
       xpk_exit(add_roles_to_service_account_code)
 
-  create_cluster_command_code = create_cluster_if_necessary(args)
+  return_code, gke_server_config = get_gke_server_config(args)
+  if return_code != 0:
+    xpk_exit(return_code)
+
+  return_code, gke_control_plane_version = get_gke_control_plane_version(
+      args, gke_server_config
+  )
+  if return_code != 0:
+    xpk_exit(return_code)
+
+  create_cluster_command_code = create_cluster_if_necessary(
+      args, gke_control_plane_version
+  )
   if create_cluster_command_code != 0:
     xpk_exit(create_cluster_command_code)
 
@@ -4156,8 +4357,16 @@ def cluster_create(args) -> int:
     if create_cluster_network_config_code != 0:
       xpk_exit(create_cluster_network_config_code)
 
+  # Check the control plane version of the cluster and determine the node pool
+  # version to use.
+  return_code, gke_node_pool_version = get_gke_node_pool_version(
+      args, gke_server_config
+  )
+  if return_code != 0:
+    xpk_exit(return_code)
+
   run_gke_node_pool_create_command_code = run_gke_node_pool_create_command(
-      args, system
+      args, system, gke_node_pool_version
   )
   if run_gke_node_pool_create_command_code != 0:
     xpk_exit(run_gke_node_pool_create_command_code)
@@ -6436,10 +6645,10 @@ cluster_create_optional_arguments.add_argument(
 cluster_create_optional_arguments.add_argument(
     '--gke-version',
     type=str,
-    default=default_gke_version,
     help=(
-        'The GKE version of the cluster and respective clusters. The default is'
-        f' "{default_gke_version}".'
+        'The GKE version of the cluster and respective clusters. The'
+        ' default is'
+        ' determined dynamically based on RAPID channel recommended version.'
     ),
 )
 cluster_create_optional_arguments.add_argument(

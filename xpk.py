@@ -261,11 +261,12 @@ spec:
         labels:
           xpk.google.com/workload: {args.workload}
       spec:
-        backoffLimit: 0
+        backoffLimit: 4
         completions: {system.vms_per_slice}
         parallelism: {system.vms_per_slice}
         template:
           spec:
+            terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
             containers:
             - args:
               {pathways_worker_args}
@@ -1875,6 +1876,14 @@ UserFacingNameToSystemCharacteristics = {
 """ If you modify UserFacingNameToSystemCharacteristics you should also modify
 the corresponding Map in MaxText/accelerator_to_spec_map.py """
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+PathwaysExpectedInstancesMap = {
+    'v5p': 'v5',
+    'v5litepod': 'v5e',
+    'v4': 'v4',
+    'v3': 'v3',
+}
 
 
 def chunks(lst, n):
@@ -4620,7 +4629,7 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
   return regular_volume_mount_yaml
 
 
-def get_pathways_rm_args(args) -> str:
+def get_pathways_rm_args(args, system: SystemCharacteristics) -> str:
   """Arguments for the Pathways resource manager.
   Args:
     args: user provided arguments for running the command.
@@ -4635,11 +4644,54 @@ def get_pathways_rm_args(args) -> str:
               - --pathways_persistent_compilation_cache=false
               - --pathways_compilation_mode=compile_at_worker
               - --pathways_tmp_dir_pattern={args.pathways_gcs_location}
-              - --pathways_resource_manager_expected_num_worker_jobs={args.num_slices}"""
+              - --pathways_expected_instances={expected_instances}"""
   if args.use_pathways:
-    return yaml.format(args=args)
+    return yaml.format(
+        args=args,
+        expected_instances=compute_pathways_expected_instances(args, system),
+    )
   else:
     return ''
+
+
+def compute_pathways_expected_instances(
+    args, system: SystemCharacteristics
+) -> str:
+  """Computes the expected instances from the system characteristics.
+  Args:
+    args: user provided args.
+    system: system characteristics.
+
+  Returns:
+    str: formatted string representing the expected instances (eg:
+    "tpuv4:2x2x2,tpuv4:2x2x2" for 2 slices of v4-16).
+  """
+  expected_instances = ','.join([
+      f'tpu{get_pathways_expected_tpu_type(system.device_type)}:{system.topology}'
+      for _ in range(args.num_slices)
+  ])
+
+  xpk_print(f'Pathways expected instances are: {expected_instances}')
+  return expected_instances
+
+
+def get_pathways_expected_tpu_type(device_type: str) -> str:
+  """Returns the device type expected by Pathways
+  Args:
+    device_type: the system characteristic device type
+
+  Returns:
+    str: the device type expected by pathways.
+  """
+  raw_type = device_type.split('-')[0].lower()
+  pathways_expected_instance = PathwaysExpectedInstancesMap[raw_type]
+  if not pathways_expected_instance:
+    xpk_print(
+        f'Passed in device_type {device_type} is incorrect. Please pass in a'
+        ' valid device type'
+    )
+    xpk_exit(1)
+  return pathways_expected_instance
 
 
 def get_pathways_worker_args(args) -> str:
@@ -5318,7 +5370,7 @@ def workload_create(args) -> int:
             system.accelerator_type, system
         ),
         machine_label=create_machine_label(system.accelerator_type, system),
-        pathways_rm_args=get_pathways_rm_args(args),
+        pathways_rm_args=get_pathways_rm_args(args, system),
         pathways_worker_args=get_pathways_worker_args(args),
         pathways_proxy_args=get_pathways_proxy_args(args),
         resource_type=resource_type,
@@ -5563,6 +5615,7 @@ def get_workload_list(args) -> tuple[int, str]:
       f' with filter-by-jobs={args.filter_by_job}',
       args,
   )
+
   return return_code, return_value
 
 
@@ -5671,7 +5724,7 @@ def workload_list(args) -> int:
   if return_code != 0:
     xpk_print(f'List Job request returned ERROR {return_code}')
     xpk_exit(return_code)
-  xpk_print(return_value)
+  xpk_print(f'Workload List Output:\n{return_value}')
   xpk_exit(0)
 
 

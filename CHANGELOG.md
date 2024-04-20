@@ -34,8 +34,12 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 
 -->
 
-## [Unreleased]
-- Move away from static GKE version and use RAPID release default.
+## [0.5.0] - 2024-04-22
+- Add support for node pools to call Vertex AI APIs.
+- Remove user-managed service account feature.
+- Add support to dynamically determine GKE version for cluster and node pools.
+- Add support for Pathways expected instances.
+- Set default backoff limit for Pathways workers to 4.
 
 ## [0.4.0] - 2024-04-17
 - Enable Autoprovisioning support.
@@ -82,3 +86,4 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 [0.2.0]: https://github.com/google/xpk/compare/v0.1.0...v0.2.0
 [0.3.0]: https://github.com/google/xpk/compare/v0.2.0...v0.3.0
 [0.4.0]: https://github.com/google/xpk/compare/v0.3.0...v0.4.0
+[0.5.0]: https://github.com/google/xpk/compare/v0.4.0...v0.5.0

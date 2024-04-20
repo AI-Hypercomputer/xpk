@@ -34,7 +34,7 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 
 -->
 
-## [0.5.0] - 2024-04-22
+## [0.5.0] - 2024-04-19
 - Add support for node pools to call Vertex AI APIs.
 - Remove user-managed service account feature.
 - Add support to dynamically determine GKE version for cluster and node pools.

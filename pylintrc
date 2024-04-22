@@ -5,14 +5,13 @@
 # Its canonical open-source location is:
 #   https://google.github.io/styleguide/pylintrc
 
-[MASTER]
+[MAIN]
 
-# Add files or directories to the blocked list. They should be base names, not
-# paths.
+# Files or directories to be skipped. They should be base names, not paths.
 ignore=third_party
 
-# Add files or directories matching the regex patterns to the blocked list. The
-# regex matches against base names, not paths.
+# Files or directories matching the regex patterns are skipped. The regex
+# matches against base names, not paths.
 ignore-patterns=
 
 # Pickle collected data for later comparisons.
@@ -51,18 +50,23 @@ confidence=
 # --enable=similarities". If you want to run only the classes checker, but have
 # no Warning level messages displayed, use"--disable=all --enable=classes
 # --disable=W"
-disable=apply-builtin,
+disable=R,
+        abstract-method,
+        apply-builtin,
+        arguments-differ,
+        attribute-defined-outside-init,
         backtick,
         bad-option-value,
+        basestring-builtin,
         buffer-builtin,
         c-extension-no-member,
+        consider-using-enumerate,
         cmp-builtin,
         cmp-method,
         coerce-builtin,
         coerce-method,
         delslice-method,
         div-method,
-        duplicate-code,
         eq-without-hash,
         execfile-builtin,
         file-builtin,
@@ -72,26 +76,28 @@ disable=apply-builtin,
         global-statement,
         hex-method,
         idiv-method,
-        implicit-str-concat-in-sequence,
+        implicit-str-concat,
         import-error,
         import-self,
         import-star-module-level,
         input-builtin,
         intern-builtin,
+        invalid-name,
         invalid-str-codec,
+        line-too-long,
         locally-disabled,
         long-builtin,
         long-suffix,
         map-builtin-not-iterating,
+        misplaced-comparison-constant,
+        missing-function-docstring,
         metaclass-assignment,
         next-method-called,
         next-method-defined,
         no-absolute-import,
-        no-else-break,
-        no-else-continue,
-        no-else-raise,
-        no-else-return,
+        no-init,  # added
         no-member,
+        no-name-in-module,
         no-self-use,
         nonzero-method,
         oct-method,
@@ -115,19 +121,10 @@ disable=apply-builtin,
         standarderror-builtin,
         suppressed-message,
         sys-max-int,
-        too-few-public-methods,
-        too-many-ancestors,
-        too-many-arguments,
-        too-many-boolean-expressions,
-        too-many-branches,
-        too-many-instance-attributes,
-        too-many-locals,
-        too-many-public-methods,
-        too-many-return-statements,
-        too-many-statements,
         trailing-newlines,
         unichr-builtin,
         unicode-builtin,
+        unnecessary-pass,
         unpacking-in-except,
         useless-else-on-loop,
         useless-suppression,
@@ -136,7 +133,7 @@ disable=apply-builtin,
         wrong-import-position,
         xrange-builtin,
         zip-builtin-not-iterating,
-	invalid-name,
+
 
 [REPORTS]
 
@@ -215,7 +212,7 @@ no-docstring-rgx=(__.*__|main|test.*|.*test|.*Test)$
 
 # Minimum line length for functions/classes that require docstrings, shorter
 # ones are exempt.
-docstring-min-length=10
+docstring-min-length=12
 
 
 [TYPECHECK]
@@ -224,10 +221,6 @@ docstring-min-length=10
 # contextlib.contextmanager. Add to this list to register other decorators that
 # produce valid context managers.
 contextmanager-decorators=contextlib.contextmanager,contextlib2.contextmanager
-
-# Tells whether missing members accessed in mixin class should be ignored. A
-# mixin class is detected if its name ends with "mixin" (case insensitive).
-ignore-mixin-members=yes
 
 # List of module names for which member attributes should not be checked
 # (useful for modules/projects where namespaces are manipulated during runtime
@@ -249,9 +242,9 @@ generated-members=
 [FORMAT]
 
 # Maximum number of characters on a single line.
-max-line-length=125
+max-line-length=88
 
-# TODO(https://github.com/PyCQA/pylint/issues/3352): Direct pylint to exempt
+# TODO(https://github.com/pylint-dev/pylint/issues/3352): Direct pylint to exempt
 # lines made too long by directives to pytype.
 
 # Regexp for a line that is allowed to be longer than the limit.
@@ -285,6 +278,13 @@ expected-line-ending-format=
 notes=TODO
 
 
+[STRING]
+
+# This flag controls whether inconsistent-quotes generates a warning when the
+# character used as a quote delimiter is used inconsistently within a module.
+check-quote-consistency=yes
+
+
 [VARIABLES]
 
 # Tells whether we should check for unused import in __init__ files.
@@ -311,7 +311,7 @@ redefining-builtins-modules=six,six.moves,past.builtins,future.builtins,functool
 
 # Logging modules to check that the string format arguments are in logging
 # function parameter format
-logging-modules=logging,absl.logging
+logging-modules=logging,absl.logging,tensorflow.io.logging
 
 
 [SIMILARITIES]
@@ -401,12 +401,3 @@ valid-classmethod-first-arg=cls,
 
 # List of valid names for the first argument in a metaclass class method.
 valid-metaclass-classmethod-first-arg=mcs
-
-
-[EXCEPTIONS]
-
-# Exceptions that will emit a warning when being caught. Defaults to
-# "Exception"
-overgeneral-exceptions=builtins.StandardError,
-                       builtins.Exception,
-                       builtins.BaseException

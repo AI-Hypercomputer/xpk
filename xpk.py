@@ -1,17 +1,17 @@
 """
- Copyright 2023 Google LLC
+Copyright 2023 Google LLC
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
-      https://www.apache.org/licenses/LICENSE-2.0
+     https://www.apache.org/licenses/LICENSE-2.0
 
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
 
 r"""xpk (Accelerated Processing Kit).
@@ -56,7 +56,8 @@ if (
     user_major_version < major_version_supported
     or user_minor_version < minor_version_supported
 ):
-  raise RuntimeError('xpk must be run with Python'
+  raise RuntimeError(
+      'xpk must be run with Python'
       f' {major_version_supported}.{minor_version_supported} or greater.'
       f' User currently is running {user_major_version}.{user_minor_version}'
   )
@@ -66,9 +67,9 @@ if (
 
 default_docker_image = 'python:3.10'
 default_script_dir = os.getcwd()
-default_gke_version="1.29.1-gke.1589017"
+default_gke_version = '1.29.1-gke.1589017'
 # This is the version for XPK PyPI package
-__version__ = "0.3.0"
+__version__ = '0.4.0'
 xpk_current_version = __version__
 
 h100_device_type = 'h100-80gb-8'
@@ -79,26 +80,23 @@ _AUTOPROVISIONING_CONFIG_MAXIMUM_KEY = 'maximum_chips'
 
 _CAPACITY_TYPE_CONFIG_KEY = 'capacity_type'
 _RESERVATION_CONFIG_KEY = 'reservation_id'
-_CLUSTER_QUEUE_NAME='cluster-queue'
-_LOCAL_QUEUE_NAME='multislice-queue'
-_DEFAULT_POOL_NAME='default-pool'
+_CLUSTER_QUEUE_NAME = 'cluster-queue'
+_LOCAL_QUEUE_NAME = 'multislice-queue'
+_DEFAULT_POOL_NAME = 'default-pool'
 _CLUSTER_RESOURCES_CONFIGMAP = 'resources-configmap'
 _CLUSTER_METADATA_CONFIGMAP = 'metadata-configmap'
 _XPK_SERVICE_ACCOUNT = 'xpk-sa'
 # Set to True to attach a service account to cluster & node pools
-_SERVICE_ACCOUNT_FEATURE_FLAG = xpk_current_version >= "0.4.0"
+_SERVICE_ACCOUNT_FEATURE_FLAG = xpk_current_version >= '0.4.0'
 _VERTEX_TENSORBOARD_FEATURE_FLAG = _SERVICE_ACCOUNT_FEATURE_FLAG
 _DEFAULT_VERTEX_TENSORBOARD_NAME = 'tb-instance'
 
-if _VERTEX_TENSORBOARD_FEATURE_FLAG:
-  from cloud_accelerator_diagnostics import tensorboard
-
 
 class CapacityType(enum.Enum):
-  ON_DEMAND='on_demand'
-  RESERVATION='reservation'
-  SPOT='spot'
-  UNKNOWN='unknown'
+  ON_DEMAND = 'on_demand'
+  RESERVATION = 'reservation'
+  SPOT = 'spot'
+  UNKNOWN = 'unknown'
 
 
 workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
@@ -139,10 +137,6 @@ spec:
               terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
               containers:
               {container}
-                {env}
-                volumeMounts:
-                - mountPath: /dev/shm
-                  name: dshm-2
               volumes:
               - emptyDir:
                   medium: Memory
@@ -637,20 +631,17 @@ autoprovisioning_custom_resource_type = """
 
 # Add IAM roles to attach to service account used by node pools in the cluster
 IAMRoles = {
-  'Kubernetes Engine Admin': 'roles/container.admin',
-  'Artifact Registry Writer': 'roles/artifactregistry.writer',
-  'Monitoring Admin': 'roles/monitoring.admin',
-  'Logging Admin': 'roles/logging.admin',
-  'Storage Admin': 'roles/storage.admin',
-  'Vertex AI Administrator': 'roles/aiplatform.admin'
+    'Kubernetes Engine Admin': 'roles/container.admin',
+    'Artifact Registry Writer': 'roles/artifactregistry.writer',
+    'Monitoring Admin': 'roles/monitoring.admin',
+    'Logging Admin': 'roles/logging.admin',
+    'Storage Admin': 'roles/storage.admin',
+    'Vertex AI Administrator': 'roles/aiplatform.admin',
 }
 
 
-AcceleratorType = {
-  'TPU': 1,
-  'GPU': 2,
-  'CPU': 3
-}
+AcceleratorType = {'TPU': 1, 'GPU': 2, 'CPU': 3}
+
 
 @dataclass
 class AutoprovisioningConfig:
@@ -665,19 +656,24 @@ class AcceleratorCharacteristics:
   accelerator_label: str
   machine_label: str
 
+
 AcceleratorTypeToAcceleratorCharacteristics = {
-     # TPU
-      AcceleratorType['TPU']: AcceleratorCharacteristics(
-      'google.com/tpu', 'cloud.google.com/gke-tpu-accelerator', 'cloud.google.com/gke-tpu-topology'
-      ),
-     # GPU
-      AcceleratorType['GPU']: AcceleratorCharacteristics(
-      'nvidia.com/gpu', 'cloud.google.com/gke-accelerator', 'cloud.google.com/gce-machine-type'
-      ),
-     # CPU
-      AcceleratorType['CPU']: AcceleratorCharacteristics(
-      'cpu', '', 'cloud.google.com/gke-nodepool'
-      )
+    # TPU
+    AcceleratorType['TPU']: AcceleratorCharacteristics(
+        'google.com/tpu',
+        'cloud.google.com/gke-tpu-accelerator',
+        'cloud.google.com/gke-tpu-topology',
+    ),
+    # GPU
+    AcceleratorType['GPU']: AcceleratorCharacteristics(
+        'nvidia.com/gpu',
+        'cloud.google.com/gke-accelerator',
+        'cloud.google.com/gce-machine-type',
+    ),
+    # CPU
+    AcceleratorType['CPU']: AcceleratorCharacteristics(
+        'cpu', '', 'cloud.google.com/gke-nodepool'
+    ),
 }
 
 
@@ -688,425 +684,1212 @@ class SystemCharacteristics:
   gke_accelerator: str
   gce_machine_type: str
   chips_per_vm: int
-  accelerator_type: AcceleratorType # type: ignore
+  accelerator_type: AcceleratorType  # type: ignore
   device_type: str
 
-################### Subcommand Helper Functions #############
+
+################### Subcommand Helper Functions #############################
 """ !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-IF YOU MODIFY THE BELOW UserFacingNameToSystemCharacteristics MAP YOU SHOULD ALSO ADD CORRESPONDING
-MODIFICATIONS TO UserFacingNameToSystemCharacteristics IN MaxText/accelerator_to_spec_map.py !!!!! """
-# vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+IF YOU MODIFY THE BELOW UserFacingNameToSystemCharacteristics MAP YOU SHOULD
+ALSO ADD CORRESPONDING MODIFICATIONS TO UserFacingNameToSystemCharacteristics
+IN MaxText/accelerator_to_spec_map.py !!!!! """
+# vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 UserFacingNameToSystemCharacteristics = {
     # GPU system characteristics
     # A100-40gb-$CHIPS
     'a100-40gb-1': SystemCharacteristics(
-      'N/A', 1, 'nvidia-tesla-a100', 'a2-highgpu-1g', 1, AcceleratorType['GPU'], 'a100-40gb-1'
+        'N/A',
+        1,
+        'nvidia-tesla-a100',
+        'a2-highgpu-1g',
+        1,
+        AcceleratorType['GPU'],
+        'a100-40gb-1',
     ),
     'a100-40gb-2': SystemCharacteristics(
-      'N/A', 1, 'nvidia-tesla-a100', 'a2-highgpu-2g', 2, AcceleratorType['GPU'], 'a100-40gb-2'
+        'N/A',
+        1,
+        'nvidia-tesla-a100',
+        'a2-highgpu-2g',
+        2,
+        AcceleratorType['GPU'],
+        'a100-40gb-2',
     ),
     'a100-40gb-4': SystemCharacteristics(
-      'N/A', 1, 'nvidia-tesla-a100', 'a2-highgpu-4g', 4, AcceleratorType['GPU'], 'a100-40gb-4'
+        'N/A',
+        1,
+        'nvidia-tesla-a100',
+        'a2-highgpu-4g',
+        4,
+        AcceleratorType['GPU'],
+        'a100-40gb-4',
     ),
     'a100-40gb-8': SystemCharacteristics(
-      'N/A', 1, 'nvidia-tesla-a100', 'a2-highgpu-8g', 8, AcceleratorType['GPU'], 'a100-40gb-8'
+        'N/A',
+        1,
+        'nvidia-tesla-a100',
+        'a2-highgpu-8g',
+        8,
+        AcceleratorType['GPU'],
+        'a100-40gb-8',
     ),
-     # H100-80gb-$CHIPS
+    # H100-80gb-$CHIPS
     'h100-80gb-8': SystemCharacteristics(
-      'N/A', 1, 'nvidia-h100-80gb', 'a3-highgpu-8g', 8, AcceleratorType['GPU'], 'h100-80gb-8'
+        'N/A',
+        1,
+        'nvidia-h100-80gb',
+        'a3-highgpu-8g',
+        8,
+        AcceleratorType['GPU'],
+        'h100-80gb-8',
     ),
-
     # TPU system characteristics
     # v5p
     'v5p-8': SystemCharacteristics(
-      '2x2x1', 1, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-8'
+        '2x2x1',
+        1,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-8',
     ),
     'v5p-16': SystemCharacteristics(
-      '2x2x2', 2, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-16'
+        '2x2x2',
+        2,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-16',
     ),
     'v5p-32': SystemCharacteristics(
-      '2x2x4', 4, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-32'
+        '2x2x4',
+        4,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-32',
     ),
     'v5p-64': SystemCharacteristics(
-      '2x4x4', 8, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-64'
+        '2x4x4',
+        8,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-64',
     ),
     'v5p-128': SystemCharacteristics(
-      '4x4x4', 16, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-128'
+        '4x4x4',
+        16,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-128',
     ),
     'v5p-256': SystemCharacteristics(
-      '4x4x8', 32, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-256'
+        '4x4x8',
+        32,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-256',
     ),
     'v5p-384': SystemCharacteristics(
-      '4x4x12', 48, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-384'
+        '4x4x12',
+        48,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-384',
     ),
     'v5p-512': SystemCharacteristics(
-      '4x8x8', 64, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-512'
+        '4x8x8',
+        64,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-512',
     ),
     'v5p-640': SystemCharacteristics(
-      '4x4x20', 80, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-640'
+        '4x4x20',
+        80,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-640',
     ),
     'v5p-768': SystemCharacteristics(
-      '4x8x12', 96, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-768'
+        '4x8x12',
+        96,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-768',
     ),
     'v5p-896': SystemCharacteristics(
-      '4x4x28', 112, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-896'
+        '4x4x28',
+        112,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-896',
     ),
     'v5p-1024': SystemCharacteristics(
-      '8x8x8', 128, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-1024'
+        '8x8x8',
+        128,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-1024',
     ),
     'v5p-1152': SystemCharacteristics(
-      '4x12x12', 144, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-1152'
+        '4x12x12',
+        144,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-1152',
     ),
     'v5p-1280': SystemCharacteristics(
-      '4x8x20', 160, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-1280'
+        '4x8x20',
+        160,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-1280',
     ),
     'v5p-1408': SystemCharacteristics(
-      '4x4x44', 176, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-1408'
+        '4x4x44',
+        176,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-1408',
     ),
     'v5p-1536': SystemCharacteristics(
-      '8x8x12', 192, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-1536'
+        '8x8x12',
+        192,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-1536',
     ),
     'v5p-1664': SystemCharacteristics(
-      '4x4x52', 208, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-1664'
+        '4x4x52',
+        208,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-1664',
     ),
     'v5p-1792': SystemCharacteristics(
-      '4x8x28', 224, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-1792'
+        '4x8x28',
+        224,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-1792',
     ),
     'v5p-1920': SystemCharacteristics(
-      '4x12x20', 240, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-1920'
+        '4x12x20',
+        240,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-1920',
     ),
     'v5p-2048': SystemCharacteristics(
-      '8x8x16', 256, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-2048'
+        '8x8x16',
+        256,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-2048',
     ),
     'v5p-2176': SystemCharacteristics(
-      '4x4x68', 272, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-2176'
+        '4x4x68',
+        272,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-2176',
     ),
     'v5p-2304': SystemCharacteristics(
-      '8x12x12', 288, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-2304'
+        '8x12x12',
+        288,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-2304',
     ),
     'v5p-2432': SystemCharacteristics(
-      '4x4x76', 304, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-2432'
+        '4x4x76',
+        304,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-2432',
     ),
     'v5p-2560': SystemCharacteristics(
-      '8x8x20', 320, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-2560'
+        '8x8x20',
+        320,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-2560',
     ),
     'v5p-2688': SystemCharacteristics(
-      '4x12x28', 336, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-2688'
+        '4x12x28',
+        336,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-2688',
     ),
     'v5p-2816': SystemCharacteristics(
-      '4x8x44', 352, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-2816'
+        '4x8x44',
+        352,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-2816',
     ),
     'v5p-2944': SystemCharacteristics(
-      '4x4x92', 368, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-2944'
+        '4x4x92',
+        368,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-2944',
     ),
     'v5p-3072': SystemCharacteristics(
-      '8x12x16', 384, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-3072'
+        '8x12x16',
+        384,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-3072',
     ),
     'v5p-3200': SystemCharacteristics(
-      '4x20x20', 400, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-3200'
+        '4x20x20',
+        400,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-3200',
     ),
     'v5p-3328': SystemCharacteristics(
-      '4x8x52', 416, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-3328'
+        '4x8x52',
+        416,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-3328',
     ),
     'v5p-3456': SystemCharacteristics(
-      '12x12x12', 432, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-3456'
+        '12x12x12',
+        432,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-3456',
     ),
     'v5p-3584': SystemCharacteristics(
-      '8x8x28', 448, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-3584'
+        '8x8x28',
+        448,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-3584',
     ),
     'v5p-3712': SystemCharacteristics(
-      '4x4x116', 464, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-3712'
+        '4x4x116',
+        464,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-3712',
     ),
     'v5p-3840': SystemCharacteristics(
-      '8x12x20', 480, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-3840'
+        '8x12x20',
+        480,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-3840',
     ),
     'v5p-3968': SystemCharacteristics(
-      '4x4x124', 496, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-3968'
+        '4x4x124',
+        496,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-3968',
     ),
     'v5p-4096': SystemCharacteristics(
-      '8x16x16', 512, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-4096'
+        '8x16x16',
+        512,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-4096',
     ),
     'v5p-4224': SystemCharacteristics(
-      '4x12x44', 528, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-4224'
+        '4x12x44',
+        528,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-4224',
     ),
     'v5p-4352': SystemCharacteristics(
-      '4x8x68', 544, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-4352'
+        '4x8x68',
+        544,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-4352',
     ),
     'v5p-4480': SystemCharacteristics(
-      '4x20x28', 560, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-4480'
+        '4x20x28',
+        560,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-4480',
     ),
     'v5p-4608': SystemCharacteristics(
-      '12x12x16', 576, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-4608'
+        '12x12x16',
+        576,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-4608',
     ),
     'v5p-4736': SystemCharacteristics(
-      '4x4x148', 592, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-4736'
+        '4x4x148',
+        592,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-4736',
     ),
     'v5p-4864': SystemCharacteristics(
-      '4x8x76', 608, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-4864'
+        '4x8x76',
+        608,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-4864',
     ),
     'v5p-4992': SystemCharacteristics(
-      '4x12x52', 624, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-4992'
+        '4x12x52',
+        624,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-4992',
     ),
     'v5p-5120': SystemCharacteristics(
-      '8x16x20', 640, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-5120'
+        '8x16x20',
+        640,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-5120',
     ),
     'v5p-5248': SystemCharacteristics(
-      '4x4x164', 656, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-5248'
+        '4x4x164',
+        656,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-5248',
     ),
     'v5p-5376': SystemCharacteristics(
-      '8x12x28', 672, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-5376'
+        '8x12x28',
+        672,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-5376',
     ),
     'v5p-5504': SystemCharacteristics(
-      '4x4x172', 688, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-5504'
+        '4x4x172',
+        688,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-5504',
     ),
     'v5p-5632': SystemCharacteristics(
-      '8x8x44', 704, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-5632'
+        '8x8x44',
+        704,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-5632',
     ),
     'v5p-5760': SystemCharacteristics(
-      '12x12x20', 720, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-5760'
+        '12x12x20',
+        720,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-5760',
     ),
     'v5p-5888': SystemCharacteristics(
-      '4x8x92', 736, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-5888'
+        '4x8x92',
+        736,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-5888',
     ),
     'v5p-6016': SystemCharacteristics(
-      '4x4x188', 752, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-6016'
+        '4x4x188',
+        752,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-6016',
     ),
     'v5p-6144': SystemCharacteristics(
-      '12x16x16', 768, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-6144'
+        '12x16x16',
+        768,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-6144',
     ),
     'v5p-6272': SystemCharacteristics(
-      '4x28x28', 784, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-6272'
+        '4x28x28',
+        784,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-6272',
     ),
     'v5p-6400': SystemCharacteristics(
-      '8x20x20', 800, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-6400'
+        '8x20x20',
+        800,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-6400',
     ),
     'v5p-6528': SystemCharacteristics(
-      '4x12x68', 816, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-6528'
+        '4x12x68',
+        816,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-6528',
     ),
     'v5p-6656': SystemCharacteristics(
-      '8x8x52', 832, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-6656'
+        '8x8x52',
+        832,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-6656',
     ),
     'v5p-6784': SystemCharacteristics(
-      '4x4x212', 848, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-6784'
+        '4x4x212',
+        848,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-6784',
     ),
     'v5p-6912': SystemCharacteristics(
-      '12x12x24', 864, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-6912'
+        '12x12x24',
+        864,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-6912',
     ),
     'v5p-7040': SystemCharacteristics(
-      '4x20x44', 880, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-7040'
+        '4x20x44',
+        880,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-7040',
     ),
     'v5p-7168': SystemCharacteristics(
-      '8x16x28', 896, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-7168'
+        '8x16x28',
+        896,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-7168',
     ),
     'v5p-7296': SystemCharacteristics(
-      '4x12x76', 912, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-7296'
+        '4x12x76',
+        912,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-7296',
     ),
     'v5p-7424': SystemCharacteristics(
-      '4x8x116', 928, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-7424'
+        '4x8x116',
+        928,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-7424',
     ),
     'v5p-7552': SystemCharacteristics(
-      '4x4x236', 944, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-7552'
+        '4x4x236',
+        944,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-7552',
     ),
     'v5p-7680': SystemCharacteristics(
-      '12x16x20', 960, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-7680'
+        '12x16x20',
+        960,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-7680',
     ),
     'v5p-7808': SystemCharacteristics(
-      '4x4x244', 976, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-7808'
+        '4x4x244',
+        976,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-7808',
     ),
     'v5p-7936': SystemCharacteristics(
-      '4x8x124', 992, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-7936'
+        '4x8x124',
+        992,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-7936',
     ),
     'v5p-8064': SystemCharacteristics(
-      '12x12x28', 1008, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-8064'
+        '12x12x28',
+        1008,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-8064',
     ),
     'v5p-8192': SystemCharacteristics(
-      '16x16x16', 1024, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-8192'
+        '16x16x16',
+        1024,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-8192',
     ),
     'v5p-8320': SystemCharacteristics(
-      '4x20x52', 1040, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-8320'
+        '4x20x52',
+        1040,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-8320',
     ),
     'v5p-8448': SystemCharacteristics(
-      '8x12x44', 1056, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-8448'
+        '8x12x44',
+        1056,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-8448',
     ),
     'v5p-8704': SystemCharacteristics(
-      '8x8x68', 1088, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-8704'
+        '8x8x68',
+        1088,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-8704',
     ),
     'v5p-8832': SystemCharacteristics(
-      '4x12x92', 1104, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-8832'
+        '4x12x92',
+        1104,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-8832',
     ),
     'v5p-8960': SystemCharacteristics(
-      '8x20x28', 1120, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-8960'
+        '8x20x28',
+        1120,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-8960',
     ),
     'v5p-9216': SystemCharacteristics(
-      '12x16x24', 1152, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-9216'
+        '12x16x24',
+        1152,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-9216',
     ),
     'v5p-9472': SystemCharacteristics(
-      '4x8x148', 1184, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-9472'
+        '4x8x148',
+        1184,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-9472',
     ),
     'v5p-9600': SystemCharacteristics(
-      '12x20x20', 1200, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-9600'
+        '12x20x20',
+        1200,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-9600',
     ),
     'v5p-9728': SystemCharacteristics(
-      '8x8x76', 1216, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-9728'
+        '8x8x76',
+        1216,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-9728',
     ),
     'v5p-9856': SystemCharacteristics(
-      '4x28x44', 1232, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-9856'
+        '4x28x44',
+        1232,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-9856',
     ),
     'v5p-9984': SystemCharacteristics(
-      '8x12x52', 1248, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-9984'
+        '8x12x52',
+        1248,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-9984',
     ),
     'v5p-10240': SystemCharacteristics(
-      '16x16x20', 1280, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-10240'
+        '16x16x20',
+        1280,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-10240',
     ),
     'v5p-10368': SystemCharacteristics(
-      '12x12x36', 1296, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-10368'
+        '12x12x36',
+        1296,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-10368',
     ),
     'v5p-10496': SystemCharacteristics(
-      '4x8x164', 1312, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-10496'
+        '4x8x164',
+        1312,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-10496',
     ),
     'v5p-10752': SystemCharacteristics(
-      '12x16x28', 1344, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-10752'
+        '12x16x28',
+        1344,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-10752',
     ),
     'v5p-10880': SystemCharacteristics(
-      '4x20x68', 1360, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-10880'
+        '4x20x68',
+        1360,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-10880',
     ),
     'v5p-11008': SystemCharacteristics(
-      '4x8x172', 1376, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-11008'
+        '4x8x172',
+        1376,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-11008',
     ),
     'v5p-11136': SystemCharacteristics(
-      '4x12x116', 1392, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-11136'
+        '4x12x116',
+        1392,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-11136',
     ),
     'v5p-11264': SystemCharacteristics(
-      '8x16x44', 1408, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-11264'
+        '8x16x44',
+        1408,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-11264',
     ),
     'v5p-11520': SystemCharacteristics(
-      '12x20x24', 1440, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-11520'
+        '12x20x24',
+        1440,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-11520',
     ),
     'v5p-11648': SystemCharacteristics(
-      '4x28x52', 1456, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-11648'
+        '4x28x52',
+        1456,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-11648',
     ),
     'v5p-11776': SystemCharacteristics(
-      '8x8x92', 1472, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-11776'
+        '8x8x92',
+        1472,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-11776',
     ),
     'v5p-11904': SystemCharacteristics(
-      '4x12x124', 1488, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-11904'
+        '4x12x124',
+        1488,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-11904',
     ),
     'v5p-12032': SystemCharacteristics(
-      '4x8x188', 1504, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-12032'
+        '4x8x188',
+        1504,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-12032',
     ),
     'v5p-12160': SystemCharacteristics(
-      '4x20x76', 1520, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-12160'
+        '4x20x76',
+        1520,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-12160',
     ),
     'v5p-12288': SystemCharacteristics(
-      '16x16x24', 1536, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-12288'
+        '16x16x24',
+        1536,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-12288',
     ),
     'v5p-13824': SystemCharacteristics(
-      '12x24x24', 1728, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-13824'
+        '12x24x24',
+        1728,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-13824',
     ),
     'v5p-17920': SystemCharacteristics(
-      '16x20x28', 2240, 'tpu-v5p-slice', 'ct5p-hightpu-4t', 4, AcceleratorType['TPU'], 'v5p-17920'
+        '16x20x28',
+        2240,
+        'tpu-v5p-slice',
+        'ct5p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5p-17920',
     ),
     # v5litepod
     'v5litepod-16': SystemCharacteristics(
-        '4x4', 4, 'tpu-v5-lite-podslice', 'ct5lp-hightpu-4t', 4, AcceleratorType['TPU'], 'v5litepod-16'
+        '4x4',
+        4,
+        'tpu-v5-lite-podslice',
+        'ct5lp-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5litepod-16',
     ),
     'v5litepod-32': SystemCharacteristics(
-        '4x8', 8, 'tpu-v5-lite-podslice', 'ct5lp-hightpu-4t', 4, AcceleratorType['TPU'], 'v5litepod-32'
+        '4x8',
+        8,
+        'tpu-v5-lite-podslice',
+        'ct5lp-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5litepod-32',
     ),
     'v5litepod-64': SystemCharacteristics(
-        '8x8', 16, 'tpu-v5-lite-podslice', 'ct5lp-hightpu-4t', 4, AcceleratorType['TPU'], 'v5litepod-64'
+        '8x8',
+        16,
+        'tpu-v5-lite-podslice',
+        'ct5lp-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5litepod-64',
     ),
     'v5litepod-128': SystemCharacteristics(
-        '8x16', 32, 'tpu-v5-lite-podslice', 'ct5lp-hightpu-4t', 4, AcceleratorType['TPU'], 'v5litepod-128'
+        '8x16',
+        32,
+        'tpu-v5-lite-podslice',
+        'ct5lp-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5litepod-128',
     ),
     'v5litepod-256': SystemCharacteristics(
-        '16x16', 64, 'tpu-v5-lite-podslice', 'ct5lp-hightpu-4t', 4, AcceleratorType['TPU'], 'v5litepod-256'
+        '16x16',
+        64,
+        'tpu-v5-lite-podslice',
+        'ct5lp-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v5litepod-256',
     ),
     # v4
     'v4-8': SystemCharacteristics(
-      '2x2x1', 1,'tpu-v4-podslice', 'ct4p-hightpu-4t', 4, AcceleratorType['TPU'], 'v4-8'
+        '2x2x1',
+        1,
+        'tpu-v4-podslice',
+        'ct4p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v4-8',
     ),
     'v4-16': SystemCharacteristics(
-      '2x2x2', 2,'tpu-v4-podslice', 'ct4p-hightpu-4t', 4, AcceleratorType['TPU'], 'v4-16'
+        '2x2x2',
+        2,
+        'tpu-v4-podslice',
+        'ct4p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v4-16',
     ),
     'v4-32': SystemCharacteristics(
-      '2x2x4', 4,'tpu-v4-podslice', 'ct4p-hightpu-4t', 4, AcceleratorType['TPU'], 'v4-32'
+        '2x2x4',
+        4,
+        'tpu-v4-podslice',
+        'ct4p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v4-32',
     ),
     'v4-64': SystemCharacteristics(
-      '2x4x4', 8,'tpu-v4-podslice', 'ct4p-hightpu-4t', 4, AcceleratorType['TPU'], 'v4-64'
+        '2x4x4',
+        8,
+        'tpu-v4-podslice',
+        'ct4p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v4-64',
     ),
     'v4-128': SystemCharacteristics(
-      '4x4x4', 16,'tpu-v4-podslice', 'ct4p-hightpu-4t', 4, AcceleratorType['TPU'], 'v4-128'
+        '4x4x4',
+        16,
+        'tpu-v4-podslice',
+        'ct4p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v4-128',
     ),
     'v4-256': SystemCharacteristics(
-      '4x4x8', 32,'tpu-v4-podslice', 'ct4p-hightpu-4t', 4, AcceleratorType['TPU'], 'v4-256'
+        '4x4x8',
+        32,
+        'tpu-v4-podslice',
+        'ct4p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v4-256',
     ),
     'v4-512': SystemCharacteristics(
-      '4x8x8', 64,'tpu-v4-podslice', 'ct4p-hightpu-4t', 4, AcceleratorType['TPU'], 'v4-512'
+        '4x8x8',
+        64,
+        'tpu-v4-podslice',
+        'ct4p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v4-512',
     ),
     'v4-1024': SystemCharacteristics(
-      '8x8x8', 128,'tpu-v4-podslice', 'ct4p-hightpu-4t', 4, AcceleratorType['TPU'], 'v4-1024'
+        '8x8x8',
+        128,
+        'tpu-v4-podslice',
+        'ct4p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v4-1024',
     ),
     'v4-1536': SystemCharacteristics(
-      '8x8x12', 192,'tpu-v4-podslice', 'ct4p-hightpu-4t', 4, AcceleratorType['TPU'], 'v4-1536'
+        '8x8x12',
+        192,
+        'tpu-v4-podslice',
+        'ct4p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v4-1536',
     ),
     'v4-2048': SystemCharacteristics(
-      '8x8x16', 256,'tpu-v4-podslice', 'ct4p-hightpu-4t', 4, AcceleratorType['TPU'], 'v4-2048'
+        '8x8x16',
+        256,
+        'tpu-v4-podslice',
+        'ct4p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v4-2048',
     ),
     'v4-4096': SystemCharacteristics(
-      '8x16x16', 512,'tpu-v4-podslice', 'ct4p-hightpu-4t', 4, AcceleratorType['TPU'], 'v4-4096'
+        '8x16x16',
+        512,
+        'tpu-v4-podslice',
+        'ct4p-hightpu-4t',
+        4,
+        AcceleratorType['TPU'],
+        'v4-4096',
     ),
-
     # CPU system characteristics
     # m1-megamem-96-$VMs
     'm1-megamem-96-1': SystemCharacteristics(
-      'N/A', 1,'N/A', 'm1-megamem-96', 1, AcceleratorType['CPU'], 'm1-megamem-96-1'
+        'N/A',
+        1,
+        'N/A',
+        'm1-megamem-96',
+        1,
+        AcceleratorType['CPU'],
+        'm1-megamem-96-1',
     ),
     # n2-standard-64-$VMs
     'n2-standard-64-1': SystemCharacteristics(
-      'N/A', 1,'N/A', 'n2-standard-64', 1, AcceleratorType['CPU'], 'n2-standard-64-1'
+        'N/A',
+        1,
+        'N/A',
+        'n2-standard-64',
+        1,
+        AcceleratorType['CPU'],
+        'n2-standard-64-1',
     ),
     # n2-standard-32-$VMs
     'n2-standard-32-1': SystemCharacteristics(
-      'N/A', 1,'N/A', 'n2-standard-32', 1, AcceleratorType['CPU'], 'n2-standard-32-1'
+        'N/A',
+        1,
+        'N/A',
+        'n2-standard-32',
+        1,
+        AcceleratorType['CPU'],
+        'n2-standard-32-1',
     ),
     'n2-standard-32-2': SystemCharacteristics(
-      'N/A', 2,'N/A', 'n2-standard-32', 1, AcceleratorType['CPU'], 'n2-standard-32-2'
+        'N/A',
+        2,
+        'N/A',
+        'n2-standard-32',
+        1,
+        AcceleratorType['CPU'],
+        'n2-standard-32-2',
     ),
     'n2-standard-32-4': SystemCharacteristics(
-      'N/A', 4,'N/A', 'n2-standard-32', 1, AcceleratorType['CPU'], 'n2-standard-32-4'
+        'N/A',
+        4,
+        'N/A',
+        'n2-standard-32',
+        1,
+        AcceleratorType['CPU'],
+        'n2-standard-32-4',
     ),
     'n2-standard-32-8': SystemCharacteristics(
-      'N/A', 8,'N/A', 'n2-standard-32', 1, AcceleratorType['CPU'], 'n2-standard-32-8'
+        'N/A',
+        8,
+        'N/A',
+        'n2-standard-32',
+        1,
+        AcceleratorType['CPU'],
+        'n2-standard-32-8',
     ),
     'n2-standard-32-16': SystemCharacteristics(
-      'N/A', 16,'N/A', 'n2-standard-32', 1, AcceleratorType['CPU'], 'n2-standard-32-16'
+        'N/A',
+        16,
+        'N/A',
+        'n2-standard-32',
+        1,
+        AcceleratorType['CPU'],
+        'n2-standard-32-16',
     ),
     'n2-standard-32-32': SystemCharacteristics(
-      'N/A', 32,'N/A', 'n2-standard-32', 1, AcceleratorType['CPU'], 'n2-standard-32-32'
+        'N/A',
+        32,
+        'N/A',
+        'n2-standard-32',
+        1,
+        AcceleratorType['CPU'],
+        'n2-standard-32-32',
     ),
     'n2-standard-32-64': SystemCharacteristics(
-      'N/A', 64,'N/A', 'n2-standard-32', 1, AcceleratorType['CPU'], 'n2-standard-32-64'
+        'N/A',
+        64,
+        'N/A',
+        'n2-standard-32',
+        1,
+        AcceleratorType['CPU'],
+        'n2-standard-32-64',
     ),
     'n2-standard-32-128': SystemCharacteristics(
-      'N/A', 128,'N/A', 'n2-standard-32', 1, AcceleratorType['CPU'], 'n2-standard-32-128'
+        'N/A',
+        128,
+        'N/A',
+        'n2-standard-32',
+        1,
+        AcceleratorType['CPU'],
+        'n2-standard-32-128',
     ),
     'n2-standard-32-256': SystemCharacteristics(
-      'N/A', 256,'N/A', 'n2-standard-32', 1, AcceleratorType['CPU'], 'n2-standard-32-256'
+        'N/A',
+        256,
+        'N/A',
+        'n2-standard-32',
+        1,
+        AcceleratorType['CPU'],
+        'n2-standard-32-256',
     ),
     'n2-standard-32-512': SystemCharacteristics(
-      'N/A', 512,'N/A', 'n2-standard-32', 1, AcceleratorType['CPU'], 'n2-standard-32-512'
+        'N/A',
+        512,
+        'N/A',
+        'n2-standard-32',
+        1,
+        AcceleratorType['CPU'],
+        'n2-standard-32-512',
     ),
     'n2-standard-32-1024': SystemCharacteristics(
-      'N/A', 1024,'N/A', 'n2-standard-32', 1, AcceleratorType['CPU'], 'n2-standard-32-1024'
+        'N/A',
+        1024,
+        'N/A',
+        'n2-standard-32',
+        1,
+        AcceleratorType['CPU'],
+        'n2-standard-32-1024',
     ),
     'n2-standard-32-2048': SystemCharacteristics(
-      'N/A', 2048,'N/A', 'n2-standard-32', 1, AcceleratorType['CPU'], 'n2-standard-32-2048'
+        'N/A',
+        2048,
+        'N/A',
+        'n2-standard-32',
+        1,
+        AcceleratorType['CPU'],
+        'n2-standard-32-2048',
     ),
 }
-""" If you modify UserFacingNameToSystemCharacteristics you should also modify the corresponding
-Map in MaxText/accelerator_to_spec_map.py """
-# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+""" If you modify UserFacingNameToSystemCharacteristics you should also modify
+the corresponding Map in MaxText/accelerator_to_spec_map.py """
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 
 def chunks(lst, n):
   """Return a list of n-sized chunks from lst.
@@ -1118,7 +1901,7 @@ def chunks(lst, n):
   Returns:
     List of n-sized chunks for lst.
   """
-  return [lst[i:i+n] for i in range(0, len(lst), n)]
+  return [lst[i : i + n] for i in range(0, len(lst), n)]
 
 
 def make_tmp_files(per_command_name):
@@ -1132,7 +1915,9 @@ def make_tmp_files(per_command_name):
   """
   # Supports removal of spaces from command names before converting to file name.
   return [
-      tempfile.NamedTemporaryFile(delete=False, prefix=command.replace(" ", "-") + '-')
+      tempfile.NamedTemporaryFile(
+          delete=False, prefix=command.replace(' ', '-') + '-'
+      )
       for command in per_command_name
   ]
 
@@ -1153,8 +1938,10 @@ def get_value_from_map(key: str, map_to_search: dict) -> tuple[int, str | None]:
   if value:
     return 0, value
   else:
-    xpk_print(f'Unable to find key: {key} in map: {map_to_search}.'
-              f'The map has the following keys: {map_to_search.keys()}')
+    xpk_print(
+        f'Unable to find key: {key} in map: {map_to_search}.'
+        f'The map has the following keys: {map_to_search.keys()}'
+    )
     return 1, value
 
 
@@ -1275,8 +2062,8 @@ def add_zone_and_project(args):
   xpk_print(f'Working on {args.project=} and {args.zone}')
 
 
-def add_env_config(args, tensorboard_config):
-  """Adds environment configurations to the jobset config.
+def parse_env_config(args, tensorboard_config):
+  """Parses the environment configurations to the jobset config.
 
   Args:
     args: user provided arguments for running the command.
@@ -1315,9 +2102,11 @@ def add_env_config(args, tensorboard_config):
       xpk_exit(1)
 
     if 'XLA_FLAGS' in env:
-      raise ValueError('Conflict: XLA_FLAGS defined in both --debug_dump_gcs '
-                       'and environment file. Please choose one way to define '
-                       'XLA_FLAGS.')
+      raise ValueError(
+          'Conflict: XLA_FLAGS defined in both --debug_dump_gcs '
+          'and environment file. Please choose one way to define '
+          'XLA_FLAGS.'
+      )
     env['XLA_FLAGS'] = '--xla_dump_to=/tmp/xla_dump/'
 
   if tensorboard_config:
@@ -1336,6 +2125,7 @@ def add_env_config(args, tensorboard_config):
                   value: "{value}"'''
 
   args.env = ''.join(env_format.format(key=k, value=v) for k, v in env.items())
+
 
 def write_temporary_file(payload):
   """Writes `payload` to a temporary file.
@@ -1398,9 +2188,7 @@ def run_command_for_value(
     return 0, dry_run_return_val
 
   if print_timer:
-    xpk_print(
-        f'Task: `{task}` is implemented by `{command}`'
-    )
+    xpk_print(f'Task: `{task}` is implemented by `{command}`')
     with subprocess.Popen(
         command,
         stdout=subprocess.PIPE,
@@ -1439,7 +2227,9 @@ def run_command_for_value(
     return 0, str(output, 'UTF-8')
 
 
-def run_command_with_updates_retry(command, task, args, verbose=True, num_retry_attempts=5, wait_seconds=10) -> int:
+def run_command_with_updates_retry(
+    command, task, args, verbose=True, num_retry_attempts=5, wait_seconds=10
+) -> int:
   """Generic run commands function with updates and retry logic.
 
   Args:
@@ -1447,8 +2237,10 @@ def run_command_with_updates_retry(command, task, args, verbose=True, num_retry_
     task: user-facing name of the task
     args: user provided arguments for running the command.
     verbose: shows stdout and stderr if set to true. Set to True by default.
-    num_retry_attempts: number of attempts to retry the command. This has a default value in the function arguments.
-    wait_seconds: Seconds to wait between attempts. Has a default value in the function arguments.
+    num_retry_attempts: number of attempts to retry the command.
+        This has a default value in the function arguments.
+    wait_seconds: Seconds to wait between attempts.
+        Has a default value in the function arguments.
 
   Returns:
     0 if successful and 1 otherwise.
@@ -1456,7 +2248,7 @@ def run_command_with_updates_retry(command, task, args, verbose=True, num_retry_
 
   i = 0
   return_code = -1
-  while (return_code != 0 and i < num_retry_attempts):
+  while return_code != 0 and i < num_retry_attempts:
     # Do not sleep before first try.
     if i != 0:
       xpk_print(f'Wait {wait_seconds} seconds before retrying.')
@@ -1615,6 +2407,7 @@ def get_service_account_name(args) -> str:
   """
   return f'{args.project}-{_XPK_SERVICE_ACCOUNT}@{args.project}.iam.gserviceaccount.com'
 
+
 def check_if_service_account_exists(args) -> bool:
   """Check if a service account with the given name exists in the project.
 
@@ -1625,14 +2418,18 @@ def check_if_service_account_exists(args) -> bool:
     True if service account exist, False otherwise.
   """
   service_account_name = get_service_account_name(args)
-  command = (
-    f'gcloud iam service-accounts describe {service_account_name}'
+  command = f'gcloud iam service-accounts describe {service_account_name}'
+  return_code = run_command_with_updates(
+      command, 'Service Account Describe', args, verbose=False
   )
-  return_code = run_command_with_updates(command, 'Service Account Describe', args, verbose=False)
   if return_code != 0:
-    xpk_print(f'Service Account Describe did not find the service account {service_account_name}.')
+    xpk_print(
+        'Service Account Describe did not find the service account'
+        f' {service_account_name}.'
+    )
     return False
   return True
+
 
 def create_service_account(args) -> int:
   """Creates a service account in the project.
@@ -1644,14 +2441,19 @@ def create_service_account(args) -> int:
     0 if successful and 1 otherwise.
   """
   command = (
-    f'gcloud iam service-accounts create {args.project}-{_XPK_SERVICE_ACCOUNT} \
-    --description="Service Account for XPK" \
-    --display-name="{args.project}-{_XPK_SERVICE_ACCOUNT}"'
+      'gcloud iam service-accounts create'
+      f' {args.project}-{_XPK_SERVICE_ACCOUNT}     --description="Service'
+      ' Account for XPK"    '
+      f' --display-name="{args.project}-{_XPK_SERVICE_ACCOUNT}"'
   )
-  return_code = run_command_with_updates(command, 'Service Account Create', args)
+  return_code = run_command_with_updates(
+      command, 'Service Account Create', args
+  )
   if return_code != 0:
     xpk_print(f'Service Account Create request returned ERROR {return_code}')
-    xpk_print('Make sure you have Service Account Admin Role attached to your user.')
+    xpk_print(
+        'Make sure you have Service Account Admin Role attached to your user.'
+    )
     return 1
   return 0
 
@@ -1667,13 +2469,18 @@ def get_existing_roles_in_service_account(args) -> set:
   roles = set()
   service_account_name = get_service_account_name(args)
   command = (
-    f'gcloud projects get-iam-policy {args.project}'
-    f' --filter="bindings.members:{service_account_name}"'
-    ' --flatten="bindings[].members" --format="table(bindings.role)"'
+      f'gcloud projects get-iam-policy {args.project}'
+      f' --filter="bindings.members:{service_account_name}"'
+      ' --flatten="bindings[].members" --format="table(bindings.role)"'
   )
-  return_code, return_value = run_command_for_value(command, 'Get IAM Roles For Service Account', args)
+  return_code, return_value = run_command_for_value(
+      command, 'Get IAM Roles For Service Account', args
+  )
   if return_code != 0:
-    xpk_print(f'Get IAM Roles For Service Account request returned ERROR {return_code}')
+    xpk_print(
+        'Get IAM Roles For Service Account request returned ERROR'
+        f' {return_code}'
+    )
   else:
     return_value = return_value.strip()
     roles = set(return_value.split('\n'))
@@ -1707,20 +2514,28 @@ def add_roles_to_service_account(args) -> int:
 
     xpk_print(f'Adding {name} role to service account: {service_account_name}.')
     command = (
-      f'gcloud projects add-iam-policy-binding {args.project} \
-      --member="serviceAccount:{service_account_name}" \
-      --role="{role}" \
-      --condition=None'
+        f'gcloud projects add-iam-policy-binding {args.project}      '
+        f' --member="serviceAccount:{service_account_name}"      '
+        f' --role="{role}"       --condition=None'
     )
-    return_code = run_command_with_updates(command, 'Add IAM Role to Service Account', args, verbose=False)
+    return_code = run_command_with_updates(
+        command, 'Add IAM Role to Service Account', args, verbose=False
+    )
     if return_code != 0:
-      xpk_print(f'Add IAM Role to Service Account request returned ERROR {return_code}')
-      xpk_print('Make sure you have Project IAM Admin Role attached to your user.')
+      xpk_print(
+          'Add IAM Role to Service Account request returned ERROR'
+          f' {return_code}'
+      )
+      xpk_print(
+          'Make sure you have Project IAM Admin Role attached to your user.'
+      )
       return 1
   return 0
 
 
-def get_total_chips_requested_from_args(args, system: SystemCharacteristics) -> int:
+def get_total_chips_requested_from_args(
+    args, system: SystemCharacteristics
+) -> int:
   """Return the total chips requested based on user args.
 
   Args:
@@ -1738,7 +2553,9 @@ def get_total_chips_requested_from_args(args, system: SystemCharacteristics) -> 
   return num_chips
 
 
-def create_autoprovisioning_config(args, system: SystemCharacteristics) -> tuple[AutoprovisioningConfig | None, int]:
+def create_autoprovisioning_config(
+    args, system: SystemCharacteristics
+) -> tuple[AutoprovisioningConfig | None, int]:
   """Create autoprovisioning config based on template file and user args
 
   Args:
@@ -1771,42 +2588,51 @@ def create_autoprovisioning_config(args, system: SystemCharacteristics) -> tuple
   # Check for user overrides.
   if args.autoprovisioning_min_chips:
     minimum = args.autoprovisioning_min_chips
-    xpk_print(f'User provided min chip quota of {minimum}. Overriding defaults.')
+    xpk_print(
+        f'User provided min chip quota of {minimum}. Overriding defaults.'
+    )
   if args.autoprovisioning_max_chips:
     maximum = args.autoprovisioning_max_chips
-    xpk_print(f'User provided max chip quota of {maximum}. Overriding defaults.')
+    xpk_print(
+        f'User provided max chip quota of {maximum}. Overriding defaults.'
+    )
 
   # Check for edge cases in min and max chip values.
   if minimum < 0:
-    xpk_print(f'Error: Minimum chips is set to {minimum}, and must be zero or greater.')
+    xpk_print(
+        f'Error: Minimum chips is set to {minimum}, and must be zero or'
+        ' greater.'
+    )
     return None, 1
   if maximum <= minimum or maximum < 0:
     xpk_print(
-      f'Error: Maximum chips is set to {maximum}, and must be greater than zero and'
-      f'greater or equal to minimum: {minimum}.'
-      'Use --autoprovisioning-max-chips=$MAX_CHIPS to adjust.'
+        f'Error: Maximum chips is set to {maximum}, and must be greater than'
+        f' zero and greater or equal to minimum: {minimum}.Use'
+        ' --autoprovisioning-max-chips=$MAX_CHIPS to adjust.'
     )
     return None, 1
   xpk_print(
-      f'Chips quota is minimum: {minimum}, maximum: {maximum}. XPK will autoprovision {maximum - minimum} chips'
-      f' based on incoming workload requests, keeping at least {minimum} available at all times, and maximum of {maximum}.'
-      f' If the difference ({maximum - minimum} chips) is small, rescaling will not work well.'
+      f'Chips quota is minimum: {minimum}, maximum: {maximum}. XPK will'
+      f' autoprovision {maximum - minimum} chips based on incoming workload'
+      f' requests, keeping at least {minimum} available at all times, and'
+      f' maximum of {maximum}. If the difference ({maximum - minimum} chips) is'
+      ' small, rescaling will not work well.'
   )
 
   custom_resource_string = autoprovisioning_custom_resource_type.format(
       resource_type=system.gke_accelerator,
-      minimum = minimum,
-      maximum = maximum,
+      minimum=minimum,
+      maximum=maximum,
   )
 
   resource_limits = autoprovisioning_resource_limits.format(
       cpu_limits=cpu_limits,
       memory_limits=memory_limits,
-      custom_resource_type=custom_resource_string
+      custom_resource_type=custom_resource_string,
   )
 
   # Default service_account is the project's default service account.
-  service_account = ""
+  service_account = ''
   if _SERVICE_ACCOUNT_FEATURE_FLAG:
     service_account_name = get_service_account_name(args)
     service_account_exists = check_if_service_account_exists(args)
@@ -1816,7 +2642,7 @@ def create_autoprovisioning_config(args, system: SystemCharacteristics) -> tuple
   yml_string = autoprovisioning_config_file.format(
       service_account=service_account,
       resource_limits=resource_limits,
-      zones=f'- {args.zone}'
+      zones=f'- {args.zone}',
   )
   autoprovisioning_config = AutoprovisioningConfig(
       config_filename=write_temporary_file(yml_string).name,
@@ -1826,8 +2652,9 @@ def create_autoprovisioning_config(args, system: SystemCharacteristics) -> tuple
   return autoprovisioning_config, 0
 
 
-def enable_autoprovisioning_on_cluster(args, system: SystemCharacteristics | None
-                                      ) -> tuple[AutoprovisioningConfig | None, int]:
+def enable_autoprovisioning_on_cluster(
+    args, system: SystemCharacteristics | None
+) -> tuple[AutoprovisioningConfig | None, int]:
   """Enable autoprovisioning on the cluster.
 
   Args:
@@ -1850,16 +2677,19 @@ def enable_autoprovisioning_on_cluster(args, system: SystemCharacteristics | Non
     xpk_print("Error: XPK NAP doesn't support Accelerators of Types: CPUs.")
     return None, 1
 
-  autoprovisioning_config, return_code = create_autoprovisioning_config(args, system)
+  autoprovisioning_config, return_code = create_autoprovisioning_config(
+      args, system
+  )
   if return_code != 0 or not autoprovisioning_config:
-    xpk_print("Unable to create autoprovisioning config.")
+    xpk_print('Unable to create autoprovisioning config.')
     return autoprovisioning_config, return_code
 
   command = (
-    f'gcloud container clusters update {args.cluster}'
-    f' --project={args.project}'
-    f' --region={zone_to_region(args.zone)}'
-    f' --enable-autoprovisioning --autoprovisioning-config-file {autoprovisioning_config.config_filename}'
+      'gcloud container clusters update'
+      f' {args.cluster} --project={args.project}'
+      f' --region={zone_to_region(args.zone)} --enable-autoprovisioning'
+      ' --autoprovisioning-config-file'
+      f' {autoprovisioning_config.config_filename}'
   )
   task = 'Update cluster with autoprovisioning enabled'
   return_code = run_command_with_updates(command, task, args)
@@ -1874,7 +2704,7 @@ def enable_autoprovisioning_on_cluster(args, system: SystemCharacteristics | Non
     return autoprovisioning_config, return_code
 
   desired_node_pool_names = [
-    f'{args.cluster}-np-{slice_num}' for slice_num in range(args.num_slices)
+      f'{args.cluster}-np-{slice_num}' for slice_num in range(args.num_slices)
   ]
 
   commands = []
@@ -1891,16 +2721,24 @@ def enable_autoprovisioning_on_cluster(args, system: SystemCharacteristics | Non
         ' --enable-autoprovisioning'
         ' --enable-autoscaling'
     )
-    task_name = f'Update node pool {node_pool_name} with autoprovisioning support.'
+    task_name = (
+        f'Update node pool {node_pool_name} with autoprovisioning support.'
+    )
     task_names.append(task_name)
 
   for i, command in enumerate(commands):
     xpk_print(f'To complete {task_names[i]} we are executing {command}')
   max_return_code = run_commands(
-      commands, 'Update node pools with autoprovisioning support', task_names, dry_run=args.dry_run
+      commands,
+      'Update node pools with autoprovisioning support',
+      task_names,
+      dry_run=args.dry_run,
   )
   if max_return_code != 0:
-    xpk_print(f'Update node pools with autoprovisioning support returned ERROR: {max_return_code}')
+    xpk_print(
+        'Update node pools with autoprovisioning support returned ERROR:'
+        f' {max_return_code}'
+    )
     return None, max_return_code
   return autoprovisioning_config, return_code
 
@@ -1917,10 +2755,12 @@ def run_gke_cluster_create_command(args) -> int:
   # cluster_cpu_machine_type is soon to be deprecated!
   machine_type = args.default_pool_cpu_machine_type
   if args.cluster_cpu_machine_type != '':
-    xpk_print('Warning: Note that cluster-cpu-machine-type is soon to be',
-              ' deprecated. Please use --default-pool-cpu-machine-type instead,'
-              ' to denote the machine type of the default cpu node pool. Set'
-              ' the machine type of other cpu nodepools using `--device-type`.')
+    xpk_print(
+        'Warning: Note that cluster-cpu-machine-type is soon to be',
+        ' deprecated. Please use --default-pool-cpu-machine-type instead,'
+        ' to denote the machine type of the default cpu node pool. Set'
+        ' the machine type of other cpu nodepools using `--device-type`.',
+    )
     machine_type = args.cluster_cpu_machine_type
 
   # Create the regional cluster with `num-nodes` CPU nodes in the same zone as
@@ -1934,8 +2774,9 @@ def run_gke_cluster_create_command(args) -> int:
       f' --node-locations={args.zone}'
       f' --cluster-version={args.gke_version}'
       f' --machine-type={machine_type}'
-       ' --enable-autoscaling'
-       ' --total-min-nodes 1 --total-max-nodes 1000 --num-nodes 6'
+      ' --enable-autoscaling'
+      ' --total-min-nodes 1 --total-max-nodes 1000'
+      f' --num-nodes {args.default_pool_cpu_num_nodes}'
       f' {args.custom_cluster_arguments}'
   )
 
@@ -1945,8 +2786,10 @@ def run_gke_cluster_create_command(args) -> int:
     if service_account_exists:
       command += f' --service-account={service_account_name}'
     else:
-      xpk_print(f'Service Account: {service_account_name} does not exist in the project.'
-              ' Will attach the default service account to the cluster.')
+      xpk_print(
+          f'Service Account: {service_account_name} does not exist in the'
+          ' project. Will attach the default service account to the cluster.'
+      )
 
   device_type = args.tpu_type if args.tpu_type else args.device_type
   if device_type == h100_device_type:
@@ -1961,8 +2804,8 @@ def run_gke_cluster_create_command(args) -> int:
     )
 
     if args.enable_pathways:
-      command += (' --enable-ip-alias')
-      command += (f' --create-subnetwork name={args.cluster}-subnetwork')
+      command += ' --enable-ip-alias'
+      command += f' --create-subnetwork name={args.cluster}-subnetwork'
 
   return_code = run_command_with_updates(command, 'GKE Cluster Create', args)
   if return_code != 0:
@@ -1981,7 +2824,7 @@ def set_up_cluster_network_for_a3(args) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
-  for i in range (1, 5):
+  for i in range(1, 5):
     return_code = create_cluster_network(args, i)
     if return_code != 0:
       return 1
@@ -2012,9 +2855,9 @@ def create_cluster_network(args, index) -> int:
   network_name = f'{args.cluster}-net-{index}'
   if network_name not in existing_network_names:
     command = (
-      f'gcloud compute --project={args.project}'
-      f' networks create {network_name}'
-      ' --subnet-mode=custom --mtu=8244'
+        f'gcloud compute --project={args.project}'
+        f' networks create {network_name}'
+        ' --subnet-mode=custom --mtu=8244'
     )
     return_code = run_command_with_updates(
         command, 'Create Cluster Network', args, verbose=False
@@ -2046,10 +2889,10 @@ def create_cluster_subnet(args, index) -> int:
   subnet_name = f'{args.cluster}-{zone_to_region(args.zone)}-sub-{index}'
   if subnet_name not in existing_subnet_names:
     command = (
-      f'gcloud compute --project={args.project}'
-      f' networks subnets create {subnet_name}'
-      f' --network={args.cluster}-net-{index}'
-      f' --region={zone_to_region(args.zone)} --range=192.168.{index}.0/24'
+        f'gcloud compute --project={args.project}'
+        f' networks subnets create {subnet_name}'
+        f' --network={args.cluster}-net-{index}'
+        f' --region={zone_to_region(args.zone)} --range=192.168.{index}.0/24'
     )
     return_code = run_command_with_updates(
         command, 'Create Cluster Subnet', args, verbose=False
@@ -2062,6 +2905,7 @@ def create_cluster_subnet(args, index) -> int:
     xpk_print(f'Reusing existing subnet {subnet_name}')
 
   return 0
+
 
 def delete_cluster_subnets(args) -> int:
   """Delete one GKE Cluster subnet.
@@ -2080,8 +2924,8 @@ def delete_cluster_subnets(args) -> int:
     subnet_name = f'{args.cluster}-{zone_to_region(args.zone)}-sub-{index}'
     if subnet_name in existing_subnet_names:
       command = (
-        f'gcloud compute networks subnets delete {subnet_name}'
-        f' --region={zone_to_region(args.zone)} --project={args.project} --quiet'
+          f'gcloud compute networks subnets delete {subnet_name}'
+          f' --region={zone_to_region(args.zone)} --project={args.project} --quiet'
       )
 
       return_code = run_command_with_updates(
@@ -2107,24 +2951,27 @@ def create_cluster_firewall_rule(args, index) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
-  existing_firewall_rules_names, return_code = get_all_firewall_rules_programmatic(args)
+  existing_firewall_rules_names, return_code = (
+      get_all_firewall_rules_programmatic(args)
+  )
   if return_code > 0:
     xpk_print('Listing all firewall rules failed!')
     return return_code
   firewall_rule_name = f'{args.cluster}-internal-{index}'
   if firewall_rule_name not in existing_firewall_rules_names:
     command = (
-      f'gcloud compute --project={args.project}'
-      f' firewall-rules create {firewall_rule_name}'
-      f' --network={args.cluster}-net-{index}'
-      ' --action=ALLOW --rules=tcp:0-65535,udp:0-65535,icmp --source-ranges=192.168.0.0/16'
+        f'gcloud compute --project={args.project} firewall-rules create'
+        f' {firewall_rule_name} --network={args.cluster}-net-{index} --action=ALLOW'
+        ' --rules=tcp:0-65535,udp:0-65535,icmp --source-ranges=192.168.0.0/16'
     )
     return_code = run_command_with_updates(
         command, 'Create Cluster Firewall Rule', args, verbose=False
     )
 
     if return_code != 0:
-      xpk_print(f'Create Cluster Firewall Rule request returned ERROR {return_code}')
+      xpk_print(
+          f'Create Cluster Firewall Rule request returned ERROR {return_code}'
+      )
       return 1
   else:
     xpk_print(f'Reusing existing firewall rule {firewall_rule_name}')
@@ -2144,9 +2991,13 @@ def create_cluster_network_config(args) -> int:
   tmp = write_temporary_file(yml_string)
   command = f'kubectl apply -f {str(tmp.file.name)}'
 
-  return_code = run_command_with_updates(command, 'GKE Cluster Create Network Config', args)
+  return_code = run_command_with_updates(
+      command, 'GKE Cluster Create Network Config', args
+  )
   if return_code != 0:
-    xpk_print(f'GKE Cluster Create ConfigMap request returned ERROR {return_code}')
+    xpk_print(
+        f'GKE Cluster Create ConfigMap request returned ERROR {return_code}'
+    )
     return 1
 
   return 0
@@ -2161,12 +3012,9 @@ def print_reservations(args) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
-  command = (
-        f'gcloud beta compute reservations list --project={args.project}'
-    )
-  return_code = (
-      run_command_with_updates(
-          command, 'Get all reservations in the project', args)
+  command = f'gcloud beta compute reservations list --project={args.project}'
+  return_code = run_command_with_updates(
+      command, 'Get all reservations in the project', args
   )
   if return_code != 0:
     xpk_print(f'Get all reservations returned ERROR {return_code}')
@@ -2184,13 +3032,10 @@ def verify_reservation_exists(args) -> int:
     0 if successful and 1 otherwise.
   """
   command = (
-        f'gcloud beta compute reservations describe {args.reservation}'
-        f' --project={args.project} --zone={args.zone}'
-    )
-  return_code = (
-      run_command_with_updates(
-          command, 'Describe reservation', args)
+      f'gcloud beta compute reservations describe {args.reservation}'
+      f' --project={args.project} --zone={args.zone}'
   )
+  return_code = run_command_with_updates(command, 'Describe reservation', args)
   if return_code != 0:
     xpk_print(f'Describe reservation returned ERROR {return_code}')
     xpk_print('Please confirm that your reservation name is correct.')
@@ -2215,32 +3060,34 @@ def get_capacity_type(args) -> tuple[CapacityType, int]:
   # Determine the capacity argument.
   if args.on_demand:
     capacity_type = CapacityType.ON_DEMAND
-    num_types+=1
+    num_types += 1
   if args.reservation:
     return_code = verify_reservation_exists(args)
     if return_code > 0:
       return capacity_type, return_code
     capacity_type = CapacityType.RESERVATION
-    num_types+=1
+    num_types += 1
   if args.spot:
     capacity_type = CapacityType.SPOT
-    num_types+=1
+    num_types += 1
 
   # Check that the number of user arguments provided is valid.
   if num_types == 0:
     capacity_type = CapacityType.UNKNOWN
   elif num_types != 1:
     xpk_print(
-      'ERROR: User specified more than one of the following arguments. Please'
-      ' specify only one of `--reservation=$RESERVATION_NAME`, `--on-demand`'
-      ' or `--spot`.'
+        'ERROR: User specified more than one of the following arguments. Please'
+        ' specify only one of `--reservation=$RESERVATION_NAME`, `--on-demand`'
+        ' or `--spot`.'
     )
     return_code = 1
 
   return capacity_type, return_code
 
 
-def get_capacity_arguments_from_capacity_type(args, capacity_type: CapacityType) -> tuple[str, int]:
+def get_capacity_arguments_from_capacity_type(
+    args, capacity_type: CapacityType
+) -> tuple[str, int]:
   """Determine the TPU Nodepool creation capacity arguments needed.
 
   Args:
@@ -2251,25 +3098,30 @@ def get_capacity_arguments_from_capacity_type(args, capacity_type: CapacityType)
     Tuple with string with the capacity argument to use and
     int of 0 if successful and 1 otherwise.
   """
-  capacity_args = ""
+  capacity_args = ''
   return_code = 0
 
   match capacity_type:
     case CapacityType.ON_DEMAND:
-      capacity_args = ""
+      capacity_args = ''
     case CapacityType.SPOT:
-      capacity_args = "--spot"
+      capacity_args = '--spot'
     case CapacityType.RESERVATION:
       capacity_args = (
-        f'--reservation-affinity=specific --reservation={args.reservation}'
+          f'--reservation-affinity=specific --reservation={args.reservation}'
       )
     case _:
-      xpk_print(f'Unknown capacity type: {capacity_type}. Unable to determine capacity args.')
+      xpk_print(
+          f'Unknown capacity type: {capacity_type}. Unable to determine'
+          ' capacity args.'
+      )
       return_code = 1
   return capacity_args, return_code
 
 
-def get_capacity_node_selectors_from_capacity_type(args, capacity_type: str) -> tuple[str, int]:
+def get_capacity_node_selectors_from_capacity_type(
+    args, capacity_type: str
+) -> tuple[str, int]:
   """Determine the node selectors for a workload to run on a specific capacity type.
 
   Args:
@@ -2280,20 +3132,21 @@ def get_capacity_node_selectors_from_capacity_type(args, capacity_type: str) -> 
     Tuple with string with the node selectors to use and
     int of 0 if successful and 1 otherwise.
   """
-  node_selector = ""
+  node_selector = ''
   return_code = 0
 
   match capacity_type:
     case CapacityType.ON_DEMAND.name:
-      node_selector = ""
+      node_selector = ''
     case CapacityType.SPOT.name:
-      node_selector = 'cloud.google.com/gke-spot=\"true\"'
+      node_selector = 'cloud.google.com/gke-spot="true"'
     case CapacityType.RESERVATION.name:
-      node_selector = (
-        f'cloud.google.com/reservation-name: {args.reservation}'
-      )
+      node_selector = f'cloud.google.com/reservation-name: {args.reservation}'
     case _:
-      xpk_print(f'Unknown capacity type: {capacity_type}. Unable to determine the node selectors.')
+      xpk_print(
+          f'Unknown capacity type: {capacity_type}. Unable to determine the'
+          ' node selectors.'
+      )
       return_code = 1
   return node_selector, return_code
 
@@ -2315,15 +3168,53 @@ def create_or_update_cluster_configmap(configmap_yml: dict) -> int:
     task_name = f'ConfigMap Create/Update-{configmap_name}'
     task_names.append(task_name)
 
-  return_code = run_commands(commands, 'GKE Cluster Create/Update ConfigMap(s)', task_names)
+  return_code = run_commands(
+      commands, 'GKE Cluster Create/Update ConfigMap(s)', task_names
+  )
   if return_code != 0:
-    xpk_print(f'GKE Cluster Create/Update ConfigMap(s) request returned ERROR {return_code}')
+    xpk_print(
+        'GKE Cluster Create/Update ConfigMap(s) request returned ERROR'
+        f' {return_code}'
+    )
     return 1
   return 0
 
 
-def create_cluster_configmaps(args, system, tensorboard_config: dict,
-                              autoprovisioning_config: AutoprovisioningConfig | None) -> int:
+def create_or_update_cluster_configmap(configmap_yml: dict) -> int:
+  """
+  Args:
+    configmap_yml: dict containing ConfigMap name and yml string.
+
+  Returns:
+    0 if successful, 1 otherwise.
+  """
+  commands = []
+  task_names = []
+  for configmap_name, yml_string in configmap_yml.items():
+    tmp = write_temporary_file(yml_string)
+    command = f'kubectl apply -f {str(tmp.file.name)}'
+    commands.append(command)
+    task_name = f'ConfigMap Create/Update-{configmap_name}'
+    task_names.append(task_name)
+
+  return_code = run_commands(
+      commands, 'GKE Cluster Create/Update ConfigMap(s)', task_names
+  )
+  if return_code != 0:
+    xpk_print(
+        'GKE Cluster Create/Update ConfigMap(s) request returned ERROR'
+        f' {return_code}'
+    )
+    return 1
+  return 0
+
+
+def create_cluster_configmaps(
+    args,
+    system,
+    tensorboard_config: dict,
+    autoprovisioning_config: AutoprovisioningConfig | None,
+) -> int:
   """Run the Create GKE Cluster ConfigMap request.
 
   Args:
@@ -2342,15 +3233,25 @@ def create_cluster_configmaps(args, system, tensorboard_config: dict,
     resources_data = f'{device_type}: "{int(args.num_nodes)}"'
   elif args.enable_autoprovisioning and autoprovisioning_config:
     # Auto provisioning will have variable topologies for a gke accelerator type.
-    resources_data = f'{system.gke_accelerator}: {_AUTOPROVISIONING_CONFIG_VALUE}'
-    resources_data += f'\n  {_AUTOPROVISIONING_CONFIG_MINIMUM_KEY}: "{autoprovisioning_config.minimum_chips}"'
-    resources_data += f'\n  {_AUTOPROVISIONING_CONFIG_MAXIMUM_KEY}: "{autoprovisioning_config.maximum_chips}"'
+    resources_data = (
+        f'{system.gke_accelerator}: {_AUTOPROVISIONING_CONFIG_VALUE}'
+    )
+    resources_data += (
+        f'\n  {_AUTOPROVISIONING_CONFIG_MINIMUM_KEY}:'
+        f' "{autoprovisioning_config.minimum_chips}"'
+    )
+    resources_data += (
+        f'\n  {_AUTOPROVISIONING_CONFIG_MAXIMUM_KEY}:'
+        f' "{autoprovisioning_config.maximum_chips}"'
+    )
   else:
-    resources_data = f'{device_type}: "{int(args.num_slices) * system.vms_per_slice}"'
+    resources_data = (
+        f'{device_type}: "{int(args.num_slices) * system.vms_per_slice}"'
+    )
   resources_configmap_name = f'{args.cluster}-{_CLUSTER_RESOURCES_CONFIGMAP}'
-  resources_yml = cluster_configmap_yaml.format(args=args,
-                                                name=resources_configmap_name,
-                                                data=resources_data)
+  resources_yml = cluster_configmap_yaml.format(
+      args=args, name=resources_configmap_name, data=resources_data
+  )
   configmap_yml[resources_configmap_name] = resources_yml
 
   # ConfigMap to store cluster metadata.
@@ -2369,9 +3270,9 @@ def create_cluster_configmaps(args, system, tensorboard_config: dict,
   if capacity_type == CapacityType.RESERVATION:
     metadata += f'\n  {_RESERVATION_CONFIG_KEY}: {args.reservation}'
   metadata_configmap_name = f'{args.cluster}-{_CLUSTER_METADATA_CONFIGMAP}'
-  metadata_yml = cluster_configmap_yaml.format(args=args,
-                                               name=metadata_configmap_name,
-                                               data=metadata)
+  metadata_yml = cluster_configmap_yaml.format(
+      args=args, name=metadata_configmap_name, data=metadata
+  )
   configmap_yml[metadata_configmap_name] = metadata_yml
   return create_or_update_cluster_configmap(configmap_yml)
 
@@ -2387,10 +3288,13 @@ def get_cluster_configmap(args, configmap_name) -> dict[str, str] | None:
     key:value pairs stored in cluster ConfigMap.
   """
   command = (
-    f'kubectl get configmap {configmap_name} -o=custom-columns="ConfigData:data" --no-headers=true'
+      'kubectl get configmap'
+      f' {configmap_name} -o=custom-columns="ConfigData:data" --no-headers=true'
   )
 
-  return_code, return_value = run_command_for_value(command, 'GKE Cluster Get ConfigMap', args)
+  return_code, return_value = run_command_for_value(
+      command, 'GKE Cluster Get ConfigMap', args
+  )
   if return_code != 0:
     xpk_print(f'GKE Cluster Get ConfigMap request returned ERROR {return_code}')
     return None
@@ -2400,11 +3304,11 @@ def get_cluster_configmap(args, configmap_name) -> dict[str, str] | None:
 
   if return_value:
     # Format of ConfigMap: map[key1:value1 key2:value2]
-    return_value = return_value[return_value.index("map"):]
-    configs = return_value[4:-1].split(" ")
+    return_value = return_value[return_value.index('map') :]
+    configs = return_value[4:-1].split(' ')
 
     for config in configs:
-      key, value = config.strip().split(":")
+      key, value = config.strip().split(':')
       config_map[key] = value
   return config_map
 
@@ -2418,15 +3322,21 @@ def create_vertex_tensorboard(args) -> dict:
   Returns:
     dict containing Tensorboard instance name, id and location.
   """
+  from cloud_accelerator_diagnostics import tensorboard  # pylint: disable=import-outside-toplevel
+
   tensorboard_config = {}
   tensorboard_name = args.tensorboard_name
   if tensorboard_name is None:
     tensorboard_name = f'{args.cluster}-{_DEFAULT_VERTEX_TENSORBOARD_NAME}'
-  instance_id = tensorboard.create_instance(project=args.project,  # pylint: disable=used-before-assignment
-                                            location=args.tensorboard_region,
-                                            tensorboard_name=tensorboard_name)
+  instance_id = tensorboard.create_instance(  # pylint: disable=used-before-assignment
+      project=args.project,
+      location=args.tensorboard_region,
+      tensorboard_name=tensorboard_name,
+  )
   if instance_id:
-    xpk_print(f'Tensorboard instance {tensorboard_name} is successfully created.')
+    xpk_print(
+        f'Tensorboard instance {tensorboard_name} is successfully created.'
+    )
     tensorboard_config['tensorboard_region'] = args.tensorboard_region
     tensorboard_config['tensorboard_name'] = tensorboard_name
     tensorboard_config['tensorboard_id'] = instance_id
@@ -2442,29 +3352,39 @@ def create_vertex_experiment(args) -> dict:
   Returns:
     map containing Vertex Tensorboard configurations.
   """
+  from cloud_accelerator_diagnostics import tensorboard  # pylint: disable=import-outside-toplevel
+
   metadata_configmap_name = f'{args.cluster}-{_CLUSTER_METADATA_CONFIGMAP}'
   cluster_config_map = get_cluster_configmap(args, metadata_configmap_name)
 
   if cluster_config_map is None or 'tensorboard_name' not in cluster_config_map:
-    xpk_print('No Vertex Tensorboard instance has been created in cluster create.'
-              ' Run `xpk cluster create --create-vertex-tensorboard` before running'
-              ' `xpk workload create --use-vertex-tensorboard` to create a Vertex'
-              ' Tensorboard instance.')
+    xpk_print(
+        'No Vertex Tensorboard instance has been created in cluster create.'
+        ' Run `xpk cluster create --create-vertex-tensorboard` before running'
+        ' `xpk workload create --use-vertex-tensorboard` to create a Vertex'
+        ' Tensorboard instance.'
+    )
     return None
 
   tensorboard_config = {}
   tensorboard_config['tensorboard_project'] = args.project
-  tensorboard_config['tensorboard_region'] = cluster_config_map['tensorboard_region']
-  tensorboard_config['tensorboard_name'] = cluster_config_map['tensorboard_name']
+  tensorboard_config['tensorboard_region'] = cluster_config_map[
+      'tensorboard_region'
+  ]
+  tensorboard_config['tensorboard_name'] = cluster_config_map[
+      'tensorboard_name'
+  ]
   experiment_name = args.experiment_name
   if experiment_name is None:
     experiment_name = f'{args.cluster}-{args.workload}'
   tensorboard_config['experiment_name'] = experiment_name
 
-  _, tensorboard_url = tensorboard.create_experiment(project=args.project,
-                                location=tensorboard_config['tensorboard_region'],
-                                experiment_name=experiment_name,
-                                tensorboard_name=tensorboard_config['tensorboard_name'])
+  _, tensorboard_url = tensorboard.create_experiment(
+      project=args.project,
+      location=tensorboard_config['tensorboard_region'],
+      experiment_name=experiment_name,
+      tensorboard_name=tensorboard_config['tensorboard_name'],
+  )
   if tensorboard_url is None:
     return None
 
@@ -2532,8 +3452,8 @@ def get_nodepool_zone(args, nodepool_name) -> tuple[int, str]:
       f' --cluster {args.cluster} --project={args.project}'
       f' --region={zone_to_region(args.zone)} --format="value(locations)"'
   )
-  return_code, nodepool_zone = (
-      run_command_for_value(command, 'Get Node Pool Zone', args)
+  return_code, nodepool_zone = run_command_for_value(
+      command, 'Get Node Pool Zone', args
   )
   if return_code != 0:
     xpk_print(f'Get Node Pool Zone returned ERROR {return_code}')
@@ -2555,7 +3475,9 @@ def check_device_type_in_cluster(args, device_type) -> bool:
   resources_configmap_name = f'{args.cluster}-{_CLUSTER_RESOURCES_CONFIGMAP}'
   resources_config_map = get_cluster_configmap(args, resources_configmap_name)
   if resources_config_map is None:
-    xpk_print(f'No ConfigMap exist for cluster with the name {resources_config_map}.')
+    xpk_print(
+        f'No ConfigMap exist for cluster with the name {resources_config_map}.'
+    )
     return False
   if device_type in resources_config_map:
     return True
@@ -2576,8 +3498,8 @@ def get_all_nodepools_programmatic(args) -> tuple[list[str], int]:
       ' --cluster'
       f' {args.cluster} --project={args.project} --region={zone_to_region(args.zone)}'
   )
-  return_code, raw_nodepool_output = (
-      run_command_for_value(command, 'Get All Node Pools', args)
+  return_code, raw_nodepool_output = run_command_for_value(
+      command, 'Get All Node Pools', args
   )
   if return_code != 0:
     xpk_print(f'Get All Node Pools returned ERROR {return_code}')
@@ -2599,11 +3521,9 @@ def get_all_networks_programmatic(args) -> tuple[list[str], int]:
   Returns:
     List of networks and 0 if successful and 1 otherwise.
   """
-  command = (
-      'gcloud compute networks list'
-  )
-  return_code, raw_network_output = (
-      run_command_for_value(command, 'Get All Networks', args)
+  command = 'gcloud compute networks list'
+  return_code, raw_network_output = run_command_for_value(
+      command, 'Get All Networks', args
   )
   if return_code != 0:
     xpk_print(f'Get All Networks returned ERROR {return_code}')
@@ -2623,10 +3543,11 @@ def get_all_subnets_programmatic(args) -> tuple[list[str], int]:
     List of subnets and 0 if successful and 1 otherwise.
   """
   command = (
-      f'gcloud compute networks subnets list --filter=region:{zone_to_region(args.zone)} --project={args.project}'
+      'gcloud compute networks subnets list'
+      f' --filter=region:{zone_to_region(args.zone)} --project={args.project}'
   )
-  return_code, raw_subnets_output = (
-      run_command_for_value(command, 'Get All Subnets', args)
+  return_code, raw_subnets_output = run_command_for_value(
+      command, 'Get All Subnets', args
   )
   if return_code != 0:
     xpk_print(f'Get All Subnets returned ERROR {return_code}')
@@ -2645,11 +3566,9 @@ def get_all_firewall_rules_programmatic(args) -> tuple[list[str], int]:
   Returns:
     List of firewall rules and 0 if successful and 1 otherwise.
   """
-  command = (
-      'gcloud compute firewall-rules list'
-  )
-  return_code, raw_subnets_output = (
-      run_command_for_value(command, 'Get All Firewall Rules', args)
+  command = 'gcloud compute firewall-rules list'
+  return_code, raw_subnets_output = run_command_for_value(
+      command, 'Get All Firewall Rules', args
   )
   if return_code != 0:
     xpk_print(f'Get All Firewall Rules returned ERROR {return_code}')
@@ -2671,7 +3590,9 @@ def get_user_input(input_msg):
   return user_input in ('y', 'yes')
 
 
-def get_node_pools_to_delete(args, existing_node_pool_names, desired_node_pool_names) -> list:
+def get_node_pools_to_delete(
+    args, existing_node_pool_names, desired_node_pool_names
+) -> list:
   """Get list of nodepools to delete from the cluster.
 
   Args:
@@ -2684,7 +3605,9 @@ def get_node_pools_to_delete(args, existing_node_pool_names, desired_node_pool_n
   """
   node_pools_to_delete = []
   desired_node_pool_type = args.tpu_type if args.tpu_type else args.device_type
-  is_requested_device_type_in_cluster = check_device_type_in_cluster(args, desired_node_pool_type)
+  is_requested_device_type_in_cluster = check_device_type_in_cluster(
+      args, desired_node_pool_type
+  )
   for existing_node_pool_name in existing_node_pool_names:
     # Deletion logic would leave behind any Pathways CPU nodepools.
     if existing_node_pool_name.find(f'{args.cluster}-np-') != 0:
@@ -2697,7 +3620,10 @@ def get_node_pools_to_delete(args, existing_node_pool_names, desired_node_pool_n
     # Scenario 2: Cluster exists with 2 nodepools of 'x' device_type and now we are updating
     # the cluster to 2 nodepools of 'y' device_type. In this case, we will delete
     # '{args.cluster}-np-0' and '{args.cluster}-np-1' from the cluster.
-    if existing_node_pool_name not in desired_node_pool_names or not is_requested_device_type_in_cluster:
+    if (
+        existing_node_pool_name not in desired_node_pool_names
+        or not is_requested_device_type_in_cluster
+    ):
       node_pools_to_delete.append(existing_node_pool_name)
 
   return node_pools_to_delete
@@ -2737,40 +3663,49 @@ def run_gke_node_pool_create_command(args, system) -> int:
     if return_code > 0:
       xpk_print('Listing all reservations failed!')
     return_code = 1
-  capacity_args, return_code = get_capacity_arguments_from_capacity_type(args, capacity_type)
+  capacity_args, return_code = get_capacity_arguments_from_capacity_type(
+      args, capacity_type
+  )
   if return_code > 0:
     xpk_print('Parsing capacity arguments failed!')
     return return_code
 
   if system.accelerator_type == AcceleratorType['GPU']:
     xpk_print(
-      f'Creating 1 node pool with {args.num_nodes} nodes of {system.device_type}\n'
-      f'Underlyingly, we assume that means: {system}'
+        f'Creating 1 node pool with {args.num_nodes} nodes of'
+        f' {system.device_type}\nUnderlyingly, we assume that means: {system}'
     )
     desired_node_pool_names = [f'{args.cluster}-np-0']
   else:
     xpk_print(
-      f'Creating {args.num_slices} node pool or pools of {system.device_type}\n'
-      f'Underlyingly, we assume that means: {system}'
+        f'Creating {args.num_slices} node pool or pools of'
+        f' {system.device_type}\nUnderlyingly, we assume that means: {system}'
     )
     desired_node_pool_names = [
-      f'{args.cluster}-np-{slice_num}' for slice_num in range(args.num_slices)
+        f'{args.cluster}-np-{slice_num}' for slice_num in range(args.num_slices)
     ]
 
   node_pools_to_remain = []
   delete_commands = []
   delete_task_names = []
   if existing_node_pool_names:
-    return_code, existing_node_pool_zone = get_nodepool_zone(args, existing_node_pool_names[0])
+    return_code, existing_node_pool_zone = get_nodepool_zone(
+        args, existing_node_pool_names[0]
+    )
     if return_code != 0:
       xpk_exit(1)
 
     if existing_node_pool_zone and existing_node_pool_zone != args.zone:
-      xpk_print(f'Cluster {args.cluster} already has nodepools in zone: {existing_node_pool_zone}.'
-                ' Use the same zone to update nodepools in the cluster.')
+      xpk_print(
+          f'Cluster {args.cluster} already has nodepools in zone:'
+          f' {existing_node_pool_zone}. Use the same zone to update nodepools'
+          ' in the cluster.'
+      )
       xpk_exit(1)
 
-    node_pools_to_delete = get_node_pools_to_delete(args, existing_node_pool_names, desired_node_pool_names)
+    node_pools_to_delete = get_node_pools_to_delete(
+        args, existing_node_pool_names, desired_node_pool_names
+    )
     for node_pool_name in existing_node_pool_names:
       if node_pool_name in node_pools_to_delete:
         command = (
@@ -2792,17 +3727,26 @@ def run_gke_node_pool_create_command(args, system) -> int:
     will_delete = True
     if node_pools_to_delete and not args.force:
       will_delete = get_user_input(
-        f'Planning to delete {len(node_pools_to_delete)} node pools including '
-        f'{node_pools_to_delete}. \nDo you wish to delete: y (yes) / n (no):\n')
+          f'Planning to delete {len(node_pools_to_delete)} node pools including'
+          f' {node_pools_to_delete}. \nDo you wish to delete: y (yes) / n'
+          ' (no):\n'
+      )
     if not will_delete:
-      xpk_print('You have requested to not delete the existing nodepools in the cluster.'
-                ' There will be no change to the cluster.')
+      xpk_print(
+          'You have requested to not delete the existing nodepools in the'
+          ' cluster. There will be no change to the cluster.'
+      )
       xpk_exit(1)
 
     for i, command in enumerate(delete_commands):
-      xpk_print(f'To complete {delete_task_names[i]} we are executing {command}')
+      xpk_print(
+          f'To complete {delete_task_names[i]} we are executing {command}'
+      )
     max_return_code = run_commands(
-        delete_commands, 'Delete Nodepools', delete_task_names, dry_run=args.dry_run
+        delete_commands,
+        'Delete Nodepools',
+        delete_task_names,
+        dry_run=args.dry_run,
     )
     if max_return_code != 0:
       xpk_print(f'Delete Nodepools returned ERROR {max_return_code}')
@@ -2813,10 +3757,12 @@ def run_gke_node_pool_create_command(args, system) -> int:
     # 'x' device_type to 'y' device_type.
     if not node_pools_to_remain:
       resources_data = f'{device_type}: "0"'
-      resources_configmap_name = f'{args.cluster}-{_CLUSTER_RESOURCES_CONFIGMAP}'
-      resources_yml = cluster_configmap_yaml.format(args=args,
-                                                    name=resources_configmap_name,
-                                                    data=resources_data)
+      resources_configmap_name = (
+          f'{args.cluster}-{_CLUSTER_RESOURCES_CONFIGMAP}'
+      )
+      resources_yml = cluster_configmap_yaml.format(
+          args=args, name=resources_configmap_name, data=resources_data
+      )
       configmap_yml = {}
       configmap_yml[resources_configmap_name] = resources_yml
       return_code = create_or_update_cluster_configmap(configmap_yml)
@@ -2841,25 +3787,32 @@ def run_gke_node_pool_create_command(args, system) -> int:
         f' {args.custom_nodepool_arguments}'
     )
     if system.accelerator_type == AcceleratorType['TPU']:
-      command += (f' --node-version={args.gke_version}')
-      command += (f' --num-nodes={system.vms_per_slice}')
-      command += (' --placement-type=COMPACT  --max-pods-per-node 15')
-      command += (' --scopes=storage-full,gke-default')
-      command += (f' --tpu-topology={system.topology}')
-      command += (f' {args.custom_tpu_nodepool_arguments}')
+      command += f' --node-version={args.gke_version}'
+      command += f' --num-nodes={system.vms_per_slice}'
+      command += ' --placement-type=COMPACT  --max-pods-per-node 15'
+      command += ' --scopes=storage-full,gke-default'
+      command += f' --tpu-topology={system.topology}'
+      command += f' {args.custom_tpu_nodepool_arguments}'
     elif system.accelerator_type == AcceleratorType['GPU']:
       subnet_prefix = f'{args.cluster}-{zone_to_region(args.zone)}'
-      command += (f' --num-nodes={args.num_nodes}')
-      command += (f' --accelerator type={system.gke_accelerator},count={str(system.chips_per_vm)}'
-        f' --additional-node-network network={args.cluster}-net-1,subnetwork={subnet_prefix}-sub-1'
-        f' --additional-node-network network={args.cluster}-net-2,subnetwork={subnet_prefix}-sub-2'
-        f' --additional-node-network network={args.cluster}-net-3,subnetwork={subnet_prefix}-sub-3'
-        f' --additional-node-network network={args.cluster}-net-4,subnetwork={subnet_prefix}-sub-4'
-        ' --no-enable-autoupgrade  --scopes="https://www.googleapis.com/auth/cloud-platform"'
-        )
+      command += f' --num-nodes={args.num_nodes}'
+      command += (
+          ' --accelerator'
+          f' type={system.gke_accelerator},count={str(system.chips_per_vm)}'
+          ' --additional-node-network'
+          f' network={args.cluster}-net-1,subnetwork={subnet_prefix}-sub-1'
+          ' --additional-node-network'
+          f' network={args.cluster}-net-2,subnetwork={subnet_prefix}-sub-2'
+          ' --additional-node-network'
+          f' network={args.cluster}-net-3,subnetwork={subnet_prefix}-sub-3'
+          ' --additional-node-network'
+          f' network={args.cluster}-net-4,subnetwork={subnet_prefix}-sub-4'
+          ' --no-enable-autoupgrade '
+          ' --scopes="https://www.googleapis.com/auth/cloud-platform"'
+      )
     elif system.accelerator_type == AcceleratorType['CPU']:
-      command += (f' --num-nodes={system.vms_per_slice}')
-      command += (' --scopes=storage-full,gke-default')
+      command += f' --num-nodes={system.vms_per_slice}'
+      command += ' --scopes=storage-full,gke-default'
 
     if _SERVICE_ACCOUNT_FEATURE_FLAG:
       service_account_name = get_service_account_name(args)
@@ -2867,8 +3820,11 @@ def run_gke_node_pool_create_command(args, system) -> int:
       if service_account_exists:
         command += f' --service-account={service_account_name}'
       else:
-        xpk_print(f'Service Account: {service_account_name} does not exist in the project.'
-                ' Will attach the default service account to the node pools.')
+        xpk_print(
+            f'Service Account: {service_account_name} does not exist in the'
+            ' project. Will attach the default service account to the node'
+            ' pools.'
+        )
     task = f'NodepoolCreate-{node_pool_name}'
     create_commands.append(command)
     create_task_names.append(task)
@@ -2885,7 +3841,7 @@ def run_gke_node_pool_create_command(args, system) -> int:
           f' --cluster={args.cluster}'
           f' --project={args.project} --node-locations={args.zone}'
           f' --region={zone_to_region(args.zone)}'
-          f' --num-nodes=1'
+          ' --num-nodes=1'
           f' --machine-type={args.pathways_gce_machine_type}'
           ' --scopes=storage-full,gke-default'
           ' --enable-autoscaling --min-nodes=1 --max-nodes=20'
@@ -2897,7 +3853,10 @@ def run_gke_node_pool_create_command(args, system) -> int:
   for i, command in enumerate(create_commands):
     xpk_print(f'To complete {create_task_names[i]} we are executing {command}')
   max_return_code = run_commands(
-      create_commands, 'Create Nodepools', create_task_names, dry_run=args.dry_run
+      create_commands,
+      'Create Nodepools',
+      create_task_names,
+      dry_run=args.dry_run,
   )
   if max_return_code != 0:
     xpk_print(f'Create Nodepools returned ERROR {max_return_code}')
@@ -2918,11 +3877,11 @@ def run_gke_cluster_delete_command(args) -> int:
   """
   command = (
       'gcloud beta container clusters delete'
-      f' {args.cluster} --project={args.project} --region={zone_to_region(args.zone)} --quiet'
+      f' {args.cluster} --project={args.project}'
+      f' --region={zone_to_region(args.zone)} --quiet'
   )
 
   return_code = run_command_with_updates(command, 'Cluster Delete', args)
-
   if return_code != 0:
     xpk_print(f'Cluster delete request returned ERROR {return_code}')
     return 1
@@ -2966,11 +3925,15 @@ def set_cluster_command(args) -> int:
   """
   command = (
       'gcloud container clusters get-credentials'
-      f' {args.cluster} --region={zone_to_region(args.zone)} --project={args.project} &&'
-      ' kubectl config view && kubectl config set-context --current --namespace=default'
+      f' {args.cluster} --region={zone_to_region(args.zone)}'
+      f' --project={args.project} &&'
+      ' kubectl config view && kubectl config set-context --current'
+      ' --namespace=default'
   )
   task = f'get-credentials to cluster {args.cluster}'
-  return_code = run_command_with_updates_retry(command, task, args, verbose=False)
+  return_code = run_command_with_updates_retry(
+      command, task, args, verbose=False
+  )
   if return_code != 0:
     xpk_print(f'{task} returned ERROR {return_code}')
   return return_code
@@ -2999,25 +3962,28 @@ def install_kueue_on_cluster(args) -> int:
 def enable_kueue_credentials(
     args,
     system: SystemCharacteristics,
-    autoprovisioning_config: AutoprovisioningConfig | None
+    autoprovisioning_config: AutoprovisioningConfig | None,
 ) -> int:
   """Enable Kueue credentials.
 
   Args:
     args: user provided arguments for running the command.
     system: system level arguments.
-    autoprovisioning_config: Autoprovisioning config to configure kueue with if autoprovisioning is enabled.
+    autoprovisioning_config: Autoprovisioning config to configure kueue with if
+        autoprovisioning is enabled.
 
   Returns:
     0 if successful and 1 otherwise.
   """
   device_type = system.device_type
   cluster_hardware_name = f'{args.num_slices}x{device_type}'
-  resource_type=AcceleratorTypeToAcceleratorCharacteristics[system.accelerator_type].resource_type
+  resource_type = AcceleratorTypeToAcceleratorCharacteristics[
+      system.accelerator_type
+  ].resource_type
 
   autoprovisioning_enabled = False
   if autoprovisioning_config:
-    # Determine total resources available based on autoprovisioning max chips if enabled.
+    # Determine total resources available based on autoprovisioning max chips.
     autoprovisioning_enabled = True
     total_chips = autoprovisioning_config.maximum_chips
     cluster_hardware_name = f'{system.gke_accelerator}'
@@ -3029,15 +3995,21 @@ def enable_kueue_credentials(
       args=args,
       cluster_hardware_name=cluster_hardware_name,
       resource_type=resource_type,
-      total_chips=total_chips
+      total_chips=total_chips,
   )
   yml_string = cluster_set_crd_yaml.format(
       system=system,
       cluster_hardware_name=cluster_hardware_name,
-      accelerator_label=create_accelerator_label(system.accelerator_type, system),
-      machine_label=create_machine_label(system.accelerator_type, system, autoprovisioning_enabled),
+      accelerator_label=create_accelerator_label(
+          system.accelerator_type, system
+      ),
+      machine_label=create_machine_label(
+          system.accelerator_type, system, autoprovisioning_enabled
+      ),
       covered_resources_config=covered_resources_config,
-      resource_type=AcceleratorTypeToAcceleratorCharacteristics[system.accelerator_type].resource_type,
+      resource_type=AcceleratorTypeToAcceleratorCharacteristics[
+          system.accelerator_type
+      ].resource_type,
       pw_resource_flavors=add_pw_resource_flavors(args),
       pw_resources_kueue=add_pw_resources_to_kueue(args),
       cluster_queue_name=_CLUSTER_QUEUE_NAME,
@@ -3050,19 +4022,26 @@ def enable_kueue_credentials(
   # being ready. Let's retry and wait a few seconds.
   task = 'Applying Kueue Credentials'
   retry_attempts = 3
-  return_code = run_command_with_updates_retry(command, task, args, num_retry_attempts=retry_attempts)
+  return_code = run_command_with_updates_retry(
+      command, task, args, num_retry_attempts=retry_attempts
+  )
   if return_code != 0:
     # We have seen some scenarios where credentials need a few minutes for kueue
     # and jobset installation to be ready before credentials can be applied.
     # As a workaround we will retry again with longer wait times.
     retry_wait_seconds = 60
-    xpk_print(f'{task} still not successful. Retrying {retry_attempts} more times'
-              f'with increased wait time of {retry_wait_seconds} seconds between tries.'
-              ' Kueue Credentials need Kueue system to be ready which can take'
-              ' some time.')
+    xpk_print(
+        f'{task} still not successful. Retrying {retry_attempts} more timeswith'
+        f' increased wait time of {retry_wait_seconds} seconds between tries.'
+        ' Kueue Credentials need Kueue system to be ready which can take some'
+        ' time.'
+    )
     return_code = run_command_with_updates_retry(
-        command=command, task=task, args=args,
-        num_retry_attempts=retry_attempts, wait_seconds=retry_wait_seconds
+        command=command,
+        task=task,
+        args=args,
+        num_retry_attempts=retry_attempts,
+        wait_seconds=retry_wait_seconds,
     )
     if return_code != 0:
       xpk_print(f'{task} returned ERROR {return_code}')
@@ -3071,9 +4050,8 @@ def enable_kueue_credentials(
 
 # TODO(roshanin): Organize Pathways helpers in another file.
 def add_pw_resource_flavors(args):
-  """Add resource flavors required for Pathways enabled clusters.
-  """
-  resource_flavor_yaml="""apiVersion: kueue.x-k8s.io/v1beta1
+  """Add resource flavors required for Pathways enabled clusters."""
+  resource_flavor_yaml = """apiVersion: kueue.x-k8s.io/v1beta1
 kind: ResourceFlavor
 metadata:
   name: cpu-rm
@@ -3099,13 +4077,12 @@ spec:
 ---"""
   if args.enable_pathways:
     return resource_flavor_yaml
-  return ""
+  return ''
 
 
 def add_pw_resources_to_kueue(args):
-  """Add resource flavors required for Pathways, to the cluster queue.
-  """
-  resources_yaml="""- coveredResources: ["cpu", "memory"]
+  """Add resource flavors required for Pathways, to the cluster queue."""
+  resources_yaml = """- coveredResources: ["cpu", "memory"]
     flavors:
     - name: cpu-rm
       resources:
@@ -3127,10 +4104,12 @@ def add_pw_resources_to_kueue(args):
         nominalQuota: 2000G"""
   if args.enable_pathways:
     return resources_yaml
-  return ""
+  return ''
 
 
-def get_kueue_covered_resources_config(args, cluster_hardware_name, resource_type, total_chips) -> str:
+def get_kueue_covered_resources_config(
+    args, cluster_hardware_name, resource_type, total_chips
+) -> str:
   """Gets Kueue covered resources configuration.
 
   Args:
@@ -3144,7 +4123,7 @@ def get_kueue_covered_resources_config(args, cluster_hardware_name, resource_typ
   """
   device_type = args.tpu_type if args.tpu_type else args.device_type
   if device_type == h100_device_type:
-    config_format = '''
+    config_format = """
   - coveredResources: ["cpu", "memory", "{resource_type}"]
     flavors:
     - name: {cluster_hardware_name}
@@ -3154,27 +4133,28 @@ def get_kueue_covered_resources_config(args, cluster_hardware_name, resource_typ
       - name: "memory"
         nominalQuota: 150Mi
       - name: "{resource_type}"
-        nominalQuota: {total_chips}'''
+        nominalQuota: {total_chips}"""
     config_string = config_format.format(
-      cluster_hardware_name=cluster_hardware_name,
-      resource_type=resource_type,
-      total_chips=total_chips,
-      num_nodes=args.num_nodes)
+        cluster_hardware_name=cluster_hardware_name,
+        resource_type=resource_type,
+        total_chips=total_chips,
+        num_nodes=args.num_nodes,
+    )
   else:
-    config_format = '''
+    config_format = """
   - coveredResources: ["{resource_type}"]
     flavors:
     - name: {cluster_hardware_name}
       resources:
       - name: "{resource_type}"
         nominalQuota: {total_chips}
-  '''
+  """
     config_string = config_format.format(
-      cluster_hardware_name=cluster_hardware_name,
-      resource_type=resource_type,
-      total_chips=total_chips)
+        cluster_hardware_name=cluster_hardware_name,
+        resource_type=resource_type,
+        total_chips=total_chips,
+    )
   return config_string
-
 
 
 # TODO(vbarr): Remove this function when jobsets gets enabled by default on
@@ -3198,13 +4178,15 @@ def set_jobset_on_cluster(args) -> int:
   if return_code != 0:
     xpk_print(f'{task} returned with ERROR {return_code}.\n')
     xpk_print(
-      'This LIKELY means you\'re missing Kubernetes Permissions, you can'
-      ' validate this by checking if the error references permission'
-      ' problems such as `requires one of ["container.*"] permission(s)`.'
-      ' Follow our readme: https://github.com/google/xpk/blob/main/README.md#troubleshooting'
-      ' for instructions on how to fix these permissions.'
+        "This LIKELY means you're missing Kubernetes Permissions, you can"
+        ' validate this by checking if the error references permission problems'
+        ' such as `requires one of ["container.*"] permission(s)`. Follow our'
+        ' readme:'
+        ' https://github.com/google/xpk/blob/main/README.md#troubleshooting for'
+        ' instructions on how to fix these permissions.'
     )
   return return_code
+
 
 def install_gpu_driver_on_cluster(args) -> int:
   """Install GPU driver on the cluster.
@@ -3220,10 +4202,14 @@ def install_gpu_driver_on_cluster(args) -> int:
       # pylint: disable=line-too-long
       'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/nvidia-driver-installer/cos/daemonset-preloaded-latest.yaml'
   )
-  return_code = run_command_with_updates(command, 'Install GPU Driver On Cluster', args)
+  return_code = run_command_with_updates(
+      command, 'Install GPU Driver On Cluster', args
+  )
 
   if return_code != 0:
-    xpk_print(f'Install GPU Driver On Cluster request returned ERROR {return_code}')
+    xpk_print(
+        f'Install GPU Driver On Cluster request returned ERROR {return_code}'
+    )
     return 1
 
   return 0
@@ -3243,17 +4229,23 @@ def install_nccl_on_cluster(args) -> int:
       # pylint: disable=line-too-long
       'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpx/nccl-tcpx-installer.yaml'
   )
-  return_code = run_command_with_updates(command, 'Install NCCL Plugin On Cluster', args)
+  return_code = run_command_with_updates(
+      command, 'Install NCCL Plugin On Cluster', args
+  )
 
   if return_code != 0:
-    xpk_print(f'Install NCCL Plugin On Cluster request returned ERROR {return_code}')
+    xpk_print(
+        f'Install NCCL Plugin On Cluster request returned ERROR {return_code}'
+    )
     return 1
 
   return 0
 
 
 ################### Subcommand Functions ###################
-def default_subcommand_function(_args) -> int:  # args is unused, so pylint: disable=invalid-name
+def default_subcommand_function(
+    _args,
+) -> int:  # args is unused, so pylint: disable=invalid-name
   """Default subcommand function.
 
   Args:
@@ -3291,8 +4283,10 @@ def cluster_create(args) -> int:
     service_account_name = get_service_account_name(args)
     service_account_exists = check_if_service_account_exists(args)
     if service_account_exists:
-      xpk_print(f'Service Account: {service_account_name} already exist in the project.'
-            ' Will not create a new service account.')
+      xpk_print(
+          f'Service Account: {service_account_name} already exist in the'
+          ' project. Will not create a new service account.'
+      )
     else:
       # create a service account in the project
       create_service_account_code = create_service_account(args)
@@ -3355,12 +4349,16 @@ def cluster_create(args) -> int:
   autoprovisioning_config = None
   if args.enable_autoprovisioning:
     xpk_print('Enabling Autoprovisioning')
-    autoprovisioning_config, return_code = enable_autoprovisioning_on_cluster(args, system)
+    autoprovisioning_config, return_code = enable_autoprovisioning_on_cluster(
+        args, system
+    )
     if return_code != 0:
       xpk_exit(return_code)
 
   xpk_print('Enable Kueue Credentials')
-  enable_kueue_credentials_code = enable_kueue_credentials(args, system, autoprovisioning_config)
+  enable_kueue_credentials_code = enable_kueue_credentials(
+      args, system, autoprovisioning_config
+  )
   if enable_kueue_credentials_code != 0:
     xpk_exit(enable_kueue_credentials_code)
 
@@ -3378,7 +4376,8 @@ def cluster_create(args) -> int:
 
   xpk_print('Creating ConfigMap for cluster')
   create_cluster_configmaps_code = create_cluster_configmaps(
-      args, system, tensorboard_config, autoprovisioning_config)
+      args, system, tensorboard_config, autoprovisioning_config
+  )
   if create_cluster_configmaps_code != 0:
     xpk_exit(create_cluster_configmaps_code)
 
@@ -3432,11 +4431,13 @@ def cluster_cacheimage(args) -> int:
     xpk_print('Fetching system characteristics failed!')
     xpk_exit(return_code)
 
-  node_selector_key = AcceleratorTypeToAcceleratorCharacteristics[system.accelerator_type].accelerator_label
+  node_selector_key = AcceleratorTypeToAcceleratorCharacteristics[
+      system.accelerator_type
+  ].accelerator_label
   yml_string = cluster_preheat_yml.format(
       cachekey=args.cache_key,
       image_name=args.docker_image,
-      nodeSelectorKey=node_selector_key
+      nodeSelectorKey=node_selector_key,
   )
   tmp = write_temporary_file(yml_string)
   command_apply = f'kubectl apply -f {str(tmp.file.name)}'
@@ -3486,7 +4487,8 @@ def cluster_describe(args) -> int:
     xpk_exit(return_code)
 
   return_code_node_output, node_output = run_command_for_value(
-      r"kubectl get node --no-headers=true --selector='cloud.google.com/gke-tpu-accelerator' | wc -l",
+      r'kubectl get node --no-headers=true'
+      r" --selector='cloud.google.com/gke-tpu-accelerator' | wc -l",
       'Count TPU Nodes',
       args,
   )
@@ -3582,13 +4584,14 @@ def build_docker_image_from_base_image(args, verbose=True) -> tuple[int, str]:
   )
   tmp = write_temporary_file(docker_file)
   docker_build_command = (
-      f'docker build -f {str(tmp.file.name)} -t {docker_name}'
-      f' {args.script_dir}'
+      f'docker build -f {str(tmp.file.name)} -t {docker_name} {args.script_dir}'
   )
   xpk_print(f'Building {args.script_dir} into docker image.')
   return_code = run_command_with_updates(
-      docker_build_command, 'Building script_dir into docker image', args,
-      verbose=verbose
+      docker_build_command,
+      'Building script_dir into docker image',
+      args,
+      verbose=verbose,
   )
   if return_code != 0:
     xpk_print(
@@ -3600,19 +4603,18 @@ def build_docker_image_from_base_image(args, verbose=True) -> tuple[int, str]:
 
   # Pick a randomly generated `tag_length` character docker tag.
   tag_length = 4
-  tag_random_prefix = ''.join(random.choices(string.ascii_lowercase, k=tag_length))
-  tag_datetime = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+  tag_random_prefix = ''.join(
+      random.choices(string.ascii_lowercase, k=tag_length)
+  )
+  tag_datetime = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
   tag_name = f'{tag_random_prefix}-{tag_datetime}'
   cloud_docker_image = f'gcr.io/{args.project}/{docker_name}:{tag_name}'
   xpk_print(f'Adding Docker Image: {cloud_docker_image} to {args.project}')
 
   # Tag the docker image.
-  tag_docker_image_command = (
-      f'docker tag {docker_name} {cloud_docker_image}'
-  )
+  tag_docker_image_command = f'docker tag {docker_name} {cloud_docker_image}'
   return_code = run_command_with_updates(
-      tag_docker_image_command, 'Tag Docker Image', args,
-      verbose=verbose
+      tag_docker_image_command, 'Tag Docker Image', args, verbose=verbose
   )
   if return_code != 0:
     xpk_print(
@@ -3623,16 +4625,13 @@ def build_docker_image_from_base_image(args, verbose=True) -> tuple[int, str]:
     xpk_exit(1)
 
   # Upload image to Artifact Registry.
-  upload_docker_image_command = (
-      f'docker push {cloud_docker_image}'
-  )
+  upload_docker_image_command = f'docker push {cloud_docker_image}'
   return_code = run_command_with_updates(
-      upload_docker_image_command, 'Upload Docker Image', args,
-      verbose=verbose
+      upload_docker_image_command, 'Upload Docker Image', args, verbose=verbose
   )
   if return_code != 0:
     xpk_print(
-        f'Failed to upload docker image.'
+        'Failed to upload docker image.'
         f' You should be able to navigate to the URL {cloud_docker_image} in'
         f' {args.project}.'
     )
@@ -3687,25 +4686,38 @@ def check_if_workload_can_schedule(args, system: SystemCharacteristics) -> bool:
 
   # Prevents workload creation failure for existing clusters with no ConfigMap
   if cluster_config_map is None:
-    xpk_print(f'No ConfigMap exist for cluster with the name {resources_configmap_name}.')
+    xpk_print(
+        'No ConfigMap exist for cluster with the name'
+        f' {resources_configmap_name}.'
+    )
     return True
 
   # Check for gke accelerator type:
   missing_gke_accelerator_type = False
   if system.gke_accelerator not in cluster_config_map:
-    xpk_print(f'Gke Accelerator Type Check: {args.workload} is requesting {system.gke_accelerator} but '
-    f'cluster only contains {cluster_config_map.keys()}. ')
+    xpk_print(
+        f'Gke Accelerator Type Check: {args.workload} is requesting'
+        f' {system.gke_accelerator} but cluster only contains'
+        f' {cluster_config_map.keys()}. '
+    )
     missing_gke_accelerator_type = True
-  elif cluster_config_map[system.gke_accelerator] == _AUTOPROVISIONING_CONFIG_VALUE:
+  elif (
+      cluster_config_map[system.gke_accelerator]
+      == _AUTOPROVISIONING_CONFIG_VALUE
+  ):
     # Run total chip check when in autoprovisioning mode.
-    max_chips_in_cluster = int(cluster_config_map[_AUTOPROVISIONING_CONFIG_MAXIMUM_KEY])
+    max_chips_in_cluster = int(
+        cluster_config_map[_AUTOPROVISIONING_CONFIG_MAXIMUM_KEY]
+    )
     num_chips_in_workload = get_total_chips_requested_from_args(args, system)
 
     if num_chips_in_workload > max_chips_in_cluster:
-      xpk_print(f'{args.workload} is requesting {num_chips_in_workload} chips but'
-                f' the cluster {args.cluster} supports up to {max_chips_in_cluster}.'
-                '  Resize the cluster to support more chips with'
-                ' `xpk cluster create --autoprovisioning-max-chips=X ...`')
+      xpk_print(
+          f'{args.workload} is requesting {num_chips_in_workload} chips but'
+          f' the cluster {args.cluster} supports up to {max_chips_in_cluster}.'
+          '  Resize the cluster to support more chips with'
+          ' `xpk cluster create --autoprovisioning-max-chips=X ...`'
+      )
       return False
     return True
 
@@ -3713,14 +4725,17 @@ def check_if_workload_can_schedule(args, system: SystemCharacteristics) -> bool:
   missing_device_type = False
   device_type = system.device_type
   if device_type not in cluster_config_map:
-    xpk_print(f'Device Type Check: {args.workload} is requesting {device_type} but '
-      f'cluster only contains {cluster_config_map.keys()}. '
+    xpk_print(
+        f'Device Type Check: {args.workload} is requesting {device_type} but '
+        f'cluster only contains {cluster_config_map.keys()}. '
     )
     missing_device_type = True
 
   if missing_device_type and missing_gke_accelerator_type:
-    xpk_print('Both Device Type and GKE Accelerator Type checks failed.'
-              f' XPK will not create the workload {args.workload}.')
+    xpk_print(
+        'Both Device Type and GKE Accelerator Type checks failed.'
+        f' XPK will not create the workload {args.workload}.'
+    )
   else:
     # Check if the size of the workload will fit in the cluster.
     max_vm_in_cluster = int(cluster_config_map[device_type])
@@ -3730,10 +4745,10 @@ def check_if_workload_can_schedule(args, system: SystemCharacteristics) -> bool:
       vm_required_by_workload = args.num_slices * system.vms_per_slice
     if vm_required_by_workload > max_vm_in_cluster:
       xpk_print(
-          f'{args.workload} is requesting {args.num_slices} slice/slices of {device_type}, '
-          f'which is {vm_required_by_workload} VMs, '
-          f'but the cluster only contains {max_vm_in_cluster} VMs of {device_type}. '
-          'XPK will not create this workload.'
+          f'{args.workload} is requesting {args.num_slices} slice/slices of'
+          f' {device_type}, which is {vm_required_by_workload} VMs, but the'
+          f' cluster only contains {max_vm_in_cluster} VMs of {device_type}.'
+          ' XPK will not create this workload.'
       )
       return False
 
@@ -3783,19 +4798,17 @@ def setup_docker_image(args) -> tuple[int, str]:
 
   docker_image = args.base_docker_image
   if use_base_docker_image:
-    validate_docker_image_code = validate_docker_image(
-        docker_image, args
-    )
+    validate_docker_image_code = validate_docker_image(docker_image, args)
     if validate_docker_image_code != 0:
       xpk_exit(validate_docker_image_code)
-    build_docker_image_code, docker_image = build_docker_image_from_base_image(args)
+    build_docker_image_code, docker_image = build_docker_image_from_base_image(
+        args
+    )
     if build_docker_image_code != 0:
       xpk_exit(build_docker_image_code)
   else:
     docker_image = args.docker_image
-    validate_docker_image_code = validate_docker_image(
-        args.docker_image, args
-    )
+    validate_docker_image_code = validate_docker_image(args.docker_image, args)
     if validate_docker_image_code != 0:
       xpk_exit(validate_docker_image_code)
 
@@ -3813,7 +4826,9 @@ def get_main_and_sidecar_container(args, system, docker_image) -> str:
     str:
       yaml for main and sidecar container
   """
-  resource_type = AcceleratorTypeToAcceleratorCharacteristics[system.accelerator_type].resource_type
+  resource_type = AcceleratorTypeToAcceleratorCharacteristics[
+      system.accelerator_type
+  ].resource_type
   main_container = get_main_container(args, system, docker_image, resource_type)
   yaml = """- name: stacktrace-explorer
                 image: busybox:1.28
@@ -3849,26 +4864,35 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
   gsutil_test_command = ''
   if args.debug_dump_gcs:
     gsutil_test_command = (
-      'which gsutil >/dev/null 2>&1 || { echo >&2 "gsutil'
-      ' is required but not installed. Aborting"; exit 24;};'
+        'which gsutil >/dev/null 2>&1 || { echo >&2 "gsutil'
+        ' is required but not installed. Aborting"; exit 24;};'
     )
-    xpk_internal_commands += ('WORKER_ID=$HOSTNAME;'
-                f'gsutil -m cp -r /tmp/xla_dump/ {args.debug_dump_gcs}/$WORKER_ID;')
+    xpk_internal_commands += (
+        'WORKER_ID=$HOSTNAME;'
+        f'gsutil -m cp -r /tmp/xla_dump/ {args.debug_dump_gcs}/$WORKER_ID;'
+    )
 
   command = args.command
   if args.enable_debug_logs:
-    command = ('TPU_STDERR_LOG_LEVEL=0 TPU_MIN_LOG_LEVEL=0 TF_CPP_MIN_LOG_LEVEL=0'
-               f' TPU_VMODULE=real_program_continuator=1 {args.command}')
+    command = (
+        'TPU_STDERR_LOG_LEVEL=0 TPU_MIN_LOG_LEVEL=0 TF_CPP_MIN_LOG_LEVEL=0'
+        f' TPU_VMODULE=real_program_continuator=1 {args.command}'
+    )
 
   gpu_workload_terminate_command = ''
   if system.accelerator_type == AcceleratorType['GPU']:
     command = 'cd /deps && bash gpu_multi_process_run.sh'
-    gpu_workload_terminate_command = 'echo Main app is done > /usr/share/workload/workload_terminated; '
+    gpu_workload_terminate_command = (
+        'echo Main app is done > /usr/share/workload/workload_terminated; '
+    )
 
   xpk_return_user_exit_code = ''
   if args.restart_on_user_code_failure:
     if int(args.max_restarts) <= 0:
-      xpk_print(f'Warning: --max-restarts, is set to {args.max_restarts}. Will not restart on user failure.')
+      xpk_print(
+          f'Warning: --max-restarts, is set to {args.max_restarts}. Will not'
+          ' restart on user failure.'
+      )
     xpk_return_user_exit_code = 'exit $EXIT_CODE'
 
   yaml = """- name: {docker_name}
@@ -3892,26 +4916,26 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
                 {volume_mounts}
   """
   return yaml.format(
-    args=args,
-    system=system,
-    image_pull_policy=add_image_pull_policy_for_pw_or_gpu(args, system),
-    env=get_env_container(args, system),
-    container_ports=add_container_ports(args, system),
-    jax_coordinator_port=add_jax_coordinator_port(system),
-    docker_name=get_main_container_docker_image(args, system),
-    docker_image=docker_image,
-    gsutil_test_command=gsutil_test_command,
-    command=command,
-    gpu_workload_terminate_command=gpu_workload_terminate_command,
-    xpk_internal_commands=xpk_internal_commands,
-    resources=get_main_container_resources(args, system, resource_type),
-    volume_mounts=get_volume_mounts(args, system),
-    xpk_return_user_exit_code=xpk_return_user_exit_code
+      args=args,
+      system=system,
+      image_pull_policy=add_image_pull_policy_for_pw_or_gpu(args, system),
+      env=get_env_container(args, system),
+      container_ports=add_container_ports(args, system),
+      jax_coordinator_port=add_jax_coordinator_port(system),
+      docker_name=get_main_container_docker_image(args, system),
+      docker_image=docker_image,
+      gsutil_test_command=gsutil_test_command,
+      command=command,
+      gpu_workload_terminate_command=gpu_workload_terminate_command,
+      xpk_internal_commands=xpk_internal_commands,
+      resources=get_main_container_resources(args, system, resource_type),
+      volume_mounts=get_volume_mounts(args, system),
+      xpk_return_user_exit_code=xpk_return_user_exit_code,
   )
 
 
 def add_image_pull_policy_for_pw_or_gpu(args, system: SystemCharacteristics):
-  """ Add image pull policy only for Pathways containers.
+  """Add image pull policy only for Pathways containers.
   Args:
     args: user provided args.
 
@@ -3919,15 +4943,15 @@ def add_image_pull_policy_for_pw_or_gpu(args, system: SystemCharacteristics):
     str:
       YAML stating that the image will be pulled fro GCR every time.
   """
-  yaml="""imagePullPolicy: Always"""
+  yaml = """imagePullPolicy: Always"""
 
   if args.use_pathways or system.accelerator_type == AcceleratorType['GPU']:
     return yaml.format(args=args)
-  return ""
+  return ''
 
 
 def get_main_container_docker_image(args, system: SystemCharacteristics) -> str:
-  """ Docker name for the main container.
+  """Docker name for the main container.
   Args:
     args: user provided args.
     system: system characteristics.
@@ -3938,12 +4962,13 @@ def get_main_container_docker_image(args, system: SystemCharacteristics) -> str:
   """
 
   if system.accelerator_type == AcceleratorType['GPU']:
-    return "gpu-image"
+    return 'gpu-image'
 
   return f'{args.docker_name}'
 
+
 def get_volume_mounts(args, system: SystemCharacteristics) -> str:
-  """ Resources for the main container.
+  """Resources for the main container.
   Args:
     args: user provided args.
 
@@ -3951,12 +4976,12 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
     str:
       YAML for the volumes mounted within a Pathways container or GPU container as a YAML string.
   """
-  pw_volume_yaml="""- mountPath: /tmp
+  pw_volume_yaml = """- mountPath: /tmp
                   name: shared-tmp"""
   if args.use_pathways:
     return pw_volume_yaml
 
-  gpu_volume_yaml="""- name: nvidia-install-dir-host
+  gpu_volume_yaml = """- name: nvidia-install-dir-host
                   mountPath: /usr/local/nvidia/lib64
                 - name: tcpx-nccl-plugin-volume
                   mountPath: /usr/local/tcpx
@@ -3969,7 +4994,10 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
 
   if system.accelerator_type == AcceleratorType['GPU']:
     return gpu_volume_yaml
-  return ""
+
+  regular_volume_mount_yaml = """- mountPath: /dev/shm
+                  name: dshm-2"""
+  return regular_volume_mount_yaml
 
 
 def get_pathways_rm_args(args) -> str:
@@ -3980,7 +5008,7 @@ def get_pathways_rm_args(args) -> str:
   Returns:
     str: yaml containing arguments for the Pathways resource manager.
   """
-  yaml="""- --alsologtostderr
+  yaml = """- --alsologtostderr
               - --pathways_server_port=38677
               - --pathways_server_provides_devices=false
               - --pathways_device_type=NONE
@@ -3991,7 +5019,7 @@ def get_pathways_rm_args(args) -> str:
   if args.use_pathways:
     return yaml.format(args=args)
   else:
-    return ""
+    return ''
 
 
 def get_pathways_worker_args(args) -> str:
@@ -4002,7 +5030,7 @@ def get_pathways_worker_args(args) -> str:
   Returns:
     str: yaml containing arguments for the Pathways workers.
   """
-  yaml="""- --alsologtostderr
+  yaml = """- --alsologtostderr
               - --pathways_server_port=38677
               - --pathways_resource_manager={args.workload}-rm-0-0.{args.workload}:38677
               - --pathways_persistent_compilation_cache=false
@@ -4018,7 +5046,7 @@ def get_pathways_worker_args(args) -> str:
   if args.use_pathways:
     return yaml.format(args=args)
   else:
-    return ""
+    return ''
 
 
 def get_pathways_proxy_args(args) -> str:
@@ -4029,7 +5057,7 @@ def get_pathways_proxy_args(args) -> str:
   Returns:
     str: yaml containing arguments for the Pathways proxy.
   """
-  yaml="""- --alsologtostderr
+  yaml = """- --alsologtostderr
               - --v=0
               - --pathways_ifrt_proxy_server_resource_manager={args.workload}-rm-0-0.{args.workload}:38677
               - --pathways_ifrt_proxy_server_port=38676
@@ -4038,11 +5066,11 @@ def get_pathways_proxy_args(args) -> str:
   if args.use_pathways:
     return yaml.format(args=args)
   else:
-    return ""
+    return ''
 
 
 def get_env_container(args, system: SystemCharacteristics):
-  """ Environment configuration for the main container.
+  """Environment configuration for the main container.
   Args:
     args: user provided args.
     system: system characteristics.
@@ -4051,7 +5079,7 @@ def get_env_container(args, system: SystemCharacteristics):
     str:
       YAML with the env config for the main container, as a YAML string.
   """
-  pw_env_yaml="""
+  pw_env_yaml = """
                 - name: XCLOUD_ENVIRONMENT
                   value: GCP
                 - name: JAX_PLATFORMS
@@ -4065,7 +5093,7 @@ def get_env_container(args, system: SystemCharacteristics):
   if args.use_pathways:
     return pw_env_yaml.format(args=args)
 
-  gpu_env_yaml="""
+  gpu_env_yaml = """
                   - name: REPLICATED_JOB_NAME
                     valueFrom:
                       fieldRef:
@@ -4094,13 +5122,18 @@ def get_env_container(args, system: SystemCharacteristics):
                     value: "{args.command}"
                   {args.env}"""
   if system.accelerator_type == AcceleratorType['GPU']:
-    return gpu_env_yaml.format(args=args,
-                        system=system)
+    return gpu_env_yaml.format(args=args, system=system)
+
+  if system.accelerator_type == AcceleratorType['CPU']:
+    return get_cpu_env(args.num_slices, args.env, system)
+
   return args.env
 
 
-def get_main_container_resources(args, system: SystemCharacteristics, resource_type) -> str:
-  """ Resources for the main container.
+def get_main_container_resources(
+    args, system: SystemCharacteristics, resource_type
+) -> str:
+  """Resources for the main container.
   Args:
     args: user provided args.
     system: system characteristics.
@@ -4111,12 +5144,12 @@ def get_main_container_resources(args, system: SystemCharacteristics, resource_t
       Workload resources port as a YAML string
   """
   # Resources requirements for Pathways workload containers are known.
-  resources_yaml="""cpu: "24"
+  resources_yaml = """cpu: "24"
                     memory: 100G"""
   if args.use_pathways:
     return resources_yaml
 
-  gpu_resources_yaml="""nvidia.com/gpu: {system.chips_per_vm}"""
+  gpu_resources_yaml = """nvidia.com/gpu: {system.chips_per_vm}"""
   if system.accelerator_type == AcceleratorType['GPU']:
     return gpu_resources_yaml.format(system=system)
 
@@ -4124,7 +5157,7 @@ def get_main_container_resources(args, system: SystemCharacteristics, resource_t
 
 
 def add_container_ports(args, system: SystemCharacteristics) -> str:
-  """ Add slice builder and megascale container ports,
+  """Add slice builder and megascale container ports,
   for non-pathways workloads.
 
   Args:
@@ -4134,7 +5167,7 @@ def add_container_ports(args, system: SystemCharacteristics) -> str:
     str:
       Pathways server port as a YAML string
   """
-  port_yaml ="""- containerPort: 8471
+  port_yaml = """- containerPort: 8471
                 - containerPort: 8080"""
   if args.use_pathways:
     return ''
@@ -4159,6 +5192,7 @@ def add_jax_coordinator_port(system) -> str:
     return '- containerPort: 1234'
   return ''
 
+
 def get_gke_dashboard(args, dashboard_filter):
   """Get the identifier of GKE dashboard deployed in the project.
 
@@ -4176,29 +5210,36 @@ def get_gke_dashboard(args, dashboard_filter):
   """
   command = (
       'gcloud monitoring dashboards list'
-      f' --project={args.project} --filter="{dashboard_filter}" --format="value(name)" --verbosity=error'
+      f' --project={args.project} --filter="{dashboard_filter}"'
+      ' --format="value(name)" --verbosity=error'
   )
 
-  return_code, return_value = run_command_for_value(command, 'GKE Dashboard List', args)
+  return_code, return_value = run_command_for_value(
+      command, 'GKE Dashboard List', args
+  )
 
   if return_code != 0:
-    xpk_print(f'GKE Dashboard List request returned ERROR {return_code}. '
-              'If there is a permissions error, please check '
-              'https://github.com/google/xpk/blob/main/README.md#roles-needed-based-on-permission-errors '
-              'for possible solutions.')
+    xpk_print(
+        f'GKE Dashboard List request returned ERROR {return_code}. If there is'
+        ' a permissions error, please check'
+        ' https://github.com/google/xpk/blob/main/README.md#roles-needed-based-on-permission-errors'
+        ' for possible solutions.'
+    )
     return True, None
 
   if not return_value:
     xpk_print(
-        f'No dashboard with {dashboard_filter} found in the project:{args.project}.'
+        f'No dashboard with {dashboard_filter} found in the'
+        f' project:{args.project}.'
     )
     return False, return_value
 
   dashboards = return_value.strip().split('\n')
   if len(dashboards) > 1:
     xpk_print(
-      f'Multiple dashboards with same {dashboard_filter} exist in the project:{args.project}. '
-      'Delete all but one dashboard deployed using https://github.com/google/cloud-tpu-monitoring-debugging.'
+        f'Multiple dashboards with same {dashboard_filter} exist in the'
+        f' project:{args.project}. Delete all but one dashboard deployed using'
+        ' https://github.com/google/cloud-tpu-monitoring-debugging.'
     )
     return True, None
 
@@ -4229,8 +5270,9 @@ def get_gke_outlier_dashboard(args):
   # 'gcloud monitoring dashboards list' succeeded but no dashboard for the filter exist in the project
   if not is_error and not dashboard_id:
     xpk_print(
-        'Follow https://github.com/google/cloud-tpu-monitoring-debugging'
-        ' to deploy monitoring dashboard to view statistics and outlier mode of GKE metrics.'
+        'Follow https://github.com/google/cloud-tpu-monitoring-debugging to'
+        ' deploy monitoring dashboard to view statistics and outlier mode of'
+        ' GKE metrics.'
     )
     return None
 
@@ -4258,8 +5300,9 @@ def get_gke_debugging_dashboard(args):
   # 'gcloud monitoring dashboards list' succeeded but no dashboard for the filter exist in the project
   if not is_error and not dashboard_id:
     xpk_print(
-        'Follow https://github.com/google/cloud-tpu-monitoring-debugging'
-        ' to deploy debugging dashboard to view stack traces collected in Cloud Logging.'
+        'Follow https://github.com/google/cloud-tpu-monitoring-debugging to'
+        ' deploy debugging dashboard to view stack traces collected in Cloud'
+        ' Logging.'
     )
     return None
 
@@ -4277,10 +5320,16 @@ def create_accelerator_label(accelerator_type, system) -> str:
     The accelerator label.
   """
   if accelerator_type == AcceleratorType['CPU']:
-    return ""
-  return f"{AcceleratorTypeToAcceleratorCharacteristics[accelerator_type].accelerator_label}: {system.gke_accelerator}"
+    return ''
+  return (
+      f'{AcceleratorTypeToAcceleratorCharacteristics[accelerator_type].accelerator_label}:'
+      f' {system.gke_accelerator}'
+  )
 
-def create_machine_label(accelerator_type, system, autoprovisioning_enabled: bool = False) -> str:
+
+def create_machine_label(
+    accelerator_type, system, autoprovisioning_enabled: bool = False
+) -> str:
   """Generates machine label.
 
   Args:
@@ -4291,13 +5340,19 @@ def create_machine_label(accelerator_type, system, autoprovisioning_enabled: boo
   Returns:
     The machine label.
   """
-  if accelerator_type == AcceleratorType['TPU'] and not autoprovisioning_enabled:
-    return f"{AcceleratorTypeToAcceleratorCharacteristics[accelerator_type].machine_label}: {system.topology}"
-  return ""
+  if (
+      accelerator_type == AcceleratorType['TPU']
+      and not autoprovisioning_enabled
+  ):
+    return (
+        f'{AcceleratorTypeToAcceleratorCharacteristics[accelerator_type].machine_label}:'
+        f' {system.topology}'
+    )
+  return ''
 
 
 def calculate_process_count(num_slices, vms_per_slice) -> str:
-  """ Calculates the total number of processes in the workload.
+  """Calculates the total number of processes in the workload.
   Args:
     num_slices: Number of slices to be used in the workload.
     vms_per_slice: number of VMs in each slice.
@@ -4307,26 +5362,24 @@ def calculate_process_count(num_slices, vms_per_slice) -> str:
   """
   num_processes = int(num_slices) * int(vms_per_slice)
 
-  return f"{num_processes}"
+  return f'{num_processes}'
 
-def get_cpu_env(num_slices, system) -> str:
+
+def get_cpu_env(num_slices, env_vars, system) -> str:
   """Generate environment variables for CPU nodepools
   Args:
     num_slices: Number of slices to be used in the workload.
+    env_vars: Environment variables, processed from user args.
     system: system characteristics
 
   Returns:
     str: yaml containing env variables
   """
-  yaml = """env:
+  yaml = """
                 - name: REPLICATED_JOB_NAME
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.annotations['jobset.sigs.k8s.io/replicatedjob-name']
-                - name: JOBSET_NAME
-                  valueFrom:
-                    fieldRef:
-                      fieldPath: metadata.annotations['jobset.sigs.k8s.io/jobset-name']
                 - name: JAX_COORDINATOR_ADDRESS
                   value: "$(JOBSET_NAME)-$(REPLICATED_JOB_NAME)-0-0.$(JOBSET_NAME)"
                 - name: JOB_INDEX
@@ -4341,11 +5394,13 @@ def get_cpu_env(num_slices, system) -> str:
                   value: "{processes_in_job}"
                 - name: JAX_PROCESS_COUNT
                   value: "{process_count}"
+                {env_vars}
   """
-  if system.accelerator_type == AcceleratorType['CPU']:
-    return yaml.format(processes_in_job = system.vms_per_slice,
-                      process_count=calculate_process_count(num_slices,system.vms_per_slice))
-  return ""
+  return yaml.format(
+      processes_in_job=system.vms_per_slice,
+      process_count=calculate_process_count(num_slices, system.vms_per_slice),
+      env_vars=env_vars,
+  )
 
 
 def get_cpu_affinity(accelerator_type) -> str:
@@ -4369,10 +5424,12 @@ def get_cpu_affinity(accelerator_type) -> str:
 """
   if accelerator_type == AcceleratorType['CPU']:
     return yaml
-  return ""
+  return ''
 
 
-def get_system_characteristics(args) -> tuple[SystemCharacteristics|None, int]:
+def get_system_characteristics(
+    args,
+) -> tuple[SystemCharacteristics | None, int]:
   """Get system characteristics based on user provided arguments.
 
   Args:
@@ -4389,7 +5446,9 @@ def get_system_characteristics(args) -> tuple[SystemCharacteristics|None, int]:
     return None, 1
 
 
-def is_autoprovisioning_enabled(args, system: SystemCharacteristics) -> tuple[bool, int]:
+def is_autoprovisioning_enabled(
+    args, system: SystemCharacteristics
+) -> tuple[bool, int]:
   """Determine if autoprovisioning is enabled.
 
   Args:
@@ -4404,12 +5463,20 @@ def is_autoprovisioning_enabled(args, system: SystemCharacteristics) -> tuple[bo
   cluster_config_map = get_cluster_configmap(args, resources_configmap_name)
 
   if cluster_config_map is None:
-    xpk_print(f'Unable to find config map: {resources_configmap_name}. Autoprovisioning is not enabled.')
+    xpk_print(
+        f'Unable to find config map: {resources_configmap_name}.'
+        ' Autoprovisioning is not enabled.'
+    )
     return False, 0
 
-  return_code, autoprovisioning_value = get_value_from_map(system.gke_accelerator, cluster_config_map)
+  return_code, autoprovisioning_value = get_value_from_map(
+      system.gke_accelerator, cluster_config_map
+  )
   if return_code != 0:
-    xpk_print(f'gke_accelerator type not found in config map: {resources_configmap_name}. Autoprovisioning is not enabled.')
+    xpk_print(
+        'gke_accelerator type not found in config map:'
+        f' {resources_configmap_name}. Autoprovisioning is not enabled.'
+    )
     return False, 0
 
   if autoprovisioning_value == _AUTOPROVISIONING_CONFIG_VALUE:
@@ -4417,9 +5484,9 @@ def is_autoprovisioning_enabled(args, system: SystemCharacteristics) -> tuple[bo
     return True, 0
   else:
     xpk_print(
-        'Error: Autoprovisioning not enabled but should be so exiting xpk. Value should be'
-        f' {_AUTOPROVISIONING_CONFIG_VALUE} but instead found value of '
-        f' {cluster_config_map[system.accelerator_type]}'
+        'Error: Autoprovisioning not enabled but should be so exiting xpk.'
+        f' Value should be {_AUTOPROVISIONING_CONFIG_VALUE} but instead found'
+        f' value of  {cluster_config_map[system.accelerator_type]}'
     )
     return False, 1
 
@@ -4451,17 +5518,23 @@ def get_autoprovisioning_node_selector_args(args) -> tuple[str, int]:
     # Error out if the metadata config map doesn't exist, and is attempting to use
     # autoprovisioning.
     if cluster_config_map is None:
-      xpk_print('Unable to find config map. Please specify a capacity type'
-                ' --on-demand, --spot, --reservation=$RESERVATION_ID) to continue'
-                ' to use autoprovisioning (--enable-autoprovisioning).')
+      xpk_print(
+          'Unable to find config map. Please specify a capacity type'
+          ' --on-demand, --spot, --reservation=$RESERVATION_ID) to continue'
+          ' to use autoprovisioning (--enable-autoprovisioning).'
+      )
       return node_selector_args, 1
 
-    return_code, capacity_type_str = get_value_from_map(_CAPACITY_TYPE_CONFIG_KEY, cluster_config_map)
+    return_code, capacity_type_str = get_value_from_map(
+        _CAPACITY_TYPE_CONFIG_KEY, cluster_config_map
+    )
     if return_code != 0:
       return node_selector_args, return_code
 
     if capacity_type_str == CapacityType.RESERVATION.name:
-      return_code, args.reservation = get_value_from_map(_RESERVATION_CONFIG_KEY, cluster_config_map)
+      return_code, args.reservation = get_value_from_map(
+          _RESERVATION_CONFIG_KEY, cluster_config_map
+      )
       if return_code != 0:
         return node_selector_args, return_code
       return_code = verify_reservation_exists(args)
@@ -4470,8 +5543,8 @@ def get_autoprovisioning_node_selector_args(args) -> tuple[str, int]:
         return node_selector_args, return_code
 
   # Check if reservation id is valid. Shared function with cluster creation.
-  node_selector_args, return_code = get_capacity_node_selectors_from_capacity_type(
-    args, capacity_type_str
+  node_selector_args, return_code = (
+      get_capacity_node_selectors_from_capacity_type(args, capacity_type_str)
   )
   if return_code != 0:
     xpk_print('Unable to get node selectors from capacity type.')
@@ -4499,36 +5572,46 @@ def workload_create(args) -> int:
 
   if workload_exists:
     xpk_print(
-    f'{args.workload} already exists, XPK will not create this workload.'
-    ' Please pick a new workload name'
-  )
+        f'{args.workload} already exists, XPK will not create this workload.'
+        ' Please pick a new workload name'
+    )
     xpk_exit(1)
 
-  xpk_print("Starting workload create", flush=True)
+  xpk_print('Starting workload create', flush=True)
   system, return_code = get_system_characteristics(args)
 
   if return_code > 0:
-    xpk_print("Fetching system characteristics failed!")
+    xpk_print('Fetching system characteristics failed!')
     xpk_exit(return_code)
 
   if not check_if_workload_can_schedule(args, system):
     xpk_exit(1)
 
-  xpk_print("Starting workload create", flush=True)
+  xpk_print('Starting workload create', flush=True)
 
   metadata_configmap_name = f'{args.cluster}-{_CLUSTER_METADATA_CONFIGMAP}'
   cluster_config_map = get_cluster_configmap(args, metadata_configmap_name)
   cluster_xpk_version = None
   if cluster_config_map is None:
-    xpk_print(f"Warning: Unable to find ConfigMap: {metadata_configmap_name} for the cluster. "
-              "We recommend to upgrade your cluster by running `xpk cluster create`.")
+    xpk_print(
+        f'Warning: Unable to find ConfigMap: {metadata_configmap_name} for the'
+        ' cluster. We recommend to upgrade your cluster by running `xpk'
+        ' cluster create`.'
+    )
   else:
-    cluster_xpk_version = cluster_config_map.get("xpk_version")
-  if cluster_xpk_version is not None and cluster_xpk_version != xpk_current_version:
-    xpk_print(f"Warning: Cluster has been created using XPK version: {cluster_config_map['xpk_version']} "
-              f"but the XPK version you are using to schedule workload is: {xpk_current_version}. "
-              "Some features might not be available for this cluster. We recommend to upgrade/downgrade "
-              "your XPK version or cluster by running `xpk cluster create`.")
+    cluster_xpk_version = cluster_config_map.get('xpk_version')
+  if (
+      cluster_xpk_version is not None
+      and cluster_xpk_version != xpk_current_version
+  ):
+    xpk_print(
+        'Warning: Cluster has been created using XPK version:'
+        f' {cluster_config_map["xpk_version"]} but the XPK version you are'
+        f' using to schedule workload is: {xpk_current_version}. Some features'
+        ' might not be available for this cluster. We recommend to'
+        ' upgrade/downgrade your XPK version or cluster by running `xpk'
+        ' cluster create`.'
+    )
 
   setup_docker_image_code, docker_image = setup_docker_image(args)
   if setup_docker_image_code != 0:
@@ -4541,23 +5624,35 @@ def workload_create(args) -> int:
     if not tensorboard_config:
       xpk_exit(1)
 
-  add_env_config(args, tensorboard_config)
+  parse_env_config(args, tensorboard_config)
 
-  autoprovisioning_args = ""
-  autoprovisioning_enabled, return_code = is_autoprovisioning_enabled(args, system)
+  autoprovisioning_args = ''
+  autoprovisioning_enabled, return_code = is_autoprovisioning_enabled(
+      args, system
+  )
   if return_code != 0:
     xpk_exit(return_code)
   if autoprovisioning_enabled:
     # Determine NAP capacity type
-    autoprovisioning_args, return_code = get_autoprovisioning_node_selector_args(args)
+    autoprovisioning_args, return_code = (
+        get_autoprovisioning_node_selector_args(args)
+    )
     if return_code != 0:
       xpk_exit(return_code)
 
   # Determine if we deploy a sidecar and if we deploy a container.
   debugging_dashboard_id = None
-  resource_type = AcceleratorTypeToAcceleratorCharacteristics[system.accelerator_type].resource_type
-  if system.accelerator_type == AcceleratorType['TPU'] and args.deploy_stacktrace_sidecar:
-    xpk_print('Sidecar container to display stack traces for TPU workloads will also be deployed.')
+  resource_type = AcceleratorTypeToAcceleratorCharacteristics[
+      system.accelerator_type
+  ].resource_type
+  if (
+      system.accelerator_type == AcceleratorType['TPU']
+      and args.deploy_stacktrace_sidecar
+  ):
+    xpk_print(
+        'Sidecar container to display stack traces for TPU workloads will also'
+        ' be deployed.'
+    )
     container = get_main_and_sidecar_container(args, system, docker_image)
     # Get GKE debugging dashboard only when sidecar container is deployed for TPU workloads
     debugging_dashboard_id = get_gke_debugging_dashboard(args)
@@ -4571,11 +5666,13 @@ def workload_create(args) -> int:
         container=container,
         docker_image=docker_image,
         command=args.command,
-        accelerator_label=create_accelerator_label(system.accelerator_type, system),
+        accelerator_label=create_accelerator_label(
+            system.accelerator_type, system
+        ),
         machine_label=create_machine_label(system.accelerator_type, system),
         node_pool_name=f'{args.cluster}-np-0',
         chips_per_vm=system.chips_per_vm,
-        autoprovisioning_args=autoprovisioning_args
+        autoprovisioning_args=autoprovisioning_args,
     )
   elif args.use_pathways:
     # Ensure the cluster and CPU nodepools were created with --enable-pathways
@@ -4583,29 +5680,30 @@ def workload_create(args) -> int:
     desired_pw_cpu_node_pools = {'cpu-user-np', 'cpu-rm-np', 'cpu-proxy-np'}
     if not desired_pw_cpu_node_pools.issubset(set(all_node_pools[0])):
       xpk_print(
-          'Cluster needs to be created with --enable-pathways to run Pathways workloads.'
+          'Cluster needs to be created with --enable-pathways to run Pathways'
+          ' workloads.'
       )
       xpk_exit(1)
 
     # Ensure device type is TPUs - currently Pathways supports TPUs only.
     if system.accelerator_type != AcceleratorType['TPU']:
-      xpk_print(
-          'Currently, Pathways workloads can only be run on TPUs.'
-      )
+      xpk_print('Currently, Pathways workloads can only be run on TPUs.')
       xpk_exit(1)
 
     yml_string = pw_workload_create_yaml.format(
         args=args,
         system=system,
         container=container,
-        accelerator_label=create_accelerator_label(system.accelerator_type, system),
+        accelerator_label=create_accelerator_label(
+            system.accelerator_type, system
+        ),
         machine_label=create_machine_label(system.accelerator_type, system),
-        pathways_rm_args = get_pathways_rm_args(args),
-        pathways_worker_args = get_pathways_worker_args(args),
-        pathways_proxy_args = get_pathways_proxy_args(args),
+        pathways_rm_args=get_pathways_rm_args(args),
+        pathways_worker_args=get_pathways_worker_args(args),
+        pathways_proxy_args=get_pathways_proxy_args(args),
         resource_type=resource_type,
         local_queue_name=_LOCAL_QUEUE_NAME,
-        autoprovisioning_args=autoprovisioning_args
+        autoprovisioning_args=autoprovisioning_args,
     )
   else:
     yml_string = workload_create_yaml.format(
@@ -4613,11 +5711,12 @@ def workload_create(args) -> int:
         system=system,
         container=container,
         affinity=get_cpu_affinity(system.accelerator_type),
-        env=get_cpu_env(args.num_slices,system),
-        accelerator_label=create_accelerator_label(system.accelerator_type, system),
+        accelerator_label=create_accelerator_label(
+            system.accelerator_type, system
+        ),
         machine_label=create_machine_label(system.accelerator_type, system),
         local_queue_name=_LOCAL_QUEUE_NAME,
-        autoprovisioning_args=autoprovisioning_args
+        autoprovisioning_args=autoprovisioning_args,
     )
   tmp = write_temporary_file(yml_string)
   command = f'kubectl apply -f {str(tmp.file.name)}'
@@ -4634,32 +5733,34 @@ def workload_create(args) -> int:
 
   if args.use_pathways:
     xpk_print(
-    'Follow your Pathways workload here:'
-    # pylint: disable=line-too-long
-    f' https://console.cloud.google.com/kubernetes/job/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}-main-0/details?project={args.project}'
+        'Follow your Pathways workload here:'
+        # pylint: disable=line-too-long
+        f' https://console.cloud.google.com/kubernetes/job/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}-main-0/details?project={args.project}'
     )
   else:
     xpk_print(
-      'Follow your workload here:'
-      # pylint: disable=line-too-long
-      f' https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
+        'Follow your workload here:'
+        # pylint: disable=line-too-long
+        f' https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
     )
 
   if outlier_dashboard_id is not None:
     xpk_print(
-    'Check statistics and outlier mode of GKE metrics here:'
-    # pylint: disable=line-too-long
-    f' https://console.cloud.google.com/monitoring/dashboards/builder/{outlier_dashboard_id}?project={args.project}&f.rlabel.cluster_name.ClusterName={args.cluster}.'
-    f' To view the metric data for your workload, select {args.workload} from the JobName filter on the dashboard.'
-  )
+        'Check statistics and outlier mode of GKE metrics here:'
+        # pylint: disable=line-too-long
+        f' https://console.cloud.google.com/monitoring/dashboards/builder/{outlier_dashboard_id}?project={args.project}&f.rlabel.cluster_name.ClusterName={args.cluster}.'
+        ' To view the metric data for your workload, select'
+        f' {args.workload} from the JobName filter on the dashboard.'
+    )
 
   if debugging_dashboard_id is not None:
     xpk_print(
-    'Check stack traces collected in Cloud Logging here:'
-    # pylint: disable=line-too-long
-    f' https://console.cloud.google.com/monitoring/dashboards/builder/{debugging_dashboard_id}?project={args.project}&f.rlabel.cluster_name.ClusterName={args.cluster}.'
-    f' To view the stack traces for your workload, select {args.workload} from the JobName filter on the dashboard.'
-  )
+        'Check stack traces collected in Cloud Logging here:'
+        # pylint: disable=line-too-long
+        f' https://console.cloud.google.com/monitoring/dashboards/builder/{debugging_dashboard_id}?project={args.project}&f.rlabel.cluster_name.ClusterName={args.cluster}.'
+        ' To view the stack traces for your workload, select'
+        f' {args.workload} from the JobName filter on the dashboard.'
+    )
 
   xpk_exit(0)
 
@@ -4681,7 +5782,7 @@ def workload_delete(args) -> int:
 
   will_delete = True
   if not args.workload:
-    xpk_print("Get the name of the workloads in the cluster.")
+    xpk_print('Get the name of the workloads in the cluster.')
     return_code, return_value = get_workload_list(args)
 
     if return_code != 0:
@@ -4691,15 +5792,19 @@ def workload_delete(args) -> int:
     workloads = [x.split(' ')[0] for x in return_value.splitlines()][1:]
     if workloads and not args.force:
       will_delete = get_user_input(
-        f'Planning to delete {len(workloads)} workloads in the cluster {args.cluster} '
-        f'including {workloads}. \nDo you wish to delete: y (yes) / n (no):\n')
+          f'Planning to delete {len(workloads)} workloads in the cluster'
+          f' {args.cluster} including {workloads}. \nDo you wish to delete: y'
+          ' (yes) / n (no):\n'
+      )
   else:
     workloads = [args.workload]
 
   if not workloads:
-    xpk_print("There are no workloads to delete matching the filter in the cluster.")
+    xpk_print(
+        'There are no workloads to delete matching the filter in the cluster.'
+    )
   elif not will_delete:
-    xpk_print("Skipping delete command.")
+    xpk_print('Skipping delete command.')
   else:
     commands = []
     task_names = []
@@ -4712,9 +5817,13 @@ def workload_delete(args) -> int:
 
     # Not batching deletion for single workload
     if len(workloads) == 1:
-      return_code = run_command_with_updates(commands[0], 'Delete Workload', args)
+      return_code = run_command_with_updates(
+          commands[0], 'Delete Workload', args
+      )
     else:
-      return_code = run_commands(commands, 'Delete Workload', task_names, batch=100)
+      return_code = run_commands(
+          commands, 'Delete Workload', task_names, batch=100
+      )
 
     if return_code != 0:
       xpk_print(f'Delete Workload request returned ERROR {return_code}')
@@ -4732,7 +5841,7 @@ def workload_list_awk_command(filter_key) -> str:
     awk command to use in filtering workload list.
   """
 
-  return f' | awk -e \'NR == 1 || {filter_key} {{print $0}}\''
+  return f" | awk -e 'NR == 1 || {filter_key} {{print $0}}'"
 
 
 def determine_workload_list_filter_by_status(args) -> str:
@@ -4745,31 +5854,37 @@ def determine_workload_list_filter_by_status(args) -> str:
     the argument needed to filter by status of jobs in workload list.
   """
   # Argument positions related to columns created by workload list command.
-  status_arg='$7'
-  running_vms_arg='$5'
-  status_verbose_arg='$9'
+  status_arg = '$7'
+  running_vms_arg = '$5'
+  status_verbose_arg = '$9'
   if args.filter_by_status == 'EVERYTHING':
     return ''
   elif args.filter_by_status == 'RUNNING':
     # Running includes the status Admitted or Evicted, and when the number of
     # vms running is > 0.
     return workload_list_awk_command(
-        f'({status_arg} ~ \"Admitted|Evicted\" && {running_vms_arg} ~ /^[0-9]+$/ && {running_vms_arg} > 0)'
+        f'({status_arg} ~ "Admitted|Evicted" && {running_vms_arg} ~ /^[0-9]+$/'
+        f' && {running_vms_arg} > 0)'
     )
   elif args.filter_by_status == 'QUEUED':
     # Queued includes the status Admitted or Evicted, and when the number of
     # vms running is 0.
     return workload_list_awk_command(
-        f'({status_arg} ~ \"Admitted|Evicted|QuotaReserved\" && ({running_vms_arg} ~ \"<none>\" || {running_vms_arg} == 0))'
+        f'({status_arg} ~ "Admitted|Evicted|QuotaReserved" &&'
+        f' ({running_vms_arg} ~ "<none>" || {running_vms_arg} == 0))'
     )
   elif args.filter_by_status == 'FINISHED':
-    return workload_list_awk_command(f'{status_arg} == \"Finished\"')
+    return workload_list_awk_command(f'{status_arg} == "Finished"')
   elif args.filter_by_status == 'FAILED':
     # Failed includes the status Finished, and when the verbose reason is failed.
-    return workload_list_awk_command(f'({status_arg} == \"Finished\" && {status_verbose_arg} ~ \"failed\")')
+    return workload_list_awk_command(
+        f'({status_arg} == "Finished" && {status_verbose_arg} ~ "failed")'
+    )
   elif args.filter_by_status == 'SUCCESSFUL':
     # Failed includes the status Finished, and when the verbose reason is finished/success.
-    return workload_list_awk_command(f'({status_arg} == \"Finished\" && {status_verbose_arg} ~ \"finished\")')
+    return workload_list_awk_command(
+        f'({status_arg} == "Finished" && {status_verbose_arg} ~ "finished")'
+    )
   raise RuntimeError(f'Can not find filter type: {args.filter_by_status}')
 
 
@@ -4786,8 +5901,8 @@ def determine_workload_list_filter_by_job(args) -> str:
   if not args.filter_by_job:
     return ''
   else:
-    job_name_arg="$1"
-    return workload_list_awk_command(f'{job_name_arg} ~ \"{args.filter_by_job}\"')
+    job_name_arg = '$1'
+    return workload_list_awk_command(f'{job_name_arg} ~ "{args.filter_by_job}"')
 
 
 def get_workload_list(args) -> tuple[int, str]:
@@ -4810,18 +5925,24 @@ def get_workload_list(args) -> tuple[int, str]:
       'Status': '.status.conditions[-1].type',
       'Status Message': '.status.conditions[-1].message',
       'Status Time': '.status.conditions[-1].lastTransitionTime',
-    }
+  }
   s = ','.join([key + ':' + value for key, value in columns.items()])
 
-  workload_list_filter_status_cmd = determine_workload_list_filter_by_status(args)
+  workload_list_filter_status_cmd = determine_workload_list_filter_by_status(
+      args
+  )
   workload_list_filter_job_cmd = determine_workload_list_filter_by_job(args)
-  command = (f'kubectl get workloads -o=custom-columns="{s}" '
-             f'{workload_list_filter_status_cmd} {workload_list_filter_job_cmd}'
-             )
+  command = (
+      f'kubectl get workloads -o=custom-columns="{s}" '
+      f'{workload_list_filter_status_cmd} {workload_list_filter_job_cmd}'
+  )
 
   return_code, return_value = run_command_for_value(
-    command, f'List Jobs with filter-by-status={args.filter_by_status}'
-    f' with filter-by-jobs={args.filter_by_job}', args)
+      command,
+      f'List Jobs with filter-by-status={args.filter_by_status}'
+      f' with filter-by-jobs={args.filter_by_job}',
+      args,
+  )
   return return_code, return_value
 
 
@@ -4844,7 +5965,8 @@ def wait_for_job_completion(args) -> int:
   # Get the full workload name
   get_workload_name_cmd = f'kubectl get workloads | grep jobset-{args.workload}'
   return_code, return_value = run_command_for_value(
-    get_workload_name_cmd, "Get full workload name", args)
+      get_workload_name_cmd, 'Get full workload name', args
+  )
   if return_code != 0:
     xpk_print(f'Get full workload name request returned ERROR {return_code}')
     return return_code
@@ -4852,18 +5974,26 @@ def wait_for_job_completion(args) -> int:
 
   # Call kubectl wait on the workload using the full workload name
   timeout_val = args.timeout if args.timeout is not None else -1
-  timeout_msg = f'{timeout_val}s' if timeout_val != -1 else "max timeout (1 week)"
-  wait_cmd = ('kubectl  wait --for jsonpath=\'.status.conditions[-1].type\'=Finished workload '
-              f'{full_workload_name} --timeout={timeout_val}s')
+  timeout_msg = (
+      f'{timeout_val}s' if timeout_val != -1 else 'max timeout (1 week)'
+  )
+  wait_cmd = (
+      "kubectl  wait --for jsonpath='.status.conditions[-1].type'=Finished"
+      f' workload {full_workload_name} --timeout={timeout_val}s'
+  )
   return_code, return_value = run_command_for_value(
-    wait_cmd, f'Wait for workload to finish with timeout of {timeout_msg}', args, print_timer=True
+      wait_cmd,
+      f'Wait for workload to finish with timeout of {timeout_msg}',
+      args,
+      print_timer=True,
   )
   if return_code != 0:
-    if "timed out" in return_value:
+    if 'timed out' in return_value:
       xpk_print(
-        f'Timed out waiting for your workload after {timeout_msg}, see your workload here:'
-        # pylint: disable=line-too-long
-        f' https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
+          f'Timed out waiting for your workload after {timeout_msg}, see your'
+          ' workload here:'
+          # pylint: disable=line-too-long
+          f' https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
       )
       return 124
     else:
@@ -4871,18 +6001,22 @@ def wait_for_job_completion(args) -> int:
       xpk_print(f'Wait for workload returned ERROR {return_code}')
       return return_code
   xpk_print(
-    'Finished waiting for your workload, see your workload here:'
-    # pylint: disable=line-too-long
-    f' https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
+      'Finished waiting for your workload, see your workload here:'
+      # pylint: disable=line-too-long
+      f' https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
   )
-  status_cmd = f'kubectl get jobset {args.workload} -o jsonpath=\'{{.status.conditions[-1].type}}\''
+  status_cmd = (
+      f'kubectl get jobset {args.workload} -o'
+      " jsonpath='{.status.conditions[-1].type}'"
+  )
   return_code, return_value = run_command_for_value(
-    status_cmd, "Get jobset status", args)
+      status_cmd, 'Get jobset status', args
+  )
   if return_code != 0:
     xpk_print(f'Get workload status request returned ERROR {return_code}')
     return return_code
   xpk_print(f'Your workload finished with status: {return_value}')
-  if return_value != "Completed":
+  if return_value != 'Completed':
     xpk_print('Your workload did not complete successfully')
     return 125
   return 0
@@ -4921,7 +6055,9 @@ def workload_list(args) -> int:
   xpk_exit(0)
 
 
-def inspector_run_command_helper(args, command, command_description, file) -> int:
+def inspector_run_command_helper(
+    args, command, command_description, file
+) -> int:
   """Runs a command for xpk inspector, and build the output file.
 
   Args:
@@ -4935,10 +6071,14 @@ def inspector_run_command_helper(args, command, command_description, file) -> in
   """
   prefix = f'Command: {command}\nCommand Description: {command_description}\n'
   postfix = '========================================================'
-  return_code, command_output = run_command_for_value(command, f'{command_description}', args)
+  return_code, command_output = run_command_for_value(
+      command, f'{command_description}', args
+  )
 
   if return_code != 0:
-    xpk_print(f'{command} returned ERROR {return_code} with output: {command_output}')
+    xpk_print(
+        f'{command} returned ERROR {return_code} with output: {command_output}'
+    )
     return 1
 
   inspector_command_output = f'{prefix} \n{command_output} \n{postfix} \n'
@@ -4985,9 +6125,9 @@ def inspector_output_link_helper(args, link, link_description, file) -> int:
     0 if successful and 1 otherwise.
   """
   inspector_link = (
-    f'Link Description: {link_description}\n'
-    f'Link: {link}\n'
-    '========================================================'
+      f'Link Description: {link_description}\n'
+      f'Link: {link}\n'
+      '========================================================'
   )
   append_temporary_file(inspector_link, file)
   if args.print_to_terminal:
@@ -5016,121 +6156,236 @@ def inspector(args) -> int:
   if set_cluster_command_code != 0:
     xpk_exit(set_cluster_command_code)
 
-  inspector_file = write_temporary_file("==================\nXPK inspector OUTPUT:\n==================\n")
+  inspector_file = write_temporary_file(
+      '==================\nXPK inspector OUTPUT:\n==================\n'
+  )
   command_and_descriptions = [
-    ('gcloud version', 'Local Setup: gcloud version'),
-    ('gcloud config get project; gcloud config get compute/zone; gcloud config get compute/region',
-     'Local Setup: Project / Zone / Region'),
-    (f'gcloud beta container clusters list --project {args.project} --region {zone_to_region(args.zone)}'
-     f' | grep -e NAME -e {args.cluster}','GKE: Cluster Details'),
-    (f'kubectl get configmap {args.cluster}-{_CLUSTER_METADATA_CONFIGMAP} -o yaml',
-     'GKE: Cluster Metadata ConfigMap Details'),
-    (f'kubectl get configmap {args.cluster}-{_CLUSTER_RESOURCES_CONFIGMAP} -o yaml',
-     'GKE: Cluster Resources ConfigMap Details'),
-    (f'gcloud beta container node-pools list --cluster {args.cluster}  --project={args.project} '
-     f'--region={zone_to_region(args.zone)}', 'GKE: Node pool Details'),
-    ('kubectl get node -o custom-columns=\'NODE_NAME:metadata.name,'
-     ' READY_STATUS:.status.conditions[?(@.type=="Ready")].status,'
-     ' NODEPOOL:metadata.labels.cloud\\.google\\.com/gke-nodepool\'', 'Kubectl: All Nodes'),
-    ('kubectl get node -o custom-columns=\':metadata.labels.cloud\\.google\\.com/gke-nodepool\''
-     ' | sort | uniq -c', 'Kubectl: Number of Nodes per Node Pool'),
-    ('kubectl get node -o custom-columns=\'NODE_NAME:metadata.name,'
-     ' READY_STATUS:.status.conditions[?(@.type=="Ready")].status,'
-     ' NODEPOOL:metadata.labels.cloud\\.google\\.com/gke-nodepool\' | grep -w True | awk {\'print $3\'} | sort | uniq -c',
-     'Kubectl: Healthy Node Count Per Node Pool'),
-    (f'kubectl describe ClusterQueue {_CLUSTER_QUEUE_NAME}', 'Kueue: ClusterQueue Details'),
-    (f'kubectl describe LocalQueue {_LOCAL_QUEUE_NAME}', 'Kueue: LocalQueue Details'),
-    ('kubectl describe ResourceFlavor', 'Kueue: ResourceFlavor Details'),
-    ('kubectl describe Deployment kueue-controller-manager -n kueue-system', 'Kueue: Kueue Deployment Details'),
-    ('kubectl describe Deployment jobset-controller-manager -n jobset-system', 'Jobset: Deployment Details'),
-    ('kubectl logs deployment/kueue-controller-manager -n kueue-system --tail=100 --prefix=True', 'Kueue Manager Logs'),
-    ('kubectl logs deployment/jobset-controller-manager -n jobset-system --tail=100 --prefix=True', 'Jobset Manager Logs'),
+      ('gcloud version', 'Local Setup: gcloud version'),
+      (
+          (
+              'gcloud config get project; gcloud config get compute/zone;'
+              ' gcloud config get compute/region'
+          ),
+          'Local Setup: Project / Zone / Region',
+      ),
+      (
+          (
+              'gcloud beta container clusters list --project'
+              f' {args.project} --region {zone_to_region(args.zone)} | grep -e'
+              f' NAME -e {args.cluster}'
+          ),
+          'GKE: Cluster Details',
+      ),
+      (
+          (
+              'kubectl get configmap'
+              f' {args.cluster}-{_CLUSTER_METADATA_CONFIGMAP} -o yaml'
+          ),
+          'GKE: Cluster Metadata ConfigMap Details',
+      ),
+      (
+          (
+              'kubectl get configmap'
+              f' {args.cluster}-{_CLUSTER_RESOURCES_CONFIGMAP} -o yaml'
+          ),
+          'GKE: Cluster Resources ConfigMap Details',
+      ),
+      (
+          (
+              f'gcloud beta container node-pools list --cluster {args.cluster} '
+              f' --project={args.project} --region={zone_to_region(args.zone)}'
+          ),
+          'GKE: Node pool Details',
+      ),
+      (
+          (
+              "kubectl get node -o custom-columns='NODE_NAME:metadata.name,"
+              ' READY_STATUS:.status.conditions[?(@.type=="Ready")].status,'
+              " NODEPOOL:metadata.labels.cloud\\.google\\.com/gke-nodepool'"
+          ),
+          'Kubectl: All Nodes',
+      ),
+      (
+          (
+              'kubectl get node -o'
+              " custom-columns=':metadata.labels.cloud\\.google\\.com/gke-nodepool'"
+              ' | sort | uniq -c'
+          ),
+          'Kubectl: Number of Nodes per Node Pool',
+      ),
+      (
+          (
+              "kubectl get node -o custom-columns='NODE_NAME:metadata.name,"
+              ' READY_STATUS:.status.conditions[?(@.type=="Ready")].status,'
+              " NODEPOOL:metadata.labels.cloud\\.google\\.com/gke-nodepool' |"
+              " grep -w True | awk {'print $3'} | sort | uniq -c"
+          ),
+          'Kubectl: Healthy Node Count Per Node Pool',
+      ),
+      (
+          f'kubectl describe ClusterQueue {_CLUSTER_QUEUE_NAME}',
+          'Kueue: ClusterQueue Details',
+      ),
+      (
+          f'kubectl describe LocalQueue {_LOCAL_QUEUE_NAME}',
+          'Kueue: LocalQueue Details',
+      ),
+      ('kubectl describe ResourceFlavor', 'Kueue: ResourceFlavor Details'),
+      (
+          (
+              'kubectl describe Deployment kueue-controller-manager -n'
+              ' kueue-system'
+          ),
+          'Kueue: Kueue Deployment Details',
+      ),
+      (
+          (
+              'kubectl describe Deployment jobset-controller-manager -n'
+              ' jobset-system'
+          ),
+          'Jobset: Deployment Details',
+      ),
+      (
+          (
+              'kubectl logs deployment/kueue-controller-manager -n kueue-system'
+              ' --tail=100 --prefix=True'
+          ),
+          'Kueue Manager Logs',
+      ),
+      (
+          (
+              'kubectl logs deployment/jobset-controller-manager -n'
+              ' jobset-system --tail=100 --prefix=True'
+          ),
+          'Jobset Manager Logs',
+      ),
   ]
 
   for command, description in command_and_descriptions:
-    return_code = inspector_run_command_helper(args, command, description, inspector_file)
+    return_code = inspector_run_command_helper(
+        args, command, description, inspector_file
+    )
     if return_code != 0:
       final_return_code = return_code
-      xpk_print(f'inspector failed in command: {command} description: {description} return code: {return_code}')
+      xpk_print(
+          f'inspector failed in command: {command} description:'
+          f' {description} return code: {return_code}'
+      )
 
   # Workload list views:
-  filter_by_statuses = ['EVERYTHING','QUEUED','RUNNING']
+  filter_by_statuses = ['EVERYTHING', 'QUEUED', 'RUNNING']
   for filter_by_status in filter_by_statuses:
-    args.filter_by_job=None
-    args.filter_by_status=filter_by_status
+    args.filter_by_job = None
+    args.filter_by_status = filter_by_status
     command_description = (
-      f'xpk workload list --filter-by-status={args.filter_by_status}'
-      f' --filter-by-job={args.filter_by_job} --project={args.project} --zone={args.zone}'
-      f' --cluster={args.cluster}'
+        f'xpk workload list --filter-by-status={args.filter_by_status}'
+        f' --filter-by-job={args.filter_by_job} --project={args.project} --zone={args.zone}'
+        f' --cluster={args.cluster}'
     )
-    return_code = inspector_run_workload_list_helper(args, command_description, inspector_file)
+    return_code = inspector_run_workload_list_helper(
+        args, command_description, inspector_file
+    )
     if return_code != 0:
       final_return_code = return_code
-      xpk_print(f'inspector failed in description: {command_description} return code: {return_code}')
+      xpk_print(
+          f'inspector failed in description: {command_description} return code:'
+          f' {return_code}'
+      )
 
   # If a workload argument is provided, list out workload specific details.
   if args.workload:
     xpk_print(args.workload)
-    args.filter_by_job=args.workload
-    args.filter_by_status='EVERYTHING'
+    args.filter_by_job = args.workload
+    args.filter_by_status = 'EVERYTHING'
     command_description = (
-      f'xpk workload list --filter-by-status={args.filter_by_status}'
-      f' --filter-by-job={args.filter_by_job} --project={args.project} --zone={args.zone}'
-      f' --cluster={args.cluster}'
+        f'xpk workload list --filter-by-status={args.filter_by_status}'
+        f' --filter-by-job={args.filter_by_job} --project={args.project} --zone={args.zone}'
+        f' --cluster={args.cluster}'
     )
-    return_code = inspector_run_workload_list_helper(args, command_description, inspector_file)
+    return_code = inspector_run_workload_list_helper(
+        args, command_description, inspector_file
+    )
     if return_code != 0:
       final_return_code = return_code
-      xpk_print(f'inspector failed in description: {command_description} return code: {return_code}')
+      xpk_print(
+          f'inspector failed in description: {command_description} return code:'
+          f' {return_code}'
+      )
 
     command = f'kubectl describe jobsets {args.workload}'
     command_description = f'Jobset config for {args.workload}'
-    return_code = inspector_run_command_helper(args, command, command_description, inspector_file)
+    return_code = inspector_run_command_helper(
+        args, command, command_description, inspector_file
+    )
     if return_code != 0:
       final_return_code = return_code
-      xpk_print(f'inspector failed in command: {command} description: {command_description} return code: {return_code}')
+      xpk_print(
+          f'inspector failed in command: {command} description:'
+          f' {command_description} return code: {return_code}'
+      )
 
     command = f'kubectl describe workloads jobset-{args.workload}'
     command_description = f'Workload config for {args.workload}'
-    return_code = inspector_run_command_helper(args, command, command_description, inspector_file)
+    return_code = inspector_run_command_helper(
+        args, command, command_description, inspector_file
+    )
     if return_code != 0:
       final_return_code = return_code
-      xpk_print(f'inspector failed in command: {command} description: {command_description} return code: {return_code}')
+      xpk_print(
+          f'inspector failed in command: {command} description:'
+          f' {command_description} return code: {return_code}'
+      )
 
   # Cloud Console Links:
   workload_links = []
   if args.workload:
-    workload_links = [
-      (f'Cloud Console for the workload {args.workload}',
-      # pylint: disable=line-too-long
-       f'https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}')
-    ]
+    workload_links = [(
+        f'Cloud Console for the workload {args.workload}',
+        # pylint: disable=line-too-long
+        f'https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}',
+    )]
 
   links = [
-    ('Cloud Console for the GKE Cluster',
-      # pylint: disable=line-too-long
-     f'https://console.cloud.google.com/kubernetes/clusters/details/{zone_to_region(args.zone)}/{args.cluster}/details?project={args.project}'),
-    ('Cloud Console for all workloads in GKE Cluster',
-      # pylint: disable=line-too-long
-     f'https://console.cloud.google.com/kubernetes/workload/overview?project={args.project}&pageState=((gke%2F{zone_to_region(args.zone)}%2F{args.cluster}))'),
-    ('Cloud Console for IAM Permissions', f'https://console.cloud.google.com/iam-admin/iam?project={args.project}'),
-    ('Cloud Console for Quotas', f'https://console.cloud.google.com/iam-admin/quotas?project={args.project}'),
+      (
+          'Cloud Console for the GKE Cluster',
+          # pylint: disable=line-too-long
+          f'https://console.cloud.google.com/kubernetes/clusters/details/{zone_to_region(args.zone)}/{args.cluster}/details?project={args.project}',
+      ),
+      (
+          'Cloud Console for all workloads in GKE Cluster',
+          # pylint: disable=line-too-long
+          f'https://console.cloud.google.com/kubernetes/workload/overview?project={args.project}&pageState=((gke%2F{zone_to_region(args.zone)}%2F{args.cluster}))',
+      ),
+      (
+          'Cloud Console for IAM Permissions',
+          f'https://console.cloud.google.com/iam-admin/iam?project={args.project}',
+      ),
+      (
+          'Cloud Console for Quotas',
+          f'https://console.cloud.google.com/iam-admin/quotas?project={args.project}',
+      ),
   ]
   links.extend(workload_links)
 
   for description, workload_link in links:
-    return_code = inspector_output_link_helper(args, workload_link, description, inspector_file)
+    return_code = inspector_output_link_helper(
+        args, workload_link, description, inspector_file
+    )
     if return_code != 0:
       final_return_code = return_code
-      xpk_print(f'inspector failed in link: {workload_link} description: {description} return code: {return_code}')
+      xpk_print(
+          f'inspector failed in link: {workload_link} description:'
+          f' {description} return code: {return_code}'
+      )
 
   # Summarize inspector:
   xpk_print(f'Find xpk inspector output file: {inspector_file.name}')
 
   if final_return_code != 0:
     xpk_print(
-      'Something was unable to run in xpk inspector, please look through the output'
-      f' as it may clue to the failure reason. Return Code: {final_return_code}'
+        'Something was unable to run in xpk inspector, please look through the'
+        ' output as it may clue to the failure reason. Return Code:'
+        f' {final_return_code}'
     )
   xpk_exit(final_return_code)
 
@@ -5195,7 +6450,7 @@ def workload_name_type(value, pat=re.compile(r'[a-z]([-a-z0-9]*[a-z0-9])?')):
 def directory_path_type(value):
   if not os.path.isdir(value):
     raise argparse.ArgumentTypeError(
-      f'Directory path is invalid. User provided path was {value}'
+        f'Directory path is invalid. User provided path was {value}'
     )
   return value
 
@@ -5227,7 +6482,8 @@ cluster_create_optional_arguments = cluster_create_parser.add_argument_group(
     'Optional Arguments', 'Arguments optional for cluster create.'
 )
 cluster_create_tensorboard_arguments = cluster_create_parser.add_argument_group(
-    'Optional Vertex AI Tensorboard Arguments', 'Arguments for creating Vertex AI Tensorboard in cluster create.'
+    'Optional Vertex AI Tensorboard Arguments',
+    'Arguments for creating Vertex AI Tensorboard in cluster create.',
 )
 cluster_create_capacity_arguments = cluster_create_parser.add_argument_group(
     'Capacity Arguments', 'Arguments related to capacity for cluster create.'
@@ -5245,19 +6501,26 @@ cluster_create_required_arguments.add_argument(
     required=True,
 )
 
-cluster_device_group = cluster_create_required_arguments.add_mutually_exclusive_group(required=True)
+cluster_device_group = (
+    cluster_create_required_arguments.add_mutually_exclusive_group(
+        required=True
+    )
+)
 
 cluster_device_group.add_argument(
     '--tpu-type',
     type=str,
     default=None,
-    help='The tpu type to use, v5litepod-16, etc.'
+    help='The tpu type to use, v5litepod-16, etc.',
 )
 cluster_device_group.add_argument(
     '--device-type',
     type=str,
     default=None,
-    help='The device type to use (can be tpu or gpu or cpu), v5litepod-16, h100-80gb-8, n2-standard-32-4 etc.'
+    help=(
+        'The device type to use (can be tpu or gpu or cpu), v5litepod-16,'
+        ' h100-80gb-8, n2-standard-32-4 etc.'
+    ),
 )
 
 
@@ -5327,27 +6590,37 @@ cluster_create_optional_arguments.add_argument(
 cluster_create_optional_arguments.add_argument(
     '--pathways-gce-machine-type',
     type=str,
-    default="n1-standard-32",
-    help='The CPU type for Pathways CPU nodepools'
+    default='n1-standard-32',
+    help='The CPU type for Pathways CPU nodepools',
 )
 cluster_create_optional_arguments.add_argument(
-  '--default-pool-cpu-machine-type',
+    '--default-pool-cpu-machine-type',
     type=str,
     default='e2-standard-16',
     help=(
-      'Set the machine type within the default cpu node pool. For'
-      ' regional clusters, all zones must support the machine type.'
-    )
+        'Set the machine type within the default cpu node pool. For'
+        ' regional clusters, all zones must support the machine type.'
+    ),
 )
 cluster_create_optional_arguments.add_argument(
-  '--cluster-cpu-machine-type',
+    '--default-pool-cpu-num-nodes',
+    type=int,
+    default=6,
+    help=(
+        'Set the number of nodes within the default cpu node pool. This is'
+        ' set to 6 by default. Autoscaling is enabled to scale this value over'
+        ' time.'
+    ),
+)
+cluster_create_optional_arguments.add_argument(
+    '--cluster-cpu-machine-type',
     type=str,
     default='',
     help=(
-      'Getting deprecated soon! Please use --default-pool-cpu-machine-type'
-      'instead, to denote the machine type of the default cpu node pool. Set'
-      ' the machine type of other cpu nodepools using --device-type.'
-    )
+        'Getting deprecated soon! Please use --default-pool-cpu-machine-type'
+        'instead, to denote the machine type of the default cpu node pool. Set'
+        ' the machine type of other cpu nodepools using --device-type.'
+    ),
 )
 cluster_create_optional_arguments.add_argument(
     '--custom-cluster-arguments',
@@ -5386,8 +6659,8 @@ cluster_create_optional_arguments.add_argument(
     '--force',
     action='store_true',
     help=(
-      'Forces node pool creation and delete commands to run without additional'
-      ' approval.'
+        'Forces node pool creation and delete commands to run without'
+        ' additional approval.'
     ),
 )
 
@@ -5401,10 +6674,10 @@ cluster_create_tensorboard_arguments.add_argument(
     type=str,
     default='us-central1',
     help=(
-      'The region to create Vertex Tensorboard instance in. '
-      'Visit https://cloud.google.com/vertex-ai/docs/general/locations#available-regions '
-      'to view regions supported by Vertex AI. By default, Tensorboard instance will '
-      'be created in us-central1.'
+        'The region to create Vertex Tensorboard instance in. Visit'
+        ' https://cloud.google.com/vertex-ai/docs/general/locations#available-regions'
+        ' to view regions supported by Vertex AI. By default, Tensorboard'
+        ' instance will be created in us-central1.'
     ),
 )
 cluster_create_tensorboard_arguments.add_argument(
@@ -5412,31 +6685,32 @@ cluster_create_tensorboard_arguments.add_argument(
     type=str,
     required=False,
     help=(
-      'The name of Vertex Tensorboard instance to create. '
-      'If not specified, a Tensorboard instance with the name '
-      f'<cluster>-{_DEFAULT_VERTEX_TENSORBOARD_NAME} will be created.'
+        'The name of Vertex Tensorboard instance to create. '
+        'If not specified, a Tensorboard instance with the name '
+        f'<cluster>-{_DEFAULT_VERTEX_TENSORBOARD_NAME} will be created.'
     ),
 )
 
-cluster_create_autoprovisioning_arguments = cluster_create_parser.add_argument_group(
-    'Optional Autoprovisioning Arguments',
-    'Arguments optional for enabling autoprovisioning.'
+cluster_create_autoprovisioning_arguments = (
+    cluster_create_parser.add_argument_group(
+        'Optional Autoprovisioning Arguments',
+        'Arguments optional for enabling autoprovisioning.',
+    )
 )
 
 cluster_create_autoprovisioning_arguments.add_argument(
     '--enable-autoprovisioning',
     action='store_true',
-    help=(
-      'Enable GKE features for autoprovisioning node pools in GKE clusters.'
-    ),
+    help='Enable GKE features for autoprovisioning node pools in GKE clusters.',
 )
 
 cluster_create_autoprovisioning_arguments.add_argument(
     '--autoprovisioning-min-chips',
     type=int,
     help=(
-      'Optionally set the minimum autoprovisioning accelerator resources in units of chips.'
-      'By default, autoprovisioning will use the number of resources in the cluster as the minimum, and maximum.'
+        'Optionally set the minimum autoprovisioning accelerator resources in'
+        ' units of chips.By default, autoprovisioning will use the number of'
+        ' resources in the cluster as the minimum, and maximum.'
     ),
 )
 
@@ -5444,8 +6718,9 @@ cluster_create_autoprovisioning_arguments.add_argument(
     '--autoprovisioning-max-chips',
     type=int,
     help=(
-      'Optionally set the maximum autoprovisioning accelerator resources in units of chips.'
-      'By default, autoprovisioning will use the number of resources in the cluster as the minimum, and maximum.'
+        'Optionally set the maximum autoprovisioning accelerator resources in'
+        ' units of chips.By default, autoprovisioning will use the number of'
+        ' resources in the cluster as the minimum, and maximum.'
     ),
 )
 
@@ -5495,20 +6770,25 @@ cluster_cacheimage_optional_arguments = (
         'Optional Arguments', 'Arguments optional for cluster cacheimage.'
     )
 )
-cluster_cacheimage_group = cluster_cacheimage_parser.add_mutually_exclusive_group(required=True)
+cluster_cacheimage_group = (
+    cluster_cacheimage_parser.add_mutually_exclusive_group(required=True)
+)
 
 ### Device Type Argument
 cluster_cacheimage_group.add_argument(
     '--tpu-type',
     type=str,
     default=None,
-    help='The tpu type to cache images on, v5litepod-16, etc.'
+    help='The tpu type to cache images on, v5litepod-16, etc.',
 )
 cluster_cacheimage_group.add_argument(
     '--device-type',
     type=str,
     default=None,
-    help='The device type to cache images on (can be tpu or gpu), v5litepod-16, h100-80gb-8, etc.'
+    help=(
+        'The device type to cache images on (can be tpu or gpu), v5litepod-16,'
+        ' h100-80gb-8, etc.'
+    ),
 )
 
 ### Required arguments
@@ -5601,7 +6881,7 @@ workload_create_parser = workload_subcommands.add_parser(
 workload_create_parser_required_arguments = (
     workload_create_parser.add_argument_group(
         'Workload Built-in Arguments',
-        'Configure xpk to create a Workload for you.'
+        'Configure xpk to create a Workload for you.',
     )
 )
 workload_create_parser_optional_arguments = (
@@ -5609,39 +6889,33 @@ workload_create_parser_optional_arguments = (
         'Optional Arguments', 'Arguments optional for `workload create`.'
     )
 )
-workload_base_docker_image_arguments = (
-    workload_create_parser.add_argument_group(
-        'Base Docker Image Arguments',
-        'User supplies a base image or by default the image is set by xpk.'
-        ' Xpk will add the `script_dir` to the base image creating an anonymous'
-        ' docker image. These arguments are exclusive to `--docker-image`.'
-    )
+workload_base_docker_image_arguments = workload_create_parser.add_argument_group(
+    'Base Docker Image Arguments',
+    'User supplies a base image or by default the image is set by xpk.'
+    ' Xpk will add the `script_dir` to the base image creating an anonymous'
+    ' docker image. These arguments are exclusive to `--docker-image`.',
 )
-workload_docker_image_arguments = (
-    workload_create_parser.add_argument_group(
-        'Docker Image Arguments',
-        '`--base-docker-image` is used by default. Set this argument if the'
-        ' user wants the docker image to be used directly by the xpk workload.'
-    )
+workload_docker_image_arguments = workload_create_parser.add_argument_group(
+    'Docker Image Arguments',
+    '`--base-docker-image` is used by default. Set this argument if the'
+    ' user wants the docker image to be used directly by the xpk workload.',
 )
 workload_create_autoprovisioning_arguments = (
     workload_create_parser.add_argument_group(
         'Optional Autoprovisioning Arguments',
-        'Arguments for configuring autoprovisioning.'
+        'Arguments for configuring autoprovisioning.',
     )
 )
-workload_pathways_workload_arguments = (
-    workload_create_parser.add_argument_group(
-        'Pathways Image Arguments',
-        'If --use-pathways is provided, user wants to set up a'
-        'Pathways workload on xpk.'
-    )
+workload_pathways_workload_arguments = workload_create_parser.add_argument_group(
+    'Pathways Image Arguments',
+    'If --use-pathways is provided, user wants to set up a'
+    'Pathways workload on xpk.',
 )
 workload_vertex_tensorboard_arguments = (
-  workload_create_parser.add_argument_group(
-    'Vertex Tensorboard Arguments',
-    'Arguments for creating Vertex AI Experiment in workload create.'
-  )
+    workload_create_parser.add_argument_group(
+        'Vertex Tensorboard Arguments',
+        'Arguments for creating Vertex AI Experiment in workload create.',
+    )
 )
 
 ### "workload create" Required arguments
@@ -5672,19 +6946,26 @@ workload_create_parser_required_arguments.add_argument(
     required=True,
 )
 
-workload_device_group = workload_create_parser_required_arguments.add_mutually_exclusive_group(required=True)
+workload_device_group = (
+    workload_create_parser_required_arguments.add_mutually_exclusive_group(
+        required=True
+    )
+)
 
 workload_device_group.add_argument(
     '--tpu-type',
     type=str,
     default=None,
-    help='The tpu type to use, v5litepod-16, etc.'
+    help='The tpu type to use, v5litepod-16, etc.',
 )
 workload_device_group.add_argument(
     '--device-type',
     type=str,
     default=None,
-    help='The device type to use (can be tpu or gpu or cpu), v5litepod-16, h100-80gb-8, n2-standard-32-4 etc.'
+    help=(
+        'The device type to use (can be tpu or gpu or cpu), v5litepod-16,'
+        ' h100-80gb-8, n2-standard-32-4 etc.'
+    ),
 )
 
 ### "workload create" Optional Arguments
@@ -5717,17 +6998,19 @@ workload_base_docker_image_arguments.add_argument(
     help=(
         f'The base docker-image to use, default {default_docker_image}. If'
         ' using a custom docker image it is typically addressed as'
-        ' gcr.io/${PROJECT}/${NAME}:latest. This docker image will be used as a'
-        ' base image by default and the `--script-dir` by default'
-        ' will be added to the image.'
+        ' gcr.io/${PROJECT}/${NAME}:latest. This docker image will be used'
+        ' as a base image by default and the `--script-dir` by default will be'
+        ' added to the image.'
     ),
 )
 workload_base_docker_image_arguments.add_argument(
     '--script-dir',
-     type=directory_path_type,
-     default=default_script_dir,
-    help='The local location of the directory to copy to the docker image and'
+    type=directory_path_type,
+    default=default_script_dir,
+    help=(
+        'The local location of the directory to copy to the docker image and'
         ' run the main command from. Defaults to current working directory.'
+    ),
 )
 workload_create_parser_optional_arguments.add_argument(
     '--num-slices',
@@ -5741,7 +7024,9 @@ workload_create_parser_optional_arguments.add_argument(
     default=1,
     help='The number of nodes to use, default=1.',
 )
-workload_env_arguments = workload_create_parser_optional_arguments.add_mutually_exclusive_group()
+workload_env_arguments = (
+    workload_create_parser_optional_arguments.add_mutually_exclusive_group()
+)
 workload_env_arguments.add_argument(
     '--env-file',
     type=str,
@@ -5760,7 +7045,7 @@ workload_env_arguments.add_argument(
     help=(
         'Environment variable to set in the container environment. '
         'The format is <variable>=value'
-    )
+    ),
 )
 workload_create_parser_optional_arguments.add_argument(
     '--priority',
@@ -5804,7 +7089,8 @@ workload_create_parser_optional_arguments.add_argument(
     '--enable-debug-logs',
     action='store_true',
     help=(
-        'Set this flag to get verbose logging to investigate the issue in the workload.'
+        'Set this flag to get verbose logging to investigate the issue in the'
+        ' workload.'
     ),
 )
 workload_create_parser_optional_arguments.add_argument(
@@ -5817,22 +7103,23 @@ workload_create_parser_optional_arguments.add_argument(
     ),
 )
 workload_create_parser_optional_arguments.add_argument(
-    '-tgps', '--termination-grace-period-seconds',
+    '-tgps',
+    '--termination-grace-period-seconds',
     type=str,
     default='30',
     help=(
-        'Maximum wait time for a workload Pod to wrap up after a disruption event or deletion request.'
-        'Defaults to 30 seconds.'
+        'Maximum wait time for a workload Pod to wrap up after a disruption'
+        ' event or deletion request.Defaults to 30 seconds.'
     ),
 )
 workload_create_parser_optional_arguments.add_argument(
     '--restart-on-user-code-failure',
     action='store_true',
     help=(
-        'Adding this argument will return user failures back to the jobset manager'
-        ' allowing restarts on user code when --max-restarts is set greater than 0.'
-        ' By default, this is not enabled, and workloads will not restart from user code'
-        ' failures.'
+        'Adding this argument will return user failures back to the jobset'
+        ' manager allowing restarts on user code when --max-restarts is set'
+        ' greater than 0. By default, this is not enabled, and workloads will'
+        ' not restart from user code failures.'
     ),
 )
 
@@ -5841,17 +7128,17 @@ workload_create_autoprovisioning_arguments.add_argument(
     '--on-demand',
     action='store_true',
     help=(
-        'Sets autoprovisioning to use on-demand resources for the workload request.'
-        ' See `--reservation` or `--spot` for other capacity types.'
+        'Sets autoprovisioning to use on-demand resources for the workload'
+        ' request. See `--reservation` or `--spot` for other capacity types.'
     ),
 )
 workload_create_autoprovisioning_arguments.add_argument(
     '--reservation',
     type=str,
     help=(
-        'Sets autoprovisioning to use reservation resources for the workload request.'
-        ' This will attempt to find the provided reservation.'
-        ' See `--spot` or `--on-demand` for other capacity types.'
+        'Sets autoprovisioning to use reservation resources for the workload'
+        ' request. This will attempt to find the provided reservation. See'
+        ' `--spot` or `--on-demand` for other capacity types.'
     ),
 )
 workload_create_autoprovisioning_arguments.add_argument(
@@ -5867,33 +7154,25 @@ workload_create_autoprovisioning_arguments.add_argument(
 workload_pathways_workload_arguments.add_argument(
     '--use-pathways',
     action='store_true',
-    help=(
-        'Provide this argument to create Pathways workloads.'
-    ),
+    help='Provide this argument to create Pathways workloads.',
 )
 workload_pathways_workload_arguments.add_argument(
     '--proxy-server-image',
     type=str,
     default='gcr.io/cloud-tpu-v2-images/pathways/pathways-demo:proxy_server',
-    help=(
-        'Please provide the proxy server image for Pathways.'
-    ),
+    help='Please provide the proxy server image for Pathways.',
 )
 workload_pathways_workload_arguments.add_argument(
     '--server-image',
     type=str,
     default='gcr.io/cloud-tpu-v2-images/pathways/pathways-demo:server',
-    help=(
-        'Please provide the server image for Pathways.'
-    ),
+    help='Please provide the server image for Pathways.',
 )
 workload_pathways_workload_arguments.add_argument(
     '--pathways-gcs-location',
     type=str,
     default='gs://cloud-pathways-staging/tmp',
-    help=(
-        'Please provide the GCS location to store Pathways artifacts.'
-    ),
+    help='Please provide the GCS location to store Pathways artifacts.',
 )
 workload_vertex_tensorboard_arguments.add_argument(
     '--use-vertex-tensorboard',
@@ -5905,9 +7184,9 @@ workload_vertex_tensorboard_arguments.add_argument(
     type=str,
     required=False,
     help=(
-      'The name of Vertex Experiment to create. '
-      'If not specified, a Vertex Experiment with the name '
-      '<cluster>-<workload> will be created.'
+        'The name of Vertex Experiment to create. '
+        'If not specified, a Vertex Experiment with the name '
+        '<cluster>-<workload> will be created.'
     ),
 )
 workload_create_parser.set_defaults(func=workload_create)
@@ -5942,30 +7221,42 @@ workload_delete_parser_optional_arguments.add_argument(
     '--workload',
     type=workload_name_type,
     default=None,
-    help='The name of the workload to delete. If the workload is not specified, '
-    'all workloads will be deleted from the cluster.',
+    help=(
+        'The name of the workload to delete. If the workload is not specified, '
+        'all workloads will be deleted from the cluster.'
+    ),
 )
 workload_delete_parser_optional_arguments.add_argument(
     '--filter-by-job',
     type=str,
-    help='Filters the arguments based on job name. Provide a regex expression'
-          'to parse jobs that match the pattern or provide a job name to delete a single job.',
+    help=(
+        'Filters the arguments based on job name. Provide a regex expressionto'
+        ' parse jobs that match the pattern or provide a job name to delete a'
+        ' single job.'
+    ),
 )
 workload_delete_parser_optional_arguments.add_argument(
     '--filter-by-status',
     type=str,
     default='EVERYTHING',
-    choices=['EVERYTHING', 'FINISHED', 'RUNNING', 'QUEUED', 'FAILED', 'SUCCESSFUL'],
-    help='Filters the arguments based on status. Selected filters are listed'
-        ' above. FAILED and SUCCESSFUL are sub-states of FINISHED.',
+    choices=[
+        'EVERYTHING',
+        'FINISHED',
+        'RUNNING',
+        'QUEUED',
+        'FAILED',
+        'SUCCESSFUL',
+    ],
+    help=(
+        'Filters the arguments based on status. Selected filters are listed'
+        ' above. FAILED and SUCCESSFUL are sub-states of FINISHED.'
+    ),
     required=False,
 )
 workload_delete_parser_optional_arguments.add_argument(
     '--force',
     action='store_true',
-    help=(
-      'Forces workload deletion command to run without additional approval.'
-    ),
+    help='Forces workload deletion command to run without additional approval.',
 )
 
 workload_delete_parser.set_defaults(func=workload_delete)
@@ -5987,23 +7278,37 @@ workload_list_parser.add_argument(
     '--filter-by-status',
     type=str,
     default='EVERYTHING',
-    choices=['EVERYTHING', 'FINISHED', 'RUNNING', 'QUEUED', 'FAILED', 'SUCCESSFUL'],
-    help='Filters the arguments based on status. Selected filters are listed'
-        ' above. FAILED and SUCCESSFUL are sub-states of FINISHED.',
+    choices=[
+        'EVERYTHING',
+        'FINISHED',
+        'RUNNING',
+        'QUEUED',
+        'FAILED',
+        'SUCCESSFUL',
+    ],
+    help=(
+        'Filters the arguments based on status. Selected filters are listed'
+        ' above. FAILED and SUCCESSFUL are sub-states of FINISHED.'
+    ),
     required=False,
 )
 
 workload_list_parser.add_argument(
     '--filter-by-job',
     type=str,
-    help='Filters the arguments based on job name. Provide a regex expression'
-          'to parse jobs that match the pattern or provide a job name to view a single job.',
+    help=(
+        'Filters the arguments based on job name. Provide a regex expressionto'
+        ' parse jobs that match the pattern or provide a job name to view a'
+        ' single job.'
+    ),
     required=False,
 )
 
-workload_list_wait_for_job_completion_arguments = workload_list_parser.add_argument_group(
-  'Wait for Job Completion Arguments',
-  'Arguments for waiting on the completion of a job.'
+workload_list_wait_for_job_completion_arguments = (
+    workload_list_parser.add_argument_group(
+        'Wait for Job Completion Arguments',
+        'Arguments for waiting on the completion of a job.',
+    )
 )
 
 workload_list_wait_for_job_completion_arguments.add_argument(
@@ -6018,7 +7323,10 @@ workload_list_wait_for_job_completion_arguments.add_argument(
     '--timeout',
     type=int,
     default=None,
-    help='Amount of time to wait for job in seconds. Default is the max wait time, 1 week.',
+    help=(
+        'Amount of time to wait for job in seconds. Default is the max wait'
+        ' time, 1 week.'
+    ),
     required=False,
 )
 
@@ -6029,7 +7337,8 @@ workload_list_parser.set_defaults(func=workload_list)
 
 #### "inspector" command parser. ####
 inspector_parser = xpk_subcommands.add_parser(
-    'inspector', help='commands around investigating workload, and Kueue failures.'
+    'inspector',
+    help='commands around investigating workload, and Kueue failures.',
 )
 
 inspector_parser.set_defaults(func=default_subcommand_function)
@@ -6039,16 +7348,11 @@ inspector_subcommands = inspector_parser.add_subparsers(
     help='Investigate workload, and Kueue failures.',
 )
 
-inspector_parser_required_arguments = (
-    inspector_parser.add_argument_group(
-        'inspector Built-in Arguments',
-        'Arguments required for `inspector`.'
-    )
+inspector_parser_required_arguments = inspector_parser.add_argument_group(
+    'inspector Built-in Arguments', 'Arguments required for `inspector`.'
 )
-inspector_parser_optional_arguments = (
-    inspector_parser.add_argument_group(
-        'Optional Arguments', 'Arguments optional for `inspector`.'
-    )
+inspector_parser_optional_arguments = inspector_parser.add_argument_group(
+    'Optional Arguments', 'Arguments optional for `inspector`.'
 )
 
 ### "inspector" Required arguments
@@ -6075,7 +7379,8 @@ inspector_parser_optional_arguments.add_argument(
     '--print-to-terminal',
     action='store_true',
     help=(
-      'Prints inspector output to terminal. A user can always look at the returned file.'
+        'Prints inspector output to terminal. A user can always look at the'
+        ' returned file.'
     ),
 )
 

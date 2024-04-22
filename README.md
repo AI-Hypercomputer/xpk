@@ -120,14 +120,6 @@ gcloud config set compute/zone $ZONE
 xpk .. --zone $ZONE --project $PROJECT_ID
 ```
 
-`Cluster Create` command will create a project-specific Service Account. Note that only one service 
-account will be created per project. This service account will be attached to the node pools instead of default 
-[Compute Engine Service Account](https://cloud.google.com/compute/docs/access/service-accounts#default_service_account). 
-All the required permissions will be assigned to this service account by XPK. Make sure you have 
-[Service Account Admin](https://cloud.google.com/iam/docs/understanding-roles#iam.serviceAccountAdmin) and 
-[Project IAM Admin](https://cloud.google.com/iam/docs/understanding-roles#resourcemanager.projectIamAdmin) 
-roles assigned to your user account.
-
 The cluster created is a regional cluster to enable the GKE control plane across
 all zones.
 
@@ -222,7 +214,9 @@ all zones.
     ```
 
 ### Create Vertex AI Tensorboard
-*Note: This feature is available in XPK >= 0.4.0. Enable [Vertex AI API](https://cloud.google.com/vertex-ai/docs/start/cloud-environment#enable_vertexai_apis) in your Google Cloud console to use this feature.*
+*Note: This feature is available in XPK >= 0.4.0. Enable [Vertex AI API](https://cloud.google.com/vertex-ai/docs/start/cloud-environment#enable_vertexai_apis) in your Google Cloud console to use this feature. Make sure you have
+[Vertex AI Administrator](https://cloud.google.com/vertex-ai/docs/general/access-control#aiplatform.admin) role
+assigned to your user account.*
 
 Vertex AI Tensorboard is a fully managed version of open-source Tensorboard. To learn more about Vertex AI Tensorboard, visit [this](https://cloud.google.com/vertex-ai/docs/experiments/tensorboard-introduction). Note that Vertex AI Tensorboard is only available in [these](https://cloud.google.com/vertex-ai/docs/general/locations#available-regions) regions.
 
@@ -382,7 +376,9 @@ checkpointing so the job restarts near where it was interrupted.
   ```
 
 ### Create Vertex AI Experiment to upload data to Vertex AI Tensorboard
-*Note: This feature is available in XPK >= 0.4.0. Enable [Vertex AI API](https://cloud.google.com/vertex-ai/docs/start/cloud-environment#enable_vertexai_apis) in your Google Cloud console to use this feature.*
+*Note: This feature is available in XPK >= 0.4.0. Enable [Vertex AI API](https://cloud.google.com/vertex-ai/docs/start/cloud-environment#enable_vertexai_apis) in your Google Cloud console to use this feature. Make sure you have
+[Vertex AI Administrator](https://cloud.google.com/vertex-ai/docs/general/access-control#aiplatform.admin) role
+assigned to your user account and to the [Compute Engine Service account](https://cloud.google.com/compute/docs/access/service-accounts#default_service_account) attached to the node pools in the cluster.*
 
 Vertex AI Experiment is a tool that helps to track and analyze an experiment run on Vertex AI Tensorboard. To learn more about Vertex AI Experiments, visit [this](https://cloud.google.com/vertex-ai/docs/experiments/intro-vertex-ai-experiments).
 

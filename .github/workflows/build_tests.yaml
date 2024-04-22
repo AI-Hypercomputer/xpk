@@ -45,6 +45,10 @@ jobs:
         install_components: 'beta,gke-gcloud-auth-plugin'
     - name: Verify gcp setup
       run: gcloud info
+    - name: Set Google Cloud CLI properties to a unused zone to verify --zone arg is passed properly in commands.
+      run: |
+        gcloud config set compute/zone us-east4-a
+        gcloud config get compute/zone
     - name: Create a Pathways-enabled XPK Cluster with 2x v4-8 nodepools. Larger num-nodes to avoid master resizing.
       run: python xpk.py cluster create --cluster $TPU_CLUSTER_NAME --enable-pathways  --device-type=v4-8  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}'
     - name: Authenticate Docker

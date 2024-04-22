@@ -197,7 +197,7 @@ all zones.
     --num-slices=6  --reservation=$RESERVATION_ID
     ```
 
-    and recreated the cluster with 4 slices of v4-8. The command will rerun to delete
+    and recreates the cluster with 4 slices of v4-8. The command will rerun to delete
     6 slices of v5litepod-16 and create 4 slices of v4-8. The command will warn the
     user when deleting slices. Use `--force` to skip prompts.
 

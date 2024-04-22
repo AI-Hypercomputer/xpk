@@ -3011,11 +3011,11 @@ def create_or_update_cluster_configmap(configmap_yml: dict) -> int:
     tmp = write_temporary_file(yml_string)
     command = f'kubectl apply -f {str(tmp.file.name)}'
     commands.append(command)
-    task_name = f'ConfigMap Create/Update-{configmap_name}'
+    task_name = f'ConfigMap CreateOrUpdate-{configmap_name}'
     task_names.append(task_name)
 
   return_code = run_commands(
-      commands, 'GKE Cluster Create/Update ConfigMap(s)', task_names
+      commands, 'GKE Cluster CreateOrUpdate ConfigMap(s)', task_names
   )
   if return_code != 0:
     xpk_print(
@@ -3528,6 +3528,9 @@ def run_gke_node_pool_create_command(
         args, existing_node_pool_names, desired_node_pool_names
     )
     for node_pool_name in existing_node_pool_names:
+      if node_pool_name.find(f'{args.cluster}-np-') != 0:
+        continue
+
       if node_pool_name in node_pools_to_delete:
         command = (
             'gcloud beta container node-pools delete'

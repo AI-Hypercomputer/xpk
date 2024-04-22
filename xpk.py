@@ -3026,35 +3026,6 @@ def create_or_update_cluster_configmap(configmap_yml: dict) -> int:
   return 0
 
 
-def create_or_update_cluster_configmap(configmap_yml: dict) -> int:
-  """
-  Args:
-    configmap_yml: dict containing ConfigMap name and yml string.
-
-  Returns:
-    0 if successful, 1 otherwise.
-  """
-  commands = []
-  task_names = []
-  for configmap_name, yml_string in configmap_yml.items():
-    tmp = write_temporary_file(yml_string)
-    command = f'kubectl apply -f {str(tmp.file.name)}'
-    commands.append(command)
-    task_name = f'ConfigMap Create/Update-{configmap_name}'
-    task_names.append(task_name)
-
-  return_code = run_commands(
-      commands, 'GKE Cluster Create/Update ConfigMap(s)', task_names
-  )
-  if return_code != 0:
-    xpk_print(
-        'GKE Cluster Create/Update ConfigMap(s) request returned ERROR'
-        f' {return_code}'
-    )
-    return 1
-  return 0
-
-
 def create_cluster_configmaps(
     args,
     system,

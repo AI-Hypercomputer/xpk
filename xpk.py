@@ -4228,7 +4228,7 @@ def cluster_create(args) -> int:
   xpk_exit(0)
 
 
-def cluster_delete(args) -> int:
+def cluster_delete(args):
   """Function around cluster delete.
 
   Args:
@@ -4243,7 +4243,7 @@ def cluster_delete(args) -> int:
   if run_gke_cluster_delete_command_code != 0:
     xpk_exit(run_gke_cluster_delete_command_code)
   xpk_print(f'GKE commands done! Cluster {args.cluster} deleted.\n')
-  return 0
+  xpk_exit(0)
 
 
 def cluster_cacheimage(args) -> int:

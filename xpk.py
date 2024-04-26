@@ -4254,7 +4254,7 @@ def default_subcommand_function(
   return 0
 
 
-def cluster_create(args) -> int:
+def cluster_create(args) -> None:
   """Function around cluster creation.
 
   Args:
@@ -4384,7 +4384,7 @@ def cluster_create(args) -> int:
   xpk_exit(0)
 
 
-def cluster_delete(args) -> int:
+def cluster_delete(args) -> None:
   """Function around cluster delete.
 
   Args:
@@ -4399,10 +4399,10 @@ def cluster_delete(args) -> int:
   if run_gke_cluster_delete_command_code != 0:
     xpk_exit(run_gke_cluster_delete_command_code)
   xpk_print(f'GKE commands done! Cluster {args.cluster} deleted.\n')
-  return 0
+  xpk_exit(0)
 
 
-def cluster_cacheimage(args) -> int:
+def cluster_cacheimage(args) -> None:
   """Function around cluster cacheimage.
 
   Args:
@@ -4455,7 +4455,7 @@ def cluster_cacheimage(args) -> int:
   xpk_exit(0)
 
 
-def cluster_describe(args) -> int:
+def cluster_describe(args) -> None:
   """Function around cluster describe.
 
   Args:
@@ -4506,10 +4506,10 @@ def cluster_describe(args) -> int:
   )
 
   xpk_print('GKE commands done!\n')
-  return 0
+  xpk_exit(0)
 
 
-def cluster_list(args) -> int:
+def cluster_list(args) -> None:
   """Function around cluster list.
 
   Args:
@@ -4521,8 +4521,8 @@ def cluster_list(args) -> int:
   add_zone_and_project(args)
   xpk_print(f'For project {args.project} and zone {args.zone}:', flush=True)
   if run_gke_clusters_list_command(args):
-    return 1
-  return 0
+    xpk_exit(1)
+  xpk_exit(0)
 
 
 def validate_docker_image(docker_image, args) -> int:
@@ -5590,7 +5590,7 @@ def get_autoprovisioning_node_selector_args(args) -> tuple[str, int]:
   return node_selector_args, return_code
 
 
-def workload_create(args) -> int:
+def workload_create(args) -> None:
   """Run jobset apply command for a file.
 
   Args:
@@ -5802,7 +5802,7 @@ def workload_create(args) -> int:
   xpk_exit(0)
 
 
-def workload_delete(args) -> int:
+def workload_delete(args) -> None:
   """Function around workload delete.
 
   Args:
@@ -6060,7 +6060,7 @@ def wait_for_job_completion(args) -> int:
   return 0
 
 
-def workload_list(args) -> int:
+def workload_list(args) -> None:
   """Function around workload list.
 
   Args:
@@ -6173,7 +6173,7 @@ def inspector_output_link_helper(args, link, link_description, file) -> int:
   return 0
 
 
-def inspector(args) -> int:
+def inspector(args) -> None:
   """Function around inspector which investigates failures in the kueue.
 
   Args:

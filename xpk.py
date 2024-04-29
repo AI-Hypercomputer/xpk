@@ -3280,26 +3280,32 @@ def get_nodepool_zone(args, nodepool_name) -> tuple[int, str]:
   return 0, nodepool_zone.strip()
 
 
-def check_device_type_in_cluster(args, device_type) -> bool:
-  """Check if cluster has resources of a specified device_type.
+def check_cluster_resources(args, system) -> tuple[bool, bool]:
+  """Check if cluster has resources of a specified device_type/gke_accelerator.
+  This check will be skipped if <args.cluster>-<_CLUSTER_RESOURCES_CONFIGMAP> ConfigMap doesn't exist for the cluster.
 
   Args:
     args: user provided arguments for running the command.
-    device_type: device_type to check.
+    system: system characteristics.
 
   Returns:
-    True if device_type exists in the cluster, False otherwise.
+    Tuple of bool, bool
+    True if resources in the cluster should be checked, False otherwise.
+    True if device_type/gke_accelerator exists in the cluster, False otherwise.
   """
   resources_configmap_name = f'{args.cluster}-{_CLUSTER_RESOURCES_CONFIGMAP}'
   resources_config_map = get_cluster_configmap(args, resources_configmap_name)
   if resources_config_map is None:
     xpk_print(
         f'No ConfigMap exist for cluster with the name {resources_config_map}.'
+        ' Cluster resources check will be skipped.'
     )
-    return False
-  if device_type in resources_config_map:
-    return True
-  return False
+    return False, False
+  if system.device_type in resources_config_map:
+    return True, True
+  elif system.gke_accelerator in resources_config_map:
+    return True, True
+  return True, False
 
 
 def get_all_nodepools_programmatic(args) -> tuple[list[str], int]:
@@ -3409,12 +3415,13 @@ def get_user_input(input_msg):
 
 
 def get_node_pools_to_delete(
-    args, existing_node_pool_names, desired_node_pool_names
+    args, system, existing_node_pool_names, desired_node_pool_names
 ) -> list:
   """Get list of nodepools to delete from the cluster.
 
   Args:
     args: user provided arguments for running the command.
+    system: system characteristics.
     existing_node_pool_names: names of nodepools that already exist in the cluster.
     desired_node_pool_names: names of nodepools that should exist in the cluster.
 
@@ -3422,9 +3429,8 @@ def get_node_pools_to_delete(
     List of nodepool names to delete.
   """
   node_pools_to_delete = []
-  desired_node_pool_type = args.tpu_type if args.tpu_type else args.device_type
-  is_requested_device_type_in_cluster = check_device_type_in_cluster(
-      args, desired_node_pool_type
+  check_resource, is_requested_resource_in_cluster = check_cluster_resources(
+      args, system
   )
   for existing_node_pool_name in existing_node_pool_names:
     # Deletion logic would leave behind any Pathways CPU nodepools.
@@ -3432,15 +3438,14 @@ def get_node_pools_to_delete(
       continue
 
     # Nodepools will be deleted in two scenarios:
-    # Scenario 1: Cluster exists with 3 nodepools of 'x' device_type and now we are updating
-    # the cluster to 2 nodepools of 'x' device_type. In this case, we will delete
+    # Scenario 1: Cluster exists with 3 nodepools of 'x' device_type/gke_accelerator and now we are updating
+    # the cluster to 2 nodepools of 'x' device_type/gke_accelerator. In this case, we will delete
     # '{args.cluster}-np-2' from the cluster.
-    # Scenario 2: Cluster exists with 2 nodepools of 'x' device_type and now we are updating
-    # the cluster to 2 nodepools of 'y' device_type. In this case, we will delete
+    # Scenario 2: Cluster exists with 2 nodepools of 'x' device_type/gke_accelerator and now we are updating
+    # the cluster to 2 nodepools of 'y' device_type/gke_accelerator. In this case, we will delete
     # '{args.cluster}-np-0' and '{args.cluster}-np-1' from the cluster.
-    if (
-        existing_node_pool_name not in desired_node_pool_names
-        or not is_requested_device_type_in_cluster
+    if existing_node_pool_name not in desired_node_pool_names or (
+        check_resource and not is_requested_resource_in_cluster
     ):
       node_pools_to_delete.append(existing_node_pool_name)
 
@@ -3514,7 +3519,7 @@ def run_gke_node_pool_create_command(
         args, existing_node_pool_names[0]
     )
     if return_code != 0:
-      xpk_exit(1)
+      return 1
 
     if existing_node_pool_zone and existing_node_pool_zone != args.zone:
       xpk_print(
@@ -3522,10 +3527,10 @@ def run_gke_node_pool_create_command(
           f' {existing_node_pool_zone}. Use the same zone to update nodepools'
           ' in the cluster.'
       )
-      xpk_exit(1)
+      return 1
 
     node_pools_to_delete = get_node_pools_to_delete(
-        args, existing_node_pool_names, desired_node_pool_names
+        args, system, existing_node_pool_names, desired_node_pool_names
     )
     for node_pool_name in existing_node_pool_names:
       if node_pool_name.find(f'{args.cluster}-np-') != 0:
@@ -3560,7 +3565,7 @@ def run_gke_node_pool_create_command(
           'You have requested to not delete the existing nodepools in the'
           ' cluster. There will be no change to the cluster.'
       )
-      xpk_exit(1)
+      return 1
 
     for i, command in enumerate(delete_commands):
       xpk_print(
@@ -3578,9 +3583,14 @@ def run_gke_node_pool_create_command(
 
     # Update {args.cluster}-{_CLUSTER_RESOURCES_CONFIGMAP} ConfigMap to 'y': '0'
     # and remove 'x' from the ConfigMap when cluster is getting updated from
-    # 'x' device_type to 'y' device_type.
+    # 'x' device_type/gke_accelerator to 'y' device_type/gke_accelerator.
     if not node_pools_to_remain:
-      resources_data = f'{device_type}: "0"'
+      if args.enable_autoprovisioning:
+        resources_data = (
+            f'{system.gke_accelerator}: {_AUTOPROVISIONING_CONFIG_VALUE}'
+        )
+      else:
+        resources_data = f'{device_type}: "0"'
       resources_configmap_name = (
           f'{args.cluster}-{_CLUSTER_RESOURCES_CONFIGMAP}'
       )
@@ -3591,7 +3601,7 @@ def run_gke_node_pool_create_command(
       configmap_yml[resources_configmap_name] = resources_yml
       return_code = create_or_update_cluster_configmap(configmap_yml)
       if return_code != 0:
-        xpk_exit(1)
+        return 1
 
   create_commands = []
   create_task_names = []

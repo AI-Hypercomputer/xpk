@@ -3550,8 +3550,8 @@ def run_gke_node_pool_create_command(
         node_pools_to_remain.append(node_pool_name)
 
   # Deletion of nodepools should happen before attempting to create new nodepools for the case
-  # when cluster is getting updated from 'x' device_type to 'y' device_type. In that case,
-  # '{args.cluster}-np-i' nodepool will be re-created for 'y' device_type.
+  # when cluster is getting updated from 'x' device_type/gke_accelerator to 'y' device_type/gke_accelerator.
+  # In that case, '{args.cluster}-np-i' nodepool will be re-created for 'y' device_type/gke_accelerator.
   if delete_commands:
     will_delete = True
     if node_pools_to_delete and not args.force:

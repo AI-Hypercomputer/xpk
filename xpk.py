@@ -5261,8 +5261,6 @@ def get_cpu_env(num_slices, env_vars, system) -> str:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.annotations['jobset.sigs.k8s.io/replicatedjob-name']
-                - name: JAX_COORDINATOR_ADDRESS
-                  value: "$(JOBSET_NAME)-$(REPLICATED_JOB_NAME)-0-0.$(JOBSET_NAME)"
                 - name: JOB_INDEX
                   valueFrom:
                     fieldRef:
@@ -5276,6 +5274,8 @@ def get_cpu_env(num_slices, env_vars, system) -> str:
                 - name: JAX_PROCESS_COUNT
                   value: "{process_count}"
                 {env_vars}
+                - name: JAX_COORDINATOR_ADDRESS
+                  value: "$(JOBSET_NAME)-$(REPLICATED_JOB_NAME)-0-0.$(JOBSET_NAME)"
   """
   return yaml.format(
       processes_in_job=system.vms_per_slice,

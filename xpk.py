@@ -4559,8 +4559,10 @@ def validate_docker_image(docker_image, args) -> int:
   )
   if return_code != 0:
     xpk_print(
-        'Failed to validate your docker image, check the docker image. You'
-        f' should be able to navigate to the URL {docker_image} in {project}'
+        'Failed to validate your docker image, check that the docker image'
+        f' exists. You may be able to find the {docker_image} in {project}.'
+        ' If the docker image exists, the service account of this'
+        ' project maybe be missing the permissions to access the docker image.'
     )
     return return_code
   else:

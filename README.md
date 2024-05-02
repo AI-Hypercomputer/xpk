@@ -195,7 +195,22 @@ all zones.
     python3 xpk.py cluster create --force \
     --cluster xpk-test --tpu-type=v5litepod-16 \
     --num-slices=6  --reservation=$RESERVATION_ID
+    ```
 
+    and recreates the cluster with 4 slices of v4-8. The command will rerun to delete
+    6 slices of v5litepod-16 and create 4 slices of v4-8. The command will warn the
+    user when deleting slices. Use `--force` to skip prompts.
+
+    ```shell
+    python3 xpk.py cluster create \
+    --cluster xpk-test --tpu-type=v4-8 \
+    --num-slices=4  --reservation=$RESERVATION_ID
+
+    # Skip delete prompts using --force.
+
+    python3 xpk.py cluster create --force \
+    --cluster xpk-test --tpu-type=v4-8 \
+    --num-slices=4  --reservation=$RESERVATION_ID
     ```
 
 ### Create Vertex AI Tensorboard

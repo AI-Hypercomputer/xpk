@@ -2622,6 +2622,7 @@ def run_gke_cluster_create_command(args, gke_control_plane_version: str) -> int:
   # TPUs. This has been tested with clusters of 300 VMs. Larger clusters will
   # benefit from a larger initial `--num-nodes`. After the cluster is created,
   # the auto-scaler can reduce/increase the nodes based on the load.
+
   command = (
       'gcloud beta container clusters create'
       f' {args.cluster} --project={args.project}'
@@ -2632,6 +2633,9 @@ def run_gke_cluster_create_command(args, gke_control_plane_version: str) -> int:
       ' --enable-autoscaling'
       ' --total-min-nodes 1 --total-max-nodes 1000'
       f' --num-nodes {args.default_pool_cpu_num_nodes}'
+      ' --cluster-dns=clouddns'
+      ' --cluster-dns-scope=vpc'
+      f' --cluster-dns-domain={args.cluster}-domain'
       f' {args.custom_cluster_arguments}'
   )
 
@@ -5121,7 +5125,7 @@ def get_pathways_worker_args(args) -> str:
   """
   yaml = """- --alsologtostderr
               - --pathways_server_port=38677
-              - --pathways_resource_manager={args.workload}-rm-0-0.{args.workload}:38677
+              - --pathways_resource_manager={args.workload}-rm-0-0.{args.workload}.default.svc.{args.cluster}-domain.:38677
               - --pathways_persistent_compilation_cache=false
               - --pathways_compilation_mode=compile_at_worker
               - --xla_tpu_enable_data_parallel_all_reduce_opt=true
@@ -5148,7 +5152,7 @@ def get_pathways_proxy_args(args) -> str:
   """
   yaml = """- --alsologtostderr
               - --v=0
-              - --pathways_ifrt_proxy_server_resource_manager={args.workload}-rm-0-0.{args.workload}:38677
+              - --pathways_ifrt_proxy_server_resource_manager={args.workload}-rm-0-0.{args.workload}.default.svc.{args.cluster}-domain.:38677
               - --pathways_ifrt_proxy_server_port=38676
               - --pathways_tmp_dir_pattern={args.pathways_gcs_location}
               - --pathways_plaque_network=gcp"""
@@ -5174,7 +5178,7 @@ def get_env_container(args, system: SystemCharacteristics):
                 - name: JAX_PLATFORMS
                   value: proxy
                 - name: JAX_BACKEND_TARGET
-                  value: grpc://{args.workload}-proxy-0-0.{args.workload}:38676
+                  value: grpc://{args.workload}-proxy-0-0.{args.workload}.default.svc.{args.cluster}-domain.:38676
                 - name: JOBSET_NAME
                   valueFrom:
                     fieldRef:

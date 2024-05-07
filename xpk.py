@@ -247,7 +247,7 @@ spec:
   successPolicy:
     operator: "All"
     targetReplicatedJobs:
-    - "main"
+    - {args.targetReplicatedJob}
   replicatedJobs:
   - name: worker
     replicas: {args.num_slices}
@@ -5236,13 +5236,15 @@ def get_env_container(args, system: SystemCharacteristics):
                 - name: JAX_PLATFORMS
                   value: proxy
                 - name: JAX_BACKEND_TARGET
-                  value: grpc://{args.workload}-proxy-0-0.{args.workload}.default.svc.{args.cluster}-domain.:38676
+                  value: {proxy_address}
                 - name: JOBSET_NAME
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.annotations['jobset.sigs.k8s.io/jobset-name']"""
   if args.use_pathways:
-    return pw_env_yaml.format(args=args)
+    return pw_env_yaml.format(
+        args=args, proxy_address=args.pathways_proxy_address
+    )
 
   gpu_env_yaml = """
                   - name: REPLICATED_JOB_NAME
@@ -5731,6 +5733,13 @@ def workload_create(args) -> None:
     0 if successful and 1 otherwise.
   """
   add_zone_and_project(args)
+  if args.command is None and not args.headless:
+    xpk_print(
+        'Please provide a command using "--command" for the docker container'
+        ' to execute. Command is not required if you wish to run Pathways'
+        ' workloads in headless mode (--use-pathways --headless).'
+    )
+    xpk_exit(1)
 
   set_cluster_command_code = set_cluster_command(args)
   if set_cluster_command_code != 0:
@@ -5839,6 +5848,12 @@ def workload_create(args) -> None:
       xpk_print('Currently, Pathways workloads can only be run on TPUs.')
       xpk_exit(1)
 
+    # Set proxy address to be consumed in helper methods and displayed to user.
+    args.pathways_proxy_address = f'grpc://{args.workload}-proxy-0-0.{args.workload}.default.svc.{args.cluster}-domain.:38676'
+
+    # Set the job which determines the life of other Pathways jobs
+    args.targetReplicatedJob = 'proxy' if args.headless else 'main'
+
     yml_string = pw_workload_create_yaml.format(
         args=args,
         system=system,
@@ -5887,11 +5902,24 @@ def workload_create(args) -> None:
     outlier_dashboard_id = get_gke_outlier_dashboard(args)
 
   if args.use_pathways:
-    xpk_print(
-        'Follow your Pathways workload here:'
-        # pylint: disable=line-too-long
-        f' https://console.cloud.google.com/kubernetes/job/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}-main-0/details?project={args.project}'
-    )
+    if args.headless:
+      xpk_print(
+          ' \n *******  Please connect to your Pathways proxy at'
+          f' {args.pathways_proxy_address}   ****** \n '
+      )
+      pathways_proxy_link = f'https://console.cloud.google.com/kubernetes/job/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}-proxy-0/details?project={args.project}'
+      xpk_print(
+          ' Follow the proxy here:'
+          # pylint: disable=line-too-long)
+          f' {pathways_proxy_link} '
+      )
+    else:
+      pathways_job_link = f'https://console.cloud.google.com/kubernetes/job/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}-{args.targetReplicatedJob}-0/details?project={args.project}'
+      xpk_print(
+          'Follow your Pathways workload here:'
+          # pylint: disable=line-too-long
+          f' {pathways_job_link} '
+      )
     xpk_print(
         'For a unified debugging view, use the following link: '
         f'{get_pathways_unified_query_link(args)}'
@@ -7087,18 +7115,6 @@ workload_create_parser_required_arguments.add_argument(
     required=True,
 )
 workload_create_parser_required_arguments.add_argument(
-    '--command',
-    type=str,
-    default=None,
-    help=(
-        'Main command to run on each VM. This script runs within the docker '
-        'container. Typically this looks like "--command=\'python3 train.py\'" '
-        'but if your docker container is missing the dependencies, it might '
-        'look more like "--command=\'bash setup.sh && python3 train.py\'".'
-    ),
-    required=True,
-)
-workload_create_parser_required_arguments.add_argument(
     '--cluster',
     type=str,
     default=None,
@@ -7138,6 +7154,18 @@ workload_create_parser_optional_arguments.add_argument(
     help=(
         'The name of the docker-image to use, default and typically `jax-tpu`.'
     ),
+)
+workload_create_parser_optional_arguments.add_argument(
+    '--command',
+    type=str,
+    default=None,
+    help=(
+        'Main command to run on each VM. This script runs within the docker '
+        'container. Typically this looks like "--command=\'python3 train.py\'" '
+        'but if your docker container is missing the dependencies, it might '
+        'look more like "--command=\'bash setup.sh && python3 train.py\'".'
+    ),
+    required=False,
 )
 workload_docker_image_arguments.add_argument(
     '--docker-image',

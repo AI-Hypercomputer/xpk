@@ -72,6 +72,7 @@ __version__ = '0.5.0'
 xpk_current_version = __version__
 
 h100_device_type = 'h100-80gb-8'
+h100_mega_device_type = 'h100-mega-80gb-8'
 
 _AUTOPROVISIONING_CONFIG_VALUE = 'AUTOPROVISION'
 _AUTOPROVISIONING_CONFIG_MINIMUM_KEY = 'minimum_chips'
@@ -728,6 +729,16 @@ UserFacingNameToSystemCharacteristics = {
         8,
         AcceleratorType['GPU'],
         'h100-80gb-8',
+    ),
+    # H100-mega-80gb-$CHIPS
+    'h100-mega-80gb-8': SystemCharacteristics(
+      'N/A',
+      1, 
+      'nvidia-h100-mega-80gb', 
+      'a3-megagpu-8g', 
+      8, 
+      AcceleratorType['GPU'], 
+      'h100-mega-80gb-8',
     ),
     # TPU system characteristics
     # v5p
@@ -2638,7 +2649,7 @@ def run_gke_cluster_create_command(args, gke_control_plane_version: str) -> int:
   )
 
   device_type = args.tpu_type if args.tpu_type else args.device_type
-  if device_type == h100_device_type:
+  if device_type == h100_device_type or device_type == h100_mega_device_type:
     command += (
         ' --enable-dataplane-v2 --enable-ip-alias'
         ' --enable-multi-networking --no-enable-autoupgrade'
@@ -2660,9 +2671,10 @@ def run_gke_cluster_create_command(args, gke_control_plane_version: str) -> int:
   return 0
 
 
-def set_up_cluster_network_for_a3(args) -> int:
-  """Set up GKE Cluster networks, subnets and firewall rules for A3.
-  Note: there are 4 NICs for GPU-GPU bw and 1 NIC for host in a A3 node
+def set_up_cluster_network_for_gpu(args) -> int:
+  """Set up GKE Cluster networks, subnets and firewall rules for A3/A3+.
+  Note: there are 4 NICs for GPU-GPU bw and 1 NIC for host in an A3 node,
+  and there are 8 NICs for GPU-GPU bw and 1 NIC for host in an A3+ node.
 
   Args:
     args: user provided arguments for running the command.
@@ -2670,7 +2682,9 @@ def set_up_cluster_network_for_a3(args) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
-  for i in range(1, 5):
+  device_type = args.tpu_type if args.tpu_type else args.device_type
+  num_networks = 5 if device_type == h100_device_type else 9
+  for i in range(1, num_networks):
     return_code = create_cluster_network(args, i)
     if return_code != 0:
       return 1
@@ -3634,7 +3648,9 @@ def run_gke_node_pool_create_command(
       command += f' --num-nodes={args.num_nodes}'
       command += (
           ' --accelerator'
-          f' type={system.gke_accelerator},count={str(system.chips_per_vm)}'
+          f' type={system.gke_accelerator},count={str(system.chips_per_vm)},gpu-driver-version=latest'
+          ' --no-enable-autoupgrade '
+          ' --scopes="https://www.googleapis.com/auth/cloud-platform"'
           ' --additional-node-network'
           f' network={args.cluster}-net-1,subnetwork={subnet_prefix}-sub-1'
           ' --additional-node-network'
@@ -3643,9 +3659,15 @@ def run_gke_node_pool_create_command(
           f' network={args.cluster}-net-3,subnetwork={subnet_prefix}-sub-3'
           ' --additional-node-network'
           f' network={args.cluster}-net-4,subnetwork={subnet_prefix}-sub-4'
-          ' --no-enable-autoupgrade '
-          ' --scopes="https://www.googleapis.com/auth/cloud-platform"'
       )
+      if device_type == h100_mega_device_type:
+        command += (
+          f' --additional-node-network network={args.cluster}-net-5,subnetwork={subnet_prefix}-sub-5'
+          f' --additional-node-network network={args.cluster}-net-6,subnetwork={subnet_prefix}-sub-6'
+          f' --additional-node-network network={args.cluster}-net-7,subnetwork={subnet_prefix}-sub-7'
+          f' --additional-node-network network={args.cluster}-net-8,subnetwork={subnet_prefix}-sub-8'
+          ' --max-pods-per-node=32'
+        )
     elif system.accelerator_type == AcceleratorType['CPU']:
       command += f' --num-nodes={system.vms_per_slice}'
       command += ' --scopes=storage-full,gke-default'
@@ -4049,11 +4071,20 @@ def install_nccl_on_cluster(args) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
-  command = (
-      'kubectl apply -f'
-      # pylint: disable=line-too-long
-      'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpx/nccl-tcpx-installer.yaml'
-  )
+  device_type = args.tpu_type if args.tpu_type else args.device_type
+  if device_type == h100_device_type:
+    command = (
+        'kubectl apply -f'
+        # pylint: disable=line-too-long
+        'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpx/nccl-tcpx-installer.yaml'
+    )
+  else:
+    command = (
+        'sed -e "s|{{NCCL_INSTALLER_IMAGE}}|$NCCL_IMAGE|g"'
+        # pylint: disable=line-too-long
+        ' https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpxo/nccl-tcpxo-installer.yaml | kubectl apply -f -'
+    )
+
   return_code = run_command_with_updates(
       command, 'Install NCCL Plugin On Cluster', args
   )
@@ -4311,12 +4342,13 @@ def cluster_create(args) -> None:
       xpk_exit(1)
 
   device_type = args.tpu_type if args.tpu_type else args.device_type
-  if device_type == h100_device_type:
+  if device_type == h100_device_type or device_type == h100_mega_device_type:
     xpk_print('Setting up Network for cluster')
-    set_up_cluster_network_code = set_up_cluster_network_for_a3(args)
+    set_up_cluster_network_code = set_up_cluster_network_for_gpu(args)
     if set_up_cluster_network_code != 0:
       xpk_exit(set_up_cluster_network_code)
 
+  if device_type == h100_device_type:
     xpk_print('Creating Network Config for cluster')
     create_cluster_network_config_code = create_cluster_network_config(args)
     if create_cluster_network_config_code != 0:
@@ -4367,7 +4399,7 @@ def cluster_create(args) -> None:
     xpk_exit(enable_kueue_credentials_code)
 
   # TODO: Support other GPU Types for driver installation.
-  if device_type == h100_device_type:
+  if device_type == h100_device_type or device_type == h100_mega_device_type:
     xpk_print('Installing GPU Driver for cluster')
     install_gpu_driver_code = install_gpu_driver_on_cluster(args)
     if install_gpu_driver_code != 0:

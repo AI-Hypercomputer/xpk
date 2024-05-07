@@ -367,28 +367,7 @@ spec:
                   memory: 100G
             nodeSelector:
               cloud.google.com/gke-nodepool: cpu-proxy-np
-  - name: main
-    replicas: 1
-    template:
-      metadata:
-        labels:
-          xpk.google.com/workload: {args.workload}
-      spec:
-        backoffLimit: 0
-        completions: 1
-        parallelism: 1
-        template:
-          spec:
-            containers:
-              {container}
-            nodeSelector:
-              cloud.google.com/gke-nodepool: cpu-user-np
-            restartPolicy: OnFailure
-            volumes:
-            - hostPath:
-                path: /tmp
-                type: DirectoryOrCreate
-              name: shared-tmp
+  {user_workload}
 """
 
 script_dir_dockerfile = """FROM {base_docker_image}
@@ -5162,6 +5141,85 @@ def get_pathways_proxy_args(args) -> str:
     return ''
 
 
+def get_user_workload_container(args, system):
+  """Deploy user workload container
+
+  Args:
+      args: user provided args.
+      system: system characteristics.
+
+  Returns:
+      container: main container
+      debugging_dashboard_id: id of the GKE dashboard
+  """
+
+  setup_docker_image_code, docker_image = setup_docker_image(args)
+  if setup_docker_image_code != 0:
+    xpk_exit(setup_docker_image_code)
+
+  # Determine if we deploy a sidecar and if we deploy a container.
+  debugging_dashboard_id = None
+  resource_type = AcceleratorTypeToAcceleratorCharacteristics[
+      system.accelerator_type
+  ].resource_type
+  if (
+      system.accelerator_type == AcceleratorType['TPU']
+      and args.deploy_stacktrace_sidecar
+  ):
+    xpk_print(
+        'Sidecar container to display stack traces for TPU workloads will also'
+        ' be deployed.'
+    )
+    container = get_main_and_sidecar_container(args, system, docker_image)
+    # Get GKE debugging dashboard only when sidecar container is deployed for TPU workloads
+    debugging_dashboard_id = get_gke_debugging_dashboard(args)
+  else:
+    container = get_main_container(args, system, docker_image, resource_type)
+  return container, debugging_dashboard_id
+
+
+def get_user_workload_for_pathways(args, system) -> str:
+  """
+  Create a user workload container for Pathways.
+  Don't create one for Pathways headless mode.
+
+  Args:
+    args: user provided args.
+    container: container with the user workload.
+
+  Returns:
+    str:
+      Pathways server port as a YAML string
+  """
+  user_workload_yaml = """- name: main
+    replicas: 1
+    template:
+      metadata:
+        labels:
+          xpk.google.com/workload: {args.workload}
+      spec:
+        backoffLimit: 0
+        completions: 1
+        parallelism: 1
+        template:
+          spec:
+            containers:
+              {container}
+            nodeSelector:
+              cloud.google.com/gke-nodepool: cpu-user-np
+            restartPolicy: OnFailure
+            volumes:
+            - hostPath:
+                path: /tmp
+                type: DirectoryOrCreate
+              name: shared-tmp"""
+  if args.use_pathways and not args.headless:
+    container, _ = get_user_workload_container(args, system)
+    return user_workload_yaml.format(args=args, container=container)
+  else:
+    return ''
+
+
 def get_env_container(args, system: SystemCharacteristics):
   """Environment configuration for the main container.
   Args:
@@ -5723,9 +5781,7 @@ def workload_create(args) -> None:
         ' cluster create`.'
     )
 
-  setup_docker_image_code, docker_image = setup_docker_image(args)
-  if setup_docker_image_code != 0:
-    xpk_exit(setup_docker_image_code)
+  debugging_dashboard_id = None
 
   tensorboard_config = {}
   if _VERTEX_TENSORBOARD_FEATURE_FLAG and args.use_vertex_tensorboard:
@@ -5750,31 +5806,14 @@ def workload_create(args) -> None:
     if return_code != 0:
       xpk_exit(return_code)
 
-  # Determine if we deploy a sidecar and if we deploy a container.
-  debugging_dashboard_id = None
-  resource_type = AcceleratorTypeToAcceleratorCharacteristics[
-      system.accelerator_type
-  ].resource_type
-  if (
-      system.accelerator_type == AcceleratorType['TPU']
-      and args.deploy_stacktrace_sidecar
-  ):
-    xpk_print(
-        'Sidecar container to display stack traces for TPU workloads will also'
-        ' be deployed.'
-    )
-    container = get_main_and_sidecar_container(args, system, docker_image)
-    # Get GKE debugging dashboard only when sidecar container is deployed for TPU workloads
-    debugging_dashboard_id = get_gke_debugging_dashboard(args)
-  else:
-    container = get_main_container(args, system, docker_image, resource_type)
-
   # Create the workload file based on accelerator type or workload type.
   if system.accelerator_type == AcceleratorType['GPU']:
+    container, debugging_dashboard_id = get_user_workload_container(
+        args, system
+    )
     yml_string = gpu_workload_create_yaml.format(
         args=args,
         container=container,
-        docker_image=docker_image,
         command=args.command,
         accelerator_label=create_accelerator_label(
             system.accelerator_type, system
@@ -5803,7 +5842,6 @@ def workload_create(args) -> None:
     yml_string = pw_workload_create_yaml.format(
         args=args,
         system=system,
-        container=container,
         accelerator_label=create_accelerator_label(
             system.accelerator_type, system
         ),
@@ -5811,11 +5849,17 @@ def workload_create(args) -> None:
         pathways_rm_args=get_pathways_rm_args(args, system),
         pathways_worker_args=get_pathways_worker_args(args),
         pathways_proxy_args=get_pathways_proxy_args(args),
-        resource_type=resource_type,
+        user_workload=get_user_workload_for_pathways(args, system),
+        resource_type=AcceleratorTypeToAcceleratorCharacteristics[
+            system.accelerator_type
+        ].resource_type,
         local_queue_name=_LOCAL_QUEUE_NAME,
         autoprovisioning_args=autoprovisioning_args,
     )
   else:
+    container, debugging_dashboard_id = get_user_workload_container(
+        args, system
+    )
     yml_string = workload_create_yaml.format(
         args=args,
         system=system,
@@ -7273,25 +7317,43 @@ workload_pathways_workload_arguments.add_argument(
     help='Provide this argument to create Pathways workloads.',
 )
 workload_pathways_workload_arguments.add_argument(
+    '--headless',
+    action='store_true',
+    help=(
+        'Provide this argument to create Pathways workloads in headless mode.'
+        ' This must be provided with --use-pathways.'
+    ),
+)
+workload_pathways_workload_arguments.add_argument(
     '--proxy-server-image',
     type=str,
     default=(
         'us-docker.pkg.dev/cloud-tpu-v2-images/pathways/proxy_server:latest'
     ),
-    help='Please provide the proxy server image for Pathways.',
+    help=(
+        'Please provide the proxy server image for Pathways.'
+        ' This must be provided with --use-pathways.'
+    ),
 )
 workload_pathways_workload_arguments.add_argument(
     '--server-image',
     type=str,
     default='us-docker.pkg.dev/cloud-tpu-v2-images/pathways/server:latest',
-    help='Please provide the server image for Pathways.',
+    help=(
+        'Please provide the server image for Pathways.'
+        ' This must be provided with --use-pathways.'
+    ),
 )
 workload_pathways_workload_arguments.add_argument(
     '--pathways-gcs-location',
     type=str,
     default='gs://cloud-pathways-staging/tmp',
-    help='Please provide the GCS location to store Pathways artifacts.',
+    help=(
+        'Please provide the GCS location to store Pathways artifacts.'
+        ' This must be provided with --use-pathways.'
+    ),
 )
+
 workload_vertex_tensorboard_arguments.add_argument(
     '--use-vertex-tensorboard',
     action='store_true',

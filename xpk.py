@@ -2780,10 +2780,8 @@ def delete_cluster_subnets(args) -> int:
   if return_code > 0:
     xpk_print('Listing all subnets failed!')
     return return_code
-  
-  device_type = args.tpu_type if args.tpu_type else args.device_type
-  num_networks = 5 if device_type == h100_device_type else 9
-  for index in range(1, num_networks):
+
+  for index in range(1, 9):
     subnet_name = f'{args.cluster}-{zone_to_region(args.zone)}-sub-{index}'
     if subnet_name in existing_subnet_names:
       command = (
@@ -4050,15 +4048,15 @@ def install_nccl_on_cluster(args) -> int:
   device_type = args.tpu_type if args.tpu_type else args.device_type
   if device_type == h100_device_type:
     command = (
-        'kubectl apply -f'
+        'kubectl apply -f '
         # pylint: disable=line-too-long
         'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpx/nccl-tcpx-installer.yaml'
     )
   else:
     command = (
-        'sed -e "s|{{NCCL_INSTALLER_IMAGE}}|$NCCL_IMAGE|g"'
+        'kubectl apply -f '
         # pylint: disable=line-too-long
-        ' https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpxo/nccl-tcpxo-installer.yaml | kubectl apply -f -'
+        'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpxo/nccl-tcpxo-installer.yaml'
     )
 
   return_code = run_command_with_updates(

@@ -2781,23 +2781,21 @@ def delete_cluster_subnets(args) -> int:
     xpk_print('Listing all subnets failed!')
     return return_code
 
-  for index in range(1, 9):
-    subnet_name = f'{args.cluster}-{zone_to_region(args.zone)}-sub-{index}'
-    if subnet_name in existing_subnet_names:
-      command = (
-          f'gcloud compute networks subnets delete {subnet_name}'
-          f' --region={zone_to_region(args.zone)} --project={args.project} --quiet'
-      )
+  for subnet_name in existing_subnet_names:
+    command = (
+      f'gcloud compute networks subnets delete {subnet_name}'
+      f' --region={zone_to_region(args.zone)} --project={args.project} --quiet'
+    )
 
-      return_code = run_command_with_updates(
-          command, 'Delete Cluster Subnet', args, verbose=False
-      )
+    return_code = run_command_with_updates(
+      command, 'Delete Cluster Subnet', args, verbose=False
+    )
 
-      if return_code != 0:
-        xpk_print(f'Delete Cluster Subnet request returned ERROR {return_code}')
-        return 1
-      else:
-        xpk_print(f'Deleted existing subnet {subnet_name}')
+    if return_code != 0:
+      xpk_print(f'Delete Cluster Subnet request returned ERROR {return_code}')
+      return 1
+    else:
+      xpk_print(f'Deleted existing subnet {subnet_name}')
 
   return 0
 

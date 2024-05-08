@@ -2768,7 +2768,7 @@ def create_cluster_subnet(args, index) -> int:
 
 
 def delete_cluster_subnets(args) -> int:
-  """Delete one GKE Cluster subnet.
+  """Delete GKE Cluster subnets.
 
   Args:
     args: user provided arguments for running the command.
@@ -2780,7 +2780,10 @@ def delete_cluster_subnets(args) -> int:
   if return_code > 0:
     xpk_print('Listing all subnets failed!')
     return return_code
-  for index in range(1, 5):
+  
+  device_type = args.tpu_type if args.tpu_type else args.device_type
+  num_networks = 5 if device_type == h100_device_type else 9
+  for index in range(1, num_networks):
     subnet_name = f'{args.cluster}-{zone_to_region(args.zone)}-sub-{index}'
     if subnet_name in existing_subnet_names:
       command = (
@@ -4035,33 +4038,6 @@ def set_jobset_on_cluster(args) -> int:
   return return_code
 
 
-def install_gpu_driver_on_cluster(args) -> int:
-  """Install GPU driver on the cluster.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  command = (
-      'kubectl apply -f'
-      # pylint: disable=line-too-long
-      'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/nvidia-driver-installer/cos/daemonset-preloaded-latest.yaml'
-  )
-  return_code = run_command_with_updates(
-      command, 'Install GPU Driver On Cluster', args
-  )
-
-  if return_code != 0:
-    xpk_print(
-        f'Install GPU Driver On Cluster request returned ERROR {return_code}'
-    )
-    return 1
-
-  return 0
-
-
 def install_nccl_on_cluster(args) -> int:
   """Install NCCL plugin on the cluster.
 
@@ -4400,11 +4376,6 @@ def cluster_create(args) -> None:
 
   # TODO: Support other GPU Types for driver installation.
   if device_type == h100_device_type or device_type == h100_mega_device_type:
-    xpk_print('Installing GPU Driver for cluster')
-    install_gpu_driver_code = install_gpu_driver_on_cluster(args)
-    if install_gpu_driver_code != 0:
-      xpk_exit(install_gpu_driver_code)
-
     xpk_print('Installing NCCL Plugin for cluster')
     install_nccl_code = install_nccl_on_cluster(args)
     if install_nccl_code != 0:

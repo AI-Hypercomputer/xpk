@@ -2612,9 +2612,6 @@ def run_gke_cluster_create_command(args, gke_control_plane_version: str) -> int:
       ' --enable-autoscaling'
       ' --total-min-nodes 1 --total-max-nodes 1000'
       f' --num-nodes {args.default_pool_cpu_num_nodes}'
-      ' --cluster-dns=clouddns'
-      ' --cluster-dns-scope=vpc'
-      f' --cluster-dns-domain={args.cluster}-domain'
       f' {args.custom_cluster_arguments}'
   )
 
@@ -2631,8 +2628,13 @@ def run_gke_cluster_create_command(args, gke_control_plane_version: str) -> int:
     )
 
     if args.enable_pathways:
-      command += ' --enable-ip-alias'
-      command += f' --create-subnetwork name={args.cluster}-subnetwork'
+      command += (
+          ' --enable-ip-alias'
+          f' --create-subnetwork name={args.cluster}-subnetwork'
+          ' --cluster-dns=clouddns'
+          ' --cluster-dns-scope=vpc'
+          f' --cluster-dns-domain={args.cluster}-domain'
+      )
 
   return_code = run_command_with_updates(command, 'GKE Cluster Create', args)
   if return_code != 0:
@@ -5905,7 +5907,8 @@ def workload_create(args) -> None:
     if args.headless:
       xpk_print(
           ' \n *******  Please connect to your Pathways proxy at'
-          f' {args.pathways_proxy_address}   ****** \n '
+          f' {args.pathways_proxy_address} Once you see "IFRT proxy server'
+          ' started with status OK" from the proxy. ****** \n'
       )
       pathways_proxy_link = f'https://console.cloud.google.com/kubernetes/job/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}-proxy-0/details?project={args.project}'
       xpk_print(

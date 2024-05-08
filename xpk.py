@@ -7209,13 +7209,15 @@ workload_pathways_workload_arguments.add_argument(
 workload_pathways_workload_arguments.add_argument(
     '--proxy-server-image',
     type=str,
-    default='gcr.io/cloud-tpu-v2-images/pathways/pathways-demo:proxy_server',
+    default=(
+        'us-docker.pkg.dev/cloud-tpu-v2-images/pathways/proxy_server:latest'
+    ),
     help='Please provide the proxy server image for Pathways.',
 )
 workload_pathways_workload_arguments.add_argument(
     '--server-image',
     type=str,
-    default='gcr.io/cloud-tpu-v2-images/pathways/pathways-demo:server',
+    default='us-docker.pkg.dev/cloud-tpu-v2-images/pathways/server:latest',
     help='Please provide the server image for Pathways.',
 )
 workload_pathways_workload_arguments.add_argument(

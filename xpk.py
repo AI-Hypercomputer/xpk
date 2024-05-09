@@ -5548,14 +5548,15 @@ def get_pathways_unified_query_link(args) -> str:
       [f'"{args.workload}-{suffix}-0"' for suffix in pw_suffixes]
   )
   query_params = quote(
-      f'resource.type="k8s_container"\n'
+      'resource.type="k8s_container"\n'
       f'resource.labels.project_id="{args.project}"\n'
       f'resource.labels.location="{zone_to_region(args.zone)}"\n'
       f'resource.labels.cluster_name="{args.cluster}"\n'
       f'resource.labels.pod_name:{pw_pod_names_query}\n'
-      f'resource.labels.namespace_name="default"\n'
-      f'severity>=DEFAULT'
+      'resource.labels.namespace_name="default"\n'
+      'severity>=DEFAULT'
   )
+
   return f'https://console.cloud.google.com/logs/query;query={query_params}'
 
 

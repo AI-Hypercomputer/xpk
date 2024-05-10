@@ -167,26 +167,13 @@ spec:
               labels:
                 xpk.google.com/workload: {args.workload}
             spec:
-              schedulerName: {args.scheduler}
-              restartPolicy: Never
-              affinity:
-                nodeAffinity:
-                  requiredDuringSchedulingIgnoredDuringExecution:
-                    nodeSelectorTerms:
-                    - matchExpressions:
-                      - key: cloud.google.com/gke-accelerator
-                        operator: Exists
-                      - key: cloud.google.com/gke-nodepool
-                        operator: In
-                        values: [{node_pool_name}]
-              nodeSelector:
-                {accelerator_label}
-                {machine_label}
-                {autoprovisioning_args}
-              {gpu_priority}
+              schedulingGates:
+              - name: "gke.io/topology-aware-auto-scheduling"
               hostNetwork: true
               dnsPolicy: ClusterFirstWithHostNet
-              terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
+              subdomain: {args.workload}
+              restartPolicy: Never
+
               tolerations:
               - operator: "Exists"
                 key: nvidia.com/gpu
@@ -3732,20 +3719,20 @@ def set_cluster_command(args) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
-  if args.device_type == h150_device_type:
-    command = (
-        'gcloud container clusters get-credentials'
-        f' {args.cluster} --zone={args.zone} --project={args.project} &&'
-        ' kubectl config view && kubectl config set-context --current --namespace=default'
-    )
-  else:
-    command = (
-        'gcloud container clusters get-credentials'
-        f' {args.cluster} --region={zone_to_region(args.zone)}'
-        f' --project={args.project} &&'
-        ' kubectl config view && kubectl config set-context --current'
-        ' --namespace=default'
-    )
+
+  command = (
+      'gcloud container clusters get-credentials'
+      f' {args.cluster} --zone={args.zone} --project={args.project} &&'
+      ' kubectl config view && kubectl config set-context --current --namespace=default'
+  )
+
+  # command = (
+  #     'gcloud container clusters get-credentials'
+  #     f' {args.cluster} --region={zone_to_region(args.zone)}'
+  #     f' --project={args.project} &&'
+  #     ' kubectl config view && kubectl config set-context --current'
+  #     ' --namespace=default'
+  # )
   task = f'get-credentials to cluster {args.cluster}'
   return_code = run_command_with_updates_retry(
       command, task, args, verbose=False
@@ -5290,7 +5277,7 @@ def get_node_pool_name(args):
   if args.device_type == h100_device_type:
     return f'{args.cluster}-np-0'
   elif args.device_type == h150_device_type:
-    return 'np-1'
+    return 'np-7'
   return ""
 
 def get_gpu_rxdm_cmd(args):

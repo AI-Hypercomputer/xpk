@@ -5540,6 +5540,24 @@ def is_autoprovisioning_enabled(
     return False, 1
 
 
+def get_pathways_unified_query_link(args) -> str:
+  """Get the unified query link for the pathways workload."""
+  pw_suffixes = ['main', 'rm', 'proxy', 'worker']
+  pw_pod_names_query = '%20OR%20'.join(
+      [f'"{args.workload}-{suffix}-0"' for suffix in pw_suffixes]
+  )
+  query_params = (
+      'resource.type%3D"k8s_container"%0A'
+      f'resource.labels.project_id%3D"{args.project}"%0A'
+      f'resource.labels.location%3D"{zone_to_region(args.zone)}"%0A'
+      f'resource.labels.cluster_name%3D"{args.cluster}"%0A'
+      f'resource.labels.pod_name:{pw_pod_names_query}%0A'
+      'severity>%3DDEFAULT'
+  )
+
+  return f'https://console.cloud.google.com/logs/query;query={query_params}'
+
+
 def get_autoprovisioning_node_selector_args(args) -> tuple[str, int]:
   """Determine the capacity type when autoprovisioning is enabled.
 
@@ -5785,6 +5803,10 @@ def workload_create(args) -> None:
         'Follow your Pathways workload here:'
         # pylint: disable=line-too-long
         f' https://console.cloud.google.com/kubernetes/job/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}-main-0/details?project={args.project}'
+    )
+    xpk_print(
+        'For a unified debugging view, use the following link: '
+        f'{get_pathways_unified_query_link(args)}'
     )
   else:
     xpk_print(

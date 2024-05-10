@@ -5082,21 +5082,6 @@ def get_pathways_proxy_args(args) -> str:
     return ''
 
 
-def get_gpu_direct_name(args) -> str:
-  """Get tcp protocol name based on user provided arguments.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    str: tcp protocol name
-  """
-  if args.device_type == h100_device_type:
-    return "tcpx"
-  elif args.device_type == h100_mega_device_type:
-    return "fastrak"
-
-
 def get_env_container(args, system: SystemCharacteristics):
   """Environment configuration for the main container.
   Args:
@@ -5584,7 +5569,7 @@ def get_autoprovisioning_node_selector_args(args) -> tuple[str, int]:
   return node_selector_args, return_code
 
 
-def get_gpu_volume(args):
+def get_gpu_volume(args) -> str:
   """Get gpu volume based on user provided arguments.
 
   Args:
@@ -5622,7 +5607,7 @@ def get_gpu_volume(args):
   return gpu_volumn
 
 
-def get_gpu_rxdm_image(args):
+def get_gpu_rxdm_image(args) -> str:
   """Get config of rxdm based on user provided arguments.
 
   Args:
@@ -5641,7 +5626,7 @@ def get_gpu_rxdm_image(args):
   return gpu_rxdm_image
 
 
-def get_gpu_rxdm_cmd(args):
+def get_gpu_rxdm_cmd(args) -> str:
   """Get rxdm command based on user provided arguments.
 
   Args:
@@ -5658,7 +5643,7 @@ def get_gpu_rxdm_cmd(args):
   return gpu_rxdm_cmd
 
 
-def get_gpu_tcp_volume(args):
+def get_gpu_tcp_volume(args) -> str:
   """Get gpu tcp volume based on user provided arguments.
 
   Args:

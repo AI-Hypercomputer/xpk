@@ -187,48 +187,22 @@ spec:
               - operator: "Exists"
                 key: nvidia.com/gpu
               volumes:
-              - name: nvidia-install-dir-host
-                hostPath:
-                  path: /home/kubernetes/bin/nvidia/lib64
-              - name: tcpd-socket
-                hostPath:
-                  path: /run/tcpx
-              - name: shared-memory
-                emptyDir:
-                  medium: "Memory"
-                  sizeLimit: 200Gi
-              - name: workload-terminated-volume
-                emptyDir:
-              - name: tcpx-nccl-plugin-volume
-                emptyDir:
-              initContainers:
-              - name: tcpx-nccl-plugin-installer
-                image: us-docker.pkg.dev/gce-ai-infra/gpudirect-tcpx/nccl-plugin-gpudirecttcpx-dev:v3.1.6_2023_10_06
-                imagePullPolicy: Always
-                restartPolicy: Always
-                volumeMounts:
-                - name: tcpx-nccl-plugin-volume
-                  mountPath: /var/lib/tcpx
-                resources:
-                  requests:
-                    cpu: 150m
+              {gpu_volume}
               containers:
-              - name: tcpd-daemon
-                image: us-docker.pkg.dev/gce-ai-infra/gpudirect-tcpx/tcpgpudmarxd-dev:v2.0.9
+              {gpu_rxdm_image}
                 imagePullPolicy: Always
                 command:
                 - "bash"
                 - "-c"
                 - |
-                  /tcpgpudmarxd/build/app/tcpgpudmarxd --gpu_nic_preset a3vm --gpu_shmem_type fd --setup_param "--verbose 128 2 0" &
+                  {gpu_rxdm_cmd} &
                   while [ ! -e "/usr/share/workload/workload_terminated" ]; do sleep 10; echo "sleeping"; done
                 securityContext:
                   privileged: true
                 volumeMounts:
+                {gpu_tcp_volume}
                 - name: nvidia-install-dir-host
                   mountPath: /usr/local/nvidia/lib64
-                - name: tcpd-socket
-                  mountPath: /tmp
                 - name: workload-terminated-volume
                   mountPath: /usr/share/workload
                 env:
@@ -2067,14 +2041,14 @@ def add_zone_and_project(args):
   xpk_print(f'Working on {args.project=} and {args.zone}')
 
 
-def parse_env_config(args, tensorboard_config):
+def parse_env_config(args, tensorboard_config, system: SystemCharacteristics):
   """Parses the environment configurations to the jobset config.
 
   Args:
     args: user provided arguments for running the command.
     tensorboard_config: configuration of Vertex Tensorboard.
+    system: system characteristics.
   """
-  device_type = args.tpu_type if args.tpu_type else args.device_type
   env = {'JOBSET_NAME': args.workload}
 
   env_pat = re.compile(r'(^[a-zA-Z_][a-zA-Z0-9_]*?)(?:=(.*))?$', re.M)
@@ -2119,8 +2093,8 @@ def parse_env_config(args, tensorboard_config):
     for key, value in tensorboard_config.items():
       env[key.upper()] = value
 
-  if device_type == h100_device_type:
-    # For H100, it has two more spaces ahead of name and value respectively
+  if system.accelerator_type == AcceleratorType['GPU']:
+    # For GPUs, it has two more spaces ahead of name and value respectively
     env_format = '''
                   - name: {key}
                     value: "{value}"'''
@@ -2610,12 +2584,14 @@ def enable_autoprovisioning_on_cluster(
   return autoprovisioning_config, return_code
 
 
-def run_gke_cluster_create_command(args, gke_control_plane_version: str) -> int:
+def run_gke_cluster_create_command(
+    args, gke_control_plane_version: str, system: SystemCharacteristics) -> int:
   """Run the Create GKE Cluster request.
 
   Args:
     args: user provided arguments for running the command.
     gke_control_plane_version: version used if creating the cluster.
+    system: system characteristics.
 
   Returns:
     0 if successful and 1 otherwise.
@@ -2648,8 +2624,7 @@ def run_gke_cluster_create_command(args, gke_control_plane_version: str) -> int:
       f' {args.custom_cluster_arguments}'
   )
 
-  device_type = args.tpu_type if args.tpu_type else args.device_type
-  if device_type == h100_device_type or device_type == h100_mega_device_type:
+  if system.accelerator_type == AcceleratorType['GPU']:
     command += (
         ' --enable-dataplane-v2 --enable-ip-alias'
         ' --enable-multi-networking --no-enable-autoupgrade'
@@ -2781,21 +2756,23 @@ def delete_cluster_subnets(args) -> int:
     xpk_print('Listing all subnets failed!')
     return return_code
 
-  for subnet_name in existing_subnet_names:
-    command = (
-      f'gcloud compute networks subnets delete {subnet_name}'
-      f' --region={zone_to_region(args.zone)} --project={args.project} --quiet'
-    )
+  for index in range(1, 9):
+    subnet_name = f'{args.cluster}-{zone_to_region(args.zone)}-sub-{index}'
+    if subnet_name in existing_subnet_names:
+      command = (
+        f'gcloud compute networks subnets delete {subnet_name}'
+        f' --region={zone_to_region(args.zone)} --project={args.project} --quiet'
+      )
 
-    return_code = run_command_with_updates(
-      command, 'Delete Cluster Subnet', args, verbose=False
-    )
+      return_code = run_command_with_updates(
+        command, 'Delete Cluster Subnet', args, verbose=False
+      )
 
-    if return_code != 0:
-      xpk_print(f'Delete Cluster Subnet request returned ERROR {return_code}')
-      return 1
-    else:
-      xpk_print(f'Deleted existing subnet {subnet_name}')
+      if return_code != 0:
+        xpk_print(f'Delete Cluster Subnet request returned ERROR {return_code}')
+        return 1
+      else:
+        xpk_print(f'Deleted existing subnet {subnet_name}')
 
   return 0
 
@@ -3059,7 +3036,7 @@ def create_cluster_configmaps(
 
   # ConfigMap to store resources available in the cluster.
   device_type = system.device_type
-  if device_type == h100_device_type:
+  if system.accelerator_type == AcceleratorType['GPU']:
     resources_data = f'{device_type}: "{int(args.num_nodes)}"'
   elif args.enable_autoprovisioning and autoprovisioning_config:
     # Auto provisioning will have variable topologies for a gke accelerator type.
@@ -3245,12 +3222,16 @@ def get_all_clusters_programmatic(args) -> tuple[list[str], int]:
   return cluster_names, 0
 
 
-def create_cluster_if_necessary(args, gke_control_plane_version: str) -> int:
+def create_cluster_if_necessary(
+    args,
+    gke_control_plane_version: str,
+    system: SystemCharacteristics) -> int:
   """Creates cluster if not present in the project.
 
   Args:
     args: user provided arguments for running the command.
     gke_control_plane_version: version used if creating the cluster.
+    system: system characteristics.
 
   Returns:
     0 if successful and 1 otherwise.
@@ -3263,7 +3244,8 @@ def create_cluster_if_necessary(args, gke_control_plane_version: str) -> int:
     xpk_print('Skipping cluster creation since it already exists.')
     return 0
   else:
-    return run_gke_cluster_create_command(args, gke_control_plane_version)
+    return run_gke_cluster_create_command(
+      args, gke_control_plane_version, system)
 
 
 def get_nodepool_zone(args, nodepool_name) -> tuple[int, str]:
@@ -3967,27 +3949,7 @@ def get_kueue_covered_resources_config(
   Returns:
     A string of Kueue covered resources configuration.
   """
-  device_type = args.tpu_type if args.tpu_type else args.device_type
-  if device_type == h100_device_type:
-    config_format = """
-  - coveredResources: ["cpu", "memory", "{resource_type}"]
-    flavors:
-    - name: {cluster_hardware_name}
-      resources:
-      - name: "cpu"
-        nominalQuota: {num_nodes}
-      - name: "memory"
-        nominalQuota: 150Mi
-      - name: "{resource_type}"
-        nominalQuota: {total_chips}"""
-    config_string = config_format.format(
-        cluster_hardware_name=cluster_hardware_name,
-        resource_type=resource_type,
-        total_chips=total_chips,
-        num_nodes=args.num_nodes,
-    )
-  else:
-    config_format = """
+  config_format = """
   - coveredResources: ["{resource_type}"]
     flavors:
     - name: {cluster_hardware_name}
@@ -3995,11 +3957,10 @@ def get_kueue_covered_resources_config(
       - name: "{resource_type}"
         nominalQuota: {total_chips}
   """
-    config_string = config_format.format(
+  config_string = config_format.format(
         cluster_hardware_name=cluster_hardware_name,
         resource_type=resource_type,
-        total_chips=total_chips,
-    )
+        total_chips=total_chips)
   return config_string
 
 
@@ -4296,7 +4257,7 @@ def cluster_create(args) -> None:
     xpk_exit(return_code)
 
   create_cluster_command_code = create_cluster_if_necessary(
-      args, gke_control_plane_version
+      args, gke_control_plane_version, system
   )
   if create_cluster_command_code != 0:
     xpk_exit(create_cluster_command_code)
@@ -4314,7 +4275,7 @@ def cluster_create(args) -> None:
       xpk_exit(1)
 
   device_type = args.tpu_type if args.tpu_type else args.device_type
-  if device_type == h100_device_type or device_type == h100_mega_device_type:
+  if system.accelerator_type == AcceleratorType['GPU']:
     xpk_print('Setting up Network for cluster')
     set_up_cluster_network_code = set_up_cluster_network_for_gpu(args)
     if set_up_cluster_network_code != 0:
@@ -4370,8 +4331,7 @@ def cluster_create(args) -> None:
   if enable_kueue_credentials_code != 0:
     xpk_exit(enable_kueue_credentials_code)
 
-  # TODO: Support other GPU Types for driver installation.
-  if device_type == h100_device_type or device_type == h100_mega_device_type:
+  if system.accelerator_type == AcceleratorType['GPU']:
     xpk_print('Installing NCCL Plugin for cluster')
     install_nccl_code = install_nccl_on_cluster(args)
     if install_nccl_code != 0:
@@ -4981,12 +4941,15 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
     str:
       YAML for the volumes mounted within a Pathways container or GPU container as a YAML string.
   """
-  pw_volume_yaml = """- mountPath: /tmp
-                  name: shared-tmp"""
-  if args.use_pathways:
-    return pw_volume_yaml
+  volume_mount_yaml = """- mountPath: /dev/shm
+                  name: dshm-2"""
 
-  gpu_volume_yaml = """- name: nvidia-install-dir-host
+  if args.use_pathways:
+    volume_mount_yaml = """- mountPath: /tmp
+                  name: shared-tmp"""
+  elif system.accelerator_type == AcceleratorType['GPU']:
+    if args.device_type == h100_device_type:
+      volume_mount_yaml = """- name: nvidia-install-dir-host
                   mountPath: /usr/local/nvidia/lib64
                 - name: tcpx-nccl-plugin-volume
                   mountPath: /usr/local/tcpx
@@ -4996,13 +4959,15 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
                   mountPath: /dev/shm
                 - name: workload-terminated-volume
                   mountPath: /usr/share/workload"""
+    elif args.device_type == h100_mega_device_type:
+      volume_mount_yaml = """- name: nvidia-install-dir-host
+                  mountPath: /usr/local/nvidia/lib64
+                - name: shared-memory
+                  mountPath: /dev/shm
+                - name: workload-terminated-volume
+                  mountPath: /usr/share/workload"""
 
-  if system.accelerator_type == AcceleratorType['GPU']:
-    return gpu_volume_yaml
-
-  regular_volume_mount_yaml = """- mountPath: /dev/shm
-                  name: dshm-2"""
-  return regular_volume_mount_yaml
+  return volume_mount_yaml
 
 
 def get_pathways_rm_args(args, system: SystemCharacteristics) -> str:
@@ -5117,6 +5082,21 @@ def get_pathways_proxy_args(args) -> str:
     return ''
 
 
+def get_gpu_direct_name(args) -> str:
+  """Get tcp protocol name based on user provided arguments.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    str: tcp protocol name
+  """
+  if args.device_type == h100_device_type:
+    return "tcpx"
+  elif args.device_type == h100_mega_device_type:
+    return "fastrak"
+
+
 def get_env_container(args, system: SystemCharacteristics):
   """Environment configuration for the main container.
   Args:
@@ -5159,7 +5139,7 @@ def get_env_container(args, system: SystemCharacteristics):
                       fieldRef:
                         fieldPath: metadata.annotations['batch.kubernetes.io/job-completion-index']
                   - name: USE_GPUDIRECT
-                    value: "tcpx"
+                    value: {gpu_direct_name}
                   - name: GPUS_PER_NODE
                     value: "{system.chips_per_vm}"
                   - name: JAX_COORDINATOR_PORT
@@ -5170,7 +5150,10 @@ def get_env_container(args, system: SystemCharacteristics):
                     value: "{args.command}"
                   {args.env}"""
   if system.accelerator_type == AcceleratorType['GPU']:
-    return gpu_env_yaml.format(args=args, system=system)
+    gpu_direct_name = "tcpx" if args.device_type == h100_device_type else "fastrak"
+    return gpu_env_yaml.format(args=args,
+                        system=system,
+                        gpu_direct_name=gpu_direct_name)
 
   if system.accelerator_type == AcceleratorType['CPU']:
     return get_cpu_env(args.num_slices, args.env, system)
@@ -5601,6 +5584,96 @@ def get_autoprovisioning_node_selector_args(args) -> tuple[str, int]:
   return node_selector_args, return_code
 
 
+def get_gpu_volume(args):
+  """Get gpu volume based on user provided arguments.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    str: yaml containing gpu volume
+  """
+  gpu_volumn = ""
+  if args.device_type == h100_device_type:
+    gpu_volumn = """- name: nvidia-install-dir-host
+                hostPath:
+                  path: /home/kubernetes/bin/nvidia/lib64
+              - name: tcpd-socket
+                hostPath:
+                  path: /run/tcpx
+              - name: shared-memory
+                emptyDir:
+                  medium: "Memory"
+                  sizeLimit: 200Gi
+              - name: workload-terminated-volume
+                emptyDir:
+              - name: tcpx-nccl-plugin-volume
+                emptyDir:"""
+  elif args.device_type == h100_mega_device_type:
+    gpu_volumn = """- name: nvidia-install-dir-host
+                hostPath:
+                  path: /home/kubernetes/bin/nvidia/lib64
+              - name: shared-memory
+                emptyDir:
+                  medium: "Memory"
+                  sizeLimit: 1Gi
+              - name: workload-terminated-volume
+                emptyDir:"""
+  return gpu_volumn
+
+
+def get_gpu_rxdm_image(args):
+  """Get config of rxdm based on user provided arguments.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    str: yaml containing the rxdm name and image
+  """
+  gpu_rxdm_image = ""
+  if args.device_type == h100_device_type:
+    gpu_rxdm_image = """- name: tcpd-daemon
+                image: us-docker.pkg.dev/gce-ai-infra/gpudirect-tcpx/tcpgpudmarxd-dev:v2.0.9"""
+  elif args.device_type == h100_mega_device_type:
+    gpu_rxdm_image = """- name: fastrak-daemon
+                image: us-docker.pkg.dev/gce-ai-infra/gpudirect-tcpxo/tcpgpudmarxd-dev:v1.0.6-sctp"""
+  return gpu_rxdm_image
+
+
+def get_gpu_rxdm_cmd(args):
+  """Get rxdm command based on user provided arguments.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    str: command of running rxdm container
+  """
+  gpu_rxdm_cmd = ""
+  if args.device_type == h100_device_type:
+    gpu_rxdm_cmd = "/tcpgpudmarxd/build/app/tcpgpudmarxd --gpu_nic_preset a3vm --gpu_shmem_type fd --setup_param \"--verbose 128 2 0\""
+  elif args.device_type == h100_mega_device_type:
+    gpu_rxdm_cmd = "set -ex; chmod 755 /fts/entrypoint_rxdm_container.sh; /fts/entrypoint_rxdm_container.sh --num_hops=2 --num_nics=8 --uid= --alsologtostderr"
+  return gpu_rxdm_cmd
+
+
+def get_gpu_tcp_volume(args):
+  """Get gpu tcp volume based on user provided arguments.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    str: yaml containing gpu tcp volume
+  """
+  gpu_tcp_volume = ""
+  if args.device_type == h100_device_type:
+    gpu_tcp_volume = """- name: tcpd-socket
+                  mountPath: /tmp"""  
+  return gpu_tcp_volume
+
+
 def workload_create(args) -> None:
   """Run jobset apply command for a file.
 
@@ -5672,7 +5745,7 @@ def workload_create(args) -> None:
     if not tensorboard_config:
       xpk_exit(1)
 
-  parse_env_config(args, tensorboard_config)
+  parse_env_config(args, tensorboard_config, system)
 
   autoprovisioning_args = ''
   autoprovisioning_enabled, return_code = is_autoprovisioning_enabled(
@@ -5721,6 +5794,10 @@ def workload_create(args) -> None:
         node_pool_name=f'{args.cluster}-np-0',
         chips_per_vm=system.chips_per_vm,
         autoprovisioning_args=autoprovisioning_args,
+        gpu_volume=get_gpu_volume(args),
+        gpu_rxdm_image=get_gpu_rxdm_image(args),
+        gpu_rxdm_cmd=get_gpu_rxdm_cmd(args),
+        gpu_tcp_volume=get_gpu_tcp_volume(args)
     )
   elif args.use_pathways:
     # Ensure the cluster and CPU nodepools were created with --enable-pathways

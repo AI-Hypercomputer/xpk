@@ -43,7 +43,6 @@ import sys
 import tempfile
 import time
 from dataclasses import dataclass
-from urllib.parse import quote
 
 ################### Compatibility Check ###################
 # Check that the user runs the below version or greater.
@@ -5544,17 +5543,16 @@ def is_autoprovisioning_enabled(
 def get_pathways_unified_query_link(args) -> str:
   """Get the unified query link for the pathways workload."""
   pw_suffixes = ['main', 'rm', 'proxy', 'worker']
-  pw_pod_names_query = ' OR '.join(
+  pw_pod_names_query = '%20OR%20'.join(
       [f'"{args.workload}-{suffix}-0"' for suffix in pw_suffixes]
   )
-  query_params = quote(
-      'resource.type="k8s_container"\n'
-      f'resource.labels.project_id="{args.project}"\n'
-      f'resource.labels.location="{zone_to_region(args.zone)}"\n'
-      f'resource.labels.cluster_name="{args.cluster}"\n'
-      f'resource.labels.pod_name:{pw_pod_names_query}\n'
-      'resource.labels.namespace_name="default"\n'
-      'severity>=DEFAULT'
+  query_params = (
+      'resource.type%3D"k8s_container"%0A'
+      f'resource.labels.project_id%3D"{args.project}"%0A'
+      f'resource.labels.location%3D"{zone_to_region(args.zone)}"%0A'
+      f'resource.labels.cluster_name%3D"{args.cluster}"%0A'
+      f'resource.labels.pod_name:{pw_pod_names_query}%0A'
+      'severity>%3DDEFAULT'
   )
 
   return f'https://console.cloud.google.com/logs/query;query={query_params}'

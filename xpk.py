@@ -4247,6 +4247,11 @@ def default_subcommand_function(
   return 0
 
 
+def cluster_create_pathways(args) -> None:
+  args.enable_pathways = True
+  cluster_create(args)
+
+
 def cluster_create(args) -> None:
   """Function around cluster creation.
 
@@ -6616,6 +6621,147 @@ def add_shared_arguments(custom_parser):
   )
 
 
+def add_shared_cluster_create_required_arguments(create_args_parsers):
+  """Add shared required arguments in cluster create and Pathways cluster create.
+
+  Args:
+      List of cluster create required arguments parsers
+  """
+  for custom_parser in create_args_parsers:
+    custom_parser.add_argument(
+        '--cluster',
+        type=str,
+        default=None,
+        help=(
+            'The name of the cluster. Will be used as the prefix for internal'
+            ' objects in the cluster.'
+        ),
+        required=True,
+    )
+
+
+def add_shared_cluster_create_optional_arguments(create_args_parsers):
+  """Add shared optional arguments in cluster create and Pathways cluster create.
+
+  Args:
+      List of cluster create optional arguments parsers
+  """
+  for custom_parser in create_args_parsers:
+    add_shared_arguments(parser)
+    custom_parser.add_argument(
+        '--host-maintenance-interval',
+        type=str,
+        choices=['AS_NEEDED', 'PERIODIC'],
+        default='AS_NEEDED',
+        help='The maintenance policy of the cluster and respective clusters.',
+    )
+    custom_parser.add_argument(
+        '--gke-version',
+        type=str,
+        help=(
+            'The GKE version of the cluster and respective clusters. The'
+            ' default is determined dynamically based on RAPID channel'
+            ' recommended version.'
+        ),
+    )
+    custom_parser.add_argument(
+        '--num-slices',
+        type=int,
+        default=1,
+        help='The number of slices to run the job on, defaults to 1.',
+        required=False,
+    )
+    custom_parser.add_argument(
+        '--pathways-gce-machine-type',
+        type=str,
+        default='n1-standard-32',
+        help='The CPU type for Pathways CPU nodepools',
+    )
+    custom_parser.add_argument(
+        '--default-pool-cpu-machine-type',
+        type=str,
+        default='e2-standard-16',
+        help=(
+            'Set the machine type within the default cpu node pool. For'
+            ' regional clusters, all zones must support the machine type.'
+        ),
+    )
+    custom_parser.add_argument(
+        '--default-pool-cpu-num-nodes',
+        type=int,
+        default=6,
+        help=(
+            'Set the number of nodes within the default cpu node pool. This is'
+            ' set to 6 by default. Autoscaling is enabled to scale this value'
+            ' over time.'
+        ),
+    )
+    custom_parser.add_argument(
+        '--custom-cluster-arguments',
+        type=str,
+        default='',
+        help=(
+            'Users can add their own arguments to customize their cluster'
+            ' create command. Do note, these will not override already used'
+            ' cluster creation arguments. e.g.'
+            " --custom-cluster-arguments='--network=mtu9k --subnetwork=mtu9k'"
+        ),
+    )
+    custom_parser.add_argument(
+        '--custom-nodepool-arguments',
+        type=str,
+        default='',
+        help=(
+            'Users can add their own arguments to customize their node pool '
+            ' create command. Do note, these will not override already used'
+            ' node pool creation arguments. e.g.'
+            ' --custom-nodepool-arguments="--disk-size=300"'
+        ),
+    )
+    custom_parser.add_argument(
+        '--force',
+        action='store_true',
+        help=(
+            'Forces node pool creation and delete commands to run without'
+            ' additional approval.'
+        ),
+    )
+
+
+def add_shared_cluster_create_capacity_arguments(create_args_parsers):
+  """Add shared capacity arguments in cluster create and Pathways cluster create.
+
+  Args:
+      List of cluster create capacity arguments parsers
+  """
+  for custom_parser in create_args_parsers:
+    custom_parser.add_argument(
+        '--on-demand',
+        action='store_true',
+        help=(
+            'Sets node pool creation to use on-demand resources. '
+            ' See `--reservation` or `--spot` for other capacity types.'
+        ),
+    )
+    custom_parser.add_argument(
+        '--reservation',
+        type=str,
+        help=(
+            'The reservation to be used for acquiring resources in the'
+            ' cluster. This will attempt to find the provided reservation.'
+            ' See `--spot` or `--on-demand` for other capacity types.'
+        ),
+    )
+    custom_parser.add_argument(
+        '--spot',
+        action='store_true',
+        help=(
+            'Sets node pool creation to use spot resources.'
+            ' See `--reservation` or `--on-demand` for other capacity types.'
+        ),
+    )
+
+
 ############### Define flags ###############
 # Create top level parser for xpk command.
 parser = argparse.ArgumentParser(description='xpk command', prog='xpk')
@@ -6672,32 +6818,21 @@ cluster_create_required_arguments = cluster_create_parser.add_argument_group(
 cluster_create_optional_arguments = cluster_create_parser.add_argument_group(
     'Optional Arguments', 'Arguments optional for cluster create.'
 )
+cluster_create_capacity_arguments = cluster_create_parser.add_argument_group(
+    'Capacity Arguments', 'Arguments related to capacity for cluster create.'
+)
 cluster_create_tensorboard_arguments = cluster_create_parser.add_argument_group(
     'Optional Vertex AI Tensorboard Arguments',
     'Arguments for creating Vertex AI Tensorboard in cluster create.',
 )
-cluster_create_capacity_arguments = cluster_create_parser.add_argument_group(
-    'Capacity Arguments', 'Arguments related to capacity for cluster create.'
-)
 
-### Required arguments.
-cluster_create_required_arguments.add_argument(
-    '--cluster',
-    type=str,
-    default=None,
-    help=(
-        'The name of the cluster. Will be used as the prefix for internal'
-        ' objects in the cluster.'
-    ),
-    required=True,
-)
+### Required arguments specific to "cluster create"
 
 cluster_device_group = (
     cluster_create_required_arguments.add_mutually_exclusive_group(
         required=True
     )
 )
-
 cluster_device_group.add_argument(
     '--tpu-type',
     type=str,
@@ -6714,58 +6849,8 @@ cluster_device_group.add_argument(
     ),
 )
 
+### Optional arguments specific to "cluster create"
 
-# Capacity Arguments
-cluster_create_capacity_arguments.add_argument(
-    '--on-demand',
-    action='store_true',
-    help=(
-        'Sets node pool creation to use on-demand resources. '
-        ' See `--reservation` or `--spot` for other capacity types.'
-    ),
-)
-cluster_create_capacity_arguments.add_argument(
-    '--reservation',
-    type=str,
-    help=(
-        'The reservation to be used for acquiring resources in the'
-        ' cluster. This will attempt to find the provided reservation.'
-        ' See `--spot` or `--on-demand` for other capacity types.'
-    ),
-)
-cluster_create_capacity_arguments.add_argument(
-    '--spot',
-    action='store_true',
-    help=(
-        'Sets node pool creation to use spot resources.'
-        ' See `--reservation` or `--on-demand` for other capacity types.'
-    ),
-)
-
-### Optional Arguments
-cluster_create_optional_arguments.add_argument(
-    '--host-maintenance-interval',
-    type=str,
-    choices=['AS_NEEDED', 'PERIODIC'],
-    default='AS_NEEDED',
-    help='The maintenance policy of the cluster and respective clusters.',
-)
-cluster_create_optional_arguments.add_argument(
-    '--gke-version',
-    type=str,
-    help=(
-        'The GKE version of the cluster and respective clusters. The'
-        ' default is'
-        ' determined dynamically based on RAPID channel recommended version.'
-    ),
-)
-cluster_create_optional_arguments.add_argument(
-    '--num-slices',
-    type=int,
-    default=1,
-    help='The number of slices to run the job on, defaults to 1.',
-    required=False,
-)
 cluster_create_optional_arguments.add_argument(
     '--num-nodes',
     type=int,
@@ -6776,31 +6861,9 @@ cluster_create_optional_arguments.add_argument(
 cluster_create_optional_arguments.add_argument(
     '--enable-pathways',
     action='store_true',
-    help='Enable cluster to accept Pathways workloads.',
-)
-cluster_create_optional_arguments.add_argument(
-    '--pathways-gce-machine-type',
-    type=str,
-    default='n1-standard-32',
-    help='The CPU type for Pathways CPU nodepools',
-)
-cluster_create_optional_arguments.add_argument(
-    '--default-pool-cpu-machine-type',
-    type=str,
-    default='e2-standard-16',
     help=(
-        'Set the machine type within the default cpu node pool. For'
-        ' regional clusters, all zones must support the machine type.'
-    ),
-)
-cluster_create_optional_arguments.add_argument(
-    '--default-pool-cpu-num-nodes',
-    type=int,
-    default=6,
-    help=(
-        'Set the number of nodes within the default cpu node pool. This is'
-        ' set to 6 by default. Autoscaling is enabled to scale this value over'
-        ' time.'
+        'DEPRECATING SOON!!! Please use xpk cluster create-pathways.',
+        ' Enable cluster to accept Pathways workloads.',
     ),
 )
 cluster_create_optional_arguments.add_argument(
@@ -6814,47 +6877,17 @@ cluster_create_optional_arguments.add_argument(
     ),
 )
 cluster_create_optional_arguments.add_argument(
-    '--custom-cluster-arguments',
-    type=str,
-    default='',
-    help=(
-        'Users can add their own arguments to customize their cluster create'
-        ' command. Do note, these will not override already used cluster'
-        ' creation arguments.'
-        " e.g. --custom-cluster-arguments='--network=mtu9k --subnetwork=mtu9k'"
-    ),
-)
-cluster_create_optional_arguments.add_argument(
     '--custom-tpu-nodepool-arguments',
     type=str,
     default='',
     help=(
-        'Users can add their own arguments to customize their tpu node pool'
-        ' create command. Do note, these will not override already used node'
-        ' pool creation arguments. e.g.'
+        'DEPRECATING SOON! Please use --custom-nodepool-arguments to customize'
+        ' node pool create command. Do note, these will not override already'
+        ' used node pool creation arguments. Example usage'
         ' --custom-tpu-nodepool-arguments="--enable-ip-alias"'
     ),
 )
-cluster_create_optional_arguments.add_argument(
-    '--custom-nodepool-arguments',
-    type=str,
-    default='',
-    help=(
-        'Users can add their own arguments to customize their node pool '
-        ' create command. Do note, these will not override already used node'
-        ' pool creation arguments. e.g.'
-        ' --custom-nodepool-arguments="--disk-size=300"'
-    ),
-)
-cluster_create_optional_arguments.add_argument(
-    '--force',
-    action='store_true',
-    help=(
-        'Forces node pool creation and delete commands to run without'
-        ' additional approval.'
-    ),
-)
-
+###  Tensorboard arguments specific to "cluster create"
 cluster_create_tensorboard_arguments.add_argument(
     '--create-vertex-tensorboard',
     action='store_true',
@@ -6882,19 +6915,18 @@ cluster_create_tensorboard_arguments.add_argument(
     ),
 )
 
+### Autoprovisioning arguments specific to "cluster create"
 cluster_create_autoprovisioning_arguments = (
     cluster_create_parser.add_argument_group(
         'Optional Autoprovisioning Arguments',
         'Arguments optional for enabling autoprovisioning.',
     )
 )
-
 cluster_create_autoprovisioning_arguments.add_argument(
     '--enable-autoprovisioning',
     action='store_true',
     help='Enable GKE features for autoprovisioning node pools in GKE clusters.',
 )
-
 cluster_create_autoprovisioning_arguments.add_argument(
     '--autoprovisioning-min-chips',
     type=int,
@@ -6904,7 +6936,6 @@ cluster_create_autoprovisioning_arguments.add_argument(
         ' resources in the cluster as the minimum, and maximum.'
     ),
 )
-
 cluster_create_autoprovisioning_arguments.add_argument(
     '--autoprovisioning-max-chips',
     type=int,
@@ -6915,9 +6946,54 @@ cluster_create_autoprovisioning_arguments.add_argument(
     ),
 )
 
-add_shared_arguments(cluster_create_optional_arguments)
+
+### "cluster create-pathways" command parser ###
+
+cluster_create_pathways_parser = cluster_subcommands.add_parser(
+    'create-pathways',
+    help='Create Pathways-on-Cloud clusters.',
+)
+cluster_create_pathways_required_arguments = (
+    cluster_create_pathways_parser.add_argument_group(
+        'Required Arguments',
+        'Arguments required for cluster create.',
+    )
+)
+cluster_create_pathways_optional_arguments = (
+    cluster_create_pathways_parser.add_argument_group(
+        'Optional Arguments', 'Arguments optional for cluster create.'
+    )
+)
+cluster_create_pathways_capacity_arguments = (
+    cluster_create_pathways_parser.add_argument_group(
+        'Capacity Arguments',
+        'Arguments related to capacity for cluster create.',
+    )
+)
+
+cluster_create_pathways_required_arguments.add_argument(
+    '--tpu-type',
+    type=str,
+    default=None,
+    help='The tpu type to use, v5litepod-16, etc.',
+)
+
+add_shared_cluster_create_required_arguments([
+    cluster_create_required_arguments,
+    cluster_create_pathways_required_arguments,
+])
+add_shared_cluster_create_optional_arguments([
+    cluster_create_optional_arguments,
+    cluster_create_pathways_optional_arguments,
+])
+add_shared_cluster_create_capacity_arguments([
+    cluster_create_capacity_arguments,
+    cluster_create_pathways_capacity_arguments,
+])
 
 cluster_create_parser.set_defaults(func=cluster_create)
+cluster_create_pathways_parser.set_defaults(func=cluster_create_pathways)
+
 
 ### "cluster delete" command parser ###
 cluster_delete_parser = cluster_subcommands.add_parser(

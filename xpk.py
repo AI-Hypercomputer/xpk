@@ -2586,16 +2586,7 @@ def run_gke_cluster_create_command(args, gke_control_plane_version: str) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
-  # cluster_cpu_machine_type is soon to be deprecated!
   machine_type = args.default_pool_cpu_machine_type
-  if args.cluster_cpu_machine_type != '':
-    xpk_print(
-        'Warning: Note that cluster-cpu-machine-type is soon to be',
-        ' deprecated. Please use --default-pool-cpu-machine-type instead,'
-        ' to denote the machine type of the default cpu node pool. Set'
-        ' the machine type of other cpu nodepools using `--device-type`.',
-    )
-    machine_type = args.cluster_cpu_machine_type
 
   # Create the regional cluster with `num-nodes` CPU nodes in the same zone as
   # TPUs. This has been tested with clusters of 300 VMs. Larger clusters will
@@ -5730,6 +5721,11 @@ def get_autoprovisioning_node_selector_args(args) -> tuple[str, int]:
   return node_selector_args, return_code
 
 
+def workload_create_pathways(args) -> None:
+  args.use_pathways = True
+  workload_create(args)
+
+
 def workload_create(args) -> None:
   """Run jobset apply command for a file.
 
@@ -6647,7 +6643,7 @@ def add_shared_cluster_create_optional_arguments(create_args_parsers):
       List of cluster create optional arguments parsers
   """
   for custom_parser in create_args_parsers:
-    add_shared_arguments(parser)
+    add_shared_arguments(custom_parser)
     custom_parser.add_argument(
         '--host-maintenance-interval',
         type=str,
@@ -6762,6 +6758,172 @@ def add_shared_cluster_create_capacity_arguments(create_args_parsers):
     )
 
 
+def add_shared_workload_create_required_arguments(create_args_parsers):
+  """Add shared required arguments in workload create and Pathways workload create.
+
+  Args:
+      List of workload create required arguments parsers
+  """
+  for custom_parser in create_args_parsers:
+    custom_parser.add_argument(
+        '--workload',
+        type=workload_name_type,
+        default=None,
+        help='The name of the workload to run.',
+        required=True,
+    )
+    custom_parser.add_argument(
+        '--cluster',
+        type=str,
+        default=None,
+        help='The name of the cluster to run the job on.',
+        required=True,
+    )
+
+
+def add_shared_workload_create_optional_arguments(create_args_parsers):
+  """Add shared optional arguments in workload create and Pathways workload create.
+
+  Args:
+      List of workload create optional arguments parsers
+  """
+  for custom_parser in create_args_parsers:
+    add_shared_arguments(custom_parser)
+    custom_parser.add_argument(
+        '--docker-name',
+        type=str,
+        default='jax-tpu',
+        help=(
+            'The name of the docker-image to use, default and typically'
+            ' `jax-tpu`.'
+        ),
+    )
+    custom_parser.add_argument(
+        '--num-slices',
+        type=int,
+        default=1,
+        help='The number of slices to use, default=1.',
+    )
+    custom_parser.add_argument(
+        '--priority',
+        type=str,
+        default='medium',
+        choices=['very-low', 'low', 'medium', 'high', 'very-high'],
+        help=(
+            'A priority, one of `very-low`, `low`, `medium`, `high` or'
+            ' `very-high`. Defaults to `medium`.'
+        ),
+    )
+    custom_parser.add_argument(
+        '--max-restarts',
+        type=str,
+        default='0',
+        help=(
+            'Maximum number of times the JobSet will be restarted upon failure.'
+            ' Defaults to 0.'
+        ),
+    )
+    custom_parser.add_argument(
+        '-tgps',
+        '--termination-grace-period-seconds',
+        type=str,
+        default='30',
+        help=(
+            'Maximum wait time for a workload Pod to wrap up after a disruption'
+            ' event or deletion request.Defaults to 30 seconds.'
+        ),
+    )
+    custom_parser.add_argument(
+        '--headless',
+        action='store_true',
+        help=(
+            'Provide this argument to create Pathways workloads in headless'
+            ' mode. This must be provided with --use-pathways.'
+        ),
+    )
+    custom_parser.add_argument(
+        '--proxy-server-image',
+        type=str,
+        default=(
+            'us-docker.pkg.dev/cloud-tpu-v2-images/pathways/proxy_server:latest'
+        ),
+        help=(
+            'Please provide the proxy server image for Pathways.'
+            ' This must be provided with --use-pathways.'
+        ),
+    )
+    custom_parser.add_argument(
+        '--server-image',
+        type=str,
+        default='us-docker.pkg.dev/cloud-tpu-v2-images/pathways/server:latest',
+        help=(
+            'Please provide the server image for Pathways.'
+            ' This must be provided with --use-pathways.'
+        ),
+    )
+    custom_parser.add_argument(
+        '--pathways-gcs-location',
+        type=str,
+        default='gs://cloud-pathways-staging/tmp',
+        help=(
+            'Please provide the GCS location to store Pathways artifacts.'
+            ' This must be provided with --use-pathways.'
+        ),
+    )
+
+
+def add_shared_workload_base_docker_image_arguments(create_args_parsers):
+  """Add shared base docker image arguments in workload create and Pathways workload create.
+
+  Args:
+      List of workload create base docker image arguments parsers
+  """
+  for custom_parser in create_args_parsers:
+    custom_parser.add_argument(
+        '--base-docker-image',
+        type=str,
+        default=default_docker_image,
+        help=(
+            f'The base docker-image to use, default {default_docker_image}. If'
+            ' using a custom docker image it is typically addressed as'
+            ' gcr.io/${PROJECT}/${NAME}:latest. This docker image will be'
+            ' used as a base image by default and the `--script-dir` by'
+            ' default will be added to the image.'
+        ),
+    )
+    custom_parser.add_argument(
+        '--script-dir',
+        type=directory_path_type,
+        default=default_script_dir,
+        help=(
+            'The local location of the directory to copy to the docker image'
+            ' and run the main command from. Defaults to current working'
+            ' directory.'
+        ),
+    )
+
+
+def add_shared_workload_docker_image_arguments(create_args_parsers):
+  """Add shared docker image arguments in workload create and Pathways workload create.
+
+  Args:
+      List of workload create docker image arguments parsers
+  """
+  for custom_parser in create_args_parsers:
+    custom_parser.add_argument(
+        '--docker-image',
+        type=str,
+        help=(
+            'The version of the docker-image to use. By default, '
+            ' `--base-docker-image` is used. Set this argument if the user'
+            ' wants the docker image to be used directly by the xpk workload. a'
+            ' custom docker image it is typically addressed as'
+            ' gcr.io/${PROJECT}/${NAME}:latest. This docker image will be used'
+            ' directly by the xpk workload.'
+        ),
+    )
+
+
 ############### Define flags ###############
 # Create top level parser for xpk command.
 parser = argparse.ArgumentParser(description='xpk command', prog='xpk')
@@ -6862,8 +7024,8 @@ cluster_create_optional_arguments.add_argument(
     '--enable-pathways',
     action='store_true',
     help=(
-        'DEPRECATING SOON!!! Please use xpk cluster create-pathways.',
-        ' Enable cluster to accept Pathways workloads.',
+        'DEPRECATING SOON!!! Please use `xpk cluster create-pathways`.'
+        ' Enable cluster to accept Pathways workloads.'
     ),
 )
 cluster_create_optional_arguments.add_argument(
@@ -6956,18 +7118,18 @@ cluster_create_pathways_parser = cluster_subcommands.add_parser(
 cluster_create_pathways_required_arguments = (
     cluster_create_pathways_parser.add_argument_group(
         'Required Arguments',
-        'Arguments required for cluster create.',
+        'Arguments required for cluster create-pathways.',
     )
 )
 cluster_create_pathways_optional_arguments = (
     cluster_create_pathways_parser.add_argument_group(
-        'Optional Arguments', 'Arguments optional for cluster create.'
+        'Optional Arguments', 'Arguments optional for cluster create-pathways.'
     )
 )
 cluster_create_pathways_capacity_arguments = (
     cluster_create_pathways_parser.add_argument_group(
         'Capacity Arguments',
-        'Arguments related to capacity for cluster create.',
+        'Arguments related to capacity for cluster create-pathways.',
     )
 )
 
@@ -7138,7 +7300,9 @@ workload_parser.set_defaults(func=default_subcommand_function)
 workload_subcommands = workload_parser.add_subparsers(
     title='workload subcommands',
     dest='xpk_workload_subcommands',
-    help='`create`, `list` and `delete` workloads on clusters',
+    help=(
+        '`create`, `create-pathways`, `list` and `delete` workloads on clusters'
+    ),
 )
 
 # "workload create" command parser.
@@ -7187,26 +7351,22 @@ workload_vertex_tensorboard_arguments = (
 
 ### "workload create" Required arguments
 workload_create_parser_required_arguments.add_argument(
-    '--workload',
-    type=workload_name_type,
-    default=None,
-    help='The name of the workload to run.',
-    required=True,
-)
-workload_create_parser_required_arguments.add_argument(
-    '--cluster',
+    '--command',
     type=str,
     default=None,
-    help='The name of the cluster to run the job on.',
+    help=(
+        'Main command to run on each VM. This script runs within the docker '
+        'container. Typically this looks like "--command=\'python3 train.py\'" '
+        'but if your docker container is missing the dependencies, it might '
+        'look more like "--command=\'bash setup.sh && python3 train.py\'".'
+    ),
     required=True,
 )
-
 workload_device_group = (
     workload_create_parser_required_arguments.add_mutually_exclusive_group(
         required=True
     )
 )
-
 workload_device_group.add_argument(
     '--tpu-type',
     type=str,
@@ -7223,68 +7383,6 @@ workload_device_group.add_argument(
     ),
 )
 
-### "workload create" Optional Arguments
-add_shared_arguments(workload_create_parser_optional_arguments)
-
-workload_create_parser_optional_arguments.add_argument(
-    '--docker-name',
-    type=str,
-    default='jax-tpu',
-    help=(
-        'The name of the docker-image to use, default and typically `jax-tpu`.'
-    ),
-)
-workload_create_parser_optional_arguments.add_argument(
-    '--command',
-    type=str,
-    default=None,
-    help=(
-        'Main command to run on each VM. This script runs within the docker '
-        'container. Typically this looks like "--command=\'python3 train.py\'" '
-        'but if your docker container is missing the dependencies, it might '
-        'look more like "--command=\'bash setup.sh && python3 train.py\'".'
-    ),
-    required=False,
-)
-workload_docker_image_arguments.add_argument(
-    '--docker-image',
-    type=str,
-    help=(
-        'The version of the docker-image to use. By default, '
-        ' `--base-docker-image` is used. Set this argument if the user wants'
-        ' the docker image to be used directly by the xpk workload.'
-        ' a custom docker image it is typically addressed as'
-        ' gcr.io/${PROJECT}/${NAME}:latest. This docker image will be used'
-        ' directly by the xpk workload.'
-    ),
-)
-workload_base_docker_image_arguments.add_argument(
-    '--base-docker-image',
-    type=str,
-    default=default_docker_image,
-    help=(
-        f'The base docker-image to use, default {default_docker_image}. If'
-        ' using a custom docker image it is typically addressed as'
-        ' gcr.io/${PROJECT}/${NAME}:latest. This docker image will be used'
-        ' as a base image by default and the `--script-dir` by default will be'
-        ' added to the image.'
-    ),
-)
-workload_base_docker_image_arguments.add_argument(
-    '--script-dir',
-    type=directory_path_type,
-    default=default_script_dir,
-    help=(
-        'The local location of the directory to copy to the docker image and'
-        ' run the main command from. Defaults to current working directory.'
-    ),
-)
-workload_create_parser_optional_arguments.add_argument(
-    '--num-slices',
-    type=int,
-    default=1,
-    help='The number of slices to use, default=1.',
-)
 workload_create_parser_optional_arguments.add_argument(
     '--num-nodes',
     type=int,
@@ -7315,16 +7413,6 @@ workload_env_arguments.add_argument(
     ),
 )
 workload_create_parser_optional_arguments.add_argument(
-    '--priority',
-    type=str,
-    default='medium',
-    choices=['very-low', 'low', 'medium', 'high', 'very-high'],
-    help=(
-        'A priority, one of `very-low`, `low`, `medium`, `high` or `very-high`.'
-        ' Defaults to `medium`.'
-    ),
-)
-workload_create_parser_optional_arguments.add_argument(
     '--scheduler',
     type=str,
     default='default-scheduler',
@@ -7332,15 +7420,6 @@ workload_create_parser_optional_arguments.add_argument(
         'Which scheduler you want to use. Defaults to `default-scheduler`.'
         'If your cluster is configured for high throughput scheduling you might'
         'want to use `gke.io/high-throughput-scheduler`.'
-    ),
-)
-workload_create_parser_optional_arguments.add_argument(
-    '--max-restarts',
-    type=str,
-    default='0',
-    help=(
-        'Maximum number of times the JobSet will be restarted upon failure. '
-        'Defaults to 0.'
     ),
 )
 workload_create_parser_optional_arguments.add_argument(
@@ -7367,16 +7446,6 @@ workload_create_parser_optional_arguments.add_argument(
         'Add this argument to deploy a sidecar container that will '
         'read the stack traces collected in /tmp/debugging directory '
         'and forward them to Cloud Logging for TPU workloads.'
-    ),
-)
-workload_create_parser_optional_arguments.add_argument(
-    '-tgps',
-    '--termination-grace-period-seconds',
-    type=str,
-    default='30',
-    help=(
-        'Maximum wait time for a workload Pod to wrap up after a disruption'
-        ' event or deletion request.Defaults to 30 seconds.'
     ),
 )
 workload_create_parser_optional_arguments.add_argument(
@@ -7421,43 +7490,9 @@ workload_create_autoprovisioning_arguments.add_argument(
 workload_pathways_workload_arguments.add_argument(
     '--use-pathways',
     action='store_true',
-    help='Provide this argument to create Pathways workloads.',
-)
-workload_pathways_workload_arguments.add_argument(
-    '--headless',
-    action='store_true',
     help=(
-        'Provide this argument to create Pathways workloads in headless mode.'
-        ' This must be provided with --use-pathways.'
-    ),
-)
-workload_pathways_workload_arguments.add_argument(
-    '--proxy-server-image',
-    type=str,
-    default=(
-        'us-docker.pkg.dev/cloud-tpu-v2-images/pathways/proxy_server:latest'
-    ),
-    help=(
-        'Please provide the proxy server image for Pathways.'
-        ' This must be provided with --use-pathways.'
-    ),
-)
-workload_pathways_workload_arguments.add_argument(
-    '--server-image',
-    type=str,
-    default='us-docker.pkg.dev/cloud-tpu-v2-images/pathways/server:latest',
-    help=(
-        'Please provide the server image for Pathways.'
-        ' This must be provided with --use-pathways.'
-    ),
-)
-workload_pathways_workload_arguments.add_argument(
-    '--pathways-gcs-location',
-    type=str,
-    default='gs://cloud-pathways-staging/tmp',
-    help=(
-        'Please provide the GCS location to store Pathways artifacts.'
-        ' This must be provided with --use-pathways.'
+        'DECRATING SOON!!! Please use `xpk workload create-pathways` instead.'
+        ' Provide this argument to create Pathways workloads.'
     ),
 )
 
@@ -7477,6 +7512,75 @@ workload_vertex_tensorboard_arguments.add_argument(
     ),
 )
 workload_create_parser.set_defaults(func=workload_create)
+
+
+# "workload create-pathways" command parser.
+workload_create_pathways_parser = workload_subcommands.add_parser(
+    'create-pathways', help='Create a new job.'
+)
+workload_create_pathways_parser_required_arguments = (
+    workload_create_pathways_parser.add_argument_group(
+        'Workload create-pathways Built-in Arguments',
+        'Configure xpk to create a Pathways Workload for you.',
+    )
+)
+workload_create_pathways_parser_optional_arguments = (
+    workload_create_pathways_parser.add_argument_group(
+        'Optional Arguments',
+        'Arguments optional for `workload create-pathways`.',
+    )
+)
+workload_create_pathways_base_docker_image_arguments = workload_create_pathways_parser.add_argument_group(
+    'Base Docker Image Arguments',
+    'User supplies a base image or by default the image is set by xpk.'
+    ' Xpk will add the `script_dir` to the base image creating an anonymous'
+    ' docker image. These arguments are exclusive to `--docker-image`.',
+)
+workload_create_pathways_docker_image_arguments = workload_create_pathways_parser.add_argument_group(
+    'Docker Image Arguments',
+    '`--base-docker-image` is used by default. Set this argument if the'
+    ' user wants the docker image to be used directly by the xpk workload.',
+)
+
+### "workload create-pathways" Required arguments, specific to Pathways
+workload_create_pathways_parser_required_arguments.add_argument(
+    '--tpu-type',
+    type=str,
+    default=None,
+    help='The tpu type to use, v5litepod-16, etc.',
+)
+
+workload_create_pathways_parser_optional_arguments.add_argument(
+    '--command',
+    type=str,
+    default=None,
+    help=(
+        'Main command to run on each VM. This script runs within the docker '
+        'container. Typically this looks like "--command=\'python3 train.py\'" '
+        'but if your docker container is missing the dependencies, it might '
+        'look more like "--command=\'bash setup.sh && python3 train.py\'".'
+    ),
+    required=False,
+)
+
+add_shared_workload_create_required_arguments([
+    workload_create_parser_required_arguments,
+    workload_create_pathways_parser_required_arguments,
+])
+add_shared_workload_create_optional_arguments([
+    workload_create_parser_optional_arguments,
+    workload_create_pathways_parser_optional_arguments,
+])
+add_shared_workload_base_docker_image_arguments([
+    workload_base_docker_image_arguments,
+    workload_create_pathways_base_docker_image_arguments,
+])
+add_shared_workload_docker_image_arguments([
+    workload_docker_image_arguments,
+    workload_create_pathways_docker_image_arguments,
+])
+
+workload_create_pathways_parser.set_defaults(func=workload_create_pathways)
 
 # "workload delete" command parser.
 workload_delete_parser = workload_subcommands.add_parser(

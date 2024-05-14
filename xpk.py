@@ -3643,10 +3643,14 @@ def run_gke_node_pool_create_command(
       )
       if device_type == h100_mega_device_type:
         command += (
-          f' --additional-node-network network={args.cluster}-net-5,subnetwork={subnet_prefix}-sub-5'
-          f' --additional-node-network network={args.cluster}-net-6,subnetwork={subnet_prefix}-sub-6'
-          f' --additional-node-network network={args.cluster}-net-7,subnetwork={subnet_prefix}-sub-7'
-          f' --additional-node-network network={args.cluster}-net-8,subnetwork={subnet_prefix}-sub-8'
+          ' --additional-node-network'
+          f' network={args.cluster}-net-5,subnetwork={subnet_prefix}-sub-5'
+          ' --additional-node-network'
+          f' network={args.cluster}-net-6,subnetwork={subnet_prefix}-sub-6'
+          ' --additional-node-network'
+          f' network={args.cluster}-net-7,subnetwork={subnet_prefix}-sub-7'
+          ' --additional-node-network'
+          f' network={args.cluster}-net-8,subnetwork={subnet_prefix}-sub-8'
           ' --max-pods-per-node=32'
         )
     elif system.accelerator_type == AcceleratorType['CPU']:

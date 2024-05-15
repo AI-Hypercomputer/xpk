@@ -3019,7 +3019,12 @@ def create_cluster_configmaps(
   device_type = system.device_type
   if device_type == h100_device_type:
     resources_data = f'{device_type}: "{int(args.num_nodes)}"'
-  elif args.enable_autoprovisioning and autoprovisioning_config:
+  elif (
+      not args.enable_pathways
+      and args.enable_autoprovisioning
+      and autoprovisioning_config
+  ):
+    # Currently autoprovisioning is not supported with Pathways.
     # Auto provisioning will have variable topologies for a gke accelerator type.
     resources_data = (
         f'{system.gke_accelerator}: {_AUTOPROVISIONING_CONFIG_VALUE}'
@@ -4355,14 +4360,12 @@ def cluster_create(args) -> None:
     if install_nccl_code != 0:
       xpk_exit(install_nccl_code)
 
-  # Currently autoprovisioning is not supported with Pathways.
-  if not args.enable_pathways:
-    xpk_print('Creating ConfigMap for cluster')
-    create_cluster_configmaps_code = create_cluster_configmaps(
-        args, system, tensorboard_config, autoprovisioning_config
-    )
-    if create_cluster_configmaps_code != 0:
-      xpk_exit(create_cluster_configmaps_code)
+  xpk_print('Creating ConfigMap for cluster')
+  create_cluster_configmaps_code = create_cluster_configmaps(
+      args, system, tensorboard_config, autoprovisioning_config
+  )
+  if create_cluster_configmaps_code != 0:
+    xpk_exit(create_cluster_configmaps_code)
 
   xpk_print('GKE commands done! Resources are created.')
   xpk_print(
@@ -6730,6 +6733,17 @@ def add_shared_cluster_create_optional_arguments(create_args_parsers):
             ' additional approval.'
         ),
     )
+    custom_parser.add_argument(
+        '--custom-tpu-nodepool-arguments',
+        type=str,
+        default='',
+        help=(
+            'DEPRECATING SOON! Please use --custom-nodepool-arguments to'
+            ' customize node pool create command. Do note, these will not'
+            ' override already used node pool creation arguments. Example usage'
+            ' --custom-tpu-nodepool-arguments="--enable-ip-alias"'
+        ),
+    )
 
 
 def add_shared_cluster_create_tensorboard_arguments(create_args_parsers):
@@ -7094,7 +7108,6 @@ cluster_device_group.add_argument(
 )
 
 ### Optional arguments specific to "cluster create"
-
 cluster_create_optional_arguments.add_argument(
     '--num-nodes',
     type=int,
@@ -7118,17 +7131,6 @@ cluster_create_optional_arguments.add_argument(
         'Getting deprecated soon! Please use --default-pool-cpu-machine-type'
         'instead, to denote the machine type of the default cpu node pool. Set'
         ' the machine type of other cpu nodepools using --device-type.'
-    ),
-)
-cluster_create_optional_arguments.add_argument(
-    '--custom-tpu-nodepool-arguments',
-    type=str,
-    default='',
-    help=(
-        'DEPRECATING SOON! Please use --custom-nodepool-arguments to customize'
-        ' node pool create command. Do note, these will not override already'
-        ' used node pool creation arguments. Example usage'
-        ' --custom-tpu-nodepool-arguments="--enable-ip-alias"'
     ),
 )
 

@@ -2646,19 +2646,21 @@ def run_gke_cluster_create_command(
   return 0
 
 
-def set_up_cluster_network_for_gpu(args) -> int:
+def set_up_cluster_network_for_gpu(
+    args,
+    system: SystemCharacteristics) -> int:
   """Set up GKE Cluster networks, subnets and firewall rules for A3/A3+.
   Note: there are 4 NICs for GPU-GPU bw and 1 NIC for host in an A3 node,
   and there are 8 NICs for GPU-GPU bw and 1 NIC for host in an A3+ node.
 
   Args:
     args: user provided arguments for running the command.
+    system: system characteristics.
 
   Returns:
     0 if successful and 1 otherwise.
   """
-  device_type = args.tpu_type if args.tpu_type else args.device_type
-  num_networks = 5 if device_type == h100_device_type else 9
+  num_networks = 5 if system.device_type == h100_device_type else 9
   for i in range(1, num_networks):
     return_code = create_cluster_network(args, i)
     if return_code != 0:
@@ -3999,17 +4001,19 @@ def set_jobset_on_cluster(args) -> int:
   return return_code
 
 
-def install_nccl_on_cluster(args) -> int:
+def install_nccl_on_cluster(
+    args,
+    system: SystemCharacteristics) -> int:
   """Install NCCL plugin on the cluster.
 
   Args:
     args: user provided arguments for running the command.
+    system: system characteristics.
 
   Returns:
     0 if successful and 1 otherwise.
   """
-  device_type = args.tpu_type if args.tpu_type else args.device_type
-  if device_type == h100_device_type:
+  if system.device_type == h100_device_type:
     command = (
         'kubectl apply -f '
         # pylint: disable=line-too-long
@@ -4278,14 +4282,13 @@ def cluster_create(args) -> None:
     if not tensorboard_config:
       xpk_exit(1)
 
-  device_type = args.tpu_type if args.tpu_type else args.device_type
   if system.accelerator_type == AcceleratorType['GPU']:
     xpk_print('Setting up Network for cluster')
-    set_up_cluster_network_code = set_up_cluster_network_for_gpu(args)
+    set_up_cluster_network_code = set_up_cluster_network_for_gpu(args, system)
     if set_up_cluster_network_code != 0:
       xpk_exit(set_up_cluster_network_code)
 
-  if device_type == h100_device_type:
+  if system.device_type == h100_device_type:
     xpk_print('Creating Network Config for cluster')
     create_cluster_network_config_code = create_cluster_network_config(args)
     if create_cluster_network_config_code != 0:
@@ -4337,7 +4340,7 @@ def cluster_create(args) -> None:
 
   if system.accelerator_type == AcceleratorType['GPU']:
     xpk_print('Installing NCCL Plugin for cluster')
-    install_nccl_code = install_nccl_on_cluster(args)
+    install_nccl_code = install_nccl_on_cluster(args, system)
     if install_nccl_code != 0:
       xpk_exit(install_nccl_code)
 
@@ -5573,18 +5576,18 @@ def get_autoprovisioning_node_selector_args(args) -> tuple[str, int]:
   return node_selector_args, return_code
 
 
-def get_gpu_volume(args) -> str:
+def get_gpu_volume(system: SystemCharacteristics) -> str:
   """Get gpu volume based on user provided arguments.
 
   Args:
-    args: user provided arguments for running the command.
+    system: system characteristics.
 
   Returns:
     str: yaml containing gpu volume
   """
-  gpu_volumn = ""
-  if args.device_type == h100_device_type:
-    gpu_volumn = """- name: nvidia-install-dir-host
+  gpu_volume = ""
+  if system.device_type == h100_device_type:
+    gpu_volume = """- name: nvidia-install-dir-host
                 hostPath:
                   path: /home/kubernetes/bin/nvidia/lib64
               - name: tcpd-socket
@@ -5598,8 +5601,8 @@ def get_gpu_volume(args) -> str:
                 emptyDir:
               - name: tcpx-nccl-plugin-volume
                 emptyDir:"""
-  elif args.device_type == h100_mega_device_type:
-    gpu_volumn = """- name: nvidia-install-dir-host
+  elif system.device_type == h100_mega_device_type:
+    gpu_volume = """- name: nvidia-install-dir-host
                 hostPath:
                   path: /home/kubernetes/bin/nvidia/lib64
               - name: shared-memory
@@ -5608,56 +5611,56 @@ def get_gpu_volume(args) -> str:
                   sizeLimit: 1Gi
               - name: workload-terminated-volume
                 emptyDir:"""
-  return gpu_volumn
+  return gpu_volume
 
 
-def get_gpu_rxdm_image(args) -> str:
+def get_gpu_rxdm_image(system: SystemCharacteristics) -> str:
   """Get config of rxdm based on user provided arguments.
 
   Args:
-    args: user provided arguments for running the command.
+    system: system characteristics.
 
   Returns:
     str: yaml containing the rxdm name and image
   """
   gpu_rxdm_image = ""
-  if args.device_type == h100_device_type:
+  if system.device_type == h100_device_type:
     gpu_rxdm_image = """- name: tcpd-daemon
                 image: us-docker.pkg.dev/gce-ai-infra/gpudirect-tcpx/tcpgpudmarxd-dev:v2.0.9"""
-  elif args.device_type == h100_mega_device_type:
+  elif system.device_type == h100_mega_device_type:
     gpu_rxdm_image = """- name: fastrak-daemon
                 image: us-docker.pkg.dev/gce-ai-infra/gpudirect-tcpxo/tcpgpudmarxd-dev:v1.0.6-sctp"""
   return gpu_rxdm_image
 
 
-def get_gpu_rxdm_cmd(args) -> str:
+def get_gpu_rxdm_cmd(system: SystemCharacteristics) -> str:
   """Get rxdm command based on user provided arguments.
 
   Args:
-    args: user provided arguments for running the command.
+    system: system characteristics.
 
   Returns:
     str: command of running rxdm container
   """
   gpu_rxdm_cmd = ""
-  if args.device_type == h100_device_type:
+  if system.device_type == h100_device_type:
     gpu_rxdm_cmd = "/tcpgpudmarxd/build/app/tcpgpudmarxd --gpu_nic_preset a3vm --gpu_shmem_type fd --setup_param \"--verbose 128 2 0\""
-  elif args.device_type == h100_mega_device_type:
+  elif system.device_type == h100_mega_device_type:
     gpu_rxdm_cmd = "set -ex; chmod 755 /fts/entrypoint_rxdm_container.sh; /fts/entrypoint_rxdm_container.sh --num_hops=2 --num_nics=8 --uid= --alsologtostderr"
   return gpu_rxdm_cmd
 
 
-def get_gpu_tcp_volume(args) -> str:
+def get_gpu_tcp_volume(system: SystemCharacteristics) -> str:
   """Get gpu tcp volume based on user provided arguments.
 
   Args:
-    args: user provided arguments for running the command.
+    system: system characteristics.
 
   Returns:
     str: yaml containing gpu tcp volume
   """
   gpu_tcp_volume = ""
-  if args.device_type == h100_device_type:
+  if system.device_type == h100_device_type:
     gpu_tcp_volume = """- name: tcpd-socket
                   mountPath: /tmp"""  
   return gpu_tcp_volume
@@ -5783,10 +5786,10 @@ def workload_create(args) -> None:
         node_pool_name=f'{args.cluster}-np-0',
         chips_per_vm=system.chips_per_vm,
         autoprovisioning_args=autoprovisioning_args,
-        gpu_volume=get_gpu_volume(args),
-        gpu_rxdm_image=get_gpu_rxdm_image(args),
-        gpu_rxdm_cmd=get_gpu_rxdm_cmd(args),
-        gpu_tcp_volume=get_gpu_tcp_volume(args)
+        gpu_volume=get_gpu_volume(system),
+        gpu_rxdm_image=get_gpu_rxdm_image(system),
+        gpu_rxdm_cmd=get_gpu_rxdm_cmd(system),
+        gpu_tcp_volume=get_gpu_tcp_volume(system)
     )
   elif args.use_pathways:
     # Ensure the cluster and CPU nodepools were created with --enable-pathways

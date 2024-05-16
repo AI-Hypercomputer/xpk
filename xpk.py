@@ -4847,7 +4847,7 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
 
   xpk_internal_commands = ''
   gsutil_test_command = ''
-  if args.debug_dump_gcs:
+  if not args.use_pathways and args.debug_dump_gcs:
     gsutil_test_command = (
         'which gsutil >/dev/null 2>&1 || { echo >&2 "gsutil'
         ' is required but not installed. Aborting"; exit 24;};'
@@ -4881,7 +4881,7 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
     )
 
   xpk_return_user_exit_code = ''
-  if args.restart_on_user_code_failure:
+  if not args.use_pathways and args.restart_on_user_code_failure:
     if int(args.max_restarts) <= 0:
       xpk_print(
           f'Warning: --max-restarts, is set to {args.max_restarts}. Will not'
@@ -4933,6 +4933,7 @@ def add_image_pull_policy_for_pw_or_gpu(args, system: SystemCharacteristics):
   """Add image pull policy only for Pathways containers.
   Args:
     args: user provided args.
+    system: system characteristics
 
   Returns:
     str:
@@ -5142,7 +5143,7 @@ def get_pathways_proxy_args(args) -> str:
     return ''
 
 
-def get_user_workload_container(args, system):
+def get_user_workload_container(args, system: SystemCharacteristics):
   """Deploy user workload container
 
   Args:
@@ -5164,7 +5165,8 @@ def get_user_workload_container(args, system):
       system.accelerator_type
   ].resource_type
   if (
-      system.accelerator_type == AcceleratorType['TPU']
+      not args.use_pathways
+      and system.accelerator_type == AcceleratorType['TPU']
       and args.deploy_stacktrace_sidecar
   ):
     xpk_print(
@@ -5179,14 +5181,15 @@ def get_user_workload_container(args, system):
   return container, debugging_dashboard_id
 
 
-def get_user_workload_for_pathways(args, system) -> str:
+def get_user_workload_for_pathways(args, system: SystemCharacteristics) -> str:
   """
   Create a user workload container for Pathways.
   Don't create one for Pathways headless mode.
 
   Args:
     args: user provided args.
-    container: container with the user workload.
+    system: system characteristics.
+
 
   Returns:
     str:
@@ -5215,6 +5218,12 @@ def get_user_workload_for_pathways(args, system) -> str:
                 type: DirectoryOrCreate
               name: shared-tmp"""
   if args.use_pathways and not args.headless:
+    if not args.command:
+      xpk_print(
+          'Please provide a command, if you wish to use Pathways with a docker'
+          ' container.'
+      )
+      xpk_exit(1)
     container, _ = get_user_workload_container(args, system)
     return user_workload_yaml.format(args=args, container=container)
   else:
@@ -6628,13 +6637,13 @@ def add_shared_arguments(custom_parser):
   )
 
 
-def add_shared_cluster_create_required_arguments(create_args_parsers):
+def add_shared_cluster_create_required_arguments(args_parsers):
   """Add shared required arguments in cluster create and Pathways cluster create.
 
   Args:
       List of cluster create required arguments parsers
   """
-  for custom_parser in create_args_parsers:
+  for custom_parser in args_parsers:
     custom_parser.add_argument(
         '--cluster',
         type=str,
@@ -6647,13 +6656,13 @@ def add_shared_cluster_create_required_arguments(create_args_parsers):
     )
 
 
-def add_shared_cluster_create_optional_arguments(create_args_parsers):
+def add_shared_cluster_create_optional_arguments(args_parsers):
   """Add shared optional arguments in cluster create and Pathways cluster create.
 
   Args:
       List of cluster create optional arguments parsers
   """
-  for custom_parser in create_args_parsers:
+  for custom_parser in args_parsers:
     add_shared_arguments(custom_parser)
     custom_parser.add_argument(
         '--host-maintenance-interval',
@@ -6746,14 +6755,14 @@ def add_shared_cluster_create_optional_arguments(create_args_parsers):
     )
 
 
-def add_shared_cluster_create_tensorboard_arguments(create_args_parsers):
+def add_shared_cluster_create_tensorboard_arguments(args_parsers):
   """Add shared tensorboard arguments in cluster create and Pathways cluster create.
   Note that this feature enables non-Pathways workloads to use tensorboard arguments
   on a Pathways cluster.
   Args:
       List of cluster create tensorboard arguments parsers
   """
-  for custom_parser in create_args_parsers:
+  for custom_parser in args_parsers:
     custom_parser.add_argument(
         '--create-vertex-tensorboard',
         action='store_true',
@@ -6782,13 +6791,13 @@ def add_shared_cluster_create_tensorboard_arguments(create_args_parsers):
     )
 
 
-def add_shared_cluster_create_capacity_arguments(create_args_parsers):
+def add_shared_cluster_create_capacity_arguments(args_parsers):
   """Add shared capacity arguments in cluster create and Pathways cluster create.
 
   Args:
       List of cluster create capacity arguments parsers
   """
-  for custom_parser in create_args_parsers:
+  for custom_parser in args_parsers:
     custom_parser.add_argument(
         '--on-demand',
         action='store_true',
@@ -6816,13 +6825,13 @@ def add_shared_cluster_create_capacity_arguments(create_args_parsers):
     )
 
 
-def add_shared_workload_create_required_arguments(create_args_parsers):
+def add_shared_workload_create_required_arguments(args_parsers):
   """Add shared required arguments in workload create and Pathways workload create.
 
   Args:
       List of workload create required arguments parsers
   """
-  for custom_parser in create_args_parsers:
+  for custom_parser in args_parsers:
     custom_parser.add_argument(
         '--workload',
         type=workload_name_type,
@@ -6839,13 +6848,13 @@ def add_shared_workload_create_required_arguments(create_args_parsers):
     )
 
 
-def add_shared_workload_create_optional_arguments(create_args_parsers):
+def add_shared_workload_create_optional_arguments(args_parsers):
   """Add shared optional arguments in workload create and Pathways workload create.
 
   Args:
       List of workload create optional arguments parsers
   """
-  for custom_parser in create_args_parsers:
+  for custom_parser in args_parsers:
     add_shared_arguments(custom_parser)
     custom_parser.add_argument(
         '--docker-name',
@@ -6889,6 +6898,14 @@ def add_shared_workload_create_optional_arguments(create_args_parsers):
         help=(
             'Maximum wait time for a workload Pod to wrap up after a disruption'
             ' event or deletion request.Defaults to 30 seconds.'
+        ),
+    )
+    custom_parser.add_argument(
+        '--enable-debug-logs',
+        action='store_true',
+        help=(
+            'Set this flag to get verbose logging to investigate the issue in'
+            ' the workload.'
         ),
     )
     custom_parser.add_argument(
@@ -6938,13 +6955,13 @@ def add_shared_workload_create_optional_arguments(create_args_parsers):
     )
 
 
-def add_shared_workload_create_env_arguments(create_args_parsers):
+def add_shared_workload_create_env_arguments(args_parsers):
   """Add shared workload create environment arguments in workload create and Pathways workload create.
 
   Args:
       List of workload create environment arguments parsers
   """
-  for custom_parser in create_args_parsers:
+  for custom_parser in args_parsers:
     workload_env_arguments = custom_parser.add_mutually_exclusive_group()
     workload_env_arguments.add_argument(
         '--env-file',
@@ -6968,13 +6985,13 @@ def add_shared_workload_create_env_arguments(create_args_parsers):
     )
 
 
-def add_shared_workload_base_docker_image_arguments(create_args_parsers):
+def add_shared_workload_base_docker_image_arguments(args_parsers):
   """Add shared base docker image arguments in workload create and Pathways workload create.
 
   Args:
       List of workload create base docker image arguments parsers
   """
-  for custom_parser in create_args_parsers:
+  for custom_parser in args_parsers:
     custom_parser.add_argument(
         '--base-docker-image',
         type=str,
@@ -6999,13 +7016,13 @@ def add_shared_workload_base_docker_image_arguments(create_args_parsers):
     )
 
 
-def add_shared_workload_docker_image_arguments(create_args_parsers):
+def add_shared_workload_docker_image_arguments(args_parsers):
   """Add shared docker image arguments in workload create and Pathways workload create.
 
   Args:
       List of workload create docker image arguments parsers
   """
-  for custom_parser in create_args_parsers:
+  for custom_parser in args_parsers:
     custom_parser.add_argument(
         '--docker-image',
         type=str,
@@ -7475,14 +7492,6 @@ workload_create_parser_optional_arguments.add_argument(
     help=(
         'GCS bucket or a directory within a bucket, e.g gs://bucket/subdir, '
         'where debugging information such as HLO dumps are uploaded'
-    ),
-)
-workload_create_parser_optional_arguments.add_argument(
-    '--enable-debug-logs',
-    action='store_true',
-    help=(
-        'Set this flag to get verbose logging to investigate the issue in the'
-        ' workload.'
     ),
 )
 workload_create_parser_optional_arguments.add_argument(

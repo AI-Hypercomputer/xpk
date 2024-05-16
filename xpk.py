@@ -5947,7 +5947,8 @@ def workload_create(args) -> None:
       xpk_print(
           ' \n *******  Please connect to your Pathways proxy at'
           f' {args.pathways_proxy_address} , once you see "IFRT proxy server'
-          ' started with status OK" on the proxy link below. ****** \n'
+          ' started with status OK" on the proxy link below.'
+          ' Remember to delete the workload once done! ****** \n'
       )
       pathways_proxy_link = f'https://console.cloud.google.com/kubernetes/job/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}-proxy-0/details?project={args.project}'
       xpk_print(

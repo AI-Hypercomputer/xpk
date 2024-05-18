@@ -4889,11 +4889,11 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
 
   tpu_stacktrace_terminate_command = ''
   if (
-    system.accelerator_type == AcceleratorType['TPU']
-    and args.deploy_stacktrace_sidecar
+      system.accelerator_type == AcceleratorType['TPU']
+      and args.deploy_stacktrace_sidecar
   ):
     tpu_stacktrace_terminate_command = (
-      'touch /shared-volume/stacktrace_signal; '
+        'touch /shared-volume/stacktrace_signal; '
     )
 
   xpk_return_user_exit_code = ''

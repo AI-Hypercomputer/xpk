@@ -134,9 +134,7 @@ spec:
               containers:
               {container}
               volumes:
-              - emptyDir:
-                  medium: Memory
-                name: dshm-2
+              {volumes}
 """
 
 gpu_workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
@@ -4838,17 +4836,14 @@ def get_main_and_sidecar_container(args, system, docker_image) -> str:
   main_container = get_main_container(args, system, docker_image, resource_type)
   yaml = """- name: stacktrace-explorer
                 image: busybox:1.28
-                args: [/bin/sh, -c, "while [ ! -d /tmp/debugging ]; do sleep 60; done; while [ ! -e /tmp/debugging/* ]; do sleep 60; done; tail -n+1 -f /tmp/debugging/*"]
+                args: [/bin/sh, -c, "check_signal() (while [ ! -f /shared-volume/stacktrace_signal ]; do sleep 1; done; pid=$(pidof 'tail'); kill $pid;); check_signal & while [ ! -d /tmp/debugging ]; do sleep 60; done; while [ ! -e /tmp/debugging/* ]; do sleep 60; done; tail -n+1 -f /tmp/debugging/*; exit 0;"]
                 volumeMounts:
                 - name: tpu-stack-trace
                   readOnly: true
                   mountPath: /tmp/debugging
+                - name: shared-data
+                  mountPath: /shared-volume
               {main_container}
-                volumeMounts:
-                - name: tpu-stack-trace
-                  mountPath: /tmp/debugging
-              volumes:
-              - name: tpu-stack-trace
   """
   return yaml.format(main_container=main_container)
 
@@ -4892,6 +4887,15 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
         'echo Main app is done > /usr/share/workload/workload_terminated; '
     )
 
+  tpu_stacktrace_terminate_command = ''
+  if (
+      system.accelerator_type == AcceleratorType['TPU']
+      and args.deploy_stacktrace_sidecar
+  ):
+    tpu_stacktrace_terminate_command = (
+        'touch /shared-volume/stacktrace_signal; '
+    )
+
   xpk_return_user_exit_code = ''
   if args.restart_on_user_code_failure:
     if int(args.max_restarts) <= 0:
@@ -4914,7 +4918,7 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
                 - bash
                 - -c
                 - |
-                  echo XPK Start: $(date) ; _sigterm() ( kill -SIGTERM $! 2>/dev/null;); trap _sigterm SIGTERM;{gsutil_test_command}({command}) & PID=$!; while kill -0 $PID 2>/dev/null; do sleep 5; done; wait $PID; EXIT_CODE=$? ; {xpk_internal_commands} echo XPK End: $(date); echo EXIT_CODE=$EXIT_CODE; {gpu_workload_terminate_command} {xpk_return_user_exit_code}
+                  echo XPK Start: $(date) ; _sigterm() ( kill -SIGTERM $! 2>/dev/null;); trap _sigterm SIGTERM;{gsutil_test_command}({command}) & PID=$!; while kill -0 $PID 2>/dev/null; do sleep 5; done; wait $PID; EXIT_CODE=$? ; {xpk_internal_commands} echo XPK End: $(date); echo EXIT_CODE=$EXIT_CODE; {tpu_stacktrace_terminate_command} {gpu_workload_terminate_command} {xpk_return_user_exit_code}
                 resources:
                   limits:
                     {resources}
@@ -4932,6 +4936,7 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
       docker_image=docker_image,
       gsutil_test_command=gsutil_test_command,
       command=command,
+      tpu_stacktrace_terminate_command=tpu_stacktrace_terminate_command,
       gpu_workload_terminate_command=gpu_workload_terminate_command,
       xpk_internal_commands=xpk_internal_commands,
       resources=get_main_container_resources(args, system, resource_type),
@@ -4973,6 +4978,31 @@ def get_main_container_docker_image(args, system: SystemCharacteristics) -> str:
   return f'{args.docker_name}'
 
 
+def get_volumes(args, system: SystemCharacteristics) -> str:
+  """Get volumes accessible to the containers in the pod.
+  Args:
+    args: user provided args.
+    system: system characteristics.
+
+  Returns:
+    str:
+      YAML for the volumes.
+  """
+  volumes = """- emptyDir:
+                  medium: Memory
+                name: dshm-2"""
+
+  if (
+      system.accelerator_type == AcceleratorType['TPU']
+      and args.deploy_stacktrace_sidecar
+  ):
+    volumes += """
+              - name: tpu-stack-trace
+              - name: shared-data"""
+
+  return volumes
+
+
 def get_volume_mounts(args, system: SystemCharacteristics) -> str:
   """Resources for the main container.
   Args:
@@ -5003,6 +5033,16 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
 
   regular_volume_mount_yaml = """- mountPath: /dev/shm
                   name: dshm-2"""
+  if (
+      system.accelerator_type == AcceleratorType['TPU']
+      and args.deploy_stacktrace_sidecar
+  ):
+    regular_volume_mount_yaml += """
+                - name: tpu-stack-trace
+                  mountPath: /tmp/debugging
+                - name: shared-data
+                  mountPath: /shared-volume"""
+
   return regular_volume_mount_yaml
 
 
@@ -5784,6 +5824,7 @@ def workload_create(args) -> None:
         machine_label=create_machine_label(system.accelerator_type, system),
         local_queue_name=_LOCAL_QUEUE_NAME,
         autoprovisioning_args=autoprovisioning_args,
+        volumes=get_volumes(args, system),
     )
   tmp = write_temporary_file(yml_string)
   command = f'kubectl apply -f {str(tmp.file.name)}'

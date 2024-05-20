@@ -135,9 +135,7 @@ spec:
               containers:
               {container}
               volumes:
-              - emptyDir:
-                  medium: Memory
-                name: dshm-2
+              {volumes}
 """
 
 gpu_workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
@@ -4804,17 +4802,14 @@ def get_main_and_sidecar_container(args, system, docker_image) -> str:
   main_container = get_main_container(args, system, docker_image, resource_type)
   yaml = """- name: stacktrace-explorer
                 image: busybox:1.28
-                args: [/bin/sh, -c, "while [ ! -d /tmp/debugging ]; do sleep 60; done; while [ ! -e /tmp/debugging/* ]; do sleep 60; done; tail -n+1 -f /tmp/debugging/*"]
+                args: [/bin/sh, -c, "check_signal() (while [ ! -f /shared-volume/stacktrace_signal ]; do sleep 1; done; pid=$(pidof 'tail'); kill $pid;); check_signal & while [ ! -d /tmp/debugging ]; do sleep 60; done; while [ ! -e /tmp/debugging/* ]; do sleep 60; done; tail -n+1 -f /tmp/debugging/*; exit 0;"]
                 volumeMounts:
                 - name: tpu-stack-trace
                   readOnly: true
                   mountPath: /tmp/debugging
+                - name: shared-data
+                  mountPath: /shared-volume
               {main_container}
-                volumeMounts:
-                - name: tpu-stack-trace
-                  mountPath: /tmp/debugging
-              volumes:
-              - name: tpu-stack-trace
   """
   return yaml.format(main_container=main_container)
 
@@ -4858,6 +4853,15 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
         'echo Main app is done > /usr/share/workload/workload_terminated; '
     )
 
+  tpu_stacktrace_terminate_command = ''
+  if (
+      system.accelerator_type == AcceleratorType['TPU']
+      and args.deploy_stacktrace_sidecar
+  ):
+    tpu_stacktrace_terminate_command = (
+        'touch /shared-volume/stacktrace_signal; '
+    )
+
   xpk_return_user_exit_code = ''
   if args.restart_on_user_code_failure:
     if int(args.max_restarts) <= 0:
@@ -4880,7 +4884,7 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
                 - bash
                 - -c
                 - |
-                  echo XPK Start: $(date) ; _sigterm() ( kill -SIGTERM $! 2>/dev/null;); trap _sigterm SIGTERM;{gsutil_test_command}({command}) & PID=$!; while kill -0 $PID 2>/dev/null; do sleep 5; done; wait $PID; EXIT_CODE=$? ; {xpk_internal_commands} echo XPK End: $(date); echo EXIT_CODE=$EXIT_CODE; {gpu_workload_terminate_command} {xpk_return_user_exit_code}
+                  echo XPK Start: $(date) ; _sigterm() ( kill -SIGTERM $! 2>/dev/null;); trap _sigterm SIGTERM;{gsutil_test_command}({command}) & PID=$!; while kill -0 $PID 2>/dev/null; do sleep 5; done; wait $PID; EXIT_CODE=$? ; {xpk_internal_commands} echo XPK End: $(date); echo EXIT_CODE=$EXIT_CODE; {tpu_stacktrace_terminate_command} {gpu_workload_terminate_command} {xpk_return_user_exit_code}
                 resources:
                   limits:
                     {resources}
@@ -4898,6 +4902,7 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
       docker_image=docker_image,
       gsutil_test_command=gsutil_test_command,
       command=command,
+      tpu_stacktrace_terminate_command=tpu_stacktrace_terminate_command,
       gpu_workload_terminate_command=gpu_workload_terminate_command,
       xpk_internal_commands=xpk_internal_commands,
       resources=get_main_container_resources(args, system, resource_type),
@@ -4939,6 +4944,31 @@ def get_main_container_docker_image(args, system: SystemCharacteristics) -> str:
   return f'{args.docker_name}'
 
 
+def get_volumes(args, system: SystemCharacteristics) -> str:
+  """Get volumes accessible to the containers in the pod.
+  Args:
+    args: user provided args.
+    system: system characteristics.
+
+  Returns:
+    str:
+      YAML for the volumes.
+  """
+  volumes = """- emptyDir:
+                  medium: Memory
+                name: dshm-2"""
+
+  if (
+      system.accelerator_type == AcceleratorType['TPU']
+      and args.deploy_stacktrace_sidecar
+  ):
+    volumes += """
+              - name: tpu-stack-trace
+              - name: shared-data"""
+
+  return volumes
+
+
 def get_volume_mounts(args, system: SystemCharacteristics) -> str:
   """Resources for the main container.
   Args:
@@ -4954,8 +4984,17 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
   if args.use_pathways:
     volume_mount_yaml = """- mountPath: /tmp
                   name: shared-tmp"""
+  elif (
+      system.accelerator_type == AcceleratorType['TPU']
+      and args.deploy_stacktrace_sidecar
+  ):
+    regular_volume_mount_yaml += """
+                - name: tpu-stack-trace
+                  mountPath: /tmp/debugging
+                - name: shared-data
+                  mountPath: /shared-volume"""
   elif system.accelerator_type == AcceleratorType['GPU']:
-    if args.device_type == h100_device_type:
+    if system.device_type == h100_device_type:
       volume_mount_yaml = """- name: nvidia-install-dir-host
                   mountPath: /usr/local/nvidia/lib64
                 - name: tcpx-nccl-plugin-volume
@@ -4966,7 +5005,7 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
                   mountPath: /dev/shm
                 - name: workload-terminated-volume
                   mountPath: /usr/share/workload"""
-    elif args.device_type == h100_mega_device_type:
+    elif system.device_type == h100_mega_device_type:
       volume_mount_yaml = """- name: nvidia-install-dir-host
                   mountPath: /usr/local/nvidia/lib64
                 - name: shared-memory
@@ -5514,6 +5553,24 @@ def is_autoprovisioning_enabled(
     return False, 1
 
 
+def get_pathways_unified_query_link(args) -> str:
+  """Get the unified query link for the pathways workload."""
+  pw_suffixes = ['main', 'rm', 'proxy', 'worker']
+  pw_pod_names_query = '%20OR%20'.join(
+      [f'"{args.workload}-{suffix}-0"' for suffix in pw_suffixes]
+  )
+  query_params = (
+      'resource.type%3D"k8s_container"%0A'
+      f'resource.labels.project_id%3D"{args.project}"%0A'
+      f'resource.labels.location%3D"{zone_to_region(args.zone)}"%0A'
+      f'resource.labels.cluster_name%3D"{args.cluster}"%0A'
+      f'resource.labels.pod_name:{pw_pod_names_query}%0A'
+      'severity>%3DDEFAULT'
+  )
+
+  return f'https://console.cloud.google.com/logs/query;query={query_params}'
+
+
 def get_autoprovisioning_node_selector_args(args) -> tuple[str, int]:
   """Determine the capacity type when autoprovisioning is enabled.
 
@@ -5834,6 +5891,7 @@ def workload_create(args) -> None:
         machine_label=create_machine_label(system.accelerator_type, system),
         local_queue_name=_LOCAL_QUEUE_NAME,
         autoprovisioning_args=autoprovisioning_args,
+        volumes=get_volumes(args, system),
     )
   tmp = write_temporary_file(yml_string)
   command = f'kubectl apply -f {str(tmp.file.name)}'
@@ -5853,6 +5911,10 @@ def workload_create(args) -> None:
         'Follow your Pathways workload here:'
         # pylint: disable=line-too-long
         f' https://console.cloud.google.com/kubernetes/job/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}-main-0/details?project={args.project}'
+    )
+    xpk_print(
+        'For a unified debugging view, use the following link: '
+        f'{get_pathways_unified_query_link(args)}'
     )
   else:
     xpk_print(
@@ -7277,13 +7339,15 @@ workload_pathways_workload_arguments.add_argument(
 workload_pathways_workload_arguments.add_argument(
     '--proxy-server-image',
     type=str,
-    default='gcr.io/cloud-tpu-v2-images/pathways/pathways-demo:proxy_server',
+    default=(
+        'us-docker.pkg.dev/cloud-tpu-v2-images/pathways/proxy_server:latest'
+    ),
     help='Please provide the proxy server image for Pathways.',
 )
 workload_pathways_workload_arguments.add_argument(
     '--server-image',
     type=str,
-    default='gcr.io/cloud-tpu-v2-images/pathways/pathways-demo:server',
+    default='us-docker.pkg.dev/cloud-tpu-v2-images/pathways/server:latest',
     help='Please provide the server image for Pathways.',
 )
 workload_pathways_workload_arguments.add_argument(

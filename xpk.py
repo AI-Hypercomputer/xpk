@@ -2742,11 +2742,12 @@ def create_cluster_subnet(args, index) -> int:
   return 0
 
 
-def delete_cluster_subnets(args) -> int:
+def delete_cluster_subnets(args, system: SystemCharacteristics) -> int:
   """Delete GKE Cluster subnets.
 
   Args:
     args: user provided arguments for running the command.
+    system: system characteristics.
 
   Returns:
     0 if successful and 1 otherwise.
@@ -2756,7 +2757,8 @@ def delete_cluster_subnets(args) -> int:
     xpk_print('Listing all subnets failed!')
     return return_code
 
-  for index in range(1, 9):
+  num_networks = 5 if system.device_type == h100_device_type else 9
+  for index in range(1, num_networks):
     subnet_name = f'{args.cluster}-{zone_to_region(args.zone)}-sub-{index}'
     if subnet_name in existing_subnet_names:
       command = (
@@ -3698,11 +3700,12 @@ def run_gke_node_pool_create_command(
   return 0
 
 
-def run_gke_cluster_delete_command(args) -> int:
+def run_gke_cluster_delete_command(args, system: SystemCharacteristics) -> int:
   """Run the Delete GKE Cluster request.
 
   Args:
     args: user provided arguments for running the command.
+    system: system characteristics.
 
   Returns:
     0 if successful and 1 otherwise.
@@ -3718,7 +3721,7 @@ def run_gke_cluster_delete_command(args) -> int:
     xpk_print(f'Cluster delete request returned ERROR {return_code}')
     return 1
 
-  return_code = delete_cluster_subnets(args)
+  return_code = delete_cluster_subnets(args, system)
   if return_code != 0:
     return return_code
 
@@ -3940,12 +3943,11 @@ def add_pw_resources_to_kueue(args):
 
 
 def get_kueue_covered_resources_config(
-    args, cluster_hardware_name, resource_type, total_chips
+    cluster_hardware_name, resource_type, total_chips
 ) -> str:
   """Gets Kueue covered resources configuration.
 
   Args:
-    args: user provided arguments for running the command.
     cluster_hardware_name: cluster hardware name.
     resource_type: resource type of tpu or gpu.
     total_chips: total number of chips for the specific resource type.
@@ -4367,9 +4369,15 @@ def cluster_delete(args) -> None:
   Returns:
     0 if successful and 1 otherwise.
   """
+  system, return_code = get_system_characteristics(args)
+
+  if return_code > 0:
+    xpk_print('Fetching system characteristics failed!')
+    xpk_exit(return_code)
+
   xpk_print(f'Starting cluster delete for cluster: {args.cluster}', flush=True)
   add_zone_and_project(args)
-  run_gke_cluster_delete_command_code = run_gke_cluster_delete_command(args)
+  run_gke_cluster_delete_command_code = run_gke_cluster_delete_command(args, system)
   if run_gke_cluster_delete_command_code != 0:
     xpk_exit(run_gke_cluster_delete_command_code)
   xpk_print(f'GKE commands done! Cluster {args.cluster} deleted.\n')
@@ -4988,7 +4996,7 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
       system.accelerator_type == AcceleratorType['TPU']
       and args.deploy_stacktrace_sidecar
   ):
-    regular_volume_mount_yaml += """
+    volume_mount_yaml += """
                 - name: tpu-stack-trace
                   mountPath: /tmp/debugging
                 - name: shared-data

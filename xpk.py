@@ -3827,7 +3827,6 @@ def enable_kueue_credentials(
     total_chips = get_total_chips_requested_from_args(args, system)
 
   covered_resources_config = get_kueue_covered_resources_config(
-      args=args,
       cluster_hardware_name=cluster_hardware_name,
       resource_type=resource_type,
       total_chips=total_chips,

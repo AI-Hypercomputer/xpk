@@ -2742,12 +2742,11 @@ def create_cluster_subnet(args, index) -> int:
   return 0
 
 
-def delete_cluster_subnets(args, system: SystemCharacteristics) -> int:
+def delete_cluster_subnets(args) -> int:
   """Delete GKE Cluster subnets.
 
   Args:
     args: user provided arguments for running the command.
-    system: system characteristics.
 
   Returns:
     0 if successful and 1 otherwise.
@@ -2757,24 +2756,21 @@ def delete_cluster_subnets(args, system: SystemCharacteristics) -> int:
     xpk_print('Listing all subnets failed!')
     return return_code
 
-  num_networks = 5 if system.device_type == h100_device_type else 9
-  for index in range(1, num_networks):
-    subnet_name = f'{args.cluster}-{zone_to_region(args.zone)}-sub-{index}'
-    if subnet_name in existing_subnet_names:
-      command = (
-        f'gcloud compute networks subnets delete {subnet_name}'
-        f' --region={zone_to_region(args.zone)} --project={args.project} --quiet'
-      )
+  for subnet_name in existing_subnet_names:
+    command = (
+      f'gcloud compute networks subnets delete {subnet_name}'
+      f' --region={zone_to_region(args.zone)} --project={args.project} --quiet'
+    )
 
-      return_code = run_command_with_updates(
-        command, 'Delete Cluster Subnet', args, verbose=False
-      )
+    return_code = run_command_with_updates(
+      command, 'Delete Cluster Subnet', args, verbose=False
+    )
 
-      if return_code != 0:
-        xpk_print(f'Delete Cluster Subnet request returned ERROR {return_code}')
-        return 1
-      else:
-        xpk_print(f'Deleted existing subnet {subnet_name}')
+    if return_code != 0:
+      xpk_print(f'Delete Cluster Subnet request returned ERROR {return_code}')
+      return 1
+    else:
+      xpk_print(f'Deleted existing subnet {subnet_name}')
 
   return 0
 
@@ -3363,9 +3359,11 @@ def get_all_subnets_programmatic(args) -> tuple[list[str], int]:
   Returns:
     List of subnets and 0 if successful and 1 otherwise.
   """
+  subnet_name_filter = f'{args.cluster}-{zone_to_region(args.zone)}-sub-*'
+
   command = (
       'gcloud compute networks subnets list'
-      f' --filter=region:{zone_to_region(args.zone)} --project={args.project}'
+      f' --filter=name~"{subnet_name_filter}" --project={args.project}'
   )
   return_code, raw_subnets_output = run_command_for_value(
       command, 'Get All Subnets', args
@@ -3374,7 +3372,8 @@ def get_all_subnets_programmatic(args) -> tuple[list[str], int]:
     xpk_print(f'Get All Subnets returned ERROR {return_code}')
     return [], 1
 
-  all_networks = [x.split(' ')[0] for x in raw_subnets_output.splitlines()]
+  all_outputs = raw_subnets_output.splitlines()
+  all_networks = [all_outputs[i].split(' ')[0] for i in range(1, len(all_outputs))]
   return all_networks, 0
 
 
@@ -3700,12 +3699,11 @@ def run_gke_node_pool_create_command(
   return 0
 
 
-def run_gke_cluster_delete_command(args, system: SystemCharacteristics) -> int:
+def run_gke_cluster_delete_command(args) -> int:
   """Run the Delete GKE Cluster request.
 
   Args:
     args: user provided arguments for running the command.
-    system: system characteristics.
 
   Returns:
     0 if successful and 1 otherwise.
@@ -3721,7 +3719,7 @@ def run_gke_cluster_delete_command(args, system: SystemCharacteristics) -> int:
     xpk_print(f'Cluster delete request returned ERROR {return_code}')
     return 1
 
-  return_code = delete_cluster_subnets(args, system)
+  return_code = delete_cluster_subnets(args)
   if return_code != 0:
     return return_code
 
@@ -4368,15 +4366,9 @@ def cluster_delete(args) -> None:
   Returns:
     0 if successful and 1 otherwise.
   """
-  system, return_code = get_system_characteristics(args)
-
-  if return_code > 0:
-    xpk_print('Fetching system characteristics failed!')
-    xpk_exit(return_code)
-
   xpk_print(f'Starting cluster delete for cluster: {args.cluster}', flush=True)
   add_zone_and_project(args)
-  run_gke_cluster_delete_command_code = run_gke_cluster_delete_command(args, system)
+  run_gke_cluster_delete_command_code = run_gke_cluster_delete_command(args)
   if run_gke_cluster_delete_command_code != 0:
     xpk_exit(run_gke_cluster_delete_command_code)
   xpk_print(f'GKE commands done! Cluster {args.cluster} deleted.\n')

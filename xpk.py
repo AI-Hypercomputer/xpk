@@ -705,11 +705,11 @@ UserFacingNameToSystemCharacteristics = {
     # H100-mega-80gb-$CHIPS
     'h100-mega-80gb-8': SystemCharacteristics(
       'N/A',
-      1, 
-      'nvidia-h100-mega-80gb', 
-      'a3-megagpu-8g', 
-      8, 
-      AcceleratorType['GPU'], 
+      1,
+      'nvidia-h100-mega-80gb',
+      'a3-megagpu-8g',
+      8,
+      AcceleratorType['GPU'],
       'h100-mega-80gb-8',
     ),
     # TPU system characteristics
@@ -5188,7 +5188,7 @@ def get_env_container(args, system: SystemCharacteristics):
                     value: "{args.command}"
                   {args.env}"""
   if system.accelerator_type == AcceleratorType['GPU']:
-    gpu_direct_name = "tcpx" if args.device_type == h100_device_type else "fastrak"
+    gpu_direct_name = 'tcpx' if args.device_type == h100_device_type else 'fastrak'
     return gpu_env_yaml.format(args=args,
                         system=system,
                         gpu_direct_name=gpu_direct_name)
@@ -5649,7 +5649,7 @@ def get_gpu_volume(system: SystemCharacteristics) -> str:
   Returns:
     str: yaml containing gpu volume
   """
-  gpu_volume = ""
+  gpu_volume = ''
   if system.device_type == h100_device_type:
     gpu_volume = """- name: nvidia-install-dir-host
                 hostPath:
@@ -5687,7 +5687,7 @@ def get_gpu_rxdm_image(system: SystemCharacteristics) -> str:
   Returns:
     str: yaml containing the rxdm name and image
   """
-  gpu_rxdm_image = ""
+  gpu_rxdm_image = ''
   if system.device_type == h100_device_type:
     gpu_rxdm_image = """- name: tcpd-daemon
                 image: us-docker.pkg.dev/gce-ai-infra/gpudirect-tcpx/tcpgpudmarxd-dev:v2.0.9"""
@@ -5706,11 +5706,11 @@ def get_gpu_rxdm_cmd(system: SystemCharacteristics) -> str:
   Returns:
     str: command of running rxdm container
   """
-  gpu_rxdm_cmd = ""
+  gpu_rxdm_cmd = ''
   if system.device_type == h100_device_type:
-    gpu_rxdm_cmd = "/tcpgpudmarxd/build/app/tcpgpudmarxd --gpu_nic_preset a3vm --gpu_shmem_type fd --setup_param \"--verbose 128 2 0\""
+    gpu_rxdm_cmd = '/tcpgpudmarxd/build/app/tcpgpudmarxd --gpu_nic_preset a3vm --gpu_shmem_type fd --setup_param \"--verbose 128 2 0\"'
   elif system.device_type == h100_mega_device_type:
-    gpu_rxdm_cmd = "set -ex; chmod 755 /fts/entrypoint_rxdm_container.sh; /fts/entrypoint_rxdm_container.sh --num_hops=2 --num_nics=8 --uid= --alsologtostderr"
+    gpu_rxdm_cmd = 'set -ex; chmod 755 /fts/entrypoint_rxdm_container.sh; /fts/entrypoint_rxdm_container.sh --num_hops=2 --num_nics=8 --uid= --alsologtostderr'
   return gpu_rxdm_cmd
 
 
@@ -5723,10 +5723,10 @@ def get_gpu_tcp_volume(system: SystemCharacteristics) -> str:
   Returns:
     str: yaml containing gpu tcp volume
   """
-  gpu_tcp_volume = ""
+  gpu_tcp_volume = ''
   if system.device_type == h100_device_type:
     gpu_tcp_volume = """- name: tcpd-socket
-                  mountPath: /tmp"""  
+                  mountPath: /tmp"""
   return gpu_tcp_volume
 
 

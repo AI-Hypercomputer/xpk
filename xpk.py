@@ -5582,9 +5582,10 @@ def is_autoprovisioning_enabled(
 
 def get_pathways_unified_query_link(args) -> str:
   """Get the unified query link for the pathways workload."""
-  pw_suffixes = ['main', 'rm', 'proxy', 'worker']
+  pw_suffixes = ['main', 'rm', 'proxy']
+  pw_pod_names = [f'"{args.workload}-{suffix}-0"' for suffix in pw_suffixes]
   pw_pod_names_query = '%20OR%20'.join(
-      [f'"{args.workload}-{suffix}-0"' for suffix in pw_suffixes]
+      pw_pod_names + ['worker-0-0']
   )
   query_params = (
       'resource.type%3D"k8s_container"%0A'

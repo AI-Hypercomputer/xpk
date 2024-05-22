@@ -3160,10 +3160,12 @@ def create_vertex_experiment(args) -> dict:
 
   if cluster_config_map is None or 'tensorboard_name' not in cluster_config_map:
     xpk_print(
-        'No Vertex Tensorboard instance has been created in cluster create.'
-        ' Run `xpk cluster create --create-vertex-tensorboard` before running'
-        ' `xpk workload create --use-vertex-tensorboard` to create a Vertex'
-        ' Tensorboard instance.'
+        'No Vertex Tensorboard instance has been created in cluster create. Run'
+        ' `xpk cluster create --create-vertex-tensorboard` before running `xpk'
+        ' workload create --use-vertex-tensorboard` to create a Vertex'
+        ' Tensorboard instance. Alternatively, use `xpk cluster create-pathways'
+        ' --create-vertex-tensorboard` before running `xpk workload'
+        ' create-pathways --use-vertex-tensorboard`.'
     )
     return None
 
@@ -5834,12 +5836,7 @@ def workload_create(args) -> None:
   debugging_dashboard_id = None
 
   tensorboard_config = {}
-  if (
-      not args.use_pathways
-      and _VERTEX_TENSORBOARD_FEATURE_FLAG
-      and args.use_vertex_tensorboard
-  ):
-    # Profiling is handled differently in Pathways workloads
+  if _VERTEX_TENSORBOARD_FEATURE_FLAG and args.use_vertex_tensorboard:
     tensorboard_config = create_vertex_experiment(args)
     # exit if failed to create Experiment in Vertex AI
     if not tensorboard_config:
@@ -7067,6 +7064,30 @@ def add_shared_workload_docker_image_arguments(args_parsers):
     )
 
 
+def add_shared_workload_create_tensorboard_arguments(args_parsers):
+  """Add shared tensorboard arguments in workload create and Pathways workload create.
+
+  Args:
+      List of workload create optional arguments parsers
+  """
+  for custom_parser in args_parsers:
+    custom_parser.add_argument(
+        '--use-vertex-tensorboard',
+        action='store_true',
+        help='Set this flag to view workload data on Vertex Tensorboard.',
+    )
+    custom_parser.add_argument(
+        '--experiment-name',
+        type=str,
+        required=False,
+        help=(
+            'The name of Vertex Experiment to create. '
+            'If not specified, a Vertex Experiment with the name '
+            '<cluster>-<workload> will be created.'
+        ),
+    )
+
+
 ############### Define flags ###############
 # Create top level parser for xpk command.
 parser = argparse.ArgumentParser(description='xpk command', prog='xpk')
@@ -7571,22 +7592,6 @@ workload_pathways_workload_arguments.add_argument(
     ),
 )
 
-workload_vertex_tensorboard_arguments.add_argument(
-    '--use-vertex-tensorboard',
-    action='store_true',
-    help='Set this flag to view workload data on Vertex Tensorboard.',
-)
-workload_vertex_tensorboard_arguments.add_argument(
-    '--experiment-name',
-    type=str,
-    required=False,
-    help=(
-        'The name of Vertex Experiment to create. '
-        'If not specified, a Vertex Experiment with the name '
-        '<cluster>-<workload> will be created.'
-    ),
-)
-
 
 # "workload create-pathways" command parser.
 workload_create_pathways_parser = workload_subcommands.add_parser(
@@ -7614,6 +7619,12 @@ workload_create_pathways_docker_image_arguments = workload_create_pathways_parse
     'Docker Image Arguments',
     '`--base-docker-image` is used by default. Set this argument if the'
     ' user wants the docker image to be used directly by the xpk workload.',
+)
+workload_create_pathways_vertex_tensorboard_arguments = (
+    workload_create_pathways_parser.add_argument_group(
+        'Vertex Tensorboard Arguments',
+        'Arguments for creating Vertex AI Experiment in workload create.',
+    )
 )
 
 ### "workload create-pathways" Required arguments, specific to Pathways
@@ -7657,8 +7668,12 @@ add_shared_workload_docker_image_arguments([
     workload_docker_image_arguments,
     workload_create_pathways_docker_image_arguments,
 ])
+add_shared_workload_create_tensorboard_arguments([
+    workload_vertex_tensorboard_arguments,
+    workload_create_pathways_vertex_tensorboard_arguments,
+])
 
-
+# Set defaults for both workload create and workload create-pathways after adding all shared args.
 workload_create_parser.set_defaults(func=workload_create)
 workload_create_pathways_parser.set_defaults(func=workload_create_pathways)
 

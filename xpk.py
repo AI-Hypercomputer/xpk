@@ -2584,6 +2584,14 @@ def run_gke_cluster_create_command(args, gke_control_plane_version: str) -> int:
     0 if successful and 1 otherwise.
   """
   machine_type = args.default_pool_cpu_machine_type
+  if args.cluster_cpu_machine_type != '':
+    xpk_print(
+        'Warning: Note that cluster-cpu-machine-type is soon to be',
+        ' deprecated. Please use --default-pool-cpu-machine-type instead,'
+        ' to denote the machine type of the default cpu node pool. Set'
+        ' the machine type of other cpu nodepools using `--device-type`.',
+    )
+    machine_type = args.cluster_cpu_machine_type
 
   # Create the regional cluster with `num-nodes` CPU nodes in the same zone as
   # TPUs. This has been tested with clusters of 300 VMs. Larger clusters will
@@ -4241,6 +4249,14 @@ def default_subcommand_function(
 
 
 def cluster_create_pathways(args) -> None:
+  """Function around cluster creation for Pathways.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
   args.enable_pathways = True
   cluster_create(args)
 
@@ -4873,7 +4889,8 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
 
   tpu_stacktrace_terminate_command = ''
   if (
-      system.accelerator_type == AcceleratorType['TPU']
+      not args.use_pathways
+      and system.accelerator_type == AcceleratorType['TPU']
       and args.deploy_stacktrace_sidecar
   ):
     tpu_stacktrace_terminate_command = (
@@ -5734,6 +5751,14 @@ def get_autoprovisioning_node_selector_args(args) -> tuple[str, int]:
 
 
 def workload_create_pathways(args) -> None:
+  """Run jobset apply command for a file, specifically for Pathways.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
   args.use_pathways = True
   workload_create(args)
 
@@ -5822,20 +5847,20 @@ def workload_create(args) -> None:
 
   parse_env_config(args, tensorboard_config)
 
+  # Currently autoprovisioning is not enabled for Pathways workloads.
   autoprovisioning_args = ''
-  if not args.use_pathways:
-    autoprovisioning_enabled, return_code = is_autoprovisioning_enabled(
-        args, system
+  autoprovisioning_enabled, return_code = is_autoprovisioning_enabled(
+      args, system
+  )
+  if return_code != 0:
+    xpk_exit(return_code)
+  if autoprovisioning_enabled:
+    # Determine NAP capacity type
+    autoprovisioning_args, return_code = (
+        get_autoprovisioning_node_selector_args(args)
     )
     if return_code != 0:
       xpk_exit(return_code)
-    if autoprovisioning_enabled:
-      # Determine NAP capacity type
-      autoprovisioning_args, return_code = (
-          get_autoprovisioning_node_selector_args(args)
-      )
-      if return_code != 0:
-        xpk_exit(return_code)
 
   # Create the workload file based on accelerator type or workload type.
   if system.accelerator_type == AcceleratorType['GPU']:
@@ -5956,15 +5981,8 @@ def workload_create(args) -> None:
           # pylint: disable=line-too-long)
           f' {pathways_proxy_link} '
       )
-    else:
-      pathways_job_link = f'https://console.cloud.google.com/kubernetes/job/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}-{args.targetReplicatedJob}-0/details?project={args.project}'
-      xpk_print(
-          'Follow your Pathways workload here:'
-          # pylint: disable=line-too-long
-          f' {pathways_job_link} '
-      )
     xpk_print(
-        'For a unified Pathways debugging view, use the following link: '
+        'Follow your Pathways workload and other resources here : '
         f'{get_pathways_unified_query_link(args)}'
     )
   else:
@@ -6704,6 +6722,17 @@ def add_shared_cluster_create_optional_arguments(args_parsers):
         ),
     )
     custom_parser.add_argument(
+        '--cluster-cpu-machine-type',
+        type=str,
+        default='',
+        help=(
+            'Getting deprecated soon! Please use'
+            ' --default-pool-cpu-machine-typeinstead, to denote the machine'
+            ' type of the default cpu node pool. Set the machine type of other'
+            ' cpu nodepools using --device-type.'
+        ),
+    )
+    custom_parser.add_argument(
         '--default-pool-cpu-num-nodes',
         type=int,
         default=6,
@@ -7141,16 +7170,6 @@ cluster_create_optional_arguments.add_argument(
         ' Enable cluster to accept Pathways workloads.'
     ),
 )
-cluster_create_optional_arguments.add_argument(
-    '--cluster-cpu-machine-type',
-    type=str,
-    default='',
-    help=(
-        'Getting deprecated soon! Please use --default-pool-cpu-machine-type'
-        'instead, to denote the machine type of the default cpu node pool. Set'
-        ' the machine type of other cpu nodepools using --device-type.'
-    ),
-)
 
 ### Autoprovisioning arguments specific to "cluster create"
 cluster_create_autoprovisioning_arguments = (
@@ -7567,7 +7586,6 @@ workload_vertex_tensorboard_arguments.add_argument(
         '<cluster>-<workload> will be created.'
     ),
 )
-workload_create_parser.set_defaults(func=workload_create)
 
 
 # "workload create-pathways" command parser.
@@ -7640,6 +7658,8 @@ add_shared_workload_docker_image_arguments([
     workload_create_pathways_docker_image_arguments,
 ])
 
+
+workload_create_parser.set_defaults(func=workload_create)
 workload_create_pathways_parser.set_defaults(func=workload_create_pathways)
 
 # "workload delete" command parser.

@@ -152,13 +152,12 @@ all zones.
     ```
 
 * Cluster Create for Pathways:
-    Pathways compatible cluster can be created using `--enable-pathways`
+    Pathways compatible cluster can be created using `cluster create-pathways`.
     ```shell
-    python3 xpk.py cluster create \
+    python3 xpk.py cluster create-pathways \
     --cluster xpk-pw-test \
     --num-slices=4 --on-demand \
-    --tpu-type=v5litepod-16 \
-    --enable-pathways
+    --tpu-type=v5litepod-16
     ```
 
 *   Cluster Create can be called again with the same `--cluster name` to modify
@@ -313,26 +312,25 @@ will fail the cluster creation process because Vertex AI Tensorboard is not supp
     ```
 
 *   Workload Create for Pathways:
-    Pathways workload can be submitted using `--use-pathways` on a Pathways enabled cluster (created with `--enable-pathways`)
+    Pathways workload can be submitted using `workload create-pathways` on a Pathways enabled cluster (created with `cluster create-pathways`)
 
     Pathways workload example:
     ```shell
-    python3 xpk.py workload create \
+    python3 xpk.py workload create-pathways \
     --workload xpk-pw-test \
     --num-slices=1 \
     --tpu-type=v5litepod-16 \
-    --use-pathways \
     --cluster xpk-pw-test \
     --docker-name='user-workload' \
     --docker-image=<maxtext docker image> \
     --command='python3 MaxText/train.py MaxText/configs/base.yml base_output_directory=<output directory> dataset_path=<dataset path> per_device_batch_size=1 enable_checkpointing=false enable_profiler=false remat_policy=full global_parameter_scale=4 steps=300 max_target_length=2048 use_iota_embed=true reuse_example_batch=1 dataset_type=synthetic attention=flash gcs_metrics=True run_name=$(USER)-pw-xpk-test-1'
     ```
 
-    Regular workload can also be submitted on a Pathways enabled cluster (created with `--enable-pathways`)
+    Regular workload can also be submitted on a Pathways enabled cluster (created with `cluster create-pathways`)
 
     Pathways workload example:
     ```shell
-    python3 xpk.py workload create \
+    python3 xpk.py workload create-pathways \
     --workload xpk-regular-test \
     --num-slices=1 \
     --tpu-type=v5litepod-16 \
@@ -341,6 +339,18 @@ will fail the cluster creation process because Vertex AI Tensorboard is not supp
     --docker-image=<maxtext docker image> \
     --command='python3 MaxText/train.py MaxText/configs/base.yml base_output_directory=<output directory> dataset_path=<dataset path> per_device_batch_size=1 enable_checkpointing=false enable_profiler=false remat_policy=full global_parameter_scale=4 steps=300 max_target_length=2048 use_iota_embed=true reuse_example_batch=1 dataset_type=synthetic attention=flash gcs_metrics=True run_name=$(USER)-pw-xpk-test-1'
     ```
+
+    Pathways in headless mode - Pathways now offers the capability to run JAX workloads in Vertex AI notebooks or in GCE VMs!
+    Specify `--headless` with `workload create-pathways` when the user workload is not provided in a docker container.
+    ```shell
+    python3 xpk.py workload create-pathways --headless \
+    --workload xpk-pw-headless \
+    --num-slices=1 \
+    --tpu-type=v5litepod-16 \
+    --cluster xpk-pw-test
+    ```
+    Executing the command above would provide the address of the proxy that the user job should connect to.
+    Specify `JAX_PLATFORMS=proxy` and `JAX_BACKEND_TARGET=<proxy address from above>` and `import previewutilies` to establish this connection between the user's JAX code and the Pathways proxy. Execute Pathways workloads interactively on Vertex AI notebooks!
 
 ### Set `max-restarts` for production jobs
 

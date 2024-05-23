@@ -52,12 +52,12 @@ jobs:
         gcloud config set compute/zone us-east4-a
         gcloud config get compute/zone
     - name: Create an XPK Cluster with zero node pools
-      run: python xpk.py cluster create --cluster $EMPTY_CLUSTER_NAME --device-type=v4-8  --num-slices=0 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments='${{ secrets.CLUSTER_ARGUMENTS }}'
+      run: python xpk.py cluster create --cluster $EMPTY_CLUSTER_NAME --tpu-type=v4-8  --num-slices=0 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments='${{ secrets.CLUSTER_ARGUMENTS }}'
     - name: Delete the cluster created
       run: python xpk.py cluster delete --cluster $EMPTY_CLUSTER_NAME --zone=us-central2-b
       if: always()
     - name: Create an XPK Cluster with 2x v4-8 nodepools
-      run: python xpk.py cluster create --cluster $TPU_CLUSTER_NAME --device-type=v4-8  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments='${{ secrets.CLUSTER_ARGUMENTS }}'
+      run: python xpk.py cluster create --cluster $TPU_CLUSTER_NAME --tpu-type=v4-8  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments='${{ secrets.CLUSTER_ARGUMENTS }}'
     - name: Authenticate Docker
       run: gcloud auth configure-docker --quiet
     - name: Create test script to execute in workloads
@@ -98,11 +98,11 @@ jobs:
         gcloud config set compute/zone us-east4-a
         gcloud config get compute/zone
     - name: Create an Pathways-enabled XPK Cluster with 2 x v4-8 nodepools
-      run: python xpk.py cluster create --cluster $PATHWAYS_TPU_CLUSTER_NAME --device-type=v4-8  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}'
+      run: python xpk.py cluster create-pathways --cluster $PATHWAYS_TPU_CLUSTER_NAME --device-type=v4-8  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}'
     - name: Create test script to execute in workloads
       run: echo -e '#!/bin/bash \n echo "Hello world from a test script!"' > test.sh
     - name: Run a Pathways workload on Ubuntu base image
-      run: python xpk.py workload create --cluster $PATHWAYS_TPU_CLUSTER_NAME --workload $PATHWAYS_WORKLOAD_NAME --docker-image='marketplace.gcr.io/google/ubuntu2004' --tpu-type=v4-8 --num-slices=2 --zone=us-central2-b --command "bash test.sh"
+      run: python xpk.py workload create-pathways --cluster $PATHWAYS_TPU_CLUSTER_NAME --workload $PATHWAYS_WORKLOAD_NAME --docker-image='marketplace.gcr.io/google/ubuntu2004' --tpu-type=v4-8 --num-slices=2 --zone=us-central2-b --command "bash test.sh"
     - name: Wait for Pathways workload completion and confirm it succeeded
       run: python3 xpk.py workload list --cluster $PATHWAYS_TPU_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion $PATHWAYS_WORKLOAD_NAME --timeout 300
     - name: Delete the Pathways workload on the cluster

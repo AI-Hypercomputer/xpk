@@ -222,7 +222,7 @@ spec:
   successPolicy:
     operator: "All"
     targetReplicatedJobs:
-    - "main"
+    - {args.targetReplicatedJob}
   replicatedJobs:
   - name: worker
     replicas: {args.num_slices}
@@ -342,28 +342,7 @@ spec:
                   memory: 100G
             nodeSelector:
               cloud.google.com/gke-nodepool: cpu-proxy-np
-  - name: main
-    replicas: 1
-    template:
-      metadata:
-        labels:
-          xpk.google.com/workload: {args.workload}
-      spec:
-        backoffLimit: 0
-        completions: 1
-        parallelism: 1
-        template:
-          spec:
-            containers:
-              {container}
-            nodeSelector:
-              cloud.google.com/gke-nodepool: cpu-user-np
-            restartPolicy: OnFailure
-            volumes:
-            - hostPath:
-                path: /tmp
-                type: DirectoryOrCreate
-              name: shared-tmp
+  {user_workload}
 """
 
 script_dir_dockerfile = """FROM {base_docker_image}
@@ -2073,23 +2052,20 @@ def parse_env_config(args, tensorboard_config, system: SystemCharacteristics):
       variable = match.group(1)
       env[variable] = match.group(2)
 
-  if args.debug_dump_gcs:
-    if args.use_pathways:
-      xpk_print('HLO dumps need to be taken by Pathways workers.')
-      xpk_exit(1)
+  if not args.use_pathways:
+    if args.debug_dump_gcs:
+      if 'XLA_FLAGS' in env:
+        raise ValueError(
+            'Conflict: XLA_FLAGS defined in both --debug_dump_gcs '
+            'and environment file. Please choose one way to define '
+            'XLA_FLAGS.'
+        )
+      env['XLA_FLAGS'] = '--xla_dump_to=/tmp/xla_dump/'
 
-    if 'XLA_FLAGS' in env:
-      raise ValueError(
-          'Conflict: XLA_FLAGS defined in both --debug_dump_gcs '
-          'and environment file. Please choose one way to define '
-          'XLA_FLAGS.'
-      )
-    env['XLA_FLAGS'] = '--xla_dump_to=/tmp/xla_dump/'
-
-  if tensorboard_config:
-    env['UPLOAD_DATA_TO_TENSORBOARD'] = True
-    for key, value in tensorboard_config.items():
-      env[key.upper()] = value
+    if tensorboard_config:
+      env['UPLOAD_DATA_TO_TENSORBOARD'] = True
+      for key, value in tensorboard_config.items():
+        env[key.upper()] = value
 
   if system.accelerator_type == AcceleratorType['GPU']:
     # For GPUs, it has two more spaces ahead of name and value respectively
@@ -2595,7 +2571,6 @@ def run_gke_cluster_create_command(
   Returns:
     0 if successful and 1 otherwise.
   """
-  # cluster_cpu_machine_type is soon to be deprecated!
   machine_type = args.default_pool_cpu_machine_type
   if args.cluster_cpu_machine_type != '':
     xpk_print(
@@ -2610,6 +2585,7 @@ def run_gke_cluster_create_command(
   # TPUs. This has been tested with clusters of 300 VMs. Larger clusters will
   # benefit from a larger initial `--num-nodes`. After the cluster is created,
   # the auto-scaler can reduce/increase the nodes based on the load.
+
   command = (
       'gcloud beta container clusters create'
       f' {args.cluster} --project={args.project}'
@@ -2635,8 +2611,13 @@ def run_gke_cluster_create_command(
     )
 
     if args.enable_pathways:
-      command += ' --enable-ip-alias'
-      command += f' --create-subnetwork name={args.cluster}-subnetwork'
+      command += (
+          ' --enable-ip-alias'
+          f' --create-subnetwork name={args.cluster}-subnetwork'
+          ' --cluster-dns=clouddns'
+          ' --cluster-dns-scope=vpc'
+          f' --cluster-dns-domain={args.cluster}-domain'
+      )
 
   return_code = run_command_with_updates(command, 'GKE Cluster Create', args)
   if return_code != 0:
@@ -3035,7 +3016,12 @@ def create_cluster_configmaps(
   device_type = system.device_type
   if system.accelerator_type == AcceleratorType['GPU']:
     resources_data = f'{device_type}: "{int(args.num_nodes)}"'
-  elif args.enable_autoprovisioning and autoprovisioning_config:
+  elif (
+      not args.enable_pathways
+      and args.enable_autoprovisioning
+      and autoprovisioning_config
+  ):
+    # Currently autoprovisioning is not supported with Pathways.
     # Auto provisioning will have variable topologies for a gke accelerator type.
     resources_data = (
         f'{system.gke_accelerator}: {_AUTOPROVISIONING_CONFIG_VALUE}'
@@ -3163,10 +3149,12 @@ def create_vertex_experiment(args) -> dict:
 
   if cluster_config_map is None or 'tensorboard_name' not in cluster_config_map:
     xpk_print(
-        'No Vertex Tensorboard instance has been created in cluster create.'
-        ' Run `xpk cluster create --create-vertex-tensorboard` before running'
-        ' `xpk workload create --use-vertex-tensorboard` to create a Vertex'
-        ' Tensorboard instance.'
+        'No Vertex Tensorboard instance has been created in cluster create. Run'
+        ' `xpk cluster create --create-vertex-tensorboard` before running `xpk'
+        ' workload create --use-vertex-tensorboard` to create a Vertex'
+        ' Tensorboard instance. Alternatively, use `xpk cluster create-pathways'
+        ' --create-vertex-tensorboard` before running `xpk workload'
+        ' create-pathways --use-vertex-tensorboard`.'
     )
     return None
 
@@ -4233,6 +4221,19 @@ def default_subcommand_function(
   return 0
 
 
+def cluster_create_pathways(args) -> None:
+  """Function around cluster creation for Pathways.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  args.enable_pathways = True
+  cluster_create(args)
+
+
 def cluster_create(args) -> None:
   """Function around cluster creation.
 
@@ -4319,8 +4320,9 @@ def cluster_create(args) -> None:
     xpk_exit(install_kueue_on_cluster_code)
 
   # Provision node pools dynamically based on incoming workloads:
+  # Currently autoprovisioning is not supported with Pathways.
   autoprovisioning_config = None
-  if args.enable_autoprovisioning:
+  if not args.enable_pathways and args.enable_autoprovisioning:
     xpk_print('Enabling Autoprovisioning')
     autoprovisioning_config, return_code = enable_autoprovisioning_on_cluster(
         args, system
@@ -4828,7 +4830,7 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
 
   xpk_internal_commands = ''
   gsutil_test_command = ''
-  if args.debug_dump_gcs:
+  if not args.use_pathways and args.debug_dump_gcs:
     gsutil_test_command = (
         'which gsutil >/dev/null 2>&1 || { echo >&2 "gsutil'
         ' is required but not installed. Aborting"; exit 24;};'
@@ -4854,7 +4856,8 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
 
   tpu_stacktrace_terminate_command = ''
   if (
-      system.accelerator_type == AcceleratorType['TPU']
+      not args.use_pathways
+      and system.accelerator_type == AcceleratorType['TPU']
       and args.deploy_stacktrace_sidecar
   ):
     tpu_stacktrace_terminate_command = (
@@ -4862,7 +4865,7 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
     )
 
   xpk_return_user_exit_code = ''
-  if args.restart_on_user_code_failure:
+  if not args.use_pathways and args.restart_on_user_code_failure:
     if int(args.max_restarts) <= 0:
       xpk_print(
           f'Warning: --max-restarts, is set to {args.max_restarts}. Will not'
@@ -4914,6 +4917,7 @@ def add_image_pull_policy_for_pw_or_gpu(args, system: SystemCharacteristics):
   """Add image pull policy only for Pathways containers.
   Args:
     args: user provided args.
+    system: system characteristics
 
   Returns:
     str:
@@ -5090,7 +5094,7 @@ def get_pathways_worker_args(args) -> str:
   """
   yaml = """- --alsologtostderr
               - --pathways_server_port=38677
-              - --pathways_resource_manager={args.workload}-rm-0-0.{args.workload}:38677
+              - --pathways_resource_manager={args.workload}-rm-0-0.{args.workload}.default.svc.{args.cluster}-domain.:38677
               - --pathways_persistent_compilation_cache=false
               - --pathways_compilation_mode=compile_at_worker
               - --xla_tpu_enable_data_parallel_all_reduce_opt=true
@@ -5117,12 +5121,99 @@ def get_pathways_proxy_args(args) -> str:
   """
   yaml = """- --alsologtostderr
               - --v=0
-              - --pathways_ifrt_proxy_server_resource_manager={args.workload}-rm-0-0.{args.workload}:38677
+              - --pathways_ifrt_proxy_server_resource_manager={args.workload}-rm-0-0.{args.workload}.default.svc.{args.cluster}-domain.:38677
               - --pathways_ifrt_proxy_server_port=38676
               - --pathways_tmp_dir_pattern={args.pathways_gcs_location}
               - --pathways_plaque_network=gcp"""
   if args.use_pathways:
     return yaml.format(args=args)
+  else:
+    return ''
+
+
+def get_user_workload_container(args, system: SystemCharacteristics):
+  """Deploy user workload container
+
+  Args:
+      args: user provided args.
+      system: system characteristics.
+
+  Returns:
+      container: main container
+      debugging_dashboard_id: id of the GKE dashboard
+  """
+
+  setup_docker_image_code, docker_image = setup_docker_image(args)
+  if setup_docker_image_code != 0:
+    xpk_exit(setup_docker_image_code)
+
+  # Determine if we deploy a sidecar and if we deploy a container.
+  debugging_dashboard_id = None
+  resource_type = AcceleratorTypeToAcceleratorCharacteristics[
+      system.accelerator_type
+  ].resource_type
+  if (
+      not args.use_pathways
+      and system.accelerator_type == AcceleratorType['TPU']
+      and args.deploy_stacktrace_sidecar
+  ):
+    xpk_print(
+        'Sidecar container to display stack traces for TPU workloads will also'
+        ' be deployed.'
+    )
+    container = get_main_and_sidecar_container(args, system, docker_image)
+    # Get GKE debugging dashboard only when sidecar container is deployed for TPU workloads
+    debugging_dashboard_id = get_gke_debugging_dashboard(args)
+  else:
+    container = get_main_container(args, system, docker_image, resource_type)
+  return container, debugging_dashboard_id
+
+
+def get_user_workload_for_pathways(args, system: SystemCharacteristics) -> str:
+  """
+  Create a user workload container for Pathways.
+  Don't create one for Pathways headless mode.
+
+  Args:
+    args: user provided args.
+    system: system characteristics.
+
+
+  Returns:
+    str:
+      Pathways server port as a YAML string
+  """
+  user_workload_yaml = """- name: main
+    replicas: 1
+    template:
+      metadata:
+        labels:
+          xpk.google.com/workload: {args.workload}
+      spec:
+        backoffLimit: 0
+        completions: 1
+        parallelism: 1
+        template:
+          spec:
+            containers:
+              {container}
+            nodeSelector:
+              cloud.google.com/gke-nodepool: cpu-user-np
+            restartPolicy: OnFailure
+            volumes:
+            - hostPath:
+                path: /tmp
+                type: DirectoryOrCreate
+              name: shared-tmp"""
+  if args.use_pathways and not args.headless:
+    if not args.command:
+      xpk_print(
+          'Please provide a command, if you wish to use Pathways with a docker'
+          ' container.'
+      )
+      xpk_exit(1)
+    container, _ = get_user_workload_container(args, system)
+    return user_workload_yaml.format(args=args, container=container)
   else:
     return ''
 
@@ -5143,13 +5234,15 @@ def get_env_container(args, system: SystemCharacteristics):
                 - name: JAX_PLATFORMS
                   value: proxy
                 - name: JAX_BACKEND_TARGET
-                  value: grpc://{args.workload}-proxy-0-0.{args.workload}:38676
+                  value: {proxy_address}
                 - name: JOBSET_NAME
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.annotations['jobset.sigs.k8s.io/jobset-name']"""
   if args.use_pathways:
-    return pw_env_yaml.format(args=args)
+    return pw_env_yaml.format(
+        args=args, proxy_address=args.pathways_proxy_address
+    )
 
   gpu_env_yaml = """
                   - name: REPLICATED_JOB_NAME
@@ -5556,10 +5649,9 @@ def is_autoprovisioning_enabled(
 
 def get_pathways_unified_query_link(args) -> str:
   """Get the unified query link for the pathways workload."""
-  pw_suffixes = ['main', 'rm', 'proxy', 'worker']
-  pw_pod_names_query = '%20OR%20'.join(
-      [f'"{args.workload}-{suffix}-0"' for suffix in pw_suffixes]
-  )
+  pw_suffixes = ['main', 'rm', 'proxy']
+  pw_pod_names = [f'"{args.workload}-{suffix}-0"' for suffix in pw_suffixes]
+  pw_pod_names_query = '%20OR%20'.join(pw_pod_names + ['worker-0-0'])
   query_params = (
       'resource.type%3D"k8s_container"%0A'
       f'resource.labels.project_id%3D"{args.project}"%0A'
@@ -5731,6 +5823,19 @@ def get_gpu_tcp_volume(system: SystemCharacteristics) -> str:
   return gpu_tcp_volume
 
 
+def workload_create_pathways(args) -> None:
+  """Run jobset apply command for a file, specifically for Pathways.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  args.use_pathways = True
+  workload_create(args)
+
+
 def workload_create(args) -> None:
   """Run jobset apply command for a file.
 
@@ -5741,6 +5846,14 @@ def workload_create(args) -> None:
     0 if successful and 1 otherwise.
   """
   add_zone_and_project(args)
+  if args.command is None and not args.headless:
+    xpk_print(
+        'Please provide a command using "--command" for the docker container to'
+        ' execute. Command is not required if you wish to run Pathways'
+        ' workloads in headless mode (`xpk workload create-pathways'
+        ' --headless`).'
+    )
+    xpk_exit(1)
 
   set_cluster_command_code = set_cluster_command(args)
   if set_cluster_command_code != 0:
@@ -5791,9 +5904,7 @@ def workload_create(args) -> None:
         ' cluster create`.'
     )
 
-  setup_docker_image_code, docker_image = setup_docker_image(args)
-  if setup_docker_image_code != 0:
-    xpk_exit(setup_docker_image_code)
+  debugging_dashboard_id = None
 
   tensorboard_config = {}
   if _VERTEX_TENSORBOARD_FEATURE_FLAG and args.use_vertex_tensorboard:
@@ -5804,6 +5915,7 @@ def workload_create(args) -> None:
 
   parse_env_config(args, tensorboard_config, system)
 
+  # Currently autoprovisioning is not enabled for Pathways workloads.
   autoprovisioning_args = ''
   autoprovisioning_enabled, return_code = is_autoprovisioning_enabled(
       args, system
@@ -5818,31 +5930,14 @@ def workload_create(args) -> None:
     if return_code != 0:
       xpk_exit(return_code)
 
-  # Determine if we deploy a sidecar and if we deploy a container.
-  debugging_dashboard_id = None
-  resource_type = AcceleratorTypeToAcceleratorCharacteristics[
-      system.accelerator_type
-  ].resource_type
-  if (
-      system.accelerator_type == AcceleratorType['TPU']
-      and args.deploy_stacktrace_sidecar
-  ):
-    xpk_print(
-        'Sidecar container to display stack traces for TPU workloads will also'
-        ' be deployed.'
-    )
-    container = get_main_and_sidecar_container(args, system, docker_image)
-    # Get GKE debugging dashboard only when sidecar container is deployed for TPU workloads
-    debugging_dashboard_id = get_gke_debugging_dashboard(args)
-  else:
-    container = get_main_container(args, system, docker_image, resource_type)
-
   # Create the workload file based on accelerator type or workload type.
   if system.accelerator_type == AcceleratorType['GPU']:
+    container, debugging_dashboard_id = get_user_workload_container(
+        args, system
+    )
     yml_string = gpu_workload_create_yaml.format(
         args=args,
         container=container,
-        docker_image=docker_image,
         command=args.command,
         accelerator_label=create_accelerator_label(
             system.accelerator_type, system
@@ -5857,13 +5952,13 @@ def workload_create(args) -> None:
         gpu_tcp_volume=get_gpu_tcp_volume(system),
     )
   elif args.use_pathways:
-    # Ensure the cluster and CPU nodepools were created with --enable-pathways
+    # Ensure the cluster and CPU nodepools were created with create-pathways
     all_node_pools = get_all_nodepools_programmatic(args)
     desired_pw_cpu_node_pools = {'cpu-user-np', 'cpu-rm-np', 'cpu-proxy-np'}
     if not desired_pw_cpu_node_pools.issubset(set(all_node_pools[0])):
       xpk_print(
-          'Cluster needs to be created with --enable-pathways to run Pathways'
-          ' workloads.'
+          'Cluster needs to be created with `xpk create-pathways` to run'
+          ' Pathways workloads.'
       )
       xpk_exit(1)
 
@@ -5872,10 +5967,15 @@ def workload_create(args) -> None:
       xpk_print('Currently, Pathways workloads can only be run on TPUs.')
       xpk_exit(1)
 
+    # Set proxy address to be consumed in helper methods and displayed to user.
+    args.pathways_proxy_address = f'grpc://{args.workload}-proxy-0-0.{args.workload}.default.svc.{args.cluster}-domain.:38676'
+
+    # Set the job which determines the life of other Pathways jobs
+    args.targetReplicatedJob = 'proxy' if args.headless else 'main'
+
     yml_string = pw_workload_create_yaml.format(
         args=args,
         system=system,
-        container=container,
         accelerator_label=create_accelerator_label(
             system.accelerator_type, system
         ),
@@ -5883,11 +5983,17 @@ def workload_create(args) -> None:
         pathways_rm_args=get_pathways_rm_args(args, system),
         pathways_worker_args=get_pathways_worker_args(args),
         pathways_proxy_args=get_pathways_proxy_args(args),
-        resource_type=resource_type,
+        user_workload=get_user_workload_for_pathways(args, system),
+        resource_type=AcceleratorTypeToAcceleratorCharacteristics[
+            system.accelerator_type
+        ].resource_type,
         local_queue_name=_LOCAL_QUEUE_NAME,
         autoprovisioning_args=autoprovisioning_args,
     )
   else:
+    container, debugging_dashboard_id = get_user_workload_container(
+        args, system
+    )
     yml_string = workload_create_yaml.format(
         args=args,
         system=system,
@@ -5914,23 +6020,7 @@ def workload_create(args) -> None:
   if system.accelerator_type == AcceleratorType['TPU']:
     outlier_dashboard_id = get_gke_outlier_dashboard(args)
 
-  if args.use_pathways:
-    xpk_print(
-        'Follow your Pathways workload here:'
-        # pylint: disable=line-too-long
-        f' https://console.cloud.google.com/kubernetes/job/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}-main-0/details?project={args.project}'
-    )
-    xpk_print(
-        'For a unified debugging view, use the following link: '
-        f'{get_pathways_unified_query_link(args)}'
-    )
-  else:
-    xpk_print(
-        'Follow your workload here:'
-        # pylint: disable=line-too-long
-        f' https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
-    )
-
+  # Outlier and debugging dashboards
   if outlier_dashboard_id is not None:
     xpk_print(
         'Check statistics and outlier mode of GKE metrics here:'
@@ -5947,6 +6037,31 @@ def workload_create(args) -> None:
         f' https://console.cloud.google.com/monitoring/dashboards/builder/{debugging_dashboard_id}?project={args.project}&f.rlabel.cluster_name.ClusterName={args.cluster}.'
         ' To view the stack traces for your workload, select'
         f' {args.workload} from the JobName filter on the dashboard.'
+    )
+
+  if args.use_pathways:
+    if args.headless:
+      xpk_print(
+          ' \n *******  Please connect to your Pathways proxy at'
+          f' {args.pathways_proxy_address} , once you see "IFRT proxy server'
+          ' started with status OK" on the proxy link below.'
+          ' Remember to delete the workload once done! ****** \n'
+      )
+      pathways_proxy_link = f'https://console.cloud.google.com/kubernetes/job/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}-proxy-0/details?project={args.project}'
+      xpk_print(
+          'Follow the proxy here:'
+          # pylint: disable=line-too-long)
+          f' {pathways_proxy_link} '
+      )
+    xpk_print(
+        'Follow your Pathways workload and other resources here : '
+        f'{get_pathways_unified_query_link(args)}'
+    )
+  else:
+    xpk_print(
+        'Follow your workload here:'
+        # pylint: disable=line-too-long
+        f' https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
     )
 
   xpk_exit(0)
@@ -6613,6 +6728,441 @@ def add_shared_arguments(custom_parser):
   )
 
 
+def add_shared_cluster_create_required_arguments(args_parsers):
+  """Add shared required arguments in cluster create and Pathways cluster create.
+
+  Args:
+      List of cluster create required arguments parsers
+  """
+  for custom_parser in args_parsers:
+    custom_parser.add_argument(
+        '--cluster',
+        type=str,
+        default=None,
+        help=(
+            'The name of the cluster. Will be used as the prefix for internal'
+            ' objects in the cluster.'
+        ),
+        required=True,
+    )
+
+
+def add_shared_cluster_create_optional_arguments(args_parsers):
+  """Add shared optional arguments in cluster create and Pathways cluster create.
+
+  Args:
+      List of cluster create optional arguments parsers
+  """
+  for custom_parser in args_parsers:
+    add_shared_arguments(custom_parser)
+    custom_parser.add_argument(
+        '--host-maintenance-interval',
+        type=str,
+        choices=['AS_NEEDED', 'PERIODIC'],
+        default='AS_NEEDED',
+        help='The maintenance policy of the cluster and respective clusters.',
+    )
+    custom_parser.add_argument(
+        '--gke-version',
+        type=str,
+        help=(
+            'The GKE version of the cluster and respective clusters. The'
+            ' default is determined dynamically based on RAPID channel'
+            ' recommended version.'
+        ),
+    )
+    custom_parser.add_argument(
+        '--num-slices',
+        type=int,
+        default=1,
+        help='The number of slices to run the job on, defaults to 1.',
+        required=False,
+    )
+    custom_parser.add_argument(
+        '--pathways-gce-machine-type',
+        type=str,
+        default='n1-standard-32',
+        help='The CPU type for Pathways CPU nodepools',
+    )
+    custom_parser.add_argument(
+        '--default-pool-cpu-machine-type',
+        type=str,
+        default='e2-standard-16',
+        help=(
+            'Set the machine type within the default cpu node pool. For'
+            ' regional clusters, all zones must support the machine type.'
+        ),
+    )
+    custom_parser.add_argument(
+        '--cluster-cpu-machine-type',
+        type=str,
+        default='',
+        help=(
+            'Getting deprecated soon! Please use'
+            ' --default-pool-cpu-machine-typeinstead, to denote the machine'
+            ' type of the default cpu node pool. Set the machine type of other'
+            ' cpu nodepools using --device-type.'
+        ),
+    )
+    custom_parser.add_argument(
+        '--default-pool-cpu-num-nodes',
+        type=int,
+        default=6,
+        help=(
+            'Set the number of nodes within the default cpu node pool. This is'
+            ' set to 6 by default. Autoscaling is enabled to scale this value'
+            ' over time.'
+        ),
+    )
+    custom_parser.add_argument(
+        '--custom-cluster-arguments',
+        type=str,
+        default='',
+        help=(
+            'Users can add their own arguments to customize their cluster'
+            ' create command. Do note, these will not override already used'
+            ' cluster creation arguments. e.g.'
+            " --custom-cluster-arguments='--network=mtu9k --subnetwork=mtu9k'"
+        ),
+    )
+    custom_parser.add_argument(
+        '--custom-nodepool-arguments',
+        type=str,
+        default='',
+        help=(
+            'Users can add their own arguments to customize their node pool '
+            ' create command. Do note, these will not override already used'
+            ' node pool creation arguments. e.g.'
+            ' --custom-nodepool-arguments="--disk-size=300"'
+        ),
+    )
+    custom_parser.add_argument(
+        '--force',
+        action='store_true',
+        help=(
+            'Forces node pool creation and delete commands to run without'
+            ' additional approval.'
+        ),
+    )
+    custom_parser.add_argument(
+        '--custom-tpu-nodepool-arguments',
+        type=str,
+        default='',
+        help=(
+            'DEPRECATING SOON! Please use --custom-nodepool-arguments to'
+            ' customize node pool create command. Do note, these will not'
+            ' override already used node pool creation arguments. Example usage'
+            ' --custom-tpu-nodepool-arguments="--enable-ip-alias"'
+        ),
+    )
+
+
+def add_shared_cluster_create_tensorboard_arguments(args_parsers):
+  """Add shared tensorboard arguments in cluster create and Pathways cluster create.
+  Note that this feature enables non-Pathways workloads to use tensorboard arguments
+  on a Pathways cluster.
+  Args:
+      List of cluster create tensorboard arguments parsers
+  """
+  for custom_parser in args_parsers:
+    custom_parser.add_argument(
+        '--create-vertex-tensorboard',
+        action='store_true',
+        help='Set this flag to create a Tensorboard instance in Vertex AI.',
+    )
+    custom_parser.add_argument(
+        '--tensorboard-region',
+        type=str,
+        default='us-central1',
+        help=(
+            'The region to create Vertex Tensorboard instance in. Visit'
+            ' https://cloud.google.com/vertex-ai/docs/general/locations#available-regions'
+            ' to view regions supported by Vertex AI. By default, Tensorboard'
+            ' instance will be created in us-central1.'
+        ),
+    )
+    custom_parser.add_argument(
+        '--tensorboard-name',
+        type=str,
+        required=False,
+        help=(
+            'The name of Vertex Tensorboard instance to create. '
+            'If not specified, a Tensorboard instance with the name '
+            f'<cluster>-{_DEFAULT_VERTEX_TENSORBOARD_NAME} will be created.'
+        ),
+    )
+
+
+def add_shared_cluster_create_capacity_arguments(args_parsers):
+  """Add shared capacity arguments in cluster create and Pathways cluster create.
+
+  Args:
+      List of cluster create capacity arguments parsers
+  """
+  for custom_parser in args_parsers:
+    custom_parser.add_argument(
+        '--on-demand',
+        action='store_true',
+        help=(
+            'Sets node pool creation to use on-demand resources. '
+            ' See `--reservation` or `--spot` for other capacity types.'
+        ),
+    )
+    custom_parser.add_argument(
+        '--reservation',
+        type=str,
+        help=(
+            'The reservation to be used for acquiring resources in the'
+            ' cluster. This will attempt to find the provided reservation.'
+            ' See `--spot` or `--on-demand` for other capacity types.'
+        ),
+    )
+    custom_parser.add_argument(
+        '--spot',
+        action='store_true',
+        help=(
+            'Sets node pool creation to use spot resources.'
+            ' See `--reservation` or `--on-demand` for other capacity types.'
+        ),
+    )
+
+
+def add_shared_workload_create_required_arguments(args_parsers):
+  """Add shared required arguments in workload create and Pathways workload create.
+
+  Args:
+      List of workload create required arguments parsers
+  """
+  for custom_parser in args_parsers:
+    custom_parser.add_argument(
+        '--workload',
+        type=workload_name_type,
+        default=None,
+        help='The name of the workload to run.',
+        required=True,
+    )
+    custom_parser.add_argument(
+        '--cluster',
+        type=str,
+        default=None,
+        help='The name of the cluster to run the job on.',
+        required=True,
+    )
+
+
+def add_shared_workload_create_optional_arguments(args_parsers):
+  """Add shared optional arguments in workload create and Pathways workload create.
+
+  Args:
+      List of workload create optional arguments parsers
+  """
+  for custom_parser in args_parsers:
+    add_shared_arguments(custom_parser)
+    custom_parser.add_argument(
+        '--docker-name',
+        type=str,
+        default='jax-tpu',
+        help=(
+            'The name of the docker-image to use, default and typically'
+            ' `jax-tpu`.'
+        ),
+    )
+    custom_parser.add_argument(
+        '--num-slices',
+        type=int,
+        default=1,
+        help='The number of slices to use, default=1.',
+    )
+    custom_parser.add_argument(
+        '--priority',
+        type=str,
+        default='medium',
+        choices=['very-low', 'low', 'medium', 'high', 'very-high'],
+        help=(
+            'A priority, one of `very-low`, `low`, `medium`, `high` or'
+            ' `very-high`. Defaults to `medium`.'
+        ),
+    )
+    custom_parser.add_argument(
+        '--max-restarts',
+        type=str,
+        default='0',
+        help=(
+            'Maximum number of times the JobSet will be restarted upon failure.'
+            ' Defaults to 0.'
+        ),
+    )
+    custom_parser.add_argument(
+        '-tgps',
+        '--termination-grace-period-seconds',
+        type=str,
+        default='30',
+        help=(
+            'Maximum wait time for a workload Pod to wrap up after a disruption'
+            ' event or deletion request.Defaults to 30 seconds.'
+        ),
+    )
+    custom_parser.add_argument(
+        '--enable-debug-logs',
+        action='store_true',
+        help=(
+            'Set this flag to get verbose logging to investigate the issue in'
+            ' the workload.'
+        ),
+    )
+    custom_parser.add_argument(
+        '--headless',
+        action='store_true',
+        help=(
+            'Please provide this argument to create Pathways workloads in'
+            ' headless mode. This arg can only be used in `xpk workload'
+            ' create-pathways`(preferred) or `xpk workload create'
+            ' --use-pathways.` (--use-pathways will be deprecated soon).'
+        ),
+    )
+    custom_parser.add_argument(
+        '--proxy-server-image',
+        type=str,
+        default=(
+            'us-docker.pkg.dev/cloud-tpu-v2-images/pathways/proxy_server:latest'
+        ),
+        help=(
+            'Please provide the proxy server image for Pathways. This arg can'
+            ' only be used in `xpk workload create-pathways`(preferred) or `xpk'
+            ' workload create --use-pathways.` (--use-pathways will be'
+            ' deprecated soon).'
+        ),
+    )
+    custom_parser.add_argument(
+        '--server-image',
+        type=str,
+        default='us-docker.pkg.dev/cloud-tpu-v2-images/pathways/server:latest',
+        help=(
+            'Please provide the server image for Pathways. This arg can only be'
+            ' used in `xpk workload create-pathways`(preferred) or `xpk'
+            ' workload create --use-pathways.` (--use-pathways will be'
+            ' deprecated soon).'
+        ),
+    )
+    custom_parser.add_argument(
+        '--pathways-gcs-location',
+        type=str,
+        default='gs://cloud-pathways-staging/tmp',
+        help=(
+            'Please provide the GCS location to store Pathways artifacts. This'
+            ' arg can only be used in `xpk workload create-pathways`(preferred)'
+            ' or `xpk workload create --use-pathways.` (--use-pathways will be'
+            ' deprecated soon).'
+        ),
+    )
+
+
+def add_shared_workload_create_env_arguments(args_parsers):
+  """Add shared workload create environment arguments in workload create and Pathways workload create.
+
+  Args:
+      List of workload create environment arguments parsers
+  """
+  for custom_parser in args_parsers:
+    workload_env_arguments = custom_parser.add_mutually_exclusive_group()
+    workload_env_arguments.add_argument(
+        '--env-file',
+        type=str,
+        default=None,
+        help=(
+            'Environment file to be applied to the container.  This file should'
+            ' use the syntax <variable>=value (which sets the variable to the'
+            ' given value) or <variable> (which takes the value from the local'
+            ' environment), and # for comments.'
+        ),
+    )
+    workload_env_arguments.add_argument(
+        '--env',
+        action='append',
+        type=str,
+        help=(
+            'Environment variable to set in the container environment. '
+            'The format is <variable>=value'
+        ),
+    )
+
+
+def add_shared_workload_base_docker_image_arguments(args_parsers):
+  """Add shared base docker image arguments in workload create and Pathways workload create.
+
+  Args:
+      List of workload create base docker image arguments parsers
+  """
+  for custom_parser in args_parsers:
+    custom_parser.add_argument(
+        '--base-docker-image',
+        type=str,
+        default=default_docker_image,
+        help=(
+            f'The base docker-image to use, default {default_docker_image}. If'
+            ' using a custom docker image it is typically addressed as'
+            ' gcr.io/${PROJECT}/${NAME}:latest. This docker image will be'
+            ' used as a base image by default and the `--script-dir` by'
+            ' default will be added to the image.'
+        ),
+    )
+    custom_parser.add_argument(
+        '--script-dir',
+        type=directory_path_type,
+        default=default_script_dir,
+        help=(
+            'The local location of the directory to copy to the docker image'
+            ' and run the main command from. Defaults to current working'
+            ' directory.'
+        ),
+    )
+
+
+def add_shared_workload_docker_image_arguments(args_parsers):
+  """Add shared docker image arguments in workload create and Pathways workload create.
+
+  Args:
+      List of workload create docker image arguments parsers
+  """
+  for custom_parser in args_parsers:
+    custom_parser.add_argument(
+        '--docker-image',
+        type=str,
+        help=(
+            'The version of the docker-image to use. By default, '
+            ' `--base-docker-image` is used. Set this argument if the user'
+            ' wants the docker image to be used directly by the xpk workload. a'
+            ' custom docker image it is typically addressed as'
+            ' gcr.io/${PROJECT}/${NAME}:latest. This docker image will be used'
+            ' directly by the xpk workload.'
+        ),
+    )
+
+
+def add_shared_workload_create_tensorboard_arguments(args_parsers):
+  """Add shared tensorboard arguments in workload create and Pathways workload create.
+
+  Args:
+      List of workload create optional arguments parsers
+  """
+  for custom_parser in args_parsers:
+    custom_parser.add_argument(
+        '--use-vertex-tensorboard',
+        action='store_true',
+        help='Set this flag to view workload data on Vertex Tensorboard.',
+    )
+    custom_parser.add_argument(
+        '--experiment-name',
+        type=str,
+        required=False,
+        help=(
+            'The name of Vertex Experiment to create. '
+            'If not specified, a Vertex Experiment with the name '
+            '<cluster>-<workload> will be created.'
+        ),
+    )
+
+
 ############### Define flags ###############
 # Create top level parser for xpk command.
 parser = argparse.ArgumentParser(description='xpk command', prog='xpk')
@@ -6669,32 +7219,21 @@ cluster_create_required_arguments = cluster_create_parser.add_argument_group(
 cluster_create_optional_arguments = cluster_create_parser.add_argument_group(
     'Optional Arguments', 'Arguments optional for cluster create.'
 )
+cluster_create_capacity_arguments = cluster_create_parser.add_argument_group(
+    'Capacity Arguments', 'Arguments related to capacity for cluster create.'
+)
 cluster_create_tensorboard_arguments = cluster_create_parser.add_argument_group(
     'Optional Vertex AI Tensorboard Arguments',
     'Arguments for creating Vertex AI Tensorboard in cluster create.',
 )
-cluster_create_capacity_arguments = cluster_create_parser.add_argument_group(
-    'Capacity Arguments', 'Arguments related to capacity for cluster create.'
-)
 
-### Required arguments.
-cluster_create_required_arguments.add_argument(
-    '--cluster',
-    type=str,
-    default=None,
-    help=(
-        'The name of the cluster. Will be used as the prefix for internal'
-        ' objects in the cluster.'
-    ),
-    required=True,
-)
+### Required arguments specific to "cluster create"
 
 cluster_device_group = (
     cluster_create_required_arguments.add_mutually_exclusive_group(
         required=True
     )
 )
-
 cluster_device_group.add_argument(
     '--tpu-type',
     type=str,
@@ -6711,58 +7250,7 @@ cluster_device_group.add_argument(
     ),
 )
 
-
-# Capacity Arguments
-cluster_create_capacity_arguments.add_argument(
-    '--on-demand',
-    action='store_true',
-    help=(
-        'Sets node pool creation to use on-demand resources. '
-        ' See `--reservation` or `--spot` for other capacity types.'
-    ),
-)
-cluster_create_capacity_arguments.add_argument(
-    '--reservation',
-    type=str,
-    help=(
-        'The reservation to be used for acquiring resources in the'
-        ' cluster. This will attempt to find the provided reservation.'
-        ' See `--spot` or `--on-demand` for other capacity types.'
-    ),
-)
-cluster_create_capacity_arguments.add_argument(
-    '--spot',
-    action='store_true',
-    help=(
-        'Sets node pool creation to use spot resources.'
-        ' See `--reservation` or `--on-demand` for other capacity types.'
-    ),
-)
-
-### Optional Arguments
-cluster_create_optional_arguments.add_argument(
-    '--host-maintenance-interval',
-    type=str,
-    choices=['AS_NEEDED', 'PERIODIC'],
-    default='AS_NEEDED',
-    help='The maintenance policy of the cluster and respective clusters.',
-)
-cluster_create_optional_arguments.add_argument(
-    '--gke-version',
-    type=str,
-    help=(
-        'The GKE version of the cluster and respective clusters. The'
-        ' default is'
-        ' determined dynamically based on RAPID channel recommended version.'
-    ),
-)
-cluster_create_optional_arguments.add_argument(
-    '--num-slices',
-    type=int,
-    default=1,
-    help='The number of slices to run the job on, defaults to 1.',
-    required=False,
-)
+### Optional arguments specific to "cluster create"
 cluster_create_optional_arguments.add_argument(
     '--num-nodes',
     type=int,
@@ -6773,125 +7261,24 @@ cluster_create_optional_arguments.add_argument(
 cluster_create_optional_arguments.add_argument(
     '--enable-pathways',
     action='store_true',
-    help='Enable cluster to accept Pathways workloads.',
-)
-cluster_create_optional_arguments.add_argument(
-    '--pathways-gce-machine-type',
-    type=str,
-    default='n1-standard-32',
-    help='The CPU type for Pathways CPU nodepools',
-)
-cluster_create_optional_arguments.add_argument(
-    '--default-pool-cpu-machine-type',
-    type=str,
-    default='e2-standard-16',
     help=(
-        'Set the machine type within the default cpu node pool. For'
-        ' regional clusters, all zones must support the machine type.'
-    ),
-)
-cluster_create_optional_arguments.add_argument(
-    '--default-pool-cpu-num-nodes',
-    type=int,
-    default=6,
-    help=(
-        'Set the number of nodes within the default cpu node pool. This is'
-        ' set to 6 by default. Autoscaling is enabled to scale this value over'
-        ' time.'
-    ),
-)
-cluster_create_optional_arguments.add_argument(
-    '--cluster-cpu-machine-type',
-    type=str,
-    default='',
-    help=(
-        'Getting deprecated soon! Please use --default-pool-cpu-machine-type'
-        'instead, to denote the machine type of the default cpu node pool. Set'
-        ' the machine type of other cpu nodepools using --device-type.'
-    ),
-)
-cluster_create_optional_arguments.add_argument(
-    '--custom-cluster-arguments',
-    type=str,
-    default='',
-    help=(
-        'Users can add their own arguments to customize their cluster create'
-        ' command. Do note, these will not override already used cluster'
-        ' creation arguments.'
-        " e.g. --custom-cluster-arguments='--network=mtu9k --subnetwork=mtu9k'"
-    ),
-)
-cluster_create_optional_arguments.add_argument(
-    '--custom-tpu-nodepool-arguments',
-    type=str,
-    default='',
-    help=(
-        'Users can add their own arguments to customize their tpu node pool'
-        ' create command. Do note, these will not override already used node'
-        ' pool creation arguments. e.g.'
-        ' --custom-tpu-nodepool-arguments="--enable-ip-alias"'
-    ),
-)
-cluster_create_optional_arguments.add_argument(
-    '--custom-nodepool-arguments',
-    type=str,
-    default='',
-    help=(
-        'Users can add their own arguments to customize their node pool '
-        ' create command. Do note, these will not override already used node'
-        ' pool creation arguments. e.g.'
-        ' --custom-nodepool-arguments="--disk-size=300"'
-    ),
-)
-cluster_create_optional_arguments.add_argument(
-    '--force',
-    action='store_true',
-    help=(
-        'Forces node pool creation and delete commands to run without'
-        ' additional approval.'
+        'DEPRECATING SOON!!! Please use `xpk cluster create-pathways`.'
+        ' Enable cluster to accept Pathways workloads.'
     ),
 )
 
-cluster_create_tensorboard_arguments.add_argument(
-    '--create-vertex-tensorboard',
-    action='store_true',
-    help='Set this flag to create a Tensorboard instance in Vertex AI.',
-)
-cluster_create_tensorboard_arguments.add_argument(
-    '--tensorboard-region',
-    type=str,
-    default='us-central1',
-    help=(
-        'The region to create Vertex Tensorboard instance in. Visit'
-        ' https://cloud.google.com/vertex-ai/docs/general/locations#available-regions'
-        ' to view regions supported by Vertex AI. By default, Tensorboard'
-        ' instance will be created in us-central1.'
-    ),
-)
-cluster_create_tensorboard_arguments.add_argument(
-    '--tensorboard-name',
-    type=str,
-    required=False,
-    help=(
-        'The name of Vertex Tensorboard instance to create. '
-        'If not specified, a Tensorboard instance with the name '
-        f'<cluster>-{_DEFAULT_VERTEX_TENSORBOARD_NAME} will be created.'
-    ),
-)
-
+### Autoprovisioning arguments specific to "cluster create"
 cluster_create_autoprovisioning_arguments = (
     cluster_create_parser.add_argument_group(
         'Optional Autoprovisioning Arguments',
         'Arguments optional for enabling autoprovisioning.',
     )
 )
-
 cluster_create_autoprovisioning_arguments.add_argument(
     '--enable-autoprovisioning',
     action='store_true',
     help='Enable GKE features for autoprovisioning node pools in GKE clusters.',
 )
-
 cluster_create_autoprovisioning_arguments.add_argument(
     '--autoprovisioning-min-chips',
     type=int,
@@ -6901,7 +7288,6 @@ cluster_create_autoprovisioning_arguments.add_argument(
         ' resources in the cluster as the minimum, and maximum.'
     ),
 )
-
 cluster_create_autoprovisioning_arguments.add_argument(
     '--autoprovisioning-max-chips',
     type=int,
@@ -6912,9 +7298,66 @@ cluster_create_autoprovisioning_arguments.add_argument(
     ),
 )
 
-add_shared_arguments(cluster_create_optional_arguments)
+
+### "cluster create-pathways" command parser ###
+
+cluster_create_pathways_parser = cluster_subcommands.add_parser(
+    'create-pathways',
+    help='Create Pathways-on-Cloud clusters.',
+)
+cluster_create_pathways_required_arguments = (
+    cluster_create_pathways_parser.add_argument_group(
+        'Required Arguments',
+        'Arguments required for cluster create-pathways.',
+    )
+)
+cluster_create_pathways_optional_arguments = (
+    cluster_create_pathways_parser.add_argument_group(
+        'Optional Arguments', 'Arguments optional for cluster create-pathways.'
+    )
+)
+cluster_create_pathways_capacity_arguments = (
+    cluster_create_pathways_parser.add_argument_group(
+        'Capacity Arguments',
+        'Arguments related to capacity for cluster create-pathways.',
+    )
+)
+cluster_create_pathways_tensorboard_arguments = (
+    cluster_create_pathways_parser.add_argument_group(
+        'Optional Vertex AI Tensorboard Arguments',
+        'Arguments for creating Vertex AI Tensorboard in cluster create.',
+    )
+)
+
+### Pathways required arguments specific to "cluster create"
+cluster_create_pathways_required_arguments.add_argument(
+    '--tpu-type',
+    type=str,
+    default=None,
+    help='The tpu type to use, v5litepod-16, etc.',
+)
+
+
+add_shared_cluster_create_required_arguments([
+    cluster_create_required_arguments,
+    cluster_create_pathways_required_arguments,
+])
+add_shared_cluster_create_optional_arguments([
+    cluster_create_optional_arguments,
+    cluster_create_pathways_optional_arguments,
+])
+add_shared_cluster_create_capacity_arguments([
+    cluster_create_capacity_arguments,
+    cluster_create_pathways_capacity_arguments,
+])
+add_shared_cluster_create_tensorboard_arguments([
+    cluster_create_tensorboard_arguments,
+    cluster_create_pathways_tensorboard_arguments,
+])
 
 cluster_create_parser.set_defaults(func=cluster_create)
+cluster_create_pathways_parser.set_defaults(func=cluster_create_pathways)
+
 
 ### "cluster delete" command parser ###
 cluster_delete_parser = cluster_subcommands.add_parser(
@@ -7059,7 +7502,9 @@ workload_parser.set_defaults(func=default_subcommand_function)
 workload_subcommands = workload_parser.add_subparsers(
     title='workload subcommands',
     dest='xpk_workload_subcommands',
-    help='`create`, `list` and `delete` workloads on clusters',
+    help=(
+        '`create`, `create-pathways`, `list` and `delete` workloads on clusters'
+    ),
 )
 
 # "workload create" command parser.
@@ -7108,13 +7553,6 @@ workload_vertex_tensorboard_arguments = (
 
 ### "workload create" Required arguments
 workload_create_parser_required_arguments.add_argument(
-    '--workload',
-    type=workload_name_type,
-    default=None,
-    help='The name of the workload to run.',
-    required=True,
-)
-workload_create_parser_required_arguments.add_argument(
     '--command',
     type=str,
     default=None,
@@ -7126,20 +7564,11 @@ workload_create_parser_required_arguments.add_argument(
     ),
     required=True,
 )
-workload_create_parser_required_arguments.add_argument(
-    '--cluster',
-    type=str,
-    default=None,
-    help='The name of the cluster to run the job on.',
-    required=True,
-)
-
 workload_device_group = (
     workload_create_parser_required_arguments.add_mutually_exclusive_group(
         required=True
     )
 )
-
 workload_device_group.add_argument(
     '--tpu-type',
     type=str,
@@ -7156,94 +7585,11 @@ workload_device_group.add_argument(
     ),
 )
 
-### "workload create" Optional Arguments
-add_shared_arguments(workload_create_parser_optional_arguments)
-
-workload_create_parser_optional_arguments.add_argument(
-    '--docker-name',
-    type=str,
-    default='jax-tpu',
-    help=(
-        'The name of the docker-image to use, default and typically `jax-tpu`.'
-    ),
-)
-workload_docker_image_arguments.add_argument(
-    '--docker-image',
-    type=str,
-    help=(
-        'The version of the docker-image to use. By default, '
-        ' `--base-docker-image` is used. Set this argument if the user wants'
-        ' the docker image to be used directly by the xpk workload.'
-        ' a custom docker image it is typically addressed as'
-        ' gcr.io/${PROJECT}/${NAME}:latest. This docker image will be used'
-        ' directly by the xpk workload.'
-    ),
-)
-workload_base_docker_image_arguments.add_argument(
-    '--base-docker-image',
-    type=str,
-    default=default_docker_image,
-    help=(
-        f'The base docker-image to use, default {default_docker_image}. If'
-        ' using a custom docker image it is typically addressed as'
-        ' gcr.io/${PROJECT}/${NAME}:latest. This docker image will be used'
-        ' as a base image by default and the `--script-dir` by default will be'
-        ' added to the image.'
-    ),
-)
-workload_base_docker_image_arguments.add_argument(
-    '--script-dir',
-    type=directory_path_type,
-    default=default_script_dir,
-    help=(
-        'The local location of the directory to copy to the docker image and'
-        ' run the main command from. Defaults to current working directory.'
-    ),
-)
-workload_create_parser_optional_arguments.add_argument(
-    '--num-slices',
-    type=int,
-    default=1,
-    help='The number of slices to use, default=1.',
-)
 workload_create_parser_optional_arguments.add_argument(
     '--num-nodes',
     type=int,
     default=1,
     help='The number of nodes to use, default=1.',
-)
-workload_env_arguments = (
-    workload_create_parser_optional_arguments.add_mutually_exclusive_group()
-)
-workload_env_arguments.add_argument(
-    '--env-file',
-    type=str,
-    default=None,
-    help=(
-        'Environment file to be applied to the container.  This file should '
-        'use the syntax <variable>=value (which sets the variable to the given '
-        'value) or <variable> (which takes the value from the local '
-        'environment), and # for comments.'
-    ),
-)
-workload_env_arguments.add_argument(
-    '--env',
-    action='append',
-    type=str,
-    help=(
-        'Environment variable to set in the container environment. '
-        'The format is <variable>=value'
-    ),
-)
-workload_create_parser_optional_arguments.add_argument(
-    '--priority',
-    type=str,
-    default='medium',
-    choices=['very-low', 'low', 'medium', 'high', 'very-high'],
-    help=(
-        'A priority, one of `very-low`, `low`, `medium`, `high` or `very-high`.'
-        ' Defaults to `medium`.'
-    ),
 )
 workload_create_parser_optional_arguments.add_argument(
     '--scheduler',
@@ -7256,15 +7602,6 @@ workload_create_parser_optional_arguments.add_argument(
     ),
 )
 workload_create_parser_optional_arguments.add_argument(
-    '--max-restarts',
-    type=str,
-    default='0',
-    help=(
-        'Maximum number of times the JobSet will be restarted upon failure. '
-        'Defaults to 0.'
-    ),
-)
-workload_create_parser_optional_arguments.add_argument(
     '--debug-dump-gcs',
     type=str,
     default=None,
@@ -7274,30 +7611,12 @@ workload_create_parser_optional_arguments.add_argument(
     ),
 )
 workload_create_parser_optional_arguments.add_argument(
-    '--enable-debug-logs',
-    action='store_true',
-    help=(
-        'Set this flag to get verbose logging to investigate the issue in the'
-        ' workload.'
-    ),
-)
-workload_create_parser_optional_arguments.add_argument(
     '--deploy-stacktrace-sidecar',
     action='store_true',
     help=(
         'Add this argument to deploy a sidecar container that will '
         'read the stack traces collected in /tmp/debugging directory '
         'and forward them to Cloud Logging for TPU workloads.'
-    ),
-)
-workload_create_parser_optional_arguments.add_argument(
-    '-tgps',
-    '--termination-grace-period-seconds',
-    type=str,
-    default='30',
-    help=(
-        'Maximum wait time for a workload Pod to wrap up after a disruption'
-        ' event or deletion request.Defaults to 30 seconds.'
     ),
 )
 workload_create_parser_optional_arguments.add_argument(
@@ -7342,44 +7661,96 @@ workload_create_autoprovisioning_arguments.add_argument(
 workload_pathways_workload_arguments.add_argument(
     '--use-pathways',
     action='store_true',
-    help='Provide this argument to create Pathways workloads.',
-)
-workload_pathways_workload_arguments.add_argument(
-    '--proxy-server-image',
-    type=str,
-    default=(
-        'us-docker.pkg.dev/cloud-tpu-v2-images/pathways/proxy_server:latest'
-    ),
-    help='Please provide the proxy server image for Pathways.',
-)
-workload_pathways_workload_arguments.add_argument(
-    '--server-image',
-    type=str,
-    default='us-docker.pkg.dev/cloud-tpu-v2-images/pathways/server:latest',
-    help='Please provide the server image for Pathways.',
-)
-workload_pathways_workload_arguments.add_argument(
-    '--pathways-gcs-location',
-    type=str,
-    default='gs://cloud-pathways-staging/tmp',
-    help='Please provide the GCS location to store Pathways artifacts.',
-)
-workload_vertex_tensorboard_arguments.add_argument(
-    '--use-vertex-tensorboard',
-    action='store_true',
-    help='Set this flag to view workload data on Vertex Tensorboard.',
-)
-workload_vertex_tensorboard_arguments.add_argument(
-    '--experiment-name',
-    type=str,
-    required=False,
     help=(
-        'The name of Vertex Experiment to create. '
-        'If not specified, a Vertex Experiment with the name '
-        '<cluster>-<workload> will be created.'
+        'DECRATING SOON!!! Please use `xpk workload create-pathways` instead.'
+        ' Provide this argument to create Pathways workloads.'
     ),
 )
+
+
+# "workload create-pathways" command parser.
+workload_create_pathways_parser = workload_subcommands.add_parser(
+    'create-pathways', help='Create a new job.'
+)
+workload_create_pathways_parser_required_arguments = (
+    workload_create_pathways_parser.add_argument_group(
+        'Workload create-pathways Built-in Arguments',
+        'Configure xpk to create a Pathways Workload for you.',
+    )
+)
+workload_create_pathways_parser_optional_arguments = (
+    workload_create_pathways_parser.add_argument_group(
+        'Optional Arguments',
+        'Arguments optional for `workload create-pathways`.',
+    )
+)
+workload_create_pathways_base_docker_image_arguments = workload_create_pathways_parser.add_argument_group(
+    'Base Docker Image Arguments',
+    'User supplies a base image or by default the image is set by xpk.'
+    ' Xpk will add the `script_dir` to the base image creating an anonymous'
+    ' docker image. These arguments are exclusive to `--docker-image`.',
+)
+workload_create_pathways_docker_image_arguments = workload_create_pathways_parser.add_argument_group(
+    'Docker Image Arguments',
+    '`--base-docker-image` is used by default. Set this argument if the'
+    ' user wants the docker image to be used directly by the xpk workload.',
+)
+workload_create_pathways_vertex_tensorboard_arguments = (
+    workload_create_pathways_parser.add_argument_group(
+        'Vertex Tensorboard Arguments',
+        'Arguments for creating Vertex AI Experiment in workload create.',
+    )
+)
+
+### "workload create-pathways" Required arguments, specific to Pathways
+workload_create_pathways_parser_required_arguments.add_argument(
+    '--tpu-type',
+    type=str,
+    default=None,
+    help='The tpu type to use, v5litepod-16, etc.',
+)
+
+workload_create_pathways_parser_optional_arguments.add_argument(
+    '--command',
+    type=str,
+    default=None,
+    help=(
+        'Main command to run on each VM. This script runs within the docker '
+        'container. Typically this looks like "--command=\'python3 train.py\'" '
+        'but if your docker container is missing the dependencies, it might '
+        'look more like "--command=\'bash setup.sh && python3 train.py\'".'
+    ),
+    required=False,
+)
+
+add_shared_workload_create_required_arguments([
+    workload_create_parser_required_arguments,
+    workload_create_pathways_parser_required_arguments,
+])
+add_shared_workload_create_optional_arguments([
+    workload_create_parser_optional_arguments,
+    workload_create_pathways_parser_optional_arguments,
+])
+add_shared_workload_create_env_arguments([
+    workload_create_parser_optional_arguments,
+    workload_create_pathways_parser_optional_arguments,
+])
+add_shared_workload_base_docker_image_arguments([
+    workload_base_docker_image_arguments,
+    workload_create_pathways_base_docker_image_arguments,
+])
+add_shared_workload_docker_image_arguments([
+    workload_docker_image_arguments,
+    workload_create_pathways_docker_image_arguments,
+])
+add_shared_workload_create_tensorboard_arguments([
+    workload_vertex_tensorboard_arguments,
+    workload_create_pathways_vertex_tensorboard_arguments,
+])
+
+# Set defaults for both workload create and workload create-pathways after adding all shared args.
 workload_create_parser.set_defaults(func=workload_create)
+workload_create_pathways_parser.set_defaults(func=workload_create_pathways)
 
 # "workload delete" command parser.
 workload_delete_parser = workload_subcommands.add_parser(

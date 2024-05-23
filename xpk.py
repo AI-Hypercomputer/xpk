@@ -704,13 +704,13 @@ UserFacingNameToSystemCharacteristics = {
     ),
     # H100-mega-80gb-$CHIPS
     'h100-mega-80gb-8': SystemCharacteristics(
-      'N/A',
-      1,
-      'nvidia-h100-mega-80gb',
-      'a3-megagpu-8g',
-      8,
-      AcceleratorType['GPU'],
-      'h100-mega-80gb-8',
+        'N/A',
+        1,
+        'nvidia-h100-mega-80gb',
+        'a3-megagpu-8g',
+        8,
+        AcceleratorType['GPU'],
+        'h100-mega-80gb-8',
     ),
     # TPU system characteristics
     # v5p
@@ -2583,7 +2583,8 @@ def enable_autoprovisioning_on_cluster(
 
 
 def run_gke_cluster_create_command(
-    args, gke_control_plane_version: str, system: SystemCharacteristics) -> int:
+    args, gke_control_plane_version: str, system: SystemCharacteristics
+) -> int:
   """Run the Create GKE Cluster request.
 
   Args:
@@ -2644,9 +2645,7 @@ def run_gke_cluster_create_command(
   return 0
 
 
-def set_up_cluster_network_for_gpu(
-    args,
-    system: SystemCharacteristics) -> int:
+def set_up_cluster_network_for_gpu(args, system: SystemCharacteristics) -> int:
   """Set up GKE Cluster networks, subnets and firewall rules for A3/A3+.
   Note: there are 4 NICs for GPU-GPU bw and 1 NIC for host in an A3 node,
   and there are 8 NICs for GPU-GPU bw and 1 NIC for host in an A3+ node.
@@ -2758,12 +2757,12 @@ def delete_cluster_subnets(args) -> int:
 
   for subnet_name in existing_subnet_names:
     command = (
-      f'gcloud compute networks subnets delete {subnet_name}'
-      f' --region={zone_to_region(args.zone)} --project={args.project} --quiet'
+        f'gcloud compute networks subnets delete {subnet_name}'
+        f' --region={zone_to_region(args.zone)} --project={args.project} --quiet'
     )
 
     return_code = run_command_with_updates(
-      command, 'Delete Cluster Subnet', args, verbose=False
+        command, 'Delete Cluster Subnet', args, verbose=False
     )
 
     if return_code != 0:
@@ -3221,9 +3220,8 @@ def get_all_clusters_programmatic(args) -> tuple[list[str], int]:
 
 
 def create_cluster_if_necessary(
-    args,
-    gke_control_plane_version: str,
-    system: SystemCharacteristics) -> int:
+    args, gke_control_plane_version: str, system: SystemCharacteristics
+) -> int:
   """Creates cluster if not present in the project.
 
   Args:
@@ -3243,7 +3241,8 @@ def create_cluster_if_necessary(
     return 0
   else:
     return run_gke_cluster_create_command(
-      args, gke_control_plane_version, system)
+        args, gke_control_plane_version, system
+    )
 
 
 def get_nodepool_zone(args, nodepool_name) -> tuple[int, str]:
@@ -3373,7 +3372,9 @@ def get_all_subnets_programmatic(args) -> tuple[list[str], int]:
     return [], 1
 
   all_outputs = raw_subnets_output.splitlines()
-  all_networks = [all_outputs[i].split(' ')[0] for i in range(1, len(all_outputs))]
+  all_networks = [
+      all_outputs[i].split(' ')[0] for i in range(1, len(all_outputs))
+  ]
   return all_networks, 0
 
 
@@ -3644,15 +3645,15 @@ def run_gke_node_pool_create_command(
       )
       if device_type == h100_mega_device_type:
         command += (
-          ' --additional-node-network'
-          f' network={args.cluster}-net-5,subnetwork={subnet_prefix}-sub-5'
-          ' --additional-node-network'
-          f' network={args.cluster}-net-6,subnetwork={subnet_prefix}-sub-6'
-          ' --additional-node-network'
-          f' network={args.cluster}-net-7,subnetwork={subnet_prefix}-sub-7'
-          ' --additional-node-network'
-          f' network={args.cluster}-net-8,subnetwork={subnet_prefix}-sub-8'
-          ' --max-pods-per-node=32'
+            ' --additional-node-network'
+            f' network={args.cluster}-net-5,subnetwork={subnet_prefix}-sub-5'
+            ' --additional-node-network'
+            f' network={args.cluster}-net-6,subnetwork={subnet_prefix}-sub-6'
+            ' --additional-node-network'
+            f' network={args.cluster}-net-7,subnetwork={subnet_prefix}-sub-7'
+            ' --additional-node-network'
+            f' network={args.cluster}-net-8,subnetwork={subnet_prefix}-sub-8'
+            ' --max-pods-per-node=32'
         )
     elif system.accelerator_type == AcceleratorType['CPU']:
       command += f' --num-nodes={system.vms_per_slice}'
@@ -3961,9 +3962,10 @@ def get_kueue_covered_resources_config(
         nominalQuota: {total_chips}
   """
   config_string = config_format.format(
-        cluster_hardware_name=cluster_hardware_name,
-        resource_type=resource_type,
-        total_chips=total_chips)
+      cluster_hardware_name=cluster_hardware_name,
+      resource_type=resource_type,
+      total_chips=total_chips,
+  )
   return config_string
 
 
@@ -3998,9 +4000,7 @@ def set_jobset_on_cluster(args) -> int:
   return return_code
 
 
-def install_nccl_on_cluster(
-    args,
-    system: SystemCharacteristics) -> int:
+def install_nccl_on_cluster(args, system: SystemCharacteristics) -> int:
   """Install NCCL plugin on the cluster.
 
   Args:
@@ -5180,10 +5180,12 @@ def get_env_container(args, system: SystemCharacteristics):
                     value: "{args.command}"
                   {args.env}"""
   if system.accelerator_type == AcceleratorType['GPU']:
-    gpu_direct_name = 'tcpx' if args.device_type == h100_device_type else 'fastrak'
-    return gpu_env_yaml.format(args=args,
-                        system=system,
-                        gpu_direct_name=gpu_direct_name)
+    gpu_direct_name = (
+        'tcpx' if args.device_type == h100_device_type else 'fastrak'
+    )
+    return gpu_env_yaml.format(
+        args=args, system=system, gpu_direct_name=gpu_direct_name
+    )
 
   if system.accelerator_type == AcceleratorType['CPU']:
     return get_cpu_env(args.num_slices, args.env, system)
@@ -5700,9 +5702,16 @@ def get_gpu_rxdm_cmd(system: SystemCharacteristics) -> str:
   """
   gpu_rxdm_cmd = ''
   if system.device_type == h100_device_type:
-    gpu_rxdm_cmd = '/tcpgpudmarxd/build/app/tcpgpudmarxd --gpu_nic_preset a3vm --gpu_shmem_type fd --setup_param \"--verbose 128 2 0\"'
+    gpu_rxdm_cmd = (
+        '/tcpgpudmarxd/build/app/tcpgpudmarxd --gpu_nic_preset a3vm'
+        ' --gpu_shmem_type fd --setup_param "--verbose 128 2 0"'
+    )
   elif system.device_type == h100_mega_device_type:
-    gpu_rxdm_cmd = 'set -ex; chmod 755 /fts/entrypoint_rxdm_container.sh; /fts/entrypoint_rxdm_container.sh --num_hops=2 --num_nics=8 --uid= --alsologtostderr'
+    gpu_rxdm_cmd = (
+        'set -ex; chmod 755 /fts/entrypoint_rxdm_container.sh;'
+        ' /fts/entrypoint_rxdm_container.sh --num_hops=2 --num_nics=8 --uid='
+        ' --alsologtostderr'
+    )
   return gpu_rxdm_cmd
 
 
@@ -5845,7 +5854,7 @@ def workload_create(args) -> None:
         gpu_volume=get_gpu_volume(system),
         gpu_rxdm_image=get_gpu_rxdm_image(system),
         gpu_rxdm_cmd=get_gpu_rxdm_cmd(system),
-        gpu_tcp_volume=get_gpu_tcp_volume(system)
+        gpu_tcp_volume=get_gpu_tcp_volume(system),
     )
   elif args.use_pathways:
     # Ensure the cluster and CPU nodepools were created with --enable-pathways

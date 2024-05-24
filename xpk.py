@@ -2597,7 +2597,7 @@ def run_gke_cluster_create_command(
       ' --total-min-nodes 1 --total-max-nodes 1000'
       f' --num-nodes {args.default_pool_cpu_num_nodes}'
       f' {args.custom_cluster_arguments}'
-      f' --release-channel rapid'
+      ' --release-channel rapid'
   )
 
   if system.accelerator_type == AcceleratorType['GPU']:
@@ -2606,10 +2606,7 @@ def run_gke_cluster_create_command(
         ' --enable-multi-networking --no-enable-autoupgrade'
     )
   else:
-    command += (
-        ' --location-policy=BALANCED'
-        ' --scopes=storage-full,gke-default'
-    )
+    command += ' --location-policy=BALANCED --scopes=storage-full,gke-default'
 
     if args.enable_pathways:
       command += (
@@ -4054,7 +4051,8 @@ def get_gke_server_config(args) -> tuple[int, GkeServerConfig | None]:
       ' --format="value(channels.defaultVersion)"'
   )
   valid_versions_cmd = (
-      base_command  + ' --flatten="channels" --filter="channels.channel=RAPID"'
+      base_command
+      + ' --flatten="channels" --filter="channels.channel=RAPID"'
       ' --format="value(channels.validVersions)"'
   )
   base_command_description = 'Determine server supported GKE versions for'
@@ -4110,9 +4108,7 @@ def get_gke_control_plane_version(
   else:
     master_gke_version = gke_server_config.default_rapid_gke_version
 
-  is_valid_version = (
-      master_gke_version in gke_server_config.valid_versions
-  )
+  is_valid_version = master_gke_version in gke_server_config.valid_versions
 
   if not is_valid_version:
     xpk_print(

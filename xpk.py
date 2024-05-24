@@ -2597,6 +2597,7 @@ def run_gke_cluster_create_command(
       ' --total-min-nodes 1 --total-max-nodes 1000'
       f' --num-nodes {args.default_pool_cpu_num_nodes}'
       f' {args.custom_cluster_arguments}'
+      f' --release-channel rapid'
   )
 
   if system.accelerator_type == AcceleratorType['GPU']:
@@ -2606,7 +2607,7 @@ def run_gke_cluster_create_command(
     )
   else:
     command += (
-        ' --release-channel rapid --location-policy=BALANCED'
+        ' --location-policy=BALANCED'
         ' --scopes=storage-full,gke-default'
     )
 
@@ -4029,8 +4030,7 @@ class GkeServerConfig:
   """Stores the valid gke versions based on gcloud recommendations."""
 
   default_rapid_gke_version: str
-  valid_master_versions: set[str]
-  valid_node_versions: set[str]
+  valid_versions: set[str]
 
 
 def get_gke_server_config(args) -> tuple[int, GkeServerConfig | None]:
@@ -4053,12 +4053,9 @@ def get_gke_server_config(args) -> tuple[int, GkeServerConfig | None]:
       + ' --flatten="channels" --filter="channels.channel=RAPID"'
       ' --format="value(channels.defaultVersion)"'
   )
-  valid_master_versions_cmd = (
-      base_command
-      + ' --flatten="channels" --format="value(validMasterVersions)"'
-  )
-  valid_node_versions_cmd = (
-      base_command + ' --flatten="channels" --format="value(validNodeVersions)"'
+  valid_versions_cmd = (
+      base_command  + ' --flatten="channels" --filter="channels.channel=RAPID"'
+      ' --format="value(channels.validVersions)"'
   )
   base_command_description = 'Determine server supported GKE versions for'
 
@@ -4068,12 +4065,8 @@ def get_gke_server_config(args) -> tuple[int, GkeServerConfig | None]:
           base_command_description + 'default rapid gke version',
       ),
       (
-          valid_master_versions_cmd,
+          valid_versions_cmd,
           base_command_description + 'valid master versions',
-      ),
-      (
-          valid_node_versions_cmd,
-          base_command_description + 'valid node versions',
       ),
   ]
   command_outputs = []
@@ -4092,8 +4085,7 @@ def get_gke_server_config(args) -> tuple[int, GkeServerConfig | None]:
 
   return 0, GkeServerConfig(
       default_rapid_gke_version=command_outputs[0].strip(),
-      valid_master_versions=set(command_outputs[1].split(';')),
-      valid_node_versions=set(command_outputs[2].split(';')),
+      valid_versions=set(command_outputs[1].split(';')),
   )
 
 
@@ -4118,24 +4110,19 @@ def get_gke_control_plane_version(
   else:
     master_gke_version = gke_server_config.default_rapid_gke_version
 
-  is_valid_master_version = (
-      master_gke_version in gke_server_config.valid_master_versions
-  )
-  is_valid_node_version = (
-      master_gke_version in gke_server_config.valid_node_versions
+  is_valid_version = (
+      master_gke_version in gke_server_config.valid_versions
   )
 
-  if not is_valid_master_version or not is_valid_node_version:
+  if not is_valid_version:
     xpk_print(
-        f'Planned GKE Version: {master_gke_version}\n Valid Master'
-        f' Versions:\n{gke_server_config.valid_master_versions}\nValid Node'
-        f' Versions:\n{gke_server_config.valid_node_versions}\nRecommended GKE'
+        f'Planned GKE Version: {master_gke_version}\n Valid Versions'
+        f' Versions:\n{gke_server_config.valid_versions}\nRecommended GKE'
         f' Version: {gke_server_config.default_rapid_gke_version}'
     )
     xpk_print(
         f'Error: Planned GKE Version {master_gke_version} is not valid.'
-        f'Checks failed: Is Master Valid: {is_valid_master_version}'
-        f'\nIs Valid Node Version: {is_valid_node_version}'
+        f'Checks failed: Is Version Valid: {is_valid_version}'
     )
     xpk_print(
         'Please select a gke version from the above list using --gke-version=x'
@@ -4186,15 +4173,15 @@ def get_gke_node_pool_version(
     node_pool_gke_version = current_gke_master_version.strip()
 
   is_supported_node_pool_version = (
-      node_pool_gke_version in gke_server_config.valid_node_versions
+      node_pool_gke_version in gke_server_config.valid_versions
   )
   # In rare cases, user's provided gke version may be invalid, but gke will return an error if so.
   # An example scenario is if the user provided gke version is greater than the master version.
   if not is_supported_node_pool_version:
     xpk_print(
         f'Planned node pool version {node_pool_gke_version} is not supported in'
-        ' valid node_pool_gke_versions'
-        f' {gke_server_config.valid_node_versions}Please adjust the gke version'
+        ' valid version'
+        f' {gke_server_config.valid_versions}\nPlease adjust the gke version'
         ' using --gke-version=x or remove the arg and depend on xpk default of'
         f' {current_gke_master_version}'
     )

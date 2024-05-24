@@ -4064,7 +4064,7 @@ def get_gke_server_config(args) -> tuple[int, GkeServerConfig | None]:
       ),
       (
           valid_versions_cmd,
-          base_command_description + 'valid master versions',
+          base_command_description + 'valid versions',
       ),
   ]
   command_outputs = []
@@ -4112,8 +4112,8 @@ def get_gke_control_plane_version(
 
   if not is_valid_version:
     xpk_print(
-        f'Planned GKE Version: {master_gke_version}\n Valid Versions'
-        f' Versions:\n{gke_server_config.valid_versions}\nRecommended GKE'
+        f'Planned GKE Version: {master_gke_version}\n Valid Versions:'
+        f'\n{gke_server_config.valid_versions}\nRecommended / Default GKE'
         f' Version: {gke_server_config.default_rapid_gke_version}'
     )
     xpk_print(

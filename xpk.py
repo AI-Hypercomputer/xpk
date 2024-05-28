@@ -2612,15 +2612,85 @@ def run_gke_cluster_create_command(
       command += (
           ' --enable-ip-alias'
           f' --create-subnetwork name={args.cluster}-subnetwork'
-          ' --cluster-dns=clouddns'
-          ' --cluster-dns-scope=vpc'
-          f' --cluster-dns-domain={args.cluster}-domain'
+          # ' --cluster-dns=clouddns'
+          # ' --cluster-dns-scope=vpc'
+          # f' --cluster-dns-domain={args.cluster}-domain'
       )
 
   return_code = run_command_with_updates(command, 'GKE Cluster Create', args)
   if return_code != 0:
     xpk_print(f'GKE Cluster Create request returned ERROR {return_code}')
     return 1
+  return 0
+
+def run_gke_pathways_cluster_update_command(
+    args) -> int:
+  """Run the Pathways cluster update command for existing clusters.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  command = (
+      'gcloud container clusters update'
+      f' {args.cluster} --project={args.project}'
+      f' --region={zone_to_region(args.zone)}'
+      ' --cluster-dns=clouddns'
+      ' --cluster-dns-scope=vpc'
+      f' --cluster-dns-domain={args.cluster}-domain'
+      ' --quiet'
+  )
+  return_code = run_command_with_updates(command, 'Pathways Cluster Update to enable Cloud DNS', args)
+  if return_code != 0:
+    xpk_print(f'Pathways Cluster Update request returned ERROR {return_code}')
+    return 1
+  return 0
+
+def run_node_pool_upgrade_command(args) -> int:
+  """Upgrade Pathways nodepools to use CloudDNS.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  existing_node_pool_names, return_code = get_all_nodepools_programmatic(args)
+  print(existing_node_pool_names) # REMOVE
+  if return_code != 0:
+    xpk_print('Listing all node pools failed!')
+    return return_code
+
+  # Batch execution to upgrade Pathways node pools simultaneously
+  commands = []
+  task_names = []
+  for node_pool_name in existing_node_pool_names:  
+    commands.append(
+        'gcloud container clusters upgrade'
+        f' {args.cluster} --project={args.project}'
+        f' --region={zone_to_region(args.zone)}'
+        f' --node-pool={node_pool_name}'
+        ' --quiet'
+    )
+    task_names.append(
+        f'Update node pool {node_pool_name} to use CloudDNS.'
+    )
+
+  for i, command in enumerate(commands):
+    xpk_print(f'To complete {task_names[i]} we are executing {command}')
+  max_return_code = run_commands(
+      commands,
+      'Update node pools to use CloudDNS',
+      task_names
+  )
+  if max_return_code != 0:
+    xpk_print(
+        'Update node pools to use CloudDNS returned ERROR:'
+        f' {max_return_code}'
+    )
+    return max_return_code
   return 0
 
 
@@ -3230,6 +3300,34 @@ def create_cluster_if_necessary(
         args, gke_control_plane_version, system
     )
 
+def update_pathways_cluster_if_necessary(
+    args, system: SystemCharacteristics
+) -> int:
+  """Updates a Pathways cluster to use CloudDNS.
+
+  Args:
+    args: user provided arguments for running the command.
+    system: system characteristics.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  all_clusters, return_code = get_all_clusters_programmatic(args)
+  if return_code > 0:
+    xpk_print('Listing all clusters failed!')
+    return 1
+  if args.cluster in all_clusters:
+    cluster_update_return_code = run_gke_pathways_cluster_update_command(args)
+    if cluster_update_return_code > 0:
+      xpk_print('Updating Pathways cluster to use CloudDNS failed!')
+      return cluster_update_return_code
+    node_pool_update_code = run_node_pool_upgrade_command(args)
+    if node_pool_update_code > 0:
+      xpk_print('Updating Pathways nodepools to use CloudDNS failed!')
+      return node_pool_update_code
+  return 0
+    
+      
 
 def get_nodepool_zone(args, nodepool_name) -> tuple[int, str]:
   """Return zone in which nodepool exists in the cluster.
@@ -4250,6 +4348,11 @@ def cluster_create(args) -> None:
   )
   if create_cluster_command_code != 0:
     xpk_exit(create_cluster_command_code)
+
+  if args.enable_pathways:
+    update_cluster_command_code = update_pathways_cluster_if_necessary(args, system)
+    if update_cluster_command_code != 0:
+      xpk_exit(update_cluster_command_code)
 
   set_cluster_command_code = set_cluster_command(args)
   if set_cluster_command_code != 0:

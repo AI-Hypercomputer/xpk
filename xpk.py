@@ -2642,6 +2642,7 @@ def run_gke_pathways_cluster_update_command(args) -> int:
       f' --cluster-dns-domain={args.cluster}-domain'
       ' --quiet'
   )
+  xpk_print('Updating Pathways cluster to use Cloud DNS, may take a while!')
   return_code = run_command_with_updates(
       command, 'Pathways Cluster Update to enable Cloud DNS', args
   )
@@ -3299,6 +3300,33 @@ def create_cluster_if_necessary(
     )
 
 
+def is_cluster_using_clouddns(args) -> int:
+  """Checks if cluster is using CloudDNS.
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if cluster is using CloudDNS and 1 otherwise.
+  """
+  command = (
+      f'gcloud container clusters describe {args.cluster}'
+      f' --project={args.project} --region={zone_to_region(args.zone)}'
+      ' | grep "clusterDns: CLOUD_DNS" | wc -l'
+  )
+  return_code, cloud_dns_matches = run_command_for_value(
+      command,
+      'Check if Cloud DNS is enabled in cluster describe.',
+      args,
+  )
+  if return_code != 0:
+    xpk_exit(return_code)
+  cloud_dns_matches = int(cloud_dns_matches)
+  if cloud_dns_matches > 0:
+    xpk_print('Cloud DNS is enabled on the cluster, no update needed.')
+    return 0
+  return 1
+
+
 def update_pathways_cluster_if_necessary(args) -> int:
   """Updates a Pathways cluster to use CloudDNS.
 
@@ -3313,6 +3341,9 @@ def update_pathways_cluster_if_necessary(args) -> int:
     xpk_print('Listing all clusters failed!')
     return 1
   if args.cluster in all_clusters:
+    # If cluster is already using clouddns, no update necessary!
+    if is_cluster_using_clouddns(args) == 0:
+      return 0
     cluster_update_return_code = run_gke_pathways_cluster_update_command(args)
     if cluster_update_return_code > 0:
       xpk_print('Updating Pathways cluster to use CloudDNS failed!')
@@ -5927,6 +5958,10 @@ def workload_create(args) -> None:
     0 if successful and 1 otherwise.
   """
   add_zone_and_project(args)
+
+  if args.use_pathways:
+    update_pathways_cluster_if_necessary(args)
+
   if args.command is None and not args.headless:
     xpk_print(
         'Please provide a command using "--command" for the docker container to'

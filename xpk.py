@@ -161,23 +161,10 @@ spec:
               labels:
                 xpk.google.com/workload: {args.workload}
             spec:
-              schedulerName: {args.scheduler}
-              restartPolicy: Never
-              affinity:
-                nodeAffinity:
-                  requiredDuringSchedulingIgnoredDuringExecution:
-                    nodeSelectorTerms:
-                    - matchExpressions:
-                      - key: cloud.google.com/gke-accelerator
-                        operator: Exists
-                      - key: cloud.google.com/gke-nodepool
-                        operator: In
-                        values: [{node_pool_name}]
-              nodeSelector:
-                {accelerator_label}
-                {machine_label}
-                {autoprovisioning_args}
+              schedulingGates:
+              - name: "gke.io/topology-aware-auto-{args.workload}"
               priorityClassName: {args.priority}
+              restartPolicy: Never
               hostNetwork: true
               dnsPolicy: ClusterFirstWithHostNet
               terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
@@ -5971,7 +5958,7 @@ def get_gpu_rxdm_image(system: SystemCharacteristics) -> str:
                 image: us-docker.pkg.dev/gce-ai-infra/gpudirect-tcpx/tcpgpudmarxd-dev:v2.0.9"""
   elif system.device_type == h100_mega_device_type:
     gpu_rxdm_image = """- name: fastrak-daemon
-                image: us-docker.pkg.dev/gce-ai-infra/gpudirect-tcpxo/tcpgpudmarxd-dev:v1.0.6-sctp"""
+                image: us-docker.pkg.dev/gce-ai-infra/gpudirect-tcpxo/tcpgpudmarxd-dev:v1.0.8"""
   return gpu_rxdm_image
 
 

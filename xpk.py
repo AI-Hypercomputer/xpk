@@ -2652,7 +2652,40 @@ def run_gke_pathways_cluster_update_command(args) -> int:
   return 0
 
 
-def run_node_pool_upgrade_command(args) -> int:
+def upgrade_control_plane_version(args) -> int:
+  """Upgrade Pathways cluster's control plane version before updating Pathways nodepools to use CloudDNS.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  command = (
+      'gcloud container clusters upgrade'
+      f' {args.cluster} --project={args.project}'
+      f' --region={zone_to_region(args.zone)}'
+      ' --master'
+      ' --quiet'
+  )
+  xpk_print(
+      "Updating Pathways cluster's control plane version, may take a while!"
+  )
+  return_code = run_command_with_updates(
+      command,
+      'Pathways Cluster control plane version update to enable Cloud DNS',
+      args,
+  )
+  if return_code != 0:
+    xpk_print(
+        "Pathways cluster's control plane version update request returned"
+        f' ERROR {return_code}'
+    )
+    return 1
+  return 0
+
+
+def upgrade_pathways_node_pools_command(args) -> int:
   """Upgrade Pathways nodepools to use CloudDNS.
 
   Args:
@@ -2662,7 +2695,6 @@ def run_node_pool_upgrade_command(args) -> int:
     0 if successful and 1 otherwise.
   """
   existing_node_pool_names, return_code = get_all_nodepools_programmatic(args)
-  print(existing_node_pool_names)  # REMOVE
   if return_code != 0:
     xpk_print('Listing all node pools failed!')
     return return_code
@@ -3348,7 +3380,11 @@ def update_pathways_cluster_if_necessary(args) -> int:
     if cluster_update_return_code > 0:
       xpk_print('Updating Pathways cluster to use CloudDNS failed!')
       return cluster_update_return_code
-    node_pool_update_code = run_node_pool_upgrade_command(args)
+    upgrade_master_return_code = upgrade_control_plane_version(args)
+    if upgrade_master_return_code > 0:
+      xpk_print("Updating Pathways cluster's control plane upgrade failed!")
+      return upgrade_master_return_code
+    node_pool_update_code = upgrade_pathways_node_pools_command(args)
     if node_pool_update_code > 0:
       xpk_print('Updating Pathways nodepools to use CloudDNS failed!')
       return node_pool_update_code
@@ -5960,7 +5996,9 @@ def workload_create(args) -> None:
   add_zone_and_project(args)
 
   if args.use_pathways:
-    update_pathways_cluster_if_necessary(args)
+    update_cluster_command_code = update_pathways_cluster_if_necessary(args)
+    if update_cluster_command_code != 0:
+      xpk_exit(update_cluster_command_code)
 
   if args.command is None and not args.headless:
     xpk_print(

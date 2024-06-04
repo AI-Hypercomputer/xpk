@@ -5248,6 +5248,38 @@ def get_pathways_expected_tpu_type(device_type: str) -> str:
   return pathways_expected_instance
 
 
+def get_rm_address_based_on_clouddns(args) -> str:
+  """Generates the Pathways resource manager address based on whether CloudDNS is enabled or not.
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    str: Fully qualified RM address.
+  """
+  suffix = ''
+  if is_cluster_using_clouddns(args):
+    suffix = f'.default.svc.{args.cluster}-domain.'
+  rm_address = f'{args.workload}-rm-0-0.{args.workload}{suffix}:38677'
+  return rm_address
+
+
+def get_proxy_address_based_on_clouddns(args) -> str:
+  """Generates the Pathways proxy address based on whether CloudDNS is enabled or not.
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    str: Fully qualified proxy address.
+  """
+  suffix = ''
+  if is_cluster_using_clouddns(args):
+    suffix = f'.default.svc.{args.cluster}-domain.'
+  proxy_address = (
+      f'grpc://{args.workload}-proxy-0-0.{args.workload}{suffix}:38676'
+  )
+  return proxy_address
+
+
 def get_pathways_worker_args(args) -> str:
   """Arguments for the Pathways workers.
   Args:
@@ -5258,7 +5290,7 @@ def get_pathways_worker_args(args) -> str:
   """
   yaml = """- --alsologtostderr
               - --pathways_server_port=38677
-              - --pathways_resource_manager={args.workload}-rm-0-0.{args.workload}.default.svc.{args.cluster}-domain.:38677
+              - --pathways_resource_manager={rm_address}
               - --pathways_persistent_compilation_cache=false
               - --pathways_compilation_mode=compile_at_worker
               - --xla_tpu_enable_data_parallel_all_reduce_opt=true
@@ -5270,7 +5302,9 @@ def get_pathways_worker_args(args) -> str:
               - --xla_enable_async_all_gather=true
               - --pathways_tmp_dir_pattern={args.pathways_gcs_location}"""
   if args.use_pathways:
-    return yaml.format(args=args)
+    return yaml.format(
+        args=args, rm_address=get_rm_address_based_on_clouddns(args)
+    )
   else:
     return ''
 
@@ -5285,12 +5319,15 @@ def get_pathways_proxy_args(args) -> str:
   """
   yaml = """- --alsologtostderr
               - --v=0
-              - --pathways_ifrt_proxy_server_resource_manager={args.workload}-rm-0-0.{args.workload}.default.svc.{args.cluster}-domain.:38677
+              - --pathways_ifrt_proxy_server_resource_manager={rm_address}
               - --pathways_ifrt_proxy_server_port=38676
               - --pathways_tmp_dir_pattern={args.pathways_gcs_location}
               - --pathways_plaque_network=gcp"""
+
   if args.use_pathways:
-    return yaml.format(args=args)
+    return yaml.format(
+        args=args, rm_address=get_rm_address_based_on_clouddns(args)
+    )
   else:
     return ''
 
@@ -6011,20 +6048,19 @@ def workload_create(args) -> None:
   """
   add_zone_and_project(args)
 
-  # Update Pathways clusters with CloudDNS if not enabled already.
-  if args.use_pathways:
-    update_cluster_command_code = update_cluster_with_clouddns_if_necessary(
-        args
-    )
-    if update_cluster_command_code != 0:
-      xpk_exit(update_cluster_command_code)
-
   if args.command is None and not args.headless:
     xpk_print(
         'Please provide a command using "--command" for the docker container to'
         ' execute. Command is not required if you wish to run Pathways'
         ' workloads in headless mode (`xpk workload create-pathways'
         ' --headless`).'
+    )
+    xpk_exit(1)
+
+  if args.headless and not is_cluster_using_clouddns(args):
+    xpk_print(
+        'Please run xpk cluster create-pathways first, to upgrade and enable'
+        ' CloudDNS on your cluster.'
     )
     xpk_exit(1)
 
@@ -6141,7 +6177,7 @@ def workload_create(args) -> None:
       xpk_exit(1)
 
     # Set proxy address to be consumed in helper methods and displayed to user.
-    args.pathways_proxy_address = f'grpc://{args.workload}-proxy-0-0.{args.workload}.default.svc.{args.cluster}-domain.:38676'
+    args.pathways_proxy_address = get_proxy_address_based_on_clouddns(args)
 
     # Set the job which determines the life of other Pathways jobs
     args.targetReplicatedJob = 'proxy' if args.headless else 'main'

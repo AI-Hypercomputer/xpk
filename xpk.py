@@ -2652,11 +2652,12 @@ def update_cluster_with_clouddns(args) -> int:
   return 0
 
 
-def upgrade_control_plane_version(args) -> int:
+def upgrade_control_plane_version(args, default_rapid_gke_version) -> int:
   """Upgrade GKE cluster's control plane version before updating nodepools to use CloudDNS.
 
   Args:
     args: user provided arguments for running the command.
+    default_rapid_gke_version: Rapid default version for the upgrade.
 
   Returns:
     0 if successful and 1 otherwise.
@@ -2665,6 +2666,7 @@ def upgrade_control_plane_version(args) -> int:
       'gcloud container clusters upgrade'
       f' {args.cluster} --project={args.project}'
       f' --region={zone_to_region(args.zone)}'
+      f' --cluster-version={default_rapid_gke_version}'
       ' --master'
       ' --quiet'
   )
@@ -2683,11 +2685,12 @@ def upgrade_control_plane_version(args) -> int:
   return 0
 
 
-def upgrade_nodepools_with_clouddns(args) -> int:
+def upgrade_nodepools_with_clouddns(args, default_rapid_gke_version) -> int:
   """Upgrade nodepools to use CloudDNS.
 
   Args:
     args: user provided arguments for running the command.
+    default_rapid_gke_version: Rapid default version for the upgrade.
 
   Returns:
     0 if successful and 1 otherwise.
@@ -2705,6 +2708,7 @@ def upgrade_nodepools_with_clouddns(args) -> int:
         'gcloud container clusters upgrade'
         f' {args.cluster} --project={args.project}'
         f' --region={zone_to_region(args.zone)}'
+        f' --cluster-version={default_rapid_gke_version}'
         f' --node-pool={node_pool_name}'
         ' --quiet'
     )
@@ -3378,11 +3382,22 @@ def update_cluster_with_clouddns_if_necessary(args) -> int:
     if cluster_update_return_code > 0:
       xpk_print('Updating GKE cluster to use CloudDNS failed!')
       return cluster_update_return_code
-    upgrade_master_return_code = upgrade_control_plane_version(args)
+
+    # Find default rapid control plane version and update the control plane to the same.
+    server_config_return_code, gke_server_config = get_gke_server_config(args)
+    if server_config_return_code != 0:
+      xpk_exit(server_config_return_code)
+    upgrade_master_return_code = upgrade_control_plane_version(
+        args, gke_server_config.default_rapid_gke_version
+    )
     if upgrade_master_return_code > 0:
       xpk_print("Updating GKE cluster's control plane upgrade failed!")
       return upgrade_master_return_code
-    node_pool_update_code = upgrade_nodepools_with_clouddns(args)
+
+    # Upgrade nodepools with clouddns after the master upgrade.
+    node_pool_update_code = upgrade_nodepools_with_clouddns(
+        args, gke_server_config.default_rapid_gke_version
+    )
     if node_pool_update_code > 0:
       xpk_print('Upgrading nodepools to use CloudDNS failed!')
       return node_pool_update_code

@@ -3330,13 +3330,13 @@ def create_cluster_if_necessary(
     )
 
 
-def is_cluster_using_clouddns(args) -> int:
+def is_cluster_using_clouddns(args) -> bool:
   """Checks if cluster is using CloudDNS.
   Args:
     args: user provided arguments for running the command.
 
   Returns:
-    0 if cluster is using CloudDNS and 1 otherwise.
+    True if cluster is using CloudDNS and False otherwise.
   """
   command = (
       f'gcloud container clusters describe {args.cluster}'
@@ -3353,8 +3353,8 @@ def is_cluster_using_clouddns(args) -> int:
   cloud_dns_matches = int(cloud_dns_matches)
   if cloud_dns_matches > 0:
     xpk_print('Cloud DNS is enabled on the cluster, no update needed.')
-    return 0
-  return 1
+    return True
+  return False
 
 
 def update_cluster_with_clouddns_if_necessary(args) -> int:
@@ -3364,7 +3364,7 @@ def update_cluster_with_clouddns_if_necessary(args) -> int:
     args: user provided arguments for running the command.
 
   Returns:
-    0 if successful and 1 otherwise.
+    0 if successful and error code otherwise.
   """
   all_clusters, return_code = get_all_clusters_programmatic(args)
   if return_code > 0:
@@ -3372,7 +3372,7 @@ def update_cluster_with_clouddns_if_necessary(args) -> int:
     return 1
   if args.cluster in all_clusters:
     # If cluster is already using clouddns, no update necessary!
-    if is_cluster_using_clouddns(args) == 0:
+    if is_cluster_using_clouddns(args):
       return 0
     cluster_update_return_code = update_cluster_with_clouddns(args)
     if cluster_update_return_code > 0:

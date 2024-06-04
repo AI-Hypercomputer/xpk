@@ -2624,8 +2624,8 @@ def run_gke_cluster_create_command(
   return 0
 
 
-def run_gke_pathways_cluster_update_command(args) -> int:
-  """Run the Pathways cluster update command for existing clusters.
+def update_cluster_with_clouddns(args) -> int:
+  """Run the GKE cluster update command for existing clusters and enable CloudDNS.
 
   Args:
     args: user provided arguments for running the command.
@@ -2642,18 +2642,18 @@ def run_gke_pathways_cluster_update_command(args) -> int:
       f' --cluster-dns-domain={args.cluster}-domain'
       ' --quiet'
   )
-  xpk_print('Updating Pathways cluster to use Cloud DNS, may take a while!')
+  xpk_print('Updating GKE cluster to use Cloud DNS, may take a while!')
   return_code = run_command_with_updates(
-      command, 'Pathways Cluster Update to enable Cloud DNS', args
+      command, 'GKE Cluster Update to enable Cloud DNS', args
   )
   if return_code != 0:
-    xpk_print(f'Pathways Cluster Update request returned ERROR {return_code}')
+    xpk_print(f'GKE Cluster Update request returned ERROR {return_code}')
     return 1
   return 0
 
 
 def upgrade_control_plane_version(args) -> int:
-  """Upgrade Pathways cluster's control plane version before updating Pathways nodepools to use CloudDNS.
+  """Upgrade GKE cluster's control plane version before updating nodepools to use CloudDNS.
 
   Args:
     args: user provided arguments for running the command.
@@ -2668,25 +2668,23 @@ def upgrade_control_plane_version(args) -> int:
       ' --master'
       ' --quiet'
   )
-  xpk_print(
-      "Updating Pathways cluster's control plane version, may take a while!"
-  )
+  xpk_print("Updating GKE cluster's control plane version, may take a while!")
   return_code = run_command_with_updates(
       command,
-      'Pathways Cluster control plane version update to enable Cloud DNS',
+      'GKE Cluster control plane version update to enable Cloud DNS',
       args,
   )
   if return_code != 0:
     xpk_print(
-        "Pathways cluster's control plane version update request returned"
+        "GKE cluster's control plane version update request returned"
         f' ERROR {return_code}'
     )
     return 1
   return 0
 
 
-def upgrade_pathways_node_pools_command(args) -> int:
-  """Upgrade Pathways nodepools to use CloudDNS.
+def upgrade_nodepools_with_clouddns(args) -> int:
+  """Upgrade nodepools to use CloudDNS.
 
   Args:
     args: user provided arguments for running the command.
@@ -3359,8 +3357,8 @@ def is_cluster_using_clouddns(args) -> int:
   return 1
 
 
-def update_pathways_cluster_if_necessary(args) -> int:
-  """Updates a Pathways cluster to use CloudDNS.
+def update_cluster_with_clouddns_if_necessary(args) -> int:
+  """Updates a GKE cluster to use CloudDNS, if not enabled already.
 
   Args:
     args: user provided arguments for running the command.
@@ -3376,17 +3374,17 @@ def update_pathways_cluster_if_necessary(args) -> int:
     # If cluster is already using clouddns, no update necessary!
     if is_cluster_using_clouddns(args) == 0:
       return 0
-    cluster_update_return_code = run_gke_pathways_cluster_update_command(args)
+    cluster_update_return_code = update_cluster_with_clouddns(args)
     if cluster_update_return_code > 0:
-      xpk_print('Updating Pathways cluster to use CloudDNS failed!')
+      xpk_print('Updating GKE cluster to use CloudDNS failed!')
       return cluster_update_return_code
     upgrade_master_return_code = upgrade_control_plane_version(args)
     if upgrade_master_return_code > 0:
-      xpk_print("Updating Pathways cluster's control plane upgrade failed!")
+      xpk_print("Updating GKE cluster's control plane upgrade failed!")
       return upgrade_master_return_code
-    node_pool_update_code = upgrade_pathways_node_pools_command(args)
+    node_pool_update_code = upgrade_nodepools_with_clouddns(args)
     if node_pool_update_code > 0:
-      xpk_print('Updating Pathways nodepools to use CloudDNS failed!')
+      xpk_print('Upgrading nodepools to use CloudDNS failed!')
       return node_pool_update_code
   return 0
 
@@ -4411,8 +4409,11 @@ def cluster_create(args) -> None:
   if create_cluster_command_code != 0:
     xpk_exit(create_cluster_command_code)
 
+  # Update Pathways clusters with CloudDNS if not enabled already.
   if args.enable_pathways:
-    update_cluster_command_code = update_pathways_cluster_if_necessary(args)
+    update_cluster_command_code = update_cluster_with_clouddns_if_necessary(
+        args
+    )
     if update_cluster_command_code != 0:
       xpk_exit(update_cluster_command_code)
 
@@ -5995,8 +5996,11 @@ def workload_create(args) -> None:
   """
   add_zone_and_project(args)
 
+  # Update Pathways clusters with CloudDNS if not enabled already.
   if args.use_pathways:
-    update_cluster_command_code = update_pathways_cluster_if_necessary(args)
+    update_cluster_command_code = update_cluster_with_clouddns_if_necessary(
+        args
+    )
     if update_cluster_command_code != 0:
       xpk_exit(update_cluster_command_code)
 

@@ -5922,9 +5922,9 @@ def get_autoprovisioning_node_selector_args(args) -> tuple[str, int]:
   return node_selector_args, return_code
 
 
-def get_gpu_scheduler(args,
-                      system: SystemCharacteristics,
-                      autoprovisioning_args: str) -> str:
+def get_gpu_scheduler(
+    args, system: SystemCharacteristics, autoprovisioning_args: str
+) -> str:
   """Get gpu scheduler configuration.
 
   Args:
@@ -5934,20 +5934,22 @@ def get_gpu_scheduler(args,
 
   Returns:
     str: yaml containing gpu scheduler configuration
-  """ 
+  """
   if args.scheduler == 'gke.io/topology-aware-auto':
     gpu_scheduler = f"""schedulingGates:
               - name: "{args.scheduler}-{args.workload}"
               """
   else:
     gpu_scheduler = gpu_scheduler_yaml.format(
-      scheduler_name=args.scheduler,
-      accelerator_label=create_accelerator_label(system.accelerator_type, system),
-      machine_label=create_machine_label(system.accelerator_type, system),
-      node_pool_name=f'{args.cluster}-np-0',
-      autoprovisioning_args=autoprovisioning_args
+        scheduler_name=args.scheduler,
+        accelerator_label=create_accelerator_label(
+            system.accelerator_type, system
+        ),
+        machine_label=create_machine_label(system.accelerator_type, system),
+        node_pool_name=f'{args.cluster}-np-0',
+        autoprovisioning_args=autoprovisioning_args,
     )
-  
+
   return gpu_scheduler
 
 
@@ -7854,11 +7856,11 @@ workload_create_parser_optional_arguments.add_argument(
     type=str,
     default='default-scheduler',
     help=(
-        'Which scheduler you want to use. Defaults to `default-scheduler`. '
-        'If your cluster is configured for high throughput scheduling, you might '
-        'want to use `gke.io/high-throughput-scheduler`.'
-        'If your cluster is configured for topology-aware scheduling, you might '
-        'want to use `gke.io/topology-aware-auto`.'
+        'Which scheduler you want to use. Defaults to `default-scheduler`. If'
+        ' your cluster is configured for high throughput scheduling, you might'
+        ' want to use `gke.io/high-throughput-scheduler`.If your cluster is'
+        ' configured for topology-aware scheduling, you might want to use'
+        ' `gke.io/topology-aware-auto`.'
     ),
 )
 workload_create_parser_optional_arguments.add_argument(

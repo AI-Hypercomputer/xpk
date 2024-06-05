@@ -5030,10 +5030,6 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
     )
 
   xpk_return_user_exit_code = ''
-  # Always report user code failures back to JobSet.
-  if args.use_pathways:
-    args.restart_on_user_code_failure = True
-
   if args.restart_on_user_code_failure:
     if int(args.max_restarts) <= 0:
       xpk_print(
@@ -5407,17 +5403,11 @@ def get_user_workload_for_pathways(args, system: SystemCharacteristics) -> str:
                 path: /tmp
                 type: DirectoryOrCreate
               name: shared-tmp"""
-  if args.use_pathways and not args.headless:
-    if not args.command:
-      xpk_print(
-          'Please provide a command, if you wish to use Pathways with a docker'
-          ' container.'
-      )
-      xpk_exit(1)
+  if args.headless:
+    return ''
+  else:
     container, _ = get_user_workload_container(args, system)
     return user_workload_yaml.format(args=args, container=container)
-  else:
-    return ''
 
 
 def get_env_container(args, system: SystemCharacteristics):
@@ -6049,15 +6039,6 @@ def workload_create(args) -> None:
   """
   add_zone_and_project(args)
 
-  if args.command is None and not args.headless:
-    xpk_print(
-        'Please provide a command using "--command" for the docker container to'
-        ' execute. Command is not required if you wish to run Pathways'
-        ' workloads in headless mode (`xpk workload create-pathways'
-        ' --headless`).'
-    )
-    xpk_exit(1)
-
   if args.headless and not is_cluster_using_clouddns(args):
     xpk_print(
         'Please run xpk cluster create-pathways first, to upgrade and enable'
@@ -6161,28 +6142,9 @@ def workload_create(args) -> None:
         gpu_rxdm_cmd=get_gpu_rxdm_cmd(system),
         gpu_tcp_volume=get_gpu_tcp_volume(system),
     )
-  elif args.use_pathways:
-    # Ensure the cluster and CPU nodepools were created with create-pathways
-    all_node_pools = get_all_nodepools_programmatic(args)
-    desired_pw_cpu_node_pools = {'cpu-user-np', 'cpu-rm-np', 'cpu-proxy-np'}
-    if not desired_pw_cpu_node_pools.issubset(set(all_node_pools[0])):
-      xpk_print(
-          'Cluster needs to be created with `xpk create-pathways` to run'
-          ' Pathways workloads.'
-      )
-      xpk_exit(1)
-
-    # Ensure device type is TPUs - currently Pathways supports TPUs only.
-    if system.accelerator_type != AcceleratorType['TPU']:
-      xpk_print('Currently, Pathways workloads can only be run on TPUs.')
-      xpk_exit(1)
-
-    # Set proxy address to be consumed in helper methods and displayed to user.
-    args.pathways_proxy_address = get_proxy_address(args)
-
-    # Set the job which determines the life of other Pathways jobs
-    args.targetReplicatedJob = 'proxy' if args.headless else 'main'
-
+  elif args.use_pathways and ensure_pathways_workload_prerequisites(
+      args, system
+  ):
     yml_string = pw_workload_create_yaml.format(
         args=args,
         system=system,
@@ -6275,6 +6237,53 @@ def workload_create(args) -> None:
     )
 
   xpk_exit(0)
+
+
+def ensure_pathways_workload_prerequisites(args, system) -> bool:
+  """Check all Pathways workload prerequisites and set necessary args.
+
+  Args:
+    args: user provided arguments for running the command.
+    system: system characteristics.
+
+  Returns:
+    True once conditions satisfy and variables are set. Exits otherwise.
+  """
+  # Ensure command is provided if not using Pathways in headless mode
+  if args.command is None and not args.headless:
+    xpk_print(
+        'Please provide a command using "--command" for the docker container to'
+        ' execute. Command is not required if you wish to run Pathways'
+        ' workloads in headless mode (`xpk workload create-pathways'
+        ' --headless`).'
+    )
+    xpk_exit(1)
+
+  # Ensure the cluster and CPU nodepools were created with create-pathways
+  all_node_pools = get_all_nodepools_programmatic(args)
+  desired_pw_cpu_node_pools = {'cpu-user-np', 'cpu-rm-np', 'cpu-proxy-np'}
+  if not desired_pw_cpu_node_pools.issubset(set(all_node_pools[0])):
+    xpk_print(
+        'Cluster needs to be created with `xpk create-pathways` to run'
+        ' Pathways workloads.'
+    )
+    xpk_exit(1)
+
+  # Ensure device type is TPUs - currently Pathways supports TPUs only.
+  if system.accelerator_type != AcceleratorType['TPU']:
+    xpk_print('Currently, Pathways workloads can only be run on TPUs.')
+    xpk_exit(1)
+
+  # Set proxy address to be consumed in helper methods and displayed to user.
+  args.pathways_proxy_address = get_proxy_address(args)
+
+  # Set the job which determines the life of other Pathways jobs
+  args.targetReplicatedJob = 'proxy' if args.headless else 'main'
+
+  # Always report user code failures back to JobSet.
+  args.restart_on_user_code_failure = True
+
+  return True
 
 
 def workload_delete(args) -> None:

@@ -2624,7 +2624,7 @@ def run_gke_cluster_create_command(
   return 0
 
 
-def update_cluster_with_clouddns(args) -> int:
+def update_gke_cluster_with_clouddns(args) -> int:
   """Run the GKE cluster update command for existing clusters and enable CloudDNS.
 
   Args:
@@ -2652,7 +2652,7 @@ def update_cluster_with_clouddns(args) -> int:
   return 0
 
 
-def upgrade_control_plane_version(args, default_rapid_gke_version) -> int:
+def upgrade_gke_control_plane_version(args, default_rapid_gke_version) -> int:
   """Upgrade GKE cluster's control plane version before updating nodepools to use CloudDNS.
 
   Args:
@@ -2685,8 +2685,8 @@ def upgrade_control_plane_version(args, default_rapid_gke_version) -> int:
   return 0
 
 
-def upgrade_nodepools_with_clouddns(args, default_rapid_gke_version) -> int:
-  """Upgrade nodepools to use CloudDNS.
+def upgrade_gke_nodepools_version(args, default_rapid_gke_version) -> int:
+  """Upgrade nodepools in the cluster to default rapid gke version. Recreates the nodes.
 
   Args:
     args: user provided arguments for running the command.
@@ -2700,7 +2700,7 @@ def upgrade_nodepools_with_clouddns(args, default_rapid_gke_version) -> int:
     xpk_print('Listing all node pools failed!')
     return return_code
 
-  # Batch execution to upgrade Pathways node pools simultaneously
+  # Batch execution to upgrade node pools simultaneously
   commands = []
   task_names = []
   for node_pool_name in existing_node_pool_names:
@@ -2712,16 +2712,17 @@ def upgrade_nodepools_with_clouddns(args, default_rapid_gke_version) -> int:
         f' --node-pool={node_pool_name}'
         ' --quiet'
     )
-    task_names.append(f'Update node pool {node_pool_name} to use CloudDNS.')
+    task_names.append(f'Upgrading node pool {node_pool_name}.')
 
   for i, command in enumerate(commands):
     xpk_print(f'To complete {task_names[i]} we are executing {command}')
   max_return_code = run_commands(
-      commands, 'Update node pools to use CloudDNS', task_names
+      commands, 'Update GKE node pools to default RAPID GKE version', task_names
   )
   if max_return_code != 0:
     xpk_print(
-        f'Update node pools to use CloudDNS returned ERROR: {max_return_code}'
+        'GKE node pools update to default RAPID GKE version returned ERROR:'
+        f' {max_return_code}'
     )
     return max_return_code
   return 0
@@ -3378,7 +3379,7 @@ def update_cluster_with_clouddns_if_necessary(args) -> int:
     # If cluster is already using clouddns, no update necessary!
     if is_cluster_using_clouddns(args):
       return 0
-    cluster_update_return_code = update_cluster_with_clouddns(args)
+    cluster_update_return_code = update_gke_cluster_with_clouddns(args)
     if cluster_update_return_code > 0:
       xpk_print('Updating GKE cluster to use CloudDNS failed!')
       return cluster_update_return_code
@@ -3387,19 +3388,19 @@ def update_cluster_with_clouddns_if_necessary(args) -> int:
     server_config_return_code, gke_server_config = get_gke_server_config(args)
     if server_config_return_code != 0:
       xpk_exit(server_config_return_code)
-    upgrade_master_return_code = upgrade_control_plane_version(
+    upgrade_master_return_code = upgrade_gke_control_plane_version(
         args, gke_server_config.default_rapid_gke_version
     )
     if upgrade_master_return_code > 0:
       xpk_print("Updating GKE cluster's control plane upgrade failed!")
       return upgrade_master_return_code
 
-    # Upgrade nodepools with clouddns after the master upgrade.
-    node_pool_update_code = upgrade_nodepools_with_clouddns(
+    # Upgrade nodepools version after the master upgrade.
+    node_pool_update_code = upgrade_gke_nodepools_version(
         args, gke_server_config.default_rapid_gke_version
     )
     if node_pool_update_code > 0:
-      xpk_print('Upgrading nodepools to use CloudDNS failed!')
+      xpk_print('Upgrading nodepools version failed!')
       return node_pool_update_code
   return 0
 
@@ -5248,7 +5249,7 @@ def get_pathways_expected_tpu_type(device_type: str) -> str:
   return pathways_expected_instance
 
 
-def get_rm_address_based_on_clouddns(args) -> str:
+def get_rm_address(args) -> str:
   """Generates the Pathways resource manager address based on whether CloudDNS is enabled or not.
   Args:
     args: user provided arguments for running the command.
@@ -5263,7 +5264,7 @@ def get_rm_address_based_on_clouddns(args) -> str:
   return rm_address
 
 
-def get_proxy_address_based_on_clouddns(args) -> str:
+def get_proxy_address(args) -> str:
   """Generates the Pathways proxy address based on whether CloudDNS is enabled or not.
   Args:
     args: user provided arguments for running the command.
@@ -5302,9 +5303,7 @@ def get_pathways_worker_args(args) -> str:
               - --xla_enable_async_all_gather=true
               - --pathways_tmp_dir_pattern={args.pathways_gcs_location}"""
   if args.use_pathways:
-    return yaml.format(
-        args=args, rm_address=get_rm_address_based_on_clouddns(args)
-    )
+    return yaml.format(args=args, rm_address=get_rm_address(args))
   else:
     return ''
 
@@ -5325,9 +5324,7 @@ def get_pathways_proxy_args(args) -> str:
               - --pathways_plaque_network=gcp"""
 
   if args.use_pathways:
-    return yaml.format(
-        args=args, rm_address=get_rm_address_based_on_clouddns(args)
-    )
+    return yaml.format(args=args, rm_address=get_rm_address(args))
   else:
     return ''
 
@@ -6177,7 +6174,7 @@ def workload_create(args) -> None:
       xpk_exit(1)
 
     # Set proxy address to be consumed in helper methods and displayed to user.
-    args.pathways_proxy_address = get_proxy_address_based_on_clouddns(args)
+    args.pathways_proxy_address = get_proxy_address(args)
 
     # Set the job which determines the life of other Pathways jobs
     args.targetReplicatedJob = 'proxy' if args.headless else 'main'

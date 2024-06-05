@@ -2624,6 +2624,110 @@ def run_gke_cluster_create_command(
   return 0
 
 
+def update_gke_cluster_with_clouddns(args) -> int:
+  """Run the GKE cluster update command for existing clusters and enable CloudDNS.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  command = (
+      'gcloud container clusters update'
+      f' {args.cluster} --project={args.project}'
+      f' --region={zone_to_region(args.zone)}'
+      ' --cluster-dns=clouddns'
+      ' --cluster-dns-scope=vpc'
+      f' --cluster-dns-domain={args.cluster}-domain'
+      ' --quiet'
+  )
+  xpk_print('Updating GKE cluster to use Cloud DNS, may take a while!')
+  return_code = run_command_with_updates(
+      command, 'GKE Cluster Update to enable Cloud DNS', args
+  )
+  if return_code != 0:
+    xpk_print(f'GKE Cluster Update request returned ERROR {return_code}')
+    return 1
+  return 0
+
+
+def upgrade_gke_control_plane_version(args, default_rapid_gke_version) -> int:
+  """Upgrade GKE cluster's control plane version before updating nodepools to use CloudDNS.
+
+  Args:
+    args: user provided arguments for running the command.
+    default_rapid_gke_version: Rapid default version for the upgrade.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  command = (
+      'gcloud container clusters upgrade'
+      f' {args.cluster} --project={args.project}'
+      f' --region={zone_to_region(args.zone)}'
+      f' --cluster-version={default_rapid_gke_version}'
+      ' --master'
+      ' --quiet'
+  )
+  xpk_print("Updating GKE cluster's control plane version, may take a while!")
+  return_code = run_command_with_updates(
+      command,
+      'GKE Cluster control plane version update to enable Cloud DNS',
+      args,
+  )
+  if return_code != 0:
+    xpk_print(
+        "GKE cluster's control plane version update request returned"
+        f' ERROR {return_code}'
+    )
+    return 1
+  return 0
+
+
+def upgrade_gke_nodepools_version(args, default_rapid_gke_version) -> int:
+  """Upgrade nodepools in the cluster to default rapid gke version. Recreates the nodes.
+
+  Args:
+    args: user provided arguments for running the command.
+    default_rapid_gke_version: Rapid default version for the upgrade.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  existing_node_pool_names, return_code = get_all_nodepools_programmatic(args)
+  if return_code != 0:
+    xpk_print('Listing all node pools failed!')
+    return return_code
+
+  # Batch execution to upgrade node pools simultaneously
+  commands = []
+  task_names = []
+  for node_pool_name in existing_node_pool_names:
+    commands.append(
+        'gcloud container clusters upgrade'
+        f' {args.cluster} --project={args.project}'
+        f' --region={zone_to_region(args.zone)}'
+        f' --cluster-version={default_rapid_gke_version}'
+        f' --node-pool={node_pool_name}'
+        ' --quiet'
+    )
+    task_names.append(f'Upgrading node pool {node_pool_name}.')
+
+  for i, command in enumerate(commands):
+    xpk_print(f'To complete {task_names[i]} we are executing {command}')
+  max_return_code = run_commands(
+      commands, 'Update GKE node pools to default RAPID GKE version', task_names
+  )
+  if max_return_code != 0:
+    xpk_print(
+        'GKE node pools update to default RAPID GKE version returned ERROR:'
+        f' {max_return_code}'
+    )
+    return max_return_code
+  return 0
+
+
 def set_up_cluster_network_for_gpu(args, system: SystemCharacteristics) -> int:
   """Set up GKE Cluster networks, subnets and firewall rules for A3/A3+.
   Note: there are 4 NICs for GPU-GPU bw and 1 NIC for host in an A3 node,
@@ -3229,6 +3333,76 @@ def create_cluster_if_necessary(
     return run_gke_cluster_create_command(
         args, gke_control_plane_version, system
     )
+
+
+def is_cluster_using_clouddns(args) -> bool:
+  """Checks if cluster is using CloudDNS.
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    True if cluster is using CloudDNS and False otherwise.
+  """
+  command = (
+      f'gcloud container clusters describe {args.cluster}'
+      f' --project={args.project} --region={zone_to_region(args.zone)}'
+      ' | grep "clusterDns: CLOUD_DNS" | wc -l'
+  )
+  return_code, cloud_dns_matches = run_command_for_value(
+      command,
+      'Check if Cloud DNS is enabled in cluster describe.',
+      args,
+  )
+  if return_code != 0:
+    xpk_exit(return_code)
+  cloud_dns_matches = int(cloud_dns_matches)
+  if cloud_dns_matches > 0:
+    xpk_print('Cloud DNS is enabled on the cluster, no update needed.')
+    return True
+  return False
+
+
+def update_cluster_with_clouddns_if_necessary(args) -> int:
+  """Updates a GKE cluster to use CloudDNS, if not enabled already.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and error code otherwise.
+  """
+  all_clusters, return_code = get_all_clusters_programmatic(args)
+  if return_code > 0:
+    xpk_print('Listing all clusters failed!')
+    return 1
+  if args.cluster in all_clusters:
+    # If cluster is already using clouddns, no update necessary!
+    if is_cluster_using_clouddns(args):
+      return 0
+    cluster_update_return_code = update_gke_cluster_with_clouddns(args)
+    if cluster_update_return_code > 0:
+      xpk_print('Updating GKE cluster to use CloudDNS failed!')
+      return cluster_update_return_code
+
+    # Find default rapid control plane version and update the control plane to the same.
+    server_config_return_code, gke_server_config = get_gke_server_config(args)
+    if server_config_return_code != 0:
+      xpk_exit(server_config_return_code)
+    upgrade_master_return_code = upgrade_gke_control_plane_version(
+        args, gke_server_config.default_rapid_gke_version
+    )
+    if upgrade_master_return_code > 0:
+      xpk_print("Updating GKE cluster's control plane upgrade failed!")
+      return upgrade_master_return_code
+
+    # Upgrade nodepools version after the master upgrade.
+    node_pool_update_code = upgrade_gke_nodepools_version(
+        args, gke_server_config.default_rapid_gke_version
+    )
+    if node_pool_update_code > 0:
+      xpk_print('Upgrading nodepools version failed!')
+      return node_pool_update_code
+  return 0
 
 
 def get_nodepool_zone(args, nodepool_name) -> tuple[int, str]:
@@ -4251,6 +4425,14 @@ def cluster_create(args) -> None:
   if create_cluster_command_code != 0:
     xpk_exit(create_cluster_command_code)
 
+  # Update Pathways clusters with CloudDNS if not enabled already.
+  if args.enable_pathways:
+    update_cluster_command_code = update_cluster_with_clouddns_if_necessary(
+        args
+    )
+    if update_cluster_command_code != 0:
+      xpk_exit(update_cluster_command_code)
+
   set_cluster_command_code = set_cluster_command(args)
   if set_cluster_command_code != 0:
     xpk_exit(set_cluster_command_code)
@@ -5067,6 +5249,38 @@ def get_pathways_expected_tpu_type(device_type: str) -> str:
   return pathways_expected_instance
 
 
+def get_rm_address(args) -> str:
+  """Generates the Pathways resource manager address based on whether CloudDNS is enabled or not.
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    str: Fully qualified RM address.
+  """
+  suffix = ''
+  if is_cluster_using_clouddns(args):
+    suffix = f'.default.svc.{args.cluster}-domain.'
+  rm_address = f'{args.workload}-rm-0-0.{args.workload}{suffix}:38677'
+  return rm_address
+
+
+def get_proxy_address(args) -> str:
+  """Generates the Pathways proxy address based on whether CloudDNS is enabled or not.
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    str: Fully qualified proxy address.
+  """
+  suffix = ''
+  if is_cluster_using_clouddns(args):
+    suffix = f'.default.svc.{args.cluster}-domain.'
+  proxy_address = (
+      f'grpc://{args.workload}-proxy-0-0.{args.workload}{suffix}:38676'
+  )
+  return proxy_address
+
+
 def get_pathways_worker_args(args) -> str:
   """Arguments for the Pathways workers.
   Args:
@@ -5077,7 +5291,7 @@ def get_pathways_worker_args(args) -> str:
   """
   yaml = """- --alsologtostderr
               - --pathways_server_port=38677
-              - --pathways_resource_manager={args.workload}-rm-0-0.{args.workload}.default.svc.{args.cluster}-domain.:38677
+              - --pathways_resource_manager={rm_address}
               - --pathways_persistent_compilation_cache=false
               - --pathways_compilation_mode=compile_at_worker
               - --xla_tpu_enable_data_parallel_all_reduce_opt=true
@@ -5089,7 +5303,7 @@ def get_pathways_worker_args(args) -> str:
               - --xla_enable_async_all_gather=true
               - --pathways_tmp_dir_pattern={args.pathways_gcs_location}"""
   if args.use_pathways:
-    return yaml.format(args=args)
+    return yaml.format(args=args, rm_address=get_rm_address(args))
   else:
     return ''
 
@@ -5104,12 +5318,13 @@ def get_pathways_proxy_args(args) -> str:
   """
   yaml = """- --alsologtostderr
               - --v=0
-              - --pathways_ifrt_proxy_server_resource_manager={args.workload}-rm-0-0.{args.workload}.default.svc.{args.cluster}-domain.:38677
+              - --pathways_ifrt_proxy_server_resource_manager={rm_address}
               - --pathways_ifrt_proxy_server_port=38676
               - --pathways_tmp_dir_pattern={args.pathways_gcs_location}
               - --pathways_plaque_network=gcp"""
+
   if args.use_pathways:
-    return yaml.format(args=args)
+    return yaml.format(args=args, rm_address=get_rm_address(args))
   else:
     return ''
 
@@ -5829,12 +6044,20 @@ def workload_create(args) -> None:
     0 if successful and 1 otherwise.
   """
   add_zone_and_project(args)
+
   if args.command is None and not args.headless:
     xpk_print(
         'Please provide a command using "--command" for the docker container to'
         ' execute. Command is not required if you wish to run Pathways'
         ' workloads in headless mode (`xpk workload create-pathways'
         ' --headless`).'
+    )
+    xpk_exit(1)
+
+  if args.headless and not is_cluster_using_clouddns(args):
+    xpk_print(
+        'Please run xpk cluster create-pathways first, to upgrade and enable'
+        ' CloudDNS on your cluster.'
     )
     xpk_exit(1)
 
@@ -5951,7 +6174,7 @@ def workload_create(args) -> None:
       xpk_exit(1)
 
     # Set proxy address to be consumed in helper methods and displayed to user.
-    args.pathways_proxy_address = f'grpc://{args.workload}-proxy-0-0.{args.workload}.default.svc.{args.cluster}-domain.:38676'
+    args.pathways_proxy_address = get_proxy_address(args)
 
     # Set the job which determines the life of other Pathways jobs
     args.targetReplicatedJob = 'proxy' if args.headless else 'main'

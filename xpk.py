@@ -5030,7 +5030,11 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
     )
 
   xpk_return_user_exit_code = ''
-  if not args.use_pathways and args.restart_on_user_code_failure:
+  # Always report user code failures back to JobSet.
+  if args.use_pathways:
+    args.restart_on_user_code_failure = True
+
+  if args.restart_on_user_code_failure:
     if int(args.max_restarts) <= 0:
       xpk_print(
           f'Warning: --max-restarts, is set to {args.max_restarts}. Will not'
@@ -7217,6 +7221,16 @@ def add_shared_workload_create_optional_arguments(args_parsers):
         ),
     )
     custom_parser.add_argument(
+        '--restart-on-user-code-failure',
+        action='store_true',
+        help=(
+            'Adding this argument will return user failures back to the jobset'
+            ' manager allowing restarts on user code when --max-restarts is set'
+            ' greater than 0. By default, this is not enabled, and workloads'
+            ' will not restart from user code failures.'
+        ),
+    )
+    custom_parser.add_argument(
         '--headless',
         action='store_true',
         help=(
@@ -7823,16 +7837,6 @@ workload_create_parser_optional_arguments.add_argument(
         'Add this argument to deploy a sidecar container that will '
         'read the stack traces collected in /tmp/debugging directory '
         'and forward them to Cloud Logging for TPU workloads.'
-    ),
-)
-workload_create_parser_optional_arguments.add_argument(
-    '--restart-on-user-code-failure',
-    action='store_true',
-    help=(
-        'Adding this argument will return user failures back to the jobset'
-        ' manager allowing restarts on user code when --max-restarts is set'
-        ' greater than 0. By default, this is not enabled, and workloads will'
-        ' not restart from user code failures.'
     ),
 )
 

@@ -7236,7 +7236,8 @@ def add_shared_workload_create_optional_arguments(args_parsers):
             'Adding this argument will return user failures back to the jobset'
             ' manager allowing restarts on user code when --max-restarts is set'
             ' greater than 0. By default, this is not enabled, and workloads'
-            ' will not restart from user code failures.'
+            ' will not restart from user code failures. This is enabled by'
+            ' default on Pathways workloads.'
         ),
     )
     custom_parser.add_argument(

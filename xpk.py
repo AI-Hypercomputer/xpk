@@ -5924,7 +5924,7 @@ def get_autoprovisioning_node_selector_args(args) -> tuple[str, int]:
 
 def get_gpu_scheduler(
     args, system: SystemCharacteristics, autoprovisioning_args: str
-) -> str:
+) -> tuple[str, int]:
   """Get gpu scheduler configuration.
 
   Args:
@@ -5934,12 +5934,16 @@ def get_gpu_scheduler(
 
   Returns:
     str: yaml containing gpu scheduler configuration
+    int of 0 if successful and 1 otherwise.
   """
+  gpu_scheduler = ''
+  return_code = 0
+
   if args.scheduler == 'gke.io/topology-aware-auto':
     gpu_scheduler = f"""schedulingGates:
               - name: "{args.scheduler}-{args.workload}"
               """
-  else:
+  elif args.scheduler == 'default-scheduler':
     gpu_scheduler = gpu_scheduler_yaml.format(
         scheduler_name=args.scheduler,
         accelerator_label=create_accelerator_label(
@@ -5949,8 +5953,15 @@ def get_gpu_scheduler(
         node_pool_name=f'{args.cluster}-np-0',
         autoprovisioning_args=autoprovisioning_args,
     )
+  else:
+    return_code = 1
+    xpk_print(
+        '--scheduler needs to be set as either `default-scheduler`'
+        ' or `gke.io/topology-aware-auto` in order to schedule the'
+        ' workloads on GPUs.'
+    )
 
-  return gpu_scheduler
+  return gpu_scheduler, return_code
 
 
 def get_gpu_volume(system: SystemCharacteristics) -> str:
@@ -6161,12 +6172,18 @@ def workload_create(args) -> None:
     container, debugging_dashboard_id = get_user_workload_container(
         args, system
     )
+    gpu_scheduler, return_code = get_gpu_scheduler(
+        args, system, autoprovisioning_args
+    )
+    if return_code != 0:
+      xpk_exit(return_code)
+
     yml_string = gpu_workload_create_yaml.format(
         args=args,
         container=container,
         command=args.command,
         chips_per_vm=system.chips_per_vm,
-        gpu_scheduler=get_gpu_scheduler(args, system, autoprovisioning_args),
+        gpu_scheduler=gpu_scheduler,
         gpu_volume=get_gpu_volume(system),
         gpu_rxdm_image=get_gpu_rxdm_image(system),
         gpu_rxdm_cmd=get_gpu_rxdm_cmd(system),

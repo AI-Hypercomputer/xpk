@@ -138,6 +138,24 @@ spec:
               {volumes}
 """
 
+gpu_scheduler_yaml = """schedulerName: {scheduler_name}
+              affinity:
+                nodeAffinity:
+                  requiredDuringSchedulingIgnoredDuringExecution:
+                    nodeSelectorTerms:
+                    - matchExpressions:
+                      - key: cloud.google.com/gke-accelerator
+                        operator: Exists
+                      - key: cloud.google.com/gke-nodepool
+                        operator: In
+                        values: [{node_pool_name}]
+              nodeSelector:
+                {accelerator_label}
+                {machine_label}
+                {autoprovisioning_args}
+              """
+
+
 gpu_workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
 metadata:
@@ -161,23 +179,9 @@ spec:
               labels:
                 xpk.google.com/workload: {args.workload}
             spec:
-              schedulerName: {args.scheduler}
-              restartPolicy: Never
-              affinity:
-                nodeAffinity:
-                  requiredDuringSchedulingIgnoredDuringExecution:
-                    nodeSelectorTerms:
-                    - matchExpressions:
-                      - key: cloud.google.com/gke-accelerator
-                        operator: Exists
-                      - key: cloud.google.com/gke-nodepool
-                        operator: In
-                        values: [{node_pool_name}]
-              nodeSelector:
-                {accelerator_label}
-                {machine_label}
-                {autoprovisioning_args}
+              {gpu_scheduler}
               priorityClassName: {args.priority}
+              restartPolicy: Never
               hostNetwork: true
               dnsPolicy: ClusterFirstWithHostNet
               terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
@@ -5918,6 +5922,48 @@ def get_autoprovisioning_node_selector_args(args) -> tuple[str, int]:
   return node_selector_args, return_code
 
 
+def get_gpu_scheduler(
+    args, system: SystemCharacteristics, autoprovisioning_args: str
+) -> tuple[str, int]:
+  """Get gpu scheduler configuration.
+
+  Args:
+    args: user provided arguments for running the command.
+    system: system characteristics.
+    autoprovisioning_args: a string of arguments for Autoprovisioning.
+
+  Returns:
+    str: yaml containing gpu scheduler configuration
+    int of 0 if successful and 1 otherwise.
+  """
+  gpu_scheduler = ''
+  return_code = 0
+
+  if args.scheduler == 'gke.io/topology-aware-auto':
+    gpu_scheduler = f"""schedulingGates:
+              - name: "{args.scheduler}-{args.workload}"
+              """
+  elif args.scheduler == 'default-scheduler':
+    gpu_scheduler = gpu_scheduler_yaml.format(
+        scheduler_name=args.scheduler,
+        accelerator_label=create_accelerator_label(
+            system.accelerator_type, system
+        ),
+        machine_label=create_machine_label(system.accelerator_type, system),
+        node_pool_name=f'{args.cluster}-np-0',
+        autoprovisioning_args=autoprovisioning_args,
+    )
+  else:
+    return_code = 1
+    xpk_print(
+        '--scheduler needs to be set as either `default-scheduler`'
+        ' or `gke.io/topology-aware-auto` in order to schedule the'
+        ' workloads on GPUs.'
+    )
+
+  return gpu_scheduler, return_code
+
+
 def get_gpu_volume(system: SystemCharacteristics) -> str:
   """Get gpu volume based on user provided arguments.
 
@@ -5971,7 +6017,7 @@ def get_gpu_rxdm_image(system: SystemCharacteristics) -> str:
                 image: us-docker.pkg.dev/gce-ai-infra/gpudirect-tcpx/tcpgpudmarxd-dev:v2.0.9"""
   elif system.device_type == h100_mega_device_type:
     gpu_rxdm_image = """- name: fastrak-daemon
-                image: us-docker.pkg.dev/gce-ai-infra/gpudirect-tcpxo/tcpgpudmarxd-dev:v1.0.6-sctp"""
+                image: us-docker.pkg.dev/gce-ai-infra/gpudirect-tcpxo/tcpgpudmarxd-dev:v1.0.8"""
   return gpu_rxdm_image
 
 
@@ -6126,17 +6172,18 @@ def workload_create(args) -> None:
     container, debugging_dashboard_id = get_user_workload_container(
         args, system
     )
+    gpu_scheduler, return_code = get_gpu_scheduler(
+        args, system, autoprovisioning_args
+    )
+    if return_code != 0:
+      xpk_exit(return_code)
+
     yml_string = gpu_workload_create_yaml.format(
         args=args,
         container=container,
         command=args.command,
-        accelerator_label=create_accelerator_label(
-            system.accelerator_type, system
-        ),
-        machine_label=create_machine_label(system.accelerator_type, system),
-        node_pool_name=f'{args.cluster}-np-0',
         chips_per_vm=system.chips_per_vm,
-        autoprovisioning_args=autoprovisioning_args,
+        gpu_scheduler=gpu_scheduler,
         gpu_volume=get_gpu_volume(system),
         gpu_rxdm_image=get_gpu_rxdm_image(system),
         gpu_rxdm_cmd=get_gpu_rxdm_cmd(system),
@@ -7826,9 +7873,11 @@ workload_create_parser_optional_arguments.add_argument(
     type=str,
     default='default-scheduler',
     help=(
-        'Which scheduler you want to use. Defaults to `default-scheduler`.'
-        'If your cluster is configured for high throughput scheduling you might'
-        'want to use `gke.io/high-throughput-scheduler`.'
+        'Which scheduler you want to use. Defaults to `default-scheduler`. If'
+        ' your cluster is configured for high throughput scheduling, you might'
+        ' want to use `gke.io/high-throughput-scheduler`.If your cluster is'
+        ' configured for topology-aware scheduling, you might want to use'
+        ' `gke.io/topology-aware-auto`.'
     ),
 )
 workload_create_parser_optional_arguments.add_argument(

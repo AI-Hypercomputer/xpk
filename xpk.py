@@ -5201,7 +5201,6 @@ def get_pathways_rm_args(args, system: SystemCharacteristics) -> str:
               - --pathways_server_provides_devices=false
               - --pathways_device_type=NONE
               - --pathways_persistent_compilation_cache=false
-              - --pathways_compilation_mode=compile_at_worker
               - --pathways_tmp_dir_pattern={args.pathways_gcs_location}
               - --pathways_expected_instances={expected_instances}"""
   if args.use_pathways:
@@ -5297,7 +5296,6 @@ def get_pathways_worker_args(args) -> str:
               - --pathways_server_port=38677
               - --pathways_resource_manager={rm_address}
               - --pathways_persistent_compilation_cache=false
-              - --pathways_compilation_mode=compile_at_worker
               - --xla_tpu_enable_data_parallel_all_reduce_opt=true
               - --xla_tpu_data_parallel_opt_different_sized_ops=true
               - --xla_tpu_enable_async_collective_fusion=true

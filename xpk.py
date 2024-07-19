@@ -3464,11 +3464,12 @@ def check_cluster_resources(args, system) -> tuple[bool, bool]:
   return True, False
 
 
-def get_all_nodepools_programmatic(args) -> tuple[list[str], int]:
+def get_all_nodepools_programmatic(args, filter_by_name=None) -> tuple[list[str], int]:
   """Gets all the nodepools associated with the cluster / project / region.
 
   Args:
     args: user provided arguments for running the command.
+    filter-by: optional filter argument to use in the command.
 
   Returns:
     List of nodepools and 0 if successful and 1 otherwise.
@@ -3478,6 +3479,8 @@ def get_all_nodepools_programmatic(args) -> tuple[list[str], int]:
       ' --cluster'
       f' {args.cluster} --project={args.project} --region={zone_to_region(args.zone)}'
   )
+  if filter_by_name:
+       command += f' --filter=name~{filter_by_name}'
   return_code, raw_nodepool_output = run_command_for_value(
       command, 'Get All Node Pools', args
   )
@@ -3631,7 +3634,7 @@ def run_gke_node_pool_create_command(
       f'Creating {args.num_slices} node pool or pools of {device_type}\n'
       f'We assume that the underlying system is: {system}'
   )
-  existing_node_pool_names, return_code = get_all_nodepools_programmatic(args)
+  existing_node_pool_names, return_code = get_all_nodepools_programmatic(args, filter_by_name=f'{args.cluster}-np')
   if return_code > 0:
     xpk_print('Listing all node pools failed!')
     return return_code

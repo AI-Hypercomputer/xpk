@@ -3477,6 +3477,7 @@ def get_all_nodepools_programmatic(args) -> tuple[list[str], int]:
       'gcloud beta container node-pools list'
       ' --cluster'
       f' {args.cluster} --project={args.project} --region={zone_to_region(args.zone)}'
+      ' --format="csv[no-heading](name)"' 
   )
   return_code, raw_nodepool_output = run_command_for_value(
       command, 'Get All Node Pools', args
@@ -3485,10 +3486,6 @@ def get_all_nodepools_programmatic(args) -> tuple[list[str], int]:
     xpk_print(f'Get All Node Pools returned ERROR {return_code}')
     return [], 1
 
-  all_nodepools = [x.split(' ')[0] for x in raw_nodepool_output.splitlines()]
-  # remove header=NAME from the nodepools list
-  if 'NAME' in all_nodepools:
-    all_nodepools.remove('NAME')
   return all_nodepools, 0
 
 

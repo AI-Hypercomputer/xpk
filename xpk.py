@@ -237,7 +237,7 @@ spec:
         labels:
           xpk.google.com/workload: {args.workload}
       spec:
-        backoffLimit: 4
+        backoffLimit: {backoff_limit}
         completions: {system.vms_per_slice}
         parallelism: {system.vms_per_slice}
         template:
@@ -6224,6 +6224,7 @@ def workload_create(args) -> None:
         ].resource_type,
         local_queue_name=_LOCAL_QUEUE_NAME,
         autoprovisioning_args=autoprovisioning_args,
+        backoff_limit=system.vms_per_slice * 4,
     )
   else:
     container, debugging_dashboard_id = get_user_workload_container(

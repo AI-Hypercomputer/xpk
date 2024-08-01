@@ -3302,6 +3302,7 @@ def get_all_clusters_programmatic(args) -> tuple[list[str], int]:
   command = (
       'gcloud container clusters list'
       f' --project={args.project} --region={zone_to_region(args.zone)}'
+      ' --format="csv[no-heading](name)"'
   )
   return_code, raw_cluster_output = run_command_for_value(
       command, 'Find if Cluster Exists', args
@@ -3309,8 +3310,8 @@ def get_all_clusters_programmatic(args) -> tuple[list[str], int]:
   if return_code != 0:
     xpk_print(f'Find if Cluster Exists returned ERROR {return_code}')
     return [], return_code
-  cluster_names = [x.split(' ')[0] for x in raw_cluster_output.splitlines()]
-  return cluster_names, 0
+
+  return raw_cluster_output.splitlines(), 0
 
 
 def create_cluster_if_necessary(
@@ -3477,6 +3478,7 @@ def get_all_nodepools_programmatic(args) -> tuple[list[str], int]:
       'gcloud beta container node-pools list'
       ' --cluster'
       f' {args.cluster} --project={args.project} --region={zone_to_region(args.zone)}'
+      ' --format="csv[no-heading](name)"'
   )
   return_code, raw_nodepool_output = run_command_for_value(
       command, 'Get All Node Pools', args
@@ -3485,11 +3487,7 @@ def get_all_nodepools_programmatic(args) -> tuple[list[str], int]:
     xpk_print(f'Get All Node Pools returned ERROR {return_code}')
     return [], 1
 
-  all_nodepools = [x.split(' ')[0] for x in raw_nodepool_output.splitlines()]
-  # remove header=NAME from the nodepools list
-  if 'NAME' in all_nodepools:
-    all_nodepools.remove('NAME')
-  return all_nodepools, 0
+  return raw_nodepool_output.splitlines(), 0
 
 
 def get_all_networks_programmatic(args) -> tuple[list[str], int]:
@@ -3501,7 +3499,7 @@ def get_all_networks_programmatic(args) -> tuple[list[str], int]:
   Returns:
     List of networks and 0 if successful and 1 otherwise.
   """
-  command = 'gcloud compute networks list'
+  command = 'gcloud compute networks list --format="csv[no-heading](name)"'
   return_code, raw_network_output = run_command_for_value(
       command, 'Get All Networks', args
   )
@@ -3509,8 +3507,7 @@ def get_all_networks_programmatic(args) -> tuple[list[str], int]:
     xpk_print(f'Get All Networks returned ERROR {return_code}')
     return [], 1
 
-  all_networks = [x.split(' ')[0] for x in raw_network_output.splitlines()]
-  return all_networks, 0
+  return raw_network_output.splitlines(), 0
 
 
 def get_all_subnets_programmatic(args) -> tuple[list[str], int]:
@@ -3551,7 +3548,9 @@ def get_all_firewall_rules_programmatic(args) -> tuple[list[str], int]:
   Returns:
     List of firewall rules and 0 if successful and 1 otherwise.
   """
-  command = 'gcloud compute firewall-rules list'
+  command = (
+      'gcloud compute firewall-rules list --format="csv[no-heading](name)"'
+  )
   return_code, raw_subnets_output = run_command_for_value(
       command, 'Get All Firewall Rules', args
   )
@@ -3559,8 +3558,7 @@ def get_all_firewall_rules_programmatic(args) -> tuple[list[str], int]:
     xpk_print(f'Get All Firewall Rules returned ERROR {return_code}')
     return [], 1
 
-  all_networks = [x.split(' ')[0] for x in raw_subnets_output.splitlines()]
-  return all_networks, 0
+  return raw_subnets_output.splitlines(), 0
 
 
 def get_user_input(input_msg):

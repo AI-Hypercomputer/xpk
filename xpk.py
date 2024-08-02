@@ -6031,7 +6031,7 @@ def get_gpu_rxdm_image(system: SystemCharacteristics) -> str:
                 image: us-docker.pkg.dev/gce-ai-infra/gpudirect-tcpx/tcpgpudmarxd-dev:v2.0.9"""
   elif system.device_type == h100_mega_device_type:
     gpu_rxdm_image = """- name: fastrak-daemon
-                image: us-docker.pkg.dev/gce-ai-infra/gpudirect-tcpxo/tcpgpudmarxd-dev:v1.0.8"""
+                image: us-docker.pkg.dev/gce-ai-infra/gpudirect-tcpxo/tcpgpudmarxd-dev:v1.0.9"""
   return gpu_rxdm_image
 
 

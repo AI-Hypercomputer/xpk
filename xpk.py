@@ -7396,14 +7396,14 @@ def add_shared_cluster_create_optional_arguments(args_parsers):
         ),
     )
     custom_parser.add_argument(
-        '--enable_workload_identity',
+        '--enable-workload-identity',
         action='store_true',
         help=(
             'Enable Workload Identity Federation on the cluster and node-pools.'
         ),
     )
     custom_parser.add_argument(
-        '--enable_gcsfuse_csi_driver',
+        '--enable-gcsfuse-csi-driver',
         action='store_true',
         help=(
             'Enable GSCFuse driver on the cluster. This enables Workload'

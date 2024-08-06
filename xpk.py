@@ -2621,6 +2621,12 @@ def run_gke_cluster_create_command(
           f' --cluster-dns-domain={args.cluster}-domain'
       )
 
+  if args.enable_workload_identity or args.enable_gcsfuse_driver:
+    command += f' --workload-pool={args.project}.svc.id.goog'
+
+  if args.enable_gcsfuse_csi_driver:
+    command += ' --addons GcsFuseCsiDriver'
+
   return_code = run_command_with_updates(command, 'GKE Cluster Create', args)
   if return_code != 0:
     xpk_print(f'GKE Cluster Create request returned ERROR {return_code}')
@@ -2649,6 +2655,63 @@ def update_gke_cluster_with_clouddns(args) -> int:
   xpk_print('Updating GKE cluster to use Cloud DNS, may take a while!')
   return_code = run_command_with_updates(
       command, 'GKE Cluster Update to enable Cloud DNS', args
+  )
+  if return_code != 0:
+    xpk_print(f'GKE Cluster Update request returned ERROR {return_code}')
+    return 1
+  return 0
+
+
+def update_gke_cluster_with_workload_identity_enabled(args) -> int:
+  """Run the GKE cluster update command for existing cluster and enable Workload Identity Federation.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  command = (
+      'gcloud container clusters update'
+      f' {args.cluster} --project={args.project}'
+      f' --region={zone_to_region(args.zone)}'
+      f' --workload-pool={args.project}.svc.id.goog'
+      ' --quiet'
+  )
+  xpk_print(
+      'Updating GKE cluster to enable Workload Identity Federation, may take a'
+      ' while!'
+  )
+  return_code = run_command_with_updates(
+      command, 'GKE Cluster Update to enable Workload Identity Federation', args
+  )
+  if return_code != 0:
+    xpk_print(f'GKE Cluster Update request returned ERROR {return_code}')
+    return 1
+  return 0
+
+
+def update_gke_cluster_with_gcsfuse_driver_enabled(args) -> int:
+  """Run the GKE cluster update command for existing cluster and enable GCSFuse CSI driver.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  command = (
+      'gcloud container clusters update'
+      f' {args.cluster} --project={args.project}'
+      f' --region={zone_to_region(args.zone)}'
+      ' --addons GcsFuseCsiDriver'
+      ' --quiet'
+  )
+  xpk_print(
+      'Updating GKE cluster to enable GCSFuse CSI driver, may take a while!'
+  )
+  return_code = run_command_with_updates(
+      command, 'GKE Cluster Update to enable GCSFuse CSI driver', args
   )
   if return_code != 0:
     xpk_print(f'GKE Cluster Update request returned ERROR {return_code}')
@@ -3366,6 +3429,61 @@ def is_cluster_using_clouddns(args) -> bool:
   return False
 
 
+def is_workload_identity_enabled_on_cluster(args) -> bool:
+  """Checks if Workload Identity Federation is enabled on the cluster.
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    True if Workload Identity Federation is enabled on the cluster and False otherwise.
+  """
+  command = (
+      f'gcloud container clusters describe {args.cluster}'
+      f' --project={args.project} --region={zone_to_region(args.zone)}'
+      ' --format="value(workloadIdentityConfig.workloadPool)"'
+  )
+  return_code, workload_pool = run_command_for_value(
+      command,
+      'Checks if Workload Identity Federation is enabled in cluster describe.',
+      args,
+  )
+  if return_code != 0:
+    xpk_exit(return_code)
+  if workload_pool == f'{args.project}.svc.id.goog':
+    xpk_print(
+        'Workload Identity Federation is enabled on the cluster, no update'
+        ' needed.'
+    )
+    return True
+  return False
+
+
+def is_gcsfuse_driver_enabled_on_cluster(args) -> bool:
+  """Checks if GCSFuse CSI driver is enabled on the cluster.
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    True if GCSFuse CSI driver is enabled on the cluster and False otherwise.
+  """
+  command = (
+      f'gcloud container clusters describe {args.cluster}'
+      f' --project={args.project} --region={zone_to_region(args.zone)}'
+      ' --format="value(addonsConfig.gcsFuseCsiDriverConfig.enabled)"'
+  )
+  return_code, gcsfuse_driver_enabled = run_command_for_value(
+      command,
+      'Checks if GCSFuse CSI driver is enabled in cluster describe.',
+      args,
+  )
+  if return_code != 0:
+    xpk_exit(return_code)
+  if gcsfuse_driver_enabled.lower() == 'true':
+    xpk_print('GCSFuse CSI driver is enabled on the cluster, no update needed.')
+    return True
+  return False
+
+
 def update_cluster_with_clouddns_if_necessary(args) -> int:
   """Updates a GKE cluster to use CloudDNS, if not enabled already.
 
@@ -3409,6 +3527,52 @@ def update_cluster_with_clouddns_if_necessary(args) -> int:
   return 0
 
 
+def update_cluster_with_workload_identity_if_necessary(args) -> int:
+  """Updates a GKE cluster to enable Workload Identity Federation, if not enabled already.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and error code otherwise.
+  """
+
+  if is_workload_identity_enabled_on_cluster(args):
+    return 0
+  cluster_update_return_code = (
+      update_gke_cluster_with_workload_identity_enabled(args)
+  )
+  if cluster_update_return_code > 0:
+    xpk_print(
+        'Updating GKE cluster to enable Workload Identity Federation failed!'
+    )
+    return cluster_update_return_code
+
+  return 0
+
+
+def update_cluster_with_gcsfuse_driver_if_necessary(args) -> int:
+  """Updates a GKE cluster to enable GCSFuse CSI driver, if not enabled already.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and error code otherwise.
+  """
+
+  if is_gcsfuse_driver_enabled_on_cluster(args):
+    return 0
+  cluster_update_return_code = update_gke_cluster_with_gcsfuse_driver_enabled(
+      args
+  )
+  if cluster_update_return_code > 0:
+    xpk_print('Updating GKE cluster to enable GCSFuse CSI driver failed!')
+    return cluster_update_return_code
+
+  return 0
+
+
 def get_nodepool_zone(args, nodepool_name) -> tuple[int, str]:
   """Return zone in which nodepool exists in the cluster.
 
@@ -3434,6 +3598,36 @@ def get_nodepool_zone(args, nodepool_name) -> tuple[int, str]:
     return 1, None
 
   return 0, nodepool_zone.strip()
+
+
+def get_nodepool_workload_metadata_mode(args, nodepool_name) -> tuple[int, str]:
+  """Return Workload Identity metadata mode of the nodepool.
+
+  Args:
+    args: user provided arguments for running the command.
+    nodepool_name: name of nodepool.
+
+  Returns:
+    Tuple of int, str where
+    int is the return code - 0 if successful, 1 otherwise.
+    str is the workload metadata mode of nodepool.
+  """
+  command = (
+      f'gcloud beta container node-pools describe {nodepool_name}'
+      f' --cluster {args.cluster} --project={args.project}'
+      f' --region={zone_to_region(args.zone)} --format="value(config.workloadMetadataConfig.mode)"'
+  )
+  return_code, nodepool_WI_mode = run_command_for_value(
+      command, 'Get Node Pool Workload Identity Metadata Mode', args
+  )
+  if return_code != 0:
+    xpk_print(
+        'Get Node Pool Workload Identity Metadata Mode returned ERROR'
+        f' {return_code}'
+    )
+    return 1, None
+
+  return 0, nodepool_WI_mode.strip()
 
 
 def check_cluster_resources(args, system) -> tuple[bool, bool]:
@@ -3675,6 +3869,9 @@ def run_gke_node_pool_create_command(
   node_pools_to_remain = []
   delete_commands = []
   delete_task_names = []
+  node_pools_to_update_WI = []
+  update_WI_commands = []
+  update_WI_task_names = []
   if existing_node_pool_names:
     return_code, existing_node_pool_zone = get_nodepool_zone(
         args, existing_node_pool_names[0]
@@ -3710,6 +3907,36 @@ def run_gke_node_pool_create_command(
       else:
         node_pools_to_remain.append(node_pool_name)
 
+    # Workload Identity for existing nodepools
+    if args.enable_workload_identity or args.enable_gcsfuse_driver:
+      for node_pool_name in existing_node_pool_names:
+        if not node_pool_name in node_pools_to_delete:
+          # Check if workload identity is not already enabled:
+          return_code, existing_node_pool_medadata_mode = (
+              get_nodepool_workload_metadata_mode(args, node_pool_name)
+          )
+          if return_code != 0:
+            return 1
+
+          if (
+              existing_node_pool_zone
+              and existing_node_pool_medadata_mode != 'GKE_METADATA'
+          ):
+            command = (
+                'gcloud container node-pools update'
+                f' {node_pool_name} --cluster={args.cluster}'
+                f' --zone={zone_to_region(args.zone)}'
+                f' --project={args.project} --quiet'
+                ' --workload-metadata=GKE_METADATA'
+            )
+            task = (
+                'Update nodepool with Workload Identity enabled'
+                f' {node_pool_name}'
+            )
+            update_WI_commands.append(command)
+            update_WI_task_names.append(task)
+            node_pools_to_update_WI.append(node_pool_name)
+
   # Deletion of nodepools should happen before attempting to create new nodepools for the case
   # when cluster is getting updated from 'x' device_type/gke_accelerator to 'y' device_type/gke_accelerator.
   # In that case, '{args.cluster}-np-i' nodepool will be re-created for 'y' device_type/gke_accelerator.
@@ -3741,6 +3968,35 @@ def run_gke_node_pool_create_command(
     if max_return_code != 0:
       xpk_print(f'Delete Nodepools returned ERROR {max_return_code}')
       return 1
+
+  # Enable Workload Identity on existing Nodepools
+  if update_WI_commands:
+    will_update_WI = True
+    if node_pools_to_update_WI and not args.force:
+      will_update_WI = get_user_input(
+          'Planning to enable Workload Identity Federation on'
+          f' {len(node_pools_to_update_WI)} existing node pools including'
+          f' {node_pools_to_update_WI}.This immediately enables Workload'
+          ' Identity Federation for GKE for any workloads running in the node'
+          ' pool. \nDo you wish to update: y (yes) / n (no):\n'
+      )
+    if not will_update_WI:
+      for i, command in enumerate(update_WI_commands):
+        xpk_print(
+            f'To complete {update_WI_task_names[i]} we are executing {command}'
+        )
+      max_return_code = run_commands(
+          update_WI_commands,
+          'Enable Workload Identity on existing Nodepools',
+          update_WI_task_names,
+          dry_run=args.dry_run,
+      )
+      if max_return_code != 0:
+        xpk_print(
+            'Enable Workload Identity on existing Nodepools returned ERROR'
+            f' {max_return_code}'
+        )
+        return 1
 
     # Update {args.cluster}-{_CLUSTER_RESOURCES_CONFIGMAP} ConfigMap to 'y': '0'
     # and remove 'x' from the ConfigMap when cluster is getting updated from
@@ -3822,6 +4078,9 @@ def run_gke_node_pool_create_command(
     elif system.accelerator_type == AcceleratorType['CPU']:
       command += f' --num-nodes={system.vms_per_slice}'
       command += ' --scopes=storage-full,gke-default'
+
+    if args.enable_workload_identity or args.enable_gcsfuse_driver:
+      command += ' --workload-metadata=GKE_METADATA'
 
     task = f'NodepoolCreate-{node_pool_name}'
     create_commands.append(command)
@@ -4428,6 +4687,22 @@ def cluster_create(args) -> None:
   )
   if create_cluster_command_code != 0:
     xpk_exit(create_cluster_command_code)
+
+  # Enable WorkloadIdentity if not enabled already.
+  if args.enable_workload_identity or args.enable_gcsfuse_driver:
+    update_cluster_command_code = (
+        update_cluster_with_workload_identity_if_necessary(args)
+    )
+    if update_cluster_command_code != 0:
+      xpk_exit(update_cluster_command_code)
+
+  # Enable GCSFuse CSI Driver if not enabled already.
+  if args.enable_gcsfuse_driver:
+    update_cluster_command_code = (
+        update_cluster_with_gcsfuse_driver_if_necessary(args)
+    )
+    if update_cluster_command_code != 0:
+      xpk_exit(update_cluster_command_code)
 
   # Update Pathways clusters with CloudDNS if not enabled already.
   if args.enable_pathways:
@@ -7118,6 +7393,21 @@ def add_shared_cluster_create_optional_arguments(args_parsers):
             ' customize node pool create command. Do note, these will not'
             ' override already used node pool creation arguments. Example usage'
             ' --custom-tpu-nodepool-arguments="--enable-ip-alias"'
+        ),
+    )
+    custom_parser.add_argument(
+        '--enable_workload_identity',
+        action='store_true',
+        help=(
+            'Enable Workload Identity Federation on the cluster and node-pools.'
+        ),
+    )
+    custom_parser.add_argument(
+        '--enable_gcsfuse_csi_driver',
+        action='store_true',
+        help=(
+            'Enable GSCFuse driver on the cluster. This enables Workload'
+            ' Identity Federation.'
         ),
     )
 

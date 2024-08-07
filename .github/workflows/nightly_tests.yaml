@@ -56,6 +56,10 @@ jobs:
     - name: Delete the cluster created
       run: python xpk.py cluster delete --cluster $EMPTY_CLUSTER_NAME --zone=us-central2-b
       if: always()
+    - name: Install xpk with pip and verify it executes corretly
+      run: |
+        pip install .
+        xpk --help
     - name: Create an XPK Cluster with 2x v4-8 nodepools
       run: python xpk.py cluster create --cluster $TPU_CLUSTER_NAME --tpu-type=v4-8  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments='${{ secrets.CLUSTER_ARGUMENTS }}'
     - name: Authenticate Docker

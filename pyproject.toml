@@ -42,7 +42,7 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project.scripts]
-xpk = "xpk:main"
+xpk = "xpk.main:main"
 
 [project.optional-dependencies]
 # Development deps (unittest, linting, formating,...)
@@ -55,6 +55,10 @@ dev = [
 
 [tool.setuptools.dynamic]
 version = {attr = "xpk.__version__"}
+
+[tool.setuptools]
+packages = ["xpk"]
+package-dir = {"" = "src"}
 
 [tool.pyink]
 # Formatting configuration to follow Google style-guide.

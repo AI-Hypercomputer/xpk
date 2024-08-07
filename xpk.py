@@ -4874,6 +4874,7 @@ def check_if_workload_can_schedule(args, system: SystemCharacteristics) -> bool:
         'Both Device Type and GKE Accelerator Type checks failed.'
         f' XPK will not create the workload {args.workload}.'
     )
+    return False
   else:
     # Check if the size of the workload will fit in the cluster.
     max_vm_in_cluster = int(cluster_config_map[device_type])

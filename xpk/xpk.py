@@ -41,7 +41,7 @@ import string
 import subprocess
 import sys
 import time
-import xpk.utils as utils
+import utils
 from dataclasses import dataclass
 
 ################### Compatibility Check ###################

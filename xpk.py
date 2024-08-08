@@ -2058,13 +2058,14 @@ def parse_env_config(args, tensorboard_config, system: SystemCharacteristics):
 
   if not args.use_pathways:
     if args.debug_dump_gcs:
-      if 'XLA_FLAGS' in env:
+      if 'XLA_FLAGS' in env and '--xla_dump_to=' in env['XLA_FLAGS']:
         raise ValueError(
-            'Conflict: XLA_FLAGS defined in both --debug_dump_gcs '
-            'and environment file. Please choose one way to define '
-            'XLA_FLAGS.'
+            'Conflict: --xla_dump_to flag defined by both --debug_dump_gcs '
+            'and XLA_FLAGS in container environment. Please choose one way to '
+            'define.'
         )
-      env['XLA_FLAGS'] = '--xla_dump_to=/tmp/xla_dump/'
+      xla_flags = env.get('XLA_FLAGS', '')
+      env['XLA_FLAGS'] = xla_flags + ' --xla_dump_to=/tmp/xla_dump/'
 
     if tensorboard_config:
       env['UPLOAD_DATA_TO_TENSORBOARD'] = True

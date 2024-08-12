@@ -54,7 +54,7 @@ dev = [
 ]
 
 [tool.setuptools.dynamic]
-version = {attr = "xpk.__version__"}
+version = {attr = "xpk.main.__version__"}
 
 [tool.setuptools]
 packages = ["xpk"]

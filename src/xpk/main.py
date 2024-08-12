@@ -68,8 +68,8 @@ if (
 default_docker_image = 'python:3.10'
 default_script_dir = os.getcwd()
 # This is the version for XPK PyPI package
-# __version__ = '0.5.0'
-xpk_current_version = '0.5.0'
+__version__ = '0.5.0'
+xpk_current_version = __version__
 
 h100_device_type = 'h100-80gb-8'
 h100_mega_device_type = 'h100-mega-80gb-8'

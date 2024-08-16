@@ -149,11 +149,12 @@ echo python3 xpk.py cluster create \
   --custom-cluster-arguments="${CLUSTER_ARGUMENTS}" \
   --custom-tpu-nodepool-arguments="${TPU_NODEPOOL_ARGUMENTS}"
 
+# example output ...
 # python3 xpk.py cluster create --cluster NAME \
 #  --tpu-type=v5litepod-256 --num-slices=4 \
 #  --host-maintenance-interval=PERIODIC \
-# --custom-cluster-arguments=  --network=NETWORK  --subnetwork=SUBNET  --scopes=storage-full,gke-default  --enable-ip-alias  --enable-private-nodes  --master-ipv4-cidr 172.16.0.32/28  --cluster-ipv4-cidr=10.224.0.0/12  --no-enable-master-authorized-networks
-# --custom-tpu-nodepool-arguments=  --scopes=storage-full,gke-default  --enable-gvnic  --max-pods-per-node 15  --disk-size=50
+# --custom-cluster-arguments=" --network=NETWORK  --subnetwork=SUBNET  --scopes=storage-full,gke-default  --enable-ip-alias  --enable-private-nodes  --master-ipv4-cidr 172.16.0.32/28  --cluster-ipv4-cidr=10.224.0.0/12  --no-enable-master-authorized-networks"
+# --custom-tpu-nodepool-arguments=" --scopes=storage-full,gke-default  --enable-gvnic  --max-pods-per-node 15  --disk-size=50"
 
 
 ##### 2D #####################
@@ -330,11 +331,12 @@ echo python3 xpk.py cluster create \
   --custom-cluster-arguments="${CLUSTER_ARGUMENTS}" \
   --custom-tpu-nodepool-arguments="${TPU_NODEPOOL_ARGUMENTS}"
 
+# example output ...
 # python3 xpk.py cluster create --cluster NAME \
 #  --tpu-type=v5litepod-256 --num-slices=64 \
 #  --host-maintenance-interval=PERIODIC \
-# --custom-cluster-arguments=  --network=NETWORK  --subnetwork=SUBNET  --scopes=storage-full,gke-default  --enable-ip-alias  --enable-private-nodes  --master-ipv4-cidr 172.16.0.32/28  --cluster-ipv4-cidr=10.224.0.0/12  --no-enable-master-authorized-networks
-# --custom-tpu-nodepool-arguments=  --scopes=storage-full,gke-default  --enable-gvnic  --max-pods-per-node 15  --disk-size=50
+# --custom-cluster-arguments=" --network=NETWORK  --subnetwork=SUBNET  --scopes=storage-full,gke-default  --enable-ip-alias  --enable-private-nodes  --master-ipv4-cidr 172.16.0.32/28  --cluster-ipv4-cidr=10.224.0.0/12  --no-enable-master-authorized-networks"
+# --custom-tpu-nodepool-arguments=" --scopes=storage-full,gke-default  --enable-gvnic  --max-pods-per-node 15  --disk-size=50"
 
 ##### 5C #####################
 # Scale up to NUMSLICES (64 in the provided case) V5e-256s.

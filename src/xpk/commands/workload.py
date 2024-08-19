@@ -14,10 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..core.commands import run_command_with_updates, run_commands
+from ..core.commands import (
+    run_command_for_value,
+    run_command_with_updates,
+    run_commands,
+)
 from ..core.core import (
     CLUSTER_METADATA_CONFIGMAP,
-    LOCAL_QUEUE_NAME,
     VERTEX_TENSORBOARD_FEATURE_FLAG,
     AcceleratorTypeToAcceleratorCharacteristics,
     add_zone_and_project,
@@ -26,7 +29,6 @@ from ..core.core import (
     create_accelerator_label,
     create_machine_label,
     create_vertex_experiment,
-    ensure_pathways_workload_prerequisites,
     get_cluster_configmap,
     get_cpu_affinity,
     get_gke_outlier_dashboard,
@@ -35,26 +37,26 @@ from ..core.core import (
     get_gpu_scheduler,
     get_gpu_tcp_volume,
     get_gpu_volume,
+    get_user_workload_container,
+    get_volumes,
+    is_cluster_using_clouddns,
+    parse_env_config,
+    wait_for_job_completion,
+    xpk_current_version,
+    zone_to_region,
+)
+from ..core.kueue import LOCAL_QUEUE_NAME
+from ..core.nap import (
+    get_autoprovisioning_node_selector_args,
+    is_autoprovisioning_enabled,
+)
+from ..core.pathways import (
+    ensure_pathways_workload_prerequisites,
     get_pathways_proxy_args,
     get_pathways_rm_args,
     get_pathways_unified_query_link,
     get_pathways_worker_args,
-    get_user_workload_container,
     get_user_workload_for_pathways,
-    get_volumes,
-    get_workload_list,
-    gpu_workload_create_yaml,
-    is_cluster_using_clouddns,
-    parse_env_config,
-    pw_workload_create_yaml,
-    wait_for_job_completion,
-    workload_create_yaml,
-    xpk_current_version,
-    zone_to_region,
-)
-from ..core.nap import (
-    get_autoprovisioning_node_selector_args,
-    is_autoprovisioning_enabled,
 )
 from ..core.system_characteristics import (
     AcceleratorType,
@@ -62,6 +64,242 @@ from ..core.system_characteristics import (
 )
 from ..utils import get_user_input, write_tmp_file, xpk_exit, xpk_print
 from .cluster import set_cluster_command
+
+workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
+kind: JobSet
+metadata:
+  name: {args.workload}
+  labels:
+    kueue.x-k8s.io/queue-name: {local_queue_name}  # Name of the LocalQueue
+    xpk.google.com/workload: {args.workload}
+  annotations:
+    alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool # 1:1 job replica to node pool assignment
+spec:
+  failurePolicy:
+    maxRestarts: {args.max_restarts}
+  replicatedJobs:
+    - name: slice-job
+      replicas: {args.num_slices}
+      template:
+        spec:
+          parallelism: {system.vms_per_slice}    # Equal to the number of VMs per slice
+          completions: {system.vms_per_slice}    # Same as the above.
+          backoffLimit: 0   # When any pod fails, the job is failed
+          template:
+            metadata:
+              labels:
+                xpk.google.com/workload: {args.workload}
+            spec:
+              schedulerName: {args.scheduler}
+              restartPolicy: Never
+              {affinity}
+              nodeSelector:
+                {accelerator_label}
+                {machine_label}
+                {autoprovisioning_args}
+              priorityClassName: {args.priority}
+              hostNetwork: true
+              dnsPolicy: ClusterFirstWithHostNet
+              terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
+              containers:
+              {container}
+              volumes:
+              {volumes}
+"""
+
+
+gpu_workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
+kind: JobSet
+metadata:
+  name: {args.workload}
+  labels:
+    kueue.x-k8s.io/queue-name: multislice-queue  # Name of the LocalQueue
+    xpk.google.com/workload: {args.workload}
+spec:
+  failurePolicy:
+    maxRestarts: {args.max_restarts}
+  replicatedJobs:
+    - name: slice-job
+      replicas: 1
+      template:
+        spec:
+          parallelism: {args.num_nodes}
+          completions: {args.num_nodes}
+          backoffLimit: 0   # When any pod fails, the job is failed
+          template:
+            metadata:
+              labels:
+                xpk.google.com/workload: {args.workload}
+            spec:
+              {gpu_scheduler}
+              priorityClassName: {args.priority}
+              restartPolicy: Never
+              hostNetwork: true
+              dnsPolicy: ClusterFirstWithHostNet
+              terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
+              tolerations:
+              - operator: "Exists"
+                key: nvidia.com/gpu
+              volumes:
+              {gpu_volume}
+              containers:
+              {gpu_rxdm_image}
+                imagePullPolicy: Always
+                command:
+                - "bash"
+                - "-c"
+                - |
+                  {gpu_rxdm_cmd} &
+                  while [ ! -e "/usr/share/workload/workload_terminated" ]; do sleep 10; echo "sleeping"; done
+                securityContext:
+                  privileged: true
+                volumeMounts:
+                {gpu_tcp_volume}
+                - name: nvidia-install-dir-host
+                  mountPath: /usr/local/nvidia/lib64
+                - name: workload-terminated-volume
+                  mountPath: /usr/share/workload
+                env:
+                - name: LD_LIBRARY_PATH
+                  value: /usr/local/nvidia/lib64
+              {container}
+"""
+
+pw_workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
+kind: JobSet
+metadata:
+  name: {args.workload}
+  labels:
+    kueue.x-k8s.io/queue-name: {local_queue_name}  # Name of the LocalQueue
+    xpk.google.com/workload: {args.workload}
+spec:
+  failurePolicy:
+    maxRestarts: {args.max_restarts}
+  successPolicy:
+    operator: "All"
+    targetReplicatedJobs:
+    - {args.targetReplicatedJob}
+  replicatedJobs:
+  - name: worker
+    replicas: {args.num_slices}
+    template:
+      metadata:
+        annotations:
+          alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool
+        labels:
+          xpk.google.com/workload: {args.workload}
+      spec:
+        backoffLimit: {backoff_limit}
+        completions: {system.vms_per_slice}
+        parallelism: {system.vms_per_slice}
+        template:
+          spec:
+            terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
+            containers:
+            - args:
+              {pathways_worker_args}
+              image: {args.server_image}
+              imagePullPolicy: Always
+              name: pathways-worker
+              ports:
+              - containerPort: 38677
+              - containerPort: 8471
+              - containerPort: 8080
+              resources:
+                limits:
+                  {resource_type}: {system.chips_per_vm}
+              securityContext:
+                privileged: true
+              volumeMounts:
+              - mountPath: /tmp
+                name: shared-tmp
+            nodeSelector:
+              {accelerator_label}
+              {machine_label}
+              {autoprovisioning_args}
+            priorityClassName: {args.priority}
+            volumes:
+            - hostPath:
+                path: /tmp
+                type: DirectoryOrCreate
+              name: shared-tmp
+  - name: rm
+    replicas: 1
+    template:
+      metadata:
+        labels:
+          xpk.google.com/workload: {args.workload}
+      spec:
+        backoffLimit: 0
+        completions: 1
+        parallelism: 1
+        template:
+          spec:
+            containers:
+            - args:
+              {pathways_rm_args}
+              env:
+              - name: REPLICATED_JOB_NAME
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.annotations['jobset.sigs.k8s.io/replicatedjob-name']
+              - name: JOBSET_NAME
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.annotations['jobset.sigs.k8s.io/jobset-name']
+              - name: HOST_ADDRESS
+                value: $(JOBSET_NAME)-$(REPLICATED_JOB_NAME)-0-0.$(JOBSET_NAME)
+              - name: TPU_SKIP_MDS_QUERY
+                value: "true"
+              image: {args.server_image}
+              imagePullPolicy: Always
+              name: pathways-rm
+              ports:
+              - containerPort: 38677
+              resources:
+                limits:
+                  cpu: "4"
+                  memory: 8G
+              securityContext:
+                privileged: true
+              volumeMounts:
+              - mountPath: /tmp
+                name: shared-tmp
+            nodeSelector:
+              cloud.google.com/gke-nodepool: cpu-rm-np
+            volumes:
+            - hostPath:
+                path: /tmp
+                type: DirectoryOrCreate
+              name: shared-tmp
+  - name: proxy
+    replicas: 1
+    template:
+      metadata:
+        labels:
+          xpk.google.com/workload: {args.workload}
+      spec:
+        backoffLimit: 0
+        completions: 1
+        parallelism: 1
+        template:
+          spec:
+            containers:
+            - args:
+              {pathways_proxy_args}
+              image: {args.proxy_server_image}
+              imagePullPolicy: Always
+              name: pathways-proxy
+              ports:
+              - containerPort: 38676
+              resources:
+                limits:
+                  cpu: "24"
+                  memory: 100G
+            nodeSelector:
+              cloud.google.com/gke-nodepool: cpu-proxy-np
+  {user_workload}
+"""
 
 
 def workload_create_pathways(args) -> None:
@@ -387,3 +625,119 @@ def workload_list(args) -> None:
     xpk_exit(return_code)
   xpk_print(f'Workload List Output:\n{return_value}')
   xpk_exit(0)
+
+
+def workload_list_awk_command(filter_key) -> str:
+  """Function returns the awk command needed from the filter specified.
+
+  Args:
+    filter_key: workload list filter to awk against
+
+  Returns:
+    awk command to use in filtering workload list.
+  """
+
+  return f" | awk -e 'NR == 1 || {filter_key} {{print $0}}'"
+
+
+def determine_workload_list_filter_by_status(args) -> str:
+  """Function to create the filtered view of workload list.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    the argument needed to filter by status of jobs in workload list.
+  """
+  # Argument positions related to columns created by workload list command.
+  status_arg = '$7'
+  running_vms_arg = '$5'
+  status_verbose_arg = '$9'
+  if args.filter_by_status == 'EVERYTHING':
+    return ''
+  elif args.filter_by_status == 'RUNNING':
+    # Running includes the status Admitted or Evicted, and when the number of
+    # vms running is > 0.
+    return workload_list_awk_command(
+        f'({status_arg} ~ "Admitted|Evicted" && {running_vms_arg} ~ /^[0-9]+$/'
+        f' && {running_vms_arg} > 0)'
+    )
+  elif args.filter_by_status == 'QUEUED':
+    # Queued includes the status Admitted or Evicted, and when the number of
+    # vms running is 0.
+    return workload_list_awk_command(
+        f'({status_arg} ~ "Admitted|Evicted|QuotaReserved" &&'
+        f' ({running_vms_arg} ~ "<none>" || {running_vms_arg} == 0))'
+    )
+  elif args.filter_by_status == 'FINISHED':
+    return workload_list_awk_command(f'{status_arg} == "Finished"')
+  elif args.filter_by_status == 'FAILED':
+    # Failed includes the status Finished, and when the verbose reason is failed.
+    return workload_list_awk_command(
+        f'({status_arg} == "Finished" && {status_verbose_arg} ~ "failed")'
+    )
+  elif args.filter_by_status == 'SUCCESSFUL':
+    # Failed includes the status Finished, and when the verbose reason is finished/success.
+    return workload_list_awk_command(
+        f'({status_arg} == "Finished" && {status_verbose_arg} ~ "finished")'
+    )
+  raise RuntimeError(f'Can not find filter type: {args.filter_by_status}')
+
+
+def determine_workload_list_filter_by_job(args) -> str:
+  """Function to filter view of workload list based on job name.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    the argument needed to filter job names from workload list
+  """
+  # Argument positions related to columns created by workload list command.
+  if not args.filter_by_job:
+    return ''
+  else:
+    job_name_arg = '$1'
+    return workload_list_awk_command(f'{job_name_arg} ~ "{args.filter_by_job}"')
+
+
+def get_workload_list(args) -> tuple[int, str]:
+  """Function to get the list of the workloads in the cluster.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    return_code: 0 if successful and 1 otherwise.
+    return_value: workloads in the cluster matching the criteria.
+  """
+  columns = {
+      'Jobset Name': '.metadata.ownerReferences[0].name',
+      'Created Time': '.metadata.creationTimestamp',
+      'Priority': '.spec.priorityClassName',
+      'TPU VMs Needed': '.spec.podSets[0].count',
+      'TPU VMs Running/Ran': '.status.admission.podSetAssignments[-1].count',
+      'TPU VMs Done': '.status.reclaimablePods[0].count',
+      'Status': '.status.conditions[-1].type',
+      'Status Message': '.status.conditions[-1].message',
+      'Status Time': '.status.conditions[-1].lastTransitionTime',
+  }
+  s = ','.join([key + ':' + value for key, value in columns.items()])
+
+  workload_list_filter_status_cmd = determine_workload_list_filter_by_status(
+      args
+  )
+  workload_list_filter_job_cmd = determine_workload_list_filter_by_job(args)
+  command = (
+      f'kubectl get workloads -o=custom-columns="{s}" '
+      f'{workload_list_filter_status_cmd} {workload_list_filter_job_cmd}'
+  )
+
+  return_code, return_value = run_command_for_value(
+      command,
+      f'List Jobs with filter-by-status={args.filter_by_status}'
+      f' with filter-by-job={args.filter_by_job}',
+      args,
+  )
+
+  return return_code, return_value

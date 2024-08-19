@@ -17,15 +17,14 @@ limitations under the License.
 from ..core.commands import run_command_for_value
 from ..core.core import (
     CLUSTER_METADATA_CONFIGMAP,
-    CLUSTER_QUEUE_NAME,
     CLUSTER_RESOURCES_CONFIGMAP,
-    LOCAL_QUEUE_NAME,
     add_zone_and_project,
-    get_workload_list,
     zone_to_region,
 )
+from ..core.kueue import CLUSTER_QUEUE_NAME, LOCAL_QUEUE_NAME
 from ..utils import append_tmp_file, write_tmp_file, xpk_exit, xpk_print
 from .cluster import set_cluster_command
+from .workload import get_workload_list
 
 
 def inspector_run_command_helper(

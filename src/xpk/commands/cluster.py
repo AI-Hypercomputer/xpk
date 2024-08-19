@@ -22,24 +22,26 @@ from ..core.commands import (
 from ..core.core import (
     VERTEX_TENSORBOARD_FEATURE_FLAG,
     add_zone_and_project,
-    cluster_preheat_yml,
     create_cluster_configmaps,
     create_cluster_network_config,
     create_vertex_tensorboard,
     delete_cluster_subnets,
-    enable_kueue_credentials,
     get_all_clusters_programmatic,
     get_gke_control_plane_version,
     get_gke_node_pool_version,
     get_gke_server_config,
     h100_device_type,
-    install_kueue_on_cluster,
     install_nccl_on_cluster,
     run_gke_node_pool_create_command,
     set_jobset_on_cluster,
     set_up_cluster_network_for_gpu,
     update_cluster_with_clouddns_if_necessary,
     zone_to_region,
+)
+from ..core.kueue import (
+    cluster_preheat_yml,
+    enable_kueue_credentials,
+    install_kueue_on_cluster,
 )
 from ..core.nap import enable_autoprovisioning_on_cluster
 from ..core.system_characteristics import (

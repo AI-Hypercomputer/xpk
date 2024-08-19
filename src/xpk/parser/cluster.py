@@ -23,7 +23,7 @@ from ..commands.cluster import (
     cluster_list,
 )
 from ..core.core import DEFAULT_VERTEX_TENSORBOARD_NAME
-from . import common
+from .common import add_shared_arguments
 
 
 def set_cluster_parser(cluster_parser):
@@ -212,7 +212,7 @@ def set_cluster_parser(cluster_parser):
   )
 
   ### Optional Arguments
-  common.add_shared_arguments(cluster_delete_optional_arguments)
+  add_shared_arguments(cluster_delete_optional_arguments)
   cluster_delete_parser.set_defaults(func=cluster_delete)
 
   ### "cluster cacheimage" command parser ###
@@ -269,7 +269,7 @@ def set_cluster_parser(cluster_parser):
   )
 
   ### Optional Arguments
-  common.add_shared_arguments(cluster_cacheimage_optional_arguments)
+  add_shared_arguments(cluster_cacheimage_optional_arguments)
   cluster_cacheimage_optional_arguments.add_argument(
       '--cache-key',
       type=str,
@@ -305,7 +305,7 @@ def set_cluster_parser(cluster_parser):
       required=True,
   )
   ### Optional Arguments
-  common.add_shared_arguments(cluster_describe_optional_arguments)
+  add_shared_arguments(cluster_describe_optional_arguments)
 
   cluster_describe_parser.set_defaults(func=cluster_describe)
 
@@ -317,7 +317,7 @@ def set_cluster_parser(cluster_parser):
       'Optional Arguments', 'Arguments optional for cluster list.'
   )
   ### Optional Arguments
-  common.add_shared_arguments(cluster_list_optional_arguments)
+  add_shared_arguments(cluster_list_optional_arguments)
 
   cluster_list_parser.set_defaults(func=cluster_list)
 
@@ -348,7 +348,7 @@ def add_shared_cluster_create_optional_arguments(args_parsers):
       List of cluster create optional arguments parsers
   """
   for custom_parser in args_parsers:
-    common.add_shared_arguments(custom_parser)
+    add_shared_arguments(custom_parser)
     custom_parser.add_argument(
         '--host-maintenance-interval',
         type=str,

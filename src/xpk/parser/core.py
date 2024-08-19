@@ -16,8 +16,10 @@ limitations under the License.
 
 import argparse
 
-from .. import utils
-from . import cluster, inspector, workload
+from ..utils import xpk_print
+from .cluster import set_cluster_parser
+from .inspector import set_inspector_parser
+from .workload import set_workload_parsers
 
 
 def set_parser(parser: argparse.ArgumentParser):
@@ -47,9 +49,7 @@ def set_parser(parser: argparse.ArgumentParser):
     Returns:
       0 if successful and 1 otherwise.
     """
-    utils.xpk_print(
-        "Welcome to XPK! See below for overall commands:", flush=True
-    )
+    xpk_print("Welcome to XPK! See below for overall commands:", flush=True)
     parser.print_help()
     cluster_parser.print_help()
     workload_parser.print_help()
@@ -59,6 +59,6 @@ def set_parser(parser: argparse.ArgumentParser):
   workload_parser.set_defaults(func=default_subcommand_function)
   cluster_parser.set_defaults(func=default_subcommand_function)
 
-  workload.set_workload_parsers(workload_parser=workload_parser)
-  cluster.set_cluster_parser(cluster_parser=cluster_parser)
-  inspector.set_inspector_parser(inspector_parser=inspector_parser)
+  set_workload_parsers(workload_parser=workload_parser)
+  set_cluster_parser(cluster_parser=cluster_parser)
+  set_inspector_parser(inspector_parser=inspector_parser)

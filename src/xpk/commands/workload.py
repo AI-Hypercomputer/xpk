@@ -1,0 +1,389 @@
+"""
+Copyright 2024 Google LLC
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+     https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+"""
+
+from ..core.commands import run_command_with_updates, run_commands
+from ..core.core import (
+    CLUSTER_METADATA_CONFIGMAP,
+    LOCAL_QUEUE_NAME,
+    VERTEX_TENSORBOARD_FEATURE_FLAG,
+    AcceleratorTypeToAcceleratorCharacteristics,
+    add_zone_and_project,
+    check_if_workload_can_schedule,
+    check_if_workload_exists,
+    create_accelerator_label,
+    create_machine_label,
+    create_vertex_experiment,
+    ensure_pathways_workload_prerequisites,
+    get_cluster_configmap,
+    get_cpu_affinity,
+    get_gke_outlier_dashboard,
+    get_gpu_rxdm_cmd,
+    get_gpu_rxdm_image,
+    get_gpu_scheduler,
+    get_gpu_tcp_volume,
+    get_gpu_volume,
+    get_pathways_proxy_args,
+    get_pathways_rm_args,
+    get_pathways_unified_query_link,
+    get_pathways_worker_args,
+    get_user_workload_container,
+    get_user_workload_for_pathways,
+    get_volumes,
+    get_workload_list,
+    gpu_workload_create_yaml,
+    is_cluster_using_clouddns,
+    parse_env_config,
+    pw_workload_create_yaml,
+    wait_for_job_completion,
+    workload_create_yaml,
+    xpk_current_version,
+    zone_to_region,
+)
+from ..core.nap import (
+    get_autoprovisioning_node_selector_args,
+    is_autoprovisioning_enabled,
+)
+from ..core.system_characteristics import (
+    AcceleratorType,
+    get_system_characteristics,
+)
+from ..utils import get_user_input, write_tmp_file, xpk_exit, xpk_print
+from .cluster import set_cluster_command
+
+
+def workload_create_pathways(args) -> None:
+  """Run jobset apply command for a file, specifically for Pathways.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  args.use_pathways = True
+  workload_create(args)
+
+
+def workload_create(args) -> None:
+  """Run jobset apply command for a file.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  add_zone_and_project(args)
+
+  if args.headless and not is_cluster_using_clouddns(args):
+    xpk_print(
+        'Please run xpk cluster create-pathways first, to upgrade and enable'
+        ' CloudDNS on your cluster.'
+    )
+    xpk_exit(1)
+
+  set_cluster_command_code = set_cluster_command(args)
+  if set_cluster_command_code != 0:
+    xpk_exit(set_cluster_command_code)
+
+  workload_exists = check_if_workload_exists(args)
+
+  if workload_exists:
+    xpk_print(
+        f'{args.workload} already exists, XPK will not create this workload.'
+        ' Please pick a new workload name'
+    )
+    xpk_exit(1)
+
+  xpk_print('Starting workload create', flush=True)
+  system, return_code = get_system_characteristics(args)
+
+  if return_code > 0:
+    xpk_print('Fetching system characteristics failed!')
+    xpk_exit(return_code)
+
+  if not check_if_workload_can_schedule(args, system):
+    xpk_exit(1)
+
+  xpk_print('Starting workload create', flush=True)
+
+  metadata_configmap_name = f'{args.cluster}-{CLUSTER_METADATA_CONFIGMAP}'
+  cluster_config_map = get_cluster_configmap(args, metadata_configmap_name)
+  cluster_xpk_version = None
+  if cluster_config_map is None:
+    xpk_print(
+        f'Warning: Unable to find ConfigMap: {metadata_configmap_name} for the'
+        ' cluster. We recommend to upgrade your cluster by running `xpk'
+        ' cluster create`.'
+    )
+  else:
+    cluster_xpk_version = cluster_config_map.get('xpk_version')
+  if (
+      cluster_xpk_version is not None
+      and cluster_xpk_version != xpk_current_version
+  ):
+    xpk_print(
+        'Warning: Cluster has been created using XPK version:'
+        f' {cluster_config_map["xpk_version"]} but the XPK version you are'
+        f' using to schedule workload is: {xpk_current_version}. Some features'
+        ' might not be available for this cluster. We recommend to'
+        ' upgrade/downgrade your XPK version or cluster by running `xpk'
+        ' cluster create`.'
+    )
+
+  debugging_dashboard_id = None
+
+  tensorboard_config = {}
+  if VERTEX_TENSORBOARD_FEATURE_FLAG and args.use_vertex_tensorboard:
+    tensorboard_config = create_vertex_experiment(args)
+    # exit if failed to create Experiment in Vertex AI
+    if not tensorboard_config:
+      xpk_exit(1)
+
+  parse_env_config(args, tensorboard_config, system)
+
+  # Currently autoprovisioning is not enabled for Pathways workloads.
+  autoprovisioning_args = ''
+  autoprovisioning_enabled, return_code = is_autoprovisioning_enabled(
+      args, system
+  )
+  if return_code != 0:
+    xpk_exit(return_code)
+  if autoprovisioning_enabled:
+    # Determine NAP capacity type
+    autoprovisioning_args, return_code = (
+        get_autoprovisioning_node_selector_args(args)
+    )
+    if return_code != 0:
+      xpk_exit(return_code)
+
+  # Create the workload file based on accelerator type or workload type.
+  if system.accelerator_type == AcceleratorType['GPU']:
+    container, debugging_dashboard_id = get_user_workload_container(
+        args, system
+    )
+    gpu_scheduler, return_code = get_gpu_scheduler(
+        args, system, autoprovisioning_args
+    )
+    if return_code != 0:
+      xpk_exit(return_code)
+
+    yml_string = gpu_workload_create_yaml.format(
+        args=args,
+        container=container,
+        command=args.command,
+        chips_per_vm=system.chips_per_vm,
+        gpu_scheduler=gpu_scheduler,
+        gpu_volume=get_gpu_volume(system),
+        gpu_rxdm_image=get_gpu_rxdm_image(system),
+        gpu_rxdm_cmd=get_gpu_rxdm_cmd(system),
+        gpu_tcp_volume=get_gpu_tcp_volume(system),
+    )
+  elif args.use_pathways and ensure_pathways_workload_prerequisites(
+      args, system
+  ):
+    yml_string = pw_workload_create_yaml.format(
+        args=args,
+        system=system,
+        accelerator_label=create_accelerator_label(
+            system.accelerator_type, system
+        ),
+        machine_label=create_machine_label(system.accelerator_type, system),
+        pathways_rm_args=get_pathways_rm_args(args, system),
+        pathways_worker_args=get_pathways_worker_args(args),
+        pathways_proxy_args=get_pathways_proxy_args(args),
+        user_workload=get_user_workload_for_pathways(args, system),
+        resource_type=AcceleratorTypeToAcceleratorCharacteristics[
+            system.accelerator_type
+        ].resource_type,
+        local_queue_name=LOCAL_QUEUE_NAME,
+        autoprovisioning_args=autoprovisioning_args,
+        backoff_limit=system.vms_per_slice * 4,
+    )
+  else:
+    container, debugging_dashboard_id = get_user_workload_container(
+        args, system
+    )
+    yml_string = workload_create_yaml.format(
+        args=args,
+        system=system,
+        container=container,
+        affinity=get_cpu_affinity(system.accelerator_type),
+        accelerator_label=create_accelerator_label(
+            system.accelerator_type, system
+        ),
+        machine_label=create_machine_label(system.accelerator_type, system),
+        local_queue_name=LOCAL_QUEUE_NAME,
+        autoprovisioning_args=autoprovisioning_args,
+        volumes=get_volumes(args, system),
+    )
+  tmp = write_tmp_file(yml_string)
+  command = f'kubectl apply -f {str(tmp.file.name)}'
+  return_code = run_command_with_updates(command, 'Creating Workload', args)
+
+  if return_code != 0:
+    xpk_print(f'Create Workload request returned ERROR {return_code}')
+    xpk_exit(return_code)
+
+  # Get GKE outlier dashboard for TPU
+  outlier_dashboard_id = None
+  if system.accelerator_type == AcceleratorType['TPU']:
+    outlier_dashboard_id = get_gke_outlier_dashboard(args)
+
+  # Outlier and debugging dashboards
+  if outlier_dashboard_id is not None:
+    xpk_print(
+        'Check statistics and outlier mode of GKE metrics here:'
+        # pylint: disable=line-too-long
+        f' https://console.cloud.google.com/monitoring/dashboards/builder/{outlier_dashboard_id}?project={args.project}&f.rlabel.cluster_name.ClusterName={args.cluster}.'
+        ' To view the metric data for your workload, select'
+        f' {args.workload} from the JobName filter on the dashboard.'
+    )
+
+  if debugging_dashboard_id is not None:
+    xpk_print(
+        'Check stack traces collected in Cloud Logging here:'
+        # pylint: disable=line-too-long
+        f' https://console.cloud.google.com/monitoring/dashboards/builder/{debugging_dashboard_id}?project={args.project}&f.rlabel.cluster_name.ClusterName={args.cluster}.'
+        ' To view the stack traces for your workload, select'
+        f' {args.workload} from the JobName filter on the dashboard.'
+    )
+
+  if args.use_pathways:
+    if args.headless:
+      xpk_print(
+          ' \n *******  Please connect to your Pathways proxy at'
+          f' {args.pathways_proxy_address} , once you see "IFRT proxy server'
+          ' started with status OK" on the proxy link below.'
+          ' Remember to delete the workload once done! ****** \n'
+      )
+      pathways_proxy_link = f'https://console.cloud.google.com/kubernetes/job/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}-proxy-0/details?project={args.project}'
+      xpk_print(
+          'Follow the proxy here:'
+          # pylint: disable=line-too-long)
+          f' {pathways_proxy_link} '
+      )
+    xpk_print(
+        'Follow your Pathways workload and other resources here : '
+        f'{get_pathways_unified_query_link(args)}'
+    )
+  else:
+    xpk_print(
+        'Follow your workload here:'
+        # pylint: disable=line-too-long
+        f' https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
+    )
+
+  xpk_exit(0)
+
+
+def workload_delete(args) -> None:
+  """Function around workload delete.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  xpk_print('Starting Workload delete', flush=True)
+  add_zone_and_project(args)
+  set_cluster_command_code = set_cluster_command(args)
+  if set_cluster_command_code != 0:
+    xpk_exit(set_cluster_command_code)
+
+  will_delete = True
+  if not args.workload:
+    xpk_print('Get the name of the workloads in the cluster.')
+    return_code, return_value = get_workload_list(args)
+
+    if return_code != 0:
+      xpk_print(f'List Job request returned ERROR {return_code}')
+      xpk_exit(return_code)
+    # Skip the header
+    workloads = [x.split(' ')[0] for x in return_value.splitlines()][1:]
+    if workloads and not args.force:
+      will_delete = get_user_input(
+          f'Planning to delete {len(workloads)} workloads in the cluster'
+          f' {args.cluster} including {workloads}. \nDo you wish to delete: y'
+          ' (yes) / n (no):\n'
+      )
+  else:
+    workloads = [args.workload]
+
+  if not workloads:
+    xpk_print(
+        'There are no workloads to delete matching the filter in the cluster.'
+    )
+  elif not will_delete:
+    xpk_print('Skipping delete command.')
+  else:
+    commands = []
+    task_names = []
+    for workload in workloads:
+      args.workload = workload
+      command = f'kubectl delete jobset {workload} -n default'
+      task_name = f'WorkloadDelete-{workload}'
+      commands.append(command)
+      task_names.append(task_name)
+
+    # Not batching deletion for single workload
+    if len(workloads) == 1:
+      return_code = run_command_with_updates(
+          commands[0], 'Delete Workload', args
+      )
+    else:
+      return_code = run_commands(
+          commands, 'Delete Workload', task_names, batch=100
+      )
+
+    if return_code != 0:
+      xpk_print(f'Delete Workload request returned ERROR {return_code}')
+      xpk_exit(return_code)
+  xpk_exit(0)
+
+
+def workload_list(args) -> None:
+  """Function around workload list.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  xpk_print(args)
+
+  xpk_print('Starting workload list', flush=True)
+  add_zone_and_project(args)
+  set_cluster_command_code = set_cluster_command(args)
+  if set_cluster_command_code != 0:
+    xpk_exit(set_cluster_command_code)
+
+  if args.wait_for_job_completion:
+    return_code = wait_for_job_completion(args)
+    if return_code != 0:
+      xpk_print(f'Wait for job completion returned ERROR {return_code}')
+      xpk_exit(return_code)
+    args.filter_by_job = args.wait_for_job_completion
+
+  return_code, return_value = get_workload_list(args)
+
+  if return_code != 0:
+    xpk_print(f'List Job request returned ERROR {return_code}')
+    xpk_exit(return_code)
+  xpk_print(f'Workload List Output:\n{return_value}')
+  xpk_exit(0)

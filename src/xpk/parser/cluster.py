@@ -14,8 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from ..commands.cluster import (
+    cluster_cacheimage,
+    cluster_create,
+    cluster_create_pathways,
+    cluster_delete,
+    cluster_describe,
+    cluster_list,
+)
+from ..core.core import DEFAULT_VERTEX_TENSORBOARD_NAME
 from . import common
-from ..core import core
 
 
 def set_cluster_parser(cluster_parser):
@@ -178,8 +186,8 @@ def set_cluster_parser(cluster_parser):
       cluster_create_pathways_tensorboard_arguments,
   ])
 
-  cluster_create_parser.set_defaults(func=core.cluster_create)
-  cluster_create_pathways_parser.set_defaults(func=core.cluster_create_pathways)
+  cluster_create_parser.set_defaults(func=cluster_create)
+  cluster_create_pathways_parser.set_defaults(func=cluster_create_pathways)
 
   ### "cluster delete" command parser ###
   cluster_delete_parser = cluster_subcommands.add_parser(
@@ -205,7 +213,7 @@ def set_cluster_parser(cluster_parser):
 
   ### Optional Arguments
   common.add_shared_arguments(cluster_delete_optional_arguments)
-  cluster_delete_parser.set_defaults(func=core.cluster_delete)
+  cluster_delete_parser.set_defaults(func=cluster_delete)
 
   ### "cluster cacheimage" command parser ###
   cluster_cacheimage_parser = cluster_subcommands.add_parser(
@@ -269,7 +277,7 @@ def set_cluster_parser(cluster_parser):
       help='The key to cache the docker image under.',
       required=False,
   )
-  cluster_cacheimage_parser.set_defaults(func=core.cluster_cacheimage)
+  cluster_cacheimage_parser.set_defaults(func=cluster_cacheimage)
 
   ### "cluster describe" command parser ###
   cluster_describe_parser = cluster_subcommands.add_parser(
@@ -299,7 +307,7 @@ def set_cluster_parser(cluster_parser):
   ### Optional Arguments
   common.add_shared_arguments(cluster_describe_optional_arguments)
 
-  cluster_describe_parser.set_defaults(func=core.cluster_describe)
+  cluster_describe_parser.set_defaults(func=cluster_describe)
 
   # "cluster list" command parser.
   cluster_list_parser = cluster_subcommands.add_parser(
@@ -311,7 +319,7 @@ def set_cluster_parser(cluster_parser):
   ### Optional Arguments
   common.add_shared_arguments(cluster_list_optional_arguments)
 
-  cluster_list_parser.set_defaults(func=core.cluster_list)
+  cluster_list_parser.set_defaults(func=cluster_list)
 
 
 def add_shared_cluster_create_required_arguments(args_parsers):
@@ -474,7 +482,7 @@ def add_shared_cluster_create_tensorboard_arguments(args_parsers):
         help=(
             'The name of Vertex Tensorboard instance to create. If not'
             ' specified, a Tensorboard instance with the name'
-            f' <cluster>-{core.DEFAULT_VERTEX_TENSORBOARD_NAME} will be'
+            f' <cluster>-{DEFAULT_VERTEX_TENSORBOARD_NAME} will be'
             ' created.'
         ),
     )

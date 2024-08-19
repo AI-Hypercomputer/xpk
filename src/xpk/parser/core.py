@@ -15,10 +15,9 @@ limitations under the License.
 """
 
 import argparse
-from . import cluster
-from . import inspector
-from . import workload
+
 from .. import utils
+from . import cluster, inspector, workload
 
 
 def set_parser(parser: argparse.ArgumentParser):

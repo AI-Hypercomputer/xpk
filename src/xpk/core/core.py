@@ -54,25 +54,6 @@ from .system_characteristics import (
     SystemCharacteristics,
 )
 
-################### Compatibility Check ###################
-# Check that the user runs the below version or greater.
-
-major_version_supported = 3
-minor_version_supported = 10
-
-user_major_version = sys.version_info[0]
-user_minor_version = sys.version_info[1]
-if (
-    user_major_version < major_version_supported
-    or user_minor_version < minor_version_supported
-):
-  raise RuntimeError(
-      'xpk must be run with Python'
-      f' {major_version_supported}.{minor_version_supported} or greater.'
-      f' User currently is running {user_major_version}.{user_minor_version}'
-  )
-
-
 ################### Internally used constants ##############
 
 default_docker_image = 'python:3.10'
@@ -87,13 +68,11 @@ h100_mega_device_type = 'h100-mega-80gb-8'
 
 CAPACITY_TYPE_CONFIG_KEY = 'capacity_type'
 RESERVATION_CONFIG_KEY = 'reservation_id'
-
 _DEFAULT_POOL_NAME = 'default-pool'
 CLUSTER_RESOURCES_CONFIGMAP = 'resources-configmap'
 CLUSTER_METADATA_CONFIGMAP = 'metadata-configmap'
 VERTEX_TENSORBOARD_FEATURE_FLAG = xpk_current_version >= '0.4.0'
 DEFAULT_VERTEX_TENSORBOARD_NAME = 'tb-instance'
-
 AUTOPROVISIONING_CONFIG_VALUE = 'AUTOPROVISION'
 AUTOPROVISIONING_CONFIG_MINIMUM_KEY = 'minimum_chips'
 AUTOPROVISIONING_CONFIG_MAXIMUM_KEY = 'maximum_chips'
@@ -111,36 +90,6 @@ class AutoprovisioningConfig:
   config_filename: str
   minimum_chips: int
   maximum_chips: int
-
-
-gpu_scheduler_yaml = """schedulerName: {scheduler_name}
-              affinity:
-                nodeAffinity:
-                  requiredDuringSchedulingIgnoredDuringExecution:
-                    nodeSelectorTerms:
-                    - matchExpressions:
-                      - key: cloud.google.com/gke-accelerator
-                        operator: Exists
-                      - key: cloud.google.com/gke-nodepool
-                        operator: In
-                        values: [{node_pool_name}]
-              nodeSelector:
-                {accelerator_label}
-                {machine_label}
-                {autoprovisioning_args}
-              """
-
-
-script_dir_dockerfile = """FROM {base_docker_image}
-
-# Set the working directory in the container
-WORKDIR /app
-
-# Copy all files from local workspace into docker container
-COPY . .
-
-WORKDIR /app
-"""
 
 
 cluster_configmap_yaml = """kind: ConfigMap
@@ -1857,6 +1806,17 @@ def build_docker_image_from_base_image(args, verbose=True) -> tuple[int, str]:
   docker_image_prefix = os.getenv('USER', 'unknown')
   docker_name = f'{docker_image_prefix}-runner'
 
+  script_dir_dockerfile = """FROM {base_docker_image}
+
+  # Set the working directory in the container
+  WORKDIR /app
+
+  # Copy all files from local workspace into docker container
+  COPY . .
+
+  WORKDIR /app
+  """
+
   docker_file = script_dir_dockerfile.format(
       base_docker_image=args.base_docker_image,
   )
@@ -2770,6 +2730,22 @@ def get_gpu_scheduler(
               - name: "{args.scheduler}-{args.workload}"
               """
   elif args.scheduler == 'default-scheduler':
+    gpu_scheduler_yaml = """schedulerName: {scheduler_name}
+              affinity:
+                nodeAffinity:
+                  requiredDuringSchedulingIgnoredDuringExecution:
+                    nodeSelectorTerms:
+                    - matchExpressions:
+                      - key: cloud.google.com/gke-accelerator
+                        operator: Exists
+                      - key: cloud.google.com/gke-nodepool
+                        operator: In
+                        values: [{node_pool_name}]
+              nodeSelector:
+                {accelerator_label}
+                {machine_label}
+                {autoprovisioning_args}
+              """
     gpu_scheduler = gpu_scheduler_yaml.format(
         scheduler_name=args.scheduler,
         accelerator_label=create_accelerator_label(

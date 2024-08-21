@@ -449,6 +449,21 @@ def add_shared_cluster_create_optional_arguments(args_parsers):
             ' --custom-tpu-nodepool-arguments="--enable-ip-alias"'
         ),
     )
+    custom_parser.add_argument(
+        '--enable-workload-identity',
+        action='store_true',
+        help=(
+            'Enable Workload Identity Federation on the cluster and node-pools.'
+        ),
+    )
+    custom_parser.add_argument(
+        '--enable-gcsfuse-csi-driver',
+        action='store_true',
+        help=(
+            'Enable GSCFuse driver on the cluster. This enables Workload'
+            ' Identity Federation.'
+        ),
+    )
 
 
 def add_shared_cluster_create_tensorboard_arguments(args_parsers):

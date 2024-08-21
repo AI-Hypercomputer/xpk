@@ -497,7 +497,7 @@ Check out [MaxText example](https://github.com/google/maxtext/pull/570) on how t
     --cluster xpk-test --filter-by-job=$USER
     ```
 
-* Workload List supports waiting for the completion of a specific job. XPK will follow an existing job until it has finished or the `timeout`, if provided, has been reached  and then list the job. If no `timeout` is specified, the default value is set to the max value, 1 week. You may also set `timeout=0` to poll the job once.  
+* Workload List supports waiting for the completion of a specific job. XPK will follow an existing job until it has finished or the `timeout`, if provided, has been reached  and then list the job. If no `timeout` is specified, the default value is set to the max value, 1 week. You may also set `timeout=0` to poll the job once.
 (Note: `restart-on-user-code-failure` must be set
 when creating the workload otherwise the workload will always finish with `Completed` status.)
 
@@ -516,11 +516,11 @@ when creating the workload otherwise the workload will always finish with `Compl
     --timeout=300
     ```
 
-  Return codes  
-    `0`: Workload finished and completed successfully.  
-    `124`: Timeout was reached before workload finished.  
-    `125`: Workload finished but did not complete successfully.  
-    `1`: Other failure.  
+  Return codes
+    `0`: Workload finished and completed successfully.
+    `124`: Timeout was reached before workload finished.
+    `125`: Workload finished but did not complete successfully.
+    `1`: Other failure.
 
 ## Inspector
 * Inspector provides debug info to understand cluster health, and why workloads are not running.
@@ -1078,3 +1078,6 @@ To explore the stack traces collected in a temporary directory in Kubernetes Pod
   --workload xpk-test-workload --command "python3 main.py" --cluster \
   xpk-test --tpu-type=v5litepod-16 --deploy-stacktrace-sidecar
  ```
+
+# Other advanced usage
+[Use a Jupyter notebook to interact with a Cloud TPU cluster](xpk-notebooks.md)

@@ -14,9 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from . import common
-from ..core import core
-from .. import utils
+from ..commands.workload import (
+    workload_create,
+    workload_create_pathways,
+    workload_delete,
+    workload_list,
+)
+from ..core.core import default_docker_image, default_script_dir
+from ..utils import directory_path_type, workload_name_type
+from .common import add_shared_arguments
 
 
 def set_workload_parsers(workload_parser):
@@ -264,10 +270,8 @@ def set_workload_parsers(workload_parser):
   ])
 
   # Set defaults for both workload create and workload create-pathways after adding all shared args.
-  workload_create_parser.set_defaults(func=core.workload_create)
-  workload_create_pathways_parser.set_defaults(
-      func=core.workload_create_pathways
-  )
+  workload_create_parser.set_defaults(func=workload_create)
+  workload_create_pathways_parser.set_defaults(func=workload_create_pathways)
 
   # "workload delete" command parser.
   workload_delete_parser = workload_subcommands.add_parser(
@@ -284,7 +288,7 @@ def set_workload_parsers(workload_parser):
           'Optional Arguments', 'Arguments optional for `job delete`.'
       )
   )
-  common.add_shared_arguments(workload_delete_parser_optional_arguments)
+  add_shared_arguments(workload_delete_parser_optional_arguments)
 
   ### "workload delete" Required arguments
   workload_delete_parser_required_arguments.add_argument(
@@ -297,7 +301,7 @@ def set_workload_parsers(workload_parser):
   ### "workload delete" Optional arguments
   workload_delete_parser_optional_arguments.add_argument(
       '--workload',
-      type=utils.workload_name_type,
+      type=workload_name_type,
       default=None,
       help=(
           'The name of the workload to delete. If the workload is not'
@@ -339,7 +343,7 @@ def set_workload_parsers(workload_parser):
       ),
   )
 
-  workload_delete_parser.set_defaults(func=core.workload_delete)
+  workload_delete_parser.set_defaults(func=workload_delete)
 
   # "workload list" command parser.
   workload_list_parser = workload_subcommands.add_parser(
@@ -410,9 +414,9 @@ def set_workload_parsers(workload_parser):
       required=False,
   )
 
-  common.add_shared_arguments(workload_list_parser)
+  add_shared_arguments(workload_list_parser)
 
-  workload_list_parser.set_defaults(func=core.workload_list)
+  workload_list_parser.set_defaults(func=workload_list)
 
 
 def add_shared_workload_create_required_arguments(args_parsers):
@@ -424,7 +428,7 @@ def add_shared_workload_create_required_arguments(args_parsers):
   for custom_parser in args_parsers:
     custom_parser.add_argument(
         '--workload',
-        type=utils.workload_name_type,
+        type=workload_name_type,
         default=None,
         help='The name of the workload to run.',
         required=True,
@@ -445,7 +449,7 @@ def add_shared_workload_create_optional_arguments(args_parsers):
       List of workload create optional arguments parsers
   """
   for custom_parser in args_parsers:
-    common.add_shared_arguments(custom_parser)
+    add_shared_arguments(custom_parser)
     custom_parser.add_argument(
         '--docker-name',
         type=str,
@@ -596,10 +600,10 @@ def add_shared_workload_base_docker_image_arguments(args_parsers):
     custom_parser.add_argument(
         '--base-docker-image',
         type=str,
-        default=core.default_docker_image,
+        default=default_docker_image,
         help=(
             'The base docker-image to use, default'
-            f' {core.default_docker_image}. If using a custom docker image it'
+            f' {default_docker_image}. If using a custom docker image it'
             ' is typically addressed as gcr.io/${PROJECT}/${NAME}:latest.'
             ' This docker image will be used as a base image by default and'
             ' the `--script-dir` by default will be added to the image.'
@@ -607,8 +611,8 @@ def add_shared_workload_base_docker_image_arguments(args_parsers):
     )
     custom_parser.add_argument(
         '--script-dir',
-        type=utils.directory_path_type,
-        default=core.default_script_dir,
+        type=directory_path_type,
+        default=default_script_dir,
         help=(
             'The local location of the directory to copy to the docker image'
             ' and run the main command from. Defaults to current working'

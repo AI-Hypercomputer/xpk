@@ -39,34 +39,20 @@ import re
 import string
 import subprocess
 import sys
-import time
-from .. import utils as xpk_utils
 from dataclasses import dataclass
+
+from ..utils import get_user_input, write_tmp_file, xpk_exit, xpk_print
+from .commands import (
+    run_command_for_value,
+    run_command_with_updates,
+    run_command_with_updates_retry,
+    run_commands,
+)
 from .system_characteristics import (
     AcceleratorType,
     AcceleratorTypeToAcceleratorCharacteristics,
     SystemCharacteristics,
-    get_system_characteristics,
 )
-
-################### Compatibility Check ###################
-# Check that the user runs the below version or greater.
-
-major_version_supported = 3
-minor_version_supported = 10
-
-user_major_version = sys.version_info[0]
-user_minor_version = sys.version_info[1]
-if (
-    user_major_version < major_version_supported
-    or user_minor_version < minor_version_supported
-):
-  raise RuntimeError(
-      'xpk must be run with Python'
-      f' {major_version_supported}.{minor_version_supported} or greater.'
-      f' User currently is running {user_major_version}.{user_minor_version}'
-  )
-
 
 ################### Internally used constants ##############
 
@@ -79,19 +65,17 @@ xpk_current_version = __version__
 h100_device_type = 'h100-80gb-8'
 h100_mega_device_type = 'h100-mega-80gb-8'
 
-_AUTOPROVISIONING_CONFIG_VALUE = 'AUTOPROVISION'
-_AUTOPROVISIONING_CONFIG_MINIMUM_KEY = 'minimum_chips'
-_AUTOPROVISIONING_CONFIG_MAXIMUM_KEY = 'maximum_chips'
 
-_CAPACITY_TYPE_CONFIG_KEY = 'capacity_type'
-_RESERVATION_CONFIG_KEY = 'reservation_id'
-_CLUSTER_QUEUE_NAME = 'cluster-queue'
-_LOCAL_QUEUE_NAME = 'multislice-queue'
+CAPACITY_TYPE_CONFIG_KEY = 'capacity_type'
+RESERVATION_CONFIG_KEY = 'reservation_id'
 _DEFAULT_POOL_NAME = 'default-pool'
-_CLUSTER_RESOURCES_CONFIGMAP = 'resources-configmap'
-_CLUSTER_METADATA_CONFIGMAP = 'metadata-configmap'
-_VERTEX_TENSORBOARD_FEATURE_FLAG = xpk_current_version >= '0.4.0'
+CLUSTER_RESOURCES_CONFIGMAP = 'resources-configmap'
+CLUSTER_METADATA_CONFIGMAP = 'metadata-configmap'
+VERTEX_TENSORBOARD_FEATURE_FLAG = xpk_current_version >= '0.4.0'
 DEFAULT_VERTEX_TENSORBOARD_NAME = 'tb-instance'
+AUTOPROVISIONING_CONFIG_VALUE = 'AUTOPROVISION'
+AUTOPROVISIONING_CONFIG_MINIMUM_KEY = 'minimum_chips'
+AUTOPROVISIONING_CONFIG_MAXIMUM_KEY = 'maximum_chips'
 
 
 class CapacityType(enum.Enum):
@@ -101,375 +85,12 @@ class CapacityType(enum.Enum):
   UNKNOWN = 'unknown'
 
 
-workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
-kind: JobSet
-metadata:
-  name: {args.workload}
-  labels:
-    kueue.x-k8s.io/queue-name: {local_queue_name}  # Name of the LocalQueue
-    xpk.google.com/workload: {args.workload}
-  annotations:
-    alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool # 1:1 job replica to node pool assignment
-spec:
-  failurePolicy:
-    maxRestarts: {args.max_restarts}
-  replicatedJobs:
-    - name: slice-job
-      replicas: {args.num_slices}
-      template:
-        spec:
-          parallelism: {system.vms_per_slice}    # Equal to the number of VMs per slice
-          completions: {system.vms_per_slice}    # Same as the above.
-          backoffLimit: 0   # When any pod fails, the job is failed
-          template:
-            metadata:
-              labels:
-                xpk.google.com/workload: {args.workload}
-            spec:
-              schedulerName: {args.scheduler}
-              restartPolicy: Never
-              {affinity}
-              nodeSelector:
-                {accelerator_label}
-                {machine_label}
-                {autoprovisioning_args}
-              priorityClassName: {args.priority}
-              hostNetwork: true
-              dnsPolicy: ClusterFirstWithHostNet
-              terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
-              containers:
-              {container}
-              volumes:
-              {volumes}
-"""
+@dataclass
+class AutoprovisioningConfig:
+  config_filename: str
+  minimum_chips: int
+  maximum_chips: int
 
-gpu_scheduler_yaml = """schedulerName: {scheduler_name}
-              affinity:
-                nodeAffinity:
-                  requiredDuringSchedulingIgnoredDuringExecution:
-                    nodeSelectorTerms:
-                    - matchExpressions:
-                      - key: cloud.google.com/gke-accelerator
-                        operator: Exists
-                      - key: cloud.google.com/gke-nodepool
-                        operator: In
-                        values: [{node_pool_name}]
-              nodeSelector:
-                {accelerator_label}
-                {machine_label}
-                {autoprovisioning_args}
-              """
-
-
-gpu_workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
-kind: JobSet
-metadata:
-  name: {args.workload}
-  labels:
-    kueue.x-k8s.io/queue-name: multislice-queue  # Name of the LocalQueue
-    xpk.google.com/workload: {args.workload}
-spec:
-  failurePolicy:
-    maxRestarts: {args.max_restarts}
-  replicatedJobs:
-    - name: slice-job
-      replicas: 1
-      template:
-        spec:
-          parallelism: {args.num_nodes}
-          completions: {args.num_nodes}
-          backoffLimit: 0   # When any pod fails, the job is failed
-          template:
-            metadata:
-              labels:
-                xpk.google.com/workload: {args.workload}
-            spec:
-              {gpu_scheduler}
-              priorityClassName: {args.priority}
-              restartPolicy: Never
-              hostNetwork: true
-              dnsPolicy: ClusterFirstWithHostNet
-              terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
-              tolerations:
-              - operator: "Exists"
-                key: nvidia.com/gpu
-              volumes:
-              {gpu_volume}
-              containers:
-              {gpu_rxdm_image}
-                imagePullPolicy: Always
-                command:
-                - "bash"
-                - "-c"
-                - |
-                  {gpu_rxdm_cmd} &
-                  while [ ! -e "/usr/share/workload/workload_terminated" ]; do sleep 10; echo "sleeping"; done
-                securityContext:
-                  privileged: true
-                volumeMounts:
-                {gpu_tcp_volume}
-                - name: nvidia-install-dir-host
-                  mountPath: /usr/local/nvidia/lib64
-                - name: workload-terminated-volume
-                  mountPath: /usr/share/workload
-                env:
-                - name: LD_LIBRARY_PATH
-                  value: /usr/local/nvidia/lib64
-              {container}
-"""
-
-pw_workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
-kind: JobSet
-metadata:
-  name: {args.workload}
-  labels:
-    kueue.x-k8s.io/queue-name: {local_queue_name}  # Name of the LocalQueue
-    xpk.google.com/workload: {args.workload}
-spec:
-  failurePolicy:
-    maxRestarts: {args.max_restarts}
-  successPolicy:
-    operator: "All"
-    targetReplicatedJobs:
-    - {args.targetReplicatedJob}
-  replicatedJobs:
-  - name: worker
-    replicas: {args.num_slices}
-    template:
-      metadata:
-        annotations:
-          alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool
-        labels:
-          xpk.google.com/workload: {args.workload}
-      spec:
-        backoffLimit: {backoff_limit}
-        completions: {system.vms_per_slice}
-        parallelism: {system.vms_per_slice}
-        template:
-          spec:
-            terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
-            containers:
-            - args:
-              {pathways_worker_args}
-              image: {args.server_image}
-              imagePullPolicy: Always
-              name: pathways-worker
-              ports:
-              - containerPort: 38677
-              - containerPort: 8471
-              - containerPort: 8080
-              resources:
-                limits:
-                  {resource_type}: {system.chips_per_vm}
-              securityContext:
-                privileged: true
-              volumeMounts:
-              - mountPath: /tmp
-                name: shared-tmp
-            nodeSelector:
-              {accelerator_label}
-              {machine_label}
-              {autoprovisioning_args}
-            priorityClassName: {args.priority}
-            volumes:
-            - hostPath:
-                path: /tmp
-                type: DirectoryOrCreate
-              name: shared-tmp
-  - name: rm
-    replicas: 1
-    template:
-      metadata:
-        labels:
-          xpk.google.com/workload: {args.workload}
-      spec:
-        backoffLimit: 0
-        completions: 1
-        parallelism: 1
-        template:
-          spec:
-            containers:
-            - args:
-              {pathways_rm_args}
-              env:
-              - name: REPLICATED_JOB_NAME
-                valueFrom:
-                  fieldRef:
-                    fieldPath: metadata.annotations['jobset.sigs.k8s.io/replicatedjob-name']
-              - name: JOBSET_NAME
-                valueFrom:
-                  fieldRef:
-                    fieldPath: metadata.annotations['jobset.sigs.k8s.io/jobset-name']
-              - name: HOST_ADDRESS
-                value: $(JOBSET_NAME)-$(REPLICATED_JOB_NAME)-0-0.$(JOBSET_NAME)
-              - name: TPU_SKIP_MDS_QUERY
-                value: "true"
-              image: {args.server_image}
-              imagePullPolicy: Always
-              name: pathways-rm
-              ports:
-              - containerPort: 38677
-              resources:
-                limits:
-                  cpu: "4"
-                  memory: 8G
-              securityContext:
-                privileged: true
-              volumeMounts:
-              - mountPath: /tmp
-                name: shared-tmp
-            nodeSelector:
-              cloud.google.com/gke-nodepool: cpu-rm-np
-            volumes:
-            - hostPath:
-                path: /tmp
-                type: DirectoryOrCreate
-              name: shared-tmp
-  - name: proxy
-    replicas: 1
-    template:
-      metadata:
-        labels:
-          xpk.google.com/workload: {args.workload}
-      spec:
-        backoffLimit: 0
-        completions: 1
-        parallelism: 1
-        template:
-          spec:
-            containers:
-            - args:
-              {pathways_proxy_args}
-              image: {args.proxy_server_image}
-              imagePullPolicy: Always
-              name: pathways-proxy
-              ports:
-              - containerPort: 38676
-              resources:
-                limits:
-                  cpu: "24"
-                  memory: 100G
-            nodeSelector:
-              cloud.google.com/gke-nodepool: cpu-proxy-np
-  {user_workload}
-"""
-
-script_dir_dockerfile = """FROM {base_docker_image}
-
-# Set the working directory in the container
-WORKDIR /app
-
-# Copy all files from local workspace into docker container
-COPY . .
-
-WORKDIR /app
-"""
-
-cluster_set_crd_yaml = """apiVersion: kueue.x-k8s.io/v1beta1
-kind: ResourceFlavor
-metadata:
-  name: {cluster_hardware_name}
-spec:
-  nodeLabels:
-    {accelerator_label}
-    {machine_label}
----
-{pw_resource_flavors}
-apiVersion: kueue.x-k8s.io/v1beta1
-kind: ClusterQueue
-metadata:
-  name: {cluster_queue_name}
-spec:
-  preemption:
-      reclaimWithinCohort: Never # Don't preempt other queues in the cohort.
-      withinClusterQueue: LowerPriority
-  namespaceSelector: {{}} # match all.
-  resourceGroups:
-  {covered_resources_config}
-  {pw_resources_kueue}
----
-apiVersion: kueue.x-k8s.io/v1beta1
-kind: LocalQueue
-metadata:
-  namespace: default
-  name: {local_queue_name}
-spec:
-  clusterQueue: {cluster_queue_name}
----
-apiVersion: scheduling.k8s.io/v1
-kind: PriorityClass
-metadata:
-  name: very-low
-value: 100
-globalDefault: false
-description: "Very Low"
----
-apiVersion: scheduling.k8s.io/v1
-kind: PriorityClass
-metadata:
-  name: low
-value: 250
-globalDefault: false
-description: "Low"
----
-apiVersion: scheduling.k8s.io/v1
-kind: PriorityClass
-metadata:
-  name: medium
-value: 500
-globalDefault: false
-description: "Medium"
----
-apiVersion: scheduling.k8s.io/v1
-kind: PriorityClass
-metadata:
-  name: high
-value: 750
-globalDefault: false
-description: "High"
----
-apiVersion: scheduling.k8s.io/v1
-kind: PriorityClass
-metadata:
-  name: very-high
-value: 1000
-globalDefault: false
-description: "Very High"
-"""
-
-cluster_preheat_yml = """
-apiVersion: apps/v1
-kind: DaemonSet
-metadata:
-  name: {cachekey}
-  labels:
-    k8s-app: {cachekey}
-spec:
-  selector:
-    matchLabels:
-      k8s-app: {cachekey}
-  updateStrategy:
-    type: RollingUpdate
-  template:
-    metadata:
-      labels:
-        name: {cachekey}
-        k8s-app: {cachekey}
-    spec:
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-            - matchExpressions:
-              - key: {nodeSelectorKey}
-                operator: Exists
-      tolerations:
-      - operator: "Exists"
-      containers:
-      - image: {image_name}
-        name: {cachekey}
-        command: [ "sleep", "inf" ]
-"""
 
 cluster_configmap_yaml = """kind: ConfigMap
 apiVersion: v1
@@ -562,151 +183,6 @@ spec:
   deviceMode: NetDevice
 """
 
-autoprovisioning_config_file = """
-management:
-  autoRepair: true
-  autoUpgrade: true
-autoprovisioningLocations:
-  {zones}
-{resource_limits}
-"""
-
-autoprovisioning_resource_limits = """
-resourceLimits:
-- resourceType: 'cpu'
-  {cpu_limits}
-- resourceType: 'memory'
-  {memory_limits}
-{custom_resource_type}
-"""
-
-autoprovisioning_custom_resource_type = """
-- resourceType: {resource_type}
-  minimum: {minimum}
-  maximum: {maximum}
-"""
-
-
-@dataclass
-class AutoprovisioningConfig:
-  config_filename: str
-  minimum_chips: int
-  maximum_chips: int
-
-
-PathwaysExpectedInstancesMap = {
-    'v5p': 'v5',
-    'v5litepod': 'v5e',
-    'v4': 'v4',
-    'v3': 'v3',
-}
-
-
-def run_commands(commands, jobname, per_command_name, batch=10, dry_run=False):
-  """Run commands in groups of `batch`.
-
-  Args:
-    commands: list of command.
-    jobname: the name of the job.
-    per_command_name: list of command names.
-    batch: number of commands to run in parallel.
-    dry_run: enables dry_run if set to true.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  temporary_files_batches = xpk_utils.chunks(
-      xpk_utils.make_tmp_files(per_command_name), batch
-  )
-  commands_batched = xpk_utils.chunks(commands, batch)
-  per_command_name_batches = xpk_utils.chunks(per_command_name, batch)
-
-  xpk_utils.xpk_print(
-      f'Breaking up a total of {len(commands)} commands into'
-      f' {len(commands_batched)} batches'
-  )
-  if dry_run:
-    xpk_utils.xpk_print('Pretending all the jobs succeeded')
-    return 0
-
-  max_return_code = 0
-  for i, _ in enumerate(commands_batched):
-    xpk_utils.xpk_print(f'Dispatching batch {i}/{len(commands_batched)}')
-    batch_max_return_code, _ = run_command_batch(
-        commands_batched[i],
-        jobname,
-        per_command_name_batches[i],
-        temporary_files_batches[i],
-    )
-    max_return_code = max(max_return_code, batch_max_return_code)
-    if max_return_code > 0:
-      return max_return_code
-  return max_return_code
-
-
-def run_command_batch(commands, jobname, per_command_name, output_logs):
-  """Runs commands in parallel.
-
-  Args:
-    commands: list of n commands, each command is a a list of strings
-    jobname: Useful debugging name for the group of commands
-    per_command_name: specific name per task
-    output_logs: list of n log paths, each command will output to each log.
-
-  Returns:
-    The max return code and a list of all the return codes.
-  """
-
-  children = []
-  start_time = datetime.datetime.now()
-  for i, command in enumerate(commands):
-    children.append(
-        # subprocess managed by list pylint: disable=consider-using-with
-        subprocess.Popen(
-            command, stdout=output_logs[i], stderr=output_logs[i], shell=True
-        )
-    )
-
-  while True:
-    returncodes = [child.poll() for child in children]
-    max_returncode = max([0] + [r for r in returncodes if r is not None])
-    completed = len([r for r in returncodes if r is not None])
-    total = len(returncodes)
-    seconds_elapsed = (datetime.datetime.now() - start_time).total_seconds()
-    if completed < total:
-      slow_worker_index = returncodes.index(None)
-      slow_worker_text = per_command_name[slow_worker_index]
-      slow_str = (
-          f', task {slow_worker_text} still working, logfile'
-          f' {output_logs[slow_worker_index].name}'
-      )
-    else:
-      slow_str = ''
-    xpk_utils.xpk_print(
-        f'[t={seconds_elapsed:.2f}, {jobname}] Completed'
-        f' {completed}/{total}{slow_str}'
-    )
-    if max_returncode > 0:
-      failing_index = [
-          i for i, x in enumerate(returncodes) if x is not None and x > 0
-      ][0]
-      xpk_utils.xpk_print(
-          f'Terminating all {jobname} processes since at least one failed.'
-      )
-      xpk_utils.xpk_print(
-          f'Failure is {per_command_name[failing_index]}'
-          f' and logfile {output_logs[failing_index].name}'
-      )
-      for child in children:
-        child.terminate()
-      break
-
-    if completed == total:
-      break
-
-    time.sleep(1)
-  return max_returncode, returncodes
-
 
 def add_zone_and_project(args):
   """Obtains the zone and project names from gcloud configs if not defined.
@@ -718,7 +194,7 @@ def add_zone_and_project(args):
     args.project = get_project()
   if not args.zone:
     args.zone = get_zone()
-  xpk_utils.xpk_print(f'Working on {args.project=} and {args.zone}')
+  xpk_print(f'Working on {args.project=} and {args.zone}')
 
 
 def parse_env_config(args, tensorboard_config, system: SystemCharacteristics):
@@ -781,174 +257,6 @@ def parse_env_config(args, tensorboard_config, system: SystemCharacteristics):
                   value: "{value}"'''
 
   args.env = ''.join(env_format.format(key=k, value=v) for k, v in env.items())
-
-
-def run_command_for_value(
-    command,
-    task,
-    global_args,
-    dry_run_return_val='0',
-    print_timer=False,
-    hide_error=False,
-) -> tuple[int, str]:
-  """Runs the command and returns the error code and stdout.
-
-  Prints errors and associated user-facing information
-
-  Args:
-    command: user provided command to run.
-    task: user provided task name for running the command.
-    global_args: user provided arguments for running the command.
-    dry_run_return_val: return value of this command for dry run.
-    print_timer: print out the time the command is running.
-    hide_error: hide the error from the command output upon success.
-
-  Returns:
-    tuple[int, str]
-    int: return_code, default is 0
-    str: return_val, default is '0'
-  """
-  if global_args.dry_run:
-    xpk_utils.xpk_print(
-        f'Task: `{task}` is implemented by the following command'
-        ' not running since it is a dry run.'
-        f' \n{command}'
-    )
-    return 0, dry_run_return_val
-
-  if print_timer:
-    xpk_utils.xpk_print(f'Task: `{task}` is implemented by `{command}`')
-    with subprocess.Popen(
-        command,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        shell=True,
-    ) as child:
-      i = 0
-      while True:
-        return_code = child.poll()
-        if return_code is None:
-          xpk_utils.xpk_print(f'Waiting for `{task}`, for {i} seconds')
-          time.sleep(1)
-          i += 1
-        else:
-          xpk_utils.xpk_print(
-              f'Task: `{task}` terminated with code `{return_code}`'
-          )
-          out, err = child.communicate()
-          out, err = str(out, 'UTF-8'), str(err, 'UTF-8')
-          return return_code, f'{out}\n{err}'
-  else:
-    xpk_utils.xpk_print(
-        f'Task: `{task}` is implemented by `{command}`, hiding output unless'
-        ' there is an error.'
-    )
-    try:
-      output = subprocess.check_output(
-          command,
-          shell=True,
-          stderr=subprocess.STDOUT if not hide_error else None,
-      )
-    except subprocess.CalledProcessError as e:
-      xpk_utils.xpk_print(f'Task {task} failed with {e.returncode}')
-      xpk_utils.xpk_print('*' * 80)
-      xpk_utils.xpk_print(e.output)
-      xpk_utils.xpk_print('*' * 80)
-      return e.returncode, str(e.output, 'UTF-8')
-    return 0, str(output, 'UTF-8')
-
-
-def run_command_with_updates_retry(
-    command, task, args, verbose=True, num_retry_attempts=5, wait_seconds=10
-) -> int:
-  """Generic run commands function with updates and retry logic.
-
-  Args:
-    command: command to execute
-    task: user-facing name of the task
-    args: user provided arguments for running the command.
-    verbose: shows stdout and stderr if set to true. Set to True by default.
-    num_retry_attempts: number of attempts to retry the command.
-        This has a default value in the function arguments.
-    wait_seconds: Seconds to wait between attempts.
-        Has a default value in the function arguments.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-
-  i = 0
-  return_code = -1
-  while return_code != 0 and i < num_retry_attempts:
-    # Do not sleep before first try.
-    if i != 0:
-      xpk_utils.xpk_print(f'Wait {wait_seconds} seconds before retrying.')
-      time.sleep(wait_seconds)
-    i += 1
-    xpk_utils.xpk_print(f'Try {i}: {task}')
-    return_code = run_command_with_updates(command, task, args, verbose=verbose)
-  return return_code
-
-
-def run_command_with_updates(command, task, global_args, verbose=True) -> int:
-  """Generic run commands function with updates.
-
-  Args:
-    command: command to execute
-    task: user-facing name of the task
-    global_args: user provided arguments for running the command.
-    verbose: shows stdout and stderr if set to true. Set to True by default.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  if global_args.dry_run:
-    xpk_utils.xpk_print(
-        f'Task: `{task}` is implemented by the following command'
-        ' not running since it is a dry run.'
-        f' \n{command}'
-    )
-    return 0
-  if verbose:
-    xpk_utils.xpk_print(
-        f'Task: `{task}` is implemented by `{command}`, streaming output live.'
-    )
-    with subprocess.Popen(
-        command,
-        stdout=sys.stdout,
-        stderr=sys.stderr,
-        shell=True,
-    ) as child:
-      i = 0
-      while True:
-        return_code = child.poll()
-        if return_code is None:
-          xpk_utils.xpk_print(f'Waiting for `{task}`, for {i} seconds')
-          time.sleep(1)
-          i += 1
-        else:
-          xpk_utils.xpk_print(
-              f'Task: `{task}` terminated with code `{return_code}`'
-          )
-          return return_code
-  else:
-    xpk_utils.xpk_print(
-        f'Task: `{task}` is implemented by `{command}`, hiding output unless'
-        ' there is an error.'
-    )
-    try:
-      subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT)
-    except subprocess.CalledProcessError as e:
-      xpk_utils.xpk_print(
-          f'Task: `{task}` terminated with ERROR `{e.returncode}`, printing'
-          ' logs'
-      )
-      xpk_utils.xpk_print('*' * 80)
-      xpk_utils.xpk_print(e.output)
-      xpk_utils.xpk_print('*' * 80)
-      return e.returncode
-    xpk_utils.xpk_print(f'Task: `{task}` succeeded.')
-    return 0
 
 
 def get_project():
@@ -1024,261 +332,6 @@ def get_total_chips_requested_from_args(
   return num_chips
 
 
-def create_autoprovisioning_config(
-    args, system: SystemCharacteristics
-) -> tuple[AutoprovisioningConfig | None, int]:
-  """Create autoprovisioning config based on template file and user args
-
-  Args:
-    args: user provided arguments for running the command.
-    system: system characteristics.
-
-  Returns:
-    tuple[AutoprovisioningConfig, int]
-    AutoprovisioningConfig: config used to enable autoprovisioning
-    int: return code
-  """
-
-  # CPU Limits and Memory Limits are for user jobs only. The default node pool
-  # is not controlled by NAP.
-  cpu_limits = """
-  minimum: 1
-  maximum: 10000
-  """
-  memory_limits = """
-  minimum: 1
-  maximum: 10000
-  """
-
-  # By default, the maximum chips is set to be the current number of resources used
-  # in the cluster. The minimum is set to zero.
-  minimum = 0
-  maximum = get_total_chips_requested_from_args(args, system)
-  xpk_utils.xpk_print(
-      f'Default Chips quota is minimum: {minimum}, maximum: {maximum}.'
-  )
-
-  # Check for user overrides.
-  if args.autoprovisioning_min_chips:
-    minimum = args.autoprovisioning_min_chips
-    xpk_utils.xpk_print(
-        f'User provided min chip quota of {minimum}. Overriding defaults.'
-    )
-  if args.autoprovisioning_max_chips:
-    maximum = args.autoprovisioning_max_chips
-    xpk_utils.xpk_print(
-        f'User provided max chip quota of {maximum}. Overriding defaults.'
-    )
-
-  # Check for edge cases in min and max chip values.
-  if minimum < 0:
-    xpk_utils.xpk_print(
-        f'Error: Minimum chips is set to {minimum}, and must be zero or'
-        ' greater.'
-    )
-    return None, 1
-  if maximum <= minimum or maximum < 0:
-    xpk_utils.xpk_print(
-        f'Error: Maximum chips is set to {maximum}, and must be greater than'
-        f' zero and greater or equal to minimum: {minimum}.Use'
-        ' --autoprovisioning-max-chips=$MAX_CHIPS to adjust.'
-    )
-    return None, 1
-  xpk_utils.xpk_print(
-      f'Chips quota is minimum: {minimum}, maximum: {maximum}. XPK will'
-      f' autoprovision {maximum - minimum} chips based on incoming workload'
-      f' requests, keeping at least {minimum} available at all times, and'
-      f' maximum of {maximum}. If the difference ({maximum - minimum} chips) is'
-      ' small, rescaling will not work well.'
-  )
-
-  custom_resource_string = autoprovisioning_custom_resource_type.format(
-      resource_type=system.gke_accelerator,
-      minimum=minimum,
-      maximum=maximum,
-  )
-
-  resource_limits = autoprovisioning_resource_limits.format(
-      cpu_limits=cpu_limits,
-      memory_limits=memory_limits,
-      custom_resource_type=custom_resource_string,
-  )
-
-  yml_string = autoprovisioning_config_file.format(
-      resource_limits=resource_limits,
-      zones=f'- {args.zone}',
-  )
-  autoprovisioning_config = AutoprovisioningConfig(
-      config_filename=xpk_utils.write_tmp_file(yml_string).name,
-      minimum_chips=minimum,
-      maximum_chips=maximum,
-  )
-  return autoprovisioning_config, 0
-
-
-def enable_autoprovisioning_on_cluster(
-    args, system: SystemCharacteristics | None
-) -> tuple[AutoprovisioningConfig | None, int]:
-  """Enable autoprovisioning on the cluster.
-
-  Args:
-    args: user provided arguments for running the command.
-    system: system characteristics.
-
-  Returns:
-    Autoprovisioning Config or None.
-    0 if successful and 1 otherwise.
-  """
-  if not system:
-    return None, 1
-
-  # TODO(@vbarr): Disable NAP if they call xpk cluster create again without --enable-autoprovisioning.
-  # TODO(@vbarr): Support Pathways.
-  # TODO(@vbarr): Support timeout period for idle np before they are deleted.
-  # TODO(@vbarr): Support for hot idle configuration (timeout period is infinity).
-  return_code = 0
-  if system.accelerator_type == AcceleratorType['CPU']:
-    xpk_utils.xpk_print(
-        "Error: XPK NAP doesn't support Accelerators of Types: CPUs."
-    )
-    return None, 1
-
-  autoprovisioning_config, return_code = create_autoprovisioning_config(
-      args, system
-  )
-  if return_code != 0 or not autoprovisioning_config:
-    xpk_utils.xpk_print('Unable to create autoprovisioning config.')
-    return autoprovisioning_config, return_code
-
-  command = (
-      'gcloud container clusters update'
-      f' {args.cluster} --project={args.project}'
-      f' --region={zone_to_region(args.zone)} --enable-autoprovisioning'
-      ' --autoprovisioning-config-file'
-      f' {autoprovisioning_config.config_filename}'
-  )
-  task = 'Update cluster with autoprovisioning enabled'
-  return_code = run_command_with_updates(command, task, args)
-  if return_code != 0:
-    xpk_utils.xpk_print(f'{task} request returned ERROR {return_code}')
-    return autoprovisioning_config, return_code
-
-  # Update created accelerator node pools to support autoprovisioning.
-  existing_node_pool_names, return_code = get_all_nodepools_programmatic(args)
-  if return_code != 0:
-    xpk_utils.xpk_print('Listing all node pools failed!')
-    return autoprovisioning_config, return_code
-
-  desired_node_pool_names = [
-      f'{args.cluster}-np-{slice_num}' for slice_num in range(args.num_slices)
-  ]
-
-  commands = []
-  task_names = []
-  for node_pool_name in desired_node_pool_names:
-    if node_pool_name not in existing_node_pool_names:
-      # Ignore node pools that are not created yet, and not of the accelerator type.
-      continue
-    commands.append(
-        f'gcloud container node-pools update {node_pool_name}'
-        f' --cluster {args.cluster}'
-        f' --project={args.project}'
-        f' --region={zone_to_region(args.zone)}'
-        ' --enable-autoprovisioning'
-        ' --enable-autoscaling'
-    )
-    task_name = (
-        f'Update node pool {node_pool_name} with autoprovisioning support.'
-    )
-    task_names.append(task_name)
-
-  for i, command in enumerate(commands):
-    xpk_utils.xpk_print(
-        f'To complete {task_names[i]} we are executing {command}'
-    )
-  max_return_code = run_commands(
-      commands,
-      'Update node pools with autoprovisioning support',
-      task_names,
-      dry_run=args.dry_run,
-  )
-  if max_return_code != 0:
-    xpk_utils.xpk_print(
-        'Update node pools with autoprovisioning support returned ERROR:'
-        f' {max_return_code}'
-    )
-    return None, max_return_code
-  return autoprovisioning_config, return_code
-
-
-def run_gke_cluster_create_command(
-    args, gke_control_plane_version: str, system: SystemCharacteristics
-) -> int:
-  """Run the Create GKE Cluster request.
-
-  Args:
-    args: user provided arguments for running the command.
-    gke_control_plane_version: version used if creating the cluster.
-    system: system characteristics.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  machine_type = args.default_pool_cpu_machine_type
-  if args.cluster_cpu_machine_type != '':
-    xpk_utils.xpk_print(
-        'Warning: Note that cluster-cpu-machine-type is soon to be',
-        ' deprecated. Please use --default-pool-cpu-machine-type instead,'
-        ' to denote the machine type of the default cpu node pool. Set'
-        ' the machine type of other cpu nodepools using `--device-type`.',
-    )
-    machine_type = args.cluster_cpu_machine_type
-
-  # Create the regional cluster with `num-nodes` CPU nodes in the same zone as
-  # TPUs. This has been tested with clusters of 300 VMs. Larger clusters will
-  # benefit from a larger initial `--num-nodes`. After the cluster is created,
-  # the auto-scaler can reduce/increase the nodes based on the load.
-
-  command = (
-      'gcloud beta container clusters create'
-      f' {args.cluster} --project={args.project}'
-      f' --region={zone_to_region(args.zone)}'
-      f' --node-locations={args.zone}'
-      f' --cluster-version={gke_control_plane_version}'
-      f' --machine-type={machine_type}'
-      ' --enable-autoscaling'
-      ' --total-min-nodes 1 --total-max-nodes 1000'
-      f' --num-nodes {args.default_pool_cpu_num_nodes}'
-      f' {args.custom_cluster_arguments}'
-      ' --release-channel rapid'
-  )
-
-  if system.accelerator_type == AcceleratorType['GPU']:
-    command += (
-        ' --enable-dataplane-v2 --enable-ip-alias'
-        ' --enable-multi-networking --no-enable-autoupgrade'
-    )
-  else:
-    command += ' --location-policy=BALANCED --scopes=storage-full,gke-default'
-
-    if args.enable_pathways:
-      command += (
-          ' --enable-ip-alias'
-          f' --create-subnetwork name={args.cluster}-subnetwork'
-          ' --cluster-dns=clouddns'
-          ' --cluster-dns-scope=vpc'
-          f' --cluster-dns-domain={args.cluster}-domain'
-      )
-
-  return_code = run_command_with_updates(command, 'GKE Cluster Create', args)
-  if return_code != 0:
-    xpk_utils.xpk_print(
-        f'GKE Cluster Create request returned ERROR {return_code}'
-    )
-    return 1
-  return 0
-
-
 def update_gke_cluster_with_clouddns(args) -> int:
   """Run the GKE cluster update command for existing clusters and enable CloudDNS.
 
@@ -1297,16 +350,12 @@ def update_gke_cluster_with_clouddns(args) -> int:
       f' --cluster-dns-domain={args.cluster}-domain'
       ' --quiet'
   )
-  xpk_utils.xpk_print(
-      'Updating GKE cluster to use Cloud DNS, may take a while!'
-  )
+  xpk_print('Updating GKE cluster to use Cloud DNS, may take a while!')
   return_code = run_command_with_updates(
       command, 'GKE Cluster Update to enable Cloud DNS', args
   )
   if return_code != 0:
-    xpk_utils.xpk_print(
-        f'GKE Cluster Update request returned ERROR {return_code}'
-    )
+    xpk_print(f'GKE Cluster Update request returned ERROR {return_code}')
     return 1
   return 0
 
@@ -1329,16 +378,14 @@ def upgrade_gke_control_plane_version(args, default_rapid_gke_version) -> int:
       ' --master'
       ' --quiet'
   )
-  xpk_utils.xpk_print(
-      "Updating GKE cluster's control plane version, may take a while!"
-  )
+  xpk_print("Updating GKE cluster's control plane version, may take a while!")
   return_code = run_command_with_updates(
       command,
       'GKE Cluster control plane version update to enable Cloud DNS',
       args,
   )
   if return_code != 0:
-    xpk_utils.xpk_print(
+    xpk_print(
         "GKE cluster's control plane version update request returned"
         f' ERROR {return_code}'
     )
@@ -1358,7 +405,7 @@ def upgrade_gke_nodepools_version(args, default_rapid_gke_version) -> int:
   """
   existing_node_pool_names, return_code = get_all_nodepools_programmatic(args)
   if return_code != 0:
-    xpk_utils.xpk_print('Listing all node pools failed!')
+    xpk_print('Listing all node pools failed!')
     return return_code
 
   # Batch execution to upgrade node pools simultaneously
@@ -1376,14 +423,12 @@ def upgrade_gke_nodepools_version(args, default_rapid_gke_version) -> int:
     task_names.append(f'Upgrading node pool {node_pool_name}.')
 
   for i, command in enumerate(commands):
-    xpk_utils.xpk_print(
-        f'To complete {task_names[i]} we are executing {command}'
-    )
+    xpk_print(f'To complete {task_names[i]} we are executing {command}')
   max_return_code = run_commands(
       commands, 'Update GKE node pools to default RAPID GKE version', task_names
   )
   if max_return_code != 0:
-    xpk_utils.xpk_print(
+    xpk_print(
         'GKE node pools update to default RAPID GKE version returned ERROR:'
         f' {max_return_code}'
     )
@@ -1429,7 +474,7 @@ def create_cluster_network(args, index) -> int:
   """
   existing_network_names, return_code = get_all_networks_programmatic(args)
   if return_code > 0:
-    xpk_utils.xpk_print('Listing all networks failed!')
+    xpk_print('Listing all networks failed!')
     return return_code
 
   network_name = f'{args.cluster}-net-{index}'
@@ -1444,12 +489,10 @@ def create_cluster_network(args, index) -> int:
     )
 
     if return_code != 0:
-      xpk_utils.xpk_print(
-          f'Create Cluster Network request returned ERROR {return_code}'
-      )
+      xpk_print(f'Create Cluster Network request returned ERROR {return_code}')
       return 1
   else:
-    xpk_utils.xpk_print(f'Reusing existing network {network_name}')
+    xpk_print(f'Reusing existing network {network_name}')
 
   return 0
 
@@ -1466,7 +509,7 @@ def create_cluster_subnet(args, index) -> int:
   """
   existing_subnet_names, return_code = get_all_subnets_programmatic(args)
   if return_code > 0:
-    xpk_utils.xpk_print('Listing all subnets failed!')
+    xpk_print('Listing all subnets failed!')
     return return_code
   subnet_name = f'{args.cluster}-{zone_to_region(args.zone)}-sub-{index}'
   if subnet_name not in existing_subnet_names:
@@ -1481,12 +524,10 @@ def create_cluster_subnet(args, index) -> int:
     )
 
     if return_code != 0:
-      xpk_utils.xpk_print(
-          f'Create Cluster Subnet request returned ERROR {return_code}'
-      )
+      xpk_print(f'Create Cluster Subnet request returned ERROR {return_code}')
       return 1
   else:
-    xpk_utils.xpk_print(f'Reusing existing subnet {subnet_name}')
+    xpk_print(f'Reusing existing subnet {subnet_name}')
 
   return 0
 
@@ -1502,7 +543,7 @@ def delete_cluster_subnets(args) -> int:
   """
   existing_subnet_names, return_code = get_all_subnets_programmatic(args)
   if return_code > 0:
-    xpk_utils.xpk_print('Listing all subnets failed!')
+    xpk_print('Listing all subnets failed!')
     return return_code
 
   for subnet_name in existing_subnet_names:
@@ -1516,12 +557,10 @@ def delete_cluster_subnets(args) -> int:
     )
 
     if return_code != 0:
-      xpk_utils.xpk_print(
-          f'Delete Cluster Subnet request returned ERROR {return_code}'
-      )
+      xpk_print(f'Delete Cluster Subnet request returned ERROR {return_code}')
       return 1
     else:
-      xpk_utils.xpk_print(f'Deleted existing subnet {subnet_name}')
+      xpk_print(f'Deleted existing subnet {subnet_name}')
 
   return 0
 
@@ -1540,7 +579,7 @@ def create_cluster_firewall_rule(args, index) -> int:
       get_all_firewall_rules_programmatic(args)
   )
   if return_code > 0:
-    xpk_utils.xpk_print('Listing all firewall rules failed!')
+    xpk_print('Listing all firewall rules failed!')
     return return_code
   firewall_rule_name = f'{args.cluster}-internal-{index}'
   if firewall_rule_name not in existing_firewall_rules_names:
@@ -1554,12 +593,12 @@ def create_cluster_firewall_rule(args, index) -> int:
     )
 
     if return_code != 0:
-      xpk_utils.xpk_print(
+      xpk_print(
           f'Create Cluster Firewall Rule request returned ERROR {return_code}'
       )
       return 1
   else:
-    xpk_utils.xpk_print(f'Reusing existing firewall rule {firewall_rule_name}')
+    xpk_print(f'Reusing existing firewall rule {firewall_rule_name}')
   return 0
 
 
@@ -1573,14 +612,14 @@ def create_cluster_network_config(args) -> int:
     0 if successful and 1 otherwise.
   """
   yml_string = cluster_network_yaml.format(cluster_name=args.cluster)
-  tmp = xpk_utils.write_tmp_file(yml_string)
+  tmp = write_tmp_file(yml_string)
   command = f'kubectl apply -f {str(tmp.file.name)}'
 
   return_code = run_command_with_updates(
       command, 'GKE Cluster Create Network Config', args
   )
   if return_code != 0:
-    xpk_utils.xpk_print(
+    xpk_print(
         f'GKE Cluster Create ConfigMap request returned ERROR {return_code}'
     )
     return 1
@@ -1602,7 +641,7 @@ def print_reservations(args) -> int:
       command, 'Get all reservations in the project', args
   )
   if return_code != 0:
-    xpk_utils.xpk_print(f'Get all reservations returned ERROR {return_code}')
+    xpk_print(f'Get all reservations returned ERROR {return_code}')
     return 1
   return 0
 
@@ -1622,8 +661,8 @@ def verify_reservation_exists(args) -> int:
   )
   return_code = run_command_with_updates(command, 'Describe reservation', args)
   if return_code != 0:
-    xpk_utils.xpk_print(f'Describe reservation returned ERROR {return_code}')
-    xpk_utils.xpk_print('Please confirm that your reservation name is correct.')
+    xpk_print(f'Describe reservation returned ERROR {return_code}')
+    xpk_print('Please confirm that your reservation name is correct.')
     return 1
   return 0
 
@@ -1660,7 +699,7 @@ def get_capacity_type(args) -> tuple[CapacityType, int]:
   if num_types == 0:
     capacity_type = CapacityType.UNKNOWN
   elif num_types != 1:
-    xpk_utils.xpk_print(
+    xpk_print(
         'ERROR: User specified more than one of the following arguments. Please'
         ' specify only one of `--reservation=$RESERVATION_NAME`, `--on-demand`'
         ' or `--spot`.'
@@ -1696,7 +735,7 @@ def get_capacity_arguments_from_capacity_type(
           f'--reservation-affinity=specific --reservation={args.reservation}'
       )
     case _:
-      xpk_utils.xpk_print(
+      xpk_print(
           f'Unknown capacity type: {capacity_type}. Unable to determine'
           ' capacity args.'
       )
@@ -1728,7 +767,7 @@ def get_capacity_node_selectors_from_capacity_type(
     case CapacityType.RESERVATION.name:
       node_selector = f'cloud.google.com/reservation-name: {args.reservation}'
     case _:
-      xpk_utils.xpk_print(
+      xpk_print(
           f'Unknown capacity type: {capacity_type}. Unable to determine the'
           ' node selectors.'
       )
@@ -1747,7 +786,7 @@ def create_or_update_cluster_configmap(configmap_yml: dict) -> int:
   commands = []
   task_names = []
   for configmap_name, yml_string in configmap_yml.items():
-    tmp = xpk_utils.write_tmp_file(yml_string)
+    tmp = write_tmp_file(yml_string)
     command = f'kubectl apply -f {str(tmp.file.name)}'
     commands.append(command)
     task_name = f'ConfigMap CreateOrUpdate-{configmap_name}'
@@ -1757,7 +796,7 @@ def create_or_update_cluster_configmap(configmap_yml: dict) -> int:
       commands, 'GKE Cluster CreateOrUpdate ConfigMap(s)', task_names
   )
   if return_code != 0:
-    xpk_utils.xpk_print(
+    xpk_print(
         'GKE Cluster Create/Update ConfigMap(s) request returned ERROR'
         f' {return_code}'
     )
@@ -1795,21 +834,21 @@ def create_cluster_configmaps(
     # Currently autoprovisioning is not supported with Pathways.
     # Auto provisioning will have variable topologies for a gke accelerator type.
     resources_data = (
-        f'{system.gke_accelerator}: {_AUTOPROVISIONING_CONFIG_VALUE}'
+        f'{system.gke_accelerator}: {AUTOPROVISIONING_CONFIG_VALUE}'
     )
     resources_data += (
-        f'\n  {_AUTOPROVISIONING_CONFIG_MINIMUM_KEY}:'
+        f'\n  {AUTOPROVISIONING_CONFIG_MINIMUM_KEY}:'
         f' "{autoprovisioning_config.minimum_chips}"'
     )
     resources_data += (
-        f'\n  {_AUTOPROVISIONING_CONFIG_MAXIMUM_KEY}:'
+        f'\n  {AUTOPROVISIONING_CONFIG_MAXIMUM_KEY}:'
         f' "{autoprovisioning_config.maximum_chips}"'
     )
   else:
     resources_data = (
         f'{device_type}: "{int(args.num_slices) * system.vms_per_slice}"'
     )
-  resources_configmap_name = f'{args.cluster}-{_CLUSTER_RESOURCES_CONFIGMAP}'
+  resources_configmap_name = f'{args.cluster}-{CLUSTER_RESOURCES_CONFIGMAP}'
   resources_yml = cluster_configmap_yaml.format(
       args=args, name=resources_configmap_name, data=resources_data
   )
@@ -1824,13 +863,13 @@ def create_cluster_configmaps(
   # Capacity Type.
   capacity_type, return_code = get_capacity_type(args)
   if return_code != 0:
-    xpk_utils.xpk_print('Unable to determine capacity type.')
+    xpk_print('Unable to determine capacity type.')
     return return_code
-  metadata += f'\n  {_CAPACITY_TYPE_CONFIG_KEY}: {capacity_type.name}'
+  metadata += f'\n  {CAPACITY_TYPE_CONFIG_KEY}: {capacity_type.name}'
   # Reservation ID if applicable.
   if capacity_type == CapacityType.RESERVATION:
-    metadata += f'\n  {_RESERVATION_CONFIG_KEY}: {args.reservation}'
-  metadata_configmap_name = f'{args.cluster}-{_CLUSTER_METADATA_CONFIGMAP}'
+    metadata += f'\n  {RESERVATION_CONFIG_KEY}: {args.reservation}'
+  metadata_configmap_name = f'{args.cluster}-{CLUSTER_METADATA_CONFIGMAP}'
   metadata_yml = cluster_configmap_yaml.format(
       args=args, name=metadata_configmap_name, data=metadata
   )
@@ -1857,9 +896,7 @@ def get_cluster_configmap(args, configmap_name) -> dict[str, str] | None:
       command, 'GKE Cluster Get ConfigMap', args
   )
   if return_code != 0:
-    xpk_utils.xpk_print(
-        f'GKE Cluster Get ConfigMap request returned ERROR {return_code}'
-    )
+    xpk_print(f'GKE Cluster Get ConfigMap request returned ERROR {return_code}')
     return None
 
   config_map = {}
@@ -1897,7 +934,7 @@ def create_vertex_tensorboard(args) -> dict:
       tensorboard_name=tensorboard_name,
   )
   if instance_id:
-    xpk_utils.xpk_print(
+    xpk_print(
         f'Tensorboard instance {tensorboard_name} is successfully created.'
     )
     tensorboard_config['tensorboard_region'] = args.tensorboard_region
@@ -1917,11 +954,11 @@ def create_vertex_experiment(args) -> dict:
   """
   from cloud_accelerator_diagnostics import tensorboard  # pylint: disable=import-outside-toplevel
 
-  metadata_configmap_name = f'{args.cluster}-{_CLUSTER_METADATA_CONFIGMAP}'
+  metadata_configmap_name = f'{args.cluster}-{CLUSTER_METADATA_CONFIGMAP}'
   cluster_config_map = get_cluster_configmap(args, metadata_configmap_name)
 
   if cluster_config_map is None or 'tensorboard_name' not in cluster_config_map:
-    xpk_utils.xpk_print(
+    xpk_print(
         'No Vertex Tensorboard instance has been created in cluster create. Run'
         ' `xpk cluster create --create-vertex-tensorboard` before running `xpk'
         ' workload create --use-vertex-tensorboard` to create a Vertex'
@@ -1953,7 +990,7 @@ def create_vertex_experiment(args) -> dict:
   if tensorboard_url is None:
     return None
 
-  xpk_utils.xpk_print(f'You can view Vertex Tensorboard at: {tensorboard_url}')
+  xpk_print(f'You can view Vertex Tensorboard at: {tensorboard_url}')
   return tensorboard_config
 
 
@@ -1975,36 +1012,10 @@ def get_all_clusters_programmatic(args) -> tuple[list[str], int]:
       command, 'Find if Cluster Exists', args
   )
   if return_code != 0:
-    xpk_utils.xpk_print(f'Find if Cluster Exists returned ERROR {return_code}')
+    xpk_print(f'Find if Cluster Exists returned ERROR {return_code}')
     return [], return_code
 
   return raw_cluster_output.splitlines(), 0
-
-
-def create_cluster_if_necessary(
-    args, gke_control_plane_version: str, system: SystemCharacteristics
-) -> int:
-  """Creates cluster if not present in the project.
-
-  Args:
-    args: user provided arguments for running the command.
-    gke_control_plane_version: version used if creating the cluster.
-    system: system characteristics.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  all_clusters, return_code = get_all_clusters_programmatic(args)
-  if return_code > 0:
-    xpk_utils.xpk_print('Listing all clusters failed!')
-    return 1
-  if args.cluster in all_clusters:
-    xpk_utils.xpk_print('Skipping cluster creation since it already exists.')
-    return 0
-  else:
-    return run_gke_cluster_create_command(
-        args, gke_control_plane_version, system
-    )
 
 
 def is_cluster_using_clouddns(args) -> bool:
@@ -2026,12 +1037,10 @@ def is_cluster_using_clouddns(args) -> bool:
       args,
   )
   if return_code != 0:
-    xpk_utils.xpk_exit(return_code)
+    xpk_exit(return_code)
   cloud_dns_matches = int(cloud_dns_matches)
   if cloud_dns_matches > 0:
-    xpk_utils.xpk_print(
-        'Cloud DNS is enabled on the cluster, no update needed.'
-    )
+    xpk_print('Cloud DNS is enabled on the cluster, no update needed.')
     return True
   return False
 
@@ -2047,7 +1056,7 @@ def update_cluster_with_clouddns_if_necessary(args) -> int:
   """
   all_clusters, return_code = get_all_clusters_programmatic(args)
   if return_code > 0:
-    xpk_utils.xpk_print('Listing all clusters failed!')
+    xpk_print('Listing all clusters failed!')
     return 1
   if args.cluster in all_clusters:
     # If cluster is already using clouddns, no update necessary!
@@ -2055,20 +1064,18 @@ def update_cluster_with_clouddns_if_necessary(args) -> int:
       return 0
     cluster_update_return_code = update_gke_cluster_with_clouddns(args)
     if cluster_update_return_code > 0:
-      xpk_utils.xpk_print('Updating GKE cluster to use CloudDNS failed!')
+      xpk_print('Updating GKE cluster to use CloudDNS failed!')
       return cluster_update_return_code
 
     # Find default rapid control plane version and update the control plane to the same.
     server_config_return_code, gke_server_config = get_gke_server_config(args)
     if server_config_return_code != 0:
-      xpk_utils.xpk_exit(server_config_return_code)
+      xpk_exit(server_config_return_code)
     upgrade_master_return_code = upgrade_gke_control_plane_version(
         args, gke_server_config.default_rapid_gke_version
     )
     if upgrade_master_return_code > 0:
-      xpk_utils.xpk_print(
-          "Updating GKE cluster's control plane upgrade failed!"
-      )
+      xpk_print("Updating GKE cluster's control plane upgrade failed!")
       return upgrade_master_return_code
 
     # Upgrade nodepools version after the master upgrade.
@@ -2076,7 +1083,7 @@ def update_cluster_with_clouddns_if_necessary(args) -> int:
         args, gke_server_config.default_rapid_gke_version
     )
     if node_pool_update_code > 0:
-      xpk_utils.xpk_print('Upgrading nodepools version failed!')
+      xpk_print('Upgrading nodepools version failed!')
       return node_pool_update_code
   return 0
 
@@ -2102,7 +1109,7 @@ def get_nodepool_zone(args, nodepool_name) -> tuple[int, str]:
       command, 'Get Node Pool Zone', args
   )
   if return_code != 0:
-    xpk_utils.xpk_print(f'Get Node Pool Zone returned ERROR {return_code}')
+    xpk_print(f'Get Node Pool Zone returned ERROR {return_code}')
     return 1, None
 
   return 0, nodepool_zone.strip()
@@ -2121,10 +1128,10 @@ def check_cluster_resources(args, system) -> tuple[bool, bool]:
     True if resources in the cluster should be checked, False otherwise.
     True if device_type/gke_accelerator exists in the cluster, False otherwise.
   """
-  resources_configmap_name = f'{args.cluster}-{_CLUSTER_RESOURCES_CONFIGMAP}'
+  resources_configmap_name = f'{args.cluster}-{CLUSTER_RESOURCES_CONFIGMAP}'
   resources_config_map = get_cluster_configmap(args, resources_configmap_name)
   if resources_config_map is None:
-    xpk_utils.xpk_print(
+    xpk_print(
         f'No ConfigMap exist for cluster with the name {resources_config_map}.'
         ' Cluster resources check will be skipped.'
     )
@@ -2155,7 +1162,7 @@ def get_all_nodepools_programmatic(args) -> tuple[list[str], int]:
       command, 'Get All Node Pools', args
   )
   if return_code != 0:
-    xpk_utils.xpk_print(f'Get All Node Pools returned ERROR {return_code}')
+    xpk_print(f'Get All Node Pools returned ERROR {return_code}')
     return [], 1
 
   return raw_nodepool_output.splitlines(), 0
@@ -2175,7 +1182,7 @@ def get_all_networks_programmatic(args) -> tuple[list[str], int]:
       command, 'Get All Networks', args
   )
   if return_code != 0:
-    xpk_utils.xpk_print(f'Get All Networks returned ERROR {return_code}')
+    xpk_print(f'Get All Networks returned ERROR {return_code}')
     return [], 1
 
   return raw_network_output.splitlines(), 0
@@ -2200,7 +1207,7 @@ def get_all_subnets_programmatic(args) -> tuple[list[str], int]:
       command, 'Get All Subnets', args
   )
   if return_code != 0:
-    xpk_utils.xpk_print(f'Get All Subnets returned ERROR {return_code}')
+    xpk_print(f'Get All Subnets returned ERROR {return_code}')
     return [], 1
 
   all_outputs = raw_subnets_output.splitlines()
@@ -2226,7 +1233,7 @@ def get_all_firewall_rules_programmatic(args) -> tuple[list[str], int]:
       command, 'Get All Firewall Rules', args
   )
   if return_code != 0:
-    xpk_utils.xpk_print(f'Get All Firewall Rules returned ERROR {return_code}')
+    xpk_print(f'Get All Firewall Rules returned ERROR {return_code}')
     return [], 1
 
   return raw_subnets_output.splitlines(), 0
@@ -2284,44 +1291,44 @@ def run_gke_node_pool_create_command(
     0 if successful and 1 otherwise.
   """
   device_type = args.tpu_type if args.tpu_type else args.device_type
-  xpk_utils.xpk_print(
+  xpk_print(
       f'Creating {args.num_slices} node pool or pools of {device_type}\n'
       f'We assume that the underlying system is: {system}'
   )
   existing_node_pool_names, return_code = get_all_nodepools_programmatic(args)
   if return_code > 0:
-    xpk_utils.xpk_print('Listing all node pools failed!')
+    xpk_print('Listing all node pools failed!')
     return return_code
 
   capacity_type, return_code = get_capacity_type(args)
   if return_code > 0:
-    xpk_utils.xpk_print('Parsing capacity type failed!')
+    xpk_print('Parsing capacity type failed!')
     return return_code
   if capacity_type == CapacityType.UNKNOWN:
     return_code = print_reservations(args)
-    xpk_utils.xpk_print(
+    xpk_print(
         'ERROR: User needs to provide the capacity type. Please specify one of'
         ' the following `--reservation=$RESERVATION_NAME`, `--on-demand`'
         ' or `--spot`. See the above list of reservations to choose from.'
     )
     if return_code > 0:
-      xpk_utils.xpk_print('Listing all reservations failed!')
+      xpk_print('Listing all reservations failed!')
     return_code = 1
   capacity_args, return_code = get_capacity_arguments_from_capacity_type(
       args, capacity_type
   )
   if return_code > 0:
-    xpk_utils.xpk_print('Parsing capacity arguments failed!')
+    xpk_print('Parsing capacity arguments failed!')
     return return_code
 
   if system.accelerator_type == AcceleratorType['GPU']:
-    xpk_utils.xpk_print(
+    xpk_print(
         f'Creating 1 node pool with {args.num_nodes} nodes of'
         f' {system.device_type}\nUnderlyingly, we assume that means: {system}'
     )
     desired_node_pool_names = [f'{args.cluster}-np-0']
   else:
-    xpk_utils.xpk_print(
+    xpk_print(
         f'Creating {args.num_slices} node pool or pools of'
         f' {system.device_type}\nUnderlyingly, we assume that means: {system}'
     )
@@ -2340,7 +1347,7 @@ def run_gke_node_pool_create_command(
       return 1
 
     if existing_node_pool_zone and existing_node_pool_zone != args.zone:
-      xpk_utils.xpk_print(
+      xpk_print(
           f'Cluster {args.cluster} already has nodepools in zone:'
           f' {existing_node_pool_zone}. Use the same zone to update nodepools'
           ' in the cluster.'
@@ -2373,20 +1380,20 @@ def run_gke_node_pool_create_command(
   if delete_commands:
     will_delete = True
     if node_pools_to_delete and not args.force:
-      will_delete = xpk_utils.get_user_input(
+      will_delete = get_user_input(
           f'Planning to delete {len(node_pools_to_delete)} node pools including'
           f' {node_pools_to_delete}. \nDo you wish to delete: y (yes) / n'
           ' (no):\n'
       )
     if not will_delete:
-      xpk_utils.xpk_print(
+      xpk_print(
           'You have requested to not delete the existing nodepools in the'
           ' cluster. There will be no change to the cluster.'
       )
       return 1
 
     for i, command in enumerate(delete_commands):
-      xpk_utils.xpk_print(
+      xpk_print(
           f'To complete {delete_task_names[i]} we are executing {command}'
       )
     max_return_code = run_commands(
@@ -2396,7 +1403,7 @@ def run_gke_node_pool_create_command(
         dry_run=args.dry_run,
     )
     if max_return_code != 0:
-      xpk_utils.xpk_print(f'Delete Nodepools returned ERROR {max_return_code}')
+      xpk_print(f'Delete Nodepools returned ERROR {max_return_code}')
       return 1
 
     # Update {args.cluster}-{_CLUSTER_RESOURCES_CONFIGMAP} ConfigMap to 'y': '0'
@@ -2405,13 +1412,11 @@ def run_gke_node_pool_create_command(
     if not node_pools_to_remain:
       if args.enable_autoprovisioning:
         resources_data = (
-            f'{system.gke_accelerator}: {_AUTOPROVISIONING_CONFIG_VALUE}'
+            f'{system.gke_accelerator}: {AUTOPROVISIONING_CONFIG_VALUE}'
         )
       else:
         resources_data = f'{device_type}: "0"'
-      resources_configmap_name = (
-          f'{args.cluster}-{_CLUSTER_RESOURCES_CONFIGMAP}'
-      )
+      resources_configmap_name = f'{args.cluster}-{CLUSTER_RESOURCES_CONFIGMAP}'
       resources_yml = cluster_configmap_yaml.format(
           args=args, name=resources_configmap_name, data=resources_data
       )
@@ -2506,9 +1511,7 @@ def run_gke_node_pool_create_command(
       create_task_names.append(task)
 
   for i, command in enumerate(create_commands):
-    xpk_utils.xpk_print(
-        f'To complete {create_task_names[i]} we are executing {command}'
-    )
+    xpk_print(f'To complete {create_task_names[i]} we are executing {command}')
   max_return_code = run_commands(
       create_commands,
       'Create Nodepools',
@@ -2516,280 +1519,11 @@ def run_gke_node_pool_create_command(
       dry_run=args.dry_run,
   )
   if max_return_code != 0:
-    xpk_utils.xpk_print(f'Create Nodepools returned ERROR {max_return_code}')
+    xpk_print(f'Create Nodepools returned ERROR {max_return_code}')
     return 1
 
-  xpk_utils.xpk_print('Create or delete node pool request complete.')
+  xpk_print('Create or delete node pool request complete.')
   return 0
-
-
-def run_gke_cluster_delete_command(args) -> int:
-  """Run the Delete GKE Cluster request.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  command = (
-      'gcloud beta container clusters delete'
-      f' {args.cluster} --project={args.project}'
-      f' --region={zone_to_region(args.zone)} --quiet'
-  )
-
-  return_code = run_command_with_updates(command, 'Cluster Delete', args)
-  if return_code != 0:
-    xpk_utils.xpk_print(f'Cluster delete request returned ERROR {return_code}')
-    return 1
-
-  return_code = delete_cluster_subnets(args)
-  if return_code != 0:
-    return return_code
-
-  return 0
-
-
-def run_gke_clusters_list_command(args) -> int:
-  """List GKE Clusters within the project and location.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  command = (
-      'gcloud container clusters list'
-      f' --project={args.project} --region={zone_to_region(args.zone)}'
-  )
-  return_code = run_command_with_updates(command, 'Cluster List', args)
-  if return_code != 0:
-    xpk_utils.xpk_print(f'Cluster list request returned ERROR {return_code}')
-    return 1
-
-  return 0
-
-
-def set_cluster_command(args) -> int:
-  """Run cluster configuration command to set the kubectl config.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  command = (
-      'gcloud container clusters get-credentials'
-      f' {args.cluster} --region={zone_to_region(args.zone)}'
-      f' --project={args.project} &&'
-      ' kubectl config view && kubectl config set-context --current'
-      ' --namespace=default'
-  )
-  task = f'get-credentials to cluster {args.cluster}'
-  return_code = run_command_with_updates_retry(
-      command, task, args, verbose=False
-  )
-  if return_code != 0:
-    xpk_utils.xpk_print(f'{task} returned ERROR {return_code}')
-  return return_code
-
-
-def install_kueue_on_cluster(args) -> int:
-  """Install Kueue on the cluster.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  command = (
-      'kubectl apply --server-side --force-conflicts -f'
-      ' https://github.com/kubernetes-sigs/kueue/releases/download/v0.6.1/manifests.yaml'
-  )
-  task = 'Set Kueue On Cluster'
-  return_code = run_command_with_updates_retry(command, task, args)
-  if return_code != 0:
-    xpk_utils.xpk_print(f'{task} returned ERROR {return_code}')
-  return return_code
-
-
-def enable_kueue_credentials(
-    args,
-    system: SystemCharacteristics,
-    autoprovisioning_config: AutoprovisioningConfig | None,
-) -> int:
-  """Enable Kueue credentials.
-
-  Args:
-    args: user provided arguments for running the command.
-    system: system level arguments.
-    autoprovisioning_config: Autoprovisioning config to configure kueue with if
-        autoprovisioning is enabled.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  device_type = system.device_type
-  cluster_hardware_name = f'{args.num_slices}x{device_type}'
-  resource_type = AcceleratorTypeToAcceleratorCharacteristics[
-      system.accelerator_type
-  ].resource_type
-
-  autoprovisioning_enabled = False
-  if autoprovisioning_config:
-    # Determine total resources available based on autoprovisioning max chips.
-    autoprovisioning_enabled = True
-    total_chips = autoprovisioning_config.maximum_chips
-    cluster_hardware_name = f'{system.gke_accelerator}'
-  else:
-    # Determine total chips based on user specified topology.
-    total_chips = get_total_chips_requested_from_args(args, system)
-
-  covered_resources_config = get_kueue_covered_resources_config(
-      cluster_hardware_name=cluster_hardware_name,
-      resource_type=resource_type,
-      total_chips=total_chips,
-  )
-  yml_string = cluster_set_crd_yaml.format(
-      system=system,
-      cluster_hardware_name=cluster_hardware_name,
-      accelerator_label=create_accelerator_label(
-          system.accelerator_type, system
-      ),
-      machine_label=create_machine_label(
-          system.accelerator_type, system, autoprovisioning_enabled
-      ),
-      covered_resources_config=covered_resources_config,
-      resource_type=AcceleratorTypeToAcceleratorCharacteristics[
-          system.accelerator_type
-      ].resource_type,
-      pw_resource_flavors=add_pw_resource_flavors(args),
-      pw_resources_kueue=add_pw_resources_to_kueue(args),
-      cluster_queue_name=_CLUSTER_QUEUE_NAME,
-      local_queue_name=_LOCAL_QUEUE_NAME,
-  )
-
-  tmp = xpk_utils.write_tmp_file(yml_string)
-  command = f'kubectl apply -f {str(tmp.file.name)}'
-  # For kueue setup, we see a timeout error due to the webhook not
-  # being ready. Let's retry and wait a few seconds.
-  task = 'Applying Kueue Credentials'
-  retry_attempts = 3
-  return_code = run_command_with_updates_retry(
-      command, task, args, num_retry_attempts=retry_attempts
-  )
-  if return_code != 0:
-    # We have seen some scenarios where credentials need a few minutes for kueue
-    # and jobset installation to be ready before credentials can be applied.
-    # As a workaround we will retry again with longer wait times.
-    retry_wait_seconds = 60
-    xpk_utils.xpk_print(
-        f'{task} still not successful. Retrying {retry_attempts} more timeswith'
-        f' increased wait time of {retry_wait_seconds} seconds between tries.'
-        ' Kueue Credentials need Kueue system to be ready which can take some'
-        ' time.'
-    )
-    return_code = run_command_with_updates_retry(
-        command=command,
-        task=task,
-        args=args,
-        num_retry_attempts=retry_attempts,
-        wait_seconds=retry_wait_seconds,
-    )
-    if return_code != 0:
-      xpk_utils.xpk_print(f'{task} returned ERROR {return_code}')
-  return return_code
-
-
-# TODO(roshanin): Organize Pathways helpers in another file.
-def add_pw_resource_flavors(args):
-  """Add resource flavors required for Pathways enabled clusters."""
-  resource_flavor_yaml = """apiVersion: kueue.x-k8s.io/v1beta1
-kind: ResourceFlavor
-metadata:
-  name: cpu-rm
-spec:
-  nodeLabels:
-    cloud.google.com/gke-nodepool: cpu-rm-np
----
-apiVersion: kueue.x-k8s.io/v1beta1
-kind: ResourceFlavor
-metadata:
-  name: cpu-proxy
-spec:
-  nodeLabels:
-    cloud.google.com/gke-nodepool: cpu-proxy-np
----
-apiVersion: kueue.x-k8s.io/v1beta1
-kind: ResourceFlavor
-metadata:
-  name: cpu-user
-spec:
-  nodeLabels:
-    cloud.google.com/gke-nodepool: cpu-user-np
----"""
-  if args.enable_pathways:
-    return resource_flavor_yaml
-  return ''
-
-
-def add_pw_resources_to_kueue(args):
-  """Add resource flavors required for Pathways, to the cluster queue."""
-  resources_yaml = """- coveredResources: ["cpu", "memory"]
-    flavors:
-    - name: cpu-rm
-      resources:
-      - name: "cpu"
-        nominalQuota: 80
-      - name: "memory"
-        nominalQuota: 160G
-    - name: cpu-proxy
-      resources:
-      - name: "cpu"
-        nominalQuota: 480
-      - name: "memory"
-        nominalQuota: 2000G
-    - name: cpu-user
-      resources:
-      - name: "cpu"
-        nominalQuota: 480
-      - name: "memory"
-        nominalQuota: 2000G"""
-  if args.enable_pathways:
-    return resources_yaml
-  return ''
-
-
-def get_kueue_covered_resources_config(
-    cluster_hardware_name, resource_type, total_chips
-) -> str:
-  """Gets Kueue covered resources configuration.
-
-  Args:
-    cluster_hardware_name: cluster hardware name.
-    resource_type: resource type of tpu or gpu.
-    total_chips: total number of chips for the specific resource type.
-
-  Returns:
-    A string of Kueue covered resources configuration.
-  """
-  config_format = """
-  - coveredResources: ["{resource_type}"]
-    flavors:
-    - name: {cluster_hardware_name}
-      resources:
-      - name: "{resource_type}"
-        nominalQuota: {total_chips}
-  """
-  config_string = config_format.format(
-      cluster_hardware_name=cluster_hardware_name,
-      resource_type=resource_type,
-      total_chips=total_chips,
-  )
-  return config_string
 
 
 # TODO(vbarr): Remove this function when jobsets gets enabled by default on
@@ -2811,8 +1545,8 @@ def set_jobset_on_cluster(args) -> int:
   return_code = run_command_with_updates_retry(command, task, args)
 
   if return_code != 0:
-    xpk_utils.xpk_print(f'{task} returned with ERROR {return_code}.\n')
-    xpk_utils.xpk_print(
+    xpk_print(f'{task} returned with ERROR {return_code}.\n')
+    xpk_print(
         "This LIKELY means you're missing Kubernetes Permissions, you can"
         ' validate this by checking if the error references permission problems'
         ' such as `requires one of ["container.*"] permission(s)`. Follow our'
@@ -2851,7 +1585,7 @@ def install_nccl_on_cluster(args, system: SystemCharacteristics) -> int:
   )
 
   if return_code != 0:
-    xpk_utils.xpk_print(
+    xpk_print(
         f'Install NCCL Plugin On Cluster request returned ERROR {return_code}'
     )
     return 1
@@ -2914,9 +1648,7 @@ def get_gke_server_config(args) -> tuple[int, GkeServerConfig | None]:
         hide_error=True,
     )
     if return_code != 0:
-      xpk_utils.xpk_print(
-          f'Unable to get server config for {command_description}.'
-      )
+      xpk_print(f'Unable to get server config for {command_description}.')
       return return_code, None
     command_outputs.append(cmd_output)
 
@@ -2950,16 +1682,16 @@ def get_gke_control_plane_version(
   is_valid_version = master_gke_version in gke_server_config.valid_versions
 
   if not is_valid_version:
-    xpk_utils.xpk_print(
+    xpk_print(
         f'Planned GKE Version: {master_gke_version}\n Valid Versions:'
         f'\n{gke_server_config.valid_versions}\nRecommended / Default GKE'
         f' Version: {gke_server_config.default_rapid_gke_version}'
     )
-    xpk_utils.xpk_print(
+    xpk_print(
         f'Error: Planned GKE Version {master_gke_version} is not valid.'
         f'Checks failed: Is Version Valid: {is_valid_version}'
     )
-    xpk_utils.xpk_print(
+    xpk_print(
         'Please select a gke version from the above list using --gke-version=x'
         ' argument or rely on the default gke version:'
         f' {gke_server_config.default_rapid_gke_version}'
@@ -2996,7 +1728,7 @@ def get_gke_node_pool_version(
       command, command_description, args
   )
   if return_code != 0:
-    xpk_utils.xpk_print(
+    xpk_print(
         f'Unable to get server config for command: {command_description}.'
     )
     return return_code, None
@@ -3013,7 +1745,7 @@ def get_gke_node_pool_version(
   # In rare cases, user's provided gke version may be invalid, but gke will return an error if so.
   # An example scenario is if the user provided gke version is greater than the master version.
   if not is_supported_node_pool_version:
-    xpk_utils.xpk_print(
+    xpk_print(
         f'Planned node pool version {node_pool_gke_version} is not supported in'
         ' valid version'
         f' {gke_server_config.valid_versions}\nPlease adjust the gke version'
@@ -3022,301 +1754,6 @@ def get_gke_node_pool_version(
     )
     return 1, None
   return 0, node_pool_gke_version
-
-
-def cluster_create_pathways(args) -> None:
-  """Function around cluster creation for Pathways.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  args.enable_pathways = True
-  cluster_create(args)
-
-
-def cluster_create(args) -> None:
-  """Function around cluster creation.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  system, return_code = get_system_characteristics(args)
-
-  if return_code > 0:
-    xpk_utils.xpk_print('Fetching system characteristics failed!')
-    xpk_utils.xpk_exit(return_code)
-
-  xpk_utils.xpk_print(
-      f'Starting cluster create for cluster {args.cluster}:', flush=True
-  )
-  add_zone_and_project(args)
-
-  return_code, gke_server_config = get_gke_server_config(args)
-  if return_code != 0:
-    xpk_utils.xpk_exit(return_code)
-
-  return_code, gke_control_plane_version = get_gke_control_plane_version(
-      args, gke_server_config
-  )
-  if return_code != 0:
-    xpk_utils.xpk_exit(return_code)
-
-  create_cluster_command_code = create_cluster_if_necessary(
-      args, gke_control_plane_version, system
-  )
-  if create_cluster_command_code != 0:
-    xpk_utils.xpk_exit(create_cluster_command_code)
-
-  # Update Pathways clusters with CloudDNS if not enabled already.
-  if args.enable_pathways:
-    update_cluster_command_code = update_cluster_with_clouddns_if_necessary(
-        args
-    )
-    if update_cluster_command_code != 0:
-      xpk_utils.xpk_exit(update_cluster_command_code)
-
-  set_cluster_command_code = set_cluster_command(args)
-  if set_cluster_command_code != 0:
-    xpk_utils.xpk_exit(set_cluster_command_code)
-
-  # create Vertex Tensorboard for new and existing clusters if create-vertex-tensorboard is set
-  tensorboard_config = {}
-  if _VERTEX_TENSORBOARD_FEATURE_FLAG and args.create_vertex_tensorboard:
-    tensorboard_config = create_vertex_tensorboard(args)
-    # exit if failed to create Tensorboard in Vertex AI
-    if not tensorboard_config:
-      xpk_utils.xpk_exit(1)
-
-  if system.accelerator_type == AcceleratorType['GPU']:
-    xpk_utils.xpk_print('Setting up Network for cluster')
-    set_up_cluster_network_code = set_up_cluster_network_for_gpu(args, system)
-    if set_up_cluster_network_code != 0:
-      xpk_utils.xpk_exit(set_up_cluster_network_code)
-
-  if system.device_type == h100_device_type:
-    xpk_utils.xpk_print('Creating Network Config for cluster')
-    create_cluster_network_config_code = create_cluster_network_config(args)
-    if create_cluster_network_config_code != 0:
-      xpk_utils.xpk_exit(create_cluster_network_config_code)
-
-  # Check the control plane version of the cluster and determine the node pool
-  # version to use.
-  return_code, gke_node_pool_version = get_gke_node_pool_version(
-      args, gke_server_config
-  )
-  if return_code != 0:
-    xpk_utils.xpk_exit(return_code)
-
-  run_gke_node_pool_create_command_code = run_gke_node_pool_create_command(
-      args, system, gke_node_pool_version
-  )
-  if run_gke_node_pool_create_command_code != 0:
-    xpk_utils.xpk_exit(run_gke_node_pool_create_command_code)
-
-  xpk_utils.xpk_print(
-      'Enabling the jobset API on our cluster, to be deprecated when Jobset is'
-      ' globally available'
-  )
-  set_jobset_on_cluster_code = set_jobset_on_cluster(args)
-  if set_jobset_on_cluster_code != 0:
-    xpk_utils.xpk_exit(set_jobset_on_cluster_code)
-
-  xpk_utils.xpk_print('Enabling Kueue on the cluster')
-  install_kueue_on_cluster_code = install_kueue_on_cluster(args)
-  if install_kueue_on_cluster_code != 0:
-    xpk_utils.xpk_exit(install_kueue_on_cluster_code)
-
-  # Provision node pools dynamically based on incoming workloads:
-  # Currently autoprovisioning is not supported with Pathways.
-  autoprovisioning_config = None
-  if not args.enable_pathways and args.enable_autoprovisioning:
-    xpk_utils.xpk_print('Enabling Autoprovisioning')
-    autoprovisioning_config, return_code = enable_autoprovisioning_on_cluster(
-        args, system
-    )
-    if return_code != 0:
-      xpk_utils.xpk_exit(return_code)
-
-  xpk_utils.xpk_print('Enable Kueue Credentials')
-  enable_kueue_credentials_code = enable_kueue_credentials(
-      args, system, autoprovisioning_config
-  )
-  if enable_kueue_credentials_code != 0:
-    xpk_utils.xpk_exit(enable_kueue_credentials_code)
-
-  if system.accelerator_type == AcceleratorType['GPU']:
-    xpk_utils.xpk_print('Installing NCCL Plugin for cluster')
-    install_nccl_code = install_nccl_on_cluster(args, system)
-    if install_nccl_code != 0:
-      xpk_utils.xpk_exit(install_nccl_code)
-
-  xpk_utils.xpk_print('Creating ConfigMap for cluster')
-  create_cluster_configmaps_code = create_cluster_configmaps(
-      args, system, tensorboard_config, autoprovisioning_config
-  )
-  if create_cluster_configmaps_code != 0:
-    xpk_utils.xpk_exit(create_cluster_configmaps_code)
-
-  xpk_utils.xpk_print('GKE commands done! Resources are created.')
-  xpk_utils.xpk_print(
-      'See your GKE Cluster here:'
-      # pylint: disable=line-too-long
-      f' https://console.cloud.google.com/kubernetes/clusters/details/{zone_to_region(args.zone)}/{args.cluster}/details?project={args.project}'
-  )
-  xpk_utils.xpk_exit(0)
-
-
-def cluster_delete(args) -> None:
-  """Function around cluster delete.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  xpk_utils.xpk_print(
-      f'Starting cluster delete for cluster: {args.cluster}', flush=True
-  )
-  add_zone_and_project(args)
-  run_gke_cluster_delete_command_code = run_gke_cluster_delete_command(args)
-  if run_gke_cluster_delete_command_code != 0:
-    xpk_utils.xpk_exit(run_gke_cluster_delete_command_code)
-  xpk_utils.xpk_print(f'GKE commands done! Cluster {args.cluster} deleted.\n')
-  xpk_utils.xpk_exit(0)
-
-
-def cluster_cacheimage(args) -> None:
-  """Function around cluster cacheimage.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  xpk_utils.xpk_print(
-      f'Starting cluster cacheimage for cluster: {args.cluster}', flush=True
-  )
-  add_zone_and_project(args)
-
-  set_cluster_command_code = set_cluster_command(args)
-  if set_cluster_command_code != 0:
-    xpk_utils.xpk_exit(set_cluster_command_code)
-  system, return_code = get_system_characteristics(args)
-
-  if return_code > 0:
-    xpk_utils.xpk_print('Fetching system characteristics failed!')
-    xpk_utils.xpk_exit(return_code)
-
-  node_selector_key = AcceleratorTypeToAcceleratorCharacteristics[
-      system.accelerator_type
-  ].accelerator_label
-  yml_string = cluster_preheat_yml.format(
-      cachekey=args.cache_key,
-      image_name=args.docker_image,
-      nodeSelectorKey=node_selector_key,
-  )
-  tmp = xpk_utils.write_tmp_file(yml_string)
-  command_apply = f'kubectl apply -f {str(tmp.file.name)}'
-  command_delete = (
-      f'kubectl delete -f {str(tmp.file.name)} --ignore-not-found=true'
-  )
-
-  return_code = run_command_with_updates(
-      command_delete, 'Deleting Cached Image', args
-  )
-  if return_code != 0:
-    xpk_utils.xpk_print(f'Delete Cached Image returned ERROR {return_code}')
-    xpk_utils.xpk_exit(return_code)
-
-  return_code = run_command_with_updates(
-      command_apply, 'Creating Cached Image', args
-  )
-  if return_code != 0:
-    xpk_utils.xpk_print(f'Create Cached Image returned ERROR {return_code}')
-    xpk_utils.xpk_exit(return_code)
-  xpk_utils.xpk_exit(0)
-
-
-def cluster_describe(args) -> None:
-  """Function around cluster describe.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  xpk_utils.xpk_print(
-      f'Starting nodepool list for cluster: {args.cluster}', flush=True
-  )
-  add_zone_and_project(args)
-
-  set_cluster_command_code = set_cluster_command(args)
-  if set_cluster_command_code != 0:
-    xpk_utils.xpk_exit(set_cluster_command_code)
-
-  command = (
-      f'gcloud container node-pools  list --cluster {args.cluster} '
-      f'--project={args.project} --region={zone_to_region(args.zone)}'
-  )
-
-  return_code = run_command_with_updates(command, 'Cluster nodepool list', args)
-  if return_code != 0:
-    xpk_utils.xpk_exit(return_code)
-
-  return_code_node_output, node_output = run_command_for_value(
-      r'kubectl get node --no-headers=true'
-      r" --selector='cloud.google.com/gke-tpu-accelerator' | wc -l",
-      'Count TPU Nodes',
-      args,
-  )
-  if return_code_node_output != 0:
-    xpk_utils.xpk_exit(return_code_node_output)
-  number_tpu_vms_in_cluster = int(node_output)
-
-  return_code_pod_output, pod_output = run_command_for_value(
-      "kubectl get pod -o=custom-columns='Status:.status.phase' | grep -i"
-      ' Running | wc -l',
-      'Count TPU Pods',
-      args,
-  )
-  if return_code_pod_output != 0:
-    xpk_utils.xpk_exit(return_code_pod_output)
-  number_tpu_pods_in_cluster = int(pod_output)
-
-  xpk_utils.xpk_print(
-      f'The cluster contains {number_tpu_vms_in_cluster} TPUVMs of which'
-      f' {number_tpu_pods_in_cluster} are in use.'
-  )
-
-  xpk_utils.xpk_print('GKE commands done!\n')
-  xpk_utils.xpk_exit(0)
-
-
-def cluster_list(args) -> None:
-  """Function around cluster list.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  add_zone_and_project(args)
-  xpk_utils.xpk_print(
-      f'For project {args.project} and zone {args.zone}:', flush=True
-  )
-  if run_gke_clusters_list_command(args):
-    xpk_utils.xpk_exit(1)
-  xpk_utils.xpk_exit(0)
 
 
 def validate_docker_image(docker_image, args) -> int:
@@ -3342,7 +1779,7 @@ def validate_docker_image(docker_image, args) -> int:
       command, 'Validate Docker Image', args, verbose=False
   )
   if return_code != 0:
-    xpk_utils.xpk_print(
+    xpk_print(
         'Failed to validate your docker image, check that the docker image'
         f' exists. You may be able to find the {docker_image} in {project}.'
         ' If the docker image exists, the service account of this'
@@ -3369,14 +1806,25 @@ def build_docker_image_from_base_image(args, verbose=True) -> tuple[int, str]:
   docker_image_prefix = os.getenv('USER', 'unknown')
   docker_name = f'{docker_image_prefix}-runner'
 
+  script_dir_dockerfile = """FROM {base_docker_image}
+
+  # Set the working directory in the container
+  WORKDIR /app
+
+  # Copy all files from local workspace into docker container
+  COPY . .
+
+  WORKDIR /app
+  """
+
   docker_file = script_dir_dockerfile.format(
       base_docker_image=args.base_docker_image,
   )
-  tmp = xpk_utils.write_tmp_file(docker_file)
+  tmp = write_tmp_file(docker_file)
   docker_build_command = (
       f'docker build -f {str(tmp.file.name)} -t {docker_name} {args.script_dir}'
   )
-  xpk_utils.xpk_print(f'Building {args.script_dir} into docker image.')
+  xpk_print(f'Building {args.script_dir} into docker image.')
   return_code = run_command_with_updates(
       docker_build_command,
       'Building script_dir into docker image',
@@ -3384,12 +1832,12 @@ def build_docker_image_from_base_image(args, verbose=True) -> tuple[int, str]:
       verbose=verbose,
   )
   if return_code != 0:
-    xpk_utils.xpk_print(
+    xpk_print(
         'Failed to add script_dir to docker image, check the base docker image.'
         f' You should be able to navigate to the URL {args.base_docker_image}'
         f' in {args.project}.'
     )
-    xpk_utils.xpk_exit(1)
+    xpk_exit(1)
 
   # Pick a randomly generated `tag_length` character docker tag.
   tag_length = 4
@@ -3399,9 +1847,7 @@ def build_docker_image_from_base_image(args, verbose=True) -> tuple[int, str]:
   tag_datetime = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
   tag_name = f'{tag_random_prefix}-{tag_datetime}'
   cloud_docker_image = f'gcr.io/{args.project}/{docker_name}:{tag_name}'
-  xpk_utils.xpk_print(
-      f'Adding Docker Image: {cloud_docker_image} to {args.project}'
-  )
+  xpk_print(f'Adding Docker Image: {cloud_docker_image} to {args.project}')
 
   # Tag the docker image.
   tag_docker_image_command = f'docker tag {docker_name} {cloud_docker_image}'
@@ -3409,12 +1855,12 @@ def build_docker_image_from_base_image(args, verbose=True) -> tuple[int, str]:
       tag_docker_image_command, 'Tag Docker Image', args, verbose=verbose
   )
   if return_code != 0:
-    xpk_utils.xpk_print(
+    xpk_print(
         f'Failed to tag docker image with tag: {tag_name}.'
         f' You should be able to navigate to the URL {cloud_docker_image} in'
         f' {args.project}.'
     )
-    xpk_utils.xpk_exit(1)
+    xpk_exit(1)
 
   # Upload image to Artifact Registry.
   upload_docker_image_command = f'docker push {cloud_docker_image}'
@@ -3422,12 +1868,12 @@ def build_docker_image_from_base_image(args, verbose=True) -> tuple[int, str]:
       upload_docker_image_command, 'Upload Docker Image', args, verbose=verbose
   )
   if return_code != 0:
-    xpk_utils.xpk_print(
+    xpk_print(
         'Failed to upload docker image.'
         f' You should be able to navigate to the URL {cloud_docker_image} in'
         f' {args.project}.'
     )
-    xpk_utils.xpk_exit(1)
+    xpk_exit(1)
   return return_code, cloud_docker_image
 
 
@@ -3452,8 +1898,8 @@ def check_if_workload_exists(args) -> bool:
   )
 
   if return_code != 0:
-    xpk_utils.xpk_print(f'List Job request returned ERROR {return_code}')
-    xpk_utils.xpk_exit(return_code)
+    xpk_print(f'List Job request returned ERROR {return_code}')
+    xpk_exit(return_code)
 
   lines = return_msg.split('\n')
   new_workload_name = args.workload
@@ -3473,12 +1919,12 @@ def check_if_workload_can_schedule(args, system: SystemCharacteristics) -> bool:
   Returns:
     returns true if workload can schedule, otherwise returns false.
   """
-  resources_configmap_name = f'{args.cluster}-{_CLUSTER_RESOURCES_CONFIGMAP}'
+  resources_configmap_name = f'{args.cluster}-{CLUSTER_RESOURCES_CONFIGMAP}'
   cluster_config_map = get_cluster_configmap(args, resources_configmap_name)
 
   # Prevents workload creation failure for existing clusters with no ConfigMap
   if cluster_config_map is None:
-    xpk_utils.xpk_print(
+    xpk_print(
         'No ConfigMap exist for cluster with the name'
         f' {resources_configmap_name}.'
     )
@@ -3487,7 +1933,7 @@ def check_if_workload_can_schedule(args, system: SystemCharacteristics) -> bool:
   # Check for gke accelerator type:
   missing_gke_accelerator_type = False
   if system.gke_accelerator not in cluster_config_map:
-    xpk_utils.xpk_print(
+    xpk_print(
         f'Gke Accelerator Type Check: {args.workload} is requesting'
         f' {system.gke_accelerator} but cluster only contains'
         f' {cluster_config_map.keys()}. '
@@ -3495,16 +1941,16 @@ def check_if_workload_can_schedule(args, system: SystemCharacteristics) -> bool:
     missing_gke_accelerator_type = True
   elif (
       cluster_config_map[system.gke_accelerator]
-      == _AUTOPROVISIONING_CONFIG_VALUE
+      == AUTOPROVISIONING_CONFIG_VALUE
   ):
     # Run total chip check when in autoprovisioning mode.
     max_chips_in_cluster = int(
-        cluster_config_map[_AUTOPROVISIONING_CONFIG_MAXIMUM_KEY]
+        cluster_config_map[AUTOPROVISIONING_CONFIG_MAXIMUM_KEY]
     )
     num_chips_in_workload = get_total_chips_requested_from_args(args, system)
 
     if num_chips_in_workload > max_chips_in_cluster:
-      xpk_utils.xpk_print(
+      xpk_print(
           f'{args.workload} is requesting {num_chips_in_workload} chips but'
           f' the cluster {args.cluster} supports up to {max_chips_in_cluster}.'
           '  Resize the cluster to support more chips with'
@@ -3517,14 +1963,14 @@ def check_if_workload_can_schedule(args, system: SystemCharacteristics) -> bool:
   missing_device_type = False
   device_type = system.device_type
   if device_type not in cluster_config_map:
-    xpk_utils.xpk_print(
+    xpk_print(
         f'Device Type Check: {args.workload} is requesting {device_type} but '
         f'cluster only contains {cluster_config_map.keys()}. '
     )
     missing_device_type = True
 
   if missing_device_type and missing_gke_accelerator_type:
-    xpk_utils.xpk_print(
+    xpk_print(
         'Both Device Type and GKE Accelerator Type checks failed.'
         f' XPK will not create the workload {args.workload}.'
     )
@@ -3537,7 +1983,7 @@ def check_if_workload_can_schedule(args, system: SystemCharacteristics) -> bool:
     else:
       vm_required_by_workload = args.num_slices * system.vms_per_slice
     if vm_required_by_workload > max_vm_in_cluster:
-      xpk_utils.xpk_print(
+      xpk_print(
           f'{args.workload} is requesting {args.num_slices} slice/slices of'
           f' {device_type}, which is {vm_required_by_workload} VMs, but the'
           f' cluster only contains {max_vm_in_cluster} VMs of {device_type}.'
@@ -3561,17 +2007,17 @@ def use_base_docker_image_or_docker_image(args) -> bool:
   # Check if (base_docker_image and script_dir) or (docker_image) is set.
   if args.docker_image is not None:
     if args.script_dir is not default_script_dir:
-      xpk_utils.xpk_print(
+      xpk_print(
           '`--script-dir` and --docker-image can not be used together. Please'
           ' see `--help` command for more details.'
       )
-      xpk_utils.xpk_exit(1)
+      xpk_exit(1)
     if args.base_docker_image is not default_docker_image:
-      xpk_utils.xpk_print(
+      xpk_print(
           '`--base-docker-image` and --docker-image can not be used together.'
           ' Please see `--help` command for more details.'
       )
-      xpk_utils.xpk_exit(1)
+      xpk_exit(1)
     use_base_docker_image = False
   return use_base_docker_image
 
@@ -3593,17 +2039,17 @@ def setup_docker_image(args) -> tuple[int, str]:
   if use_base_docker_image:
     validate_docker_image_code = validate_docker_image(docker_image, args)
     if validate_docker_image_code != 0:
-      xpk_utils.xpk_exit(validate_docker_image_code)
+      xpk_exit(validate_docker_image_code)
     build_docker_image_code, docker_image = build_docker_image_from_base_image(
         args
     )
     if build_docker_image_code != 0:
-      xpk_utils.xpk_exit(build_docker_image_code)
+      xpk_exit(build_docker_image_code)
   else:
     docker_image = args.docker_image
     validate_docker_image_code = validate_docker_image(args.docker_image, args)
     if validate_docker_image_code != 0:
-      xpk_utils.xpk_exit(validate_docker_image_code)
+      xpk_exit(validate_docker_image_code)
 
   return 0, docker_image
 
@@ -3689,7 +2135,7 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
   xpk_return_user_exit_code = ''
   if args.restart_on_user_code_failure:
     if int(args.max_restarts) <= 0:
-      xpk_utils.xpk_print(
+      xpk_print(
           f'Warning: --max-restarts, is set to {args.max_restarts}. Will not'
           ' restart on user failure.'
       )
@@ -3859,149 +2305,6 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
   return volume_mount_yaml
 
 
-def get_pathways_rm_args(args, system: SystemCharacteristics) -> str:
-  """Arguments for the Pathways resource manager.
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    str: yaml containing arguments for the Pathways resource manager.
-  """
-  yaml = """- --alsologtostderr
-              - --pathways_server_port=38677
-              - --pathways_server_provides_devices=false
-              - --pathways_device_type=NONE
-              - --pathways_persistent_compilation_cache=false
-              - --pathways_tmp_dir_pattern={args.pathways_gcs_location}
-              - --pathways_expected_instances={expected_instances}"""
-  if args.use_pathways:
-    return yaml.format(
-        args=args,
-        expected_instances=compute_pathways_expected_instances(args, system),
-    )
-  else:
-    return ''
-
-
-def compute_pathways_expected_instances(
-    args, system: SystemCharacteristics
-) -> str:
-  """Computes the expected instances from the system characteristics.
-  Args:
-    args: user provided args.
-    system: system characteristics.
-
-  Returns:
-    str: formatted string representing the expected instances (eg:
-    "tpuv4:2x2x2,tpuv4:2x2x2" for 2 slices of v4-16).
-  """
-  expected_instances = ','.join([
-      f'tpu{get_pathways_expected_tpu_type(system.device_type)}:{system.topology}'
-      for _ in range(args.num_slices)
-  ])
-
-  xpk_utils.xpk_print(f'Pathways expected instances are: {expected_instances}')
-  return expected_instances
-
-
-def get_pathways_expected_tpu_type(device_type: str) -> str:
-  """Returns the device type expected by Pathways
-  Args:
-    device_type: the system characteristic device type
-
-  Returns:
-    str: the device type expected by pathways.
-  """
-  raw_type = device_type.split('-')[0].lower()
-  pathways_expected_instance = PathwaysExpectedInstancesMap[raw_type]
-  if not pathways_expected_instance:
-    xpk_utils.xpk_print(
-        f'Passed in device_type {device_type} is incorrect. Please pass in a'
-        ' valid device type'
-    )
-    xpk_utils.xpk_exit(1)
-  return pathways_expected_instance
-
-
-def get_rm_address(args) -> str:
-  """Generates the Pathways resource manager address based on whether CloudDNS is enabled or not.
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    str: Fully qualified RM address.
-  """
-  suffix = ''
-  if is_cluster_using_clouddns(args):
-    suffix = f'.default.svc.{args.cluster}-domain.'
-  rm_address = f'{args.workload}-rm-0-0.{args.workload}{suffix}:38677'
-  return rm_address
-
-
-def get_proxy_address(args) -> str:
-  """Generates the Pathways proxy address based on whether CloudDNS is enabled or not.
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    str: Fully qualified proxy address.
-  """
-  suffix = ''
-  if is_cluster_using_clouddns(args):
-    suffix = f'.default.svc.{args.cluster}-domain.'
-  proxy_address = (
-      f'grpc://{args.workload}-proxy-0-0.{args.workload}{suffix}:38676'
-  )
-  return proxy_address
-
-
-def get_pathways_worker_args(args) -> str:
-  """Arguments for the Pathways workers.
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    str: yaml containing arguments for the Pathways workers.
-  """
-  yaml = """- --alsologtostderr
-              - --pathways_server_port=38677
-              - --pathways_resource_manager={rm_address}
-              - --pathways_persistent_compilation_cache=false
-              - --xla_tpu_enable_data_parallel_all_reduce_opt=true
-              - --xla_tpu_data_parallel_opt_different_sized_ops=true
-              - --xla_tpu_enable_async_collective_fusion=true
-              - --xla_tpu_enable_async_collective_fusion_fuse_all_gather=true
-              - --xla_tpu_enable_async_collective_fusion_multiple_steps=true
-              - --xla_tpu_overlap_compute_collective_tc=true
-              - --xla_enable_async_all_gather=true
-              - --pathways_tmp_dir_pattern={args.pathways_gcs_location}"""
-  if args.use_pathways:
-    return yaml.format(args=args, rm_address=get_rm_address(args))
-  else:
-    return ''
-
-
-def get_pathways_proxy_args(args) -> str:
-  """Arguments for the Pathways proxy.
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    str: yaml containing arguments for the Pathways proxy.
-  """
-  yaml = """- --alsologtostderr
-              - --v=0
-              - --pathways_ifrt_proxy_server_resource_manager={rm_address}
-              - --pathways_ifrt_proxy_server_port=38676
-              - --pathways_tmp_dir_pattern={args.pathways_gcs_location}
-              - --pathways_plaque_network=gcp"""
-
-  if args.use_pathways:
-    return yaml.format(args=args, rm_address=get_rm_address(args))
-  else:
-    return ''
-
-
 def get_user_workload_container(args, system: SystemCharacteristics):
   """Deploy user workload container
 
@@ -4016,7 +2319,7 @@ def get_user_workload_container(args, system: SystemCharacteristics):
 
   setup_docker_image_code, docker_image = setup_docker_image(args)
   if setup_docker_image_code != 0:
-    xpk_utils.xpk_exit(setup_docker_image_code)
+    xpk_exit(setup_docker_image_code)
 
   # Determine if we deploy a sidecar and if we deploy a container.
   debugging_dashboard_id = None
@@ -4028,7 +2331,7 @@ def get_user_workload_container(args, system: SystemCharacteristics):
       and system.accelerator_type == AcceleratorType['TPU']
       and args.deploy_stacktrace_sidecar
   ):
-    xpk_utils.xpk_print(
+    xpk_print(
         'Sidecar container to display stack traces for TPU workloads will also'
         ' be deployed.'
     )
@@ -4038,49 +2341,6 @@ def get_user_workload_container(args, system: SystemCharacteristics):
   else:
     container = get_main_container(args, system, docker_image, resource_type)
   return container, debugging_dashboard_id
-
-
-def get_user_workload_for_pathways(args, system: SystemCharacteristics) -> str:
-  """
-  Create a user workload container for Pathways.
-  Don't create one for Pathways headless mode.
-
-  Args:
-    args: user provided args.
-    system: system characteristics.
-
-
-  Returns:
-    str:
-      Pathways server port as a YAML string
-  """
-  user_workload_yaml = """- name: main
-    replicas: 1
-    template:
-      metadata:
-        labels:
-          xpk.google.com/workload: {args.workload}
-      spec:
-        backoffLimit: 0
-        completions: 1
-        parallelism: 1
-        template:
-          spec:
-            containers:
-              {container}
-            nodeSelector:
-              cloud.google.com/gke-nodepool: cpu-user-np
-            restartPolicy: OnFailure
-            volumes:
-            - hostPath:
-                path: /tmp
-                type: DirectoryOrCreate
-              name: shared-tmp"""
-  if args.headless:
-    return ''
-  else:
-    container, _ = get_user_workload_container(args, system)
-    return user_workload_yaml.format(args=args, container=container)
 
 
 def get_env_container(args, system: SystemCharacteristics):
@@ -4240,7 +2500,7 @@ def get_gke_dashboard(args, dashboard_filter):
   )
 
   if return_code != 0:
-    xpk_utils.xpk_print(
+    xpk_print(
         f'GKE Dashboard List request returned ERROR {return_code}. If there is'
         ' a permissions error, please check'
         ' https://github.com/google/xpk/blob/main/README.md#roles-needed-based-on-permission-errors'
@@ -4249,7 +2509,7 @@ def get_gke_dashboard(args, dashboard_filter):
     return True, None
 
   if not return_value:
-    xpk_utils.xpk_print(
+    xpk_print(
         f'No dashboard with {dashboard_filter} found in the'
         f' project:{args.project}.'
     )
@@ -4257,7 +2517,7 @@ def get_gke_dashboard(args, dashboard_filter):
 
   dashboards = return_value.strip().split('\n')
   if len(dashboards) > 1:
-    xpk_utils.xpk_print(
+    xpk_print(
         f'Multiple dashboards with same {dashboard_filter} exist in the'
         f' project:{args.project}. Delete all but one dashboard deployed using'
         ' https://github.com/google/cloud-tpu-monitoring-debugging.'
@@ -4290,7 +2550,7 @@ def get_gke_outlier_dashboard(args):
 
   # 'gcloud monitoring dashboards list' succeeded but no dashboard for the filter exist in the project
   if not is_error and not dashboard_id:
-    xpk_utils.xpk_print(
+    xpk_print(
         'Follow https://github.com/google/cloud-tpu-monitoring-debugging to'
         ' deploy monitoring dashboard to view statistics and outlier mode of'
         ' GKE metrics.'
@@ -4320,7 +2580,7 @@ def get_gke_debugging_dashboard(args):
 
   # 'gcloud monitoring dashboards list' succeeded but no dashboard for the filter exist in the project
   if not is_error and not dashboard_id:
-    xpk_utils.xpk_print(
+    xpk_print(
         'Follow https://github.com/google/cloud-tpu-monitoring-debugging to'
         ' deploy debugging dashboard to view stack traces collected in Cloud'
         ' Logging.'
@@ -4448,132 +2708,6 @@ def get_cpu_affinity(accelerator_type) -> str:
   return ''
 
 
-def is_autoprovisioning_enabled(
-    args, system: SystemCharacteristics
-) -> tuple[bool, int]:
-  """Determine if autoprovisioning is enabled.
-
-  Args:
-    args: user provided arguments for running the command.
-    system: system characteristics.
-
-  Returns:
-    bool is true if autoprovisioning is enabled, false otherwise.
-    int of 0 if successful and 1 otherwise.
-  """
-  resources_configmap_name = f'{args.cluster}-{_CLUSTER_RESOURCES_CONFIGMAP}'
-  cluster_config_map = get_cluster_configmap(args, resources_configmap_name)
-
-  if cluster_config_map is None:
-    xpk_utils.xpk_print(
-        f'Unable to find config map: {resources_configmap_name}.'
-        ' Autoprovisioning is not enabled.'
-    )
-    return False, 0
-
-  return_code, autoprovisioning_value = xpk_utils.get_value_from_map(
-      system.gke_accelerator, cluster_config_map
-  )
-  if return_code != 0:
-    xpk_utils.xpk_print(
-        'gke_accelerator type not found in config map:'
-        f' {resources_configmap_name}. Autoprovisioning is not enabled.'
-    )
-    return False, 0
-
-  if autoprovisioning_value == _AUTOPROVISIONING_CONFIG_VALUE:
-    xpk_utils.xpk_print('Autoprovisioning is Enabled.')
-    return True, 0
-  else:
-    xpk_utils.xpk_print(
-        'Error: Autoprovisioning not enabled but should be so exiting xpk.'
-        f' Value should be {_AUTOPROVISIONING_CONFIG_VALUE} but instead found'
-        f' value of  {cluster_config_map[system.accelerator_type]}'
-    )
-    return False, 1
-
-
-def get_pathways_unified_query_link(args) -> str:
-  """Get the unified query link for the pathways workload."""
-  pw_suffixes = ['main', 'rm', 'proxy']
-  pw_pod_names = [f'"{args.workload}-{suffix}-0"' for suffix in pw_suffixes]
-  pw_pod_names_query = '%20OR%20'.join(pw_pod_names + ['worker-0-0'])
-  query_params = (
-      'resource.type%3D"k8s_container"%0A'
-      f'resource.labels.project_id%3D"{args.project}"%0A'
-      f'resource.labels.location%3D"{zone_to_region(args.zone)}"%0A'
-      f'resource.labels.cluster_name%3D"{args.cluster}"%0A'
-      f'resource.labels.pod_name:{pw_pod_names_query}%0A'
-      'severity>%3DDEFAULT'
-  )
-
-  return f'https://console.cloud.google.com/logs/query;query={query_params}'
-
-
-def get_autoprovisioning_node_selector_args(args) -> tuple[str, int]:
-  """Determine the capacity type when autoprovisioning is enabled.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    Tuple with string of autoprovisioning node selector args and
-    int of 0 if successful and 1 otherwise.
-  """
-  return_code = 0
-  node_selector_args = ''
-  # If the user doesn't specify args, then use the cluster settings.
-  capacity_type, return_code = get_capacity_type(args)
-  capacity_type_str = capacity_type.name
-  if return_code != 0:
-    xpk_utils.xpk_print('Unable to get capacity type.')
-    return node_selector_args, return_code
-
-  if capacity_type_str == CapacityType.UNKNOWN.name:
-    # Use default settings from cluster creation.
-    metadata_configmap_name = f'{args.cluster}-{_CLUSTER_METADATA_CONFIGMAP}'
-    cluster_config_map = get_cluster_configmap(args, metadata_configmap_name)
-
-    # Error out if the metadata config map doesn't exist, and is attempting to use
-    # autoprovisioning.
-    if cluster_config_map is None:
-      xpk_utils.xpk_print(
-          'Unable to find config map. Please specify a capacity type'
-          ' --on-demand, --spot, --reservation=$RESERVATION_ID) to continue'
-          ' to use autoprovisioning (--enable-autoprovisioning).'
-      )
-      return node_selector_args, 1
-
-    return_code, capacity_type_str = xpk_utils.get_value_from_map(
-        _CAPACITY_TYPE_CONFIG_KEY, cluster_config_map
-    )
-    if return_code != 0:
-      return node_selector_args, return_code
-
-    if capacity_type_str == CapacityType.RESERVATION.name:
-      return_code, args.reservation = xpk_utils.get_value_from_map(
-          _RESERVATION_CONFIG_KEY, cluster_config_map
-      )
-      if return_code != 0:
-        return node_selector_args, return_code
-      return_code = verify_reservation_exists(args)
-      if return_code > 0:
-        xpk_utils.xpk_print(
-            'Unable to verify reservation name saved in config map.'
-        )
-        return node_selector_args, return_code
-
-  # Check if reservation id is valid. Shared function with cluster creation.
-  node_selector_args, return_code = (
-      get_capacity_node_selectors_from_capacity_type(args, capacity_type_str)
-  )
-  if return_code != 0:
-    xpk_utils.xpk_print('Unable to get node selectors from capacity type.')
-    return node_selector_args, return_code
-
-  return node_selector_args, return_code
-
-
 def get_gpu_scheduler(
     args, system: SystemCharacteristics, autoprovisioning_args: str
 ) -> tuple[str, int]:
@@ -4596,6 +2730,22 @@ def get_gpu_scheduler(
               - name: "{args.scheduler}-{args.workload}"
               """
   elif args.scheduler == 'default-scheduler':
+    gpu_scheduler_yaml = """schedulerName: {scheduler_name}
+              affinity:
+                nodeAffinity:
+                  requiredDuringSchedulingIgnoredDuringExecution:
+                    nodeSelectorTerms:
+                    - matchExpressions:
+                      - key: cloud.google.com/gke-accelerator
+                        operator: Exists
+                      - key: cloud.google.com/gke-nodepool
+                        operator: In
+                        values: [{node_pool_name}]
+              nodeSelector:
+                {accelerator_label}
+                {machine_label}
+                {autoprovisioning_args}
+              """
     gpu_scheduler = gpu_scheduler_yaml.format(
         scheduler_name=args.scheduler,
         accelerator_label=create_accelerator_label(
@@ -4607,7 +2757,7 @@ def get_gpu_scheduler(
     )
   else:
     return_code = 1
-    xpk_utils.xpk_print(
+    xpk_print(
         '--scheduler needs to be set as either `default-scheduler`'
         ' or `gke.io/topology-aware-auto` in order to schedule the'
         ' workloads on GPUs.'
@@ -4713,465 +2863,6 @@ def get_gpu_tcp_volume(system: SystemCharacteristics) -> str:
   return gpu_tcp_volume
 
 
-def workload_create_pathways(args) -> None:
-  """Run jobset apply command for a file, specifically for Pathways.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  args.use_pathways = True
-  workload_create(args)
-
-
-def workload_create(args) -> None:
-  """Run jobset apply command for a file.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  add_zone_and_project(args)
-
-  if args.headless and not is_cluster_using_clouddns(args):
-    xpk_utils.xpk_print(
-        'Please run xpk cluster create-pathways first, to upgrade and enable'
-        ' CloudDNS on your cluster.'
-    )
-    xpk_utils.xpk_exit(1)
-
-  set_cluster_command_code = set_cluster_command(args)
-  if set_cluster_command_code != 0:
-    xpk_utils.xpk_exit(set_cluster_command_code)
-
-  workload_exists = check_if_workload_exists(args)
-
-  if workload_exists:
-    xpk_utils.xpk_print(
-        f'{args.workload} already exists, XPK will not create this workload.'
-        ' Please pick a new workload name'
-    )
-    xpk_utils.xpk_exit(1)
-
-  xpk_utils.xpk_print('Starting workload create', flush=True)
-  system, return_code = get_system_characteristics(args)
-
-  if return_code > 0:
-    xpk_utils.xpk_print('Fetching system characteristics failed!')
-    xpk_utils.xpk_exit(return_code)
-
-  if not check_if_workload_can_schedule(args, system):
-    xpk_utils.xpk_exit(1)
-
-  xpk_utils.xpk_print('Starting workload create', flush=True)
-
-  metadata_configmap_name = f'{args.cluster}-{_CLUSTER_METADATA_CONFIGMAP}'
-  cluster_config_map = get_cluster_configmap(args, metadata_configmap_name)
-  cluster_xpk_version = None
-  if cluster_config_map is None:
-    xpk_utils.xpk_print(
-        f'Warning: Unable to find ConfigMap: {metadata_configmap_name} for the'
-        ' cluster. We recommend to upgrade your cluster by running `xpk'
-        ' cluster create`.'
-    )
-  else:
-    cluster_xpk_version = cluster_config_map.get('xpk_version')
-  if (
-      cluster_xpk_version is not None
-      and cluster_xpk_version != xpk_current_version
-  ):
-    xpk_utils.xpk_print(
-        'Warning: Cluster has been created using XPK version:'
-        f' {cluster_config_map["xpk_version"]} but the XPK version you are'
-        f' using to schedule workload is: {xpk_current_version}. Some features'
-        ' might not be available for this cluster. We recommend to'
-        ' upgrade/downgrade your XPK version or cluster by running `xpk'
-        ' cluster create`.'
-    )
-
-  debugging_dashboard_id = None
-
-  tensorboard_config = {}
-  if _VERTEX_TENSORBOARD_FEATURE_FLAG and args.use_vertex_tensorboard:
-    tensorboard_config = create_vertex_experiment(args)
-    # exit if failed to create Experiment in Vertex AI
-    if not tensorboard_config:
-      xpk_utils.xpk_exit(1)
-
-  parse_env_config(args, tensorboard_config, system)
-
-  # Currently autoprovisioning is not enabled for Pathways workloads.
-  autoprovisioning_args = ''
-  autoprovisioning_enabled, return_code = is_autoprovisioning_enabled(
-      args, system
-  )
-  if return_code != 0:
-    xpk_utils.xpk_exit(return_code)
-  if autoprovisioning_enabled:
-    # Determine NAP capacity type
-    autoprovisioning_args, return_code = (
-        get_autoprovisioning_node_selector_args(args)
-    )
-    if return_code != 0:
-      xpk_utils.xpk_exit(return_code)
-
-  # Create the workload file based on accelerator type or workload type.
-  if system.accelerator_type == AcceleratorType['GPU']:
-    container, debugging_dashboard_id = get_user_workload_container(
-        args, system
-    )
-    gpu_scheduler, return_code = get_gpu_scheduler(
-        args, system, autoprovisioning_args
-    )
-    if return_code != 0:
-      xpk_utils.xpk_exit(return_code)
-
-    yml_string = gpu_workload_create_yaml.format(
-        args=args,
-        container=container,
-        command=args.command,
-        chips_per_vm=system.chips_per_vm,
-        gpu_scheduler=gpu_scheduler,
-        gpu_volume=get_gpu_volume(system),
-        gpu_rxdm_image=get_gpu_rxdm_image(system),
-        gpu_rxdm_cmd=get_gpu_rxdm_cmd(system),
-        gpu_tcp_volume=get_gpu_tcp_volume(system),
-    )
-  elif args.use_pathways and ensure_pathways_workload_prerequisites(
-      args, system
-  ):
-    yml_string = pw_workload_create_yaml.format(
-        args=args,
-        system=system,
-        accelerator_label=create_accelerator_label(
-            system.accelerator_type, system
-        ),
-        machine_label=create_machine_label(system.accelerator_type, system),
-        pathways_rm_args=get_pathways_rm_args(args, system),
-        pathways_worker_args=get_pathways_worker_args(args),
-        pathways_proxy_args=get_pathways_proxy_args(args),
-        user_workload=get_user_workload_for_pathways(args, system),
-        resource_type=AcceleratorTypeToAcceleratorCharacteristics[
-            system.accelerator_type
-        ].resource_type,
-        local_queue_name=_LOCAL_QUEUE_NAME,
-        autoprovisioning_args=autoprovisioning_args,
-        backoff_limit=system.vms_per_slice * 4,
-    )
-  else:
-    container, debugging_dashboard_id = get_user_workload_container(
-        args, system
-    )
-    yml_string = workload_create_yaml.format(
-        args=args,
-        system=system,
-        container=container,
-        affinity=get_cpu_affinity(system.accelerator_type),
-        accelerator_label=create_accelerator_label(
-            system.accelerator_type, system
-        ),
-        machine_label=create_machine_label(system.accelerator_type, system),
-        local_queue_name=_LOCAL_QUEUE_NAME,
-        autoprovisioning_args=autoprovisioning_args,
-        volumes=get_volumes(args, system),
-    )
-  tmp = xpk_utils.write_tmp_file(yml_string)
-  command = f'kubectl apply -f {str(tmp.file.name)}'
-  return_code = run_command_with_updates(command, 'Creating Workload', args)
-
-  if return_code != 0:
-    xpk_utils.xpk_print(f'Create Workload request returned ERROR {return_code}')
-    xpk_utils.xpk_exit(return_code)
-
-  # Get GKE outlier dashboard for TPU
-  outlier_dashboard_id = None
-  if system.accelerator_type == AcceleratorType['TPU']:
-    outlier_dashboard_id = get_gke_outlier_dashboard(args)
-
-  # Outlier and debugging dashboards
-  if outlier_dashboard_id is not None:
-    xpk_utils.xpk_print(
-        'Check statistics and outlier mode of GKE metrics here:'
-        # pylint: disable=line-too-long
-        f' https://console.cloud.google.com/monitoring/dashboards/builder/{outlier_dashboard_id}?project={args.project}&f.rlabel.cluster_name.ClusterName={args.cluster}.'
-        ' To view the metric data for your workload, select'
-        f' {args.workload} from the JobName filter on the dashboard.'
-    )
-
-  if debugging_dashboard_id is not None:
-    xpk_utils.xpk_print(
-        'Check stack traces collected in Cloud Logging here:'
-        # pylint: disable=line-too-long
-        f' https://console.cloud.google.com/monitoring/dashboards/builder/{debugging_dashboard_id}?project={args.project}&f.rlabel.cluster_name.ClusterName={args.cluster}.'
-        ' To view the stack traces for your workload, select'
-        f' {args.workload} from the JobName filter on the dashboard.'
-    )
-
-  if args.use_pathways:
-    if args.headless:
-      xpk_utils.xpk_print(
-          ' \n *******  Please connect to your Pathways proxy at'
-          f' {args.pathways_proxy_address} , once you see "IFRT proxy server'
-          ' started with status OK" on the proxy link below.'
-          ' Remember to delete the workload once done! ****** \n'
-      )
-      pathways_proxy_link = f'https://console.cloud.google.com/kubernetes/job/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}-proxy-0/details?project={args.project}'
-      xpk_utils.xpk_print(
-          'Follow the proxy here:'
-          # pylint: disable=line-too-long)
-          f' {pathways_proxy_link} '
-      )
-    xpk_utils.xpk_print(
-        'Follow your Pathways workload and other resources here : '
-        f'{get_pathways_unified_query_link(args)}'
-    )
-  else:
-    xpk_utils.xpk_print(
-        'Follow your workload here:'
-        # pylint: disable=line-too-long
-        f' https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
-    )
-
-  xpk_utils.xpk_exit(0)
-
-
-def ensure_pathways_workload_prerequisites(args, system) -> bool:
-  """Check all Pathways workload prerequisites and set necessary args.
-
-  Args:
-    args: user provided arguments for running the command.
-    system: system characteristics.
-
-  Returns:
-    True once conditions satisfy and variables are set. Exits otherwise.
-  """
-  # Ensure command is provided if not using Pathways in headless mode
-  if args.command is None and not args.headless:
-    xpk_utils.xpk_print(
-        'Please provide a command using "--command" for the docker container to'
-        ' execute. Command is not required if you wish to run Pathways'
-        ' workloads in headless mode (`xpk workload create-pathways'
-        ' --headless`).'
-    )
-    xpk_utils.xpk_exit(1)
-
-  # Ensure the cluster and CPU nodepools were created with create-pathways
-  all_node_pools = get_all_nodepools_programmatic(args)
-  desired_pw_cpu_node_pools = {'cpu-user-np', 'cpu-rm-np', 'cpu-proxy-np'}
-  if not desired_pw_cpu_node_pools.issubset(set(all_node_pools[0])):
-    xpk_utils.xpk_print(
-        'Cluster needs to be created with `xpk create-pathways` to run'
-        ' Pathways workloads.'
-    )
-    xpk_utils.xpk_exit(1)
-
-  # Ensure device type is TPUs - currently Pathways supports TPUs only.
-  if system.accelerator_type != AcceleratorType['TPU']:
-    xpk_utils.xpk_print(
-        'Currently, Pathways workloads can only be run on TPUs.'
-    )
-    xpk_utils.xpk_exit(1)
-
-  # Set proxy address to be consumed in helper methods and displayed to user.
-  args.pathways_proxy_address = get_proxy_address(args)
-
-  # Set the job which determines the life of other Pathways jobs
-  args.targetReplicatedJob = 'proxy' if args.headless else 'main'
-
-  # Always report user code failures back to JobSet.
-  args.restart_on_user_code_failure = True
-
-  return True
-
-
-def workload_delete(args) -> None:
-  """Function around workload delete.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  xpk_utils.xpk_print('Starting Workload delete', flush=True)
-  add_zone_and_project(args)
-  set_cluster_command_code = set_cluster_command(args)
-  if set_cluster_command_code != 0:
-    xpk_utils.xpk_exit(set_cluster_command_code)
-
-  will_delete = True
-  if not args.workload:
-    xpk_utils.xpk_print('Get the name of the workloads in the cluster.')
-    return_code, return_value = get_workload_list(args)
-
-    if return_code != 0:
-      xpk_utils.xpk_print(f'List Job request returned ERROR {return_code}')
-      xpk_utils.xpk_exit(return_code)
-    # Skip the header
-    workloads = [x.split(' ')[0] for x in return_value.splitlines()][1:]
-    if workloads and not args.force:
-      will_delete = xpk_utils.get_user_input(
-          f'Planning to delete {len(workloads)} workloads in the cluster'
-          f' {args.cluster} including {workloads}. \nDo you wish to delete: y'
-          ' (yes) / n (no):\n'
-      )
-  else:
-    workloads = [args.workload]
-
-  if not workloads:
-    xpk_utils.xpk_print(
-        'There are no workloads to delete matching the filter in the cluster.'
-    )
-  elif not will_delete:
-    xpk_utils.xpk_print('Skipping delete command.')
-  else:
-    commands = []
-    task_names = []
-    for workload in workloads:
-      args.workload = workload
-      command = f'kubectl delete jobset {workload} -n default'
-      task_name = f'WorkloadDelete-{workload}'
-      commands.append(command)
-      task_names.append(task_name)
-
-    # Not batching deletion for single workload
-    if len(workloads) == 1:
-      return_code = run_command_with_updates(
-          commands[0], 'Delete Workload', args
-      )
-    else:
-      return_code = run_commands(
-          commands, 'Delete Workload', task_names, batch=100
-      )
-
-    if return_code != 0:
-      xpk_utils.xpk_print(
-          f'Delete Workload request returned ERROR {return_code}'
-      )
-      xpk_utils.xpk_exit(return_code)
-  xpk_utils.xpk_exit(0)
-
-
-def workload_list_awk_command(filter_key) -> str:
-  """Function returns the awk command needed from the filter specified.
-
-  Args:
-    filter_key: workload list filter to awk against
-
-  Returns:
-    awk command to use in filtering workload list.
-  """
-
-  return f" | awk -e 'NR == 1 || {filter_key} {{print $0}}'"
-
-
-def determine_workload_list_filter_by_status(args) -> str:
-  """Function to create the filtered view of workload list.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    the argument needed to filter by status of jobs in workload list.
-  """
-  # Argument positions related to columns created by workload list command.
-  status_arg = '$7'
-  running_vms_arg = '$5'
-  status_verbose_arg = '$9'
-  if args.filter_by_status == 'EVERYTHING':
-    return ''
-  elif args.filter_by_status == 'RUNNING':
-    # Running includes the status Admitted or Evicted, and when the number of
-    # vms running is > 0.
-    return workload_list_awk_command(
-        f'({status_arg} ~ "Admitted|Evicted" && {running_vms_arg} ~ /^[0-9]+$/'
-        f' && {running_vms_arg} > 0)'
-    )
-  elif args.filter_by_status == 'QUEUED':
-    # Queued includes the status Admitted or Evicted, and when the number of
-    # vms running is 0.
-    return workload_list_awk_command(
-        f'({status_arg} ~ "Admitted|Evicted|QuotaReserved" &&'
-        f' ({running_vms_arg} ~ "<none>" || {running_vms_arg} == 0))'
-    )
-  elif args.filter_by_status == 'FINISHED':
-    return workload_list_awk_command(f'{status_arg} == "Finished"')
-  elif args.filter_by_status == 'FAILED':
-    # Failed includes the status Finished, and when the verbose reason is failed.
-    return workload_list_awk_command(
-        f'({status_arg} == "Finished" && {status_verbose_arg} ~ "failed")'
-    )
-  elif args.filter_by_status == 'SUCCESSFUL':
-    # Failed includes the status Finished, and when the verbose reason is finished/success.
-    return workload_list_awk_command(
-        f'({status_arg} == "Finished" && {status_verbose_arg} ~ "finished")'
-    )
-  raise RuntimeError(f'Can not find filter type: {args.filter_by_status}')
-
-
-def determine_workload_list_filter_by_job(args) -> str:
-  """Function to filter view of workload list based on job name.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    the argument needed to filter job names from workload list
-  """
-  # Argument positions related to columns created by workload list command.
-  if not args.filter_by_job:
-    return ''
-  else:
-    job_name_arg = '$1'
-    return workload_list_awk_command(f'{job_name_arg} ~ "{args.filter_by_job}"')
-
-
-def get_workload_list(args) -> tuple[int, str]:
-  """Function to get the list of the workloads in the cluster.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    return_code: 0 if successful and 1 otherwise.
-    return_value: workloads in the cluster matching the criteria.
-  """
-  columns = {
-      'Jobset Name': '.metadata.ownerReferences[0].name',
-      'Created Time': '.metadata.creationTimestamp',
-      'Priority': '.spec.priorityClassName',
-      'TPU VMs Needed': '.spec.podSets[0].count',
-      'TPU VMs Running/Ran': '.status.admission.podSetAssignments[-1].count',
-      'TPU VMs Done': '.status.reclaimablePods[0].count',
-      'Status': '.status.conditions[-1].type',
-      'Status Message': '.status.conditions[-1].message',
-      'Status Time': '.status.conditions[-1].lastTransitionTime',
-  }
-  s = ','.join([key + ':' + value for key, value in columns.items()])
-
-  workload_list_filter_status_cmd = determine_workload_list_filter_by_status(
-      args
-  )
-  workload_list_filter_job_cmd = determine_workload_list_filter_by_job(args)
-  command = (
-      f'kubectl get workloads -o=custom-columns="{s}" '
-      f'{workload_list_filter_status_cmd} {workload_list_filter_job_cmd}'
-  )
-
-  return_code, return_value = run_command_for_value(
-      command,
-      f'List Jobs with filter-by-status={args.filter_by_status}'
-      f' with filter-by-job={args.filter_by_job}',
-      args,
-  )
-
-  return return_code, return_value
-
-
 def wait_for_job_completion(args) -> int:
   """Function to wait for job completion.
 
@@ -5185,7 +2876,7 @@ def wait_for_job_completion(args) -> int:
   args.workload = args.wait_for_job_completion
   workload_exists = check_if_workload_exists(args)
   if not workload_exists:
-    xpk_utils.xpk_print(f'Workload named {args.workload} does not exist.')
+    xpk_print(f'Workload named {args.workload} does not exist.')
     return 1
 
   # Get the full workload name
@@ -5194,9 +2885,7 @@ def wait_for_job_completion(args) -> int:
       get_workload_name_cmd, 'Get full workload name', args
   )
   if return_code != 0:
-    xpk_utils.xpk_print(
-        f'Get full workload name request returned ERROR {return_code}'
-    )
+    xpk_print(f'Get full workload name request returned ERROR {return_code}')
     return return_code
   full_workload_name = return_value.split(' ')[0]
 
@@ -5217,7 +2906,7 @@ def wait_for_job_completion(args) -> int:
   )
   if return_code != 0:
     if 'timed out' in return_value:
-      xpk_utils.xpk_print(
+      xpk_print(
           f'Timed out waiting for your workload after {timeout_msg}, see your'
           ' workload here:'
           # pylint: disable=line-too-long
@@ -5225,10 +2914,10 @@ def wait_for_job_completion(args) -> int:
       )
       return 124
     else:
-      xpk_utils.xpk_print(f'{return_value}')
-      xpk_utils.xpk_print(f'Wait for workload returned ERROR {return_code}')
+      xpk_print(f'{return_value}')
+      xpk_print(f'Wait for workload returned ERROR {return_code}')
       return return_code
-  xpk_utils.xpk_print(
+  xpk_print(
       'Finished waiting for your workload, see your workload here:'
       # pylint: disable=line-too-long
       f' https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
@@ -5241,382 +2930,10 @@ def wait_for_job_completion(args) -> int:
       status_cmd, 'Get jobset status', args
   )
   if return_code != 0:
-    xpk_utils.xpk_print(
-        f'Get workload status request returned ERROR {return_code}'
-    )
+    xpk_print(f'Get workload status request returned ERROR {return_code}')
     return return_code
-  xpk_utils.xpk_print(f'Your workload finished with status: {return_value}')
+  xpk_print(f'Your workload finished with status: {return_value}')
   if return_value != 'Completed':
-    xpk_utils.xpk_print('Your workload did not complete successfully')
+    xpk_print('Your workload did not complete successfully')
     return 125
   return 0
-
-
-def workload_list(args) -> None:
-  """Function around workload list.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  xpk_utils.xpk_print(args)
-
-  xpk_utils.xpk_print('Starting workload list', flush=True)
-  add_zone_and_project(args)
-  set_cluster_command_code = set_cluster_command(args)
-  if set_cluster_command_code != 0:
-    xpk_utils.xpk_exit(set_cluster_command_code)
-
-  if args.wait_for_job_completion:
-    return_code = wait_for_job_completion(args)
-    if return_code != 0:
-      xpk_utils.xpk_print(
-          f'Wait for job completion returned ERROR {return_code}'
-      )
-      xpk_utils.xpk_exit(return_code)
-    args.filter_by_job = args.wait_for_job_completion
-
-  return_code, return_value = get_workload_list(args)
-
-  if return_code != 0:
-    xpk_utils.xpk_print(f'List Job request returned ERROR {return_code}')
-    xpk_utils.xpk_exit(return_code)
-  xpk_utils.xpk_print(f'Workload List Output:\n{return_value}')
-  xpk_utils.xpk_exit(0)
-
-
-def inspector_run_command_helper(
-    args, command, command_description, file
-) -> int:
-  """Runs a command for xpk inspector, and build the output file.
-
-  Args:
-    args: user provided arguments for running the command.
-    command: the cli command to run.
-    command_description: a brief description of the command run.
-    file: file to add command output to.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  prefix = f'Command: {command}\nCommand Description: {command_description}\n'
-  postfix = '========================================================'
-  return_code, command_output = run_command_for_value(
-      command, f'{command_description}', args
-  )
-
-  if return_code != 0:
-    xpk_utils.xpk_print(
-        f'{command} returned ERROR {return_code} with output: {command_output}'
-    )
-    return 1
-
-  inspector_command_output = f'{prefix} \n{command_output} \n{postfix} \n'
-  xpk_utils.append_tmp_file(inspector_command_output, file)
-
-  if args.print_to_terminal:
-    xpk_utils.xpk_print(inspector_command_output)
-  return 0
-
-
-def inspector_run_workload_list_helper(args, command_description, file) -> int:
-  """Runs a workload list command for xpk inspector, and build the output file.
-
-  Args:
-    args: user provided arguments for running the command.
-    command_description: a brief description of the command run.
-    file: file to add command output to.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  prefix = f'Command Description: {command_description}\n'
-  postfix = '========================================================'
-  return_code, command_output = get_workload_list(args)
-  if return_code != 0:
-    xpk_utils.xpk_exit(return_code)
-  inspector_command_output = f'{prefix} \n{command_output} \n{postfix} \n'
-  xpk_utils.append_tmp_file(inspector_command_output, file)
-  if args.print_to_terminal:
-    xpk_utils.xpk_print(inspector_command_output)
-  return 0
-
-
-def inspector_output_link_helper(args, link, link_description, file) -> int:
-  """Outputs a link for xpk inspector to the output file.
-
-  Args:
-    args: user provided arguments for.
-    link: link to output.
-    link_description: describes what the link is for.
-    file: file to add command output to.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  inspector_link = (
-      f'Link Description: {link_description}\n'
-      f'Link: {link}\n'
-      '========================================================'
-  )
-  xpk_utils.append_tmp_file(inspector_link, file)
-  if args.print_to_terminal:
-    xpk_utils.xpk_print(inspector_link)
-  return 0
-
-
-def inspector(args) -> None:
-  """Function around inspector which investigates failures in the kueue.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  # Future Improvements for inspector:
-  # 2. List what is next in Queue.
-  # 3. Split inspector into different subcommands to parse info easier.
-
-  final_return_code = 0
-  xpk_utils.xpk_print(args)
-
-  add_zone_and_project(args)
-  set_cluster_command_code = set_cluster_command(args)
-  if set_cluster_command_code != 0:
-    xpk_utils.xpk_exit(set_cluster_command_code)
-
-  inspector_file = xpk_utils.write_tmp_file(
-      '==================\nXPK inspector OUTPUT:\n==================\n'
-  )
-  command_and_descriptions = [
-      ('gcloud version', 'Local Setup: gcloud version'),
-      (
-          (
-              'gcloud config get project; gcloud config get compute/zone;'
-              ' gcloud config get compute/region'
-          ),
-          'Local Setup: Project / Zone / Region',
-      ),
-      (
-          (
-              'gcloud beta container clusters list --project'
-              f' {args.project} --region {zone_to_region(args.zone)} | grep -e'
-              f' NAME -e {args.cluster}'
-          ),
-          'GKE: Cluster Details',
-      ),
-      (
-          (
-              'kubectl get configmap'
-              f' {args.cluster}-{_CLUSTER_METADATA_CONFIGMAP} -o yaml'
-          ),
-          'GKE: Cluster Metadata ConfigMap Details',
-      ),
-      (
-          (
-              'kubectl get configmap'
-              f' {args.cluster}-{_CLUSTER_RESOURCES_CONFIGMAP} -o yaml'
-          ),
-          'GKE: Cluster Resources ConfigMap Details',
-      ),
-      (
-          (
-              f'gcloud beta container node-pools list --cluster {args.cluster} '
-              f' --project={args.project} --region={zone_to_region(args.zone)}'
-          ),
-          'GKE: Node pool Details',
-      ),
-      (
-          (
-              "kubectl get node -o custom-columns='NODE_NAME:metadata.name,"
-              ' READY_STATUS:.status.conditions[?(@.type=="Ready")].status,'
-              " NODEPOOL:metadata.labels.cloud\\.google\\.com/gke-nodepool'"
-          ),
-          'Kubectl: All Nodes',
-      ),
-      (
-          (
-              'kubectl get node -o'
-              " custom-columns=':metadata.labels.cloud\\.google\\.com/gke-nodepool'"
-              ' | sort | uniq -c'
-          ),
-          'Kubectl: Number of Nodes per Node Pool',
-      ),
-      (
-          (
-              "kubectl get node -o custom-columns='NODE_NAME:metadata.name,"
-              ' READY_STATUS:.status.conditions[?(@.type=="Ready")].status,'
-              " NODEPOOL:metadata.labels.cloud\\.google\\.com/gke-nodepool' |"
-              " grep -w True | awk {'print $3'} | sort | uniq -c"
-          ),
-          'Kubectl: Healthy Node Count Per Node Pool',
-      ),
-      (
-          f'kubectl describe ClusterQueue {_CLUSTER_QUEUE_NAME}',
-          'Kueue: ClusterQueue Details',
-      ),
-      (
-          f'kubectl describe LocalQueue {_LOCAL_QUEUE_NAME}',
-          'Kueue: LocalQueue Details',
-      ),
-      ('kubectl describe ResourceFlavor', 'Kueue: ResourceFlavor Details'),
-      (
-          (
-              'kubectl describe Deployment kueue-controller-manager -n'
-              ' kueue-system'
-          ),
-          'Kueue: Kueue Deployment Details',
-      ),
-      (
-          (
-              'kubectl describe Deployment jobset-controller-manager -n'
-              ' jobset-system'
-          ),
-          'Jobset: Deployment Details',
-      ),
-      (
-          (
-              'kubectl logs deployment/kueue-controller-manager -n kueue-system'
-              ' --tail=100 --prefix=True'
-          ),
-          'Kueue Manager Logs',
-      ),
-      (
-          (
-              'kubectl logs deployment/jobset-controller-manager -n'
-              ' jobset-system --tail=100 --prefix=True'
-          ),
-          'Jobset Manager Logs',
-      ),
-  ]
-
-  for command, description in command_and_descriptions:
-    return_code = inspector_run_command_helper(
-        args, command, description, inspector_file
-    )
-    if return_code != 0:
-      final_return_code = return_code
-      xpk_utils.xpk_print(
-          f'inspector failed in command: {command} description:'
-          f' {description} return code: {return_code}'
-      )
-
-  # Workload list views:
-  filter_by_statuses = ['EVERYTHING', 'QUEUED', 'RUNNING']
-  for filter_by_status in filter_by_statuses:
-    args.filter_by_job = None
-    args.filter_by_status = filter_by_status
-    command_description = (
-        f'xpk workload list --filter-by-status={args.filter_by_status}'
-        f' --filter-by-job={args.filter_by_job} --project={args.project} --zone={args.zone}'
-        f' --cluster={args.cluster}'
-    )
-    return_code = inspector_run_workload_list_helper(
-        args, command_description, inspector_file
-    )
-    if return_code != 0:
-      final_return_code = return_code
-      xpk_utils.xpk_print(
-          f'inspector failed in description: {command_description} return code:'
-          f' {return_code}'
-      )
-
-  # If a workload argument is provided, list out workload specific details.
-  if args.workload:
-    xpk_utils.xpk_print(args.workload)
-    args.filter_by_job = args.workload
-    args.filter_by_status = 'EVERYTHING'
-    command_description = (
-        f'xpk workload list --filter-by-status={args.filter_by_status}'
-        f' --filter-by-job={args.filter_by_job} --project={args.project} --zone={args.zone}'
-        f' --cluster={args.cluster}'
-    )
-    return_code = inspector_run_workload_list_helper(
-        args, command_description, inspector_file
-    )
-    if return_code != 0:
-      final_return_code = return_code
-      xpk_utils.xpk_print(
-          f'inspector failed in description: {command_description} return code:'
-          f' {return_code}'
-      )
-
-    command = f'kubectl describe jobsets {args.workload}'
-    command_description = f'Jobset config for {args.workload}'
-    return_code = inspector_run_command_helper(
-        args, command, command_description, inspector_file
-    )
-    if return_code != 0:
-      final_return_code = return_code
-      xpk_utils.xpk_print(
-          f'inspector failed in command: {command} description:'
-          f' {command_description} return code: {return_code}'
-      )
-
-    command = f'kubectl describe workloads jobset-{args.workload}'
-    command_description = f'Workload config for {args.workload}'
-    return_code = inspector_run_command_helper(
-        args, command, command_description, inspector_file
-    )
-    if return_code != 0:
-      final_return_code = return_code
-      xpk_utils.xpk_print(
-          f'inspector failed in command: {command} description:'
-          f' {command_description} return code: {return_code}'
-      )
-
-  # Cloud Console Links:
-  workload_links = []
-  if args.workload:
-    workload_links = [(
-        f'Cloud Console for the workload {args.workload}',
-        # pylint: disable=line-too-long
-        f'https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}',
-    )]
-
-  links = [
-      (
-          'Cloud Console for the GKE Cluster',
-          # pylint: disable=line-too-long
-          f'https://console.cloud.google.com/kubernetes/clusters/details/{zone_to_region(args.zone)}/{args.cluster}/details?project={args.project}',
-      ),
-      (
-          'Cloud Console for all workloads in GKE Cluster',
-          # pylint: disable=line-too-long
-          f'https://console.cloud.google.com/kubernetes/workload/overview?project={args.project}&pageState=((gke%2F{zone_to_region(args.zone)}%2F{args.cluster}))',
-      ),
-      (
-          'Cloud Console for IAM Permissions',
-          f'https://console.cloud.google.com/iam-admin/iam?project={args.project}',
-      ),
-      (
-          'Cloud Console for Quotas',
-          f'https://console.cloud.google.com/iam-admin/quotas?project={args.project}',
-      ),
-  ]
-  links.extend(workload_links)
-
-  for description, workload_link in links:
-    return_code = inspector_output_link_helper(
-        args, workload_link, description, inspector_file
-    )
-    if return_code != 0:
-      final_return_code = return_code
-      xpk_utils.xpk_print(
-          f'inspector failed in link: {workload_link} description:'
-          f' {description} return code: {return_code}'
-      )
-
-  # Summarize inspector:
-  xpk_utils.xpk_print(f'Find xpk inspector output file: {inspector_file.name}')
-
-  if final_return_code != 0:
-    xpk_utils.xpk_print(
-        'Something was unable to run in xpk inspector, please look through the'
-        ' output as it may clue to the failure reason. Return Code:'
-        f' {final_return_code}'
-    )
-  xpk_utils.xpk_exit(final_return_code)

@@ -16,7 +16,6 @@ limitations under the License.
 
 from dataclasses import dataclass
 
-
 AcceleratorType = {'TPU': 1, 'GPU': 2, 'CPU': 3}
 
 

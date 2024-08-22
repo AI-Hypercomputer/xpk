@@ -14,9 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from . import common
-from ..core import core
-from .. import utils
+from ..commands.inspector import inspector
+from ..utils import workload_name_type
+from .common import add_shared_arguments
 
 
 def set_inspector_parser(inspector_parser):
@@ -44,11 +44,11 @@ def set_inspector_parser(inspector_parser):
   )
 
   ### "inspector" Optional Arguments
-  common.add_shared_arguments(inspector_parser_optional_arguments)
+  add_shared_arguments(inspector_parser_optional_arguments)
 
   inspector_parser_optional_arguments.add_argument(
       '--workload',
-      type=utils.workload_name_type,
+      type=workload_name_type,
       default=None,
       help='The name of the workload to investigate.',
   )
@@ -62,4 +62,4 @@ def set_inspector_parser(inspector_parser):
       ),
   )
 
-  inspector_parser.set_defaults(func=core.inspector)
+  inspector_parser.set_defaults(func=inspector)

@@ -32,8 +32,28 @@ Next Steps:
 """
 
 import argparse
+import sys
+
 from .parser.core import set_parser
 from .utils import xpk_print
+
+################### Compatibility Check ###################
+# Check that the user runs the below version or greater.
+
+major_version_supported = 3
+minor_version_supported = 10
+
+user_major_version = sys.version_info[0]
+user_minor_version = sys.version_info[1]
+if (
+    user_major_version < major_version_supported
+    or user_minor_version < minor_version_supported
+):
+  raise RuntimeError(
+      'xpk must be run with Python'
+      f' {major_version_supported}.{minor_version_supported} or greater.'
+      f' User currently is running {user_major_version}.{user_minor_version}'
+  )
 
 # Create top level parser for xpk command.
 parser = argparse.ArgumentParser(description='xpk command', prog='xpk')

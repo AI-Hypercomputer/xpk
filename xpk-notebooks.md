@@ -53,7 +53,7 @@ Create a GKE Cloud TPU cluster using XPK.
 ```shell
 xpk cluster create --cluster ${CLUSTER} \
 --project=${PROJECTID} --default-pool-cpu-machine-type=n2-standard-8 \
---num-slices=2 --tpu-type=v5litepod-256 --zone=${ZONE} \
+--num-slices=1 --tpu-type=v5litepod-256 --zone=${ZONE} \
 --spot --custom-cluster-arguments="--network=mtu9k --subnetwork=mtu9k"
 
 # if you need to delete this cluster to fix errors
@@ -194,12 +194,6 @@ spec:
         containers:
         - name: jupyter-notebook-server
           image: jupyter/base-notebook:latest
-          # env:
-          # - name: GRANT_SUDO
-          #   value: "yes"
-          # - name: NOTEBOOK_ARGS
-          #   value: "--allow_root=True"
-          # password: testtest "--NotebookApp.password='argon2:$argon2id$v=19$m=10240,t=10,p=8$1zOa5vwUaYQlPAcOCwQD9w$x2KByFJzFDdrt32pQ1Hvv/gImq5yqO2D136bJbuIfN8'",
           args: ["start-notebook.sh",  "--NotebookApp.allow_origin='https://colab.research.google.com'", "--NotebookApp.port_retries=0"]
           resources:
             limits:
@@ -249,8 +243,6 @@ spec:
           - -c
           - |
             sleep 20
-            cat /app/ipp/security/ipcontroller-client.json
-            cat /app/ipp/security/ipcontroller-engine.json
             ipengine --file="/app/ipp/security/ipcontroller-engine.json" --timeout 5.0
           resources:
             requests:

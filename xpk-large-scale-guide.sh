@@ -101,6 +101,7 @@ gcloud compute routers create "${ROUTER_NAME}" \
 gcloud compute routers nats create "${NAT_CONFIG}" \
   --router="${ROUTER_NAME}" \
   --region="${REGION}" \
+  --project="${PROJECT}" \
   --auto-allocate-nat-external-ips \
   --nat-all-subnet-ip-ranges \
   --enable-logging

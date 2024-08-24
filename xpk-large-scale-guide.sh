@@ -50,7 +50,7 @@ export NUMSLICES=4
 # Create network for cluster.
 ##### 1A #####################
 
-gcloud compute networks create "${NETWORK_NAME}" --mtu=8896 --bgp-routing-mode=regional --subnet-mode=custom
+gcloud compute networks create "${NETWORK_NAME}" --mtu=8896 --bgp-routing-mode=regional --subnet-mode=custom --project="${PROJECT}"
 
 # Created [https://www.googleapis.com/compute/v1/projects/PROJECT/global/networks/PREFIX-privatenetwork].
 # NAME                  SUBNET_MODE  BGP_ROUTING_MODE  IPV4_RANGE  GATEWAY_IPV4
@@ -64,7 +64,7 @@ gcloud compute networks create "${NETWORK_NAME}" --mtu=8896 --bgp-routing-mode=r
 # Create subnetwork for cluster.
 ##### 1B #####################
 
-gcloud compute networks subnets create "${SUBNET_NAME}" --network="${NETWORK_NAME}" --range=10.10.0.0/18 --region="${REGION}"
+gcloud compute networks subnets create "${SUBNET_NAME}" --network="${NETWORK_NAME}" --range=10.10.0.0/18 --region="${REGION}" --project="${PROJECT}"
 
 # Created [https://www.googleapis.com/compute/v1/projects/PROJECT/regions/us-central2/subnetworks/PREFIX-privatesubnet].
 # NAME                 REGION    NETWORK               RANGE         STACK_TYPE  IPV6_ACCESS_TYPE  INTERNAL_IPV6_PREFIX  EXTERNAL_IPV6_PREFIX

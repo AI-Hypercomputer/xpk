@@ -51,7 +51,8 @@ def get_pathways_worker_args(args) -> str:
               - --xla_tpu_enable_async_collective_fusion_multiple_steps=true
               - --xla_tpu_overlap_compute_collective_tc=true
               - --xla_enable_async_all_gather=true
-              - --pathways_tmp_dir_pattern={args.pathways_gcs_location}"""
+              - --pathways_tmp_dir_pattern={args.pathways_gcs_location}
+              - --pathways_experimental_suspend_storage_mode=BACKEND_TENSORSTORE"""  # This is to enable zarr for pathways. When OCDBT is tested, remove this flag
   if args.use_pathways:
     return yaml.format(args=args, rm_address=get_rm_address(args))
   else:
@@ -215,7 +216,8 @@ def get_pathways_rm_args(args, system: SystemCharacteristics) -> str:
               - --pathways_device_type=NONE
               - --pathways_persistent_compilation_cache=false
               - --pathways_tmp_dir_pattern={args.pathways_gcs_location}
-              - --pathways_expected_instances={expected_instances}"""
+              - --pathways_expected_instances={expected_instances}
+              - --pathways_experimental_suspend_storage_mode=BACKEND_TENSORSTORE"""  # This is to enable zarr for pathways. When OCDBT is tested, remove this flag
   if args.use_pathways:
     return yaml.format(
         args=args,

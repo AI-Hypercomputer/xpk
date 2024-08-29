@@ -1624,7 +1624,9 @@ def run_gke_node_pool_create_command(
           f' {len(node_pools_to_update_WI)} existing node pools including'
           f' {node_pools_to_update_WI}.This immediately enables Workload'
           ' Identity Federation for GKE for any workloads running in the node'
-          ' pool. \nDo you wish to update: y (yes) / n (no):\n'
+          ' pool. Also, xpk does not support disabling Workload Identity on'
+          ' clusters that have it enabled already \nDo you wish to update: y'
+          ' (yes) / n (no):\n'
       )
     if not will_update_WI:
       for i, command in enumerate(update_WI_commands):

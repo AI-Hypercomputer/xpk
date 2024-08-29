@@ -398,19 +398,17 @@ def update_gke_cluster_with_gcsfuse_driver_enabled(args) -> int:
       'gcloud container clusters update'
       f' {args.cluster} --project={args.project}'
       f' --region={zone_to_region(args.zone)}'
-      ' --addons GcsFuseCsiDriver'
+      ' --update-addons GcsFuseCsiDriver=ENABLED'
       ' --quiet'
   )
-  xpk_utils.xpk_print(
+  xpk_print(
       'Updating GKE cluster to enable GCSFuse CSI driver, may take a while!'
   )
   return_code = run_command_with_updates(
       command, 'GKE Cluster Update to enable GCSFuse CSI driver', args
   )
   if return_code != 0:
-    xpk_utils.xpk_print(
-        f'GKE Cluster Update request returned ERROR {return_code}'
-    )
+    xpk_print(f'GKE Cluster Update request returned ERROR {return_code}')
     return 1
   return 0
 
@@ -1556,7 +1554,7 @@ def run_gke_node_pool_create_command(
         node_pools_to_remain.append(node_pool_name)
 
     # Workload Identity for existing nodepools
-    if args.enable_workload_identity or args.enable_gcsfuse_driver:
+    if args.enable_workload_identity or args.enable_gcsfuse_csi_driver:
       for node_pool_name in existing_node_pool_names:
         if not node_pool_name in node_pools_to_delete:
           # Check if workload identity is not already enabled:
@@ -1725,7 +1723,7 @@ def run_gke_node_pool_create_command(
       command += f' --num-nodes={system.vms_per_slice}'
       command += ' --scopes=storage-full,gke-default'
 
-    if args.enable_workload_identity or args.enable_gcsfuse_driver:
+    if args.enable_workload_identity or args.enable_gcsfuse_csi_driver:
       command += ' --workload-metadata=GKE_METADATA'
 
     task = f'NodepoolCreate-{node_pool_name}'

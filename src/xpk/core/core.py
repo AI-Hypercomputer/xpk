@@ -1626,7 +1626,7 @@ def get_gke_server_config(args) -> tuple[int, GkeServerConfig | None]:
       + ' --flatten="channels" --filter="channels.channel=RAPID"'
       ' --format="value(channels.validVersions)"'
   )
-  base_command_description = 'Determine server supported GKE versions for'
+  base_command_description = 'Determine server supported GKE versions for '
 
   server_config_commands_and_descriptions = [
       (

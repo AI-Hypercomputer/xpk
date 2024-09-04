@@ -36,6 +36,8 @@ from ..core.core import (
     set_jobset_on_cluster,
     set_up_cluster_network_for_gpu,
     update_cluster_with_clouddns_if_necessary,
+    update_cluster_with_workload_identity_if_necessary,
+    update_cluster_with_gcsfuse_driver_if_necessary,
     zone_to_region,
 )
 from ..core.kueue import (
@@ -86,6 +88,22 @@ def cluster_create(args) -> None:
   )
   if create_cluster_command_code != 0:
     xpk_exit(create_cluster_command_code)
+
+  # Enable WorkloadIdentity if not enabled already.
+  if args.enable_workload_identity or args.enable_gcsfuse_csi_driver:
+    update_cluster_command_code = (
+        update_cluster_with_workload_identity_if_necessary(args)
+    )
+    if update_cluster_command_code != 0:
+      xpk_exit(update_cluster_command_code)
+
+  # Enable GCSFuse CSI Driver if not enabled already.
+  if args.enable_gcsfuse_csi_driver:
+    update_cluster_command_code = (
+        update_cluster_with_gcsfuse_driver_if_necessary(args)
+    )
+    if update_cluster_command_code != 0:
+      xpk_exit(update_cluster_command_code)
 
   # Update Pathways clusters with CloudDNS if not enabled already.
   if args.enable_pathways:
@@ -472,6 +490,12 @@ def run_gke_cluster_create_command(
           ' --cluster-dns-scope=vpc'
           f' --cluster-dns-domain={args.cluster}-domain'
       )
+
+  if args.enable_workload_identity or args.enable_gcsfuse_csi_driver:
+    command += f' --workload-pool={args.project}.svc.id.goog'
+
+  if args.enable_gcsfuse_csi_driver:
+    command += ' --addons GcsFuseCsiDriver'
 
   return_code = run_command_with_updates(command, 'GKE Cluster Create', args)
   if return_code != 0:

@@ -35,6 +35,9 @@ from ..core.core import (
     run_gke_node_pool_create_command,
     set_jobset_on_cluster,
     set_up_cluster_network_for_gpu,
+    update_cluster_with_clouddns_if_necessary,
+    update_cluster_with_workload_identity_if_necessary,
+    update_cluster_with_gcsfuse_driver_if_necessary,
     zone_to_region,
     get_user_input,
 )
@@ -113,6 +116,29 @@ def cluster_create(args) -> None:
     xpk_exit(authorize_private_cluster_access_command_code)
 
   # ToDo(roshanin@) - Re-enable CloudDNS on Pathways clusters conditionally.
+  # Enable WorkloadIdentity if not enabled already.
+  if args.enable_workload_identity or args.enable_gcsfuse_csi_driver:
+    update_cluster_command_code = (
+        update_cluster_with_workload_identity_if_necessary(args)
+    )
+    if update_cluster_command_code != 0:
+      xpk_exit(update_cluster_command_code)
+
+  # Enable GCSFuse CSI Driver if not enabled already.
+  if args.enable_gcsfuse_csi_driver:
+    update_cluster_command_code = (
+        update_cluster_with_gcsfuse_driver_if_necessary(args)
+    )
+    if update_cluster_command_code != 0:
+      xpk_exit(update_cluster_command_code)
+
+  # Update Pathways clusters with CloudDNS if not enabled already.
+  if args.enable_pathways:
+    update_cluster_command_code = update_cluster_with_clouddns_if_necessary(
+        args
+    )
+    if update_cluster_command_code != 0:
+      xpk_exit(update_cluster_command_code)
 
   set_cluster_command_code = set_cluster_command(args)
   if set_cluster_command_code != 0:
@@ -570,6 +596,12 @@ def run_gke_cluster_create_command(
 
   if args.enable_ray_cluster:
     command += ' --addons RayOperator'
+
+  if args.enable_workload_identity or args.enable_gcsfuse_csi_driver:
+    command += f' --workload-pool={args.project}.svc.id.goog'
+
+  if args.enable_gcsfuse_csi_driver:
+    command += ' --addons GcsFuseCsiDriver'
 
   return_code = run_command_with_updates(command, 'GKE Cluster Create', args)
   if return_code != 0:

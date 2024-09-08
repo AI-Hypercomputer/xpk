@@ -2104,8 +2104,12 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
         ' is required but not installed. Aborting"; exit 24;};'
     )
     xpk_internal_commands += (
+        'set -x;'
         'WORKER_ID=$HOSTNAME;'
-        f'gsutil -m cp -r /tmp/xla_dump/ {args.debug_dump_gcs}/$WORKER_ID;'
+        f'gcloud storage cp -r /tmp/xla_dump/ {args.debug_dump_gcs}/$WORKER_ID;'
+        f'gcloud storage cp /tmp/*.dump {args.debug_dump_gcs}/$WORKER_ID;'
+        f'gcloud storage cp -r /tmp/tpu_logs {args.debug_dump_gcs}/$WORKER_ID;'
+        'sleep 120;'
     )
 
   command = args.command

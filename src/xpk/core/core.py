@@ -1626,7 +1626,7 @@ def get_gke_server_config(args) -> tuple[int, GkeServerConfig | None]:
       + ' --flatten="channels" --filter="channels.channel=RAPID"'
       ' --format="value(channels.validVersions)"'
   )
-  base_command_description = 'Determine server supported GKE versions for'
+  base_command_description = 'Determine server supported GKE versions for '
 
   server_config_commands_and_descriptions = [
       (
@@ -2111,8 +2111,11 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
   command = args.command
   if args.enable_debug_logs:
     command = (
-        'TPU_STDERR_LOG_LEVEL=0 TPU_MIN_LOG_LEVEL=0 TF_CPP_MIN_LOG_LEVEL=0'
-        f' TPU_VMODULE=real_program_continuator=1 {args.command}'
+        'export TPU_STDERR_LOG_LEVEL=0 &&'
+        ' export TPU_MIN_LOG_LEVEL=0 &&'
+        ' export TF_CPP_MIN_LOG_LEVEL=0 &&'
+        ' export TPU_VMODULE=real_program_continuator=1 &&'
+        f' {args.command}'
     )
 
   gpu_workload_terminate_command = ''

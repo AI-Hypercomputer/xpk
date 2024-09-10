@@ -503,8 +503,8 @@ def workload_create(args) -> None:
   if args.use_pathways:
     if args.headless:
       xpk_print(
-          ' \n *******  Please connect to your Pathways proxy at'
-          f' {args.pathways_proxy_address} , once you see "IFRT proxy server'
+          ' \n ******* Please connect to your Pathways proxy at'
+          f' {args.pathways_proxy_address}, once you see "IFRT proxy server'
           ' started with status OK" on the proxy link below.'
           ' Remember to delete the workload once done! ****** \n'
       )

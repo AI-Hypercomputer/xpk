@@ -43,10 +43,11 @@ xpk supports the following TPU types:
 * v4
 * v5e
 * v5p
+* Trillium (v6e)
 
 and the following GPU types:
 * a100
-* h100
+* a3 (h100)
 
 and the following CPU types:
 * n2-standard-32

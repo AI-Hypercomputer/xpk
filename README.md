@@ -52,6 +52,17 @@ and the following GPU types:
 and the following CPU types:
 * n2-standard-32
 
+# Permissions needed on Cloud Console:
+
+Artifact Registry Writer
+Compute Admin
+Kubernetes Engine Admin
+Logging Admin
+Monitoring Admin
+Service Account User
+Storage Admin
+Vertex AI Administrator
+
 # Installation
 To install xpk, run the following command:
 

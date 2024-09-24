@@ -54,14 +54,14 @@ and the following CPU types:
 
 # Cloud Console Permissions on the user or service account needed to run XPK:
 
-*Artifact Registry Writer
-*Compute Admin
-*Kubernetes Engine Admin
-*Logging Admin
-*Monitoring Admin
-*Service Account User
-*Storage Admin
-*Vertex AI Administrator
+* Artifact Registry Writer
+* Compute Admin
+* Kubernetes Engine Admin
+* Logging Admin
+* Monitoring Admin
+* Service Account User
+* Storage Admin
+* Vertex AI Administrator
 
 # Installation
 To install xpk, run the following command:

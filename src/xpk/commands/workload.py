@@ -30,6 +30,7 @@ from ..core.core import (
     create_machine_label,
     create_vertex_experiment,
     get_cluster_configmap,
+    get_cluster_credentials,
     get_cpu_affinity,
     get_gke_outlier_dashboard,
     get_gpu_rxdm_cmd,
@@ -63,7 +64,6 @@ from ..core.system_characteristics import (
     get_system_characteristics,
 )
 from ..utils import get_user_input, write_tmp_file, xpk_exit, xpk_print
-from .cluster import set_cluster_command
 
 workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
@@ -324,18 +324,12 @@ def workload_create(args) -> None:
   Returns:
     0 if successful and 1 otherwise.
   """
-  add_zone_and_project(args)
-
   if args.headless and not is_cluster_using_clouddns(args):
     xpk_print(
         'Please run xpk cluster create-pathways first, to upgrade and enable'
         ' CloudDNS on your cluster.'
     )
     xpk_exit(1)
-
-  set_cluster_command_code = set_cluster_command(args)
-  if set_cluster_command_code != 0:
-    xpk_exit(set_cluster_command_code)
 
   workload_exists = check_if_workload_exists(args)
 
@@ -539,9 +533,7 @@ def workload_delete(args) -> None:
   """
   xpk_print('Starting Workload delete', flush=True)
   add_zone_and_project(args)
-  set_cluster_command_code = set_cluster_command(args)
-  if set_cluster_command_code != 0:
-    xpk_exit(set_cluster_command_code)
+  get_cluster_credentials(args)
 
   will_delete = True
   if not args.workload:
@@ -607,9 +599,7 @@ def workload_list(args) -> None:
 
   xpk_print('Starting workload list', flush=True)
   add_zone_and_project(args)
-  set_cluster_command_code = set_cluster_command(args)
-  if set_cluster_command_code != 0:
-    xpk_exit(set_cluster_command_code)
+  get_cluster_credentials(args)
 
   if args.wait_for_job_completion:
     return_code = wait_for_job_completion(args)

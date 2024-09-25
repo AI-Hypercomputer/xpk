@@ -19,6 +19,7 @@ import argparse
 from ..utils import xpk_print
 from .cluster import set_cluster_parser
 from .inspector import set_inspector_parser
+from .storage import set_storage_parser
 from .workload import set_workload_parsers
 
 
@@ -27,7 +28,10 @@ def set_parser(parser: argparse.ArgumentParser):
       title="xpk subcommands", dest="xpk_subcommands", help="Top level commands"
   )
   workload_parser = xpk_subcommands.add_parser(
-      "workload", help="commands around workload management"
+      "workload", help="Commands around workload management"
+  )
+  storage_parser = xpk_subcommands.add_parser(
+      "storage", help="Commands around storage management"
   )
   cluster_parser = xpk_subcommands.add_parser(
       "cluster",
@@ -35,7 +39,7 @@ def set_parser(parser: argparse.ArgumentParser):
   )
   inspector_parser = xpk_subcommands.add_parser(
       "inspector",
-      help="commands around investigating workload, and Kueue failures.",
+      help="Commands around investigating workload, and Kueue failures.",
   )
 
   def default_subcommand_function(
@@ -53,12 +57,15 @@ def set_parser(parser: argparse.ArgumentParser):
     parser.print_help()
     cluster_parser.print_help()
     workload_parser.print_help()
+    storage_parser.print_help()
     return 0
 
   parser.set_defaults(func=default_subcommand_function)
   workload_parser.set_defaults(func=default_subcommand_function)
   cluster_parser.set_defaults(func=default_subcommand_function)
+  storage_parser.set_defaults(func=default_subcommand_function)
 
   set_workload_parsers(workload_parser=workload_parser)
   set_cluster_parser(cluster_parser=cluster_parser)
   set_inspector_parser(inspector_parser=inspector_parser)
+  set_storage_parser(storage_parser=storage_parser)

@@ -989,6 +989,14 @@ gcloud compute machine-types list --zones=$ZONE_LIST
 python3 xpk.py cluster create --default-pool-cpu-machine-type=CPU_TYPE ...
 ```
 
+## Workload creation fails
+
+Some XPK cluster configuration might be missing, if workload creation fails with the below error.
+
+`[XPK] b'error: the server doesn\'t have a resource type "workloads"\n'`
+
+Mitigate this error by re-running your `xpk.py cluster create ...` command, to refresh the cluster configurations.
+
 ## Permission Issues: `requires one of ["permission_name"] permission(s)`.
 
 1) Determine the role needed based on the permission error:

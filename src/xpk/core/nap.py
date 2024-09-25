@@ -240,29 +240,6 @@ def create_autoprovisioning_config(
   return autoprovisioning_config, 0
 
 
-def get_cluster_metadata_configmap(args) -> tuple[dict, int]:
-  """Gets the cluster metadata configmap.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    configmap and 0 if found, None and 1 otherwise.
-  """
-  configmap = get_cluster_configmap(
-      args, f'{args.cluster}-{CLUSTER_METADATA_CONFIGMAP}'
-  )
-  if configmap is None:
-    xpk_print(
-        'Unable to find config map. Please specify a capacity type'
-        ' --on-demand, --spot, --reservation=$RESERVATION_ID) to continue'
-        ' to use autoprovisioning (--enable-autoprovisioning).'
-    )
-    return None, 1
-
-  return configmap, 0
-
-
 def is_autoprovisioning_enabled(
     args, system: SystemCharacteristics
 ) -> tuple[bool, int]:
@@ -331,8 +308,15 @@ def get_capacity_type_str_from_args_or_cluster_default(args) -> tuple[str, int]:
   #
   # Error out if the metadata config map doesn't exist, and is attempting to use
   # autoprovisioning.
-  cluster_config_map, return_code = get_cluster_metadata_configmap(args)
-  if return_code != 0:
+  cluster_config_map = get_cluster_configmap(
+      args, f'{args.cluster}-{CLUSTER_METADATA_CONFIGMAP}'
+  )
+  if cluster_config_map is None:
+    xpk_print(
+        'Unable to find config map. Please specify a capacity type'
+        ' --on-demand, --spot, --reservation=$RESERVATION_ID) to continue'
+        ' to use autoprovisioning (--enable-autoprovisioning).'
+    )
     return CapacityType.UNKNOWN.name, 1
 
   return_code, capacity_type_str = get_value_from_map(
@@ -362,8 +346,15 @@ def get_autoprovisioning_node_selector_args(args) -> tuple[str, int]:
   if return_code != 0:
     return node_selector_args, return_code
 
-  cluster_config_map, return_code = get_cluster_metadata_configmap(args)
-  if return_code != 0:
+  cluster_config_map = get_cluster_configmap(
+      args, f'{args.cluster}-{CLUSTER_METADATA_CONFIGMAP}'
+  )
+  if cluster_config_map is None:
+    xpk_print(
+        'Unable to find config map. Please specify a capacity type'
+        ' --on-demand, --spot, --reservation=$RESERVATION_ID) to continue'
+        ' to use autoprovisioning (--enable-autoprovisioning).'
+    )
     return node_selector_args, 1
 
   if capacity_type_str == CapacityType.RESERVATION.name:

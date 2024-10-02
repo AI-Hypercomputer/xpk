@@ -28,6 +28,7 @@ from .system_characteristics import (
     SystemCharacteristics,
 )
 
+KUEUE_VERSION = 'v0.8.1'
 CLUSTER_QUEUE_NAME = 'cluster-queue'
 LOCAL_QUEUE_NAME = 'multislice-queue'
 
@@ -150,7 +151,7 @@ def install_kueue_on_cluster(args) -> int:
   """
   command = (
       'kubectl apply --server-side --force-conflicts -f'
-      ' https://github.com/kubernetes-sigs/kueue/releases/download/v0.6.1/manifests.yaml'
+      f' https://github.com/kubernetes-sigs/kueue/releases/download/{KUEUE_VERSION}/manifests.yaml'
   )
   task = 'Set Kueue On Cluster'
   return_code = run_command_with_updates_retry(command, task, args)

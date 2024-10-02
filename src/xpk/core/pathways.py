@@ -25,6 +25,7 @@ from .core import (
 from .system_characteristics import SystemCharacteristics
 
 PathwaysExpectedInstancesMap = {
+    'v6e': 'v6e',
     'v5p': 'v5',
     'v5litepod': 'v5e',
     'v4': 'v4',

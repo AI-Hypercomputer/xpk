@@ -138,6 +138,56 @@ spec:
         command: [ "sleep", "inf" ]
 """
 
+def execeute_kueuectl_list_clusterqueues(args) -> int:
+  args.dry_run = False
+  command = (
+      'kubectl kueue list localqueue'
+  )
+  task = 'List kueue localqueues'
+  return_code = run_command_with_updates_retry(command, task, args)
+  if return_code != 0:
+    xpk_print(f'{task} returned ERROR {return_code}')
+  return return_code
+
+def execeute_kueuectl_list_localqueues(args) -> int:
+  args.dry_run = False
+  command = (
+      'kubectl kueue list clusterqueue'
+  )
+  task = 'List kueue resources'
+  return_code = run_command_with_updates_retry(command, task, args)
+  if return_code != 0:
+    xpk_print(f'{task} returned ERROR {return_code}')
+  return return_code
+
+def verify_kueuectl(args) -> int:
+  command = (
+      'kubectl kueue version'
+  )
+  task = 'Verify kueuectl installation on cluster'
+  return_code = run_command_with_updates_retry(command, task, args)
+  if return_code != 0:
+    xpk_print(f'{task} returned ERROR {return_code}')
+  return return_code
+
+def install_kueuectl_on_cluster(args) -> int:
+  """Install Kueuectl on the cluster
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  command = (
+      'kubectl krew install kueue'
+  )
+  task = 'Install kueuectl on cluster'
+  return_code = run_command_with_updates_retry(command, task, args)
+  if return_code != 0:
+    xpk_print(f'{task} returned ERROR {return_code}')
+  return return_code
+
 
 def install_kueue_on_cluster(args) -> int:
   """Install Kueue on the cluster.

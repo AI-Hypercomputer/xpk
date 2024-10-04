@@ -42,7 +42,8 @@ from ..core.kueue import (
     cluster_preheat_yml,
     enable_kueue_credentials,
     install_kueue_on_cluster,
-    verify_kueuectl,
+    verify_kueuectl_installation,
+    install_kueuectl,
 )
 from ..core.nap import enable_autoprovisioning_on_cluster
 from ..core.system_characteristics import (
@@ -148,13 +149,15 @@ def cluster_create(args) -> None:
     xpk_exit(install_kueue_on_cluster_code)
 
   xpk_print('Veryfing kueuectl installation')
-  verify_kueuectl_installed_code = verify_kueuectl(args)
+  verify_kueuectl_installed_code = verify_kueuectl_installation(args)
+  if verify_kueuectl_installed_code == 0:
+    xpk_print('kueuectl installed')
+
+  xpk_print("Installing kueuectl")
   if verify_kueuectl_installed_code != 0:
-    xpk_exit(verify_kueuectl_installed_code)
-  # xpk_print('Installing kueuectl on the cluster')
-  # install_kueuectl_on_cluster_code = install_kueuectl_on_cluster(args)
-  # if install_kueuectl_on_cluster_code != 0:
-  #   xpk_exit(install_kueuectl_on_cluster_code)
+    kueuectl_installation_code = install_kueuectl(args)
+    if kueuectl_installation_code!=0:
+      xpk_exit(kueuectl_installation_code)
 
   # Provision node pools dynamically based on incoming workloads:
   # Currently autoprovisioning is not supported with Pathways.

@@ -14,18 +14,68 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..utils import  xpk_exit
-from ..core.kueue import execeute_kueuectl_list_clusterqueues, execeute_kueuectl_list_localqueues
+from ..utils import  xpk_exit, xpk_print
+from ..core.kueue import verify_kueuectl_installation, install_kueuectl
+from ..core.commands import (
+    run_command_for_value,
+)
+
+
 
 def info_localqueues(args) -> None:
-  code = execeute_kueuectl_list_localqueues(args)
+  code = run_kueuectl_list_localqueue(args)
   if code != 0:
     xpk_exit(code)
   return
 
 
 def info_clustersqueues(args) -> None:
-  code = execeute_kueuectl_list_clusterqueues(args)
+  code = run_kueuectl_list_clusterqueue(args)
   if code != 0:
     xpk_exit(code)
   return
+
+def run_kueuectl_list_localqueue(args) -> int:
+  """Run the kueuectl list localqueue command.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  command = (
+      'kubectl kueue list localqueue'
+  )
+  if args.cluster != None:
+    command += f' --cluster={args.cluster}'
+  args.dry_run = False
+  return_code, val = run_command_for_value(command, 'List clusterqueues', args)
+  if return_code != 0:
+    xpk_print(f'Cluster delete request returned ERROR {return_code}')
+    return 1
+  xpk_print(val)
+  return 0
+
+def run_kueuectl_list_clusterqueue(args) -> int:
+  """Run the kueuectl list clusterqueue command.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  command = (
+      'kubectl kueue list clusterqueue'
+  )
+
+  if args.cluster != None:
+    command += f' --cluster={args.cluster}'
+  args.dry_run = False
+  return_code, val = run_command_for_value(command, 'List clusterqueues', args)
+  if return_code != 0:
+    xpk_print(f'Cluster delete request returned ERROR {return_code}')
+    return 1
+  xpk_print(val)
+  return 0

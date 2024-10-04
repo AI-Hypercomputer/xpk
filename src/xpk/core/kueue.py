@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 from ..utils import write_tmp_file, xpk_print
-from .commands import run_command_with_updates_retry
+from .commands import run_command_with_updates_retry, run_command_for_value
 from .core import (
     AutoprovisioningConfig,
     create_accelerator_label,
@@ -27,7 +27,8 @@ from .system_characteristics import (
     AcceleratorTypeToAcceleratorCharacteristics,
     SystemCharacteristics,
 )
-
+from sys import platform
+from platform import machine
 CLUSTER_QUEUE_NAME = 'cluster-queue'
 LOCAL_QUEUE_NAME = 'multislice-queue'
 
@@ -138,39 +139,39 @@ spec:
         command: [ "sleep", "inf" ]
 """
 
-def execeute_kueuectl_list_clusterqueues(args) -> int:
-  args.dry_run = False
-  command = (
-      'kubectl kueue list localqueue'
-  )
-  task = 'List kueue localqueues'
-  return_code = run_command_with_updates_retry(command, task, args)
-  if return_code != 0:
-    xpk_print(f'{task} returned ERROR {return_code}')
-  return return_code
-
-def execeute_kueuectl_list_localqueues(args) -> int:
-  args.dry_run = False
-  command = (
-      'kubectl kueue list clusterqueue'
-  )
-  task = 'List kueue resources'
-  return_code = run_command_with_updates_retry(command, task, args)
-  if return_code != 0:
-    xpk_print(f'{task} returned ERROR {return_code}')
-  return return_code
-
-def verify_kueuectl(args) -> int:
+def verify_kueuectl_installation(args) -> int:
   command = (
       'kubectl kueue version'
   )
   task = 'Verify kueuectl installation on cluster'
-  return_code = run_command_with_updates_retry(command, task, args)
+  return_code, _ = run_command_for_value(command, task, args)
   if return_code != 0:
     xpk_print(f'{task} returned ERROR {return_code}')
   return return_code
 
-def install_kueuectl_on_cluster(args) -> int:
+def get_system_spec() -> tuple[str, str]:
+  os = platform
+  machine_type = machine()
+  return os, machine_type
+
+
+def get_kueuectl_installation_command(system, machine_type) -> str:
+  curl = ''
+  if system == 'darwin' and 'x86_64' in machine_type:
+    curl += 'curl -Lo ./kubectl-kueue https://github.com/kubernetes-sigs/kueue/releases/download/v0.8.1/kubectl-kueue-darwin-amd64'
+  if system == 'darwin' and 'arm' in machine_type:
+    curl += 'curl -Lo ./kubectl-kueue https://github.com/kubernetes-sigs/kueue/releases/download/v0.8.1/kubectl-kueue-darwin-arm64'
+  if system == 'linux' and 'arm' in machine_type:
+    curl += 'curl -Lo ./kubectl-kueue https://github.com/kubernetes-sigs/kueue/releases/download/v0.8.1/kubectl-kueue-linux-arm64'
+  if system == 'linux' and 'x86_64' in machine_type:
+    curl += 'curl -Lo ./kubectl-kueue https://github.com/kubernetes-sigs/kueue/releases/download/v0.8.1/kubectl-kueue-linux-amd64'  
+
+  chmod = 'chmod +x ./kubectl-kueue'
+  mv = 'sudo mv ./kubectl-kueue /usr/local/bin/kubectl-kueue'
+
+  return [curl, chmod , mv]
+
+def install_kueuectl(args) -> int:
   """Install Kueuectl on the cluster
 
   Args:
@@ -179,13 +180,15 @@ def install_kueuectl_on_cluster(args) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
-  command = (
-      'kubectl krew install kueue'
-  )
+  system, machine_type = get_system_spec()
+  print(system, machine_type)
+  commands = get_kueuectl_installation_command(system, machine_type)
+  print(commands)
   task = 'Install kueuectl on cluster'
-  return_code = run_command_with_updates_retry(command, task, args)
-  if return_code != 0:
-    xpk_print(f'{task} returned ERROR {return_code}')
+  for command in commands:
+    return_code, _ = run_command_for_value(command, task, args)
+    if return_code != 0:
+      xpk_print(f'{task} returned ERROR {return_code}')
   return return_code
 
 

@@ -34,23 +34,36 @@ def set_info_parser(info_parser):
 
   info_localqueues_required_arguments = info_localqueues_parser.add_argument_group(
       'Required Arguments',
-      'Arguments required for cluster create.',
+      'Arguments required for info localqueues.',
   )
   info_localqueues_optional_arguments = info_localqueues_parser.add_argument_group(
-      'Optional Arguments', 'Arguments optional for cluster create.'
+      'Optional Arguments', 'Arguments optional for info localqueues.'
   )
 
+  info_localqueues_optional_arguments.add_argument(
+    '--cluster',
+    type = str,
+    default = None,
+    help = 'Cluster to which command applies.'
+  )
+  
   info_clusterqueues_parser = info_subcommands.add_parser(
     'clusterqueues', help = 'Get info about cluster queues'
   )
 
   info_clusterqueues_required_arguments = info_clusterqueues_parser.add_argument_group(
       'Required Arguments',
-      'Arguments required for cluster create.',
+      'Arguments required for info clusterqueues.',
   )
   info_clusterqueues_optional_arguments = info_clusterqueues_parser.add_argument_group(
-      'Optional Arguments', 'Arguments optional for cluster create.'
+      'Optional Arguments', 'Arguments optional for info clusterqueues.'
   )
-
+  info_clusterqueues_optional_arguments.add_argument(
+    '--cluster',
+    type = str,
+    default = None,
+    help = 'Cluster to which command applies.'
+  )
+  
   info_localqueues_parser.set_defaults(func=info_localqueues)
   info_clusterqueues_parser.set_defaults(func=info_clustersqueues)

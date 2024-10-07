@@ -148,17 +148,6 @@ def cluster_create(args) -> None:
   if install_kueue_on_cluster_code != 0:
     xpk_exit(install_kueue_on_cluster_code)
 
-  xpk_print('Veryfing kueuectl installation')
-  verify_kueuectl_installed_code = verify_kueuectl_installation(args)
-  if verify_kueuectl_installed_code == 0:
-    xpk_print('kueuectl installed')
-
-  xpk_print("Installing kueuectl")
-  if verify_kueuectl_installed_code != 0:
-    kueuectl_installation_code = install_kueuectl(args)
-    if kueuectl_installation_code!=0:
-      xpk_exit(kueuectl_installation_code)
-
   # Provision node pools dynamically based on incoming workloads:
   # Currently autoprovisioning is not supported with Pathways.
   autoprovisioning_config = None

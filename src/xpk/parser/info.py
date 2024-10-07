@@ -32,10 +32,6 @@ def set_info_parser(info_parser):
     'localqueues', help='Get info about local queues'
   )
 
-  info_localqueues_required_arguments = info_localqueues_parser.add_argument_group(
-      'Required Arguments',
-      'Arguments required for info localqueues.',
-  )
   info_localqueues_optional_arguments = info_localqueues_parser.add_argument_group(
       'Optional Arguments', 'Arguments optional for info localqueues.'
   )
@@ -51,10 +47,6 @@ def set_info_parser(info_parser):
     'clusterqueues', help = 'Get info about cluster queues'
   )
 
-  info_clusterqueues_required_arguments = info_clusterqueues_parser.add_argument_group(
-      'Required Arguments',
-      'Arguments required for info clusterqueues.',
-  )
   info_clusterqueues_optional_arguments = info_clusterqueues_parser.add_argument_group(
       'Optional Arguments', 'Arguments optional for info clusterqueues.'
   )

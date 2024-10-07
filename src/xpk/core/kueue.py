@@ -29,6 +29,8 @@ from .system_characteristics import (
 )
 from sys import platform
 from platform import machine
+
+KUEUE_VERSION = 'v0.8.1'
 CLUSTER_QUEUE_NAME = 'cluster-queue'
 LOCAL_QUEUE_NAME = 'multislice-queue'
 
@@ -223,7 +225,7 @@ def install_kueue_on_cluster(args) -> int:
   """
   command = (
       'kubectl apply --server-side --force-conflicts -f'
-      ' https://github.com/kubernetes-sigs/kueue/releases/download/v0.6.1/manifests.yaml'
+      f' https://github.com/kubernetes-sigs/kueue/releases/download/{KUEUE_VERSION}/manifests.yaml'
   )
   task = 'Set Kueue On Cluster'
   return_code = run_command_with_updates_retry(command, task, args)
@@ -232,12 +234,12 @@ def install_kueue_on_cluster(args) -> int:
   return return_code
 
 
-def enable_kueue_credentials(
+def install_kueue_crs(
     args,
     system: SystemCharacteristics,
     autoprovisioning_config: AutoprovisioningConfig | None,
 ) -> int:
-  """Enable Kueue credentials.
+  """Install Kueue Custom Resources.
 
   Args:
     args: user provided arguments for running the command.
@@ -292,7 +294,7 @@ def enable_kueue_credentials(
   command = f'kubectl apply -f {str(tmp.file.name)}'
   # For kueue setup, we see a timeout error due to the webhook not
   # being ready. Let's retry and wait a few seconds.
-  task = 'Applying Kueue Credentials'
+  task = 'Applying Kueue Custom Resources'
   retry_attempts = 3
   return_code = run_command_with_updates_retry(
       command, task, args, num_retry_attempts=retry_attempts
@@ -305,8 +307,8 @@ def enable_kueue_credentials(
     xpk_print(
         f'{task} still not successful. Retrying {retry_attempts} more timeswith'
         f' increased wait time of {retry_wait_seconds} seconds between tries.'
-        ' Kueue Credentials need Kueue system to be ready which can take some'
-        ' time.'
+        ' Kueue Custom Resources need Kueue system to be ready which can take'
+        ' some time.'
     )
     return_code = run_command_with_updates_retry(
         command=command,

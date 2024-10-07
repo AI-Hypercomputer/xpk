@@ -37,6 +37,6 @@ def set_info_parser(info_parser):
   info_required_arguments.add_argument(
     '--clusterqueue',
     action='store_true',
-    help = 'Print info about localqueue',
+    help = 'Print info about clusterqueue',
   )
   info_parser.set_defaults(func=info)

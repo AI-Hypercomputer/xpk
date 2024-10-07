@@ -140,6 +140,12 @@ spec:
 """
 
 def verify_kueuectl_installation(args) -> int:
+  """Verify if if kueuectl is installed.
+  Args:
+    args: user provided arguments for running the command.
+  Returns:
+    0 if kueuectl installed and error code otherwise.
+  """
   command = (
       'kubectl kueue version'
   )
@@ -150,12 +156,26 @@ def verify_kueuectl_installation(args) -> int:
   return return_code
 
 def get_system_spec() -> tuple[str, str]:
+  """Get operating system and machine type
+
+  Returns:
+    tuple of strings in format (operating system, machine type).
+  """
   os = platform
   machine_type = machine()
   return os, machine_type
 
 
-def get_kueuectl_installation_command(system, machine_type) -> str:
+def get_kueuectl_installation_command(system, machine_type) -> list[str]:
+  """Create command for installing kueuectl depending on operating system and machine type.
+  Function execution moves to /usr/local/bin/, therefore sudo is needed.
+  Args:
+    system: operating system, supported values are [darwin, linux].
+    machine_type: machine type, supported values are [x86_64, arm].
+  Returns
+    List of commands to download kueuectl.
+
+  """
   curl = ''
   if system == 'darwin' and 'x86_64' in machine_type:
     curl += 'curl -Lo ./kubectl-kueue https://github.com/kubernetes-sigs/kueue/releases/download/v0.8.1/kubectl-kueue-darwin-amd64'

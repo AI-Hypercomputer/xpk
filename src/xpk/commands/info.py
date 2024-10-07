@@ -21,6 +21,12 @@ from ..core.commands import (
 )
 
 def prepare_kueuectl(args) -> int:
+  """Verify if kueuectl is installed. If not install kueuectl.
+  Args:
+    args: user provided arguments.
+  Returns:
+    0 if succesful and 1 otherwise.
+  """
   xpk_print('Veryfing kueuectl installation')
   args.dry_run = False
   verify_kueuectl_installed_code = verify_kueuectl_installation(args)
@@ -37,18 +43,32 @@ def prepare_kueuectl(args) -> int:
   
 
 def info_localqueues(args) -> None:
+  """Function around list localqueue.
+
+  Args:
+    args: user provided arguments for running the command.
+  Returns:
+    0 if successful and 1 otherwise.
+  """
   installation_code = prepare_kueuectl(args)
   if installation_code != 0:
     xpk_exit(installation_code)
   
   code = run_kueuectl_list_localqueue(args)
-  
   if code != 0:
     xpk_exit(code)
   return
 
 
 def info_clustersqueues(args) -> None:
+  """Function around list clusterqueue.
+
+  Args:
+    args: user provided arguments for running the command.
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+
   installation_code = prepare_kueuectl(args)
   if installation_code != 0:
     xpk_exit(installation_code)

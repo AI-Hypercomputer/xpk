@@ -14,11 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-
-from ..utils import workload_name_type
-from .common import add_shared_arguments
-
-from ..utils import xpk_exit
 from ..commands.info import info_clustersqueues, info_localqueues
 
 def set_info_parser(info_parser):
@@ -42,7 +37,7 @@ def set_info_parser(info_parser):
     default = None,
     help = 'Cluster to which command applies.'
   )
-  
+
   info_clusterqueues_parser = info_subcommands.add_parser(
     'clusterqueues', help = 'Get info about cluster queues'
   )
@@ -56,6 +51,6 @@ def set_info_parser(info_parser):
     default = None,
     help = 'Cluster to which command applies.'
   )
-  
+
   info_localqueues_parser.set_defaults(func=info_localqueues)
   info_clusterqueues_parser.set_defaults(func=info_clustersqueues)

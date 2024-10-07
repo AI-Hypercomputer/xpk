@@ -200,10 +200,10 @@ def install_kueuectl(args) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
-  
+
   system, machine_type = get_system_spec()
   commands = get_kueuectl_installation_command(system, machine_type)
-  
+
   task = 'Install kueuectl on cluster'
   for command in commands:
     return_code, _ = run_command_for_value(command, task, args)

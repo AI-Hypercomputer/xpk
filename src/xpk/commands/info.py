@@ -35,12 +35,10 @@ def prepare_kueuectl(args) -> int:
     return 0
 
   if verify_kueuectl_installed_code != 0:
-    xpk_print("Installing kueuectl")
+    xpk_print('Installing kueuectl')
     kueuectl_installation_code = install_kueuectl(args)
     if kueuectl_installation_code != 0:
       return kueuectl_installation_code
-  
-  
 
 def info_localqueues(args) -> None:
   """Function around list localqueue.
@@ -53,7 +51,7 @@ def info_localqueues(args) -> None:
   installation_code = prepare_kueuectl(args)
   if installation_code != 0:
     xpk_exit(installation_code)
-  
+
   code = run_kueuectl_list_localqueue(args)
   if code != 0:
     xpk_exit(code)
@@ -72,9 +70,9 @@ def info_clustersqueues(args) -> None:
   installation_code = prepare_kueuectl(args)
   if installation_code != 0:
     xpk_exit(installation_code)
-  
+
   code = run_kueuectl_list_clusterqueue(args)
-  
+
   if code != 0:
     xpk_exit(code)
   return
@@ -91,7 +89,7 @@ def run_kueuectl_list_localqueue(args) -> int:
   command = (
       'kubectl kueue list localqueue'
   )
-  if args.cluster != None:
+  if args.cluster is not None:
     command += f' --cluster={args.cluster}'
   args.dry_run = False
   return_code, val = run_command_for_value(command, 'List clusterqueues', args)
@@ -114,7 +112,7 @@ def run_kueuectl_list_clusterqueue(args) -> int:
       'kubectl kueue list clusterqueue'
   )
 
-  if args.cluster != None:
+  if args.cluster is not None:
     command += f' --cluster={args.cluster}'
   args.dry_run = False
   return_code, val = run_command_for_value(command, 'List clusterqueues', args)

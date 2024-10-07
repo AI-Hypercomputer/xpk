@@ -14,43 +14,29 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..commands.info import info_clustersqueues, info_localqueues
+from ..commands.info import info
 
 def set_info_parser(info_parser):
-  info_subcommands = info_parser.add_subparsers(
-      title='info subcommands',
-      dest='xpk_info_subcommands',
-      help='Get Kueue localqueues and clusterqueues details.',
+  info_required_arguments = info_parser.add_argument_group(
+      'Required Arguments', 'Arguments required for info.'
   )
 
-  info_localqueues_parser = info_subcommands.add_parser(
-    'localqueues', help='Get info about local queues'
-  )
-
-  info_localqueues_optional_arguments = info_localqueues_parser.add_argument_group(
-      'Optional Arguments', 'Arguments optional for info localqueues.'
-  )
-
-  info_localqueues_optional_arguments.add_argument(
+  info_required_arguments.add_argument(
     '--cluster',
     type = str,
     default = None,
     help = 'Cluster to which command applies.'
   )
 
-  info_clusterqueues_parser = info_subcommands.add_parser(
-    'clusterqueues', help = 'Get info about cluster queues'
+  info_required_arguments.add_argument(
+    '--localqueue',
+    action='store_true',
+    help = 'Print info about localqueue',
   )
 
-  info_clusterqueues_optional_arguments = info_clusterqueues_parser.add_argument_group(
-      'Optional Arguments', 'Arguments optional for info clusterqueues.'
+  info_required_arguments.add_argument(
+    '--clusterqueue',
+    action='store_true',
+    help = 'Print info about localqueue',
   )
-  info_clusterqueues_optional_arguments.add_argument(
-    '--cluster',
-    type = str,
-    default = None,
-    help = 'Cluster to which command applies.'
-  )
-
-  info_localqueues_parser.set_defaults(func=info_localqueues)
-  info_clusterqueues_parser.set_defaults(func=info_clustersqueues)
+  info_parser.set_defaults(func=info)

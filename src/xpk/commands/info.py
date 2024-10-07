@@ -40,7 +40,7 @@ def prepare_kueuectl(args) -> int:
     if kueuectl_installation_code != 0:
       return kueuectl_installation_code
 
-def info_localqueues(args) -> None:
+def info(args) -> None:
   """Function around list localqueue.
 
   Args:
@@ -52,32 +52,12 @@ def info_localqueues(args) -> None:
   if installation_code != 0:
     xpk_exit(installation_code)
 
-  code = run_kueuectl_list_localqueue(args)
+  code = run_kueuectl_list(args)
   if code != 0:
     xpk_exit(code)
   return
 
-
-def info_clustersqueues(args) -> None:
-  """Function around list clusterqueue.
-
-  Args:
-    args: user provided arguments for running the command.
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-
-  installation_code = prepare_kueuectl(args)
-  if installation_code != 0:
-    xpk_exit(installation_code)
-
-  code = run_kueuectl_list_clusterqueue(args)
-
-  if code != 0:
-    xpk_exit(code)
-  return
-
-def run_kueuectl_list_localqueue(args) -> int:
+def run_kueuectl_list(args) -> int:
   """Run the kueuectl list localqueue command.
 
   Args:
@@ -87,30 +67,21 @@ def run_kueuectl_list_localqueue(args) -> int:
     0 if successful and 1 otherwise.
   """
   command = (
-      'kubectl kueue list localqueue'
+      'kubectl kueue list'
   )
-  if args.cluster is not None:
-    command += f' --cluster={args.cluster}'
-  args.dry_run = False
-  return_code, val = run_command_for_value(command, 'List clusterqueues', args)
-  if return_code != 0:
-    xpk_print(f'Cluster info request returned ERROR {return_code}')
+  if args.localqueue and args.clusterqueue:
+    xpk_print('xpk info returned ERROR: only one of --clusterqueue, --localqueue can be set')
     return 1
-  xpk_print(val)
-  return 0
+  
+  if not args.localqueue and not args.clusterqueue:
+    xpk_print('xpk info returned ERROR: either --clusterqueue or --localqueue must be set')
+    return 1
 
-def run_kueuectl_list_clusterqueue(args) -> int:
-  """Run the kueuectl list clusterqueue command.
+  if args.localqueue:
+    command += ' localqueue'
 
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  command = (
-      'kubectl kueue list clusterqueue'
-  )
+  if args.clusterqueue:
+    command += ' clusterqueue'
 
   if args.cluster is not None:
     command += f' --cluster={args.cluster}'

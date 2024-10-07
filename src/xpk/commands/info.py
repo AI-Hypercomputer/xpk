@@ -31,7 +31,7 @@ def prepare_kueuectl(args) -> int:
   if verify_kueuectl_installed_code != 0:
     xpk_print("Installing kueuectl")
     kueuectl_installation_code = install_kueuectl(args)
-    if kueuectl_installation_code!=0:
+    if kueuectl_installation_code != 0:
       return kueuectl_installation_code
   
   

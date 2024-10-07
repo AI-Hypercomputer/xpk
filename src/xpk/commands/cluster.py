@@ -42,8 +42,6 @@ from ..core.kueue import (
     cluster_preheat_yml,
     enable_kueue_credentials,
     install_kueue_on_cluster,
-    verify_kueuectl_installation,
-    install_kueuectl,
 )
 from ..core.nap import enable_autoprovisioning_on_cluster
 from ..core.system_characteristics import (

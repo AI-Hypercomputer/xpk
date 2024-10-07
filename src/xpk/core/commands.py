@@ -181,7 +181,6 @@ def run_command_with_updates(command, task, global_args, verbose=True) -> int:
     xpk_print(
         f'Task: `{task}` is implemented by `{command}`, streaming output live.'
     )
-    print(command)
     with subprocess.Popen(
         command,
         stdout=sys.stdout,

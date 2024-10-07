@@ -180,13 +180,13 @@ def get_kueuectl_installation_command(system, machine_type) -> list[str]:
   """
   curl = ''
   if system == 'darwin' and 'x86_64' in machine_type:
-    curl += 'curl -Lo ./kubectl-kueue https://github.com/kubernetes-sigs/kueue/releases/download/v0.8.1/kubectl-kueue-darwin-amd64'
+    curl = 'curl -Lo ./kubectl-kueue https://github.com/kubernetes-sigs/kueue/releases/download/v0.8.1/kubectl-kueue-darwin-amd64'
   if system == 'darwin' and 'arm' in machine_type:
-    curl += 'curl -Lo ./kubectl-kueue https://github.com/kubernetes-sigs/kueue/releases/download/v0.8.1/kubectl-kueue-darwin-arm64'
+    curl = 'curl -Lo ./kubectl-kueue https://github.com/kubernetes-sigs/kueue/releases/download/v0.8.1/kubectl-kueue-darwin-arm64'
   if system == 'linux' and 'arm' in machine_type:
-    curl += 'curl -Lo ./kubectl-kueue https://github.com/kubernetes-sigs/kueue/releases/download/v0.8.1/kubectl-kueue-linux-arm64'
+    curl = 'curl -Lo ./kubectl-kueue https://github.com/kubernetes-sigs/kueue/releases/download/v0.8.1/kubectl-kueue-linux-arm64'
   if system == 'linux' and 'x86_64' in machine_type:
-    curl += 'curl -Lo ./kubectl-kueue https://github.com/kubernetes-sigs/kueue/releases/download/v0.8.1/kubectl-kueue-linux-amd64'  
+    curl = 'curl -Lo ./kubectl-kueue https://github.com/kubernetes-sigs/kueue/releases/download/v0.8.1/kubectl-kueue-linux-amd64'  
 
   chmod = 'chmod +x ./kubectl-kueue'
   mv = 'sudo mv ./kubectl-kueue /usr/local/bin/kubectl-kueue'

@@ -19,6 +19,7 @@ from argparse import Namespace
 from dataclasses import dataclass
 
 import yaml
+from google.cloud import storage as gcp_storage
 from kubernetes import client as k8s_client
 from kubernetes import utils
 from kubernetes.client import ApiClient
@@ -281,7 +282,132 @@ def install_storage_crd(k8s_api_client: ApiClient) -> None:
       xpk_exit(1)
 
 
-def print_storages_for_cluster(storages: list[Storage]) -> None:
+def get_storage_volume_mounts_yaml(storages: list[Storage]) -> str:
+  """
+  Generates the YAML representation of the volumeMounts section for the given Storages.
+
+  This function creates the YAML snippet that defines how the storage volumes
+  should be mounted within a Pod's containers.
+
+  Args:
+      storages: A list of Storage objects.
+
+  Returns:
+      A string containing the YAML representation of the volumeMounts section.
+  """
+  yaml_str = ""
+  for storage in storages:
+    yaml_str += f"""- name: {storage.pv}
+                mountPath: {storage.mount_point}
+                readOnly: {storage.readonly}
+            """
+  return yaml_str
+
+
+def get_storage_volumes_yaml(storages: list[Storage]) -> str:
+  """
+  Generates the YAML representation of the volumes section for the given Storages.
+
+  This function creates the YAML snippet that defines the volumes to be
+  mounted in a Pod, including the PersistentVolumeClaim associated with
+  each Storage.
+
+  Args:
+      storages: A list of Storage objects.
+
+  Returns:
+      A string containing the YAML representation of the volumes section.
+  """
+  yaml_str = ""
+  for storage in storages:
+    yaml_str += f"""- name: {storage.pv}
+              persistentVolumeClaim:
+                claimName: {storage.pvc}
+                readOnly: {storage.readonly}
+            """
+  return yaml_str
+
+
+def get_storage_volume_mounts_yaml_for_gpu(storages: list[Storage]) -> str:
+  """
+  Generates the YAML representation of the volumeMounts section for the given Storages.
+
+  This function creates the YAML snippet that defines how the storage volumes
+  should be mounted within a Pod's containers.
+
+  Args:
+      storages: A list of Storage objects.
+
+  Returns:
+      A string containing the YAML representation of the volumeMounts section.
+  """
+  yaml_str = ""
+  for storage in storages:
+    yaml_str += f"""- name: {storage.pv}
+                  mountPath: {storage.mount_point}
+                  readOnly: {storage.readonly}
+            """
+  return yaml_str
+
+
+def get_storage_volumes_yaml_for_gpu(storages: list[Storage]) -> str:
+  """
+  Generates the YAML representation of the volumes section for the given Storages.
+
+  This function creates the YAML snippet that defines the volumes to be
+  mounted in a Pod, including the PersistentVolumeClaim associated with
+  each Storage.
+
+  Args:
+      storages: A list of Storage objects.
+
+  Returns:
+      A string containing the YAML representation of the volumes section.
+  """
+  yaml_str = ""
+  for storage in storages:
+    yaml_str += f"""- name: {storage.pv}
+                persistentVolumeClaim:
+                  claimName: {storage.pvc}
+                  readOnly: {storage.readonly}
+            """
+  return yaml_str
+
+
+def add_bucket_iam_members(args: Namespace, storages: list[Storage]) -> None:
+  """
+  Adds IAM members to the GCS buckets associated with the given Storages.
+
+  This function grants the necessary permissions to the XPK service account
+  to access the GCS buckets. The specific role (viewer or user) is determined
+  based on the `readonly` attribute of each Storage object.
+
+  Args:
+      args: An argparse Namespace object containing command-line arguments.
+      storages: A list of Storage objects.
+  """
+  storage_client = gcp_storage.Client()
+
+  for storage in storages:
+    bucket = storage_client.bucket(storage.bucket)
+    policy = bucket.get_iam_policy(requested_policy_version=3)
+    if storage.readonly:
+      role = "roles/storage.objectViewer"
+    else:
+      role = "roles/storage.objectUser"
+
+    member = (
+        f"principal://iam.googleapis.com/projects/{args.project_number}/"
+        f"locations/global/workloadIdentityPools/{args.project}.svc.id.goog/"
+        f"subject/ns/default/sa/{XPK_SA}"
+    )
+
+    policy.bindings.append({"role": role, "members": {member}})
+    bucket.set_iam_policy(policy)
+    print(f"Added {member} with role {role} to {storage.bucket}.")
+
+
+def print_storages_for_cluster(storages: list[Storage], cluster: str):
   """
   Prints in human readable manner a table of Storage resources that belong to the specified cluster.
 

@@ -115,6 +115,12 @@ def set_workload_parsers(workload_parser):
   )
 
   workload_create_parser_optional_arguments.add_argument(
+      '--storage',
+      action='append',
+      default=[],
+      help='Names of storages the workload uses',
+  )
+  workload_create_parser_optional_arguments.add_argument(
       '--num-nodes',
       type=int,
       default=1,
@@ -242,6 +248,12 @@ def set_workload_parsers(workload_parser):
           ' python3 train.py\'".'
       ),
       required=False,
+  )
+  workload_create_pathways_parser_optional_arguments.add_argument(
+      '--storage',
+      action='append',
+      default=[],
+      help='Names of storages the workload uses',
   )
 
   add_shared_workload_create_required_arguments([

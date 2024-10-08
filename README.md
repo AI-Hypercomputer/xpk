@@ -1110,15 +1110,9 @@ To explore the stack traces collected in a temporary directory in Kubernetes Pod
 
 To list available resources and queues use ```xpk info``` command. It allows to see localqueues and clusterqueues and check for available resources.
 
-To see clusterqueues:
+To see clusterqueues with reservations and usage:
 ```shell
 python3 xpk.py info --cluster my-cluster
-```
-
-To check queue resources:
-
-```shell
-python3 xpk.py info --resources --cluster my-cluster
 ```
 
 # Other advanced usage

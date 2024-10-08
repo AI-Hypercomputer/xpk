@@ -15,10 +15,14 @@ limitations under the License.
 """
 
 from ..commands.info import info
+from .common import add_shared_arguments
 
 def set_info_parser(info_parser):
   info_required_arguments = info_parser.add_argument_group(
       'Required Arguments', 'Arguments required for info.'
+  )
+  info_optional_arguments = info_parser.add_argument_group(
+      'Optional Arguments', 'Arguments optional for info.'
   )
 
   info_required_arguments.add_argument(
@@ -39,4 +43,6 @@ def set_info_parser(info_parser):
     action='store_true',
     help = 'Print info about clusterqueue',
   )
+
+  add_shared_arguments(info_optional_arguments)
   info_parser.set_defaults(func=info)

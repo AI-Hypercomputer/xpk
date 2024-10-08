@@ -157,63 +157,6 @@ def verify_kueuectl_installation(args) -> int:
     xpk_print(f'{task} returned ERROR {return_code}')
   return return_code
 
-def get_system_spec() -> tuple[str, str]:
-  """Get operating system and machine type
-
-  Returns:
-    tuple of strings in format (operating system, machine type).
-  """
-  os = platform
-  machine_type = machine()
-  return os, machine_type
-
-
-def get_kueuectl_installation_command(system, machine_type) -> list[str]:
-  """Create command for installing kueuectl depending on operating system and machine type.
-  Function execution moves to /usr/local/bin/, therefore sudo is needed.
-  Args:
-    system: operating system, supported values are [darwin, linux].
-    machine_type: machine type, supported values are [x86_64, arm].
-  Returns
-    List of commands to download kueuectl.
-
-  """
-  curl = ''
-  if system == 'darwin' and 'x86_64' in machine_type:
-    curl = 'curl -Lo ./kubectl-kueue https://github.com/kubernetes-sigs/kueue/releases/download/v0.8.1/kubectl-kueue-darwin-amd64'
-  if system == 'darwin' and 'arm' in machine_type:
-    curl = 'curl -Lo ./kubectl-kueue https://github.com/kubernetes-sigs/kueue/releases/download/v0.8.1/kubectl-kueue-darwin-arm64'
-  if system == 'linux' and 'arm' in machine_type:
-    curl = 'curl -Lo ./kubectl-kueue https://github.com/kubernetes-sigs/kueue/releases/download/v0.8.1/kubectl-kueue-linux-arm64'
-  if system == 'linux' and 'x86_64' in machine_type:
-    curl = 'curl -Lo ./kubectl-kueue https://github.com/kubernetes-sigs/kueue/releases/download/v0.8.1/kubectl-kueue-linux-amd64'  
-
-  chmod = 'chmod +x ./kubectl-kueue'
-  mv = 'sudo mv ./kubectl-kueue /usr/local/bin/kubectl-kueue'
-
-  return [curl, chmod , mv]
-
-def install_kueuectl(args) -> int:
-  """Install Kueuectl on the cluster
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-
-  system, machine_type = get_system_spec()
-  commands = get_kueuectl_installation_command(system, machine_type)
-
-  task = 'Install kueuectl on cluster'
-  for command in commands:
-    return_code, _ = run_command_for_value(command, task, args)
-    if return_code != 0:
-      xpk_print(f'{task} returned ERROR {return_code}')
-  return return_code
-
-
 def install_kueue_on_cluster(args) -> int:
   """Install Kueue on the cluster.
 

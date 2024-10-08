@@ -63,6 +63,13 @@ and the following CPU types:
 * Storage Admin
 * Vertex AI Administrator
 
+# Prerequisites
+
+xpk uses many tool to provide all neccessary functionalities. User must install following tools:
+
+- kubectl (see [this](https://kubernetes.io/docs/tasks/tools/) link for installation.)
+- kueuectl (see [this](https://kueue.sigs.k8s.io/docs/reference/kubectl-kueue/installation/) link for installation.)
+
 # Installation
 To install xpk, run the following command:
 
@@ -1098,6 +1105,21 @@ To explore the stack traces collected in a temporary directory in Kubernetes Pod
   --workload xpk-test-workload --command "python3 main.py" --cluster \
   xpk-test --tpu-type=v5litepod-16 --deploy-stacktrace-sidecar
  ```
+
+### Get information about jobs, queues and resources.
+
+To list available resources and queues use ```xpk info``` command. It allows to see localqueues and clusterqueues and check for available resources.
+
+To see clusterqueues:
+```shell
+python3 xpk.py info --cluster my-cluster
+```
+
+To check queue resources:
+
+```shell
+python3 xpk.py info --resources --cluster my-cluster
+```
 
 # Other advanced usage
 [Use a Jupyter notebook to interact with a Cloud TPU cluster](xpk-notebooks.md)

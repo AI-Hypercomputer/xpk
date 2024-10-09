@@ -41,7 +41,7 @@ def set_parser(parser: argparse.ArgumentParser):
     "info",
     help="commands around listing kueue clusterqueues and localqueues"
   )
-  
+
   def default_subcommand_function(
       _args,
   ) -> int:  # args is unused, so pylint: disable=invalid-name

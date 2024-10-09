@@ -26,7 +26,7 @@ from ..core.core import (
 import json
 from tabulate import tabulate
 
-table_fmt = 'github'
+table_fmt = 'plain'
 
 def prepare_kueuectl(args) -> int:
   """Verify if kueuectl is installed. If not install kueuectl.
@@ -100,7 +100,7 @@ def apply_shared_flags(args) -> tuple[int, str]:
     return_code, _ =run_command_for_value(zone_cmd, 'set gcloud zone', args)
     if return_code != 0:
       xpk_exit(return_code)
-  
+
   return 0
 
 def aggregate_results(cqs, lqs) :
@@ -114,47 +114,57 @@ def aggregate_results(cqs, lqs) :
   cq_list = json.loads(cqs)['items']
   lq_list = json.loads(lqs)['items']
 
-  cq_res, cq_usage = parse_queue_lists(cq_list, usage_key='flavorsUsage')
-  lq_res, lq_usage = parse_queue_lists(lq_list)
-  
-  xpk_print('Cluster Queue Flavors reservations: \n', tabulate(cq_res, headers = 'keys', tablefmt=table_fmt))
-  xpk_print('Cluster Queue Flavors usage: \n', tabulate(cq_usage, headers = 'keys', tablefmt=table_fmt))
+  cq_usages = parse_queue_lists(cq_list, usage_key='flavorsUsage')
+  lq_usages = parse_queue_lists(lq_list)
 
-  xpk_print('Local Queue Flavors reservations: \n', tabulate(lq_res, headers = 'keys', tablefmt=table_fmt))
-  xpk_print('Local Queue Flavors usage: \n', tabulate(lq_usage, headers = 'keys', tablefmt=table_fmt))
+  print(tabulate(cq_usages+lq_usages, headers = 'keys', tablefmt= table_fmt))
 
 def parse_queue_lists(qs, usage_key = 'flavorUsage',
-  reservation_key = 'flavorsReservation') -> tuple[list[dict], list[dict]]:
-  q_res, q_usage = [], []
+  reservation_key = 'flavorsReservation') -> list[dict]:
+  qs_usage_list = []
   for q in qs:
-    q_res = get_flavors_status_field(q, reservation_key)
-    q_usage = get_flavors_status_field(q, usage_key)
-  return q_res, q_usage
+    queue_name = q['metadata']['name']
+    q_pending_workloads = q['status']['pendingWorkloads']
+    q_admitted_workloads = q['status']['admittedWorkloads']
+    q_flavors_usage = {
+      'QUEUE': queue_name,
+      'ADMITTED WORKLOADS': q_admitted_workloads,
+      'PENDING_WORKLOADS': q_pending_workloads,
+    }
+    q_flavors_usage.update(get_flavors_usage(q, usage_field=usage_key, res_field=reservation_key))
+    qs_usage_list.append(q_flavors_usage)
+  return qs_usage_list
 
-def get_flavors_status_field(q_entry, statusField) -> list[dict]:
-  """Parse q_entry to retrieve list of flavors usage or reservation
+def get_flavors_usage(q_entry, usage_field, res_field) -> list[dict]:
+  """Parse q_entry to retrieve list of flavors usage
 
   Args:
     q_entry - single entry into either LocalQueue or ClusterQueue structured as json
     statusField - either "flavorsReservation" or "flavorsUsage"
   Returns:
-    list of dicts where each contains fields: queueName, flavorName, resource, total
+    list of dicts where each list entry contains two keys:
+      - resource - resource name in format flavorName:resourceName
+      - usage - usage in format total_usage/total_reservation
   """
   status = q_entry['status']
-  flavors_res = status[statusField]
+  flavors_res = status[res_field]
+  flavors_usage = status[usage_field]
 
-  reservations = []
+  flavors_usage = {flavor['name']:flavor['resources'] for flavor in flavors_usage}
+  flavors_res = {flavor['name']:flavor['resources'] for flavor in flavors_res}
+  usage_fraction = {}
 
-  for flavor in flavors_res:
-    name = flavor['name']
-    for res in flavor['resources']:
-      reservations.append({
-        'queueName': q_entry['metadata']['name'],
-        'flavorName': name,
-        'resource': res['name'],
-        'total': res['total'],
-      })
-  return reservations
+  for flavor_name, flavor_resources_usage_list in flavors_usage.items():
+    flavor_resources_reservation_list = flavors_res[flavor_name]
+    flavor_resource_reservation = {resource['name']: resource['total'] for resource in flavor_resources_usage_list}
+    flavor_resource_usages = {resource['name']: resource['total'] for resource in flavor_resources_reservation_list}
+
+    for resource_name in flavor_resource_reservation.keys():
+      key = f'{flavor_name}:{resource_name}'
+      usage_fmt = f'{flavor_resource_usages[resource_name]}/{flavor_resource_reservation[resource_name]}'
+      usage_fraction[key] = usage_fmt
+  return usage_fraction
+
 
 def run_kueuectl_list_localqueue(args) -> tuple[int, str]:
   """Run the kueuectl list localqueue command.

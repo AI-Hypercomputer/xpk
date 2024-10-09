@@ -18,6 +18,7 @@ from ..commands.cluster import (
     cluster_cacheimage,
     cluster_create,
     cluster_create_pathways,
+    cluster_create_ray_cluster,
     cluster_delete,
     cluster_describe,
     cluster_list,
@@ -169,25 +170,85 @@ def set_cluster_parser(cluster_parser):
       help='The tpu type to use, v5litepod-16, etc.',
   )
 
+  ### "cluster create-ray-cluster" command parser
+
+  cluster_create_ray_cluster_parser = cluster_subcommands.add_parser(
+      'create-ray-cluster',
+      help='Create RayCluster',
+  )
+  cluster_create_ray_cluster_required_arguments = (
+      cluster_create_ray_cluster_parser.add_argument_group(
+          'Required Arguments',
+          'Arguments required for cluster create-ray-cluster.',
+      )
+  )
+  cluster_create_ray_cluster_optional_arguments = (
+      cluster_create_ray_cluster_parser.add_argument_group(
+          'Optional Arguments',
+          'Arguments optional for cluster create-ray-cluster.',
+      )
+  )
+  cluster_create_ray_cluster_capacity_arguments = (
+      cluster_create_ray_cluster_parser.add_argument_group(
+          'Capacity Arguments',
+          'Arguments related to capacity for cluster create-ray-cluster.',
+      )
+  )
+  cluster_create_ray_cluster_tensorboard_arguments = (
+      cluster_create_ray_cluster_parser.add_argument_group(
+          'Optional Vertex AI Tensorboard Arguments',
+          'Arguments for creating Vertex AI Tensorboard in cluster create.',
+      )
+  )
+
+  ### RayCluster required arguments specific to "cluster create"
+  cluster_create_ray_cluster_required_arguments.add_argument(
+      '--tpu-type',
+      type=str,
+      default=None,
+      help='The tpu type to use, v5litepod-16, etc.',
+  )
+  ### Optional arguments specific to "cluster create"
+  cluster_create_ray_cluster_optional_arguments.add_argument(
+      '--num-nodes',
+      type=int,
+      default=2,
+      help='The number of nodes for a cluster, defaults to 2.',
+      required=False,
+  )
+  cluster_create_ray_cluster_optional_arguments.add_argument(
+      '--enable-pathways',
+      action='store_true',
+      help=(
+          'DEPRECATING SOON!!! Please use `xpk cluster create-pathways`.'
+          ' Enable cluster to accept Pathways workloads.'
+      ),
+  )
+
   add_shared_cluster_create_required_arguments([
       cluster_create_required_arguments,
       cluster_create_pathways_required_arguments,
+      cluster_create_ray_cluster_required_arguments,
   ])
   add_shared_cluster_create_optional_arguments([
       cluster_create_optional_arguments,
       cluster_create_pathways_optional_arguments,
+      cluster_create_ray_cluster_optional_arguments,
   ])
   add_shared_cluster_create_capacity_arguments([
       cluster_create_capacity_arguments,
       cluster_create_pathways_capacity_arguments,
+      cluster_create_ray_cluster_capacity_arguments,
   ])
   add_shared_cluster_create_tensorboard_arguments([
       cluster_create_tensorboard_arguments,
       cluster_create_pathways_tensorboard_arguments,
+      cluster_create_ray_cluster_tensorboard_arguments,
   ])
 
   cluster_create_parser.set_defaults(func=cluster_create)
   cluster_create_pathways_parser.set_defaults(func=cluster_create_pathways)
+  cluster_create_ray_cluster_parser.set_defaults(func=cluster_create_ray_cluster)
 
   ### "cluster delete" command parser ###
   cluster_delete_parser = cluster_subcommands.add_parser(

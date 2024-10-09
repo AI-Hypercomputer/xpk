@@ -208,8 +208,6 @@ def cluster_create(args) -> None:
     return_code = install_ray_cluster(args, system)
   if return_code != 0:
     xpk_exit(return_code)
-    # Inject values into RayCluster spec
-    # kubectl apply RayCluster
 
   xpk_print('GKE commands done! Resources are created.')
   xpk_print(
@@ -376,18 +374,17 @@ def cluster_create_pathways(args) -> None:
 
 
 def cluster_create_ray_cluster(args) -> None:
-    """Function around cluster creation for RayCluster.
+  """Function around cluster creation for RayCluster.
 
-    Args:
-      args: user provided arguments for running the command.
+  Args:
+    args: user provided arguments for running the command.
 
-    Returns:
-      None
-    """
-    args.enable_ray_cluster = True
-    #args.enable_pathways = False
-    args.enable_autoprovisioning = False
-    cluster_create(args)
+  Returns:
+    None
+  """
+  args.enable_ray_cluster = True
+  args.enable_autoprovisioning = False
+  cluster_create(args)
 
 
 def create_cluster_if_necessary(
@@ -535,9 +532,7 @@ def run_gke_cluster_create_command(
     command += ' --enable-ip-alias'
 
   if args.enable_ray_cluster:
-    command += (
-        ' --addons RayOperator'
-    )
+    command += ' --addons RayOperator'
 
   return_code = run_command_with_updates(command, 'GKE Cluster Create', args)
   if return_code != 0:

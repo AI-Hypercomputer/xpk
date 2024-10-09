@@ -27,8 +27,6 @@ from .system_characteristics import (
     AcceleratorTypeToAcceleratorCharacteristics,
     SystemCharacteristics,
 )
-from sys import platform
-from platform import machine
 
 KUEUE_VERSION = 'v0.8.1'
 CLUSTER_QUEUE_NAME = 'cluster-queue'

@@ -29,7 +29,7 @@ from tabulate import tabulate
 table_fmt = 'plain'
 
 def prepare_kueuectl(args) -> int:
-  """Verify if kueuectl is installed. If not install kueuectl.
+  """Verify if kueuectl is installed.
   Args:
     args: user provided arguments.
   Returns:
@@ -103,7 +103,7 @@ def apply_shared_flags(args) -> tuple[int, str]:
 
   return 0
 
-def aggregate_results(cqs, lqs) :
+def aggregate_results(cqs, lqs) -> None:
   """Aggregate listed clusterqueues and localqueues with resource usage and print them as table.
   
   Args:
@@ -117,7 +117,7 @@ def aggregate_results(cqs, lqs) :
   cq_usages = parse_queue_lists(cq_list, usage_key='flavorsUsage')
   lq_usages = parse_queue_lists(lq_list)
 
-  print(tabulate(cq_usages+lq_usages, headers = 'keys', tablefmt= table_fmt))
+  xpk_print('\n',tabulate(cq_usages+lq_usages, headers = 'keys', tablefmt= table_fmt))
 
 def parse_queue_lists(qs, usage_key = 'flavorUsage',
   reservation_key = 'flavorsReservation') -> list[dict]:
@@ -136,7 +136,7 @@ def parse_queue_lists(qs, usage_key = 'flavorUsage',
   return qs_usage_list
 
 def get_flavors_usage(q_entry, usage_field, res_field) -> list[dict]:
-  """Parse q_entry to retrieve list of flavors usage
+  """Parse q_entry to retrieve list of each resource usage in flavour.
 
   Args:
     q_entry - single entry into either LocalQueue or ClusterQueue structured as json

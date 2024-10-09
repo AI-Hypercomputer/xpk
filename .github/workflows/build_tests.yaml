@@ -71,6 +71,8 @@ jobs:
       run: python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion $PATHWAYS_WORKLOAD_NAME --timeout 300
     - name: List out the workloads on the cluster
       run: python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+    - name: Run xpk info
+      run: python3 xpk.py info --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | tee output.txt | grep 'QUEUE' | grep 'ADMITTED_WORKLOADS' | grep 'PENDING_WORKLOADS' || (echo 'Invalid command output' && cat output.txt && exit 1)
     - name: Delete the workload on the cluster
       run: python3 xpk.py workload delete --workload $WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
     - name: Delete the Pathways workload on the cluster
@@ -78,7 +80,6 @@ jobs:
     - name: Delete the cluster created
       if: always()
       run: python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
-
 
 
 

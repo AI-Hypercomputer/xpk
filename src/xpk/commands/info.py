@@ -140,7 +140,7 @@ def parse_queue_lists(
     q_admitted_workloads = q['status']['admittedWorkloads']
     q_flavors_usage = {
         'QUEUE': queue_name,
-        'ADMITTED WORKLOADS': q_admitted_workloads,
+        'ADMITTED_WORKLOADS': q_admitted_workloads,
         'PENDING_WORKLOADS': q_pending_workloads,
     }
     q_flavors_usage.update(

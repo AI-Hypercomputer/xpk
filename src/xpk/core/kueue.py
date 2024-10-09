@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from argparse import Namespace
 from ..utils import write_tmp_file, xpk_print
 from .commands import run_command_with_updates_retry, run_command_for_value
 from .core import (
@@ -140,7 +141,7 @@ spec:
 """
 
 
-def verify_kueuectl_installation(args) -> int:
+def verify_kueuectl_installation(args : Namespace) -> int:
   """Verify if if kueuectl is installed.
   Args:
     args: user provided arguments for running the command.

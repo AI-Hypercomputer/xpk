@@ -16,9 +16,10 @@ limitations under the License.
 
 from ..commands.info import info
 from .common import add_shared_arguments
+import argparse
 
 
-def set_info_parser(info_parser):
+def set_info_parser(info_parser: argparse.ArgumentParser):
   info_required_arguments = info_parser.add_argument_group(
       'Required Arguments', 'Arguments required for info.'
   )

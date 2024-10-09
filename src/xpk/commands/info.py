@@ -25,11 +25,13 @@ from ..core.core import (
 )
 import json
 from tabulate import tabulate
+from typing import Optional
+from argparse import Namespace
 
 table_fmt = 'plain'
 
 
-def prepare_kueuectl(args) -> int:
+def prepare_kueuectl(args: Namespace) -> int:
   """Verify if kueuectl is installed.
   Args:
     args: user provided arguments.
@@ -52,7 +54,7 @@ def prepare_kueuectl(args) -> int:
     return verify_kueuectl_installed_code
 
 
-def info(args) -> None:
+def info(args: Namespace) -> None:
   """Provide info about localqueues, clusterqueues and their resources.
 
   Args:
@@ -86,7 +88,7 @@ def info(args) -> None:
   return
 
 
-def apply_shared_flags(args) -> tuple[int, str]:
+def apply_shared_flags(args: Namespace) -> tuple[int, str]:
   """Apply shared flags. It checks --project and --zone
     flags and executes proper gcloud commands if present.
 
@@ -111,7 +113,7 @@ def apply_shared_flags(args) -> tuple[int, str]:
   return 0
 
 
-def aggregate_results(cqs, lqs) -> None:
+def aggregate_results(cqs: list[dict], lqs: list[dict]) -> None:
   """Aggregate listed clusterqueues and localqueues with resource usage and print them as table.
 
   Args:
@@ -131,7 +133,9 @@ def aggregate_results(cqs, lqs) -> None:
 
 
 def parse_queue_lists(
-    qs, usage_key='flavorUsage', reservation_key='flavorsReservation'
+    qs: list[dict],
+    usage_key: Optional[str] = 'flavorUsage',
+    reservation_key: Optional[str] = 'flavorsReservation',
 ) -> list[dict]:
   qs_usage_list = []
   for q in qs:
@@ -150,7 +154,9 @@ def parse_queue_lists(
   return qs_usage_list
 
 
-def get_flavors_usage(q_entry, usage_field, res_field) -> list[dict]:
+def get_flavors_usage(
+    q_entry: dict, usage_field: str, res_field: str
+) -> list[dict]:
   """Parse q_entry to retrieve list of each resource usage in flavour.
 
   Args:
@@ -189,7 +195,7 @@ def get_flavors_usage(q_entry, usage_field, res_field) -> list[dict]:
   return usage_fraction
 
 
-def run_kueuectl_list_localqueue(args) -> tuple[int, str]:
+def run_kueuectl_list_localqueue(args: Namespace) -> tuple[int, str]:
   """Run the kueuectl list localqueue command.
 
   Args:
@@ -207,7 +213,7 @@ def run_kueuectl_list_localqueue(args) -> tuple[int, str]:
   return 0, val
 
 
-def run_kueuectl_list_clusterqueue(args) -> int:
+def run_kueuectl_list_clusterqueue(args: Namespace) -> int:
   """Run the kueuectl list clusterqueue command.
 
   Args:

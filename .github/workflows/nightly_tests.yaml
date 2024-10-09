@@ -26,6 +26,7 @@ env:
   WORKLOAD_NAME: xpktest-nightly-${{ github.run_attempt }}
   PATHWAYS_TPU_CLUSTER_NAME: pw-nightly-test-2-v4-8-nodepools
   PATHWAYS_WORKLOAD_NAME: xpkpw-nightly-${{ github.run_attempt }}
+  RAYCLUSTER_TPU_CLUSTER_NAME: rc-nightly-test-2-v4-8-nodepools
 
 jobs:
   cluster-create-and-delete:
@@ -114,6 +115,33 @@ jobs:
     - name: Delete the Pathways cluster created
       if: always()
       run: python xpk.py cluster delete --cluster $PATHWAYS_TPU_CLUSTER_NAME --zone=us-central2-b
+
+  rc-cluster:
+    runs-on: [ubuntu-20.04]
+    concurrency: # We support one build test to run at a time currently.
+      group: nightly-rc-test-cluster-group
+      cancel-in-progress: false
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+    - uses: 'google-github-actions/auth@v2'
+      with:
+        credentials_json: '${{ secrets.GCP_SA_KEY }}'
+    - uses: google-github-actions/setup-gcloud@v2
+      with:
+        version: '>= 363.0.0'
+        install_components: 'beta,gke-gcloud-auth-plugin'
+    - name: Set Google Cloud CLI properties to a unused zone to verify --zone arg is passed properly in commands.
+      run: |
+        gcloud config set compute/zone us-east4-a
+        gcloud config get compute/zone
+    - name: Create a RayCluster-enabled XPK Cluster with 2 x v4-8 nodepools
+      run: python xpk.py cluster create-ray-cluster --cluster $RAYCLUSTER_TPU_CLUSTER_NAME --tpu-type=v4-8  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}'
+    - name: Delete the RayCluster-enabled XPK cluster
+      if: always()
+      run: python xpk.py cluster delete --cluster $RAYCLUSTER_TPU_CLUSTER_NAME --zone=us-central2-b
 
 
 

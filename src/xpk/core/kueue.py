@@ -139,6 +139,7 @@ spec:
         command: [ "sleep", "inf" ]
 """
 
+
 def verify_kueuectl_installation(args) -> int:
   """Verify if if kueuectl is installed.
   Args:
@@ -146,14 +147,13 @@ def verify_kueuectl_installation(args) -> int:
   Returns:
     0 if kueuectl installed and error code otherwise.
   """
-  command = (
-      'kubectl kueue version'
-  )
+  command = 'kubectl kueue version'
   task = 'Verify kueuectl installation on cluster'
   return_code, _ = run_command_for_value(command, task, args)
   if return_code != 0:
     xpk_print(f'{task} returned ERROR {return_code}')
   return return_code
+
 
 def install_kueue_on_cluster(args) -> int:
   """Install Kueue on the cluster.

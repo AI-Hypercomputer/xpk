@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..utils import  xpk_exit, xpk_print
+from ..utils import xpk_exit, xpk_print
 from ..core.kueue import verify_kueuectl_installation
 from .cluster import set_cluster_command
 from ..core.commands import (
@@ -27,6 +27,7 @@ import json
 from tabulate import tabulate
 
 table_fmt = 'plain'
+
 
 def prepare_kueuectl(args) -> int:
   """Verify if kueuectl is installed.
@@ -43,8 +44,13 @@ def prepare_kueuectl(args) -> int:
     return 0
 
   if verify_kueuectl_installed_code != 0:
-    xpk_print('kueuectl not installed. Please follow https://kueue.sigs.k8s.io/docs/reference/kubectl-kueue/installation/ to install kueuectl.')
+    xpk_print(
+        'kueuectl not installed. Please follow'
+        ' https://kueue.sigs.k8s.io/docs/reference/kubectl-kueue/installation/'
+        ' to install kueuectl.'
+    )
     return verify_kueuectl_installed_code
+
 
 def info(args) -> None:
   """Function around list localqueue.
@@ -79,13 +85,14 @@ def info(args) -> None:
   aggregate_results(cqs, lqs)
   return
 
+
 def apply_shared_flags(args) -> tuple[int, str]:
   """Apply shared flags. It checks --project and --zone
     flags and executes proper gcloud commands if present.
-  
+
   Args:
     args: user provided args.
-  
+
   Returns:
     0 if successful and 1 otherwise.
   """
@@ -97,19 +104,20 @@ def apply_shared_flags(args) -> tuple[int, str]:
 
   if args.zone is not None:
     zone_cmd = f'gcloud config set compute/zone {args.zone}'
-    return_code, _ =run_command_for_value(zone_cmd, 'set gcloud zone', args)
+    return_code, _ = run_command_for_value(zone_cmd, 'set gcloud zone', args)
     if return_code != 0:
       xpk_exit(return_code)
 
   return 0
 
+
 def aggregate_results(cqs, lqs) -> None:
   """Aggregate listed clusterqueues and localqueues with resource usage and print them as table.
-  
+
   Args:
     lqs: list of localqueues.
     cqs: list of clusterqueues.
-  
+
   """
   cq_list = json.loads(cqs)['items']
   lq_list = json.loads(lqs)['items']
@@ -117,23 +125,30 @@ def aggregate_results(cqs, lqs) -> None:
   cq_usages = parse_queue_lists(cq_list, usage_key='flavorsUsage')
   lq_usages = parse_queue_lists(lq_list)
 
-  xpk_print('\n',tabulate(cq_usages+lq_usages, headers = 'keys', tablefmt= table_fmt))
+  xpk_print(
+      '\n', tabulate(cq_usages + lq_usages, headers='keys', tablefmt=table_fmt)
+  )
 
-def parse_queue_lists(qs, usage_key = 'flavorUsage',
-  reservation_key = 'flavorsReservation') -> list[dict]:
+
+def parse_queue_lists(
+    qs, usage_key='flavorUsage', reservation_key='flavorsReservation'
+) -> list[dict]:
   qs_usage_list = []
   for q in qs:
     queue_name = q['metadata']['name']
     q_pending_workloads = q['status']['pendingWorkloads']
     q_admitted_workloads = q['status']['admittedWorkloads']
     q_flavors_usage = {
-      'QUEUE': queue_name,
-      'ADMITTED WORKLOADS': q_admitted_workloads,
-      'PENDING_WORKLOADS': q_pending_workloads,
+        'QUEUE': queue_name,
+        'ADMITTED WORKLOADS': q_admitted_workloads,
+        'PENDING_WORKLOADS': q_pending_workloads,
     }
-    q_flavors_usage.update(get_flavors_usage(q, usage_field=usage_key, res_field=reservation_key))
+    q_flavors_usage.update(
+        get_flavors_usage(q, usage_field=usage_key, res_field=reservation_key)
+    )
     qs_usage_list.append(q_flavors_usage)
   return qs_usage_list
+
 
 def get_flavors_usage(q_entry, usage_field, res_field) -> list[dict]:
   """Parse q_entry to retrieve list of each resource usage in flavour.
@@ -150,14 +165,22 @@ def get_flavors_usage(q_entry, usage_field, res_field) -> list[dict]:
   flavors_res = status[res_field]
   flavors_usage = status[usage_field]
 
-  flavors_usage = {flavor['name']:flavor['resources'] for flavor in flavors_usage}
-  flavors_res = {flavor['name']:flavor['resources'] for flavor in flavors_res}
+  flavors_usage = {
+      flavor['name']: flavor['resources'] for flavor in flavors_usage
+  }
+  flavors_res = {flavor['name']: flavor['resources'] for flavor in flavors_res}
   usage_fraction = {}
 
   for flavor_name, flavor_resources_usage_list in flavors_usage.items():
     flavor_resources_reservation_list = flavors_res[flavor_name]
-    flavor_resource_reservation = {resource['name']: resource['total'] for resource in flavor_resources_usage_list}
-    flavor_resource_usages = {resource['name']: resource['total'] for resource in flavor_resources_reservation_list}
+    flavor_resource_reservation = {
+        resource['name']: resource['total']
+        for resource in flavor_resources_usage_list
+    }
+    flavor_resource_usages = {
+        resource['name']: resource['total']
+        for resource in flavor_resources_reservation_list
+    }
 
     for resource_name in flavor_resource_reservation.keys():
       key = f'{flavor_name}:{resource_name}'
@@ -175,9 +198,7 @@ def run_kueuectl_list_localqueue(args) -> tuple[int, str]:
   Returns:
     0 if successful and 1 otherwise.
   """
-  command = (
-      'kubectl kueue list localqueue -o json'
-  )
+  command = 'kubectl kueue list localqueue -o json'
   return_code, val = run_command_for_value(command, 'list localqueue', args)
 
   if return_code != 0:
@@ -195,9 +216,7 @@ def run_kueuectl_list_clusterqueue(args) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
-  command = (
-      'kubectl kueue list clusterqueue -o json'
-  )
+  command = 'kubectl kueue list clusterqueue -o json'
   return_code, val = run_command_for_value(command, 'list clusterqueue', args)
 
   if return_code != 0:

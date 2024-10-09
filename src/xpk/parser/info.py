@@ -17,6 +17,7 @@ limitations under the License.
 from ..commands.info import info
 from .common import add_shared_arguments
 
+
 def set_info_parser(info_parser):
   info_required_arguments = info_parser.add_argument_group(
       'Required Arguments', 'Arguments required for info.'
@@ -26,22 +27,22 @@ def set_info_parser(info_parser):
   )
 
   info_required_arguments.add_argument(
-    '--cluster',
-    type = str,
-    default = None,
-    help = 'Cluster to which command applies.'
+      '--cluster',
+      type=str,
+      default=None,
+      help='Cluster to which command applies.',
   )
 
   info_required_arguments.add_argument(
-    '--localqueue',
-    action='store_true',
-    help = 'Print info about localqueue',
+      '--localqueue',
+      action='store_true',
+      help='Print info about localqueue',
   )
 
   info_required_arguments.add_argument(
-    '--clusterqueue',
-    action='store_true',
-    help = 'Print info about clusterqueue',
+      '--clusterqueue',
+      action='store_true',
+      help='Print info about clusterqueue',
   )
 
   add_shared_arguments(info_optional_arguments)

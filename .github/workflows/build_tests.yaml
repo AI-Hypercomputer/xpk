@@ -72,7 +72,7 @@ jobs:
     - name: List out the workloads on the cluster
       run: python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
     - name: Run xpk info
-      run: python3 xpk.py info --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | tee output.txt | grep 'QUEUE' | grep 'ADMITTED_WORKLOADS' | grep 'PENDING_WORKLOADS' || (echo 'Invalid command output' && cat output.txt && exit 1)
+      run: python3 xpk.py info --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | tee output.txt | grep -P '^(?=.*QUEUE)(?=.*PENDING_WORKLOADS)(?=.*ADMITTED_WORKLOADS)' || (echo 'Invalid command output' && cat output.txt && exit 1)
     - name: Delete the workload on the cluster
       run: python3 xpk.py workload delete --workload $WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
     - name: Delete the Pathways workload on the cluster

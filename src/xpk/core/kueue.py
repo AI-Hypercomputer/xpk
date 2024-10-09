@@ -141,7 +141,7 @@ spec:
 """
 
 
-def verify_kueuectl_installation(args : Namespace) -> int:
+def verify_kueuectl_installation(args: Namespace) -> int:
   """Verify if if kueuectl is installed.
   Args:
     args: user provided arguments for running the command.

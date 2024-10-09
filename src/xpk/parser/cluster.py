@@ -248,7 +248,9 @@ def set_cluster_parser(cluster_parser):
 
   cluster_create_parser.set_defaults(func=cluster_create)
   cluster_create_pathways_parser.set_defaults(func=cluster_create_pathways)
-  cluster_create_ray_cluster_parser.set_defaults(func=cluster_create_ray_cluster)
+  cluster_create_ray_cluster_parser.set_defaults(
+      func=cluster_create_ray_cluster
+  )
 
   ### "cluster delete" command parser ###
   cluster_delete_parser = cluster_subcommands.add_parser(

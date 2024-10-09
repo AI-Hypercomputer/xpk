@@ -138,7 +138,7 @@ jobs:
         gcloud config set compute/zone us-east4-a
         gcloud config get compute/zone
     - name: Create a RayCluster-enabled XPK Cluster with 2 x v4-8 nodepools
-      run: python xpk.py cluster create-ray-cluster --cluster $RAYCLUSTER_TPU_CLUSTER_NAME --tpu-type=v4-8  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}'
+      run: python xpk.py cluster create-ray --cluster $RAYCLUSTER_TPU_CLUSTER_NAME --tpu-type=v4-8  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}'
     - name: Delete the RayCluster-enabled XPK cluster
       if: always()
       run: python xpk.py cluster delete --cluster $RAYCLUSTER_TPU_CLUSTER_NAME --zone=us-central2-b

@@ -170,10 +170,10 @@ def set_cluster_parser(cluster_parser):
       help='The tpu type to use, v5litepod-16, etc.',
   )
 
-  ### "cluster create-ray-cluster" command parser
+  ### "cluster create-ray" command parser
 
   cluster_create_ray_cluster_parser = cluster_subcommands.add_parser(
-      'create-ray-cluster',
+      'create-ray',
       help='Create RayCluster',
   )
   cluster_create_ray_cluster_required_arguments = (

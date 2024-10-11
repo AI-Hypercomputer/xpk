@@ -31,12 +31,12 @@ from argparse import Namespace
 table_fmt = 'plain'
 
 
-def prepare_kueuectl(args: Namespace):
+def prepare_kueuectl(args: Namespace) -> None:
   """Verify if kueuectl is installed.
   Args:
     args: user provided arguments.
   Returns:
-    0 if succesful and 1 otherwise.
+    None
   """
   xpk_print('Veryfing kueuectl installation')
 
@@ -59,7 +59,7 @@ def info(args: Namespace) -> None:
   Args:
     args: user provided arguments for running the command.
   Returns:
-    0 if successful and 1 otherwise.
+    None
   """
   add_zone_and_project(args)
 
@@ -75,7 +75,6 @@ def info(args: Namespace) -> None:
   cqs = run_kueuectl_list_clusterqueue(args)
 
   aggregate_results(cqs, lqs)
-  return
 
 
 def apply_shared_flags(args: Namespace) -> None:
@@ -107,7 +106,8 @@ def aggregate_results(cqs: list[dict], lqs: list[dict]) -> None:
   Args:
     lqs: list of localqueues.
     cqs: list of clusterqueues.
-
+  Returns:
+    None
   """
   cq_list = json.loads(cqs)['items']
   lq_list = json.loads(lqs)['items']
@@ -151,9 +151,9 @@ def get_flavors_usage(
     q_entry - single entry into either LocalQueue or ClusterQueue structured as json
     statusField - either "flavorsReservation" or "flavorsUsage"
   Returns:
-    list of dicts where each list entry contains two keys:
-      - resource - resource name in format flavorName:resourceName
-      - usage - usage in format total_usage/total_reservation
+    list of dicts where each list entry is in format (key, entry) where:
+    - key is flavorName:resourceName
+    - entry is resourceUsage/resourceReservation
   """
   status = q_entry['status']
   flavors_res = status[res_field]
@@ -190,7 +190,7 @@ def run_kueuectl_list_localqueue(args: Namespace) -> str:
     args: user provided arguments for running the command.
 
   Returns:
-    kueuectl localqueue formatted as json str
+    kueuectl localqueue formatted as json string.
   """
   command = 'kubectl kueue list localqueue -o json'
   return_code, val = run_command_for_value(command, 'list localqueue', args)
@@ -208,7 +208,7 @@ def run_kueuectl_list_clusterqueue(args: Namespace) -> str:
     args: user provided arguments for running the command.
 
   Returns:
-    kueuectl localqueue formatted as json str
+    kueuectl localqueue formatted as json string
   """
   command = 'kubectl kueue list clusterqueue -o json'
   return_code, val = run_command_for_value(command, 'list clusterqueue', args)

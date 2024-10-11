@@ -19,7 +19,7 @@ from .common import add_shared_arguments
 import argparse
 
 
-def set_info_parser(info_parser: argparse.ArgumentParser):
+def set_info_parser(info_parser: argparse.ArgumentParser) -> None:
   info_required_arguments = info_parser.add_argument_group(
       'Required Arguments', 'Arguments required for info.'
   )
@@ -32,18 +32,7 @@ def set_info_parser(info_parser: argparse.ArgumentParser):
       type=str,
       default=None,
       help='Cluster to which command applies.',
-  )
-
-  info_required_arguments.add_argument(
-      '--localqueue',
-      action='store_true',
-      help='Print info about localqueue',
-  )
-
-  info_required_arguments.add_argument(
-      '--clusterqueue',
-      action='store_true',
-      help='Print info about clusterqueue',
+      required=True,
   )
 
   add_shared_arguments(info_optional_arguments)

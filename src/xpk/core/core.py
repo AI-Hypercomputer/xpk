@@ -1739,11 +1739,14 @@ def get_gke_node_pool_version(
     # Select minimum version which is >= master_gke_version and has the same minor version.
     # If this does not exist select maximum version which is < master_gke_version.
     for version in gke_server_config.valid_versions:
-      if (((
-               node_pool_gke_version == '' or node_pool_gke_version < version) and version < master_gke_version) or
-          ((node_pool_gke_version == '' or node_pool_gke_version > version) and
-           master_gke_version <= version and master_gke_version.split('.')[
-                                             :2] == version.split('.')[:2])):
+      if (
+          (node_pool_gke_version == '' or node_pool_gke_version < version)
+          and version < master_gke_version
+      ) or (
+          (node_pool_gke_version == '' or node_pool_gke_version > version)
+          and master_gke_version <= version
+          and master_gke_version.split('.')[:2] == version.split('.')[:2]
+      ):
         node_pool_gke_version = version
 
   is_supported_node_pool_version = (

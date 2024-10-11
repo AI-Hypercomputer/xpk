@@ -63,6 +63,7 @@ from ..core.pathways import (
     get_user_workload_for_pathways,
 )
 from ..core.storage import (
+    GCS_FUSE_TYPE,
     XPK_SA,
     Storage,
     add_bucket_iam_members,
@@ -70,7 +71,7 @@ from ..core.storage import (
     get_storage_volume_mounts_yaml_for_gpu,
     get_storage_volumes_yaml,
     get_storage_volumes_yaml_for_gpu,
-    get_storages,
+    get_storages_to_mount,
 )
 from ..core.system_characteristics import (
     AcceleratorType,
@@ -104,7 +105,7 @@ spec:
               labels:
                 xpk.google.com/workload: {args.workload}
               annotations:
-                {gcs_fuse_annotation}
+                {storage_annotations}
             spec:
               schedulerName: {args.scheduler}
               restartPolicy: Never
@@ -141,7 +142,7 @@ spec:
       template:
         metadata:
           annotations:
-            {gcs_fuse_annotation}
+            {storage_annotations}
         spec:
           parallelism: {args.num_nodes}
           completions: {args.num_nodes}
@@ -218,7 +219,7 @@ spec:
         template:
           metadata:
             annotations:
-              {gcs_fuse_annotation}
+              {storage_annotations}
           spec:
             terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
             serviceAccountName: {service_account}
@@ -434,15 +435,18 @@ def workload_create(args) -> None:
     if return_code != 0:
       xpk_exit(return_code)
 
-  storages: list[Storage] = get_storages(k8s_api_client, args.storage)
-  gcs_fuse_annotation = ''
+  storages: list[Storage] = get_storages_to_mount(k8s_api_client, args.storage)
+  gcs_fuse_storages = list(
+      filter(lambda storage: storage.type == GCS_FUSE_TYPE, storages)
+  )
+  storage_annotations = ''
   service_account = ''
-  if len(storages) > 0:
-    gcs_fuse_annotation = GCS_FUSE_ANNOTATION
+  if len(gcs_fuse_storages) > 0:
+    storage_annotations = GCS_FUSE_ANNOTATION
     service_account = XPK_SA
-    xpk_print(f'Detected Storages to add: {storages}')
+    xpk_print(f'Detected gcsfuse Storages to add: {gcs_fuse_storages}')
   else:
-    xpk_print('No Storages to add detected')
+    xpk_print('No gcsfuse Storages to add detected')
 
   # Create the workload file based on accelerator type or workload type.
   if system.accelerator_type == AcceleratorType['GPU']:
@@ -465,10 +469,12 @@ def workload_create(args) -> None:
         gpu_rxdm_image=get_gpu_rxdm_image(system),
         gpu_rxdm_cmd=get_gpu_rxdm_cmd(system),
         gpu_tcp_volume=get_gpu_tcp_volume(system),
-        storage_volumes=get_storage_volumes_yaml_for_gpu(storages),
-        storage_volume_mounts=get_storage_volume_mounts_yaml_for_gpu(storages),
-        gcs_fuse_annotation=gcs_fuse_annotation,
-        service_account=XPK_SA,
+        storage_volumes=get_storage_volumes_yaml_for_gpu(gcs_fuse_storages),
+        storage_volume_mounts=get_storage_volume_mounts_yaml_for_gpu(
+            gcs_fuse_storages
+        ),
+        storage_annotations=storage_annotations,
+        service_account=service_account,
     )
   elif args.use_pathways and ensure_pathways_workload_prerequisites(
       args, system
@@ -490,10 +496,10 @@ def workload_create(args) -> None:
         local_queue_name=LOCAL_QUEUE_NAME,
         autoprovisioning_args=autoprovisioning_args,
         backoff_limit=system.vms_per_slice * 4,
-        gcs_fuse_annotation=gcs_fuse_annotation,
-        storage_volumes=get_storage_volumes_yaml(storages),
-        storage_volume_mounts=get_storage_volume_mounts_yaml(storages),
-        service_account=XPK_SA,
+        storage_annotations=storage_annotations,
+        storage_volumes=get_storage_volumes_yaml(gcs_fuse_storages),
+        storage_volume_mounts=get_storage_volume_mounts_yaml(gcs_fuse_storages),
+        service_account=service_account,
     )
   else:
     container, debugging_dashboard_id = get_user_workload_container(
@@ -511,7 +517,7 @@ def workload_create(args) -> None:
         local_queue_name=LOCAL_QUEUE_NAME,
         autoprovisioning_args=autoprovisioning_args,
         volumes=get_volumes(args, system),
-        gcs_fuse_annotation=gcs_fuse_annotation,
+        storage_annotations=storage_annotations,
         service_account=service_account,
     )
   tmp = write_tmp_file(yml_string)

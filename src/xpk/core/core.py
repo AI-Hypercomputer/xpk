@@ -55,7 +55,7 @@ from .commands import (
     run_command_with_updates_retry,
     run_commands,
 )
-from .storage import Storage, get_storages
+from .storage import Storage, get_storages_to_mount, GCS_FUSE_TYPE
 from .system_characteristics import (
     AcceleratorType,
     AcceleratorTypeToAcceleratorCharacteristics,
@@ -2589,9 +2589,12 @@ def get_volumes(args, system: SystemCharacteristics) -> str:
               - name: shared-data
               """
 
-  storages: list[Storage] = get_storages(setup_k8s_env(args), args.storage)
+  storages: list[Storage] = get_storages_to_mount(
+      setup_k8s_env(args), args.storage
+  )
   for storage in storages:
-    volumes += f"""- name: {storage.pv}
+    if storage.type == GCS_FUSE_TYPE:
+      volumes += f"""- name: {storage.pv}
                 persistentVolumeClaim:
                   claimName: {storage.pvc}
                   readOnly: {storage.readonly}
@@ -2647,9 +2650,12 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
                   mountPath: /usr/share/workload
                   """
 
-  storages: list[Storage] = get_storages(setup_k8s_env(args), args.storage)
+  storages: list[Storage] = get_storages_to_mount(
+      setup_k8s_env(args), args.storage
+  )
   for storage in storages:
-    volume_mount_yaml += f"""- name: {storage.pv}
+    if storage.type == GCS_FUSE_TYPE:
+      volume_mount_yaml += f"""- name: {storage.pv}
                   mountPath: {storage.mount_point}
                   readOnly: {storage.readonly}
                 """

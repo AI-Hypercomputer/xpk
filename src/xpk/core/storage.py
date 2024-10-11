@@ -404,10 +404,10 @@ def add_bucket_iam_members(args: Namespace, storages: list[Storage]) -> None:
 
     policy.bindings.append({"role": role, "members": {member}})
     bucket.set_iam_policy(policy)
-    print(f"Added {member} with role {role} to {storage.bucket}.")
+    xpk_print(f"Added {member} with role {role} to {storage.bucket}.")
 
 
-def print_storages_for_cluster(storages: list[Storage], cluster: str):
+def print_storages_for_cluster(storages: list[Storage]) -> None:
   """
   Prints in human readable manner a table of Storage resources that belong to the specified cluster.
 

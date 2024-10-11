@@ -31,7 +31,7 @@ from argparse import Namespace
 table_fmt = 'plain'
 
 
-def prepare_kueuectl(args: Namespace) -> int:
+def prepare_kueuectl(args: Namespace):
   """Verify if kueuectl is installed.
   Args:
     args: user provided arguments.
@@ -43,7 +43,6 @@ def prepare_kueuectl(args: Namespace) -> int:
   verify_kueuectl_installed_code = verify_kueuectl_installation(args)
   if verify_kueuectl_installed_code == 0:
     xpk_print('kueuectl installed')
-    return 0
 
   if verify_kueuectl_installed_code != 0:
     xpk_print(
@@ -51,7 +50,7 @@ def prepare_kueuectl(args: Namespace) -> int:
         ' https://kueue.sigs.k8s.io/docs/reference/kubectl-kueue/installation/'
         ' to install kueuectl.'
     )
-    return verify_kueuectl_installed_code
+    xpk_exit(verify_kueuectl_installed_code)
 
 
 def info(args: Namespace) -> None:
@@ -64,31 +63,22 @@ def info(args: Namespace) -> None:
   """
   add_zone_and_project(args)
 
-  shared_flags_error = apply_shared_flags(args)
-  if shared_flags_error != 0:
-    xpk_exit(shared_flags_error)
+  apply_shared_flags(args)
 
   set_cluster_command_code = set_cluster_command(args)
   if set_cluster_command_code != 0:
     xpk_exit(set_cluster_command_code)
 
-  installation_code = prepare_kueuectl(args)
-  if installation_code != 0:
-    xpk_exit(installation_code)
+  prepare_kueuectl(args)
 
-  lq_code, lqs = run_kueuectl_list_localqueue(args)
-  if lq_code != 0:
-    xpk_exit(lq_code)
-
-  cq_code, cqs = run_kueuectl_list_clusterqueue(args)
-  if cq_code != 0:
-    xpk_exit(cq_code)
+  lqs = run_kueuectl_list_localqueue(args)
+  cqs = run_kueuectl_list_clusterqueue(args)
 
   aggregate_results(cqs, lqs)
   return
 
 
-def apply_shared_flags(args: Namespace) -> tuple[int, str]:
+def apply_shared_flags(args: Namespace) -> None:
   """Apply shared flags. It checks --project and --zone
     flags and executes proper gcloud commands if present.
 
@@ -96,7 +86,7 @@ def apply_shared_flags(args: Namespace) -> tuple[int, str]:
     args: user provided args.
 
   Returns:
-    0 if successful and 1 otherwise.
+    None
   """
   if args.project is not None:
     project_cmd = f'gcloud config set project {args.project}'
@@ -109,8 +99,6 @@ def apply_shared_flags(args: Namespace) -> tuple[int, str]:
     return_code, _ = run_command_for_value(zone_cmd, 'set gcloud zone', args)
     if return_code != 0:
       xpk_exit(return_code)
-
-  return 0
 
 
 def aggregate_results(cqs: list[dict], lqs: list[dict]) -> None:
@@ -195,37 +183,37 @@ def get_flavors_usage(
   return usage_fraction
 
 
-def run_kueuectl_list_localqueue(args: Namespace) -> tuple[int, str]:
+def run_kueuectl_list_localqueue(args: Namespace) -> str:
   """Run the kueuectl list localqueue command.
 
   Args:
     args: user provided arguments for running the command.
 
   Returns:
-    0 if successful and 1 otherwise.
+    kueuectl localqueue formatted as json str
   """
   command = 'kubectl kueue list localqueue -o json'
   return_code, val = run_command_for_value(command, 'list localqueue', args)
 
   if return_code != 0:
     xpk_print(f'Cluster info request returned ERROR {return_code}')
-    return 1, ''
-  return 0, val
+    xpk_exit(return_code)
+  return val
 
 
-def run_kueuectl_list_clusterqueue(args: Namespace) -> int:
+def run_kueuectl_list_clusterqueue(args: Namespace) -> str:
   """Run the kueuectl list clusterqueue command.
 
   Args:
     args: user provided arguments for running the command.
 
   Returns:
-    0 if successful and 1 otherwise.
+    kueuectl localqueue formatted as json str
   """
   command = 'kubectl kueue list clusterqueue -o json'
   return_code, val = run_command_for_value(command, 'list clusterqueue', args)
 
   if return_code != 0:
     xpk_print(f'Cluster info request returned ERROR {return_code}')
-    return 1, ''
-  return 0, val
+    xpk_exit(return_code)
+  return val

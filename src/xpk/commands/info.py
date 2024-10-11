@@ -63,11 +63,11 @@ def info(args: Namespace) -> None:
   """
   add_zone_and_project(args)
 
-  apply_shared_flags(args)
-
   set_cluster_command_code = set_cluster_command(args)
   if set_cluster_command_code != 0:
     xpk_exit(set_cluster_command_code)
+
+  apply_shared_flags(args)
 
   prepare_kueuectl(args)
 

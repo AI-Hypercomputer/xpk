@@ -72,7 +72,7 @@ jobs:
       run: |
         echo -e \
         '#!/bin/bash \n
-        echo "Hello world from a test script!"
+        echo "Hello world from a test script!"' \
         > test.sh
     - name: Run a base-docker-image workload
       run: |

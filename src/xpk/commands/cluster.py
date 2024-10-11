@@ -40,7 +40,7 @@ from ..core.core import (
 )
 from ..core.kueue import (
     cluster_preheat_yml,
-    enable_kueue_credentials,
+    install_kueue_crs,
     install_kueue_on_cluster,
 )
 from ..core.nap import enable_autoprovisioning_on_cluster
@@ -157,8 +157,8 @@ def cluster_create(args) -> None:
     if return_code != 0:
       xpk_exit(return_code)
 
-  xpk_print('Enable Kueue Credentials')
-  enable_kueue_credentials_code = enable_kueue_credentials(
+  xpk_print('Install Kueue Custom Resources')
+  enable_kueue_credentials_code = install_kueue_crs(
       args, system, autoprovisioning_config
   )
   if enable_kueue_credentials_code != 0:

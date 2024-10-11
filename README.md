@@ -52,16 +52,16 @@ and the following GPU types:
 and the following CPU types:
 * n2-standard-32
 
-# Permissions needed on Cloud Console:
+# Cloud Console Permissions on the user or service account needed to run XPK:
 
-Artifact Registry Writer
-Compute Admin
-Kubernetes Engine Admin
-Logging Admin
-Monitoring Admin
-Service Account User
-Storage Admin
-Vertex AI Administrator
+* Artifact Registry Writer
+* Compute Admin
+* Kubernetes Engine Admin
+* Logging Admin
+* Monitoring Admin
+* Service Account User
+* Storage Admin
+* Vertex AI Administrator
 
 # Installation
 To install xpk, run the following command:
@@ -988,6 +988,14 @@ gcloud compute machine-types list --zones=$ZONE_LIST
 # Adjust default cpu machine type.
 python3 xpk.py cluster create --default-pool-cpu-machine-type=CPU_TYPE ...
 ```
+
+## Workload creation fails
+
+Some XPK cluster configuration might be missing, if workload creation fails with the below error.
+
+`[XPK] b'error: the server doesn\'t have a resource type "workloads"\n'`
+
+Mitigate this error by re-running your `xpk.py cluster create ...` command, to refresh the cluster configurations.
 
 ## Permission Issues: `requires one of ["permission_name"] permission(s)`.
 

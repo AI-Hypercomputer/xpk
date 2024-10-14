@@ -61,8 +61,6 @@ def info(args: Namespace) -> None:
     None
   """
   add_zone_and_project(args)
-  apply_shared_flags(args)
-
   set_cluster_command_code = set_cluster_command(args)
   if set_cluster_command_code != 0:
     xpk_exit(set_cluster_command_code)
@@ -73,29 +71,6 @@ def info(args: Namespace) -> None:
   cqs = run_kueuectl_list_clusterqueue(args)
 
   aggregate_results(cqs, lqs)
-
-
-def apply_shared_flags(args: Namespace) -> None:
-  """Apply shared flags. It checks --project and --zone
-    flags and executes proper gcloud commands if present.
-
-  Args:
-    args: user provided args.
-
-  Returns:
-    None
-  """
-  if args.project is not None:
-    project_cmd = f'gcloud config set project {args.project}'
-    return_code, _ = run_command_for_value(project_cmd, 'Set gcp project', args)
-    if return_code != 0:
-      xpk_exit(return_code)
-
-  if args.zone is not None:
-    zone_cmd = f'gcloud config set compute/zone {args.zone}'
-    return_code, _ = run_command_for_value(zone_cmd, 'set gcloud zone', args)
-    if return_code != 0:
-      xpk_exit(return_code)
 
 
 def aggregate_results(cqs: list[dict], lqs: list[dict]) -> None:

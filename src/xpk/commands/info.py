@@ -62,12 +62,11 @@ def info(args: Namespace) -> None:
     None
   """
   add_zone_and_project(args)
+  apply_shared_flags(args)
 
   set_cluster_command_code = set_cluster_command(args)
   if set_cluster_command_code != 0:
     xpk_exit(set_cluster_command_code)
-
-  apply_shared_flags(args)
 
   prepare_kueuectl(args)
 
@@ -116,10 +115,12 @@ def aggregate_results(cqs: list[dict], lqs: list[dict]) -> None:
   lq_usages = parse_queue_lists(lq_list)
 
   xpk_print(
-      'Cluster Queues usage \n', tabulate(cq_usages, headers='keys', tablefmt=table_fmt)
+      'Cluster Queues usage \n',
+      tabulate(cq_usages, headers='keys', tablefmt=table_fmt),
   )
   xpk_print(
-      'Local Queues usage \n', tabulate(lq_usages, headers='keys', tablefmt=table_fmt)
+      'Local Queues usage \n',
+      tabulate(lq_usages, headers='keys', tablefmt=table_fmt),
   )
 
 

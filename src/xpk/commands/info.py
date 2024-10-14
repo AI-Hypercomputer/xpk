@@ -111,8 +111,9 @@ def aggregate_results(cqs: list[dict], lqs: list[dict]) -> None:
   cq_list = json.loads(cqs)['items']
   lq_list = json.loads(lqs)['items']
 
-  cq_usages = parse_queue_lists(cq_list, usage_key='flavorsUsage')
-  lq_usages = parse_queue_lists(lq_list)
+  nominalQuotas = get_nominal_quotas(cq_list)
+  cq_usages = parse_queue_lists(cq_list, nominalQuotas)
+  lq_usages = parse_queue_lists(lq_list, nominalQuotas)
 
   xpk_print(
       'Cluster Queues usage \n',
@@ -124,9 +125,32 @@ def aggregate_results(cqs: list[dict], lqs: list[dict]) -> None:
   )
 
 
+def get_nominal_quotas(cqs: list[dict]) -> dict[str, dict[str, str]]:
+  """Get quotas from clusterqueues.
+  This function retrieves how much of resource in each flavor is assigned to cluster queue.
+  Args:
+    - cqs - list of cluster queues.
+  Returns:
+    - dictionary of cluster queues resources quotas in format:
+    {CQ_NAME:{{flavorName:resourceName}:quota}
+  """
+  quotas = {}
+  for cq in cqs:
+    spec = cq['spec']
+    cq_name = cq['metadata']['name']
+    quotas[cq_name] = {}
+    for rg in spec['resourceGroups']:
+      for flavor in rg['flavors']:
+        name = flavor['name']
+        for resource in flavor['resources']:
+          key = f'{name}:{resource["name"]}'
+          quotas[cq_name][key] = resource['nominalQuota']
+  return quotas
+
+
 def parse_queue_lists(
     qs: list[dict],
-    usage_key: Optional[str] = 'flavorUsage',
+    flavor_resource_quotas: dict,
     reservation_key: Optional[str] = 'flavorsReservation',
 ) -> list[dict]:
   qs_usage_list = []
@@ -134,56 +158,74 @@ def parse_queue_lists(
     queue_name = q['metadata']['name']
     q_pending_workloads = q['status']['pendingWorkloads']
     q_admitted_workloads = q['status']['admittedWorkloads']
-    q_flavors_usage = {
+    q_status = {
         'QUEUE': queue_name,
         'ADMITTED_WORKLOADS': q_admitted_workloads,
         'PENDING_WORKLOADS': q_pending_workloads,
     }
-    q_flavors_usage.update(
-        get_flavors_usage(q, usage_field=usage_key, res_field=reservation_key)
+    q_status.update(
+        get_flavors_usage(q, reservation_key, flavor_resource_quotas)
     )
-    qs_usage_list.append(q_flavors_usage)
+    qs_usage_list.append(q_status)
   return qs_usage_list
 
 
+def get_flavors_resources_reservations(
+    cq_name: str, flavors_res: list[dict]
+) -> dict[str, dict[str, str]]:
+  """Get usage of flavors resources.
+  This function parser flavorsReservation section of clusterQueue of LocalQueue.
+  Args:
+    - cq_name - name of ClusterQueue to which flavors belong.
+    - flavors_res - list of reservations made by flavors
+  Returns:
+    Dict containing usage of each resource in flavor for each flavor in cluster or local queue.
+    Dict format: {cq_name: {{flavor:resource}:reservation}}
+  """
+  reservations = {}
+  reservations[cq_name] = {}
+  for flavor_name, flavor_resources_reservation_list in flavors_res.items():
+    for resource in flavor_resources_reservation_list:
+      reservations[cq_name][f'{flavor_name}:{resource["name"]}'] = resource[
+          'total'
+      ]
+
+  return reservations
+
+
 def get_flavors_usage(
-    q_entry: dict, usage_field: str, res_field: str
+    q_entry: dict, res_field: str, flavor_resource_quotas: dict
 ) -> list[dict]:
   """Parse q_entry to retrieve list of each resource usage in flavour.
-
   Args:
     q_entry - single entry into either LocalQueue or ClusterQueue structured as json
-    statusField - either "flavorsReservation" or "flavorsUsage"
+    flavor_resource_quotas - nominalQuota of flavors resource usage for each clusterqueue
   Returns:
     list of dicts where each list entry is in format (key, entry) where:
     - key is flavorName:resourceName
-    - entry is resourceUsage/resourceReservation
+    - entry is flavorResourceReservation/flavorResourceQuota
   """
   status = q_entry['status']
   flavors_res = status[res_field]
-  flavors_usage = status[usage_field]
+  queue_type = q_entry['kind']
 
-  flavors_usage = {
-      flavor['name']: flavor['resources'] for flavor in flavors_usage
-  }
   flavors_res = {flavor['name']: flavor['resources'] for flavor in flavors_res}
   usage_fraction = {}
+  cq_name = (
+      q_entry['metadata']['name']
+      if queue_type == 'ClusterQueue'
+      else q_entry['spec']['clusterQueue']
+  )
 
-  for flavor_name, flavor_resources_usage_list in flavors_usage.items():
-    flavor_resources_reservation_list = flavors_res[flavor_name]
-    flavor_resource_reservation = {
-        resource['name']: resource['total']
-        for resource in flavor_resources_usage_list
-    }
-    flavor_resource_usages = {
-        resource['name']: resource['total']
-        for resource in flavor_resources_reservation_list
-    }
+  reservations = get_flavors_resources_reservations(cq_name, flavors_res)
 
-    for resource_name in flavor_resource_reservation.keys():
-      key = f'{flavor_name}:{resource_name}'
-      usage_fmt = f'{flavor_resource_usages[resource_name]}/{flavor_resource_reservation[resource_name]}'
-      usage_fraction[key] = usage_fmt
+  for cq_name, cq_reservations in reservations.items():
+    cq_nominal_quotas = flavor_resource_quotas[cq_name]
+    for flavor_resource, flavor_resource_quota in cq_nominal_quotas.items():
+      flavor_resource_reservation = cq_reservations[flavor_resource]
+      usage_fraction[flavor_resource] = (
+          f'{flavor_resource_reservation}/{flavor_resource_quota}'
+      )
   return usage_fraction
 
 

@@ -25,7 +25,6 @@ from ..core.core import (
 )
 import json
 from tabulate import tabulate
-from typing import Optional
 from argparse import Namespace
 
 table_fmt = 'plain'
@@ -128,11 +127,12 @@ def aggregate_results(cqs: list[dict], lqs: list[dict]) -> None:
 def get_nominal_quotas(cqs: list[dict]) -> dict[str, dict[str, str]]:
   """Get quotas from clusterqueues.
   This function retrieves how much of resource in each flavor is assigned to cluster queue.
+  It parses flavors of passed cluster queues.
   Args:
     - cqs - list of cluster queues.
   Returns:
     - dictionary of cluster queues resources quotas in format:
-    {CQ_NAME:{{flavorName:resourceName}:quota}
+    {cq_name:{{flavorName:resourceName}:quota}
   """
   quotas = {}
   for cq in cqs:
@@ -151,7 +151,7 @@ def get_nominal_quotas(cqs: list[dict]) -> dict[str, dict[str, str]]:
 def parse_queue_lists(
     qs: list[dict],
     flavor_resource_quotas: dict,
-    reservation_key: Optional[str] = 'flavorsReservation',
+    reservation_key: str = 'flavorsReservation',
 ) -> list[dict]:
   qs_usage_list = []
   for q in qs:

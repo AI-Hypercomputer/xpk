@@ -116,7 +116,10 @@ def aggregate_results(cqs: list[dict], lqs: list[dict]) -> None:
   lq_usages = parse_queue_lists(lq_list)
 
   xpk_print(
-      '\n', tabulate(cq_usages + lq_usages, headers='keys', tablefmt=table_fmt)
+      'Cluster Queues usage \n', tabulate(cq_usages, headers='keys', tablefmt=table_fmt)
+  )
+  xpk_print(
+      'Local Queues usage \n', tabulate(lq_usages, headers='keys', tablefmt=table_fmt)
   )
 
 

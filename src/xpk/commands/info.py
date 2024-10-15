@@ -196,6 +196,7 @@ def get_flavors_usage(
 
   for cq_name, cq_reservations in reservations.items():
     cq_nominal_quotas = flavor_resource_quotas[cq_name]
+
     for flavor_resource, flavor_resource_quota in cq_nominal_quotas.items():
       flavor_resource_reservation = cq_reservations[flavor_resource]
       usage_fraction[flavor_resource] = (

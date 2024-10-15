@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 from argparse import Namespace
-from ..utils import write_tmp_file, xpk_print
+from ..utils import write_tmp_file, xpk_print, xpk_exit
 from .commands import run_command_with_updates_retry, run_command_for_value
 from .core import (
     AutoprovisioningConfig,
@@ -139,6 +139,28 @@ spec:
         name: {cachekey}
         command: [ "sleep", "inf" ]
 """
+
+
+def prepare_kueuectl(args: Namespace) -> None:
+  """Verify if kueuectl is installed.
+  Args:
+    args: user provided arguments.
+  Returns:
+    None
+  """
+  xpk_print('Veryfing kueuectl installation')
+
+  verify_kueuectl_installed_code = verify_kueuectl_installation(args)
+  if verify_kueuectl_installed_code == 0:
+    xpk_print('kueuectl installed')
+
+  if verify_kueuectl_installed_code != 0:
+    xpk_print(
+        'kueuectl not installed. Please follow'
+        ' https://kueue.sigs.k8s.io/docs/reference/kubectl-kueue/installation/'
+        ' to install kueuectl.'
+    )
+    xpk_exit(verify_kueuectl_installed_code)
 
 
 def verify_kueuectl_installation(args: Namespace) -> int:

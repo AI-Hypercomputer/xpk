@@ -67,10 +67,10 @@ and the following CPU types:
 
 xpk uses many tool to provide all neccessary functionalities. User must install following tools:
 
-- python (versions starting from 3.10)
-- gcloud (see [this link](https://cloud.google.com/sdk/gcloud#download_and_install_the) for installation)
-- kubectl (see [this](https://kubernetes.io/docs/tasks/tools/) link for installation.)
-- kueuectl (see [this](https://kueue.sigs.k8s.io/docs/reference/kubectl-kueue/installation/) link for installation.)
+- python >= 3.10 (download from [here](https://www.python.org/downloads/))
+- gcloud (install from [here](https://cloud.google.com/sdk/gcloud#download_and_install_the))
+- kubectl (install from [here](https://kubernetes.io/docs/tasks/tools/))
+- kueuectl (install from [here](https://kueue.sigs.k8s.io/docs/reference/kubectl-kueue/installation/))
 
 # Installation
 To install xpk, run the following command:

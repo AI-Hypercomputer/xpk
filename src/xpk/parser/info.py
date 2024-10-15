@@ -35,7 +35,7 @@ def set_info_parser(info_parser: argparse.ArgumentParser) -> None:
       required=True,
   )
 
-  info_optional_arguments = info_optional_arguments.add_argument(
+  info_optional_arguments.add_argument(
       '--namespace',
       type=str,
       default='',

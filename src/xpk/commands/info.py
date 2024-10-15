@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 from ..utils import xpk_exit, xpk_print
-from ..core.kueue import verify_kueuectl_installation, prepare_kueuectl
+from ..core.kueue import prepare_kueuectl
 from .cluster import set_cluster_command
 from ..core.commands import (
     run_command_for_value,
@@ -47,7 +47,6 @@ def info(args: Namespace) -> None:
 
   lqs = run_kueuectl_list_localqueue(args)
   cqs = run_kueuectl_list_clusterqueue(args)
-
   aggregate_results(cqs, lqs)
 
 
@@ -60,9 +59,19 @@ def aggregate_results(cqs: list[dict], lqs: list[dict]) -> None:
   Returns:
     None
   """
-  cq_list = json.loads(cqs)['items']
-  lq_list = json.loads(lqs)['items']
+  try:
+    cq_list = json.loads(cqs)['items']
+  except ValueError:
+    xpk_print('Incorrect respone from list clusterqueue')
+    xpk_print(cqs)
+    xpk_exit(1)
 
+  try:
+    lq_list = json.loads(lqs)['items']
+  except ValueError:
+    xpk_print('Incorrect respone from list localqueue')
+    xpk_print(lqs)
+    xpk_exit(1)
   nominalQuotas = get_nominal_quotas(cq_list)
   cq_usages = parse_queue_lists(cq_list, nominalQuotas)
   lq_usages = parse_queue_lists(lq_list, nominalQuotas)
@@ -193,7 +202,7 @@ def run_kueuectl_list_localqueue(args: Namespace) -> str:
     kueuectl localqueue formatted as json string.
   """
   command = 'kubectl kueue list localqueue -o json'
-  if args.namespace is not None:
+  if args.namespace != '':
     command += f' --namespace {args.namespace}'
   return_code, val = run_command_for_value(command, 'list localqueue', args)
 
@@ -213,7 +222,7 @@ def run_kueuectl_list_clusterqueue(args: Namespace) -> str:
     kueuectl localqueue formatted as json string
   """
   command = 'kubectl kueue list clusterqueue -o json'
-  if args.namespace is not None:
+  if args.namespace != '':
     command += f' --namespace {args.namespace}'
   return_code, val = run_command_for_value(command, 'list clusterqueue', args)
 

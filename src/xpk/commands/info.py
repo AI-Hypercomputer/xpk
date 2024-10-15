@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 from ..utils import xpk_exit, xpk_print
-from ..core.kueue import verify_kueuectl_installation
+from ..core.kueue import verify_kueuectl_installation, prepare_kueuectl
 from .cluster import set_cluster_command
 from ..core.commands import (
     run_command_for_value,
@@ -28,28 +28,6 @@ from tabulate import tabulate
 from argparse import Namespace
 
 table_fmt = 'plain'
-
-
-def prepare_kueuectl(args: Namespace) -> None:
-  """Verify if kueuectl is installed.
-  Args:
-    args: user provided arguments.
-  Returns:
-    None
-  """
-  xpk_print('Veryfing kueuectl installation')
-
-  verify_kueuectl_installed_code = verify_kueuectl_installation(args)
-  if verify_kueuectl_installed_code == 0:
-    xpk_print('kueuectl installed')
-
-  if verify_kueuectl_installed_code != 0:
-    xpk_print(
-        'kueuectl not installed. Please follow'
-        ' https://kueue.sigs.k8s.io/docs/reference/kubectl-kueue/installation/'
-        ' to install kueuectl.'
-    )
-    xpk_exit(verify_kueuectl_installed_code)
 
 
 def info(args: Namespace) -> None:
@@ -215,6 +193,8 @@ def run_kueuectl_list_localqueue(args: Namespace) -> str:
     kueuectl localqueue formatted as json string.
   """
   command = 'kubectl kueue list localqueue -o json'
+  if args.namespace is not None:
+    command += f' --namespace {args.namespace}'
   return_code, val = run_command_for_value(command, 'list localqueue', args)
 
   if return_code != 0:
@@ -233,6 +213,8 @@ def run_kueuectl_list_clusterqueue(args: Namespace) -> str:
     kueuectl localqueue formatted as json string
   """
   command = 'kubectl kueue list clusterqueue -o json'
+  if args.namespace is not None:
+    command += f' --namespace {args.namespace}'
   return_code, val = run_command_for_value(command, 'list clusterqueue', args)
 
   if return_code != 0:

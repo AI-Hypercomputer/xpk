@@ -201,7 +201,7 @@ def add_zone_and_project(args):
     args.project = get_project()
   if not args.zone:
     args.zone = get_zone()
-  xpk_print(f'Working on {args.project=} and {args.zone}')
+  xpk_print(f'Working on {args.project} and {args.zone}')
 
 
 def parse_env_config(args, tensorboard_config, system: SystemCharacteristics):

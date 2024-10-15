@@ -324,6 +324,9 @@ def workload_create(args) -> None:
   Returns:
     0 if successful and 1 otherwise.
   """
+  add_zone_and_project(args)
+  get_cluster_credentials(args)
+
   if args.headless and not is_cluster_using_clouddns(args):
     xpk_print(
         'Please run xpk cluster create-pathways first, to upgrade and enable'

@@ -19,8 +19,11 @@ from ..utils import xpk_exit, xpk_print
 from .cluster import set_cluster_command
 from ..core.core import (
     add_zone_and_project,
+    setup_k8s_env
 )
 from argparse import Namespace
+from kubernetes import client as k8s_client
+from ..core.job_template import create_job_template_instance
 
 
 def batch(args: Namespace) -> None:
@@ -36,14 +39,27 @@ def batch(args: Namespace) -> None:
   if set_cluster_command_code != 0:
     xpk_exit(set_cluster_command_code)
 
-  prepare_job_manifest(args)
+  k8s_api_client = setup_k8s_env(args)
+  create_job_template(k8s_api_client, args)
+  create_app_profile(args)
+  update_config_map(args)
+  update_volumes(args)
+  submit_job(args)
 
-  apply_job(args)
+
+def create_job_template(k8s_api_client, args: Namespace) -> None:
+  create_job_template_instance(k8s_api_client, args)
+
+def create_app_profile(k8s_api_client, args: Namespace) -> None:
+  create_app_profile_instance(k8s_api_client, args)
+
+def update_config_map(args: Namespace) -> None:
+  pass
 
 
-def prepare_job_manifest(args: Namespace) -> None:
-  
+def update_volumes(args: Namespace) -> None:
+  pass
 
 
-def apply_job(args: Namespace) -> None:
+def submit_job(args: Namespace) -> None:
   pass

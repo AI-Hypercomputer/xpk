@@ -1,0 +1,10 @@
+apiVersion: kjobctl.x-k8s.io/v1alpha1
+kind: ApplicationProfile
+metadata:
+  name: slurm-profile
+  namespace: default
+spec:
+  supportedModes:
+    - name: Slurm
+      template: sample-slurm-template
+      requiredFlags: []

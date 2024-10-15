@@ -199,7 +199,7 @@ def run_kueuectl_list_localqueue(args: Namespace) -> str:
     args: user provided arguments for running the command.
 
   Returns:
-    kueuectl localqueue formatted as json string.
+    kueuectl list localqueue formatted as json string.
   """
   command = 'kubectl kueue list localqueue -o json'
   if args.namespace != '':
@@ -219,11 +219,10 @@ def run_kueuectl_list_clusterqueue(args: Namespace) -> str:
     args: user provided arguments for running the command.
 
   Returns:
-    kueuectl localqueue formatted as json string
+    kueuectl list clusterqueue formatted as json string
   """
   command = 'kubectl kueue list clusterqueue -o json'
-  if args.namespace != '':
-    command += f' --namespace {args.namespace}'
+
   return_code, val = run_command_for_value(command, 'list clusterqueue', args)
 
   if return_code != 0:

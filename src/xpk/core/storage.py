@@ -181,7 +181,36 @@ def get_auto_mount_storages(k8s_api_client: ApiClient) -> list[Storage]:
   return auto_mount_storages
 
 
-def get_storages(k8s_api_client: ApiClient, names: list[str]) -> list[Storage]:
+def get_storages(
+    k8s_api_client: ApiClient, requested_storages: list[str]
+) -> list[Storage]:
+  """
+  Retrieves a list of Storage resources by their names.
+
+  Args:
+      k8s_api_client: An ApiClient object for interacting with the Kubernetes API.
+      names: A list of Storage resource names to retrieve.
+
+  Returns:
+      A list of Storage objects matching the given names.
+  """
+  storages: list[Storage] = []
+  all_storages = list_storages(k8s_api_client)
+  for storage in requested_storages:
+    if storage in all_storages:
+      storages.append(storage)
+    else:
+      xpk_print(
+          f"Storage: {storage} not found. Choose one of the available storages:"
+          f" {all_storages}"
+      )
+      xpk_exit(1)
+  return storages
+
+
+def get_storages_to_mount(
+    k8s_api_client: ApiClient, requested_storages: list[str]
+) -> list[Storage]:
   """
   Retrieves a list of Storage resources by their names, including auto-mounted storages.
 
@@ -192,14 +221,10 @@ def get_storages(k8s_api_client: ApiClient, names: list[str]) -> list[Storage]:
   Returns:
       A list of Storage objects matching the given names and any auto-mounted storages.
   """
-  storages: list[Storage] = []
-  for storage in list_storages(k8s_api_client):
-    if storage.name in names:
-      storages.append(storage)
-
+  storages = get_storages(k8s_api_client, requested_storages)
   for auto_mounted_stg in get_auto_mount_storages(k8s_api_client):
     # prevent duplicating storages
-    if auto_mounted_stg.name not in names:
+    if auto_mounted_stg.name not in requested_storages:
       storages.append(auto_mounted_stg)
 
   return storages

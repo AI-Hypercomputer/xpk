@@ -17,7 +17,7 @@ limitations under the License.
 from argparse import Namespace
 
 from kubernetes import client as k8s_client
-from kubernetes.client.exceptions import ApiException
+from kubernetes.client.rest import ApiException
 
 from ..core.core import (
     setup_k8s_env,
@@ -59,25 +59,54 @@ def storage_list(args: Namespace) -> None:
   print_storages_for_cluster(storages, args.cluster)
 
 
+def delete_resource(api_call, resource_name: str, resource_kind: str) -> None:
+  """
+  Deletes a Kubernetes resource and handles potential API exceptions.
+
+  Args:
+    api_call: The function to call for deleting the resource.
+    resource_name: The name of the resource to delete.
+    resource_type: The type of the resource (e.g., "Persistent Volume Claim").
+  """
+  xpk_print(f"Deleting {resource_kind}:{resource_name}")
+  try:
+    api_call(resource_name)
+  except ApiException as e:
+    if e.status == 404:
+      xpk_print(
+          f"{resource_kind}: {resource_name} not found. "
+          f"Might be already deleted. Error: {e}"
+      )
+      return
+    else:
+      xpk_print(f"Encountered error during {resource_kind} deletion: {e}")
+      xpk_exit(1)
+  xpk_print(f"Deleted {resource_kind}:{resource_name}")
+
+
 def storage_delete(args: Namespace) -> None:
   k8s_api_client = setup_k8s_env(args)
   install_storage_crd(k8s_api_client)
   api_instance = k8s_client.CustomObjectsApi(k8s_api_client)
   core_api = k8s_client.CoreV1Api()
-  try:
-    storage = get_storage(k8s_api_client, args.name)
-    core_api.delete_namespaced_persistent_volume_claim(storage.pvc, "default")
-    core_api.delete_persistent_volume(storage.pv)
-
-    api_instance.delete_cluster_custom_object(
-        name=args.name,
-        group=XPK_API_GROUP_NAME,
-        version=XPK_API_GROUP_VERSION,
-        plural=STORAGE_CRD_KIND.lower() + "s",
-    )
-  except ApiException as e:
-    if e.status == 404:
-      xpk_print(f"Storage: {args.name} not found. Might be already deleted.")
-    else:
-      xpk_print(f"Encountered error during storage deletion: {e}")
-      xpk_exit(1)
+  storage = get_storage(k8s_api_client, args.name)
+  delete_resource(
+      lambda name: core_api.delete_namespaced_persistent_volume_claim(
+          name, "default"
+      ),
+      storage.pvc,
+      "Persistent Volume Claim",
+  )
+  delete_resource(
+      core_api.delete_persistent_volume, storage.pv, "Persistent Volume"
+  )
+  delete_resource(
+      lambda name: api_instance.delete_cluster_custom_object(
+          name=name,
+          group=XPK_API_GROUP_NAME,
+          version=XPK_API_GROUP_VERSION,
+          plural=STORAGE_CRD_KIND.lower() + "s",
+      ),
+      args.name,
+      "Storage",
+  )

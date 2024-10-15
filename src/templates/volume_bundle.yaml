@@ -1,0 +1,19 @@
+apiVersion: kjobctl.x-k8s.io/v1alpha1
+kind: VolumeBundle
+metadata:
+  name: slurm-volume-bundle
+  namespace: default
+spec:
+  volumes:
+    - name: slurm-code-sample
+      configMap:
+        name: slurm-code-sample
+        items:
+          - key: sample_code.py
+            path: sample_code.py
+  containerVolumeMounts:
+    - name: slurm-code-sample
+      mountPath: /home/slurm/samples
+  envVars:
+    - name: ENTRYPOINT_PATH
+      value: /home/slurm/samples

@@ -1,0 +1,16 @@
+apiVersion: 
+kind: 
+metadata:
+  name: 
+  namespace: 
+template:
+  spec:
+    parallelism: 
+    completions: 
+    completionMode: 
+    template:
+      spec:
+        containers:
+          - name: 
+            image:
+        restartPolicy: 

@@ -195,6 +195,14 @@ spec:
         template:
           spec:
             terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
+            initContainers:
+            - args:
+              - bash
+              - preflight.sh
+              image: {args.docker_image}
+              name: preflight
+              securityContext:
+                privileged: true
             containers:
             - args:
               {pathways_worker_args}
@@ -237,6 +245,14 @@ spec:
         parallelism: 1
         template:
           spec:
+            initContainers:
+            - args:
+              - bash
+              - preflight.sh
+              image: {args.docker_image}
+              name: preflight
+              securityContext:
+                privileged: true
             containers:
             - args:
               {pathways_rm_args}
@@ -284,6 +300,14 @@ spec:
         parallelism: 1
         template:
           spec:
+            initContainers:
+            - args:
+              - bash
+              - preflight.sh
+              image: {args.docker_image}
+              name: preflight
+              securityContext:
+                privileged: true
             containers:
             - args:
               {pathways_proxy_args}

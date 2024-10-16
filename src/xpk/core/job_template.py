@@ -17,14 +17,10 @@ from dataclasses import dataclass
 
 import yaml
 from kubernetes import client as k8s_client
-from kubernetes import utils
 from kubernetes.client import ApiClient
 from kubernetes.client.exceptions import ApiException
-from kubernetes.client.models.v1_persistent_volume import V1PersistentVolume
-from kubernetes.utils import FailToCreateError
-from tabulate import tabulate
-
-from ..utils import xpk_exit, xpk_print
+from ..utils import xpk_exit, xpk_print, write_tmp_file
+from .commands import run_command_with_updates
 
 JOB_TEMPLATE_PATH = "/../templates/slurm_job.yaml"
 JOB_TEMPLATE_DEFAULT_NAME = "xpk-def-batch"
@@ -35,13 +31,23 @@ JOB_TEMPLATE_DEFAULT_CONT_NAME = "xpk-container"
 JOB_TEMPLATE_DEFAULT_IMG = "ubuntu:22.04"
 JOB_TEMPLATE_DEFAULT_RESTART_POLICY = "OnFailure"
 
-XPK_SA = "xpk-sa"
-STORAGE_CRD_PATH = "/../api/storage_crd.yaml"
-STORAGE_TEMPLATE_PATH = "/../templates/storage.yaml"
-STORAGE_CRD_NAME = "storages.xpk.x-k8s.io"
-STORAGE_CRD_KIND = "Storage"
-XPK_API_GROUP_NAME = "xpk.x-k8s.io"
-XPK_API_GROUP_VERSION = "v1"
+job_template_yaml = """
+  apiVersion: kjobctl.x-k8s.io/v1alpha1
+  kind: JobTemplate
+  metadata:
+    name: {name}
+    namespace: default
+  template:
+    spec:
+      parallelism: {parallelism}
+      completions: {completions}
+      completionMode: Indexed
+      template:
+        spec:
+          containers:
+            - name: {container}
+              image: {image}
+          restartPolicy: OnFailure"""
 
 
 @dataclass
@@ -54,32 +60,16 @@ class JobTemplate:
 def create_job_template_instance(
     k8s_api_client: ApiClient, args: Namespace
 ) -> None:
-  abs_path = f"{os.path.dirname(__file__)}{JOB_TEMPLATE_PATH}"
-  with open(abs_path, "r", encoding="utf-8") as file:
-    data = yaml.safe_load(file)
-
-  data["metadata"]["name"] = JOB_TEMPLATE_DEFAULT_NAME
-  spec = data["template"]["spec"]
-  spec["parallelism"] = JOB_TEMPLATE_DEFAULT_PARALLELISM
-  spec["completions"] = JOB_TEMPLATE_DEFAULT_COMPLETIONS
-  spec["completionMode"] = JOB_TEMPLATE_DEFAULT_COMPLETION_MODE
-  spec_template = spec["template"]["spec"]
-  spec_template["containers"]["name"] = JOB_TEMPLATE_DEFAULT_CONT_NAME
-  spec_template["containers"]["image"] = JOB_TEMPLATE_DEFAULT_IMG
-  spec_template["restartPolicy"] = JOB_TEMPLATE_DEFAULT_RESTART_POLICY
-
-  api_instance = k8s_client.CustomObjectsApi(k8s_api_client)
-  xpk_print(f"Creating a new JobTemplate: {args.name}")
-  try:
-    api_instance.create_cluster_custom_object(
-        group=XPK_API_GROUP_NAME, version=XPK_API_GROUP_VERSION, body=data
-    )
-  except ApiException as e:
-    if e.status == 409:
-      xpk_print(
-          f"JobTemplate: {JOB_TEMPLATE_DEFAULT_NAME} already exists. Skipping"
-          " its creation"
-      )
-    else:
-      xpk_print(f"Encountered error during jobTemplate creation: {e}")
-      xpk_exit(1)
+  yml_string = job_template_yaml.format(
+      name=JOB_TEMPLATE_DEFAULT_NAME,
+      parallelism=JOB_TEMPLATE_DEFAULT_PARALLELISM,
+      completions=JOB_TEMPLATE_DEFAULT_COMPLETIONS,
+      container=JOB_TEMPLATE_DEFAULT_CONT_NAME,
+      image=JOB_TEMPLATE_DEFAULT_IMG,
+  )
+  print(yml_string)
+  tmp = write_tmp_file(yml_string)
+  command = f"kubectl apply -f {str(tmp.file.name)}"
+  return_code = run_command_with_updates(command, "Creating JobTemplate", args)
+  if return_code != 0:
+    xpk_exit(return_code)

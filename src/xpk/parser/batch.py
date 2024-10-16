@@ -27,9 +27,14 @@ def set_batch_parser(batch_parser):
   )
 
   ### "batch" Required arguments
-
   batch_required_arguments.add_argument(
       'script', help='script with batch task to run'
+  )
+  batch_optional_arguments.add_argument(
+      '--cluster',
+      type=str,
+      default=None,
+      help='Cluster to which command applies.',
   )
   batch_required_arguments.add_argument('script_args', nargs='*')
   add_shared_arguments(batch_optional_arguments)

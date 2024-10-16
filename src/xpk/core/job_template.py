@@ -11,15 +11,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import os
 from argparse import Namespace
 from dataclasses import dataclass
 
-import yaml
-from kubernetes import client as k8s_client
-from kubernetes.client import ApiClient
-from kubernetes.client.exceptions import ApiException
-from ..utils import xpk_exit, xpk_print, write_tmp_file
+from ..utils import xpk_exit, write_tmp_file
 from .commands import run_command_with_updates
 
 JOB_TEMPLATE_PATH = "/../templates/slurm_job.yaml"
@@ -57,9 +52,7 @@ class JobTemplate:
   """
 
 
-def create_job_template_instance(
-    k8s_api_client: ApiClient, args: Namespace
-) -> None:
+def create_job_template_instance(args: Namespace) -> None:
   yml_string = job_template_yaml.format(
       name=JOB_TEMPLATE_DEFAULT_NAME,
       parallelism=JOB_TEMPLATE_DEFAULT_PARALLELISM,

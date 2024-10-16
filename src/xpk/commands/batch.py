@@ -17,9 +17,7 @@ limitations under the License.
 from argparse import Namespace
 from ..utils import xpk_exit, xpk_print
 from .cluster import set_cluster_command
-from ..core.core import (add_zone_and_project, setup_k8s_env)
-from argparse import Namespace
-from kubernetes import client as k8s_client
+from ..core.core import add_zone_and_project
 from ..core.job_template import create_job_template_instance
 from ..core.app_profile import create_app_profile_instance
 from ..core.app_profile import APP_PROFILE_TEMPLATE_DEFAULT_NAME
@@ -41,26 +39,19 @@ def batch(args: Namespace) -> None:
   if set_cluster_command_code != 0:
     xpk_exit(set_cluster_command_code)
 
-  k8s_api_client = setup_k8s_env(args)
-  create_job_template(k8s_api_client, args)
-  create_app_profile(k8s_api_client, args)
+  create_job_template_instance(args)
+  create_app_profile_instance(args)
   submit_job(args)
-
-
-def create_job_template(k8s_api_client, args: Namespace) -> None:
-  create_job_template_instance(k8s_api_client, args)
-
-
-def create_app_profile(k8s_api_client, args: Namespace) -> None:
-  create_app_profile_instance(k8s_api_client, args)
 
 
 def submit_job(args: Namespace) -> None:
   cmd = (
       'kubectl-kjob create slurm --profile'
       f' {APP_PROFILE_TEMPLATE_DEFAULT_NAME} --'
-      f' {args.script} {args.script_args}'
+      f' {args.script}'
   )
+  if len(args.script_args) != 0:
+    cmd += f'{args.script_args}'
   return_code, val = run_command_for_value(cmd, 'submit job', args)
 
   if return_code != 0:

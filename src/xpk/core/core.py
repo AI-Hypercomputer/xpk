@@ -40,12 +40,6 @@ import string
 import subprocess
 import sys
 from dataclasses import dataclass
-from argparse import Namespace
-from google.api_core.exceptions import PermissionDenied
-from google.cloud import resourcemanager_v3
-from kubernetes import client as k8s_client
-from kubernetes import config
-
 from ..utils import get_user_input, write_tmp_file, xpk_exit, xpk_print
 from .commands import (
     run_command_for_value,
@@ -335,55 +329,6 @@ def get_total_chips_requested_from_args(
     num_chips = system.vms_per_slice * system.chips_per_vm * args.num_slices
 
   return num_chips
-
-
-def project_id_to_project_number(project_id: str) -> str:
-  client = resourcemanager_v3.ProjectsClient()
-  request = resourcemanager_v3.GetProjectRequest()
-  request.name = f'projects/{project_id}'
-  try:
-    response: resourcemanager_v3.Project = client.get_project(request=request)
-  except PermissionDenied as e:
-    xpk_print(
-        f"Couldn't translate project id: {project_id} to project number."
-        f' Error: {e}'
-    )
-    xpk_exit(1)
-  parts = response.name.split('/', 1)
-  xpk_print(f'Project number for project: {project_id} is {parts[1]}')
-  return parts[1]
-
-
-def get_cluster_credentials(args: Namespace) -> None:
-  """Run cluster configuration command to set the kubectl config.
-  Args:
-    args: user provided arguments for running the command.
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  command = (
-      'gcloud container clusters get-credentials'
-      f' {args.cluster} --region={zone_to_region(args.zone)}'
-      f' --project={args.project} &&'
-      ' kubectl config view && kubectl config set-context --current'
-      ' --namespace=default'
-  )
-  task = f'get-credentials to cluster {args.cluster}'
-  return_code = run_command_with_updates_retry(
-      command, task, args, verbose=False
-  )
-  if return_code != 0:
-    xpk_print(f'{task} returned ERROR {return_code}')
-    xpk_exit(return_code)
-
-
-def setup_k8s_env(args: Namespace) -> k8s_client.ApiClient:
-  add_zone_and_project(args)
-  get_cluster_credentials(args)
-  args.project_number = project_id_to_project_number(args.project)
-
-  config.load_kube_config()
-  return k8s_client.ApiClient()
 
 
 def update_gke_cluster_with_clouddns(args) -> int:

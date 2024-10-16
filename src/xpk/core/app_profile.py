@@ -42,7 +42,7 @@ def create_app_profile_instance(args: Namespace) -> None:
       name=APP_PROFILE_TEMPLATE_DEFAULT_NAME,
       template=JOB_TEMPLATE_DEFAULT_NAME,
   )
-  print(yml_string)
+
   tmp = write_tmp_file(yml_string)
   command = f"kubectl apply -f {str(tmp.file.name)}"
   return_code = run_command_with_updates(command, "Creating AppProfile", args)

@@ -57,4 +57,4 @@ def submit_job(args: Namespace) -> None:
   if return_code != 0:
     xpk_print(f'Cluster info request returned ERROR {return_code}')
     xpk_exit(return_code)
-  print(val)
+

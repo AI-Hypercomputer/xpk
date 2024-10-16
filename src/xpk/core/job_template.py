@@ -24,7 +24,6 @@ JOB_TEMPLATE_DEFAULT_COMPLETIONS = 1
 JOB_TEMPLATE_DEFAULT_COMPLETION_MODE = "Indexed"
 JOB_TEMPLATE_DEFAULT_CONT_NAME = "xpk-container"
 JOB_TEMPLATE_DEFAULT_IMG = "ubuntu:22.04"
-JOB_TEMPLATE_DEFAULT_RESTART_POLICY = "OnFailure"
 
 job_template_yaml = """
   apiVersion: kjobctl.x-k8s.io/v1alpha1

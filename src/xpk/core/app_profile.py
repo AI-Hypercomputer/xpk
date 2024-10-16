@@ -21,20 +21,7 @@ APP_PROFILE_TEMPLATE_PATH = (
     "/usr/local/google/home/ppawl/xpk_code/xpk/src/templates/app_profile.yaml"
 )
 APP_PROFILE_TEMPLATE_DEFAULT_NAME = "xpk-def-app-profile"
-APP_PROFILE_TEMPLATE_DEFAULT_PARALLELISM = 1
-APP_PROFILE_TEMPLATE_DEFAULT_COMPLETIONS = 1
-APP_PROFILE_TEMPLATE_DEFAULT_COMPLETION_MODE = "Indexed"
-APP_PROFILE_TEMPLATE_DEFAULT_CONT_NAME = "xpk-container"
-APP_PROFILE_TEMPLATE_DEFAULT_IMG = "ubuntu:22.04"
-APP_PROFILE_TEMPLATE_DEFAULT_RESTART_POLICY = "OnFailure"
 APP_PROFILE_TEMPLATE_MODE_NAME = "Slurm"
-APP_PROFILE_TEMPLATE_NAMESPACE = "default"
-
-KJOB_GROUP_NAME = "kjobctl.x-k8s.io"
-KJOB_API_VERSION = "v1alpha1"
-
-
-APP_PROFILE_CRD_KIND = "AppProfile"
 
 app_profile_yaml = """
 apiVersion: kjobctl.x-k8s.io/v1alpha1

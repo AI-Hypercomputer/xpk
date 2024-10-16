@@ -195,6 +195,14 @@ spec:
         template:
           spec:
             terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
+            initContainers:
+            - args:
+              - bash
+              - preflight.sh
+              image: {args.docker_image}
+              name: preflight
+              securityContext:
+                privileged: true
             containers:
             - args:
               {pathways_worker_args}
@@ -218,6 +226,8 @@ spec:
               {machine_label}
               {autoprovisioning_args}
             priorityClassName: {args.priority}
+            hostNetwork: true
+            dnsPolicy: ClusterFirstWithHostNet
             volumes:
             - hostPath:
                 path: /tmp
@@ -235,6 +245,14 @@ spec:
         parallelism: 1
         template:
           spec:
+            initContainers:
+            - args:
+              - bash
+              - preflight.sh
+              image: {args.docker_image}
+              name: preflight
+              securityContext:
+                privileged: true
             containers:
             - args:
               {pathways_rm_args}
@@ -256,10 +274,6 @@ spec:
               name: pathways-rm
               ports:
               - containerPort: 38677
-              resources:
-                limits:
-                  cpu: "4"
-                  memory: 8G
               securityContext:
                 privileged: true
               volumeMounts:
@@ -267,6 +281,8 @@ spec:
                 name: shared-tmp
             nodeSelector:
               cloud.google.com/gke-nodepool: cpu-rm-np
+            hostNetwork: true
+            dnsPolicy: ClusterFirstWithHostNet
             volumes:
             - hostPath:
                 path: /tmp
@@ -284,6 +300,14 @@ spec:
         parallelism: 1
         template:
           spec:
+            initContainers:
+            - args:
+              - bash
+              - preflight.sh
+              image: {args.docker_image}
+              name: preflight
+              securityContext:
+                privileged: true
             containers:
             - args:
               {pathways_proxy_args}
@@ -292,10 +316,8 @@ spec:
               name: pathways-proxy
               ports:
               - containerPort: 38676
-              resources:
-                limits:
-                  cpu: "24"
-                  memory: 100G
+            hostNetwork: true
+            dnsPolicy: ClusterFirstWithHostNet
             nodeSelector:
               cloud.google.com/gke-nodepool: cpu-proxy-np
   {user_workload}

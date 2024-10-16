@@ -18,12 +18,14 @@ from ..utils import write_tmp_file, xpk_print
 from .commands import run_command_with_updates_retry
 
 
+RAY_VERSION = '2.34.0'
+
 ray_cluster_crd_yaml = """apiVersion: ray.io/v1
 kind: RayCluster
 metadata:
   name: raycluster
 spec:
-  rayVersion: '2.34.0'
+  rayVersion: '{version}'
   headGroupSpec:
     rayStartParams: {{}}
     #pod template
@@ -31,7 +33,7 @@ spec:
       spec:
         containers:
         - name: ray-head
-          image: rayproject/ray:2.34.0
+          image: rayproject/ray:{version}
           resources:
             limits:
               cpu: 1
@@ -47,7 +49,7 @@ spec:
           - containerPort: 10001
             name: client
   workerGroupSpecs:
-    - replicas: {replicas}
+    - replicas: {replicas} # TODO: Set min and max replicas
       numOfHosts: {num_hosts}
       minReplicas: {replicas}
       maxReplicas: {replicas}
@@ -58,7 +60,7 @@ spec:
         spec:
           containers:
             - name: ray-worker
-              image: rayproject/ray:2.34.0
+              image: rayproject/ray:{version}
               resources:
                 limits:
                   cpu: 1
@@ -98,6 +100,7 @@ def install_ray_cluster(args, system) -> int:
       chips_per_vm=system.chips_per_vm,
       num_hosts=system.vms_per_slice,
       replicas=args.num_slices,
+      version=RAY_VERSION,
   )
 
   tmp = write_tmp_file(yml_string)

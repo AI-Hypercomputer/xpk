@@ -1,5 +1,5 @@
-apiVersion: 
-kind: 
+apiVersion: kjobctl.x-k8s.io/v1alpha1
+kind: JobTemplate
 metadata:
   name: 
   namespace: 

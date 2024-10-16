@@ -59,7 +59,7 @@ def create_job_template_instance(args: Namespace) -> None:
       container=JOB_TEMPLATE_DEFAULT_CONT_NAME,
       image=JOB_TEMPLATE_DEFAULT_IMG,
   )
-  print(yml_string)
+
   tmp = write_tmp_file(yml_string)
   command = f"kubectl apply -f {str(tmp.file.name)}"
   return_code = run_command_with_updates(command, "Creating JobTemplate", args)

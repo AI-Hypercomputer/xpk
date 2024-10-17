@@ -202,7 +202,7 @@ spec:
               imagePullPolicy: Always
               name: pathways-worker
               ports:
-              - containerPort: 38677
+              - containerPort: 29001
               - containerPort: 8471
               - containerPort: 8080
               resources:
@@ -257,7 +257,7 @@ spec:
               imagePullPolicy: Always
               name: pathways-rm
               ports:
-              - containerPort: 38677
+              - containerPort: 29001
               securityContext:
                 privileged: true
               volumeMounts:
@@ -291,7 +291,7 @@ spec:
               imagePullPolicy: Always
               name: pathways-proxy
               ports:
-              - containerPort: 38676
+              - containerPort: 29000
             hostNetwork: true
             dnsPolicy: ClusterFirstWithHostNet
             nodeSelector:

@@ -36,7 +36,6 @@ def set_batch_parser(batch_parser):
       default=None,
       help='Cluster to which command applies.',
   )
-  batch_required_arguments.add_argument('script_args', nargs='*')
   add_shared_arguments(batch_optional_arguments)
 
   batch_parser.set_defaults(func=batch)

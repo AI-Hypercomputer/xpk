@@ -44,6 +44,10 @@ jobs:
       with:
         version: '>= 363.0.0'
         install_components: 'beta,gke-gcloud-auth-plugin'
+    - name: Generate random seed
+      run: |
+        RANDOM_SEED=$((RANDOM % 10000))  # Generate a random number between 0 and 9999
+        echo "RANDOM_SEED=$RANDOM_SEED" >> $GITHUB_ENV
     - name: Verify gcp setup
       run: gcloud info
     - name: Set Google Cloud CLI properties to a unused zone to verify --zone arg is passed properly in commands.
@@ -72,7 +76,8 @@ jobs:
       run: |
         echo -e \
         '#!/bin/bash \n
-        echo "Hello world from a test script!"' \
+        echo "Hello world from a test script!"
+        cd ~/../test-mount-point && echo "Hello world from a Github Action CI/CD test script!" > '$RANDOM_SEED'.txt' \
         > test.sh
     - name: Run a base-docker-image workload
       run: |
@@ -87,6 +92,10 @@ jobs:
         python3 xpk.py workload create-pathways --cluster $TPU_CLUSTER_NAME --workload $PATHWAYS_WORKLOAD_NAME \
         --docker-image='marketplace.gcr.io/google/ubuntu2004' --tpu-type=v4-8 --num-slices=2 --zone=us-central2-b \
         --command "echo \"Hello world from a test script! \""
+    - name: Verify if the file was created in the GCS bucket
+      run: gsutil cp gs://xpk-ci-cd-tests/$RANDOM_SEED.txt .
+    - name: Check if the file contains desired content
+      run: grep 'Hello world from a Github Action CI/CD test script!' $RANDOM_SEED.txt
     - name: Wait for Pathways workload completion and confirm it succeeded
       run: python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion $PATHWAYS_WORKLOAD_NAME --timeout 300
     - name: List out the workloads on the cluster
@@ -95,6 +104,8 @@ jobs:
       run: python3 xpk.py workload delete --workload $WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
     - name: Delete the Pathways workload on the cluster
       run: python3 xpk.py workload delete --workload $PATHWAYS_WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+    - name: Delete created GCS file
+      run: gsutil rm gs://xpk-ci-cd-tests/$RANDOM_SEED.txt
     - name: Delete existing Storage
       run: python3 xpk.py storage delete $STORAGE_NAME  --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
     - name: Delete the cluster created

@@ -52,6 +52,9 @@ and the following GPU types:
 and the following CPU types:
 * n2-standard-32
 
+xpk also supports Google Cloud Storage solutions:
+* [Cloud Storage FUSE](https://cloud.google.com/storage/docs/gcs-fuse)
+
 # Permissions needed on Cloud Console:
 
 Artifact Registry Writer
@@ -117,6 +120,8 @@ cleanup with a `Cluster Delete`.
 
 If you have failures with workloads not running, use `xpk inspector` to investigate
 more.
+
+If you need your Workloads to have persistent storage, use `xpk storage` to find more.
 
 ## Cluster Create
 
@@ -311,6 +316,30 @@ will fail the cluster creation process because Vertex AI Tensorboard is not supp
     python3 xpk.py cluster cacheimage \
     --cluster xpk-test --docker-image gcr.io/your_docker_image \
     --tpu-type=v5litepod-16
+    ```
+
+## Storage Create
+Currently xpk supports Cloud Storage FUSE. A FUSE adapter that lets you mount and access Cloud Storage buckets as local file systems, so applications can read and write objects in your bucket using standard file system semantics.
+
+To use the GCS FUSE with XPK user needs to create a a [Storage Bucket](https://pantheon.corp.google.com/storage/)
+and a manifest with PersistentVolume and PersistentVolumeClaim that mounts to the Bucket. To learn how to properly
+set up PersistentVolume and PersistentVolumeClaim visit [GKE Cloud Storage documentation](https://cloud.google.com/kubernetes-engine/docs/how-to/persistent-volumes/cloud-storage-fuse-csi-driver#provision-static)
+
+Once it's ready user can define
+
+`--type` - defines a type of a storage, currently xpk supports `gcsfuse` only.
+`--auto-mount` - if set to true means that all workloads should have a given storage mounted by default.
+`--mount-point` - defines the path on which a given storage should be mounted for a workload.
+`--manifest` -- 
+
+
+* Create simple Storage
+
+    ```shell
+    python3 xpk.py storage create test-storage --project=$PROJECT
+    --cluster=xpk-test --type=test-type --auto-mount=false \
+    --mount-point='/test-mount-point' --readonly=false \
+    --manifest='pv-pvc-auto-mount.yaml'
     ```
 
 ## Workload Create

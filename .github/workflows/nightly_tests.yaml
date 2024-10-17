@@ -165,7 +165,7 @@ jobs:
       run: python xpk.py cluster delete --cluster $PATHWAYS_TPU_CLUSTER_NAME --zone=us-central2-b
 
   rc-cluster:
-    runs-on: [ubuntu-20.04]
+    runs-on: [ubuntu-22.04]
     concurrency: # We support one build test to run at a time currently.
       group: nightly-rc-test-cluster-group
       cancel-in-progress: false

@@ -87,12 +87,7 @@ def install_ray_cluster(args, system) -> int:
     0 if successful and 1 otherwise.
   """
 
-  command = 'kubectl delete rayclusters --all'
-  task = 'Deleting old RayCluster'
-  retry_attempts = 1
-  return_code = run_command_with_updates_retry(
-      command, task, args, num_retry_attempts=retry_attempts
-  )
+  delete_ray_cluster(args)
 
   yml_string = ray_cluster_crd_yaml.format(
       accelerator=system.gke_accelerator,
@@ -112,4 +107,26 @@ def install_ray_cluster(args, system) -> int:
   )
   if return_code != 0:
     xpk_print(f'{task} not successful.')
+  return return_code
+
+def delete_ray_cluster(args) -> None:
+  """Delete all RayClusters on the cluster
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+
+  command = 'kubectl delete rayclusters --all'
+  task = 'Deleting old RayCluster'
+  retry_attempts = 1
+  return_code = run_command_with_updates_retry(
+      command, task, args, num_retry_attempts=retry_attempts
+  )
+
+  if return_code != 0:
+      xpk_print(f'{task} not successful.')
+
   return return_code

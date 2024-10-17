@@ -12,12 +12,10 @@ limitations under the License.
 """
 
 from argparse import Namespace
-from dataclasses import dataclass
 
 from ..utils import xpk_exit, write_tmp_file
 from .commands import run_command_with_updates
 
-JOB_TEMPLATE_PATH = "/../templates/slurm_job.yaml"
 JOB_TEMPLATE_DEFAULT_NAME = "xpk-def-batch"
 JOB_TEMPLATE_DEFAULT_PARALLELISM = 1
 JOB_TEMPLATE_DEFAULT_COMPLETIONS = 1
@@ -42,13 +40,6 @@ job_template_yaml = """
             - name: {container}
               image: {image}
           restartPolicy: OnFailure"""
-
-
-@dataclass
-class JobTemplate:
-  """
-  Represents a JobTemplate resource in Kubernetes
-  """
 
 
 def create_job_template_instance(args: Namespace) -> None:

@@ -50,10 +50,9 @@ def submit_job(args: Namespace) -> None:
       f' {APP_PROFILE_TEMPLATE_DEFAULT_NAME} --'
       f' {args.script}'
   )
-  if len(args.script_args) != 0:
-    cmd += f'{args.script_args}'
+
   return_code, _ = run_command_for_value(cmd, 'submit job', args)
 
   if return_code != 0:
-    xpk_print(f'Cluster info request returned ERROR {return_code}')
+    xpk_print(f'Running batch job returned ERROR {return_code}')
     xpk_exit(return_code)

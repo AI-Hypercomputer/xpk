@@ -153,7 +153,7 @@ def prepare_kueuectl(args: Namespace) -> None:
   command = 'kubectl kueue version'
   task = 'Verify kueuectl installation on cluster'
   verify_kueuectl_installed_code, _ = run_command_for_value(command, task, args)
-  
+
   if verify_kueuectl_installed_code == 0:
     xpk_print('kueuectl found')
 

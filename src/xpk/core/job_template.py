@@ -43,13 +43,6 @@ job_template_yaml = """
           restartPolicy: OnFailure"""
 
 
-@dataclass
-class JobTemplate:
-  """
-  Represents a JobTemplate resource in Kubernetes
-  """
-
-
 def create_job_template_instance(args: Namespace) -> None:
   yml_string = job_template_yaml.format(
       name=JOB_TEMPLATE_DEFAULT_NAME,

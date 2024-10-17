@@ -50,7 +50,7 @@ def submit_job(args: Namespace) -> None:
       f' {APP_PROFILE_TEMPLATE_DEFAULT_NAME} --'
       f' {args.script}'
   )
-  
+
   return_code, _ = run_command_for_value(cmd, 'submit job', args)
 
   if return_code != 0:

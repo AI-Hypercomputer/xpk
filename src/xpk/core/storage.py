@@ -36,6 +36,7 @@ STORAGE_CRD_NAME = "storages.xpk.x-k8s.io"
 STORAGE_CRD_KIND = "Storage"
 XPK_API_GROUP_NAME = "xpk.x-k8s.io"
 XPK_API_GROUP_VERSION = "v1"
+GCS_FUSE_TYPE = "gcsfuse"
 
 
 @dataclass
@@ -58,7 +59,6 @@ class Storage:
 
   name: str
   type: str
-  cluster: str
   auto_mount: bool
   mount_point: str
   readonly: bool
@@ -78,7 +78,6 @@ class Storage:
     self.name = metadata.get("name")
     spec = data.get("spec", {})
     self.type: str = spec.get("type")
-    self.cluster: str = spec.get("cluster")
     self.auto_mount: bool = spec.get("auto_mount")
     self.mount_point: bool = spec.get("mount_point")
     self.readonly: bool = spec.get("readonly")
@@ -282,7 +281,7 @@ def install_storage_crd(k8s_api_client: ApiClient) -> None:
       xpk_exit(1)
 
 
-def print_storages_for_cluster(storages: list[Storage], cluster: str):
+def print_storages_for_cluster(storages: list[Storage]) -> None:
   """
   Prints in human readable manner a table of Storage resources that belong to the specified cluster.
 
@@ -300,8 +299,7 @@ def print_storages_for_cluster(storages: list[Storage], cluster: str):
   ]
   storage_tab = []
   for storage in storages:
-    if storage.cluster == cluster:
-      storage_tab.append(storage.fields_as_list())
+    storage_tab.append(storage.fields_as_list())
 
   print(
       tabulate(

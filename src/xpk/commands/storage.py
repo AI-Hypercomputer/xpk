@@ -25,12 +25,12 @@ from ..core.core import (
     update_cluster_with_workload_identity_if_necessary,
 )
 from ..core.storage import (
+    GCS_FUSE_TYPE,
     STORAGE_CRD_KIND,
     XPK_API_GROUP_NAME,
     XPK_API_GROUP_VERSION,
     create_storage_instance,
     get_storage,
-    install_storage_crd,
     list_storages,
     print_storages_for_cluster,
 )
@@ -39,24 +39,21 @@ from ..utils import apply_kubectl_manifest, xpk_exit, xpk_print
 
 def storage_create(args: Namespace) -> None:
   k8s_api_client = setup_k8s_env(args)
-
-  install_storage_crd(k8s_api_client)
-  return_code = update_cluster_with_workload_identity_if_necessary(args)
-  if return_code > 0:
-    xpk_exit(return_code)
-  return_code = update_cluster_with_gcsfuse_driver_if_necessary(args)
-  if return_code > 0:
-    xpk_exit(return_code)
-
   create_storage_instance(k8s_api_client, args)
-  apply_kubectl_manifest(k8s_api_client, args.manifest)
+  if args.type == GCS_FUSE_TYPE:
+    return_code = update_cluster_with_workload_identity_if_necessary(args)
+    if return_code > 0:
+      xpk_exit(return_code)
+    return_code = update_cluster_with_gcsfuse_driver_if_necessary(args)
+    if return_code > 0:
+      xpk_exit(return_code)
+    apply_kubectl_manifest(k8s_api_client, args.manifest)
 
 
 def storage_list(args: Namespace) -> None:
   k8s_api_client = setup_k8s_env(args)
-  install_storage_crd(k8s_api_client)
   storages = list_storages(k8s_api_client)
-  print_storages_for_cluster(storages, args.cluster)
+  print_storages_for_cluster(storages)
 
 
 def delete_resource(api_call, resource_name: str, resource_kind: str) -> None:
@@ -86,20 +83,21 @@ def delete_resource(api_call, resource_name: str, resource_kind: str) -> None:
 
 def storage_delete(args: Namespace) -> None:
   k8s_api_client = setup_k8s_env(args)
-  install_storage_crd(k8s_api_client)
   api_instance = k8s_client.CustomObjectsApi(k8s_api_client)
   core_api = k8s_client.CoreV1Api()
   storage = get_storage(k8s_api_client, args.name)
-  delete_resource(
-      lambda name: core_api.delete_namespaced_persistent_volume_claim(
-          name, "default"
-      ),
-      storage.pvc,
-      "Persistent Volume Claim",
-  )
-  delete_resource(
-      core_api.delete_persistent_volume, storage.pv, "Persistent Volume"
-  )
+  if storage.type == GCS_FUSE_TYPE:
+    delete_resource(
+        lambda name: core_api.delete_namespaced_persistent_volume_claim(
+            name, "default"
+        ),
+        storage.pvc,
+        "Persistent Volume Claim",
+    )
+    delete_resource(
+        core_api.delete_persistent_volume, storage.pv, "Persistent Volume"
+    )
+
   delete_resource(
       lambda name: api_instance.delete_cluster_custom_object(
           name=name,

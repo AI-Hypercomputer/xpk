@@ -32,6 +32,7 @@ from ..core.core import (
     run_gke_node_pool_create_command,
     set_jobset_on_cluster,
     set_up_cluster_network_for_gpu,
+    setup_k8s_env,
     update_cluster_with_clouddns_if_necessary,
     update_cluster_with_gcsfuse_driver_if_necessary,
     update_cluster_with_workload_identity_if_necessary,
@@ -43,6 +44,7 @@ from ..core.kueue import (
     install_kueue_on_cluster,
 )
 from ..core.nap import enable_autoprovisioning_on_cluster
+from ..core.storage import install_storage_crd
 from ..core.system_characteristics import (
     AcceleratorType,
     AcceleratorTypeToAcceleratorCharacteristics,
@@ -159,6 +161,8 @@ def cluster_create(args) -> None:
   if install_kueue_on_cluster_code != 0:
     xpk_exit(install_kueue_on_cluster_code)
 
+  k8s_client = setup_k8s_env(args)
+  install_storage_crd(k8s_client)
   # Provision node pools dynamically based on incoming workloads:
   # Currently autoprovisioning is not supported with Pathways.
   autoprovisioning_config = None

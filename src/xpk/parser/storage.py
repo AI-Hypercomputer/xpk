@@ -57,7 +57,8 @@ def add_storage_create_parser(
   req_args.add_argument(
       '--type',
       type=str,
-      help='The type of storage',
+      help='The type of storage. Currently supported types: ["gcsfuse"]',
+      choices=['gcsfuse'],
       required=True,
   )
   req_args.add_argument(

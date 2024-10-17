@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 from ..utils import xpk_exit, xpk_print
-from ..core.kueue import prepare_kueuectl
+from ..core.kueue import verify_kueuectl
 from .cluster import set_cluster_command
 from ..core.commands import (
     run_command_for_value,
@@ -43,7 +43,7 @@ def info(args: Namespace) -> None:
   if set_cluster_command_code != 0:
     xpk_exit(set_cluster_command_code)
 
-  prepare_kueuectl(args)
+  verify_kueuectl(args)
 
   lqs = run_kueuectl_list_localqueue(args)
   cqs = run_kueuectl_list_clusterqueue(args)

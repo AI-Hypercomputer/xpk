@@ -141,7 +141,7 @@ spec:
 """
 
 
-def prepare_kueuectl(args: Namespace) -> None:
+def verify_kueuectl(args: Namespace) -> None:
   """Verify if kueuectl is installed.
   Args:
     args: user provided arguments.

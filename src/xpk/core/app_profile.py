@@ -17,9 +17,6 @@ from ..utils import xpk_exit, write_tmp_file
 from .job_template import JOB_TEMPLATE_DEFAULT_NAME
 from .commands import run_command_with_updates
 
-APP_PROFILE_TEMPLATE_PATH = (
-    "/usr/local/google/home/ppawl/xpk_code/xpk/src/templates/app_profile.yaml"
-)
 APP_PROFILE_TEMPLATE_DEFAULT_NAME = "xpk-def-app-profile"
 APP_PROFILE_TEMPLATE_MODE_NAME = "Slurm"
 

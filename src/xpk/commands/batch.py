@@ -51,7 +51,7 @@ def submit_job(args: Namespace) -> None:
       f' {args.script}'
   )
   if len(args.script_args) != 0:
-    cmd += f'{args.script_args}'
+    cmd += f' {args.script_args}'
   return_code, _ = run_command_for_value(cmd, 'submit job', args)
 
   if return_code != 0:

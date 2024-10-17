@@ -12,7 +12,6 @@ limitations under the License.
 """
 
 from argparse import Namespace
-from dataclasses import dataclass
 
 from ..utils import xpk_exit, write_tmp_file
 from .commands import run_command_with_updates

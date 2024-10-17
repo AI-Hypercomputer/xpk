@@ -109,7 +109,7 @@ def install_ray_cluster(args, system) -> int:
     xpk_print(f'{task} not successful.')
   return return_code
 
-def delete_ray_cluster(args) -> None:
+def delete_ray_cluster(args) -> int:
   """Delete all RayClusters on the cluster
 
   Args:
@@ -127,6 +127,6 @@ def delete_ray_cluster(args) -> None:
   )
 
   if return_code != 0:
-      xpk_print(f'{task} not successful.')
+    xpk_print(f'{task} not successful.')
 
   return return_code

@@ -41,5 +41,17 @@ def set_info_parser(info_parser: argparse.ArgumentParser) -> None:
       default='',
       help='Namespace to which resources and queues belong',
   )
+
+  info_optional_arguments.add_argument(
+      '--clusterqueue',
+      action='store_true',
+      help='Namespace to which resources and queues belong',
+  )
+  
+  info_optional_arguments.add_argument(
+      '--localqueue',
+      action='store_true',
+      help='Namespace to which resources and queues belong',
+  )
   add_shared_arguments(info_optional_arguments)
   info_parser.set_defaults(func=info)

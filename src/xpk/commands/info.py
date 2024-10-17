@@ -44,10 +44,22 @@ def info(args: Namespace) -> None:
     xpk_exit(set_cluster_command_code)
 
   prepare_kueuectl(args)
-
-  lqs = run_kueuectl_list_localqueue(args)
-  cqs = run_kueuectl_list_clusterqueue(args)
+  lqs, cqs = None, None
+  if args.localqueue:
+    lqs = run_kueuectl_list_localqueue(args)
+ 
+  if args.clusterqueue:
+    cqs = run_kueuectl_list_clusterqueue(args) 
+  
   aggregate_results(cqs, lqs)
+
+def print_formatted_cqs(cqs : list[dict]) -> None:
+  try:
+    cq_list = json.loads(cqs)['items']
+  except ValueError:
+    xpk_print('Incorrect respone from list clusterqueue')
+    xpk_print(cqs)
+    xpk_exit(1)
 
 
 def aggregate_results(cqs: list[dict], lqs: list[dict]) -> None:
@@ -59,13 +71,13 @@ def aggregate_results(cqs: list[dict], lqs: list[dict]) -> None:
   Returns:
     None
   """
-  try:
-    cq_list = json.loads(cqs)['items']
-  except ValueError:
-    xpk_print('Incorrect respone from list clusterqueue')
-    xpk_print(cqs)
-    xpk_exit(1)
+  if cqs is not None:
+    print_formatted_cqs(cqs)
 
+  if lqs is not None:
+    print_formatted_lqs(lqs)
+
+  
   try:
     lq_list = json.loads(lqs)['items']
   except ValueError:

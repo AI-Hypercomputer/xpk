@@ -19,11 +19,11 @@ from ..core.core import (
     CLUSTER_METADATA_CONFIGMAP,
     CLUSTER_RESOURCES_CONFIGMAP,
     add_zone_and_project,
+    get_cluster_credentials,
     zone_to_region,
 )
 from ..core.kueue import CLUSTER_QUEUE_NAME, LOCAL_QUEUE_NAME
 from ..utils import append_tmp_file, write_tmp_file, xpk_exit, xpk_print
-from .cluster import set_cluster_command
 from .workload import get_workload_list
 
 
@@ -124,9 +124,7 @@ def inspector(args) -> None:
   xpk_print(args)
 
   add_zone_and_project(args)
-  set_cluster_command_code = set_cluster_command(args)
-  if set_cluster_command_code != 0:
-    xpk_exit(set_cluster_command_code)
+  get_cluster_credentials(args)
 
   inspector_file = write_tmp_file(
       '==================\nXPK inspector OUTPUT:\n==================\n'

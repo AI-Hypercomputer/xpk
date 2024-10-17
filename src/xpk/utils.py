@@ -20,6 +20,10 @@ import re
 import sys
 import tempfile
 
+import yaml
+from kubernetes.client.exceptions import ApiException
+from kubernetes.dynamic import DynamicClient
+
 
 def chunks(lst: list, n: int):
   """Return a list of n-sized chunks from lst.
@@ -34,7 +38,9 @@ def chunks(lst: list, n: int):
   return [lst[i : i + n] for i in range(0, len(lst), n)]
 
 
-def get_value_from_map(key: str, map_to_search: dict) -> tuple[int, str | None]:
+def get_value_from_map(
+    key: str, map_to_search: dict, verbose: bool = True
+) -> tuple[int, str | None]:
   """Helper function to get value from a map if the key exists.
 
   Args:
@@ -50,10 +56,11 @@ def get_value_from_map(key: str, map_to_search: dict) -> tuple[int, str | None]:
   if value:
     return 0, value
   else:
-    xpk_print(
-        f'Unable to find key: {key} in map: {map_to_search}.'
-        f'The map has the following keys: {map_to_search.keys()}'
-    )
+    if verbose:
+      xpk_print(
+          f'Unable to find key: {key} in map: {map_to_search}.'
+          f'The map has the following keys: {map_to_search.keys()}'
+      )
     return 1, value
 
 
@@ -77,7 +84,6 @@ def make_tmp_files(per_command_name):
 
 def write_tmp_file(payload):
   """Writes `payload` to a temporary file.
-
   Args:
     payload: The string to be written to the file.
 
@@ -165,3 +171,42 @@ def directory_path_type(value):
         f'Directory path is invalid. User provided path was {value}'
     )
   return value
+
+
+def apply_kubectl_manifest(client, file_path):
+  xpk_print('Applying manifest')
+  dynamic_client = DynamicClient(client)
+
+  with open(file_path, 'r', encoding='utf-8') as f:
+    manifest_data = yaml.safe_load_all(f)
+    for obj in manifest_data:
+      api_version = obj['apiVersion']
+      kind = obj['kind']
+      namespace = obj.get('metadata', {}).get('namespace', 'default')
+
+      api_resource = dynamic_client.resources.get(
+          api_version=api_version, kind=kind
+      )
+
+      try:
+        api_resource.get(name=obj['metadata']['name'], namespace=namespace)
+        api_resource.patch(
+            body=obj,
+            namespace=namespace,
+            name=obj['metadata']['name'],
+            content_type='application/merge-patch+json',
+        )
+        xpk_print(
+            f"Updated {kind} '{obj['metadata']['name']}' in namespace"
+            f" '{namespace}'"
+        )
+
+      except ApiException as e:
+        if e.status == 404:
+          api_resource.create(body=obj, namespace=namespace)
+          xpk_print(
+              f"Applied {kind} '{obj['metadata']['name']}' in namespace"
+              f" '{namespace}'"
+          )
+        else:
+          xpk_print(f'Error applying {kind}: {e}')

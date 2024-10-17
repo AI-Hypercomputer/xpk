@@ -30,7 +30,11 @@ keywords = []
 
 # pip dependencies installed with `pip install -e .`
 dependencies = [
-  "cloud-accelerator-diagnostics"
+  "cloud-accelerator-diagnostics",
+  "kubernetes",
+  "google-cloud",
+  "google-api-core",
+  "tabulate",
 ]
 
 [project.urls]
@@ -57,8 +61,9 @@ dev = [
 version = {attr = "xpk.core.core.__version__"}
 
 [tool.setuptools]
-packages = ["xpk", "xpk.parser", "xpk.core", "xpk.commands"]
+packages = ["xpk", "xpk.parser", "xpk.core", "xpk.commands", "xpk.api"]
 package-dir = {"" = "src"}
+package-data = {"xpk.api" = ["storage_crd.yaml"]}
 
 [tool.pyink]
 # Formatting configuration to follow Google style-guide.

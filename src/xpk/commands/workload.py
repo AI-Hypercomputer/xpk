@@ -202,7 +202,7 @@ spec:
               imagePullPolicy: Always
               name: pathways-worker
               ports:
-              - containerPort: 38677
+              - containerPort: 29001
               - containerPort: 8471
               - containerPort: 8080
               resources:
@@ -255,7 +255,7 @@ spec:
               imagePullPolicy: Always
               name: pathways-rm
               ports:
-              - containerPort: 38677
+              - containerPort: 29001
               resources:
                 limits:
                   cpu: "4"
@@ -291,7 +291,7 @@ spec:
               imagePullPolicy: Always
               name: pathways-proxy
               ports:
-              - containerPort: 38676
+              - containerPort: 29000
               resources:
                 limits:
                   cpu: "24"
@@ -328,8 +328,8 @@ def workload_create(args) -> None:
 
   if args.headless and not is_cluster_using_clouddns(args):
     xpk_print(
-        'Please run xpk cluster create-pathways first, to upgrade and enable'
-        ' CloudDNS on your cluster.'
+        "Please run xpk cluster create-pathways first, to upgrade and enable"
+        " CloudDNS on your cluster."
     )
     xpk_exit(1)
 
@@ -341,45 +341,45 @@ def workload_create(args) -> None:
 
   if workload_exists:
     xpk_print(
-        f'{args.workload} already exists, XPK will not create this workload.'
-        ' Please pick a new workload name'
+        f"{args.workload} already exists, XPK will not create this workload."
+        " Please pick a new workload name"
     )
     xpk_exit(1)
 
-  xpk_print('Starting workload create', flush=True)
+  xpk_print("Starting workload create", flush=True)
   system, return_code = get_system_characteristics(args)
 
   if return_code > 0:
-    xpk_print('Fetching system characteristics failed!')
+    xpk_print("Fetching system characteristics failed!")
     xpk_exit(return_code)
 
   if not check_if_workload_can_schedule(args, system):
     xpk_exit(1)
 
-  xpk_print('Starting workload create', flush=True)
+  xpk_print("Starting workload create", flush=True)
 
-  metadata_configmap_name = f'{args.cluster}-{CLUSTER_METADATA_CONFIGMAP}'
+  metadata_configmap_name = f"{args.cluster}-{CLUSTER_METADATA_CONFIGMAP}"
   cluster_config_map = get_cluster_configmap(args, metadata_configmap_name)
   cluster_xpk_version = None
   if cluster_config_map is None:
     xpk_print(
-        f'Warning: Unable to find ConfigMap: {metadata_configmap_name} for the'
-        ' cluster. We recommend to upgrade your cluster by running `xpk'
-        ' cluster create`.'
+        f"Warning: Unable to find ConfigMap: {metadata_configmap_name} for the"
+        " cluster. We recommend to upgrade your cluster by running `xpk"
+        " cluster create`."
     )
   else:
-    cluster_xpk_version = cluster_config_map.get('xpk_version')
+    cluster_xpk_version = cluster_config_map.get("xpk_version")
   if (
       cluster_xpk_version is not None
       and cluster_xpk_version != xpk_current_version
   ):
     xpk_print(
-        'Warning: Cluster has been created using XPK version:'
-        f' {cluster_config_map["xpk_version"]} but the XPK version you are'
-        f' using to schedule workload is: {xpk_current_version}. Some features'
-        ' might not be available for this cluster. We recommend to'
-        ' upgrade/downgrade your XPK version or cluster by running `xpk'
-        ' cluster create`.'
+        "Warning: Cluster has been created using XPK version:"
+        f" {cluster_config_map['xpk_version']} but the XPK version you are"
+        f" using to schedule workload is: {xpk_current_version}. Some features"
+        " might not be available for this cluster. We recommend to"
+        " upgrade/downgrade your XPK version or cluster by running `xpk"
+        " cluster create`."
     )
 
   debugging_dashboard_id = None
@@ -394,7 +394,7 @@ def workload_create(args) -> None:
   parse_env_config(args, tensorboard_config, system)
 
   # Currently autoprovisioning is not enabled for Pathways workloads.
-  autoprovisioning_args = ''
+  autoprovisioning_args = ""
   autoprovisioning_enabled, return_code = is_autoprovisioning_enabled(
       args, system
   )
@@ -409,7 +409,7 @@ def workload_create(args) -> None:
       xpk_exit(return_code)
 
   # Create the workload file based on accelerator type or workload type.
-  if system.accelerator_type == AcceleratorType['GPU']:
+  if system.accelerator_type == AcceleratorType["GPU"]:
     container, debugging_dashboard_id = get_user_workload_container(
         args, system
     )
@@ -469,60 +469,60 @@ def workload_create(args) -> None:
         volumes=get_volumes(args, system),
     )
   tmp = write_tmp_file(yml_string)
-  command = f'kubectl apply -f {str(tmp.file.name)}'
-  return_code = run_command_with_updates(command, 'Creating Workload', args)
+  command = f"kubectl apply -f {str(tmp.file.name)}"
+  return_code = run_command_with_updates(command, "Creating Workload", args)
 
   if return_code != 0:
-    xpk_print(f'Create Workload request returned ERROR {return_code}')
+    xpk_print(f"Create Workload request returned ERROR {return_code}")
     xpk_exit(return_code)
 
   # Get GKE outlier dashboard for TPU
   outlier_dashboard_id = None
-  if system.accelerator_type == AcceleratorType['TPU']:
+  if system.accelerator_type == AcceleratorType["TPU"]:
     outlier_dashboard_id = get_gke_outlier_dashboard(args)
 
   # Outlier and debugging dashboards
   if outlier_dashboard_id is not None:
     xpk_print(
-        'Check statistics and outlier mode of GKE metrics here:'
+        "Check statistics and outlier mode of GKE metrics here:"
         # pylint: disable=line-too-long
-        f' https://console.cloud.google.com/monitoring/dashboards/builder/{outlier_dashboard_id}?project={args.project}&f.rlabel.cluster_name.ClusterName={args.cluster}.'
-        ' To view the metric data for your workload, select'
-        f' {args.workload} from the JobName filter on the dashboard.'
+        f" https://console.cloud.google.com/monitoring/dashboards/builder/{outlier_dashboard_id}?project={args.project}&f.rlabel.cluster_name.ClusterName={args.cluster}."
+        " To view the metric data for your workload, select"
+        f" {args.workload} from the JobName filter on the dashboard."
     )
 
   if debugging_dashboard_id is not None:
     xpk_print(
-        'Check stack traces collected in Cloud Logging here:'
+        "Check stack traces collected in Cloud Logging here:"
         # pylint: disable=line-too-long
-        f' https://console.cloud.google.com/monitoring/dashboards/builder/{debugging_dashboard_id}?project={args.project}&f.rlabel.cluster_name.ClusterName={args.cluster}.'
-        ' To view the stack traces for your workload, select'
-        f' {args.workload} from the JobName filter on the dashboard.'
+        f" https://console.cloud.google.com/monitoring/dashboards/builder/{debugging_dashboard_id}?project={args.project}&f.rlabel.cluster_name.ClusterName={args.cluster}."
+        " To view the stack traces for your workload, select"
+        f" {args.workload} from the JobName filter on the dashboard."
     )
 
   if args.use_pathways:
     if args.headless:
       xpk_print(
-          ' \n ******* Please connect to your Pathways proxy at'
+          " \n ******* Please connect to your Pathways proxy at"
           f' {args.pathways_proxy_address}, once you see "IFRT proxy server'
           ' started with status OK" on the proxy link below.'
-          ' Remember to delete the workload once done! ****** \n'
+          " Remember to delete the workload once done! ****** \n"
       )
-      pathways_proxy_link = f'https://console.cloud.google.com/kubernetes/job/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}-proxy-0/details?project={args.project}'
+      pathways_proxy_link = f"https://console.cloud.google.com/kubernetes/job/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}-proxy-0/details?project={args.project}"
       xpk_print(
-          'Follow the proxy here:'
+          "Follow the proxy here:"
           # pylint: disable=line-too-long)
-          f' {pathways_proxy_link} '
+          f" {pathways_proxy_link} "
       )
     xpk_print(
-        'Follow your Pathways workload and other resources here : '
-        f'{get_pathways_unified_query_link(args)}'
+        "Follow your Pathways workload and other resources here : "
+        f"{get_pathways_unified_query_link(args)}"
     )
   else:
     xpk_print(
-        'Follow your workload here:'
+        "Follow your workload here:"
         # pylint: disable=line-too-long
-        f' https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
+        f" https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}"
     )
 
   xpk_exit(0)
@@ -537,7 +537,7 @@ def workload_delete(args) -> None:
   Returns:
     0 if successful and 1 otherwise.
   """
-  xpk_print('Starting Workload delete', flush=True)
+  xpk_print("Starting Workload delete", flush=True)
   add_zone_and_project(args)
   set_cluster_command_code = set_cluster_command(args)
   if set_cluster_command_code != 0:
@@ -545,51 +545,51 @@ def workload_delete(args) -> None:
 
   will_delete = True
   if not args.workload:
-    xpk_print('Get the name of the workloads in the cluster.')
+    xpk_print("Get the name of the workloads in the cluster.")
     return_code, return_value = get_workload_list(args)
 
     if return_code != 0:
-      xpk_print(f'List Job request returned ERROR {return_code}')
+      xpk_print(f"List Job request returned ERROR {return_code}")
       xpk_exit(return_code)
     # Skip the header
-    workloads = [x.split(' ')[0] for x in return_value.splitlines()][1:]
+    workloads = [x.split(" ")[0] for x in return_value.splitlines()][1:]
     if workloads and not args.force:
       will_delete = get_user_input(
-          f'Planning to delete {len(workloads)} workloads in the cluster'
-          f' {args.cluster} including {workloads}. \nDo you wish to delete: y'
-          ' (yes) / n (no):\n'
+          f"Planning to delete {len(workloads)} workloads in the cluster"
+          f" {args.cluster} including {workloads}. \nDo you wish to delete: y"
+          " (yes) / n (no):\n"
       )
   else:
     workloads = [args.workload]
 
   if not workloads:
     xpk_print(
-        'There are no workloads to delete matching the filter in the cluster.'
+        "There are no workloads to delete matching the filter in the cluster."
     )
   elif not will_delete:
-    xpk_print('Skipping delete command.')
+    xpk_print("Skipping delete command.")
   else:
     commands = []
     task_names = []
     for workload in workloads:
       args.workload = workload
-      command = f'kubectl delete jobset {workload} -n default'
-      task_name = f'WorkloadDelete-{workload}'
+      command = f"kubectl delete jobset {workload} -n default"
+      task_name = f"WorkloadDelete-{workload}"
       commands.append(command)
       task_names.append(task_name)
 
     # Not batching deletion for single workload
     if len(workloads) == 1:
       return_code = run_command_with_updates(
-          commands[0], 'Delete Workload', args
+          commands[0], "Delete Workload", args
       )
     else:
       return_code = run_commands(
-          commands, 'Delete Workload', task_names, batch=100
+          commands, "Delete Workload", task_names, batch=100
       )
 
     if return_code != 0:
-      xpk_print(f'Delete Workload request returned ERROR {return_code}')
+      xpk_print(f"Delete Workload request returned ERROR {return_code}")
       xpk_exit(return_code)
   xpk_exit(0)
 
@@ -605,7 +605,7 @@ def workload_list(args) -> None:
   """
   xpk_print(args)
 
-  xpk_print('Starting workload list', flush=True)
+  xpk_print("Starting workload list", flush=True)
   add_zone_and_project(args)
   set_cluster_command_code = set_cluster_command(args)
   if set_cluster_command_code != 0:
@@ -614,16 +614,16 @@ def workload_list(args) -> None:
   if args.wait_for_job_completion:
     return_code = wait_for_job_completion(args)
     if return_code != 0:
-      xpk_print(f'Wait for job completion returned ERROR {return_code}')
+      xpk_print(f"Wait for job completion returned ERROR {return_code}")
       xpk_exit(return_code)
     args.filter_by_job = args.wait_for_job_completion
 
   return_code, return_value = get_workload_list(args)
 
   if return_code != 0:
-    xpk_print(f'List Job request returned ERROR {return_code}')
+    xpk_print(f"List Job request returned ERROR {return_code}")
     xpk_exit(return_code)
-  xpk_print(f'Workload List Output:\n{return_value}')
+  xpk_print(f"Workload List Output:\n{return_value}")
   xpk_exit(0)
 
 
@@ -650,38 +650,38 @@ def determine_workload_list_filter_by_status(args) -> str:
     the argument needed to filter by status of jobs in workload list.
   """
   # Argument positions related to columns created by workload list command.
-  status_arg = '$7'
-  running_vms_arg = '$5'
-  status_verbose_arg = '$9'
-  if args.filter_by_status == 'EVERYTHING':
-    return ''
-  elif args.filter_by_status == 'RUNNING':
+  status_arg = "$7"
+  running_vms_arg = "$5"
+  status_verbose_arg = "$9"
+  if args.filter_by_status == "EVERYTHING":
+    return ""
+  elif args.filter_by_status == "RUNNING":
     # Running includes the status Admitted or Evicted, and when the number of
     # vms running is > 0.
     return workload_list_awk_command(
         f'({status_arg} ~ "Admitted|Evicted" && {running_vms_arg} ~ /^[0-9]+$/'
-        f' && {running_vms_arg} > 0)'
+        f" && {running_vms_arg} > 0)"
     )
-  elif args.filter_by_status == 'QUEUED':
+  elif args.filter_by_status == "QUEUED":
     # Queued includes the status Admitted or Evicted, and when the number of
     # vms running is 0.
     return workload_list_awk_command(
         f'({status_arg} ~ "Admitted|Evicted|QuotaReserved" &&'
         f' ({running_vms_arg} ~ "<none>" || {running_vms_arg} == 0))'
     )
-  elif args.filter_by_status == 'FINISHED':
+  elif args.filter_by_status == "FINISHED":
     return workload_list_awk_command(f'{status_arg} == "Finished"')
-  elif args.filter_by_status == 'FAILED':
+  elif args.filter_by_status == "FAILED":
     # Failed includes the status Finished, and when the verbose reason is failed.
     return workload_list_awk_command(
         f'({status_arg} == "Finished" && {status_verbose_arg} ~ "failed")'
     )
-  elif args.filter_by_status == 'SUCCESSFUL':
+  elif args.filter_by_status == "SUCCESSFUL":
     # Failed includes the status Finished, and when the verbose reason is finished/success.
     return workload_list_awk_command(
         f'({status_arg} == "Finished" && {status_verbose_arg} ~ "finished")'
     )
-  raise RuntimeError(f'Can not find filter type: {args.filter_by_status}')
+  raise RuntimeError(f"Can not find filter type: {args.filter_by_status}")
 
 
 def determine_workload_list_filter_by_job(args) -> str:
@@ -695,9 +695,9 @@ def determine_workload_list_filter_by_job(args) -> str:
   """
   # Argument positions related to columns created by workload list command.
   if not args.filter_by_job:
-    return ''
+    return ""
   else:
-    job_name_arg = '$1'
+    job_name_arg = "$1"
     return workload_list_awk_command(f'{job_name_arg} ~ "{args.filter_by_job}"')
 
 
@@ -712,17 +712,17 @@ def get_workload_list(args) -> tuple[int, str]:
     return_value: workloads in the cluster matching the criteria.
   """
   columns = {
-      'Jobset Name': '.metadata.ownerReferences[0].name',
-      'Created Time': '.metadata.creationTimestamp',
-      'Priority': '.spec.priorityClassName',
-      'TPU VMs Needed': '.spec.podSets[0].count',
-      'TPU VMs Running/Ran': '.status.admission.podSetAssignments[-1].count',
-      'TPU VMs Done': '.status.reclaimablePods[0].count',
-      'Status': '.status.conditions[-1].type',
-      'Status Message': '.status.conditions[-1].message',
-      'Status Time': '.status.conditions[-1].lastTransitionTime',
+      "Jobset Name": ".metadata.ownerReferences[0].name",
+      "Created Time": ".metadata.creationTimestamp",
+      "Priority": ".spec.priorityClassName",
+      "TPU VMs Needed": ".spec.podSets[0].count",
+      "TPU VMs Running/Ran": ".status.admission.podSetAssignments[-1].count",
+      "TPU VMs Done": ".status.reclaimablePods[0].count",
+      "Status": ".status.conditions[-1].type",
+      "Status Message": ".status.conditions[-1].message",
+      "Status Time": ".status.conditions[-1].lastTransitionTime",
   }
-  s = ','.join([key + ':' + value for key, value in columns.items()])
+  s = ",".join([key + ":" + value for key, value in columns.items()])
 
   workload_list_filter_status_cmd = determine_workload_list_filter_by_status(
       args
@@ -730,13 +730,13 @@ def get_workload_list(args) -> tuple[int, str]:
   workload_list_filter_job_cmd = determine_workload_list_filter_by_job(args)
   command = (
       f'kubectl get workloads -o=custom-columns="{s}" '
-      f'{workload_list_filter_status_cmd} {workload_list_filter_job_cmd}'
+      f"{workload_list_filter_status_cmd} {workload_list_filter_job_cmd}"
   )
 
   return_code, return_value = run_command_for_value(
       command,
-      f'List Jobs with filter-by-status={args.filter_by_status}'
-      f' with filter-by-job={args.filter_by_job}',
+      f"List Jobs with filter-by-status={args.filter_by_status}"
+      f" with filter-by-job={args.filter_by_job}",
       args,
   )
 

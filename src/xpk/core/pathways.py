@@ -25,11 +25,11 @@ from .core import (
 from .system_characteristics import SystemCharacteristics
 
 PathwaysExpectedInstancesMap = {
-    'v6e': 'tpuv6e',
-    'v5p': 'tpuv5',
-    'v5litepod': 'tpuv5e',
-    'v4': 'tpuv4',
-    'v3': 'tpuv3',
+    "v6e": "tpuv6e",
+    "v5p": "tpuv5",
+    "v5litepod": "tpuv5e",
+    "v4": "tpuv4",
+    "v3": "tpuv3",
 }
 
 
@@ -41,13 +41,13 @@ def get_pathways_worker_args(args) -> str:
   Returns:
     str: yaml containing arguments for the Pathways workers.
   """
-  yaml = """- --server_port=38677
+  yaml = """- --server_port=29001
               - --resource_manager_address={rm_address}
               - --gcs_scratch_location={args.pathways_gcs_location}"""
   if args.use_pathways:
     return yaml.format(args=args, rm_address=get_rm_address(args))
   else:
-    return ''
+    return ""
 
 
 def get_pathways_proxy_args(args) -> str:
@@ -58,14 +58,14 @@ def get_pathways_proxy_args(args) -> str:
   Returns:
     str: yaml containing arguments for the Pathways proxy.
   """
-  yaml = """- --server_port=38676
+  yaml = """- --server_port=29000
               - --resource_manager_address={rm_address}
               - --gcs_scratch_location={args.pathways_gcs_location}"""
 
   if args.use_pathways:
     return yaml.format(args=args, rm_address=get_rm_address(args))
   else:
-    return ''
+    return ""
 
 
 def add_pw_resource_flavors(args):
@@ -96,7 +96,7 @@ spec:
 ---"""
   if args.enable_pathways:
     return resource_flavor_yaml
-  return ''
+  return ""
 
 
 def add_pw_resources_to_kueue(args):
@@ -123,7 +123,7 @@ def add_pw_resources_to_kueue(args):
         nominalQuota: 2000G"""
   if args.enable_pathways:
     return resources_yaml
-  return ''
+  return ""
 
 
 def ensure_pathways_workload_prerequisites(args, system) -> bool:
@@ -140,32 +140,32 @@ def ensure_pathways_workload_prerequisites(args, system) -> bool:
   if args.command is None and not args.headless:
     xpk_print(
         'Please provide a command using "--command" for the docker container to'
-        ' execute. Command is not required if you wish to run Pathways'
-        ' workloads in headless mode (`xpk workload create-pathways'
-        ' --headless`).'
+        " execute. Command is not required if you wish to run Pathways"
+        " workloads in headless mode (`xpk workload create-pathways"
+        " --headless`)."
     )
     xpk_exit(1)
 
   # Ensure the cluster and CPU nodepools were created with create-pathways
   all_node_pools = get_all_nodepools_programmatic(args)
-  desired_pw_cpu_node_pools = {'cpu-user-np', 'cpu-rm-np', 'cpu-proxy-np'}
+  desired_pw_cpu_node_pools = {"cpu-user-np", "cpu-rm-np", "cpu-proxy-np"}
   if not desired_pw_cpu_node_pools.issubset(set(all_node_pools[0])):
     xpk_print(
-        'Cluster needs to be created with `xpk create-pathways` to run'
-        ' Pathways workloads.'
+        "Cluster needs to be created with `xpk create-pathways` to run"
+        " Pathways workloads."
     )
     xpk_exit(1)
 
   # Ensure device type is TPUs - currently Pathways supports TPUs only.
-  if system.accelerator_type != AcceleratorType['TPU']:
-    xpk_print('Currently, Pathways workloads can only be run on TPUs.')
+  if system.accelerator_type != AcceleratorType["TPU"]:
+    xpk_print("Currently, Pathways workloads can only be run on TPUs.")
     xpk_exit(1)
 
   # Set proxy address to be consumed in helper methods and displayed to user.
   args.pathways_proxy_address = get_proxy_address(args)
 
   # Set the job which determines the life of other Pathways jobs
-  args.targetReplicatedJob = 'proxy' if args.headless else 'main'
+  args.targetReplicatedJob = "proxy" if args.headless else "main"
 
   # Always report user code failures back to JobSet.
   args.restart_on_user_code_failure = True
@@ -175,19 +175,19 @@ def ensure_pathways_workload_prerequisites(args, system) -> bool:
 
 def get_pathways_unified_query_link(args) -> str:
   """Get the unified query link for the pathways workload."""
-  pw_suffixes = ['main', 'rm', 'proxy']
+  pw_suffixes = ["main", "rm", "proxy"]
   pw_pod_names = [f'"{args.workload}-{suffix}-0"' for suffix in pw_suffixes]
-  pw_pod_names_query = '%20OR%20'.join(pw_pod_names + ['worker-0-0'])
+  pw_pod_names_query = "%20OR%20".join(pw_pod_names + ["worker-0-0"])
   query_params = (
       'resource.type%3D"k8s_container"%0A'
       f'resource.labels.project_id%3D"{args.project}"%0A'
       f'resource.labels.location%3D"{zone_to_region(args.zone)}"%0A'
       f'resource.labels.cluster_name%3D"{args.cluster}"%0A'
-      f'resource.labels.pod_name:{pw_pod_names_query}%0A'
-      'severity>%3DDEFAULT'
+      f"resource.labels.pod_name:{pw_pod_names_query}%0A"
+      "severity>%3DDEFAULT"
   )
 
-  return f'https://console.cloud.google.com/logs/query;query={query_params}'
+  return f"https://console.cloud.google.com/logs/query;query={query_params}"
 
 
 def get_pathways_rm_args(args, system: SystemCharacteristics) -> str:
@@ -198,7 +198,7 @@ def get_pathways_rm_args(args, system: SystemCharacteristics) -> str:
   Returns:
     str: yaml containing arguments for the Pathways resource manager.
   """
-  yaml = """- --server_port=38677
+  yaml = """- --server_port=29001
               - --gcs_scratch_location={args.pathways_gcs_location}
               - --node_type=resource_manager
               - --instance_count={instance_count}
@@ -207,10 +207,10 @@ def get_pathways_rm_args(args, system: SystemCharacteristics) -> str:
     return yaml.format(
         args=args,
         instance_count=args.num_slices,
-        instance_type=f'{get_pathways_expected_tpu_type(system.device_type)}:{system.topology}',
+        instance_type=f"{get_pathways_expected_tpu_type(system.device_type)}:{system.topology}",
     )
   else:
-    return ''
+    return ""
 
 
 def get_user_workload_for_pathways(args, system: SystemCharacteristics) -> str:
@@ -250,7 +250,7 @@ def get_user_workload_for_pathways(args, system: SystemCharacteristics) -> str:
                 type: DirectoryOrCreate
               name: shared-tmp"""
   if args.headless:
-    return ''
+    return ""
   else:
     container, _ = get_user_workload_container(args, system)
     return user_workload_yaml.format(args=args, container=container)
@@ -264,10 +264,10 @@ def get_rm_address(args) -> str:
   Returns:
     str: Fully qualified RM address.
   """
-  suffix = ''
+  suffix = ""
   if is_cluster_using_clouddns(args):
-    suffix = f'.default.svc.{args.cluster}-domain.'
-  rm_address = f'{args.workload}-rm-0-0.{args.workload}{suffix}:38677'
+    suffix = f".default.svc.{args.cluster}-domain."
+  rm_address = f"{args.workload}-rm-0-0.{args.workload}{suffix}:29001"
   return rm_address
 
 
@@ -279,11 +279,11 @@ def get_proxy_address(args) -> str:
   Returns:
     str: Fully qualified proxy address.
   """
-  suffix = ''
+  suffix = ""
   if is_cluster_using_clouddns(args):
-    suffix = f'.default.svc.{args.cluster}-domain.'
+    suffix = f".default.svc.{args.cluster}-domain."
   proxy_address = (
-      f'grpc://{args.workload}-proxy-0-0.{args.workload}{suffix}:38676'
+      f"grpc://{args.workload}-proxy-0-0.{args.workload}{suffix}:29000"
   )
   return proxy_address
 
@@ -296,12 +296,12 @@ def get_pathways_expected_tpu_type(device_type: str) -> str:
   Returns:
     str: the device type expected by pathways.
   """
-  raw_type = device_type.split('-')[0].lower()
+  raw_type = device_type.split("-")[0].lower()
   pathways_expected_instance = PathwaysExpectedInstancesMap[raw_type]
   if not pathways_expected_instance:
     xpk_print(
-        f'Passed in device_type {device_type} is incorrect. Please pass in a'
-        ' valid device type'
+        f"Passed in device_type {device_type} is incorrect. Please pass in a"
+        " valid device type"
     )
     xpk_exit(1)
   return pathways_expected_instance

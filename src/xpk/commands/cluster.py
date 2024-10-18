@@ -38,6 +38,11 @@ from ..core.core import (
     update_cluster_with_clouddns_if_necessary,
     zone_to_region,
 )
+from ..core.kjob import (
+    verify_kjob_installed,
+    create_app_profile_instance,
+    create_job_template_instance,
+)
 from ..core.kueue import (
     cluster_preheat_yml,
     install_kueue_crs,
@@ -146,6 +151,10 @@ def cluster_create(args) -> None:
   if install_kueue_on_cluster_code != 0:
     xpk_exit(install_kueue_on_cluster_code)
 
+  xpk_print('Verifying kjob installation')
+  verify_kjob_installed(args)
+  xpk_print('Preparing kjob')
+  prepare_kjob(args)
   # Provision node pools dynamically based on incoming workloads:
   # Currently autoprovisioning is not supported with Pathways.
   autoprovisioning_config = None
@@ -184,6 +193,11 @@ def cluster_create(args) -> None:
       f' https://console.cloud.google.com/kubernetes/clusters/details/{zone_to_region(args.zone)}/{args.cluster}/details?project={args.project}'
   )
   xpk_exit(0)
+
+
+def prepare_kjob(args) -> None:
+  create_job_template_instance(args)
+  create_app_profile_instance(args)
 
 
 def cluster_delete(args) -> None:

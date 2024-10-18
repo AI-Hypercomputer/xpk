@@ -48,7 +48,6 @@ jobs:
     - name: Install kjob
       run: |
         git clone https://github.com/kubernetes-sigs/kueue.git
-        ls
         cd kueue/cmd/experimental/kjobctl
         make kubectl-kjob
         mv ./bin/kubectl-kjob /usr/local/bin/kubectl-kjob

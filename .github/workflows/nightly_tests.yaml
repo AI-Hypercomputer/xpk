@@ -51,6 +51,12 @@ jobs:
       run: |
         gcloud config set compute/zone us-east4-a
         gcloud config get compute/zone
+    - name: Install kjob
+      run: |
+        git clone https://github.com/kubernetes-sigs/kueue.git
+        cd kueue/cmd/experimental/kjboctl
+        make kubectl-kjob
+        mv ./bin/kubectl-kjob /usr/local/bin/kubectl-kjob
     - name: Create an XPK Cluster with zero node pools
       run: python xpk.py cluster create --cluster $EMPTY_CLUSTER_NAME --tpu-type=v4-8  --num-slices=0 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments='${{ secrets.CLUSTER_ARGUMENTS }}'
     - name: Delete the cluster created
@@ -101,6 +107,12 @@ jobs:
       run: |
         gcloud config set compute/zone us-east4-a
         gcloud config get compute/zone
+    - name: Install kjob
+      run: |
+        git clone https://github.com/kubernetes-sigs/kueue.git
+        cd kueue/cmd/experimental/kjboctl
+        make kubectl-kjob
+        mv ./bin/kubectl-kjob /usr/local/bin/kubectl-kjobz
     - name: Create an Pathways-enabled XPK Cluster with 2 x v4-8 nodepools
       run: python xpk.py cluster create-pathways --cluster $PATHWAYS_TPU_CLUSTER_NAME --tpu-type=v4-8  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}'
     - name: Create test script to execute in workloads

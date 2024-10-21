@@ -55,6 +55,7 @@ jobs:
       run: |
         git clone https://github.com/kubernetes-sigs/kueue.git
         cd kueue/cmd/experimental/kjobctl
+        make install
         make kubectl-kjob
         mv ./bin/kubectl-kjob /usr/local/bin/kubectl-kjob
     - name: Install kueuectl

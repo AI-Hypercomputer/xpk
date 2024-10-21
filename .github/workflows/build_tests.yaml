@@ -49,6 +49,7 @@ jobs:
       run: |
         git clone https://github.com/kubernetes-sigs/kueue.git
         cd kueue/cmd/experimental/kjobctl
+        make install
         make kubectl-kjob
         mv ./bin/kubectl-kjob /usr/local/bin/kubectl-kjob
     - name: Set Google Cloud CLI properties to a unused zone to verify --zone arg is passed properly in commands.

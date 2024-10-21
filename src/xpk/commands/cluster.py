@@ -14,11 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..core.commands import (
-    run_command_for_value,
-    run_command_with_updates,
-    run_command_with_updates_retry,
-)
+from ..core.commands import run_command_for_value, run_command_with_updates
 from ..core.core import (
     VERTEX_TENSORBOARD_FEATURE_FLAG,
     add_zone_and_project,
@@ -27,6 +23,7 @@ from ..core.core import (
     create_vertex_tensorboard,
     delete_cluster_subnets,
     get_all_clusters_programmatic,
+    get_cluster_credentials,
     get_gke_control_plane_version,
     get_gke_node_pool_version,
     get_gke_server_config,
@@ -35,9 +32,10 @@ from ..core.core import (
     run_gke_node_pool_create_command,
     set_jobset_on_cluster,
     set_up_cluster_network_for_gpu,
+    setup_k8s_env,
     update_cluster_with_clouddns_if_necessary,
-    update_cluster_with_workload_identity_if_necessary,
     update_cluster_with_gcsfuse_driver_if_necessary,
+    update_cluster_with_workload_identity_if_necessary,
     zone_to_region,
 )
 from ..core.kueue import (
@@ -46,6 +44,7 @@ from ..core.kueue import (
     install_kueue_on_cluster,
 )
 from ..core.nap import enable_autoprovisioning_on_cluster
+from ..core.storage import install_storage_crd
 from ..core.system_characteristics import (
     AcceleratorType,
     AcceleratorTypeToAcceleratorCharacteristics,
@@ -113,9 +112,7 @@ def cluster_create(args) -> None:
     if update_cluster_command_code != 0:
       xpk_exit(update_cluster_command_code)
 
-  set_cluster_command_code = set_cluster_command(args)
-  if set_cluster_command_code != 0:
-    xpk_exit(set_cluster_command_code)
+  get_cluster_credentials(args)
 
   # create Vertex Tensorboard for new and existing clusters if create-vertex-tensorboard is set
   tensorboard_config = {}
@@ -164,6 +161,8 @@ def cluster_create(args) -> None:
   if install_kueue_on_cluster_code != 0:
     xpk_exit(install_kueue_on_cluster_code)
 
+  k8s_client = setup_k8s_env(args)
+  install_storage_crd(k8s_client)
   # Provision node pools dynamically based on incoming workloads:
   # Currently autoprovisioning is not supported with Pathways.
   autoprovisioning_config = None
@@ -236,9 +235,7 @@ def cluster_cacheimage(args) -> None:
   )
   add_zone_and_project(args)
 
-  set_cluster_command_code = set_cluster_command(args)
-  if set_cluster_command_code != 0:
-    xpk_exit(set_cluster_command_code)
+  get_cluster_credentials(args)
   system, return_code = get_system_characteristics(args)
 
   if return_code > 0:
@@ -287,9 +284,7 @@ def cluster_describe(args) -> None:
   xpk_print(f'Starting nodepool list for cluster: {args.cluster}', flush=True)
   add_zone_and_project(args)
 
-  set_cluster_command_code = set_cluster_command(args)
-  if set_cluster_command_code != 0:
-    xpk_exit(set_cluster_command_code)
+  get_cluster_credentials(args)
 
   command = (
       f'gcloud container node-pools  list --cluster {args.cluster} '
@@ -470,8 +465,8 @@ def run_gke_cluster_create_command(
       ' --enable-autoscaling'
       ' --total-min-nodes 1 --total-max-nodes 1000'
       f' --num-nodes {args.default_pool_cpu_num_nodes}'
-      f' {args.custom_cluster_arguments}'
       ' --release-channel rapid'
+      f' {args.custom_cluster_arguments}'
   )
 
   if system.accelerator_type == AcceleratorType['GPU']:
@@ -502,28 +497,3 @@ def run_gke_cluster_create_command(
     xpk_print(f'GKE Cluster Create request returned ERROR {return_code}')
     return 1
   return 0
-
-
-def set_cluster_command(args) -> int:
-  """Run cluster configuration command to set the kubectl config.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  command = (
-      'gcloud container clusters get-credentials'
-      f' {args.cluster} --region={zone_to_region(args.zone)}'
-      f' --project={args.project} &&'
-      ' kubectl config view && kubectl config set-context --current'
-      ' --namespace=default'
-  )
-  task = f'get-credentials to cluster {args.cluster}'
-  return_code = run_command_with_updates_retry(
-      command, task, args, verbose=False
-  )
-  if return_code != 0:
-    xpk_print(f'{task} returned ERROR {return_code}')
-  return return_code

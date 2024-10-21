@@ -43,9 +43,9 @@ def set_inspector_parser(inspector_parser):
       required=True,
   )
 
-  ### "inspector" Optional Arguments
   add_shared_arguments(inspector_parser_optional_arguments)
 
+  ### "inspector" Optional Arguments
   inspector_parser_optional_arguments.add_argument(
       '--workload',
       type=workload_name_type,

@@ -24,6 +24,7 @@ env:
   TPU_CLUSTER_NAME: build-xpk-2-v4-8-nodepools
   WORKLOAD_NAME: xpktest-build-${{ github.run_attempt }}
   PATHWAYS_WORKLOAD_NAME: xpkpw-build-${{ github.run_attempt }}
+  STORAGE_NAME: test-storage
 
 jobs:
   cluster-create-and-delete:
@@ -54,19 +55,38 @@ jobs:
         pip install .
         xpk --help
     - name: Create a Pathways-enabled XPK Cluster with 2x v4-8 nodepools. Larger num-nodes to avoid master resizing.
-      run: python xpk.py cluster create-pathways --cluster $TPU_CLUSTER_NAME --tpu-type=v4-8  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}'
+      run: |
+        python3 xpk.py cluster create-pathways --cluster $TPU_CLUSTER_NAME --tpu-type=v4-8  --num-slices=2 \
+        --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 \
+        --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --enable-workload-identity --enable-gcsfuse-csi-driver
     - name: Authenticate Docker
       run: gcloud auth configure-docker --quiet
+    - name: Create auto-mount Storage instance
+      run: |
+        python3 xpk.py storage create $STORAGE_NAME --cluster=$TPU_CLUSTER_NAME --zone=us-central2-b --type=gcsfuse \
+        --auto-mount=true \
+        --mount-point='/test-mount-point' --readonly=false --manifest='./tests/data/pv-pvc-templates.yaml'
+    - name: List and verify existing Storages
+      run: python3 xpk.py storage list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | tee output.txt | grep 'test-storage' || (echo 'No storage found' && cat output.txt && exit 1)
     - name: Create test script to execute in workloads
-      run: echo -e '#!/bin/bash \n echo "Hello world from a test script!"' > test.sh
+      run: |
+        echo -e \
+        '#!/bin/bash \n
+        echo "Hello world from a test script!"' \
+        > test.sh
     - name: Run a base-docker-image workload
-      run: python xpk.py workload create --cluster $TPU_CLUSTER_NAME --workload $WORKLOAD_NAME  --command "bash test.sh"  --tpu-type=v4-8 --num-slices=2 --zone=us-central2-b
+      run: |
+        python3 xpk.py workload create --cluster $TPU_CLUSTER_NAME --workload $WORKLOAD_NAME  --command "bash test.sh"  \
+        --tpu-type=v4-8 --num-slices=2 --zone=us-central2-b
     - name: Run xpk inspector with the workload created above
       run: python3 xpk.py inspector --cluster $TPU_CLUSTER_NAME --zone=us-central2-b  --workload $WORKLOAD_NAME
     - name: Wait for workload completion and confirm it succeeded
       run: python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion $WORKLOAD_NAME --timeout 300
     - name: Run a Pathways workload on Ubuntu base image
-      run: python xpk.py workload create-pathways --cluster $TPU_CLUSTER_NAME --workload $PATHWAYS_WORKLOAD_NAME --docker-image='marketplace.gcr.io/google/ubuntu2004' --tpu-type=v4-8 --num-slices=2 --zone=us-central2-b --command "echo \"Hello world from a test script! \"" 
+      run: |
+        python3 xpk.py workload create-pathways --cluster $TPU_CLUSTER_NAME --workload $PATHWAYS_WORKLOAD_NAME \
+        --docker-image='marketplace.gcr.io/google/ubuntu2004' --tpu-type=v4-8 --num-slices=2 --zone=us-central2-b \
+        --command "echo \"Hello world from a test script! \""
     - name: Wait for Pathways workload completion and confirm it succeeded
       run: python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion $PATHWAYS_WORKLOAD_NAME --timeout 300
     - name: List out the workloads on the cluster
@@ -75,9 +95,11 @@ jobs:
       run: python3 xpk.py workload delete --workload $WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
     - name: Delete the Pathways workload on the cluster
       run: python3 xpk.py workload delete --workload $PATHWAYS_WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+    - name: Delete existing Storage
+      run: python3 xpk.py storage delete $STORAGE_NAME  --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
     - name: Delete the cluster created
       if: always()
-      run: python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+      run: python3 xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
 
 
 

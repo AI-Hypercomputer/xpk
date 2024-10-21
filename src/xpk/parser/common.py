@@ -17,7 +17,9 @@ limitations under the License.
 import argparse
 
 
-def add_shared_arguments(custom_parser: argparse.ArgumentParser):
+def add_shared_arguments(
+    custom_parser: argparse.ArgumentParser, required=False
+) -> None:
   """Add shared arguments to the parser.
 
   Args:
@@ -28,6 +30,7 @@ def add_shared_arguments(custom_parser: argparse.ArgumentParser):
       type=str,
       default=None,
       help='GCE project name, defaults to "gcloud config project."',
+      required=required,
   )
   custom_parser.add_argument(
       '--zone',
@@ -38,6 +41,7 @@ def add_shared_arguments(custom_parser: argparse.ArgumentParser):
           'compute/zone." Only one of --zone or --region is allowed in a '
           'command.'
       ),
+      required=required,
   )
   custom_parser.add_argument(
       '--dry-run',
@@ -49,4 +53,5 @@ def add_shared_arguments(custom_parser: argparse.ArgumentParser):
           ' but not run them. This is imperfect in cases where xpk might'
           ' branch based on the output of commands'
       ),
+      required=required,
   )

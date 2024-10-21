@@ -30,7 +30,8 @@ keywords = []
 
 # pip dependencies installed with `pip install -e .`
 dependencies = [
-  "cloud-accelerator-diagnostics"
+  "cloud-accelerator-diagnostics",
+  "tabulate"
 ]
 
 [project.urls]

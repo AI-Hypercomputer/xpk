@@ -206,8 +206,8 @@ def cluster_create(args) -> None:
 
   if args.enable_ray_cluster:
     return_code = install_ray_cluster(args, system)
-  if return_code != 0:
-    xpk_exit(return_code)
+    if return_code != 0:
+      xpk_exit(return_code)
 
   xpk_print('GKE commands done! Resources are created.')
   xpk_print(

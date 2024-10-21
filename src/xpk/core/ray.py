@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..utils import write_tmp_file, xpk_print
+from ..utils import write_tmp_file, xpk_print, xpk_exit
 from .commands import run_command_with_updates_retry
 
 
@@ -107,6 +107,7 @@ def install_ray_cluster(args, system) -> int:
   )
   if return_code != 0:
     xpk_print(f'{task} not successful.')
+    xpk_exit(return_code)
   return return_code
 
 

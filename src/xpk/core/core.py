@@ -39,10 +39,16 @@ import re
 import string
 import subprocess
 import sys
+from argparse import Namespace
 from dataclasses import dataclass
 
 from ..utils.file import write_tmp_file
 from ..utils.console import get_user_input, xpk_exit, xpk_print
+from google.api_core.exceptions import PermissionDenied
+from google.cloud import resourcemanager_v3
+from kubernetes import client as k8s_client
+from kubernetes import config
+
 from .commands import (
     run_command_for_value,
     run_command_with_updates,
@@ -79,10 +85,14 @@ DEFAULT_VERTEX_TENSORBOARD_NAME = 'tb-instance'
 AUTOPROVISIONING_CONFIG_VALUE = 'AUTOPROVISION'
 AUTOPROVISIONING_CONFIG_MINIMUM_KEY = 'minimum_chips'
 AUTOPROVISIONING_CONFIG_MAXIMUM_KEY = 'maximum_chips'
+<<<<<<< HEAD
 CLOUD_PLATFORM_AUTH_SCOPE_URL = (
     '"https://www.googleapis.com/auth/cloud-platform"'
 )
 PLATFORM = 'linux/amd64'
+=======
+GCS_FUSE_ANNOTATION = 'gke-gcsfuse/volumes: "true"'
+>>>>>>> 73af01e (Introduce Storage API (#192))
 
 
 class CapacityType(enum.Enum):
@@ -286,6 +296,23 @@ def get_project():
   ]  # The project name lives on the last line of the output
 
 
+def project_id_to_project_number(project_id: str) -> str:
+  client = resourcemanager_v3.ProjectsClient()
+  request = resourcemanager_v3.GetProjectRequest()
+  request.name = f'projects/{project_id}'
+  try:
+    response: resourcemanager_v3.Project = client.get_project(request=request)
+  except PermissionDenied as e:
+    xpk_print(
+        f"Couldn't translate project id: {project_id} to project number."
+        f' Error: {e}'
+    )
+    xpk_exit(1)
+  parts = response.name.split('/', 1)
+  xpk_print(f'Project number for project: {project_id} is {parts[1]}')
+  return parts[1]
+
+
 def get_zone():
   """Get GCE zone from `gcloud config get compute/zone`.
 
@@ -317,6 +344,15 @@ def zone_to_region(zone) -> str:
   """
   zone_terms = zone.split('-')
   return zone_terms[0] + '-' + zone_terms[1]
+
+
+def setup_k8s_env(args: Namespace) -> k8s_client.ApiClient:
+  add_zone_and_project(args)
+  get_cluster_credentials(args)
+  args.project_number = project_id_to_project_number(args.project)
+
+  config.load_kube_config()
+  return k8s_client.ApiClient()
 
 
 def get_total_chips_requested_from_args(
@@ -967,8 +1003,8 @@ def get_cluster_configmap(args, configmap_name) -> dict[str, str] | None:
     return_value = return_value[return_value.index('map') :]
     configs = return_value[4:-1].split(' ')
 
-    for config in configs:
-      key, value = config.strip().split(':')
+    for pair in configs:
+      key, value = pair.strip().split(':')
       config_map[key] = value
   return config_map
 
@@ -1101,7 +1137,7 @@ def is_cluster_using_clouddns(args) -> bool:
   command = (
       f'gcloud container clusters describe {args.cluster}'
       f' --project={args.project} --region={zone_to_region(args.zone)}'
-      ' | grep "clusterDns: CLOUD_DNS" | wc -l'
+      ' 2> /dev/null | grep "clusterDns: CLOUD_DNS" | wc -l'
   )
   return_code, cloud_dns_matches = run_command_for_value(
       command,
@@ -2009,7 +2045,10 @@ def get_gke_node_pool_version(
           and master_gke_version.split('.')[:2] == version.split('.')[:2]
       ):
         node_pool_gke_version = version
+<<<<<<< HEAD
 
+=======
+>>>>>>> 73af01e (Introduce Storage API (#192))
   is_supported_node_pool_version = (
       node_pool_gke_version in gke_server_config.valid_versions
   )
@@ -2025,6 +2064,31 @@ def get_gke_node_pool_version(
     )
     return 1, None
   return 0, node_pool_gke_version
+
+
+def get_cluster_credentials(args: Namespace) -> None:
+  """Run cluster configuration command to set the kubectl config.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  command = (
+      'gcloud container clusters get-credentials'
+      f' {args.cluster} --region={zone_to_region(args.zone)}'
+      f' --project={args.project} &&'
+      ' kubectl config view && kubectl config set-context --current'
+      ' --namespace=default'
+  )
+  task = f'get-credentials to cluster {args.cluster}'
+  return_code = run_command_with_updates_retry(
+      command, task, args, verbose=False
+  )
+  if return_code != 0:
+    xpk_print(f'{task} returned ERROR {return_code}')
+    xpk_exit(return_code)
 
 
 def validate_docker_image(docker_image, args) -> int:

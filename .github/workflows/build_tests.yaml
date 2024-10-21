@@ -42,6 +42,7 @@ env:
   GKE_ML_TEST_CLUSTER_NAME: "xpk-gke-ml"
   ZONE: us-central2-a
   REGION: us-central2
+  STORAGE_NAME: test-storage
 
 jobs:
   run-unit-tests:
@@ -139,12 +140,32 @@ jobs:
       run: python xpk.py cluster create-pathways --cluster $TPU_CLUSTER_NAME --private --tpu-type=$TPU_TYPE  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments="${CLUSTER_ARGUMENTS}"
     - name: Verify the created cluster is private
       run: gcloud container clusters describe $TPU_CLUSTER_NAME --region=us-central2 --format="value(privateClusterConfig.enablePrivateNodes)" | grep 'True' || (echo 'The created cluster is not private.' && exit 1)
+        pip install .
+        xpk --help
+    - name: Create a Pathways-enabled XPK Cluster with 2x v4-8 nodepools. Larger num-nodes to avoid master resizing.
+      run: |
+        python3 xpk.py cluster create-pathways --cluster $TPU_CLUSTER_NAME --tpu-type=v4-8  --num-slices=2 \
+        --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 \
+        --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --enable-workload-identity --enable-gcsfuse-csi-driver
     - name: Authenticate Docker
       run: gcloud auth configure-docker --quiet
+    - name: Create auto-mount Storage instance
+      run: |
+        python3 xpk.py storage create $STORAGE_NAME --cluster=$TPU_CLUSTER_NAME --zone=us-central2-b --type=gcsfuse \
+        --auto-mount=true \
+        --mount-point='/test-mount-point' --readonly=false --manifest='./tests/data/pv-pvc-templates.yaml'
+    - name: List and verify existing Storages
+      run: python3 xpk.py storage list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | tee output.txt | grep 'test-storage' || (echo 'No storage found' && cat output.txt && exit 1)
     - name: Create test script to execute in workloads
-      run: echo -e '#!/bin/bash \n echo "Hello world from a test script!"' > workload.sh
+      run: |
+        echo -e \
+        '#!/bin/bash \n
+        echo "Hello world from a test script!"' \
+        > test.sh
     - name: Run a base-docker-image workload
-      run: python xpk.py workload create --cluster $TPU_CLUSTER_NAME --workload $WORKLOAD_NAME  --command "bash workload.sh"  --tpu-type=$TPU_TYPE --num-slices=2 --zone=us-central2-b
+      run: |
+        python3 xpk.py workload create --cluster $TPU_CLUSTER_NAME --workload $WORKLOAD_NAME  --command "bash test.sh"  \
+        --tpu-type=v4-8 --num-slices=2 --zone=us-central2-b
     - name: Run xpk inspector with the workload created above
       run: python3 xpk.py inspector --cluster $TPU_CLUSTER_NAME --zone=us-central2-b  --workload $WORKLOAD_NAME
     - name: Wait for workload completion and confirm it succeeded
@@ -201,6 +222,12 @@ jobs:
     - name: Delete the cluster created
       if: always()
       run: echo 'y' | python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+    - name: Delete existing Storage
+      run: python3 xpk.py storage delete $STORAGE_NAME  --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+    - name: Delete the cluster created
+      if: always()
+      run: python3 xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+
 
 
 

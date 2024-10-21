@@ -318,7 +318,7 @@ will fail the cluster creation process because Vertex AI Tensorboard is not supp
     --tpu-type=v5litepod-16
     ```
 
-## Storage Create
+## Storage
 Currently xpk supports Cloud Storage FUSE. A FUSE adapter that lets you mount and access Cloud Storage buckets as local file systems, so applications can read and write objects in your bucket using standard file system semantics.
 
 To use the GCS FUSE with XPK user needs to create a a [Storage Bucket](https://pantheon.corp.google.com/storage/)
@@ -330,16 +330,35 @@ Once it's ready user can define
 `--type` - defines a type of a storage, currently xpk supports `gcsfuse` only.
 `--auto-mount` - if set to true means that all workloads should have a given storage mounted by default.
 `--mount-point` - defines the path on which a given storage should be mounted for a workload.
-`--manifest` -- 
+`--manifest` - defines the path to manifest which contains PersistentVolue and PersistentVolumeClaim definitions
 
 
-* Create simple Storage
+* Create a simple Storage
 
     ```shell
     python3 xpk.py storage create test-storage --project=$PROJECT
-    --cluster=xpk-test --type=test-type --auto-mount=false \
+    --cluster=xpk-test --type=gcsfuse --auto-mount=false \
     --mount-point='/test-mount-point' --readonly=false \
     --manifest='pv-pvc-auto-mount.yaml'
+    ```
+
+* Create a simple Workload with Storage attached
+    ```shell
+    python3 xpk.py workload create \
+    --workload xpk-test-workload --command "echo goodbye" \
+    --cluster xpk-test \
+    --tpu-type=v5litepod-16 \
+    --storage test-storage
+    ```
+
+* List Storage
+    ```shell
+    python3 xpk.py storage list --cluster xpk-test --zone=us-central2-b
+    ```
+
+* Delete Storage
+    ```shell
+    python3 xpk.py storage delete test-storage  --cluster xpk-test --zone=us-central2-b
     ```
 
 ## Workload Create

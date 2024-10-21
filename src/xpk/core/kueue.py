@@ -14,8 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..utils import write_tmp_file, xpk_print
-from .commands import run_command_with_updates_retry
+from argparse import Namespace
+from ..utils import write_tmp_file, xpk_print, xpk_exit
+from .commands import run_command_with_updates_retry, run_command_for_value
 from .core import (
     AutoprovisioningConfig,
     create_accelerator_label,
@@ -138,6 +139,31 @@ spec:
         name: {cachekey}
         command: [ "sleep", "inf" ]
 """
+
+
+def verify_kueuectl(args: Namespace) -> None:
+  """Verify if kueuectl is installed.
+  Args:
+    args: user provided arguments.
+  Returns:
+    None
+  """
+  xpk_print('Veryfing kueuectl installation')
+
+  command = 'kubectl kueue version'
+  task = 'Verify kueuectl installation on cluster'
+  verify_kueuectl_installed_code, _ = run_command_for_value(command, task, args)
+
+  if verify_kueuectl_installed_code == 0:
+    xpk_print('kueuectl found')
+
+  if verify_kueuectl_installed_code != 0:
+    xpk_print(
+        'kueuectl not found. Please follow'
+        ' https://kueue.sigs.k8s.io/docs/reference/kubectl-kueue/installation/'
+        ' to install kueuectl.'
+    )
+    xpk_exit(verify_kueuectl_installed_code)
 
 
 def install_kueue_on_cluster(args) -> int:

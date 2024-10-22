@@ -134,7 +134,7 @@ def download_files_from_github_into_dir(
     urllib.request.urlretrieve(url, target)
 
 
-def apply_kjob_crds(args):
+def apply_kjob_crds(args: Namespace) -> None:
   temp_dir = tempfile.mkdtemp()
   mkdir(join(temp_dir, "bases"))
   urls = [

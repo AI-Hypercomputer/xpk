@@ -21,6 +21,7 @@ from .cluster import set_cluster_parser
 from .inspector import set_inspector_parser
 from .workload import set_workload_parsers
 from .batch import set_batch_parser
+from .info import set_info_parser
 
 
 def set_parser(parser: argparse.ArgumentParser):
@@ -37,6 +38,9 @@ def set_parser(parser: argparse.ArgumentParser):
   inspector_parser = xpk_subcommands.add_parser(
       "inspector",
       help="commands around investigating workload, and Kueue failures.",
+  )
+  info_parser = xpk_subcommands.add_parser(
+      "info", help="commands around listing kueue clusterqueues and localqueues"
   )
 
   batch_parser = xpk_subcommands.add_parser(
@@ -60,14 +64,17 @@ def set_parser(parser: argparse.ArgumentParser):
     cluster_parser.print_help()
     workload_parser.print_help()
     batch_parser.print_help()
+    info_parser.print_help()
     return 0
 
   parser.set_defaults(func=default_subcommand_function)
   workload_parser.set_defaults(func=default_subcommand_function)
   cluster_parser.set_defaults(func=default_subcommand_function)
   batch_parser.set_defaults(func=default_subcommand_function)
+  info_parser.set_defaults(func=default_subcommand_function)
 
   set_workload_parsers(workload_parser=workload_parser)
   set_cluster_parser(cluster_parser=cluster_parser)
   set_inspector_parser(inspector_parser=inspector_parser)
   set_batch_parser(batch_parser=batch_parser)
+  set_info_parser(info_parser=info_parser)

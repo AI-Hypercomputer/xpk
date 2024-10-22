@@ -1109,5 +1109,14 @@ To explore the stack traces collected in a temporary directory in Kubernetes Pod
   xpk-test --tpu-type=v5litepod-16 --deploy-stacktrace-sidecar
  ```
 
+### Get information about jobs, queues and resources.
+
+To list available resources and queues use ```xpk info``` command. It allows to see localqueues and clusterqueues and check for available resources.
+
+To see queues with usage and workload info use:
+```shell
+python3 xpk.py info --cluster my-cluster
+```
+
 # Other advanced usage
 [Use a Jupyter notebook to interact with a Cloud TPU cluster](xpk-notebooks.md)

@@ -15,7 +15,7 @@ To view results run:
 ```bash
 kubectl get pods
 ```
-Names of pods from slurm task execution begin with "xpk-def-app-profile-slurm".To see pods on which batch task was executed.
+Names of pods from slurm task execution begin with "xpk-def-app-profile-slurm".
 
 To see logs run:
 ```bash

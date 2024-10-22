@@ -43,7 +43,7 @@ def info(args: Namespace) -> None:
   if set_cluster_command_code != 0:
     xpk_exit(set_cluster_command_code)
 
-  prepare_kueuectl(args)
+  verify_kueuectl(args)
 
   if args.localqueue is None and args.clusterqueue is None:
     args.localqueue, args.clusterqueue = True, True

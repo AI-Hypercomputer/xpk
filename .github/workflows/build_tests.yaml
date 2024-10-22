@@ -49,6 +49,12 @@ jobs:
       run: |
         gcloud config set compute/zone us-east4-a
         gcloud config get compute/zone
+    - name: Install kjob
+      run: |
+        git clone https://github.com/kubernetes-sigs/kueue.git
+        cd kueue/cmd/experimental/kjobctl
+        make kubectl-kjob
+        mv ./bin/kubectl-kjob /usr/local/bin/kubectl-kjob
     - name: Install kueuectl
       run: curl -Lo ./kubectl-kueue https://github.com/kubernetes-sigs/kueue/releases/download/v0.8.1/kubectl-kueue-linux-amd64 && chmod +x ./kubectl-kueue && mv ./kubectl-kueue /usr/local/bin/kubectl-kueue
     - name: Install xpk with pip and verify it executes corretly
@@ -61,13 +67,6 @@ jobs:
       run: gcloud auth configure-docker --quiet
     - name: Create test script to execute in workloads
       run: echo -e '#!/bin/bash \n echo "Hello world from a test script!"' > test.sh
-    - name: Install kjob
-      run: |
-        git clone https://github.com/kubernetes-sigs/kueue.git
-        cd kueue/cmd/experimental/kjobctl
-        make install
-        make kubectl-kjob
-        mv ./bin/kubectl-kjob /usr/local/bin/kubectl-kjob
     - name: Run a base-docker-image workload
       run: python xpk.py workload create --cluster $TPU_CLUSTER_NAME --workload $WORKLOAD_NAME  --command "bash test.sh"  --tpu-type=v4-8 --num-slices=2 --zone=us-central2-b
     - name: Run xpk inspector with the workload created above

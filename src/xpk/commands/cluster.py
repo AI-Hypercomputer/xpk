@@ -42,7 +42,7 @@ from ..core.kjob import (
     verify_kjob_installed,
     create_app_profile_instance,
     create_job_template_instance,
-    apply_kjob_crds
+    apply_kjob_crds,
 )
 from ..core.kueue import (
     cluster_preheat_yml,

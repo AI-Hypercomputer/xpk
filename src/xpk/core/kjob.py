@@ -145,15 +145,18 @@ def apply_kjob_crds(args):
       app_profile_gh_file,
   ]
   download_files_from_github_into_dir(
-      join(temp_dir, "bases"), list(zip(urls, [url.rsplit("/", maxsplit=1)[-1] for url in urls]))
+      join(temp_dir, "bases"),
+      list(zip(urls, [url.rsplit("/", maxsplit=1)[-1] for url in urls])),
   )
   download_files_from_github_into_dir(
       temp_dir, [(customization_gh_file, "kustomization.yaml")]
   )
 
   cmd = f"kustomize build {temp_dir} | kubectl apply --server-side -f -"
-  error_code, _ = run_command_for_value(cmd, "Create kjob CRDs on cluster", args)
+  error_code, _ = run_command_for_value(
+      cmd, "Create kjob CRDs on cluster", args
+  )
   if error_code != 0:
     exit(error_code)
 
-  xpk_print('Creating kjob CRDs succeded')
+  xpk_print("Creating kjob CRDs succeded")

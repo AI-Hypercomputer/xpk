@@ -48,6 +48,7 @@ from ..core.core import (
 from ..core.kueue import LOCAL_QUEUE_NAME
 from ..core.nap import (
     get_autoprovisioning_node_selector_args,
+    get_autoprovisioning_tolerations,
     is_autoprovisioning_enabled,
 )
 from ..core.pathways import (
@@ -101,6 +102,8 @@ spec:
               hostNetwork: true
               dnsPolicy: ClusterFirstWithHostNet
               terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
+              tolerations:
+                {autoprovisioning_tolerations}
               containers:
               {container}
               volumes:
@@ -395,6 +398,7 @@ def workload_create(args) -> None:
 
   # Currently autoprovisioning is not enabled for Pathways workloads.
   autoprovisioning_args = ''
+  autoprovisioning_tolerations = ''
   autoprovisioning_enabled, return_code = is_autoprovisioning_enabled(
       args, system
   )
@@ -404,6 +408,11 @@ def workload_create(args) -> None:
     # Determine NAP capacity type
     autoprovisioning_args, return_code = (
         get_autoprovisioning_node_selector_args(args)
+    )
+    if return_code != 0:
+      xpk_exit(return_code)
+    autoprovisioning_tolerations, return_code = (
+        get_autoprovisioning_tolerations(args)
     )
     if return_code != 0:
       xpk_exit(return_code)
@@ -467,6 +476,7 @@ def workload_create(args) -> None:
         local_queue_name=LOCAL_QUEUE_NAME,
         autoprovisioning_args=autoprovisioning_args,
         volumes=get_volumes(args, system),
+        autoprovisioning_tolerations=autoprovisioning_tolerations,
     )
   tmp = write_tmp_file(yml_string)
   command = f'kubectl apply -f {str(tmp.file.name)}'

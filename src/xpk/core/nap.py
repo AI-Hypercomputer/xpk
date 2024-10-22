@@ -285,6 +285,49 @@ def is_autoprovisioning_enabled(
     return False, 1
 
 
+def get_capacity_type_str_from_args_or_cluster_default(args) -> tuple[str, int]:
+  """Determine the capacity type based on user arguments or cluster default.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    Tuple with string with the system characteristics and
+    int of 0 if successful and 1 otherwise.
+  """
+  # If the user doesn't specify args, then use the cluster settings.
+  capacity_type, return_code = get_capacity_type(args)
+  if return_code != 0:
+    xpk_print('Unable to get capacity type.')
+    return CapacityType.UNKNOWN.name, return_code
+
+  if capacity_type != CapacityType.UNKNOWN:
+    return capacity_type.name, 0
+
+  # Use default settings from cluster creation.
+  #
+  # Error out if the metadata config map doesn't exist, and is attempting to use
+  # autoprovisioning.
+  cluster_config_map = get_cluster_configmap(
+      args, f'{args.cluster}-{CLUSTER_METADATA_CONFIGMAP}'
+  )
+  if cluster_config_map is None:
+    xpk_print(
+        'Unable to find config map. Please specify a capacity type'
+        ' --on-demand, --spot, --reservation=$RESERVATION_ID) to continue'
+        ' to use autoprovisioning (--enable-autoprovisioning).'
+    )
+    return CapacityType.UNKNOWN.name, 1
+
+  return_code, capacity_type_str = get_value_from_map(
+      CAPACITY_TYPE_CONFIG_KEY, cluster_config_map
+  )
+  if return_code != 0:
+    return CapacityType.UNKNOWN.name, return_code
+
+  return capacity_type_str, 0
+
+
 def get_autoprovisioning_node_selector_args(args) -> tuple[str, int]:
   """Determine the capacity type when autoprovisioning is enabled.
 
@@ -297,44 +340,33 @@ def get_autoprovisioning_node_selector_args(args) -> tuple[str, int]:
   """
   return_code = 0
   node_selector_args = ''
-  # If the user doesn't specify args, then use the cluster settings.
-  capacity_type, return_code = get_capacity_type(args)
-  capacity_type_str = capacity_type.name
+  capacity_type_str, return_code = (
+      get_capacity_type_str_from_args_or_cluster_default(args)
+  )
   if return_code != 0:
-    xpk_print('Unable to get capacity type.')
     return node_selector_args, return_code
 
-  if capacity_type_str == CapacityType.UNKNOWN.name:
-    # Use default settings from cluster creation.
-    metadata_configmap_name = f'{args.cluster}-{CLUSTER_METADATA_CONFIGMAP}'
-    cluster_config_map = get_cluster_configmap(args, metadata_configmap_name)
+  cluster_config_map = get_cluster_configmap(
+      args, f'{args.cluster}-{CLUSTER_METADATA_CONFIGMAP}'
+  )
+  if cluster_config_map is None:
+    xpk_print(
+        'Unable to find config map. Please specify a capacity type'
+        ' --on-demand, --spot, --reservation=$RESERVATION_ID) to continue'
+        ' to use autoprovisioning (--enable-autoprovisioning).'
+    )
+    return node_selector_args, 1
 
-    # Error out if the metadata config map doesn't exist, and is attempting to use
-    # autoprovisioning.
-    if cluster_config_map is None:
-      xpk_print(
-          'Unable to find config map. Please specify a capacity type'
-          ' --on-demand, --spot, --reservation=$RESERVATION_ID) to continue'
-          ' to use autoprovisioning (--enable-autoprovisioning).'
-      )
-      return node_selector_args, 1
-
-    return_code, capacity_type_str = get_value_from_map(
-        CAPACITY_TYPE_CONFIG_KEY, cluster_config_map
+  if capacity_type_str == CapacityType.RESERVATION.name:
+    return_code, args.reservation = get_value_from_map(
+        RESERVATION_CONFIG_KEY, cluster_config_map
     )
     if return_code != 0:
       return node_selector_args, return_code
-
-    if capacity_type_str == CapacityType.RESERVATION.name:
-      return_code, args.reservation = get_value_from_map(
-          RESERVATION_CONFIG_KEY, cluster_config_map
-      )
-      if return_code != 0:
-        return node_selector_args, return_code
-      return_code = verify_reservation_exists(args)
-      if return_code > 0:
-        xpk_print('Unable to verify reservation name saved in config map.')
-        return node_selector_args, return_code
+    return_code = verify_reservation_exists(args)
+    if return_code > 0:
+      xpk_print('Unable to verify reservation name saved in config map.')
+      return node_selector_args, return_code
 
   # Check if reservation id is valid. Shared function with cluster creation.
   node_selector_args, return_code = (
@@ -345,3 +377,36 @@ def get_autoprovisioning_node_selector_args(args) -> tuple[str, int]:
     return node_selector_args, return_code
 
   return node_selector_args, return_code
+
+
+def get_autoprovisioning_tolerations(args) -> tuple[str, int]:
+  """Determine the pod tolerations when autoprovisioning is enabled.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    Tuple with string of autoprovisioning tolerations and
+    int of 0 if successful and 1 otherwise.
+  """
+  capacity_type_str, return_code = (
+      get_capacity_type_str_from_args_or_cluster_default(args)
+  )
+  if return_code != 0:
+    return '', return_code
+
+  if capacity_type_str == CapacityType.SPOT.name:
+    # https://cloud.google.com/kubernetes-engine/docs/concepts/node-auto-provisioning#support_for_spot_vms
+    #
+    # > Creating node pools based on Spot VMs is only considered if
+    # > unschedulable pods with a toleration for the
+    # > cloud.google.com/gke-spot="true":NoSchedule taint exist
+    return (
+        '''- key: "cloud.google.com/gke-spot"
+                  operator: "Equal"
+                  value: "true"
+                  effect: "NoSchedule"''',
+        0,
+    )
+
+  return '', 0

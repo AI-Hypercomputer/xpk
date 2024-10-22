@@ -45,13 +45,6 @@ jobs:
         install_components: 'beta,gke-gcloud-auth-plugin'
     - name: Verify gcp setup
       run: gcloud info
-    - name: Install kjob
-      run: |
-        git clone https://github.com/kubernetes-sigs/kueue.git
-        cd kueue/cmd/experimental/kjobctl
-        make install
-        make kubectl-kjob
-        mv ./bin/kubectl-kjob /usr/local/bin/kubectl-kjob
     - name: Set Google Cloud CLI properties to a unused zone to verify --zone arg is passed properly in commands.
       run: |
         gcloud config set compute/zone us-east4-a
@@ -68,6 +61,13 @@ jobs:
       run: gcloud auth configure-docker --quiet
     - name: Create test script to execute in workloads
       run: echo -e '#!/bin/bash \n echo "Hello world from a test script!"' > test.sh
+    - name: Install kjob
+      run: |
+        git clone https://github.com/kubernetes-sigs/kueue.git
+        cd kueue/cmd/experimental/kjobctl
+        make install
+        make kubectl-kjob
+        mv ./bin/kubectl-kjob /usr/local/bin/kubectl-kjob
     - name: Run a base-docker-image workload
       run: python xpk.py workload create --cluster $TPU_CLUSTER_NAME --workload $WORKLOAD_NAME  --command "bash test.sh"  --tpu-type=v4-8 --num-slices=2 --zone=us-central2-b
     - name: Run xpk inspector with the workload created above

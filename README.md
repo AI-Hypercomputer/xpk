@@ -63,6 +63,15 @@ and the following CPU types:
 * Storage Admin
 * Vertex AI Administrator
 
+# Prerequisites
+
+xpk uses many tool to provide all neccessary functionalities. User must install following tools:
+
+- python >= 3.10 (download from [here](https://www.python.org/downloads/))
+- gcloud (install from [here](https://cloud.google.com/sdk/gcloud#download_and_install_the))
+- kubectl (install from [here](https://kubernetes.io/docs/tasks/tools/))
+- kueuectl (install from [here](https://kueue.sigs.k8s.io/docs/reference/kubectl-kueue/installation/))
+
 # Installation
 To install xpk, run the following command:
 

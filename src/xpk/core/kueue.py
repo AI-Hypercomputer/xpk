@@ -141,7 +141,7 @@ spec:
 """
 
 
-def prepare_kueuectl(args: Namespace) -> None:
+def verify_kueuectl(args: Namespace) -> None:
   """Verify if kueuectl is installed.
   Args:
     args: user provided arguments.
@@ -150,32 +150,20 @@ def prepare_kueuectl(args: Namespace) -> None:
   """
   xpk_print('Veryfing kueuectl installation')
 
-  verify_kueuectl_installed_code = verify_kueuectl_installation(args)
+  command = 'kubectl kueue version'
+  task = 'Verify kueuectl installation on cluster'
+  verify_kueuectl_installed_code, _ = run_command_for_value(command, task, args)
+
   if verify_kueuectl_installed_code == 0:
-    xpk_print('kueuectl installed')
+    xpk_print('kueuectl found')
 
   if verify_kueuectl_installed_code != 0:
     xpk_print(
-        'kueuectl not installed. Please follow'
+        'kueuectl not found. Please follow'
         ' https://kueue.sigs.k8s.io/docs/reference/kubectl-kueue/installation/'
         ' to install kueuectl.'
     )
     xpk_exit(verify_kueuectl_installed_code)
-
-
-def verify_kueuectl_installation(args: Namespace) -> int:
-  """Verify if if kueuectl is installed.
-  Args:
-    args: user provided arguments for running the command.
-  Returns:
-    0 if kueuectl installed and error code otherwise.
-  """
-  command = 'kubectl kueue version'
-  task = 'Verify kueuectl installation on cluster'
-  return_code, _ = run_command_for_value(command, task, args)
-  if return_code != 0:
-    xpk_print(f'{task} returned ERROR {return_code}')
-  return return_code
 
 
 def install_kueue_on_cluster(args) -> int:

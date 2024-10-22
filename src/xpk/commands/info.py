@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 from ..utils import xpk_exit, xpk_print
-from ..core.kueue import prepare_kueuectl
+from ..core.kueue import verify_kueuectl
 from .cluster import set_cluster_command
 from ..core.commands import (
     run_command_for_value,

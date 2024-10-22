@@ -8,7 +8,7 @@ This section should describe how to prepare volumes and add external files execu
 
 To run xpk batch script run:
 ```bash
-python3 xpk.py batch slurm_sample.sh
+python3 xpk.py batch --cluster my-cluster slurm_sample.sh
 ```
 
 To view results run:

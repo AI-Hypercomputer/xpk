@@ -42,6 +42,7 @@ from ..core.kjob import (
     verify_kjob_installed,
     create_app_profile_instance,
     create_job_template_instance,
+    apply_kjob_crds
 )
 from ..core.kueue import (
     cluster_preheat_yml,
@@ -153,6 +154,8 @@ def cluster_create(args) -> None:
 
   xpk_print('Verifying kjob installation')
   verify_kjob_installed(args)
+  xpk_print('Applying kjob CDRs')
+  apply_kjob_crds(args)
   xpk_print('Preparing kjob')
   prepare_kjob(args)
   # Provision node pools dynamically based on incoming workloads:

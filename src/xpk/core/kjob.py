@@ -17,6 +17,14 @@ limitations under the License.
 from argparse import Namespace
 from ..utils import xpk_print, xpk_exit, write_tmp_file
 from .commands import run_command_for_value, run_command_with_updates
+import urllib.request
+import tempfile
+from os import mkdir
+from os.path import join
+from ..core.commands import (
+    run_command_for_value,
+)
+
 
 APP_PROFILE_TEMPLATE_DEFAULT_NAME = "xpk-def-app-profile"
 APP_PROFILE_TEMPLATE_MODE_NAME = "Slurm"
@@ -27,6 +35,13 @@ JOB_TEMPLATE_DEFAULT_COMPLETIONS = 1
 JOB_TEMPLATE_DEFAULT_COMPLETION_MODE = "Indexed"
 JOB_TEMPLATE_DEFAULT_CONT_NAME = "xpk-container"
 JOB_TEMPLATE_DEFAULT_IMG = "ubuntu:22.04"
+
+app_profile_gh_file = "https://raw.githubusercontent.com/kubernetes-sigs/kueue/refs/heads/main/cmd/experimental/kjobctl/config/crd/bases/kjobctl.x-k8s.io_applicationprofiles.yaml"
+job_template_gh_file = "https://raw.githubusercontent.com/kubernetes-sigs/kueue/refs/heads/main/cmd/experimental/kjobctl/config/crd/bases/kjobctl.x-k8s.io_jobtemplates.yaml"
+ray_cluster_gh_file = "https://raw.githubusercontent.com/kubernetes-sigs/kueue/refs/heads/main/cmd/experimental/kjobctl/config/crd/bases/kjobctl.x-k8s.io_rayclustertemplates.yaml"
+ray_job_tmpl_gh_file = "https://raw.githubusercontent.com/kubernetes-sigs/kueue/refs/heads/main/cmd/experimental/kjobctl/config/crd/bases/kjobctl.x-k8s.io_rayjobtemplates.yaml"
+volume_bundles_gh_file = "https://raw.githubusercontent.com/kubernetes-sigs/kueue/refs/heads/main/cmd/experimental/kjobctl/config/crd/bases/kjobctl.x-k8s.io_volumebundles.yaml"
+customization_gh_file = "https://raw.githubusercontent.com/kubernetes-sigs/kueue/refs/heads/main/cmd/experimental/kjobctl/config/crd/kustomization.yaml"
 
 job_template_yaml = """
   apiVersion: kjobctl.x-k8s.io/v1alpha1
@@ -109,3 +124,36 @@ def create_job_template_instance(args: Namespace) -> None:
   return_code = run_command_with_updates(command, "Creating JobTemplate", args)
   if return_code != 0:
     xpk_exit(return_code)
+
+
+def download_files_from_github_into_dir(
+    path: str, urls: list[(str, str)]
+) -> str:
+  for url, fn in urls:
+    target = join(path, fn)
+    urllib.request.urlretrieve(url, target)
+
+
+def apply_kjob_crds(args):
+  temp_dir = tempfile.mkdtemp()
+  mkdir(join(temp_dir, "bases"))
+  urls = [
+      job_template_gh_file,
+      ray_cluster_gh_file,
+      ray_job_tmpl_gh_file,
+      volume_bundles_gh_file,
+      app_profile_gh_file,
+  ]
+  download_files_from_github_into_dir(
+      join(temp_dir, "bases"), list(zip(urls, [url.rsplit("/", maxsplit=1)[-1] for url in urls]))
+  )
+  download_files_from_github_into_dir(
+      temp_dir, [(customization_gh_file, "kustomization.yaml")]
+  )
+
+  cmd = f"kustomize build {temp_dir} | kubectl apply --server-side -f -"
+  error_code, _ = run_command_for_value(cmd, "Create kjob CRDs on cluster", args)
+  if error_code != 0:
+    exit(error_code)
+
+  xpk_print('Creating kjob CRDs succeded')

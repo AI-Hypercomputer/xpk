@@ -88,7 +88,6 @@ metadata:
     xpk.google.com/workload: {args.workload}
   annotations:
     alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool # 1:1 job replica to node pool assignment
-    {gcs_fuse_annotation}
 spec:
   failurePolicy:
     maxRestarts: {args.max_restarts}

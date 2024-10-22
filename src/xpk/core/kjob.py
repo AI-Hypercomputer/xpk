@@ -24,7 +24,10 @@ from os.path import join
 from ..core.commands import (
     run_command_for_value,
 )
-
+import yaml
+from kubernetes.client import ApiClient
+from kubernetes.client.exceptions import ApiException
+from kubernetes import client as k8s_client
 
 APP_PROFILE_TEMPLATE_DEFAULT_NAME = "xpk-def-app-profile"
 APP_PROFILE_TEMPLATE_MODE_NAME = "Slurm"
@@ -35,6 +38,11 @@ JOB_TEMPLATE_DEFAULT_COMPLETIONS = 1
 JOB_TEMPLATE_DEFAULT_COMPLETION_MODE = "Indexed"
 JOB_TEMPLATE_DEFAULT_CONT_NAME = "xpk-container"
 JOB_TEMPLATE_DEFAULT_IMG = "ubuntu:22.04"
+
+KJOB_GROUP = "kjobctl.x-k8s.io"
+KJOB_VERSION="v1alpha1"
+APP_PROFILE_KIND = "AppProfile"
+APP_PROFILE_PATH = "../../templates/app_profile.yaml"
 
 app_profile_gh_file = "https://raw.githubusercontent.com/kubernetes-sigs/kueue/refs/heads/main/cmd/experimental/kjobctl/config/crd/bases/kjobctl.x-k8s.io_applicationprofiles.yaml"
 job_template_gh_file = "https://raw.githubusercontent.com/kubernetes-sigs/kueue/refs/heads/main/cmd/experimental/kjobctl/config/crd/bases/kjobctl.x-k8s.io_jobtemplates.yaml"
@@ -97,17 +105,39 @@ def verify_kjob_installed(args: Namespace) -> None:
     xpk_exit(verify_kjob_installed_code)
 
 
-def create_app_profile_instance(args: Namespace) -> None:
-  yml_string = app_profile_yaml.format(
-      name=APP_PROFILE_TEMPLATE_DEFAULT_NAME,
-      template=JOB_TEMPLATE_DEFAULT_NAME,
-  )
+def create_app_profile_instance(k8s_api_client: ApiClient, args: Namespace) -> None:
+  # yml_string = app_profile_yaml.format(
+  #     name=APP_PROFILE_TEMPLATE_DEFAULT_NAME,
+  #     template=JOB_TEMPLATE_DEFAULT_NAME,
+  # )
+  api_instance = k8s_client.CustomObjectsApi(k8s_api_client)
+  with open(APP_PROFILE_PATH, "r", encoding="utf-8") as file:
+    data = yaml.safe_load(file)
 
-  tmp = write_tmp_file(yml_string)
-  command = f"kubectl apply -f {str(tmp.file.name)}"
-  return_code = run_command_with_updates(command, "Creating AppProfile", args)
-  if return_code != 0:
-    xpk_exit(return_code)
+  data["metadata"]["name"] = APP_PROFILE_TEMPLATE_DEFAULT_NAME
+  data["metatada"]["namespace"] = "default"
+  spec = data["spec"]["supportedModes"]
+  spec[0]["name"] = "Slurm"
+  spec[0]["template"] = JOB_TEMPLATE_DEFAULT_NAME
+  try:
+    api_instance.create_cluster_custom_object(
+        group=KJOB_GROUP,
+        version=KJOB_VERSION,
+        plural=APP_PROFILE_KIND.lower() + "s",
+        body=data
+    )
+    xpk_print(f"Created {APP_PROFILE_KIND} object: {data['metadata']['name']}")
+  except ApiException as e:
+    if e.status == 409:
+      xpk_print(f"Storage: {args.name} already exists. Skipping its creation")
+    else:
+      xpk_print(f"Encountered error during storage creation: {e}")
+      xpk_exit(1)
+  # tmp = write_tmp_file(yml_string)
+  # command = f"kubectl apply -f {str(tmp.file.name)}"
+  # return_code = run_command_with_updates(command, "Creating AppProfile", args)
+  # if return_code != 0:
+  #   xpk_exit(return_code)
 
 
 def create_job_template_instance(args: Namespace) -> None:

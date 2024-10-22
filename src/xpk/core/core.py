@@ -48,6 +48,7 @@ from google.api_core.exceptions import PermissionDenied
 from google.cloud import resourcemanager_v3
 from kubernetes import client as k8s_client
 from kubernetes import config
+from kubernetes.client.exceptions import ApiException
 
 from .commands import (
     run_command_for_value,
@@ -55,6 +56,7 @@ from .commands import (
     run_command_with_updates_retry,
     run_commands,
 )
+from .storage import Storage, get_storages_to_mount, GCS_FUSE_TYPE
 from .system_characteristics import (
     AcceleratorType,
     AcceleratorTypeToAcceleratorCharacteristics,
@@ -350,6 +352,20 @@ def setup_k8s_env(args: Namespace) -> k8s_client.ApiClient:
 
   config.load_kube_config()
   return k8s_client.ApiClient()
+
+
+def create_k8s_service_account(name: str, namespace: str) -> None:
+  k8s_core_client = k8s_client.CoreV1Api()
+  sa = k8s_client.V1ServiceAccount(metadata=k8s_client.V1ObjectMeta(name=name))
+
+  xpk_print(f'Creating a new service account: {name}')
+  try:
+    k8s_core_client.create_namespaced_service_account(
+        namespace, sa, pretty=True
+    )
+    xpk_print(f'Created a new service account: {sa} successfully')
+  except ApiException:
+    xpk_print(f'Service account: {name} already exists. Skipping its creation')
 
 
 def get_total_chips_requested_from_args(
@@ -2581,7 +2597,8 @@ def get_volumes(args, system: SystemCharacteristics) -> str:
   """
   volumes = """- emptyDir:
                   medium: Memory
-                name: dshm-2"""
+                name: dshm-2
+              """
 
   if args.ramdisk_directory != '':
     volumes += """
@@ -2595,8 +2612,19 @@ def get_volumes(args, system: SystemCharacteristics) -> str:
   ):
     volumes += """
               - name: tpu-stack-trace
-              - name: shared-data"""
+              - name: shared-data
+              """
 
+  storages: list[Storage] = get_storages_to_mount(
+      setup_k8s_env(args), args.storage
+  )
+  for storage in storages:
+    if storage.type == GCS_FUSE_TYPE:
+      volumes += f"""- name: {storage.pv}
+                persistentVolumeClaim:
+                  claimName: {storage.pvc}
+                  readOnly: {storage.readonly}
+              """
   return volumes
 
 
@@ -2610,7 +2638,8 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
       YAML for the volumes mounted within a Pathways container or GPU container as a YAML string.
   """
   volume_mount_yaml = """- mountPath: /dev/shm
-                  name: dshm-2"""
+                  name: dshm-2
+                """
 
   if args.ramdisk_directory != '':
     volume_mount_yaml += f"""
@@ -2619,16 +2648,17 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
 
   if args.use_pathways:
     volume_mount_yaml = """- mountPath: /tmp
-                  name: shared-tmp"""
+                  name: shared-tmp
+                """
   elif (
       system.accelerator_type == AcceleratorType['TPU']
       and args.deploy_stacktrace_sidecar
   ):
-    volume_mount_yaml += """
-                - name: tpu-stack-trace
+    volume_mount_yaml += """- name: tpu-stack-trace
                   mountPath: /tmp/debugging
                 - name: shared-data
-                  mountPath: /shared-volume"""
+                  mountPath: /shared-volume
+                """
   elif system.accelerator_type == AcceleratorType['GPU']:
     if system.device_type == h100_device_type:
       volume_mount_yaml = """- name: nvidia-install-dir-host
@@ -2647,6 +2677,15 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
     ):
       volume_mount_yaml = ''
 
+  storages: list[Storage] = get_storages_to_mount(
+      setup_k8s_env(args), args.storage
+  )
+  for storage in storages:
+    if storage.type == GCS_FUSE_TYPE:
+      volume_mount_yaml += f"""- name: {storage.pv}
+                  mountPath: {storage.mount_point}
+                  readOnly: {storage.readonly}
+                """
   return volume_mount_yaml
 
 

@@ -35,6 +35,7 @@ from ..core.storage import (
     get_storage,
     list_storages,
     print_storages_for_cluster,
+    create_new_filestore_instance,
 )
 from ..utils import apply_kubectl_manifest, xpk_exit, xpk_print
 
@@ -58,6 +59,8 @@ def storage_create(args: Namespace) -> None:
     return_code = update_cluster_with_gcpfilestore_driver_if_necessary(args)
     if return_code > 0:
       xpk_exit(return_code)
+
+    create_new_filestore_instance(args)
 
 
 def storage_list(args: Namespace) -> None:

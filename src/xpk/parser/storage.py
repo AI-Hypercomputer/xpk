@@ -59,7 +59,7 @@ def add_storage_create_parser(
       type=str,
       help=(
           'The type of storage. Currently supported types: ["gcsfuse",'
-          ' "filestore"]'
+          ' "gcpfilestore"]'
       ),
       choices=['gcsfuse', 'gcpfilestore'],
       required=True,

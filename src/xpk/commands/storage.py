@@ -23,7 +23,7 @@ from ..core.core import (
     setup_k8s_env,
     update_cluster_with_gcsfuse_driver_if_necessary,
     update_cluster_with_workload_identity_if_necessary,
-    update_cluster_with_gcpfilestore_driver_if_necessary
+    update_cluster_with_gcpfilestore_driver_if_necessary,
 )
 from ..core.storage import (
     GCS_FUSE_TYPE,
@@ -58,6 +58,7 @@ def storage_create(args: Namespace) -> None:
     return_code = update_cluster_with_gcpfilestore_driver_if_necessary(args)
     if return_code > 0:
       xpk_exit(return_code)
+
 
 def storage_list(args: Namespace) -> None:
   k8s_api_client = setup_k8s_env(args)

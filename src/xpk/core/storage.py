@@ -40,6 +40,7 @@ XPK_API_GROUP_VERSION = "v1"
 GCS_FUSE_TYPE = "gcsfuse"
 GCP_FILESTORE_TYPE = "gcpfilestore"
 
+
 @dataclass
 class Storage:
   """

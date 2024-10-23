@@ -436,8 +436,8 @@ def update_gke_cluster_with_workload_identity_enabled(args) -> int:
   return 0
 
 
-def update_gke_cluster_with_gcsfuse_driver_enabled(args) -> int:
-  """Run the GKE cluster update command for existing cluster and enable GCSFuse CSI driver.
+def update_gke_cluster_with_addon(addon: str, args) -> int:
+  """Run the GKE cluster update command for existing cluster and enabling passed addon.
   Args:
     args: user provided arguments for running the command.
   Returns:
@@ -447,14 +447,12 @@ def update_gke_cluster_with_gcsfuse_driver_enabled(args) -> int:
       'gcloud container clusters update'
       f' {args.cluster} --project={args.project}'
       f' --region={zone_to_region(args.zone)}'
-      ' --update-addons GcsFuseCsiDriver=ENABLED'
+      ' --update-addons {addon}=ENABLED'
       ' --quiet'
   )
-  xpk_print(
-      'Updating GKE cluster to enable GCSFuse CSI driver, may take a while!'
-  )
+  xpk_print('Updating GKE cluster to enable {addon}, may take a while!')
   return_code = run_command_with_updates(
-      command, 'GKE Cluster Update to enable GCSFuse CSI driver', args
+      command, f'GKE Cluster Update to enable {addon}', args
   )
   if return_code != 0:
     xpk_print(f'GKE Cluster Update request returned ERROR {return_code}')
@@ -1200,6 +1198,33 @@ def is_gcsfuse_driver_enabled_on_cluster(args) -> bool:
   return False
 
 
+def is_gcpfilestore_driver_enabled_on_cluster(args) -> bool:
+  """Checks if GCPFilestore CSI driver is enabled on the cluster.
+  Args:
+    args: user provided arguments for running the command.
+  Returns:
+    True if GCPFilestore CSI driver is enabled on the cluster and False otherwise.
+  """
+  command = (
+      f'gcloud container clusters describe {args.cluster}'
+      f' --project={args.project} --region={zone_to_region(args.zone)}'
+      ' --format="value(addonsConfig.gcpFilestoreCsiDriverConfig.enabled)"'
+  )
+  return_code, gcpfilestore_driver_enabled = run_command_for_value(
+      command,
+      'Checks if GCPFilestore CSI driver is enabled in cluster describe.',
+      args,
+  )
+  if return_code != 0:
+    xpk_exit(return_code)
+  if gcpfilestore_driver_enabled.lower() == 'true':
+    xpk_print(
+        'GCPFilestore CSI driver is enabled on the cluster, no update needed.'
+    )
+    return True
+  return False
+
+
 def update_cluster_with_clouddns_if_necessary(args) -> int:
   """Updates a GKE cluster to use CloudDNS, if not enabled already.
 
@@ -1275,11 +1300,31 @@ def update_cluster_with_gcsfuse_driver_if_necessary(args) -> int:
 
   if is_gcsfuse_driver_enabled_on_cluster(args):
     return 0
-  cluster_update_return_code = update_gke_cluster_with_gcsfuse_driver_enabled(
-      args
+  cluster_update_return_code = update_gke_cluster_with_addon(
+      'GcsFuseCsiDriver', args
   )
   if cluster_update_return_code > 0:
     xpk_print('Updating GKE cluster to enable GCSFuse CSI driver failed!')
+    return cluster_update_return_code
+
+  return 0
+
+
+def update_cluster_with_gcpfilestore_driver_if_necessary(args) -> int:
+  """Updates a GKE cluster to enable GCPFilestore CSI driver, if not enabled already.
+  Args:
+    args: user provided arguments for running the command.
+  Returns:
+    0 if successful and error code otherwise.
+  """
+
+  if is_gcpfilestore_driver_enabled_on_cluster(args):
+    return 0
+  cluster_update_return_code = update_gke_cluster_with_addon(
+      'GcpFilestoreCsiDriver', args
+  )
+  if cluster_update_return_code > 0:
+    xpk_print('Updating GKE cluster to enable GCPFilestore CSI driver failed!')
     return cluster_update_return_code
 
   return 0
@@ -1603,7 +1648,11 @@ def run_gke_node_pool_create_command(
         node_pools_to_remain.append(node_pool_name)
 
     # Workload Identity for existing nodepools
-    if args.enable_workload_identity or args.enable_gcsfuse_csi_driver:
+    if (
+        args.enable_workload_identity
+        or args.enable_gcsfuse_csi_driver
+        or args.enable_gcpfilestore_csi_driver
+    ):
       for node_pool_name in existing_node_pool_names:
         if not node_pool_name in node_pools_to_delete:
           # Check if workload identity is not already enabled:
@@ -1774,7 +1823,11 @@ def run_gke_node_pool_create_command(
       command += f' --num-nodes={system.vms_per_slice}'
       command += ' --scopes=storage-full,gke-default'
 
-    if args.enable_workload_identity or args.enable_gcsfuse_csi_driver:
+    if (
+        args.enable_workload_identity
+        or args.enable_gcsfuse_csi_driver
+        or args.enable_gcp_filestore_csi_driver
+    ):
       command += ' --workload-metadata=GKE_METADATA'
 
     task = f'NodepoolCreate-{node_pool_name}'

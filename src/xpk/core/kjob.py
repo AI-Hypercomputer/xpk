@@ -25,6 +25,7 @@ from ..core.commands import (
     run_command_for_value,
 )
 import urllib.request
+from urllib.error import ContentTooShortError
 
 # AppProfile defaults
 APP_PROFILE_TEMPLATE_DEFAULT_NAME = "xpk-def-app-profile"
@@ -151,8 +152,8 @@ def download_files_from_github_into_dir(
     target = join(path, fn)
     try:
       urllib.request.urlretrieve(url, target)
-    except Exception:
-      xpk_print(f"downloading kjob CRD {fn} failed.")
+    except ContentTooShortError as e:
+      xpk_print(f"downloading kjob CRD {fn} failed due to {e.content}")
       xpk_exit(1)
 
 

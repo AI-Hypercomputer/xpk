@@ -479,6 +479,7 @@ def create_storage_instance(k8s_api_client: ApiClient, args: Namespace) -> None:
 
   data["spec"] = spec
 
+  print(data)
   api_instance = k8s_client.CustomObjectsApi(k8s_api_client)
   xpk_print(f"Creating a new Storage: {args.name}")
   try:
@@ -495,24 +496,3 @@ def create_storage_instance(k8s_api_client: ApiClient, args: Namespace) -> None:
     else:
       xpk_print(f"Encountered error during storage creation: {e}")
       xpk_exit(1)
-
-
-def create_filestore_instance(args: Namespace) -> None:
-  """Creates new GCPFilestore instance in cloud using gcloud cli.
-  Args:
-    args - user provided arguments
-  Returns:
-    None
-  """
-
-  cmd = (
-      f"gcloud filestore instances create {DEFAULT_FILESTORE_NAME}"
-      f" --zone {args.zone}"
-      f" --tier {DEFAULT_FILESTORE_TIER}"
-      f" --file-share {DEFAULT_FILESTORE_FILE_SHARE}"
-      f" --network {DEFAULT_FILESTORE_NETWORK}"
-  )
-
-  err_code = run_command_with_updates(cmd, "Create GCPFilestore instance", args)
-  if err_code > 0:
-    xpk_exit(err_code)

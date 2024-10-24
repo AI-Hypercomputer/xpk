@@ -447,10 +447,10 @@ def update_gke_cluster_with_addon(addon: str, args) -> int:
       'gcloud container clusters update'
       f' {args.cluster} --project={args.project}'
       f' --region={zone_to_region(args.zone)}'
-      ' --update-addons {addon}=ENABLED'
+      f' --update-addons {addon}=ENABLED'
       ' --quiet'
   )
-  xpk_print('Updating GKE cluster to enable {addon}, may take a while!')
+  xpk_print(f'Updating GKE cluster to enable {addon}, may take a while!')
   return_code = run_command_with_updates(
       command, f'GKE Cluster Update to enable {addon}', args
   )

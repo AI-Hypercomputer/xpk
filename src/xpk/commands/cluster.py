@@ -108,7 +108,7 @@ def cluster_create(args) -> None:
     )
     if update_cluster_command_code != 0:
       xpk_exit(update_cluster_command_code)
-  
+
   if args.enable_gcpfilestore_csi_driver:
     update_cluster_command_code = (
         update_cluster_with_gcpfilestore_driver_if_necessary(args)

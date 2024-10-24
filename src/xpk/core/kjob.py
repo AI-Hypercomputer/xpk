@@ -158,6 +158,6 @@ def apply_kjob_crds(args: Namespace) -> None:
       cmd, "Create kjob CRDs on cluster", args
   )
   if error_code != 0:
-    exit(error_code)
+    xpk_exit(error_code)
 
   xpk_print("Creating kjob CRDs succeded")

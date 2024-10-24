@@ -29,7 +29,6 @@ from kubernetes.utils import FailToCreateError
 from tabulate import tabulate
 
 from ..utils import xpk_exit, xpk_print
-from ..core.commands import run_command_with_updates
 
 XPK_SA = "xpk-sa"
 STORAGE_CRD_PATH = "/../api/storage_crd.yaml"

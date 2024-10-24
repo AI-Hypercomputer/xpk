@@ -29,6 +29,7 @@ from kubernetes.utils import FailToCreateError
 from tabulate import tabulate
 
 from ..utils import xpk_exit, xpk_print
+from ..core.commands import run_command_with_updates
 
 XPK_SA = "xpk-sa"
 STORAGE_CRD_PATH = "/../api/storage_crd.yaml"
@@ -39,6 +40,12 @@ XPK_API_GROUP_NAME = "xpk.x-k8s.io"
 XPK_API_GROUP_VERSION = "v1"
 GCS_FUSE_TYPE = "gcsfuse"
 GCP_FILESTORE_TYPE = "gcpfilestore"
+
+
+DEFAULT_FILESTORE_NAME = "xpk-filestore"
+DEFAULT_FILESTORE_TIER = 'name="vol1",capacity=128GB'
+DEFAULT_FILESTORE_FILE_SHARE = "BASIC_HDD"
+DEFAULT_FILESTORE_NETWORK = "default"
 
 
 @dataclass
@@ -472,6 +479,7 @@ def create_storage_instance(k8s_api_client: ApiClient, args: Namespace) -> None:
 
   data["spec"] = spec
 
+  print(data)
   api_instance = k8s_client.CustomObjectsApi(k8s_api_client)
   xpk_print(f"Creating a new Storage: {args.name}")
   try:

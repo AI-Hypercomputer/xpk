@@ -78,6 +78,7 @@ spec:
 def verify_kjob_installed(args: Namespace) -> None:
   """Check if kjob is installed. If not provide user with proper communicate and exit.
   Args:
+    args - user provided arguments.
   Returns:
     None
   """

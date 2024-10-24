@@ -154,8 +154,10 @@ def cluster_create(args) -> None:
 
   xpk_print('Verifying kjob installation')
   verify_kjob_installed(args)
+
   xpk_print('Applying kjob CDRs')
   apply_kjob_crds(args)
+
   xpk_print('Preparing kjob')
   prepare_kjob(args)
   # Provision node pools dynamically based on incoming workloads:

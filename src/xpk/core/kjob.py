@@ -17,18 +17,20 @@ limitations under the License.
 from argparse import Namespace
 from ..utils import xpk_print, xpk_exit, write_tmp_file
 from .commands import run_command_for_value, run_command_with_updates
-import urllib.request
+
 import tempfile
 from os import mkdir
 from os.path import join
 from ..core.commands import (
     run_command_for_value,
 )
+import urllib.request
 
-
+# AppProfile defaults
 APP_PROFILE_TEMPLATE_DEFAULT_NAME = "xpk-def-app-profile"
 APP_PROFILE_TEMPLATE_MODE_NAME = "Slurm"
 
+# JobTemplate defaults
 JOB_TEMPLATE_DEFAULT_NAME = "xpk-def-batch"
 JOB_TEMPLATE_DEFAULT_PARALLELISM = 1
 JOB_TEMPLATE_DEFAULT_COMPLETIONS = 1
@@ -36,6 +38,7 @@ JOB_TEMPLATE_DEFAULT_COMPLETION_MODE = "Indexed"
 JOB_TEMPLATE_DEFAULT_CONT_NAME = "xpk-container"
 JOB_TEMPLATE_DEFAULT_IMG = "ubuntu:22.04"
 
+# kjob CRDs
 app_profile_gh_file = "https://raw.githubusercontent.com/kubernetes-sigs/kueue/refs/heads/main/cmd/experimental/kjobctl/config/crd/bases/kjobctl.x-k8s.io_applicationprofiles.yaml"
 job_template_gh_file = "https://raw.githubusercontent.com/kubernetes-sigs/kueue/refs/heads/main/cmd/experimental/kjobctl/config/crd/bases/kjobctl.x-k8s.io_jobtemplates.yaml"
 ray_cluster_gh_file = "https://raw.githubusercontent.com/kubernetes-sigs/kueue/refs/heads/main/cmd/experimental/kjobctl/config/crd/bases/kjobctl.x-k8s.io_rayclustertemplates.yaml"
@@ -99,6 +102,13 @@ def verify_kjob_installed(args: Namespace) -> None:
 
 
 def create_app_profile_instance(args: Namespace) -> None:
+  """Create new AppProfile instance on cluster with default settings
+
+  Args:
+    args - user provided arguments
+  Returns:
+    None
+  """
   yml_string = app_profile_yaml.format(
       name=APP_PROFILE_TEMPLATE_DEFAULT_NAME,
       template=JOB_TEMPLATE_DEFAULT_NAME,
@@ -112,6 +122,13 @@ def create_app_profile_instance(args: Namespace) -> None:
 
 
 def create_job_template_instance(args: Namespace) -> None:
+  """Create new jobTemplate instance on cluster with default settings
+
+  Args:
+    args - user provided arguments
+  Returns:
+    None
+  """
   yml_string = job_template_yaml.format(
       name=JOB_TEMPLATE_DEFAULT_NAME,
       parallelism=JOB_TEMPLATE_DEFAULT_PARALLELISM,
@@ -129,13 +146,28 @@ def create_job_template_instance(args: Namespace) -> None:
 
 def download_files_from_github_into_dir(
     path: str, urls: list[(str, str)]
-) -> str:
+) -> None:
   for url, fn in urls:
     target = join(path, fn)
-    urllib.request.urlretrieve(url, target)
+    try:
+      urllib.request.urlretrieve(url, target)
+    except Exception:
+      xpk_print(f"downloading kjob CRD {fn} failed.")
+      xpk_exit(1)
 
 
 def apply_kjob_crds(args: Namespace) -> None:
+  """Apply kjob CRDs on cluster
+
+  This function downloads kjob CRDs files from kjob repo,
+  builds them with kustomize and then applies result on cluster.
+  It creates all neccessary kjob CRDs.
+
+  Args:
+    args - user provided arguments
+  Returns:
+    None
+  """
   temp_dir = tempfile.mkdtemp()
   mkdir(join(temp_dir, "bases"))
   urls = [

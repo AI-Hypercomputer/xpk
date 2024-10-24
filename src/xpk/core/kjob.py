@@ -123,7 +123,7 @@ def create_app_profile_instance(args: Namespace) -> None:
 
 
 def create_job_template_instance(args: Namespace) -> None:
-  """Create new jobTemplate instance on cluster with default settings
+  """Create new JobTemplate instance on cluster with default settings.
 
   Args:
     args - user provided arguments

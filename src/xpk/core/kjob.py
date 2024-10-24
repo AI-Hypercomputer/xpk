@@ -103,7 +103,7 @@ def verify_kjob_installed(args: Namespace) -> None:
 
 
 def create_app_profile_instance(args: Namespace) -> None:
-  """Create new AppProfile instance on cluster with default settings
+  """Create new AppProfile instance on cluster with default settings.
 
   Args:
     args - user provided arguments
@@ -158,7 +158,7 @@ def download_files_from_github_into_dir(
 
 
 def apply_kjob_crds(args: Namespace) -> None:
-  """Apply kjob CRDs on cluster
+  """Apply kjob CRDs on cluster.
 
   This function downloads kjob CRDs files from kjob repo,
   builds them with kustomize and then applies result on cluster.

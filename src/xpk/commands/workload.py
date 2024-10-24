@@ -442,7 +442,7 @@ def workload_create(args) -> None:
   gcs_fuse_storages = list(
       filter(lambda storage: storage.type == GCS_FUSE_TYPE, storages)
   )
-  gcpfilestore_storages :list[Storage] = list(
+  gcpfilestore_storages: list[Storage] = list(
       filter(lambda storage: storage.type == GCP_FILESTORE_TYPE, storages)
   )
   storage_annotations = ''

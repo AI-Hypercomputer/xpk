@@ -41,12 +41,6 @@ GCS_FUSE_TYPE = "gcsfuse"
 GCP_FILESTORE_TYPE = "gcpfilestore"
 
 
-DEFAULT_FILESTORE_NAME = "xpk-filestore"
-DEFAULT_FILESTORE_TIER = 'name="vol1",capacity=128GB'
-DEFAULT_FILESTORE_FILE_SHARE = "BASIC_HDD"
-DEFAULT_FILESTORE_NETWORK = "default"
-
-
 @dataclass
 class Storage:
   """
@@ -478,7 +472,6 @@ def create_storage_instance(k8s_api_client: ApiClient, args: Namespace) -> None:
 
   data["spec"] = spec
 
-  print(data)
   api_instance = k8s_client.CustomObjectsApi(k8s_api_client)
   xpk_print(f"Creating a new Storage: {args.name}")
   try:

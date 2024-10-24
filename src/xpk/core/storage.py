@@ -38,6 +38,7 @@ STORAGE_CRD_KIND = "Storage"
 XPK_API_GROUP_NAME = "xpk.x-k8s.io"
 XPK_API_GROUP_VERSION = "v1"
 GCS_FUSE_TYPE = "gcsfuse"
+GCP_FILESTORE_TYPE = "gcpfilestore"
 
 
 @dataclass

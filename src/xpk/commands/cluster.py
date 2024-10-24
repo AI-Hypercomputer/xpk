@@ -36,6 +36,7 @@ from ..core.core import (
     update_cluster_with_clouddns_if_necessary,
     update_cluster_with_gcsfuse_driver_if_necessary,
     update_cluster_with_workload_identity_if_necessary,
+    update_cluster_with_gcpfilestore_driver_if_necessary,
     zone_to_region,
 )
 from ..core.kueue import (
@@ -89,7 +90,11 @@ def cluster_create(args) -> None:
     xpk_exit(create_cluster_command_code)
 
   # Enable WorkloadIdentity if not enabled already.
-  if args.enable_workload_identity or args.enable_gcsfuse_csi_driver:
+  if (
+      args.enable_workload_identity
+      or args.enable_gcsfuse_csi_driver
+      or args.enable_gcpfilestore_csi_driver
+  ):
     update_cluster_command_code = (
         update_cluster_with_workload_identity_if_necessary(args)
     )
@@ -100,6 +105,13 @@ def cluster_create(args) -> None:
   if args.enable_gcsfuse_csi_driver:
     update_cluster_command_code = (
         update_cluster_with_gcsfuse_driver_if_necessary(args)
+    )
+    if update_cluster_command_code != 0:
+      xpk_exit(update_cluster_command_code)
+
+  if args.enable_gcpfilestore_csi_driver:
+    update_cluster_command_code = (
+        update_cluster_with_gcpfilestore_driver_if_necessary(args)
     )
     if update_cluster_command_code != 0:
       xpk_exit(update_cluster_command_code)
@@ -486,11 +498,18 @@ def run_gke_cluster_create_command(
           f' --cluster-dns-domain={args.cluster}-domain'
       )
 
-  if args.enable_workload_identity or args.enable_gcsfuse_csi_driver:
+  if (
+      args.enable_workload_identity
+      or args.enable_gcsfuse_csi_driver
+      or args.enable_gcpfilestore_csi_driver
+  ):
     command += f' --workload-pool={args.project}.svc.id.goog'
 
   if args.enable_gcsfuse_csi_driver:
     command += ' --addons GcsFuseCsiDriver'
+
+  if args.enable_gcpfilestore_csi_driver:
+    command += ' --addons GcpFilestoreCsiDriver'
 
   return_code = run_command_with_updates(command, 'GKE Cluster Create', args)
   if return_code != 0:

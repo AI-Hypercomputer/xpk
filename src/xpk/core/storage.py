@@ -197,7 +197,10 @@ def get_storages(
   """
   storages: list[Storage] = []
   all_storages = list_storages(k8s_api_client)
+  print(all_storages)
+  print(requested_storages)
   for storage in requested_storages:
+    print(storage)
     if storage in all_storages:
       storages.append(storage)
     else:
@@ -376,6 +379,38 @@ def get_storage_volumes_yaml_for_gpu(storages: list[Storage]) -> str:
 
 
 def add_bucket_iam_members(args: Namespace, storages: list[Storage]) -> None:
+  """
+  Adds IAM members to the GCS buckets associated with the given Storages.
+
+  This function grants the necessary permissions to the XPK service account
+  to access the GCS buckets. The specific role (viewer or user) is determined
+  based on the `readonly` attribute of each Storage object.
+
+  Args:
+      args: An argparse Namespace object containing command-line arguments.
+      storages: A list of Storage objects.
+  """
+  storage_client = gcp_storage.Client()
+
+  for storage in storages:
+    bucket = storage_client.bucket(storage.bucket)
+    policy = bucket.get_iam_policy(requested_policy_version=3)
+    if storage.readonly:
+      role = "roles/storage.objectViewer"
+    else:
+      role = "roles/storage.objectUser"
+
+    member = (
+        f"principal://iam.googleapis.com/projects/{args.project_number}/"
+        f"locations/global/workloadIdentityPools/{args.project}.svc.id.goog/"
+        f"subject/ns/default/sa/{XPK_SA}"
+    )
+
+    policy.bindings.append({"role": role, "members": {member}})
+    bucket.set_iam_policy(policy)
+    xpk_print(f"Added {member} with role {role} to {storage.bucket}.")
+
+def add_filestore_iam_members(args: Namespace, storages: list[Storage]) -> None:
   """
   Adds IAM members to the GCS buckets associated with the given Storages.
 

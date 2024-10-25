@@ -68,7 +68,6 @@ from ..core.storage import (
     XPK_SA,
     Storage,
     add_bucket_iam_members,
-    add_filestore_iam_members,
     get_storage_volume_mounts_yaml,
     get_storage_volume_mounts_yaml_for_gpu,
     get_storage_volumes_yaml,
@@ -540,7 +539,6 @@ def workload_create(args) -> None:
     xpk_exit(return_code)
 
   add_bucket_iam_members(args, storages)
-  add_filestore_iam_members(args, storages)
   # Get GKE outlier dashboard for TPU
   outlier_dashboard_id = None
   if system.accelerator_type == AcceleratorType['TPU']:

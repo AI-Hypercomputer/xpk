@@ -473,6 +473,9 @@ def run_gke_cluster_create_command(
         ' --master-ipv4-cidr 172.16.0.0/28'
     )
 
+  enable_ip_alias = False
+  create_subnetwork = False
+
   if system.accelerator_type == AcceleratorType['GPU']:
     enable_ip_alias = True
     command += (

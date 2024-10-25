@@ -38,7 +38,7 @@ def get_current_machine_ip(external_ip=True):
   try:
     if external_ip:
       # Get external IP address
-      response = requests.get(ip_resolver_url)
+      response = requests.get(ip_resolver_url, timeout=15)
       return 0, response.text
     else:
       # Get internal IP address

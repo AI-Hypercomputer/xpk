@@ -87,6 +87,7 @@ AUTOPROVISIONING_CONFIG_MAXIMUM_KEY = 'maximum_chips'
 GCS_FUSE_ANNOTATION = 'gke-gcsfuse/volumes: "true"'
 GCS_FUSE_ANNOTATION = 'gke-gcsfuse/volumes: "true"'
 
+
 class CapacityType(enum.Enum):
   ON_DEMAND = 'on_demand'
   RESERVATION = 'reservation'

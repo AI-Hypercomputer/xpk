@@ -91,11 +91,11 @@ def is_current_machine_in_any_network(cidrs, external_ip=True):
   if cidrs is None:
     return 0, False
 
-  result_code, ip_address = get_current_machine_ip(external_ip)
-  if result_code > 0:
-    return result_code, False
+  return_code, ip_address = get_current_machine_ip(external_ip)
+  if return_code > 0:
+    return return_code, False
   else:
-    return result_code, is_ip_in_any_network(ip_address, cidrs)
+    return return_code, is_ip_in_any_network(ip_address, cidrs)
 
 
 def add_current_machine_to_networks(cidrs, external_ip=True):
@@ -110,9 +110,9 @@ def add_current_machine_to_networks(cidrs, external_ip=True):
     The updated list of CIDRs with the current machine's IP added (if necessary).
   """
 
-  result_code, ip_address = get_current_machine_ip(external_ip)
-  if result_code > 0:
-    return result_code, None
+  return_code, ip_address = get_current_machine_ip(external_ip)
+  if return_code > 0:
+    return return_code, None
 
   if not is_ip_in_any_network(ip_address, cidrs):
     cidrs.append(f"{ip_address}/32")

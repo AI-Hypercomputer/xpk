@@ -16,6 +16,7 @@ limitations under the License.
 
 import argparse
 import os
+import re
 
 
 def workload_name_type(value, pat=re.compile(r'[a-z]([-a-z0-9]*[a-z0-9])?')):

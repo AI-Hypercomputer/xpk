@@ -197,11 +197,8 @@ def get_storages(
   """
   storages: list[Storage] = []
   all_storages = list_storages(k8s_api_client)
-  print(all_storages)
-  print(requested_storages)
-  for storage in requested_storages:
-    print(storage)
-    if storage in all_storages:
+  for storage in all_storages:
+    if storage.name in requested_storages:
       storages.append(storage)
     else:
       xpk_print(
@@ -393,29 +390,31 @@ def add_bucket_iam_members(args: Namespace, storages: list[Storage]) -> None:
   storage_client = gcp_storage.Client()
 
   for storage in storages:
-    bucket = storage_client.bucket(storage.bucket)
-    policy = bucket.get_iam_policy(requested_policy_version=3)
-    if storage.readonly:
-      role = "roles/storage.objectViewer"
-    else:
-      role = "roles/storage.objectUser"
+    if storage.type == GCS_FUSE_TYPE:
+      bucket = storage_client.bucket(storage.bucket)
+      policy = bucket.get_iam_policy(requested_policy_version=3)
+      if storage.readonly:
+        role = "roles/storage.objectViewer"
+      else:
+        role = "roles/storage.objectUser"
 
-    member = (
-        f"principal://iam.googleapis.com/projects/{args.project_number}/"
-        f"locations/global/workloadIdentityPools/{args.project}.svc.id.goog/"
-        f"subject/ns/default/sa/{XPK_SA}"
-    )
+      member = (
+          f"principal://iam.googleapis.com/projects/{args.project_number}/"
+          f"locations/global/workloadIdentityPools/{args.project}.svc.id.goog/"
+          f"subject/ns/default/sa/{XPK_SA}"
+      )
 
-    policy.bindings.append({"role": role, "members": {member}})
-    bucket.set_iam_policy(policy)
-    xpk_print(f"Added {member} with role {role} to {storage.bucket}.")
+      policy.bindings.append({"role": role, "members": {member}})
+      bucket.set_iam_policy(policy)
+      xpk_print(f"Added {member} with role {role} to {storage.bucket}.")
+
 
 def add_filestore_iam_members(args: Namespace, storages: list[Storage]) -> None:
   """
-  Adds IAM members to the GCS buckets associated with the given Storages.
+  Adds IAM members to the GCP Filestores associated with storages.
 
   This function grants the necessary permissions to the XPK service account
-  to access the GCS buckets. The specific role (viewer or user) is determined
+  to access the GCP Filestore. The specific role (viewer or user) is determined
   based on the `readonly` attribute of each Storage object.
 
   Args:
@@ -425,22 +424,24 @@ def add_filestore_iam_members(args: Namespace, storages: list[Storage]) -> None:
   storage_client = gcp_storage.Client()
 
   for storage in storages:
-    bucket = storage_client.bucket(storage.bucket)
-    policy = bucket.get_iam_policy(requested_policy_version=3)
-    if storage.readonly:
-      role = "roles/storage.objectViewer"
-    else:
-      role = "roles/storage.objectUser"
+    if storage.type == GCP_FILESTORE_TYPE:
+      xpk_print("neccessary iams should be added here")
+      # bucket = storage_client.bucket(storage.bucket)
+      # policy = bucket.get_iam_policy(requested_policy_version=3)
+      # if storage.readonly:
+      #   role = "roles/storage.objectViewer"
+      # else:
+      #   role = "roles/storage.objectUser"
 
-    member = (
-        f"principal://iam.googleapis.com/projects/{args.project_number}/"
-        f"locations/global/workloadIdentityPools/{args.project}.svc.id.goog/"
-        f"subject/ns/default/sa/{XPK_SA}"
-    )
+      # member = (
+      #     f"principal://iam.googleapis.com/projects/{args.project_number}/"
+      #     f"locations/global/workloadIdentityPools/{args.project}.svc.id.goog/"
+      #     f"subject/ns/default/sa/{XPK_SA}"
+      # )
 
-    policy.bindings.append({"role": role, "members": {member}})
-    bucket.set_iam_policy(policy)
-    xpk_print(f"Added {member} with role {role} to {storage.bucket}.")
+      # policy.bindings.append({"role": role, "members": {member}})
+      # bucket.set_iam_policy(policy)
+      # xpk_print(f"Added {member} with role {role} to {storage.bucket}.")
 
 
 def print_storages_for_cluster(storages: list[Storage]) -> None:

@@ -107,7 +107,6 @@ spec:
                 xpk.google.com/workload: {args.workload}
               annotations:
                 {storage_annotations}
-                {filestore_annotations}
             spec:
               schedulerName: {args.scheduler}
               restartPolicy: Never
@@ -145,7 +144,6 @@ spec:
         metadata:
           annotations:
             {storage_annotations}
-            {filestore_annotations}
         spec:
           parallelism: {args.num_nodes}
           completions: {args.num_nodes}
@@ -223,7 +221,6 @@ spec:
           metadata:
             annotations:
               {storage_annotations}
-              {filestore_annotations}
           spec:
             terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
             serviceAccountName: {service_account}
@@ -455,12 +452,6 @@ def workload_create(args) -> None:
   else:
     xpk_print('No gcsfuse Storages to add detected')
 
-  filestore_storage_annotations = ''
-  if len(gcpfilestore_storages) > 0:
-    filestore_storage_annotations = GCP_FILESTORE_TYPE
-    xpk_print(f'Detected gcpfilestore Storages to add: {gcpfilestore_storages}')
-  else:
-    xpk_print('No gcpfilestore Storages to add detected')
   # Create the workload file based on accelerator type or workload type.
   if system.accelerator_type == AcceleratorType['GPU']:
     container, debugging_dashboard_id = get_user_workload_container(
@@ -489,7 +480,6 @@ def workload_create(args) -> None:
             gcs_fuse_storages + gcpfilestore_storages
         ),
         storage_annotations=storage_annotations,
-        filestore_storage_annotations=filestore_storage_annotations,
         service_account=service_account,
     )
   elif args.use_pathways and ensure_pathways_workload_prerequisites(
@@ -513,7 +503,6 @@ def workload_create(args) -> None:
         autoprovisioning_args=autoprovisioning_args,
         backoff_limit=system.vms_per_slice * 4,
         storage_annotations=storage_annotations,
-        filestore_storage_annotations=filestore_storage_annotations,
         storage_volumes=get_storage_volumes_yaml(
             gcs_fuse_storages + gcpfilestore_storages
         ),
@@ -539,9 +528,9 @@ def workload_create(args) -> None:
         autoprovisioning_args=autoprovisioning_args,
         volumes=get_volumes(args, system),
         storage_annotations=storage_annotations,
-        filestore_storage_annotations=filestore_storage_annotations,
         service_account=service_account,
     )
+  print(yml_string)
   tmp = write_tmp_file(yml_string)
   command = f'kubectl apply -f {str(tmp.file.name)}'
   return_code = run_command_with_updates(command, 'Creating Workload', args)

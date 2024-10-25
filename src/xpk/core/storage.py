@@ -195,7 +195,9 @@ def get_storages(
       A list of Storage objects matching the given names.
   """
   storages: list[Storage] = []
-  all_storages = list_storages(k8s_api_client)
+  all_storages = list(
+      map(lambda storage: storage.name, list_storages(k8s_api_client))
+  )
   for storage in requested_storages:
     if storage in all_storages:
       storages.append(storage)

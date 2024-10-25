@@ -449,6 +449,33 @@ def add_shared_cluster_create_optional_arguments(args_parsers):
             ' --custom-tpu-nodepool-arguments="--enable-ip-alias"'
         ),
     )
+    custom_parser.add_argument(
+        '--private',
+        action='store_true',
+        help=(
+            'Creates a private GKE cluster, a VPC-native cluster in which Nodes'
+            ' and Pods are isolated from the internet. If set, access to the'
+            " cluster's control plane will be restricted only to current"
+            " machine's IP address unless more IP ranges are authorized  by"
+            ' providing --authorized-networks. This works only on creating new'
+            ' clusters.'
+        ),
+    )
+    custom_parser.add_argument(
+        '--authorized-networks',
+        action='extend',
+        nargs='+',
+        help=(
+            'Sets the provided cidrs as authorized IP ranges to access the'
+            " private cluster's control plan. Access to the control plane will"
+            " be provided to current machine's IP address even if"
+            ' --authorized-networks is not set or it does not cover the IP'
+            ' address. If set, --private is considered true and a private'
+            ' cluster will be provisioned. It replaces existing authorized'
+            ' networks if used with an existing private cluster. e.g.'
+            ' --authorized-networks 1.2.3.0/24 1.2.4.5/32'
+        ),
+    )
 
 
 def add_shared_cluster_create_tensorboard_arguments(args_parsers):

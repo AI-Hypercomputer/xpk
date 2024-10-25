@@ -30,7 +30,9 @@ from ..core.core import (
     verify_reservation_exists,
     zone_to_region,
 )
-from ..utils import get_value_from_map, write_tmp_file, xpk_print
+from ..utils.objects import get_value_from_map
+from ..utils.file import write_tmp_file
+from ..utils.console import xpk_print
 from .commands import run_command_with_updates, run_commands
 from .system_characteristics import AcceleratorType, SystemCharacteristics
 

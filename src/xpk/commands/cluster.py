@@ -38,6 +38,7 @@ from ..core.core import (
     update_cluster_with_clouddns_if_necessary,
     zone_to_region,
 )
+from ..core.cluster_private import authorize_private_cluster_access_if_necessary
 from ..core.kueue import (
     cluster_preheat_yml,
     install_kueue_crs,
@@ -50,7 +51,8 @@ from ..core.system_characteristics import (
     SystemCharacteristics,
     get_system_characteristics,
 )
-from ..utils import write_tmp_file, xpk_exit, xpk_print
+from ..utils.file import write_tmp_file
+from ..utils.console import xpk_exit, xpk_print
 
 
 def cluster_create(args) -> None:
@@ -86,6 +88,12 @@ def cluster_create(args) -> None:
   )
   if create_cluster_command_code != 0:
     xpk_exit(create_cluster_command_code)
+
+  authorize_private_cluster_access_command_code = (
+      authorize_private_cluster_access_if_necessary(args)
+  )
+  if authorize_private_cluster_access_command_code != 0:
+    xpk_exit(authorize_private_cluster_access_command_code)
 
   # Update Pathways clusters with CloudDNS if not enabled already.
   if args.enable_pathways:
@@ -456,22 +464,38 @@ def run_gke_cluster_create_command(
       ' --release-channel rapid'
   )
 
-  if system.accelerator_type == AcceleratorType['GPU']:
+  if args.private or args.authorized_networks is not None:
+    enable_ip_alias = True
+    create_subnetwork = True
     command += (
-        ' --enable-dataplane-v2 --enable-ip-alias'
+        ' --enable-master-authorized-networks'
+        ' --enable-private-nodes'
+        ' --master-ipv4-cidr 172.16.0.0/28'
+    )
+
+  if system.accelerator_type == AcceleratorType['GPU']:
+    enable_ip_alias = True
+    command += (
+        ' --enable-dataplane-v2'
         ' --enable-multi-networking --no-enable-autoupgrade'
     )
   else:
     command += ' --location-policy=BALANCED --scopes=storage-full,gke-default'
 
     if args.enable_pathways:
+      enable_ip_alias = True
+      create_subnetwork = True
       command += (
-          ' --enable-ip-alias'
-          f' --create-subnetwork name={args.cluster}-subnetwork'
           ' --cluster-dns=clouddns'
           ' --cluster-dns-scope=vpc'
           f' --cluster-dns-domain={args.cluster}-domain'
       )
+
+  if enable_ip_alias:
+    command += ' --enable-ip-alias'
+
+  if create_subnetwork:
+    command += f' --create-subnetwork name={args.cluster}-subnetwork'
 
   return_code = run_command_with_updates(command, 'GKE Cluster Create', args)
   if return_code != 0:

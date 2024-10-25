@@ -62,7 +62,8 @@ from ..core.system_characteristics import (
     AcceleratorType,
     get_system_characteristics,
 )
-from ..utils import get_user_input, write_tmp_file, xpk_exit, xpk_print
+from ..utils.console import get_user_input, xpk_exit, xpk_print
+from ..utils.file import write_tmp_file
 from .cluster import set_cluster_command
 
 workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2

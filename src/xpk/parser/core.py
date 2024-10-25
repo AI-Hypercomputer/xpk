@@ -16,7 +16,7 @@ limitations under the License.
 
 import argparse
 
-from ..utils import xpk_print
+from ..utils.console import xpk_print
 from .cluster import set_cluster_parser
 from .inspector import set_inspector_parser
 from .workload import set_workload_parsers

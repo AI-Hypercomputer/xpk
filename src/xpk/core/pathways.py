@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..utils import xpk_exit, xpk_print
+from ..utils.console import xpk_exit, xpk_print
 from .core import (
     AcceleratorType,
     get_all_nodepools_programmatic,

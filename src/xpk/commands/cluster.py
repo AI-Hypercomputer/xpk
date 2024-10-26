@@ -464,17 +464,11 @@ def run_gke_cluster_create_command(
       ' --release-channel rapid'
   )
 
+  enable_ip_alias = False
+
   if args.private or args.authorized_networks is not None:
     enable_ip_alias = True
-    create_subnetwork = True
-    command += (
-        ' --enable-master-authorized-networks'
-        ' --enable-private-nodes'
-        ' --master-ipv4-cidr 172.16.0.0/28'
-    )
-
-  enable_ip_alias = False
-  create_subnetwork = False
+    command += ' --enable-master-authorized-networks --enable-private-nodes'
 
   if system.accelerator_type == AcceleratorType['GPU']:
     enable_ip_alias = True
@@ -487,8 +481,8 @@ def run_gke_cluster_create_command(
 
     if args.enable_pathways:
       enable_ip_alias = True
-      create_subnetwork = True
       command += (
+          f' --create-subnetwork name={args.cluster}-subnetwork'
           ' --cluster-dns=clouddns'
           ' --cluster-dns-scope=vpc'
           f' --cluster-dns-domain={args.cluster}-domain'
@@ -496,9 +490,6 @@ def run_gke_cluster_create_command(
 
   if enable_ip_alias:
     command += ' --enable-ip-alias'
-
-  if create_subnetwork:
-    command += f' --create-subnetwork name={args.cluster}-subnetwork'
 
   return_code = run_command_with_updates(command, 'GKE Cluster Create', args)
   if return_code != 0:

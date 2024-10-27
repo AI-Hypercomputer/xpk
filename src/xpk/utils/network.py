@@ -38,7 +38,7 @@ def get_current_machine_ip(external_ip=True):
   try:
     if external_ip:
       # Get external IP address
-      response = requests.get(ip_resolver_url, timeout=15)
+      response = requests.get(ip_resolver_url, timeout=30)
       return 0, response.text
     else:
       # Get internal IP address
@@ -91,7 +91,7 @@ def is_current_machine_in_any_network(cidrs, external_ip=True):
     True if the IP address is found in any of the CIDRs, False otherwise.
   """
   if not are_cidrs_valid(cidrs):
-    return -1, False
+    return 1, False
 
   if cidrs is None:
     return 0, False
@@ -115,7 +115,7 @@ def add_current_machine_to_networks(cidrs, external_ip=True):
     The updated list of CIDRs with the current machine's IP added (if necessary).
   """
   if not are_cidrs_valid(cidrs):
-    return -1, None
+    return 1, None
 
   return_code, ip_address = get_current_machine_ip(external_ip)
   if return_code > 0:

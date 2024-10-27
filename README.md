@@ -233,6 +233,55 @@ all zones.
     --num-slices=4  --reservation=$RESERVATION_ID
     ```
 
+### Create Private Cluster
+
+XPK allows you to create a private GKE cluster for enhanced security. In a private cluster, nodes and pods are isolated from the public internet, providing an additional layer of protection for your workloads.
+
+To create a private cluster, use the following arguments:
+
+**`--private`**
+
+This flag enables the creation of a private GKE cluster. When this flag is set:
+
+*  Nodes and pods are isolated from the direct internet access.
+*  `master_authorized_networks` is automatically enabled.
+*  Access to the cluster's control plane is restricted to your current machine's IP address by default.
+
+**`--authorized-networks`**
+
+This argument allows you to specify additional IP ranges (in CIDR notation) that are authorized to access the private cluster's control plane and perform `kubectl` commands. 
+
+*  Even if this argument is not set when you have `--private`, your current machine's IP address will always be given access to the control plane.
+*  If this argument is used with an existing private cluster, it will replace the existing authorized networks.
+
+**Example Usage:**
+
+* To create a private cluster and allow access to Control Plane only to your current machine:
+
+  ```shell
+  python3 xpk.py cluster create \
+    --cluster=xpk-private-cluster \
+    --tpu-type=v4-8 --slices=2 \
+    --private
+  ```
+
+* To create a private cluster and allow access to Control Plane only to your current machine and the IP ranges `1.2.3.0/24` and `1.2.4.5/32`:
+
+  ```shell
+  python3 xpk.py cluster create \
+    --cluster=xpk-private-cluster \
+    --tpu-type=v4-8 --slices=2 \
+    --authorized-networks 1.2.3.0/24 1.2.4.5/32
+
+    # --private is optional when you set --authorized-networks
+  ```
+
+> **Important Notes:** 
+> * The argument `--private` is only applicable when creating new clusters. You cannot convert an existing public cluster to a private cluster using these flags.
+> * The argument `--authorized-networks` is applicable when creating new clusters or using an existing _*private*_ cluster. You cannot convert an existing public cluster to a private cluster using these flags.
+> * You need to [set up a Cluster NAT for your VPC network](https://cloud.google.com/nat/docs/set-up-manage-network-address-translation#creating_nat) so that the Nodes and Pods have outbound access to the internet. This is required because XPK installs and configures components such as kueue that need access to external resources like `registry.k8.io`.
+
+
 ### Create Vertex AI Tensorboard
 *Note: This feature is available in XPK >= 0.4.0. Enable [Vertex AI API](https://cloud.google.com/vertex-ai/docs/start/cloud-environment#enable_vertexai_apis) in your Google Cloud console to use this feature. Make sure you have
 [Vertex AI Administrator](https://cloud.google.com/vertex-ai/docs/general/access-control#aiplatform.admin) role

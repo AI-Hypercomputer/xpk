@@ -62,6 +62,9 @@ def is_ip_in_any_network(ip_address, cidrs):
   """
 
   try:
+    if not are_cidrs_valid(cidrs):
+      return False
+
     if cidrs is None:
       return False
 
@@ -87,6 +90,8 @@ def is_current_machine_in_any_network(cidrs, external_ip=True):
   Returns:
     True if the IP address is found in any of the CIDRs, False otherwise.
   """
+  if not are_cidrs_valid(cidrs):
+    return -1, False
 
   if cidrs is None:
     return 0, False
@@ -109,6 +114,8 @@ def add_current_machine_to_networks(cidrs, external_ip=True):
   Returns:
     The updated list of CIDRs with the current machine's IP added (if necessary).
   """
+  if not are_cidrs_valid(cidrs):
+    return -1, None
 
   return_code, ip_address = get_current_machine_ip(external_ip)
   if return_code > 0:
@@ -118,3 +125,43 @@ def add_current_machine_to_networks(cidrs, external_ip=True):
     cidrs.append(f"{ip_address}/32")
 
   return 0, cidrs
+
+
+def is_cidr_valid(cidr):
+  """
+  Validates a CIDR string.
+
+  Args:
+    cidr: The CIDR string to validate.
+
+  Returns:
+    True if the CIDR string is valid, False otherwise.
+  """
+  try:
+    ipaddress.ip_network(cidr)
+    return True
+  except ValueError:
+    return False
+
+
+def are_cidrs_valid(cidrs):
+  """
+  Validates a list of CIDR strings.
+
+  Args:
+    cidrs: A list of CIDR strings to validate.
+
+  Returns:
+    True if all CIDR strings in the list are valid, False otherwise.
+  """
+  if cidrs is None:
+    return True
+
+  all_cidrs_are_valid = True
+
+  for cidr in cidrs:
+    if not is_cidr_valid(cidr):
+      all_cidrs_are_valid = False
+      xpk_print(f"Error: the string '{cidr}' is not a valid CIDR.")
+
+  return all_cidrs_are_valid

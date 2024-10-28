@@ -356,11 +356,11 @@ Once it's ready user can define
 
 ### Filestore
 
-A FUSE adapter lets you mount and access Cloud Storage buckets as local file systems, so applications can read and write objects in your bucket using standard file system semantics.
+A Filestore adapter lets you mount and access Filestore instances as local file systems, so applications can read and write objects in your volumes using standard file system semantics.
 
-To use the GCS FUSE with XPK user needs to create a a [Storage Bucket](https://pantheon.corp.google.com/storage/)
-and a manifest with PersistentVolume and PersistentVolumeClaim that mounts to the Bucket. To learn how to properly
-set up PersistentVolume and PersistentVolumeClaim visit [GKE Cloud Storage documentation](https://cloud.google.com/kubernetes-engine/docs/how-to/persistent-volumes/cloud-storage-fuse-csi-driver#provision-static)
+To use the GCP Filestore with XPK user needs to create a a [Filestore instance](https://pantheon.corp.google.com/filestore/)
+and a manifest with PersistentVolume and PersistentVolumeClaim that mounts to the Filestore. To learn how to properly
+set up PersistentVolume and PersistentVolumeClaim visit [GKE Filestore documentation](https://cloud.google.com/filestore/docs/csi-driver#access)
 
 Once it's ready user can define
 

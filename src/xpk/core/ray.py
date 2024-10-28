@@ -96,10 +96,10 @@ def install_ray_cluster(args, system) -> int:
 
   delete_ray_cluster(args)
 
-  label = "cloud.google.com/gke-nodepool=default-pool"
+  label = 'cloud.google.com/gke-nodepool=default-pool'
   available_head_cpu, available_head_mem = generate_available_resources(label, args, 0.5)
 
-  label = f"cloud.google.com/gke-tpu-accelerator={system.gke_accelerator}"
+  label = f'cloud.google.com/gke-tpu-accelerator={system.gke_accelerator}'
   available_worker_cpu, available_worker_mem = generate_available_resources(label, args, 0.9)
 
   yml_string = ray_cluster_crd_yaml.format(
@@ -170,18 +170,16 @@ def generate_available_resources(label, args, percent) -> tuple:
   command = f'kubectl get node {node_name} -o jsonpath=\'{{.status.allocatable.cpu}}\''
   task = 'Fetching available CPU on node'
   _, available_cpu = run_command_for_value(command, task, args)
-  match = re.match(r"(\d+)([a-zA-Z]+)", available_cpu)
+  match = re.match(r'(\d+)([a-zA-Z]+)', available_cpu)
   value, units = match.group(1), match.group(2)
-  xpk_print("VALUE, UNITS", value, units)
   cpu_value = int(int(value) * percent)
   adjusted_available_cpu = str(cpu_value) + units
 
   command = f'kubectl get node {node_name} -o jsonpath=\'{{.status.allocatable.memory}}\''
   task = 'Fetching available memory on node'
   _, available_memory = run_command_for_value(command, task, args)
-  match = re.match(r"(\d+)([a-zA-Z]+)", available_memory)
+  match = re.match(r'(\d+)([a-zA-Z]+)', available_memory)
   value, units = match.group(1), match.group(2)
-  xpk_print("VALUE, UNITS", value, units)
   memory_value = int(int(value) * percent)
   adjusted_available_memory = str(memory_value) + units
 

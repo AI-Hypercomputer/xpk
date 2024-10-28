@@ -24,7 +24,7 @@ from os.path import join
 from ..core.commands import (
     run_command_for_value,
 )
-from ..utils import download_files_from_github_into_dir
+from .utils import download_files_from_github_into_dir
 
 # AppProfile defaults
 APP_PROFILE_TEMPLATE_DEFAULT_NAME = "xpk-def-app-profile"

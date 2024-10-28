@@ -19,8 +19,7 @@ import os
 import re
 import sys
 import tempfile
-import urllib.request
-from urllib.error import ContentTooShortError
+
 
 
 def chunks(lst: list, n: int):
@@ -168,14 +167,3 @@ def directory_path_type(value):
     )
   return value
 
-
-def download_files_from_github_into_dir(
-    path: str, urls: list[tuple[str, str]]
-) -> None:
-  for url, fn in urls:
-    target = os.path.join(path, fn)
-    try:
-      urllib.request.urlretrieve(url, target)
-    except ContentTooShortError as e:
-      xpk_print(f'downloading kjob CRD {fn} failed due to {e.content}')
-      xpk_exit(1)

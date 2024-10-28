@@ -143,18 +143,6 @@ def create_job_template_instance(args: Namespace) -> None:
     xpk_exit(return_code)
 
 
-def download_files_from_github_into_dir(
-    path: str, urls: list[tuple[str, str]]
-) -> None:
-  for url, fn in urls:
-    target = join(path, fn)
-    try:
-      urllib.request.urlretrieve(url, target)
-    except ContentTooShortError as e:
-      xpk_print(f"downloading kjob CRD {fn} failed due to {e.content}")
-      xpk_exit(1)
-
-
 def apply_kjob_crds(args: Namespace) -> None:
   """Apply kjob CRDs on cluster.
 

@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 from argparse import Namespace
-from ..utils import xpk_print, xpk_exit, write_tmp_file
+from ..utils import xpk_print, write_tmp_file
 from .commands import run_command_for_value, run_command_with_updates
 
 import tempfile
@@ -24,7 +24,10 @@ from os.path import join
 from ..core.commands import (
     run_command_for_value,
 )
-from .utils import download_files_from_github_into_dir
+
+import urllib.request
+from urllib.error import ContentTooShortError
+import os
 
 # AppProfile defaults
 APP_PROFILE_TEMPLATE_DEFAULT_NAME = "xpk-def-app-profile"
@@ -36,13 +39,17 @@ JOB_TEMPLATE_DEFAULT_COMPLETIONS = 1
 JOB_TEMPLATE_DEFAULT_CONT_NAME = "xpk-container"
 JOB_TEMPLATE_DEFAULT_IMG = "ubuntu:22.04"
 
-# kjob CRDs
-app_profile_gh_file = "https://raw.githubusercontent.com/kubernetes-sigs/kueue/refs/heads/main/cmd/experimental/kjobctl/config/crd/bases/kjobctl.x-k8s.io_applicationprofiles.yaml"
-job_template_gh_file = "https://raw.githubusercontent.com/kubernetes-sigs/kueue/refs/heads/main/cmd/experimental/kjobctl/config/crd/bases/kjobctl.x-k8s.io_jobtemplates.yaml"
-ray_cluster_gh_file = "https://raw.githubusercontent.com/kubernetes-sigs/kueue/refs/heads/main/cmd/experimental/kjobctl/config/crd/bases/kjobctl.x-k8s.io_rayclustertemplates.yaml"
-ray_job_tmpl_gh_file = "https://raw.githubusercontent.com/kubernetes-sigs/kueue/refs/heads/main/cmd/experimental/kjobctl/config/crd/bases/kjobctl.x-k8s.io_rayjobtemplates.yaml"
-volume_bundles_gh_file = "https://raw.githubusercontent.com/kubernetes-sigs/kueue/refs/heads/main/cmd/experimental/kjobctl/config/crd/bases/kjobctl.x-k8s.io_volumebundles.yaml"
-customization_gh_file = "https://raw.githubusercontent.com/kubernetes-sigs/kueue/refs/heads/main/cmd/experimental/kjobctl/config/crd/kustomization.yaml"
+crd_file_urls = {
+    "kjobctl.x-k8s.io_applicationprofiles.yaml": "https://raw.githubusercontent.com/kubernetes-sigs/kueue/refs/heads/main/cmd/experimental/kjobctl/config/crd/bases/kjobctl.x-k8s.io_applicationprofiles.yaml",
+    "kjobctl.x-k8s.io_jobtemplates.yaml": "https://raw.githubusercontent.com/kubernetes-sigs/kueue/refs/heads/main/cmd/experimental/kjobctl/config/crd/bases/kjobctl.x-k8s.io_jobtemplates.yaml",
+    "kjobctl.x-k8s.io_rayclustertemplates.yaml": "https://raw.githubusercontent.com/kubernetes-sigs/kueue/refs/heads/main/cmd/experimental/kjobctl/config/crd/bases/kjobctl.x-k8s.io_rayclustertemplates.yaml",
+    "kjobctl.x-k8s.io_rayjobtemplates.yaml": "https://raw.githubusercontent.com/kubernetes-sigs/kueue/refs/heads/main/cmd/experimental/kjobctl/config/crd/bases/kjobctl.x-k8s.io_rayjobtemplates.yaml",
+    "kjobctl.x-k8s.io_volumebundles.yaml": "https://raw.githubusercontent.com/kubernetes-sigs/kueue/refs/heads/main/cmd/experimental/kjobctl/config/crd/bases/kjobctl.x-k8s.io_volumebundles.yaml",
+}
+
+kustomization_url = {
+    "kustomization.yaml": "https://raw.githubusercontent.com/kubernetes-sigs/kueue/refs/heads/main/cmd/experimental/kjobctl/config/crd/kustomization.yaml"
+}
 
 job_template_yaml = """
   apiVersion: kjobctl.x-k8s.io/v1alpha1
@@ -76,12 +83,12 @@ spec:
 """
 
 
-def verify_kjob_installed(args: Namespace) -> None:
+def verify_kjob_installed(args: Namespace) -> int:
   """Check if kjob is installed. If not provide user with proper communicate and exit.
   Args:
     args - user provided arguments.
   Returns:
-    None
+    error code > if kjob not installed, otherwise 0
   """
   command = "kubectl-kjob help"
   task = "Verify kjob installation "
@@ -89,6 +96,7 @@ def verify_kjob_installed(args: Namespace) -> None:
 
   if verify_kjob_installed_code == 0:
     xpk_print("kjob found")
+    return 0
 
   if verify_kjob_installed_code != 0:
     xpk_print(
@@ -96,16 +104,17 @@ def verify_kjob_installed(args: Namespace) -> None:
         " https://github.com/kubernetes-sigs/kueue/blob/main/cmd/experimental/kjobctl/docs/installation.md"
         " to install kjob."
     )
-    xpk_exit(verify_kjob_installed_code)
+    return verify_kjob_installed_code
+  return 0
 
 
-def create_app_profile_instance(args: Namespace) -> None:
+def create_app_profile_instance(args: Namespace) -> int:
   """Create new AppProfile instance on cluster with default settings.
 
   Args:
     args - user provided arguments
   Returns:
-    None
+    exit_code > 0 if creating AppProfile fails, 0 otherwise
   """
   yml_string = app_profile_yaml.format(
       name=APP_PROFILE_TEMPLATE_DEFAULT_NAME,
@@ -114,18 +123,19 @@ def create_app_profile_instance(args: Namespace) -> None:
 
   tmp = write_tmp_file(yml_string)
   command = f"kubectl apply -f {str(tmp.file.name)}"
-  return_code = run_command_with_updates(command, "Creating AppProfile", args)
-  if return_code != 0:
-    xpk_exit(return_code)
+  err_code = run_command_with_updates(command, "Creating AppProfile", args)
+  if err_code != 0:
+    return err_code
+  return 0
 
 
-def create_job_template_instance(args: Namespace) -> None:
+def create_job_template_instance(args: Namespace) -> int:
   """Create new JobTemplate instance on cluster with default settings.
 
   Args:
     args - user provided arguments
   Returns:
-    None
+    exit_code > 0 if creating JobTemplate fails, 0 otherwise
   """
   yml_string = job_template_yaml.format(
       name=JOB_TEMPLATE_DEFAULT_NAME,
@@ -137,12 +147,24 @@ def create_job_template_instance(args: Namespace) -> None:
 
   tmp = write_tmp_file(yml_string)
   command = f"kubectl apply -f {str(tmp.file.name)}"
-  return_code = run_command_with_updates(command, "Creating JobTemplate", args)
-  if return_code != 0:
-    xpk_exit(return_code)
+  err_code = run_command_with_updates(command, "Creating JobTemplate", args)
+  if err_code != 0:
+    return err_code
+  return 0
 
 
-def apply_kjob_crds(args: Namespace) -> None:
+def download_crd_file_urls(files: dict[str, str], path: str) -> int:
+  for file, url in files.items():
+    try:
+      target = os.path.join(path, file)
+      urllib.request.urlretrieve(url, target)
+    except ContentTooShortError as e:
+      xpk_print(f"downloading kjob CDR file {file} failed due to {e.content}")
+      return 1
+  return 0
+
+
+def apply_kjob_crds(args: Namespace) -> int:
   """Apply kjob CRDs on cluster.
 
   This function downloads kjob CRDs files from kjob repo,
@@ -157,20 +179,16 @@ def apply_kjob_crds(args: Namespace) -> None:
   kjob_kustomize_path = tempfile.mkdtemp()
   kustomize_bases = join(kjob_kustomize_path, "bases")
   mkdir(kustomize_bases)
-  urls = [
-      job_template_gh_file,
-      ray_cluster_gh_file,
-      ray_job_tmpl_gh_file,
-      volume_bundles_gh_file,
-      app_profile_gh_file,
-  ]
-  download_files_from_github_into_dir(
-      kustomize_bases,
-      list(zip(urls, [url.rsplit("/", maxsplit=1)[-1] for url in urls])),
-  )
-  download_files_from_github_into_dir(
-      kjob_kustomize_path, [(customization_gh_file, "kustomization.yaml")]
-  )
+
+  err_code = download_crd_file_urls(crd_file_urls, kustomize_bases)
+  if err_code > 0:
+    xpk_print("Downloading kjob CRDs failed.")
+    return err_code
+
+  err_code = download_crd_file_urls(kustomization_url, kjob_kustomize_path)
+  if err_code > 0:
+    xpk_print("Downloading kustomize file failed.")
+    return err_code
 
   cmd = (
       f"kustomize build {kjob_kustomize_path} | kubectl apply --server-side"
@@ -179,8 +197,10 @@ def apply_kjob_crds(args: Namespace) -> None:
   error_code, _ = run_command_for_value(
       cmd, "Create kjob CRDs on cluster", args
   )
+
   rmdir(kjob_kustomize_path)
   if error_code != 0:
-    xpk_exit(error_code)
-
+    xpk_print("Creating kjob CRDs on cluster failed.")
+    return error_code
   xpk_print("Creating kjob CRDs succeded")
+  return 0

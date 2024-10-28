@@ -153,10 +153,14 @@ def cluster_create(args) -> None:
     xpk_exit(install_kueue_on_cluster_code)
 
   xpk_print('Verifying kjob installation')
-  verify_kjob_installed(args)
+  err_code = verify_kjob_installed(args)
+  if err_code > 0:
+    xpk_exit(err_code)
 
   xpk_print('Applying kjob CDRs')
-  apply_kjob_crds(args)
+  err_code = apply_kjob_crds(args)
+  if err_code > 0:
+    xpk_exit(err_code)
 
   xpk_print('Preparing kjob')
   prepare_kjob(args)
@@ -201,8 +205,14 @@ def cluster_create(args) -> None:
 
 
 def prepare_kjob(args) -> None:
-  create_job_template_instance(args)
-  create_app_profile_instance(args)
+  err_code = create_job_template_instance(args)
+  if err_code > 0:
+    xpk_print('creating JobTemplate failed')
+    xpk_exit(err_code)
+  err_code = create_app_profile_instance(args)
+  if err_code > 0:
+    xpk_print('creating AppProfile failed')
+    xpk_exit(err_code)
 
 
 def cluster_delete(args) -> None:

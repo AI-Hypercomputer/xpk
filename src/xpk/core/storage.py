@@ -412,45 +412,6 @@ def add_bucket_iam_members(args: Namespace, storages: list[Storage]) -> None:
       xpk_print(f"Added {member} with role {role} to {storage.bucket}.")
 
 
-def add_filestore_iam_members(args: Namespace, storages: list[Storage]) -> None:
-  """
-  Adds IAM members to the GCP filestores associated with the given Storages.
-
-  This function grants the necessary permissions to the XPK service account
-  to access the GCP Filestores. The specific role (viewer or user) is determined
-  based on the `readonly` attribute of each Storage object.
-
-  Args:
-      args: An argparse Namespace object containing command-line arguments.
-      storages: A list of Storage objects.
-  """
-
-  for storage in storages:
-    if storage.type == GCP_FILESTORE_TYPE:
-      if storage.readonly:
-        role = "roles/file.viewer"
-      else:
-        role = "roles/file.editor"
-
-      member = (
-          f"principal://iam.googleapis.com/projects/{args.project_number}/"
-          f"locations/global/workloadIdentityPools/{args.project}.svc.id.goog/"
-          f"subject/ns/default/sa/{XPK_SA}"
-      )
-      cmd = (
-          f"gcloud projects add-iam-policy-binding {args.project}"
-          f"--member='user:{member}'"
-          f"--role={role}"
-      )
-      err_code, _ = run_command_for_value(
-          cmd, "Update filestore iam bindings", args
-      )
-      if err_code != 0:
-        xpk_print("Updating filestore iam binding failed.")
-        xpk_exit(err_code)
-      xpk_print(f"Added {member} with role {role} to {storage.bucket}.")
-
-
 def print_storages_for_cluster(storages: list[Storage]) -> None:
   """
   Prints in human readable manner a table of Storage resources that belong to the specified cluster.

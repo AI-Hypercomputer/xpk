@@ -68,7 +68,6 @@ from ..core.storage import (
     XPK_SA,
     Storage,
     add_bucket_iam_members,
-    add_filestore_iam_members,
     get_storage_volume_mounts_yaml,
     get_storage_volume_mounts_yaml_for_gpu,
     get_storage_volumes_yaml,
@@ -452,6 +451,13 @@ def workload_create(args) -> None:
   else:
     xpk_print('No gcsfuse Storages to add detected')
 
+  if len(gcpfilestore_storages) > 0:
+    xpk_print(
+        f'Detected gcp filestores instances to add: {gcpfilestore_storages}'
+    )
+  else:
+    xpk_print('No detected gcp filestore instances to add detected.')
+
   # Create the workload file based on accelerator type or workload type.
   if system.accelerator_type == AcceleratorType['GPU']:
     container, debugging_dashboard_id = get_user_workload_container(
@@ -540,7 +546,6 @@ def workload_create(args) -> None:
     xpk_exit(return_code)
 
   add_bucket_iam_members(args, storages)
-  add_filestore_iam_members(args, storages)
   # Get GKE outlier dashboard for TPU
   outlier_dashboard_id = None
   if system.accelerator_type == AcceleratorType['TPU']:

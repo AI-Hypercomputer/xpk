@@ -319,7 +319,10 @@ will fail the cluster creation process because Vertex AI Tensorboard is not supp
     ```
 
 ## Storage
-Currently xpk supports Cloud Storage FUSE. A FUSE adapter that lets you mount and access Cloud Storage buckets as local file systems, so applications can read and write objects in your bucket using standard file system semantics.
+Currently xpk supports two types of cloud storages: FUSE and Filestore.
+
+### FUSE
+A FUSE adapter lets you mount and access Cloud Storage buckets as local file systems, so applications can read and write objects in your bucket using standard file system semantics.
 
 To use the GCS FUSE with XPK user needs to create a a [Storage Bucket](https://pantheon.corp.google.com/storage/)
 and a manifest with PersistentVolume and PersistentVolumeClaim that mounts to the Bucket. To learn how to properly
@@ -350,6 +353,41 @@ Once it's ready user can define
     --tpu-type=v5litepod-16 \
     --storage test-storage
     ```
+
+### Filestore
+
+A FUSE adapter lets you mount and access Cloud Storage buckets as local file systems, so applications can read and write objects in your bucket using standard file system semantics.
+
+To use the GCS FUSE with XPK user needs to create a a [Storage Bucket](https://pantheon.corp.google.com/storage/)
+and a manifest with PersistentVolume and PersistentVolumeClaim that mounts to the Bucket. To learn how to properly
+set up PersistentVolume and PersistentVolumeClaim visit [GKE Cloud Storage documentation](https://cloud.google.com/kubernetes-engine/docs/how-to/persistent-volumes/cloud-storage-fuse-csi-driver#provision-static)
+
+Once it's ready user can define
+
+`--type` - defines a type of a storage, currently xpk supports `gcsfuse` only.
+`--auto-mount` - if set to true means that all workloads should have a given storage mounted by default.
+`--mount-point` - defines the path on which a given storage should be mounted for a workload.
+`--manifest` - defines the path to manifest which contains PersistentVolue and PersistentVolumeClaim definitions
+
+
+* Create a simple Storage
+
+    ```shell
+    python3 xpk.py storage create test-storage --project=$PROJECT
+    --cluster=xpk-test --type=gcsfuse --auto-mount=false \
+    --mount-point='/test-mount-point' --readonly=false \
+    --manifest='pv-pvc-auto-mount.yaml'
+    ```
+
+* Create a simple Workload with Storage attached
+    ```shell
+    python3 xpk.py workload create \
+    --workload xpk-test-workload --command "echo goodbye" \
+    --cluster xpk-test \
+    --tpu-type=v5litepod-16 \
+    --storage test-storage
+    ```
+
 
 * List Storage
     ```shell

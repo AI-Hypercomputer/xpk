@@ -21,7 +21,6 @@ import sys
 import tempfile
 
 
-
 def chunks(lst: list, n: int):
   """Return a list of n-sized chunks from lst.
 
@@ -166,4 +165,3 @@ def directory_path_type(value):
         f'Directory path is invalid. User provided path was {value}'
     )
   return value
-

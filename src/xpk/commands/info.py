@@ -44,21 +44,21 @@ def info(args: Namespace) -> None:
     xpk_exit(set_cluster_command_code)
 
   verify_kueuectl(args)
-
-  if args.localqueue is None and args.clusterqueue is None:
-    args.localqueue, args.clusterqueue = True, True
+  lq, cq = bool(args.localqueue), bool(args.clusterqueue)
+  if not lq and not cq:
+    lq, cq = True, True
 
   lqs, cqs = None, None
-  if args.localqueue:
+  if lq:
     lqs = run_kueuectl_list_localqueue(args)
 
   cqs = run_kueuectl_list_clusterqueue(args)
   quotas = get_nominal_quotas(cqs)
 
-  if args.localqueue:
+  if lq:
     print_formatted_lqs(lqs, quotas)
 
-  if args.clusterqueue:
+  if cq:
     print_formatted_cqs(cqs, quotas)
 
 

@@ -261,7 +261,7 @@ This argument allows you to specify additional IP ranges (in CIDR notation) that
   ```shell
   python3 xpk.py cluster create \
     --cluster=xpk-private-cluster \
-    --tpu-type=v4-8 --slices=2 \
+    --tpu-type=v4-8 --num-slices=2 \
     --private
   ```
 
@@ -270,7 +270,7 @@ This argument allows you to specify additional IP ranges (in CIDR notation) that
   ```shell
   python3 xpk.py cluster create \
     --cluster=xpk-private-cluster \
-    --tpu-type=v4-8 --slices=2 \
+    --tpu-type=v4-8 --num-slices=2 \
     --authorized-networks 1.2.3.0/24 1.2.4.5/32
 
     # --private is optional when you set --authorized-networks
@@ -279,7 +279,7 @@ This argument allows you to specify additional IP ranges (in CIDR notation) that
 > **Important Notes:** 
 > * The argument `--private` is only applicable when creating new clusters. You cannot convert an existing public cluster to a private cluster using these flags.
 > * The argument `--authorized-networks` is applicable when creating new clusters or using an existing _*private*_ cluster. You cannot convert an existing public cluster to a private cluster using these flags.
-> * You need to [set up a Cluster NAT for your VPC network](https://cloud.google.com/nat/docs/set-up-manage-network-address-translation#creating_nat) so that the Nodes and Pods have outbound access to the internet. This is required because XPK installs and configures components such as kueue that need access to external resources like `registry.k8.io`.
+> * You need to [set up a Cluster NAT for your VPC network](https://cloud.google.com/nat/docs/set-up-manage-network-address-translation#creating_nat) so that the Nodes and Pods have outbound access to the internet. This is required because XPK installs and configures components such as kueue that need access to external sources like `registry.k8.io`.
 
 
 ### Create Vertex AI Tensorboard

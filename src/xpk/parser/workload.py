@@ -521,6 +521,8 @@ def add_shared_workload_create_optional_arguments(args_parsers):
             ' headless mode. This arg can only be used in `xpk workload'
             ' create-pathways`(preferred) or `xpk workload create'
             ' --use-pathways.` (--use-pathways will be deprecated soon).'
+            ' Headless workloads may be created on clusters with/without '
+            ' CloudDNS.'
         ),
     )
     custom_parser.add_argument(

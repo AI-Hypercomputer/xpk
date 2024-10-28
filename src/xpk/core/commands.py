@@ -283,8 +283,9 @@ def run_command_for_value(
       )
     except subprocess.CalledProcessError as e:
       xpk_print(f'Task {task} failed with {e.returncode}')
-      xpk_print('*' * 80)
-      xpk_print(e.output)
-      xpk_print('*' * 80)
+      if e.output:
+        xpk_print('*' * 80)
+        xpk_print(e.output)
+        xpk_print('*' * 80)
       return e.returncode, str(e.output, 'UTF-8')
     return 0, str(output, 'UTF-8')

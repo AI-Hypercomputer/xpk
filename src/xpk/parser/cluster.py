@@ -168,6 +168,11 @@ def set_cluster_parser(cluster_parser):
       default=None,
       help='The tpu type to use, v5litepod-16, etc.',
   )
+  cluster_create_pathways_optional_arguments.add_argument(
+      '--enable-clouddns',
+      action='store_true',
+      help='Enables CloudDNS on the Pathways cluster.',
+  )
 
   add_shared_cluster_create_required_arguments([
       cluster_create_required_arguments,

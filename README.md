@@ -180,6 +180,14 @@ all zones.
     --num-slices=4 --on-demand \
     --tpu-type=v5litepod-16
     ```
+    Please specify `--enable-clouddns` if you would like CloudDNS to be the
+    DNS provider for the Pathways cluster. For example,
+    ```shell
+    python3 xpk.py cluster create-pathways \
+    --cluster xpk-pw-test-clouddns \
+    --num-slices=4 --on-demand \
+    --tpu-type=v5litepod-16
+    ```
 
 *   Cluster Create can be called again with the same `--cluster name` to modify
     the number of slices or retry failed steps.
@@ -370,8 +378,8 @@ will fail the cluster creation process because Vertex AI Tensorboard is not supp
     --tpu-type=v5litepod-16 \
     --cluster xpk-pw-test
     ```
-    Executing the command above would provide the address of the proxy that the user job should connect to.
-    Specify `JAX_PLATFORMS=proxy` and `JAX_BACKEND_TARGET=<proxy address from above>` and `import previewutilies` to establish this connection between the user's JAX code and the Pathways proxy. Execute Pathways workloads interactively on Vertex AI notebooks!
+    Executing the command above would provide the address of the proxy that the user job should connect to. Users would need to use kubectl port-forwarding to establish connection from the notebook/VM to the proxy.
+    Specify `JAX_PLATFORMS=proxy` and `JAX_BACKEND_TARGET=<proxy address from above>` and `import pathwaysutils` to establish this connection between the user's JAX code and the Pathways proxy. Execute Pathways workloads interactively on Vertex AI notebooks!
 
 ### Set `max-restarts` for production jobs
 

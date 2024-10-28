@@ -70,7 +70,7 @@ def get_nominal_quotas(cqs: list[dict]) -> dict[str, dict[str, str]]:
     - cqs - list of cluster queues.
   Returns:
     - dictionary of cluster queues resources quotas in format:
-    {cq_name:{"flavorName:resourceName":quota}
+    {cq_name:{"flavorName:resourceName":quota}}
   """
   try:
     cq_list = json.loads(cqs)['items']

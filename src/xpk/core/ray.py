@@ -97,10 +97,14 @@ def install_ray_cluster(args, system) -> int:
   delete_ray_cluster(args)
 
   label = 'cloud.google.com/gke-nodepool=default-pool'
-  available_head_cpu, available_head_mem = generate_available_resources(label, args, 0.5)
+  available_head_cpu, available_head_mem = generate_available_resources(
+      label, args, 0.5
+  )
 
   label = f'cloud.google.com/gke-tpu-accelerator={system.gke_accelerator}'
-  available_worker_cpu, available_worker_mem = generate_available_resources(label, args, 0.9)
+  available_worker_cpu, available_worker_mem = generate_available_resources(
+      label, args, 0.9
+  )
 
   yml_string = ray_cluster_crd_yaml.format(
       accelerator=system.gke_accelerator,
@@ -151,6 +155,7 @@ def delete_ray_cluster(args) -> None:
 
   return
 
+
 def generate_available_resources(label, args, percent) -> tuple:
   """Generate the available resources for the nodes that match the given label
 
@@ -163,11 +168,15 @@ def generate_available_resources(label, args, percent) -> tuple:
     A tuple with the available cpu and memory
   """
 
-  command = f'kubectl get nodes -l {label} -o jsonpath=\'{{.items[0].metadata.name}}\''
+  command = (
+      f"kubectl get nodes -l {label} -o jsonpath='{{.items[0].metadata.name}}'"
+  )
   task = f'Getting nodes with label {label}'
   _, node_name = run_command_for_value(command, task, args)
 
-  command = f'kubectl get node {node_name} -o jsonpath=\'{{.status.allocatable.cpu}}\''
+  command = (
+      f"kubectl get node {node_name} -o jsonpath='{{.status.allocatable.cpu}}'"
+  )
   task = 'Fetching available CPU on node'
   _, available_cpu = run_command_for_value(command, task, args)
   match = re.match(r'(\d+)([a-zA-Z]+)', available_cpu)
@@ -175,7 +184,10 @@ def generate_available_resources(label, args, percent) -> tuple:
   cpu_value = int(int(value) * percent)
   adjusted_available_cpu = str(cpu_value) + units
 
-  command = f'kubectl get node {node_name} -o jsonpath=\'{{.status.allocatable.memory}}\''
+  command = (
+      f'kubectl get node {node_name} -o'
+      " jsonpath='{.status.allocatable.memory}'"
+  )
   task = 'Fetching available memory on node'
   _, available_memory = run_command_for_value(command, task, args)
   match = re.match(r'(\d+)([a-zA-Z]+)', available_memory)

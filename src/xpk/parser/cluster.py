@@ -213,7 +213,7 @@ def set_cluster_parser(cluster_parser):
       '--ray-version',
       type=str,
       default=None,
-      help='The Ray version to use, e.g. \'2.38.0\'',
+      help="The Ray version to use, e.g. '2.38.0'",
       required=True,
   )
   ### Optional arguments specific to "cluster create"

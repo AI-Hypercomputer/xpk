@@ -207,6 +207,14 @@ def set_cluster_parser(cluster_parser):
       type=str,
       default=None,
       help='The tpu type to use, v5litepod-16, etc.',
+      required=True,
+  )
+  cluster_create_ray_cluster_required_arguments.add_argument(
+      '--ray-version',
+      type=str,
+      default=None,
+      help='The Ray version to use, e.g. \'2.38.0\'',
+      required=True,
   )
   ### Optional arguments specific to "cluster create"
   cluster_create_ray_cluster_optional_arguments.add_argument(

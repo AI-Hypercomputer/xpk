@@ -27,7 +27,6 @@ from kubernetes.client.exceptions import ApiException
 from kubernetes.client.models.v1_persistent_volume import V1PersistentVolume
 from kubernetes.utils import FailToCreateError
 from tabulate import tabulate
-from ..core.commands import run_command_for_value
 from ..utils import xpk_exit, xpk_print
 
 XPK_SA = "xpk-sa"

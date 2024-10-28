@@ -85,7 +85,6 @@ AUTOPROVISIONING_CONFIG_VALUE = 'AUTOPROVISION'
 AUTOPROVISIONING_CONFIG_MINIMUM_KEY = 'minimum_chips'
 AUTOPROVISIONING_CONFIG_MAXIMUM_KEY = 'maximum_chips'
 GCS_FUSE_ANNOTATION = 'gke-gcsfuse/volumes: "true"'
-GCS_FUSE_ANNOTATION = 'gke-gcsfuse/volumes: "true"'
 
 
 class CapacityType(enum.Enum):

@@ -364,7 +364,7 @@ set up PersistentVolume and PersistentVolumeClaim visit [GKE Filestore documenta
 
 Creating Filestore storage and attaching it to workload can be achieved in two steps:
 
-* Create a simple Storage, that attaches existing filestore instance to your workloads.
+* Create a simple Storage, that attaches existing filestore instance to your workloads. User must specify `--type=gcpfilestore`.
 
     ```shell
     python3 xpk.py storage create fs-storage-attach --project=$PROJECT

@@ -19,7 +19,7 @@ from ..utils import xpk_print, xpk_exit, write_tmp_file
 from .commands import run_command_for_value, run_command_with_updates
 
 import tempfile
-from os import mkdir
+from os import mkdir, rmdir
 from os.path import join
 from ..core.commands import (
     run_command_for_value,
@@ -29,13 +29,11 @@ from urllib.error import ContentTooShortError
 
 # AppProfile defaults
 APP_PROFILE_TEMPLATE_DEFAULT_NAME = "xpk-def-app-profile"
-APP_PROFILE_TEMPLATE_MODE_NAME = "Slurm"
 
 # JobTemplate defaults
 JOB_TEMPLATE_DEFAULT_NAME = "xpk-def-batch"
 JOB_TEMPLATE_DEFAULT_PARALLELISM = 1
 JOB_TEMPLATE_DEFAULT_COMPLETIONS = 1
-JOB_TEMPLATE_DEFAULT_COMPLETION_MODE = "Indexed"
 JOB_TEMPLATE_DEFAULT_CONT_NAME = "xpk-container"
 JOB_TEMPLATE_DEFAULT_IMG = "ubuntu:22.04"
 
@@ -146,7 +144,7 @@ def create_job_template_instance(args: Namespace) -> None:
 
 
 def download_files_from_github_into_dir(
-    path: str, urls: list[(str, str)]
+    path: str, urls: list[tuple[str, str]]
 ) -> None:
   for url, fn in urls:
     target = join(path, fn)
@@ -169,8 +167,9 @@ def apply_kjob_crds(args: Namespace) -> None:
   Returns:
     None
   """
-  temp_dir = tempfile.mkdtemp()
-  mkdir(join(temp_dir, "bases"))
+  kjob_kustomize_path = tempfile.mkdtemp()
+  kustomize_bases = join(kjob_kustomize_path, "bases")
+  mkdir(kustomize_bases)
   urls = [
       job_template_gh_file,
       ray_cluster_gh_file,
@@ -179,17 +178,21 @@ def apply_kjob_crds(args: Namespace) -> None:
       app_profile_gh_file,
   ]
   download_files_from_github_into_dir(
-      join(temp_dir, "bases"),
+      kustomize_bases,
       list(zip(urls, [url.rsplit("/", maxsplit=1)[-1] for url in urls])),
   )
   download_files_from_github_into_dir(
-      temp_dir, [(customization_gh_file, "kustomization.yaml")]
+      kjob_kustomize_path, [(customization_gh_file, "kustomization.yaml")]
   )
 
-  cmd = f"kustomize build {temp_dir} | kubectl apply --server-side -f -"
+  cmd = (
+      f"kustomize build {kjob_kustomize_path} | kubectl apply --server-side"
+      " -f -"
+  )
   error_code, _ = run_command_for_value(
       cmd, "Create kjob CRDs on cluster", args
   )
+  rmdir(kjob_kustomize_path)
   if error_code != 0:
     xpk_exit(error_code)
 

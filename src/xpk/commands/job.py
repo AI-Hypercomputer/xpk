@@ -14,8 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..core.commands import run_command_with_updates
+from ..core.commands import run_command_for_value
 from ..utils import xpk_exit, xpk_print
+import yaml
 
 
 def job_info(args):
@@ -28,10 +29,29 @@ def job_info(args):
     0 if successful and 1 otherwise.
   """
   command = f'kubectl-kjob describe slurm {args.name}'
-  return_code = run_command_with_updates(command, 'Getting job info', args)
+  return_code, description = run_command_for_value(command, 'Getting job info', args)
 
   if return_code != 0:
     xpk_print(f'Job info request returned ERROR {return_code}')
     xpk_exit(return_code)
+
+  spli_i = description.find('\nData\n====')
+  job_desc_str = description[0:spli_i]
+  slurm_desc_str = description[spli_i:]
+
+  job_desc = yaml.safe_load(job_desc_str)
+
+  profile = job_desc['Pod Template']['Containers']['xpk-container']['Environment']['PROFILE']
+  labels = job_desc['Labels'].split(' ')
+  mounts = job_desc['Pod Template']['Containers']['xpk-container']['Mounts']
+
+  output = {
+    'Profile': profile,
+    'Labels': labels, 
+    'Mounts': mounts,
+  }
+
+  formatted_output = yaml.safe_dump(output, default_flow_style=False, sort_keys=False)
+  print(formatted_output)
 
   xpk_exit(0)

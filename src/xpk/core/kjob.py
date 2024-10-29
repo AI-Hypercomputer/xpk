@@ -19,7 +19,7 @@ from ..utils import xpk_print, write_tmp_file
 from .commands import run_command_for_value, run_command_with_updates
 
 import tempfile
-from os import mkdir, rmdir
+from os import mkdir
 from os.path import join
 from ..core.commands import (
     run_command_for_value,
@@ -164,6 +164,18 @@ def download_crd_file_urls(files: dict[str, str], path: str) -> int:
   return 0
 
 
+def clear_kustomize_tmp(kjob_tmp: str) -> None:
+  bases = join(kjob_tmp, "bases")
+  for file in kustomization_url:
+    os.remove(join(kjob_tmp, file))
+
+  for file in crd_file_urls:
+    os.remove(join(bases, file))
+
+  os.rmdir(bases)
+  os.rmdir(kjob_tmp)
+
+
 def apply_kjob_crds(args: Namespace) -> int:
   """Apply kjob CRDs on cluster.
 
@@ -198,7 +210,7 @@ def apply_kjob_crds(args: Namespace) -> int:
       cmd, "Create kjob CRDs on cluster", args
   )
 
-  rmdir(kjob_kustomize_path)
+  clear_kustomize_tmp(kjob_kustomize_path)
   if error_code != 0:
     xpk_print("Creating kjob CRDs on cluster failed.")
     return error_code

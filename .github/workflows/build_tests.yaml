@@ -25,6 +25,7 @@ env:
   WORKLOAD_NAME: xpktest-build-${{ github.run_attempt }}
   PATHWAYS_WORKLOAD_NAME: xpkpw-build-${{ github.run_attempt }}
   STORAGE_NAME: test-storage
+  FS_STORAGE_NAME: fs-test-storage
 
 jobs:
   cluster-create-and-delete:
@@ -62,7 +63,7 @@ jobs:
       run: |
         python3 xpk.py cluster create-pathways --cluster $TPU_CLUSTER_NAME --tpu-type=v4-8  --num-slices=2 \
         --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 \
-        --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --enable-workload-identity --enable-gcsfuse-csi-driver
+        --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --enable-workload-identity --enable-gcsfuse-csi-driver --enable-gcpfilestore-csi-drive
     - name: Authenticate Docker
       run: gcloud auth configure-docker --quiet
     - name: Create auto-mount Storage instance
@@ -70,6 +71,14 @@ jobs:
         python3 xpk.py storage create $STORAGE_NAME --cluster=$TPU_CLUSTER_NAME --zone=us-central2-b --type=gcsfuse \
         --auto-mount=true \
         --mount-point='/test-mount-point' --readonly=false --manifest='./tests/data/pv-pvc-templates.yaml'
+    - name: Fill Filestore manifest file
+      run: |
+        sed -i 's/PROJECT_NAME/${{secrets.PROJECT_NAME}}/g' -i 's/ZONE/us-central2-b/g' -i 's/INSTANCE_NAME/${{secrets.INSTANCE_NAME}}/g' -i 's/VOL_NAME/${{secrets.VOL_NAME}}/g' -i 's/IP_ADDRESS/${{secrets.IP_ADDRESS}}/g' ./tests/data/fs-manifest.yaml 
+    - name: Create auto-mount GCP Filestore Storage instance
+      run: |
+        python3 xpk.py storage create $FS_STORAGE_NAME --cluster=$TPU_CLUSTER_NAME --zone=us-central2-b --type=gcpfilestore \
+        --auto-mount=true \
+        --mount-point='/fs-test-mount-point' --readonly=false --manifest='./tests/data/fs-manifest.yaml'
     - name: List and verify existing Storages
       run: python3 xpk.py storage list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | tee output.txt | grep 'test-storage' || (echo 'No storage found' && cat output.txt && exit 1)
     - name: Create test script to execute in workloads

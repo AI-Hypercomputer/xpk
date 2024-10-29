@@ -165,6 +165,7 @@ def download_crd_file_urls(files: dict[str, str], path: str) -> int:
 
 
 def clear_kustomize_tmp(kjob_tmp: str) -> None:
+  xpk_print("Cleaning kustomize tmp directory.")
   bases = join(kjob_tmp, "bases")
   for file in kustomization_url:
     os.remove(join(kjob_tmp, file))
@@ -174,6 +175,7 @@ def clear_kustomize_tmp(kjob_tmp: str) -> None:
 
   os.rmdir(bases)
   os.rmdir(kjob_tmp)
+  xpk_print("Cleaning kustomize tmp directory succeded.")
 
 
 def apply_kjob_crds(args: Namespace) -> int:

@@ -17,6 +17,7 @@ limitations under the License.
 from ..core.commands import run_command_for_value
 from ..utils import xpk_exit, xpk_print
 import yaml
+import re
 
 
 def job_info(args):
@@ -28,30 +29,55 @@ def job_info(args):
   Returns:
     0 if successful and 1 otherwise.
   """
-  command = f'kubectl-kjob describe slurm {args.name}'
-  return_code, description = run_command_for_value(command, 'Getting job info', args)
+  job_name = args.name
 
-  if return_code != 0:
-    xpk_print(f'Job info request returned ERROR {return_code}')
-    xpk_exit(return_code)
+  desc_command = f'kubectl-kjob describe slurm {job_name}'
+  desc_code, desc_text = run_command_for_value(desc_command, 'Getting job data', args)
+  if desc_code != 0:
+    xpk_print(f'Data info request returned ERROR {desc_code}')
+    xpk_exit(desc_code)
 
-  spli_i = description.find('\nData\n====')
-  job_desc_str = description[0:spli_i]
-  slurm_desc_str = description[spli_i:]
+  job_command = f'kubectl-kjob list slurm -o yaml --field-selector metadata.name=={job_name}'
+  job_code, job_text = run_command_for_value(job_command, 'Getting job info', args)
+  if job_code != 0:
+    xpk_print(f'Job info request returned ERROR {job_code}')
+    xpk_exit(job_code)
 
-  job_desc = yaml.safe_load(job_desc_str)
+  pods_command = f'kubectl get pods -l=job-name={job_name} --no-headers'
+  pods_code, pods_text = run_command_for_value(pods_command, 'Getting pods list', args)
+  if pods_code != 0:
+    xpk_print(f'Pods list request returned ERROR {job_code}')
+    xpk_exit(pods_code)
 
-  profile = job_desc['Pod Template']['Containers']['xpk-container']['Environment']['PROFILE']
-  labels = job_desc['Labels'].split(' ')
-  mounts = job_desc['Pod Template']['Containers']['xpk-container']['Mounts']
+  job_yaml = yaml.safe_load(job_text)['items'][0]
 
   output = {
-    'Profile': profile,
-    'Labels': labels, 
-    'Mounts': mounts,
+    'Job name': job_name,
+    'Profile': get_profile(job_yaml),
+    'Labels': job_yaml['metadata']['labels'], 
+    'Mounts': job_yaml['spec']['template']['spec']['containers'][0]['volumeMounts'],
+    'Environment variables': get_ev_vars(desc_text),
+    'Pods': get_pods(pods_text),
   }
 
-  formatted_output = yaml.safe_dump(output, default_flow_style=False, sort_keys=False)
-  print(formatted_output)
+  formatted_output = yaml.dump(output, default_flow_style=False, sort_keys=False)
+  xpk_print(formatted_output.strip())
 
   xpk_exit(0)
+
+
+def get_profile(job_yaml: dict) -> str:
+  env_vars = job_yaml['spec']['template']['spec']['containers'][0]['env']
+  profile = next((x['value'] for x in env_vars if x['name'] == 'PROFILE'), '')
+  return profile
+
+
+def get_ev_vars(job_desc_text: str) -> list[tuple[str, str]]:
+  regex = r'(SLURM_[A-Z_]*=.*)'
+  search_res = re.findall(regex, job_desc_text)
+  return search_res
+
+
+def get_pods(pods_text: str) -> list[str]:
+  pods_lines = pods_text.strip().split('\n')
+  return [line.split()[0] for line in pods_lines]

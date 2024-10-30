@@ -26,7 +26,6 @@ env:
   WORKLOAD_NAME: xpktest-nightly-${{ github.run_attempt }}
   PATHWAYS_TPU_CLUSTER_NAME: pw-nightly-test-2-v4-8-nodepools
   PATHWAYS_WORKLOAD_NAME: xpkpw-nightly-${{ github.run_attempt }}
-  CLUSTER_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}} --subnetwork=${{secrets.SUBNETWORK_NAME}}"
   PW_CLUSTER_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}} --subnetwork=${{secrets.SUBNETWORK_NAME}}"
 
 jobs:
@@ -60,12 +59,12 @@ jobs:
         pip install .
         xpk --help
     - name: Create an XPK Cluster with zero node pools
-      run: python xpk.py cluster create --cluster $EMPTY_CLUSTER_NAME --tpu-type=v4-8  --num-slices=0 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments='${{ secrets.CLUSTER_ARGUMENTS }}' --custom-cluster-arguments="{CLUSTER_ARGUMENTS}"
+      run: python xpk.py cluster create --cluster $EMPTY_CLUSTER_NAME --tpu-type=v4-8  --num-slices=0 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments='${{ secrets.CLUSTER_ARGUMENTS }}'
     - name: Delete the cluster created
       run: python xpk.py cluster delete --cluster $EMPTY_CLUSTER_NAME --zone=us-central2-b
       if: always()
     - name: Create an XPK Cluster with 2x v4-8 nodepools
-      run: python xpk.py cluster create --cluster $TPU_CLUSTER_NAME --tpu-type=v4-8  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments='${{ secrets.CLUSTER_ARGUMENTS }}' --custom-cluster-arguments="{CLUSTER_ARGUMENTS}"
+      run: python xpk.py cluster create --cluster $TPU_CLUSTER_NAME --tpu-type=v4-8  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments='${{ secrets.CLUSTER_ARGUMENTS }}'
     - name: Authenticate Docker
       run: gcloud auth configure-docker --quiet
     - name: Create test script to execute in workloads

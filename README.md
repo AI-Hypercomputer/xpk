@@ -1117,7 +1117,7 @@ To see queues with usage and workload info use:
 python3 xpk.py info --cluster my-cluster
 ```
 
-You can specify what kind of resources(clusterqueue or localqueue) you want to use using flags --clusterqueue or --localqueue
+You can specify what kind of resources(clusterqueue or localqueue) you want to see using flags --clusterqueue or --localqueue.
 ```shell
 python3 xpk.py info --cluster my-cluster --localqueue
 ```

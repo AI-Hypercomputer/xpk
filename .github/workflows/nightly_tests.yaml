@@ -26,7 +26,7 @@ env:
   WORKLOAD_NAME: xpktest-nightly-${{ github.run_attempt }}
   PATHWAYS_TPU_CLUSTER_NAME: pw-nightly-test-2-v4-8-nodepools
   PATHWAYS_WORKLOAD_NAME: xpkpw-nightly-${{ github.run_attempt }}
-  PW_CLUSTER_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}} --subnetwork=${{secrets.SUBNETWORK_NAME}}"
+  PW_CLUSTER_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}}"
 
 jobs:
   cluster-create-and-delete:

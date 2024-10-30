@@ -51,3 +51,7 @@ def get_value_from_map(key: str, map_to_search: dict) -> tuple[int, str | None]:
         f'The map has the following keys: {map_to_search.keys()}'
     )
     return 1, value
+
+
+def is_text_true(text: str) -> bool:
+  return text.strip().lower() == 'true'

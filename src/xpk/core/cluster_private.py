@@ -18,6 +18,7 @@ from .core import zone_to_region
 from .commands import run_command_for_value, run_command_with_updates
 from ..utils.console import xpk_exit, xpk_print
 from ..utils.network import add_current_machine_to_networks, is_current_machine_in_any_network
+from ..utils.objects import is_text_true
 
 
 def authorize_private_cluster_access_if_necessary(args) -> int:
@@ -105,7 +106,7 @@ def is_cluster_private(args) -> bool:
     xpk_print('Checking if Private Nodes is enabled failed!')
     xpk_exit(return_code)
 
-  if private_nodes_enabled.strip().lower() == 'true':
+  if is_text_true(private_nodes_enabled):
     xpk_print('Private Nodes is enabled on the cluster.')
     return True
 

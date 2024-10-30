@@ -40,8 +40,7 @@ from ..core.core import (
 )
 from ..core.kjob import (
     verify_kjob_installed,
-    create_app_profile_instance,
-    create_job_template_instance,
+    prepare_kjob,
     apply_kjob_crds,
 )
 from ..core.kueue import (
@@ -163,7 +162,9 @@ def cluster_create(args) -> None:
     xpk_exit(err_code)
 
   xpk_print('Preparing kjob')
-  prepare_kjob(args)
+  err_code = prepare_kjob(args)
+  if err_code > 0:
+    xpk_exit(err_code)
   # Provision node pools dynamically based on incoming workloads:
   # Currently autoprovisioning is not supported with Pathways.
   autoprovisioning_config = None
@@ -202,17 +203,6 @@ def cluster_create(args) -> None:
       f' https://console.cloud.google.com/kubernetes/clusters/details/{zone_to_region(args.zone)}/{args.cluster}/details?project={args.project}'
   )
   xpk_exit(0)
-
-
-def prepare_kjob(args) -> None:
-  err_code = create_job_template_instance(args)
-  if err_code > 0:
-    xpk_print('creating JobTemplate failed')
-    xpk_exit(err_code)
-  err_code = create_app_profile_instance(args)
-  if err_code > 0:
-    xpk_print('creating AppProfile failed')
-    xpk_exit(err_code)
 
 
 def cluster_delete(args) -> None:

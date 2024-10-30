@@ -164,6 +164,13 @@ def download_crd_file_urls(files: dict[str, str], path: str) -> int:
   return 0
 
 
+def prepare_kjob(args) -> int:
+  err_code = create_job_template_instance(args)
+  if err_code > 0:
+    return err_code
+  return create_app_profile_instance(args)
+
+
 def clear_kustomize_tmp(kjob_tmp: str) -> None:
   xpk_print("Cleaning kustomize tmp directory.")
   bases = join(kjob_tmp, "bases")

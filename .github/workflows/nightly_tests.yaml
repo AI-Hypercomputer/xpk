@@ -26,6 +26,7 @@ env:
   WORKLOAD_NAME: xpktest-nightly-${{ github.run_attempt }}
   PATHWAYS_TPU_CLUSTER_NAME: pw-nightly-test-2-v4-8-nodepools
   PATHWAYS_WORKLOAD_NAME: xpkpw-nightly-${{ github.run_attempt }}
+  PW_CLUSTER_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}}"
 
 jobs:
   cluster-create-and-delete:
@@ -112,7 +113,7 @@ jobs:
     - name: Install kueuectl
       run: curl -Lo ./kubectl-kueue https://github.com/kubernetes-sigs/kueue/releases/download/v0.8.1/kubectl-kueue-linux-amd64 && chmod +x ./kubectl-kueue && mv ./kubectl-kueue /usr/local/bin/kubectl-kueue
     - name: Create an Pathways-enabled XPK Cluster with 2 x v4-8 nodepools
-      run: python xpk.py cluster create-pathways --cluster $PATHWAYS_TPU_CLUSTER_NAME --tpu-type=v4-8  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}'
+      run: python xpk.py cluster create-pathways --cluster $PATHWAYS_TPU_CLUSTER_NAME --tpu-type=v4-8  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments="${PW_CLUSTER_ARGUMENTS}"
     - name: Create test script to execute in workloads
       run: echo -e '#!/bin/bash \n echo "Hello world from a test script!"' > test.sh
     - name: Run a Pathways workload on Ubuntu base image

@@ -46,7 +46,7 @@ def job_info(args):
   pods_command = f'kubectl get pods -l=job-name={job_name} --no-headers'
   pods_code, pods_text = run_command_for_value(pods_command, 'Getting pods list', args)
   if pods_code != 0:
-    xpk_print(f'Pods list request returned ERROR {job_code}')
+    xpk_print(f'Pods list request returned ERROR {pods_code}')
     xpk_exit(pods_code)
 
   job_yaml = yaml.safe_load(job_text)['items'][0]

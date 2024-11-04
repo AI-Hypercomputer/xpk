@@ -41,7 +41,7 @@ def get_pathways_worker_args(args) -> str:
   Returns:
     str: yaml containing arguments for the Pathways workers.
   """
-  yaml = """- --server_port=38677
+  yaml = """- --server_port=29001
               - --resource_manager_address={rm_address}
               - --gcs_scratch_location={args.pathways_gcs_location}"""
   if args.use_pathways:
@@ -58,7 +58,7 @@ def get_pathways_proxy_args(args) -> str:
   Returns:
     str: yaml containing arguments for the Pathways proxy.
   """
-  yaml = """- --server_port=38676
+  yaml = """- --server_port=29000
               - --resource_manager_address={rm_address}
               - --gcs_scratch_location={args.pathways_gcs_location}"""
 
@@ -198,7 +198,7 @@ def get_pathways_rm_args(args, system: SystemCharacteristics) -> str:
   Returns:
     str: yaml containing arguments for the Pathways resource manager.
   """
-  yaml = """- --server_port=38677
+  yaml = """- --server_port=29001
               - --gcs_scratch_location={args.pathways_gcs_location}
               - --node_type=resource_manager
               - --instance_count={instance_count}
@@ -267,7 +267,7 @@ def get_rm_address(args) -> str:
   suffix = ''
   if is_cluster_using_clouddns(args):
     suffix = f'.default.svc.{args.cluster}-domain.'
-  rm_address = f'{args.workload}-rm-0-0.{args.workload}{suffix}:38677'
+  rm_address = f'{args.workload}-rm-0-0.{args.workload}{suffix}:29001'
   return rm_address
 
 
@@ -283,7 +283,7 @@ def get_proxy_address(args) -> str:
   if is_cluster_using_clouddns(args):
     suffix = f'.default.svc.{args.cluster}-domain.'
   proxy_address = (
-      f'grpc://{args.workload}-proxy-0-0.{args.workload}{suffix}:38676'
+      f'grpc://{args.workload}-proxy-0-0.{args.workload}{suffix}:29000'
   )
   return proxy_address
 

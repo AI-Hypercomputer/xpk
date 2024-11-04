@@ -75,11 +75,11 @@ jobs:
     - name: Fill Filestore manifest file
       run: |
         sed -i 's/PROJECT_NAME/${{secrets.PROJECT_NAME}}/g;  s/ZONE/us-central2-b/g; s/INSTANCE_NAME/${{secrets.INSTANCE_NAME}}/g; s/VOL_NAME/${{secrets.VOL_NAME}}/g; s/IP_ADDRESS/${{secrets.IP_ADDRESS}}/g' ./tests/data/fs-manifest.yaml 
-    # - name: Create auto-mount GCP Filestore Storage instance
-    #   run: |
-    #     python3 xpk.py storage create $FS_STORAGE_NAME --cluster=$TPU_CLUSTER_NAME --zone=us-central2-b --type=gcpfilestore \
-    #     --auto-mount=true \
-    #     --mount-point='/fs-test-mount-point' --readonly=false --manifest='./tests/data/fs-manifest.yaml'
+    - name: Create auto-mount GCP Filestore Storage instance
+      run: |
+        python3 xpk.py storage create $FS_STORAGE_NAME --cluster=$TPU_CLUSTER_NAME --zone=us-central2-b --type=gcpfilestore \
+        --auto-mount=true \
+        --mount-point='/fs-test-mount-point' --readonly=false --manifest='./tests/data/fs-manifest.yaml'
     - name: List and verify existing Storages
       run: python3 xpk.py storage list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | tee output.txt | grep 'test-storage' || (echo 'No storage found' && cat output.txt && exit 1)
     - name: Create test script to execute in workloads

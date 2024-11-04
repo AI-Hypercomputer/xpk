@@ -21,7 +21,7 @@ on:
 
 env:
   # Names must be unique in parallel running tests.
-  TPU_CLUSTER_NAME: build-xpk-2-v4-8-nodepools
+  TPU_CLUSTER_NAME: build-xpk-2-v4-8-nodepools-ppawl
   WORKLOAD_NAME: xpktest-build-${{ github.run_attempt }}
   PATHWAYS_WORKLOAD_NAME: xpkpw-build-${{ github.run_attempt }}
   STORAGE_NAME: test-storage
@@ -136,9 +136,9 @@ jobs:
       run: gsutil rm gs://xpk-ci-cd-tests/$RANDOM_SEED.txt
     - name: Delete existing Storage
       run: python3 xpk.py storage delete $STORAGE_NAME  --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
-    - name: Delete the cluster created
-      if: always()
-      run: python3 xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+    # - name: Delete the cluster created
+    #   if: always()
+    #   run: python3 xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
 
 
 

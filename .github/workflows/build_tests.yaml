@@ -126,12 +126,12 @@ jobs:
       run: python3 xpk.py workload delete --workload $WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
     - name: Delete the Pathways workload on the cluster
       run: python3 xpk.py workload delete --workload $PATHWAYS_WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
-    - name: Delete the Pathways writer workload on the cluster
-      run: python3 xpk.py workload delete --workload fs-write-workload --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
-    - name: Delete the Pathways reader workload on the cluster
-      run: python3 xpk.py workload delete --workload fs-read-workload --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
-    - name: Delete the Pathways delete workload on the cluster
-      run: python3 xpk.py workload delete --workload fs-delete-workload --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+    # - name: Delete the Pathways writer workload on the cluster
+    #   run: python3 xpk.py workload delete --workload fs-write-workload --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+    # - name: Delete the Pathways reader workload on the cluster
+    #   run: python3 xpk.py workload delete --workload fs-read-workload --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+    # - name: Delete the Pathways delete workload on the cluster
+    #   run: python3 xpk.py workload delete --workload fs-delete-workload --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
     - name: Delete created GCS file
       run: gsutil rm gs://xpk-ci-cd-tests/$RANDOM_SEED.txt
     - name: Delete existing Storage

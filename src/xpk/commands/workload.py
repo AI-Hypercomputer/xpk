@@ -218,6 +218,8 @@ spec:
               {machine_label}
               {autoprovisioning_args}
             priorityClassName: {args.priority}
+            hostNetwork: true
+            dnsPolicy: ClusterFirstWithHostNet
             volumes:
             - hostPath:
                 path: /tmp
@@ -256,10 +258,6 @@ spec:
               name: pathways-rm
               ports:
               - containerPort: 38677
-              resources:
-                limits:
-                  cpu: "4"
-                  memory: 8G
               securityContext:
                 privileged: true
               volumeMounts:
@@ -267,6 +265,8 @@ spec:
                 name: shared-tmp
             nodeSelector:
               cloud.google.com/gke-nodepool: cpu-rm-np
+            hostNetwork: true
+            dnsPolicy: ClusterFirstWithHostNet
             volumes:
             - hostPath:
                 path: /tmp
@@ -292,10 +292,8 @@ spec:
               name: pathways-proxy
               ports:
               - containerPort: 38676
-              resources:
-                limits:
-                  cpu: "24"
-                  memory: 100G
+            hostNetwork: true
+            dnsPolicy: ClusterFirstWithHostNet
             nodeSelector:
               cloud.google.com/gke-nodepool: cpu-proxy-np
   {user_workload}

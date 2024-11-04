@@ -41,5 +41,23 @@ def set_info_parser(info_parser: argparse.ArgumentParser) -> None:
       default='',
       help='Namespace to which resources and queues belong',
   )
+
+  queues_flitering_group = (
+      info_optional_arguments.add_mutually_exclusive_group()
+  )
+
+  queues_flitering_group.add_argument(
+      '--clusterqueue',
+      action='store_true',
+      default=None,
+      help='Show only clusterqueues resources and usage',
+  )
+
+  queues_flitering_group.add_argument(
+      '--localqueue',
+      action='store_true',
+      default=None,
+      help='Show only localqueues resources and usage',
+  )
   add_shared_arguments(info_optional_arguments)
   info_parser.set_defaults(func=info)

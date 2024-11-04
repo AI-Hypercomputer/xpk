@@ -26,6 +26,7 @@ env:
   PATHWAYS_WORKLOAD_NAME: xpkpw-build-${{ github.run_attempt }}
   STORAGE_NAME: test-storage
   FS_STORAGE_NAME: fs-test-storage
+  CLUSTER_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}}"
 
 jobs:
   cluster-create-and-delete:
@@ -63,7 +64,7 @@ jobs:
       run: |
         python3 xpk.py cluster create-pathways --cluster $TPU_CLUSTER_NAME --tpu-type=v4-8  --num-slices=2 \
         --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 \
-        --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --enable-workload-identity --enable-gcsfuse-csi-driver --enable-gcpfilestore-csi-drive
+        --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --enable-workload-identity --enable-gcsfuse-csi-driver --custom-cluster-arguments="${CLUSTER_ARGUMENTS}"
     - name: Authenticate Docker
       run: gcloud auth configure-docker --quiet
     - name: Create auto-mount Storage instance

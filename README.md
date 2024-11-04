@@ -71,6 +71,7 @@ xpk uses many tool to provide all neccessary functionalities. User must install 
 - gcloud (install from [here](https://cloud.google.com/sdk/gcloud#download_and_install_the))
 - kubectl (install from [here](https://kubernetes.io/docs/tasks/tools/))
 - kueuectl (install from [here](https://kueue.sigs.k8s.io/docs/reference/kubectl-kueue/installation/))
+- kustomize (install from [here](https://kubectl.docs.kubernetes.io/installation/kustomize/), please add kustomize binary to your PATH)
 - kjob (installation instructions [here](https://github.com/kubernetes-sigs/kueue/blob/main/cmd/experimental/kjobctl/docs/installation.md))
 
 # Installation

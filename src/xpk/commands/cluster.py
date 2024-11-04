@@ -507,10 +507,10 @@ def run_gke_cluster_create_command(
 
   addons = []
   if args.enable_gcsfuse_csi_driver:
-    addons += 'GcsFuseCsiDriver'
+    addons.append('GcsFuseCsiDriver')
 
   if args.enable_gcpfilestore_csi_driver:
-    addons += 'GcpFilestoreCsiDriver'
+    addons.append('GcpFilestoreCsiDriver')
 
   if len(addons) > 0:
     addons_str = ','.join(addons)

@@ -669,6 +669,7 @@ def workload_list(args) -> None:
 
   return_code, return_value = get_workload_list(args)
 
+  print('TESTING')
   if return_code != 0:
     xpk_print(f'List Job request returned ERROR {return_code}')
     xpk_exit(return_code)

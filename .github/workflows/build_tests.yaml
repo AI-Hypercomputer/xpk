@@ -108,12 +108,30 @@ jobs:
       run: grep 'Hello world from a Github Action CI/CD test script!' $RANDOM_SEED.txt
     - name: Wait for Pathways workload completion and confirm it succeeded
       run: python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion $PATHWAYS_WORKLOAD_NAME --timeout 300
+    - name: Run workload to write file on filestore
+      run : python3 xpk.py workload create-pathways --workload fs-write-workload --command "echo 'Test text message' > /fs-test-mount-point/$RANDOM_SEED/text.txt" --cluster $TPU_CLUSTER_NAME --tpu-type=v4-8 --zone us-central2
+    - name: Wait for writer workload completion and confirm it succeeded
+      run: python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion fs-write-workload --timeout 300
+    - name: Run workload to read file on filestore
+      run : python3 xpk.py workload create-pathways --workload fs-read-workload --command "cat /fs-test-mount-point/$RANDOM_SEED/text.txt | grep 'Test text message' || (echo 'Writing to filestore failed' && exit 1)" --cluster $TPU_CLUSTER_NAME --tpu-type=v4-8 --zone us-central2
+    - name: Wait for reader workload completion and confirm it succeeded
+      run: python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion fs-read-workload --timeout 300
+    - name: Run workload to delete file on filestore
+      run : python3 xpk.py workload create-pathways --workload fs-delete-workload --command "rm -rf /fs-test-mount-point/$RANDOM_SEED" --cluster $TPU_CLUSTER_NAME --tpu-type=v4-8 --zone us-central2
+    - name: Wait for reader workload completion and confirm it succeeded
+      run: python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion fs-delete-workload --timeout 300
     - name: List out the workloads on the cluster
       run: python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
     - name: Delete the workload on the cluster
       run: python3 xpk.py workload delete --workload $WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
     - name: Delete the Pathways workload on the cluster
       run: python3 xpk.py workload delete --workload $PATHWAYS_WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+    - name: Delete the Pathways writer workload on the cluster
+      run: python3 xpk.py workload delete --workload fs-write-workload --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+    - name: Delete the Pathways reader workload on the cluster
+      run: python3 xpk.py workload delete --workload fs-read-workload --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+    - name: Delete the Pathways delete workload on the cluster
+      run: python3 xpk.py workload delete --workload fs-delete-workload --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
     - name: Delete created GCS file
       run: gsutil rm gs://xpk-ci-cd-tests/$RANDOM_SEED.txt
     - name: Delete existing Storage

@@ -505,12 +505,16 @@ def run_gke_cluster_create_command(
   ):
     command += f' --workload-pool={args.project}.svc.id.goog'
 
+  addons = []
   if args.enable_gcsfuse_csi_driver:
-    command += ' --addons GcsFuseCsiDriver'
+    addons += 'GcsFuseCsiDriver'
 
   if args.enable_gcpfilestore_csi_driver:
-    command += ' --addons GcpFilestoreCsiDriver'
+    addons += 'GcpFilestoreCsiDriver'
 
+  if len(addons) > 0:
+    addons_str = ','.join(addons)
+    command += f' --addons={addons_str}'
   return_code = run_command_with_updates(command, 'GKE Cluster Create', args)
   if return_code != 0:
     xpk_print(f'GKE Cluster Create request returned ERROR {return_code}')

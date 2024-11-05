@@ -99,7 +99,7 @@ jobs:
       run: python3 xpk.py storage delete $FS_STORAGE_NAME  --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b
     - name: Delete the cluster created
       if: always()
-      run: python3 xpk.py cluster delete --cluster $TPU_FILCLUSTER_NAME --zone=us-central2-b
+      run: python3 xpk.py cluster delete --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b
 
   cluster-create-and-delete:
     runs-on: [ubuntu-20.04]

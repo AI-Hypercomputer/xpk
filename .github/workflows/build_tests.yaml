@@ -84,26 +84,26 @@ jobs:
     - name: cat manifest
       run: cat ./tests/data/fs-manifest.yaml
     - name: Run workload to write file on filestore
-      run : python3 xpk.py workload create --workload FS_WRITE_WORKLOAD --command "echo 'Test text message' > /fs-test-mount-point/$RANDOM_SEED/text.txt" --cluster $TPU_FILESTORE_CLUSTER_NAME --tpu-type=v4-8 --zone us-central2
+      run : python3 xpk.py workload create --workload $FS_WRITE_WORKLOAD --command "echo 'Test text message' > /fs-test-mount-point/$RANDOM_SEED/text.txt" --cluster $TPU_FILESTORE_CLUSTER_NAME --tpu-type=v4-8 --zone us-central2
     - name: Wait for writer workload completion and confirm it succeeded
       run: python3 xpk.py workload list --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion fs-write-workload --timeout 300
     - name: Run workload to read file on filestore
-      run : python3 xpk.py workload create --workload FS_READ_WORKLOAD --command "cat /fs-test-mount-point/$RANDOM_SEED/text.txt | grep 'Test text message' || (echo 'Writing to filestore failed' && exit 1)" --cluster $TPU_FILESTORE_CLUSTER_NAME --tpu-type=v4-8 --zone us-central2
+      run : python3 xpk.py workload create --workload $FS_READ_WORKLOAD --command "cat /fs-test-mount-point/$RANDOM_SEED/text.txt | grep 'Test text message' || (echo 'Writing to filestore failed' && exit 1)" --cluster $TPU_FILESTORE_CLUSTER_NAME --tpu-type=v4-8 --zone us-central2
     - name: Wait for reader workload completion and confirm it succeeded
       run: python3 xpk.py workload list --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion fs-read-workload --timeout 300
     - name: Run workload to delete file on filestore
-      run : python3 xpk.py workload create --workload FS_DELETE_WORKLOAD --command "rm -rf /fs-test-mount-point/$RANDOM_SEED" --cluster $TPU_FILESTORE_CLUSTER_NAME --tpu-type=v4-8 --zone us-central2
+      run : python3 xpk.py workload create --workload $FS_DELETE_WORKLOAD --command "rm -rf /fs-test-mount-point/$RANDOM_SEED" --cluster $TPU_FILESTORE_CLUSTER_NAME --tpu-type=v4-8 --zone us-central2
     - name: Wait for reader workload completion and confirm it succeeded
       run: python3 xpk.py workload list --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion fs-delete-workload --timeout 300
     - name: Delete the writer workload on the cluster
       if: always()
-      run: python3 xpk.py workload delete --workload FS_WRITE_WORKLOAD --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b
+      run: python3 xpk.py workload delete --workload $FS_WRITE_WORKLOAD --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b
     - name: Delete the reader workload on the cluster
       if: always()
-      run: python3 xpk.py workload delete --workload FS_READ_WORKLOAD --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b
+      run: python3 xpk.py workload delete --workload $FS_READ_WORKLOAD --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b
     - name: Delete the delete workload on the cluster
       if: always()
-      run: python3 xpk.py workload delete --workload FS_DELETE_WORKLOAD --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b
+      run: python3 xpk.py workload delete --workload $FS_DELETE_WORKLOAD --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b
     - name: Delete existing Storage
       if: always()
       run: python3 xpk.py storage delete $FS_STORAGE_NAME  --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b

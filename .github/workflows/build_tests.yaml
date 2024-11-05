@@ -21,7 +21,8 @@ on:
 
 env:
   # Names must be unique in parallel running tests.
-  TPU_CLUSTER_NAME: build-xpk-2-v4-8-nodepools-ppawl
+  TPU_CLUSTER_NAME: build-xpk-2-v4-8-nodepools
+  TPU_FILESTORE_CLUSTER_NAME: build-xpk-filestore
   WORKLOAD_NAME: xpktest-build-${{ github.run_attempt }}
   PATHWAYS_WORKLOAD_NAME: xpkpw-build-${{ github.run_attempt }}
   STORAGE_NAME: test-storage
@@ -29,6 +30,74 @@ env:
   CLUSTER_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}}"
 
 jobs:
+  run-filestore-workload:
+    runs-on: [ubuntu-20.04]
+    concurrency: # We support one build or nightly test to run at a time currently.
+      group: build-test-cluster-group
+      cancel-in-progress: false
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+    - uses: 'google-github-actions/auth@v2'
+      with:
+        credentials_json: '${{ secrets.GCP_SA_KEY }}'
+    - uses: google-github-actions/setup-gcloud@v2
+      with:
+        version: '>= 363.0.0'
+        install_components: 'beta,gke-gcloud-auth-plugin'
+    - name: Generate random seed
+      run: |
+        RANDOM_SEED=$((RANDOM % 10000))  # Generate a random number between 0 and 9999
+        echo "RANDOM_SEED=$RANDOM_SEED" >> $GITHUB_ENV
+    - name: Verify gcp setup
+      run: gcloud info
+    - name: Set Google Cloud CLI properties to a unused zone to verify --zone arg is passed properly in commands.
+      run: |
+        gcloud config set compute/zone us-east4-a
+        gcloud config get compute/zone
+    - name: Install xpk with pip and verify it executes corretly
+      run: |
+        pip install .
+        xpk --help
+    - name: Create a XPK Cluster with 2x v4-8 nodepools. Larger num-nodes to avoid master resizing.
+      run: |
+        python3 xpk.py cluster create --cluster $TPU_FILESTORE_CLUSTER_NAME --tpu-type=v4-8  --num-slices=2 \
+        --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 \
+        --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --enable-workload-identity --enable-gcsfuse-csi-driver --enable-gcpfilestore-csi-driver --custom-cluster-arguments="${CLUSTER_ARGUMENTS}"
+    - name: Fill Filestore manifest file
+      run: |
+        sed -i 's/PROJECT_NAME/${{secrets.PROJECT_NAME}}/g;  s/ZONE/us-central2-b/g; s/INSTANCE_NAME/${{secrets.INSTANCE_NAME}}/g; s/VOL_NAME/${{secrets.VOL_NAME}}/g; s/IP_ADDRESS/${{secrets.IP_ADDRESS}}/g' ./tests/data/fs-manifest.yaml 
+    - name: Create auto-mount GCP Filestore Storage instance
+      run: |
+        python3 xpk.py storage create $FS_STORAGE_NAME --cluster=$TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b --type=gcpfilestore \
+        --auto-mount=true \
+        --mount-point='/fs-test-mount-point' --readonly=false --manifest='./tests/data/fs-manifest.yaml'
+    - name: Run workload to write file on filestore
+      run : python3 xpk.py workload create --workload fs-write-workload --command "echo 'Test text message' > /fs-test-mount-point/$RANDOM_SEED/text.txt" --cluster $TPU_FILESTORE_CLUSTER_NAME --tpu-type=v4-8 --zone us-central2
+    - name: Wait for writer workload completion and confirm it succeeded
+      run: python3 xpk.py workload list --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion fs-write-workload --timeout 300
+    - name: Run workload to read file on filestore
+      run : python3 xpk.py workload create --workload fs-read-workload --command "cat /fs-test-mount-point/$RANDOM_SEED/text.txt | grep 'Test text message' || (echo 'Writing to filestore failed' && exit 1)" --cluster $TPU_FILESTORE_CLUSTER_NAME --tpu-type=v4-8 --zone us-central2
+    - name: Wait for reader workload completion and confirm it succeeded
+      run: python3 xpk.py workload list --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion fs-read-workload --timeout 300
+    - name: Run workload to delete file on filestore
+      run : python3 xpk.py workload create --workload fs-delete-workload --command "rm -rf /fs-test-mount-point/$RANDOM_SEED" --cluster $TPU_FILESTORE_CLUSTER_NAME --tpu-type=v4-8 --zone us-central2
+    - name: Wait for reader workload completion and confirm it succeeded
+      run: python3 xpk.py workload list --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion fs-delete-workload --timeout 300
+    - name: Delete the writer workload on the cluster
+      run: python3 xpk.py workload delete --workload fs-write-workload --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b
+    - name: Delete the reader workload on the cluster
+      run: python3 xpk.py workload delete --workload fs-read-workload --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b
+    - name: Delete the delete workload on the cluster
+      run: python3 xpk.py workload delete --workload fs-delete-workload --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b
+    - name: Delete existing Storage
+      run: python3 xpk.py storage delete $STORAGE_NAME  --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b
+    - name: Delete the cluster created
+      if: always()
+      run: python3 xpk.py cluster delete --cluster $TPU_FILCLUSTER_NAME --zone=us-central2-b
+
   cluster-create-and-delete:
     runs-on: [ubuntu-20.04]
     concurrency: # We support one build or nightly test to run at a time currently.
@@ -72,14 +141,6 @@ jobs:
         python3 xpk.py storage create $STORAGE_NAME --cluster=$TPU_CLUSTER_NAME --zone=us-central2-b --type=gcsfuse \
         --auto-mount=true \
         --mount-point='/test-mount-point' --readonly=false --manifest='./tests/data/pv-pvc-templates.yaml'
-    # - name: Fill Filestore manifest file
-    #   run: |
-    #     sed -i 's/PROJECT_NAME/${{secrets.PROJECT_NAME}}/g;  s/ZONE/us-central2-b/g; s/INSTANCE_NAME/${{secrets.INSTANCE_NAME}}/g; s/VOL_NAME/${{secrets.VOL_NAME}}/g; s/IP_ADDRESS/${{secrets.IP_ADDRESS}}/g' ./tests/data/fs-manifest.yaml 
-    # - name: Create auto-mount GCP Filestore Storage instance
-    #   run: |
-    #     python3 xpk.py storage create $FS_STORAGE_NAME --cluster=$TPU_CLUSTER_NAME --zone=us-central2-b --type=gcpfilestore \
-    #     --auto-mount=true \
-    #     --mount-point='/fs-test-mount-point' --readonly=false --manifest='./tests/data/fs-manifest.yaml'
     - name: List and verify existing Storages
       run: python3 xpk.py storage list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | tee output.txt | grep 'test-storage' || (echo 'No storage found' && cat output.txt && exit 1)
     - name: Create test script to execute in workloads
@@ -108,37 +169,20 @@ jobs:
       run: grep 'Hello world from a Github Action CI/CD test script!' $RANDOM_SEED.txt
     - name: Wait for Pathways workload completion and confirm it succeeded
       run: python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion $PATHWAYS_WORKLOAD_NAME --timeout 300
-    # - name: Run workload to write file on filestore
-    #   run : python3 xpk.py workload create-pathways --workload fs-write-workload --command "echo 'Test text message' > /fs-test-mount-point/$RANDOM_SEED/text.txt" --cluster $TPU_CLUSTER_NAME --tpu-type=v4-8 --zone us-central2
-    # - name: Wait for writer workload completion and confirm it succeeded
-    #   run: python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion fs-write-workload --timeout 300
-    # - name: Run workload to read file on filestore
-    #   run : python3 xpk.py workload create-pathways --workload fs-read-workload --command "cat /fs-test-mount-point/$RANDOM_SEED/text.txt | grep 'Test text message' || (echo 'Writing to filestore failed' && exit 1)" --cluster $TPU_CLUSTER_NAME --tpu-type=v4-8 --zone us-central2
-    # - name: Wait for reader workload completion and confirm it succeeded
-    #   run: python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion fs-read-workload --timeout 300
-    # - name: Run workload to delete file on filestore
-    #   run : python3 xpk.py workload create-pathways --workload fs-delete-workload --command "rm -rf /fs-test-mount-point/$RANDOM_SEED" --cluster $TPU_CLUSTER_NAME --tpu-type=v4-8 --zone us-central2
-    # - name: Wait for reader workload completion and confirm it succeeded
-    #   run: python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion fs-delete-workload --timeout 300
     - name: List out the workloads on the cluster
       run: python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
     - name: Delete the workload on the cluster
       run: python3 xpk.py workload delete --workload $WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
     - name: Delete the Pathways workload on the cluster
       run: python3 xpk.py workload delete --workload $PATHWAYS_WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
-    # - name: Delete the Pathways writer workload on the cluster
-    #   run: python3 xpk.py workload delete --workload fs-write-workload --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
-    # - name: Delete the Pathways reader workload on the cluster
-    #   run: python3 xpk.py workload delete --workload fs-read-workload --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
-    # - name: Delete the Pathways delete workload on the cluster
-    #   run: python3 xpk.py workload delete --workload fs-delete-workload --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+   
     - name: Delete created GCS file
       run: gsutil rm gs://xpk-ci-cd-tests/$RANDOM_SEED.txt
     - name: Delete existing Storage
       run: python3 xpk.py storage delete $STORAGE_NAME  --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
-    # - name: Delete the cluster created
-    #   if: always()
-    #   run: python3 xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+    - name: Delete the cluster created
+      if: always()
+      run: python3 xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
 
 
 

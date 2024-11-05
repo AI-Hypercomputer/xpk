@@ -94,16 +94,20 @@ jobs:
     - name: Wait for reader workload completion and confirm it succeeded
       run: python3 xpk.py workload list --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion fs-delete-workload --timeout 300
     - name: Delete the writer workload on the cluster
+      if: always()
       run: python3 xpk.py workload delete --workload fs-write-workload --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b
     - name: Delete the reader workload on the cluster
+      if: always()
       run: python3 xpk.py workload delete --workload fs-read-workload --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b
     - name: Delete the delete workload on the cluster
+      if: always()
       run: python3 xpk.py workload delete --workload fs-delete-workload --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b
     - name: Delete existing Storage
-      run: python3 xpk.py storage delete $FS_STORAGE_NAME  --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b
-    - name: Delete the cluster created
       if: always()
-      run: python3 xpk.py cluster delete --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b
+      run: python3 xpk.py storage delete $FS_STORAGE_NAME  --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b
+    # - name: Delete the cluster created
+    #   if: always()
+    #   run: python3 xpk.py cluster delete --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b
 
   cluster-create-and-delete:
     runs-on: [ubuntu-20.04]

@@ -44,46 +44,22 @@ def info(args: Namespace) -> None:
     xpk_exit(set_cluster_command_code)
 
   verify_kueuectl(args)
+  lq, cq = bool(args.localqueue), bool(args.clusterqueue)
+  if not lq and not cq:
+    lq, cq = True, True
 
-  lqs = run_kueuectl_list_localqueue(args)
+  lqs, cqs = None, None
+  if lq:
+    lqs = run_kueuectl_list_localqueue(args)
+
   cqs = run_kueuectl_list_clusterqueue(args)
-  aggregate_results(cqs, lqs)
+  quotas = get_nominal_quotas(cqs)
 
+  if lq:
+    print_formatted_lqs(lqs, quotas)
 
-def aggregate_results(cqs: list[dict], lqs: list[dict]) -> None:
-  """Aggregate listed clusterqueues and localqueues with resource usage and print them as table.
-
-  Args:
-    lqs: list of localqueues.
-    cqs: list of clusterqueues.
-  Returns:
-    None
-  """
-  try:
-    cq_list = json.loads(cqs)['items']
-  except ValueError:
-    xpk_print('Incorrect respone from list clusterqueue')
-    xpk_print(cqs)
-    xpk_exit(1)
-
-  try:
-    lq_list = json.loads(lqs)['items']
-  except ValueError:
-    xpk_print('Incorrect respone from list localqueue')
-    xpk_print(lqs)
-    xpk_exit(1)
-  nominalQuotas = get_nominal_quotas(cq_list)
-  cq_usages = parse_queue_lists(cq_list, nominalQuotas)
-  lq_usages = parse_queue_lists(lq_list, nominalQuotas)
-
-  xpk_print(
-      'Cluster Queues usage \n',
-      tabulate(cq_usages, headers='keys', tablefmt=table_fmt),
-  )
-  xpk_print(
-      'Local Queues usage \n',
-      tabulate(lq_usages, headers='keys', tablefmt=table_fmt),
-  )
+  if cq:
+    print_formatted_cqs(cqs, quotas)
 
 
 def get_nominal_quotas(cqs: list[dict]) -> dict[str, dict[str, str]]:
@@ -94,10 +70,17 @@ def get_nominal_quotas(cqs: list[dict]) -> dict[str, dict[str, str]]:
     - cqs - list of cluster queues.
   Returns:
     - dictionary of cluster queues resources quotas in format:
-    {cq_name:{{flavorName:resourceName}:quota}
+    {cq_name:{"flavorName:resourceName":quota}}
   """
+  try:
+    cq_list = json.loads(cqs)['items']
+  except ValueError:
+    xpk_print('Incorrect respone from list clusterqueue')
+    xpk_print(cqs)
+    xpk_exit(1)
+
   quotas = {}
-  for cq in cqs:
+  for cq in cq_list:
     spec = cq['spec']
     cq_name = cq['metadata']['name']
     quotas[cq_name] = {}
@@ -108,6 +91,37 @@ def get_nominal_quotas(cqs: list[dict]) -> dict[str, dict[str, str]]:
           key = f'{name}:{resource["name"]}'
           quotas[cq_name][key] = resource['nominalQuota']
   return quotas
+
+
+def print_formatted_cqs(cqs: list[dict], nominalQuotas) -> None:
+  try:
+    cq_list = json.loads(cqs)['items']
+  except ValueError:
+    xpk_print('Incorrect respone from list clusterqueue')
+    xpk_print(cqs)
+    xpk_exit(1)
+
+  cq_usages = parse_queue_lists(cq_list, nominalQuotas)
+
+  xpk_print(
+      'Cluster Queues usage \n',
+      tabulate(cq_usages, headers='keys', tablefmt=table_fmt),
+  )
+
+
+def print_formatted_lqs(lqs: list[dict], nominalQuotas) -> None:
+  try:
+    lq_list = json.loads(lqs)['items']
+  except ValueError:
+    xpk_print('Incorrect respone from list localqueue')
+    xpk_print(lqs)
+    xpk_exit(1)
+
+  lq_usages = parse_queue_lists(lq_list, nominalQuotas)
+  xpk_print(
+      'Local Queues usage \n',
+      tabulate(lq_usages, headers='keys', tablefmt=table_fmt),
+  )
 
 
 def parse_queue_lists(

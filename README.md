@@ -71,6 +71,8 @@ xpk uses many tool to provide all neccessary functionalities. User must install 
 - gcloud (install from [here](https://cloud.google.com/sdk/gcloud#download_and_install_the))
 - kubectl (install from [here](https://kubernetes.io/docs/tasks/tools/))
 - kueuectl (install from [here](https://kueue.sigs.k8s.io/docs/reference/kubectl-kueue/installation/))
+- kustomize (install from [here](https://kubectl.docs.kubernetes.io/installation/kustomize/), please add kustomize binary to your PATH)
+- kjob (installation instructions [here](https://github.com/kubernetes-sigs/kueue/blob/main/cmd/experimental/kjobctl/docs/installation.md))
 
 # Installation
 To install xpk, run the following command:
@@ -1165,6 +1167,12 @@ To see queues with usage and workload info use:
 ```shell
 python3 xpk.py info --cluster my-cluster
 ```
+
+You can specify what kind of resources(clusterqueue or localqueue) you want to see using flags --clusterqueue or --localqueue.
+```shell
+python3 xpk.py info --cluster my-cluster --localqueue
+```
+
 
 # Other advanced usage
 [Use a Jupyter notebook to interact with a Cloud TPU cluster](xpk-notebooks.md)

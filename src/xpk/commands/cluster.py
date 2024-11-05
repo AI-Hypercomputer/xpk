@@ -39,6 +39,11 @@ from ..core.core import (
     zone_to_region,
 )
 from ..core.cluster_private import authorize_private_cluster_access_if_necessary
+from ..core.kjob import (
+    verify_kjob_installed,
+    prepare_kjob,
+    apply_kjob_crds,
+)
 from ..core.kueue import (
     cluster_preheat_yml,
     install_kueue_crs,
@@ -154,6 +159,20 @@ def cluster_create(args) -> None:
   if install_kueue_on_cluster_code != 0:
     xpk_exit(install_kueue_on_cluster_code)
 
+  xpk_print('Verifying kjob installation')
+  err_code = verify_kjob_installed(args)
+  if err_code > 0:
+    xpk_exit(err_code)
+
+  xpk_print('Applying kjob CDRs')
+  err_code = apply_kjob_crds(args)
+  if err_code > 0:
+    xpk_exit(err_code)
+
+  xpk_print('Preparing kjob')
+  err_code = prepare_kjob(args)
+  if err_code > 0:
+    xpk_exit(err_code)
   # Provision node pools dynamically based on incoming workloads:
   # Currently autoprovisioning is not supported with Pathways.
   autoprovisioning_config = None

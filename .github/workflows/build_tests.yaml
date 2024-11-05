@@ -108,7 +108,7 @@ jobs:
       if: always()
       run: python3 xpk.py storage delete $FS_STORAGE_NAME  --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b
     - name: Delete the cluster created
-    #   if: always()
+      if: always()
       run: python3 xpk.py cluster delete --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b
 
   cluster-create-and-delete:
@@ -188,7 +188,6 @@ jobs:
       run: python3 xpk.py workload delete --workload $WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
     - name: Delete the Pathways workload on the cluster
       run: python3 xpk.py workload delete --workload $PATHWAYS_WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
-   
     - name: Delete created GCS file
       run: gsutil rm gs://xpk-ci-cd-tests/$RANDOM_SEED.txt
     - name: Delete existing Storage

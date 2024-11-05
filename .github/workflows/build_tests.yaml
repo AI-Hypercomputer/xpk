@@ -27,8 +27,9 @@ env:
   PATHWAYS_WORKLOAD_NAME: xpkpw-build-${{ github.run_attempt }}
   STORAGE_NAME: test-storage
   FS_STORAGE_NAME: fs-test-storage
-  CLUSTER_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}}"
-
+  PATHWAY_CLUSTER_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}}"
+  CLUSTER_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}} --subnetwork=${{secrets.SUBNETWORK_NAME}}"
+  
 jobs:
   run-filestore-workload:
     runs-on: [ubuntu-20.04]
@@ -93,7 +94,7 @@ jobs:
     - name: Delete the delete workload on the cluster
       run: python3 xpk.py workload delete --workload fs-delete-workload --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b
     - name: Delete existing Storage
-      run: python3 xpk.py storage delete $STORAGE_NAME  --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b
+      run: python3 xpk.py storage delete $FS_STORAGE_NAME  --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b
     - name: Delete the cluster created
       if: always()
       run: python3 xpk.py cluster delete --cluster $TPU_FILCLUSTER_NAME --zone=us-central2-b
@@ -133,7 +134,7 @@ jobs:
       run: |
         python3 xpk.py cluster create-pathways --cluster $TPU_CLUSTER_NAME --tpu-type=v4-8  --num-slices=2 \
         --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 \
-        --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --enable-workload-identity --enable-gcsfuse-csi-driver --enable-gcpfilestore-csi-driver --custom-cluster-arguments="${CLUSTER_ARGUMENTS}"
+        --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --enable-workload-identity --enable-gcsfuse-csi-driver --enable-gcpfilestore-csi-driver --custom-cluster-arguments="${PATHWAY_CLUSTER_ARGUMENTS}"
     - name: Authenticate Docker
       run: gcloud auth configure-docker --quiet
     - name: Create auto-mount Storage instance

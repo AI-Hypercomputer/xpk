@@ -16,9 +16,6 @@ name: Lint and Format
 
 on:
   pull_request:
-    types:
-    - opened
-    - reopened
 
 
 jobs:

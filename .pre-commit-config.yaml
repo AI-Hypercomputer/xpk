@@ -8,3 +8,8 @@ repos:
         # pre-commit's default_language_version, see
         # https://pre-commit.com/#top_level-default_language_version
         language_version: python3
+  - repo: https://github.com/google/pytype
+    rev: 2024.10.11
+    hooks:
+    - id: pytype
+      args: ["--config=pytype-conf.cfg"]

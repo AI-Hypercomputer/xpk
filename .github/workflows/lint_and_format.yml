@@ -38,5 +38,3 @@ jobs:
       run: |
         pylint $(git ls-files '*.py')
     - uses: pre-commit/action@v3.0.1
-      with:
-        extra_args: --show-diff-on-failure --all-files

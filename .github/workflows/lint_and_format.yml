@@ -39,12 +39,5 @@ jobs:
     - name: Check the code with pylint
       run: |
         pylint $(git ls-files '*.py')
-  pre-commit:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3
-    - uses: actions/setup-python@v3
-      with:
-        python-version: '3.11'
-    - run: pip install pytype
-    - uses: pre-commit/action@v3.0.1
+    - name: Run pytype
+      run: pytype --config=pytype-conf.cfg

@@ -16,15 +16,12 @@ limitations under the License.
 
 from argparse import Namespace
 from ..utils import xpk_print, write_tmp_file
-from .commands import run_command_for_value, run_command_with_updates
+from .commands import run_command_for_value, run_kubectl_apply
 from enum import Enum
 
 import tempfile
 from os import mkdir
 from os.path import join
-from ..core.commands import (
-    run_command_for_value,
-)
 
 import urllib.request
 from urllib.error import ContentTooShortError
@@ -142,18 +139,15 @@ def create_app_profile_instance(args: Namespace) -> int:
   Returns:
     exit_code > 0 if creating AppProfile fails, 0 otherwise
   """
-  yml_string = app_profile_yaml.format(
-      name=AppProfileDefaults.NAME.value,
-      batch_template=JobTemplateDefaults.NAME.value,
-      interactive_template=PodTemplateDefaults.NAME.value,
+  return run_kubectl_apply(
+      yml_string=app_profile_yaml.format(
+          name=AppProfileDefaults.NAME.value,
+          batch_template=JobTemplateDefaults.NAME.value,
+          interactive_template=PodTemplateDefaults.NAME.value,
+      ),
+      task="Creating AppProfile",
+      args=args,
   )
-
-  tmp = write_tmp_file(yml_string)
-  command = f"kubectl apply -f {str(tmp.file.name)}"
-  err_code = run_command_with_updates(command, "Creating AppProfile", args)
-  if err_code != 0:
-    return err_code
-  return 0
 
 
 def create_job_template_instance(args: Namespace) -> int:
@@ -164,20 +158,17 @@ def create_job_template_instance(args: Namespace) -> int:
   Returns:
     exit_code > 0 if creating JobTemplate fails, 0 otherwise
   """
-  yml_string = job_template_yaml.format(
-      name=JobTemplateDefaults.NAME.value,
-      parallelism=JobTemplateDefaults.PARALLELISM.value,
-      completions=JobTemplateDefaults.COMPLETIONS.value,
-      container_name=JobTemplateDefaults.CONTAINER_NAME.value,
-      image=JobTemplateDefaults.IMAGE.value,
+  return run_kubectl_apply(
+      yml_string=job_template_yaml.format(
+          name=JobTemplateDefaults.NAME.value,
+          parallelism=JobTemplateDefaults.PARALLELISM.value,
+          completions=JobTemplateDefaults.COMPLETIONS.value,
+          container_name=JobTemplateDefaults.CONTAINER_NAME.value,
+          image=JobTemplateDefaults.IMAGE.value,
+      ),
+      task="Creating JobTemplate",
+      args=args,
   )
-
-  tmp = write_tmp_file(yml_string)
-  command = f"kubectl apply -f {str(tmp.file.name)}"
-  err_code = run_command_with_updates(command, "Creating JobTemplate", args)
-  if err_code != 0:
-    return err_code
-  return 0
 
 
 def create_pod_template_instance(args: Namespace) -> int:
@@ -188,19 +179,15 @@ def create_pod_template_instance(args: Namespace) -> int:
   Returns:
     exit_code > 0 if creating PodTemplate fails, 0 otherwise
   """
-
-  yml_string = pod_template_yaml.format(
-      name=PodTemplateDefaults.NAME.value,
-      container_name=PodTemplateDefaults.CONTAINER_NAME.value,
-      image=PodTemplateDefaults.IMAGE.value,
+  return run_kubectl_apply(
+      yml_string=pod_template_yaml.format(
+          name=PodTemplateDefaults.NAME.value,
+          container_name=PodTemplateDefaults.CONTAINER_NAME.value,
+          image=PodTemplateDefaults.IMAGE.value,
+      ),
+      task="Creating PodTemplate",
+      args=args,
   )
-
-  tmp = write_tmp_file(yml_string)
-  command = f"kubectl apply -f {str(tmp.file.name)}"
-  err_code = run_command_with_updates(command, "Creating PodTemplate", args)
-  if err_code != 0:
-    return err_code
-  return 0
 
 
 def download_crd_file_urls(files: dict[str, str], path: str) -> int:

@@ -18,8 +18,9 @@ import datetime
 import subprocess
 import sys
 import time
+from argparse import Namespace
 
-from ..utils import chunks, make_tmp_files, xpk_print
+from ..utils import chunks, make_tmp_files, xpk_print, write_tmp_file
 
 
 def run_commands(commands, jobname, per_command_name, batch=10, dry_run=False):
@@ -288,3 +289,10 @@ def run_command_for_value(
       xpk_print('*' * 80)
       return e.returncode, str(e.output, 'UTF-8')
     return 0, str(output, 'UTF-8')
+
+
+def run_kubectl_apply(yml_string: str, task: str, args: Namespace) -> int:
+  tmp = write_tmp_file(yml_string)
+  command = f'kubectl apply -f {str(tmp.file.name)}'
+  err_code = run_command_with_updates(command, task, args)
+  return err_code

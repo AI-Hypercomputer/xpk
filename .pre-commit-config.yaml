@@ -3,10 +3,9 @@ repos:
     rev: 24.3.0
     hooks:
       - id: pyink
-        # It is recommended to specify the latest version of Python
-        # supported by your project here, or alternatively use
-        # pre-commit's default_language_version, see
-        # https://pre-commit.com/#top_level-default_language_version
+        name: pyink
+        description: "Pyink: a Python formatter forked from Black"
+        entry: pyink
         language_version: python3
         args: ["."]
   - repo: https://github.com/google/pytype

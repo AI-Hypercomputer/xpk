@@ -515,6 +515,10 @@ def run_gke_cluster_create_command(
   if len(addons) > 0:
     addons_str = ','.join(addons)
     command += f' --addons={addons_str}'
+
+  if len(addons) > 0:
+    addons_str = ','.join(addons)
+    command += f' --addons={addons_str}'
   return_code = run_command_with_updates(command, 'GKE Cluster Create', args)
   if return_code != 0:
     xpk_print(f'GKE Cluster Create request returned ERROR {return_code}')

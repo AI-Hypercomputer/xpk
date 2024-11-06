@@ -48,3 +48,5 @@ jobs:
         cache: 'pip'
     - run: pip install pytype
     - uses: pre-commit/action@v3.0.1
+      with:
+        extra_args: --config=pytype-conf.cfg

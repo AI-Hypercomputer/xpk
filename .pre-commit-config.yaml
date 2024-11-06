@@ -4,7 +4,6 @@ repos:
     hooks:
       - id: pyink
         name: pyink
-        description: "Pyink: a Python formatter forked from Black"
         entry: pyink
         language_version: python3
         args: ["--check"]
@@ -12,4 +11,6 @@ repos:
     rev: 2024.10.11
     hooks:
     - id: pytype
+      name: pytype
+      entry: pytype
       args: ["--config=pytype-conf.cfg"]

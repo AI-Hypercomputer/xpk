@@ -30,8 +30,10 @@ import urllib.request
 from urllib.error import ContentTooShortError
 import os
 
+
 class AppProfileDefaults(Enum):
   NAME = "xpk-def-app-profile"
+
 
 class JobTemplateDefaults(Enum):
   NAME = "xpk-def-batch"
@@ -40,10 +42,12 @@ class JobTemplateDefaults(Enum):
   CONTAINER_NAME = "xpk-batch-container"
   IMAGE = "ubuntu:22.04"
 
+
 class PodTemplateDefaults(Enum):
   NAME = "xpk-def-pod"
   CONTAINER_NAME = "xpk-interactive-container"
   IMAGE = "busybox:1.28"
+
 
 crd_file_urls = {
     "kjobctl.x-k8s.io_applicationprofiles.yaml": "https://raw.githubusercontent.com/kubernetes-sigs/kueue/refs/heads/main/cmd/experimental/kjobctl/config/crd/bases/kjobctl.x-k8s.io_applicationprofiles.yaml",
@@ -214,11 +218,11 @@ def prepare_kjob(args) -> int:
   job_err_code = create_job_template_instance(args)
   if job_err_code > 0:
     return job_err_code
-  
+
   pod_err_code = create_pod_template_instance(args)
   if pod_err_code > 0:
     return pod_err_code
-  
+
   return create_app_profile_instance(args)
 
 

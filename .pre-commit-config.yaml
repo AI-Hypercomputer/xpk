@@ -13,4 +13,4 @@ repos:
     - id: pytype
       name: pytype
       entry: pytype
-      args: ["--config=pytype-conf.cfg", "./src/"]
+      args: ["--config=pytype-conf.cfg"]

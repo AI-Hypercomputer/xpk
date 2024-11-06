@@ -28,8 +28,6 @@ jobs:
       uses: actions/setup-python@v3
       with:
         python-version: ${{ matrix.python-version }}
-    - name: install pytype
-      run: pip install pytype
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
@@ -38,8 +36,6 @@ jobs:
     - name: Check the code with pylint
       run: |
         pylint $(git ls-files '*.py')
-    - name: Check format with pyink
-      run: pyink --check .
     - uses: pre-commit/action@v3.0.1
       with:
         extra_args: --show-diff-on-failure --all-files

@@ -45,7 +45,7 @@ def set_parser(parser: argparse.ArgumentParser):
 
   batch_parser = xpk_subcommands.add_parser(
       "batch",
-      help="Run batch job.",
+      help="commands around running batch job",
   )
 
   def default_subcommand_function(

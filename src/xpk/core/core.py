@@ -1500,7 +1500,7 @@ def run_gke_node_pool_create_command(
           f' --region={zone_to_region(args.zone)}'
           ' --num-nodes=1'
           f' --machine-type={args.pathways_gce_machine_type}'
-          ' --scopes=storage-full,gke-default,logging.read,logging.write'
+          ' --scopes=storage-full,gke-default,logging.read,logging.write,"https://www.googleapis.com/auth/cloud-platform"'
           ' --enable-autoscaling --min-nodes=1 --max-nodes=20'
       )
       task = f'NodepoolCreate-{node_pool_name}'

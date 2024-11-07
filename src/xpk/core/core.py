@@ -1445,7 +1445,7 @@ def run_gke_node_pool_create_command(
       command += f' --num-nodes={system.vms_per_slice}'
       command += ' --placement-type=COMPACT  --max-pods-per-node 15'
       command += (
-          ' --scopes=storage-full,gke-default,"https://www.googleapis.com/auth/cloud-platform"'
+          ' --scopes=storage-full,gke-default,logging.read,logging.write,"https://www.googleapis.com/auth/cloud-platform"'
       )
       command += f' --tpu-topology={system.topology}'
       command += f' {args.custom_tpu_nodepool_arguments}'
@@ -1500,7 +1500,7 @@ def run_gke_node_pool_create_command(
           f' --region={zone_to_region(args.zone)}'
           ' --num-nodes=1'
           f' --machine-type={args.pathways_gce_machine_type}'
-          ' --scopes=storage-full,gke-default'
+          ' --scopes=storage-full,gke-default,logging.read,logging.write'
           ' --enable-autoscaling --min-nodes=1 --max-nodes=20'
       )
       task = f'NodepoolCreate-{node_pool_name}'

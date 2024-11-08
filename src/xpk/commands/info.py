@@ -88,7 +88,7 @@ def get_nominal_quotas(cqs: list[dict]) -> dict[str, dict[str, str]]:
       for flavor in rg['flavors']:
         name = flavor['name']
         for resource in flavor['resources']:
-          key = f'{name}:{resource["name"]}'
+          key = f'{name}:{resource.name}'
           quotas[cq_name][key] = resource['nominalQuota']
   return quotas
 
@@ -162,7 +162,7 @@ def get_flavors_resources_reservations(
   reservations[cq_name] = {}
   for flavor_name, flavor_resources_reservation_list in flavors_res.items():
     for resource in flavor_resources_reservation_list:
-      reservations[cq_name][f'{flavor_name}:{resource["name"]}'] = resource[
+      reservations[cq_name][f'{flavor_name}:{resource.name}'] = resource[
           'total'
       ]
 

@@ -39,5 +39,8 @@ jobs:
     - name: Check the code with pylint
       run: |
         pylint $(git ls-files '*.py')
+    - name: Check format with pyink
+      run: pyink --check . 
+
     - name: Run pytype
       run: pytype --config=pytype-conf.cfg

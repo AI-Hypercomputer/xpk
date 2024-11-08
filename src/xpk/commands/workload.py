@@ -39,7 +39,6 @@ from ..core.core import (
     get_gpu_volume,
     get_user_workload_container,
     get_volumes,
-    is_cluster_using_clouddns,
     parse_env_config,
     wait_for_job_completion,
     xpk_current_version,
@@ -325,11 +324,12 @@ def workload_create(args) -> None:
   """
   add_zone_and_project(args)
 
-  if args.headless and not is_cluster_using_clouddns(args):
+  if args.headless:
     xpk_print(
         'Please use kubectl port forwarding to connect to the Pathways proxy.'
-        ' kubectl port-forward pod/<proxy-pod-name> 29000:29000'
-        ' JAX_PLATFORMS=proxy JAX_BACKEND_TARGET=grpc://127.0.0.1:29000 python -c \'import pathwaysutils; import jax; print(jax.devices())\''
+        ' kubectl get pods kubectl port-forward <proxy-pod-name> 29000:29000'
+        ' JAX_PLATFORMS=proxy JAX_BACKEND_TARGET=grpc://127.0.0.1:29000 python'
+        " -c 'import pathwaysutils; import jax; print(jax.devices())'"
     )
 
   set_cluster_command_code = set_cluster_command(args)

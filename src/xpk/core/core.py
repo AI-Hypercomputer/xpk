@@ -915,30 +915,6 @@ def get_all_clusters_programmatic(args) -> tuple[list[str], int]:
   return raw_cluster_output.splitlines(), 0
 
 
-def is_cluster_using_clouddns(args) -> bool:
-  """Checks if cluster is using CloudDNS.
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    True if cluster is using CloudDNS and False otherwise.
-  """
-  command = (
-      f'gcloud container clusters describe {args.cluster}'
-      f' --project={args.project} --region={zone_to_region(args.zone)}'
-      ' | grep "clusterDns: CLOUD_DNS"'
-  )
-  return_code, _ = run_command_for_value(
-      command,
-      'Check if Cloud DNS is enabled in cluster describe.',
-      args,
-  )
-  if return_code == 0:
-    xpk_print('Cloud DNS is enabled on the cluster, no update needed.')
-    return True
-  return False
-
-
 def get_nodepool_zone(args, nodepool_name) -> tuple[int, str]:
   """Return zone in which nodepool exists in the cluster.
 

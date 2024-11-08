@@ -423,6 +423,7 @@ will fail the cluster creation process because Vertex AI Tensorboard is not supp
     ```
     Executing the command above would provide the address of the proxy that the user job should connect to.
     ```shell
+    kubectl get pods
     kubectl port-forward pod/<proxy-pod-name> 29000:29000
     ```
     ```shell

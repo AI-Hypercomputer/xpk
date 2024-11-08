@@ -22,6 +22,9 @@ on:
     - synchronize
     branches:
     - main
+  push:
+    branches:
+    - main
 
 jobs:
   build-and-test:

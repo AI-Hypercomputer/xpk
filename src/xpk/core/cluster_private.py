@@ -42,20 +42,46 @@ def authorize_private_cluster_access_if_necessary(args) -> int:
       )
       return 1
 
-  new_authorized_networks_needed = args.authorized_networks is not None
-
-  authorized_networks = (
-      args.authorized_networks
-      if new_authorized_networks_needed
-      else get_cluster_authorized_networks(args)
+  new_authorized_networks_needed, authorized_networks = (
+      check_if_new_authorized_networks_needed(args)
   )
 
+  (
+      add_current_machine_to_networks_return_code,
+      is_current_machine_in_network,
+      authorized_networks,
+  ) = add_current_machine_to_networks_if_needed(authorized_networks)
+  if add_current_machine_to_networks_return_code != 0:
+    return add_current_machine_to_networks_return_code
+
+  if new_authorized_networks_needed or not is_current_machine_in_network:
+    return update_cluster_new_authorized_networks(args, authorized_networks)
+
+  xpk_print("Current machine's IP adrress is already authorized.")
+  return 0
+
+
+def update_cluster_new_authorized_networks(args, authorized_networks) -> int:
+  cluster_authorized_networks_update_code = update_cluster_authorized_networks(
+      args, authorized_networks
+  )
+  if cluster_authorized_networks_update_code != 0:
+    xpk_print('Updating cluster authorized networks failed!')
+    return cluster_authorized_networks_update_code
+
+  xpk_print("Cluster's master authorized networks updated successfully.")
+  return 0
+
+
+def add_current_machine_to_networks_if_needed(
+    authorized_networks,
+) -> tuple[int, bool, list]:
   is_current_machine_in_network_return_code, is_current_machine_in_network = (
       is_current_machine_in_any_network(authorized_networks)
   )
   if is_current_machine_in_network_return_code != 0:
     xpk_print("Error on checking current machine's IP adrress.")
-    return is_current_machine_in_network_return_code
+    return is_current_machine_in_network_return_code, False, authorized_networks
 
   if not is_current_machine_in_network:
     add_current_machine_to_networks_return_code, authorized_networks = (
@@ -66,20 +92,21 @@ def authorize_private_cluster_access_if_necessary(args) -> int:
           "Adding current machine's IP address to the authorized networks"
           ' failed!'
       )
-      return add_current_machine_to_networks_return_code
+      return add_current_machine_to_networks_return_code, authorized_networks
 
-  if new_authorized_networks_needed or not is_current_machine_in_network:
-    cluster_authorized_networks_update_code = (
-        update_cluster_authorized_networks(args, authorized_networks)
-    )
-    if cluster_authorized_networks_update_code != 0:
-      xpk_print('Updating cluster authorized networks failed!')
-      return cluster_authorized_networks_update_code
-    xpk_print("Cluster's master authorized networks updated successfully.")
-    return 0
+  return 0, is_current_machine_in_network, authorized_networks
 
-  xpk_print("Current machine's IP adrress is already authorized.")
-  return 0
+
+def check_if_new_authorized_networks_needed(args) -> tuple[bool, list]:
+  new_authorized_networks_needed = args.authorized_networks is not None
+
+  authorized_networks = (
+      args.authorized_networks
+      if new_authorized_networks_needed
+      else get_cluster_authorized_networks(args)
+  )
+
+  return new_authorized_networks_needed, authorized_networks
 
 
 def is_cluster_private(args) -> bool:

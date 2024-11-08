@@ -16,8 +16,15 @@ name: Lint and Format
 
 on:
   pull_request:
-
-
+    types:
+    - opened
+    - reopened
+    - synchronize
+    branches:
+    - main
+  push:
+    branches:
+      - main
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
@@ -36,6 +43,7 @@ jobs:
         python -m pip install pyink==24.3.0
         pip install pytype
         pip install pylint
+        pip install .
     - name: Check the code with pylint
       run: |
         pylint $(git ls-files '*.py')

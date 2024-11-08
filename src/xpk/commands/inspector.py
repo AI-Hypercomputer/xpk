@@ -22,7 +22,8 @@ from ..core.core import (
     zone_to_region,
 )
 from ..core.kueue import CLUSTER_QUEUE_NAME, LOCAL_QUEUE_NAME
-from ..utils import append_tmp_file, write_tmp_file, xpk_exit, xpk_print
+from ..utils.file import append_tmp_file, write_tmp_file
+from ..utils.console import xpk_exit, xpk_print
 from .cluster import set_cluster_command
 from .workload import get_workload_list
 

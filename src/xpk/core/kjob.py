@@ -15,7 +15,8 @@ limitations under the License.
 """
 
 from argparse import Namespace
-from ..utils import xpk_print, write_tmp_file
+from ..utils.console import xpk_print
+from ..utils.file import write_tmp_file
 from .commands import run_command_for_value, run_command_with_updates
 
 import tempfile

@@ -21,7 +21,7 @@ from ..commands.workload import (
     workload_list,
 )
 from ..core.core import default_docker_image, default_script_dir
-from ..utils import directory_path_type, workload_name_type
+from .validators import directory_path_type, workload_name_type
 from .common import add_shared_arguments
 
 

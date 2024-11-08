@@ -18,6 +18,8 @@
 The following tests are currently implemented through Github Actions:
 * Create an XPK Cluster with zero node pools
 * Delete the cluster created
+* Create a Private XPK Cluster with 2x v4-8 nodepools
+* Delete the cluster created
 * Create an XPK Cluster with 2x v4-8 nodepools
 * Delete the cluster created
 

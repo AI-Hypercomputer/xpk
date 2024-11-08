@@ -1,3 +1,6 @@
+# editor and IDE paraphernalia
+.idea/
+
 *__pycache__*
 tmp/
 .pytype

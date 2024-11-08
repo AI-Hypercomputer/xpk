@@ -22,6 +22,7 @@ from .inspector import set_inspector_parser
 from .workload import set_workload_parsers
 from .batch import set_batch_parser
 from .info import set_info_parser
+from .shell import set_shell_parser
 
 
 def set_parser(parser: argparse.ArgumentParser):
@@ -29,7 +30,7 @@ def set_parser(parser: argparse.ArgumentParser):
       title="xpk subcommands", dest="xpk_subcommands", help="Top level commands"
   )
   workload_parser = xpk_subcommands.add_parser(
-      "workload", help="commands around workload management"
+      "workload", help="Commands around workload management."
   )
   cluster_parser = xpk_subcommands.add_parser(
       "cluster",
@@ -37,15 +38,18 @@ def set_parser(parser: argparse.ArgumentParser):
   )
   inspector_parser = xpk_subcommands.add_parser(
       "inspector",
-      help="commands around investigating workload, and Kueue failures.",
+      help="Commands around investigating workload, and Kueue failures.",
   )
   info_parser = xpk_subcommands.add_parser(
-      "info", help="commands around listing kueue clusterqueues and localqueues"
+      "info",
+      help="Commands around listing kueue clusterqueues and localqueues.",
   )
-
   batch_parser = xpk_subcommands.add_parser(
       "batch",
       help="Run batch job.",
+  )
+  shell_parser = xpk_subcommands.add_parser(
+      "shell", help="Commands around configuring and using interactive shell."
   )
 
   def default_subcommand_function(
@@ -65,6 +69,7 @@ def set_parser(parser: argparse.ArgumentParser):
     workload_parser.print_help()
     batch_parser.print_help()
     info_parser.print_help()
+    shell_parser.print_help()
     return 0
 
   parser.set_defaults(func=default_subcommand_function)
@@ -72,9 +77,11 @@ def set_parser(parser: argparse.ArgumentParser):
   cluster_parser.set_defaults(func=default_subcommand_function)
   batch_parser.set_defaults(func=default_subcommand_function)
   info_parser.set_defaults(func=default_subcommand_function)
+  shell_parser.set_defaults(func=default_subcommand_function)
 
   set_workload_parsers(workload_parser=workload_parser)
   set_cluster_parser(cluster_parser=cluster_parser)
   set_inspector_parser(inspector_parser=inspector_parser)
   set_batch_parser(batch_parser=batch_parser)
   set_info_parser(info_parser=info_parser)
+  set_shell_parser(shell_parser=shell_parser)

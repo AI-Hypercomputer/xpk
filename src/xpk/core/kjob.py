@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 from argparse import Namespace
-from ..utils import xpk_print, write_tmp_file
+from ..utils import xpk_print
 from .commands import run_command_for_value, run_kubectl_apply
 from enum import Enum
 
@@ -44,6 +44,7 @@ class PodTemplateDefaults(Enum):
   NAME = "xpk-def-pod"
   CONTAINER_NAME = "xpk-interactive-container"
   IMAGE = "busybox:1.28"
+  INTERACTIVE_COMMAND = "/bin/sh"
 
 
 crd_file_urls = {
@@ -102,7 +103,7 @@ template:
     containers:
       - name: {container_name}
         image: {image}
-        command: ['/bin/sh']
+        command: [{interactive_command}]
 """
 
 
@@ -184,6 +185,7 @@ def create_pod_template_instance(args: Namespace) -> int:
           name=PodTemplateDefaults.NAME.value,
           container_name=PodTemplateDefaults.CONTAINER_NAME.value,
           image=PodTemplateDefaults.IMAGE.value,
+          interactive_command=PodTemplateDefaults.INTERACTIVE_COMMAND.value,
       ),
       task="Creating PodTemplate",
       args=args,

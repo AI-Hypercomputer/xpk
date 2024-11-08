@@ -291,6 +291,52 @@ def run_command_for_value(
     return 0, str(output, 'UTF-8')
 
 
+def run_command_with_full_controls(
+    command: str,
+    task: str,
+    global_args: Namespace,
+    instructions: str = None,
+) -> int:
+  """Run command in current shell with system out, in and error handles. Wait
+  until it exits.
+
+  Args:
+    command: command to execute
+    task: user-facing name of the task
+    global_args: user provided arguments for running the command.
+    verbose: shows stdout and stderr if set to true. Set to True by default.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  if global_args.dry_run:
+    xpk_print(
+        f'Task: `{task}` is implemented by the following command'
+        ' not running since it is a dry run.'
+        f' \n{command}'
+    )
+    return 0
+
+  xpk_print(
+      f'Task: `{task}` is implemented by `{command}`. '
+      'Streaming output and input live.'
+  )
+
+  if instructions is not None:
+    xpk_print(instructions)
+
+  with subprocess.Popen(
+      command,
+      stdout=sys.stdout,
+      stderr=sys.stderr,
+      stdin=sys.stdin,
+      shell=True,
+  ) as child:
+    return_code = child.wait()
+    xpk_print(f'Task: `{task}` terminated with code `{return_code}`')
+    return return_code
+
+
 def run_kubectl_apply(yml_string: str, task: str, args: Namespace) -> int:
   tmp = write_tmp_file(yml_string)
   command = f'kubectl apply -f {str(tmp.file.name)}'

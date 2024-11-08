@@ -327,8 +327,7 @@ def workload_create(args) -> None:
 
   if args.headless and not is_cluster_using_clouddns(args):
     xpk_print(
-        'Please run xpk cluster create-pathways first, to upgrade and enable'
-        ' CloudDNS on your cluster.'
+        'Please use kubectl port forwarding to connect to the Pathways proxy.'
     )
     xpk_exit(1)
 

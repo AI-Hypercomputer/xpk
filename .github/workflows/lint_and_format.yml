@@ -21,10 +21,10 @@ on:
     - reopened
     - synchronize
     branches:
-    - main
+    - test-main
   push:
     branches:
-      - main
+      - test-main
 jobs:
   build-and-test:
     runs-on: ubuntu-latest

@@ -1495,13 +1495,8 @@ def run_gke_node_pool_create_command(
         continue
       command = (
           'gcloud beta container node-pools create'
-          f' {node_pool_name} --node-version={gke_node_pool_version}'
-          f' --cluster={args.cluster}'
-          f' --project={args.project} --node-locations={args.zone}'
-          f' --region={zone_to_region(args.zone)}'
-          ' --num-nodes=1'
-          f' --machine-type={args.pathways_gce_machine_type}'
-          ' --scopes=storage-full,gke-default,"https://www.googleapis.com/auth/cloud-platform"'
+          f' {node_pool_name} --node-version={gke_node_pool_version} --cluster={args.cluster} --project={args.project} --node-locations={args.zone} --region={zone_to_region(args.zone)} --num-nodes=1'
+          f' --machine-type={args.pathways_gce_machine_type} --scopes=storage-full,gke-default,"https://www.googleapis.com/auth/cloud-platform"'
           ' --enable-autoscaling --min-nodes=1 --max-nodes=20'
       )
       task = f'NodepoolCreate-{node_pool_name}'

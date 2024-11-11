@@ -13,7 +13,8 @@ limitations under the License.
 
 from argparse import Namespace
 
-from ..utils import xpk_exit, write_tmp_file
+from ..utils.console import xpk_exit
+from ..utils.file import write_tmp_file
 from .job_template import JOB_TEMPLATE_DEFAULT_NAME
 from .commands import run_command_with_updates
 

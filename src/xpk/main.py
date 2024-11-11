@@ -35,7 +35,7 @@ import argparse
 import sys
 
 from .parser.core import set_parser
-from .utils import xpk_print
+from .utils.console import xpk_print
 
 ################### Compatibility Check ###################
 # Check that the user runs the below version or greater.

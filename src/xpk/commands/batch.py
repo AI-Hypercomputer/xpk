@@ -34,10 +34,11 @@ def batch(args: Namespace) -> None:
   Returns:
     None
   """
-  add_zone_and_project(args)
-  set_cluster_command_code = set_cluster_command(args)
-  if set_cluster_command_code != 0:
-    xpk_exit(set_cluster_command_code)
+  if not args.local_test:
+    add_zone_and_project(args)
+    set_cluster_command_code = set_cluster_command(args)
+    if set_cluster_command_code != 0:
+      xpk_exit(set_cluster_command_code)
 
   create_job_template_instance(args)
   create_app_profile_instance(args)

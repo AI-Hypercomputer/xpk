@@ -17,11 +17,8 @@ limitations under the License.
 from argparse import Namespace
 from ..utils.console import xpk_print
 from ..utils.file import write_tmp_file
-from .commands import run_command_for_value, run_command_with_updates
+from .commands import run_command_with_updates
 
-import tempfile
-from os import mkdir
-from os.path import join
 from ..core.commands import (
     run_command_for_value,
 )
@@ -46,10 +43,6 @@ crd_file_urls = {
     "kjobctl.x-k8s.io_rayclustertemplates.yaml": "https://raw.githubusercontent.com/kubernetes-sigs/kueue/refs/heads/main/cmd/experimental/kjobctl/config/crd/bases/kjobctl.x-k8s.io_rayclustertemplates.yaml",
     "kjobctl.x-k8s.io_rayjobtemplates.yaml": "https://raw.githubusercontent.com/kubernetes-sigs/kueue/refs/heads/main/cmd/experimental/kjobctl/config/crd/bases/kjobctl.x-k8s.io_rayjobtemplates.yaml",
     "kjobctl.x-k8s.io_volumebundles.yaml": "https://raw.githubusercontent.com/kubernetes-sigs/kueue/refs/heads/main/cmd/experimental/kjobctl/config/crd/bases/kjobctl.x-k8s.io_volumebundles.yaml",
-}
-
-kustomization_url = {
-    "kustomization.yaml": "https://raw.githubusercontent.com/kubernetes-sigs/kueue/refs/heads/main/cmd/experimental/kjobctl/config/crd/kustomization.yaml"
 }
 
 job_template_yaml = """
@@ -172,25 +165,10 @@ def prepare_kjob(args) -> int:
   return create_app_profile_instance(args)
 
 
-def clear_kustomize_tmp(kjob_tmp: str) -> None:
-  xpk_print("Cleaning kustomize tmp directory.")
-  bases = join(kjob_tmp, "bases")
-  for file in kustomization_url:
-    os.remove(join(kjob_tmp, file))
-
-  for file in crd_file_urls:
-    os.remove(join(bases, file))
-
-  os.rmdir(bases)
-  os.rmdir(kjob_tmp)
-  xpk_print("Cleaning kustomize tmp directory succeded.")
-
-
 def apply_kjob_crds(args: Namespace) -> int:
   """Apply kjob CRDs on cluster.
 
-  This function downloads kjob CRDs files from kjob repo,
-  builds them with kustomize and then applies result on cluster.
+  This function install kjob CRDs files from kjobctl printcrds.
   It creates all neccessary kjob CRDs.
 
   Args:
@@ -198,31 +176,11 @@ def apply_kjob_crds(args: Namespace) -> int:
   Returns:
     None
   """
-  kjob_kustomize_path = tempfile.mkdtemp()
-  kustomize_bases = join(kjob_kustomize_path, "bases")
-  mkdir(kustomize_bases)
-
-  err_code = download_crd_file_urls(crd_file_urls, kustomize_bases)
-  if err_code > 0:
-    xpk_print("Downloading kjob CRDs failed.")
-    return err_code
-
-  err_code = download_crd_file_urls(kustomization_url, kjob_kustomize_path)
-  if err_code > 0:
-    xpk_print("Downloading kustomize file failed.")
-    return err_code
-
-  cmd = (
-      f"kustomize build {kjob_kustomize_path} | kubectl apply --server-side"
-      " -f -"
-  )
-  error_code, _ = run_command_for_value(
-      cmd, "Create kjob CRDs on cluster", args
-  )
-
-  clear_kustomize_tmp(kjob_kustomize_path)
-  if error_code != 0:
-    xpk_print("Creating kjob CRDs on cluster failed.")
-    return error_code
+  command = "kubectl kjob printcrds | kubectl apply --server-side -f -"
+  task = "Create kjob CRDs on cluster"
+  return_code = run_command_with_updates(command, task, args)
+  if return_code != 0:
+    xpk_print(f"{task} returned ERROR {return_code}")
+    return return_code
   xpk_print("Creating kjob CRDs succeded")
   return 0

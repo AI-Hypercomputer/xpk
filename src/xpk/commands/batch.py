@@ -55,8 +55,6 @@ def submit_job(args: Namespace) -> None:
 
   if args.ignore_unknown_flags:
     cmd += ' --ignore-unknown-flags'
-  if args.first_node_ip:
-    cmd += ' --first-node-ip'
 
   cmd += f' -- {args.script}'
 

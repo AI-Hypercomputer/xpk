@@ -50,20 +50,6 @@ def set_batch_parser(batch_parser):
       help='Ignore all the unsupported flags in the bash script.',
   )
   batch_optional_arguments.add_argument(
-      '--first-node-ip',
-      type=bool,
-      action=argparse.BooleanOptionalAction,
-      default=False,
-      help="Enable the retrieval of the first node's IP address.",
-  )
-  # TODO: Find solution for time.Duration()
-  # batch_optional_arguments.add_argument(
-  #   '--first-node-ip-timeout',
-  #   type=int,
-  #   default=False,
-  #   help='The timeout for the retrieval of the first node\'s IP address.'
-  # )
-  batch_optional_arguments.add_argument(
       '-a',
       '--array',
       type=str,
@@ -168,12 +154,6 @@ def set_batch_parser(batch_parser):
       type=str,
       default=None,
       help='What is the job name.',
-  )
-  batch_optional_arguments.add_argument(
-      '--partition',
-      type=str,
-      default=None,
-      help='Request a specific partition for the resource allocation.',
   )
   batch_optional_arguments.add_argument(
       '-D',

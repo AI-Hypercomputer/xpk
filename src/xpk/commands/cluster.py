@@ -102,7 +102,7 @@ def cluster_create(args) -> None:
     xpk_exit(authorize_private_cluster_access_command_code)
 
   # Update Pathways clusters with CloudDNS if not enabled already.
-  if args.enable_pathways:
+  if args.enable_pathways and args.enable_clouddns:
     update_cluster_command_code = update_cluster_with_clouddns_if_necessary(
         args
     )
@@ -508,10 +508,15 @@ def run_gke_cluster_create_command(
       enable_ip_alias = True
       command += (
           f' --create-subnetwork name={args.cluster}-subnetwork'
-          ' --cluster-dns=clouddns'
-          ' --cluster-dns-scope=vpc'
-          f' --cluster-dns-domain={args.cluster}-domain'
       )
+      if args.enable_clouddns:
+        # Enables CloudDNS as the default provider of the Pathways cluster,
+        # useful for Pathways headless mode workloads.
+        command += (
+            ' --cluster-dns=clouddns'
+            ' --cluster-dns-scope=vpc'
+            f' --cluster-dns-domain={args.cluster}-domain'
+        )
 
   if enable_ip_alias:
     command += ' --enable-ip-alias'

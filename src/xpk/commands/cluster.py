@@ -35,7 +35,6 @@ from ..core.core import (
     run_gke_node_pool_create_command,
     set_jobset_on_cluster,
     set_up_cluster_network_for_gpu,
-    update_cluster_with_clouddns_if_necessary,
     zone_to_region,
 )
 from ..core.cluster_private import authorize_private_cluster_access_if_necessary
@@ -101,13 +100,7 @@ def cluster_create(args) -> None:
   if authorize_private_cluster_access_command_code != 0:
     xpk_exit(authorize_private_cluster_access_command_code)
 
-  # Update Pathways clusters with CloudDNS if not enabled already.
-  if args.enable_pathways:
-    update_cluster_command_code = update_cluster_with_clouddns_if_necessary(
-        args
-    )
-    if update_cluster_command_code != 0:
-      xpk_exit(update_cluster_command_code)
+  # ToDo(roshanin@) - Re-enable CloudDNS on Pathways clusters conditionally.
 
   set_cluster_command_code = set_cluster_command(args)
   if set_cluster_command_code != 0:
@@ -506,12 +499,7 @@ def run_gke_cluster_create_command(
 
     if args.enable_pathways:
       enable_ip_alias = True
-      command += (
-          f' --create-subnetwork name={args.cluster}-subnetwork'
-          ' --cluster-dns=clouddns'
-          ' --cluster-dns-scope=vpc'
-          f' --cluster-dns-domain={args.cluster}-domain'
-      )
+      command += f' --create-subnetwork name={args.cluster}-subnetwork'
 
   if enable_ip_alias:
     command += ' --enable-ip-alias'

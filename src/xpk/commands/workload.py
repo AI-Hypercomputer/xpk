@@ -374,7 +374,7 @@ def workload_create(args) -> None:
   ):
     xpk_print(
         'Warning: Cluster has been created using XPK version:'
-        f' {cluster_config_map.xpk_version} but the XPK version you are'
+        f' {cluster_config_map["xpk_version"]} but the XPK version you are'
         f' using to schedule workload is: {xpk_current_version}. Some features'
         ' might not be available for this cluster. We recommend to'
         ' upgrade/downgrade your XPK version or cluster by running `xpk'

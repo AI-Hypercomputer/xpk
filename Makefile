@@ -29,6 +29,8 @@ install-kjob: install-kubectl
 	rm -rf $(KUEUE_TMP_PATH)
 
 install-kubectl:
+	echo $(PROJECT_DIR)
+	echo $(BIN_PATH)
 	curl -LO $(KUBECTL_URL)
 	chmod +x kubectl
 	mv ./kubectl $(BIN_PATH)/kubectl

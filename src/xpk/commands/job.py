@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 from ..core.commands import run_command_for_value
-from ..utils import xpk_exit, xpk_print
+from ..utils.console import xpk_exit, xpk_print
 import yaml
 import re
 

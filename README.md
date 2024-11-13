@@ -86,8 +86,8 @@ following commands to begin using XPK commands:
 ```shell
 git clone https://github.com/google/xpk.git
 cd xpk
-# Install dependencies such as cloud-accelerator-diagnostics
-pip install .
+# Install required dependencies with make
+make install
 ```
 
 If you see an error saying: `This environment is externally managed`, please use a virtual environment.
@@ -103,8 +103,8 @@ Example:
   ## Clone the repository and installing dependencies.
   git clone https://github.com/google/xpk.git
   cd xpk
-  # Install dependencies such as cloud-accelerator-diagnostics
-  pip install .
+  # Install required dependencies with make
+  make install 
 ```
 
 # XPK for Large Scale (>1k VMs)

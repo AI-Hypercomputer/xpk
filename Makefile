@@ -1,8 +1,10 @@
 KUEUE_REPO=https://github.com/kubernetes-sigs/kueue.git
 KUEUE_TMP_PATH=/tmp/xpk_tmp/kueue
 
-KUBECTL_AMD64="https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-KUBECTL_ARM="https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/arm64/kubectl"
+KUBECTL_VERSION := $(shell curl -L -s https://dl.k8s.io/release/stable.txt)
+
+KUBECTL_AMD64="https://dl.k8s.io/release/$(KUBECTL_VERSION)/bin/linux/amd64/kubectl"
+KUBECTL_ARM="https://dl.k8s.io/release/$(KUBECTL_VERSION)/bin/linux/arm64/kubectl"
 
 OS := $(shell dpkg --print-architecture)
 
@@ -14,7 +16,7 @@ install: install_kjob
 install_kjob: install_kueuectl
 	git clone $(KUEUE_REPO) $(KUEUE_TMP_PATH)
 	make -C $(KUEUE_TMP_PATH)/cmd/experimental/kjobctl kubectl-kjob
-	mv $(KUEUE_TMP_PATH)/cmd/experimental/kjobctl/bin/kubectl-kjob /usr/local/bin/kubectl-kjob
+	mv $(KUEUE_TMP_PATH)/cmd/experimental/kjobctl/bin/kubectl-kjob ~/.local/bin/kubectl-kjob
 	rm -rf $(KUEUE_TMP_PATH)
 
 install_kubectl: check_gcloud
@@ -31,7 +33,7 @@ endif
 install_kueuectl: install_kubectl
 	git clone $(KUEUE_REPO) $(KUEUE_TMP_PATH)
 	make -C $(KUEUE_TMP_PATH) kueuectl
-	mv $(KUEUE_TMP_PATH)/bin/kubectl-kueue /usr/local/bin/kubectl-kueue
+	mv $(KUEUE_TMP_PATH)/bin/kubectl-kueue ~/.local/bin/kubectl-kueue
 	rm -rf $(KUEUE_TMP_PATH)
 
 check_gcloud: check_python

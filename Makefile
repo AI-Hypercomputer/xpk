@@ -17,7 +17,7 @@ BIN_PATH=$(PROJECT_DIR)/bin
 
 .PHONY: install install_kjob install_kueuectl install_gcloud check_python update-path
 
-install: check-python check-gcloud install-kubectl install-kueuectl install-kjob pip-install
+install: check-python check-gcloud mkdir-bin install-kubectl install-kueuectl install-kjob pip-install
 
 pip-install:
 	pip install .
@@ -28,9 +28,10 @@ install-kjob: install-kubectl
 	mv $(KUEUE_TMP_PATH)/cmd/experimental/kjobctl/bin/kubectl-kjob $(BIN_PATH)/kubectl-kjob
 	rm -rf $(KUEUE_TMP_PATH)
 
+mkdir-bin:
+	test -d $(BIN_PATH) || mkdir $(BIN_PATH)
+
 install-kubectl:
-	echo $(PROJECT_DIR)
-	echo $(BIN_PATH)
 	curl -LO $(KUBECTL_URL)
 	chmod +x kubectl
 	mv ./kubectl $(BIN_PATH)/kubectl

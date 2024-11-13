@@ -8,19 +8,14 @@ This section should describe how to prepare volumes and add external files execu
 
 To run xpk batch script run:
 ```bash
-python3 xpk.py batch slurm_sample.sh
-```
-
-You may pass script arguments to executed script by running:
-```bash
-python3 xpk.py batch slurm_sample.sh arg1 arg2
+python3 xpk.py batch --cluster my-cluster job.sh
 ```
 
 To view results run:
 ```bash
 kubectl get pods
 ```
-Names of pods from slurm task execution begin with "xpk-def-app-profile-slurm".To see pods on which batch task was executed.
+Names of pods from slurm task execution begin with "xpk-def-app-profile-slurm".
 
 To see logs run:
 ```bash

@@ -14,8 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..utils import write_tmp_file, xpk_print
-from .commands import run_command_with_updates_retry
+from argparse import Namespace
+from ..utils.file import write_tmp_file
+from ..utils.console import xpk_print, xpk_exit
+from .commands import run_command_with_updates_retry, run_command_for_value
 from .core import (
     AutoprovisioningConfig,
     create_accelerator_label,
@@ -140,6 +142,31 @@ spec:
 """
 
 
+def verify_kueuectl(args: Namespace) -> None:
+  """Verify if kueuectl is installed.
+  Args:
+    args: user provided arguments.
+  Returns:
+    None
+  """
+  xpk_print('Veryfing kueuectl installation')
+
+  command = 'kubectl kueue version'
+  task = 'Verify kueuectl installation on cluster'
+  verify_kueuectl_installed_code, _ = run_command_for_value(command, task, args)
+
+  if verify_kueuectl_installed_code == 0:
+    xpk_print('kueuectl found')
+
+  if verify_kueuectl_installed_code != 0:
+    xpk_print(
+        'kueuectl not found. Please follow'
+        ' https://kueue.sigs.k8s.io/docs/reference/kubectl-kueue/installation/'
+        ' to install kueuectl.'
+    )
+    xpk_exit(verify_kueuectl_installed_code)
+
+
 def install_kueue_on_cluster(args) -> int:
   """Install Kueue on the cluster.
 
@@ -154,6 +181,26 @@ def install_kueue_on_cluster(args) -> int:
       f' https://github.com/kubernetes-sigs/kueue/releases/download/{KUEUE_VERSION}/manifests.yaml'
   )
   task = 'Set Kueue On Cluster'
+  return_code = run_command_with_updates_retry(command, task, args)
+  if return_code != 0:
+    xpk_print(f'{task} returned ERROR {return_code}')
+  return return_code
+
+
+def wait_for_kueue_available(args: Namespace) -> int:
+  """Wait for Kueue to be fully available.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  command = (
+      'kubectl wait deploy/kueue-controller-manager -nkueue-system'
+      ' --for=condition=available --timeout=5m'
+  )
+  task = 'Wait for Kueue to be available'
   return_code = run_command_with_updates_retry(command, task, args)
   if return_code != 0:
     xpk_print(f'{task} returned ERROR {return_code}')
@@ -218,33 +265,11 @@ def install_kueue_crs(
 
   tmp = write_tmp_file(yml_string)
   command = f'kubectl apply -f {str(tmp.file.name)}'
-  # For kueue setup, we see a timeout error due to the webhook not
-  # being ready. Let's retry and wait a few seconds.
+
   task = 'Applying Kueue Custom Resources'
-  retry_attempts = 3
-  return_code = run_command_with_updates_retry(
-      command, task, args, num_retry_attempts=retry_attempts
-  )
+  return_code = run_command_with_updates_retry(command, task, args)
   if return_code != 0:
-    # We have seen some scenarios where credentials need a few minutes for kueue
-    # and jobset installation to be ready before credentials can be applied.
-    # As a workaround we will retry again with longer wait times.
-    retry_wait_seconds = 60
-    xpk_print(
-        f'{task} still not successful. Retrying {retry_attempts} more timeswith'
-        f' increased wait time of {retry_wait_seconds} seconds between tries.'
-        ' Kueue Custom Resources need Kueue system to be ready which can take'
-        ' some time.'
-    )
-    return_code = run_command_with_updates_retry(
-        command=command,
-        task=task,
-        args=args,
-        num_retry_attempts=retry_attempts,
-        wait_seconds=retry_wait_seconds,
-    )
-    if return_code != 0:
-      xpk_print(f'{task} returned ERROR {return_code}')
+    xpk_print(f'{task} returned ERROR {return_code}')
   return return_code
 
 

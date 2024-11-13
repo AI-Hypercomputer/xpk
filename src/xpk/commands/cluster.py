@@ -35,13 +35,19 @@ from ..core.core import (
     run_gke_node_pool_create_command,
     set_jobset_on_cluster,
     set_up_cluster_network_for_gpu,
-    update_cluster_with_clouddns_if_necessary,
     zone_to_region,
+)
+from ..core.cluster_private import authorize_private_cluster_access_if_necessary
+from ..core.kjob import (
+    verify_kjob_installed,
+    prepare_kjob,
+    apply_kjob_crds,
 )
 from ..core.kueue import (
     cluster_preheat_yml,
     install_kueue_crs,
     install_kueue_on_cluster,
+    wait_for_kueue_available,
 )
 from ..core.nap import enable_autoprovisioning_on_cluster
 from ..core.system_characteristics import (
@@ -50,7 +56,8 @@ from ..core.system_characteristics import (
     SystemCharacteristics,
     get_system_characteristics,
 )
-from ..utils import write_tmp_file, xpk_exit, xpk_print
+from ..utils.file import write_tmp_file
+from ..utils.console import xpk_exit, xpk_print
 
 
 def cluster_create(args) -> None:
@@ -87,13 +94,13 @@ def cluster_create(args) -> None:
   if create_cluster_command_code != 0:
     xpk_exit(create_cluster_command_code)
 
-  # Update Pathways clusters with CloudDNS if not enabled already.
-  if args.enable_pathways:
-    update_cluster_command_code = update_cluster_with_clouddns_if_necessary(
-        args
-    )
-    if update_cluster_command_code != 0:
-      xpk_exit(update_cluster_command_code)
+  authorize_private_cluster_access_command_code = (
+      authorize_private_cluster_access_if_necessary(args)
+  )
+  if authorize_private_cluster_access_command_code != 0:
+    xpk_exit(authorize_private_cluster_access_command_code)
+
+  # ToDo(roshanin@) - Re-enable CloudDNS on Pathways clusters conditionally.
 
   set_cluster_command_code = set_cluster_command(args)
   if set_cluster_command_code != 0:
@@ -146,6 +153,20 @@ def cluster_create(args) -> None:
   if install_kueue_on_cluster_code != 0:
     xpk_exit(install_kueue_on_cluster_code)
 
+  xpk_print('Verifying kjob installation')
+  err_code = verify_kjob_installed(args)
+  if err_code > 0:
+    xpk_exit(err_code)
+
+  xpk_print('Applying kjob CDRs')
+  err_code = apply_kjob_crds(args)
+  if err_code > 0:
+    xpk_exit(err_code)
+
+  xpk_print('Preparing kjob')
+  err_code = prepare_kjob(args)
+  if err_code > 0:
+    xpk_exit(err_code)
   # Provision node pools dynamically based on incoming workloads:
   # Currently autoprovisioning is not supported with Pathways.
   autoprovisioning_config = None
@@ -156,6 +177,11 @@ def cluster_create(args) -> None:
     )
     if return_code != 0:
       xpk_exit(return_code)
+
+  xpk_print('Wait for Kueue to be fully available')
+  wait_for_kueue_available_code = wait_for_kueue_available(args)
+  if wait_for_kueue_available_code != 0:
+    xpk_exit(wait_for_kueue_available_code)
 
   xpk_print('Install Kueue Custom Resources')
   enable_kueue_credentials_code = install_kueue_crs(
@@ -456,22 +482,27 @@ def run_gke_cluster_create_command(
       ' --release-channel rapid'
   )
 
+  enable_ip_alias = False
+
+  if args.private or args.authorized_networks is not None:
+    enable_ip_alias = True
+    command += ' --enable-master-authorized-networks --enable-private-nodes'
+
   if system.accelerator_type == AcceleratorType['GPU']:
+    enable_ip_alias = True
     command += (
-        ' --enable-dataplane-v2 --enable-ip-alias'
+        ' --enable-dataplane-v2'
         ' --enable-multi-networking --no-enable-autoupgrade'
     )
   else:
     command += ' --location-policy=BALANCED --scopes=storage-full,gke-default'
 
     if args.enable_pathways:
-      command += (
-          ' --enable-ip-alias'
-          f' --create-subnetwork name={args.cluster}-subnetwork'
-          ' --cluster-dns=clouddns'
-          ' --cluster-dns-scope=vpc'
-          f' --cluster-dns-domain={args.cluster}-domain'
-      )
+      enable_ip_alias = True
+      command += f' --create-subnetwork name={args.cluster}-subnetwork'
+
+  if enable_ip_alias:
+    command += ' --enable-ip-alias'
 
   return_code = run_command_with_updates(command, 'GKE Cluster Create', args)
   if return_code != 0:

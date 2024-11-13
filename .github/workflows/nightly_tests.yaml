@@ -22,10 +22,12 @@ on:
 env:
   # Names must be unique in parallel running tests.
   EMPTY_CLUSTER_NAME: nightly-xpk-zero-nodepools
+  PRIVATE_CLUSTER_NAME: nightly-xpk-private-2-v4-8-nodepools
   TPU_CLUSTER_NAME: nightly-xpk-2-v4-8-nodepools
   WORKLOAD_NAME: xpktest-nightly-${{ github.run_attempt }}
   PATHWAYS_TPU_CLUSTER_NAME: pw-nightly-test-2-v4-8-nodepools
   PATHWAYS_WORKLOAD_NAME: xpkpw-nightly-${{ github.run_attempt }}
+  PW_CLUSTER_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}}"
 
 jobs:
   cluster-create-and-delete:
@@ -51,15 +53,30 @@ jobs:
       run: |
         gcloud config set compute/zone us-east4-a
         gcloud config get compute/zone
+    - name: Install kjob
+      run: |
+        git clone https://github.com/kubernetes-sigs/kueue.git
+        cd kueue/cmd/experimental/kjobctl
+        make kubectl-kjob
+        mv ./bin/kubectl-kjob /usr/local/bin/kubectl-kjob      
+    - name: Install kueuectl
+      run: curl -Lo ./kubectl-kueue https://github.com/kubernetes-sigs/kueue/releases/download/v0.8.1/kubectl-kueue-linux-amd64 && chmod +x ./kubectl-kueue && mv ./kubectl-kueue /usr/local/bin/kubectl-kueue
+    - name: Install xpk with pip and verify it executes corretly
+      run: |
+        pip install .
+        xpk --help
     - name: Create an XPK Cluster with zero node pools
       run: python xpk.py cluster create --cluster $EMPTY_CLUSTER_NAME --tpu-type=v4-8  --num-slices=0 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments='${{ secrets.CLUSTER_ARGUMENTS }}'
     - name: Delete the cluster created
       run: python xpk.py cluster delete --cluster $EMPTY_CLUSTER_NAME --zone=us-central2-b
       if: always()
-    - name: Install xpk with pip and verify it executes corretly
-      run: |
-        pip install .
-        xpk --help
+    - name: Create a Private XPK Cluster with zero node pools
+      run: python xpk.py cluster create --cluster $PRIVATE_CLUSTER_NAME --private --tpu-type=v4-8  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments='${{ secrets.CLUSTER_ARGUMENTS }}'
+    - name: Verify the created cluster is private
+      run: gcloud container clusters describe $PRIVATE_CLUSTER_NAME --region=us-central2 --format="value(privateClusterConfig.enablePrivateNodes)" | grep 'True' || (echo 'The created cluster is not private.' && exit 1)
+    - name: Delete the cluster created
+      run: python xpk.py cluster delete --cluster $PRIVATE_CLUSTER_NAME --zone=us-central2-b
+      if: always()
     - name: Create an XPK Cluster with 2x v4-8 nodepools
       run: python xpk.py cluster create --cluster $TPU_CLUSTER_NAME --tpu-type=v4-8  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments='${{ secrets.CLUSTER_ARGUMENTS }}'
     - name: Authenticate Docker
@@ -74,6 +91,8 @@ jobs:
       run: python3 xpk.py inspector --cluster $TPU_CLUSTER_NAME --zone=us-central2-b  --workload $WORKLOAD_NAME
     - name: Wait for workload completion and confirm it succeeded
       run: python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion $WORKLOAD_NAME --timeout 300
+    - name: Run xpk info command
+      run : python3 xpk.py info --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
     - name: Delete the workload on the cluster
       run: python3 xpk.py workload delete --workload $WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
     - name: Delete the cluster created
@@ -81,7 +100,7 @@ jobs:
       run: python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
 
   pw-cluster-and-workload:
-    runs-on: [ubuntu-20.04]
+    runs-on: [ubuntu-22.04]
     concurrency: # We support one build test to run at a time currently.
       group: nightly-pw-test-cluster-group
       cancel-in-progress: false
@@ -101,8 +120,20 @@ jobs:
       run: |
         gcloud config set compute/zone us-east4-a
         gcloud config get compute/zone
+    - name: Install kjob
+      run: |
+        git clone https://github.com/kubernetes-sigs/kueue.git
+        cd kueue/cmd/experimental/kjobctl
+        make kubectl-kjob
+        mv ./bin/kubectl-kjob /usr/local/bin/kubectl-kjob
+    - name: Install xpk with pip and verify it executes corretly
+      run: |
+        pip install .
+        xpk --help
+    - name: Install kueuectl
+      run: curl -Lo ./kubectl-kueue https://github.com/kubernetes-sigs/kueue/releases/download/v0.8.1/kubectl-kueue-linux-amd64 && chmod +x ./kubectl-kueue && mv ./kubectl-kueue /usr/local/bin/kubectl-kueue
     - name: Create an Pathways-enabled XPK Cluster with 2 x v4-8 nodepools
-      run: python xpk.py cluster create-pathways --cluster $PATHWAYS_TPU_CLUSTER_NAME --tpu-type=v4-8  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}'
+      run: python xpk.py cluster create-pathways --cluster $PATHWAYS_TPU_CLUSTER_NAME --tpu-type=v4-8  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments="${PW_CLUSTER_ARGUMENTS}"
     - name: Create test script to execute in workloads
       run: echo -e '#!/bin/bash \n echo "Hello world from a test script!"' > test.sh
     - name: Run a Pathways workload on Ubuntu base image

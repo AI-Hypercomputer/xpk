@@ -234,6 +234,55 @@ all zones.
     --num-slices=4  --reservation=$RESERVATION_ID
     ```
 
+### Create Private Cluster
+
+XPK allows you to create a private GKE cluster for enhanced security. In a private cluster, nodes and pods are isolated from the public internet, providing an additional layer of protection for your workloads.
+
+To create a private cluster, use the following arguments:
+
+**`--private`**
+
+This flag enables the creation of a private GKE cluster. When this flag is set:
+
+*  Nodes and pods are isolated from the direct internet access.
+*  `master_authorized_networks` is automatically enabled.
+*  Access to the cluster's control plane is restricted to your current machine's IP address by default.
+
+**`--authorized-networks`**
+
+This argument allows you to specify additional IP ranges (in CIDR notation) that are authorized to access the private cluster's control plane and perform `kubectl` commands. 
+
+*  Even if this argument is not set when you have `--private`, your current machine's IP address will always be given access to the control plane.
+*  If this argument is used with an existing private cluster, it will replace the existing authorized networks.
+
+**Example Usage:**
+
+* To create a private cluster and allow access to Control Plane only to your current machine:
+
+  ```shell
+  python3 xpk.py cluster create \
+    --cluster=xpk-private-cluster \
+    --tpu-type=v4-8 --num-slices=2 \
+    --private
+  ```
+
+* To create a private cluster and allow access to Control Plane only to your current machine and the IP ranges `1.2.3.0/24` and `1.2.4.5/32`:
+
+  ```shell
+  python3 xpk.py cluster create \
+    --cluster=xpk-private-cluster \
+    --tpu-type=v4-8 --num-slices=2 \
+    --authorized-networks 1.2.3.0/24 1.2.4.5/32
+
+    # --private is optional when you set --authorized-networks
+  ```
+
+> **Important Notes:** 
+> * The argument `--private` is only applicable when creating new clusters. You cannot convert an existing public cluster to a private cluster using these flags.
+> * The argument `--authorized-networks` is applicable when creating new clusters or using an existing _*private*_ cluster. You cannot convert an existing public cluster to a private cluster using these flags.
+> * You need to [set up a Cluster NAT for your VPC network](https://cloud.google.com/nat/docs/set-up-manage-network-address-translation#creating_nat) so that the Nodes and Pods have outbound access to the internet. This is required because XPK installs and configures components such as kueue that need access to external sources like `registry.k8.io`.
+
+
 ### Create Vertex AI Tensorboard
 *Note: This feature is available in XPK >= 0.4.0. Enable [Vertex AI API](https://cloud.google.com/vertex-ai/docs/start/cloud-environment#enable_vertexai_apis) in your Google Cloud console to use this feature. Make sure you have
 [Vertex AI Administrator](https://cloud.google.com/vertex-ai/docs/general/access-control#aiplatform.admin) role
@@ -372,7 +421,14 @@ will fail the cluster creation process because Vertex AI Tensorboard is not supp
     --cluster xpk-pw-test
     ```
     Executing the command above would provide the address of the proxy that the user job should connect to.
-    Specify `JAX_PLATFORMS=proxy` and `JAX_BACKEND_TARGET=<proxy address from above>` and `import previewutilies` to establish this connection between the user's JAX code and the Pathways proxy. Execute Pathways workloads interactively on Vertex AI notebooks!
+    ```shell
+    kubectl get pods
+    kubectl port-forward pod/<proxy-pod-name> 29000:29000
+    ```
+    ```shell
+    JAX_PLATFORMS=proxy JAX_BACKEND_TARGET=grpc://127.0.0.1:29000 python -c 'import pathwaysutils; import jax; print(jax.devices())'
+    ```
+    Specify `JAX_PLATFORMS=proxy` and `JAX_BACKEND_TARGET=<proxy address from above>` and `import pathwaysutils` to establish this connection between the user's JAX code and the Pathways proxy. Execute Pathways workloads interactively on Vertex AI notebooks!
 
 ### Set `max-restarts` for production jobs
 
@@ -1108,6 +1164,21 @@ To explore the stack traces collected in a temporary directory in Kubernetes Pod
   --workload xpk-test-workload --command "python3 main.py" --cluster \
   xpk-test --tpu-type=v5litepod-16 --deploy-stacktrace-sidecar
  ```
+
+### Get information about jobs, queues and resources.
+
+To list available resources and queues use ```xpk info``` command. It allows to see localqueues and clusterqueues and check for available resources.
+
+To see queues with usage and workload info use:
+```shell
+python3 xpk.py info --cluster my-cluster
+```
+
+You can specify what kind of resources(clusterqueue or localqueue) you want to see using flags --clusterqueue or --localqueue.
+```shell
+python3 xpk.py info --cluster my-cluster --localqueue
+```
+
 
 # Other advanced usage
 [Use a Jupyter notebook to interact with a Cloud TPU cluster](xpk-notebooks.md)

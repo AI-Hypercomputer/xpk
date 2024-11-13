@@ -1,6 +1,9 @@
+# editor and IDE paraphernalia
+.idea/
+
 *__pycache__*
 tmp/
-
+.pytype
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

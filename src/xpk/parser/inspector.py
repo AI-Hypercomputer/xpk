@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 from ..commands.inspector import inspector
-from ..utils import workload_name_type
+from .validators import workload_name_type
 from .common import add_shared_arguments
 
 

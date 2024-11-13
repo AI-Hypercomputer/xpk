@@ -32,19 +32,28 @@ def job_info(args):
   job_name = args.name
 
   desc_command = f'kubectl-kjob describe slurm {job_name}'
-  desc_code, desc_text = run_command_for_value(desc_command, 'Getting job data', args)
+  desc_code, desc_text = run_command_for_value(
+      desc_command, 'Getting job data', args
+  )
   if desc_code != 0:
     xpk_print(f'Data info request returned ERROR {desc_code}')
     xpk_exit(desc_code)
 
-  job_command = f'kubectl-kjob list slurm -o yaml --field-selector metadata.name=={job_name}'
-  job_code, job_text = run_command_for_value(job_command, 'Getting job info', args)
+  job_command = (
+      'kubectl-kjob list slurm -o yaml --field-selector'
+      f' metadata.name=={job_name}'
+  )
+  job_code, job_text = run_command_for_value(
+      job_command, 'Getting job info', args
+  )
   if job_code != 0:
     xpk_print(f'Job info request returned ERROR {job_code}')
     xpk_exit(job_code)
 
   pods_command = f'kubectl get pods -l=job-name={job_name} --no-headers'
-  pods_code, pods_text = run_command_for_value(pods_command, 'Getting pods list', args)
+  pods_code, pods_text = run_command_for_value(
+      pods_command, 'Getting pods list', args
+  )
   if pods_code != 0:
     xpk_print(f'Pods list request returned ERROR {pods_code}')
     xpk_exit(pods_code)
@@ -52,15 +61,19 @@ def job_info(args):
   job_yaml = yaml.safe_load(job_text)['items'][0]
 
   output = {
-    'Job name': job_name,
-    'Profile': get_profile(job_yaml),
-    'Labels': job_yaml['metadata']['labels'], 
-    'Mounts': job_yaml['spec']['template']['spec']['containers'][0]['volumeMounts'],
-    'Environment variables': get_ev_vars(desc_text),
-    'Pods': get_pods(pods_text),
+      'Job name': job_name,
+      'Profile': get_profile(job_yaml),
+      'Labels': job_yaml['metadata']['labels'],
+      'Mounts': job_yaml['spec']['template']['spec']['containers'][0][
+          'volumeMounts'
+      ],
+      'Environment variables': get_ev_vars(desc_text),
+      'Pods': get_pods(pods_text),
   }
 
-  formatted_output = yaml.dump(output, default_flow_style=False, sort_keys=False)
+  formatted_output = yaml.dump(
+      output, default_flow_style=False, sort_keys=False
+  )
   xpk_print(formatted_output.strip())
 
   xpk_exit(0)

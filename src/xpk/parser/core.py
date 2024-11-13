@@ -41,7 +41,8 @@ def set_parser(parser: argparse.ArgumentParser):
       help="commands around investigating workload, and Kueue failures.",
   )
   job_parser = xpk_subcommands.add_parser(
-      "job", help="Investigating information about a signle job.",
+      "job",
+      help="Investigating information about a signle job.",
   )
   info_parser = xpk_subcommands.add_parser(
       "info", help="commands around listing kueue clusterqueues and localqueues"

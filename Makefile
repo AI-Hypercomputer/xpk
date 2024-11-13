@@ -11,7 +11,7 @@ ifeq ($(OS),arm)
 	KUBECTL_URL = "https://dl.k8s.io/release/$(KUBECTL_VERSION)/bin/linux/arm64/kubectl"
 endif	
 
-PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
+PROJECT_DIR := $(realpath $(shell dirname $(firstword $(MAKEFILE_LIST))))
 
 BIN_PATH=$(PROJECT_DIR)/bin
 

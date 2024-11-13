@@ -87,7 +87,7 @@ following commands to begin using XPK commands:
 git clone https://github.com/google/xpk.git
 cd xpk
 # Install required dependencies with make
-make install
+make install && export PATH=$PATH:$PWD/bin
 ```
 
 If you see an error saying: `This environment is externally managed`, please use a virtual environment.
@@ -104,7 +104,7 @@ Example:
   git clone https://github.com/google/xpk.git
   cd xpk
   # Install required dependencies with make
-  make install 
+  make install && export PATH=$PATH:$PWD/bin
 ```
 
 # XPK for Large Scale (>1k VMs)

@@ -53,18 +53,8 @@ jobs:
       run: |
         gcloud config set compute/zone us-east4-a
         gcloud config get compute/zone
-    - name: Install kjob
-      run: |
-        git clone https://github.com/kubernetes-sigs/kueue.git
-        cd kueue/cmd/experimental/kjobctl
-        make kubectl-kjob
-        mv ./bin/kubectl-kjob /usr/local/bin/kubectl-kjob      
-    - name: Install kueuectl
-      run: curl -Lo ./kubectl-kueue https://github.com/kubernetes-sigs/kueue/releases/download/v0.8.1/kubectl-kueue-linux-amd64 && chmod +x ./kubectl-kueue && mv ./kubectl-kueue /usr/local/bin/kubectl-kueue
-    - name: Install xpk with pip and verify it executes corretly
-      run: |
-        pip install .
-        xpk --help
+    - name: Install xpk dependencies
+      run: make install 
     - name: Create an XPK Cluster with zero node pools
       run: python xpk.py cluster create --cluster $EMPTY_CLUSTER_NAME --tpu-type=v4-8  --num-slices=0 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments='${{ secrets.CLUSTER_ARGUMENTS }}'
     - name: Delete the cluster created
@@ -120,18 +110,8 @@ jobs:
       run: |
         gcloud config set compute/zone us-east4-a
         gcloud config get compute/zone
-    - name: Install kjob
-      run: |
-        git clone https://github.com/kubernetes-sigs/kueue.git
-        cd kueue/cmd/experimental/kjobctl
-        make kubectl-kjob
-        mv ./bin/kubectl-kjob /usr/local/bin/kubectl-kjob
-    - name: Install xpk with pip and verify it executes corretly
-      run: |
-        pip install .
-        xpk --help
-    - name: Install kueuectl
-      run: curl -Lo ./kubectl-kueue https://github.com/kubernetes-sigs/kueue/releases/download/v0.8.1/kubectl-kueue-linux-amd64 && chmod +x ./kubectl-kueue && mv ./kubectl-kueue /usr/local/bin/kubectl-kueue
+    - name: Install xpk dependencies
+      run: make install 
     - name: Create an Pathways-enabled XPK Cluster with 2 x v4-8 nodepools
       run: python xpk.py cluster create-pathways --cluster $PATHWAYS_TPU_CLUSTER_NAME --tpu-type=v4-8  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments="${PW_CLUSTER_ARGUMENTS}"
     - name: Create test script to execute in workloads

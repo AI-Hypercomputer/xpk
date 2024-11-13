@@ -50,18 +50,8 @@ jobs:
       run: |
         gcloud config set compute/zone us-east4-a
         gcloud config get compute/zone
-    - name: Install kjob
-      run: |
-        git clone https://github.com/kubernetes-sigs/kueue.git
-        cd kueue/cmd/experimental/kjobctl
-        make kubectl-kjob
-        mv ./bin/kubectl-kjob /usr/local/bin/kubectl-kjob
-    - name: Install kueuectl
-      run: curl -Lo ./kubectl-kueue https://github.com/kubernetes-sigs/kueue/releases/download/v0.8.1/kubectl-kueue-linux-amd64 && chmod +x ./kubectl-kueue && mv ./kubectl-kueue /usr/local/bin/kubectl-kueue
-    - name: Install xpk with pip and verify it executes corretly
-      run: |
-        pip install .
-        xpk --help
+    - name: Install xpk dependencies
+      run: make install 
     - name: Create a private Pathways-enabled XPK Cluster with 2x v4-8 nodepools. Larger num-nodes to avoid master resizing.
       run: python xpk.py cluster create-pathways --cluster $TPU_CLUSTER_NAME --private --tpu-type=v4-8  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments="${CLUSTER_ARGUMENTS}"
     - name: Verify the created cluster is private

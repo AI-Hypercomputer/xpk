@@ -71,7 +71,6 @@ xpk uses many tool to provide all neccessary functionalities. User must install 
 - gcloud (install from [here](https://cloud.google.com/sdk/gcloud#download_and_install_the))
 - kubectl (install from [here](https://kubernetes.io/docs/tasks/tools/))
 - kueuectl (install from [here](https://kueue.sigs.k8s.io/docs/reference/kubectl-kueue/installation/))
-- kustomize (install from [here](https://kubectl.docs.kubernetes.io/installation/kustomize/), please add kustomize binary to your PATH)
 - kjob (installation instructions [here](https://github.com/kubernetes-sigs/kueue/blob/main/cmd/experimental/kjobctl/docs/installation.md))
 
 # Installation
@@ -422,7 +421,14 @@ will fail the cluster creation process because Vertex AI Tensorboard is not supp
     --cluster xpk-pw-test
     ```
     Executing the command above would provide the address of the proxy that the user job should connect to.
-    Specify `JAX_PLATFORMS=proxy` and `JAX_BACKEND_TARGET=<proxy address from above>` and `import previewutilies` to establish this connection between the user's JAX code and the Pathways proxy. Execute Pathways workloads interactively on Vertex AI notebooks!
+    ```shell
+    kubectl get pods
+    kubectl port-forward pod/<proxy-pod-name> 29000:29000
+    ```
+    ```shell
+    JAX_PLATFORMS=proxy JAX_BACKEND_TARGET=grpc://127.0.0.1:29000 python -c 'import pathwaysutils; import jax; print(jax.devices())'
+    ```
+    Specify `JAX_PLATFORMS=proxy` and `JAX_BACKEND_TARGET=<proxy address from above>` and `import pathwaysutils` to establish this connection between the user's JAX code and the Pathways proxy. Execute Pathways workloads interactively on Vertex AI notebooks!
 
 ### Set `max-restarts` for production jobs
 

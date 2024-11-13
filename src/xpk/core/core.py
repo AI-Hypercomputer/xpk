@@ -77,7 +77,9 @@ DEFAULT_VERTEX_TENSORBOARD_NAME = 'tb-instance'
 AUTOPROVISIONING_CONFIG_VALUE = 'AUTOPROVISION'
 AUTOPROVISIONING_CONFIG_MINIMUM_KEY = 'minimum_chips'
 AUTOPROVISIONING_CONFIG_MAXIMUM_KEY = 'maximum_chips'
-CLOUD_PLATFORM_AUTH_SCOPE_URL = '"https://www.googleapis.com/auth/cloud-platform"'
+CLOUD_PLATFORM_AUTH_SCOPE_URL = (
+    '"https://www.googleapis.com/auth/cloud-platform"'
+)
 
 
 class CapacityType(enum.Enum):
@@ -1287,8 +1289,7 @@ def run_gke_node_pool_create_command(
           ' --accelerator'
           f' type={system.gke_accelerator},count={str(system.chips_per_vm)},gpu-driver-version=latest'
           ' --no-enable-autoupgrade '
-          f' --scopes={CLOUD_PLATFORM_AUTH_SCOPE_URL}'
-          ' --additional-node-network'
+          f' --scopes={CLOUD_PLATFORM_AUTH_SCOPE_URL} --additional-node-network'
           f' network={args.cluster}-net-1,subnetwork={subnet_prefix}-sub-1'
           ' --additional-node-network'
           f' network={args.cluster}-net-2,subnetwork={subnet_prefix}-sub-2'
@@ -1326,8 +1327,8 @@ def run_gke_node_pool_create_command(
       command = (
           'gcloud beta container node-pools create'
           f' {node_pool_name} --node-version={gke_node_pool_version} --cluster={args.cluster} --project={args.project} --node-locations={args.zone} --region={zone_to_region(args.zone)} --num-nodes=1'
-          f' --machine-type={args.pathways_gce_machine_type} --scopes=storage-full,gke-default,{CLOUD_PLATFORM_AUTH_SCOPE_URL}'
-          ' --enable-autoscaling --min-nodes=1 --max-nodes=20'
+          f' --machine-type={args.pathways_gce_machine_type} --scopes=storage-full,gke-default,{CLOUD_PLATFORM_AUTH_SCOPE_URL} --enable-autoscaling'
+          ' --min-nodes=1 --max-nodes=20'
       )
       task = f'NodepoolCreate-{node_pool_name}'
       create_commands.append(command)

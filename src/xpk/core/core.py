@@ -2090,6 +2090,12 @@ def get_volumes(args, system: SystemCharacteristics) -> str:
                   medium: Memory
                 name: dshm-2"""
 
+  if args.ramdisk_directory != '':
+    volumes += """
+              - name: cache
+                csi:
+                  driver: phase1-checkpoint.csi.storage.gke.io"""
+        
   if (
       system.accelerator_type == AcceleratorType['TPU']
       and args.deploy_stacktrace_sidecar
@@ -2112,6 +2118,11 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
   """
   volume_mount_yaml = """- mountPath: /dev/shm
                   name: dshm-2"""
+  
+  if args.ramdisk_directory != '':
+    volume_mount_yaml += f"""
+                - mountPath: /{args.ramdisk_directory}
+                  name: cache"""
 
   if args.use_pathways:
     volume_mount_yaml = """- mountPath: /tmp

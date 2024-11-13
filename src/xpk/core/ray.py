@@ -15,8 +15,9 @@ limitations under the License.
 """
 
 import re
-from ..utils import write_tmp_file, xpk_print, xpk_exit
-from .commands import run_command_with_updates_retry, run_command_for_value
+from ..utils.console import xpk_exit, xpk_print
+from ..utils.file import write_tmp_file
+from .commands import run_command_for_value, run_command_with_updates_retry
 
 
 ray_cluster_crd_yaml = """apiVersion: v1

@@ -31,7 +31,8 @@ keywords = []
 # pip dependencies installed with `pip install -e .`
 dependencies = [
   "cloud-accelerator-diagnostics",
-  "tabulate"
+  "tabulate",
+  "ruamel.yaml"
 ]
 
 [project.urls]

@@ -48,9 +48,9 @@ jobs:
       run: |
           pip install .
           xpk --help
-    - name: install pytest
+    - name: Install pytest
       run: pip install pytest
-    - name: run tests
+    - name: Run tests
       run: pytest src/xpk/
 
   cluster-create-and-delete:

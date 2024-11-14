@@ -85,7 +85,7 @@ jobs:
     - name: Run a batch job on the cluster
       run: python3 xpk.py batch --cluster $TPU_CLUSTER_NAME --zone=us-central2-b test.sh
     - name: List out the Slurm jobs on the cluster
-      run: python3 xpk.py job ls
+      run: python3 xpk.py job ls | grep 'xpk-def-app-profile-slurm-'
     - name: Delete the cluster created
       if: always()
       run: python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b

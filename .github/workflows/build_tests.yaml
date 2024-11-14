@@ -28,6 +28,7 @@ env:
 jobs:
   run-unit-tests:
     runs-on: [ubuntu-22.04]
+    needs: [cluster-create-and-delete]
     concurrency: # We support one build or nightly test to run at a time currently.
       group: build-test-cluster-group
       cancel-in-progress: false

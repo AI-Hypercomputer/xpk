@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 from .common import add_shared_arguments
-from ..commands.job import job_list
+from ..commands.job import job_list, job_cancel
 
 
 def set_job_parser(job_parser):
@@ -33,3 +33,28 @@ def set_job_parser(job_parser):
 
   add_shared_arguments(job_list_parser)
   job_list_parser.set_defaults(func=job_list)
+
+  ### "job cancel" command parser ###
+  job_cancel_parser = job_subcommands.add_parser(
+      'cancel', help='Cancel job execution.'
+  )
+
+  job_cancel_required_arguments = job_cancel_parser.add_argument_group(
+      'Required Arguments',
+      'Arguments required for job cancel.',
+  )
+  job_cancel_optional_arguments = job_cancel_parser.add_argument_group(
+      'Optional Arguments', 'Arguments optional for job cancel.'
+  )
+
+  ### Required arguments
+  job_cancel_required_arguments.add_argument(
+      '--name',
+      type=str,
+      default=None,
+      help='The name of the job to be cancelled.',
+      required=True,
+  )
+
+  add_shared_arguments(job_cancel_optional_arguments)
+  job_cancel_parser.set_defaults(func=job_cancel)

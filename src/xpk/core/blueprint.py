@@ -80,6 +80,8 @@ def create_a3_mega_blueprint(
     global_ip_address_range: str = "192.169.0.0/16",
     system_node_pool_machine_type: str = "e2-standard-32",
     num_chips: int = 32,
+    primary_vpc_name = "network1",
+    gpu_subnets_name = "gpunets"
 ) -> CtkBlueprint:
   """Create A3 mega blueprint and save it to file specified by filepath
 
@@ -88,8 +90,8 @@ def create_a3_mega_blueprint(
     - CtkBlueprint representing cluter toolkit blueprint
   """
 
-  network1 = CtkDeploymentModule(
-      id="network1",
+  primary_vpc = CtkDeploymentModule(
+      id=primary_vpc_name,
       source="modules/network/vpc",
       settings={
           "subnetwork_name": "xpk-gke-a3-megagpu-subnet",
@@ -105,7 +107,7 @@ def create_a3_mega_blueprint(
       },
   )
   gpunets = CtkDeploymentModule(
-      id="gpunets",
+      id=gpu_subnets_name,
       source="modules/network/multivpc",
       settings={
           "network_name_prefix": f"{deployment_name}-gpunet",
@@ -118,7 +120,7 @@ def create_a3_mega_blueprint(
   gke_cluster = CtkDeploymentModule(
       id="gke_cluster",
       source="modules/scheduler/gke-cluster",
-      use=["network1", "gpunets"],
+      use=[primary_vpc_name, gpu_subnets_name],
       settings={
           "master_authorized_networks": [{
               "cidr_block": (
@@ -152,7 +154,7 @@ def create_a3_mega_blueprint(
   a3_megagpu_pool_0 = CtkDeploymentModule(
       id="a3_megagpu_pool_0",
       source="modules/compute/gke-node-pool",
-      use=["gke_cluster", "gpunets", "group_placement_0"],
+      use=["gke_cluster", gpu_subnets_name, "group_placement_0"],
       settings={
           "name": "a3-megagpu-pool-0",
           "machine_type": "a3-megagpu-8g",
@@ -216,7 +218,7 @@ def create_a3_mega_blueprint(
   primary_group = CtkDeploymentGroup(
       group="primary",
       modules=[
-          network1,
+          primary_vpc,
           gpunets,
           gke_cluster,
           group_placement_0,

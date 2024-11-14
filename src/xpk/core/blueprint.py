@@ -69,7 +69,7 @@ def create_a3_mega_blueprint(
 
   Args:
   Returns:
-    - string represeting blueprint yaml
+    - CtkBlueprint representing cluter toolkit blueprint
   """
 
   network1 = CtkDeploymentModule(

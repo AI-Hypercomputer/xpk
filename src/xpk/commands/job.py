@@ -29,7 +29,7 @@ def job_list(args) -> None:
     args: user provided arguments for running the command.
 
   Returns:
-    0 if successful and 1 otherwise.
+    None
   """
   add_zone_and_project(args)
   xpk_print(f'For project {args.project} and zone {args.zone}:', flush=True)
@@ -47,4 +47,4 @@ def run_slurm_job_list_command(args) -> None:
   return_code = run_command_with_updates(cmd, 'list slurm jobs', args)
   if return_code != 0:
     xpk_print(f'Listing slurm jobs returned ERROR {return_code}')
-    xpk_exit(return_code)
+  xpk_exit(return_code)

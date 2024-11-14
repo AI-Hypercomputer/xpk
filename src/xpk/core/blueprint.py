@@ -169,7 +169,7 @@ def create_a3_mega_blueprint(
   a3_megagpu_pool_1 = CtkDeploymentModule(
       id="a3_megagpu_pool_1",
       source="modules/compute/gke-node-pool",
-      use=["gke_cluster", "gpunets", "group_placement_1"],
+      use=["gke_cluster", gpu_subnets_name, "group_placement_1"],
       settings={
           "name": "a3-megagpu-pool-1",
           "machine_type": "a3-megagpu-8g",

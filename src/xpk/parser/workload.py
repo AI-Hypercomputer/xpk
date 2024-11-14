@@ -558,6 +558,15 @@ def add_shared_workload_create_optional_arguments(args_parsers):
             ' deprecated soon).'
         ),
     )
+    custom_parser.add_argument(
+        '--ramdisk-directory',
+        type=str,
+        default='',
+        help=(
+            'The directory of the locally mounted RAM disk. This is only to'
+            ' be used with the CSI driver provided by GKE.'
+        ),
+    )
 
 
 def add_shared_workload_create_env_arguments(args_parsers):

@@ -7,8 +7,15 @@ OS := $(shell dpkg --print-architecture)
 ifeq ($(OS),amd64)
 	KUBECTL_URL = "https://dl.k8s.io/release/$(KUBECTL_VERSION)/bin/linux/amd64/kubectl"
 endif
-ifeq ($(OS),arm)
+ifeq ($(OS),arm64)
 	KUBECTL_URL = "https://dl.k8s.io/release/$(KUBECTL_VERSION)/bin/linux/arm64/kubectl"
+endif	
+
+ifeq ($(OS),amd64)
+	KUEUECTL_URL = "https://github.com/kubernetes-sigs/kueue/releases/download/v0.9.0/kubectl-kueue-linux-amd64"
+endif
+ifeq ($(OS),arm64)
+	KUEUECTL_URL = "https://github.com/kubernetes-sigs/kueue/releases/download/v0.9.0/kubectl-kueue-linux-arm64"
 endif	
 
 PROJECT_DIR := $(realpath $(shell dirname $(firstword $(MAKEFILE_LIST))))
@@ -29,18 +36,17 @@ install-kjob: install-kubectl
 	rm -rf $(KUEUE_TMP_PATH)
 
 mkdir-bin:
-	test -d $(BIN_PATH) || mkdir $(BIN_PATH)
+	mkdir -p $(BIN_PATH)
 
-install-kubectl:
+install-kubectl mkdir-bin:
 	curl -LO $(KUBECTL_URL)
 	chmod +x kubectl
 	mv ./kubectl $(BIN_PATH)/kubectl
 
 install-kueuectl: install-kubectl
-	git clone $(KUEUE_REPO) $(KUEUE_TMP_PATH)
-	make -C $(KUEUE_TMP_PATH) kueuectl
-	mv $(KUEUE_TMP_PATH)/bin/kubectl-kueue $(BIN_PATH)/kubectl-kueue
-	rm -rf $(KUEUE_TMP_PATH)
+	curl -Lo ./kubectl-kueue $(KUEUECTL_URL)
+	chmod +x ./kubectl-kueue
+	mv ./kubectl-kueue $(BIN_PATH)/kubectl-kueue
 
 check-gcloud:
 	gcloud version || (echo "gcloud not installed, use this link to install: https://cloud.google.com/sdk/docs/install" && exit 1)

@@ -604,6 +604,24 @@ when creating the workload otherwise the workload will always finish with `Compl
     `125`: Workload finished but did not complete successfully.
     `1`: Other failure.
 
+## Job List
+
+*   Job List (see Slurm jobs):
+
+    ```shell
+    python3 xpk.py job ls 
+    ```
+
+* Example Job List Output:
+
+  ```
+    NAME                              PROFILE               LOCAL QUEUE   COMPLETIONS   DURATION   AGE
+    xpk-def-app-profile-slurm-74kbv   xpk-def-app-profile                 1/1           15s        17h
+    xpk-def-app-profile-slurm-brcsg   xpk-def-app-profile                 1/1           9s         3h56m
+    xpk-def-app-profile-slurm-kw99l   xpk-def-app-profile                 1/1           5s         3h54m
+    xpk-def-app-profile-slurm-x99nx   xpk-def-app-profile                 3/3           29s        17h
+  ```
+
 ## Inspector
 * Inspector provides debug info to understand cluster health, and why workloads are not running.
 Inspector output is saved to a file.

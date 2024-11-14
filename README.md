@@ -606,7 +606,7 @@ when creating the workload otherwise the workload will always finish with `Compl
 
 ## Job List
 
-*   Job List (see Slurm jobs):
+*   Job List (see jobs submitted via batch command):
 
     ```shell
     python3 xpk.py job ls 

@@ -29,7 +29,7 @@ def set_job_parser(job_parser):
   )
 
   ### "job ls" command parser ###
-  job_list_parser = job_subcommands.add_parser('ls', help='List Slurm jobs.')
+  job_list_parser = job_subcommands.add_parser('ls', help='List jobs.')
 
   add_shared_arguments(job_list_parser)
   job_list_parser.set_defaults(func=job_list)

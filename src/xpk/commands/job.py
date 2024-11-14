@@ -46,5 +46,5 @@ def run_slurm_job_list_command(args) -> None:
 
   return_code = run_command_with_updates(cmd, 'list slurm jobs', args)
   if return_code != 0:
-    xpk_print(f'Listing slurm jobs returned ERROR {return_code}')
+    xpk_print(f'Listing jobs returned ERROR {return_code}')
   xpk_exit(return_code)

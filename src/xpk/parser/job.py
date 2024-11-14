@@ -25,13 +25,14 @@ def set_job_parser(job_parser: argparse.ArgumentParser):
       dest='xpk_job_subcommands',
       help='`info` about single specified job.',
   )
-  set_job_info_parser(job_subcommands)
-
-
-def set_job_info_parser(job_subcommands: argparse.ArgumentParser):
-  job_info_parser = job_subcommands.add_parser(
-      'info', help='Show information about specified job.'
+  set_job_info_parser(
+      job_info_parser=job_subcommands.add_parser(
+          'info', help='Show information about specified job.'
+      )
   )
+
+
+def set_job_info_parser(job_info_parser: argparse.ArgumentParser):
   job_info_parser_required_arguments = job_info_parser.add_argument_group(
       'Required arguments',
       'The basic information required to identify the job.',

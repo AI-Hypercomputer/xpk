@@ -27,7 +27,7 @@ install-kjob: install-kubectl
 mkdir-bin:
 	mkdir -p $(BIN_PATH)
 
-install-kubectl mkdir-bin:
+install-kubectl: mkdir-bin
 	curl -LO $(KUBECTL_URL)
 	chmod +x kubectl
 	mv ./kubectl $(BIN_PATH)/kubectl

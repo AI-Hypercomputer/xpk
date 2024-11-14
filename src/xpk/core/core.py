@@ -1312,7 +1312,7 @@ def run_gke_node_pool_create_command(
         )
     elif system.accelerator_type == AcceleratorType['CPU']:
       command += f' --num-nodes={system.vms_per_slice}'
-      command += ' --scopes=storage-full,gke-default'
+      command += f' --scopes=storage-full,gke-default,{CLOUD_PLATFORM_AUTH_SCOPE_URL}'
 
     task = f'NodepoolCreate-{node_pool_name}'
     create_commands.append(command)

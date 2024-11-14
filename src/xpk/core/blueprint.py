@@ -18,7 +18,6 @@ from dataclasses import dataclass
 from typing import Any, Optional
 import ruamel.yaml
 
-
 yaml = ruamel.yaml.YAML()
 
 

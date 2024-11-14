@@ -33,7 +33,7 @@ def job_list(args) -> None:
   """
   add_zone_and_project(args)
   xpk_print(f'For project {args.project} and zone {args.zone}:', flush=True)
-  print(f'args: {args.namespace}')
+
   if run_slurm_job_list_command(args):
     xpk_exit(1)
   xpk_exit(0)
@@ -43,9 +43,6 @@ def run_slurm_job_list_command(args) -> None:
   cmd = (
       f'kubectl-kjob list slurm  --profile {APP_PROFILE_TEMPLATE_DEFAULT_NAME}'
   )
-
-  if args.namespace != 'default':
-    cmd += f' --namespace {args.namespace}'
 
   return_code = run_command_with_updates(cmd, 'list slurm jobs', args)
   if return_code != 0:

@@ -31,17 +31,5 @@ def set_job_parser(job_parser):
   ### "job ls" command parser ###
   job_list_parser = job_subcommands.add_parser('ls', help='List Slurm jobs.')
 
-  job_list_optional_arguments = job_list_parser.add_argument_group(
-      'Optional Arguments', 'Arguments optional for job list.'
-  )
-
-  job_list_optional_arguments.add_argument(
-      '--namespace',
-      type=str,
-      default='default',
-      help='Namespace to which command applies.',
-      required=False,
-  )
-
   add_shared_arguments(job_list_parser)
   job_list_parser.set_defaults(func=job_list)

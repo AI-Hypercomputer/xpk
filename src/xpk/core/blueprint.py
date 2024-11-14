@@ -80,8 +80,8 @@ def create_a3_mega_blueprint(
     global_ip_address_range: str = "192.169.0.0/16",
     system_node_pool_machine_type: str = "e2-standard-32",
     num_chips: int = 32,
-    primary_vpc_name = "network1",
-    gpu_subnets_name = "gpunets"
+    primary_vpc_name: str = "network1",
+    gpu_subnets_name: str = "gpunets",
 ) -> CtkBlueprint:
   """Create A3 mega blueprint and save it to file specified by filepath
 

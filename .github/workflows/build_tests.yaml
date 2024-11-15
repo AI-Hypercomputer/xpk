@@ -82,6 +82,10 @@ jobs:
       run: python3 xpk.py workload delete --workload $WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
     - name: Delete the Pathways workload on the cluster
       run: python3 xpk.py workload delete --workload $PATHWAYS_WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+    - name: Run a batch job on the cluster
+      run: python3 xpk.py batch --cluster $TPU_CLUSTER_NAME --zone=us-central2-b test.sh
+    - name: List out the jobs on the cluster
+      run: python3 xpk.py job ls | grep 'xpk-def-app-profile-slurm-'
     - name: Delete the cluster created
       if: always()
       run: python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b

@@ -16,7 +16,7 @@ name: Build Tests
 
 on:
   push:
-    branches: ["concurrent-workflows-for-different-prs"]
+    branches: ["main"]
   pull_request: # By default this runs for types assigned, opened and synchronize.
 
 env:
@@ -30,13 +30,13 @@ env:
 jobs:
   cluster-create-and-delete:
     runs-on: [ubuntu-22.04]
-    concurrency: # We support one build or nightly test to run at a time currently.
+    concurrency: # We support one nightly test and one build test for each branch to run at a time currently.
       group: build-test-cluster-group-${{ github.ref }}
-      cancel-in-progress: true
+      cancel-in-progress: false
     steps:
-    - name: Change RUN_ID env var if merge to concurrent-workflows-for-different-prs
-      run: echo "RUN_ID=tmp-change" >> $GITHUB_ENV
-      if: ${{ github.ref == 'refs/heads/concurrent-workflows-for-different-prs' }}
+    - name: Change RUN_ID env var if merge to main
+      run: echo "RUN_ID=main" >> $GITHUB_ENV
+      if: ${{ github.ref == 'refs/heads/main' }}
     - name: Update cluster name with RUN_ID
       run: echo "TPU_CLUSTER_NAME=$TPU_CLUSTER_NAME-$RUN_ID" >> $GITHUB_ENV
     - uses: actions/checkout@v4

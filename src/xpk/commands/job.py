@@ -16,8 +16,9 @@ limitations under the License.
 
 from ..core.commands import run_command_for_value
 from ..utils.console import xpk_exit, xpk_print
-import yaml
+from ruamel.yaml import YAML
 import re
+import sys
 
 
 def job_info(args):
@@ -58,7 +59,8 @@ def job_info(args):
     xpk_print(f'Pods list request returned ERROR {pods_code}')
     xpk_exit(pods_code)
 
-  job_yaml = yaml.safe_load(job_text)['items'][0]
+  yaml = YAML(typ='safe')
+  job_yaml = yaml.load(job_text)['items'][0]
 
   output = {
       'Job name': job_name,
@@ -71,10 +73,9 @@ def job_info(args):
       'Pods': get_pods(pods_text),
   }
 
-  formatted_output = yaml.dump(
-      output, default_flow_style=False, sort_keys=False
-  )
-  xpk_print(formatted_output.strip())
+  yaml.default_flow_style = False
+  yaml.sort_keys = False
+  yaml.dump(output, sys.stdout)
 
   xpk_exit(0)
 

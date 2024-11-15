@@ -28,6 +28,7 @@ on:
 
 env:
   PR_NUMBER: ${{ github.event.number }}
+  GIT_REF: ${{ github.ref }}
 
 jobs:
   build-and-test:
@@ -44,7 +45,7 @@ jobs:
     - name: Check PR number
       run: echo $PR_NUMBER
     - name: Check ref
-      run: echo github.ref
+      run: echo $GIT_REF
     - name: Test
       run: echo $GITHUB_SHA_SHORT
     - uses: actions/checkout@v3

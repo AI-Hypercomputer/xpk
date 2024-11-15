@@ -34,9 +34,9 @@ jobs:
       group: build-test-cluster-group-${{ github.ref }}
       cancel-in-progress: true
     steps:
-    - name: Change RUN_ID env var if merge to main
-      run: echo "RUN_ID=main" >> $GITHUB_ENV
-      if: ${{ github.ref == 'refs/heads/main' }}
+    - name: Change RUN_ID env var if merge to concurrent-workflows-for-different-prs
+      run: echo "RUN_ID=tmp-change" >> $GITHUB_ENV
+      if: ${{ github.ref == 'refs/heads/concurrent-workflows-for-different-prs' }}
     - name: Update cluster name with RUN_ID
       run: echo "TPU_CLUSTER_NAME=$TPU_CLUSTER_NAME-$RUN_ID" >> $GITHUB_ENV
     - uses: actions/checkout@v4

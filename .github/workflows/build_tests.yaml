@@ -25,7 +25,7 @@ env:
   WORKLOAD_NAME: xpktest-build-${{ github.run_attempt }}
   PATHWAYS_WORKLOAD_NAME: xpkpw-build-${{ github.run_attempt }}
   CLUSTER_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}}"
-  RUN_ID: ${{ github.event.number }}
+  RUN_ID: "pr-${{ github.event.number }}"
 
 jobs:
   cluster-create-and-delete:

@@ -70,7 +70,8 @@ def job_cancel(args) -> None:
 
 
 def run_slurm_job_delete_command(args) -> int:
-  cmd = f'kubectl-kjob delete slurm {args.name}'
+  list_of_jobs = ' '.join(args.name)
+  cmd = f'kubectl-kjob delete slurm {list_of_jobs}'
 
   return_code = run_command_with_updates(cmd, 'delete slurm job', args)
   if return_code != 0:

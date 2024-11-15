@@ -89,7 +89,7 @@ jobs:
     - name: Cancel the batch job on the cluster
       run: |
         job_name=$(python3 xpk.py job ls | grep 'xpk-def-app-profile-slurm-' | head -1 | awk '{print $1}')
-        python3 xpk.py job cancel --name ${job_name} | grep "job.batch/${job_name} deleted"
+        python3 xpk.py job cancel ${job_name} | grep "job.batch/${job_name} deleted"
     - name: Delete the cluster created
       if: always()
       run: python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b

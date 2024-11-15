@@ -49,11 +49,11 @@ def set_job_parser(job_parser):
 
   ### Required arguments
   job_cancel_required_arguments.add_argument(
-      '--name',
+      'name',
       type=str,
       default=None,
       help='The name of the job to be cancelled.',
-      required=True,
+      nargs='+',
   )
 
   add_shared_arguments(job_cancel_optional_arguments)

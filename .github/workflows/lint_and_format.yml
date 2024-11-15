@@ -41,23 +41,9 @@ jobs:
       run: echo $PR_NUMBER
     - name: Set env
       run: echo "PR_NUMBER=main" >> $GITHUB_ENV
-      if: github.ref == 'refs/heads/main'
+      if: ${{ github.ref == 'refs/heads/main' }}
     - name: Check PR number
       run: echo $PR_NUMBER
-    - name: Check ref
-      run: echo $GIT_REF
-    - name: Extract branch name
-      shell: bash
-      run: echo "BRANCH=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> $GITHUB_ENV
-      id: extract_branch
-    - name: Check branch name
-      run: echo $BRANCH
-    - name: Check event name
-      run: echo ${{ github.event_name }}
-    - name: Check action type
-      run: echo ${{ github.event.action }}
-    - name: Test
-      run: echo $GITHUB_SHA_SHORT
     - uses: actions/checkout@v3
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v3

@@ -32,7 +32,10 @@ def job_list(args) -> None:
     None
   """
   add_zone_and_project(args)
-  xpk_print(f'For project {args.project} and zone {args.zone}:', flush=True)
+  xpk_print(
+      f'Listing jobs for project {args.project} and zone {args.zone}:',
+      flush=True,
+  )
 
   if run_slurm_job_list_command(args):
     xpk_exit(1)

@@ -77,8 +77,6 @@ def job_info(args):
   yaml.sort_keys = False
   yaml.dump(output, sys.stdout)
 
-  xpk_exit(0)
-
 
 def get_profile(job_yaml: dict) -> str:
   env_vars = job_yaml['spec']['template']['spec']['containers'][0]['env']

@@ -42,10 +42,12 @@ jobs:
     - name: Set RUN_ID
       run: echo "RUN_ID=main" >> $GITHUB_ENV
       if: ${{ github.ref == 'refs/heads/main' }}
-    - name: Set env
-      run: echo "SOME_VAR=$(SOME_VAR)-$(rUN_ID)" >> $GITHUB_ENV
     - name: Check RUN_ID
       run: echo $RUN_ID
+    - name: Check SOME_VAR
+      run: echo $SOME_VAR
+    - name: Set env
+      run: echo "SOME_VAR=$SOME_VAR-$RUN_ID" >> $GITHUB_ENV
     - name: Check SOME_VAR
       run: echo $SOME_VAR
     - uses: actions/checkout@v3

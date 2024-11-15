@@ -91,7 +91,9 @@ jobs:
     - name: Run a batch job on the cluster
       run: python3 xpk.py batch --cluster $TPU_CLUSTER_NAME --zone=us-central2-b test.sh
     - name: Get job info for the last job created on the cluster
-      run: python3 xpk.py job info $(kubectl get jobs --sort-by=.metadata.creationTimestamp -o jsonpath="{.items[-1:].metadata.name}") | grep "Exiting XPK cleanly"
+      run: |
+        export MOST_RECENT_JOB_NAME=$(kubectl get jobs --sort-by=.metadata.creationTimestamp -o jsonpath="{.items[-1:].metadata.name}") 
+        python3 xpk.py job info $MOST_RECENT_JOB_NAME | grep "Exiting XPK cleanly"
     - name: Delete the cluster created
       if: always()
       run: python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b

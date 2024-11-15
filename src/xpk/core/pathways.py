@@ -14,8 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import logging
-
 from ..utils.console import xpk_exit, xpk_print
 from .core import (
     AcceleratorType,

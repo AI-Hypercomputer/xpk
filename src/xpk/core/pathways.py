@@ -14,6 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import logging
+
 from ..utils.console import xpk_exit, xpk_print
 from .core import (
     AcceleratorType,
@@ -60,6 +62,8 @@ def get_pathways_proxy_args(args) -> str:
   yaml = """- --server_port=29000
               - --resource_manager_address={rm_address}
               - --gcs_scratch_location={args.pathways_gcs_location}"""
+  if args.additional_pw_proxy_args:
+    yaml += args.additional_pw_proxy_args.replace(' ', '\n' + ' '*14 +'- ')
 
   if args.use_pathways:
     return yaml.format(args=args, rm_address=get_rm_address(args))

@@ -244,6 +244,16 @@ def set_workload_parsers(workload_parser):
       required=False,
   )
 
+  workload_pathways_workload_arguments.add_argument(
+      '--additional_pw_proxy_args',
+      type=str,
+      default='',
+      help=(
+          'Additional arguments to pass to the proxy server.'
+      ),
+      required=False,
+  )
+
   add_shared_workload_create_required_arguments([
       workload_create_parser_required_arguments,
       workload_create_pathways_parser_required_arguments,

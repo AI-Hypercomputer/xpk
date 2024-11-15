@@ -25,7 +25,6 @@ env:
   WORKLOAD_NAME: xpktest-build-${{ github.run_attempt }}
   PATHWAYS_WORKLOAD_NAME: xpkpw-build-${{ github.run_attempt }}
   CLUSTER_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}}"
-  PR_NUMBER: ${{ github.event.number }}
 
 jobs:
   cluster-create-and-delete:
@@ -45,8 +44,6 @@ jobs:
       with:
         version: '>= 363.0.0'
         install_components: 'beta,gke-gcloud-auth-plugin'
-    - name: Check PR number
-      run: echo $PR_NUMBER
     - name: Verify gcp setup
       run: gcloud info
     - name: Set Google Cloud CLI properties to a unused zone to verify --zone arg is passed properly in commands.

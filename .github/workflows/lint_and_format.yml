@@ -38,6 +38,12 @@ jobs:
     steps:
     - name: Check PR number
       run: echo $PR_NUMBER
+    - name: Set env
+      run: echo "PR_NUMBER=main" >> $GITHUB_ENV
+    - name: Check PR number
+      run: echo $PR_NUMBER
+    - name: Test
+      run: echo $GITHUB_SHA_SHORT
     - uses: actions/checkout@v3
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v3

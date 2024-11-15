@@ -74,11 +74,12 @@ xpk uses many tool to provide all neccessary functionalities. User must install 
 - kjob (installation instructions [here](https://github.com/kubernetes-sigs/kueue/blob/main/cmd/experimental/kjobctl/docs/installation.md))
 
 # Installation
-To install xpk, run the following command:
+To install xpk, run the following command and install additional tools, mentioned in [prerequisites](#prerequisites). [Makefile](https://github.com/AI-Hypercomputer/xpk/blob/main/Makefile) provides a way to install all neccessary tools:
 
 ```shell
 pip install xpk
 ```
+
 
 If you are running XPK by cloning GitHub repository, first run the
 following commands to begin using XPK commands:
@@ -86,9 +87,12 @@ following commands to begin using XPK commands:
 ```shell
 git clone https://github.com/google/xpk.git
 cd xpk
-# Install dependencies such as cloud-accelerator-diagnostics
-pip install .
+# Install required dependencies with make
+make install && export PATH=$PATH:$PWD/bin
 ```
+
+If you want to have installed dependecies persist in your PATH please run:
+`echo $PWD/bin` and add its value to `PATH` in .bashrc  or .zshrc
 
 If you see an error saying: `This environment is externally managed`, please use a virtual environment.
 
@@ -103,8 +107,8 @@ Example:
   ## Clone the repository and installing dependencies.
   git clone https://github.com/google/xpk.git
   cd xpk
-  # Install dependencies such as cloud-accelerator-diagnostics
-  pip install .
+  # Install required dependencies with make
+  make install && export PATH=$PATH:$PWD/bin
 ```
 
 # XPK for Large Scale (>1k VMs)

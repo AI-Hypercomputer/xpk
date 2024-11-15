@@ -16,7 +16,7 @@ name: Build Tests
 
 on:
   push:
-    branches: ["main"]
+    branches: ["concurrent-workflows-for-different-prs"]
   pull_request: # By default this runs for types assigned, opened and synchronize.
 
 env:

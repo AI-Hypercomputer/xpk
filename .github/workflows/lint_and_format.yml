@@ -27,8 +27,8 @@ on:
       - main
 
 env:
-  PR_NUMBER: ${{ github.event.number }}
-  GIT_REF: ${{ github.ref }}
+  RUN_ID: ${{ github.event.number }}
+  SOME_VAR: abcdef
 
 jobs:
   build-and-test:
@@ -37,13 +37,17 @@ jobs:
       matrix:
         python-version: ["3.10", "3.11"]
     steps:
-    - name: Check PR number
-      run: echo $PR_NUMBER
-    - name: Set env
-      run: echo "PR_NUMBER=main" >> $GITHUB_ENV
+    - name: Check RUN_ID
+      run: echo $RUN_ID
+    - name: Set RUN_ID
+      run: echo "RUN_ID=main" >> $GITHUB_ENV
       if: ${{ github.ref == 'refs/heads/main' }}
-    - name: Check PR number
-      run: echo $PR_NUMBER
+    - name: Set env
+      run: echo "SOME_VAR=$(SOME_VAR)-$(rUN_ID)" >> $GITHUB_ENV
+    - name: Check RUN_ID
+      run: echo $RUN_ID
+    - name: Check SOME_VAR
+      run: echo $SOME_VAR
     - uses: actions/checkout@v3
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v3

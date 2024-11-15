@@ -52,6 +52,10 @@ jobs:
       id: extract_branch
     - name: Check branch name
       run: echo $BRANCH
+    - name: Check event name
+      run: echo ${{ github.event_name }}
+    - name: Check action type
+      run: echo ${{ github.event.action }}
     - name: Test
       run: echo $GITHUB_SHA_SHORT
     - uses: actions/checkout@v3

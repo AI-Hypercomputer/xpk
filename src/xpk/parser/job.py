@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 import argparse
-from ..commands.job import job_info
+from ..commands.job import job_info, job_list
 from .common import add_shared_arguments
 
 
@@ -23,12 +23,18 @@ def set_job_parser(job_parser: argparse.ArgumentParser):
   job_subcommands = job_parser.add_subparsers(
       title='job subcommands',
       dest='xpk_job_subcommands',
-      help='`info` about single specified job.',
+      help=(
+          'These are commands related to job management. Look at help for'
+          ' specific subcommands for more details.'
+      ),
   )
   set_job_info_parser(
       job_info_parser=job_subcommands.add_parser(
           'info', help='Show information about specified job.'
       )
+  )
+  set_job_list_parser(
+      job_list_parser=job_subcommands.add_parser('ls', help='List jobs.')
   )
 
 
@@ -45,3 +51,8 @@ def set_job_info_parser(job_info_parser: argparse.ArgumentParser):
   )
   job_info_parser.set_defaults(func=job_info)
   add_shared_arguments(job_info_parser)
+
+
+def set_job_list_parser(job_list_parser: argparse.ArgumentParser):
+  job_list_parser.set_defaults(func=job_list)
+  add_shared_arguments(job_list_parser)

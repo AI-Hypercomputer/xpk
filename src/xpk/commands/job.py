@@ -14,8 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..core.commands import run_command_for_value
+from ..core.commands import run_command_for_value, run_command_with_updates
 from ..utils.console import xpk_exit, xpk_print
+from ..core.app_profile import APP_PROFILE_TEMPLATE_DEFAULT_NAME
+from ..core.core import add_zone_and_project
 from ruamel.yaml import YAML
 import re
 import sys
@@ -93,3 +95,34 @@ def get_ev_vars(job_desc_text: str) -> list[tuple[str, str]]:
 def get_pods(pods_text: str) -> list[str]:
   pods_lines = pods_text.strip().split('\n')
   return [line.split()[0] for line in pods_lines]
+
+
+def job_list(args) -> None:
+  """Function around job list.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    None
+  """
+  add_zone_and_project(args)
+  xpk_print(
+      f'Listing jobs for project {args.project} and zone {args.zone}:',
+      flush=True,
+  )
+
+  if run_slurm_job_list_command(args):
+    xpk_exit(1)
+  xpk_exit(0)
+
+
+def run_slurm_job_list_command(args) -> None:
+  cmd = (
+      f'kubectl-kjob list slurm  --profile {APP_PROFILE_TEMPLATE_DEFAULT_NAME}'
+  )
+
+  return_code = run_command_with_updates(cmd, 'list slurm jobs', args)
+  if return_code != 0:
+    xpk_print(f'Listing jobs returned ERROR {return_code}')
+  xpk_exit(return_code)

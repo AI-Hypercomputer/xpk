@@ -15,8 +15,8 @@ limitations under the License.
 """
 
 import docker
-from ..utils.console import xpk_exit, xpk_print
-from docker.errors import APIError, ImageNotFound
+from ..utils.console import  xpk_print
+from docker.errors import ImageNotFound
 
 ctk_dockerfile_path = "Dockerfile"
 ctk_docker_image = "xpk-ctk"

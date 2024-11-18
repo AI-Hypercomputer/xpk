@@ -25,6 +25,8 @@ env:
   WORKLOAD_NAME: xpktest-build-${{ github.run_attempt }}
   PATHWAYS_WORKLOAD_NAME: xpkpw-build-${{ github.run_attempt }}
   CLUSTER_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}}"
+  RUN_ID: "pr-${{ github.event.number }}"
+
 jobs:
   run-unit-tests:
     runs-on: [ubuntu-22.04]
@@ -56,10 +58,15 @@ jobs:
   cluster-create-and-delete:
     runs-on: [ubuntu-22.04]
     needs: [run-unit-tests]
-    concurrency: # We support one build or nightly test to run at a time currently.
-      group: build-test-cluster-group
+    concurrency: # We support one nightly test and one build test for each branch to run at a time currently.
+      group: build-test-cluster-group-${{ github.ref }}
       cancel-in-progress: false
     steps:
+    - name: Change RUN_ID env var if merge to main
+      run: echo "RUN_ID=main" >> $GITHUB_ENV
+      if: ${{ github.ref == 'refs/heads/main' }}
+    - name: Update cluster name with RUN_ID
+      run: echo "TPU_CLUSTER_NAME=$TPU_CLUSTER_NAME-$RUN_ID" >> $GITHUB_ENV
     - uses: actions/checkout@v4
     - uses: actions/setup-python@v5
       with:

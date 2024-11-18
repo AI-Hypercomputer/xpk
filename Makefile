@@ -18,6 +18,9 @@ install: check-python check-gcloud mkdir-bin install-kubectl install-kueuectl in
 pip-install:
 	pip install .
 
+install-pytest:
+	pip install -U pytest
+
 install-kjob: install-kubectl
 	git clone $(KUEUE_REPO) $(KUEUE_TMP_PATH)
 	make -C $(KUEUE_TMP_PATH)/cmd/experimental/kjobctl kubectl-kjob

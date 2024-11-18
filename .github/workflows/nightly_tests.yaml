@@ -90,6 +90,7 @@ jobs:
     - name: Delete the workload on the cluster
       run: python3 xpk.py workload delete --workload $WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
     - name: Debug
+      if: always()
       run: cat /tmp/NodepoolCreate-nightly-xpk-private-2-v4-8-nodepools-np-*
     - name: Delete the cluster created
       if: always()

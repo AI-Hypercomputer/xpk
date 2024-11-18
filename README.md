@@ -622,6 +622,14 @@ when creating the workload otherwise the workload will always finish with `Compl
     xpk-def-app-profile-slurm-x99nx   xpk-def-app-profile                 3/3           29s        17h
   ```
 
+## Job Cancel
+
+*   Job Cancel (delete job submitted via batch command):
+
+    ```shell
+    python3 xpk.py job cancel xpk-def-app-profile-slurm-74kbv
+    ```
+
 ## Inspector
 * Inspector provides debug info to understand cluster health, and why workloads are not running.
 Inspector output is saved to a file.

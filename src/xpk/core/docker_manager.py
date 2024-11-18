@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 import docker
-from ..utils.console import  xpk_print
+from ..utils.console import xpk_print
 from docker.errors import ImageNotFound
 
 ctk_dockerfile_path = "Dockerfile"
@@ -84,13 +84,17 @@ class CtkDockerManager:
       - docker.errors.ImageNotFound,
       - docker.errors.APIError
     """
-    self.client.containers.run(
+    self.client.containers.create(
         self._img_name,
         volumes={
             gcloud_cfg_mount_path: {"bind": self.gcloud_cfg_path},
             deployment_dir_mount_path: {"bind": self.deployment_dir},
         },
+        detach=True,
     )
+
+  def execute_command(self, cmd, args):
+    pass
 
   def upload_file(self, file: str):
     pass

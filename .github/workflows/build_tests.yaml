@@ -39,7 +39,7 @@ jobs:
       with:
         python-version: '3.10'
     - name: Install dependencies
-      run : make install
+      run : make install-dev
     - name: Run tests
       run: pytest src/xpk/
 

@@ -13,6 +13,4 @@ limitations under the License.
 
 from ..docker_manager import CtkDockerManager
 
-dm = CtkDockerManager(
-    dockerfile_path='foo', gcloud_cfg_path='bar', deployment_dir='foo1'
-)
+dm = CtkDockerManager(dockerfile_path='foo', gcloud_cfg_path='bar', deployment_dir='foo1')

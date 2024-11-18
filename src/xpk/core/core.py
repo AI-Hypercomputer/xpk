@@ -209,7 +209,7 @@ def parse_env_config(args, tensorboard_config, system: SystemCharacteristics):
     tensorboard_config: configuration of Vertex Tensorboard.
     system: system characteristics.
   """
-  env = {'JOBSET_NAME': args.workload}
+  env = {}
 
   env_pat = re.compile(r'(^[a-zA-Z_][a-zA-Z0-9_]*?)(?:=(.*))?$', re.M)
   if args.env_file:

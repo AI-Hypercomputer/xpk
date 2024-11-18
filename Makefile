@@ -23,6 +23,9 @@ pip-install:
 install-pytest:
 	pip install -U pytest
 
+run-unittests:
+	pytest src/xpk/
+
 install-kjob: install-kubectl
 	git clone $(KUEUE_REPO) $(KUEUE_TMP_PATH)
 	make -C $(KUEUE_TMP_PATH)/cmd/experimental/kjobctl kubectl-kjob

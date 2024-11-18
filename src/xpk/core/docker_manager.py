@@ -22,6 +22,7 @@ ctk_dockerfile_path = "Dockerfile"
 ctk_docker_image = "xpk-ctk"
 gcloud_cfg_mount_path = "/gcloud_cfg"
 deployment_dir_mount_path = "/deployment"
+xpk_ctk_img_name = "gcluster-xpk"
 
 
 class CtkDockerManager:
@@ -38,7 +39,6 @@ class CtkDockerManager:
   ) -> None:
     self.dockerfile = dockerfile_path
     self.client = docker.from_env()
-    self._img_name = ctk_dockerfile_path
     self._is_docker_installed()
     self.gcloud_cfg_path = gcloud_cfg_path
     self.deployment_dir = deployment_dir
@@ -46,15 +46,17 @@ class CtkDockerManager:
   def _is_docker_installed(self) -> None:
     self.client.info()
 
-  def _image_exists(self) -> bool:
+  def _image_exists(self, img_name: str) -> bool:
     try:
-      self.client.images.get(self._img_name)
+      self.client.images.get(img_name)
     except ImageNotFound as _:
-      xpk_print(f"Image {self._img_name} not found")
+      xpk_print(f"Image {img_name} not found")
       return False
     return True
 
-  def build_image(self):
+  def build_image(
+      self, img_name: str = xpk_ctk_img_name, nocache: bool = False
+  ):
     """Build image from dockerfile pointed by _img_name. This method
     uses python docker client to build cloud toolkit execution image.
     Arguments:
@@ -66,13 +68,21 @@ class CtkDockerManager:
       - TypeError - otherwise
 
     """
-    if self._image_exists():
+    dir_path = "/".join(self.dockerfile.split("/")[:-1])
+
+    if nocache is False and self._image_exists(img_name):
       return
     self.client.images.build(
-        dockerfile=self.dockerfile, tag=f"{self._img_name}:latest"
+        nocache=nocache, path=dir_path, tag=f"{img_name}:latest", rm=True
     )
 
-  def run_container(self):
+  def run_command(
+      self,
+      img_name: str,
+      cmd: str,
+      rm_container_after: bool = True,
+      container_name: str = "xpk-gcluster",
+  ) -> bytes:
     """Run container from _img_name and mount directories:
         - gcloud config
         - deployment directory
@@ -84,17 +94,19 @@ class CtkDockerManager:
       - docker.errors.ImageNotFound,
       - docker.errors.APIError
     """
-    self.client.containers.create(
-        self._img_name,
-        volumes={
-            gcloud_cfg_mount_path: {"bind": self.gcloud_cfg_path},
-            deployment_dir_mount_path: {"bind": self.deployment_dir},
-        },
-        detach=True,
+    output = self.client.containers.run(
+        image=img_name,
+        command=cmd,
+        remove=rm_container_after,
+        name=container_name,
+        stdout=True,
+        stderr=True,
+        volumes=[
+            "{self.gcloud_cfg_path}:/.config/gcloud",
+            "{self.deployment_dir}:/deployment",
+        ],
     )
-
-  def execute_command(self, cmd, args):
-    pass
+    return output
 
   def upload_file(self, file: str):
     pass

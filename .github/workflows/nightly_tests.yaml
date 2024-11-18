@@ -65,7 +65,7 @@ jobs:
       run: python xpk.py cluster delete --cluster $EMPTY_CLUSTER_NAME --zone=us-central2-b
       if: always()
     - name: Create a Private XPK Cluster with zero node pools
-      run: python xpk.py cluster create --cluster $PRIVATE_CLUSTER_NAME --private --tpu-type=v4-8  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments='${{ secrets.CLUSTER_ARGUMENTS }}'
+      run: python xpk.py cluster create --cluster $PRIVATE_CLUSTER_NAME --private --tpu-type=v4-8  --num-slices=0 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments='${{ secrets.CLUSTER_ARGUMENTS }}'
     - name: Verify the created cluster is private
       run: gcloud container clusters describe $PRIVATE_CLUSTER_NAME --region=us-central2 --format="value(privateClusterConfig.enablePrivateNodes)" | grep 'True' || (echo 'The created cluster is not private.' && exit 1)
     - name: Delete the cluster created

@@ -627,8 +627,7 @@ when creating the workload otherwise the workload will always finish with `Compl
 *   Job Cancel (delete job submitted via batch command):
 
     ```shell
-    python3 xpk.py job cancel \
-      --name xpk-def-app-profile-slurm-74kbv
+    python3 xpk.py job cancel xpk-def-app-profile-slurm-74kbv
     ```
 
 ## Inspector

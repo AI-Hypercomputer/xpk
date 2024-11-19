@@ -110,7 +110,7 @@ class CtkDockerManager:
     return output
 
   def upload_to_deployment_dir(self, path: str):
-    """Move file or directory from specified path to directory containing deployment files 
+    """Move file or directory from specified path to directory containing deployment files
 
     Args:
         file (str): path of directory/file that will be moved to deployment directory

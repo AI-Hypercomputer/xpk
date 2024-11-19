@@ -2,10 +2,12 @@ KUEUE_REPO=https://github.com/kubernetes-sigs/kueue.git
 KUEUE_TMP_PATH=/tmp/xpk_tmp/kueue
 
 KUBECTL_VERSION := $(shell curl -L -s https://dl.k8s.io/release/stable.txt)
+KUEUE_VERSION=v0.8.4
+
 PLATFORM := $(shell dpkg --print-architecture)
 
 KUBECTL_URL = "https://dl.k8s.io/release/$(KUBECTL_VERSION)/bin/linux/$(PLATFORM)/kubectl"
-KUEUECTL_URL = "https://github.com/kubernetes-sigs/kueue/releases/download/v0.9.0/kubectl-kueue-linux-$(PLATFORM)"
+KUEUECTL_URL = "https://github.com/kubernetes-sigs/kueue/releases/download/$(KUEUE_VERSION)/kubectl-kueue-linux-$(PLATFORM)"
 
 PROJECT_DIR := $(realpath $(shell dirname $(firstword $(MAKEFILE_LIST))))
 
@@ -19,7 +21,7 @@ pip-install:
 	pip install .
 
 install-kjob: install-kubectl
-	git clone $(KUEUE_REPO) $(KUEUE_TMP_PATH)
+	git clone --depth 1 --branch $(KUEUE_VERSION) $(KUEUE_REPO) $(KUEUE_TMP_PATH)
 	make -C $(KUEUE_TMP_PATH)/cmd/experimental/kjobctl kubectl-kjob
 	mv $(KUEUE_TMP_PATH)/cmd/experimental/kjobctl/bin/kubectl-kjob $(BIN_PATH)/kubectl-kjob
 	rm -rf $(KUEUE_TMP_PATH)

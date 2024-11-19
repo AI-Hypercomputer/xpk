@@ -30,7 +30,7 @@ from .system_characteristics import (
     SystemCharacteristics,
 )
 
-KUEUE_VERSION = 'v0.8.1'
+KUEUE_VERSION = 'v0.8.4'
 CLUSTER_QUEUE_NAME = 'cluster-queue'
 LOCAL_QUEUE_NAME = 'multislice-queue'
 

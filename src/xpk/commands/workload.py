@@ -456,7 +456,7 @@ def workload_create(args) -> None:
         f'Detected gcp filestores instances to add: {gcpfilestore_storages}'
     )
   else:
-    xpk_print('No detected gcp filestore instances to add detected.')
+    xpk_print('No gcp filestore instances to add detected.')
 
   # Create the workload file based on accelerator type or workload type.
   if system.accelerator_type == AcceleratorType['GPU']:

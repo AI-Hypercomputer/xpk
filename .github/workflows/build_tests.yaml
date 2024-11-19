@@ -66,6 +66,10 @@ jobs:
       run: python xpk.py cluster create-pathways --cluster $TPU_CLUSTER_NAME --private --tpu-type=v4-8  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments="${CLUSTER_ARGUMENTS}"
     - name: Verify the created cluster is private
       run: gcloud container clusters describe $TPU_CLUSTER_NAME --region=us-central2 --format="value(privateClusterConfig.enablePrivateNodes)" | grep 'True' || (echo 'The created cluster is not private.' && exit 1)
+    - name: Disable auto upgrades for nodepools
+      run: |
+        gcloud container node-pools update $(TPU_CLUSTER_NAME)-np-1 --cluster $TPU_CLUSTER_NAME --region=us-central2 --no-enable-autoupgrade
+        gcloud container node-pools update $(TPU_CLUSTER_NAME)-np-2 --cluster $TPU_CLUSTER_NAME --region=us-central2 --no-enable-autoupgrade
     - name: Authenticate Docker
       run: gcloud auth configure-docker --quiet
     - name: Create test script to execute in workloads

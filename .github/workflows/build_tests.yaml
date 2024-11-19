@@ -68,8 +68,8 @@ jobs:
       run: gcloud container clusters describe $TPU_CLUSTER_NAME --region=us-central2 --format="value(privateClusterConfig.enablePrivateNodes)" | grep 'True' || (echo 'The created cluster is not private.' && exit 1)
     - name: Disable auto upgrades for nodepools
       run: |
-        gcloud container node-pools update $(TPU_CLUSTER_NAME)-np-1 --cluster $TPU_CLUSTER_NAME --region=us-central2 --no-enable-autoupgrade
-        gcloud container node-pools update $(TPU_CLUSTER_NAME)-np-2 --cluster $TPU_CLUSTER_NAME --region=us-central2 --no-enable-autoupgrade
+        gcloud container node-pools update $TPU_CLUSTER_NAME-np-1 --cluster $TPU_CLUSTER_NAME --region=us-central2 --no-enable-autoupgrade
+        gcloud container node-pools update $TPU_CLUSTER_NAME-np-2 --cluster $TPU_CLUSTER_NAME --region=us-central2 --no-enable-autoupgrade
     - name: Authenticate Docker
       run: gcloud auth configure-docker --quiet
     - name: Create test script to execute in workloads

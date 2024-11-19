@@ -1246,10 +1246,10 @@ xpk interfaces seamlessly with kind to manage Kubernetes clusters locally, facil
 
 ## Local Testing Basics
 
-Local testing is available exclusively through the `batch` command of xpk with the `--local-test` flag. This allows you to simulate training jobs locally:
+Local testing is available exclusively through the `batch` command of xpk with the `--kind-cluster` flag. This allows you to simulate training jobs locally:
 
 ```shell
-python xpk.py batch [other-options] --local-test script
+python xpk.py batch [other-options] --kind-cluster script
 ```
 
 Please note that all other xpk subcommands are intended for use with cloud systems on Google Cloud Engine (GCE) and don't support local testing. This includes commands like cluster, info, inspector, etc.

@@ -39,7 +39,7 @@ def set_batch_parser(batch_parser):
       help='Cluster to which command applies.',
   )
   batch_optional_arguments.add_argument(
-      '--local-test',
+      '--kind-cluster',
       type=bool,
       action=argparse.BooleanOptionalAction,
       default=False,

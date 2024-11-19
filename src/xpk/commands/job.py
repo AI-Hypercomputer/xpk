@@ -37,12 +37,11 @@ def job_list(args) -> None:
       flush=True,
   )
 
-  if run_slurm_job_list_command(args):
-    xpk_exit(1)
-  xpk_exit(0)
+  return_code = run_slurm_job_list_command(args)
+  xpk_exit(return_code)
 
 
-def run_slurm_job_list_command(args) -> None:
+def run_slurm_job_list_command(args) -> int:
   cmd = (
       f'kubectl-kjob list slurm  --profile {APP_PROFILE_TEMPLATE_DEFAULT_NAME}'
   )
@@ -50,7 +49,7 @@ def run_slurm_job_list_command(args) -> None:
   return_code = run_command_with_updates(cmd, 'list jobs', args)
   if return_code != 0:
     xpk_print(f'Listing jobs returned ERROR {return_code}')
-  xpk_exit(return_code)
+  return return_code
 
 
 def job_cancel(args) -> None:

@@ -103,8 +103,8 @@ class CtkDockerManager:
         stdout=True,
         stderr=True,
         volumes=[
-            "{self.gcloud_cfg_path}:/.config/gcloud",
-            "{self.deployment_dir}:/deployment",
+            f"{self.gcloud_cfg_path}:{gcloud_cfg_mount_path}",
+            f"{self.deployment_dir}:{deployment_dir_mount_path}",
         ],
     )
     return output

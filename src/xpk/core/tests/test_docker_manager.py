@@ -41,13 +41,16 @@ def remove_container():
   except docker.errors.APIError as _:
     pass
 
+
 def create_tmp_dirs():
   os.mkdir(test_cfg_path)
   os.mkdir(test_deployment_dir)
 
+
 def remove_tmp_dirs():
   os.removedirs(test_cfg_path)
   os.removedirs(test_deployment_dir)
+
 
 @pytest.fixture(name='setup_img_name')
 def remove_test_ctk_img():

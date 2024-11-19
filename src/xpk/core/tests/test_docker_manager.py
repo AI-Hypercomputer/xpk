@@ -15,7 +15,11 @@ import docker.errors
 from ..docker_manager import CtkDockerManager
 import docker
 import pytest
+import os
 
+dockerfile_path = 'data/Dockerfile'
+test_cfg_path = '/tmp/xpk_gcloud_cfg'
+test_deployment_dir = '/tmp/xpk_deployment'
 test_gcluster_cmd = 'gcluster --version'
 test_ctk_xpk_img = 'gcluster-xpk-test'
 test_ctk_xpk_container = 'gcluster-xpk-test-container'
@@ -37,21 +41,30 @@ def remove_container():
   except docker.errors.APIError as _:
     pass
 
+def create_tmp_dirs():
+  os.mkdir(test_cfg_path)
+  os.mkdir(test_deployment_dir)
+
+def remove_tmp_dirs():
+  os.removedirs(test_cfg_path)
+  os.removedirs(test_deployment_dir)
 
 @pytest.fixture(name='setup_img_name')
 def remove_test_ctk_img():
+  create_tmp_dirs()
   remove_container()
   remove_img()
   yield test_ctk_xpk_img
   remove_container()
   remove_img()
+  remove_tmp_dirs()
 
 
 def test_docker_build_image(setup_img_name):
   dm = CtkDockerManager(
-      dockerfile_path='data/Dockerfile',
-      gcloud_cfg_path='bar',
-      deployment_dir='foo1',
+      dockerfile_path=dockerfile_path,
+      gcloud_cfg_path=test_cfg_path,
+      deployment_dir=test_deployment_dir,
   )
   dc = docker.from_env()
   containers_before = dc.containers.list(all=True)
@@ -62,10 +75,11 @@ def test_docker_build_image(setup_img_name):
 
 
 def test_run_command(setup_img_name):
+
   dm = CtkDockerManager(
-      dockerfile_path='data/Dockerfile',
-      gcloud_cfg_path='bar',
-      deployment_dir='foo1',
+      dockerfile_path=dockerfile_path,
+      gcloud_cfg_path=test_cfg_path,
+      deployment_dir=test_deployment_dir,
   )
   dc = docker.from_env()
 

@@ -468,6 +468,12 @@ def run_gke_cluster_create_command(
   # benefit from a larger initial `--num-nodes`. After the cluster is created,
   # the auto-scaler can reduce/increase the nodes based on the load.
 
+  # If the user passes in the gke version then we use that directly instead of the rapid release.
+  # This allows users to directly pass a specified gke version without release channel constraints.
+  rapid_release_cmd = ''
+  if args.gke_version is not None:
+    rapid_release_cmd = ' --release-channel rapid'
+
   command = (
       'gcloud beta container clusters create'
       f' {args.cluster} --project={args.project}'
@@ -479,7 +485,7 @@ def run_gke_cluster_create_command(
       ' --total-min-nodes 1 --total-max-nodes 1000'
       f' --num-nodes {args.default_pool_cpu_num_nodes}'
       f' {args.custom_cluster_arguments}'
-      ' --release-channel rapid'
+      f' {rapid_release_cmd}'
   )
 
   enable_ip_alias = False

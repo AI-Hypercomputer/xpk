@@ -47,7 +47,7 @@ def run_slurm_job_list_command(args) -> None:
       f'kubectl-kjob list slurm  --profile {APP_PROFILE_TEMPLATE_DEFAULT_NAME}'
   )
 
-  return_code = run_command_with_updates(cmd, 'list slurm jobs', args)
+  return_code = run_command_with_updates(cmd, 'list jobs', args)
   if return_code != 0:
     xpk_print(f'Listing jobs returned ERROR {return_code}')
   xpk_exit(return_code)
@@ -73,7 +73,7 @@ def run_slurm_job_delete_command(args) -> int:
   list_of_jobs = ' '.join(args.name)
   cmd = f'kubectl-kjob delete slurm {list_of_jobs}'
 
-  return_code = run_command_with_updates(cmd, 'delete slurm job', args)
+  return_code = run_command_with_updates(cmd, 'delete job', args)
   if return_code != 0:
     xpk_print(f'Delete job request returned ERROR {return_code}')
   return return_code

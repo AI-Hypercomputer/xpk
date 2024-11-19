@@ -86,7 +86,7 @@ def create_a3_mega_blueprint(
 
   Args:
   Returns:
-    - CtkBlueprint representing cluter toolkit blueprint
+    - CtkBlueprint representing cluster toolkit blueprint
   """
 
   primary_vpc = CtkDeploymentModule(

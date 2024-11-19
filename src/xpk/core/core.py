@@ -1184,7 +1184,7 @@ def is_driver_enabled_on_cluster(args, driver: str) -> bool:
   command = (
       f'gcloud container clusters describe {args.cluster}'
       f' --project={args.project} --region={zone_to_region(args.zone)}'
-      ' --format="value(addonsConfig.{driver}Config.enabled)"'
+      f' --format="value(addonsConfig.{driver}Config.enabled)"'
   )
   return_code, gcsfuse_driver_enabled = run_command_for_value(
       command,

@@ -13,12 +13,20 @@ PROJECT_DIR := $(realpath $(shell dirname $(firstword $(MAKEFILE_LIST))))
 
 BIN_PATH=$(PROJECT_DIR)/bin
 
-.PHONY: install install_kjob install_kueuectl install_gcloud check_python update-path
+.PHONY: install install_kjob install_kueuectl install_gcloud check_python update-path 
 
-install: check-python check-gcloud mkdir-bin install-kubectl install-kueuectl install-kjob pip-install
+install: check-python check-gcloud install-kueuectl install-kjob pip-install
+
+install-dev: check-python check-gcloud mkdir-bin install-kubectl install-kueuectl install-kjob pip-install install-pytest 
 
 pip-install:
 	pip install .
+
+install-pytest:
+	pip install -U pytest
+
+run-unittests:
+	pytest src/xpk/
 
 install-kjob: install-kubectl
 	git clone $(KUEUE_REPO) $(KUEUE_TMP_PATH)
@@ -30,14 +38,12 @@ mkdir-bin:
 	mkdir -p $(BIN_PATH)
 
 install-kubectl: mkdir-bin
-	curl -LO $(KUBECTL_URL)
-	chmod +x kubectl
-	mv ./kubectl $(BIN_PATH)/kubectl
+	curl -Lo $(BIN_PATH)/kubectl $(KUBECTL_URL)
+	chmod +x $(BIN_PATH)/kubectl
 
 install-kueuectl: install-kubectl
-	curl -Lo ./kubectl-kueue $(KUEUECTL_URL)
-	chmod +x ./kubectl-kueue
-	mv ./kubectl-kueue $(BIN_PATH)/kubectl-kueue
+	curl -Lo $(BIN_PATH)/kubectl-kueue $(KUEUECTL_URL)
+	chmod +x $(BIN_PATH)/kubectl-kueue
 
 check-gcloud:
 	gcloud version || (echo "gcloud not installed, use this link to install: https://cloud.google.com/sdk/docs/install" && exit 1)

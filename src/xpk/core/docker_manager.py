@@ -17,6 +17,7 @@ limitations under the License.
 import docker
 from ..utils.console import xpk_print
 from docker.errors import ImageNotFound
+from shutil import move
 
 ctk_dockerfile_path = "Dockerfile"
 ctk_docker_image = "xpk-ctk"
@@ -108,8 +109,10 @@ class CtkDockerManager:
     )
     return output
 
-  def upload_file(self, file: str):
-    pass
+  def upload_to_deployment_dir(self, path: str):
+    """Move file or directory from specified path to directory containing deployment files 
 
-  def upload_dir(self, dir_path: str):
-    pass
+    Args:
+        file (str): path of directory/file that will be moved to deployment directory
+    """
+    move(path, self.deployment_dir)

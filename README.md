@@ -71,15 +71,15 @@ xpk uses many tool to provide all neccessary functionalities. User must install 
 - gcloud (install from [here](https://cloud.google.com/sdk/gcloud#download_and_install_the))
 - kubectl (install from [here](https://kubernetes.io/docs/tasks/tools/))
 - kueuectl (install from [here](https://kueue.sigs.k8s.io/docs/reference/kubectl-kueue/installation/))
-- kustomize (install from [here](https://kubectl.docs.kubernetes.io/installation/kustomize/), please add kustomize binary to your PATH)
 - kjob (installation instructions [here](https://github.com/kubernetes-sigs/kueue/blob/main/cmd/experimental/kjobctl/docs/installation.md))
 
 # Installation
-To install xpk, run the following command:
+To install xpk, run the following command and install additional tools, mentioned in [prerequisites](#prerequisites). [Makefile](https://github.com/AI-Hypercomputer/xpk/blob/main/Makefile) provides a way to install all neccessary tools:
 
 ```shell
 pip install xpk
 ```
+
 
 If you are running XPK by cloning GitHub repository, first run the
 following commands to begin using XPK commands:
@@ -87,9 +87,12 @@ following commands to begin using XPK commands:
 ```shell
 git clone https://github.com/google/xpk.git
 cd xpk
-# Install dependencies such as cloud-accelerator-diagnostics
-pip install .
+# Install required dependencies with make
+make install && export PATH=$PATH:$PWD/bin
 ```
+
+If you want to have installed dependecies persist in your PATH please run:
+`echo $PWD/bin` and add its value to `PATH` in .bashrc  or .zshrc
 
 If you see an error saying: `This environment is externally managed`, please use a virtual environment.
 
@@ -104,8 +107,8 @@ Example:
   ## Clone the repository and installing dependencies.
   git clone https://github.com/google/xpk.git
   cd xpk
-  # Install dependencies such as cloud-accelerator-diagnostics
-  pip install .
+  # Install required dependencies with make
+  make install && export PATH=$PATH:$PWD/bin
 ```
 
 # XPK for Large Scale (>1k VMs)
@@ -234,6 +237,55 @@ all zones.
     --cluster xpk-test --tpu-type=v4-8 \
     --num-slices=4  --reservation=$RESERVATION_ID
     ```
+
+### Create Private Cluster
+
+XPK allows you to create a private GKE cluster for enhanced security. In a private cluster, nodes and pods are isolated from the public internet, providing an additional layer of protection for your workloads.
+
+To create a private cluster, use the following arguments:
+
+**`--private`**
+
+This flag enables the creation of a private GKE cluster. When this flag is set:
+
+*  Nodes and pods are isolated from the direct internet access.
+*  `master_authorized_networks` is automatically enabled.
+*  Access to the cluster's control plane is restricted to your current machine's IP address by default.
+
+**`--authorized-networks`**
+
+This argument allows you to specify additional IP ranges (in CIDR notation) that are authorized to access the private cluster's control plane and perform `kubectl` commands. 
+
+*  Even if this argument is not set when you have `--private`, your current machine's IP address will always be given access to the control plane.
+*  If this argument is used with an existing private cluster, it will replace the existing authorized networks.
+
+**Example Usage:**
+
+* To create a private cluster and allow access to Control Plane only to your current machine:
+
+  ```shell
+  python3 xpk.py cluster create \
+    --cluster=xpk-private-cluster \
+    --tpu-type=v4-8 --num-slices=2 \
+    --private
+  ```
+
+* To create a private cluster and allow access to Control Plane only to your current machine and the IP ranges `1.2.3.0/24` and `1.2.4.5/32`:
+
+  ```shell
+  python3 xpk.py cluster create \
+    --cluster=xpk-private-cluster \
+    --tpu-type=v4-8 --num-slices=2 \
+    --authorized-networks 1.2.3.0/24 1.2.4.5/32
+
+    # --private is optional when you set --authorized-networks
+  ```
+
+> **Important Notes:** 
+> * The argument `--private` is only applicable when creating new clusters. You cannot convert an existing public cluster to a private cluster using these flags.
+> * The argument `--authorized-networks` is applicable when creating new clusters or using an existing _*private*_ cluster. You cannot convert an existing public cluster to a private cluster using these flags.
+> * You need to [set up a Cluster NAT for your VPC network](https://cloud.google.com/nat/docs/set-up-manage-network-address-translation#creating_nat) so that the Nodes and Pods have outbound access to the internet. This is required because XPK installs and configures components such as kueue that need access to external sources like `registry.k8.io`.
+
 
 ### Create Vertex AI Tensorboard
 *Note: This feature is available in XPK >= 0.4.0. Enable [Vertex AI API](https://cloud.google.com/vertex-ai/docs/start/cloud-environment#enable_vertexai_apis) in your Google Cloud console to use this feature. Make sure you have
@@ -373,7 +425,14 @@ will fail the cluster creation process because Vertex AI Tensorboard is not supp
     --cluster xpk-pw-test
     ```
     Executing the command above would provide the address of the proxy that the user job should connect to.
-    Specify `JAX_PLATFORMS=proxy` and `JAX_BACKEND_TARGET=<proxy address from above>` and `import previewutilies` to establish this connection between the user's JAX code and the Pathways proxy. Execute Pathways workloads interactively on Vertex AI notebooks!
+    ```shell
+    kubectl get pods
+    kubectl port-forward pod/<proxy-pod-name> 29000:29000
+    ```
+    ```shell
+    JAX_PLATFORMS=proxy JAX_BACKEND_TARGET=grpc://127.0.0.1:29000 python -c 'import pathwaysutils; import jax; print(jax.devices())'
+    ```
+    Specify `JAX_PLATFORMS=proxy` and `JAX_BACKEND_TARGET=<proxy address from above>` and `import pathwaysutils` to establish this connection between the user's JAX code and the Pathways proxy. Execute Pathways workloads interactively on Vertex AI notebooks!
 
 ### Set `max-restarts` for production jobs
 
@@ -544,6 +603,32 @@ when creating the workload otherwise the workload will always finish with `Compl
     `124`: Timeout was reached before workload finished.
     `125`: Workload finished but did not complete successfully.
     `1`: Other failure.
+
+## Job List
+
+*   Job List (see jobs submitted via batch command):
+
+    ```shell
+    python3 xpk.py job ls 
+    ```
+
+* Example Job List Output:
+
+  ```
+    NAME                              PROFILE               LOCAL QUEUE   COMPLETIONS   DURATION   AGE
+    xpk-def-app-profile-slurm-74kbv   xpk-def-app-profile                 1/1           15s        17h
+    xpk-def-app-profile-slurm-brcsg   xpk-def-app-profile                 1/1           9s         3h56m
+    xpk-def-app-profile-slurm-kw99l   xpk-def-app-profile                 1/1           5s         3h54m
+    xpk-def-app-profile-slurm-x99nx   xpk-def-app-profile                 3/3           29s        17h
+  ```
+
+## Job Cancel
+
+*   Job Cancel (delete job submitted via batch command):
+
+    ```shell
+    python3 xpk.py job cancel xpk-def-app-profile-slurm-74kbv
+    ```
 
 ## Inspector
 * Inspector provides debug info to understand cluster health, and why workloads are not running.

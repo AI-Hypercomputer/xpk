@@ -41,7 +41,8 @@ import subprocess
 import sys
 from dataclasses import dataclass
 
-from ..utils import get_user_input, write_tmp_file, xpk_exit, xpk_print
+from ..utils.file import write_tmp_file
+from ..utils.console import get_user_input, xpk_exit, xpk_print
 from .commands import (
     run_command_for_value,
     run_command_with_updates,
@@ -76,6 +77,9 @@ DEFAULT_VERTEX_TENSORBOARD_NAME = 'tb-instance'
 AUTOPROVISIONING_CONFIG_VALUE = 'AUTOPROVISION'
 AUTOPROVISIONING_CONFIG_MINIMUM_KEY = 'minimum_chips'
 AUTOPROVISIONING_CONFIG_MAXIMUM_KEY = 'maximum_chips'
+CLOUD_PLATFORM_AUTH_SCOPE_URL = (
+    '"https://www.googleapis.com/auth/cloud-platform"'
+)
 
 
 class CapacityType(enum.Enum):
@@ -330,110 +334,6 @@ def get_total_chips_requested_from_args(
     num_chips = system.vms_per_slice * system.chips_per_vm * args.num_slices
 
   return num_chips
-
-
-def update_gke_cluster_with_clouddns(args) -> int:
-  """Run the GKE cluster update command for existing clusters and enable CloudDNS.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  command = (
-      'gcloud container clusters update'
-      f' {args.cluster} --project={args.project}'
-      f' --region={zone_to_region(args.zone)}'
-      ' --cluster-dns=clouddns'
-      ' --cluster-dns-scope=vpc'
-      f' --cluster-dns-domain={args.cluster}-domain'
-      ' --quiet'
-  )
-  xpk_print('Updating GKE cluster to use Cloud DNS, may take a while!')
-  return_code = run_command_with_updates(
-      command, 'GKE Cluster Update to enable Cloud DNS', args
-  )
-  if return_code != 0:
-    xpk_print(f'GKE Cluster Update request returned ERROR {return_code}')
-    return 1
-  return 0
-
-
-def upgrade_gke_control_plane_version(args, default_rapid_gke_version) -> int:
-  """Upgrade GKE cluster's control plane version before updating nodepools to use CloudDNS.
-
-  Args:
-    args: user provided arguments for running the command.
-    default_rapid_gke_version: Rapid default version for the upgrade.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  command = (
-      'gcloud container clusters upgrade'
-      f' {args.cluster} --project={args.project}'
-      f' --region={zone_to_region(args.zone)}'
-      f' --cluster-version={default_rapid_gke_version}'
-      ' --master'
-      ' --quiet'
-  )
-  xpk_print("Updating GKE cluster's control plane version, may take a while!")
-  return_code = run_command_with_updates(
-      command,
-      'GKE Cluster control plane version update to enable Cloud DNS',
-      args,
-  )
-  if return_code != 0:
-    xpk_print(
-        "GKE cluster's control plane version update request returned"
-        f' ERROR {return_code}'
-    )
-    return 1
-  return 0
-
-
-def upgrade_gke_nodepools_version(args, default_rapid_gke_version) -> int:
-  """Upgrade nodepools in the cluster to default rapid gke version. Recreates the nodes.
-
-  Args:
-    args: user provided arguments for running the command.
-    default_rapid_gke_version: Rapid default version for the upgrade.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  existing_node_pool_names, return_code = get_all_nodepools_programmatic(args)
-  if return_code != 0:
-    xpk_print('Listing all node pools failed!')
-    return return_code
-
-  # Batch execution to upgrade node pools simultaneously
-  commands = []
-  task_names = []
-  for node_pool_name in existing_node_pool_names:
-    commands.append(
-        'gcloud container clusters upgrade'
-        f' {args.cluster} --project={args.project}'
-        f' --region={zone_to_region(args.zone)}'
-        f' --cluster-version={default_rapid_gke_version}'
-        f' --node-pool={node_pool_name}'
-        ' --quiet'
-    )
-    task_names.append(f'Upgrading node pool {node_pool_name}.')
-
-  for i, command in enumerate(commands):
-    xpk_print(f'To complete {task_names[i]} we are executing {command}')
-  max_return_code = run_commands(
-      commands, 'Update GKE node pools to default RAPID GKE version', task_names
-  )
-  if max_return_code != 0:
-    xpk_print(
-        'GKE node pools update to default RAPID GKE version returned ERROR:'
-        f' {max_return_code}'
-    )
-    return max_return_code
-  return 0
 
 
 def set_up_cluster_network_for_gpu(args, system: SystemCharacteristics) -> int:
@@ -1018,73 +918,6 @@ def get_all_clusters_programmatic(args) -> tuple[list[str], int]:
   return raw_cluster_output.splitlines(), 0
 
 
-def is_cluster_using_clouddns(args) -> bool:
-  """Checks if cluster is using CloudDNS.
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    True if cluster is using CloudDNS and False otherwise.
-  """
-  command = (
-      f'gcloud container clusters describe {args.cluster}'
-      f' --project={args.project} --region={zone_to_region(args.zone)}'
-      ' | grep "clusterDns: CLOUD_DNS"'
-  )
-  return_code, _ = run_command_for_value(
-      command,
-      'Check if Cloud DNS is enabled in cluster describe.',
-      args,
-  )
-  if return_code == 0:
-    xpk_print('Cloud DNS is enabled on the cluster, no update needed.')
-    return True
-  return False
-
-
-def update_cluster_with_clouddns_if_necessary(args) -> int:
-  """Updates a GKE cluster to use CloudDNS, if not enabled already.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    0 if successful and error code otherwise.
-  """
-  all_clusters, return_code = get_all_clusters_programmatic(args)
-  if return_code > 0:
-    xpk_print('Listing all clusters failed!')
-    return 1
-  if args.cluster in all_clusters:
-    # If cluster is already using clouddns, no update necessary!
-    if is_cluster_using_clouddns(args):
-      return 0
-    cluster_update_return_code = update_gke_cluster_with_clouddns(args)
-    if cluster_update_return_code > 0:
-      xpk_print('Updating GKE cluster to use CloudDNS failed!')
-      return cluster_update_return_code
-
-    # Find default rapid control plane version and update the control plane to the same.
-    server_config_return_code, gke_server_config = get_gke_server_config(args)
-    if server_config_return_code != 0:
-      xpk_exit(server_config_return_code)
-    upgrade_master_return_code = upgrade_gke_control_plane_version(
-        args, gke_server_config.default_rapid_gke_version
-    )
-    if upgrade_master_return_code > 0:
-      xpk_print("Updating GKE cluster's control plane upgrade failed!")
-      return upgrade_master_return_code
-
-    # Upgrade nodepools version after the master upgrade.
-    node_pool_update_code = upgrade_gke_nodepools_version(
-        args, gke_server_config.default_rapid_gke_version
-    )
-    if node_pool_update_code > 0:
-      xpk_print('Upgrading nodepools version failed!')
-      return node_pool_update_code
-  return 0
-
-
 def get_nodepool_zone(args, nodepool_name) -> tuple[int, str]:
   """Return zone in which nodepool exists in the cluster.
 
@@ -1445,7 +1278,7 @@ def run_gke_node_pool_create_command(
       command += f' --num-nodes={system.vms_per_slice}'
       command += ' --placement-type=COMPACT  --max-pods-per-node 15'
       command += (
-          ' --scopes=storage-full,gke-default,"https://www.googleapis.com/auth/cloud-platform"'
+          f' --scopes=storage-full,gke-default,{CLOUD_PLATFORM_AUTH_SCOPE_URL}'
       )
       command += f' --tpu-topology={system.topology}'
       command += f' {args.custom_tpu_nodepool_arguments}'
@@ -1456,8 +1289,7 @@ def run_gke_node_pool_create_command(
           ' --accelerator'
           f' type={system.gke_accelerator},count={str(system.chips_per_vm)},gpu-driver-version=latest'
           ' --no-enable-autoupgrade '
-          ' --scopes="https://www.googleapis.com/auth/cloud-platform"'
-          ' --additional-node-network'
+          f' --scopes={CLOUD_PLATFORM_AUTH_SCOPE_URL} --additional-node-network'
           f' network={args.cluster}-net-1,subnetwork={subnet_prefix}-sub-1'
           ' --additional-node-network'
           f' network={args.cluster}-net-2,subnetwork={subnet_prefix}-sub-2'
@@ -1480,7 +1312,9 @@ def run_gke_node_pool_create_command(
         )
     elif system.accelerator_type == AcceleratorType['CPU']:
       command += f' --num-nodes={system.vms_per_slice}'
-      command += ' --scopes=storage-full,gke-default'
+      command += (
+          f' --scopes=storage-full,gke-default,{CLOUD_PLATFORM_AUTH_SCOPE_URL}'
+      )
 
     task = f'NodepoolCreate-{node_pool_name}'
     create_commands.append(command)
@@ -1494,14 +1328,9 @@ def run_gke_node_pool_create_command(
         continue
       command = (
           'gcloud beta container node-pools create'
-          f' {node_pool_name} --node-version={gke_node_pool_version}'
-          f' --cluster={args.cluster}'
-          f' --project={args.project} --node-locations={args.zone}'
-          f' --region={zone_to_region(args.zone)}'
-          ' --num-nodes=1'
-          f' --machine-type={args.pathways_gce_machine_type}'
-          ' --scopes=storage-full,gke-default'
-          ' --enable-autoscaling --min-nodes=1 --max-nodes=20'
+          f' {node_pool_name} --node-version={gke_node_pool_version} --cluster={args.cluster} --project={args.project} --node-locations={args.zone} --region={zone_to_region(args.zone)} --num-nodes=1'
+          f' --machine-type={args.pathways_gce_machine_type} --scopes=storage-full,gke-default,{CLOUD_PLATFORM_AUTH_SCOPE_URL} --enable-autoscaling'
+          ' --min-nodes=1 --max-nodes=20'
       )
       task = f'NodepoolCreate-{node_pool_name}'
       create_commands.append(command)
@@ -2260,6 +2089,12 @@ def get_volumes(args, system: SystemCharacteristics) -> str:
                   medium: Memory
                 name: dshm-2"""
 
+  if args.ramdisk_directory != '':
+    volumes += """
+              - name: cache
+                csi:
+                  driver: phase1-checkpoint.csi.storage.gke.io"""
+
   if (
       system.accelerator_type == AcceleratorType['TPU']
       and args.deploy_stacktrace_sidecar
@@ -2282,6 +2117,11 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
   """
   volume_mount_yaml = """- mountPath: /dev/shm
                   name: dshm-2"""
+
+  if args.ramdisk_directory != '':
+    volume_mount_yaml += f"""
+                - mountPath: /{args.ramdisk_directory}
+                  name: cache"""
 
   if args.use_pathways:
     volume_mount_yaml = """- mountPath: /tmp

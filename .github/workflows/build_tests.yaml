@@ -25,14 +25,20 @@ env:
   WORKLOAD_NAME: xpktest-build-${{ github.run_attempt }}
   PATHWAYS_WORKLOAD_NAME: xpkpw-build-${{ github.run_attempt }}
   CLUSTER_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}}"
+  RUN_ID: "pr-${{ github.event.number }}"
 
 jobs:
   cluster-create-and-delete:
     runs-on: [ubuntu-22.04]
-    concurrency: # We support one build or nightly test to run at a time currently.
-      group: build-test-cluster-group
+    concurrency: # We support one nightly test and one build test for each branch to run at a time currently.
+      group: build-test-cluster-group-${{ github.ref }}
       cancel-in-progress: false
     steps:
+    - name: Change RUN_ID env var if merge to main
+      run: echo "RUN_ID=main" >> $GITHUB_ENV
+      if: ${{ github.ref == 'refs/heads/main' }}
+    - name: Update cluster name with RUN_ID
+      run: echo "TPU_CLUSTER_NAME=$TPU_CLUSTER_NAME-$RUN_ID" >> $GITHUB_ENV
     - uses: actions/checkout@v4
     - uses: actions/setup-python@v5
       with:
@@ -50,20 +56,16 @@ jobs:
       run: |
         gcloud config set compute/zone us-east4-a
         gcloud config get compute/zone
-    - name: Install kjob
+    - name: Install xpk dependencies
       run: |
-        git clone https://github.com/kubernetes-sigs/kueue.git
-        cd kueue/cmd/experimental/kjobctl
-        make kubectl-kjob
-        mv ./bin/kubectl-kjob /usr/local/bin/kubectl-kjob
-    - name: Install kueuectl
-      run: curl -Lo ./kubectl-kueue https://github.com/kubernetes-sigs/kueue/releases/download/v0.8.1/kubectl-kueue-linux-amd64 && chmod +x ./kubectl-kueue && mv ./kubectl-kueue /usr/local/bin/kubectl-kueue
-    - name: Install xpk with pip and verify it executes corretly
-      run: |
-        pip install .
-        xpk --help
-    - name: Create a Pathways-enabled XPK Cluster with 2x v4-8 nodepools. Larger num-nodes to avoid master resizing.
-      run: python xpk.py cluster create-pathways --cluster $TPU_CLUSTER_NAME --tpu-type=v4-8  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments="${CLUSTER_ARGUMENTS}"
+        make install 
+        echo $PWD/bin >> "$GITHUB_PATH"
+    - name: Check xpk installation
+      run: xpk --help
+    - name: Create a private Pathways-enabled XPK Cluster with 2x v4-8 nodepools. Larger num-nodes to avoid master resizing.
+      run: python xpk.py cluster create-pathways --cluster $TPU_CLUSTER_NAME --private --tpu-type=v4-8  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments="${CLUSTER_ARGUMENTS}"
+    - name: Verify the created cluster is private
+      run: gcloud container clusters describe $TPU_CLUSTER_NAME --region=us-central2 --format="value(privateClusterConfig.enablePrivateNodes)" | grep 'True' || (echo 'The created cluster is not private.' && exit 1)
     - name: Authenticate Docker
       run: gcloud auth configure-docker --quiet
     - name: Create test script to execute in workloads
@@ -86,6 +88,14 @@ jobs:
       run: python3 xpk.py workload delete --workload $WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
     - name: Delete the Pathways workload on the cluster
       run: python3 xpk.py workload delete --workload $PATHWAYS_WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+    - name: Run a batch job on the cluster
+      run: python3 xpk.py batch --cluster $TPU_CLUSTER_NAME --zone=us-central2-b test.sh
+    - name: List out the jobs on the cluster
+      run: python3 xpk.py job ls | grep 'xpk-def-app-profile-slurm-'
+    - name: Cancel the batch job on the cluster
+      run: |
+        job_name=$(python3 xpk.py job ls | grep 'xpk-def-app-profile-slurm-' | head -1 | awk '{print $1}')
+        python3 xpk.py job cancel ${job_name} | grep "job.batch/${job_name} deleted"
     - name: Delete the cluster created
       if: always()
       run: python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b

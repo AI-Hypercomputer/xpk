@@ -39,7 +39,6 @@ from ..core.core import (
     get_gpu_volume,
     get_user_workload_container,
     get_volumes,
-    is_cluster_using_clouddns,
     parse_env_config,
     wait_for_job_completion,
     xpk_current_version,
@@ -62,7 +61,8 @@ from ..core.system_characteristics import (
     AcceleratorType,
     get_system_characteristics,
 )
-from ..utils import get_user_input, write_tmp_file, xpk_exit, xpk_print
+from ..utils.console import get_user_input, xpk_exit, xpk_print
+from ..utils.file import write_tmp_file
 from .cluster import set_cluster_command
 
 workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
@@ -324,12 +324,13 @@ def workload_create(args) -> None:
   """
   add_zone_and_project(args)
 
-  if args.headless and not is_cluster_using_clouddns(args):
+  if args.headless:
     xpk_print(
-        'Please run xpk cluster create-pathways first, to upgrade and enable'
-        ' CloudDNS on your cluster.'
+        'Please use kubectl port forwarding to connect to the Pathways proxy.'
+        ' kubectl get pods kubectl port-forward <proxy-pod-name> 29000:29000'
+        ' JAX_PLATFORMS=proxy JAX_BACKEND_TARGET=grpc://127.0.0.1:29000 python'
+        " -c 'import pathwaysutils; import jax; print(jax.devices())'"
     )
-    xpk_exit(1)
 
   set_cluster_command_code = set_cluster_command(args)
   if set_cluster_command_code != 0:

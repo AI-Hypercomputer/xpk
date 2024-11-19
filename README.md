@@ -74,11 +74,12 @@ xpk uses many tool to provide all neccessary functionalities. User must install 
 - kjob (installation instructions [here](https://github.com/kubernetes-sigs/kueue/blob/main/cmd/experimental/kjobctl/docs/installation.md))
 
 # Installation
-To install xpk, run the following command:
+To install xpk, run the following command and install additional tools, mentioned in [prerequisites](#prerequisites). [Makefile](https://github.com/AI-Hypercomputer/xpk/blob/main/Makefile) provides a way to install all neccessary tools:
 
 ```shell
 pip install xpk
 ```
+
 
 If you are running XPK by cloning GitHub repository, first run the
 following commands to begin using XPK commands:
@@ -86,9 +87,12 @@ following commands to begin using XPK commands:
 ```shell
 git clone https://github.com/google/xpk.git
 cd xpk
-# Install dependencies such as cloud-accelerator-diagnostics
-pip install .
+# Install required dependencies with make
+make install && export PATH=$PATH:$PWD/bin
 ```
+
+If you want to have installed dependecies persist in your PATH please run:
+`echo $PWD/bin` and add its value to `PATH` in .bashrc  or .zshrc
 
 If you see an error saying: `This environment is externally managed`, please use a virtual environment.
 
@@ -103,8 +107,8 @@ Example:
   ## Clone the repository and installing dependencies.
   git clone https://github.com/google/xpk.git
   cd xpk
-  # Install dependencies such as cloud-accelerator-diagnostics
-  pip install .
+  # Install required dependencies with make
+  make install && export PATH=$PATH:$PWD/bin
 ```
 
 # XPK for Large Scale (>1k VMs)
@@ -599,6 +603,32 @@ when creating the workload otherwise the workload will always finish with `Compl
     `124`: Timeout was reached before workload finished.
     `125`: Workload finished but did not complete successfully.
     `1`: Other failure.
+
+## Job List
+
+*   Job List (see jobs submitted via batch command):
+
+    ```shell
+    python3 xpk.py job ls 
+    ```
+
+* Example Job List Output:
+
+  ```
+    NAME                              PROFILE               LOCAL QUEUE   COMPLETIONS   DURATION   AGE
+    xpk-def-app-profile-slurm-74kbv   xpk-def-app-profile                 1/1           15s        17h
+    xpk-def-app-profile-slurm-brcsg   xpk-def-app-profile                 1/1           9s         3h56m
+    xpk-def-app-profile-slurm-kw99l   xpk-def-app-profile                 1/1           5s         3h54m
+    xpk-def-app-profile-slurm-x99nx   xpk-def-app-profile                 3/3           29s        17h
+  ```
+
+## Job Cancel
+
+*   Job Cancel (delete job submitted via batch command):
+
+    ```shell
+    python3 xpk.py job cancel xpk-def-app-profile-slurm-74kbv
+    ```
 
 ## Inspector
 * Inspector provides debug info to understand cluster health, and why workloads are not running.

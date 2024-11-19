@@ -1173,54 +1173,28 @@ def is_workload_identity_enabled_on_cluster(args) -> bool:
   return False
 
 
-def is_gcsfuse_driver_enabled_on_cluster(args) -> bool:
+def is_driver_enabled_on_cluster(args, driver: str) -> bool:
   """Checks if GCSFuse CSI driver is enabled on the cluster.
   Args:
     args: user provided arguments for running the command.
+    driver (str) : name of the driver
   Returns:
-    True if GCSFuse CSI driver is enabled on the cluster and False otherwise.
+    True if driver is enabled on the cluster and False otherwise.
   """
   command = (
       f'gcloud container clusters describe {args.cluster}'
       f' --project={args.project} --region={zone_to_region(args.zone)}'
-      ' --format="value(addonsConfig.gcsFuseCsiDriverConfig.enabled)"'
+      ' --format="value(addonsConfig.{driver}Config.enabled)"'
   )
   return_code, gcsfuse_driver_enabled = run_command_for_value(
       command,
-      'Checks if GCSFuse CSI driver is enabled in cluster describe.',
+      f'Checks if {driver} driver is enabled in cluster describe.',
       args,
   )
   if return_code != 0:
     xpk_exit(return_code)
   if gcsfuse_driver_enabled.lower() == 'true':
-    xpk_print('GCSFuse CSI driver is enabled on the cluster, no update needed.')
-    return True
-  return False
-
-
-def is_gcpfilestore_driver_enabled_on_cluster(args) -> bool:
-  """Checks if GCPFilestore CSI driver is enabled on the cluster.
-  Args:
-    args: user provided arguments for running the command.
-  Returns:
-    True if GCPFilestore CSI driver is enabled on the cluster and False otherwise.
-  """
-  command = (
-      f'gcloud container clusters describe {args.cluster}'
-      f' --project={args.project} --region={zone_to_region(args.zone)}'
-      ' --format="value(addonsConfig.gcpFilestoreCsiDriverConfig.enabled)"'
-  )
-  return_code, gcpfilestore_driver_enabled = run_command_for_value(
-      command,
-      'Checks if GCPFilestore CSI driver is enabled in cluster describe.',
-      args,
-  )
-  if return_code != 0:
-    xpk_exit(return_code)
-  if gcpfilestore_driver_enabled.lower() == 'true':
-    xpk_print(
-        'GCPFilestore CSI driver is enabled on the cluster, no update needed.'
-    )
+    xpk_print(f'{driver} driver is enabled on the cluster, no update needed.')
     return True
   return False
 
@@ -1298,7 +1272,7 @@ def update_cluster_with_gcsfuse_driver_if_necessary(args) -> int:
     0 if successful and error code otherwise.
   """
 
-  if is_gcsfuse_driver_enabled_on_cluster(args):
+  if is_driver_enabled_on_cluster(args, driver='gcsFuseCsiDriver'):
     return 0
   cluster_update_return_code = update_gke_cluster_with_addon(
       'GcsFuseCsiDriver', args
@@ -1318,7 +1292,7 @@ def update_cluster_with_gcpfilestore_driver_if_necessary(args) -> int:
     0 if successful and error code otherwise.
   """
 
-  if is_gcpfilestore_driver_enabled_on_cluster(args):
+  if is_driver_enabled_on_cluster(args, driver='gcpFilestoreCsiDriver'):
     return 0
   cluster_update_return_code = update_gke_cluster_with_addon(
       'GcpFilestoreCsiDriver', args

@@ -11,12 +11,20 @@ PROJECT_DIR := $(realpath $(shell dirname $(firstword $(MAKEFILE_LIST))))
 
 BIN_PATH=$(PROJECT_DIR)/bin
 
-.PHONY: install install_kjob install_kueuectl install_gcloud check_python update-path
+.PHONY: install install_kjob install_kueuectl install_gcloud check_python update-path 
 
 install: check-python check-gcloud install-kueuectl install-kjob pip-install
 
+install-dev: check-python check-gcloud mkdir-bin install-kubectl install-kueuectl install-kjob pip-install install-pytest 
+
 pip-install:
 	pip install .
+
+install-pytest:
+	pip install -U pytest
+
+run-unittests:
+	pytest src/xpk/
 
 install-kjob: install-kubectl
 	git clone $(KUEUE_REPO) $(KUEUE_TMP_PATH)

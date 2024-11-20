@@ -88,7 +88,7 @@ jobs:
       run: python3 xpk.py job ls | grep 'xpk-def-app-profile-slurm-'
     - name: Get job info for the last job created on the cluster
       run: |
-        export MOST_RECENT_JOB_NAME=$(kubectl get jobs --sort-by=.metadata.creationTimestamp -o jsonpath="{.items[-1:].metadata.name}") 
+        MOST_RECENT_JOB_NAME=$(kubectl get jobs --sort-by=.metadata.creationTimestamp -o jsonpath="{.items[-1:].metadata.name}") 
         python3 xpk.py job info $MOST_RECENT_JOB_NAME | grep -e "Environment variables:" -e "Job name:" -e "Labels:" -e "Mounts:" -e "Pods:" -e "Profile:" | wc -l | grep "6"
     - name: Delete the cluster created
       if: always()

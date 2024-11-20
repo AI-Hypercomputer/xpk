@@ -48,7 +48,7 @@ def set_parser(parser: argparse.ArgumentParser):
       help="Run batch job.",
   )
   job_parser = xpk_subcommands.add_parser(
-      "job", help="commands around listing, cancelling and investigting jobs"
+      "job", help="commands around listing, cancelling and investigating jobs"
   )
 
   def default_subcommand_function(

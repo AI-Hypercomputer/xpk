@@ -47,6 +47,7 @@ from ..core.kueue import (
     cluster_preheat_yml,
     install_kueue_crs,
     install_kueue_on_cluster,
+    wait_for_kueue_available,
 )
 from ..core.nap import enable_autoprovisioning_on_cluster
 from ..core.system_characteristics import (
@@ -176,6 +177,11 @@ def cluster_create(args) -> None:
     )
     if return_code != 0:
       xpk_exit(return_code)
+
+  xpk_print('Wait for Kueue to be fully available')
+  wait_for_kueue_available_code = wait_for_kueue_available(args)
+  if wait_for_kueue_available_code != 0:
+    xpk_exit(wait_for_kueue_available_code)
 
   xpk_print('Install Kueue Custom Resources')
   enable_kueue_credentials_code = install_kueue_crs(

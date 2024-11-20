@@ -17,7 +17,7 @@ limitations under the License.
 from argparse import Namespace
 from ..utils.file import write_tmp_file
 from ..utils.console import xpk_print, xpk_exit
-from .commands import run_command_with_updates_retry, run_command_for_value
+from .commands import run_command_with_updates, run_command_with_updates_retry, run_command_for_value
 from .core import (
     AutoprovisioningConfig,
     create_accelerator_label,
@@ -188,6 +188,26 @@ def install_kueue_on_cluster(args) -> int:
   return return_code
 
 
+def wait_for_kueue_available(args: Namespace) -> int:
+  """Wait for Kueue to be fully available.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  command = (
+      'kubectl wait deploy/kueue-controller-manager -nkueue-system'
+      f' --for=condition=available --timeout={WAIT_FOR_KUEUE_TIMEOUT}'
+  )
+  task = 'Wait for Kueue to be available'
+  return_code = run_command_with_updates(command, task, args)
+  if return_code != 0:
+    xpk_print(f'{task} returned ERROR {return_code}')
+  return return_code
+
+
 def install_kueue_crs(
     args,
     system: SystemCharacteristics,
@@ -245,36 +265,12 @@ def install_kueue_crs(
   )
 
   tmp = write_tmp_file(yml_string)
-  command = (
-      f'kubectl apply -f {str(tmp.file.name)} --request-timeout=40s'
-      ' --timeout=40s'
-  )
+  command = f'kubectl apply -f {str(tmp.file.name)}'
 
   task = 'Applying Kueue Custom Resources'
-  retry_attempts = 6
-  return_code = run_command_with_updates_retry(
-      command, task, args, num_retry_attempts=retry_attempts, wait_seconds=40
-  )
+  return_code = run_command_with_updates_retry(command, task, args)
   if return_code != 0:
-    # We have seen some scenarios where credentials need a few minutes for kueue
-    # and jobset installation to be ready before credentials can be applied.
-    # As a workaround we will retry again with longer wait times.
-    retry_wait_seconds = 60
-    xpk_print(
-        f'{task} still not successful. Retrying {retry_attempts} more timeswith'
-        f' increased wait time of {retry_wait_seconds} seconds between tries.'
-        ' Kueue Custom Resources need Kueue system to be ready which can take'
-        ' some time.'
-    )
-    return_code = run_command_with_updates_retry(
-        command=command,
-        task=task,
-        args=args,
-        num_retry_attempts=retry_attempts,
-        wait_seconds=retry_wait_seconds,
-    )
-    if return_code != 0:
-      xpk_print(f'{task} returned ERROR {return_code}')
+    xpk_print(f'{task} returned ERROR {return_code}')
   return return_code
 
 

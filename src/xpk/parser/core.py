@@ -55,7 +55,7 @@ def set_parser(parser: argparse.ArgumentParser):
   shell_parser = xpk_subcommands.add_parser(
       "shell", help="Commands around configuring and using interactive shell."
   )
-  
+
   def default_subcommand_function(
       _args,
   ) -> int:  # args is unused, so pylint: disable=invalid-name

@@ -27,7 +27,7 @@ def shell(args: Namespace):
   """
   exisitng_shell_pod_name = get_existing_shell_pod_name(args)
 
-  if exisitng_shell_pod_name == None:
+  if exisitng_shell_pod_name is None:
     return_code = connect_to_new_interactive_shell(args)
   else:
     return_code = connect_to_existing_interactive_shell(
@@ -44,8 +44,8 @@ def shell(args: Namespace):
 def get_existing_shell_pod_name(args: Namespace) -> str | None:
   return_code, shell_name = run_command_for_value(
       command=(
-          f'kubectl get pods --no-headers --field-selector status.phase=Running'
-          f' -o custom-columns=":metadata.name"'
+          'kubectl get pods --no-headers --field-selector status.phase=Running'
+          ' -o custom-columns=":metadata.name"'
       ),
       task='Get existing interactive shell pod name.',
       global_args=args,
@@ -104,7 +104,7 @@ def shell_stop(args: Namespace):
   """
   exisitng_shell_pod_name = get_existing_shell_pod_name(args)
 
-  if exisitng_shell_pod_name == None:
+  if exisitng_shell_pod_name is None:
     xpk_print('There is no shell running to stop')
     xpk_exit(0)
 

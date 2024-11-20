@@ -47,9 +47,7 @@ def job_list(args) -> None:
 
 
 def run_slurm_job_list_command(args) -> int:
-  cmd = (
-      f'kubectl-kjob list slurm  --profile {AppProfileDefaults.NAME.value}'
-  )
+  cmd = f'kubectl-kjob list slurm  --profile {AppProfileDefaults.NAME.value}'
 
   return_code = run_command_with_updates(cmd, 'list jobs', args)
   if return_code != 0:

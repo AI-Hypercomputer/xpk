@@ -14,12 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..utils import xpk_exit, xpk_print
+from ..utils.console import xpk_exit, xpk_print
 from .core import (
     AcceleratorType,
     get_all_nodepools_programmatic,
     get_user_workload_container,
-    is_cluster_using_clouddns,
     zone_to_region,
 )
 from .system_characteristics import SystemCharacteristics
@@ -257,34 +256,26 @@ def get_user_workload_for_pathways(args, system: SystemCharacteristics) -> str:
 
 
 def get_rm_address(args) -> str:
-  """Generates the Pathways resource manager address based on whether CloudDNS is enabled or not.
+  """Generates the Pathways resource manager address.
   Args:
     args: user provided arguments for running the command.
 
   Returns:
     str: Fully qualified RM address.
   """
-  suffix = ''
-  if is_cluster_using_clouddns(args):
-    suffix = f'.default.svc.{args.cluster}-domain.'
-  rm_address = f'{args.workload}-rm-0-0.{args.workload}{suffix}:29001'
+  rm_address = f'{args.workload}-rm-0-0.{args.workload}:29001'
   return rm_address
 
 
 def get_proxy_address(args) -> str:
-  """Generates the Pathways proxy address based on whether CloudDNS is enabled or not.
+  """Generates the Pathways proxy address.
   Args:
     args: user provided arguments for running the command.
 
   Returns:
     str: Fully qualified proxy address.
   """
-  suffix = ''
-  if is_cluster_using_clouddns(args):
-    suffix = f'.default.svc.{args.cluster}-domain.'
-  proxy_address = (
-      f'grpc://{args.workload}-proxy-0-0.{args.workload}{suffix}:29000'
-  )
+  proxy_address = f'grpc://{args.workload}-proxy-0-0.{args.workload}:29000'
   return proxy_address
 
 

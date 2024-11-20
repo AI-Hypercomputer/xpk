@@ -14,7 +14,11 @@
 
 name: Lint and Format
 
-on: [push, pull_request]
+on:
+  pull_request:
+  push:
+    branches:
+      - main
 
 jobs:
   build-and-test:
@@ -32,9 +36,14 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         python -m pip install pyink==24.3.0
+        pip install pytype
         pip install pylint
+        pip install .
     - name: Check the code with pylint
       run: |
         pylint $(git ls-files '*.py')
     - name: Check format with pyink
-      run: pyink --check .
+      run: pyink --check . 
+
+    - name: Run pytype
+      run: pytype --config=pytype-conf.cfg

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..utils import xpk_exit, xpk_print
+from ..utils.console import xpk_exit, xpk_print
 from ..core.kueue import verify_kueuectl
 from .cluster import set_cluster_command
 from ..core.commands import (

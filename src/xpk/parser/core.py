@@ -16,12 +16,13 @@ limitations under the License.
 
 import argparse
 
-from ..utils import xpk_print
+from ..utils.console import xpk_print
 from .cluster import set_cluster_parser
 from .inspector import set_inspector_parser
 from .workload import set_workload_parsers
 from .batch import set_batch_parser
 from .info import set_info_parser
+from .job import set_job_parser
 from .shell import set_shell_parser
 
 
@@ -48,10 +49,13 @@ def set_parser(parser: argparse.ArgumentParser):
       "batch",
       help="Run batch job.",
   )
+  job_parser = xpk_subcommands.add_parser(
+      "job", help="commands around listing and cancelling jobs"
+  )
   shell_parser = xpk_subcommands.add_parser(
       "shell", help="Commands around configuring and using interactive shell."
   )
-
+  
   def default_subcommand_function(
       _args,
   ) -> int:  # args is unused, so pylint: disable=invalid-name
@@ -69,7 +73,9 @@ def set_parser(parser: argparse.ArgumentParser):
     workload_parser.print_help()
     batch_parser.print_help()
     info_parser.print_help()
+    job_parser.print_help()
     shell_parser.print_help()
+
     return 0
 
   parser.set_defaults(func=default_subcommand_function)
@@ -77,6 +83,7 @@ def set_parser(parser: argparse.ArgumentParser):
   cluster_parser.set_defaults(func=default_subcommand_function)
   batch_parser.set_defaults(func=default_subcommand_function)
   info_parser.set_defaults(func=default_subcommand_function)
+  job_parser.set_defaults(func=default_subcommand_function)
   shell_parser.set_defaults(func=default_subcommand_function)
 
   set_workload_parsers(workload_parser=workload_parser)
@@ -84,4 +91,5 @@ def set_parser(parser: argparse.ArgumentParser):
   set_inspector_parser(inspector_parser=inspector_parser)
   set_batch_parser(batch_parser=batch_parser)
   set_info_parser(info_parser=info_parser)
+  set_job_parser(job_parser=job_parser)
   set_shell_parser(shell_parser=shell_parser)

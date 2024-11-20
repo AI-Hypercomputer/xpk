@@ -20,7 +20,9 @@ import sys
 import time
 from argparse import Namespace
 
-from ..utils import chunks, make_tmp_files, xpk_print, write_tmp_file
+from ..utils.objects import chunks
+from ..utils.file import make_tmp_files, write_tmp_file
+from ..utils.console import xpk_print
 
 
 def run_commands(commands, jobname, per_command_name, batch=10, dry_run=False):

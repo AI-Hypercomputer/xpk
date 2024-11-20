@@ -12,7 +12,7 @@ limitations under the License.
 """
 
 from ..core.commands import run_command_with_full_controls, run_command_for_value, run_command_with_updates
-from ..utils import xpk_exit, xpk_print
+from ..utils.console import xpk_exit, xpk_print
 from argparse import Namespace
 
 from ..core.kjob import AppProfileDefaults, PodTemplateDefaults

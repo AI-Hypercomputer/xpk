@@ -31,7 +31,9 @@ keywords = []
 # pip dependencies installed with `pip install -e .`
 dependencies = [
   "cloud-accelerator-diagnostics",
-  "tabulate"
+  "tabulate",
+  "ruamel.yaml",
+  "docker"
 ]
 
 [project.urls]
@@ -52,13 +54,15 @@ dev = [
     "pyink==24.3.0",
     "pylint>=2.6.0",
     "pre-commit",
+    "pytest",
+    "docker"
 ]
 
 [tool.setuptools.dynamic]
 version = {attr = "xpk.core.core.__version__"}
 
 [tool.setuptools]
-packages = ["xpk", "xpk.parser", "xpk.core", "xpk.commands"]
+packages = ["xpk", "xpk.parser", "xpk.core", "xpk.commands", "xpk.utils"]
 package-dir = {"" = "src"}
 
 [tool.pyink]

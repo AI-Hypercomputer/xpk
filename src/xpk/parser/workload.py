@@ -21,7 +21,7 @@ from ..commands.workload import (
     workload_list,
 )
 from ..core.core import default_docker_image, default_script_dir
-from ..utils import directory_path_type, workload_name_type
+from .validators import directory_path_type, workload_name_type
 from .common import add_shared_arguments
 
 
@@ -556,6 +556,15 @@ def add_shared_workload_create_optional_arguments(args_parsers):
             ' arg can only be used in `xpk workload create-pathways`(preferred)'
             ' or `xpk workload create --use-pathways.` (--use-pathways will be'
             ' deprecated soon).'
+        ),
+    )
+    custom_parser.add_argument(
+        '--ramdisk-directory',
+        type=str,
+        default='',
+        help=(
+            'The directory of the locally mounted RAM disk. This is only to'
+            ' be used with the CSI driver provided by GKE.'
         ),
     )
 

@@ -47,7 +47,6 @@ from ..core.kueue import (
     cluster_preheat_yml,
     install_kueue_crs,
     install_kueue_on_cluster,
-    wait_for_kueue_available,
 )
 from ..core.nap import enable_autoprovisioning_on_cluster
 from ..core.system_characteristics import (

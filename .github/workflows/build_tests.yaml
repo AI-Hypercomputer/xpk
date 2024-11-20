@@ -24,15 +24,37 @@ env:
   TPU_CLUSTER_NAME: build-xpk-2-v4-8-nodepools
   WORKLOAD_NAME: xpktest-build-${{ github.run_attempt }}
   PATHWAYS_WORKLOAD_NAME: xpkpw-build-${{ github.run_attempt }}
-  CLUSTER_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}}"
+  CLUSTER_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}} --maintenance-window=23:50"
+  RUN_ID: "pr-${{ github.event.number }}"
 
 jobs:
-  cluster-create-and-delete:
+  run-unit-tests:
     runs-on: [ubuntu-22.04]
     concurrency: # We support one build or nightly test to run at a time currently.
       group: build-test-cluster-group
       cancel-in-progress: false
     steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+    - name: Install dependencies
+      run : make install-dev
+    - name: Run unit tests
+      run: make run-unittests
+
+  cluster-create-and-delete:
+    runs-on: [ubuntu-22.04]
+    needs: [run-unit-tests]
+    concurrency: # We support one nightly test and one build test for each branch to run at a time currently.
+      group: build-test-cluster-group-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+    - name: Change RUN_ID env var if merge to main
+      run: echo "RUN_ID=main" >> $GITHUB_ENV
+      if: ${{ github.ref == 'refs/heads/main' }}
+    - name: Update cluster name with RUN_ID
+      run: echo "TPU_CLUSTER_NAME=$TPU_CLUSTER_NAME-$RUN_ID" >> $GITHUB_ENV
     - uses: actions/checkout@v4
     - uses: actions/setup-python@v5
       with:
@@ -90,6 +112,10 @@ jobs:
       run: |
         MOST_RECENT_JOB_NAME=$(kubectl get jobs --sort-by=.metadata.creationTimestamp -o jsonpath="{.items[-1:].metadata.name}") 
         python3 xpk.py job info $MOST_RECENT_JOB_NAME | grep -e "Environment variables:" -e "Job name:" -e "Labels:" -e "Mounts:" -e "Pods:" -e "Profile:" | wc -l | grep "6"
+    - name: Cancel the batch job on the cluster
+      run: |
+        job_name=$(python3 xpk.py job ls | grep 'xpk-def-app-profile-slurm-' | head -1 | awk '{print $1}')
+        python3 xpk.py job cancel ${job_name} | grep "job.batch/${job_name} deleted"
     - name: Delete the cluster created
       if: always()
       run: python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b

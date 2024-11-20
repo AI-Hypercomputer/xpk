@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 import argparse
-from ..commands.job import job_info, job_list
+from ..commands.job import job_info, job_list, job_cancel
 from .common import add_shared_arguments
 
 
@@ -35,6 +35,11 @@ def set_job_parser(job_parser: argparse.ArgumentParser):
   )
   set_job_list_parser(
       job_list_parser=job_subcommands.add_parser('ls', help='List jobs.')
+  )
+  set_job_cancel_parser(
+      job_cancel_parser=job_subcommands.add_parser(
+          'cancel', help='Cancel job execution.'
+      )
   )
 
 
@@ -56,3 +61,24 @@ def set_job_info_parser(job_info_parser: argparse.ArgumentParser):
 def set_job_list_parser(job_list_parser: argparse.ArgumentParser):
   job_list_parser.set_defaults(func=job_list)
   add_shared_arguments(job_list_parser)
+
+
+def set_job_cancel_parser(job_cancel_parser: argparse.ArgumentParser):
+  job_cancel_required_arguments = job_cancel_parser.add_argument_group(
+      'Required Arguments',
+      'Arguments required for job cancel.',
+  )
+  job_cancel_optional_arguments = job_cancel_parser.add_argument_group(
+      'Optional Arguments', 'Arguments optional for job cancel.'
+  )
+
+  job_cancel_required_arguments.add_argument(
+      'name',
+      type=str,
+      default=None,
+      help='The name of the job to be cancelled.',
+      nargs='+',
+  )
+
+  job_cancel_parser.set_defaults(func=job_cancel)
+  add_shared_arguments(job_cancel_optional_arguments)

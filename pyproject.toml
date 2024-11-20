@@ -32,7 +32,8 @@ keywords = []
 dependencies = [
   "cloud-accelerator-diagnostics",
   "tabulate",
-  "ruamel.yaml"
+  "ruamel.yaml",
+  "docker"
 ]
 
 [project.urls]
@@ -53,6 +54,8 @@ dev = [
     "pyink==24.3.0",
     "pylint>=2.6.0",
     "pre-commit",
+    "pytest",
+    "docker"
 ]
 
 [tool.setuptools.dynamic]

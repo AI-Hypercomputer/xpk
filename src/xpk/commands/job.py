@@ -112,17 +112,42 @@ def job_list(args) -> None:
       flush=True,
   )
 
-  if run_slurm_job_list_command(args):
-    xpk_exit(1)
-  xpk_exit(0)
+  return_code = run_slurm_job_list_command(args)
+  xpk_exit(return_code)
 
 
-def run_slurm_job_list_command(args) -> None:
+def run_slurm_job_list_command(args) -> int:
   cmd = (
       f'kubectl-kjob list slurm  --profile {APP_PROFILE_TEMPLATE_DEFAULT_NAME}'
   )
 
-  return_code = run_command_with_updates(cmd, 'list slurm jobs', args)
+  return_code = run_command_with_updates(cmd, 'list jobs', args)
   if return_code != 0:
     xpk_print(f'Listing jobs returned ERROR {return_code}')
+  return return_code
+
+
+def job_cancel(args) -> None:
+  """Function around job cancel.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    None
+  """
+  xpk_print(f'Starting job cancel for job: {args.name}', flush=True)
+  add_zone_and_project(args)
+
+  return_code = run_slurm_job_delete_command(args)
   xpk_exit(return_code)
+
+
+def run_slurm_job_delete_command(args) -> int:
+  list_of_jobs = ' '.join(args.name)
+  cmd = f'kubectl-kjob delete slurm {list_of_jobs}'
+
+  return_code = run_command_with_updates(cmd, 'delete job', args)
+  if return_code != 0:
+    xpk_print(f'Delete job request returned ERROR {return_code}')
+  return return_code

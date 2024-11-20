@@ -4,7 +4,7 @@ KUEUE_TMP_PATH=/tmp/xpk_tmp/kueue
 KUBECTL_VERSION := $(shell curl -L -s https://dl.k8s.io/release/stable.txt)
 
 OS := $(shell uname -s | tr A-Z a-z)
-PLATFORM := $(shell uname -m | sed -e 's/aarch64/arm64/')
+PLATFORM := $(shell uname -m | sed -e 's/aarch64/arm64/' | sed -e 's/x86_64/amd64/')
 
 KUBECTL_URL = "https://dl.k8s.io/release/$(KUBECTL_VERSION)/bin/$(OS)/$(PLATFORM)/kubectl"
 KUEUECTL_URL = "https://github.com/kubernetes-sigs/kueue/releases/download/v0.9.0/kubectl-kueue-$(OS)-$(PLATFORM)"
@@ -38,12 +38,10 @@ mkdir-bin:
 	mkdir -p $(BIN_PATH)
 
 install-kubectl: mkdir-bin
-	@echo "KUBECTL_URL=$(KUBECTL_URL)"
 	curl -Lo $(BIN_PATH)/kubectl $(KUBECTL_URL)
 	chmod +x $(BIN_PATH)/kubectl
 
 install-kueuectl: install-kubectl
-	@echo "KUEUECTL_URL=$(KUEUECTL_URL)"
 	curl -Lo $(BIN_PATH)/kubectl-kueue $(KUEUECTL_URL)
 	chmod +x $(BIN_PATH)/kubectl-kueue
 

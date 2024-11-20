@@ -31,7 +31,24 @@ def set_job_parser(job_parser):
   ### "job ls" command parser ###
   job_list_parser = job_subcommands.add_parser('ls', help='List jobs.')
 
-  add_shared_arguments(job_list_parser)
+  job_list_required_arguments = job_list_parser.add_argument_group(
+      'Required Arguments',
+      'Arguments required for job list.',
+  )
+  job_list_optional_arguments = job_list_parser.add_argument_group(
+      'Optional Arguments', 'Arguments optional for job list.'
+  )
+
+  ### Required arguments
+  job_list_required_arguments.add_argument(
+      '--cluster',
+      type=str,
+      default=None,
+      help='The name of the cluster to list jobs on.',
+      required=True,
+  )
+
+  add_shared_arguments(job_list_optional_arguments)
   job_list_parser.set_defaults(func=job_list)
 
   ### "job cancel" command parser ###
@@ -54,6 +71,14 @@ def set_job_parser(job_parser):
       default=None,
       help='The name of the job to be cancelled.',
       nargs='+',
+  )
+
+  job_cancel_required_arguments.add_argument(
+      '--cluster',
+      type=str,
+      default=None,
+      help='The name of the cluster to delete the job on.',
+      required=True,
   )
 
   add_shared_arguments(job_cancel_optional_arguments)

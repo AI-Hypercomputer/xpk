@@ -609,7 +609,7 @@ when creating the workload otherwise the workload will always finish with `Compl
 *   Job List (see jobs submitted via batch command):
 
     ```shell
-    python3 xpk.py job ls 
+    python3 xpk.py job ls --cluster xpk-test
     ```
 
 * Example Job List Output:
@@ -627,7 +627,7 @@ when creating the workload otherwise the workload will always finish with `Compl
 *   Job Cancel (delete job submitted via batch command):
 
     ```shell
-    python3 xpk.py job cancel xpk-def-app-profile-slurm-74kbv
+    python3 xpk.py job cancel xpk-def-app-profile-slurm-74kbv --cluster xpk-test
     ```
 
 ## Inspector

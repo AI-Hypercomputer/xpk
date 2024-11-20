@@ -2,21 +2,13 @@ KUEUE_REPO=https://github.com/kubernetes-sigs/kueue.git
 KUEUE_TMP_PATH=/tmp/xpk_tmp/kueue
 
 KUBECTL_VERSION := $(shell curl -L -s https://dl.k8s.io/release/stable.txt)
-<<<<<<< HEAD
 KUEUE_VERSION=v0.9.1
-
-PLATFORM := $(shell dpkg --print-architecture)
-
-KUBECTL_URL = "https://dl.k8s.io/release/$(KUBECTL_VERSION)/bin/linux/$(PLATFORM)/kubectl"
-KUEUECTL_URL = "https://github.com/kubernetes-sigs/kueue/releases/download/$(KUEUE_VERSION)/kubectl-kueue-linux-$(PLATFORM)"
-=======
 
 OS := $(shell uname -s | tr A-Z a-z)
 PLATFORM := $(shell uname -m | sed -e 's/aarch64/arm64/' | sed -e 's/x86_64/amd64/')
 
 KUBECTL_URL = "https://dl.k8s.io/release/$(KUBECTL_VERSION)/bin/$(OS)/$(PLATFORM)/kubectl"
-KUEUECTL_URL = "https://github.com/kubernetes-sigs/kueue/releases/download/v0.9.0/kubectl-kueue-$(OS)-$(PLATFORM)"
->>>>>>> origin/main
+KUEUECTL_URL = "https://github.com/kubernetes-sigs/kueue/releases/download/$(KUEUE_VERSION)/kubectl-kueue-$(OS)-$(PLATFORM)"
 
 PROJECT_DIR := $(realpath $(shell dirname $(firstword $(MAKEFILE_LIST))))
 

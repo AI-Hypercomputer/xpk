@@ -1246,7 +1246,7 @@ xpk interfaces seamlessly with kind to manage Kubernetes clusters locally, facil
 
 ## Local Testing Basics
 
-Local testing is available exclusively through the `batch` command of xpk with the `--kind-cluster` flag. This allows you to simulate training jobs locally:
+Local testing is available exclusively through the `batch` and `job` commands of xpk with the `--kind-cluster` flag. This allows you to simulate training jobs locally:
 
 ```shell
 python xpk.py batch [other-options] --kind-cluster script

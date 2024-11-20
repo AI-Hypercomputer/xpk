@@ -188,25 +188,6 @@ def install_kueue_on_cluster(args) -> int:
   return return_code
 
 
-def wait_for_kueue_available(args: Namespace) -> int:
-  """Wait for Kueue to be fully available.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  command = (
-      'kubectl wait deploy/kueue-controller-manager -nkueue-system'
-      f' --for=condition=available --timeout={WAIT_FOR_KUEUE_TIMEOUT}'
-  )
-  task = 'Wait for Kueue to be available'
-  return_code = run_command_with_updates(command, task, args)
-  if return_code != 0:
-    xpk_print(f'{task} returned ERROR {return_code}')
-  return return_code
-
 
 def install_kueue_crs(
     args,
@@ -268,9 +249,28 @@ def install_kueue_crs(
   command = f'kubectl apply -f {str(tmp.file.name)}'
 
   task = 'Applying Kueue Custom Resources'
-  return_code = run_command_with_updates_retry(command, task, args)
+  retry_attempts = 3
+  return_code = run_command_with_updates_retry(command, task, args, num_retry_attempts=retry_attempts)
   if return_code != 0:
-    xpk_print(f'{task} returned ERROR {return_code}')
+    # We have seen some scenarios where credentials need a few minutes for kueue
+    # and jobset installation to be ready before credentials can be applied.
+    # As a workaround we will retry again with longer wait times.
+    retry_wait_seconds = 60
+    xpk_print(
+        f'{task} still not successful. Retrying {retry_attempts} more timeswith'
+        f' increased wait time of {retry_wait_seconds} seconds between tries.'
+        ' Kueue Custom Resources need Kueue system to be ready which can take'
+        ' some time.'
+    )
+    return_code = run_command_with_updates_retry(
+        command=command,
+        task=task,
+        args=args,
+        num_retry_attempts=retry_attempts,
+        wait_seconds=retry_wait_seconds,
+    )
+    if return_code != 0:
+      xpk_print(f'{task} returned ERROR {return_code}')
   return return_code
 
 

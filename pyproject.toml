@@ -31,7 +31,8 @@ keywords = []
 # pip dependencies installed with `pip install -e .`
 dependencies = [
   "cloud-accelerator-diagnostics",
-  "tabulate"
+  "tabulate",
+  "ruamel.yaml"
 ]
 
 [project.urls]
@@ -52,6 +53,7 @@ dev = [
     "pyink==24.3.0",
     "pylint>=2.6.0",
     "pre-commit",
+    "pytest"
 ]
 
 [tool.setuptools.dynamic]

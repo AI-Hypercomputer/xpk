@@ -17,7 +17,7 @@ limitations under the License.
 from argparse import Namespace
 from ..utils.file import write_tmp_file
 from ..utils.console import xpk_print, xpk_exit
-from .commands import run_command_with_updates_retry, run_command_for_value
+from .commands import run_command_with_updates, run_command_with_updates_retry, run_command_for_value
 from .core import (
     AutoprovisioningConfig,
     create_accelerator_label,
@@ -33,6 +33,7 @@ from .system_characteristics import (
 KUEUE_VERSION = 'v0.8.4'
 CLUSTER_QUEUE_NAME = 'cluster-queue'
 LOCAL_QUEUE_NAME = 'multislice-queue'
+WAIT_FOR_KUEUE_TIMEOUT = '5m'
 
 
 cluster_set_crd_yaml = """apiVersion: kueue.x-k8s.io/v1beta1
@@ -198,10 +199,10 @@ def wait_for_kueue_available(args: Namespace) -> int:
   """
   command = (
       'kubectl wait deploy/kueue-controller-manager -nkueue-system'
-      ' --for=condition=available --timeout=5m'
+      f' --for=condition=available --timeout={WAIT_FOR_KUEUE_TIMEOUT}'
   )
   task = 'Wait for Kueue to be available'
-  return_code = run_command_with_updates_retry(command, task, args)
+  return_code = run_command_with_updates(command, task, args)
   if return_code != 0:
     xpk_print(f'{task} returned ERROR {return_code}')
   return return_code

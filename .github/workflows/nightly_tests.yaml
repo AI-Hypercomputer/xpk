@@ -59,11 +59,11 @@ jobs:
         echo $PWD/bin >> "$GITHUB_PATH"
     - name: Check xpk installation
       run: xpk --help
-    # - name: Create an XPK Cluster with zero node pools
-    #   run: python xpk.py cluster create --cluster $EMPTY_CLUSTER_NAME --tpu-type=v4-8  --num-slices=0 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments='${{ secrets.CLUSTER_ARGUMENTS }}'
-    # - name: Delete the cluster created
-    #   run: python xpk.py cluster delete --cluster $EMPTY_CLUSTER_NAME --zone=us-central2-b
-    #   if: always()
+    - name: Create an XPK Cluster with zero node pools
+      run: python xpk.py cluster create --cluster $EMPTY_CLUSTER_NAME --tpu-type=v4-8  --num-slices=0 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments='${{ secrets.CLUSTER_ARGUMENTS }}'
+    - name: Delete the cluster created
+      run: python xpk.py cluster delete --cluster $EMPTY_CLUSTER_NAME --zone=us-central2-b
+      if: always()
     - name: Create a Private XPK Cluster with zero node pools
       run: python xpk.py cluster create --cluster $PRIVATE_CLUSTER_NAME --private --tpu-type=v4-8  --num-slices=0 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments='${CLUSTER_NETWORK_ARGUMENTS}'
     - name: Verify the created cluster is private
@@ -71,24 +71,24 @@ jobs:
     - name: Delete the cluster created
       run: python xpk.py cluster delete --cluster $PRIVATE_CLUSTER_NAME --zone=us-central2-b
       if: always()
-    # - name: Create an XPK Cluster with 2x v4-8 nodepools
-    #   run: python xpk.py cluster create --cluster $TPU_CLUSTER_NAME --tpu-type=v4-8  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments='${{ secrets.CLUSTER_ARGUMENTS }}'
-    # - name: Authenticate Docker
-    #   run: gcloud auth configure-docker --quiet
-    # - name: Create test script to execute in workloads
-    #   run: echo -e '#!/bin/bash \n echo "Hello world from a test script!"' > test.sh
-    # - name: Run a base-docker-image workload
-    #   run: python xpk.py workload create --cluster $TPU_CLUSTER_NAME --workload $WORKLOAD_NAME  --command "bash test.sh"  --tpu-type=v4-8 --num-slices=2 --zone=us-central2-b
-    # - name: List out the workloads on the cluster
-    #   run: python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
-    # - name: Run xpk inspector with the workload created above
-    #   run: python3 xpk.py inspector --cluster $TPU_CLUSTER_NAME --zone=us-central2-b  --workload $WORKLOAD_NAME
-    # - name: Wait for workload completion and confirm it succeeded
-    #   run: python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion $WORKLOAD_NAME --timeout 300
-    # - name: Run xpk info command
-    #   run : python3 xpk.py info --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
-    # - name: Delete the workload on the cluster
-    #   run: python3 xpk.py workload delete --workload $WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+    - name: Create an XPK Cluster with 2x v4-8 nodepools
+      run: python xpk.py cluster create --cluster $TPU_CLUSTER_NAME --tpu-type=v4-8  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments='${{ secrets.CLUSTER_ARGUMENTS }}'
+    - name: Authenticate Docker
+      run: gcloud auth configure-docker --quiet
+    - name: Create test script to execute in workloads
+      run: echo -e '#!/bin/bash \n echo "Hello world from a test script!"' > test.sh
+    - name: Run a base-docker-image workload
+      run: python xpk.py workload create --cluster $TPU_CLUSTER_NAME --workload $WORKLOAD_NAME  --command "bash test.sh"  --tpu-type=v4-8 --num-slices=2 --zone=us-central2-b
+    - name: List out the workloads on the cluster
+      run: python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+    - name: Run xpk inspector with the workload created above
+      run: python3 xpk.py inspector --cluster $TPU_CLUSTER_NAME --zone=us-central2-b  --workload $WORKLOAD_NAME
+    - name: Wait for workload completion and confirm it succeeded
+      run: python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion $WORKLOAD_NAME --timeout 300
+    - name: Run xpk info command
+      run : python3 xpk.py info --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+    - name: Delete the workload on the cluster
+      run: python3 xpk.py workload delete --workload $WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
     - name: Debug
       if: always()
       run: cat /tmp/NodepoolCreate-nightly-xpk-private-2-v4-8-nodepools-np-*

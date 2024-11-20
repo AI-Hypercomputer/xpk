@@ -100,8 +100,10 @@ def submit_job(args: Namespace) -> None:
   if args.chdir is not None:
     cmd += f' --chdir {args.chdir}'
 
-  if args.time is not None:
-    cmd += f' --time {args.time}'
+  # --time supported on Kueue >0.9.x.
+  # TODO: Uncomment it after upgrade Kueue to 0.9.x or newer.
+  # if args.time is not None:
+  #   cmd += f' --time {args.time}'
 
   return_code, _ = run_command_for_value(cmd, 'submit job', args)
 

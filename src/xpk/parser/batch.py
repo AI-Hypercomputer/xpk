@@ -162,16 +162,18 @@ def set_batch_parser(batch_parser):
       default=None,
       help='Change directory before executing the script.',
   )
-  batch_optional_arguments.add_argument(
-      '-t',
-      '--time',
-      type=str,
-      default=None,
-      help=(
-          'Set a limit on the total run time of the job. '
-          'A time limit of zero requests that no time limit be imposed. '
-          'Acceptable time formats include "minutes", "minutes:seconds", '
-          '"hours:minutes:seconds", "days-hours", "days-hours:minutes" '
-          'and "days-hours:minutes:seconds".'
-      ),
-  )
+  # --time supported on Kueue >0.9.x.
+  # TODO: Uncomment it after upgrade Kueue to 0.9.x or newer.
+  # batch_optional_arguments.add_argument(
+  #     '-t',
+  #     '--time',
+  #     type=str,
+  #     default=None,
+  #     help=(
+  #         'Set a limit on the total run time of the job. '
+  #         'A time limit of zero requests that no time limit be imposed. '
+  #         'Acceptable time formats include "minutes", "minutes:seconds", '
+  #         '"hours:minutes:seconds", "days-hours", "days-hours:minutes" '
+  #         'and "days-hours:minutes:seconds".'
+  #     ),
+  # )

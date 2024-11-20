@@ -188,7 +188,6 @@ def install_kueue_on_cluster(args) -> int:
   return return_code
 
 
-
 def install_kueue_crs(
     args,
     system: SystemCharacteristics,
@@ -250,7 +249,9 @@ def install_kueue_crs(
 
   task = 'Applying Kueue Custom Resources'
   retry_attempts = 3
-  return_code = run_command_with_updates_retry(command, task, args, num_retry_attempts=retry_attempts)
+  return_code = run_command_with_updates_retry(
+      command, task, args, num_retry_attempts=retry_attempts
+  )
   if return_code != 0:
     # We have seen some scenarios where credentials need a few minutes for kueue
     # and jobset installation to be ready before credentials can be applied.

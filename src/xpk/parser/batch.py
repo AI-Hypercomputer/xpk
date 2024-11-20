@@ -162,7 +162,7 @@ def set_batch_parser(batch_parser):
       default=None,
       help='Change directory before executing the script.',
   )
-  # --time supported on Kueue >0.9.x.
+  # --time supported on Kueue >=0.9.x.
   # TODO: Uncomment it after upgrade Kueue to 0.9.x or newer.
   # batch_optional_arguments.add_argument(
   #     '-t',

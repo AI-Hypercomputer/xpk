@@ -21,7 +21,7 @@ from ..core.commands import (
     run_command_with_updates,
 )
 from .cluster import set_cluster_command
-from .batch import set_local_cluster_command
+from .kind import set_local_cluster_command
 
 
 def job_list(args) -> None:

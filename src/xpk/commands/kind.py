@@ -47,6 +47,10 @@ def cluster_create(args) -> None:
   if create_cluster_command_code != 0:
     xpk_exit(create_cluster_command_code)
 
+  set_cluster_command_code = set_local_cluster_command(args)
+  if set_cluster_command_code != 0:
+    xpk_exit(set_cluster_command_code)
+
   xpk_print(
       'Enabling the jobset API on our cluster, to be deprecated when Jobset is'
       ' globally available'
@@ -213,3 +217,37 @@ def get_all_local_clusters_programmatic(args) -> tuple[list[str], int]:
     return [], return_code
 
   return raw_cluster_output.splitlines(), 0
+
+
+def set_local_cluster_command(args) -> int:
+  """Run local cluster configuration command to set the kubectl config.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  if not args.cluster:
+    command = 'kubectl config current-context'
+    return_code, current_context = run_command_for_value(
+        command, 'get current-context', args
+    )
+    xpk_print(
+        'No local cluster name specified. Using current-context'
+        f' `{current_context.strip()}`'
+    )
+    return return_code
+
+  command = (
+      f'kubectl config use-context kind-{args.cluster} --namespace=default'
+  )
+  task = f'switch to cluster {args.cluster}'
+  return_code = run_command_with_updates(
+      command,
+      task,
+      args,
+  )
+  if return_code != 0:
+    xpk_print(f'{task} returned ERROR {return_code}')
+  return return_code

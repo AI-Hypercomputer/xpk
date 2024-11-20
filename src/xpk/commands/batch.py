@@ -21,10 +21,8 @@ from ..core.core import add_zone_and_project
 from ..core.job_template import create_job_template_instance
 from ..core.app_profile import create_app_profile_instance
 from ..core.app_profile import APP_PROFILE_TEMPLATE_DEFAULT_NAME
-from ..core.commands import (
-    run_command_for_value,
-    run_command_with_updates,
-)
+from ..core.commands import run_command_for_value
+from .kind import set_local_cluster_command
 
 
 def batch(args: Namespace) -> None:
@@ -61,37 +59,3 @@ def submit_job(args: Namespace) -> None:
   if return_code != 0:
     xpk_print(f'Running batch job returned ERROR {return_code}')
     xpk_exit(return_code)
-
-
-def set_local_cluster_command(args) -> int:
-  """Run local cluster configuration command to set the kubectl config.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  if not args.cluster:
-    command = 'kubectl config current-context'
-    return_code, current_context = run_command_for_value(
-        command, 'get current-context', args
-    )
-    xpk_print(
-        'No local cluster name specified. Using current-context'
-        f' `{current_context.strip()}`'
-    )
-    return return_code
-
-  command = (
-      f'kubectl config use-context kind-{args.cluster} --namespace=default'
-  )
-  task = f'switch to cluster {args.cluster}'
-  return_code = run_command_with_updates(
-      command,
-      task,
-      args,
-  )
-  if return_code != 0:
-    xpk_print(f'{task} returned ERROR {return_code}')
-  return return_code

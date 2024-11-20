@@ -20,6 +20,7 @@ from ..core.app_profile import APP_PROFILE_TEMPLATE_DEFAULT_NAME
 from ..core.commands import (
     run_command_with_updates,
 )
+from .cluster import set_cluster_command
 
 
 def job_list(args) -> None:
@@ -32,6 +33,10 @@ def job_list(args) -> None:
     None
   """
   add_zone_and_project(args)
+  set_cluster_command_code = set_cluster_command(args)
+  if set_cluster_command_code != 0:
+    xpk_exit(set_cluster_command_code)
+
   xpk_print(
       f'Listing jobs for project {args.project} and zone {args.zone}:',
       flush=True,
@@ -63,6 +68,9 @@ def job_cancel(args) -> None:
   """
   xpk_print(f'Starting job cancel for job: {args.name}', flush=True)
   add_zone_and_project(args)
+  set_cluster_command_code = set_cluster_command(args)
+  if set_cluster_command_code != 0:
+    xpk_exit(set_cluster_command_code)
 
   return_code = run_slurm_job_delete_command(args)
   xpk_exit(return_code)

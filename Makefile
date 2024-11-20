@@ -38,10 +38,12 @@ mkdir-bin:
 	mkdir -p $(BIN_PATH)
 
 install-kubectl: mkdir-bin
+	@echo "KUBECTL_URL=$(KUBECTL_URL)"
 	curl -Lo $(BIN_PATH)/kubectl $(KUBECTL_URL)
 	chmod +x $(BIN_PATH)/kubectl
 
 install-kueuectl: install-kubectl
+	@echo "KUEUECTL_URL=$(KUEUECTL_URL)"
 	curl -Lo $(BIN_PATH)/kubectl-kueue $(KUEUECTL_URL)
 	chmod +x $(BIN_PATH)/kubectl-kueue
 

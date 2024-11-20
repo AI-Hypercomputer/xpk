@@ -251,9 +251,9 @@ def install_kueue_crs(
   )
 
   task = 'Applying Kueue Custom Resources'
-  retry_attempts = 3
+  retry_attempts = 6
   return_code = run_command_with_updates_retry(
-      command, task, args, num_retry_attempts=retry_attempts
+      command, task, args, num_retry_attempts=retry_attempts, wait_seconds=40
   )
   if return_code != 0:
     # We have seen some scenarios where credentials need a few minutes for kueue

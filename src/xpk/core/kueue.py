@@ -245,7 +245,7 @@ def install_kueue_crs(
   )
 
   tmp = write_tmp_file(yml_string)
-  command = f'kubectl apply -f {str(tmp.file.name)}'
+  command = f'kubectl apply -f {str(tmp.file.name)} --request-timeout=40s'
 
   task = 'Applying Kueue Custom Resources'
   retry_attempts = 3

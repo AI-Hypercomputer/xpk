@@ -29,7 +29,7 @@ xpk_ctk_img_name = "gcluster-xpk"
 class CtkDockerManager:
   """CtkDockerManager is a class for managing gcluster execution in docker container.
   Attributes:
-    - dockerfile (str) : path to dockerfile defining gcluster execution image
+    - dockerfile_path (str) : path to dockerfile defining gcluster execution image
     - gcloud_cfg_path (str) : path to directory containing gcloud configuration
     - deployment_dir (str) : path to directory in which gcluster deployment directory will be saved
 
@@ -89,13 +89,13 @@ class CtkDockerManager:
         - deployment directory
     Arguments:
     Returns:
-      - None
+      - bytes
     Raises:
       - docker.errors.ContainerError,
       - docker.errors.ImageNotFound,
       - docker.errors.APIError
     """
-    output = self.client.containers.run(
+    output: bytes = self.client.containers.run(
         image=img_name,
         command=cmd,
         remove=rm_container_after,
@@ -113,6 +113,6 @@ class CtkDockerManager:
     """Move file or directory from specified path to directory containing deployment files
 
     Args:
-        file (str): path of directory/file that will be moved to deployment directory
+        path (str): path of directory/file that will be moved to deployment directory
     """
     move(path, self.deployment_dir)

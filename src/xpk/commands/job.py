@@ -30,7 +30,7 @@ def job_info(args):
     args: user provided arguments for running the command.
 
   Returns:
-    0 if successful and 1 otherwise.
+    None
   """
   job_name = args.name
 
@@ -71,7 +71,7 @@ def job_info(args):
       'Mounts': job_yaml['spec']['template']['spec']['containers'][0][
           'volumeMounts'
       ],
-      'Environment variables': get_ev_vars(desc_text),
+      'Environment variables': get_env_vars(desc_text),
       'Pods': get_pods(pods_text),
   }
 
@@ -86,7 +86,7 @@ def get_profile(job_yaml: dict) -> str:
   return profile
 
 
-def get_ev_vars(job_desc_text: str) -> list[tuple[str, str]]:
+def get_env_vars(job_desc_text: str) -> list[tuple[str, str]]:
   regex = r'(SLURM_[A-Z_]*=.*)'
   search_res = re.findall(regex, job_desc_text)
   return search_res

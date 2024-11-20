@@ -2,7 +2,7 @@ KUEUE_REPO=https://github.com/kubernetes-sigs/kueue.git
 KUEUE_TMP_PATH=/tmp/xpk_tmp/kueue
 
 KUBECTL_VERSION := $(shell curl -L -s https://dl.k8s.io/release/stable.txt)
-KUEUE_VERSION=v0.8.4
+KUEUE_VERSION=v0.9.1
 
 PLATFORM := $(shell dpkg --print-architecture)
 

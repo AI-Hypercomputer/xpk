@@ -23,10 +23,6 @@ from ..core.commands import (
     run_command_for_value,
 )
 
-import urllib.request
-from urllib.error import ContentTooShortError
-import os
-
 # AppProfile defaults
 APP_PROFILE_TEMPLATE_DEFAULT_NAME = "xpk-def-app-profile"
 
@@ -36,14 +32,6 @@ JOB_TEMPLATE_DEFAULT_PARALLELISM = 1
 JOB_TEMPLATE_DEFAULT_COMPLETIONS = 1
 JOB_TEMPLATE_DEFAULT_CONT_NAME = "xpk-container"
 JOB_TEMPLATE_DEFAULT_IMG = "ubuntu:22.04"
-
-crd_file_urls = {
-    "kjobctl.x-k8s.io_applicationprofiles.yaml": "https://raw.githubusercontent.com/kubernetes-sigs/kueue/refs/heads/main/cmd/experimental/kjobctl/config/crd/bases/kjobctl.x-k8s.io_applicationprofiles.yaml",
-    "kjobctl.x-k8s.io_jobtemplates.yaml": "https://raw.githubusercontent.com/kubernetes-sigs/kueue/refs/heads/main/cmd/experimental/kjobctl/config/crd/bases/kjobctl.x-k8s.io_jobtemplates.yaml",
-    "kjobctl.x-k8s.io_rayclustertemplates.yaml": "https://raw.githubusercontent.com/kubernetes-sigs/kueue/refs/heads/main/cmd/experimental/kjobctl/config/crd/bases/kjobctl.x-k8s.io_rayclustertemplates.yaml",
-    "kjobctl.x-k8s.io_rayjobtemplates.yaml": "https://raw.githubusercontent.com/kubernetes-sigs/kueue/refs/heads/main/cmd/experimental/kjobctl/config/crd/bases/kjobctl.x-k8s.io_rayjobtemplates.yaml",
-    "kjobctl.x-k8s.io_volumebundles.yaml": "https://raw.githubusercontent.com/kubernetes-sigs/kueue/refs/heads/main/cmd/experimental/kjobctl/config/crd/bases/kjobctl.x-k8s.io_volumebundles.yaml",
-}
 
 job_template_yaml = """
   apiVersion: kjobctl.x-k8s.io/v1alpha1
@@ -144,17 +132,6 @@ def create_job_template_instance(args: Namespace) -> int:
   err_code = run_command_with_updates(command, "Creating JobTemplate", args)
   if err_code != 0:
     return err_code
-  return 0
-
-
-def download_crd_file_urls(files: dict[str, str], path: str) -> int:
-  for file, url in files.items():
-    try:
-      target = os.path.join(path, file)
-      urllib.request.urlretrieve(url, target)
-    except ContentTooShortError as e:
-      xpk_print(f"downloading kjob CDR file {file} failed due to {e.content}")
-      return 1
   return 0
 
 

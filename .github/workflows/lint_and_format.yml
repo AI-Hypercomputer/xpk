@@ -16,15 +16,10 @@ name: Lint and Format
 
 on:
   pull_request:
-    types:
-    - opened
-    - reopened
-    - synchronize
-    branches:
-    - main
   push:
     branches:
       - main
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest

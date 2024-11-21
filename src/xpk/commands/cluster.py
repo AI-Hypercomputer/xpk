@@ -33,7 +33,6 @@ from ..core.core import (
     set_jobset_on_cluster,
     set_up_cluster_network_for_gpu,
     setup_k8s_env,
-    update_cluster_with_clouddns_if_necessary,
     update_cluster_with_gcsfuse_driver_if_necessary,
     update_cluster_with_workload_identity_if_necessary,
     zone_to_region,
@@ -476,7 +475,7 @@ def run_gke_cluster_create_command(
           ' --enable-ip-alias'
           f' --create-subnetwork name={args.cluster}-subnetwork'
       )
-  
+
   if args.enable_workload_identity or args.enable_gcsfuse_csi_driver:
     command += f' --workload-pool={args.project}.svc.id.goog'
 

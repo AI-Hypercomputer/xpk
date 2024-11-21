@@ -89,6 +89,12 @@ jobs:
       run : python3 xpk.py info --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
     - name: Delete the workload on the cluster
       run: python3 xpk.py workload delete --workload $WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+    - name: Create shell and exit it immidiatelly
+      run: python3 xpk.py shell <<< $'exit\n'
+    - name: Check if shell exists and is running
+      run: kubectl get pods | grep xpk-def-app-profile-interactive- | grep Running
+    - name: Stop the shell
+      run: python3 xpk.py shell stop
     - name: Delete the cluster created
       if: always()
       run: python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b

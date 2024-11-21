@@ -12,18 +12,18 @@ spec:
     - implicit-dirs
   csi:
     driver: gcsfuse.csi.storage.gke.io
-    volumeHandle: BUCKET_NAME
+    volumeHandle: zajma-bucket
     volumeAttributes:
       gcsfuseLoggingSeverity: warning
   claimRef:
     name: gcs-fuse-csi-static-pvc
-    namespace: NAMESPACE_NAME
+    namespace: default
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: xpk-gcs-fuse-csi-static-pvc
-  namespace: NAMESPACE_NAME
+  namespace: default
 spec:
   accessModes:
   - ReadWriteMany

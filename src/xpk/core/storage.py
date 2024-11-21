@@ -195,17 +195,20 @@ def get_storages(
   Returns:
       A list of Storage objects matching the given names.
   """
-  storages: list[Storage] = []
   all_storages = list_storages(k8s_api_client)
-  for storage in requested_storages:
-    if storage in all_storages:
-      storages.append(storage)
-    else:
+  all_storage_names = {storage.name for storage in all_storages}
+
+  for storage_name in requested_storages:
+    if storage_name not in all_storage_names:
       xpk_print(
-          f"Storage: {storage} not found. Choose one of the available storages:"
-          f" {all_storages}"
+          f"Storage: {storage_name} not found. Choose one of the available"
+          f" storages: {list(all_storage_names)}"
       )
       xpk_exit(1)
+
+  storages: list[Storage] = list(
+      storage for storage in all_storages if storage.name in requested_storages
+  )
   return storages
 
 

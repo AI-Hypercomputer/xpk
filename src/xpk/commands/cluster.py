@@ -33,7 +33,6 @@ from ..core.core import (
     set_jobset_on_cluster,
     set_up_cluster_network_for_gpu,
     setup_k8s_env,
-    update_cluster_with_clouddns_if_necessary,
     update_cluster_with_gcsfuse_driver_if_necessary,
     update_cluster_with_workload_identity_if_necessary,
     zone_to_region,
@@ -132,12 +131,6 @@ def cluster_create(args) -> None:
       xpk_exit(update_cluster_command_code)
 
   # Update Pathways clusters with CloudDNS if not enabled already.
-  if args.enable_pathways:
-    update_cluster_command_code = update_cluster_with_clouddns_if_necessary(
-        args
-    )
-    if update_cluster_command_code != 0:
-      xpk_exit(update_cluster_command_code)
 
   get_cluster_credentials(args)
 

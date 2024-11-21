@@ -28,6 +28,8 @@ env:
   STORAGE_NAME: test-storage
   PW_CLUSTER_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}} --maintenance-window=23:50"
   CLUSTER_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}} --subnetwork=${{secrets.SUBNETWORK_NAME}} --maintenance-window=23:50"
+  FS_STORAGE_NAME: ${{secrets.INSTANCE_NAME}}
+
 jobs:
   run-filestore-workload:
     runs-on: [ubuntu-20.04]
@@ -100,9 +102,6 @@ jobs:
     - name: Delete the delete workload on the cluster
       if: always()
       run: python3 xpk.py workload delete --workload $FS_DELETE_WORKLOAD --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b
-    - name: Delete existing Storage
-      if: always()
-      run: python3 xpk.py storage delete $FS_STORAGE_NAME  --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b
     - name: Delete the cluster created
       if: always()
       run: python3 xpk.py cluster delete --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b

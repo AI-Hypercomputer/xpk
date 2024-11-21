@@ -105,12 +105,6 @@ def cluster_create(args) -> None:
       xpk_exit(update_cluster_command_code)
 
   # Update Pathways clusters with CloudDNS if not enabled already.
-  if args.enable_pathways:
-    update_cluster_command_code = update_cluster_with_clouddns_if_necessary(
-        args
-    )
-    if update_cluster_command_code != 0:
-      xpk_exit(update_cluster_command_code)
 
   get_cluster_credentials(args)
 
@@ -481,11 +475,8 @@ def run_gke_cluster_create_command(
       command += (
           ' --enable-ip-alias'
           f' --create-subnetwork name={args.cluster}-subnetwork'
-          ' --cluster-dns=clouddns'
-          ' --cluster-dns-scope=vpc'
-          f' --cluster-dns-domain={args.cluster}-domain'
       )
-
+  
   if args.enable_workload_identity or args.enable_gcsfuse_csi_driver:
     command += f' --workload-pool={args.project}.svc.id.goog'
 

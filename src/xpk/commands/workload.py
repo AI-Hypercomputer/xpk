@@ -230,7 +230,7 @@ spec:
               imagePullPolicy: Always
               name: pathways-worker
               ports:
-              - containerPort: 38677
+              - containerPort: 29001
               - containerPort: 8471
               - containerPort: 8080
               resources:
@@ -247,6 +247,8 @@ spec:
               {machine_label}
               {autoprovisioning_args}
             priorityClassName: {args.priority}
+            hostNetwork: true
+            dnsPolicy: ClusterFirstWithHostNet
             volumes:
             - hostPath:
                 path: /tmp
@@ -285,7 +287,7 @@ spec:
               imagePullPolicy: Always
               name: pathways-rm
               ports:
-              - containerPort: 38677
+              - containerPort: 29001
               resources:
                 limits:
                   cpu: "4"
@@ -297,6 +299,8 @@ spec:
                 name: shared-tmp
             nodeSelector:
               cloud.google.com/gke-nodepool: cpu-rm-np
+            hostNetwork: true
+            dnsPolicy: ClusterFirstWithHostNet
             volumes:
             - hostPath:
                 path: /tmp
@@ -321,11 +325,9 @@ spec:
               imagePullPolicy: Always
               name: pathways-proxy
               ports:
-              - containerPort: 38676
-              resources:
-                limits:
-                  cpu: "24"
-                  memory: 100G
+              - containerPort: 29000
+            hostNetwork: true
+            dnsPolicy: ClusterFirstWithHostNet
             nodeSelector:
               cloud.google.com/gke-nodepool: cpu-proxy-np
   {user_workload}

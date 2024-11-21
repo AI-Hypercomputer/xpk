@@ -29,7 +29,9 @@ env:
   PW_CLUSTER_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}} --maintenance-window=23:50"
   CLUSTER_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}} --subnetwork=${{secrets.SUBNETWORK_NAME}} --maintenance-window=23:50"
   FS_STORAGE_NAME: ${{secrets.INSTANCE_NAME}}
-
+  FS_DELETE_WORKLOAD: "fs-delete-workload"
+  FS_READ_WORKLOAD: "fs-read-workload"
+  FS_WRITE_WORKLOAD: "fs-write-workload"
 jobs:
   run-filestore-workload:
     runs-on: [ubuntu-20.04]

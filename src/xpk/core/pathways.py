@@ -27,7 +27,7 @@ from .storage import XPK_SA, Storage, get_storage_volumes_yaml
 from .system_characteristics import SystemCharacteristics
 
 PathwaysExpectedInstancesMap = {
-   'v6e': 'tpuv6e',
+    'v6e': 'tpuv6e',
     'v5p': 'tpuv5',
     'v5litepod': 'tpuv5e',
     'v4': 'tpuv4',
@@ -209,7 +209,7 @@ def get_pathways_rm_args(args, system: SystemCharacteristics) -> str:
     return yaml.format(
         args=args,
         instance_count=args.num_slices,
-        instance_type=f'{get_pathways_expected_tpu_type(system.device_type)}:{system.topology}',,
+        instance_type=f'{get_pathways_expected_tpu_type(system.device_type)}:{system.topology}',
     )
   else:
     return ''

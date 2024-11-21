@@ -179,19 +179,19 @@ def set_cluster_parser(cluster_parser):
   cluster_create_ray_cluster_required_arguments = (
       cluster_create_ray_cluster_parser.add_argument_group(
           'Required Arguments',
-          'Arguments required for cluster create-ray-cluster.',
+          'Arguments required for cluster create-ray.',
       )
   )
   cluster_create_ray_cluster_optional_arguments = (
       cluster_create_ray_cluster_parser.add_argument_group(
           'Optional Arguments',
-          'Arguments optional for cluster create-ray-cluster.',
+          'Arguments optional for cluster create-ray.',
       )
   )
   cluster_create_ray_cluster_capacity_arguments = (
       cluster_create_ray_cluster_parser.add_argument_group(
           'Capacity Arguments',
-          'Arguments related to capacity for cluster create-ray-cluster.',
+          'Arguments related to capacity for cluster create-ray.',
       )
   )
   cluster_create_ray_cluster_tensorboard_arguments = (

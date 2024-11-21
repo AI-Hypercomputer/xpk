@@ -61,6 +61,7 @@ set_parser(parser=parser)
 
 xpk_print('Starting xpk', flush=True)
 main_args = parser.parse_args()
+main_args.enable_ray_cluster = False
 main_args.func(main_args)
 
 

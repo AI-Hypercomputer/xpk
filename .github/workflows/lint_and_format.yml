@@ -27,6 +27,14 @@ jobs:
       matrix:
         python-version: ["3.10", "3.11"]
     steps:
+    - run: |
+        echo -n -e \
+          "##!/usr/bin/expect \n" \
+          "spawn python3 ./xpk-shell/xpk.py shell \n" \
+          "expect \"/ # \" \n" \
+          "send \"exit\\n\"" \ 
+          > create-shell.exp
+        cat ./create-shell.exp
     - uses: actions/checkout@v3
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v3

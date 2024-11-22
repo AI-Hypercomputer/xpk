@@ -115,11 +115,11 @@ jobs:
     - name: Create shell and exit it immidiatelly
       run: |
         echo -n -e \
-        '##!/usr/bin/expect \n' \
-        'spawn python3 ./xpk-shell/xpk.py shell \n' \
-        'expect "/ # " \n' \
-        'send "exit\n"'' \ 
-        > create-shell.exp
+          '##!/usr/bin/expect \n' \
+          'spawn python3 ./xpk-shell/xpk.py shell \n' \
+          'expect "/ # " \n' \
+          'send "exit\n"'' \ 
+          > create-shell.exp
         chmod +x create-shell.exp
         create-shell.exp
     - name: Check if shell exists and is running

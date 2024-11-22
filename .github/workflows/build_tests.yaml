@@ -120,8 +120,8 @@ jobs:
           'expect "/ # " \n' \
           'send "exit\n"' \ 
           > create-shell.exp
-        chmod +x create-shell.exp
-        create-shell.exp
+        chmod +x ./create-shell.exp
+        ./create-shell.exp
     - name: Check if shell exists and is running
       run: kubectl get pods | grep xpk-def-app-profile-interactive- | grep Running
     - name: Stop the shell

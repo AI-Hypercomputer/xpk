@@ -118,7 +118,7 @@ jobs:
           '##!/usr/bin/expect \n' \
           'spawn python3 ./xpk-shell/xpk.py shell \n' \
           'expect "/ # " \n' \
-          'send "exit\n"'' \ 
+          'send "exit\n"' \ 
           > create-shell.exp
         chmod +x create-shell.exp
         create-shell.exp

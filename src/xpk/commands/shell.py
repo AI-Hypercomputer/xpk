@@ -18,6 +18,9 @@ from argparse import Namespace
 from ..core.kjob import AppProfileDefaults, PodTemplateDefaults
 
 
+exit_instructions = 'To exit the shell input "exit".'
+
+
 def shell(args: Namespace):
   """Enter interactive shell.
   Args:
@@ -66,9 +69,6 @@ def get_existing_shell_pod_name(args: Namespace) -> str | None:
   return shell_pod_names[0] if shell_pod_names else None
 
 
-exit_instructions = 'To exit the shell input "exit".'
-
-
 def connect_to_new_interactive_shell(args: Namespace) -> int:
   return run_command_with_full_controls(
       command=(
@@ -113,9 +113,7 @@ def shell_stop(args: Namespace):
       task='Deleting the existing shell.',
       global_args=args,
   )
-
   if return_code != 0:
-    xpk_print(f'The command failed with code {return_code}.')
     xpk_exit(return_code)
 
   xpk_print('The shell was deleted successfully.')

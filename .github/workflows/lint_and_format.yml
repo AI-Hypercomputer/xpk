@@ -28,12 +28,11 @@ jobs:
         python-version: ["3.10", "3.11"]
     steps:
     - run: |
-        cat <<EOT >> create-shell.exp
+        cat <<EOF >> create-shell.exp
           ##!/usr/bin/expect
           spawn python3 ./xpk-shell/xpk.py shell
           expect "/ # "
-          send "exit\n"
-          EOT
+          send "exit\n"EOF
         chmod +x ./create-shell.exp
         cat ./create-shell.exp
     - uses: actions/checkout@v3

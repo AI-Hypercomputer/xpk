@@ -113,7 +113,15 @@ jobs:
         job_name=$(python3 xpk.py job ls --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep 'xpk-def-app-profile-slurm-' | head -1 | awk '{print $1}')
         python3 xpk.py job cancel ${job_name} --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep "job.batch/${job_name} deleted"
     - name: Create shell and exit it immidiatelly
-      run: python3 xpk.py shell
+      run: |
+        echo -n -e \
+        ##!/usr/bin/expect \
+        \nspawn python3 ./xpk-shell/xpk.py shell \
+        \nexpect "/ # " \
+        \nsend "exit\n" \ 
+        > create-shell.sh
+        chmod +x create-shell.sh
+        create-shell.sh
     - name: Check if shell exists and is running
       run: kubectl get pods | grep xpk-def-app-profile-interactive- | grep Running
     - name: Stop the shell

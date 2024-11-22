@@ -35,6 +35,7 @@ from ..core.core import (
     setup_k8s_env,
     update_cluster_with_gcsfuse_driver_if_necessary,
     update_cluster_with_workload_identity_if_necessary,
+    update_cluster_with_gcpfilestore_driver_if_necessary,
     zone_to_region,
 )
 from ..core.kueue import (
@@ -88,7 +89,11 @@ def cluster_create(args) -> None:
     xpk_exit(create_cluster_command_code)
 
   # Enable WorkloadIdentity if not enabled already.
-  if args.enable_workload_identity or args.enable_gcsfuse_csi_driver:
+  if (
+      args.enable_workload_identity
+      or args.enable_gcsfuse_csi_driver
+      or args.enable_gcpfilestore_csi_driver
+  ):
     update_cluster_command_code = (
         update_cluster_with_workload_identity_if_necessary(args)
     )
@@ -99,6 +104,13 @@ def cluster_create(args) -> None:
   if args.enable_gcsfuse_csi_driver:
     update_cluster_command_code = (
         update_cluster_with_gcsfuse_driver_if_necessary(args)
+    )
+    if update_cluster_command_code != 0:
+      xpk_exit(update_cluster_command_code)
+
+  if args.enable_gcpfilestore_csi_driver:
+    update_cluster_command_code = (
+        update_cluster_with_gcpfilestore_driver_if_necessary(args)
     )
     if update_cluster_command_code != 0:
       xpk_exit(update_cluster_command_code)
@@ -476,11 +488,23 @@ def run_gke_cluster_create_command(
           f' --create-subnetwork name={args.cluster}-subnetwork'
       )
 
-  if args.enable_workload_identity or args.enable_gcsfuse_csi_driver:
+  if (
+      args.enable_workload_identity
+      or args.enable_gcsfuse_csi_driver
+      or args.enable_gcpfilestore_csi_driver
+  ):
     command += f' --workload-pool={args.project}.svc.id.goog'
 
+  addons = []
   if args.enable_gcsfuse_csi_driver:
-    command += ' --addons GcsFuseCsiDriver'
+    addons.append('GcsFuseCsiDriver')
+
+  if args.enable_gcpfilestore_csi_driver:
+    addons.append('GcpFilestoreCsiDriver')
+
+  if len(addons) > 0:
+    addons_str = ','.join(addons)
+    command += f' --addons={addons_str}'
 
   return_code = run_command_with_updates(command, 'GKE Cluster Create', args)
   if return_code != 0:

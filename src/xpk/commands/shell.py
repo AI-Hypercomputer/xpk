@@ -96,7 +96,7 @@ def connect_to_existing_interactive_shell(
 
 
 def shell_stop(args: Namespace):
-  """Stop the running interactive shell.
+  """Stop the running interactive shell by deleting the pod.
   Args:
     args: user provided arguments for running the command.
   Returns:

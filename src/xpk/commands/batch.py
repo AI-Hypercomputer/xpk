@@ -21,9 +21,8 @@ from ..core.core import add_zone_and_project
 from ..core.job_template import create_job_template_instance
 from ..core.app_profile import create_app_profile_instance
 from ..core.app_profile import APP_PROFILE_TEMPLATE_DEFAULT_NAME
-from ..core.commands import (
-    run_command_for_value,
-)
+from ..core.commands import run_command_for_value
+from .kind import set_local_cluster_command
 
 
 def batch(args: Namespace) -> None:
@@ -34,8 +33,12 @@ def batch(args: Namespace) -> None:
   Returns:
     None
   """
-  add_zone_and_project(args)
-  set_cluster_command_code = set_cluster_command(args)
+  if not args.kind_cluster:
+    add_zone_and_project(args)
+    set_cluster_command_code = set_cluster_command(args)
+  else:
+    set_cluster_command_code = set_local_cluster_command(args)
+
   if set_cluster_command_code != 0:
     xpk_exit(set_cluster_command_code)
 

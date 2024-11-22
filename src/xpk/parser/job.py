@@ -14,6 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import argparse
+
 from .common import add_shared_arguments
 from ..commands.job import job_list, job_cancel
 
@@ -48,6 +50,14 @@ def set_job_parser(job_parser):
       required=True,
   )
 
+  job_list_optional_arguments.add_argument(
+      '--kind-cluster',
+      type=bool,
+      action=argparse.BooleanOptionalAction,
+      default=False,
+      help='Apply command to a local test cluster.',
+  )
+
   add_shared_arguments(job_list_optional_arguments)
   job_list_parser.set_defaults(func=job_list)
 
@@ -79,6 +89,14 @@ def set_job_parser(job_parser):
       default=None,
       help='The name of the cluster to delete the job on.',
       required=True,
+  )
+
+  job_cancel_optional_arguments.add_argument(
+      '--kind-cluster',
+      type=bool,
+      action=argparse.BooleanOptionalAction,
+      default=False,
+      help='Apply command to a local test cluster.',
   )
 
   add_shared_arguments(job_cancel_optional_arguments)

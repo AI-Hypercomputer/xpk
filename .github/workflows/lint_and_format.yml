@@ -27,17 +27,6 @@ jobs:
       matrix:
         python-version: ["3.10", "3.11"]
     steps:
-    - name: Install expect package
-      run: sudo apt-get install expect
-    - run: |
-        cat <<'EOF' >> create-shell.exp
-        ##!/usr/bin/expect
-        spawn python3 ./random.py shell
-        expect "/ # "
-        send "exit\n"
-        EOF
-        chmod +x ./create-shell.exp
-        expect ./create-shell.exp
     - uses: actions/checkout@v3
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v3

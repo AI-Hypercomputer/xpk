@@ -118,7 +118,7 @@ jobs:
       run: |
         cat <<'EOF' >> create-shell.exp
         ##!/usr/bin/expect
-        spawn python3 ./xpk-shell/xpk.py shell
+        spawn python3 ./xpk.py shell
         expect "/ # "
         send "exit\n"
         EOF

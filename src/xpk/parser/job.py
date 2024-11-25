@@ -15,12 +15,12 @@ limitations under the License.
 """
 
 import argparse
+from ..commands.job import job_info, job_list, job_cancel
 
 from .common import add_shared_arguments
-from ..commands.job import job_list, job_cancel
 
 
-def set_job_parser(job_parser):
+def set_job_parser(job_parser: argparse.ArgumentParser):
   job_subcommands = job_parser.add_subparsers(
       title='job subcommands',
       dest='xpk_job_subcommands',
@@ -29,10 +29,37 @@ def set_job_parser(job_parser):
           ' specific subcommands for more details.'
       ),
   )
+  set_job_info_parser(
+      job_info_parser=job_subcommands.add_parser(
+          'info', help='Show information about specified job.'
+      )
+  )
+  set_job_list_parser(
+      job_list_parser=job_subcommands.add_parser('ls', help='List jobs.')
+  )
+  set_job_cancel_parser(
+      job_cancel_parser=job_subcommands.add_parser(
+          'cancel', help='Cancel job execution.'
+      )
+  )
 
-  ### "job ls" command parser ###
-  job_list_parser = job_subcommands.add_parser('ls', help='List jobs.')
 
+def set_job_info_parser(job_info_parser: argparse.ArgumentParser):
+  job_info_parser_required_arguments = job_info_parser.add_argument_group(
+      'Required arguments',
+      'The basic information required to identify the job.',
+  )
+  job_info_parser_required_arguments.add_argument(
+      'name',
+      type=str,
+      default=None,
+      help='Name of the job.',
+  )
+  job_info_parser.set_defaults(func=job_info)
+  add_shared_arguments(job_info_parser)
+
+
+def set_job_list_parser(job_list_parser: argparse.ArgumentParser):
   job_list_required_arguments = job_list_parser.add_argument_group(
       'Required Arguments',
       'Arguments required for job list.',
@@ -58,14 +85,11 @@ def set_job_parser(job_parser):
       help='Apply command to a local test cluster.',
   )
 
-  add_shared_arguments(job_list_optional_arguments)
   job_list_parser.set_defaults(func=job_list)
+  add_shared_arguments(job_list_optional_arguments)
 
-  ### "job cancel" command parser ###
-  job_cancel_parser = job_subcommands.add_parser(
-      'cancel', help='Cancel job execution.'
-  )
 
+def set_job_cancel_parser(job_cancel_parser: argparse.ArgumentParser):
   job_cancel_required_arguments = job_cancel_parser.add_argument_group(
       'Required Arguments',
       'Arguments required for job cancel.',
@@ -74,7 +98,6 @@ def set_job_parser(job_parser):
       'Optional Arguments', 'Arguments optional for job cancel.'
   )
 
-  ### Required arguments
   job_cancel_required_arguments.add_argument(
       'name',
       type=str,
@@ -99,5 +122,5 @@ def set_job_parser(job_parser):
       help='Apply command to a local test cluster.',
   )
 
-  add_shared_arguments(job_cancel_optional_arguments)
   job_cancel_parser.set_defaults(func=job_cancel)
+  add_shared_arguments(job_cancel_optional_arguments)

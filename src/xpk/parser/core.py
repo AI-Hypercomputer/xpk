@@ -21,8 +21,8 @@ from .cluster import set_cluster_parser
 from .inspector import set_inspector_parser
 from .workload import set_workload_parsers
 from .batch import set_batch_parser
-from .info import set_info_parser
 from .job import set_job_parser
+from .info import set_info_parser
 from .kind import set_kind_parser
 from .shell import set_shell_parser
 
@@ -51,7 +51,7 @@ def set_parser(parser: argparse.ArgumentParser):
       help="Run batch job.",
   )
   job_parser = xpk_subcommands.add_parser(
-      "job", help="commands around listing and cancelling jobs"
+      "job", help="commands around listing, cancelling and investigating jobs"
   )
   kind_parser = xpk_subcommands.add_parser(
       "kind",

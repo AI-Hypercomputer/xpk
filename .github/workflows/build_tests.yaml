@@ -81,17 +81,17 @@ jobs:
         --auto-mount=true \
         --mount-point='/fs-test-mount-point' --readonly=false --manifest='./tests/data/fs-manifest.yaml'
     - name: List and verify existing Storages
-      run: python3 xpk.py storage list --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b | tee output.txt | grep $FS_STORAGE_NAME || (echo 'No storage found' && exit 1)
+      run: python3 xpk.py storage list --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b | tee output.txt | grep $FS_STORAGE_NAME || (echo 'No storage found' && exit 143)
     - name: Run workload to write file on filestore
       run : python3 xpk.py workload create --workload $FS_WRITE_WORKLOAD --command "mkdir /fs-test-mount-point/$RANDOM_SEED/ && echo 'Test text message' > /fs-test-mount-point/$RANDOM_SEED/test.txt" --cluster $TPU_FILESTORE_CLUSTER_NAME --tpu-type=v4-8 --zone us-central2
     - name: Wait for writer workload completion and confirm it succeeded
       run: python3 xpk.py workload list --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion $FS_WRITE_WORKLOAD --timeout 300
     - name: Run workload to read file on filestore
-      run : python3 xpk.py workload create --workload $FS_READ_WORKLOAD --command "cat /fs-test-mount-point/$RANDOM_SEED/test.txt | grep 'Test text message' || (echo 'Writing to filestore failed' && exit 1)" --cluster $TPU_FILESTORE_CLUSTER_NAME --tpu-type=v4-8 --zone us-central2
+      run : python3 xpk.py workload create --workload $FS_READ_WORKLOAD --command "cat /fs-test-mount-point/$RANDOM_SEED/test.txt | grep 'Test text message' || (echo 'Writing to filestore failed' && exit 143)" --cluster $TPU_FILESTORE_CLUSTER_NAME --tpu-type=v4-8 --zone us-central2
     - name: Wait for reader workload completion and confirm it succeeded
       run: python3 xpk.py workload list --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion $FS_READ_WORKLOAD --timeout 300
     - name: Run workload to delete file on filestore
-      run : python3 xpk.py workload create --workload $FS_DELETE_WORKLOAD --command "rm -rf /fs-test-mount-point/$RANDOM_SEED/test.txt" --cluster $TPU_FILESTORE_CLUSTER_NAME --tpu-type=v4-8 --zone us-central2
+      run : python3 xpk.py workload create --workload $FS_DELETE_WORKLOAD --command "rm -rf /fs-test-mount-point/$RANDOM_SEED/test.txt || exit 143" --cluster $TPU_FILESTORE_CLUSTER_NAME --tpu-type=v4-8 --zone us-central2
     - name: Wait for delete workload completion and confirm it succeeded
       run: python3 xpk.py workload list --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion $FS_DELETE_WORKLOAD --timeout 300
     - name: Delete the writer workload on the cluster

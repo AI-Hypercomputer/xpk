@@ -2628,6 +2628,7 @@ def get_volumes(args, system: SystemCharacteristics) -> str:
       volumes += f"""- name: {storage.pv}
                 persistentVolumeClaim:
                   claimName: {storage.pvc}
+                  readOnly: {storage.readonly}
               """
   return volumes
 
@@ -2692,6 +2693,7 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
     if storage.type == GCP_FILESTORE_TYPE:
       volume_mount_yaml += f"""- name: {storage.pv}
                   mountPath: {storage.mount_point}
+                  readOnly: {storage.readonly}
                 """
   return volume_mount_yaml
 

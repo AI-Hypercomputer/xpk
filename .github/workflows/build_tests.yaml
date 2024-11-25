@@ -74,7 +74,7 @@ jobs:
         --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --enable-workload-identity --enable-gcpfilestore-csi-driver --custom-cluster-arguments="${CLUSTER_ARGUMENTS}"
     - name: Fill Filestore manifest file
       run: |
-        sed -i 's/PROJECT_NAME/${{secrets.PROJECT_NAME}}/g;  s/ZONE/us-central2-c/g; s/INSTANCE_NAME/${{secrets.INSTANCE_NAME}}/g; s/VOL_NAME/${{secrets.VOL_NAME}}/g; s/IP_ADDRESS/${{secrets.IP_ADDRESS}}/g' ./tests/data/fs-manifest.yaml 
+        sed -i 's/PROJECT_NAME/${{secrets.PROJECT_NAME}}/g;  s/ZONE/us-central2-a/g; s/INSTANCE_NAME/${{secrets.INSTANCE_NAME}}/g; s/VOL_NAME/${{secrets.VOL_NAME}}/g; s/IP_ADDRESS/${{secrets.IP_ADDRESS}}/g' ./tests/data/fs-manifest.yaml 
     - name: Create auto-mount GCP Filestore Storage instance
       run: |
         python3 xpk.py storage create $FS_STORAGE_NAME --cluster=$TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b --type=gcpfilestore \

@@ -30,6 +30,7 @@ jobs:
     - name: Install expect package
       run: sudo apt-get install expect
     - run: |
+        sudo apt-get install expect
         cat <<'EOF' >> create-shell.exp
         ##!/usr/bin/expect
         spawn python3 ./random.py shell

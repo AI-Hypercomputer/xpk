@@ -50,3 +50,22 @@ def add_shared_arguments(custom_parser: argparse.ArgumentParser):
           ' branch based on the output of commands'
       ),
   )
+
+
+def add_global_arguments(custom_parser: argparse.ArgumentParser):
+  """Add global - no cloud dependent -  arguments to the parser.
+
+  Args:
+    custom_parser: parser to add global arguments to.
+  """
+  custom_parser.add_argument(
+      '--dry-run',
+      type=bool,
+      action=argparse.BooleanOptionalAction,
+      default=False,
+      help=(
+          'If given `--dry-run`, xpk will print the commands it wants to run'
+          ' but not run them. This is imperfect in cases where xpk might'
+          ' branch based on the output of commands'
+      ),
+  )

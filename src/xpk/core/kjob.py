@@ -16,34 +16,28 @@ limitations under the License.
 
 from argparse import Namespace
 from ..utils.console import xpk_print
-from ..utils.file import write_tmp_file
-from .commands import run_command_with_updates
+from .commands import run_command_for_value, run_kubectl_apply, run_command_with_updates
+from enum import Enum
 
-from ..core.commands import (
-    run_command_for_value,
-)
 
-import urllib.request
-from urllib.error import ContentTooShortError
-import os
+class AppProfileDefaults(Enum):
+  NAME = "xpk-def-app-profile"
 
-# AppProfile defaults
-APP_PROFILE_TEMPLATE_DEFAULT_NAME = "xpk-def-app-profile"
 
-# JobTemplate defaults
-JOB_TEMPLATE_DEFAULT_NAME = "xpk-def-batch"
-JOB_TEMPLATE_DEFAULT_PARALLELISM = 1
-JOB_TEMPLATE_DEFAULT_COMPLETIONS = 1
-JOB_TEMPLATE_DEFAULT_CONT_NAME = "xpk-container"
-JOB_TEMPLATE_DEFAULT_IMG = "ubuntu:22.04"
+class JobTemplateDefaults(Enum):
+  NAME = "xpk-def-batch"
+  PARALLELISM = 1
+  COMPLETIONS = 1
+  CONTAINER_NAME = "xpk-batch-container"
+  IMAGE = "ubuntu:22.04"
 
-crd_file_urls = {
-    "kjobctl.x-k8s.io_applicationprofiles.yaml": "https://raw.githubusercontent.com/kubernetes-sigs/kueue/refs/heads/main/cmd/experimental/kjobctl/config/crd/bases/kjobctl.x-k8s.io_applicationprofiles.yaml",
-    "kjobctl.x-k8s.io_jobtemplates.yaml": "https://raw.githubusercontent.com/kubernetes-sigs/kueue/refs/heads/main/cmd/experimental/kjobctl/config/crd/bases/kjobctl.x-k8s.io_jobtemplates.yaml",
-    "kjobctl.x-k8s.io_rayclustertemplates.yaml": "https://raw.githubusercontent.com/kubernetes-sigs/kueue/refs/heads/main/cmd/experimental/kjobctl/config/crd/bases/kjobctl.x-k8s.io_rayclustertemplates.yaml",
-    "kjobctl.x-k8s.io_rayjobtemplates.yaml": "https://raw.githubusercontent.com/kubernetes-sigs/kueue/refs/heads/main/cmd/experimental/kjobctl/config/crd/bases/kjobctl.x-k8s.io_rayjobtemplates.yaml",
-    "kjobctl.x-k8s.io_volumebundles.yaml": "https://raw.githubusercontent.com/kubernetes-sigs/kueue/refs/heads/main/cmd/experimental/kjobctl/config/crd/bases/kjobctl.x-k8s.io_volumebundles.yaml",
-}
+
+class PodTemplateDefaults(Enum):
+  NAME = "xpk-def-pod"
+  CONTAINER_NAME = "xpk-interactive-container"
+  IMAGE = "busybox:1.28"
+  INTERACTIVE_COMMAND = "/bin/sh"
+
 
 job_template_yaml = """
   apiVersion: kjobctl.x-k8s.io/v1alpha1
@@ -59,7 +53,7 @@ job_template_yaml = """
       template:
         spec:
           containers:
-            - name: {container}
+            - name: {container_name}
               image: {image}
           restartPolicy: OnFailure"""
 
@@ -72,8 +66,24 @@ metadata:
 spec:
   supportedModes:
     - name: Slurm
-      template: {template}
+      template: {batch_template}
       requiredFlags: []
+    - name: Interactive
+      template: {interactive_template}
+"""
+
+pod_template_yaml = """
+apiVersion: v1
+kind: PodTemplate
+metadata:
+  name: {name}
+  namespace: default
+template:
+  spec:
+    containers:
+      - name: {container_name}
+        image: {image}
+        command: [{interactive_command}]
 """
 
 
@@ -110,17 +120,15 @@ def create_app_profile_instance(args: Namespace) -> int:
   Returns:
     exit_code > 0 if creating AppProfile fails, 0 otherwise
   """
-  yml_string = app_profile_yaml.format(
-      name=APP_PROFILE_TEMPLATE_DEFAULT_NAME,
-      template=JOB_TEMPLATE_DEFAULT_NAME,
+  return run_kubectl_apply(
+      yml_string=app_profile_yaml.format(
+          name=AppProfileDefaults.NAME.value,
+          batch_template=JobTemplateDefaults.NAME.value,
+          interactive_template=PodTemplateDefaults.NAME.value,
+      ),
+      task="Creating AppProfile",
+      args=args,
   )
-
-  tmp = write_tmp_file(yml_string)
-  command = f"kubectl apply -f {str(tmp.file.name)}"
-  err_code = run_command_with_updates(command, "Creating AppProfile", args)
-  if err_code != 0:
-    return err_code
-  return 0
 
 
 def create_job_template_instance(args: Namespace) -> int:
@@ -131,37 +139,48 @@ def create_job_template_instance(args: Namespace) -> int:
   Returns:
     exit_code > 0 if creating JobTemplate fails, 0 otherwise
   """
-  yml_string = job_template_yaml.format(
-      name=JOB_TEMPLATE_DEFAULT_NAME,
-      parallelism=JOB_TEMPLATE_DEFAULT_PARALLELISM,
-      completions=JOB_TEMPLATE_DEFAULT_COMPLETIONS,
-      container=JOB_TEMPLATE_DEFAULT_CONT_NAME,
-      image=JOB_TEMPLATE_DEFAULT_IMG,
+  return run_kubectl_apply(
+      yml_string=job_template_yaml.format(
+          name=JobTemplateDefaults.NAME.value,
+          parallelism=JobTemplateDefaults.PARALLELISM.value,
+          completions=JobTemplateDefaults.COMPLETIONS.value,
+          container_name=JobTemplateDefaults.CONTAINER_NAME.value,
+          image=JobTemplateDefaults.IMAGE.value,
+      ),
+      task="Creating JobTemplate",
+      args=args,
   )
 
-  tmp = write_tmp_file(yml_string)
-  command = f"kubectl apply -f {str(tmp.file.name)}"
-  err_code = run_command_with_updates(command, "Creating JobTemplate", args)
-  if err_code != 0:
-    return err_code
-  return 0
 
+def create_pod_template_instance(args: Namespace) -> int:
+  """Create new PodTemplate instance on cluster with default settings.
 
-def download_crd_file_urls(files: dict[str, str], path: str) -> int:
-  for file, url in files.items():
-    try:
-      target = os.path.join(path, file)
-      urllib.request.urlretrieve(url, target)
-    except ContentTooShortError as e:
-      xpk_print(f"downloading kjob CDR file {file} failed due to {e.content}")
-      return 1
-  return 0
+  Args:
+    args - user provided arguments
+  Returns:
+    exit_code > 0 if creating PodTemplate fails, 0 otherwise
+  """
+  return run_kubectl_apply(
+      yml_string=pod_template_yaml.format(
+          name=PodTemplateDefaults.NAME.value,
+          container_name=PodTemplateDefaults.CONTAINER_NAME.value,
+          image=PodTemplateDefaults.IMAGE.value,
+          interactive_command=PodTemplateDefaults.INTERACTIVE_COMMAND.value,
+      ),
+      task="Creating PodTemplate",
+      args=args,
+  )
 
 
 def prepare_kjob(args) -> int:
-  err_code = create_job_template_instance(args)
-  if err_code > 0:
-    return err_code
+  job_err_code = create_job_template_instance(args)
+  if job_err_code > 0:
+    return job_err_code
+
+  pod_err_code = create_pod_template_instance(args)
+  if pod_err_code > 0:
+    return pod_err_code
+
   return create_app_profile_instance(args)
 
 
@@ -182,5 +201,5 @@ def apply_kjob_crds(args: Namespace) -> int:
   if return_code != 0:
     xpk_print(f"{task} returned ERROR {return_code}")
     return return_code
-  xpk_print("Creating kjob CRDs succeded")
+  xpk_print("Creating kjob CRDs succeeded")
   return 0

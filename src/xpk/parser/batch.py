@@ -14,6 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import argparse
+
 from .common import add_shared_arguments
 from ..commands.batch import batch
 
@@ -35,6 +37,13 @@ def set_batch_parser(batch_parser):
       type=str,
       default=None,
       help='Cluster to which command applies.',
+  )
+  batch_optional_arguments.add_argument(
+      '--kind-cluster',
+      type=bool,
+      action=argparse.BooleanOptionalAction,
+      default=False,
+      help='Apply command to a local test cluster.',
   )
   add_shared_arguments(batch_optional_arguments)
 

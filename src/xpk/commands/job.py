@@ -71,12 +71,12 @@ def job_info(args):
       'Mounts': job_yaml['spec']['template']['spec']['containers'][0][
           'volumeMounts'
       ],
-      'Init environment variables': get_kjob_env_vars(desc_text),
       'Pods': get_pods(pods_text),
+      'Entrypoint environment variables template': get_kjob_env_vars(desc_text),
   }
 
   yaml.default_flow_style = False
-  yaml.sort_keys = False
+  yaml.sort_base_mapping_type_on_output = False
   yaml.dump(output, sys.stdout)
 
 

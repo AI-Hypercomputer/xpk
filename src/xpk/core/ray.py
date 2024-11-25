@@ -181,6 +181,8 @@ def generate_available_resources(label, args, percent) -> tuple:
   task = 'Fetching available CPU on node'
   _, available_cpu = run_command_for_value(command, task, args)
   match = re.match(r'(\d+)([a-zA-Z]+)', available_cpu)
+  if not match:
+    xpk_exit(1)
   value, units = match.group(1), match.group(2)
   cpu_value = int(int(value) * percent)
   adjusted_available_cpu = str(cpu_value) + units
@@ -192,6 +194,8 @@ def generate_available_resources(label, args, percent) -> tuple:
   task = 'Fetching available memory on node'
   _, available_memory = run_command_for_value(command, task, args)
   match = re.match(r'(\d+)([a-zA-Z]+)', available_memory)
+  if not match:
+    xpk_exit(1)
   value, units = match.group(1), match.group(2)
   memory_value = int(int(value) * percent)
   adjusted_available_memory = str(memory_value) + units

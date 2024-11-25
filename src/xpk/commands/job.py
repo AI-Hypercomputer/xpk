@@ -14,6 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from .cluster import set_cluster_command
+from .kind import set_local_cluster_command
 from ..core.commands import run_command_for_value, run_command_with_updates
 from ..utils.console import xpk_exit, xpk_print
 from ..core.app_profile import APP_PROFILE_TEMPLATE_DEFAULT_NAME
@@ -113,11 +115,17 @@ def job_list(args) -> None:
   Returns:
     None
   """
-  add_zone_and_project(args)
-  xpk_print(
-      f'Listing jobs for project {args.project} and zone {args.zone}:',
-      flush=True,
-  )
+  if not args.kind_cluster:
+    add_zone_and_project(args)
+    set_cluster_command_code = set_cluster_command(args)
+    msg = f'Listing jobs for project {args.project} and zone {args.zone}:'
+  else:
+    set_cluster_command_code = set_local_cluster_command(args)
+    msg = 'Listing jobs:'
+
+  if set_cluster_command_code != 0:
+    xpk_exit(set_cluster_command_code)
+  xpk_print(msg, flush=True)
 
   return_code = run_slurm_job_list_command(args)
   xpk_exit(return_code)
@@ -144,7 +152,14 @@ def job_cancel(args) -> None:
     None
   """
   xpk_print(f'Starting job cancel for job: {args.name}', flush=True)
-  add_zone_and_project(args)
+  if not args.kind_cluster:
+    add_zone_and_project(args)
+    set_cluster_command_code = set_cluster_command(args)
+  else:
+    set_cluster_command_code = set_local_cluster_command(args)
+
+  if set_cluster_command_code != 0:
+    xpk_exit(set_cluster_command_code)
 
   return_code = run_slurm_job_delete_command(args)
   xpk_exit(return_code)

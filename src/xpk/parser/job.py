@@ -16,6 +16,7 @@ limitations under the License.
 
 import argparse
 from ..commands.job import job_info, job_list, job_cancel
+
 from .common import add_shared_arguments
 
 
@@ -59,8 +60,33 @@ def set_job_info_parser(job_info_parser: argparse.ArgumentParser):
 
 
 def set_job_list_parser(job_list_parser: argparse.ArgumentParser):
+  job_list_required_arguments = job_list_parser.add_argument_group(
+      'Required Arguments',
+      'Arguments required for job list.',
+  )
+  job_list_optional_arguments = job_list_parser.add_argument_group(
+      'Optional Arguments', 'Arguments optional for job list.'
+  )
+
+  ### Required arguments
+  job_list_required_arguments.add_argument(
+      '--cluster',
+      type=str,
+      default=None,
+      help='The name of the cluster to list jobs on.',
+      required=True,
+  )
+
+  job_list_optional_arguments.add_argument(
+      '--kind-cluster',
+      type=bool,
+      action=argparse.BooleanOptionalAction,
+      default=False,
+      help='Apply command to a local test cluster.',
+  )
+
   job_list_parser.set_defaults(func=job_list)
-  add_shared_arguments(job_list_parser)
+  add_shared_arguments(job_list_optional_arguments)
 
 
 def set_job_cancel_parser(job_cancel_parser: argparse.ArgumentParser):
@@ -78,6 +104,22 @@ def set_job_cancel_parser(job_cancel_parser: argparse.ArgumentParser):
       default=None,
       help='The name of the job to be cancelled.',
       nargs='+',
+  )
+
+  job_cancel_required_arguments.add_argument(
+      '--cluster',
+      type=str,
+      default=None,
+      help='The name of the cluster to delete the job on.',
+      required=True,
+  )
+
+  job_cancel_optional_arguments.add_argument(
+      '--kind-cluster',
+      type=bool,
+      action=argparse.BooleanOptionalAction,
+      default=False,
+      help='Apply command to a local test cluster.',
   )
 
   job_cancel_parser.set_defaults(func=job_cancel)

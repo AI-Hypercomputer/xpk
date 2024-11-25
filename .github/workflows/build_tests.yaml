@@ -107,15 +107,15 @@ jobs:
     - name: Run a batch job on the cluster
       run: python3 xpk.py batch --cluster $TPU_CLUSTER_NAME --zone=us-central2-b test.sh
     - name: List out the jobs on the cluster
-      run: python3 xpk.py job ls | grep 'xpk-def-app-profile-slurm-'
+      run: python3 xpk.py job ls --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep 'xpk-def-app-profile-slurm-'
     - name: Get job info for the last job created on the cluster
       run: |
         MOST_RECENT_JOB_NAME=$(kubectl get jobs --sort-by=.metadata.creationTimestamp -o jsonpath="{.items[-1:].metadata.name}") 
         python3 xpk.py job info $MOST_RECENT_JOB_NAME | grep -e "Environment variables:" -e "Job name:" -e "Labels:" -e "Mounts:" -e "Pods:" -e "Profile:" | wc -l | grep "6"
     - name: Cancel the batch job on the cluster
       run: |
-        job_name=$(python3 xpk.py job ls | grep 'xpk-def-app-profile-slurm-' | head -1 | awk '{print $1}')
-        python3 xpk.py job cancel ${job_name} | grep "job.batch/${job_name} deleted"
+        job_name=$(python3 xpk.py job ls --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep 'xpk-def-app-profile-slurm-' | head -1 | awk '{print $1}')
+        python3 xpk.py job cancel ${job_name} --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep "job.batch/${job_name} deleted"
     - name: Delete the cluster created
       if: always()
       run: python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b

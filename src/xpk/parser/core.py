@@ -23,6 +23,7 @@ from .workload import set_workload_parsers
 from .batch import set_batch_parser
 from .job import set_job_parser
 from .info import set_info_parser
+from .kind import set_kind_parser
 
 
 def set_parser(parser: argparse.ArgumentParser):
@@ -50,6 +51,10 @@ def set_parser(parser: argparse.ArgumentParser):
   job_parser = xpk_subcommands.add_parser(
       "job", help="commands around listing, cancelling and investigating jobs"
   )
+  kind_parser = xpk_subcommands.add_parser(
+      "kind",
+      help="commands around Kind cluster management",
+  )
 
   def default_subcommand_function(
       _args,
@@ -70,6 +75,8 @@ def set_parser(parser: argparse.ArgumentParser):
     info_parser.print_help()
     job_parser.print_help()
 
+    kind_parser.print_help()
+
     return 0
 
   parser.set_defaults(func=default_subcommand_function)
@@ -78,6 +85,7 @@ def set_parser(parser: argparse.ArgumentParser):
   batch_parser.set_defaults(func=default_subcommand_function)
   info_parser.set_defaults(func=default_subcommand_function)
   job_parser.set_defaults(func=default_subcommand_function)
+  kind_parser.set_defaults(func=default_subcommand_function)
 
   set_workload_parsers(workload_parser=workload_parser)
   set_cluster_parser(cluster_parser=cluster_parser)
@@ -85,3 +93,4 @@ def set_parser(parser: argparse.ArgumentParser):
   set_batch_parser(batch_parser=batch_parser)
   set_info_parser(info_parser=info_parser)
   set_job_parser(job_parser=job_parser)
+  set_kind_parser(kind_parser=kind_parser)

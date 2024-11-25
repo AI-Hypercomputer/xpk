@@ -16,7 +16,7 @@ limitations under the License.
 
 from ..utils.console import xpk_exit, xpk_print
 from ..core.core import add_zone_and_project
-from ..core.app_profile import APP_PROFILE_TEMPLATE_DEFAULT_NAME
+from ..core.kjob import AppProfileDefaults
 from ..core.commands import (
     run_command_with_updates,
 )
@@ -50,9 +50,7 @@ def job_list(args) -> None:
 
 
 def run_slurm_job_list_command(args) -> int:
-  cmd = (
-      f'kubectl-kjob list slurm  --profile {APP_PROFILE_TEMPLATE_DEFAULT_NAME}'
-  )
+  cmd = f'kubectl-kjob list slurm  --profile {AppProfileDefaults.NAME.value}'
 
   return_code = run_command_with_updates(cmd, 'list jobs', args)
   if return_code != 0:

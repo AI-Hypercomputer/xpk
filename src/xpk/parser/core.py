@@ -24,6 +24,7 @@ from .batch import set_batch_parser
 from .info import set_info_parser
 from .job import set_job_parser
 from .kind import set_kind_parser
+from .shell import set_shell_parser
 
 
 def set_parser(parser: argparse.ArgumentParser):
@@ -31,7 +32,7 @@ def set_parser(parser: argparse.ArgumentParser):
       title="xpk subcommands", dest="xpk_subcommands", help="Top level commands"
   )
   workload_parser = xpk_subcommands.add_parser(
-      "workload", help="commands around workload management"
+      "workload", help="Commands around workload management."
   )
   cluster_parser = xpk_subcommands.add_parser(
       "cluster",
@@ -39,12 +40,12 @@ def set_parser(parser: argparse.ArgumentParser):
   )
   inspector_parser = xpk_subcommands.add_parser(
       "inspector",
-      help="commands around investigating workload, and Kueue failures.",
+      help="Commands around investigating workload, and Kueue failures.",
   )
   info_parser = xpk_subcommands.add_parser(
-      "info", help="commands around listing kueue clusterqueues and localqueues"
+      "info",
+      help="Commands around listing kueue clusterqueues and localqueues.",
   )
-
   batch_parser = xpk_subcommands.add_parser(
       "batch",
       help="Run batch job.",
@@ -55,6 +56,9 @@ def set_parser(parser: argparse.ArgumentParser):
   kind_parser = xpk_subcommands.add_parser(
       "kind",
       help="commands around Kind cluster management",
+  )
+  shell_parser = xpk_subcommands.add_parser(
+      "shell", help="Commands around configuring and using interactive shell."
   )
 
   def default_subcommand_function(
@@ -75,6 +79,7 @@ def set_parser(parser: argparse.ArgumentParser):
     batch_parser.print_help()
     info_parser.print_help()
     job_parser.print_help()
+    shell_parser.print_help()
 
     kind_parser.print_help()
 
@@ -87,6 +92,7 @@ def set_parser(parser: argparse.ArgumentParser):
   info_parser.set_defaults(func=default_subcommand_function)
   job_parser.set_defaults(func=default_subcommand_function)
   kind_parser.set_defaults(func=default_subcommand_function)
+  shell_parser.set_defaults(func=default_subcommand_function)
 
   set_workload_parsers(workload_parser=workload_parser)
   set_cluster_parser(cluster_parser=cluster_parser)
@@ -95,3 +101,4 @@ def set_parser(parser: argparse.ArgumentParser):
   set_info_parser(info_parser=info_parser)
   set_job_parser(job_parser=job_parser)
   set_kind_parser(kind_parser=kind_parser)
+  set_shell_parser(shell_parser=shell_parser)

@@ -18,7 +18,7 @@ from .cluster import set_cluster_command
 from .kind import set_local_cluster_command
 from ..core.commands import run_command_for_value, run_command_with_updates
 from ..utils.console import xpk_exit, xpk_print
-from ..core.app_profile import APP_PROFILE_TEMPLATE_DEFAULT_NAME
+from ..core.kjob import AppProfileDefaults
 from ..core.core import add_zone_and_project
 from ruamel.yaml import YAML
 import re
@@ -132,9 +132,7 @@ def job_list(args) -> None:
 
 
 def run_slurm_job_list_command(args) -> int:
-  cmd = (
-      f'kubectl-kjob list slurm  --profile {APP_PROFILE_TEMPLATE_DEFAULT_NAME}'
-  )
+  cmd = f'kubectl-kjob list slurm  --profile {AppProfileDefaults.NAME.value}'
 
   return_code = run_command_with_updates(cmd, 'list jobs', args)
   if return_code != 0:

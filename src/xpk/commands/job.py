@@ -71,7 +71,7 @@ def job_info(args):
       'Mounts': job_yaml['spec']['template']['spec']['containers'][0][
           'volumeMounts'
       ],
-      'Environment variables': get_env_vars(desc_text),
+      'Init environment variables': get_kjob_env_vars(desc_text),
       'Pods': get_pods(pods_text),
   }
 
@@ -86,7 +86,7 @@ def get_profile(job_yaml: dict) -> str:
   return profile
 
 
-def get_env_vars(job_desc_text: str) -> list[tuple[str, str]]:
+def get_kjob_env_vars(job_desc_text: str) -> list[tuple[str, str]]:
   regex = r'(SLURM_[A-Z_]*=.*)'
   search_res = re.findall(regex, job_desc_text)
   return search_res
@@ -94,7 +94,14 @@ def get_env_vars(job_desc_text: str) -> list[tuple[str, str]]:
 
 def get_pods(pods_text: str) -> list[str]:
   pods_lines = pods_text.strip().split('\n')
-  return [line.split()[0] for line in pods_lines]
+  pods_lines = [line.split() for line in pods_lines]
+  return [
+      {
+          'Name': line[0],
+          'Status': line[2],
+      }
+      for line in pods_lines
+  ]
 
 
 def job_list(args) -> None:

@@ -32,12 +32,12 @@ jobs:
     - run: |
         cat <<'EOF' >> create-shell.exp
         ##!/usr/bin/expect
-        spawn python3 ./xpk-shell/xpk.py shell
+        spawn python3 ./random.py shell
         expect "/ # "
         send "exit\n"
         EOF
         chmod +x ./create-shell.exp
-        cat ./create-shell.exp
+        ./create-shell.exp
     - uses: actions/checkout@v3
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v3

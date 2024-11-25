@@ -83,7 +83,7 @@ jobs:
     - name: List and verify existing Storages
       run: python3 xpk.py storage list --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b | tee output.txt | grep $FS_STORAGE_NAME || (echo 'No storage found' && exit 1)
     - name: Run workload to write file on filestore
-      run : python3 xpk.py workload create --workload $FS_WRITE_WORKLOAD --num-slices=2 --command "echo 'mkdir /fs-test-mount-point/$RANDOM_SEED && Test text message' > /fs-test-mount-point/$RANDOM_SEED/test.txt | exit 143" --cluster $TPU_FILESTORE_CLUSTER_NAME --tpu-type=v4-8 --zone us-central2
+      run : python3 xpk.py workload create --workload $FS_WRITE_WORKLOAD --num-slices=2 --command "mkdir /fs-test-mount-point/$RANDOM_SEED && echo 'Test text message' > /fs-test-mount-point/$RANDOM_SEED/test.txt | exit 143" --cluster $TPU_FILESTORE_CLUSTER_NAME --tpu-type=v4-8 --zone us-central2
     - name: Wait for writer workload completion and confirm it succeeded
       run: python3 xpk.py workload list --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion $FS_WRITE_WORKLOAD --timeout 300
     - name: Run workload to read file on filestore

@@ -1,0 +1,16 @@
+TPU_FILESTORE_CLUSTER_NAME=fs-test
+python3 xpk.py cluster create --cluster $TPU_FILESTORE_CLUSTER_NAME --tpu-type=v4-8  --num-slices=2 \
+        --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 \
+        --enable-workload-identity --enable-gcpfilestore-csi-driver
+
+
+PROJECT_NAME=cloud-tpu-multipod-dev
+INSTANCE_NAME=fs-test
+VOL_NAME=vol1
+IP_ADDRESS=10.80.190.74
+sed -i 's/PROJECT_NAME/'"$PROJECT_NAME"'/g;  s/ZONE/us-central2-b/g; s/INSTANCE_NAME/'"$INSTANCE_NAME"'/g; s/VOL_NAME/'"$VOL_NAME"'/g; s/IP_ADDRESS/'"$IP_ADDRESS"'/g' ./tests/data/fs-manifest.yaml 
+
+
+FS_STORAGE_NAME=mysfstorage
+
+RANDOM_SEED=1234

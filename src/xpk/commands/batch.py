@@ -47,15 +47,9 @@ def batch(args: Namespace) -> None:
 
 def submit_job(args: Namespace) -> None:
   cmd = (
-<<<<<<< HEAD
       'kubectl kjob create slurm'
-      f' --profile {APP_PROFILE_TEMPLATE_DEFAULT_NAME}'
+      f' --profile {AppProfileDefaults.NAME.value}'
       f' --localqueue {LOCAL_QUEUE_NAME}'
-=======
-      'kubectl-kjob create slurm --profile'
-      f' {AppProfileDefaults.NAME.value} --'
-      f' {args.script}'
->>>>>>> origin/main
   )
 
   if args.ignore_unknown_flags:

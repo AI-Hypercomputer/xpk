@@ -111,10 +111,7 @@ jobs:
     - name: Run a batch job on the cluster
       run: python3 xpk.py batch --cluster $TPU_CLUSTER_NAME --zone=us-central2-b batch.sh --ignore-unknown-flags --array 1-5 --nodes 2 --ntasks 3
     - name: List out the jobs on the cluster
-<<<<<<< HEAD
-      run: python3 xpk.py job ls | grep 'xpk-def-app-profile-slurm-'
-    - name: List out the jobs on the cluster
-      run: python3 xpk.py job ls | grep 'xpk-def-app-profile-slurm-'
+      run: python3 xpk.py job ls --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep 'xpk-def-app-profile-slurm-'
     - name: Get created job name
       run: |
         JOB_NAME=$(python3 xpk.py job ls | grep 'xpk-def-app-profile-slurm-' | head -1 | awk '{print $1}')
@@ -125,10 +122,6 @@ jobs:
         echo "$job_spec" | grep '"completions":2'
         echo "$job_spec" | grep '"parallelism":2'
         echo "$job_spec" | jq '.template.spec.containers | length' | grep 3
-    - name: Cancel the batch job on the cluster
-      run: python3 xpk.py job cancel ${JOB_NAME} | grep "job.batch/${JOB_NAME} deleted"
-=======
-      run: python3 xpk.py job ls --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep 'xpk-def-app-profile-slurm-'
     - name: Get job info for the last job created on the cluster
       run: |
         MOST_RECENT_JOB_NAME=$(kubectl get jobs --sort-by=.metadata.creationTimestamp -o jsonpath="{.items[-1:].metadata.name}") 
@@ -137,7 +130,7 @@ jobs:
       run: |
         job_name=$(python3 xpk.py job ls --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep 'xpk-def-app-profile-slurm-' | head -1 | awk '{print $1}')
         python3 xpk.py job cancel ${job_name} --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep "job.batch/${job_name} deleted"
-    - name: Create shell and exit it immidiatelly
+    - name: Create shell and exit it immediately
       run: |
         cat <<'EOF' >> create-shell.exp
         ##!/usr/bin/expect
@@ -151,7 +144,6 @@ jobs:
       run: kubectl get pods | grep xpk-def-app-profile-interactive- | grep Running
     - name: Stop the shell
       run: python3 xpk.py shell stop
->>>>>>> origin/main
     - name: Delete the cluster created
       if: always()
       run: python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b

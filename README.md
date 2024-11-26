@@ -427,7 +427,10 @@ Currently, the below flags/arguments are supported for A3-Mega and A3-Ultra mach
 
 
 ## Storage
-Currently xpk supports Cloud Storage FUSE. A FUSE adapter that lets you mount and access Cloud Storage buckets as local file systems, so applications can read and write objects in your bucket using standard file system semantics.
+Currently xpk supports two types of cloud storages: FUSE and Filestore.
+
+### FUSE
+A FUSE adapter lets you mount and access Cloud Storage buckets as local file systems, so applications can read and write objects in your bucket using standard file system semantics.
 
 To use the GCS FUSE with XPK user needs to create a a [Storage Bucket](https://pantheon.corp.google.com/storage/)
 and a manifest with PersistentVolume and PersistentVolumeClaim that mounts to the Bucket. To learn how to properly
@@ -435,7 +438,7 @@ set up PersistentVolume and PersistentVolumeClaim visit [GKE Cloud Storage docum
 
 Once it's ready user can define
 
-`--type` - defines a type of a storage, currently xpk supports `gcsfuse` only.
+`--type` - defines a type of a storage, currently xpk supports `gcsfuse` and `gcpfilestore` only.
 `--auto-mount` - if set to true means that all workloads should have a given storage mounted by default.
 `--mount-point` - defines the path on which a given storage should be mounted for a workload.
 `--manifest` - defines the path to manifest which contains PersistentVolue and PersistentVolumeClaim definitions
@@ -458,6 +461,35 @@ Once it's ready user can define
     --tpu-type=v5litepod-16 \
     --storage test-storage
     ```
+
+### Filestore
+
+A Filestore adapter lets you mount and access Filestore instances as local file systems, so applications can read and write objects in your volumes using standard file system semantics.
+
+To use the GCP Filestore with XPK user needs to create a a [Filestore instance](https://pantheon.corp.google.com/filestore/)
+and a manifest with PersistentVolume and PersistentVolumeClaim that mounts to the Filestore. To learn how to properly
+set up PersistentVolume and PersistentVolumeClaim visit [GKE Filestore documentation](https://cloud.google.com/filestore/docs/csi-driver#access)
+
+Creating Filestore storage and attaching it to workload can be achieved in two steps:
+
+* Create a simple Storage, that attaches existing filestore instance to your workloads. User must specify `--type=gcpfilestore`.
+
+    ```shell
+    python3 xpk.py storage create fs-storage-attach --project=$PROJECT
+    --cluster=xpk-test --type=gcpfilestore --auto-mount=false \
+    --mount-point='/test-mount-point' --readonly=false \
+    --manifest='examples/filestore/manifest-attach.yaml'
+    ```
+
+* Create a simple Workload with Storage attached
+    ```shell
+    python3 xpk.py workload create \
+    --workload xpk-test-workload --command "echo goodbye" \
+    --cluster xpk-test \
+    --tpu-type=v5litepod-16 \
+    --storage fs-storage-attach
+    ```
+
 
 * List Storage
     ```shell

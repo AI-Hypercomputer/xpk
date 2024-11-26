@@ -193,7 +193,10 @@ def generate_available_resources(label, args, percent) -> tuple:
   _, available_cpu = run_command_for_value(command, task, args)
   match = re.match(r'(\d+)([a-zA-Z]+)', available_cpu)
   if not match:
-    xpk_print(f'Could not find a regex match for allocatable cpu on TPU node {node_name}')
+    xpk_print(
+        'Could not find a regex match for allocatable cpu on TPU node'
+        f' {node_name}'
+    )
     xpk_exit(1)
   value, units = match.group(1), match.group(2)
   cpu_value = int(int(value) * percent)
@@ -207,7 +210,10 @@ def generate_available_resources(label, args, percent) -> tuple:
   _, available_memory = run_command_for_value(command, task, args)
   match = re.match(r'(\d+)([a-zA-Z]+)', available_memory)
   if not match:
-    xpk_print(f'Could not find a regex match for allocatable memory on TPU node {node_name}')
+    xpk_print(
+        'Could not find a regex match for allocatable memory on TPU node'
+        f' {node_name}'
+    )
     xpk_exit(1)
   value, units = match.group(1), match.group(2)
   memory_value = int(int(value) * percent)

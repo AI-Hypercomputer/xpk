@@ -20,6 +20,13 @@ from ..utils.file import write_tmp_file
 from .commands import run_command_for_value, run_command_with_updates_retry
 
 
+HEAD_CPU = 0.5
+WORKER_CPU = 0.9
+GCS_SERVER = 6379
+DASHBOARD = 8265
+CLIENT = 10001
+MULTISLICE = 8081
+
 ray_cluster_crd_yaml = """apiVersion: v1
 kind: Namespace
 metadata:
@@ -48,13 +55,13 @@ spec:
               cpu: {head_cpu}
               memory: {head_mem}
           ports:
-          - containerPort: 6379
+          - containerPort: {gcs_server}
             name: gcs-server
-          - containerPort: 8265 # Ray dashboard
+          - containerPort: {dashboard} # Ray dashboard
             name: dashboard
-          - containerPort: 10001
+          - containerPort: {client}
             name: client
-          - containerPort: 8081
+          - containerPort: {multislice}
             name: multislice
   workerGroupSpecs:
     - replicas: {replicas} # TODO: Set min and max replicas
@@ -99,12 +106,12 @@ def install_ray_cluster(args, system) -> int:
 
   label = 'cloud.google.com/gke-nodepool=default-pool'
   available_head_cpu, available_head_mem = generate_available_resources(
-      label, args, 0.5
+      label, args, HEAD_CPU 
   )
 
   label = f'cloud.google.com/gke-tpu-accelerator={system.gke_accelerator}'
   available_worker_cpu, available_worker_mem = generate_available_resources(
-      label, args, 0.9
+      label, args, WORKER_CPU
   )
 
   yml_string = ray_cluster_crd_yaml.format(
@@ -118,6 +125,10 @@ def install_ray_cluster(args, system) -> int:
       worker_mem=available_worker_mem,
       head_cpu=available_head_cpu,
       head_mem=available_head_mem,
+      gcs_server=GCS_SERVER,
+      dashboard=DASHBOARD,
+      client=CLIENT,
+      multislice=MULTISLICE,
   )
 
   tmp = write_tmp_file(yml_string)
@@ -182,6 +193,7 @@ def generate_available_resources(label, args, percent) -> tuple:
   _, available_cpu = run_command_for_value(command, task, args)
   match = re.match(r'(\d+)([a-zA-Z]+)', available_cpu)
   if not match:
+    xpk_print(f"Could not find a regex match for allocatable cpu on TPU node {node_name}")
     xpk_exit(1)
   value, units = match.group(1), match.group(2)
   cpu_value = int(int(value) * percent)
@@ -195,6 +207,7 @@ def generate_available_resources(label, args, percent) -> tuple:
   _, available_memory = run_command_for_value(command, task, args)
   match = re.match(r'(\d+)([a-zA-Z]+)', available_memory)
   if not match:
+    xpk_print(f"Could not find a regex match for allocatable memory on TPU node {node_name}")
     xpk_exit(1)
   value, units = match.group(1), match.group(2)
   memory_value = int(int(value) * percent)

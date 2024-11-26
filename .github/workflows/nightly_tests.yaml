@@ -28,7 +28,7 @@ env:
   PATHWAYS_TPU_CLUSTER_NAME: pw-nightly-test-2-v4-8-nodepools
   PATHWAYS_WORKLOAD_NAME: xpkpw-nightly-${{ github.run_attempt }}
   PW_CLUSTER_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}}"
-
+  CLUSTER_NETWORK_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}} --subnetwork=${{secrets.SUBNETWORK_NAME}}"
 jobs:
   cluster-create-and-delete:
     runs-on: [ubuntu-22.04]
@@ -40,6 +40,8 @@ jobs:
     - uses: actions/setup-python@v5
       with:
         python-version: '3.10'
+    - name: Install expect package
+      run: sudo apt-get install expect
     - uses: 'google-github-actions/auth@v2'
       with:
         credentials_json: '${{ secrets.GCP_SA_KEY }}'
@@ -65,7 +67,7 @@ jobs:
       run: python xpk.py cluster delete --cluster $EMPTY_CLUSTER_NAME --zone=us-central2-b
       if: always()
     - name: Create a Private XPK Cluster with zero node pools
-      run: python xpk.py cluster create --cluster $PRIVATE_CLUSTER_NAME --private --tpu-type=v4-8  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments='${{ secrets.CLUSTER_ARGUMENTS }}'
+      run: python xpk.py cluster create --cluster $PRIVATE_CLUSTER_NAME --private --tpu-type=v4-8  --num-slices=0 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments='${CLUSTER_NETWORK_ARGUMENTS}'
     - name: Verify the created cluster is private
       run: gcloud container clusters describe $PRIVATE_CLUSTER_NAME --region=us-central2 --format="value(privateClusterConfig.enablePrivateNodes)" | grep 'True' || (echo 'The created cluster is not private.' && exit 1)
     - name: Delete the cluster created
@@ -89,6 +91,32 @@ jobs:
       run : python3 xpk.py info --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
     - name: Delete the workload on the cluster
       run: python3 xpk.py workload delete --workload $WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+    - name: Run a batch job on the cluster
+      run: python3 xpk.py batch --cluster $TPU_CLUSTER_NAME --zone=us-central2-b test.sh
+    - name: List out the jobs on the cluster
+      run: python3 xpk.py job ls --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep 'xpk-def-app-profile-slurm-'
+    - name: Get job info for the last job created on the cluster
+      run: |
+        MOST_RECENT_JOB_NAME=$(kubectl get jobs --sort-by=.metadata.creationTimestamp -o jsonpath="{.items[-1:].metadata.name}") 
+        python3 xpk.py job info $MOST_RECENT_JOB_NAME | grep -e "Entrypoint environment variables template:" -e "Job name:" -e "Labels:" -e "Mounts:" -e "Pods:" -e "Profile:" | wc -l | grep "6"
+    - name: Cancel the batch job on the cluster
+      run: |
+        job_name=$(python3 xpk.py job ls --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep 'xpk-def-app-profile-slurm-' | head -1 | awk '{print $1}')
+        python3 xpk.py job cancel ${job_name} --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep "job.batch/${job_name} deleted"
+    - name: Create shell and exit it immidiatelly
+      run: |
+        cat <<'EOF' >> create-shell.exp
+        ##!/usr/bin/expect
+        spawn python3 ./xpk.py shell
+        expect "/ # "
+        send "exit\n"
+        EOF
+        chmod +x ./create-shell.exp
+        expect ./create-shell.exp
+    - name: Check if shell exists and is running
+      run: kubectl get pods | grep xpk-def-app-profile-interactive- | grep Running
+    - name: Stop the shell
+      run: python3 xpk.py shell stop
     - name: Delete the cluster created
       if: always()
       run: python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b

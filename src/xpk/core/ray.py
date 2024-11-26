@@ -106,7 +106,7 @@ def install_ray_cluster(args, system) -> int:
 
   label = 'cloud.google.com/gke-nodepool=default-pool'
   available_head_cpu, available_head_mem = generate_available_resources(
-      label, args, HEAD_CPU 
+      label, args, HEAD_CPU
   )
 
   label = f'cloud.google.com/gke-tpu-accelerator={system.gke_accelerator}'

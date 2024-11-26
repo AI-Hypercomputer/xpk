@@ -124,12 +124,10 @@ jobs:
         echo "$job_spec" | jq '.template.spec.containers | length' | grep 3
     - name: Get job info for the last job created on the cluster
       run: |
-        MOST_RECENT_JOB_NAME=$(kubectl get jobs --sort-by=.metadata.creationTimestamp -o jsonpath="{.items[-1:].metadata.name}") 
-        python3 xpk.py job info $MOST_RECENT_JOB_NAME | grep -e "Entrypoint environment variables template:" -e "Job name:" -e "Labels:" -e "Mounts:" -e "Pods:" -e "Profile:" | wc -l | grep "6"
+        python3 xpk.py job info ${JOB_NAME} | grep -e "Entrypoint environment variables template:" -e "Job name:" -e "Labels:" -e "Mounts:" -e "Pods:" -e "Profile:" | wc -l | grep "6"
     - name: Cancel the batch job on the cluster
       run: |
-        job_name=$(python3 xpk.py job ls --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep 'xpk-def-app-profile-slurm-' | head -1 | awk '{print $1}')
-        python3 xpk.py job cancel ${job_name} --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep "job.batch/${job_name} deleted"
+        python3 xpk.py job cancel ${JOB_NAME} --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep "job.batch/${JOB_NAME} deleted"
     - name: Create shell and exit it immediately
       run: |
         cat <<'EOF' >> create-shell.exp

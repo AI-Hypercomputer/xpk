@@ -55,7 +55,7 @@ from .commands import (
     run_command_with_updates_retry,
     run_commands,
 )
-from .storage import Storage, get_storages_to_mount, GCS_FUSE_TYPE
+from .storage import GCP_FILESTORE_TYPE, Storage, get_storages_to_mount, GCS_FUSE_TYPE
 from .system_characteristics import (
     AcceleratorType,
     AcceleratorTypeToAcceleratorCharacteristics,
@@ -2535,6 +2535,7 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
                 volumeMounts:
                 {volume_mounts}
   """
+
   return yaml.format(
       args=args,
       system=system,
@@ -2623,6 +2624,12 @@ def get_volumes(args, system: SystemCharacteristics) -> str:
                   claimName: {storage.pvc}
                   readOnly: {storage.readonly}
               """
+    if storage.type == GCP_FILESTORE_TYPE:
+      volumes += f"""- name: {storage.pv}
+                persistentVolumeClaim:
+                  claimName: {storage.pvc}
+                  readOnly: {storage.readonly}
+              """
   return volumes
 
 
@@ -2679,6 +2686,11 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
   )
   for storage in storages:
     if storage.type == GCS_FUSE_TYPE:
+      volume_mount_yaml += f"""- name: {storage.pv}
+                  mountPath: {storage.mount_point}
+                  readOnly: {storage.readonly}
+                """
+    if storage.type == GCP_FILESTORE_TYPE:
       volume_mount_yaml += f"""- name: {storage.pv}
                   mountPath: {storage.mount_point}
                   readOnly: {storage.readonly}

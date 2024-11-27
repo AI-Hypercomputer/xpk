@@ -1129,17 +1129,14 @@ def is_cluster_using_clouddns(args) -> bool:
   command = (
       f'gcloud container clusters describe {args.cluster}'
       f' --project={args.project} --region={zone_to_region(args.zone)}'
-      ' 2> /dev/null | grep "clusterDns: CLOUD_DNS" | wc -l'
+      ' 2> /dev/null | grep "clusterDns: CLOUD_DNS"'
   )
-  return_code, cloud_dns_matches = run_command_for_value(
+  return_code, _ = run_command_for_value(
       command,
       'Check if Cloud DNS is enabled in cluster describe.',
       args,
   )
-  if return_code != 0:
-    xpk_exit(return_code)
-  cloud_dns_matches = int(cloud_dns_matches)
-  if cloud_dns_matches > 0:
+  if return_code == 0:
     xpk_print('Cloud DNS is enabled on the cluster, no update needed.')
     return True
   return False
@@ -2631,6 +2628,7 @@ def get_volumes(args, system: SystemCharacteristics) -> str:
       volumes += f"""- name: {storage.pv}
                 persistentVolumeClaim:
                   claimName: {storage.pvc}
+                  readOnly: {storage.readonly}
               """
   return volumes
 
@@ -2695,6 +2693,7 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
     if storage.type == GCP_FILESTORE_TYPE:
       volume_mount_yaml += f"""- name: {storage.pv}
                   mountPath: {storage.mount_point}
+                  readOnly: {storage.readonly}
                 """
   return volume_mount_yaml
 

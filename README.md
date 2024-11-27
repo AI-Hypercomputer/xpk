@@ -370,7 +370,11 @@ Creating Filestore storage and attaching it to workload can be achieved in two s
     python3 xpk.py storage create fs-storage-attach --project=$PROJECT
     --cluster=xpk-test --type=gcpfilestore --auto-mount=false \
     --mount-point='/test-mount-point' --readonly=false \
+<<<<<<< HEAD
     --manifest='examples/storage/filestore-manifest-attach.yaml'
+=======
+    --manifest='examples/filestore/manifest-attach.yaml'
+>>>>>>> development
     ```
 
 * Create a simple Workload with Storage attached

@@ -82,14 +82,24 @@ def job_info(args):
 
 
 def get_profile(job_yaml: dict) -> str:
-  containers = job_yaml.get('spec', {}).get('template', {}).get('spec', {}).get('containers', [])
+  containers = (
+      job_yaml.get('spec', {})
+      .get('template', {})
+      .get('spec', {})
+      .get('containers', [])
+  )
   env_vars = next(iter(containers), {}).get('env', [])
   profile = next((x['value'] for x in env_vars if x['name'] == 'PROFILE'), '')
   return profile
 
 
 def get_mounts(job_yaml: dict) -> list[dict]:
-  containers = job_yaml.get('spec', {}).get('template', {}).get('spec', {}).get('containers', [])
+  containers = (
+      job_yaml.get('spec', {})
+      .get('template', {})
+      .get('spec', {})
+      .get('containers', [])
+  )
   mounts = next(iter(containers), {}).get('volumeMounts', [])
   return mounts
 
@@ -113,7 +123,11 @@ def get_pods(pods_text: str) -> list[str]:
 
 
 def get_script_name(job_yaml: dict) -> str | None:
-  return job_yaml.get('metadata', {}).get('annotations', {}).get('kjobctl.x-k8s.io/script', '')
+  return (
+      job_yaml.get('metadata', {})
+      .get('annotations', {})
+      .get('kjobctl.x-k8s.io/script', '')
+  )
 
 
 def job_list(args) -> None:

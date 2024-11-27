@@ -68,11 +68,10 @@ def job_info(args):
 
   output = {
       'Job name': job_name,
+      'Script name': get_script_name(job_yaml),
       'Profile': get_profile(job_yaml),
-      'Labels': job_yaml['metadata']['labels'],
-      'Mounts': job_yaml['spec']['template']['spec']['containers'][0][
-          'volumeMounts'
-      ],
+      'Labels': job_yaml.get('metadata').get('labels', []),
+      'Mounts': get_mounts(job_yaml),
       'Pods': get_pods(pods_text),
       'Entrypoint environment variables template': get_kjob_env_vars(desc_text),
   }
@@ -83,9 +82,16 @@ def job_info(args):
 
 
 def get_profile(job_yaml: dict) -> str:
-  env_vars = job_yaml['spec']['template']['spec']['containers'][0]['env']
+  containers = job_yaml.get('spec', {}).get('template', {}).get('spec', {}).get('containers', [])
+  env_vars = next(iter(containers), {}).get('env', [])
   profile = next((x['value'] for x in env_vars if x['name'] == 'PROFILE'), '')
   return profile
+
+
+def get_mounts(job_yaml: dict) -> list[dict]:
+  containers = job_yaml.get('spec', {}).get('template', {}).get('spec', {}).get('containers', [])
+  mounts = next(iter(containers), {}).get('volumeMounts', [])
+  return mounts
 
 
 def get_kjob_env_vars(job_desc_text: str) -> list[tuple[str, str]]:
@@ -104,6 +110,10 @@ def get_pods(pods_text: str) -> list[str]:
       }
       for line in pods_lines
   ]
+
+
+def get_script_name(job_yaml: dict) -> str | None:
+  return job_yaml.get('metadata', {}).get('annotations', {}).get('kjobctl.x-k8s.io/script', '')
 
 
 def job_list(args) -> None:

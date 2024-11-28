@@ -14,13 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import Callable
 from xpk.core.docker_manager import CtkDockerManager
 from xpk.core.docker_manager import ctk_dockerfile_path, ctk_docker_image
-from docker.errors import ContainerError, ImageNotFound, APIError
-import os
 from xpk.utils.console import xpk_exit, xpk_print
 from xpk.core.blueprint import CtkBlueprint
+from docker.errors import ContainerError, ImageNotFound, APIError
+import os
 import ruamel.yaml
 
 xpk_gcloud_cfg_path = '~/gcloud/cfg'
@@ -52,7 +51,7 @@ class CtkManager:
         deployment_dir=deployment_dir,
     )
     self.blueprint = blueprint
-    self.docker_manager.build_image(img_name = ctk_docker_image)
+    self.docker_manager.build_image(img_name=ctk_docker_image)
     self._validate_deployment_dir()
 
   def _validate_deployment_dir(self):
@@ -79,9 +78,12 @@ class CtkManager:
     xpk_print('Deploying created resources to cloud.')
     deploy_cmd = f'{gcluster_deploy_command} {deployment_module}'
     self.docker_manager.run_command(ctk_docker_image, deploy_cmd)
-#create base class for docker run
-# create dry run
-# add stage_files
+
+  # create base class for docker run
+  # create dry run
+  # add stage_files
+  # pass file not blueprint
+  # blueprint generator should generate directory with blueprint
   def deploy(self) -> None:
     try:
       self._run_create_deployment_cmd()

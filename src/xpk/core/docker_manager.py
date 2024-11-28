@@ -37,11 +37,11 @@ def download_ctk_dockerfile() -> str:
   """
   r = requests.get(
       "https://raw.githubusercontent.com/GoogleCloudPlatform/cluster-toolkit/refs/heads/develop/tools/cloud-build/images/cluster-toolkit-dockerfile/Dockerfile",
-      timeout = 100
+      timeout=100,
   )
-  os.mkdir(os.path.join(tempfile.gettempdir(), 'xpkutils'))
-  tmp_path = os.path.join(tempfile.gettempdir(),'xpkutils','Dockerfile')
-  
+  os.mkdir(os.path.join(tempfile.gettempdir(), "xpkutils"))
+  tmp_path = os.path.join(tempfile.gettempdir(), "xpkutils", "Dockerfile")
+
   with open(tmp_path, "w+", encoding="utf8") as dockerfile:
     dockerfile.write(r.text)
   return tmp_path
@@ -91,13 +91,13 @@ class CtkDockerManager:
 
     """
     dir_path = "/".join(self.dockerfile.split("/")[:-1])
-    xpk_print(f'Building docker image from dockerfile: {self.dockerfile}.')
+    xpk_print(f"Building docker image from dockerfile: {self.dockerfile}.")
     if nocache is False and self._image_exists(img_name):
       return
     self.client.images.build(
         nocache=nocache, path=dir_path, tag=f"{img_name}:latest", rm=True
     )
-    xpk_print('Docker image build succesfully.')
+    xpk_print("Docker image build succesfully.")
 
   def run_command(
       self,
@@ -117,7 +117,7 @@ class CtkDockerManager:
       - docker.errors.ImageNotFound,
       - docker.errors.APIError
     """
-    xpk_print(f'Running command: {cmd} inside container: {container_name}')
+    xpk_print(f"Running command: {cmd} inside container: {container_name}")
     output: bytes = self.client.containers.run(
         image=img_name,
         command=cmd,

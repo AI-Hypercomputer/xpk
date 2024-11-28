@@ -14,11 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 import docker
-from docker.errors import ContainerError, APIError
+from docker.errors import ContainerError, APIError, ImageNotFound
 from ..utils.console import xpk_print, xpk_exit
-from docker.errors import ImageNotFound
 from shutil import move
 import requests
 import os
@@ -33,7 +32,7 @@ gcloud_cfg_mount_path = "/root/.config/gcloud"
 deployment_dir_mount_path = "/out"
 
 
-class CtkCommandRunner:
+class CtkCommandRunner(ABC):
   """This is a base class that defines methods a class for running cluster toolkit command should implement."""
 
   @abstractmethod

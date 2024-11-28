@@ -14,9 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from xpk.core.docker_manager import download_ctk_dockerfile
+from xpk.core.docker_manager import CtkDockerManager
 from xpk.core.gcluster import CtkManager
-from xpk.core.blueprint import CtkBlueprint, CtkDeploymentGroup, CtkDeploymentModule
+from xpk.core.blueprint import CtkBlueprint, CtkDeploymentGroup, CtkDeploymentModule, save_blueprint_to_yaml_file
+from xpk.core.gcluster import blueprint_file_name
 import os
 
 ctk_dockerfile_gh = "https://github.com/GoogleCloudPlatform/cluster-toolkit/blob/develop/tools/cloud-build/images/cluster-toolkit-dockerfile/Dockerfile"
@@ -148,14 +149,15 @@ def test_create_ctk_deployment():
   assert deployment_dir is not None
 
   blueprint = create_gke_ml_blueprint()
+  blueprint_path = os.path.join(deployment_dir, blueprint_file_name)
+  save_blueprint_to_yaml_file(yaml_path=blueprint_path, blueprint=blueprint)
 
-  ctk_dockerfile_path = download_ctk_dockerfile()
-  print(ctk_dockerfile_path)
+  docker_manager = CtkDockerManager(
+      gcloud_cfg_path=ctk_gcloud_cfg, deployment_dir=deployment_dir
+  )
+
   ctk_manager = CtkManager(
-      dockerfile_path=ctk_dockerfile_path,
-      gcloud_cfg_path=ctk_gcloud_cfg,
-      deployment_dir=deployment_dir,
-      blueprint=blueprint,
+      ctk_cmd_runner=docker_manager, deployment_dir=deployment_dir
   )
 
   ctk_manager.deploy()

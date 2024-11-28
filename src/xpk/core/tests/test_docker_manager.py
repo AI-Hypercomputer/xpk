@@ -68,22 +68,20 @@ def remove_test_ctk_img():
 
 def test_docker_build_image(setup_img_name):
   dm = CtkDockerManager(
-      dockerfile_path=dockerfile_path,
       gcloud_cfg_path=test_cfg_path,
       deployment_dir=test_deployment_dir,
   )
   dc = docker.from_env()
   containers_before = dc.containers.list(all=True)
-  dm.build_image(setup_img_name)
+  dm.build()
   dc.images.get(setup_img_name)
   containers_after = dc.containers.list(all=True)
   assert len(containers_before) == len(containers_after)
 
 
-def test_run_command(setup_img_name):
+def test_run_command(_):
 
   dm = CtkDockerManager(
-      dockerfile_path=dockerfile_path,
       gcloud_cfg_path=test_cfg_path,
       deployment_dir=test_deployment_dir,
   )
@@ -91,17 +89,9 @@ def test_run_command(setup_img_name):
 
   containers_before = dc.containers.list(all=True)
 
-  dm.build_image(setup_img_name)
-  output = dm.run_command(
-      setup_img_name,
-      test_gcluster_cmd,
-      rm_container_after=False,
-      container_name=test_ctk_xpk_container,
-  )
+  dm.build()
+  dm.run_command(test_gcluster_cmd)
 
   containers_after = dc.containers.list(all=True)
 
   assert len(containers_after) - len(containers_before) == 1
-
-  assert len(output) != 0
-  assert "Built from 'main' branch" in str(output)

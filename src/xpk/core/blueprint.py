@@ -16,9 +16,9 @@ limitations under the License.
 
 from dataclasses import dataclass
 from typing import Any, Optional
-import ruamel.yaml
+from ruamel import yaml
 
-yaml = ruamel.yaml.YAML()
+yaml = yaml.YAML()
 
 
 @dataclass
@@ -60,6 +60,21 @@ class CtkBlueprint:
   vars: dict[str, str]
   deployment_groups: list[CtkDeploymentGroup]
   blueprint_name: Optional[str]
+
+
+def save_blueprint_to_yaml_file(
+    blueprint: CtkBlueprint, yaml_path: str
+) -> None:
+  """Save blueprint object to file
+
+  Args:
+      yaml_path (str): path to file to which blueprint object will be dumped as yaml
+
+  Returns:
+      None
+  """
+  with open(yaml_path, "wb") as blueprint_file:
+    yaml.dump(blueprint, blueprint_file)
 
 
 yaml.register_class(CtkBlueprint)

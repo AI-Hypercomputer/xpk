@@ -450,7 +450,7 @@ Once it's ready user can define
     python3 xpk.py storage create test-storage --project=$PROJECT
     --cluster=xpk-test --type=gcsfuse --auto-mount=false \
     --mount-point='/test-mount-point' --readonly=false \
-    --manifest='pv-pvc-auto-mount.yaml'
+    --manifest='examples/storage/gcsfuse-manifest.yaml'
     ```
 
 * Create a simple Workload with Storage attached
@@ -478,7 +478,7 @@ Creating Filestore storage and attaching it to workload can be achieved in two s
     python3 xpk.py storage create fs-storage-attach --project=$PROJECT
     --cluster=xpk-test --type=gcpfilestore --auto-mount=false \
     --mount-point='/test-mount-point' --readonly=false \
-    --manifest='examples/filestore/manifest-attach.yaml'
+    --manifest='examples/storage/filestore-manifest-attach.yaml'
     ```
 
 * Create a simple Workload with Storage attached
@@ -1294,6 +1294,8 @@ gcloud beta compute reservations describe $RESERVATION --project=$PROJECT_ID --z
 
 ## 403 error on workload create when using `--base-docker-image` flag
 You need authority to push to the registry from your local machine. Try running `gcloud auth configure-docker`.
+## `Kubernetes API exception` - 404 error
+If error of this kind appeared after updating xpk version it's possible that you need to rerun `cluster create` command in order to update resource definitions.
 
 # TPU Workload Debugging
 

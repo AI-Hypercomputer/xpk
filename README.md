@@ -1256,3 +1256,7 @@ Please note that all other xpk subcommands are intended for use with cloud syste
 
 # Other advanced usage
 [Use a Jupyter notebook to interact with a Cloud TPU cluster](xpk-notebooks.md)
+
+
+# Creating PRs from forks check
+Checking if creating PRs from froks is possible.

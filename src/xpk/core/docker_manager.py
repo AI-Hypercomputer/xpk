@@ -18,12 +18,33 @@ import docker
 from ..utils.console import xpk_print
 from docker.errors import ImageNotFound
 from shutil import move
+import requests
+import os
+import tempfile
 
 ctk_dockerfile_path = "Dockerfile"
 ctk_docker_image = "xpk-ctk"
-gcloud_cfg_mount_path = "/gcloud_cfg"
-deployment_dir_mount_path = "/deployment"
+gcloud_cfg_mount_path = "/root/.config/gcloud"
+deployment_dir_mount_path = "/out"
 xpk_ctk_img_name = "gcluster-xpk"
+
+
+def download_ctk_dockerfile() -> str:
+  """Downloads cluster toolkit dockerfile and returns tmp path on which it is saved
+
+  Returns:
+      str: _description_
+  """
+  r = requests.get(
+      "https://raw.githubusercontent.com/GoogleCloudPlatform/cluster-toolkit/refs/heads/develop/tools/cloud-build/images/cluster-toolkit-dockerfile/Dockerfile",
+      timeout = 100
+  )
+  os.mkdir(os.path.join(tempfile.gettempdir(), 'xpkutils'))
+  tmp_path = os.path.join(tempfile.gettempdir(),'xpkutils','Dockerfile')
+  
+  with open(tmp_path, "w+", encoding="utf8") as dockerfile:
+    dockerfile.write(r.text)
+  return tmp_path
 
 
 class CtkDockerManager:
@@ -70,12 +91,13 @@ class CtkDockerManager:
 
     """
     dir_path = "/".join(self.dockerfile.split("/")[:-1])
-
+    xpk_print(f'Building docker image from dockerfile: {self.dockerfile}.')
     if nocache is False and self._image_exists(img_name):
       return
     self.client.images.build(
         nocache=nocache, path=dir_path, tag=f"{img_name}:latest", rm=True
     )
+    xpk_print('Docker image build succesfully.')
 
   def run_command(
       self,
@@ -95,6 +117,7 @@ class CtkDockerManager:
       - docker.errors.ImageNotFound,
       - docker.errors.APIError
     """
+    xpk_print(f'Running command: {cmd} inside container: {container_name}')
     output: bytes = self.client.containers.run(
         image=img_name,
         command=cmd,

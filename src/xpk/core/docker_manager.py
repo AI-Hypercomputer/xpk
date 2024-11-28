@@ -16,7 +16,7 @@ limitations under the License.
 
 from abc import ABC, abstractmethod
 import docker
-from docker.errors import ContainerError, APIError, ImageNotFound
+from docker.errors import ContainerError, APIError, ImageNotFound, BuildError
 from ..utils.console import xpk_print, xpk_exit
 from shutil import move
 import requests
@@ -24,7 +24,8 @@ import os
 import tempfile
 
 
-ClusterToolkitErrorExitCode = 135
+DockerRunCommandExitCode = 135
+dockerBuildErrorCode = 134
 ctk_dockerfile_path = "Dockerfile"
 ctk_docker_image = "xpk-ctk"
 ctk_container_name = "xpk-ctk-container"
@@ -66,7 +67,7 @@ class CtkDockerManager(CtkCommandRunner):
       container_name: str = ctk_container_name,
       rm_container_after: bool = True,
   ) -> None:
-    self.dockerfile = self._download_ctk_dockerfile()
+
     self.client = docker.from_env()
     self._is_docker_installed()
     self.gcloud_cfg_path = gcloud_cfg_path
@@ -75,11 +76,18 @@ class CtkDockerManager(CtkCommandRunner):
     self.img_name = img_name
     self.container_name = container_name
     self.rm_container_after = rm_container_after
+    self.dockerfile_path = self._create_tmp_for_dockerfile()
+    self._download_ctk_dockerfile()
+
+  def _create_tmp_for_dockerfile(self) -> str:
+    os.mkdir(os.path.join(tempfile.gettempdir(), "xpkutils"))
+    tmp_path = os.path.join(tempfile.gettempdir(), "xpkutils", "Dockerfile")
+    return tmp_path
 
   def _is_docker_installed(self) -> None:
     self.client.info()
 
-  def _download_ctk_dockerfile(self) -> str:
+  def _download_ctk_dockerfile(self):
     """Downloads cluster toolkit dockerfile and returns tmp path on which it is saved
 
     Returns:
@@ -89,12 +97,9 @@ class CtkDockerManager(CtkCommandRunner):
         "https://raw.githubusercontent.com/GoogleCloudPlatform/cluster-toolkit/refs/heads/develop/tools/cloud-build/images/cluster-toolkit-dockerfile/Dockerfile",
         timeout=100,
     )
-    os.mkdir(os.path.join(tempfile.gettempdir(), "xpkutils"))
-    tmp_path = os.path.join(tempfile.gettempdir(), "xpkutils", "Dockerfile")
 
-    with open(tmp_path, "w+", encoding="utf8") as dockerfile:
+    with open(self.dockerfile_path, "w+", encoding="utf8") as dockerfile:
       dockerfile.write(r.text)
-    return tmp_path
 
   def _image_exists(self, img_name: str) -> bool:
     try:
@@ -116,17 +121,30 @@ class CtkDockerManager(CtkCommandRunner):
       - TypeError - otherwise
 
     """
-    dir_path = "/".join(self.dockerfile.split("/")[:-1])
-    xpk_print(f"Building docker image from dockerfile: {self.dockerfile}.")
+    dir_path = "/".join(self.dockerfile_path.split("/")[:-1])
+    xpk_print(f"Building docker image from dockerfile: {self.dockerfile_path}. It may take a while...")
     if self.nocache is False and self._image_exists(self.img_name):
       return
-    self.client.images.build(
-        nocache=self.nocache,
-        path=dir_path,
-        tag=f"{self.img_name}:latest",
-        rm=True,
-    )
+    try:
+      self.client.images.build(
+          nocache=self.nocache,
+          path=dir_path,
+          tag=f"{self.img_name}:latest",
+          rm=True,
+      )
+    except BuildError as e:
+      xpk_print(f"error while building image {self.img_name}: {e.msg}")
+      xpk_exit(dockerBuildErrorCode)
+    except APIError as e:
+      xpk_print(f"erro while building image {self.img_name}: {e.explanation}")
+      xpk_exit(dockerBuildErrorCode)
+    except TypeError as e:
+      xpk_print(f"TypeError while building image {self.img_name}")
+      xpk_exit(dockerBuildErrorCode)
     xpk_print("Docker image build succesfully.")
+    os.remove(self.dockerfile_path)
+    tmp_dockerfile_dir = "/".join(self.dockerfile_path.split("/")[:-1])
+    os.rmdir(tmp_dockerfile_dir)
 
   def run_command(
       self,
@@ -147,7 +165,7 @@ class CtkDockerManager(CtkCommandRunner):
     try:
       self.client.containers.run(
           image=self.img_name,
-          command=cmd,
+          entrypoint=cmd,
           remove=self.rm_container_after,
           name=self.container_name,
           stdout=True,
@@ -162,13 +180,13 @@ class CtkDockerManager(CtkCommandRunner):
           "Deploying cluster failed due to ContainerError with exit status:"
           f" {e.exit_status} and stderr: {e.stderr}"
       )
-      xpk_exit(ClusterToolkitErrorExitCode)
+      xpk_exit(DockerRunCommandExitCode)
     except ImageNotFound as _:
       xpk_print(f"Image {ctk_docker_image} not found. Deploying cluster failed")
-      xpk_exit(ClusterToolkitErrorExitCode)
+      xpk_exit(DockerRunCommandExitCode)
     except APIError as e:
       xpk_print(f"Deploying cluster toolkit failed due to {e.explanation}")
-      xpk_exit(ClusterToolkitErrorExitCode)
+      xpk_exit(DockerRunCommandExitCode)
 
   def upload_to_deployment_dir(self, path: str):
     """Move file or directory from specified path to directory containing deployment files

@@ -25,7 +25,7 @@ gcluster_create_command = 'gcluster create'
 gcluster_destroy_command = 'gcluster destroy'
 machine_ip = '10.0.0.0'
 blueprint_file_name = 'xpk_blueprint.yaml'
-deployment_module = 'xpk-deployment'
+deployment_module = '/out/xpk-deployment'
 
 
 class CtkManager:
@@ -45,6 +45,7 @@ class CtkManager:
       self,
       deployment_dir: str,
       ctk_cmd_runner: CtkCommandRunner,
+      deployment_name: str
   ) -> None:
     self.deployment_dir = deployment_dir
     self.ctk_cmd_runner = ctk_cmd_runner
@@ -52,6 +53,7 @@ class CtkManager:
     self._blueprint_path = os.path.join(
         self.deployment_dir, blueprint_file_name
     )
+    self.deployment_name =deployment_name
 
   def _validate_deployment_dir(self) -> None:
     """Check if deployment directory contains blueprint.yaml file."""
@@ -64,12 +66,17 @@ class CtkManager:
 
   def _run_create_deployment_cmd(self):
     xpk_print('Creating deployment directory')
-    cluster_create_cmd = f'{gcluster_create_command} {self._blueprint_path}'
+    blueprint_container_path = os.path.join('/out', blueprint_file_name)
+    cluster_create_cmd = f'{gcluster_create_command} {blueprint_container_path}'
     self.ctk_cmd_runner.run_command(cluster_create_cmd)
 
-  def _run_deploy_cmd(self):
+  def _run_deploy_cmd(self, auto_approve, dry_run):
     xpk_print('Deploying created resources to cloud.')
-    deploy_cmd = f'{gcluster_deploy_command} {deployment_module}'
+    deploy_cmd = f'{gcluster_deploy_command} {self.deployment_name}'
+    if auto_approve is True:
+      deploy_cmd+=' --auto-approve'
+    if dry_run is True:
+      return
     self.ctk_cmd_runner.run_command(deploy_cmd)
 
   # create base class for docker run
@@ -77,12 +84,16 @@ class CtkManager:
   # add stage_files
   # pass file not blueprint
   # blueprint generator should generate directory with blueprint
-  def deploy(self) -> None:
+  def deploy(self, auto_approve = True, dry_run = False) -> None:
     self._run_create_deployment_cmd()
-    self._run_deploy_cmd()
+    self._run_deploy_cmd(auto_approve, dry_run)
 
-  def _run_destroy_command(self):
-    destroy_cmd = f'{gcluster_destroy_command} {deployment_module}'
+  def _run_destroy_command(self, auto_approve = True, dry_run = False):
+    destroy_cmd = f'{gcluster_destroy_command} {self.deployment_name}'
+    if auto_approve is True:
+      destroy_cmd += ' --auto-approve'
+    if dry_run is True:
+      xpk_print(f'executing command {destroy_cmd}')
     self.ctk_cmd_runner.run_command(destroy_cmd)
 
   def destroy_deployment(self) -> None:

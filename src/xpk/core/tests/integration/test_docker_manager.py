@@ -15,17 +15,16 @@ limitations under the License.
 """
 
 import docker.errors
-from ..docker_manager import CtkDockerManager
+from xpk.core.docker_manager import CtkDockerManager
 import docker
 import pytest
 import os
 
-dockerfile_path = 'data/Dockerfile'
 test_cfg_path = '/tmp/xpk_gcloud_cfg'
 test_deployment_dir = '/tmp/xpk_deployment'
-test_gcluster_cmd = 'gcluster --version'
-test_ctk_xpk_img = 'gcluster-xpk-test'
-test_ctk_xpk_container = 'gcluster-xpk-test-container'
+test_gcluster_cmd = 'gcluster --help'
+test_ctk_xpk_img = 'gcluster-xpk'
+test_ctk_xpk_container = 'xpk-test-container'
 
 
 def remove_img():
@@ -70,6 +69,7 @@ def test_docker_build_image(setup_img_name):
   dm = CtkDockerManager(
       gcloud_cfg_path=test_cfg_path,
       deployment_dir=test_deployment_dir,
+      img_name=setup_img_name,
   )
   dc = docker.from_env()
   containers_before = dc.containers.list(all=True)
@@ -79,11 +79,13 @@ def test_docker_build_image(setup_img_name):
   assert len(containers_before) == len(containers_after)
 
 
-def test_run_command(_):
+def test_run_command(setup_img_name):
 
   dm = CtkDockerManager(
       gcloud_cfg_path=test_cfg_path,
       deployment_dir=test_deployment_dir,
+      img_name=setup_img_name,
+      rm_container_after=True,
   )
   dc = docker.from_env()
 
@@ -94,4 +96,4 @@ def test_run_command(_):
 
   containers_after = dc.containers.list(all=True)
 
-  assert len(containers_after) - len(containers_before) == 1
+  assert len(containers_after) - len(containers_before) == 0

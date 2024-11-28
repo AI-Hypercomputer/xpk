@@ -20,8 +20,7 @@ from xpk.core.blueprint import CtkBlueprint, CtkDeploymentGroup, CtkDeploymentMo
 from xpk.core.gcluster import blueprint_file_name
 import os
 
-ctk_dockerfile_gh = "https://github.com/GoogleCloudPlatform/cluster-toolkit/blob/develop/tools/cloud-build/images/cluster-toolkit-dockerfile/Dockerfile"
-ctk_gcloud_cfg = "/gcloud/cfg"
+ctk_gcloud_cfg = os.getenv("GCLOUD_CFG_FILE")
 project_id = os.getenv("PROJECT_ID")
 deployment_name = os.getenv("DEPLOYMENT_NAME")
 region = os.getenv("REGION")
@@ -59,7 +58,7 @@ def create_gke_ml_blueprint() -> CtkBlueprint:
       },
   )
   sa = CtkDeploymentModule(
-      id="gke_sa",
+      id="gke-sa",
       source="community/modules/project/service-account",
       settings={
           "name": "gke-sa",
@@ -82,22 +81,6 @@ def create_gke_ml_blueprint() -> CtkBlueprint:
           "enable_private_endpoint": (
               "false"
           ),  # Allows for access from authorized public IPs
-          "master_authorized_networks": [
-              {"display_name": "deployment-machine"}
-          ],
-          "cidr_block": auth_cidr,
-          "configure_workload_identity_sa": "true",
-      },
-      outputs=["instructions"],
-  )
-  gke_cluster = CtkDeploymentModule(
-      id="gke_cluster",
-      source="modules/scheduler/gke-cluster",
-      use=["network1", "gke-sa"],
-      settings={
-          "enable_private_endpoint": (
-              "false"
-          ),  # Allows for access from authorized public IPs
           "master_authorized_networks": [{
               "display_name": "deployment-machine",
               "cidr_block": auth_cidr,
@@ -108,7 +91,7 @@ def create_gke_ml_blueprint() -> CtkBlueprint:
   )
   g2_pool = CtkDeploymentModule(
       id="g2_pool",
-      source="modules/scheduler/gke-cluster",
+      source="modules/compute/gke-node-pool",
       use=["gke_cluster", "gke-sa"],
       settings={"disk_type": "pd-balanced", "machine_type": "g2-standard-4"},
   )
@@ -133,8 +116,7 @@ def create_gke_ml_blueprint() -> CtkBlueprint:
           "project_id": project_id,
           "deployment_name": deployment_name,
           "region": region,
-          "zones": zone,
-          "authorized_cidr": auth_cidr,
+          "zones": [zone]
       },
   )
   return ml_gke
@@ -147,7 +129,7 @@ def test_create_ctk_deployment():
   assert zone is not None
   assert auth_cidr is not None
   assert deployment_dir is not None
-
+  assert ctk_gcloud_cfg is not None
   blueprint = create_gke_ml_blueprint()
   blueprint_path = os.path.join(deployment_dir, blueprint_file_name)
   save_blueprint_to_yaml_file(yaml_path=blueprint_path, blueprint=blueprint)
@@ -155,9 +137,11 @@ def test_create_ctk_deployment():
   docker_manager = CtkDockerManager(
       gcloud_cfg_path=ctk_gcloud_cfg, deployment_dir=deployment_dir
   )
-
+  docker_manager.build()
   ctk_manager = CtkManager(
-      ctk_cmd_runner=docker_manager, deployment_dir=deployment_dir
+      ctk_cmd_runner=docker_manager, deployment_dir=deployment_dir, deployment_name = deployment_name
   )
 
   ctk_manager.deploy()
+  assert os.path.exists(os.path.join(deployment_dir, deployment_name))
+  ctk_manager.destroy_deployment()

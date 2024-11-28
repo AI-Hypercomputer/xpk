@@ -57,7 +57,7 @@ class CtkDeploymentGroup:
 class CtkBlueprint:
   """A class to represent Cluster Toolkit blueprint"""
 
-  vars: dict[str, str]
+  vars: dict[str, str | list[str]]
   deployment_groups: list[CtkDeploymentGroup]
   blueprint_name: Optional[str]
 

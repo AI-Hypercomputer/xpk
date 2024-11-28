@@ -1260,3 +1260,4 @@ Please note that all other xpk subcommands are intended for use with cloud syste
 
 # Creating PRs from forks check
 Checking if creating PRs from froks is possible.
+Checking if creating PRs from forks not main branch is possible.

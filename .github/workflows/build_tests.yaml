@@ -135,15 +135,16 @@ jobs:
     - name: Create test script to execute in batch
       run: echo -e '#!/bin/bash \n#SBATCH --unknown-flag=value\n echo "Hello world from a test script!"' > batch.sh
     - name: Run a batch job on the cluster
-      run: python3 xpk.py batch --cluster $TPU_CLUSTER_NAME --zone=us-central2-b batch.sh --ignore-unknown-flags --array 1-5 --nodes 2 --ntasks 3
+      run: python3 xpk.py batch --cluster $TPU_CLUSTER_NAME --zone=us-central2-b batch.sh --ignore-unknown-flags --array 1-5 --nodes 2 --ntasks 3 --time 60
     - name: List out the jobs on the cluster
       run: python3 xpk.py job ls --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep 'xpk-def-app-profile-slurm-'
     - name: Get created job name
       run: |
         JOB_NAME=$(python3 xpk.py job ls --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep 'xpk-def-app-profile-slurm-' | head -1 | awk '{print $1}')
         echo "JOB_NAME=${JOB_NAME}" >> $GITHUB_ENV
-    - name: Check job spec
+    - name: Check created job
       run: |
+        kubectl get job ${JOB_NAME} -o jsonpath='{.metadata.labels}' | grep '"kueue.x-k8s.io/max-exec-time-seconds":"3600"'
         job_spec=$(kubectl get job ${JOB_NAME} -o jsonpath='{.spec}')
         echo "$job_spec" | grep '"completions":2'
         echo "$job_spec" | grep '"parallelism":2'

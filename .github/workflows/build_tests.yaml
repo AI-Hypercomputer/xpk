@@ -85,8 +85,8 @@ jobs:
       run: mkdir -p $DEPLOYMENT_DIR
     - name: Check for credentials presence
       run: echo $GCLOUD_CFG_FILE && ls $HOME/.config/gcloud
-    # - name: Run integration tests
-    #   run: make run-integrationtests
+    - name: Run integration tests
+      run: make run-integrationtests
 
   cluster-create-and-delete:
     runs-on: [ubuntu-22.04]

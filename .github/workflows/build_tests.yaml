@@ -67,10 +67,6 @@ jobs:
         install_components: 'beta,gke-gcloud-auth-plugin'
     - name: Verify gcp setup
       run: gcloud info
-    - name: Set Google Cloud CLI properties to a unused zone to verify --zone arg is passed properly in commands.
-      run: |
-        gcloud config set compute/zone us-east4-a
-        gcloud config get compute/zone
     - name: Install dependencies
       run : make install-dev
     - name: "Set auth cidr"

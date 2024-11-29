@@ -20,7 +20,7 @@ from xpk.core.blueprint import CtkBlueprint, CtkDeploymentGroup, CtkDeploymentMo
 from xpk.core.gcluster import blueprint_file_name
 import os
 
-ctk_gcloud_cfg = os.getenv("GCLOUD_CFG_FILE")
+ctk_gcloud_cfg = os.getenv("GCLOUD_CFG_PATH")
 project_id = os.getenv("PROJECT_ID")
 deployment_name = os.getenv("DEPLOYMENT_NAME")
 region = os.getenv("REGION")

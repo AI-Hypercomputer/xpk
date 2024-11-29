@@ -39,7 +39,7 @@ from ..core.storage import (
 from ..utils import apply_kubectl_manifest, xpk_exit, xpk_print
 
 
-def storage_create(args: Namespace) -> None:
+def storage_attach(args: Namespace) -> None:
   k8s_api_client = setup_k8s_env(args)
   create_storage_instance(k8s_api_client, args)
   if args.type == GCS_FUSE_TYPE:

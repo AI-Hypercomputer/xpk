@@ -16,7 +16,7 @@ limitations under the License.
 
 import argparse
 
-from ..commands.storage import storage_create, storage_delete, storage_list
+from ..commands.storage import storage_attach, storage_delete, storage_list
 from .common import add_shared_arguments
 
 
@@ -29,24 +29,24 @@ def set_storage_parser(storage_parser: argparse.ArgumentParser) -> None:
           ' specific subcommands for more details.'
       ),
   )
-  add_storage_create_parser(storage_subcommands)
+  add_storage_attach_parser(storage_subcommands)
   add_storage_list_parser(storage_subcommands)
   add_storage_delete_parser(storage_subcommands)
 
 
-def add_storage_create_parser(
+def add_storage_attach_parser(
     storage_subcommands_parser: argparse.ArgumentParser,
 ) -> None:
 
-  storage_create_parser: argparse.ArgumentParser = (
+  storage_attach_parser: argparse.ArgumentParser = (
       storage_subcommands_parser.add_parser(
-          'create', help='Create XPK Storage.'
+          'attach', help='attach XPK Storage.'
       )
   )
-  storage_create_parser.set_defaults(func=storage_create)
-  req_args = storage_create_parser.add_argument_group(
+  storage_attach_parser.set_defaults(func=storage_attach)
+  req_args = storage_attach_parser.add_argument_group(
       'Required Arguments',
-      'Arguments required for storage create.',
+      'Arguments required for storage attach.',
   )
   add_shared_arguments(req_args)
   req_args.add_argument(

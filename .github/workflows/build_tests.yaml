@@ -77,6 +77,8 @@ jobs:
       run: echo "AUTH_CIDR=$(curl api.ipify.org)/32" >> $GITHUB_ENV
     - name: "Set GCLOUD_CFG_FILE"
       run: echo "GCLOUD_CFG_FILE="$HOME/.config/gcloud"" >> $GITHUB_ENV
+    - name: "Write application_default_credentials to gcloud config"
+      run: echo ${{ secrets.GCP_SA_KEY }} | base64 -di > $GCLOUD_CFG_FILE/application_default_credentials.json
     - name: "Set DEPLOYMENT_DIR"
       run: echo "DEPLOYMENT_DIR=$HOME/deployment" >> $GITHUB_ENV
     - name: Create deployment dir

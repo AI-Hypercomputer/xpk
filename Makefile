@@ -27,7 +27,10 @@ install-pytest:
 	pip install -U pytest
 
 run-unittests:
-	pytest src/xpk/
+	pytest src/xpk/core/unit/
+
+run-integrationtests:
+	pytest src/xpk/core/integration/
 
 install-kjob: install-kubectl
 	git clone --depth 1 --branch $(KUEUE_VERSION) $(KUEUE_REPO) $(KUEUE_TMP_PATH)

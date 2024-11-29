@@ -14,10 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..blueprint import create_a3_mega_blueprint
-import ruamel.yaml
-
 from xpk.core import blueprint
+from xpk.core.blueprint import create_a3_mega_blueprint
+import ruamel.yaml
 
 yaml = ruamel.yaml.YAML()
 

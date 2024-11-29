@@ -14,9 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import docker.errors
-from xpk.core.docker_manager import CtkDockerManager
 import docker
+from docker.errors import APIError
+from xpk.core.docker_manager import CtkDockerManager
 import pytest
 import os
 
@@ -31,7 +31,7 @@ def remove_img():
   dc = docker.from_env()
   try:
     dc.images.remove(test_ctk_xpk_img, force=True)
-  except docker.errors.APIError as _:
+  except APIError as _:
     pass
 
 
@@ -40,7 +40,7 @@ def remove_container():
   try:
     container = dc.containers.get(test_ctk_xpk_container)
     container.remove(force=True)
-  except docker.errors.APIError as _:
+  except APIError as _:
     pass
 
 

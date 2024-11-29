@@ -45,9 +45,9 @@ def create_gke_ml_blueprint() -> CtkBlueprint:
       id="network1",
       source="modules/network/vpc",
       settings={
-          "subnetwork_name": "gke-subnet",
+          "subnetwork_name": f"{deployment_name}-gke-subnet",
           "secondary_ranges": {
-              "gke-subnet": [
+              f"{deployment_name}-gke-subnet": [
                   {"range_name": "pods", "ip_cidr_range": "10.4.0.0/14"},
                   {
                       "range_name": "services",
@@ -57,26 +57,11 @@ def create_gke_ml_blueprint() -> CtkBlueprint:
           },
       },
   )
-  sa = CtkDeploymentModule(
-      id="gke-sa",
-      source="community/modules/project/service-account",
-      settings={
-          "name": "gke-sa",
-          "project_roles": [
-              "logging.logWriter",
-              "monitoring.metricWriter",
-              "monitoring.viewer",
-              "stackdriver.resourceMetadata.writer",
-              "storage.objectViewer",
-              "artifactregistry.reader",
-          ],
-      },
-  )
 
   gke_cluster = CtkDeploymentModule(
       id="gke_cluster",
       source="modules/scheduler/gke-cluster",
-      use=["network1", "gke-sa"],
+      use=["network1"],
       settings={
           "enable_private_endpoint": (
               "false"
@@ -85,29 +70,13 @@ def create_gke_ml_blueprint() -> CtkBlueprint:
               "display_name": "deployment-machine",
               "cidr_block": auth_cidr,
           }],
-          "configure_workload_identity_sa": "true",
       },
       outputs=["instructions"],
   )
-  g2_pool = CtkDeploymentModule(
-      id="g2_pool",
-      source="modules/compute/gke-node-pool",
-      use=["gke_cluster", "gke-sa"],
-      settings={"disk_type": "pd-balanced", "machine_type": "g2-standard-4"},
-  )
-  job_template = CtkDeploymentModule(
-      id="job_template",
-      source="modules/compute/gke-job-template",
-      use=["g2_pool"],
-      settings={
-          "image": "nvidia/cuda:11.0.3-runtime-ubuntu20.04",
-          "command": ["nvidia-smi"],
-          "node_count": 1,
-      },
-  )
+  
   primary_group = CtkDeploymentGroup(
       group="primary",
-      modules=[network1, sa, g2_pool, gke_cluster, job_template],
+      modules=[network1, gke_cluster],
   )
   ml_gke = CtkBlueprint(
       blueprint_name="ml_gke",
@@ -116,7 +85,6 @@ def create_gke_ml_blueprint() -> CtkBlueprint:
           "project_id": project_id,
           "deployment_name": deployment_name,
           "region": region,
-          "zones": [zone]
       },
   )
   return ml_gke

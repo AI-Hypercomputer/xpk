@@ -45,7 +45,7 @@ class CtkManager:
       self,
       deployment_dir: str,
       ctk_cmd_runner: CtkCommandRunner,
-      deployment_name: str
+      deployment_name: str,
   ) -> None:
     self.deployment_dir = deployment_dir
     self.ctk_cmd_runner = ctk_cmd_runner
@@ -53,7 +53,7 @@ class CtkManager:
     self._blueprint_path = os.path.join(
         self.deployment_dir, blueprint_file_name
     )
-    self.deployment_name =deployment_name
+    self.deployment_name = deployment_name
 
   def _validate_deployment_dir(self) -> None:
     """Check if deployment directory contains blueprint.yaml file."""
@@ -74,7 +74,7 @@ class CtkManager:
     xpk_print('Deploying created resources to cloud.')
     deploy_cmd = f'{gcluster_deploy_command} {self.deployment_name}'
     if auto_approve is True:
-      deploy_cmd+=' --auto-approve'
+      deploy_cmd += ' --auto-approve'
     if dry_run is True:
       return
     self.ctk_cmd_runner.run_command(deploy_cmd)
@@ -84,11 +84,11 @@ class CtkManager:
   # add stage_files
   # pass file not blueprint
   # blueprint generator should generate directory with blueprint
-  def deploy(self, auto_approve = True, dry_run = False) -> None:
+  def deploy(self, auto_approve=True, dry_run=False) -> None:
     self._run_create_deployment_cmd()
     self._run_deploy_cmd(auto_approve, dry_run)
 
-  def _run_destroy_command(self, auto_approve = True, dry_run = False):
+  def _run_destroy_command(self, auto_approve=True, dry_run=False):
     destroy_cmd = f'{gcluster_destroy_command} {self.deployment_name}'
     if auto_approve is True:
       destroy_cmd += ' --auto-approve'

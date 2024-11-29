@@ -73,7 +73,7 @@ def create_gke_ml_blueprint() -> CtkBlueprint:
       },
       outputs=["instructions"],
   )
-  
+
   primary_group = CtkDeploymentGroup(
       group="primary",
       modules=[network1, gke_cluster],
@@ -107,7 +107,9 @@ def test_create_ctk_deployment():
   )
   docker_manager.build()
   ctk_manager = CtkManager(
-      ctk_cmd_runner=docker_manager, deployment_dir=deployment_dir, deployment_name = deployment_name
+      ctk_cmd_runner=docker_manager,
+      deployment_dir=deployment_dir,
+      deployment_name=deployment_name,
   )
 
   ctk_manager.deploy()

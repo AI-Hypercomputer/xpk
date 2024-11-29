@@ -122,7 +122,10 @@ class CtkDockerManager(CtkCommandRunner):
 
     """
     dir_path = "/".join(self.dockerfile_path.split("/")[:-1])
-    xpk_print(f"Building docker image from dockerfile: {self.dockerfile_path}. It may take a while...")
+    xpk_print(
+        f"Building docker image from dockerfile: {self.dockerfile_path}. It may"
+        " take a while..."
+    )
     if self.nocache is False and self._image_exists(self.img_name):
       return
     try:

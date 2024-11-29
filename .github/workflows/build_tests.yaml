@@ -65,7 +65,7 @@ jobs:
     - name: Create deployment dir
       run: mkdir -p $DEPLOYMENT_DIR
     - name: "Set auth cidr"
-      run: cho "AUTH_CIDR=$(curl api.ipify.org)/32" >> $GITHUB_ENV
+      run: echo "AUTH_CIDR=$(curl api.ipify.org)/32" >> $GITHUB_ENV
     - name: Run integration tests
       run: make run-integrationtests
 

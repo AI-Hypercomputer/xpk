@@ -26,12 +26,10 @@ env:
   PATHWAYS_WORKLOAD_NAME: xpkpw-build-${{ github.run_attempt }}
   CLUSTER_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}} --maintenance-window=23:50"
   RUN_ID: "pr-${{ github.event.number }}"
-  GCLOUD_CFG_FILE: "~/.config/gcloud"
   PROJECT_ID: ${{secrets.PROJECT_NAME}}
   DEPLOYMENT_NAME: "xpk-ctk-int"
   ZONE: us-central2-a
   REGION: us-central2
-  DEPLOYMENT_DIR: ~/deployment
 
 jobs:
   run-unit-tests:
@@ -66,6 +64,10 @@ jobs:
       run: mkdir -p $DEPLOYMENT_DIR
     - name: "Set auth cidr"
       run: echo "AUTH_CIDR=$(curl api.ipify.org)/32" >> $GITHUB_ENV
+    - name: "Set GCLOUD_CFG_FILE"
+      run: echo "GCLOUD_CFG_FILE="$HOME/.config/gcloud"" >> $GITHUB_ENV
+    - name: "Set DEPLOYMENT_DIR"
+      run: echo "DEPLOYMENT_DIR=$HOME/deployment" >> $GITHUB_ENV
     - name: Run integration tests
       run: make run-integrationtests
 

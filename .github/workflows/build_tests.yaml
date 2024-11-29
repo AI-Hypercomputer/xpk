@@ -31,7 +31,7 @@ env:
   DEPLOYMENT_NAME: "xpk-ctk-int"
   ZONE: us-central2-a
   REGION: us-central2
-  DEPLOYMENT_DIR: /deployment
+  DEPLOYMENT_DIR: ~/deployment
 
 jobs:
   run-unit-tests:

@@ -18,17 +18,20 @@ from google.cloud import filestore_v1
 from google.cloud.filestore_v1.types import Instance
 from google.cloud.filestore_v1.types import FileShareConfig
 from google.cloud.filestore_v1.types import NetworkConfig
-from ..utils import xpk_print
+from ..utils import xpk_exit, xpk_print
+import json
 
 
 class FilestoreClient:
   """_summary_"""
 
-  def __init__(self, region: str, zone: str, name: str, project: str) -> None:
-    self.region = region
+  def __init__(self, zone: str, name: str, project: str) -> None:
     self.zone = zone
     self.name = name
     self.project = project
+
+  def check_filestore_instance_exists(self, instance_id: str) -> bool:
+    return False
 
   def create_filestore_instance(
       self,
@@ -46,7 +49,7 @@ class FilestoreClient:
   ) -> None:
     """Create new Filestore instance"""
     client = filestore_v1.CloudFilestoreManagerClient()
-    parent = f"projects/{self.project}/location/{self.zone}"
+    parent = f"projects/{self.project}/locations/{self.zone}"
     file_shares = [
         FileShareConfig(
             name=vol,
@@ -77,13 +80,15 @@ class FilestoreClient:
 
     # Make the request
     operation = client.create_instance(request=request)
+    xpk_print("Waiting for filestore creation to complete...")
+    response = None
+    try:
+      response = operation.result()
+    except Exception as e:
+      xpk_print(f"Error while creating Filestore instance: {e}")
+      xpk_exit(1)
 
-    xpk_print("Waiting for operation to complete...")
-
-    response = operation.result()
-
-    # Handle the response
-    print(response)
+    self.response = json.loads(response)
 
   def create_pv_pvc_yaml(self, filepath: str) -> None:
     """Create a yaml representing filestore PV and PVC and save it to file.
@@ -94,3 +99,4 @@ class FilestoreClient:
     Returns:
       None
     """
+    # read template, fill it and save to file ;)

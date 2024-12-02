@@ -25,6 +25,7 @@ from ..core.core import (
     update_cluster_with_gcsfuse_driver_if_necessary,
     update_cluster_with_workload_identity_if_necessary,
     update_cluster_with_gcpfilestore_driver_if_necessary,
+    add_zone_and_project,
 )
 from ..core.storage import (
     GCS_FUSE_TYPE,
@@ -38,13 +39,12 @@ from ..core.storage import (
     print_storages_for_cluster,
 )
 from ..utils import apply_kubectl_manifest, xpk_exit, xpk_print
-from ..core.storage import FilestoreClient
+from ..core.filestore import FilestoreClient
 
 
 def storage_create(args: Namespace) -> None:
-  filestore_client = FilestoreClient(
-      args.region, args.zone, args.name, args.project
-  )
+  add_zone_and_project(args)
+  filestore_client = FilestoreClient(args.zone, args.name, args.project)
   filestore_client.create_filestore_instance(
       vol=args.vol, size=args.size, tier=args.tier
   )

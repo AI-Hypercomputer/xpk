@@ -113,7 +113,7 @@ def add_storage_create_parser(
   )
   req_args.add_argument(
       '--size',
-      type=int,
+      type=str,
       help=(
           'The size of the volume to create in gigabytes or terabytes. If no'
           ' unit is specified, gigabytes are assumed.'
@@ -149,12 +149,6 @@ def add_storage_create_parser(
   )
   req_args.add_argument(
       '--readonly', type=lambda v: v.lower() == 'true', required=True
-  )
-
-  req_args.add_argument(
-      '--manifest',
-      type=str,
-      required=True,
   )
 
 

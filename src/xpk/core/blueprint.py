@@ -67,7 +67,7 @@ class CtkBlueprint:
 def create_deployment_directory(
     blueprint: CtkBlueprint, deployment_type: str, deployment_directory: str
 ) -> str:
-  """Save blueprint object to file. Blueprint yaml file will be created under 
+  """Save blueprint object to file. Blueprint yaml file will be created under
   deployment_directory/deployment_type/blueprint.yaml.
 
   Args:

@@ -15,7 +15,8 @@ limitations under the License.
 """
 
 from xpk.core.docker_manager import CtkCommandRunner
-from xpk.utils.console import xpk_exit, xpk_print
+from xpk.utils.console import xpk_print
+from xpk.utils.file import download_file_from_github
 import os
 
 xpk_gcloud_cfg_path = '~/gcloud/cfg'
@@ -23,9 +24,11 @@ xpk_deployment_dir = '/deployment'
 gcluster_deploy_command = 'gcluster deploy'
 gcluster_create_command = 'gcluster create'
 gcluster_destroy_command = 'gcluster destroy'
-machine_ip = '10.0.0.0'
 blueprint_file_name = 'xpk_blueprint.yaml'
 deployment_module = '/out/xpk-deployment'
+a3_utils_dir_name = 'xpk-gke-a3-megagpu-files'
+config_map_gh_url = 'https://raw.githubusercontent.com/GoogleCloudPlatform/cluster-toolkit/refs/heads/main/community/examples/xpk-gke-a3-megagpu-files/config-map.yaml.tftpl'
+kueue_conf_gh_url = 'https://raw.githubusercontent.com/GoogleCloudPlatform/cluster-toolkit/refs/heads/develop/community/examples/xpk-gke-a3-megagpu-files/kueue-xpk-configuration.yaml.tftpl'
 
 
 class CtkManager:
@@ -46,23 +49,28 @@ class CtkManager:
       deployment_dir: str,
       ctk_cmd_runner: CtkCommandRunner,
       deployment_name: str,
+      deployment_type: str,
   ) -> None:
     self.deployment_dir = deployment_dir
     self.ctk_cmd_runner = ctk_cmd_runner
-    self._validate_deployment_dir()
+    self.deployment_type = deployment_type
+    self._prepare_deployment_dir()
     self._blueprint_path = os.path.join(
         self.deployment_dir, blueprint_file_name
     )
     self.deployment_name = deployment_name
 
-  def _validate_deployment_dir(self) -> None:
-    """Check if deployment directory contains blueprint.yaml file."""
-    is_blueprint = os.path.exists(
-        os.path.join(self.deployment_dir, blueprint_file_name)
-    )
-    if is_blueprint is False:
-      xpk_print('Deployment directory does not contains blueprint file')
-      xpk_exit(1)
+  def _prepare_deployment_dir(self) -> None:
+    """prepare deployment directory"""
+
+    if not os.path.exists(self.deployment_dir):
+      os.makedirs(self.deployment_dir)
+      xpk_print(f'Deployment files will be saved to {self.deployment_dir}')
+    else:
+      xpk_print(
+          f'{self.deployment_dir} already exists. Will not override existing'
+          ' deployment dir.'
+      )
 
   def _run_create_deployment_cmd(self):
     xpk_print('Creating deployment directory')
@@ -79,11 +87,6 @@ class CtkManager:
       return
     self.ctk_cmd_runner.run_command(deploy_cmd)
 
-  # create base class for docker run
-  # create dry run
-  # add stage_files
-  # pass file not blueprint
-  # blueprint generator should generate directory with blueprint
   def deploy(self, auto_approve=True, dry_run=False) -> None:
     self._run_create_deployment_cmd()
     self._run_deploy_cmd(auto_approve, dry_run)
@@ -98,3 +101,25 @@ class CtkManager:
 
   def destroy_deployment(self) -> None:
     self._run_destroy_command()
+
+  def _stage_a3_files(self):
+    blueprint_utils_dir = os.path.join(self.deployment_dir, a3_utils_dir_name)
+    if not os.path.exists(blueprint_utils_dir):
+      os.mkdir(blueprint_utils_dir)
+    config_map_file_path = os.path.join(
+        blueprint_utils_dir, 'config-map.yaml.tftpl'
+    )
+    kueue_configuration_file_path = os.path.join(
+        blueprint_utils_dir, 'kueue-xpk-configuration.yaml.tftpl'
+    )
+    xpk_print(f'Downloading {config_map_file_path} from {config_map_gh_url}')
+    download_file_from_github(config_map_gh_url, config_map_file_path)
+    xpk_print(
+        f'Downloading {kueue_configuration_file_path} from {kueue_conf_gh_url}'
+    )
+    download_file_from_github(kueue_conf_gh_url, kueue_configuration_file_path)
+
+  def stage_files(self) -> None:
+    """Download files neccessary for deployment to deployment directory."""
+    if self.deployment_type == 'a3':
+      self._stage_a3_files()

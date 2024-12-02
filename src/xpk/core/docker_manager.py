@@ -80,8 +80,10 @@ class CtkDockerManager(CtkCommandRunner):
     self._download_ctk_dockerfile()
 
   def _create_tmp_for_dockerfile(self) -> str:
-    os.mkdir(os.path.join(tempfile.gettempdir(), "xpkutils"))
-    tmp_path = os.path.join(tempfile.gettempdir(), "xpkutils", "Dockerfile")
+    tmp_dir = os.path.join(tempfile.gettempdir(), "xpkutils")
+    if not os.path.exists(tmp_dir):
+      os.mkdir(tmp_dir)
+    tmp_path = os.path.join(tmp_dir, "Dockerfile")
     return tmp_path
 
   def _is_docker_installed(self) -> None:

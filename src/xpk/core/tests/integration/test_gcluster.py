@@ -16,8 +16,8 @@ limitations under the License.
 
 from xpk.core.docker_manager import CtkDockerManager
 from xpk.core.gcluster import CtkManager
-from xpk.core.blueprint import CtkBlueprint, CtkDeploymentGroup, CtkDeploymentModule, save_blueprint_to_yaml_file
-from xpk.core.gcluster import blueprint_file_name
+from xpk.core.blueprint import CtkBlueprint, CtkDeploymentGroup, CtkDeploymentModule, create_deployment_directory
+
 import os
 import pytest
 
@@ -92,7 +92,10 @@ def create_gke_ml_blueprint() -> CtkBlueprint:
 
 
 @pytest.mark.skip(
-    reason="Passing credentials to github actions do not work currently."
+    reason=(
+        "Passing credentials from github actions to docker container do not"
+        " work currently."
+    )
 )
 def test_create_ctk_deployment():
   assert project_id is not None
@@ -102,19 +105,30 @@ def test_create_ctk_deployment():
   assert auth_cidr is not None
   assert deployment_dir is not None
   assert ctk_gcloud_cfg is not None
+
   blueprint = create_gke_ml_blueprint()
-  blueprint_path = os.path.join(deployment_dir, blueprint_file_name)
-  save_blueprint_to_yaml_file(yaml_path=blueprint_path, blueprint=blueprint)
+
+  deployment_type = "test"
+
+  deployment_type_dir = create_deployment_directory(
+      blueprint=blueprint,
+      deployment_type=deployment_type,
+      deployment_directory=deployment_dir,
+  )
 
   docker_manager = CtkDockerManager(
-      gcloud_cfg_path=ctk_gcloud_cfg, deployment_dir=deployment_dir
+      gcloud_cfg_path=ctk_gcloud_cfg, deployment_dir=deployment_type_dir
   )
   docker_manager.build()
+
   ctk_manager = CtkManager(
       ctk_cmd_runner=docker_manager,
-      deployment_dir=deployment_dir,
+      deployment_dir=deployment_type_dir,
       deployment_name=deployment_name,
+      deployment_type=deployment_type,
   )
+
+  ctk_manager.stage_files()
 
   ctk_manager.deploy()
   assert os.path.exists(os.path.join(deployment_dir, deployment_name))

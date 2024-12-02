@@ -17,6 +17,8 @@ limitations under the License.
 from dataclasses import dataclass
 from typing import Any, Optional
 from ruamel import yaml
+import os
+from xpk.core.gcluster import blueprint_file_name
 
 yaml = yaml.YAML()
 
@@ -62,19 +64,25 @@ class CtkBlueprint:
   blueprint_name: Optional[str]
 
 
-def save_blueprint_to_yaml_file(
-    blueprint: CtkBlueprint, yaml_path: str
-) -> None:
-  """Save blueprint object to file
+def create_deployment_directory(
+    blueprint: CtkBlueprint, deployment_type: str, deployment_directory: str
+) -> str:
+  """Save blueprint object to file. Blueprint yaml file will be created under 
+  deployment_directory/deployment_type/blueprint.yaml.
 
   Args:
       yaml_path (str): path to file to which blueprint object will be dumped as yaml
 
   Returns:
-      None
+      Nones
   """
-  with open(yaml_path, "wb") as blueprint_file:
+  deployment_type_dir = os.path.join(deployment_directory, deployment_type)
+  if not os.path.exists(deployment_type_dir):
+    os.mkdir(deployment_type_dir)
+  blueprint_path = os.path.join(deployment_type_dir, blueprint_file_name)
+  with open(blueprint_path, "w+", encoding="utf-8") as blueprint_file:
     yaml.dump(blueprint, blueprint_file)
+  return deployment_type_dir
 
 
 yaml.register_class(CtkBlueprint)

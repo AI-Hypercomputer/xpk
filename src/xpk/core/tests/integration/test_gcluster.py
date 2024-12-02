@@ -19,6 +19,7 @@ from xpk.core.gcluster import CtkManager
 from xpk.core.blueprint import CtkBlueprint, CtkDeploymentGroup, CtkDeploymentModule, save_blueprint_to_yaml_file
 from xpk.core.gcluster import blueprint_file_name
 import os
+import pytest
 
 ctk_gcloud_cfg = os.getenv("GCLOUD_CFG_PATH")
 project_id = os.getenv("PROJECT_ID")
@@ -89,7 +90,7 @@ def create_gke_ml_blueprint() -> CtkBlueprint:
   )
   return ml_gke
 
-
+@pytest.mark.skip(reason="Passing credentials to github actions do not work currently.")
 def test_create_ctk_deployment():
   assert project_id is not None
   assert deployment_name is not None

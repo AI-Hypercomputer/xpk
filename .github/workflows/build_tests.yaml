@@ -146,6 +146,8 @@ jobs:
     - name: Delete the cluster created
       if: always()
       run: python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+    - name: Check fork workflows
+      run: echo "Check PR workflows"
 
 
 

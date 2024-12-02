@@ -94,7 +94,7 @@ class CtkDockerManager(CtkCommandRunner):
         str: path do dockerfile
     """
     r = requests.get(
-        "https://raw.githubusercontent.com/GoogleCloudPlatform/cluster-toolkit/9e9a03f6e3e1cdb82449a8e512e4dfc98c123b12/tools/cloud-build/images/cluster-toolkit-dockerfile/Dockerfile",
+        "https://raw.githubusercontent.com/GoogleCloudPlatform/cluster-toolkit/11742fdd48fb70428fb0736a845f03ec14eff427/tools/cloud-build/images/cluster-toolkit-dockerfile/Dockerfile",
         timeout=100,
     )
 

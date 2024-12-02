@@ -439,6 +439,7 @@ def print_storages_for_cluster(storages: list[Storage]) -> None:
   )
 
 
+
 def create_storage_instance(k8s_api_client: ApiClient, args: Namespace) -> None:
   """
   Creates a new Storage custom resource in the Kubernetes cluster.

@@ -38,6 +38,27 @@ from ..core.storage import (
 )
 from ..utils import apply_kubectl_manifest, xpk_exit, xpk_print
 
+def storage_create(args: Namespace) -> None:
+  k8s_api_client = setup_k8s_env(args)
+  create_storage_instance(k8s_api_client, args)
+  if args.type == GCS_FUSE_TYPE:
+    return_code = update_cluster_with_workload_identity_if_necessary(args)
+    if return_code > 0:
+      xpk_exit(return_code)
+    return_code = update_cluster_with_gcsfuse_driver_if_necessary(args)
+    if return_code > 0:
+      xpk_exit(return_code)
+    apply_kubectl_manifest(k8s_api_client, args.manifest)
+
+  if args.type == GCP_FILESTORE_TYPE:
+    return_code = update_cluster_with_workload_identity_if_necessary(args)
+    if return_code > 0:
+      xpk_exit(return_code)
+    return_code = update_cluster_with_gcpfilestore_driver_if_necessary(args)
+    if return_code > 0:
+      xpk_exit(return_code)
+    apply_kubectl_manifest(k8s_api_client, args.manifest)
+
 
 def storage_attach(args: Namespace) -> None:
   k8s_api_client = setup_k8s_env(args)

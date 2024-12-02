@@ -16,7 +16,7 @@ limitations under the License.
 
 import argparse
 
-from ..commands.storage import storage_attach, storage_delete, storage_list
+from ..commands.storage import storage_attach, storage_delete, storage_list, storage_create
 from .common import add_shared_arguments
 
 
@@ -32,6 +32,7 @@ def set_storage_parser(storage_parser: argparse.ArgumentParser) -> None:
   add_storage_attach_parser(storage_subcommands)
   add_storage_list_parser(storage_subcommands)
   add_storage_delete_parser(storage_subcommands)
+  add_storage_create_parser(storage_subcommands)
 
 
 def add_storage_attach_parser(
@@ -87,6 +88,54 @@ def add_storage_attach_parser(
       required=True,
   )
 
+def add_storage_create_parser( storage_subcommands_parser: argparse.ArgumentParser) -> None:
+  storage_create_parser: argparse.ArgumentParser = (
+      storage_subcommands_parser.add_parser(
+          'create', help='create XPK Storage.'
+      )
+  )
+  storage_create_parser.set_defaults(func=storage_create)
+  req_args = storage_create_parser.add_argument_group(
+      'Required Arguments',
+      'Arguments required for storage create.',
+  )
+  add_shared_arguments(req_args)
+  req_args.add_argument(
+      'name',
+      type=str,
+      help='The name of storage',
+  )
+  req_args.add_argument(
+      '--type',
+      type=str,
+      help=(
+          'The type of storage. Currently supported types: [ "gcpfilestore"]'
+      ),
+      choices=['gcpfilestore'],
+      required=True,
+  )
+  req_args.add_argument(
+      '--cluster',
+      type=str,
+      required=True,
+  )
+  req_args.add_argument(
+      '--auto-mount', type=lambda v: v.lower() == 'true', required=True
+  )
+  req_args.add_argument(
+      '--mount-point',
+      type=str,
+      required=True,
+  )
+  req_args.add_argument(
+      '--readonly', type=lambda v: v.lower() == 'true', required=True
+  )
+
+  req_args.add_argument(
+      '--manifest',
+      type=str,
+      required=True,
+  )
 
 def add_storage_list_parser(
     storage_subcommands_parser: argparse.ArgumentParser,

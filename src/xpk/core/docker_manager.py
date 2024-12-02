@@ -165,7 +165,10 @@ class CtkDockerManager(CtkCommandRunner):
       - docker.errors.APIError
     """
     xpk_print(f"Running command: {cmd} inside container: {self.container_name}")
-    xpk_print(f'volumes: {self.gcloud_cfg_path}:{gcloud_cfg_mount_path}, {self.deployment_dir}:{deployment_dir_mount_path}')
+    xpk_print(
+        f"volumes: {self.gcloud_cfg_path}:{gcloud_cfg_mount_path},"
+        f" {self.deployment_dir}:{deployment_dir_mount_path}"
+    )
     try:
       self.client.containers.run(
           image=self.img_name,

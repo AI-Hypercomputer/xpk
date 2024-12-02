@@ -19,7 +19,7 @@ import requests
 
 
 def download_file_from_github(url: str, filepath: str):
-  """Download a file from public gh repot to filepath
+  """Download a file from public gh repo to filepath
 
   Args:
       url (str): url pointing to file in github

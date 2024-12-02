@@ -90,7 +90,10 @@ def create_gke_ml_blueprint() -> CtkBlueprint:
   )
   return ml_gke
 
-@pytest.mark.skip(reason="Passing credentials to github actions do not work currently.")
+
+@pytest.mark.skip(
+    reason="Passing credentials to github actions do not work currently."
+)
 def test_create_ctk_deployment():
   assert project_id is not None
   assert deployment_name is not None

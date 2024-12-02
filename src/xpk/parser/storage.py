@@ -88,7 +88,10 @@ def add_storage_attach_parser(
       required=True,
   )
 
-def add_storage_create_parser( storage_subcommands_parser: argparse.ArgumentParser) -> None:
+
+def add_storage_create_parser(
+    storage_subcommands_parser: argparse.ArgumentParser,
+) -> None:
   storage_create_parser: argparse.ArgumentParser = (
       storage_subcommands_parser.add_parser(
           'create', help='create XPK Storage.'
@@ -106,11 +109,28 @@ def add_storage_create_parser( storage_subcommands_parser: argparse.ArgumentPars
       help='The name of storage',
   )
   req_args.add_argument(
+      '--vol', type=str, help='The name of the volume to create', required=True
+  )
+  req_args.add_argument(
+      '--size',
+      type=int,
+      help=(
+          'The size of the volume to create in gigabytes or terabytes. If no'
+          ' unit is specified, gigabytes are assumed.'
+      ),
+      required=True,
+  )
+  req_args.add_argument(
+      '--tier',
+      type=str,
+      help='The tier of the filestore to create',
+      required=True,
+  )
+
+  req_args.add_argument(
       '--type',
       type=str,
-      help=(
-          'The type of storage. Currently supported types: [ "gcpfilestore"]'
-      ),
+      help='The type of storage. Currently supported types: [ "gcpfilestore"]',
       choices=['gcpfilestore'],
       required=True,
   )
@@ -136,6 +156,7 @@ def add_storage_create_parser( storage_subcommands_parser: argparse.ArgumentPars
       type=str,
       required=True,
   )
+
 
 def add_storage_list_parser(
     storage_subcommands_parser: argparse.ArgumentParser,

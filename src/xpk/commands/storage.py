@@ -19,6 +19,7 @@ from argparse import Namespace
 from kubernetes import client as k8s_client
 from kubernetes.client.rest import ApiException
 
+
 from ..core.core import (
     setup_k8s_env,
     update_cluster_with_gcsfuse_driver_if_necessary,
@@ -31,24 +32,26 @@ from ..core.storage import (
     STORAGE_CRD_KIND,
     XPK_API_GROUP_NAME,
     XPK_API_GROUP_VERSION,
-    create_storage_instance,
+    create_storage_crds,
     get_storage,
     list_storages,
     print_storages_for_cluster,
 )
 from ..utils import apply_kubectl_manifest, xpk_exit, xpk_print
+from ..core.storage import FilestoreClient
+
 
 def storage_create(args: Namespace) -> None:
+  filestore_client = FilestoreClient(
+      args.region, args.zone, args.name, args.project
+  )
+  filestore_client.create_filestore_instance(
+      vol=args.vol, size=args.size, tier=args.tier
+  )
+
+  filestore_client.create_pv_pvc_yaml(args.manifest)
   k8s_api_client = setup_k8s_env(args)
-  create_storage_instance(k8s_api_client, args)
-  if args.type == GCS_FUSE_TYPE:
-    return_code = update_cluster_with_workload_identity_if_necessary(args)
-    if return_code > 0:
-      xpk_exit(return_code)
-    return_code = update_cluster_with_gcsfuse_driver_if_necessary(args)
-    if return_code > 0:
-      xpk_exit(return_code)
-    apply_kubectl_manifest(k8s_api_client, args.manifest)
+  create_storage_crds(k8s_api_client, args)
 
   if args.type == GCP_FILESTORE_TYPE:
     return_code = update_cluster_with_workload_identity_if_necessary(args)
@@ -62,7 +65,7 @@ def storage_create(args: Namespace) -> None:
 
 def storage_attach(args: Namespace) -> None:
   k8s_api_client = setup_k8s_env(args)
-  create_storage_instance(k8s_api_client, args)
+  create_storage_crds(k8s_api_client, args)
   if args.type == GCS_FUSE_TYPE:
     return_code = update_cluster_with_workload_identity_if_necessary(args)
     if return_code > 0:

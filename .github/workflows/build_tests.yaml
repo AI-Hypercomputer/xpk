@@ -72,7 +72,7 @@ jobs:
     - name: "Set auth cidr"
       run: echo "AUTH_CIDR=$(curl api.ipify.org)/32" >> $GITHUB_ENV
     - name: "Set GCLOUD_CFG_PATH"
-      run: echo "GCLOUD_CFG_PATH=$HOME/.config/gcloud" >> $GITHUB_ENV
+      run: echo "GCLOUD_CFG_PATH=/home/runner/work/xpk/xpk/ >> $GITHUB_ENV
     - name: "Copy credentials"
       run: cp $GOOGLE_APPLICATION_CREDENTIALS $GCLOUD_CFG_PATH/application_default_credentials.json
     - name: "Set DEPLOYMENT_DIR"

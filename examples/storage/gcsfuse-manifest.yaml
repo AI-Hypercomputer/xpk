@@ -12,7 +12,7 @@ spec:
     - implicit-dirs
   csi:
     driver: gcsfuse.csi.storage.gke.io
-    volumeHandle: zajma-bucket
+    volumeHandle: BUCKET_NAME
     volumeAttributes:
       gcsfuseLoggingSeverity: warning
   claimRef:

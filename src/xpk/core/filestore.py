@@ -29,8 +29,11 @@ class FilestoreClient:
     self.zone = zone
     self.name = name
     self.project = project
+    self._client = filestore_v1.CloudFilestoreManagerClient()
 
   def check_filestore_instance_exists(self, instance_id: str) -> bool:
+    req = filestore_v1.GetInstanceRequest(name = instance_id)
+    self._client.get_instance(req)
     return False
 
   def create_filestore_instance(
@@ -48,7 +51,7 @@ class FilestoreClient:
       modes=None,
   ) -> None:
     """Create new Filestore instance"""
-    client = filestore_v1.CloudFilestoreManagerClient()
+
     parent = f"projects/{self.project}/locations/{self.zone}"
     file_shares = [
         FileShareConfig(
@@ -79,7 +82,7 @@ class FilestoreClient:
     )
 
     # Make the request
-    operation = client.create_instance(request=request)
+    operation = self._client.create_instance(request=request)
     xpk_print("Waiting for filestore creation to complete...")
     response = None
     try:

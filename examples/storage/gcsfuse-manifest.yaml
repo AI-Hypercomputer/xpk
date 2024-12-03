@@ -15,9 +15,6 @@ spec:
     volumeHandle: BUCKET_NAME
     volumeAttributes:
       gcsfuseLoggingSeverity: warning
-  claimRef:
-    name: gcs-fuse-csi-static-pvc
-    namespace: default
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -31,3 +28,4 @@ spec:
     requests:
       storage: 5Gi
   storageClassName: xpk-gcsfuse-storage
+  volumeName: xpk-gcs-fuse-csi-pv

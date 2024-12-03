@@ -186,6 +186,15 @@ all zones.
     --tpu-type=v5litepod-16
     ```
 
+*   Cluster Create for Ray:
+    A cluster with KubeRay enabled and a RayCluster can be created using `cluster create-ray`.
+    ```shell
+    python3 xpk.py cluster create-ray \
+    --cluster xpk-rc-test \
+    --num-slices=4 --on-demand \
+    --tpu-type=v5litepod-8
+    ```
+
 *   Cluster Create can be called again with the same `--cluster name` to modify
     the number of slices or retry failed steps.
 

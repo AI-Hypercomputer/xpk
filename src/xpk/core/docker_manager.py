@@ -65,7 +65,7 @@ class CtkDockerManager(CtkCommandRunner):
       nocache: bool = False,
       img_name: str = ctk_docker_image,
       container_name: str = ctk_container_name,
-      rm_container_after: bool = True,
+      rm_container_after: bool = False,
   ) -> None:
 
     self.client = docker.from_env()
@@ -96,7 +96,7 @@ class CtkDockerManager(CtkCommandRunner):
         str: path do dockerfile
     """
     r = requests.get(
-        "https://raw.githubusercontent.com/GoogleCloudPlatform/cluster-toolkit/11742fdd48fb70428fb0736a845f03ec14eff427/tools/cloud-build/images/cluster-toolkit-dockerfile/Dockerfile",
+        "https://raw.githubusercontent.com/GoogleCloudPlatform/cluster-toolkit/cc484072512cd7d83ca9cfa98134e683f0a5e3cb/tools/cloud-build/images/cluster-toolkit-dockerfile/Dockerfile",
         timeout=100,
     )
 
@@ -183,6 +183,9 @@ class CtkDockerManager(CtkCommandRunner):
               f"{self.gcloud_cfg_path}:{gcloud_cfg_mount_path}",
               f"{self.deployment_dir}:{deployment_dir_mount_path}",
           ],
+          environment={
+            "GOOGLE_APPLICATION_CREDENTIALS": "/root/.config/gcloud/application_default_credentials.json"
+          }
       )
     except ContainerError as e:
       xpk_print(

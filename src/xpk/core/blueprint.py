@@ -260,7 +260,6 @@ def create_a3_mega_blueprint(
           "deployment_name": deployment_name,
           "region": region,
           "zone": zone,
-          "authorized_cidr": auth_cidr,
       },
   )
 

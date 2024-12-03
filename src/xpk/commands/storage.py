@@ -97,7 +97,7 @@ def storage_delete(args: Namespace) -> None:
   api_instance = k8s_client.CustomObjectsApi(k8s_api_client)
   core_api = k8s_client.CoreV1Api()
   storage = get_storage(k8s_api_client, args.name)
-  if storage.type == GCS_FUSE_TYPE:
+  if storage.type == GCS_FUSE_TYPE or storage.type == GCP_FILESTORE_TYPE:
     delete_resource(
         lambda name: core_api.delete_namespaced_persistent_volume_claim(
             name, "default"

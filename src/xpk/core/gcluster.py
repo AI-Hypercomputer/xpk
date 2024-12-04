@@ -89,7 +89,7 @@ class CtkManager:
 
   def deploy(self, auto_approve=True, dry_run=False) -> None:
     self._run_create_deployment_cmd()
-    # self._run_deploy_cmd(auto_approve, dry_run)
+    self._run_deploy_cmd(auto_approve, dry_run)
 
   def _run_destroy_command(self, auto_approve=True, dry_run=False):
     destroy_cmd = f'{gcluster_destroy_command} {self.deployment_name}'

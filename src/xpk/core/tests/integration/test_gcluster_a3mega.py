@@ -16,7 +16,7 @@ limitations under the License.
 
 from xpk.core.docker_manager import CtkDockerManager
 from xpk.core.gcluster import CtkManager
-from xpk.core.blueprint import CtkBlueprint, CtkDeploymentGroup, CtkDeploymentModule, create_a3_mega_blueprint, create_deployment_directory
+from xpk.core.blueprint import create_a3_mega_blueprint, create_deployment_directory
 
 import os
 import pytest

@@ -435,7 +435,7 @@ def run_gke_cluster_delete_command(args) -> int:
 
     workloads = [x.split(' ')[0] for x in return_value.splitlines()][1:]
     if workloads and not get_user_input(
-        f'Planning to delete {len(workloads)} workloads in the cluster'
+        f'Planning to delete all ({len(workloads)}) workloads in the cluster'
         f' {args.cluster} including {workloads}. \nDo you wish to delete: y'
         ' (yes) / n (no):\n'
     ):

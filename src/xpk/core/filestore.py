@@ -15,11 +15,19 @@ limitations under the License.
 """
 
 from google.cloud import filestore_v1
+
 from google.cloud.filestore_v1.types import Instance
 from google.cloud.filestore_v1.types import FileShareConfig
 from google.cloud.filestore_v1.types import NetworkConfig
+from google.cloud.exceptions import GoogleCloudError
 from ..utils import xpk_exit, xpk_print
 import json
+import os
+import ruamel.yaml
+
+yaml = ruamel.yaml.YAML()
+
+FS_MANIFEST_PATH = "/../templates/fs-manifest.yaml"
 
 
 class FilestoreClient:
@@ -32,8 +40,17 @@ class FilestoreClient:
     self._client = filestore_v1.CloudFilestoreManagerClient()
 
   def check_filestore_instance_exists(self, instance_id: str) -> bool:
-    req = filestore_v1.GetInstanceRequest(name = instance_id)
-    self._client.get_instance(req)
+    parent = f"projects/{self.project}/locations/{self.zone}"
+    req = filestore_v1.ListInstancesRequest(parent=parent)
+    try:
+      instances = self._client.list_instances(req)
+    except GoogleCloudError as e:
+      xpk_print(f"Exception while trying to list instances {e}")
+      xpk_exit(1)
+
+    for instance in instances:
+      if instance.name == f"{parent}/instances/{instance_id}":
+        return True
     return False
 
   def create_filestore_instance(
@@ -87,11 +104,11 @@ class FilestoreClient:
     response = None
     try:
       response = operation.result()
-    except Exception as e:
+    except GoogleCloudError as e:
       xpk_print(f"Error while creating Filestore instance: {e}")
       xpk_exit(1)
-
-    self.response = json.loads(response)
+    xpk_print(f"Filestore instance {parent} created")
+    self.response = response
 
   def create_pv_pvc_yaml(self, filepath: str) -> None:
     """Create a yaml representing filestore PV and PVC and save it to file.
@@ -102,4 +119,11 @@ class FilestoreClient:
     Returns:
       None
     """
-    # read template, fill it and save to file ;)
+
+    print(self.response)
+    abs_path = f"{os.path.dirname(__file__)}{FS_MANIFEST_PATH}"
+    with open(abs_path, "r", encoding="utf-8") as file:
+      data = yaml.load(file)
+
+    print(data)
+  

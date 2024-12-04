@@ -41,26 +41,32 @@ from ..core.storage import (
 from ..utils import apply_kubectl_manifest, xpk_exit, xpk_print
 from ..core.filestore import FilestoreClient
 
+class StorageCommand:
+  storag_cleint StorageClientAbstraction
 
 def storage_create(args: Namespace) -> None:
   add_zone_and_project(args)
   filestore_client = FilestoreClient(args.zone, args.name, args.project)
+  if filestore_client.check_filestore_instance_exists(args.name) is True:
+    xpk_print(f"Filestore instance {args.name} already exists.")
+    xpk_exit(1)
+
   filestore_client.create_filestore_instance(
       vol=args.vol, size=args.size, tier=args.tier
   )
 
   filestore_client.create_pv_pvc_yaml(args.manifest)
-  k8s_api_client = setup_k8s_env(args)
-  create_storage_crds(k8s_api_client, args)
+  # k8s_api_client = setup_k8s_env(args)
+  # create_storage_crds(k8s_api_client, args)
 
-  if args.type == GCP_FILESTORE_TYPE:
-    return_code = update_cluster_with_workload_identity_if_necessary(args)
-    if return_code > 0:
-      xpk_exit(return_code)
-    return_code = update_cluster_with_gcpfilestore_driver_if_necessary(args)
-    if return_code > 0:
-      xpk_exit(return_code)
-    apply_kubectl_manifest(k8s_api_client, args.manifest)
+  # if args.type == GCP_FILESTORE_TYPE:
+  #   return_code = update_cluster_with_workload_identity_if_necessary(args)
+  #   if return_code > 0:
+  #     xpk_exit(return_code)
+  #   return_code = update_cluster_with_gcpfilestore_driver_if_necessary(args)
+  #   if return_code > 0:
+  #     xpk_exit(return_code)
+  #   apply_kubectl_manifest(k8s_api_client, args.manifest)
 
 
 def storage_attach(args: Namespace) -> None:

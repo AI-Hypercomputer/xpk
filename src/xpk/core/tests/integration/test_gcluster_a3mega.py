@@ -32,7 +32,8 @@ deployment_dir = os.getenv("DEPLOYMENT_DIR")
 
 @pytest.mark.skip(
     reason=(
-        "This test requires A3 capacity, therefore it should not be run on each build. Please invoke it manually if needed. "
+        "This test requires A3 capacity, therefore it should not be run on each"
+        " build. Please invoke it manually if needed. "
     )
 )
 def test_create_ctk_deployment():
@@ -45,11 +46,11 @@ def test_create_ctk_deployment():
   assert ctk_gcloud_cfg is not None
 
   blueprint = create_a3_mega_blueprint(
-    project_id=project_id,
-    deployment_name=deployment_name,
-    region=region,
-    zone = zone,
-    auth_cidr=auth_cidr
+      project_id=project_id,
+      deployment_name=deployment_name,
+      region=region,
+      zone=zone,
+      auth_cidr=auth_cidr,
   )
 
   deployment_type = "a3"
@@ -76,4 +77,6 @@ def test_create_ctk_deployment():
 
   ctk_manager.deploy()
   assert os.path.exists(os.path.join(deployment_dir, deployment_name))
+
+
 #   ctk_manager.destroy_deployment()

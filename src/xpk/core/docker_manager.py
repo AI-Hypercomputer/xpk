@@ -184,8 +184,10 @@ class CtkDockerManager(CtkCommandRunner):
               f"{self.deployment_dir}:{deployment_dir_mount_path}",
           ],
           environment={
-            "GOOGLE_APPLICATION_CREDENTIALS": "/root/.config/gcloud/application_default_credentials.json"
-          }
+              "GOOGLE_APPLICATION_CREDENTIALS": (
+                  "/root/.config/gcloud/application_default_credentials.json"
+              )
+          },
       )
     except ContainerError as e:
       xpk_print(

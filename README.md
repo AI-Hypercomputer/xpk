@@ -71,7 +71,7 @@ xpk uses many tool to provide all neccessary functionalities. User must install 
 - gcloud (install from [here](https://cloud.google.com/sdk/gcloud#download_and_install_the))
 - kubectl (install from [here](https://kubernetes.io/docs/tasks/tools/))
 - kueuectl (install from [here](https://kueue.sigs.k8s.io/docs/reference/kubectl-kueue/installation/))
-- kjob (installation instructions [here](https://github.com/kubernetes-sigs/kueue/blob/main/cmd/experimental/kjobctl/docs/installation.md))
+- kjob (installation instructions [here](https://github.com/kubernetes-sigs/kjob/blob/main/docs/installation.md))
 
 # Installation
 To install xpk, run the following command and install additional tools, mentioned in [prerequisites](#prerequisites). [Makefile](https://github.com/AI-Hypercomputer/xpk/blob/main/Makefile) provides a way to install all neccessary tools:
@@ -184,6 +184,15 @@ all zones.
     --cluster xpk-pw-test \
     --num-slices=4 --on-demand \
     --tpu-type=v5litepod-16
+    ```
+
+*   Cluster Create for Ray:
+    A cluster with KubeRay enabled and a RayCluster can be created using `cluster create-ray`.
+    ```shell
+    python3 xpk.py cluster create-ray \
+    --cluster xpk-rc-test \
+    --num-slices=4 --on-demand \
+    --tpu-type=v5litepod-8
     ```
 
 *   Cluster Create can be called again with the same `--cluster name` to modify

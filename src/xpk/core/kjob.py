@@ -105,7 +105,7 @@ def verify_kjob_installed(args: Namespace) -> int:
   if verify_kjob_installed_code != 0:
     xpk_print(
         " kjob not found. Please follow"
-        " https://github.com/kubernetes-sigs/kueue/blob/main/cmd/experimental/kjobctl/docs/installation.md"
+        " https://github.com/kubernetes-sigs/kjob/blob/main/docs/installation.md"
         " to install kjob."
     )
     return verify_kjob_installed_code

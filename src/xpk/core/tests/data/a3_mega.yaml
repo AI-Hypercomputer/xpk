@@ -22,10 +22,6 @@ vars:
   region: us-central1
   zone: us-central1-c
 
-  # Cidr block containing the IP of the machine calling terraform.
-  # The following line must be updated for this example to work.
-  authorized_cidr: 10.0.0.0/32
-
 deployment_groups:
 - !CtkDeploymentGroup
   group: primary

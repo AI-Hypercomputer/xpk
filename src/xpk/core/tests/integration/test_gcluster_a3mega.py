@@ -14,9 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from src.xpk.core.docker_manager import CtkDockerManager
-from src.xpk.core.gcluster import CtkManager
-from src.xpk.core.blueprint import create_a3_mega_blueprint, create_deployment_directory
+from xpk.core.docker_manager import CtkDockerManager
+from xpk.core.gcluster import CtkManager
+from xpk.core.blueprint import create_a3_mega_blueprint, create_deployment_directory
 import pytest
 import os
 

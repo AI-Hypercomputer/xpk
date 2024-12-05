@@ -191,6 +191,7 @@ all zones.
     ```shell
     python3 xpk.py cluster create-ray \
     --cluster xpk-rc-test \
+    --ray-version=2.39.0 \
     --num-slices=4 --on-demand \
     --tpu-type=v5litepod-8
     ```

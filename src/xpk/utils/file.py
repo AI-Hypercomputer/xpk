@@ -15,19 +15,6 @@ limitations under the License.
 """
 
 import tempfile
-import requests
-
-
-def download_file_from_github(url: str, filepath: str):
-  """Download a file from public gh repo to filepath
-
-  Args:
-      url (str): url pointing to file in github
-      filepath (str): local file to which gh content will be saved
-  """
-  resp = requests.get(url, timeout=300)
-  with open(filepath, 'w+', encoding='utf8') as dockerfile:
-    dockerfile.write(resp.text)
 
 
 def make_tmp_files(per_command_name):

@@ -112,12 +112,7 @@ class CtkManager:
     kueue_configuration_file_path = os.path.join(
         blueprint_utils_dir, 'kueue-xpk-configuration.yaml.tftpl'
     )
-    xpk_print(f'Downloading {config_map_file_path} from {config_map_gh_url}')
-    download_file_from_github(config_map_gh_url, config_map_file_path)
-    xpk_print(
-        f'Downloading {kueue_configuration_file_path} from {kueue_conf_gh_url}'
-    )
-    download_file_from_github(kueue_conf_gh_url, kueue_configuration_file_path)
+    
 
   def stage_files(self) -> None:
     """Download files neccessary for deployment to deployment directory."""

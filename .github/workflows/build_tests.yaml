@@ -17,7 +17,7 @@ name: Build Tests
 on:
   push:
     branches: ["main"]
-  pull_request: # By default this runs for types assigned, opened and synchronize.
+  pull_request_target: # By default this runs for types assigned, opened and synchronize.
 
 env:
   # Names must be unique in parallel running tests.

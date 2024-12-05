@@ -65,7 +65,7 @@ class CtkDockerManager(CtkCommandRunner):
       nocache: bool = False,
       img_name: str = ctk_docker_image,
       container_name: str = ctk_container_name,
-      rm_container_after: bool = False,
+      rm_container_after: bool = True,
   ) -> None:
 
     self.client = docker.from_env()

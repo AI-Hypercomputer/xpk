@@ -1162,7 +1162,7 @@ gcloud beta compute reservations list --project=$PROJECT_ID
 gcloud beta compute reservations describe $RESERVATION --project=$PROJECT_ID --zone=$ZONE
 ```
 
-## 403 error on workload create when using `--base-docker-iamge` flag
+## 403 error on workload create when using `--base-docker-image` flag
 You need authority to push to the registry from your local machine. Try running `gcloud auth configure-docker`.
 
 # TPU Workload Debugging

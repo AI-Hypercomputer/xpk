@@ -323,6 +323,7 @@ def cluster_describe(args) -> None:
   )
   if return_code_node_output != 0:
     xpk_exit(return_code_node_output)
+  node_output = node_output.splitlines()[-1]
   number_tpu_vms_in_cluster = int(node_output)
 
   return_code_pod_output, pod_output = run_command_for_value(

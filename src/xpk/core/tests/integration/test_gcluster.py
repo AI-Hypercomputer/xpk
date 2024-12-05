@@ -17,9 +17,8 @@ limitations under the License.
 from xpk.core.docker_manager import CtkDockerManager
 from xpk.core.gcluster import CtkManager
 from xpk.core.blueprint import CtkBlueprint, CtkDeploymentGroup, CtkDeploymentModule, create_deployment_directory
-
-import os
 import pytest
+import os
 
 ctk_gcloud_cfg = os.getenv("GCLOUD_CFG_PATH")
 project_id = os.getenv("PROJECT_ID")

@@ -14,10 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from build.lib.xpk.core import kueue
 from xpk.core.docker_manager import CtkCommandRunner
 from xpk.utils.console import xpk_print
-from xpk.utils.file import download_file_from_github
 import os
+import shutil
 
 xpk_gcloud_cfg_path = '~/gcloud/cfg'
 xpk_deployment_dir = '/deployment'
@@ -27,10 +28,8 @@ gcluster_destroy_command = 'gcluster destroy'
 blueprint_file_name = 'xpk_blueprint.yaml'
 deployment_module = '/out/xpk-deployment'
 a3_utils_dir_name = 'xpk-gke-a3-megagpu-files'
-config_map_gh_url = 'https://raw.githubusercontent.com/GoogleCloudPlatform/cluster-toolkit/refs/heads/main/community/examples/xpk-gke-a3-megagpu-files/config-map.yaml.tftpl'
-kueue_conf_gh_url = 'https://raw.githubusercontent.com/GoogleCloudPlatform/cluster-toolkit/refs/heads/develop/community/examples/xpk-gke-a3-megagpu-files/kueue-xpk-configuration.yaml.tftpl'
-
-
+config_map_repo_path = 'src/xpk/blueprints/xpk-gke-a3-megagpu-files/config-map.yaml.tftpl'
+kueue_config_repo_path = 'src/xpk/blueprints/xpk-gke-a3-megagpu-files/kueue-xpk-configuration.yaml.tftpl'
 class CtkManager:
   """CtkManager is a class responsible for running cluster toolkit commands.
   Attributes:
@@ -106,13 +105,20 @@ class CtkManager:
     blueprint_utils_dir = os.path.join(self.deployment_dir, a3_utils_dir_name)
     if not os.path.exists(blueprint_utils_dir):
       os.mkdir(blueprint_utils_dir)
-    config_map_file_path = os.path.join(
+    config_map_deploy_path = os.path.join(
         blueprint_utils_dir, 'config-map.yaml.tftpl'
     )
-    kueue_configuration_file_path = os.path.join(
+    kueue_configuration_deploy_path = os.path.join(
         blueprint_utils_dir, 'kueue-xpk-configuration.yaml.tftpl'
     )
-    
+    shutil.copy(
+        config_map_repo_path,
+        config_map_deploy_path,
+    )
+    shutil.copy(
+        kueue_config_repo_path,
+        kueue_configuration_deploy_path,
+    )
 
   def stage_files(self) -> None:
     """Download files neccessary for deployment to deployment directory."""

@@ -433,14 +433,16 @@ def run_gke_cluster_delete_command(args) -> int:
       xpk_print(f'List Job request returned ERROR {return_code}')
       return return_code
 
-    workloads = [x.split(' ')[0] for x in return_value.splitlines()][1:]
-    if workloads and not get_user_input(
-        f'Planning to delete all ({len(workloads)}) workloads in the cluster'
-        f' {args.cluster} including {workloads}. \nDo you wish to delete: y'
-        ' (yes) / n (no):\n'
-    ):
-      xpk_print('Skipping delete command.')
-      return 0
+    # Ignore Column Names line.
+    if len(return_value) > 1:
+      workloads = [x.split(' ')[0] for x in return_value.splitlines()][1:]
+      if workloads and not get_user_input(
+          f'Planning to delete {len(workloads)} workloads in the cluster'
+          f' {args.cluster} including {workloads}. \nDo you wish to delete: y'
+          ' (yes) / n (no):\n'
+      ):
+        xpk_print('Skipping delete command.')
+        return 0
 
   command = (
       'gcloud beta container clusters delete'

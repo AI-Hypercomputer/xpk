@@ -78,5 +78,4 @@ def test_create_ctk_deployment():
   ctk_manager.deploy()
   assert os.path.exists(os.path.join(deployment_type_dir, deployment_name))
 
-
   ctk_manager.destroy_deployment()

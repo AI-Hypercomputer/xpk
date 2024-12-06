@@ -87,9 +87,9 @@ jobs:
     - name: Authenticate Docker
       run: gcloud auth configure-docker --quiet
     - name: Create test script to execute in workloads
-      run: echo -e '#!/bin/bash \n echo "Hello world from a test script!"' > test.sh
+      run: echo -e '#!/bin/bash \n echo "Hello world from a test script!"' > workload.sh
     - name: Run a base-docker-image workload
-      run: python xpk.py workload create --cluster $TPU_CLUSTER_NAME --workload $WORKLOAD_NAME  --command "bash test.sh"  --tpu-type=v4-8 --num-slices=2 --zone=us-central2-b
+      run: python xpk.py workload create --cluster $TPU_CLUSTER_NAME --workload $WORKLOAD_NAME  --command "bash workload.sh"  --tpu-type=v4-8 --num-slices=2 --zone=us-central2-b
     - name: Run xpk inspector with the workload created above
       run: python3 xpk.py inspector --cluster $TPU_CLUSTER_NAME --zone=us-central2-b  --workload $WORKLOAD_NAME
     - name: Wait for workload completion and confirm it succeeded
@@ -106,19 +106,29 @@ jobs:
       run: python3 xpk.py workload delete --workload $WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
     - name: Delete the Pathways workload on the cluster
       run: python3 xpk.py workload delete --workload $PATHWAYS_WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+    - name: Create test script to execute in batch
+      run: echo -e '#!/bin/bash \n#SBATCH --unknown-flag=value\n echo "Hello world from a test script!"' > batch.sh
     - name: Run a batch job on the cluster
-      run: python3 xpk.py batch --cluster $TPU_CLUSTER_NAME --zone=us-central2-b test.sh
+      run: python3 xpk.py batch --cluster $TPU_CLUSTER_NAME --zone=us-central2-b batch.sh --ignore-unknown-flags --array 1-5 --nodes 2 --ntasks 3 --time 60
     - name: List out the jobs on the cluster
       run: python3 xpk.py job ls --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep 'xpk-def-app-profile-slurm-'
-    - name: Get job info for the last job created on the cluster
+    - name: Get created job name
       run: |
-        MOST_RECENT_JOB_NAME=$(kubectl get jobs --sort-by=.metadata.creationTimestamp -o jsonpath="{.items[-1:].metadata.name}") 
-        python3 xpk.py job info $MOST_RECENT_JOB_NAME | grep -e "Entrypoint environment variables template:" -e "Job name:" -e "Labels:" -e "Mounts:" -e "Pods:" -e "Profile:" | wc -l | grep "6"
+        JOB_NAME=$(python3 xpk.py job ls --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep 'xpk-def-app-profile-slurm-' | head -1 | awk '{print $1}')
+        echo "JOB_NAME=${JOB_NAME}" >> $GITHUB_ENV
+    - name: Check created job
+      run: |
+        kubectl get job ${JOB_NAME} -o jsonpath='{.metadata.labels}' | grep '"kueue.x-k8s.io/max-exec-time-seconds":"3600"'
+        job_spec=$(kubectl get job ${JOB_NAME} -o jsonpath='{.spec}')
+        echo "$job_spec" | grep '"completions":2'
+        echo "$job_spec" | grep '"parallelism":2'
+        echo "$job_spec" | jq '.template.spec.containers | length' | grep 3
+    - name: Get job info for the last job created on the cluster
+      run: python3 xpk.py job info ${JOB_NAME} | grep -e "Entrypoint environment variables template:" -e "Job name:" -e "Labels:" -e "Mounts:" -e "Pods:" -e "Profile:" -e "Script name:" | wc -l | grep "7"
     - name: Cancel the batch job on the cluster
       run: |
-        job_name=$(python3 xpk.py job ls --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep 'xpk-def-app-profile-slurm-' | head -1 | awk '{print $1}')
-        python3 xpk.py job cancel ${job_name} --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep "job.batch/${job_name} deleted"
-    - name: Create shell and exit it immidiatelly
+        python3 xpk.py job cancel ${JOB_NAME} --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep "job.batch/${JOB_NAME} deleted"
+    - name: Create shell and exit it immediately
       run: |
         cat <<'EOF' >> create-shell.exp
         ##!/usr/bin/expect
@@ -134,7 +144,7 @@ jobs:
       run: python3 xpk.py shell stop
     - name: Delete the cluster created
       if: always()
-      run: python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+      run: echo 'y' | python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
 
 
 

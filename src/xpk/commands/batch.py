@@ -15,6 +15,8 @@ limitations under the License.
 """
 
 from argparse import Namespace
+
+from ..core.kueue import LOCAL_QUEUE_NAME
 from ..utils.console import xpk_exit, xpk_print
 from .cluster import set_cluster_command
 from ..core.core import add_zone_and_project
@@ -45,10 +47,60 @@ def batch(args: Namespace) -> None:
 
 def submit_job(args: Namespace) -> None:
   cmd = (
-      'kubectl-kjob create slurm --profile'
-      f' {AppProfileDefaults.NAME.value} --'
-      f' {args.script}'
+      'kubectl kjob create slurm'
+      f' --profile {AppProfileDefaults.NAME.value}'
+      f' --localqueue {LOCAL_QUEUE_NAME}'
   )
+
+  if args.ignore_unknown_flags:
+    cmd += ' --ignore-unknown-flags'
+
+  cmd += f' -- {args.script} --partition {LOCAL_QUEUE_NAME}'
+
+  if args.array is not None:
+    cmd += f' --array {args.array}'
+
+  if args.cpus_per_task is not None:
+    cmd += f' --cpus-per-task {args.cpus_per_task}'
+
+  if args.gpus_per_task is not None:
+    cmd += f' --gpus-per-task {args.gpus_per_task}'
+
+  if args.mem is not None:
+    cmd += f' --mem {args.mem}'
+
+  if args.mem_per_task is not None:
+    cmd += f' --mem-per-task {args.mem_per_task}'
+
+  if args.mem_per_cpu is not None:
+    cmd += f' --mem-per-cpu {args.mem_per_cpu}'
+
+  if args.mem_per_gpu is not None:
+    cmd += f' --mem-per-gpu {args.mem_per_gpu}'
+
+  if args.nodes is not None:
+    cmd += f' --nodes {args.nodes}'
+
+  if args.ntasks is not None:
+    cmd += f' --ntasks {args.ntasks}'
+
+  if args.output is not None:
+    cmd += f' --output {args.output}'
+
+  if args.error is not None:
+    cmd += f' --error {args.error}'
+
+  if args.input is not None:
+    cmd += f' --input {args.input}'
+
+  if args.job_name is not None:
+    cmd += f' --job-name {args.job_name}'
+
+  if args.chdir is not None:
+    cmd += f' --chdir {args.chdir}'
+
+  if args.time is not None:
+    cmd += f' --time {args.time}'
 
   return_code, _ = run_command_for_value(cmd, 'submit job', args)
 

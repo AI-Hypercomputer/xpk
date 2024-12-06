@@ -278,6 +278,13 @@ def set_cluster_parser(cluster_parser):
   ### Optional Arguments
   add_shared_arguments(cluster_delete_optional_arguments)
   cluster_delete_parser.set_defaults(func=cluster_delete)
+  cluster_delete_parser.add_argument(
+      '--force',
+      action='store_true',
+      help=(
+          'Forces workload deletion command to run without additional approval.'
+      ),
+  )
 
   ### "cluster cacheimage" command parser ###
   cluster_cacheimage_parser = cluster_subcommands.add_parser(

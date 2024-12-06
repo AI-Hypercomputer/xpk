@@ -183,7 +183,7 @@ jobs:
       run: python3 xpk.py shell stop
     - name: Delete the cluster created
       if: always()
-      run: python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+      run: echo 'y' | python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
 
 
 

@@ -36,6 +36,7 @@ from ..core.core import (
     set_jobset_on_cluster,
     set_up_cluster_network_for_gpu,
     zone_to_region,
+    get_user_input,
 )
 from ..core.cluster_private import authorize_private_cluster_access_if_necessary
 from ..core.kjob import (
@@ -57,6 +58,7 @@ from ..core.system_characteristics import (
     SystemCharacteristics,
     get_system_characteristics,
 )
+from ..core.workload import get_workload_list
 from ..utils.file import write_tmp_file
 from ..utils.console import xpk_exit, xpk_print
 
@@ -323,6 +325,7 @@ def cluster_describe(args) -> None:
   )
   if return_code_node_output != 0:
     xpk_exit(return_code_node_output)
+  node_output = node_output.splitlines()[-1]
   number_tpu_vms_in_cluster = int(node_output)
 
   return_code_pod_output, pod_output = run_command_for_value(
@@ -423,6 +426,25 @@ def run_gke_cluster_delete_command(args) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
+  if not args.force:
+    xpk_print('Get the name of the workloads in the cluster.')
+    args.filter_by_status = 'EVERYTHING'
+    return_code, return_value = get_workload_list(args)
+    if return_code != 0:
+      xpk_print(f'List Job request returned ERROR {return_code}')
+      return return_code
+
+    # Ignore Column Names line.
+    if len(return_value) > 1:
+      workloads = [x.split(' ')[0] for x in return_value.splitlines()][1:]
+      if workloads and not get_user_input(
+          f'Planning to delete {len(workloads)} workloads in the cluster'
+          f' {args.cluster} including {workloads}. \nDo you wish to delete: y'
+          ' (yes) / n (no):\n'
+      ):
+        xpk_print('Skipping delete command.')
+        return 0
+
   command = (
       'gcloud beta container clusters delete'
       f' {args.cluster} --project={args.project}'

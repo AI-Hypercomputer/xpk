@@ -66,14 +66,14 @@ jobs:
     - name: Create an XPK Cluster with zero node pools
       run: python xpk.py cluster create --cluster $EMPTY_CLUSTER_NAME --tpu-type=v4-8  --num-slices=0 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments='${{ secrets.CLUSTER_ARGUMENTS }}'
     - name: Delete the cluster created
-      run: python xpk.py cluster delete --cluster $EMPTY_CLUSTER_NAME --zone=us-central2-b
+      run: python xpk.py cluster delete --cluster $EMPTY_CLUSTER_NAME --zone=us-central2-b --force
       if: always()
     - name: Create a Private XPK Cluster with zero node pools
       run: python xpk.py cluster create --cluster $PRIVATE_CLUSTER_NAME --private --tpu-type=v4-8  --num-slices=0 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments='${CLUSTER_NETWORK_ARGUMENTS}'
     - name: Verify the created cluster is private
       run: gcloud container clusters describe $PRIVATE_CLUSTER_NAME --region=us-central2 --format="value(privateClusterConfig.enablePrivateNodes)" | grep 'True' || (echo 'The created cluster is not private.' && exit 1)
     - name: Delete the cluster created
-      run: python xpk.py cluster delete --cluster $PRIVATE_CLUSTER_NAME --zone=us-central2-b
+      run: python xpk.py cluster delete --cluster $PRIVATE_CLUSTER_NAME --zone=us-central2-b --force
       if: always()
     - name: Create an XPK Cluster with 2x v4-8 nodepools
       run: python xpk.py cluster create --cluster $TPU_CLUSTER_NAME --tpu-type=v4-8  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments='${{ secrets.CLUSTER_ARGUMENTS }}'
@@ -130,7 +130,7 @@ jobs:
       run: python3 xpk.py shell stop
     - name: Delete the cluster created
       if: always()
-      run: python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+      run: python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --force
 
   pw-cluster-and-workload:
     runs-on: [ubuntu-22.04]
@@ -171,7 +171,7 @@ jobs:
       run: python3 xpk.py workload delete --workload $PATHWAYS_WORKLOAD_NAME --cluster $PATHWAYS_TPU_CLUSTER_NAME --zone=us-central2-b
     - name: Delete the Pathways cluster created
       if: always()
-      run: python xpk.py cluster delete --cluster $PATHWAYS_TPU_CLUSTER_NAME --zone=us-central2-b
+      run: python xpk.py cluster delete --cluster $PATHWAYS_TPU_CLUSTER_NAME --zone=us-central2-b --force
 
   rc-cluster:
     runs-on: [ubuntu-22.04]

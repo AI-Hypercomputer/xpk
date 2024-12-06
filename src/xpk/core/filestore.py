@@ -123,9 +123,11 @@ class FilestoreClient:
     spec = data["spec"]
     spec["storageClassName"] = f"{self.name}fsstorage"
     spec["capacity"]["storage"] = self.response.file_shares[0].capacity_gb
-    spec["accessModes"]= "ReadWriteMany"
+    spec["accessModes"] = "ReadWriteMany"
     spec["csi"]["volumeHandle"] = self.response.file_shares[0].name
-    spec["csi"]["volumeAttributes"]["ip"] = self.response.networks[0].ip_addresses[0]
+    spec["csi"]["volumeAttributes"]["ip"] = self.response.networks[
+        0
+    ].ip_addresses[0]
     spec["csi"]["volumen"] = self.response.file_shares[0].name
     data["spec"] = spec
     return data
@@ -147,13 +149,15 @@ class FilestoreClient:
     spec["accessModes"] = "ReadWriteMany"
     spec["storageClassName"] = f"{self.name}fsstorage"
     spec["volumeName"] = self.response.file_shares[0].name
-    spec["resources"]["requests"]["storage"] = self.response.file_shares[0].capacity_gb
+    spec["resources"]["requests"]["storage"] = self.response.file_shares[
+        0
+    ].capacity_gb
     data["spec"] = spec
     return data
 
-  def compile_pv_and_pvc_to_manifest_yaml(self, pv : dict, pvc: dict) -> str:
+  def compile_pv_and_pvc_to_manifest_yaml(self, pv: dict, pvc: dict) -> str:
     manifest_file = f"{self.name}-manifest.yaml"
-    with open(manifest_file, mode='w+', encoding='utf-8') as f:
+    with open(manifest_file, mode="w+", encoding="utf-8") as f:
       yaml.dump(pv, f)
       yaml.dump(pvc, f)
     return manifest_file

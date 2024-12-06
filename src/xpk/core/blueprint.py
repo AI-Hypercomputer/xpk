@@ -16,9 +16,11 @@ limitations under the License.
 
 from dataclasses import dataclass
 from typing import Any, Optional
-import ruamel.yaml
+from ruamel import yaml
+import os
+from xpk.core.gcluster import blueprint_file_name
 
-yaml = ruamel.yaml.YAML()
+yaml = yaml.YAML()
 
 
 @dataclass
@@ -57,9 +59,30 @@ class CtkDeploymentGroup:
 class CtkBlueprint:
   """A class to represent Cluster Toolkit blueprint"""
 
-  vars: dict[str, str]
+  vars: dict[str, str | list[str]]
   deployment_groups: list[CtkDeploymentGroup]
   blueprint_name: Optional[str]
+
+
+def create_deployment_directory(
+    blueprint: CtkBlueprint, deployment_type: str, deployment_directory: str
+) -> str:
+  """Save blueprint object to file. Blueprint yaml file will be created under
+  deployment_directory/deployment_type/blueprint.yaml.
+
+  Args:
+      yaml_path (str): path to file to which blueprint object will be dumped as yaml
+
+  Returns:
+      Nones
+  """
+  deployment_type_dir = os.path.join(deployment_directory, deployment_type)
+  if not os.path.exists(deployment_type_dir):
+    os.mkdir(deployment_type_dir)
+  blueprint_path = os.path.join(deployment_type_dir, blueprint_file_name)
+  with open(blueprint_path, "w+", encoding="utf-8") as blueprint_file:
+    yaml.dump(blueprint, blueprint_file)
+  return deployment_type_dir
 
 
 yaml.register_class(CtkBlueprint)
@@ -82,7 +105,7 @@ def create_a3_mega_blueprint(
     primary_vpc_name: str = "network1",
     gpu_subnets_name: str = "gpunets",
 ) -> CtkBlueprint:
-  """Create A3 mega blueprint and save it to file specified by filepath
+  """Create A3 mega blueprint.
 
   Args:
   Returns:
@@ -121,6 +144,7 @@ def create_a3_mega_blueprint(
       source="modules/scheduler/gke-cluster",
       use=[primary_vpc_name, gpu_subnets_name],
       settings={
+          "enable_private_endpoint": False,
           "master_authorized_networks": [{
               "cidr_block": (
                   f"{auth_cidr}"
@@ -237,7 +261,6 @@ def create_a3_mega_blueprint(
           "deployment_name": deployment_name,
           "region": region,
           "zone": zone,
-          "authorized_cidr": auth_cidr,
       },
   )
 

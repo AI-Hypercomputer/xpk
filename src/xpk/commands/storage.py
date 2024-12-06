@@ -58,18 +58,17 @@ def storage_create(args: Namespace) -> None:
   args.manifest = filestore_client.compile_pv_and_pvc_to_manifest_yaml(
       pv_data, pvc_data
   )
-  print(args.manifest)
-  # k8s_api_client = setup_k8s_env(args)
-  # create_storage_crds(k8s_api_client, args)
+  k8s_api_client = setup_k8s_env(args)
+  create_storage_crds(k8s_api_client, args)
 
-  # if args.type == GCP_FILESTORE_TYPE:
-  #   return_code = update_cluster_with_workload_identity_if_necessary(args)
-  #   if return_code > 0:
-  #     xpk_exit(return_code)
-  #   return_code = update_cluster_with_gcpfilestore_driver_if_necessary(args)
-  #   if return_code > 0:
-  #     xpk_exit(return_code)
-  #   apply_kubectl_manifest(k8s_api_client, args.manifest)
+  if args.type == GCP_FILESTORE_TYPE:
+    return_code = update_cluster_with_workload_identity_if_necessary(args)
+    if return_code > 0:
+      xpk_exit(return_code)
+    return_code = update_cluster_with_gcpfilestore_driver_if_necessary(args)
+    if return_code > 0:
+      xpk_exit(return_code)
+    apply_kubectl_manifest(k8s_api_client, args.manifest)
 
 
 def storage_attach(args: Namespace) -> None:

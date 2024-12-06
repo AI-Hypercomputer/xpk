@@ -144,6 +144,7 @@ def create_a3_mega_blueprint(
       source="modules/scheduler/gke-cluster",
       use=[primary_vpc_name, gpu_subnets_name],
       settings={
+          "enable_private_endpoint": False,
           "master_authorized_networks": [{
               "cidr_block": (
                   f"{auth_cidr}"

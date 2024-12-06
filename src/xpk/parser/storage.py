@@ -150,11 +150,7 @@ def add_storage_create_parser(
   req_args.add_argument(
       '--readonly', type=lambda v: v.lower() == 'true', required=True
   )
-  req_args.add_argument(
-    '--manifest',
-    type = str,
-    required=True
-  )
+  req_args.add_argument('--manifest', type=str, required=True)
 
 
 def add_storage_list_parser(

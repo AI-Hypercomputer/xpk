@@ -41,8 +41,6 @@ from ..core.storage import (
 from ..utils import apply_kubectl_manifest, xpk_exit, xpk_print
 from ..core.filestore import FilestoreClient
 
-class StorageCommand:
-  storag_cleint StorageClientAbstraction
 
 def storage_create(args: Namespace) -> None:
   add_zone_and_project(args)
@@ -55,7 +53,10 @@ def storage_create(args: Namespace) -> None:
       vol=args.vol, size=args.size, tier=args.tier
   )
 
-  filestore_client.create_pv_pvc_yaml(args.manifest)
+  pv_data = filestore_client.create_pv()
+  pvc_data = filestore_client.create_pvc()
+  args.manifest = filestore_client.compile_pv_and_pvc_to_manifest_yaml(pv_data, pvc_data)
+  print(args.manifest)
   # k8s_api_client = setup_k8s_env(args)
   # create_storage_crds(k8s_api_client, args)
 

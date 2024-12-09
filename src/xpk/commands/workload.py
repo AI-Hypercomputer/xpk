@@ -198,6 +198,9 @@ spec:
             containers:
             - args:
               {pathways_worker_args}
+              env:
+              - name: GRPC_TRACE
+                value: "client_channel"
               image: {args.server_image}
               imagePullPolicy: Always
               name: pathways-worker
@@ -253,6 +256,8 @@ spec:
                 value: $(JOBSET_NAME)-$(REPLICATED_JOB_NAME)-0-0.$(JOBSET_NAME)
               - name: TPU_SKIP_MDS_QUERY
                 value: "true"
+              - name: GRPC_TRACE
+                value: "client_channel"
               image: {args.server_image}
               imagePullPolicy: Always
               name: pathways-rm
@@ -263,6 +268,10 @@ spec:
               volumeMounts:
               - mountPath: /tmp
                 name: shared-tmp
+              resources:
+                limits:
+                  cpu: "30"
+                  memory: 120G
             nodeSelector:
               cloud.google.com/gke-nodepool: cpu-rm-np
             hostNetwork: true
@@ -287,11 +296,20 @@ spec:
             containers:
             - args:
               {pathways_proxy_args}
+              env:
+              - name: XLA_FLAGS
+                value: "--xla_dump_to={args.pathways_gcs_location}/xla_dump"
+              - name: GRPC_TRACE
+                value: "client_channel"
               image: {args.proxy_server_image}
               imagePullPolicy: Always
               name: pathways-proxy
               ports:
               - containerPort: 29000
+              resources:
+                limits:
+                  cpu: "30"
+                  memory: 120G
             hostNetwork: true
             dnsPolicy: ClusterFirstWithHostNet
             nodeSelector:

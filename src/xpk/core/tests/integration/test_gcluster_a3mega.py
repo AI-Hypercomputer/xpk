@@ -29,12 +29,12 @@ auth_cidr = os.getenv("AUTH_CIDR")
 deployment_dir = os.getenv("DEPLOYMENT_DIR")
 
 
-@pytest.mark.skip(
-    reason=(
-        "This test requires A3 capacity, therefore it should not be run on each"
-        " build. Please invoke it manually if needed. "
-    )
-)
+# @pytest.mark.skip(
+#     reason=(
+#         "This test requires A3 capacity, therefore it should not be run on each"
+#         " build. Please invoke it manually if needed. "
+#     )
+# )
 def test_create_ctk_deployment():
   assert project_id is not None
   assert deployment_name is not None
@@ -78,4 +78,4 @@ def test_create_ctk_deployment():
   assert os.path.exists(os.path.join(deployment_type_dir, deployment_name))
 
 
-#   ctk_manager.destroy_deployment()
+  ctk_manager.destroy_deployment()

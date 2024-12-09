@@ -2281,7 +2281,8 @@ def get_main_container_resources(
   resources_yaml = """cpu: "24"
                     memory: 100G"""
   if args.use_pathways:
-    return resources_yaml
+    return ""
+#    return resources_yaml
 
   gpu_resources_yaml = """nvidia.com/gpu: {system.chips_per_vm}"""
   if system.accelerator_type == AcceleratorType['GPU']:

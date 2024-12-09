@@ -14,19 +14,42 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from abc import ABC, abstractmethod
 import docker
-from ..utils.console import xpk_print
-from docker.errors import ImageNotFound
+from docker.errors import ContainerError, APIError, ImageNotFound, BuildError
+from ..utils.console import xpk_print, xpk_exit
 from shutil import move
+import requests
+import os
+import tempfile
 
+
+DockerRunCommandExitCode = 135
+dockerBuildErrorCode = 134
 ctk_dockerfile_path = "Dockerfile"
 ctk_docker_image = "xpk-ctk"
-gcloud_cfg_mount_path = "/gcloud_cfg"
-deployment_dir_mount_path = "/deployment"
-xpk_ctk_img_name = "gcluster-xpk"
+ctk_container_name = "xpk-ctk-container"
+gcloud_cfg_mount_path = "/root/.config/gcloud"
+deployment_dir_mount_path = "/out"
 
 
-class CtkDockerManager:
+class CtkCommandRunner(ABC):
+  """This is a base class that defines methods a class for running cluster toolkit command should implement."""
+
+  @abstractmethod
+  def build(self) -> None:
+    return None
+
+  @abstractmethod
+  def run_command(self, cmd: str) -> None:
+    return None
+
+  @abstractmethod
+  def upload_to_deployment_dir(self, path: str) -> None:
+    return None
+
+
+class CtkDockerManager(CtkCommandRunner):
   """CtkDockerManager is a class for managing gcluster execution in docker container.
   Attributes:
     - dockerfile_path (str) : path to dockerfile defining gcluster execution image
@@ -36,16 +59,49 @@ class CtkDockerManager:
   """
 
   def __init__(
-      self, dockerfile_path: str, gcloud_cfg_path: str, deployment_dir: str
+      self,
+      gcloud_cfg_path: str,
+      deployment_dir: str,
+      nocache: bool = False,
+      img_name: str = ctk_docker_image,
+      container_name: str = ctk_container_name,
+      rm_container_after: bool = True,
   ) -> None:
-    self.dockerfile = dockerfile_path
+
     self.client = docker.from_env()
     self._is_docker_installed()
     self.gcloud_cfg_path = gcloud_cfg_path
     self.deployment_dir = deployment_dir
+    self.nocache = nocache
+    self.img_name = img_name
+    self.container_name = container_name
+    self.rm_container_after = rm_container_after
+    self.dockerfile_path = self._create_tmp_for_dockerfile()
+    self._download_ctk_dockerfile()
+
+  def _create_tmp_for_dockerfile(self) -> str:
+    tmp_dir = os.path.join(tempfile.gettempdir(), "xpkutils")
+    if not os.path.exists(tmp_dir):
+      os.mkdir(tmp_dir)
+    tmp_path = os.path.join(tmp_dir, "Dockerfile")
+    return tmp_path
 
   def _is_docker_installed(self) -> None:
     self.client.info()
+
+  def _download_ctk_dockerfile(self):
+    """Downloads cluster toolkit dockerfile and returns tmp path on which it is saved
+
+    Returns:
+        str: path do dockerfile
+    """
+    r = requests.get(
+        "https://raw.githubusercontent.com/GoogleCloudPlatform/cluster-toolkit/refs/heads/develop/tools/cloud-build/images/cluster-toolkit-dockerfile/Dockerfile",
+        timeout=100,
+    )
+
+    with open(self.dockerfile_path, "w+", encoding="utf8") as dockerfile:
+      dockerfile.write(r.text)
 
   def _image_exists(self, img_name: str) -> bool:
     try:
@@ -55,9 +111,7 @@ class CtkDockerManager:
       return False
     return True
 
-  def build_image(
-      self, img_name: str = xpk_ctk_img_name, nocache: bool = False
-  ):
+  def build(self):
     """Build image from dockerfile pointed by _img_name. This method
     uses python docker client to build cloud toolkit execution image.
     Arguments:
@@ -69,21 +123,38 @@ class CtkDockerManager:
       - TypeError - otherwise
 
     """
-    dir_path = "/".join(self.dockerfile.split("/")[:-1])
-
-    if nocache is False and self._image_exists(img_name):
-      return
-    self.client.images.build(
-        nocache=nocache, path=dir_path, tag=f"{img_name}:latest", rm=True
+    dir_path = "/".join(self.dockerfile_path.split("/")[:-1])
+    xpk_print(
+        f"Building docker image from dockerfile: {self.dockerfile_path}. It may"
+        " take a while..."
     )
+    if self.nocache is False and self._image_exists(self.img_name):
+      return
+    try:
+      self.client.images.build(
+          nocache=self.nocache,
+          path=dir_path,
+          tag=f"{self.img_name}:latest",
+          rm=True,
+      )
+    except BuildError as e:
+      xpk_print(f"error while building image {self.img_name}: {e.msg}")
+      xpk_exit(dockerBuildErrorCode)
+    except APIError as e:
+      xpk_print(f"erro while building image {self.img_name}: {e.explanation}")
+      xpk_exit(dockerBuildErrorCode)
+    except TypeError as e:
+      xpk_print(f"TypeError while building image {self.img_name}")
+      xpk_exit(dockerBuildErrorCode)
+    xpk_print("Docker image build succesfully.")
+    os.remove(self.dockerfile_path)
+    tmp_dockerfile_dir = "/".join(self.dockerfile_path.split("/")[:-1])
+    os.rmdir(tmp_dockerfile_dir)
 
   def run_command(
       self,
-      img_name: str,
       cmd: str,
-      rm_container_after: bool = True,
-      container_name: str = "xpk-gcluster",
-  ) -> bytes:
+  ) -> None:
     """Run container from _img_name and mount directories:
         - gcloud config
         - deployment directory
@@ -95,19 +166,41 @@ class CtkDockerManager:
       - docker.errors.ImageNotFound,
       - docker.errors.APIError
     """
-    output: bytes = self.client.containers.run(
-        image=img_name,
-        command=cmd,
-        remove=rm_container_after,
-        name=container_name,
-        stdout=True,
-        stderr=True,
-        volumes=[
-            f"{self.gcloud_cfg_path}:{gcloud_cfg_mount_path}",
-            f"{self.deployment_dir}:{deployment_dir_mount_path}",
-        ],
+    xpk_print(f"Running command: {cmd} inside container: {self.container_name}")
+    xpk_print(
+        f"volumes: {self.gcloud_cfg_path}:{gcloud_cfg_mount_path},"
+        f" {self.deployment_dir}:{deployment_dir_mount_path}"
     )
-    return output
+    try:
+      self.client.containers.run(
+          image=self.img_name,
+          entrypoint=cmd,
+          remove=self.rm_container_after,
+          name=self.container_name,
+          stdout=True,
+          stderr=True,
+          volumes=[
+              f"{self.gcloud_cfg_path}:{gcloud_cfg_mount_path}",
+              f"{self.deployment_dir}:{deployment_dir_mount_path}",
+          ],
+          environment={
+              "GOOGLE_APPLICATION_CREDENTIALS": (
+                  "/root/.config/gcloud/application_default_credentials.json"
+              )
+          },
+      )
+    except ContainerError as e:
+      xpk_print(
+          "Deploying cluster failed due to ContainerError with exit status:"
+          f" {e.exit_status} and stderr: {e.stderr}"
+      )
+      xpk_exit(DockerRunCommandExitCode)
+    except ImageNotFound as _:
+      xpk_print(f"Image {ctk_docker_image} not found. Deploying cluster failed")
+      xpk_exit(DockerRunCommandExitCode)
+    except APIError as e:
+      xpk_print(f"Deploying cluster toolkit failed due to {e.explanation}")
+      xpk_exit(DockerRunCommandExitCode)
 
   def upload_to_deployment_dir(self, path: str):
     """Move file or directory from specified path to directory containing deployment files

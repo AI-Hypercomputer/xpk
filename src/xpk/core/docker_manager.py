@@ -76,7 +76,7 @@ class DockerManager(CommandRunner):
       container_name: str = ctk_container_name,
       rm_container_after: bool = True,
   ) -> None:
-
+    self.dockerfile_path = ""
     self.client = docker.from_env()
     self.gcloud_cfg_path = gcloud_cfg_path
     self.working_dir = working_dir

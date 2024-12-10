@@ -16,7 +16,7 @@ limitations under the License.
 
 import docker
 from docker.errors import APIError
-from xpk.core.docker_manager import CtkDockerManager
+from xpk.core.docker_manager import DockerManager
 import pytest
 import os
 
@@ -66,13 +66,16 @@ def remove_test_ctk_img():
 
 
 def test_docker_build_image(setup_img_name):
-  dm = CtkDockerManager(
+  dm = DockerManager(
       gcloud_cfg_path=test_cfg_path,
-      deployment_dir=test_deployment_dir,
+      working_dir=test_deployment_dir,
       img_name=setup_img_name,
   )
+  dm.initialize()
+
   dc = docker.from_env()
   containers_before = dc.containers.list(all=True)
+
   dm.build()
   dc.images.get(setup_img_name)
   containers_after = dc.containers.list(all=True)
@@ -81,16 +84,16 @@ def test_docker_build_image(setup_img_name):
 
 def test_run_command(setup_img_name):
 
-  dm = CtkDockerManager(
+  dm = DockerManager(
       gcloud_cfg_path=test_cfg_path,
-      deployment_dir=test_deployment_dir,
+      working_dir=test_deployment_dir,
       img_name=setup_img_name,
       rm_container_after=True,
   )
   dc = docker.from_env()
 
   containers_before = dc.containers.list(all=True)
-
+  dm.initialize()
   dm.build()
   dm.run_command(test_gcluster_cmd)
 

@@ -14,10 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from xpk.core.docker_manager import CtkCommandRunner
+from xpk.core.docker_manager import CommandRunner
 from xpk.utils.console import xpk_print
-import os
-import shutil
+
 
 xpk_gcloud_cfg_path = '~/gcloud/cfg'
 xpk_deployment_dir = '/deployment'
@@ -33,14 +32,14 @@ config_map_repo_path = (
 kueue_config_repo_path = 'src/xpk/blueprints/xpk-gke-a3-megagpu-files/kueue-xpk-configuration.yaml.tftpl'
 
 
-class CtkManager:
-  """CtkManager is a class responsible for running cluster toolkit commands.
+class GclusterManager:
+  """Manager is a class responsible for running cluster toolkit commands.
   Attributes:
     - deployment_dir (str) : directory containing all files used during building deployment files. It should contain blupeprint file inside:
       deployment_dir:
         - blueprint.yaml
         - dir_used_in_blueprint
-    - ctk_cmd_runner (CtkCommandRunner) : instance of class implementing CtkCommandRunner abstract methods.
+    - gcluster_command_runner (CommandRunner) : instance of class implementing CommandRunner abstract methods.
   Methods:
     - deploy : run a deployment process of cluster toolkit. This method will invoke gcluster create and than gcluster deploy commands.
     - destroy_deployment : run gcluster command to destroy existing deployment.
@@ -48,82 +47,70 @@ class CtkManager:
 
   def __init__(
       self,
-      deployment_dir: str,
-      ctk_cmd_runner: CtkCommandRunner,
-      deployment_name: str,
-      deployment_type: str,
+      gcluster_command_runner: CommandRunner,
   ) -> None:
-    self.deployment_dir = deployment_dir
-    self.ctk_cmd_runner = ctk_cmd_runner
-    self.deployment_type = deployment_type
-    self._prepare_deployment_dir()
-    self._blueprint_path = os.path.join(
-        self.deployment_dir, blueprint_file_name
-    )
-    self.deployment_name = deployment_name
+    self.gcluster_command_runner = gcluster_command_runner
 
-  def _prepare_deployment_dir(self) -> None:
-    """prepare deployment directory"""
-
-    if not os.path.exists(self.deployment_dir):
-      os.makedirs(self.deployment_dir)
-      xpk_print(f'Deployment files will be saved to {self.deployment_dir}')
-    else:
-      xpk_print(
-          f'{self.deployment_dir} already exists. Will not override existing'
-          ' deployment dir.'
-      )
-
-  def _run_create_deployment_cmd(self):
+  def _run_create_deployment_cmd(self, blueprint_container_path: str):
     xpk_print('Creating deployment directory')
-    blueprint_container_path = os.path.join('/out', blueprint_file_name)
-    cluster_create_cmd = f'{gcluster_create_command} {blueprint_container_path}'
-    self.ctk_cmd_runner.run_command(cluster_create_cmd)
+    cluster_create_cmd = (
+        f'{gcluster_create_command} -o deployments {blueprint_container_path}'
+    )
+    self.gcluster_command_runner.run_command(cluster_create_cmd)
 
-  def _run_deploy_cmd(self, auto_approve, dry_run):
+  def _run_deploy_cmd(
+      self, deployment_name: str, auto_approve: bool, dry_run: bool
+  ):
     xpk_print('Deploying created resources to cloud.')
-    deploy_cmd = f'{gcluster_deploy_command} {self.deployment_name}'
+    deploy_cmd = f'{gcluster_deploy_command} deployments/{deployment_name}'
     if auto_approve is True:
       deploy_cmd += ' --auto-approve'
     if dry_run is True:
       return
-    self.ctk_cmd_runner.run_command(deploy_cmd)
+    self.gcluster_command_runner.run_command(deploy_cmd)
 
-  def deploy(self, auto_approve=True, dry_run=False) -> None:
-    self._run_create_deployment_cmd()
-    self._run_deploy_cmd(auto_approve, dry_run)
+  def deploy(
+      self,
+      blueprint_path: str,
+      deployment_name: str,
+      auto_approve: bool = True,
+      dry_run: bool = False,
+  ) -> None:
+    blueprint_name = blueprint_path.split('/')[-1]
+    blueprint_container_path = f'/out/{blueprint_name}'
+    self._run_create_deployment_cmd(
+        blueprint_container_path=blueprint_container_path
+    )
+    self._run_deploy_cmd(
+        deployment_name=deployment_name,
+        auto_approve=auto_approve,
+        dry_run=dry_run,
+    )
 
-  def _run_destroy_command(self, auto_approve=True, dry_run=False):
-    destroy_cmd = f'{gcluster_destroy_command} {self.deployment_name}'
+  def _run_destroy_command(
+      self,
+      deployment_name: str,
+      auto_approve: bool = True,
+      dry_run: bool = False,
+  ):
+    destroy_cmd = f'{gcluster_destroy_command} deployments/{deployment_name}'
     if auto_approve is True:
       destroy_cmd += ' --auto-approve'
     if dry_run is True:
       xpk_print(f'executing command {destroy_cmd}')
-    self.ctk_cmd_runner.run_command(destroy_cmd)
+    self.gcluster_command_runner.run_command(destroy_cmd)
 
-  def destroy_deployment(self) -> None:
-    self._run_destroy_command()
+  def destroy_deployment(self, deployment_name: str) -> None:
+    self._run_destroy_command(deployment_name)
 
-  def _stage_a3_files(self):
-    blueprint_utils_dir = os.path.join(self.deployment_dir, a3_utils_dir_name)
-    if not os.path.exists(blueprint_utils_dir):
-      os.mkdir(blueprint_utils_dir)
-    config_map_deploy_path = os.path.join(
-        blueprint_utils_dir, 'config-map.yaml.tftpl'
-    )
-    kueue_configuration_deploy_path = os.path.join(
-        blueprint_utils_dir, 'kueue-xpk-configuration.yaml.tftpl'
-    )
-    shutil.copy(
-        config_map_repo_path,
-        config_map_deploy_path,
-    )
-    shutil.copy(
-        kueue_config_repo_path,
-        kueue_configuration_deploy_path,
-    )
-
-  def stage_files(self) -> None:
+  def stage_files(
+      self, blueprint_file: str, blueprint_dependencies: str
+  ) -> str:
     """Download files neccessary for deployment to deployment directory."""
-    if self.deployment_type == 'a3':
-      self._stage_a3_files()
+    staged_blueprint = self.gcluster_command_runner.upload_to_working_dir(
+        blueprint_file
+    )
+    if len(blueprint_dependencies) == 0:
+      return staged_blueprint
+    self.gcluster_command_runner.upload_to_working_dir(blueprint_dependencies)
+    return staged_blueprint

@@ -14,27 +14,52 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from xpk.core import blueprint
-from xpk.core.blueprint import create_a3_mega_blueprint
+import shutil
+from xpk.core import blueprint_generator
+from xpk.core.blueprint_generator import BlueprintGenerator
 import ruamel.yaml
+import os
 
 yaml = ruamel.yaml.YAML()
 
-yaml.register_class(blueprint.CtkBlueprint)
+yaml.register_class(blueprint_generator.Blueprint)
 
 a3_yaml_test_path = "src/xpk/core/tests/data/a3_mega.yaml"
+config_map_filename = "config-map.yaml.tftpl"
+kueue_conf_filename = "kueue-xpk-configuration.yaml.tftpl"
+tmp_test_dir = "/tmp/xpk_test"
 
 
-def test_create_a3_mega_blueprint():
-  ctk_test = create_a3_mega_blueprint(
+def prepare_test():
+  if os.path.exists(tmp_test_dir):
+    shutil.rmtree(tmp_test_dir)
+  os.mkdir(tmp_test_dir)
+
+
+def test_generate_a3_mega_blueprint():
+  prepare_test()
+  blueprint_name = "xpk-gke-a3-megagpu"
+  bp_generator = BlueprintGenerator(tmp_test_dir)
+  bp = bp_generator.generate_a3_mega_blueprint(
       project_id="foo",
-      deployment_name="xpk-gke-a3-megagpu",
+      cluster_name="bar",
+      blueprint_name=blueprint_name,
       region="us-central1",
       zone="us-central1-c",
       auth_cidr="10.0.0.0/32",
   )
   with open(a3_yaml_test_path, encoding="utf-8") as stream:
     ctk_yaml = yaml.load(stream)
-    assert ctk_yaml.blueprint_name == ctk_test.blueprint_name
-    assert ctk_yaml.vars == ctk_test.vars
-    assert ctk_test.deployment_groups == ctk_yaml.deployment_groups
+    with open(bp.blueprint_file, encoding="utf-8") as generated_blueprint:
+      ctk_test = yaml.load(generated_blueprint)
+      assert ctk_yaml.blueprint_name == ctk_test.blueprint_name
+      assert ctk_yaml.vars == ctk_test.vars
+      assert ctk_test.deployment_groups == ctk_yaml.deployment_groups
+      assert os.path.exists(
+          os.path.join(tmp_test_dir, blueprint_name, config_map_filename)
+      )
+      assert os.path.exists(
+          os.path.join(tmp_test_dir, blueprint_name, kueue_conf_filename)
+      )
+
+  shutil.rmtree(tmp_test_dir)

@@ -27,7 +27,7 @@ install-pytest:
 	pip install -U pytest
 
 run-unittests:
-	pytest src/xpk/core/tests/unit/
+	pytest  -vv src/xpk/core/tests/unit/
 
 run-integrationtests:
 	pytest src/xpk/core/tests/integration/

@@ -14,60 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from dataclasses import dataclass
 import shutil
-from typing import Any, Optional
 from ruamel import yaml
 import os
+from .definition import DeploymentGroup, DeploymentModule, Blueprint
 
 yaml = yaml.YAML()
 blueprint_dependencies_dir = "src/xpk/blueprints/a3mega"
-
-
-@dataclass
-class DeploymentModule:
-  """DeploymentModule represents cluster toolkit deployment module
-
-  Attributes:
-    id (str): module name
-    source (str): cluster toolkit source
-    settings (dict[str, Any]): module settings
-    use (list[str]): modules on which module depends
-    outputs (list[str]): module outputs in cluster toolkit
-  """
-
-  id: str
-  source: str
-  outputs: Optional[list[str]] = None
-  settings: Optional[dict[str, Any]] = None
-  use: Optional[list[str]] = None
-
-
-@dataclass
-class DeploymentGroup:
-  """DeploymentGroup represents cluster toolkit deployment group
-
-  Attributes:
-    group (str): deployment group name
-    modules (list[DeploymentModule]): deployments modules
-  """
-
-  modules: list[DeploymentModule]
-  group: Optional[str]
-
-
-@dataclass
-class Blueprint:
-  """A class to represent Cluster Toolkit blueprint"""
-
-  vars: dict[str, str | list[str]]
-  deployment_groups: list[DeploymentGroup]
-  blueprint_name: Optional[str]
-
-
-yaml.register_class(Blueprint)
-yaml.register_class(DeploymentGroup)
-yaml.register_class(DeploymentModule)
+a3_mega_blueprint_version = "v1.0.0"
 
 
 class BlueprintGeneratorOutput:
@@ -75,6 +29,10 @@ class BlueprintGeneratorOutput:
   def __init__(self, blueprint_file: str, blueprint_dependencies: str) -> None:
     self.blueprint_file = blueprint_file
     self.blueprint_dependencies = blueprint_dependencies
+
+
+def get_num_chips(num_nodes: int) -> int:
+  return num_nodes * 4
 
 
 class BlueprintGenerator:
@@ -99,7 +57,6 @@ class BlueprintGenerator:
       services_ip_cidr_range: str = "10.0.32.0/20",
       global_ip_address_range: str = "192.169.0.0/16",
       system_node_pool_machine_type: str = "e2-standard-32",
-      num_chips: int = 32,
       primary_vpc_name: str = "network1",
       gpu_subnets_name: str = "gpunets",
   ) -> BlueprintGeneratorOutput:
@@ -165,15 +122,6 @@ class BlueprintGenerator:
         },
     )
 
-    group_placement_1 = DeploymentModule(
-        id="group_placement_1",
-        source="modules/compute/resource-policy",
-        settings={
-            "name": f"{cluster_name}-gp-np-1",
-            "group_placement_max_distance": 2,
-        },
-    )
-
     a3_megagpu_pool_0 = DeploymentModule(
         id="a3_megagpu_pool_0",
         source="modules/compute/gke-node-pool",
@@ -188,22 +136,7 @@ class BlueprintGenerator:
         },
         outputs=["instructions"],
     )
-
-    a3_megagpu_pool_1 = DeploymentModule(
-        id="a3_megagpu_pool_1",
-        source="modules/compute/gke-node-pool",
-        use=["gke_cluster", gpu_subnets_name, "group_placement_1"],
-        settings={
-            "name": f"{cluster_name}-a3-megagpu-pool-1",
-            "machine_type": "a3-megagpu-8g",
-            "autoscaling_total_min_nodes": 2,
-            "initial_node_count": num_nodes,
-            "zones": [zone],
-            "host_maintenance_interval": "PERIODIC",
-        },
-        outputs=["instructions"],
-    )
-
+    num_chips = get_num_chips(num_nodes)
     workload = DeploymentModule(
         id="workload_component_install",
         source="modules/management/kubectl-apply",
@@ -245,9 +178,7 @@ class BlueprintGenerator:
             gpunets,
             gke_cluster,
             group_placement_0,
-            group_placement_1,
             a3_megagpu_pool_0,
-            a3_megagpu_pool_1,
             workload,
             topology_scheduler,
             workload_configmap,
@@ -255,6 +186,7 @@ class BlueprintGenerator:
     )
     xpk_blueprint = Blueprint(
         blueprint_name=blueprint_name,
+        blueprint_version=a3_mega_blueprint_version,
         deployment_groups=[primary_group],
         vars={
             "project_id": project_id,
@@ -330,6 +262,7 @@ class BlueprintGenerator:
     ml_gke = Blueprint(
         blueprint_name=blueprint_name,
         deployment_groups=[primary_group],
+        blueprint_version="v1.0.0",
         vars={
             "project_id": project_id,
             "deployment_name": blueprint_name,
@@ -355,3 +288,8 @@ class BlueprintGenerator:
     deployment_files_path = os.path.join(self.storage_path, blueprint_name)
     shutil.copytree(blueprint_dependencies_dir, deployment_files_path)
     return deployment_files_path
+
+
+yaml.register_class(Blueprint)
+yaml.register_class(DeploymentGroup)
+yaml.register_class(DeploymentModule)

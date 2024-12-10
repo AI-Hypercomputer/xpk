@@ -15,14 +15,14 @@ limitations under the License.
 """
 
 import shutil
-from xpk.core import blueprint_generator
-from xpk.core.blueprint_generator import BlueprintGenerator
+from xpk.core.blueprint.generator import BlueprintGenerator
+from xpk.core.blueprint.definition import Blueprint
 import ruamel.yaml
 import os
 
 yaml = ruamel.yaml.YAML()
 
-yaml.register_class(blueprint_generator.Blueprint)
+yaml.register_class(Blueprint)
 
 a3_yaml_test_path = "src/xpk/core/tests/data/a3_mega.yaml"
 config_map_filename = "config-map.yaml.tftpl"

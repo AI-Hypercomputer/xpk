@@ -117,7 +117,6 @@ class DockerManager(CommandRunner):
   def initialize(self):
     self._is_docker_installed()
     self.dockerfile_path = self._create_tmp_for_dockerfile()
-    self._download_ctk_dockerfile()
 
   def build(self):
     """Build image from dockerfile pointed by _img_name. This method
@@ -140,6 +139,7 @@ class DockerManager(CommandRunner):
     if self.nocache is False and self._image_exists(self.img_name):
       return
     try:
+      self._download_ctk_dockerfile()
       self.client.images.build(
           nocache=self.nocache,
           path=dir_path,

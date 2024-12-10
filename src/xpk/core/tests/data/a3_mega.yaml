@@ -66,31 +66,11 @@ deployment_groups:
       group_placement_max_distance: 2
 
   - !DeploymentModule
-    id: group_placement_1
-    source: modules/compute/resource-policy
-    settings:
-      name: bar-gp-np-1
-      group_placement_max_distance: 2
-
-  - !DeploymentModule
     id: a3_megagpu_pool_0
     source: modules/compute/gke-node-pool
     use: [gke_cluster, gpunets, group_placement_0]
     settings:
       name: bar-a3-megagpu-pool-0
-      machine_type: a3-megagpu-8g
-      autoscaling_total_min_nodes: 2
-      initial_node_count: 2
-      zones: [us-central1-c]
-      host_maintenance_interval: PERIODIC
-    outputs: [instructions]
-
-  - !DeploymentModule
-    id: a3_megagpu_pool_1
-    source: modules/compute/gke-node-pool
-    use: [gke_cluster, gpunets, group_placement_1]
-    settings:
-      name: bar-a3-megagpu-pool-1
       machine_type: a3-megagpu-8g
       autoscaling_total_min_nodes: 2
       initial_node_count: 2
@@ -106,7 +86,7 @@ deployment_groups:
       kueue:
         install: true
         config_path: $(ghpc_stage("a3-mega-xpk"))/kueue-xpk-configuration.yaml.tftpl
-        config_template_vars: {num_chips: "32"}
+        config_template_vars: {num_chips: "8"}
       jobset:
         install: true
 

@@ -59,6 +59,10 @@ class BlueprintGenerator:
       system_node_pool_machine_type: str = "e2-standard-32",
       primary_vpc_name: str = "network1",
       gpu_subnets_name: str = "gpunets",
+      group_placement_max_distance: int = 2,
+      autoscaling_total_min_nodes : int = 2,
+      gpunets_network_count: int = 8,
+      subnetwork_cidr_suffix: int = 24
   ) -> BlueprintGeneratorOutput:
     """Create A3 mega blueprint.
 
@@ -89,8 +93,8 @@ class BlueprintGenerator:
         settings={
             "network_name_prefix": f"{cluster_name}-gpunet",
             "global_ip_address_range": global_ip_address_range,
-            "network_count": 8,
-            "subnetwork_cidr_suffix": 24,
+            "network_count": gpunets_network_count,
+            "subnetwork_cidr_suffix": subnetwork_cidr_suffix,
         },
     )
 
@@ -118,7 +122,7 @@ class BlueprintGenerator:
         source="modules/compute/resource-policy",
         settings={
             "name": f"{cluster_name}-gp-np-0",
-            "group_placement_max_distance": 2,
+            "group_placement_max_distance": group_placement_max_distance,
         },
     )
 
@@ -129,7 +133,7 @@ class BlueprintGenerator:
         settings={
             "name": f"{cluster_name}-a3-megagpu-pool-0",
             "machine_type": "a3-megagpu-8g",
-            "autoscaling_total_min_nodes": 2,
+            "autoscaling_total_min_nodes": autoscaling_total_min_nodes,
             "initial_node_count": num_nodes,
             "zones": [zone],
             "host_maintenance_interval": "PERIODIC",
@@ -166,7 +170,7 @@ class BlueprintGenerator:
                 "source": '$(ghpc_stage("a3-mega-xpk"))/config-map.yaml.tftpl',
                 "template_vars": {
                     "name": "xpk-gke-a3-megagpu-resources-configmap",
-                    "num_nodes": "4",
+                    "num_nodes": num_nodes,
                 },
             }]
         },

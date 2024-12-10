@@ -32,6 +32,7 @@ ctk_container_name = "xpk-ctk-container"
 gcloud_cfg_mount_path = "/root/.config/gcloud"
 working_dir_mount_path = "/out"
 dockerfile_gh_path = "https://raw.githubusercontent.com/GoogleCloudPlatform/cluster-toolkit/refs/heads/develop/tools/cloud-build/images/cluster-toolkit-dockerfile/Dockerfile"
+upload_dir = "uploads"
 
 
 class CommandRunner(ABC):
@@ -211,7 +212,7 @@ class DockerManager(CommandRunner):
         path (str): path of directory/file that will be moved to deployment directory
     """
     name = path.split("/")[-1]
-    target_path = os.path.join(self.working_dir, name)
+    target_path = os.path.join(self.working_dir, upload_dir, name)
     xpk_print(f"copying folder from {path} to {target_path}")
     copytree(path, target_path)
     return target_path
@@ -223,7 +224,7 @@ class DockerManager(CommandRunner):
         path (str): path of directory/file that will be moved to deployment directory
     """
     name = path.split("/")[-1]
-    target_path = os.path.join(self.working_dir, name)
+    target_path = os.path.join(self.working_dir, upload_dir, name)
     xpk_print(f"copying file from {path} to {target_path}")
     copy(path, target_path)
     return target_path

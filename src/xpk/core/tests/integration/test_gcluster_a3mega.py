@@ -28,6 +28,8 @@ zone = os.getenv("ZONE")
 auth_cidr = os.getenv("AUTH_CIDR")
 cluster_name = os.getenv("CLUSTER_NAME")
 
+uploads_dir = "uploads"
+
 
 def prepare_test(docker_path: str, bp_path: str) -> None:
   os.mkdir(docker_path)
@@ -68,7 +70,9 @@ def test_create_a3_mega_deployment():
       auth_cidr=auth_cidr,
       zone=zone,
   )
-  blueprint_test_path = os.path.join(test_bp_dir, f"{blueprint_name}.yaml")
+  blueprint_test_path = os.path.join(
+      test_bp_dir, "uploads", f"{blueprint_name}.yaml"
+  )
   blueprint_deps_test_path = os.path.join(test_bp_dir, blueprint_name)
 
   assert a3_mega_blueprint.blueprint_file == blueprint_test_path
@@ -94,9 +98,11 @@ def test_create_a3_mega_deployment():
   )
 
   assert staged_bp_path == os.path.join(
-      test_docker_working_dir, f"{blueprint_name}.yaml"
+      test_docker_working_dir, uploads_dir, f"{blueprint_name}.yaml"
   )
-  staged_bp_deps_path = os.path.join(test_docker_working_dir, blueprint_name)
+  staged_bp_deps_path = os.path.join(
+      test_docker_working_dir, uploads_dir, blueprint_name
+  )
 
   assert os.path.isfile(staged_bp_path)
   assert os.path.isdir(staged_bp_deps_path)

@@ -28,6 +28,8 @@ zone = os.getenv("ZONE")
 auth_cidr = os.getenv("AUTH_CIDR")
 cluster_name = os.getenv("CLUSTER_NAME")
 
+uploads_dir = "uploads"
+
 
 def prepare_test(docker_path: str, bp_path: str) -> None:
   os.mkdir(docker_path)
@@ -85,7 +87,7 @@ def test_create_deployment():
   )
 
   assert staged_bp_path == os.path.join(
-      test_docker_working_dir, f"{blueprint_name}.yaml"
+      test_docker_working_dir, uploads_dir, f"{blueprint_name}.yaml"
   )
   assert os.path.isfile(staged_bp_path)
 

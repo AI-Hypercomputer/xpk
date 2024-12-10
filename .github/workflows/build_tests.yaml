@@ -24,7 +24,7 @@ env:
   TPU_CLUSTER_NAME: build-xpk-2-v4-8-nodepools
   WORKLOAD_NAME: xpktest-build-${{ github.run_attempt }}
   PATHWAYS_WORKLOAD_NAME: xpkpw-build-${{ github.run_attempt }}
-  CLUSTER_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}} --maintenance-window=23:50"
+  CLUSTER_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}} --subnetwork=${{secrets.SUBNETWORK_NAME}} --maintenance-window=23:50"
   RUN_ID: "pr-${{ github.event.number }}"
 
 jobs:

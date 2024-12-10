@@ -76,7 +76,6 @@ def test_docker_build_image(setup_img_name):
   dc = docker.from_env()
   containers_before = dc.containers.list(all=True)
 
-  dm.build()
   dc.images.get(setup_img_name)
   containers_after = dc.containers.list(all=True)
   assert len(containers_before) == len(containers_after)
@@ -94,7 +93,6 @@ def test_run_command(setup_img_name):
 
   containers_before = dc.containers.list(all=True)
   dm.initialize()
-  dm.build()
   dm.run_command(test_gcluster_cmd)
 
   containers_after = dc.containers.list(all=True)

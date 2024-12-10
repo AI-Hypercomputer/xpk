@@ -170,7 +170,7 @@ class BlueprintGenerator:
                 "source": '$(ghpc_stage("a3-mega-xpk"))/config-map.yaml.tftpl',
                 "template_vars": {
                     "name": "xpk-gke-a3-megagpu-resources-configmap",
-                    "num_nodes": num_nodes,
+                    "num_nodes": f"{num_nodes}",
                 },
             }]
         },

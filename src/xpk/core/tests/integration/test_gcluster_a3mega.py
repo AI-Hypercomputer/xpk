@@ -58,7 +58,6 @@ def test_create_a3_mega_deployment():
       gcloud_cfg_path=ctk_gcloud_cfg, working_dir=test_docker_working_dir
   )
   docker_manager.initialize()
-  docker_manager.build()
 
   bpm = BlueprintGenerator(storage_path=test_bp_dir)
   a3_mega_blueprint = bpm.generate_a3_mega_blueprint(

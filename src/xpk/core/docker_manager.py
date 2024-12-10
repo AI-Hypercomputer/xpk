@@ -38,10 +38,6 @@ class CommandRunner(ABC):
   """This is a base class that defines methods a class for running cluster toolkit command should implement."""
 
   @abstractmethod
-  def build(self) -> None:
-    return None
-
-  @abstractmethod
   def initialize(self) -> None:
     return None
 
@@ -115,10 +111,6 @@ class DockerManager(CommandRunner):
     return True
 
   def initialize(self):
-    self._is_docker_installed()
-    self.dockerfile_path = self._create_tmp_for_dockerfile()
-
-  def build(self):
     """Build image from dockerfile pointed by _img_name. This method
     uses python docker client to build cloud toolkit execution image.
     Arguments:
@@ -130,7 +122,8 @@ class DockerManager(CommandRunner):
       - TypeError - otherwise
 
     """
-
+    self._is_docker_installed()
+    self.dockerfile_path = self._create_tmp_for_dockerfile()
     dir_path = "/".join(self.dockerfile_path.split("/")[:-1])
     xpk_print(
         f"Building docker image from dockerfile: {self.dockerfile_path}. It may"

@@ -195,12 +195,16 @@ spec:
         template:
           spec:
             terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
+            initContainers:  # Add this section
+            - name: network-init 
+              image: {args.docker_image}
+              command: ["bash", "-c", "echo '4096 41943040 314572800' > /proc/sys/net/ipv4/tcp_rmem"]
+              securityContext:
+                privileged: true
             containers:
             - args:
               {pathways_worker_args}
               env:
-              - name: GRPC_TRACE
-                value: "client_channel"
               image: {args.server_image}
               imagePullPolicy: Always
               name: pathways-worker
@@ -256,8 +260,6 @@ spec:
                 value: $(JOBSET_NAME)-$(REPLICATED_JOB_NAME)-0-0.$(JOBSET_NAME)
               - name: TPU_SKIP_MDS_QUERY
                 value: "true"
-              - name: GRPC_TRACE
-                value: "client_channel"
               image: {args.server_image}
               imagePullPolicy: Always
               name: pathways-rm
@@ -299,8 +301,6 @@ spec:
               env:
               - name: XLA_FLAGS
                 value: "--xla_dump_to={args.pathways_gcs_location}/xla_dump"
-              - name: GRPC_TRACE
-                value: "client_channel"
               image: {args.proxy_server_image}
               imagePullPolicy: Always
               name: pathways-proxy

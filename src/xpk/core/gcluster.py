@@ -81,11 +81,11 @@ class GclusterManager:
     self._run_create_deployment_cmd(
         blueprint_container_path=blueprint_container_path
     )
-    # self._run_deploy_cmd(
-    #     deployment_name=deployment_name,
-    #     auto_approve=auto_approve,
-    #     dry_run=dry_run,
-    # )
+    self._run_deploy_cmd(
+        deployment_name=deployment_name,
+        auto_approve=auto_approve,
+        dry_run=dry_run,
+    )
 
   def _run_destroy_command(
       self,

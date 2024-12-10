@@ -81,11 +81,11 @@ class GclusterManager:
     self._run_create_deployment_cmd(
         blueprint_container_path=blueprint_container_path
     )
-    self._run_deploy_cmd(
-        deployment_name=deployment_name,
-        auto_approve=auto_approve,
-        dry_run=dry_run,
-    )
+    # self._run_deploy_cmd(
+    #     deployment_name=deployment_name,
+    #     auto_approve=auto_approve,
+    #     dry_run=dry_run,
+    # )
 
   def _run_destroy_command(
       self,
@@ -107,10 +107,10 @@ class GclusterManager:
       self, blueprint_file: str, blueprint_dependencies: str
   ) -> str:
     """Download files neccessary for deployment to deployment directory."""
-    staged_blueprint = self.gcluster_command_runner.upload_to_working_dir(
+    staged_blueprint = self.gcluster_command_runner.upload_file_to_working_dir(
         blueprint_file
     )
     if len(blueprint_dependencies) == 0:
       return staged_blueprint
-    self.gcluster_command_runner.upload_to_working_dir(blueprint_dependencies)
+    self.gcluster_command_runner.upload_directory_to_working_dir(blueprint_dependencies)
     return staged_blueprint

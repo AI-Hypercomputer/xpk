@@ -211,7 +211,7 @@ class BlueprintGenerator:
         settings={
             "kueue": {
                 "install": True,
-                "config_path": '$(ghpc_stage("xpk-gke-a3-megagpu-files"))/kueue-xpk-configuration.yaml.tftpl',
+                "config_path": '$(ghpc_stage("a3-mega-xpk"))/kueue-xpk-configuration.yaml.tftpl',
                 "config_template_vars": {"num_chips": f"{num_chips}"},
             },
             "jobset": {"install": True},
@@ -230,7 +230,7 @@ class BlueprintGenerator:
         use=["gke_cluster"],
         settings={
             "apply_manifests": [{
-                "source": '$(ghpc_stage("xpk-gke-a3-megagpu-files"))/config-map.yaml.tftpl',
+                "source": '$(ghpc_stage("a3-mega-xpk"))/config-map.yaml.tftpl',
                 "template_vars": {
                     "name": "xpk-gke-a3-megagpu-resources-configmap",
                     "num_nodes": "4",

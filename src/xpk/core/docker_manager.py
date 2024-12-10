@@ -18,7 +18,7 @@ from abc import ABC, abstractmethod
 import docker
 from docker.errors import ContainerError, APIError, ImageNotFound, BuildError
 from ..utils.console import xpk_print, xpk_exit
-from shutil import copy
+from shutil import copytree, copy
 import requests
 import os
 import tempfile
@@ -50,9 +50,12 @@ class CommandRunner(ABC):
     return None
 
   @abstractmethod
-  def upload_to_working_dir(self, path: str) -> str:
+  def upload_file_to_working_dir(self, path: str) -> str:
     return ""
 
+  @abstractmethod
+  def upload_directory_to_working_dir(self, path: str) -> str:
+    return ""
 
 class DockerManager(CommandRunner):
   """DockerManager is a class for managing gcluster execution in docker container.
@@ -207,7 +210,7 @@ class DockerManager(CommandRunner):
       xpk_print(f"Deploying cluster toolkit failed due to {e.explanation}")
       xpk_exit(DockerRunCommandExitCode)
 
-  def upload_to_working_dir(self, path: str) -> str:
+  def upload_directory_to_working_dir(self, path: str) -> str:
     """Move file or directory from specified path to directory containing deployment files
 
     Args:
@@ -215,5 +218,18 @@ class DockerManager(CommandRunner):
     """
     name = path.split("/")[-1]
     target_path = os.path.join(self.working_dir, name)
+    xpk_print(f"copying folder from {path} to {target_path}")
+    copytree(path, target_path)
+    return target_path
+
+  def upload_file_to_working_dir(self, path: str) -> str:
+    """Move file or directory from specified path to directory containing deployment files
+
+    Args:
+        path (str): path of directory/file that will be moved to deployment directory
+    """
+    name = path.split("/")[-1]
+    target_path = os.path.join(self.working_dir, name)
+    xpk_print(f"copying file from {path} to {target_path}")
     copy(path, target_path)
     return target_path

@@ -48,8 +48,9 @@ def test_create_a3_mega_deployment():
   assert ctk_gcloud_cfg is not None
   assert cluster_name is not None
 
-  test_docker_working_dir = "/tmp/xpk_test_docker_dir"
-  test_bp_dir = "/tmp/xpk_test_bp_dir"
+  pwd = os.getcwd()
+  test_docker_working_dir = os.path.join(pwd,"xpk_test_docker_dir")
+  test_bp_dir = os.path.join(pwd, "xpk_test_bp_dir")
   prepare_test(test_docker_working_dir, test_bp_dir)
   blueprint_name = "a3-mega-xpk"
 

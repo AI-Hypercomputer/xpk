@@ -49,7 +49,7 @@ def test_create_a3_mega_deployment():
   assert cluster_name is not None
 
   pwd = os.getcwd()
-  test_docker_working_dir = os.path.join(pwd,"xpk_test_docker_dir")
+  test_docker_working_dir = os.path.join(pwd, "xpk_test_docker_dir")
   test_bp_dir = os.path.join(pwd, "xpk_test_bp_dir")
   prepare_test(test_docker_working_dir, test_bp_dir)
   blueprint_name = "a3-mega-xpk"

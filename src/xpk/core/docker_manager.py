@@ -57,6 +57,7 @@ class CommandRunner(ABC):
   def upload_directory_to_working_dir(self, path: str) -> str:
     return ""
 
+
 class DockerManager(CommandRunner):
   """DockerManager is a class for managing gcluster execution in docker container.
   Attributes:

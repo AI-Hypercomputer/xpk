@@ -112,5 +112,7 @@ class GclusterManager:
     )
     if len(blueprint_dependencies) == 0:
       return staged_blueprint
-    self.gcluster_command_runner.upload_directory_to_working_dir(blueprint_dependencies)
+    self.gcluster_command_runner.upload_directory_to_working_dir(
+        blueprint_dependencies
+    )
     return staged_blueprint

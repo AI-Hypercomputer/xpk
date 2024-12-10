@@ -25,11 +25,11 @@ gcluster_create_command = 'gcluster create'
 gcluster_destroy_command = 'gcluster destroy'
 blueprint_file_name = 'xpk_blueprint.yaml'
 deployment_module = '/out/xpk-deployment'
-a3_utils_dir_name = 'xpk-gke-a3-megagpu-files'
-config_map_repo_path = (
-    'src/xpk/blueprints/xpk-gke-a3-megagpu-files/config-map.yaml.tftpl'
+a3_utils_dir_name = 'a3-mega-xpk'
+config_map_repo_path = 'src/xpk/blueprints/a3-mega-xpk/config-map.yaml.tftpl'
+kueue_config_repo_path = (
+    'src/xpk/blueprints/a3-mega-xpk/kueue-xpk-configuration.yaml.tftpl'
 )
-kueue_config_repo_path = 'src/xpk/blueprints/xpk-gke-a3-megagpu-files/kueue-xpk-configuration.yaml.tftpl'
 
 
 class GclusterManager:

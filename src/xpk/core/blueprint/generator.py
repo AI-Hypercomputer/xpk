@@ -60,9 +60,9 @@ class BlueprintGenerator:
       primary_vpc_name: str = "network1",
       gpu_subnets_name: str = "gpunets",
       group_placement_max_distance: int = 2,
-      autoscaling_total_min_nodes : int = 2,
+      autoscaling_total_min_nodes: int = 2,
       gpunets_network_count: int = 8,
-      subnetwork_cidr_suffix: int = 24
+      subnetwork_cidr_suffix: int = 24,
   ) -> BlueprintGeneratorOutput:
     """Create A3 mega blueprint.
 

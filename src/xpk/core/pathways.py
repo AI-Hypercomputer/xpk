@@ -42,6 +42,8 @@ def get_pathways_worker_args(args) -> str:
   """
   yaml = """- --server_port=29001
               - --resource_manager_address={rm_address}
+              - --temporary_flags_for_debugging=temporary_flag_for_debugging_megascale_address_derive_from_megascale_grpc=true
+              - --megascale_grpc_premap_memory_bytes=17179869184
               - --gcs_scratch_location={args.pathways_gcs_location}"""
   if args.use_pathways:
     return yaml.format(args=args, rm_address=get_rm_address(args))
@@ -66,6 +68,7 @@ def get_pathways_proxy_args(args) -> str:
               - --xla_tpu_overlap_compute_collective_tc=true
               - --xla_enable_async_all_gather=true
               - --xla_tpu_spmd_rng_bit_generator_unsafe=true
+              - --xla_tpu_enable_sunk_dcn_allreduce_done_with_host_reduction=true
               - --gcs_scratch_location={args.pathways_gcs_location}"""
 
   if args.use_pathways:
@@ -208,7 +211,7 @@ def get_pathways_rm_args(args, system: SystemCharacteristics) -> str:
               - --gcs_scratch_location={args.pathways_gcs_location}
               - --node_type=resource_manager
               - --instance_count={instance_count}
-              - --temporary_flags_for_debugging=temporary_flag_for_debugging_worker_expected_tpu_chip_config=megachip
+              - --temporary_flags_for_debugging=temporary_flag_for_debugging_worker_expected_tpu_chip_config=megachip;;;temporary_flag_for_debugging_megascale_address_derive_from_megascale_grpc=true
               - --instance_type={instance_type}"""
   if args.use_pathways:
     return yaml.format(

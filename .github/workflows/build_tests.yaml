@@ -24,6 +24,7 @@ on:
         type: choice
         options:
           - v4-8
+          - v5litepod-8
   push:
     branches: ["main"]
   pull_request: # By default this runs for types assigned, opened and synchronize.

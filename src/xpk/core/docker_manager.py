@@ -246,6 +246,8 @@ class DockerManager(CommandRunner):
     """
     name = path.split("/")[-1]
     target_path = os.path.join(self.working_dir, upload_dir, name)
+    if not os.path.exists(os.path.join(self.working_dir, upload_dir)):
+      os.mkdir(os.path.join(self.working_dir, upload_dir))
     xpk_print(f"copying folder from {path} to {target_path}")
     copytree(path, target_path)
     return target_path
@@ -258,6 +260,8 @@ class DockerManager(CommandRunner):
     """
     name = path.split("/")[-1]
     target_path = os.path.join(self.working_dir, upload_dir, name)
+    if not os.path.exists(os.path.join(self.working_dir, upload_dir)):
+      os.mkdir(os.path.join(self.working_dir, upload_dir))
     xpk_print(f"copying file from {path} to {target_path}")
     copy(path, target_path)
     return target_path

@@ -21,7 +21,6 @@ from .definition import DeploymentGroup, DeploymentModule, Blueprint
 
 yaml = yaml.YAML()
 blueprint_dependencies_dir = "src/xpk/blueprints/a3mega"
-a3_mega_blueprint_version = "v1.0.0"
 
 
 class BlueprintGeneratorOutput:
@@ -152,7 +151,7 @@ class BlueprintGenerator:
         settings={
             "kueue": {
                 "install": True,
-                "config_path": '$(ghpc_stage("a3-mega-xpk"))/kueue-xpk-configuration.yaml.tftpl',
+                "config_path": f'$(ghpc_stage("{cluster_name}-a3-mega-xpk"))/kueue-xpk-configuration.yaml.tftpl',
                 "config_template_vars": {"num_chips": f"{num_chips}"},
             },
             "jobset": {"install": True},
@@ -171,7 +170,7 @@ class BlueprintGenerator:
         use=["gke_cluster"],
         settings={
             "apply_manifests": [{
-                "source": '$(ghpc_stage("a3-mega-xpk"))/config-map.yaml.tftpl',
+                "source": f'$(ghpc_stage("{cluster_name}-a3-mega-xpk"))/config-map.yaml.tftpl',
                 "template_vars": {
                     "name": "xpk-gke-a3-megagpu-resources-configmap",
                     "num_nodes": f"{num_nodes}",
@@ -194,7 +193,6 @@ class BlueprintGenerator:
     )
     xpk_blueprint = Blueprint(
         blueprint_name=blueprint_name,
-        blueprint_version=a3_mega_blueprint_version,
         deployment_groups=[primary_group],
         vars={
             "project_id": project_id,
@@ -270,7 +268,6 @@ class BlueprintGenerator:
     ml_gke = Blueprint(
         blueprint_name=blueprint_name,
         deployment_groups=[primary_group],
-        blueprint_version="v1.0.0",
         vars={
             "project_id": project_id,
             "deployment_name": blueprint_name,

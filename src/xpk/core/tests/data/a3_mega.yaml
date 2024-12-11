@@ -85,7 +85,7 @@ deployment_groups:
     settings:
       kueue:
         install: true
-        config_path: $(ghpc_stage("a3-mega-xpk"))/kueue-xpk-configuration.yaml.tftpl
+        config_path: $(ghpc_stage("bar-a3-mega-xpk"))/kueue-xpk-configuration.yaml.tftpl
         config_template_vars: {num_chips: "8"}
       jobset:
         install: true
@@ -101,5 +101,5 @@ deployment_groups:
     use: [gke_cluster]
     settings:
       apply_manifests:
-      - source: $(ghpc_stage("a3-mega-xpk"))/config-map.yaml.tftpl
+      - source: $(ghpc_stage("bar-a3-mega-xpk"))/config-map.yaml.tftpl
         template_vars: {name: "xpk-gke-a3-megagpu-resources-configmap", num_nodes: "2"}

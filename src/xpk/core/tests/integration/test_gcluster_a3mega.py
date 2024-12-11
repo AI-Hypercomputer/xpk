@@ -54,7 +54,7 @@ def test_create_a3_mega_deployment():
   test_docker_working_dir = os.path.join(pwd, "xpk_test_docker_dir")
   test_bp_dir = os.path.join(pwd, "xpk_test_bp_dir")
   prepare_test(test_docker_working_dir, test_bp_dir)
-  blueprint_name = "a3-mega-xpk"
+  blueprint_name = f"{cluster_name}-a3-mega-xpk"
 
   docker_manager = DockerManager(
       gcloud_cfg_path=ctk_gcloud_cfg, working_dir=test_docker_working_dir
@@ -70,9 +70,7 @@ def test_create_a3_mega_deployment():
       auth_cidr=auth_cidr,
       zone=zone,
   )
-  blueprint_test_path = os.path.join(
-      test_bp_dir, "uploads", f"{blueprint_name}.yaml"
-  )
+  blueprint_test_path = os.path.join(test_bp_dir, f"{blueprint_name}.yaml")
   blueprint_deps_test_path = os.path.join(test_bp_dir, blueprint_name)
 
   assert a3_mega_blueprint.blueprint_file == blueprint_test_path
@@ -112,9 +110,12 @@ def test_create_a3_mega_deployment():
   assert os.path.isfile(
       os.path.join(staged_bp_deps_path, "kueue-xpk-configuration.yaml.tftpl")
   )
+  print(staged_bp_path, blueprint_name)
   gcluster_manager.deploy(
       blueprint_path=staged_bp_path, deployment_name=blueprint_name
   )
+
+  #   cleanup part
   gcluster_manager.destroy_deployment(deployment_name=blueprint_name)
   shutil.rmtree(test_docker_working_dir)
   shutil.rmtree(test_bp_dir)

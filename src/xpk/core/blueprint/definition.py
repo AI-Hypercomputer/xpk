@@ -17,8 +17,6 @@ limitations under the License.
 from dataclasses import dataclass
 from typing import Any, Optional
 
-a3_mega_blueprint_version = "v1.0.0"
-
 
 @dataclass
 class DeploymentModule:
@@ -56,7 +54,6 @@ class DeploymentGroup:
 class Blueprint:
   """A class to represent Cluster Toolkit blueprint"""
 
-  blueprint_version: str
   vars: dict[str, str | list[str]]
   deployment_groups: list[DeploymentGroup]
   blueprint_name: Optional[str]

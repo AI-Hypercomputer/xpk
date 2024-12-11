@@ -86,7 +86,11 @@ class GclusterManager:
       None
     """
     blueprint_name = blueprint_path.split('/')[-1]
-    blueprint_container_path = f'/out/{blueprint_name}'
+    xpk_print(
+        f'Deploying blueprint from path {blueprint_path}, blueprint name is'
+        f' {blueprint_name}'
+    )
+    blueprint_container_path = f'/out/uploads/{blueprint_name}'
     self._run_create_deployment_cmd(
         blueprint_container_path=blueprint_container_path
     )

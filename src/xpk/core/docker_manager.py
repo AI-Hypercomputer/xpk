@@ -144,20 +144,7 @@ class DockerManager(CommandRunner):
       return False
     return True
 
-  def initialize(self):
-    """Build image from dockerfile pointed by _img_name. This method
-    uses python docker client to build cloud toolkit execution image.
-    Arguments:
-    Returns:
-      - None
-    Raises:
-      - docker.errors.BuildError – If there is an error during the build.
-      - docker.errors.APIError – If the server returns any other error.
-      - TypeError - otherwise
-
-    """
-    self._is_docker_installed()
-    self.dockerfile_path = self._create_tmp_for_dockerfile()
+  def _build_image(self):
     dir_path = "/".join(self.dockerfile_path.split("/")[:-1])
     xpk_print(
         f"Building docker image from dockerfile: {self.dockerfile_path}. It may"
@@ -186,6 +173,22 @@ class DockerManager(CommandRunner):
     os.remove(self.dockerfile_path)
     tmp_dockerfile_dir = "/".join(self.dockerfile_path.split("/")[:-1])
     os.rmdir(tmp_dockerfile_dir)
+
+  def initialize(self):
+    """Build image from dockerfile pointed by _img_name. This method
+    uses python docker client to build cloud toolkit execution image.
+    Arguments:
+    Returns:
+      - None
+    Raises:
+      - docker.errors.BuildError – If there is an error during the build.
+      - docker.errors.APIError – If the server returns any other error.
+      - TypeError - otherwise
+
+    """
+    self._is_docker_installed()
+    self.dockerfile_path = self._create_tmp_for_dockerfile()
+    self._build_image()
 
   def run_command(
       self,
@@ -238,6 +241,13 @@ class DockerManager(CommandRunner):
       xpk_print(f"Deploying cluster toolkit failed due to {e.explanation}")
       xpk_exit(DockerRunCommandExitCode)
 
+  def _make_upload_directory(self, name: str) -> str:
+    target_path = os.path.join(self.working_dir, upload_dir, name)
+    target_dir = os.path.join(self.working_dir, upload_dir)
+    if not os.path.exists(target_dir):
+      os.mkdir(target_dir)
+    return target_path
+
   def upload_directory_to_working_dir(self, path: str) -> str:
     """Move file or directory from specified path to directory containing deployment files
 
@@ -245,9 +255,7 @@ class DockerManager(CommandRunner):
         path (str): path of directory/file that will be moved to deployment directory
     """
     name = path.split("/")[-1]
-    target_path = os.path.join(self.working_dir, upload_dir, name)
-    if not os.path.exists(os.path.join(self.working_dir, upload_dir)):
-      os.mkdir(os.path.join(self.working_dir, upload_dir))
+    target_path = self._make_upload_directory(name)
     xpk_print(f"copying folder from {path} to {target_path}")
     copytree(path, target_path)
     return target_path
@@ -259,9 +267,7 @@ class DockerManager(CommandRunner):
         path (str): path of directory/file that will be moved to deployment directory
     """
     name = path.split("/")[-1]
-    target_path = os.path.join(self.working_dir, upload_dir, name)
-    if not os.path.exists(os.path.join(self.working_dir, upload_dir)):
-      os.mkdir(os.path.join(self.working_dir, upload_dir))
+    target_path = self._make_upload_directory(name)
     xpk_print(f"copying file from {path} to {target_path}")
     copy(path, target_path)
     return target_path

@@ -72,10 +72,9 @@ class GclusterManager:
       auto_approve: bool = True,
       dry_run: bool = False,
   ) -> None:
-    """deploy is a method that deploys new cluster using Cluster Toolkit. It will use self.gcluster_command_runner
-    to invode gcluster create and than gcluster deploy commands. It will use files from self.gcluster_command_runner
-    working directory. Files created during running gcluster command will be saved to working_dir/deployments/ directory.
-    If command fails exception from gcluster_command_runner will be thrown.
+    """ "deploy method provisions a new cluster using Cluster Toolkit.
+    It will invoke gcluster create and then gcluster deploy commands.
+    The files staged or created during running gcluster command will be managed by gcluster_command_runner in its working directory."
 
     Args:
         blueprint_path (str): path pointing to blueprint which will be deployed.
@@ -86,10 +85,7 @@ class GclusterManager:
       None
     """
     blueprint_name = blueprint_path.split('/')[-1]
-    xpk_print(
-        f'Deploying blueprint from path {blueprint_path}, blueprint name is'
-        f' {blueprint_name}'
-    )
+    xpk_print(f'Deploying blueprint from path {blueprint_path}')
     blueprint_container_path = f'/out/uploads/{blueprint_name}'
     self._run_create_deployment_cmd(
         blueprint_container_path=blueprint_container_path
@@ -111,6 +107,7 @@ class GclusterManager:
       destroy_cmd += ' --auto-approve'
     if dry_run is True:
       xpk_print(f'executing command {destroy_cmd}')
+      return
     self.gcluster_command_runner.run_command(destroy_cmd)
 
   def destroy_deployment(self, deployment_name: str) -> None:
@@ -128,9 +125,8 @@ class GclusterManager:
     staged_blueprint = self.gcluster_command_runner.upload_file_to_working_dir(
         blueprint_file
     )
-    if len(blueprint_dependencies) == 0:
-      return staged_blueprint
-    self.gcluster_command_runner.upload_directory_to_working_dir(
-        blueprint_dependencies
-    )
+    if len(blueprint_dependencies) > 0:
+      self.gcluster_command_runner.upload_directory_to_working_dir(
+          blueprint_dependencies
+      )
     return staged_blueprint

@@ -17,10 +17,11 @@ limitations under the License.
 import shutil
 from ruamel import yaml
 import os
-from .definition import DeploymentGroup, DeploymentModule, Blueprint
+from .blueprint_definitions import DeploymentGroup, DeploymentModule, Blueprint
 
 yaml = yaml.YAML()
-blueprint_dependencies_dir = "src/xpk/blueprints/a3mega"
+a3mega_blueprint_dependencies_dir = "src/xpk/blueprints/a3mega"
+a3_machine_type = "a3-megagpu-8g"
 
 
 class BlueprintGeneratorOutput:
@@ -35,8 +36,11 @@ class BlueprintGeneratorOutput:
     self.blueprint_dependencies = blueprint_dependencies
 
 
-def get_num_chips(num_nodes: int) -> int:
-  return num_nodes * 4
+machine_chipcount = {a3_machine_type: 8}
+
+
+def get_num_chips(num_nodes: int, machine_type: str) -> int:
+  return machine_chipcount[machine_type] * num_nodes
 
 
 class BlueprintGenerator:
@@ -135,7 +139,7 @@ class BlueprintGenerator:
         use=["gke_cluster", gpu_subnets_name, "group_placement_0"],
         settings={
             "name": f"{cluster_name}-a3-megagpu-pool-0",
-            "machine_type": "a3-megagpu-8g",
+            "machine_type": a3_machine_type,
             "autoscaling_total_min_nodes": autoscaling_total_min_nodes,
             "initial_node_count": num_nodes,
             "zones": [zone],
@@ -143,7 +147,7 @@ class BlueprintGenerator:
         },
         outputs=["instructions"],
     )
-    num_chips = get_num_chips(num_nodes)
+    num_chips = get_num_chips(num_nodes, a3_machine_type)
     workload = DeploymentModule(
         id="workload_component_install",
         source="modules/management/kubectl-apply",
@@ -291,7 +295,7 @@ class BlueprintGenerator:
 
   def _get_a3_mega_blueprint_dependencies(self, blueprint_name: str) -> str:
     deployment_files_path = os.path.join(self.storage_path, blueprint_name)
-    shutil.copytree(blueprint_dependencies_dir, deployment_files_path)
+    shutil.copytree(a3mega_blueprint_dependencies_dir, deployment_files_path)
     return deployment_files_path
 
 

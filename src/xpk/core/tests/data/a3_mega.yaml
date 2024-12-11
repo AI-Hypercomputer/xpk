@@ -86,7 +86,7 @@ deployment_groups:
       kueue:
         install: true
         config_path: $(ghpc_stage("bar-a3-mega-xpk"))/kueue-xpk-configuration.yaml.tftpl
-        config_template_vars: {num_chips: "8"}
+        config_template_vars: {num_chips: "16"}
       jobset:
         install: true
 

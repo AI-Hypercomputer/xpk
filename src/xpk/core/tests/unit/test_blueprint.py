@@ -15,8 +15,8 @@ limitations under the License.
 """
 
 import shutil
-from xpk.core.blueprint.generator import BlueprintGenerator
-from xpk.core.blueprint.definition import Blueprint
+from xpk.core.blueprint.blueprint_generator import BlueprintGenerator
+from xpk.core.blueprint.blueprint_definitions import Blueprint
 import ruamel.yaml
 import os
 

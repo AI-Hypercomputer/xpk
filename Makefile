@@ -30,10 +30,9 @@ run-unittests:
 	pytest src/xpk/
 
 install-kjob: install-kubectl
-	git clone --depth 1 --branch $(KUEUE_VERSION) $(KUEUE_REPO) $(KUEUE_TMP_PATH)
-	make -C $(KUEUE_TMP_PATH)/cmd/experimental/kjobctl kubectl-kjob
-	mv $(KUEUE_TMP_PATH)/cmd/experimental/kjobctl/bin/kubectl-kjob $(BIN_PATH)/kubectl-kjob
-	rm -rf $(KUEUE_TMP_PATH)
+	git clone --depth 1 --branch $(KUEUE_VERSION) $(KUEUE_REPO)
+	make -C kueue/cmd/experimental/kjobctl kubectl-kjob
+	export PATH=$(BIN_PATH):$(PATH)
 
 mkdir-bin:
 	mkdir -p $(BIN_PATH)

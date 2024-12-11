@@ -66,6 +66,7 @@ xpk_current_version = __version__
 h100_device_type = 'h100-80gb-8'
 h100_mega_device_type = 'h100-mega-80gb-8'
 
+JOBSET_VERSION = 'v0.7.2'
 
 CAPACITY_TYPE_CONFIG_KEY = 'capacity_type'
 RESERVATION_CONFIG_KEY = 'reservation_id'
@@ -1365,7 +1366,7 @@ def set_jobset_on_cluster(args) -> int:
   """
   command = (
       'kubectl apply --server-side -f'
-      ' https://github.com/kubernetes-sigs/jobset/releases/download/v0.4.0/manifests.yaml'
+      f' https://github.com/kubernetes-sigs/jobset/releases/download/{JOBSET_VERSION}/manifests.yaml'
   )
   task = f'Install Jobset on {args.cluster}'
   return_code = run_command_with_updates_retry(command, task, args)

@@ -549,7 +549,6 @@ def run_gke_cluster_create_command(
 
     if args.enable_pathways:
       enable_ip_alias = True
-      command += f' --create-subnetwork name={args.cluster}-subnetwork'
 
   if enable_ip_alias:
     command += ' --enable-ip-alias'

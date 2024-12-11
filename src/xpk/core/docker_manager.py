@@ -40,18 +40,47 @@ class CommandRunner(ABC):
 
   @abstractmethod
   def initialize(self) -> None:
+    """initialize is a method that should implement all steps neccessary to run command.
+
+    Returns:
+        None
+    """
     return None
 
   @abstractmethod
   def run_command(self, cmd: str) -> None:
+    """run_command implements executing command. If command execution fails, exception should be raised.
+
+    Args:
+        cmd (str): command to run
+
+    Returns:
+        None:
+    """
     return None
 
   @abstractmethod
   def upload_file_to_working_dir(self, path: str) -> str:
+    """Uploads single file to working directory.
+
+    Args:
+        path (str): path to file to upload
+
+    Returns:
+        str: path to a destination file
+    """
     return ""
 
   @abstractmethod
   def upload_directory_to_working_dir(self, path: str) -> str:
+    """upload directory and its content to working directory.
+
+    Args:
+        path (str): path pointing to directory that will be uploaded.
+
+    Returns:
+        str: path to a target directory.
+    """
     return ""
 
 
@@ -61,7 +90,11 @@ class DockerManager(CommandRunner):
     - dockerfile_path (str) : path to dockerfile defining gcluster execution image
     - gcloud_cfg_path (str) : path to directory containing gcloud configuration
     - working_dir (str) : path to directory in which gcluster deployment directory will be saved
-
+    - client (DockerClient) : docker client
+    - nocache (bool) : wheter to use docker cache when building image
+    - img_name (str) : name of docker image to create
+    - container_name (str) : name of the container that will be created from img_name
+    - rm_container_after (bool) : if set to True, docker container in which command is executed will be removed after each execution.
   """
 
   def __init__(
@@ -92,11 +125,11 @@ class DockerManager(CommandRunner):
   def _is_docker_installed(self) -> None:
     self.client.info()
 
-  def _download_ctk_dockerfile(self):
-    """Downloads cluster toolkit dockerfile and returns tmp path on which it is saved
+  def _download_ctk_dockerfile(self) -> None:
+    """Downloads cluster toolkit dockerfile to dockerfile_path
 
     Returns:
-        str: path do dockerfile
+        None
     """
     r = requests.get(dockerfile_gh_path, timeout=100)
 

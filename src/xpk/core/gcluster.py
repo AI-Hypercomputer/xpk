@@ -35,10 +35,6 @@ kueue_config_repo_path = (
 class GclusterManager:
   """Manager is a class responsible for running cluster toolkit commands.
   Attributes:
-    - deployment_dir (str) : directory containing all files used during building deployment files. It should contain blupeprint file inside:
-      deployment_dir:
-        - blueprint.yaml
-        - dir_used_in_blueprint
     - gcluster_command_runner (CommandRunner) : instance of class implementing CommandRunner abstract methods.
   Methods:
     - deploy : run a deployment process of cluster toolkit. This method will invoke gcluster create and than gcluster deploy commands.
@@ -76,6 +72,19 @@ class GclusterManager:
       auto_approve: bool = True,
       dry_run: bool = False,
   ) -> None:
+    """deploy is a method that deploys new cluster using Cluster Toolkit. It will use self.gcluster_command_runner
+    to invode gcluster create and than gcluster deploy commands. It will use files from self.gcluster_command_runner
+    working directory. Files created during running gcluster command will be saved to working_dir/deployments/ directory.
+    If command fails exception from gcluster_command_runner will be thrown.
+
+    Args:
+        blueprint_path (str): path pointing to blueprint which will be deployed.
+        deployment_name (str): name of the deployment.
+        auto_approve (bool, optional): If set to true deployment command will be auto approved. Currently only True is supported. Defaults to True.
+        dry_run (bool, optional): If set to True gcluster will not deploy. Defaults to False.
+    Returns:
+      None
+    """
     blueprint_name = blueprint_path.split('/')[-1]
     blueprint_container_path = f'/out/{blueprint_name}'
     self._run_create_deployment_cmd(
@@ -101,12 +110,17 @@ class GclusterManager:
     self.gcluster_command_runner.run_command(destroy_cmd)
 
   def destroy_deployment(self, deployment_name: str) -> None:
+    """Destroy deployment.
+
+    Args:
+        deployment_name (str): name of deployment to destroy.
+    """
     self._run_destroy_command(deployment_name)
 
   def stage_files(
       self, blueprint_file: str, blueprint_dependencies: str
   ) -> str:
-    """Download files neccessary for deployment to deployment directory."""
+    """Copies files and folders neccessary for deployment to deployment directory."""
     staged_blueprint = self.gcluster_command_runner.upload_file_to_working_dir(
         blueprint_file
     )

@@ -25,6 +25,11 @@ a3_mega_blueprint_version = "v1.0.0"
 
 
 class BlueprintGeneratorOutput:
+  """BlueprintGeneratorOutput is a class containing fields with output blueprint file path and path to blueprint dependencies.
+  Atributes:
+  - blueprint_file (str) : path to generated blueprint file.
+  - blueprint_dependencies (str) : path to directory containing blueprint dependencies.
+  """
 
   def __init__(self, blueprint_file: str, blueprint_dependencies: str) -> None:
     self.blueprint_file = blueprint_file
@@ -38,7 +43,7 @@ def get_num_chips(num_nodes: int) -> int:
 class BlueprintGenerator:
   """BlueprintGenerator is a class for generating blueprints
   Atributes:
-  - storage_path (str) - path to TODO
+  - storage_path (str) - path to directory where generated files and directories will be stored.
   """
 
   def __init__(self, storage_path: str) -> None:
@@ -64,11 +69,10 @@ class BlueprintGenerator:
       gpunets_network_count: int = 8,
       subnetwork_cidr_suffix: int = 24,
   ) -> BlueprintGeneratorOutput:
-    """Create A3 mega blueprint.
+    """Create A3 mega blueprint and directory containing its dependencies.
 
-    Args:
     Returns:
-      - Blueprint representing cluster toolkit blueprint
+      - BlueprintGeneratorOutput object containing path to blueprint and its dependencies.
     """
     subnetwork_name = f"{cluster_name}-xpk-gke-a3-megagpu-subnet"
     primary_vpc = DeploymentModule(
@@ -221,7 +225,7 @@ class BlueprintGenerator:
     """Create a simple gke cluster
 
     Returns:
-        Blueprint: blueprint of cluster to create
+        Blueprint: blueprint of simple cluster to create. This blueprint doesn't have any dependencies.
     """
 
     network1 = DeploymentModule(

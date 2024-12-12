@@ -40,13 +40,14 @@ def get_pathways_worker_args(args) -> str:
   Returns:
     str: yaml containing arguments for the Pathways workers.
   """
+  # More Megascale flags we can adjust here: https://source.corp.google.com/piper///depot/google3/platforms/xla/megascale/runtime/executor/executor.cc;l=53-81;rcl=705575633
   yaml = """- --server_port=29001
               - --resource_manager_address={rm_address}
               - --temporary_flags_for_debugging=temporary_flag_for_debugging_megascale_address_derive_from_megascale_grpc=true
               - --megascale_grpc_premap_memory_bytes=17179869184
-              - --gcs_scratch_location={args.pathways_gcs_location}
-              - --megascale_graph_within_launch_hang_threshold=5"""  # More flags we can adjust here: https://source.corp.google.com/piper///depot/google3/platforms/xla/megascale/runtime/executor/executor.cc;l=53-81;rcl=705575633
-
+              - --megascale_graph_within_launch_hang_threshold=5m
+              - --megascale_graph_hang_threshold=30m
+              - --gcs_scratch_location={args.pathways_gcs_location}"""
   if args.use_pathways:
     return yaml.format(args=args, rm_address=get_rm_address(args))
   else:
@@ -256,10 +257,8 @@ def get_user_workload_for_pathways(args, system: SystemCharacteristics) -> str:
             nodeSelector:
               cloud.google.com/gke-nodepool: cpu-user-np
             hostNetwork: true
-              dnsPolicy: ClusterFirstWithHostNet
-            restartPolicy: OnFailure
-            hostNetwork: true
             dnsPolicy: ClusterFirstWithHostNet
+            restartPolicy: OnFailure
             volumes:
             - hostPath:
                 path: /tmp

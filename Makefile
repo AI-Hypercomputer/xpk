@@ -30,7 +30,10 @@ install-pytest:
 
 .PHONY: run-unittests
 run-unittests:
-	pytest src/xpk/
+	pytest  -vv src/xpk/core/tests/unit/
+
+run-integrationtests:
+	pytest src/xpk/core/tests/integration/
 
 .PHONY: install-kjob
 install-kjob: install-kubectl

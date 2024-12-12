@@ -256,7 +256,7 @@ def get_user_workload_for_pathways(args, system: SystemCharacteristics) -> str:
             nodeSelector:
               cloud.google.com/gke-nodepool: cpu-user-np
             hostNetwork: true
-              dnsPolicy: ClusterFirstWithHostNet
+            dnsPolicy: ClusterFirstWithHostNet
             restartPolicy: OnFailure
             volumes:
             - hostPath:

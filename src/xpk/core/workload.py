@@ -85,7 +85,7 @@ def determine_workload_list_filter_by_job(args) -> str:
     the argument needed to filter job names from workload list
   """
   # Argument positions related to columns created by workload list command.
-  if not hasattr(args, 'filter_by_job'):
+  if not hasattr(args, 'filter_by_job') or args.filter_by_job is None:
     return ''
   else:
     job_name_arg = '$1'

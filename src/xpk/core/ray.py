@@ -90,6 +90,25 @@ spec:
             cloud.google.com/gke-tpu-topology: {topology}
 """
 
+ray_cluster_autoscaling = """  enableInTreeAutoscaling: true
+  autoscalerOptions:
+    upscalingMode: Default
+    idleTimeoutSeconds: 60
+    imagePullPolicy: IfNotPresent
+    # Optionally specify the Autoscaler container's securityContext.
+    securityContext: {}
+    env: []
+    envFrom: []
+    resources:
+      limits:
+        cpu: {worker_cpu}
+        google.com/tpu: {chips_per_vm}
+        memory: {worker_mem}
+      requests:
+        cpu: {worker_cpu}
+        google.com/tpu: {chips_per_vm}
+        memory: {worker_mem}
+"""
 
 def install_ray_cluster(args, system) -> int:
   """Install a RayCluster on the cluster

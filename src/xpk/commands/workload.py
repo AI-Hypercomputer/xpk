@@ -300,7 +300,7 @@ spec:
               {pathways_proxy_args}
               env:
               - name: XLA_FLAGS
-                value: "--xla_dump_to={args.pathways_gcs_location}/xla_dump"
+                value: "--xla_dump_to={args.pathways_gcs_location}/{}/xla_dump"
               image: {args.proxy_server_image}
               imagePullPolicy: Always
               name: pathways-proxy

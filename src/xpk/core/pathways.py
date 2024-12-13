@@ -117,9 +117,9 @@ def add_pw_resources_to_kueue(args):
     - name: cpu-rm
       resources:
       - name: "cpu"
-        nominalQuota: 80
+        nominalQuota: 480
       - name: "memory"
-        nominalQuota: 160G
+        nominalQuota: 2000G
     - name: cpu-proxy
       resources:
       - name: "cpu"
@@ -250,11 +250,17 @@ def get_user_workload_for_pathways(args, system: SystemCharacteristics) -> str:
         completions: 1
         parallelism: 1
         template:
+          metadata:
+            annotations:
+              gke-gcsfuse/volumes: "true"
+              gke-gcsfuse/cpu-limit: "0"
+              gke-gcsfuse/memory-limit: "0"
+              gke-gcsfuse/ephemeral-storage-limit: "0"
           spec:
             containers:
               {container}
             nodeSelector:
-              cloud.google.com/gke-nodepool: cpu-user-np
+              cloud.google.com/gke-nodepool: high-mem-pool
             hostNetwork: true
             dnsPolicy: ClusterFirstWithHostNet
             restartPolicy: OnFailure
@@ -262,7 +268,20 @@ def get_user_workload_for_pathways(args, system: SystemCharacteristics) -> str:
             - hostPath:
                 path: /tmp
                 type: DirectoryOrCreate
-              name: shared-tmp"""
+              name: shared-tmp
+            - name: gke-gcsfuse-cache
+              emptyDir:
+                medium: Memory
+            - name: dshm
+              emptyDir:
+                medium: Memory
+            - name: gcs-fuse-csi-ephemeral
+              csi:
+                driver: gcsfuse.csi.storage.gke.io
+                volumeAttributes:
+                  bucketName: trillium-storage-datasets-sr
+                  mountOptions: "debug_fuse,implicit-dirs,file-cache:enable-parallel-downloads:true,file-cache:parallel-downloads-per-file:100,file-cache:max-parallel-downloads:-1,file-cache:download-chunk-size-mb:10,file-cache:max-size-mb:-1"
+  """
   if args.headless:
     return ''
   else:

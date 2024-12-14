@@ -213,7 +213,7 @@ def get_pathways_rm_args(args, system: SystemCharacteristics) -> str:
               - --gcs_scratch_location={args.pathways_gcs_location}
               - --node_type=resource_manager
               - --instance_count={instance_count}
-              - --temporary_flags_for_debugging=temporary_flag_for_debugging_worker_expected_tpu_chip_config=megachip;;;temporary_flag_for_debugging_megascale_address_derive_from_megascale_grpc=true
+              - --temporary_flags_for_debugging=temporary_flag_for_debugging_worker_expected_tpu_chip_config=megachip_tccontrol;;;temporary_flag_for_debugging_megascale_address_derive_from_megascale_grpc=true
               - --instance_type={instance_type}"""
   if args.use_pathways:
     return yaml.format(

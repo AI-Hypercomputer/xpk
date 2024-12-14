@@ -2125,7 +2125,11 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
 
   if args.use_pathways:
     volume_mount_yaml = """- mountPath: /tmp
-                  name: shared-tmp"""
+                  name: shared-tmp
+                - name: gcs-fuse-csi-ephemeral
+                  mountPath: /training-data
+                - name: dshm
+                  mountPath: /dev/shm"""
   elif (
       system.accelerator_type == AcceleratorType['TPU']
       and args.deploy_stacktrace_sidecar

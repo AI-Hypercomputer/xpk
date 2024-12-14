@@ -45,7 +45,8 @@ def get_pathways_worker_args(args) -> str:
               - --temporary_flags_for_debugging=temporary_flag_for_debugging_megascale_address_derive_from_megascale_grpc=true
               - --megascale_grpc_premap_memory_bytes=17179869184
               - --gcs_scratch_location={args.pathways_gcs_location}
-              - --megascale_graph_within_launch_hang_threshold=5"""  # More flags we can adjust here: https://source.corp.google.com/piper///depot/google3/platforms/xla/megascale/runtime/executor/executor.cc;l=53-81;rcl=705575633
+              - --megascale_graph_within_launch_hang_threshold=5m
+              - --deepsea_chip_config_name=megachip_tccontrol"""  # More flags we can adjust here: https://source.corp.google.com/piper///depot/google3/platforms/xla/megascale/runtime/executor/executor.cc;l=53-81;rcl=705575633
 
   if args.use_pathways:
     return yaml.format(args=args, rm_address=get_rm_address(args))
@@ -71,7 +72,14 @@ def get_pathways_proxy_args(args) -> str:
               - --xla_enable_async_all_gather=true
               - --xla_tpu_spmd_rng_bit_generator_unsafe=true
               - --xla_tpu_enable_sunk_dcn_allreduce_done_with_host_reduction=true
-              - --gcs_scratch_location={args.pathways_gcs_location}"""
+              - --gcs_scratch_location={args.pathways_gcs_location}
+              - --xla_sc_disable_megacore_partitioning=true
+              - --xla_tpu_enable_all_reduce_offload_tracing=true
+              - --xla_tpu_use_tc_device_shape_on_sc=true
+              - --xla_tpu_enable_sparse_core_collective_offload_all_reduce=true
+              - --xla_sc_enable_instruction_fusion=false
+              - --xla_sc_disjoint_spmem=false
+              - --deepsea_chip_config_name=megachip_tccontrol"""
 
   if args.use_pathways:
     return yaml.format(args=args, rm_address=get_rm_address(args))
@@ -117,9 +125,9 @@ def add_pw_resources_to_kueue(args):
     - name: cpu-rm
       resources:
       - name: "cpu"
-        nominalQuota: 80
+        nominalQuota: 480
       - name: "memory"
-        nominalQuota: 160G
+        nominalQuota: 2000G
     - name: cpu-proxy
       resources:
       - name: "cpu"
@@ -214,7 +222,8 @@ def get_pathways_rm_args(args, system: SystemCharacteristics) -> str:
               - --node_type=resource_manager
               - --instance_count={instance_count}
               - --temporary_flags_for_debugging=temporary_flag_for_debugging_worker_expected_tpu_chip_config=megachip_tccontrol;;;temporary_flag_for_debugging_megascale_address_derive_from_megascale_grpc=true
-              - --instance_type={instance_type}"""
+              - --instance_type={instance_type}
+              - --deepsea_chip_config_name=megachip_tccontrol"""
   if args.use_pathways:
     return yaml.format(
         args=args,
@@ -250,11 +259,17 @@ def get_user_workload_for_pathways(args, system: SystemCharacteristics) -> str:
         completions: 1
         parallelism: 1
         template:
+          metadata:
+            annotations:
+              gke-gcsfuse/volumes: "true"
+              gke-gcsfuse/cpu-limit: "0"
+              gke-gcsfuse/memory-limit: "0"
+              gke-gcsfuse/ephemeral-storage-limit: "0"
           spec:
             containers:
               {container}
             nodeSelector:
-              cloud.google.com/gke-nodepool: cpu-user-np
+              cloud.google.com/gke-nodepool: high-mem-pool
             hostNetwork: true
             dnsPolicy: ClusterFirstWithHostNet
             restartPolicy: OnFailure
@@ -262,7 +277,20 @@ def get_user_workload_for_pathways(args, system: SystemCharacteristics) -> str:
             - hostPath:
                 path: /tmp
                 type: DirectoryOrCreate
-              name: shared-tmp"""
+              name: shared-tmp
+            - name: gke-gcsfuse-cache
+              emptyDir:
+                medium: Memory
+            - name: dshm
+              emptyDir:
+                medium: Memory
+            - name: gcs-fuse-csi-ephemeral
+              csi:
+                driver: gcsfuse.csi.storage.gke.io
+                volumeAttributes:
+                  bucketName: trillium-storage-datasets-sr
+                  mountOptions: "debug_fuse,implicit-dirs,file-cache:enable-parallel-downloads:true,file-cache:parallel-downloads-per-file:100,file-cache:max-parallel-downloads:-1,file-cache:download-chunk-size-mb:10,file-cache:max-size-mb:-1"
+  """
   if args.headless:
     return ''
   else:

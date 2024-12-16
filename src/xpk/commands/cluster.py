@@ -84,7 +84,7 @@ def cluster_create(args) -> None:
 
   if system.device_type in cluster_gcluster.supported_device_types:
     xpk_print(
-        'Creating the cluster using Cluster Toolkit. Machine type:'
+        'Creating the cluster using Cluster Toolkit. Machine Type:'
         f' {system.gce_machine_type} ...'
     )
     cluster_gcluster.cluster_create(args)

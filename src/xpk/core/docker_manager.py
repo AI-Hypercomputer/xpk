@@ -19,10 +19,12 @@ import docker
 from docker.errors import ContainerError, APIError, ImageNotFound, BuildError
 from ..utils.console import xpk_print, xpk_exit
 from ..utils.file import ensure_directory_exists
+from ..utils.objects import hash_string
 from shutil import copytree, copy
 import requests
 import os
 import tempfile
+import time
 
 
 DockerRunCommandExitCode = 135
@@ -107,7 +109,6 @@ class DockerManager(CommandRunner):
       nocache: bool = False,
       img_name: str = ctk_docker_image,
       container_name: str = ctk_container_name,
-      rm_container_after: bool = True,
   ) -> None:
     self.dockerfile_path = ""
     self.client = docker.from_env()
@@ -116,7 +117,6 @@ class DockerManager(CommandRunner):
     self.nocache = nocache
     self.img_name = f"{img_name}:{ctk_build_ref}"
     self.container_name = container_name
-    self.rm_container_after = rm_container_after
 
   def initialize(self):
     """Build image from dockerfile pointed by _img_name. This method
@@ -163,11 +163,11 @@ class DockerManager(CommandRunner):
       container = self.client.containers.run(
           image=self.img_name,
           entrypoint=cmd,
-          remove=self.rm_container_after,
-          name=self.container_name,
-          stdout=True,
-          stderr=True,
-          stream=True,
+          remove=True,
+          name=(  # To allow multiple xpk commands run in one machine.
+              f"{self.container_name}_{hash_string(cmd + str(time.time_ns()))}"
+          ),
+          detach=True,
           volumes=[
               f"{self.gcloud_cfg_path}:{gcloud_cfg_mount_path}",
               f"{self.working_dir}:{working_dir_mount_path}",
@@ -178,8 +178,9 @@ class DockerManager(CommandRunner):
               )
           },
       )
-      for line in container:
-        xpk_print(f'[gcluster] {line.strip().decode("utf-8")}')
+      output = container.attach(stdout=True, stream=True, logs=True)
+      for line in output:
+        xpk_print(f"[gcluster] {line.decode('utf-8').strip()}")
     except ContainerError as e:
       xpk_print(
           "Running command failed due to ContainerError with exit status:"
@@ -192,6 +193,13 @@ class DockerManager(CommandRunner):
     except APIError as e:
       xpk_print(f"Deploying cluster toolkit failed due to {e.explanation}")
       xpk_exit(DockerRunCommandExitCode)
+    finally:
+      # Ensure the container is deleted if it exists
+      try:
+        if container is not None:
+          container.remove(force=True)
+      except Exception as e:
+        xpk_print(f"Failed to remove container: {e}")
 
   def upload_directory_to_working_dir(self, path: str) -> str:
     """Move file or directory from specified path to directory containing deployment files

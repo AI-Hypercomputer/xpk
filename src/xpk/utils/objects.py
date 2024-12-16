@@ -58,7 +58,7 @@ def is_text_true(text: str) -> bool:
   return text.strip().lower() == 'true'
 
 
-def hash_string(input_string, length=None):
+def hash_string(input_string: str, length: int | None = None):
   """
   Generates a hash of a string using characters 0-9 and a-z.
 

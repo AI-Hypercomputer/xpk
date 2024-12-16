@@ -14,8 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from xpk.core.docker_manager import CommandRunner
-from xpk.utils.console import xpk_print
+from .docker_manager import CommandRunner
+from ..utils.console import xpk_print
 
 
 xpk_gcloud_cfg_path = '~/gcloud/cfg'
@@ -48,22 +48,24 @@ class GclusterManager:
     self.gcluster_command_runner = gcluster_command_runner
 
   def _run_create_deployment_cmd(self, blueprint_container_path: str):
-    xpk_print('Creating deployment directory')
+    xpk_print('Creating deployment resources...')
     cluster_create_cmd = (
-        f'{gcluster_create_command} -o deployments {blueprint_container_path}'
+        f'{gcluster_create_command} -o deployments {blueprint_container_path} -w --force'
     )
     self.gcluster_command_runner.run_command(cluster_create_cmd)
+    xpk_print('Creating deployment resources completed.')
 
   def _run_deploy_cmd(
       self, deployment_name: str, auto_approve: bool, dry_run: bool
   ):
-    xpk_print('Deploying created resources to cloud.')
+    xpk_print('Deploying resources...')
     deploy_cmd = f'{gcluster_deploy_command} deployments/{deployment_name}'
     if auto_approve is True:
       deploy_cmd += ' --auto-approve'
     if dry_run is True:
       return
     self.gcluster_command_runner.run_command(deploy_cmd)
+    xpk_print('Deployment completed.')
 
   def deploy(
       self,
@@ -84,17 +86,16 @@ class GclusterManager:
     Returns:
       None
     """
-    blueprint_name = blueprint_path.split('/')[-1]
-    xpk_print(f'Deploying blueprint from path {blueprint_path}')
-    blueprint_container_path = f'/out/uploads/{blueprint_name}'
+    xpk_print(f'Deploying blueprint from path {blueprint_path} ...')
     self._run_create_deployment_cmd(
-        blueprint_container_path=blueprint_container_path
+        blueprint_container_path=blueprint_path
     )
     self._run_deploy_cmd(
         deployment_name=deployment_name,
         auto_approve=auto_approve,
         dry_run=dry_run,
     )
+    xpk_print('Deploying blueprint completed!')
 
   def _run_destroy_command(
       self,
@@ -116,12 +117,15 @@ class GclusterManager:
     Args:
         deployment_name (str): name of deployment to destroy.
     """
+    xpk_print(f'Destroying {deployment_name} started...')
     self._run_destroy_command(deployment_name)
+    xpk_print(f'Destroying {deployment_name} completed!')
 
   def stage_files(
       self, blueprint_file: str, blueprint_dependencies: str
   ) -> str:
-    """Copies files and folders neccessary for deployment to deployment directory."""
+    """Uploads blueprint file and directory to gcluster working directory."""
+    xpk_print('Staging (sending) blueprint file to gcluster\'s working directory...')
     staged_blueprint = self.gcluster_command_runner.upload_file_to_working_dir(
         blueprint_file
     )
@@ -129,4 +133,6 @@ class GclusterManager:
       self.gcluster_command_runner.upload_directory_to_working_dir(
           blueprint_dependencies
       )
+    xpk_print('Staging blueprint completed!')
+    xpk_print(f'File path in gcluster\'s working directory: {staged_blueprint}')
     return staged_blueprint

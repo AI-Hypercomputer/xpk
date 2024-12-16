@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 from xpk.core.docker_manager import DockerManager
-from xpk.core.gcluster import GclusterManager
+from xpk.core.gcluster_manager import GclusterManager
 from xpk.core.blueprint.blueprint_generator import BlueprintGenerator
 import pytest
 import os

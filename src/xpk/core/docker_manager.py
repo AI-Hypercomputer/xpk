@@ -18,6 +18,7 @@ from abc import ABC, abstractmethod
 import docker
 from docker.errors import ContainerError, APIError, ImageNotFound, BuildError
 from ..utils.console import xpk_print, xpk_exit
+from ..utils.file import ensure_directory_exists
 from shutil import copytree, copy
 import requests
 import os
@@ -27,12 +28,13 @@ import tempfile
 DockerRunCommandExitCode = 135
 dockerBuildErrorCode = 134
 ctk_dockerfile_path = "Dockerfile"
+ctk_build_ref = "develop"
 ctk_docker_image = "xpk-ctk"
 ctk_container_name = "xpk-ctk-container"
 gcloud_cfg_mount_path = "/root/.config/gcloud"
 working_dir_mount_path = "/out"
 dockerfile_gh_path = "https://raw.githubusercontent.com/GoogleCloudPlatform/cluster-toolkit/refs/heads/develop/tools/cloud-build/images/cluster-toolkit-dockerfile/Dockerfile"
-upload_dir = "uploads"
+upload_dir_name = "uploads"
 
 
 class CommandRunner(ABC):
@@ -93,6 +95,7 @@ class DockerManager(CommandRunner):
     - client (DockerClient) : docker client
     - nocache (bool) : wheter to use docker cache when building image
     - img_name (str) : name of docker image to create
+    - img_name (str) : name of docker image to create
     - container_name (str) : name of the container that will be created from img_name
     - rm_container_after (bool) : if set to True, docker container in which command is executed will be removed after each execution.
   """
@@ -111,68 +114,9 @@ class DockerManager(CommandRunner):
     self.gcloud_cfg_path = gcloud_cfg_path
     self.working_dir = working_dir
     self.nocache = nocache
-    self.img_name = img_name
+    self.img_name = f"{img_name}:{ctk_build_ref}"
     self.container_name = container_name
     self.rm_container_after = rm_container_after
-
-  def _create_tmp_for_dockerfile(self) -> str:
-    tmp_dir = os.path.join(tempfile.gettempdir(), "xpkutils")
-    if not os.path.exists(tmp_dir):
-      os.mkdir(tmp_dir)
-    tmp_path = os.path.join(tmp_dir, "Dockerfile")
-    return tmp_path
-
-  def _is_docker_installed(self) -> None:
-    self.client.info()
-
-  def _download_ctk_dockerfile(self) -> None:
-    """Downloads cluster toolkit dockerfile to dockerfile_path
-
-    Returns:
-        None
-    """
-    r = requests.get(dockerfile_gh_path, timeout=100)
-
-    with open(self.dockerfile_path, "w+", encoding="utf8") as dockerfile:
-      dockerfile.write(r.text)
-
-  def _image_exists(self, img_name: str) -> bool:
-    try:
-      self.client.images.get(img_name)
-    except ImageNotFound as _:
-      xpk_print(f"Image {img_name} not found")
-      return False
-    return True
-
-  def _build_image(self):
-    dir_path = "/".join(self.dockerfile_path.split("/")[:-1])
-    xpk_print(
-        f"Building docker image from dockerfile: {self.dockerfile_path}. It may"
-        " take a while..."
-    )
-    if self.nocache is False and self._image_exists(self.img_name):
-      return
-    try:
-      self._download_ctk_dockerfile()
-      self.client.images.build(
-          nocache=self.nocache,
-          path=dir_path,
-          tag=f"{self.img_name}:latest",
-          rm=True,
-      )
-    except BuildError as e:
-      xpk_print(f"error while building image {self.img_name}: {e.msg}")
-      xpk_exit(dockerBuildErrorCode)
-    except APIError as e:
-      xpk_print(f"erro while building image {self.img_name}: {e.explanation}")
-      xpk_exit(dockerBuildErrorCode)
-    except TypeError as e:
-      xpk_print(f"TypeError while building image {self.img_name}")
-      xpk_exit(dockerBuildErrorCode)
-    xpk_print("Docker image build succesfully.")
-    os.remove(self.dockerfile_path)
-    tmp_dockerfile_dir = "/".join(self.dockerfile_path.split("/")[:-1])
-    os.rmdir(tmp_dockerfile_dir)
 
   def initialize(self):
     """Build image from dockerfile pointed by _img_name. This method
@@ -187,8 +131,14 @@ class DockerManager(CommandRunner):
 
     """
     self._is_docker_installed()
-    self.dockerfile_path = self._create_tmp_for_dockerfile()
-    self._build_image()
+    xpk_print("Docker found!")
+
+    if not self._docker_image_exists():
+      xpk_print(f"Docker image {self.img_name} not found.")
+      self._build_image()
+    else:
+      xpk_print(f"Docker image {self.img_name} found!")
+
 
   def run_command(
       self,
@@ -205,19 +155,20 @@ class DockerManager(CommandRunner):
       - docker.errors.ImageNotFound,
       - docker.errors.APIError
     """
-    xpk_print(f"Running command: {cmd} inside container: {self.container_name}")
+    xpk_print(f"Running command: {cmd} ...")
     xpk_print(
         f"volumes: {self.gcloud_cfg_path}:{gcloud_cfg_mount_path},"
         f" {self.working_dir}:{working_dir_mount_path}"
     )
     try:
-      self.client.containers.run(
+      container = self.client.containers.run(
           image=self.img_name,
           entrypoint=cmd,
           remove=self.rm_container_after,
           name=self.container_name,
           stdout=True,
           stderr=True,
+          stream=True,
           volumes=[
               f"{self.gcloud_cfg_path}:{gcloud_cfg_mount_path}",
               f"{self.working_dir}:{working_dir_mount_path}",
@@ -228,6 +179,8 @@ class DockerManager(CommandRunner):
               )
           },
       )
+      for line in container:
+        xpk_print(f'[gcluster] {line.strip().decode("utf-8")}')
     except ContainerError as e:
       xpk_print(
           "Running command failed due to ContainerError with exit status:"
@@ -241,13 +194,6 @@ class DockerManager(CommandRunner):
       xpk_print(f"Deploying cluster toolkit failed due to {e.explanation}")
       xpk_exit(DockerRunCommandExitCode)
 
-  def _make_upload_directory(self, name: str) -> str:
-    target_path = os.path.join(self.working_dir, upload_dir, name)
-    target_dir = os.path.join(self.working_dir, upload_dir)
-    if not os.path.exists(target_dir):
-      os.mkdir(target_dir)
-    return target_path
-
   def upload_directory_to_working_dir(self, path: str) -> str:
     """Move file or directory from specified path to directory containing deployment files
 
@@ -255,10 +201,11 @@ class DockerManager(CommandRunner):
         path (str): path of directory/file that will be moved to deployment directory
     """
     name = path.split("/")[-1]
-    target_path = self._make_upload_directory(name)
-    xpk_print(f"copying folder from {path} to {target_path}")
-    copytree(path, target_path)
-    return target_path
+    target_path = os.path.join(self._get_upload_directory(), name)
+    uploaded_path = os.path.join(self._get_upload_directory_mounted(), name)
+    xpk_print(f"Copying directory from {path} to {target_path}. Path in docker: {uploaded_path}")
+    copytree(path, target_path, dirs_exist_ok = True)
+    return uploaded_path
 
   def upload_file_to_working_dir(self, path: str) -> str:
     """Move file or directory from specified path to directory containing deployment files
@@ -267,7 +214,76 @@ class DockerManager(CommandRunner):
         path (str): path of directory/file that will be moved to deployment directory
     """
     name = path.split("/")[-1]
-    target_path = self._make_upload_directory(name)
-    xpk_print(f"copying file from {path} to {target_path}")
+    target_path = os.path.join(self._get_upload_directory(), name)
+    uploaded_path = os.path.join(self._get_upload_directory_mounted(), name)
+    xpk_print(f"Copying a file from {path} to {target_path}. Path in docker: {uploaded_path}")
     copy(path, target_path)
-    return target_path
+    return uploaded_path
+
+
+  def _get_upload_directory(self) -> str:
+    upload_dir = os.path.join(self.working_dir, upload_dir_name)
+    ensure_directory_exists(upload_dir)
+    return upload_dir
+
+  def _get_upload_directory_mounted(self) -> str:
+    return os.path.join(working_dir_mount_path, upload_dir_name)
+
+  def _create_tmp_for_dockerfile(self) -> str:
+    tmp_dir = os.path.join(tempfile.gettempdir(), "xpkutils")
+    ensure_directory_exists(tmp_dir)
+    tmp_path = os.path.join(tmp_dir, "Dockerfile")
+    return tmp_path
+
+  def _is_docker_installed(self) -> None:
+    self.client.info()
+
+  def _docker_image_exists(self) -> bool:
+    try:
+      self.client.images.get(f"{self.img_name}")
+    except ImageNotFound as _:
+      return False
+    return True
+
+  def _download_ctk_dockerfile(self) -> None:
+    """Downloads cluster toolkit dockerfile to dockerfile_path
+
+    Returns:
+        None
+    """
+    xpk_print(f"Downloading Dockerfile from {dockerfile_gh_path} ...")
+    self.dockerfile_path = self._create_tmp_for_dockerfile()
+    r = requests.get(dockerfile_gh_path, timeout=100)
+    with open(self.dockerfile_path, "w+", encoding="utf8") as dockerfile:
+      dockerfile.write(r.text)
+    xpk_print("Downloading Dockerfile completed!")
+
+
+  def _build_image(self):
+    try:
+      self._download_ctk_dockerfile()
+      dir_path = "/".join(self.dockerfile_path.split("/")[:-1])
+      xpk_print(
+          f"Building  {self.img_name} docker image from dockerfile: {self.dockerfile_path}. It may"
+          " take a while..."
+      )
+      self.client.images.build(
+          nocache=self.nocache,
+          path=dir_path,
+          tag=f"{self.img_name}",
+          rm=True,
+          buildargs={"CLUSTER_TOOLKIT_REF" : ctk_build_ref}
+      )
+    except BuildError as e:
+      xpk_print(f"error while building image {self.img_name}: {e.msg}")
+      xpk_exit(dockerBuildErrorCode)
+    except APIError as e:
+      xpk_print(f"erro while building image {self.img_name}: {e.explanation}")
+      xpk_exit(dockerBuildErrorCode)
+    except TypeError as e:
+      xpk_print(f"TypeError while building image {self.img_name}: {e.args}")
+      xpk_exit(dockerBuildErrorCode)
+    xpk_print("Docker image build succesfully.")
+    os.remove(self.dockerfile_path)
+    tmp_dockerfile_dir = "/".join(self.dockerfile_path.split("/")[:-1])
+    os.rmdir(tmp_dockerfile_dir)

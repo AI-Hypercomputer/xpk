@@ -15,6 +15,7 @@ limitations under the License.
 """
 
 import tempfile
+import os
 
 
 def make_tmp_files(per_command_name):
@@ -67,3 +68,14 @@ def append_tmp_file(payload, file):
     f.write(payload)
     f.flush()
   return file
+
+
+def ensure_directory_exists(directory_path):
+  """Checks if a directory exists and creates it if it doesn't.
+
+  Args:
+    directory_path: The path to the directory.
+  """
+  if not os.path.exists(directory_path):
+    os.makedirs(directory_path)
+    print(f"Directory '{directory_path}' created successfully.")

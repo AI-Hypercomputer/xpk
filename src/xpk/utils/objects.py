@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import hashlib
 from .console import xpk_print
 
 
@@ -55,3 +56,30 @@ def get_value_from_map(key: str, map_to_search: dict) -> tuple[int, str | None]:
 
 def is_text_true(text: str) -> bool:
   return text.strip().lower() == 'true'
+
+
+def hash_string(input_string, length=None):
+  """
+  Generates a hash of a string using characters 0-9 and a-z.
+
+  Args:
+    input_string: The string to hash.
+    length: The desired length of the hash (optional). 
+            If not provided, or less than 0, the full SHA256 hash is returned.
+
+  Returns:
+    A hash string of the specified length or the full SHA256 hash,
+    using characters 0-9 and a-z.
+  """
+  hash_value = int(hashlib.sha256(input_string.encode()).hexdigest(), 16)
+
+  if length is None or length < 0:
+    length = 64  # Use the full length of the SHA256 hash
+
+  charset = '0123456789abcdefghijklmnopqrstuvwxyz'
+  result = ''
+  while hash_value > 0 and len(result) < length:
+    hash_value, index = divmod(hash_value, 36)  # Get quotient and remainder
+    result = charset[index] + result
+
+  return result.zfill(length).lower()  # Pad with zeros if necessary

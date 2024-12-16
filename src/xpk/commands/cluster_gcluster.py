@@ -128,6 +128,7 @@ def generate_blueprint(blueprint_name, args) -> BlueprintGeneratorOutput:
 
   if args.device_type in supported_device_types:
     if args.device_type == a3mega_device_type:
+      num_nodes = (args.num_nodes if not args.num_nodes is None else 2,)
       return bpg.generate_a3_mega_blueprint(
           blueprint_name=blueprint_name,
           cluster_name=args.cluster,
@@ -135,11 +136,11 @@ def generate_blueprint(blueprint_name, args) -> BlueprintGeneratorOutput:
           project_id=args.project,
           zone=args.zone,
           auth_cidr=all_IPs_cidr,
-          num_nodes=args.num_nodes if not args.num_nodes is None else 2,
-          autoscaling_total_min_nodes=args.num_nodes
-          if not args.num_nodes is None
-          else 2,
+          num_nodes=num_nodes,
+          autoscaling_total_min_nodes=num_nodes,
           reservation=args.reservation if args.reservation else None,
+          spot=args.spot if args.spot else None,
+          on_demand=args.on_demand if args.on_demand else None,
           system_node_pool_machine_type=args.default_pool_cpu_machine_type,
           system_node_pool_min_node_count=args.default_pool_cpu_num_nodes,
       )

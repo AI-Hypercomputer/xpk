@@ -97,7 +97,6 @@ class DockerManager(CommandRunner):
     - client (DockerClient) : docker client
     - nocache (bool) : wheter to use docker cache when building image
     - img_name (str) : name of docker image to create
-    - img_name (str) : name of docker image to create
     - container_name (str) : name of the container that will be created from img_name
     - rm_container_after (bool) : if set to True, docker container in which command is executed will be removed after each execution.
   """
@@ -164,9 +163,9 @@ class DockerManager(CommandRunner):
           image=self.img_name,
           entrypoint=cmd,
           remove=True,
-          name=(  # To allow multiple xpk commands run in one machine.
-              f"{self.container_name}_{hash_string(cmd + str(time.time_ns()))}"
-          ),
+          name=self._get_container_unique_name(
+              cmd
+          ),  # To allow multiple xpk commands run in one machine.
           detach=True,
           volumes=[
               f"{self.gcloud_cfg_path}:{gcloud_cfg_mount_path}",
@@ -178,9 +177,7 @@ class DockerManager(CommandRunner):
               )
           },
       )
-      output = container.attach(stdout=True, stream=True, logs=True)
-      for line in output:
-        xpk_print(f"[gcluster] {line.decode('utf-8').strip()}")
+      self._print_logs_from_container(container)
     except ContainerError as e:
       xpk_print(
           "Running command failed due to ContainerError with exit status:"
@@ -200,6 +197,11 @@ class DockerManager(CommandRunner):
           container.remove(force=True)
       except Exception as e:
         xpk_print(f"Failed to remove container: {e}")
+
+  def _print_logs_from_container(self, container):
+    output = container.attach(stdout=True, stream=True, logs=True)
+    for line in output:
+      xpk_print(f"[gcluster] {line.decode('utf-8').strip()}")
 
   def upload_directory_to_working_dir(self, path: str) -> str:
     """Move file or directory from specified path to directory containing deployment files
@@ -298,3 +300,6 @@ class DockerManager(CommandRunner):
     os.remove(self.dockerfile_path)
     tmp_dockerfile_dir = "/".join(self.dockerfile_path.split("/")[:-1])
     os.rmdir(tmp_dockerfile_dir)
+
+  def _get_container_unique_name(self, cmd):
+    return f"{self.container_name}_{hash_string(cmd + str(time.time_ns()))}"

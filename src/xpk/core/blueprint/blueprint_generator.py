@@ -79,7 +79,10 @@ class BlueprintGenerator:
     xpk_print(f"Generating {blueprint_name} blueprint started...")
     system, _ = get_system_characteristics_by_device_type(a3mega_device_type)
     if system is None:
-      xpk_print("Error: Could not retrieve system characteristics.")
+      xpk_print(
+          "Error: Could not retrieve system characteristics for"
+          f" {a3mega_device_type} device_type."
+      )
       xpk_exit(-1)
     subnetwork_name = f"{cluster_name}-xpk-gke-a3-megagpu-subnet"
     primary_vpc = DeploymentModule(

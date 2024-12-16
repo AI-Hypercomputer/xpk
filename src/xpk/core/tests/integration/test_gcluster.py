@@ -14,80 +14,26 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from xpk.core.docker_manager import CtkDockerManager
-from xpk.core.gcluster import CtkManager
-from xpk.core.blueprint import CtkBlueprint, CtkDeploymentGroup, CtkDeploymentModule, create_deployment_directory
+from xpk.core.docker_manager import DockerManager
+from xpk.core.gcluster import GclusterManager
+from xpk.core.blueprint.blueprint_generator import BlueprintGenerator
 import pytest
 import os
+import shutil
 
 ctk_gcloud_cfg = os.getenv("GCLOUD_CFG_PATH")
 project_id = os.getenv("PROJECT_ID")
-deployment_name = os.getenv("DEPLOYMENT_NAME")
 region = os.getenv("REGION")
 zone = os.getenv("ZONE")
 auth_cidr = os.getenv("AUTH_CIDR")
-deployment_dir = os.getenv("DEPLOYMENT_DIR")
+cluster_name = os.getenv("CLUSTER_NAME")
+
+uploads_dir = "uploads"
 
 
-def create_gke_ml_blueprint() -> CtkBlueprint:
-  """Create a simple gke cluster
-
-  Returns:
-      CtkBlueprint: blueprint of cluster to create
-  """
-  assert project_id is not None
-  assert deployment_name is not None
-  assert region is not None
-  assert zone is not None
-  assert auth_cidr is not None
-
-  network1 = CtkDeploymentModule(
-      id="network1",
-      source="modules/network/vpc",
-      settings={
-          "subnetwork_name": f"{deployment_name}-gke-subnet",
-          "secondary_ranges": {
-              f"{deployment_name}-gke-subnet": [
-                  {"range_name": "pods", "ip_cidr_range": "10.4.0.0/14"},
-                  {
-                      "range_name": "services",
-                      "ip_cidr_range": "10.0.32.0/20",
-                  },
-              ]
-          },
-      },
-  )
-
-  gke_cluster = CtkDeploymentModule(
-      id="gke_cluster",
-      source="modules/scheduler/gke-cluster",
-      use=["network1"],
-      settings={
-          "enable_private_endpoint": (
-              "false"
-          ),  # Allows for access from authorized public IPs
-          "master_authorized_networks": [{
-              "display_name": "deployment-machine",
-              "cidr_block": auth_cidr,
-          }],
-      },
-      outputs=["instructions"],
-  )
-
-  primary_group = CtkDeploymentGroup(
-      group="primary",
-      modules=[network1, gke_cluster],
-  )
-  ml_gke = CtkBlueprint(
-      blueprint_name="ml_gke",
-      deployment_groups=[primary_group],
-      vars={
-          "project_id": project_id,
-          "deployment_name": deployment_name,
-          "region": region,
-      },
-  )
-  return ml_gke
+def prepare_test(docker_path: str, bp_path: str) -> None:
+  os.mkdir(docker_path)
+  os.mkdir(bp_path)
 
 
 @pytest.mark.skip(
@@ -96,39 +42,59 @@ def create_gke_ml_blueprint() -> CtkBlueprint:
         " work currently."
     )
 )
-def test_create_ctk_deployment():
+def test_create_deployment():
   assert project_id is not None
-  assert deployment_name is not None
   assert region is not None
   assert zone is not None
   assert auth_cidr is not None
-  assert deployment_dir is not None
   assert ctk_gcloud_cfg is not None
+  assert cluster_name is not None
 
-  blueprint = create_gke_ml_blueprint()
+  pwd = os.getcwd()
+  test_docker_working_dir = os.path.join(pwd, "xpk_test_docker_dir")
+  test_bp_dir = os.path.join(pwd, "xpk_test_bp_dir")
+  prepare_test(test_docker_working_dir, test_bp_dir)
+  blueprint_name = "my-test-blueprint"
 
-  deployment_type = "test"
+  docker_manager = DockerManager(
+      gcloud_cfg_path=ctk_gcloud_cfg, working_dir=test_docker_working_dir
+  )
+  docker_manager.initialize()
 
-  deployment_type_dir = create_deployment_directory(
-      blueprint=blueprint,
-      deployment_type=deployment_type,
-      deployment_directory=deployment_dir,
+  bpm = BlueprintGenerator(storage_path=test_bp_dir)
+  ml_gke_blueprint = bpm.generate_gke_ml_blueprint(
+      cluster_name=cluster_name,
+      blueprint_name=blueprint_name,
+      region=region,
+      project_id=project_id,
+      auth_cidr=auth_cidr,
+  )
+  blueprint_test_path = os.path.join(test_bp_dir, f"{blueprint_name}.yaml")
+  # there are no files in ghcp stage for this blueprint
+  blueprint_deps_test_path = ""
+
+  assert ml_gke_blueprint.blueprint_file == blueprint_test_path
+  assert ml_gke_blueprint.blueprint_dependencies == blueprint_deps_test_path
+
+  assert os.path.exists(blueprint_test_path)
+
+  gcluster_manager = GclusterManager(
+      gcluster_command_runner=docker_manager,
   )
 
-  docker_manager = CtkDockerManager(
-      gcloud_cfg_path=ctk_gcloud_cfg, deployment_dir=deployment_type_dir
-  )
-  docker_manager.build()
-
-  ctk_manager = CtkManager(
-      ctk_cmd_runner=docker_manager,
-      deployment_dir=deployment_type_dir,
-      deployment_name=deployment_name,
-      deployment_type=deployment_type,
+  staged_bp_path = gcluster_manager.stage_files(
+      blueprint_file=ml_gke_blueprint.blueprint_file,
+      blueprint_dependencies=ml_gke_blueprint.blueprint_dependencies,
   )
 
-  ctk_manager.stage_files()
+  assert staged_bp_path == os.path.join(
+      test_docker_working_dir, uploads_dir, f"{blueprint_name}.yaml"
+  )
+  assert os.path.isfile(staged_bp_path)
 
-  ctk_manager.deploy()
-  assert os.path.exists(os.path.join(deployment_dir, deployment_name))
-  ctk_manager.destroy_deployment()
+  gcluster_manager.deploy(
+      blueprint_path=staged_bp_path, deployment_name=blueprint_name
+  )
+  gcluster_manager.destroy_deployment(deployment_name=blueprint_name)
+  shutil.rmtree(test_docker_working_dir)
+  shutil.rmtree(test_bp_dir)

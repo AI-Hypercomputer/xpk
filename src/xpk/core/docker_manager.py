@@ -18,7 +18,7 @@ from abc import ABC, abstractmethod
 import docker
 from docker.errors import ContainerError, APIError, ImageNotFound, BuildError
 from ..utils.console import xpk_print, xpk_exit
-from shutil import move
+from shutil import copytree, copy
 import requests
 import os
 import tempfile
@@ -30,54 +30,90 @@ ctk_dockerfile_path = "Dockerfile"
 ctk_docker_image = "xpk-ctk"
 ctk_container_name = "xpk-ctk-container"
 gcloud_cfg_mount_path = "/root/.config/gcloud"
-deployment_dir_mount_path = "/out"
+working_dir_mount_path = "/out"
+dockerfile_gh_path = "https://raw.githubusercontent.com/GoogleCloudPlatform/cluster-toolkit/refs/heads/develop/tools/cloud-build/images/cluster-toolkit-dockerfile/Dockerfile"
+upload_dir = "uploads"
 
 
-class CtkCommandRunner(ABC):
+class CommandRunner(ABC):
   """This is a base class that defines methods a class for running cluster toolkit command should implement."""
 
   @abstractmethod
-  def build(self) -> None:
+  def initialize(self) -> None:
+    """initialize is a method that should implement all steps neccessary to run command.
+
+    Returns:
+        None
+    """
     return None
 
   @abstractmethod
   def run_command(self, cmd: str) -> None:
+    """run_command implements executing command. If command execution fails, exception should be raised.
+
+    Args:
+        cmd (str): command to run
+
+    Returns:
+        None:
+    """
     return None
 
   @abstractmethod
-  def upload_to_deployment_dir(self, path: str) -> None:
-    return None
+  def upload_file_to_working_dir(self, path: str) -> str:
+    """Uploads single file to working directory.
+
+    Args:
+        path (str): path to file to upload
+
+    Returns:
+        str: path to a destination file
+    """
+    return ""
+
+  @abstractmethod
+  def upload_directory_to_working_dir(self, path: str) -> str:
+    """upload directory and its content to working directory.
+
+    Args:
+        path (str): path pointing to directory that will be uploaded.
+
+    Returns:
+        str: path to a target directory.
+    """
+    return ""
 
 
-class CtkDockerManager(CtkCommandRunner):
-  """CtkDockerManager is a class for managing gcluster execution in docker container.
+class DockerManager(CommandRunner):
+  """DockerManager is a class for managing gcluster execution in docker container.
   Attributes:
     - dockerfile_path (str) : path to dockerfile defining gcluster execution image
     - gcloud_cfg_path (str) : path to directory containing gcloud configuration
-    - deployment_dir (str) : path to directory in which gcluster deployment directory will be saved
-
+    - working_dir (str) : path to directory in which gcluster deployment directory will be saved
+    - client (DockerClient) : docker client
+    - nocache (bool) : wheter to use docker cache when building image
+    - img_name (str) : name of docker image to create
+    - container_name (str) : name of the container that will be created from img_name
+    - rm_container_after (bool) : if set to True, docker container in which command is executed will be removed after each execution.
   """
 
   def __init__(
       self,
       gcloud_cfg_path: str,
-      deployment_dir: str,
+      working_dir: str,
       nocache: bool = False,
       img_name: str = ctk_docker_image,
       container_name: str = ctk_container_name,
       rm_container_after: bool = True,
   ) -> None:
-
+    self.dockerfile_path = ""
     self.client = docker.from_env()
-    self._is_docker_installed()
     self.gcloud_cfg_path = gcloud_cfg_path
-    self.deployment_dir = deployment_dir
+    self.working_dir = working_dir
     self.nocache = nocache
     self.img_name = img_name
     self.container_name = container_name
     self.rm_container_after = rm_container_after
-    self.dockerfile_path = self._create_tmp_for_dockerfile()
-    self._download_ctk_dockerfile()
 
   def _create_tmp_for_dockerfile(self) -> str:
     tmp_dir = os.path.join(tempfile.gettempdir(), "xpkutils")
@@ -89,16 +125,13 @@ class CtkDockerManager(CtkCommandRunner):
   def _is_docker_installed(self) -> None:
     self.client.info()
 
-  def _download_ctk_dockerfile(self):
-    """Downloads cluster toolkit dockerfile and returns tmp path on which it is saved
+  def _download_ctk_dockerfile(self) -> None:
+    """Downloads cluster toolkit dockerfile to dockerfile_path
 
     Returns:
-        str: path do dockerfile
+        None
     """
-    r = requests.get(
-        "https://raw.githubusercontent.com/GoogleCloudPlatform/cluster-toolkit/refs/heads/develop/tools/cloud-build/images/cluster-toolkit-dockerfile/Dockerfile",
-        timeout=100,
-    )
+    r = requests.get(dockerfile_gh_path, timeout=100)
 
     with open(self.dockerfile_path, "w+", encoding="utf8") as dockerfile:
       dockerfile.write(r.text)
@@ -111,18 +144,7 @@ class CtkDockerManager(CtkCommandRunner):
       return False
     return True
 
-  def build(self):
-    """Build image from dockerfile pointed by _img_name. This method
-    uses python docker client to build cloud toolkit execution image.
-    Arguments:
-    Returns:
-      - None
-    Raises:
-      - docker.errors.BuildError – If there is an error during the build.
-      - docker.errors.APIError – If the server returns any other error.
-      - TypeError - otherwise
-
-    """
+  def _build_image(self):
     dir_path = "/".join(self.dockerfile_path.split("/")[:-1])
     xpk_print(
         f"Building docker image from dockerfile: {self.dockerfile_path}. It may"
@@ -131,6 +153,7 @@ class CtkDockerManager(CtkCommandRunner):
     if self.nocache is False and self._image_exists(self.img_name):
       return
     try:
+      self._download_ctk_dockerfile()
       self.client.images.build(
           nocache=self.nocache,
           path=dir_path,
@@ -151,6 +174,22 @@ class CtkDockerManager(CtkCommandRunner):
     tmp_dockerfile_dir = "/".join(self.dockerfile_path.split("/")[:-1])
     os.rmdir(tmp_dockerfile_dir)
 
+  def initialize(self):
+    """Build image from dockerfile pointed by _img_name. This method
+    uses python docker client to build cloud toolkit execution image.
+    Arguments:
+    Returns:
+      - None
+    Raises:
+      - docker.errors.BuildError – If there is an error during the build.
+      - docker.errors.APIError – If the server returns any other error.
+      - TypeError - otherwise
+
+    """
+    self._is_docker_installed()
+    self.dockerfile_path = self._create_tmp_for_dockerfile()
+    self._build_image()
+
   def run_command(
       self,
       cmd: str,
@@ -169,7 +208,7 @@ class CtkDockerManager(CtkCommandRunner):
     xpk_print(f"Running command: {cmd} inside container: {self.container_name}")
     xpk_print(
         f"volumes: {self.gcloud_cfg_path}:{gcloud_cfg_mount_path},"
-        f" {self.deployment_dir}:{deployment_dir_mount_path}"
+        f" {self.working_dir}:{working_dir_mount_path}"
     )
     try:
       self.client.containers.run(
@@ -181,7 +220,7 @@ class CtkDockerManager(CtkCommandRunner):
           stderr=True,
           volumes=[
               f"{self.gcloud_cfg_path}:{gcloud_cfg_mount_path}",
-              f"{self.deployment_dir}:{deployment_dir_mount_path}",
+              f"{self.working_dir}:{working_dir_mount_path}",
           ],
           environment={
               "GOOGLE_APPLICATION_CREDENTIALS": (
@@ -191,7 +230,7 @@ class CtkDockerManager(CtkCommandRunner):
       )
     except ContainerError as e:
       xpk_print(
-          "Deploying cluster failed due to ContainerError with exit status:"
+          "Running command failed due to ContainerError with exit status:"
           f" {e.exit_status} and stderr: {e.stderr}"
       )
       xpk_exit(DockerRunCommandExitCode)
@@ -202,10 +241,33 @@ class CtkDockerManager(CtkCommandRunner):
       xpk_print(f"Deploying cluster toolkit failed due to {e.explanation}")
       xpk_exit(DockerRunCommandExitCode)
 
-  def upload_to_deployment_dir(self, path: str):
+  def _make_upload_directory(self, name: str) -> str:
+    target_path = os.path.join(self.working_dir, upload_dir, name)
+    target_dir = os.path.join(self.working_dir, upload_dir)
+    if not os.path.exists(target_dir):
+      os.mkdir(target_dir)
+    return target_path
+
+  def upload_directory_to_working_dir(self, path: str) -> str:
     """Move file or directory from specified path to directory containing deployment files
 
     Args:
         path (str): path of directory/file that will be moved to deployment directory
     """
-    move(path, self.deployment_dir)
+    name = path.split("/")[-1]
+    target_path = self._make_upload_directory(name)
+    xpk_print(f"copying folder from {path} to {target_path}")
+    copytree(path, target_path)
+    return target_path
+
+  def upload_file_to_working_dir(self, path: str) -> str:
+    """Move file or directory from specified path to directory containing deployment files
+
+    Args:
+        path (str): path of directory/file that will be moved to deployment directory
+    """
+    name = path.split("/")[-1]
+    target_path = self._make_upload_directory(name)
+    xpk_print(f"copying file from {path} to {target_path}")
+    copy(path, target_path)
+    return target_path

@@ -13,7 +13,7 @@
 # limitations under the License.
 
 ---
-!CtkBlueprint
+!Blueprint
 blueprint_name: xpk-gke-a3-megagpu
 
 vars:
@@ -23,59 +23,54 @@ vars:
   zone: us-central1-c
 
 deployment_groups:
-- !CtkDeploymentGroup
+- !DeploymentGroup
   group: primary
   modules:
-  - !CtkDeploymentModule
+  - !DeploymentModule
     id: network1
     source: modules/network/vpc
     settings:
-      subnetwork_name: xpk-gke-a3-megagpu-subnet
+      subnetwork_name: bar-xpk-gke-a3-megagpu-subnet
       secondary_ranges:
-        xpk-gke-a3-megagpu-subnet:
+        bar-xpk-gke-a3-megagpu-subnet:
         - range_name: pods
           ip_cidr_range: 10.4.0.0/14
         - range_name: services
           ip_cidr_range: 10.0.32.0/20
-  - !CtkDeploymentModule
+  - !DeploymentModule
     id: gpunets
     source: modules/network/multivpc
     settings:
-      network_name_prefix: xpk-gke-a3-megagpu-gpunet
+      network_name_prefix: bar-gpunet
       global_ip_address_range: 192.169.0.0/16
       network_count: 8
       subnetwork_cidr_suffix: 24
-  - !CtkDeploymentModule
+  - !DeploymentModule
     id: gke_cluster
     source: modules/scheduler/gke-cluster
     use: [network1, gpunets]
     settings:
+      prefix_with_deployment_name: false
+      name_suffix: bar
       enable_private_endpoint: false
       master_authorized_networks:
       - cidr_block: 10.0.0.0/32  # Allows your machine run kubectl command. It's required for the multi-network setup.
         display_name: "kubectl-access-network"
       system_node_pool_machine_type: "e2-standard-32"
     outputs: [instructions]
-  - !CtkDeploymentModule
+  - !DeploymentModule
     id: group_placement_0
     source: modules/compute/resource-policy
     settings:
-      name: xpk-gke-a3-megagpu-gp-np-0
+      name: bar-gp-np-0
       group_placement_max_distance: 2
 
-  - !CtkDeploymentModule
-    id: group_placement_1
-    source: modules/compute/resource-policy
-    settings:
-      name: xpk-gke-a3-megagpu-gp-np-1
-      group_placement_max_distance: 2
-
-  - !CtkDeploymentModule
+  - !DeploymentModule
     id: a3_megagpu_pool_0
     source: modules/compute/gke-node-pool
     use: [gke_cluster, gpunets, group_placement_0]
     settings:
-      name: a3-megagpu-pool-0
+      name: bar-a3-megagpu-pool-0
       machine_type: a3-megagpu-8g
       autoscaling_total_min_nodes: 2
       initial_node_count: 2
@@ -83,41 +78,28 @@ deployment_groups:
       host_maintenance_interval: PERIODIC
     outputs: [instructions]
 
-  - !CtkDeploymentModule
-    id: a3_megagpu_pool_1
-    source: modules/compute/gke-node-pool
-    use: [gke_cluster, gpunets, group_placement_1]
-    settings:
-      name: a3-megagpu-pool-1
-      machine_type: a3-megagpu-8g
-      autoscaling_total_min_nodes: 2
-      initial_node_count: 2
-      zones: [us-central1-c]
-      host_maintenance_interval: PERIODIC
-    outputs: [instructions]
-
-  - !CtkDeploymentModule
+  - !DeploymentModule
     id: workload_component_install
     source: modules/management/kubectl-apply
     use: [gke_cluster]
     settings:
       kueue:
         install: true
-        config_path: $(ghpc_stage("xpk-gke-a3-megagpu-files"))/kueue-xpk-configuration.yaml.tftpl
-        config_template_vars: {num_chips: "32"}
+        config_path: $(ghpc_stage("bar-a3-mega-xpk"))/kueue-xpk-configuration.yaml.tftpl
+        config_template_vars: {num_chips: "16"}
       jobset:
         install: true
 
-  - !CtkDeploymentModule
+  - !DeploymentModule
     id: topology_aware_scheduler_install
     source: community/modules/compute/gke-topology-scheduler
     use: [gke_cluster]
 
-  - !CtkDeploymentModule
+  - !DeploymentModule
     id: workload_configmap
     source: modules/management/kubectl-apply
     use: [gke_cluster]
     settings:
       apply_manifests:
-      - source: $(ghpc_stage("xpk-gke-a3-megagpu-files"))/config-map.yaml.tftpl
-        template_vars: {name: "xpk-gke-a3-megagpu-resources-configmap", num_nodes: "4"}
+      - source: $(ghpc_stage("bar-a3-mega-xpk"))/config-map.yaml.tftpl
+        template_vars: {name: "xpk-gke-a3-megagpu-resources-configmap", num_nodes: "2"}

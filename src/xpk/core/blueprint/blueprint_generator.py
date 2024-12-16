@@ -69,6 +69,7 @@ class BlueprintGenerator:
       autoscaling_total_min_nodes: int = 2,
       subnetwork_cidr_suffix: int = 24,
       reservation: str | None = None,
+      spot: bool = False,
       system_node_pool_min_node_count=2,
   ) -> BlueprintGeneratorOutput:
     """Create A3 mega blueprint and directory containing its dependencies.
@@ -169,6 +170,7 @@ class BlueprintGenerator:
             "host_maintenance_interval": "PERIODIC",
             "reservation_affinity": reservation_affinity,
             "run_workload_script": False,
+            "spot": spot,
         },
         outputs=["instructions"],
     )

@@ -41,11 +41,16 @@ def cluster_create(args) -> None:
   check_gcloud_authenticated()
   prepare_directories()
   gcm = prepare_gcluster_manager()
-  unique_name = get_unique_name(args.project,zone_to_region(args.zone),args.cluster)
+  unique_name = get_unique_name(
+      args.project, zone_to_region(args.zone), args.cluster
+  )
 
   bp = generate_blueprint(blueprint_name=unique_name, args=args)
   # staging: sending the blueprint file(s) to gcluster's working directory
-  bp_staged_path = gcm.stage_files(blueprint_file=bp.blueprint_file, blueprint_dependencies=bp.blueprint_dependencies)
+  bp_staged_path = gcm.stage_files(
+      blueprint_file=bp.blueprint_file,
+      blueprint_dependencies=bp.blueprint_dependencies,
+  )
   gcm.deploy(blueprint_path=bp_staged_path, deployment_name=unique_name)
 
   xpk_exit(0)
@@ -63,7 +68,9 @@ def cluster_delete(args) -> None:
   check_gcloud_authenticated()
   prepare_directories()
   gcm = prepare_gcluster_manager()
-  unique_name = get_unique_name(args.project,zone_to_region(args.zone),args.cluster)
+  unique_name = get_unique_name(
+      args.project, zone_to_region(args.zone), args.cluster
+  )
 
   gcm.destroy_deployment(deployment_name=unique_name)
 
@@ -72,13 +79,17 @@ def cluster_delete(args) -> None:
 
 def created_by_gcluster(args) -> bool:
   prepare_directories()
-  unique_name = get_unique_name(args.project,zone_to_region(args.zone),args.cluster)
+  unique_name = get_unique_name(
+      args.project, zone_to_region(args.zone), args.cluster
+  )
   bpg = prepare_blueprint_generator()
   return bpg.blueprint_exists(unique_name)
 
 
 def get_unique_name(project_id, region, cluster_name):
-  unique_string_hash = hash_string(input_string=f'{project_id}-{region}-{cluster_name}'.lower(), length=5)
+  unique_string_hash = hash_string(
+      input_string=f'{project_id}-{region}-{cluster_name}'.lower(), length=5
+  )
   return f'{cluster_name}-{unique_string_hash}'
 
 
@@ -89,18 +100,28 @@ def prepare_directories() -> None:
 
 def check_gcloud_authenticated():
   if not os.path.exists(gcloud_cfg_path):
-    xpk_print(f'Failed to find gcloud credential directory. {gcloud_cfg_path} {blueprints_path} {gcluster_working_dir}')
-    xpk_print('Please authenticate to gcloud ("gcloud auth application-default login") and then run your command.')
+    xpk_print(
+        'Failed to find gcloud credential directory.'
+        f' {gcloud_cfg_path} {blueprints_path} {gcluster_working_dir}'
+    )
+    xpk_print(
+        'Please authenticate to gcloud ("gcloud auth application-default'
+        ' login") and then run your command.'
+    )
     xpk_exit(-1)
 
 
 def prepare_gcluster_manager() -> GclusterManager:
-  dm = DockerManager(working_dir=gcluster_working_dir, gcloud_cfg_path=gcloud_cfg_path)
+  dm = DockerManager(
+      working_dir=gcluster_working_dir, gcloud_cfg_path=gcloud_cfg_path
+  )
   dm.initialize()
   return GclusterManager(gcluster_command_runner=dm)
 
+
 def prepare_blueprint_generator() -> BlueprintGenerator:
   return BlueprintGenerator(storage_path=blueprints_path)
+
 
 def generate_blueprint(blueprint_name, args) -> BlueprintGeneratorOutput:
   bpg = prepare_blueprint_generator()
@@ -108,16 +129,18 @@ def generate_blueprint(blueprint_name, args) -> BlueprintGeneratorOutput:
   if args.device_type in supported_device_types:
     if args.device_type == a3mega_device_type:
       return bpg.generate_a3_mega_blueprint(
-        blueprint_name=blueprint_name,
-        cluster_name=args.cluster,
-        region=zone_to_region(args.zone),
-        project_id=args.project,
-        zone=args.zone,
-        auth_cidr=all_IPs_cidr,
-        num_nodes=args.num_nodes if not args.num_nodes is None else 2,
-        autoscaling_total_min_nodes = args.num_nodes if not args.num_nodes is None else 2,
-        reservation=args.reservation if args.reservation else None,
-        system_node_pool_machine_type=args.default_pool_cpu_machine_type,
-        system_node_pool_min_node_count=args.default_pool_cpu_num_nodes
-        )
+          blueprint_name=blueprint_name,
+          cluster_name=args.cluster,
+          region=zone_to_region(args.zone),
+          project_id=args.project,
+          zone=args.zone,
+          auth_cidr=all_IPs_cidr,
+          num_nodes=args.num_nodes if not args.num_nodes is None else 2,
+          autoscaling_total_min_nodes=args.num_nodes
+          if not args.num_nodes is None
+          else 2,
+          reservation=args.reservation if args.reservation else None,
+          system_node_pool_machine_type=args.default_pool_cpu_machine_type,
+          system_node_pool_min_node_count=args.default_pool_cpu_num_nodes,
+      )
   return None

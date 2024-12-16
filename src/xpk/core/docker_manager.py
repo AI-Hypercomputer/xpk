@@ -139,7 +139,6 @@ class DockerManager(CommandRunner):
     else:
       xpk_print(f"Docker image {self.img_name} found!")
 
-
   def run_command(
       self,
       cmd: str,
@@ -203,8 +202,11 @@ class DockerManager(CommandRunner):
     name = path.split("/")[-1]
     target_path = os.path.join(self._get_upload_directory(), name)
     uploaded_path = os.path.join(self._get_upload_directory_mounted(), name)
-    xpk_print(f"Copying directory from {path} to {target_path}. Path in docker: {uploaded_path}")
-    copytree(path, target_path, dirs_exist_ok = True)
+    xpk_print(
+        f"Copying directory from {path} to {target_path}. Path in docker:"
+        f" {uploaded_path}"
+    )
+    copytree(path, target_path, dirs_exist_ok=True)
     return uploaded_path
 
   def upload_file_to_working_dir(self, path: str) -> str:
@@ -216,10 +218,12 @@ class DockerManager(CommandRunner):
     name = path.split("/")[-1]
     target_path = os.path.join(self._get_upload_directory(), name)
     uploaded_path = os.path.join(self._get_upload_directory_mounted(), name)
-    xpk_print(f"Copying a file from {path} to {target_path}. Path in docker: {uploaded_path}")
+    xpk_print(
+        f"Copying a file from {path} to {target_path}. Path in docker:"
+        f" {uploaded_path}"
+    )
     copy(path, target_path)
     return uploaded_path
-
 
   def _get_upload_directory(self) -> str:
     upload_dir = os.path.join(self.working_dir, upload_dir_name)
@@ -258,21 +262,20 @@ class DockerManager(CommandRunner):
       dockerfile.write(r.text)
     xpk_print("Downloading Dockerfile completed!")
 
-
   def _build_image(self):
     try:
       self._download_ctk_dockerfile()
       dir_path = "/".join(self.dockerfile_path.split("/")[:-1])
       xpk_print(
-          f"Building  {self.img_name} docker image from dockerfile: {self.dockerfile_path}. It may"
-          " take a while..."
+          f"Building  {self.img_name} docker image from dockerfile:"
+          f" {self.dockerfile_path}. It may take a while..."
       )
       self.client.images.build(
           nocache=self.nocache,
           path=dir_path,
           tag=f"{self.img_name}",
           rm=True,
-          buildargs={"CLUSTER_TOOLKIT_REF" : ctk_build_ref}
+          buildargs={"CLUSTER_TOOLKIT_REF": ctk_build_ref},
       )
     except BuildError as e:
       xpk_print(f"error while building image {self.img_name}: {e.msg}")

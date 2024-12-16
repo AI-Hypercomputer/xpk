@@ -63,6 +63,7 @@ from ..utils.file import write_tmp_file
 from ..utils.console import xpk_exit, xpk_print
 from . import cluster_gcluster
 
+
 def cluster_create(args) -> None:
   """Function around cluster creation.
 
@@ -82,7 +83,10 @@ def cluster_create(args) -> None:
   add_zone_and_project(args)
 
   if system.device_type in cluster_gcluster.supported_device_types:
-    xpk_print(f'Creating the cluster using Cluster Toolkit. Machine type: {system.gce_machine_type} ...')
+    xpk_print(
+        'Creating the cluster using Cluster Toolkit. Machine type:'
+        f' {system.gce_machine_type} ...'
+    )
     cluster_gcluster.cluster_create(args)
     xpk_exit(0)
 

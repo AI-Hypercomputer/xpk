@@ -74,7 +74,7 @@ def get_system_characteristics(
 
 
 def get_system_characteristics_by_device_type(
-    device_type
+    device_type,
 ) -> tuple[SystemCharacteristics | None, int]:
   """Get system characteristics based on device_type.
 

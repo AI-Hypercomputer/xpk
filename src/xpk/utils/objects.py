@@ -64,7 +64,7 @@ def hash_string(input_string, length=None):
 
   Args:
     input_string: The string to hash.
-    length: The desired length of the hash (optional). 
+    length: The desired length of the hash (optional).
             If not provided, or less than 0, the full SHA256 hash is returned.
 
   Returns:

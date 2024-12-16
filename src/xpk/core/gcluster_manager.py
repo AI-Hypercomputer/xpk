@@ -50,7 +50,8 @@ class GclusterManager:
   def _run_create_deployment_cmd(self, blueprint_container_path: str):
     xpk_print('Creating deployment resources...')
     cluster_create_cmd = (
-        f'{gcluster_create_command} -o deployments {blueprint_container_path} -w --force'
+        f'{gcluster_create_command} -o deployments'
+        f' {blueprint_container_path} -w --force'
     )
     self.gcluster_command_runner.run_command(cluster_create_cmd)
     xpk_print('Creating deployment resources completed.')
@@ -87,9 +88,7 @@ class GclusterManager:
       None
     """
     xpk_print(f'Deploying blueprint from path {blueprint_path} ...')
-    self._run_create_deployment_cmd(
-        blueprint_container_path=blueprint_path
-    )
+    self._run_create_deployment_cmd(blueprint_container_path=blueprint_path)
     self._run_deploy_cmd(
         deployment_name=deployment_name,
         auto_approve=auto_approve,
@@ -125,7 +124,9 @@ class GclusterManager:
       self, blueprint_file: str, blueprint_dependencies: str
   ) -> str:
     """Uploads blueprint file and directory to gcluster working directory."""
-    xpk_print('Staging (sending) blueprint file to gcluster\'s working directory...')
+    xpk_print(
+        "Staging (sending) blueprint file to gcluster's working directory..."
+    )
     staged_blueprint = self.gcluster_command_runner.upload_file_to_working_dir(
         blueprint_file
     )
@@ -134,5 +135,5 @@ class GclusterManager:
           blueprint_dependencies
       )
     xpk_print('Staging blueprint completed!')
-    xpk_print(f'File path in gcluster\'s working directory: {staged_blueprint}')
+    xpk_print(f"File path in gcluster's working directory: {staged_blueprint}")
     return staged_blueprint

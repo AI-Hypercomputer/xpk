@@ -159,21 +159,14 @@ def create_a3_ultra_blueprint(
               "specific_reservations": [{"name": extended_reservation}],
           },
           "additional_networks": (
-            "$(concat("
-            "[{"
-            "network=gke-a3-ultra-net-1.network_name,"
-            " subnetwork=gke-a3-ultra-net-1.subnetwork_name,"
-            f" subnetwork_project={project_id},"
-            ' nic_type="GVNIC",'
-            " queue_count=null,"
-            " network_ip=null,"
-            " stack_type=null,"
-            " access_config=[{nat_ip=null, public_ptr_domain_name=null, network_tier=null}],"
-            " ipv6_access_config=[],"
-            " alias_ip_range=[]"
-            "}],"
-          " gke-a3-ultra-rdma-net.subnetwork_interfaces_gke"
-          "))"
+              "$(concat([{network=gke-a3-ultra-net-1.network_name,"
+              " subnetwork=gke-a3-ultra-net-1.subnetwork_name,"
+              f' subnetwork_project={project_id}, nic_type="GVNIC",'
+              " queue_count=null, network_ip=null, stack_type=null,"
+              " access_config=[{nat_ip=null, public_ptr_domain_name=null,"
+              " network_tier=null}], ipv6_access_config=[],"
+              " alias_ip_range=[]}],"
+              " gke-a3-ultra-rdma-net.subnetwork_interfaces_gke))"
           ),
       },
       outputs=["instructions"],

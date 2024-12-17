@@ -72,7 +72,7 @@ class BlueprintGenerator:
       subnetwork_cidr_suffix: int = 24,
       reservation: str | None = None,
       spot: bool = False,
-      system_node_pool_min_node_count=2,
+      system_node_pool_min_node_count: int = 2,
   ) -> BlueprintGeneratorOutput:
     """Create A3 mega blueprint and directory containing its dependencies.
 

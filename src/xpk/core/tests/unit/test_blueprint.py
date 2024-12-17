@@ -44,10 +44,17 @@ def test_generate_a3_mega_blueprint():
       project_id="foo",
       cluster_name="bar",
       blueprint_name=blueprint_name,
+      prefix="prefix",
       region="us-central1",
       zone="us-central1-c",
       auth_cidr="10.0.0.0/32",
+      reservation="test-reservation",
+      spot=True,
+      system_node_pool_min_node_count=5,
   )
+
+  assert bp.blueprint_file.endswith(f"/prefix/xpk-gke-a3-megagpu.yaml")
+
   with open(a3_yaml_test_path, encoding="utf-8") as stream:
     ctk_yaml = yaml.load(stream)
     with open(bp.blueprint_file, encoding="utf-8") as generated_blueprint:
@@ -56,10 +63,14 @@ def test_generate_a3_mega_blueprint():
       assert ctk_yaml.vars == ctk_test.vars
       assert ctk_test.deployment_groups == ctk_yaml.deployment_groups
       assert os.path.exists(
-          os.path.join(tmp_test_dir, blueprint_name, config_map_filename)
+          os.path.join(
+              tmp_test_dir, "prefix", blueprint_name, config_map_filename
+          )
       )
       assert os.path.exists(
-          os.path.join(tmp_test_dir, blueprint_name, kueue_conf_filename)
+          os.path.join(
+              tmp_test_dir, "prefix", blueprint_name, kueue_conf_filename
+          )
       )
 
   shutil.rmtree(tmp_test_dir)

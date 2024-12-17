@@ -41,17 +41,26 @@ def cluster_create(args) -> None:
   check_gcloud_authenticated()
   prepare_directories()
   gcm = prepare_gcluster_manager()
-  unique_name = get_unique_name(
-      args.project, zone_to_region(args.zone), args.cluster
-  )
+  region = zone_to_region(args.zone)
 
-  bp = generate_blueprint(blueprint_name=unique_name, args=args)
+  # unique_name uses shortened hash string, so still name collision is possible
+  unique_name = get_unique_name(args.project, region, args.cluster)
+  # prefix is to prevent name collisions for blueprints and also deployments by storing them in prefix directory. Ex.: blueprints/{prefix}/cluster_name_hash
+  prefix = get_prefix_path(args.project, region)
+
+  bp = generate_blueprint(blueprint_name=unique_name, args=args, prefix=prefix)
+
   # staging: sending the blueprint file(s) to gcluster's working directory
   bp_staged_path = gcm.stage_files(
       blueprint_file=bp.blueprint_file,
       blueprint_dependencies=bp.blueprint_dependencies,
+      prefix=prefix,
   )
-  gcm.deploy(blueprint_path=bp_staged_path, deployment_name=unique_name)
+  gcm.deploy(
+      blueprint_path=bp_staged_path,
+      deployment_name=unique_name,
+      prefix=prefix,
+  )
 
   xpk_exit(0)
 
@@ -68,11 +77,14 @@ def cluster_delete(args) -> None:
   check_gcloud_authenticated()
   prepare_directories()
   gcm = prepare_gcluster_manager()
-  unique_name = get_unique_name(
-      args.project, zone_to_region(args.zone), args.cluster
-  )
+  region = zone_to_region(args.zone)
 
-  gcm.destroy_deployment(deployment_name=unique_name)
+  # unique_name uses shortened hash string, so still name collision is possible
+  unique_name = get_unique_name(args.project, region, args.cluster)
+  # prefix is to prevent name collisions for blueprints and also deployments by storing them in prefix directory. Ex.: blueprints/{prefix}/cluster_name_hash
+  prefix_path = get_prefix_path(args.project, region)
+
+  gcm.destroy_deployment(deployment_name=unique_name, prefix=prefix_path)
 
   xpk_exit(0)
 
@@ -91,6 +103,10 @@ def get_unique_name(project_id, region, cluster_name):
       input_string=f'{project_id}-{region}-{cluster_name}'.lower(), length=5
   )
   return f'{cluster_name}-{unique_string_hash}'
+
+
+def get_prefix_path(project_id, region):
+  return f'{project_id}-{region}'.lower()
 
 
 def prepare_directories() -> None:
@@ -123,15 +139,18 @@ def prepare_blueprint_generator() -> BlueprintGenerator:
   return BlueprintGenerator(storage_path=blueprints_path)
 
 
-def generate_blueprint(blueprint_name, args) -> BlueprintGeneratorOutput:
+def generate_blueprint(
+    blueprint_name, args, prefix=None
+) -> BlueprintGeneratorOutput:
   validate_consumtion_args(args)
   bpg = prepare_blueprint_generator()
 
   if args.device_type in supported_device_types:
     if args.device_type == a3mega_device_type:
-      num_nodes = (args.num_nodes if not args.num_nodes is None else 2,)
+      num_nodes = args.num_nodes if not args.num_nodes is None else 2
       return bpg.generate_a3_mega_blueprint(
           blueprint_name=blueprint_name,
+          prefix=prefix,
           cluster_name=args.cluster,
           region=zone_to_region(args.zone),
           project_id=args.project,

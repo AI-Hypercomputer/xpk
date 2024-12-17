@@ -64,7 +64,7 @@ class CommandRunner(ABC):
     return None
 
   @abstractmethod
-  def upload_file_to_working_dir(self, path: str) -> str:
+  def upload_file_to_working_dir(self, path: str, prefix: str = "") -> str:
     """Uploads single file to working directory.
 
     Args:
@@ -76,7 +76,7 @@ class CommandRunner(ABC):
     return ""
 
   @abstractmethod
-  def upload_directory_to_working_dir(self, path: str) -> str:
+  def upload_directory_to_working_dir(self, path: str, prefix: str = "") -> str:
     """upload directory and its content to working directory.
 
     Args:
@@ -203,15 +203,17 @@ class DockerManager(CommandRunner):
     for line in output:
       xpk_print(f"[gcluster] {line.decode('utf-8').strip()}")
 
-  def upload_directory_to_working_dir(self, path: str) -> str:
+  def upload_directory_to_working_dir(self, path: str, prefix: str = "") -> str:
     """Move file or directory from specified path to directory containing deployment files
 
     Args:
         path (str): path of directory/file that will be moved to deployment directory
     """
     name = path.split("/")[-1]
-    target_path = os.path.join(self._get_upload_directory(), name)
-    uploaded_path = os.path.join(self._get_upload_directory_mounted(), name)
+    target_path = os.path.join(self._get_upload_directory(prefix), name)
+    uploaded_path = os.path.join(
+        self._get_upload_directory_mounted(prefix), name
+    )
     xpk_print(
         f"Copying directory from {path} to {target_path}. Path in docker:"
         f" {uploaded_path}"
@@ -219,15 +221,17 @@ class DockerManager(CommandRunner):
     copytree(path, target_path, dirs_exist_ok=True)
     return uploaded_path
 
-  def upload_file_to_working_dir(self, path: str) -> str:
+  def upload_file_to_working_dir(self, path: str, prefix: str = "") -> str:
     """Move file or directory from specified path to directory containing deployment files
 
     Args:
         path (str): path of directory/file that will be moved to deployment directory
     """
     name = path.split("/")[-1]
-    target_path = os.path.join(self._get_upload_directory(), name)
-    uploaded_path = os.path.join(self._get_upload_directory_mounted(), name)
+    target_path = os.path.join(self._get_upload_directory(prefix), name)
+    uploaded_path = os.path.join(
+        self._get_upload_directory_mounted(prefix), name
+    )
     xpk_print(
         f"Copying a file from {path} to {target_path}. Path in docker:"
         f" {uploaded_path}"
@@ -235,13 +239,13 @@ class DockerManager(CommandRunner):
     copy(path, target_path)
     return uploaded_path
 
-  def _get_upload_directory(self) -> str:
-    upload_dir = os.path.join(self.working_dir, upload_dir_name)
+  def _get_upload_directory(self, prefix: str = "") -> str:
+    upload_dir = os.path.join(self.working_dir, upload_dir_name, prefix)
     ensure_directory_exists(upload_dir)
     return upload_dir
 
-  def _get_upload_directory_mounted(self) -> str:
-    return os.path.join(working_dir_mount_path, upload_dir_name)
+  def _get_upload_directory_mounted(self, prefix: str = "") -> str:
+    return os.path.join(working_dir_mount_path, upload_dir_name, prefix)
 
   def _create_tmp_for_dockerfile(self) -> str:
     tmp_dir = os.path.join(tempfile.gettempdir(), "xpkutils")

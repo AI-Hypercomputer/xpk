@@ -47,20 +47,28 @@ class GclusterManager:
   ) -> None:
     self.gcluster_command_runner = gcluster_command_runner
 
-  def _run_create_deployment_cmd(self, blueprint_container_path: str):
+  def _run_create_deployment_cmd(
+      self, blueprint_container_path: str, prefix: str = ''
+  ):
     xpk_print('Creating deployment resources...')
     cluster_create_cmd = (
-        f'{gcluster_create_command} -o deployments'
+        f'{gcluster_create_command} -o {self._get_deployment_path(prefix)}'
         f' {blueprint_container_path} -w --force'
     )
     self.gcluster_command_runner.run_command(cluster_create_cmd)
     xpk_print('Creating deployment resources completed.')
 
   def _run_deploy_cmd(
-      self, deployment_name: str, auto_approve: bool, dry_run: bool
+      self,
+      deployment_name: str,
+      auto_approve: bool,
+      dry_run: bool,
+      prefix: str = '',
   ):
     xpk_print('Deploying resources...')
-    deploy_cmd = f'{gcluster_deploy_command} deployments/{deployment_name}'
+    deploy_cmd = (
+        f'{gcluster_deploy_command} {self._get_deployment_path(prefix)}/{deployment_name}'
+    )
     if auto_approve is True:
       deploy_cmd += ' --auto-approve'
     if dry_run is True:
@@ -72,6 +80,7 @@ class GclusterManager:
       self,
       blueprint_path: str,
       deployment_name: str,
+      prefix: str = '',
       auto_approve: bool = True,
       dry_run: bool = False,
   ) -> None:
@@ -88,9 +97,12 @@ class GclusterManager:
       None
     """
     xpk_print(f'Deploying blueprint from path {blueprint_path} ...')
-    self._run_create_deployment_cmd(blueprint_container_path=blueprint_path)
+    self._run_create_deployment_cmd(
+        blueprint_container_path=blueprint_path, prefix=prefix
+    )
     self._run_deploy_cmd(
         deployment_name=deployment_name,
+        prefix=prefix,
         auto_approve=auto_approve,
         dry_run=dry_run,
     )
@@ -99,10 +111,13 @@ class GclusterManager:
   def _run_destroy_command(
       self,
       deployment_name: str,
+      prefix: str = '',
       auto_approve: bool = True,
       dry_run: bool = False,
   ):
-    destroy_cmd = f'{gcluster_destroy_command} deployments/{deployment_name}'
+    destroy_cmd = (
+        f'{gcluster_destroy_command} {self._get_deployment_path(prefix)}/{deployment_name}'
+    )
     if auto_approve is True:
       destroy_cmd += ' --auto-approve'
     if dry_run is True:
@@ -110,29 +125,33 @@ class GclusterManager:
       return
     self.gcluster_command_runner.run_command(destroy_cmd)
 
-  def destroy_deployment(self, deployment_name: str) -> None:
+  def _get_deployment_path(self, prefix: str = '') -> str:
+    prefix = f'/{prefix}' if prefix != '' else ''
+    return f'deployments{prefix}'
+
+  def destroy_deployment(self, deployment_name: str, prefix: str = '') -> None:
     """Destroy deployment.
 
     Args:
         deployment_name (str): name of deployment to destroy.
     """
     xpk_print(f'Destroying {deployment_name} started...')
-    self._run_destroy_command(deployment_name)
+    self._run_destroy_command(deployment_name, prefix=prefix)
     xpk_print(f'Destroying {deployment_name} completed!')
 
   def stage_files(
-      self, blueprint_file: str, blueprint_dependencies: str
+      self, blueprint_file: str, blueprint_dependencies: str, prefix: str = ''
   ) -> str:
     """Uploads blueprint file and directory to gcluster working directory."""
     xpk_print(
         "Staging (sending) blueprint file to gcluster's working directory..."
     )
     staged_blueprint = self.gcluster_command_runner.upload_file_to_working_dir(
-        blueprint_file
+        blueprint_file, prefix
     )
     if len(blueprint_dependencies) > 0:
       self.gcluster_command_runner.upload_directory_to_working_dir(
-          blueprint_dependencies
+          blueprint_dependencies, prefix
       )
     xpk_print('Staging blueprint completed!')
     xpk_print(f"File path in gcluster's working directory: {staged_blueprint}")

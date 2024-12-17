@@ -20,6 +20,7 @@ import os
 from .blueprint_definitions import DeploymentGroup, DeploymentModule, Blueprint
 from ..system_characteristics import get_system_characteristics_by_device_type
 from ...utils.console import xpk_print, xpk_exit
+from ...utils.file import ensure_directory_exists
 
 yaml = yaml.YAML()
 
@@ -58,6 +59,7 @@ class BlueprintGenerator:
       region: str,
       zone: str,
       auth_cidr: str,
+      prefix: str = "",
       num_nodes: int = 2,
       pods_ip_cidr_range: str = "10.4.0.0/14",
       services_ip_cidr_range: str = "10.0.32.0/20",
@@ -229,10 +231,10 @@ class BlueprintGenerator:
         },
     )
     blueprint_file_path = self._save_blueprint_to_file(
-        blueprint_name, xpk_blueprint
+        blueprint_name, xpk_blueprint, prefix
     )
     blueprint_dependencies = self._get_a3_mega_blueprint_dependencies(
-        blueprint_name
+        blueprint_name, prefix
     )
     xpk_print(f"Blueprint file path: {blueprint_file_path}")
     xpk_print(
@@ -251,6 +253,7 @@ class BlueprintGenerator:
       project_id: str,
       region: str,
       auth_cidr: str,
+      prefix: str = "",
   ) -> BlueprintGeneratorOutput:
     """Create a simple gke cluster
 
@@ -306,7 +309,9 @@ class BlueprintGenerator:
             "region": region,
         },
     )
-    blueprint_file_path = self._save_blueprint_to_file(blueprint_name, ml_gke)
+    blueprint_file_path = self._save_blueprint_to_file(
+        blueprint_name, ml_gke, prefix
+    )
     blueprint_dependencies = ""
     return BlueprintGeneratorOutput(
         blueprint_file=blueprint_file_path,
@@ -314,23 +319,34 @@ class BlueprintGenerator:
     )
 
   def _save_blueprint_to_file(
-      self, blueprint_name: str, xpk_blueprint: Blueprint
+      self, blueprint_name: str, xpk_blueprint: Blueprint, prefix: str = ""
   ) -> str:
-    blueprint_path = self._get_blueprint_path(blueprint_name)
+    blueprint_path = self._get_blueprint_path(blueprint_name, prefix)
     with open(blueprint_path, "w+", encoding="utf-8") as blueprint_file:
       yaml.dump(xpk_blueprint, blueprint_file)
     return blueprint_path
 
-  def _get_blueprint_path(self, blueprint_name):
-    blueprint_path = os.path.join(self.storage_path, f"{blueprint_name}.yaml")
+  def _get_blueprint_path(self, blueprint_name, prefix: str = ""):
+    blueprint_path = os.path.join(
+        self._get_storage_path(prefix), f"{blueprint_name}.yaml"
+    )
     return blueprint_path
 
-  def blueprint_exists(self, blueprint_name):
-    blueprint_path = self._get_blueprint_path(blueprint_name)
+  def _get_storage_path(self, prefix):
+    storage_path_with_prefix = os.path.join(self.storage_path, prefix)
+    ensure_directory_exists(storage_path_with_prefix)
+    return storage_path_with_prefix
+
+  def blueprint_exists(self, blueprint_name, prefix: str = ""):
+    blueprint_path = self._get_blueprint_path(blueprint_name, prefix)
     return os.path.exists(blueprint_path)
 
-  def _get_a3_mega_blueprint_dependencies(self, blueprint_name: str) -> str:
-    deployment_files_path = os.path.join(self.storage_path, blueprint_name)
+  def _get_a3_mega_blueprint_dependencies(
+      self, blueprint_name: str, prefix: str = ""
+  ) -> str:
+    deployment_files_path = os.path.join(
+        self._get_storage_path(prefix), blueprint_name
+    )
     shutil.copytree(
         blueprint_dependencies_dir[a3mega_device_type],
         deployment_files_path,

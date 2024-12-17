@@ -54,7 +54,7 @@ def test_create_a3_mega_deployment():
   test_docker_working_dir = os.path.join(pwd, "xpk_test_docker_dir")
   test_bp_dir = os.path.join(pwd, "xpk_test_bp_dir")
   prepare_test(test_docker_working_dir, test_bp_dir)
-  blueprint_name = f"{cluster_name}-a3-mega-xpk"
+  blueprint_name = f"{cluster_name}-a3-ultra-xpk"
 
   docker_manager = DockerManager(
       gcloud_cfg_path=ctk_gcloud_cfg, working_dir=test_docker_working_dir
@@ -69,6 +69,8 @@ def test_create_a3_mega_deployment():
       project_id=project_id,
       auth_cidr=auth_cidr,
       zone=zone,
+      extended_reservation="foo",
+      static_node_count=1
   )
   blueprint_test_path = os.path.join(test_bp_dir, f"{blueprint_name}.yaml")
   blueprint_deps_test_path = os.path.join(test_bp_dir, blueprint_name)
@@ -79,12 +81,10 @@ def test_create_a3_mega_deployment():
   assert os.path.isfile(blueprint_test_path)
   assert os.path.isdir(blueprint_deps_test_path)
   assert os.path.isfile(
-      os.path.join(blueprint_deps_test_path, "config-map.yaml.tftpl")
+      os.path.join(blueprint_deps_test_path, "mlgru-disable.yaml")
   )
   assert os.path.isfile(
-      os.path.join(
-          blueprint_deps_test_path, "kueue-xpk-configuration.yaml.tftpl"
-      )
+      os.path.join(blueprint_deps_test_path, "nccl-installer.yaml")
   )
   gcluster_manager = GclusterManager(
       gcluster_command_runner=docker_manager,
@@ -104,11 +104,9 @@ def test_create_a3_mega_deployment():
 
   assert os.path.isfile(staged_bp_path)
   assert os.path.isdir(staged_bp_deps_path)
+  assert os.path.isfile(os.path.join(staged_bp_deps_path, "mlgru-disable.yaml"))
   assert os.path.isfile(
-      os.path.join(staged_bp_deps_path, "config-map.yaml.tftpl")
-  )
-  assert os.path.isfile(
-      os.path.join(staged_bp_deps_path, "kueue-xpk-configuration.yaml.tftpl")
+      os.path.join(staged_bp_deps_path, "nccl-installer.yaml")
   )
   print(staged_bp_path, blueprint_name)
   gcluster_manager.deploy(

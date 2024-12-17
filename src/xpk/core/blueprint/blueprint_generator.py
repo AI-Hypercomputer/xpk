@@ -17,10 +17,12 @@ limitations under the License.
 import shutil
 from ruamel import yaml
 import os
+
 from .blueprint_definitions import DeploymentGroup, DeploymentModule, Blueprint
 
 yaml = yaml.YAML()
 a3mega_blueprint_dependencies_dir = "src/xpk/blueprints/a3mega"
+a3ultra_blueprint_dependencies_dir = "src/xpk/blueprints/a3ultra"
 a3_machine_type = "a3-megagpu-8g"
 
 
@@ -204,6 +206,7 @@ class BlueprintGenerator:
             "region": region,
             "zone": zone,
         },
+        terraform_providers=None,
     )
     blueprint_file_path = self._save_blueprint_to_file(
         blueprint_name, xpk_blueprint
@@ -277,6 +280,7 @@ class BlueprintGenerator:
             "deployment_name": blueprint_name,
             "region": region,
         },
+        terraform_providers=None,
     )
     blueprint_file_path = self._save_blueprint_to_file(blueprint_name, ml_gke)
     blueprint_dependencies = ""
@@ -298,19 +302,24 @@ class BlueprintGenerator:
     shutil.copytree(a3mega_blueprint_dependencies_dir, deployment_files_path)
     return deployment_files_path
 
+  def _get_a3_ultra_blueprint_dependencies(self, blueprint_name: str) -> str:
+    deployment_files_path = os.path.join(self.storage_path, blueprint_name)
+    shutil.copytree(a3ultra_blueprint_dependencies_dir, deployment_files_path)
+    return deployment_files_path
+
   def generate_a3_ultra_blueprint(
       self,
       project_id: str,
-      deployment_name: str,
+      cluster_name: str,
+      blueprint_name: str,
       region: str,
       zone: str,
-      mtu_size: int,
-      gke_min_version: str,
-      system_node_pool_disk_size_gb: int,
       auth_cidr: str,
-      a3ultra_node_pool_disk_size_gb: int,
-      static_node_count: int,
       extended_reservation: str,
+      static_node_count: int = 4,
+      system_node_pool_disk_size_gb: int = 200,
+      a3ultra_node_pool_disk_size_gb: int = 100,
+      mtu_size: int = 8896,
   ) -> BlueprintGeneratorOutput:
     """Create A3 ultra blueprint.
 
@@ -319,27 +328,31 @@ class BlueprintGenerator:
       - Blueprint representing cluster toolkit blueprint
     """
 
-    nccl_installer_path = '$(ghpc_stage("./nccl-installer.yaml"))'
-    mglru_disable_path = '$(ghpc_stage("./mglru-disable.yaml"))'
-    net_0_id = "gke-a3-ultra-net-0"
+    nccl_installer_path = (
+        f'$(ghpc_stage("./{blueprint_name}/nccl-installer.yaml"))'
+    )
+    mglru_disable_path = (
+        f'$(ghpc_stage("./{blueprint_name}/mlgru-disable.yaml"))'
+    )
+    net_0_id = "a3u-net-0"
     gpu_net_0 = DeploymentModule(
         id=net_0_id,
         source="github.com/GoogleCloudPlatform/cluster-toolkit.git//modules/network/vpc?ref=e0c690b",
         settings={
-            "network_name": "gke-a3-ultra-net-0",
+            "network_name": f"{cluster_name}-a3u-net-0",
             "subnetworks": [{
-                "subnet_name": "gke-a3-ultra-sub-0",
+                "subnet_name": f"{cluster_name}-a3u-sub-0",
                 "subnet_region": region,
                 "subnet_ip": "192.168.0.0/18",
             }],
             "secondary_ranges": {
-                "gke-a3-ultra-sub-0": [
+                f"{cluster_name}-a3u-sub-0": [
                     {"range_name": "pods", "ip_cidr_range": "10.4.0.0/14"},
                     {"range_name": "services", "ip_cidr_range": "10.0.32.0/20"},
                 ]
             },
             "firewall_rules": [{
-                "name": "gke-a3-ultra-internal-0",
+                "name": f"{cluster_name}-a3u-internal-0",
                 "ranges": ["192.168.0.0/16"],
                 "allow": [
                     {"protocol": "tcp", "ports": ["0-65535"]},
@@ -349,20 +362,20 @@ class BlueprintGenerator:
             }],
         },
     )
-    net_1_id = "gke-a3-ultra-net-1"
+    net_1_id = f"{cluster_name}-a3u-net-1"
     gpu_net_1 = DeploymentModule(
         id=net_1_id,
         source="github.com/GoogleCloudPlatform/cluster-toolkit.git//modules/network/vpc?ref=e0c690b",
         settings={
-            "network_name": "gke-a3-ultra-net-1",
+            "network_name": f"{cluster_name}-a3u-net-1",
             "mtu": mtu_size,
             "subnetworks": [{
-                "subnet_name": "gke-a3-ultra-sub-1",
+                "subnet_name": f"{cluster_name}-a3u-sub-1",
                 "subnet_region": region,
                 "subnet_ip": "192.168.64.0/18",
             }],
             "firewall_rules": [{
-                "name": "gke-a3-ultra-internal-1",
+                "name": f"{cluster_name}-a3u-internal-1",
                 "ranges": ["192.168.0.0/16"],
                 "allow": [
                     {"protocol": "tcp", "ports": ["0-65535"]},
@@ -372,17 +385,17 @@ class BlueprintGenerator:
             }],
         },
     )
-    rma_net_id = "gke-a3-ultra-rdma-net"
+    rma_net_id = f"{cluster_name}-a3u-rdma-net"
     rma_net = DeploymentModule(
         id=rma_net_id,
         source="github.com/GoogleCloudPlatform/cluster-toolkit.git//community/modules/network/rdma-vpc?ref=98c49fe",
         settings={
-            "network_name": "gke-a3-ultra-rdma-net",
+            "network_name": f"{cluster_name}-a3u-rdma-net",
             "mtu": mtu_size,
             "network_profile": f"https://www.googleapis.com/compute/beta/projects/{project_id}/global/networkProfiles/{zone}-vpc-roce",
             "network_routing_mode": "REGIONAL",
             "subnetworks_template": {
-                "name_prefix": "gke-a3-ultra-rdma-sub",
+                "name_prefix": f"{cluster_name}-a3u-rdma-sub",
                 "count": 8,
                 "ip_range": "192.168.128.0/18",
                 "region": region,
@@ -395,7 +408,9 @@ class BlueprintGenerator:
         source="github.com/GoogleCloudPlatform/cluster-toolkit.git//modules/scheduler/gke-cluster?ref=e0c690b",
         use=[net_0_id],
         settings={
-            "min_master_version": gke_min_version,
+            "release_channel": "RAPID",
+            "prefix_with_deployment_name": False,
+            "name_suffix": cluster_name,
             "system_node_pool_machine_type": "e2-standard-16",
             "system_node_pool_disk_size_gb": system_node_pool_disk_size_gb,
             "system_node_pool_taints": [],
@@ -406,15 +421,18 @@ class BlueprintGenerator:
                 "cidr_block": auth_cidr,
                 "display_name": "kubectl-access-network",
             }],
+            "maintenance_exclusions": [{
+                "name": "no-minor-or-node-upgrades-indefinite",
+                "start_time": "2024-12-01T00:00:00Z",
+                "end_time": "2025-12-22T00:00:00Z",
+                "exclusion_scope": "NO_MINOR_OR_NODE_UPGRADES",
+            }],
             "additional_networks": (
-                "$(concat([{network=gke-a3-ultra-net-1.network_name,"
-                " subnetwork=gke-a3-ultra-net-1.subnetwork_name,"
-                f' subnetwork_project={project_id}, nic_type="GVNIC",'
-                " queue_count=null, network_ip=null, stack_type=null,"
-                " access_config=[{nat_ip=null, public_ptr_domain_name=null,"
-                " network_tier=null}], ipv6_access_config=[],"
-                " alias_ip_range=[]}],"
-                " gke-a3-ultra-rdma-net.subnetwork_interfaces_gke))"
+                f'$(concat([{{network={cluster_name}-a3u-net-1.network_name,subnetwork={cluster_name}-a3u-net-1.subnetwork_name,subnetwork_project="{project_id}",'
+                ' nic_type="GVNIC",queue_count=null, network_ip=null,'
+                " stack_type=null,access_config=[{nat_ip=null,"
+                " public_ptr_domain_name=null,network_tier=null}],"
+                f" ipv6_access_config=[],alias_ip_range=[]}}],{cluster_name}-a3u-rdma-net.subnetwork_interfaces_gke))"
             ),
         },
         outputs=["instructions"],
@@ -426,6 +444,7 @@ class BlueprintGenerator:
         use=[cluster_id],
         settings={
             "machine_type": "a3-ultragpu-8g",
+            "auto_upgrade": True,
             "zones": [zone],
             "disk_type": "hyperdisk-balanced",
             "disk_size_gb": a3ultra_node_pool_disk_size_gb,
@@ -437,19 +456,16 @@ class BlueprintGenerator:
                     "gpu_driver_version": "LATEST"
                 },
             }],
-            "reservation_affinity": {
-                "consume_reservation_type": "SPECIFIC_RESERVATION",
-                "specific_reservations": [{"name": extended_reservation}],
-            },
+            # "reservation_affinity": {
+            #     "consume_reservation_type": "SPECIFIC_RESERVATION",
+            #     "specific_reservations": [{"name": extended_reservation}],
+            # },
             "additional_networks": (
-                "$(concat([{network=gke-a3-ultra-net-1.network_name,"
-                " subnetwork=gke-a3-ultra-net-1.subnetwork_name,"
-                f' subnetwork_project={project_id}, nic_type="GVNIC",'
-                " queue_count=null, network_ip=null, stack_type=null,"
-                " access_config=[{nat_ip=null, public_ptr_domain_name=null,"
-                " network_tier=null}], ipv6_access_config=[],"
-                " alias_ip_range=[]}],"
-                " gke-a3-ultra-rdma-net.subnetwork_interfaces_gke))"
+                f'$(concat([{{network={cluster_name}-a3u-net-1.network_name,subnetwork={cluster_name}-a3u-net-1.subnetwork_name,subnetwork_project="{project_id}",'
+                ' nic_type="GVNIC",queue_count=null, network_ip=null,'
+                " stack_type=null,access_config=[{nat_ip=null,"
+                " public_ptr_domain_name=null,network_tier=null}],"
+                f" ipv6_access_config=[],alias_ip_range=[]}}],{cluster_name}-a3u-rdma-net.subnetwork_interfaces_gke))"
             ),
         },
         outputs=["instructions"],
@@ -502,15 +518,42 @@ class BlueprintGenerator:
         ],
     )
     a3_ultra_blueprint = Blueprint(
-        blueprint_name=deployment_name,
+        blueprint_name=blueprint_name,
         deployment_groups=[primary_group],
-        vars=None,
+        vars={
+            "project_id": project_id,
+            "deployment_name": blueprint_name,
+            "region": region,
+            "zone": zone,
+        },
+        terraform_providers={
+            "google": {
+                "source": "hashicorp/google",
+                "version": "6.13.0",
+                "configuration": {
+                    "project": project_id,
+                    "region": region,
+                    "zone": zone,
+                },
+            },
+            "google-beta": {
+                "source": "hashicorp/google-beta",
+                "version": "6.13.0",
+                "configuration": {
+                    "project": project_id,
+                    "region": region,
+                    "zone": zone,
+                },
+            },
+        },
     )
 
     blueprint_file_path = self._save_blueprint_to_file(
-        deployment_name, a3_ultra_blueprint
+        blueprint_name, a3_ultra_blueprint
     )
-    blueprint_dependencies = ""
+    blueprint_dependencies = self._get_a3_ultra_blueprint_dependencies(
+        blueprint_name
+    )
     return BlueprintGeneratorOutput(
         blueprint_file=blueprint_file_path,
         blueprint_dependencies=blueprint_dependencies,

@@ -14,25 +14,24 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import docker.errors
-from ..docker_manager import CtkDockerManager
 import docker
+from docker.errors import APIError
+from xpk.core.docker_manager import DockerManager
 import pytest
 import os
 
-dockerfile_path = 'data/Dockerfile'
 test_cfg_path = '/tmp/xpk_gcloud_cfg'
 test_deployment_dir = '/tmp/xpk_deployment'
-test_gcluster_cmd = 'gcluster --version'
-test_ctk_xpk_img = 'gcluster-xpk-test'
-test_ctk_xpk_container = 'gcluster-xpk-test-container'
+test_gcluster_cmd = 'gcluster --help'
+test_ctk_xpk_img = 'gcluster-xpk'
+test_ctk_xpk_container = 'xpk-test-container'
 
 
 def remove_img():
   dc = docker.from_env()
   try:
     dc.images.remove(test_ctk_xpk_img, force=True)
-  except docker.errors.APIError as _:
+  except APIError as _:
     pass
 
 
@@ -41,7 +40,7 @@ def remove_container():
   try:
     container = dc.containers.get(test_ctk_xpk_container)
     container.remove(force=True)
-  except docker.errors.APIError as _:
+  except APIError as _:
     pass
 
 
@@ -67,14 +66,16 @@ def remove_test_ctk_img():
 
 
 def test_docker_build_image(setup_img_name):
-  dm = CtkDockerManager(
-      dockerfile_path=dockerfile_path,
+  dm = DockerManager(
       gcloud_cfg_path=test_cfg_path,
-      deployment_dir=test_deployment_dir,
+      working_dir=test_deployment_dir,
+      img_name=setup_img_name,
   )
+  dm.initialize()
+
   dc = docker.from_env()
   containers_before = dc.containers.list(all=True)
-  dm.build_image(setup_img_name)
+
   dc.images.get(setup_img_name)
   containers_after = dc.containers.list(all=True)
   assert len(containers_before) == len(containers_after)
@@ -82,26 +83,18 @@ def test_docker_build_image(setup_img_name):
 
 def test_run_command(setup_img_name):
 
-  dm = CtkDockerManager(
-      dockerfile_path=dockerfile_path,
+  dm = DockerManager(
       gcloud_cfg_path=test_cfg_path,
-      deployment_dir=test_deployment_dir,
+      working_dir=test_deployment_dir,
+      img_name=setup_img_name,
+      rm_container_after=True,
   )
   dc = docker.from_env()
 
   containers_before = dc.containers.list(all=True)
-
-  dm.build_image(setup_img_name)
-  output = dm.run_command(
-      setup_img_name,
-      test_gcluster_cmd,
-      rm_container_after=False,
-      container_name=test_ctk_xpk_container,
-  )
+  dm.initialize()
+  dm.run_command(test_gcluster_cmd)
 
   containers_after = dc.containers.list(all=True)
 
-  assert len(containers_after) - len(containers_before) == 1
-
-  assert len(output) != 0
-  assert "Built from 'main' branch" in str(output)
+  assert len(containers_after) - len(containers_before) == 0

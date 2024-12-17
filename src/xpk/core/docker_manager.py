@@ -192,16 +192,6 @@ class DockerManager(CommandRunner):
     except APIError as e:
       xpk_print(f"Deploying cluster toolkit failed due to {e.explanation}")
       xpk_exit(DockerRunCommandExitCode)
-    finally:
-      # Ensure the container is deleted if it exists
-      try:
-        if container is not None and self.remove_container:
-          container.remove(force=True)
-      except ContainerError as e:
-        xpk_print(
-            f"Failed to remove container: {e.exit_status} and stderr:"
-            f" {e.stderr}"
-        )
 
   def _print_logs_from_container(self, container):
     output = container.attach(stdout=True, stream=True, logs=True)

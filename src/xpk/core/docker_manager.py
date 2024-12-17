@@ -108,6 +108,7 @@ class DockerManager(CommandRunner):
       nocache: bool = False,
       img_name: str = ctk_docker_image,
       container_name: str = ctk_container_name,
+      remove_container: bool = True,
   ) -> None:
     self.dockerfile_path = ""
     self.client = docker.from_env()
@@ -116,6 +117,7 @@ class DockerManager(CommandRunner):
     self.nocache = nocache
     self.img_name = f"{img_name}:{ctk_build_ref}"
     self.container_name = container_name
+    self.remove_container = remove_container
 
   def initialize(self):
     """Build image from dockerfile pointed by _img_name. This method
@@ -162,7 +164,7 @@ class DockerManager(CommandRunner):
       container = self.client.containers.run(
           image=self.img_name,
           entrypoint=cmd,
-          remove=True,
+          remove=self.remove_container,
           name=self._get_container_unique_name(
               cmd
           ),  # To allow multiple xpk commands run in one machine.
@@ -193,7 +195,7 @@ class DockerManager(CommandRunner):
     finally:
       # Ensure the container is deleted if it exists
       try:
-        if container is not None:
+        if container is not None and self.remove_container:
           container.remove(force=True)
       except Exception as e:
         xpk_print(f"Failed to remove container: {e}")

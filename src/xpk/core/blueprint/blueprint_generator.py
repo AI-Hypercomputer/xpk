@@ -315,7 +315,7 @@ class BlueprintGenerator:
       region: str,
       zone: str,
       auth_cidr: str,
-      extended_reservation: str,
+      extended_reservation: str | None,
       static_node_count: int = 4,
       system_node_pool_disk_size_gb: int = 200,
       a3ultra_node_pool_disk_size_gb: int = 100,
@@ -456,10 +456,6 @@ class BlueprintGenerator:
                     "gpu_driver_version": "LATEST"
                 },
             }],
-            # "reservation_affinity": {
-            #     "consume_reservation_type": "SPECIFIC_RESERVATION",
-            #     "specific_reservations": [{"name": extended_reservation}],
-            # },
             "additional_networks": (
                 f'$(concat([{{network={cluster_name}-a3u-net-1.network_name,subnetwork={cluster_name}-a3u-net-1.subnetwork_name,subnetwork_project="{project_id}",'
                 ' nic_type="GVNIC",queue_count=null, network_ip=null,'
@@ -470,6 +466,11 @@ class BlueprintGenerator:
         },
         outputs=["instructions"],
     )
+    if extended_reservation is not None:
+      gpu_pool.settings["reservation_affinity"] = {
+          "consume_reservation_type": "SPECIFIC_RESERVATION",
+          "specific_reservations": [{"name": extended_reservation}],
+      }
     tas_install_id = "topology-aware-scheduler-install"
     tas_install = DeploymentModule(
         id=tas_install_id,

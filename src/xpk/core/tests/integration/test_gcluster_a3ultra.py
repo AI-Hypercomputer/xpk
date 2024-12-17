@@ -70,7 +70,7 @@ def test_create_a3_mega_deployment():
       auth_cidr=auth_cidr,
       zone=zone,
       extended_reservation="foo",
-      static_node_count=1
+      static_node_count=1,
   )
   blueprint_test_path = os.path.join(test_bp_dir, f"{blueprint_name}.yaml")
   blueprint_deps_test_path = os.path.join(test_bp_dir, blueprint_name)

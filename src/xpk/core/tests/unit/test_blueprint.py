@@ -53,7 +53,7 @@ def test_generate_a3_mega_blueprint():
       system_node_pool_min_node_count=5,
   )
 
-  assert bp.blueprint_file.endswith(f"/prefix/xpk-gke-a3-megagpu.yaml")
+  assert bp.blueprint_file.endswith("/prefix/xpk-gke-a3-megagpu.yaml")
 
   with open(a3_yaml_test_path, encoding="utf-8") as stream:
     ctk_yaml = yaml.load(stream)

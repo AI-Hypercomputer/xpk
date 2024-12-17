@@ -197,8 +197,11 @@ class DockerManager(CommandRunner):
       try:
         if container is not None and self.remove_container:
           container.remove(force=True)
-      except Exception as e:
-        xpk_print(f"Failed to remove container: {e}")
+      except ContainerError as e:
+        xpk_print(
+            f"Failed to remove container: {e.exit_status} and stderr:"
+            f" {e.stderr}"
+        )
 
   def _print_logs_from_container(self, container):
     output = container.attach(stdout=True, stream=True, logs=True)

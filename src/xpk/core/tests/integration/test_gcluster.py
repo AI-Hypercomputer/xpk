@@ -32,16 +32,12 @@ uploads_dir = "uploads"
 
 
 def prepare_test(docker_path: str, bp_path: str) -> None:
-  os.mkdir(docker_path)
-  os.mkdir(bp_path)
+  if not os.path.exists(docker_path):
+    os.makedirs(docker_path)
+  if not os.path.exists(bp_path):
+    os.makedirs(bp_path)
 
 
-@pytest.mark.skip(
-    reason=(
-        "Passing credentials from github actions to docker container do not"
-        " work currently."
-    )
-)
 def test_create_deployment():
   assert project_id is not None
   assert region is not None
@@ -51,10 +47,13 @@ def test_create_deployment():
   assert cluster_name is not None
 
   pwd = os.getcwd()
-  test_docker_working_dir = os.path.join(pwd, "xpk_test_docker_dir")
-  test_bp_dir = os.path.join(pwd, "xpk_test_bp_dir")
+  test_docker_working_dir = os.path.join(
+      pwd, "xpkclusters/tests/xpk_test_docker_dir"
+  )
+  test_bp_dir = os.path.join(pwd, "xpkclusters/tests/xpk_test_bp_dir")
   prepare_test(test_docker_working_dir, test_bp_dir)
   blueprint_name = "my-test-blueprint"
+  prefix = "prefix"
 
   docker_manager = DockerManager(
       gcloud_cfg_path=ctk_gcloud_cfg, working_dir=test_docker_working_dir
@@ -65,11 +64,14 @@ def test_create_deployment():
   ml_gke_blueprint = bpm.generate_gke_ml_blueprint(
       cluster_name=cluster_name,
       blueprint_name=blueprint_name,
+      prefix=prefix,
       region=region,
       project_id=project_id,
       auth_cidr=auth_cidr,
   )
-  blueprint_test_path = os.path.join(test_bp_dir, f"{blueprint_name}.yaml")
+  blueprint_test_path = os.path.join(
+      test_bp_dir, prefix, f"{blueprint_name}.yaml"
+  )
   # there are no files in ghcp stage for this blueprint
   blueprint_deps_test_path = ""
 
@@ -85,16 +87,20 @@ def test_create_deployment():
   staged_bp_path = gcluster_manager.stage_files(
       blueprint_file=ml_gke_blueprint.blueprint_file,
       blueprint_dependencies=ml_gke_blueprint.blueprint_dependencies,
+      prefix=prefix,
   )
 
   assert staged_bp_path == os.path.join(
-      test_docker_working_dir, uploads_dir, f"{blueprint_name}.yaml"
+      "/out", uploads_dir, prefix, f"{blueprint_name}.yaml"
   )
-  assert os.path.isfile(staged_bp_path)
 
   gcluster_manager.deploy(
-      blueprint_path=staged_bp_path, deployment_name=blueprint_name
+      blueprint_path=staged_bp_path,
+      deployment_name=blueprint_name,
+      prefix=prefix,
   )
-  gcluster_manager.destroy_deployment(deployment_name=blueprint_name)
+  gcluster_manager.destroy_deployment(
+      deployment_name=blueprint_name, prefix=prefix
+  )
   shutil.rmtree(test_docker_working_dir)
   shutil.rmtree(test_bp_dir)

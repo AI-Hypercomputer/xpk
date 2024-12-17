@@ -25,7 +25,7 @@ project_id = os.getenv("PROJECT_ID")
 region = os.getenv("REGION")
 zone = os.getenv("ZONE")
 auth_cidr = os.getenv("AUTH_CIDR")
-cluster_name = os.getenv("CLUSTER_NAME")
+cluster_name = os.getenv("GKE_ML_TEST_CLUSTER_NAME")
 
 uploads_dir = "uploads"
 

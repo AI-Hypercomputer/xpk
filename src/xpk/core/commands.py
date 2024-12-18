@@ -84,7 +84,7 @@ def run_command_batch(commands, jobname, per_command_name, output_logs):
     children.append(
         # subprocess managed by list pylint: disable=consider-using-with
         subprocess.Popen(
-            command, stdout=output_logs[i], stderr=output_logs[i], shell=True
+            command, stdout=sys.stdout, stderr=sys.stderr, shell=True
         )
     )
 

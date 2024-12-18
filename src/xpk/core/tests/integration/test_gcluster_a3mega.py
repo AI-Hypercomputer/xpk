@@ -52,7 +52,7 @@ def test_deploy_a3_mega_deployment():
       prefix,
       gcluster_manager,
       staged_bp_path,
-  ) = test_create_a3_mega_deployment()
+  ) = create_test_a3_mega_deployment()
   gcluster_manager.deploy(
       blueprint_path=staged_bp_path,
       deployment_name=blueprint_name,
@@ -66,13 +66,8 @@ def test_deploy_a3_mega_deployment():
   shutil.rmtree(test_docker_working_dir)
   shutil.rmtree(test_bp_dir)
 
-@pytest.mark.skip(
-    reason=(
-        "This test requires A3 capacity, therefore it should not be run on each"
-        " build. Please invoke it manually if needed. "
-    )
-)
-def test_create_a3_mega_deployment():
+
+def create_test_a3_mega_deployment():
   assert project_id is not None
   assert region is not None
   assert zone is not None

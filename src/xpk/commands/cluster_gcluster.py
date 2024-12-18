@@ -142,7 +142,7 @@ def prepare_blueprint_generator() -> BlueprintGenerator:
 def generate_blueprint(
     blueprint_name, args, prefix=None
 ) -> BlueprintGeneratorOutput:
-  validate_consumtion_args(args)
+  validate_consumption_args(args)
   bpg = prepare_blueprint_generator()
 
   if args.device_type in supported_device_types:
@@ -166,7 +166,7 @@ def generate_blueprint(
   return None
 
 
-def validate_consumtion_args(args):
+def validate_consumption_args(args):
   args_set = []
   if not args.reservation is None:
     args_set.append('--reservation')

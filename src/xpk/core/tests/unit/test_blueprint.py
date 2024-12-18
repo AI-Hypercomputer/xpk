@@ -89,7 +89,9 @@ def test_generate_a3_ultra_blueprint():
       zone="us-central1-c",
       auth_cidr="10.0.0.0/32",
       extended_reservation="test_reservation",
+      system_node_pool_machine_type="e2-standard-16"
   )
+  print(bp.blueprint_file, bp.blueprint_dependencies)
   with open(a3_ultra_yaml_test_path, encoding="utf-8") as stream:
     ctk_yaml = yaml.load(stream)
     with open(bp.blueprint_file, encoding="utf-8") as generated_blueprint:
@@ -97,10 +99,10 @@ def test_generate_a3_ultra_blueprint():
       assert ctk_yaml.blueprint_name == ctk_test.blueprint_name
       assert ctk_test.deployment_groups == ctk_yaml.deployment_groups
       assert os.path.exists(
-          os.path.join(tmp_test_dir, blueprint_name, config_map_filename)
+          os.path.join(tmp_test_dir, blueprint_name, "mlgru-disable.yaml")
       )
       assert os.path.exists(
-          os.path.join(tmp_test_dir, blueprint_name, kueue_conf_filename)
+          os.path.join(tmp_test_dir, blueprint_name, "nccl-installer.yaml")
       )
 
   shutil.rmtree(tmp_test_dir)

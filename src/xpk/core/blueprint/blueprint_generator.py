@@ -357,10 +357,12 @@ class BlueprintGenerator:
     )
     return deployment_files_path
 
-  def _get_a3_ultra_blueprint_dependencies(self, blueprint_name: str) -> str:
-    deployment_files_path = os.path.join(self.storage_path, blueprint_name)
+  def _get_a3_ultra_blueprint_dependencies(self, blueprint_name: str, prefix: str = "") -> str:
+    deployment_files_path = os.path.join(
+        self._get_storage_path(prefix), blueprint_name
+    )
     shutil.copytree(
-        blueprint_dependencies_dir[a3mega_device_type], deployment_files_path
+        blueprint_dependencies_dir[a3ultra_device_type], deployment_files_path
     )
     return deployment_files_path
 
@@ -373,10 +375,13 @@ class BlueprintGenerator:
       zone: str,
       auth_cidr: str,
       extended_reservation: str | None,
+      system_node_pool_machine_type: str,
       static_node_count: int = 4,
+      prefix : str = "",
       system_node_pool_disk_size_gb: int = 200,
       a3ultra_node_pool_disk_size_gb: int = 100,
       mtu_size: int = 8896,
+      system_node_pool_min_node_count: int = 2,
   ) -> BlueprintGeneratorOutput:
     """Create A3 ultra blueprint.
 
@@ -468,7 +473,7 @@ class BlueprintGenerator:
             "release_channel": "RAPID",
             "prefix_with_deployment_name": False,
             "name_suffix": cluster_name,
-            "system_node_pool_machine_type": "e2-standard-16",
+            "system_node_pool_machine_type": system_node_pool_machine_type,
             "system_node_pool_disk_size_gb": system_node_pool_disk_size_gb,
             "system_node_pool_taints": [],
             "enable_dcgm_monitoring": True,
@@ -477,6 +482,10 @@ class BlueprintGenerator:
             "master_authorized_networks": [{
                 "cidr_block": auth_cidr,
                 "display_name": "kubectl-access-network",
+            }],
+            "system_node_pool_node_count": [{
+                "total_min_nodes": system_node_pool_min_node_count,
+                "total_max_nodes": 1000,
             }],
             "maintenance_exclusions": [{
                 "name": "no-minor-or-node-upgrades-indefinite",
@@ -613,7 +622,7 @@ class BlueprintGenerator:
     )
 
     blueprint_file_path = self._save_blueprint_to_file(
-        blueprint_name, a3_ultra_blueprint
+        blueprint_name, a3_ultra_blueprint, prefix
     )
     blueprint_dependencies = self._get_a3_ultra_blueprint_dependencies(
         blueprint_name

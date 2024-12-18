@@ -26,9 +26,9 @@ from ...utils.file import ensure_directory_exists
 yaml = yaml.YAML()
 
 a3mega_device_type = "h100-mega-80gb-8"
-
-supported_device_types = {a3mega_device_type}
-blueprint_dependencies_dir = {a3mega_device_type: "src/xpk/blueprints/a3mega"}
+a3ultra_device_type = "h200-141gb-8g"
+supported_device_types = {a3mega_device_type, a3ultra_device_type}
+blueprint_dependencies_dir = {a3mega_device_type: "src/xpk/blueprints/a3mega", a3ultra_device_type: "src/xpk/blueprints/a3ultra"}
 
 
 class BlueprintGeneratorOutput:

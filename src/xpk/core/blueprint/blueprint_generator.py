@@ -359,7 +359,9 @@ class BlueprintGenerator:
 
   def _get_a3_ultra_blueprint_dependencies(self, blueprint_name: str) -> str:
     deployment_files_path = os.path.join(self.storage_path, blueprint_name)
-    shutil.copytree(a3ultra_blueprint_dependencies_dir, deployment_files_path)
+    shutil.copytree(
+        blueprint_dependencies_dir[a3mega_device_type], deployment_files_path
+    )
     return deployment_files_path
 
   def generate_a3_ultra_blueprint(

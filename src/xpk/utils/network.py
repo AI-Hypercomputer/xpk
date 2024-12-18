@@ -21,6 +21,7 @@ from .console import xpk_print
 
 # Retrives machine's external IP address
 ip_resolver_url = "http://api.ipify.org"
+all_IPs_cidr = "0.0.0.0/0"
 
 
 def get_current_machine_ip(external_ip=True):

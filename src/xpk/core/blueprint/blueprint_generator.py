@@ -19,11 +19,16 @@ from ruamel import yaml
 import os
 
 from .blueprint_definitions import DeploymentGroup, DeploymentModule, Blueprint
+from ..system_characteristics import get_system_characteristics_by_device_type
+from ...utils.console import xpk_print, xpk_exit
+from ...utils.file import ensure_directory_exists
 
 yaml = yaml.YAML()
-a3mega_blueprint_dependencies_dir = "src/xpk/blueprints/a3mega"
-a3ultra_blueprint_dependencies_dir = "src/xpk/blueprints/a3ultra"
-a3_machine_type = "a3-megagpu-8g"
+
+a3mega_device_type = "h100-mega-80gb-8"
+
+supported_device_types = {a3mega_device_type}
+blueprint_dependencies_dir = {a3mega_device_type: "src/xpk/blueprints/a3mega"}
 
 
 class BlueprintGeneratorOutput:
@@ -36,13 +41,6 @@ class BlueprintGeneratorOutput:
   def __init__(self, blueprint_file: str, blueprint_dependencies: str) -> None:
     self.blueprint_file = blueprint_file
     self.blueprint_dependencies = blueprint_dependencies
-
-
-machine_chipcount = {a3_machine_type: 8}
-
-
-def get_num_chips(num_nodes: int, machine_type: str) -> int:
-  return machine_chipcount[machine_type] * num_nodes
 
 
 class BlueprintGenerator:
@@ -62,6 +60,7 @@ class BlueprintGenerator:
       region: str,
       zone: str,
       auth_cidr: str,
+      prefix: str = "",
       num_nodes: int = 2,
       pods_ip_cidr_range: str = "10.4.0.0/14",
       services_ip_cidr_range: str = "10.0.32.0/20",
@@ -71,14 +70,24 @@ class BlueprintGenerator:
       gpu_subnets_name: str = "gpunets",
       group_placement_max_distance: int = 2,
       autoscaling_total_min_nodes: int = 2,
-      gpunets_network_count: int = 8,
       subnetwork_cidr_suffix: int = 24,
+      reservation: str | None = None,
+      spot: bool = False,
+      system_node_pool_min_node_count: int = 2,
   ) -> BlueprintGeneratorOutput:
     """Create A3 mega blueprint and directory containing its dependencies.
 
     Returns:
       - BlueprintGeneratorOutput object containing path to blueprint and its dependencies.
     """
+    xpk_print(f"Generating {blueprint_name} blueprint started...")
+    system, _ = get_system_characteristics_by_device_type(a3mega_device_type)
+    if system is None:
+      xpk_print(
+          "Error: Could not retrieve system characteristics for"
+          f" {a3mega_device_type} device_type."
+      )
+      xpk_exit(1)
     subnetwork_name = f"{cluster_name}-xpk-gke-a3-megagpu-subnet"
     primary_vpc = DeploymentModule(
         id=primary_vpc_name,
@@ -102,7 +111,7 @@ class BlueprintGenerator:
         settings={
             "network_name_prefix": f"{cluster_name}-gpunet",
             "global_ip_address_range": global_ip_address_range,
-            "network_count": gpunets_network_count,
+            "network_count": 8,
             "subnetwork_cidr_suffix": subnetwork_cidr_suffix,
         },
     )
@@ -122,6 +131,10 @@ class BlueprintGenerator:
                 "display_name": "kubectl-access-network",
             }],
             "system_node_pool_machine_type": system_node_pool_machine_type,
+            "system_node_pool_node_count": {
+                "total_min_nodes": system_node_pool_min_node_count,
+                "total_max_nodes": 1000,
+            },
         },
         outputs=["instructions"],
     )
@@ -135,21 +148,36 @@ class BlueprintGenerator:
         },
     )
 
+    reservation_affinity = (
+        {
+            "consume_reservation_type": "NO_RESERVATION",
+            "specific_reservations": [],
+        }
+        if reservation is None
+        else {
+            "consume_reservation_type": "SPECIFIC_RESERVATION",
+            "specific_reservations": [{"name": reservation}],
+        }
+    )
+
     a3_megagpu_pool_0 = DeploymentModule(
         id="a3_megagpu_pool_0",
         source="modules/compute/gke-node-pool",
         use=["gke_cluster", gpu_subnets_name, "group_placement_0"],
         settings={
             "name": f"{cluster_name}-a3-megagpu-pool-0",
-            "machine_type": a3_machine_type,
+            "machine_type": system.gce_machine_type,
             "autoscaling_total_min_nodes": autoscaling_total_min_nodes,
             "initial_node_count": num_nodes,
             "zones": [zone],
             "host_maintenance_interval": "PERIODIC",
+            "reservation_affinity": reservation_affinity,
+            "run_workload_script": False,
+            "spot": spot,
         },
         outputs=["instructions"],
     )
-    num_chips = get_num_chips(num_nodes, a3_machine_type)
+    num_chips = num_nodes * system.chips_per_vm
     workload = DeploymentModule(
         id="workload_component_install",
         source="modules/management/kubectl-apply",
@@ -157,17 +185,12 @@ class BlueprintGenerator:
         settings={
             "kueue": {
                 "install": True,
-                "config_path": f'$(ghpc_stage("{cluster_name}-a3-mega-xpk"))/kueue-xpk-configuration.yaml.tftpl',
+                "version": "v0.9.1",  # TAS feature-gates is enabled in CT
+                "config_path": f'$(ghpc_stage("{blueprint_name}"))/kueue-xpk-configuration.yaml.tftpl',
                 "config_template_vars": {"num_chips": f"{num_chips}"},
             },
             "jobset": {"install": True},
         },
-    )
-
-    topology_scheduler = DeploymentModule(
-        id="topology_aware_scheduler_install",
-        source="community/modules/compute/gke-topology-scheduler",
-        use=["gke_cluster"],
     )
 
     workload_configmap = DeploymentModule(
@@ -176,7 +199,9 @@ class BlueprintGenerator:
         use=["gke_cluster"],
         settings={
             "apply_manifests": [{
-                "source": f'$(ghpc_stage("{cluster_name}-a3-mega-xpk"))/config-map.yaml.tftpl',
+                "source": (
+                    f'$(ghpc_stage("{blueprint_name}"))/config-map.yaml.tftpl'
+                ),
                 "template_vars": {
                     "name": "xpk-gke-a3-megagpu-resources-configmap",
                     "num_nodes": f"{num_nodes}",
@@ -193,7 +218,6 @@ class BlueprintGenerator:
             group_placement_0,
             a3_megagpu_pool_0,
             workload,
-            topology_scheduler,
             workload_configmap,
         ],
     )
@@ -209,11 +233,16 @@ class BlueprintGenerator:
         terraform_providers=None,
     )
     blueprint_file_path = self._save_blueprint_to_file(
-        blueprint_name, xpk_blueprint
+        blueprint_name, xpk_blueprint, prefix
     )
     blueprint_dependencies = self._get_a3_mega_blueprint_dependencies(
-        blueprint_name
+        blueprint_name, prefix
     )
+    xpk_print(f"Blueprint file path: {blueprint_file_path}")
+    xpk_print(
+        f"Blueprint dependencies directory path: {blueprint_dependencies}"
+    )
+    xpk_print(f"The {blueprint_name} blueprint generated.")
     return BlueprintGeneratorOutput(
         blueprint_file=blueprint_file_path,
         blueprint_dependencies=blueprint_dependencies,
@@ -226,6 +255,7 @@ class BlueprintGenerator:
       project_id: str,
       region: str,
       auth_cidr: str,
+      prefix: str = "",
   ) -> BlueprintGeneratorOutput:
     """Create a simple gke cluster
 
@@ -282,7 +312,9 @@ class BlueprintGenerator:
         },
         terraform_providers=None,
     )
-    blueprint_file_path = self._save_blueprint_to_file(blueprint_name, ml_gke)
+    blueprint_file_path = self._save_blueprint_to_file(
+        blueprint_name, ml_gke, prefix
+    )
     blueprint_dependencies = ""
     return BlueprintGeneratorOutput(
         blueprint_file=blueprint_file_path,
@@ -290,16 +322,39 @@ class BlueprintGenerator:
     )
 
   def _save_blueprint_to_file(
-      self, blueprint_name: str, xpk_blueprint: Blueprint
+      self, blueprint_name: str, xpk_blueprint: Blueprint, prefix: str = ""
   ) -> str:
-    blueprint_path = os.path.join(self.storage_path, f"{blueprint_name}.yaml")
+    blueprint_path = self._get_blueprint_path(blueprint_name, prefix)
     with open(blueprint_path, "w+", encoding="utf-8") as blueprint_file:
       yaml.dump(xpk_blueprint, blueprint_file)
     return blueprint_path
 
-  def _get_a3_mega_blueprint_dependencies(self, blueprint_name: str) -> str:
-    deployment_files_path = os.path.join(self.storage_path, blueprint_name)
-    shutil.copytree(a3mega_blueprint_dependencies_dir, deployment_files_path)
+  def _get_blueprint_path(self, blueprint_name, prefix: str = ""):
+    blueprint_path = os.path.join(
+        self._get_storage_path(prefix), f"{blueprint_name}.yaml"
+    )
+    return blueprint_path
+
+  def _get_storage_path(self, prefix):
+    storage_path_with_prefix = os.path.join(self.storage_path, prefix)
+    ensure_directory_exists(storage_path_with_prefix)
+    return storage_path_with_prefix
+
+  def blueprint_exists(self, blueprint_name, prefix: str = ""):
+    blueprint_path = self._get_blueprint_path(blueprint_name, prefix)
+    return os.path.exists(blueprint_path)
+
+  def _get_a3_mega_blueprint_dependencies(
+      self, blueprint_name: str, prefix: str = ""
+  ) -> str:
+    deployment_files_path = os.path.join(
+        self._get_storage_path(prefix), blueprint_name
+    )
+    shutil.copytree(
+        blueprint_dependencies_dir[a3mega_device_type],
+        deployment_files_path,
+        dirs_exist_ok=True,
+    )
     return deployment_files_path
 
   def _get_a3_ultra_blueprint_dependencies(self, blueprint_name: str) -> str:

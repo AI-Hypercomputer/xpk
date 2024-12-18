@@ -70,6 +70,21 @@ def get_system_characteristics(
     int of 0 if successful and 1 otherwise.
   """
   device_type = args.tpu_type if args.tpu_type else args.device_type
+  return get_system_characteristics_by_device_type(device_type)
+
+
+def get_system_characteristics_by_device_type(
+    device_type,
+) -> tuple[SystemCharacteristics | None, int]:
+  """Get system characteristics based on device_type.
+
+  Args:
+    device_type: device_type for running the command.
+
+  Returns:
+    Tuple with string with the system characteristics and
+    int of 0 if successful and 1 otherwise.
+  """
   if device_type in UserFacingNameToSystemCharacteristics:
     return UserFacingNameToSystemCharacteristics[device_type], 0
   else:

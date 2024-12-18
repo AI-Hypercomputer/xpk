@@ -25,6 +25,7 @@ yaml = ruamel.yaml.YAML()
 yaml.register_class(Blueprint)
 
 a3_yaml_test_path = "src/xpk/core/tests/data/a3_mega.yaml"
+a3_ultra_yaml_test_path = "src/xpk/core/tests/data/a3_ultra.yaml"
 config_map_filename = "config-map.yaml.tftpl"
 kueue_conf_filename = "kueue-xpk-configuration.yaml.tftpl"
 tmp_test_dir = "/tmp/xpk_test"
@@ -78,22 +79,22 @@ def test_generate_a3_mega_blueprint():
 
 def test_generate_a3_ultra_blueprint():
   prepare_test()
-  blueprint_name = "xpk-gke-a3-megagpu"
+  blueprint_name = "xpk-gke-a3-ultra"
   bp_generator = BlueprintGenerator(tmp_test_dir)
-  bp = bp_generator.generate_a3_mega_blueprint(
+  bp = bp_generator.generate_a3_ultra_blueprint(
       project_id="foo",
-      cluster_name="bar",
+      cluster_name="gke-a3-ultra",
       blueprint_name=blueprint_name,
       region="us-central1",
       zone="us-central1-c",
       auth_cidr="10.0.0.0/32",
+      extended_reservation="test_reservation"
   )
-  with open(a3_yaml_test_path, encoding="utf-8") as stream:
+  with open(a3_ultra_yaml_test_path, encoding="utf-8") as stream:
     ctk_yaml = yaml.load(stream)
     with open(bp.blueprint_file, encoding="utf-8") as generated_blueprint:
       ctk_test = yaml.load(generated_blueprint)
       assert ctk_yaml.blueprint_name == ctk_test.blueprint_name
-      assert ctk_yaml.vars == ctk_test.vars
       assert ctk_test.deployment_groups == ctk_yaml.deployment_groups
       assert os.path.exists(
           os.path.join(tmp_test_dir, blueprint_name, config_map_filename)

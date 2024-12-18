@@ -230,7 +230,7 @@ class BlueprintGenerator:
             "region": region,
             "zone": zone,
         },
-        terraform_providers=None,
+        terraform_providers=None
     )
     blueprint_file_path = self._save_blueprint_to_file(
         blueprint_name, xpk_blueprint, prefix
@@ -247,6 +247,7 @@ class BlueprintGenerator:
         blueprint_file=blueprint_file_path,
         blueprint_dependencies=blueprint_dependencies,
     )
+
 
   def generate_gke_ml_blueprint(
       self,
@@ -391,7 +392,7 @@ class BlueprintGenerator:
     mglru_disable_path = (
         f'$(ghpc_stage("./{blueprint_name}/mlgru-disable.yaml"))'
     )
-    net_0_id = "a3u-net-0"
+    net_0_id = f"{cluster_name}-a3u-net-0"
     gpu_net_0 = DeploymentModule(
         id=net_0_id,
         source="github.com/GoogleCloudPlatform/cluster-toolkit.git//modules/network/vpc?ref=e0c690b",
@@ -459,7 +460,7 @@ class BlueprintGenerator:
             },
         },
     )
-    cluster_id = "a3-ultragpu-cluster"
+    cluster_id = f"{cluster_name}-a3-ultragpu-cluster"
     a3_ultra_cluster = DeploymentModule(
         id=cluster_id,
         source="github.com/GoogleCloudPlatform/cluster-toolkit.git//modules/scheduler/gke-cluster?ref=e0c690b",
@@ -485,16 +486,16 @@ class BlueprintGenerator:
                 "exclusion_scope": "NO_MINOR_OR_NODE_UPGRADES",
             }],
             "additional_networks": (
-                f'$(concat([{{network={cluster_name}-a3u-net-1.network_name,subnetwork={cluster_name}-a3u-net-1.subnetwork_name,subnetwork_project="{project_id}",'
-                ' nic_type="GVNIC",queue_count=null, network_ip=null,'
-                " stack_type=null,access_config=[{nat_ip=null,"
-                " public_ptr_domain_name=null,network_tier=null}],"
-                f" ipv6_access_config=[],alias_ip_range=[]}}],{cluster_name}-a3u-rdma-net.subnetwork_interfaces_gke))"
+                f'$(concat([{{network={cluster_name}-a3u-net-1.network_name, subnetwork={cluster_name}-a3u-net-1.subnetwork_name, subnetwork_project="{project_id}",'
+                ' nic_type="GVNIC", queue_count=null, network_ip=null,'
+                " stack_type=null, access_config=[{nat_ip=null,"
+                " public_ptr_domain_name=null, network_tier=null}],"
+                f" ipv6_access_config=[], alias_ip_range=[]}}], {cluster_name}-a3u-rdma-net.subnetwork_interfaces_gke))"
             ),
         },
         outputs=["instructions"],
     )
-    gpu_pool_id = "a3-ultragpu-pool"
+    gpu_pool_id = f"{cluster_name}-a3u-ultragpu-pool"
     gpu_pool = DeploymentModule(
         id=gpu_pool_id,
         source="github.com/GoogleCloudPlatform/cluster-toolkit.git//modules/compute/gke-node-pool?ref=e0c690b",
@@ -514,11 +515,11 @@ class BlueprintGenerator:
                 },
             }],
             "additional_networks": (
-                f'$(concat([{{network={cluster_name}-a3u-net-1.network_name,subnetwork={cluster_name}-a3u-net-1.subnetwork_name,subnetwork_project="{project_id}",'
-                ' nic_type="GVNIC",queue_count=null, network_ip=null,'
-                " stack_type=null,access_config=[{nat_ip=null,"
-                " public_ptr_domain_name=null,network_tier=null}],"
-                f" ipv6_access_config=[],alias_ip_range=[]}}],{cluster_name}-a3u-rdma-net.subnetwork_interfaces_gke))"
+                f'$(concat([{{network={cluster_name}-a3u-net-1.network_name, subnetwork={cluster_name}-a3u-net-1.subnetwork_name, subnetwork_project="{project_id}",'
+                ' nic_type="GVNIC", queue_count=null, network_ip=null,'
+                " stack_type=null, access_config=[{nat_ip=null,"
+                " public_ptr_domain_name=null, network_tier=null}],"
+                f" ipv6_access_config=[], alias_ip_range=[]}}], {cluster_name}-a3u-rdma-net.subnetwork_interfaces_gke))"
             ),
         },
         outputs=["instructions"],

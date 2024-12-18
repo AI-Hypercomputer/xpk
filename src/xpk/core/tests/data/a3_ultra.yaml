@@ -93,9 +93,15 @@ deployment_groups:
       enable_dcgm_monitoring: true
       enable_gcsfuse_csi: true
       enable_private_endpoint: false # Allows access from authorized public IPs
+      autoscaling_total_min_nodes: 2
+      initial_node_count: 2
+      spot: false
       master_authorized_networks:
       - cidr_block: 10.0.0.0/32 # Allows your machine to run the kubectl command. Required for multi network setup.
         display_name: "kubectl-access-network"
+      system_node_pool_node_count:
+      - total_min_nodes: 2
+        total_max_nodes: 1000
       maintenance_exclusions: 
       - name: "no-minor-or-node-upgrades-indefinite"
         start_time: "2024-12-01T00:00:00Z"

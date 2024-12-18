@@ -71,6 +71,9 @@ def test_create_a3_mega_deployment():
       zone=zone,
       extended_reservation="foo",
       static_node_count=1,
+      system_node_pool_machine_type="e2-standard-16",
+      num_nodes=2,
+      autoscaling_total_min_nodes=2,
   )
   blueprint_test_path = os.path.join(test_bp_dir, f"{blueprint_name}.yaml")
   blueprint_deps_test_path = os.path.join(test_bp_dir, blueprint_name)

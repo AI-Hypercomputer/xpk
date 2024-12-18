@@ -28,7 +28,10 @@ yaml = yaml.YAML()
 a3mega_device_type = "h100-mega-80gb-8"
 a3ultra_device_type = "h200-141gb-8g"
 supported_device_types = {a3mega_device_type, a3ultra_device_type}
-blueprint_dependencies_dir = {a3mega_device_type: "src/xpk/blueprints/a3mega", a3ultra_device_type: "src/xpk/blueprints/a3ultra"}
+blueprint_dependencies_dir = {
+    a3mega_device_type: "src/xpk/blueprints/a3mega",
+    a3ultra_device_type: "src/xpk/blueprints/a3ultra",
+}
 
 
 class BlueprintGeneratorOutput:
@@ -357,7 +360,9 @@ class BlueprintGenerator:
     )
     return deployment_files_path
 
-  def _get_a3_ultra_blueprint_dependencies(self, blueprint_name: str, prefix: str = "") -> str:
+  def _get_a3_ultra_blueprint_dependencies(
+      self, blueprint_name: str, prefix: str = ""
+  ) -> str:
     deployment_files_path = os.path.join(
         self._get_storage_path(prefix), blueprint_name
     )
@@ -376,12 +381,15 @@ class BlueprintGenerator:
       auth_cidr: str,
       extended_reservation: str | None,
       system_node_pool_machine_type: str,
+      num_nodes: int,
+      autoscaling_total_min_nodes: int,
       static_node_count: int = 4,
-      prefix : str = "",
+      prefix: str = "",
       system_node_pool_disk_size_gb: int = 200,
       a3ultra_node_pool_disk_size_gb: int = 100,
       mtu_size: int = 8896,
       system_node_pool_min_node_count: int = 2,
+      spot: bool = False,
   ) -> BlueprintGeneratorOutput:
     """Create A3 ultra blueprint.
 
@@ -479,6 +487,9 @@ class BlueprintGenerator:
             "enable_dcgm_monitoring": True,
             "enable_gcsfuse_csi": True,
             "enable_private_endpoint": False,
+            "autoscaling_total_min_nodes": autoscaling_total_min_nodes,
+            "initial_node_count": num_nodes,
+            "spot": spot,
             "master_authorized_networks": [{
                 "cidr_block": auth_cidr,
                 "display_name": "kubectl-access-network",

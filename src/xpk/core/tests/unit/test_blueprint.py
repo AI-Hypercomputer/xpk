@@ -88,7 +88,7 @@ def test_generate_a3_ultra_blueprint():
       region="us-central1",
       zone="us-central1-c",
       auth_cidr="10.0.0.0/32",
-      extended_reservation="test_reservation"
+      extended_reservation="test_reservation",
   )
   with open(a3_ultra_yaml_test_path, encoding="utf-8") as stream:
     ctk_yaml = yaml.load(stream)

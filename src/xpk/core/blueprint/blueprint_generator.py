@@ -230,7 +230,7 @@ class BlueprintGenerator:
             "region": region,
             "zone": zone,
         },
-        terraform_providers=None
+        terraform_providers=None,
     )
     blueprint_file_path = self._save_blueprint_to_file(
         blueprint_name, xpk_blueprint, prefix
@@ -247,7 +247,6 @@ class BlueprintGenerator:
         blueprint_file=blueprint_file_path,
         blueprint_dependencies=blueprint_dependencies,
     )
-
 
   def generate_gke_ml_blueprint(
       self,
@@ -486,11 +485,14 @@ class BlueprintGenerator:
                 "exclusion_scope": "NO_MINOR_OR_NODE_UPGRADES",
             }],
             "additional_networks": (
-                f'$(concat([{{network={cluster_name}-a3u-net-1.network_name, subnetwork={cluster_name}-a3u-net-1.subnetwork_name, subnetwork_project="{project_id}",'
-                ' nic_type="GVNIC", queue_count=null, network_ip=null,'
-                " stack_type=null, access_config=[{nat_ip=null,"
-                " public_ptr_domain_name=null, network_tier=null}],"
-                f" ipv6_access_config=[], alias_ip_range=[]}}], {cluster_name}-a3u-rdma-net.subnetwork_interfaces_gke))"
+                f"$(concat([{{network={cluster_name}-a3u-net-1.network_name,"
+                f" subnetwork={cluster_name}-a3u-net-1.subnetwork_name,"
+                f' subnetwork_project="{project_id}", nic_type="GVNIC",'
+                " queue_count=null, network_ip=null, stack_type=null,"
+                " access_config=[{nat_ip=null, public_ptr_domain_name=null,"
+                " network_tier=null}], ipv6_access_config=[],"
+                " alias_ip_range=[]}],"
+                f" {cluster_name}-a3u-rdma-net.subnetwork_interfaces_gke))"
             ),
         },
         outputs=["instructions"],
@@ -515,11 +517,14 @@ class BlueprintGenerator:
                 },
             }],
             "additional_networks": (
-                f'$(concat([{{network={cluster_name}-a3u-net-1.network_name, subnetwork={cluster_name}-a3u-net-1.subnetwork_name, subnetwork_project="{project_id}",'
-                ' nic_type="GVNIC", queue_count=null, network_ip=null,'
-                " stack_type=null, access_config=[{nat_ip=null,"
-                " public_ptr_domain_name=null, network_tier=null}],"
-                f" ipv6_access_config=[], alias_ip_range=[]}}], {cluster_name}-a3u-rdma-net.subnetwork_interfaces_gke))"
+                f"$(concat([{{network={cluster_name}-a3u-net-1.network_name,"
+                f" subnetwork={cluster_name}-a3u-net-1.subnetwork_name,"
+                f' subnetwork_project="{project_id}", nic_type="GVNIC",'
+                " queue_count=null, network_ip=null, stack_type=null,"
+                " access_config=[{nat_ip=null, public_ptr_domain_name=null,"
+                " network_tier=null}], ipv6_access_config=[],"
+                " alias_ip_range=[]}],"
+                f" {cluster_name}-a3u-rdma-net.subnetwork_interfaces_gke))"
             ),
         },
         outputs=["instructions"],

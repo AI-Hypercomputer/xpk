@@ -124,7 +124,7 @@ def check_gcloud_authenticated():
         'Please authenticate to gcloud ("gcloud auth application-default'
         ' login") and then run your command.'
     )
-    xpk_exit(-1)
+    xpk_exit(1)
 
 
 def prepare_gcluster_manager() -> GclusterManager:
@@ -180,4 +180,4 @@ def validate_consumption_args(args):
         f"Error: only one of {' or '.join(args_set)} can be set at the same"
         ' time.'
     )
-    xpk_exit(-1)
+    xpk_exit(1)

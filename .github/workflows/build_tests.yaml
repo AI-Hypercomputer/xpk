@@ -37,7 +37,7 @@ env:
   CLUSTER_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}} --subnetwork=${{secrets.SUBNETWORK_NAME}} --maintenance-window=23:50"
   RUN_ID: "pr-${{ github.event.number }}"
   PROJECT_ID: ${{secrets.PROJECT_NAME}}
-  CLUSTER_NAME: "xpk-ctk-int"
+  A3_MEGA_TEST_CLUSTER_NAME: "xpk-ctk-int"
   ZONE: us-central2-a
   REGION: us-central2
 

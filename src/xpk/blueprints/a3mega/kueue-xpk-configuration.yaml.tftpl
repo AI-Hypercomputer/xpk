@@ -1,3 +1,14 @@
+apiVersion: kueue.x-k8s.io/v1alpha1
+kind: Topology
+metadata:
+  name: "gke-default"
+spec:
+  levels:
+  - nodeLabel: "cloud.google.com/gce-topology-block"
+  - nodeLabel: "cloud.google.com/gce-topology-subblock"
+  - nodeLabel: "cloud.google.com/gce-topology-host"
+  - nodeLabel: "kubernetes.io/hostname"
+---
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: ResourceFlavor
 metadata:
@@ -5,8 +16,8 @@ metadata:
 spec:
   nodeLabels:
     cloud.google.com/gke-accelerator: nvidia-h100-mega-80gb
+  topologyName: "gke-default"
 ---
-
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: ClusterQueue
 metadata:

@@ -482,6 +482,9 @@ class BlueprintGenerator:
             "enable_dcgm_monitoring": True,
             "enable_gcsfuse_csi": True,
             "enable_private_endpoint": False,
+            "autoscaling_total_min_nodes": autoscaling_total_min_nodes,
+            "initial_node_count": num_nodes,
+            "spot": spot,
             "master_authorized_networks": [{
                 "cidr_block": auth_cidr,
                 "display_name": "kubectl-access-network",

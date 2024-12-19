@@ -96,7 +96,7 @@ deployment_groups:
       - cidr_block: 10.0.0.0/32 # Allows your machine to run the kubectl command. Required for multi network setup.
         display_name: "kubectl-access-network"
       system_node_pool_node_count:
-      - total_min_nodes: 2
+        total_min_nodes: 2
         total_max_nodes: 1000
       additional_networks: $(concat([{network=gke-a3-ultra-a3u-net-1.network_name, subnetwork=gke-a3-ultra-a3u-net-1.subnetwork_name, subnetwork_project="foo", nic_type="GVNIC", queue_count=null, network_ip=null, stack_type=null, access_config=[{nat_ip=null, public_ptr_domain_name=null, network_tier=null}], ipv6_access_config=[], alias_ip_range=[]}], gke-a3-ultra-a3u-rdma-net.subnetwork_interfaces_gke))
     outputs: [instructions]
@@ -133,7 +133,7 @@ deployment_groups:
       kueue:
         install: true
         version: v0.9.1  # TAS feature-gates is enabled in CT
-        config_path: '$(ghpc_stage(xpk-gke-a3-ultra/kueue-xpk-configuration.yaml.tftpl))'
+        config_path: $(ghpc_stage("xpk-gke-a3-ultra/kueue-xpk-configuration.yaml.tftpl"))
         config_template_vars:
          num_chips: "8"
       jobset:

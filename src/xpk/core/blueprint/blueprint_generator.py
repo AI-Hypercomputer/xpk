@@ -343,7 +343,7 @@ class BlueprintGenerator:
     ensure_directory_exists(storage_path_with_prefix)
     return storage_path_with_prefix
 
-  def blueprint_exists(self, blueprint_name, prefix: str = ""):
+  def xxxxxxblueprint_exists(self, blueprint_name, prefix: str = ""):
     blueprint_path = self._get_blueprint_path(blueprint_name, prefix)
     return os.path.exists(blueprint_path)
 
@@ -551,7 +551,7 @@ class BlueprintGenerator:
             "kueue": {
                 "install": True,
                 "version": "v0.9.1",  # TAS feature-gates is enabled in CT
-                "config_path": f'$("ghpc_stage({blueprint_name}/kueue-xpk-configuration.yaml.tftpl"))',
+                "config_path": f'$(ghpc_stage("{blueprint_name}/kueue-xpk-configuration.yaml.tftpl"))',
                 "config_template_vars": {"num_chips": f"{num_chips}"},
             },
             "jobset": {"install": True, "version": "v0.7.1"},

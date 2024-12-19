@@ -103,7 +103,7 @@ jobs:
     - name: Initialize RUN_ID env var
       run: |
         if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-          RUN_ID="dispatch"
+          RUN_ID="disp"
         elif [ "${{ github.ref }}" == "refs/heads/main" ]; then
           RUN_ID="main"
         else

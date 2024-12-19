@@ -90,8 +90,6 @@ def test_generate_a3_ultra_blueprint():
       auth_cidr="10.0.0.0/32",
       reservation="test_reservation",
       system_node_pool_machine_type="e2-standard-16",
-      num_nodes=2,
-      autoscaling_total_min_nodes=2,
   )
   print(bp.blueprint_file, bp.blueprint_dependencies)
   with open(a3_ultra_yaml_test_path, encoding="utf-8") as stream:

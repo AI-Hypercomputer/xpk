@@ -381,8 +381,6 @@ class BlueprintGenerator:
       auth_cidr: str,
       reservation: str | None,
       system_node_pool_machine_type: str,
-      num_nodes: int,
-      autoscaling_total_min_nodes: int,
       static_node_count: int = 4,
       prefix: str = "",
       mtu_size: int = 8896,
@@ -543,7 +541,7 @@ class BlueprintGenerator:
           "specific_reservations": [{"name": reservation}],
       }
 
-    num_chips = 
+    num_chips = 8
     workload_manager_install_id = "workload-manager-install"
     workload_manager_install = DeploymentModule(
         id=workload_manager_install_id,
@@ -553,7 +551,7 @@ class BlueprintGenerator:
             "kueue": {
                 "install": True,
                 "version": "v0.9.1",  # TAS feature-gates is enabled in CT
-                "config_path": f'$(ghpc_stage("{blueprint_name}"))/kueue-xpk-configuration.yaml.tftpl',
+                "config_path": f'$(ghpc_stage({blueprint_name}/kueue-xpk-configuration.yaml.tftpl))',
                 "config_template_vars": {"num_chips": f"{num_chips}"},
             },
             "jobset": {"install": True, "version": "v0.7.1"},

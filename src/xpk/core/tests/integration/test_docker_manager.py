@@ -77,7 +77,6 @@ def test_docker_build_image(setup_img_name):
 
   dc = docker.from_env()
   containers_before = dc.containers.list(all=True)
-
   dc.images.get(f'{setup_img_name}:{gcluster_version}')
   containers_after = dc.containers.list(all=True)
   assert len(containers_before) == len(containers_after)

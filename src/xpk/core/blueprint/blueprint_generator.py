@@ -379,14 +379,12 @@ class BlueprintGenerator:
       region: str,
       zone: str,
       auth_cidr: str,
-      extended_reservation: str | None,
+      reservation: str | None,
       system_node_pool_machine_type: str,
       num_nodes: int,
       autoscaling_total_min_nodes: int,
       static_node_count: int = 4,
       prefix: str = "",
-      system_node_pool_disk_size_gb: int = 200,
-      a3ultra_node_pool_disk_size_gb: int = 100,
       mtu_size: int = 8896,
       system_node_pool_min_node_count: int = 2,
       spot: bool = False,
@@ -482,14 +480,10 @@ class BlueprintGenerator:
             "prefix_with_deployment_name": False,
             "name_suffix": cluster_name,
             "system_node_pool_machine_type": system_node_pool_machine_type,
-            "system_node_pool_disk_size_gb": system_node_pool_disk_size_gb,
             "system_node_pool_taints": [],
             "enable_dcgm_monitoring": True,
             "enable_gcsfuse_csi": True,
             "enable_private_endpoint": False,
-            "autoscaling_total_min_nodes": autoscaling_total_min_nodes,
-            "initial_node_count": num_nodes,
-            "spot": spot,
             "master_authorized_networks": [{
                 "cidr_block": auth_cidr,
                 "display_name": "kubectl-access-network",
@@ -497,12 +491,6 @@ class BlueprintGenerator:
             "system_node_pool_node_count": [{
                 "total_min_nodes": system_node_pool_min_node_count,
                 "total_max_nodes": 1000,
-            }],
-            "maintenance_exclusions": [{
-                "name": "no-minor-or-node-upgrades-indefinite",
-                "start_time": "2024-12-01T00:00:00Z",
-                "end_time": "2025-12-22T00:00:00Z",
-                "exclusion_scope": "NO_MINOR_OR_NODE_UPGRADES",
             }],
             "additional_networks": (
                 f"$(concat([{{network={cluster_name}-a3u-net-1.network_name,"
@@ -527,8 +515,8 @@ class BlueprintGenerator:
             "auto_upgrade": True,
             "zones": [zone],
             "disk_type": "hyperdisk-balanced",
-            "disk_size_gb": a3ultra_node_pool_disk_size_gb,
             "static_node_count": static_node_count,
+            "spot": spot,
             "guest_accelerator": [{
                 "type": "nvidia-h200-141gb",
                 "count": 8,
@@ -549,43 +537,31 @@ class BlueprintGenerator:
         },
         outputs=["instructions"],
     )
-    if extended_reservation is not None:
+    if reservation is not None:
       gpu_pool.settings["reservation_affinity"] = {
           "consume_reservation_type": "SPECIFIC_RESERVATION",
-          "specific_reservations": [{"name": extended_reservation}],
+          "specific_reservations": [{"name": reservation}],
       }
-    tas_install_id = "topology-aware-scheduler-install"
-    tas_install = DeploymentModule(
-        id=tas_install_id,
-        source="github.com/GoogleCloudPlatform/cluster-toolkit.git//community/modules/compute/gke-topology-scheduler?ref=e0c690b",
-        use=[cluster_id],
-    )
+
+    num_chips = 
     workload_manager_install_id = "workload-manager-install"
     workload_manager_install = DeploymentModule(
         id=workload_manager_install_id,
         source="github.com/GoogleCloudPlatform/cluster-toolkit.git//modules/management/kubectl-apply?ref=e0c690b",
         use=[cluster_id],
         settings={
-            "kueue": {"install": True, "version": "v0.9.1"},
+            "kueue": {
+                "install": True,
+                "version": "v0.9.1",  # TAS feature-gates is enabled in CT
+                "config_path": f'$(ghpc_stage("{blueprint_name}"))/kueue-xpk-configuration.yaml.tftpl',
+                "config_template_vars": {"num_chips": f"{num_chips}"},
+            },
             "jobset": {"install": True, "version": "v0.7.1"},
             "apply_manifests": [
                 {"source": nccl_installer_path},
                 {"source": mglru_disable_path},
             ],
         },
-    )
-    job_template_id = "job-template"
-    job_template = DeploymentModule(
-        id=job_template_id,
-        source="modules/compute/gke-job-template",
-        use=[gpu_pool_id],
-        settings={
-            "image": "nvidia/cuda:11.0.3-runtime-ubuntu20.04",
-            "command": ["nvidia-smi"],
-            "node_count": 2,
-            "name": "run-nvidia-smi",
-        },
-        outputs=["instructions"],
     )
 
     primary_group = DeploymentGroup(
@@ -596,9 +572,7 @@ class BlueprintGenerator:
             rma_net,
             a3_ultra_cluster,
             gpu_pool,
-            tas_install,
             workload_manager_install,
-            job_template,
         ],
     )
     a3_ultra_blueprint = Blueprint(

@@ -88,7 +88,7 @@ def test_generate_a3_ultra_blueprint():
       region="us-central1",
       zone="us-central1-c",
       auth_cidr="10.0.0.0/32",
-      extended_reservation="test_reservation",
+      reservation="test_reservation",
       system_node_pool_machine_type="e2-standard-16",
       num_nodes=2,
       autoscaling_total_min_nodes=2,

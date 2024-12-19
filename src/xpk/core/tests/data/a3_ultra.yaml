@@ -88,7 +88,6 @@ deployment_groups:
       prefix_with_deployment_name: false
       name_suffix: gke-a3-ultra
       system_node_pool_machine_type: "e2-standard-16"
-      system_node_pool_disk_size_gb: 200
       system_node_pool_taints: []
       enable_dcgm_monitoring: true
       enable_gcsfuse_csi: true
@@ -120,7 +119,6 @@ deployment_groups:
       auto_upgrade: true
       zones: [us-central1-c]
       disk_type: hyperdisk-balanced
-      disk_size_gb: 100
       static_node_count: 4
       guest_accelerator:
       - type: nvidia-h200-141gb

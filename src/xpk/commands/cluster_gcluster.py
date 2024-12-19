@@ -175,7 +175,7 @@ def generate_blueprint(
           auth_cidr=all_IPs_cidr,
           num_nodes=num_nodes,
           autoscaling_total_min_nodes=num_nodes,
-          extended_reservation=args.reservation if args.reservation else None,
+          reservation=args.reservation if args.reservation else None,
           spot=args.spot if args.spot else False,
           system_node_pool_machine_type=args.default_pool_cpu_machine_type,
           system_node_pool_min_node_count=args.default_pool_cpu_num_nodes,

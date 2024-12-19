@@ -69,7 +69,7 @@ def test_create_a3_mega_deployment():
       project_id=project_id,
       auth_cidr=auth_cidr,
       zone=zone,
-      extended_reservation="foo",
+      reservation="foo",
       static_node_count=1,
       system_node_pool_machine_type="e2-standard-16",
       num_nodes=2,

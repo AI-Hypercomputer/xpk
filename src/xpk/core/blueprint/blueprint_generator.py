@@ -486,10 +486,10 @@ class BlueprintGenerator:
                 "cidr_block": auth_cidr,
                 "display_name": "kubectl-access-network",
             }],
-            "system_node_pool_node_count": [{
+            "system_node_pool_node_count": {
                 "total_min_nodes": system_node_pool_min_node_count,
                 "total_max_nodes": 1000,
-            }],
+            },
             "additional_networks": (
                 f"$(concat([{{network={cluster_name}-a3u-net-1.network_name,"
                 f" subnetwork={cluster_name}-a3u-net-1.subnetwork_name,"
@@ -551,7 +551,7 @@ class BlueprintGenerator:
             "kueue": {
                 "install": True,
                 "version": "v0.9.1",  # TAS feature-gates is enabled in CT
-                "config_path": f"$(ghpc_stage({blueprint_name}/kueue-xpk-configuration.yaml.tftpl))",
+                "config_path": f'$("ghpc_stage({blueprint_name}/kueue-xpk-configuration.yaml.tftpl"))',
                 "config_template_vars": {"num_chips": f"{num_chips}"},
             },
             "jobset": {"install": True, "version": "v0.7.1"},

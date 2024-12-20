@@ -123,6 +123,7 @@ deployment_groups:
         consume_reservation_type: SPECIFIC_RESERVATION
         specific_reservations:
         - name: test_reservation
+      max_pods_per_node: 32
     outputs: [instructions]
 
   - !DeploymentModule
@@ -142,4 +143,13 @@ deployment_groups:
       apply_manifests:
       - source: $(ghpc_stage("./xpk-gke-a3-ultra/nccl-installer.yaml"))
       - source: $(ghpc_stage("./xpk-gke-a3-ultra/mlgru-disable.yaml"))
+  
+  - !DeploymentModule
+    id: workload_configmap
+    source: github.com/GoogleCloudPlatform/cluster-toolkit.git//modules/management/kubectl-apply?ref=e0c690b
+    use: [gke_cluster]
+    settings:
+      apply_manifests:
+      - source: $(ghpc_stage("xpk-gke-a3-ultra"))/config-map.yaml.tftpl
+        template_vars: {name: "xpk-gke-a3-ultra-resources-configmap", num_nodes: "2"}
       

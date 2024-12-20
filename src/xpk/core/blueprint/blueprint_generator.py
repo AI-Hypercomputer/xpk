@@ -516,6 +516,7 @@ class BlueprintGenerator:
             "disk_type": "hyperdisk-balanced",
             "static_node_count": static_node_count,
             "spot": spot,
+            "max_pods_per_node": 32,
             "guest_accelerator": [{
                 "type": "nvidia-h200-141gb",
                 "count": 8,
@@ -563,6 +564,23 @@ class BlueprintGenerator:
         },
     )
 
+    workload_configmap = DeploymentModule(
+        id="workload_configmap",
+        source="modules/management/kubectl-apply",
+        use=[cluster_id],
+        settings={
+            "apply_manifests": [{
+                "source": (
+                    f'$(ghpc_stage("{blueprint_name}"))/config-map.yaml.tftpl'
+                ),
+                "template_vars": {
+                    "resource_config_name": f"{cluster_name}-resources-configmap",
+                    "num_nodes": f"{num_nodes}"
+                },
+            }]
+        },
+    )
+
     primary_group = DeploymentGroup(
         group="primary",
         modules=[
@@ -572,6 +590,7 @@ class BlueprintGenerator:
             a3_ultra_cluster,
             gpu_pool,
             workload_manager_install,
+            workload_configmap,
         ],
     )
     a3_ultra_blueprint = Blueprint(

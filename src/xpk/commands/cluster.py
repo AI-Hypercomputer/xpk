@@ -247,11 +247,11 @@ def cluster_delete(args) -> None:
     cluster_gcluster.cluster_delete(args)
     xpk_exit(0)
 
-  # run_gke_cluster_delete_command_code = run_gke_cluster_delete_command(args)
-  # if run_gke_cluster_delete_command_code != 0:
-  #   xpk_exit(run_gke_cluster_delete_command_code)
-  # xpk_print(f'GKE commands done! Cluster {args.cluster} deleted.\n')
-  # xpk_exit(0)
+  run_gke_cluster_delete_command_code = run_gke_cluster_delete_command(args)
+  if run_gke_cluster_delete_command_code != 0:
+    xpk_exit(run_gke_cluster_delete_command_code)
+  xpk_print(f'GKE commands done! Cluster {args.cluster} deleted.\n')
+  xpk_exit(0)
 
 
 def cluster_cacheimage(args) -> None:

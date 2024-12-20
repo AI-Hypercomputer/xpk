@@ -23,7 +23,7 @@ import time
 
 test_cfg_path = '/tmp/xpk_gcloud_cfg'
 test_deployment_dir = '/tmp/xpk_deployment'
-test_gcluster_cmd = 'gcluster --version'
+test_gcluster_cmd = 'gcluster --ehjfsdh'
 test_ctk_xpk_img = 'gcluster-xpk'
 test_ctk_xpk_container = 'xpk-test-container'
 gcluster_version = 'develop'

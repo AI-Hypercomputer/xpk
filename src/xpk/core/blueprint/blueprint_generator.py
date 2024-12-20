@@ -343,8 +343,9 @@ class BlueprintGenerator:
     ensure_directory_exists(storage_path_with_prefix)
     return storage_path_with_prefix
 
-  def xxxxxxblueprint_exists(self, blueprint_name, prefix: str = ""):
+  def blueprint_exists(self, blueprint_name, prefix: str = ""):
     blueprint_path = self._get_blueprint_path(blueprint_name, prefix)
+    print(blueprint_path)
     return os.path.exists(blueprint_path)
 
   def _get_a3_mega_blueprint_dependencies(
@@ -367,7 +368,7 @@ class BlueprintGenerator:
         self._get_storage_path(prefix), blueprint_name
     )
     shutil.copytree(
-        blueprint_dependencies_dir[a3ultra_device_type], deployment_files_path
+        blueprint_dependencies_dir[a3ultra_device_type], deployment_files_path, dirs_exist_ok = True
     )
     return deployment_files_path
 
@@ -503,7 +504,7 @@ class BlueprintGenerator:
         },
         outputs=["instructions"],
     )
-    gpu_pool_id = f"{cluster_name}-a3u-ultragpu-pool"
+    gpu_pool_id = f"{cluster_name}-a3u-pool"
     gpu_pool = DeploymentModule(
         id=gpu_pool_id,
         source="github.com/GoogleCloudPlatform/cluster-toolkit.git//modules/compute/gke-node-pool?ref=e0c690b",

@@ -180,6 +180,10 @@ class DockerManager(CommandRunner):
           },
       )
       self._print_logs_from_container(container)
+      result = container.wait()
+      if result["StatusCode"] != 0:
+        xpk_print(f"Running gcluster command: {cmd} failed.")
+        xpk_exit(result["StatusCode"])
     except ContainerError as e:
       xpk_print(
           "Running command failed due to ContainerError with exit status:"

@@ -1,0 +1,88 @@
+apiVersion: kueue.x-k8s.io/v1alpha1
+kind: Topology
+metadata:
+  name: "gke-default"
+spec:
+  levels:
+  - nodeLabel: "cloud.google.com/gce-topology-block"
+  - nodeLabel: "cloud.google.com/gce-topology-subblock"
+  - nodeLabel: "cloud.google.com/gce-topology-host"
+  - nodeLabel: "kubernetes.io/hostname"
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ResourceFlavor
+metadata:
+  name: 1xh200-141gb-8
+spec:
+  nodeLabels:
+    cloud.google.com/gke-accelerator: nvidia-h200-141gb
+  topologyName: "gke-default"
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ClusterQueue
+metadata:
+  name: cluster-queue
+spec:
+  preemption:
+      reclaimWithinCohort: Never # Don't preempt other queues in the cohort.
+      withinClusterQueue: LowerPriority
+  namespaceSelector: {} # match all.
+  resourceGroups:
+  - coveredResources: ["nvidia.com/gpu", "cpu", "memory"]
+    flavors:
+    - name: 1xh200-141gb-8g
+      resources:
+      - name: "nvidia.com/gpu"
+        nominalQuota: ${num_chips}
+      - name: "cpu"
+        nominalQuota: 10000
+      - name: "memory"
+        nominalQuota: 10000Gi
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: LocalQueue
+metadata:
+  namespace: default
+  name: multislice-queue
+spec:
+  clusterQueue: cluster-queue
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: very-low
+value: 100
+globalDefault: false
+description: "Very Low"
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: low
+value: 250
+globalDefault: false
+description: "Low"
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: medium
+value: 500
+globalDefault: false
+description: "Medium"
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: high
+value: 750
+globalDefault: false
+description: "High"
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: very-high
+value: 1000
+globalDefault: false
+description: "Very High"

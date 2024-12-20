@@ -105,7 +105,7 @@ deployment_groups:
     source: github.com/GoogleCloudPlatform/cluster-toolkit.git//modules/compute/gke-node-pool?ref=e0c690b
     use: [gke-a3-ultra-a3-ultragpu-cluster]
     settings:
-      machine_type: a3-ultra-8g
+      machine_type: a3-ultragpu-8g
       auto_upgrade: true
       zones: [us-central1-c]
       disk_type: hyperdisk-balanced

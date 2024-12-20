@@ -368,7 +368,9 @@ class BlueprintGenerator:
         self._get_storage_path(prefix), blueprint_name
     )
     shutil.copytree(
-        blueprint_dependencies_dir[a3ultra_device_type], deployment_files_path, dirs_exist_ok = True
+        blueprint_dependencies_dir[a3ultra_device_type],
+        deployment_files_path,
+        dirs_exist_ok=True,
     )
     return deployment_files_path
 
@@ -574,8 +576,10 @@ class BlueprintGenerator:
                     f'$(ghpc_stage("{blueprint_name}"))/config-map.yaml.tftpl'
                 ),
                 "template_vars": {
-                    "resource_config_name": f"{cluster_name}-resources-configmap",
-                    "num_nodes": f"{num_nodes}"
+                    "resource_config_name": (
+                        f"{cluster_name}-resources-configmap"
+                    ),
+                    "num_nodes": f"{static_node_count}",
                 },
             }]
         },

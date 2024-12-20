@@ -14,7 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from enum import unique
 from ..core.blueprint.blueprint_generator import BlueprintGenerator, BlueprintGeneratorOutput, supported_device_types, a3mega_device_type, a3ultra_device_type
 from ..core.docker_manager import DockerManager
 from ..core.gcluster_manager import GclusterManager
@@ -93,9 +92,7 @@ def cluster_delete(args) -> None:
 def created_by_gcluster(args) -> bool:
   prepare_directories()
   region = zone_to_region(args.zone)
-  unique_name = get_unique_name(
-      args.project, region, args.cluster
-  )
+  unique_name = get_unique_name(args.project, region, args.cluster)
   prefix = get_prefix_path(args.project, region)
   bpg = prepare_blueprint_generator()
   return bpg.blueprint_exists(unique_name, prefix)

@@ -102,7 +102,7 @@ deployment_groups:
     outputs: [instructions]
 
   - !DeploymentModule
-    id: gke-a3-ultra-a3u-ultragpu-pool
+    id: gke-a3-ultra-a3u-pool
     source: github.com/GoogleCloudPlatform/cluster-toolkit.git//modules/compute/gke-node-pool?ref=e0c690b
     use: [gke-a3-ultra-a3-ultragpu-cluster]
     settings:
@@ -112,6 +112,7 @@ deployment_groups:
       disk_type: hyperdisk-balanced
       static_node_count: 4
       spot: false
+      max_pods_per_node: 32
       guest_accelerator:
       - type: nvidia-h200-141gb
         count: 8
@@ -123,7 +124,6 @@ deployment_groups:
         consume_reservation_type: SPECIFIC_RESERVATION
         specific_reservations:
         - name: test_reservation
-      max_pods_per_node: 32
     outputs: [instructions]
 
   - !DeploymentModule
@@ -146,10 +146,12 @@ deployment_groups:
   
   - !DeploymentModule
     id: workload_configmap
-    source: github.com/GoogleCloudPlatform/cluster-toolkit.git//modules/management/kubectl-apply?ref=e0c690b
-    use: [gke_cluster]
+    source: 'modules/management/kubectl-apply'
+    use: ['gke-a3-ultra-a3-ultragpu-cluster']
     settings:
-      apply_manifests:
-      - source: $(ghpc_stage("xpk-gke-a3-ultra"))/config-map.yaml.tftpl
-        template_vars: {name: "xpk-gke-a3-ultra-resources-configmap", num_nodes: "2"}
-      
+      apply_manifests: 
+      - source: '$(ghpc_stage("xpk-gke-a3-ultra"))/config-map.yaml.tftpl'
+        template_vars: 
+          resource_config_name: 'gke-a3-ultra-resources-configmap'
+          num_nodes: '4'
+

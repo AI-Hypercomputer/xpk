@@ -91,7 +91,6 @@ def test_generate_a3_ultra_blueprint():
       reservation="test_reservation",
       system_node_pool_machine_type="e2-standard-16",
   )
-  print(bp.blueprint_file, bp.blueprint_dependencies)
   with open(a3_ultra_yaml_test_path, encoding="utf-8") as stream:
     ctk_yaml = yaml.load(stream)
     with open(bp.blueprint_file, encoding="utf-8") as generated_blueprint:

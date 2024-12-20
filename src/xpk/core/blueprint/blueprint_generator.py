@@ -344,7 +344,6 @@ class BlueprintGenerator:
 
   def blueprint_exists(self, blueprint_name, prefix: str = ""):
     blueprint_path = self._get_blueprint_path(blueprint_name, prefix)
-    print(blueprint_path)
     return os.path.exists(blueprint_path)
 
   def _get_a3_mega_blueprint_dependencies(

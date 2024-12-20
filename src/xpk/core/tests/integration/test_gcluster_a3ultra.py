@@ -74,10 +74,6 @@ def test_create_a3_ultra_deployment_files(setup_tests):
   )
   blueprint_test_path = os.path.join(bp_path, prefix, f"{blueprint_name}.yaml")
   blueprint_deps_test_path = os.path.join(bp_path, blueprint_name)
-  print(a3_mega_blueprint.blueprint_file)
-  print(blueprint_test_path)
-  print(a3_mega_blueprint.blueprint_dependencies)
-  print(blueprint_deps_test_path)
   assert a3_mega_blueprint.blueprint_file == blueprint_test_path
   assert a3_mega_blueprint.blueprint_dependencies == blueprint_deps_test_path
 

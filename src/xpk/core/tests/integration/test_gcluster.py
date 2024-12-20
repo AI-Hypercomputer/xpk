@@ -18,6 +18,7 @@ from xpk.core.docker_manager import DockerManager
 from xpk.core.gcluster_manager import GclusterManager
 from xpk.core.blueprint.blueprint_generator import BlueprintGenerator
 import os
+import pytest
 import shutil
 
 ctk_gcloud_cfg = os.getenv("GCLOUD_CFG_PATH")
@@ -36,11 +37,8 @@ def prepare_test(docker_path: str, bp_path: str) -> None:
   if not os.path.exists(bp_path):
     os.makedirs(bp_path)
 
-@pytest.mark.skip(
-    reason=(
-       "Credentails not working. Skipping for now"
-    )
-)
+
+@pytest.mark.skip(reason="Credentails not working. Skipping for now")
 def test_create_deployment():
   assert project_id is not None
   assert region is not None

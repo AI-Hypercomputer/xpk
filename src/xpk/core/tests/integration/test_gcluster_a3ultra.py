@@ -27,7 +27,7 @@ project_id = os.getenv("PROJECT_ID")
 region = os.getenv("REGION")
 zone = os.getenv("ZONE")
 auth_cidr = os.getenv("AUTH_CIDR")
-cluster_name = os.getenv("CLUSTER_NAME")
+cluster_name = os.getenv("A3_ULTRA_TEST_CLUSTER_NAME")
 
 
 @pytest.fixture(name="setup_tests")

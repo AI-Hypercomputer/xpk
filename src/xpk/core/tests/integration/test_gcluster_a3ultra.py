@@ -44,12 +44,12 @@ def prepare_test():
   shutil.rmtree(bp_path)
 
 
-# @pytest.mark.skip(
-#     reason=(
-#         "This test requires A3 capacity, therefore it should not be run on each"
-#         " build. Please invoke it manually if needed. "
-#     )
-# )
+@pytest.mark.skip(
+    reason=(
+        "This test requires A3 capacity, therefore it should not be run on each"
+        " build. Please invoke it manually if needed. "
+    )
+)
 def test_create_a3_ultra_deployment_files(setup_tests):
   assert project_id is not None
   assert region is not None

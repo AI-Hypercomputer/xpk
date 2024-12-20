@@ -57,4 +57,3 @@ class Blueprint:
   deployment_groups: list[DeploymentGroup]
   blueprint_name: Optional[str]
   vars: dict[str, str | list[str]] | None
-  terraform_providers: dict | None

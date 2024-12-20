@@ -88,7 +88,6 @@ deployment_groups:
       prefix_with_deployment_name: false
       name_suffix: gke-a3-ultra
       system_node_pool_machine_type: "e2-standard-16"
-      system_node_pool_taints: []
       enable_dcgm_monitoring: true
       enable_gcsfuse_csi: true
       enable_private_endpoint: false # Allows access from authorized public IPs
@@ -106,7 +105,7 @@ deployment_groups:
     source: github.com/GoogleCloudPlatform/cluster-toolkit.git//modules/compute/gke-node-pool?ref=e0c690b
     use: [gke-a3-ultra-a3-ultragpu-cluster]
     settings:
-      machine_type: a3-ultragpu-8g
+      machine_type: a3-ultra-8g
       auto_upgrade: true
       zones: [us-central1-c]
       disk_type: hyperdisk-balanced
@@ -134,15 +133,15 @@ deployment_groups:
       kueue:
         install: true
         version: v0.9.1  # TAS feature-gates is enabled in CT
-        config_path: $(ghpc_stage("xpk-gke-a3-ultra/kueue-xpk-configuration.yaml.tftpl"))
+        config_path: $(ghpc_stage("xpk-gke-a3-ultra"))/kueue-xpk-configuration.yaml.tftpl
         config_template_vars:
-         num_chips: "8"
+         num_chips: "32"
       jobset:
         install: true
         version: v0.7.1
       apply_manifests:
-      - source: $(ghpc_stage("./xpk-gke-a3-ultra/nccl-installer.yaml"))
-      - source: $(ghpc_stage("./xpk-gke-a3-ultra/mlgru-disable.yaml"))
+      - source: $(ghpc_stage("xpk-gke-a3-ultra"))/nccl-installer.yaml
+      - source: $(ghpc_stage("xpk-gke-a3-ultra"))/mlgru-disable.yaml
   
   - !DeploymentModule
     id: workload_configmap

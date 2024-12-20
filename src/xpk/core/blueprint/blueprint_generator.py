@@ -22,11 +22,12 @@ from .blueprint_definitions import DeploymentGroup, DeploymentModule, Blueprint
 from ..system_characteristics import get_system_characteristics_by_device_type
 from ...utils.console import xpk_print, xpk_exit
 from ...utils.file import ensure_directory_exists
+from xpk.core import system_characteristics
 
 yaml = yaml.YAML()
 
 a3mega_device_type = "h100-mega-80gb-8"
-a3ultra_device_type = "h200-141gb-8g"
+a3ultra_device_type = "h200-141gb-8"
 supported_device_types = {a3mega_device_type, a3ultra_device_type}
 blueprint_dependencies_dir = {
     a3mega_device_type: "src/xpk/blueprints/a3mega",
@@ -233,7 +234,6 @@ class BlueprintGenerator:
             "region": region,
             "zone": zone,
         },
-        terraform_providers=None,
     )
     blueprint_file_path = self._save_blueprint_to_file(
         blueprint_name, xpk_blueprint, prefix
@@ -313,7 +313,6 @@ class BlueprintGenerator:
             "deployment_name": blueprint_name,
             "region": region,
         },
-        terraform_providers=None,
     )
     blueprint_file_path = self._save_blueprint_to_file(
         blueprint_name, ml_gke, prefix
@@ -398,11 +397,9 @@ class BlueprintGenerator:
     """
 
     nccl_installer_path = (
-        f'$(ghpc_stage("./{blueprint_name}/nccl-installer.yaml"))'
+        f'$(ghpc_stage("{blueprint_name}"))/nccl-installer.yaml'
     )
-    mglru_disable_path = (
-        f'$(ghpc_stage("./{blueprint_name}/mlgru-disable.yaml"))'
-    )
+    mglru_disable_path = f'$(ghpc_stage("{blueprint_name}"))/mlgru-disable.yaml'
     net_0_id = f"{cluster_name}-a3u-net-0"
     gpu_net_0 = DeploymentModule(
         id=net_0_id,
@@ -481,7 +478,6 @@ class BlueprintGenerator:
             "prefix_with_deployment_name": False,
             "name_suffix": cluster_name,
             "system_node_pool_machine_type": system_node_pool_machine_type,
-            "system_node_pool_taints": [],
             "enable_dcgm_monitoring": True,
             "enable_gcsfuse_csi": True,
             "enable_private_endpoint": False,
@@ -506,13 +502,14 @@ class BlueprintGenerator:
         },
         outputs=["instructions"],
     )
+    system, _ = get_system_characteristics_by_device_type(a3ultra_device_type)
     gpu_pool_id = f"{cluster_name}-a3u-pool"
     gpu_pool = DeploymentModule(
         id=gpu_pool_id,
         source="github.com/GoogleCloudPlatform/cluster-toolkit.git//modules/compute/gke-node-pool?ref=e0c690b",
         use=[cluster_id],
         settings={
-            "machine_type": "a3-ultragpu-8g",
+            "machine_type": system.gce_machine_type,
             "auto_upgrade": True,
             "zones": [zone],
             "disk_type": "hyperdisk-balanced",
@@ -545,7 +542,7 @@ class BlueprintGenerator:
           "specific_reservations": [{"name": reservation}],
       }
 
-    num_chips = 8
+    num_chips = static_node_count * system.chips_per_vm
     workload_manager_install_id = "workload-manager-install"
     workload_manager_install = DeploymentModule(
         id=workload_manager_install_id,
@@ -555,7 +552,7 @@ class BlueprintGenerator:
             "kueue": {
                 "install": True,
                 "version": "v0.9.1",  # TAS feature-gates is enabled in CT
-                "config_path": f'$(ghpc_stage("{blueprint_name}/kueue-xpk-configuration.yaml.tftpl"))',
+                "config_path": f'$(ghpc_stage("{blueprint_name}"))/kueue-xpk-configuration.yaml.tftpl',
                 "config_template_vars": {"num_chips": f"{num_chips}"},
             },
             "jobset": {"install": True, "version": "v0.7.1"},
@@ -605,26 +602,6 @@ class BlueprintGenerator:
             "deployment_name": blueprint_name,
             "region": region,
             "zone": zone,
-        },
-        terraform_providers={
-            "google": {
-                "source": "hashicorp/google",
-                "version": "6.13.0",
-                "configuration": {
-                    "project": project_id,
-                    "region": region,
-                    "zone": zone,
-                },
-            },
-            "google-beta": {
-                "source": "hashicorp/google-beta",
-                "version": "6.13.0",
-                "configuration": {
-                    "project": project_id,
-                    "region": region,
-                    "zone": zone,
-                },
-            },
         },
     )
 

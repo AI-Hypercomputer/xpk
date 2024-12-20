@@ -12,10 +12,10 @@ spec:
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: ResourceFlavor
 metadata:
-  name: 1xh200-141gb-8g
+  name: 1xh200-141gb-8
 spec:
   nodeLabels:
-    cloud.google.com/gke-accelerator: nvidia-h200-141gb-8g
+    cloud.google.com/gke-accelerator: nvidia-h200-141gb
   topologyName: "gke-default"
 ---
 apiVersion: kueue.x-k8s.io/v1beta1

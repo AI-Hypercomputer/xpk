@@ -508,16 +508,14 @@ class BlueprintGenerator:
           f" {a3ultra_device_type} device_type."
       )
       xpk_exit(1)
-    gpu_pool_id = f"{cluster_name}-a3u-pool"
     gpu_pool = DeploymentModule(
-        id=gpu_pool_id,
+        id=f"{cluster_name}-a3u-pool",
         source="github.com/GoogleCloudPlatform/cluster-toolkit.git//modules/compute/gke-node-pool?ref=e0c690b",
         use=[cluster_id],
         settings={
             "machine_type": system.gce_machine_type,
             "auto_upgrade": True,
             "zones": [zone],
-            "disk_type": "hyperdisk-balanced",
             "static_node_count": static_node_count,
             "spot": spot,
             "max_pods_per_node": 32,

@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from xpk.commands.cluster_gcluster import get_unique_name
 from xpk.core.docker_manager import DockerManager
 from xpk.core.gcluster_manager import GclusterManager
 from xpk.core.blueprint.blueprint_generator import BlueprintGenerator
@@ -28,40 +29,37 @@ zone = os.getenv("ZONE")
 auth_cidr = os.getenv("AUTH_CIDR")
 cluster_name = os.getenv("CLUSTER_NAME")
 
-uploads_dir = "uploads"
+
+@pytest.fixture(name="setup_tests")
+def prepare_test():
+  pwd = os.getcwd()
+  docker_path = os.path.join(pwd, "xpk_test_docker_dir")
+  bp_path = os.path.join(pwd, "xpk_test_bp_dir")
+  if not os.path.exists(docker_path):
+    os.makedirs(docker_path)
+  if not os.path.exists(bp_path):
+    os.makedirs(bp_path)
+  yield (docker_path, bp_path)
+  shutil.rmtree(docker_path)
+  shutil.rmtree(bp_path)
 
 
-def prepare_test(docker_path: str, bp_path: str) -> None:
-  os.mkdir(docker_path)
-  os.mkdir(bp_path)
-
-
-@pytest.mark.skip(
-    reason=(
-        "This test requires A3 capacity, therefore it should not be run on each"
-        " build. Please invoke it manually if needed. "
-    )
-)
-def test_create_a3_mega_deployment():
+def test_create_a3_ultra_deployment_files(setup_tests):
   assert project_id is not None
   assert region is not None
   assert zone is not None
   assert auth_cidr is not None
   assert ctk_gcloud_cfg is not None
   assert cluster_name is not None
-
-  pwd = os.getcwd()
-  test_docker_working_dir = os.path.join(pwd, "xpk_test_docker_dir")
-  test_bp_dir = os.path.join(pwd, "xpk_test_bp_dir")
-  prepare_test(test_docker_working_dir, test_bp_dir)
+  docker_path, bp_path = setup_tests[0], setup_tests[1]
   blueprint_name = f"{cluster_name}-a3-ultra-xpk"
 
   docker_manager = DockerManager(
-      gcloud_cfg_path=ctk_gcloud_cfg, working_dir=test_docker_working_dir
+      gcloud_cfg_path=ctk_gcloud_cfg, working_dir=docker_path
   )
   docker_manager.initialize()
-
-  bpm = BlueprintGenerator(storage_path=test_bp_dir)
+  prefix = f"{project_id}-{region}".lower()
+  bpm = BlueprintGenerator(storage_path=bp_path)
   a3_mega_blueprint = bpm.generate_a3_ultra_blueprint(
       cluster_name=cluster_name,
       blueprint_name=blueprint_name,
@@ -72,9 +70,78 @@ def test_create_a3_mega_deployment():
       reservation="foo",
       static_node_count=1,
       system_node_pool_machine_type="e2-standard-16",
+      prefix=prefix,
   )
-  blueprint_test_path = os.path.join(test_bp_dir, f"{blueprint_name}.yaml")
-  blueprint_deps_test_path = os.path.join(test_bp_dir, blueprint_name)
+  blueprint_test_path = os.path.join(bp_path, prefix, f"{blueprint_name}.yaml")
+  blueprint_deps_test_path = os.path.join(bp_path, blueprint_name)
+  print(a3_mega_blueprint.blueprint_file)
+  print(blueprint_test_path)
+  print(a3_mega_blueprint.blueprint_dependencies)
+  print(blueprint_deps_test_path)
+  assert a3_mega_blueprint.blueprint_file == blueprint_test_path
+  assert a3_mega_blueprint.blueprint_dependencies == blueprint_deps_test_path
+
+  assert os.path.isfile(blueprint_test_path)
+  assert os.path.isdir(blueprint_deps_test_path)
+  assert os.path.isfile(
+      os.path.join(blueprint_deps_test_path, "mlgru-disable.yaml")
+  )
+  assert os.path.isfile(
+      os.path.join(blueprint_deps_test_path, "nccl-installer.yaml")
+  )
+  gcluster_manager = GclusterManager(
+      gcluster_command_runner=docker_manager,
+  )
+
+  staged_bp_path = gcluster_manager.stage_files(
+      blueprint_file=a3_mega_blueprint.blueprint_file,
+      blueprint_dependencies=a3_mega_blueprint.blueprint_dependencies,
+      prefix=prefix,
+  )
+  assert staged_bp_path == os.path.join(
+      "/out/uploads", prefix, f"{blueprint_name}.yaml"
+  )
+  unique_name = get_unique_name(project_id, region, zone)
+  gcluster_manager.deploy(
+      blueprint_path=staged_bp_path, deployment_name=unique_name, dry_run=True
+  )
+
+
+@pytest.mark.skip(
+    reason=(
+        "This test requires A3 capacity, therefore it should not be run on each"
+        " build. Please invoke it manually if needed. "
+    )
+)
+def test_create_a3_ultra_deployment(setup_tests):
+  assert project_id is not None
+  assert region is not None
+  assert zone is not None
+  assert auth_cidr is not None
+  assert ctk_gcloud_cfg is not None
+  assert cluster_name is not None
+  docker_path, bp_path = setup_tests[0], setup_tests[1]
+  blueprint_name = f"{cluster_name}-a3-ultra-xpk"
+
+  docker_manager = DockerManager(
+      gcloud_cfg_path=ctk_gcloud_cfg, working_dir=docker_path
+  )
+  docker_manager.initialize()
+
+  bpm = BlueprintGenerator(storage_path=bp_path)
+  a3_mega_blueprint = bpm.generate_a3_ultra_blueprint(
+      cluster_name=cluster_name,
+      blueprint_name=blueprint_name,
+      region=region,
+      project_id=project_id,
+      auth_cidr=auth_cidr,
+      zone=zone,
+      spot=True,
+      static_node_count=1,
+      system_node_pool_machine_type="e2-standard-16",
+  )
+  blueprint_test_path = os.path.join(bp_path, f"{blueprint_name}.yaml")
+  blueprint_deps_test_path = os.path.join(bp_path, blueprint_name)
 
   assert a3_mega_blueprint.blueprint_file == blueprint_test_path
   assert a3_mega_blueprint.blueprint_dependencies == blueprint_deps_test_path
@@ -96,25 +163,9 @@ def test_create_a3_mega_deployment():
       blueprint_dependencies=a3_mega_blueprint.blueprint_dependencies,
   )
 
-  assert staged_bp_path == os.path.join(
-      test_docker_working_dir, uploads_dir, f"{blueprint_name}.yaml"
-  )
-  staged_bp_deps_path = os.path.join(
-      test_docker_working_dir, uploads_dir, blueprint_name
-  )
-
-  assert os.path.isfile(staged_bp_path)
-  assert os.path.isdir(staged_bp_deps_path)
-  assert os.path.isfile(os.path.join(staged_bp_deps_path, "mlgru-disable.yaml"))
-  assert os.path.isfile(
-      os.path.join(staged_bp_deps_path, "nccl-installer.yaml")
-  )
-  print(staged_bp_path, blueprint_name)
   gcluster_manager.deploy(
       blueprint_path=staged_bp_path, deployment_name=blueprint_name
   )
 
   #   cleanup part
   gcluster_manager.destroy_deployment(deployment_name=blueprint_name)
-  shutil.rmtree(test_docker_working_dir)
-  shutil.rmtree(test_bp_dir)

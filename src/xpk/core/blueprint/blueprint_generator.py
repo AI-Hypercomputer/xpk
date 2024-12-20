@@ -15,6 +15,7 @@ limitations under the License.
 """
 
 import shutil
+from typing import Optional
 from ruamel import yaml
 import os
 
@@ -380,8 +381,8 @@ class BlueprintGenerator:
       region: str,
       zone: str,
       auth_cidr: str,
-      reservation: str | None,
       system_node_pool_machine_type: str,
+      reservation: Optional[str | None] = None,
       static_node_count: int = 4,
       prefix: str = "",
       mtu_size: int = 8896,

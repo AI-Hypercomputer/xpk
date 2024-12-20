@@ -22,7 +22,6 @@ from .blueprint_definitions import DeploymentGroup, DeploymentModule, Blueprint
 from ..system_characteristics import get_system_characteristics_by_device_type
 from ...utils.console import xpk_print, xpk_exit
 from ...utils.file import ensure_directory_exists
-from xpk.core import system_characteristics
 
 yaml = yaml.YAML()
 

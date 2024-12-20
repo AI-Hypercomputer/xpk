@@ -503,6 +503,12 @@ class BlueprintGenerator:
         outputs=["instructions"],
     )
     system, _ = get_system_characteristics_by_device_type(a3ultra_device_type)
+    if system is None:
+      xpk_print(
+          "Error: Could not retrieve system characteristics for"
+          f" {a3ultra_device_type} device_type."
+      )
+      xpk_exit(1)
     gpu_pool_id = f"{cluster_name}-a3u-pool"
     gpu_pool = DeploymentModule(
         id=gpu_pool_id,

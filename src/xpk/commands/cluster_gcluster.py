@@ -91,11 +91,13 @@ def cluster_delete(args) -> None:
 
 def created_by_gcluster(args) -> bool:
   prepare_directories()
+  region = zone_to_region(args.zone)
   unique_name = get_unique_name(
-      args.project, zone_to_region(args.zone), args.cluster
+      args.project, region, args.cluster
   )
+  prefix = get_prefix_path(args.project, region)
   bpg = prepare_blueprint_generator()
-  return bpg.blueprint_exists(unique_name)
+  return bpg.blueprint_exists(unique_name, prefix)
 
 
 def get_unique_name(project_id, region, cluster_name):

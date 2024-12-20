@@ -1263,7 +1263,7 @@ def run_gke_node_pool_create_command(
     if node_pool_name in node_pools_to_remain:
       continue
     command = (
-        'gcloud beta container node-pools create'
+        'gcloud beta container node-pools create --log-http --verbosity=debug'
         f' {node_pool_name}'
         f' --region={zone_to_region(args.zone)}'
         f' --cluster={args.cluster}'
@@ -1328,7 +1328,7 @@ def run_gke_node_pool_create_command(
       if node_pool_name in existing_node_pool_names:
         continue
       command = (
-          'gcloud beta container node-pools create'
+          'gcloud beta container node-pools create --log-http --verbosity=debug'
           f' {node_pool_name} --node-version={gke_node_pool_version} --cluster={args.cluster} --project={args.project} --node-locations={args.zone} --region={zone_to_region(args.zone)} --num-nodes=1'
           f' --machine-type={args.pathways_gce_machine_type} --scopes=storage-full,gke-default,{CLOUD_PLATFORM_AUTH_SCOPE_URL} --enable-autoscaling'
           ' --min-nodes=1 --max-nodes=20'

@@ -140,7 +140,7 @@ UserFacingNameToSystemCharacteristics = {
         'N/A',
         1,
         'h200-141gb',
-        'a3-ultra-8g',
+        'a3-ultragpu-8g',
         8,
         AcceleratorType['GPU'],
         'h200-141gb-8',

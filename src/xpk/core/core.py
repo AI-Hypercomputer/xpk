@@ -1281,7 +1281,7 @@ def run_gke_node_pool_create_command(
       command += (
           f' --scopes=storage-full,gke-default,{CLOUD_PLATFORM_AUTH_SCOPE_URL}'
       )
-      # command += f' --tpu-topology={system.topology}'
+      command += f' --tpu-topology=""'
       command += f' {args.custom_tpu_nodepool_arguments}'
     elif system.accelerator_type == AcceleratorType['GPU']:
       subnet_prefix = f'{args.cluster}-{zone_to_region(args.zone)}'

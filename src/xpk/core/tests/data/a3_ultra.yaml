@@ -108,7 +108,6 @@ deployment_groups:
       machine_type: a3-ultragpu-8g
       auto_upgrade: true
       zones: [us-central1-c]
-      disk_type: hyperdisk-balanced
       static_node_count: 4
       spot: false
       max_pods_per_node: 32

@@ -54,8 +54,8 @@ def authorize_private_cluster_access_if_necessary(args) -> int:
   if add_current_machine_to_networks_return_code != 0:
     return add_current_machine_to_networks_return_code
 
-  if new_authorized_networks_needed or not is_current_machine_in_network:
-    return update_cluster_new_authorized_networks(args, authorized_networks)
+  # if new_authorized_networks_needed or not is_current_machine_in_network:
+  #   return update_cluster_new_authorized_networks(args, authorized_networks)
 
   xpk_print("Current machine's IP adrress is already authorized.")
   return 0

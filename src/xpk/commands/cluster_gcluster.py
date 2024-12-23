@@ -173,6 +173,7 @@ def generate_blueprint(
           project_id=args.project,
           zone=args.zone,
           auth_cidr=all_IPs_cidr,
+          static_node_count=num_nodes,
           reservation=args.reservation if args.reservation else None,
           spot=args.spot if args.spot else False,
           system_node_pool_machine_type=args.default_pool_cpu_machine_type,

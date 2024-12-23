@@ -484,6 +484,12 @@ class BlueprintGenerator:
                 "cidr_block": auth_cidr,
                 "display_name": "kubectl-access-network",
             }],
+            "maintenance_exclusions": [{
+                "name": "no-minor-or-node-upgrades-indefinite",
+                "start_time": "2024-12-01T00:00:00Z",
+                "end_time": "2025-12-22T00:00:00Z",
+                "exclusion_scope": "NO_MINOR_OR_NODE_UPGRADES",
+            }],
             "system_node_pool_node_count": {
                 "total_min_nodes": system_node_pool_min_node_count,
                 "total_max_nodes": 1000,

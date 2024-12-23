@@ -1,5 +1,4 @@
 KUEUE_REPO=https://github.com/kubernetes-sigs/kueue.git
-KUEUE_TMP_PATH=/tmp/xpk_tmp/kueue
 
 KUBECTL_VERSION := $(shell curl -L -s https://dl.k8s.io/release/stable.txt)
 KUEUE_VERSION=v0.9.1
@@ -37,14 +36,11 @@ run-integrationtests:
 
 .PHONY: install-kjob
 install-kjob: install-kubectl
-# build docker image from dockerfile 
-# run docker container
-# copy kjob bin from container to host
-# follow path
-	git clone --depth 1 --branch $(KUEUE_VERSION) $(KUEUE_REPO) $(KUEUE_TMP_PATH)
-	make -C $(KUEUE_TMP_PATH)/cmd/experimental/kjobctl kubectl-kjob
-	mv $(KUEUE_TMP_PATH)/cmd/experimental/kjobctl/bin/kubectl-kjob $(BIN_PATH)/kubectl-kjob
-	rm -rf $(KUEUE_TMP_PATH)
+	docker build -f tools/Dockerfile-kjob -t xpk_kjob_build tools/
+	docker run -idt --name xpk_kjob xpk_kjob_build
+	docker cp xpk_kjob:/kjob/bin/kubectl-kjob $(BIN_PATH)/kubectl-kjob
+	docker rm -f xpk_kjob
+	docker image rm xpk_kjob_build
 
 .PHONY: mkdir-bin
 mkdir-bin:

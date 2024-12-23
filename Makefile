@@ -41,7 +41,7 @@ install-kjob: install-kubectl
 	docker cp xpk_kjob:/kjob/bin/kubectl-kjob $(BIN_PATH)/kubectl-kjob
 	docker rm -f xpk_kjob
 	docker image rm xpk_kjob_build
-
+	kubectl-kjob --help
 .PHONY: mkdir-bin
 mkdir-bin:
 	mkdir -p $(BIN_PATH)

@@ -398,7 +398,7 @@ class BlueprintGenerator:
     nccl_installer_path = (
         f'$(ghpc_stage("{blueprint_name}"))/nccl-installer.yaml'
     )
-    mglru_disable_path = f'$(ghpc_stage("{blueprint_name}"))/mlgru-disable.yaml'
+    mlgru_disable_path = f'$(ghpc_stage("{blueprint_name}"))/mlgru-disable.yaml'
     net_0_id = f"{cluster_name}-a3u-net-0"
     gpu_net_0 = DeploymentModule(
         id=net_0_id,
@@ -561,7 +561,7 @@ class BlueprintGenerator:
             "jobset": {"install": True, "version": "v0.7.1"},
             "apply_manifests": [
                 {"source": nccl_installer_path},
-                {"source": mglru_disable_path},
+                {"source": mlgru_disable_path},
             ],
         },
     )

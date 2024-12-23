@@ -37,6 +37,10 @@ run-integrationtests:
 
 .PHONY: install-kjob
 install-kjob: install-kubectl
+# build docker image from dockerfile 
+# run docker container
+# copy kjob bin from container to host
+# follow path
 	git clone --depth 1 --branch $(KUEUE_VERSION) $(KUEUE_REPO) $(KUEUE_TMP_PATH)
 	make -C $(KUEUE_TMP_PATH)/cmd/experimental/kjobctl kubectl-kjob
 	mv $(KUEUE_TMP_PATH)/cmd/experimental/kjobctl/bin/kubectl-kjob $(BIN_PATH)/kubectl-kjob

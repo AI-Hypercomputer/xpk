@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..core.blueprint.blueprint_generator import BlueprintGenerator, BlueprintGeneratorOutput, supported_device_types, a3mega_device_type
+from ..core.blueprint.blueprint_generator import BlueprintGenerator, BlueprintGeneratorOutput, supported_device_types, a3mega_device_type, a3ultra_device_type
 from ..core.docker_manager import DockerManager
 from ..core.gcluster_manager import GclusterManager
 from ..core.core import zone_to_region
@@ -91,11 +91,11 @@ def cluster_delete(args) -> None:
 
 def created_by_gcluster(args) -> bool:
   prepare_directories()
-  unique_name = get_unique_name(
-      args.project, zone_to_region(args.zone), args.cluster
-  )
+  region = zone_to_region(args.zone)
+  unique_name = get_unique_name(args.project, region, args.cluster)
+  prefix = get_prefix_path(args.project, region)
   bpg = prepare_blueprint_generator()
-  return bpg.blueprint_exists(unique_name)
+  return bpg.blueprint_exists(unique_name, prefix)
 
 
 def get_unique_name(project_id, region, cluster_name):
@@ -158,6 +158,22 @@ def generate_blueprint(
           auth_cidr=all_IPs_cidr,
           num_nodes=num_nodes,
           autoscaling_total_min_nodes=num_nodes,
+          reservation=args.reservation if args.reservation else None,
+          spot=args.spot if args.spot else False,
+          system_node_pool_machine_type=args.default_pool_cpu_machine_type,
+          system_node_pool_min_node_count=args.default_pool_cpu_num_nodes,
+      )
+    if args.device_type == a3ultra_device_type:
+      num_nodes = args.num_nodes if not args.num_nodes is None else 2
+      return bpg.generate_a3_ultra_blueprint(
+          blueprint_name=blueprint_name,
+          prefix=prefix,
+          cluster_name=args.cluster,
+          region=zone_to_region(args.zone),
+          project_id=args.project,
+          zone=args.zone,
+          auth_cidr=all_IPs_cidr,
+          static_node_count=num_nodes,
           reservation=args.reservation if args.reservation else None,
           spot=args.spot if args.spot else False,
           system_node_pool_machine_type=args.default_pool_cpu_machine_type,

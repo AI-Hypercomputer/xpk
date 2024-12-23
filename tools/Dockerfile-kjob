@@ -28,7 +28,7 @@ RUN apt-get update && \
         git \
         make \
         unzip \
-        wget \
+        wget
 
 # Install Go
 ARG GO_VERSION=1.23.0

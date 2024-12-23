@@ -29,7 +29,6 @@ RUN apt-get update && \
         make \
         unzip \
         wget \
-        python3-pip
 
 # Install Go
 ARG GO_VERSION=1.23.0

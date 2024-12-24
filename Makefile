@@ -15,7 +15,7 @@ KJOB_DOCKER_CONTAINER := xpk_kjob_container
 BIN_PATH=$(PROJECT_DIR)/bin
 
 .PHONY: install
-install: check-python check-go check-gcloud install-kueuectl install-kjob pip-install
+install: check-python check-gcloud install-kueuectl install-kjob pip-install
 
 .PHONY: install-dev
 install-dev: check-python check-gcloud mkdir-bin install-kubectl install-kueuectl install-kjob pip-install install-pytest
@@ -56,10 +56,6 @@ install-kubectl: mkdir-bin
 install-kueuectl: install-kubectl
 	curl -Lo $(BIN_PATH)/kubectl-kueue $(KUEUECTL_URL)
 	chmod +x $(BIN_PATH)/kubectl-kueue
-
-.PHONY: check-go
-check-go:
-	go version || (echo "go not installed, use this link to install: https://cloud.google.com/sdk/docs/install" && exit 1)
 
 .PHONY: check-gcloud
 check-gcloud:

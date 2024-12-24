@@ -10,7 +10,8 @@ KUBECTL_URL = "https://dl.k8s.io/release/$(KUBECTL_VERSION)/bin/$(OS)/$(PLATFORM
 KUEUECTL_URL = "https://github.com/kubernetes-sigs/kueue/releases/download/$(KUEUE_VERSION)/kubectl-kueue-$(OS)-$(PLATFORM)"
 
 PROJECT_DIR := $(realpath $(shell dirname $(firstword $(MAKEFILE_LIST))))
-
+KJOB_DOCKER_IMG := xpk_kjob
+KJOB_DOCKER_CONTAINER := xpk_kjob_container
 BIN_PATH=$(PROJECT_DIR)/bin
 
 .PHONY: install
@@ -36,11 +37,11 @@ run-integrationtests:
 
 .PHONY: install-kjob
 install-kjob: install-kubectl
-	docker build -f tools/Dockerfile-kjob -t xpk_kjob_build tools/
-	docker run -idt --name xpk_kjob xpk_kjob_build
-	docker cp xpk_kjob:/kjob/bin/kubectl-kjob $(BIN_PATH)/kubectl-kjob
-	docker rm -f xpk_kjob
-	docker image rm xpk_kjob_build
+	docker build -f tools/Dockerfile-kjob -t $(KJOB_DOCKER_IMG) tools/
+	docker run -idt --name $(KJOB_DOCKER_CONTAINER) $(KJOB_DOCKER_IMG)
+	docker cp $(KJOB_DOCKER_CONTAINER):/kjob/bin/kubectl-kjob $(BIN_PATH)/kubectl-kjob
+	docker rm -f $(KJOB_DOCKER_CONTAINER)
+	docker image rm $(KJOB_DOCKER_IMG)
 	$(BIN_PATH)/kubectl-kjob --help
 .PHONY: mkdir-bin
 mkdir-bin:

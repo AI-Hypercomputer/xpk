@@ -214,7 +214,7 @@ class BlueprintGenerator:
                     ),
                     "num_nodes": f"{num_nodes}",
                     "cluster_config_name": f"{cluster_name}-metadata-configmap",
-                    "capacity_type": f"{capacity_type}",
+                    "capacity_type": f"{capacity_type.value}",
                     "reservation": f"{reservation}",
                 },
             }]
@@ -389,11 +389,11 @@ class BlueprintGenerator:
       auth_cidr: str,
       system_node_pool_machine_type: str,
       reservation: Optional[str | None] = None,
-      static_node_count: int = 4,
+      num_nodes: int = 2,
       prefix: str = "",
       mtu_size: int = 8896,
       system_node_pool_min_node_count: int = 2,
-      spot: bool = False,
+      capacity_type: CapacityType = CapacityType.ON_DEMAND,
   ) -> BlueprintGeneratorOutput:
     """Create A3 ultra blueprint.
 
@@ -523,8 +523,8 @@ class BlueprintGenerator:
             "machine_type": system.gce_machine_type,
             "auto_upgrade": True,
             "zones": [zone],
-            "static_node_count": static_node_count,
-            "spot": spot,
+            "static_node_count": num_nodes,
+            "spot": capacity_type == CapacityType.SPOT,
             "max_pods_per_node": 32,
             "guest_accelerator": [{
                 "type": "nvidia-h200-141gb",
@@ -552,7 +552,7 @@ class BlueprintGenerator:
           "specific_reservations": [{"name": reservation}],
       }
 
-    num_chips = static_node_count * system.chips_per_vm
+    num_chips = num_nodes * system.chips_per_vm
     workload_manager_install_id = "workload-manager-install"
     workload_manager_install = DeploymentModule(
         id=workload_manager_install_id,
@@ -561,7 +561,7 @@ class BlueprintGenerator:
         settings={
             "kueue": {
                 "install": True,
-                "version": "v0.9.1",  # TAS feature-gates is enabled in CT
+                "version": "v0.10.0",  # TAS feature-gates is enabled in CT
                 "config_path": f'$(ghpc_stage("{blueprint_name}"))/kueue-xpk-configuration.yaml.tftpl',
                 "config_template_vars": {"num_chips": f"{num_chips}"},
             },
@@ -586,7 +586,10 @@ class BlueprintGenerator:
                     "resource_config_name": (
                         f"{cluster_name}-resources-configmap"
                     ),
-                    "num_nodes": f"{static_node_count}",
+                    "num_nodes": f"{num_nodes}",
+                    "cluster_config_name": f"{cluster_name}-metadata-configmap",
+                    "capacity_type": f"{capacity_type.value}",
+                    "reservation": f"{reservation}",
                 },
             }]
         },

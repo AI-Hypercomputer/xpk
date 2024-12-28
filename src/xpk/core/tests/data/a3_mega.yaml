@@ -50,6 +50,7 @@ deployment_groups:
     source: modules/scheduler/gke-cluster
     use: [network1, gpunets]
     settings:
+      release_channel: RAPID
       prefix_with_deployment_name: false
       name_suffix: bar
       enable_private_endpoint: false
@@ -82,10 +83,10 @@ deployment_groups:
         consume_reservation_type: SPECIFIC_RESERVATION
         specific_reservations:
         - name: test-reservation
-      run_workload_script: False
-      spot: True
+      run_workload_script: false
+      spot: false
       max_pods_per_node : 32
-      auto_upgrade: True
+      auto_upgrade: true
     outputs: [instructions]
 
   - !DeploymentModule
@@ -95,7 +96,7 @@ deployment_groups:
     settings:
       kueue:
         install: true
-        version: "v0.9.1"
+        version: "v0.10.0"
         config_path: $(ghpc_stage("xpk-gke-a3-megagpu"))/kueue-xpk-configuration.yaml.tftpl
         config_template_vars: {num_chips: "16"}
       jobset:
@@ -109,9 +110,9 @@ deployment_groups:
       apply_manifests:
       - source: $(ghpc_stage("xpk-gke-a3-megagpu"))/config-map.yaml.tftpl
         template_vars: {
-          resource_config_name: "xpk-gke-a3-megagpu-resources-configmap",
+          resource_config_name: "bar-resources-configmap",
           num_nodes: "2",
-          cluster_config_name": "xpk-gke-a3-megagpu-metadata-configmap",
-          capacity_type": "reservation",
-          reservation": "test-reservation",
+          cluster_config_name: "bar-metadata-configmap",
+          capacity_type: "reservation",
+          reservation: "test-reservation",
           }

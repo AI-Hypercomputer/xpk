@@ -142,8 +142,11 @@ def prepare_blueprint_generator() -> BlueprintGenerator:
 def generate_blueprint(
     blueprint_name, args, prefix=None
 ) -> BlueprintGeneratorOutput:
-  validate_consumption_args(args)
-  capacity_type = get_capacity_type(args)
+  capacity_type, return_code = get_capacity_type(args)
+  if return_code != 0:
+    xpk_print('Capacity type is invalid.')
+    xpk_exit(return_code)
+
   bpg = prepare_blueprint_generator()
 
   if args.device_type in supported_device_types:
@@ -173,27 +176,10 @@ def generate_blueprint(
           project_id=args.project,
           zone=args.zone,
           auth_cidr=all_IPs_cidr,
-          static_node_count=num_nodes,
+          num_nodes=num_nodes,
           reservation=args.reservation if args.reservation else None,
-          spot=args.spot if args.spot else False,
+          capacity_type=capacity_type,
           system_node_pool_machine_type=args.default_pool_cpu_machine_type,
           system_node_pool_min_node_count=args.default_pool_cpu_num_nodes,
       )
   return None
-
-
-def validate_consumption_args(args):
-  args_set = []
-  if not args.reservation is None:
-    args_set.append('--reservation')
-  if not args.spot is None and args.spot:
-    args_set.append('--spot')
-  if not args.on_demand is None and args.on_demand:
-    args_set.append('--on-demand')
-
-  if len(args_set) > 1:
-    xpk_print(
-        f"Error: only one of {' or '.join(args_set)} can be set at the same"
-        ' time.'
-    )
-    xpk_exit(1)

@@ -4,4 +4,12 @@ metadata:
   name: ${resource_config_name}
 data:
   h200-141gb-8: "${num_nodes}"
-  nvidia-h200-141gb: "${num_nodes}"
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: ${cluster_config_name}
+data:
+  capacity_type: "${capacity_type}"
+  reservation_id: "${reservation}"
+  provisioner: gcluster

@@ -21,22 +21,23 @@ deployment_groups:
   group: primary
   modules:
   - !DeploymentModule
-    id: gke-a3-ultra-a3u-net-0
-    source: github.com/GoogleCloudPlatform/cluster-toolkit.git//modules/network/vpc?ref=e0c690b
+    id: gke-a3-ultra-net-0
+    source: modules/network/vpc
     settings:
-      network_name: gke-a3-ultra-a3u-net-0
+      network_name: gke-a3-ultra-net-0
       subnetworks:
-      - subnet_name: gke-a3-ultra-a3u-sub-0
+      - subnet_name: gke-a3-ultra-sub-0
         subnet_region: us-central1
         subnet_ip: 192.168.0.0/18
-      secondary_ranges:
-        gke-a3-ultra-a3u-sub-0:
-        - range_name: pods
-          ip_cidr_range: 10.4.0.0/14
-        - range_name: services
-          ip_cidr_range: 10.0.32.0/20
+      secondary_ranges_list:
+        - subnetwork_name : gke-a3-ultra-sub-0
+          ranges:
+          - range_name: pods
+            ip_cidr_range: 10.4.0.0/14
+          - range_name: services
+            ip_cidr_range: 10.0.32.0/20
       firewall_rules:
-      - name: gke-a3-ultra-a3u-internal-0
+      - name: gke-a3-ultra-internal-0
         ranges: [192.168.0.0/16]
         allow:
         - protocol: tcp
@@ -46,17 +47,17 @@ deployment_groups:
         - protocol: icmp
 
   - !DeploymentModule
-    id: gke-a3-ultra-a3u-net-1
-    source: github.com/GoogleCloudPlatform/cluster-toolkit.git//modules/network/vpc?ref=e0c690b
+    id: gke-a3-ultra-net-1
+    source: modules/network/vpc
     settings:
-      network_name: gke-a3-ultra-a3u-net-1
+      network_name: gke-a3-ultra-net-1
       mtu: 8896
       subnetworks:
-      - subnet_name: gke-a3-ultra-a3u-sub-1
+      - subnet_name: gke-a3-ultra-sub-1
         subnet_region: us-central1
         subnet_ip: 192.168.64.0/18
       firewall_rules:
-      - name: gke-a3-ultra-a3u-internal-1
+      - name: gke-a3-ultra-internal-1
         ranges: [192.168.0.0/16]
         allow:
         - protocol: tcp
@@ -66,23 +67,23 @@ deployment_groups:
         - protocol: icmp
 
   - !DeploymentModule
-    id: gke-a3-ultra-a3u-rdma-net
-    source: github.com/GoogleCloudPlatform/cluster-toolkit.git//community/modules/network/rdma-vpc?ref=98c49fe
+    id: gke-a3-ultra-rdma-net
+    source: modules/network/gpu-rdma-vpc
     settings:
-      network_name: gke-a3-ultra-a3u-rdma-net
+      network_name: gke-a3-ultra-rdma-net
       mtu: 8896
       network_profile: https://www.googleapis.com/compute/beta/projects/foo/global/networkProfiles/us-central1-c-vpc-roce
       network_routing_mode: REGIONAL
       subnetworks_template:
-        name_prefix: gke-a3-ultra-a3u-rdma-sub
+        name_prefix: gke-a3-ultra-rdma-sub
         count: 8
         ip_range: 192.168.128.0/18
         region: us-central1
 
   - !DeploymentModule
     id: gke-a3-ultra-a3-ultragpu-cluster
-    source: github.com/GoogleCloudPlatform/cluster-toolkit.git//modules/scheduler/gke-cluster?ref=e0c690b
-    use: [gke-a3-ultra-a3u-net-0]
+    source: modules/scheduler/gke-cluster
+    use: [gke-a3-ultra-net-0]
     settings:
       release_channel: "RAPID"
       prefix_with_deployment_name: false
@@ -97,18 +98,18 @@ deployment_groups:
       system_node_pool_node_count:
         total_min_nodes: 2
         total_max_nodes: 1000
-      additional_networks: $(concat([{network=gke-a3-ultra-a3u-net-1.network_name, subnetwork=gke-a3-ultra-a3u-net-1.subnetwork_name, subnetwork_project="foo", nic_type="GVNIC", queue_count=null, network_ip=null, stack_type=null, access_config=[{nat_ip=null, public_ptr_domain_name=null, network_tier=null}], ipv6_access_config=[], alias_ip_range=[]}], gke-a3-ultra-a3u-rdma-net.subnetwork_interfaces_gke))
+      additional_networks: $(concat([{network=gke-a3-ultra-net-1.network_name, subnetwork=gke-a3-ultra-net-1.subnetwork_name, subnetwork_project="foo", nic_type="GVNIC", queue_count=null, network_ip=null, stack_type=null, access_config=[{nat_ip=null, public_ptr_domain_name=null, network_tier=null}], ipv6_access_config=[], alias_ip_range=[]}], gke-a3-ultra-rdma-net.subnetwork_interfaces_gke))
     outputs: [instructions]
 
   - !DeploymentModule
     id: gke-a3-ultra-a3u-pool
-    source: github.com/GoogleCloudPlatform/cluster-toolkit.git//modules/compute/gke-node-pool?ref=e0c690b
+    source: modules/compute/gke-node-pool
     use: [gke-a3-ultra-a3-ultragpu-cluster]
     settings:
       machine_type: a3-ultragpu-8g
       auto_upgrade: true
       zones: [us-central1-c]
-      static_node_count: 4
+      static_node_count: 2
       spot: false
       max_pods_per_node: 32
       guest_accelerator:
@@ -117,24 +118,24 @@ deployment_groups:
         gpu_driver_installation_config:
           gpu_driver_version: "LATEST"
       additional_networks:
-        $(concat([{network=gke-a3-ultra-a3u-net-1.network_name, subnetwork=gke-a3-ultra-a3u-net-1.subnetwork_name, subnetwork_project="foo", nic_type="GVNIC", queue_count=null, network_ip=null, stack_type=null, access_config=[{nat_ip=null, public_ptr_domain_name=null, network_tier=null}], ipv6_access_config=[], alias_ip_range=[]}], gke-a3-ultra-a3u-rdma-net.subnetwork_interfaces_gke))
+        $(concat([{network=gke-a3-ultra-net-1.network_name, subnetwork=gke-a3-ultra-net-1.subnetwork_name, subnetwork_project="foo", nic_type="GVNIC", queue_count=null, network_ip=null, stack_type=null, access_config=[{nat_ip=null, public_ptr_domain_name=null, network_tier=null}], ipv6_access_config=[], alias_ip_range=[]}], gke-a3-ultra-rdma-net.subnetwork_interfaces_gke))
       reservation_affinity:
         consume_reservation_type: SPECIFIC_RESERVATION
         specific_reservations:
-        - name: test_reservation
+        - name: test-reservation
     outputs: [instructions]
 
   - !DeploymentModule
     id: workload-manager-install
-    source: github.com/GoogleCloudPlatform/cluster-toolkit.git//modules/management/kubectl-apply?ref=e0c690b
+    source: modules/management/kubectl-apply
     use: [gke-a3-ultra-a3-ultragpu-cluster]
     settings:
       kueue:
         install: true
-        version: v0.9.1  # TAS feature-gates is enabled in CT
+        version: v0.10.0  # TAS feature-gates is enabled in CT
         config_path: $(ghpc_stage("xpk-gke-a3-ultra"))/kueue-xpk-configuration.yaml.tftpl
         config_template_vars:
-         num_chips: "32"
+         num_chips: "16"
       jobset:
         install: true
         version: v0.7.1
@@ -149,7 +150,11 @@ deployment_groups:
     settings:
       apply_manifests: 
       - source: '$(ghpc_stage("xpk-gke-a3-ultra"))/config-map.yaml.tftpl'
-        template_vars: 
-          resource_config_name: 'gke-a3-ultra-resources-configmap'
-          num_nodes: '4'
+        template_vars: {
+          resource_config_name: "gke-a3-ultra-resources-configmap",
+          num_nodes: "2",
+          cluster_config_name: "gke-a3-ultra-metadata-configmap",
+          capacity_type: "reservation",
+          reservation: "test-reservation",
+        }
 

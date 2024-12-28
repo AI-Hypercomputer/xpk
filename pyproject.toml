@@ -33,6 +33,7 @@ dependencies = [
   "cloud-accelerator-diagnostics",
   "tabulate",
   "ruamel.yaml",
+  "pyyaml",
   "docker"
 ]
 

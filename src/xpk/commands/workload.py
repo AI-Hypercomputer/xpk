@@ -64,6 +64,8 @@ from ..core.workload import get_workload_list
 from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
 from .cluster import set_cluster_command
+from ..core.workload_decorators.tcpxo_decorator import decorate_jobset_with_tcpxo
+from . import cluster_gcluster
 
 workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
@@ -162,6 +164,42 @@ spec:
                 env:
                 - name: LD_LIBRARY_PATH
                   value: /usr/local/nvidia/lib64
+              {container}
+"""
+
+a3_gpu_workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
+kind: JobSet
+metadata:
+  name: {args.workload}
+  labels:
+    kueue.x-k8s.io/queue-name: multislice-queue  # Name of the LocalQueue
+    xpk.google.com/workload: {args.workload}
+spec:
+  failurePolicy:
+    maxRestarts: {args.max_restarts}
+  replicatedJobs:
+    - name: slice-job
+      replicas: 1
+      template:
+        spec:
+          parallelism: {args.num_nodes}
+          completions: {args.num_nodes}
+          backoffLimit: 0   # When any pod fails, the job is failed
+          template:
+            metadata:
+              labels:
+                xpk.google.com/workload: {args.workload}
+              annotations:
+                kueue.x-k8s.io/podset-preferred-topology: "cloud.google.com/gce-topology-host"
+            spec:
+              priorityClassName: {args.priority}
+              restartPolicy: Never
+              dnsPolicy: ClusterFirstWithHostNet
+              terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
+              tolerations:
+              - operator: "Exists"
+                key: nvidia.com/gpu
+              containers:
               {container}
 """
 
@@ -418,17 +456,27 @@ def workload_create(args) -> None:
     if return_code != 0:
       xpk_exit(return_code)
 
-    yml_string = gpu_workload_create_yaml.format(
-        args=args,
-        container=container,
-        command=args.command,
-        chips_per_vm=system.chips_per_vm,
-        gpu_scheduler=gpu_scheduler,
-        gpu_volume=get_gpu_volume(system),
-        gpu_rxdm_image=get_gpu_rxdm_image(system),
-        gpu_rxdm_cmd=get_gpu_rxdm_cmd(system),
-        gpu_tcp_volume=get_gpu_tcp_volume(system),
-    )
+    if system.device_type in cluster_gcluster.supported_device_types:
+      yml_string = a3_gpu_workload_create_yaml.format(
+          args=args, container=container
+      )
+      if args.device_type == cluster_gcluster.a3mega_device_type:
+        additional_networks = [
+            f'{args.cluster}-gpunet-{i}-subnet' for i in range(8)
+        ]
+        yml_string = decorate_jobset_with_tcpxo(yml_string, additional_networks)
+    else:
+      yml_string = gpu_workload_create_yaml.format(
+          args=args,
+          container=container,
+          command=args.command,
+          chips_per_vm=system.chips_per_vm,
+          gpu_scheduler=gpu_scheduler,
+          gpu_volume=get_gpu_volume(system),
+          gpu_rxdm_image=get_gpu_rxdm_image(system),
+          gpu_rxdm_cmd=get_gpu_rxdm_cmd(system),
+          gpu_tcp_volume=get_gpu_tcp_volume(system),
+      )
   elif args.use_pathways and ensure_pathways_workload_prerequisites(
       args, system
   ):

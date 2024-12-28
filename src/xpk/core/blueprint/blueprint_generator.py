@@ -21,6 +21,7 @@ from .blueprint_definitions import DeploymentGroup, DeploymentModule, Blueprint
 from ..system_characteristics import get_system_characteristics_by_device_type
 from ...utils.console import xpk_print, xpk_exit
 from ...utils.file import ensure_directory_exists
+from ..core import CapacityType
 
 yaml = yaml.YAML()
 
@@ -68,10 +69,9 @@ class BlueprintGenerator:
       primary_vpc_name: str = "network1",
       gpu_subnets_name: str = "gpunets",
       group_placement_max_distance: int = 2,
-      autoscaling_total_min_nodes: int = 2,
       subnetwork_cidr_suffix: int = 24,
       reservation: str | None = None,
-      spot: bool = False,
+      capacity_type: CapacityType = CapacityType.ON_DEMAND,
       system_node_pool_min_node_count: int = 2,
   ) -> BlueprintGeneratorOutput:
     """Create A3 mega blueprint and directory containing its dependencies.
@@ -120,6 +120,7 @@ class BlueprintGenerator:
         source="modules/scheduler/gke-cluster",
         use=[primary_vpc_name, gpu_subnets_name],
         settings={
+            "release_channel": "RAPID",
             "prefix_with_deployment_name": False,
             "name_suffix": cluster_name,
             "enable_private_endpoint": False,
@@ -166,13 +167,14 @@ class BlueprintGenerator:
         settings={
             "name": f"{cluster_name}-a3-megagpu-pool-0",
             "machine_type": system.gce_machine_type,
-            "autoscaling_total_min_nodes": autoscaling_total_min_nodes,
-            "initial_node_count": num_nodes,
+            "static_node_count": num_nodes,
             "zones": [zone],
             "host_maintenance_interval": "PERIODIC",
             "reservation_affinity": reservation_affinity,
             "run_workload_script": False,
-            "spot": spot,
+            "spot": capacity_type == CapacityType.SPOT,
+            "max_pods_per_node": 32,
+            "auto_upgrade": True,
         },
         outputs=["instructions"],
     )
@@ -184,7 +186,7 @@ class BlueprintGenerator:
         settings={
             "kueue": {
                 "install": True,
-                "version": "v0.9.1",  # TAS feature-gates is enabled in CT
+                "version": "v0.10.0",  # TAS feature-gates is enabled in CT
                 "config_path": f'$(ghpc_stage("{blueprint_name}"))/kueue-xpk-configuration.yaml.tftpl',
                 "config_template_vars": {"num_chips": f"{num_chips}"},
             },
@@ -202,8 +204,13 @@ class BlueprintGenerator:
                     f'$(ghpc_stage("{blueprint_name}"))/config-map.yaml.tftpl'
                 ),
                 "template_vars": {
-                    "name": "xpk-gke-a3-megagpu-resources-configmap",
+                    "resource_config_name": (
+                        f"{cluster_name}-resources-configmap"
+                    ),
                     "num_nodes": f"{num_nodes}",
+                    "cluster_config_name": f"{cluster_name}-metadata-configmap",
+                    "capacity_type": f"{capacity_type}",
+                    "reservation": f"{reservation}",
                 },
             }]
         },

@@ -17,7 +17,7 @@ limitations under the License.
 from ..core.blueprint.blueprint_generator import BlueprintGenerator, BlueprintGeneratorOutput, supported_device_types, a3mega_device_type
 from ..core.docker_manager import DockerManager
 from ..core.gcluster_manager import GclusterManager
-from ..core.core import zone_to_region
+from ..core.core import zone_to_region, get_capacity_type
 from ..utils.console import xpk_exit, xpk_print
 from ..utils.network import all_IPs_cidr
 from ..utils.file import ensure_directory_exists
@@ -91,11 +91,11 @@ def cluster_delete(args) -> None:
 
 def created_by_gcluster(args) -> bool:
   prepare_directories()
-  unique_name = get_unique_name(
-      args.project, zone_to_region(args.zone), args.cluster
-  )
+  region = zone_to_region(args.zone)
+  unique_name = get_unique_name(args.project, region, args.cluster)
+  prefix = get_prefix_path(args.project, region)
   bpg = prepare_blueprint_generator()
-  return bpg.blueprint_exists(unique_name)
+  return bpg.blueprint_exists(unique_name, prefix)
 
 
 def get_unique_name(project_id, region, cluster_name):
@@ -143,6 +143,7 @@ def generate_blueprint(
     blueprint_name, args, prefix=None
 ) -> BlueprintGeneratorOutput:
   validate_consumption_args(args)
+  capacity_type = get_capacity_type(args)
   bpg = prepare_blueprint_generator()
 
   if args.device_type in supported_device_types:
@@ -157,9 +158,8 @@ def generate_blueprint(
           zone=args.zone,
           auth_cidr=all_IPs_cidr,
           num_nodes=num_nodes,
-          autoscaling_total_min_nodes=num_nodes,
           reservation=args.reservation if args.reservation else None,
-          spot=args.spot if args.spot else False,
+          capacity_type=capacity_type,
           system_node_pool_machine_type=args.default_pool_cpu_machine_type,
           system_node_pool_min_node_count=args.default_pool_cpu_num_nodes,
       )

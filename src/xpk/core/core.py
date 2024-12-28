@@ -814,6 +814,18 @@ def get_cluster_configmap(args, configmap_name) -> dict[str, str] | None:
   return config_map
 
 
+def get_cluster_provisioner(args) -> str:
+  metadata_configmap_name = f'{args.cluster}-{CLUSTER_METADATA_CONFIGMAP}'
+  cluster_config_map = get_cluster_configmap(args, metadata_configmap_name)
+  cluster_provisioner = 'gcloud'
+  if not cluster_config_map is None:
+    provisioner = cluster_config_map.get('provisioner')
+    if not provisioner is None:
+      cluster_provisioner = provisioner
+  xpk_print(f'Cluster provisioner: {cluster_provisioner}')
+  return cluster_provisioner
+
+
 def create_vertex_tensorboard(args) -> dict:
   """Creates a Tensorboard instance in Vertex AI.
 
@@ -1772,7 +1784,7 @@ def check_if_workload_can_schedule(args, system: SystemCharacteristics) -> bool:
 
   # Check for gke accelerator type:
   missing_gke_accelerator_type = False
-  if system.gke_accelerator not in cluster_config_map:
+  if not cluster_config_map.get(system.gke_accelerator):
     xpk_print(
         f'Gke Accelerator Type Check: {args.workload} is requesting'
         f' {system.gke_accelerator} but cluster only contains'
@@ -1960,7 +1972,6 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
 
   gpu_workload_terminate_command = ''
   if system.accelerator_type == AcceleratorType['GPU']:
-    command = 'cd /deps && bash gpu_multi_process_run.sh'
     gpu_workload_terminate_command = (
         'echo Main app is done > /usr/share/workload/workload_terminated; '
     )
@@ -2019,9 +2030,13 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
                 resources:
                   limits:
                     {resources}
+"""
+  volume_mounts = get_volume_mounts(args, system)
+  if volume_mounts != '':
+    yaml += """
                 volumeMounts:
                 {volume_mounts}
-  """
+"""
   return yaml.format(
       args=args,
       system=system,
@@ -2037,7 +2052,7 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
       gpu_workload_terminate_command=gpu_workload_terminate_command,
       xpk_internal_commands=xpk_internal_commands,
       resources=get_main_container_resources(args, system, resource_type),
-      volume_mounts=get_volume_mounts(args, system),
+      volume_mounts=volume_mounts,
       xpk_return_user_exit_code=xpk_return_user_exit_code,
   )
 
@@ -2149,12 +2164,7 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
                 - name: workload-terminated-volume
                   mountPath: /usr/share/workload"""
     elif system.device_type == h100_mega_device_type:
-      volume_mount_yaml = """- name: nvidia-install-dir-host
-                  mountPath: /usr/local/nvidia/lib64
-                - name: shared-memory
-                  mountPath: /dev/shm
-                - name: workload-terminated-volume
-                  mountPath: /usr/share/workload"""
+      volume_mount_yaml = ''
 
   return volume_mount_yaml
 
@@ -2246,15 +2256,19 @@ def get_env_container(args, system: SystemCharacteristics):
                     value: "{system.chips_per_vm}"
                   - name: JAX_COORDINATOR_PORT
                     value: "6002"
-                  - name: LD_LIBRARY_PATH
-                    value: /usr/local/nvidia/lib64
                   - name: COMMAND
                     value: "{args.command}"
                   {args.env}"""
   if system.accelerator_type == AcceleratorType['GPU']:
-    gpu_direct_name = (
-        'tcpx' if args.device_type == h100_device_type else 'fastrak'
-    )
+    gpu_direct_name = 'fastrak'
+    if args.device_type == h100_device_type:
+      gpu_direct_name = 'tcpx'
+      gpu_env_yaml += """
+                  - name: LD_LIBRARY_PATH
+                    value: /usr/local/nvidia/lib64
+"""
+    elif args.device_type == h100_mega_device_type:
+      gpu_direct_name = 'tcpxo'
     return gpu_env_yaml.format(
         args=args, system=system, gpu_direct_name=gpu_direct_name
     )

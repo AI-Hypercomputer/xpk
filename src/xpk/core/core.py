@@ -65,6 +65,7 @@ xpk_current_version = __version__
 
 h100_device_type = 'h100-80gb-8'
 h100_mega_device_type = 'h100-mega-80gb-8'
+h200_device_type = 'h200-141gb-8'
 
 JOBSET_VERSION = 'v0.7.2'
 
@@ -2163,7 +2164,10 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
                   mountPath: /dev/shm
                 - name: workload-terminated-volume
                   mountPath: /usr/share/workload"""
-    elif system.device_type == h100_mega_device_type:
+    elif (
+        system.device_type == h100_mega_device_type
+        or system.device_type == h200_device_type
+    ):
       volume_mount_yaml = ''
 
   return volume_mount_yaml
@@ -2259,6 +2263,7 @@ def get_env_container(args, system: SystemCharacteristics):
                   - name: COMMAND
                     value: "{args.command}"
                   {args.env}"""
+
   if system.accelerator_type == AcceleratorType['GPU']:
     gpu_direct_name = 'fastrak'
     if args.device_type == h100_device_type:
@@ -2269,6 +2274,8 @@ def get_env_container(args, system: SystemCharacteristics):
 """
     elif args.device_type == h100_mega_device_type:
       gpu_direct_name = 'tcpxo'
+    elif args.device_type == h200_device_type:
+      gpu_direct_name = 'rdma'
     return gpu_env_yaml.format(
         args=args, system=system, gpu_direct_name=gpu_direct_name
     )

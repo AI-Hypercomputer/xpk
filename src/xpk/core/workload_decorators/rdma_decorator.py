@@ -17,13 +17,10 @@ limitations under the License.
 import yaml
 from ...utils.yaml import literal_string
 
-# Component version
-rxdm = 'v1.0.12'
-
 
 def decorate_jobset(jobset_manifest_str, sub_networks) -> str:
   """
-  Decorates a JobSet manifest with the necessary components for tcpxo-daemon.
+  Decorates a JobSet manifest with the necessary components for rdma-daemon.
 
   Args:
     jobset_manifest_str: The JobSet manifest as a YAML string.
@@ -50,7 +47,6 @@ def decorate_jobset(jobset_manifest_str, sub_networks) -> str:
     add_annotations(job_manifest, sub_networks)
     add_volumes(job_manifest)
     add_tolerations(job_manifest)
-    add_tcpxo_daemon_container(job_manifest)
     update_gpu_containers(job_manifest)
 
   return yaml.dump(manifest, sort_keys=False)
@@ -63,28 +59,27 @@ def add_annotations(job_manifest, sub_networks):
       '[',
       '    {"interfaceName":"eth0","network":"default"},',
       *[
-          f'    {{"interfaceName":"eth{i + 1}","network":"{sub_networks[i]}"}}{"," if i<7 else ""}'
-          for i in range(8)
+          f'    {{"interfaceName":"eth{i + 1}","network":"{sub_networks[i]}"}}{"," if i<8 else ""}'
+          for i in range(9)
       ],
       ']',
   ]
   annotations.update({
-      'devices.gke.io/container.tcpxo-daemon': literal_string(
-          '- path: /dev/nvidia0\n'
-          '- path: /dev/nvidia1\n'
-          '- path: /dev/nvidia2\n'
-          '- path: /dev/nvidia3\n'
-          '- path: /dev/nvidia4\n'
-          '- path: /dev/nvidia5\n'
-          '- path: /dev/nvidia6\n'
-          '- path: /dev/nvidia7\n'
-          '- path: /dev/nvidiactl\n'
-          '- path: /dev/nvidia-uvm\n'
-          '- path: /dev/dmabuf_import_helper\n'
-      ),
       'networking.gke.io/default-interface': 'eth0',
       'networking.gke.io/interfaces': literal_string('\n'.join(interfaces)),
   })
+
+
+def add_volumes(job_manifest):
+  """Adds volumes to the Pod spec."""
+  volumes = job_manifest['spec']['template']['spec']['volumes']
+  volumes.append({
+      'name': 'library-dir-host',
+      'hostPath': {'path': '/home/kubernetes/bin/nvidia'},
+  })
+  volumes.append(
+      {'name': 'gib', 'hostPath': {'path': '/home/kubernetes/bin/gib'}}
+  )
 
 
 def add_tolerations(job_manifest):
@@ -98,48 +93,6 @@ def add_tolerations(job_manifest):
   })
 
 
-def add_volumes(job_manifest):
-  """Adds volumes to the Pod spec."""
-  volumes = job_manifest['spec']['template']['spec']['volumes']
-  volumes.append({
-      'name': 'libraries',
-      'hostPath': {'path': '/home/kubernetes/bin/nvidia/lib64'},
-  })
-  volumes.append({'name': 'sys', 'hostPath': {'path': '/sys'}})
-  volumes.append({'name': 'proc-sys', 'hostPath': {'path': '/proc/sys'}})
-  volumes.append({
-      'name': 'aperture-devices',
-      'hostPath': {'path': '/dev/aperture_devices'},
-  })
-
-
-def add_tcpxo_daemon_container(job_manifest):
-  """Adds the tcpxo-daemon container to the Pod spec."""
-  tcpxo_daemon_container = {
-      'name': 'tcpxo-daemon',
-      'image': f'us-docker.pkg.dev/gce-ai-infra/gpudirect-tcpxo/tcpgpudmarxd-dev:{rxdm}',
-      'imagePullPolicy': 'Always',
-      'command': ['/bin/sh', '-c'],
-      'args': [
-          'set -ex\nchmod 755'
-          ' /fts/entrypoint_rxdm_container.sh\n/fts/entrypoint_rxdm_container.sh'
-          ' --num_hops=2 --num_nics=8 --uid= --alsologtostderr'
-      ],
-      'securityContext': {
-          'capabilities': {'add': ['NET_ADMIN', 'NET_BIND_SERVICE']}
-      },
-      'volumeMounts': [
-          {'name': 'libraries', 'mountPath': '/usr/local/nvidia'},
-          {'name': 'sys', 'mountPath': '/hostsysfs'},
-          {'name': 'proc-sys', 'mountPath': '/hostprocsysfs'},
-      ],
-      'env': [{'name': 'LD_LIBRARY_PATH', 'value': '/usr/local/nvidia/lib64'}],
-  }
-  job_manifest['spec']['template']['spec']['containers'].insert(
-      0, tcpxo_daemon_container
-  )
-
-
 def update_gpu_containers(job_manifest):
   for container in job_manifest['spec']['template']['spec']['containers']:
     if 'nvidia.com/gpu' in container.get('resources', {}).get('limits', {}):
@@ -147,11 +100,10 @@ def update_gpu_containers(job_manifest):
       container['env'].append(
           {'name': 'LD_LIBRARY_PATH', 'value': '/usr/local/nvidia/lib64'}
       )
-      container['env'].append({
-          'name': 'NCCL_FASTRAK_LLCM_DEVICE_DIRECTORY',
-          'value': '/dev/aperture_devices',
-      })
       container.setdefault('volumeMounts', [])
       container['volumeMounts'].append(
-          {'name': 'aperture-devices', 'mountPath': '/dev/aperture_devices'}
+          {'name': 'library-dir-host', 'mountPath': '/usr/local/nvidia'}
+      )
+      container['volumeMounts'].append(
+          {'name': 'gib', 'mountPath': '/usr/local/gib'}
       )

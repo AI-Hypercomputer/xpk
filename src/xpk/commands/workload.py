@@ -64,7 +64,7 @@ from ..core.workload import get_workload_list
 from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
 from .cluster import set_cluster_command
-from ..core.workload_decorators.tcpxo_decorator import decorate_jobset_with_tcpxo
+from ..core.workload_decorators import tcpxo_decorator, rdma_decorator
 from . import cluster_gcluster
 
 workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
@@ -460,11 +460,16 @@ def workload_create(args) -> None:
       yml_string = a3_gpu_workload_create_yaml.format(
           args=args, container=container
       )
+
       if args.device_type == cluster_gcluster.a3mega_device_type:
-        additional_networks = [
-            f'{args.cluster}-gpunet-{i}-subnet' for i in range(8)
+        sub_networks = [f'{args.cluster}-gpunet-{i}-subnet' for i in range(8)]
+        yml_string = tcpxo_decorator.decorate_jobset(yml_string, sub_networks)
+
+      if args.device_type == cluster_gcluster.a3ultra_device_type:
+        sub_networks = [f'{args.cluster}-sub-1'] + [
+            f'{args.cluster}-rdma-sub-{i}' for i in range(8)
         ]
-        yml_string = decorate_jobset_with_tcpxo(yml_string, additional_networks)
+        yml_string = rdma_decorator.decorate_jobset(yml_string, sub_networks)
     else:
       yml_string = gpu_workload_create_yaml.format(
           args=args,

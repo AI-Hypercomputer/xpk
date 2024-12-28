@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import yaml
-from ...utils.yaml import literal_unicode
+from ...utils.yaml import literal_string
 
 # Component version
 rxdm = 'v1.0.12'
@@ -66,7 +66,7 @@ def add_annotations(job_manifest, additional_networks):
       ']',
   ]
   annotations.update({
-      'devices.gke.io/container.tcpxo-daemon': literal_unicode(
+      'devices.gke.io/container.tcpxo-daemon': literal_string(
           '- path: /dev/nvidia0\n'
           '- path: /dev/nvidia1\n'
           '- path: /dev/nvidia2\n'
@@ -80,7 +80,7 @@ def add_annotations(job_manifest, additional_networks):
           '- path: /dev/dmabuf_import_helper\n'
       ),
       'networking.gke.io/default-interface': 'eth0',
-      'networking.gke.io/interfaces': literal_unicode('\n'.join(interfaces)),
+      'networking.gke.io/interfaces': literal_string('\n'.join(interfaces)),
   })
 
 

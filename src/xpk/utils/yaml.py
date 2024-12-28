@@ -17,14 +17,14 @@ limitations under the License.
 import yaml
 
 
-class literal_unicode(str):
+class literal_string(str):
   pass
 
 
-def literal_unicode_representer(
+def literal_string_representer(
     dumper: yaml.Dumper, data
 ) -> yaml.nodes.ScalarNode:
   return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='|')
 
 
-yaml.add_representer(literal_unicode, literal_unicode_representer)
+yaml.add_representer(literal_string, literal_string_representer)

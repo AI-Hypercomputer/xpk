@@ -22,6 +22,7 @@ on:
 env:
   # Names must be unique in parallel running tests.
   EMPTY_CLUSTER_NAME: nightly-xpk-zero-nodepools
+  GPU_CLUSTER_NAME: nightly-gpu
   PRIVATE_CLUSTER_NAME: nightly-xpk-private-2-v4-8-nodepools
   TPU_CLUSTER_NAME: nightly-xpk-2-v4-8-nodepools
   WORKLOAD_NAME: xpktest-nightly-${{ github.run_attempt }}
@@ -31,6 +32,62 @@ env:
   RAYCLUSTER_TPU_CLUSTER_NAME: rc-nightly-test-2-v4-8-nodepools
 
 jobs:
+  gpu-workloads:
+    runs-on: [ubuntu-22.04]
+    concurrency: # We support one build test to run at a time currently.
+      group: nightly-test-cluster-group
+      cancel-in-progress: false
+    strategy:
+      matrix:
+        gpu-type: ["a100-40gb-1", "h100-80gb-8"]
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+    - name: Install expect package
+      run: sudo apt-get install expect
+    - uses: 'google-github-actions/auth@v2'
+      with:
+        credentials_json: '${{ secrets.GCP_SA_KEY }}'
+    - uses: google-github-actions/setup-gcloud@v2
+      with:
+        version: '>= 363.0.0'
+        install_components: 'beta,gke-gcloud-auth-plugin'
+    - name: Verify gcp setup
+      run: gcloud info
+    - name: Set Google Cloud CLI properties to a unused zone to verify --zone arg is passed properly in commands.
+      run: |
+        gcloud config set compute/zone us-east4-a
+        gcloud config get compute/zone
+    - name: Install xpk dependencies
+      run: |
+        make install 
+        echo $PWD/bin >> "$GITHUB_PATH"
+    - name: Check xpk installation
+      run: xpk --help
+    - name: Create an XPK Cluster with one gpu nodepool
+      run: python xpk.py cluster create --cluster $GPU_CLUSTER_NAME --device-type=${{ matrix.gpu-type }} --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --spot --custom-cluster-arguments='${{ secrets.CLUSTER_ARGUMENTS }}'
+    - name: Authenticate Docker
+      run: gcloud auth configure-docker --quiet
+    - name: Create test script to execute in workloads
+      run: echo -e '#!/bin/bash \n echo "Hello world from a test script!"' > workload.sh
+    - name: Run a base-docker-image workload
+      run: python xpk.py workload create --cluster $GPU_CLUSTER_NAME --workload $WORKLOAD_NAME  --command "bash workload.sh"  --device-type=${{ matrix.gpu-type }} --zone=us-central2-b
+    - name: List out the workloads on the cluster
+      run: python3 xpk.py workload list --cluster $GPU_CLUSTER_NAME --zone=us-central2-b
+    - name: Run xpk inspector with the workload created above
+      run: python3 xpk.py inspector --cluster $GPU_CLUSTER_NAME --zone=us-central2-b  --workload $WORKLOAD_NAME
+    - name: Wait for workload completion and confirm it succeeded
+      run: python3 xpk.py workload list --cluster $GPU_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion $WORKLOAD_NAME --timeout 300
+    - name: Run xpk info command
+      run : python3 xpk.py info --cluster $GPU_CLUSTER_NAME --zone=us-central2-b
+    - name: Delete the workload on the cluster
+      run: python3 xpk.py workload delete --workload $WORKLOAD_NAME --cluster $GPU_CLUSTER_NAME --zone=us-central2-b
+    - name: Delete the cluster created
+      if: always()
+      run: python xpk.py cluster delete --cluster $GPU_CLUSTER_NAME --zone=us-central2-b --force
+
   cluster-create-and-delete:
     runs-on: [ubuntu-22.04]
     concurrency: # We support one build test to run at a time currently.

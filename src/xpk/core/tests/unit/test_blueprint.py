@@ -17,6 +17,7 @@ limitations under the License.
 import shutil
 from xpk.core.blueprint.blueprint_generator import BlueprintGenerator
 from xpk.core.blueprint.blueprint_definitions import Blueprint
+from xpk.core.core import CapacityType
 import ruamel.yaml
 import os
 
@@ -25,6 +26,7 @@ yaml = ruamel.yaml.YAML()
 yaml.register_class(Blueprint)
 
 a3_yaml_test_path = "src/xpk/core/tests/data/a3_mega.yaml"
+a3_ultra_yaml_test_path = "src/xpk/core/tests/data/a3_ultra.yaml"
 config_map_filename = "config-map.yaml.tftpl"
 kueue_conf_filename = "kueue-xpk-configuration.yaml.tftpl"
 tmp_test_dir = "/tmp/xpk_test"
@@ -49,7 +51,7 @@ def test_generate_a3_mega_blueprint():
       zone="us-central1-c",
       auth_cidr="10.0.0.0/32",
       reservation="test-reservation",
-      spot=True,
+      capacity_type=CapacityType.RESERVATION,
       system_node_pool_min_node_count=5,
   )
 
@@ -71,6 +73,37 @@ def test_generate_a3_mega_blueprint():
           os.path.join(
               tmp_test_dir, "prefix", blueprint_name, kueue_conf_filename
           )
+      )
+
+  shutil.rmtree(tmp_test_dir)
+
+
+def test_generate_a3_ultra_blueprint():
+  prepare_test()
+  blueprint_name = "xpk-gke-a3-ultra"
+  bp_generator = BlueprintGenerator(tmp_test_dir)
+  bp = bp_generator.generate_a3_ultra_blueprint(
+      project_id="foo",
+      cluster_name="gke-a3-ultra",
+      blueprint_name=blueprint_name,
+      region="us-central1",
+      zone="us-central1-c",
+      auth_cidr="10.0.0.0/32",
+      reservation="test-reservation",
+      system_node_pool_machine_type="e2-standard-16",
+      capacity_type=CapacityType.RESERVATION,
+  )
+  with open(a3_ultra_yaml_test_path, encoding="utf-8") as stream:
+    ctk_yaml = yaml.load(stream)
+    with open(bp.blueprint_file, encoding="utf-8") as generated_blueprint:
+      ctk_test = yaml.load(generated_blueprint)
+      assert ctk_yaml.blueprint_name == ctk_test.blueprint_name
+      assert ctk_test.deployment_groups == ctk_yaml.deployment_groups
+      assert os.path.exists(
+          os.path.join(tmp_test_dir, blueprint_name, "mlgru-disable.yaml")
+      )
+      assert os.path.exists(
+          os.path.join(tmp_test_dir, blueprint_name, "nccl-installer.yaml")
       )
 
   shutil.rmtree(tmp_test_dir)

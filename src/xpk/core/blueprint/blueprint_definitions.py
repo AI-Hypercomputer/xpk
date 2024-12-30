@@ -54,6 +54,6 @@ class DeploymentGroup:
 class Blueprint:
   """A class to represent Cluster Toolkit blueprint"""
 
-  vars: dict[str, str | list[str]]
   deployment_groups: list[DeploymentGroup]
   blueprint_name: Optional[str]
+  vars: dict[str, str | list[str]] | None

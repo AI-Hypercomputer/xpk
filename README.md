@@ -71,7 +71,6 @@ Following tools must be installed:
 
 - python >= 3.10 (download from [here](https://www.python.org/downloads/))
 - gcloud (install from [here](https://cloud.google.com/sdk/gcloud#download_and_install_the))
-- go ([installation instructions](https://go.dev/doc/install))
 - docker ([installation instruction](https://docs.docker.com/engine/install/))
 - pip ([installation instruction](https://pip.pypa.io/en/stable/installation/))
 - python venv ([installation instruction](https://virtualenv.pypa.io/en/latest/installation.html))

@@ -23,11 +23,12 @@ from .blueprint_definitions import DeploymentGroup, DeploymentModule, Blueprint
 from ..system_characteristics import get_system_characteristics_by_device_type
 from ...utils.console import xpk_print, xpk_exit
 from ...utils.file import ensure_directory_exists
+from ..core import CapacityType, h100_mega_device_type, h200_device_type
 
 yaml = yaml.YAML()
 
-a3mega_device_type = "h100-mega-80gb-8"
-a3ultra_device_type = "h200-141gb-8"
+a3mega_device_type = h100_mega_device_type
+a3ultra_device_type = h200_device_type
 supported_device_types = {a3mega_device_type, a3ultra_device_type}
 blueprint_dependencies_dir = {
     a3mega_device_type: "src/xpk/blueprints/a3mega",
@@ -73,10 +74,9 @@ class BlueprintGenerator:
       primary_vpc_name: str = "network1",
       gpu_subnets_name: str = "gpunets",
       group_placement_max_distance: int = 2,
-      autoscaling_total_min_nodes: int = 2,
       subnetwork_cidr_suffix: int = 24,
       reservation: str | None = None,
-      spot: bool = False,
+      capacity_type: CapacityType = CapacityType.ON_DEMAND,
       system_node_pool_min_node_count: int = 2,
   ) -> BlueprintGeneratorOutput:
     """Create A3 mega blueprint and directory containing its dependencies.
@@ -125,6 +125,7 @@ class BlueprintGenerator:
         source="modules/scheduler/gke-cluster",
         use=[primary_vpc_name, gpu_subnets_name],
         settings={
+            "release_channel": "RAPID",
             "prefix_with_deployment_name": False,
             "name_suffix": cluster_name,
             "enable_private_endpoint": False,
@@ -171,13 +172,14 @@ class BlueprintGenerator:
         settings={
             "name": f"{cluster_name}-a3-megagpu-pool-0",
             "machine_type": system.gce_machine_type,
-            "autoscaling_total_min_nodes": autoscaling_total_min_nodes,
-            "initial_node_count": num_nodes,
+            "static_node_count": num_nodes,
             "zones": [zone],
             "host_maintenance_interval": "PERIODIC",
             "reservation_affinity": reservation_affinity,
             "run_workload_script": False,
-            "spot": spot,
+            "spot": capacity_type == CapacityType.SPOT,
+            "max_pods_per_node": 32,
+            "auto_upgrade": True,
         },
         outputs=["instructions"],
     )
@@ -189,7 +191,7 @@ class BlueprintGenerator:
         settings={
             "kueue": {
                 "install": True,
-                "version": "v0.9.1",  # TAS feature-gates is enabled in CT
+                "version": "v0.10.0",  # TAS feature-gates is enabled in CT
                 "config_path": f'$(ghpc_stage("{blueprint_name}"))/kueue-xpk-configuration.yaml.tftpl',
                 "config_template_vars": {"num_chips": f"{num_chips}"},
             },
@@ -207,8 +209,13 @@ class BlueprintGenerator:
                     f'$(ghpc_stage("{blueprint_name}"))/config-map.yaml.tftpl'
                 ),
                 "template_vars": {
-                    "name": "xpk-gke-a3-megagpu-resources-configmap",
+                    "resource_config_name": (
+                        f"{cluster_name}-resources-configmap"
+                    ),
                     "num_nodes": f"{num_nodes}",
+                    "cluster_config_name": f"{cluster_name}-metadata-configmap",
+                    "capacity_type": f"{capacity_type.value}",
+                    "reservation": f"{reservation}",
                 },
             }]
         },
@@ -382,11 +389,11 @@ class BlueprintGenerator:
       auth_cidr: str,
       system_node_pool_machine_type: str,
       reservation: Optional[str | None] = None,
-      static_node_count: int = 4,
+      num_nodes: int = 2,
       prefix: str = "",
       mtu_size: int = 8896,
       system_node_pool_min_node_count: int = 2,
-      spot: bool = False,
+      capacity_type: CapacityType = CapacityType.ON_DEMAND,
   ) -> BlueprintGeneratorOutput:
     """Create A3 ultra blueprint.
 
@@ -399,25 +406,26 @@ class BlueprintGenerator:
         f'$(ghpc_stage("{blueprint_name}"))/nccl-installer.yaml'
     )
     mlgru_disable_path = f'$(ghpc_stage("{blueprint_name}"))/mlgru-disable.yaml'
-    net_0_id = f"{cluster_name}-a3u-net-0"
+    net_0_id = f"{cluster_name}-net-0"
     gpu_net_0 = DeploymentModule(
         id=net_0_id,
-        source="github.com/GoogleCloudPlatform/cluster-toolkit.git//modules/network/vpc?ref=e0c690b",
+        source="modules/network/vpc",
         settings={
-            "network_name": f"{cluster_name}-a3u-net-0",
+            "network_name": f"{cluster_name}-net-0",
             "subnetworks": [{
-                "subnet_name": f"{cluster_name}-a3u-sub-0",
+                "subnet_name": f"{cluster_name}-sub-0",
                 "subnet_region": region,
                 "subnet_ip": "192.168.0.0/18",
             }],
-            "secondary_ranges": {
-                f"{cluster_name}-a3u-sub-0": [
+            "secondary_ranges_list": [{
+                "subnetwork_name": f"{cluster_name}-sub-0",
+                "ranges": [
                     {"range_name": "pods", "ip_cidr_range": "10.4.0.0/14"},
                     {"range_name": "services", "ip_cidr_range": "10.0.32.0/20"},
-                ]
-            },
+                ],
+            }],
             "firewall_rules": [{
-                "name": f"{cluster_name}-a3u-internal-0",
+                "name": f"{cluster_name}-internal-0",
                 "ranges": ["192.168.0.0/16"],
                 "allow": [
                     {"protocol": "tcp", "ports": ["0-65535"]},
@@ -427,20 +435,20 @@ class BlueprintGenerator:
             }],
         },
     )
-    net_1_id = f"{cluster_name}-a3u-net-1"
+    net_1_id = f"{cluster_name}-net-1"
     gpu_net_1 = DeploymentModule(
         id=net_1_id,
-        source="github.com/GoogleCloudPlatform/cluster-toolkit.git//modules/network/vpc?ref=e0c690b",
+        source="modules/network/vpc",
         settings={
-            "network_name": f"{cluster_name}-a3u-net-1",
+            "network_name": f"{cluster_name}-net-1",
             "mtu": mtu_size,
             "subnetworks": [{
-                "subnet_name": f"{cluster_name}-a3u-sub-1",
+                "subnet_name": f"{cluster_name}-sub-1",
                 "subnet_region": region,
                 "subnet_ip": "192.168.64.0/18",
             }],
             "firewall_rules": [{
-                "name": f"{cluster_name}-a3u-internal-1",
+                "name": f"{cluster_name}-internal-1",
                 "ranges": ["192.168.0.0/16"],
                 "allow": [
                     {"protocol": "tcp", "ports": ["0-65535"]},
@@ -450,17 +458,17 @@ class BlueprintGenerator:
             }],
         },
     )
-    rma_net_id = f"{cluster_name}-a3u-rdma-net"
+    rma_net_id = f"{cluster_name}-rdma-net"
     rma_net = DeploymentModule(
         id=rma_net_id,
-        source="github.com/GoogleCloudPlatform/cluster-toolkit.git//community/modules/network/rdma-vpc?ref=98c49fe",
+        source="modules/network/gpu-rdma-vpc",
         settings={
-            "network_name": f"{cluster_name}-a3u-rdma-net",
+            "network_name": f"{cluster_name}-rdma-net",
             "mtu": mtu_size,
             "network_profile": f"https://www.googleapis.com/compute/beta/projects/{project_id}/global/networkProfiles/{zone}-vpc-roce",
             "network_routing_mode": "REGIONAL",
             "subnetworks_template": {
-                "name_prefix": f"{cluster_name}-a3u-rdma-sub",
+                "name_prefix": f"{cluster_name}-rdma-sub",
                 "count": 8,
                 "ip_range": "192.168.128.0/18",
                 "region": region,
@@ -470,7 +478,7 @@ class BlueprintGenerator:
     cluster_id = f"{cluster_name}-a3-ultragpu-cluster"
     a3_ultra_cluster = DeploymentModule(
         id=cluster_id,
-        source="github.com/GoogleCloudPlatform/cluster-toolkit.git//modules/scheduler/gke-cluster?ref=e0c690b",
+        source="modules/scheduler/gke-cluster",
         use=[net_0_id],
         settings={
             "release_channel": "RAPID",
@@ -489,14 +497,14 @@ class BlueprintGenerator:
                 "total_max_nodes": 1000,
             },
             "additional_networks": (
-                f"$(concat([{{network={cluster_name}-a3u-net-1.network_name,"
-                f" subnetwork={cluster_name}-a3u-net-1.subnetwork_name,"
+                f"$(concat([{{network={cluster_name}-net-1.network_name,"
+                f" subnetwork={cluster_name}-net-1.subnetwork_name,"
                 f' subnetwork_project="{project_id}", nic_type="GVNIC",'
                 " queue_count=null, network_ip=null, stack_type=null,"
                 " access_config=[{nat_ip=null, public_ptr_domain_name=null,"
                 " network_tier=null}], ipv6_access_config=[],"
                 " alias_ip_range=[]}],"
-                f" {cluster_name}-a3u-rdma-net.subnetwork_interfaces_gke))"
+                f" {cluster_name}-rdma-net.subnetwork_interfaces_gke))"
             ),
         },
         outputs=["instructions"],
@@ -510,14 +518,14 @@ class BlueprintGenerator:
       xpk_exit(1)
     gpu_pool = DeploymentModule(
         id=f"{cluster_name}-a3u-pool",
-        source="github.com/GoogleCloudPlatform/cluster-toolkit.git//modules/compute/gke-node-pool?ref=e0c690b",
+        source="modules/compute/gke-node-pool",
         use=[cluster_id],
         settings={
             "machine_type": system.gce_machine_type,
             "auto_upgrade": True,
             "zones": [zone],
-            "static_node_count": static_node_count,
-            "spot": spot,
+            "static_node_count": num_nodes,
+            "spot": capacity_type == CapacityType.SPOT,
             "max_pods_per_node": 32,
             "guest_accelerator": [{
                 "type": "nvidia-h200-141gb",
@@ -527,14 +535,14 @@ class BlueprintGenerator:
                 },
             }],
             "additional_networks": (
-                f"$(concat([{{network={cluster_name}-a3u-net-1.network_name,"
-                f" subnetwork={cluster_name}-a3u-net-1.subnetwork_name,"
+                f"$(concat([{{network={cluster_name}-net-1.network_name,"
+                f" subnetwork={cluster_name}-net-1.subnetwork_name,"
                 f' subnetwork_project="{project_id}", nic_type="GVNIC",'
                 " queue_count=null, network_ip=null, stack_type=null,"
                 " access_config=[{nat_ip=null, public_ptr_domain_name=null,"
                 " network_tier=null}], ipv6_access_config=[],"
                 " alias_ip_range=[]}],"
-                f" {cluster_name}-a3u-rdma-net.subnetwork_interfaces_gke))"
+                f" {cluster_name}-rdma-net.subnetwork_interfaces_gke))"
             ),
         },
         outputs=["instructions"],
@@ -545,16 +553,16 @@ class BlueprintGenerator:
           "specific_reservations": [{"name": reservation}],
       }
 
-    num_chips = static_node_count * system.chips_per_vm
+    num_chips = num_nodes * system.chips_per_vm
     workload_manager_install_id = "workload-manager-install"
     workload_manager_install = DeploymentModule(
         id=workload_manager_install_id,
-        source="github.com/GoogleCloudPlatform/cluster-toolkit.git//modules/management/kubectl-apply?ref=e0c690b",
+        source="modules/management/kubectl-apply",
         use=[cluster_id],
         settings={
             "kueue": {
                 "install": True,
-                "version": "v0.9.1",  # TAS feature-gates is enabled in CT
+                "version": "v0.10.0",  # TAS feature-gates is enabled in CT
                 "config_path": f'$(ghpc_stage("{blueprint_name}"))/kueue-xpk-configuration.yaml.tftpl',
                 "config_template_vars": {"num_chips": f"{num_chips}"},
             },
@@ -579,7 +587,10 @@ class BlueprintGenerator:
                     "resource_config_name": (
                         f"{cluster_name}-resources-configmap"
                     ),
-                    "num_nodes": f"{static_node_count}",
+                    "num_nodes": f"{num_nodes}",
+                    "cluster_config_name": f"{cluster_name}-metadata-configmap",
+                    "capacity_type": f"{capacity_type.value}",
+                    "reservation": f"{reservation}",
                 },
             }]
         },

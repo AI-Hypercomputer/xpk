@@ -18,6 +18,7 @@ from xpk.commands.cluster_gcluster import get_unique_name
 from xpk.core.docker_manager import DockerManager
 from xpk.core.gcluster_manager import GclusterManager
 from xpk.core.blueprint.blueprint_generator import BlueprintGenerator
+from xpk.core.core import CapacityType
 import pytest
 import os
 import shutil
@@ -74,7 +75,7 @@ def test_create_a3_ultra_deployment_files(setup_tests):
       auth_cidr=auth_cidr,
       zone=zone,
       reservation="foo",
-      static_node_count=1,
+      num_nodes=1,
       system_node_pool_machine_type="e2-standard-16",
       prefix=prefix,
   )
@@ -138,8 +139,8 @@ def test_create_a3_ultra_deployment(setup_tests):
       project_id=project_id,
       auth_cidr=auth_cidr,
       zone=zone,
-      spot=True,
-      static_node_count=1,
+      capacity_type=CapacityType.SPOT,
+      num_nodes=1,
       system_node_pool_machine_type="e2-standard-16",
   )
   blueprint_test_path = os.path.join(bp_path, f"{blueprint_name}.yaml")

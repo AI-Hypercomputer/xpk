@@ -17,6 +17,7 @@ limitations under the License.
 import shutil
 from xpk.core.blueprint.blueprint_generator import BlueprintGenerator
 from xpk.core.blueprint.blueprint_definitions import Blueprint
+from xpk.core.core import CapacityType
 import ruamel.yaml
 import os
 
@@ -50,7 +51,7 @@ def test_generate_a3_mega_blueprint():
       zone="us-central1-c",
       auth_cidr="10.0.0.0/32",
       reservation="test-reservation",
-      spot=True,
+      capacity_type=CapacityType.RESERVATION,
       system_node_pool_min_node_count=5,
   )
 
@@ -88,8 +89,9 @@ def test_generate_a3_ultra_blueprint():
       region="us-central1",
       zone="us-central1-c",
       auth_cidr="10.0.0.0/32",
-      reservation="test_reservation",
+      reservation="test-reservation",
       system_node_pool_machine_type="e2-standard-16",
+      capacity_type=CapacityType.RESERVATION,
   )
   with open(a3_ultra_yaml_test_path, encoding="utf-8") as stream:
     ctk_yaml = yaml.load(stream)

@@ -33,7 +33,7 @@ FS_PVC_PATH = "/../templates/fs-pvc.yaml"
 
 
 class FilestoreClient:
-  """_summary_"""
+  """FilestoreClient is a class for interacting with GCP filestore instances."""
 
   def __init__(self, zone: str, name: str, project: str) -> None:
     self.zone = zone
@@ -42,17 +42,17 @@ class FilestoreClient:
     self._client = filestore_v1.CloudFilestoreManagerClient()
 
   def check_filestore_instance_exists(self, instance_id: str) -> bool:
-    # parent = f"projects/{self.project}/locations/{self.zone}"
-    # req = filestore_v1.ListInstancesRequest(parent=parent)
-    # try:
-    #   instances = self._client.list_instances(req)
-    # except GoogleCloudError as e:
-    #   xpk_print(f"Exception while trying to list instances {e}")
-    #   xpk_exit(1)
+    parent = f"projects/{self.project}/locations/{self.zone}"
+    req = filestore_v1.ListInstancesRequest(parent=parent)
+    try:
+      instances = self._client.list_instances(req)
+    except GoogleCloudError as e:
+      xpk_print(f"Exception while trying to list instances {e}")
+      xpk_exit(1)
 
-    # for instance in instances:
-    #   if instance.name == f"{parent}/instances/{instance_id}":
-    #     return True
+    for instance in instances:
+      if instance.name == f"{parent}/instances/{instance_id}":
+        return True
     return False
 
   def create_filestore_instance(

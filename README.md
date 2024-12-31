@@ -65,6 +65,7 @@ Monitoring Admin
 Service Account User
 Storage Admin
 Vertex AI Administrator
+Filestore Editor
 
 # Installation
 To install xpk, run the following command:

@@ -45,7 +45,8 @@ from ..core.filestore import FilestoreClient
 def storage_create(args: Namespace) -> None:
   add_zone_and_project(args)
   filestore_client = FilestoreClient(args.zone, args.name, args.project)
-  if filestore_client.check_filestore_instance_exists(args.name) is True:
+  filestore_exists = filestore_client.check_filestore_instance_exists(args.name)
+  if filestore_exists is True:
     xpk_print(f"Filestore instance {args.name} already exists.")
     xpk_exit(1)
 

@@ -113,8 +113,6 @@ class FilestoreClient:
     self.response = response
 
   def create_pv(self) -> None:
-    print(self.response)
-    print(self.response.file_shares)
     abs_path = f"{os.path.dirname(__file__)}{FS_PV_PATH}"
     with open(abs_path, "r", encoding="utf-8") as file:
       data = yaml.load(file)
@@ -123,12 +121,11 @@ class FilestoreClient:
     spec = data["spec"]
     spec["storageClassName"] = f"{self.name}fsstorage"
     spec["capacity"]["storage"] = self.response.file_shares[0].capacity_gb
-    spec["accessModes"] = "ReadWriteMany"
+    spec["accessModes"] = ["ReadWriteMany"]
     spec["csi"]["volumeHandle"] = self.response.file_shares[0].name
     spec["csi"]["volumeAttributes"]["ip"] = self.response.networks[
         0
     ].ip_addresses[0]
-    spec["csi"]["volumen"] = self.response.file_shares[0].name
     data["spec"] = spec
     return data
 
@@ -146,7 +143,7 @@ class FilestoreClient:
       data = yaml.load(file)
     data["metadata"]["name"] = f"{self.name}-pvc"
     spec = data["spec"]
-    spec["accessModes"] = "ReadWriteMany"
+    spec["accessModes"] = ["ReadWriteMany"]
     spec["storageClassName"] = f"{self.name}fsstorage"
     spec["volumeName"] = self.response.file_shares[0].name
     spec["resources"]["requests"]["storage"] = self.response.file_shares[
@@ -159,5 +156,6 @@ class FilestoreClient:
     manifest_file = f"{self.name}-manifest.yaml"
     with open(manifest_file, mode="w+", encoding="utf-8") as f:
       yaml.dump(pv, f)
+      f.write("---\n")
       yaml.dump(pvc, f)
     return manifest_file

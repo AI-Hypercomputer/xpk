@@ -144,40 +144,40 @@ jobs:
     - name: Create a XPK Cluster with 2x v4-8 nodepools. Larger num-nodes to avoid master resizing.
       run: |
         python3 xpk.py cluster create --cluster $TPU_FILESTORE_CLUSTER_NAME --tpu-type=v4-8  --num-slices=0 \
-        --zone=europe-west4-a --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 \
+        --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 \
         --spot --enable-workload-identity --enable-gcpfilestore-csi-driver --custom-cluster-arguments="${CLUSTER_ARGUMENTS}"
     - name: Create auto-mount GCP Filestore Storage instance
       run: |
-        python3 xpk.py storage create $FS_STORAGE_NAME --cluster=$TPU_FILESTORE_CLUSTER_NAME --zone=europe-west4-a --type=gcpfilestore \
+        python3 xpk.py storage create $FS_STORAGE_NAME --cluster=$TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b --type=gcpfilestore \
         --auto-mount=true --vol=vol1 --size=1024 --tier=BASIC_HDD \
         --mount-point='/fs-test-mount-point' --readonly=false
     - name: List and verify existing Storages
-      run: python3 xpk.py storage list --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=europe-west4-a | tee output.txt | grep $FS_STORAGE_NAME || (echo 'No storage found' && exit 143)
+      run: python3 xpk.py storage list --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b | tee output.txt | grep $FS_STORAGE_NAME || (echo 'No storage found' && exit 143)
     - name: List and verify existing Filestore instances.
-      run: gcloud filestore instances list --zone=europe-west4-a | grep $FS_STORAGE_NAME
+      run: gcloud filestore instances list --zone=us-central2-b | grep $FS_STORAGE_NAME
     - name: Run workload to write file on filestore
       run : python3 xpk.py workload create --workload $FS_WRITE_WORKLOAD --command "mkdir /fs-test-mount-point/$RANDOM_SEED/ && echo 'Test text message' > /fs-test-mount-point/$RANDOM_SEED/test.txt || (echo 'Writing to filestore failed' && exit 143)" --cluster $TPU_FILESTORE_CLUSTER_NAME --tpu-type=v4-8 --zone us-central2
     - name: Wait for writer workload completion and confirm it succeeded
-      run: python3 xpk.py workload list --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=europe-west4-a --wait-for-job-completion $FS_WRITE_WORKLOAD --timeout 300
+      run: python3 xpk.py workload list --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion $FS_WRITE_WORKLOAD --timeout 300
     - name: Run workload to read file on filestore
       run : python3 xpk.py workload create --workload $FS_READ_WORKLOAD --command "cat /fs-test-mount-point/$RANDOM_SEED/test.txt | grep 'Test text message' || (echo 'Reading from filestore failed' && exit 143)" --cluster $TPU_FILESTORE_CLUSTER_NAME --tpu-type=v4-8 --zone us-central2
     - name: Wait for reader workload completion and confirm it succeeded
-      run: python3 xpk.py workload list --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=europe-west4-a --wait-for-job-completion $FS_READ_WORKLOAD --timeout 300
+      run: python3 xpk.py workload list --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion $FS_READ_WORKLOAD --timeout 300
     - name: Run workload to delete file on filestore
       run : python3 xpk.py workload create --workload $FS_DELETE_WORKLOAD --command "rm -rf /fs-test-mount-point/$RANDOM_SEED/test.txt || exit 143" --cluster $TPU_FILESTORE_CLUSTER_NAME --tpu-type=v4-8 --zone us-central2
     - name: Wait for delete workload completion and confirm it succeeded
-      run: python3 xpk.py workload list --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=europe-west4-a --wait-for-job-completion $FS_DELETE_WORKLOAD --timeout 300
+      run: python3 xpk.py workload list --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion $FS_DELETE_WORKLOAD --timeout 300
     - name: Delete the filestore instance
-      run: gcloud filestore instances delete $FS_STORAGE_NAME --zone=europe-west4-a --force 
+      run: gcloud filestore instances delete $FS_STORAGE_NAME --zone=us-central2-b --force 
     - name: Delete the writer workload on the cluster
       if: always()
-      run: python3 xpk.py workload delete --workload $FS_WRITE_WORKLOAD --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=europe-west4-a
+      run: python3 xpk.py workload delete --workload $FS_WRITE_WORKLOAD --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b
     - name: Delete the reader workload on the cluster
       if: always()
-      run: python3 xpk.py workload delete --workload $FS_READ_WORKLOAD --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=europe-west4-a
+      run: python3 xpk.py workload delete --workload $FS_READ_WORKLOAD --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b
     - name: Delete the delete workload on the cluster
       if: always()
-      run: python3 xpk.py workload delete --workload $FS_DELETE_WORKLOAD --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=europe-west4-a
+      run: python3 xpk.py workload delete --workload $FS_DELETE_WORKLOAD --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b
     - name: Delete the cluster created
       if: always()
-      run: python3 xpk.py cluster delete --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=europe-west4-a
+      run: python3 xpk.py cluster delete --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b

@@ -35,6 +35,7 @@ dependencies = [
   "google-cloud",
   "google-api-core",
   "tabulate",
+  "google.cloud"
 ]
 
 [project.urls]

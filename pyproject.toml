@@ -36,6 +36,7 @@ dependencies = [
   "google-api-core",
   "tabulate",
   "google-cloud-filestore"
+  "ruamel.yaml"
 ]
 
 [project.urls]

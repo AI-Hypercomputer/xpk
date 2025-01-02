@@ -23,6 +23,7 @@ on:
     secrets:
       gcp-sa-key:
         required: true
+
 jobs:
   delete-cluster:
     runs-on: [ubuntu-22.04]

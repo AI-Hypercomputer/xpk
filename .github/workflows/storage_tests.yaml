@@ -152,8 +152,6 @@ jobs:
         --mount-point='/fs-test-mount-point' --readonly=false
     - name: List and verify existing Storages
       run: python3 xpk.py storage list --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b | tee output.txt | grep $FS_STORAGE_NAME || (echo 'No storage found' && exit 143)
-    - name: List and verify existing Filestore instances.
-      run: gcloud filestore instances list --zone=us-central2-b | grep $FS_STORAGE_NAME
     - name: Run workload to write file on filestore
       run : python3 xpk.py workload create --workload $FS_WRITE_WORKLOAD --command "mkdir /fs-test-mount-point/$RANDOM_SEED/ && echo 'Test text message' > /fs-test-mount-point/$RANDOM_SEED/test.txt || (echo 'Writing to filestore failed' && exit 143)" --cluster $TPU_FILESTORE_CLUSTER_NAME --tpu-type=v4-8 --zone us-central2
     - name: Wait for writer workload completion and confirm it succeeded

@@ -102,13 +102,9 @@ def add_storage_create_parser(
       'Required Arguments',
       'Arguments required for storage create.',
   )
-  opt_args = storage_create_parser.add_argument_group(
-      'Optional ArgumentsArguments optional for storage create.'
-  )
   add_shared_arguments(req_args)
-  add_shared_arguments(opt_args)
-  opt_args.add_argument(
-      'access_mode',
+  req_args.add_argument(
+      '--access_mode',
       type=str,
       help='Access mode of created filestore instance',
       default='ReadWriteMany',

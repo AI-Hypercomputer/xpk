@@ -39,7 +39,7 @@ from ..core.storage import (
     print_storages_for_cluster,
 )
 from ..utils import apply_kubectl_manifest, xpk_exit, xpk_print
-from ..core.filestore import FilestoreClient
+from ..core.filestore import FilestoreClient, get_storage_class_name
 
 
 def storage_create(args: Namespace) -> None:
@@ -130,6 +130,7 @@ def storage_delete(args: Namespace) -> None:
   k8s_api_client = setup_k8s_env(args)
   api_instance = k8s_client.CustomObjectsApi(k8s_api_client)
   core_api = k8s_client.CoreV1Api()
+  storage_api = k8s_client.StorageV1Api()
   storage = get_storage(k8s_api_client, args.name)
   if storage.type == GCS_FUSE_TYPE:
     delete_resource(
@@ -141,6 +142,23 @@ def storage_delete(args: Namespace) -> None:
     )
     delete_resource(
         core_api.delete_persistent_volume, storage.pv, "Persistent Volume"
+    )
+  if storage.type == GCP_FILESTORE_TYPE:
+    delete_resource(
+        lambda name: core_api.delete_namespaced_persistent_volume_claim(
+            name, "default"
+        ),
+        storage.pvc,
+        "Persistent Volume Claim",
+    )
+    delete_resource(
+        core_api.delete_persistent_volume, storage.pv, "Persistent Volume"
+    )
+
+    delete_resource(
+        storage_api.delete_storage_class,
+        get_storage_class_name(args.name),
+        "Storage Class",
     )
 
   delete_resource(

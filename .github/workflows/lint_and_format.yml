@@ -15,10 +15,11 @@
 name: Lint and Format
 
 on:
-  pull_request:
-  push:
-    branches:
-      - main
+  workflow_call:
+    inputs:
+      group-name:
+        required: true
+        type: string
 
 jobs:
   build-and-test:

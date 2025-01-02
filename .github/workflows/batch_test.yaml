@@ -1,0 +1,77 @@
+on:
+  workflow_call:
+    inputs:
+      cluster-name:
+        required: true
+        type: string
+      group-name:
+        required: true
+        type: string
+
+jobs:
+  run-batch:
+    runs-on: [ubuntu-22.04]
+    steps:
+    - name: Change RUN_ID env var if merge to main
+      run: echo "RUN_ID=main" >> $GITHUB_ENV
+      if: ${{ github.ref == 'refs/heads/main' }}
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+    - uses: 'google-github-actions/auth@v2'
+      with:
+        credentials_json: '${{ secrets.GCP_SA_KEY }}'
+    - uses: google-github-actions/setup-gcloud@v2
+      with:
+        version: '>= 363.0.0'
+        install_components: 'beta,gke-gcloud-auth-plugin'
+    - name: Verify gcp setup
+      run: gcloud info
+    - name: Set Google Cloud CLI properties to a unused zone to verify --zone arg is passed properly in commands.
+      run: |
+        gcloud config set compute/zone us-east4-a
+        gcloud config get compute/zone
+    - name: Install xpk dependencies
+      run: |
+        make install 
+        echo $PWD/bin >> "$GITHUB_PATH"
+    - name: Check xpk installation
+      run: xpk --help
+    - name: Create test script to execute in batch
+      run: echo -e '#!/bin/bash \n#SBATCH --unknown-flag=value\n echo "Hello world from a test script!"' > batch.sh
+    - name: Run a batch job on the cluster
+      run: python3 xpk.py batch --cluster ${{inputs.cluster-name}} --zone=us-central2-b batch.sh --ignore-unknown-flags --array 1-5 --nodes 2 --ntasks 3 --time 60
+    - name: List out the jobs on the cluster
+      run: python3 xpk.py job ls --cluster ${{inputs.cluster-name}} --zone=us-central2-b | grep 'xpk-def-app-profile-slurm-'
+    - name: Get created job name
+      run: |
+        JOB_NAME=$(python3 xpk.py job ls --cluster ${{inputs.cluster-name}} --zone=us-central2-b | grep 'xpk-def-app-profile-slurm-' | head -1 | awk '{print $1}')
+        echo "JOB_NAME=${JOB_NAME}" >> $GITHUB_ENV
+    - name: Check created job
+      run: |
+        kubectl get job ${JOB_NAME} -o jsonpath='{.metadata.labels}' | grep '"kueue.x-k8s.io/max-exec-time-seconds":"3600"'
+        job_spec=$(kubectl get job ${JOB_NAME} -o jsonpath='{.spec}')
+        echo "$job_spec" | grep '"completions":2'
+        echo "$job_spec" | grep '"parallelism":2'
+        echo "$job_spec" | jq '.template.spec.containers | length' | grep 3
+    - name: Get job info for the last job created on the cluster
+      run: python3 xpk.py job info ${JOB_NAME} | grep -e "Entrypoint environment variables template:" -e "Job name:" -e "Labels:" -e "Mounts:" -e "Pods:" -e "Profile:" -e "Script name:" | wc -l | grep "7"
+    - name: Cancel the batch job on the cluster
+      run: |
+        python3 xpk.py job cancel ${JOB_NAME} --cluster ${{inputs.cluster-name}} --zone=us-central2-b | grep "job.batch/${JOB_NAME} deleted"
+    - name: Create shell and exit it immediately
+      run: |
+        cat <<'EOF' >> create-shell.exp
+        ##!/usr/bin/expect
+        spawn python3 ./xpk.py shell
+        expect "/ # "
+        send "exit\n"
+        EOF
+        chmod +x ./create-shell.exp
+        expect ./create-shell.exp
+      # TODO - deflake tests
+      # - name: Check if shell exists and is running
+      #   run: kubectl get pods | grep xpk-def-app-profile-interactive- | grep Running
+    - name: Stop the shell
+      run: python3 xpk.py shell stop

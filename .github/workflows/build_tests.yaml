@@ -45,25 +45,31 @@ env:
 
 jobs:
   linter:
-    uses: ./.github/workflows/jobs/lint_and_format.yml
+    uses: ./.github/workflows/lint_and_format.yml
+    with:
+      group-name: "foo"
   run-unit-tests:
-    uses: ./.github/workflows/jobs/unit_tests.yaml
+    uses: ./.github/workflows/unit_tests.yaml
+    with:
+      group-name: "foo"
     needs: [linter]
   run-integration-tests:
-    uses: ./.github/workflows/jobs/integration_tests.yaml
+    uses: ./.github/workflows/integration_tests.yaml
+    with:
+      group-name: "foo"
     needs: [run-unit-tests]
   cluster-create:
     needs: [run-integration-tests]
-    uses: ./.github/workflows/jobs/e2e/cluster_create.yaml
+    uses: ./.github/workflows/cluster_create.yaml
   workloads-tests:
     needs: [cluster-create]
-    uses: ./.github/workflows/jobs/e2e/workload_test.yaml
+    uses: ./.github/workflows/workload_test.yaml
   batch-tests:
     needs: [cluster-create]
-    uses: ./.github/workflows/jobs/e2e/batch_test.yaml
+    uses: ./.github/workflows/batch_test.yaml
   cluster-delete:
     if: always()
-    uses: ./.github/workflows/jobs/e2e/cluster_delete.yaml
+    uses: ./.github/workflows/cluster_delete.yaml
 
 
 

@@ -1,16 +1,9 @@
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
-      tpuType:
-        description: 'TPU Type'
+      group-name:
         required: true
-        default: 'v4-8'
-        type: choice
-        options:
-          - v4-8
-  push:
-    branches: ["main"]
-  pull_request: # By default this runs for types assigned, opened and synchronize.
+        type: string
 
 jobs:
   integration-tests:

@@ -31,10 +31,17 @@ on:
       zone:
         type: string
         required: true
+    secrets:
+      gcp-sa-key:
+        required: true
+      network-name:
+        required: true
+      subnetwork-name:
+        required: true
 
 env:
   # Names must be unique in parallel running tests.
-  CLUSTER_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}} --subnetwork=${{secrets.SUBNETWORK_NAME}} --maintenance-window=23:50"
+  CLUSTER_ARGUMENTS: "--network=${{secrets.network-name}} --subnetwork=${{secrets.subnetwork-name}} --maintenance-window=23:50"
   ZONE: us-central2-a
 
 jobs:
@@ -52,7 +59,7 @@ jobs:
       run: sudo apt-get install expect
     - uses: 'google-github-actions/auth@v2'
       with:
-        credentials_json: '${{ secrets.GCP_SA_KEY }}'
+        credentials_json: '${{ secrets.gcp-sa-key }}'
     - uses: google-github-actions/setup-gcloud@v2
       with:
         version: '>= 363.0.0'

@@ -27,9 +27,23 @@ import os
 import ruamel.yaml
 
 yaml = ruamel.yaml.YAML()
+yaml_object_separator = "---\n"
 
 FS_PV_PATH = "/../templates/fs-pv.yaml"
 FS_PVC_PATH = "/../templates/fs-pvc.yaml"
+FS_SC_PATH = "/../templates/fs-sc.yaml"
+
+
+def get_storage_class_name(storage_name: str) -> str:
+  return f"{storage_name}-sc"
+
+
+def get_pv_name(storage_name: str) -> str:
+  return f"{storage_name}-pv"
+
+
+def get_pvc_name(storage_name: str) -> str:
+  return f"{storage_name}-pvc"
 
 
 class FilestoreClient:
@@ -112,24 +126,34 @@ class FilestoreClient:
     xpk_print(f"Filestore instance {parent} created")
     self.response = response
 
-  def create_pv(self) -> None:
+  def create_sc(self, tier: str) -> None:
+    abs_path = f"{os.path.dirname(__file__)}{FS_SC_PATH}"
+    with open(abs_path, "r", encoding="utf-8") as file:
+      data = yaml.load(file)
+    data["metadata"]["name"] = get_storage_class_name(self.name)
+    data["parameters"]["tier"] = tier
+    return data
+
+  def create_pv(self, vol: str, access_mode: str) -> None:
     abs_path = f"{os.path.dirname(__file__)}{FS_PV_PATH}"
     with open(abs_path, "r", encoding="utf-8") as file:
       data = yaml.load(file)
 
-    data["metadata"]["name"] = f"{self.name}-filestore-pv"
+    data["metadata"]["name"] = get_pv_name(self.name)
     spec = data["spec"]
-    spec["storageClassName"] = f"{self.name}fsstorage"
+    spec["storageClassName"] = get_storage_class_name(self.name)
     spec["capacity"]["storage"] = self.response.file_shares[0].capacity_gb
-    spec["accessModes"] = ["ReadWriteMany"]
-    spec["csi"]["volumeHandle"] = self.response.file_shares[0].name
+    spec["accessModes"] = [access_mode]
+    volumeHandle = f"projects/{self.project}/locations/{self.zone}/instances/{self.name}/volumes/{vol}"
+    spec["csi"]["volumeHandle"] = volumeHandle
     spec["csi"]["volumeAttributes"]["ip"] = self.response.networks[
         0
     ].ip_addresses[0]
+    spec["csi"]["volumeAttributes"]["volume"] = vol
     data["spec"] = spec
     return data
 
-  def create_pvc(self) -> None:
+  def create_pvc(self, access_mode: str) -> None:
     """Create a yaml representing filestore PV and PVC and save it to file.
 
     Args:
@@ -141,21 +165,23 @@ class FilestoreClient:
     abs_path = f"{os.path.dirname(__file__)}{FS_PVC_PATH}"
     with open(abs_path, "r", encoding="utf-8") as file:
       data = yaml.load(file)
-    data["metadata"]["name"] = f"{self.name}-pvc"
+    data["metadata"]["name"] = get_pvc_name(self.name)
     spec = data["spec"]
-    spec["accessModes"] = ["ReadWriteMany"]
-    spec["storageClassName"] = f"{self.name}fsstorage"
-    spec["volumeName"] = self.response.file_shares[0].name
+    spec["accessModes"] = [access_mode]
+    spec["storageClassName"] = get_storage_class_name(self.name)
+    spec["volumeName"] = get_pv_name(self.name)
     spec["resources"]["requests"]["storage"] = self.response.file_shares[
         0
     ].capacity_gb
     data["spec"] = spec
     return data
 
-  def compile_pv_and_pvc_to_manifest_yaml(self, pv: dict, pvc: dict) -> str:
+  def compile_to_manifest_yaml(self, sc: dict, pv: dict, pvc: dict) -> str:
     manifest_file = f"{self.name}-manifest.yaml"
     with open(manifest_file, mode="w+", encoding="utf-8") as f:
+      yaml.dump(sc, f)
+      f.write(yaml_object_separator)
       yaml.dump(pv, f)
-      f.write("---\n")
+      f.write(yaml_object_separator)
       yaml.dump(pvc, f)
     return manifest_file

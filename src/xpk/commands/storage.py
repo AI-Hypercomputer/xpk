@@ -54,10 +54,11 @@ def storage_create(args: Namespace) -> None:
       vol=args.vol, size=args.size, tier=args.tier
   )
 
-  pv_data = filestore_client.create_pv()
-  pvc_data = filestore_client.create_pvc()
-  args.manifest = filestore_client.compile_pv_and_pvc_to_manifest_yaml(
-      pv_data, pvc_data
+  pv_data = filestore_client.create_pv(args.vol, access_mode=args.access_mode)
+  pvc_data = filestore_client.create_pvc(access_mode=args.access_mode)
+  sc = filestore_client.create_sc(args.tier)
+  args.manifest = filestore_client.compile_to_manifest_yaml(
+      sc, pv_data, pvc_data
   )
   k8s_api_client = setup_k8s_env(args)
   create_storage_crds(k8s_api_client, args)

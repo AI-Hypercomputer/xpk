@@ -82,6 +82,8 @@ jobs:
       cluster-name: $CLUSTER_NAME
       group-name: $GROUP_NAME
       zone: $ZONE
+    secrets:
+      gcp-sa-key: ${{secrets.GCP_SA_KEY}}
   cluster-delete:
     if: always()
     needs: [workloads-tests, batch-tests]
@@ -89,6 +91,8 @@ jobs:
     with:
       cluster-name: $CLUSTER_NAME
       zone: $ZONE
+    secrets:
+      gcp-sa-key: ${{secrets.GCP_SA_KEY}}
 
 
 

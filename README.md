@@ -65,7 +65,7 @@ Monitoring Admin
 Service Account User
 Storage Admin
 Vertex AI Administrator
-Filestore Editor
+Filestore Editor (This role is neccessary if you want to run `storage create` command)
 
 # Installation
 To install xpk, run the following command:

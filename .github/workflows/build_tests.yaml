@@ -36,7 +36,6 @@ env:
 jobs:
   run-filestore-workload:
     runs-on: [ubuntu-20.04]
-    if: false
     concurrency: # We support one build or nightly test to run at a time currently.
       group: filestore-test-group
       cancel-in-progress: false
@@ -110,7 +109,6 @@ jobs:
 
   cluster-create-and-delete:
     runs-on: [ubuntu-20.04]
-    if: false
     concurrency: # We support one build or nightly test to run at a time currently.
       group: build-test-cluster-group
       cancel-in-progress: false

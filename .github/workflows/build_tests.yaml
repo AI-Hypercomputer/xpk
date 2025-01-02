@@ -83,6 +83,7 @@ jobs:
       zone: $ZONE
   cluster-delete:
     if: always()
+    needs: [workloads-tests, batch-tests]
     uses: ./.github/workflows/cluster_delete.yaml
     with:
       cluster-name: $CLUSTER_NAME

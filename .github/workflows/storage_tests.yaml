@@ -142,7 +142,7 @@ jobs:
       run: gcloud auth configure-docker --quiet
     - name: Create a XPK Cluster with 2x v4-8 nodepools. Larger num-nodes to avoid master resizing.
       run: |
-        python3 xpk.py cluster create --cluster $TPU_FILESTORE_CLUSTER_NAME --tpu-type=v4-8  --num-slices=0 \
+        python3 xpk.py cluster create --cluster $TPU_FILESTORE_CLUSTER_NAME --tpu-type=v4-8  --num-slices=2 \
         --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 \
         --spot --enable-workload-identity --enable-gcpfilestore-csi-driver --custom-cluster-arguments="${CLUSTER_ARGUMENTS}"
     - name: Create auto-mount GCP Filestore Storage instance

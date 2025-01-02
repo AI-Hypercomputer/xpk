@@ -329,10 +329,13 @@ def cluster_describe(args) -> None:
   if return_code != 0:
     xpk_exit(return_code)
 
-  xpk_print(
-      'Nodepools info:\n',
-      tabulate(data_table, headers='firstrow', tablefmt='plain'),
-  )
+  if len(data_table) > 1:
+    xpk_print(
+        'Nodepools info:\n',
+        tabulate(data_table, headers='firstrow', tablefmt='plain'),
+    )
+  else:
+    xpk_print('No nodepools info found')
 
   return_code_node_output, node_output = run_command_for_value(
       r'kubectl get node --no-headers=true'

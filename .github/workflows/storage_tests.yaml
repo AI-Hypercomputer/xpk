@@ -165,6 +165,7 @@ jobs:
     - name: Wait for delete workload completion and confirm it succeeded
       run: python3 xpk.py workload list --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion $FS_DELETE_WORKLOAD --timeout 300
     - name: Delete the filestore instance
+      if: always()
       run: gcloud filestore instances delete $FS_STORAGE_NAME --zone=us-central2-b --force 
     - name: Delete the writer workload on the cluster
       if: always()

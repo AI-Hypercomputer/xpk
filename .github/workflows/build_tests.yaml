@@ -54,12 +54,17 @@ jobs:
     needs: [run-unit-tests]
   cluster-create:
     needs: [run-integration-tests]
+    uses: ./.github/workflows/cluster_create.yaml
     with:
       cluster-name: $CLUSTER_NAME
       tpu-type: $TPU_TYPE
       group-name: $GROUP_NAME
       zone: $ZONE
-    uses: ./.github/workflows/cluster_create.yaml
+    secrets:
+      gcp-sa-key: ${{secrets.GCP_SA_KEY}}
+      network-name: ${{secrets.NETWORK_NAME}}
+      subnetwork-name: ${{secrets.SUBNETWORK_NAME}}
+      gcp-tpu-reservation: ${{secrets.GCP_TPU_V4_RESERVATION}}
   workloads-tests:
     needs: [cluster-create]
     uses: ./.github/workflows/workload_test.yaml
@@ -68,6 +73,8 @@ jobs:
       cluster-name: $CLUSTER_NAME
       tpu-type: $TPU_TYPE
       zone: $ZONE
+    secrets:
+      gcp-sa-key: ${{secrets.GCP_SA_KEY}}
   batch-tests:
     needs: [cluster-create]
     uses: ./.github/workflows/batch_test.yaml

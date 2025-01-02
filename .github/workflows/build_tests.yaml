@@ -17,7 +17,7 @@ name: Build Tests
 on:
   workflow_dispatch:
     inputs:
-      tpuType:
+      tpu-type:
         description: 'TPU Type'
         required: true
         default: 'v4-8'
@@ -30,7 +30,7 @@ on:
 
 env:
   # Names must be unique in parallel running tests.
-  TPU_TYPE: ${{ inputs.tpuType || 'v4-8' }}
+  TPU_TYPE: ${{ inputs.tpu-type || 'v4-8' }}
   TPU_CLUSTER_NAME: build-xpk-2-nodepools
   WORKLOAD_NAME: xpktest-build-${{ github.run_attempt }}
   PATHWAYS_WORKLOAD_NAME: xpkpw-build-${{ github.run_attempt }}
@@ -60,16 +60,33 @@ jobs:
     needs: [run-unit-tests]
   cluster-create:
     needs: [run-integration-tests]
+    with:
+      cluster-name: $CLUSTER_NAME
+      tpu-type: $TPU_TYPE
+      group-name: $GROUP_NAME
+      zone: $ZONE
     uses: ./.github/workflows/cluster_create.yaml
   workloads-tests:
     needs: [cluster-create]
     uses: ./.github/workflows/workload_test.yaml
+    with:
+      group-name: $GROUP_NAME
+      cluster-name: $CLUSTER_NAME
+      tpu-type: $TPU_TYPE
+      zone: $ZONE
   batch-tests:
     needs: [cluster-create]
     uses: ./.github/workflows/batch_test.yaml
+    with:
+      cluster-name: $CLUSTER_NAME
+      group-name: $GROUP_NAME
+      zone: $ZONE
   cluster-delete:
     if: always()
     uses: ./.github/workflows/cluster_delete.yaml
+    with:
+      cluster-name: $CLUSTER_NAME
+      zone: $ZONE
 
 
 

@@ -1,3 +1,17 @@
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License
+
 on:
   workflow_call:
     inputs:
@@ -7,14 +21,14 @@ on:
       group-name:
         required: true
         type: string
+      zone:
+        required: true
+        type: string
 
 jobs:
   run-batch:
     runs-on: [ubuntu-22.04]
     steps:
-    - name: Change RUN_ID env var if merge to main
-      run: echo "RUN_ID=main" >> $GITHUB_ENV
-      if: ${{ github.ref == 'refs/heads/main' }}
     - uses: actions/checkout@v4
     - uses: actions/setup-python@v5
       with:
@@ -41,12 +55,12 @@ jobs:
     - name: Create test script to execute in batch
       run: echo -e '#!/bin/bash \n#SBATCH --unknown-flag=value\n echo "Hello world from a test script!"' > batch.sh
     - name: Run a batch job on the cluster
-      run: python3 xpk.py batch --cluster ${{inputs.cluster-name}} --zone=us-central2-b batch.sh --ignore-unknown-flags --array 1-5 --nodes 2 --ntasks 3 --time 60
+      run: python3 xpk.py batch --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} batch.sh --ignore-unknown-flags --array 1-5 --nodes 2 --ntasks 3 --time 60
     - name: List out the jobs on the cluster
-      run: python3 xpk.py job ls --cluster ${{inputs.cluster-name}} --zone=us-central2-b | grep 'xpk-def-app-profile-slurm-'
+      run: python3 xpk.py job ls --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} | grep 'xpk-def-app-profile-slurm-'
     - name: Get created job name
       run: |
-        JOB_NAME=$(python3 xpk.py job ls --cluster ${{inputs.cluster-name}} --zone=us-central2-b | grep 'xpk-def-app-profile-slurm-' | head -1 | awk '{print $1}')
+        JOB_NAME=$(python3 xpk.py job ls --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} | grep 'xpk-def-app-profile-slurm-' | head -1 | awk '{print $1}')
         echo "JOB_NAME=${JOB_NAME}" >> $GITHUB_ENV
     - name: Check created job
       run: |
@@ -59,7 +73,7 @@ jobs:
       run: python3 xpk.py job info ${JOB_NAME} | grep -e "Entrypoint environment variables template:" -e "Job name:" -e "Labels:" -e "Mounts:" -e "Pods:" -e "Profile:" -e "Script name:" | wc -l | grep "7"
     - name: Cancel the batch job on the cluster
       run: |
-        python3 xpk.py job cancel ${JOB_NAME} --cluster ${{inputs.cluster-name}} --zone=us-central2-b | grep "job.batch/${JOB_NAME} deleted"
+        python3 xpk.py job cancel ${JOB_NAME} --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} | grep "job.batch/${JOB_NAME} deleted"
     - name: Create shell and exit it immediately
       run: |
         cat <<'EOF' >> create-shell.exp

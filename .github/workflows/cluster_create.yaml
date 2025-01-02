@@ -15,46 +15,35 @@
 name: Build Tests
 
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
-      tpuType:
-        description: 'TPU Type'
+      cluster-name:
+        type: string
         required: true
+      tpu-type:
+        description: 'TPU Type'
+        required: false
         default: 'v4-8'
-        type: choice
-        options:
-          - v4-8
-  push:
-    branches: ["main"]
-  pull_request: # By default this runs for types assigned, opened and synchronize.
+        type: string
+      group-name:
+        type: string
+        required: true
+      zone:
+        type: string
+        required: true
 
 env:
   # Names must be unique in parallel running tests.
-  TPU_TYPE: ${{ inputs.tpuType || 'v4-8' }}
-  TPU_CLUSTER_NAME: build-xpk-2-nodepools
-  WORKLOAD_NAME: xpktest-build-${{ github.run_attempt }}
-  PATHWAYS_WORKLOAD_NAME: xpkpw-build-${{ github.run_attempt }}
   CLUSTER_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}} --subnetwork=${{secrets.SUBNETWORK_NAME}} --maintenance-window=23:50"
-  RUN_ID: "pr-${{ github.event.number }}"
-  PROJECT_ID: ${{secrets.PROJECT_NAME}}
-  A3_MEGA_TEST_CLUSTER_NAME: "xpk-mega-ctk-int"
-  A3_ULTRA_TEST_CLUSTER_NAME: "xpk-ultra-ctk-int"
-  GKE_ML_TEST_CLUSTER_NAME: "xpk-gke-ml"
   ZONE: us-central2-a
-  REGION: us-central2
 
 jobs:
   cluster-create-and-delete:
     runs-on: [ubuntu-22.04]
     concurrency: # We support one nightly test and one build test for each branch to run at a time currently.
-      group: build-test-cluster-group-${{ github.ref }}
+      group: ${{inputs.group-name}}
       cancel-in-progress: false
     steps:
-    - name: Change RUN_ID env var if merge to main
-      run: echo "RUN_ID=main" >> $GITHUB_ENV
-      if: ${{ github.ref == 'refs/heads/main' }}
-    - name: Update cluster name with TPU_TYPE and RUN_ID
-      run: echo "TPU_CLUSTER_NAME=$TPU_CLUSTER_NAME-$TPU_TYPE-$RUN_ID" >> $GITHUB_ENV
     - uses: actions/checkout@v4
     - uses: actions/setup-python@v5
       with:
@@ -80,10 +69,10 @@ jobs:
         echo $PWD/bin >> "$GITHUB_PATH"
     - name: Check xpk installation
       run: xpk --help
-    - name: Create a private Pathways-enabled XPK Cluster with 2x $TPU_TYPE nodepools. Larger num-nodes to avoid master resizing.
-      run: python xpk.py cluster create-pathways --cluster $TPU_CLUSTER_NAME --private --tpu-type=$TPU_TYPE  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments="${CLUSTER_ARGUMENTS}"
+    - name: Create a private Pathways-enabled XPK Cluster with 2x ${{inputs.tpu-type}} nodepools. Larger num-nodes to avoid master resizing.
+      run: python xpk.py cluster create-pathways --cluster ${{inputs.cluster-name}} --private --tpu-type=${{inputs.tpu-type}}  --num-slices=2 --zone=${{inputs.zone}} --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments="${CLUSTER_ARGUMENTS}"
     - name: Verify the created cluster is private
-      run: gcloud container clusters describe $TPU_CLUSTER_NAME --region=us-central2 --format="value(privateClusterConfig.enablePrivateNodes)" | grep 'True' || (echo 'The created cluster is not private.' && exit 1)
+      run: gcloud container clusters describe ${{inputs.cluster-name}} --zone=${{inputs.zone}} --format="value(privateClusterConfig.enablePrivateNodes)" | grep 'True' || (echo 'The created cluster is not private.' && exit 1)
     - name: Authenticate Docker
       run: gcloud auth configure-docker --quiet
     

@@ -38,7 +38,7 @@ env:
   ZONE: us-central2-a
 
 jobs:
-  cluster-create-and-delete:
+  cluster-create:
     runs-on: [ubuntu-22.04]
     concurrency: # We support one nightly test and one build test for each branch to run at a time currently.
       group: ${{inputs.group-name}}

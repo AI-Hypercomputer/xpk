@@ -31,32 +31,26 @@ on:
 env:
   # Names must be unique in parallel running tests.
   TPU_TYPE: ${{ inputs.tpu-type || 'v4-8' }}
-  TPU_CLUSTER_NAME: build-xpk-2-nodepools
-  WORKLOAD_NAME: xpktest-build-${{ github.run_attempt }}
-  PATHWAYS_WORKLOAD_NAME: xpkpw-build-${{ github.run_attempt }}
-  CLUSTER_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}} --subnetwork=${{secrets.SUBNETWORK_NAME}} --maintenance-window=23:50"
-  RUN_ID: "pr-${{ github.event.number }}"
-  PROJECT_ID: ${{secrets.PROJECT_NAME}}
-  A3_MEGA_TEST_CLUSTER_NAME: "xpk-mega-ctk-int"
-  A3_ULTRA_TEST_CLUSTER_NAME: "xpk-ultra-ctk-int"
-  GKE_ML_TEST_CLUSTER_NAME: "xpk-gke-ml"
+  CLUSTER_NAME: build-xpk-2-nodepools-pr-${{ github.event.number}}
+  GROUP_NAME: xpk-pr-${{ github.event.number}}
   ZONE: us-central2-a
-  REGION: us-central2
 
 jobs:
   linter:
     uses: ./.github/workflows/lint_and_format.yml
     with:
-      group-name: "foo"
+      group-name: $GROUP_NAME
   run-unit-tests:
     uses: ./.github/workflows/unit_tests.yaml
     with:
-      group-name: "foo"
+      group-name: $GROUP_NAME
     needs: [linter]
   run-integration-tests:
     uses: ./.github/workflows/integration_tests.yaml
     with:
-      group-name: "foo"
+      group-name: $GROUP_NAME
+    secrets:
+      gcp-sa-key: ${{secrets.GCP_SA_KEY}}
     needs: [run-unit-tests]
   cluster-create:
     needs: [run-integration-tests]

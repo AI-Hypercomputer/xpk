@@ -1,0 +1,30 @@
+
+on:
+  workflow_dispatch:
+    inputs:
+      tpuType:
+        description: 'TPU Type'
+        required: true
+        default: 'v4-8'
+        type: choice
+        options:
+          - v4-8
+  push:
+    branches: ["main"]
+  pull_request: # By default this runs for types assigned, opened and synchronize.
+
+jobs:
+  run-unit-tests:
+    runs-on: [ubuntu-22.04]
+    concurrency: # We support one build or nightly test to run at a time currently.
+      group: build-test-cluster-group
+      cancel-in-progress: false
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+    - name: Install dependencies
+      run : make install-dev
+    - name: Run unit tests
+      run: make run-unittests

@@ -1,0 +1,96 @@
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License
+
+name: Build Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      tpuType:
+        description: 'TPU Type'
+        required: true
+        default: 'v4-8'
+        type: choice
+        options:
+          - v4-8
+  push:
+    branches: ["main"]
+  pull_request: # By default this runs for types assigned, opened and synchronize.
+
+env:
+  # Names must be unique in parallel running tests.
+  TPU_TYPE: ${{ inputs.tpuType || 'v4-8' }}
+  TPU_CLUSTER_NAME: build-xpk-2-nodepools
+  WORKLOAD_NAME: xpktest-build-${{ github.run_attempt }}
+  PATHWAYS_WORKLOAD_NAME: xpkpw-build-${{ github.run_attempt }}
+  CLUSTER_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}} --subnetwork=${{secrets.SUBNETWORK_NAME}} --maintenance-window=23:50"
+  RUN_ID: "pr-${{ github.event.number }}"
+  PROJECT_ID: ${{secrets.PROJECT_NAME}}
+  A3_MEGA_TEST_CLUSTER_NAME: "xpk-mega-ctk-int"
+  A3_ULTRA_TEST_CLUSTER_NAME: "xpk-ultra-ctk-int"
+  GKE_ML_TEST_CLUSTER_NAME: "xpk-gke-ml"
+  ZONE: us-central2-a
+  REGION: us-central2
+
+jobs:
+  cluster-create-and-delete:
+    runs-on: [ubuntu-22.04]
+    concurrency: # We support one nightly test and one build test for each branch to run at a time currently.
+      group: build-test-cluster-group-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+    - name: Change RUN_ID env var if merge to main
+      run: echo "RUN_ID=main" >> $GITHUB_ENV
+      if: ${{ github.ref == 'refs/heads/main' }}
+    - name: Update cluster name with TPU_TYPE and RUN_ID
+      run: echo "TPU_CLUSTER_NAME=$TPU_CLUSTER_NAME-$TPU_TYPE-$RUN_ID" >> $GITHUB_ENV
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+    - name: Install expect package
+      run: sudo apt-get install expect
+    - uses: 'google-github-actions/auth@v2'
+      with:
+        credentials_json: '${{ secrets.GCP_SA_KEY }}'
+    - uses: google-github-actions/setup-gcloud@v2
+      with:
+        version: '>= 363.0.0'
+        install_components: 'beta,gke-gcloud-auth-plugin'
+    - name: Verify gcp setup
+      run: gcloud info
+    - name: Set Google Cloud CLI properties to a unused zone to verify --zone arg is passed properly in commands.
+      run: |
+        gcloud config set compute/zone us-east4-a
+        gcloud config get compute/zone
+    - name: Install xpk dependencies
+      run: |
+        make install 
+        echo $PWD/bin >> "$GITHUB_PATH"
+    - name: Check xpk installation
+      run: xpk --help
+    - name: Create a private Pathways-enabled XPK Cluster with 2x $TPU_TYPE nodepools. Larger num-nodes to avoid master resizing.
+      run: python xpk.py cluster create-pathways --cluster $TPU_CLUSTER_NAME --private --tpu-type=$TPU_TYPE  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments="${CLUSTER_ARGUMENTS}"
+    - name: Verify the created cluster is private
+      run: gcloud container clusters describe $TPU_CLUSTER_NAME --region=us-central2 --format="value(privateClusterConfig.enablePrivateNodes)" | grep 'True' || (echo 'The created cluster is not private.' && exit 1)
+    - name: Authenticate Docker
+      run: gcloud auth configure-docker --quiet
+    
+    
+    
+
+
+
+
+

@@ -44,160 +44,26 @@ env:
   REGION: us-central2
 
 jobs:
+  linter:
+    uses: ./.github/workflows/jobs/lint_and_format.yml
   run-unit-tests:
-    runs-on: [ubuntu-22.04]
-    concurrency: # We support one build or nightly test to run at a time currently.
-      group: build-test-cluster-group
-      cancel-in-progress: false
-    steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
-    - name: Install dependencies
-      run : make install-dev
-    - name: Run unit tests
-      run: make run-unittests
-
+    uses: ./.github/workflows/jobs/unit_tests.yaml
+    needs: [linter]
   run-integration-tests:
-    runs-on: [ubuntu-22.04]
+    uses: ./.github/workflows/jobs/integration_tests.yaml
     needs: [run-unit-tests]
-    concurrency: # We support one build or nightly test to run at a time currently.
-      group: build-test-cluster-group
-      cancel-in-progress: false
-    steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
-    - uses: 'google-github-actions/auth@v2'
-      with:
-        credentials_json: '${{ secrets.GCP_SA_KEY }}'
-    - uses: google-github-actions/setup-gcloud@v2
-      with:
-        version: '>= 363.0.0'
-        install_components: 'beta,gke-gcloud-auth-plugin'
-    - name: Verify gcp setup
-      run: gcloud info
-    - name: Install dependencies
-      run : make install-dev
-    - name: "Set auth cidr"
-      run: echo "AUTH_CIDR=$(curl api.ipify.org)/32" >> $GITHUB_ENV
-    - name: "Set GCLOUD_CFG_PATH"
-      run: echo "GCLOUD_CFG_PATH=/home/runner/work/xpk/xpk/" >> $GITHUB_ENV
-    - name: "Copy credentials"
-      run: cp $GOOGLE_APPLICATION_CREDENTIALS $GCLOUD_CFG_PATH/application_default_credentials.json
-    - name: "Set DEPLOYMENT_DIR"
-      run: echo "DEPLOYMENT_DIR=$HOME/deployment" >> $GITHUB_ENV
-    - name: Create deployment dir
-      run: mkdir -p $DEPLOYMENT_DIR
-    - name: Run integration tests
-      run: make run-integrationtests
-
-  cluster-create-and-delete:
-    runs-on: [ubuntu-22.04]
+  cluster-create:
     needs: [run-integration-tests]
-    concurrency: # We support one nightly test and one build test for each branch to run at a time currently.
-      group: build-test-cluster-group-${{ github.ref }}
-      cancel-in-progress: false
-    steps:
-    - name: Change RUN_ID env var if merge to main
-      run: echo "RUN_ID=main" >> $GITHUB_ENV
-      if: ${{ github.ref == 'refs/heads/main' }}
-    - name: Update cluster name with TPU_TYPE and RUN_ID
-      run: echo "TPU_CLUSTER_NAME=$TPU_CLUSTER_NAME-$TPU_TYPE-$RUN_ID" >> $GITHUB_ENV
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
-    - name: Install expect package
-      run: sudo apt-get install expect
-    - uses: 'google-github-actions/auth@v2'
-      with:
-        credentials_json: '${{ secrets.GCP_SA_KEY }}'
-    - uses: google-github-actions/setup-gcloud@v2
-      with:
-        version: '>= 363.0.0'
-        install_components: 'beta,gke-gcloud-auth-plugin'
-    - name: Verify gcp setup
-      run: gcloud info
-    - name: Set Google Cloud CLI properties to a unused zone to verify --zone arg is passed properly in commands.
-      run: |
-        gcloud config set compute/zone us-east4-a
-        gcloud config get compute/zone
-    - name: Install xpk dependencies
-      run: |
-        make install 
-        echo $PWD/bin >> "$GITHUB_PATH"
-    - name: Check xpk installation
-      run: xpk --help
-    - name: Create a private Pathways-enabled XPK Cluster with 2x $TPU_TYPE nodepools. Larger num-nodes to avoid master resizing.
-      run: python xpk.py cluster create-pathways --cluster $TPU_CLUSTER_NAME --private --tpu-type=$TPU_TYPE  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments="${CLUSTER_ARGUMENTS}"
-    - name: Verify the created cluster is private
-      run: gcloud container clusters describe $TPU_CLUSTER_NAME --region=us-central2 --format="value(privateClusterConfig.enablePrivateNodes)" | grep 'True' || (echo 'The created cluster is not private.' && exit 1)
-    - name: Authenticate Docker
-      run: gcloud auth configure-docker --quiet
-    - name: Create test script to execute in workloads
-      run: echo -e '#!/bin/bash \n echo "Hello world from a test script!"' > workload.sh
-    - name: Run a base-docker-image workload
-      run: python xpk.py workload create --cluster $TPU_CLUSTER_NAME --workload $WORKLOAD_NAME  --command "bash workload.sh"  --tpu-type=$TPU_TYPE --num-slices=2 --zone=us-central2-b
-    - name: Run xpk inspector with the workload created above
-      run: python3 xpk.py inspector --cluster $TPU_CLUSTER_NAME --zone=us-central2-b  --workload $WORKLOAD_NAME
-    - name: Wait for workload completion and confirm it succeeded
-      run: python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion $WORKLOAD_NAME --timeout 300
-    - name: Run a Pathways workload on Ubuntu base image
-      run: python xpk.py workload create-pathways --cluster $TPU_CLUSTER_NAME --workload $PATHWAYS_WORKLOAD_NAME --docker-image='marketplace.gcr.io/google/ubuntu2004' --tpu-type=$TPU_TYPE --num-slices=2 --zone=us-central2-b --command "echo \"Hello world from a test script! \""
-    - name: Wait for Pathways workload completion and confirm it succeeded
-      run: python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion $PATHWAYS_WORKLOAD_NAME --timeout 300
-    - name: List out the workloads on the cluster
-      run: python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
-    - name: Run xpk info
-      run: python3 xpk.py info --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | tee output.txt | grep -P "^(?=.*QUEUE)(?=.*PENDING_WORKLOADS)(?=.*ADMITTED_WORKLOADS)(?=.*2x$TPU_TYPE:google.com/tpu)(?=.*cpu-rm:cpu)(?=.*cpu-rm:memory)(?=.*cpu-proxy:cpu)(?=.*cpu-proxy:memory)(?=.*cpu-user:cpu)(?=.*cpu-user:memory)" || (echo 'Invalid command output' && cat output.txt && exit 1)
-    - name: Delete the workload on the cluster
-      run: python3 xpk.py workload delete --workload $WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
-    - name: Delete the Pathways workload on the cluster
-      run: python3 xpk.py workload delete --workload $PATHWAYS_WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
-    - name: Create test script to execute in batch
-      run: echo -e '#!/bin/bash \n#SBATCH --unknown-flag=value\n echo "Hello world from a test script!"' > batch.sh
-    - name: Run a batch job on the cluster
-      run: python3 xpk.py batch --cluster $TPU_CLUSTER_NAME --zone=us-central2-b batch.sh --ignore-unknown-flags --array 1-5 --nodes 2 --ntasks 3 --time 60
-    - name: List out the jobs on the cluster
-      run: python3 xpk.py job ls --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep 'xpk-def-app-profile-slurm-'
-    - name: Get created job name
-      run: |
-        JOB_NAME=$(python3 xpk.py job ls --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep 'xpk-def-app-profile-slurm-' | head -1 | awk '{print $1}')
-        echo "JOB_NAME=${JOB_NAME}" >> $GITHUB_ENV
-    - name: Check created job
-      run: |
-        kubectl get job ${JOB_NAME} -o jsonpath='{.metadata.labels}' | grep '"kueue.x-k8s.io/max-exec-time-seconds":"3600"'
-        job_spec=$(kubectl get job ${JOB_NAME} -o jsonpath='{.spec}')
-        echo "$job_spec" | grep '"completions":2'
-        echo "$job_spec" | grep '"parallelism":2'
-        echo "$job_spec" | jq '.template.spec.containers | length' | grep 3
-    - name: Get job info for the last job created on the cluster
-      run: python3 xpk.py job info ${JOB_NAME} | grep -e "Entrypoint environment variables template:" -e "Job name:" -e "Labels:" -e "Mounts:" -e "Pods:" -e "Profile:" -e "Script name:" | wc -l | grep "7"
-    - name: Cancel the batch job on the cluster
-      run: |
-        python3 xpk.py job cancel ${JOB_NAME} --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep "job.batch/${JOB_NAME} deleted"
-    - name: Create shell and exit it immediately
-      run: |
-        cat <<'EOF' >> create-shell.exp
-        ##!/usr/bin/expect
-        spawn python3 ./xpk.py shell
-        expect "/ # "
-        send "exit\n"
-        EOF
-        chmod +x ./create-shell.exp
-        expect ./create-shell.exp
-    # TODO - deflake tests
-    # - name: Check if shell exists and is running
-    #   run: kubectl get pods | grep xpk-def-app-profile-interactive- | grep Running
-    - name: Stop the shell
-      run: python3 xpk.py shell stop
-    - name: Delete the cluster created
-      if: always()
-      run: echo 'y' | python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
-
+    uses: ./.github/workflows/jobs/e2e/cluster_create.yaml
+  workloads-tests:
+    needs: [cluster-create]
+    uses: ./.github/workflows/jobs/e2e/workload_test.yaml
+  batch-tests:
+    needs: [cluster-create]
+    uses: ./.github/workflows/jobs/e2e/batch_test.yaml
+  cluster-delete:
+    if: always()
+    uses: ./.github/workflows/jobs/e2e/cluster_delete.yaml
 
 
 

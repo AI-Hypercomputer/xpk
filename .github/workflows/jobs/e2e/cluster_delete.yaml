@@ -1,0 +1,5 @@
+jobs:
+  delete-cluster:
+    - name: Delete the cluster created
+      if: always()
+      run: echo 'y' | python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b

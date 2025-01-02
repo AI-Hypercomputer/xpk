@@ -75,7 +75,7 @@ jobs:
       run: gcloud auth configure-docker --quiet
     - name: Create auto-mount Storage instance
       run: |
-        python3 xpk.py storage create $STORAGE_NAME --cluster=$TPU_CLUSTER_NAME --zone=us-central2-b --type=gcsfuse \
+        python3 xpk.py storage attach $STORAGE_NAME --cluster=$TPU_CLUSTER_NAME --zone=us-central2-b --type=gcsfuse \
         --auto-mount=true \
         --mount-point='/test-mount-point' --readonly=false --manifest='./tests/data/pv-pvc-templates.yaml'
     - name: List and verify existing Storages

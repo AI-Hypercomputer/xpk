@@ -337,10 +337,10 @@ Once it's ready user can define
 `--manifest` - defines the path to manifest which contains PersistentVolue and PersistentVolumeClaim definitions
 
 
-* Create storage which uses gcsfuse storage.
+* Attach to gcsfuse storage instance.
 
     ```shell
-    python3 xpk.py storage create test-storage --project=$PROJECT
+    python3 xpk.py storage attach test-storage --project=$PROJECT
     --cluster=xpk-test --type=gcsfuse --auto-mount=false \
     --mount-point='/test-mount-point' --readonly=false \
     --manifest='examples/storage/gcsfuse-manifest.yaml'

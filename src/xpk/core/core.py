@@ -82,6 +82,7 @@ AUTOPROVISIONING_CONFIG_MAXIMUM_KEY = 'maximum_chips'
 CLOUD_PLATFORM_AUTH_SCOPE_URL = (
     '"https://www.googleapis.com/auth/cloud-platform"'
 )
+PLATFORM = 'linux/amd64'
 
 
 class CapacityType(enum.Enum):
@@ -1675,7 +1676,8 @@ def build_docker_image_from_base_image(args, verbose=True) -> tuple[int, str]:
   )
   tmp = write_tmp_file(docker_file)
   docker_build_command = (
-      f'docker build -f {str(tmp.file.name)} -t {docker_name} {args.script_dir}'
+      f'docker buildx build --platform={PLATFORM} -f {str(tmp.file.name)} -t'
+      f' {docker_name} {args.script_dir}'
   )
   xpk_print(f'Building {args.script_dir} into docker image.')
   return_code = run_command_with_updates(

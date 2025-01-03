@@ -48,7 +48,7 @@ jobs:
     - name: set zone
       id: set-zone
       run: |    
-        echo zone=us-central2-a >> $GITHUB_OUTPUT
+        echo zone=us-central2-b >> $GITHUB_OUTPUT
     - name: set tpu-type
       id: set-tpu-type
       run: |    

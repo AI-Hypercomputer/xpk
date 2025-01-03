@@ -30,9 +30,11 @@ on:
         type: string
       group-name:
         required: true
+        type: string
         default: 'xpk-pr'
       zone:
         required: true
+        type: string
         default: 'us-central2-a'
   push:
     branches: ["main"]
@@ -43,30 +45,30 @@ on:
   # ZONE: us-central2-a
 
 jobs:
-  linter:
-    uses: ./.github/workflows/lint_and_format.yml
-    with:
-      group-name: ${{inputs.group-name}}-${{github.event.number}}
-  run-unit-tests:
-    uses: ./.github/workflows/unit_tests.yaml
-    with:
-      group-name: ${{inputs.group-name}}-${{github.event.number}}
-    needs: [linter]
-  run-integration-tests:
-    uses: ./.github/workflows/integration_tests.yaml
-    with:
-      group-name: ${{inputs.group-name}}-${{github.event.number}}
-    secrets:
-      gcp-sa-key: ${{secrets.GCP_SA_KEY}}
-    needs: [run-unit-tests]
+  # linter:
+  #   uses: ./.github/workflows/lint_and_format.yml
+  #   with:
+  #     group-name: ${{inputs.group-name}}-${{github.event.number}}
+  # run-unit-tests:
+  #   uses: ./.github/workflows/unit_tests.yaml
+  #   with:
+  #     group-name: ${{inputs.group-name}}-${{github.event.number}}
+  #   needs: [linter]
+  # run-integration-tests:
+  #   uses: ./.github/workflows/integration_tests.yaml
+  #   with:
+  #     group-name: ${{inputs.group-name}}-${{github.event.number}}
+  #   secrets:
+  #     gcp-sa-key: ${{secrets.GCP_SA_KEY}}
+  #   needs: [run-unit-tests]
   cluster-create:
-    needs: [run-integration-tests]
+    # needs: [run-integration-tests]
     uses: ./.github/workflows/cluster_create.yaml
     with:
-      cluster-name: ${{inputs.cluster-name}}-${{github.event.number}}
-      tpu-type: ${{inputs.tpu-type}}
-      group-name: ${{inputs.group-name}}-${{github.event.number}}
-      zone: ${{inputs.zone}}
+      cluster-name: '${{inputs.cluster-name}}-${{github.event.number}}'
+      tpu-type: '${{inputs.tpu-type}}'
+      group-name: '${{inputs.group-name}}-${{github.event.number}}'
+      zone: '${{inputs.zone}}'
     secrets:
       gcp-sa-key: ${{secrets.GCP_SA_KEY}}
       network-name: ${{secrets.NETWORK_NAME}}

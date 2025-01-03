@@ -25,14 +25,14 @@ on:
         options:
           - v4-8
       cluster-name:
-        required: false
+        required: true
         default: 'build-xpk-2-nodepools'
         type: string
       group-name:
-        required: false
+        required: true
         default: 'xpk-pr'
       zone:
-        required: false
+        required: true
         default: 'us-central2-a'
   push:
     branches: ["main"]

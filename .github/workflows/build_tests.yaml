@@ -35,7 +35,7 @@ jobs:
       cluster-name: ${{ steps.set-cluster-name.outputs.set-cluster-name }}
       group-name: ${{ steps.set-group-name.outputs.set-group-name }}
       zone: ${{ steps.set-zone.outputs.set-zone }}
-      tpu-type: ${{ steps.set-tpu-type.outputs.tpu-type }}
+      tpu-type: ${{ steps.set-tpu-type.outputs.set-tpu-type }}
     steps:
     - name: set cluster-name
       id: set-cluster-name
@@ -74,9 +74,9 @@ jobs:
     needs: [set-variables]
     uses: ./.github/workflows/cluster_create.yaml
     with:
-      cluster-name: '${{needs.set-variables.outputs.cluster-name}}-${{github.event.number}}'
+      cluster-name: '${{needs.set-variables.outputs.cluster-name}}'
       tpu-type: '${{needs.set-variables.outputs.tpu-type || inputs.tpu-type}}'
-      group-name: '${{needs.set-variables.outputs.group-name}}-${{github.event.number}}'
+      group-name: '${{needs.set-variables.outputs.group-name}}'
       zone: '${{needs.set-variables.outputs.zone}}'
     secrets:
       gcp-sa-key: ${{secrets.GCP_SA_KEY}}
@@ -87,8 +87,8 @@ jobs:
     needs: [cluster-create, set-variables]
     uses: ./.github/workflows/workload_test.yaml
     with:
-      group-name: ${{needs.set-variables.outputs.group-name}}-${{github.event.number}}
-      cluster-name: ${{needs.set-variables.outputs.cluster-name}}-${{github.event.number}}
+      group-name: ${{needs.set-variables.outputs.group-name}}
+      cluster-name: ${{needs.set-variables.outputs.cluster-name}}
       tpu-type: ${{inputs.tpu-type || inputs.tpu-type}}
       zone: ${{needs.set-variables.outputs.zone}}
     secrets:
@@ -97,8 +97,8 @@ jobs:
     needs: [cluster-create, set-variables]
     uses: ./.github/workflows/batch_test.yaml
     with:
-      cluster-name: ${{needs.set-variables.outputs.cluster-name}}-${{github.event.number}}
-      group-name: ${{needs.set-variables.outputs.group-name}}-${{github.event.number}}
+      cluster-name: ${{needs.set-variables.outputs.cluster-name}}
+      group-name: ${{needs.set-variables.outputs.group-name}}
       zone: ${{needs.set-variables.outputs.zone}}
     secrets:
       gcp-sa-key: ${{secrets.GCP_SA_KEY}}
@@ -107,7 +107,7 @@ jobs:
     needs: [workloads-tests, batch-tests, set-variables]
     uses: ./.github/workflows/cluster_delete.yaml
     with:
-      cluster-name: ${{needs.set-variables.outputs.cluster-name}}-${{github.event.number}}
+      cluster-name: ${{needs.set-variables.outputs.cluster-name}}
       zone: ${{needs.set-variables.outputs.zone}}
     secrets:
       gcp-sa-key: ${{secrets.GCP_SA_KEY}}

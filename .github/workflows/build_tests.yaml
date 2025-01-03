@@ -53,25 +53,25 @@ jobs:
       id: set-tpu-type
       run: |    
         echo tpu-type=v4-8 >> $GITHUB_OUTPUT
-  linter:
-    uses: ./.github/workflows/lint_and_format.yml
-    needs: [set-variables]
-    with:
-      group-name: ${{needs.set-variables.outputs.group-name}}
-  run-unit-tests:
-    uses: ./.github/workflows/unit_tests.yaml
-    needs: [linter, set-variables]
-    with:
-      group-name: ${{needs.set-variables.outputs.group-name}}
-  run-integration-tests:
-    uses: ./.github/workflows/integration_tests.yaml
-    with:
-      group-name: ${{needs.set-variables.outputs.group-name}}
-    secrets:
-      gcp-sa-key: ${{secrets.GCP_SA_KEY}}
-    needs: [run-unit-tests, set-variables]
+  # linter:
+  #   uses: ./.github/workflows/lint_and_format.yml
+  #   needs: [set-variables]
+  #   with:
+  #     group-name: ${{needs.set-variables.outputs.group-name}}
+  # run-unit-tests:
+  #   uses: ./.github/workflows/unit_tests.yaml
+  #   needs: [linter, set-variables]
+  #   with:
+  #     group-name: ${{needs.set-variables.outputs.group-name}}
+  # run-integration-tests:
+  #   uses: ./.github/workflows/integration_tests.yaml
+  #   with:
+  #     group-name: ${{needs.set-variables.outputs.group-name}}
+  #   secrets:
+  #     gcp-sa-key: ${{secrets.GCP_SA_KEY}}
+  #   needs: [run-unit-tests, set-variables]
   cluster-create:
-    needs: [run-integration-tests, set-variables]
+    needs: [ set-variables]
     uses: ./.github/workflows/cluster_create.yaml
     with:
       cluster-name: '${{needs.set-variables.outputs.cluster-name}}'

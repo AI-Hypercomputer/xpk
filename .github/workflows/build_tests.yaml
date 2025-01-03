@@ -24,82 +24,91 @@ on:
         type: choice
         options:
           - v4-8
-      cluster-name:
-        required: true
-        default: 'build-xpk-2-nodepools'
-        type: string
-      group-name:
-        required: true
-        type: string
-        default: 'xpk-pr'
-      zone:
-        required: true
-        type: string
-        default: 'us-central2-a'
   push:
     branches: ["main"]
   pull_request: # By default this runs for types assigned, opened and synchronize.
 
-  # CLUSTER_NAME: build-xpk-2-nodepools-pr-${{ github.event.number}}
-  # GROUP_NAME: xpk-pr-${{ github.event.number}}
-  # ZONE: us-central2-a
-
 jobs:
+  set-variables:
+    runs-on: [ubuntu-22.04]
+    outputs:
+      cluster-name: ${{ steps.set-cluster-name.outputs.set-cluster-name }}
+      group-name: ${{ steps.set-group-name.outputs.set-group-name }}
+      zone: ${{ steps.set-zone.outputs.set-zone }}
+      tpu-type: ${{ steps.set-tpu-type.outputs.tpu-type }}
+    steps:
+    - name: set cluster-name
+      id: set-cluster-name
+      run: |    
+        echo "::set-output name=set-cluster-name::build-xpk-2-nodepools-${{github.event.number}}"
+    - name: set group-name
+      id: set-group-name
+      run: |    
+        echo "::set-output name=set-group-name::xpk-pr-${{github.event.number}}"
+    - name: set zone
+      id: set-zone
+      run: |    
+        echo "::set-output name=set-zone::us-central2-a"
+    - name: set tpu-type
+      id: set-tpu-type
+      run: |    
+        echo "::set-output name=set-tpu-type::v4-8"
   # linter:
   #   uses: ./.github/workflows/lint_and_format.yml
+  #   needs: [set-variables]
   #   with:
-  #     group-name: ${{inputs.group-name}}-${{github.event.number}}
+  #     group-name: ${{needs.set-variables.outputs.group-name}}
   # run-unit-tests:
   #   uses: ./.github/workflows/unit_tests.yaml
+  #   needs: [linter, set-variables]
   #   with:
-  #     group-name: ${{inputs.group-name}}-${{github.event.number}}
-  #   needs: [linter]
+  #     group-name: ${{needs.set-variables.outputs.group-name}}
   # run-integration-tests:
   #   uses: ./.github/workflows/integration_tests.yaml
   #   with:
-  #     group-name: ${{inputs.group-name}}-${{github.event.number}}
+  #     group-name: ${{needs.set-variables.outputs.group-name}}
   #   secrets:
   #     gcp-sa-key: ${{secrets.GCP_SA_KEY}}
-  #   needs: [run-unit-tests]
+  #   needs: [run-unit-tests, set-variables]
   cluster-create:
-    # needs: [run-integration-tests]
+    needs: [run-integration-tests, set-variables]
     uses: ./.github/workflows/cluster_create.yaml
     with:
-      cluster-name: '${{inputs.cluster-name}}-${{github.event.number}}'
-      tpu-type: '${{inputs.tpu-type}}'
-      group-name: '${{inputs.group-name}}-${{github.event.number}}'
-      zone: '${{inputs.zone}}'
+      cluster-name: '${{needs.set-variables.outputs.cluster-name}}-${{github.event.number}}'
+      tpu-type: '${{needs.set-variables.outputs.tpu-type || inputs.tpu-type}}'
+      group-name: '${{needs.set-variables.outputs.group-name}}-${{github.event.number}}'
+      zone: '${{needs.set-variables.outputs.zone}}'
     secrets:
       gcp-sa-key: ${{secrets.GCP_SA_KEY}}
       network-name: ${{secrets.NETWORK_NAME}}
       subnetwork-name: ${{secrets.SUBNETWORK_NAME}}
       gcp-tpu-reservation: ${{secrets.GCP_TPU_V4_RESERVATION}}
   workloads-tests:
-    needs: [cluster-create]
+    needs: [cluster-create, set-variables]
     uses: ./.github/workflows/workload_test.yaml
     with:
-      group-name: ${{inputs.group-name}}-${{github.event.number}}
-      cluster-name: ${{inputs.cluster-name}}-${{github.event.number}}
-      tpu-type: ${{inputs.tpu-type}}
-      zone: ${{inputs.zone}}
+      group-name: ${{needs.set-variables.outputs.group-name}}-${{github.event.number}}
+      cluster-name: ${{needs.set-variables.outputs.cluster-name}}-${{github.event.number}}
+      tpu-type: ${{inputs.tpu-type || inputs.tpu-type}}
+      zone: ${{needs.set-variables.outputs.zone}}
     secrets:
       gcp-sa-key: ${{secrets.GCP_SA_KEY}}
   batch-tests:
-    needs: [cluster-create]
+    needs: [cluster-create, set-variables]
     uses: ./.github/workflows/batch_test.yaml
     with:
-      cluster-name: ${{inputs.cluster-name}}-${{github.event.number}}
-      group-name: ${{inputs.group-name}}-${{github.event.number}}
-      zone: ${{inputs.zone}}
+      cluster-name: ${{needs.set-variables.outputs.cluster-name}}-${{github.event.number}}
+      group-name: ${{needs.set-variables.outputs.group-name}}-${{github.event.number}}
+      zone: ${{needs.set-variables.outputs.zone}}
     secrets:
       gcp-sa-key: ${{secrets.GCP_SA_KEY}}
   cluster-delete:
     if: always()
-    needs: [workloads-tests, batch-tests]
+    needs: [workloads-tests, batch-tests, set-variables]
     uses: ./.github/workflows/cluster_delete.yaml
     with:
-      cluster-name: ${{inputs.cluster-name}}-${{github.event.number}}
-      zone: ${{inputs.zone}}
+      cluster-name: ${{needs.set-variables.outputs.cluster-name}}-${{github.event.number}}
+      zone: ${{needs.set-variables.outputs.zone}}
     secrets:
       gcp-sa-key: ${{secrets.GCP_SA_KEY}}
 

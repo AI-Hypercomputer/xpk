@@ -26,14 +26,14 @@ on:
           - v4-8
       cluster-name:
         required: false
-        default: build-xpk-2-nodepools
+        default: 'build-xpk-2-nodepools'
         type: string
       group-name:
         required: false
-        default: xpk-pr
+        default: 'xpk-pr'
       zone:
         required: false
-        default: us-central2-a
+        default: 'us-central2-a'
   push:
     branches: ["main"]
   pull_request: # By default this runs for types assigned, opened and synchronize.

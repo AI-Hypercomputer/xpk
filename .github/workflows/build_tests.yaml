@@ -70,7 +70,7 @@ jobs:
     secrets: inherit
     needs: [run-unit-tests, set-variables]
   cluster-create:
-    needs: [ set-variables]
+    needs: [run-integration-tests, set-variables]
     uses: ./.github/workflows/cluster_create.yaml
     with:
       cluster-name: '${{needs.set-variables.outputs.cluster-name}}'

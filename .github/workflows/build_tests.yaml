@@ -67,8 +67,7 @@ jobs:
   #   uses: ./.github/workflows/integration_tests.yaml
   #   with:
   #     group-name: ${{needs.set-variables.outputs.group-name}}
-  #   secrets:
-  #     gcp-sa-key: ${{secrets.GCP_SA_KEY}}
+  #   secrets: inherit
   #   needs: [run-unit-tests, set-variables]
   cluster-create:
     needs: [ set-variables]
@@ -78,11 +77,7 @@ jobs:
       tpu-type: '${{needs.set-variables.outputs.tpu-type || inputs.tpu-type}}'
       group-name: '${{needs.set-variables.outputs.group-name}}'
       zone: '${{needs.set-variables.outputs.zone}}'
-    secrets:
-      gcp-sa-key: ${{secrets.GCP_SA_KEY}}
-      network-name: ${{secrets.NETWORK_NAME}}
-      subnetwork-name: ${{secrets.SUBNETWORK_NAME}}
-      gcp-tpu-reservation: ${{secrets.GCP_TPU_V4_RESERVATION}}
+    secrets: inherit
   workloads-tests:
     needs: [cluster-create, set-variables]
     uses: ./.github/workflows/workload_test.yaml
@@ -91,8 +86,7 @@ jobs:
       cluster-name: ${{needs.set-variables.outputs.cluster-name}}
       tpu-type: ${{inputs.tpu-type || inputs.tpu-type}}
       zone: ${{needs.set-variables.outputs.zone}}
-    secrets:
-      gcp-sa-key: ${{secrets.GCP_SA_KEY}}
+    secrets: inherit
   batch-tests:
     needs: [cluster-create, set-variables]
     uses: ./.github/workflows/batch_test.yaml
@@ -100,8 +94,7 @@ jobs:
       cluster-name: ${{needs.set-variables.outputs.cluster-name}}
       group-name: ${{needs.set-variables.outputs.group-name}}
       zone: ${{needs.set-variables.outputs.zone}}
-    secrets:
-      gcp-sa-key: ${{secrets.GCP_SA_KEY}}
+    secrets: inherit
   cluster-delete:
     if: always()
     needs: [workloads-tests, batch-tests, set-variables]
@@ -109,8 +102,7 @@ jobs:
     with:
       cluster-name: ${{needs.set-variables.outputs.cluster-name}}
       zone: ${{needs.set-variables.outputs.zone}}
-    secrets:
-      gcp-sa-key: ${{secrets.GCP_SA_KEY}}
+    secrets: inherit
 
 
 

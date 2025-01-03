@@ -18,9 +18,6 @@ on:
       group-name:
         required: true
         type: string
-    secrets:
-      gcp-sa-key:
-        required: true
 
 
 jobs:
@@ -36,7 +33,7 @@ jobs:
           python-version: '3.10'
       - uses: 'google-github-actions/auth@v2'
         with:
-          credentials_json: '${{secrets.gcp-sa-key}}'
+          credentials_json: '${{secrets.GCP_SA_KEY}}'
       - uses: google-github-actions/setup-gcloud@v2
         with:
           version: '>= 363.0.0'

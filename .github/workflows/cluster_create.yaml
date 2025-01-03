@@ -35,7 +35,6 @@ on:
 env:
   # Names must be unique in parallel running tests.
   CLUSTER_ARGUMENTS: "--network=${{secrets.network-name}} --subnetwork=${{secrets.SUBNETWORK_NAME}} --maintenance-window=23:50"
-  ZONE: us-central2-a
 
 jobs:
   cluster-create:

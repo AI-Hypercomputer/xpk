@@ -31,6 +31,11 @@ on:
 jobs:
   set-variables:
     runs-on: [ubuntu-22.04]
+    outputs:
+      cluster-name: ${{ steps.set-cluster-name.outputs.set-cluster-name }}
+      group-name: ${{ steps.set-group-name.outputs.set-group-name }}
+      zone: ${{ steps.set-zone.outputs.set-zone }}
+      tpu-type: ${{ steps.set-tpu-type.outputs.set-tpu-type }}
     steps:
     - name: set cluster-name
       id: set-cluster-name

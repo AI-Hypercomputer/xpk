@@ -100,7 +100,6 @@ jobs:
       tpu-type: '${{needs.set-variables.outputs.tpu-type || inputs.tpu-type}}'
       zone: '${{needs.set-variables.outputs.zone}}'
       location: '${{needs.set-variables.outputs.location}}'
-      private: false
     secrets: inherit
 
   workloads-tests:

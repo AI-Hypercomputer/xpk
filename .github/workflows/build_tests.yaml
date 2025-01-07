@@ -127,6 +127,9 @@ jobs:
     if: always()
     needs: [workloads-tests, batch-tests, set-variables]
     uses: ./.github/workflows/cluster_delete.yaml
+    concurrency:
+      group: ${{needs.set-variables.outputs.group-name}}
+      cancel-in-progress: false
     with:
       cluster-name: ${{needs.set-variables.outputs.cluster-name}}
       zone: ${{needs.set-variables.outputs.zone}}

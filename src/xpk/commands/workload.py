@@ -36,6 +36,7 @@ from ..core.core import (
     get_gpu_scheduler,
     get_gpu_tcp_volume,
     get_gpu_volume,
+    get_main_container_docker_image,
     get_user_workload_container,
     get_volumes,
     parse_env_config,
@@ -80,6 +81,7 @@ metadata:
 spec:
   ttlSecondsAfterFinished: {args.ttl_seconds_after_finished}
   failurePolicy:
+    {failure_policy_rules}
     maxRestarts: {args.max_restarts}
   replicatedJobs:
     - name: slice-job
@@ -89,6 +91,7 @@ spec:
           parallelism: {system.vms_per_slice}    # Equal to the number of VMs per slice
           completions: {system.vms_per_slice}    # Same as the above.
           backoffLimit: 0   # When any pod fails, the job is failed
+          {pod_failure_policy}
           template:
             metadata:
               labels:
@@ -122,6 +125,7 @@ metadata:
 spec:
   ttlSecondsAfterFinished: {args.ttl_seconds_after_finished}
   failurePolicy:
+    {failure_policy_rules}
     maxRestarts: {args.max_restarts}
   replicatedJobs:
     - name: slice-job
@@ -131,6 +135,7 @@ spec:
           parallelism: {args.num_nodes}
           completions: {args.num_nodes}
           backoffLimit: 0   # When any pod fails, the job is failed
+          {pod_failure_policy}
           template:
             metadata:
               labels:
@@ -180,6 +185,7 @@ metadata:
 spec:
   ttlSecondsAfterFinished: {args.ttl_seconds_after_finished}
   failurePolicy:
+    {failure_policy_rules}
     maxRestarts: {args.max_restarts}
   replicatedJobs:
     - name: slice-job
@@ -189,6 +195,7 @@ spec:
           parallelism: {args.num_nodes}
           completions: {args.num_nodes}
           backoffLimit: 0   # When any pod fails, the job is failed
+          {pod_failure_policy}
           template:
             metadata:
               labels:
@@ -217,130 +224,131 @@ metadata:
 spec:
   ttlSecondsAfterFinished: {args.ttl_seconds_after_finished}
   failurePolicy:
+    {failure_policy_rules}
     maxRestarts: {args.max_restarts}
   successPolicy:
     operator: "All"
     targetReplicatedJobs:
     - {args.targetReplicatedJob}
   replicatedJobs:
-  - name: worker
-    replicas: {args.num_slices}
-    template:
-      metadata:
-        annotations:
-          alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool
-        labels:
-          xpk.google.com/workload: {args.workload}
-      spec:
-        backoffLimit: {backoff_limit}
-        completions: {system.vms_per_slice}
-        parallelism: {system.vms_per_slice}
-        template:
-          spec:
-            terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
-            containers:
-            - args:
-              {pathways_worker_args}
-              image: {args.server_image}
-              imagePullPolicy: Always
-              name: pathways-worker
-              ports:
-              - containerPort: 29001
-              - containerPort: 8471
-              - containerPort: 8080
-              resources:
-                limits:
-                  {resource_type}: {system.chips_per_vm}
-              securityContext:
-                privileged: true
-              volumeMounts:
-              - mountPath: /tmp
+    - name: worker
+      replicas: {args.num_slices}
+      template:
+        metadata:
+          annotations:
+            alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool
+          labels:
+            xpk.google.com/workload: {args.workload}
+        spec:
+          backoffLimit: {backoff_limit}
+          completions: {system.vms_per_slice}
+          parallelism: {system.vms_per_slice}
+          template:
+            spec:
+              terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
+              containers:
+              - args:
+                {pathways_worker_args}
+                image: {args.server_image}
+                imagePullPolicy: Always
+                name: pathways-worker
+                ports:
+                - containerPort: 29001
+                - containerPort: 8471
+                - containerPort: 8080
+                resources:
+                  limits:
+                    {resource_type}: {system.chips_per_vm}
+                securityContext:
+                  privileged: true
+                volumeMounts:
+                - mountPath: /tmp
+                  name: shared-tmp
+              {pathways_sidecar_container}
+              nodeSelector:
+                {accelerator_label}
+                {machine_label}
+                {autoprovisioning_args}
+              priorityClassName: {args.priority}
+              hostNetwork: true
+              dnsPolicy: ClusterFirstWithHostNet
+              volumes:
+              - hostPath:
+                  path: /tmp
+                  type: DirectoryOrCreate
                 name: shared-tmp
-            {pathways_sidecar_container}
-            nodeSelector:
-              {accelerator_label}
-              {machine_label}
-              {autoprovisioning_args}
-            priorityClassName: {args.priority}
-            hostNetwork: true
-            dnsPolicy: ClusterFirstWithHostNet
-            volumes:
-            - hostPath:
-                path: /tmp
-                type: DirectoryOrCreate
-              name: shared-tmp
-  - name: rm
-    replicas: 1
-    template:
-      metadata:
-        labels:
-          xpk.google.com/workload: {args.workload}
-      spec:
-        backoffLimit: 0
-        completions: 1
-        parallelism: 1
-        template:
-          spec:
-            containers:
-            - args:
-              {pathways_rm_args}
-              env:
-              - name: REPLICATED_JOB_NAME
-                valueFrom:
-                  fieldRef:
-                    fieldPath: metadata.annotations['jobset.sigs.k8s.io/replicatedjob-name']
-              - name: JOBSET_NAME
-                valueFrom:
-                  fieldRef:
-                    fieldPath: metadata.annotations['jobset.sigs.k8s.io/jobset-name']
-              - name: HOST_ADDRESS
-                value: $(JOBSET_NAME)-$(REPLICATED_JOB_NAME)-0-0.$(JOBSET_NAME)
-              - name: TPU_SKIP_MDS_QUERY
-                value: "true"
-              image: {args.server_image}
-              imagePullPolicy: Always
-              name: pathways-rm
-              ports:
-              - containerPort: 29001
-              securityContext:
-                privileged: true
-              volumeMounts:
-              - mountPath: /tmp
+    - name: rm
+      replicas: 1
+      template:
+        metadata:
+          labels:
+            xpk.google.com/workload: {args.workload}
+        spec:
+          backoffLimit: 0
+          completions: 1
+          parallelism: 1
+          template:
+            spec:
+              containers:
+              - args:
+                {pathways_rm_args}
+                env:
+                - name: REPLICATED_JOB_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.annotations['jobset.sigs.k8s.io/replicatedjob-name']
+                - name: JOBSET_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.annotations['jobset.sigs.k8s.io/jobset-name']
+                - name: HOST_ADDRESS
+                  value: $(JOBSET_NAME)-$(REPLICATED_JOB_NAME)-0-0.$(JOBSET_NAME)
+                - name: TPU_SKIP_MDS_QUERY
+                  value: "true"
+                image: {args.server_image}
+                imagePullPolicy: Always
+                name: pathways-rm
+                ports:
+                - containerPort: 29001
+                securityContext:
+                  privileged: true
+                volumeMounts:
+                - mountPath: /tmp
+                  name: shared-tmp
+              nodeSelector:
+                cloud.google.com/gke-nodepool: cpu-rm-np
+              hostNetwork: true
+              dnsPolicy: ClusterFirstWithHostNet
+              volumes:
+              - hostPath:
+                  path: /tmp
+                  type: DirectoryOrCreate
                 name: shared-tmp
-            nodeSelector:
-              cloud.google.com/gke-nodepool: cpu-rm-np
-            hostNetwork: true
-            dnsPolicy: ClusterFirstWithHostNet
-            volumes:
-            - hostPath:
-                path: /tmp
-                type: DirectoryOrCreate
-              name: shared-tmp
-  - name: proxy
-    replicas: 1
-    template:
-      metadata:
-        labels:
-          xpk.google.com/workload: {args.workload}
-      spec:
-        backoffLimit: 0
-        completions: 1
-        parallelism: 1
-        template:
-          spec:
-            containers:
-            - args:
-              {pathways_proxy_args}
-              image: {args.proxy_server_image}
-              imagePullPolicy: Always
-              name: pathways-proxy
-              ports:
-              - containerPort: 29000
-            hostNetwork: true
-            dnsPolicy: ClusterFirstWithHostNet
-            nodeSelector:
-              cloud.google.com/gke-nodepool: cpu-proxy-np
-  {user_workload}
+    - name: proxy
+      replicas: 1
+      template:
+        metadata:
+          labels:
+            xpk.google.com/workload: {args.workload}
+        spec:
+          backoffLimit: 0
+          completions: 1
+          parallelism: 1
+          template:
+            spec:
+              containers:
+              - args:
+                {pathways_proxy_args}
+                image: {args.proxy_server_image}
+                imagePullPolicy: Always
+                name: pathways-proxy
+                ports:
+                - containerPort: 29000
+              hostNetwork: true
+              dnsPolicy: ClusterFirstWithHostNet
+              nodeSelector:
+                cloud.google.com/gke-nodepool: cpu-proxy-np
+    {user_workload}
 """
 
 
@@ -451,6 +459,21 @@ def workload_create(args) -> None:
     if return_code != 0:
       xpk_exit(return_code)
 
+  failure_policy_rules = """rules:
+      - action: FailJobSet
+        onJobFailureReasons: 
+        - PodFailurePolicy"""
+  restart_on_exit_codes = get_restart_exit_codes(args)
+  restart_on_exit_codes = ','.join(map(str, restart_on_exit_codes))
+  pod_failure_policy = f"""
+          podFailurePolicy:
+            rules:
+            - action: FailJob
+              onExitCodes:
+                containerName: {get_main_container_docker_image(args, system)}
+                operator: NotIn
+                values: [{restart_on_exit_codes}]"""
+
   # Create the workload file based on accelerator type or workload type.
   if system.accelerator_type == AcceleratorType['GPU']:
     container, debugging_dashboard_id = get_user_workload_container(
@@ -464,7 +487,10 @@ def workload_create(args) -> None:
 
     if system.device_type in cluster_gcluster.supported_device_types:
       yml_string = a3_gpu_workload_create_yaml.format(
-          args=args, container=container
+          args=args,
+          container=container,
+          failure_policy_rules=failure_policy_rules,
+          pod_failure_policy=pod_failure_policy,
       )
 
       if args.device_type == cluster_gcluster.a3mega_device_type:
@@ -487,6 +513,8 @@ def workload_create(args) -> None:
           gpu_rxdm_image=get_gpu_rxdm_image(system),
           gpu_rxdm_cmd=get_gpu_rxdm_cmd(system),
           gpu_tcp_volume=get_gpu_tcp_volume(system),
+          failure_policy_rules=failure_policy_rules,
+          pod_failure_policy=pod_failure_policy,
       )
   elif args.use_pathways and ensure_pathways_workload_prerequisites(
       args, system
@@ -502,13 +530,17 @@ def workload_create(args) -> None:
         pathways_worker_args=get_pathways_worker_args(args),
         pathways_proxy_args=get_pathways_proxy_args(args),
         pathways_sidecar_container=get_pathways_sidecar_container(args),
-        user_workload=get_user_workload_for_pathways(args, system),
+        user_workload=get_user_workload_for_pathways(
+            args, system, pod_failure_policy
+        ),
         resource_type=AcceleratorTypeToAcceleratorCharacteristics[
             system.accelerator_type
         ].resource_type,
         local_queue_name=LOCAL_QUEUE_NAME,
         autoprovisioning_args=autoprovisioning_args,
         backoff_limit=system.vms_per_slice * 4,
+        failure_policy_rules=failure_policy_rules,
+        pod_failure_policy=pod_failure_policy,
     )
   else:
     container, debugging_dashboard_id = get_user_workload_container(
@@ -526,6 +558,8 @@ def workload_create(args) -> None:
         local_queue_name=LOCAL_QUEUE_NAME,
         autoprovisioning_args=autoprovisioning_args,
         volumes=get_volumes(args, system),
+        failure_policy_rules=failure_policy_rules,
+        pod_failure_policy=pod_failure_policy,
     )
   tmp = write_tmp_file(yml_string)
   command = f'kubectl apply -f {str(tmp.file.name)}'
@@ -594,6 +628,23 @@ def workload_create(args) -> None:
     )
 
   xpk_exit(0)
+
+
+def get_restart_exit_codes(args) -> list:
+  exit_codes = [42]
+  exit_codes.extend(range(127, 256, 1))
+
+  if args.restart_on_exit_codes is not None:
+    items = args.restart_on_exit_codes.split(',')
+    for item in items:
+      item = item.strip()
+      if '-' in item:
+        start, end = map(int, item.split('-'))
+        exit_codes.extend(range(start, end + 1))
+      else:
+        exit_codes.append(int(item))
+
+  return exit_codes
 
 
 def workload_delete(args) -> None:

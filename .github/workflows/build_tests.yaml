@@ -114,7 +114,7 @@ jobs:
       zone: ${{needs.set-variables.outputs.zone}}
     secrets: inherit
   batch-tests:
-    concurrency: # We support one build or nightly test to run at a time currently.
+    concurrency:
       group: ${{needs.set-variables.outputs.group-name}}
       cancel-in-progress: false
     needs: [cluster-create, set-variables]

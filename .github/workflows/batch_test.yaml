@@ -50,6 +50,8 @@ jobs:
       run: |
         make install 
         echo $PWD/bin >> "$GITHUB_PATH"
+    - name: Install expect package
+      run: sudo apt-get install expect
     - name: Check xpk installation
       run: xpk --help
     - name: Create test script to execute in batch

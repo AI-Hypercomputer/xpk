@@ -33,7 +33,7 @@ on:
         required: true
       location:
         type: string
-        required: trues
+        required: true
 
 env:
   # Names must be unique in parallel running tests.

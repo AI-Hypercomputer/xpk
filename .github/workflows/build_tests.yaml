@@ -74,6 +74,17 @@ jobs:
   #     group-name: ${{needs.set-variables.outputs.group-name}}
   #   secrets: inherit
   #   needs: [run-unit-tests, set-variables]
+  cluster-create-private:
+    needs: [set-variables]
+    uses: ./.github/workflows/cluster_create.yaml
+    with:
+      cluster-name: '${{needs.set-variables.outputs.cluster-name}}'
+      tpu-type: '${{needs.set-variables.outputs.tpu-type || inputs.tpu-type}}'
+      group-name: '${{needs.set-variables.outputs.group-name}}'
+      zone: '${{needs.set-variables.outputs.zone}}'
+      location: '${{needs.set-variables.outputs.location}}'
+      cluster-private: true
+    secrets: inherit
   cluster-create:
     needs: [set-variables]
     uses: ./.github/workflows/cluster_create.yaml

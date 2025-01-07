@@ -37,9 +37,9 @@ env:
   CLUSTER_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}} --subnetwork=${{secrets.SUBNETWORK_NAME}} --maintenance-window=23:50"
 
 jobs:
-  cluster-create:
+  cluster-private:
     runs-on: [ubuntu-22.04]
-    name: cluster-create-private
+    name: cluster-private
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-python@v5

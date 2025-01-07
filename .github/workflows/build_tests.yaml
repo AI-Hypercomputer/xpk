@@ -71,7 +71,7 @@ jobs:
     uses: ./.github/workflows/unit_tests.yaml
     needs: [linter, set-variables]
   run-integration-tests:
-    concurrency: # We support one build or nightly test to run at a time currently.
+    concurrency:
       group: ${{needs.set-variables.outputs.group-name}}
       cancel-in-progress: false
     uses: ./.github/workflows/integration_tests.yaml

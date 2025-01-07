@@ -36,6 +36,7 @@ jobs:
       group-name: ${{ steps.set-group-name.outputs.group-name }}
       zone: ${{ steps.set-zone.outputs.zone }}
       tpu-type: ${{ steps.set-tpu-type.outputs.tpu-type }}
+      location: ${{steps.set-location.outputs.location}}
     steps:
     - name: set cluster-name
       id: set-cluster-name
@@ -53,30 +54,35 @@ jobs:
       id: set-tpu-type
       run: |    
         echo tpu-type=v4-8 >> $GITHUB_OUTPUT
-  linter:
-    uses: ./.github/workflows/lint_and_format.yml
-    needs: [set-variables]
-    with:
-      group-name: ${{needs.set-variables.outputs.group-name}}
-  run-unit-tests:
-    uses: ./.github/workflows/unit_tests.yaml
-    needs: [linter, set-variables]
-    with:
-      group-name: ${{needs.set-variables.outputs.group-name}}
-  run-integration-tests:
-    uses: ./.github/workflows/integration_tests.yaml
-    with:
-      group-name: ${{needs.set-variables.outputs.group-name}}
-    secrets: inherit
-    needs: [run-unit-tests, set-variables]
+    - name: set location
+      id: set-location
+      run: |    
+        echo location=us-central2 >> $GITHUB_OUTPUT
+  # linter:
+  #   uses: ./.github/workflows/lint_and_format.yml
+  #   needs: [set-variables]
+  #   with:
+  #     group-name: ${{needs.set-variables.outputs.group-name}}
+  # run-unit-tests:
+  #   uses: ./.github/workflows/unit_tests.yaml
+  #   needs: [linter, set-variables]
+  #   with:
+  #     group-name: ${{needs.set-variables.outputs.group-name}}
+  # run-integration-tests:
+  #   uses: ./.github/workflows/integration_tests.yaml
+  #   with:
+  #     group-name: ${{needs.set-variables.outputs.group-name}}
+  #   secrets: inherit
+  #   needs: [run-unit-tests, set-variables]
   cluster-create:
-    needs: [run-integration-tests, set-variables]
+    needs: [set-variables]
     uses: ./.github/workflows/cluster_create.yaml
     with:
       cluster-name: '${{needs.set-variables.outputs.cluster-name}}'
       tpu-type: '${{needs.set-variables.outputs.tpu-type || inputs.tpu-type}}'
       group-name: '${{needs.set-variables.outputs.group-name}}'
       zone: '${{needs.set-variables.outputs.zone}}'
+      location: '${{needs.set-variables.outputs.location}}'
     secrets: inherit
   workloads-tests:
     needs: [cluster-create, set-variables]

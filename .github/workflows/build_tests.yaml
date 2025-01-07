@@ -102,6 +102,7 @@ jobs:
       group-name: '${{needs.set-variables.outputs.group-name}}'
       zone: '${{needs.set-variables.outputs.zone}}'
       location: '${{needs.set-variables.outputs.location}}'
+      private: false
     secrets: inherit
   workloads-tests:
     needs: [cluster-create, set-variables]

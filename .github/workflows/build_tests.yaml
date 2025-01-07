@@ -85,14 +85,6 @@ jobs:
       location: '${{needs.set-variables.outputs.location}}'
       private: true
     secrets: inherit
-  cluster-delete-private:
-    needs: [set-variables, cluster-create-private]
-    uses: ./.github/workflows/cluster_delete.yaml
-    if: always()
-    with:
-      cluster-name: ${{needs.set-variables.outputs.cluster-name}}-private
-      zone: ${{needs.set-variables.outputs.zone}}
-    secrets: inherit
   cluster-create:
     needs: [set-variables]
     uses: ./.github/workflows/cluster_create.yaml
@@ -129,7 +121,14 @@ jobs:
       cluster-name: ${{needs.set-variables.outputs.cluster-name}}
       zone: ${{needs.set-variables.outputs.zone}}
     secrets: inherit
-
+  cluster-delete-private:
+    needs: [set-variables, cluster-create-private]
+    uses: ./.github/workflows/cluster_delete.yaml
+    if: always()
+    with:
+      cluster-name: ${{needs.set-variables.outputs.cluster-name}}-private
+      zone: ${{needs.set-variables.outputs.zone}}
+    secrets: inherit
 
 
 

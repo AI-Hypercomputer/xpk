@@ -45,6 +45,7 @@ env:
 jobs:
   cluster-create:
     runs-on: [ubuntu-22.04]
+    name: cluster-create-private=${{inputs.private}}
     concurrency: # We support one nightly test and one build test for each branch to run at a time currently.
       group: ${{inputs.group-name}}
       cancel-in-progress: false

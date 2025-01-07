@@ -56,6 +56,8 @@ jobs:
       run: |
         gcloud config set compute/zone us-east4-a
         gcloud config get compute/zone
+    - name: Authenticate Docker
+      run: gcloud auth configure-docker --quiet
     - name: Install xpk dependencies
       run: |
         make install 

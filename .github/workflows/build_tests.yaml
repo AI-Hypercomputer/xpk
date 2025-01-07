@@ -78,7 +78,7 @@ jobs:
     secrets: inherit
     needs: [run-unit-tests, set-variables]
   cluster-create-private:
-    needs: [set-variables]
+    needs: [run-integration-tests, set-variables]
     uses: ./.github/workflows/cluster_create.yaml
     concurrency: # We support one build or nightly test to run at a time currently.
       group: ${{needs.set-variables.outputs.group-name}}
@@ -91,7 +91,7 @@ jobs:
       private: true
     secrets: inherit
   cluster-create:
-    needs: [set-variables]
+    needs: [run-integration-tests, set-variables]
     uses: ./.github/workflows/cluster_create.yaml
     concurrency: # We support one build or nightly test to run at a time currently.
       group: ${{needs.set-variables.outputs.group-name}}

@@ -18,9 +18,6 @@ on:
       cluster-name:
         required: true
         type: string
-      group-name:
-        required: true
-        type: string
       zone:
         required: true
         type: string

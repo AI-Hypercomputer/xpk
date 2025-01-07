@@ -16,10 +16,6 @@ name: Lint and Format
 
 on:
   workflow_call:
-    inputs:
-      group-name:
-        required: true
-        type: string
 
 jobs:
   build-and-test:

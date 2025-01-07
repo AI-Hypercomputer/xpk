@@ -14,18 +14,11 @@
 
 on:
   workflow_call:
-    inputs:
-      group-name:
-        required: true
-        type: string
 
 
 jobs:
   integration-tests:
     runs-on: [ubuntu-22.04]
-    concurrency: # We support one build or nightly test to run at a time currently.
-      group: build-test-cluster-group
-      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

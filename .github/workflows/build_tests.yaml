@@ -58,29 +58,34 @@ jobs:
       id: set-location
       run: |    
         echo location=us-central2 >> $GITHUB_OUTPUT
-  # linter:
-  #   uses: ./.github/workflows/lint_and_format.yml
-  #   needs: [set-variables]
-  #   with:
-  #     group-name: ${{needs.set-variables.outputs.group-name}}
-  # run-unit-tests:
-  #   uses: ./.github/workflows/unit_tests.yaml
-  #   needs: [linter, set-variables]
-  #   with:
-  #     group-name: ${{needs.set-variables.outputs.group-name}}
-  # run-integration-tests:
-  #   uses: ./.github/workflows/integration_tests.yaml
-  #   with:
-  #     group-name: ${{needs.set-variables.outputs.group-name}}
-  #   secrets: inherit
-  #   needs: [run-unit-tests, set-variables]
+  linter:
+    uses: ./.github/workflows/lint_and_format.yml
+    needs: [set-variables]
+    concurrency: # We support one build or nightly test to run at a time currently.
+      group: ${{needs.set-variables.outputs.group-name}}
+      cancel-in-progress: false
+  run-unit-tests:
+    concurrency: # We support one build or nightly test to run at a time currently.
+      group: ${{needs.set-variables.outputs.group-name}}
+      cancel-in-progress: false
+    uses: ./.github/workflows/unit_tests.yaml
+    needs: [linter, set-variables]
+  run-integration-tests:
+    concurrency: # We support one build or nightly test to run at a time currently.
+      group: ${{needs.set-variables.outputs.group-name}}
+      cancel-in-progress: false
+    uses: ./.github/workflows/integration_tests.yaml
+    secrets: inherit
+    needs: [run-unit-tests, set-variables]
   cluster-create-private:
     needs: [set-variables]
     uses: ./.github/workflows/cluster_create.yaml
+    concurrency: # We support one build or nightly test to run at a time currently.
+      group: ${{needs.set-variables.outputs.group-name}}
+      cancel-in-progress: false
     with:
       cluster-name: '${{needs.set-variables.outputs.cluster-name}}'
       tpu-type: '${{needs.set-variables.outputs.tpu-type || inputs.tpu-type}}'
-      group-name: '${{needs.set-variables.outputs.group-name}}'
       zone: '${{needs.set-variables.outputs.zone}}'
       location: '${{needs.set-variables.outputs.location}}'
       private: true
@@ -88,29 +93,35 @@ jobs:
   cluster-create:
     needs: [set-variables]
     uses: ./.github/workflows/cluster_create.yaml
+    concurrency: # We support one build or nightly test to run at a time currently.
+      group: ${{needs.set-variables.outputs.group-name}}
+      cancel-in-progress: false
     with:
       cluster-name: '${{needs.set-variables.outputs.cluster-name}}'
       tpu-type: '${{needs.set-variables.outputs.tpu-type || inputs.tpu-type}}'
-      group-name: '${{needs.set-variables.outputs.group-name}}'
       zone: '${{needs.set-variables.outputs.zone}}'
       location: '${{needs.set-variables.outputs.location}}'
       private: false
     secrets: inherit
   workloads-tests:
+    concurrency: # We support one build or nightly test to run at a time currently.
+      group: ${{needs.set-variables.outputs.group-name}}
+      cancel-in-progress: false
     needs: [cluster-create, set-variables]
     uses: ./.github/workflows/workload_test.yaml
     with:
-      group-name: ${{needs.set-variables.outputs.group-name}}
       cluster-name: ${{needs.set-variables.outputs.cluster-name}}
       tpu-type: ${{needs.set-variables.outputs.tpu-type}}
       zone: ${{needs.set-variables.outputs.zone}}
     secrets: inherit
   batch-tests:
+    concurrency: # We support one build or nightly test to run at a time currently.
+      group: ${{needs.set-variables.outputs.group-name}}
+      cancel-in-progress: false
     needs: [cluster-create, set-variables]
     uses: ./.github/workflows/batch_test.yaml
     with:
       cluster-name: ${{needs.set-variables.outputs.cluster-name}}
-      group-name: ${{needs.set-variables.outputs.group-name}}
       zone: ${{needs.set-variables.outputs.zone}}
     secrets: inherit
   cluster-delete:

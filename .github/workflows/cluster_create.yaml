@@ -25,9 +25,6 @@ on:
         required: false
         default: 'v4-8'
         type: string
-      group-name:
-        type: string
-        required: true
       zone:
         type: string
         required: true
@@ -46,9 +43,6 @@ jobs:
   cluster-create:
     runs-on: [ubuntu-22.04]
     name: cluster-create-private=${{inputs.private}}
-    concurrency: # We support one nightly test and one build test for each branch to run at a time currently.
-      group: ${{inputs.group-name}}
-      cancel-in-progress: false
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-python@v5
@@ -82,11 +76,3 @@ jobs:
     - name: Verify the created cluster is private
       if: ${{inputs.private}} == true
       run: gcloud container clusters describe ${{inputs.cluster-name}}-private --region=us-central2 --format="value(privateClusterConfig.enablePrivateNodes)" | grep 'True' || (echo 'The created cluster is not private.' && exit 1)
-    
-    
-    
-
-
-
-
-

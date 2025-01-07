@@ -246,13 +246,13 @@ def cluster_delete(args) -> None:
     xpk_print(f'Deleting {args.cluster} cluster using Cluster Toolkit...')
     cluster_gcluster.cluster_delete(args)
     xpk_exit(0)
-  
+
   set_cluster_command_code = set_cluster_command(args)
   if set_cluster_command_code != 0:
     xpk_exit(set_cluster_command_code)
-  
+
   run_gke_cluster_delete_command_code = run_gke_cluster_delete_command(args)
-  
+
   if run_gke_cluster_delete_command_code != 0:
     xpk_exit(run_gke_cluster_delete_command_code)
   xpk_print(f'GKE commands done! Cluster {args.cluster} deleted.\n')

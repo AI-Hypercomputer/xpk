@@ -1989,15 +1989,6 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
         'touch /shared-volume/stacktrace_signal; '
     )
 
-  xpk_return_user_exit_code = ''
-  if args.restart_on_user_code_failure:
-    if int(args.max_restarts) <= 0:
-      xpk_print(
-          f'Warning: --max-restarts, is set to {args.max_restarts}. Will not'
-          ' restart on user failure.'
-      )
-    xpk_return_user_exit_code = 'exit $EXIT_CODE'
-
   yaml = """- name: {docker_name}
                 image: {docker_image}
                 {image_pull_policy}
@@ -2026,10 +2017,7 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
                   echo EXIT_CODE=$EXIT_CODE;
                   {tpu_stacktrace_terminate_command}
                   {gpu_workload_terminate_command}
-                  if [ "$EXIT_CODE" = 143 ]; then
-                    exit $EXIT_CODE
-                  fi
-                  {xpk_return_user_exit_code}
+                  exit $EXIT_CODE
                 resources:
                   limits:
                     {resources}
@@ -2056,7 +2044,6 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
       xpk_internal_commands=xpk_internal_commands,
       resources=get_main_container_resources(args, system, resource_type),
       volume_mounts=volume_mounts,
-      xpk_return_user_exit_code=xpk_return_user_exit_code,
   )
 
 

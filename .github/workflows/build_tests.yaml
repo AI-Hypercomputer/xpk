@@ -90,7 +90,7 @@ jobs:
     with:
       group-name: ${{needs.set-variables.outputs.group-name}}
       cluster-name: ${{needs.set-variables.outputs.cluster-name}}
-      tpu-type: ${{inputs.tpu-type || inputs.tpu-type}}
+      tpu-type: ${{needs.set-variables.outputs.tpu-type}}
       zone: ${{needs.set-variables.outputs.zone}}
     secrets: inherit
   batch-tests:

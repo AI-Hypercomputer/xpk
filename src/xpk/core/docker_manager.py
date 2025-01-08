@@ -35,7 +35,7 @@ ctk_docker_image = "xpk-ctk"
 ctk_container_name = "xpk-ctk-container"
 gcloud_cfg_mount_path = "/root/.config/gcloud"
 working_dir_mount_path = "/out"
-dockerfile_gh_path = "https://raw.githubusercontent.com/GoogleCloudPlatform/cluster-toolkit/refs/heads/develop/tools/cloud-build/images/cluster-toolkit-dockerfile/Dockerfile"
+dockerfile_gh_path = "https://raw.githubusercontent.com/GoogleCloudPlatform/cluster-toolkit/refs/heads/main/tools/cloud-build/images/cluster-toolkit-dockerfile/Dockerfile"
 upload_dir_name = "uploads"
 
 

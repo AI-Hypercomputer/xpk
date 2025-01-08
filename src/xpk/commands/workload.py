@@ -579,6 +579,15 @@ def workload_create(args) -> None:
         # pylint: disable=line-too-long
         f' https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
     )
+    duration_of_logs = 'P1D'  # Past 1 Day
+    xpk_print(
+        'Follow your worker 0, slice 0 logs here:'
+        ' Adjust the pod name'
+        ' ([prefix]-slice-job-[slice_number]-[worker_number])'
+        ' after clicking the url if you want other worker logs.'
+        # pylint: disable=line-too-long
+        f' https://console.cloud.google.com/logs/query;query=resource.type%3D%22k8s_container%22%0Aresource.labels.project_id%3D%22{args.project}%22%0Aresource.labels.location%3D%22{zone_to_region(args.zone)}%22%0Aresource.labels.cluster_name%3D%22{args.cluster}%22%0Aresource.labels.namespace_name%3D%22default%22%0Aresource.labels.pod_name:%22{args.workload}-slice-job-0-0-%22%20severity%3E%3DDEFAULT;storageScope=project;duration={duration_of_logs}?e=13802955&mods=allow_workbench_image_override&project={args.project}'
+    )
 
   xpk_exit(0)
 

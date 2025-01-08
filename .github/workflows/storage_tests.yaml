@@ -144,12 +144,12 @@ jobs:
       run: |
         python3 xpk.py cluster create --cluster $TPU_FILESTORE_CLUSTER_NAME --tpu-type=v4-8  --num-slices=2 \
         --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 \
-        --spot --enable-workload-identity --enable-gcpfilestore-csi-driver --custom-cluster-arguments="${CLUSTER_ARGUMENTS}"
+        --spot --enable-workload-identity --enable-gcpfilestore-csi-driver
     - name: Create auto-mount GCP Filestore Storage instance
       run: |
         python3 xpk.py storage create $FS_STORAGE_NAME --cluster=$TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b --type=gcpfilestore \
         --auto-mount=true --vol=vol1 --size=1024 --tier=BASIC_HDD \
-        --mount-point='/fs-test-mount-point' --readonly=false --network=${{secrets.NETWORK_NAME}}
+        --mount-point='/fs-test-mount-point' --readonly=false
     - name: List and verify existing Storages
       run: python3 xpk.py storage list --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b | tee output.txt | grep $FS_STORAGE_NAME || (echo 'No storage found' && exit 143)
     - name: Run workload to write file on filestore

@@ -50,6 +50,7 @@ deployment_groups:
     source: modules/scheduler/gke-cluster
     use: [network1, gpunets]
     settings:
+      release_channel: RAPID
       prefix_with_deployment_name: false
       name_suffix: bar
       enable_private_endpoint: false
@@ -57,6 +58,9 @@ deployment_groups:
       - cidr_block: 10.0.0.0/32  # Allows your machine run kubectl command. It's required for the multi-network setup.
         display_name: "kubectl-access-network"
       system_node_pool_machine_type: "e2-standard-32"
+      system_node_pool_node_count:
+        total_min_nodes: 5
+        total_max_nodes: 1000
     outputs: [instructions]
   - !DeploymentModule
     id: group_placement_0
@@ -72,10 +76,17 @@ deployment_groups:
     settings:
       name: bar-a3-megagpu-pool-0
       machine_type: a3-megagpu-8g
-      autoscaling_total_min_nodes: 2
-      initial_node_count: 2
+      static_node_count: 2
       zones: [us-central1-c]
       host_maintenance_interval: PERIODIC
+      reservation_affinity:
+        consume_reservation_type: SPECIFIC_RESERVATION
+        specific_reservations:
+        - name: test-reservation
+      run_workload_script: false
+      spot: false
+      max_pods_per_node : 32
+      auto_upgrade: true
     outputs: [instructions]
 
   - !DeploymentModule
@@ -85,15 +96,11 @@ deployment_groups:
     settings:
       kueue:
         install: true
-        config_path: $(ghpc_stage("bar-a3-mega-xpk"))/kueue-xpk-configuration.yaml.tftpl
+        version: "v0.10.0"
+        config_path: $(ghpc_stage("xpk-gke-a3-megagpu"))/kueue-xpk-configuration.yaml.tftpl
         config_template_vars: {num_chips: "16"}
       jobset:
         install: true
-
-  - !DeploymentModule
-    id: topology_aware_scheduler_install
-    source: community/modules/compute/gke-topology-scheduler
-    use: [gke_cluster]
 
   - !DeploymentModule
     id: workload_configmap
@@ -101,5 +108,11 @@ deployment_groups:
     use: [gke_cluster]
     settings:
       apply_manifests:
-      - source: $(ghpc_stage("bar-a3-mega-xpk"))/config-map.yaml.tftpl
-        template_vars: {name: "xpk-gke-a3-megagpu-resources-configmap", num_nodes: "2"}
+      - source: $(ghpc_stage("xpk-gke-a3-megagpu"))/config-map.yaml.tftpl
+        template_vars: {
+          resource_config_name: "bar-resources-configmap",
+          num_nodes: "2",
+          cluster_config_name: "bar-metadata-configmap",
+          capacity_type: "reservation",
+          reservation: "test-reservation",
+          }

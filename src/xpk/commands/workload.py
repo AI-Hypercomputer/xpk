@@ -64,6 +64,8 @@ from ..core.workload import get_workload_list
 from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
 from .cluster import set_cluster_command
+from ..core.workload_decorators import tcpxo_decorator, rdma_decorator
+from . import cluster_gcluster
 
 workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
@@ -75,6 +77,7 @@ metadata:
   annotations:
     alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool # 1:1 job replica to node pool assignment
 spec:
+  ttlSecondsAfterFinished: {args.ttl_seconds_after_finished}
   failurePolicy:
     maxRestarts: {args.max_restarts}
   replicatedJobs:
@@ -116,6 +119,7 @@ metadata:
     kueue.x-k8s.io/queue-name: multislice-queue  # Name of the LocalQueue
     xpk.google.com/workload: {args.workload}
 spec:
+  ttlSecondsAfterFinished: {args.ttl_seconds_after_finished}
   failurePolicy:
     maxRestarts: {args.max_restarts}
   replicatedJobs:
@@ -162,6 +166,43 @@ spec:
                 env:
                 - name: LD_LIBRARY_PATH
                   value: /usr/local/nvidia/lib64
+              {container}
+"""
+
+a3_gpu_workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
+kind: JobSet
+metadata:
+  name: {args.workload}
+  labels:
+    kueue.x-k8s.io/queue-name: multislice-queue  # Name of the LocalQueue
+    xpk.google.com/workload: {args.workload}
+spec:
+  ttlSecondsAfterFinished: {args.ttl_seconds_after_finished}
+  failurePolicy:
+    maxRestarts: {args.max_restarts}
+  replicatedJobs:
+    - name: slice-job
+      replicas: 1
+      template:
+        spec:
+          parallelism: {args.num_nodes}
+          completions: {args.num_nodes}
+          backoffLimit: 0   # When any pod fails, the job is failed
+          template:
+            metadata:
+              labels:
+                xpk.google.com/workload: {args.workload}
+              annotations:
+                kueue.x-k8s.io/podset-preferred-topology: "cloud.google.com/gce-topology-host"
+            spec:
+              priorityClassName: {args.priority}
+              restartPolicy: Never
+              dnsPolicy: ClusterFirstWithHostNet
+              terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
+              tolerations:
+              - operator: "Exists"
+                key: nvidia.com/gpu
+              containers:
               {container}
 """
 
@@ -418,17 +459,32 @@ def workload_create(args) -> None:
     if return_code != 0:
       xpk_exit(return_code)
 
-    yml_string = gpu_workload_create_yaml.format(
-        args=args,
-        container=container,
-        command=args.command,
-        chips_per_vm=system.chips_per_vm,
-        gpu_scheduler=gpu_scheduler,
-        gpu_volume=get_gpu_volume(system),
-        gpu_rxdm_image=get_gpu_rxdm_image(system),
-        gpu_rxdm_cmd=get_gpu_rxdm_cmd(system),
-        gpu_tcp_volume=get_gpu_tcp_volume(system),
-    )
+    if system.device_type in cluster_gcluster.supported_device_types:
+      yml_string = a3_gpu_workload_create_yaml.format(
+          args=args, container=container
+      )
+
+      if args.device_type == cluster_gcluster.a3mega_device_type:
+        sub_networks = [f'{args.cluster}-gpunet-{i}-subnet' for i in range(8)]
+        yml_string = tcpxo_decorator.decorate_jobset(yml_string, sub_networks)
+
+      if args.device_type == cluster_gcluster.a3ultra_device_type:
+        sub_networks = [f'{args.cluster}-sub-1'] + [
+            f'{args.cluster}-rdma-sub-{i}' for i in range(8)
+        ]
+        yml_string = rdma_decorator.decorate_jobset(yml_string, sub_networks)
+    else:
+      yml_string = gpu_workload_create_yaml.format(
+          args=args,
+          container=container,
+          command=args.command,
+          chips_per_vm=system.chips_per_vm,
+          gpu_scheduler=gpu_scheduler,
+          gpu_volume=get_gpu_volume(system),
+          gpu_rxdm_image=get_gpu_rxdm_image(system),
+          gpu_rxdm_cmd=get_gpu_rxdm_cmd(system),
+          gpu_tcp_volume=get_gpu_tcp_volume(system),
+      )
   elif args.use_pathways and ensure_pathways_workload_prerequisites(
       args, system
   ):
@@ -522,6 +578,15 @@ def workload_create(args) -> None:
         'Follow your workload here:'
         # pylint: disable=line-too-long
         f' https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
+    )
+    duration_of_logs = 'P1D'  # Past 1 Day
+    xpk_print(
+        'Follow your worker 0, slice 0 logs here:'
+        ' Adjust the pod name'
+        ' ([prefix]-slice-job-[slice_number]-[worker_number])'
+        ' after clicking the url if you want other worker logs.'
+        # pylint: disable=line-too-long
+        f' https://console.cloud.google.com/logs/query;query=resource.type%3D%22k8s_container%22%0Aresource.labels.project_id%3D%22{args.project}%22%0Aresource.labels.location%3D%22{zone_to_region(args.zone)}%22%0Aresource.labels.cluster_name%3D%22{args.cluster}%22%0Aresource.labels.namespace_name%3D%22default%22%0Aresource.labels.pod_name:%22{args.workload}-slice-job-0-0-%22%20severity%3E%3DDEFAULT;storageScope=project;duration={duration_of_logs}?e=13802955&mods=allow_workbench_image_override&project={args.project}'
     )
 
   xpk_exit(0)

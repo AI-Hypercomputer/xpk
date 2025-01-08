@@ -32,9 +32,6 @@ env:
 jobs:
   run-filestore-workload:
     runs-on: [ubuntu-20.04]
-    concurrency: # We support one build or nightly test to run at a time currently.
-      group: filestore-test-group-${{github.event.number}}
-      cancel-in-progress: false
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-python@v5
@@ -105,9 +102,6 @@ jobs:
   
   filestore-create:
     runs-on: [ubuntu-20.04]
-    concurrency: # We support one build or nightly test to run at a time currently.
-      group: filestore-test-group-${{github.event.number}}
-      cancel-in-progress: false
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-python@v5

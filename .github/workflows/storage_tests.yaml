@@ -21,8 +21,8 @@ on:
 
 env:
   # Names must be unique in parallel running tests.
-  TPU_FILESTORE_CLUSTER_NAME: build-xpk-filestore
-  TPU_FILESTORE_CLUSTER_NAME_CREATE: build-xpk-filestore-cr
+  TPU_FILESTORE_CLUSTER_NAME: xpk-fs-attach-${{github.event.number}}
+  TPU_FILESTORE_CLUSTER_NAME_CREATE: xpk-fs-create-${{github.event.number}}
   STORAGE_NAME: test-storage
   FS_STORAGE_NAME: ${{secrets.INSTANCE_NAME}}-test-storage
   FS_DELETE_WORKLOAD: "fs-delete-workload"

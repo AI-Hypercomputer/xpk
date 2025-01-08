@@ -56,7 +56,7 @@ def storage_create(args: Namespace) -> None:
 
   pv_data = filestore_client.create_pv(args.vol, access_mode=args.access_mode)
   pvc_data = filestore_client.create_pvc(access_mode=args.access_mode)
-  sc = filestore_client.create_sc(args.tier)
+  sc = filestore_client.create_sc(args.tier, args.network)
   args.manifest = filestore_client.compile_to_manifest_yaml(
       sc, pv_data, pvc_data
   )

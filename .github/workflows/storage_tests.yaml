@@ -149,7 +149,7 @@ jobs:
       run: |
         python3 xpk.py storage create $FS_STORAGE_NAME --cluster=$TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b --type=gcpfilestore \
         --auto-mount=true --vol=vol1 --size=1024 --tier=BASIC_HDD \
-        --mount-point='/fs-test-mount-point' --readonly=false
+        --mount-point='/fs-test-mount-point' --readonly=false --network=${{secrets.NETWORK_NAME}}
     - name: List and verify existing Storages
       run: python3 xpk.py storage list --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=us-central2-b | tee output.txt | grep $FS_STORAGE_NAME || (echo 'No storage found' && exit 143)
     - name: Run workload to write file on filestore

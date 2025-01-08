@@ -77,6 +77,7 @@ metadata:
   annotations:
     alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool # 1:1 job replica to node pool assignment
 spec:
+  ttlSecondsAfterFinished: {args.ttl_seconds_after_finished}
   failurePolicy:
     maxRestarts: {args.max_restarts}
   replicatedJobs:
@@ -118,6 +119,7 @@ metadata:
     kueue.x-k8s.io/queue-name: multislice-queue  # Name of the LocalQueue
     xpk.google.com/workload: {args.workload}
 spec:
+  ttlSecondsAfterFinished: {args.ttl_seconds_after_finished}
   failurePolicy:
     maxRestarts: {args.max_restarts}
   replicatedJobs:
@@ -175,6 +177,7 @@ metadata:
     kueue.x-k8s.io/queue-name: multislice-queue  # Name of the LocalQueue
     xpk.google.com/workload: {args.workload}
 spec:
+  ttlSecondsAfterFinished: {args.ttl_seconds_after_finished}
   failurePolicy:
     maxRestarts: {args.max_restarts}
   replicatedJobs:

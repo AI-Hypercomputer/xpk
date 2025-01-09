@@ -49,8 +49,8 @@ mkdir-bin:
 
 .PHONY: install-kubectl
 install-kubectl: mkdir-bin
-	curl -Lo $(BIN_PATH)/kubectl $(KUBECTL_URL)
-	chmod +x $(BIN_PATH)/kubectl
+	gcloud components install kubectl
+	gcloud components install gke-gcloud-auth-plugin
 
 .PHONY: install-kueuectl
 install-kueuectl: install-kubectl

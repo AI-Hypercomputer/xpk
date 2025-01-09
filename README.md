@@ -70,8 +70,8 @@ and the following CPU types:
 Following tools must be installed:
 
 - python, pip, python venv >= 3.10 (download from [here](https://packaging.python.org/en/latest/guides/installing-using-linux-tools/#installing-pip-setuptools-wheel-with-linux-package-managers))
-- gcloud (install from [here](https://cloud.google.com/sdk/gcloud#download_and_install_the), please follow [gcloud setup section](#gcloud-prerequisites))
-- docker ([installation instruction](https://docs.docker.com/engine/install/))
+- gcloud (install from [here](https://cloud.google.com/sdk/gcloud#download_and_install_the), please follow [gcloud setup section](#gcloud-prerequisites) to ensure you have gcloud setup properly.)
+- docker ([installation instruction](https://docs.docker.com/engine/install/), please follow [gcloud setup section](##gcloud-prerequisites) to ensure you have docker installed correctly.)
 - make - please run below command.
 ```shell
 # sudo may be required

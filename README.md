@@ -84,7 +84,7 @@ In addition, below dependencies will be installed with `make install` command:
 
 ## gcloud prerequisites
 
-For xpk to run basic gcloud components are needed.
+For xpk to run, basic gcloud components are needed.
 Please remeber to run `gcloud init` and than to [authenticate](https://cloud.google.com/sdk/gcloud/reference/auth/application-default/login) so Google Cloud can be used at its full potential.
 
 To submit workload, docker needs to push images to Artifact Registry. Please run `gcloud auth configure-docker` to ensure workloads can be executed properly. 

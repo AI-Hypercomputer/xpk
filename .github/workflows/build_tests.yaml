@@ -57,7 +57,7 @@ jobs:
     - uses: google-github-actions/setup-gcloud@v2
       with:
         version: '>= 363.0.0'
-        install_components: 'beta,gke-gcloud-auth-plugin'
+        install_components: 'beta, gke-gcloud-auth-plugin'
     - name: Install dependencies
       run : make install-dev
     - name: Run unit tests
@@ -80,7 +80,7 @@ jobs:
     - uses: google-github-actions/setup-gcloud@v2
       with:
         version: '>= 363.0.0'
-        install_components: 'beta,gke-gcloud-auth-plugin, google-cloud-cli-gke-gcloud-auth-plugin'
+        install_components: 'beta,gke-gcloud-auth-plugin, gke-gcloud-auth-plugin'
     - name: Verify gcp setup
       run: gcloud info
     - name: Install dependencies

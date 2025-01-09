@@ -1105,6 +1105,15 @@ UserFacingNameToSystemCharacteristics = {
         'v5p-17920',
     ),
     # v5litepod
+    'v5litepod-8': SystemCharacteristics(
+        '2x4',
+        2,
+        'tpu-v5-lite-podslice',
+        'ct5lp-hightpu-4t',
+        8,
+        AcceleratorType['TPU'],
+        'v5litepod-8',
+    ),
     'v5litepod-16': SystemCharacteristics(
         '4x4',
         4,

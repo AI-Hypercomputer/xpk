@@ -69,25 +69,24 @@ and the following CPU types:
 
 Following tools must be installed:
 
-- python, pip, python venv >= 3.10 (download from [here](https://packaging.python.org/en/latest/guides/installing-using-linux-tools/#installing-pip-setuptools-wheel-with-linux-package-managers))
-- gcloud (install from [here](https://cloud.google.com/sdk/gcloud#download_and_install_the), please follow [gcloud setup section](#gcloud-prerequisites) to ensure you have gcloud setup properly.)
-- docker ([installation instruction](https://docs.docker.com/engine/install/), please follow [gcloud setup section](##gcloud-prerequisites) to ensure you have docker installed correctly.)
+- python >= 3.10 (download from [here](https://www.python.org/downloads/))
+- pip ([installation instruction](https://pip.pypa.io/en/stable/installation/))
+- python venv ([installation instruction](https://virtualenv.pypa.io/en/latest/installation.html))
+(all three of above can be downloaded from [here](https://packaging.python.org/en/latest/guides/installing-using-linux-tools/#installing-pip-setuptools-wheel-with-linux-package-managers))
+- gcloud (install from [here](https://cloud.google.com/sdk/gcloud#download_and_install_the))
+  - Run `gcloud init` 
+  - [Authenticate](https://cloud.google.com/sdk/gcloud/reference/auth/application-default/login) to Google Cloud
+- docker ([installation instruction](https://docs.docker.com/engine/install/))
+  - Run `gcloud auth configure-docker` to ensure images can be uploaded to registry 
 - make - please run below command.
 ```shell
 # sudo may be required
-apt install make
+apt-get -y install make
 ```
 In addition, below dependencies will be installed with `make install` command:
 - kubectl (install from [here](https://kubernetes.io/docs/tasks/tools/))
 - kueuectl (install from [here](https://kueue.sigs.k8s.io/docs/reference/kubectl-kueue/installation/))
 - kjob (installation instructions [here](https://github.com/kubernetes-sigs/kjob/blob/main/docs/installation.md))
-
-## gcloud prerequisites
-
-For xpk to run, basic gcloud components are needed.
-Please remeber to run `gcloud init` and than to [authenticate](https://cloud.google.com/sdk/gcloud/reference/auth/application-default/login) so Google Cloud can be used at its full potential.
-
-To submit workload, docker needs to push images to Artifact Registry. Please run `gcloud auth configure-docker` to ensure workloads can be executed properly. 
 
 # Installation
 To install xpk, run the following command and install additional tools, mentioned in [prerequisites](#prerequisites). [Makefile](https://github.com/AI-Hypercomputer/xpk/blob/main/Makefile) provides a way to install all neccessary tools:

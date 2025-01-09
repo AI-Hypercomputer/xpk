@@ -50,8 +50,7 @@ mkdir-bin:
 .PHONY: install-kubectl
 install-kubectl: mkdir-bin
 	sudo apt-get install kubectl
-	sudo apt-get install apt-transport-https ca-certificates gnupg
-	sudo apt-get install google-cloud-cli-gke-gcloud-auth-plugin
+	sudo apt-get install gke-gcloud-auth-plugin
 
 .PHONY: install-kueuectl
 install-kueuectl: install-kubectl

@@ -192,6 +192,10 @@ jobs:
       run: python3 xpk.py workload delete --workload $WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
     - name: Delete the Pathways workload on the cluster
       run: python3 xpk.py workload delete --workload $PATHWAYS_WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+    - name: Delete created GCS file
+      run: gsutil rm gs://xpk-ci-cd-tests/$RANDOM_SEED.txt
+    - name: Delete existing Storage
+      run: python3 xpk.py storage delete $STORAGE_NAME  --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
     - name: Create test script to execute in batch
       run: echo -e '#!/bin/bash \n#SBATCH --unknown-flag=value\n echo "Hello world from a test script!"' > batch.sh
     - name: Run a batch job on the cluster
@@ -232,10 +236,3 @@ jobs:
     - name: Delete the cluster created
       if: always()
       run: echo 'y' | python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
-    - name: Delete created GCS file
-      run: gsutil rm gs://xpk-ci-cd-tests/$RANDOM_SEED.txt
-    - name: Delete existing Storage
-      run: python3 xpk.py storage delete $STORAGE_NAME  --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
-    - name: Delete the cluster created
-      if: always()
-      run: python3 xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b

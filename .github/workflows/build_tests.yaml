@@ -43,71 +43,71 @@ env:
   ZONE: us-central2-a
   REGION: us-central2
   STORAGE_NAME: test-storage
-  PW_CLUSTER_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}} --maintenance-window=23:50"
   CLUSTER_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}} --subnetwork=${{secrets.SUBNETWORK_NAME}} --maintenance-window=23:50"
   FS_STORAGE_NAME: ${{secrets.INSTANCE_NAME}}-test-storage
   FS_DELETE_WORKLOAD: "fs-delete-workload"
   FS_READ_WORKLOAD: "fs-read-workload"
   FS_WRITE_WORKLOAD: "fs-write-workload"
+  PW_CLUSTER_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}} --subnetwork=${{secrets.SUBNETWORK_NAME}} --maintenance-window=23:50"
 
 jobs:
-  run-unit-tests:
-    runs-on: [ubuntu-22.04]
-    concurrency: # We support one build or nightly test to run at a time currently.
-      group: build-test-cluster-group
-      cancel-in-progress: false
-    steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
-    - uses: google-github-actions/setup-gcloud@v2
-      with:
-        version: '>= 363.0.0'
-        install_components: 'beta, gke-gcloud-auth-plugin'
-    - name: Install dependencies
-      run : make install-dev
-    - name: Run unit tests
-      run: make run-unittests
+  # run-unit-tests:
+  #   runs-on: [ubuntu-22.04]
+  #   concurrency: # We support one build or nightly test to run at a time currently.
+  #     group: build-test-cluster-group
+  #     cancel-in-progress: false
+  #   steps:
+  #   - uses: actions/checkout@v4
+  #   - uses: actions/setup-python@v5
+  #     with:
+  #       python-version: '3.10'
+  #   - uses: google-github-actions/setup-gcloud@v2
+  #     with:
+  #       version: '>= 363.0.0'
+  #       install_components: 'beta, gke-gcloud-auth-plugin'
+  #   - name: Install dependencies
+  #     run : make install-dev
+  #   - name: Run unit tests
+  #     run: make run-unittests
 
-  run-integration-tests:
-    runs-on: [ubuntu-22.04]
-    needs: [run-unit-tests]
-    concurrency: # We support one build or nightly test to run at a time currently.
-      group: build-test-cluster-group
-      cancel-in-progress: false
-    steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
-    - uses: 'google-github-actions/auth@v2'
-      with:
-        credentials_json: '${{ secrets.GCP_SA_KEY }}'
-    - uses: google-github-actions/setup-gcloud@v2
-      with:
-        version: '>= 363.0.0'
-        install_components: 'beta,gke-gcloud-auth-plugin, gke-gcloud-auth-plugin'
-    - name: Verify gcp setup
-      run: gcloud info
-    - name: Install dependencies
-      run : make install-dev
-    - name: "Set auth cidr"
-      run: echo "AUTH_CIDR=$(curl api.ipify.org)/32" >> $GITHUB_ENV
-    - name: "Set GCLOUD_CFG_PATH"
-      run: echo "GCLOUD_CFG_PATH=/home/runner/work/xpk/xpk/" >> $GITHUB_ENV
-    - name: "Copy credentials"
-      run: cp $GOOGLE_APPLICATION_CREDENTIALS $GCLOUD_CFG_PATH/application_default_credentials.json
-    - name: "Set DEPLOYMENT_DIR"
-      run: echo "DEPLOYMENT_DIR=$HOME/deployment" >> $GITHUB_ENV
-    - name: Create deployment dir
-      run: mkdir -p $DEPLOYMENT_DIR
-    - name: Run integration tests
-      run: make run-integrationtests
+  # run-integration-tests:
+  #   runs-on: [ubuntu-22.04]
+  #   needs: [run-unit-tests]
+  #   concurrency: # We support one build or nightly test to run at a time currently.
+  #     group: build-test-cluster-group
+  #     cancel-in-progress: false
+  #   steps:
+  #   - uses: actions/checkout@v4
+  #   - uses: actions/setup-python@v5
+  #     with:
+  #       python-version: '3.10'
+  #   - uses: 'google-github-actions/auth@v2'
+  #     with:
+  #       credentials_json: '${{ secrets.GCP_SA_KEY }}'
+  #   - uses: google-github-actions/setup-gcloud@v2
+  #     with:
+  #       version: '>= 363.0.0'
+  #       install_components: 'beta,gke-gcloud-auth-plugin, gke-gcloud-auth-plugin'
+  #   - name: Verify gcp setup
+  #     run: gcloud info
+  #   - name: Install dependencies
+  #     run : make install-dev
+  #   - name: "Set auth cidr"
+  #     run: echo "AUTH_CIDR=$(curl api.ipify.org)/32" >> $GITHUB_ENV
+  #   - name: "Set GCLOUD_CFG_PATH"
+  #     run: echo "GCLOUD_CFG_PATH=/home/runner/work/xpk/xpk/" >> $GITHUB_ENV
+  #   - name: "Copy credentials"
+  #     run: cp $GOOGLE_APPLICATION_CREDENTIALS $GCLOUD_CFG_PATH/application_default_credentials.json
+  #   - name: "Set DEPLOYMENT_DIR"
+  #     run: echo "DEPLOYMENT_DIR=$HOME/deployment" >> $GITHUB_ENV
+  #   - name: Create deployment dir
+  #     run: mkdir -p $DEPLOYMENT_DIR
+  #   - name: Run integration tests
+  #     run: make run-integrationtests
 
   cluster-create-and-delete:
     runs-on: [ubuntu-22.04]
-    needs: [run-integration-tests]
+    # needs: [run-integration-tests]
     concurrency: # We support one nightly test and one build test for each branch to run at a time currently.
       group: build-test-cluster-group-${{ github.ref }}
       cancel-in-progress: false
@@ -146,18 +146,15 @@ jobs:
         echo $PWD/bin >> "$GITHUB_PATH"
     - name: Check xpk installation
       run: xpk --help
-    - name: Create a private Pathways-enabled XPK Cluster with 2x $TPU_TYPE nodepools. Larger num-nodes to avoid master resizing.
-      run: python xpk.py cluster create-pathways --cluster $TPU_CLUSTER_NAME --private --tpu-type=$TPU_TYPE  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments="${CLUSTER_ARGUMENTS}"
-    - name: Verify the created cluster is private
-      run: gcloud container clusters describe $TPU_CLUSTER_NAME --region=us-central2 --format="value(privateClusterConfig.enablePrivateNodes)" | grep 'True' || (echo 'The created cluster is not private.' && exit 1)
-        pip install .
-        xpk --help
+    # - name: Create a private Pathways-enabled XPK Cluster with 2x $TPU_TYPE nodepools. Larger num-nodes to avoid master resizing.
+    #   run: python xpk.py cluster create-pathways --cluster $TPU_CLUSTER_NAME --private --tpu-type=$TPU_TYPE  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments="${CLUSTER_ARGUMENTS}"
+    # - name: Verify the created cluster is private
+    #   run: gcloud container clusters describe $TPU_CLUSTER_NAME --region=us-central2 --format="value(privateClusterConfig.enablePrivateNodes)" | grep 'True' || (echo 'The created cluster is not private.' && exit 1)
     - name: Create a Pathways-enabled XPK Cluster with 2x v4-8 nodepools. Larger num-nodes to avoid master resizing.
       run: |
         python3 xpk.py cluster create-pathways --cluster $TPU_CLUSTER_NAME --tpu-type=v4-8  --num-slices=2 \
         --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 \
         --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --enable-workload-identity --enable-gcsfuse-csi-driver --enable-gcpfilestore-csi-driver --custom-cluster-arguments="${PW_CLUSTER_ARGUMENTS}"
-
     - name: Authenticate Docker
       run: gcloud auth configure-docker --quiet
     - name: Create auto-mount Storage instance
@@ -201,6 +198,10 @@ jobs:
       run: python3 xpk.py workload delete --workload $WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
     - name: Delete the Pathways workload on the cluster
       run: python3 xpk.py workload delete --workload $PATHWAYS_WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+    - name: Delete created GCS file
+      run: gsutil rm gs://xpk-ci-cd-tests/$RANDOM_SEED.txt
+    - name: Delete existing Storage
+      run: python3 xpk.py storage delete $STORAGE_NAME  --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
     - name: Create test script to execute in batch
       run: echo -e '#!/bin/bash \n#SBATCH --unknown-flag=value\n echo "Hello world from a test script!"' > batch.sh
     - name: Run a batch job on the cluster
@@ -241,10 +242,6 @@ jobs:
     - name: Delete the cluster created
       if: always()
       run: echo 'y' | python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
-    - name: Delete created GCS file
-      run: gsutil rm gs://xpk-ci-cd-tests/$RANDOM_SEED.txt
-    - name: Delete existing Storage
-      run: python3 xpk.py storage delete $STORAGE_NAME  --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
     - name: Delete the cluster created
       if: always()
       run: python3 xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b

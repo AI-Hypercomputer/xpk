@@ -377,7 +377,67 @@ def nodepools_build_table(args) -> tuple[int, list[list]]:
       'TOTAL_NODES',
   ]]
 
-  ### NODEPOOL NAME
+  nodepools_data = {}
+
+  nodepools, return_code = get_node_pools_name(args)
+  if return_code != 0:
+    xpk_print(f'Get node pools name returned ERROR {return_code}')
+
+  for name in nodepools:
+    nodepools_data[name] = [name]
+
+  slices, return_code = get_slice_node_pool_size(args)
+  if return_code != 0:
+    xpk_print(f'Get slice node pool size returned ERROR {return_code}')
+
+  for line in slices:
+    s = line.split()
+    count, nodepool_name = s[0], s[1]
+    nodepools_data[nodepool_name].append(count)
+
+  type_nodepool, return_code = get_node_pool_instance_type(args)
+  if return_code != 0:
+    xpk_print(f'Get node pool instance type returned ERROR {return_code}')
+
+  for line in type_nodepool:
+    tn = line.split()
+    nodepool_name, instance_type = tn[0], tn[1]
+    nodepools_data[nodepool_name].append(instance_type)
+
+  expected_healthy_nodes, return_code = get_expected_healthy_nodes(args)
+  if return_code != 0:
+    xpk_print(f'Get expected healthy nodes returned ERROR {return_code}')
+
+  for line in expected_healthy_nodes:
+    ehn = line.split()
+    count, nodepool_name = ehn[0], ehn[1]
+    nodepools_data[nodepool_name].append(count)
+
+  actual_healthy_nodes, return_code = get_actual_healthy_nodes(args)
+  if return_code != 0:
+    xpk_print(f'Get actual healthy nodes returned ERROR {return_code}')
+
+  for line in actual_healthy_nodes:
+    ahn = line.split()
+    count, nodepool_name = ahn[0], ahn[1]
+    nodepools_data[nodepool_name].append(count)
+
+  total_nodes, return_code = get_total_nodes_per_node_pool(args)
+  if return_code != 0:
+    xpk_print(f'Get total nodes per node pool returned ERROR {return_code}')
+
+  for line in total_nodes:
+    tn = line.split()
+    count, nodepool_name = tn[0], tn[1]
+    nodepools_data[nodepool_name].append(count)
+
+  for _, np_data in nodepools_data.items():
+    table.append(np_data)
+
+  return 0, table
+
+
+def get_node_pools_name(args) -> tuple[list[str], int]:
   cmd_nodepools = (
       'kubectl get node --no-headers=true -o'
       " custom-columns='NODEPOOL:.metadata.labels.cloud\\.google\\.com/gke-nodepool'"
@@ -385,14 +445,12 @@ def nodepools_build_table(args) -> tuple[int, list[list]]:
   )
   return_code, out = run_command_for_value(cmd_nodepools, 'Nodepool list', args)
   if return_code != 0:
-    return return_code
+    return [], return_code
 
-  nodepools = out.splitlines()
-  nodepools_data = {}
-  for name in nodepools:
-    nodepools_data[name] = [name]
+  return out.splitlines(), 0
 
-  ### SLICE
+
+def get_slice_node_pool_size(args) -> tuple[list[str], int]:
   cmd_slices = (
       'kubectl get node --no-headers=true -o'
       " custom-columns=':metadata.labels.cloud\\.google\\.com/gke-nodepool'"
@@ -401,18 +459,15 @@ def nodepools_build_table(args) -> tuple[int, list[list]]:
       ' | uniq -c'
   )
   return_code, out = run_command_for_value(
-      cmd_slices, 'Count expected healthy nodes per nodepool', args
+      cmd_slices, 'Count nodes per nodepool slice', args
   )
   if return_code != 0:
-    return return_code
+    return [], return_code
 
-  slices = out.splitlines()
-  for line in slices:
-    s = line.split()
-    count, nodepool_name = s[0], s[1]
-    nodepools_data[nodepool_name].append(count)
+  return out.splitlines(), 0
 
-  ### TYPE
+
+def get_node_pool_instance_type(args) -> tuple[list[str], int]:
   cmd_type_nodepool = (
       'kubectl get node --no-headers=true -o'
       " custom-columns='NODEPOOL:.metadata.labels.cloud\\.google\\.com/gke-nodepool,"
@@ -423,15 +478,12 @@ def nodepools_build_table(args) -> tuple[int, list[list]]:
       cmd_type_nodepool, 'Instance type of nodepools', args
   )
   if return_code != 0:
-    return return_code
+    return [], return_code
 
-  type_nodepool = out.splitlines()
-  for line in type_nodepool:
-    tn = line.split()
-    nodepool_name, instance_type = tn[0], tn[1]
-    nodepools_data[nodepool_name].append(instance_type)
+  return out.splitlines(), 0
 
-  ### EXPECTED HEALTHY NODES
+
+def get_expected_healthy_nodes(args) -> tuple[list[str], int]:
   cmd_expected_healthy_nodes = (
       'kubectl get node --no-headers=true -o'
       " custom-columns=':metadata.labels.cloud\\.google\\.com/gke-nodepool'"
@@ -445,15 +497,12 @@ def nodepools_build_table(args) -> tuple[int, list[list]]:
       args,
   )
   if return_code != 0:
-    return return_code
+    return [], return_code
 
-  expected_healthy_nodes = out.splitlines()
-  for line in expected_healthy_nodes:
-    ehn = line.split()
-    count, nodepool_name = ehn[0], ehn[1]
-    nodepools_data[nodepool_name].append(count)
+  return out.splitlines(), 0
 
-  ### ACTUAL HEALTHY NODES
+
+def get_actual_healthy_nodes(args) -> tuple[list[str], int]:
   cmd_actual_healthy_nodes = (
       'kubectl get node --no-headers=true -o'
       " custom-columns='NODE_NAME:metadata.name,"
@@ -469,15 +518,12 @@ def nodepools_build_table(args) -> tuple[int, list[list]]:
       cmd_actual_healthy_nodes, 'Count actual healthy nodes per nodepool', args
   )
   if return_code != 0:
-    return return_code
+    return [], return_code
 
-  actual_healthy_nodes = out.splitlines()
-  for line in actual_healthy_nodes:
-    ahn = line.split()
-    count, nodepool_name = ahn[0], ahn[1]
-    nodepools_data[nodepool_name].append(count)
+  return out.splitlines(), 0
 
-  ### TOTAL NODES
+
+def get_total_nodes_per_node_pool(args) -> tuple[list[str], int]:
   cmd_total_nodes = (
       'kubectl get node --no-headers=true -o'
       " custom-columns='NODE_NAME:metadata.name,"
@@ -492,18 +538,9 @@ def nodepools_build_table(args) -> tuple[int, list[list]]:
       cmd_total_nodes, 'Count total nodes per nodepool', args
   )
   if return_code != 0:
-    return return_code
+    return [], return_code
 
-  total_nodes = out.splitlines()
-  for line in total_nodes:
-    tn = line.split()
-    count, nodepool_name = tn[0], tn[1]
-    nodepools_data[nodepool_name].append(count)
-
-  for _, np_data in nodepools_data.items():
-    table.append(np_data)
-
-  return 0, table
+  return out.splitlines(), 0
 
 
 def cluster_list(args) -> None:

@@ -24,7 +24,6 @@ from kubernetes import client as k8s_client
 from kubernetes import utils
 from kubernetes.client import ApiClient
 from kubernetes.client.exceptions import ApiException
-from kubernetes.client.models.v1_persistent_volume import V1PersistentVolume
 from kubernetes.utils import FailToCreateError
 from tabulate import tabulate
 from ..utils.console import xpk_exit, xpk_print
@@ -76,7 +75,7 @@ class Storage:
         data: A dictionary containing the Storage resource definition.
     """
     metadata: k8s_client.V1ObjectMeta | dict = data.get("metadata", {})
-    self.name : str | None= metadata.get("name")
+    self.name: str | None = metadata.get("name")
     spec = data.get("spec", {})
     self.type: str | None = spec.get("type")
     self.auto_mount: bool = spec.get("auto_mount")

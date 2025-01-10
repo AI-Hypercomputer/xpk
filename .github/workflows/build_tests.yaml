@@ -31,7 +31,7 @@ on:
 env:
   # Names must be unique in parallel running tests.
   TPU_TYPE: ${{ inputs.tpuType || 'v4-8' }}
-  TPU_CLUSTER_NAME: build-xpk-2-v4-8-nodepools
+  TPU_CLUSTER_NAME: build-xpk-nodepools
   TPU_FILESTORE_CLUSTER_NAME: build-xpk-filestore
   WORKLOAD_NAME: xpktest-build-${{ github.run_attempt }}
   PATHWAYS_WORKLOAD_NAME: xpkpw-build-${{ github.run_attempt }}
@@ -273,10 +273,12 @@ jobs:
       run: |
         gcloud config set compute/zone us-east4-a
         gcloud config get compute/zone
-    - name: Install xpk with pip and verify it executes corretly
+    - name: Install xpk dependencies
       run: |
-        pip install .
-        xpk --help
+          make install 
+          echo $PWD/bin >> "$GITHUB_PATH"
+    - name: Check xpk installation
+      run: xpk --help
     - name: Authenticate Docker
       run: gcloud auth configure-docker --quiet
     - name: Create a XPK Cluster with 2x v4-8 nodepools. Larger num-nodes to avoid master resizing.

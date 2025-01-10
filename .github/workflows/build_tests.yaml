@@ -42,7 +42,7 @@ env:
   ZONE: us-central2-a
   REGION: us-central2
   STORAGE_NAME: test-storage
-  PW_CLUSTER_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}} --maintenance-window=23:50"
+  PW_CLUSTER_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}} --subnetwork=${{secrets.SUBNETWORK_NAME}} --maintenance-window=23:50"
 
 jobs:
   # run-unit-tests:

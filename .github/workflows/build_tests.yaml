@@ -34,7 +34,6 @@ env:
   TPU_CLUSTER_NAME: build-xpk-2-nodepools
   WORKLOAD_NAME: xpktest-build-${{ github.run_attempt }}
   PATHWAYS_WORKLOAD_NAME: xpkpw-build-${{ github.run_attempt }}
-  CLUSTER_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}} --subnetwork=${{secrets.SUBNETWORK_NAME}} --maintenance-window=23:50"
   RUN_ID: "pr-${{ github.event.number }}"
   PROJECT_ID: ${{secrets.PROJECT_NAME}}
   A3_MEGA_TEST_CLUSTER_NAME: "xpk-mega-ctk-int"

@@ -45,63 +45,63 @@ env:
   PW_CLUSTER_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}} --subnetwork=${{secrets.SUBNETWORK_NAME}} --maintenance-window=23:50"
 
 jobs:
-  # run-unit-tests:
-  #   runs-on: [ubuntu-22.04]
-  #   concurrency: # We support one build or nightly test to run at a time currently.
-  #     group: build-test-cluster-group
-  #     cancel-in-progress: false
-  #   steps:
-  #   - uses: actions/checkout@v4
-  #   - uses: actions/setup-python@v5
-  #     with:
-  #       python-version: '3.10'
-  #   - uses: google-github-actions/setup-gcloud@v2
-  #     with:
-  #       version: '>= 363.0.0'
-  #       install_components: 'beta, gke-gcloud-auth-plugin'
-  #   - name: Install dependencies
-  #     run : make install-dev
-  #   - name: Run unit tests
-  #     run: make run-unittests
+  run-unit-tests:
+    runs-on: [ubuntu-22.04]
+    concurrency: # We support one build or nightly test to run at a time currently.
+      group: build-test-cluster-group
+      cancel-in-progress: false
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+    - uses: google-github-actions/setup-gcloud@v2
+      with:
+        version: '>= 363.0.0'
+        install_components: 'beta, gke-gcloud-auth-plugin'
+    - name: Install dependencies
+      run : make install-dev
+    - name: Run unit tests
+      run: make run-unittests
 
-  # run-integration-tests:
-  #   runs-on: [ubuntu-22.04]
-  #   needs: [run-unit-tests]
-  #   concurrency: # We support one build or nightly test to run at a time currently.
-  #     group: build-test-cluster-group
-  #     cancel-in-progress: false
-  #   steps:
-  #   - uses: actions/checkout@v4
-  #   - uses: actions/setup-python@v5
-  #     with:
-  #       python-version: '3.10'
-  #   - uses: 'google-github-actions/auth@v2'
-  #     with:
-  #       credentials_json: '${{ secrets.GCP_SA_KEY }}'
-  #   - uses: google-github-actions/setup-gcloud@v2
-  #     with:
-  #       version: '>= 363.0.0'
-  #       install_components: 'beta,gke-gcloud-auth-plugin, gke-gcloud-auth-plugin'
-  #   - name: Verify gcp setup
-  #     run: gcloud info
-  #   - name: Install dependencies
-  #     run : make install-dev
-  #   - name: "Set auth cidr"
-  #     run: echo "AUTH_CIDR=$(curl api.ipify.org)/32" >> $GITHUB_ENV
-  #   - name: "Set GCLOUD_CFG_PATH"
-  #     run: echo "GCLOUD_CFG_PATH=/home/runner/work/xpk/xpk/" >> $GITHUB_ENV
-  #   - name: "Copy credentials"
-  #     run: cp $GOOGLE_APPLICATION_CREDENTIALS $GCLOUD_CFG_PATH/application_default_credentials.json
-  #   - name: "Set DEPLOYMENT_DIR"
-  #     run: echo "DEPLOYMENT_DIR=$HOME/deployment" >> $GITHUB_ENV
-  #   - name: Create deployment dir
-  #     run: mkdir -p $DEPLOYMENT_DIR
-  #   - name: Run integration tests
-  #     run: make run-integrationtests
+  run-integration-tests:
+    runs-on: [ubuntu-22.04]
+    needs: [run-unit-tests]
+    concurrency: # We support one build or nightly test to run at a time currently.
+      group: build-test-cluster-group
+      cancel-in-progress: false
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+    - uses: 'google-github-actions/auth@v2'
+      with:
+        credentials_json: '${{ secrets.GCP_SA_KEY }}'
+    - uses: google-github-actions/setup-gcloud@v2
+      with:
+        version: '>= 363.0.0'
+        install_components: 'beta,gke-gcloud-auth-plugin, gke-gcloud-auth-plugin'
+    - name: Verify gcp setup
+      run: gcloud info
+    - name: Install dependencies
+      run : make install-dev
+    - name: "Set auth cidr"
+      run: echo "AUTH_CIDR=$(curl api.ipify.org)/32" >> $GITHUB_ENV
+    - name: "Set GCLOUD_CFG_PATH"
+      run: echo "GCLOUD_CFG_PATH=/home/runner/work/xpk/xpk/" >> $GITHUB_ENV
+    - name: "Copy credentials"
+      run: cp $GOOGLE_APPLICATION_CREDENTIALS $GCLOUD_CFG_PATH/application_default_credentials.json
+    - name: "Set DEPLOYMENT_DIR"
+      run: echo "DEPLOYMENT_DIR=$HOME/deployment" >> $GITHUB_ENV
+    - name: Create deployment dir
+      run: mkdir -p $DEPLOYMENT_DIR
+    - name: Run integration tests
+      run: make run-integrationtests
 
   cluster-create-and-delete:
     runs-on: [ubuntu-22.04]
-    # needs: [run-integration-tests]
+    needs: [run-integration-tests]
     concurrency: # We support one nightly test and one build test for each branch to run at a time currently.
       group: build-test-cluster-group-${{ github.ref }}
       cancel-in-progress: false

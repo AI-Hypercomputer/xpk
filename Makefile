@@ -43,7 +43,7 @@ mkdir-bin:
 
 .PHONY: install-kubectl
 install-kubectl: mkdir-bin
-	sudo apt-get install kubectl
+	gcloud components install kubectl
 	gcloud components install gke-gcloud-auth-plugin
 
 .PHONY: install-kueuectl

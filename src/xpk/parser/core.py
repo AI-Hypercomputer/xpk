@@ -19,6 +19,7 @@ import argparse
 from ..utils.console import xpk_print
 from .cluster import set_cluster_parser
 from .inspector import set_inspector_parser
+from .storage import set_storage_parser
 from .workload import set_workload_parsers
 from .batch import set_batch_parser
 from .job import set_job_parser
@@ -32,7 +33,10 @@ def set_parser(parser: argparse.ArgumentParser):
       title="xpk subcommands", dest="xpk_subcommands", help="Top level commands"
   )
   workload_parser = xpk_subcommands.add_parser(
-      "workload", help="Commands around workload management."
+      "workload", help="Commands around workload management"
+  )
+  storage_parser = xpk_subcommands.add_parser(
+      "storage", help="Commands around storage management"
   )
   cluster_parser = xpk_subcommands.add_parser(
       "cluster",
@@ -75,6 +79,7 @@ def set_parser(parser: argparse.ArgumentParser):
     xpk_print("Welcome to XPK! See below for overall commands:", flush=True)
     parser.print_help()
     cluster_parser.print_help()
+    storage_parser.print_help()
     workload_parser.print_help()
     batch_parser.print_help()
     info_parser.print_help()
@@ -90,6 +95,7 @@ def set_parser(parser: argparse.ArgumentParser):
   cluster_parser.set_defaults(func=default_subcommand_function)
   batch_parser.set_defaults(func=default_subcommand_function)
   info_parser.set_defaults(func=default_subcommand_function)
+  storage_parser.set_defaults(func=default_subcommand_function)
   job_parser.set_defaults(func=default_subcommand_function)
   kind_parser.set_defaults(func=default_subcommand_function)
   shell_parser.set_defaults(func=default_subcommand_function)
@@ -99,6 +105,7 @@ def set_parser(parser: argparse.ArgumentParser):
   set_inspector_parser(inspector_parser=inspector_parser)
   set_batch_parser(batch_parser=batch_parser)
   set_info_parser(info_parser=info_parser)
+  set_storage_parser(storage_parser=storage_parser)
   set_job_parser(job_parser=job_parser)
   set_kind_parser(kind_parser=kind_parser)
   set_shell_parser(shell_parser=shell_parser)

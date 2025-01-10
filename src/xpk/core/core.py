@@ -85,14 +85,11 @@ DEFAULT_VERTEX_TENSORBOARD_NAME = 'tb-instance'
 AUTOPROVISIONING_CONFIG_VALUE = 'AUTOPROVISION'
 AUTOPROVISIONING_CONFIG_MINIMUM_KEY = 'minimum_chips'
 AUTOPROVISIONING_CONFIG_MAXIMUM_KEY = 'maximum_chips'
-<<<<<<< HEAD
 CLOUD_PLATFORM_AUTH_SCOPE_URL = (
     '"https://www.googleapis.com/auth/cloud-platform"'
 )
 PLATFORM = 'linux/amd64'
-=======
 GCS_FUSE_ANNOTATION = 'gke-gcsfuse/volumes: "true"'
->>>>>>> 73af01e (Introduce Storage API (#192))
 
 
 class CapacityType(enum.Enum):
@@ -2045,10 +2042,7 @@ def get_gke_node_pool_version(
           and master_gke_version.split('.')[:2] == version.split('.')[:2]
       ):
         node_pool_gke_version = version
-<<<<<<< HEAD
 
-=======
->>>>>>> 73af01e (Introduce Storage API (#192))
   is_supported_node_pool_version = (
       node_pool_gke_version in gke_server_config.valid_versions
   )

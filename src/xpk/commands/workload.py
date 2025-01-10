@@ -64,7 +64,7 @@ from ..core.system_characteristics import (
 from ..core.workload import get_workload_list
 from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
-from .cluster import set_cluster_command
+
 from ..core.workload_decorators import tcpxo_decorator, rdma_decorator
 from . import cluster_gcluster
 

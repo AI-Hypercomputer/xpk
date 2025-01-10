@@ -545,7 +545,8 @@ def add_shared_cluster_create_optional_arguments(args_parsers):
             ' address. If set, --private is considered true and a private'
             ' cluster will be provisioned. It replaces existing authorized'
             ' networks if used with an existing private cluster.'
-            ' Example usage: --authorized-networks 1.2.3.0/24 1.2.4.5/32')
+            ' Example usage: --authorized-networks 1.2.3.0/24 1.2.4.5/32'
+        ),
     )
     custom_parser.add_argument(
         '--enable-workload-identity',

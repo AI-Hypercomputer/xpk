@@ -16,11 +16,14 @@ limitations under the License.
 
 from ..utils.console import xpk_exit, xpk_print
 from .core import (
+    GCS_FUSE_ANNOTATION,
     AcceleratorType,
     get_all_nodepools_programmatic,
     get_user_workload_container,
+    is_cluster_using_clouddns,
     zone_to_region,
 )
+from .storage import XPK_SA, Storage, get_storage_volumes_yaml
 from .system_characteristics import SystemCharacteristics
 
 PathwaysExpectedInstancesMap = {
@@ -212,7 +215,9 @@ def get_pathways_rm_args(args, system: SystemCharacteristics) -> str:
     return ''
 
 
-def get_user_workload_for_pathways(args, system: SystemCharacteristics) -> str:
+def get_user_workload_for_pathways(
+    args, system: SystemCharacteristics, storages: list[Storage]
+) -> str:
   """
   Create a user workload container for Pathways.
   Don't create one for Pathways headless mode.
@@ -232,14 +237,19 @@ def get_user_workload_for_pathways(args, system: SystemCharacteristics) -> str:
       metadata:
         labels:
           xpk.google.com/workload: {args.workload}
+
       spec:
         backoffLimit: 0
         completions: 1
         parallelism: 1
         template:
+          metadata:
+            annotations:
+              {gcs_fuse_annotation}
           spec:
             containers:
               {container}
+            serviceAccountName: {service_account}
             nodeSelector:
               cloud.google.com/gke-nodepool: cpu-user-np
             restartPolicy: OnFailure
@@ -247,12 +257,20 @@ def get_user_workload_for_pathways(args, system: SystemCharacteristics) -> str:
             - hostPath:
                 path: /tmp
                 type: DirectoryOrCreate
-              name: shared-tmp"""
+              name: shared-tmp
+            {storage_volumes}"""
   if args.headless:
     return ''
   else:
     container, _ = get_user_workload_container(args, system)
-    return user_workload_yaml.format(args=args, container=container)
+    storage_volumes = get_storage_volumes_yaml(storages)
+    return user_workload_yaml.format(
+        args=args,
+        container=container,
+        storage_volumes=storage_volumes,
+        service_account=XPK_SA,
+        gcs_fuse_annotation=GCS_FUSE_ANNOTATION,
+    )
 
 
 def get_rm_address(args) -> str:
@@ -263,7 +281,10 @@ def get_rm_address(args) -> str:
   Returns:
     str: Fully qualified RM address.
   """
-  rm_address = f'{args.workload}-rm-0-0.{args.workload}:29001'
+  suffix = ''
+  if is_cluster_using_clouddns(args):
+    suffix = f'.default.svc.{args.cluster}-domain.'
+  rm_address = f'{args.workload}-rm-0-0.{args.workload}{suffix}:29001'
   return rm_address
 
 
@@ -275,7 +296,12 @@ def get_proxy_address(args) -> str:
   Returns:
     str: Fully qualified proxy address.
   """
-  proxy_address = f'grpc://{args.workload}-proxy-0-0.{args.workload}:29000'
+  suffix = ''
+  if is_cluster_using_clouddns(args):
+    suffix = f'.default.svc.{args.cluster}-domain.'
+  proxy_address = (
+      f'grpc://{args.workload}-proxy-0-0.{args.workload}{suffix}:29000'
+  )
   return proxy_address
 
 

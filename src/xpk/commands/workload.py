@@ -20,15 +20,18 @@ from ..core.commands import (
 )
 from ..core.core import (
     CLUSTER_METADATA_CONFIGMAP,
+    GCS_FUSE_ANNOTATION,
     VERTEX_TENSORBOARD_FEATURE_FLAG,
     AcceleratorTypeToAcceleratorCharacteristics,
     add_zone_and_project,
     check_if_workload_can_schedule,
     check_if_workload_exists,
     create_accelerator_label,
+    create_k8s_service_account,
     create_machine_label,
     create_vertex_experiment,
     get_cluster_configmap,
+    get_cluster_credentials,
     get_cpu_affinity,
     get_gke_outlier_dashboard,
     get_gpu_rxdm_cmd,
@@ -39,6 +42,7 @@ from ..core.core import (
     get_user_workload_container,
     get_volumes,
     parse_env_config,
+    setup_k8s_env,
     wait_for_job_completion,
     xpk_current_version,
     zone_to_region,
@@ -56,6 +60,18 @@ from ..core.pathways import (
     get_pathways_worker_args,
     get_user_workload_for_pathways,
 )
+from ..core.storage import (
+    GCS_FUSE_TYPE,
+    GCP_FILESTORE_TYPE,
+    XPK_SA,
+    Storage,
+    add_bucket_iam_members,
+    get_storage_volume_mounts_yaml,
+    get_storage_volume_mounts_yaml_for_gpu,
+    get_storage_volumes_yaml,
+    get_storage_volumes_yaml_for_gpu,
+    get_storages_to_mount,
+)
 from ..core.system_characteristics import (
     AcceleratorType,
     get_system_characteristics,
@@ -63,7 +79,6 @@ from ..core.system_characteristics import (
 from ..core.workload import get_workload_list
 from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
-from .cluster import set_cluster_command
 from ..core.workload_decorators import tcpxo_decorator, rdma_decorator
 from . import cluster_gcluster
 
@@ -92,6 +107,8 @@ spec:
             metadata:
               labels:
                 xpk.google.com/workload: {args.workload}
+              annotations:
+                {storage_annotations}
             spec:
               schedulerName: {args.scheduler}
               restartPolicy: Never
@@ -106,6 +123,7 @@ spec:
               terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
               containers:
               {container}
+              serviceAccountName: {service_account}
               volumes:
               {volumes}
 """
@@ -126,6 +144,9 @@ spec:
     - name: slice-job
       replicas: 1
       template:
+        metadata:
+          annotations:
+            {storage_annotations}
         spec:
           parallelism: {args.num_nodes}
           completions: {args.num_nodes}
@@ -141,11 +162,13 @@ spec:
               hostNetwork: true
               dnsPolicy: ClusterFirstWithHostNet
               terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
+              serviceAccountName: {service_account}
               tolerations:
               - operator: "Exists"
                 key: nvidia.com/gpu
               volumes:
               {gpu_volume}
+              {storage_volumes}
               containers:
               {gpu_rxdm_image}
                 imagePullPolicy: Always
@@ -159,6 +182,7 @@ spec:
                   privileged: true
                 volumeMounts:
                 {gpu_tcp_volume}
+                {storage_volume_mounts}
                 - name: nvidia-install-dir-host
                   mountPath: /usr/local/nvidia/lib64
                 - name: workload-terminated-volume
@@ -234,8 +258,12 @@ spec:
         completions: {system.vms_per_slice}
         parallelism: {system.vms_per_slice}
         template:
+          metadata:
+            annotations:
+              {storage_annotations}
           spec:
             terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
+            serviceAccountName: {service_account}
             containers:
             - args:
               {pathways_worker_args}
@@ -254,6 +282,7 @@ spec:
               volumeMounts:
               - mountPath: /tmp
                 name: shared-tmp
+              {storage_volume_mounts}
             nodeSelector:
               {accelerator_label}
               {machine_label}
@@ -266,6 +295,7 @@ spec:
                 path: /tmp
                 type: DirectoryOrCreate
               name: shared-tmp
+            {storage_volumes}
   - name: rm
     replicas: 1
     template:
@@ -363,7 +393,8 @@ def workload_create(args) -> None:
   Returns:
     0 if successful and 1 otherwise.
   """
-  add_zone_and_project(args)
+  k8s_api_client = setup_k8s_env(args)
+  create_k8s_service_account(XPK_SA, 'default')
 
   if args.headless:
     xpk_print(
@@ -373,9 +404,7 @@ def workload_create(args) -> None:
         " -c 'import pathwaysutils; import jax; print(jax.devices())'"
     )
 
-  set_cluster_command_code = set_cluster_command(args)
-  if set_cluster_command_code != 0:
-    xpk_exit(set_cluster_command_code)
+  get_cluster_credentials(args)
 
   workload_exists = check_if_workload_exists(args)
 
@@ -448,6 +477,29 @@ def workload_create(args) -> None:
     if return_code != 0:
       xpk_exit(return_code)
 
+  storages: list[Storage] = get_storages_to_mount(k8s_api_client, args.storage)
+  gcs_fuse_storages = list(
+      filter(lambda storage: storage.type == GCS_FUSE_TYPE, storages)
+  )
+  gcpfilestore_storages: list[Storage] = list(
+      filter(lambda storage: storage.type == GCP_FILESTORE_TYPE, storages)
+  )
+  storage_annotations = ''
+  service_account = ''
+  if len(gcs_fuse_storages) > 0:
+    storage_annotations = GCS_FUSE_ANNOTATION
+    service_account = XPK_SA
+    xpk_print(f'Detected gcsfuse Storages to add: {gcs_fuse_storages}')
+  else:
+    xpk_print('No gcsfuse Storages to add detected')
+
+  if len(gcpfilestore_storages) > 0:
+    xpk_print(
+        f'Detected gcp filestores instances to add: {gcpfilestore_storages}'
+    )
+  else:
+    xpk_print('No gcp filestore instances to add detected.')
+
   # Create the workload file based on accelerator type or workload type.
   if system.accelerator_type == AcceleratorType['GPU']:
     container, debugging_dashboard_id = get_user_workload_container(
@@ -484,6 +536,14 @@ def workload_create(args) -> None:
           gpu_rxdm_image=get_gpu_rxdm_image(system),
           gpu_rxdm_cmd=get_gpu_rxdm_cmd(system),
           gpu_tcp_volume=get_gpu_tcp_volume(system),
+          storage_volumes=get_storage_volumes_yaml_for_gpu(
+              gcs_fuse_storages + gcpfilestore_storages
+          ),
+          storage_volume_mounts=get_storage_volume_mounts_yaml_for_gpu(
+              gcs_fuse_storages + gcpfilestore_storages
+          ),
+          storage_annotations=storage_annotations,
+          service_account=service_account,
       )
   elif args.use_pathways and ensure_pathways_workload_prerequisites(
       args, system
@@ -498,13 +558,21 @@ def workload_create(args) -> None:
         pathways_rm_args=get_pathways_rm_args(args, system),
         pathways_worker_args=get_pathways_worker_args(args),
         pathways_proxy_args=get_pathways_proxy_args(args),
-        user_workload=get_user_workload_for_pathways(args, system),
+        user_workload=get_user_workload_for_pathways(args, system, storages),
         resource_type=AcceleratorTypeToAcceleratorCharacteristics[
             system.accelerator_type
         ].resource_type,
         local_queue_name=LOCAL_QUEUE_NAME,
         autoprovisioning_args=autoprovisioning_args,
         backoff_limit=system.vms_per_slice * 4,
+        storage_annotations=storage_annotations,
+        storage_volumes=get_storage_volumes_yaml(
+            gcs_fuse_storages + gcpfilestore_storages
+        ),
+        storage_volume_mounts=get_storage_volume_mounts_yaml(
+            gcs_fuse_storages + gcpfilestore_storages
+        ),
+        service_account=service_account,
     )
   else:
     container, debugging_dashboard_id = get_user_workload_container(
@@ -522,6 +590,8 @@ def workload_create(args) -> None:
         local_queue_name=LOCAL_QUEUE_NAME,
         autoprovisioning_args=autoprovisioning_args,
         volumes=get_volumes(args, system),
+        storage_annotations=storage_annotations,
+        service_account=service_account,
     )
   tmp = write_tmp_file(yml_string)
   command = f'kubectl apply -f {str(tmp.file.name)}'
@@ -531,6 +601,7 @@ def workload_create(args) -> None:
     xpk_print(f'Create Workload request returned ERROR {return_code}')
     xpk_exit(return_code)
 
+  add_bucket_iam_members(args, storages)
   # Get GKE outlier dashboard for TPU
   outlier_dashboard_id = None
   if system.accelerator_type == AcceleratorType['TPU']:
@@ -603,9 +674,7 @@ def workload_delete(args) -> None:
   """
   xpk_print('Starting Workload delete', flush=True)
   add_zone_and_project(args)
-  set_cluster_command_code = set_cluster_command(args)
-  if set_cluster_command_code != 0:
-    xpk_exit(set_cluster_command_code)
+  get_cluster_credentials(args)
 
   will_delete = True
   if not args.workload:
@@ -671,9 +740,7 @@ def workload_list(args) -> None:
 
   xpk_print('Starting workload list', flush=True)
   add_zone_and_project(args)
-  set_cluster_command_code = set_cluster_command(args)
-  if set_cluster_command_code != 0:
-    xpk_exit(set_cluster_command_code)
+  get_cluster_credentials(args)
 
   if args.wait_for_job_completion:
     return_code = wait_for_job_completion(args)

@@ -14,11 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..core.commands import (
-    run_command_for_value,
-    run_command_with_updates,
-    run_command_with_updates_retry,
-)
+from ..core.commands import run_command_for_value, run_command_with_updates
 from ..core.core import (
     VERTEX_TENSORBOARD_FEATURE_FLAG,
     add_zone_and_project,
@@ -27,6 +23,7 @@ from ..core.core import (
     create_vertex_tensorboard,
     delete_cluster_subnets,
     get_all_clusters_programmatic,
+    get_cluster_credentials,
     get_gke_control_plane_version,
     get_gke_node_pool_version,
     get_gke_server_config,
@@ -35,6 +32,10 @@ from ..core.core import (
     run_gke_node_pool_create_command,
     set_jobset_on_cluster,
     set_up_cluster_network_for_gpu,
+    setup_k8s_env,
+    update_cluster_with_gcsfuse_driver_if_necessary,
+    update_cluster_with_workload_identity_if_necessary,
+    update_cluster_with_gcpfilestore_driver_if_necessary,
     zone_to_region,
     get_user_input,
 )
@@ -52,6 +53,7 @@ from ..core.kueue import (
 )
 from ..core.nap import enable_autoprovisioning_on_cluster
 from ..core.ray import install_ray_cluster
+from ..core.storage import install_storage_crd
 from ..core.system_characteristics import (
     AcceleratorType,
     AcceleratorTypeToAcceleratorCharacteristics,
@@ -113,10 +115,36 @@ def cluster_create(args) -> None:
     xpk_exit(authorize_private_cluster_access_command_code)
 
   # ToDo(roshanin@) - Re-enable CloudDNS on Pathways clusters conditionally.
+  # Enable WorkloadIdentity if not enabled already.
+  if (
+      args.enable_workload_identity
+      or args.enable_gcsfuse_csi_driver
+      or args.enable_gcpfilestore_csi_driver
+  ):
+    update_cluster_command_code = (
+        update_cluster_with_workload_identity_if_necessary(args)
+    )
+    if update_cluster_command_code != 0:
+      xpk_exit(update_cluster_command_code)
 
-  set_cluster_command_code = set_cluster_command(args)
-  if set_cluster_command_code != 0:
-    xpk_exit(set_cluster_command_code)
+  # Enable GCSFuse CSI Driver if not enabled already.
+  if args.enable_gcsfuse_csi_driver:
+    update_cluster_command_code = (
+        update_cluster_with_gcsfuse_driver_if_necessary(args)
+    )
+    if update_cluster_command_code != 0:
+      xpk_exit(update_cluster_command_code)
+
+  if args.enable_gcpfilestore_csi_driver:
+    update_cluster_command_code = (
+        update_cluster_with_gcpfilestore_driver_if_necessary(args)
+    )
+    if update_cluster_command_code != 0:
+      xpk_exit(update_cluster_command_code)
+
+  # Update Pathways clusters with CloudDNS if not enabled already.
+
+  get_cluster_credentials(args)
 
   # create Vertex Tensorboard for new and existing clusters if create-vertex-tensorboard is set
   tensorboard_config = {}
@@ -179,6 +207,8 @@ def cluster_create(args) -> None:
   err_code = prepare_kjob(args)
   if err_code > 0:
     xpk_exit(err_code)
+  k8s_client = setup_k8s_env(args)
+  install_storage_crd(k8s_client)
   # Provision node pools dynamically based on incoming workloads:
   # Currently autoprovisioning is not supported with Pathways.
   autoprovisioning_config = None
@@ -268,9 +298,7 @@ def cluster_cacheimage(args) -> None:
   )
   add_zone_and_project(args)
 
-  set_cluster_command_code = set_cluster_command(args)
-  if set_cluster_command_code != 0:
-    xpk_exit(set_cluster_command_code)
+  get_cluster_credentials(args)
   system, return_code = get_system_characteristics(args)
 
   if return_code > 0:
@@ -319,9 +347,7 @@ def cluster_describe(args) -> None:
   xpk_print(f'Starting nodepool list for cluster: {args.cluster}', flush=True)
   add_zone_and_project(args)
 
-  set_cluster_command_code = set_cluster_command(args)
-  if set_cluster_command_code != 0:
-    xpk_exit(set_cluster_command_code)
+  get_cluster_credentials(args)
 
   command = (
       f'gcloud container node-pools  list --cluster {args.cluster} '
@@ -550,7 +576,7 @@ def run_gke_cluster_create_command(
   enable_ip_alias = False
 
   if args.private or args.authorized_networks is not None:
-    enable_ip_alias = True
+
     command += ' --enable-master-authorized-networks --enable-private-nodes'
 
   if system.accelerator_type == AcceleratorType['GPU']:
@@ -563,7 +589,7 @@ def run_gke_cluster_create_command(
     command += ' --location-policy=BALANCED --scopes=storage-full,gke-default'
 
     if args.enable_pathways:
-      enable_ip_alias = True
+      enable_ip_alias = False
 
   if enable_ip_alias:
     command += ' --enable-ip-alias'
@@ -571,33 +597,26 @@ def run_gke_cluster_create_command(
   if args.enable_ray_cluster:
     command += ' --addons RayOperator'
 
+  if (
+      args.enable_workload_identity
+      or args.enable_gcsfuse_csi_driver
+      or args.enable_gcpfilestore_csi_driver
+  ):
+    command += f' --workload-pool={args.project}.svc.id.goog'
+
+  addons = []
+  if args.enable_gcsfuse_csi_driver:
+    addons.append('GcsFuseCsiDriver')
+
+  if args.enable_gcpfilestore_csi_driver:
+    addons.append('GcpFilestoreCsiDriver')
+
+  if len(addons) > 0:
+    addons_str = ','.join(addons)
+    command += f' --addons={addons_str}'
+
   return_code = run_command_with_updates(command, 'GKE Cluster Create', args)
   if return_code != 0:
     xpk_print(f'GKE Cluster Create request returned ERROR {return_code}')
     return 1
   return 0
-
-
-def set_cluster_command(args) -> int:
-  """Run cluster configuration command to set the kubectl config.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  command = (
-      'gcloud container clusters get-credentials'
-      f' {args.cluster} --region={zone_to_region(args.zone)}'
-      f' --project={args.project} &&'
-      ' kubectl config view && kubectl config set-context --current'
-      ' --namespace=default'
-  )
-  task = f'get-credentials to cluster {args.cluster}'
-  return_code = run_command_with_updates_retry(
-      command, task, args, verbose=False
-  )
-  if return_code != 0:
-    xpk_print(f'{task} returned ERROR {return_code}')
-  return return_code

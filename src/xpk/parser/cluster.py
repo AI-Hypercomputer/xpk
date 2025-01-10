@@ -564,6 +564,15 @@ def add_shared_cluster_create_optional_arguments(args_parsers):
         ),
     )
 
+    custom_parser.add_argument(
+        '--enable-gcpfilestore-csi-driver',
+        action='store_true',
+        help=(
+            'Enable GCPFilestore driver on the cluster. This enables Workload'
+            ' Identity Federation.'
+        ),
+    )
+
 
 def add_shared_cluster_create_tensorboard_arguments(args_parsers):
   """Add shared tensorboard arguments in cluster create and Pathways cluster create.

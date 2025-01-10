@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: xpk-filestore-pv
+spec:
+  storageClassName: "xpkdefsc"
+  capacity:
+    storage: 1Ti
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  volumeMode: Filesystem
+  csi:
+    driver: filestore.csi.storage.gke.io
+    volumeHandle: "projects/PROJECT_NAME/locations/ZONE/instances/INSTANCE_NAME/volumes/VOL_NAME"
+    volumeAttributes:
+      ip: IP_ADDRESS
+      volume: VOL_NAME
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: podpvc
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: "xpkdefsc"
+  volumeName: xpk-filestore-pv
+  resources:
+    requests:
+      storage: 1Ti

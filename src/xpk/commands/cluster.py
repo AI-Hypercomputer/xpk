@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..core.commands import run_command_for_value, run_command_with_updates
+from ..core.commands import run_command_for_value, run_command_with_updates, run_command_with_updates_retry
 from ..core.core import (
     VERTEX_TENSORBOARD_FEATURE_FLAG,
     add_zone_and_project,
@@ -603,3 +603,28 @@ def run_gke_cluster_create_command(
     xpk_print(f'GKE Cluster Create request returned ERROR {return_code}')
     return 1
   return 0
+
+
+def set_cluster_command(args) -> int:
+  """Run cluster configuration command to set the kubectl config.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  command = (
+      'gcloud container clusters get-credentials'
+      f' {args.cluster} --region={zone_to_region(args.zone)}'
+      f' --project={args.project} &&'
+      ' kubectl config view && kubectl config set-context --current'
+      ' --namespace=default'
+  )
+  task = f'get-credentials to cluster {args.cluster}'
+  return_code = run_command_with_updates_retry(
+      command, task, args, verbose=False
+  )
+  if return_code != 0:
+    xpk_print(f'{task} returned ERROR {return_code}')
+  return return_code

@@ -28,7 +28,7 @@ from kubernetes.client.models.v1_persistent_volume import V1PersistentVolume
 from kubernetes.utils import FailToCreateError
 from tabulate import tabulate
 
-from ..utils import xpk_exit, xpk_print
+from ..utils.console import xpk_exit, xpk_print
 
 XPK_SA = "xpk-sa"
 STORAGE_CRD_PATH = "/../api/storage_crd.yaml"

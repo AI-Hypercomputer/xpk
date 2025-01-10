@@ -34,7 +34,8 @@ from ..core.storage import (
     list_storages,
     print_storages_for_cluster,
 )
-from ..utils import apply_kubectl_manifest, xpk_exit, xpk_print
+from ..utils.console import xpk_exit, xpk_print
+from ..utils.kubectl import apply_kubectl_manifest
 
 
 def storage_create(args: Namespace) -> None:

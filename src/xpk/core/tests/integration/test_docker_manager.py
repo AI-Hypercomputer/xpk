@@ -19,12 +19,14 @@ from docker.errors import APIError
 from xpk.core.docker_manager import DockerManager
 import pytest
 import os
+import time
 
 test_cfg_path = '/tmp/xpk_gcloud_cfg'
 test_deployment_dir = '/tmp/xpk_deployment'
-test_gcluster_cmd = 'gcluster --help'
+test_gcluster_cmd = 'gcluster --version'
 test_ctk_xpk_img = 'gcluster-xpk'
 test_ctk_xpk_container = 'xpk-test-container'
+gcluster_version = 'develop'
 
 
 def remove_img():
@@ -75,8 +77,7 @@ def test_docker_build_image(setup_img_name):
 
   dc = docker.from_env()
   containers_before = dc.containers.list(all=True)
-
-  dc.images.get(setup_img_name)
+  dc.images.get(f'{setup_img_name}:{gcluster_version}')
   containers_after = dc.containers.list(all=True)
   assert len(containers_before) == len(containers_after)
 
@@ -87,13 +88,15 @@ def test_run_command(setup_img_name):
       gcloud_cfg_path=test_cfg_path,
       working_dir=test_deployment_dir,
       img_name=setup_img_name,
-      rm_container_after=True,
+      remove_container=True,
   )
   dc = docker.from_env()
 
   containers_before = dc.containers.list(all=True)
   dm.initialize()
   dm.run_command(test_gcluster_cmd)
+
+  time.sleep(2)
 
   containers_after = dc.containers.list(all=True)
 

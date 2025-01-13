@@ -115,6 +115,15 @@ def set_workload_parsers(workload_parser):
   )
 
   workload_create_parser_optional_arguments.add_argument(
+      '--ttl-seconds-after-finished',
+      type=int,
+      default=12 * 60 * 60,
+      help=(
+          'Set the number of seconds to clean up finished Jobsets (either'
+          ' Complete or Failed). This is by default set to 12 hours.'
+      ),
+  )
+  workload_create_parser_optional_arguments.add_argument(
       '--num-nodes',
       type=int,
       default=1,

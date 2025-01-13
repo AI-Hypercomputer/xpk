@@ -70,6 +70,21 @@ def get_system_characteristics(
     int of 0 if successful and 1 otherwise.
   """
   device_type = args.tpu_type if args.tpu_type else args.device_type
+  return get_system_characteristics_by_device_type(device_type)
+
+
+def get_system_characteristics_by_device_type(
+    device_type,
+) -> tuple[SystemCharacteristics | None, int]:
+  """Get system characteristics based on device_type.
+
+  Args:
+    device_type: device_type for running the command.
+
+  Returns:
+    Tuple with string with the system characteristics and
+    int of 0 if successful and 1 otherwise.
+  """
   if device_type in UserFacingNameToSystemCharacteristics:
     return UserFacingNameToSystemCharacteristics[device_type], 0
   else:
@@ -120,6 +135,15 @@ UserFacingNameToSystemCharacteristics = {
         8,
         AcceleratorType['GPU'],
         'a100-40gb-8',
+    ),
+    'h200-141gb-8': SystemCharacteristics(
+        'N/A',
+        1,
+        'nvidia-h200-141gb',
+        'a3-ultragpu-8g',
+        8,
+        AcceleratorType['GPU'],
+        'h200-141gb-8',
     ),
     # H100-80gb-$CHIPS
     'h100-80gb-8': SystemCharacteristics(

@@ -61,6 +61,7 @@ from ..core.system_characteristics import (
 from ..core.workload import get_workload_list
 from ..utils.file import write_tmp_file
 from ..utils.console import xpk_exit, xpk_print
+from . import cluster_gcluster
 
 
 def cluster_create(args) -> None:
@@ -80,6 +81,14 @@ def cluster_create(args) -> None:
 
   xpk_print(f'Starting cluster create for cluster {args.cluster}:', flush=True)
   add_zone_and_project(args)
+
+  if system.device_type in cluster_gcluster.supported_device_types:
+    xpk_print(
+        'Creating the cluster using Cluster Toolkit. Machine Type:'
+        f' {system.gce_machine_type} ...'
+    )
+    cluster_gcluster.cluster_create(args)
+    xpk_exit(0)
 
   return_code, gke_server_config = get_gke_server_config(args)
   if return_code != 0:
@@ -232,6 +241,12 @@ def cluster_delete(args) -> None:
   """
   xpk_print(f'Starting cluster delete for cluster: {args.cluster}', flush=True)
   add_zone_and_project(args)
+
+  if cluster_gcluster.created_by_gcluster(args):
+    xpk_print(f'Deleting {args.cluster} cluster using Cluster Toolkit...')
+    cluster_gcluster.cluster_delete(args)
+    xpk_exit(0)
+
   run_gke_cluster_delete_command_code = run_gke_cluster_delete_command(args)
   if run_gke_cluster_delete_command_code != 0:
     xpk_exit(run_gke_cluster_delete_command_code)

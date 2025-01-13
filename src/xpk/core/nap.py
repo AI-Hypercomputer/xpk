@@ -282,7 +282,7 @@ def is_autoprovisioning_enabled(
     xpk_print(
         'Error: Autoprovisioning not enabled but should be so exiting xpk.'
         f' Value should be {AUTOPROVISIONING_CONFIG_VALUE} but instead found'
-        f' value of  {cluster_config_map[system.accelerator_type]}'
+        f' value of {autoprovisioning_value}'
     )
     return False, 1
 

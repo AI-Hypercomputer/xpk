@@ -46,8 +46,10 @@ xpk supports the following TPU types:
 * Trillium (v6e)
 
 and the following GPU types:
-* a100
-* a3 (h100)
+* A100
+* A3-Highgpu (h100)
+* A3-Mega (h100-mega) - [Create cluster](#provisioning-a3-ultra-and-a3-mega-clusters-gpu-machines), [Create workloads](#workloads-for-a3-ultra-and-a3-mega-clusters-gpu-machines)
+* A3-Ultra (h200) - [Create cluster](#provisioning-a3-ultra-and-a3-mega-clusters-gpu-machines), [Create workloads](#workloads-for-a3-ultra-and-a3-mega-clusters-gpu-machines)
 
 and the following CPU types:
 * n2-standard-32
@@ -65,10 +67,23 @@ and the following CPU types:
 
 # Prerequisites
 
-xpk uses many tool to provide all neccessary functionalities. User must install following tools:
+Following tools must be installed:
 
 - python >= 3.10 (download from [here](https://www.python.org/downloads/))
+- pip ([installation instruction](https://pip.pypa.io/en/stable/installation/))
+- python venv ([installation instruction](https://virtualenv.pypa.io/en/latest/installation.html))
+(all three of above can be installed at once from [here](https://packaging.python.org/en/latest/guides/installing-using-linux-tools/#installing-pip-setuptools-wheel-with-linux-package-managers))
 - gcloud (install from [here](https://cloud.google.com/sdk/gcloud#download_and_install_the))
+  - Run `gcloud init` 
+  - [Authenticate](https://cloud.google.com/sdk/gcloud/reference/auth/application-default/login) to Google Cloud
+- docker ([installation instruction](https://docs.docker.com/engine/install/))
+  - Run `gcloud auth configure-docker` to ensure images can be uploaded to registry 
+- make - please run below command.
+```shell
+# sudo may be required
+apt-get -y install make
+```
+In addition, below dependencies will be installed with `make install` command:
 - kubectl (install from [here](https://kubernetes.io/docs/tasks/tools/))
 - kueuectl (install from [here](https://kueue.sigs.k8s.io/docs/reference/kubectl-kueue/installation/))
 - kjob (installation instructions [here](https://github.com/kubernetes-sigs/kjob/blob/main/docs/installation.md))
@@ -386,6 +401,26 @@ will fail the cluster creation process because Vertex AI Tensorboard is not supp
     --tpu-type=v5litepod-16
     ```
 
+## Provisioning A3-Ultra and A3-Mega clusters (GPU machines)
+To create a cluster with A3 machines, run the below command. To create workloads on these clusters see [here](#workloads-for-a3-ultra-and-a3-mega-clusters-gpu-machines).
+  * For A3-Ultra: --device-type=h200-141gb-8
+  * For A3-Mega: --device-type=h100-mega-80gb-8
+
+  ```shell
+  python3 xpk.py cluster create \
+  --cluster CLUSTER_NAME --device-type=h200-141gb-8 \
+  --zone=$COMPUTE_ZONE  --project=$PROJECT_ID \
+  --num-nodes=4 --reservation=$RESERVATION_ID
+  ```
+Currently, the below flags/arguments are supported for A3-Mega and A3-Ultra machines:
+  * --num-nodes
+  * --default-pool-cpu-machine-type
+  * --default-pool-cpu-num-nodes
+  * --reservation
+  * --spot
+  * --on-demand (only A3-Mega)
+
+
 ## Workload Create
 *   Workload Create (submit training job):
 
@@ -451,6 +486,20 @@ times when the job terminates. For production jobs, it is recommended to
 increase this to a large number, say 50. Real jobs can be interrupted due to
 hardware failures and software updates. We assume your job has implemented
 checkpointing so the job restarts near where it was interrupted.
+
+### Workloads for A3-Ultra and A3-Mega clusters (GPU machines)
+To submit jobs on a cluster with A3 machines, run the below command. To create a cluster with A3 machines see [here](#provisioning-a3-ultra-and-a3-mega-clusters-gpu-machines).
+  * For A3-Ultra: --device-type=h200-141gb-8
+  * For A3-Mega: --device-type=h100-mega-80gb-8
+
+  ```shell
+  python3 xpk.py workload create \
+  --workload=$WORKLOAD_NAME --command="echo goodbye" \
+  --cluster=$CLUSTER_NAME --device-type=h200-141gb-8 \
+  --zone=$COMPUTE_ZONE  --project=$PROJECT_ID \
+  --num-nodes=$WOKRKLOAD_NUM_NODES
+  ```
+> The docker image flags/arguments introduced in [workloads section](#workload-create) can be used with A3 machines as well.
 
 ### Workload Priority and Preemption
 * Set the priority level of your workload with `--priority=LEVEL`

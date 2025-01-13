@@ -12,10 +12,10 @@ spec:
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: ResourceFlavor
 metadata:
-  name: 1xh100-mega-80gb-8
+  name: 1xh200-141gb-8
 spec:
   nodeLabels:
-    cloud.google.com/gke-accelerator: nvidia-h100-mega-80gb
+    cloud.google.com/gke-accelerator: nvidia-h200-141gb
   topologyName: "gke-default"
 ---
 apiVersion: kueue.x-k8s.io/v1beta1
@@ -27,7 +27,7 @@ spec:
   resourceGroups:
   - coveredResources: ["nvidia.com/gpu", "cpu", "memory"]
     flavors:
-    - name: 1xh100-mega-80gb-8
+    - name: 1xh200-141gb-8
       resources:
       - name: "nvidia.com/gpu"
         nominalQuota: ${num_chips}

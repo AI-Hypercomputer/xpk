@@ -1,0 +1,6 @@
+python xpk.py cluster create --cluster ppawlkueue0.8.1 --tpu-type=v4-8  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 --spot --custom-cluster-arguments="${CLUSTER_ARGUMENTS}"
+
+kubectl delete crd multikueueclusters.kueue.x-k8s.io
+kubectl delete crd multikueueconfigs.kueue.x-k8s.io
+
+python xpk.py cluster create --cluster ppawlkueue0.8.1 --tpu-type=v4-8  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 --spot --custom-cluster-arguments="${CLUSTER_ARGUMENTS}"

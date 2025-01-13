@@ -65,6 +65,7 @@ Monitoring Admin
 Service Account User
 Storage Admin
 Vertex AI Administrator
+Filestore Editor (This role is neccessary if you want to run `storage create` command)
 
 # Installation
 To install xpk, run the following command:
@@ -336,10 +337,10 @@ Once it's ready user can define
 `--manifest` - defines the path to manifest which contains PersistentVolue and PersistentVolumeClaim definitions
 
 
-* Create a simple Storage
+* Attach to gcsfuse storage instance.
 
     ```shell
-    python3 xpk.py storage create test-storage --project=$PROJECT
+    python3 xpk.py storage attach test-storage --project=$PROJECT
     --cluster=xpk-test --type=gcsfuse --auto-mount=false \
     --mount-point='/test-mount-point' --readonly=false \
     --manifest='examples/storage/gcsfuse-manifest.yaml'
@@ -364,7 +365,7 @@ set up PersistentVolume and PersistentVolumeClaim visit [GKE Filestore documenta
 
 Creating Filestore storage and attaching it to workload can be achieved in two steps:
 
-* Create a simple Storage, that attaches existing filestore instance to your workloads. User must specify `--type=gcpfilestore`.
+* Create a simple Storage, that attaches existing filestore instance to your workloads. User must specify `--type=gcpfilestore`. This command will create a new instance of Filestore, which you can find in your gcp console, or by running `here is the command for listing filestore instance`
 
     ```shell
     python3 xpk.py storage create fs-storage-attach --project=$PROJECT
@@ -373,7 +374,7 @@ Creating Filestore storage and attaching it to workload can be achieved in two s
     --manifest='examples/storage/filestore-manifest-attach.yaml'
     ```
 
-* Create a simple Workload with Storage attached
+* Create a simple Workload with created filestore.
     ```shell
     python3 xpk.py workload create \
     --workload xpk-test-workload --command "echo goodbye" \

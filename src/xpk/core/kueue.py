@@ -168,6 +168,17 @@ def verify_kueuectl(args: Namespace) -> None:
     xpk_exit(verify_kueuectl_installed_code)
 
 
+def delete_multikueue_definitions(args) -> int:
+  command = (
+   'kubectl delete crd multikueueclusters.kueue.x-k8s.io'
+    'kubectl delete crd multikueueconfigs.kueue.x-k8s.io'
+  )
+  task = 'Delete multikueue crds'
+  return_code = run_command_with_updates_retry(command, task, args)
+  if return_code != 0:
+    xpk_print(f'{task} returned ERROR {return_code}')
+  return return_code
+
 def install_kueue_on_cluster(args) -> int:
   """Install Kueue on the cluster.
 
@@ -177,6 +188,9 @@ def install_kueue_on_cluster(args) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
+  delete_crds_code = delete_multikueue_definitions(args)
+  if delete_crds_code !=0 :
+    return delete_crds_code
   command = (
       'kubectl apply --server-side --force-conflicts -f'
       f' https://github.com/kubernetes-sigs/kueue/releases/download/{KUEUE_VERSION}/manifests.yaml'

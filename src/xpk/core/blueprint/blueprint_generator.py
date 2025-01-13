@@ -482,6 +482,7 @@ class BlueprintGenerator:
         use=[net_0_id],
         settings={
             "release_channel": "RAPID",
+            "min_master_version": "1.31.4-gke.1072000",
             "prefix_with_deployment_name": False,
             "name_suffix": cluster_name,
             "system_node_pool_machine_type": system_node_pool_machine_type,

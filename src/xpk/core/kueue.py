@@ -30,7 +30,7 @@ from .system_characteristics import (
     SystemCharacteristics,
 )
 
-KUEUE_VERSION = 'v0.9.1'
+KUEUE_VERSION = 'v0.8.1'
 CLUSTER_QUEUE_NAME = 'cluster-queue'
 LOCAL_QUEUE_NAME = 'multislice-queue'
 WAIT_FOR_KUEUE_TIMEOUT = '5m'
@@ -170,14 +170,15 @@ def verify_kueuectl(args: Namespace) -> None:
 
 def delete_multikueue_definitions(args) -> int:
   command = (
-   'kubectl delete crd multikueueclusters.kueue.x-k8s.io'
-    'kubectl delete crd multikueueconfigs.kueue.x-k8s.io'
+      'kubectl delete crd multikueueclusters.kueue.x-k8s.io'
+      'kubectl delete crd multikueueconfigs.kueue.x-k8s.io'
   )
   task = 'Delete multikueue crds'
   return_code = run_command_with_updates_retry(command, task, args)
   if return_code != 0:
     xpk_print(f'{task} returned ERROR {return_code}')
   return return_code
+
 
 def install_kueue_on_cluster(args) -> int:
   """Install Kueue on the cluster.
@@ -189,7 +190,7 @@ def install_kueue_on_cluster(args) -> int:
     0 if successful and 1 otherwise.
   """
   delete_crds_code = delete_multikueue_definitions(args)
-  if delete_crds_code !=0 :
+  if delete_crds_code != 0:
     return delete_crds_code
   command = (
       'kubectl apply --server-side --force-conflicts -f'

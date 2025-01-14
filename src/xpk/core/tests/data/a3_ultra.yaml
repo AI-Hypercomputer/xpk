@@ -86,6 +86,7 @@ deployment_groups:
     use: [gke-a3-ultra-net-0]
     settings:
       release_channel: "RAPID"
+      min_master_version: "1.31.4-gke.1072000"
       prefix_with_deployment_name: false
       name_suffix: gke-a3-ultra
       system_node_pool_machine_type: "e2-standard-16"

@@ -37,6 +37,8 @@ CLUSTER_QUEUE_NAME = 'cluster-queue'
 LOCAL_QUEUE_NAME = 'multislice-queue'
 WAIT_FOR_KUEUE_TIMEOUT = '5m'
 
+packaging.version.VERSION_PATTERN = r'^v\d+\.\d+\.\d+$'
+
 cluster_set_crd_yaml = """apiVersion: kueue.x-k8s.io/v1beta1
 kind: ResourceFlavor
 metadata:
@@ -210,7 +212,7 @@ def install_kueue_on_cluster(args) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
-  packaging.version.VERSION_PATTERN = r'^v\d+\.\d+\.\d+$'
+
   err_code, kueue_version_installed = get_kueue_version(args)
   if err_code == 0:
     if Version(kueue_version_installed) <= Version('v0.8.1') and Version(

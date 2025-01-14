@@ -194,7 +194,6 @@ def get_kueue_version(args) -> (int, str):
   if return_code != 0:
     return return_code, ''
   lines = val.splitlines()
-  xpk_print(lines)
   if len(lines) == 1:
     return 1, ''
   server_version_line = lines[1]
@@ -214,11 +213,10 @@ def install_kueue_on_cluster(args) -> int:
   packaging.version.VERSION_PATTERN = r'^v\d+\.\d+\.\d+$'
   err_code, kueue_version_installed = get_kueue_version(args)
   if err_code == 0:
-    xpk_print(kueue_version_installed, err_code)
-    xpk_print(Version(kueue_version_installed), Version(KUEUE_VERSION))
     if Version(kueue_version_installed) <= Version('v0.8.1') and Version(
         KUEUE_VERSION
     ) >= Version('v0.9.1'):
+      xpk_print('Upgrading kueue on cluster from version < 0.9.1.')
       upgrade_code = delete_multikueueclusters_definitions(args)
       if upgrade_code != 0:
         return upgrade_code

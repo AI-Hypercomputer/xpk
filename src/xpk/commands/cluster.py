@@ -63,6 +63,8 @@ from ..utils.file import write_tmp_file
 from ..utils.console import xpk_exit, xpk_print
 from . import cluster_gcluster
 
+from tabulate import tabulate
+
 
 def cluster_create(args) -> None:
   """Function around cluster creation.
@@ -323,14 +325,17 @@ def cluster_describe(args) -> None:
   if set_cluster_command_code != 0:
     xpk_exit(set_cluster_command_code)
 
-  command = (
-      f'gcloud container node-pools  list --cluster {args.cluster} '
-      f'--project={args.project} --region={zone_to_region(args.zone)}'
-  )
-
-  return_code = run_command_with_updates(command, 'Cluster nodepool list', args)
+  return_code, data_table = nodepools_build_table(args)
   if return_code != 0:
     xpk_exit(return_code)
+
+  if len(data_table) > 1:
+    xpk_print(
+        'Nodepools info:\n',
+        tabulate(data_table, headers='firstrow', tablefmt='plain'),
+    )
+  else:
+    xpk_print('No nodepools info found')
 
   return_code_node_output, node_output = run_command_for_value(
       r'kubectl get node --no-headers=true'
@@ -360,6 +365,182 @@ def cluster_describe(args) -> None:
 
   xpk_print('GKE commands done!\n')
   xpk_exit(0)
+
+
+def nodepools_build_table(args) -> tuple[int, list[list]]:
+  table = [[
+      'NODEPOOL_NAME',
+      'SLICE',
+      'TYPE',
+      'EXPECTED_HEALTHY_NODES',
+      'ACTUAL_HEALTHY_NODES',
+      'TOTAL_NODES',
+  ]]
+
+  nodepools_data = {}
+
+  nodepools, return_code = get_node_pools_name(args)
+  if return_code != 0:
+    xpk_print(f'Get node pools name returned ERROR {return_code}')
+
+  for name in nodepools:
+    nodepools_data[name] = [name]
+
+  slices, return_code = get_slice_node_pool_size(args)
+  if return_code != 0:
+    xpk_print(f'Get slice node pool size returned ERROR {return_code}')
+
+  for line in slices:
+    s = line.split()
+    count, nodepool_name = s[0], s[1]
+    nodepools_data[nodepool_name].append(count)
+
+  type_nodepool, return_code = get_node_pool_instance_type(args)
+  if return_code != 0:
+    xpk_print(f'Get node pool instance type returned ERROR {return_code}')
+
+  for line in type_nodepool:
+    tn = line.split()
+    nodepool_name, instance_type = tn[0], tn[1]
+    nodepools_data[nodepool_name].append(instance_type)
+
+  expected_healthy_nodes, return_code = get_expected_healthy_nodes(args)
+  if return_code != 0:
+    xpk_print(f'Get expected healthy nodes returned ERROR {return_code}')
+
+  for line in expected_healthy_nodes:
+    ehn = line.split()
+    count, nodepool_name = ehn[0], ehn[1]
+    nodepools_data[nodepool_name].append(count)
+
+  actual_healthy_nodes, return_code = get_actual_healthy_nodes(args)
+  if return_code != 0:
+    xpk_print(f'Get actual healthy nodes returned ERROR {return_code}')
+
+  for line in actual_healthy_nodes:
+    ahn = line.split()
+    count, nodepool_name = ahn[0], ahn[1]
+    nodepools_data[nodepool_name].append(count)
+
+  total_nodes, return_code = get_total_nodes_per_node_pool(args)
+  if return_code != 0:
+    xpk_print(f'Get total nodes per node pool returned ERROR {return_code}')
+
+  for line in total_nodes:
+    tn = line.split()
+    count, nodepool_name = tn[0], tn[1]
+    nodepools_data[nodepool_name].append(count)
+
+  for _, np_data in nodepools_data.items():
+    table.append(np_data)
+
+  return 0, table
+
+
+def get_node_pools_name(args) -> tuple[list[str], int]:
+  cmd_nodepools = (
+      'kubectl get node --no-headers=true -o'
+      " custom-columns='NODEPOOL:.metadata.labels.cloud\\.google\\.com/gke-nodepool'"
+      " | grep -v 'none' | sort | uniq"
+  )
+  return_code, out = run_command_for_value(cmd_nodepools, 'Nodepool list', args)
+  if return_code != 0:
+    return [], return_code
+
+  return out.splitlines(), 0
+
+
+def get_slice_node_pool_size(args) -> tuple[list[str], int]:
+  cmd_slices = (
+      'kubectl get node --no-headers=true -o'
+      " custom-columns=':metadata.labels.cloud\\.google\\.com/gke-nodepool'"
+      " | grep -v 'none'"
+      ' | sort'
+      ' | uniq -c'
+  )
+  return_code, out = run_command_for_value(
+      cmd_slices, 'Count nodes per nodepool slice', args
+  )
+  if return_code != 0:
+    return [], return_code
+
+  return out.splitlines(), 0
+
+
+def get_node_pool_instance_type(args) -> tuple[list[str], int]:
+  cmd_type_nodepool = (
+      'kubectl get node --no-headers=true -o'
+      " custom-columns='NODEPOOL:.metadata.labels.cloud\\.google\\.com/gke-nodepool,"
+      " TYPE:.metadata.labels.node\\.kubernetes\\.io/instance-type' | grep -v"
+      " 'none' | sort | uniq"
+  )
+  return_code, out = run_command_for_value(
+      cmd_type_nodepool, 'Instance type of nodepools', args
+  )
+  if return_code != 0:
+    return [], return_code
+
+  return out.splitlines(), 0
+
+
+def get_expected_healthy_nodes(args) -> tuple[list[str], int]:
+  cmd_expected_healthy_nodes = (
+      'kubectl get node --no-headers=true -o'
+      " custom-columns=':metadata.labels.cloud\\.google\\.com/gke-nodepool'"
+      " | grep -v 'none'"
+      ' | sort'
+      ' | uniq -c'
+  )
+  return_code, out = run_command_for_value(
+      cmd_expected_healthy_nodes,
+      'Count expected healthy nodes per nodepool',
+      args,
+  )
+  if return_code != 0:
+    return [], return_code
+
+  return out.splitlines(), 0
+
+
+def get_actual_healthy_nodes(args) -> tuple[list[str], int]:
+  cmd_actual_healthy_nodes = (
+      'kubectl get node --no-headers=true -o'
+      " custom-columns='NODE_NAME:metadata.name,"
+      ' READY_STATUS:.status.conditions[?(@.type=="Ready")].status,'
+      " NODEPOOL:metadata.labels.cloud\\.google\\.com/gke-nodepool' "
+      ' | grep -w True'
+      " | grep -v 'none'"
+      " | awk {'print $3'}"
+      ' | sort'
+      ' | uniq -c'
+  )
+  return_code, out = run_command_for_value(
+      cmd_actual_healthy_nodes, 'Count actual healthy nodes per nodepool', args
+  )
+  if return_code != 0:
+    return [], return_code
+
+  return out.splitlines(), 0
+
+
+def get_total_nodes_per_node_pool(args) -> tuple[list[str], int]:
+  cmd_total_nodes = (
+      'kubectl get node --no-headers=true -o'
+      " custom-columns='NODE_NAME:metadata.name,"
+      ' READY_STATUS:.status.conditions[?(@.type=="Ready")].status,'
+      " NODEPOOL:metadata.labels.cloud\\.google\\.com/gke-nodepool'"
+      " | grep -v 'none'"
+      " | awk {'print $3'}"
+      ' | sort'
+      ' | uniq -c'
+  )
+  return_code, out = run_command_for_value(
+      cmd_total_nodes, 'Count total nodes per nodepool', args
+  )
+  if return_code != 0:
+    return [], return_code
+
+  return out.splitlines(), 0
 
 
 def cluster_list(args) -> None:

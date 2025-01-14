@@ -2311,6 +2311,9 @@ def get_main_container_resources(
   if system.accelerator_type == AcceleratorType['GPU']:
     return gpu_resources_yaml.format(system=system)
 
+  if system.accelerator_type == AcceleratorType['CPU']:
+    return ''
+
   return f'{resource_type}: {system.chips_per_vm}'
 
 

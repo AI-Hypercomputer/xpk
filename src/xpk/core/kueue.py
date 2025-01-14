@@ -215,10 +215,10 @@ def install_kueue_on_cluster(args) -> int:
 
   err_code, kueue_version_installed = get_kueue_version(args)
   if err_code == 0:
-    if Version(kueue_version_installed) <= Version('v0.8.1') and Version(
+    if Version(kueue_version_installed) < Version('v0.9.0') and Version(
         KUEUE_VERSION
-    ) >= Version('v0.9.1'):
-      xpk_print('Upgrading kueue on cluster from version < 0.9.1.')
+    ) >= Version('v0.9.0'):
+      xpk_print('Upgrading kueue on cluster from version < 0.9.0.')
       upgrade_code = delete_multikueueclusters_definitions(args)
       if upgrade_code != 0:
         return upgrade_code

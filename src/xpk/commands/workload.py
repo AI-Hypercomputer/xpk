@@ -255,6 +255,26 @@ spec:
               volumeMounts:
               - mountPath: /tmp
                 name: shared-tmp
+            initContainers:
+            - args:
+              name: remote-python-sidecar
+              image: {args.remote_python_sidecar_image}
+              imagePullPolicy: Always
+              command:
+              - "bash"
+              - "-c"
+              - |
+                python start_remote_python.py
+              securityContext:
+                privileged: true
+              volumeMounts:
+              - mountPath: /tmp
+                name: shared-tmp
+              ports:
+                - containerPort: 50051
+                env:
+                - name: GRPC_SERVER_ADDRESS
+                  value: "0.0.0.0:50051"
             nodeSelector:
               {accelerator_label}
               {machine_label}

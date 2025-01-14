@@ -1,7 +1,7 @@
 KUEUE_REPO=https://github.com/kubernetes-sigs/kueue.git
 
 KUBECTL_VERSION := $(shell curl -L -s https://dl.k8s.io/release/stable.txt)
-KUEUE_VERSION=v0.9.1
+KUEUE_VERSION=v0.10.0
 
 OS := $(shell uname -s | tr A-Z a-z)
 PLATFORM := $(shell uname -m | sed -e 's/aarch64/arm64/' | sed -e 's/x86_64/amd64/')

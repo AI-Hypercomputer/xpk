@@ -76,7 +76,8 @@ Following tools must be installed:
 - gcloud (install from [here](https://cloud.google.com/sdk/gcloud#download_and_install_the))
   - Run `gcloud init` 
   - [Authenticate](https://cloud.google.com/sdk/gcloud/reference/auth/application-default/login) to Google Cloud
-- kubectl (install from [here](https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl) together with [required plugins](https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl#install_plugin))
+- kubectl (install from [here](https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl#install_kubectl))
+  - Install `gke-gcloud-auth-plugin` from [here](https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl#install_plugin)
 - docker ([installation instruction](https://docs.docker.com/engine/install/))
   - Run `gcloud auth configure-docker` to ensure images can be uploaded to registry 
 - make - please run below command.

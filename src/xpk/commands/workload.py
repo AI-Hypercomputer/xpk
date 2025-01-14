@@ -256,6 +256,8 @@ spec:
               - mountPath: /tmp
                 name: shared-tmp
             initContainers:
+            # TODO(sujinesh): We should make this optional and only part of the
+            # workload if the user provides the image/enables remote python.
             - args:
               name: remote-python-sidecar
               image: {args.remote_python_sidecar_image}

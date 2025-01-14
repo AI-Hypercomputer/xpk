@@ -24,6 +24,7 @@ on:
         type: choice
         options:
           - v4-8
+          - v5litepod-8
   push:
     branches: ["main"]
   pull_request: # By default this runs for types assigned, opened and synchronize.
@@ -35,7 +36,6 @@ env:
   WORKLOAD_NAME: xpktest-build-${{ github.run_attempt }}
   PATHWAYS_WORKLOAD_NAME: xpkpw-build-${{ github.run_attempt }}
   CLUSTER_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}} --subnetwork=${{secrets.SUBNETWORK_NAME}} --maintenance-window=23:50"
-  RUN_ID: "pr-${{ github.event.number }}"
   PROJECT_ID: ${{secrets.PROJECT_NAME}}
   A3_MEGA_TEST_CLUSTER_NAME: "xpk-mega-ctk-int"
   A3_ULTRA_TEST_CLUSTER_NAME: "xpk-ultra-ctk-int"
@@ -105,11 +105,18 @@ jobs:
       group: build-test-cluster-group-${{ github.ref }}
       cancel-in-progress: false
     steps:
-    - name: Change RUN_ID env var if merge to main
-      run: echo "RUN_ID=main" >> $GITHUB_ENV
-      if: ${{ github.ref == 'refs/heads/main' }}
+    - name: Initialize RUN_ID env var
+      run: |
+        if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          RUN_ID="dispatch"
+        elif [ "${{ github.ref }}" == "refs/heads/main" ]; then
+          RUN_ID="main"
+        else
+          RUN_ID="pr-${{ github.event.number }}"
+        fi
+        echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
     - name: Update cluster name with TPU_TYPE and RUN_ID
-      run: echo "TPU_CLUSTER_NAME=$TPU_CLUSTER_NAME-$TPU_TYPE-$RUN_ID" >> $GITHUB_ENV
+      run: echo "TPU_CLUSTER_NAME=$TPU_CLUSTER_NAME-$RUN_ID" >> $GITHUB_ENV
     - uses: actions/checkout@v4
     - uses: actions/setup-python@v5
       with:
@@ -139,6 +146,8 @@ jobs:
       run: python xpk.py cluster create-pathways --cluster $TPU_CLUSTER_NAME --private --tpu-type=$TPU_TYPE  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments="${CLUSTER_ARGUMENTS}"
     - name: Verify the created cluster is private
       run: gcloud container clusters describe $TPU_CLUSTER_NAME --region=us-central2 --format="value(privateClusterConfig.enablePrivateNodes)" | grep 'True' || (echo 'The created cluster is not private.' && exit 1)
+    - name: List out the nodepools on the cluster
+      run: python xpk.py cluster describe --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep -P '^(?=.*NODEPOOL_NAME)(?=.*SLICE)(?=.*TYPE)(?=.*EXPECTED_HEALTHY_NODES)(?=.*ACTUAL_HEALTHY_NODES)(?=.*TOTAL_NODES)'
     - name: Authenticate Docker
       run: gcloud auth configure-docker --quiet
     - name: Create test script to execute in workloads
@@ -200,7 +209,7 @@ jobs:
       run: python3 xpk.py shell stop
     - name: Delete the cluster created
       if: always()
-      run: echo 'y' | python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+      run: python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --force
 
 
 

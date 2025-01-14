@@ -76,6 +76,7 @@ Following tools must be installed:
 - gcloud (install from [here](https://cloud.google.com/sdk/gcloud#download_and_install_the))
   - Run `gcloud init` 
   - [Authenticate](https://cloud.google.com/sdk/gcloud/reference/auth/application-default/login) to Google Cloud
+- kubectl (install from [here](https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl) together with [required plugins](https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl#install_plugin))
 - docker ([installation instruction](https://docs.docker.com/engine/install/))
   - Run `gcloud auth configure-docker` to ensure images can be uploaded to registry 
 - make - please run below command.
@@ -84,7 +85,6 @@ Following tools must be installed:
 apt-get -y install make
 ```
 In addition, below dependencies will be installed with `make install` command:
-- kubectl (install from [here](https://kubernetes.io/docs/tasks/tools/))
 - kueuectl (install from [here](https://kueue.sigs.k8s.io/docs/reference/kubectl-kueue/installation/))
 - kjob (installation instructions [here](https://github.com/kubernetes-sigs/kjob/blob/main/docs/installation.md))
 

@@ -15,6 +15,8 @@ limitations under the License.
 """
 
 from argparse import Namespace
+from packaging.version import Version
+import packaging
 from ..utils.file import write_tmp_file
 from ..utils.console import xpk_print, xpk_exit
 from .commands import run_command_with_updates, run_command_with_updates_retry, run_command_for_value
@@ -35,6 +37,7 @@ CLUSTER_QUEUE_NAME = 'cluster-queue'
 LOCAL_QUEUE_NAME = 'multislice-queue'
 WAIT_FOR_KUEUE_TIMEOUT = '5m'
 
+packaging.version.VERSION_PATTERN = r'^v\d+\.\d+\.\d+$'
 
 cluster_set_crd_yaml = """apiVersion: kueue.x-k8s.io/v1beta1
 kind: ResourceFlavor
@@ -168,6 +171,38 @@ def verify_kueuectl(args: Namespace) -> None:
     xpk_exit(verify_kueuectl_installed_code)
 
 
+def delete_multikueueconfigs_definitions(args) -> int:
+  command = 'kubectl delete crd multikueueconfigs.kueue.x-k8s.io'
+  task = 'Delete multikueueconfigs crds'
+  return_code = run_command_with_updates_retry(command, task, args)
+  if return_code != 0:
+    xpk_print(f'{task} returned ERROR {return_code}')
+  return return_code
+
+
+def delete_multikueueclusters_definitions(args) -> int:
+  command = 'kubectl delete crd multikueueclusters.kueue.x-k8s.io'
+  task = 'Delete multikueueclusters crds'
+  return_code = run_command_with_updates_retry(command, task, args)
+  if return_code != 0:
+    xpk_print(f'{task} returned ERROR {return_code}')
+  return return_code
+
+
+def get_kueue_version(args) -> (int, str):
+  command = 'kubectl kueue version'
+  task = 'Get kueue version on server'
+  return_code, val = run_command_for_value(command, task, args)
+  if return_code != 0:
+    return return_code, ''
+  lines = val.splitlines()
+  if len(lines) == 1:
+    return 1, ''
+  server_version_line = lines[1]
+  manager_image_version = server_version_line.split(':')[-1]
+  return return_code, manager_image_version
+
+
 def install_kueue_on_cluster(args) -> int:
   """Install Kueue on the cluster.
 
@@ -177,6 +212,20 @@ def install_kueue_on_cluster(args) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
+
+  err_code, kueue_version_installed = get_kueue_version(args)
+  if err_code == 0:
+    if Version(kueue_version_installed) < Version('v0.9.0') and Version(
+        KUEUE_VERSION
+    ) >= Version('v0.9.0'):
+      xpk_print('Upgrading kueue on cluster from version < 0.9.0.')
+      upgrade_code = delete_multikueueclusters_definitions(args)
+      if upgrade_code != 0:
+        return upgrade_code
+      upgrade_code = delete_multikueueconfigs_definitions(args)
+      if upgrade_code != 0:
+        return upgrade_code
+
   command = (
       'kubectl apply --server-side --force-conflicts -f'
       f' https://github.com/kubernetes-sigs/kueue/releases/download/{KUEUE_VERSION}/manifests.yaml'

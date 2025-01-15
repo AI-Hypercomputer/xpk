@@ -18,7 +18,7 @@ BIN_PATH=$(PROJECT_DIR)/bin
 install: check-python check-gcloud install-kueuectl install-kjob pip-install
 
 .PHONY: install-dev
-install-dev: check-python check-gcloud mkdir-bin install-kubectl install-kueuectl install-kjob pip-install install-pytest
+install-dev: check-python check-gcloud mkdir-bin install-kueuectl install-kjob pip-install install-pytest
 
 .PHONY: pip-install
 pip-install:
@@ -36,7 +36,7 @@ run-integrationtests:
 	pytest src/xpk/core/tests/integration/
 
 .PHONY: install-kjob
-install-kjob: install-kubectl
+install-kjob: mkdir-bin
 	docker build -f tools/Dockerfile-kjob -t $(KJOB_DOCKER_IMG) tools/
 	docker run -idt --name $(KJOB_DOCKER_CONTAINER) $(KJOB_DOCKER_IMG)
 	docker cp $(KJOB_DOCKER_CONTAINER):/kjob/bin/kubectl-kjob $(BIN_PATH)/kubectl-kjob
@@ -47,13 +47,8 @@ install-kjob: install-kubectl
 mkdir-bin:
 	mkdir -p $(BIN_PATH)
 
-.PHONY: install-kubectl
-install-kubectl: mkdir-bin
-	curl -Lo $(BIN_PATH)/kubectl $(KUBECTL_URL)
-	chmod +x $(BIN_PATH)/kubectl
-
 .PHONY: install-kueuectl
-install-kueuectl: install-kubectl
+install-kueuectl: mkdir-bin
 	curl -Lo $(BIN_PATH)/kubectl-kueue $(KUEUECTL_URL)
 	chmod +x $(BIN_PATH)/kubectl-kueue
 

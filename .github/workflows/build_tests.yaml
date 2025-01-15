@@ -24,6 +24,7 @@ on:
         type: choice
         options:
           - v4-8
+          - v5litepod-8
   push:
     branches: ["main"]
   pull_request: # By default this runs for types assigned, opened and synchronize.
@@ -86,7 +87,6 @@ jobs:
       zone: '${{needs.set-variables.outputs.zone}}'
       location: '${{needs.set-variables.outputs.location}}'
     secrets: inherit
-
   workloads-tests:
     needs: [cluster-create, set-variables]
     uses: ./.github/workflows/workload_test.yaml

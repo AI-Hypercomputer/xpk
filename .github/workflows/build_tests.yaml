@@ -133,6 +133,8 @@ jobs:
       run: |
         make install 
         echo $PWD/bin >> "$GITHUB_PATH"
+    - name: install kubectl and auth plugin
+      run: gcloud components install kubectl && gcloud components install gke-gcloud-auth-plugin
     - name: Check xpk installation
       run: xpk --help
     - name: Create a private Pathways-enabled XPK Cluster with 2x $TPU_TYPE nodepools. Larger num-nodes to avoid master resizing.

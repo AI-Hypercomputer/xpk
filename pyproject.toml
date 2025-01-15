@@ -34,7 +34,8 @@ dependencies = [
   "tabulate",
   "ruamel.yaml",
   "pyyaml",
-  "docker"
+  "docker",
+  "packaging"
 ]
 
 [project.urls]

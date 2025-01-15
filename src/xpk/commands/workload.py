@@ -472,13 +472,6 @@ def workload_create(args) -> None:
               operator: NotIn
               values: [{restart_on_exit_codes}]"""
 
-  if args.restart_on_user_code_failure:
-    if int(args.max_restarts) <= 0:
-      xpk_print(
-          f'Warning: --max-restarts, is set to {args.max_restarts}. Will not'
-          ' restart on user failure.'
-      )
-
   # Create the workload file based on accelerator type or workload type.
   if system.accelerator_type == AcceleratorType['GPU']:
     container, debugging_dashboard_id = get_user_workload_container(
@@ -631,11 +624,23 @@ def workload_create(args) -> None:
 
   xpk_exit(0)
 
+
 def get_restart_exit_codes(args) -> list:
   exit_codes = [42]
   exit_codes.extend(range(127, 256, 1))
 
+  if args.restart_on_exit_codes is not None:
+    items = args.restart_on_exit_codes.split(',')
+    for item in items:
+      item = item.strip()
+      if '-' in item:
+        start, end = map(int, item.split('-'))
+        exit_codes.extend(range(start, end + 1))
+      else:
+        exit_codes.append(int(item))
+
   return exit_codes
+
 
 def workload_delete(args) -> None:
   """Function around workload delete.

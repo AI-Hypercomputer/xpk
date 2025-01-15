@@ -166,9 +166,6 @@ def ensure_pathways_workload_prerequisites(args, system) -> bool:
   # Set the job which determines the life of other Pathways jobs
   args.targetReplicatedJob = 'proxy' if args.headless else 'main'
 
-  # Always report user code failures back to JobSet.
-  args.restart_on_user_code_failure = True
-
   return True
 
 

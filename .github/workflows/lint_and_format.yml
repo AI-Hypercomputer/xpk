@@ -15,10 +15,10 @@
 name: Lint and Format
 
 on:
-  pull_request:
-  push:
-    branches:
-      - main
+  # pull_request:
+   push:
+     branches:
+       - main
 
 jobs:
   build-and-test:

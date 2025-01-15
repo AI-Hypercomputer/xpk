@@ -2756,6 +2756,16 @@ def wait_for_job_completion(args) -> int:
     return return_code
   full_workload_name = return_value.split(' ')[0]
 
+
+  # Describe workload name
+  describe_workload = f'kubectl describe workload {args.workload} -o yaml'
+  return_code, return_value = run_commands(
+      describe_workload, 'Describe workload', args
+  )
+  if return_code != 0:
+    xpk_print(f'Describe workload name request returned ERROR {return_code}')
+    return return_code
+
   # Call kubectl wait on the workload using the full workload name
   timeout_val = args.timeout if args.timeout is not None else -1
   timeout_msg = (

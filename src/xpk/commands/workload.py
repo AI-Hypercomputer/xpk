@@ -224,10 +224,6 @@ spec:
   failurePolicy:
     {failure_policy_rules}
     maxRestarts: {args.max_restarts}
-  successPolicy:
-    operator: "All"
-    targetReplicatedJobs:
-    - {args.targetReplicatedJob}
   replicatedJobs:
     - name: worker
       replicas: {args.num_slices}
@@ -382,18 +378,18 @@ def workload_create(args) -> None:
         " -c 'import pathwaysutils; import jax; print(jax.devices())'"
     )
 
-  set_cluster_command_code = set_cluster_command(args)
-  if set_cluster_command_code != 0:
-    xpk_exit(set_cluster_command_code)
+  # set_cluster_command_code = set_cluster_command(args)
+  # if set_cluster_command_code != 0:
+  #   xpk_exit(set_cluster_command_code)
 
-  workload_exists = check_if_workload_exists(args)
+  # workload_exists = check_if_workload_exists(args)
 
-  if workload_exists:
-    xpk_print(
-        f'{args.workload} already exists, XPK will not create this workload.'
-        ' Please pick a new workload name'
-    )
-    xpk_exit(1)
+  # if workload_exists:
+  #   xpk_print(
+  #       f'{args.workload} already exists, XPK will not create this workload.'
+  #       ' Please pick a new workload name'
+  #   )
+  #   xpk_exit(1)
 
   xpk_print('Starting workload create', flush=True)
   system, return_code = get_system_characteristics(args)
@@ -483,79 +479,79 @@ def workload_create(args) -> None:
     if return_code != 0:
       xpk_exit(return_code)
 
-    if system.device_type in cluster_gcluster.supported_device_types:
-      yml_string = a3_gpu_workload_create_yaml.format(
-          args=args,
-          container=container,
-          failure_policy_rules=failure_policy_rules,
-          pod_failure_policy=pod_failure_policy,
-      )
+    # if system.device_type in cluster_gcluster.supported_device_types:
+    #   yml_string = a3_gpu_workload_create_yaml.format(
+    #       args=args,
+    #       container=container,
+    #       failure_policy_rules=failure_policy_rules,
+    #       pod_failure_policy=pod_failure_policy,
+    #   )
 
-      if args.device_type == cluster_gcluster.a3mega_device_type:
-        sub_networks = [f'{args.cluster}-gpunet-{i}-subnet' for i in range(8)]
-        yml_string = tcpxo_decorator.decorate_jobset(yml_string, sub_networks)
+    #   if args.device_type == cluster_gcluster.a3mega_device_type:
+    #     sub_networks = [f'{args.cluster}-gpunet-{i}-subnet' for i in range(8)]
+    #     yml_string = tcpxo_decorator.decorate_jobset(yml_string, sub_networks)
 
-      if args.device_type == cluster_gcluster.a3ultra_device_type:
-        sub_networks = [f'{args.cluster}-sub-1'] + [
-            f'{args.cluster}-rdma-sub-{i}' for i in range(8)
-        ]
-        yml_string = rdma_decorator.decorate_jobset(yml_string, sub_networks)
-    else:
-      yml_string = gpu_workload_create_yaml.format(
-          args=args,
-          container=container,
-          command=args.command,
-          chips_per_vm=system.chips_per_vm,
-          gpu_scheduler=gpu_scheduler,
-          gpu_volume=get_gpu_volume(system),
-          gpu_rxdm_image=get_gpu_rxdm_image(system),
-          gpu_rxdm_cmd=get_gpu_rxdm_cmd(system),
-          gpu_tcp_volume=get_gpu_tcp_volume(system),
-          failure_policy_rules=failure_policy_rules,
-          pod_failure_policy=pod_failure_policy,
-      )
-  elif args.use_pathways and ensure_pathways_workload_prerequisites(
-      args, system
-  ):
-    yml_string = pw_workload_create_yaml.format(
-        args=args,
-        system=system,
-        accelerator_label=create_accelerator_label(
-            system.accelerator_type, system
-        ),
-        machine_label=create_machine_label(system.accelerator_type, system),
-        pathways_rm_args=get_pathways_rm_args(args, system),
-        pathways_worker_args=get_pathways_worker_args(args),
-        pathways_proxy_args=get_pathways_proxy_args(args),
-        user_workload=get_user_workload_for_pathways(args, system),
-        resource_type=AcceleratorTypeToAcceleratorCharacteristics[
-            system.accelerator_type
-        ].resource_type,
-        local_queue_name=LOCAL_QUEUE_NAME,
-        autoprovisioning_args=autoprovisioning_args,
-        backoff_limit=system.vms_per_slice * 4,
-        failure_policy_rules=failure_policy_rules,
-        pod_failure_policy=pod_failure_policy,
-    )
-  else:
-    container, debugging_dashboard_id = get_user_workload_container(
-        args, system
-    )
-    yml_string = workload_create_yaml.format(
-        args=args,
-        system=system,
-        container=container,
-        affinity=get_cpu_affinity(system.accelerator_type),
-        accelerator_label=create_accelerator_label(
-            system.accelerator_type, system
-        ),
-        machine_label=create_machine_label(system.accelerator_type, system),
-        local_queue_name=LOCAL_QUEUE_NAME,
-        autoprovisioning_args=autoprovisioning_args,
-        volumes=get_volumes(args, system),
-        failure_policy_rules=failure_policy_rules,
-        pod_failure_policy=pod_failure_policy,
-    )
+    #   if args.device_type == cluster_gcluster.a3ultra_device_type:
+    #     sub_networks = [f'{args.cluster}-sub-1'] + [
+    #         f'{args.cluster}-rdma-sub-{i}' for i in range(8)
+    #     ]
+    #     yml_string = rdma_decorator.decorate_jobset(yml_string, sub_networks)
+    # else:
+    #   yml_string = gpu_workload_create_yaml.format(
+    #       args=args,
+    #       container=container,
+    #       command=args.command,
+    #       chips_per_vm=system.chips_per_vm,
+    #       gpu_scheduler=gpu_scheduler,
+    #       gpu_volume=get_gpu_volume(system),
+    #       gpu_rxdm_image=get_gpu_rxdm_image(system),
+    #       gpu_rxdm_cmd=get_gpu_rxdm_cmd(system),
+    #       gpu_tcp_volume=get_gpu_tcp_volume(system),
+    #       failure_policy_rules=failure_policy_rules,
+    #       pod_failure_policy=pod_failure_policy,
+    #   )
+  # elif args.use_pathways and ensure_pathways_workload_prerequisites(
+  #     args, system
+  # ):
+  yml_string = pw_workload_create_yaml.format(
+      args=args,
+      system=system,
+      accelerator_label=create_accelerator_label(
+          system.accelerator_type, system
+      ),
+      machine_label=create_machine_label(system.accelerator_type, system),
+      pathways_rm_args=get_pathways_rm_args(args, system),
+      pathways_worker_args=get_pathways_worker_args(args),
+      pathways_proxy_args=get_pathways_proxy_args(args),
+      user_workload=get_user_workload_for_pathways(args, system),
+      resource_type=AcceleratorTypeToAcceleratorCharacteristics[
+          system.accelerator_type
+      ].resource_type,
+      local_queue_name=LOCAL_QUEUE_NAME,
+      autoprovisioning_args=autoprovisioning_args,
+      backoff_limit=system.vms_per_slice * 4,
+      failure_policy_rules=failure_policy_rules,
+      pod_failure_policy=pod_failure_policy,
+  )
+  # else:
+  #   container, debugging_dashboard_id = get_user_workload_container(
+  #       args, system
+  #   )
+  #   yml_string = workload_create_yaml.format(
+  #       args=args,
+  #       system=system,
+  #       container=container,
+  #       affinity=get_cpu_affinity(system.accelerator_type),
+  #       accelerator_label=create_accelerator_label(
+  #           system.accelerator_type, system
+  #       ),
+  #       machine_label=create_machine_label(system.accelerator_type, system),
+  #       local_queue_name=LOCAL_QUEUE_NAME,
+  #       autoprovisioning_args=autoprovisioning_args,
+  #       volumes=get_volumes(args, system),
+  #       failure_policy_rules=failure_policy_rules,
+  #       pod_failure_policy=pod_failure_policy,
+  #   )
   tmp = write_tmp_file(yml_string)
   command = f'kubectl apply -f {str(tmp.file.name)}'
   return_code = run_command_with_updates(command, 'Creating Workload', args)

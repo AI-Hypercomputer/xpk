@@ -15,6 +15,7 @@ limitations under the License.
 """
 
 import datetime
+import os
 import subprocess
 import sys
 import time
@@ -84,7 +85,7 @@ def run_command_batch(commands, jobname, per_command_name, output_logs):
     children.append(
         # subprocess managed by list pylint: disable=consider-using-with
         subprocess.Popen(
-            command, stdout=output_logs[i], stderr=output_logs[i], shell=True
+            command, stdout=sys.stdout, stderr=sys.stdout, shell=True
         )
     )
 
@@ -206,7 +207,7 @@ def run_command_with_updates(command, task, global_args, verbose=True) -> int:
         ' there is an error.'
     )
     try:
-      subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT)
+      subprocess.check_output(command, shell=True, stderr=sys.stdout)
     except subprocess.CalledProcessError as e:
       xpk_print(
           f'Task: `{task}` terminated with ERROR `{e.returncode}`, printing'
@@ -257,8 +258,8 @@ def run_command_for_value(
     xpk_print(f'Task: `{task}` is implemented by `{command}`')
     with subprocess.Popen(
         command,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        stdout=sys.stdout,
+        stderr=sys.stdout,
         shell=True,
     ) as child:
       i = 0

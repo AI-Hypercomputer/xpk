@@ -464,13 +464,13 @@ def workload_create(args) -> None:
   restart_on_exit_codes = get_restart_exit_codes(args)
   restart_on_exit_codes = ','.join(map(str, restart_on_exit_codes))
   pod_failure_policy = f"""
-        podFailurePolicy:
-          rules:
-          - action: FailJob
-            onExitCodes:
-              containerName: {get_main_container_docker_image(args, system)}
-              operator: NotIn
-              values: [{restart_on_exit_codes}]"""
+          podFailurePolicy:
+            rules:
+            - action: FailJob
+              onExitCodes:
+                containerName: {get_main_container_docker_image(args, system)}
+                operator: NotIn
+                values: [{restart_on_exit_codes}]"""
 
   # Create the workload file based on accelerator type or workload type.
   if system.accelerator_type == AcceleratorType['GPU']:

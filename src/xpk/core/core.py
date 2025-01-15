@@ -335,7 +335,7 @@ def get_total_chips_requested_from_args(
     num_chips = system.vms_per_slice * system.chips_per_vm * args.num_nodes
   else:
     num_chips = system.vms_per_slice * system.chips_per_vm * args.num_slices
-
+  xpk_print("ROSHANI NUM_CHIPS = ", num_chips)
   return num_chips
 
 
@@ -2312,7 +2312,10 @@ def get_main_container_resources(
     return gpu_resources_yaml.format(system=system)
 
   if system.accelerator_type == AcceleratorType['CPU']:
-    return ''
+    # return ''
+    setup = int(system.chips_per_vm) * 0.95
+    xpk_print("ROSHANIN NUM_CHIPS2 ", setup)
+    return f'{resource_type}: {setup}'
 
   return f'{resource_type}: {system.chips_per_vm}'
 

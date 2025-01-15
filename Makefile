@@ -36,7 +36,7 @@ run-integrationtests:
 	pytest src/xpk/core/tests/integration/
 
 .PHONY: install-kjob
-install-kjob:
+install-kjob: mkdir-bin
 	docker build -f tools/Dockerfile-kjob -t $(KJOB_DOCKER_IMG) tools/
 	docker run -idt --name $(KJOB_DOCKER_CONTAINER) $(KJOB_DOCKER_IMG)
 	docker cp $(KJOB_DOCKER_CONTAINER):/kjob/bin/kubectl-kjob $(BIN_PATH)/kubectl-kjob
@@ -48,7 +48,7 @@ mkdir-bin:
 	mkdir -p $(BIN_PATH)
 
 .PHONY: install-kueuectl
-install-kueuectl:
+install-kueuectl: mkdir-bin
 	curl -Lo $(BIN_PATH)/kubectl-kueue $(KUEUECTL_URL)
 	chmod +x $(BIN_PATH)/kubectl-kueue
 

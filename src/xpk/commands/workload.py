@@ -457,26 +457,27 @@ def workload_create(args) -> None:
     if return_code != 0:
       xpk_exit(return_code)
 
-  failure_policy_rules = ''
-  pod_failure_policy = ''
+  failure_policy_rules = """rules:
+      - action: FailJobSet
+        onJobFailureReasons: 
+        - PodFailurePolicy"""
+  restart_on_exit_codes = get_restart_exit_codes(args)
+  restart_on_exit_codes = ','.join(map(str, restart_on_exit_codes))
+  pod_failure_policy = f"""
+        podFailurePolicy:
+          rules:
+          - action: FailJob
+            onExitCodes:
+              containerName: {get_main_container_docker_image(args, system)}
+              operator: NotIn
+              values: [{restart_on_exit_codes}]"""
+
   if args.restart_on_user_code_failure:
     if int(args.max_restarts) <= 0:
       xpk_print(
           f'Warning: --max-restarts, is set to {args.max_restarts}. Will not'
           ' restart on user failure.'
       )
-    failure_policy_rules = """rules:
-    - action: FailJobSet
-      onJobFailureReasons: 
-      - PodFailurePolicy"""
-    pod_failure_policy = f"""# podFailurePolicy which fails job immediately if job was not killed by SIGTERM (i.e., graceful node shutdown for maintenance events)
-          podFailurePolicy:
-            rules:
-            - action: FailJob
-              onExitCodes:
-                containerName: {get_main_container_docker_image(args, system)}
-                operator: NotIn
-                values: [143] # SIGTERM = exit code 143"""
 
   # Create the workload file based on accelerator type or workload type.
   if system.accelerator_type == AcceleratorType['GPU']:
@@ -630,6 +631,11 @@ def workload_create(args) -> None:
 
   xpk_exit(0)
 
+def get_restart_exit_codes(args) -> list:
+  exit_codes = [42]
+  exit_codes.extend(range(127, 256, 1))
+
+  return exit_codes
 
 def workload_delete(args) -> None:
   """Function around workload delete.

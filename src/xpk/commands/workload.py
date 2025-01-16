@@ -224,10 +224,6 @@ spec:
   failurePolicy:
     {failure_policy_rules}
     maxRestarts: {args.max_restarts}
-  successPolicy:
-    operator: "All"
-    targetReplicatedJobs:
-    - {args.targetReplicatedJob}
   replicatedJobs:
     - name: worker
       replicas: {args.num_slices}
@@ -241,7 +237,6 @@ spec:
           backoffLimit: {backoff_limit}
           completions: {system.vms_per_slice}
           parallelism: {system.vms_per_slice}
-          {pod_failure_policy}
           template:
             spec:
               terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
@@ -527,7 +522,7 @@ def workload_create(args) -> None:
         pathways_rm_args=get_pathways_rm_args(args, system),
         pathways_worker_args=get_pathways_worker_args(args),
         pathways_proxy_args=get_pathways_proxy_args(args),
-        user_workload=get_user_workload_for_pathways(args, system),
+        user_workload=get_user_workload_for_pathways(args, system, pod_failure_policy),
         resource_type=AcceleratorTypeToAcceleratorCharacteristics[
             system.accelerator_type
         ].resource_type,

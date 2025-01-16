@@ -209,7 +209,7 @@ def get_pathways_rm_args(args, system: SystemCharacteristics) -> str:
     return ''
 
 
-def get_user_workload_for_pathways(args, system: SystemCharacteristics) -> str:
+def get_user_workload_for_pathways(args, system: SystemCharacteristics, pod_failure_policy) -> str:
   """
   Create a user workload container for Pathways.
   Don't create one for Pathways headless mode.
@@ -233,13 +233,14 @@ def get_user_workload_for_pathways(args, system: SystemCharacteristics) -> str:
           backoffLimit: 0
           completions: 1
           parallelism: 1
+          {pod_failure_policy}
           template:
             spec:
               containers:
               {container}
               nodeSelector:
                 cloud.google.com/gke-nodepool: cpu-user-np
-              restartPolicy: OnFailure
+              restartPolicy: Never
               volumes:
               - hostPath:
                   path: /tmp
@@ -249,7 +250,7 @@ def get_user_workload_for_pathways(args, system: SystemCharacteristics) -> str:
     return ''
   else:
     container, _ = get_user_workload_container(args, system)
-    return user_workload_yaml.format(args=args, container=container)
+    return user_workload_yaml.format(args=args, container=container, pod_failure_policy=pod_failure_policy)
 
 
 def get_rm_address(args) -> str:

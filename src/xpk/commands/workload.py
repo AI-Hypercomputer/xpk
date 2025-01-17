@@ -214,7 +214,7 @@ metadata:
     kueue.x-k8s.io/queue-name: {local_queue_name}  # Name of the LocalQueue
     xpk.google.com/workload: {args.workload}
 spec:
-  ttlSecondsAfterFinished: {args.ttl_seconds_after_finished}
+  # ttlSecondsAfterFinished: {args.ttl_seconds_after_finished}
   failurePolicy:
     maxRestarts: {args.max_restarts}
   successPolicy:
@@ -258,8 +258,7 @@ spec:
             initContainers:
             # TODO(sujinesh): We should make this optional and only part of the
             # workload if the user provides the image/enables remote python.
-            - args:
-              name: remote-python-sidecar
+            - name: remote-python-sidecar
               image: {args.remote_python_sidecar_image}
               imagePullPolicy: Always
               command:
@@ -273,10 +272,10 @@ spec:
               - mountPath: /tmp
                 name: shared-tmp
               ports:
-                - containerPort: 50051
-                env:
-                - name: GRPC_SERVER_ADDRESS
-                  value: "0.0.0.0:50051"
+              - containerPort: 50051
+              env:
+              - name: GRPC_SERVER_ADDRESS
+                value: "0.0.0.0:50051"
             nodeSelector:
               {accelerator_label}
               {machine_label}

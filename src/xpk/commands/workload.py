@@ -265,7 +265,7 @@ spec:
               - "bash"
               - "-c"
               - |
-                python start_remote_python.py
+                python test_sidecar.py
               securityContext:
                 privileged: true
               volumeMounts:

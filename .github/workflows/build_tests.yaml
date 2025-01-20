@@ -45,7 +45,7 @@ env:
 
 jobs:
   label-validation:
-    if: github.repository == 'AI-Hypercomputer/xpk' && github.event.pull_request.draft == false
+    if: github.repository == 'xpk' && github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     permissions:
       pull-requests: read

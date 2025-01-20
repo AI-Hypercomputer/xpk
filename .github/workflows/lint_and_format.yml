@@ -16,9 +16,10 @@ name: Lint and Format
 
 on:
   pull_request:
-  push:
-    branches:
-      - main
+    types: [assigned]
+  #  push:
+  #    branches:
+  #      - main
 
 jobs:
   build-and-test:

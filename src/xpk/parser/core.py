@@ -19,6 +19,7 @@ import argparse
 from ..utils.console import xpk_print
 from .cluster import set_cluster_parser
 from .inspector import set_inspector_parser
+from .storage import set_storage_parser
 from .workload import set_workload_parsers
 from .batch import set_batch_parser
 from .job import set_job_parser
@@ -32,7 +33,10 @@ def set_parser(parser: argparse.ArgumentParser):
       title="xpk subcommands", dest="xpk_subcommands", help="Top level commands"
   )
   workload_parser = xpk_subcommands.add_parser(
-      "workload", help="Commands around workload management."
+      "workload", help="Commands around workload management"
+  )
+  storage_parser = xpk_subcommands.add_parser(
+      "storage", help="Commands around storage management"
   )
   cluster_parser = xpk_subcommands.add_parser(
       "cluster",
@@ -83,6 +87,7 @@ def set_parser(parser: argparse.ArgumentParser):
 
     kind_parser.print_help()
 
+    storage_parser.print_help()
     return 0
 
   parser.set_defaults(func=default_subcommand_function)
@@ -93,6 +98,7 @@ def set_parser(parser: argparse.ArgumentParser):
   job_parser.set_defaults(func=default_subcommand_function)
   kind_parser.set_defaults(func=default_subcommand_function)
   shell_parser.set_defaults(func=default_subcommand_function)
+  storage_parser.set_defaults(func=default_subcommand_function)
 
   set_workload_parsers(workload_parser=workload_parser)
   set_cluster_parser(cluster_parser=cluster_parser)
@@ -102,3 +108,4 @@ def set_parser(parser: argparse.ArgumentParser):
   set_job_parser(job_parser=job_parser)
   set_kind_parser(kind_parser=kind_parser)
   set_shell_parser(shell_parser=shell_parser)
+  set_storage_parser(storage_parser=storage_parser)

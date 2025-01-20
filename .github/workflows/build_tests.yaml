@@ -24,6 +24,7 @@ on:
         type: choice
         options:
           - v4-8
+          - v5litepod-8
   push:
     branches: ["main"]
   pull_request: # By default this runs for types assigned, opened and synchronize.
@@ -51,72 +52,79 @@ env:
   PW_CLUSTER_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}} --subnetwork=${{secrets.SUBNETWORK_NAME}} --maintenance-window=23:50"
 
 jobs:
-  # run-unit-tests:
-  #   runs-on: [ubuntu-22.04]
-  #   concurrency: # We support one build or nightly test to run at a time currently.
-  #     group: build-test-cluster-group
-  #     cancel-in-progress: false
-  #   steps:
-  #   - uses: actions/checkout@v4
-  #   - uses: actions/setup-python@v5
-  #     with:
-  #       python-version: '3.10'
-  #   - uses: google-github-actions/setup-gcloud@v2
-  #     with:
-  #       version: '>= 363.0.0'
-  #       install_components: 'beta, gke-gcloud-auth-plugin'
-  #   - name: Install dependencies
-  #     run : make install-dev
-  #   - name: Run unit tests
-  #     run: make run-unittests
+  run-unit-tests:
+    runs-on: [ubuntu-22.04]
+    concurrency: # We support one build or nightly test to run at a time currently.
+      group: build-test-cluster-group
+      cancel-in-progress: false
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+    - uses: google-github-actions/setup-gcloud@v2
+      with:
+        version: '>= 363.0.0'
+        install_components: 'beta, gke-gcloud-auth-plugin'
+    - name: Install dependencies
+      run : make install-dev
+    - name: Run unit tests
+      run: make run-unittests
 
-  # run-integration-tests:
-  #   runs-on: [ubuntu-22.04]
-  #   needs: [run-unit-tests]
-  #   concurrency: # We support one build or nightly test to run at a time currently.
-  #     group: build-test-cluster-group
-  #     cancel-in-progress: false
-  #   steps:
-  #   - uses: actions/checkout@v4
-  #   - uses: actions/setup-python@v5
-  #     with:
-  #       python-version: '3.10'
-  #   - uses: 'google-github-actions/auth@v2'
-  #     with:
-  #       credentials_json: '${{ secrets.GCP_SA_KEY }}'
-  #   - uses: google-github-actions/setup-gcloud@v2
-  #     with:
-  #       version: '>= 363.0.0'
-  #       install_components: 'beta,gke-gcloud-auth-plugin, gke-gcloud-auth-plugin'
-  #   - name: Verify gcp setup
-  #     run: gcloud info
-  #   - name: Install dependencies
-  #     run : make install-dev
-  #   - name: "Set auth cidr"
-  #     run: echo "AUTH_CIDR=$(curl api.ipify.org)/32" >> $GITHUB_ENV
-  #   - name: "Set GCLOUD_CFG_PATH"
-  #     run: echo "GCLOUD_CFG_PATH=/home/runner/work/xpk/xpk/" >> $GITHUB_ENV
-  #   - name: "Copy credentials"
-  #     run: cp $GOOGLE_APPLICATION_CREDENTIALS $GCLOUD_CFG_PATH/application_default_credentials.json
-  #   - name: "Set DEPLOYMENT_DIR"
-  #     run: echo "DEPLOYMENT_DIR=$HOME/deployment" >> $GITHUB_ENV
-  #   - name: Create deployment dir
-  #     run: mkdir -p $DEPLOYMENT_DIR
-  #   - name: Run integration tests
-  #     run: make run-integrationtests
+  run-integration-tests:
+    runs-on: [ubuntu-22.04]
+    needs: [run-unit-tests]
+    concurrency: # We support one build or nightly test to run at a time currently.
+      group: build-test-cluster-group
+      cancel-in-progress: false
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+    - uses: 'google-github-actions/auth@v2'
+      with:
+        credentials_json: '${{ secrets.GCP_SA_KEY }}'
+    - uses: google-github-actions/setup-gcloud@v2
+      with:
+        version: '>= 363.0.0'
+        install_components: 'beta,gke-gcloud-auth-plugin, gke-gcloud-auth-plugin'
+    - name: Verify gcp setup
+      run: gcloud info
+    - name: Install dependencies
+      run : make install-dev
+    - name: "Set auth cidr"
+      run: echo "AUTH_CIDR=$(curl api.ipify.org)/32" >> $GITHUB_ENV
+    - name: "Set GCLOUD_CFG_PATH"
+      run: echo "GCLOUD_CFG_PATH=/home/runner/work/xpk/xpk/" >> $GITHUB_ENV
+    - name: "Copy credentials"
+      run: cp $GOOGLE_APPLICATION_CREDENTIALS $GCLOUD_CFG_PATH/application_default_credentials.json
+    - name: "Set DEPLOYMENT_DIR"
+      run: echo "DEPLOYMENT_DIR=$HOME/deployment" >> $GITHUB_ENV
+    - name: Create deployment dir
+      run: mkdir -p $DEPLOYMENT_DIR
+    - name: Run integration tests
+      run: make run-integrationtests
 
   cluster-create-and-delete:
     runs-on: [ubuntu-22.04]
-    # needs: [run-integration-tests]
+    needs: [run-integration-tests]
     concurrency: # We support one nightly test and one build test for each branch to run at a time currently.
       group: build-test-cluster-group-${{ github.ref }}
       cancel-in-progress: false
     steps:
-    - name: Change RUN_ID env var if merge to main
-      run: echo "RUN_ID=main" >> $GITHUB_ENV
-      if: ${{ github.ref == 'refs/heads/main' }}
+    - name: Initialize RUN_ID env var
+      run: |
+        if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          RUN_ID="dispatch"
+        elif [ "${{ github.ref }}" == "refs/heads/main" ]; then
+          RUN_ID="main"
+        else
+          RUN_ID="pr-${{ github.event.number }}"
+        fi
+        echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
     - name: Update cluster name with TPU_TYPE and RUN_ID
-      run: echo "TPU_CLUSTER_NAME=$TPU_CLUSTER_NAME-$TPU_TYPE-$RUN_ID" >> $GITHUB_ENV
+      run: echo "TPU_CLUSTER_NAME=$TPU_CLUSTER_NAME-$RUN_ID" >> $GITHUB_ENV
     - uses: actions/checkout@v4
     - uses: actions/setup-python@v5
       with:
@@ -144,17 +152,17 @@ jobs:
       run: |
         make install 
         echo $PWD/bin >> "$GITHUB_PATH"
+    - name: install kubectl and auth plugin
+      run: gcloud components install kubectl && gcloud components install gke-gcloud-auth-plugin
     - name: Check xpk installation
       run: xpk --help
-    # - name: Create a private Pathways-enabled XPK Cluster with 2x $TPU_TYPE nodepools. Larger num-nodes to avoid master resizing.
-    #   run: python xpk.py cluster create-pathways --cluster $TPU_CLUSTER_NAME --private --tpu-type=$TPU_TYPE  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments="${CLUSTER_ARGUMENTS}"
-    # - name: Verify the created cluster is private
-    #   run: gcloud container clusters describe $TPU_CLUSTER_NAME --region=us-central2 --format="value(privateClusterConfig.enablePrivateNodes)" | grep 'True' || (echo 'The created cluster is not private.' && exit 1)
     - name: Create a Pathways-enabled XPK Cluster with 2x v4-8 nodepools. Larger num-nodes to avoid master resizing.
       run: |
         python3 xpk.py cluster create-pathways --cluster $TPU_CLUSTER_NAME --tpu-type=v4-8  --num-slices=2 \
         --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 \
         --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --enable-workload-identity --enable-gcsfuse-csi-driver --enable-gcpfilestore-csi-driver --custom-cluster-arguments="${PW_CLUSTER_ARGUMENTS}"
+    - name: List out the nodepools on the cluster
+      run: python xpk.py cluster describe --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep -P '^(?=.*NODEPOOL_NAME)(?=.*SLICE)(?=.*TYPE)(?=.*EXPECTED_HEALTHY_NODES)(?=.*ACTUAL_HEALTHY_NODES)(?=.*TOTAL_NODES)'
     - name: Authenticate Docker
       run: gcloud auth configure-docker --quiet
     - name: Create auto-mount Storage instance

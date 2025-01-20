@@ -38,6 +38,7 @@ dependencies = [
   "kubernetes",
   "google-cloud",
   "google-api-core",
+  "packaging"
 ]
 
 [project.urls]

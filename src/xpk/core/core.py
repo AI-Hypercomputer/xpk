@@ -2861,6 +2861,14 @@ def get_main_container_resources(
   if system.accelerator_type == AcceleratorType['GPU']:
     return gpu_resources_yaml.format(system=system)
 
+  if system.accelerator_type == AcceleratorType['CPU']:
+    # CPUs don't have chips, but have a subresource called vCPUs.
+    # system.chips_per_vm is used as a proxy for vCPUs.
+    # Some vCPUs get used in hosting system pods of the workloads,
+    # hence an offset of 0.95 is introduced.
+    offset_vCPUs = int(system.chips_per_vm) * 0.95
+    return f'{resource_type}: {offset_vCPUs}'
+
   return f'{resource_type}: {system.chips_per_vm}'
 
 

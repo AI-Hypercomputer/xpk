@@ -238,6 +238,7 @@ metadata:
     kueue.x-k8s.io/queue-name: {local_queue_name}  # Name of the LocalQueue
     xpk.google.com/workload: {args.workload}
 spec:
+  ttlSecondsAfterFinished: {args.ttl_seconds_after_finished}
   failurePolicy:
     maxRestarts: {args.max_restarts}
   successPolicy:

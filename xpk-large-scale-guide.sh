@@ -121,10 +121,8 @@ export CLUSTER_ARGUMENTS=" \
  --subnetwork=${SUBNET_NAME} \
  --scopes=storage-full,gke-default \
  --enable-ip-alias \
- --enable-private-nodes \
  --master-ipv4-cidr 172.16.0.32/28 \
  --cluster-ipv4-cidr=10.224.0.0/12 \
- --no-enable-master-authorized-networks \
 "
 
 export TPU_NODEPOOL_ARGUMENTS=" \
@@ -154,8 +152,8 @@ echo python3 xpk.py cluster create \
 # python3 xpk.py cluster create --cluster NAME \
 #  --tpu-type=v5litepod-256 --num-slices=4 \
 #  --host-maintenance-interval=PERIODIC \
-# --custom-cluster-arguments=" --network=NETWORK  --subnetwork=SUBNET  --scopes=storage-full,gke-default  --enable-ip-alias  --enable-private-nodes  --master-ipv4-cidr 172.16.0.32/28  --cluster-ipv4-cidr=10.224.0.0/12  --no-enable-master-authorized-networks"
-# --custom-nodepool-arguments=" --scopes=storage-full,gke-default  --enable-gvnic  --max-pods-per-node 15  --disk-size=50"
+# --custom-cluster-arguments=" --network=NETWORK  --subnetwork=SUBNET  --scopes=storage-full,gke-default  --enable-ip-alias  --master-ipv4-cidr 172.16.0.32/28  --cluster-ipv4-cidr=10.224.0.0/12"
+# --custom-tpu-nodepool-arguments=" --scopes=storage-full,gke-default  --enable-gvnic  --max-pods-per-node 15  --disk-size=50"
 
 
 ##### 2D #####################

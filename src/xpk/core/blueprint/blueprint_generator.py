@@ -195,7 +195,7 @@ class BlueprintGenerator:
                 "config_path": f'$(ghpc_stage("{blueprint_name}"))/kueue-xpk-configuration.yaml.tftpl',
                 "config_template_vars": {"num_chips": f"{num_chips}"},
             },
-            "jobset": {"install": True},
+            "jobset": {"install": True, "version": "v0.7.2"},
         },
     )
 
@@ -482,7 +482,13 @@ class BlueprintGenerator:
         use=[net_0_id],
         settings={
             "release_channel": "RAPID",
-            "min_master_version": "1.31.4-gke.1072000",
+            "version_prefix": "1.31.",
+            "maintenance_exclusions": [{
+                "name": "no-minor-or-node-upgrades-indefinite",
+                "start_time": "2024-12-01T00:00:00Z",
+                "end_time": "2025-12-22T00:00:00Z",
+                "exclusion_scope": "NO_MINOR_OR_NODE_UPGRADES",
+            }],
             "prefix_with_deployment_name": False,
             "name_suffix": cluster_name,
             "system_node_pool_machine_type": system_node_pool_machine_type,
@@ -567,7 +573,7 @@ class BlueprintGenerator:
                 "config_path": f'$(ghpc_stage("{blueprint_name}"))/kueue-xpk-configuration.yaml.tftpl',
                 "config_template_vars": {"num_chips": f"{num_chips}"},
             },
-            "jobset": {"install": True, "version": "v0.7.1"},
+            "jobset": {"install": True, "version": "v0.7.2"},
             "apply_manifests": [
                 {"source": nccl_installer_path},
                 {"source": mlgru_disable_path},

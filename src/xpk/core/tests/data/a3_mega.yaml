@@ -101,6 +101,7 @@ deployment_groups:
         config_template_vars: {num_chips: "16"}
       jobset:
         install: true
+        version: v0.7.2
 
   - !DeploymentModule
     id: workload_configmap

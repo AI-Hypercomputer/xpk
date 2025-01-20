@@ -44,6 +44,33 @@ env:
   REGION: us-central2
 
 jobs:
+  label-validation:
+    if: github.repository == 'AI-Hypercomputer/xpk' && github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    steps:
+    - id: check-labels
+      uses: mheap/github-action-required-labels@v5
+      with:
+        mode: minimum
+        count: 1
+        labels: "release-improvements, release-bugfix, release-features"
+        message: "This PR is being prevented from merging because it is not labeled.  Please add a label to this PR.  Accepted labels: release-chore, release-key-new-features, release-new-modules, release-module-improvements, release-improvements, release-deprecations, release-version-updates, release-bugfix"
+    - id: do-not-merge
+      uses: mheap/github-action-required-labels@v5
+      with:
+        mode: exactly
+        count: 0
+        labels: "do-not-merge"
+        add_comment: false
+    - id: print-labels
+      run: |
+        echo "Current PR labels:"
+        for f in $(echo "{{steps.check-labels.outputs.labels}}" | sed "s/,/ /g")
+        do
+          echo "$f"
+        done
   run-unit-tests:
     runs-on: [ubuntu-22.04]
     concurrency: # We support one build or nightly test to run at a time currently.

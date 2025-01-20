@@ -50,15 +50,13 @@ jobs:
     permissions:
       pull-requests: read
     steps:
-    - name: get repo name
-      run: echo ${{github.repository}}
     - id: check-labels
       uses: mheap/github-action-required-labels@v5
       with:
         mode: minimum
         count: 1
         labels: "release-improvements, release-bugfix, release-features"
-        message: "This PR is being prevented from merging because it is not labeled.  Please add a label to this PR.  Accepted labels: release-chore, release-key-new-features, release-new-modules, release-module-improvements, release-improvements, release-deprecations, release-version-updates, release-bugfix"
+        message: "This PR is being prevented from merging because it is not labeled.  Please add a label to this PR.  Accepted labels: release-improvements, release-bugfix, release-features"
     - id: do-not-merge
       uses: mheap/github-action-required-labels@v5
       with:

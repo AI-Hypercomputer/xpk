@@ -26,7 +26,7 @@ test_deployment_dir = '/tmp/xpk_deployment'
 test_gcluster_cmd = 'gcluster --version'
 test_ctk_xpk_img = 'gcluster-xpk'
 test_ctk_xpk_container = 'xpk-test-container'
-gcluster_version = 'develop'
+gcluster_version = 'v1.45.0'
 
 
 def remove_img():

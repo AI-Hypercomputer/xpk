@@ -20,7 +20,7 @@ BIN_PATH=$(PROJECT_DIR)/bin
 install: check-python check-gcloud install-kueuectl install-kjobctl pip-install
 
 .PHONY: install-dev
-install-dev: check-python check-gcloud mkdir-bin install-kubectl install-kueuectl install-kjobctl pip-install install-pytest
+install-dev: check-python check-gcloud mkdir-bin install-kueuectl install-kjobctl pip-install install-pytest
 
 .PHONY: pip-install
 pip-install:
@@ -41,18 +41,13 @@ run-integrationtests:
 mkdir-bin:
 	mkdir -p $(BIN_PATH)
 
-.PHONY: install-kubectl
-install-kubectl: mkdir-bin
-	gcloud components install kubectl
-	gcloud components install gke-gcloud-auth-plugin
-
 .PHONY: install-kueuectl
-install-kueuectl: install-kubectl
+install-kueuectl: mkdir-bin
 	curl -Lo $(BIN_PATH)/kubectl-kueue $(KUEUECTL_URL)
 	chmod +x $(BIN_PATH)/kubectl-kueue
 
 .PHONY: install-kjobctl
-install-kjobctl: install-kubectl
+install-kjobctl: mkdir-bin
 	curl -Lo $(BIN_PATH)/kubectl-kjob $(KJOBCTL_URL)
 	chmod +x $(BIN_PATH)/kubectl-kjob
 

@@ -2,12 +2,14 @@ KUEUE_REPO=https://github.com/kubernetes-sigs/kueue.git
 
 KUBECTL_VERSION := $(shell curl -L -s https://dl.k8s.io/release/stable.txt)
 KUEUE_VERSION=v0.9.1
+KJOB_VERSION=v0.1.0
 
 OS := $(shell uname -s | tr A-Z a-z)
 PLATFORM := $(shell uname -m | sed -e 's/aarch64/arm64/' | sed -e 's/x86_64/amd64/')
 
 KUBECTL_URL = "https://dl.k8s.io/release/$(KUBECTL_VERSION)/bin/$(OS)/$(PLATFORM)/kubectl"
 KUEUECTL_URL = "https://github.com/kubernetes-sigs/kueue/releases/download/$(KUEUE_VERSION)/kubectl-kueue-$(OS)-$(PLATFORM)"
+KJOBCTL_URL = "https://github.com/kubernetes-sigs/kjob/releases/download/$(KJOB_VERSION)/kubectl-kjob-$(OS)-$(PLATFORM)"
 
 PROJECT_DIR := $(realpath $(shell dirname $(firstword $(MAKEFILE_LIST))))
 KJOB_DOCKER_IMG := xpk_kjob
@@ -15,10 +17,10 @@ KJOB_DOCKER_CONTAINER := xpk_kjob_container
 BIN_PATH=$(PROJECT_DIR)/bin
 
 .PHONY: install
-install: check-python check-gcloud install-kueuectl install-kjob pip-install
+install: check-python check-gcloud install-kueuectl install-kjobctl pip-install
 
 .PHONY: install-dev
-install-dev: check-python check-gcloud mkdir-bin install-kueuectl install-kjob pip-install install-pytest
+install-dev: check-python check-gcloud mkdir-bin install-kueuectl install-kjobctl pip-install install-pytest
 
 .PHONY: pip-install
 pip-install:
@@ -35,14 +37,6 @@ run-unittests:
 run-integrationtests:
 	pytest src/xpk/core/tests/integration/
 
-.PHONY: install-kjob
-install-kjob: mkdir-bin
-	docker build -f tools/Dockerfile-kjob -t $(KJOB_DOCKER_IMG) tools/
-	docker run -idt --name $(KJOB_DOCKER_CONTAINER) $(KJOB_DOCKER_IMG)
-	docker cp $(KJOB_DOCKER_CONTAINER):/kjob/bin/kubectl-kjob $(BIN_PATH)/kubectl-kjob
-	docker rm -f $(KJOB_DOCKER_CONTAINER)
-	docker image rm $(KJOB_DOCKER_IMG)
-	$(BIN_PATH)/kubectl-kjob --help
 .PHONY: mkdir-bin
 mkdir-bin:
 	mkdir -p $(BIN_PATH)
@@ -51,6 +45,11 @@ mkdir-bin:
 install-kueuectl: mkdir-bin
 	curl -Lo $(BIN_PATH)/kubectl-kueue $(KUEUECTL_URL)
 	chmod +x $(BIN_PATH)/kubectl-kueue
+
+.PHONY: install-kjobctl
+install-kjobctl: mkdir-bin
+	curl -Lo $(BIN_PATH)/kubectl-kjob $(KJOBCTL_URL)
+	chmod +x $(BIN_PATH)/kubectl-kjob
 
 .PHONY: check-gcloud
 check-gcloud:

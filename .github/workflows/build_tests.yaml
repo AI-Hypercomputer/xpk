@@ -45,11 +45,13 @@ env:
 
 jobs:
   label-validation:
-    if: github.repository == 'xpk' && github.event.pull_request.draft == false
+    if: && github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     permissions:
       pull-requests: read
     steps:
+    - name: get repo name
+      run: echo ${{github.repository}}
     - id: check-labels
       uses: mheap/github-action-required-labels@v5
       with:

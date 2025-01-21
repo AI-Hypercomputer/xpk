@@ -61,8 +61,9 @@ jobs:
         path: |
           ~/.cache/pip
           bin/
+          ${{env.pythonLocation}}/lib/python3.10/site-packages/*
         key: xpk-deps-3.10
-        restore-keys: xpk-deps-
+        restore-keys: xpk-deps-3.10
     - name: Set Google Cloud CLI properties to a unused zone to verify --zone arg is passed properly in commands.
       run: |
         gcloud config set compute/zone us-east4-a

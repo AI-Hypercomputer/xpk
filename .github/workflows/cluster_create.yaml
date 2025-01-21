@@ -51,8 +51,9 @@ jobs:
         path: |
           ~/.cache/pip
           bin/
+          ${{env.pythonLocation}}/lib/python3.10/site-packages/*
         key: xpk-deps-3.10
-        restore-keys: xpk-deps-
+        restore-keys: xpk-deps-3.10-
     - uses: 'google-github-actions/auth@v2'
       with:
         credentials_json: '${{ secrets.GCP_SA_KEY }}'

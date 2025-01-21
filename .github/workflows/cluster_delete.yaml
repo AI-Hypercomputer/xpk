@@ -48,8 +48,9 @@ jobs:
         path: |
           ~/.cache/pip
           bin/
+          ${{env.pythonLocation}}/lib/python3.10/site-packages/*
         key: xpk-deps-3.10
-        restore-keys: xpk-deps-
+        restore-keys: xpk-deps-3.10
     - name: Install xpk dependencies
       run: |
         make install 

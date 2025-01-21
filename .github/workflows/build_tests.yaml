@@ -82,10 +82,10 @@ jobs:
           ~/.cache/pip
           bin/
           ${{env.pythonLocation}}/lib/python3.10/site-packages/*
-          $PYINK_PATH
-          $PYTYPE_PATH
-          $PYLINT_PATH
-          $PYTEST_PATH
+          ${PYINK_PATH}
+          ${PYTYPE_PATH}
+          ${PYLINT_PATH}
+          ${PYTEST_PATH}
         key: xpk-deps-3.10-${{github.event.number}}
   linter:
     needs: [install-dependencies, set-variables]

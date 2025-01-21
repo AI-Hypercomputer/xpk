@@ -69,6 +69,12 @@ jobs:
         python-version: '3.10'
     - name: install dependencies
       run: make install && make install-dev && make install-lint && make install-dev
+    - name: Get tools paths
+      run: |
+        echo "PYINK_PATH=$(which pyink)" >> $GITHUB_ENV
+        echo "PYTYPE_PATH=$(which pytype)" >> $GITHUB_ENV
+        echo "PYLINT_PATH=$(which pylint)" >> $GITHUB_ENV
+        echo "PYTEST_PATH=$(which pytest)" >> $GITHUB_ENV
     - name: Cache dependencies
       uses: actions/cache/save@v3
       with:
@@ -76,15 +82,27 @@ jobs:
           ~/.cache/pip
           bin/
           ${{env.pythonLocation}}/lib/python3.10/site-packages/*
+          $PYINK_PATH
+          $PYTYPE_PATH
+          $PYLINT_PATH
+          $PYTEST_PATH
         key: xpk-deps-3.10-${{github.event.number}}
   linter:
     needs: [install-dependencies, set-variables]
     uses: ./.github/workflows/lint_and_format.yml
+    with:
+      pyink-path: $PYINK_PATH
+      pytest-path: $PYTEST_PATH
+      pylint-path: $PYLINT_PATH
   run-unit-tests:
     uses: ./.github/workflows/unit_tests.yaml
+    with:
+      pytest-path: $PYTEST_PATH
     needs: [linter, set-variables]
   run-integration-tests:
     uses: ./.github/workflows/integration_tests.yaml
+    with:
+      pytest-path: $PYTEST_PATH
     secrets: inherit
     needs: [run-unit-tests, set-variables]
   cluster-private:

@@ -14,7 +14,10 @@
 
 on:
   workflow_call:
-
+    inputs:
+      pytest-path:
+        type: string
+        required: true
 
 jobs:
   integration-tests:
@@ -42,7 +45,8 @@ jobs:
             ~/.cache/pip
             bin/
             ${{env.pythonLocation}}/lib/python3.10/site-packages/*
-          key: xpk-deps-3.10
+            ${{inputs.pytest-path}}
+          key: xpk-deps-3.10-${{github.event.number}}
           restore-keys: xpk-deps-3.10
       - name: "Set auth cidr"
         run: echo "AUTH_CIDR=$(curl api.ipify.org)/32" >> $GITHUB_ENV

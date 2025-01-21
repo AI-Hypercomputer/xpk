@@ -92,7 +92,7 @@ jobs:
     uses: ./.github/workflows/lint_and_format.yml
     with:
       pyink-path: $PYINK_PATH
-      pytest-path: $PYTEST_PATH
+      pytype-path: $PYTYPE_PATH
       pylint-path: $PYLINT_PATH
   run-unit-tests:
     uses: ./.github/workflows/unit_tests.yaml

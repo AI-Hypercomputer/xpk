@@ -39,6 +39,14 @@ jobs:
         restore-keys: xpk-deps-${{matrix.python-version}}
     - name: Install dependencies
       run: make install-lint
+    - name: Restore cached dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/pip
+          bin/
+        key: xpk-deps-${{matrix.python-version}}
+        restore-keys: xpk-deps-${{matrix.python-version}}
     - name: Check the code with pylint
       run: make pylint
     - name: Check format with pyink

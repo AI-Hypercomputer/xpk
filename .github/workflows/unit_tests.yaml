@@ -31,6 +31,7 @@ jobs:
       uses: actions/cache/save@v3
       with:
         path:
+          ~/.cache/pip
           bin/
         key: xpk-deps-3.10
     - name: Run unit tests

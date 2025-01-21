@@ -29,6 +29,14 @@ jobs:
       uses: actions/setup-python@v3
       with:
         python-version: ${{ matrix.python-version }}
+    - name: Restore cached dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/pip
+          bin/
+        key: xpk-deps-${{matrix.python-version}}
+        restore-keys: xpk-deps-${{matrix.python-version}}
     - name: Install dependencies
       run: make install-lint
     - name: Check the code with pylint

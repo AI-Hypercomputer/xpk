@@ -28,7 +28,7 @@ jobs:
     - name: get pip cache
       run: pip cache dir
     - name: Cache dependencies
-      uses: actions/cache/save@v3
+      uses: actions/cache@v3
       with:
         path: |
           ~/.cache/pip

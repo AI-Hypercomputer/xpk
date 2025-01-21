@@ -265,7 +265,17 @@ spec:
               - "bash"
               - "-c"
               - |
+                echo "***** Starting sidecar"
+                echo "***** ls all"
+                ls
+                echo "***** ls generated/"
+                ls generated/
+                echo "***** ps aux"
+                ps aux
+                echo "***** Running command: python test_sidecar.py"
                 python test_sidecar.py
+                echo "***** ps aux"
+                ps aux
               securityContext:
                 privileged: true
               volumeMounts:

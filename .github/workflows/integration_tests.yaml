@@ -39,7 +39,8 @@ jobs:
           path: |
             ~/.cache/pip
             bin/
-          key: xpk-deps-
+          key: xpk-deps-3.10
+          restore-keys: xpk-deps-
       - name: Install dependencies
         run : make install-dev
       - name: "Set auth cidr"

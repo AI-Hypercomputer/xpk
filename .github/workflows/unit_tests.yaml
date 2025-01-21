@@ -30,7 +30,7 @@ jobs:
     - name: Cache dependencies
       uses: actions/cache/save@v3
       with:
-        path:
+        path: |
           ~/.cache/pip
           bin/
         key: xpk-deps-3.10

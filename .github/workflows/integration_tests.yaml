@@ -34,6 +34,13 @@ jobs:
           install_components: 'beta,gke-gcloud-auth-plugin'
       - name: Verify gcp setup
         run: gcloud info
+      - name: Restore cached dependencies
+        uses: actions/cache@v4
+        with:
+          path:
+            ~/.local/share/virtualenvs
+            bin/
+          key: xpk-deps-3.10
       - name: Install dependencies
         run : make install-dev
       - name: "Set auth cidr"

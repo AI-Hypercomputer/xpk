@@ -35,6 +35,7 @@ jobs:
         path: |
           ~/.cache/pip
           bin/
+          ${{ env.pythonLocation }}/lib/python3.7/site-packages/*
         key: xpk-deps-${{matrix.python-version}}
         restore-keys: xpk-deps-${{matrix.python-version}}
     - name: Install dependencies

@@ -60,6 +60,7 @@ jobs:
       run: |    
         echo location=us-central2 >> $GITHUB_OUTPUT
   install-dependencies:
+    needs: [set-variables]
     runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4
@@ -77,8 +78,8 @@ jobs:
           ${{env.pythonLocation}}/lib/python3.10/site-packages/*
         key: xpk-deps-3.10-${{github.event.number}}
   linter:
+    needs: [install-dependencies, set-variables]
     uses: ./.github/workflows/lint_and_format.yml
-    needs: [set-variables]
   run-unit-tests:
     uses: ./.github/workflows/unit_tests.yaml
     needs: [linter, set-variables]

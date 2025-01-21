@@ -79,6 +79,8 @@ jobs:
           bin/
           ${{env.pythonLocation}}/lib/python3.10/site-packages/*
         key: xpk-deps-3.10-${{github.event.number}}
+    - name: print path
+      run: echo $GITHUB_PATH
   linter:
     needs: [install-dependencies, set-variables]
     uses: ./.github/workflows/lint_and_format.yml

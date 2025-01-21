@@ -44,6 +44,8 @@ jobs:
       run: make install-lint
     - name: Update path
       run: echo "/opt/hostedtoolcache/Python/3.10.16/x64/bin/" >> $GITHUB_PATH
+    - name: print path
+      run: echo $GITHUB_PATH
     - name: Check the code with pylint  
       run: make pylint
     - name: Check format with pyink

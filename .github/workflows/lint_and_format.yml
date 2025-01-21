@@ -16,16 +16,7 @@ name: Lint and Format
 
 on:
   workflow_call:
-    inputs:
-      pylint-path:
-        type: string
-        required: true
-      pyink-path:
-        type: string
-        required: true
-      pytype-path:
-        type: string
-        required: true
+
 jobs:
   build-and-test:
     runs-on: ubuntu-22.04
@@ -47,13 +38,10 @@ jobs:
           ~/.cache/pip
           bin/
           ${{env.pythonLocation}}/lib/python${{matrix.python-version}}/site-packages/*
-          ${{inputs.pyink-path}}
-          ${{inputs.pylint-path}}
-          ${{inputs.pytype-path}}
         key: xpk-deps-${{matrix.python-version}}-${{github.event.number}}
         restore-keys: xpk-deps-${{matrix.python-version}}-
-    # - name: Install dependencies
-    #   run: make install-lint
+    - name: Install dependencies
+      run: make install-lint
     - name: Check the code with pylint  
       run: make pylint
     - name: Check format with pyink

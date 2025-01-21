@@ -14,10 +14,6 @@
 
 on:
   workflow_call:
-    inputs:
-      pytest-path:
-        type: string
-        required: true
 
 jobs:
   integration-tests:
@@ -45,7 +41,6 @@ jobs:
             ~/.cache/pip
             bin/
             ${{env.pythonLocation}}/lib/python3.10/site-packages/*
-            ${{inputs.pytest-path}}
           key: xpk-deps-3.10-${{github.event.number}}
           restore-keys: xpk-deps-3.10
       - name: "Set auth cidr"
@@ -58,6 +53,8 @@ jobs:
         run: echo "DEPLOYMENT_DIR=$HOME/deployment" >> $GITHUB_ENV
       - name: Create deployment dir
         run: mkdir -p $DEPLOYMENT_DIR
+      - name: Install dependecies
+        run: make install-dev
       - name: Run integration tests
         run: make run-integrationtests
   

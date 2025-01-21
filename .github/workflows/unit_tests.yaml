@@ -14,10 +14,6 @@
 
 on:
   workflow_call:
-    inputs:
-      pytest-path:
-        type: string
-        required: true
 
 jobs:
   run-unit-tests:
@@ -36,8 +32,9 @@ jobs:
           ~/.cache/pip
           bin/
           ${{env.pythonLocation}}/lib/python3.10/site-packages/*
-          ${{inputs.pytest-path}}
         key: xpk-deps-3.10-${{github.event.number}}
         restore-keys: xpk-deps-3.10-
+    - name: Install dependecies
+      run: make install-dev
     - name: Run unit tests
       run: make run-unittests

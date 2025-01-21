@@ -59,6 +59,23 @@ jobs:
       id: set-location
       run: |    
         echo location=us-central2 >> $GITHUB_OUTPUT
+  install-dependencies:
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+    - name: install dependencies
+      run: make install && make install-dev && make install-lint && make install-dev
+    - name: Cache dependencies
+      uses: actions/cache/save@v3
+      with:
+        path: |
+          ~/.cache/pip
+          bin/
+          ${{env.pythonLocation}}/lib/python3.10/site-packages/*
+        key: xpk-deps-3.10-${{github.event.number}}
   linter:
     uses: ./.github/workflows/lint_and_format.yml
     needs: [set-variables]

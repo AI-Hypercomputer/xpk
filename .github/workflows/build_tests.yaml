@@ -62,11 +62,14 @@ jobs:
   install-dependencies:
     needs: [set-variables]
     runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11"]
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-python@v5
       with:
-        python-version: '3.10'
+        python-version: ${{ matrix.python-version }}
     - name: Check if cache existis
       id: check-cache
       uses: actions/cache@v3
@@ -75,7 +78,7 @@ jobs:
           bin/
           ~/.cache/pip
           ${{env.pythonLocation}}
-        key: xpk-deps-3.10-${{github.event.number}}
+        key: xpk-deps-${{ matrix.python-version }}-${{github.event.number}}
         lookup-only: true
     - name: install dependencies
       if : steps.check-cache.outputs.cache-hit != 'true'
@@ -88,7 +91,7 @@ jobs:
           bin/
           ~/.cache/pip
           ${{env.pythonLocation}}
-        key: xpk-deps-3.10-${{github.event.number}}
+        key: xpk-deps-${{ matrix.python-version }}-${{github.event.number}}
   linter:
     needs: [install-dependencies, set-variables]
     uses: ./.github/workflows/lint_and_format.yml

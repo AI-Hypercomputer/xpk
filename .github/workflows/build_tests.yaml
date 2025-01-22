@@ -76,8 +76,7 @@ jobs:
       with:
         path: |
           ~/.cache/pip
-          bin/
-
+          ${{env.pythonLocation}}
         key: xpk-deps-3.10-${{github.event.number}}
     - name: print path
       run: echo $GITHUB_PATH

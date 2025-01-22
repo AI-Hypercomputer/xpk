@@ -23,11 +23,6 @@ from ..utils.console import xpk_print
 
 
 def version(_: Namespace) -> None:
-  """Run batch task.
-     This function runs passed script in non-blocking manner.
-  Args:
-    args: user provided arguments for running the command.
-  Returns:
-    None
+  """Get version of xpk.
   """
   xpk_print("xpk version:", XPK_VERSION)

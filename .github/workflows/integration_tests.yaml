@@ -40,7 +40,7 @@ jobs:
           path: |
             ~/.cache/pip
             bin/
-            ${{env.pythonLocation}}/lib/python3.10/site-packages/*
+  
           key: xpk-deps-3.10-${{github.event.number}}
           restore-keys: xpk-deps-3.10
       - name: "Set auth cidr"

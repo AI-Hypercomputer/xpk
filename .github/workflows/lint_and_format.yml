@@ -40,8 +40,6 @@ jobs:
           ${{env.pythonLocation}}
         key: xpk-deps-${{matrix.python-version}}-${{github.event.number}}
         restore-keys: xpk-deps-${{matrix.python-version}}-
-    - name: Install dependencies
-      run: make install-lint
     - name: Run pylint
       run: make pylint
     - name: Check format with pyink

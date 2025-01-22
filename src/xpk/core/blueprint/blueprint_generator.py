@@ -630,7 +630,7 @@ class BlueprintGenerator:
         blueprint_name, a3_ultra_blueprint, prefix
     )
     blueprint_dependencies = self._get_a3_ultra_blueprint_dependencies(
-        blueprint_name
+        blueprint_name, prefix
     )
     return BlueprintGeneratorOutput(
         blueprint_file=blueprint_file_path,

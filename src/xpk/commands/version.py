@@ -27,7 +27,7 @@ from ..utils.console import xpk_exit, xpk_print
 def version(args: Namespace) -> None:
   """Get version of xpk."""
   xpk_version = XPK_VERSION
-  if os.path.exists(os.path.join(os.getcwd(),'.git')):
+  if os.path.exists(os.path.join(os.getcwd(), '.git')):
     code, xpk_version = run_command_for_value(
         'git rev-parse HEAD', task='Get latest hash', global_args=args
     )

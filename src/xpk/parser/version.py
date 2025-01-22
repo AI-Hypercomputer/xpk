@@ -15,7 +15,9 @@ limitations under the License.
 """
 
 from ..commands.version import (version)
+from .common import add_shared_arguments
 
 
 def set_version_parser(version_parser):
+  add_shared_arguments(version_parser)
   version_parser.set_defaults(func=version)

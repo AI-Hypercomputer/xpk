@@ -255,32 +255,24 @@ spec:
               volumeMounts:
               - mountPath: /tmp
                 name: shared-tmp
-            initContainers:
+
+            # This is a sidecar container that runs the remote python server.
+            # It is a special case of the initContainer (designated by restartPolicy: Always)
+            # See https://kubernetes.io/docs/concepts/workloads/pods/sidecar-containers/
+            # for more details.
             # TODO(sujinesh): We should make this optional and only part of the
             # workload if the user provides the image/enables remote python.
+            initContainers:
             - name: remote-python-sidecar
               image: {args.remote_python_sidecar_image}
               imagePullPolicy: Always
-              command:
-              - "bash"
-              - "-c"
-              - |
-                echo "***** Starting sidecar"
-                echo "***** ls all"
-                ls
-                echo "***** ls generated/"
-                ls generated/
-                echo "***** ps aux"
-                ps aux
-                echo "***** Running command: python test_sidecar.py"
-                python test_sidecar.py
-                echo "***** ps aux"
-                ps aux
+              command: ["python", "/app/test_sidecar.py"] # Directly call the python script
               securityContext:
                 privileged: true
               volumeMounts:
               - mountPath: /tmp
                 name: shared-tmp
+              restartPolicy: Always  # This must be Always.
               ports:
               - containerPort: 50051
               env:

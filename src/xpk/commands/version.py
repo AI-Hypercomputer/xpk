@@ -17,12 +17,12 @@ limitations under the License.
 from argparse import Namespace
 
 
-XPK_VERSION="0.6.0"
+XPK_VERSION = "0.6.0"
 
 from ..utils.console import xpk_print
 
 
-def version(args: Namespace) -> None:
+def version(_: Namespace) -> None:
   """Run batch task.
      This function runs passed script in non-blocking manner.
   Args:
@@ -30,4 +30,4 @@ def version(args: Namespace) -> None:
   Returns:
     None
   """
-  xpk_print("xpk version:",XPK_VERSION)
+  xpk_print("xpk version:", XPK_VERSION)

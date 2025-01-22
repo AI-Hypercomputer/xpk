@@ -76,6 +76,7 @@ jobs:
           ~/.cache/pip
           ${{env.pythonLocation}}
         key: xpk-deps-3.10-${{github.event.number}}
+        lookup-only: true
     - name: install dependencies
       if : steps.check-cache.outputs.cache-hit != 'true'
       run: make install && make install-lint && make install-dev

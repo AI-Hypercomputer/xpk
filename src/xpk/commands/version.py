@@ -34,4 +34,4 @@ def version(args: Namespace) -> None:
     if code != 0:
       xpk_exit(code)
     xpk_print('xpk build from sources.')
-  xpk_print('xpk version: ', xpk_version.strip('\n'))
+  xpk_print('xpk version:', xpk_version.strip('\n'))

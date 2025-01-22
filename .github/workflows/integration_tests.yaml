@@ -53,8 +53,6 @@ jobs:
         run: echo "DEPLOYMENT_DIR=$HOME/deployment" >> $GITHUB_ENV
       - name: Create deployment dir
         run: mkdir -p $DEPLOYMENT_DIR
-      - name: Install dependecies
-        run: make install-dev
       - name: Run integration tests
         run: make run-integrationtests
   

@@ -23,6 +23,5 @@ from ..utils.console import xpk_print
 
 
 def version(_: Namespace) -> None:
-  """Get version of xpk.
-  """
+  """Get version of xpk."""
   xpk_print("xpk version:", XPK_VERSION)

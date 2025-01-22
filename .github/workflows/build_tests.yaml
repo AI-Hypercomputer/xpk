@@ -80,8 +80,6 @@ jobs:
     - name: install dependencies
       if : steps.check-cache.outputs.cache-hit != 'true'
       run: make install && make install-lint && make install-dev
-    - name: print bin path
-      run: which pylint
     - name: Cache dependencies
       if : steps.check-cache.outputs.cache-hit != 'true'
       uses: actions/cache/save@v3
@@ -91,8 +89,6 @@ jobs:
           ~/.cache/pip
           ${{env.pythonLocation}}
         key: xpk-deps-3.10-${{github.event.number}}
-    - name: print path
-      run: echo $GITHUB_PATH
   linter:
     needs: [install-dependencies, set-variables]
     uses: ./.github/workflows/lint_and_format.yml

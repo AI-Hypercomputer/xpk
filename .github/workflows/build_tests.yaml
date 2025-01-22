@@ -75,6 +75,7 @@ jobs:
       uses: actions/cache/save@v3
       with:
         path: |
+          ~/.cache/pip
           ${{env.pythonLocation}}
         key: xpk-deps-3.10-${{github.event.number}}
     - name: print path

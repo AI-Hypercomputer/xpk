@@ -17,7 +17,7 @@ limitations under the License.
 from argparse import Namespace
 
 
-XPK_VERSION = "0.6.0"
+XPK_VERSION = "0.4.1"
 
 from ..utils.console import xpk_print
 

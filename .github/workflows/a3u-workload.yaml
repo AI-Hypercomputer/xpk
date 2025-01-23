@@ -55,7 +55,7 @@ jobs:
     - name: Check xpk installation
       run: xpk --help
     - name: Create an XPK Cluster with one gpu nodepool
-      run: python xpk.py cluster create --cluster $GPU_CLUSTER_NAME --device-type=h200-141gb-8 --num-nodes=1 --project=${{secrets.A3U_GPU_PROJECT}} --zone=${{secrets.A3U_GPU_ZONE}} --reservation=${{secrets.A3U_RESERVATION}}'
+      run: python xpk.py cluster create --cluster $GPU_CLUSTER_NAME --device-type=h200-141gb-8 --num-nodes=1 --project=${{secrets.A3U_GPU_PROJECT}} --zone=${{secrets.A3U_GPU_ZONE}} --reservation=${{secrets.A3U_RESERVATION}}
     - name: Authenticate Docker
       run: gcloud auth configure-docker --quiet
     - name: Create test script to execute in workloads

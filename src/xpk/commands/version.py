@@ -19,7 +19,7 @@ import os
 
 from ..core.commands import run_command_for_value
 
-XPK_VERSION = '0.4.1'
+XPK_VERSION = 'v0.4.1'
 
 from ..utils.console import xpk_exit, xpk_print
 

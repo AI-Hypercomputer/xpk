@@ -25,6 +25,14 @@ on:
         options:
           - v4-8
           - v5litepod-8
+      rebuild-cache:
+        description: 'Rebuild cache'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
   push:
     branches: ["main"]
   pull_request: # By default this runs for types assigned, opened and synchronize.
@@ -81,17 +89,17 @@ jobs:
         key: xpk-deps-${{ matrix.python-version }}-${{github.event.number}}
         lookup-only: true
     - name: install dependencies
-      if : steps.check-cache.outputs.cache-hit != 'true'
+      if : steps.check-cache.outputs.cache-hit != 'true' || inputs.rebuild-cache == 'true'
       run: make install && make install-lint && make install-dev
     - name: Cache dependencies
-      if : steps.check-cache.outputs.cache-hit != 'true'
+      if : steps.check-cache.outputs.cache-hit != 'true' || inputs.rebuild-cache == 'true'
       uses: actions/cache/save@v3
       with:
         path: |
           bin/
           ~/.cache/pip
           ${{env.pythonLocation}}
-        key: xpk-deps-${{ matrix.python-version }}-${{github.event.number}}
+        key: xpk-deps-${{ matrix.python-version }}-${{github.event.number}}-${{github.run_attempt}}
   linter:
     needs: [install-dependencies, set-variables]
     uses: ./.github/workflows/lint_and_format.yml

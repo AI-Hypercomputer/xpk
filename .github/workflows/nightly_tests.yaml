@@ -44,9 +44,11 @@ jobs:
   a3u-test:
     if: inputs.gpu-type == 'h200-141gb-8'
     uses: ./.github/workflows/a3u-workload.yaml
+    secrets: inherit
   a3mega-test:
     if: inputs.gpu-type == 'h100-mega-80gb-8'
     uses: ./.github/workflows/a3mega-workload.yaml
+    secrets: inherit
   cluster-create-and-delete:
     runs-on: [ubuntu-22.04]
     concurrency: # We support one build test to run at a time currently.

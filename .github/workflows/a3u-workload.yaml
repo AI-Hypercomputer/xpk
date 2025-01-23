@@ -1,0 +1,77 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License
+
+name: Nightly Tests
+
+on:
+  workflow_call:
+
+env:
+  # Names must be unique in parallel running tests.
+  GPU_CLUSTER_NAME: nightly-gpu-a3ultra
+  WORKLOAD_NAME: xpktest-nightly-${{ github.run_attempt }}
+
+jobs:
+  gpu-a3u-workload:
+    runs-on: [ubuntu-22.04]
+    concurrency: # We support one build test to run at a time currently.
+      group: nightly-test-cluster-group
+      cancel-in-progress: false
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+    - name: Install expect package
+      run: sudo apt-get install expect
+    - uses: 'google-github-actions/auth@v2'
+      with:
+        credentials_json: '${{ secrets.GCP_SA_KEY }}'
+    - uses: google-github-actions/setup-gcloud@v2
+      with:
+        version: '>= 363.0.0'
+        install_components: 'beta,gke-gcloud-auth-plugin'
+    - name: Verify gcp setup
+      run: gcloud info
+    - name: Set Google Cloud CLI properties to a unused zone to verify --zone arg is passed properly in commands.
+      run: |
+        gcloud config set compute/zone us-east4-a
+        gcloud config get compute/zone
+    - name: Install xpk dependencies
+      run: |
+        make install 
+        echo $PWD/bin >> "$GITHUB_PATH"
+    - name: Check xpk installation
+      run: xpk --help
+    - name: Create an XPK Cluster with one gpu nodepool
+      run: python xpk.py cluster create --cluster $GPU_CLUSTER_NAME --device-type=h200-141gb-8 --num-nodes=1 --project=${{secrets.A3U_GPU_PROJECT}} --zone=${{secrets.A3U_GPU_ZONE}} --reservation=${{secrets.A3U_RESERVATION}}'
+    - name: Authenticate Docker
+      run: gcloud auth configure-docker --quiet
+    - name: Create test script to execute in workloads
+      run: echo -e '#!/bin/bash \n echo "Hello world from a test script!"' > workload.sh
+    - name: Run a base-docker-image workload
+      run: python xpk.py workload create --cluster $GPU_CLUSTER_NAME --workload $WORKLOAD_NAME  --command "bash workload.sh"  --device-type=h200-141gb-8 --zone=${{secrets.A3U_GPU_ZONE}}
+    - name: List out the workloads on the cluster
+      run: python3 xpk.py workload list --cluster $GPU_CLUSTER_NAME --zone=${{secrets.A3U_GPU_ZONE}}
+    - name: Run xpk inspector with the workload created above
+      run: python3 xpk.py inspector --cluster $GPU_CLUSTER_NAME --zone=${{secrets.A3U_GPU_ZONE}}  --workload $WORKLOAD_NAME
+    - name: Wait for workload completion and confirm it succeeded
+      run: python3 xpk.py workload list --cluster $GPU_CLUSTER_NAME --zone=${{secrets.A3U_GPU_ZONE}} --wait-for-job-completion $WORKLOAD_NAME --timeout 300
+    - name: Run xpk info command
+      run : python3 xpk.py info --cluster $GPU_CLUSTER_NAME --zone=${{secrets.A3U_GPU_ZONE}}
+    - name: Delete the workload on the cluster
+      run: python3 xpk.py workload delete --workload $WORKLOAD_NAME --cluster $GPU_CLUSTER_NAME --zone=${{secrets.A3U_GPU_ZONE}}
+    - name: Delete the cluster created
+      if: always()
+      run: python xpk.py cluster delete --cluster $GPU_CLUSTER_NAME --zone=${{secrets.A3U_GPU_ZONE}} --force

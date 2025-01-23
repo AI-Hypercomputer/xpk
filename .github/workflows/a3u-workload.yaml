@@ -26,7 +26,7 @@ jobs:
   gpu-a3u-workload:
     runs-on: [ubuntu-22.04]
     concurrency: # We support one build test to run at a time currently.
-      group: nightly-test-cluster-group
+      group: nightly-test-cluster-group-gpu
       cancel-in-progress: false
     steps:
     - uses: actions/checkout@v4

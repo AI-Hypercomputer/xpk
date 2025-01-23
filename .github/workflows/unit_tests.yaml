@@ -32,7 +32,7 @@ jobs:
           bin/
           ~/.cache/pip
           ${{env.pythonLocation}}
-        key: xpk-deps-3.10-${{github.ref}}
+        key: xpk-deps-3.10-${{github.event.number}}
         restore-keys: xpk-deps-3.10-
     # - name: Install dependecies
     #   run: make install-dev

@@ -23,7 +23,7 @@ env:
   WORKLOAD_NAME: xpktest-nightly-${{ github.run_attempt }}
 
 jobs:
-  gpu-a3u-workload:
+  gpu-a3mega-workload:
     runs-on: [ubuntu-22.04]
     concurrency: # We support one build test to run at a time currently.
       group: nightly-test-cluster-group-gpu

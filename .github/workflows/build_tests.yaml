@@ -86,7 +86,7 @@ jobs:
           bin/
           ~/.cache/pip
           ${{env.pythonLocation}}
-        key: xpk-deps-${{ matrix.python-version }}-${{github.base_ref}}
+        key: xpk-deps-${{ matrix.python-version }}-${{github.ref}}
         lookup-only: true
     - name: install dependencies
       if : steps.check-cache.outputs.cache-hit != 'true' || inputs.rebuild-cache == 'true'
@@ -99,7 +99,7 @@ jobs:
           bin/
           ~/.cache/pip
           ${{env.pythonLocation}}
-        key: xpk-deps-${{ matrix.python-version }}-${{github.base_ref}}-${{github.run_attempt}}
+        key: xpk-deps-${{ matrix.python-version }}-${{github.ref}}-${{github.run_attempt}}
   linter:
     needs: [install-dependencies, set-variables]
     uses: ./.github/workflows/lint_and_format.yml

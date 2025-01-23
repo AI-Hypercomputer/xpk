@@ -41,7 +41,7 @@ jobs:
             bin/
             ~/.cache/pip
             ${{env.pythonLocation}}
-          key: xpk-deps-3.10-${{github.base_ref}}
+          key: xpk-deps-3.10-${{github.ref}}
           restore-keys: xpk-deps-3.10
       - name: "Set auth cidr"
         run: echo "AUTH_CIDR=$(curl api.ipify.org)/32" >> $GITHUB_ENV

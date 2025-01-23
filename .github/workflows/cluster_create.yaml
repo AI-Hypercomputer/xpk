@@ -54,7 +54,7 @@ jobs:
           bin/
           ~/.cache/pip
           ${{env.pythonLocation}}
-        key: xpk-deps-3.10-${{github.event.number}}
+        key: xpk-deps-3.10-${{github.base_ref}}
         restore-keys: xpk-deps-3.10-
     - uses: 'google-github-actions/auth@v2'
       with:

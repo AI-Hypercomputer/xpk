@@ -63,7 +63,7 @@ jobs:
           bin/
           ~/.cache/pip
           ${{env.pythonLocation}}
-        key: xpk-deps-3.10-${{github.event.number}}
+        key: xpk-deps-3.10-${{github.base_ref}}
         restore-keys: xpk-deps-3.10
     - name: Set Google Cloud CLI properties to a unused zone to verify --zone arg is passed properly in commands.
       run: |

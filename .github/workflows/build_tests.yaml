@@ -117,16 +117,16 @@ jobs:
       cancel-in-progress: false
     steps:
     - uses: actions/checkout@v4
+    - uses: google-github-actions/setup-gcloud@v2
+      with:
+        version: '>= 363.0.0'
+        install_components: 'beta,gke-gcloud-auth-plugin'
     - uses: actions/setup-python@v5
       with:
         python-version: '3.10'
     - uses: 'google-github-actions/auth@v2'
       with:
         credentials_json: '${{ secrets.GCP_SA_KEY }}'
-    - uses: google-github-actions/setup-gcloud@v2
-      with:
-        version: '>= 363.0.0'
-        install_components: 'beta,gke-gcloud-auth-plugin'
     - name: Generate random seed
       run: |
         RANDOM_SEED=$((RANDOM % 10000))  # Generate a random number between 0 and 9999
@@ -142,7 +142,7 @@ jobs:
         pip install .
         xpk --help
     - name: install kubectl and auth plugin
-      run: gcloud components install kubectl && gcloud components install gke-gcloud-auth-plugin
+      run: gcloud components install kubectl
     # - name: debug
     #   run: ls ~/.kube/config
     - name: Create a Pathways-enabled XPK Cluster with 2x v4-8 nodepools. Larger num-nodes to avoid master resizing.

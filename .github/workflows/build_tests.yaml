@@ -63,6 +63,7 @@ jobs:
         gcloud config get compute/zone
     - name: Install xpk with pip and verify it executes corretly
       run: |
+        echo foo
         pip install .
         xpk --help
     - name: Authenticate Docker

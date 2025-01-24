@@ -44,24 +44,27 @@ from ..core.filestore import FilestoreClient, get_storage_class_name
 
 def storage_create(args: Namespace) -> None:
   add_zone_and_project(args)
-  filestore_client = FilestoreClient(args.zone, args.name, args.project)
-  filestore_exists = filestore_client.check_filestore_instance_exists(args.name)
-  if filestore_exists is True:
-    xpk_print(f"Filestore instance {args.name} already exists.")
-    xpk_exit(1)
+  if args.type == GCP_FILESTORE_TYPE:
+    filestore_client = FilestoreClient(args.zone, args.name, args.project)
+    filestore_exists = filestore_client.check_filestore_instance_exists(
+        args.name
+    )
+    if filestore_exists is True:
+      xpk_print(f"Filestore instance {args.name} already exists.")
+      xpk_exit(1)
 
-  filestore_client.create_filestore_instance(
-      vol=args.vol, size=args.size, tier=args.tier
-  )
+    filestore_client.create_filestore_instance(
+        vol=args.vol, size=args.size, tier=args.tier
+    )
 
-  pv_data = filestore_client.create_pv(args.vol, access_mode=args.access_mode)
-  pvc_data = filestore_client.create_pvc(access_mode=args.access_mode)
-  sc = filestore_client.create_sc(args.tier, args.network)
-  args.manifest = filestore_client.compile_to_manifest_yaml(
-      sc, pv_data, pvc_data
-  )
-  k8s_api_client = setup_k8s_env(args)
-  create_storage_crds(k8s_api_client, args)
+    pv_data = filestore_client.create_pv(args.vol, access_mode=args.access_mode)
+    pvc_data = filestore_client.create_pvc(access_mode=args.access_mode)
+    sc = filestore_client.create_sc(args.tier, args.network)
+    args.manifest = filestore_client.compile_to_manifest_yaml(
+        sc, pv_data, pvc_data
+    )
+    k8s_api_client = setup_k8s_env(args)
+    create_storage_crds(k8s_api_client, args)
 
   if args.type == GCP_FILESTORE_TYPE:
     return_code = update_cluster_with_workload_identity_if_necessary(args)
@@ -132,29 +135,18 @@ def storage_delete(args: Namespace) -> None:
   core_api = k8s_client.CoreV1Api()
   storage_api = k8s_client.StorageV1Api()
   storage = get_storage(k8s_api_client, args.name)
-  if storage.type == GCS_FUSE_TYPE:
-    delete_resource(
-        lambda name: core_api.delete_namespaced_persistent_volume_claim(
-            name, "default"
-        ),
-        storage.pvc,
-        "Persistent Volume Claim",
-    )
-    delete_resource(
-        core_api.delete_persistent_volume, storage.pv, "Persistent Volume"
-    )
-  if storage.type == GCP_FILESTORE_TYPE:
-    delete_resource(
-        lambda name: core_api.delete_namespaced_persistent_volume_claim(
-            name, "default"
-        ),
-        storage.pvc,
-        "Persistent Volume Claim",
-    )
-    delete_resource(
-        core_api.delete_persistent_volume, storage.pv, "Persistent Volume"
-    )
+  delete_resource(
+      lambda name: core_api.delete_namespaced_persistent_volume_claim(
+          name, "default"
+      ),
+      storage.pvc,
+      "Persistent Volume Claim",
+  )
+  delete_resource(
+      core_api.delete_persistent_volume, storage.pv, "Persistent Volume"
+  )
 
+  if storage.type == GCP_FILESTORE_TYPE:
     delete_resource(
         storage_api.delete_storage_class,
         get_storage_class_name(args.name),

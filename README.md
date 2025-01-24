@@ -363,9 +363,9 @@ To use the GCP Filestore with XPK user needs to create a a [Filestore instance](
 and a manifest with PersistentVolume and PersistentVolumeClaim that mounts to the Filestore. To learn how to properly
 set up PersistentVolume and PersistentVolumeClaim visit [GKE Filestore documentation](https://cloud.google.com/filestore/docs/csi-driver#access)
 
-Creating Filestore storage and attaching it to workload can be achieved in two steps:
+Creating Filestore storage and attaching it to workload can be achieved in two ways:
 
-* Create a simple Storage, that attaches existing filestore instance to your workloads. User must specify `--type=gcpfilestore`. This command will use existing instance of Filestore, which you can find in your gcp console, or by running `gcloud filestore instances list`. Manifest file containing Filestore details must be provided. To see examples of manifest file please visit [this guide](https://cloud.google.com/kubernetes-engine/docs/how-to/persistent-volumes/filestore-csi-driver#access) or 
+* Use `xpk storage attach` command, to attach existing filestore instance to your workloads. User must specify `--type=gcpfilestore`. This command will use existing instance of Filestore, which you can find in your gcp console, or by running `gcloud filestore instances list`. Manifest file containing Filestore details must be provided. To see examples of manifest file please visit [this guide](https://cloud.google.com/kubernetes-engine/docs/how-to/persistent-volumes/filestore-csi-driver#access) or [test example](tests/data/fs-manifest.yaml)
 
     ```shell
     python3 xpk.py storage attach fs-storage-attach --project=$PROJECT
@@ -373,6 +373,15 @@ Creating Filestore storage and attaching it to workload can be achieved in two s
     --mount-point='/test-mount-point' --readonly=false \
     --manifest='examples/storage/filestore-manifest-attach.yaml'
     ```
+
+* Use `xpk storage create` command, to create new Filestore instace that will be attached to your workloads.
+
+  ```
+  python3 xpk.py storage create $STORAGE_NAME --cluster=$CLUSTER \
+  --zone=$ZONE --type=gcpfilestore \
+  --auto-mount=true --vol=vol1 --size=1024 --tier=BASIC_HDD \
+  --mount-point='/fs-test-mount-point' --readonly=false
+  ```
 
 * Create a simple Workload with created filestore.
     ```shell

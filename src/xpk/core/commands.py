@@ -227,6 +227,7 @@ def run_command_for_value(
     dry_run_return_val='0',
     print_timer=False,
     hide_error=False,
+    quiet=False,
 ) -> tuple[int, str]:
   """Runs the command and returns the error code and stdout.
 
@@ -254,7 +255,8 @@ def run_command_for_value(
     return 0, dry_run_return_val
 
   if print_timer:
-    xpk_print(f'Task: `{task}` is implemented by `{command}`')
+    if not quiet:
+      xpk_print(f'Task: `{task}` is implemented by `{command}`')
     with subprocess.Popen(
         command,
         stdout=subprocess.PIPE,
@@ -265,19 +267,22 @@ def run_command_for_value(
       while True:
         return_code = child.poll()
         if return_code is None:
-          xpk_print(f'Waiting for `{task}`, for {i} seconds')
+          if not quiet:
+            xpk_print(f'Waiting for `{task}`, for {i} seconds')
           time.sleep(1)
           i += 1
         else:
-          xpk_print(f'Task: `{task}` terminated with code `{return_code}`')
+          if not quiet:
+            xpk_print(f'Task: `{task}` terminated with code `{return_code}`')
           out, err = child.communicate()
           out, err = str(out, 'UTF-8'), str(err, 'UTF-8')
           return return_code, f'{out}\n{err}'
   else:
-    xpk_print(
-        f'Task: `{task}` is implemented by `{command}`, hiding output unless'
-        ' there is an error.'
-    )
+    if not quiet:
+      xpk_print(
+          f'Task: `{task}` is implemented by `{command}`, hiding output unless'
+          ' there is an error.'
+      )
     try:
       output = subprocess.check_output(
           command,
@@ -285,10 +290,11 @@ def run_command_for_value(
           stderr=subprocess.STDOUT if not hide_error else None,
       )
     except subprocess.CalledProcessError as e:
-      xpk_print(f'Task {task} failed with {e.returncode}')
-      xpk_print('*' * 80)
-      xpk_print(e.output)
-      xpk_print('*' * 80)
+      if not quiet:
+        xpk_print(f'Task {task} failed with {e.returncode}')
+        xpk_print('*' * 80)
+        xpk_print(e.output)
+        xpk_print('*' * 80)
       return e.returncode, str(e.output, 'UTF-8')
     return 0, str(output, 'UTF-8')
 

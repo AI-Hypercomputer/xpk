@@ -52,6 +52,7 @@ from ..core.pathways import (
     ensure_pathways_workload_prerequisites,
     get_pathways_proxy_args,
     get_pathways_rm_args,
+    get_pathways_sidecar_container,
     get_pathways_unified_query_link,
     get_pathways_worker_args,
     get_user_workload_for_pathways,

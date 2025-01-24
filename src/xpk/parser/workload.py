@@ -506,7 +506,7 @@ def add_shared_workload_create_optional_arguments(args_parsers):
     custom_parser.add_argument(
         '--remote-python-sidecar-image',
         type=str,
-        default='TempImageLocation',
+        default=None,
         help=(
             'Remote Python sidecar image to use.'
         ),

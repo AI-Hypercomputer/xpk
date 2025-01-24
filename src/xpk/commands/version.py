@@ -29,7 +29,10 @@ def version(args: Namespace) -> None:
   xpk_print('xpk_version:', XPK_VERSION)
   if os.path.exists(os.path.join(os.getcwd(), '.git')):
     code, xpk_version = run_command_for_value(
-        'git rev-parse HEAD', task='Get latest hash', global_args=args, quiet= True
+        'git rev-parse HEAD',
+        task='Get latest hash',
+        global_args=args,
+        quiet=True,
     )
     if code != 0:
       xpk_exit(code)

@@ -227,7 +227,7 @@ def run_command_for_value(
     dry_run_return_val='0',
     print_timer=False,
     hide_error=False,
-    quiet = False
+    quiet=False,
 ) -> tuple[int, str]:
   """Runs the command and returns the error code and stdout.
 
@@ -280,8 +280,8 @@ def run_command_for_value(
   else:
     if not quiet:
       xpk_print(
-        f'Task: `{task}` is implemented by `{command}`, hiding output unless'
-        ' there is an error.'
+          f'Task: `{task}` is implemented by `{command}`, hiding output unless'
+          ' there is an error.'
       )
     try:
       output = subprocess.check_output(

@@ -76,7 +76,7 @@ def delete_resource(api_call, resource_name: str, resource_kind: str) -> None:
     resource_name: The name of the resource to delete.
     resource_type: The type of the resource (e.g., "Persistent Volume Claim").
   """
-  xpk_print(f"Deleting {resource_kind}:{resource_name}  ")
+  xpk_print(f"Deleting {resource_kind}:{resource_name}")
   try:
     api_call(resource_name)
   except ApiException as e:

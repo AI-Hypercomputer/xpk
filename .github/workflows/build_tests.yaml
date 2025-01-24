@@ -57,15 +57,12 @@ jobs:
         echo "RANDOM_SEED=$RANDOM_SEED" >> $GITHUB_ENV
     - name: Verify gcp setup
       run: gcloud info
-    - name: install kubectl and auth plugin
-      run: gcloud components install kubectl && gcloud components install gke-gcloud-auth-plugin
     - name: Set Google Cloud CLI properties to a unused zone to verify --zone arg is passed properly in commands.
       run: |
         gcloud config set compute/zone us-east4-a
         gcloud config get compute/zone
     - name: Install xpk with pip and verify it executes corretly
       run: |
-        echo foo
         pip install .
         xpk --help
     - name: Authenticate Docker
@@ -117,16 +114,16 @@ jobs:
       cancel-in-progress: false
     steps:
     - uses: actions/checkout@v4
-    - uses: google-github-actions/setup-gcloud@v2
-      with:
-        version: '>= 363.0.0'
-        install_components: 'beta,gke-gcloud-auth-plugin'
     - uses: actions/setup-python@v5
       with:
         python-version: '3.10'
     - uses: 'google-github-actions/auth@v2'
       with:
         credentials_json: '${{ secrets.GCP_SA_KEY }}'
+    - uses: google-github-actions/setup-gcloud@v2
+      with:
+        version: '>= 363.0.0'
+        install_components: 'beta,gke-gcloud-auth-plugin'
     - name: Generate random seed
       run: |
         RANDOM_SEED=$((RANDOM % 10000))  # Generate a random number between 0 and 9999
@@ -141,17 +138,12 @@ jobs:
       run: |
         pip install .
         xpk --help
-    - name: install kubectl and auth plugin
-      run: gcloud components install kubectl
-    # - name: debug
-    #   run: ls ~/.kube/config
     - name: Create a Pathways-enabled XPK Cluster with 2x v4-8 nodepools. Larger num-nodes to avoid master resizing.
       run: |
         python3 xpk.py cluster create-pathways --cluster $TPU_CLUSTER_NAME --tpu-type=v4-8  --num-slices=2 \
         --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 \
         --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --enable-workload-identity --enable-gcsfuse-csi-driver --enable-gcpfilestore-csi-driver --custom-cluster-arguments="${PW_CLUSTER_ARGUMENTS}"
-    - name: Run anything
-      run: gcloud container clusters describe $TPU_CLUSTER_NAME --region=us-central2 --format="value(privateClusterConfig.enablePrivateNodes)"
+
     - name: Authenticate Docker
       run: gcloud auth configure-docker --quiet
     - name: Create auto-mount Storage instance
@@ -189,14 +181,14 @@ jobs:
       run: python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion $PATHWAYS_WORKLOAD_NAME --timeout 300
     - name: List out the workloads on the cluster
       run: python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
-    # - name: Delete the workload on the cluster
-    #   run: python3 xpk.py workload delete --workload $WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
-    # - name: Delete the Pathways workload on the cluster
-    #   run: python3 xpk.py workload delete --workload $PATHWAYS_WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
-    # - name: Delete created GCS file
-    #   run: gsutil rm gs://xpk-ci-cd-tests/$RANDOM_SEED.txt
-    # - name: Delete existing Storage
-    #   run: python3 xpk.py storage delete $STORAGE_NAME  --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
-    # - name: Delete the cluster created
-    #   if: always()
-    #   run: python3 xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+    - name: Delete the workload on the cluster
+      run: python3 xpk.py workload delete --workload $WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+    - name: Delete the Pathways workload on the cluster
+      run: python3 xpk.py workload delete --workload $PATHWAYS_WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+    - name: Delete created GCS file
+      run: gsutil rm gs://xpk-ci-cd-tests/$RANDOM_SEED.txt
+    - name: Delete existing Storage
+      run: python3 xpk.py storage delete $STORAGE_NAME  --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+    - name: Delete the cluster created
+      if: always()
+      run: python3 xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b

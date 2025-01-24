@@ -507,9 +507,7 @@ def add_shared_workload_create_optional_arguments(args_parsers):
         '--remote-python-sidecar-image',
         type=str,
         default=None,
-        help=(
-            'Remote Python sidecar server image.'
-        ),
+        help='Remote Python sidecar server image.',
     )
     custom_parser.add_argument(
         '--enable-debug-logs',

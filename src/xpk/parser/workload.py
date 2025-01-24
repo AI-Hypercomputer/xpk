@@ -508,7 +508,7 @@ def add_shared_workload_create_optional_arguments(args_parsers):
         type=str,
         default=None,
         help=(
-            'Remote Python sidecar image to use.'
+            'Remote Python sidecar server image.'
         ),
     )
     custom_parser.add_argument(

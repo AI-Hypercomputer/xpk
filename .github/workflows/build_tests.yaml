@@ -143,8 +143,6 @@ jobs:
         xpk --help
     - name: install kubectl and auth plugin
       run: gcloud components install kubectl && gcloud components install gke-gcloud-auth-plugin
-    - name: check kubeconfig
-      run: echo ${{KUBECONFIG}}
     - name: debug
       run: ls ~/.kube/config
     - name: Create a Pathways-enabled XPK Cluster with 2x v4-8 nodepools. Larger num-nodes to avoid master resizing.

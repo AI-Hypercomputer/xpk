@@ -70,6 +70,10 @@ jobs:
         xpk --help
     - name: Authenticate Docker
       run: gcloud auth configure-docker --quiet
+    - name: check kubeconfig
+      run: echo ${{KUBECONFIG}}
+    - name: debug
+      run: ls ~/.kube/config
     - name: Create a XPK Cluster with 2x v4-8 nodepools. Larger num-nodes to avoid master resizing.
       run: |
         python3 xpk.py cluster create --cluster $TPU_FILESTORE_CLUSTER_NAME --tpu-type=v4-8  --num-slices=2 \

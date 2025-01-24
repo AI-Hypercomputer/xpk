@@ -75,7 +75,6 @@ def cluster_create(args) -> None:
   Returns:
     0 if successful and 1 otherwise.
   """
-
   system, return_code = get_system_characteristics(args)
 
   if return_code > 0:

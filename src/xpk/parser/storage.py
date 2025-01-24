@@ -116,7 +116,11 @@ def add_storage_create_parser(
       help='The name of storage',
   )
   req_args.add_argument(
-      '--vol', type=str, help='The name of the volume to create', required=True, default='default'
+      '--vol',
+      type=str,
+      help='The name of the volume to create',
+      required=True,
+      default='default',
   )
   req_args.add_argument(
       '--size',
@@ -130,9 +134,12 @@ def add_storage_create_parser(
   req_args.add_argument(
       '--tier',
       type=str,
-      help='The tier of the filestore to create. Possible values are: [BASIC_HDD, BASIC_SSD, ZONAL, REGIONAL, ENTERPRISE]',
+      help=(
+          'The tier of the filestore to create. Possible values are:'
+          ' [BASIC_HDD, BASIC_SSD, ZONAL, REGIONAL, ENTERPRISE]'
+      ),
       required=True,
-      default='BASIC_HDD'
+      default='BASIC_HDD',
   )
 
   req_args.add_argument(

@@ -104,8 +104,9 @@ def add_storage_create_parser(
   )
   add_shared_arguments(req_args)
   req_args.add_argument(
-      '--access_mode',
+      '--access-mode',
       type=str,
+      choices=['ReadWriteOnce', 'ReadOnlyMany', 'ReadWriteMany'],
       help='Access mode of created filestore instance',
       default='ReadWriteMany',
   )
@@ -138,6 +139,7 @@ def add_storage_create_parser(
           'The tier of the filestore to create. Possible values are:'
           ' [BASIC_HDD, BASIC_SSD, ZONAL, REGIONAL, ENTERPRISE]'
       ),
+      choices=['BASIC_HDD', 'BASIC_SSD', 'ZONAL', 'REGIONAL', 'ENTERPRISE'],
       required=True,
       default='BASIC_HDD',
   )

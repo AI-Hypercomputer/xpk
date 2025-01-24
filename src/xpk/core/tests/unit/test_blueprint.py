@@ -62,6 +62,10 @@ def test_generate_a3_mega_blueprint():
     with open(bp.blueprint_file, encoding="utf-8") as generated_blueprint:
       ctk_test = yaml.load(generated_blueprint)
       assert ctk_yaml.blueprint_name == ctk_test.blueprint_name
+      assert ctk_yaml.toolkit_modules_url == ctk_test.toolkit_modules_url
+      assert (
+          ctk_yaml.toolkit_modules_version == ctk_test.toolkit_modules_version
+      )
       assert ctk_yaml.vars == ctk_test.vars
       assert ctk_test.deployment_groups == ctk_yaml.deployment_groups
       assert os.path.exists(
@@ -98,6 +102,10 @@ def test_generate_a3_ultra_blueprint():
     with open(bp.blueprint_file, encoding="utf-8") as generated_blueprint:
       ctk_test = yaml.load(generated_blueprint)
       assert ctk_yaml.blueprint_name == ctk_test.blueprint_name
+      assert ctk_yaml.toolkit_modules_url == ctk_test.toolkit_modules_url
+      assert (
+          ctk_yaml.toolkit_modules_version == ctk_test.toolkit_modules_version
+      )
       assert ctk_test.deployment_groups == ctk_yaml.deployment_groups
       assert os.path.exists(
           os.path.join(tmp_test_dir, blueprint_name, "mlgru-disable.yaml")

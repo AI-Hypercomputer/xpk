@@ -65,8 +65,6 @@ def storage_create(args: Namespace) -> None:
     )
     k8s_api_client = setup_k8s_env(args)
     create_storage_crds(k8s_api_client, args)
-
-  if args.type == GCP_FILESTORE_TYPE:
     return_code = update_cluster_with_workload_identity_if_necessary(args)
     if return_code > 0:
       xpk_exit(return_code)

@@ -57,6 +57,8 @@ jobs:
         echo "RANDOM_SEED=$RANDOM_SEED" >> $GITHUB_ENV
     - name: Verify gcp setup
       run: gcloud info
+    - name: install kubectl and auth plugin
+      run: gcloud components install kubectl && gcloud components install gke-gcloud-auth-plugin
     - name: Set Google Cloud CLI properties to a unused zone to verify --zone arg is passed properly in commands.
       run: |
         gcloud config set compute/zone us-east4-a

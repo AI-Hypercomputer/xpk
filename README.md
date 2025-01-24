@@ -65,7 +65,7 @@ Monitoring Admin
 Service Account User
 Storage Admin
 Vertex AI Administrator
-Filestore Editor (This role is neccessary if you want to run `storage create` command)
+Filestore Editor (This role is neccessary if you want to run `storage create` command with `--type=gcpfilestore`)
 
 # Installation
 To install xpk, run the following command:
@@ -365,10 +365,10 @@ set up PersistentVolume and PersistentVolumeClaim visit [GKE Filestore documenta
 
 Creating Filestore storage and attaching it to workload can be achieved in two steps:
 
-* Create a simple Storage, that attaches existing filestore instance to your workloads. User must specify `--type=gcpfilestore`. This command will create a new instance of Filestore, which you can find in your gcp console, or by running `here is the command for listing filestore instance`
+* Create a simple Storage, that attaches existing filestore instance to your workloads. User must specify `--type=gcpfilestore`. This command will use existing instance of Filestore, which you can find in your gcp console, or by running `gcloud filestore instances list`. Manifest file containing Filestore details must be provided. To see examples of manifest file please visit [this guide](https://cloud.google.com/kubernetes-engine/docs/how-to/persistent-volumes/filestore-csi-driver#access) or 
 
     ```shell
-    python3 xpk.py storage create fs-storage-attach --project=$PROJECT
+    python3 xpk.py storage attach fs-storage-attach --project=$PROJECT
     --cluster=xpk-test --type=gcpfilestore --auto-mount=false \
     --mount-point='/test-mount-point' --readonly=false \
     --manifest='examples/storage/filestore-manifest-attach.yaml'

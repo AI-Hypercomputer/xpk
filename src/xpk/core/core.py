@@ -344,6 +344,7 @@ def setup_k8s_env(args: Namespace) -> k8s_client.ApiClient:
   args.project_number = project_id_to_project_number(args.project)
 
   config.load_kube_config()
+  xpk_print('here i am')
   return k8s_client.ApiClient()
 
 

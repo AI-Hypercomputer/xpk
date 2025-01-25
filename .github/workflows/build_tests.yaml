@@ -153,7 +153,10 @@ jobs:
     - name: Authenticate Docker
       run: gcloud auth configure-docker --quiet
     - name: Create test script to execute in workloads
-      run: echo -e '#!/bin/bash \n echo "Hello world from a test script!"' > workload.sh
+      run: echo -e '#!/bin/bash \nsleep 3 \necho "Hello world from a test script!"' > workload.sh
+    - name: Run a job
+      run: |
+        python xpk.py run --cluster $TPU_CLUSTER_NAME --zone=us-central2-b workload.sh | awk '/Starting log streaming for pod xpk-def-app-profile-slurm-[a-zA-Z0-9]+-[0-9]+-[a-zA-Z0-9]+.../,/Job logs streaming finished./ { print }'
     - name: Run a base-docker-image workload
       run: python xpk.py workload create --cluster $TPU_CLUSTER_NAME --workload $WORKLOAD_NAME  --command "bash workload.sh"  --tpu-type=$TPU_TYPE --num-slices=2 --zone=us-central2-b
     - name: Run xpk inspector with the workload created above

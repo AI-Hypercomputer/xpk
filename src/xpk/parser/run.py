@@ -1,5 +1,5 @@
 """
-Copyright 2024 Google LLC
+Copyright 2025 Google LLC
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,29 +16,26 @@ limitations under the License.
 
 import argparse
 
+from ..commands.run import run
 from .common import add_shared_arguments, add_slurm_arguments
-from ..commands.batch import batch
 
 
-def set_batch_parser(batch_parser):
-  batch_required_arguments = batch_parser.add_argument_group(
-      'batch Built-in Arguments', 'Arguments required for `batch`.'
+def set_run_parser(run_parser):
+  run_required_arguments = run_parser.add_argument_group(
+      'Required Arguments', 'Arguments required for `run`.'
   )
-  batch_optional_arguments = batch_parser.add_argument_group(
-      'Optional Arguments', 'Arguments optional for `batch`.'
+  run_optional_arguments = run_parser.add_argument_group(
+      'Optional Arguments', 'Arguments optional for `run`.'
   )
 
-  ### "batch" Required arguments
-  batch_required_arguments.add_argument(
-      'script', help='script with batch task to run'
-  )
-  batch_optional_arguments.add_argument(
+  run_required_arguments.add_argument('script', help='script with task to run')
+  run_optional_arguments.add_argument(
       '--cluster',
       type=str,
       default=None,
       help='Cluster to which command applies.',
   )
-  batch_optional_arguments.add_argument(
+  run_optional_arguments.add_argument(
       '--kind-cluster',
       type=bool,
       action=argparse.BooleanOptionalAction,
@@ -46,6 +43,6 @@ def set_batch_parser(batch_parser):
       help='Apply command to a local test cluster.',
   )
 
-  add_shared_arguments(batch_optional_arguments)
-  add_slurm_arguments(batch_optional_arguments)
-  batch_parser.set_defaults(func=batch)
+  add_slurm_arguments(run_optional_arguments)
+  add_shared_arguments(run_parser)
+  run_parser.set_defaults(func=run)

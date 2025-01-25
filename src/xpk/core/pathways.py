@@ -84,8 +84,6 @@ def get_pathways_sidecar_container(args) -> str:
             - name: remote-python-sidecar
               image: {args.remote_python_sidecar_image}
               imagePullPolicy: Always
-              # TODO(sujinesh): update this to invoke the proper sidecar script when available.
-              command: ['python', '/app/sidecar.py']  # Directly invoke the sidecar.
               securityContext:
                 privileged: true
               volumeMounts:
@@ -96,8 +94,7 @@ def get_pathways_sidecar_container(args) -> str:
               - containerPort: 50051
               env:
               - name: GRPC_SERVER_ADDRESS
-                value: '0.0.0.0:50051'
-          """
+                value: '0.0.0.0:50051'"""
   if args.use_pathways and args.remote_python_sidecar_image is not None:
     return yaml.format(args=args)
   else:

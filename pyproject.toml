@@ -39,6 +39,7 @@ dependencies = [
   "google-cloud",
   "google-api-core",
   "packaging"
+  "google-cloud-filestore",
 ]
 
 [project.urls]

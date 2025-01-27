@@ -21,7 +21,7 @@ from google.cloud.filestore_v1.types import FileShareConfig
 from google.cloud.filestore_v1.types import NetworkConfig
 from google.cloud.exceptions import GoogleCloudError
 
-from ..utils import xpk_exit, xpk_print
+from ..utils.console import xpk_exit, xpk_print
 
 import os
 import ruamel.yaml

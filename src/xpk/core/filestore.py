@@ -29,9 +29,9 @@ import ruamel.yaml
 yaml = ruamel.yaml.YAML()
 yaml_object_separator = "---\n"
 
-FS_PV_PATH = "/../templates/fs-pv.yaml"
-FS_PVC_PATH = "/../templates/fs-pvc.yaml"
-FS_SC_PATH = "/../templates/fs-sc.yaml"
+FS_PV_PATH = "/../templates/filestore-pv.yaml"
+FS_PVC_PATH = "/../templates/filestore-pvc.yaml"
+FS_SC_PATH = "/../templates/filestore-sc.yaml"
 
 
 def get_storage_class_name(storage_name: str) -> str:

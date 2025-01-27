@@ -35,7 +35,7 @@ dependencies = [
   "ruamel.yaml",
   "pyyaml",
   "docker",
-  "kubernetes",
+  "kubernetes==31.0.0",
   "google-cloud",
   "google-api-core",
   "packaging"

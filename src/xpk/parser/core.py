@@ -26,6 +26,7 @@ from .job import set_job_parser
 from .info import set_info_parser
 from .kind import set_kind_parser
 from .shell import set_shell_parser
+from .version import set_version_parser
 
 
 def set_parser(parser: argparse.ArgumentParser):
@@ -64,6 +65,9 @@ def set_parser(parser: argparse.ArgumentParser):
   shell_parser = xpk_subcommands.add_parser(
       "shell", help="Commands around configuring and using interactive shell."
   )
+  version_parser = xpk_subcommands.add_parser(
+      "version", help="Command to get xpk version"
+  )
 
   def default_subcommand_function(
       _args,
@@ -84,7 +88,7 @@ def set_parser(parser: argparse.ArgumentParser):
     info_parser.print_help()
     job_parser.print_help()
     shell_parser.print_help()
-
+    version_parser.print_help()
     kind_parser.print_help()
 
     storage_parser.print_help()
@@ -99,6 +103,7 @@ def set_parser(parser: argparse.ArgumentParser):
   kind_parser.set_defaults(func=default_subcommand_function)
   shell_parser.set_defaults(func=default_subcommand_function)
   storage_parser.set_defaults(func=default_subcommand_function)
+  version_parser.set_defaults(func=default_subcommand_function)
 
   set_workload_parsers(workload_parser=workload_parser)
   set_cluster_parser(cluster_parser=cluster_parser)
@@ -109,3 +114,4 @@ def set_parser(parser: argparse.ArgumentParser):
   set_kind_parser(kind_parser=kind_parser)
   set_shell_parser(shell_parser=shell_parser)
   set_storage_parser(storage_parser=storage_parser)
+  set_version_parser(version_parser=version_parser)

@@ -31,7 +31,7 @@ keywords = []
 # pip dependencies installed with `pip install -e .`
 dependencies = [
   "cloud-accelerator-diagnostics",
-  "kubernetes",
+  "kubernetes==31.0.0",
   "google-cloud",
   "google-api-core",
   "tabulate",

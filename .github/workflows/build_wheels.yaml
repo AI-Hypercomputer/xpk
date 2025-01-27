@@ -70,7 +70,7 @@ jobs:
       # We should configure trusted publishing as specified here: 
       # https://packaging.python.org/en/latest/guides/publishing-package-distribution-releases-using-github-actions-ci-cd-workflows/#configuring-trusted-publishing
       name: testpypi
-      url: https://test.pypi.org/p/xpk
+      url: https://test.pypi.org/p/xpk-testing
     permissions:
       id-token: write  # IMPORTANT: mandatory for trusted publishing
     steps:

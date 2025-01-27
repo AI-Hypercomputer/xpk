@@ -1,0 +1,107 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License
+
+name: PyPi releases
+
+on: 
+  push:
+  workflow_dispatch:
+    inputs:
+      testpypi:
+        type: boolean
+        required: false
+        default: false
+      tag:
+        type: string
+        required: true
+
+
+jobs:
+  build:
+    name: Build distribution
+    runs-on: ubuntu-latest
+    # to build only on push to tags or on custom dispatched workflows
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/') 
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.x"
+    - name: Install pypa/build
+      run: |
+        python3 -m
+        pip install
+        build
+        --user
+    - name: Clone xpk from tag
+      if: github.event_name == 'worfklow_dispatch'
+      run: git clone --branch=${{inputs.tag}} https://github.com/AI-Hypercomputer/xpk.git
+    - name: Enter directory
+      if: github.event_name == 'worfklow_dispatch'
+      run: cd xpk
+    - name: Build a binary wheel and a source tarball
+      run: python3 -m build
+    - name: Store the distribution packages
+      uses: actions/upload-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/
+  publish-to-testpypi:
+    if: ${{inputs.testpypi}} == true
+    name: Publish Python distribution to TestPyPI
+    needs:
+    - build
+    runs-on: ubuntu-latest
+    environment:
+      # We should configure trusted publishing as specified here: 
+      # https://packaging.python.org/en/latest/guides/publishing-package-distribution-releases-using-github-actions-ci-cd-workflows/#configuring-trusted-publishing
+      name: testpypi
+      url: https://test.pypi.org/p/xpk
+    permissions:
+      id-token: write  # IMPORTANT: mandatory for trusted publishing
+    steps:
+    - name: Download all the dists
+      uses: actions/download-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/
+    - name: Publish distribution 📦 to TestPyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        repository-url: https://test.pypi.org/legacy/ `
+  publish-to-pypi:
+    name: Publish Python distribution to PyPI
+    if: startsWith(github.ref, 'refs/tags/')  # only publish to PyPI on tag pushes
+    needs:
+    - build
+    runs-on: ubuntu-latest
+    environment:
+      # We should configure trusted publishing as specified here: 
+      # https://packaging.python.org/en/latest/guides/publishing-package-distribution-releases-using-github-actions-ci-cd-workflows/#configuring-trusted-publishing
+      name: pypi
+      url: https://pypi.org/p/xpk  # Replace <package-name> with your PyPI project name
+    permissions:
+      id-token: write  # IMPORTANT: mandatory for trusted publishing
+
+    steps:
+    - name: Download all the dists
+      uses: actions/download-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/
+    - name: Publish distribution to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1

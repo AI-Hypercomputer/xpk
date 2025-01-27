@@ -13,7 +13,7 @@
 # limitations under the License.
 
 [project]
-name = "xpk"
+name = "xpk-testing"
 dynamic = ["version"]
 authors = [
   { name="XPK team", email="xpk-code-reviewers@google.com" },

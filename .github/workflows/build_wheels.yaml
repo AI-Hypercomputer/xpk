@@ -14,7 +14,6 @@
 
 name: PyPi releases
 
-
 on:
   workflow_dispatch:
     inputs:
@@ -26,12 +25,13 @@ on:
         type: string
         required: true
 
+
 jobs:
   build:
     name: Build distribution
     runs-on: ubuntu-latest
     # to build only on push to tags or on custom dispatched workflows
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
     steps:
     - uses: actions/checkout@v4
       with:

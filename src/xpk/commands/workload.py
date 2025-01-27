@@ -208,6 +208,9 @@ spec:
     - name: slice-job
       replicas: 1
       template:
+        metadata:
+          annotations:
+            {storage_annotations}
         spec:
           parallelism: {args.num_nodes}
           completions: {args.num_nodes}
@@ -223,9 +226,12 @@ spec:
               restartPolicy: Never
               dnsPolicy: ClusterFirstWithHostNet
               terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
+              serviceAccountName: {service_account}
               tolerations:
               - operator: "Exists"
                 key: nvidia.com/gpu
+              volumes:
+              {storage_volumes}
               containers:
               {container}
 """

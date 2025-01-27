@@ -430,16 +430,17 @@ Currently, the below flags/arguments are supported for A3-Mega and A3-Ultra mach
 ## Storage
 Currently xpk supports Cloud Storage FUSE. A FUSE adapter that lets you mount and access Cloud Storage buckets as local file systems, so applications can read and write objects in your bucket using standard file system semantics.
 
-To use the GCS FUSE with XPK user needs to create a a [Storage Bucket](https://pantheon.corp.google.com/storage/)
-and a manifest with PersistentVolume and PersistentVolumeClaim that mounts to the Bucket. To learn how to properly
+To use the GCS FUSE with XPK user needs to:
+- create a [Storage Bucket](https://pantheon.corp.google.com/storage/)
+- create a manifest with PersistentVolume and PersistentVolumeClaim that mounts to the Bucket. To learn how to properly
 set up PersistentVolume and PersistentVolumeClaim visit [GKE Cloud Storage documentation](https://cloud.google.com/kubernetes-engine/docs/how-to/persistent-volumes/cloud-storage-fuse-csi-driver#provision-static)
 
-Once it's ready user can define
+Once it's ready user can define:
 
 `--type` - defines a type of a storage, currently xpk supports `gcsfuse` only.
 `--auto-mount` - if set to true means that all workloads should have a given storage mounted by default.
 `--mount-point` - defines the path on which a given storage should be mounted for a workload.
-`--manifest` - defines the path to manifest which contains PersistentVolue and PersistentVolumeClaim definitions
+`--manifest` - defines the path to manifest which contains PersistentVolume and PersistentVolumeClaim definitions
 
 
 * Create a simple Storage

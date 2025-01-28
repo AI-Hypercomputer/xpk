@@ -52,6 +52,7 @@ from ..core.pathways import (
     ensure_pathways_workload_prerequisites,
     get_pathways_proxy_args,
     get_pathways_rm_args,
+    get_pathways_sidecar_container,
     get_pathways_unified_query_link,
     get_pathways_worker_args,
     get_user_workload_for_pathways,
@@ -255,6 +256,7 @@ spec:
               volumeMounts:
               - mountPath: /tmp
                 name: shared-tmp
+            {pathways_sidecar_container}
             nodeSelector:
               {accelerator_label}
               {machine_label}
@@ -499,6 +501,7 @@ def workload_create(args) -> None:
         pathways_rm_args=get_pathways_rm_args(args, system),
         pathways_worker_args=get_pathways_worker_args(args),
         pathways_proxy_args=get_pathways_proxy_args(args),
+        pathways_sidecar_container=get_pathways_sidecar_container(args),
         user_workload=get_user_workload_for_pathways(args, system),
         resource_type=AcceleratorTypeToAcceleratorCharacteristics[
             system.accelerator_type

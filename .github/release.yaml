@@ -19,7 +19,7 @@ changelog:
   categories:
   - title: New Features
     labels: [release-features]
-  - title: New Improvments
+  - title: Improvments
     labels: [release-improvments]
   - title: Bug fixes
     labels: [release-bugfix]

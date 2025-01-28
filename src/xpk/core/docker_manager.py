@@ -30,7 +30,7 @@ import time
 DockerRunCommandExitCode = 135
 dockerBuildErrorCode = 134
 ctk_dockerfile_path = "Dockerfile"
-ctk_build_ref = "v1.45.1"
+ctk_build_ref = "v1.45.0"
 ctk_docker_image = "xpk-ctk"
 ctk_container_name = "xpk-ctk-container"
 gcloud_cfg_mount_path = "/root/.config/gcloud"
@@ -288,7 +288,7 @@ class DockerManager(CommandRunner):
           path=dir_path,
           tag=f"{self.img_name}",
           rm=True,
-          buildargs={"CLUSTER_TOOLKIT_REF": ctk_build_ref},
+          buildargs={"CLUSTER_TOOLKIT_REF": ctk_build_ref, "TERRAFORM_VERSION": "1.5.7"},
       )
     except BuildError as e:
       xpk_print(f"error while building image {self.img_name}: {e.msg}")

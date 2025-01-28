@@ -16,7 +16,7 @@
 name = "xpk"
 dynamic = ["version"]
 authors = [
-  { name="Cloud TPU Team", email="cloud-tpu-eng@google.com" },
+  { name="XPK team", email="xpk-code-reviewers@google.com" },
 ]
 description = "xpk helps Cloud developers to orchestrate training jobs on accelerators on GKE."
 readme = "README.md"

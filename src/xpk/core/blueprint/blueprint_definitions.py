@@ -56,4 +56,6 @@ class Blueprint:
 
   deployment_groups: list[DeploymentGroup]
   blueprint_name: Optional[str]
+  toolkit_modules_url: str
+  toolkit_modules_version: str
   vars: dict[str, str | list[str]] | None

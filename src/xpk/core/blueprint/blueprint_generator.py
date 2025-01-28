@@ -35,6 +35,9 @@ blueprint_dependencies_dir = {
     a3ultra_device_type: "src/xpk/blueprints/a3ultra",
 }
 
+cluster_toolkit_url = "github.com/GoogleCloudPlatform/cluster-toolkit"
+cluster_toolkit_version = "v1.45.1"
+
 
 class BlueprintGeneratorOutput:
   """BlueprintGeneratorOutput is a class containing fields with output blueprint file path and path to blueprint dependencies.
@@ -234,6 +237,8 @@ class BlueprintGenerator:
     )
     xpk_blueprint = Blueprint(
         blueprint_name=blueprint_name,
+        toolkit_modules_url=cluster_toolkit_url,
+        toolkit_modules_version=cluster_toolkit_version,
         deployment_groups=[primary_group],
         vars={
             "project_id": project_id,
@@ -314,6 +319,8 @@ class BlueprintGenerator:
     )
     ml_gke = Blueprint(
         blueprint_name=blueprint_name,
+        toolkit_modules_url=cluster_toolkit_url,
+        toolkit_modules_version=cluster_toolkit_version,
         deployment_groups=[primary_group],
         vars={
             "project_id": project_id,
@@ -617,6 +624,8 @@ class BlueprintGenerator:
     )
     a3_ultra_blueprint = Blueprint(
         blueprint_name=blueprint_name,
+        toolkit_modules_url=cluster_toolkit_url,
+        toolkit_modules_version=cluster_toolkit_version,
         deployment_groups=[primary_group],
         vars={
             "project_id": project_id,
@@ -630,7 +639,7 @@ class BlueprintGenerator:
         blueprint_name, a3_ultra_blueprint, prefix
     )
     blueprint_dependencies = self._get_a3_ultra_blueprint_dependencies(
-        blueprint_name
+        blueprint_name, prefix
     )
     return BlueprintGeneratorOutput(
         blueprint_file=blueprint_file_path,

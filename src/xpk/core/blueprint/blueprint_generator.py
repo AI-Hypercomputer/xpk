@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from logging import config
 import shutil
 from typing import Optional
 from ruamel import yaml
@@ -199,6 +200,9 @@ class BlueprintGenerator:
                 "config_template_vars": {"num_chips": f"{num_chips}"},
             },
             "jobset": {"install": True, "version": "v0.7.2"},
+            "apply_manifests": [
+                {"source": f'$(ghpc_stage("{blueprint_name}"))/storage_crd.yaml'}
+            ],
         },
     )
 
@@ -584,6 +588,7 @@ class BlueprintGenerator:
             "apply_manifests": [
                 {"source": nccl_installer_path},
                 {"source": mlgru_disable_path},
+                {"source": f'$(ghpc_stage("{blueprint_name}"))/storage_crd.yaml'}
             ],
         },
     )

@@ -1,4 +1,4 @@
-# Copyright 2023 Google LLC
+# Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -10,25 +10,19 @@
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
-# limitations under the License.
-
-name: Lint and Format
+# limitations under the License
 
 on:
   workflow_call:
 
 jobs:
-  build-and-test:
-    runs-on: ubuntu-22.04
-    strategy:
-      matrix:
-        python-version: ["3.10", "3.11"]
+  run-unit-tests:
+    runs-on: [ubuntu-22.04]
     steps:
-    - uses: actions/checkout@v3
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v3
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
       with:
-        python-version: ${{ matrix.python-version }}
+        python-version: '3.10'
     - name: Prepare directories
       run: mkdir -p ~/.cache/pip && mkdir bin/
     - name: Restore cached dependencies
@@ -38,11 +32,9 @@ jobs:
           bin/
           ~/.cache/pip
           ${{env.pythonLocation}}
-        key: xpk-deps-${{matrix.python-version}}-${{github.event.number}}
-        restore-keys: xpk-deps-${{matrix.python-version}}-
-    - name: Run pylint
-      run: make pylint
-    - name: Check format with pyink
-      run: make pyink
-    - name: Run pytype
-      run: make pytype
+        key: xpk-deps-3.10-${{github.event.number}}
+        restore-keys: xpk-deps-3.10-
+    # - name: Install dependecies
+    #   run: make install-dev
+    - name: Run unit tests
+      run: make run-unittests

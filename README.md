@@ -17,6 +17,8 @@
 [![Build Tests](https://github.com/google/xpk/actions/workflows/build_tests.yaml/badge.svg)](https://github.com/google/xpk/actions/workflows/build_tests.yaml)
 [![Nightly Tests](https://github.com/google/xpk/actions/workflows/nightly_tests.yaml/badge.svg)](https://github.com/google/xpk/actions/workflows/nightly_tests.yaml)
 [![Develop Tests](https://github.com/AI-Hypercomputer/xpk/actions/workflows/build_tests.yaml/badge.svg?branch=develop)](https://github.com/AI-Hypercomputer/xpk/actions/workflows/build_tests.yaml)
+[![Develop Nightly Tests](https://github.com/AI-Hypercomputer/xpk/actions/workflows/nightly_tests.yaml/badge.svg?branch=develop)](https://github.com/AI-Hypercomputer/xpk/actions/workflows/nightly_tests.yaml)
+
 # Overview
 
 xpk (Accelerated Processing Kit, pronounced x-p-k,) is a software tool to help

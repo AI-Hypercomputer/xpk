@@ -104,6 +104,8 @@ deployment_groups:
       jobset:
         install: true
         version: v0.7.2
+      apply_manifests: 
+      - source: $(ghpc_stage("xpk-gke-a3-megagpu"))/storage_crd.yaml
 
   - !DeploymentModule
     id: workload_configmap

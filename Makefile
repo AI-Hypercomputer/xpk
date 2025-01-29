@@ -48,8 +48,14 @@ install-kueuectl: mkdir-bin
 
 .PHONY: install-kjobctl
 install-kjobctl: mkdir-bin
-	curl -Lo $(BIN_PATH)/kubectl-kjob $(KJOBCTL_URL)
-	chmod +x $(BIN_PATH)/kubectl-kjob
+	#curl -Lo $(BIN_PATH)/kubectl-kjob $(KJOBCTL_URL)
+	#chmod +x $(BIN_PATH)/kubectl-kjob
+	# TODO: Switch to kjob release-based installation once version >=0.2.0 is available.
+	docker build -f tools/Dockerfile-kjob -t $(KJOB_DOCKER_IMG) tools/
+	docker run -idt --name $(KJOB_DOCKER_CONTAINER) $(KJOB_DOCKER_IMG)
+	docker cp $(KJOB_DOCKER_CONTAINER):/kjob/bin/kubectl-kjob $(BIN_PATH)/kubectl-kjob
+	docker rm -f $(KJOB_DOCKER_CONTAINER)
+	docker image rm $(KJOB_DOCKER_IMG)
 
 .PHONY: check-gcloud
 check-gcloud:

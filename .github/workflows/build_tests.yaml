@@ -26,7 +26,7 @@ on:
           - v4-8
           - v5litepod-8
   push:
-    branches: ["main"]
+    branches: ["main","develop"]
   pull_request: # By default this runs for types assigned, opened and synchronize.
 
 env:

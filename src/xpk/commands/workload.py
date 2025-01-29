@@ -134,6 +134,7 @@ gpu_workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
 metadata:
   name: {args.workload}
+  annotations: {storage_annotations}
   labels:
     kueue.x-k8s.io/queue-name: multislice-queue  # Name of the LocalQueue
     xpk.google.com/workload: {args.workload}
@@ -209,9 +210,6 @@ spec:
     - name: slice-job
       replicas: 1
       template:
-        metadata:
-          annotations:
-            {storage_annotations}
         spec:
           parallelism: {args.num_nodes}
           completions: {args.num_nodes}
@@ -485,6 +483,7 @@ def workload_create(args) -> None:
       xpk_exit(return_code)
 
   storages: list[Storage] = get_storages_to_mount(k8s_api_client, args.storage)
+  xpk_print('storages:', storages)
   gcs_fuse_storages = list(
       filter(lambda storage: storage.type == GCS_FUSE_TYPE, storages)
   )
@@ -510,18 +509,29 @@ def workload_create(args) -> None:
 
     if system.device_type in cluster_gcluster.supported_device_types:
       yml_string = a3_gpu_workload_create_yaml.format(
-          args=args, container=container
+          args=args,
+          container=container,
+          service_account=XPK_SA,
+          storage_volumes=get_storage_volumes_yaml_for_gpu(gcs_fuse_storages),
       )
 
       if args.device_type == cluster_gcluster.a3mega_device_type:
         sub_networks = [f'{args.cluster}-gpunet-{i}-subnet' for i in range(8)]
         yml_string = tcpxo_decorator.decorate_jobset(yml_string, sub_networks)
+        if len(gcs_fuse_storages) > 0:
+          yml_string = tcpxo_decorator.decorate_jobset_with_storages(
+              yml_string, gcs_fuse_storages
+          )
 
       if args.device_type == cluster_gcluster.a3ultra_device_type:
         sub_networks = [f'{args.cluster}-sub-1'] + [
             f'{args.cluster}-rdma-sub-{i}' for i in range(8)
         ]
         yml_string = rdma_decorator.decorate_jobset(yml_string, sub_networks)
+        if len(gcs_fuse_storages) > 0:
+          yml_string = rdma_decorator.decorate_jobset_with_storages(
+              yml_string, gcs_fuse_storages
+          )
     else:
       yml_string = gpu_workload_create_yaml.format(
           args=args,

@@ -194,6 +194,7 @@ def get_storages(
   Returns:
       A list of Storage objects matching the given names.
   """
+  xpk_print("requested_storages: ", requested_storages)
   all_storages = list_storages(k8s_api_client)
   all_storage_names = {storage.name for storage in all_storages}
 

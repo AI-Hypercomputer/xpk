@@ -560,7 +560,8 @@ def add_shared_cluster_create_optional_arguments(args_parsers):
         action='store_true',
         help=(
             'Enable GSCFuse driver on the cluster. This enables Workload'
-            ' Identity Federation. When using A3 ultra/A3 mega Workload Identity is enabled by default.'
+            ' Identity Federation. When using A3 ultra/A3 mega Workload'
+            ' Identity is enabled by default.'
         ),
     )
 

@@ -16,6 +16,8 @@ limitations under the License.
 
 import argparse
 
+from .config import set_config_parsers
+
 from ..utils.console import xpk_print
 from .cluster import set_cluster_parser
 from .inspector import set_inspector_parser
@@ -64,6 +66,9 @@ def set_parser(parser: argparse.ArgumentParser):
   version_parser = xpk_subcommands.add_parser(
       "version", help="Command to get xpk version"
   )
+  config_parser = xpk_subcommands.add_parser(
+      "config", help="Commands to set and retireve values from xpk config."
+  )
 
   def default_subcommand_function(
       _args,
@@ -86,7 +91,7 @@ def set_parser(parser: argparse.ArgumentParser):
     shell_parser.print_help()
     version_parser.print_help()
     kind_parser.print_help()
-
+    info_parser.print_help()
     return 0
 
   parser.set_defaults(func=default_subcommand_function)
@@ -98,6 +103,7 @@ def set_parser(parser: argparse.ArgumentParser):
   kind_parser.set_defaults(func=default_subcommand_function)
   shell_parser.set_defaults(func=default_subcommand_function)
   version_parser.set_defaults(func=default_subcommand_function)
+  config_parser.set_defaults(func=default_subcommand_function)
   set_workload_parsers(workload_parser=workload_parser)
   set_cluster_parser(cluster_parser=cluster_parser)
   set_inspector_parser(inspector_parser=inspector_parser)
@@ -107,3 +113,4 @@ def set_parser(parser: argparse.ArgumentParser):
   set_kind_parser(kind_parser=kind_parser)
   set_shell_parser(shell_parser=shell_parser)
   set_version_parser(version_parser=version_parser)
+  set_config_parsers(config_parser=config_parser)

@@ -79,6 +79,7 @@ class BlueprintGenerator:
       group_placement_max_distance: int = 2,
       subnetwork_cidr_suffix: int = 24,
       reservation: str | None = None,
+      gcs_bucket: Optional[str | None] = None,
       capacity_type: CapacityType = CapacityType.ON_DEMAND,
       system_node_pool_min_node_count: int = 2,
   ) -> BlueprintGeneratorOutput:
@@ -156,18 +157,6 @@ class BlueprintGenerator:
         },
     )
 
-    reservation_affinity = (
-        {
-            "consume_reservation_type": "NO_RESERVATION",
-            "specific_reservations": [],
-        }
-        if reservation is None
-        else {
-            "consume_reservation_type": "SPECIFIC_RESERVATION",
-            "specific_reservations": [{"name": reservation}],
-        }
-    )
-
     a3_megagpu_pool_0 = DeploymentModule(
         id="a3_megagpu_pool_0",
         source="modules/compute/gke-node-pool",
@@ -178,7 +167,9 @@ class BlueprintGenerator:
             "static_node_count": num_nodes,
             "zones": [zone],
             "host_maintenance_interval": "PERIODIC",
-            "reservation_affinity": reservation_affinity,
+            "reservation_affinity": self._getblock_reservation_affinity(
+                reservation
+            ),
             "run_workload_script": False,
             "spot": capacity_type == CapacityType.SPOT,
             "max_pods_per_node": 32,
@@ -235,7 +226,10 @@ class BlueprintGenerator:
             workload_configmap,
         ],
     )
-    xpk_blueprint = Blueprint(
+    a3_mega_blueprint = Blueprint(
+        terraform_backend_defaults=self._getblock_terraform_backend(
+            gcs_bucket, prefix
+        ),
         blueprint_name=blueprint_name,
         toolkit_modules_url=cluster_toolkit_url,
         toolkit_modules_version=cluster_toolkit_version,
@@ -247,8 +241,9 @@ class BlueprintGenerator:
             "zone": zone,
         },
     )
+
     blueprint_file_path = self._save_blueprint_to_file(
-        blueprint_name, xpk_blueprint, prefix
+        blueprint_name, a3_mega_blueprint, prefix
     )
     blueprint_dependencies = self._get_a3_mega_blueprint_dependencies(
         blueprint_name, prefix
@@ -271,6 +266,7 @@ class BlueprintGenerator:
       region: str,
       auth_cidr: str,
       prefix: str = "",
+      gcs_bucket: Optional[str | None] = None,
   ) -> BlueprintGeneratorOutput:
     """Create a simple gke cluster
 
@@ -318,6 +314,9 @@ class BlueprintGenerator:
         modules=[network1, gke_cluster],
     )
     ml_gke = Blueprint(
+        terraform_backend_defaults=self._getblock_terraform_backend(
+            gcs_bucket, prefix
+        ),
         blueprint_name=blueprint_name,
         toolkit_modules_url=cluster_toolkit_url,
         toolkit_modules_version=cluster_toolkit_version,
@@ -328,6 +327,7 @@ class BlueprintGenerator:
             "region": region,
         },
     )
+
     blueprint_file_path = self._save_blueprint_to_file(
         blueprint_name, ml_gke, prefix
     )
@@ -336,55 +336,6 @@ class BlueprintGenerator:
         blueprint_file=blueprint_file_path,
         blueprint_dependencies=blueprint_dependencies,
     )
-
-  def _save_blueprint_to_file(
-      self, blueprint_name: str, xpk_blueprint: Blueprint, prefix: str = ""
-  ) -> str:
-    blueprint_path = self._get_blueprint_path(blueprint_name, prefix)
-    with open(blueprint_path, "w+", encoding="utf-8") as blueprint_file:
-      yaml.dump(xpk_blueprint, blueprint_file)
-    return blueprint_path
-
-  def _get_blueprint_path(self, blueprint_name, prefix: str = ""):
-    blueprint_path = os.path.join(
-        self._get_storage_path(prefix), f"{blueprint_name}.yaml"
-    )
-    return blueprint_path
-
-  def _get_storage_path(self, prefix):
-    storage_path_with_prefix = os.path.join(self.storage_path, prefix)
-    ensure_directory_exists(storage_path_with_prefix)
-    return storage_path_with_prefix
-
-  def blueprint_exists(self, blueprint_name, prefix: str = ""):
-    blueprint_path = self._get_blueprint_path(blueprint_name, prefix)
-    return os.path.exists(blueprint_path)
-
-  def _get_a3_mega_blueprint_dependencies(
-      self, blueprint_name: str, prefix: str = ""
-  ) -> str:
-    deployment_files_path = os.path.join(
-        self._get_storage_path(prefix), blueprint_name
-    )
-    shutil.copytree(
-        blueprint_dependencies_dir[a3mega_device_type],
-        deployment_files_path,
-        dirs_exist_ok=True,
-    )
-    return deployment_files_path
-
-  def _get_a3_ultra_blueprint_dependencies(
-      self, blueprint_name: str, prefix: str = ""
-  ) -> str:
-    deployment_files_path = os.path.join(
-        self._get_storage_path(prefix), blueprint_name
-    )
-    shutil.copytree(
-        blueprint_dependencies_dir[a3ultra_device_type],
-        deployment_files_path,
-        dirs_exist_ok=True,
-    )
-    return deployment_files_path
 
   def generate_a3_ultra_blueprint(
       self,
@@ -396,6 +347,7 @@ class BlueprintGenerator:
       auth_cidr: str,
       system_node_pool_machine_type: str,
       reservation: Optional[str | None] = None,
+      gcs_bucket: Optional[str | None] = None,
       num_nodes: int = 2,
       prefix: str = "",
       mtu_size: int = 8896,
@@ -540,6 +492,9 @@ class BlueprintGenerator:
             "zones": [zone],
             "static_node_count": num_nodes,
             "spot": capacity_type == CapacityType.SPOT,
+            "reservation_affinity": self._getblock_reservation_affinity(
+                reservation
+            ),
             "max_pods_per_node": 32,
             "guest_accelerator": [{
                 "type": "nvidia-h200-141gb",
@@ -561,11 +516,6 @@ class BlueprintGenerator:
         },
         outputs=["instructions"],
     )
-    if reservation is not None:
-      gpu_pool.settings["reservation_affinity"] = {
-          "consume_reservation_type": "SPECIFIC_RESERVATION",
-          "specific_reservations": [{"name": reservation}],
-      }
 
     num_chips = num_nodes * system.chips_per_vm
     workload_manager_install_id = "workload-manager-install"
@@ -623,6 +573,9 @@ class BlueprintGenerator:
         ],
     )
     a3_ultra_blueprint = Blueprint(
+        terraform_backend_defaults=self._getblock_terraform_backend(
+            gcs_bucket, prefix
+        ),
         blueprint_name=blueprint_name,
         toolkit_modules_url=cluster_toolkit_url,
         toolkit_modules_version=cluster_toolkit_version,
@@ -645,6 +598,86 @@ class BlueprintGenerator:
         blueprint_file=blueprint_file_path,
         blueprint_dependencies=blueprint_dependencies,
     )
+
+  def _getblock_reservation_affinity(
+      self, reservation: str | None = None
+  ) -> dict:
+    return (
+        {
+            "consume_reservation_type": "NO_RESERVATION",
+            "specific_reservations": [],
+        }
+        if reservation is None
+        else {
+            "consume_reservation_type": "SPECIFIC_RESERVATION",
+            "specific_reservations": [{"name": reservation}],
+        }
+    )
+
+  def _getblock_terraform_backend(
+      self, gcs_bucket: str, prefix: str = ""
+  ) -> dict | None:
+    if gcs_bucket is None:
+      return None
+    return {
+        "type": "gcs",
+        "configuration": {
+            "bucket": gcs_bucket,
+            "prefix": self._get_terraforrm_backend_full_prefix(prefix),
+        },
+    }
+
+  def _get_terraforrm_backend_full_prefix(self, prefix: str = "") -> str:
+    return f"xpk_terraform_state/{prefix}"
+
+  def _save_blueprint_to_file(
+      self, blueprint_name: str, xpk_blueprint: Blueprint, prefix: str = ""
+  ) -> str:
+    blueprint_path = self._get_blueprint_path(blueprint_name, prefix)
+    with open(blueprint_path, "w+", encoding="utf-8") as blueprint_file:
+      yaml.dump(xpk_blueprint, blueprint_file)
+    return blueprint_path
+
+  def _get_blueprint_path(self, blueprint_name, prefix: str = ""):
+    blueprint_path = os.path.join(
+        self._get_storage_path(prefix), f"{blueprint_name}.yaml"
+    )
+    return blueprint_path
+
+  def _get_storage_path(self, prefix):
+    storage_path_with_prefix = os.path.join(self.storage_path, prefix)
+    ensure_directory_exists(storage_path_with_prefix)
+    return storage_path_with_prefix
+
+  def blueprint_exists(self, blueprint_name, prefix: str = ""):
+    blueprint_path = self._get_blueprint_path(blueprint_name, prefix)
+    return os.path.exists(blueprint_path)
+
+  def _get_a3_mega_blueprint_dependencies(
+      self, blueprint_name: str, prefix: str = ""
+  ) -> str:
+    deployment_files_path = os.path.join(
+        self._get_storage_path(prefix), blueprint_name
+    )
+    shutil.copytree(
+        blueprint_dependencies_dir[a3mega_device_type],
+        deployment_files_path,
+        dirs_exist_ok=True,
+    )
+    return deployment_files_path
+
+  def _get_a3_ultra_blueprint_dependencies(
+      self, blueprint_name: str, prefix: str = ""
+  ) -> str:
+    deployment_files_path = os.path.join(
+        self._get_storage_path(prefix), blueprint_name
+    )
+    shutil.copytree(
+        blueprint_dependencies_dir[a3ultra_device_type],
+        deployment_files_path,
+        dirs_exist_ok=True,
+    )
+    return deployment_files_path
 
 
 yaml.register_class(Blueprint)

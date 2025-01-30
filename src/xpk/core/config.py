@@ -23,6 +23,8 @@ CFG_BUCKET_KEY = 'cluster-state-gcs-bucket'
 CLUSTER_NAME_KEY = 'cluster-name'
 PROJECT_KEY = 'project-id'
 ZONE_KEY = 'zone'
+CONFIG_PATH = '~/.config/xpk/config.yaml'
+CONFIGS_KEY = 'configs'
 default_keys = [
     CFG_BUCKET_KEY,
     CLUSTER_NAME_KEY,
@@ -34,9 +36,9 @@ yaml = ruamel.yaml.YAML()
 
 
 class XpkConfig:
-  """_summary_"""
+  """XpkConfig is a class for setting and getting values from .yaml config file."""
 
-  def __init__(self, config_file_path: str) -> None:
+  def __init__(self, config_file_path: str = CONFIG_PATH) -> None:
     self._config = config_file_path
     self._allowed_keys = default_keys
 
@@ -49,12 +51,12 @@ class XpkConfig:
       xpk_print(f'Key {key} is not an allowed xpk config key.')
       return
 
-    config_yaml = {}
+    config_yaml = {'version': 'v1', CONFIGS_KEY: {}}
     if os.path.exists(self._config):
       with open(self._config, encoding='utf-8', mode='r') as stream:
         config_yaml = yaml.load(stream)
 
-    config_yaml[key] = value
+    config_yaml[CONFIGS_KEY][key] = value
     with open(self._config, encoding='utf-8', mode='w') as stream:
       yaml.dump(config_yaml, stream)
 
@@ -68,16 +70,17 @@ class XpkConfig:
 
     with open(self._config, encoding='utf-8', mode='r') as stream:
       config_yaml = yaml.load(stream)
-      if config_yaml is None or key not in config_yaml:
+      if config_yaml is None or key not in config_yaml[CONFIGS_KEY]:
         xpk_print(f'Key {key} not found in config')
         return ''
-      return config_yaml[key]
+      vals: dict[str, str] = config_yaml[CONFIGS_KEY]
+      return vals[key]
 
   def get_all(
       self,
-  ) -> dict[str, str]:
+  ) -> dict[str, dict[str, str] | str]:
     if not os.path.exists(self._config):
       return {}
     with open(self._config, encoding='utf-8', mode='r') as stream:
-      config_yaml = yaml.load(stream)
+      config_yaml: dict[str, dict[str, str] | str] = yaml.load(stream)
       return config_yaml

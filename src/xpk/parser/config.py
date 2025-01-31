@@ -48,13 +48,14 @@ def set_config_parsers(config_parser):
   config_required_arguments = config_parser.add_argument_group(
       'Required Arguments', 'Arguments required for config.'
   )
-  config_required_arguments.add_argument(
+  config_args = config_required_arguments.add_mutually_exclusive_group()
+  config_args.add_argument(
       '--get',
       type=str,
       default=None,
       help='Show only localqueues resources and usage',
   )
-  config_required_arguments.add_argument(
+  config_args.add_argument(
       '--set',
       action=ParseDict,
       nargs='+',

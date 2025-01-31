@@ -16,9 +16,9 @@ limitations under the License.
 
 from ..core.config import XpkConfig
 from ..utils.console import xpk_print
+import os
 
-XPK_CONFIG_FILE='~/.config/xpk'
-
+XPK_CONFIG_FILE=os.path.expanduser('~')+'/.config/xpk/config.yaml'
 xpk_cfg = XpkConfig(XPK_CONFIG_FILE)
 
 def config(args):
@@ -29,7 +29,7 @@ def config(args):
 
 
 def set_config(values):
-  for k, v in values:
+  for k, v in values.items():
     xpk_cfg.set(k, v)
 
 

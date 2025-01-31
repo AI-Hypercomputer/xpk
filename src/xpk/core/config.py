@@ -17,8 +17,8 @@ limitations under the License.
 import ruamel.yaml
 import os
 
-from xpk.utils import file
-from xpk.utils.console import xpk_print
+from ..utils import file
+from ..utils.console import xpk_print
 
 CFG_BUCKET_KEY = 'cluster-state-gcs-bucket'
 CLUSTER_NAME_KEY = 'cluster-name'
@@ -26,6 +26,7 @@ PROJECT_KEY = 'project-id'
 ZONE_KEY = 'zone'
 CONFIG_PATH = '~/.config/xpk/config.yaml'
 CONFIGS_KEY = 'configs'
+
 default_keys = [
     CFG_BUCKET_KEY,
     CLUSTER_NAME_KEY,
@@ -64,7 +65,7 @@ class XpkConfig:
     config_yaml = {'version': 'v1', CONFIGS_KEY: {}}
     if os.path.exists(self._config):
       config_yaml = self._open_configs()
-
+    xpk_print(config_yaml)
     config_yaml[CONFIGS_KEY][key] = value
     self._save_configs(config_yaml)
 

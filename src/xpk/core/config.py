@@ -47,7 +47,7 @@ class XpkConfig:
     dir_path = '/'.join(self._config.split('/')[:-1])
     file.ensure_directory_exists(dir_path)
 
-    config_yaml: dict = {}
+    config_yaml = {'version': 'v1', CONFIGS_KEY: {}}
 
     if not os.path.exists(self._config):
       return config_yaml
@@ -84,6 +84,8 @@ class XpkConfig:
 
   def get_all(
       self,
-  ) -> dict[str, dict[str, str] | str]:
+  ) -> dict[str, dict[str, str] | str] | None:
     config_yaml = self._open_configs()
-    return config_yaml
+    if CONFIGS_KEY not in config_yaml:
+      return None
+    return config_yaml[CONFIGS_KEY]

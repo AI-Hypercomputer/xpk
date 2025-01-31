@@ -44,9 +44,9 @@ class XpkConfig:
     self._allowed_keys = default_keys
 
   def _open_configs(self) -> dict:
-    config_yaml : dict = {}
+    config_yaml: dict = {}
     with open(self._config, encoding='utf-8', mode='r') as stream:
-      config_yaml : dict = yaml.load(stream)
+      config_yaml: dict = yaml.load(stream)
     return config_yaml
 
   def _save_configs(self, config_yaml: dict) -> None:

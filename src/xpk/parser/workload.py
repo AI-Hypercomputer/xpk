@@ -21,7 +21,7 @@ from ..commands.workload import (
     workload_list,
 )
 from ..core.core import default_docker_image, default_script_dir
-from .validators import directory_path_type, workload_name_type
+from .validators import directory_path_type, name_type
 from .common import add_shared_arguments
 
 
@@ -293,7 +293,7 @@ def set_workload_parsers(workload_parser):
   ### "workload delete" Required arguments
   workload_delete_parser_required_arguments.add_argument(
       '--cluster',
-      type=str,
+      type=name_type,
       default=None,
       help='The name of the cluster to delete the job on.',
       required=True,
@@ -301,7 +301,7 @@ def set_workload_parsers(workload_parser):
   ### "workload delete" Optional arguments
   workload_delete_parser_optional_arguments.add_argument(
       '--workload',
-      type=workload_name_type,
+      type=name_type,
       default=None,
       help=(
           'The name of the workload to delete. If the workload is not'
@@ -352,7 +352,7 @@ def set_workload_parsers(workload_parser):
 
   workload_list_parser.add_argument(
       '--cluster',
-      type=str,
+      type=name_type,
       default=None,
       help='The name of the cluster to list jobs on.',
       required=True,
@@ -428,14 +428,14 @@ def add_shared_workload_create_required_arguments(args_parsers):
   for custom_parser in args_parsers:
     custom_parser.add_argument(
         '--workload',
-        type=workload_name_type,
+        type=name_type,
         default=None,
         help='The name of the workload to run.',
         required=True,
     )
     custom_parser.add_argument(
         '--cluster',
-        type=str,
+        type=name_type,
         default=None,
         help='The name of the cluster to run the job on.',
         required=True,

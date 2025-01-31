@@ -22,19 +22,16 @@ from .common import add_shared_arguments
 
 
 class ParseDict(argparse.Action):
+  """ParseDict is a class to parse values passed as string into dictionary."""
 
   def __call__(self, parser, namespace, values, option_string=None):
     d = getattr(namespace, self.dest) or {}
     if values:
       for item in values:
         split_items = item.split('=', 1)
-        key = split_items[
-            0
-        ].strip()  # we remove blanks around keys, as is logical
+        key = split_items[0].strip()
         value = split_items[1]
-
         d[key] = value
-
     setattr(namespace, self.dest, d)
 
 

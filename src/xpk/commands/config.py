@@ -18,8 +18,9 @@ from ..core.config import XpkConfig
 from ..utils.console import xpk_print
 import os
 
-XPK_CONFIG_FILE=os.path.expanduser('~')+'/.config/xpk/config.yaml'
+XPK_CONFIG_FILE = os.path.expanduser('~') + '/.config/xpk/config.yaml'
 xpk_cfg = XpkConfig(XPK_CONFIG_FILE)
+
 
 def config(args):
   if args.set:

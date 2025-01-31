@@ -65,7 +65,7 @@ class XpkConfig:
     config_yaml = {'version': 'v1', CONFIGS_KEY: {}}
     if os.path.exists(self._config):
       config_yaml = self._open_configs()
-    xpk_print(config_yaml)
+
     config_yaml[CONFIGS_KEY][key] = value
     self._save_configs(config_yaml)
 

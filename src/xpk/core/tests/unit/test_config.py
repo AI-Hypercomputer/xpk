@@ -56,7 +56,7 @@ def test_config_get_all(_):
 def test_config_get_empty(_):
   cfg = XpkConfig(config_tmp_path)
   val = cfg.get(PROJECT_KEY)
-  assert val == ''
+  assert val is None
 
 
 def test_config_get_all_empty(_):

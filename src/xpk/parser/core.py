@@ -91,7 +91,7 @@ def set_parser(parser: argparse.ArgumentParser):
     shell_parser.print_help()
     version_parser.print_help()
     kind_parser.print_help()
-    info_parser.print_help()
+    config_parser.print_help()
     return 0
 
   parser.set_defaults(func=default_subcommand_function)

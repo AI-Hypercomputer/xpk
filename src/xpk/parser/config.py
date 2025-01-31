@@ -36,14 +36,9 @@ class ParseDict(argparse.Action):
 
 
 def set_config_parsers(config_parser):
-  config_parser.add_subparsers(
-      title='config subcommands',
-      dest='xpk_config_subcommands',
-      help='`set`, `get`, config',
-  )
   add_shared_arguments(config_parser)
   config_required_arguments = config_parser.add_argument_group(
-      'Required Arguments', 'Arguments required for config.'
+      'Required Arguments', 'Arguments for config.'
   )
   config_args = config_required_arguments.add_mutually_exclusive_group()
   config_args.add_argument(

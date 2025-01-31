@@ -15,10 +15,9 @@ limitations under the License.
 """
 
 from ..commands.config import (
-    config_set,
-    config_get,
+    config,
 )
-
+import argparse
 from .common import add_shared_arguments
 
 
@@ -26,7 +25,6 @@ class ParseDict(argparse.Action):
 
   def __call__(self, parser, namespace, values, option_string=None):
     d = getattr(namespace, self.dest) or {}
-
     if values:
       for item in values:
         split_items = item.split('=', 1)
@@ -41,27 +39,26 @@ class ParseDict(argparse.Action):
 
 
 def set_config_parsers(config_parser):
-  config_subcommands = config_parser.add_subparsers(
+  config_parser.add_subparsers(
       title='config subcommands',
       dest='xpk_config_subcommands',
       help='`set`, `get`, config',
   )
-
-  # "config set" command parser.
-  config_set_parser = config_subcommands.add_parser(
-      'set', help='Set a config key.'
+  add_shared_arguments(config_parser)
+  config_required_arguments = config_parser.add_argument_group(
+      'Required Arguments', 'Arguments required for config.'
   )
-  config_get_parser = config_subcommands.add_parser(
-      'get', help='Get a config key value'
+  config_required_arguments.add_argument(
+      '--get',
+      type=str,
+      default=None,
+      help='Show only localqueues resources and usage',
   )
-  config_set_parser_required_arguments = config_set_parser.add_argument_group(
-      'config setBuilt-in Arguments',
-      'Configure xpk to create a config for you.',
+  config_required_arguments.add_argument(
+      '--set',
+      action=ParseDict,
+      nargs='+',
+      metavar='KEY=VALUE',
+      help='Show only localqueues resources and usage',
   )
-
-  config_get_parser_required_arguments = config_get_parser.add_argument_group(
-      'config Built-in Arguments',
-      'Configure xpk to create a config for you.',
-  )
-  config_set_parser.set_defaults(func=config_set)
-  config_get_parser.set_defaults(func=config_get)
+  config_parser.set_defaults(func=config)

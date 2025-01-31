@@ -14,10 +14,25 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from ..core.config import XpkConfig
+from ..utils.console import xpk_print
 
-def config_set(args):
-  pass
+XPK_CONFIG_FILE='~/.config/xpk'
+
+xpk_cfg = XpkConfig(XPK_CONFIG_FILE)
+
+def config(args):
+  if args.set:
+    set_config(args.set)
+  if args.get:
+    get_config(args.get)
 
 
-def config_get(args):
-  pass
+def set_config(values):
+  for k, v in values:
+    xpk_cfg.set(k, v)
+
+
+def get_config(key):
+  value = xpk_cfg.get(key)
+  xpk_print(value)

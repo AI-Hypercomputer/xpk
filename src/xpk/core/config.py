@@ -17,12 +17,15 @@ limitations under the License.
 import ruamel.yaml
 import os
 
+from xpk.utils import file
 from xpk.utils.console import xpk_print
 
 CFG_BUCKET_KEY = 'cluster-state-gcs-bucket'
 CLUSTER_NAME_KEY = 'cluster-name'
 PROJECT_KEY = 'project-id'
 ZONE_KEY = 'zone'
+CONFIG_PATH = '~/.config/xpk/config.yaml'
+CONFIGS_KEY = 'configs'
 default_keys = [
     CFG_BUCKET_KEY,
     CLUSTER_NAME_KEY,
@@ -34,50 +37,53 @@ yaml = ruamel.yaml.YAML()
 
 
 class XpkConfig:
-  """_summary_"""
+  """XpkConfig is a class for setting and getting values from .yaml config file."""
 
-  def __init__(self, config_file_path: str) -> None:
+  def __init__(self, config_file_path: str = CONFIG_PATH) -> None:
     self._config = config_file_path
     self._allowed_keys = default_keys
 
-    dir_path = '/'.join(self._config.split('/')[:-1])
-    if not os.path.exists(dir_path):
-      os.makedirs(dir_path)
+  def _open_configs(self) -> dict:
+    config_yaml: dict = {}
+    with open(self._config, encoding='utf-8', mode='r') as stream:
+      config_yaml: dict = yaml.load(stream)
+    return config_yaml
+
+  def _save_configs(self, config_yaml: dict) -> None:
+    with open(self._config, encoding='utf-8', mode='w') as stream:
+      yaml.dump(config_yaml, stream)
 
   def set(self, key: str, value: str) -> None:
     if key not in self._allowed_keys:
       xpk_print(f'Key {key} is not an allowed xpk config key.')
       return
 
-    config_yaml = {}
+    dir_path = '/'.join(self._config.split('/')[:-1])
+    file.ensure_directory_exists(dir_path)
+
+    config_yaml = {'version': 'v1', CONFIGS_KEY: {}}
     if os.path.exists(self._config):
-      with open(self._config, encoding='utf-8', mode='r') as stream:
-        config_yaml = yaml.load(stream)
+      config_yaml = self._open_configs()
 
-    config_yaml[key] = value
-    with open(self._config, encoding='utf-8', mode='w') as stream:
-      yaml.dump(config_yaml, stream)
+    config_yaml[CONFIGS_KEY][key] = value
+    self._save_configs(config_yaml)
 
-  def get(self, key: str) -> str:
+  def get(self, key: str) -> str | None:
     if key not in self._allowed_keys:
       xpk_print(f'Key {key} is not an allowed xpk config key.')
-      return ''
+      return None
 
     if not os.path.exists(self._config):
-      return ''
+      return None
 
-    with open(self._config, encoding='utf-8', mode='r') as stream:
-      config_yaml = yaml.load(stream)
-      if config_yaml is None or key not in config_yaml:
-        xpk_print(f'Key {key} not found in config')
-        return ''
-      return config_yaml[key]
+    config_yaml = self._open_configs()
+    vals: dict[str, str] = config_yaml[CONFIGS_KEY]
+    return vals[key]
 
   def get_all(
       self,
-  ) -> dict[str, str]:
+  ) -> dict[str, dict[str, str] | str]:
     if not os.path.exists(self._config):
       return {}
-    with open(self._config, encoding='utf-8', mode='r') as stream:
-      config_yaml = yaml.load(stream)
-      return config_yaml
+    config_yaml = self._open_configs()
+    return config_yaml

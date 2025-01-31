@@ -67,7 +67,7 @@ def set_parser(parser: argparse.ArgumentParser):
       "version", help="Command to get xpk version"
   )
   config_parser = xpk_subcommands.add_parser(
-      "config", help="Commands to set and retireve values from xpk config."
+      "config", help="Commands to set and retrieve values from xpk config."
   )
 
   def default_subcommand_function(

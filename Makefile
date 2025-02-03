@@ -17,7 +17,7 @@ KJOB_DOCKER_CONTAINER := xpk_kjob_container
 BIN_PATH=$(PROJECT_DIR)/bin
 
 .PHONY: install
-install: check-python check-gcloud install-kueuectl install-kjobctl pip-install
+install: check-python check-gcloud install-gcloud-auth-plugin install-kueuectl install-kjobctl pip-install
 
 .PHONY: install-dev
 install-dev: check-python check-gcloud mkdir-bin install-kueuectl install-kjobctl pip-install install-pytest
@@ -56,6 +56,11 @@ install-kjobctl: mkdir-bin
 	docker cp $(KJOB_DOCKER_CONTAINER):/kjob/bin/kubectl-kjob $(BIN_PATH)/kubectl-kjob
 	docker rm -f $(KJOB_DOCKER_CONTAINER)
 	docker image rm $(KJOB_DOCKER_IMG)
+
+.PHONY: install-gcloud-auth-plugin
+install-gcloud-auth-plugin:
+	chmod +x tools/install-gke-auth-plugin.sh
+	./tools/install-gke-auth-plugin.sh
 
 .PHONY: check-gcloud
 check-gcloud:

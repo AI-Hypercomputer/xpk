@@ -87,5 +87,5 @@ class XpkConfig:
     config_yaml = self._open_configs()
     if config_yaml is None:
       return None
-    val : dict[str, str] = config_yaml[CONFIGS_KEY]
+    val: dict[str, str] = config_yaml[CONFIGS_KEY]
     return val

@@ -43,8 +43,8 @@ def get_pathways_worker_args(args) -> str:
     str: yaml containing arguments for the Pathways workers.
   """
   yaml = """- --server_port=29001
-              - --resource_manager_address={rm_address}
-              - --gcs_scratch_location={args.pathways_gcs_location}"""
+                - --resource_manager_address={rm_address}
+                - --gcs_scratch_location={args.pathways_gcs_location}"""
   if args.use_pathways:
     return yaml.format(args=args, rm_address=get_rm_address(args))
   else:
@@ -60,8 +60,8 @@ def get_pathways_proxy_args(args) -> str:
     str: yaml containing arguments for the Pathways proxy.
   """
   yaml = """- --server_port=29000
-              - --resource_manager_address={rm_address}
-              - --gcs_scratch_location={args.pathways_gcs_location}"""
+                - --resource_manager_address={rm_address}
+                - --gcs_scratch_location={args.pathways_gcs_location}"""
 
   if args.use_pathways:
     return yaml.format(args=args, rm_address=get_rm_address(args))
@@ -202,9 +202,6 @@ def ensure_pathways_workload_prerequisites(args, system) -> bool:
   # Set the job which determines the life of other Pathways jobs
   args.targetReplicatedJob = 'proxy' if args.headless else 'main'
 
-  # Always report user code failures back to JobSet.
-  args.restart_on_user_code_failure = True
-
   return True
 
 
@@ -234,10 +231,10 @@ def get_pathways_rm_args(args, system: SystemCharacteristics) -> str:
     str: yaml containing arguments for the Pathways resource manager.
   """
   yaml = """- --server_port=29001
-              - --gcs_scratch_location={args.pathways_gcs_location}
-              - --node_type=resource_manager
-              - --instance_count={instance_count}
-              - --instance_type={instance_type}"""
+                - --gcs_scratch_location={args.pathways_gcs_location}
+                - --node_type=resource_manager
+                - --instance_count={instance_count}
+                - --instance_type={instance_type}"""
   if args.use_pathways:
     return yaml.format(
         args=args,
@@ -249,7 +246,7 @@ def get_pathways_rm_args(args, system: SystemCharacteristics) -> str:
 
 
 def get_user_workload_for_pathways(
-    args, system: SystemCharacteristics, storages: list[Storage]
+    args, system: SystemCharacteristics, pod_failure_policy, storages: list[Storage]
 ) -> str:
   """
   Create a user workload container for Pathways.
@@ -265,33 +262,33 @@ def get_user_workload_for_pathways(
       Pathways server port as a YAML string
   """
   user_workload_yaml = """- name: main
-    replicas: 1
-    template:
-      metadata:
-        labels:
-          xpk.google.com/workload: {args.workload}
-
-      spec:
-        backoffLimit: 0
-        completions: 1
-        parallelism: 1
-        template:
-          metadata:
-            annotations:
-              {gcs_fuse_annotation}
-          spec:
-            containers:
+      replicas: 1
+      template:
+        metadata:
+          labels:
+            xpk.google.com/workload: {args.workload}
+        spec:
+          backoffLimit: 0
+          completions: 1
+          parallelism: 1
+          {pod_failure_policy}
+          template:
+            metadata:
+              annotations:
+                {gcs_fuse_annotation}
+            spec:
+              containers:
               {container}
-            serviceAccountName: {service_account}
-            nodeSelector:
-              cloud.google.com/gke-nodepool: cpu-user-np
-            restartPolicy: OnFailure
-            volumes:
-            - hostPath:
-                path: /tmp
-                type: DirectoryOrCreate
-              name: shared-tmp
-            {storage_volumes}"""
+              serviceAccountName: {service_account}
+              nodeSelector:
+                cloud.google.com/gke-nodepool: cpu-user-np
+              restartPolicy: Never
+              volumes:
+              - hostPath:
+                  path: /tmp
+                  type: DirectoryOrCreate
+                name: shared-tmp
+              {storage_volumes}"""
   if args.headless:
     return ''
   else:
@@ -301,9 +298,10 @@ def get_user_workload_for_pathways(
         args=args,
         container=container,
         storage_volumes=storage_volumes,
+        pod_failure_policy=pod_failure_policy,
         service_account=XPK_SA,
-        gcs_fuse_annotation=GCS_FUSE_ANNOTATION,
-    )
+        gcs_fuse_annotation=GCS_FUSE_ANNOTATION
+      )
 
 
 def get_rm_address(args) -> str:

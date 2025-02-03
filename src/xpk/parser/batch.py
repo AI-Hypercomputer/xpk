@@ -18,6 +18,7 @@ import argparse
 
 from .common import add_shared_arguments
 from ..commands.batch import batch
+from .validators import name_type
 
 
 def set_batch_parser(batch_parser):
@@ -34,7 +35,7 @@ def set_batch_parser(batch_parser):
   )
   batch_optional_arguments.add_argument(
       '--cluster',
-      type=str,
+      type=name_type,
       default=None,
       help='Cluster to which command applies.',
   )

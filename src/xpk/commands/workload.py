@@ -39,6 +39,7 @@ from ..core.core import (
     get_gpu_scheduler,
     get_gpu_tcp_volume,
     get_gpu_volume,
+    get_main_container_docker_image,
     get_user_workload_container,
     get_volumes,
     parse_env_config,
@@ -79,7 +80,7 @@ from ..core.system_characteristics import (
 from ..core.workload import get_workload_list
 from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
-
+from .common import set_cluster_command
 from ..core.workload_decorators import tcpxo_decorator, rdma_decorator
 from . import cluster_gcluster
 
@@ -95,6 +96,7 @@ metadata:
 spec:
   ttlSecondsAfterFinished: {args.ttl_seconds_after_finished}
   failurePolicy:
+    {failure_policy_rules}
     maxRestarts: {args.max_restarts}
   replicatedJobs:
     - name: slice-job
@@ -104,6 +106,7 @@ spec:
           parallelism: {system.vms_per_slice}    # Equal to the number of VMs per slice
           completions: {system.vms_per_slice}    # Same as the above.
           backoffLimit: 0   # When any pod fails, the job is failed
+          {pod_failure_policy}
           template:
             metadata:
               labels:
@@ -141,6 +144,7 @@ metadata:
 spec:
   ttlSecondsAfterFinished: {args.ttl_seconds_after_finished}
   failurePolicy:
+    {failure_policy_rules}
     maxRestarts: {args.max_restarts}
   replicatedJobs:
     - name: slice-job
@@ -153,6 +157,7 @@ spec:
           parallelism: {args.num_nodes}
           completions: {args.num_nodes}
           backoffLimit: 0   # When any pod fails, the job is failed
+          {pod_failure_policy}
           template:
             metadata:
               labels:
@@ -205,6 +210,7 @@ metadata:
 spec:
   ttlSecondsAfterFinished: {args.ttl_seconds_after_finished}
   failurePolicy:
+    {failure_policy_rules}
     maxRestarts: {args.max_restarts}
   replicatedJobs:
     - name: slice-job
@@ -214,6 +220,7 @@ spec:
           parallelism: {args.num_nodes}
           completions: {args.num_nodes}
           backoffLimit: 0   # When any pod fails, the job is failed
+          {pod_failure_policy}
           template:
             metadata:
               labels:
@@ -245,6 +252,7 @@ metadata:
 spec:
   ttlSecondsAfterFinished: {args.ttl_seconds_after_finished}
   failurePolicy:
+    {failure_policy_rules}
     maxRestarts: {args.max_restarts}
   successPolicy:
     operator: "All"
@@ -341,40 +349,31 @@ spec:
               volumeMounts:
               - mountPath: /tmp
                 name: shared-tmp
-            nodeSelector:
-              cloud.google.com/gke-nodepool: cpu-rm-np
-            hostNetwork: true
-            dnsPolicy: ClusterFirstWithHostNet
-            volumes:
-            - hostPath:
-                path: /tmp
-                type: DirectoryOrCreate
-              name: shared-tmp
-  - name: proxy
-    replicas: 1
-    template:
-      metadata:
-        labels:
-          xpk.google.com/workload: {args.workload}
-      spec:
-        backoffLimit: 0
-        completions: 1
-        parallelism: 1
-        template:
-          spec:
-            containers:
-            - args:
-              {pathways_proxy_args}
-              image: {args.proxy_server_image}
-              imagePullPolicy: Always
-              name: pathways-proxy
-              ports:
-              - containerPort: 29000
-            hostNetwork: true
-            dnsPolicy: ClusterFirstWithHostNet
-            nodeSelector:
-              cloud.google.com/gke-nodepool: cpu-proxy-np
-  {user_workload}
+    - name: proxy
+      replicas: 1
+      template:
+        metadata:
+          labels:
+            xpk.google.com/workload: {args.workload}
+        spec:
+          backoffLimit: 0
+          completions: 1
+          parallelism: 1
+          template:
+            spec:
+              containers:
+              - args:
+                {pathways_proxy_args}
+                image: {args.proxy_server_image}
+                imagePullPolicy: Always
+                name: pathways-proxy
+                ports:
+                - containerPort: 29000
+              hostNetwork: true
+              dnsPolicy: ClusterFirstWithHostNet
+              nodeSelector:
+                cloud.google.com/gke-nodepool: cpu-proxy-np
+    {user_workload}
 """
 
 
@@ -482,6 +481,7 @@ def workload_create(args) -> None:
     if return_code != 0:
       xpk_exit(return_code)
 
+<<<<<<< HEAD
   storages: list[Storage] = get_storages_to_mount(k8s_api_client, args.storage)
   xpk_print('storages:', storages)
   gcs_fuse_storages = list(
@@ -495,6 +495,22 @@ def workload_create(args) -> None:
     xpk_print(f'Detected gcsfuse Storages to add: {gcs_fuse_storages}')
   else:
     xpk_print('No gcsfuse Storages to add detected')
+=======
+  failure_policy_rules = """rules:
+      - action: FailJobSet
+        onJobFailureReasons: 
+        - PodFailurePolicy"""
+  restart_on_exit_codes = get_restart_exit_codes(args)
+  restart_on_exit_codes = ','.join(map(str, restart_on_exit_codes))
+  pod_failure_policy = f"""
+          podFailurePolicy:
+            rules:
+            - action: FailJob
+              onExitCodes:
+                containerName: {get_main_container_docker_image(args, system)}
+                operator: NotIn
+                values: [{restart_on_exit_codes}]"""
+>>>>>>> 344b9c7b51ec3c737c73d34aaa8835e8b9a97ce6
 
   # Create the workload file based on accelerator type or workload type.
   if system.accelerator_type == AcceleratorType['GPU']:
@@ -511,8 +527,13 @@ def workload_create(args) -> None:
       yml_string = a3_gpu_workload_create_yaml.format(
           args=args,
           container=container,
+<<<<<<< HEAD
           service_account=XPK_SA,
           storage_volumes=get_storage_volumes_yaml_for_gpu(gcs_fuse_storages),
+=======
+          failure_policy_rules=failure_policy_rules,
+          pod_failure_policy=pod_failure_policy,
+>>>>>>> 344b9c7b51ec3c737c73d34aaa8835e8b9a97ce6
       )
 
       if args.device_type == cluster_gcluster.a3mega_device_type:
@@ -543,12 +564,17 @@ def workload_create(args) -> None:
           gpu_rxdm_image=get_gpu_rxdm_image(system),
           gpu_rxdm_cmd=get_gpu_rxdm_cmd(system),
           gpu_tcp_volume=get_gpu_tcp_volume(system),
+<<<<<<< HEAD
           storage_volumes=get_storage_volumes_yaml_for_gpu(gcs_fuse_storages),
           storage_volume_mounts=get_storage_volume_mounts_yaml_for_gpu(
               gcs_fuse_storages
           ),
           storage_annotations=storage_annotations,
           service_account=service_account,
+=======
+          failure_policy_rules=failure_policy_rules,
+          pod_failure_policy=pod_failure_policy,
+>>>>>>> 344b9c7b51ec3c737c73d34aaa8835e8b9a97ce6
       )
 
   elif args.use_pathways and ensure_pathways_workload_prerequisites(
@@ -566,16 +592,27 @@ def workload_create(args) -> None:
         pathways_proxy_args=get_pathways_proxy_args(args),
         user_workload=get_user_workload_for_pathways(args, system, storages),
         pathways_sidecar_container=get_pathways_sidecar_container(args),
+<<<<<<< HEAD
+=======
+        user_workload=get_user_workload_for_pathways(
+            args, system, pod_failure_policy
+        ),
+>>>>>>> 344b9c7b51ec3c737c73d34aaa8835e8b9a97ce6
         resource_type=AcceleratorTypeToAcceleratorCharacteristics[
             system.accelerator_type
         ].resource_type,
         local_queue_name=LOCAL_QUEUE_NAME,
         autoprovisioning_args=autoprovisioning_args,
         backoff_limit=system.vms_per_slice * 4,
+<<<<<<< HEAD
         storage_annotations=storage_annotations,
         storage_volumes=get_storage_volumes_yaml(gcs_fuse_storages),
         storage_volume_mounts=get_storage_volume_mounts_yaml(gcs_fuse_storages),
         service_account=service_account,
+=======
+        failure_policy_rules=failure_policy_rules,
+        pod_failure_policy=pod_failure_policy,
+>>>>>>> 344b9c7b51ec3c737c73d34aaa8835e8b9a97ce6
     )
   else:
     container, debugging_dashboard_id = get_user_workload_container(
@@ -593,8 +630,13 @@ def workload_create(args) -> None:
         local_queue_name=LOCAL_QUEUE_NAME,
         autoprovisioning_args=autoprovisioning_args,
         volumes=get_volumes(args, system),
+<<<<<<< HEAD
         storage_annotations=storage_annotations,
         service_account=service_account,
+=======
+        failure_policy_rules=failure_policy_rules,
+        pod_failure_policy=pod_failure_policy,
+>>>>>>> 344b9c7b51ec3c737c73d34aaa8835e8b9a97ce6
     )
   tmp = write_tmp_file(yml_string)
   command = f'kubectl apply -f {str(tmp.file.name)}'
@@ -665,6 +707,23 @@ def workload_create(args) -> None:
     )
 
   xpk_exit(0)
+
+
+def get_restart_exit_codes(args) -> list:
+  exit_codes = [42]
+  exit_codes.extend(range(127, 256, 1))
+
+  if args.restart_on_exit_codes is not None:
+    items = args.restart_on_exit_codes.split(',')
+    for item in items:
+      item = item.strip()
+      if '-' in item:
+        start, end = map(int, item.split('-'))
+        exit_codes.extend(range(start, end + 1))
+      else:
+        exit_codes.append(int(item))
+
+  return exit_codes
 
 
 def workload_delete(args) -> None:

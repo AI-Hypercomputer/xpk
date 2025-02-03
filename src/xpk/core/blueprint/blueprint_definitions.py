@@ -55,6 +55,7 @@ class Blueprint:
   """A class to represent Cluster Toolkit blueprint"""
 
   deployment_groups: list[DeploymentGroup]
+  terraform_backend_defaults: Optional[dict]
   blueprint_name: Optional[str]
   toolkit_modules_url: str
   toolkit_modules_version: str

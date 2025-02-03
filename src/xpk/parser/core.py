@@ -71,11 +71,10 @@ def set_parser(parser: argparse.ArgumentParser):
   config_parser = xpk_subcommands.add_parser(
       "config", help="Commands to set and retrieve values from xpk config."
   )
- 
+
   run_parser = xpk_subcommands.add_parser(
       "run",
       help="Command to run parallel jobs",
-
   )
 
   def default_subcommand_function(

@@ -246,7 +246,10 @@ def get_pathways_rm_args(args, system: SystemCharacteristics) -> str:
 
 
 def get_user_workload_for_pathways(
-    args, system: SystemCharacteristics, pod_failure_policy, storages: list[Storage]
+    args,
+    system: SystemCharacteristics,
+    pod_failure_policy,
+    storages: list[Storage],
 ) -> str:
   """
   Create a user workload container for Pathways.
@@ -300,8 +303,8 @@ def get_user_workload_for_pathways(
         storage_volumes=storage_volumes,
         pod_failure_policy=pod_failure_policy,
         service_account=XPK_SA,
-        gcs_fuse_annotation=GCS_FUSE_ANNOTATION
-      )
+        gcs_fuse_annotation=GCS_FUSE_ANNOTATION,
+    )
 
 
 def get_rm_address(args) -> str:

@@ -80,7 +80,6 @@ from ..core.system_characteristics import (
 from ..core.workload import get_workload_list
 from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
-from .common import set_cluster_command
 from ..core.workload_decorators import tcpxo_decorator, rdma_decorator
 from . import cluster_gcluster
 
@@ -481,7 +480,6 @@ def workload_create(args) -> None:
     if return_code != 0:
       xpk_exit(return_code)
 
-<<<<<<< HEAD
   storages: list[Storage] = get_storages_to_mount(k8s_api_client, args.storage)
   xpk_print('storages:', storages)
   gcs_fuse_storages = list(
@@ -495,7 +493,6 @@ def workload_create(args) -> None:
     xpk_print(f'Detected gcsfuse Storages to add: {gcs_fuse_storages}')
   else:
     xpk_print('No gcsfuse Storages to add detected')
-=======
   failure_policy_rules = """rules:
       - action: FailJobSet
         onJobFailureReasons: 
@@ -510,7 +507,6 @@ def workload_create(args) -> None:
                 containerName: {get_main_container_docker_image(args, system)}
                 operator: NotIn
                 values: [{restart_on_exit_codes}]"""
->>>>>>> 344b9c7b51ec3c737c73d34aaa8835e8b9a97ce6
 
   # Create the workload file based on accelerator type or workload type.
   if system.accelerator_type == AcceleratorType['GPU']:
@@ -527,13 +523,10 @@ def workload_create(args) -> None:
       yml_string = a3_gpu_workload_create_yaml.format(
           args=args,
           container=container,
-<<<<<<< HEAD
           service_account=XPK_SA,
           storage_volumes=get_storage_volumes_yaml_for_gpu(gcs_fuse_storages),
-=======
           failure_policy_rules=failure_policy_rules,
           pod_failure_policy=pod_failure_policy,
->>>>>>> 344b9c7b51ec3c737c73d34aaa8835e8b9a97ce6
       )
 
       if args.device_type == cluster_gcluster.a3mega_device_type:
@@ -564,17 +557,14 @@ def workload_create(args) -> None:
           gpu_rxdm_image=get_gpu_rxdm_image(system),
           gpu_rxdm_cmd=get_gpu_rxdm_cmd(system),
           gpu_tcp_volume=get_gpu_tcp_volume(system),
-<<<<<<< HEAD
           storage_volumes=get_storage_volumes_yaml_for_gpu(gcs_fuse_storages),
           storage_volume_mounts=get_storage_volume_mounts_yaml_for_gpu(
               gcs_fuse_storages
           ),
           storage_annotations=storage_annotations,
           service_account=service_account,
-=======
           failure_policy_rules=failure_policy_rules,
           pod_failure_policy=pod_failure_policy,
->>>>>>> 344b9c7b51ec3c737c73d34aaa8835e8b9a97ce6
       )
 
   elif args.use_pathways and ensure_pathways_workload_prerequisites(
@@ -587,32 +577,25 @@ def workload_create(args) -> None:
             system.accelerator_type, system
         ),
         machine_label=create_machine_label(system.accelerator_type, system),
-        pathways_rm_args=get_pathways_rm_args(args, system),
         pathways_worker_args=get_pathways_worker_args(args),
         pathways_proxy_args=get_pathways_proxy_args(args),
-        user_workload=get_user_workload_for_pathways(args, system, storages),
         pathways_sidecar_container=get_pathways_sidecar_container(args),
-<<<<<<< HEAD
-=======
         user_workload=get_user_workload_for_pathways(
-            args, system, pod_failure_policy
+            args, system, pod_failure_policy, storages
         ),
->>>>>>> 344b9c7b51ec3c737c73d34aaa8835e8b9a97ce6
         resource_type=AcceleratorTypeToAcceleratorCharacteristics[
             system.accelerator_type
         ].resource_type,
         local_queue_name=LOCAL_QUEUE_NAME,
         autoprovisioning_args=autoprovisioning_args,
         backoff_limit=system.vms_per_slice * 4,
-<<<<<<< HEAD
         storage_annotations=storage_annotations,
         storage_volumes=get_storage_volumes_yaml(gcs_fuse_storages),
+        pathways_rm_args=get_pathways_rm_args(args, system),
         storage_volume_mounts=get_storage_volume_mounts_yaml(gcs_fuse_storages),
         service_account=service_account,
-=======
         failure_policy_rules=failure_policy_rules,
         pod_failure_policy=pod_failure_policy,
->>>>>>> 344b9c7b51ec3c737c73d34aaa8835e8b9a97ce6
     )
   else:
     container, debugging_dashboard_id = get_user_workload_container(
@@ -630,13 +613,10 @@ def workload_create(args) -> None:
         local_queue_name=LOCAL_QUEUE_NAME,
         autoprovisioning_args=autoprovisioning_args,
         volumes=get_volumes(args, system),
-<<<<<<< HEAD
         storage_annotations=storage_annotations,
         service_account=service_account,
-=======
         failure_policy_rules=failure_policy_rules,
         pod_failure_policy=pod_failure_policy,
->>>>>>> 344b9c7b51ec3c737c73d34aaa8835e8b9a97ce6
     )
   tmp = write_tmp_file(yml_string)
   command = f'kubectl apply -f {str(tmp.file.name)}'

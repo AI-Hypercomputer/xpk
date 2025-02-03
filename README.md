@@ -92,12 +92,23 @@ In addition, below dependencies will be installed with `make install` command:
 - kjob (installation instructions [here](https://github.com/kubernetes-sigs/kjob/blob/main/docs/installation.md))
 
 # Installation
-To install xpk, run the following command and install additional tools, mentioned in [prerequisites](#prerequisites). [Makefile](https://github.com/AI-Hypercomputer/xpk/blob/main/Makefile) provides a way to install all neccessary tools:
+To install xpk, install required tools mentioned in [prerequisites](#prerequisites). [Makefile](https://github.com/AI-Hypercomputer/xpk/blob/main/Makefile) provides a way to install all neccessary tools. XPK can be installed via pip:
 
 ```shell
 pip install xpk
 ```
 
+If you see an error saying: `This environment is externally managed`, please use a virtual environment.
+
+```shell
+  ## One time step of creating the venv
+  VENV_DIR=~/venvp3
+  python3 -m venv $VENV_DIR
+  ## Enter your venv.
+  source $VENV_DIR/bin/activate
+  ## Clone the repository and installing dependencies.
+  pip install xpk
+```
 
 If you are running XPK by cloning GitHub repository, first run the
 following commands to begin using XPK commands:

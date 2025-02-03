@@ -518,14 +518,16 @@ def add_shared_workload_create_optional_arguments(args_parsers):
         ),
     )
     custom_parser.add_argument(
-        '--restart-on-user-code-failure',
-        action='store_true',
+        '--restart-on-exit-codes',
+        type=str,
+        default=None,
         help=(
-            'Adding this argument will return user failures back to the jobset'
-            ' manager allowing restarts on user code when --max-restarts is set'
-            ' greater than 0. By default, this is not enabled, and workloads'
-            ' will not restart from user code failures. This is enabled by'
-            ' default on Pathways workloads.'
+            'Adding this argument specifies additional user-defined exit codes'
+            ' that allow restarting the workload when --max-restarts is set to'
+            ' a value greater than 0. By default, workloads restart on exit'
+            ' codes 42 and 127-255. Any exit codes provided through this flag'
+            ' will be included alongside the default codes for restarting'
+            ' conditions.'
         ),
     )
     custom_parser.add_argument(

@@ -23,12 +23,12 @@ function set_install_command() {
         else
             echo "Neither apt nor yum is available, using gcloud to install."
             IS_GCLOUD_INSTALLER=true
-            INSTALL_CMD="gcloud components install gke-gcloud-auth-plugin"
+            INSTALL_CMD="gcloud components install gke-gcloud-auth-plugin --quiet"
         fi
         ;;
     "Darwin")
         IS_GCLOUD_INSTALLER=true
-        INSTALL_CMD="gcloud components install gke-gcloud-auth-plugin"
+        INSTALL_CMD="gcloud components install gke-gcloud-auth-plugin --quiet"
         ;;
     *)
         echo "Unsupported OS: $OS"

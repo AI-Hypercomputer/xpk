@@ -92,7 +92,7 @@ In addition, below dependencies will be installed with `make install` command:
 - kjob (installation instructions [here](https://github.com/kubernetes-sigs/kjob/blob/main/docs/installation.md))
 
 # Installation
-To install xpk, install additional tools, mentioned in [prerequisites](#prerequisites). [Makefile](https://github.com/AI-Hypercomputer/xpk/blob/main/Makefile) provides a way to install all neccessary tools. XPK can be installed via pip:
+To install xpk, install required tools mentioned in [prerequisites](#prerequisites). [Makefile](https://github.com/AI-Hypercomputer/xpk/blob/main/Makefile) provides a way to install all neccessary tools. XPK can be installed via pip:
 
 ```shell
 pip install xpk

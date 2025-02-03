@@ -52,7 +52,6 @@ def test_config_get_all(_):
   assert cfg_all[CFG_BUCKET_KEY] == 'cfg-bucket'
 
 
-
 def test_config_get_empty(_):
   cfg = XpkConfig(config_tmp_path)
   val = cfg.get(PROJECT_KEY)

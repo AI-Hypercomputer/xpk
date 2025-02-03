@@ -14,15 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from argparse import Namespace
-
 from ..core.core import __git_commit_hash__
 from ..utils.console import xpk_print
 
 XPK_VERSION = 'v0.6.0'
 
 
-def version(args: Namespace) -> None:
+def version() -> None:
   """Get version of xpk."""
   xpk_print('xpk_version:', XPK_VERSION)
   xpk_print('git commit hash:', __git_commit_hash__)

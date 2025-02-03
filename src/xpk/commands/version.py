@@ -15,25 +15,14 @@ limitations under the License.
 """
 
 from argparse import Namespace
-import os
 
-from ..core.commands import run_command_for_value
+from ..core.core import __git_commit_hash__
+from ..utils.console import xpk_print
 
 XPK_VERSION = 'v0.6.0'
-
-from ..utils.console import xpk_exit, xpk_print
 
 
 def version(args: Namespace) -> None:
   """Get version of xpk."""
   xpk_print('xpk_version:', XPK_VERSION)
-  if os.path.exists(os.path.join(os.getcwd(), '.git')):
-    code, xpk_version = run_command_for_value(
-        'git rev-parse HEAD',
-        task='Get latest hash',
-        global_args=args,
-        quiet=True,
-    )
-    if code != 0:
-      xpk_exit(code)
-    xpk_print('git commit:', xpk_version.strip('\n'))
+  xpk_print('git commit hash:', __git_commit_hash__)

@@ -22,18 +22,10 @@ XPK_CONFIG_FILE = os.path.expanduser('~') + '/.config/xpk/config.yaml'
 xpk_cfg = XpkConfig(XPK_CONFIG_FILE)
 
 
-def config(args):
-  if args.set:
-    set_config(args.set)
-  if args.get:
-    get_config(args.get)
+def set_config(args):
+  xpk_cfg.set(args.set_config_args[0], args.set_config_args[1])
 
 
-def set_config(values):
-  for k, v in values.items():
-    xpk_cfg.set(k, v)
-
-
-def get_config(key):
-  value = xpk_cfg.get(key)
+def get_config(args):
+  value = xpk_cfg.get(args.get_config_key[0])
   xpk_print(value)

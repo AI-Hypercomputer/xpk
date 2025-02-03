@@ -14,44 +14,35 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..commands.config import (
-    config,
-)
-import argparse
+from ..commands.config import (set_config, get_config)
 from .common import add_shared_arguments
-
-
-class ParseDict(argparse.Action):
-  """ParseDict is a class to parse values passed as string into dictionary."""
-
-  def __call__(self, parser, namespace, values, option_string=None):
-    d = getattr(namespace, self.dest) or {}
-    if values:
-      for item in values:
-        split_items = item.split('=', 1)
-        key = split_items[0].strip()
-        value = split_items[1]
-        d[key] = value
-    setattr(namespace, self.dest, d)
 
 
 def set_config_parsers(config_parser):
   add_shared_arguments(config_parser)
-  config_required_arguments = config_parser.add_argument_group(
-      'Required Arguments', 'Arguments for config.'
+
+  config_subcommands = config_parser.add_subparsers(
+      title='config subcommands', dest='xpk_config_subcommands'
   )
-  config_args = config_required_arguments.add_mutually_exclusive_group()
-  config_args.add_argument(
-      '--get',
+  config_set_parser = config_subcommands.add_parser(
+      'set', help='set config key'
+  )
+  config_get_parser = config_subcommands.add_parser(
+      'get', help='get config key'
+  )
+  config_set_parser.add_argument(
+      'set_config_args',
+      help="""Pair of (key, value) to be set in config. Allowed keys are: `cluster-name`, `project-id`, `zone`, `cluster-state-gcs-bucket`.
+      Command usage: `xpk config set project-id foo`""",
       type=str,
-      default=None,
-      help='Show only localqueues resources and usage',
+      nargs=2,
   )
-  config_args.add_argument(
-      '--set',
-      action=ParseDict,
-      nargs='+',
-      metavar='KEY=VALUE',
-      help='Show only localqueues resources and usage',
+  config_get_parser.add_argument(
+      'get_config_key',
+      help="""Get key value from config. Allowed keys are: `cluster-name`, `project-id`, `zone`, `cluster-state-gcs-bucket`.
+      Command usage: `xpk config get project-id`""",
+      type=str,
+      nargs=1,
   )
-  config_parser.set_defaults(func=config)
+  config_set_parser.set_defaults(func=set_config)
+  config_get_parser.set_defaults(func=get_config)

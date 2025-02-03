@@ -18,6 +18,12 @@ toolkit_modules_version: v1.45.1
 
 vars:
 
+terraform_backend_defaults:
+  type: gcs
+  configuration:
+    bucket: test-bucket
+    prefix: xpk_terraform_state/testdir
+
 deployment_groups:
 - !DeploymentGroup
   group: primary

@@ -44,8 +44,14 @@ class XpkConfig:
     self._config = config_file_path
     self._allowed_keys = default_keys
 
-  def _open_configs(self) -> dict:
-    config_yaml: dict = {}
+  def _open_configs(self) -> dict | None:
+    dir_path = '/'.join(self._config.split('/')[:-1])
+    file.ensure_directory_exists(dir_path)
+
+    config_yaml = {'version': 'v1', CONFIGS_KEY: {}}
+    if not os.path.exists(self._config):
+      return None
+
     with open(self._config, encoding='utf-8', mode='r') as stream:
       config_yaml: dict = yaml.load(stream)
     return config_yaml
@@ -59,12 +65,9 @@ class XpkConfig:
       xpk_print(f'Key {key} is not an allowed xpk config key.')
       return
 
-    dir_path = '/'.join(self._config.split('/')[:-1])
-    file.ensure_directory_exists(dir_path)
-
-    config_yaml = {'version': 'v1', CONFIGS_KEY: {}}
-    if os.path.exists(self._config):
-      config_yaml = self._open_configs()
+    config_yaml = self._open_configs()
+    if config_yaml is None:
+      config_yaml = {'version': 'v1', CONFIGS_KEY: {}}
 
     config_yaml[CONFIGS_KEY][key] = value
     self._save_configs(config_yaml)
@@ -74,17 +77,18 @@ class XpkConfig:
       xpk_print(f'Key {key} is not an allowed xpk config key.')
       return None
 
-    if not os.path.exists(self._config):
-      return None
-
     config_yaml = self._open_configs()
+    if config_yaml is None:
+      return None
+ 
     vals: dict[str, str] = config_yaml[CONFIGS_KEY]
     return vals[key]
 
   def get_all(
       self,
-  ) -> dict[str, dict[str, str] | str]:
-    if not os.path.exists(self._config):
-      return {}
+  ) -> dict[str, dict[str, str] | str] | None:
     config_yaml = self._open_configs()
-    return config_yaml
+    if config_yaml is None:
+      return None
+    val: dict[str, str] = config_yaml[CONFIGS_KEY]
+    return val

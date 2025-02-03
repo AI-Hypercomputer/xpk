@@ -14,7 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from xpk.core.config import XpkConfig, CFG_BUCKET_KEY, CLUSTER_NAME_KEY, PROJECT_KEY, ZONE_KEY, CONFIGS_KEY
+from xpk.core.config import XpkConfig, CFG_BUCKET_KEY, CLUSTER_NAME_KEY, PROJECT_KEY, ZONE_KEY
+
 import os
 import pytest
 
@@ -45,12 +46,11 @@ def test_config_get_all(_):
   cfg.set(CFG_BUCKET_KEY, 'cfg-bucket')
 
   cfg_all = cfg.get_all()
-  assert cfg_all['version'] == 'v1'
-  assert CONFIGS_KEY in cfg_all
-  assert cfg_all[CONFIGS_KEY][PROJECT_KEY] == 'foo'
-  assert cfg_all[CONFIGS_KEY][CLUSTER_NAME_KEY] == 'bar'
-  assert cfg_all[CONFIGS_KEY][ZONE_KEY] == 'europe-west1-a'
-  assert cfg_all[CONFIGS_KEY][CFG_BUCKET_KEY] == 'cfg-bucket'
+  assert cfg_all[PROJECT_KEY] == 'foo'
+  assert cfg_all[CLUSTER_NAME_KEY] == 'bar'
+  assert cfg_all[ZONE_KEY] == 'europe-west1-a'
+  assert cfg_all[CFG_BUCKET_KEY] == 'cfg-bucket'
+
 
 
 def test_config_get_empty(_):

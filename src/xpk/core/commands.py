@@ -303,7 +303,7 @@ def run_command_with_full_controls(
     command: str,
     task: str,
     global_args: Namespace,
-    instructions: str = None,
+    instructions: str | None = None,
 ) -> int:
   """Run command in current shell with system out, in and error handles. Wait
   until it exits.

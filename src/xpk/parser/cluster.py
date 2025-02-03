@@ -25,6 +25,7 @@ from ..commands.cluster import (
 )
 from ..core.core import DEFAULT_VERTEX_TENSORBOARD_NAME
 from .common import add_shared_arguments
+from .validators import name_type
 
 
 def set_cluster_parser(cluster_parser):
@@ -269,7 +270,7 @@ def set_cluster_parser(cluster_parser):
   ### Required arguments
   cluster_delete_required_arguments.add_argument(
       '--cluster',
-      type=str,
+      type=name_type,
       default=None,
       help='The name of the cluster to be deleted.',
       required=True,
@@ -326,7 +327,7 @@ def set_cluster_parser(cluster_parser):
   ### Required arguments
   cluster_cacheimage_required_arguments.add_argument(
       '--cluster',
-      type=str,
+      type=name_type,
       default=None,
       help='The name of the cluster to cache the image.',
       required=True,
@@ -370,7 +371,7 @@ def set_cluster_parser(cluster_parser):
   ### Required arguments
   cluster_describe_required_arguments.add_argument(
       '--cluster',
-      type=str,
+      type=name_type,
       default=None,
       help='The name of the cluster to be describe.',
       required=True,
@@ -402,7 +403,7 @@ def add_shared_cluster_create_required_arguments(args_parsers):
   for custom_parser in args_parsers:
     custom_parser.add_argument(
         '--cluster',
-        type=str,
+        type=name_type,
         default=None,
         help=(
             'The name of the cluster. Will be used as the prefix for internal'

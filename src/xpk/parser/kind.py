@@ -20,6 +20,7 @@ from ..commands.kind import (
     cluster_list,
 )
 from .common import add_global_arguments
+from .validators import name_type
 
 
 def set_kind_parser(kind_parser):
@@ -40,7 +41,7 @@ def set_kind_parser(kind_parser):
   ### Optional Arguments
   cluster_create_parser.add_argument(
       '--cluster',
-      type=str,
+      type=name_type,
       default='kind',
       help=(
           'The name of the cluster. Will be used as the prefix for internal'
@@ -74,7 +75,7 @@ def set_kind_parser(kind_parser):
   ### Required arguments
   cluster_delete_required_arguments.add_argument(
       '--cluster',
-      type=str,
+      type=name_type,
       default=None,
       help='The name of the cluster to be deleted.',
       required=True,

@@ -301,8 +301,8 @@ def get_storage_volume_mounts_yaml(storages: list[Storage]) -> str:
   yaml_str = ""
   for storage in storages:
     yaml_str += f"""- name: {storage.pv}
-                mountPath: {storage.mount_point}
-                readOnly: {storage.readonly}
+                  mountPath: {storage.mount_point}
+                  readOnly: {storage.readonly}
             """
   return yaml_str
 
@@ -324,9 +324,9 @@ def get_storage_volumes_yaml(storages: list[Storage]) -> str:
   yaml_str = ""
   for storage in storages:
     yaml_str += f"""- name: {storage.pv}
-              persistentVolumeClaim:
-                claimName: {storage.pvc}
-                readOnly: {storage.readonly}
+                persistentVolumeClaim:
+                  claimName: {storage.pvc}
+                  readOnly: {storage.readonly}
             """
   return yaml_str
 

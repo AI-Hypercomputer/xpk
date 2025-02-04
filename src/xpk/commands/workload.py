@@ -348,6 +348,15 @@ spec:
                 volumeMounts:
                 - mountPath: /tmp
                   name: shared-tmp
+              nodeSelector:
+                cloud.google.com/gke-nodepool: cpu-rm-np
+              hostNetwork: true
+              dnsPolicy: ClusterFirstWithHostNet
+              volumes:
+              - hostPath:
+                  path: /tmp
+                  type: DirectoryOrCreate
+                name: shared-tmp
     - name: proxy
       replicas: 1
       template:

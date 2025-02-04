@@ -95,12 +95,23 @@ In addition, below dependencies will be installed with `make install` command:
 - kjob (installation instructions [here](https://github.com/kubernetes-sigs/kjob/blob/main/docs/installation.md))
 
 # Installation
-To install xpk, run the following command and install additional tools, mentioned in [prerequisites](#prerequisites). [Makefile](https://github.com/AI-Hypercomputer/xpk/blob/main/Makefile) provides a way to install all neccessary tools:
+To install xpk, install required tools mentioned in [prerequisites](#prerequisites). [Makefile](https://github.com/AI-Hypercomputer/xpk/blob/main/Makefile) provides a way to install all neccessary tools. XPK can be installed via pip:
 
 ```shell
 pip install xpk
 ```
 
+If you see an error saying: `This environment is externally managed`, please use a virtual environment.
+
+```shell
+  ## One time step of creating the venv
+  VENV_DIR=~/venvp3
+  python3 -m venv $VENV_DIR
+  ## Enter your venv.
+  source $VENV_DIR/bin/activate
+  ## Clone the repository and installing dependencies.
+  pip install xpk
+```
 
 If you are running XPK by cloning GitHub repository, first run the
 following commands to begin using XPK commands:
@@ -780,6 +791,35 @@ Inspector output is saved to a file.
   [XPK] Task: `List Jobs with filter-by-status=RUNNING with filter-by-jobs=None` is implemented by `kubectl get workloads -o=custom-columns="Jobset Name:.metadata.ownerReferences[0].name,Created Time:.metadata.creationTimestamp,Priority:.spec.priorityClassName,TPU VMs Needed:.spec.podSets[0].count,TPU VMs Running/Ran:.status.admission.podSetAssignments[-1].count,TPU VMs Done:.status.reclaimablePods[0].count,Status:.status.conditions[-1].type,Status Message:.status.conditions[-1].message,Status Time:.status.conditions[-1].lastTransitionTime"  | awk -e 'NR == 1 || ($7 ~ "Admitted|Evicted" && $5 ~ /^[0-9]+$/ && $5 > 0) {print $0}' `, hiding output unless there is an error.
   [XPK] Find xpk inspector output file: /tmp/tmp0pd6_k1o
   [XPK] Exiting XPK cleanly
+  ```
+
+## Run
+* `xpk run` lets you execute scripts on a cluster with ease. It automates task execution, handles interruptions, and streams job output to your console.
+
+  ```shell
+  python xpk.py run --kind-cluster -n 2 -t 0-2 examples/job.sh 
+  ```
+
+* Example Output:
+
+  ```shell
+  [XPK] Starting xpk
+  [XPK] Task: `get current-context` is implemented by `kubectl config current-context`, hiding output unless there is an error.
+  [XPK] No local cluster name specified. Using current-context `kind-kind`
+  [XPK] Task: `run task` is implemented by `kubectl kjob create slurm --profile xpk-def-app-profile --localqueue multislice-queue --wait --rm -- examples/job.sh --partition multislice-queue --ntasks 2 --time 0-2`. Streaming output and input live.
+  job.batch/xpk-def-app-profile-slurm-g4vr6 created
+  configmap/xpk-def-app-profile-slurm-g4vr6 created
+  service/xpk-def-app-profile-slurm-g4vr6 created
+  Starting log streaming for pod xpk-def-app-profile-slurm-g4vr6-1-4rmgk...
+  Now processing task ID: 3
+  Starting log streaming for pod xpk-def-app-profile-slurm-g4vr6-0-bg6dm...
+  Now processing task ID: 1
+  exit
+  exit
+  Now processing task ID: 2
+  exit
+  Job logs streaming finished.[XPK] Task: `run task` terminated with code `0`
+  [XPK] XPK Done.
   ```
 
 ## GPU usage

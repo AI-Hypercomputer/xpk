@@ -173,6 +173,11 @@ jobs:
         echo "Hello world from a test script!"
         cd ~/../test-mount-point && echo "Hello world from a Github Action CI/CD test script!" > '$RANDOM_SEED'.txt' \
         > test.sh
+    - name: Create a test script to execute in jobs.
+      run: echo -e '#!/bin/bash \nsleep 3 \necho "Hello world from a test script!"' > job_test.sh
+    - name: Run a job
+      run: |
+        python xpk.py run --cluster $TPU_CLUSTER_NAME --zone=us-central2-b job_test.sh | awk '/Starting log streaming for pod xpk-def-app-profile-slurm-[a-zA-Z0-9]+-[0-9]+-[a-zA-Z0-9]+.../,/Job logs streaming finished./ { print }'
     - name: Run a base-docker-image workload
       run: |
         python3 xpk.py workload create --cluster $TPU_CLUSTER_NAME --workload $WORKLOAD_NAME  --command "bash test.sh"  \

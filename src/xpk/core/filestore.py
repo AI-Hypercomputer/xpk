@@ -126,16 +126,16 @@ class FilestoreClient:
     xpk_print(f"Filestore instance {parent} created")
     self.response = response
 
-  def create_sc(self, tier: str, network: str) -> None:
+  def create_sc(self, tier: str, network: str) -> dict:
     abs_path = f"{os.path.dirname(__file__)}{FS_SC_PATH}"
     with open(abs_path, "r", encoding="utf-8") as file:
-      data = yaml.load(file)
+      data : dict[str, str | dict]= yaml.load(file)
     data["metadata"]["name"] = get_storage_class_name(self.name)
     data["parameters"]["tier"] = tier
     data["parameters"]["network"] = network
     return data
 
-  def create_pv(self, vol: str, access_mode: str) -> None:
+  def create_pv(self, vol: str, access_mode: str) -> dict:
     abs_path = f"{os.path.dirname(__file__)}{FS_PV_PATH}"
     with open(abs_path, "r", encoding="utf-8") as file:
       data = yaml.load(file)
@@ -154,7 +154,7 @@ class FilestoreClient:
     data["spec"] = spec
     return data
 
-  def create_pvc(self, access_mode: str) -> None:
+  def create_pvc(self, access_mode: str) -> dict:
     """Create a yaml representing filestore PV and PVC and save it to file.
 
     Args:

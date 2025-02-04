@@ -39,6 +39,7 @@ import re
 import string
 import subprocess
 import sys
+import importlib.metadata as importlib_metadata
 from dataclasses import dataclass
 
 from ..utils.file import write_tmp_file
@@ -60,9 +61,9 @@ from .system_characteristics import (
 default_docker_image = 'python:3.10'
 default_script_dir = os.getcwd()
 # This is the version for XPK PyPI package
-__version__ = '0.6.0'
-__git_commit_hash__ = '<git-commit-hash>'
-xpk_current_version = __version__
+__version__ = importlib_metadata.version('xpk')
+
+xpk_current_version = __version__.split('+')[0]
 
 h100_device_type = 'h100-80gb-8'
 h100_mega_device_type = 'h100-mega-80gb-8'

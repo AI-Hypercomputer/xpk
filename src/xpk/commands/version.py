@@ -14,13 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..core.core import __git_commit_hash__
+from ..core.core import __version__
 from ..utils.console import xpk_print
 
-XPK_VERSION = 'v0.6.0'
 
-
-def version() -> None:
+def version(args) -> None:  # pylint: disable=unused-argument
   """Get version of xpk."""
-  xpk_print('xpk_version:', XPK_VERSION)
-  xpk_print('git commit hash:', __git_commit_hash__)
+  xpk_version, git_hash = __version__.split('+')
+  xpk_print('xpk_version:', xpk_version)
+  xpk_print('git commit hash:', git_hash)

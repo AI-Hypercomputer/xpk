@@ -16,17 +16,11 @@ KJOB_DOCKER_IMG := xpk_kjob
 KJOB_DOCKER_CONTAINER := xpk_kjob_container
 BIN_PATH=$(PROJECT_DIR)/bin
 
-GIT_COMMIT_HASH := $(shell git rev-parse HEAD)
-
 .PHONY: install
-install: save-git-hash check-python check-gcloud install-kueuectl install-kjobctl pip-install
+install: check-python check-gcloud install-kueuectl install-kjobctl pip-install
 
 .PHONY: install-dev
-install-dev: save-git-hash check-python check-gcloud mkdir-bin install-kueuectl install-kjobctl pip-install install-pytest
-
-.PHONY: save-git-hash
-save-git-hash:
-	sed -i -e "s/__git_commit_hash__ = .*/__git_commit_hash__ = '${GIT_COMMIT_HASH}'/" src/xpk/core/core.py
+install-dev: check-python check-gcloud mkdir-bin install-kueuectl install-kjobctl pip-install install-pytest
 
 .PHONY: pip-install
 pip-install:

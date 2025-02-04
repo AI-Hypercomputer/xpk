@@ -89,14 +89,6 @@ def set_cluster_parser(cluster_parser):
       help='The number of nodes for a cluster, defaults to 2.',
       required=False,
   )
-  cluster_create_optional_arguments.add_argument(
-      '--enable-pathways',
-      action='store_true',
-      help=(
-          'DEPRECATING SOON!!! Please use `xpk cluster create-pathways`.'
-          ' Enable cluster to accept Pathways workloads.'
-      ),
-  )
 
   ### Autoprovisioning arguments specific to "cluster create"
   cluster_create_autoprovisioning_arguments = (
@@ -216,14 +208,6 @@ def set_cluster_parser(cluster_parser):
       default=None,
       help="The Ray version to use, e.g. '2.38.0'",
       required=True,
-  )
-  cluster_create_ray_cluster_optional_arguments.add_argument(
-      '--enable-pathways',
-      action='store_true',
-      help=(
-          'DEPRECATING SOON!!! Please use `xpk cluster create-pathways`.'
-          ' Enable cluster to accept Pathways workloads.'
-      ),
   )
 
   add_shared_cluster_create_required_arguments([

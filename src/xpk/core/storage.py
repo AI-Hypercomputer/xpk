@@ -194,7 +194,6 @@ def get_storages(
   Returns:
       A list of Storage objects matching the given names.
   """
-  xpk_print("requested_storages: ", requested_storages)
   all_storages = list_storages(k8s_api_client)
   all_storage_names = {storage.name for storage in all_storages}
 
@@ -476,11 +475,6 @@ def create_storage_instance(k8s_api_client: ApiClient, args: Namespace) -> None:
   data["spec"] = spec
 
   api_instance = k8s_client.CustomObjectsApi(k8s_api_client)
-  xpk_print(f"Creating a new Storage: {args.name}")
-  xpk_print(data)
-  xpk_print(api_instance)
-  xpk_print(k8s_api_client.configuration.host)
-  xpk_print(k8s_api_client.rest_client)
   try:
     api_instance.create_cluster_custom_object(
         group=XPK_API_GROUP_NAME,
@@ -493,6 +487,5 @@ def create_storage_instance(k8s_api_client: ApiClient, args: Namespace) -> None:
     if e.status == 409:
       xpk_print(f"Storage: {args.name} already exists. Skipping its creation")
     else:
-      xpk_print(e.status, e.reason, e.body)
       xpk_print(f"Encountered error during storage creation: {e}")
       xpk_exit(1)

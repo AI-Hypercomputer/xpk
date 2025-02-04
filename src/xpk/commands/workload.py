@@ -259,96 +259,96 @@ spec:
     targetReplicatedJobs:
     - {args.targetReplicatedJob}
   replicatedJobs:
-  - name: worker
-    replicas: {args.num_slices}
-    template:
-      metadata:
-        annotations:
-          alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool
-        labels:
-          xpk.google.com/workload: {args.workload}
-      spec:
-        backoffLimit: {backoff_limit}
-        completions: {system.vms_per_slice}
-        parallelism: {system.vms_per_slice}
-        template:
-          metadata:
-            annotations:
-              {storage_annotations}
-          spec:
-            terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
-            serviceAccountName: {service_account}
-            containers:
-            - args:
-              {pathways_worker_args}
-              image: {args.server_image}
-              imagePullPolicy: Always
-              name: pathways-worker
-              ports:
-              - containerPort: 29001
-              - containerPort: 8471
-              - containerPort: 8080
-              resources:
-                limits:
-                  {resource_type}: {system.chips_per_vm}
-              securityContext:
-                privileged: true
-              volumeMounts:
-              - mountPath: /tmp
+    - name: worker
+      replicas: {args.num_slices}
+      template:
+        metadata:
+          annotations:
+            alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool
+          labels:
+            xpk.google.com/workload: {args.workload}
+        spec:
+          backoffLimit: {backoff_limit}
+          completions: {system.vms_per_slice}
+          parallelism: {system.vms_per_slice}
+          template:
+            metadata:
+              annotations:
+                {storage_annotations}
+            spec:
+              terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
+              serviceAccountName: {service_account}
+              containers:
+              - args:
+                {pathways_worker_args}
+                image: {args.server_image}
+                imagePullPolicy: Always
+                name: pathways-worker
+                ports:
+                - containerPort: 29001
+                - containerPort: 8471
+                - containerPort: 8080
+                resources:
+                  limits:
+                    {resource_type}: {system.chips_per_vm}
+                securityContext:
+                  privileged: true
+                volumeMounts:
+                - mountPath: /tmp
+                  name: shared-tmp
+                {storage_volume_mounts}
+              {pathways_sidecar_container}
+              nodeSelector:
+                {accelerator_label}
+                {machine_label}
+                {autoprovisioning_args}
+              priorityClassName: {args.priority}
+              hostNetwork: true
+              dnsPolicy: ClusterFirstWithHostNet
+              volumes:
+              - hostPath:
+                  path: /tmp
+                  type: DirectoryOrCreate
                 name: shared-tmp
-              {storage_volume_mounts}
-            {pathways_sidecar_container}
-            nodeSelector:
-              {accelerator_label}
-              {machine_label}
-              {autoprovisioning_args}
-            priorityClassName: {args.priority}
-            hostNetwork: true
-            dnsPolicy: ClusterFirstWithHostNet
-            volumes:
-            - hostPath:
-                path: /tmp
-                type: DirectoryOrCreate
-              name: shared-tmp
-            {storage_volumes}
-  - name: rm
-    replicas: 1
-    template:
-      metadata:
-        labels:
-          xpk.google.com/workload: {args.workload}
-      spec:
-        backoffLimit: 0
-        completions: 1
-        parallelism: 1
-        template:
-          spec:
-            containers:
-            - args:
-              {pathways_rm_args}
-              env:
-              - name: REPLICATED_JOB_NAME
-                valueFrom:
-                  fieldRef:
-                    fieldPath: metadata.annotations['jobset.sigs.k8s.io/replicatedjob-name']
-              - name: JOBSET_NAME
-                valueFrom:
-                  fieldRef:
-                    fieldPath: metadata.annotations['jobset.sigs.k8s.io/jobset-name']
-              - name: HOST_ADDRESS
-                value: $(JOBSET_NAME)-$(REPLICATED_JOB_NAME)-0-0.$(JOBSET_NAME)
-              - name: TPU_SKIP_MDS_QUERY
-                value: "true"
-              image: {args.server_image}
-              imagePullPolicy: Always
-              name: pathways-rm
-              ports:
-              - containerPort: 29001
-              securityContext:
-                privileged: true
-              volumeMounts:
-              - mountPath: /tmp
-                name: shared-tmp
+              {storage_volumes}
+    - name: rm
+      replicas: 1
+      template:
+        metadata:
+          labels:
+            xpk.google.com/workload: {args.workload}
+        spec:
+          backoffLimit: 0
+          completions: 1
+          parallelism: 1
+          template:
+            spec:
+              containers:
+              - args:
+                {pathways_rm_args}
+                env:
+                - name: REPLICATED_JOB_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.annotations['jobset.sigs.k8s.io/replicatedjob-name']
+                - name: JOBSET_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.annotations['jobset.sigs.k8s.io/jobset-name']
+                - name: HOST_ADDRESS
+                  value: $(JOBSET_NAME)-$(REPLICATED_JOB_NAME)-0-0.$(JOBSET_NAME)
+                - name: TPU_SKIP_MDS_QUERY
+                  value: "true"
+                image: {args.server_image}
+                imagePullPolicy: Always
+                name: pathways-rm
+                ports:
+                - containerPort: 29001
+                securityContext:
+                  privileged: true
+                volumeMounts:
+                - mountPath: /tmp
+                  name: shared-tmp
     - name: proxy
       replicas: 1
       template:

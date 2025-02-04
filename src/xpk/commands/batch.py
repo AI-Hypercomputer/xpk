@@ -15,6 +15,7 @@ limitations under the License.
 """
 
 from argparse import Namespace
+
 from .common import set_cluster_command
 from ..core.kueue import LOCAL_QUEUE_NAME
 from ..utils.console import xpk_exit, xpk_print

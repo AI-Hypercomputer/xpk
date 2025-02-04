@@ -132,8 +132,6 @@ def cluster_create(args) -> None:
     if update_cluster_command_code != 0:
       xpk_exit(update_cluster_command_code)
 
-  # Update Pathways clusters with CloudDNS if not enabled already.
-
   get_cluster_credentials(args)
 
   # create Vertex Tensorboard for new and existing clusters if create-vertex-tensorboard is set

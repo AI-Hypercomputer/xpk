@@ -16,9 +16,9 @@ limitations under the License.
 
 from argparse import Namespace
 
-from .common import set_cluster_command
 from ..core.kueue import LOCAL_QUEUE_NAME
 from ..utils.console import xpk_exit, xpk_print
+from .common import set_cluster_command
 from ..core.core import add_zone_and_project
 from ..core.kjob import AppProfileDefaults
 from ..core.commands import run_command_for_value

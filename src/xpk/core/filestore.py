@@ -129,7 +129,7 @@ class FilestoreClient:
   def create_sc(self, tier: str, network: str) -> dict:
     abs_path = f"{os.path.dirname(__file__)}{FS_SC_PATH}"
     with open(abs_path, "r", encoding="utf-8") as file:
-      data : dict[str, str | dict]= yaml.load(file)
+      data: dict = yaml.load(file)
     data["metadata"]["name"] = get_storage_class_name(self.name)
     data["parameters"]["tier"] = tier
     data["parameters"]["network"] = network
@@ -138,7 +138,7 @@ class FilestoreClient:
   def create_pv(self, vol: str, access_mode: str) -> dict:
     abs_path = f"{os.path.dirname(__file__)}{FS_PV_PATH}"
     with open(abs_path, "r", encoding="utf-8") as file:
-      data = yaml.load(file)
+      data: dict = yaml.load(file)
 
     data["metadata"]["name"] = get_pv_name(self.name)
     spec = data["spec"]
@@ -165,7 +165,7 @@ class FilestoreClient:
     """
     abs_path = f"{os.path.dirname(__file__)}{FS_PVC_PATH}"
     with open(abs_path, "r", encoding="utf-8") as file:
-      data = yaml.load(file)
+      data: dict = yaml.load(file)
     data["metadata"]["name"] = get_pvc_name(self.name)
     spec = data["spec"]
     spec["accessModes"] = [access_mode]

@@ -24,9 +24,8 @@ CFG_BUCKET_KEY = 'cluster-state-gcs-bucket'
 CLUSTER_NAME_KEY = 'cluster-name'
 PROJECT_KEY = 'project-id'
 ZONE_KEY = 'zone'
-CONFIG_PATH = '~/.config/xpk/config.yaml'
 CONFIGS_KEY = 'configs'
-
+XPK_CONFIG_FILE = os.path.expanduser('~/.config/xpk/config.yaml')
 default_keys = [
     CFG_BUCKET_KEY,
     CLUSTER_NAME_KEY,
@@ -40,7 +39,7 @@ yaml = ruamel.yaml.YAML()
 class XpkConfig:
   """XpkConfig is a class for setting and getting values from .yaml config file."""
 
-  def __init__(self, config_file_path: str = CONFIG_PATH) -> None:
+  def __init__(self, config_file_path: str = XPK_CONFIG_FILE) -> None:
     self._config = config_file_path
     self._allowed_keys = default_keys
 

@@ -481,7 +481,6 @@ def workload_create(args) -> None:
       xpk_exit(return_code)
 
   storages: list[Storage] = get_storages_to_mount(k8s_api_client, args.storage)
-  xpk_print('storages:', storages)
   gcs_fuse_storages = list(
       filter(lambda storage: storage.type == GCS_FUSE_TYPE, storages)
   )

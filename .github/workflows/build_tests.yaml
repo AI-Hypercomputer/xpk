@@ -236,8 +236,4 @@ jobs:
       run: python3 xpk.py storage delete $STORAGE_NAME  --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
     - name: Delete the cluster created
       if: always()
-<<<<<<< HEAD
-      run: python3 xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
-=======
       run: python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --force
->>>>>>> 84758bbd260fdbb7d9b2dad11510a77aa7c538cf

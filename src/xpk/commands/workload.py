@@ -408,14 +408,6 @@ def workload_create(args) -> None:
   k8s_api_client = setup_k8s_env(args)
   create_k8s_service_account(XPK_SA, 'default')
 
-  if args.headless:
-    xpk_print(
-        'Please use kubectl port forwarding to connect to the Pathways proxy.'
-        ' kubectl get pods kubectl port-forward <proxy-pod-name> 29000:29000'
-        ' JAX_PLATFORMS=proxy JAX_BACKEND_TARGET=grpc://127.0.0.1:29000 python'
-        " -c 'import pathwaysutils; import jax; print(jax.devices())'"
-    )
-
   workload_exists = check_if_workload_exists(args)
 
   if workload_exists:

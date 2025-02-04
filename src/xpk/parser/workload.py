@@ -256,6 +256,39 @@ def set_workload_parsers(workload_parser):
       help='Names of storages the workload uses',
   )
 
+  workload_create_pathways_parser_optional_arguments.add_argument(
+      '--custom-pathways-server-args',
+      type=str,
+      default=None,
+      help=(
+          'Provide custom Pathways server args as follows -'
+          " --custom-pathways-server-args='--arg_1=xxx --arg2=yyy'"
+      ),
+      required=False,
+  )
+
+  workload_create_pathways_parser_optional_arguments.add_argument(
+      '--custom-pathways-proxy-server-args',
+      type=str,
+      default=None,
+      help=(
+          'Provide custom Pathways proxy server args as follows -'
+          " --custom-pathways-proxy-server-args='--arg_1=xxx --arg2=yyy'"
+      ),
+      required=False,
+  )
+
+  workload_create_pathways_parser_optional_arguments.add_argument(
+      '--custom-pathways-worker-args',
+      type=str,
+      default=None,
+      help=(
+          'Provide custom Pathways worker args as follows -'
+          " --custom-pathways-worker-args='--arg_1=xxx --arg2=yyy'"
+      ),
+      required=False,
+  )
+
   add_shared_workload_create_required_arguments([
       workload_create_parser_required_arguments,
       workload_create_pathways_parser_required_arguments,

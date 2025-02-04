@@ -67,11 +67,7 @@ def set_workload_parsers(workload_parser):
           'Arguments for configuring autoprovisioning.',
       )
   )
-  workload_pathways_workload_arguments = workload_create_parser.add_argument_group(
-      'Pathways Image Arguments',
-      'If --use-pathways is provided, user wants to set up a'
-      'Pathways workload on xpk.',
-  )
+
   workload_vertex_tensorboard_arguments = (
       workload_create_parser.add_argument_group(
           'Vertex Tensorboard Arguments',
@@ -178,16 +174,6 @@ def set_workload_parsers(workload_parser):
       ),
   )
 
-  # Pathways workload arguments
-  workload_pathways_workload_arguments.add_argument(
-      '--use-pathways',
-      action='store_true',
-      help=(
-          'DECRATING SOON!!! Please use `xpk workload create-pathways` instead.'
-          ' Provide this argument to create Pathways workloads.'
-      ),
-  )
-
   # "workload create-pathways" command parser.
   workload_create_pathways_parser = workload_subcommands.add_parser(
       'create-pathways', help='Create a new job.'
@@ -237,8 +223,7 @@ def set_workload_parsers(workload_parser):
       help=(
           'Please provide this argument to create Pathways workloads in'
           ' headless mode. This arg can only be used in `xpk workload'
-          ' create-pathways`(preferred) or `xpk workload create'
-          ' --use-pathways.` (--use-pathways will be deprecated soon).'
+          ' create-pathways`.'
       ),
   )
   workload_create_pathways_parser_optional_arguments.add_argument(
@@ -249,9 +234,7 @@ def set_workload_parsers(workload_parser):
       ),
       help=(
           'Please provide the proxy server image for Pathways. This arg can'
-          ' only be used in `xpk workload create-pathways`(preferred) or `xpk'
-          ' workload create --use-pathways.` (--use-pathways will be'
-          ' deprecated soon).'
+          ' only be used in `xpk workload create-pathways`.'
       ),
   )
   workload_create_pathways_parser_optional_arguments.add_argument(
@@ -260,9 +243,7 @@ def set_workload_parsers(workload_parser):
       default='us-docker.pkg.dev/cloud-tpu-v2-images/pathways/server:latest',
       help=(
           'Please provide the server image for Pathways. This arg can only be'
-          ' used in `xpk workload create-pathways`(preferred) or `xpk'
-          ' workload create --use-pathways.` (--use-pathways will be'
-          ' deprecated soon).'
+          ' used in `xpk workload create-pathways`.'
       ),
   )
   workload_create_pathways_parser_optional_arguments.add_argument(
@@ -271,9 +252,7 @@ def set_workload_parsers(workload_parser):
       default='gs://cloud-pathways-staging/tmp',
       help=(
           'Please provide the GCS location to store Pathways artifacts. This'
-          ' arg can only be used in `xpk workload create-pathways`(preferred)'
-          ' or `xpk workload create --use-pathways.` (--use-pathways will be'
-          ' deprecated soon).'
+          ' arg can only be used in `xpk workload create-pathways`.'
       ),
   )
   workload_create_pathways_parser_optional_arguments.add_argument(

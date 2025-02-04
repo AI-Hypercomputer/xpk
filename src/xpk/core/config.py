@@ -39,8 +39,8 @@ yaml = ruamel.yaml.YAML()
 class XpkConfig:
   """XpkConfig is a class for setting and getting values from .yaml config file."""
 
-  def __init__(self, config_file_path: str = XPK_CONFIG_FILE) -> None:
-    self._config = config_file_path
+  def __init__(self, custom_config_file: str = XPK_CONFIG_FILE) -> None:
+    self._config = custom_config_file
     self._allowed_keys = default_keys
 
   def _open_configs(self) -> dict | None:

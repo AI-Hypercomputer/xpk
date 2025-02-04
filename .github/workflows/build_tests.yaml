@@ -113,6 +113,8 @@ jobs:
           RUN_ID="dispatch"
         elif [ "${{ github.ref }}" == "refs/heads/main" ]; then
           RUN_ID="main"
+        elif [ "${{ github.ref }}" == "refs/heads/develop" ]; then
+          RUN_ID="develop"
         else
           RUN_ID="pr-${{ github.event.number }}"
         fi
@@ -177,7 +179,11 @@ jobs:
       run: echo -e '#!/bin/bash \nsleep 3 \necho "Hello world from a test script!"' > job_test.sh
     - name: Run a job
       run: |
-        python xpk.py run --cluster $TPU_CLUSTER_NAME --zone=us-central2-b job_test.sh | awk '/Starting log streaming for pod xpk-def-app-profile-slurm-[a-zA-Z0-9]+-[0-9]+-[a-zA-Z0-9]+.../,/Job logs streaming finished./ { print }'
+        python xpk.py run --cluster $TPU_CLUSTER_NAME --zone=us-central2-b workload.sh | awk '/Starting log streaming for pod xpk-def-app-profile-slurm-[a-zA-Z0-9]+-[0-9]+-[a-zA-Z0-9]+.../,/Job logs streaming finished./ { print }'
+    - name: Delete the job
+      run: |
+        JOB_NAME=$(python3 xpk.py job ls --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep 'xpk-def-app-profile-slurm-' | head -1 | awk '{print $1}')
+        kubectl delete job ${JOB_NAME}
     - name: Run a base-docker-image workload
       run: |
         python3 xpk.py workload create --cluster $TPU_CLUSTER_NAME --workload $WORKLOAD_NAME  --command "bash test.sh"  \
@@ -248,4 +254,4 @@ jobs:
       run: python3 xpk.py shell stop
     - name: Delete the cluster created
       if: always()
-      run: echo 'y' | python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+      run: python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --force

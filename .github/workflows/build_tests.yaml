@@ -253,6 +253,6 @@ jobs:
     #   run: kubectl get pods | grep xpk-def-app-profile-interactive- | grep Running
     - name: Stop the shell
       run: python3 xpk.py shell stop
-    - name: Delete the cluster created
-      if: always()
-      run: python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --force
+    # - name: Delete the cluster created
+    #   if: always()
+    #   run: python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --force

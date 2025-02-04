@@ -17,15 +17,15 @@ limitations under the License.
 import ruamel.yaml
 import os
 
-from xpk.utils import file
-from xpk.utils.console import xpk_print
+from ..utils import file
+from ..utils.console import xpk_print
 
 CFG_BUCKET_KEY = 'cluster-state-gcs-bucket'
 CLUSTER_NAME_KEY = 'cluster-name'
 PROJECT_KEY = 'project-id'
 ZONE_KEY = 'zone'
-CONFIG_PATH = '~/.config/xpk/config.yaml'
 CONFIGS_KEY = 'configs'
+XPK_CONFIG_FILE = os.path.expanduser('~/.config/xpk/config.yaml')
 default_keys = [
     CFG_BUCKET_KEY,
     CLUSTER_NAME_KEY,
@@ -39,8 +39,8 @@ yaml = ruamel.yaml.YAML()
 class XpkConfig:
   """XpkConfig is a class for setting and getting values from .yaml config file."""
 
-  def __init__(self, config_file_path: str = CONFIG_PATH) -> None:
-    self._config = config_file_path
+  def __init__(self, custom_config_file: str = XPK_CONFIG_FILE) -> None:
+    self._config = custom_config_file
     self._allowed_keys = default_keys
 
   def _open_configs(self) -> dict | None:
@@ -67,6 +67,7 @@ class XpkConfig:
     config_yaml = self._open_configs()
     if config_yaml is None:
       config_yaml = {'version': 'v1', CONFIGS_KEY: {}}
+
     config_yaml[CONFIGS_KEY][key] = value
     self._save_configs(config_yaml)
 
@@ -78,6 +79,7 @@ class XpkConfig:
     config_yaml = self._open_configs()
     if config_yaml is None:
       return None
+
     vals: dict[str, str] = config_yaml[CONFIGS_KEY]
     return vals[key]
 

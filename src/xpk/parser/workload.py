@@ -147,6 +147,15 @@ def set_workload_parsers(workload_parser):
       ),
   )
 
+  workload_create_parser_optional_arguments.add_argument(
+      '--use-pathways',
+      action='store_true',
+      help=(
+          'Please use `xpk workload create-pathways` instead to'
+          ' create Pathways workloads.'
+      ),
+  )
+
   # Autoprovisioning workload arguments
   workload_create_autoprovisioning_arguments.add_argument(
       '--on-demand',

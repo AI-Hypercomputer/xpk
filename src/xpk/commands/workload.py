@@ -352,6 +352,13 @@ def workload_create_pathways(args) -> None:
     0 if successful and 1 otherwise.
   """
   args.use_pathways = True
+  if args.headless:
+    xpk_print(
+        'Please use kubectl port forwarding to connect to the Pathways proxy.'
+        ' kubectl get pods kubectl port-forward <proxy-pod-name> 29000:29000'
+        ' JAX_PLATFORMS=proxy JAX_BACKEND_TARGET=grpc://127.0.0.1:29000 python'
+        " -c 'import pathwaysutils; import jax; print(jax.devices())'"
+    )
   workload_create(args)
 
 
@@ -365,14 +372,6 @@ def workload_create(args) -> None:
     0 if successful and 1 otherwise.
   """
   add_zone_and_project(args)
-
-  if args.headless:
-    xpk_print(
-        'Please use kubectl port forwarding to connect to the Pathways proxy.'
-        ' kubectl get pods kubectl port-forward <proxy-pod-name> 29000:29000'
-        ' JAX_PLATFORMS=proxy JAX_BACKEND_TARGET=grpc://127.0.0.1:29000 python'
-        " -c 'import pathwaysutils; import jax; print(jax.devices())'"
-    )
 
   set_cluster_command_code = set_cluster_command(args)
   if set_cluster_command_code != 0:

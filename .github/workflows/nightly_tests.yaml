@@ -15,9 +15,12 @@
 name: Nightly Tests
 
 on:
+  push:
+    branches: ["develop"]
   workflow_dispatch:
   schedule: # Schedule the job run at 12AM PST daily.
     - cron: '0 8 * * *'
+    
 
 env:
   # Names must be unique in parallel running tests.

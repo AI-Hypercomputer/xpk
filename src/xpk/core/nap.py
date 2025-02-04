@@ -269,6 +269,10 @@ def is_autoprovisioning_enabled(
       system.gke_accelerator, cluster_config_map, verbose=False
   )
   if return_code != 0:
+    xpk_print(
+        'gke_accelerator type not found in config map:'
+        f' {resources_configmap_name}. Autoprovisioning is not enabled.'
+    )
     return False, 0
 
   if autoprovisioning_value == AUTOPROVISIONING_CONFIG_VALUE:

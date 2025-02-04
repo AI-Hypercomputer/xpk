@@ -39,6 +39,7 @@ from ..core.core import (
     get_gpu_scheduler,
     get_gpu_tcp_volume,
     get_gpu_volume,
+    get_main_container_docker_image,
     get_user_workload_container,
     get_volumes,
     parse_env_config,
@@ -56,6 +57,7 @@ from ..core.pathways import (
     ensure_pathways_workload_prerequisites,
     get_pathways_proxy_args,
     get_pathways_rm_args,
+    get_pathways_sidecar_container,
     get_pathways_unified_query_link,
     get_pathways_worker_args,
     get_user_workload_for_pathways,
@@ -79,7 +81,6 @@ from ..core.system_characteristics import (
 from ..core.workload import get_workload_list
 from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
-
 from ..core.workload_decorators import tcpxo_decorator, rdma_decorator
 from . import cluster_gcluster
 
@@ -95,6 +96,7 @@ metadata:
 spec:
   ttlSecondsAfterFinished: {args.ttl_seconds_after_finished}
   failurePolicy:
+    {failure_policy_rules}
     maxRestarts: {args.max_restarts}
   replicatedJobs:
     - name: slice-job
@@ -104,6 +106,7 @@ spec:
           parallelism: {system.vms_per_slice}    # Equal to the number of VMs per slice
           completions: {system.vms_per_slice}    # Same as the above.
           backoffLimit: 0   # When any pod fails, the job is failed
+          {pod_failure_policy}
           template:
             metadata:
               labels:
@@ -134,12 +137,14 @@ gpu_workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
 metadata:
   name: {args.workload}
+  annotations: {storage_annotations}
   labels:
     kueue.x-k8s.io/queue-name: multislice-queue  # Name of the LocalQueue
     xpk.google.com/workload: {args.workload}
 spec:
   ttlSecondsAfterFinished: {args.ttl_seconds_after_finished}
   failurePolicy:
+    {failure_policy_rules}
     maxRestarts: {args.max_restarts}
   replicatedJobs:
     - name: slice-job
@@ -152,6 +157,7 @@ spec:
           parallelism: {args.num_nodes}
           completions: {args.num_nodes}
           backoffLimit: 0   # When any pod fails, the job is failed
+          {pod_failure_policy}
           template:
             metadata:
               labels:
@@ -204,6 +210,7 @@ metadata:
 spec:
   ttlSecondsAfterFinished: {args.ttl_seconds_after_finished}
   failurePolicy:
+    {failure_policy_rules}
     maxRestarts: {args.max_restarts}
   replicatedJobs:
     - name: slice-job
@@ -213,6 +220,7 @@ spec:
           parallelism: {args.num_nodes}
           completions: {args.num_nodes}
           backoffLimit: 0   # When any pod fails, the job is failed
+          {pod_failure_policy}
           template:
             metadata:
               labels:
@@ -224,9 +232,12 @@ spec:
               restartPolicy: Never
               dnsPolicy: ClusterFirstWithHostNet
               terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
+              serviceAccountName: {service_account}
               tolerations:
               - operator: "Exists"
                 key: nvidia.com/gpu
+              volumes:
+              {storage_volumes}
               containers:
               {container}
 """
@@ -241,6 +252,7 @@ metadata:
 spec:
   ttlSecondsAfterFinished: {args.ttl_seconds_after_finished}
   failurePolicy:
+    {failure_policy_rules}
     maxRestarts: {args.max_restarts}
   successPolicy:
     operator: "All"
@@ -285,6 +297,7 @@ spec:
               - mountPath: /tmp
                 name: shared-tmp
               {storage_volume_mounts}
+            {pathways_sidecar_container}
             nodeSelector:
               {accelerator_label}
               {machine_label}
@@ -336,40 +349,31 @@ spec:
               volumeMounts:
               - mountPath: /tmp
                 name: shared-tmp
-            nodeSelector:
-              cloud.google.com/gke-nodepool: cpu-rm-np
-            hostNetwork: true
-            dnsPolicy: ClusterFirstWithHostNet
-            volumes:
-            - hostPath:
-                path: /tmp
-                type: DirectoryOrCreate
-              name: shared-tmp
-  - name: proxy
-    replicas: 1
-    template:
-      metadata:
-        labels:
-          xpk.google.com/workload: {args.workload}
-      spec:
-        backoffLimit: 0
-        completions: 1
-        parallelism: 1
-        template:
-          spec:
-            containers:
-            - args:
-              {pathways_proxy_args}
-              image: {args.proxy_server_image}
-              imagePullPolicy: Always
-              name: pathways-proxy
-              ports:
-              - containerPort: 29000
-            hostNetwork: true
-            dnsPolicy: ClusterFirstWithHostNet
-            nodeSelector:
-              cloud.google.com/gke-nodepool: cpu-proxy-np
-  {user_workload}
+    - name: proxy
+      replicas: 1
+      template:
+        metadata:
+          labels:
+            xpk.google.com/workload: {args.workload}
+        spec:
+          backoffLimit: 0
+          completions: 1
+          parallelism: 1
+          template:
+            spec:
+              containers:
+              - args:
+                {pathways_proxy_args}
+                image: {args.proxy_server_image}
+                imagePullPolicy: Always
+                name: pathways-proxy
+                ports:
+                - containerPort: 29000
+              hostNetwork: true
+              dnsPolicy: ClusterFirstWithHostNet
+              nodeSelector:
+                cloud.google.com/gke-nodepool: cpu-proxy-np
+    {user_workload}
 """
 
 
@@ -492,6 +496,20 @@ def workload_create(args) -> None:
     xpk_print(f'Detected gcsfuse Storages to add: {gcs_fuse_storages}')
   else:
     xpk_print('No gcsfuse Storages to add detected')
+  failure_policy_rules = """rules:
+      - action: FailJobSet
+        onJobFailureReasons: 
+        - PodFailurePolicy"""
+  restart_on_exit_codes = get_restart_exit_codes(args)
+  restart_on_exit_codes = ','.join(map(str, restart_on_exit_codes))
+  pod_failure_policy = f"""
+          podFailurePolicy:
+            rules:
+            - action: FailJob
+              onExitCodes:
+                containerName: {get_main_container_docker_image(args, system)}
+                operator: NotIn
+                values: [{restart_on_exit_codes}]"""
 
   if len(gcpfilestore_storages) > 0:
     xpk_print(
@@ -513,18 +531,31 @@ def workload_create(args) -> None:
 
     if system.device_type in cluster_gcluster.supported_device_types:
       yml_string = a3_gpu_workload_create_yaml.format(
-          args=args, container=container
+          args=args,
+          container=container,
+          service_account=XPK_SA,
+          storage_volumes=get_storage_volumes_yaml_for_gpu(gcs_fuse_storages),
+          failure_policy_rules=failure_policy_rules,
+          pod_failure_policy=pod_failure_policy,
       )
 
       if args.device_type == cluster_gcluster.a3mega_device_type:
         sub_networks = [f'{args.cluster}-gpunet-{i}-subnet' for i in range(8)]
         yml_string = tcpxo_decorator.decorate_jobset(yml_string, sub_networks)
+        if len(gcs_fuse_storages) > 0:
+          yml_string = tcpxo_decorator.decorate_jobset_with_storages(
+              yml_string, gcs_fuse_storages
+          )
 
       if args.device_type == cluster_gcluster.a3ultra_device_type:
         sub_networks = [f'{args.cluster}-sub-1'] + [
             f'{args.cluster}-rdma-sub-{i}' for i in range(8)
         ]
         yml_string = rdma_decorator.decorate_jobset(yml_string, sub_networks)
+        if len(gcs_fuse_storages) > 0:
+          yml_string = rdma_decorator.decorate_jobset_with_storages(
+              yml_string, gcs_fuse_storages
+          )
     else:
       yml_string = gpu_workload_create_yaml.format(
           args=args,
@@ -544,6 +575,8 @@ def workload_create(args) -> None:
           ),
           storage_annotations=storage_annotations,
           service_account=service_account,
+          failure_policy_rules=failure_policy_rules,
+          pod_failure_policy=pod_failure_policy,
       )
   elif args.use_pathways and ensure_pathways_workload_prerequisites(
       args, system
@@ -555,10 +588,12 @@ def workload_create(args) -> None:
             system.accelerator_type, system
         ),
         machine_label=create_machine_label(system.accelerator_type, system),
-        pathways_rm_args=get_pathways_rm_args(args, system),
         pathways_worker_args=get_pathways_worker_args(args),
         pathways_proxy_args=get_pathways_proxy_args(args),
-        user_workload=get_user_workload_for_pathways(args, system, storages),
+        pathways_sidecar_container=get_pathways_sidecar_container(args),
+        user_workload=get_user_workload_for_pathways(
+            args, system, pod_failure_policy, storages
+        ),
         resource_type=AcceleratorTypeToAcceleratorCharacteristics[
             system.accelerator_type
         ].resource_type,
@@ -572,7 +607,10 @@ def workload_create(args) -> None:
         storage_volume_mounts=get_storage_volume_mounts_yaml(
             gcs_fuse_storages + gcpfilestore_storages
         ),
+        pathways_rm_args=get_pathways_rm_args(args, system),
         service_account=service_account,
+        failure_policy_rules=failure_policy_rules,
+        pod_failure_policy=pod_failure_policy,
     )
   else:
     container, debugging_dashboard_id = get_user_workload_container(
@@ -592,6 +630,8 @@ def workload_create(args) -> None:
         volumes=get_volumes(args, system),
         storage_annotations=storage_annotations,
         service_account=service_account,
+        failure_policy_rules=failure_policy_rules,
+        pod_failure_policy=pod_failure_policy,
     )
   tmp = write_tmp_file(yml_string)
   command = f'kubectl apply -f {str(tmp.file.name)}'
@@ -661,6 +701,23 @@ def workload_create(args) -> None:
     )
 
   xpk_exit(0)
+
+
+def get_restart_exit_codes(args) -> list:
+  exit_codes = [42]
+  exit_codes.extend(range(127, 256, 1))
+
+  if args.restart_on_exit_codes is not None:
+    items = args.restart_on_exit_codes.split(',')
+    for item in items:
+      item = item.strip()
+      if '-' in item:
+        start, end = map(int, item.split('-'))
+        exit_codes.extend(range(start, end + 1))
+      else:
+        exit_codes.append(int(item))
+
+  return exit_codes
 
 
 def workload_delete(args) -> None:

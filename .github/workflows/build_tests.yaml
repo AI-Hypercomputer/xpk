@@ -26,7 +26,7 @@ on:
           - v4-8
           - v5litepod-8
   push:
-    branches: ["main"]
+    branches: ["main","develop"]
   pull_request: # By default this runs for types assigned, opened and synchronize.
 
 env:
@@ -113,6 +113,20 @@ jobs:
       group: build-test-cluster-group-${{ github.ref }}
       cancel-in-progress: false
     steps:
+    - name: Initialize RUN_ID env var
+      run: |
+        if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          RUN_ID="dispatch"
+        elif [ "${{ github.ref }}" == "refs/heads/main" ]; then
+          RUN_ID="main"
+        elif [ "${{ github.ref }}" == "refs/heads/develop" ]; then
+          RUN_ID="develop"
+        else
+          RUN_ID="pr-${{ github.event.number }}"
+        fi
+        echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
+    - name: Update cluster name with TPU_TYPE and RUN_ID
+      run: echo "TPU_CLUSTER_NAME=$TPU_CLUSTER_NAME-$RUN_ID" >> $GITHUB_ENV
     - uses: actions/checkout@v4
     - uses: actions/setup-python@v5
       with:
@@ -156,9 +170,9 @@ jobs:
       run: gcloud components install kubectl && gcloud components install gke-gcloud-auth-plugin
     - name: Check xpk installation
       run: xpk --help
-    - name: Create a Pathways-enabled XPK Cluster with 2x v4-8 nodepools. Larger num-nodes to avoid master resizing.
+    - name: Create a private Pathways-enabled XPK Cluster with 2x v4-8 nodepools. Larger num-nodes to avoid master resizing.
       run: |
-        python3 xpk.py cluster create-pathways --cluster $TPU_CLUSTER_NAME --tpu-type=v4-8  --num-slices=2 \
+        python3 xpk.py cluster create-pathways --cluster $TPU_CLUSTER_NAME --private --tpu-type=v4-8  --num-slices=2 \
         --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 \
         --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --enable-workload-identity --enable-gcsfuse-csi-driver --enable-gcpfilestore-csi-driver --custom-cluster-arguments="${PW_CLUSTER_ARGUMENTS}"
     - name: List out the nodepools on the cluster
@@ -179,6 +193,16 @@ jobs:
         echo "Hello world from a test script!"
         cd ~/../test-mount-point && echo "Hello world from a Github Action CI/CD test script!" > '$RANDOM_SEED'.txt' \
         > test.sh
+    # Disable job until fixed
+    # - name: Create a test script to execute in jobs.
+    #   run: echo -e '#!/bin/bash \nsleep 3 \necho "Hello world from a test script!"' > job_test.sh
+    # - name: Run a job
+    #   run: |
+    #     python xpk.py run --cluster $TPU_CLUSTER_NAME --zone=us-central2-b workload.sh | awk '/Starting log streaming for pod xpk-def-app-profile-slurm-[a-zA-Z0-9]+-[0-9]+-[a-zA-Z0-9]+.../,/Job logs streaming finished./ { print }'
+    # - name: Delete the job
+    #   run: |
+    #     JOB_NAME=$(python3 xpk.py job ls --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep 'xpk-def-app-profile-slurm-' | head -1 | awk '{print $1}')
+    #     kubectl delete job ${JOB_NAME}
     - name: Run a base-docker-image workload
       run: |
         python3 xpk.py workload create --cluster $TPU_CLUSTER_NAME --workload $WORKLOAD_NAME  --command "bash test.sh"  \
@@ -212,4 +236,8 @@ jobs:
       run: python3 xpk.py storage delete $STORAGE_NAME  --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
     - name: Delete the cluster created
       if: always()
+<<<<<<< HEAD
       run: python3 xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+=======
+      run: python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --force
+>>>>>>> 84758bbd260fdbb7d9b2dad11510a77aa7c538cf

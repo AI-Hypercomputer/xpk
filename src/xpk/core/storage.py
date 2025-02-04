@@ -477,7 +477,6 @@ def create_storage_crds(k8s_api_client: ApiClient, args: Namespace) -> None:
   data["spec"] = spec
 
   api_instance = k8s_client.CustomObjectsApi(k8s_api_client)
-  xpk_print(f"Creating a new Storage: {args.name}")
   try:
     api_instance.create_cluster_custom_object(
         group=XPK_API_GROUP_NAME,

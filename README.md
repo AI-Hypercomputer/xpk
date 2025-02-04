@@ -16,6 +16,8 @@
 
 [![Build Tests](https://github.com/google/xpk/actions/workflows/build_tests.yaml/badge.svg)](https://github.com/google/xpk/actions/workflows/build_tests.yaml)
 [![Nightly Tests](https://github.com/google/xpk/actions/workflows/nightly_tests.yaml/badge.svg)](https://github.com/google/xpk/actions/workflows/nightly_tests.yaml)
+[![Develop Tests](https://github.com/AI-Hypercomputer/xpk/actions/workflows/build_tests.yaml/badge.svg?branch=develop)](https://github.com/AI-Hypercomputer/xpk/actions/workflows/build_tests.yaml)
+[![Develop Nightly Tests](https://github.com/AI-Hypercomputer/xpk/actions/workflows/nightly_tests.yaml/badge.svg?branch=develop)](https://github.com/AI-Hypercomputer/xpk/actions/workflows/nightly_tests.yaml)
 
 # Overview
 
@@ -94,12 +96,23 @@ In addition, below dependencies will be installed with `make install` command:
 - kjob (installation instructions [here](https://github.com/kubernetes-sigs/kjob/blob/main/docs/installation.md))
 
 # Installation
-To install xpk, run the following command and install additional tools, mentioned in [prerequisites](#prerequisites). [Makefile](https://github.com/AI-Hypercomputer/xpk/blob/main/Makefile) provides a way to install all neccessary tools:
+To install xpk, install required tools mentioned in [prerequisites](#prerequisites). [Makefile](https://github.com/AI-Hypercomputer/xpk/blob/main/Makefile) provides a way to install all neccessary tools. XPK can be installed via pip:
 
 ```shell
 pip install xpk
 ```
 
+If you see an error saying: `This environment is externally managed`, please use a virtual environment.
+
+```shell
+  ## One time step of creating the venv
+  VENV_DIR=~/venvp3
+  python3 -m venv $VENV_DIR
+  ## Enter your venv.
+  source $VENV_DIR/bin/activate
+  ## Clone the repository and installing dependencies.
+  pip install xpk
+```
 
 If you are running XPK by cloning GitHub repository, first run the
 following commands to begin using XPK commands:
@@ -434,16 +447,17 @@ Currently xpk supports two types of cloud storages: FUSE and Filestore.
 ### FUSE
 A FUSE adapter lets you mount and access Cloud Storage buckets as local file systems, so applications can read and write objects in your bucket using standard file system semantics.
 
-To use the GCS FUSE with XPK user needs to create a a [Storage Bucket](https://pantheon.corp.google.com/storage/)
-and a manifest with PersistentVolume and PersistentVolumeClaim that mounts to the Bucket. To learn how to properly
+To use the GCS FUSE with XPK user needs to:
+- create a [Storage Bucket](https://pantheon.corp.google.com/storage/)
+- create a manifest with PersistentVolume and PersistentVolumeClaim that mounts to the Bucket. To learn how to properly
 set up PersistentVolume and PersistentVolumeClaim visit [GKE Cloud Storage documentation](https://cloud.google.com/kubernetes-engine/docs/how-to/persistent-volumes/cloud-storage-fuse-csi-driver#provision-static)
 
-Once it's ready user can define
+Once it's ready user can define:
 
 `--type` - defines a type of a storage, currently xpk supports `gcsfuse` and `gcpfilestore` only.
 `--auto-mount` - if set to true means that all workloads should have a given storage mounted by default.
 `--mount-point` - defines the path on which a given storage should be mounted for a workload.
-`--manifest` - defines the path to manifest which contains PersistentVolue and PersistentVolumeClaim definitions
+`--manifest` - defines the path to manifest which contains PersistentVolume and PersistentVolumeClaim definitions
 
 
 * Attach to gcsfuse storage instance.
@@ -730,8 +744,6 @@ Check out [MaxText example](https://github.com/google/maxtext/pull/570) on how t
     ```
 
 * Workload List supports waiting for the completion of a specific job. XPK will follow an existing job until it has finished or the `timeout`, if provided, has been reached  and then list the job. If no `timeout` is specified, the default value is set to the max value, 1 week. You may also set `timeout=0` to poll the job once.
-(Note: `restart-on-user-code-failure` must be set
-when creating the workload otherwise the workload will always finish with `Completed` status.)
 
   Wait for a job to complete.
 
@@ -821,6 +833,35 @@ Inspector output is saved to a file.
   [XPK] Task: `List Jobs with filter-by-status=RUNNING with filter-by-jobs=None` is implemented by `kubectl get workloads -o=custom-columns="Jobset Name:.metadata.ownerReferences[0].name,Created Time:.metadata.creationTimestamp,Priority:.spec.priorityClassName,TPU VMs Needed:.spec.podSets[0].count,TPU VMs Running/Ran:.status.admission.podSetAssignments[-1].count,TPU VMs Done:.status.reclaimablePods[0].count,Status:.status.conditions[-1].type,Status Message:.status.conditions[-1].message,Status Time:.status.conditions[-1].lastTransitionTime"  | awk -e 'NR == 1 || ($7 ~ "Admitted|Evicted" && $5 ~ /^[0-9]+$/ && $5 > 0) {print $0}' `, hiding output unless there is an error.
   [XPK] Find xpk inspector output file: /tmp/tmp0pd6_k1o
   [XPK] Exiting XPK cleanly
+  ```
+
+## Run
+* `xpk run` lets you execute scripts on a cluster with ease. It automates task execution, handles interruptions, and streams job output to your console.
+
+  ```shell
+  python xpk.py run --kind-cluster -n 2 -t 0-2 examples/job.sh 
+  ```
+
+* Example Output:
+
+  ```shell
+  [XPK] Starting xpk
+  [XPK] Task: `get current-context` is implemented by `kubectl config current-context`, hiding output unless there is an error.
+  [XPK] No local cluster name specified. Using current-context `kind-kind`
+  [XPK] Task: `run task` is implemented by `kubectl kjob create slurm --profile xpk-def-app-profile --localqueue multislice-queue --wait --rm -- examples/job.sh --partition multislice-queue --ntasks 2 --time 0-2`. Streaming output and input live.
+  job.batch/xpk-def-app-profile-slurm-g4vr6 created
+  configmap/xpk-def-app-profile-slurm-g4vr6 created
+  service/xpk-def-app-profile-slurm-g4vr6 created
+  Starting log streaming for pod xpk-def-app-profile-slurm-g4vr6-1-4rmgk...
+  Now processing task ID: 3
+  Starting log streaming for pod xpk-def-app-profile-slurm-g4vr6-0-bg6dm...
+  Now processing task ID: 1
+  exit
+  exit
+  Now processing task ID: 2
+  exit
+  Job logs streaming finished.[XPK] Task: `run task` terminated with code `0`
+  [XPK] XPK Done.
   ```
 
 ## GPU usage

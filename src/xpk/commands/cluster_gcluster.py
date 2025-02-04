@@ -22,6 +22,7 @@ from ..utils.console import xpk_exit, xpk_print
 from ..utils.network import all_IPs_cidr
 from ..utils.file import ensure_directory_exists
 from ..utils.objects import hash_string
+from .common import set_cluster_command
 import os
 
 blueprints_path = os.path.abspath('xpkclusters/blueprints')
@@ -61,6 +62,10 @@ def cluster_create(args) -> None:
       deployment_name=unique_name,
       prefix=prefix,
   )
+
+  set_cluster_command_code = set_cluster_command(args)
+  if set_cluster_command_code != 0:
+    xpk_exit(set_cluster_command_code)
 
   xpk_exit(0)
 
@@ -161,6 +166,7 @@ def generate_blueprint(
           zone=args.zone,
           auth_cidr=all_IPs_cidr,
           num_nodes=num_nodes,
+          enable_gcsfuse_csi_driver=args.enable_gcsfuse_csi_driver,
           reservation=args.reservation if args.reservation else None,
           capacity_type=capacity_type,
           system_node_pool_machine_type=args.default_pool_cpu_machine_type,

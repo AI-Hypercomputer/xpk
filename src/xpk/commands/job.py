@@ -14,12 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from .common import set_cluster_command
 from .kind import set_local_cluster_command
 from ..core.commands import run_command_for_value, run_command_with_updates
 from ..utils.console import xpk_exit, xpk_print
 from ..core.kjob import AppProfileDefaults
 from ..core.core import add_zone_and_project
-from .cluster import set_cluster_command
 from ruamel.yaml import YAML
 import re
 import sys

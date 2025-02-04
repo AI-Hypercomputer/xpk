@@ -16,6 +16,7 @@ limitations under the License.
 
 from ..commands.info import info
 from .common import add_shared_arguments
+from .validators import name_type
 import argparse
 
 
@@ -29,7 +30,7 @@ def set_info_parser(info_parser: argparse.ArgumentParser) -> None:
 
   info_required_arguments.add_argument(
       '--cluster',
-      type=str,
+      type=name_type,
       default=None,
       help='Cluster to which command applies.',
       required=True,

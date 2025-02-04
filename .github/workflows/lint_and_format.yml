@@ -21,22 +21,22 @@ on:
       - main
 
 jobs:
-  # build-and-test:
-  #   runs-on: ubuntu-22.04
-  #   strategy:
-  #     matrix:
-  #       python-version: ["3.10", "3.11"]
-  #   steps:
-  #   - uses: actions/checkout@v3
-  #   - name: Set up Python ${{ matrix.python-version }}
-  #     uses: actions/setup-python@v3
-  #     with:
-  #       python-version: ${{ matrix.python-version }}
-  #   - name: Install dependencies
-  #     run: make install-lint
-  #   - name: Check the code with pylint
-  #     run: make pylint
-  #   - name: Check format with pyink
-  #     run: make pyink
-  #   - name: Run pytype
-  #     run: make pytype
+  build-and-test:
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11"]
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v3
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: make install-lint
+    - name: Check the code with pylint
+      run: make pylint
+    - name: Check format with pyink
+      run: make pyink
+    - name: Run pytype
+      run: make pytype

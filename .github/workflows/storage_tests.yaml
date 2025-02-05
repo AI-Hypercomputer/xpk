@@ -62,6 +62,7 @@ jobs:
     - name: Install xpk and verify it executes corretly
       run: |
         make install
+        echo $PWD/bin >> "$GITHUB_PATH"
         xpk --help
     - name: Authenticate Docker
       run: gcloud auth configure-docker --quiet
@@ -139,6 +140,7 @@ jobs:
     - name: Install xpk with pip and verify it executes corretly
       run: |
         make install
+        echo $PWD/bin >> "$GITHUB_PATH"
         xpk --help
     - name: Authenticate Docker
       run: gcloud auth configure-docker --quiet

@@ -191,6 +191,10 @@ spec:
 """
 
 
+def get_xpk_version() -> str:
+  return __version__
+
+
 def add_zone_and_project(args):
   """Obtains the zone and project names from gcloud configs if not defined.
 

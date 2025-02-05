@@ -25,7 +25,7 @@ CLUSTER_NAME_KEY = 'cluster-name'
 PROJECT_KEY = 'project-id'
 ZONE_KEY = 'zone'
 CONFIGS_KEY = 'configs'
-DEPENDENCIES_KEY='deps-verified-version'
+DEPENDENCIES_KEY = 'deps-verified-version'
 XPK_CONFIG_FILE = os.path.expanduser('~/.config/xpk/config.yaml')
 default_keys = [
     CFG_BUCKET_KEY,

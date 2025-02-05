@@ -14,33 +14,29 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from xpk.utils.console import xpk_print
+from ..core.commands import run_command_for_value
+from .console import xpk_exit, xpk_print
 from ..commands.config import xpk_cfg
 from ..core.config import DEPENDENCIES_KEY
+from ..core.core import get_xpk_version
 
 validation_commands = {
-  'kubectl': {
-    'command': 'kubectl --help',
-    'message': 'foo'
-  },
-  'kjob': {
-    'command': 'kubectl kjob --help',
-    'message': 'foo'
-  },
-  'gcloud': {
-    'command': 'gcloud version',
-    'message': 'foo'
-  },
-  'docker': {
-    'command': 'docker version',
-    'message': 'foo'
-  },
-  'kueuectl': {
-    'command': 'kubectl kueue',
-    'message': 'foo'
-  }
+    'kubectl': {'command': 'kubectl --help', 'message': 'foo'},
+    'kjob': {'command': 'kubectl kjob --help', 'message': 'foo'},
+    'gcloud': {'command': 'gcloud version', 'message': 'foo'},
+    'docker': {'command': 'docker version', 'message': 'foo'},
+    'kueuectl': {'command': 'kubectl kueue --help', 'message': 'foo'},
 }
 
-def validate_dependecies():
+
+def validate_dependencies():
   if xpk_cfg.get(DEPENDENCIES_KEY) is None:
-    pass
+    for name, check in validation_commands.items():
+      cmd, message = check['command'], check['message']
+      code, _ = run_command_for_value(
+          cmd, f'Validate {name} installation.', None
+      )
+      if code != 0:
+        xpk_print(message)
+        xpk_exit(code)
+    xpk_cfg.set(DEPENDENCIES_KEY, get_xpk_version())

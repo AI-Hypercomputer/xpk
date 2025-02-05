@@ -208,10 +208,10 @@ jobs:
       run: python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
     - name: Run xpk info
       run: python3 xpk.py info --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | tee output.txt | grep -P "^(?=.*QUEUE)(?=.*PENDING_WORKLOADS)(?=.*ADMITTED_WORKLOADS)(?=.*2x$TPU_TYPE:google.com/tpu)(?=.*cpu-rm:cpu)(?=.*cpu-rm:memory)(?=.*cpu-proxy:cpu)(?=.*cpu-proxy:memory)(?=.*cpu-user:cpu)(?=.*cpu-user:memory)" || (echo 'Invalid command output' && cat output.txt && exit 1)
-    # - name: Delete the workload on the cluster
-    #   run: python3 xpk.py workload delete --workload $WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
-    # - name: Delete the Pathways workload on the cluster
-    #   run: python3 xpk.py workload delete --workload $PATHWAYS_WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+    - name: Delete the workload on the cluster
+      run: python3 xpk.py workload delete --workload $WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+    - name: Delete the Pathways workload on the cluster
+      run: python3 xpk.py workload delete --workload $PATHWAYS_WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
     - name: Delete created GCS file
       run: gsutil rm gs://xpk-ci-cd-tests/$RANDOM_SEED.txt
     - name: Delete existing Storage
@@ -253,6 +253,6 @@ jobs:
     #   run: kubectl get pods | grep xpk-def-app-profile-interactive- | grep Running
     - name: Stop the shell
       run: python3 xpk.py shell stop
-    # - name: Delete the cluster created
-    #   if: always()
-    #   run: python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --force
+    - name: Delete the cluster created
+      if: always()
+      run: python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --force

@@ -14,13 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from ..core.docker_container import get_user_workload_container
+from ..core.gcloud_context import zone_to_region
+from ..core.nodepool import get_all_nodepools_programmatic
 from ..utils.console import xpk_exit, xpk_print
-from .core import (
-    AcceleratorType,
-    get_all_nodepools_programmatic,
-    get_user_workload_container,
-    zone_to_region,
-)
+from .config import AcceleratorType
 from .system_characteristics import SystemCharacteristics
 
 PathwaysExpectedInstancesMap = {

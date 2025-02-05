@@ -59,9 +59,9 @@ jobs:
       run: |
         gcloud config set compute/zone us-east4-a
         gcloud config get compute/zone
-    - name: Install xpk with pip and verify it executes corretly
+    - name: Install xpk and verify it executes corretly
       run: |
-        pip install .
+        make install
         xpk --help
     - name: Authenticate Docker
       run: gcloud auth configure-docker --quiet
@@ -138,7 +138,7 @@ jobs:
         gcloud config get compute/zone
     - name: Install xpk with pip and verify it executes corretly
       run: |
-        pip install .
+        make install
         xpk --help
     - name: Authenticate Docker
       run: gcloud auth configure-docker --quiet

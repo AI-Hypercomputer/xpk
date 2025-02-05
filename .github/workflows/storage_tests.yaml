@@ -51,6 +51,8 @@ jobs:
       run: |
         RANDOM_SEED=$((RANDOM % 10000))  # Generate a random number between 0 and 9999
         echo "RANDOM_SEED=$RANDOM_SEED" >> $GITHUB_ENV
+    - name: install kubectl and auth plugin
+      run: gcloud components install kubectl
     - name: Verify gcp setup
       run: gcloud info
     - name: Set Google Cloud CLI properties to a unused zone to verify --zone arg is passed properly in commands.
@@ -122,6 +124,8 @@ jobs:
       with:
         version: '>= 363.0.0'
         install_components: 'beta,gke-gcloud-auth-plugin'
+    - name: install kubectl
+      run: gcloud components install kubectl
     - name: Generate random seed
       run: |
         RANDOM_SEED=$((RANDOM % 10000))  # Generate a random number between 0 and 9999

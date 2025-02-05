@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 from ..core.commands import run_command_with_updates_retry
-from ..core.core import zone_to_region
+from ..core.gcloud_context import zone_to_region
 from ..utils.console import xpk_print
 
 

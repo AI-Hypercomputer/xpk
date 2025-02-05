@@ -61,7 +61,7 @@ dev = [
 ]
 
 [tool.setuptools.dynamic]
-version = {attr = "xpk.core.core.__version__"}
+version = {attr = "xpk.core.config.__version__"}
 
 [tool.setuptools]
 packages = ["xpk", "xpk.parser", "xpk.core", "xpk.commands", "xpk.utils", "xpk.core.blueprint", "xpk.core.workload_decorators"]

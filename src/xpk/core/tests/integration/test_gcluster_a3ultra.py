@@ -14,14 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from xpk.commands.cluster_gcluster import get_unique_name
-from xpk.core.docker_manager import DockerManager
-from xpk.core.gcluster_manager import GclusterManager
-from xpk.core.blueprint.blueprint_generator import BlueprintGenerator
-from xpk.core.core import CapacityType
-import pytest
 import os
 import shutil
+
+import pytest
+
+from xpk.commands.cluster_gcluster import get_unique_name
+from xpk.core.blueprint.blueprint_generator import BlueprintGenerator
+from xpk.core.capacity import CapacityType
+from xpk.core.docker_manager import DockerManager
+from xpk.core.gcluster_manager import GclusterManager
 
 ctk_gcloud_cfg = os.getenv("GCLOUD_CFG_PATH")
 project_id = os.getenv("PROJECT_ID")

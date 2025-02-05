@@ -36,9 +36,10 @@ import sys
 
 from .parser.core import set_parser
 from .utils.console import xpk_print
-
+from .utils.validation import validate_dependencies
 ################### Compatibility Check ###################
 # Check that the user runs the below version or greater.
+
 
 major_version_supported = 3
 minor_version_supported = 10
@@ -60,6 +61,7 @@ parser = argparse.ArgumentParser(description='xpk command', prog='xpk')
 set_parser(parser=parser)
 
 xpk_print('Starting xpk', flush=True)
+validate_dependencies()
 main_args = parser.parse_args()
 main_args.enable_ray_cluster = False
 main_args.func(main_args)

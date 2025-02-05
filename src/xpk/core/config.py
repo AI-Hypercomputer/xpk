@@ -25,12 +25,14 @@ CLUSTER_NAME_KEY = 'cluster-name'
 PROJECT_KEY = 'project-id'
 ZONE_KEY = 'zone'
 CONFIGS_KEY = 'configs'
+DEPENDENCIES_KEY = 'deps-verified-version'
 XPK_CONFIG_FILE = os.path.expanduser('~/.config/xpk/config.yaml')
 default_keys = [
     CFG_BUCKET_KEY,
     CLUSTER_NAME_KEY,
     PROJECT_KEY,
     ZONE_KEY,
+    DEPENDENCIES_KEY,
 ]
 
 yaml = ruamel.yaml.YAML()
@@ -81,6 +83,8 @@ class XpkConfig:
       return None
 
     vals: dict[str, str] = config_yaml[CONFIGS_KEY]
+    if key not in vals:
+      return None
     return vals[key]
 
   def get_all(

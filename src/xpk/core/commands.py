@@ -246,7 +246,7 @@ def run_command_for_value(
     int: return_code, default is 0
     str: return_val, default is '0'
   """
-  if global_args.dry_run:
+  if global_args is not None and global_args.dry_run:
     xpk_print(
         f'Task: `{task}` is implemented by the following command'
         ' not running since it is a dry run.'

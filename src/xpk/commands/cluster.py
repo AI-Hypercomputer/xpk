@@ -14,6 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from tabulate import tabulate
+
+from ..core.cluster_private import authorize_private_cluster_access_if_necessary
 from ..core.commands import run_command_for_value, run_command_with_updates
 from ..core.core import (
     VERTEX_TENSORBOARD_FEATURE_FLAG,
@@ -26,20 +29,15 @@ from ..core.core import (
     get_gke_control_plane_version,
     get_gke_node_pool_version,
     get_gke_server_config,
+    get_user_input,
     h100_device_type,
     install_nccl_on_cluster,
     run_gke_node_pool_create_command,
     set_jobset_on_cluster,
     set_up_cluster_network_for_gpu,
     zone_to_region,
-    get_user_input,
 )
-from ..core.cluster_private import authorize_private_cluster_access_if_necessary
-from ..core.kjob import (
-    verify_kjob_installed,
-    prepare_kjob,
-    apply_kjob_crds,
-)
+from ..core.kjob import apply_kjob_crds, prepare_kjob, verify_kjob_installed
 from ..core.kueue import (
     cluster_preheat_yml,
     install_kueue_crs,
@@ -55,12 +53,11 @@ from ..core.system_characteristics import (
     get_system_characteristics,
 )
 from ..core.workload import get_workload_list
-from ..utils.file import write_tmp_file
 from ..utils.console import xpk_exit, xpk_print
+from ..utils.file import write_tmp_file
 from . import cluster_gcluster
 from .common import set_cluster_command
-
-from tabulate import tabulate
+from .kind import set_local_cluster_command
 
 
 def cluster_create(args) -> None:
@@ -316,9 +313,13 @@ def cluster_describe(args) -> None:
     0 if successful and 1 otherwise.
   """
   xpk_print(f'Starting nodepool list for cluster: {args.cluster}', flush=True)
-  add_zone_and_project(args)
 
-  set_cluster_command_code = set_cluster_command(args)
+  if not getattr(args, 'kind_cluster', None):
+    add_zone_and_project(args)
+    set_cluster_command_code = set_cluster_command(args)
+  else:
+    set_cluster_command_code = set_local_cluster_command(args)
+
   if set_cluster_command_code != 0:
     xpk_exit(set_cluster_command_code)
 

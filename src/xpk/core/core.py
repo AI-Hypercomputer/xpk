@@ -41,8 +41,8 @@ import subprocess
 import sys
 from dataclasses import dataclass
 
-from ..utils.file import write_tmp_file
 from ..utils.console import get_user_input, xpk_exit, xpk_print
+from ..utils.file import write_tmp_file
 from .commands import (
     run_command_for_value,
     run_command_with_updates,
@@ -837,7 +837,9 @@ def create_vertex_tensorboard(args) -> dict:
   Returns:
     dict containing Tensorboard instance name, id and location.
   """
-  from cloud_accelerator_diagnostics import tensorboard  # pylint: disable=import-outside-toplevel
+  from cloud_accelerator_diagnostics import (  # pylint: disable=import-outside-toplevel
+      tensorboard,
+  )
 
   tensorboard_config = {}
   tensorboard_name = args.tensorboard_name
@@ -867,7 +869,9 @@ def create_vertex_experiment(args) -> dict:
   Returns:
     map containing Vertex Tensorboard configurations.
   """
-  from cloud_accelerator_diagnostics import tensorboard  # pylint: disable=import-outside-toplevel
+  from cloud_accelerator_diagnostics import (  # pylint: disable=import-outside-toplevel
+      tensorboard,
+  )
 
   metadata_configmap_name = f'{args.cluster}-{CLUSTER_METADATA_CONFIGMAP}'
   cluster_config_map = get_cluster_configmap(args, metadata_configmap_name)
@@ -2288,6 +2292,9 @@ def get_main_container_resources(
     str:
       Workload resources port as a YAML string
   """
+  if getattr(args, 'kind_cluster', None):
+    return ''
+
   # Resources requirements for Pathways workload containers are known.
   resources_yaml = """cpu: "24"
                     memory: 100G"""
@@ -2472,7 +2479,10 @@ def create_accelerator_label(accelerator_type, system) -> str:
   Returns:
     The accelerator label.
   """
-  if accelerator_type == AcceleratorType['CPU']:
+  if (
+      accelerator_type == AcceleratorType['CPU']
+      or accelerator_type == AcceleratorType['Fake']
+  ):
     return ''
   return (
       f'{AcceleratorTypeToAcceleratorCharacteristics[accelerator_type].accelerator_label}:'
@@ -2789,11 +2799,13 @@ def wait_for_job_completion(args) -> int:
       xpk_print(f'{return_value}')
       xpk_print(f'Wait for workload returned ERROR {return_code}')
       return return_code
-  xpk_print(
-      'Finished waiting for your workload, see your workload here:'
-      # pylint: disable=line-too-long
-      f' https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
-  )
+
+  if not getattr(args, 'kind_cluster', None):
+    xpk_print(
+        'Finished waiting for your workload, see your workload here:'
+        # pylint: disable=line-too-long
+        f' https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
+    )
   status_cmd = (
       f'kubectl get jobset {args.workload} -o'
       " jsonpath='{.status.conditions[-1].type}'"

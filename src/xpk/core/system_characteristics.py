@@ -16,7 +16,7 @@ limitations under the License.
 
 from dataclasses import dataclass
 
-AcceleratorType = {'TPU': 1, 'GPU': 2, 'CPU': 3}
+AcceleratorType = {'TPU': 1, 'GPU': 2, 'CPU': 3, 'Fake': 4}
 
 
 @dataclass
@@ -43,6 +43,8 @@ AcceleratorTypeToAcceleratorCharacteristics = {
     AcceleratorType['CPU']: AcceleratorCharacteristics(
         'cpu', '', 'cloud.google.com/gke-nodepool'
     ),
+    # Fake accelerator for testing purposes
+    AcceleratorType['Fake']: AcceleratorCharacteristics('', '', ''),
 }
 
 
@@ -69,6 +71,14 @@ def get_system_characteristics(
     Tuple with string with the system characteristics and
     int of 0 if successful and 1 otherwise.
   """
+  if getattr(args, 'kind_cluster', None):
+    return (
+        SystemCharacteristics(
+            'N/A', 1, 'N/A', 'N/A', 'N/A', AcceleratorType['Fake'], 'N/A'
+        ),
+        0,
+    )
+
   device_type = args.tpu_type if args.tpu_type else args.device_type
   return get_system_characteristics_by_device_type(device_type)
 

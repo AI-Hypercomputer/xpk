@@ -14,18 +14,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..utils.console import xpk_exit, xpk_print
-from ..core.kueue import verify_kueuectl
-from .common import set_cluster_command
-from ..core.commands import (
-    run_command_for_value,
-)
-from ..core.core import (
-    add_zone_and_project,
-)
 import json
-from tabulate import tabulate
 from argparse import Namespace
+
+from tabulate import tabulate
+
+from ..core.commands import run_command_for_value
+from ..core.core import add_zone_and_project
+from ..core.kueue import verify_kueuectl
+from ..utils.console import xpk_exit, xpk_print
+from .common import set_cluster_command
+from .kind import set_local_cluster_command
 
 table_fmt = 'plain'
 
@@ -38,8 +37,12 @@ def info(args: Namespace) -> None:
   Returns:
     None
   """
-  add_zone_and_project(args)
-  set_cluster_command_code = set_cluster_command(args)
+  if not getattr(args, 'kind_cluster', None):
+    add_zone_and_project(args)
+    set_cluster_command_code = set_cluster_command(args)
+  else:
+    set_cluster_command_code = set_local_cluster_command(args)
+
   if set_cluster_command_code != 0:
     xpk_exit(set_cluster_command_code)
 
@@ -84,7 +87,7 @@ def get_nominal_quotas(cqs: list[dict]) -> dict[str, dict[str, str]]:
     spec = cq['spec']
     cq_name = cq['metadata']['name']
     quotas[cq_name] = {}
-    for rg in spec['resourceGroups']:
+    for rg in spec.get('resourceGroups', []):
       for flavor in rg['flavors']:
         name = flavor['name']
         for resource in flavor['resources']:

@@ -50,6 +50,15 @@ def add_shared_arguments(custom_parser: argparse.ArgumentParser):
           ' branch based on the output of commands'
       ),
   )
+  custom_parser.add_argument(
+      '--gke-sandbox',
+      type=str,
+      default=None,
+      help=(
+          'if set, xpk will work with the GKE Sandbox instead of GKE Prod.'
+          'It includes working with clusters and workloads.'
+      ),
+  )
 
 
 def add_global_arguments(custom_parser: argparse.ArgumentParser):

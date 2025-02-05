@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..core.blueprint.blueprint_generator import BlueprintGenerator, BlueprintGeneratorOutput, supported_device_types, a3mega_device_type, a3ultra_device_type
+from ..core.blueprint.blueprint_generator import BlueprintGenerator, BlueprintGeneratorOutput, supported_device_types, a3mega_device_type, a3ultra_device_type, a4_device_type
 from ..core.docker_manager import DockerManager
 from ..core.gcluster_manager import GclusterManager
 from ..core.core import zone_to_region, get_capacity_type
@@ -186,5 +186,22 @@ def generate_blueprint(
           capacity_type=capacity_type,
           system_node_pool_machine_type=args.default_pool_cpu_machine_type,
           system_node_pool_min_node_count=args.default_pool_cpu_num_nodes,
+      )
+    if args.device_type == a4_device_type:
+      num_nodes = args.num_nodes if not args.num_nodes is None else 2
+      return bpg.generate_a4_blueprint(
+          blueprint_name=blueprint_name,
+          prefix=prefix,
+          cluster_name=args.cluster,
+          region=zone_to_region(args.zone),
+          project_id=args.project,
+          zone=args.zone,
+          auth_cidr=all_IPs_cidr,
+          num_nodes=num_nodes,
+          reservation=args.reservation if args.reservation else None,
+          capacity_type=capacity_type,
+          system_node_pool_machine_type=args.default_pool_cpu_machine_type,
+          system_node_pool_min_node_count=args.default_pool_cpu_num_nodes,
+          gke_sandbox=args.gke_sandbox,
       )
   return None

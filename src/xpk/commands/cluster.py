@@ -58,7 +58,7 @@ from ..core.workload import get_workload_list
 from ..utils.file import write_tmp_file
 from ..utils.console import xpk_exit, xpk_print
 from . import cluster_gcluster
-from .common import set_cluster_command
+from .common import set_cluster_command, set_gcloud_container_api_endpoint
 
 from tabulate import tabulate
 

@@ -17,6 +17,9 @@ limitations under the License.
 from ..core.commands import run_command_with_updates_retry
 from ..core.core import zone_to_region
 from ..utils.console import xpk_print
+import os
+
+CONTAINER_API_ENDPOINT = 'CLOUDSDK_API_ENDPOINT_OVERRIDES_CONTAINER'
 
 
 def set_cluster_command(args) -> int:
@@ -28,17 +31,41 @@ def set_cluster_command(args) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
+  set_gcloud_container_api_endpoint(args)
+
+  location = (
+      f' --region={zone_to_region(args.zone)}'
+      if args.gke_sandbox is None
+      else f' --zone={args.zone}'
+  )
+
   command = (
+      f'echo ${CONTAINER_API_ENDPOINT} && '
       'gcloud container clusters get-credentials'
-      f' {args.cluster} --region={zone_to_region(args.zone)}'
+      f' {args.cluster} {location}'
       f' --project={args.project} &&'
       ' kubectl config view && kubectl config set-context --current'
       ' --namespace=default'
   )
   task = f'get-credentials to cluster {args.cluster}'
   return_code = run_command_with_updates_retry(
-      command, task, args, verbose=False
+      command, task, args, verbose=(args.gke_sandbox is not None)
   )
   if return_code != 0:
     xpk_print(f'{task} returned ERROR {return_code}')
   return return_code
+
+
+def set_gcloud_container_api_endpoint(args):
+  """Sets CLOUDSDK_API_ENDPOINT_OVERRIDES_CONTAINER environment variable for current process
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  if args.gke_sandbox is not None:
+    os.environ[CONTAINER_API_ENDPOINT] = (
+        f'https://{args.gke_sandbox}-test-container.sandbox.googleapis.com/'
+    )

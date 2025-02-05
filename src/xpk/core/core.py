@@ -66,6 +66,7 @@ xpk_current_version = __version__
 h100_device_type = 'h100-80gb-8'
 h100_mega_device_type = 'h100-mega-80gb-8'
 h200_device_type = 'h200-141gb-8'
+b200_device_type = 'b200-8'
 
 JOBSET_VERSION = 'v0.7.2'
 

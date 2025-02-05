@@ -14,13 +14,33 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from xpk.utils.console import xpk_print
 from ..commands.config import xpk_cfg
+from ..core.config import DEPENDENCIES_KEY
 
 validation_commands = {
-  'kubectl': 'kubectl --help',
-  'kjob': 'kubectl kjob --help'
-
+  'kubectl': {
+    'command': 'kubectl --help',
+    'message': 'foo'
+  },
+  'kjob': {
+    'command': 'kubectl kjob --help',
+    'message': 'foo'
+  },
+  'gcloud': {
+    'command': 'gcloud version',
+    'message': 'foo'
+  },
+  'docker': {
+    'command': 'docker version',
+    'message': 'foo'
+  },
+  'kueuectl': {
+    'command': 'kubectl kueue',
+    'message': 'foo'
+  }
 }
 
 def validate_dependecies():
-  pass
+  if xpk_cfg.get(DEPENDENCIES_KEY) is None:
+    pass

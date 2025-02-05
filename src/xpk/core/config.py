@@ -32,7 +32,7 @@ default_keys = [
     CLUSTER_NAME_KEY,
     PROJECT_KEY,
     ZONE_KEY,
-    DEPENDENCIES_KEY
+    DEPENDENCIES_KEY,
 ]
 
 yaml = ruamel.yaml.YAML()

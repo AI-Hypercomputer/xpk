@@ -21,16 +21,51 @@ from ..core.config import DEPENDENCIES_KEY
 from ..core.core import get_xpk_version
 
 validation_commands = {
-    'kubectl': {'command': 'kubectl --help', 'message': '`kubectl` not installed. Please follow https://github.com/AI-Hypercomputer/xpk?tab=readme-ov-file#prerequisites to install xpk prerequisites.'},
-    'kjob': {'command': 'kubectl kjob --help', 'message': '`kjobctl` not installed. Please follow https://github.com/AI-Hypercomputer/xpk?tab=readme-ov-file#prerequisites to install xpk prerequisites.'},
-    'gcloud': {'command': 'gcloud version', 'message': '`gcloud not installed. Please follow https://github.com/AI-Hypercomputer/xpk?tab=readme-ov-file#prerequisites to install xpk prerequisites.'},
-    'docker': {'command': 'docker version', 'message': '`docker` not installed. Please follow https://github.com/AI-Hypercomputer/xpk?tab=readme-ov-file#prerequisites to install xpk prerequisites.'},
-    'kueuectl': {'command': 'kubectl kueue --help', 'message': '`kueuectl` not installed. Please follow https://github.com/AI-Hypercomputer/xpk?tab=readme-ov-file#prerequisites to install xpk prerequisites.'},
+    'kubectl': {
+        'command': 'kubectl --help',
+        'message': (
+            '`kubectl` not installed. Please follow'
+            ' https://github.com/AI-Hypercomputer/xpk?tab=readme-ov-file#prerequisites'
+            ' to install xpk prerequisites.'
+        ),
+    },
+    'kjob': {
+        'command': 'kubectl kjob --help',
+        'message': (
+            '`kjobctl` not installed. Please follow'
+            ' https://github.com/AI-Hypercomputer/xpk?tab=readme-ov-file#prerequisites'
+            ' to install xpk prerequisites.'
+        ),
+    },
+    'gcloud': {
+        'command': 'gcloud version',
+        'message': (
+            '`gcloud not installed. Please follow'
+            ' https://github.com/AI-Hypercomputer/xpk?tab=readme-ov-file#prerequisites'
+            ' to install xpk prerequisites.'
+        ),
+    },
+    'docker': {
+        'command': 'docker version',
+        'message': (
+            '`docker` not installed. Please follow'
+            ' https://github.com/AI-Hypercomputer/xpk?tab=readme-ov-file#prerequisites'
+            ' to install xpk prerequisites.'
+        ),
+    },
+    'kueuectl': {
+        'command': 'kubectl kueue --help',
+        'message': (
+            '`kueuectl` not installed. Please follow'
+            ' https://github.com/AI-Hypercomputer/xpk?tab=readme-ov-file#prerequisites'
+            ' to install xpk prerequisites.'
+        ),
+    },
 }
 
 
 def validate_dependencies():
-  deps_version= xpk_cfg.get(DEPENDENCIES_KEY)
+  deps_version = xpk_cfg.get(DEPENDENCIES_KEY)
   if deps_version is None:
     for name, check in validation_commands.items():
       cmd, message = check['command'], check['message']

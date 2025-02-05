@@ -14,19 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from google.cloud import filestore_v1
-
-from google.cloud.filestore_v1.types import Instance
-from google.cloud.filestore_v1.types import FileShareConfig
-from google.cloud.filestore_v1.types import NetworkConfig
-from google.cloud.exceptions import GoogleCloudError
-
-from ..utils.console import xpk_exit, xpk_print
-from .cluster import zone_to_region
+import os
 from enum import Enum
 
-import os
 import ruamel.yaml
+from google.cloud import filestore_v1
+from google.cloud.exceptions import GoogleCloudError
+from google.cloud.filestore_v1.types import FileShareConfig, Instance, NetworkConfig
+
+from ..utils.console import xpk_exit, xpk_print
+from .gcloud_context import GCloudContextManager
 
 yaml = ruamel.yaml.YAML()
 yaml_object_separator = "---\n"
@@ -67,7 +64,7 @@ class FilestoreClient:
 
   def __init__(self, zone: str, name: str, project: str, tier: str) -> None:
     self.zone = zone
-    self.region = zone_to_region(zone)
+    self.region = GCloudContextManager.zone_to_region(zone)
     self.tier = tier
     self.availability = TIERS[tier].value
     self.name = name

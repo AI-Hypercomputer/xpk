@@ -14,27 +14,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..core.commands import (
-    run_command_for_value,
-    run_command_with_updates,
-)
-from ..core.cluster import set_jobset_on_cluster, setup_k8s_env
-from ..core.kjob import (
-    verify_kjob_installed,
-    prepare_kjob,
-    apply_kjob_crds,
-)
+from ..core.cluster import ClusterManager
+from ..core.commands import run_command_for_value, run_command_with_updates
+from ..core.kjob import apply_kjob_crds, prepare_kjob, verify_kjob_installed
 from ..core.kueue import (
-    install_kueue_on_cluster,
     install_kueue_crs,
+    install_kueue_on_cluster,
     wait_for_kueue_available,
 )
 from ..core.storage import install_storage_crd
-from ..core.system_characteristics import (
-    SystemCharacteristics,
-    AcceleratorType,
-)
-from ..utils.console import (xpk_exit, xpk_print)
+from ..core.system_characteristics import AcceleratorType, SystemCharacteristics
+from ..utils.console import xpk_exit, xpk_print
 
 
 def cluster_create(args) -> None:
@@ -60,7 +50,8 @@ def cluster_create(args) -> None:
       'Enabling the jobset API on our cluster, to be deprecated when Jobset is'
       ' globally available'
   )
-  set_jobset_on_cluster_code = set_jobset_on_cluster(args)
+  cluster_manager = ClusterManager(args, None)
+  set_jobset_on_cluster_code = cluster_manager.set_jobset_on_cluster()
   if set_jobset_on_cluster_code != 0:
     xpk_exit(set_jobset_on_cluster_code)
 
@@ -84,7 +75,7 @@ def cluster_create(args) -> None:
   if err_code > 0:
     xpk_exit(err_code)
 
-  k8s_client = setup_k8s_env(args)
+  k8s_client = cluster_manager.setup_k8s_env()
   install_storage_crd(k8s_client)
 
   xpk_print('Wait for Kueue to be fully available')

@@ -22,14 +22,14 @@ from ruamel import yaml
 
 from ...utils.console import xpk_exit, xpk_print
 from ...utils.file import ensure_directory_exists
-from ..capacity import H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE, CapacityType
+from ..capacity import CapacityType, DeviceType
 from ..system_characteristics import get_system_characteristics_by_device_type
 from .blueprint_definitions import Blueprint, DeploymentGroup, DeploymentModule
 
 yaml = yaml.YAML()
 
-a3mega_device_type = H100_MEGA_DEVICE_TYPE
-a3ultra_device_type = H200_DEVICE_TYPE
+a3mega_device_type = DeviceType.H100_MEGA.value
+a3ultra_device_type = DeviceType.H200.value
 supported_device_types = {a3mega_device_type, a3ultra_device_type}
 blueprint_dependencies_dir = {
     a3mega_device_type: "src/xpk/blueprints/a3mega",

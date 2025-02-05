@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 from ..core.commands import run_command_with_updates_retry
-from ..core.gcloud_context import zone_to_region
+from ..core.gcloud_context import GCloudContextManager
 from ..utils.console import xpk_print
 
 
@@ -30,8 +30,7 @@ def set_cluster_command(args) -> int:
   """
   command = (
       'gcloud container clusters get-credentials'
-      f' {args.cluster} --region={zone_to_region(args.zone)}'
-      f' --project={args.project} &&'
+      f' {args.cluster} --region={GCloudContextManager.zone_to_region(args.zone)} --project={args.project} &&'
       ' kubectl config view && kubectl config set-context --current'
       ' --namespace=default'
   )

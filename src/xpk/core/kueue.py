@@ -21,18 +21,16 @@ from packaging.version import Version
 
 from ..utils.console import xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
+from .capacity import CapacityManager
 from .commands import (
     run_command_for_value,
     run_command_with_updates,
     run_command_with_updates_retry,
 )
+from .nap import AutoprovisioningConfig
 from .pathways import add_pw_resource_flavors, add_pw_resources_to_kueue
-from .resources import AutoprovisioningConfig
-from .scheduling import (
-    create_accelerator_label,
-    create_machine_label,
-    get_total_chips_requested_from_args,
-)
+from .resources import ResourceManager
+from .scheduling import Scheduler
 from .system_characteristics import (
     AcceleratorTypeToAcceleratorCharacteristics,
     SystemCharacteristics,
@@ -279,6 +277,10 @@ def install_kueue_crs(
   Returns:
     0 if successful and 1 otherwise.
   """
+  capacity_manager = CapacityManager(args)
+  resource_manager = ResourceManager(args, capacity_manager, system)
+  scheduler = Scheduler(args, system, resource_manager)
+
   device_type = system.device_type
   cluster_hardware_name = f'{args.num_slices}x{device_type}'
   resource_type = AcceleratorTypeToAcceleratorCharacteristics[
@@ -293,7 +295,7 @@ def install_kueue_crs(
     cluster_hardware_name = f'{system.gke_accelerator}'
   else:
     # Determine total chips based on user specified topology.
-    total_chips = get_total_chips_requested_from_args(args, system)
+    total_chips = resource_manager.get_total_chips_requested_from_args()
 
   covered_resources_config = get_kueue_covered_resources_config(
       cluster_hardware_name=cluster_hardware_name,
@@ -303,12 +305,8 @@ def install_kueue_crs(
   yml_string = cluster_set_crd_yaml.format(
       system=system,
       cluster_hardware_name=cluster_hardware_name,
-      accelerator_label=create_accelerator_label(
-          system.accelerator_type, system
-      ),
-      machine_label=create_machine_label(
-          system.accelerator_type, system, autoprovisioning_enabled
-      ),
+      accelerator_label=scheduler.create_accelerator_label(),
+      machine_label=scheduler.create_machine_label(autoprovisioning_enabled),
       covered_resources_config=covered_resources_config,
       resource_type=AcceleratorTypeToAcceleratorCharacteristics[
           system.accelerator_type

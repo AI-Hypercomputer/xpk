@@ -14,19 +14,24 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import re
 from argparse import Namespace
 
-from ..core.cluster import setup_k8s_env, create_k8s_service_account
+from ..core.cluster import ClusterManager
 from ..core.commands import run_command_for_value
-from ..core.config import GCS_FUSE_ANNOTATION_KEY, GCS_FUSE_ANNOTATION_VALUE, XPK_SA, DEFAULT_NAMESPACE
-from ..core.gcloud_context import add_zone_and_project
+from ..core.config import (
+    DEFAULT_NAMESPACE,
+    GCS_FUSE_ANNOTATION_KEY,
+    GCS_FUSE_ANNOTATION_VALUE,
+    XPK_SA,
+)
+from ..core.gcloud_context import GCloudContextManager
+from ..core.kjob import AppProfileDefaults, Kueue_TAS_annotation, prepare_kjob
 from ..core.kueue import LOCAL_QUEUE_NAME
 from ..core.storage import get_auto_mount_gcsfuse_storages
 from ..utils.console import xpk_exit, xpk_print
 from .common import set_cluster_command
-from ..core.kjob import AppProfileDefaults, prepare_kjob, Kueue_TAS_annotation
 from .kind import set_local_cluster_command
-import re
 
 
 def batch(args: Namespace) -> None:
@@ -38,7 +43,7 @@ def batch(args: Namespace) -> None:
     None
   """
   if not args.kind_cluster:
-    add_zone_and_project(args)
+    GCloudContextManager.add_zone_and_project(args)
     set_cluster_command_code = set_cluster_command(args)
   else:
     set_cluster_command_code = set_local_cluster_command(args)
@@ -54,8 +59,9 @@ def batch(args: Namespace) -> None:
 
 
 def submit_job(args: Namespace) -> None:
-  k8s_api_client = setup_k8s_env(args)
-  create_k8s_service_account(XPK_SA, DEFAULT_NAMESPACE)
+  cluster_manager = ClusterManager(args, None)
+  k8s_api_client = cluster_manager.setup_k8s_env()
+  cluster_manager.create_k8s_service_account(XPK_SA, DEFAULT_NAMESPACE)
   gcs_fuse_storages = get_auto_mount_gcsfuse_storages(k8s_api_client)
 
   cmd = (

@@ -53,7 +53,7 @@ from ..core.system_characteristics import (
     SystemCharacteristics,
     get_system_characteristics,
 )
-from ..core.vertex import create_vertex_tensorboard
+from ..core.vertex import VertexAI
 from ..core.workload import get_workload_list
 from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
@@ -118,7 +118,8 @@ def cluster_create(args) -> None:
   # create Vertex Tensorboard for new and existing clusters if create-vertex-tensorboard is set
   tensorboard_config = {}
   if VERTEX_TENSORBOARD_FEATURE_FLAG and args.create_vertex_tensorboard:
-    tensorboard_config = create_vertex_tensorboard(args)
+    vertex_ai = VertexAI(args)
+    tensorboard_config = vertex_ai.create_vertex_tensorboard()
     # exit if failed to create Tensorboard in Vertex AI
     if not tensorboard_config:
       xpk_exit(1)

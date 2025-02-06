@@ -54,7 +54,7 @@ from ..core.system_characteristics import (
     AcceleratorTypeToAcceleratorCharacteristics,
     get_system_characteristics,
 )
-from ..core.vertex import create_vertex_experiment
+from ..core.vertex import VertexAI
 from ..core.workload import (
     check_if_workload_exists,
     get_gpu_rxdm_cmd,
@@ -439,7 +439,8 @@ def workload_create(args) -> None:
 
   tensorboard_config = {}
   if VERTEX_TENSORBOARD_FEATURE_FLAG and args.use_vertex_tensorboard:
-    tensorboard_config = create_vertex_experiment(args)
+    vertex_ai = VertexAI(args)
+    tensorboard_config = vertex_ai.create_vertex_experiment()
     # exit if failed to create Experiment in Vertex AI
     if not tensorboard_config:
       xpk_exit(1)

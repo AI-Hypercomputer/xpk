@@ -24,7 +24,7 @@ from .docker_resources import (
     get_main_container_resources,
     get_volume_mounts,
 )
-from .monitoring import get_gke_debugging_dashboard
+from .monitoring import GKEDashboardManager
 from .system_characteristics import (
     AcceleratorType,
     AcceleratorTypeToAcceleratorCharacteristics,
@@ -202,7 +202,8 @@ def get_user_workload_container(args, system: SystemCharacteristics):
     )
     container = get_main_and_sidecar_container(args, system, docker_image)
     # Get GKE debugging dashboard only when sidecar container is deployed for TPU workloads
-    debugging_dashboard_id = get_gke_debugging_dashboard(args)
+    gke_dashboard_manager = GKEDashboardManager(args)
+    debugging_dashboard_id = gke_dashboard_manager.get_debugging_dashboard()
   else:
     container = get_main_container(args, system, docker_image, resource_type)
   return container, debugging_dashboard_id

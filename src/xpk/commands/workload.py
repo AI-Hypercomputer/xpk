@@ -27,7 +27,7 @@ from ..core.docker_container import (
 from ..core.docker_resources import get_volumes
 from ..core.gcloud_context import add_zone_and_project
 from ..core.kueue import LOCAL_QUEUE_NAME
-from ..core.monitoring import get_gke_outlier_dashboard
+from ..core.monitoring import GKEDashboardManager
 from ..core.nap import (
     get_autoprovisioning_node_selector_args,
     is_autoprovisioning_enabled,
@@ -575,7 +575,8 @@ def workload_create(args) -> None:
   # Get GKE outlier dashboard for TPU
   outlier_dashboard_id = None
   if system.accelerator_type == AcceleratorType['TPU']:
-    outlier_dashboard_id = get_gke_outlier_dashboard(args)
+    gke_dashboard_manager = GKEDashboardManager(args)
+    outlier_dashboard_id = gke_dashboard_manager.get_outlier_dashboard()
 
   # Outlier and debugging dashboards
   if outlier_dashboard_id is not None:

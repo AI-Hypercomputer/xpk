@@ -156,6 +156,7 @@ deployment_groups:
       apply_manifests:
       - source: $(ghpc_stage("xpk-gke-a3-ultra"))/nccl-installer.yaml
       - source: $(ghpc_stage("xpk-gke-a3-ultra"))/mlgru-disable.yaml
+      - source: $(ghpc_stage("xpk-gke-a3-ultra"))/storage_crd.yaml
   
   - !DeploymentModule
     id: workload_configmap

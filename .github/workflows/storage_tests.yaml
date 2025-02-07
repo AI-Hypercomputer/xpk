@@ -52,7 +52,7 @@ jobs:
       run: |
         RANDOM_SEED=$((RANDOM % 10000))  # Generate a random number between 0 and 9999
         echo "RANDOM_SEED=$RANDOM_SEED" >> $GITHUB_ENV
-    - name: install kubectl and auth plugin
+    - name: Install kubectl
       run: gcloud components install kubectl
     - name: Verify gcp setup
       run: gcloud info

@@ -164,7 +164,7 @@ cleanup with a `Cluster Delete`.
 If you have failures with workloads not running, use `xpk inspector` to investigate
 more.
 
-If you need your Workloads to have persistent storage, use `xpk storage` to find more.
+If you need your Workloads to have persistent storage, use `xpk storage` to find out more.
 
 ## Cluster Create
 
@@ -454,7 +454,7 @@ Once it's ready user can define:
 `--auto-mount` - if set to true means that all workloads should have a given storage mounted by default.
 `--mount-point` - defines the path on which a given storage should be mounted for a workload.
 `--manifest` - defines the path to manifest which contains PersistentVolume and PersistentVolumeClaim definitions
-
+`--readonly` - if set to true, workload can only read from storage.
 
 * Create a simple Storage
 
@@ -471,17 +471,17 @@ Once it's ready user can define:
     --workload xpk-test-workload --command "echo goodbye" \
     --cluster xpk-test \
     --tpu-type=v5litepod-16 \
-    --storage test-storage
+    --storage test-storage --projet=$PROJECT
     ```
 
 * List Storage
     ```shell
-    python3 xpk.py storage list --cluster xpk-test --zone=us-central2-b
+    python3 xpk.py storage list --cluster xpk-test --zone=us-central2-b --projet=$PROJECT
     ```
 
 * Delete Storage
     ```shell
-    python3 xpk.py storage delete test-storage  --cluster xpk-test --zone=us-central2-b
+    python3 xpk.py storage delete test-storage  --cluster xpk-test --zone=us-central2-b --projet=$PROJECT
     ```
 
 ## Workload Create
@@ -491,7 +491,7 @@ Once it's ready user can define:
     python3 xpk.py workload create \
     --workload xpk-test-workload --command "echo goodbye" \
     --cluster xpk-test \
-    --tpu-type=v5litepod-16
+    --tpu-type=v5litepod-16 --projet=$PROJECT
     ```
 
 *   Workload Create for Pathways:

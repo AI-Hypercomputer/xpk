@@ -70,6 +70,7 @@ class BlueprintGenerator:
       auth_cidr: str,
       prefix: str = "",
       num_nodes: int = 2,
+      enable_gcsfuse_csi_driver=False,
       pods_ip_cidr_range: str = "10.4.0.0/14",
       services_ip_cidr_range: str = "10.0.32.0/20",
       global_ip_address_range: str = "192.169.0.0/16",
@@ -133,6 +134,7 @@ class BlueprintGenerator:
             "prefix_with_deployment_name": False,
             "name_suffix": cluster_name,
             "enable_private_endpoint": False,
+            "enable_gcsfuse_csi": enable_gcsfuse_csi_driver,
             "master_authorized_networks": [{
                 "cidr_block": (
                     f"{auth_cidr}"
@@ -190,6 +192,9 @@ class BlueprintGenerator:
                 "config_template_vars": {"num_chips": f"{num_chips}"},
             },
             "jobset": {"install": True, "version": "v0.7.2"},
+            "apply_manifests": [{
+                "source": f'$(ghpc_stage("{blueprint_name}"))/storage_crd.yaml'
+            }],
         },
     )
 
@@ -534,6 +539,11 @@ class BlueprintGenerator:
             "apply_manifests": [
                 {"source": nccl_installer_path},
                 {"source": mlgru_disable_path},
+                {
+                    "source": (
+                        f'$(ghpc_stage("{blueprint_name}"))/storage_crd.yaml'
+                    )
+                },
             ],
         },
     )

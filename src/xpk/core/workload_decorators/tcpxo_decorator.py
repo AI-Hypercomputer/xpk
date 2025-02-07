@@ -16,7 +16,7 @@ limitations under the License.
 
 import yaml
 from ...utils.yaml import literal_string
-from ...core.storage import GCS_FUSE_TYPE
+
 # Component version
 rxdm = 'v1.0.12'
 
@@ -54,34 +54,6 @@ def decorate_jobset(jobset_manifest_str, sub_networks) -> str:
     update_gpu_containers(job_manifest)
 
   return yaml.dump(manifest, sort_keys=False)
-
-
-def decorate_jobset_with_storages(jobset_manifest_str, storages) -> str:
-  """
-  Decorates a JobSet manifest with the necessary storages.
-
-  Args:
-    jobset_manifest_str: The JobSet manifest as a YAML string.
-
-  Returns:
-    The modified JobSet manifest as a YAML string.
-  """
-
-  manifest = yaml.safe_load(jobset_manifest_str)
-
-  for job in manifest['spec']['replicatedJobs']:
-    job_manifest = job['template']
-    add_storage_annotations(job_manifest, storages)
-
-  return yaml.dump(manifest, sort_keys=False)
-
-
-def add_storage_annotations(job_manifest, storages):
-  """Adds or updates storage annotations in the Pod template."""
-  annotations = job_manifest['spec']['template']['metadata']['annotations']
-  gcs_present = [storage.type == GCS_FUSE_TYPE for storage in storages]
-  if gcs_present:
-    annotations.update({'gke-gcsfuse/volumes': 'true'})
 
 
 def add_annotations(job_manifest, sub_networks):

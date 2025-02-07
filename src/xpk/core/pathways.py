@@ -16,13 +16,11 @@ limitations under the License.
 
 from ..utils.console import xpk_exit, xpk_print
 from .core import (
-    GCS_FUSE_ANNOTATION,
     AcceleratorType,
     get_all_nodepools_programmatic,
     get_user_workload_container,
     zone_to_region,
 )
-from .storage import XPK_SA, Storage, get_storage_volumes_yaml
 from .system_characteristics import SystemCharacteristics
 
 PathwaysExpectedInstancesMap = {
@@ -246,10 +244,7 @@ def get_pathways_rm_args(args, system: SystemCharacteristics) -> str:
 
 
 def get_user_workload_for_pathways(
-    args,
-    system: SystemCharacteristics,
-    pod_failure_policy,
-    storages: list[Storage],
+    args, system: SystemCharacteristics, pod_failure_policy
 ) -> str:
   """
   Create a user workload container for Pathways.
@@ -276,13 +271,9 @@ def get_user_workload_for_pathways(
           parallelism: 1
           {pod_failure_policy}
           template:
-            metadata:
-              annotations:
-                {gcs_fuse_annotation}
             spec:
               containers:
               {container}
-              serviceAccountName: {service_account}
               nodeSelector:
                 cloud.google.com/gke-nodepool: cpu-user-np
               restartPolicy: Never
@@ -290,20 +281,13 @@ def get_user_workload_for_pathways(
               - hostPath:
                   path: /tmp
                   type: DirectoryOrCreate
-                name: shared-tmp
-              {storage_volumes}"""
+                name: shared-tmp"""
   if args.headless:
     return ''
   else:
     container, _ = get_user_workload_container(args, system)
-    storage_volumes = get_storage_volumes_yaml(storages)
     return user_workload_yaml.format(
-        args=args,
-        container=container,
-        storage_volumes=storage_volumes,
-        pod_failure_policy=pod_failure_policy,
-        service_account=XPK_SA,
-        gcs_fuse_annotation=GCS_FUSE_ANNOTATION,
+        args=args, container=container, pod_failure_policy=pod_failure_policy
     )
 
 

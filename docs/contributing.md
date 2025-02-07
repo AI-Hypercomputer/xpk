@@ -45,7 +45,6 @@ source $VENV_DIR/bin/activate
 
 ```shell
 git clone https://github.com/google/xpk.git
-cd xpk
 pip install .[dev]
 ```
 

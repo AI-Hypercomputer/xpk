@@ -458,7 +458,7 @@ Once it's ready user can define:
 `--auto-mount` - if set to true means that all workloads should have a given storage mounted by default.
 `--mount-point` - defines the path on which a given storage should be mounted for a workload.
 `--manifest` - defines the path to manifest which contains PersistentVolume and PersistentVolumeClaim definitions
-
+`--readonly` - if set to true, workload can only read from storage.
 
 * Attach to gcsfuse storage instance.
 
@@ -497,13 +497,13 @@ Creating Filestore storage and attaching it to workload can be achieved in two w
     --manifest='examples/storage/filestore-manifest-attach.yaml'
     ```
 
-* Use `xpk storage create` command, to create new Filestore instace that will be attached to your workloads.
+* Use `xpk storage create` command, to create new Filestore instace thast will be attached to your workloads.
 
   ```
   python3 xpk.py storage create $STORAGE_NAME --cluster=$CLUSTER \
   --zone=$ZONE --type=gcpfilestore \
   --auto-mount=true --vol=vol1 --size=1024 --tier=BASIC_HDD \
-  --mount-point='/fs-test-mount-point' --readonly=false
+  --mount-point='/fs-test-mount-point' --readonly=false --project=$PROJECT
   ```
 
 * Create a simple Workload with created filestore.
@@ -512,18 +512,19 @@ Creating Filestore storage and attaching it to workload can be achieved in two w
     --workload xpk-test-workload --command "echo goodbye" \
     --cluster xpk-test \
     --tpu-type=v5litepod-16 \
-    --storage fs-storage-attach
+    --storage fs-storage-attach \
+    --project=$PROJECT
     ```
 
 
 * List Storage
     ```shell
-    python3 xpk.py storage list --cluster xpk-test --zone=us-central2-b
+    python3 xpk.py storage list --cluster xpk-test --zone=us-central2-b --project=$PROJECT
     ```
 
 * Delete Storage
     ```shell
-    python3 xpk.py storage delete test-storage  --cluster xpk-test --zone=us-central2-b
+    python3 xpk.py storage delete test-storage  --cluster xpk-test --zone=us-central2-b --project=$PROJECT
     ```
 
 ## Workload Create

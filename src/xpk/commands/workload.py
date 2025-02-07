@@ -240,6 +240,21 @@ spec:
             containers:
             - args:
               {pathways_worker_args}
+              env:
+              - name: PROJECT_ID
+                value: "tpu-prod-env-one-vm"
+              - name: LOCATION
+                value: "asia-northeast1"
+              - name: CLUSTER_NAME
+                value: "bodaborg-v6e-256-rxc"
+              - name: POD_NAME
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.name
+              - name: CONTAINER_NAME
+                value: "pathways-worker"
+              - name: NAMESPACE
+                value: "cloud_prod"
               image: {args.server_image}
               imagePullPolicy: Always
               name: pathways-worker
@@ -295,6 +310,20 @@ spec:
                 value: $(JOBSET_NAME)-$(REPLICATED_JOB_NAME)-0-0.$(JOBSET_NAME)
               - name: TPU_SKIP_MDS_QUERY
                 value: "true"
+              - name: PROJECT_ID
+                value: "tpu-prod-env-one-vm"
+              - name: LOCATION
+                value: "asia-northeast1"
+              - name: CLUSTER_NAME
+                value: "bodaborg-v6e-256-rxc"
+              - name: POD_NAME
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.name
+              - name: CONTAINER_NAME
+                value: "pathways-rm"
+              - name: NAMESPACE
+                value: "cloud_prod"
               image: {args.server_image}
               imagePullPolicy: Always
               name: pathways-rm
@@ -329,6 +358,23 @@ spec:
             containers:
             - args:
               {pathways_proxy_args}
+              env:
+              - name: PROJECT_ID
+                value: "tpu-prod-env-one-vm"
+              - name: LOCATION
+                value: "asia-northeast1"
+              - name: CLUSTER_NAME
+                value: "bodaborg-v6e-256-rxc"
+              - name: POD_NAME
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.name
+              - name: CONTAINER_NAME
+                value: "pathways-proxy"
+              - name: NAMESPACE
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.namespace
               image: {args.proxy_server_image}
               imagePullPolicy: Always
               name: pathways-proxy

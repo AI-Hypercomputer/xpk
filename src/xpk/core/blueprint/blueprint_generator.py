@@ -71,6 +71,7 @@ class BlueprintGenerator:
       prefix: str = "",
       num_nodes: int = 2,
       enable_gcsfuse_csi_driver=False,
+      enable_filestore_csi_driver=False,
       pods_ip_cidr_range: str = "10.4.0.0/14",
       services_ip_cidr_range: str = "10.0.32.0/20",
       global_ip_address_range: str = "192.169.0.0/16",
@@ -135,6 +136,7 @@ class BlueprintGenerator:
             "name_suffix": cluster_name,
             "enable_private_endpoint": False,
             "enable_gcsfuse_csi": enable_gcsfuse_csi_driver,
+            "enable_filestore_csi": enable_filestore_csi_driver,
             "master_authorized_networks": [{
                 "cidr_block": (
                     f"{auth_cidr}"
@@ -354,6 +356,7 @@ class BlueprintGenerator:
       reservation: Optional[str | None] = None,
       gcs_bucket: Optional[str | None] = None,
       num_nodes: int = 2,
+      enable_filestore_csi_driver=False,
       prefix: str = "",
       mtu_size: int = 8896,
       system_node_pool_min_node_count: int = 2,
@@ -458,6 +461,7 @@ class BlueprintGenerator:
             "system_node_pool_machine_type": system_node_pool_machine_type,
             "enable_dcgm_monitoring": True,
             "enable_gcsfuse_csi": True,
+            "enable_filestore_csi": enable_filestore_csi_driver,
             "enable_private_endpoint": False,
             "master_authorized_networks": [{
                 "cidr_block": auth_cidr,

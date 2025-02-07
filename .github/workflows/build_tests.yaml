@@ -32,7 +32,7 @@ on:
 env:
   # Names must be unique in parallel running tests.
   TPU_TYPE: ${{ inputs.tpuType || 'v4-8' }}
-  TPU_CLUSTER_NAME: build-xpk-nodepools
+  TPU_CLUSTER_NAME: build-xpk-2-nodepools
   TPU_FILESTORE_CLUSTER_NAME: build-xpk-filestore
   WORKLOAD_NAME: xpktest-build-${{ github.run_attempt }}
   PATHWAYS_WORKLOAD_NAME: xpkpw-build-${{ github.run_attempt }}
@@ -141,8 +141,6 @@ jobs:
             RUN_ID="pr-${{ github.event.number }}"
           fi
           echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
-    - name: Update cluster name with TPU_TYPE and RUN_ID
-      run: echo "TPU_CLUSTER_NAME=$TPU_CLUSTER_NAME-$RUN_ID" >> $GITHUB_ENV
     - name: Install expect package
       run: sudo apt-get install expect
     - uses: 'google-github-actions/auth@v2'

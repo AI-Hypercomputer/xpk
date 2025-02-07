@@ -54,12 +54,12 @@ def storage_create(args: Namespace) -> None:
       xpk_exit(1)
 
     filestore_client.create_filestore_instance(
-        vol=args.vol, size=args.size, tier=args.tier
+        vol=args.vol, size=args.size, tier=args.tier, network=args.network
     )
 
     pv_data = filestore_client.create_pv(args.vol, access_mode=args.access_mode)
     pvc_data = filestore_client.create_pvc(access_mode=args.access_mode)
-    sc = filestore_client.create_sc(args.tier, args.network)
+    sc = filestore_client.create_sc(args.tier, args.network, args.project)
     args.manifest = filestore_client.compile_to_manifest_yaml(
         sc, pv_data, pvc_data
     )

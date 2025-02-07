@@ -126,13 +126,15 @@ class FilestoreClient:
     xpk_print(f"Filestore instance {parent} created")
     self.response = response
 
-  def create_sc(self, tier: str, network: str) -> dict:
+  def create_sc(self, tier: str, network: str, project: str) -> dict:
     abs_path = f"{os.path.dirname(__file__)}{FS_SC_PATH}"
     with open(abs_path, "r", encoding="utf-8") as file:
       data: dict = yaml.load(file)
     data["metadata"]["name"] = get_storage_class_name(self.name)
     data["parameters"]["tier"] = tier
-    data["parameters"]["network"] = network
+    data["parameters"][
+        "network"
+    ] = f"projects/{project}/global/networks/{network}"
     return data
 
   def create_pv(self, vol: str, access_mode: str) -> dict:

@@ -266,7 +266,7 @@ def is_autoprovisioning_enabled(
     return False, 0
 
   return_code, autoprovisioning_value = get_value_from_map(
-      system.gke_accelerator, cluster_config_map, verbose=False
+      system.gke_accelerator, cluster_config_map
   )
   if return_code != 0:
     xpk_print(

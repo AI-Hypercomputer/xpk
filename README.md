@@ -56,10 +56,7 @@ and the following GPU types:
 and the following CPU types:
 * n2-standard-32
 
-xpk also supports Google Cloud Storage solutions:
-* [Cloud Storage FUSE](https://cloud.google.com/storage/docs/gcs-fuse)
-
-# Permissions needed on Cloud Console:
+# Cloud Console Permissions on the user or service account needed to run XPK:
 
 * Artifact Registry Writer
 * Compute Admin
@@ -163,8 +160,6 @@ cleanup with a `Cluster Delete`.
 
 If you have failures with workloads not running, use `xpk inspector` to investigate
 more.
-
-If you need your Workloads to have persistent storage, use `xpk storage` to find out more.
 
 ## Cluster Create
 
@@ -440,50 +435,6 @@ Currently, the below flags/arguments are supported for A3-Mega and A3-Ultra mach
   * --on-demand (only A3-Mega)
 
 
-## Storage
-Currently xpk supports Cloud Storage FUSE. A FUSE adapter that lets you mount and access Cloud Storage buckets as local file systems, so applications can read and write objects in your bucket using standard file system semantics.
-
-To use the GCS FUSE with XPK user needs to:
-- create a [Storage Bucket](https://pantheon.corp.google.com/storage/)
-- create a manifest with PersistentVolume and PersistentVolumeClaim that mounts to the Bucket. To learn how to properly
-set up PersistentVolume and PersistentVolumeClaim visit [GKE Cloud Storage documentation](https://cloud.google.com/kubernetes-engine/docs/how-to/persistent-volumes/cloud-storage-fuse-csi-driver#provision-static)
-
-Once it's ready user can define:
-
-`--type` - defines a type of a storage, currently xpk supports `gcsfuse` only.
-`--auto-mount` - if set to true means that all workloads should have a given storage mounted by default.
-`--mount-point` - defines the path on which a given storage should be mounted for a workload.
-`--manifest` - defines the path to manifest which contains PersistentVolume and PersistentVolumeClaim definitions
-`--readonly` - if set to true, workload can only read from storage.
-
-* Create a simple Storage
-
-    ```shell
-    python3 xpk.py storage create test-storage --project=$PROJECT
-    --cluster=xpk-test --type=gcsfuse --auto-mount=false \
-    --mount-point='/test-mount-point' --readonly=false \
-    --manifest='pv-pvc-auto-mount.yaml'
-    ```
-
-* Create a simple Workload with Storage attached
-    ```shell
-    python3 xpk.py workload create \
-    --workload xpk-test-workload --command "echo goodbye" \
-    --cluster xpk-test \
-    --tpu-type=v5litepod-16 \
-    --storage test-storage --projet=$PROJECT
-    ```
-
-* List Storage
-    ```shell
-    python3 xpk.py storage list --cluster xpk-test --zone=us-central2-b --projet=$PROJECT
-    ```
-
-* Delete Storage
-    ```shell
-    python3 xpk.py storage delete test-storage  --cluster xpk-test --zone=us-central2-b --projet=$PROJECT
-    ```
-
 ## Workload Create
 *   Workload Create (submit training job):
 
@@ -491,7 +442,7 @@ Once it's ready user can define:
     python3 xpk.py workload create \
     --workload xpk-test-workload --command "echo goodbye" \
     --cluster xpk-test \
-    --tpu-type=v5litepod-16 --projet=$PROJECT
+    --tpu-type=v5litepod-16
     ```
 
 *   Workload Create for Pathways:

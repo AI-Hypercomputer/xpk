@@ -31,9 +31,7 @@ def chunks(lst: list, n: int):
   return [lst[i : i + n] for i in range(0, len(lst), n)]
 
 
-def get_value_from_map(
-    key: str, map_to_search: dict, verbose: bool = True
-) -> tuple[int, str | None]:
+def get_value_from_map(key: str, map_to_search: dict) -> tuple[int, str | None]:
   """Helper function to get value from a map if the key exists.
 
   Args:
@@ -49,11 +47,10 @@ def get_value_from_map(
   if value:
     return 0, value
   else:
-    if verbose:
-      xpk_print(
-          f'Unable to find key: {key} in map: {map_to_search}.'
-          f'The map has the following keys: {map_to_search.keys()}'
-      )
+    xpk_print(
+        f'Unable to find key: {key} in map: {map_to_search}.'
+        f'The map has the following keys: {map_to_search.keys()}'
+    )
     return 1, value
 
 

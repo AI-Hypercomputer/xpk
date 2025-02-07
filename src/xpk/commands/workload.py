@@ -90,6 +90,11 @@ spec:
           backoffLimit: 0   # When any pod fails, the job is failed
           template:
             metadata:
+              annotations:
+                gke-gcsfuse/volumes: "true"
+                gke-gcsfuse/cpu-limit: "500m"
+                gke-gcsfuse/memory-limit: "350Gi"
+                gke-gcsfuse/ephemeral-storage-limit: "40Gi"
               labels:
                 xpk.google.com/workload: {args.workload}
             spec:

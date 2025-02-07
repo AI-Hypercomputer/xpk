@@ -1998,7 +1998,9 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
       )
     xpk_return_user_exit_code = 'exit $EXIT_CODE'
 
-  yaml = """- name: {docker_name}
+  yaml = """- name: gke-gcsfuse-sidecar
+                image: gcr.io/gcs-tess/gcs-fuse-csi-driver-sidecar-mounter:v2.10.0_linux_amd64
+              - name: {docker_name}
                 image: {docker_image}
                 {image_pull_policy}
                 env: {env}
@@ -2106,7 +2108,13 @@ def get_volumes(args, system: SystemCharacteristics) -> str:
   """
   volumes = """- emptyDir:
                   medium: Memory
-                name: dshm-2"""
+                name: dshm-2
+              - name: gcs-dataset-pvc
+                persistentVolumeClaim:
+                  claimName: dataset-bucket-pvc
+              - name: gcs-ckpt-pvc
+                persistentVolumeClaim:
+                  claimName: ckpt-bucket-pvc"""
 
   if args.ramdisk_directory != '':
     volumes += """
@@ -2135,7 +2143,13 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
       YAML for the volumes mounted within a Pathways container or GPU container as a YAML string.
   """
   volume_mount_yaml = """- mountPath: /dev/shm
-                  name: dshm-2"""
+                  name: dshm-2
+                - mountPath: /tmp/dataset
+                  name: gcs-dataset-pvc
+                  readOnly: false
+                - mountPath: /tmp/gcsfuse
+                  name: gcs-ckpt-pvc
+                  readOnly: false"""
 
   if args.ramdisk_directory != '':
     volume_mount_yaml += f"""

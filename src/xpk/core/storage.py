@@ -353,7 +353,7 @@ def get_storage_volume_mounts_yaml_for_gpu(storages: list[Storage]) -> str:
   return yaml_str
 
 
-def get_storage_volumes_yaml_for_gpu(storages: list[Storage]) -> str:
+def get_storage_volumes_yaml_for_gpu(storages: list[Storage]) -> list:
   """
   Generates the YAML representation of the volumes section for the given Storages.
 
@@ -367,14 +367,16 @@ def get_storage_volumes_yaml_for_gpu(storages: list[Storage]) -> str:
   Returns:
       A string containing the YAML representation of the volumes section.
   """
-  yaml_str = ""
+  storage_claims = []
   for storage in storages:
-    yaml_str += f"""- name: {storage.pv}
-                persistentVolumeClaim:
-                  claimName: {storage.pvc}
-                  readOnly: {storage.readonly}
-            """
-  return yaml_str
+    storage_claims.append({
+        "name": storage.pv,
+        "persistentVolumeClaim": {
+            "claimName": storage.pvc,
+            "readOnly": storage.readonly,
+        },
+    })
+  return storage_claims
 
 
 def add_bucket_iam_members(args: Namespace, storages: list[Storage]) -> None:

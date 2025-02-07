@@ -235,8 +235,6 @@ spec:
               tolerations:
               - operator: "Exists"
                 key: nvidia.com/gpu
-              volumes:
-              {storage_volumes}
               containers:
               {container}
 """
@@ -532,7 +530,6 @@ def workload_create(args) -> None:
           args=args,
           container=container,
           service_account=XPK_SA,
-          storage_volumes=get_storage_volumes_yaml_for_gpu(gcs_fuse_storages),
           failure_policy_rules=failure_policy_rules,
           pod_failure_policy=pod_failure_policy,
       )

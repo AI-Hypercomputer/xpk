@@ -181,7 +181,7 @@ jobs:
       run: gcloud auth configure-docker --quiet
     - name: Create auto-mount Storage instance
       run: |
-        python3 xpk.py storage attach $STORAGE_NAME --cluster=$TPU_CLUSTER_NAME --zone=us-central2-b --type=gcsfuse \
+        python3 xpk.py storage create $STORAGE_NAME --cluster=$TPU_CLUSTER_NAME --zone=us-central2-b --type=gcsfuse \
         --auto-mount=true \
         --mount-point='/test-mount-point' --readonly=false --manifest='./tests/data/pv-pvc-templates.yaml'
     - name: List and verify existing Storages
@@ -193,12 +193,12 @@ jobs:
         echo "Hello world from a test script!"
         cd ~/../test-mount-point && echo "Hello world from a Github Action CI/CD test script!" > '$RANDOM_SEED'.txt' \
         > test.sh
-    # Disable job until fixed
-    # - name: Create a test script to execute in jobs.
-    #   run: echo -e '#!/bin/bash \nsleep 3 \necho "Hello world from a test script!"' > job_test.sh
-    # - name: Run a job
-    #   run: |
-    #     python xpk.py run --cluster $TPU_CLUSTER_NAME --zone=us-central2-b workload.sh | awk '/Starting log streaming for pod xpk-def-app-profile-slurm-[a-zA-Z0-9]+-[0-9]+-[a-zA-Z0-9]+.../,/Job logs streaming finished./ { print }'
+    - name: Create a test script to execute in jobs.
+      run: echo -e '#!/bin/bash \nsleep 3 \necho "Hello world from a test script!"' > job_test.sh
+    - name: Run a job
+      run: |
+        python xpk.py run --cluster $TPU_CLUSTER_NAME --zone=us-central2-b workload.sh | awk '/Starting log streaming for pod xpk-def-app-profile-slurm-[a-zA-Z0-9]+-[0-9]+-[a-zA-Z0-9]+.../,/Job logs streaming finished./ { print }'
+    # TODO: fix Delete the job failing step
     # - name: Delete the job
     #   run: |
     #     JOB_NAME=$(python3 xpk.py job ls --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep 'xpk-def-app-profile-slurm-' | head -1 | awk '{print $1}')
@@ -234,6 +234,43 @@ jobs:
       run: gsutil rm gs://xpk-ci-cd-tests/$RANDOM_SEED.txt
     - name: Delete existing Storage
       run: python3 xpk.py storage delete $STORAGE_NAME  --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+    - name: Create test script to execute in batch
+      run: echo -e '#!/bin/bash \n#SBATCH --unknown-flag=value\n echo "Hello world from a test script!"' > batch.sh
+    - name: Run a batch job on the cluster
+      run: python3 xpk.py batch --cluster $TPU_CLUSTER_NAME --zone=us-central2-b batch.sh --ignore-unknown-flags --array 1-5 --nodes 2 --ntasks 3 --time 60
+    - name: List out the jobs on the cluster
+      run: python3 xpk.py job ls --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep 'xpk-def-app-profile-slurm-'
+    - name: Get created job name
+      run: |
+        JOB_NAME=$(python3 xpk.py job ls --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep 'xpk-def-app-profile-slurm-' | head -1 | awk '{print $1}')
+        echo "JOB_NAME=${JOB_NAME}" >> $GITHUB_ENV
+    - name: Check created job
+      run: |
+        kubectl get job ${JOB_NAME} -o jsonpath='{.metadata.labels}' | grep '"kueue.x-k8s.io/max-exec-time-seconds":"3600"'
+        job_spec=$(kubectl get job ${JOB_NAME} -o jsonpath='{.spec}')
+        echo "$job_spec" | grep '"completions":2'
+        echo "$job_spec" | grep '"parallelism":2'
+        echo "$job_spec" | jq '.template.spec.containers | length' | grep 3
+    - name: Get job info for the last job created on the cluster
+      run: python3 xpk.py job info ${JOB_NAME} | grep -e "Entrypoint environment variables template:" -e "Job name:" -e "Labels:" -e "Mounts:" -e "Pods:" -e "Profile:" -e "Script name:" | wc -l | grep "7"
+    - name: Cancel the batch job on the cluster
+      run: |
+        python3 xpk.py job cancel ${JOB_NAME} --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep "job.batch/${JOB_NAME} deleted"
+    - name: Create shell and exit it immediately
+      run: |
+        cat <<'EOF' >> create-shell.exp
+        ##!/usr/bin/expect
+        spawn python3 ./xpk.py shell
+        expect "/ # "
+        send "exit\n"
+        EOF
+        chmod +x ./create-shell.exp
+        expect ./create-shell.exp
+    # TODO - deflake tests
+    # - name: Check if shell exists and is running
+    #   run: kubectl get pods | grep xpk-def-app-profile-interactive- | grep Running
+    - name: Stop the shell
+      run: python3 xpk.py shell stop
     - name: Delete the cluster created
       if: always()
       run: python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --force

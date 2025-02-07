@@ -587,6 +587,7 @@ def workload_create(args) -> None:
           failure_policy_rules=failure_policy_rules,
           pod_failure_policy=pod_failure_policy,
       )
+
   elif args.use_pathways and ensure_pathways_workload_prerequisites(
       args, system
   ):

@@ -165,7 +165,7 @@ cleanup with a `Cluster Delete`.
 If you have failures with workloads not running, use `xpk inspector` to investigate
 more.
 
-If you need your Workloads to have persistent storage, use `xpk storage` to find more.
+If you need your Workloads to have persistent storage, use `xpk storage` to find out more.
 
 ## Cluster Create
 
@@ -533,7 +533,7 @@ Creating Filestore storage and attaching it to workload can be achieved in two w
     python3 xpk.py workload create \
     --workload xpk-test-workload --command "echo goodbye" \
     --cluster xpk-test \
-    --tpu-type=v5litepod-16
+    --tpu-type=v5litepod-16 --projet=$PROJECT
     ```
 
 *   Workload Create for Pathways:

@@ -149,8 +149,8 @@ jobs:
       run: |
         python3 xpk.py cluster create --cluster $TPU_FILESTORE_CLUSTER_NAME_CREATE --tpu-type=v4-8  --num-slices=2 \
         --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 \
-        --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --enable-workload-identity --enable-gcpfilestore-csi-driver --custom-cluster-arguments="--maintenance-window=23:50" \
-        ----custom-cluster-arguments="${CLUSTER_ARGUMENTS}"
+        --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --enable-workload-identity --enable-gcpfilestore-csi-driver  \
+        --custom-cluster-arguments="${CLUSTER_ARGUMENTS}"
     - name: Create auto-mount GCP Filestore Storage instance
       run: |
         python3 xpk.py storage create $FS_STORAGE_NAME --cluster=$TPU_FILESTORE_CLUSTER_NAME_CREATE --zone=us-central2-b --type=gcpfilestore \

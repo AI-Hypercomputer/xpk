@@ -2144,7 +2144,11 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
 
   if args.use_pathways:
     volume_mount_yaml = """- mountPath: /tmp
-                  name: shared-tmp"""
+                  name: shared-tmp
+                - name: gcs-fuse-csi-ephemeral
+                  mountPath: /training-data
+                - name: dshm
+                  mountPath: /dev/shm"""
   elif (
       system.accelerator_type == AcceleratorType['TPU']
       and args.deploy_stacktrace_sidecar
@@ -2305,7 +2309,8 @@ def get_main_container_resources(
   resources_yaml = """cpu: "24"
                     memory: 100G"""
   if args.use_pathways:
-    return resources_yaml
+    return ""
+#    return resources_yaml
 
   gpu_resources_yaml = """nvidia.com/gpu: {system.chips_per_vm}"""
   if system.accelerator_type == AcceleratorType['GPU']:

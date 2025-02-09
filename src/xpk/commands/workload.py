@@ -237,9 +237,16 @@ spec:
         template:
           spec:
             terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
+            initContainers:  # Add this section
+            - name: network-init 
+              image: {args.docker_image}
+              command: ["bash", "-c", "echo '4096 41943040 314572800' > /proc/sys/net/ipv4/tcp_rmem"]
+              securityContext:
+                privileged: true
             containers:
             - args:
               {pathways_worker_args}
+              env:
               image: {args.server_image}
               imagePullPolicy: Always
               name: pathways-worker
@@ -305,6 +312,10 @@ spec:
               volumeMounts:
               - mountPath: /tmp
                 name: shared-tmp
+              resources:
+                limits:
+                  cpu: "30"
+                  memory: 120G
             nodeSelector:
               cloud.google.com/gke-nodepool: cpu-rm-np
             hostNetwork: true
@@ -329,11 +340,18 @@ spec:
             containers:
             - args:
               {pathways_proxy_args}
+              env:
+              - name: XLA_FLAGS
+                value: "--xla_dump_to={args.pathways_gcs_location}/xla_dump"
               image: {args.proxy_server_image}
               imagePullPolicy: Always
               name: pathways-proxy
               ports:
               - containerPort: 29000
+              resources:
+                limits:
+                  cpu: "30"
+                  memory: 120G
             hostNetwork: true
             dnsPolicy: ClusterFirstWithHostNet
             nodeSelector:

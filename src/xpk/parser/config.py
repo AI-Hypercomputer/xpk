@@ -14,9 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..commands.config import (set_config, get_config)
+from ..commands.config import get_config, set_config
+from ..core.config import DEFAULT_KEYS
 from .common import add_shared_arguments
-from ..core.config import default_keys
 
 
 def set_config_parsers(config_parser):
@@ -33,14 +33,14 @@ def set_config_parsers(config_parser):
   )
   config_set_parser.add_argument(
       'set_config_args',
-      help=f"""Pair of (key, value) to be set in config. Allowed keys are: {default_keys}.
+      help=f"""Pair of (key, value) to be set in config. Allowed keys are: {DEFAULT_KEYS}.
       Command usage: `xpk config set key value`""",
       type=str,
       nargs=2,
   )
   config_get_parser.add_argument(
       'get_config_key',
-      help=f"""Get key value from config. Allowed keys are: {default_keys} .
+      help=f"""Get key value from config. Allowed keys are: {DEFAULT_KEYS} .
       Command usage: `xpk config get key`""",
       type=str,
       nargs=1,

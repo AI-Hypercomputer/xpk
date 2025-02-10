@@ -14,29 +14,31 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..core.core import (
+from ..utils.console import xpk_print
+from ..utils.file import write_tmp_file
+from ..utils.objects import get_value_from_map
+from .capacity import (
     AUTOPROVISIONING_CONFIG_VALUE,
     CAPACITY_TYPE_CONFIG_KEY,
-    CLUSTER_METADATA_CONFIGMAP,
-    CLUSTER_RESOURCES_CONFIGMAP,
     RESERVATION_CONFIG_KEY,
-    AutoprovisioningConfig,
     CapacityType,
-    get_all_nodepools_programmatic,
     get_capacity_node_selectors_from_capacity_type,
     get_capacity_type,
-    get_cluster_configmap,
-    get_total_chips_requested_from_args,
     verify_reservation_exists,
-    zone_to_region,
 )
-from ..utils.objects import get_value_from_map
-from ..utils.file import write_tmp_file
-from ..utils.console import xpk_print
 from .commands import run_command_with_updates, run_commands
+from .gcloud_context import zone_to_region
+from .nodepool import get_all_nodepools_programmatic
+from .resources import (
+    CLUSTER_METADATA_CONFIGMAP,
+    CLUSTER_RESOURCES_CONFIGMAP,
+    AutoprovisioningConfig,
+    get_cluster_configmap,
+)
+from .scheduling import get_total_chips_requested_from_args
 from .system_characteristics import AcceleratorType, SystemCharacteristics
 
-autoprovisioning_config_file = """
+AUTOPROVISIONING_CONFIG_FILE = """
 management:
   autoRepair: true
   autoUpgrade: true
@@ -44,8 +46,7 @@ autoprovisioningLocations:
   {zones}
 {resource_limits}
 """
-
-autoprovisioning_resource_limits = """
+AUTOPROVISIONING_RESOURCE_LIMITS = """
 resourceLimits:
 - resourceType: 'cpu'
   {cpu_limits}
@@ -53,8 +54,7 @@ resourceLimits:
   {memory_limits}
 {custom_resource_type}
 """
-
-autoprovisioning_custom_resource_type = """
+AUTOPROVISIONING_CUSTOM_RESOURCE_TYPE = """
 - resourceType: {resource_type}
   minimum: {minimum}
   maximum: {maximum}
@@ -218,19 +218,19 @@ def create_autoprovisioning_config(
       ' small, rescaling will not work well.'
   )
 
-  custom_resource_string = autoprovisioning_custom_resource_type.format(
+  custom_resource_string = AUTOPROVISIONING_CUSTOM_RESOURCE_TYPE.format(
       resource_type=system.gke_accelerator,
       minimum=minimum,
       maximum=maximum,
   )
 
-  resource_limits = autoprovisioning_resource_limits.format(
+  resource_limits = AUTOPROVISIONING_RESOURCE_LIMITS.format(
       cpu_limits=cpu_limits,
       memory_limits=memory_limits,
       custom_resource_type=custom_resource_string,
   )
 
-  yml_string = autoprovisioning_config_file.format(
+  yml_string = AUTOPROVISIONING_CONFIG_FILE.format(
       resource_limits=resource_limits,
       zones=f'- {args.zone}',
   )
@@ -347,3 +347,15 @@ def get_autoprovisioning_node_selector_args(args) -> tuple[str, int]:
     return node_selector_args, return_code
 
   return node_selector_args, return_code
+
+
+def get_cluster_provisioner(args) -> str:
+  metadata_configmap_name = f'{args.cluster}-{CLUSTER_METADATA_CONFIGMAP}'
+  cluster_config_map = get_cluster_configmap(args, metadata_configmap_name)
+  cluster_provisioner = 'gcloud'
+  if not cluster_config_map is None:
+    provisioner = cluster_config_map.get('provisioner')
+    if not provisioner is None:
+      cluster_provisioner = provisioner
+  xpk_print(f'Cluster provisioner: {cluster_provisioner}')
+  return cluster_provisioner

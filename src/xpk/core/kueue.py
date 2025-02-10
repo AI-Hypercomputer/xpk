@@ -15,11 +15,17 @@ limitations under the License.
 """
 
 from argparse import Namespace
-from packaging.version import Version
+
 import packaging
+from packaging.version import Version
+
+from ..utils.console import xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
-from ..utils.console import xpk_print, xpk_exit
-from .commands import run_command_with_updates, run_command_with_updates_retry, run_command_for_value
+from .commands import (
+    run_command_for_value,
+    run_command_with_updates,
+    run_command_with_updates_retry,
+)
 from .core import (
     AutoprovisioningConfig,
     create_accelerator_label,
@@ -274,26 +280,32 @@ def install_kueue_crs(
     0 if successful and 1 otherwise.
   """
   device_type = system.device_type
-  cluster_hardware_name = f'{args.num_slices}x{device_type}'
+  if not getattr(args, 'kind_cluster', None):
+    cluster_hardware_name = f'{args.num_slices}x{device_type}'
+  else:
+    cluster_hardware_name = 'kind'
   resource_type = AcceleratorTypeToAcceleratorCharacteristics[
       system.accelerator_type
   ].resource_type
 
   autoprovisioning_enabled = False
-  if autoprovisioning_config:
-    # Determine total resources available based on autoprovisioning max chips.
-    autoprovisioning_enabled = True
-    total_chips = autoprovisioning_config.maximum_chips
-    cluster_hardware_name = f'{system.gke_accelerator}'
-  else:
-    # Determine total chips based on user specified topology.
-    total_chips = get_total_chips_requested_from_args(args, system)
+  covered_resources_config = ''
+  if not getattr(args, 'kind_cluster', None):
+    if autoprovisioning_config:
+      # Determine total resources available based on autoprovisioning max chips.
+      autoprovisioning_enabled = True
+      total_chips = autoprovisioning_config.maximum_chips
+      cluster_hardware_name = f'{system.gke_accelerator}'
+    else:
+      # Determine total chips based on user specified topology.
+      total_chips = get_total_chips_requested_from_args(args, system)
 
-  covered_resources_config = get_kueue_covered_resources_config(
-      cluster_hardware_name=cluster_hardware_name,
-      resource_type=resource_type,
-      total_chips=total_chips,
-  )
+    covered_resources_config = get_kueue_covered_resources_config(
+        cluster_hardware_name=cluster_hardware_name,
+        resource_type=resource_type,
+        total_chips=total_chips,
+    )
+
   yml_string = cluster_set_crd_yaml.format(
       system=system,
       cluster_hardware_name=cluster_hardware_name,

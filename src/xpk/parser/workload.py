@@ -21,8 +21,8 @@ from ..commands.workload import (
     workload_list,
 )
 from ..core.core import default_docker_image, default_script_dir
+from .common import add_shared_arguments, add_testing_arguments
 from .validators import directory_path_type, name_type
-from .common import add_shared_arguments
 
 
 def set_workload_parsers(workload_parser):
@@ -113,6 +113,7 @@ def set_workload_parsers(workload_parser):
           ' h100-80gb-8, n2-standard-32-4 etc.'
       ),
   )
+  add_testing_arguments(workload_device_group)
 
   workload_create_parser_optional_arguments.add_argument(
       '--num-nodes',
@@ -289,6 +290,7 @@ def set_workload_parsers(workload_parser):
       )
   )
   add_shared_arguments(workload_delete_parser_optional_arguments)
+  add_testing_arguments(workload_delete_parser_optional_arguments)
 
   ### "workload delete" Required arguments
   workload_delete_parser_required_arguments.add_argument(
@@ -415,6 +417,7 @@ def set_workload_parsers(workload_parser):
   )
 
   add_shared_arguments(workload_list_parser)
+  add_testing_arguments(workload_list_parser)
 
   workload_list_parser.set_defaults(func=workload_list)
 

@@ -14,10 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..core.commands import (
-    run_command_with_updates,
-    run_commands,
-)
+from ..core.commands import run_command_with_updates, run_commands
 from ..core.core import (
     CLUSTER_METADATA_CONFIGMAP,
     VERTEX_TENSORBOARD_FEATURE_FLAG,
@@ -58,16 +55,14 @@ from ..core.pathways import (
     get_pathways_worker_args,
     get_user_workload_for_pathways,
 )
-from ..core.system_characteristics import (
-    AcceleratorType,
-    get_system_characteristics,
-)
+from ..core.system_characteristics import AcceleratorType, get_system_characteristics
 from ..core.workload import get_workload_list
+from ..core.workload_decorators import rdma_decorator, tcpxo_decorator
 from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
-from .common import set_cluster_command
-from ..core.workload_decorators import tcpxo_decorator, rdma_decorator
 from . import cluster_gcluster
+from .common import set_cluster_command
+from .kind import set_local_cluster_command
 
 workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
@@ -374,8 +369,6 @@ def workload_create(args) -> None:
   Returns:
     0 if successful and 1 otherwise.
   """
-  add_zone_and_project(args)
-
   if args.headless:
     xpk_print(
         'Please use kubectl port forwarding to connect to the Pathways proxy.'
@@ -384,7 +377,12 @@ def workload_create(args) -> None:
         " -c 'import pathwaysutils; import jax; print(jax.devices())'"
     )
 
-  set_cluster_command_code = set_cluster_command(args)
+  if not getattr(args, 'kind_cluster', None):
+    add_zone_and_project(args)
+    set_cluster_command_code = set_cluster_command(args)
+  else:
+    set_cluster_command_code = set_local_cluster_command(args)
+
   if set_cluster_command_code != 0:
     xpk_exit(set_cluster_command_code)
 
@@ -593,39 +591,40 @@ def workload_create(args) -> None:
         f' {args.workload} from the JobName filter on the dashboard.'
     )
 
-  if args.use_pathways:
-    if args.headless:
+  if not getattr(args, 'kind_cluster', None):
+    if args.use_pathways:
+      if args.headless:
+        xpk_print(
+            ' \n ******* Please connect to your Pathways proxy at'
+            f' {args.pathways_proxy_address}, once you see "IFRT proxy server'
+            ' started with status OK" on the proxy link below.'
+            ' Remember to delete the workload once done! ****** \n'
+        )
+        pathways_proxy_link = f'https://console.cloud.google.com/kubernetes/job/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}-proxy-0/details?project={args.project}'
+        xpk_print(
+            'Follow the proxy here:'
+            # pylint: disable=line-too-long)
+            f' {pathways_proxy_link} '
+        )
       xpk_print(
-          ' \n ******* Please connect to your Pathways proxy at'
-          f' {args.pathways_proxy_address}, once you see "IFRT proxy server'
-          ' started with status OK" on the proxy link below.'
-          ' Remember to delete the workload once done! ****** \n'
+          'Follow your Pathways workload and other resources here : '
+          f'{get_pathways_unified_query_link(args)}'
       )
-      pathways_proxy_link = f'https://console.cloud.google.com/kubernetes/job/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}-proxy-0/details?project={args.project}'
+    else:
       xpk_print(
-          'Follow the proxy here:'
-          # pylint: disable=line-too-long)
-          f' {pathways_proxy_link} '
+          'Follow your workload here:'
+          # pylint: disable=line-too-long
+          f' https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
       )
-    xpk_print(
-        'Follow your Pathways workload and other resources here : '
-        f'{get_pathways_unified_query_link(args)}'
-    )
-  else:
-    xpk_print(
-        'Follow your workload here:'
-        # pylint: disable=line-too-long
-        f' https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
-    )
-    duration_of_logs = 'P1D'  # Past 1 Day
-    xpk_print(
-        'Follow your worker 0, slice 0 logs here:'
-        ' Adjust the pod name'
-        ' ([prefix]-slice-job-[slice_number]-[worker_number])'
-        ' after clicking the url if you want other worker logs.'
-        # pylint: disable=line-too-long
-        f' https://console.cloud.google.com/logs/query;query=resource.type%3D%22k8s_container%22%0Aresource.labels.project_id%3D%22{args.project}%22%0Aresource.labels.location%3D%22{zone_to_region(args.zone)}%22%0Aresource.labels.cluster_name%3D%22{args.cluster}%22%0Aresource.labels.namespace_name%3D%22default%22%0Aresource.labels.pod_name:%22{args.workload}-slice-job-0-0-%22%20severity%3E%3DDEFAULT;storageScope=project;duration={duration_of_logs}?e=13802955&mods=allow_workbench_image_override&project={args.project}'
-    )
+      duration_of_logs = 'P1D'  # Past 1 Day
+      xpk_print(
+          'Follow your worker 0, slice 0 logs here:'
+          ' Adjust the pod name'
+          ' ([prefix]-slice-job-[slice_number]-[worker_number])'
+          ' after clicking the url if you want other worker logs.'
+          # pylint: disable=line-too-long
+          f' https://console.cloud.google.com/logs/query;query=resource.type%3D%22k8s_container%22%0Aresource.labels.project_id%3D%22{args.project}%22%0Aresource.labels.location%3D%22{zone_to_region(args.zone)}%22%0Aresource.labels.cluster_name%3D%22{args.cluster}%22%0Aresource.labels.namespace_name%3D%22default%22%0Aresource.labels.pod_name:%22{args.workload}-slice-job-0-0-%22%20severity%3E%3DDEFAULT;storageScope=project;duration={duration_of_logs}?e=13802955&mods=allow_workbench_image_override&project={args.project}'
+      )
 
   xpk_exit(0)
 
@@ -657,8 +656,12 @@ def workload_delete(args) -> None:
     0 if successful and 1 otherwise.
   """
   xpk_print('Starting Workload delete', flush=True)
-  add_zone_and_project(args)
-  set_cluster_command_code = set_cluster_command(args)
+  if not getattr(args, 'kind_cluster', None):
+    add_zone_and_project(args)
+    set_cluster_command_code = set_cluster_command(args)
+  else:
+    set_cluster_command_code = set_local_cluster_command(args)
+
   if set_cluster_command_code != 0:
     xpk_exit(set_cluster_command_code)
 
@@ -725,8 +728,12 @@ def workload_list(args) -> None:
   xpk_print(args)
 
   xpk_print('Starting workload list', flush=True)
-  add_zone_and_project(args)
-  set_cluster_command_code = set_cluster_command(args)
+  if not getattr(args, 'kind_cluster', None):
+    add_zone_and_project(args)
+    set_cluster_command_code = set_cluster_command(args)
+  else:
+    set_cluster_command_code = set_local_cluster_command(args)
+
   if set_cluster_command_code != 0:
     xpk_exit(set_cluster_command_code)
 

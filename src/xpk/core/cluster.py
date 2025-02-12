@@ -15,104 +15,97 @@ limitations under the License.
 """
 
 from ..utils.console import xpk_print
-from .capacity import H100_DEVICE_TYPE
+from .capacity import DeviceType
 from .commands import (
     run_command_for_value,
     run_command_with_updates,
     run_command_with_updates_retry,
 )
-from .gcloud_context import zone_to_region
+from .gcloud_context import GCloudContextManager
 from .system_characteristics import SystemCharacteristics
 
 JOBSET_VERSION = 'v0.7.2'
 
 
-# TODO(vbarr): Remove this function when jobsets gets enabled by default on
-# GKE clusters.
-def set_jobset_on_cluster(args) -> int:
-  """Add jobset command on server side and ask user to verify it is created.
+class ClusterManager:
+  """Manages Jobset and NCCL installation on Kubernetes clusters."""
 
-  Args:
-    args: user provided arguments for running the command.
+  def __init__(self, args, system: SystemCharacteristics):
+    self.args = args
+    self.system = system
 
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  command = (
-      'kubectl apply --server-side -f'
-      f' https://github.com/kubernetes-sigs/jobset/releases/download/{JOBSET_VERSION}/manifests.yaml'
-  )
-  task = f'Install Jobset on {args.cluster}'
-  return_code = run_command_with_updates_retry(command, task, args)
+  # TODO(vbarr): Remove this function when jobsets gets enabled by default on
+  # GKE clusters.
+  def set_jobset_on_cluster(self) -> int:
+    """Add jobset command on server side and ask user to verify it is created.
 
-  if return_code != 0:
-    xpk_print(f'{task} returned with ERROR {return_code}.\n')
-    xpk_print(
-        "This LIKELY means you're missing Kubernetes Permissions, you can"
-        ' validate this by checking if the error references permission problems'
-        ' such as `requires one of ["container.*"] permission(s)`. Follow our'
-        ' readme:'
-        ' https://github.com/google/xpk/blob/main/README.md#troubleshooting for'
-        ' instructions on how to fix these permissions.'
-    )
-  return return_code
-
-
-def install_nccl_on_cluster(args, system: SystemCharacteristics) -> int:
-  """Install NCCL plugin on the cluster.
-
-  Args:
-    args: user provided arguments for running the command.
-    system: system characteristics.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  if system.device_type == H100_DEVICE_TYPE:
+    Returns:
+      0 if successful and 1 otherwise.
+    """
     command = (
-        'kubectl apply -f '
-        # pylint: disable=line-too-long
+        'kubectl apply --server-side -f'
+        f' https://github.com/kubernetes-sigs/jobset/releases/download/{JOBSET_VERSION}/manifests.yaml'
+    )
+    task = f'Install Jobset on {self.args.cluster}'
+    return_code = run_command_with_updates_retry(command, task, self.args)
+
+    if return_code != 0:
+      xpk_print(f'{task} returned with ERROR {return_code}.\n')
+      xpk_print(
+          "This LIKELY means you're missing Kubernetes Permissions, you can"
+          ' validate this by checking if the error references permission'
+          ' problems such as `requires one of ["container.*"] permission(s)`.'
+          ' Follow our readme:'
+          ' https://github.com/google/xpk/blob/main/README.md#troubleshooting'
+          ' for instructions on how to fix these permissions.'
+      )
+    return return_code
+
+  def install_nccl_on_cluster(self) -> int:
+    """Install NCCL plugin on the cluster.
+
+    Returns:
+      0 if successful and 1 otherwise.
+    """
+    nccl_url = (
         'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpx/nccl-tcpx-installer.yaml'
+        if self.system.device_type == DeviceType.H100.value
+        else 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpxo/nccl-tcpxo-installer.yaml'
     )
-  else:
+
+    command = f'kubectl apply -f {nccl_url}'
+
+    return_code = run_command_with_updates(
+        command, 'Install NCCL Plugin On Cluster', self.args
+    )
+    if return_code != 0:
+      xpk_print(
+          f'Install NCCL Plugin On Cluster request returned ERROR {return_code}'
+      )
+      return 1
+
+    return 0
+
+  def get_all_clusters(self) -> tuple[list[str], int]:
+    """Gets all the clusters associated with the project / region.
+
+    Args:
+      args: user provided arguments for running the command.
+
+    Returns:
+      List of cluster names and 0 if successful and 1 otherwise.
+    """
+    region = GCloudContextManager.zone_to_region(self.args.zone)
     command = (
-        'kubectl apply -f '
-        # pylint: disable=line-too-long
-        'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpxo/nccl-tcpxo-installer.yaml'
+        'gcloud container clusters list'
+        f' --project={self.args.project} --region={region}'
+        ' --format="csv[no-heading](name)"'
     )
-
-  return_code = run_command_with_updates(
-      command, 'Install NCCL Plugin On Cluster', args
-  )
-
-  if return_code != 0:
-    xpk_print(
-        f'Install NCCL Plugin On Cluster request returned ERROR {return_code}'
+    return_code, raw_cluster_output = run_command_for_value(
+        command, 'Find if Cluster Exists', self.args
     )
-    return 1
+    if return_code != 0:
+      xpk_print(f'Find if Cluster Exists returned ERROR {return_code}')
+      return [], return_code
 
-  return 0
-
-
-def get_all_clusters_programmatic(args) -> tuple[list[str], int]:
-  """Gets all the clusters associated with the project / region.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    List of cluster names and 0 if successful and 1 otherwise.
-  """
-  command = (
-      'gcloud container clusters list'
-      f' --project={args.project} --region={zone_to_region(args.zone)}'
-      ' --format="csv[no-heading](name)"'
-  )
-  return_code, raw_cluster_output = run_command_for_value(
-      command, 'Find if Cluster Exists', args
-  )
-  if return_code != 0:
-    xpk_print(f'Find if Cluster Exists returned ERROR {return_code}')
-    return [], return_code
-
-  return raw_cluster_output.splitlines(), 0
+    return raw_cluster_output.splitlines(), 0

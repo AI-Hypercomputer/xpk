@@ -14,16 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from ..core.capacity import CapacityManager
 from ..core.commands import run_command_for_value
-from ..core.core import (
-    CLUSTER_METADATA_CONFIGMAP,
-    CLUSTER_RESOURCES_CONFIGMAP,
-    add_zone_and_project,
-    zone_to_region,
-)
+from ..core.gcloud_context import GCloudContextManager
 from ..core.kueue import CLUSTER_QUEUE_NAME, LOCAL_QUEUE_NAME
-from ..utils.file import append_tmp_file, write_tmp_file
+from ..core.resources import ResourceManager
 from ..utils.console import xpk_exit, xpk_print
+from ..utils.file import append_tmp_file, write_tmp_file
 from .common import set_cluster_command
 from .workload import get_workload_list
 
@@ -120,11 +117,13 @@ def inspector(args) -> None:
   # Future Improvements for inspector:
   # 2. List what is next in Queue.
   # 3. Split inspector into different subcommands to parse info easier.
+  capacity_manager = CapacityManager(args)
+  resource_manager = ResourceManager(args, capacity_manager)
 
   final_return_code = 0
   xpk_print(args)
 
-  add_zone_and_project(args)
+  GCloudContextManager.add_zone_and_project(args)
   set_cluster_command_code = set_cluster_command(args)
   if set_cluster_command_code != 0:
     xpk_exit(set_cluster_command_code)
@@ -144,7 +143,8 @@ def inspector(args) -> None:
       (
           (
               'gcloud beta container clusters list --project'
-              f' {args.project} --region {zone_to_region(args.zone)} | grep -e'
+              f' {args.project} --region'
+              f' {GCloudContextManager.zone_to_region(args.zone)} | grep -e'
               f' NAME -e {args.cluster}'
           ),
           'GKE: Cluster Details',
@@ -152,21 +152,21 @@ def inspector(args) -> None:
       (
           (
               'kubectl get configmap'
-              f' {args.cluster}-{CLUSTER_METADATA_CONFIGMAP} -o yaml'
+              f' {resource_manager.get_metadata_configmap_name()} -o yaml'
           ),
           'GKE: Cluster Metadata ConfigMap Details',
       ),
       (
           (
               'kubectl get configmap'
-              f' {args.cluster}-{CLUSTER_RESOURCES_CONFIGMAP} -o yaml'
+              f' {resource_manager.get_resources_configmap_name()} -o yaml'
           ),
           'GKE: Cluster Resources ConfigMap Details',
       ),
       (
           (
               f'gcloud beta container node-pools list --cluster {args.cluster} '
-              f' --project={args.project} --region={zone_to_region(args.zone)}'
+              f' --project={args.project} --region={GCloudContextManager.zone_to_region(args.zone)}'
           ),
           'GKE: Node pool Details',
       ),
@@ -315,19 +315,19 @@ def inspector(args) -> None:
     workload_links = [(
         f'Cloud Console for the workload {args.workload}',
         # pylint: disable=line-too-long
-        f'https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}',
+        f'https://console.cloud.google.com/kubernetes/service/{GCloudContextManager.zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}',
     )]
 
   links = [
       (
           'Cloud Console for the GKE Cluster',
           # pylint: disable=line-too-long
-          f'https://console.cloud.google.com/kubernetes/clusters/details/{zone_to_region(args.zone)}/{args.cluster}/details?project={args.project}',
+          f'https://console.cloud.google.com/kubernetes/clusters/details/{GCloudContextManager.zone_to_region(args.zone)}/{args.cluster}/details?project={args.project}',
       ),
       (
           'Cloud Console for all workloads in GKE Cluster',
           # pylint: disable=line-too-long
-          f'https://console.cloud.google.com/kubernetes/workload/overview?project={args.project}&pageState=((gke%2F{zone_to_region(args.zone)}%2F{args.cluster}))',
+          f'https://console.cloud.google.com/kubernetes/workload/overview?project={args.project}&pageState=((gke%2F{GCloudContextManager.zone_to_region(args.zone)}%2F{args.cluster}))',
       ),
       (
           'Cloud Console for IAM Permissions',

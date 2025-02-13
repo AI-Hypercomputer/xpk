@@ -14,32 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..core.commands import run_command_for_value, run_command_with_updates
-from ..core.core import (
-    VERTEX_TENSORBOARD_FEATURE_FLAG,
-    add_zone_and_project,
-    create_cluster_configmaps,
-    create_cluster_network_config,
-    create_vertex_tensorboard,
-    delete_cluster_subnets,
-    get_all_clusters_programmatic,
-    get_gke_control_plane_version,
-    get_gke_node_pool_version,
-    get_gke_server_config,
-    h100_device_type,
-    install_nccl_on_cluster,
-    run_gke_node_pool_create_command,
-    set_jobset_on_cluster,
-    set_up_cluster_network_for_gpu,
-    zone_to_region,
-    get_user_input,
-)
+from tabulate import tabulate
+
+from ..core.capacity import CapacityManager, DeviceType
+from ..core.cluster import ClusterManager
 from ..core.cluster_private import authorize_private_cluster_access_if_necessary
-from ..core.kjob import (
-    verify_kjob_installed,
-    prepare_kjob,
-    apply_kjob_crds,
-)
+from ..core.commands import run_command_for_value, run_command_with_updates
+from ..core.config import VERTEX_TENSORBOARD_FEATURE_FLAG
+from ..core.gcloud_context import GCloudContextManager, GKEVersionManager
+from ..core.kjob import apply_kjob_crds, prepare_kjob, verify_kjob_installed
 from ..core.kueue import (
     cluster_preheat_yml,
     install_kueue_crs,
@@ -47,20 +30,22 @@ from ..core.kueue import (
     wait_for_kueue_available,
 )
 from ..core.nap import enable_autoprovisioning_on_cluster
+from ..core.network import ClusterNetworkManager
+from ..core.nodepool import NodePoolManager
 from ..core.ray import install_ray_cluster
+from ..core.resources import ResourceManager
 from ..core.system_characteristics import (
     AcceleratorType,
     AcceleratorTypeToAcceleratorCharacteristics,
     SystemCharacteristics,
     get_system_characteristics,
 )
+from ..core.vertex import VertexAI
 from ..core.workload import get_workload_list
+from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
-from ..utils.console import xpk_exit, xpk_print
 from . import cluster_gcluster
 from .common import set_cluster_command
-
-from tabulate import tabulate
 
 
 def cluster_create(args) -> None:
@@ -73,13 +58,25 @@ def cluster_create(args) -> None:
     0 if successful and 1 otherwise.
   """
   system, return_code = get_system_characteristics(args)
-
   if return_code > 0:
     xpk_print('Fetching system characteristics failed!')
     xpk_exit(return_code)
 
   xpk_print(f'Starting cluster create for cluster {args.cluster}:', flush=True)
-  add_zone_and_project(args)
+  GCloudContextManager.add_zone_and_project(args)
+  cluster_manager = ClusterManager(args, system)
+  capacity_manager = CapacityManager(args)
+  resource_manager = ResourceManager(args, capacity_manager, system)
+  nodepools_manager = NodePoolManager(
+      args, system, resource_manager, capacity_manager
+  )
+  network_manager = ClusterNetworkManager(args)
+  vertex_ai = VertexAI(args, resource_manager)
+  try:
+    version_manager = GKEVersionManager(args)
+  except RuntimeError as e:
+    xpk_print(e)
+    xpk_exit(1)
 
   if system.device_type in cluster_gcluster.supported_device_types:
     xpk_print(
@@ -89,12 +86,8 @@ def cluster_create(args) -> None:
     cluster_gcluster.cluster_create(args)
     xpk_exit(0)
 
-  return_code, gke_server_config = get_gke_server_config(args)
-  if return_code != 0:
-    xpk_exit(return_code)
-
-  return_code, gke_control_plane_version = get_gke_control_plane_version(
-      args, gke_server_config
+  return_code, gke_control_plane_version = (
+      version_manager.get_gke_control_plane_version()
   )
   if return_code != 0:
     xpk_exit(return_code)
@@ -120,33 +113,34 @@ def cluster_create(args) -> None:
   # create Vertex Tensorboard for new and existing clusters if create-vertex-tensorboard is set
   tensorboard_config = {}
   if VERTEX_TENSORBOARD_FEATURE_FLAG and args.create_vertex_tensorboard:
-    tensorboard_config = create_vertex_tensorboard(args)
+    tensorboard_config = vertex_ai.create_vertex_tensorboard()
     # exit if failed to create Tensorboard in Vertex AI
     if not tensorboard_config:
       xpk_exit(1)
 
   if system.accelerator_type == AcceleratorType['GPU']:
     xpk_print('Setting up Network for cluster')
-    set_up_cluster_network_code = set_up_cluster_network_for_gpu(args, system)
+    set_up_cluster_network_code = network_manager.set_up_network_for_gpu(system)
     if set_up_cluster_network_code != 0:
       xpk_exit(set_up_cluster_network_code)
 
-  if system.device_type == h100_device_type:
+  if system.device_type == DeviceType.H100.value:
     xpk_print('Creating Network Config for cluster')
-    create_cluster_network_config_code = create_cluster_network_config(args)
+    create_cluster_network_config_code = network_manager.create_network_config()
     if create_cluster_network_config_code != 0:
       xpk_exit(create_cluster_network_config_code)
 
   # Check the control plane version of the cluster and determine the node pool
   # version to use.
-  return_code, gke_node_pool_version = get_gke_node_pool_version(
-      args, gke_server_config
+
+  return_code, gke_node_pool_version = nodepools_manager.get_node_pool_version(
+      version_manager
   )
   if return_code != 0:
     xpk_exit(return_code)
 
-  run_gke_node_pool_create_command_code = run_gke_node_pool_create_command(
-      args, system, gke_node_pool_version
+  run_gke_node_pool_create_command_code = nodepools_manager.create_node_pool(
+      gke_node_pool_version
   )
   if run_gke_node_pool_create_command_code != 0:
     xpk_exit(run_gke_node_pool_create_command_code)
@@ -155,7 +149,7 @@ def cluster_create(args) -> None:
       'Enabling the jobset API on our cluster, to be deprecated when Jobset is'
       ' globally available'
   )
-  set_jobset_on_cluster_code = set_jobset_on_cluster(args)
+  set_jobset_on_cluster_code = cluster_manager.set_jobset_on_cluster()
   if set_jobset_on_cluster_code != 0:
     xpk_exit(set_jobset_on_cluster_code)
 
@@ -203,13 +197,13 @@ def cluster_create(args) -> None:
 
   if system.accelerator_type == AcceleratorType['GPU']:
     xpk_print('Installing NCCL Plugin for cluster')
-    install_nccl_code = install_nccl_on_cluster(args, system)
+    install_nccl_code = cluster_manager.install_nccl_on_cluster()
     if install_nccl_code != 0:
       xpk_exit(install_nccl_code)
 
   xpk_print('Creating ConfigMap for cluster')
-  create_cluster_configmaps_code = create_cluster_configmaps(
-      args, system, tensorboard_config, autoprovisioning_config
+  create_cluster_configmaps_code = resource_manager.create_cluster_configmaps(
+      tensorboard_config, autoprovisioning_config
   )
   if create_cluster_configmaps_code != 0:
     xpk_exit(create_cluster_configmaps_code)
@@ -224,7 +218,7 @@ def cluster_create(args) -> None:
   xpk_print(
       'See your GKE Cluster here:'
       # pylint: disable=line-too-long
-      f' https://console.cloud.google.com/kubernetes/clusters/details/{zone_to_region(args.zone)}/{args.cluster}/details?project={args.project}'
+      f' https://console.cloud.google.com/kubernetes/clusters/details/{GCloudContextManager.zone_to_region(args.zone)}/{args.cluster}/details?project={args.project}'
   )
   xpk_exit(0)
 
@@ -239,7 +233,7 @@ def cluster_delete(args) -> None:
     0 if successful and 1 otherwise.
   """
   xpk_print(f'Starting cluster delete for cluster: {args.cluster}', flush=True)
-  add_zone_and_project(args)
+  GCloudContextManager.add_zone_and_project(args)
 
   if cluster_gcluster.created_by_gcluster(args):
     xpk_print(f'Deleting {args.cluster} cluster using Cluster Toolkit...')
@@ -265,7 +259,7 @@ def cluster_cacheimage(args) -> None:
   xpk_print(
       f'Starting cluster cacheimage for cluster: {args.cluster}', flush=True
   )
-  add_zone_and_project(args)
+  GCloudContextManager.add_zone_and_project(args)
 
   set_cluster_command_code = set_cluster_command(args)
   if set_cluster_command_code != 0:
@@ -316,7 +310,7 @@ def cluster_describe(args) -> None:
     0 if successful and 1 otherwise.
   """
   xpk_print(f'Starting nodepool list for cluster: {args.cluster}', flush=True)
-  add_zone_and_project(args)
+  GCloudContextManager.add_zone_and_project(args)
 
   set_cluster_command_code = set_cluster_command(args)
   if set_cluster_command_code != 0:
@@ -549,7 +543,7 @@ def cluster_list(args) -> None:
   Returns:
     0 if successful and 1 otherwise.
   """
-  add_zone_and_project(args)
+  GCloudContextManager.add_zone_and_project(args)
   xpk_print(f'For project {args.project} and zone {args.zone}:', flush=True)
   if run_gke_clusters_list_command(args):
     xpk_exit(1)
@@ -597,7 +591,8 @@ def create_cluster_if_necessary(
   Returns:
     0 if successful and 1 otherwise.
   """
-  all_clusters, return_code = get_all_clusters_programmatic(args)
+  cluster_manager = ClusterManager(args, system)
+  all_clusters, return_code = cluster_manager.get_all_clusters()
   if return_code > 0:
     xpk_print('Listing all clusters failed!')
     return 1
@@ -619,6 +614,8 @@ def run_gke_cluster_delete_command(args) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
+  network_manager = ClusterNetworkManager(args)
+
   if not args.force:
     xpk_print('Get the name of the workloads in the cluster.')
     args.filter_by_status = 'EVERYTHING'
@@ -641,7 +638,7 @@ def run_gke_cluster_delete_command(args) -> int:
   command = (
       'gcloud beta container clusters delete'
       f' {args.cluster} --project={args.project}'
-      f' --region={zone_to_region(args.zone)} --quiet'
+      f' --region={GCloudContextManager.zone_to_region(args.zone)} --quiet'
   )
 
   return_code = run_command_with_updates(command, 'Cluster Delete', args)
@@ -649,7 +646,7 @@ def run_gke_cluster_delete_command(args) -> int:
     xpk_print(f'Cluster delete request returned ERROR {return_code}')
     return 1
 
-  return_code = delete_cluster_subnets(args)
+  return_code = network_manager.delete_subnets()
   if return_code != 0:
     return return_code
 
@@ -667,7 +664,7 @@ def run_gke_clusters_list_command(args) -> int:
   """
   command = (
       'gcloud container clusters list'
-      f' --project={args.project} --region={zone_to_region(args.zone)}'
+      f' --project={args.project} --region={GCloudContextManager.zone_to_region(args.zone)}'
   )
   return_code = run_command_with_updates(command, 'Cluster List', args)
   if return_code != 0:
@@ -714,7 +711,7 @@ def run_gke_cluster_create_command(
   command = (
       'gcloud beta container clusters create'
       f' {args.cluster} --project={args.project}'
-      f' --region={zone_to_region(args.zone)}'
+      f' --region={GCloudContextManager.zone_to_region(args.zone)}'
       f' --node-locations={args.zone}'
       f' --cluster-version={gke_control_plane_version}'
       f' --machine-type={machine_type}'

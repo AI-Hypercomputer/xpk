@@ -14,29 +14,25 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..core.core import (
+from dataclasses import dataclass
+
+from ..utils.console import xpk_print
+from ..utils.file import write_tmp_file
+from ..utils.objects import get_value_from_map
+from .capacity import (
     AUTOPROVISIONING_CONFIG_VALUE,
     CAPACITY_TYPE_CONFIG_KEY,
-    CLUSTER_METADATA_CONFIGMAP,
-    CLUSTER_RESOURCES_CONFIGMAP,
     RESERVATION_CONFIG_KEY,
-    AutoprovisioningConfig,
+    CapacityManager,
     CapacityType,
-    get_all_nodepools_programmatic,
-    get_capacity_node_selectors_from_capacity_type,
-    get_capacity_type,
-    get_cluster_configmap,
-    get_total_chips_requested_from_args,
-    verify_reservation_exists,
-    zone_to_region,
 )
-from ..utils.objects import get_value_from_map
-from ..utils.file import write_tmp_file
-from ..utils.console import xpk_print
 from .commands import run_command_with_updates, run_commands
+from .gcloud_context import GCloudContextManager
+from .nodepool import NodePoolManager
+from .resources import ResourceManager
 from .system_characteristics import AcceleratorType, SystemCharacteristics
 
-autoprovisioning_config_file = """
+AUTOPROVISIONING_CONFIG_FILE = """
 management:
   autoRepair: true
   autoUpgrade: true
@@ -44,8 +40,7 @@ autoprovisioningLocations:
   {zones}
 {resource_limits}
 """
-
-autoprovisioning_resource_limits = """
+AUTOPROVISIONING_RESOURCE_LIMITS = """
 resourceLimits:
 - resourceType: 'cpu'
   {cpu_limits}
@@ -53,12 +48,18 @@ resourceLimits:
   {memory_limits}
 {custom_resource_type}
 """
-
-autoprovisioning_custom_resource_type = """
+AUTOPROVISIONING_CUSTOM_RESOURCE_TYPE = """
 - resourceType: {resource_type}
   minimum: {minimum}
   maximum: {maximum}
 """
+
+
+@dataclass
+class AutoprovisioningConfig:
+  config_filename: str
+  minimum_chips: int
+  maximum_chips: int
 
 
 def enable_autoprovisioning_on_cluster(
@@ -95,8 +96,7 @@ def enable_autoprovisioning_on_cluster(
 
   command = (
       'gcloud container clusters update'
-      f' {args.cluster} --project={args.project}'
-      f' --region={zone_to_region(args.zone)} --enable-autoprovisioning'
+      f' {args.cluster} --project={args.project} --region={GCloudContextManager.zone_to_region(args.zone)} --enable-autoprovisioning'
       ' --autoprovisioning-config-file'
       f' {autoprovisioning_config.config_filename}'
   )
@@ -107,7 +107,12 @@ def enable_autoprovisioning_on_cluster(
     return autoprovisioning_config, return_code
 
   # Update created accelerator node pools to support autoprovisioning.
-  existing_node_pool_names, return_code = get_all_nodepools_programmatic(args)
+  capacity_manager = CapacityManager(args)
+  resource_manager = ResourceManager(args, capacity_manager, system)
+  nodepool_manager = NodePoolManager(
+      args, system, resource_manager, capacity_manager
+  )
+  existing_node_pool_names, return_code = nodepool_manager.get_all_nodepools()
   if return_code != 0:
     xpk_print('Listing all node pools failed!')
     return autoprovisioning_config, return_code
@@ -126,7 +131,7 @@ def enable_autoprovisioning_on_cluster(
         f'gcloud container node-pools update {node_pool_name}'
         f' --cluster {args.cluster}'
         f' --project={args.project}'
-        f' --region={zone_to_region(args.zone)}'
+        f' --region={GCloudContextManager.zone_to_region(args.zone)}'
         ' --enable-autoprovisioning'
         ' --enable-autoscaling'
     )
@@ -178,10 +183,12 @@ def create_autoprovisioning_config(
   maximum: 10000
   """
 
+  capacity_manager = CapacityManager(args)
+  resource_manager = ResourceManager(args, capacity_manager, system)
   # By default, the maximum chips is set to be the current number of resources used
   # in the cluster. The minimum is set to zero.
   minimum = 0
-  maximum = get_total_chips_requested_from_args(args, system)
+  maximum = resource_manager.get_total_chips_requested_from_args()
   xpk_print(f'Default Chips quota is minimum: {minimum}, maximum: {maximum}.')
 
   # Check for user overrides.
@@ -218,19 +225,19 @@ def create_autoprovisioning_config(
       ' small, rescaling will not work well.'
   )
 
-  custom_resource_string = autoprovisioning_custom_resource_type.format(
+  custom_resource_string = AUTOPROVISIONING_CUSTOM_RESOURCE_TYPE.format(
       resource_type=system.gke_accelerator,
       minimum=minimum,
       maximum=maximum,
   )
 
-  resource_limits = autoprovisioning_resource_limits.format(
+  resource_limits = AUTOPROVISIONING_RESOURCE_LIMITS.format(
       cpu_limits=cpu_limits,
       memory_limits=memory_limits,
       custom_resource_type=custom_resource_string,
   )
 
-  yml_string = autoprovisioning_config_file.format(
+  yml_string = AUTOPROVISIONING_CONFIG_FILE.format(
       resource_limits=resource_limits,
       zones=f'- {args.zone}',
   )
@@ -255,8 +262,10 @@ def is_autoprovisioning_enabled(
     bool is true if autoprovisioning is enabled, false otherwise.
     int of 0 if successful and 1 otherwise.
   """
-  resources_configmap_name = f'{args.cluster}-{CLUSTER_RESOURCES_CONFIGMAP}'
-  cluster_config_map = get_cluster_configmap(args, resources_configmap_name)
+  capacity_manager = CapacityManager(args)
+  resource_manager = ResourceManager(args, capacity_manager, system)
+  resources_configmap_name = resource_manager.get_resources_configmap_name()
+  cluster_config_map = resource_manager.get_resources_configmap()
 
   if cluster_config_map is None:
     xpk_print(
@@ -300,7 +309,8 @@ def get_autoprovisioning_node_selector_args(args) -> tuple[str, int]:
   return_code = 0
   node_selector_args = ''
   # If the user doesn't specify args, then use the cluster settings.
-  capacity_type, return_code = get_capacity_type(args)
+  capacity_manager = CapacityManager(args)
+  capacity_type, return_code = capacity_manager.get_capacity_type()
   capacity_type_str = capacity_type.name
   if return_code != 0:
     xpk_print('Unable to get capacity type.')
@@ -308,8 +318,8 @@ def get_autoprovisioning_node_selector_args(args) -> tuple[str, int]:
 
   if capacity_type_str == CapacityType.UNKNOWN.name:
     # Use default settings from cluster creation.
-    metadata_configmap_name = f'{args.cluster}-{CLUSTER_METADATA_CONFIGMAP}'
-    cluster_config_map = get_cluster_configmap(args, metadata_configmap_name)
+    resource_manager = ResourceManager(args, capacity_manager)
+    cluster_config_map = resource_manager.get_metadata_configmap()
 
     # Error out if the metadata config map doesn't exist, and is attempting to use
     # autoprovisioning.
@@ -333,17 +343,30 @@ def get_autoprovisioning_node_selector_args(args) -> tuple[str, int]:
       )
       if return_code != 0:
         return node_selector_args, return_code
-      return_code = verify_reservation_exists(args)
+      return_code = capacity_manager.verify_reservation_exists()
       if return_code > 0:
         xpk_print('Unable to verify reservation name saved in config map.')
         return node_selector_args, return_code
 
   # Check if reservation id is valid. Shared function with cluster creation.
   node_selector_args, return_code = (
-      get_capacity_node_selectors_from_capacity_type(args, capacity_type_str)
+      capacity_manager.get_capacity_node_selectors(capacity_type_str)
   )
   if return_code != 0:
     xpk_print('Unable to get node selectors from capacity type.')
     return node_selector_args, return_code
 
   return node_selector_args, return_code
+
+
+def get_cluster_provisioner(args) -> str:
+  capacity_manager = CapacityManager(args)
+  resource_manager = ResourceManager(args, capacity_manager)
+  cluster_config_map = resource_manager.get_metadata_configmap()
+  cluster_provisioner = 'gcloud'
+  if not cluster_config_map is None:
+    provisioner = cluster_config_map.get('provisioner')
+    if not provisioner is None:
+      cluster_provisioner = provisioner
+  xpk_print(f'Cluster provisioner: {cluster_provisioner}')
+  return cluster_provisioner

@@ -14,16 +14,24 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..core.blueprint.blueprint_generator import BlueprintGenerator, BlueprintGeneratorOutput, supported_device_types, a3mega_device_type, a3ultra_device_type
+import os
+
+from ..core.blueprint.blueprint_generator import (
+    BlueprintGenerator,
+    BlueprintGeneratorOutput,
+    a3mega_device_type,
+    a3ultra_device_type,
+    supported_device_types,
+)
+from ..core.capacity import CapacityManager
 from ..core.docker_manager import DockerManager
+from ..core.gcloud_context import GCloudContextManager
 from ..core.gcluster_manager import GclusterManager
-from ..core.core import zone_to_region, get_capacity_type
 from ..utils.console import xpk_exit, xpk_print
-from ..utils.network import all_IPs_cidr
 from ..utils.file import ensure_directory_exists
+from ..utils.network import all_IPs_cidr
 from ..utils.objects import hash_string
 from .common import set_cluster_command
-import os
 
 blueprints_path = os.path.abspath('xpkclusters/blueprints')
 gcluster_working_dir = os.path.abspath('xpkclusters/gcluster-out')
@@ -42,7 +50,7 @@ def cluster_create(args) -> None:
   check_gcloud_authenticated()
   prepare_directories()
   gcm = prepare_gcluster_manager()
-  region = zone_to_region(args.zone)
+  region = GCloudContextManager.zone_to_region(args.zone)
 
   # unique_name uses shortened hash string, so still name collision is possible
   unique_name = get_unique_name(args.project, region, args.cluster)
@@ -82,7 +90,7 @@ def cluster_delete(args) -> None:
   check_gcloud_authenticated()
   prepare_directories()
   gcm = prepare_gcluster_manager()
-  region = zone_to_region(args.zone)
+  region = GCloudContextManager.zone_to_region(args.zone)
 
   # unique_name uses shortened hash string, so still name collision is possible
   unique_name = get_unique_name(args.project, region, args.cluster)
@@ -96,7 +104,7 @@ def cluster_delete(args) -> None:
 
 def created_by_gcluster(args) -> bool:
   prepare_directories()
-  region = zone_to_region(args.zone)
+  region = GCloudContextManager.zone_to_region(args.zone)
   unique_name = get_unique_name(args.project, region, args.cluster)
   prefix = get_prefix_path(args.project, region)
   bpg = prepare_blueprint_generator()
@@ -147,7 +155,8 @@ def prepare_blueprint_generator() -> BlueprintGenerator:
 def generate_blueprint(
     blueprint_name, args, prefix=None
 ) -> BlueprintGeneratorOutput:
-  capacity_type, return_code = get_capacity_type(args)
+  capacity_manager = CapacityManager(args)
+  capacity_type, return_code = capacity_manager.get_capacity_type()
   if return_code != 0:
     xpk_print('Capacity type is invalid.')
     xpk_exit(return_code)
@@ -161,7 +170,7 @@ def generate_blueprint(
           blueprint_name=blueprint_name,
           prefix=prefix,
           cluster_name=args.cluster,
-          region=zone_to_region(args.zone),
+          region=GCloudContextManager.zone_to_region(args.zone),
           project_id=args.project,
           zone=args.zone,
           auth_cidr=all_IPs_cidr,
@@ -177,7 +186,7 @@ def generate_blueprint(
           blueprint_name=blueprint_name,
           prefix=prefix,
           cluster_name=args.cluster,
-          region=zone_to_region(args.zone),
+          region=GCloudContextManager.zone_to_region(args.zone),
           project_id=args.project,
           zone=args.zone,
           auth_cidr=all_IPs_cidr,

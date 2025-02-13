@@ -14,22 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..core.commands import (
-    run_command_for_value,
-    run_command_with_updates,
-)
-from ..core.core import (
-    set_jobset_on_cluster,
-)
-from ..core.kjob import (
-    verify_kjob_installed,
-    prepare_kjob,
-    apply_kjob_crds,
-)
-from ..core.kueue import (
-    install_kueue_on_cluster,
-)
-from ..utils.console import (xpk_exit, xpk_print)
+from ..core.cluster import ClusterManager
+from ..core.commands import run_command_for_value, run_command_with_updates
+from ..core.kjob import apply_kjob_crds, prepare_kjob, verify_kjob_installed
+from ..core.kueue import install_kueue_on_cluster
+from ..utils.console import xpk_exit, xpk_print
 
 
 def cluster_create(args) -> None:
@@ -55,7 +44,8 @@ def cluster_create(args) -> None:
       'Enabling the jobset API on our cluster, to be deprecated when Jobset is'
       ' globally available'
   )
-  set_jobset_on_cluster_code = set_jobset_on_cluster(args)
+  cluster_manager = ClusterManager(args, None)
+  set_jobset_on_cluster_code = cluster_manager.set_jobset_on_cluster()
   if set_jobset_on_cluster_code != 0:
     xpk_exit(set_jobset_on_cluster_code)
 

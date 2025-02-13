@@ -14,11 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from .core import zone_to_region
-from .commands import run_command_for_value, run_command_with_updates
 from ..utils.console import xpk_exit, xpk_print
-from ..utils.network import add_current_machine_to_networks, is_current_machine_in_any_network
+from ..utils.network import (
+    add_current_machine_to_networks,
+    is_current_machine_in_any_network,
+)
 from ..utils.objects import is_text_true
+from .commands import run_command_for_value, run_command_with_updates
+from .gcloud_context import GCloudContextManager
 
 
 def authorize_private_cluster_access_if_necessary(args) -> int:
@@ -119,7 +122,7 @@ def is_cluster_private(args) -> bool:
   """
   command = (
       f'gcloud container clusters describe {args.cluster}'
-      f' --project={args.project} --region={zone_to_region(args.zone)}'
+      f' --project={args.project} --region={GCloudContextManager.zone_to_region(args.zone)}'
       ' --format="value(privateClusterConfig.enablePrivateNodes)"'
   )
   return_code, private_nodes_enabled = run_command_for_value(
@@ -150,7 +153,7 @@ def get_cluster_authorized_networks(args) -> list[str]:
   """
   command = (
       f'gcloud container clusters describe {args.cluster}'
-      f' --project={args.project} --region={zone_to_region(args.zone)}'
+      f' --project={args.project} --region={GCloudContextManager.zone_to_region(args.zone)}'
       ' --format="value(masterAuthorizedNetworksConfig.cidrBlocks[].cidrBlock)"'
   )
   return_code, authorized_networks = run_command_for_value(
@@ -181,7 +184,7 @@ def update_cluster_authorized_networks(args, authorized_networks) -> int:
   command = (
       'gcloud container clusters update'
       f' {args.cluster} --project={args.project}'
-      f' --region={zone_to_region(args.zone)}'
+      f' --region={GCloudContextManager.zone_to_region(args.zone)}'
       ' --enable-master-authorized-networks'
       f' --master-authorized-networks={",".join(authorized_networks)}'
       ' --quiet'

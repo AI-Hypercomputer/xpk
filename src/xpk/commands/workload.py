@@ -14,37 +14,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..core.commands import (
-    run_command_with_updates,
-    run_commands,
-)
-from ..core.core import (
-    CLUSTER_METADATA_CONFIGMAP,
+from ..core.capacity import CapacityManager
+from ..core.commands import run_command_with_updates, run_commands
+from ..core.config import (
     VERTEX_TENSORBOARD_FEATURE_FLAG,
-    AcceleratorTypeToAcceleratorCharacteristics,
-    add_zone_and_project,
-    check_if_workload_can_schedule,
-    check_if_workload_exists,
-    create_accelerator_label,
-    create_machine_label,
-    create_vertex_experiment,
-    get_cluster_configmap,
-    get_cpu_affinity,
-    get_gke_outlier_dashboard,
-    get_gpu_rxdm_cmd,
-    get_gpu_rxdm_image,
-    get_gpu_scheduler,
-    get_gpu_tcp_volume,
-    get_gpu_volume,
-    get_main_container_docker_image,
-    get_user_workload_container,
-    get_volumes,
-    parse_env_config,
-    wait_for_job_completion,
-    xpk_current_version,
-    zone_to_region,
+    XPK_CURRENT_VERSION,
+    XpkConfig,
 )
+from ..core.docker_container import ContainerConfig
+from ..core.docker_image import DockerImageManager
+from ..core.docker_resources import ContainerResources
+from ..core.gcloud_context import GCloudContextManager
 from ..core.kueue import LOCAL_QUEUE_NAME
+from ..core.monitoring import GKEDashboardManager
 from ..core.nap import (
     get_autoprovisioning_node_selector_args,
     is_autoprovisioning_enabled,
@@ -58,18 +40,30 @@ from ..core.pathways import (
     get_pathways_worker_args,
     get_user_workload_for_pathways,
 )
+from ..core.resources import ResourceManager
+from ..core.scheduling import Scheduler
 from ..core.system_characteristics import (
     AcceleratorType,
+    AcceleratorTypeToAcceleratorCharacteristics,
     get_system_characteristics,
 )
-from ..core.workload import get_workload_list
+from ..core.vertex import VertexAI
+from ..core.workload import (
+    check_if_workload_exists,
+    get_gpu_rxdm_cmd,
+    get_gpu_rxdm_image,
+    get_gpu_tcp_volume,
+    get_gpu_volume,
+    get_workload_list,
+    wait_for_job_completion,
+)
+from ..core.workload_decorators import rdma_decorator, tcpxo_decorator
 from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
-from .common import set_cluster_command
-from ..core.workload_decorators import tcpxo_decorator, rdma_decorator
 from . import cluster_gcluster
+from .common import set_cluster_command
 
-workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
+WORKLOAD_CREATE_YAML = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
 metadata:
   name: {args.workload}
@@ -115,7 +109,7 @@ spec:
 """
 
 
-gpu_workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
+GPU_WORKLOAD_CREATE_YAML = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
 metadata:
   name: {args.workload}
@@ -175,7 +169,7 @@ spec:
               {container}
 """
 
-a3_gpu_workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
+A3_GPU_WORKLOAD_CREATE_YAML = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
 metadata:
   name: {args.workload}
@@ -214,7 +208,7 @@ spec:
               {container}
 """
 
-pw_workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
+PW_WORKLOAD_CREATE_YAML = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
 metadata:
   name: {args.workload}
@@ -374,7 +368,7 @@ def workload_create(args) -> None:
   Returns:
     0 if successful and 1 otherwise.
   """
-  add_zone_and_project(args)
+  GCloudContextManager.add_zone_and_project(args)
 
   if args.headless:
     xpk_print(
@@ -404,13 +398,16 @@ def workload_create(args) -> None:
     xpk_print('Fetching system characteristics failed!')
     xpk_exit(return_code)
 
-  if not check_if_workload_can_schedule(args, system):
+  capacity_manager = CapacityManager(args)
+  resource_manager = ResourceManager(args, capacity_manager, system)
+  scheduler = Scheduler(args, system, resource_manager)
+  if not scheduler.check_if_workload_can_schedule():
     xpk_exit(1)
 
   xpk_print('Starting workload create', flush=True)
 
-  metadata_configmap_name = f'{args.cluster}-{CLUSTER_METADATA_CONFIGMAP}'
-  cluster_config_map = get_cluster_configmap(args, metadata_configmap_name)
+  metadata_configmap_name = resource_manager.get_metadata_configmap_name()
+  cluster_config_map = resource_manager.get_metadata_configmap()
   cluster_xpk_version = None
   if cluster_config_map is None:
     xpk_print(
@@ -422,12 +419,12 @@ def workload_create(args) -> None:
     cluster_xpk_version = cluster_config_map.get('xpk_version')
   if (
       cluster_xpk_version is not None
-      and cluster_xpk_version != xpk_current_version
+      and cluster_xpk_version != XPK_CURRENT_VERSION
   ):
     xpk_print(
         'Warning: Cluster has been created using XPK version:'
         f' {cluster_config_map["xpk_version"]} but the XPK version you are'
-        f' using to schedule workload is: {xpk_current_version}. Some features'
+        f' using to schedule workload is: {XPK_CURRENT_VERSION}. Some features'
         ' might not be available for this cluster. We recommend to'
         ' upgrade/downgrade your XPK version or cluster by running `xpk'
         ' cluster create`.'
@@ -437,12 +434,14 @@ def workload_create(args) -> None:
 
   tensorboard_config = {}
   if VERTEX_TENSORBOARD_FEATURE_FLAG and args.use_vertex_tensorboard:
-    tensorboard_config = create_vertex_experiment(args)
+    vertex_ai = VertexAI(args, resource_manager)
+    tensorboard_config = vertex_ai.create_vertex_experiment()
     # exit if failed to create Experiment in Vertex AI
     if not tensorboard_config:
       xpk_exit(1)
 
-  parse_env_config(args, tensorboard_config, system)
+  xpk_config = XpkConfig()
+  xpk_config.parse_env_config(args, tensorboard_config, system)
 
   # Currently autoprovisioning is not enabled for Pathways workloads.
   autoprovisioning_args = ''
@@ -465,28 +464,40 @@ def workload_create(args) -> None:
         - PodFailurePolicy"""
   restart_on_exit_codes = get_restart_exit_codes(args)
   restart_on_exit_codes = ','.join(map(str, restart_on_exit_codes))
+
+  docker_image_manager = DockerImageManager(args)
+  container_resources = ContainerResources(args, system)
+  gke_dashboard_manager = GKEDashboardManager(args)
+  container_config = ContainerConfig(
+      args,
+      system,
+      docker_image_manager,
+      container_resources,
+      gke_dashboard_manager,
+  )
+
   pod_failure_policy = f"""
           podFailurePolicy:
             rules:
             - action: FailJob
               onExitCodes:
-                containerName: {get_main_container_docker_image(args, system)}
+                containerName: {container_config.get_main_container_docker_image()}
                 operator: NotIn
                 values: [{restart_on_exit_codes}]"""
 
   # Create the workload file based on accelerator type or workload type.
   if system.accelerator_type == AcceleratorType['GPU']:
-    container, debugging_dashboard_id = get_user_workload_container(
-        args, system
+    container, debugging_dashboard_id = (
+        container_config.get_user_workload_container()
     )
-    gpu_scheduler, return_code = get_gpu_scheduler(
-        args, system, autoprovisioning_args
+    gpu_scheduler, return_code = scheduler.get_gpu_scheduler(
+        autoprovisioning_args
     )
     if return_code != 0:
       xpk_exit(return_code)
 
     if system.device_type in cluster_gcluster.supported_device_types:
-      yml_string = a3_gpu_workload_create_yaml.format(
+      yml_string = A3_GPU_WORKLOAD_CREATE_YAML.format(
           args=args,
           container=container,
           failure_policy_rules=failure_policy_rules,
@@ -503,7 +514,7 @@ def workload_create(args) -> None:
         ]
         yml_string = rdma_decorator.decorate_jobset(yml_string, sub_networks)
     else:
-      yml_string = gpu_workload_create_yaml.format(
+      yml_string = GPU_WORKLOAD_CREATE_YAML.format(
           args=args,
           container=container,
           command=args.command,
@@ -519,13 +530,11 @@ def workload_create(args) -> None:
   elif args.use_pathways and ensure_pathways_workload_prerequisites(
       args, system
   ):
-    yml_string = pw_workload_create_yaml.format(
+    yml_string = PW_WORKLOAD_CREATE_YAML.format(
         args=args,
         system=system,
-        accelerator_label=create_accelerator_label(
-            system.accelerator_type, system
-        ),
-        machine_label=create_machine_label(system.accelerator_type, system),
+        accelerator_label=scheduler.create_accelerator_label(),
+        machine_label=scheduler.create_machine_label(),
         pathways_rm_args=get_pathways_rm_args(args, system),
         pathways_worker_args=get_pathways_worker_args(args),
         pathways_proxy_args=get_pathways_proxy_args(args),
@@ -543,21 +552,19 @@ def workload_create(args) -> None:
         pod_failure_policy=pod_failure_policy,
     )
   else:
-    container, debugging_dashboard_id = get_user_workload_container(
-        args, system
+    container, debugging_dashboard_id = (
+        container_config.get_user_workload_container()
     )
-    yml_string = workload_create_yaml.format(
+    yml_string = WORKLOAD_CREATE_YAML.format(
         args=args,
         system=system,
         container=container,
-        affinity=get_cpu_affinity(system.accelerator_type),
-        accelerator_label=create_accelerator_label(
-            system.accelerator_type, system
-        ),
-        machine_label=create_machine_label(system.accelerator_type, system),
+        affinity=scheduler.get_cpu_affinity(),
+        accelerator_label=scheduler.create_accelerator_label(),
+        machine_label=scheduler.create_machine_label(),
         local_queue_name=LOCAL_QUEUE_NAME,
         autoprovisioning_args=autoprovisioning_args,
-        volumes=get_volumes(args, system),
+        volumes=container_resources.get_volumes(),
         failure_policy_rules=failure_policy_rules,
         pod_failure_policy=pod_failure_policy,
     )
@@ -572,7 +579,8 @@ def workload_create(args) -> None:
   # Get GKE outlier dashboard for TPU
   outlier_dashboard_id = None
   if system.accelerator_type == AcceleratorType['TPU']:
-    outlier_dashboard_id = get_gke_outlier_dashboard(args)
+    gke_dashboard_manager = GKEDashboardManager(args)
+    outlier_dashboard_id = gke_dashboard_manager.get_outlier_dashboard()
 
   # Outlier and debugging dashboards
   if outlier_dashboard_id is not None:
@@ -601,7 +609,7 @@ def workload_create(args) -> None:
           ' started with status OK" on the proxy link below.'
           ' Remember to delete the workload once done! ****** \n'
       )
-      pathways_proxy_link = f'https://console.cloud.google.com/kubernetes/job/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}-proxy-0/details?project={args.project}'
+      pathways_proxy_link = f'https://console.cloud.google.com/kubernetes/job/{GCloudContextManager.zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}-proxy-0/details?project={args.project}'
       xpk_print(
           'Follow the proxy here:'
           # pylint: disable=line-too-long)
@@ -615,7 +623,7 @@ def workload_create(args) -> None:
     xpk_print(
         'Follow your workload here:'
         # pylint: disable=line-too-long
-        f' https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
+        f' https://console.cloud.google.com/kubernetes/service/{GCloudContextManager.zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
     )
     duration_of_logs = 'P1D'  # Past 1 Day
     xpk_print(
@@ -624,7 +632,7 @@ def workload_create(args) -> None:
         ' ([prefix]-slice-job-[slice_number]-[worker_number])'
         ' after clicking the url if you want other worker logs.'
         # pylint: disable=line-too-long
-        f' https://console.cloud.google.com/logs/query;query=resource.type%3D%22k8s_container%22%0Aresource.labels.project_id%3D%22{args.project}%22%0Aresource.labels.location%3D%22{zone_to_region(args.zone)}%22%0Aresource.labels.cluster_name%3D%22{args.cluster}%22%0Aresource.labels.namespace_name%3D%22default%22%0Aresource.labels.pod_name:%22{args.workload}-slice-job-0-0-%22%20severity%3E%3DDEFAULT;storageScope=project;duration={duration_of_logs}?e=13802955&mods=allow_workbench_image_override&project={args.project}'
+        f' https://console.cloud.google.com/logs/query;query=resource.type%3D%22k8s_container%22%0Aresource.labels.project_id%3D%22{args.project}%22%0Aresource.labels.location%3D%22{GCloudContextManager.zone_to_region(args.zone)}%22%0Aresource.labels.cluster_name%3D%22{args.cluster}%22%0Aresource.labels.namespace_name%3D%22default%22%0Aresource.labels.pod_name:%22{args.workload}-slice-job-0-0-%22%20severity%3E%3DDEFAULT;storageScope=project;duration={duration_of_logs}?e=13802955&mods=allow_workbench_image_override&project={args.project}'
     )
 
   xpk_exit(0)
@@ -657,7 +665,7 @@ def workload_delete(args) -> None:
     0 if successful and 1 otherwise.
   """
   xpk_print('Starting Workload delete', flush=True)
-  add_zone_and_project(args)
+  GCloudContextManager.add_zone_and_project(args)
   set_cluster_command_code = set_cluster_command(args)
   if set_cluster_command_code != 0:
     xpk_exit(set_cluster_command_code)
@@ -725,7 +733,7 @@ def workload_list(args) -> None:
   xpk_print(args)
 
   xpk_print('Starting workload list', flush=True)
-  add_zone_and_project(args)
+  GCloudContextManager.add_zone_and_project(args)
   set_cluster_command_code = set_cluster_command(args)
   if set_cluster_command_code != 0:
     xpk_exit(set_cluster_command_code)

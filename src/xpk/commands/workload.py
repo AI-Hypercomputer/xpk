@@ -69,9 +69,7 @@ from ..core.storage import (
     Storage,
     add_bucket_iam_members,
     get_storage_volume_mounts_yaml,
-    get_storage_volume_mounts_yaml_for_gpu,
     get_storage_volumes_yaml,
-    get_storage_volumes_yaml_for_gpu,
     get_storages_to_mount,
 )
 from ..core.system_characteristics import (
@@ -150,9 +148,6 @@ spec:
     - name: slice-job
       replicas: 1
       template:
-        metadata:
-          annotations:
-            {storage_annotations}
         spec:
           parallelism: {args.num_nodes}
           completions: {args.num_nodes}
@@ -175,7 +170,6 @@ spec:
                 key: nvidia.com/gpu
               volumes:
               {gpu_volume}
-              {storage_volumes}
               containers:
               {gpu_rxdm_image}
                 imagePullPolicy: Always
@@ -522,6 +516,7 @@ def workload_create(args) -> None:
     xpk_print(
         f'Detected gcp filestores instances to add: {gcpfilestore_storages}'
     )
+    service_account = XPK_SA
   else:
     xpk_print('No gcp filestore instances to add detected.')
 
@@ -550,7 +545,7 @@ def workload_create(args) -> None:
         yml_string = tcpxo_decorator.decorate_jobset(yml_string, sub_networks)
         if len(gcs_fuse_storages) > 0:
           yml_string = tcpxo_decorator.decorate_jobset_with_storages(
-              yml_string, gcs_fuse_storages
+              yml_string, gcs_fuse_storages + gcpfilestore_storages
           )
 
       if args.device_type == cluster_gcluster.a3ultra_device_type:
@@ -560,7 +555,7 @@ def workload_create(args) -> None:
         yml_string = rdma_decorator.decorate_jobset(yml_string, sub_networks)
         if len(gcs_fuse_storages) > 0:
           yml_string = rdma_decorator.decorate_jobset_with_storages(
-              yml_string, gcs_fuse_storages
+              yml_string, gcs_fuse_storages + gcpfilestore_storages
           )
     else:
       yml_string = gpu_workload_create_yaml.format(
@@ -573,13 +568,6 @@ def workload_create(args) -> None:
           gpu_rxdm_image=get_gpu_rxdm_image(system),
           gpu_rxdm_cmd=get_gpu_rxdm_cmd(system),
           gpu_tcp_volume=get_gpu_tcp_volume(system),
-          storage_volumes=get_storage_volumes_yaml_for_gpu(
-              gcs_fuse_storages + gcpfilestore_storages
-          ),
-          storage_volume_mounts=get_storage_volume_mounts_yaml_for_gpu(
-              gcs_fuse_storages + gcpfilestore_storages
-          ),
-          storage_annotations=storage_annotations,
           service_account=service_account,
           failure_policy_rules=failure_policy_rules,
           pod_failure_policy=pod_failure_policy,

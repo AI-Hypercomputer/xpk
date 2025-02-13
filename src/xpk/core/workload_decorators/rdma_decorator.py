@@ -16,7 +16,7 @@ limitations under the License.
 
 import yaml
 from ...utils.yaml import literal_string
-from ...core.storage import GCP_FILESTORE_TYPE, GCS_FUSE_TYPE, get_storage_volumes_yaml_dict
+from ...core.storage import GCS_FUSE_TYPE, get_storage_volumes_yaml_dict
 
 
 def decorate_jobset(jobset_manifest_str, sub_networks) -> str:

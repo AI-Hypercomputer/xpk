@@ -2114,6 +2114,45 @@ def get_volumes(args, system: SystemCharacteristics) -> str:
                 csi:
                   driver: phase1-checkpoint.csi.storage.gke.io"""
 
+  storages = []
+  if len(args.storage) > 0:
+    storages = args.storage[0].split(",")
+  for storage in storages:
+    storage_info = storage.split("-")
+    storage_system = storage_info[0]
+    storage_volume = storage_info[1]
+    if storage_system == 'ps':
+      if storage_volume == 'dl':
+        volumes += '''
+              - name: ps-dataset-pvc
+                persistentVolumeClaim:
+                  claimName: train-ps-pvc'''
+      elif storage_volume == 'ckpt':
+        volumes += '''
+              - name: ps-ckpt-pvc
+                persistentVolumeClaim:
+                  claimName: checkpoint-ps-pvc'''
+      else:
+        xpk_print(f'Unknown storage volume: {storage_volume}')
+        xpk_exit(1)
+    elif storage_system == 'gcsfuse':
+      if storage_volume == 'dl':
+        volumes += '''
+              - name: gcs-dataset-pvc
+                persistentVolumeClaim:
+                  claimName: dataset-bucket-pvc'''
+      elif storage_volume == 'ckpt':
+        volumes += '''
+              - name: gcs-ckpt-pvc
+                persistentVolumeClaim:
+                  claimName: ckpt-bucket-pvc'''
+      else:
+        xpk_print(f'Unknown storage volume: {storage_volume}')
+        xpk_exit(1)
+    else:
+      xpk_print(f'Unknown storage system: {storage_system}')
+      xpk_exit(1)
+
   if (
       system.accelerator_type == AcceleratorType['TPU']
       and args.deploy_stacktrace_sidecar
@@ -2171,6 +2210,45 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
         or system.device_type == h200_device_type
     ):
       volume_mount_yaml = ''
+  
+  storages = []
+  if len(args.storage) > 0:
+    storages = args.storage[0].split(",")
+  for storage in storages:
+    storage_info = storage.split("-")
+    storage_system = storage_info[0]
+    storage_volume = storage_info[1]
+    if storage_system == 'ps':
+      if storage_volume == 'dl':
+        volume_mount_yaml += '''
+                - mountPath: /tmp/dataset
+                  name: ps-dataset-pvc
+                  readOnly: false'''
+      elif storage_volume == 'ckpt':
+        volume_mount_yaml += '''
+                - mountPath: /tmp/gcsfuse
+                  name: ps-ckpt-pvc
+                  readOnly: false'''
+      else:
+        xpk_print(f'Unknown storage volume: {storage_volume}')
+        xpk_exit(1)
+    elif storage_system == 'gcsfuse':
+      if storage_volume == 'dl':
+        volume_mount_yaml += '''
+                - mountPath: /tmp/dataset
+                  name: gcs-dataset-pvc
+                  readOnly: false'''
+      elif storage_volume == 'ckpt':
+        volume_mount_yaml += '''
+                - mountPath: /tmp/gcsfuse
+                  name: gcs-ckpt-pvc
+                  readOnly: false'''
+      else:
+        xpk_print(f'Unknown storage volume: {storage_volume}')
+        xpk_exit(1)
+    else:
+      xpk_print(f'Unknown storage system: {storage_system}')
+      xpk_exit(1)
 
   return volume_mount_yaml
 

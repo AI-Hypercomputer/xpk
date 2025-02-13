@@ -66,6 +66,16 @@ from ..utils.file import write_tmp_file
 from .cluster import set_cluster_command
 from ..core.workload_decorators import tcpxo_decorator, rdma_decorator
 from . import cluster_gcluster
+from google.cloud import storage
+
+GCSFUSE_ANNOTATIONS = '''gke-gcsfuse/volumes: "true"
+                gke-gcsfuse/cpu-limit: "500m"
+                gke-gcsfuse/memory-limit: "350Gi"
+                gke-gcsfuse/ephemeral-storage-limit: "40Gi"'''
+
+PARALLEL_STORE_ANNOTATIONS = '''gke-parallelstore/cpu-limit: "0"
+                gke-parallelstore/memory-limit: "0"
+                gke-parallelstore/volumes: "true"'''
 
 workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
@@ -90,6 +100,8 @@ spec:
           backoffLimit: 0   # When any pod fails, the job is failed
           template:
             metadata:
+              annotations:
+                {storage_annotations}
               labels:
                 xpk.google.com/workload: {args.workload}
             spec:
@@ -448,6 +460,22 @@ def workload_create(args) -> None:
     if return_code != 0:
       xpk_exit(return_code)
 
+  storages = []
+  if len(args.storage) > 0:
+    storages = args.storage[0].split(",")
+  storage_annotations = ''
+  for storage in storages:
+    storage_info = storage.split("-")
+    storage_system = storage_info[0]
+    storage_volume = storage_info[1]
+    if storage_system == "ps":
+      storage_annotations = PARALLEL_STORE_ANNOTATIONS
+    elif storage_system == "gcsfuse":
+      storage_annotations = GCSFUSE_ANNOTATIONS
+    else: 
+      xpk_print(f'Unknown storage system: {storage_system}')
+      xpk_exit(1)
+
   # Create the workload file based on accelerator type or workload type.
   if system.accelerator_type == AcceleratorType['GPU']:
     container, debugging_dashboard_id = get_user_workload_container(
@@ -522,7 +550,10 @@ def workload_create(args) -> None:
         local_queue_name=LOCAL_QUEUE_NAME,
         autoprovisioning_args=autoprovisioning_args,
         volumes=get_volumes(args, system),
+        storage_annotations=storage_annotations,
     )
+  
+  upload_string_to_gcs(f'{args.workload}/jobset.yaml', yml_string)
   tmp = write_tmp_file(yml_string)
   command = f'kubectl apply -f {str(tmp.file.name)}'
   return_code = run_command_with_updates(command, 'Creating Workload', args)
@@ -580,14 +611,16 @@ def workload_create(args) -> None:
         f' https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
     )
     duration_of_logs = 'P1D'  # Past 1 Day
+     # pylint: disable=line-too-long
+    log_link = f' https://console.cloud.google.com/logs/query;query=resource.type%3D%22k8s_container%22%0Aresource.labels.project_id%3D%22{args.project}%22%0Aresource.labels.location%3D%22{zone_to_region(args.zone)}%22%0Aresource.labels.cluster_name%3D%22{args.cluster}%22%0Aresource.labels.namespace_name%3D%22default%22%0Aresource.labels.pod_name:%22{args.workload}-slice-job-0-0-%22%20severity%3E%3DDEFAULT;storageScope=project;duration={duration_of_logs}?e=13802955&mods=allow_workbench_image_override&project={args.project}'
     xpk_print(
         'Follow your worker 0, slice 0 logs here:'
         ' Adjust the pod name'
         ' ([prefix]-slice-job-[slice_number]-[worker_number])'
         ' after clicking the url if you want other worker logs.'
-        # pylint: disable=line-too-long
-        f' https://console.cloud.google.com/logs/query;query=resource.type%3D%22k8s_container%22%0Aresource.labels.project_id%3D%22{args.project}%22%0Aresource.labels.location%3D%22{zone_to_region(args.zone)}%22%0Aresource.labels.cluster_name%3D%22{args.cluster}%22%0Aresource.labels.namespace_name%3D%22default%22%0Aresource.labels.pod_name:%22{args.workload}-slice-job-0-0-%22%20severity%3E%3DDEFAULT;storageScope=project;duration={duration_of_logs}?e=13802955&mods=allow_workbench_image_override&project={args.project}'
+        f'{log_link}'
     )
+    upload_string_to_gcs(f'{args.workload}/loglink.txt', log_link)
 
   xpk_exit(0)
 
@@ -657,6 +690,27 @@ def workload_delete(args) -> None:
       xpk_exit(return_code)
   xpk_exit(0)
 
+def upload_string_to_gcs(object_name, content):
+    """Uploads a string to a GCS bucket.
+
+    Args:
+        bucket_name: The name of the GCS bucket.
+        object_name: The name of the GCS object (file).
+        content: The string content to upload.
+    """
+
+    try:
+        storage_client = storage.Client()
+
+        bucket_name = "BUCKET NAME HERE!"
+        bucket = storage_client.bucket(bucket_name)
+
+        blob = bucket.blob(object_name)
+        blob.upload_from_string(content)
+        print(f"String uploaded to gs://{bucket_name}/{object_name}")
+
+    except Exception as e:
+        print(f"Error uploading string to GCS: {e}")
 
 def workload_list(args) -> None:
   """Function around workload list.

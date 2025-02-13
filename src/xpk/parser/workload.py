@@ -155,6 +155,13 @@ def set_workload_parsers(workload_parser):
           ' create Pathways workloads.'
       ),
   )
+  
+  workload_create_parser_optional_arguments.add_argument(
+      '--storage',
+      action='append',
+      default=[],
+      help='Names of storages the workload uses',
+  )
 
   # Autoprovisioning workload arguments
   workload_create_autoprovisioning_arguments.add_argument(

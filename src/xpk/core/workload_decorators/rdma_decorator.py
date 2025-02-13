@@ -82,9 +82,9 @@ def add_storage_annotations(job_manifest, storages):
     annotations.update({'gke-gcsfuse/volumes': 'true'})
 
 
-def add_storage_volumes(job_manifest, volumes):
+def add_storage_volumes(job_manifest, storage_volumes):
   volumes = job_manifest['spec']['template']['spec']['volumes']
-  volumes.extend(volumes)
+  volumes.extend(storage_volumes)
 
 
 def add_annotations(job_manifest, sub_networks):

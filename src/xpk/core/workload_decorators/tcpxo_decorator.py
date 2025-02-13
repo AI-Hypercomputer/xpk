@@ -77,9 +77,9 @@ def decorate_jobset_with_storages(jobset_manifest_str, storages) -> str:
   return yaml.dump(manifest, sort_keys=False)
 
 
-def add_storage_volumes(job_manifest, volumes):
+def add_storage_volumes(job_manifest, storage_volumes):
   volumes = job_manifest['spec']['template']['spec']['volumes']
-  volumes.extend(volumes)
+  volumes.extend(storage_volumes)
 
 
 def add_storage_annotations(job_manifest, storages):

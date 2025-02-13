@@ -378,6 +378,19 @@ def get_storage_volumes_yaml_for_gpu(storages: list[Storage]) -> str:
   return yaml_str
 
 
+def get_storage_volumes_yaml_dict(storages: list[Storage]) -> list[dict]:
+  vols = []
+  for storage in storages:
+    vols.append({
+        "name": storage.pv,
+        "persistentVolumeClaim": {
+            "claimName": storage.pvc,
+            "readOnly": storage.readonly,
+        },
+    })
+  return vols
+
+
 def add_bucket_iam_members(args: Namespace, storages: list[Storage]) -> None:
   """
   Adds IAM members to the GCS buckets associated with the given Storages.

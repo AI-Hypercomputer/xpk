@@ -56,7 +56,7 @@ deployment_groups:
       prefix_with_deployment_name: false
       name_suffix: bar
       enable_private_endpoint: false
-      enable_gcsfuse_csi: false
+      enable_gcsfuse_csi: true
       master_authorized_networks:
       - cidr_block: 10.0.0.0/32  # Allows your machine run kubectl command. It's required for the multi-network setup.
         display_name: "kubectl-access-network"

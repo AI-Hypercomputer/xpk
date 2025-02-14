@@ -166,7 +166,6 @@ def generate_blueprint(
           zone=args.zone,
           auth_cidr=all_IPs_cidr,
           num_nodes=num_nodes,
-          enable_gcsfuse_csi_driver=args.enable_gcsfuse_csi_driver,
           reservation=args.reservation if args.reservation else None,
           capacity_type=capacity_type,
           system_node_pool_machine_type=args.default_pool_cpu_machine_type,

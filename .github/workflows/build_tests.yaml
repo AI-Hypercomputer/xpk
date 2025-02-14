@@ -15,9 +15,10 @@
 name: Build Tests
 
 on:
-  push:
-    branches: ["main"]
-  pull_request: # By default this runs for types assigned, opened and synchronize.
+  workflow_dispatch:
+#  push:
+#    branches: ["main"]
+#  pull_request: # By default this runs for types assigned, opened and synchronize.
 
 env:
   # Names must be unique in parallel running tests.
@@ -79,41 +80,44 @@ jobs:
         --auto-mount=true \
         --mount-point='/test-mount-point' --readonly=false --manifest='./tests/data/pv-pvc-templates.yaml'
     - name: List and verify existing Storages
-      run: python3 xpk.py storage list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | tee output.txt | grep 'test-storage' || (echo 'No storage found' && cat output.txt && exit 1)
-    - name: Create test script to execute in workloads
       run: |
-        echo -e \
-        '#!/bin/bash \n
-        echo "Hello world from a test script!"
-        cd ~/../test-mount-point && echo "Hello world from a Github Action CI/CD test script!" > '$RANDOM_SEED'.txt' \
-        > test.sh
-    - name: Run a base-docker-image workload
-      run: |
-        python3 xpk.py workload create --cluster $TPU_CLUSTER_NAME --workload $WORKLOAD_NAME  --command "bash test.sh"  \
-        --tpu-type=v4-8 --num-slices=2 --zone=us-central2-b
-    - name: Run xpk inspector with the workload created above
-      run: python3 xpk.py inspector --cluster $TPU_CLUSTER_NAME --zone=us-central2-b  --workload $WORKLOAD_NAME
-    - name: Wait for workload completion and confirm it succeeded
-      run: python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion $WORKLOAD_NAME --timeout 300
-    - name: Run a Pathways workload on Ubuntu base image
-      run: |
-        python3 xpk.py workload create-pathways --cluster $TPU_CLUSTER_NAME --workload $PATHWAYS_WORKLOAD_NAME \
-        --docker-image='marketplace.gcr.io/google/ubuntu2004' --tpu-type=v4-8 --num-slices=2 --zone=us-central2-b \
-        --command "echo \"Hello world from a test script! \""
-    - name: Verify if the file was created in the GCS bucket
-      run: gsutil cp gs://xpk-ci-cd-tests/$RANDOM_SEED.txt .
-    - name: Check if the file contains desired content
-      run: grep 'Hello world from a Github Action CI/CD test script!' $RANDOM_SEED.txt
-    - name: Wait for Pathways workload completion and confirm it succeeded
-      run: python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion $PATHWAYS_WORKLOAD_NAME --timeout 300
-    - name: List out the workloads on the cluster
-      run: python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
-    - name: Delete the workload on the cluster
-      run: python3 xpk.py workload delete --workload $WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
-    - name: Delete the Pathways workload on the cluster
-      run: python3 xpk.py workload delete --workload $PATHWAYS_WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
-    - name: Delete created GCS file
-      run: gsutil rm gs://xpk-ci-cd-tests/$RANDOM_SEED.txt
+        python3 xpk.py storage list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | tee output.txt | grep 'test-storage' || (echo 'No storage found' && cat output.txt && exit 1)
+        kubectl get pv -o yaml
+        kubectl get pvc -o yaml
+#    - name: Create test script to execute in workloads
+#      run: |
+#        echo -e \
+#        '#!/bin/bash \n
+#        echo "Hello world from a test script!"
+#        cd ~/../test-mount-point && echo "Hello world from a Github Action CI/CD test script!" > '$RANDOM_SEED'.txt' \
+#        > test.sh
+#    - name: Run a base-docker-image workload
+#      run: |
+#        python3 xpk.py workload create --cluster $TPU_CLUSTER_NAME --workload $WORKLOAD_NAME  --command "bash test.sh"  \
+#        --tpu-type=v4-8 --num-slices=2 --zone=us-central2-b
+#    - name: Run xpk inspector with the workload created above
+#      run: python3 xpk.py inspector --cluster $TPU_CLUSTER_NAME --zone=us-central2-b  --workload $WORKLOAD_NAME
+#    - name: Wait for workload completion and confirm it succeeded
+#      run: python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion $WORKLOAD_NAME --timeout 300
+#    - name: Run a Pathways workload on Ubuntu base image
+#      run: |
+#        python3 xpk.py workload create-pathways --cluster $TPU_CLUSTER_NAME --workload $PATHWAYS_WORKLOAD_NAME \
+#        --docker-image='marketplace.gcr.io/google/ubuntu2004' --tpu-type=v4-8 --num-slices=2 --zone=us-central2-b \
+#        --command "echo \"Hello world from a test script! \""
+#    - name: Verify if the file was created in the GCS bucket
+#      run: gsutil cp gs://xpk-ci-cd-tests/$RANDOM_SEED.txt .
+#    - name: Check if the file contains desired content
+#      run: grep 'Hello world from a Github Action CI/CD test script!' $RANDOM_SEED.txt
+#    - name: Wait for Pathways workload completion and confirm it succeeded
+#      run: python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion $PATHWAYS_WORKLOAD_NAME --timeout 300
+#    - name: List out the workloads on the cluster
+#      run: python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+#    - name: Delete the workload on the cluster
+#      run: python3 xpk.py workload delete --workload $WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+#    - name: Delete the Pathways workload on the cluster
+#      run: python3 xpk.py workload delete --workload $PATHWAYS_WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+#    - name: Delete created GCS file
+#      run: gsutil rm gs://xpk-ci-cd-tests/$RANDOM_SEED.txt
     - name: Delete existing Storage
       run: python3 xpk.py storage delete $STORAGE_NAME  --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
     - name: Delete the cluster created

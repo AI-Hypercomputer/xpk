@@ -66,6 +66,7 @@ def decorate_jobset_with_storages(jobset_manifest_str, storages) -> str:
 
   manifest = yaml.safe_load(jobset_manifest_str)
   storage_volumes = get_storage_volumes_yaml_dict(storages)
+  print('storage volumes are: ', storage_volumes)
   for job in manifest['spec']['replicatedJobs']:
     job_manifest = job['template']
     add_storage_annotations(job_manifest, storages)

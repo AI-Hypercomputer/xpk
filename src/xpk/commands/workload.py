@@ -64,13 +64,12 @@ from ..core.pathways import (
 )
 from ..core.storage import (
     GCS_FUSE_TYPE,
+    GCP_FILESTORE_TYPE,
     XPK_SA,
     Storage,
     add_bucket_iam_members,
     get_storage_volume_mounts_yaml,
-    get_storage_volume_mounts_yaml_for_gpu,
     get_storage_volumes_yaml,
-    get_storage_volumes_yaml_for_gpu,
     get_storages_to_mount,
 )
 from ..core.system_characteristics import (
@@ -491,6 +490,10 @@ def workload_create(args) -> None:
   gcs_fuse_storages = list(
       filter(lambda storage: storage.type == GCS_FUSE_TYPE, storages)
   )
+  gcpfilestore_storages: list[Storage] = list(
+      filter(lambda storage: storage.type == GCP_FILESTORE_TYPE, storages)
+  )
+  print(gcpfilestore_storages)
   storage_annotations = ''
   service_account = ''
   if len(gcs_fuse_storages) > 0:
@@ -513,6 +516,14 @@ def workload_create(args) -> None:
                 containerName: {get_main_container_docker_image(args, system)}
                 operator: NotIn
                 values: [{restart_on_exit_codes}]"""
+
+  if len(gcpfilestore_storages) > 0:
+    xpk_print(
+        f'Detected gcp filestores instances to add: {gcpfilestore_storages}'
+    )
+    service_account = XPK_SA
+  else:
+    xpk_print('No gcp filestore instances to add detected.')
 
   # Create the workload file based on accelerator type or workload type.
   if system.accelerator_type == AcceleratorType['GPU']:
@@ -537,9 +548,9 @@ def workload_create(args) -> None:
       if args.device_type == cluster_gcluster.a3mega_device_type:
         sub_networks = [f'{args.cluster}-gpunet-{i}-subnet' for i in range(8)]
         yml_string = tcpxo_decorator.decorate_jobset(yml_string, sub_networks)
-        if len(gcs_fuse_storages) > 0:
+        if len(gcs_fuse_storages + gcpfilestore_storages) > 0:
           yml_string = tcpxo_decorator.decorate_jobset_with_storages(
-              yml_string, gcs_fuse_storages
+              yml_string, gcs_fuse_storages + gcpfilestore_storages
           )
 
       if args.device_type == cluster_gcluster.a3ultra_device_type:
@@ -547,9 +558,9 @@ def workload_create(args) -> None:
             f'{args.cluster}-rdma-sub-{i}' for i in range(8)
         ]
         yml_string = rdma_decorator.decorate_jobset(yml_string, sub_networks)
-        if len(gcs_fuse_storages) > 0:
+        if len(gcs_fuse_storages + gcpfilestore_storages) > 0:
           yml_string = rdma_decorator.decorate_jobset_with_storages(
-              yml_string, gcs_fuse_storages
+              yml_string, gcs_fuse_storages + gcpfilestore_storages
           )
     else:
       yml_string = gpu_workload_create_yaml.format(
@@ -562,11 +573,6 @@ def workload_create(args) -> None:
           gpu_rxdm_image=get_gpu_rxdm_image(system),
           gpu_rxdm_cmd=get_gpu_rxdm_cmd(system),
           gpu_tcp_volume=get_gpu_tcp_volume(system),
-          storage_volumes=get_storage_volumes_yaml_for_gpu(gcs_fuse_storages),
-          storage_volume_mounts=get_storage_volume_mounts_yaml_for_gpu(
-              gcs_fuse_storages
-          ),
-          storage_annotations=storage_annotations,
           service_account=service_account,
           failure_policy_rules=failure_policy_rules,
           pod_failure_policy=pod_failure_policy,
@@ -595,9 +601,13 @@ def workload_create(args) -> None:
         autoprovisioning_args=autoprovisioning_args,
         backoff_limit=system.vms_per_slice * 4,
         storage_annotations=storage_annotations,
-        storage_volumes=get_storage_volumes_yaml(gcs_fuse_storages),
+        storage_volumes=get_storage_volumes_yaml(
+            gcs_fuse_storages + gcpfilestore_storages
+        ),
+        storage_volume_mounts=get_storage_volume_mounts_yaml(
+            gcs_fuse_storages + gcpfilestore_storages
+        ),
         pathways_rm_args=get_pathways_rm_args(args, system),
-        storage_volume_mounts=get_storage_volume_mounts_yaml(gcs_fuse_storages),
         service_account=service_account,
         failure_policy_rules=failure_policy_rules,
         pod_failure_policy=pod_failure_policy,
@@ -632,7 +642,6 @@ def workload_create(args) -> None:
     xpk_exit(return_code)
 
   add_bucket_iam_members(args, storages)
-
   # Get GKE outlier dashboard for TPU
   outlier_dashboard_id = None
   if system.accelerator_type == AcceleratorType['TPU']:

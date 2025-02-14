@@ -475,6 +475,7 @@ Once it's ready user can define:
     --workload xpk-test-workload --command "echo goodbye" \
     --cluster xpk-test \
     --tpu-type=v5litepod-16 \
+<<<<<<< HEAD
     --storage test-storage --project=$PROJECT
     ```
 
@@ -524,15 +525,19 @@ Creating Filestore storage and attaching it to workload can be achieved in two w
 =======
     python3 xpk.py storage list --cluster xpk-test --zone=us-central2-b --projet=$PROJECT
 >>>>>>> f43378a957e110f4c79f4cd2e723b8829369250c
+=======
+    --storage test-storage --projet=$PROJECT
+    ```
+
+* List Storage
+    ```shell
+    python3 xpk.py storage list --cluster xpk-test --zone=us-central2-b --projet=$PROJECT
+>>>>>>> 92df463f636887d04fc78823432673137084351f
     ```
 
 * Delete Storage
     ```shell
-<<<<<<< HEAD
     python3 xpk.py storage delete test-storage  --cluster xpk-test --zone=us-central2-b --project=$PROJECT
-=======
-    python3 xpk.py storage delete test-storage  --cluster xpk-test --zone=us-central2-b --projet=$PROJECT
->>>>>>> f43378a957e110f4c79f4cd2e723b8829369250c
     ```
 
 ## Workload Create

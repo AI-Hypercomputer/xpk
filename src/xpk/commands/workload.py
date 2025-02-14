@@ -148,6 +148,9 @@ spec:
     - name: slice-job
       replicas: 1
       template:
+        metadata:
+          annotations:
+            {storage_annotations}
         spec:
           parallelism: {args.num_nodes}
           completions: {args.num_nodes}
@@ -170,6 +173,7 @@ spec:
                 key: nvidia.com/gpu
               volumes:
               {gpu_volume}
+              {storage_volumes}
               containers:
               {gpu_rxdm_image}
                 imagePullPolicy: Always

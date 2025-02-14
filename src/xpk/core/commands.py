@@ -303,7 +303,7 @@ def run_command_with_full_controls(
     command: str,
     task: str,
     global_args: Namespace,
-    instructions: str = None,
+    instructions: str | None = None,
 ) -> int:
   """Run command in current shell with system out, in and error handles. Wait
   until it exits.
@@ -333,16 +333,20 @@ def run_command_with_full_controls(
   if instructions is not None:
     xpk_print(instructions)
 
-  with subprocess.Popen(
-      command,
-      stdout=sys.stdout,
-      stderr=sys.stderr,
-      stdin=sys.stdin,
-      shell=True,
-  ) as child:
-    return_code = child.wait()
-    xpk_print(f'Task: `{task}` terminated with code `{return_code}`')
-    return return_code
+  try:
+    with subprocess.Popen(
+        command,
+        stdout=sys.stdout,
+        stderr=sys.stderr,
+        stdin=sys.stdin,
+        shell=True,
+    ) as child:
+      return_code = child.wait()
+      xpk_print(f'Task: `{task}` terminated with code `{return_code}`')
+  except KeyboardInterrupt:
+    return_code = 0
+
+  return return_code
 
 
 def run_kubectl_apply(yml_string: str, task: str, args: Namespace) -> int:

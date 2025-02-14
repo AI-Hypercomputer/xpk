@@ -1,5 +1,5 @@
 """
-Copyright 2024 Google LLC
+Copyright 2025 Google LLC
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,12 +21,12 @@ from ..utils.console import xpk_exit, xpk_print
 from .common import set_cluster_command
 from ..core.core import add_zone_and_project
 from ..core.kjob import AppProfileDefaults
-from ..core.commands import run_command_for_value
+from ..core.commands import run_command_with_full_controls
 from .kind import set_local_cluster_command
 
 
-def batch(args: Namespace) -> None:
-  """Run batch task.
+def run(args: Namespace) -> None:
+  """Run task.
      This function runs passed script in non-blocking manner.
   Args:
     args: user provided arguments for running the command.
@@ -50,6 +50,8 @@ def submit_job(args: Namespace) -> None:
       'kubectl kjob create slurm'
       f' --profile {AppProfileDefaults.NAME.value}'
       f' --localqueue {LOCAL_QUEUE_NAME}'
+      ' --wait'
+      ' --rm'
   )
 
   if args.ignore_unknown_flags:
@@ -102,8 +104,8 @@ def submit_job(args: Namespace) -> None:
   if args.time is not None:
     cmd += f' --time {args.time}'
 
-  return_code, _ = run_command_for_value(cmd, 'submit job', args)
+  return_code = run_command_with_full_controls(cmd, 'run task', args)
 
   if return_code != 0:
-    xpk_print(f'Running batch job returned ERROR {return_code}')
+    xpk_print(f'Running task returned ERROR {return_code}')
     xpk_exit(return_code)

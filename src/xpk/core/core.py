@@ -40,16 +40,24 @@ import string
 import subprocess
 import sys
 import importlib.metadata as importlib_metadata
+from argparse import Namespace
 from dataclasses import dataclass
 
 from ..utils.file import write_tmp_file
 from ..utils.console import get_user_input, xpk_exit, xpk_print
+from google.api_core.exceptions import PermissionDenied
+from google.cloud import resourcemanager_v3
+from kubernetes import client as k8s_client
+from kubernetes import config
+from kubernetes.client.exceptions import ApiException
+
 from .commands import (
     run_command_for_value,
     run_command_with_updates,
     run_command_with_updates_retry,
     run_commands,
 )
+from .storage import Storage, get_storages_to_mount, GCS_FUSE_TYPE
 from .system_characteristics import (
     AcceleratorType,
     AcceleratorTypeToAcceleratorCharacteristics,
@@ -85,6 +93,7 @@ CLOUD_PLATFORM_AUTH_SCOPE_URL = (
     '"https://www.googleapis.com/auth/cloud-platform"'
 )
 PLATFORM = 'linux/amd64'
+GCS_FUSE_ANNOTATION = 'gke-gcsfuse/volumes: "true"'
 
 
 class CapacityType(enum.Enum):
@@ -288,6 +297,23 @@ def get_project():
   ]  # The project name lives on the last line of the output
 
 
+def project_id_to_project_number(project_id: str) -> str:
+  client = resourcemanager_v3.ProjectsClient()
+  request = resourcemanager_v3.GetProjectRequest()
+  request.name = f'projects/{project_id}'
+  try:
+    response: resourcemanager_v3.Project = client.get_project(request=request)
+  except PermissionDenied as e:
+    xpk_print(
+        f"Couldn't translate project id: {project_id} to project number."
+        f' Error: {e}'
+    )
+    xpk_exit(1)
+  parts = response.name.split('/', 1)
+  xpk_print(f'Project number for project: {project_id} is {parts[1]}')
+  return parts[1]
+
+
 def get_zone():
   """Get GCE zone from `gcloud config get compute/zone`.
 
@@ -321,6 +347,29 @@ def zone_to_region(zone) -> str:
   return zone_terms[0] + '-' + zone_terms[1]
 
 
+def setup_k8s_env(args: Namespace) -> k8s_client.ApiClient:
+  add_zone_and_project(args)
+  get_cluster_credentials(args)
+  args.project_number = project_id_to_project_number(args.project)
+
+  config.load_kube_config()
+  return k8s_client.ApiClient()
+
+
+def create_k8s_service_account(name: str, namespace: str) -> None:
+  k8s_core_client = k8s_client.CoreV1Api()
+  sa = k8s_client.V1ServiceAccount(metadata=k8s_client.V1ObjectMeta(name=name))
+
+  xpk_print(f'Creating a new service account: {name}')
+  try:
+    k8s_core_client.create_namespaced_service_account(
+        namespace, sa, pretty=True
+    )
+    xpk_print(f'Created a new service account: {sa} successfully')
+  except ApiException:
+    xpk_print(f'Service account: {name} already exists. Skipping its creation')
+
+
 def get_total_chips_requested_from_args(
     args, system: SystemCharacteristics
 ) -> int:
@@ -339,6 +388,163 @@ def get_total_chips_requested_from_args(
     num_chips = system.vms_per_slice * system.chips_per_vm * args.num_slices
 
   return num_chips
+
+
+def update_gke_cluster_with_clouddns(args) -> int:
+  """Run the GKE cluster update command for existing clusters and enable CloudDNS.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  command = (
+      'gcloud container clusters update'
+      f' {args.cluster} --project={args.project}'
+      f' --region={zone_to_region(args.zone)}'
+      ' --cluster-dns=clouddns'
+      ' --cluster-dns-scope=vpc'
+      f' --cluster-dns-domain={args.cluster}-domain'
+      ' --quiet'
+  )
+  xpk_print('Updating GKE cluster to use Cloud DNS, may take a while!')
+  return_code = run_command_with_updates(
+      command, 'GKE Cluster Update to enable Cloud DNS', args
+  )
+  if return_code != 0:
+    xpk_print(f'GKE Cluster Update request returned ERROR {return_code}')
+    return 1
+  return 0
+
+
+def update_gke_cluster_with_workload_identity_enabled(args) -> int:
+  """Run the GKE cluster update command for existing cluster and enable Workload Identity Federation.
+  Args:
+    args: user provided arguments for running the command.
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  command = (
+      'gcloud container clusters update'
+      f' {args.cluster} --project={args.project}'
+      f' --region={zone_to_region(args.zone)}'
+      f' --workload-pool={args.project}.svc.id.goog'
+      ' --quiet'
+  )
+  xpk_print(
+      'Updating GKE cluster to enable Workload Identity Federation, may take a'
+      ' while!'
+  )
+  return_code = run_command_with_updates(
+      command, 'GKE Cluster Update to enable Workload Identity Federation', args
+  )
+  if return_code != 0:
+    xpk_print(f'GKE Cluster Update request returned ERROR {return_code}')
+    return 1
+  return 0
+
+
+def update_gke_cluster_with_gcsfuse_driver_enabled(args) -> int:
+  """Run the GKE cluster update command for existing cluster and enable GCSFuse CSI driver.
+  Args:
+    args: user provided arguments for running the command.
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  command = (
+      'gcloud container clusters update'
+      f' {args.cluster} --project={args.project}'
+      f' --region={zone_to_region(args.zone)}'
+      ' --update-addons GcsFuseCsiDriver=ENABLED'
+      ' --quiet'
+  )
+  xpk_print(
+      'Updating GKE cluster to enable GCSFuse CSI driver, may take a while!'
+  )
+  return_code = run_command_with_updates(
+      command, 'GKE Cluster Update to enable GCSFuse CSI driver', args
+  )
+  if return_code != 0:
+    xpk_print(f'GKE Cluster Update request returned ERROR {return_code}')
+    return 1
+  return 0
+
+
+def upgrade_gke_control_plane_version(args, default_rapid_gke_version) -> int:
+  """Upgrade GKE cluster's control plane version before updating nodepools to use CloudDNS.
+
+  Args:
+    args: user provided arguments for running the command.
+    default_rapid_gke_version: Rapid default version for the upgrade.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  command = (
+      'gcloud container clusters upgrade'
+      f' {args.cluster} --project={args.project}'
+      f' --region={zone_to_region(args.zone)}'
+      f' --cluster-version={default_rapid_gke_version}'
+      ' --master'
+      ' --quiet'
+  )
+  xpk_print("Updating GKE cluster's control plane version, may take a while!")
+  return_code = run_command_with_updates(
+      command,
+      'GKE Cluster control plane version update to enable Cloud DNS',
+      args,
+  )
+  if return_code != 0:
+    xpk_print(
+        "GKE cluster's control plane version update request returned"
+        f' ERROR {return_code}'
+    )
+    return 1
+  return 0
+
+
+def upgrade_gke_nodepools_version(args, default_rapid_gke_version) -> int:
+  """Upgrade nodepools in the cluster to default rapid gke version. Recreates the nodes.
+
+  Args:
+    args: user provided arguments for running the command.
+    default_rapid_gke_version: Rapid default version for the upgrade.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  existing_node_pool_names, return_code = get_all_nodepools_programmatic(args)
+  if return_code != 0:
+    xpk_print('Listing all node pools failed!')
+    return return_code
+
+  # Batch execution to upgrade node pools simultaneously
+  commands = []
+  task_names = []
+  for node_pool_name in existing_node_pool_names:
+    commands.append(
+        'gcloud container clusters upgrade'
+        f' {args.cluster} --project={args.project}'
+        f' --region={zone_to_region(args.zone)}'
+        f' --cluster-version={default_rapid_gke_version}'
+        f' --node-pool={node_pool_name}'
+        ' --quiet'
+    )
+    task_names.append(f'Upgrading node pool {node_pool_name}.')
+
+  for i, command in enumerate(commands):
+    xpk_print(f'To complete {task_names[i]} we are executing {command}')
+  max_return_code = run_commands(
+      commands, 'Update GKE node pools to default RAPID GKE version', task_names
+  )
+  if max_return_code != 0:
+    xpk_print(
+        'GKE node pools update to default RAPID GKE version returned ERROR:'
+        f' {max_return_code}'
+    )
+    return max_return_code
+  return 0
 
 
 def set_up_cluster_network_for_gpu(args, system: SystemCharacteristics) -> int:
@@ -812,8 +1018,8 @@ def get_cluster_configmap(args, configmap_name) -> dict[str, str] | None:
     return_value = return_value[return_value.index('map') :]
     configs = return_value[4:-1].split(' ')
 
-    for config in configs:
-      key, value = config.strip().split(':')
+    for pair in configs:
+      key, value = pair.strip().split(':')
       config_map[key] = value
   return config_map
 
@@ -935,6 +1141,168 @@ def get_all_clusters_programmatic(args) -> tuple[list[str], int]:
   return raw_cluster_output.splitlines(), 0
 
 
+def is_cluster_using_clouddns(args) -> bool:
+  """Checks if cluster is using CloudDNS.
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    True if cluster is using CloudDNS and False otherwise.
+  """
+  command = (
+      f'gcloud container clusters describe {args.cluster}'
+      f' --project={args.project} --region={zone_to_region(args.zone)}'
+      ' 2> /dev/null | grep "clusterDns: CLOUD_DNS"'
+  )
+  return_code, _ = run_command_for_value(
+      command,
+      'Check if Cloud DNS is enabled in cluster describe.',
+      args,
+  )
+  if return_code == 0:
+    xpk_print('Cloud DNS is enabled on the cluster, no update needed.')
+    return True
+  return False
+
+
+def is_workload_identity_enabled_on_cluster(args) -> bool:
+  """Checks if Workload Identity Federation is enabled on the cluster.
+  Args:
+    args: user provided arguments for running the command.
+  Returns:
+    True if Workload Identity Federation is enabled on the cluster and False otherwise.
+  """
+  command = (
+      f'gcloud container clusters describe {args.cluster}'
+      f' --project={args.project} --region={zone_to_region(args.zone)}'
+      ' --format="value(workloadIdentityConfig.workloadPool)"'
+  )
+  return_code, workload_pool = run_command_for_value(
+      command,
+      'Checks if Workload Identity Federation is enabled in cluster describe.',
+      args,
+  )
+  if return_code != 0:
+    xpk_exit(return_code)
+  if workload_pool == f'{args.project}.svc.id.goog':
+    xpk_print(
+        'Workload Identity Federation is enabled on the cluster, no update'
+        ' needed.'
+    )
+    return True
+  return False
+
+
+def is_gcsfuse_driver_enabled_on_cluster(args) -> bool:
+  """Checks if GCSFuse CSI driver is enabled on the cluster.
+  Args:
+    args: user provided arguments for running the command.
+  Returns:
+    True if GCSFuse CSI driver is enabled on the cluster and False otherwise.
+  """
+  command = (
+      f'gcloud container clusters describe {args.cluster}'
+      f' --project={args.project} --region={zone_to_region(args.zone)}'
+      ' --format="value(addonsConfig.gcsFuseCsiDriverConfig.enabled)"'
+  )
+  return_code, gcsfuse_driver_enabled = run_command_for_value(
+      command,
+      'Checks if GCSFuse CSI driver is enabled in cluster describe.',
+      args,
+  )
+  if return_code != 0:
+    xpk_exit(return_code)
+  if gcsfuse_driver_enabled.lower() == 'true':
+    xpk_print('GCSFuse CSI driver is enabled on the cluster, no update needed.')
+    return True
+  return False
+
+
+def update_cluster_with_clouddns_if_necessary(args) -> int:
+  """Updates a GKE cluster to use CloudDNS, if not enabled already.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and error code otherwise.
+  """
+  all_clusters, return_code = get_all_clusters_programmatic(args)
+  if return_code > 0:
+    xpk_print('Listing all clusters failed!')
+    return 1
+  if args.cluster in all_clusters:
+    # If cluster is already using clouddns, no update necessary!
+    if is_cluster_using_clouddns(args):
+      return 0
+    cluster_update_return_code = update_gke_cluster_with_clouddns(args)
+    if cluster_update_return_code > 0:
+      xpk_print('Updating GKE cluster to use CloudDNS failed!')
+      return cluster_update_return_code
+
+    # Find default rapid control plane version and update the control plane to the same.
+    server_config_return_code, gke_server_config = get_gke_server_config(args)
+    if server_config_return_code != 0:
+      xpk_exit(server_config_return_code)
+    upgrade_master_return_code = upgrade_gke_control_plane_version(
+        args, gke_server_config.default_rapid_gke_version
+    )
+    if upgrade_master_return_code > 0:
+      xpk_print("Updating GKE cluster's control plane upgrade failed!")
+      return upgrade_master_return_code
+
+    # Upgrade nodepools version after the master upgrade.
+    node_pool_update_code = upgrade_gke_nodepools_version(
+        args, gke_server_config.default_rapid_gke_version
+    )
+    if node_pool_update_code > 0:
+      xpk_print('Upgrading nodepools version failed!')
+      return node_pool_update_code
+  return 0
+
+
+def update_cluster_with_workload_identity_if_necessary(args) -> int:
+  """Updates a GKE cluster to enable Workload Identity Federation, if not enabled already.
+  Args:
+    args: user provided arguments for running the command.
+  Returns:
+    0 if successful and error code otherwise.
+  """
+
+  if is_workload_identity_enabled_on_cluster(args):
+    return 0
+  cluster_update_return_code = (
+      update_gke_cluster_with_workload_identity_enabled(args)
+  )
+  if cluster_update_return_code > 0:
+    xpk_print(
+        'Updating GKE cluster to enable Workload Identity Federation failed!'
+    )
+    return cluster_update_return_code
+
+  return 0
+
+
+def update_cluster_with_gcsfuse_driver_if_necessary(args) -> int:
+  """Updates a GKE cluster to enable GCSFuse CSI driver, if not enabled already.
+  Args:
+    args: user provided arguments for running the command.
+  Returns:
+    0 if successful and error code otherwise.
+  """
+
+  if is_gcsfuse_driver_enabled_on_cluster(args):
+    return 0
+  cluster_update_return_code = update_gke_cluster_with_gcsfuse_driver_enabled(
+      args
+  )
+  if cluster_update_return_code > 0:
+    xpk_print('Updating GKE cluster to enable GCSFuse CSI driver failed!')
+    return cluster_update_return_code
+
+  return 0
+
+
 def get_nodepool_zone(args, nodepool_name) -> tuple[int, str]:
   """Return zone in which nodepool exists in the cluster.
 
@@ -960,6 +1328,34 @@ def get_nodepool_zone(args, nodepool_name) -> tuple[int, str]:
     return 1, None
 
   return 0, nodepool_zone.strip()
+
+
+def get_nodepool_workload_metadata_mode(args, nodepool_name) -> tuple[int, str]:
+  """Return Workload Identity metadata mode of the nodepool.
+  Args:
+    args: user provided arguments for running the command.
+    nodepool_name: name of nodepool.
+  Returns:
+    Tuple of int, str where
+    int is the return code - 0 if successful, 1 otherwise.
+    str is the workload metadata mode of nodepool.
+  """
+  command = (
+      f'gcloud beta container node-pools describe {nodepool_name}'
+      f' --cluster {args.cluster} --project={args.project}'
+      f' --region={zone_to_region(args.zone)} --format="value(config.workloadMetadataConfig.mode)"'
+  )
+  return_code, nodepool_WI_mode = run_command_for_value(
+      command, 'Get Node Pool Workload Identity Metadata Mode', args
+  )
+  if return_code != 0:
+    xpk_print(
+        'Get Node Pool Workload Identity Metadata Mode returned ERROR'
+        f' {return_code}'
+    )
+    return 1, None
+
+  return 0, nodepool_WI_mode.strip()
 
 
 def check_cluster_resources(args, system) -> tuple[bool, bool]:
@@ -1186,6 +1582,9 @@ def run_gke_node_pool_create_command(
   node_pools_to_remain = []
   delete_commands = []
   delete_task_names = []
+  node_pools_to_update_WI = []
+  update_WI_commands = []
+  update_WI_task_names = []
   if existing_node_pool_names:
     return_code, existing_node_pool_zone = get_nodepool_zone(
         args, existing_node_pool_names[0]
@@ -1221,6 +1620,36 @@ def run_gke_node_pool_create_command(
       else:
         node_pools_to_remain.append(node_pool_name)
 
+    # Workload Identity for existing nodepools
+    if args.enable_workload_identity or args.enable_gcsfuse_csi_driver:
+      for node_pool_name in existing_node_pool_names:
+        if not node_pool_name in node_pools_to_delete:
+          # Check if workload identity is not already enabled:
+          return_code, existing_node_pool_medadata_mode = (
+              get_nodepool_workload_metadata_mode(args, node_pool_name)
+          )
+          if return_code != 0:
+            return 1
+
+          if (
+              existing_node_pool_zone
+              and existing_node_pool_medadata_mode != 'GKE_METADATA'
+          ):
+            command = (
+                'gcloud container node-pools update'
+                f' {node_pool_name} --cluster={args.cluster}'
+                f' --zone={zone_to_region(args.zone)}'
+                f' --project={args.project} --quiet'
+                ' --workload-metadata=GKE_METADATA'
+            )
+            task = (
+                'Update nodepool with Workload Identity enabled'
+                f' {node_pool_name}'
+            )
+            update_WI_commands.append(command)
+            update_WI_task_names.append(task)
+            node_pools_to_update_WI.append(node_pool_name)
+
   # Deletion of nodepools should happen before attempting to create new nodepools for the case
   # when cluster is getting updated from 'x' device_type/gke_accelerator to 'y' device_type/gke_accelerator.
   # In that case, '{args.cluster}-np-i' nodepool will be re-created for 'y' device_type/gke_accelerator.
@@ -1252,6 +1681,37 @@ def run_gke_node_pool_create_command(
     if max_return_code != 0:
       xpk_print(f'Delete Nodepools returned ERROR {max_return_code}')
       return 1
+
+  # Enable Workload Identity on existing Nodepools
+  if update_WI_commands:
+    will_update_WI = True
+    if node_pools_to_update_WI and not args.force:
+      will_update_WI = get_user_input(
+          'Planning to enable Workload Identity Federation on'
+          f' {len(node_pools_to_update_WI)} existing node pools including'
+          f' {node_pools_to_update_WI}.This immediately enables Workload'
+          ' Identity Federation for GKE for any workloads running in the node'
+          ' pool. Also, xpk does not support disabling Workload Identity on'
+          ' clusters that have it enabled already \nDo you wish to update: y'
+          ' (yes) / n (no):\n'
+      )
+    if not will_update_WI:
+      for i, command in enumerate(update_WI_commands):
+        xpk_print(
+            f'To complete {update_WI_task_names[i]} we are executing {command}'
+        )
+      max_return_code = run_commands(
+          update_WI_commands,
+          'Enable Workload Identity on existing Nodepools',
+          update_WI_task_names,
+          dry_run=args.dry_run,
+      )
+      if max_return_code != 0:
+        xpk_print(
+            'Enable Workload Identity on existing Nodepools returned ERROR'
+            f' {max_return_code}'
+        )
+        return 1
 
     # Update {args.cluster}-{_CLUSTER_RESOURCES_CONFIGMAP} ConfigMap to 'y': '0'
     # and remove 'x' from the ConfigMap when cluster is getting updated from
@@ -1332,6 +1792,9 @@ def run_gke_node_pool_create_command(
       command += (
           f' --scopes=storage-full,gke-default,{CLOUD_PLATFORM_AUTH_SCOPE_URL}'
       )
+
+    if args.enable_workload_identity or args.enable_gcsfuse_csi_driver:
+      command += ' --workload-metadata=GKE_METADATA'
 
     task = f'NodepoolCreate-{node_pool_name}'
     create_commands.append(command)
@@ -1610,6 +2073,31 @@ def get_gke_node_pool_version(
     )
     return 1, None
   return 0, node_pool_gke_version
+
+
+def get_cluster_credentials(args: Namespace) -> None:
+  """Run cluster configuration command to set the kubectl config.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  command = (
+      'gcloud container clusters get-credentials'
+      f' {args.cluster} --region={zone_to_region(args.zone)}'
+      f' --project={args.project} &&'
+      ' kubectl config view && kubectl config set-context --current'
+      ' --namespace=default'
+  )
+  task = f'get-credentials to cluster {args.cluster}'
+  return_code = run_command_with_updates_retry(
+      command, task, args, verbose=False
+  )
+  if return_code != 0:
+    xpk_print(f'{task} returned ERROR {return_code}')
+    xpk_exit(return_code)
 
 
 def validate_docker_image(docker_image, args) -> int:
@@ -1991,15 +2479,6 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
         'touch /shared-volume/stacktrace_signal; '
     )
 
-  xpk_return_user_exit_code = ''
-  if args.restart_on_user_code_failure:
-    if int(args.max_restarts) <= 0:
-      xpk_print(
-          f'Warning: --max-restarts, is set to {args.max_restarts}. Will not'
-          ' restart on user failure.'
-      )
-    xpk_return_user_exit_code = 'exit $EXIT_CODE'
-
   yaml = """- name: {docker_name}
                 image: {docker_image}
                 {image_pull_policy}
@@ -2028,10 +2507,7 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
                   echo EXIT_CODE=$EXIT_CODE;
                   {tpu_stacktrace_terminate_command}
                   {gpu_workload_terminate_command}
-                  if [ "$EXIT_CODE" = 143 ]; then
-                    exit $EXIT_CODE
-                  fi
-                  {xpk_return_user_exit_code}
+                  exit $EXIT_CODE
                 resources:
                   limits:
                     {resources}
@@ -2058,7 +2534,6 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
       xpk_internal_commands=xpk_internal_commands,
       resources=get_main_container_resources(args, system, resource_type),
       volume_mounts=volume_mounts,
-      xpk_return_user_exit_code=xpk_return_user_exit_code,
   )
 
 
@@ -2108,7 +2583,8 @@ def get_volumes(args, system: SystemCharacteristics) -> str:
   """
   volumes = """- emptyDir:
                   medium: Memory
-                name: dshm-2"""
+                name: dshm-2
+              """
 
   if args.ramdisk_directory != '':
     volumes += """
@@ -2122,8 +2598,19 @@ def get_volumes(args, system: SystemCharacteristics) -> str:
   ):
     volumes += """
               - name: tpu-stack-trace
-              - name: shared-data"""
+              - name: shared-data
+              """
 
+  storages: list[Storage] = get_storages_to_mount(
+      setup_k8s_env(args), args.storage
+  )
+  for storage in storages:
+    if storage.type == GCS_FUSE_TYPE:
+      volumes += f"""- name: {storage.pv}
+                persistentVolumeClaim:
+                  claimName: {storage.pvc}
+                  readOnly: {storage.readonly}
+              """
   return volumes
 
 
@@ -2137,7 +2624,8 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
       YAML for the volumes mounted within a Pathways container or GPU container as a YAML string.
   """
   volume_mount_yaml = """- mountPath: /dev/shm
-                  name: dshm-2"""
+                  name: dshm-2
+                """
 
   if args.ramdisk_directory != '':
     volume_mount_yaml += f"""
@@ -2146,16 +2634,17 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
 
   if args.use_pathways:
     volume_mount_yaml = """- mountPath: /tmp
-                  name: shared-tmp"""
+                  name: shared-tmp
+                """
   elif (
       system.accelerator_type == AcceleratorType['TPU']
       and args.deploy_stacktrace_sidecar
   ):
-    volume_mount_yaml += """
-                - name: tpu-stack-trace
+    volume_mount_yaml += """- name: tpu-stack-trace
                   mountPath: /tmp/debugging
                 - name: shared-data
-                  mountPath: /shared-volume"""
+                  mountPath: /shared-volume
+                """
   elif system.accelerator_type == AcceleratorType['GPU']:
     if system.device_type == h100_device_type:
       volume_mount_yaml = """- name: nvidia-install-dir-host
@@ -2174,6 +2663,15 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
     ):
       volume_mount_yaml = ''
 
+  storages: list[Storage] = get_storages_to_mount(
+      setup_k8s_env(args), args.storage
+  )
+  for storage in storages:
+    if storage.type == GCS_FUSE_TYPE:
+      volume_mount_yaml += f"""- name: {storage.pv}
+                  mountPath: {storage.mount_point}
+                  readOnly: {storage.readonly}
+                """
   return volume_mount_yaml
 
 

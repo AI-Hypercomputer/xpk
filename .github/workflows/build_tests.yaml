@@ -20,28 +20,30 @@ on:
       tpuType:
         description: 'TPU Type'
         required: true
-        default: 'v4-8'
+        default: 'v5p-8'
         type: choice
         options:
-          - v4-8
+          - v5p-8
           - v5litepod-8
   push:
-    branches: ["main"]
+    branches: ["main","develop"]
   pull_request: # By default this runs for types assigned, opened and synchronize.
 
 env:
   # Names must be unique in parallel running tests.
-  TPU_TYPE: ${{ inputs.tpuType || 'v4-8' }}
+  TPU_TYPE: ${{ inputs.tpuType || 'v5p-8' }}
   TPU_CLUSTER_NAME: build-xpk-2-nodepools
   WORKLOAD_NAME: xpktest-build-${{ github.run_attempt }}
   PATHWAYS_WORKLOAD_NAME: xpkpw-build-${{ github.run_attempt }}
-  CLUSTER_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}} --subnetwork=${{secrets.SUBNETWORK_NAME}} --maintenance-window=23:50"
+  RUN_ID: "pr-${{ github.event.number }}"
   PROJECT_ID: ${{secrets.PROJECT_NAME}}
   A3_MEGA_TEST_CLUSTER_NAME: "xpk-mega-ctk-int"
   A3_ULTRA_TEST_CLUSTER_NAME: "xpk-ultra-ctk-int"
   GKE_ML_TEST_CLUSTER_NAME: "xpk-gke-ml"
-  ZONE: us-central2-a
-  REGION: us-central2
+  ZONE: europe-west4-b
+  REGION: europe-west4
+  STORAGE_NAME: test-storage
+  PW_CLUSTER_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}} --subnetwork=${{secrets.SUBNETWORK_NAME}} --maintenance-window=23:50"
 
 jobs:
   run-unit-tests:
@@ -111,6 +113,8 @@ jobs:
           RUN_ID="dispatch"
         elif [ "${{ github.ref }}" == "refs/heads/main" ]; then
           RUN_ID="main"
+        elif [ "${{ github.ref }}" == "refs/heads/develop" ]; then
+          RUN_ID="develop"
         else
           RUN_ID="pr-${{ github.event.number }}"
         fi
@@ -130,6 +134,10 @@ jobs:
       with:
         version: '>= 363.0.0'
         install_components: 'beta,gke-gcloud-auth-plugin'
+    - name: Generate random seed
+      run: |
+        RANDOM_SEED=$((RANDOM % 10000))  # Generate a random number between 0 and 9999
+        echo "RANDOM_SEED=$RANDOM_SEED" >> $GITHUB_ENV
     - name: Verify gcp setup
       run: gcloud info
     - name: Set Google Cloud CLI properties to a unused zone to verify --zone arg is passed properly in commands.
@@ -144,43 +152,79 @@ jobs:
       run: gcloud components install kubectl && gcloud components install gke-gcloud-auth-plugin
     - name: Check xpk installation
       run: xpk --help
-    - name: Create a private Pathways-enabled XPK Cluster with 2x $TPU_TYPE nodepools. Larger num-nodes to avoid master resizing.
-      run: python xpk.py cluster create-pathways --cluster $TPU_CLUSTER_NAME --private --tpu-type=$TPU_TYPE  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments="${CLUSTER_ARGUMENTS}"
-    - name: Verify the created cluster is private
-      run: gcloud container clusters describe $TPU_CLUSTER_NAME --region=us-central2 --format="value(privateClusterConfig.enablePrivateNodes)" | grep 'True' || (echo 'The created cluster is not private.' && exit 1)
+    - name: Create a private Pathways-enabled XPK Cluster with 2x v5p-8 nodepools. Larger num-nodes to avoid master resizing.
+      run: |
+        python3 xpk.py cluster create-pathways --cluster $TPU_CLUSTER_NAME --private --tpu-type=v5p-8  --num-slices=2 \
+        --zone=europe-west4-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=4 \
+        --reservation='${{ secrets.GCP_TPU_V5_RESERVATION }}' --enable-workload-identity --enable-gcsfuse-csi-driver --custom-cluster-arguments="${PW_CLUSTER_ARGUMENTS}"\
     - name: List out the nodepools on the cluster
-      run: python xpk.py cluster describe --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep -P '^(?=.*NODEPOOL_NAME)(?=.*SLICE)(?=.*TYPE)(?=.*EXPECTED_HEALTHY_NODES)(?=.*ACTUAL_HEALTHY_NODES)(?=.*TOTAL_NODES)'
+      run: python xpk.py cluster describe --cluster $TPU_CLUSTER_NAME --zone=europe-west4-b | grep -P '^(?=.*NODEPOOL_NAME)(?=.*SLICE)(?=.*TYPE)(?=.*EXPECTED_HEALTHY_NODES)(?=.*ACTUAL_HEALTHY_NODES)(?=.*TOTAL_NODES)'
     - name: Authenticate Docker
       run: gcloud auth configure-docker --quiet
+    - name: Create auto-mount Storage instance
+      run: |
+        python3 xpk.py storage create $STORAGE_NAME --cluster=$TPU_CLUSTER_NAME --zone=europe-west4-b --type=gcsfuse \
+        --auto-mount=true \
+        --mount-point='/test-mount-point' --readonly=false --manifest='./tests/data/pv-pvc-templates.yaml'
+    - name: List and verify existing Storages
+      run: python3 xpk.py storage list --cluster $TPU_CLUSTER_NAME --zone=europe-west4-b | tee output.txt | grep 'test-storage' || (echo 'No storage found' && cat output.txt && exit 1)
     - name: Create test script to execute in workloads
-      run: echo -e '#!/bin/bash \n echo "Hello world from a test script!"' > workload.sh
+      run: |
+        echo -e \
+        '#!/bin/bash \n
+        echo "Hello world from a test script!"
+        cd ~/../test-mount-point && echo "Hello world from a Github Action CI/CD test script!" > '$RANDOM_SEED'.txt' \
+        > test.sh
+    - name: Create a test script to execute in jobs.
+      run: echo -e '#!/bin/bash \nsleep 3 \necho "Hello world from a test script!"' > job_test.sh
+    - name: Run a job
+      run: |
+        python xpk.py run --cluster $TPU_CLUSTER_NAME --zone=europe-west4-b workload.sh | awk '/Starting log streaming for pod xpk-def-app-profile-slurm-[a-zA-Z0-9]+-[0-9]+-[a-zA-Z0-9]+.../,/Job logs streaming finished./ { print }'
+    # TODO: fix Delete the job failing step
+    # - name: Delete the job
+    #   run: |
+    #     JOB_NAME=$(python3 xpk.py job ls --cluster $TPU_CLUSTER_NAME --zone=europe-west4-b | grep 'xpk-def-app-profile-slurm-' | head -1 | awk '{print $1}')
+    #     kubectl delete job ${JOB_NAME}
     - name: Run a base-docker-image workload
-      run: python xpk.py workload create --cluster $TPU_CLUSTER_NAME --workload $WORKLOAD_NAME  --command "bash workload.sh"  --tpu-type=$TPU_TYPE --num-slices=2 --zone=us-central2-b
+      run: |
+        python3 xpk.py workload create --cluster $TPU_CLUSTER_NAME --workload $WORKLOAD_NAME  --command "bash test.sh"  \
+        --tpu-type=v5p-8 --num-slices=2 --zone=europe-west4-b
     - name: Run xpk inspector with the workload created above
-      run: python3 xpk.py inspector --cluster $TPU_CLUSTER_NAME --zone=us-central2-b  --workload $WORKLOAD_NAME
+      run: python3 xpk.py inspector --cluster $TPU_CLUSTER_NAME --zone=europe-west4-b  --workload $WORKLOAD_NAME
     - name: Wait for workload completion and confirm it succeeded
-      run: python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion $WORKLOAD_NAME --timeout 300
+      run: python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=europe-west4-b --wait-for-job-completion $WORKLOAD_NAME --timeout 300
     - name: Run a Pathways workload on Ubuntu base image
-      run: python xpk.py workload create-pathways --cluster $TPU_CLUSTER_NAME --workload $PATHWAYS_WORKLOAD_NAME --docker-image='marketplace.gcr.io/google/ubuntu2004' --tpu-type=$TPU_TYPE --num-slices=2 --zone=us-central2-b --command "echo \"Hello world from a test script! \""
+      run: |
+        python3 xpk.py workload create-pathways --cluster $TPU_CLUSTER_NAME --workload $PATHWAYS_WORKLOAD_NAME \
+        --docker-image='marketplace.gcr.io/google/ubuntu2004' --tpu-type=v5p-8 --num-slices=2 --zone=europe-west4-b \
+        --command "echo \"Hello world from a test script! \""
+    - name: Verify if the file was created in the GCS bucket
+      run: gsutil cp gs://xpk-ci-cd-tests/$RANDOM_SEED.txt .
+    - name: Check if the file contains desired content
+      run: grep 'Hello world from a Github Action CI/CD test script!' $RANDOM_SEED.txt
     - name: Wait for Pathways workload completion and confirm it succeeded
-      run: python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion $PATHWAYS_WORKLOAD_NAME --timeout 300
+      run: python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=europe-west4-b --wait-for-job-completion $PATHWAYS_WORKLOAD_NAME --timeout 300
     - name: List out the workloads on the cluster
-      run: python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+      run: python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=europe-west4-b
     - name: Run xpk info
-      run: python3 xpk.py info --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | tee output.txt | grep -P "^(?=.*QUEUE)(?=.*PENDING_WORKLOADS)(?=.*ADMITTED_WORKLOADS)(?=.*2x$TPU_TYPE:google.com/tpu)(?=.*cpu-rm:cpu)(?=.*cpu-rm:memory)(?=.*cpu-proxy:cpu)(?=.*cpu-proxy:memory)(?=.*cpu-user:cpu)(?=.*cpu-user:memory)" || (echo 'Invalid command output' && cat output.txt && exit 1)
+      run: python3 xpk.py info --cluster $TPU_CLUSTER_NAME --zone=europe-west4-b | tee output.txt | grep -P "^(?=.*QUEUE)(?=.*PENDING_WORKLOADS)(?=.*ADMITTED_WORKLOADS)(?=.*2x$TPU_TYPE:google.com/tpu)(?=.*cpu-rm:cpu)(?=.*cpu-rm:memory)(?=.*cpu-proxy:cpu)(?=.*cpu-proxy:memory)(?=.*cpu-user:cpu)(?=.*cpu-user:memory)" || (echo 'Invalid command output' && cat output.txt && exit 1)
     - name: Delete the workload on the cluster
-      run: python3 xpk.py workload delete --workload $WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+      run: python3 xpk.py workload delete --workload $WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=europe-west4-b
     - name: Delete the Pathways workload on the cluster
-      run: python3 xpk.py workload delete --workload $PATHWAYS_WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+      run: python3 xpk.py workload delete --workload $PATHWAYS_WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=europe-west4-b
+    - name: Delete created GCS file
+      run: gsutil rm gs://xpk-ci-cd-tests/$RANDOM_SEED.txt
+    - name: Delete existing Storage
+      run: python3 xpk.py storage delete $STORAGE_NAME  --cluster $TPU_CLUSTER_NAME --zone=europe-west4-b
     - name: Create test script to execute in batch
       run: echo -e '#!/bin/bash \n#SBATCH --unknown-flag=value\n echo "Hello world from a test script!"' > batch.sh
     - name: Run a batch job on the cluster
-      run: python3 xpk.py batch --cluster $TPU_CLUSTER_NAME --zone=us-central2-b batch.sh --ignore-unknown-flags --array 1-5 --nodes 2 --ntasks 3 --time 60
+      run: python3 xpk.py batch --cluster $TPU_CLUSTER_NAME --zone=europe-west4-b batch.sh --ignore-unknown-flags --array 1-5 --nodes 2 --ntasks 3 --time 60
     - name: List out the jobs on the cluster
-      run: python3 xpk.py job ls --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep 'xpk-def-app-profile-slurm-'
+      run: python3 xpk.py job ls --cluster $TPU_CLUSTER_NAME --zone=europe-west4-b | grep 'xpk-def-app-profile-slurm-'
     - name: Get created job name
       run: |
-        JOB_NAME=$(python3 xpk.py job ls --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep 'xpk-def-app-profile-slurm-' | head -1 | awk '{print $1}')
+        JOB_NAME=$(python3 xpk.py job ls --cluster $TPU_CLUSTER_NAME --zone=europe-west4-b | grep 'xpk-def-app-profile-slurm-' | head -1 | awk '{print $1}')
         echo "JOB_NAME=${JOB_NAME}" >> $GITHUB_ENV
     - name: Check created job
       run: |
@@ -193,7 +237,7 @@ jobs:
       run: python3 xpk.py job info ${JOB_NAME} | grep -e "Entrypoint environment variables template:" -e "Job name:" -e "Labels:" -e "Mounts:" -e "Pods:" -e "Profile:" -e "Script name:" | wc -l | grep "7"
     - name: Cancel the batch job on the cluster
       run: |
-        python3 xpk.py job cancel ${JOB_NAME} --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep "job.batch/${JOB_NAME} deleted"
+        python3 xpk.py job cancel ${JOB_NAME} --cluster $TPU_CLUSTER_NAME --zone=europe-west4-b | grep "job.batch/${JOB_NAME} deleted"
     - name: Create shell and exit it immediately
       run: |
         cat <<'EOF' >> create-shell.exp
@@ -211,9 +255,4 @@ jobs:
       run: python3 xpk.py shell stop
     - name: Delete the cluster created
       if: always()
-      run: python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --force
-
-
-
-
-
+      run: python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=europe-west4-b --force

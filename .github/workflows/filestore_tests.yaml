@@ -32,7 +32,7 @@ env:
 
 jobs:
   run-filestore-workload:
-    runs-on: [ubuntu-20.04]
+    runs-on: [ubuntu-22.04]
     concurrency: # We support one build or nightly test to run at a time currently.
       group: filestore-test-group-${{github.event.number}}
       cancel-in-progress: false
@@ -70,7 +70,7 @@ jobs:
     - name: Create a XPK Cluster with 2x v5p-8 nodepools. Larger num-nodes to avoid master resizing.
       run: |
         python3 xpk.py cluster create --cluster $TPU_FILESTORE_CLUSTER_NAME --tpu-type=v5p-8  --num-slices=2 \
-        --zone=europe-west4-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 \
+        --zone=europe-west4-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=4 \
         --reservation='${{ secrets.GCP_TPU_V5_RESERVATION }}' --enable-workload-identity --enable-gcpfilestore-csi-driver --custom-cluster-arguments="${CLUSTER_ARGUMENTS}"
     - name: Fill Filestore manifest file
       run: |
@@ -110,7 +110,7 @@ jobs:
       run: python3 xpk.py cluster delete --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=europe-west4-b
   
   filestore-create:
-    runs-on: [ubuntu-20.04]
+    runs-on: [ubuntu-22.04]
     concurrency: # We support one build or nightly test to run at a time currently.
       group: filestore-test-group-${{github.event.number}}
       cancel-in-progress: false
@@ -148,8 +148,8 @@ jobs:
     - name: Create a XPK Cluster with 2x v5p-8 nodepools. Larger num-nodes to avoid master resizing.
       run: |
         python3 xpk.py cluster create --cluster $TPU_FILESTORE_CLUSTER_NAME_CREATE --tpu-type=v5p-8  --num-slices=2 \
-        --zone=europe-west4-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 \
-        --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --enable-workload-identity --enable-gcpfilestore-csi-driver  \
+        --zone=europe-west4-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=4 \
+        --reservation='${{ secrets.GCP_TPU_V5_RESERVATION }}' --enable-workload-identity --enable-gcpfilestore-csi-driver  \
         --custom-cluster-arguments="${CLUSTER_ARGUMENTS}"
     - name: Create auto-mount GCP Filestore Storage instance
       run: |

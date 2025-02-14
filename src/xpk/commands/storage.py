@@ -93,6 +93,7 @@ def storage_attach(args: Namespace) -> None:
     return_code = update_cluster_with_gcpfilestore_driver_if_necessary(args)
     if return_code > 0:
       xpk_exit(return_code)
+    print(args.manifest)
     apply_kubectl_manifest(k8s_api_client, args.manifest)
 
 

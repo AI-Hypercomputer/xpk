@@ -368,7 +368,7 @@ Creating Filestore storage and attaching it to workload can be achieved in two w
 * Use `xpk storage attach` command, to attach existing filestore instance to your workloads. User must specify `--type=gcpfilestore`. This command will use existing instance of Filestore, which you can find in your gcp console, or by running `gcloud filestore instances list`. Manifest file containing Filestore details must be provided. To see examples of manifest file please visit [this guide](https://cloud.google.com/kubernetes-engine/docs/how-to/persistent-volumes/filestore-csi-driver#access) or [test example](tests/data/fs-manifest.yaml)
 
     ```shell
-    python3 xpk.py storage attach fs-storage-attach --project=$PROJECT
+    python3 xpk.py storage attach fs-storage-attach --project=$PROJECT_ID
     --cluster=xpk-test --type=gcpfilestore --auto-mount=false \
     --mount-point='/test-mount-point' --readonly=false \
     --manifest='examples/storage/filestore-manifest-attach.yaml'

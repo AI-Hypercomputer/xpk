@@ -41,7 +41,7 @@ def add_storage_attach_parser(
 
   storage_attach_parser: argparse.ArgumentParser = (
       storage_subcommands_parser.add_parser(
-          'attach', help='attach XPK Storage.'
+          'attach', help='Attach XPK Storage.'
       )
   )
   storage_attach_parser.set_defaults(func=storage_attach)
@@ -94,7 +94,7 @@ def add_storage_create_parser(
 ) -> None:
   storage_create_parser: argparse.ArgumentParser = (
       storage_subcommands_parser.add_parser(
-          'create', help='create XPK Storage.'
+          'create', help='Create XPK Storage.'
       )
   )
   storage_create_parser.set_defaults(func=storage_create)

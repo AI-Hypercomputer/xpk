@@ -155,7 +155,7 @@ jobs:
     - name: Create a private Pathways-enabled XPK Cluster with 2x v5p-8 nodepools. Larger num-nodes to avoid master resizing.
       run: |
         python3 xpk.py cluster create-pathways --cluster $TPU_CLUSTER_NAME --private --tpu-type=v5p-8  --num-slices=2 \
-        --zone=europe-west4-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 \
+        --zone=europe-west4-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=4 \
         --reservation='${{ secrets.GCP_TPU_V5_RESERVATION }}' --enable-workload-identity --enable-gcsfuse-csi-driver --custom-cluster-arguments="${PW_CLUSTER_ARGUMENTS}"\
     - name: List out the nodepools on the cluster
       run: python xpk.py cluster describe --cluster $TPU_CLUSTER_NAME --zone=europe-west4-b | grep -P '^(?=.*NODEPOOL_NAME)(?=.*SLICE)(?=.*TYPE)(?=.*EXPECTED_HEALTHY_NODES)(?=.*ACTUAL_HEALTHY_NODES)(?=.*TOTAL_NODES)'

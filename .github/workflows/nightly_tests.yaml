@@ -162,7 +162,7 @@ jobs:
     - name: Check xpk installation
       run: xpk --help
     - name: Create an Pathways-enabled XPK Cluster with 2 x v5p-8 nodepools
-      run: python xpk.py cluster create-pathways --cluster $PATHWAYS_TPU_CLUSTER_NAME --tpu-type=v5p-8  --num-slices=2 --zone=europe-west4-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 --reservation='${{ secrets.GCP_TPU_V5_RESERVATION }}' --custom-cluster-arguments="${CLUSTER_NETWORK_ARGUMENTS}"
+      run: python xpk.py cluster create-pathways --cluster $PATHWAYS_TPU_CLUSTER_NAME --tpu-type=v5p-8  --num-slices=2 --zone=europe-west4-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=4 --reservation='${{ secrets.GCP_TPU_V5_RESERVATION }}' --custom-cluster-arguments="${CLUSTER_NETWORK_ARGUMENTS}"
     - name: Create test script to execute in workloads
       run: echo -e '#!/bin/bash \n echo "Hello world from a test script!"' > workload.sh
     - name: Run a Pathways workload on Ubuntu base image
@@ -203,7 +203,7 @@ jobs:
     - name: Check xpk installation
       run: xpk --help
     - name: Create a RayCluster-enabled XPK Cluster with 2 x v5p-8 nodepools
-      run: python xpk.py cluster create-ray --cluster $RAYCLUSTER_TPU_CLUSTER_NAME --tpu-type=v5p-8  --num-slices=2 --zone=europe-west4-b --ray-version=2.39.0 --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 --reservation='${{ secrets.GCP_TPU_V5_RESERVATION }}' --custom-cluster-arguments='${{ secrets.CLUSTER_ARGUMENTS}}'
+      run: python xpk.py cluster create-ray --cluster $RAYCLUSTER_TPU_CLUSTER_NAME --tpu-type=v5p-8  --num-slices=2 --zone=europe-west4-b --ray-version=2.39.0 --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=4 --reservation='${{ secrets.GCP_TPU_V5_RESERVATION }}' --custom-cluster-arguments='${{ secrets.CLUSTER_ARGUMENTS}}'
     - name: Delete the RayCluster-enabled XPK cluster
       if: always()
       run: python xpk.py cluster delete --cluster $RAYCLUSTER_TPU_CLUSTER_NAME --zone=europe-west4-b

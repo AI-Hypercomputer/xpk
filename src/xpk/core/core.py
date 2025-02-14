@@ -1998,6 +1998,15 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
       )
     xpk_return_user_exit_code = 'exit $EXIT_CODE'
 
+  is_gcsfuse = False
+  if len(args.storage) > 0:
+    storages = args.storage[0].split(",")
+  for storage in storages:
+    storage_info = storage.split("-")
+    storage_system = storage_info[0]
+    if storage_system == "gcsfuse":
+      is_gcsfuse = True
+
   yaml = """- name: {docker_name}
                 image: {docker_image}
                 {image_pull_policy}
@@ -2034,6 +2043,47 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
                   limits:
                     {resources}
 """
+
+  if is_gcsfuse:
+    yaml = """- name: gke-gcsfuse-sidecar
+                image: gcr.io/gcs-tess/gcs-fuse-csi-driver-sidecar-mounter:v2.10.0_linux_amd64
+              - name: {docker_name}
+                image: {docker_image}
+                {image_pull_policy}
+                env: {env}
+                ports:
+                {container_ports}
+                {jax_coordinator_port}
+                securityContext:
+                  privileged: true
+                command:
+                - bash
+                - -c
+                - |
+                  echo XPK Start: $(date);
+                  _sigterm() (kill -SIGTERM $! 2>/dev/null;);
+                  trap _sigterm SIGTERM;
+                  {gsutil_test_command}
+                  ({command}) & PID=$!;
+                  while kill -0 $PID 2>/dev/null;
+                      do sleep 5;
+                  done;
+                  wait $PID;
+                  EXIT_CODE=$?;
+                  {xpk_internal_commands}
+                  echo XPK End: $(date);
+                  echo EXIT_CODE=$EXIT_CODE;
+                  {tpu_stacktrace_terminate_command}
+                  {gpu_workload_terminate_command}
+                  if [ "$EXIT_CODE" = 143 ]; then
+                    exit $EXIT_CODE
+                  fi
+                  {xpk_return_user_exit_code}
+                resources:
+                  limits:
+                    {resources}
+"""
+
   volume_mounts = get_volume_mounts(args, system)
   if volume_mounts != '':
     yaml += """

@@ -493,6 +493,7 @@ def workload_create(args) -> None:
   gcpfilestore_storages: list[Storage] = list(
       filter(lambda storage: storage.type == GCP_FILESTORE_TYPE, storages)
   )
+  print(gcpfilestore_storages)
   storage_annotations = ''
   service_account = ''
   if len(gcs_fuse_storages) > 0:
@@ -547,7 +548,7 @@ def workload_create(args) -> None:
       if args.device_type == cluster_gcluster.a3mega_device_type:
         sub_networks = [f'{args.cluster}-gpunet-{i}-subnet' for i in range(8)]
         yml_string = tcpxo_decorator.decorate_jobset(yml_string, sub_networks)
-        if len(gcs_fuse_storages) > 0:
+        if len(gcs_fuse_storages + gcpfilestore_storages) > 0:
           yml_string = tcpxo_decorator.decorate_jobset_with_storages(
               yml_string, gcs_fuse_storages + gcpfilestore_storages
           )
@@ -557,7 +558,7 @@ def workload_create(args) -> None:
             f'{args.cluster}-rdma-sub-{i}' for i in range(8)
         ]
         yml_string = rdma_decorator.decorate_jobset(yml_string, sub_networks)
-        if len(gcs_fuse_storages) > 0:
+        if len(gcs_fuse_storages + gcpfilestore_storages) > 0:
           yml_string = rdma_decorator.decorate_jobset_with_storages(
               yml_string, gcs_fuse_storages + gcpfilestore_storages
           )

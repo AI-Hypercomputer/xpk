@@ -25,9 +25,9 @@ on:
         options:
           - v4-8
           - v5litepod-8
-  push:
-    branches: ["main","develop"]
-  pull_request: # By default this runs for types assigned, opened and synchronize.
+#  push:
+#    branches: ["main","develop"]
+#  pull_request: # By default this runs for types assigned, opened and synchronize.
 
 env:
   # Names must be unique in parallel running tests.

@@ -14,17 +14,18 @@
 name: 'Ensure PR label exists'
 
 on:
-  pull_request:
-    types:
-    - opened
-    - labeled
-    - unlabeled
-    - synchronize
-    - edited
-    - ready_for_review
-    - unlocked
-    branches:
-    - develop
+  workflow_dispatch:
+#  pull_request:
+#    types:
+#    - opened
+#    - labeled
+#    - unlabeled
+#    - synchronize
+#    - edited
+#    - ready_for_review
+#    - unlocked
+#    branches:
+#    - develop
 
 jobs:
   label-validation:

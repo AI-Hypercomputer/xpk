@@ -15,6 +15,7 @@ limitations under the License.
 """
 
 from xpk.core.config import XpkConfig, CFG_BUCKET_KEY, CLUSTER_NAME_KEY, PROJECT_KEY, ZONE_KEY
+
 import os
 import pytest
 

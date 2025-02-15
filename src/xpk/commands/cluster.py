@@ -23,6 +23,7 @@ from ..core.core import (
     create_vertex_tensorboard,
     delete_cluster_subnets,
     get_all_clusters_programmatic,
+    get_cluster_credentials,
     get_gke_control_plane_version,
     get_gke_node_pool_version,
     get_gke_server_config,
@@ -31,6 +32,9 @@ from ..core.core import (
     run_gke_node_pool_create_command,
     set_jobset_on_cluster,
     set_up_cluster_network_for_gpu,
+    setup_k8s_env,
+    update_cluster_with_gcsfuse_driver_if_necessary,
+    update_cluster_with_workload_identity_if_necessary,
     zone_to_region,
     get_user_input,
 )
@@ -48,6 +52,7 @@ from ..core.kueue import (
 )
 from ..core.nap import enable_autoprovisioning_on_cluster
 from ..core.ray import install_ray_cluster
+from ..core.storage import install_storage_crd
 from ..core.system_characteristics import (
     AcceleratorType,
     AcceleratorTypeToAcceleratorCharacteristics,
@@ -58,7 +63,6 @@ from ..core.workload import get_workload_list
 from ..utils.file import write_tmp_file
 from ..utils.console import xpk_exit, xpk_print
 from . import cluster_gcluster
-from .common import set_cluster_command, set_gcloud_container_api_endpoint
 
 from tabulate import tabulate
 
@@ -112,10 +116,23 @@ def cluster_create(args) -> None:
     xpk_exit(authorize_private_cluster_access_command_code)
 
   # ToDo(roshanin@) - Re-enable CloudDNS on Pathways clusters conditionally.
+  # Enable WorkloadIdentity if not enabled already.
+  if args.enable_workload_identity or args.enable_gcsfuse_csi_driver:
+    update_cluster_command_code = (
+        update_cluster_with_workload_identity_if_necessary(args)
+    )
+    if update_cluster_command_code != 0:
+      xpk_exit(update_cluster_command_code)
 
-  set_cluster_command_code = set_cluster_command(args)
-  if set_cluster_command_code != 0:
-    xpk_exit(set_cluster_command_code)
+  # Enable GCSFuse CSI Driver if not enabled already.
+  if args.enable_gcsfuse_csi_driver:
+    update_cluster_command_code = (
+        update_cluster_with_gcsfuse_driver_if_necessary(args)
+    )
+    if update_cluster_command_code != 0:
+      xpk_exit(update_cluster_command_code)
+
+  get_cluster_credentials(args)
 
   # create Vertex Tensorboard for new and existing clusters if create-vertex-tensorboard is set
   tensorboard_config = {}
@@ -178,6 +195,8 @@ def cluster_create(args) -> None:
   err_code = prepare_kjob(args)
   if err_code > 0:
     xpk_exit(err_code)
+  k8s_client = setup_k8s_env(args)
+  install_storage_crd(k8s_client)
   # Provision node pools dynamically based on incoming workloads:
   # Currently autoprovisioning is not supported with Pathways.
   autoprovisioning_config = None
@@ -267,9 +286,7 @@ def cluster_cacheimage(args) -> None:
   )
   add_zone_and_project(args)
 
-  set_cluster_command_code = set_cluster_command(args)
-  if set_cluster_command_code != 0:
-    xpk_exit(set_cluster_command_code)
+  get_cluster_credentials(args)
   system, return_code = get_system_characteristics(args)
 
   if return_code > 0:
@@ -318,9 +335,7 @@ def cluster_describe(args) -> None:
   xpk_print(f'Starting nodepool list for cluster: {args.cluster}', flush=True)
   add_zone_and_project(args)
 
-  set_cluster_command_code = set_cluster_command(args)
-  if set_cluster_command_code != 0:
-    xpk_exit(set_cluster_command_code)
+  get_cluster_credentials(args)
 
   return_code, data_table = nodepools_build_table(args)
   if return_code != 0:
@@ -748,6 +763,12 @@ def run_gke_cluster_create_command(
 
   if args.enable_ray_cluster:
     command += ' --addons RayOperator'
+
+  if args.enable_workload_identity or args.enable_gcsfuse_csi_driver:
+    command += f' --workload-pool={args.project}.svc.id.goog'
+
+  if args.enable_gcsfuse_csi_driver:
+    command += ' --addons GcsFuseCsiDriver'
 
   return_code = run_command_with_updates(command, 'GKE Cluster Create', args)
   if return_code != 0:

@@ -17,12 +17,11 @@ limitations under the License.
 from ..core.blueprint.blueprint_generator import BlueprintGenerator, BlueprintGeneratorOutput, supported_device_types, a3mega_device_type, a3ultra_device_type, a4_device_type
 from ..core.docker_manager import DockerManager
 from ..core.gcluster_manager import GclusterManager
-from ..core.core import zone_to_region, get_capacity_type
+from ..core.core import zone_to_region, get_capacity_type, get_cluster_credentials
 from ..utils.console import xpk_exit, xpk_print
 from ..utils.network import all_IPs_cidr
 from ..utils.file import ensure_directory_exists
 from ..utils.objects import hash_string
-from .common import set_cluster_command
 import os
 
 blueprints_path = os.path.abspath('xpkclusters/blueprints')
@@ -63,9 +62,7 @@ def cluster_create(args) -> None:
       prefix=prefix,
   )
 
-  set_cluster_command_code = set_cluster_command(args)
-  if set_cluster_command_code != 0:
-    xpk_exit(set_cluster_command_code)
+  get_cluster_credentials
 
   xpk_exit(0)
 

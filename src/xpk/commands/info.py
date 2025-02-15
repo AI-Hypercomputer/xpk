@@ -16,13 +16,10 @@ limitations under the License.
 
 from ..utils.console import xpk_exit, xpk_print
 from ..core.kueue import verify_kueuectl
-from .common import set_cluster_command
 from ..core.commands import (
     run_command_for_value,
 )
-from ..core.core import (
-    add_zone_and_project,
-)
+from ..core.core import (add_zone_and_project, get_cluster_credentials)
 import json
 from tabulate import tabulate
 from argparse import Namespace
@@ -39,9 +36,7 @@ def info(args: Namespace) -> None:
     None
   """
   add_zone_and_project(args)
-  set_cluster_command_code = set_cluster_command(args)
-  if set_cluster_command_code != 0:
-    xpk_exit(set_cluster_command_code)
+  get_cluster_credentials(args)
 
   verify_kueuectl(args)
   lq, cq = bool(args.localqueue), bool(args.clusterqueue)

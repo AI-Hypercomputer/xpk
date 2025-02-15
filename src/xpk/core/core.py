@@ -62,6 +62,7 @@ from .system_characteristics import (
     AcceleratorTypeToAcceleratorCharacteristics,
     SystemCharacteristics,
 )
+from .kubectl import get_cluster_credentials
 
 ################### Internally used constants ##############
 
@@ -2072,31 +2073,6 @@ def get_gke_node_pool_version(
     )
     return 1, None
   return 0, node_pool_gke_version
-
-
-def get_cluster_credentials(args: Namespace) -> None:
-  """Run cluster configuration command to set the kubectl config.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  command = (
-      'gcloud container clusters get-credentials'
-      f' {args.cluster} --region={zone_to_region(args.zone)}'
-      f' --project={args.project} &&'
-      ' kubectl config view && kubectl config set-context --current'
-      ' --namespace=default'
-  )
-  task = f'get-credentials to cluster {args.cluster}'
-  return_code = run_command_with_updates_retry(
-      command, task, args, verbose=False
-  )
-  if return_code != 0:
-    xpk_print(f'{task} returned ERROR {return_code}')
-    xpk_exit(return_code)
 
 
 def validate_docker_image(docker_image, args) -> int:

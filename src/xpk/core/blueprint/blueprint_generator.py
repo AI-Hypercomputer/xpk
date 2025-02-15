@@ -24,6 +24,7 @@ from ..system_characteristics import get_system_characteristics_by_device_type
 from ...utils.console import xpk_print, xpk_exit
 from ...utils.file import ensure_directory_exists
 from ..core import CapacityType, h100_mega_device_type, h200_device_type, b200_device_type
+from ..config import XpkConfig, GKE_ENDPOINT_KEY
 
 yaml = yaml.YAML()
 
@@ -624,14 +625,11 @@ class BlueprintGenerator:
       auth_cidr: str,
       system_node_pool_machine_type: str,
       reservation: Optional[str | None] = None,
-      gcs_bucket: Optional[
-          str | None
-      ] = "clustertoolkit-a4-high-staging-terraform-state",  # For staging, it will be set to None in prod
+      gcs_bucket: Optional[str | None] = None,
       num_nodes: int = 2,
       prefix: str = "",
       system_node_pool_min_node_count: int = 2,
       capacity_type: CapacityType = CapacityType.ON_DEMAND,
-      gke_sandbox: str | None = None,
   ) -> BlueprintGeneratorOutput:
     """Create A4 blueprint.
 
@@ -639,7 +637,14 @@ class BlueprintGenerator:
     Returns:
       - Blueprint representing cluster toolkit blueprint
     """
-    xpk_print("generating method")
+    staging_gke_endpoint = XpkConfig().get(GKE_ENDPOINT_KEY)  # For staging only
+    if staging_gke_endpoint is None or len(staging_gke_endpoint) == 0:
+      xpk_print("Error: A4 machines are not yet supported on GKE PROD.")
+      xpk_exit(1)
+
+    nccl_installer_path = (
+        f'$(ghpc_stage("{blueprint_name}"))/nccl-rdma-installer-a4.yaml'
+    )
 
     net_0_id = f"{cluster_name}-net-0"
     gpu_net_0 = DeploymentModule(
@@ -647,6 +652,7 @@ class BlueprintGenerator:
         source="modules/network/vpc",
         settings={
             "network_name": f"{cluster_name}-net-0",
+            "mtu": 8896,
             "subnetworks": [{
                 "subnet_name": f"{cluster_name}-sub-0",
                 "subnet_region": region,
@@ -700,7 +706,7 @@ class BlueprintGenerator:
         settings={
             "network_name": f"{cluster_name}-rdma-net",
             "mtu": 8896,
-            "network_profile": f"https://www.googleapis.com/compute/staging_v1/projects/{project_id}/global/networkProfiles/{zone}-vpc-roce",
+            "network_profile": f"https://www.googleapis.com/compute/beta/projects/{project_id}/global/networkProfiles/{zone}-vpc-roce",
             "network_routing_mode": "REGIONAL",
             "subnetworks_template": {
                 "name_prefix": f"{cluster_name}-rdma-sub",
@@ -717,16 +723,8 @@ class BlueprintGenerator:
         use=[net_0_id],
         settings={
             "min_master_version": (
-                "1.32.1-gke.1184000"
+                "1.32.1-gke.1420000"
             ),  # Staging specific override - remove in prod
-            # "min_master_version": "1.32.1-gke.1397000", # Staging specific override - remove in prod
-            "cluster_availability_type": (
-                "ZONAL"
-            ),  # Staging specific override - remove in prod
-            "cluster_reference_type": (
-                "NAME"
-            ),  # Staging specific override - remove in prod
-            "zone": zone,  # Staging specific override - remove in prod
             # "release_channel": "RAPID", # We'll probably need this in prod
             # "version_prefix": "1.32.", # We'll probably need this in prod
             # "maintenance_exclusions": [{  # We'll probably need this in prod
@@ -775,8 +773,9 @@ class BlueprintGenerator:
         use=[cluster_id],
         settings={
             "machine_type": system.gce_machine_type,
-            # "auto_upgrade": True, # We'll probably need this in prod
+            "auto_upgrade": True,
             "zones": [zone],
+            "disk_type": "hyperdisk-balanced",
             "static_node_count": num_nodes,
             "local_ssd_count_ephemeral_storage": 32,
             "spot": capacity_type == CapacityType.SPOT,
@@ -819,6 +818,14 @@ class BlueprintGenerator:
                 "config_template_vars": {"num_chips": f"{num_chips}"},
             },
             "jobset": {"install": True, "version": "v0.7.2"},
+            "apply_manifests": [
+                {"source": nccl_installer_path},
+                {
+                    "source": (
+                        f'$(ghpc_stage("{blueprint_name}"))/storage_crd.yaml'
+                    )
+                },
+            ],
         },
     )
 
@@ -857,18 +864,6 @@ class BlueprintGenerator:
         ],
     )
 
-    container_custom_endpoint = (  # For staging only
-        f"https://{gke_sandbox}-test-container.sandbox.googleapis.com/"
-    )
-    validators = [  # For staging only
-        {"validator": "test_zone_exists", "inputs": {}, "skip": True},
-        {"validator": "test_zone_in_region", "inputs": {}, "skip": True},
-        {"validator": "test_project_exists", "inputs": {}, "skip": True},
-        {"validator": "test_region_exists", "inputs": {}, "skip": True},
-        {"validator": "test_apis_enabled", "inputs": {}, "skip": True},
-        {"validator": "test_zone_in_region", "inputs": {}, "skip": True},
-        {"validator": "test_zone_in_region", "inputs": {}, "skip": True},
-    ]
     terraform_providers = {  # For staging only
         "google": {
             "source": "hashicorp/google",
@@ -877,10 +872,7 @@ class BlueprintGenerator:
                 "project": project_id,
                 "region": region,
                 "zone": zone,
-                "container_custom_endpoint": container_custom_endpoint,
-                "compute_custom_endpoint": (
-                    "https://www.googleapis.com/compute/staging_v1/"
-                ),
+                "container_custom_endpoint": staging_gke_endpoint,
             },
         },
         "google-beta": {
@@ -890,10 +882,7 @@ class BlueprintGenerator:
                 "project": project_id,
                 "region": region,
                 "zone": zone,
-                "container_custom_endpoint": container_custom_endpoint,
-                "compute_custom_endpoint": (
-                    "https://www.googleapis.com/compute/staging_v1/"
-                ),
+                "container_custom_endpoint": staging_gke_endpoint,
             },
         },
     }
@@ -906,7 +895,6 @@ class BlueprintGenerator:
         toolkit_modules_url=cluster_toolkit_url,
         toolkit_modules_version=cluster_toolkit_version,
         deployment_groups=[primary_group],
-        validators=validators,  # For staging only
         terraform_providers=terraform_providers,  # For staging only
         vars={
             "project_id": project_id,

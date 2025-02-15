@@ -32,7 +32,7 @@ def get_cluster_credentials(args) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
-  set_gcloud_container_api_endpoint(args)
+  is_custom_endpoint = set_gcloud_container_api_endpoint()
 
   command = (
       f'echo ${CONTAINER_API_ENDPOINT} && '
@@ -44,22 +44,21 @@ def get_cluster_credentials(args) -> int:
   )
   task = f'get-credentials to cluster {args.cluster}'
   return_code = run_command_with_updates_retry(
-      command, task, args, verbose=(args.gke_sandbox is not None)
+      command, task, args, verbose=is_custom_endpoint
   )
   if return_code != 0:
     xpk_print(f'{task} returned ERROR {return_code}')
   return return_code
 
 
-def set_gcloud_container_api_endpoint(args):
+def set_gcloud_container_api_endpoint() -> bool:
   """Sets CLOUDSDK_API_ENDPOINT_OVERRIDES_CONTAINER environment variable for current process
 
-  Args:
-    args: user provided arguments for running the command.
-
   Returns:
-    0 if successful and 1 otherwise.
+    True if custom endpoint set and False otherwise.
   """
   gke_endpoint = XpkConfig().get(GKE_ENDPOINT_KEY)
   if gke_endpoint is not None and len(gke_endpoint) > 0:
     os.environ[CONTAINER_API_ENDPOINT] = gke_endpoint
+    return True
+  return False

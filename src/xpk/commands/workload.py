@@ -542,7 +542,10 @@ def workload_create(args) -> None:
               yml_string, gcs_fuse_storages
           )
 
-      if args.device_type == cluster_gcluster.a3ultra_device_type:
+      if args.device_type in (
+          cluster_gcluster.a3ultra_device_type,
+          cluster_gcluster.a4_device_type,
+      ):
         sub_networks = [f'{args.cluster}-sub-1'] + [
             f'{args.cluster}-rdma-sub-{i}' for i in range(8)
         ]

@@ -62,7 +62,7 @@ def cluster_create(args) -> None:
       prefix=prefix,
   )
 
-  get_cluster_credentials
+  get_cluster_credentials(args)
 
   xpk_exit(0)
 
@@ -199,6 +199,5 @@ def generate_blueprint(
           capacity_type=capacity_type,
           system_node_pool_machine_type=args.default_pool_cpu_machine_type,
           system_node_pool_min_node_count=args.default_pool_cpu_num_nodes,
-          gke_sandbox=args.gke_sandbox,
       )
   return None

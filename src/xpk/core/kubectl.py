@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 from .commands import run_command_with_updates_retry
-from .core import zone_to_region
+from .common import zone_to_region
 from .config import XpkConfig, GKE_ENDPOINT_KEY
 from ..utils.console import xpk_print
 import os

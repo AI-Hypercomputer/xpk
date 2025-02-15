@@ -63,6 +63,7 @@ from .system_characteristics import (
     SystemCharacteristics,
 )
 from .kubectl import get_cluster_credentials
+from .common import zone_to_region
 
 ################### Internally used constants ##############
 
@@ -332,19 +333,6 @@ def get_zone():
         " config set compute/zone <zone>'"
     )
   return zone_outputs[-1]  # The zone name lives on the last line of the output
-
-
-def zone_to_region(zone) -> str:
-  """Helper function converts zone name to region name.
-
-  Args:
-    zone: zone name.
-
-  Returns:
-     The region name.
-  """
-  zone_terms = zone.split('-')
-  return zone_terms[0] + '-' + zone_terms[1]
 
 
 def setup_k8s_env(args: Namespace) -> k8s_client.ApiClient:

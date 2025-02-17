@@ -45,6 +45,8 @@ job_template_yaml = """
   metadata:
     name: {name}
     namespace: default
+    annotations:
+      kueue.x-k8s.io/podset-preferred-topology: "cloud.google.com/gce-topology-host"
   template:
     spec:
       parallelism: {parallelism}
@@ -52,9 +54,15 @@ job_template_yaml = """
       completionMode: Indexed
       template:
         spec:
+          tolerations:
+            - operator: "Exists"
+              key: nvidia.com/gpu
           containers:
             - name: {container_name}
               image: {image}
+              resources:
+                limits:
+                  nvidia.com/gpu: 8
           restartPolicy: OnFailure"""
 
 app_profile_yaml = """
@@ -78,12 +86,20 @@ kind: PodTemplate
 metadata:
   name: {name}
   namespace: default
+  annotations:
+    kueue.x-k8s.io/podset-preferred-topology: "cloud.google.com/gce-topology-host"
 template:
   spec:
+    tolerations:
+      - operator: "Exists"
+        key: nvidia.com/gpu
     containers:
       - name: {container_name}
         image: {image}
         command: [{interactive_command}]
+        resources:
+          limits:
+            nvidia.com/gpu: 8
 """
 
 

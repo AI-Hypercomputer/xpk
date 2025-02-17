@@ -18,9 +18,7 @@ from ..core.commands import (
     run_command_for_value,
     run_command_with_updates,
 )
-from ..core.cluster import (
-    set_jobset_on_cluster,
-)
+from ..core.cluster import set_jobset_on_cluster, setup_k8s_env
 from ..core.kjob import (
     verify_kjob_installed,
     prepare_kjob,
@@ -28,6 +26,13 @@ from ..core.kjob import (
 )
 from ..core.kueue import (
     install_kueue_on_cluster,
+    install_kueue_crs,
+    wait_for_kueue_available,
+)
+from ..core.storage import install_storage_crd
+from ..core.system_characteristics import (
+    SystemCharacteristics,
+    AcceleratorType,
 )
 from ..utils.console import (xpk_exit, xpk_print)
 
@@ -74,9 +79,35 @@ def cluster_create(args) -> None:
   if err_code > 0:
     xpk_exit(err_code)
 
+  args.kind_cluster = True
   err_code = prepare_kjob(args)
   if err_code > 0:
     xpk_exit(err_code)
+
+  k8s_client = setup_k8s_env(args)
+  install_storage_crd(k8s_client)
+
+  xpk_print('Wait for Kueue to be fully available')
+  wait_for_kueue_available_code = wait_for_kueue_available(args)
+  if wait_for_kueue_available_code != 0:
+    xpk_exit(wait_for_kueue_available_code)
+
+  args.num_slices = 1
+  args.enable_pathways = False
+  system = SystemCharacteristics(
+      'N/A',
+      1,
+      'N/A',
+      'N/A',
+      1,
+      AcceleratorType['CPU'],
+      'kind',
+  )
+
+  xpk_print('Install Kueue Custom Resources')
+  enable_kueue_credentials_code = install_kueue_crs(args, system, None)
+  if enable_kueue_credentials_code != 0:
+    xpk_exit(enable_kueue_credentials_code)
 
   xpk_print('Kind commands done! Resources are created.')
   xpk_exit(0)

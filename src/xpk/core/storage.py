@@ -28,15 +28,16 @@ from kubernetes.client.models.v1_persistent_volume import V1PersistentVolume
 from kubernetes.utils import FailToCreateError
 from tabulate import tabulate
 
+from .config import XPK_SA
 from ..utils.console import xpk_exit, xpk_print
 
-XPK_SA = "xpk-sa"
 STORAGE_CRD_PATH = "/../api/storage_crd.yaml"
 STORAGE_TEMPLATE_PATH = "/../templates/storage.yaml"
-STORAGE_CRD_NAME = "storages.xpk.x-k8s.io"
-STORAGE_CRD_KIND = "Storage"
 XPK_API_GROUP_NAME = "xpk.x-k8s.io"
 XPK_API_GROUP_VERSION = "v1"
+STORAGE_CRD_KIND = "Storage"
+STORAGE_CRD_PLURAL = STORAGE_CRD_KIND.lower() + "s"
+STORAGE_CRD_NAME = f"{XPK_API_GROUP_NAME}.{STORAGE_CRD_PLURAL}"
 GCS_FUSE_TYPE = "gcsfuse"
 GCP_FILESTORE_TYPE = "gcpfilestore"
 
@@ -114,11 +115,12 @@ class Storage:
     client = k8s_client.CoreV1Api()
     try:
       pv: V1PersistentVolume = client.read_persistent_volume(self.pv)
+      return pv.spec.csi.volume_handle
     except ApiException as e:
       xpk_print(
           f"Exception when calling CoreV1Api->read_persistent_volume: {e}"
       )
-    return pv.spec.csi.volume_handle
+      return ""
 
   def get_mount_options(self) -> list[str]:
     """
@@ -130,11 +132,12 @@ class Storage:
     client = k8s_client.CoreV1Api()
     try:
       pv: V1PersistentVolume = client.read_persistent_volume(self.pv)
+      return pv.spec.mount_options
     except ApiException as e:
       xpk_print(
           f"Exception when calling CoreV1Api->read_persistent_volume: {e}"
       )
-    return pv.spec.mount_options
+      return []
 
 
 def list_storages(k8s_api_client: ApiClient) -> list[Storage]:
@@ -152,7 +155,7 @@ def list_storages(k8s_api_client: ApiClient) -> list[Storage]:
     resp = api_instance.list_cluster_custom_object(
         group=XPK_API_GROUP_NAME,
         version=XPK_API_GROUP_VERSION,
-        plural=STORAGE_CRD_KIND.lower() + "s",
+        plural=STORAGE_CRD_PLURAL,
     )
   except ApiException as e:
     xpk_print(f"Kubernetes API exception while listing Storages: {e}")
@@ -184,6 +187,20 @@ def get_auto_mount_storages(k8s_api_client: ApiClient) -> list[Storage]:
     if storage.auto_mount is True:
       auto_mount_storages.append(storage)
   return auto_mount_storages
+
+
+def get_auto_mount_gcsfuse_storages(k8s_api_client: ApiClient) -> list[Storage]:
+  """
+  Retrieves all GCS Fuse Storage resources that have --auto-mount flag set to true.
+
+  Args:
+      k8s_api_client: An ApiClient object for interacting with the Kubernetes API.
+
+  Returns:
+      A list of GCS Fuse Storage objects that have `auto_mount` set to True.
+  """
+  storages: list[Storage] = get_auto_mount_storages(k8s_api_client)
+  return list(filter(lambda storage: storage.type == GCS_FUSE_TYPE, storages))
 
 
 def get_storages(
@@ -255,7 +272,7 @@ def get_storage(k8s_api_client: ApiClient, name: str) -> Storage:
         name=name,
         group=XPK_API_GROUP_NAME,
         version=XPK_API_GROUP_VERSION,
-        plural=STORAGE_CRD_KIND.lower() + "s",
+        plural=STORAGE_CRD_PLURAL,
     )
     return Storage(resp)
   except ApiException as e:
@@ -498,7 +515,7 @@ def create_storage_crds(k8s_api_client: ApiClient, args: Namespace) -> None:
     api_instance.create_cluster_custom_object(
         group=XPK_API_GROUP_NAME,
         version=XPK_API_GROUP_VERSION,
-        plural=STORAGE_CRD_KIND.lower() + "s",
+        plural=STORAGE_CRD_PLURAL,
         body=data,
     )
     xpk_print(f"Created {STORAGE_CRD_KIND} object: {data['metadata']['name']}")

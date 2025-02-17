@@ -15,6 +15,8 @@ limitations under the License.
 """
 
 import yaml
+
+from ..config import GCS_FUSE_ANNOTATION_KEY, GCS_FUSE_ANNOTATION_VALUE
 from ...core.storage import GCS_FUSE_TYPE, get_storage_volumes_yaml_dict
 
 
@@ -43,7 +45,7 @@ def add_annotations(job_manifest, storages):
   annotations = job_manifest['spec']['template']['metadata']['annotations']
   gcs_present = [storage.type == GCS_FUSE_TYPE for storage in storages]
   if gcs_present:
-    annotations.update({'gke-gcsfuse/volumes': 'true'})
+    annotations.update({GCS_FUSE_ANNOTATION_KEY: GCS_FUSE_ANNOTATION_VALUE})
 
 
 def add_volumes(job_manifest, storage_volumes):

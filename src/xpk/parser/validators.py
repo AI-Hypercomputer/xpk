@@ -19,12 +19,12 @@ import os
 import re
 
 
-def workload_name_type(value, pat=re.compile(r'[a-z]([-a-z0-9]*[a-z0-9])?')):
-  """Validate that the workload name matches the expected pattern."""
+def name_type(value, pat=re.compile(r'[a-z]([-a-z0-9]*[a-z0-9])?')):
+  """Validate that the name matches the expected pattern."""
   match = pat.fullmatch(value)
   if not match or len(match.group(0)) > 40:
     raise argparse.ArgumentTypeError(
-        'Workload name must be less than 40 characters and match the pattern'
+        'Name must be less than 40 characters and match the pattern'
         f' `{pat.pattern}`'
         f' Name is currently {value}'
     )

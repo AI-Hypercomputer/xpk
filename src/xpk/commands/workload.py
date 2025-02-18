@@ -298,6 +298,28 @@ spec:
                 - mountPath: /tmp
                   name: shared-tmp
                 {storage_volume_mounts}
+                env:
+                  # Workaround for v6e
+                  - name: MEGASCALE_GRPC_ENABLE_XOR_TRACER
+                    value: "false"
+                  - name: MEGASCALE_NUM_SLICES
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: "metadata.labels['jobset.sigs.k8s.io/replicatedjob-replicas']"
+                  - name: JOBSET_NAME
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.annotations['jobset.sigs.k8s.io/jobset-name']
+                  - name: REPLICATED_JOB_NAME
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.annotations['jobset.sigs.k8s.io/replicatedjob-name']
+                  - name: MEGASCALE_SLICE_ID
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: "metadata.labels['jobset.sigs.k8s.io/job-index']"
+                  - name: MEGASCALE_COORDINATOR_ADDRESS
+                    value: "$(JOBSET_NAME)-$(REPLICATED_JOB_NAME)-$(MEGASCALE_SLICE_ID)-0.$(JOBSET_NAME)"
               {pathways_sidecar_container}
               nodeSelector:
                 {accelerator_label}

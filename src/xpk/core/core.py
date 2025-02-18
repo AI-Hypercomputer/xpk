@@ -1999,6 +1999,7 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
     xpk_return_user_exit_code = 'exit $EXIT_CODE'
 
   is_gcsfuse = False
+  storages = []
   if len(args.storage) > 0:
     storages = args.storage[0].split(",")
   for storage in storages:

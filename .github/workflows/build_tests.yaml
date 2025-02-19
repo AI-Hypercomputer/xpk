@@ -82,7 +82,7 @@ jobs:
         lookup-only: true
     - name: install dependencies
       if : steps.check-cache.outputs.cache-hit != 'true'
-      run: make install && make install-lint && make install-dev
+      run: sudo make install && make install-lint && make install-dev
     - name: Cache dependencies
       if : steps.check-cache.outputs.cache-hit != 'true'
       uses: actions/cache/save@v3

@@ -564,6 +564,8 @@ To submit jobs on a cluster with A3 machines, run the below command. To create a
   ```
 > The docker image flags/arguments introduced in [workloads section](#workload-create) can be used with A3 machines as well.
 
+In order to run NCCL test on A3 Ultra machines check out [this guide](/examples/nccl/nccl.md).
+
 ### Workload Priority and Preemption
 * Set the priority level of your workload with `--priority=LEVEL`
 

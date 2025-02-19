@@ -42,9 +42,17 @@ from ..utils.console import xpk_exit, xpk_print
 from ..utils.kubectl import apply_kubectl_manifest
 from ..core.filestore import FilestoreClient, get_storage_class_name
 
+
 def get_cluster_network(args) -> str:
-  cluster_network_cmd = f'gcloud container clusters describe {args.cluster} --zone={args.zone} --project={args.project} --format="value(network)"'
-  err_code, val = run_command_for_value(command=cluster_network_cmd, task="Get network cluster is in", global_args=args)
+  cluster_network_cmd = (
+      "gcloud container clusters describe"
+      f' {args.cluster} --zone={args.zone} --project={args.project} --format="value(network)"'
+  )
+  err_code, val = run_command_for_value(
+      command=cluster_network_cmd,
+      task="Get network cluster is in",
+      global_args=args,
+  )
   if err_code != 0:
     xpk_exit(err_code)
   return val
@@ -61,9 +69,12 @@ def storage_create(args: Namespace) -> None:
       xpk_print(f"Filestore instance {args.name} already exists.")
       xpk_exit(1)
     filestore_network = get_cluster_network(args)
-    xpk_print(f"Creating Filestore instance {args.name} in network: {filestore_network}")
+    xpk_print(
+        f"Creating Filestore instance {args.name} in network:"
+        f" {filestore_network}"
+    )
     filestore_client.create_filestore_instance(
-        vol=args.vol, size=args.size, tier=args.tier, network= filestore_network
+        vol=args.vol, size=args.size, tier=args.tier, network=filestore_network
     )
 
     pv_data = filestore_client.create_pv(args.vol, access_mode=args.access_mode)

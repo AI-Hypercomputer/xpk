@@ -37,6 +37,10 @@ run-unittests:
 run-integrationtests:
 	pytest src/xpk/core/tests/integration/
 
+run-kindtests:
+	chmod +x ./tools/run-kind-tests.sh
+	./tools/run-kind-tests.sh
+
 .PHONY: mkdir-bin
 mkdir-bin:
 	mkdir -p $(BIN_PATH)

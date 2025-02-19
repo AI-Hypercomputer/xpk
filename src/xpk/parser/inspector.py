@@ -15,8 +15,8 @@ limitations under the License.
 """
 
 from ..commands.inspector import inspector
+from .common import add_shared_arguments, add_testing_arguments
 from .validators import name_type
-from .common import add_shared_arguments
 
 
 def set_inspector_parser(inspector_parser):
@@ -45,6 +45,7 @@ def set_inspector_parser(inspector_parser):
 
   ### "inspector" Optional Arguments
   add_shared_arguments(inspector_parser_optional_arguments)
+  add_testing_arguments(inspector_parser_optional_arguments)
 
   inspector_parser_optional_arguments.add_argument(
       '--workload',

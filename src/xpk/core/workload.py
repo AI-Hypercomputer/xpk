@@ -223,11 +223,12 @@ def wait_for_job_completion(args) -> int:
       xpk_print(f'{return_value}')
       xpk_print(f'Wait for workload returned ERROR {return_code}')
       return return_code
-  xpk_print(
-      'Finished waiting for your workload, see your workload here:'
-      # pylint: disable=line-too-long
-      f' https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
-  )
+  if not getattr(args, 'kind_cluster', None):
+    xpk_print(
+        'Finished waiting for your workload, see your workload here:'
+        # pylint: disable=line-too-long
+        f' https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
+    )
   status_cmd = (
       f'kubectl get jobset {args.workload} -o'
       " jsonpath='{.status.conditions[-1].type}'"

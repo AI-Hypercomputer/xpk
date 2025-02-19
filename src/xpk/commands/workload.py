@@ -56,16 +56,16 @@ from ..core.scheduling import (
     get_gpu_scheduler,
 )
 from ..core.storage import (
-    GCS_FUSE_TYPE,
     GCP_FILESTORE_TYPE,
+    GCS_FUSE_TYPE,
     XPK_SA,
     Storage,
     add_bucket_iam_members,
     get_storage_volume_mounts_yaml,
-    get_storage_volumes_yaml,
-    get_storages_to_mount,
     get_storage_volume_mounts_yaml_for_gpu,
+    get_storage_volumes_yaml,
     get_storage_volumes_yaml_for_gpu,
+    get_storages_to_mount,
 )
 from ..core.system_characteristics import (
     AcceleratorType,
@@ -87,6 +87,7 @@ from ..core.workload_decorators import rdma_decorator, tcpxo_decorator, storage_
 from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
 from . import cluster_gcluster
+from .kind import set_local_cluster_command
 
 WORKLOAD_CREATE_YAML = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
@@ -439,8 +440,13 @@ def workload_create(args) -> None:
   Returns:
     0 if successful and 1 otherwise.
   """
-  k8s_api_client = setup_k8s_env(args)
-  create_k8s_service_account(XPK_SA, 'default')
+  if not getattr(args, 'kind_cluster', None):
+    k8s_api_client = setup_k8s_env(args)
+    create_k8s_service_account(XPK_SA, 'default')
+  else:
+    set_cluster_command_code = set_local_cluster_command(args)
+    if set_cluster_command_code != 0:
+      xpk_exit(set_cluster_command_code)
 
   workload_exists = check_if_workload_exists(args)
 
@@ -513,7 +519,13 @@ def workload_create(args) -> None:
     if return_code != 0:
       xpk_exit(return_code)
 
-  storages: list[Storage] = get_storages_to_mount(k8s_api_client, args.storage)
+  if not getattr(args, 'kind_cluster', None):
+    storages: list[Storage] = get_storages_to_mount(
+        k8s_api_client, args.storage
+    )
+  else:
+    storages = []  # TODO: Allow get storages on kind clusters.
+
   gcs_fuse_storages = list(
       filter(lambda storage: storage.type == GCS_FUSE_TYPE, storages)
   )
@@ -663,7 +675,9 @@ def workload_create(args) -> None:
     xpk_print(f'Create Workload request returned ERROR {return_code}')
     xpk_exit(return_code)
 
-  add_bucket_iam_members(args, storages)
+  if not getattr(args, 'kind_cluster', None):
+    add_bucket_iam_members(args, storages)
+
   # Get GKE outlier dashboard for TPU
   outlier_dashboard_id = None
   if system.accelerator_type == AcceleratorType['TPU']:
@@ -688,39 +702,40 @@ def workload_create(args) -> None:
         f' {args.workload} from the JobName filter on the dashboard.'
     )
 
-  if args.use_pathways:
-    if args.headless:
+  if not getattr(args, 'kind_cluster', None):
+    if args.use_pathways:
+      if args.headless:
+        xpk_print(
+            ' \n ******* Please connect to your Pathways proxy at'
+            f' {args.pathways_proxy_address}, once you see "IFRT proxy server'
+            ' started with status OK" on the proxy link below.'
+            ' Remember to delete the workload once done! ****** \n'
+        )
+        pathways_proxy_link = f'https://console.cloud.google.com/kubernetes/job/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}-proxy-0/details?project={args.project}'
+        xpk_print(
+            'Follow the proxy here:'
+            # pylint: disable=line-too-long)
+            f' {pathways_proxy_link} '
+        )
       xpk_print(
-          ' \n ******* Please connect to your Pathways proxy at'
-          f' {args.pathways_proxy_address}, once you see "IFRT proxy server'
-          ' started with status OK" on the proxy link below.'
-          ' Remember to delete the workload once done! ****** \n'
+          'Follow your Pathways workload and other resources here : '
+          f'{get_pathways_unified_query_link(args)}'
       )
-      pathways_proxy_link = f'https://console.cloud.google.com/kubernetes/job/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}-proxy-0/details?project={args.project}'
+    else:
       xpk_print(
-          'Follow the proxy here:'
-          # pylint: disable=line-too-long)
-          f' {pathways_proxy_link} '
+          'Follow your workload here:'
+          # pylint: disable=line-too-long
+          f' https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
       )
-    xpk_print(
-        'Follow your Pathways workload and other resources here : '
-        f'{get_pathways_unified_query_link(args)}'
-    )
-  else:
-    xpk_print(
-        'Follow your workload here:'
-        # pylint: disable=line-too-long
-        f' https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
-    )
-    duration_of_logs = 'P1D'  # Past 1 Day
-    xpk_print(
-        'Follow your worker 0, slice 0 logs here:'
-        ' Adjust the pod name'
-        ' ([prefix]-slice-job-[slice_number]-[worker_number])'
-        ' after clicking the url if you want other worker logs.'
-        # pylint: disable=line-too-long
-        f' https://console.cloud.google.com/logs/query;query=resource.type%3D%22k8s_container%22%0Aresource.labels.project_id%3D%22{args.project}%22%0Aresource.labels.location%3D%22{zone_to_region(args.zone)}%22%0Aresource.labels.cluster_name%3D%22{args.cluster}%22%0Aresource.labels.namespace_name%3D%22default%22%0Aresource.labels.pod_name:%22{args.workload}-slice-job-0-0-%22%20severity%3E%3DDEFAULT;storageScope=project;duration={duration_of_logs}?e=13802955&mods=allow_workbench_image_override&project={args.project}'
-    )
+      duration_of_logs = 'P1D'  # Past 1 Day
+      xpk_print(
+          'Follow your worker 0, slice 0 logs here:'
+          ' Adjust the pod name'
+          ' ([prefix]-slice-job-[slice_number]-[worker_number])'
+          ' after clicking the url if you want other worker logs.'
+          # pylint: disable=line-too-long
+          f' https://console.cloud.google.com/logs/query;query=resource.type%3D%22k8s_container%22%0Aresource.labels.project_id%3D%22{args.project}%22%0Aresource.labels.location%3D%22{zone_to_region(args.zone)}%22%0Aresource.labels.cluster_name%3D%22{args.cluster}%22%0Aresource.labels.namespace_name%3D%22default%22%0Aresource.labels.pod_name:%22{args.workload}-slice-job-0-0-%22%20severity%3E%3DDEFAULT;storageScope=project;duration={duration_of_logs}?e=13802955&mods=allow_workbench_image_override&project={args.project}'
+      )
 
   xpk_exit(0)
 
@@ -752,8 +767,14 @@ def workload_delete(args) -> None:
     0 if successful and 1 otherwise.
   """
   xpk_print('Starting Workload delete', flush=True)
-  add_zone_and_project(args)
-  get_cluster_credentials(args)
+
+  if not getattr(args, 'kind_cluster', None):
+    add_zone_and_project(args)
+    get_cluster_credentials(args)
+  else:
+    set_cluster_command_code = set_local_cluster_command(args)
+    if set_cluster_command_code != 0:
+      xpk_exit(set_cluster_command_code)
 
   will_delete = True
   if not args.workload:
@@ -818,8 +839,13 @@ def workload_list(args) -> None:
   xpk_print(args)
 
   xpk_print('Starting workload list', flush=True)
-  add_zone_and_project(args)
-  get_cluster_credentials(args)
+  if not getattr(args, 'kind_cluster', None):
+    add_zone_and_project(args)
+    get_cluster_credentials(args)
+  else:
+    set_cluster_command_code = set_local_cluster_command(args)
+    if set_cluster_command_code != 0:
+      xpk_exit(set_cluster_command_code)
 
   if args.wait_for_job_completion:
     return_code = wait_for_job_completion(args)

@@ -24,7 +24,7 @@ from ..commands.cluster import (
     cluster_list,
 )
 from ..core.vertex import DEFAULT_VERTEX_TENSORBOARD_NAME
-from .common import add_shared_arguments
+from .common import add_shared_arguments, add_testing_arguments
 from .validators import name_type
 
 
@@ -377,6 +377,7 @@ def set_cluster_parser(cluster_parser):
   )
   ### Optional Arguments
   add_shared_arguments(cluster_describe_optional_arguments)
+  add_testing_arguments(cluster_describe_optional_arguments)
 
   cluster_describe_parser.set_defaults(func=cluster_describe)
 

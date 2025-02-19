@@ -1458,13 +1458,18 @@ xpk interfaces seamlessly with kind to manage Kubernetes clusters locally, facil
 
 ## Local Testing Basics
 
-Local testing is available exclusively through the `batch` and `job` commands of xpk with the `--kind-cluster` flag. This allows you to simulate training jobs locally:
+Local testing is achievable through most commands of `xpk` except those that require Pathways, like `cluster create-pathways` or `workload create-pathways`. This functionality is supported by using the `--kind-cluster` flag which allows you to simulate operations locally on the `kind` tool.
+
+This example demonstrates how to run a batch job locally using the --kind-cluster flag:
 
 ```shell
 python xpk.py batch [other-options] --kind-cluster script
 ```
 
-Please note that all other xpk subcommands are intended for use with cloud systems on Google Cloud Engine (GCE) and don't support local testing. This includes commands like cluster, info, inspector, etc.
+While the `--kind-cluster` flag does extend local testing capabilities to several commands, please be aware that commands requiring specific features from Google Cloud Platform (GCP) might not yet be fully supported when tested locally. Future updates may provide enhanced support for these GCP-specific features.
+
+Currently supported local testing cases can be reviewed in the script: `tools/run-kind-tests.sh`.
+
 
 # Other advanced usage
 [Use a Jupyter notebook to interact with a Cloud TPU cluster](xpk-notebooks.md)

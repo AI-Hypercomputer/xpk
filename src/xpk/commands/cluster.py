@@ -23,6 +23,7 @@ from ..core.cluster import (
     install_nccl_on_cluster,
     set_jobset_on_cluster,
     setup_k8s_env,
+    update_cluster_with_gcpfilestore_driver_if_necessary,
     update_cluster_with_gcsfuse_driver_if_necessary,
     update_cluster_with_workload_identity_if_necessary,
 )
@@ -63,7 +64,7 @@ from ..core.workload import get_workload_list
 from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
 from . import cluster_gcluster
-from ..core.cluster import update_cluster_with_gcpfilestore_driver_if_necessary
+from .kind import set_local_cluster_command
 
 
 def cluster_create(args) -> None:
@@ -345,9 +346,14 @@ def cluster_describe(args) -> None:
     0 if successful and 1 otherwise.
   """
   xpk_print(f'Starting nodepool list for cluster: {args.cluster}', flush=True)
-  add_zone_and_project(args)
 
-  get_cluster_credentials(args)
+  if not getattr(args, 'kind_cluster', None):
+    add_zone_and_project(args)
+    get_cluster_credentials(args)
+  else:
+    set_cluster_command_code = set_local_cluster_command(args)
+    if set_cluster_command_code != 0:
+      xpk_exit(set_cluster_command_code)
 
   return_code, data_table = nodepools_build_table(args)
   if return_code != 0:

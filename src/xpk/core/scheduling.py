@@ -221,7 +221,10 @@ def create_accelerator_label(accelerator_type, system) -> str:
   Returns:
     The accelerator label.
   """
-  if accelerator_type == AcceleratorType['CPU']:
+  if (
+      accelerator_type == AcceleratorType['CPU']
+      or accelerator_type == AcceleratorType['Fake']
+  ):
     return ''
   return (
       f'{AcceleratorTypeToAcceleratorCharacteristics[accelerator_type].accelerator_label}:'

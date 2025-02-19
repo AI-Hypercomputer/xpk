@@ -15,8 +15,8 @@ limitations under the License.
 """
 
 import argparse
-from ..commands.job import job_info, job_list, job_cancel
 
+from ..commands.job import job_cancel, job_info, job_list
 from .common import add_shared_arguments
 from .validators import name_type
 
@@ -50,12 +50,23 @@ def set_job_info_parser(job_info_parser: argparse.ArgumentParser):
       'Required arguments',
       'The basic information required to identify the job.',
   )
+  job_info_parser_optional_arguments = job_info_parser.add_argument_group(
+      'Optional Arguments', 'Arguments optional for job list.'
+  )
   job_info_parser_required_arguments.add_argument(
       'name',
       type=str,
       default=None,
       help='Name of the job.',
   )
+  job_info_parser_optional_arguments.add_argument(
+      '--kind-cluster',
+      type=bool,
+      action=argparse.BooleanOptionalAction,
+      default=False,
+      help='Apply command to a local test cluster.',
+  )
+
   job_info_parser.set_defaults(func=job_info)
   add_shared_arguments(job_info_parser)
 

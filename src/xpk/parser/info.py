@@ -14,10 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..commands.info import info
-from .common import add_shared_arguments
-from .validators import name_type
 import argparse
+
+from ..commands.info import info
+from .common import add_shared_arguments, add_testing_arguments
+from .validators import name_type
 
 
 def set_info_parser(info_parser: argparse.ArgumentParser) -> None:
@@ -61,4 +62,6 @@ def set_info_parser(info_parser: argparse.ArgumentParser) -> None:
       help='Show only localqueues resources and usage',
   )
   add_shared_arguments(info_optional_arguments)
+  add_testing_arguments(info_optional_arguments)
+
   info_parser.set_defaults(func=info)

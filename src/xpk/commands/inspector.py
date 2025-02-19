@@ -21,6 +21,7 @@ from ..core.kueue import CLUSTER_QUEUE_NAME, LOCAL_QUEUE_NAME
 from ..core.resources import CLUSTER_METADATA_CONFIGMAP, CLUSTER_RESOURCES_CONFIGMAP
 from ..utils.console import xpk_exit, xpk_print
 from ..utils.file import append_tmp_file, write_tmp_file
+from .kind import set_local_cluster_command
 from .workload import get_workload_list
 
 
@@ -120,50 +121,62 @@ def inspector(args) -> None:
   final_return_code = 0
   xpk_print(args)
 
-  add_zone_and_project(args)
-  get_cluster_credentials(args)
+  if not getattr(args, 'kind_cluster', None):
+    add_zone_and_project(args)
+    get_cluster_credentials(args)
+  else:
+    set_cluster_command_code = set_local_cluster_command(args)
+    if set_cluster_command_code != 0:
+      xpk_exit(set_cluster_command_code)
 
   inspector_file = write_tmp_file(
       '==================\nXPK inspector OUTPUT:\n==================\n'
   )
-  command_and_descriptions = [
-      ('gcloud version', 'Local Setup: gcloud version'),
-      (
-          (
-              'gcloud config get project; gcloud config get compute/zone;'
-              ' gcloud config get compute/region'
-          ),
-          'Local Setup: Project / Zone / Region',
-      ),
-      (
-          (
-              'gcloud beta container clusters list --project'
-              f' {args.project} --region {zone_to_region(args.zone)} | grep -e'
-              f' NAME -e {args.cluster}'
-          ),
-          'GKE: Cluster Details',
-      ),
-      (
-          (
-              'kubectl get configmap'
-              f' {args.cluster}-{CLUSTER_METADATA_CONFIGMAP} -o yaml'
-          ),
-          'GKE: Cluster Metadata ConfigMap Details',
-      ),
-      (
-          (
-              'kubectl get configmap'
-              f' {args.cluster}-{CLUSTER_RESOURCES_CONFIGMAP} -o yaml'
-          ),
-          'GKE: Cluster Resources ConfigMap Details',
-      ),
-      (
-          (
-              f'gcloud beta container node-pools list --cluster {args.cluster} '
-              f' --project={args.project} --region={zone_to_region(args.zone)}'
-          ),
-          'GKE: Node pool Details',
-      ),
+
+  gcloud_commands_and_descriptions = []
+  if not getattr(args, 'kind_cluster', None):
+    gcloud_commands_and_descriptions = [
+        ('gcloud version', 'Local Setup: gcloud version'),
+        (
+            (
+                'gcloud config get project; gcloud config get compute/zone;'
+                ' gcloud config get compute/region'
+            ),
+            'Local Setup: Project / Zone / Region',
+        ),
+        (
+            (
+                'gcloud beta container clusters list --project'
+                f' {args.project} --region {zone_to_region(args.zone)} | grep'
+                f' -e NAME -e {args.cluster}'
+            ),
+            'GKE: Cluster Details',
+        ),
+        (
+            (
+                'kubectl get configmap'
+                f' {args.cluster}-{CLUSTER_METADATA_CONFIGMAP} -o yaml'
+            ),
+            'GKE: Cluster Metadata ConfigMap Details',
+        ),
+        (
+            (
+                'kubectl get configmap'
+                f' {args.cluster}-{CLUSTER_RESOURCES_CONFIGMAP} -o yaml'
+            ),
+            'GKE: Cluster Resources ConfigMap Details',
+        ),
+        (
+            (
+                'gcloud beta container node-pools list --cluster'
+                f' {args.cluster} '
+                f' --project={args.project} --region={zone_to_region(args.zone)}'
+            ),
+            'GKE: Node pool Details',
+        ),
+    ]
+
+  kubectl_commands_and_descriptions = [
       (
           (
               "kubectl get node -o custom-columns='NODE_NAME:metadata.name,"
@@ -228,6 +241,9 @@ def inspector(args) -> None:
       ),
   ]
 
+  command_and_descriptions = (
+      gcloud_commands_and_descriptions + kubectl_commands_and_descriptions
+  )
   for command, description in command_and_descriptions:
     return_code = inspector_run_command_helper(
         args, command, description, inspector_file
@@ -305,45 +321,46 @@ def inspector(args) -> None:
 
   # Cloud Console Links:
   workload_links = []
-  if args.workload:
+  if args.workload and not getattr(args, 'kind_cluster', None):
     workload_links = [(
         f'Cloud Console for the workload {args.workload}',
         # pylint: disable=line-too-long
         f'https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}',
     )]
 
-  links = [
-      (
-          'Cloud Console for the GKE Cluster',
-          # pylint: disable=line-too-long
-          f'https://console.cloud.google.com/kubernetes/clusters/details/{zone_to_region(args.zone)}/{args.cluster}/details?project={args.project}',
-      ),
-      (
-          'Cloud Console for all workloads in GKE Cluster',
-          # pylint: disable=line-too-long
-          f'https://console.cloud.google.com/kubernetes/workload/overview?project={args.project}&pageState=((gke%2F{zone_to_region(args.zone)}%2F{args.cluster}))',
-      ),
-      (
-          'Cloud Console for IAM Permissions',
-          f'https://console.cloud.google.com/iam-admin/iam?project={args.project}',
-      ),
-      (
-          'Cloud Console for Quotas',
-          f'https://console.cloud.google.com/iam-admin/quotas?project={args.project}',
-      ),
-  ]
-  links.extend(workload_links)
+  if not getattr(args, 'kind_cluster', None):
+    links = [
+        (
+            'Cloud Console for the GKE Cluster',
+            # pylint: disable=line-too-long
+            f'https://console.cloud.google.com/kubernetes/clusters/details/{zone_to_region(args.zone)}/{args.cluster}/details?project={args.project}',
+        ),
+        (
+            'Cloud Console for all workloads in GKE Cluster',
+            # pylint: disable=line-too-long
+            f'https://console.cloud.google.com/kubernetes/workload/overview?project={args.project}&pageState=((gke%2F{zone_to_region(args.zone)}%2F{args.cluster}))',
+        ),
+        (
+            'Cloud Console for IAM Permissions',
+            f'https://console.cloud.google.com/iam-admin/iam?project={args.project}',
+        ),
+        (
+            'Cloud Console for Quotas',
+            f'https://console.cloud.google.com/iam-admin/quotas?project={args.project}',
+        ),
+    ]
+    links.extend(workload_links)
 
-  for description, workload_link in links:
-    return_code = inspector_output_link_helper(
-        args, workload_link, description, inspector_file
-    )
-    if return_code != 0:
-      final_return_code = return_code
-      xpk_print(
-          f'inspector failed in link: {workload_link} description:'
-          f' {description} return code: {return_code}'
+    for description, workload_link in links:
+      return_code = inspector_output_link_helper(
+          args, workload_link, description, inspector_file
       )
+      if return_code != 0:
+        final_return_code = return_code
+        xpk_print(
+            f'inspector failed in link: {workload_link} description:'
+            f' {description} return code: {return_code}'
+        )
 
   # Summarize inspector:
   xpk_print(f'Find xpk inspector output file: {inspector_file.name}')

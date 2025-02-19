@@ -215,3 +215,18 @@ def add_slurm_arguments(custom_parser: argparse.ArgumentParser):
           'and "days-hours:minutes:seconds".'
       ),
   )
+
+
+def add_testing_arguments(custom_parser: argparse.ArgumentParser):
+  """Add testing arguments to the parser.
+
+  Args:
+    custom_parser: parser to add global arguments to.
+  """
+  custom_parser.add_argument(
+      '--kind-cluster',
+      type=bool,
+      action=argparse.BooleanOptionalAction,
+      default=False,
+      help='Apply command to a local test cluster.',
+  )

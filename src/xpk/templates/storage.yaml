@@ -1,0 +1,13 @@
+apiVersion: xpk.x-k8s.io/v1
+kind: Storage
+metadata:
+  name: $NAME
+spec:
+  auto_mount:
+  cluster:
+  manifest:
+  mount_point:
+  readonly:
+  type: $NAME
+  pvc:
+  pv:

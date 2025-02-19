@@ -549,6 +549,22 @@ def add_shared_cluster_create_optional_arguments(args_parsers):
             ' Example usage: --authorized-networks 1.2.3.0/24 1.2.4.5/32'
         ),
     )
+    custom_parser.add_argument(
+        '--enable-workload-identity',
+        action='store_true',
+        help=(
+            'Enable Workload Identity Federation on the cluster and node-pools.'
+        ),
+    )
+    custom_parser.add_argument(
+        '--enable-gcsfuse-csi-driver',
+        action='store_true',
+        help=(
+            'Enable GSCFuse driver on the cluster. This enables Workload'
+            ' Identity Federation. When using A3 ultra/A3 mega Workload'
+            ' Identity is enabled by default.'
+        ),
+    )
 
 
 def add_shared_cluster_create_tensorboard_arguments(args_parsers):

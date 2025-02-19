@@ -1,5 +1,5 @@
 """
-Copyright 2025 Google LLC
+Copyright 2024 Google LLC
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -13,13 +13,3 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-
-from ..core.core import __version__
-from ..utils.console import xpk_print
-
-
-def version(args) -> None:  # pylint: disable=unused-argument
-  """Get version of xpk."""
-  xpk_version, git_hash = __version__.split('+')
-  xpk_print('xpk_version:', xpk_version)
-  xpk_print('git commit hash:', git_hash)

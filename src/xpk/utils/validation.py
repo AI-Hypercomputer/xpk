@@ -20,6 +20,7 @@ from ..commands.config import xpk_cfg
 from ..core.config import DEPENDENCIES_KEY
 from ..core.core import get_xpk_version
 
+
 validation_commands = {
     'kubectl': {
         'command': 'kubectl --help',
@@ -34,7 +35,10 @@ validation_commands = {
         'message': (
             '`kjobctl` not installed. Please follow'
             ' https://github.com/AI-Hypercomputer/xpk?tab=readme-ov-file#prerequisites'
-            ' to install xpk prerequisites.'
+            ' to install xpk prerequisites or use `make install-kjobctl &&'
+            ' export PATH=$PATH:$PWD/bin` from'
+            ' https://github.com/AI-Hypercomputer/xpk/blob/main/Makefile kjob'
+            ' will be installed in $PWD/bin directory, which must exists.'
         ),
     },
     'gcloud': {
@@ -58,7 +62,11 @@ validation_commands = {
         'message': (
             '`kueuectl` not installed. Please follow'
             ' https://github.com/AI-Hypercomputer/xpk?tab=readme-ov-file#prerequisites'
-            ' to install xpk prerequisites.'
+            ' to install xpk prerequisites or `make install-kueuectl && export'
+            ' PATH=$PATH:$PWD/bin` from'
+            ' https://github.com/AI-Hypercomputer/xpk/blob/main/Makefile'
+            ' kueuectl will be installed in $PWD/bin directory, which must'
+            ' exists.'
         ),
     },
 }
@@ -66,7 +74,8 @@ validation_commands = {
 
 def validate_dependencies():
   deps_version = xpk_cfg.get(DEPENDENCIES_KEY)
-  if deps_version is None:
+  xpk_version = get_xpk_version()
+  if deps_version is None or deps_version != xpk_version:
     for name, check in validation_commands.items():
       cmd, message = check['command'], check['message']
       code, _ = run_command_for_value(

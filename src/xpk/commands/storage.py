@@ -18,7 +18,7 @@ from argparse import Namespace
 
 from kubernetes import client as k8s_client
 from kubernetes.client.rest import ApiException
-from xpk.core.commands import run_command_for_value
+from ..core.commands import run_command_for_value
 
 from ..core.core import (
     setup_k8s_env,

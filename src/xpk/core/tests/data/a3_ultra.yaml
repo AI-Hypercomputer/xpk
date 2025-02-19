@@ -13,8 +13,16 @@
 # limitations under the License.
 !Blueprint
 blueprint_name: xpk-gke-a3-ultra
+toolkit_modules_url: github.com/GoogleCloudPlatform/cluster-toolkit
+toolkit_modules_version: v1.45.1
 
 vars:
+
+terraform_backend_defaults:
+  type: gcs
+  configuration:
+    bucket: test-bucket
+    prefix: xpk_terraform_state/testdir
 
 deployment_groups:
 - !DeploymentGroup
@@ -148,6 +156,7 @@ deployment_groups:
       apply_manifests:
       - source: $(ghpc_stage("xpk-gke-a3-ultra"))/nccl-installer.yaml
       - source: $(ghpc_stage("xpk-gke-a3-ultra"))/mlgru-disable.yaml
+      - source: $(ghpc_stage("xpk-gke-a3-ultra"))/storage_crd.yaml
   
   - !DeploymentModule
     id: workload_configmap

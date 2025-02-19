@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 from ..commands.inspector import inspector
-from .validators import workload_name_type
+from .validators import name_type
 from .common import add_shared_arguments
 
 
@@ -37,7 +37,7 @@ def set_inspector_parser(inspector_parser):
 
   inspector_parser_required_arguments.add_argument(
       '--cluster',
-      type=str,
+      type=name_type,
       default=None,
       help='The name of the cluster to investigate.',
       required=True,
@@ -48,7 +48,7 @@ def set_inspector_parser(inspector_parser):
 
   inspector_parser_optional_arguments.add_argument(
       '--workload',
-      type=workload_name_type,
+      type=name_type,
       default=None,
       help='The name of the workload to investigate.',
   )

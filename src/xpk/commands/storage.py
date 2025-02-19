@@ -18,6 +18,7 @@ from argparse import Namespace
 
 from kubernetes import client as k8s_client
 from kubernetes.client.rest import ApiException
+from xpk.core.commands import run_command_for_value
 
 from ..core.core import (
     setup_k8s_env,
@@ -41,6 +42,13 @@ from ..utils.console import xpk_exit, xpk_print
 from ..utils.kubectl import apply_kubectl_manifest
 from ..core.filestore import FilestoreClient, get_storage_class_name
 
+def get_cluster_network(args) -> str:
+  cluster_network_cmd = f'gcloud container clusters describe {args.cluster} --zone={args.zone} --project={args.project} --format="value(network)"'
+  err_code, val = run_command_for_value(command=cluster_network_cmd, task="Get network cluster is in", global_args=args)
+  if err_code != 0:
+    xpk_exit(err_code)
+  return val
+
 
 def storage_create(args: Namespace) -> None:
   add_zone_and_project(args)
@@ -52,14 +60,15 @@ def storage_create(args: Namespace) -> None:
     if filestore_exists is True:
       xpk_print(f"Filestore instance {args.name} already exists.")
       xpk_exit(1)
-
+    filestore_network = get_cluster_network(args)
+    xpk_print(f"Creating Filestore instance {args.name} in network: {filestore_network}")
     filestore_client.create_filestore_instance(
-        vol=args.vol, size=args.size, tier=args.tier, network=args.network
+        vol=args.vol, size=args.size, tier=args.tier, network= filestore_network
     )
 
     pv_data = filestore_client.create_pv(args.vol, access_mode=args.access_mode)
     pvc_data = filestore_client.create_pvc(access_mode=args.access_mode)
-    sc = filestore_client.create_sc(args.tier, args.network, args.project)
+    sc = filestore_client.create_sc(args.tier, filestore_network, args.project)
     args.manifest = filestore_client.compile_to_manifest_yaml(
         sc, pv_data, pvc_data
     )

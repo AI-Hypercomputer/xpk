@@ -497,7 +497,8 @@ Creating Filestore storage and attaching it to workload can be achieved in two w
     --manifest='examples/storage/filestore-manifest-attach.yaml'
     ```
 
-* Use `xpk storage create` command, to create new Filestore instace thast will be attached to your workloads.
+* Use `xpk storage create` command, to create new Filestore instace thast will be attached to your workloads. Created Filestore instance is in 
+same VPC as your cluster. Please note that to delete cluster for A3 Mega/A3 Ultra which is using Filestore instance it is needed to delete the instance manually before running `python3 xpk.py cluster delete` command.
 
   ```
   python3 xpk.py storage create $STORAGE_NAME --cluster=$CLUSTER \

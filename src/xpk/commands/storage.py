@@ -19,6 +19,7 @@ from argparse import Namespace
 from kubernetes import client as k8s_client
 from kubernetes.client.rest import ApiException
 from ..core.commands import run_command_for_value
+from ..core.core import zone_to_region
 
 from ..core.core import (
     setup_k8s_env,
@@ -46,7 +47,7 @@ from ..core.filestore import FilestoreClient, get_storage_class_name
 def get_cluster_network(args) -> str:
   cluster_network_cmd = (
       "gcloud container clusters describe"
-      f' {args.cluster} --zone={args.zone} --project={args.project} --format="value(network)"'
+      f' {args.cluster} --zone={zone_to_region(args.zone)} --project={args.project} --format="value(network)"'
   )
   err_code, val = run_command_for_value(
       command=cluster_network_cmd,
@@ -55,7 +56,7 @@ def get_cluster_network(args) -> str:
   )
   if err_code != 0:
     xpk_exit(err_code)
-  return val
+  return val.strip()
 
 
 def storage_create(args: Namespace) -> None:

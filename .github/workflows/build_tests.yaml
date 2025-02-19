@@ -67,6 +67,10 @@ jobs:
         python-version: ["3.10", "3.11"]
     steps:
     - uses: actions/checkout@v4
+    - uses: google-github-actions/setup-gcloud@v2
+      with:
+        version: '>= 363.0.0'
+        install_components: 'beta, gke-gcloud-auth-plugin'
     - uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
@@ -82,7 +86,7 @@ jobs:
         lookup-only: true
     - name: install dependencies
       if : steps.check-cache.outputs.cache-hit != 'true'
-      run: sudo make install && make install-lint && make install-dev
+      run: make install-lint && make install-dev
     - name: Cache dependencies
       if : steps.check-cache.outputs.cache-hit != 'true'
       uses: actions/cache/save@v3

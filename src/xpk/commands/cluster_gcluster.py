@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from ..core.commands import run_command_for_value
 from ..core.blueprint.blueprint_generator import BlueprintGenerator, BlueprintGeneratorOutput, supported_device_types, a3mega_device_type, a3ultra_device_type
 from ..core.docker_manager import DockerManager
 from ..core.gcluster_manager import GclusterManager
@@ -144,6 +145,19 @@ def prepare_blueprint_generator() -> BlueprintGenerator:
   return BlueprintGenerator(storage_path=blueprints_path)
 
 
+def validate_state_gcs_bucket(args):
+  bucket_validate_cmd = (
+      f'gcloud storage buckets describe gs://{args.cluster_state_gcs_bucket}'
+  )
+  err_code, _ = run_command_for_value(
+      bucket_validate_cmd,
+      'Validate remote state bucket existence.',
+      global_args=args,
+  )
+  if err_code != 0:
+    xpk_exit(err_code)
+
+
 def generate_blueprint(
     blueprint_name, args, prefix=None
 ) -> BlueprintGeneratorOutput:
@@ -153,6 +167,9 @@ def generate_blueprint(
     xpk_exit(return_code)
 
   bpg = prepare_blueprint_generator()
+
+  if args.cluster_state_gcs_bucket is not None:
+    validate_state_gcs_bucket(args.cluster_state_gcs_bucket)
 
   if args.device_type in supported_device_types:
     if args.device_type == a3mega_device_type:
@@ -170,6 +187,7 @@ def generate_blueprint(
           capacity_type=capacity_type,
           system_node_pool_machine_type=args.default_pool_cpu_machine_type,
           system_node_pool_min_node_count=args.default_pool_cpu_num_nodes,
+          gcs_bucket=args.cluster_state_gcs_bucket,
       )
     if args.device_type == a3ultra_device_type:
       num_nodes = args.num_nodes if not args.num_nodes is None else 2
@@ -186,5 +204,6 @@ def generate_blueprint(
           capacity_type=capacity_type,
           system_node_pool_machine_type=args.default_pool_cpu_machine_type,
           system_node_pool_min_node_count=args.default_pool_cpu_num_nodes,
+          gcs_bucket=args.cluster_state_gcs_bucket,
       )
   return None

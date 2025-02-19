@@ -35,10 +35,7 @@ validation_commands = {
         'message': (
             '`kjobctl` not installed. Please follow'
             ' https://github.com/AI-Hypercomputer/xpk?tab=readme-ov-file#prerequisites'
-            ' to install xpk prerequisites or use `make install-kjobctl &&'
-            ' export PATH=$PATH:$PWD/bin` from'
-            ' https://github.com/AI-Hypercomputer/xpk/blob/main/Makefile kjob'
-            ' will be installed in $PWD/bin directory, which must exists.'
+            ' to install xpk prerequisites.'
         ),
     },
     'gcloud': {
@@ -62,11 +59,7 @@ validation_commands = {
         'message': (
             '`kueuectl` not installed. Please follow'
             ' https://github.com/AI-Hypercomputer/xpk?tab=readme-ov-file#prerequisites'
-            ' to install xpk prerequisites or `make install-kueuectl && export'
-            ' PATH=$PATH:$PWD/bin` from'
-            ' https://github.com/AI-Hypercomputer/xpk/blob/main/Makefile'
-            ' kueuectl will be installed in $PWD/bin directory, which must'
-            ' exists.'
+            ' to install xpk prerequisites.'
         ),
     },
 }

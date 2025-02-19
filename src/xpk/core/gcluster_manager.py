@@ -16,7 +16,7 @@ limitations under the License.
 
 from .docker_manager import CommandRunner
 from ..utils.console import xpk_print
-
+from google.cloud import storage
 
 xpk_gcloud_cfg_path = '~/gcloud/cfg'
 xpk_deployment_dir = '/deployment'
@@ -46,6 +46,7 @@ class GclusterManager:
       gcluster_command_runner: CommandRunner,
   ) -> None:
     self.gcluster_command_runner = gcluster_command_runner
+    self.gcs_client= storage.Client()
 
   def _run_create_deployment_cmd(
       self, blueprint_container_path: str, prefix: str = ''
@@ -156,3 +157,9 @@ class GclusterManager:
     xpk_print('Staging blueprint completed!')
     xpk_print(f"File path in gcluster's working directory: {staged_blueprint}")
     return staged_blueprint
+
+  def upload_files_to_gcs(self, remote_state_bucket: str) -> None:
+    bucket_client = self.gcs_client.bucket(remote_state_bucket)
+
+  def download_files_from_gcs(self) ->None:
+    pass

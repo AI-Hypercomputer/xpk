@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..core.core import __version__
+from ..core.config import __version__
 from ..utils.console import xpk_print
 
 

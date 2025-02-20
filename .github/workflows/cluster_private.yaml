@@ -77,7 +77,7 @@ jobs:
     - name: Create a Pathways-enabled private XPK Cluster with 2x ${{inputs.tpu-type}} nodepools. Larger num-nodes to avoid master resizing.
       run: python xpk.py cluster create-pathways --cluster ${{inputs.cluster-name}}-private --private --tpu-type=${{inputs.tpu-type}}  --num-slices=2 --zone=${{inputs.zone}} --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=16 --reservation='${{ secrets.GCP_TPU_V5_RESERVATION }}' --custom-cluster-arguments="${CLUSTER_ARGUMENTS}" 
     - name: Verify the created cluster is private
-      run: gcloud container clusters describe ${{inputs.cluster-name}}-private --region=us-central2 --format="value(privateClusterConfig.enablePrivateNodes)" | grep 'True' || (echo 'The created cluster is not private.' && exit 1)
+      run: gcloud container clusters describe ${{inputs.cluster-name}}-private --region=${{inputs.zone}} --format="value(privateClusterConfig.enablePrivateNodes)" | grep 'True' || (echo 'The created cluster is not private.' && exit 1)
     - name: Delete the cluster created
       if: always()
       run: echo 'y' | python xpk.py cluster delete --cluster ${{inputs.cluster-name}}-private --zone=${{inputs.zone}}

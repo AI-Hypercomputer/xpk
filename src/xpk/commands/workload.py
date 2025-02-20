@@ -14,41 +14,26 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..core.commands import (
-    run_command_with_updates,
-    run_commands,
+from ..core.cluster import (
+    create_k8s_service_account,
+    get_cluster_credentials,
+    setup_k8s_env,
 )
-from ..core.core import (
-    CLUSTER_METADATA_CONFIGMAP,
+from ..core.commands import run_command_with_updates, run_commands
+from ..core.config import (
     GCS_FUSE_ANNOTATION,
     VERTEX_TENSORBOARD_FEATURE_FLAG,
-    AcceleratorTypeToAcceleratorCharacteristics,
-    add_zone_and_project,
-    check_if_workload_can_schedule,
-    check_if_workload_exists,
-    create_accelerator_label,
-    create_k8s_service_account,
-    create_machine_label,
-    create_vertex_experiment,
-    get_cluster_configmap,
-    get_cluster_credentials,
-    get_cpu_affinity,
-    get_gke_outlier_dashboard,
-    get_gpu_rxdm_cmd,
-    get_gpu_rxdm_image,
-    get_gpu_scheduler,
-    get_gpu_tcp_volume,
-    get_gpu_volume,
+    XPK_CURRENT_VERSION,
+    parse_env_config,
+)
+from ..core.docker_container import (
     get_main_container_docker_image,
     get_user_workload_container,
-    get_volumes,
-    parse_env_config,
-    setup_k8s_env,
-    wait_for_job_completion,
-    xpk_current_version,
-    zone_to_region,
 )
+from ..core.docker_resources import get_volumes
+from ..core.gcloud_context import add_zone_and_project
 from ..core.kueue import LOCAL_QUEUE_NAME
+from ..core.monitoring import get_gke_outlier_dashboard
 from ..core.nap import (
     get_autoprovisioning_node_selector_args,
     is_autoprovisioning_enabled,
@@ -61,6 +46,14 @@ from ..core.pathways import (
     get_pathways_unified_query_link,
     get_pathways_worker_args,
     get_user_workload_for_pathways,
+)
+from ..core.resources import CLUSTER_METADATA_CONFIGMAP, get_cluster_configmap
+from ..core.scheduling import (
+    check_if_workload_can_schedule,
+    create_accelerator_label,
+    create_machine_label,
+    get_cpu_affinity,
+    get_gpu_scheduler,
 )
 from ..core.storage import (
     GCS_FUSE_TYPE,
@@ -75,15 +68,26 @@ from ..core.storage import (
 )
 from ..core.system_characteristics import (
     AcceleratorType,
+    AcceleratorTypeToAcceleratorCharacteristics,
     get_system_characteristics,
 )
-from ..core.workload import get_workload_list
+from ..core.vertex import create_vertex_experiment
+from ..core.workload import (
+    check_if_workload_exists,
+    get_gpu_rxdm_cmd,
+    get_gpu_rxdm_image,
+    get_gpu_tcp_volume,
+    get_gpu_volume,
+    get_workload_list,
+    wait_for_job_completion,
+    zone_to_region,
+)
+from ..core.workload_decorators import rdma_decorator, tcpxo_decorator
 from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
-from ..core.workload_decorators import tcpxo_decorator, rdma_decorator
 from . import cluster_gcluster
 
-workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
+WORKLOAD_CREATE_YAML = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
 metadata:
   name: {args.workload}
@@ -132,7 +136,7 @@ spec:
 """
 
 
-gpu_workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
+GPU_WORKLOAD_CREATE_YAML = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
 metadata:
   name: {args.workload}
@@ -199,7 +203,7 @@ spec:
               {container}
 """
 
-a3_gpu_workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
+A3_GPU_WORKLOAD_CREATE_YAML = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
 metadata:
   name: {args.workload}
@@ -239,7 +243,7 @@ spec:
               {container}
 """
 
-pw_workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
+PW_WORKLOAD_CREATE_YAML = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
 metadata:
   name: {args.workload}
@@ -450,12 +454,12 @@ def workload_create(args) -> None:
     cluster_xpk_version = cluster_config_map.get('xpk_version')
   if (
       cluster_xpk_version is not None
-      and cluster_xpk_version != xpk_current_version
+      and cluster_xpk_version != XPK_CURRENT_VERSION
   ):
     xpk_print(
         'Warning: Cluster has been created using XPK version:'
         f' {cluster_config_map["xpk_version"]} but the XPK version you are'
-        f' using to schedule workload is: {xpk_current_version}. Some features'
+        f' using to schedule workload is: {XPK_CURRENT_VERSION}. Some features'
         ' might not be available for this cluster. We recommend to'
         ' upgrade/downgrade your XPK version or cluster by running `xpk'
         ' cluster create`.'
@@ -526,7 +530,7 @@ def workload_create(args) -> None:
       xpk_exit(return_code)
 
     if system.device_type in cluster_gcluster.supported_device_types:
-      yml_string = a3_gpu_workload_create_yaml.format(
+      yml_string = A3_GPU_WORKLOAD_CREATE_YAML.format(
           args=args,
           container=container,
           service_account=XPK_SA,
@@ -552,7 +556,7 @@ def workload_create(args) -> None:
               yml_string, gcs_fuse_storages
           )
     else:
-      yml_string = gpu_workload_create_yaml.format(
+      yml_string = GPU_WORKLOAD_CREATE_YAML.format(
           args=args,
           container=container,
           command=args.command,
@@ -575,7 +579,7 @@ def workload_create(args) -> None:
   elif args.use_pathways and ensure_pathways_workload_prerequisites(
       args, system
   ):
-    yml_string = pw_workload_create_yaml.format(
+    yml_string = PW_WORKLOAD_CREATE_YAML.format(
         args=args,
         system=system,
         accelerator_label=create_accelerator_label(
@@ -606,7 +610,7 @@ def workload_create(args) -> None:
     container, debugging_dashboard_id = get_user_workload_container(
         args, system
     )
-    yml_string = workload_create_yaml.format(
+    yml_string = WORKLOAD_CREATE_YAML.format(
         args=args,
         system=system,
         container=container,

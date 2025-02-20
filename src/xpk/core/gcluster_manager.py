@@ -16,7 +16,8 @@ limitations under the License.
 
 from .docker_manager import CommandRunner
 from ..utils.console import xpk_print
-from google.cloud import storage
+from google.cloud.storage import Client
+from ..utils.gcs_utils import check_file_exists, download_bucket_to_dir, upload_directory_to_gcs
 
 xpk_gcloud_cfg_path = '~/gcloud/cfg'
 xpk_deployment_dir = '/deployment'
@@ -46,7 +47,7 @@ class GclusterManager:
       gcluster_command_runner: CommandRunner,
   ) -> None:
     self.gcluster_command_runner = gcluster_command_runner
-    self.gcs_client= storage.Client()
+    self.gcs_client = Client()
 
   def _run_create_deployment_cmd(
       self, blueprint_container_path: str, prefix: str = ''
@@ -158,8 +159,30 @@ class GclusterManager:
     xpk_print(f"File path in gcluster's working directory: {staged_blueprint}")
     return staged_blueprint
 
-  def upload_files_to_gcs(self, remote_state_bucket: str) -> None:
-    bucket_client = self.gcs_client.bucket(remote_state_bucket)
+  def _get_rs_bucket_name(self) -> str:
+    return f'{project}-{zone}-{cluster_name}'
 
-  def download_files_from_gcs(self) ->None:
-    pass
+  def _get_blueprint_path(self) -> str:
+    return ''
+
+  def _get_blueprint_directory(self) -> str:
+    return ''
+
+  def check_remote_state_exists(self) -> bool:
+    return check_file_exists(
+        self.gcs_client, self._get_rs_bucket_name(), self._get_blueprint_path()
+    )
+
+  def upload_state_to_bucket(self) -> None:
+    return upload_directory_to_gcs(
+        self.gcs_client,
+        self._get_rs_bucket_name(),
+        self._get_blueprint_directory(),
+    )
+
+  def download_state_from_bucket(self) -> None:
+    return download_bucket_to_dir(
+        self.gcs_client,
+        self._get_rs_bucket_name(),
+        self._get_blueprint_directory(),
+    )

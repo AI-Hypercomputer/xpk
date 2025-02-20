@@ -63,6 +63,7 @@ def cluster_create(args) -> None:
       deployment_name=unique_name,
       prefix=prefix,
   )
+  gcm.upload_state_to_bucket()
 
   set_cluster_command_code = set_cluster_command(args)
   if set_cluster_command_code != 0:
@@ -89,7 +90,7 @@ def cluster_delete(args) -> None:
   unique_name = get_unique_name(args.project, region, args.cluster)
   # prefix is to prevent name collisions for blueprints and also deployments by storing them in prefix directory. Ex.: blueprints/{prefix}/cluster_name_hash
   prefix_path = get_prefix_path(args.project, region)
-
+  gcm.download_state_from_bucket()
   gcm.destroy_deployment(deployment_name=unique_name, prefix=prefix_path)
 
   xpk_exit(0)

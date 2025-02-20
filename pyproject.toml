@@ -38,13 +38,9 @@ dependencies = [
   "kubernetes==31.0.0",
   "google-cloud",
   "google-api-core",
-<<<<<<< HEAD
-  "packaging"
-=======
   "packaging",
   "google-cloud-filestore",
   "google-cloud-storage"
->>>>>>> 0ff3c3a (remote state draft)
 ]
 
 [project.urls]

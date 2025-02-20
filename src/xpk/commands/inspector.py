@@ -14,17 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from ..core.cluster import get_cluster_credentials
 from ..core.commands import run_command_for_value
-from ..core.core import (
-    CLUSTER_METADATA_CONFIGMAP,
-    CLUSTER_RESOURCES_CONFIGMAP,
-    add_zone_and_project,
-    get_cluster_credentials,
-    zone_to_region,
-)
+from ..core.gcloud_context import add_zone_and_project, zone_to_region
 from ..core.kueue import CLUSTER_QUEUE_NAME, LOCAL_QUEUE_NAME
-from ..utils.file import append_tmp_file, write_tmp_file
+from ..core.resources import CLUSTER_METADATA_CONFIGMAP, CLUSTER_RESOURCES_CONFIGMAP
 from ..utils.console import xpk_exit, xpk_print
+from ..utils.file import append_tmp_file, write_tmp_file
 from .workload import get_workload_list
 
 

@@ -14,13 +14,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..core.blueprint.blueprint_generator import BlueprintGenerator, BlueprintGeneratorOutput, supported_device_types, a3mega_device_type, a3ultra_device_type
+import os
+
+from ..core.blueprint.blueprint_generator import (
+    BlueprintGenerator,
+    BlueprintGeneratorOutput,
+    a3mega_device_type,
+    a3ultra_device_type,
+    supported_device_types,
+)
+from ..core.capacity import get_capacity_type
 from ..core.docker_manager import DockerManager
+from ..core.gcloud_context import zone_to_region
 from ..core.gcluster_manager import GclusterManager
-from ..core.core import zone_to_region, get_capacity_type
 from ..utils.console import xpk_exit, xpk_print
-from ..utils.network import all_IPs_cidr
 from ..utils.file import ensure_directory_exists
+from ..utils.network import all_IPs_cidr
 from ..utils.objects import hash_string
 from ..core.core import get_cluster_credentials
 from ..core.kjob import apply_kjob_crds, prepare_kjob

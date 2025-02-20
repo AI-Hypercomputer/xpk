@@ -15,18 +15,24 @@ limitations under the License.
 """
 
 from argparse import Namespace
-from packaging.version import Version
+
 import packaging
+from packaging.version import Version
+
+from ..utils.console import xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
-from ..utils.console import xpk_print, xpk_exit
-from .commands import run_command_with_updates, run_command_with_updates_retry, run_command_for_value
-from .core import (
-    AutoprovisioningConfig,
+from .commands import (
+    run_command_for_value,
+    run_command_with_updates,
+    run_command_with_updates_retry,
+)
+from .pathways import add_pw_resource_flavors, add_pw_resources_to_kueue
+from .resources import AutoprovisioningConfig
+from .scheduling import (
     create_accelerator_label,
     create_machine_label,
     get_total_chips_requested_from_args,
 )
-from .pathways import add_pw_resource_flavors, add_pw_resources_to_kueue
 from .system_characteristics import (
     AcceleratorTypeToAcceleratorCharacteristics,
     SystemCharacteristics,

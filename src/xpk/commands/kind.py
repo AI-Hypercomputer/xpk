@@ -18,7 +18,7 @@ from ..core.commands import (
     run_command_for_value,
     run_command_with_updates,
 )
-from ..core.core import (
+from ..core.cluster import (
     set_jobset_on_cluster,
 )
 from ..core.kjob import (

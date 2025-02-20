@@ -18,7 +18,7 @@ from argparse import Namespace
 from ..utils.console import xpk_print
 from .commands import run_command_for_value, run_kubectl_apply, run_command_with_updates
 from .config import XpkConfig, KJOB_SHELL_IMAGE, KJOB_SHELL_INTERACTIVE_COMMAND, KJOB_BATCH_IMAGE
-from .core import get_cluster_system_characteristics, SystemCharacteristics, AcceleratorType
+from .resources import get_cluster_system_characteristics, SystemCharacteristics, AcceleratorType
 from enum import Enum
 
 

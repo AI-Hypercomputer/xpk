@@ -2,11 +2,13 @@
 
 This document provides an introduction to running tests for the NVIDIA Collective Communications Library (NCCL). NCCL is a high-performance, multi-GPU communications library used in deep learning and other applications. The test suite helps verify the correct functionality and performance of NCCL on your system. Please visit [NCCL tests github](https://github.com/NVIDIA/nccl-tests?tab=readme-ov-file#nccl-tests) to learn more about NCCL and running it.
 
-Steps presented in this document are designed to run on A3 ultra machines (`DEVICE_TYPE=h200-141gb-8`).
+Steps presented in this document are designed to run on A3 Ultra machines (`DEVICE_TYPE=h200-141gb-8`).
 
 ### 1. Create cluster
 
-First step is to create a cluster with A3 ultra machine. Execute below step:
+Skip this step if you have already provisioned a GKE cluster with A3 Ultra machines.
+
+First step is to create a cluster with A3 Ultra machine. Execute command below:
 
 ```
 python3 xpk.py cluster create \

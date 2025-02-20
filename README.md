@@ -442,7 +442,7 @@ Currently, the below flags/arguments are supported for A3-Mega and A3-Ultra mach
 
 
 ## Storage
-Currently xpk supports two types of cloud storages: FUSE and Filestore.
+Currently XPK supports two types of storages: Cloud Storage FUSE and Google Cloud Filestore.
 
 ### FUSE
 A FUSE adapter lets you mount and access Cloud Storage buckets as local file systems, so applications can read and write objects in your bucket using standard file system semantics.
@@ -488,7 +488,7 @@ set up PersistentVolume and PersistentVolumeClaim visit [GKE Filestore documenta
 
 Creating Filestore storage and attaching it to workload can be achieved in two ways:
 
-* Use `xpk storage attach` command, to attach existing filestore instance to your workloads. User must specify `--type=gcpfilestore`. This command will use existing instance of Filestore, which you can find in your gcp console, or by running `gcloud filestore instances list`. Manifest file containing Filestore details must be provided. To see examples of manifest file please visit [this guide](https://cloud.google.com/kubernetes-engine/docs/how-to/persistent-volumes/filestore-csi-driver#access) or [test example](tests/data/fs-manifest.yaml)
+* Use `xpk storage attach` command, to attach existing filestore instance to your workloads. User must specify `--type=gcpfilestore`. This command will use existing instance of Filestore, which you can find in your gcp console, or by running `gcloud filestore instances list`. Manifest file containing Filestore details must be provided. To see examples of manifest file please visit [this guide](https://cloud.google.com/kubernetes-engine/docs/how-to/persistent-volumes/filestore-csi-driver#access) or [test example](tests/data/fs-manifest.yaml). The existing Filestore instance must be in the same VPC network as your GKE Cluster.
 
     ```shell
     python3 xpk.py storage attach fs-storage-attach --project=$PROJECT
@@ -497,8 +497,14 @@ Creating Filestore storage and attaching it to workload can be achieved in two w
     --manifest='examples/storage/filestore-manifest-attach.yaml'
     ```
 
-* Use `xpk storage create` command, to create new Filestore instace thast will be attached to your workloads. Created Filestore instance is in 
+* Use `xpk storage create` command, to create new Filestore instace that will be attached to your workloads. Created Filestore instance is in 
 same VPC as your cluster. Please note that to delete cluster for A3 Mega/A3 Ultra which is using Filestore instance it is needed to delete the instance manually before running `python3 xpk.py cluster delete` command.
+
+Command `storage create` needs below extra arguments:
+`--size` - size of the Filestore instance that will be created, in Gb or Tb
+`--tier` - tier of the Filestore instance that will be created. Possible options are: `[BASIC_HDD, BASIC_SSD, ZONAL, REGIONAL, ENTERPRISE]`
+`--access-mode` - access mode of the Filestore instance that will be created. Possible values are: `[ReadWriteOnce, ReadOnlyMany, ReadWriteMany]`
+`--volume` - file share name of the Filestore instance that will be created.
 
   ```
   python3 xpk.py storage create $STORAGE_NAME --cluster=$CLUSTER \
@@ -513,7 +519,7 @@ same VPC as your cluster. Please note that to delete cluster for A3 Mega/A3 Ultr
     --workload xpk-test-workload --command "echo goodbye" \
     --cluster xpk-test \
     --tpu-type=v5litepod-16 \
-    --storage fs-storage-attach \
+    --storage $STORAGE_NAME \
     --project=$PROJECT
     ```
 
@@ -525,7 +531,7 @@ same VPC as your cluster. Please note that to delete cluster for A3 Mega/A3 Ultr
 
 * Delete Storage
     ```shell
-    python3 xpk.py storage delete test-storage  --cluster xpk-test --zone=us-central2-b --project=$PROJECT
+    python3 xpk.py storage delete $STORAGE_NAME  --cluster xpk-test --zone=us-central2-b --project=$PROJECT
     ```
 
 ## Workload Create

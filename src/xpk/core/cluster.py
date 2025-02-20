@@ -106,7 +106,7 @@ def update_cluster_with_gcpfilestore_driver_if_necessary(args) -> int:
   if is_driver_enabled_on_cluster(args, driver='gcpFilestoreCsiDriver'):
     return 0
   cluster_update_return_code = update_gke_cluster_with_addon(
-      'GcpFilestoreCsiDriver', args
+      args, 'GcpFilestoreCsiDriver'
   )
   if cluster_update_return_code > 0:
     xpk_print('Updating GKE cluster to enable GCPFilestore CSI driver failed!')
@@ -141,7 +141,7 @@ def is_driver_enabled_on_cluster(args, driver: str) -> bool:
   return False
 
 
-def update_gke_cluster_with_addon(addon: str, args) -> int:
+def update_gke_cluster_with_addon(args, addon: str) -> int:
   """Run the GKE cluster update command for existing cluster and enabling passed addon.
   Args:
     args: user provided arguments for running the command.

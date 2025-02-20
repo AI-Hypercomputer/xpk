@@ -355,7 +355,7 @@ class BlueprintGenerator:
       reservation: Optional[str | None] = None,
       gcs_bucket: Optional[str | None] = None,
       num_nodes: int = 2,
-      enable_filestore_csi_driver=False,
+      enable_filestore_csi_driver=True,
       prefix: str = "",
       mtu_size: int = 8896,
       system_node_pool_min_node_count: int = 2,

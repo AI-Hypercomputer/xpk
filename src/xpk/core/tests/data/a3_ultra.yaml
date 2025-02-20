@@ -105,7 +105,7 @@ deployment_groups:
       system_node_pool_machine_type: "e2-standard-16"
       enable_dcgm_monitoring: true
       enable_gcsfuse_csi: true
-      enable_filestore_csi: false
+      enable_filestore_csi: true
       enable_private_endpoint: false # Allows access from authorized public IPs
       master_authorized_networks:
       - cidr_block: 10.0.0.0/32 # Allows your machine to run the kubectl command. Required for multi network setup.

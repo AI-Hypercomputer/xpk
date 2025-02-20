@@ -33,9 +33,6 @@ env:
 jobs:
   run-filestore-workload:
     runs-on: [ubuntu-22.04]
-    concurrency: # We support one build or nightly test to run at a time currently.
-      group: filestore-test-group-${{github.event.number}}
-      cancel-in-progress: false
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-python@v5
@@ -60,11 +57,12 @@ jobs:
       run: |
         gcloud config set compute/zone us-east4-a
         gcloud config get compute/zone
-    - name: Install xpk and verify it executes corretly
+    - name: Install xpk
       run: |
         make install
         echo $PWD/bin >> "$GITHUB_PATH"
-        xpk --help
+    - name: Verify xpk installation
+      run: xpk --help
     - name: Authenticate Docker
       run: gcloud auth configure-docker --quiet
     - name: Create a XPK Cluster with 2x v5p-8 nodepools. Larger num-nodes to avoid master resizing.
@@ -111,9 +109,6 @@ jobs:
   
   filestore-create:
     runs-on: [ubuntu-22.04]
-    concurrency: # We support one build or nightly test to run at a time currently.
-      group: filestore-test-group-${{github.event.number}}
-      cancel-in-progress: false
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-python@v5
@@ -138,11 +133,12 @@ jobs:
       run: |
         gcloud config set compute/zone us-east4-a
         gcloud config get compute/zone
-    - name: Install xpk with pip and verify it executes corretly
+    - name: Install xpk
       run: |
-        make install
-        echo $PWD/bin >> "$GITHUB_PATH"
-        xpk --help
+          make install
+          echo $PWD/bin >> "$GITHUB_PATH"
+    - name: Verify xpk installation
+      run: xpk --help
     - name: Authenticate Docker
       run: gcloud auth configure-docker --quiet
     - name: Create a XPK Cluster with 2x v5p-8 nodepools. Larger num-nodes to avoid master resizing.

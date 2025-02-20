@@ -44,6 +44,7 @@ from ..core.filestore import FilestoreClient, get_storage_class_name
 
 
 def get_cluster_network(args) -> str:
+  xpk_print("Getting cluster's VPC network...")
   cluster_network_cmd = (
       "gcloud container clusters describe"
       f' {args.cluster} --zone={zone_to_region(args.zone)} --project={args.project} --format="value(network)"'

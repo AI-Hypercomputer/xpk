@@ -14,8 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import os
-
 from ..core.blueprint.blueprint_generator import (
     BlueprintGenerator,
     BlueprintGeneratorOutput,

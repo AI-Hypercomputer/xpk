@@ -191,10 +191,10 @@ def cluster_create(args) -> None:
   if err_code > 0:
     xpk_exit(err_code)
 
-  xpk_print('Preparing kjob')
   err_code = prepare_kjob(args)
   if err_code > 0:
     xpk_exit(err_code)
+
   k8s_client = setup_k8s_env(args)
   install_storage_crd(k8s_client)
   # Provision node pools dynamically based on incoming workloads:

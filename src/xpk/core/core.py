@@ -61,6 +61,7 @@ from .system_characteristics import (
     AcceleratorType,
     AcceleratorTypeToAcceleratorCharacteristics,
     SystemCharacteristics,
+    get_system_characteristics_by_device_type,
 )
 
 ################### Internally used constants ##############
@@ -2335,6 +2336,28 @@ def check_if_workload_can_schedule(args, system: SystemCharacteristics) -> bool:
       return False
 
   return True
+
+
+def get_cluster_system_characteristics(args) -> SystemCharacteristics | None:
+  """Get systemCharcteristics based on the cluster resources configMap
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    returns system characteristics
+  """
+  resources_configmap_name = f'{args.cluster}-{CLUSTER_RESOURCES_CONFIGMAP}'
+  cluster_config_map = get_cluster_configmap(args, resources_configmap_name)
+
+  if cluster_config_map is None:
+    return None
+
+  for key in cluster_config_map:
+    system, result_code = get_system_characteristics_by_device_type(key)
+    if result_code == 0:
+      return system
+
+  return None
 
 
 def use_base_docker_image_or_docker_image(args) -> bool:

@@ -17,6 +17,8 @@ limitations under the License.
 from argparse import Namespace
 from ..utils.console import xpk_print
 from .commands import run_command_for_value, run_kubectl_apply, run_command_with_updates
+from .config import XpkConfig, KJOB_SHELL_IMAGE, KJOB_SHELL_INTERACTIVE_COMMAND, KJOB_BATCH_IMAGE
+from .core import get_cluster_system_characteristics, SystemCharacteristics, AcceleratorType
 from enum import Enum
 
 
@@ -45,8 +47,6 @@ job_template_yaml = """
   metadata:
     name: {name}
     namespace: default
-    annotations:
-      kueue.x-k8s.io/podset-preferred-topology: "cloud.google.com/gce-topology-host"
   template:
     spec:
       parallelism: {parallelism}
@@ -60,10 +60,14 @@ job_template_yaml = """
           containers:
             - name: {container_name}
               image: {image}
+              {resources}
+          restartPolicy: OnFailure"""
+
+job_resources_template = """
               resources:
                 limits:
-                  nvidia.com/gpu: 8
-          restartPolicy: OnFailure"""
+                  nvidia.com/gpu: {gpu_per_node}
+"""
 
 app_profile_yaml = """
 apiVersion: kjobctl.x-k8s.io/v1alpha1
@@ -86,8 +90,6 @@ kind: PodTemplate
 metadata:
   name: {name}
   namespace: default
-  annotations:
-    kueue.x-k8s.io/podset-preferred-topology: "cloud.google.com/gce-topology-host"
 template:
   spec:
     tolerations:
@@ -97,9 +99,6 @@ template:
       - name: {container_name}
         image: {image}
         command: [{interactive_command}]
-        resources:
-          limits:
-            nvidia.com/gpu: 8
 """
 
 
@@ -128,6 +127,22 @@ def verify_kjob_installed(args: Namespace) -> int:
   return 0
 
 
+def get_pod_template_interactive_command() -> str:
+  """Gets the interactive command for PodTemplate from config otherwise the default value.
+
+  Args:
+    args - user provided arguments
+  Returns:
+    str - PodTemplate's interactive command
+  """
+  config = XpkConfig()
+  pod_command = config.get(KJOB_SHELL_INTERACTIVE_COMMAND)
+  if pod_command is None or len(pod_command) == 0:
+    pod_command = PodTemplateDefaults.INTERACTIVE_COMMAND.value
+
+  return pod_command
+
+
 def create_app_profile_instance(args: Namespace) -> int:
   """Create new AppProfile instance on cluster with default settings.
 
@@ -147,7 +162,9 @@ def create_app_profile_instance(args: Namespace) -> int:
   )
 
 
-def create_job_template_instance(args: Namespace) -> int:
+def create_job_template_instance(
+    args: Namespace, system: SystemCharacteristics | None
+) -> int:
   """Create new JobTemplate instance on cluster with default settings.
 
   Args:
@@ -155,13 +172,25 @@ def create_job_template_instance(args: Namespace) -> int:
   Returns:
     exit_code > 0 if creating JobTemplate fails, 0 otherwise
   """
+  config = XpkConfig()
+  job_image = config.get(KJOB_BATCH_IMAGE)
+  if job_image is None or len(job_image) == 0:
+    job_image = JobTemplateDefaults.IMAGE.value
+
+  resources = (
+      job_resources_template.format(gpu_per_node=system.chips_per_vm)
+      if system.accelerator_type == AcceleratorType["GPU"]
+      else None
+  )
+
   return run_kubectl_apply(
       yml_string=job_template_yaml.format(
           name=JobTemplateDefaults.NAME.value,
           parallelism=JobTemplateDefaults.PARALLELISM.value,
           completions=JobTemplateDefaults.COMPLETIONS.value,
           container_name=JobTemplateDefaults.CONTAINER_NAME.value,
-          image=JobTemplateDefaults.IMAGE.value,
+          image=job_image,
+          resources=resources,
       ),
       task="Creating JobTemplate",
       args=args,
@@ -176,12 +205,17 @@ def create_pod_template_instance(args: Namespace) -> int:
   Returns:
     exit_code > 0 if creating PodTemplate fails, 0 otherwise
   """
+  config = XpkConfig()
+  pod_image = config.get(KJOB_SHELL_IMAGE)
+  if pod_image is None or len(pod_image) == 0:
+    pod_image = PodTemplateDefaults.IMAGE.value
+
   return run_kubectl_apply(
       yml_string=pod_template_yaml.format(
           name=PodTemplateDefaults.NAME.value,
           container_name=PodTemplateDefaults.CONTAINER_NAME.value,
-          image=PodTemplateDefaults.IMAGE.value,
-          interactive_command=PodTemplateDefaults.INTERACTIVE_COMMAND.value,
+          image=pod_image,
+          interactive_command=get_pod_template_interactive_command(),
       ),
       task="Creating PodTemplate",
       args=args,
@@ -189,11 +223,15 @@ def create_pod_template_instance(args: Namespace) -> int:
 
 
 def prepare_kjob(args) -> int:
-  job_err_code = create_job_template_instance(args)
+  xpk_print("Preparing kjob")
+
+  system = get_cluster_system_characteristics(args)
+
+  job_err_code = create_job_template_instance(args, system)
   if job_err_code > 0:
     return job_err_code
 
-  pod_err_code = create_pod_template_instance(args)
+  pod_err_code = create_pod_template_instance(args, system)
   if pod_err_code > 0:
     return pod_err_code
 

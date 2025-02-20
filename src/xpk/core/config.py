@@ -24,6 +24,9 @@ CFG_BUCKET_KEY = 'cluster-state-gcs-bucket'
 CLUSTER_NAME_KEY = 'cluster-name'
 PROJECT_KEY = 'project-id'
 ZONE_KEY = 'zone'
+KJOB_BATCH_IMAGE = 'batch-image'
+KJOB_SHELL_IMAGE = 'shell-image'
+KJOB_SHELL_INTERACTIVE_COMMAND = 'shell-interactive-command'
 CONFIGS_KEY = 'configs'
 XPK_CONFIG_FILE = os.path.expanduser('~/.config/xpk/config.yaml')
 default_keys = [
@@ -31,6 +34,9 @@ default_keys = [
     CLUSTER_NAME_KEY,
     PROJECT_KEY,
     ZONE_KEY,
+    KJOB_BATCH_IMAGE,
+    KJOB_SHELL_IMAGE,
+    KJOB_SHELL_INTERACTIVE_COMMAND,
 ]
 
 yaml = ruamel.yaml.YAML()
@@ -81,7 +87,7 @@ class XpkConfig:
       return None
 
     vals: dict[str, str] = config_yaml[CONFIGS_KEY]
-    return vals[key]
+    return vals.get(key)
 
   def get_all(
       self,

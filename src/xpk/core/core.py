@@ -2021,6 +2021,7 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
                 - bash
                 - -c
                 - |
+                  echo 3 | sudo tee /proc/sys/vm/drop_caches;
                   echo XPK Start: $(date);
                   _sigterm() (kill -SIGTERM $! 2>/dev/null;);
                   trap _sigterm SIGTERM;
@@ -2061,6 +2062,7 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
                 - bash
                 - -c
                 - |
+                  echo 3 | sudo tee /proc/sys/vm/drop_caches;
                   echo XPK Start: $(date);
                   _sigterm() (kill -SIGTERM $! 2>/dev/null;);
                   trap _sigterm SIGTERM;

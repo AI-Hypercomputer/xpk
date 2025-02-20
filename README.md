@@ -58,6 +58,7 @@ and the following CPU types:
 
 xpk also supports Google Cloud Storage solutions:
 * [Cloud Storage FUSE](https://cloud.google.com/storage/docs/gcs-fuse)
+* [Filestore](https://cloud.google.com/filestore#documentation)
 
 # Permissions needed on Cloud Console:
 
@@ -454,11 +455,11 @@ set up PersistentVolume and PersistentVolumeClaim visit [GKE Cloud Storage docum
 
 Once it's ready user can define:
 
-`--type` - defines a type of a storage, currently xpk supports `gcsfuse` and `gcpfilestore` only.
-`--auto-mount` - if set to true means that all workloads should have a given storage mounted by default.
-`--mount-point` - defines the path on which a given storage should be mounted for a workload.
-`--manifest` - defines the path to manifest which contains PersistentVolume and PersistentVolumeClaim definitions
-`--readonly` - if set to true, workload can only read from storage.
+- `--type` - defines a type of a storage, currently xpk supports `gcsfuse` and `gcpfilestore` only.
+- `--auto-mount` - if set to true means that all workloads should have a given storage mounted by default.
+- `--mount-point` - defines the path on which a given storage should be mounted for a workload.
+- `--manifest` - defines the path to manifest which contains PersistentVolume and PersistentVolumeClaim definitions
+- `--readonly` - if set to true, workload can only read from storage.
 
 * Attach to gcsfuse storage instance.
 
@@ -500,13 +501,19 @@ Creating Filestore storage and attaching it to workload can be achieved in two w
 * Use `xpk storage create` command, to create new Filestore instace that will be attached to your workloads. Created Filestore instance is in 
 same VPC as your cluster. Please note that to delete cluster for A3 Mega/A3 Ultra which is using Filestore instance it is needed to delete the instance manually before running `python3 xpk.py cluster delete` command.
 
-Command `storage create` needs below extra arguments:
-`--size` - size of the Filestore instance that will be created, in Gb or Tb
-`--tier` - tier of the Filestore instance that will be created. Possible options are: `[BASIC_HDD, BASIC_SSD, ZONAL, REGIONAL, ENTERPRISE]`
-`--access-mode` - access mode of the Filestore instance that will be created. Possible values are: `[ReadWriteOnce, ReadOnlyMany, ReadWriteMany]`
-`--volume` - file share name of the Filestore instance that will be created.
+Command `storage create` accepts below arguments:
+- `--type` - defines a type of a storage, currently xpk supports `gcsfuse` and `gcpfilestore` only.
+- `--auto-mount` - if set to true means that all workloads should have a given storage mounted by default.
+- `--mount-point` - defines the path on which a given storage should be mounted for a workload.
+- `--manifest` - defines the path to manifest which contains PersistentVolume and PersistentVolumeClaim definitions
+- `--readonly` - if set to true, workload can only read from storage.
+- `--size` - size of the Filestore instance that will be created, in Gb or Tb
+- `--tier` - tier of the Filestore instance that will be created. Possible options are: `[BASIC_HDD, BASIC_SSD, ZONAL, REGIONAL, ENTERPRISE]`
+- `--access-mode` - access mode of the Filestore instance that will be created. Possible values are: `[ReadWriteOnce, ReadOnlyMany, ReadWriteMany]`
+- `--volume` - file share name of the Filestore instance that will be created.
 
-  ```
+* Create a Filestore storage instance.
+  ```shell
   python3 xpk.py storage create $STORAGE_NAME --cluster=$CLUSTER \
   --zone=$ZONE --type=gcpfilestore \
   --auto-mount=true --vol=vol1 --size=1024 --tier=BASIC_HDD \
@@ -519,7 +526,6 @@ Command `storage create` needs below extra arguments:
     --workload xpk-test-workload --command "echo goodbye" \
     --cluster xpk-test \
     --tpu-type=v5litepod-16 \
-    --storage $STORAGE_NAME \
     --project=$PROJECT
     ```
 

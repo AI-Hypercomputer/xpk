@@ -377,7 +377,8 @@ def update_cluster_with_clouddns_if_necessary(args) -> int:
     if server_config_return_code != 0:
       xpk_exit(server_config_return_code)
     upgrade_master_return_code = upgrade_gke_control_plane_version(
-        args, gke_server_config.default_rapid_gke_version  # pytype: disable=attribute-error
+        args,
+        gke_server_config.default_rapid_gke_version,  # pytype: disable=attribute-error
     )
     if upgrade_master_return_code > 0:
       xpk_print("Updating GKE cluster's control plane upgrade failed!")
@@ -385,7 +386,8 @@ def update_cluster_with_clouddns_if_necessary(args) -> int:
 
     # Upgrade nodepools version after the master upgrade.
     node_pool_update_code = upgrade_gke_nodepools_version(
-        args, gke_server_config.default_rapid_gke_version  # pytype: disable=attribute-error
+        args,
+        gke_server_config.default_rapid_gke_version,  # pytype: disable=attribute-error
     )
     if node_pool_update_code > 0:
       xpk_print('Upgrading nodepools version failed!')

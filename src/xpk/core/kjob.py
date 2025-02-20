@@ -179,7 +179,8 @@ def create_job_template_instance(
 
   resources = (
       job_resources_template.format(gpu_per_node=system.chips_per_vm)
-      if system.accelerator_type == AcceleratorType["GPU"]
+      if system is not None
+      and system.accelerator_type == AcceleratorType["GPU"]
       else None
   )
 

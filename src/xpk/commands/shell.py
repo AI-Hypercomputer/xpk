@@ -81,7 +81,7 @@ def connect_to_new_interactive_shell(args: Namespace) -> int:
   return run_command_with_full_controls(
       command=(
           'kubectl-kjob create interactive --profile'
-          f' {AppProfileDefaults.NAME.value} --pod-running-timeout 30s'
+          f' {AppProfileDefaults.NAME.value} --pod-running-timeout 180s'
       ),
       task='Creating new interactive shell and entering it',
       global_args=args,

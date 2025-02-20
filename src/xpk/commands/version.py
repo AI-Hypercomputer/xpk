@@ -18,6 +18,10 @@ from ..core.config import __version__
 from ..utils.console import xpk_print
 
 
+def get_xpk_version() -> str:
+  return __version__
+
+
 def version(args) -> None:  # pylint: disable=unused-argument
   """Get version of xpk."""
   xpk_version, git_hash = __version__.split('+')

@@ -18,7 +18,7 @@ from ..core.commands import run_command_for_value
 from .console import xpk_exit, xpk_print
 from ..commands.config import xpk_cfg
 from ..core.config import DEPENDENCIES_KEY
-from ..core.core import get_xpk_version
+from ..commands.version import get_xpk_version
 
 
 validation_commands = {

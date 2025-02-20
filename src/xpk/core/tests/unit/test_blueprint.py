@@ -14,12 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import shutil
-from xpk.core.blueprint.blueprint_generator import BlueprintGenerator
-from xpk.core.blueprint.blueprint_definitions import Blueprint
-from xpk.core.core import CapacityType
-import ruamel.yaml
 import os
+import shutil
+
+import ruamel.yaml
+
+from xpk.core.blueprint.blueprint_definitions import Blueprint
+from xpk.core.blueprint.blueprint_generator import BlueprintGenerator
+from xpk.core.capacity import CapacityType
 
 yaml = ruamel.yaml.YAML()
 

@@ -76,7 +76,7 @@ jobs:
     - name: Fill Filestore manifest file
       run: |
         sed -i 's/PROJECT_NAME/${{secrets.PROJECT_NAME}}/g;  s/ZONE/europe-west4-b/g; s/INSTANCE_NAME/${{secrets.INSTANCE_NAME}}/g; s/VOL_NAME/${{secrets.VOL_NAME}}/g; s/IP_ADDRESS/${{secrets.IP_ADDRESS}}/g' ./tests/data/fs-manifest.yaml 
-    - name: Create auto-mount GCP Filestore Storage instance
+    - name: Attach auto-mount GCP Filestore Storage instance
       run: |
         python3 xpk.py storage attach $FS_STORAGE_NAME --cluster=$TPU_FILESTORE_CLUSTER_NAME --zone=europe-west4-b --type=gcpfilestore \
         --auto-mount=true \

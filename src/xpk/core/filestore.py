@@ -55,7 +55,9 @@ class FilestoreClient:
     self.project = project
     self._client = filestore_v1.CloudFilestoreManagerClient()
 
-  def check_filestore_instance_exists(self, instance_id: str) -> bool:
+  def check_filestore_instance_exists(
+      self,
+  ) -> bool:
     parent = f"projects/{self.project}/locations/{self.zone}"
     req = filestore_v1.ListInstancesRequest(parent=parent)
     try:
@@ -65,7 +67,7 @@ class FilestoreClient:
       xpk_exit(1)
 
     for instance in instances:
-      if instance.name == f"{parent}/instances/{instance_id}":
+      if instance.name == f"{parent}/instances/{self.name}":
         return True
     return False
 

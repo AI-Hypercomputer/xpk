@@ -95,6 +95,22 @@ def install_nccl_on_cluster(args, system: SystemCharacteristics) -> int:
   return 0
 
 
+def get_cluster_network(args) -> str:
+  xpk_print("Getting cluster's VPC network...")
+  cluster_network_cmd = (
+      'gcloud container clusters describe'
+      f' {args.cluster} --zone={zone_to_region(args.zone)} --project={args.project} --format="value(network)"'
+  )
+  err_code, val = run_command_for_value(
+      command=cluster_network_cmd,
+      task='Get network cluster is in',
+      global_args=args,
+  )
+  if err_code != 0:
+    xpk_exit(err_code)
+  return val.strip()
+
+
 def update_cluster_with_gcpfilestore_driver_if_necessary(args) -> int:
   """Updates a GKE cluster to enable GCPFilestore CSI driver, if not enabled already.
   Args:

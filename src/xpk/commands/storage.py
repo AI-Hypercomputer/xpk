@@ -18,14 +18,14 @@ from argparse import Namespace
 
 from kubernetes import client as k8s_client
 from kubernetes.client.rest import ApiException
-from ..core.commands import run_command_for_value
-from ..core.gcloud_context import zone_to_region
+
 from ..core.cluster import (
     setup_k8s_env,
     update_cluster_with_gcsfuse_driver_if_necessary,
     update_cluster_with_workload_identity_if_necessary,
     update_cluster_with_gcpfilestore_driver_if_necessary,
     add_zone_and_project,
+    get_cluster_network,
 )
 from ..core.storage import (
     GCS_FUSE_TYPE,
@@ -43,30 +43,12 @@ from ..utils.kubectl import apply_kubectl_manifest
 from ..core.filestore import FilestoreClient, get_storage_class_name
 
 
-def get_cluster_network(args) -> str:
-  xpk_print("Getting cluster's VPC network...")
-  cluster_network_cmd = (
-      "gcloud container clusters describe"
-      f' {args.cluster} --zone={zone_to_region(args.zone)} --project={args.project} --format="value(network)"'
-  )
-  err_code, val = run_command_for_value(
-      command=cluster_network_cmd,
-      task="Get network cluster is in",
-      global_args=args,
-  )
-  if err_code != 0:
-    xpk_exit(err_code)
-  return val.strip()
-
-
 def storage_create(args: Namespace) -> None:
   add_zone_and_project(args)
   if args.type == GCP_FILESTORE_TYPE:
     filestore_client = FilestoreClient(args.zone, args.name, args.project)
-    filestore_exists = filestore_client.check_filestore_instance_exists(
-        args.name
-    )
-    if filestore_exists is True:
+    filestore_exists = filestore_client.check_filestore_instance_exists()
+    if filestore_exists:
       xpk_print(f"Filestore instance {args.name} already exists.")
       xpk_exit(1)
     filestore_network = get_cluster_network(args)
@@ -98,23 +80,20 @@ def storage_create(args: Namespace) -> None:
 def storage_attach(args: Namespace) -> None:
   k8s_api_client = setup_k8s_env(args)
   create_storage_crds(k8s_api_client, args)
-  if args.type == GCS_FUSE_TYPE:
-    return_code = update_cluster_with_workload_identity_if_necessary(args)
-    if return_code > 0:
-      xpk_exit(return_code)
-    return_code = update_cluster_with_gcsfuse_driver_if_necessary(args)
-    if return_code > 0:
-      xpk_exit(return_code)
-    apply_kubectl_manifest(k8s_api_client, args.manifest)
+  return_code = update_cluster_with_workload_identity_if_necessary(args)
+  if return_code > 0:
+    xpk_exit(return_code)
 
-  if args.type == GCP_FILESTORE_TYPE:
-    return_code = update_cluster_with_workload_identity_if_necessary(args)
-    if return_code > 0:
-      xpk_exit(return_code)
-    return_code = update_cluster_with_gcpfilestore_driver_if_necessary(args)
-    if return_code > 0:
-      xpk_exit(return_code)
-    apply_kubectl_manifest(k8s_api_client, args.manifest)
+  # args.type can have only two values after parsing
+  return_code = (
+      update_cluster_with_gcsfuse_driver_if_necessary(args)
+      if args.type == GCS_FUSE_TYPE
+      else update_cluster_with_gcpfilestore_driver_if_necessary(args)
+  )
+  if return_code > 0:
+    xpk_exit(return_code)
+
+  apply_kubectl_manifest(k8s_api_client, args.manifest)
 
 
 def storage_list(args: Namespace) -> None:

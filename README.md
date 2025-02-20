@@ -510,7 +510,7 @@ Command `storage create` accepts below arguments:
 - `--size` - size of the Filestore instance that will be created, in Gb or Tb
 - `--tier` - tier of the Filestore instance that will be created. Possible options are: `[BASIC_HDD, BASIC_SSD, ZONAL, REGIONAL, ENTERPRISE]`
 - `--access-mode` - access mode of the Filestore instance that will be created. Possible values are: `[ReadWriteOnce, ReadOnlyMany, ReadWriteMany]`
-- `--volume` - file share name of the Filestore instance that will be created.
+- `--vol` - file share name of the Filestore instance that will be created.
 
 * Create a Filestore storage instance.
   ```shell

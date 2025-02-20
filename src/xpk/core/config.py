@@ -83,9 +83,7 @@ class XpkConfig:
       return None
 
     vals: dict[str, str] = config_yaml[CONFIGS_KEY]
-    if key not in vals:
-      return None
-    return vals[key]
+    return vals.get(key)
 
   def get_all(
       self,

@@ -166,6 +166,24 @@ def cluster_create(args) -> None:
   if run_gke_node_pool_create_command_code != 0:
     xpk_exit(run_gke_node_pool_create_command_code)
 
+  # Provision node pools dynamically based on incoming workloads:
+  # Currently autoprovisioning is not supported with Pathways.
+  autoprovisioning_config = None
+  if not args.enable_pathways and args.enable_autoprovisioning:
+    xpk_print('Enabling Autoprovisioning')
+    autoprovisioning_config, return_code = enable_autoprovisioning_on_cluster(
+        args, system
+    )
+    if return_code != 0:
+      xpk_exit(return_code)
+
+  xpk_print('Creating ConfigMap for cluster')
+  create_cluster_configmaps_code = create_cluster_configmaps(
+      args, system, tensorboard_config, autoprovisioning_config
+  )
+  if create_cluster_configmaps_code != 0:
+    xpk_exit(create_cluster_configmaps_code)
+
   xpk_print(
       'Enabling the jobset API on our cluster, to be deprecated when Jobset is'
       ' globally available'
@@ -195,16 +213,6 @@ def cluster_create(args) -> None:
 
   k8s_client = setup_k8s_env(args)
   install_storage_crd(k8s_client)
-  # Provision node pools dynamically based on incoming workloads:
-  # Currently autoprovisioning is not supported with Pathways.
-  autoprovisioning_config = None
-  if not args.enable_pathways and args.enable_autoprovisioning:
-    xpk_print('Enabling Autoprovisioning')
-    autoprovisioning_config, return_code = enable_autoprovisioning_on_cluster(
-        args, system
-    )
-    if return_code != 0:
-      xpk_exit(return_code)
 
   xpk_print('Wait for Kueue to be fully available')
   wait_for_kueue_available_code = wait_for_kueue_available(args)
@@ -223,13 +231,6 @@ def cluster_create(args) -> None:
     install_nccl_code = install_nccl_on_cluster(args, system)
     if install_nccl_code != 0:
       xpk_exit(install_nccl_code)
-
-  xpk_print('Creating ConfigMap for cluster')
-  create_cluster_configmaps_code = create_cluster_configmaps(
-      args, system, tensorboard_config, autoprovisioning_config
-  )
-  if create_cluster_configmaps_code != 0:
-    xpk_exit(create_cluster_configmaps_code)
 
   if args.enable_ray_cluster:
     return_code = install_ray_cluster(args, system)

@@ -25,12 +25,6 @@ from ..core.cluster import (
     setup_k8s_env,
     update_cluster_with_gcsfuse_driver_if_necessary,
     update_cluster_with_workload_identity_if_necessary,
-<<<<<<< HEAD
-    update_cluster_with_gcpfilestore_driver_if_necessary,
-    zone_to_region,
-    get_user_input,
-=======
->>>>>>> d4ac54a8e76b6e4954471428dbae755595e41fd1
 )
 from ..core.cluster_private import authorize_private_cluster_access_if_necessary
 from ..core.commands import run_command_for_value, run_command_with_updates
@@ -69,6 +63,7 @@ from ..core.workload import get_workload_list
 from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
 from . import cluster_gcluster
+from ..core.cluster import update_cluster_with_gcpfilestore_driver_if_necessary
 
 
 def cluster_create(args) -> None:

@@ -16,7 +16,7 @@ limitations under the License.
 
 from .capacity import H100_DEVICE_TYPE, H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE
 from .cluster import setup_k8s_env
-from .storage import GCS_FUSE_TYPE, Storage, get_storages_to_mount
+from .storage import GCS_FUSE_TYPE, GCP_FILESTORE_TYPE, Storage, get_storages_to_mount
 from .system_characteristics import AcceleratorType, SystemCharacteristics
 
 
@@ -248,7 +248,7 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
                   mountPath: /shared-volume
                 """
   elif system.accelerator_type == AcceleratorType['GPU']:
-    if system.device_type == h100_device_type:
+    if system.device_type == H100_DEVICE_TYPE:
       volume_mount_yaml = """- name: nvidia-install-dir-host
                   mountPath: /usr/local/nvidia/lib64
                 - name: tcpx-nccl-plugin-volume
@@ -260,8 +260,8 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
                 - name: workload-terminated-volume
                   mountPath: /usr/share/workload"""
     elif (
-        system.device_type == h100_mega_device_type
-        or system.device_type == h200_device_type
+        system.device_type == H100_MEGA_DEVICE_TYPE
+        or system.device_type == H200_DEVICE_TYPE
     ):
       volume_mount_yaml = ''
 

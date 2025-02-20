@@ -140,6 +140,7 @@ def is_driver_enabled_on_cluster(args, driver: str) -> bool:
     return True
   return False
 
+
 def update_gke_cluster_with_addon(addon: str, args) -> int:
   """Run the GKE cluster update command for existing cluster and enabling passed addon.
   Args:
@@ -162,6 +163,7 @@ def update_gke_cluster_with_addon(addon: str, args) -> int:
     xpk_print(f'GKE Cluster Update request returned ERROR {return_code}')
     return 1
   return 0
+
 
 def get_all_clusters_programmatic(args) -> tuple[list[str], int]:
   """Gets all the clusters associated with the project / region.

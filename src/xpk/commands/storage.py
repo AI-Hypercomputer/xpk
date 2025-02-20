@@ -19,8 +19,7 @@ from argparse import Namespace
 from kubernetes import client as k8s_client
 from kubernetes.client.rest import ApiException
 from ..core.commands import run_command_for_value
-from ..core.core import zone_to_region
-
+from ..core.gcloud_context import zone_to_region
 from ..core.cluster import (
     setup_k8s_env,
     update_cluster_with_gcsfuse_driver_if_necessary,

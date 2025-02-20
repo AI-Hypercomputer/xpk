@@ -181,7 +181,7 @@ def create_job_template_instance(
       job_resources_template.format(gpu_per_node=system.chips_per_vm)
       if system is not None
       and system.accelerator_type == AcceleratorType["GPU"]
-      else None
+      else ""
   )
 
   return run_kubectl_apply(

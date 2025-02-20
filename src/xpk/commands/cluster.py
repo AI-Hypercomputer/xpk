@@ -14,37 +14,34 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..core.commands import run_command_for_value, run_command_with_updates
-from ..core.core import (
-    VERTEX_TENSORBOARD_FEATURE_FLAG,
-    add_zone_and_project,
-    create_cluster_configmaps,
-    create_cluster_network_config,
-    create_vertex_tensorboard,
-    delete_cluster_subnets,
+from tabulate import tabulate
+
+from ..core.capacity import H100_DEVICE_TYPE
+from ..core.cluster import (
     get_all_clusters_programmatic,
     get_cluster_credentials,
-    get_gke_control_plane_version,
-    get_gke_node_pool_version,
-    get_gke_server_config,
-    h100_device_type,
     install_nccl_on_cluster,
-    run_gke_node_pool_create_command,
     set_jobset_on_cluster,
-    set_up_cluster_network_for_gpu,
     setup_k8s_env,
     update_cluster_with_gcsfuse_driver_if_necessary,
     update_cluster_with_workload_identity_if_necessary,
+<<<<<<< HEAD
     update_cluster_with_gcpfilestore_driver_if_necessary,
     zone_to_region,
     get_user_input,
+=======
+>>>>>>> d4ac54a8e76b6e4954471428dbae755595e41fd1
 )
 from ..core.cluster_private import authorize_private_cluster_access_if_necessary
-from ..core.kjob import (
-    verify_kjob_installed,
-    prepare_kjob,
-    apply_kjob_crds,
+from ..core.commands import run_command_for_value, run_command_with_updates
+from ..core.config import VERTEX_TENSORBOARD_FEATURE_FLAG
+from ..core.gcloud_context import (
+    add_zone_and_project,
+    get_gke_control_plane_version,
+    get_gke_server_config,
+    zone_to_region,
 )
+from ..core.kjob import apply_kjob_crds, prepare_kjob, verify_kjob_installed
 from ..core.kueue import (
     cluster_preheat_yml,
     install_kueue_crs,
@@ -52,7 +49,14 @@ from ..core.kueue import (
     wait_for_kueue_available,
 )
 from ..core.nap import enable_autoprovisioning_on_cluster
+from ..core.network import (
+    create_cluster_network_config,
+    delete_cluster_subnets,
+    set_up_cluster_network_for_gpu,
+)
+from ..core.nodepool import get_gke_node_pool_version, run_gke_node_pool_create_command
 from ..core.ray import install_ray_cluster
+from ..core.resources import create_cluster_configmaps
 from ..core.storage import install_storage_crd
 from ..core.system_characteristics import (
     AcceleratorType,
@@ -60,12 +64,11 @@ from ..core.system_characteristics import (
     SystemCharacteristics,
     get_system_characteristics,
 )
+from ..core.vertex import create_vertex_tensorboard
 from ..core.workload import get_workload_list
+from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
-from ..utils.console import xpk_exit, xpk_print
 from . import cluster_gcluster
-
-from tabulate import tabulate
 
 
 def cluster_create(args) -> None:
@@ -162,7 +165,7 @@ def cluster_create(args) -> None:
     if set_up_cluster_network_code != 0:
       xpk_exit(set_up_cluster_network_code)
 
-  if system.device_type == h100_device_type:
+  if system.device_type == H100_DEVICE_TYPE:
     xpk_print('Creating Network Config for cluster')
     create_cluster_network_config_code = create_cluster_network_config(args)
     if create_cluster_network_config_code != 0:

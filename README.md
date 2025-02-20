@@ -91,7 +91,7 @@ Following tools must be installed:
 # sudo may be required
 apt-get -y install make
 ```
-In addition, below dependencies will be installed with `make install` command:
+In addition, below dependencies can be installed either using provided links or using `make install` command, if xpk is downloaded via `git clone` command:
 - kueuectl (install from [here](https://kueue.sigs.k8s.io/docs/reference/kubectl-kueue/installation/))
 - kjob (installation instructions [here](https://github.com/kubernetes-sigs/kjob/blob/main/docs/installation.md))
 
@@ -607,6 +607,8 @@ To submit jobs on a cluster with A3 machines, run the below command. To create a
   --num-nodes=$WOKRKLOAD_NUM_NODES
   ```
 > The docker image flags/arguments introduced in [workloads section](#workload-create) can be used with A3 machines as well.
+
+In order to run NCCL test on A3 Ultra machines check out [this guide](/examples/nccl/nccl.md).
 
 ### Workload Priority and Preemption
 * Set the priority level of your workload with `--priority=LEVEL`

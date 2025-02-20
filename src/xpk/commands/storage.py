@@ -21,7 +21,7 @@ from kubernetes.client.rest import ApiException
 from ..core.commands import run_command_for_value
 from ..core.core import zone_to_region
 
-from ..core.core import (
+from ..core.cluster import (
     setup_k8s_env,
     update_cluster_with_gcsfuse_driver_if_necessary,
     update_cluster_with_workload_identity_if_necessary,

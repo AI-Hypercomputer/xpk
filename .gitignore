@@ -1,5 +1,6 @@
 # editor and IDE paraphernalia
 .idea/
+.vscode/
 
 *__pycache__*
 tmp/

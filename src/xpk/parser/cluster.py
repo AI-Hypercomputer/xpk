@@ -23,7 +23,7 @@ from ..commands.cluster import (
     cluster_describe,
     cluster_list,
 )
-from ..core.core import DEFAULT_VERTEX_TENSORBOARD_NAME
+from ..core.vertex import DEFAULT_VERTEX_TENSORBOARD_NAME
 from .common import add_shared_arguments
 from .validators import name_type
 

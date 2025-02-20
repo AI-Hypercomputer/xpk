@@ -14,11 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from .core import zone_to_region
-from .commands import run_command_for_value, run_command_with_updates
 from ..utils.console import xpk_exit, xpk_print
-from ..utils.network import add_current_machine_to_networks, is_current_machine_in_any_network
+from ..utils.network import (
+    add_current_machine_to_networks,
+    is_current_machine_in_any_network,
+)
 from ..utils.objects import is_text_true
+from .commands import run_command_for_value, run_command_with_updates
+from .gcloud_context import zone_to_region
 
 
 def authorize_private_cluster_access_if_necessary(args) -> int:

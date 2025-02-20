@@ -14,21 +14,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import os
 import shutil
 from typing import Optional
-from ruamel import yaml
-import os
 
-from .blueprint_definitions import DeploymentGroup, DeploymentModule, Blueprint
-from ..system_characteristics import get_system_characteristics_by_device_type
-from ...utils.console import xpk_print, xpk_exit
+from ruamel import yaml
+
+from ...utils.console import xpk_exit, xpk_print
 from ...utils.file import ensure_directory_exists
-from ..core import CapacityType, h100_mega_device_type, h200_device_type
+from ..capacity import H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE, CapacityType
+from ..system_characteristics import get_system_characteristics_by_device_type
+from .blueprint_definitions import Blueprint, DeploymentGroup, DeploymentModule
 
 yaml = yaml.YAML()
 
-a3mega_device_type = h100_mega_device_type
-a3ultra_device_type = h200_device_type
+a3mega_device_type = H100_MEGA_DEVICE_TYPE
+a3ultra_device_type = H200_DEVICE_TYPE
 supported_device_types = {a3mega_device_type, a3ultra_device_type}
 blueprint_dependencies_dir = {
     a3mega_device_type: "src/xpk/blueprints/a3mega",

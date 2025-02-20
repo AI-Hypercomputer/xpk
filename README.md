@@ -90,7 +90,7 @@ Following tools must be installed:
 # sudo may be required
 apt-get -y install make
 ```
-In addition, below dependencies will be installed with `make install` command:
+In addition, below dependencies can be installed either using provided links or using `make install` command, if xpk is downloaded via `git clone` command:
 - kueuectl (install from [here](https://kueue.sigs.k8s.io/docs/reference/kubectl-kueue/installation/))
 - kjob (installation instructions [here](https://github.com/kubernetes-sigs/kjob/blob/main/docs/installation.md))
 

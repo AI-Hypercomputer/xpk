@@ -20,9 +20,9 @@ from ..commands.workload import (
     workload_delete,
     workload_list,
 )
-from ..core.core import default_docker_image, default_script_dir
-from .validators import directory_path_type, name_type
+from ..core.docker_image import DEFAULT_DOCKER_IMAGE, DEFAULT_SCRIPT_DIR
 from .common import add_shared_arguments
+from .validators import directory_path_type, name_type
 
 
 def set_workload_parsers(workload_parser):
@@ -660,10 +660,10 @@ def add_shared_workload_base_docker_image_arguments(args_parsers):
     custom_parser.add_argument(
         '--base-docker-image',
         type=str,
-        default=default_docker_image,
+        default=DEFAULT_DOCKER_IMAGE,
         help=(
             'The base docker-image to use, default'
-            f' {default_docker_image}. If using a custom docker image it'
+            f' {DEFAULT_DOCKER_IMAGE}. If using a custom docker image it'
             ' is typically addressed as gcr.io/${PROJECT}/${NAME}:latest.'
             ' This docker image will be used as a base image by default and'
             ' the `--script-dir` by default will be added to the image.'
@@ -672,7 +672,7 @@ def add_shared_workload_base_docker_image_arguments(args_parsers):
     custom_parser.add_argument(
         '--script-dir',
         type=directory_path_type,
-        default=default_script_dir,
+        default=DEFAULT_SCRIPT_DIR,
         help=(
             'The local location of the directory to copy to the docker image'
             ' and run the main command from. Defaults to current working'

@@ -493,7 +493,6 @@ def workload_create(args) -> None:
   gcpfilestore_storages: list[Storage] = list(
       filter(lambda storage: storage.type == GCP_FILESTORE_TYPE, storages)
   )
-  print(gcpfilestore_storages)
   storage_annotations = ''
   service_account = ''
   if len(gcs_fuse_storages) > 0:

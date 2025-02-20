@@ -34,11 +34,16 @@ CFG_BUCKET_KEY = 'cluster-state-gcs-bucket'
 CLUSTER_NAME_KEY = 'cluster-name'
 PROJECT_KEY = 'project-id'
 ZONE_KEY = 'zone'
+CONFIGS_KEY = 'configs'
+DEPENDENCIES_KEY = 'deps-verified-version'
+XPK_CONFIG_FILE = os.path.expanduser('~/.config/xpk/config.yaml')
+
 DEFAULT_KEYS = [
     CFG_BUCKET_KEY,
     CLUSTER_NAME_KEY,
     PROJECT_KEY,
     ZONE_KEY,
+    DEPENDENCIES_KEY,
 ]
 VERTEX_TENSORBOARD_FEATURE_FLAG = XPK_CURRENT_VERSION >= '0.4.0'
 GCS_FUSE_ANNOTATION = 'gke-gcsfuse/volumes: "true"'
@@ -92,7 +97,7 @@ class XpkConfig:
       return None
 
     vals: dict[str, str] = config_yaml[CONFIGS_KEY]
-    return vals[key]
+    return vals.get(key)
 
   def get_all(
       self,

@@ -31,7 +31,7 @@ from ..utils.console import xpk_exit, xpk_print
 from ..utils.file import ensure_directory_exists
 from ..utils.network import all_IPs_cidr
 from ..utils.objects import hash_string
-from ..core.core import get_cluster_credentials
+from ..core.cluster import get_cluster_credentials
 from ..core.kjob import apply_kjob_crds, prepare_kjob
 import os
 

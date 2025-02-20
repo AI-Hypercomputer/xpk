@@ -231,7 +231,7 @@ def prepare_kjob(args) -> int:
   if job_err_code > 0:
     return job_err_code
 
-  pod_err_code = create_pod_template_instance(args, system)
+  pod_err_code = create_pod_template_instance(args)
   if pod_err_code > 0:
     return pod_err_code
 

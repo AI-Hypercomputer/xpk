@@ -12,7 +12,7 @@ limitations under the License.
 """
 
 from ..core.commands import run_command_with_full_controls, run_command_for_value, run_command_with_updates
-from ..core.core import get_cluster_credentials, add_zone_and_project
+from ..core.cluster import get_cluster_credentials, add_zone_and_project
 from ..utils.console import xpk_exit, xpk_print
 from argparse import Namespace
 

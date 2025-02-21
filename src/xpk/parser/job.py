@@ -46,7 +46,7 @@ def set_job_parser(job_parser: argparse.ArgumentParser):
 
 
 def set_job_info_parser(job_info_parser: argparse.ArgumentParser):
-  job_info_parser_required_arguments = job_info_parser.add_argument_group(
+  job_info_required_arguments = job_info_parser.add_argument_group(
       'Required arguments',
       'The basic information required to identify the job.',
   )
@@ -70,7 +70,7 @@ def set_job_info_parser(job_info_parser: argparse.ArgumentParser):
       default=False,
       help='Apply command to a local test cluster.',
   )
-  job_info_parser_required_arguments.add_argument(
+  job_info_required_arguments.add_argument(
       'name',
       type=str,
       default=None,

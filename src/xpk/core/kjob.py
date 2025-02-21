@@ -97,13 +97,17 @@ metadata:
 template:
   spec:
     tolerations:
-      - operator: "Exists"
-        key: nvidia.com/gpu
+      - effect: NoSchedule
+        key: components.gke.io/gke-managed-components
+        operator: Equal
+        value: "true"
     containers:
       - name: {container_name}
         image: {image}
         command: [{interactive_command}]
 """
+
+Kueue_TAS_annotation = "kueue.x-k8s.io/podset-preferred-topology=cloud.google.com/gce-topology-host"
 
 
 def verify_kjob_installed(args: Namespace) -> int:

@@ -44,29 +44,21 @@ mkdir-bin:
 
 .PHONY: install-kueuectl
 install-kueuectl: mkdir-bin
-	if [ ! -f $(USR_BIN_PATH)/kubectl-kueue ]; then \
-		curl -Lo $(BIN_PATH)/kubectl-kueue $(KUEUECTL_URL); \
-		chmod +x $(BIN_PATH)/kubectl-kueue; \
-		sudo mv -f $(BIN_PATH)/kubectl-kueue $(USR_BIN_PATH)/kubectl-kueue; \
-	else \
-		echo "kueuectl already installed."; \
-	fi
+	curl -Lo $(BIN_PATH)/kubectl-kueue $(KUEUECTL_URL);
+	chmod +x $(BIN_PATH)/kubectl-kueue;
+	sudo mv -f $(BIN_PATH)/kubectl-kueue $(USR_BIN_PATH)/kubectl-kueue;
 
 .PHONY: install-kjobctl
 install-kjobctl: mkdir-bin
 	#curl -Lo $(BIN_PATH)/kubectl-kjob $(KJOBCTL_URL)
 	#chmod +x $(BIN_PATH)/kubectl-kjob
 	# TODO: Switch to kjob release-based installation once version >=0.2.0 is available.
-	if [ ! -f $(USR_BIN_PATH)/kubectl-kjob ]; then \
-		docker build -f tools/Dockerfile-kjob -t $(KJOB_DOCKER_IMG) tools/; \
-		docker run -idt --name $(KJOB_DOCKER_CONTAINER) $(KJOB_DOCKER_IMG);\
-		docker cp $(KJOB_DOCKER_CONTAINER):/kjob/bin/kubectl-kjob $(BIN_PATH)/kubectl-kjob; \
-		docker rm -f $(KJOB_DOCKER_CONTAINER); \
-		docker image rm $(KJOB_DOCKER_IMG); \
-		sudo mv -f $(BIN_PATH)/kubectl-kjob $(USR_BIN_PATH)/kubectl-kjob; \
-	else \
-		echo "kjob already installed."; \
-	fi
+	docker build -f tools/Dockerfile-kjob -t $(KJOB_DOCKER_IMG) tools/;
+	docker run -idt --name $(KJOB_DOCKER_CONTAINER) $(KJOB_DOCKER_IMG);
+	docker cp $(KJOB_DOCKER_CONTAINER):/kjob/bin/kubectl-kjob $(BIN_PATH)/kubectl-kjob;
+	docker rm -f $(KJOB_DOCKER_CONTAINER);
+	docker image rm $(KJOB_DOCKER_IMG);
+	sudo mv -f $(BIN_PATH)/kubectl-kjob $(USR_BIN_PATH)/kubectl-kjob;
 
 .PHONY: install-gcloud-auth-plugin
 install-gcloud-auth-plugin:

@@ -137,7 +137,7 @@ def add_volumes(job_manifest):
   volumes = job_manifest['spec']['template']['spec']['volumes']
   volumes.append({
       'name': 'libraries',
-      'hostPath': {'path': '/home/kubernetes/bin/nvidia/lib64'},
+      'hostPath': {'path': '/home/kubernetes/bin/nvidia'},
   })
   volumes.append({'name': 'sys', 'hostPath': {'path': '/sys'}})
   volumes.append({'name': 'proc-sys', 'hostPath': {'path': '/proc/sys'}})
@@ -188,4 +188,7 @@ def update_gpu_containers(job_manifest):
       container.setdefault('volumeMounts', [])
       container['volumeMounts'].append(
           {'name': 'aperture-devices', 'mountPath': '/dev/aperture_devices'}
+      )
+      container['volumeMounts'].append(
+          {'name': 'libraries', 'mountPath': '/usr/local/nvidia'}
       )

@@ -137,6 +137,15 @@ UserFacingNameToSystemCharacteristics = {
         'l4-8',
     ),
     # A100-40gb-$CHIPSc
+    'a100-40gb-1': SystemCharacteristics(
+        'N/A',
+        1,
+        'nvidia-tesla-a100',
+        'a2-highgpu-1g',
+        1,
+        AcceleratorType['GPU'],
+        'a100-40gb-1',
+    ),
     'a100-40gb-2': SystemCharacteristics(
         'N/A',
         1,

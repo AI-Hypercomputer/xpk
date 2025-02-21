@@ -63,6 +63,7 @@ from ..core.workload import get_workload_list
 from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
 from . import cluster_gcluster
+from ..core.cluster import update_cluster_with_gcpfilestore_driver_if_necessary
 
 
 def cluster_create(args) -> None:
@@ -115,7 +116,11 @@ def cluster_create(args) -> None:
 
   # ToDo(roshanin@) - Re-enable CloudDNS on Pathways clusters conditionally.
   # Enable WorkloadIdentity if not enabled already.
-  if args.enable_workload_identity or args.enable_gcsfuse_csi_driver:
+  if (
+      args.enable_workload_identity
+      or args.enable_gcsfuse_csi_driver
+      or args.enable_gcpfilestore_csi_driver
+  ):
     update_cluster_command_code = (
         update_cluster_with_workload_identity_if_necessary(args)
     )
@@ -129,6 +134,15 @@ def cluster_create(args) -> None:
     )
     if update_cluster_command_code != 0:
       xpk_exit(update_cluster_command_code)
+
+  if args.enable_gcpfilestore_csi_driver:
+    update_cluster_command_code = (
+        update_cluster_with_gcpfilestore_driver_if_necessary(args)
+    )
+    if update_cluster_command_code != 0:
+      xpk_exit(update_cluster_command_code)
+
+  # Update Pathways clusters with CloudDNS if not enabled already.
 
   get_cluster_credentials(args)
 
@@ -763,11 +777,23 @@ def run_gke_cluster_create_command(
   if args.enable_ray_cluster:
     command += ' --addons RayOperator'
 
-  if args.enable_workload_identity or args.enable_gcsfuse_csi_driver:
+  if (
+      args.enable_workload_identity
+      or args.enable_gcsfuse_csi_driver
+      or args.enable_gcpfilestore_csi_driver
+  ):
     command += f' --workload-pool={args.project}.svc.id.goog'
 
+  addons = []
   if args.enable_gcsfuse_csi_driver:
-    command += ' --addons GcsFuseCsiDriver'
+    addons.append('GcsFuseCsiDriver')
+
+  if args.enable_gcpfilestore_csi_driver:
+    addons.append('GcpFilestoreCsiDriver')
+
+  if len(addons) > 0:
+    addons_str = ','.join(addons)
+    command += f' --addons={addons_str}'
 
   return_code = run_command_with_updates(command, 'GKE Cluster Create', args)
   if return_code != 0:

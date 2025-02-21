@@ -95,6 +95,92 @@ def install_nccl_on_cluster(args, system: SystemCharacteristics) -> int:
   return 0
 
 
+def get_cluster_network(args) -> str:
+  xpk_print("Getting cluster's VPC network...")
+  cluster_network_cmd = (
+      'gcloud container clusters describe'
+      f' {args.cluster} --zone={zone_to_region(args.zone)} --project={args.project} --format="value(network)"'
+  )
+  err_code, val = run_command_for_value(
+      command=cluster_network_cmd,
+      task='Get network cluster is in',
+      global_args=args,
+  )
+  if err_code != 0:
+    xpk_exit(err_code)
+  return val.strip()
+
+
+def update_cluster_with_gcpfilestore_driver_if_necessary(args) -> int:
+  """Updates a GKE cluster to enable GCPFilestore CSI driver, if not enabled already.
+  Args:
+    args: user provided arguments for running the command.
+  Returns:
+    0 if successful and error code otherwise.
+  """
+
+  if is_driver_enabled_on_cluster(args, driver='gcpFilestoreCsiDriver'):
+    return 0
+  cluster_update_return_code = update_gke_cluster_with_addon(
+      args, 'GcpFilestoreCsiDriver'
+  )
+  if cluster_update_return_code > 0:
+    xpk_print('Updating GKE cluster to enable GCPFilestore CSI driver failed!')
+    return cluster_update_return_code
+
+  return 0
+
+
+def is_driver_enabled_on_cluster(args, driver: str) -> bool:
+  """Checks if GCSFuse CSI driver is enabled on the cluster.
+  Args:
+    args: user provided arguments for running the command.
+    driver (str) : name of the driver
+  Returns:
+    True if driver is enabled on the cluster and False otherwise.
+  """
+  command = (
+      f'gcloud container clusters describe {args.cluster}'
+      f' --project={args.project} --region={zone_to_region(args.zone)}'
+      f' --format="value(addonsConfig.{driver}Config.enabled)"'
+  )
+  return_code, gcsfuse_driver_enabled = run_command_for_value(
+      command,
+      f'Checks if {driver} driver is enabled in cluster describe.',
+      args,
+  )
+  if return_code != 0:
+    xpk_exit(return_code)
+  if gcsfuse_driver_enabled.lower() == 'true':
+    xpk_print(f'{driver} driver is enabled on the cluster, no update needed.')
+    return True
+  return False
+
+
+def update_gke_cluster_with_addon(args, addon: str) -> int:
+  """Run the GKE cluster update command for existing cluster and enabling passed addon.
+  Args:
+    args: user provided arguments for running the command.
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  command = (
+      'gcloud container clusters update'
+      f' {args.cluster} --project={args.project}'
+      f' --region={zone_to_region(args.zone)}'
+      f' --update-addons {addon}=ENABLED'
+      ' --quiet'
+  )
+  xpk_print(f'Updating GKE cluster to enable {addon}, may take a while!')
+  return_code = run_command_with_updates(
+      command, f'GKE Cluster Update to enable {addon}', args
+  )
+  if return_code != 0:
+    xpk_print(f'GKE Cluster Update request returned ERROR {return_code}')
+    return 1
+  return 0
+
+
 def get_all_clusters_programmatic(args) -> tuple[list[str], int]:
   """Gets all the clusters associated with the project / region.
 

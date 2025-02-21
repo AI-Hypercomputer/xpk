@@ -181,8 +181,6 @@ def create_job_template_instance(
   if job_image is None or len(job_image) == 0:
     job_image = JobTemplateDefaults.IMAGE.value
 
-  xpk_print(system)
-
   resources = (
       job_resources_template.format(gpu_per_node=system.chips_per_vm)
       if system is not None

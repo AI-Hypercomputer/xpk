@@ -61,8 +61,12 @@ job_template_yaml = """
             - name: {container_name}
               image: {image}
               {resources}
+          {node_selector}
           restartPolicy: OnFailure"""
-
+job_node_selector_template = """
+          nodeSelector:
+            cloud.google.com/gke-accelerator: {gpu_name}
+"""
 job_resources_template = """
               resources:
                 limits:
@@ -177,8 +181,17 @@ def create_job_template_instance(
   if job_image is None or len(job_image) == 0:
     job_image = JobTemplateDefaults.IMAGE.value
 
+  xpk_print(system)
+
   resources = (
       job_resources_template.format(gpu_per_node=system.chips_per_vm)
+      if system is not None
+      and system.accelerator_type == AcceleratorType["GPU"]
+      else ""
+  )
+
+  node_selector = (
+      job_node_selector_template.format(gpu_name=system.gke_accelerator)
       if system is not None
       and system.accelerator_type == AcceleratorType["GPU"]
       else ""
@@ -192,6 +205,7 @@ def create_job_template_instance(
           container_name=JobTemplateDefaults.CONTAINER_NAME.value,
           image=job_image,
           resources=resources,
+          node_selector=node_selector,
       ),
       task="Creating JobTemplate",
       args=args,

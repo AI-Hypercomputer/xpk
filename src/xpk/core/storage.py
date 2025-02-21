@@ -156,6 +156,10 @@ def list_storages(k8s_api_client: ApiClient) -> list[Storage]:
     )
   except ApiException as e:
     xpk_print(f"Kubernetes API exception while listing Storages: {e}")
+    if e.status == 404:
+      xpk_print("Storages not found, skipping")
+      return []
+    # If it's a different error, then we should just exit.
     xpk_exit(1)
 
   storages = []

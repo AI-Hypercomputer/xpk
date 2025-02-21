@@ -41,8 +41,8 @@ ENV GOPATH /go
 ENV PATH $PATH:/usr/local/go/bin:$GOPATH/bin
 
 # Clone the kjob repository
-ARG KJOB_BRANCH=main
-RUN git clone --branch ${KJOB_BRANCH} https://github.com/kubernetes-sigs/kjob.git /kjob
+ARG KJOB_BRANCH=slurm-fixes
+RUN git clone --branch ${KJOB_BRANCH} https://github.com/44past4/kjob.git /kjob
 
 # Build the gcluster binary
 WORKDIR /kjob

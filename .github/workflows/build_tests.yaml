@@ -146,7 +146,7 @@ jobs:
         gcloud config get compute/zone
     - name: Install xpk dependencies
       run: |
-        make install 
+        make install
         echo $PWD/bin >> "$GITHUB_PATH"
     - name: install kubectl and auth plugin
       run: gcloud components install kubectl && gcloud components install gke-gcloud-auth-plugin
@@ -242,7 +242,7 @@ jobs:
       run: |
         cat <<'EOF' >> create-shell.exp
         ##!/usr/bin/expect
-        spawn python3 ./xpk.py shell
+        spawn python3 ./xpk.py shell --cluster=$TPU_CLUSTER_NAME --zone=europe-west4-b
         expect "/ # "
         send "exit\n"
         EOF
@@ -252,7 +252,7 @@ jobs:
     # - name: Check if shell exists and is running
     #   run: kubectl get pods | grep xpk-def-app-profile-interactive- | grep Running
     - name: Stop the shell
-      run: python3 xpk.py shell stop
+      run: python3 xpk.py shell stop --cluster=$TPU_CLUSTER_NAME --zone=europe-west4-b
     - name: Delete the cluster created
       if: always()
       run: python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=europe-west4-b --force

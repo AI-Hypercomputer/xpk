@@ -6,9 +6,6 @@
 #SBATCH --output=/home/llama3/%x-%j.out   # Standard output file (%x = job name, %j = job ID)
 #SBATCH --error=/home/llama3/%x-%j.err    # Standard error file (%x = job name, %j = job ID)
 
-# Change current directory
-cd /home/llama3
-
 # Activate Python environment
 source llama3_env/bin/activate
 

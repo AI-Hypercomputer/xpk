@@ -1,6 +1,5 @@
 #!/bin/bash
 
-cd /home/llama3
 source llama3_env/bin/activate
 
 python3 <<EOF

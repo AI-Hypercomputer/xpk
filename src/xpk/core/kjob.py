@@ -17,7 +17,7 @@ limitations under the License.
 from argparse import Namespace
 from ..utils.console import xpk_print
 from .commands import run_command_for_value, run_kubectl_apply, run_command_with_updates
-from .config import XpkConfig, KJOB_SHELL_IMAGE, KJOB_SHELL_INTERACTIVE_COMMAND, KJOB_SHELL_WORKING_DIRECTORY, KJOB_BATCH_IMAGE
+from .config import XpkConfig, KJOB_SHELL_IMAGE, KJOB_SHELL_INTERACTIVE_COMMAND, KJOB_SHELL_WORKING_DIRECTORY, KJOB_BATCH_IMAGE, KJOB_BATCH_WORKING_DIRECTORY
 from .resources import get_cluster_system_characteristics, SystemCharacteristics, AcceleratorType
 from enum import Enum
 
@@ -32,6 +32,7 @@ class JobTemplateDefaults(Enum):
   COMPLETIONS = 1
   CONTAINER_NAME = "xpk-batch-container"
   IMAGE = "ubuntu:22.04"
+  WORKING_DIRECTORY = "/"
 
 
 class PodTemplateDefaults(Enum):
@@ -61,6 +62,7 @@ job_template_yaml = """
           containers:
             - name: {container_name}
               image: {image}
+              workingDir: {working_directory}
               {resources}
           {node_selector}
           restartPolicy: OnFailure"""
@@ -190,6 +192,9 @@ def create_job_template_instance(
   job_image = config.get(KJOB_BATCH_IMAGE)
   if job_image is None or len(job_image) == 0:
     job_image = JobTemplateDefaults.IMAGE.value
+  working_directory = config.get(KJOB_BATCH_WORKING_DIRECTORY)
+  if working_directory is None or len(working_directory) == 0:
+    working_directory = JobTemplateDefaults.WORKING_DIRECTORY.value
 
   resources = (
       job_resources_template.format(gpu_per_node=system.chips_per_vm)
@@ -212,6 +217,7 @@ def create_job_template_instance(
           completions=JobTemplateDefaults.COMPLETIONS.value,
           container_name=JobTemplateDefaults.CONTAINER_NAME.value,
           image=job_image,
+          working_directory=working_directory,
           resources=resources,
           node_selector=node_selector,
       ),

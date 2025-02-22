@@ -17,7 +17,7 @@ limitations under the License.
 from argparse import Namespace
 from ..utils.console import xpk_print
 from .commands import run_command_for_value, run_kubectl_apply, run_command_with_updates
-from .config import XpkConfig, KJOB_SHELL_IMAGE, KJOB_SHELL_INTERACTIVE_COMMAND, KJOB_BATCH_IMAGE
+from .config import XpkConfig, KJOB_SHELL_IMAGE, KJOB_SHELL_INTERACTIVE_COMMAND, KJOB_SHELL_WORKING_DIRECTORY, KJOB_BATCH_IMAGE
 from .resources import get_cluster_system_characteristics, SystemCharacteristics, AcceleratorType
 from enum import Enum
 
@@ -38,6 +38,7 @@ class PodTemplateDefaults(Enum):
   NAME = "xpk-def-pod"
   CONTAINER_NAME = "xpk-interactive-container"
   IMAGE = "busybox:1.28"
+  WORKING_DIRECTORY = "/"
   INTERACTIVE_COMMAND = "/bin/sh"
 
 
@@ -105,6 +106,11 @@ template:
       - name: {container_name}
         image: {image}
         command: [{interactive_command}]
+        workingDir: {working_directory}
+    initContainers:
+      - name: init
+        image: {image}
+        command: ['/bin/mkdir', '-p', '{working_directory}']
 """
 
 Kueue_TAS_annotation = "kueue.x-k8s.io/podset-preferred-topology=cloud.google.com/gce-topology-host"
@@ -226,12 +232,16 @@ def create_pod_template_instance(args: Namespace) -> int:
   pod_image = config.get(KJOB_SHELL_IMAGE)
   if pod_image is None or len(pod_image) == 0:
     pod_image = PodTemplateDefaults.IMAGE.value
+  working_directory = config.get(KJOB_SHELL_WORKING_DIRECTORY)
+  if working_directory is None or len(working_directory) == 0:
+    working_directory = PodTemplateDefaults.WORKING_DIRECTORY.value
 
   return run_kubectl_apply(
       yml_string=pod_template_yaml.format(
           name=PodTemplateDefaults.NAME.value,
           container_name=PodTemplateDefaults.CONTAINER_NAME.value,
           image=pod_image,
+          working_directory=working_directory,
           interactive_command=get_pod_template_interactive_command(),
       ),
       task="Creating PodTemplate",

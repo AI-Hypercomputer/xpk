@@ -37,6 +37,7 @@ ZONE_KEY = 'zone'
 KJOB_BATCH_IMAGE = 'batch-image'
 KJOB_SHELL_IMAGE = 'shell-image'
 KJOB_SHELL_INTERACTIVE_COMMAND = 'shell-interactive-command'
+KJOB_SHELL_WORKING_DIRECTORY = 'shell-working-directory'
 CONFIGS_KEY = 'configs'
 DEPENDENCIES_KEY = 'deps-verified-version'
 XPK_CONFIG_FILE = os.path.expanduser('~/.config/xpk/config.yaml')
@@ -50,6 +51,7 @@ DEFAULT_KEYS = [
     KJOB_BATCH_IMAGE,
     KJOB_SHELL_IMAGE,
     KJOB_SHELL_INTERACTIVE_COMMAND,
+    KJOB_SHELL_WORKING_DIRECTORY,
 ]
 VERTEX_TENSORBOARD_FEATURE_FLAG = XPK_CURRENT_VERSION >= '0.4.0'
 GCS_FUSE_ANNOTATION = 'gke-gcsfuse/volumes: "true"'

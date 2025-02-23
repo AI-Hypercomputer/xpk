@@ -7,6 +7,7 @@
 #SBATCH --error=%x-%j.err                 # Standard error file (%x = job name, %j = job ID)
 
 # Activate Python environment
+cd /home/llama3/
 source llama3_env/bin/activate
 
 # Run the training script

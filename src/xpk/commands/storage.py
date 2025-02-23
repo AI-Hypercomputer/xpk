@@ -40,13 +40,20 @@ from ..core.storage import (
 )
 from ..utils.console import xpk_exit, xpk_print
 from ..utils.kubectl import apply_kubectl_manifest
+from ..utils.file import ensure_directory_exists
 from ..core.filestore import FilestoreClient, get_storage_class_name
+import os
+
+manifests_path = os.path.abspath("xpkclusters/storage-manifests")
 
 
 def storage_create(args: Namespace) -> None:
+  ensure_directory_exists(manifests_path)
   add_zone_and_project(args)
   if args.type == GCP_FILESTORE_TYPE:
-    filestore_client = FilestoreClient(args.zone, args.name, args.project)
+    filestore_client = FilestoreClient(
+        args.zone, args.name, args.project, args.tier
+    )
     filestore_exists = filestore_client.check_filestore_instance_exists()
     if filestore_exists:
       xpk_print(f"Filestore instance {args.name} already exists.")
@@ -57,14 +64,14 @@ def storage_create(args: Namespace) -> None:
         f" {filestore_network}"
     )
     filestore_client.create_filestore_instance(
-        vol=args.vol, size=args.size, tier=args.tier, network=filestore_network
+        vol=args.vol, size=args.size, network=filestore_network
     )
 
     pv_data = filestore_client.create_pv(args.vol, access_mode=args.access_mode)
     pvc_data = filestore_client.create_pvc(access_mode=args.access_mode)
-    sc = filestore_client.create_sc(args.tier, filestore_network, args.project)
+    sc = filestore_client.create_sc(filestore_network, args.project)
     args.manifest = filestore_client.compile_to_manifest_yaml(
-        sc, pv_data, pvc_data
+        manifests_path, sc, pv_data, pvc_data
     )
     k8s_api_client = setup_k8s_env(args)
     create_storage_crds(k8s_api_client, args)

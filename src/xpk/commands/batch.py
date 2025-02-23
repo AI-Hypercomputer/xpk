@@ -25,6 +25,7 @@ from ..core.kjob import AppProfileDefaults, prepare_kjob, Kueue_TAS_annotation
 from .kind import set_local_cluster_command
 import re
 
+
 def batch(args: Namespace) -> None:
   """Run batch task.
      This function runs passed script in non-blocking manner.

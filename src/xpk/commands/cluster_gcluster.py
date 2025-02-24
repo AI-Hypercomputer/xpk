@@ -14,17 +14,25 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import os
+
+from ..core.blueprint.blueprint_generator import (
+    BlueprintGenerator,
+    BlueprintGeneratorOutput,
+    a3mega_device_type,
+    a3ultra_device_type,
+    supported_device_types,
+)
 from ..core.commands import run_command_for_value
-from ..core.blueprint.blueprint_generator import BlueprintGenerator, BlueprintGeneratorOutput, supported_device_types, a3mega_device_type, a3ultra_device_type
+from ..core.capacity import get_capacity_type
 from ..core.docker_manager import DockerManager
+from ..core.gcloud_context import zone_to_region
 from ..core.gcluster_manager import GclusterManager
-from ..core.core import zone_to_region, get_capacity_type
 from ..utils.console import xpk_exit, xpk_print
-from ..utils.network import all_IPs_cidr
 from ..utils.file import ensure_directory_exists
+from ..utils.network import all_IPs_cidr
 from ..utils.objects import hash_string
 from .common import set_cluster_command
-import os
 
 blueprints_path = os.path.abspath('xpkclusters/blueprints')
 gcluster_working_dir = os.path.abspath('xpkclusters/gcluster-out')
@@ -202,6 +210,7 @@ def generate_blueprint(
           auth_cidr=all_IPs_cidr,
           num_nodes=num_nodes,
           reservation=args.reservation if args.reservation else None,
+          enable_filestore_csi_driver=args.enable_gcpfilestore_csi_driver,
           capacity_type=capacity_type,
           system_node_pool_machine_type=args.default_pool_cpu_machine_type,
           system_node_pool_min_node_count=args.default_pool_cpu_num_nodes,

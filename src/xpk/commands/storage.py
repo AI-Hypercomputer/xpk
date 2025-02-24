@@ -19,36 +19,81 @@ from argparse import Namespace
 from kubernetes import client as k8s_client
 from kubernetes.client.rest import ApiException
 
-from ..core.core import (
+from ..core.cluster import (
     setup_k8s_env,
     update_cluster_with_gcsfuse_driver_if_necessary,
     update_cluster_with_workload_identity_if_necessary,
+    update_cluster_with_gcpfilestore_driver_if_necessary,
+    add_zone_and_project,
+    get_cluster_network,
 )
 from ..core.storage import (
     GCS_FUSE_TYPE,
+    GCP_FILESTORE_TYPE,
     STORAGE_CRD_KIND,
     XPK_API_GROUP_NAME,
     XPK_API_GROUP_VERSION,
-    create_storage_instance,
+    create_storage_crds,
     get_storage,
     list_storages,
     print_storages_for_cluster,
 )
 from ..utils.console import xpk_exit, xpk_print
 from ..utils.kubectl import apply_kubectl_manifest
+from ..core.filestore import FilestoreClient, get_storage_class_name
 
 
 def storage_create(args: Namespace) -> None:
-  k8s_api_client = setup_k8s_env(args)
-  create_storage_instance(k8s_api_client, args)
-  if args.type == GCS_FUSE_TYPE:
+  add_zone_and_project(args)
+  if args.type == GCP_FILESTORE_TYPE:
+    filestore_client = FilestoreClient(args.zone, args.name, args.project)
+    filestore_exists = filestore_client.check_filestore_instance_exists()
+    if filestore_exists:
+      xpk_print(f"Filestore instance {args.name} already exists.")
+      xpk_exit(1)
+    filestore_network = get_cluster_network(args)
+    xpk_print(
+        f"Creating Filestore instance {args.name} in network:"
+        f" {filestore_network}"
+    )
+    filestore_client.create_filestore_instance(
+        vol=args.vol, size=args.size, tier=args.tier, network=filestore_network
+    )
+
+    pv_data = filestore_client.create_pv(args.vol, access_mode=args.access_mode)
+    pvc_data = filestore_client.create_pvc(access_mode=args.access_mode)
+    sc = filestore_client.create_sc(args.tier, filestore_network, args.project)
+    args.manifest = filestore_client.compile_to_manifest_yaml(
+        sc, pv_data, pvc_data
+    )
+    k8s_api_client = setup_k8s_env(args)
+    create_storage_crds(k8s_api_client, args)
     return_code = update_cluster_with_workload_identity_if_necessary(args)
     if return_code > 0:
       xpk_exit(return_code)
-    return_code = update_cluster_with_gcsfuse_driver_if_necessary(args)
+    return_code = update_cluster_with_gcpfilestore_driver_if_necessary(args)
     if return_code > 0:
       xpk_exit(return_code)
     apply_kubectl_manifest(k8s_api_client, args.manifest)
+
+
+def storage_attach(args: Namespace) -> None:
+  k8s_api_client = setup_k8s_env(args)
+  create_storage_crds(k8s_api_client, args)
+  return_code = update_cluster_with_workload_identity_if_necessary(args)
+  if return_code > 0:
+    xpk_exit(return_code)
+
+  # args.type can have only two values after parsing
+  return_code = (
+      update_cluster_with_gcsfuse_driver_if_necessary(args)
+      if args.type == GCS_FUSE_TYPE
+      else update_cluster_with_gcpfilestore_driver_if_necessary(args)
+  )
+  if return_code > 0:
+    xpk_exit(return_code)
+
+  apply_kubectl_manifest(k8s_api_client, args.manifest)
 
 
 def storage_list(args: Namespace) -> None:
@@ -86,17 +131,24 @@ def storage_delete(args: Namespace) -> None:
   k8s_api_client = setup_k8s_env(args)
   api_instance = k8s_client.CustomObjectsApi(k8s_api_client)
   core_api = k8s_client.CoreV1Api()
+  storage_api = k8s_client.StorageV1Api()
   storage = get_storage(k8s_api_client, args.name)
-  if storage.type == GCS_FUSE_TYPE:
+  delete_resource(
+      lambda name: core_api.delete_namespaced_persistent_volume_claim(
+          name, "default"
+      ),
+      storage.pvc,
+      "Persistent Volume Claim",
+  )
+  delete_resource(
+      core_api.delete_persistent_volume, storage.pv, "Persistent Volume"
+  )
+
+  if storage.type == GCP_FILESTORE_TYPE:
     delete_resource(
-        lambda name: core_api.delete_namespaced_persistent_volume_claim(
-            name, "default"
-        ),
-        storage.pvc,
-        "Persistent Volume Claim",
-    )
-    delete_resource(
-        core_api.delete_persistent_volume, storage.pv, "Persistent Volume"
+        storage_api.delete_storage_class,
+        get_storage_class_name(args.name),
+        "Storage Class",
     )
 
   delete_resource(

@@ -16,10 +16,13 @@ limitations under the License.
 
 import yaml
 import functools
-from ...core.storage import GCS_FUSE_TYPE, get_storage_volumes_yaml_dict
+from typing import Callable
+from ...core.storage import GCS_FUSE_TYPE, get_storage_volumes_yaml_dict, Storage
 
 
-def apply(func):
+def apply(
+    func: Callable[[str, list[str]], str],
+) -> Callable[[str, list[str], list[Storage]], str]:
   """
   Decorates a JobSet modyfying function with additional logic to apply storage data.
 
@@ -31,7 +34,7 @@ def apply(func):
   """
 
   @functools.wraps(func)
-  def wrapper(yml_string, sub_networks, storages):
+  def wrapper(yml_string, sub_networks, storages) -> str:
 
     jobset_manifest_str = func(yml_string, sub_networks)
     if len(storages) == 0:

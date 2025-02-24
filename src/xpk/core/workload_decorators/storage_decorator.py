@@ -17,6 +17,7 @@ limitations under the License.
 import yaml
 from ...core.storage import GCS_FUSE_TYPE, get_storage_volumes_yaml_dict
 
+
 def decorate_jobset(jobset_manifest_str, storages) -> str:
   """
   Decorates a JobSet manifest with the necessary storages.
@@ -48,4 +49,3 @@ def add_annotations(job_manifest, storages):
 def add_volumes(job_manifest, storage_volumes):
   volumes = job_manifest['spec']['template']['spec']['volumes']
   volumes.extend(storage_volumes)
-

@@ -16,6 +16,8 @@ limitations under the License.
 
 import os
 
+from ..core.remote_state.remote_state_client import RemoteStateClient
+from ..core.remote_state.fuse_remote_state import FuseStateClient
 from ..core.blueprint.blueprint_generator import (
     BlueprintGenerator,
     BlueprintGeneratorOutput,
@@ -50,13 +52,22 @@ def cluster_create(args) -> None:
   """
   check_gcloud_authenticated()
   prepare_directories()
-  gcm = prepare_gcluster_manager()
   region = zone_to_region(args.zone)
 
   # unique_name uses shortened hash string, so still name collision is possible
   unique_name = get_unique_name(args.project, region, args.cluster)
   # prefix is to prevent name collisions for blueprints and also deployments by storing them in prefix directory. Ex.: blueprints/{prefix}/cluster_name_hash
   prefix = get_prefix_path(args.project, region)
+  remote_state_client = None
+  if args.cluster_state_gcs_bucket is not None:
+    remote_state_client = FuseStateClient(
+        bucket=args.cluster_state_gcs_bucket,
+        state_directory=prefix,
+        project=args.project,
+        zone=args.zone,
+        deployment_name=unique_name,
+    )
+  gcm = prepare_gcluster_manager(remote_state_client)
 
   bp = generate_blueprint(blueprint_name=unique_name, args=args, prefix=prefix)
 
@@ -71,9 +82,8 @@ def cluster_create(args) -> None:
       deployment_name=unique_name,
       prefix=prefix,
   )
-  gcm.upload_state_to_bucket(
-      args.cluster_state_gcs_bucket, args.project, args.region, args.cluster
-  )
+  if args.cluster_state_gcs_bucket is not None:
+    gcm.upload_state()
 
   set_cluster_command_code = set_cluster_command(args)
   if set_cluster_command_code != 0:
@@ -93,16 +103,27 @@ def cluster_delete(args) -> None:
   """
   check_gcloud_authenticated()
   prepare_directories()
-  gcm = prepare_gcluster_manager()
   region = zone_to_region(args.zone)
+  unique_name = get_unique_name(args.project, region, args.cluster)
+  # prefix is to prevent name collisions for blueprints and also deployments by storing them in prefix directory. Ex.: blueprints/{prefix}/cluster_name_hash
+  prefix = get_prefix_path(args.project, region)
+  remote_state_client = None
+  if args.cluster_state_gcs_bucket is not None:
+    remote_state_client = FuseStateClient(
+        bucket=args.cluster_state_gcs_bucket,
+        state_directory=prefix,
+        project=args.project,
+        zone=args.zone,
+        deployment_name=unique_name,
+    )
+  gcm = prepare_gcluster_manager(remote_state_client)
 
   # unique_name uses shortened hash string, so still name collision is possible
   unique_name = get_unique_name(args.project, region, args.cluster)
   # prefix is to prevent name collisions for blueprints and also deployments by storing them in prefix directory. Ex.: blueprints/{prefix}/cluster_name_hash
   prefix_path = get_prefix_path(args.project, region)
-  gcm.download_state_from_bucket(
-      args.remote_state_gcs_bucket, args.project, region, args.cluster
-  )
+  if args.cluster_state_gcs_bucket is not None:
+    gcm.download_state()
   gcm.destroy_deployment(deployment_name=unique_name, prefix=prefix_path)
 
   xpk_exit(0)
@@ -146,12 +167,16 @@ def check_gcloud_authenticated():
     xpk_exit(1)
 
 
-def prepare_gcluster_manager() -> GclusterManager:
+def prepare_gcluster_manager(
+    remote_state_client: RemoteStateClient | None,
+) -> GclusterManager:
   dm = DockerManager(
       working_dir=gcluster_working_dir, gcloud_cfg_path=gcloud_cfg_path
   )
   dm.initialize()
-  return GclusterManager(gcluster_command_runner=dm)
+  return GclusterManager(
+      gcluster_command_runner=dm, remote_state_client=remote_state_client
+  )
 
 
 def prepare_blueprint_generator() -> BlueprintGenerator:

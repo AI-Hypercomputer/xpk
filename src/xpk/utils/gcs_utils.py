@@ -72,6 +72,7 @@ def upload_directory_to_gcs(
 def check_file_exists(
     storage_client: Client, bucket_name: str, filename: str
 ) -> bool:
+  xpk_print(f"Checking if file {filename} exists in bucket: {bucket_name}")
   bucket = storage_client.get_bucket(bucket_name)
   is_file: bool = bucket.blob(filename).exists()
   return is_file

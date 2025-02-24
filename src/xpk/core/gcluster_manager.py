@@ -15,9 +15,9 @@ limitations under the License.
 """
 
 from .docker_manager import CommandRunner
-from ..utils.console import xpk_print
-from google.cloud.storage import Client
-from ..utils.gcs_utils import check_file_exists, download_bucket_to_dir, upload_directory_to_gcs
+from ..utils.console import xpk_exit, xpk_print
+from .remote_state.remote_state_client import RemoteStateClient
+from typing import Any, Optional
 
 xpk_gcloud_cfg_path = '~/gcloud/cfg'
 xpk_deployment_dir = '/deployment'
@@ -45,9 +45,10 @@ class GclusterManager:
   def __init__(
       self,
       gcluster_command_runner: CommandRunner,
+      remote_state_client: Optional[RemoteStateClient | None],
   ) -> None:
     self.gcluster_command_runner = gcluster_command_runner
-    self.gcs_client = Client()
+    self.remote_state_client = remote_state_client
 
   def _run_create_deployment_cmd(
       self, blueprint_container_path: str, prefix: str = ''
@@ -159,40 +160,18 @@ class GclusterManager:
     xpk_print(f"File path in gcluster's working directory: {staged_blueprint}")
     return staged_blueprint
 
-  def _get_rs_bucket_name(
-      self, bucket: str, project: str, zone: str, cluster_name: str
-  ) -> str:
-    return f'{bucket}/xpk_terraform_state/{project}-{zone}-{cluster_name}'
+  def upload_state(self) -> None:
+    xpk_print('Uploading state.')
+    if self.remote_state_client is None:
+      xpk_print('No remote state defined')
+      xpk_exit(1)
+    self.remote_state_client.upload_state()
 
-  def _get_blueprint_path(self) -> str:
-    return ''
+  def download_state(self) -> None:
+    if self.remote_state_client is None:
+      xpk_print('No remote state defined')
+      xpk_exit(1)
 
-  def _get_blueprint_directory(self) -> str:
-    return ''
-
-  def check_remote_state_exists(
-      self, bucket: str, project: str, zone: str, cluster: str
-  ) -> bool:
-    return check_file_exists(
-        self.gcs_client,
-        self._get_rs_bucket_name(bucket, project, zone, cluster),
-        self._get_blueprint_path(),
-    )
-
-  def upload_state_to_bucket(
-      self, bucket: str, project: str, zone: str, cluster_name: str
-  ) -> None:
-    return upload_directory_to_gcs(
-        self.gcs_client,
-        self._get_rs_bucket_name(bucket, project, zone, cluster_name),
-        self._get_blueprint_directory(),
-    )
-
-  def download_state_from_bucket(
-      self, bucket: str, project: str, zone: str, cluster_name: str
-  ) -> None:
-    return download_bucket_to_dir(
-        self.gcs_client,
-        self._get_rs_bucket_name(bucket, project, zone, cluster_name),
-        self._get_blueprint_directory(),
-    )
+    if self.remote_state_client.check_remote_state_exists():
+      self.remote_state_client.download_state()
+    xpk_print('Remote state not found.')

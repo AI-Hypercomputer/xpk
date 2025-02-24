@@ -139,6 +139,15 @@ jobs:
       cluster-name: ${{needs.set-variables.outputs.cluster-name}}
       zone: ${{needs.set-variables.outputs.zone}}
     secrets: inherit
+  filestore-tests:
+    needs: [cluster-create, set-variables]
+    uses: ./.github/workflows/filestore_tests.yaml
+    with:
+      cluster-name: ${{needs.set-variables.outputs.cluster-name}}
+      tpu-type: ${{needs.set-variables.outputs.tpu-type}}
+      zone: ${{needs.set-variables.outputs.zone}}
+      location: ${{needs.set-variables.outputs.location}}
+    secrets: inherit
   cluster-delete:
     if: always()
     needs: [workloads-tests, batch-tests, set-variables]

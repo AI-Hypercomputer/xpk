@@ -43,6 +43,8 @@ def get_pathways_worker_args(args) -> str:
                 - --resource_manager_address={rm_address}
                 - --gcs_scratch_location={args.pathways_gcs_location}"""
   if args.use_pathways:
+    if args.custom_pathways_worker_args:
+      yaml = append_custom_pathways_args(yaml, args.custom_pathways_worker_args)
     return yaml.format(args=args, rm_address=get_rm_address(args))
   else:
     return ''
@@ -61,6 +63,10 @@ def get_pathways_proxy_args(args) -> str:
                 - --gcs_scratch_location={args.pathways_gcs_location}"""
 
   if args.use_pathways:
+    if args.custom_pathways_proxy_server_args:
+      yaml = append_custom_pathways_args(
+          yaml, args.custom_pathways_proxy_server_args
+      )
     return yaml.format(args=args, rm_address=get_rm_address(args))
   else:
     return ''
@@ -204,15 +210,12 @@ def ensure_pathways_workload_prerequisites(args, system) -> bool:
 
 def get_pathways_unified_query_link(args) -> str:
   """Get the unified query link for the pathways workload."""
-  pw_suffixes = ['main', 'rm', 'proxy']
-  pw_pod_names = [f'"{args.workload}-{suffix}-0"' for suffix in pw_suffixes]
-  pw_pod_names_query = '%20OR%20'.join(pw_pod_names + ['worker-0-0'])
   query_params = (
       'resource.type%3D"k8s_container"%0A'
       f'resource.labels.project_id%3D"{args.project}"%0A'
       f'resource.labels.location%3D"{zone_to_region(args.zone)}"%0A'
       f'resource.labels.cluster_name%3D"{args.cluster}"%0A'
-      f'resource.labels.pod_name:{pw_pod_names_query}%0A'
+      f'resource.labels.pod_name:"{args.workload}-"%0A'
       'severity>%3DDEFAULT'
   )
 
@@ -233,6 +236,8 @@ def get_pathways_rm_args(args, system: SystemCharacteristics) -> str:
                 - --instance_count={instance_count}
                 - --instance_type={instance_type}"""
   if args.use_pathways:
+    if args.custom_pathways_server_args:
+      yaml = append_custom_pathways_args(yaml, args.custom_pathways_server_args)
     return yaml.format(
         args=args,
         instance_count=args.num_slices,
@@ -240,6 +245,28 @@ def get_pathways_rm_args(args, system: SystemCharacteristics) -> str:
     )
   else:
     return ''
+
+
+def append_custom_pathways_args(yaml, custom_args) -> str:
+  """Append custom Pathways args to the YAML with proper indentation.
+
+  Args:
+      yaml (string): existing yaml containing args
+
+  Returns:
+      yaml (string): yaml with additional args appended.
+  """
+  second_line = yaml.split('\n')[1]
+  if (
+      not second_line
+  ):  # to cover edge case if only one arg remains, we would have to look at the entire YAML in this case.
+    return yaml
+  # Calculate the indentation based on the second line of existing YAML.
+  indentation = ' ' * (len(second_line) - len(second_line.lstrip()))
+  custom_args = custom_args.split(' ')
+  for arg in custom_args:
+    yaml += '\n' + indentation + '- ' + arg
+  return yaml
 
 
 def get_user_workload_for_pathways(

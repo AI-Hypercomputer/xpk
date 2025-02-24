@@ -64,9 +64,6 @@ jobs:
         echo location=europe-west4 >> $GITHUB_OUTPUT
   install-dependencies:
     needs: [set-variables]
-    concurrency:
-      group: install-dependencies-${{github.event.number}}
-      cancel-in-progress: true
     runs-on: ubuntu-22.04
     strategy:
       matrix:

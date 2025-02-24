@@ -207,7 +207,7 @@ def generate_blueprint(
   bpg = prepare_blueprint_generator()
 
   if args.cluster_state_gcs_bucket is not None:
-    validate_state_gcs_bucket(args.cluster_state_gcs_bucket)
+    validate_state_gcs_bucket(args)
 
   if args.device_type in supported_device_types:
     if args.device_type == a3mega_device_type:

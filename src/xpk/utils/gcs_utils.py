@@ -33,7 +33,7 @@ def upload_directory_to_gcs(
   other aspects of individual blob metadata), use
   transfer_manager.upload_many() instead.
   """
-
+  xpk_print(f"Uploading directory {source_directory} to bucket {bucket_name}")
   bucket = storage_client.bucket(bucket_name)
 
   directory_as_path_obj = Path(source_directory)

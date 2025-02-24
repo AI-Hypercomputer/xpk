@@ -159,8 +159,10 @@ class GclusterManager:
     xpk_print(f"File path in gcluster's working directory: {staged_blueprint}")
     return staged_blueprint
 
-  def _get_rs_bucket_name(self) -> str:
-    return f'{project}-{zone}-{cluster_name}'
+  def _get_rs_bucket_name(
+      self, bucket: str, project: str, zone: str, cluster_name: str
+  ) -> str:
+    return f'{bucket}/xpk_terraform_state/{project}-{zone}-{cluster_name}'
 
   def _get_blueprint_path(self) -> str:
     return ''
@@ -168,21 +170,29 @@ class GclusterManager:
   def _get_blueprint_directory(self) -> str:
     return ''
 
-  def check_remote_state_exists(self) -> bool:
+  def check_remote_state_exists(
+      self, bucket: str, project: str, zone: str, cluster: str
+  ) -> bool:
     return check_file_exists(
-        self.gcs_client, self._get_rs_bucket_name(), self._get_blueprint_path()
+        self.gcs_client,
+        self._get_rs_bucket_name(bucket, project, zone, cluster),
+        self._get_blueprint_path(),
     )
 
-  def upload_state_to_bucket(self) -> None:
+  def upload_state_to_bucket(
+      self, bucket: str, project: str, zone: str, cluster_name: str
+  ) -> None:
     return upload_directory_to_gcs(
         self.gcs_client,
-        self._get_rs_bucket_name(),
+        self._get_rs_bucket_name(bucket, project, zone, cluster_name),
         self._get_blueprint_directory(),
     )
 
-  def download_state_from_bucket(self) -> None:
+  def download_state_from_bucket(
+      self, bucket: str, project: str, zone: str, cluster_name: str
+  ) -> None:
     return download_bucket_to_dir(
         self.gcs_client,
-        self._get_rs_bucket_name(),
+        self._get_rs_bucket_name(bucket, project, zone, cluster_name),
         self._get_blueprint_directory(),
     )

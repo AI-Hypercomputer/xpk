@@ -103,11 +103,10 @@ def set_cluster_parser(cluster_parser):
       '--enable-pathways',
       action='store_true',
       help=(
-          'DEPRECATING SOON!!! Please use `xpk cluster create-pathways`.'
-          ' Enable cluster to accept Pathways workloads.'
+          'Please use `xpk cluster create-pathways` instead to'
+          ' enable cluster to accept Pathways workloads.'
       ),
   )
-
   ### Autoprovisioning arguments specific to "cluster create"
   cluster_create_autoprovisioning_arguments = (
       cluster_create_parser.add_argument_group(
@@ -579,6 +578,15 @@ def add_shared_cluster_create_optional_arguments(args_parsers):
             'Enable GSCFuse driver on the cluster. This enables Workload'
             ' Identity Federation. When using A3 ultra/A3 mega Workload'
             ' Identity is enabled by default.'
+        ),
+    )
+
+    custom_parser.add_argument(
+        '--enable-gcpfilestore-csi-driver',
+        action='store_true',
+        help=(
+            'Enable GCPFilestore driver on the cluster. This enables Workload'
+            ' Identity Federation.'
         ),
     )
 

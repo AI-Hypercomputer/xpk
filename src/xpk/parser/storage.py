@@ -16,7 +16,7 @@ limitations under the License.
 
 import argparse
 
-from ..commands.storage import storage_create, storage_delete, storage_list
+from ..commands.storage import storage_attach, storage_delete, storage_list, storage_create
 from .common import add_shared_arguments
 
 
@@ -29,24 +29,25 @@ def set_storage_parser(storage_parser: argparse.ArgumentParser) -> None:
           ' specific subcommands for more details.'
       ),
   )
-  add_storage_create_parser(storage_subcommands)
+  add_storage_attach_parser(storage_subcommands)
   add_storage_list_parser(storage_subcommands)
   add_storage_delete_parser(storage_subcommands)
+  add_storage_create_parser(storage_subcommands)
 
 
-def add_storage_create_parser(
+def add_storage_attach_parser(
     storage_subcommands_parser: argparse.ArgumentParser,
 ) -> None:
 
-  storage_create_parser: argparse.ArgumentParser = (
+  storage_attach_parser: argparse.ArgumentParser = (
       storage_subcommands_parser.add_parser(
-          'create', help='Create XPK Storage.'
+          'attach', help='attach XPK Storage.'
       )
   )
-  storage_create_parser.set_defaults(func=storage_create)
-  req_args = storage_create_parser.add_argument_group(
+  storage_attach_parser.set_defaults(func=storage_attach)
+  req_args = storage_attach_parser.add_argument_group(
       'Required Arguments',
-      'Arguments required for storage create.',
+      'Arguments required for storage attach.',
   )
   add_shared_arguments(req_args)
   req_args.add_argument(
@@ -57,8 +58,11 @@ def add_storage_create_parser(
   req_args.add_argument(
       '--type',
       type=str,
-      help='The type of storage. Currently supported types: ["gcsfuse"]',
-      choices=['gcsfuse'],
+      help=(
+          'The type of storage. Currently supported types: ["gcsfuse",'
+          ' "gcpfilestore"]'
+      ),
+      choices=['gcsfuse', 'gcpfilestore'],
       required=True,
   )
   req_args.add_argument(
@@ -82,6 +86,86 @@ def add_storage_create_parser(
       '--manifest',
       type=str,
       required=True,
+  )
+
+
+def add_storage_create_parser(
+    storage_subcommands_parser: argparse.ArgumentParser,
+) -> None:
+  storage_create_parser: argparse.ArgumentParser = (
+      storage_subcommands_parser.add_parser(
+          'create', help='create XPK Storage.'
+      )
+  )
+  storage_create_parser.set_defaults(func=storage_create)
+  req_args = storage_create_parser.add_argument_group(
+      'Required Arguments',
+      'Arguments required for storage create.',
+  )
+  add_shared_arguments(req_args)
+  req_args.add_argument(
+      '--access-mode',
+      type=str,
+      choices=['ReadWriteOnce', 'ReadOnlyMany', 'ReadWriteMany'],
+      help='Access mode of created filestore instance',
+      default='ReadWriteMany',
+  )
+
+  req_args.add_argument(
+      'name',
+      type=str,
+      help='The name of storage',
+  )
+  req_args.add_argument(
+      '--vol',
+      type=str,
+      help='The name of the volume to create',
+      required=True,
+      default='default',
+  )
+  req_args.add_argument(
+      '--size',
+      type=str,
+      help=(
+          'The size of the volume to create in gigabytes or terabytes. If no'
+          ' unit is specified, gigabytes are assumed.'
+      ),
+      required=True,
+  )
+  req_args.add_argument(
+      '--tier',
+      type=str,
+      help=(
+          'The tier of the filestore to create. Possible values are:'
+          ' [BASIC_HDD, BASIC_SSD, ZONAL, REGIONAL, ENTERPRISE]'
+      ),
+      choices=['BASIC_HDD', 'BASIC_SSD', 'ZONAL', 'REGIONAL', 'ENTERPRISE'],
+      required=True,
+      default='BASIC_HDD',
+  )
+
+  req_args.add_argument(
+      '--type',
+      type=str,
+      help='The type of storage. Currently supported types: [ "gcpfilestore"]',
+      choices=['gcpfilestore'],
+      required=True,
+  )
+  req_args.add_argument(
+      '--cluster',
+      type=str,
+      required=True,
+  )
+  req_args.add_argument(
+      '--auto-mount', type=lambda v: v.lower() == 'true', required=True
+  )
+  req_args.add_argument(
+      '--mount-point',
+      type=str,
+      required=True,
+  )
+  req_args.add_argument(
+      '--readonly', type=lambda v: v.lower() == 'true', required=True
   )
 
 

@@ -38,6 +38,7 @@ STORAGE_CRD_KIND = "Storage"
 XPK_API_GROUP_NAME = "xpk.x-k8s.io"
 XPK_API_GROUP_VERSION = "v1"
 GCS_FUSE_TYPE = "gcsfuse"
+GCP_FILESTORE_TYPE = "gcpfilestore"
 
 
 @dataclass
@@ -55,7 +56,7 @@ class Storage:
       manifest: The path to a yaml file containing PersistentVolume and PersistentVolumeClaim for a given storage.
       pvc: The name of the PersistentVolumeClaim associated with the storage.
       pv: The name of the PersistentVolume associated with the storage.
-      bucket: The name of the bucket PersistentVolume refers to.
+      bucket: The name of the GCS Fuse bucket/ GCP Filestore PersistentVolume refers to.
   """
 
   name: str
@@ -155,6 +156,10 @@ def list_storages(k8s_api_client: ApiClient) -> list[Storage]:
     )
   except ApiException as e:
     xpk_print(f"Kubernetes API exception while listing Storages: {e}")
+    if e.status == 404:
+      xpk_print("Storages not found, skipping")
+      return []
+    # If it's a different error, then we should just exit.
     xpk_exit(1)
 
   storages = []
@@ -405,22 +410,23 @@ def add_bucket_iam_members(args: Namespace, storages: list[Storage]) -> None:
   storage_client = gcp_storage.Client()
 
   for storage in storages:
-    bucket = storage_client.bucket(storage.bucket)
-    policy = bucket.get_iam_policy(requested_policy_version=3)
-    if storage.readonly:
-      role = "roles/storage.objectViewer"
-    else:
-      role = "roles/storage.objectUser"
+    if storage.type == GCS_FUSE_TYPE:
+      bucket = storage_client.bucket(storage.bucket)
+      policy = bucket.get_iam_policy(requested_policy_version=3)
+      if storage.readonly:
+        role = "roles/storage.objectViewer"
+      else:
+        role = "roles/storage.objectUser"
 
-    member = (
-        f"principal://iam.googleapis.com/projects/{args.project_number}/"
-        f"locations/global/workloadIdentityPools/{args.project}.svc.id.goog/"
-        f"subject/ns/default/sa/{XPK_SA}"
-    )
+      member = (
+          f"principal://iam.googleapis.com/projects/{args.project_number}/"
+          f"locations/global/workloadIdentityPools/{args.project}.svc.id.goog/"
+          f"subject/ns/default/sa/{XPK_SA}"
+      )
 
-    policy.bindings.append({"role": role, "members": {member}})
-    bucket.set_iam_policy(policy)
-    xpk_print(f"Added {member} with role {role} to {storage.bucket}.")
+      policy.bindings.append({"role": role, "members": {member}})
+      bucket.set_iam_policy(policy)
+      xpk_print(f"Added {member} with role {role} to {storage.bucket}.")
 
 
 def print_storages_for_cluster(storages: list[Storage]) -> None:
@@ -451,7 +457,7 @@ def print_storages_for_cluster(storages: list[Storage]) -> None:
   )
 
 
-def create_storage_instance(k8s_api_client: ApiClient, args: Namespace) -> None:
+def create_storage_crds(k8s_api_client: ApiClient, args: Namespace) -> None:
   """
   Creates a new Storage custom resource in the Kubernetes cluster.
 

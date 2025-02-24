@@ -117,6 +117,7 @@ def cluster_create(args) -> None:
 
   # ToDo(roshanin@) - Re-enable CloudDNS on Pathways clusters conditionally.
   # Enable WorkloadIdentity if not enabled already.
+  print('ffoo')
   if (
       args.enable_workload_identity
       or args.enable_gcsfuse_csi_driver

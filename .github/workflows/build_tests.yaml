@@ -32,6 +32,9 @@ on:
 jobs:
   set-variables:
     runs-on: [ubuntu-22.04]
+    concurrency:
+      group: set-variables-${{github.event.number}}
+      cancel-in-progress: true
     outputs:
       cluster-name: ${{ steps.set-cluster-name.outputs.cluster-name }}
       group-name: ${{ steps.set-group-name.outputs.group-name }}
@@ -61,6 +64,9 @@ jobs:
         echo location=europe-west4 >> $GITHUB_OUTPUT
   install-dependencies:
     needs: [set-variables]
+    concurrency:
+      group: install-dependencies
+      cancel-in-progress: true
     runs-on: ubuntu-22.04
     strategy:
       matrix:
@@ -98,17 +104,29 @@ jobs:
         key: xpk-deps-${{ matrix.python-version }}-${{github.event.number}}
   linter:
     needs: [install-dependencies, set-variables]
+    concurrency: # We support one build or nightly test to run at a time currently.
+      group: linter-${{github.event.number}}
+      cancel-in-progress: true
     uses: ./.github/workflows/lint_and_format.yml
   run-unit-tests:
     uses: ./.github/workflows/unit_tests.yaml
+    concurrency: # We support one build or nightly test to run at a time currently.
+      group: unit-tests-${{github.event.number}}
+      cancel-in-progress: true
     needs: [linter, set-variables]
   run-integration-tests:
     uses: ./.github/workflows/integration_tests.yaml
+    concurrency: # We support one build or nightly test to run at a time currently.
+      group: integration-tests-${{github.event.number}}
+      cancel-in-progress: true
     secrets: inherit
     needs: [run-unit-tests, set-variables]
   cluster-private:
     needs: [run-integration-tests, set-variables]
     uses: ./.github/workflows/cluster_private.yaml
+    concurrency: # We support one build or nightly test to run at a time currently.
+      group: cluster-private-${{github.event.number}}
+      cancel-in-progress: true
     with:
       cluster-name: '${{needs.set-variables.outputs.cluster-name}}'
       tpu-type: '${{needs.set-variables.outputs.tpu-type || inputs.tpu-type}}'
@@ -117,6 +135,9 @@ jobs:
     secrets: inherit
   cluster-create:
     needs: [run-integration-tests, set-variables]
+    concurrency: # We support one build or nightly test to run at a time currently.
+      group: cluster-create-${{github.event.number}}
+      cancel-in-progress: true
     uses: ./.github/workflows/cluster_create.yaml
     with:
       cluster-name: '${{needs.set-variables.outputs.cluster-name}}'
@@ -127,6 +148,9 @@ jobs:
   workloads-tests:
     needs: [cluster-create, set-variables]
     uses: ./.github/workflows/workload_test.yaml
+    concurrency: # We support one build or nightly test to run at a time currently.
+      group: workload-tests-${{github.event.number}}
+      cancel-in-progress: true
     with:
       cluster-name: ${{needs.set-variables.outputs.cluster-name}}
       tpu-type: ${{needs.set-variables.outputs.tpu-type}}
@@ -135,6 +159,9 @@ jobs:
   batch-tests:
     needs: [cluster-create, set-variables]
     uses: ./.github/workflows/batch_test.yaml
+    concurrency: # We support one build or nightly test to run at a time currently.
+      group: batch-tests-${{github.event.number}}
+      cancel-in-progress: true
     with:
       cluster-name: ${{needs.set-variables.outputs.cluster-name}}
       zone: ${{needs.set-variables.outputs.zone}}
@@ -142,6 +169,9 @@ jobs:
   filestore-tests:
     needs: [cluster-create, set-variables]
     uses: ./.github/workflows/filestore_tests.yaml
+    concurrency: # We support one build or nightly test to run at a time currently.
+      group: filestore-tests-${{github.event.number}}
+      cancel-in-progress: true
     with:
       cluster-name: ${{needs.set-variables.outputs.cluster-name}}
       tpu-type: ${{needs.set-variables.outputs.tpu-type}}

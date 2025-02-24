@@ -65,7 +65,7 @@ jobs:
   install-dependencies:
     needs: [set-variables]
     concurrency:
-      group: install-dependencies
+      group: install-dependencies-${{github.event.number}}
       cancel-in-progress: true
     runs-on: ubuntu-22.04
     strategy:

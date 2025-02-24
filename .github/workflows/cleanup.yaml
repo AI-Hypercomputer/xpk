@@ -7,7 +7,7 @@ on:
 jobs:
   delete:
     runs-on: ubuntu-latest
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: mokmok-dev/delete-actions-cache@main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

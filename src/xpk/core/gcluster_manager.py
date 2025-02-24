@@ -17,7 +17,7 @@ limitations under the License.
 from .docker_manager import CommandRunner
 from ..utils.console import xpk_exit, xpk_print
 from .remote_state.remote_state_client import RemoteStateClient
-from typing import Any, Optional
+from typing import Optional
 
 xpk_gcloud_cfg_path = '~/gcloud/cfg'
 xpk_deployment_dir = '/deployment'

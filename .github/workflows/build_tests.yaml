@@ -177,7 +177,7 @@ jobs:
     secrets: inherit
   cluster-delete:
     if: always()
-    needs: [workloads-tests, batch-tests, set-variables]
+    needs: [workloads-tests, batch-tests, set-variables, filestore-tests]
     uses: ./.github/workflows/cluster_delete.yaml
     with:
       cluster-name: ${{needs.set-variables.outputs.cluster-name}}

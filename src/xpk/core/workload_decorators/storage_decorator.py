@@ -32,12 +32,12 @@ def decorate_jobset(jobset_manifest_str, storages) -> str:
   storage_volumes = get_storage_volumes_yaml_dict(storages)
   for job in manifest['spec']['replicatedJobs']:
     job_manifest = job['template']
-    add_storage_annotations(job_manifest, storages)
-    add_storage_volumes(job_manifest, storage_volumes)
+    add_annotations(job_manifest, storages)
+    add_volumes(job_manifest, storage_volumes)
   return yaml.dump(manifest, sort_keys=False)
 
 
-def add_storage_annotations(job_manifest, storages):
+def add_annotations(job_manifest, storages):
   """Adds or updates storage annotations in the Pod template."""
   annotations = job_manifest['spec']['template']['metadata']['annotations']
   gcs_present = [storage.type == GCS_FUSE_TYPE for storage in storages]
@@ -45,7 +45,7 @@ def add_storage_annotations(job_manifest, storages):
     annotations.update({'gke-gcsfuse/volumes': 'true'})
 
 
-def add_storage_volumes(job_manifest, storage_volumes):
+def add_volumes(job_manifest, storage_volumes):
   volumes = job_manifest['spec']['template']['spec']['volumes']
   volumes.extend(storage_volumes)
 

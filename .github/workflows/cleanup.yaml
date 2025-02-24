@@ -7,7 +7,7 @@ on:
 jobs:
   delete:
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - uses: snnaplab/delete-branch-cache-action@v1
-        with:
-          ref: refs/pull/${{ github.event.number }}/merge
+      - uses: mokmok-dev/delete-actions-cache@main

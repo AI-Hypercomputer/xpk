@@ -83,7 +83,7 @@ from ..core.workload import (
     wait_for_job_completion,
     zone_to_region,
 )
-from ..core.workload_decorators import rdma_decorator, tcpxo_decorator
+from ..core.workload_decorators import rdma_decorator, tcpxo_decorator, storage_decorator
 from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
 from . import cluster_gcluster
@@ -574,20 +574,15 @@ def workload_create(args) -> None:
       if args.device_type == cluster_gcluster.a3mega_device_type:
         sub_networks = [f'{args.cluster}-gpunet-{i}-subnet' for i in range(8)]
         yml_string = tcpxo_decorator.decorate_jobset(yml_string, sub_networks)
-        if len(gcs_fuse_storages) + len(gcpfilestore_storages) > 0:
-          yml_string = tcpxo_decorator.decorate_jobset_with_storages(
-              yml_string, all_storages
-          )
 
       if args.device_type == cluster_gcluster.a3ultra_device_type:
         sub_networks = [f'{args.cluster}-sub-1'] + [
             f'{args.cluster}-rdma-sub-{i}' for i in range(8)
         ]
         yml_string = rdma_decorator.decorate_jobset(yml_string, sub_networks)
-        if len(gcs_fuse_storages) + len(gcpfilestore_storages) > 0:
-          yml_string = rdma_decorator.decorate_jobset_with_storages(
-              yml_string, all_storages
-          )
+
+      if len(gcs_fuse_storages) + len(gcpfilestore_storages) > 0:
+        yml_string = storage_decorator.decorate_jobset(yml_string, all_storages)
     else:
       yml_string = GPU_WORKLOAD_CREATE_YAML.format(
           args=args,

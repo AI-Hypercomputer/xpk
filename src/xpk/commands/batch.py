@@ -56,6 +56,7 @@ def submit_job(args: Namespace) -> None:
       f' --profile {AppProfileDefaults.NAME.value}'
       f' --localqueue {LOCAL_QUEUE_NAME}'
       f' --pod-template-annotation {Kueue_TAS_annotation}'
+      f' --first-node-ip'
   )
 
   if args.ignore_unknown_flags:

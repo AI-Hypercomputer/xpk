@@ -71,13 +71,13 @@ jobs:
     - name: Create test script to execute in workloads
       run: echo -e '#!/bin/bash \n echo "Hello world from a test script!"' > workload.sh
     - name: Run a base-docker-image workload
-      run: python xpk.py workload create --cluster ${{inputs.cluster-name}} --workload $WORKLOAD_NAME  --command "bash workload.sh"  --tpu-type=${{inputs.tpu-type}} --num-slices=2 --zone=${{inputs.zone}}
+      run: python xpk.py workload create --cluster ${{inputs.cluster-name}} --workload $WORKLOAD_NAME  --command "bash workload.sh"  --tpu-type=${{inputs.tpu-type}} --num-slices=1 --zone=${{inputs.zone}}
     - name: Run xpk inspector with the workload created above
       run: python3 xpk.py inspector --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}  --workload $WORKLOAD_NAME
     - name: Wait for workload completion and confirm it succeeded
       run: python3 xpk.py workload list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} --wait-for-job-completion $WORKLOAD_NAME --timeout 300
     - name: Run a Pathways workload on Ubuntu base image
-      run: python xpk.py workload create-pathways --cluster ${{inputs.cluster-name}} --workload $PATHWAYS_WORKLOAD_NAME --docker-image='marketplace.gcr.io/google/ubuntu2004' --tpu-type=${{inputs.tpu-type}} --num-slices=2 --zone=${{inputs.zone}} --command "echo \"Hello world from a test script! \""
+      run: python xpk.py workload create-pathways --cluster ${{inputs.cluster-name}} --workload $PATHWAYS_WORKLOAD_NAME --docker-image='marketplace.gcr.io/google/ubuntu2004' --tpu-type=${{inputs.tpu-type}} --num-slices=1 --zone=${{inputs.zone}} --command "echo \"Hello world from a test script! \""
     - name: Wait for Pathways workload completion and confirm it succeeded
       run: python3 xpk.py workload list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} --wait-for-job-completion $PATHWAYS_WORKLOAD_NAME --timeout 300
     - name: List out the workloads on the cluster

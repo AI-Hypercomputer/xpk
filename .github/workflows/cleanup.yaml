@@ -8,6 +8,6 @@ jobs:
   delete:
     runs-on: ubuntu-latest
     steps:
-      - uses: mokmok-dev/delete-actions-cache@main
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: snnaplab/delete-branch-cache-action@v1
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}

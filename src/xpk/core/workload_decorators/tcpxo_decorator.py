@@ -16,11 +16,13 @@ limitations under the License.
 
 import yaml
 from ...utils.yaml import literal_string
+from . import storage_decorator
 
 # Component version
 rxdm = 'v1.0.12'
 
 
+@storage_decorator.apply
 def decorate_jobset(jobset_manifest_str, sub_networks) -> str:
   """
   Decorates a JobSet manifest with the necessary components for tcpxo-daemon.

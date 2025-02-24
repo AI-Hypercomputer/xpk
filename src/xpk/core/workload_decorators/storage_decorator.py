@@ -15,27 +15,37 @@ limitations under the License.
 """
 
 import yaml
+import functools
 from ...core.storage import GCS_FUSE_TYPE, get_storage_volumes_yaml_dict
 
 
-def decorate_jobset(jobset_manifest_str, storages) -> str:
+def apply(func):
   """
-  Decorates a JobSet manifest with the necessary storages.
+  Decorates a JobSet modyfying function with additional logic to apply storage data.
 
   Args:
-    jobset_manifest_str: The JobSet manifest as a YAML string.
+    func: the JobSet modyfiyng function
 
   Returns:
-    The modified JobSet manifest as a YAML string.
+    The modified operator that includes storage.
   """
 
-  manifest = yaml.safe_load(jobset_manifest_str)
-  storage_volumes = get_storage_volumes_yaml_dict(storages)
-  for job in manifest['spec']['replicatedJobs']:
-    job_manifest = job['template']
-    add_annotations(job_manifest, storages)
-    add_volumes(job_manifest, storage_volumes)
-  return yaml.dump(manifest, sort_keys=False)
+  @functools.wraps(func)
+  def wrapper(yml_string, sub_networks, storages):
+
+    jobset_manifest_str = func(yml_string, sub_networks)
+    if len(storages) == 0:
+      return jobset_manifest_str
+
+    manifest = yaml.safe_load(jobset_manifest_str)
+    storage_volumes = get_storage_volumes_yaml_dict(storages)
+    for job in manifest['spec']['replicatedJobs']:
+      job_manifest = job['template']
+      add_annotations(job_manifest, storages)
+      add_volumes(job_manifest, storage_volumes)
+    return yaml.dump(manifest, sort_keys=False)
+
+  return wrapper
 
 
 def add_annotations(job_manifest, storages):

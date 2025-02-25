@@ -162,6 +162,7 @@ def get_unique_name(project_id, region, cluster_name):
 def get_prefix_path(project_id, region):
   return f'{project_id}-{region}'.lower()
 
+
 def prepare_directories() -> None:
   ensure_directory_exists(blueprints_path)
   ensure_directory_exists(gcluster_working_dir)

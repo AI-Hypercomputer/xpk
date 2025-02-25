@@ -110,9 +110,6 @@ jobs:
     - name: Delete the delete workload on the cluster
       if: always()
       run: python3 xpk.py workload delete --workload $FS_DELETE_WORKLOAD --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}
-    - name: Delete the cluster created
-      if: always()
-      run: python3 xpk.py cluster delete --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}
   
   filestore-create:
     runs-on: [ubuntu-22.04]
@@ -181,6 +178,3 @@ jobs:
     - name: Delete the delete workload on the cluster
       if: always()
       run: python3 xpk.py workload delete --workload $FS_DELETE_WORKLOAD --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}
-    - name: Delete the cluster created
-      if: always()
-      run: python3 xpk.py cluster delete --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}

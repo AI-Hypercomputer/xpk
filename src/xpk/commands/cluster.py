@@ -63,6 +63,7 @@ from ..core.workload import get_workload_list
 from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
 from . import cluster_gcluster
+from .common import set_cluster_command
 from ..core.cluster import update_cluster_with_gcpfilestore_driver_if_necessary
 
 
@@ -277,7 +278,12 @@ def cluster_delete(args) -> None:
     cluster_gcluster.cluster_delete(args)
     xpk_exit(0)
 
+  set_cluster_command_code = set_cluster_command(args)
+  if set_cluster_command_code != 0:
+    xpk_exit(set_cluster_command_code)
+
   run_gke_cluster_delete_command_code = run_gke_cluster_delete_command(args)
+
   if run_gke_cluster_delete_command_code != 0:
     xpk_exit(run_gke_cluster_delete_command_code)
   xpk_print(f'GKE commands done! Cluster {args.cluster} deleted.\n')

@@ -63,8 +63,7 @@ def cluster_create(args) -> None:
     remote_state_client = FuseStateClient(
         bucket=args.cluster_state_gcs_bucket,
         state_directory=os.path.join(blueprints_path, prefix, unique_name),
-        project=args.project,
-        zone=args.zone,
+        prefix=prefix,
         cluster=args.cluster,
         deployment_name=unique_name,
     )
@@ -113,8 +112,7 @@ def cluster_delete(args) -> None:
     remote_state_client = FuseStateClient(
         bucket=args.cluster_state_gcs_bucket,
         state_directory=os.path.join(blueprints_path, prefix, unique_name),
-        project=args.project,
-        zone=args.zone,
+        prefix=prefix,
         cluster=args.cluster,
         deployment_name=unique_name,
     )
@@ -126,6 +124,7 @@ def cluster_delete(args) -> None:
   prefix = get_prefix_path(args.project, region)
   if args.cluster_state_gcs_bucket is not None:
     gcm.download_state()
+
     bp = BlueprintGeneratorOutput(
         blueprint_file=os.path.join(blueprints_path, prefix, unique_name)
         + '.yaml',
@@ -133,14 +132,10 @@ def cluster_delete(args) -> None:
             blueprints_path, prefix, unique_name
         ),
     )
-    bp_staged_path = gcm.stage_files(
+
+    gcm.stage_files(
         blueprint_file=bp.blueprint_file,
         blueprint_dependencies=bp.blueprint_dependencies,
-        prefix=prefix,
-    )
-    gcm.deploy(
-        blueprint_path=bp_staged_path,
-        deployment_name=unique_name,
         prefix=prefix,
     )
   gcm.destroy_deployment(deployment_name=unique_name, prefix=prefix)

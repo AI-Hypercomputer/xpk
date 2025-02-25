@@ -22,30 +22,30 @@ import os
 
 
 class FuseStateClient(RemoteStateClient):
-  """_summary_"""
+  """FuseStateClient is a class for managing remote xpk state stored in GCS Fuse."""
 
   def __init__(
       self,
       bucket: str,
       state_directory: str,
-      project: str,
-      zone: str,
       cluster: str,
       deployment_name: str,
+      prefix: str,
   ) -> None:
     self.bucket = bucket
     self.state_dir = state_directory
-    self.project = project
-    self.zone = zone
     self.storage_client = Client()
     self.cluster = cluster
+    self.prefix = prefix
     self.deployment_name = deployment_name
 
   def _get_bucket_path(self) -> str:
-    return f'xpk_terraform_state/{self.project}-{self.zone}-{self.cluster}/blueprints/{self.deployment_name}/'
+    return (
+        f'xpk_terraform_state/{self.prefix}/blueprints/{self.deployment_name}/'
+    )
 
   def _get_bucket_path_blueprint(self) -> str:
-    return f'xpk_terraform_state/{self.project}-{self.zone}-{self.cluster}/blueprints/'
+    return f'xpk_terraform_state/{self.prefix}/blueprints/'
 
   def _get_deployment_filename(self) -> str:
     return f'{self.deployment_name}.yaml'
@@ -87,6 +87,7 @@ class FuseStateClient(RemoteStateClient):
     download_bucket_to_dir(
         self.storage_client,
         self.bucket,
+        self._get_bucket_path(),
         destination_directory=self.state_dir,
     )
 

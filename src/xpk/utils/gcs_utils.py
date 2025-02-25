@@ -104,6 +104,7 @@ def check_file_exists(
 def download_bucket_to_dir(
     storage_client: Client,
     bucket_name: str,
+    bucket_path: str,
     destination_directory: str = "",
     workers: int = 8,
     max_results: int = 1000,
@@ -120,7 +121,8 @@ def download_bucket_to_dir(
   bucket = storage_client.bucket(bucket_name)
 
   blob_names = [
-      blob.name for blob in bucket.list_blobs(max_results=max_results)
+      blob.name
+      for blob in bucket.list_blobs(max_results=max_results, prefix=bucket_path)
   ]
 
   results = transfer_manager.download_many_to_path(

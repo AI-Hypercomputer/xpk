@@ -33,7 +33,7 @@ def batch(args: Namespace) -> None:
   Returns:
     None
   """
-  if not args.kind_cluster:
+  if not getattr(args, 'kind_cluster', None):
     add_zone_and_project(args)
     set_cluster_command_code = set_cluster_command(args)
   else:

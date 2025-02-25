@@ -14,22 +14,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..core.commands import (
-    run_command_for_value,
-    run_command_with_updates,
-)
-from ..core.cluster import (
-    set_jobset_on_cluster,
-)
-from ..core.kjob import (
-    verify_kjob_installed,
-    prepare_kjob,
-    apply_kjob_crds,
-)
+import yaml
+
+from ..core.cluster import set_jobset_on_cluster
+from ..core.commands import run_command_for_value, run_command_with_updates
+from ..core.kjob import apply_kjob_crds, prepare_kjob, verify_kjob_installed
 from ..core.kueue import (
+    install_kueue_crs,
     install_kueue_on_cluster,
+    wait_for_kueue_available,
 )
-from ..utils.console import (xpk_exit, xpk_print)
+from ..core.system_characteristics import get_system_characteristics
+from ..utils.console import xpk_exit, xpk_print
+from ..utils.file import write_tmp_file
 
 
 def cluster_create(args) -> None:
@@ -78,6 +75,22 @@ def cluster_create(args) -> None:
   err_code = prepare_kjob(args)
   if err_code > 0:
     xpk_exit(err_code)
+
+  xpk_print('Wait for Kueue to be fully available')
+  wait_for_kueue_available_code = wait_for_kueue_available(args)
+  if wait_for_kueue_available_code != 0:
+    xpk_exit(wait_for_kueue_available_code)
+
+  args.kind_cluster = True
+  system, return_code = get_system_characteristics(args)
+  if return_code > 0:
+    xpk_print('Fetching system characteristics failed!')
+    xpk_exit(return_code)
+
+  xpk_print('Install Kueue Custom Resources')
+  enable_kueue_credentials_code = install_kueue_crs(args, system, None)
+  if enable_kueue_credentials_code != 0:
+    xpk_exit(enable_kueue_credentials_code)
 
   xpk_print('Kind commands done! Resources are created.')
   xpk_exit(0)
@@ -184,7 +197,24 @@ def run_kind_cluster_create_command(args) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
-  command = 'kind create cluster'
+  # Simulating GCP Environments in Kind
+  # Configures kind nodes to mimic GCP features such as node pools, TPU accelerators or instance types.
+  # These modifications aid in testing the compatibility and behavior of applications outside real GCP.
+  # For more details on kind configurations, visit: https://kind.sigs.k8s.io/docs/user/configuration/
+  kind_config = {
+      'kind': 'Cluster',
+      'apiVersion': 'kind.x-k8s.io/v1alpha4',
+      'nodes': [
+          {'role': 'control-plane'},
+          {
+              'role': 'worker',
+              'labels': {'cloud.google.com/gke-nodepool': 'kind-pool-0'},
+          },
+      ],
+  }
+  yaml_str = yaml.dump(kind_config)
+  tmp = write_tmp_file(yaml_str)
+  command = f'kind create cluster --config {tmp.file.name}'
 
   if args.cluster:
     command += f' --name={args.cluster}'

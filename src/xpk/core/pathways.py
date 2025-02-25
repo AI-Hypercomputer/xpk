@@ -132,7 +132,7 @@ spec:
   nodeLabels:
     cloud.google.com/gke-nodepool: cpu-user-np
 ---"""
-  if args.enable_pathways:
+  if getattr(args, 'enable_pathways', None):
     return resource_flavor_yaml
   return ''
 
@@ -159,7 +159,7 @@ def add_pw_resources_to_kueue(args):
         nominalQuota: 480
       - name: "memory"
         nominalQuota: 2000G"""
-  if args.enable_pathways:
+  if getattr(args, 'enable_pathways', None):
     return resources_yaml
   return ''
 

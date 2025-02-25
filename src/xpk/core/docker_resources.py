@@ -33,6 +33,9 @@ def get_main_container_resources(
     str:
       Workload resources port as a YAML string
   """
+  if getattr(args, 'kind_cluster', None):
+    return ''
+
   # Resources requirements for Pathways workload containers are known.
   resources_yaml = """cpu: "24"
                     memory: 100G"""
@@ -177,6 +180,9 @@ def get_volumes(args, system: SystemCharacteristics) -> str:
     str:
       YAML for the volumes.
   """
+  if getattr(args, 'kind_cluster', None):
+    return ''  # TODO: Enable storages on kind clusters.
+
   volumes = """- emptyDir:
                   medium: Memory
                 name: dshm-2
@@ -225,6 +231,9 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
     str:
       YAML for the volumes mounted within a Pathways container or GPU container as a YAML string.
   """
+  if getattr(args, 'kind_cluster', None):
+    return ''  # TODO: Enable storages on kind clusters.
+
   volume_mount_yaml = """- mountPath: /dev/shm
                   name: dshm-2
                 """

@@ -141,7 +141,7 @@ def job_list(args) -> None:
   Returns:
     None
   """
-  if not args.kind_cluster:
+  if not getattr(args, 'kind_cluster', None):
     add_zone_and_project(args)
     set_cluster_command_code = set_cluster_command(args)
     msg = f'Listing jobs for project {args.project} and zone {args.zone}:'
@@ -176,7 +176,7 @@ def job_cancel(args) -> None:
     None
   """
   xpk_print(f'Starting job cancel for job: {args.name}', flush=True)
-  if not args.kind_cluster:
+  if not getattr(args, 'kind_cluster', None):
     add_zone_and_project(args)
     set_cluster_command_code = set_cluster_command(args)
   else:

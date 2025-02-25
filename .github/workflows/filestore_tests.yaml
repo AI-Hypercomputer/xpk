@@ -108,7 +108,7 @@ jobs:
       run: python3 xpk.py workload delete --workload $FS_DELETE_WORKLOAD --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=europe-west4-b
     - name: Delete the cluster created
       if: always()
-      run: python3 xpk.py cluster delete --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=europe-west4-b
+      run: python3 xpk.py cluster delete --cluster $TPU_FILESTORE_CLUSTER_NAME --zone=europe-west4-b --force
   
   filestore-create:
     runs-on: [ubuntu-22.04]
@@ -188,4 +188,4 @@ jobs:
       run: python3 xpk.py workload delete --workload $FS_DELETE_WORKLOAD --cluster $TPU_FILESTORE_CLUSTER_NAME_CREATE --zone=europe-west4-b
     - name: Delete the cluster created
       if: always()
-      run: python3 xpk.py cluster delete --cluster $TPU_FILESTORE_CLUSTER_NAME_CREATE --zone=europe-west4-b
+      run: python3 xpk.py cluster delete --cluster $TPU_FILESTORE_CLUSTER_NAME_CREATE --zone=europe-west4-b --force

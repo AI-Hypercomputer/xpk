@@ -30,6 +30,7 @@ class FuseStateClient(RemoteStateClient):
       state_directory: str,
       project: str,
       zone: str,
+      cluster: str,
       deployment_name: str,
   ) -> None:
     self.bucket = bucket
@@ -37,13 +38,14 @@ class FuseStateClient(RemoteStateClient):
     self.project = project
     self.zone = zone
     self.storage_client = Client()
+    self.cluster = cluster
     self.deployment_name = deployment_name
 
   def _get_bucket_path(self) -> str:
-    return f'xpk_terraform_state/{self.project}-{self.zone}-{self.deployment_name}/{self.deployment_name}/'
+    return f'xpk_terraform_state/{self.project}-{self.zone}-{self.cluster}/blueprints/{self.deployment_name}/'
 
   def _get_bucket_path_blueprint(self) -> str:
-    return f'xpk_terraform_state/{self.project}-{self.zone}-{self.deployment_name}/'
+    return f'xpk_terraform_state/{self.project}-{self.zone}-{self.cluster}/blueprints/'
 
   def _get_deployment_filename(self) -> str:
     return f'{self.deployment_name}.yaml'
@@ -53,25 +55,27 @@ class FuseStateClient(RemoteStateClient):
     return os.path.join(blueprint_dir, self.deployment_name) + '.yaml'
 
   def upload_state(self) -> None:
+    xpk_print(f'Uploading dependecies from directory {self.state_dir} to bucket: {self.bucket}. Path within bucket is: {self._get_bucket_path()}')
     upload_directory_to_gcs(
         storage_client=self.storage_client,
         bucket_name=self.bucket,
         bucket_path=self._get_bucket_path(),
         source_directory=self.state_dir,
     )
-    xpk_print('Uploading blueprint to bucket')
+    blueprint_bucket_path=self._get_bucket_path_blueprint()+ self._get_deployment_filename()
+    xpk_print(f'Uploading blueprint file: {self._get_blueprint_path()} to bucket {self.bucket}. Path within bucket is: {blueprint_bucket_path}')
     upload_file_to_gcs(
         storage_client=self.storage_client,
         bucket_name=self.bucket,
-        bucket_path=self._get_bucket_path_blueprint()
-        + self._get_deployment_filename(),
+        bucket_path=blueprint_bucket_path,
         file=self._get_blueprint_path(),
     )
 
   def download_state(self) -> None:
+    xpk_print(f'Downloading from bucket: {self.bucket}, from path: {self._get_bucket_path()} to directory: {self.state_dir}')
     download_bucket_to_dir(
         self.storage_client,
-        self._get_bucket_path(),
+        self.bucket,
         destination_directory=self.state_dir,
     )
 

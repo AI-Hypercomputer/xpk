@@ -598,6 +598,15 @@ def add_shared_workload_create_optional_arguments(args_parsers):
             ' be used with the CSI driver provided by GKE.'
         ),
     )
+    custom_parser.add_argument(
+        '--mtc_enabled',
+        action='store_true',
+        help=(
+            'The workload can use multi-tier checkpointing controllers when the'
+            ' --ramdisk-directory argument is used with this additional'
+            ' argument.'
+        ),
+    )
 
 
 def add_shared_workload_create_env_arguments(args_parsers):

@@ -63,7 +63,7 @@ jobs:
         gcloud config get compute/zone
     - name: Authenticate Docker
       run: gcloud auth configure-docker --quiet
-    - name: Install xpk dependencies
+    - name: Update PATH
       run: |
         echo $PWD/bin >> "$GITHUB_PATH"
     - name: Check xpk installation

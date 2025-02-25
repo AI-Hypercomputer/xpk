@@ -69,10 +69,20 @@ jobs:
       run: |
         gcloud config set compute/zone us-east4-a
         gcloud config get compute/zone
-    - name: Install xpk
+    - name: Prepare directories
+      run: mkdir -p ~/.cache/pip && mkdir bin/
+    - name: Restore cached dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+              bin/
+              ~/.cache/pip
+              ${{env.pythonLocation}}
+        key: xpk-deps-3.10-${{github.event.number}}
+        restore-keys: xpk-deps-3.10-
+    - name: Update PATH
       run: |
-        make install
-        echo $PWD/bin >> "$GITHUB_PATH"
+          echo $PWD/bin >> "$GITHUB_PATH"
     - name: Verify xpk installation
       run: xpk --help
     - name: Authenticate Docker
@@ -137,9 +147,19 @@ jobs:
       run: |
         gcloud config set compute/zone us-east4-a
         gcloud config get compute/zone
-    - name: Install xpk
+    - name: Prepare directories
+      run: mkdir -p ~/.cache/pip && mkdir bin/
+    - name: Restore cached dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+            bin/
+            ~/.cache/pip
+            ${{env.pythonLocation}}
+        key: xpk-deps-3.10-${{github.event.number}}
+        restore-keys: xpk-deps-3.10-
+    - name: Update PATH
       run: |
-          make install
           echo $PWD/bin >> "$GITHUB_PATH"
     - name: Verify xpk installation
       run: xpk --help

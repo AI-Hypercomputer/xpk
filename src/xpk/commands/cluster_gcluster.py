@@ -62,7 +62,7 @@ def cluster_create(args) -> None:
   if args.cluster_state_gcs_bucket is not None:
     remote_state_client = FuseStateClient(
         bucket=args.cluster_state_gcs_bucket,
-        state_directory=prefix,
+        state_directory=os.path.join(blueprints_path, prefix, unique_name),
         project=args.project,
         zone=args.zone,
         deployment_name=unique_name,
@@ -111,7 +111,7 @@ def cluster_delete(args) -> None:
   if args.cluster_state_gcs_bucket is not None:
     remote_state_client = FuseStateClient(
         bucket=args.cluster_state_gcs_bucket,
-        state_directory=prefix,
+        state_directory=os.path.join(blueprints_path, prefix, unique_name),
         project=args.project,
         zone=args.zone,
         deployment_name=unique_name,
@@ -121,10 +121,24 @@ def cluster_delete(args) -> None:
   # unique_name uses shortened hash string, so still name collision is possible
   unique_name = get_unique_name(args.project, region, args.cluster)
   # prefix is to prevent name collisions for blueprints and also deployments by storing them in prefix directory. Ex.: blueprints/{prefix}/cluster_name_hash
-  prefix_path = get_prefix_path(args.project, region)
+  prefix = get_prefix_path(args.project, region)
   if args.cluster_state_gcs_bucket is not None:
     gcm.download_state()
-  gcm.destroy_deployment(deployment_name=unique_name, prefix=prefix_path)
+    bp = BlueprintGeneratorOutput(
+      blueprint_file=os.path.join(blueprints_path, prefix, unique_name)+".yaml",
+      blueprint_dependencies=os.path.join(blueprints_path, prefix, unique_name)
+    )
+    bp_staged_path = gcm.stage_files(
+      blueprint_file=bp.blueprint_file,
+      blueprint_dependencies=bp.blueprint_dependencies,
+      prefix=prefix,
+    )
+    gcm.deploy(
+        blueprint_path=bp_staged_path,
+        deployment_name=unique_name,
+        prefix=prefix,
+    )
+  gcm.destroy_deployment(deployment_name=unique_name, prefix=prefix)
 
   xpk_exit(0)
 

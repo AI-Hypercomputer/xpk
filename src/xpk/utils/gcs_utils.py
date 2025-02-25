@@ -18,11 +18,34 @@ from pathlib import Path
 
 from google.cloud.storage import transfer_manager, Client
 from .console import xpk_print
+from google.cloud import storage_control_v2
+
+
+def create_gcs_directory(bucket_name: str, dir_path: str) -> None:
+  storage_control_client = storage_control_v2.StorageControlClient()
+  project_path = storage_control_client.common_project_path("_")
+  bucket_path = f"{project_path}/buckets/{bucket_name}"
+
+  request = storage_control_v2.CreateFolderRequest(
+      parent=bucket_path,
+      folder_id=dir_path,
+  )
+  response = storage_control_client.create_folder(request=request)
+  print(f"Created folder: {response.name}")
+
+
+def upload_file_to_gcs(
+    storage_client: Client, bucket_name: str, bucket_path: str, file: str
+):
+  bucket = storage_client.bucket(bucket_name)
+  blob = bucket.blob(bucket_path)
+  blob.upload_from_filename(file)
 
 
 def upload_directory_to_gcs(
     storage_client: Client,
     bucket_name: str,
+    bucket_path: str,
     source_directory: str,
     workers: int = 8,
 ):
@@ -50,13 +73,13 @@ def upload_directory_to_gcs(
   string_paths = [str(path) for path in relative_paths]
 
   xpk_print(f"Found {len(string_paths)} files.")
-
   # Start the upload.
   results = transfer_manager.upload_many_from_filenames(
-      bucket,
-      string_paths,
+      bucket=bucket,
+      filenames=string_paths,
       source_directory=source_directory,
       max_workers=workers,
+      blob_name_prefix=bucket_path,
   )
 
   for name, result in zip(string_paths, results):

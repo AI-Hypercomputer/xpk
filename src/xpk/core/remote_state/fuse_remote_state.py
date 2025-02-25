@@ -55,15 +55,23 @@ class FuseStateClient(RemoteStateClient):
     return os.path.join(blueprint_dir, self.deployment_name) + '.yaml'
 
   def upload_state(self) -> None:
-    xpk_print(f'Uploading dependecies from directory {self.state_dir} to bucket: {self.bucket}. Path within bucket is: {self._get_bucket_path()}')
+    xpk_print(
+        f'Uploading dependecies from directory {self.state_dir} to bucket:'
+        f' {self.bucket}. Path within bucket is: {self._get_bucket_path()}'
+    )
     upload_directory_to_gcs(
         storage_client=self.storage_client,
         bucket_name=self.bucket,
         bucket_path=self._get_bucket_path(),
         source_directory=self.state_dir,
     )
-    blueprint_bucket_path=self._get_bucket_path_blueprint()+ self._get_deployment_filename()
-    xpk_print(f'Uploading blueprint file: {self._get_blueprint_path()} to bucket {self.bucket}. Path within bucket is: {blueprint_bucket_path}')
+    blueprint_bucket_path = (
+        self._get_bucket_path_blueprint() + self._get_deployment_filename()
+    )
+    xpk_print(
+        f'Uploading blueprint file: {self._get_blueprint_path()} to bucket'
+        f' {self.bucket}. Path within bucket is: {blueprint_bucket_path}'
+    )
     upload_file_to_gcs(
         storage_client=self.storage_client,
         bucket_name=self.bucket,
@@ -72,7 +80,10 @@ class FuseStateClient(RemoteStateClient):
     )
 
   def download_state(self) -> None:
-    xpk_print(f'Downloading from bucket: {self.bucket}, from path: {self._get_bucket_path()} to directory: {self.state_dir}')
+    xpk_print(
+        f'Downloading from bucket: {self.bucket}, from path:'
+        f' {self._get_bucket_path()} to directory: {self.state_dir}'
+    )
     download_bucket_to_dir(
         self.storage_client,
         self.bucket,
@@ -83,6 +94,5 @@ class FuseStateClient(RemoteStateClient):
     return check_file_exists(
         self.storage_client,
         self.bucket,
-        self._get_bucket_path_blueprint()
-        + self._get_deployment_filename(),
+        self._get_bucket_path_blueprint() + self._get_deployment_filename(),
     )

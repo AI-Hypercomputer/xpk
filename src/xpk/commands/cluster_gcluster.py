@@ -65,7 +65,7 @@ def cluster_create(args) -> None:
         state_directory=os.path.join(blueprints_path, prefix, unique_name),
         project=args.project,
         zone=args.zone,
-        cluster = args.cluster,
+        cluster=args.cluster,
         deployment_name=unique_name,
     )
   gcm = prepare_gcluster_manager(remote_state_client)
@@ -115,7 +115,7 @@ def cluster_delete(args) -> None:
         state_directory=os.path.join(blueprints_path, prefix, unique_name),
         project=args.project,
         zone=args.zone,
-        cluster = args.cluster,
+        cluster=args.cluster,
         deployment_name=unique_name,
     )
   gcm = prepare_gcluster_manager(remote_state_client)
@@ -127,13 +127,16 @@ def cluster_delete(args) -> None:
   if args.cluster_state_gcs_bucket is not None:
     gcm.download_state()
     bp = BlueprintGeneratorOutput(
-      blueprint_file=os.path.join(blueprints_path, prefix, unique_name)+".yaml",
-      blueprint_dependencies=os.path.join(blueprints_path, prefix, unique_name)
+        blueprint_file=os.path.join(blueprints_path, prefix, unique_name)
+        + '.yaml',
+        blueprint_dependencies=os.path.join(
+            blueprints_path, prefix, unique_name
+        ),
     )
     bp_staged_path = gcm.stage_files(
-      blueprint_file=bp.blueprint_file,
-      blueprint_dependencies=bp.blueprint_dependencies,
-      prefix=prefix,
+        blueprint_file=bp.blueprint_file,
+        blueprint_dependencies=bp.blueprint_dependencies,
+        prefix=prefix,
     )
     gcm.deploy(
         blueprint_path=bp_staged_path,
@@ -164,8 +167,10 @@ def get_unique_name(project_id, region, cluster_name):
 def get_prefix_path(project_id, region):
   return f'{project_id}-{region}'.lower()
 
+
 def get_remote_state_prefix(project_id: str, region: str, cluster: str) -> str:
   return f'{project_id}-{region}-{cluster}'.lower()
+
 
 def prepare_directories() -> None:
   ensure_directory_exists(blueprints_path)

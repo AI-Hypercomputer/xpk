@@ -176,15 +176,15 @@ jobs:
     - name: List and verify existing Storages
       run: python3 xpk.py storage list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} | tee output.txt | grep $FS_STORAGE_NAME || (echo 'No storage found' && exit 143)
     - name: Run workload to write file on filestore
-      run : python3 xpk.py workload create --workload $FS_WRITE_WORKLOAD --num-slices=1 --docker-image='marketplace.gcr.io/google/ubuntu2004' --command "mkdir /fs-test-mount-point/$RANDOM_SEED/ && echo 'Test text message' > /fs-test-mount-point/$RANDOM_SEED/test.txt || (echo 'Writing to filestore failed' && exit 143)" --cluster ${{inputs.cluster-name}} --tpu-type=${{inputs.tpu-type}} --zone ${{inputs.zone}}
+      run : python3 xpk.py workload create --workload $FS_WRITE_WORKLOAD-create --num-slices=1 --docker-image='marketplace.gcr.io/google/ubuntu2004' --command "mkdir /fs-test-mount-point/$RANDOM_SEED/ && echo 'Test text message' > /fs-test-mount-point/$RANDOM_SEED/test.txt || (echo 'Writing to filestore failed' && exit 143)" --cluster ${{inputs.cluster-name}} --tpu-type=${{inputs.tpu-type}} --zone ${{inputs.zone}}
     - name: Wait for writer workload completion and confirm it succeeded
       run: python3 xpk.py workload list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} --wait-for-job-completion $FS_WRITE_WORKLOAD --timeout 300
     - name: Run workload to read file on filestore
-      run : python3 xpk.py workload create --workload $FS_READ_WORKLOAD --num-slices=1 --command "grep 'Test text message' /fs-test-mount-point/$RANDOM_SEED/test.txt || (echo 'Reading from filestore failed' && exit 143)" --cluster ${{inputs.cluster-name}} --tpu-type=${{inputs.tpu-type}} --zone ${{inputs.zone}}
+      run : python3 xpk.py workload create --workload $FS_READ_WORKLOAD-create --num-slices=1 --command "grep 'Test text message' /fs-test-mount-point/$RANDOM_SEED/test.txt || (echo 'Reading from filestore failed' && exit 143)" --cluster ${{inputs.cluster-name}} --tpu-type=${{inputs.tpu-type}} --zone ${{inputs.zone}}
     - name: Wait for reader workload completion and confirm it succeeded
       run: python3 xpk.py workload list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} --wait-for-job-completion $FS_READ_WORKLOAD --timeout 300
     - name: Run workload to delete file on filestore
-      run : python3 xpk.py workload create --workload $FS_DELETE_WORKLOAD --command "rm -rf /fs-test-mount-point/$RANDOM_SEED/test.txt || exit 143" --num-slices=1 --cluster ${{inputs.cluster-name}} --tpu-type=${{inputs.tpu-type}} --zone ${{inputs.zone}}
+      run : python3 xpk.py workload create --workload $FS_DELETE_WORKLOAD-create --command "rm -rf /fs-test-mount-point/$RANDOM_SEED/test.txt || exit 143" --num-slices=1 --cluster ${{inputs.cluster-name}} --tpu-type=${{inputs.tpu-type}} --zone ${{inputs.zone}}
     - name: Wait for delete workload completion and confirm it succeeded
       run: python3 xpk.py workload list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} --wait-for-job-completion $FS_DELETE_WORKLOAD --timeout 300
     - name: Delete storage
@@ -194,10 +194,10 @@ jobs:
       run: gcloud filestore instances delete $FS_STORAGE_NAME --zone=${{inputs.zone}} --force 
     - name: Delete the writer workload on the cluster
       if: always()
-      run: python3 xpk.py workload delete --workload $FS_WRITE_WORKLOAD --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}
+      run: python3 xpk.py workload delete --workload $FS_WRITE_WORKLOAD-create --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}
     - name: Delete the reader workload on the cluster
       if: always()
-      run: python3 xpk.py workload delete --workload $FS_READ_WORKLOAD --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}
+      run: python3 xpk.py workload delete --workload $FS_READ_WORKLOAD-create --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}
     - name: Delete the delete workload on the cluster
       if: always()
-      run: python3 xpk.py workload delete --workload $FS_DELETE_WORKLOAD --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}
+      run: python3 xpk.py workload delete --workload $FS_DELETE_WORKLOAD-create --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}

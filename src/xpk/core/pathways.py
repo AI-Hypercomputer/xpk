@@ -144,9 +144,9 @@ def add_pw_resources_to_kueue(args):
     - name: cpu-rm
       resources:
       - name: "cpu"
-        nominalQuota: 80
+        nominalQuota: 480
       - name: "memory"
-        nominalQuota: 160G
+        nominalQuota: 2000G
     - name: cpu-proxy
       resources:
       - name: "cpu"

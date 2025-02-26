@@ -45,7 +45,16 @@ jobs:
     - name: set cluster-name
       id: set-cluster-name
       run: |    
-        echo cluster-name=build-xpk-2-nodepools-${{github.event.number}} >> $GITHUB_OUTPUT
+        if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          RUN_ID="dispatch"
+        elif [ "${{ github.ref }}" == "refs/heads/main" ]; then
+          RUN_ID="main"
+        elif [ "${{ github.ref }}" == "refs/heads/develop" ]; then
+          RUN_ID="develop"
+        else
+          RUN_ID="${{ github.event.number }}"
+        fi
+        echo cluster-name=build-xpk-2-nodepools-$RUN_ID >> $GITHUB_OUTPUT
     - name: set group-name
       id: set-group-name
       run: |    

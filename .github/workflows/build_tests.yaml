@@ -41,7 +41,7 @@ jobs:
       zone: ${{ steps.set-zone.outputs.zone }}
       tpu-type: ${{ steps.set-tpu-type.outputs.tpu-type }}
       location: ${{steps.set-location.outputs.location}}
-      run-id: ${{steps.set-location.outputs.run-id}}
+      run-id: ${{steps.set-run-id.outputs.run-id}}
     steps:
     - name: set run-id
       id: set-run-id
@@ -55,7 +55,6 @@ jobs:
         else
           RUN_ID="${{ github.event.number }}"
         fi
-        echo RUN_ID=$RUN_ID >> $GITHUB_OUTPUT
         echo run-id=$RUN_ID >> $GITHUB_OUTPUT
     - name: set cluster-name
       id: set-cluster-name
@@ -100,7 +99,7 @@ jobs:
           bin/
           ~/.cache/pip
           ${{env.pythonLocation}}
-        key: xpk-deps-${{ matrix.python-version }}-${RUN_ID}
+        key: xpk-deps-${{ matrix.python-version }}-${{needs.set-variables.outputs.run-id}}
         lookup-only: true
     - name: install dependencies
       if : steps.check-cache.outputs.cache-hit != 'true'
@@ -113,7 +112,7 @@ jobs:
           bin/
           ~/.cache/pip
           ${{env.pythonLocation}}
-        key: xpk-deps-${{ matrix.python-version }}-${RUN_ID}
+        key: xpk-deps-${{ matrix.python-version }}-${{needs.set-variables.outputs.run-id}}
   linter:
     needs: [install-dependencies, set-variables]
     concurrency: # We support one build or nightly test to run at a time currently.

@@ -41,7 +41,7 @@ jobs:
       zone: ${{ steps.set-zone.outputs.zone }}
       tpu-type: ${{ steps.set-tpu-type.outputs.tpu-type }}
       location: ${{steps.set-location.outputs.location}}
-      run-id: ${{steps.set-location.outputs.location}}
+      run-id: ${{steps.set-location.outputs.run-id}}
     steps:
     - name: set run-id
       id: set-run-id

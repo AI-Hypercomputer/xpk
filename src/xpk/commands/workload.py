@@ -691,10 +691,16 @@ def workload_create(args) -> None:
   if args.use_pathways:
     if args.headless:
       xpk_print(
-          ' \n ******* Please connect to your Pathways proxy at'
-          f' {args.pathways_proxy_address}, once you see "IFRT proxy server'
-          ' started with status OK" on the proxy link below.'
-          ' Remember to delete the workload once done! ****** \n'
+          '******* Please use kubectl port forwarding to connect to the'
+          ' Pathways proxy, once you see "IFRT proxy server started with status'
+          ' OK" on the proxy link below. Remember to delete the workload once'
+          ' done! ******* '
+      )
+      xpk_print(
+          'Steps to connect to the proxy: kubectl get pods | grep proxy ;'
+          ' kubectl port-forward <proxy-pod-name> 29000:29000; '
+          ' JAX_PLATFORMS=proxy; JAX_BACKEND_TARGET=grpc://127.0.0.1:29000;'
+          " python -c 'import pathwaysutils; import jax; print(jax.devices())'"
       )
       pathways_proxy_link = f'https://console.cloud.google.com/kubernetes/job/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}-proxy-0/details?project={args.project}'
       xpk_print(

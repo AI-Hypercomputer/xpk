@@ -739,7 +739,8 @@ def get_restart_exit_codes(args) -> list:
       else:
         exit_codes.append(int(item))
 
-  return exit_codes
+  # Remove duplicates that the user may have added.
+  return list(set(exit_codes))
 
 
 def workload_delete(args) -> None:

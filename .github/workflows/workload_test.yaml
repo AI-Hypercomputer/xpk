@@ -1,0 +1,90 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License
+
+on:
+  workflow_call:
+    inputs:
+      cluster-name:
+        required: true
+        type: string
+      tpu-type:
+        required: true
+        type: string
+      zone:
+        required: true
+        type: string
+
+env:
+  WORKLOAD_NAME: xpktest-build-${{ github.run_attempt }}
+  PATHWAYS_WORKLOAD_NAME: xpkpw-build-${{ github.run_attempt }}
+
+jobs:
+  run-workloads:
+    runs-on: [ubuntu-22.04]
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+    - uses: 'google-github-actions/auth@v2'
+      with:
+        credentials_json: '${{ secrets.GCP_SA_KEY }}'
+    - uses: google-github-actions/setup-gcloud@v2
+      with:
+        version: '>= 363.0.0'
+        install_components: 'beta,gke-gcloud-auth-plugin'
+    - name: Verify gcp setup
+      run: gcloud info
+    - name: Prepare directories
+      run: mkdir -p ~/.cache/pip && mkdir bin/
+    - name: Restore cached dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          bin/
+          ~/.cache/pip
+          ${{env.pythonLocation}}
+        key: xpk-deps-3.10-${{github.event.number}}
+        restore-keys: xpk-deps-3.10-
+    - name: Set Google Cloud CLI properties to a unused zone to verify --zone arg is passed properly in commands.
+      run: |
+        gcloud config set compute/zone us-east4-a
+        gcloud config get compute/zone
+    - name: Authenticate Docker
+      run: gcloud auth configure-docker --quiet
+    - name: Update PATH
+      run: |
+        echo $PWD/bin >> "$GITHUB_PATH"
+    - name: Check xpk installation
+      run: xpk --help
+    - name: Create test script to execute in workloads
+      run: echo -e '#!/bin/bash \n echo "Hello world from a test script!"' > workload.sh
+    - name: Run a base-docker-image workload
+      run: python xpk.py workload create --cluster ${{inputs.cluster-name}} --workload $WORKLOAD_NAME  --command "bash workload.sh"  --tpu-type=${{inputs.tpu-type}} --num-slices=1 --zone=${{inputs.zone}}
+    - name: Run xpk inspector with the workload created above
+      run: python3 xpk.py inspector --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}  --workload $WORKLOAD_NAME
+    - name: Wait for workload completion and confirm it succeeded
+      run: python3 xpk.py workload list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} --wait-for-job-completion $WORKLOAD_NAME --timeout 300
+    - name: Run a Pathways workload on Ubuntu base image
+      run: python xpk.py workload create-pathways --cluster ${{inputs.cluster-name}} --workload $PATHWAYS_WORKLOAD_NAME --docker-image='marketplace.gcr.io/google/ubuntu2004' --tpu-type=${{inputs.tpu-type}} --num-slices=1 --zone=${{inputs.zone}} --command "echo \"Hello world from a test script! \""
+    - name: Wait for Pathways workload completion and confirm it succeeded
+      run: python3 xpk.py workload list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} --wait-for-job-completion $PATHWAYS_WORKLOAD_NAME --timeout 300
+    - name: List out the workloads on the cluster
+      run: python3 xpk.py workload list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}
+    - name: Run xpk info
+      run: python3 xpk.py info --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} | tee output.txt | grep -P "^(?=.*QUEUE)(?=.*PENDING_WORKLOADS)(?=.*ADMITTED_WORKLOADS)(?=.*1x${{inputs.tpu-type}}:google.com/tpu)(?=.*cpu-rm:cpu)(?=.*cpu-rm:memory)(?=.*cpu-proxy:cpu)(?=.*cpu-proxy:memory)(?=.*cpu-user:cpu)(?=.*cpu-user:memory)" || (echo 'Invalid command output' && cat output.txt && exit 1)
+    - name: Delete the workload on the cluster
+      run: python3 xpk.py workload delete --workload $WORKLOAD_NAME --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}
+    - name: Delete the Pathways workload on the cluster
+      run: python3 xpk.py workload delete --workload $PATHWAYS_WORKLOAD_NAME --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}

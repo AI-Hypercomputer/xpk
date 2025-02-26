@@ -16,6 +16,10 @@ name: Lint and Format
 
 on:
   workflow_call:
+    inputs:
+      run-id:
+        required: true
+        type: string
 
 jobs:
   build-and-test:
@@ -38,7 +42,7 @@ jobs:
           bin/
           ~/.cache/pip
           ${{env.pythonLocation}}
-        key: xpk-deps-${{matrix.python-version}}-${{github.event.number}}
+        key: xpk-deps-${{matrix.python-version}}-${{inputs.run-id}}
         restore-keys: xpk-deps-${{matrix.python-version}}-
     - name: Run pylint
       run: make pylint

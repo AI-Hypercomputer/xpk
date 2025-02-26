@@ -31,6 +31,10 @@ on:
       location:
         type: string
         required: true
+      run-id:
+        required: true
+        type: string
+      
 
 env:
   # Names must be unique in parallel running tests.
@@ -54,7 +58,7 @@ jobs:
           bin/
           ~/.cache/pip
           ${{env.pythonLocation}}
-        key: xpk-deps-3.10-${{github.event.number}}
+        key: xpk-deps-3.10-${{inputs.run-id}}
         restore-keys: xpk-deps-3.10-
     - uses: 'google-github-actions/auth@v2'
       with:

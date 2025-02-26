@@ -20,6 +20,9 @@ on:
       zone:
         required: true
         type: string
+      run-id:
+        required: true
+        type: string
 
 jobs:
   delete-cluster:
@@ -51,7 +54,7 @@ jobs:
           bin/
           ~/.cache/pip
           ${{env.pythonLocation}}
-        key: xpk-deps-3.10-${{github.event.number}}
+        key: xpk-deps-3.10-${{inputs.run-id}}
         restore-keys: xpk-deps-3.10
     - name: Install xpk dependencies
       run: |

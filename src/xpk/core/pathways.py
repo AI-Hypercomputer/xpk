@@ -309,6 +309,8 @@ def get_user_workload_for_pathways(
               serviceAccountName: {service_account}
               nodeSelector:
                 cloud.google.com/gke-nodepool: cpu-user-np
+              hostNetwork: true
+              dnsPolicy: ClusterFirstWithHostNet
               restartPolicy: Never
               volumes:
               - hostPath:

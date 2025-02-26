@@ -33,7 +33,7 @@ jobs:
   set-variables:
     runs-on: [ubuntu-22.04]
     concurrency:
-      group: set-variables-${{github.event.number}}
+      group: set-variables-${{ github.event.number}}
       cancel-in-progress: true
     outputs:
       cluster-name: ${{ steps.set-cluster-name.outputs.cluster-name }}
@@ -41,15 +41,29 @@ jobs:
       zone: ${{ steps.set-zone.outputs.zone }}
       tpu-type: ${{ steps.set-tpu-type.outputs.tpu-type }}
       location: ${{steps.set-location.outputs.location}}
+      run-id: ${{steps.set-run-id.outputs.run-id}}
     steps:
+    - name: set run-id
+      id: set-run-id
+      run: |
+        if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          RUN_ID="dispatch"
+        elif [ "${{ github.ref }}" == "refs/heads/main" ]; then
+          RUN_ID="main"
+        elif [ "${{ github.ref }}" == "refs/heads/develop" ]; then
+          RUN_ID="develop"
+        else
+          RUN_ID="${{ github.event.number }}"
+        fi
+        echo run-id=$RUN_ID >> $GITHUB_OUTPUT
     - name: set cluster-name
       id: set-cluster-name
-      run: |    
-        echo cluster-name=build-xpk-2-nodepools-${{github.event.number}} >> $GITHUB_OUTPUT
+      run: |
+        echo cluster-name=build-xpk-2-nodepools-${{steps.set-run-id.outputs.run-id}} >> $GITHUB_OUTPUT
     - name: set group-name
       id: set-group-name
       run: |    
-        echo group-name=xpk-pr-${{github.event.number}} >> $GITHUB_OUTPUT
+        echo group-name=xpk-${{steps.set-run-id.outputs.run-id}} >> $GITHUB_OUTPUT
     - name: set zone
       id: set-zone
       run: |    
@@ -77,7 +91,7 @@ jobs:
     - uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Check if cache existis
+    - name: Check if cache exists
       id: check-cache
       uses: actions/cache@v3
       with:
@@ -85,7 +99,7 @@ jobs:
           bin/
           ~/.cache/pip
           ${{env.pythonLocation}}
-        key: xpk-deps-${{ matrix.python-version }}-${{github.event.number}}
+        key: xpk-deps-${{ matrix.python-version }}-${{needs.set-variables.outputs.run-id}}
         lookup-only: true
     - name: install dependencies
       if : steps.check-cache.outputs.cache-hit != 'true'
@@ -98,23 +112,29 @@ jobs:
           bin/
           ~/.cache/pip
           ${{env.pythonLocation}}
-        key: xpk-deps-${{ matrix.python-version }}-${{github.event.number}}
+        key: xpk-deps-${{ matrix.python-version }}-${{needs.set-variables.outputs.run-id}}
   linter:
     needs: [install-dependencies, set-variables]
     concurrency: # We support one build or nightly test to run at a time currently.
-      group: linter-${{github.event.number}}
+      group: linter-${{needs.set-variables.outputs.run-id}}
       cancel-in-progress: true
     uses: ./.github/workflows/lint_and_format.yml
+    with:
+      run-id: '${{needs.set-variables.outputs.run-id}}'
   run-unit-tests:
     uses: ./.github/workflows/unit_tests.yaml
+    with:
+      run-id: ${{needs.set-variables.outputs.run-id}}
     concurrency: # We support one build or nightly test to run at a time currently.
-      group: unit-tests-${{github.event.number}}
+      group: unit-tests-${{needs.set-variables.outputs.run-id}}
       cancel-in-progress: true
     needs: [linter, set-variables]
   run-integration-tests:
     uses: ./.github/workflows/integration_tests.yaml
+    with:
+      run-id: '${{needs.set-variables.outputs.run-id}}'
     concurrency: # We support one build or nightly test to run at a time currently.
-      group: integration-tests-${{github.event.number}}
+      group: integration-tests-${{needs.set-variables.outputs.run-id}}
       cancel-in-progress: true
     secrets: inherit
     needs: [run-unit-tests, set-variables]
@@ -122,9 +142,10 @@ jobs:
     needs: [run-integration-tests, set-variables]
     uses: ./.github/workflows/cluster_private.yaml
     concurrency: # We support one build or nightly test to run at a time currently.
-      group: cluster-private-${{github.event.number}}
+      group: cluster-private-${{needs.set-variables.outputs.run-id}}
       cancel-in-progress: true
     with:
+      run-id: '${{needs.set-variables.outputs.run-id}}'
       cluster-name: '${{needs.set-variables.outputs.cluster-name}}'
       tpu-type: '${{needs.set-variables.outputs.tpu-type || inputs.tpu-type}}'
       zone: '${{needs.set-variables.outputs.zone}}'
@@ -133,7 +154,7 @@ jobs:
   cluster-create:
     needs: [run-integration-tests, set-variables]
     concurrency: # We support one build or nightly test to run at a time currently.
-      group: cluster-create-${{github.event.number}}
+      group: cluster-create-${{needs.set-variables.outputs.run-id}}
       cancel-in-progress: true
     uses: ./.github/workflows/cluster_create.yaml
     with:
@@ -141,39 +162,43 @@ jobs:
       tpu-type: '${{needs.set-variables.outputs.tpu-type || inputs.tpu-type}}'
       zone: '${{needs.set-variables.outputs.zone}}'
       location: '${{needs.set-variables.outputs.location}}'
+      run-id: '${{needs.set-variables.outputs.run-id}}'
     secrets: inherit
   workloads-tests:
     needs: [cluster-create, set-variables]
     uses: ./.github/workflows/workload_test.yaml
     concurrency: # We support one build or nightly test to run at a time currently.
-      group: workload-tests-${{github.event.number}}
+      group: workload-tests-${{needs.set-variables.outputs.run-id}}
       cancel-in-progress: true
     with:
       cluster-name: ${{needs.set-variables.outputs.cluster-name}}
       tpu-type: ${{needs.set-variables.outputs.tpu-type}}
       zone: ${{needs.set-variables.outputs.zone}}
+      run-id: '${{needs.set-variables.outputs.run-id}}'
     secrets: inherit
   batch-tests:
     needs: [cluster-create, set-variables]
     uses: ./.github/workflows/batch_test.yaml
     concurrency: # We support one build or nightly test to run at a time currently.
-      group: batch-tests-${{github.event.number}}
+      group: batch-tests-${{needs.set-variables.outputs.run-id}}
       cancel-in-progress: true
     with:
       cluster-name: ${{needs.set-variables.outputs.cluster-name}}
       zone: ${{needs.set-variables.outputs.zone}}
+      run-id: ${{needs.set-variables.outputs.run-id}}
     secrets: inherit
   filestore-tests:
-    needs: [cluster-create, set-variables]
+    needs: [cluster-create, set-variables, batch-tests, workloads-tests]
     uses: ./.github/workflows/filestore_tests.yaml
     concurrency: # We support one build or nightly test to run at a time currently.
-      group: filestore-tests-${{github.event.number}}
+      group: filestore-tests-${{needs.set-variables.outputs.run-id}}
       cancel-in-progress: true
     with:
       cluster-name: ${{needs.set-variables.outputs.cluster-name}}
       tpu-type: ${{needs.set-variables.outputs.tpu-type}}
       zone: ${{needs.set-variables.outputs.zone}}
       location: ${{needs.set-variables.outputs.location}}
+      run-id: ${{needs.set-variables.outputs.run-id}}
     secrets: inherit
   cluster-delete:
     if: always()
@@ -181,5 +206,6 @@ jobs:
     uses: ./.github/workflows/cluster_delete.yaml
     with:
       cluster-name: ${{needs.set-variables.outputs.cluster-name}}
+      run-id: ${{needs.set-variables.outputs.run-id}}
       zone: ${{needs.set-variables.outputs.zone}}
     secrets: inherit

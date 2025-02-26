@@ -100,7 +100,7 @@ jobs:
           bin/
           ~/.cache/pip
           ${{env.pythonLocation}}
-        key: xpk-deps-${{ matrix.python-version }}-$RUN_ID
+        key: xpk-deps-${{ matrix.python-version }}-${RUN_ID}
         lookup-only: true
     - name: install dependencies
       if : steps.check-cache.outputs.cache-hit != 'true'
@@ -113,7 +113,7 @@ jobs:
           bin/
           ~/.cache/pip
           ${{env.pythonLocation}}
-        key: xpk-deps-${{ matrix.python-version }}-$RUN_ID
+        key: xpk-deps-${{ matrix.python-version }}-${RUN_ID}
   linter:
     needs: [install-dependencies, set-variables]
     concurrency: # We support one build or nightly test to run at a time currently.

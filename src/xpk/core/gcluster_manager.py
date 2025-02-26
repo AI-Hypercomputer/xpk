@@ -17,7 +17,6 @@ limitations under the License.
 from .docker_manager import CommandRunner
 from ..utils.console import xpk_exit, xpk_print
 from .remote_state.remote_state_client import RemoteStateClient
-from typing import Optional
 
 xpk_gcloud_cfg_path = '~/gcloud/cfg'
 xpk_deployment_dir = '/deployment'
@@ -45,7 +44,7 @@ class GclusterManager:
   def __init__(
       self,
       gcluster_command_runner: CommandRunner,
-      remote_state_client: Optional[RemoteStateClient | None],
+      remote_state_client: RemoteStateClient | None,
   ) -> None:
     self.gcluster_command_runner = gcluster_command_runner
     self.remote_state_client = remote_state_client

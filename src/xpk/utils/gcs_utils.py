@@ -18,20 +18,6 @@ from pathlib import Path
 
 from google.cloud.storage import transfer_manager, Client
 from .console import xpk_print
-from google.cloud import storage_control_v2
-
-
-def create_gcs_directory(bucket_name: str, dir_path: str) -> None:
-  storage_control_client = storage_control_v2.StorageControlClient()
-  project_path = storage_control_client.common_project_path("_")
-  bucket_path = f"{project_path}/buckets/{bucket_name}"
-
-  request = storage_control_v2.CreateFolderRequest(
-      parent=bucket_path,
-      folder_id=dir_path,
-  )
-  response = storage_control_client.create_folder(request=request)
-  print(f"Created folder: {response.name}")
 
 
 def upload_file_to_gcs(

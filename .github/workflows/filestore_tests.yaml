@@ -31,12 +31,15 @@ on:
       location:
         type: string
         required: true
+      run-id:
+        required: true
+        type: string
 env:
   # Names must be unique in parallel running tests.
   TPU_FILESTORE_CLUSTER_NAME: ${{inputs.cluster-name}}-fs-attach
   TPU_FILESTORE_CLUSTER_NAME_CREATE: ${{inputs.cluster-name}}-create
   STORAGE_NAME: ${{inputs.cluster-name}}-test
-  FS_STORAGE_NAME: ${{secrets.INSTANCE_NAME}}-test-${{github.event.number}}
+  FS_STORAGE_NAME: ${{secrets.INSTANCE_NAME}}-test-${{inputs.run-id}}
   FS_DELETE_WORKLOAD: "fs-delete-workload"
   FS_READ_WORKLOAD: "fs-read-workload"
   FS_WRITE_WORKLOAD: "fs-write-workload"
@@ -78,7 +81,7 @@ jobs:
               bin/
               ~/.cache/pip
               ${{env.pythonLocation}}
-        key: xpk-deps-3.10-${{github.event.number}}
+        key: xpk-deps-3.10-${{inputs.run-id}}
         restore-keys: xpk-deps-3.10-
     - name: Update PATH
       run: |
@@ -156,7 +159,7 @@ jobs:
             bin/
             ~/.cache/pip
             ${{env.pythonLocation}}
-        key: xpk-deps-3.10-${{github.event.number}}
+        key: xpk-deps-3.10-${{inputs.run-id}}
         restore-keys: xpk-deps-3.10-
     - name: Update PATH
       run: |

@@ -20,6 +20,9 @@ on:
       zone:
         required: true
         type: string
+      run-id:
+        required: true
+        type: string
 
 jobs:
   delete-cluster:

@@ -20,10 +20,10 @@ on:
       tpu-type:
         description: 'TPU Type'
         required: true
-        default: 'v5p-8'
+        default: 'v4-8'
         type: choice
         options:
-          - v5p-8
+          - v4-8
           - v5litepod-8
   push:
     branches: ["main","develop"]
@@ -67,7 +67,7 @@ jobs:
     - name: set zone
       id: set-zone
       run: |    
-        echo zone=europe-west4-b >> $GITHUB_OUTPUT
+        echo zone=us-central2-b >> $GITHUB_OUTPUT
     - name: set tpu-type
       id: set-tpu-type
       run: |
@@ -75,7 +75,7 @@ jobs:
     - name: set location
       id: set-location
       run: |    
-        echo location=europe-west4 >> $GITHUB_OUTPUT
+        echo location=us-central2 >> $GITHUB_OUTPUT
   install-dependencies:
     needs: [set-variables]
     runs-on: ubuntu-22.04

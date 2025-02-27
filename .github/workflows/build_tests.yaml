@@ -67,15 +67,15 @@ jobs:
     - name: set zone
       id: set-zone
       run: |    
-        echo zone=europe-west4-b >> $GITHUB_OUTPUT
+        echo zone=us-central2-b >> $GITHUB_OUTPUT
     - name: set tpu-type
       id: set-tpu-type
       run: |
-        echo tpu-type=v5p-8 >> $GITHUB_OUTPUT
+        echo tpu-type=v4-8 >> $GITHUB_OUTPUT
     - name: set location
       id: set-location
       run: |    
-        echo location=europe-west4 >> $GITHUB_OUTPUT
+        echo location=us-central2 >> $GITHUB_OUTPUT
   install-dependencies:
     needs: [set-variables]
     runs-on: ubuntu-22.04

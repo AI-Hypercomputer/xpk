@@ -321,6 +321,20 @@ spec:
                         fieldPath: "metadata.labels['jobset.sigs.k8s.io/job-index']"
                   - name: MEGASCALE_COORDINATOR_ADDRESS
                     value: "$(JOBSET_NAME)-$(REPLICATED_JOB_NAME)-$(MEGASCALE_SLICE_ID)-0.$(JOBSET_NAME)"
+                  - name: PROJECT_ID
+                    value: {args.project}
+                  - name: LOCATION
+                    value: {args.zone}
+                  - name: CLUSTER_NAME
+                    value: {args.cluster}
+                  - name: POD_NAME
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.name
+                  - name: CONTAINER_NAME
+                    value: "pathways-worker"
+                  - name: NAMESPACE
+                    value: "cloud_prod"
               {pathways_sidecar_container}
               nodeSelector:
                 {accelerator_label}
@@ -363,6 +377,20 @@ spec:
                   value: $(JOBSET_NAME)-$(REPLICATED_JOB_NAME)-0-0.$(JOBSET_NAME)
                 - name: TPU_SKIP_MDS_QUERY
                   value: "true"
+                - name: PROJECT_ID
+                  value: {args.project}
+                - name: LOCATION
+                  value: {args.zone}
+                - name: CLUSTER_NAME
+                  value: {args.cluster}
+                - name: POD_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
+                - name: CONTAINER_NAME
+                  value: "pathways-rm"
+                - name: NAMESPACE
+                  value: "cloud_prod"
                 image: {args.server_image}
                 imagePullPolicy: Always
                 name: pathways-rm
@@ -397,6 +425,21 @@ spec:
               containers:
               - args:
                 {pathways_proxy_args}
+                env:
+                - name: PROJECT_ID
+                  value: {args.project}
+                - name: LOCATION
+                  value: {args.zone}
+                - name: CLUSTER_NAME
+                  value: {args.cluster}
+                - name: POD_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
+                - name: CONTAINER_NAME
+                  value: "pathways-proxy"
+                - name: NAMESPACE
+                  value: "cloud_prod"
                 image: {args.proxy_server_image}
                 imagePullPolicy: Always
                 name: pathways-proxy

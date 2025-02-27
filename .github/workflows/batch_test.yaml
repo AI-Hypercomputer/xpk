@@ -80,7 +80,7 @@ jobs:
         echo "$job_spec" | grep '"parallelism":2'
         echo "$job_spec" | jq '.template.spec.containers | length' | grep 3
     - name: Get job info for the last job created on the cluster
-      run: python3 xpk.py job info ${JOB_NAME} | grep -e "Entrypoint environment variables template:" -e "Job name:" -e "Labels:" -e "Mounts:" -e "Pods:" -e "Profile:" -e "Script name:" | wc -l | grep "7"
+      run: python3 xpk.py job info ${JOB_NAME} --cluster ${{inputs.cluster-name}} | grep -e "Entrypoint environment variables template:" -e "Job name:" -e "Labels:" -e "Mounts:" -e "Pods:" -e "Profile:" -e "Script name:" | wc -l | grep "7"
     - name: Cancel the batch job on the cluster
       run: |
         python3 xpk.py job cancel ${JOB_NAME} --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} | grep "job.batch/${JOB_NAME} deleted"

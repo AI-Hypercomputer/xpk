@@ -131,6 +131,14 @@ metadata:
 spec:
   nodeLabels:
     cloud.google.com/gke-nodepool: cpu-user-np
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ResourceFlavor
+metadata:
+  name: high-mem
+spec:
+  nodeLabels:
+    cloud.google.com/gke-nodepool: high-mem-pool
 ---"""
   if args.enable_pathways:
     return resource_flavor_yaml
@@ -154,6 +162,12 @@ def add_pw_resources_to_kueue(args):
       - name: "memory"
         nominalQuota: 2000G
     - name: cpu-user
+      resources:
+      - name: "cpu"
+        nominalQuota: 480
+      - name: "memory"
+        nominalQuota: 2000G
+    - name: high-mem
       resources:
       - name: "cpu"
         nominalQuota: 480
@@ -186,7 +200,7 @@ def ensure_pathways_workload_prerequisites(args, system) -> bool:
 
   # Ensure the cluster and CPU nodepools were created with create-pathways
   all_node_pools = get_all_nodepools_programmatic(args)
-  desired_pw_cpu_node_pools = {'cpu-user-np', 'cpu-rm-np', 'cpu-proxy-np'}
+  desired_pw_cpu_node_pools = {'cpu-user-np', 'cpu-rm-np', 'cpu-proxy-np', 'high-mem-pool'}
   if not desired_pw_cpu_node_pools.issubset(set(all_node_pools[0])):
     xpk_print(
         'Cluster needs to be created with `xpk create-pathways` to run'
@@ -303,12 +317,17 @@ def get_user_workload_for_pathways(
             metadata:
               annotations:
                 {gcs_fuse_annotation}
+                gke-gcsfuse/volumes: "true"
+                gke-gcsfuse/cpu-limit: "0"
+                gke-gcsfuse/memory-limit: "0"
+                gke-gcsfuse/ephemeral-storage-limit: "0"
             spec:
               containers:
+              - name: gke-gcsfuse-sidecar
+                image: gcr.io/gcs-tess/gcs-fuse-csi-driver-sidecar-mounter:v2.10.0_linux_amd64
               {container}
-              serviceAccountName: {service_account}
               nodeSelector:
-                cloud.google.com/gke-nodepool: cpu-user-np
+                cloud.google.com/gke-nodepool: high-mem-pool
               hostNetwork: true
               dnsPolicy: ClusterFirstWithHostNet
               restartPolicy: Never
@@ -317,6 +336,9 @@ def get_user_workload_for_pathways(
                   path: /tmp
                   type: DirectoryOrCreate
                 name: shared-tmp
+              - name: gcs-dataset-pvc
+                persistentVolumeClaim:
+                  claimName: dataset-bucket-pvc
               {storage_volumes}"""
   if args.headless:
     return ''

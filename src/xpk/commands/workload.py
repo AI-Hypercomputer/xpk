@@ -277,10 +277,16 @@ spec:
             metadata:
               annotations:
                 {storage_annotations}
+                gke-gcsfuse/volumes: "true"
+                gke-gcsfuse/cpu-limit: "500m"
+                gke-gcsfuse/memory-limit: "350Gi"
+                gke-gcsfuse/ephemeral-storage-limit: "40Gi"
             spec:
               terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
               serviceAccountName: {service_account}
               containers:
+              - name: gke-gcsfuse-sidecar
+                image: gcr.io/gcs-tess/gcs-fuse-csi-driver-sidecar-mounter:v2.10.0_linux_amd64
               - args:
                 {pathways_worker_args}
                 image: {args.server_image}
@@ -298,6 +304,9 @@ spec:
                 volumeMounts:
                 - mountPath: /tmp
                   name: shared-tmp
+                - mountPath: /tmp/gcsfuse
+                  name: gcs-ckpt-pvc
+                  readOnly: false
                 {storage_volume_mounts}
                 env:
                   # Workaround for v6e
@@ -334,6 +343,9 @@ spec:
                   path: /tmp
                   type: DirectoryOrCreate
                 name: shared-tmp
+              - name: gcs-ckpt-pvc
+                persistentVolumeClaim:
+                  claimName: ckpt-bucket-pvc
               {storage_volumes}
     - name: rm
       replicas: 1

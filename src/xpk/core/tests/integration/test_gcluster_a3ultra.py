@@ -95,7 +95,7 @@ def test_create_a3_ultra_deployment_files(setup_tests):
       os.path.join(blueprint_deps_test_path, "nccl-installer.yaml")
   )
   gcluster_manager = GclusterManager(
-      gcluster_command_runner=docker_manager,
+      gcluster_command_runner=docker_manager, remote_state_client=None
   )
 
   staged_bp_path = gcluster_manager.stage_files(
@@ -160,7 +160,7 @@ def test_create_a3_ultra_deployment(setup_tests):
       os.path.join(blueprint_deps_test_path, "nccl-installer.yaml")
   )
   gcluster_manager = GclusterManager(
-      gcluster_command_runner=docker_manager,
+      gcluster_command_runner=docker_manager, remote_state_client=None
   )
 
   staged_bp_path = gcluster_manager.stage_files(

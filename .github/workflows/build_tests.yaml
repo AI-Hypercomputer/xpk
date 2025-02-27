@@ -70,8 +70,7 @@ jobs:
         echo zone=us-central2-b >> $GITHUB_OUTPUT
     - name: set tpu-type
       id: set-tpu-type
-      run: |
-        echo tpu-type=v5p-8 >> $GITHUB_OUTPUT
+      run:  echo tpu-type=v4-8 >> $GITHUB_OUTPUT
     - name: set location
       id: set-location
       run: |    

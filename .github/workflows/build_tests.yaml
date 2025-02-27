@@ -20,11 +20,10 @@ on:
       tpu-type:
         description: 'TPU Type'
         required: true
-        default: 'v5p-8'
+        default: 'v4-8'
         type: choice
         options:
-          - v5p-8
-          - v5litepod-8
+          - v4-8
   push:
     branches: ["main","develop"]
   pull_request: # By default this runs for types assigned, opened and synchronize.

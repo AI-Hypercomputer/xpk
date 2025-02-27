@@ -98,4 +98,4 @@ jobs:
       # - name: Check if shell exists and is running
       #   run: kubectl get pods | grep xpk-def-app-profile-interactive- | grep Running
     - name: Stop the shell
-      run: python3 xpk.py shell stop
+      run: python3 xpk.py shell stop --cluster ${{inputs.cluster-name}}

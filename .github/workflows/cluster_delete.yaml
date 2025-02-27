@@ -46,19 +46,16 @@ jobs:
         gcloud config set compute/zone us-east4-a
         gcloud config get compute/zone
     - name: Prepare directories
-      run: mkdir -p ~/.cache/pip && mkdir bin/
+      run: mkdir -p ~/.cache/pip
     - name: Restore cached dependencies
       uses: actions/cache@v4
       with:
         path: |
-          bin/
+          /usr/local/bin
           ~/.cache/pip
           ${{env.pythonLocation}}
         key: xpk-deps-3.10-${{inputs.run-id}}
         restore-keys: xpk-deps-3.10
-    - name: Install xpk dependencies
-      run: |
-        echo $PWD/bin >> "$GITHUB_PATH"
     - name: Check xpk installation
       run: xpk --help
     - name: Delete the cluster created

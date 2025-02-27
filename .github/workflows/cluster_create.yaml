@@ -50,12 +50,12 @@ jobs:
       with:
         python-version: '3.10'
     - name: Prepare directories
-      run: mkdir -p ~/.cache/pip && mkdir bin/
+      run: mkdir -p ~/.cache/pip
     - name: Restore cached dependencies
       uses: actions/cache@v4
       with:
         path: |
-          bin/
+          usr/local/bin/
           ~/.cache/pip
           ${{env.pythonLocation}}
         key: xpk-deps-3.10-${{inputs.run-id}}
@@ -73,9 +73,6 @@ jobs:
       run: |
         gcloud config set compute/zone us-east4-a
         gcloud config get compute/zone
-    - name: Install xpk dependencies
-      run: |
-        echo $PWD/bin >> "$GITHUB_PATH"
     - name: Check xpk installation
       run: xpk --help
     - name: Create a Pathways-enabled XPK Cluster with 2x ${{inputs.tpu-type}} nodepools. Larger num-nodes to avoid master resizing.

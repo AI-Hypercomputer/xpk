@@ -59,10 +59,6 @@ jobs:
       run: |
         gcloud config set compute/zone us-east4-a
         gcloud config get compute/zone
-    - name: Install xpk dependencies
-      run: |
-        make install 
-        echo $PWD/bin >> "$GITHUB_PATH"
     - name: Check xpk installation
       run: xpk --help
     - name: Create an XPK Cluster with zero node pools

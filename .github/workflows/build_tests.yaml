@@ -96,7 +96,7 @@ jobs:
       uses: actions/cache@v3
       with:
         path: |
-          bin/
+          usr/local/bin/
           ~/.cache/pip
           ${{env.pythonLocation}}
         key: xpk-deps-${{ matrix.python-version }}-${{needs.set-variables.outputs.run-id}}
@@ -109,7 +109,7 @@ jobs:
       uses: actions/cache/save@v3
       with:
         path: |
-          bin/
+          /usr/local/bin
           ~/.cache/pip
           ${{env.pythonLocation}}
         key: xpk-deps-${{ matrix.python-version }}-${{needs.set-variables.outputs.run-id}}

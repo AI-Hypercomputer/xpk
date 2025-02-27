@@ -99,44 +99,7 @@ IN MaxText/accelerator_to_spec_map.py !!!!! """
 # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 UserFacingNameToSystemCharacteristics = {
     # GPU system characteristics
-    # l4-$CHIPSc
-    'l4-1': SystemCharacteristics(
-        'N/A',
-        1,
-        'nvidia-l4',
-        'g2-standard-12',
-        1,
-        AcceleratorType['GPU'],
-        'l4-1',
-    ),
-    'l4-2': SystemCharacteristics(
-        'N/A',
-        1,
-        'nvidia-l4',
-        'g2-standard-24',
-        2,
-        AcceleratorType['GPU'],
-        'l4-2',
-    ),
-    'l4-4': SystemCharacteristics(
-        'N/A',
-        1,
-        'nvidia-l4',
-        'g2-standard-48',
-        4,
-        AcceleratorType['GPU'],
-        'l4-4',
-    ),
-    'l4-8': SystemCharacteristics(
-        'N/A',
-        1,
-        'nvidia-l4',
-        'g2-standard-96',
-        8,
-        AcceleratorType['GPU'],
-        'l4-8',
-    ),
-    # A100-40gb-$CHIPSc
+    # A100-40gb-$CHIPS
     'a100-40gb-1': SystemCharacteristics(
         'N/A',
         1,

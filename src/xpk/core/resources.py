@@ -29,7 +29,7 @@ from .capacity import (
 )
 from .commands import run_command_for_value, run_commands
 from .config import XPK_CURRENT_VERSION
-from .system_characteristics import AcceleratorType, get_system_characteristics_by_device_type, SystemCharacteristics
+from .system_characteristics import AcceleratorType
 
 CLUSTER_RESOURCES_CONFIGMAP = 'resources-configmap'
 CLUSTER_METADATA_CONFIGMAP = 'metadata-configmap'
@@ -214,25 +214,3 @@ def check_cluster_resources(args, system) -> tuple[bool, bool]:
   elif system.gke_accelerator in resources_config_map:
     return True, True
   return True, False
-
-
-def get_cluster_system_characteristics(args) -> SystemCharacteristics | None:
-  """Get systemCharcteristics based on the cluster resources configMap
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    returns system characteristics
-  """
-  resources_configmap_name = f'{args.cluster}-{CLUSTER_RESOURCES_CONFIGMAP}'
-  cluster_config_map = get_cluster_configmap(args, resources_configmap_name)
-
-  if cluster_config_map is None:
-    return None
-
-  for key in cluster_config_map:
-    system, result_code = get_system_characteristics_by_device_type(key)
-    if result_code == 0:
-      return system
-
-  return None

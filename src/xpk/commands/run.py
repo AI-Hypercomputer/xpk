@@ -18,10 +18,10 @@ from argparse import Namespace
 
 from ..core.commands import run_command_with_full_controls
 from ..core.gcloud_context import add_zone_and_project
+from ..core.kjob import AppProfileDefaults
 from ..core.kueue import LOCAL_QUEUE_NAME
 from ..utils.console import xpk_exit, xpk_print
 from .common import set_cluster_command
-from ..core.kjob import AppProfileDefaults, prepare_kjob, Kueue_TAS_annotation
 from .kind import set_local_cluster_command
 
 
@@ -42,10 +42,6 @@ def run(args: Namespace) -> None:
   if set_cluster_command_code != 0:
     xpk_exit(set_cluster_command_code)
 
-  err_code = prepare_kjob(args)
-  if err_code > 0:
-    xpk_exit(err_code)
-
   submit_job(args)
 
 
@@ -54,7 +50,6 @@ def submit_job(args: Namespace) -> None:
       'kubectl kjob create slurm'
       f' --profile {AppProfileDefaults.NAME.value}'
       f' --localqueue {LOCAL_QUEUE_NAME}'
-      f' --pod-template-annotation {Kueue_TAS_annotation}'
       ' --wait'
       ' --rm'
   )

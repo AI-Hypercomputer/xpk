@@ -74,6 +74,7 @@ def cluster_create(args) -> None:
   if err_code > 0:
     xpk_exit(err_code)
 
+  xpk_print('Preparing kjob')
   err_code = prepare_kjob(args)
   if err_code > 0:
     xpk_exit(err_code)

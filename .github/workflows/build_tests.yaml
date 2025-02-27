@@ -109,7 +109,8 @@ jobs:
       uses: actions/cache/save@v3
       with:
         path: |
-          /usr/local/bin
+          /usr/local/bin/kubectl-kueue
+          /usr/local/bin/kubectl-kjob
           ~/.cache/pip
           ${{env.pythonLocation}}
         key: xpk-deps-${{ matrix.python-version }}-${{needs.set-variables.outputs.run-id}}

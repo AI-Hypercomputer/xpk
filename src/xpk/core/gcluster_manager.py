@@ -15,8 +15,8 @@ limitations under the License.
 """
 
 from .docker_manager import CommandRunner
-from ..utils.console import xpk_print
-
+from ..utils.console import xpk_exit, xpk_print
+from .remote_state.remote_state_client import RemoteStateClient
 
 xpk_gcloud_cfg_path = '~/gcloud/cfg'
 xpk_deployment_dir = '/deployment'
@@ -44,8 +44,10 @@ class GclusterManager:
   def __init__(
       self,
       gcluster_command_runner: CommandRunner,
+      remote_state_client: RemoteStateClient | None,
   ) -> None:
     self.gcluster_command_runner = gcluster_command_runner
+    self.remote_state_client = remote_state_client
 
   def _run_create_deployment_cmd(
       self, blueprint_container_path: str, prefix: str = ''
@@ -156,3 +158,19 @@ class GclusterManager:
     xpk_print('Staging blueprint completed!')
     xpk_print(f"File path in gcluster's working directory: {staged_blueprint}")
     return staged_blueprint
+
+  def upload_state(self) -> None:
+    xpk_print('Uploading state.')
+    if self.remote_state_client is None:
+      xpk_print('No remote state defined')
+      xpk_exit(1)
+    self.remote_state_client.upload_state()
+
+  def download_state(self) -> None:
+    if self.remote_state_client is None:
+      xpk_print('No remote state defined')
+      xpk_exit(1)
+
+    if self.remote_state_client.check_remote_state_exists():
+      self.remote_state_client.download_state()
+    xpk_print('Remote state not found.')

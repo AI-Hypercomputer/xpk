@@ -26,6 +26,8 @@ from ..commands.cluster import (
 from ..core.vertex import DEFAULT_VERTEX_TENSORBOARD_NAME
 from .common import add_shared_arguments
 from .validators import name_type
+from ..commands.config import xpk_cfg
+from ..core.config import CFG_BUCKET_KEY
 
 
 def set_cluster_parser(cluster_parser):
@@ -83,6 +85,13 @@ def set_cluster_parser(cluster_parser):
   )
 
   ### Optional arguments specific to "cluster create"
+  cluster_create_optional_arguments.add_argument(
+      '--cluster-state-gcs-bucket',
+      type=str,
+      default=xpk_cfg.get(CFG_BUCKET_KEY),
+      help='The name of the bucket to store cluster state.',
+      required=False,
+  )
   cluster_create_optional_arguments.add_argument(
       '--num-nodes',
       type=int,
@@ -276,6 +285,13 @@ def set_cluster_parser(cluster_parser):
   )
 
   ### Optional Arguments
+  cluster_delete_optional_arguments.add_argument(
+      '--cluster-state-gcs-bucket',
+      type=str,
+      default=xpk_cfg.get(CFG_BUCKET_KEY),
+      help='The name of the bucket to store cluster state.',
+      required=False,
+  )
   add_shared_arguments(cluster_delete_optional_arguments)
   cluster_delete_parser.set_defaults(func=cluster_delete)
   cluster_delete_parser.add_argument(

@@ -641,7 +641,7 @@ class BlueprintGenerator:
     }
 
   def _get_terraforrm_backend_full_prefix(self, prefix: str = "") -> str:
-    return f"xpk_terraform_state/{prefix}"
+    return f"xpk_terraform_state/{prefix}/tfstate/"
 
   def _save_blueprint_to_file(
       self, blueprint_name: str, xpk_blueprint: Blueprint, prefix: str = ""

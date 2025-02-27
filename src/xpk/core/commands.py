@@ -194,7 +194,7 @@ def run_command_with_updates(command, task, global_args, verbose=True) -> int:
       while True:
         return_code = child.poll()
         if return_code is None:
-          xpk_print(f'Waiting for `{task}`, for {i} seconds')
+          xpk_print(f'Waiting for `{task}`, for {i} seconds...', end='\r')
           time.sleep(1)
           i += 1
         else:
@@ -268,7 +268,7 @@ def run_command_for_value(
         return_code = child.poll()
         if return_code is None:
           if not quiet:
-            xpk_print(f'Waiting for `{task}`, for {i} seconds')
+            xpk_print(f'Waiting for `{task}`, for {i} seconds...', end='\r')
           time.sleep(1)
           i += 1
         else:

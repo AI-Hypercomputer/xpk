@@ -133,6 +133,7 @@ def get_workload_list(args) -> tuple[int, str]:
     task += f' with filter-by-job={args.filter_by_job}'
 
   return_code, return_value = run_command_for_value(command, task, args)
+
   return return_code, return_value
 
 

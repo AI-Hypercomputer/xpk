@@ -18,12 +18,11 @@ from argparse import Namespace
 
 from ..core.commands import run_command_for_value
 from ..core.gcloud_context import add_zone_and_project
+from ..core.kjob import AppProfileDefaults
 from ..core.kueue import LOCAL_QUEUE_NAME
 from ..utils.console import xpk_exit, xpk_print
 from .common import set_cluster_command
-from ..core.kjob import AppProfileDefaults, prepare_kjob, Kueue_TAS_annotation
 from .kind import set_local_cluster_command
-import re
 
 
 def batch(args: Namespace) -> None:
@@ -43,10 +42,6 @@ def batch(args: Namespace) -> None:
   if set_cluster_command_code != 0:
     xpk_exit(set_cluster_command_code)
 
-  err_code = prepare_kjob(args)
-  if err_code > 0:
-    xpk_exit(err_code)
-
   submit_job(args)
 
 
@@ -55,8 +50,6 @@ def submit_job(args: Namespace) -> None:
       'kubectl kjob create slurm'
       f' --profile {AppProfileDefaults.NAME.value}'
       f' --localqueue {LOCAL_QUEUE_NAME}'
-      f' --pod-template-annotation {Kueue_TAS_annotation}'
-      ' --first-node-ip'
   )
 
   if args.ignore_unknown_flags:
@@ -109,12 +102,8 @@ def submit_job(args: Namespace) -> None:
   if args.time is not None:
     cmd += f' --time {args.time}'
 
-  return_code, return_value = run_command_for_value(cmd, 'submit job', args)
+  return_code, _ = run_command_for_value(cmd, 'submit job', args)
 
   if return_code != 0:
     xpk_print(f'Running batch job returned ERROR {return_code}')
     xpk_exit(return_code)
-
-  m = re.match(r'job\.batch/([-a-z0-9]+)', return_value)
-  if m:
-    xpk_print(f'Job name: {m.group(1)}')

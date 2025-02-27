@@ -16,8 +16,6 @@ limitations under the License.
 
 import os
 
-from ..core.remote_state.remote_state_client import RemoteStateClient
-from ..core.remote_state.fuse_remote_state import FuseStateClient
 from ..core.blueprint.blueprint_generator import (
     BlueprintGenerator,
     BlueprintGeneratorOutput,
@@ -25,7 +23,6 @@ from ..core.blueprint.blueprint_generator import (
     a3ultra_device_type,
     supported_device_types,
 )
-from ..core.commands import run_command_for_value
 from ..core.capacity import get_capacity_type
 from ..core.docker_manager import DockerManager
 from ..core.gcloud_context import zone_to_region
@@ -34,8 +31,7 @@ from ..utils.console import xpk_exit, xpk_print
 from ..utils.file import ensure_directory_exists
 from ..utils.network import all_IPs_cidr
 from ..utils.objects import hash_string
-from ..core.cluster import get_cluster_credentials
-from ..core.kjob import apply_kjob_crds, prepare_kjob
+from .common import set_cluster_command
 
 blueprints_path = os.path.abspath('xpkclusters/blueprints')
 gcluster_working_dir = os.path.abspath('xpkclusters/gcluster-out')
@@ -53,22 +49,13 @@ def cluster_create(args) -> None:
   """
   check_gcloud_authenticated()
   prepare_directories()
+  gcm = prepare_gcluster_manager()
   region = zone_to_region(args.zone)
 
   # unique_name uses shortened hash string, so still name collision is possible
   unique_name = get_unique_name(args.project, region, args.cluster)
   # prefix is to prevent name collisions for blueprints and also deployments by storing them in prefix directory. Ex.: blueprints/{prefix}/cluster_name_hash
   prefix = get_prefix_path(args.project, region)
-  remote_state_client = None
-  if args.cluster_state_gcs_bucket is not None:
-    remote_state_client = FuseStateClient(
-        bucket=args.cluster_state_gcs_bucket,
-        state_directory=os.path.join(blueprints_path, prefix, unique_name),
-        prefix=prefix,
-        cluster=args.cluster,
-        deployment_name=unique_name,
-    )
-  gcm = prepare_gcluster_manager(remote_state_client)
 
   bp = generate_blueprint(blueprint_name=unique_name, args=args, prefix=prefix)
 
@@ -83,18 +70,10 @@ def cluster_create(args) -> None:
       deployment_name=unique_name,
       prefix=prefix,
   )
-  if args.cluster_state_gcs_bucket is not None:
-    gcm.upload_state()
 
-  get_cluster_credentials(args)
-
-  err_code = apply_kjob_crds(args)
-  if err_code > 0:
-    xpk_exit(err_code)
-
-  err_code = prepare_kjob(args)
-  if err_code > 0:
-    xpk_exit(err_code)
+  set_cluster_command_code = set_cluster_command(args)
+  if set_cluster_command_code != 0:
+    xpk_exit(set_cluster_command_code)
 
   xpk_exit(0)
 
@@ -110,42 +89,15 @@ def cluster_delete(args) -> None:
   """
   check_gcloud_authenticated()
   prepare_directories()
+  gcm = prepare_gcluster_manager()
   region = zone_to_region(args.zone)
-  unique_name = get_unique_name(args.project, region, args.cluster)
-  # prefix is to prevent name collisions for blueprints and also deployments by storing them in prefix directory. Ex.: blueprints/{prefix}/cluster_name_hash
-  prefix = get_prefix_path(args.project, region)
-  remote_state_client = None
-  if args.cluster_state_gcs_bucket is not None:
-    remote_state_client = FuseStateClient(
-        bucket=args.cluster_state_gcs_bucket,
-        state_directory=os.path.join(blueprints_path, prefix, unique_name),
-        prefix=prefix,
-        cluster=args.cluster,
-        deployment_name=unique_name,
-    )
-  gcm = prepare_gcluster_manager(remote_state_client)
 
   # unique_name uses shortened hash string, so still name collision is possible
   unique_name = get_unique_name(args.project, region, args.cluster)
   # prefix is to prevent name collisions for blueprints and also deployments by storing them in prefix directory. Ex.: blueprints/{prefix}/cluster_name_hash
-  prefix = get_prefix_path(args.project, region)
-  if args.cluster_state_gcs_bucket is not None:
-    gcm.download_state()
+  prefix_path = get_prefix_path(args.project, region)
 
-    bp = BlueprintGeneratorOutput(
-        blueprint_file=os.path.join(blueprints_path, prefix, unique_name)
-        + '.yaml',
-        blueprint_dependencies=os.path.join(
-            blueprints_path, prefix, unique_name
-        ),
-    )
-
-    gcm.stage_files(
-        blueprint_file=bp.blueprint_file,
-        blueprint_dependencies=bp.blueprint_dependencies,
-        prefix=prefix,
-    )
-  gcm.destroy_deployment(deployment_name=unique_name, prefix=prefix)
+  gcm.destroy_deployment(deployment_name=unique_name, prefix=prefix_path)
 
   xpk_exit(0)
 
@@ -188,33 +140,16 @@ def check_gcloud_authenticated():
     xpk_exit(1)
 
 
-def prepare_gcluster_manager(
-    remote_state_client: RemoteStateClient | None,
-) -> GclusterManager:
+def prepare_gcluster_manager() -> GclusterManager:
   dm = DockerManager(
       working_dir=gcluster_working_dir, gcloud_cfg_path=gcloud_cfg_path
   )
   dm.initialize()
-  return GclusterManager(
-      gcluster_command_runner=dm, remote_state_client=remote_state_client
-  )
+  return GclusterManager(gcluster_command_runner=dm)
 
 
 def prepare_blueprint_generator() -> BlueprintGenerator:
   return BlueprintGenerator(storage_path=blueprints_path)
-
-
-def validate_state_gcs_bucket(args):
-  bucket_validate_cmd = (
-      f'gcloud storage buckets describe gs://{args.cluster_state_gcs_bucket}'
-  )
-  err_code, _ = run_command_for_value(
-      bucket_validate_cmd,
-      'Validate remote state bucket existence.',
-      global_args=args,
-  )
-  if err_code != 0:
-    xpk_exit(err_code)
 
 
 def generate_blueprint(
@@ -226,9 +161,6 @@ def generate_blueprint(
     xpk_exit(return_code)
 
   bpg = prepare_blueprint_generator()
-
-  if args.cluster_state_gcs_bucket is not None:
-    validate_state_gcs_bucket(args)
 
   if args.device_type in supported_device_types:
     if args.device_type == a3mega_device_type:
@@ -246,7 +178,6 @@ def generate_blueprint(
           capacity_type=capacity_type,
           system_node_pool_machine_type=args.default_pool_cpu_machine_type,
           system_node_pool_min_node_count=args.default_pool_cpu_num_nodes,
-          gcs_bucket=args.cluster_state_gcs_bucket,
       )
     if args.device_type == a3ultra_device_type:
       num_nodes = args.num_nodes if not args.num_nodes is None else 2
@@ -264,6 +195,5 @@ def generate_blueprint(
           capacity_type=capacity_type,
           system_node_pool_machine_type=args.default_pool_cpu_machine_type,
           system_node_pool_min_node_count=args.default_pool_cpu_num_nodes,
-          gcs_bucket=args.cluster_state_gcs_bucket,
       )
   return None

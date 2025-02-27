@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 from ..commands.shell import shell, shell_stop
-from .common import add_shared_arguments, add_cluster_arguments
+from .common import add_shared_arguments
 import argparse
 
 
@@ -25,8 +25,6 @@ def set_shell_parser(shell_parser: argparse.ArgumentParser) -> None:
   )
   add_shared_arguments(shell_optional_arguments)
   shell_parser.set_defaults(func=shell)
-
-  add_cluster_arguments(shell_optional_arguments)
 
   shell_subcommands = shell_parser.add_subparsers(
       title='shell subcommands',
@@ -50,4 +48,3 @@ def set_shell_stop_parser(shell_stop_parser: argparse.ArgumentParser):
   )
   add_shared_arguments(shell_stop_optional_arguments)
   shell_stop_parser.set_defaults(func=shell_stop)
-  add_cluster_arguments(shell_stop_parser)

@@ -17,8 +17,6 @@ limitations under the License.
 from argparse import Namespace
 from ..utils.console import xpk_print
 from .commands import run_command_for_value, run_kubectl_apply, run_command_with_updates
-from .config import XpkConfig, KJOB_SHELL_IMAGE, KJOB_SHELL_INTERACTIVE_COMMAND, KJOB_SHELL_WORKING_DIRECTORY, KJOB_BATCH_IMAGE, KJOB_BATCH_WORKING_DIRECTORY
-from .resources import get_cluster_system_characteristics, SystemCharacteristics, AcceleratorType
 from enum import Enum
 
 
@@ -32,14 +30,12 @@ class JobTemplateDefaults(Enum):
   COMPLETIONS = 1
   CONTAINER_NAME = "xpk-batch-container"
   IMAGE = "ubuntu:22.04"
-  WORKING_DIRECTORY = "/"
 
 
 class PodTemplateDefaults(Enum):
   NAME = "xpk-def-pod"
   CONTAINER_NAME = "xpk-interactive-container"
   IMAGE = "busybox:1.28"
-  WORKING_DIRECTORY = "/"
   INTERACTIVE_COMMAND = "/bin/sh"
 
 
@@ -56,25 +52,10 @@ job_template_yaml = """
       completionMode: Indexed
       template:
         spec:
-          tolerations:
-            - operator: "Exists"
-              key: nvidia.com/gpu
           containers:
             - name: {container_name}
               image: {image}
-              workingDir: {working_directory}
-              {resources}
-          {node_selector}
           restartPolicy: OnFailure"""
-job_node_selector_template = """
-          nodeSelector:
-            cloud.google.com/gke-accelerator: {gpu_name}
-"""
-job_resources_template = """
-              resources:
-                limits:
-                  nvidia.com/gpu: {gpu_per_node}
-"""
 
 app_profile_yaml = """
 apiVersion: kjobctl.x-k8s.io/v1alpha1
@@ -99,23 +80,11 @@ metadata:
   namespace: default
 template:
   spec:
-    tolerations:
-      - effect: NoSchedule
-        key: components.gke.io/gke-managed-components
-        operator: Equal
-        value: "true"
     containers:
       - name: {container_name}
         image: {image}
         command: [{interactive_command}]
-        workingDir: {working_directory}
-    initContainers:
-      - name: init
-        image: {image}
-        command: ['/bin/mkdir', '-p', '{working_directory}']
 """
-
-Kueue_TAS_annotation = "kueue.x-k8s.io/podset-preferred-topology=cloud.google.com/gce-topology-host"
 
 
 def verify_kjob_installed(args: Namespace) -> int:
@@ -143,22 +112,6 @@ def verify_kjob_installed(args: Namespace) -> int:
   return 0
 
 
-def get_pod_template_interactive_command() -> str:
-  """Gets the interactive command for PodTemplate from config otherwise the default value.
-
-  Args:
-    args - user provided arguments
-  Returns:
-    str - PodTemplate's interactive command
-  """
-  config = XpkConfig()
-  pod_command = config.get(KJOB_SHELL_INTERACTIVE_COMMAND)
-  if pod_command is None or len(pod_command) == 0:
-    pod_command = PodTemplateDefaults.INTERACTIVE_COMMAND.value
-
-  return pod_command
-
-
 def create_app_profile_instance(args: Namespace) -> int:
   """Create new AppProfile instance on cluster with default settings.
 
@@ -178,9 +131,7 @@ def create_app_profile_instance(args: Namespace) -> int:
   )
 
 
-def create_job_template_instance(
-    args: Namespace, system: SystemCharacteristics | None
-) -> int:
+def create_job_template_instance(args: Namespace) -> int:
   """Create new JobTemplate instance on cluster with default settings.
 
   Args:
@@ -188,38 +139,13 @@ def create_job_template_instance(
   Returns:
     exit_code > 0 if creating JobTemplate fails, 0 otherwise
   """
-  config = XpkConfig()
-  job_image = config.get(KJOB_BATCH_IMAGE)
-  if job_image is None or len(job_image) == 0:
-    job_image = JobTemplateDefaults.IMAGE.value
-  working_directory = config.get(KJOB_BATCH_WORKING_DIRECTORY)
-  if working_directory is None or len(working_directory) == 0:
-    working_directory = JobTemplateDefaults.WORKING_DIRECTORY.value
-
-  resources = (
-      job_resources_template.format(gpu_per_node=system.chips_per_vm)
-      if system is not None
-      and system.accelerator_type == AcceleratorType["GPU"]
-      else ""
-  )
-
-  node_selector = (
-      job_node_selector_template.format(gpu_name=system.gke_accelerator)
-      if system is not None
-      and system.accelerator_type == AcceleratorType["GPU"]
-      else ""
-  )
-
   return run_kubectl_apply(
       yml_string=job_template_yaml.format(
           name=JobTemplateDefaults.NAME.value,
           parallelism=JobTemplateDefaults.PARALLELISM.value,
           completions=JobTemplateDefaults.COMPLETIONS.value,
           container_name=JobTemplateDefaults.CONTAINER_NAME.value,
-          image=job_image,
-          working_directory=working_directory,
-          resources=resources,
-          node_selector=node_selector,
+          image=JobTemplateDefaults.IMAGE.value,
       ),
       task="Creating JobTemplate",
       args=args,
@@ -234,21 +160,12 @@ def create_pod_template_instance(args: Namespace) -> int:
   Returns:
     exit_code > 0 if creating PodTemplate fails, 0 otherwise
   """
-  config = XpkConfig()
-  pod_image = config.get(KJOB_SHELL_IMAGE)
-  if pod_image is None or len(pod_image) == 0:
-    pod_image = PodTemplateDefaults.IMAGE.value
-  working_directory = config.get(KJOB_SHELL_WORKING_DIRECTORY)
-  if working_directory is None or len(working_directory) == 0:
-    working_directory = PodTemplateDefaults.WORKING_DIRECTORY.value
-
   return run_kubectl_apply(
       yml_string=pod_template_yaml.format(
           name=PodTemplateDefaults.NAME.value,
           container_name=PodTemplateDefaults.CONTAINER_NAME.value,
-          image=pod_image,
-          working_directory=working_directory,
-          interactive_command=get_pod_template_interactive_command(),
+          image=PodTemplateDefaults.IMAGE.value,
+          interactive_command=PodTemplateDefaults.INTERACTIVE_COMMAND.value,
       ),
       task="Creating PodTemplate",
       args=args,
@@ -256,11 +173,7 @@ def create_pod_template_instance(args: Namespace) -> int:
 
 
 def prepare_kjob(args) -> int:
-  xpk_print("Preparing kjob")
-
-  system = get_cluster_system_characteristics(args)
-
-  job_err_code = create_job_template_instance(args, system)
+  job_err_code = create_job_template_instance(args)
   if job_err_code > 0:
     return job_err_code
 

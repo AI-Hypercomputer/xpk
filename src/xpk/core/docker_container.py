@@ -149,9 +149,6 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
   if volume_mounts != '':
     yaml += """
                 volumeMounts:
-                - mountPath: /tmp/dataset
-                  name: gcs-dataset-pvc
-                  readOnly: false
                 {volume_mounts}
 """
   return yaml.format(

@@ -237,6 +237,12 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
   if args.use_pathways:
     volume_mount_yaml = """- mountPath: /tmp
                   name: shared-tmp
+                - mountPath: /tmp/dataset
+                  name: gcs-dataset-pvc
+                  readOnly: false
+                - mountPath: /tmp/gcsfuse
+                  name: gcs-ckpt-pvc
+                  readOnly: false
                 """
   elif (
       system.accelerator_type == AcceleratorType['TPU']

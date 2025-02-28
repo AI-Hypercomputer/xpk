@@ -318,9 +318,9 @@ def get_user_workload_for_pathways(
               annotations:
                 {gcs_fuse_annotation}
                 gke-gcsfuse/volumes: "true"
-                gke-gcsfuse/cpu-limit: "0"
+                gke-gcsfuse/cpu-limit: "500m"
                 gke-gcsfuse/memory-limit: "0"
-                gke-gcsfuse/ephemeral-storage-limit: "0"
+                gke-gcsfuse/ephemeral-storage-limit: "40Gi"
             spec:
               containers:
               - name: gke-gcsfuse-sidecar
@@ -336,9 +336,15 @@ def get_user_workload_for_pathways(
                   path: /tmp
                   type: DirectoryOrCreate
                 name: shared-tmp
+              - name: gke-gcsfuse-cache
+                emptyDir:
+                  medium: Memory
               - name: gcs-dataset-pvc
                 persistentVolumeClaim:
-                  claimName: dataset-bucket-pvc
+                  claimName: cached-dataset-bucket-pvc
+              - name: gcs-ckpt-pvc
+                persistentVolumeClaim:
+                  claimName: ckpt-bucket-pvc
               {storage_volumes}"""
   if args.headless:
     return ''

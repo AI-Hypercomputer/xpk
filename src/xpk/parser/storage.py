@@ -82,10 +82,30 @@ def add_storage_attach_parser(
       '--readonly', type=lambda v: v.lower() == 'true', required=True
   )
 
-  req_args.add_argument(
+  gcpfilestore_args = storage_attach_parser.add_argument_group(
+      'GCP Filestore arguments', 'Arguments used when --type=gcpfilestore'
+  )
+  gcpfilestore_args.add_argument(
       '--manifest',
       type=str,
-      required=True,
+  )
+
+  gcsfuse_args = storage_attach_parser.add_argument_group(
+      'GCS FUSE arguments',
+      'Arguments used when --type=gcsfuse',
+  )
+  gcsfuse_args.add_argument(
+      '--size',
+      type=int,
+      help='The size of the volume to attach in gigabytes.',
+  )
+  gcsfuse_args.add_argument(
+      '--bucket',
+      type=str,
+      help=(
+          '(optional) Name of the bucket. If not set, then the "name" parameter'
+          ' is used as a bucket name.'
+      ),
   )
 
 
@@ -147,7 +167,7 @@ def add_storage_create_parser(
   req_args.add_argument(
       '--type',
       type=str,
-      help='The type of storage. Currently supported types: [ "gcpfilestore"]',
+      help='The type of storage. Currently supported types: ["gcpfilestore"]',
       choices=['gcpfilestore'],
       required=True,
   )

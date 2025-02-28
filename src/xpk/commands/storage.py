@@ -42,6 +42,7 @@ from ..utils.console import xpk_exit, xpk_print
 from ..utils.kubectl import apply_kubectl_manifest
 from ..utils.file import ensure_directory_exists
 from ..core.filestore import FilestoreClient, get_storage_class_name
+from ..core import gcsfuse
 import os
 
 manifests_path = os.path.abspath("xpkclusters/storage-manifests")
@@ -85,6 +86,27 @@ def storage_create(args: Namespace) -> None:
 
 
 def storage_attach(args: Namespace) -> None:
+  if args.type == GCP_FILESTORE_TYPE and args.manifest is None:
+    xpk_print("---manifest is required when attaching gcpfilestore storage.")
+    xpk_exit(1)
+
+  if args.type == GCS_FUSE_TYPE and args.manifest is None:
+    if args.size is None:
+      xpk_print("--size is required when attaching gcsfuse storage.")
+      xpk_exit(1)
+
+    if args.bucket is None:
+      args.bucket = args.name
+
+    add_zone_and_project(args)
+    ensure_directory_exists(manifests_path)
+    args.manifest = (
+        f"{manifests_path}/{args.project}-{args.zone}-{args.name}-manifest.yaml"
+    )
+    gcsfuse.manifest(
+        args.manifest, name=args.name, bucket=args.bucket, size=args.size
+    )
+
   k8s_api_client = setup_k8s_env(args)
   create_storage_crds(k8s_api_client, args)
   return_code = update_cluster_with_workload_identity_if_necessary(args)

@@ -47,19 +47,17 @@ jobs:
         gcloud config set compute/zone us-east4-a
         gcloud config get compute/zone
     - name: Prepare directories
-      run: mkdir -p ~/.cache/pip && mkdir bin/
+      run: mkdir -p ~/.cache/pip
     - name: Restore cached dependencies
       uses: actions/cache@v4
       with:
         path: |
-          bin/
+          /usr/local/bin/kubectl-kueue
+          /usr/local/bin/kubectl-kjob
           ~/.cache/pip
           ${{env.pythonLocation}}
         key: xpk-deps-3.10-${{inputs.run-id}}
         restore-keys: xpk-deps-3.10
-    - name: Install xpk dependencies
-      run: |
-        echo $PWD/bin >> "$GITHUB_PATH"
     - name: Install expect package
       run: sudo apt-get install expect
     - name: Check xpk installation
@@ -82,7 +80,7 @@ jobs:
         echo "$job_spec" | grep '"parallelism":2'
         echo "$job_spec" | jq '.template.spec.containers | length' | grep 3
     - name: Get job info for the last job created on the cluster
-      run: python3 xpk.py job info ${JOB_NAME} | grep -e "Entrypoint environment variables template:" -e "Job name:" -e "Labels:" -e "Mounts:" -e "Pods:" -e "Profile:" -e "Script name:" | wc -l | grep "7"
+      run: python3 xpk.py job info ${JOB_NAME} --cluster ${{inputs.cluster-name}} | grep -e "Entrypoint environment variables template:" -e "Job name:" -e "Labels:" -e "Mounts:" -e "Pods:" -e "Profile:" -e "Script name:" | wc -l | grep "7"
     - name: Cancel the batch job on the cluster
       run: |
         python3 xpk.py job cancel ${JOB_NAME} --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} | grep "job.batch/${JOB_NAME} deleted"
@@ -100,4 +98,4 @@ jobs:
       # - name: Check if shell exists and is running
       #   run: kubectl get pods | grep xpk-def-app-profile-interactive- | grep Running
     - name: Stop the shell
-      run: python3 xpk.py shell stop
+      run: python3 xpk.py shell stop --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}

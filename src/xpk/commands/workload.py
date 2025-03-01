@@ -242,11 +242,11 @@ spec:
               {pathways_worker_args}
               env:
               - name: PROJECT_ID
-                value: "tpu-prod-env-one-vm"
+                value: {args.project}
               - name: LOCATION
-                value: "asia-northeast1"
+                value: {args.zone}
               - name: CLUSTER_NAME
-                value: "bodaborg-v6e-256-rxc"
+                value: {args.cluster}
               - name: POD_NAME
                 valueFrom:
                   fieldRef:
@@ -255,6 +255,26 @@ spec:
                 value: "pathways-worker"
               - name: NAMESPACE
                 value: "cloud_prod"
+              - name: MEGASCALE_GRPC_ENABLE_XOR_TRACER
+                value: "false"
+              - name: MEGASCALE_NUM_SLICES
+                valueFrom:
+                    fieldRef:
+                      fieldPath: "metadata.labels['jobset.sigs.k8s.io/replicatedjob-replicas']"
+              - name: JOBSET_NAME
+                valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.annotations['jobset.sigs.k8s.io/jobset-name']
+              - name: REPLICATED_JOB_NAME
+                valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.annotations['jobset.sigs.k8s.io/replicatedjob-name']
+              - name: MEGASCALE_SLICE_ID
+                valueFrom:
+                    fieldRef:
+                      fieldPath: "metadata.labels['jobset.sigs.k8s.io/job-index']"
+              - name: MEGASCALE_COORDINATOR_ADDRESS
+                value: "$(JOBSET_NAME)-$(REPLICATED_JOB_NAME)-$(MEGASCALE_SLICE_ID)-0.$(JOBSET_NAME)"
               image: {args.server_image}
               imagePullPolicy: Always
               name: pathways-worker
@@ -311,11 +331,11 @@ spec:
               - name: TPU_SKIP_MDS_QUERY
                 value: "true"
               - name: PROJECT_ID
-                value: "tpu-prod-env-one-vm"
+                value: {args.project}
               - name: LOCATION
-                value: "asia-northeast1"
+                value: {args.zone}
               - name: CLUSTER_NAME
-                value: "bodaborg-v6e-256-rxc"
+                value: {args.cluster}
               - name: POD_NAME
                 valueFrom:
                   fieldRef:
@@ -360,11 +380,11 @@ spec:
               {pathways_proxy_args}
               env:
               - name: PROJECT_ID
-                value: "tpu-prod-env-one-vm"
+                value: {args.project}
               - name: LOCATION
-                value: "asia-northeast1"
+                value: {args.zone}
               - name: CLUSTER_NAME
-                value: "bodaborg-v6e-256-rxc"
+                value: {args.cluster}
               - name: POD_NAME
                 valueFrom:
                   fieldRef:

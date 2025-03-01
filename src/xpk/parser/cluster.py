@@ -445,7 +445,7 @@ def add_shared_cluster_create_optional_arguments(args_parsers):
     custom_parser.add_argument(
         '--pathways-gce-machine-type',
         type=str,
-        default='n1-standard-32',
+        default='e2-standard-32',
         help='The CPU type for Pathways CPU nodepools',
     )
     custom_parser.add_argument(

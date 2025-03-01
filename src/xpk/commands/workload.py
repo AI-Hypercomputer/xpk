@@ -255,26 +255,6 @@ spec:
                 value: "pathways-worker"
               - name: NAMESPACE
                 value: "cloud_prod"
-              - name: MEGASCALE_GRPC_ENABLE_XOR_TRACER
-                value: "false"
-              - name: MEGASCALE_NUM_SLICES
-                valueFrom:
-                    fieldRef:
-                      fieldPath: "metadata.labels['jobset.sigs.k8s.io/replicatedjob-replicas']"
-              - name: JOBSET_NAME
-                valueFrom:
-                    fieldRef:
-                      fieldPath: metadata.annotations['jobset.sigs.k8s.io/jobset-name']
-              - name: REPLICATED_JOB_NAME
-                valueFrom:
-                    fieldRef:
-                      fieldPath: metadata.annotations['jobset.sigs.k8s.io/replicatedjob-name']
-              - name: MEGASCALE_SLICE_ID
-                valueFrom:
-                    fieldRef:
-                      fieldPath: "metadata.labels['jobset.sigs.k8s.io/job-index']"
-              - name: MEGASCALE_COORDINATOR_ADDRESS
-                value: "$(JOBSET_NAME)-$(REPLICATED_JOB_NAME)-$(MEGASCALE_SLICE_ID)-0.$(JOBSET_NAME)"
               image: {args.server_image}
               imagePullPolicy: Always
               name: pathways-worker

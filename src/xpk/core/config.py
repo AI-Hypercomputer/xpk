@@ -34,6 +34,11 @@ CFG_BUCKET_KEY = 'cluster-state-gcs-bucket'
 CLUSTER_NAME_KEY = 'cluster-name'
 PROJECT_KEY = 'project-id'
 ZONE_KEY = 'zone'
+KJOB_BATCH_IMAGE = 'batch-image'
+KJOB_BATCH_WORKING_DIRECTORY = 'batch-working-directory'
+KJOB_SHELL_IMAGE = 'shell-image'
+KJOB_SHELL_INTERACTIVE_COMMAND = 'shell-interactive-command'
+KJOB_SHELL_WORKING_DIRECTORY = 'shell-working-directory'
 CONFIGS_KEY = 'configs'
 DEPENDENCIES_KEY = 'deps-verified-version'
 XPK_CONFIG_FILE = os.path.expanduser('~/.config/xpk/config.yaml')
@@ -44,6 +49,11 @@ DEFAULT_KEYS = [
     PROJECT_KEY,
     ZONE_KEY,
     DEPENDENCIES_KEY,
+    KJOB_BATCH_IMAGE,
+    KJOB_BATCH_WORKING_DIRECTORY,
+    KJOB_SHELL_IMAGE,
+    KJOB_SHELL_INTERACTIVE_COMMAND,
+    KJOB_SHELL_WORKING_DIRECTORY,
 ]
 VERTEX_TENSORBOARD_FEATURE_FLAG = XPK_CURRENT_VERSION >= '0.4.0'
 GCS_FUSE_ANNOTATION = 'gke-gcsfuse/volumes: "true"'

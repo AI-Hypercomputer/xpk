@@ -34,12 +34,13 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
     - name: Prepare directories
-      run: mkdir -p ~/.cache/pip && mkdir bin/
+      run: mkdir -p ~/.cache/pip
     - name: Restore cached dependencies
       uses: actions/cache@v4
       with:
         path: |
-          bin/
+          /usr/local/bin/kubectl-kueue
+          /usr/local/bin/kubectl-kjob
           ~/.cache/pip
           ${{env.pythonLocation}}
         key: xpk-deps-${{matrix.python-version}}-${{inputs.run-id}}

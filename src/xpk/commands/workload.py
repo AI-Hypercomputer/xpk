@@ -546,7 +546,10 @@ def workload_create(args) -> None:
         - PodFailurePolicy"""
   restart_on_exit_codes = get_restart_exit_codes(args)
   restart_on_exit_codes = ','.join(map(str, restart_on_exit_codes))
-  pod_failure_policy = f"""
+  if args.use_pathways == True:
+    pod_failure_policy = ''
+  else:
+    pod_failure_policy = f"""
           podFailurePolicy:
             rules:
             - action: FailJob

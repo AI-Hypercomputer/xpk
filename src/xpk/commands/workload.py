@@ -260,7 +260,112 @@ spec:
     operator: "All"
     targetReplicatedJobs:
     - {args.targetReplicatedJob}
+  startupPolicy:
+    startupPolicyOrder: InOrder
   replicatedJobs:
+    - name: rm
+      replicas: 1
+      template:
+        metadata:
+          labels:
+            xpk.google.com/workload: {args.workload}
+        spec:
+          backoffLimit: 0
+          completions: 1
+          parallelism: 1
+          template:
+            spec:
+              containers:
+              - args:
+                {pathways_rm_args}
+                env:
+                - name: REPLICATED_JOB_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.annotations['jobset.sigs.k8s.io/replicatedjob-name']
+                - name: JOBSET_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.annotations['jobset.sigs.k8s.io/jobset-name']
+                - name: HOST_ADDRESS
+                  value: $(JOBSET_NAME)-$(REPLICATED_JOB_NAME)-0-0.$(JOBSET_NAME)
+                - name: TPU_SKIP_MDS_QUERY
+                  value: "true"
+                - name: PROJECT_ID
+                  value: {args.project}
+                - name: LOCATION
+                  value: {args.zone}
+                - name: CLUSTER_NAME
+                  value: {args.cluster}
+                - name: POD_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
+                - name: CONTAINER_NAME
+                  value: "pathways-rm"
+                - name: NAMESPACE
+                  value: "cloud_prod"
+                image: {args.server_image}
+                imagePullPolicy: Always
+                name: pathways-rm
+                ports:
+                - containerPort: 29001
+                securityContext:
+                  privileged: true
+                volumeMounts:
+                - mountPath: /tmp
+                  name: shared-tmp
+              nodeSelector:
+                cloud.google.com/gke-nodepool: cpu-rm-np
+              hostNetwork: true
+              dnsPolicy: ClusterFirstWithHostNet
+              volumes:
+              - hostPath:
+                  path: /tmp
+                  type: DirectoryOrCreate
+                name: shared-tmp
+    - name: proxy
+      replicas: 1
+      template:
+        metadata:
+          labels:
+            xpk.google.com/workload: {args.workload}
+        spec:
+          backoffLimit: 0
+          completions: 1
+          parallelism: 1
+          template:
+            spec:
+              containers:
+              - args:
+                {pathways_proxy_args}
+                env:
+                - name: PROJECT_ID
+                  value: {args.project}
+                - name: LOCATION
+                  value: {args.zone}
+                - name: CLUSTER_NAME
+                  value: {args.cluster}
+                - name: POD_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
+                - name: CONTAINER_NAME
+                  value: "pathways-proxy"
+                - name: NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
+                image: {args.proxy_server_image}
+                imagePullPolicy: Always
+                name: pathways-proxy
+                ports:
+                - containerPort: 29000
+              hostNetwork: true
+              dnsPolicy: ClusterFirstWithHostNet
+              nodeSelector:
+                cloud.google.com/gke-nodepool: cpu-proxy-np
+    {user_workload}
     - name: worker
       replicas: {args.num_slices}
       template:
@@ -330,6 +435,20 @@ spec:
                         fieldPath: "metadata.labels['jobset.sigs.k8s.io/job-index']"
                   - name: MEGASCALE_COORDINATOR_ADDRESS
                     value: "$(JOBSET_NAME)-$(REPLICATED_JOB_NAME)-$(MEGASCALE_SLICE_ID)-0.$(JOBSET_NAME)"
+                  - name: PROJECT_ID
+                    value: {args.project}
+                  - name: LOCATION
+                    value: {args.zone}
+                  - name: CLUSTER_NAME
+                    value: {args.cluster}
+                  - name: POD_NAME
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.name
+                  - name: CONTAINER_NAME
+                    value: "pathways-worker"
+                  - name: NAMESPACE
+                    value: "cloud_prod"
               {pathways_sidecar_container}
               nodeSelector:
                 {accelerator_label}
@@ -347,78 +466,6 @@ spec:
                 persistentVolumeClaim:
                   claimName: ckpt-bucket-pvc
               {storage_volumes}
-    - name: rm
-      replicas: 1
-      template:
-        metadata:
-          labels:
-            xpk.google.com/workload: {args.workload}
-        spec:
-          backoffLimit: 0
-          completions: 1
-          parallelism: 1
-          template:
-            spec:
-              containers:
-              - args:
-                {pathways_rm_args}
-                env:
-                - name: REPLICATED_JOB_NAME
-                  valueFrom:
-                    fieldRef:
-                      fieldPath: metadata.annotations['jobset.sigs.k8s.io/replicatedjob-name']
-                - name: JOBSET_NAME
-                  valueFrom:
-                    fieldRef:
-                      fieldPath: metadata.annotations['jobset.sigs.k8s.io/jobset-name']
-                - name: HOST_ADDRESS
-                  value: $(JOBSET_NAME)-$(REPLICATED_JOB_NAME)-0-0.$(JOBSET_NAME)
-                - name: TPU_SKIP_MDS_QUERY
-                  value: "true"
-                image: {args.server_image}
-                imagePullPolicy: Always
-                name: pathways-rm
-                ports:
-                - containerPort: 29001
-                securityContext:
-                  privileged: true
-                volumeMounts:
-                - mountPath: /tmp
-                  name: shared-tmp
-              nodeSelector:
-                cloud.google.com/gke-nodepool: cpu-rm-np
-              hostNetwork: true
-              dnsPolicy: ClusterFirstWithHostNet
-              volumes:
-              - hostPath:
-                  path: /tmp
-                  type: DirectoryOrCreate
-                name: shared-tmp
-    - name: proxy
-      replicas: 1
-      template:
-        metadata:
-          labels:
-            xpk.google.com/workload: {args.workload}
-        spec:
-          backoffLimit: 0
-          completions: 1
-          parallelism: 1
-          template:
-            spec:
-              containers:
-              - args:
-                {pathways_proxy_args}
-                image: {args.proxy_server_image}
-                imagePullPolicy: Always
-                name: pathways-proxy
-                ports:
-                - containerPort: 29000
-              hostNetwork: true
-              dnsPolicy: ClusterFirstWithHostNet
-              nodeSelector:
-                cloud.google.com/gke-nodepool: cpu-proxy-np
-    {user_workload}
 """
 
 

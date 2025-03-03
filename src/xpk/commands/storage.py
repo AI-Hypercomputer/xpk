@@ -134,7 +134,7 @@ def delete_resource(api_call, resource_name: str, resource_kind: str) -> None:
   xpk_print(f"Deleted {resource_kind}:{resource_name}")
 
 
-def storage_delete(args: Namespace) -> None:
+def storage_detach(args: Namespace) -> None:
   k8s_api_client = setup_k8s_env(args)
   api_instance = k8s_client.CustomObjectsApi(k8s_api_client)
   core_api = k8s_client.CoreV1Api()

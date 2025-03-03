@@ -515,29 +515,29 @@ Command `storage create` accepts below arguments:
 * Create a Filestore storage instance.
   ```shell
   python3 xpk.py storage create $STORAGE_NAME --cluster=$CLUSTER \
-  --zone=$ZONE --type=gcpfilestore \
-  --auto-mount=true --vol=vol1 --size=1024 --tier=BASIC_HDD \
-  --mount-point='/fs-test-mount-point' --readonly=false --project=$PROJECT
+    --zone=$ZONE --type=gcpfilestore \
+    --auto-mount=true --vol=vol1 --size=1024 --tier=BASIC_HDD \
+    --mount-point='/fs-test-mount-point' --readonly=false --project=$PROJECT
   ```
 
 * Create a simple Workload with created filestore.
     ```shell
     python3 xpk.py workload create \
-    --workload xpk-test-workload --command "echo goodbye" \
-    --cluster xpk-test \
-    --tpu-type=v5litepod-16 \
-    --project=$PROJECT
+      --workload xpk-test-workload --command "echo goodbye" \
+      --cluster=$CLUSTER \
+      --tpu-type=v5litepod-16 \
+      --project=$PROJECT
     ```
 
 
 * List Storage
     ```shell
-    python3 xpk.py storage list --cluster xpk-test --zone=us-central2-b --project=$PROJECT
+    python3 xpk.py storage list --cluster=$CLUSTER --zone=$ZONE --project=$PROJECT
     ```
 
-* Delete Storage
+* Detach Storage
     ```shell
-    python3 xpk.py storage delete $STORAGE_NAME  --cluster xpk-test --zone=us-central2-b --project=$PROJECT
+    python3 xpk.py storage detach $STORAGE_NAME  --cluster=$CLUSTER --zone=$ZONE --project=$PROJECT
     ```
 
 ## Workload Create

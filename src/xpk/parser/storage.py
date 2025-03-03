@@ -16,7 +16,7 @@ limitations under the License.
 
 import argparse
 
-from ..commands.storage import storage_attach, storage_delete, storage_list, storage_create
+from ..commands.storage import storage_attach, storage_detach, storage_list, storage_create
 from .common import add_shared_arguments
 
 
@@ -31,7 +31,7 @@ def set_storage_parser(storage_parser: argparse.ArgumentParser) -> None:
   )
   add_storage_attach_parser(storage_subcommands)
   add_storage_list_parser(storage_subcommands)
-  add_storage_delete_parser(storage_subcommands)
+  add_storage_detach_parser(storage_subcommands)
   add_storage_create_parser(storage_subcommands)
 
 
@@ -187,20 +187,39 @@ def add_storage_list_parser(
   )
 
 
-def add_storage_delete_parser(
+def add_storage_detach_parser(
     storage_subcommands_parser: argparse.ArgumentParser,
 ):
-  storage_delete_parser: argparse.ArgumentParser = (
+  storage_detach_parser: argparse.ArgumentParser = (
       storage_subcommands_parser.add_parser(
-          'delete', help='Delete XPK Storage.'
+          'detach', help='Detach XPK Storage.'
       )
   )
-  storage_delete_parser.set_defaults(func=storage_delete)
-  add_shared_arguments(storage_delete_parser)
+  storage_detach_parser.set_defaults(func=storage_detach)
+  add_shared_arguments(storage_detach_parser)
 
-  req_args = storage_delete_parser.add_argument_group(
+  req_args = storage_detach_parser.add_argument_group(
       'Required Arguments',
-      'Arguments required for storage delete.',
+      'Arguments required for storage detach.',
   )
   req_args.add_argument('name', type=str)
   req_args.add_argument('--cluster', type=str, required=True)
+
+
+# def add_storage_delete_parser(
+#     storage_subcommands_parser: argparse.ArgumentParser,
+# ):
+#   storage_delete_parser: argparse.ArgumentParser = (
+#       storage_subcommands_parser.add_parser(
+#           'delete', help='Delete XPK Storage.'
+#       )
+#   )
+#   storage_delete_parser.set_defaults(func=storage_delete)
+#   add_shared_arguments(storage_delete_parser)
+
+#   req_args = storage_delete_parser.add_argument_group(
+#       'Required Arguments',
+#       'Arguments required for storage delete.',
+#   )
+#   req_args.add_argument('name', type=str)
+#   req_args.add_argument('--cluster', type=str, required=True)

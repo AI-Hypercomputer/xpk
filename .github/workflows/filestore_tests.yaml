@@ -113,8 +113,8 @@ jobs:
       run : python3 xpk.py workload create --workload $FS_DELETE_WORKLOAD --command "rm -rf /fs-test-mount-point/$RANDOM_SEED/test.txt || exit 143" --cluster ${{inputs.cluster-name}} --tpu-type=${{inputs.tpu-type}} --zone ${{inputs.location}}
     - name: Wait for delete workload completion and confirm it succeeded
       run: python3 xpk.py workload list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} --wait-for-job-completion $FS_DELETE_WORKLOAD --timeout 300
-    - name: Delete storage
-      run: python3 xpk.py storage delete $FS_STORAGE_NAME --zone=${{inputs.zone}} --cluster=${{inputs.cluster-name}}
+    - name: Detach storage
+      run: python3 xpk.py storage detach $FS_STORAGE_NAME --zone=${{inputs.zone}} --cluster=${{inputs.cluster-name}}
     - name: Delete the writer workload on the cluster
       if: always()
       run: python3 xpk.py workload delete --workload $FS_WRITE_WORKLOAD --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}
@@ -186,8 +186,8 @@ jobs:
       run : python3 xpk.py workload create --workload $FS_DELETE_WORKLOAD_CREATE --command "rm -rf /fs-test-mount-point/$RANDOM_SEED/test.txt || exit 143" --num-slices=1 --cluster ${{inputs.cluster-name}} --tpu-type=${{inputs.tpu-type}} --zone ${{inputs.zone}}
     - name: Wait for delete workload completion and confirm it succeeded
       run: python3 xpk.py workload list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} --wait-for-job-completion $FS_DELETE_WORKLOAD_CREATE --timeout 300
-    - name: Delete storage
-      run: python3 xpk.py storage delete $STORAGE_NAME_CREATE --zone=${{inputs.zone}} --cluster=${{inputs.cluster-name}}
+    - name: Detach storage
+      run: python3 xpk.py storage detach $STORAGE_NAME_CREATE --zone=${{inputs.zone}} --cluster=${{inputs.cluster-name}}
     - name: Delete the filestore instance
       if: always()
       run: gcloud filestore instances delete $STORAGE_NAME_CREATE --zone=${{inputs.zone}} --force 

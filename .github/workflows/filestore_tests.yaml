@@ -162,6 +162,7 @@ jobs:
       run: python3 xpk.py workload delete --workload $FS_DELETE_WORKLOAD --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}
 
   run-filestore-create:
+    needs: [run-filestore]
     runs-on: [ubuntu-22.04]
     env:
       # Names must be unique in parallel running tests.

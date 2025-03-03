@@ -2011,7 +2011,7 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
                 - bash
                 - -c
                 - |
-                  echo XPK Start: $(date);
+                  echo XPK Start: date removed since GRTE;
                   _sigterm() (kill -SIGTERM $! 2>/dev/null;);
                   trap _sigterm SIGTERM;
                   {gsutil_test_command}
@@ -2022,7 +2022,7 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
                   wait $PID;
                   EXIT_CODE=$?;
                   {xpk_internal_commands}
-                  echo XPK End: $(date);
+                  echo XPK End: date removed since GRTE;
                   echo EXIT_CODE=$EXIT_CODE;
                   {tpu_stacktrace_terminate_command}
                   {gpu_workload_terminate_command}

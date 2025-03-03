@@ -24,7 +24,7 @@ install-dev: check-python check-gcloud mkdir-bin install-kueuectl install-kjobct
 
 .PHONY: pip-install
 pip-install:
-	pip install .
+	pip install . --break-system-packages
 
 .PHONY: install-pytest
 install-pytest:

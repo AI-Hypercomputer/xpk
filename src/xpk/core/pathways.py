@@ -93,8 +93,12 @@ def get_pathways_sidecar_container(args) -> str:
               ports:
               - containerPort: 50051
               env:
+              - name: XCLOUD_ENVIRONMENT
+                value: GCP
               - name: GRPC_SERVER_ADDRESS
-                value: '0.0.0.0:50051'"""
+                value: '0.0.0.0:50051'
+              - name: PORT
+                value: '50051'"""
   if args.use_pathways and args.remote_python_sidecar_image is not None:
     return yaml.format(args=args)
   else:
@@ -276,7 +280,9 @@ def get_user_workload_for_pathways(args, system: SystemCharacteristics) -> str:
               {container}
             nodeSelector:
               cloud.google.com/gke-nodepool: cpu-user-np
-            restartPolicy: OnFailure
+            hostNetwork: true
+            dnsPolicy: ClusterFirstWithHostNet
+            restartPolicy: Never
             volumes:
             - hostPath:
                 path: /tmp

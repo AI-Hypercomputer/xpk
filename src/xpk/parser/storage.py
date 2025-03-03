@@ -71,23 +71,32 @@ def add_storage_attach_parser(
       required=True,
   )
   req_args.add_argument(
-      '--auto-mount', type=lambda v: v.lower() == 'true', required=True
+      '--auto-mount',
+      type=lambda v: v.lower() == 'true',
+      required=True,
+      help='If true all workloads will have this storage mounted by default',
   )
   req_args.add_argument(
       '--mount-point',
       type=str,
       required=True,
+      help='Path on which a given storage should be mounted for a workload',
   )
   req_args.add_argument(
-      '--readonly', type=lambda v: v.lower() == 'true', required=True
+      '--readonly',
+      type=lambda v: v.lower() == 'true',
+      required=True,
+      help='If true workloads can only read from storage',
   )
 
-  gcpfilestore_args = storage_attach_parser.add_argument_group(
-      'GCP Filestore arguments', 'Arguments used when --type=gcpfilestore'
-  )
-  gcpfilestore_args.add_argument(
+  optional_args = storage_attach_parser.add_argument_group('Optional arguments')
+  optional_args.add_argument(
       '--manifest',
       type=str,
+      help=(
+          'Path to the manifest file which contains PersistentVolume and'
+          ' PersistentVolumeClaim definitions'
+      ),
   )
 
   gcsfuse_args = storage_attach_parser.add_argument_group(

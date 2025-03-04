@@ -300,6 +300,22 @@ spec:
                   name: shared-tmp
                 {storage_volume_mounts}
                 env:
+                  - name: PROJECT_ID
+                    value: {args.project}
+                  - name: LOCATION
+                    value: {args.zone}
+                  - name: CLUSTER_NAME
+                    value: {args.cluster}
+                  - name: POD_NAME
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.name
+                  - name: CONTAINER_NAME
+                    value: "pathways-worker"
+                  - name: NAMESPACE
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.namespace
                   # Workaround for v6e
                   - name: MEGASCALE_GRPC_ENABLE_XOR_TRACER
                     value: "false"
@@ -351,6 +367,22 @@ spec:
               - args:
                 {pathways_rm_args}
                 env:
+                - name: PROJECT_ID
+                  value: {args.project}
+                - name: LOCATION
+                  value: {args.zone}
+                - name: CLUSTER_NAME
+                  value: {args.cluster}
+                - name: POD_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
+                - name: CONTAINER_NAME
+                  value: "pathways-worker"
+                - name: NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
                 - name: REPLICATED_JOB_NAME
                   valueFrom:
                     fieldRef:
@@ -397,6 +429,23 @@ spec:
               containers:
               - args:
                 {pathways_proxy_args}
+                env:
+                - name: PROJECT_ID
+                  value: {args.project}
+                - name: LOCATION
+                  value: {args.zone}
+                - name: CLUSTER_NAME
+                  value: {args.cluster}
+                - name: POD_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
+                - name: CONTAINER_NAME
+                  value: "pathways-worker"
+                - name: NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
                 image: {args.proxy_server_image}
                 imagePullPolicy: Always
                 name: pathways-proxy

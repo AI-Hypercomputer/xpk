@@ -339,6 +339,7 @@ def get_user_workload_for_pathways(
               - name: gke-gcsfuse-cache
                 emptyDir:
                   medium: Memory
+                  sizeLimit: 150Gi
               - name: gcs-dataset-pvc
                 persistentVolumeClaim:
                   claimName: cached-dataset-bucket-pvc

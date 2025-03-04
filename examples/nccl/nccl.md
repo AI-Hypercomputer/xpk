@@ -44,3 +44,12 @@ python3 xpk.py workload create \
     --zone=$COMPUTE_ZONE  --project=$PROJECT_ID \
     --num-nodes=$WORKLOAD_NUM_NODES
 ```
+
+
+### Troubleshooting
+
+If you are getting a 403 Forbidden Error when creating docker image, make sure to add `us-docker.pkg.dev` to the list of gcloud credential helpers using this command:
+
+```bash
+gcloud auth configure-docker us-docker.pkg.dev
+```

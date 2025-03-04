@@ -260,81 +260,9 @@ spec:
     operator: "All"
     targetReplicatedJobs:
     - {args.targetReplicatedJob}
+  startupPolicy:
+    startupPolicyOrder: InOrder
   replicatedJobs:
-    - name: worker
-      replicas: {args.num_slices}
-      template:
-        metadata:
-          annotations:
-            alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool
-          labels:
-            xpk.google.com/workload: {args.workload}
-        spec:
-          backoffLimit: {backoff_limit}
-          completions: {system.vms_per_slice}
-          parallelism: {system.vms_per_slice}
-          template:
-            metadata:
-              annotations:
-                {storage_annotations}
-            spec:
-              terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
-              serviceAccountName: {service_account}
-              containers:
-              - args:
-                {pathways_worker_args}
-                image: {args.server_image}
-                imagePullPolicy: Always
-                name: pathways-worker
-                ports:
-                - containerPort: 29001
-                - containerPort: 8471
-                - containerPort: 8080
-                resources:
-                  limits:
-                    {resource_type}: {system.chips_per_vm}
-                securityContext:
-                  privileged: true
-                volumeMounts:
-                - mountPath: /tmp
-                  name: shared-tmp
-                {storage_volume_mounts}
-                env:
-                  # Workaround for v6e
-                  - name: MEGASCALE_GRPC_ENABLE_XOR_TRACER
-                    value: "false"
-                  - name: MEGASCALE_NUM_SLICES
-                    valueFrom:
-                      fieldRef:
-                        fieldPath: "metadata.labels['jobset.sigs.k8s.io/replicatedjob-replicas']"
-                  - name: JOBSET_NAME
-                    valueFrom:
-                      fieldRef:
-                        fieldPath: metadata.annotations['jobset.sigs.k8s.io/jobset-name']
-                  - name: REPLICATED_JOB_NAME
-                    valueFrom:
-                      fieldRef:
-                        fieldPath: metadata.annotations['jobset.sigs.k8s.io/replicatedjob-name']
-                  - name: MEGASCALE_SLICE_ID
-                    valueFrom:
-                      fieldRef:
-                        fieldPath: "metadata.labels['jobset.sigs.k8s.io/job-index']"
-                  - name: MEGASCALE_COORDINATOR_ADDRESS
-                    value: "$(JOBSET_NAME)-$(REPLICATED_JOB_NAME)-$(MEGASCALE_SLICE_ID)-0.$(JOBSET_NAME)"
-              {pathways_sidecar_container}
-              nodeSelector:
-                {accelerator_label}
-                {machine_label}
-                {autoprovisioning_args}
-              priorityClassName: {args.priority}
-              hostNetwork: true
-              dnsPolicy: ClusterFirstWithHostNet
-              volumes:
-              - hostPath:
-                  path: /tmp
-                  type: DirectoryOrCreate
-                name: shared-tmp
-              {storage_volumes}
     - name: rm
       replicas: 1
       template:
@@ -363,6 +291,20 @@ spec:
                   value: $(JOBSET_NAME)-$(REPLICATED_JOB_NAME)-0-0.$(JOBSET_NAME)
                 - name: TPU_SKIP_MDS_QUERY
                   value: "true"
+                - name: PROJECT_ID
+                  value: {args.project}
+                - name: LOCATION
+                  value: {args.zone}
+                - name: CLUSTER_NAME
+                  value: {args.cluster}
+                - name: POD_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
+                - name: CONTAINER_NAME
+                  value: "pathways-rm"
+                - name: NAMESPACE
+                  value: "cloud_prod"
                 image: {args.server_image}
                 imagePullPolicy: Always
                 name: pathways-rm
@@ -397,6 +339,23 @@ spec:
               containers:
               - args:
                 {pathways_proxy_args}
+                env:
+                - name: PROJECT_ID
+                  value: {args.project}
+                - name: LOCATION
+                  value: {args.zone}
+                - name: CLUSTER_NAME
+                  value: {args.cluster}
+                - name: POD_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
+                - name: CONTAINER_NAME
+                  value: "pathways-proxy"
+                - name: NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
                 image: {args.proxy_server_image}
                 imagePullPolicy: Always
                 name: pathways-proxy
@@ -407,6 +366,106 @@ spec:
               nodeSelector:
                 cloud.google.com/gke-nodepool: cpu-proxy-np
     {user_workload}
+    - name: worker
+      replicas: {args.num_slices}
+      template:
+        metadata:
+          annotations:
+            alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool
+          labels:
+            xpk.google.com/workload: {args.workload}
+        spec:
+          backoffLimit: {backoff_limit}
+          completions: {system.vms_per_slice}
+          parallelism: {system.vms_per_slice}
+          template:
+            metadata:
+              annotations:
+                {storage_annotations}
+                gke-gcsfuse/volumes: "true"
+                gke-gcsfuse/cpu-limit: "500m"
+                gke-gcsfuse/memory-limit: "350Gi"
+                gke-gcsfuse/ephemeral-storage-limit: "40Gi"
+            spec:
+              terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
+              serviceAccountName: {service_account}
+              containers:
+              - name: gke-gcsfuse-sidecar
+                image: gcr.io/gcs-tess/gcs-fuse-csi-driver-sidecar-mounter:v2.10.0_linux_amd64
+              - args:
+                {pathways_worker_args}
+                image: {args.server_image}
+                imagePullPolicy: Always
+                name: pathways-worker
+                ports:
+                - containerPort: 29001
+                - containerPort: 8471
+                - containerPort: 8080
+                resources:
+                  limits:
+                    {resource_type}: {system.chips_per_vm}
+                securityContext:
+                  privileged: true
+                volumeMounts:
+                - mountPath: /tmp
+                  name: shared-tmp
+                - mountPath: /tmp/gcsfuse
+                  name: gcs-ckpt-pvc
+                  readOnly: false
+                {storage_volume_mounts}
+                env:
+                  # Workaround for v6e
+                  - name: MEGASCALE_GRPC_ENABLE_XOR_TRACER
+                    value: "false"
+                  - name: MEGASCALE_NUM_SLICES
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: "metadata.labels['jobset.sigs.k8s.io/replicatedjob-replicas']"
+                  - name: JOBSET_NAME
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.annotations['jobset.sigs.k8s.io/jobset-name']
+                  - name: REPLICATED_JOB_NAME
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.annotations['jobset.sigs.k8s.io/replicatedjob-name']
+                  - name: MEGASCALE_SLICE_ID
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: "metadata.labels['jobset.sigs.k8s.io/job-index']"
+                  - name: MEGASCALE_COORDINATOR_ADDRESS
+                    value: "$(JOBSET_NAME)-$(REPLICATED_JOB_NAME)-$(MEGASCALE_SLICE_ID)-0.$(JOBSET_NAME)"
+                  - name: PROJECT_ID
+                    value: {args.project}
+                  - name: LOCATION
+                    value: {args.zone}
+                  - name: CLUSTER_NAME
+                    value: {args.cluster}
+                  - name: POD_NAME
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.name
+                  - name: CONTAINER_NAME
+                    value: "pathways-worker"
+                  - name: NAMESPACE
+                    value: "cloud_prod"
+              {pathways_sidecar_container}
+              nodeSelector:
+                {accelerator_label}
+                {machine_label}
+                {autoprovisioning_args}
+              priorityClassName: {args.priority}
+              hostNetwork: true
+              dnsPolicy: ClusterFirstWithHostNet
+              volumes:
+              - hostPath:
+                  path: /tmp
+                  type: DirectoryOrCreate
+                name: shared-tmp
+              - name: gcs-ckpt-pvc
+                persistentVolumeClaim:
+                  claimName: ckpt-bucket-pvc
+              {storage_volumes}
 """
 
 
@@ -534,7 +593,10 @@ def workload_create(args) -> None:
         - PodFailurePolicy"""
   restart_on_exit_codes = get_restart_exit_codes(args)
   restart_on_exit_codes = ','.join(map(str, restart_on_exit_codes))
-  pod_failure_policy = f"""
+  if args.use_pathways == True:
+    pod_failure_policy = ''
+  else:
+    pod_failure_policy = f"""
           podFailurePolicy:
             rules:
             - action: FailJob

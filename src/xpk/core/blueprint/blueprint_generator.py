@@ -16,6 +16,7 @@ limitations under the License.
 
 import os
 import shutil
+from importlib.resources import files
 from typing import Optional
 
 from ruamel import yaml
@@ -32,8 +33,8 @@ a3mega_device_type = H100_MEGA_DEVICE_TYPE
 a3ultra_device_type = H200_DEVICE_TYPE
 supported_device_types = {a3mega_device_type, a3ultra_device_type}
 blueprint_dependencies_dir = {
-    a3mega_device_type: "src/xpk/blueprints/a3mega",
-    a3ultra_device_type: "src/xpk/blueprints/a3ultra",
+    a3mega_device_type: files("xpk.blueprints").joinpath("a3mega"),
+    a3ultra_device_type: files("xpk.blueprints").joinpath("a3ultra"),
 }
 
 cluster_toolkit_url = "github.com/GoogleCloudPlatform/cluster-toolkit"

@@ -17,22 +17,23 @@ limitations under the License.
 import os
 from argparse import Namespace
 from dataclasses import dataclass
+from importlib.resources import files
 
 import yaml
 from google.cloud import storage as gcp_storage
 from kubernetes import client as k8s_client
 from kubernetes import utils
 from kubernetes.client import ApiClient
-from kubernetes.client.rest import ApiException
 from kubernetes.client.models.v1_persistent_volume import V1PersistentVolume
+from kubernetes.client.rest import ApiException
 from kubernetes.utils import FailToCreateError
 from tabulate import tabulate
 
-from .config import XPK_SA
 from ..utils.console import xpk_exit, xpk_print
+from .config import XPK_SA
 
-STORAGE_CRD_PATH = "/../api/storage_crd.yaml"
-STORAGE_TEMPLATE_PATH = "/../templates/storage.yaml"
+STORAGE_CRD_PATH = files("xpk.templates").joinpath("storage_crd.yaml")
+STORAGE_TEMPLATE_PATH = files("xpk.templates").joinpath("storage.yaml")
 XPK_API_GROUP_NAME = "xpk.x-k8s.io"
 XPK_API_GROUP_VERSION = "v1"
 STORAGE_CRD_KIND = "Storage"
@@ -291,7 +292,7 @@ def install_storage_crd(k8s_api_client: ApiClient) -> None:
   try:
     utils.create_from_yaml(
         k8s_api_client,
-        f"{os.path.dirname(__file__)}{STORAGE_CRD_PATH}",
+        STORAGE_CRD_PATH,
         verbose=True,
     )
     xpk_print(f"Created a CRD: {STORAGE_CRD_NAME} successfully")
@@ -487,8 +488,7 @@ def create_storage_crds(k8s_api_client: ApiClient, args: Namespace) -> None:
       args: An argparse Namespace object containing the arguments for creating
             the Storage resource.
   """
-  abs_path = f"{os.path.dirname(__file__)}{STORAGE_TEMPLATE_PATH}"
-  with open(abs_path, "r", encoding="utf-8") as file:
+  with open(STORAGE_TEMPLATE_PATH, "r", encoding="utf-8") as file:
     data = yaml.safe_load(file)
 
   data["metadata"]["name"] = args.name

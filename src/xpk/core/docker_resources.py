@@ -227,6 +227,12 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
   """
   volume_mount_yaml = """- mountPath: /dev/shm
                   name: dshm-2
+                - mountPath: /tmp/dataset
+                  name: gcs-dataset-pvc
+                  readOnly: false
+                - mountPath: /tmp/gcsfuse
+                  name: gcs-ckpt-pvc
+                  readOnly: false
                 """
 
   if args.ramdisk_directory != '':

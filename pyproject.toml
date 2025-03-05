@@ -35,11 +35,15 @@ dependencies = [
   "ruamel.yaml",
   "pyyaml",
   "docker",
-  "kubernetes==31.0.0",
+  "kubernetes",
   "google-cloud",
   "google-api-core",
   "packaging",
   "google-cloud-filestore",
+<<<<<<< Updated upstream
+=======
+  "google-cloud-storage",
+>>>>>>> Stashed changes
 ]
 
 [project.urls]

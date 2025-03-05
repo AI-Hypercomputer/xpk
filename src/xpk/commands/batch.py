@@ -22,6 +22,10 @@ from ..core.kjob import AppProfileDefaults
 from ..core.kueue import LOCAL_QUEUE_NAME
 from ..utils.console import xpk_exit, xpk_print
 from .common import set_cluster_command
+<<<<<<< Updated upstream
+=======
+from ..core.kjob import AppProfileDefaults, prepare_kjob, Kueue_TAS_annotation, get_pod_template_annotations
+>>>>>>> Stashed changes
 from .kind import set_local_cluster_command
 
 
@@ -46,10 +50,23 @@ def batch(args: Namespace) -> None:
 
 
 def submit_job(args: Namespace) -> None:
+  tcpxo, interfaces = get_pod_template_annotations(args)
+  # annotations = [Kueue_TAS_annotation] + annotations
   cmd = (
+<<<<<<< Updated upstream
       'kubectl kjob create slurm'
       f' --profile {AppProfileDefaults.NAME.value}'
       f' --localqueue {LOCAL_QUEUE_NAME}'
+=======
+      'kubectl kjob create slurm '
+      f' --profile {AppProfileDefaults.NAME.value} \\\n'
+      f' --localqueue {LOCAL_QUEUE_NAME} \\\n'
+      f' --pod-template-annotation {Kueue_TAS_annotation} \\\n'
+      f" --pod-template-annotation {tcpxo} \\\n"
+      f' --pod-template-annotation networking.gke.io/default-interface="eth0" \\\n'
+      f" --pod-template-annotation {interfaces} \\\n"
+      ' --first-node-ip'
+>>>>>>> Stashed changes
   )
 
   if args.ignore_unknown_flags:

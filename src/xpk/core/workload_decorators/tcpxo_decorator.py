@@ -21,6 +21,42 @@ from ...utils.yaml import literal_string
 rxdm = 'v1.0.12'
 
 
+def decorate_kjob_job(job_manifest) -> str:
+  spec = (
+      job_manifest.setdefault('spec', {})
+      .setdefault('template', {})
+      .setdefault('spec', {})
+  )
+  spec.setdefault('tolerations', [])
+  spec.setdefault('volumes', [])
+
+  add_volumes(job_manifest)
+  add_tolerations(job_manifest)
+  add_tcpxo_daemon_container(job_manifest)
+  update_gpu_containers(job_manifest)
+  return job_manifest
+
+
+def decorate_job(job_manifest, sub_networks) -> str:
+  job_manifest.setdefault('spec', {}).setdefault('template', {}).setdefault(
+      'metadata', {}
+  ).setdefault('annotations', {})
+  spec = (
+      job_manifest.setdefault('spec', {})
+      .setdefault('template', {})
+      .setdefault('spec', {})
+  )
+  spec.setdefault('tolerations', [])
+  spec.setdefault('volumes', [])
+
+  add_annotations(job_manifest, sub_networks)
+  add_volumes(job_manifest)
+  add_tolerations(job_manifest)
+  add_tcpxo_daemon_container(job_manifest)
+  update_gpu_containers(job_manifest)
+  return job_manifest
+
+
 def decorate_jobset(jobset_manifest_str, sub_networks) -> str:
   """
   Decorates a JobSet manifest with the necessary components for tcpxo-daemon.
@@ -36,23 +72,7 @@ def decorate_jobset(jobset_manifest_str, sub_networks) -> str:
 
   for job in manifest['spec']['replicatedJobs']:
     job_manifest = job['template']
-    job_manifest.setdefault('spec', {}).setdefault('template', {}).setdefault(
-        'metadata', {}
-    ).setdefault('annotations', {})
-    spec = (
-        job_manifest.setdefault('spec', {})
-        .setdefault('template', {})
-        .setdefault('spec', {})
-    )
-    spec.setdefault('tolerations', [])
-    spec.setdefault('volumes', [])
-
-    add_annotations(job_manifest, sub_networks)
-    add_volumes(job_manifest)
-    add_tolerations(job_manifest)
-    add_tcpxo_daemon_container(job_manifest)
-    update_gpu_containers(job_manifest)
-
+    job_manifest = decorate_job(job_manifest, sub_networks)
   return yaml.dump(manifest, sort_keys=False)
 
 

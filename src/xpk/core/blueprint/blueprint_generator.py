@@ -674,7 +674,7 @@ class BlueprintGenerator:
         self._get_storage_path(prefix), blueprint_name
     )
     shutil.copytree(
-        blueprint_dependencies_dir[a3mega_device_type],
+        str(blueprint_dependencies_dir[a3mega_device_type]),
         deployment_files_path,
         dirs_exist_ok=True,
     )
@@ -687,7 +687,7 @@ class BlueprintGenerator:
         self._get_storage_path(prefix), blueprint_name
     )
     shutil.copytree(
-        blueprint_dependencies_dir[a3ultra_device_type],
+        str(blueprint_dependencies_dir[a3ultra_device_type]),
         deployment_files_path,
         dirs_exist_ok=True,
     )

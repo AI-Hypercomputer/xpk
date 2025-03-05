@@ -155,8 +155,8 @@ def add_tcpxo_daemon_container(job_manifest):
       ],
       'env': [{'name': 'LD_LIBRARY_PATH', 'value': '/usr/local/nvidia/lib64'}],
   }
-  job_manifest['spec']['template']['spec']['containers'].insert(
-      0, tcpxo_daemon_container
+  job_manifest['spec']['template']['spec']['containers'].append(
+      tcpxo_daemon_container
   )
 
 

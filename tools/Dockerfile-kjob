@@ -42,7 +42,7 @@ ENV PATH $PATH:/usr/local/go/bin:$GOPATH/bin
 
 # Clone the kjob repository
 ARG KJOB_BRANCH=main
-RUN git clone --branch ${KJOB_BRANCH} https://github.com/44past4/kjob /kjob
+RUN git clone --branch ${KJOB_BRANCH} https://github.com/pawloch00/kjob.git /kjob
 
 # Build the gcluster binary
 WORKDIR /kjob

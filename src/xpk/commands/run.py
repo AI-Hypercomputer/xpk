@@ -21,7 +21,7 @@ from ..core.gcloud_context import add_zone_and_project
 from ..core.kueue import LOCAL_QUEUE_NAME
 from ..utils.console import xpk_exit, xpk_print
 from .common import set_cluster_command
-from ..core.kjob import AppProfileDefaults, prepare_kjob, Kueue_TAS_annotation
+from ..core.kjob import JobTemplateDefaults, AppProfileDefaults, prepare_kjob, Kueue_TAS_annotation
 from .kind import set_local_cluster_command
 
 
@@ -55,6 +55,7 @@ def submit_job(args: Namespace) -> None:
       f' --profile {AppProfileDefaults.NAME.value}'
       f' --localqueue {LOCAL_QUEUE_NAME}'
       f' --pod-template-annotation {Kueue_TAS_annotation}'
+      f' --container-name {JobTemplateDefaults.CONTAINER_NAME.value}'
       ' --wait'
       ' --rm'
   )

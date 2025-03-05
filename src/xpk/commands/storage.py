@@ -27,16 +27,23 @@ from ..core.cluster import (
     add_zone_and_project,
     get_cluster_network,
 )
+from ..core.config import DEFAULT_NAMESPACE
+from ..core.kjob import (
+    KJOB_API_GROUP_NAME,
+    KJOB_API_GROUP_VERSION,
+    KJOB_API_VOLUME_BUNDLE_PLURAL,
+    create_volume_bundle_instance,
+)
 from ..core.storage import (
     GCS_FUSE_TYPE,
     GCP_FILESTORE_TYPE,
-    STORAGE_CRD_KIND,
-    XPK_API_GROUP_NAME,
-    XPK_API_GROUP_VERSION,
     create_storage_crds,
     get_storage,
     list_storages,
     print_storages_for_cluster,
+    XPK_API_GROUP_NAME,
+    XPK_API_GROUP_VERSION,
+    STORAGE_CRD_PLURAL,
 )
 from ..utils.console import xpk_exit, xpk_print
 from ..utils.kubectl import apply_kubectl_manifest
@@ -76,6 +83,7 @@ def storage_create(args: Namespace) -> None:
     )
     k8s_api_client = setup_k8s_env(args)
     create_storage_crds(k8s_api_client, args)
+    create_volume_bundle_instance(k8s_api_client, args)
     return_code = update_cluster_with_workload_identity_if_necessary(args)
     if return_code > 0:
       xpk_exit(return_code)
@@ -109,6 +117,7 @@ def storage_attach(args: Namespace) -> None:
 
   k8s_api_client = setup_k8s_env(args)
   create_storage_crds(k8s_api_client, args)
+  create_volume_bundle_instance(k8s_api_client, args)
   return_code = update_cluster_with_workload_identity_if_necessary(args)
   if return_code > 0:
     xpk_exit(return_code)
@@ -181,11 +190,23 @@ def storage_delete(args: Namespace) -> None:
     )
 
   delete_resource(
+      lambda name: api_instance.delete_namespaced_custom_object(
+          namespace=DEFAULT_NAMESPACE,
+          name=name,
+          group=KJOB_API_GROUP_NAME,
+          version=KJOB_API_GROUP_VERSION,
+          plural=KJOB_API_VOLUME_BUNDLE_PLURAL,
+      ),
+      args.name,
+      "VolumeBundle",
+  )
+
+  delete_resource(
       lambda name: api_instance.delete_cluster_custom_object(
           name=name,
           group=XPK_API_GROUP_NAME,
           version=XPK_API_GROUP_VERSION,
-          plural=STORAGE_CRD_KIND.lower() + "s",
+          plural=STORAGE_CRD_PLURAL,
       ),
       args.name,
       "Storage",

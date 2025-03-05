@@ -18,7 +18,11 @@ from ..core.docker_container import get_user_workload_container
 from ..core.gcloud_context import zone_to_region
 from ..core.nodepool import get_all_nodepools_programmatic
 from ..utils.console import xpk_exit, xpk_print
-from .config import GCS_FUSE_ANNOTATION, AcceleratorType
+from .config import (
+    GCS_FUSE_ANNOTATION_KEY,
+    GCS_FUSE_ANNOTATION_VALUE,
+    AcceleratorType,
+)
 from .storage import XPK_SA, Storage, get_storage_volumes_yaml
 from .system_characteristics import SystemCharacteristics
 
@@ -329,7 +333,9 @@ def get_user_workload_for_pathways(
         storage_volumes=storage_volumes,
         pod_failure_policy=pod_failure_policy,
         service_account=XPK_SA,
-        gcs_fuse_annotation=GCS_FUSE_ANNOTATION,
+        gcs_fuse_annotation=(
+            f'{GCS_FUSE_ANNOTATION_KEY}: "{GCS_FUSE_ANNOTATION_VALUE}"'
+        ),
     )
 
 

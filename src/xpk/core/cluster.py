@@ -223,9 +223,10 @@ def project_id_to_project_number(project_id: str) -> str:
 
 
 def setup_k8s_env(args) -> k8s_client.ApiClient:
-  add_zone_and_project(args)
-  get_cluster_credentials(args)
-  args.project_number = project_id_to_project_number(args.project)
+  if not getattr(args, 'kind_cluster', False):
+    add_zone_and_project(args)
+    get_cluster_credentials(args)
+    args.project_number = project_id_to_project_number(args.project)
 
   config.load_kube_config()
   return k8s_client.ApiClient()  # pytype: disable=bad-return-type

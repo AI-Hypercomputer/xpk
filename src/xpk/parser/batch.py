@@ -14,11 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import argparse
-
-from .common import add_shared_arguments, add_slurm_arguments
+from .common import (
+    add_shared_arguments,
+    add_slurm_arguments,
+    add_cluster_arguments,
+    add_kind_cluster_arguments,
+)
 from ..commands.batch import batch
-from .validators import name_type
 
 
 def set_batch_parser(batch_parser):
@@ -33,20 +35,9 @@ def set_batch_parser(batch_parser):
   batch_required_arguments.add_argument(
       'script', help='script with batch task to run'
   )
-  batch_optional_arguments.add_argument(
-      '--cluster',
-      type=name_type,
-      default=None,
-      help='Cluster to which command applies.',
-  )
-  batch_optional_arguments.add_argument(
-      '--kind-cluster',
-      type=bool,
-      action=argparse.BooleanOptionalAction,
-      default=False,
-      help='Apply command to a local test cluster.',
-  )
 
+  add_cluster_arguments(batch_optional_arguments)
+  add_kind_cluster_arguments(batch_optional_arguments)
   add_shared_arguments(batch_optional_arguments)
   add_slurm_arguments(batch_optional_arguments)
   batch_parser.set_defaults(func=batch)

@@ -117,6 +117,10 @@ spec:
                 xpk.google.com/workload: {args.workload}
               annotations:
                 {storage_annotations}
+                gke-gcsfuse/volumes: "true"
+                gke-gcsfuse/cpu-limit: "500m"
+                gke-gcsfuse/memory-limit: "350Gi"
+                gke-gcsfuse/ephemeral-storage-limit: "40Gi"
             spec:
               schedulerName: {args.scheduler}
               restartPolicy: Never
@@ -130,10 +134,22 @@ spec:
               dnsPolicy: ClusterFirstWithHostNet
               terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
               containers:
+              - name: gke-gcsfuse-sidecar
+                image: gcr.io/gcs-tess/gcs-fuse-csi-driver-sidecar-mounter:v2.10.0_linux_amd64
               {container}
               serviceAccountName: {service_account}
               volumes:
               {volumes}
+              - name: gcs-ckpt-pvc
+                persistentVolumeClaim:
+                  claimName: ckpt-bucket-pvc
+              - name: gcs-dataset-pvc
+                persistentVolumeClaim:
+                  claimName: cached-dataset-bucket-pvc
+              - name: gke-gcsfuse-cache
+                emptyDir:
+                  medium: Memory
+                  sizeLimit: 100Gi
 """
 
 

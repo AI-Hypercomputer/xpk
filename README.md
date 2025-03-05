@@ -456,7 +456,7 @@ Once it's ready you can use `xpk attach` command to attach to FUSE storage insta
 python3 xpk.py storage attach test-storage --project=$PROJECT \
   --cluster=xpk-test --type=gcsfuse --auto-mount=false \
   --mount-point='/test-mount-point' --readonly=false \
-  --bucket=test-bucket
+  --bucket=test-bucket --size=1
 ```
 
 Parameters:

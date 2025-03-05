@@ -448,9 +448,9 @@ Currently XPK supports two types of storages: Cloud Storage FUSE and Google Clou
 ### FUSE
 A FUSE adapter lets you mount and access Cloud Storage buckets as local file systems, so applications can read and write objects in your bucket using standard file system semantics.
 
-To use the GCS FUSE with XPK user needs to create a [Storage Bucket](https://console.cloud.google.com/storage/).
+To use the GCS FUSE with XPK you need to create a [Storage Bucket](https://console.cloud.google.com/storage/).
 
-Once it's ready user can use `xpk attach` command to attach to FUSE storage instance:
+Once it's ready you can use `xpk attach` command to attach to FUSE storage instance:
 
 ```shell
 python3 xpk.py storage attach test-storage --project=$PROJECT \
@@ -469,7 +469,7 @@ Parameters:
 - `--bucket` - name of the storage bucket. If not set then the name of the storage is used as a bucket name.
 - `--size` - size of the storage in Gb.
 
-After attaching to GCS FUSE storage instance user can create workloads with storage attached:
+After attaching to GCS FUSE storage instance you can create workloads with storage attached:
 
 ```shell
 python3 xpk.py workload create \
@@ -482,13 +482,13 @@ python3 xpk.py workload create \
 
 A Filestore adapter lets you mount and access Filestore instances as local file systems, so applications can read and write objects in your volumes using standard file system semantics.
 
-To use the GCP Filestore with XPK user needs to create a a [Filestore instance](https://pantheon.corp.google.com/filestore/)
+To use the GCP Filestore with XPK you need to create a a [Filestore instance](https://pantheon.corp.google.com/filestore/)
 and a manifest with PersistentVolume and PersistentVolumeClaim that mounts to the Filestore. To learn how to properly
 set up PersistentVolume and PersistentVolumeClaim visit [GKE Filestore documentation](https://cloud.google.com/filestore/docs/csi-driver#access)
 
 Creating Filestore storage and attaching it to workload can be achieved in two ways:
 
-* Use `xpk storage attach` command, to attach existing filestore instance to your workloads. User must specify `--type=gcpfilestore`. This command will use existing instance of Filestore, which you can find in your gcp console, or by running `gcloud filestore instances list`. Manifest file containing Filestore details must be provided. To see examples of manifest file please visit [this guide](https://cloud.google.com/kubernetes-engine/docs/how-to/persistent-volumes/filestore-csi-driver#access) or [test example](tests/data/fs-manifest.yaml). The existing Filestore instance must be in the same VPC network as your GKE Cluster.
+* Use `xpk storage attach` command, to attach existing filestore instance to your workloads. You must specify `--type=gcpfilestore`. This command will use existing instance of Filestore, which you can find in your gcp console, or by running `gcloud filestore instances list`. Manifest file containing Filestore details must be provided. To see examples of manifest file please visit [this guide](https://cloud.google.com/kubernetes-engine/docs/how-to/persistent-volumes/filestore-csi-driver#access) or [test example](tests/data/fs-manifest.yaml). The existing Filestore instance must be in the same VPC network as your GKE Cluster.
 
     ```shell
     python3 xpk.py storage attach fs-storage-attach --project=$PROJECT

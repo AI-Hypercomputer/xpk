@@ -200,9 +200,22 @@ jobs:
       location: ${{needs.set-variables.outputs.location}}
       run-id: ${{needs.set-variables.outputs.run-id}}
     secrets: inherit
+  fuse-tests:
+    needs: [filestore-tests, set-variables]
+    uses: ./.github/workflows/fuse_tests.yaml
+    concurrency: # We support one build or nightly test to run at a time currently.
+      group: fuse-tests-${{needs.set-variables.outputs.run-id}}
+      cancel-in-progress: true
+    with:
+      cluster-name: ${{needs.set-variables.outputs.cluster-name}}
+      tpu-type: ${{needs.set-variables.outputs.tpu-type}}
+      zone: ${{needs.set-variables.outputs.zone}}
+      location: ${{needs.set-variables.outputs.location}}
+      run-id: ${{needs.set-variables.outputs.run-id}}
+    secrets: inherit
   cluster-delete:
     if: always()
-    needs: [workloads-tests, batch-tests, set-variables, filestore-tests]
+    needs: [set-variables, fuse-tests]
     uses: ./.github/workflows/cluster_delete.yaml
     with:
       cluster-name: ${{needs.set-variables.outputs.cluster-name}}

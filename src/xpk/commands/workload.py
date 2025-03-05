@@ -21,10 +21,13 @@ from ..core.cluster import (
 )
 from ..core.commands import run_command_with_updates, run_commands
 from ..core.config import (
-    GCS_FUSE_ANNOTATION,
+    GCS_FUSE_ANNOTATION_KEY,
+    GCS_FUSE_ANNOTATION_VALUE,
     VERTEX_TENSORBOARD_FEATURE_FLAG,
     XPK_CURRENT_VERSION,
     parse_env_config,
+    XPK_SA,
+    DEFAULT_NAMESPACE,
 )
 from ..core.docker_container import (
     get_main_container_docker_image,
@@ -58,7 +61,6 @@ from ..core.scheduling import (
 from ..core.storage import (
     GCS_FUSE_TYPE,
     GCP_FILESTORE_TYPE,
-    XPK_SA,
     Storage,
     add_bucket_iam_members,
     get_storage_volume_mounts_yaml,
@@ -489,7 +491,7 @@ def workload_create(args) -> None:
     0 if successful and 1 otherwise.
   """
   k8s_api_client = setup_k8s_env(args)
-  create_k8s_service_account(XPK_SA, 'default')
+  create_k8s_service_account(XPK_SA, DEFAULT_NAMESPACE)
 
   workload_exists = check_if_workload_exists(args)
 
@@ -572,7 +574,9 @@ def workload_create(args) -> None:
   storage_annotations = ''
   service_account = ''
   if len(gcs_fuse_storages) > 0:
-    storage_annotations = GCS_FUSE_ANNOTATION
+    storage_annotations = (
+        f'{GCS_FUSE_ANNOTATION_KEY}: "{GCS_FUSE_ANNOTATION_VALUE}"'
+    )
     service_account = XPK_SA
     xpk_print(f'Detected gcsfuse Storages to add: {gcs_fuse_storages}')
   else:

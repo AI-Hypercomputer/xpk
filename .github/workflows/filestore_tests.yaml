@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License
 
-name: Storage Tests
+name: Filestore Tests
 
 on:
   workflow_call:
@@ -34,23 +34,16 @@ on:
       run-id:
         required: true
         type: string
-env:
-  # Names must be unique in parallel running tests.
-  TPU_FILESTORE_CLUSTER_NAME: ${{inputs.cluster-name}}-fs-attach
-  TPU_FILESTORE_CLUSTER_NAME_CREATE: ${{inputs.cluster-name}}-create
-  STORAGE_NAME_CREATE: ${{inputs.cluster-name}}-test
-  FS_STORAGE_NAME: ${{secrets.INSTANCE_NAME}}-test-${{inputs.run-id}}
-  FS_DELETE_WORKLOAD: "fs-delete-workload"
-  FS_READ_WORKLOAD: "fs-read-workload"
-  FS_WRITE_WORKLOAD: "fs-write-workload"
-  FS_DELETE_WORKLOAD_CREATE: "fs-delete-workload-create"
-  FS_READ_WORKLOAD_CREATE: "fs-read-workload-create"
-  FS_WRITE_WORKLOAD_CREATE: "fs-write-workload-create"
-  CLUSTER_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}} --subnetwork=${{secrets.SUBNETWORK_NAME}} --maintenance-window=23:50"
 
 jobs:
-  run-filestore-workload:
+  run-filestore:
     runs-on: [ubuntu-22.04]
+    env:
+      # Names must be unique in parallel running tests.
+      FS_STORAGE_NAME: ${{secrets.INSTANCE_NAME}}-test-${{inputs.run-id}}
+      FS_WRITE_WORKLOAD: "fs-write-workload"
+      FS_READ_WORKLOAD: "fs-read-workload"
+      FS_DELETE_WORKLOAD: "fs-delete-workload"
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-python@v5
@@ -87,13 +80,15 @@ jobs:
               ${{env.pythonLocation}}
         key: xpk-deps-3.10-${{inputs.run-id}}
         restore-keys: xpk-deps-3.10-
+    - name: Install expect package
+      run: sudo apt-get install expect
     - name: Verify xpk installation
       run: xpk --help
     - name: Authenticate Docker
       run: gcloud auth configure-docker --quiet
     - name: Fill Filestore manifest file
       run: |
-        sed -i 's/PROJECT_NAME/${{secrets.PROJECT_NAME}}/g;  s/ZONE/${{inputs.zone}}/g; s/INSTANCE_NAME/${{secrets.INSTANCE_NAME}}/g; s/VOL_NAME/${{secrets.VOL_NAME}}/g; s/IP_ADDRESS/${{secrets.IP_ADDRESS}}/g' ./tests/data/fs-manifest.yaml 
+        sed -i 's/PROJECT_NAME/${{secrets.PROJECT_NAME}}/g;  s/ZONE/${{inputs.zone}}/g; s/INSTANCE_NAME/${{secrets.INSTANCE_NAME}}/g; s/VOL_NAME/${{secrets.VOL_NAME}}/g; s/IP_ADDRESS/${{secrets.IP_ADDRESS}}/g' ./tests/data/fs-manifest.yaml
     - name: Attach auto-mount GCP Filestore Storage instance
       run: |
         python3 xpk.py storage attach $FS_STORAGE_NAME --cluster=${{inputs.cluster-name}} --zone=${{inputs.zone}} --type=gcpfilestore \
@@ -101,6 +96,8 @@ jobs:
         --mount-point='/fs-test-mount-point' --readonly=false --manifest='./tests/data/fs-manifest.yaml'
     - name: List and verify existing Storages
       run: python3 xpk.py storage list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} | tee output.txt | grep $FS_STORAGE_NAME || (echo 'No storage found' && exit 143)
+    - name: Verify VolumeBundle created
+      run: kubectl get volumebundle $FS_STORAGE_NAME -o jsonpath='{.spec.containerVolumeMounts[0].mountPath}' | grep '/fs-test-mount-point'
     - name: Run workload to write file on filestore
       run : python3 xpk.py workload create --workload $FS_WRITE_WORKLOAD --docker-image='marketplace.gcr.io/google/ubuntu2004' --command "mkdir /fs-test-mount-point/$RANDOM_SEED/ && echo 'Test text message' > /fs-test-mount-point/$RANDOM_SEED/test.txt || (echo 'Writing to filestore failed' && exit 143)" --cluster ${{inputs.cluster-name}} --tpu-type=${{inputs.tpu-type}} --zone ${{inputs.location}}
     - name: Wait for writer workload completion and confirm it succeeded
@@ -109,12 +106,51 @@ jobs:
       run : python3 xpk.py workload create --workload $FS_READ_WORKLOAD --command "grep 'Test text message' /fs-test-mount-point/$RANDOM_SEED/test.txt || (echo 'Reading from filestore failed' && exit 143)" --cluster ${{inputs.cluster-name}} --tpu-type=${{inputs.tpu-type}} --zone ${{inputs.location}}
     - name: Wait for reader workload completion and confirm it succeeded
       run: python3 xpk.py workload list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} --wait-for-job-completion $FS_READ_WORKLOAD --timeout 300
+    - name: Create batch-read.sh script
+      run: |
+        cat <<EOF > batch-read.sh
+        #!/bin/bash
+        grep 'Test text message' /fs-test-mount-point/$RANDOM_SEED/test.txt || (echo 'Reading from filestore failed' && exit 143)
+        EOF
+    - name: Run a batch-read job on the cluster
+      run: python3 xpk.py batch --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} batch-read.sh | tee batch-read.log
+    - name: Get job name
+      run: |
+        READ_JOB_NAME=$(cat batch-read.log | grep 'xpk-def-app-profile-slurm-' | awk -F': ' '{print $2}')
+        echo "READ_JOB_NAME=${READ_JOB_NAME}" >> $GITHUB_ENV
+    - name: Wait for the batch-read job to finish
+      run: kubectl wait job.batch/$READ_JOB_NAME --for=condition=Complete --timeout=1m
+    - name: Cancel the batch-read job
+      run: python3 xpk.py job cancel $READ_JOB_NAME --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} | grep "job.batch/$READ_JOB_NAME deleted"
+    - name: Delete batch-read.log file
+      run: rm batch-read.log
+    - name: Delete batch-read.sh file
+      run: rm batch-read.sh
+    - name: Create shell and exit it immediately
+      run: |
+        cat <<EOF >> create-shell.exp
+        ##!/usr/bin/expect
+        spawn python3 xpk.py shell --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}
+        expect "/ # "
+        send "cat /fs-test-mount-point/$RANDOM_SEED/test.txt\n"
+        expect "Test text message"
+        send "exit\n"
+        EOF
+        chmod +x ./create-shell.exp
+        expect ./create-shell.exp
+    - name: Stop the shell
+      run: python3 xpk.py shell stop --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}
+    - name: Delete create-shell.exp file
+      run: rm create-shell.exp
     - name: Run workload to delete file on filestore
       run : python3 xpk.py workload create --workload $FS_DELETE_WORKLOAD --command "rm -rf /fs-test-mount-point/$RANDOM_SEED/test.txt || exit 143" --cluster ${{inputs.cluster-name}} --tpu-type=${{inputs.tpu-type}} --zone ${{inputs.location}}
     - name: Wait for delete workload completion and confirm it succeeded
       run: python3 xpk.py workload list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} --wait-for-job-completion $FS_DELETE_WORKLOAD --timeout 300
     - name: Detach storage
       run: python3 xpk.py storage detach $FS_STORAGE_NAME --zone=${{inputs.zone}} --cluster=${{inputs.cluster-name}}
+    - name: Verify VolumeBundle deleted
+      run: |
+        ! kubectl get volumebundle | grep $FS_STORAGE_NAME
     - name: Delete the writer workload on the cluster
       if: always()
       run: python3 xpk.py workload delete --workload $FS_WRITE_WORKLOAD --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}
@@ -124,9 +160,16 @@ jobs:
     - name: Delete the delete workload on the cluster
       if: always()
       run: python3 xpk.py workload delete --workload $FS_DELETE_WORKLOAD --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}
-  
-  filestore-create:
+
+  run-filestore-create:
+    needs: [run-filestore]
     runs-on: [ubuntu-22.04]
+    env:
+      # Names must be unique in parallel running tests.
+      FS_STORAGE_NAME: ${{inputs.cluster-name}}-test
+      FS_WRITE_WORKLOAD: "fs-write-workload-create"
+      FS_READ_WORKLOAD: "fs-read-workload-create"
+      FS_DELETE_WORKLOAD: "fs-delete-workload-create"
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-python@v5
@@ -163,40 +206,83 @@ jobs:
             ${{env.pythonLocation}}
         key: xpk-deps-3.10-${{inputs.run-id}}
         restore-keys: xpk-deps-3.10-
+    - name: Install expect package
+      run: sudo apt-get install expect
     - name: Verify xpk installation
       run: xpk --help
     - name: Authenticate Docker
       run: gcloud auth configure-docker --quiet
     - name: Create auto-mount GCP Filestore Storage instance
       run: |
-        python3 xpk.py storage create $STORAGE_NAME_CREATE --cluster=${{inputs.cluster-name}} --zone=${{inputs.zone}} --type=gcpfilestore \
+        python3 xpk.py storage create $FS_STORAGE_NAME --cluster=${{inputs.cluster-name}} --zone=${{inputs.zone}} --type=gcpfilestore \
         --auto-mount=true --vol=vol1 --size=1024 --tier=BASIC_HDD \
         --mount-point='/fs-test-mount-point' --readonly=false
     - name: List and verify existing Storages
-      run: python3 xpk.py storage list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} | tee output.txt | grep $STORAGE_NAME_CREATE || (echo 'No storage found' && exit 143)
+      run: python3 xpk.py storage list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} | tee output.txt | grep $FS_STORAGE_NAME || (echo 'No storage found' && exit 143)
+    - name: Verify VolumeBundle created
+      run: kubectl get volumebundle $FS_STORAGE_NAME -o jsonpath='{.spec.containerVolumeMounts[0].mountPath}' | grep '/fs-test-mount-point'
     - name: Run workload to write file on filestore
-      run : python3 xpk.py workload create --workload $FS_WRITE_WORKLOAD_CREATE --num-slices=1 --docker-image='marketplace.gcr.io/google/ubuntu2004' --command "mkdir /fs-test-mount-point/$RANDOM_SEED/ && echo 'Test text message' > /fs-test-mount-point/$RANDOM_SEED/test.txt || (echo 'Writing to filestore failed' && exit 143)" --cluster ${{inputs.cluster-name}} --tpu-type=${{inputs.tpu-type}} --zone ${{inputs.zone}}
+      run: python3 xpk.py workload create --workload $FS_WRITE_WORKLOAD --num-slices=1 --docker-image='marketplace.gcr.io/google/ubuntu2004' --command "mkdir /fs-test-mount-point/$RANDOM_SEED/ && echo 'Test text message' > /fs-test-mount-point/$RANDOM_SEED/test.txt || (echo 'Writing to filestore failed' && exit 143)" --cluster ${{inputs.cluster-name}} --tpu-type=${{inputs.tpu-type}} --zone ${{inputs.zone}}
     - name: Wait for writer workload completion and confirm it succeeded
-      run: python3 xpk.py workload list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} --wait-for-job-completion $FS_WRITE_WORKLOAD_CREATE --timeout 300
+      run: python3 xpk.py workload list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} --wait-for-job-completion $FS_WRITE_WORKLOAD --timeout 300
     - name: Run workload to read file on filestore
-      run : python3 xpk.py workload create --workload $FS_READ_WORKLOAD_CREATE --num-slices=1 --command "grep 'Test text message' /fs-test-mount-point/$RANDOM_SEED/test.txt || (echo 'Reading from filestore failed' && exit 143)" --cluster ${{inputs.cluster-name}} --tpu-type=${{inputs.tpu-type}} --zone ${{inputs.zone}}
+      run : python3 xpk.py workload create --workload $FS_READ_WORKLOAD --num-slices=1 --command "grep 'Test text message' /fs-test-mount-point/$RANDOM_SEED/test.txt || (echo 'Reading from filestore failed' && exit 143)" --cluster ${{inputs.cluster-name}} --tpu-type=${{inputs.tpu-type}} --zone ${{inputs.zone}}
     - name: Wait for reader workload completion and confirm it succeeded
-      run: python3 xpk.py workload list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} --wait-for-job-completion $FS_READ_WORKLOAD_CREATE --timeout 300
+      run: python3 xpk.py workload list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} --wait-for-job-completion $FS_READ_WORKLOAD --timeout 300
+    - name: Create batch-read.sh script
+      run: |
+        cat <<EOF > batch-read.sh
+        #!/bin/bash
+        grep 'Test text message' /fs-test-mount-point/$RANDOM_SEED/test.txt || (echo 'Reading from filestore failed' && exit 143)
+        EOF
+    - name: Run a batch-read job on the cluster
+      run: python3 xpk.py batch --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} batch-read.sh | tee batch-read.log
+    - name: Get job name
+      run: |
+        READ_JOB_NAME=$(cat batch-read.log | grep 'xpk-def-app-profile-slurm-' | awk -F': ' '{print $2}')
+        echo "READ_JOB_NAME=${READ_JOB_NAME}" >> $GITHUB_ENV
+    - name: Wait for the batch-read job to finish
+      run: kubectl wait job.batch/$READ_JOB_NAME --for=condition=Complete --timeout=1m
+    - name: Cancel the batch-read job
+      run: python3 xpk.py job cancel $READ_JOB_NAME --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} | grep "job.batch/$READ_JOB_NAME deleted"
+    - name: Delete batch-read.log file
+      run: rm batch-read.log
+    - name: Delete batch-read.sh file
+      run: rm batch-read.sh
+    - name: Create shell and exit it immediately
+      run: |
+        cat <<EOF >> create-shell.exp
+        ##!/usr/bin/expect
+        spawn python3 xpk.py shell --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}
+        expect "/ # "
+        send "cat /fs-test-mount-point/$RANDOM_SEED/test.txt\n"
+        expect "Test text message"
+        send "exit\n"
+        EOF
+        chmod +x ./create-shell.exp
+        expect ./create-shell.exp
+    - name: Stop the shell
+      run: python3 xpk.py shell stop --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}
+    - name: Delete create-shell.exp file
+      run: rm create-shell.exp
     - name: Run workload to delete file on filestore
-      run : python3 xpk.py workload create --workload $FS_DELETE_WORKLOAD_CREATE --command "rm -rf /fs-test-mount-point/$RANDOM_SEED/test.txt || exit 143" --num-slices=1 --cluster ${{inputs.cluster-name}} --tpu-type=${{inputs.tpu-type}} --zone ${{inputs.zone}}
+      run : python3 xpk.py workload create --workload $FS_DELETE_WORKLOAD --command "rm -rf /fs-test-mount-point/$RANDOM_SEED/test.txt || exit 143" --num-slices=1 --cluster ${{inputs.cluster-name}} --tpu-type=${{inputs.tpu-type}} --zone ${{inputs.zone}}
     - name: Wait for delete workload completion and confirm it succeeded
-      run: python3 xpk.py workload list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} --wait-for-job-completion $FS_DELETE_WORKLOAD_CREATE --timeout 300
+      run: python3 xpk.py workload list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} --wait-for-job-completion $FS_DELETE_WORKLOAD --timeout 300
     - name: Detach storage
-      run: python3 xpk.py storage detach $STORAGE_NAME_CREATE --zone=${{inputs.zone}} --cluster=${{inputs.cluster-name}}
+      run: python3 xpk.py storage detach $FS_STORAGE_NAME --zone=${{inputs.zone}} --cluster=${{inputs.cluster-name}}
+    - name: Verify VolumeBundle deleted
+      run: |
+        ! kubectl get volumebundle | grep $FS_STORAGE_NAME
     - name: Delete the filestore instance
       if: always()
-      run: gcloud filestore instances delete $STORAGE_NAME_CREATE --zone=${{inputs.zone}} --force 
+      run: gcloud filestore instances delete $FS_STORAGE_NAME --zone=${{inputs.zone}} --force
     - name: Delete the writer workload on the cluster
       if: always()
-      run: python3 xpk.py workload delete --workload $FS_WRITE_WORKLOAD_CREATE --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}
+      run: python3 xpk.py workload delete --workload $FS_WRITE_WORKLOAD --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}
     - name: Delete the reader workload on the cluster
       if: always()
-      run: python3 xpk.py workload delete --workload $FS_READ_WORKLOAD_CREATE --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}
+      run: python3 xpk.py workload delete --workload $FS_READ_WORKLOAD --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}
     - name: Delete the delete workload on the cluster
       if: always()
-      run: python3 xpk.py workload delete --workload $FS_DELETE_WORKLOAD_CREATE --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}
+      run: python3 xpk.py workload delete --workload $FS_DELETE_WORKLOAD --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}

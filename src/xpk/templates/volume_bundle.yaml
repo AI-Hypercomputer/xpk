@@ -1,0 +1,7 @@
+apiVersion: kjobctl.x-k8s.io/v1alpha1
+kind: VolumeBundle
+metadata:
+  name: $NAME
+spec:
+  volumes: []
+  containerVolumeMounts: []

@@ -175,16 +175,6 @@ def create_job_template_instance(args: Namespace) -> int:
   Returns:
     exit_code > 0 if creating JobTemplate fails, 0 otherwise
   """
-<<<<<<< Updated upstream
-  return run_kubectl_apply(
-      yml_string=job_template_yaml.format(
-          name=JobTemplateDefaults.NAME.value,
-          parallelism=JobTemplateDefaults.PARALLELISM.value,
-          completions=JobTemplateDefaults.COMPLETIONS.value,
-          container_name=JobTemplateDefaults.CONTAINER_NAME.value,
-          image=JobTemplateDefaults.IMAGE.value,
-      ),
-=======
   config = XpkConfig()
   job_image = config.get(KJOB_BATCH_IMAGE)
   if job_image is None or len(job_image) == 0:
@@ -222,16 +212,12 @@ def create_job_template_instance(args: Namespace) -> int:
   job_template_dict["template"] = job_spec
   return run_kubectl_apply(
       yaml.dump(job_template_dict, sort_keys=False),
->>>>>>> Stashed changes
       task="Creating JobTemplate",
       args=args,
   )
 
 
-<<<<<<< Updated upstream
-=======
 # this may be moved to shell command
->>>>>>> Stashed changes
 def create_pod_template_instance(args: Namespace) -> int:
   """Create new PodTemplate instance on cluster with default settings.
 
@@ -240,8 +226,6 @@ def create_pod_template_instance(args: Namespace) -> int:
   Returns:
     exit_code > 0 if creating PodTemplate fails, 0 otherwise
   """
-<<<<<<< Updated upstream
-=======
   config = XpkConfig()
   pod_image = config.get(KJOB_SHELL_IMAGE)
   if pod_image is None or len(pod_image) == 0:
@@ -251,7 +235,6 @@ def create_pod_template_instance(args: Namespace) -> int:
   if working_directory is None or len(working_directory) == 0:
     working_directory = PodTemplateDefaults.WORKING_DIRECTORY.value
 
->>>>>>> Stashed changes
   return run_kubectl_apply(
       yml_string=pod_template_yaml.format(
           name=PodTemplateDefaults.NAME.value,
@@ -265,13 +248,9 @@ def create_pod_template_instance(args: Namespace) -> int:
 
 
 def prepare_kjob(args) -> int:
-<<<<<<< Updated upstream
-  job_err_code = create_job_template_instance(args)
-=======
   xpk_print("Preparing kjob")
   system = get_cluster_system_characteristics(args)
   job_err_code = create_job_template_instance(args, system)
->>>>>>> Stashed changes
   if job_err_code > 0:
     return job_err_code
 

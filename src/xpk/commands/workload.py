@@ -15,19 +15,23 @@ limitations under the License.
 """
 
 from ..core.cluster import (
+    XPK_SA,
     create_xpk_k8s_service_account,
     get_cluster_credentials,
     setup_k8s_env,
-    XPK_SA,
 )
 from ..core.commands import run_command_with_updates, run_commands
-from ..core.config import VERTEX_TENSORBOARD_FEATURE_FLAG, XPK_CURRENT_VERSION, parse_env_config
+from ..core.config import (
+    VERTEX_TENSORBOARD_FEATURE_FLAG,
+    XPK_CURRENT_VERSION,
+    parse_env_config,
+)
 from ..core.docker_container import (
     get_main_container_docker_image,
     get_user_workload_container,
 )
 from ..core.docker_resources import get_volumes
-from ..core.gcloud_context import add_zone_and_project
+from ..core.gcloud.context import GCloudContextManager
 from ..core.kueue import LOCAL_QUEUE_NAME
 from ..core.monitoring import get_gke_outlier_dashboard
 from ..core.nap import (
@@ -52,16 +56,16 @@ from ..core.scheduling import (
     get_gpu_scheduler,
 )
 from ..core.storage import (
-    GCS_FUSE_TYPE,
     GCP_FILESTORE_TYPE,
+    GCS_FUSE_ANNOTATION,
+    GCS_FUSE_TYPE,
     Storage,
     add_bucket_iam_members,
     get_storage_volume_mounts_yaml,
-    get_storage_volumes_yaml,
-    get_storages_to_mount,
     get_storage_volume_mounts_yaml_for_gpu,
+    get_storage_volumes_yaml,
     get_storage_volumes_yaml_for_gpu,
-    GCS_FUSE_ANNOTATION,
+    get_storages_to_mount,
 )
 from ..core.system_characteristics import (
     AcceleratorType,
@@ -77,9 +81,12 @@ from ..core.workload import (
     get_gpu_volume,
     get_workload_list,
     wait_for_job_completion,
-    zone_to_region,
 )
-from ..core.workload_decorators import rdma_decorator, tcpxo_decorator, storage_decorator
+from ..core.workload_decorators import (
+    rdma_decorator,
+    storage_decorator,
+    tcpxo_decorator,
+)
 from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
 from . import cluster_gcluster
@@ -747,7 +754,7 @@ def workload_create(args) -> None:
           ' JAX_PLATFORMS=proxy; JAX_BACKEND_TARGET=grpc://127.0.0.1:29000;'
           " python -c 'import pathwaysutils; import jax; print(jax.devices())'"
       )
-      pathways_proxy_link = f'https://console.cloud.google.com/kubernetes/job/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}-proxy-0/details?project={args.project}'
+      pathways_proxy_link = f'https://console.cloud.google.com/kubernetes/job/{GCloudContextManager.zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}-proxy-0/details?project={args.project}'
       xpk_print(
           'Follow the proxy here:'
           # pylint: disable=line-too-long)
@@ -761,7 +768,7 @@ def workload_create(args) -> None:
     xpk_print(
         'Follow your workload here:'
         # pylint: disable=line-too-long
-        f' https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
+        f' https://console.cloud.google.com/kubernetes/service/{GCloudContextManager.zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
     )
     duration_of_logs = 'P1D'  # Past 1 Day
     xpk_print(
@@ -770,7 +777,7 @@ def workload_create(args) -> None:
         ' ([prefix]-slice-job-[slice_number]-[worker_number])'
         ' after clicking the url if you want other worker logs.'
         # pylint: disable=line-too-long
-        f' https://console.cloud.google.com/logs/query;query=resource.type%3D%22k8s_container%22%0Aresource.labels.project_id%3D%22{args.project}%22%0Aresource.labels.location%3D%22{zone_to_region(args.zone)}%22%0Aresource.labels.cluster_name%3D%22{args.cluster}%22%0Aresource.labels.namespace_name%3D%22default%22%0Aresource.labels.pod_name:%22{args.workload}-slice-job-0-0-%22%20severity%3E%3DDEFAULT;storageScope=project;duration={duration_of_logs}?e=13802955&mods=allow_workbench_image_override&project={args.project}'
+        f' https://console.cloud.google.com/logs/query;query=resource.type%3D%22k8s_container%22%0Aresource.labels.project_id%3D%22{args.project}%22%0Aresource.labels.location%3D%22{GCloudContextManager.zone_to_region(args.zone)}%22%0Aresource.labels.cluster_name%3D%22{args.cluster}%22%0Aresource.labels.namespace_name%3D%22default%22%0Aresource.labels.pod_name:%22{args.workload}-slice-job-0-0-%22%20severity%3E%3DDEFAULT;storageScope=project;duration={duration_of_logs}?e=13802955&mods=allow_workbench_image_override&project={args.project}'
     )
 
   xpk_exit(0)
@@ -804,7 +811,7 @@ def workload_delete(args) -> None:
     0 if successful and 1 otherwise.
   """
   xpk_print('Starting Workload delete', flush=True)
-  add_zone_and_project(args)
+  GCloudContextManager.add_zone_and_project(args)
   get_cluster_credentials(args)
 
   will_delete = True
@@ -870,7 +877,7 @@ def workload_list(args) -> None:
   xpk_print(args)
 
   xpk_print('Starting workload list', flush=True)
-  add_zone_and_project(args)
+  GCloudContextManager.add_zone_and_project(args)
   get_cluster_credentials(args)
 
   if args.wait_for_job_completion:

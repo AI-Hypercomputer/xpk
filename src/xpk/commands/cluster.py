@@ -23,18 +23,14 @@ from ..core.cluster import (
     install_nccl_on_cluster,
     set_jobset_on_cluster,
     setup_k8s_env,
+    update_cluster_with_gcpfilestore_driver_if_necessary,
     update_cluster_with_gcsfuse_driver_if_necessary,
     update_cluster_with_workload_identity_if_necessary,
 )
 from ..core.cluster_private import authorize_private_cluster_access_if_necessary
 from ..core.commands import run_command_for_value, run_command_with_updates
 from ..core.config import VERTEX_TENSORBOARD_FEATURE_FLAG
-from ..core.gcloud_context import (
-    add_zone_and_project,
-    get_gke_control_plane_version,
-    get_gke_server_config,
-    zone_to_region,
-)
+from ..core.gcloud.context import GCloudContextManager, GKEVersionManager
 from ..core.kjob import apply_kjob_crds, prepare_kjob, verify_kjob_installed
 from ..core.kueue import (
     cluster_preheat_yml,
@@ -64,7 +60,6 @@ from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
 from . import cluster_gcluster
 from .common import set_cluster_command
-from ..core.cluster import update_cluster_with_gcpfilestore_driver_if_necessary
 
 
 def cluster_create(args) -> None:
@@ -83,7 +78,7 @@ def cluster_create(args) -> None:
     xpk_exit(return_code)
 
   xpk_print(f'Starting cluster create for cluster {args.cluster}:', flush=True)
-  add_zone_and_project(args)
+  GCloudContextManager.add_zone_and_project(args)
 
   if system.device_type in cluster_gcluster.supported_device_types:
     xpk_print(
@@ -93,12 +88,10 @@ def cluster_create(args) -> None:
     cluster_gcluster.cluster_create(args)
     xpk_exit(0)
 
-  return_code, gke_server_config = get_gke_server_config(args)
-  if return_code != 0:
-    xpk_exit(return_code)
+  gke_server_config = GKEVersionManager(args)
 
-  return_code, gke_control_plane_version = get_gke_control_plane_version(
-      args, gke_server_config
+  return_code, gke_control_plane_version = (
+      gke_server_config.get_gke_control_plane_version()
   )
   if return_code != 0:
     xpk_exit(return_code)
@@ -257,7 +250,7 @@ def cluster_create(args) -> None:
   xpk_print(
       'See your GKE Cluster here:'
       # pylint: disable=line-too-long
-      f' https://console.cloud.google.com/kubernetes/clusters/details/{zone_to_region(args.zone)}/{args.cluster}/details?project={args.project}'
+      f' https://console.cloud.google.com/kubernetes/clusters/details/{GCloudContextManager.zone_to_region(args.zone)}/{args.cluster}/details?project={args.project}'
   )
   xpk_exit(0)
 
@@ -272,7 +265,7 @@ def cluster_delete(args) -> None:
     0 if successful and 1 otherwise.
   """
   xpk_print(f'Starting cluster delete for cluster: {args.cluster}', flush=True)
-  add_zone_and_project(args)
+  GCloudContextManager.add_zone_and_project(args)
 
   if cluster_gcluster.created_by_gcluster(args):
     xpk_print(f'Deleting {args.cluster} cluster using Cluster Toolkit...')
@@ -303,7 +296,7 @@ def cluster_cacheimage(args) -> None:
   xpk_print(
       f'Starting cluster cacheimage for cluster: {args.cluster}', flush=True
   )
-  add_zone_and_project(args)
+  GCloudContextManager.add_zone_and_project(args)
 
   get_cluster_credentials(args)
   system, return_code = get_system_characteristics(args)
@@ -352,7 +345,7 @@ def cluster_describe(args) -> None:
     0 if successful and 1 otherwise.
   """
   xpk_print(f'Starting nodepool list for cluster: {args.cluster}', flush=True)
-  add_zone_and_project(args)
+  GCloudContextManager.add_zone_and_project(args)
 
   get_cluster_credentials(args)
 
@@ -583,7 +576,7 @@ def cluster_list(args) -> None:
   Returns:
     0 if successful and 1 otherwise.
   """
-  add_zone_and_project(args)
+  GCloudContextManager.add_zone_and_project(args)
   xpk_print(f'For project {args.project} and zone {args.zone}:', flush=True)
   if run_gke_clusters_list_command(args):
     xpk_exit(1)
@@ -675,7 +668,7 @@ def run_gke_cluster_delete_command(args) -> int:
   command = (
       'gcloud beta container clusters delete'
       f' {args.cluster} --project={args.project}'
-      f' --region={zone_to_region(args.zone)} --quiet'
+      f' --region={GCloudContextManager.zone_to_region(args.zone)} --quiet'
   )
 
   return_code = run_command_with_updates(command, 'Cluster Delete', args)
@@ -701,7 +694,7 @@ def run_gke_clusters_list_command(args) -> int:
   """
   command = (
       'gcloud container clusters list'
-      f' --project={args.project} --region={zone_to_region(args.zone)}'
+      f' --project={args.project} --region={GCloudContextManager.zone_to_region(args.zone)}'
   )
   return_code = run_command_with_updates(command, 'Cluster List', args)
   if return_code != 0:
@@ -748,7 +741,7 @@ def run_gke_cluster_create_command(
   command = (
       'gcloud beta container clusters create'
       f' {args.cluster} --project={args.project}'
-      f' --region={zone_to_region(args.zone)}'
+      f' --region={GCloudContextManager.zone_to_region(args.zone)}'
       f' --node-locations={args.zone}'
       f' --cluster-version={gke_control_plane_version}'
       f' --machine-type={machine_type}'

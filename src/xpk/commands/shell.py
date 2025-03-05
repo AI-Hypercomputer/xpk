@@ -11,17 +11,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..core.commands import run_command_with_full_controls, run_command_for_value, run_command_with_updates
-from ..core.cluster import get_cluster_credentials, add_zone_and_project, create_xpk_k8s_service_account
-from ..utils.console import xpk_exit, xpk_print
 from argparse import Namespace
 
+from ..core.cluster import create_xpk_k8s_service_account, get_cluster_credentials
+from ..core.commands import (
+    run_command_for_value,
+    run_command_with_full_controls,
+    run_command_with_updates,
+)
+from ..core.gcloud.context import GCloudContextManager
 from ..core.kjob import (
     AppProfileDefaults,
-    prepare_kjob,
-    get_pod_template_interactive_command,
     get_gcsfuse_annotation,
+    get_pod_template_interactive_command,
+    prepare_kjob,
 )
+from ..utils.console import xpk_exit, xpk_print
 
 exit_instructions = 'To exit the shell input "exit".'
 
@@ -51,7 +56,7 @@ def shell(args: Namespace):
 
 def get_existing_shell_pod_name(args: Namespace) -> str | None:
   if not args.kind_cluster:
-    add_zone_and_project(args)
+    GCloudContextManager.add_zone_and_project(args)
     get_cluster_credentials(args)
 
   return_code, shell_name = run_command_for_value(

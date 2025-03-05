@@ -16,8 +16,6 @@ limitations under the License.
 
 import os
 
-from ..core.remote_state.remote_state_client import RemoteStateClient
-from ..core.remote_state.fuse_remote_state import FuseStateClient
 from ..core.blueprint.blueprint_generator import (
     BlueprintGenerator,
     BlueprintGeneratorOutput,
@@ -25,17 +23,19 @@ from ..core.blueprint.blueprint_generator import (
     a3ultra_device_type,
     supported_device_types,
 )
-from ..core.commands import run_command_for_value
 from ..core.capacity import get_capacity_type
+from ..core.cluster import get_cluster_credentials
+from ..core.commands import run_command_for_value
 from ..core.docker_manager import DockerManager
-from ..core.gcloud_context import zone_to_region
+from ..core.gcloud.context import GCloudContextManager
 from ..core.gcluster_manager import GclusterManager
+from ..core.kjob import apply_kjob_crds, prepare_kjob
+from ..core.remote_state.fuse_remote_state import FuseStateClient
+from ..core.remote_state.remote_state_client import RemoteStateClient
 from ..utils.console import xpk_exit, xpk_print
 from ..utils.file import ensure_directory_exists
 from ..utils.network import all_IPs_cidr
 from ..utils.objects import hash_string
-from ..core.cluster import get_cluster_credentials
-from ..core.kjob import apply_kjob_crds, prepare_kjob
 
 blueprints_path = os.path.abspath('xpkclusters/blueprints')
 gcluster_working_dir = os.path.abspath('xpkclusters/gcluster-out')
@@ -53,7 +53,7 @@ def cluster_create(args) -> None:
   """
   check_gcloud_authenticated()
   prepare_directories()
-  region = zone_to_region(args.zone)
+  region = GCloudContextManager.zone_to_region(args.zone)
 
   # unique_name uses shortened hash string, so still name collision is possible
   unique_name = get_unique_name(args.project, region, args.cluster)
@@ -110,7 +110,7 @@ def cluster_delete(args) -> None:
   """
   check_gcloud_authenticated()
   prepare_directories()
-  region = zone_to_region(args.zone)
+  region = GCloudContextManager.zone_to_region(args.zone)
   unique_name = get_unique_name(args.project, region, args.cluster)
   # prefix is to prevent name collisions for blueprints and also deployments by storing them in prefix directory. Ex.: blueprints/{prefix}/cluster_name_hash
   prefix = get_prefix_path(args.project, region)
@@ -152,7 +152,7 @@ def cluster_delete(args) -> None:
 
 def created_by_gcluster(args) -> bool:
   prepare_directories()
-  region = zone_to_region(args.zone)
+  region = GCloudContextManager.zone_to_region(args.zone)
   unique_name = get_unique_name(args.project, region, args.cluster)
   prefix = get_prefix_path(args.project, region)
   bpg = prepare_blueprint_generator()
@@ -237,7 +237,7 @@ def generate_blueprint(
           blueprint_name=blueprint_name,
           prefix=prefix,
           cluster_name=args.cluster,
-          region=zone_to_region(args.zone),
+          region=GCloudContextManager.zone_to_region(args.zone),
           project_id=args.project,
           zone=args.zone,
           auth_cidr=all_IPs_cidr,
@@ -254,7 +254,7 @@ def generate_blueprint(
           blueprint_name=blueprint_name,
           prefix=prefix,
           cluster_name=args.cluster,
-          region=zone_to_region(args.zone),
+          region=GCloudContextManager.zone_to_region(args.zone),
           project_id=args.project,
           zone=args.zone,
           auth_cidr=all_IPs_cidr,

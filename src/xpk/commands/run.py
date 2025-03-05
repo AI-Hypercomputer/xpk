@@ -18,16 +18,16 @@ from argparse import Namespace
 
 from ..core.cluster import create_xpk_k8s_service_account
 from ..core.commands import run_command_with_full_controls
-from ..core.gcloud_context import add_zone_and_project
+from ..core.gcloud.context import GCloudContextManager
+from ..core.kjob import (
+    AppProfileDefaults,
+    Kueue_TAS_annotation,
+    get_gcsfuse_annotation,
+    prepare_kjob,
+)
 from ..core.kueue import LOCAL_QUEUE_NAME
 from ..utils.console import xpk_exit, xpk_print
 from .common import set_cluster_command
-from ..core.kjob import (
-    AppProfileDefaults,
-    prepare_kjob,
-    Kueue_TAS_annotation,
-    get_gcsfuse_annotation,
-)
 from .kind import set_local_cluster_command
 
 
@@ -40,7 +40,7 @@ def run(args: Namespace) -> None:
     None
   """
   if not args.kind_cluster:
-    add_zone_and_project(args)
+    GCloudContextManager.add_zone_and_project(args)
     set_cluster_command_code = set_cluster_command(args)
   else:
     set_cluster_command_code = set_local_cluster_command(args)

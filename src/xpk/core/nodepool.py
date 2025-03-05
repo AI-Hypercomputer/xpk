@@ -24,7 +24,7 @@ from .capacity import (
     print_reservations,
 )
 from .commands import run_command_for_value, run_commands
-from .gcloud_context import GkeServerConfig, zone_to_region
+from .gcloud.context import GCloudContextManager, GKEVersionManager
 from .resources import (
     CLUSTER_CONFIGMAP_YAML,
     CLUSTER_RESOURCES_CONFIGMAP,
@@ -129,7 +129,7 @@ def run_gke_node_pool_create_command(
         command = (
             'gcloud beta container node-pools delete'
             f' {node_pool_name} --cluster={args.cluster}'
-            f' --zone={zone_to_region(args.zone)}'
+            f' --zone={GCloudContextManager.zone_to_region(args.zone)}'
             f' --project={args.project} --quiet'
         )
         task = f'NodepoolDelete-{node_pool_name}'
@@ -156,7 +156,7 @@ def run_gke_node_pool_create_command(
             command = (
                 'gcloud container node-pools update'
                 f' {node_pool_name} --cluster={args.cluster}'
-                f' --zone={zone_to_region(args.zone)}'
+                f' --zone={GCloudContextManager.zone_to_region(args.zone)}'
                 f' --project={args.project} --quiet'
                 ' --workload-metadata=GKE_METADATA'
             )
@@ -259,7 +259,7 @@ def run_gke_node_pool_create_command(
     command = (
         'gcloud beta container node-pools create'
         f' {node_pool_name}'
-        f' --region={zone_to_region(args.zone)}'
+        f' --region={GCloudContextManager.zone_to_region(args.zone)}'
         f' --cluster={args.cluster}'
         f' --project={args.project} --node-locations={args.zone}'
         f' --machine-type={system.gce_machine_type}'
@@ -278,7 +278,9 @@ def run_gke_node_pool_create_command(
       command += f' --tpu-topology={system.topology}'
       command += f' {args.custom_tpu_nodepool_arguments}'
     elif system.accelerator_type == AcceleratorType['GPU']:
-      subnet_prefix = f'{args.cluster}-{zone_to_region(args.zone)}'
+      subnet_prefix = (
+          f'{args.cluster}-{GCloudContextManager.zone_to_region(args.zone)}'
+      )
       command += f' --num-nodes={args.num_nodes}'
       command += (
           ' --accelerator'
@@ -326,7 +328,7 @@ def run_gke_node_pool_create_command(
         continue
       command = (
           'gcloud beta container node-pools create'
-          f' {node_pool_name} --node-version={gke_node_pool_version} --cluster={args.cluster} --project={args.project} --node-locations={args.zone} --region={zone_to_region(args.zone)} --num-nodes=1'
+          f' {node_pool_name} --node-version={gke_node_pool_version} --cluster={args.cluster} --project={args.project} --node-locations={args.zone} --region={GCloudContextManager.zone_to_region(args.zone)} --num-nodes=1'
           f' --machine-type={args.pathways_gce_machine_type} --scopes=storage-full,gke-default,{CLOUD_PLATFORM_AUTH_SCOPE_URL} --enable-autoscaling'
           ' --min-nodes=1 --max-nodes=20'
       )
@@ -400,7 +402,7 @@ def get_all_nodepools_programmatic(args) -> tuple[list[str], int]:
   command = (
       'gcloud beta container node-pools list'
       ' --cluster'
-      f' {args.cluster} --project={args.project} --region={zone_to_region(args.zone)}'
+      f' {args.cluster} --project={args.project} --region={GCloudContextManager.zone_to_region(args.zone)}'
       ' --format="csv[no-heading](name)"'
   )
   return_code, raw_nodepool_output = run_command_for_value(
@@ -428,7 +430,7 @@ def get_nodepool_zone(args, nodepool_name) -> tuple[int, str | None]:
   command = (
       f'gcloud beta container node-pools describe {nodepool_name}'
       f' --cluster {args.cluster} --project={args.project}'
-      f' --region={zone_to_region(args.zone)} --format="value(locations)"'
+      f' --region={GCloudContextManager.zone_to_region(args.zone)} --format="value(locations)"'
   )
   return_code, nodepool_zone = run_command_for_value(
       command, 'Get Node Pool Zone', args
@@ -441,7 +443,7 @@ def get_nodepool_zone(args, nodepool_name) -> tuple[int, str | None]:
 
 
 def get_gke_node_pool_version(
-    args, gke_server_config: GkeServerConfig
+    args, gke_server_config: GKEVersionManager
 ) -> tuple[int, str | None]:
   """Determine the gke node pool version for the node pool.
 
@@ -458,9 +460,9 @@ def get_gke_node_pool_version(
   # By default use the current gke master version for creating node pools.
   command_description = 'Determine current gke master version'
   command = (
-      f'gcloud beta container clusters describe {args.cluster}'
-      f' --region {zone_to_region(args.zone)} --project {args.project}'
-      ' --format="value(currentMasterVersion)"'
+      f'gcloud beta container clusters describe {args.cluster} --region'
+      f' {GCloudContextManager.zone_to_region(args.zone)} --project'
+      f' {args.project} --format="value(currentMasterVersion)"'
   )
 
   return_code, current_gke_master_version = run_command_for_value(
@@ -530,7 +532,7 @@ def upgrade_gke_nodepools_version(args, default_rapid_gke_version) -> int:
     commands.append(
         'gcloud container clusters upgrade'
         f' {args.cluster} --project={args.project}'
-        f' --region={zone_to_region(args.zone)}'
+        f' --region={GCloudContextManager.zone_to_region(args.zone)}'
         f' --cluster-version={default_rapid_gke_version}'
         f' --node-pool={node_pool_name}'
         ' --quiet'
@@ -566,7 +568,7 @@ def get_nodepool_workload_metadata_mode(
   command = (
       f'gcloud beta container node-pools describe {nodepool_name}'
       f' --cluster {args.cluster} --project={args.project}'
-      f' --region={zone_to_region(args.zone)} --format="value(config.workloadMetadataConfig.mode)"'
+      f' --region={GCloudContextManager.zone_to_region(args.zone)} --format="value(config.workloadMetadataConfig.mode)"'
   )
   return_code, nodepool_WI_mode = run_command_for_value(
       command, 'Get Node Pool Workload Identity Metadata Mode', args

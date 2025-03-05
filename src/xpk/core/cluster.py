@@ -27,7 +27,7 @@ from .commands import (
     run_command_with_updates,
     run_command_with_updates_retry,
 )
-from .gcloud_context import add_zone_and_project, get_gke_server_config, zone_to_region
+from .gcloud.context import GCloudContextManager, GKEVersionManager
 from .nodepool import upgrade_gke_nodepools_version
 from .system_characteristics import SystemCharacteristics
 
@@ -102,7 +102,7 @@ def get_cluster_network(args) -> str:
   xpk_print("Getting cluster's VPC network...")
   cluster_network_cmd = (
       'gcloud container clusters describe'
-      f' {args.cluster} --zone={zone_to_region(args.zone)} --project={args.project} --format="value(network)"'
+      f' {args.cluster} --zone={GCloudContextManager.zone_to_region(args.zone)} --project={args.project} --format="value(network)"'
   )
   err_code, val = run_command_for_value(
       command=cluster_network_cmd,
@@ -144,7 +144,7 @@ def is_driver_enabled_on_cluster(args, driver: str) -> bool:
   """
   command = (
       f'gcloud container clusters describe {args.cluster}'
-      f' --project={args.project} --region={zone_to_region(args.zone)}'
+      f' --project={args.project} --region={GCloudContextManager.zone_to_region(args.zone)}'
       f' --format="value(addonsConfig.{driver}Config.enabled)"'
   )
   return_code, gcsfuse_driver_enabled = run_command_for_value(
@@ -170,7 +170,7 @@ def update_gke_cluster_with_addon(args, addon: str) -> int:
   command = (
       'gcloud container clusters update'
       f' {args.cluster} --project={args.project}'
-      f' --region={zone_to_region(args.zone)}'
+      f' --region={GCloudContextManager.zone_to_region(args.zone)}'
       f' --update-addons {addon}=ENABLED'
       ' --quiet'
   )
@@ -195,7 +195,7 @@ def get_all_clusters_programmatic(args) -> tuple[list[str], int]:
   """
   command = (
       'gcloud container clusters list'
-      f' --project={args.project} --region={zone_to_region(args.zone)}'
+      f' --project={args.project} --region={GCloudContextManager.zone_to_region(args.zone)}'
       ' --format="csv[no-heading](name)"'
   )
   return_code, raw_cluster_output = run_command_for_value(
@@ -227,7 +227,7 @@ def project_id_to_project_number(project_id: str) -> str:
 
 def setup_k8s_env(args) -> k8s_client.ApiClient:
   if not getattr(args, 'kind_cluster', False):
-    add_zone_and_project(args)
+    GCloudContextManager.add_zone_and_project(args)
     get_cluster_credentials(args)
     args.project_number = project_id_to_project_number(args.project)
 
@@ -265,7 +265,7 @@ def update_gke_cluster_with_clouddns(args) -> int:
   command = (
       'gcloud container clusters update'
       f' {args.cluster} --project={args.project}'
-      f' --region={zone_to_region(args.zone)}'
+      f' --region={GCloudContextManager.zone_to_region(args.zone)}'
       ' --cluster-dns=clouddns'
       ' --cluster-dns-scope=vpc'
       f' --cluster-dns-domain={args.cluster}-domain'
@@ -291,7 +291,7 @@ def update_gke_cluster_with_workload_identity_enabled(args) -> int:
   command = (
       'gcloud container clusters update'
       f' {args.cluster} --project={args.project}'
-      f' --region={zone_to_region(args.zone)}'
+      f' --region={GCloudContextManager.zone_to_region(args.zone)}'
       f' --workload-pool={args.project}.svc.id.goog'
       ' --quiet'
   )
@@ -318,7 +318,7 @@ def update_gke_cluster_with_gcsfuse_driver_enabled(args) -> int:
   command = (
       'gcloud container clusters update'
       f' {args.cluster} --project={args.project}'
-      f' --region={zone_to_region(args.zone)}'
+      f' --region={GCloudContextManager.zone_to_region(args.zone)}'
       ' --update-addons GcsFuseCsiDriver=ENABLED'
       ' --quiet'
   )
@@ -347,7 +347,7 @@ def upgrade_gke_control_plane_version(args, default_rapid_gke_version) -> int:
   command = (
       'gcloud container clusters upgrade'
       f' {args.cluster} --project={args.project}'
-      f' --region={zone_to_region(args.zone)}'
+      f' --region={GCloudContextManager.zone_to_region(args.zone)}'
       f' --cluster-version={default_rapid_gke_version}'
       ' --master'
       ' --quiet'
@@ -376,9 +376,9 @@ def is_cluster_using_clouddns(args) -> bool:
     True if cluster is using CloudDNS and False otherwise.
   """
   command = (
-      f'gcloud container clusters describe {args.cluster}'
-      f' --project={args.project} --region={zone_to_region(args.zone)}'
-      ' 2> /dev/null | grep "clusterDns: CLOUD_DNS"'
+      'gcloud container clusters describe'
+      f' {args.cluster} --project={args.project} --region={GCloudContextManager.zone_to_region(args.zone)} 2>'
+      ' /dev/null | grep "clusterDns: CLOUD_DNS"'
   )
   return_code, _ = run_command_for_value(
       command,
@@ -400,7 +400,7 @@ def is_workload_identity_enabled_on_cluster(args) -> bool:
   """
   command = (
       f'gcloud container clusters describe {args.cluster}'
-      f' --project={args.project} --region={zone_to_region(args.zone)}'
+      f' --project={args.project} --region={GCloudContextManager.zone_to_region(args.zone)}'
       ' --format="value(workloadIdentityConfig.workloadPool)"'
   )
   return_code, workload_pool = run_command_for_value(
@@ -428,7 +428,7 @@ def is_gcsfuse_driver_enabled_on_cluster(args) -> bool:
   """
   command = (
       f'gcloud container clusters describe {args.cluster}'
-      f' --project={args.project} --region={zone_to_region(args.zone)}'
+      f' --project={args.project} --region={GCloudContextManager.zone_to_region(args.zone)}'
       ' --format="value(addonsConfig.gcsFuseCsiDriverConfig.enabled)"'
   )
   return_code, gcsfuse_driver_enabled = run_command_for_value(
@@ -467,9 +467,7 @@ def update_cluster_with_clouddns_if_necessary(args) -> int:
       return cluster_update_return_code
 
     # Find default rapid control plane version and update the control plane to the same.
-    server_config_return_code, gke_server_config = get_gke_server_config(args)
-    if server_config_return_code != 0:
-      xpk_exit(server_config_return_code)
+    gke_server_config = GKEVersionManager(args)
     upgrade_master_return_code = upgrade_gke_control_plane_version(
         args,
         gke_server_config.default_rapid_gke_version,  # pytype: disable=attribute-error
@@ -542,8 +540,7 @@ def get_cluster_credentials(args) -> None:
   """
   command = (
       'gcloud container clusters get-credentials'
-      f' {args.cluster} --region={zone_to_region(args.zone)}'
-      f' --project={args.project} &&'
+      f' {args.cluster} --region={GCloudContextManager.zone_to_region(args.zone)} --project={args.project} &&'
       ' kubectl config view && kubectl config set-context --current'
       ' --namespace=default'
   )

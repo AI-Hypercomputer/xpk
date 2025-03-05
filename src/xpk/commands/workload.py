@@ -15,20 +15,13 @@ limitations under the License.
 """
 
 from ..core.cluster import (
-    create_k8s_service_account,
+    create_xpk_k8s_service_account,
     get_cluster_credentials,
     setup_k8s_env,
+    XPK_SA,
 )
 from ..core.commands import run_command_with_updates, run_commands
-from ..core.config import (
-    GCS_FUSE_ANNOTATION_KEY,
-    GCS_FUSE_ANNOTATION_VALUE,
-    VERTEX_TENSORBOARD_FEATURE_FLAG,
-    XPK_CURRENT_VERSION,
-    parse_env_config,
-    XPK_SA,
-    DEFAULT_NAMESPACE,
-)
+from ..core.config import VERTEX_TENSORBOARD_FEATURE_FLAG, XPK_CURRENT_VERSION, parse_env_config
 from ..core.docker_container import (
     get_main_container_docker_image,
     get_user_workload_container,
@@ -68,6 +61,8 @@ from ..core.storage import (
     get_storages_to_mount,
     get_storage_volume_mounts_yaml_for_gpu,
     get_storage_volumes_yaml_for_gpu,
+    GCS_FUSE_ANNOTATION_KEY,
+    GCS_FUSE_ANNOTATION_VALUE,
 )
 from ..core.system_characteristics import (
     AcceleratorType,
@@ -491,7 +486,7 @@ def workload_create(args) -> None:
     0 if successful and 1 otherwise.
   """
   k8s_api_client = setup_k8s_env(args)
-  create_k8s_service_account(XPK_SA, DEFAULT_NAMESPACE)
+  create_xpk_k8s_service_account()
 
   workload_exists = check_if_workload_exists(args)
 

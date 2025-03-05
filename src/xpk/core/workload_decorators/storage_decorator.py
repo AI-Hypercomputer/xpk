@@ -16,8 +16,7 @@ limitations under the License.
 
 import yaml
 
-from ..config import GCS_FUSE_ANNOTATION_KEY, GCS_FUSE_ANNOTATION_VALUE
-from ...core.storage import GCS_FUSE_TYPE, get_storage_volumes_yaml_dict
+from ...core.storage import GCS_FUSE_TYPE, get_storage_volumes_yaml_dict, GCS_FUSE_ANNOTATION_KEY, GCS_FUSE_ANNOTATION_VALUE
 
 
 def decorate_jobset(jobset_manifest_str, storages) -> str:

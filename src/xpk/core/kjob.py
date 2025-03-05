@@ -21,9 +21,8 @@ import yaml
 from kubernetes import client as k8s_client
 from kubernetes.client import ApiClient
 from kubernetes.client.rest import ApiException
-from .cluster import setup_k8s_env
-from .config import XPK_SA, DEFAULT_NAMESPACE
-from .storage import Storage, get_auto_mount_storages, GCS_FUSE_TYPE, GCP_FILESTORE_TYPE
+from .cluster import setup_k8s_env, XPK_SA, DEFAULT_NAMESPACE, create_xpk_k8s_service_account
+from .storage import get_auto_mount_storages, get_auto_mount_gcsfuse_storages
 from ..utils.console import xpk_print, xpk_exit
 from .commands import run_command_for_value, run_kubectl_apply, run_command_with_updates
 from .config import XpkConfig, KJOB_SHELL_IMAGE, KJOB_SHELL_INTERACTIVE_COMMAND, KJOB_SHELL_WORKING_DIRECTORY, KJOB_BATCH_IMAGE, KJOB_BATCH_WORKING_DIRECTORY
@@ -32,11 +31,7 @@ from enum import Enum
 
 KJOB_API_GROUP_NAME = "kjobctl.x-k8s.io"
 KJOB_API_GROUP_VERSION = "v1alpha1"
-KJOB_API_VOLUME_BUNDLE_KIND = "VolumeBundle"
-KJOB_API_VOLUME_BUNDLE_PLURAL = KJOB_API_VOLUME_BUNDLE_KIND.lower() + "s"
-KJOB_API_VOLUME_BUNDLE_CRD_NAME = (
-    f"{KJOB_API_VOLUME_BUNDLE_PLURAL}.{KJOB_API_GROUP_NAME}"
-)
+KJOB_API_VOLUME_BUNDLE_PLURAL = "volumebundles"
 VOLUME_BUNDLE_TEMPLATE_PATH = "/../templates/volume_bundle.yaml"
 
 
@@ -288,16 +283,10 @@ def prepare_kjob(args: Namespace) -> int:
   system = get_cluster_system_characteristics(args)
 
   k8s_api_client = setup_k8s_env(args)
-  storages: list[Storage] = get_auto_mount_storages(k8s_api_client)
-  gcs_fuse_storages = list(
-      filter(lambda storage: storage.type == GCS_FUSE_TYPE, storages)
-  )
-  gcp_filestore_storages = list(
-      filter(lambda storage: storage.type == GCP_FILESTORE_TYPE, storages)
-  )
+  storages = get_auto_mount_storages(k8s_api_client)
 
   service_account = ""
-  if len(gcs_fuse_storages) > 0 or len(gcp_filestore_storages) > 0:
+  if len(storages) > 0:
     service_account = XPK_SA
 
   job_err_code = create_job_template_instance(args, system, service_account)
@@ -308,8 +297,7 @@ def prepare_kjob(args: Namespace) -> int:
   if pod_err_code > 0:
     return pod_err_code
 
-  all_storages = gcs_fuse_storages + gcp_filestore_storages
-  volume_bundles = [item.name for item in all_storages]
+  volume_bundles = [item.name for item in storages]
 
   return create_app_profile_instance(args, volume_bundles)
 
@@ -387,7 +375,7 @@ def create_volume_bundle_instance(
         body=data,
     )
     xpk_print(
-        f"Created {KJOB_API_VOLUME_BUNDLE_CRD_NAME} object:"
+        f"Created {KJOB_API_VOLUME_BUNDLE_PLURAL}.{KJOB_API_GROUP_NAME} object:"
         f" {data['metadata']['name']}"
     )
   except ApiException as e:
@@ -398,3 +386,9 @@ def create_volume_bundle_instance(
     else:
       xpk_print(f"Encountered error during VolumeBundle creation: {e}")
       xpk_exit(1)
+
+
+def create_service_account_and_get_gcsfuse_storages(args: Namespace):
+  k8s_api_client = setup_k8s_env(args)
+  create_xpk_k8s_service_account()
+  return get_auto_mount_gcsfuse_storages(k8s_api_client)

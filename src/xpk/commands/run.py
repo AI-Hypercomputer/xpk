@@ -19,9 +19,15 @@ from argparse import Namespace
 from ..core.commands import run_command_with_full_controls
 from ..core.gcloud_context import add_zone_and_project
 from ..core.kueue import LOCAL_QUEUE_NAME
+from ..core.storage import GCS_FUSE_ANNOTATION_KEY, GCS_FUSE_ANNOTATION_VALUE
 from ..utils.console import xpk_exit, xpk_print
 from .common import set_cluster_command
-from ..core.kjob import AppProfileDefaults, prepare_kjob, Kueue_TAS_annotation
+from ..core.kjob import (
+    AppProfileDefaults,
+    prepare_kjob,
+    Kueue_TAS_annotation,
+    create_service_account_and_get_gcsfuse_storages,
+)
 from .kind import set_local_cluster_command
 
 
@@ -58,6 +64,16 @@ def submit_job(args: Namespace) -> None:
       ' --wait'
       ' --rm'
   )
+
+  gcs_fuse_storages = create_service_account_and_get_gcsfuse_storages(args)
+  if len(gcs_fuse_storages) > 0:
+    cmd += (
+        ' --pod-template-annotation'
+        f' {GCS_FUSE_ANNOTATION_KEY}={GCS_FUSE_ANNOTATION_VALUE}'
+    )
+
+  if args.timeout:
+    cmd += f' --wait-timeout {args.timeout}s'
 
   if args.ignore_unknown_flags:
     cmd += ' --ignore-unknown-flags'

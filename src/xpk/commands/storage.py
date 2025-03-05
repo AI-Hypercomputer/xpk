@@ -26,8 +26,8 @@ from ..core.cluster import (
     update_cluster_with_gcpfilestore_driver_if_necessary,
     add_zone_and_project,
     get_cluster_network,
+    DEFAULT_NAMESPACE,
 )
-from ..core.config import DEFAULT_NAMESPACE
 from ..core.kjob import (
     KJOB_API_GROUP_NAME,
     KJOB_API_GROUP_VERSION,

@@ -76,21 +76,50 @@ def add_storage_attach_parser(
   )
   add_cluster_arguments(req_args, required=True)
   req_args.add_argument(
-      '--auto-mount', type=lambda v: v.lower() == 'true', required=True
+      '--auto-mount',
+      type=lambda v: v.lower() == 'true',
+      required=True,
+      help='If true all workloads will have this storage mounted by default',
   )
   req_args.add_argument(
       '--mount-point',
       type=str,
       required=True,
+      help='Path on which a given storage should be mounted for a workload',
   )
   req_args.add_argument(
-      '--readonly', type=lambda v: v.lower() == 'true', required=True
+      '--readonly',
+      type=lambda v: v.lower() == 'true',
+      required=True,
+      help='If true workloads can only read from storage',
   )
 
-  req_args.add_argument(
+  optional_args = storage_attach_parser.add_argument_group('Optional arguments')
+  optional_args.add_argument(
       '--manifest',
       type=str,
-      required=True,
+      help=(
+          'Path to the manifest file which contains PersistentVolume and'
+          ' PersistentVolumeClaim definitions'
+      ),
+  )
+
+  gcsfuse_args = storage_attach_parser.add_argument_group(
+      'GCS FUSE arguments',
+      'Arguments used when --type=gcsfuse',
+  )
+  gcsfuse_args.add_argument(
+      '--size',
+      type=int,
+      help='The size of the volume to attach in gigabytes.',
+  )
+  gcsfuse_args.add_argument(
+      '--bucket',
+      type=str,
+      help=(
+          '(optional) Name of the bucket. If not set, then the "name" parameter'
+          ' is used as a bucket name.'
+      ),
   )
 
   opt_args = storage_attach_parser.add_argument_group(
@@ -158,7 +187,7 @@ def add_storage_create_parser(
   req_args.add_argument(
       '--type',
       type=str,
-      help='The type of storage. Currently supported types: [ "gcpfilestore"]',
+      help='The type of storage. Currently supported types: ["gcpfilestore"]',
       choices=['gcpfilestore'],
       required=True,
   )

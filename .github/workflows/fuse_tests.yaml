@@ -43,6 +43,7 @@ jobs:
       FUSE_DELETE_WORKLOAD: "fuse-delete-workload"
       FUSE_READ_WORKLOAD: "fuse-read-workload"
       FUSE_WRITE_WORKLOAD: "fuse-write-workload"
+      FUSE_BUCKET_NAME: "xpk-ci-cd-tests"
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-python@v5
@@ -86,10 +87,7 @@ jobs:
     - name: Authenticate Docker
       run: gcloud auth configure-docker --quiet
     - name: Attach auto-mount GCP Filestore Storage instance
-      run: |
-        python3 xpk.py storage attach $FUSE_STORAGE_NAME --cluster=${{inputs.cluster-name}} --zone=${{inputs.zone}} --type=gcsfuse \
-        --auto-mount=true \
-        --mount-point='/fuse-test-mount-point' --readonly=false --manifest='./tests/data/pv-pvc-templates.yaml'
+      run: python3 xpk.py storage attach $FUSE_STORAGE_NAME --cluster=${{inputs.cluster-name}} --zone=${{inputs.zone}} --type=gcsfuse --auto-mount=true --mount-point='/fuse-test-mount-point' --readonly=false --size=1 --bucket=$FUSE_BUCKET_NAME
     - name: List and verify existing Storages
       run: python3 xpk.py storage list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} | tee output.txt | grep $FUSE_STORAGE_NAME || (echo 'No storage found' && exit 143)
     - name: Verify VolumeBundle created

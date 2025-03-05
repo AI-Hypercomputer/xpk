@@ -17,7 +17,11 @@ limitations under the License.
 import argparse
 
 from ..commands.storage import storage_attach, storage_delete, storage_list, storage_create
-from .common import add_shared_arguments
+from .common import (
+    add_shared_arguments,
+    add_cluster_arguments,
+    add_kind_cluster_arguments,
+)
 
 
 def set_storage_parser(storage_parser: argparse.ArgumentParser) -> None:
@@ -65,11 +69,7 @@ def add_storage_attach_parser(
       choices=['gcsfuse', 'gcpfilestore'],
       required=True,
   )
-  req_args.add_argument(
-      '--cluster',
-      type=str,
-      required=True,
-  )
+  add_cluster_arguments(req_args, required=True)
   req_args.add_argument(
       '--auto-mount', type=lambda v: v.lower() == 'true', required=True
   )
@@ -87,6 +87,12 @@ def add_storage_attach_parser(
       type=str,
       required=True,
   )
+
+  opt_args = storage_attach_parser.add_argument_group(
+      'Optional Arguments',
+      'Optional arguments for storage create.',
+  )
+  add_kind_cluster_arguments(opt_args)
 
 
 def add_storage_create_parser(
@@ -151,11 +157,7 @@ def add_storage_create_parser(
       choices=['gcpfilestore'],
       required=True,
   )
-  req_args.add_argument(
-      '--cluster',
-      type=str,
-      required=True,
-  )
+  add_cluster_arguments(req_args, required=True)
   req_args.add_argument(
       '--auto-mount', type=lambda v: v.lower() == 'true', required=True
   )
@@ -167,6 +169,12 @@ def add_storage_create_parser(
   req_args.add_argument(
       '--readonly', type=lambda v: v.lower() == 'true', required=True
   )
+
+  opt_args = storage_create_parser.add_argument_group(
+      'Optional Arguments',
+      'Optional arguments for storage create.',
+  )
+  add_kind_cluster_arguments(opt_args)
 
 
 def add_storage_list_parser(
@@ -203,4 +211,10 @@ def add_storage_delete_parser(
       'Arguments required for storage delete.',
   )
   req_args.add_argument('name', type=str)
-  req_args.add_argument('--cluster', type=str, required=True)
+  add_cluster_arguments(req_args, required=True)
+
+  opt_args = storage_delete_parser.add_argument_group(
+      'Optional Arguments',
+      'Optional arguments for storage delete.',
+  )
+  add_kind_cluster_arguments(opt_args)

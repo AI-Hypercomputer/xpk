@@ -378,7 +378,7 @@ spec:
                     fieldRef:
                       fieldPath: metadata.name
                 - name: CONTAINER_NAME
-                  value: "pathways-worker"
+                  value: "pathways-rm"
                 - name: NAMESPACE
                   valueFrom:
                     fieldRef:
@@ -441,7 +441,7 @@ spec:
                     fieldRef:
                       fieldPath: metadata.name
                 - name: CONTAINER_NAME
-                  value: "pathways-worker"
+                  value: "pathways-proxy"
                 - name: NAMESPACE
                   valueFrom:
                     fieldRef:

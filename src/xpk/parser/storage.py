@@ -216,7 +216,6 @@ def add_storage_detach_parser(
       'Arguments required for storage detach.',
   )
   req_args.add_argument('name', type=str)
-  req_args.add_argument('--cluster', type=str, required=True)
   add_cluster_arguments(req_args, required=True)
 
   opt_args = storage_detach_parser.add_argument_group(

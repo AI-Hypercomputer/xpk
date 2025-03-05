@@ -55,7 +55,6 @@ def batch(args: Namespace) -> None:
 
 def submit_job(args: Namespace) -> None:
   tcpxo, interfaces = get_pod_template_annotations(args)
-  # annotations = [Kueue_TAS_annotation] + annotations
   k8s_api_client = setup_k8s_env(args)
   create_k8s_service_account(XPK_SA, DEFAULT_NAMESPACE)
   gcs_fuse_storages = get_auto_mount_gcsfuse_storages(k8s_api_client)

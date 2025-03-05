@@ -24,6 +24,9 @@ on:
       zone:
         required: true
         type: string
+      run-id:
+        required: true
+        type: string
 
 env:
   WORKLOAD_NAME: xpktest-build-${{ github.run_attempt }}
@@ -47,15 +50,16 @@ jobs:
     - name: Verify gcp setup
       run: gcloud info
     - name: Prepare directories
-      run: mkdir -p ~/.cache/pip && mkdir bin/
+      run: mkdir -p ~/.cache/pip
     - name: Restore cached dependencies
       uses: actions/cache@v4
       with:
         path: |
-          bin/
+          /usr/local/bin/kubectl-kueue
+          /usr/local/bin/kubectl-kjob
           ~/.cache/pip
           ${{env.pythonLocation}}
-        key: xpk-deps-3.10-${{github.event.number}}
+        key: xpk-deps-3.10-${{inputs.run-id}}
         restore-keys: xpk-deps-3.10-
     - name: Set Google Cloud CLI properties to a unused zone to verify --zone arg is passed properly in commands.
       run: |
@@ -63,9 +67,6 @@ jobs:
         gcloud config get compute/zone
     - name: Authenticate Docker
       run: gcloud auth configure-docker --quiet
-    - name: Update PATH
-      run: |
-        echo $PWD/bin >> "$GITHUB_PATH"
     - name: Check xpk installation
       run: xpk --help
     - name: Create test script to execute in workloads

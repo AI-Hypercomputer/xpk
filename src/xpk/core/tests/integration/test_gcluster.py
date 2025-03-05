@@ -82,7 +82,7 @@ def test_create_deployment():
   assert os.path.exists(blueprint_test_path)
 
   gcluster_manager = GclusterManager(
-      gcluster_command_runner=docker_manager,
+      gcluster_command_runner=docker_manager, remote_state_client=None
   )
 
   staged_bp_path = gcluster_manager.stage_files(

@@ -300,6 +300,22 @@ spec:
                   name: shared-tmp
                 {storage_volume_mounts}
                 env:
+                  - name: PROJECT_ID
+                    value: {args.project}
+                  - name: LOCATION
+                    value: {args.zone}
+                  - name: CLUSTER_NAME
+                    value: {args.cluster}
+                  - name: POD_NAME
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.name
+                  - name: CONTAINER_NAME
+                    value: "pathways-worker"
+                  - name: NAMESPACE
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.namespace
                   # Workaround for v6e
                   - name: MEGASCALE_GRPC_ENABLE_XOR_TRACER
                     value: "false"
@@ -351,6 +367,22 @@ spec:
               - args:
                 {pathways_rm_args}
                 env:
+                - name: PROJECT_ID
+                  value: {args.project}
+                - name: LOCATION
+                  value: {args.zone}
+                - name: CLUSTER_NAME
+                  value: {args.cluster}
+                - name: POD_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
+                - name: CONTAINER_NAME
+                  value: "pathways-rm"
+                - name: NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
                 - name: REPLICATED_JOB_NAME
                   valueFrom:
                     fieldRef:
@@ -397,6 +429,23 @@ spec:
               containers:
               - args:
                 {pathways_proxy_args}
+                env:
+                - name: PROJECT_ID
+                  value: {args.project}
+                - name: LOCATION
+                  value: {args.zone}
+                - name: CLUSTER_NAME
+                  value: {args.cluster}
+                - name: POD_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
+                - name: CONTAINER_NAME
+                  value: "pathways-proxy"
+                - name: NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
                 image: {args.proxy_server_image}
                 imagePullPolicy: Always
                 name: pathways-proxy
@@ -691,10 +740,16 @@ def workload_create(args) -> None:
   if args.use_pathways:
     if args.headless:
       xpk_print(
-          ' \n ******* Please connect to your Pathways proxy at'
-          f' {args.pathways_proxy_address}, once you see "IFRT proxy server'
-          ' started with status OK" on the proxy link below.'
-          ' Remember to delete the workload once done! ****** \n'
+          '******* Please use kubectl port forwarding to connect to the'
+          ' Pathways proxy, once you see "IFRT proxy server started with status'
+          ' OK" on the proxy link below. Remember to delete the workload once'
+          ' done! ******* '
+      )
+      xpk_print(
+          'Steps to connect to the proxy: kubectl get pods | grep proxy ;'
+          ' kubectl port-forward <proxy-pod-name> 29000:29000; '
+          ' JAX_PLATFORMS=proxy; JAX_BACKEND_TARGET=grpc://127.0.0.1:29000;'
+          " python -c 'import pathwaysutils; import jax; print(jax.devices())'"
       )
       pathways_proxy_link = f'https://console.cloud.google.com/kubernetes/job/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}-proxy-0/details?project={args.project}'
       xpk_print(
@@ -739,7 +794,8 @@ def get_restart_exit_codes(args) -> list:
       else:
         exit_codes.append(int(item))
 
-  return exit_codes
+  # Remove duplicates that the user may have added.
+  return list(set(exit_codes))
 
 
 def workload_delete(args) -> None:

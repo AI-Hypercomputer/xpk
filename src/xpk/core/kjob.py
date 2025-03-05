@@ -20,6 +20,8 @@ import yaml
 from .workload_decorators.tcpxo_decorator import decorate_kjob_job
 from ..utils.console import xpk_print
 from .commands import run_command_for_value, run_kubectl_apply, run_command_with_updates
+from .config import XpkConfig, KJOB_SHELL_IMAGE, KJOB_SHELL_INTERACTIVE_COMMAND, KJOB_SHELL_WORKING_DIRECTORY, KJOB_BATCH_IMAGE, KJOB_BATCH_WORKING_DIRECTORY
+from .resources import get_cluster_system_characteristics, SystemCharacteristics, AcceleratorType
 from enum import Enum
 
 
@@ -33,12 +35,14 @@ class JobTemplateDefaults(Enum):
   COMPLETIONS = 1
   CONTAINER_NAME = "xpk-batch-container"
   IMAGE = "ubuntu:22.04"
+  WORKING_DIRECTORY = "/"
 
 
 class PodTemplateDefaults(Enum):
   NAME = "xpk-def-pod"
   CONTAINER_NAME = "xpk-interactive-container"
   IMAGE = "busybox:1.28"
+  WORKING_DIRECTORY = "/"
   INTERACTIVE_COMMAND = "/bin/sh"
 
 
@@ -55,10 +59,25 @@ job_template_yaml = """
       completionMode: Indexed
       template:
         spec:
+          tolerations:
+            - operator: "Exists"
+              key: nvidia.com/gpu
           containers:
             - name: {container_name}
               image: {image}
+              workingDir: {working_directory}
+              {resources}
+          {node_selector}
           restartPolicy: OnFailure"""
+job_node_selector_template = """
+          nodeSelector:
+            cloud.google.com/gke-accelerator: {gpu_name}
+"""
+job_resources_template = """
+              resources:
+                limits:
+                  nvidia.com/gpu: {gpu_per_node}
+"""
 
 app_profile_yaml = """
 apiVersion: kjobctl.x-k8s.io/v1alpha1
@@ -83,11 +102,23 @@ metadata:
   namespace: default
 template:
   spec:
+    tolerations:
+      - effect: NoSchedule
+        key: components.gke.io/gke-managed-components
+        operator: Equal
+        value: "true"
     containers:
       - name: {container_name}
         image: {image}
         command: [{interactive_command}]
+        workingDir: {working_directory}
+    initContainers:
+      - name: init
+        image: {image}
+        command: ['/bin/mkdir', '-p', '{working_directory}']
 """
+
+Kueue_TAS_annotation = "kueue.x-k8s.io/podset-preferred-topology=cloud.google.com/gce-topology-host"
 
 
 def get_pod_template_annotations(args: Namespace) -> list[str]:
@@ -148,6 +179,22 @@ def verify_kjob_installed(args: Namespace) -> int:
   return 0
 
 
+def get_pod_template_interactive_command() -> str:
+  """Gets the interactive command for PodTemplate from config otherwise the default value.
+
+  Args:
+    args - user provided arguments
+  Returns:
+    str - PodTemplate's interactive command
+  """
+  config = XpkConfig()
+  pod_command = config.get(KJOB_SHELL_INTERACTIVE_COMMAND)
+  if pod_command is None or len(pod_command) == 0:
+    pod_command = PodTemplateDefaults.INTERACTIVE_COMMAND.value
+
+  return pod_command
+
+
 def create_app_profile_instance(args: Namespace) -> int:
   """Create new AppProfile instance on cluster with default settings.
 
@@ -167,7 +214,9 @@ def create_app_profile_instance(args: Namespace) -> int:
   )
 
 
-def create_job_template_instance(args: Namespace) -> int:
+def create_job_template_instance(
+    args: Namespace, system: SystemCharacteristics | None
+) -> int:
   """Create new JobTemplate instance on cluster with default settings.
 
   Args:
@@ -239,8 +288,9 @@ def create_pod_template_instance(args: Namespace) -> int:
       yml_string=pod_template_yaml.format(
           name=PodTemplateDefaults.NAME.value,
           container_name=PodTemplateDefaults.CONTAINER_NAME.value,
-          image=PodTemplateDefaults.IMAGE.value,
-          interactive_command=PodTemplateDefaults.INTERACTIVE_COMMAND.value,
+          image=pod_image,
+          working_directory=working_directory,
+          interactive_command=get_pod_template_interactive_command(),
       ),
       task="Creating PodTemplate",
       args=args,

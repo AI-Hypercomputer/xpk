@@ -23,7 +23,7 @@ from google.cloud import storage as gcp_storage
 from kubernetes import client as k8s_client
 from kubernetes import utils
 from kubernetes.client import ApiClient
-from kubernetes.client.exceptions import ApiException
+from kubernetes.client.rest import ApiException
 from kubernetes.client.models.v1_persistent_volume import V1PersistentVolume
 from kubernetes.utils import FailToCreateError
 from tabulate import tabulate
@@ -114,7 +114,7 @@ class Storage:
     client = k8s_client.CoreV1Api()
     try:
       pv: V1PersistentVolume = client.read_persistent_volume(self.pv)
-    except client.ApiException as e:
+    except ApiException as e:
       xpk_print(
           f"Exception when calling CoreV1Api->read_persistent_volume: {e}"
       )
@@ -130,7 +130,7 @@ class Storage:
     client = k8s_client.CoreV1Api()
     try:
       pv: V1PersistentVolume = client.read_persistent_volume(self.pv)
-    except client.ApiException as e:
+    except ApiException as e:
       xpk_print(
           f"Exception when calling CoreV1Api->read_persistent_volume: {e}"
       )

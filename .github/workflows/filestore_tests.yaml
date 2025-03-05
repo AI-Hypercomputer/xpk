@@ -31,15 +31,21 @@ on:
       location:
         type: string
         required: true
+      run-id:
+        required: true
+        type: string
 env:
   # Names must be unique in parallel running tests.
   TPU_FILESTORE_CLUSTER_NAME: ${{inputs.cluster-name}}-fs-attach
   TPU_FILESTORE_CLUSTER_NAME_CREATE: ${{inputs.cluster-name}}-create
-  STORAGE_NAME: ${{inputs.cluster-name}}-test
-  FS_STORAGE_NAME: ${{secrets.INSTANCE_NAME}}-test-${{github.event.number}}
+  STORAGE_NAME_CREATE: ${{inputs.cluster-name}}-test
+  FS_STORAGE_NAME: ${{secrets.INSTANCE_NAME}}-test-${{inputs.run-id}}
   FS_DELETE_WORKLOAD: "fs-delete-workload"
   FS_READ_WORKLOAD: "fs-read-workload"
   FS_WRITE_WORKLOAD: "fs-write-workload"
+  FS_DELETE_WORKLOAD_CREATE: "fs-delete-workload-create"
+  FS_READ_WORKLOAD_CREATE: "fs-read-workload-create"
+  FS_WRITE_WORKLOAD_CREATE: "fs-write-workload-create"
   CLUSTER_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}} --subnetwork=${{secrets.SUBNETWORK_NAME}} --maintenance-window=23:50"
 
 jobs:
@@ -70,19 +76,17 @@ jobs:
         gcloud config set compute/zone us-east4-a
         gcloud config get compute/zone
     - name: Prepare directories
-      run: mkdir -p ~/.cache/pip && mkdir bin/
+      run: mkdir -p ~/.cache/pip
     - name: Restore cached dependencies
       uses: actions/cache@v4
       with:
         path: |
-              bin/
+              /usr/local/bin/kubectl-kueue
+              /usr/local/bin/kubectl-kjob
               ~/.cache/pip
               ${{env.pythonLocation}}
-        key: xpk-deps-3.10-${{github.event.number}}
+        key: xpk-deps-3.10-${{inputs.run-id}}
         restore-keys: xpk-deps-3.10-
-    - name: Update PATH
-      run: |
-          echo $PWD/bin >> "$GITHUB_PATH"
     - name: Verify xpk installation
       run: xpk --help
     - name: Authenticate Docker
@@ -148,53 +152,51 @@ jobs:
         gcloud config set compute/zone us-east4-a
         gcloud config get compute/zone
     - name: Prepare directories
-      run: mkdir -p ~/.cache/pip && mkdir bin/
+      run: mkdir -p ~/.cache/pip
     - name: Restore cached dependencies
       uses: actions/cache@v4
       with:
         path: |
-            bin/
+            /usr/local/bin/kubectl-kueue
+            /usr/local/bin/kubectl-kjob
             ~/.cache/pip
             ${{env.pythonLocation}}
-        key: xpk-deps-3.10-${{github.event.number}}
+        key: xpk-deps-3.10-${{inputs.run-id}}
         restore-keys: xpk-deps-3.10-
-    - name: Update PATH
-      run: |
-          echo $PWD/bin >> "$GITHUB_PATH"
     - name: Verify xpk installation
       run: xpk --help
     - name: Authenticate Docker
       run: gcloud auth configure-docker --quiet
     - name: Create auto-mount GCP Filestore Storage instance
       run: |
-        python3 xpk.py storage create $FS_STORAGE_NAME --cluster=${{inputs.cluster-name}} --zone=${{inputs.zone}} --type=gcpfilestore \
+        python3 xpk.py storage create $STORAGE_NAME_CREATE --cluster=${{inputs.cluster-name}} --zone=${{inputs.zone}} --type=gcpfilestore \
         --auto-mount=true --vol=vol1 --size=1024 --tier=BASIC_HDD \
         --mount-point='/fs-test-mount-point' --readonly=false
     - name: List and verify existing Storages
-      run: python3 xpk.py storage list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} | tee output.txt | grep $FS_STORAGE_NAME || (echo 'No storage found' && exit 143)
+      run: python3 xpk.py storage list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} | tee output.txt | grep $STORAGE_NAME_CREATE || (echo 'No storage found' && exit 143)
     - name: Run workload to write file on filestore
-      run : python3 xpk.py workload create --workload $FS_WRITE_WORKLOAD --num-slices=1 --docker-image='marketplace.gcr.io/google/ubuntu2004' --command "mkdir /fs-test-mount-point/$RANDOM_SEED/ && echo 'Test text message' > /fs-test-mount-point/$RANDOM_SEED/test.txt || (echo 'Writing to filestore failed' && exit 143)" --cluster ${{inputs.cluster-name}} --tpu-type=${{inputs.tpu-type}} --zone ${{inputs.zone}}
+      run : python3 xpk.py workload create --workload $FS_WRITE_WORKLOAD_CREATE --num-slices=1 --docker-image='marketplace.gcr.io/google/ubuntu2004' --command "mkdir /fs-test-mount-point/$RANDOM_SEED/ && echo 'Test text message' > /fs-test-mount-point/$RANDOM_SEED/test.txt || (echo 'Writing to filestore failed' && exit 143)" --cluster ${{inputs.cluster-name}} --tpu-type=${{inputs.tpu-type}} --zone ${{inputs.zone}}
     - name: Wait for writer workload completion and confirm it succeeded
-      run: python3 xpk.py workload list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} --wait-for-job-completion $FS_WRITE_WORKLOAD --timeout 300
+      run: python3 xpk.py workload list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} --wait-for-job-completion $FS_WRITE_WORKLOAD_CREATE --timeout 300
     - name: Run workload to read file on filestore
-      run : python3 xpk.py workload create --workload $FS_READ_WORKLOAD --num-slices=1 --command "grep 'Test text message' /fs-test-mount-point/$RANDOM_SEED/test.txt || (echo 'Reading from filestore failed' && exit 143)" --cluster ${{inputs.cluster-name}} --tpu-type=${{inputs.tpu-type}} --zone ${{inputs.zone}}
+      run : python3 xpk.py workload create --workload $FS_READ_WORKLOAD_CREATE --num-slices=1 --command "grep 'Test text message' /fs-test-mount-point/$RANDOM_SEED/test.txt || (echo 'Reading from filestore failed' && exit 143)" --cluster ${{inputs.cluster-name}} --tpu-type=${{inputs.tpu-type}} --zone ${{inputs.zone}}
     - name: Wait for reader workload completion and confirm it succeeded
-      run: python3 xpk.py workload list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} --wait-for-job-completion $FS_READ_WORKLOAD --timeout 300
+      run: python3 xpk.py workload list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} --wait-for-job-completion $FS_READ_WORKLOAD_CREATE --timeout 300
     - name: Run workload to delete file on filestore
-      run : python3 xpk.py workload create --workload $FS_DELETE_WORKLOAD --command "rm -rf /fs-test-mount-point/$RANDOM_SEED/test.txt || exit 143" --num-slices=1 --cluster ${{inputs.cluster-name}} --tpu-type=${{inputs.tpu-type}} --zone ${{inputs.zone}}
+      run : python3 xpk.py workload create --workload $FS_DELETE_WORKLOAD_CREATE --command "rm -rf /fs-test-mount-point/$RANDOM_SEED/test.txt || exit 143" --num-slices=1 --cluster ${{inputs.cluster-name}} --tpu-type=${{inputs.tpu-type}} --zone ${{inputs.zone}}
     - name: Wait for delete workload completion and confirm it succeeded
-      run: python3 xpk.py workload list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} --wait-for-job-completion $FS_DELETE_WORKLOAD --timeout 300
+      run: python3 xpk.py workload list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} --wait-for-job-completion $FS_DELETE_WORKLOAD_CREATE --timeout 300
     - name: Delete storage
-      run: python3 xpk.py storage delete $FS_STORAGE_NAME --zone=${{inputs.zone}} --cluster=${{inputs.cluster-name}}
+      run: python3 xpk.py storage delete $STORAGE_NAME_CREATE --zone=${{inputs.zone}} --cluster=${{inputs.cluster-name}}
     - name: Delete the filestore instance
       if: always()
-      run: gcloud filestore instances delete $FS_STORAGE_NAME --zone=${{inputs.zone}} --force 
+      run: gcloud filestore instances delete $STORAGE_NAME_CREATE --zone=${{inputs.zone}} --force 
     - name: Delete the writer workload on the cluster
       if: always()
-      run: python3 xpk.py workload delete --workload $FS_WRITE_WORKLOAD --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}
+      run: python3 xpk.py workload delete --workload $FS_WRITE_WORKLOAD_CREATE --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}
     - name: Delete the reader workload on the cluster
       if: always()
-      run: python3 xpk.py workload delete --workload $FS_READ_WORKLOAD --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}
+      run: python3 xpk.py workload delete --workload $FS_READ_WORKLOAD_CREATE --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}
     - name: Delete the delete workload on the cluster
       if: always()
-      run: python3 xpk.py workload delete --workload $FS_DELETE_WORKLOAD --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}
+      run: python3 xpk.py workload delete --workload $FS_DELETE_WORKLOAD_CREATE --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}

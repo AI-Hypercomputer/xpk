@@ -100,4 +100,5 @@ def train_func():
   trainer.save_model("./llama3-finetuned-final")
   tokenizer.save_pretrained("./llama3-finetuned-final")
 
-train_func()
+if __name__ == "__main__":
+    train_func()

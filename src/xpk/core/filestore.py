@@ -109,7 +109,7 @@ class FilestoreClient:
 
     return False
 
-  def load_instance(self):
+  def load_instance(self) -> None:
     """Load existing filestore instance"""
     instance_name = self.get_instance_fullname()
     request = filestore_v1.GetInstanceRequest(name=instance_name)
@@ -233,7 +233,7 @@ class FilestoreClient:
     )
     return data
 
-  def manifest(self, vol: str, access_mode: str, network: str):
+  def manifest(self, vol: str, access_mode: str, network: str) -> list[dict]:
     pv = self.create_pv(vol, access_mode)
     pvc = self.create_pvc(access_mode)
     sc = self.create_sc(network)
@@ -242,13 +242,13 @@ class FilestoreClient:
   def load_location(self) -> str:
     """Load and return filestore location"""
     if self.location is not None:
-      return self.location
+      return str(self.location)
 
     if not self.check_filestore_instance_exists():
       xpk_print(f"Filestore instance {self.name} not found")
       xpk_exit(1)
 
-    return self.location
+    return str(self.location)
 
   def get_parent(self, location: str | None = None) -> str:
     """Get the Filestore's parent's name"""

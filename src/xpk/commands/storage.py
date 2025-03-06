@@ -48,7 +48,6 @@ from ..core.storage import (
     print_storages_for_cluster,
 )
 from ..utils.console import xpk_exit, xpk_print
-from ..utils.file import ensure_directory_exists
 from ..utils.kubectl import apply_kubectl_manifest
 
 
@@ -100,7 +99,7 @@ def storage_attach(args: Namespace) -> None:
         args.vol, args.access_mode, filestore_network
     )
 
-  if args.type == GCS_FUSE_TYPE:
+  else: # args.type == GCS_FUSE_TYPE:
     if args.size is None:
       xpk_print("--size is required when attaching gcsfuse storage.")
       xpk_exit(1)

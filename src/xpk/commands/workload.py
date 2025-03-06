@@ -428,6 +428,9 @@ spec:
                 - mountPath: /tmp/gcsfuse
                   name: gcs-ckpt-pvc
                   readOnly: false
+                - mountPath: /tmp/dataset
+                  name: gcs-dataset-pvc
+                  readOnly: false
                 {storage_volume_mounts}
                 env:
                   # Workaround for v6e
@@ -481,6 +484,13 @@ spec:
               - name: gcs-ckpt-pvc
                 persistentVolumeClaim:
                   claimName: ckpt-bucket-pvc
+              - name: gcs-dataset-pvc
+                persistentVolumeClaim:
+                  claimName: cached-dataset-bucket-pvc
+              - name: gke-gcsfuse-cache
+                emptyDir:
+                  medium: Memory
+                  sizeLimit: 100Gi
               {storage_volumes}
 """
 

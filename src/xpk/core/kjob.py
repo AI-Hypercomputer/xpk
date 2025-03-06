@@ -21,7 +21,7 @@ import yaml
 from kubernetes import client as k8s_client
 from kubernetes.client import ApiClient
 from kubernetes.client.rest import ApiException
-from .cluster import setup_k8s_env, XPK_SA, DEFAULT_NAMESPACE, create_xpk_k8s_service_account
+from .cluster import setup_k8s_env, XPK_SA, DEFAULT_NAMESPACE
 from .storage import get_auto_mount_storages, get_auto_mount_gcsfuse_storages
 from ..utils.console import xpk_print, xpk_exit
 from .commands import run_command_for_value, run_kubectl_apply, run_command_with_updates
@@ -388,7 +388,9 @@ def create_volume_bundle_instance(
       xpk_exit(1)
 
 
-def create_service_account_and_get_gcsfuse_storages(args: Namespace):
+def get_gcsfuse_annotation(args: Namespace) -> str | None:
   k8s_api_client = setup_k8s_env(args)
-  create_xpk_k8s_service_account()
-  return get_auto_mount_gcsfuse_storages(k8s_api_client)
+  gcsfuse_storages = get_auto_mount_gcsfuse_storages(k8s_api_client)
+  if len(gcsfuse_storages) > 0:
+    return "gke-gcsfuse/volumes=true"
+  return None

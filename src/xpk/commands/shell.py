@@ -12,8 +12,7 @@ limitations under the License.
 """
 
 from ..core.commands import run_command_with_full_controls, run_command_for_value, run_command_with_updates
-from ..core.cluster import get_cluster_credentials, add_zone_and_project
-from ..core.storage import GCS_FUSE_ANNOTATION_KEY, GCS_FUSE_ANNOTATION_VALUE
+from ..core.cluster import get_cluster_credentials, add_zone_and_project, create_xpk_k8s_service_account
 from ..utils.console import xpk_exit, xpk_print
 from argparse import Namespace
 
@@ -21,7 +20,7 @@ from ..core.kjob import (
     AppProfileDefaults,
     prepare_kjob,
     get_pod_template_interactive_command,
-    create_service_account_and_get_gcsfuse_storages,
+    get_gcsfuse_annotation,
 )
 
 exit_instructions = 'To exit the shell input "exit".'
@@ -83,18 +82,16 @@ def connect_to_new_interactive_shell(args: Namespace) -> int:
   err_code = prepare_kjob(args)
   if err_code > 0:
     xpk_exit(err_code)
+  create_xpk_k8s_service_account()
 
   cmd = (
       'kubectl-kjob create interactive --profile'
       f' {AppProfileDefaults.NAME.value} --pod-running-timeout 180s'
   )
 
-  gcs_fuse_storages = create_service_account_and_get_gcsfuse_storages(args)
-  if len(gcs_fuse_storages) > 0:
-    cmd += (
-        ' --pod-template-annotation'
-        f' {GCS_FUSE_ANNOTATION_KEY}={GCS_FUSE_ANNOTATION_VALUE}'
-    )
+  gcsfuse_annotation = get_gcsfuse_annotation(args)
+  if gcsfuse_annotation is not None:
+    cmd += f' --pod-template-annotation {gcsfuse_annotation}'
 
   return run_command_with_full_controls(
       command=cmd,

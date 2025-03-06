@@ -99,7 +99,7 @@ def storage_attach(args: Namespace) -> None:
         args.vol, args.access_mode, filestore_network
     )
 
-  else: # args.type == GCS_FUSE_TYPE:
+  else:  # args.type == GCS_FUSE_TYPE:
     if args.size is None:
       xpk_print("--size is required when attaching gcsfuse storage.")
       xpk_exit(1)

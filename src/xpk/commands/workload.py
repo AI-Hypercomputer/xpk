@@ -61,8 +61,7 @@ from ..core.storage import (
     get_storages_to_mount,
     get_storage_volume_mounts_yaml_for_gpu,
     get_storage_volumes_yaml_for_gpu,
-    GCS_FUSE_ANNOTATION_KEY,
-    GCS_FUSE_ANNOTATION_VALUE,
+    GCS_FUSE_ANNOTATION,
 )
 from ..core.system_characteristics import (
     AcceleratorType,
@@ -569,9 +568,7 @@ def workload_create(args) -> None:
   storage_annotations = ''
   service_account = ''
   if len(gcs_fuse_storages) > 0:
-    storage_annotations = (
-        f'{GCS_FUSE_ANNOTATION_KEY}: "{GCS_FUSE_ANNOTATION_VALUE}"'
-    )
+    storage_annotations = GCS_FUSE_ANNOTATION
     service_account = XPK_SA
     xpk_print(f'Detected gcsfuse Storages to add: {gcs_fuse_storages}')
   else:

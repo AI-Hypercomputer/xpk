@@ -40,8 +40,7 @@ STORAGE_CRD_PLURAL = "storages"
 STORAGE_CRD_NAME = f"{XPK_API_GROUP_NAME}.{STORAGE_CRD_PLURAL}"
 GCS_FUSE_TYPE = "gcsfuse"
 GCP_FILESTORE_TYPE = "gcpfilestore"
-GCS_FUSE_ANNOTATION_KEY = "gke-gcsfuse/volumes"
-GCS_FUSE_ANNOTATION_VALUE = "true"
+GCS_FUSE_ANNOTATION = 'gke-gcsfuse/volumes: "true"'
 
 
 @dataclass

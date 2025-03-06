@@ -227,7 +227,7 @@ class FilestoreClient:
     data["metadata"]["name"] = get_pvc_name(name)
     data["spec"]["accessModes"] = [access_mode]
     data["spec"]["storageClassName"] = get_storage_class_name(name)
-    data["spec"]["spec"]["volumeName"] = get_pv_name(name)
+    data["spec"]["volumeName"] = get_pv_name(name)
     data["spec"]["resources"]["requests"]["storage"] = (
         self.instance.file_shares[0].capacity_gb
     )

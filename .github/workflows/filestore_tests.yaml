@@ -86,11 +86,8 @@ jobs:
       run: xpk --help
     - name: Authenticate Docker
       run: gcloud auth configure-docker --quiet
-    - name: Fill Filestore manifest file
-      run: |
-        sed -i 's/PROJECT_NAME/${{secrets.PROJECT_NAME}}/g;  s/ZONE/${{inputs.zone}}/g; s/INSTANCE_NAME/${{secrets.INSTANCE_NAME}}/g; s/VOL_NAME/${{secrets.VOL_NAME}}/g; s/IP_ADDRESS/${{secrets.IP_ADDRESS}}/g' ./tests/data/fs-manifest.yaml
     - name: Attach auto-mount GCP Filestore Storage instance
-      run: python3 xpk.py storage attach $FS_STORAGE_NAME --cluster=${{inputs.cluster-name}} --zone=${{inputs.zone}} --type=gcpfilestore --auto-mount=true --mount-point='/fs-test-mount-point' --readonly=false 
+      run: python3 xpk.py storage attach $FS_STORAGE_NAME --cluster=${{inputs.cluster-name}} --zone=${{inputs.zone}} --type=gcpfilestore --auto-mount=true --mount-point='/fs-test-mount-point' --readonly=false --vol=${{secrets.VOL_NAME}} --instance=${{secrets.INSTANCE_NAME}}
     - name: List and verify existing Storages
       run: python3 xpk.py storage list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} | tee output.txt | grep $FS_STORAGE_NAME || (echo 'No storage found' && exit 143)
     - name: Verify VolumeBundle created

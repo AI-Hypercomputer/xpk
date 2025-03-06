@@ -68,7 +68,7 @@ def storage_create(args: Namespace) -> None:
         vol=args.vol, size=args.size, tier=args.tier, network=filestore_network
     )
     manifest = filestore_client.manifest(
-        args.vol, args.access_mode, filestore_network
+        args.name, args.vol, args.access_mode, filestore_network
     )
 
     k8s_api_client = setup_k8s_env(args)
@@ -86,17 +86,20 @@ def storage_create(args: Namespace) -> None:
 def storage_attach(args: Namespace) -> None:
   add_zone_and_project(args)
   if args.type == GCP_FILESTORE_TYPE:
-    filestore_client = FilestoreClient(args.zone, args.name, args.project)
+    if args.instance is None:
+      args.instance = args.name
+
+    filestore_client = FilestoreClient(args.zone, args.instance, args.project)
 
     filestore_exists = filestore_client.check_filestore_instance_exists()
     if not filestore_exists:
-      xpk_print(f"Filestore instance {args.name} does not exists.")
+      xpk_print(f"Filestore instance {args.instance} does not exists.")
       xpk_exit(1)
 
     filestore_client.load_instance()
     filestore_network = get_cluster_network(args)
     manifest = filestore_client.manifest(
-        args.vol, args.access_mode, filestore_network
+        args.name, args.vol, args.access_mode, filestore_network
     )
 
   else:  # args.type == GCS_FUSE_TYPE:

@@ -171,7 +171,7 @@ class FilestoreClient:
       xpk_exit(1)
     xpk_print(f"Filestore instance {self.get_parent()} created")
 
-  def create_sc(self, network: str) -> dict:
+  def create_sc(self, name: str, network: str) -> dict:
     """Create a yaml representing filestore StorageClass."""
     if self.instance is None:
       xpk_print(
@@ -181,14 +181,14 @@ class FilestoreClient:
     template_path = os.path.dirname(__file__) + FS_SC_PATH
     with open(template_path, "r", encoding="utf-8") as file:
       data: dict = yaml.load(file)
-    data["metadata"]["name"] = get_storage_class_name(self.name)
+    data["metadata"]["name"] = get_storage_class_name(name)
     data["parameters"]["tier"] = self.instance.tier
     data["parameters"][
         "network"
     ] = f"projects/{self.project}/global/networks/{network}"
     return data
 
-  def create_pv(self, vol: str, access_mode: str) -> dict:
+  def create_pv(self, name: str, vol: str, access_mode: str) -> dict:
     """Create a yaml representing filestore PersistentVolume."""
     if self.instance is None:
       xpk_print(
@@ -199,8 +199,8 @@ class FilestoreClient:
     with open(template_path, "r", encoding="utf-8") as file:
       data: dict = yaml.load(file)
 
-    data["metadata"]["name"] = get_pv_name(self.name)
-    data["spec"]["storageClassName"] = get_storage_class_name(self.name)
+    data["metadata"]["name"] = get_pv_name(name)
+    data["spec"]["storageClassName"] = get_storage_class_name(name)
     data["spec"]["capacity"]["storage"] = self.instance.file_shares[
         0
     ].capacity_gb
@@ -214,7 +214,7 @@ class FilestoreClient:
     data["spec"]["csi"]["volumeAttributes"]["volume"] = vol
     return data
 
-  def create_pvc(self, access_mode: str) -> dict:
+  def create_pvc(self, name: str, access_mode: str) -> dict:
     """Create a yaml representing filestore PersistentVolumeClaim."""
     if self.instance is None:
       xpk_print(
@@ -224,19 +224,21 @@ class FilestoreClient:
     template_path = os.path.dirname(__file__) + FS_PVC_PATH
     with open(template_path, "r", encoding="utf-8") as file:
       data: dict = yaml.load(file)
-    data["metadata"]["name"] = get_pvc_name(self.name)
+    data["metadata"]["name"] = get_pvc_name(name)
     data["spec"]["accessModes"] = [access_mode]
-    data["spec"]["storageClassName"] = get_storage_class_name(self.name)
-    data["spec"]["spec"]["volumeName"] = get_pv_name(self.name)
+    data["spec"]["storageClassName"] = get_storage_class_name(name)
+    data["spec"]["spec"]["volumeName"] = get_pv_name(name)
     data["spec"]["resources"]["requests"]["storage"] = (
         self.instance.file_shares[0].capacity_gb
     )
     return data
 
-  def manifest(self, vol: str, access_mode: str, network: str) -> list[dict]:
-    pv = self.create_pv(vol, access_mode)
-    pvc = self.create_pvc(access_mode)
-    sc = self.create_sc(network)
+  def manifest(
+      self, name: str, vol: str, access_mode: str, network: str
+  ) -> list[dict]:
+    pv = self.create_pv(name, vol, access_mode)
+    pvc = self.create_pvc(name, access_mode)
+    sc = self.create_sc(name, network)
     return [pv, pvc, sc]
 
   def load_location(self) -> str:

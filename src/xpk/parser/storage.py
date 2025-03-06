@@ -132,6 +132,14 @@ def add_storage_attach_parser(
       ),
       default='ReadWriteMany',
   )
+  gcpfilestore_args.add_argument(
+      '--instance',
+      type=str,
+      help=(
+          '(optional) Name of the filestore instance. If not set, then the'
+          ' "name" parameter is infered as an instance name.'
+      ),
+  )
 
   opt_args = storage_attach_parser.add_argument_group(
       'Optional Arguments',

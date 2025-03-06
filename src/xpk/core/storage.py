@@ -23,13 +23,14 @@ from google.cloud import storage as gcp_storage
 from kubernetes import client as k8s_client
 from kubernetes import utils
 from kubernetes.client import ApiClient
-from kubernetes.client.rest import ApiException
 from kubernetes.client.models.v1_persistent_volume import V1PersistentVolume
+from kubernetes.client.rest import ApiException
 from kubernetes.utils import FailToCreateError
 from tabulate import tabulate
 
-from .config import XPK_SA
 from ..utils.console import xpk_exit, xpk_print
+from ..utils.file import ensure_directory_exists
+from .config import XPK_SA
 
 STORAGE_CRD_PATH = "/../api/storage_crd.yaml"
 STORAGE_TEMPLATE_PATH = "/../templates/storage.yaml"
@@ -40,6 +41,7 @@ STORAGE_CRD_PLURAL = STORAGE_CRD_KIND.lower() + "s"
 STORAGE_CRD_NAME = f"{XPK_API_GROUP_NAME}.{STORAGE_CRD_PLURAL}"
 GCS_FUSE_TYPE = "gcsfuse"
 GCP_FILESTORE_TYPE = "gcpfilestore"
+MANIFESTS_PATH = os.path.abspath("xpkclusters/storage-manifests")
 
 
 @dataclass
@@ -474,7 +476,9 @@ def print_storages_for_cluster(storages: list[Storage]) -> None:
   )
 
 
-def create_storage_crds(k8s_api_client: ApiClient, args: Namespace) -> None:
+def create_storage_crds(
+    k8s_api_client: ApiClient, args: Namespace, manifest: list[dict]
+) -> None:
   """
   Creates a new Storage custom resource in the Kubernetes cluster.
 
@@ -487,28 +491,31 @@ def create_storage_crds(k8s_api_client: ApiClient, args: Namespace) -> None:
       args: An argparse Namespace object containing the arguments for creating
             the Storage resource.
   """
-  abs_path = f"{os.path.dirname(__file__)}{STORAGE_TEMPLATE_PATH}"
-  with open(abs_path, "r", encoding="utf-8") as file:
+  template_path = os.path.dirname(__file__) + STORAGE_TEMPLATE_PATH
+  with open(template_path, "r", encoding="utf-8") as file:
     data = yaml.safe_load(file)
 
+  ensure_directory_exists(MANIFESTS_PATH)
+  manifest_file_path = (
+      f"{MANIFESTS_PATH}/{args.cluster}-{args.zone}-{args.name}-manifest.yaml"
+  )
+  with open(manifest_file_path, "w", encoding="utf-8") as f:
+    yaml.safe_dump_all(manifest, f)
+
   data["metadata"]["name"] = args.name
-  spec = data["spec"]
-  spec["cluster"] = args.cluster
-  spec["type"] = args.type
-  spec["auto_mount"] = args.auto_mount
-  spec["mount_point"] = args.mount_point
-  spec["readonly"] = args.readonly
-  spec["manifest"] = args.manifest
+  data["spec"] = {
+      "auto_mount": args.auto_mount,
+      "cluster": args.cluster,
+      "mount_point": args.mount_point,
+      "readonly": args.readonly,
+      "type": args.type,
+  }
 
-  with open(args.manifest, "r", encoding="utf-8") as f:
-    pv_pvc_definitions = yaml.safe_load_all(f)
-    for obj in pv_pvc_definitions:
-      if obj["kind"] == "PersistentVolume":
-        spec["pv"] = obj["metadata"]["name"]
-      elif obj["kind"] == "PersistentVolumeClaim":
-        spec["pvc"] = obj["metadata"]["name"]
-
-  data["spec"] = spec
+  for obj in manifest:
+    if obj["kind"] == "PersistentVolume":
+      data["spec"]["pv"] = obj["metadata"]["name"]
+    elif obj["kind"] == "PersistentVolumeClaim":
+      data["spec"]["pvc"] = obj["metadata"]["name"]
 
   api_instance = k8s_client.CustomObjectsApi(k8s_api_client)
   try:

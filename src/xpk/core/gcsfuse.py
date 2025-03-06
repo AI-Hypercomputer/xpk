@@ -45,7 +45,7 @@ def create_pvc(name: str, size: int) -> dict:
   return data
 
 
-def manifest(path: str, name: str, bucket: str, size: int) -> None:
+def manifest(name: str, bucket: str, size: int) -> list[dict]:
   """Creates GCS FUSE manifest file.
 
   Args:
@@ -56,7 +56,4 @@ def manifest(path: str, name: str, bucket: str, size: int) -> None:
   """
   pv = create_pv(name, size, bucket)
   pvc = create_pvc(name, size)
-  with open(path, "w", encoding="utf-8") as f:
-    yaml.dump(pv, f)
-    f.write(yaml_object_separator)
-    yaml.dump(pvc, f)
+  return [pv, pvc]

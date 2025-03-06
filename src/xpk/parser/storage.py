@@ -16,11 +16,16 @@ limitations under the License.
 
 import argparse
 
-from ..commands.storage import storage_attach, storage_delete, storage_list, storage_create
+from ..commands.storage import (
+    storage_attach,
+    storage_create,
+    storage_delete,
+    storage_list,
+)
 from .common import (
-    add_shared_arguments,
     add_cluster_arguments,
     add_kind_cluster_arguments,
+    add_shared_arguments,
 )
 
 
@@ -89,18 +94,8 @@ def add_storage_attach_parser(
       help='If true workloads can only read from storage',
   )
 
-  optional_args = storage_attach_parser.add_argument_group('Optional arguments')
-  optional_args.add_argument(
-      '--manifest',
-      type=str,
-      help=(
-          'Path to the manifest file which contains PersistentVolume and'
-          ' PersistentVolumeClaim definitions'
-      ),
-  )
-
   gcsfuse_args = storage_attach_parser.add_argument_group(
-      'GCS FUSE arguments',
+      'FUSE arguments',
       'Arguments used when --type=gcsfuse',
   )
   gcsfuse_args.add_argument(
@@ -113,8 +108,29 @@ def add_storage_attach_parser(
       type=str,
       help=(
           '(optional) Name of the bucket. If not set, then the "name" parameter'
-          ' is used as a bucket name.'
+          ' is infered as a bucket name.'
       ),
+  )
+
+  gcpfilestore_args = storage_attach_parser.add_argument_group(
+      'Filestore arguments',
+      'Arguments used when --type=gcpfilestore',
+  )
+  gcpfilestore_args.add_argument(
+      '--vol',
+      type=str,
+      help='(optional) The name of the volume to create. Default: "default"',
+      default='default',
+  )
+  gcpfilestore_args.add_argument(
+      '--access-mode',
+      type=str,
+      choices=['ReadWriteOnce', 'ReadOnlyMany', 'ReadWriteMany'],
+      help=(
+          '(optional) Access mode of created filestore instance. Default:'
+          ' "ReadWriteMany"'
+      ),
+      default='ReadWriteMany',
   )
 
   opt_args = storage_attach_parser.add_argument_group(

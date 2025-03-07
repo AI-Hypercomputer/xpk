@@ -20,7 +20,7 @@ import sys
 from ruamel.yaml import YAML
 
 from ..core.commands import run_command_for_value, run_command_with_updates
-from ..core.core import add_zone_and_project, get_cluster_credentials
+from ..core.cluster import get_cluster_credentials
 from ..core.gcloud_context import add_zone_and_project
 from ..core.kjob import AppProfileDefaults
 from ..utils.console import xpk_exit, xpk_print

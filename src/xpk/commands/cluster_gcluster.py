@@ -14,36 +14,29 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..core.blueprint.blueprint_generator import BlueprintGenerator, BlueprintGeneratorOutput, supported_device_types, a3mega_device_type, a3ultra_device_type, a4_device_type
-from ..core.docker_manager import DockerManager
-from ..core.gcluster_manager import GclusterManager
-from ..core.core import zone_to_region, get_capacity_type, get_cluster_credentials
-from ..utils.console import xpk_exit, xpk_print
-from ..utils.network import all_IPs_cidr
-from ..utils.file import ensure_directory_exists
-from ..utils.objects import hash_string
 import os
 
-from ..core.remote_state.remote_state_client import RemoteStateClient
-from ..core.remote_state.fuse_remote_state import FuseStateClient
 from ..core.blueprint.blueprint_generator import (
     BlueprintGenerator,
     BlueprintGeneratorOutput,
     a3mega_device_type,
     a3ultra_device_type,
+    a4_device_type,
     supported_device_types,
 )
-from ..core.commands import run_command_for_value
 from ..core.capacity import get_capacity_type
+from ..core.cluster import get_cluster_credentials
+from ..core.commands import run_command_for_value
 from ..core.docker_manager import DockerManager
 from ..core.gcloud_context import zone_to_region
 from ..core.gcluster_manager import GclusterManager
+from ..core.kjob import apply_kjob_crds, prepare_kjob
+from ..core.remote_state.fuse_remote_state import FuseStateClient
+from ..core.remote_state.remote_state_client import RemoteStateClient
 from ..utils.console import xpk_exit, xpk_print
 from ..utils.file import ensure_directory_exists
 from ..utils.network import all_IPs_cidr
 from ..utils.objects import hash_string
-from ..core.cluster import get_cluster_credentials
-from ..core.kjob import apply_kjob_crds, prepare_kjob
 
 blueprints_path = os.path.abspath('xpkclusters/blueprints')
 gcluster_working_dir = os.path.abspath('xpkclusters/gcluster-out')

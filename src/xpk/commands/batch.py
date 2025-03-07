@@ -17,7 +17,7 @@ limitations under the License.
 import re
 from argparse import Namespace
 
-from ..core.cluster import create_k8s_service_account, setup_k8s_env
+from ..core.cluster import create_k8s_service_account, setup_k8s_env, get_cluster_credentials
 from ..core.commands import run_command_for_value
 from ..core.config import (
     DEFAULT_NAMESPACE,
@@ -25,7 +25,6 @@ from ..core.config import (
     GCS_FUSE_ANNOTATION_VALUE,
     XPK_SA,
 )
-from ..core.core import add_zone_and_project, get_cluster_credentials
 from ..core.gcloud_context import add_zone_and_project
 from ..core.kjob import AppProfileDefaults, Kueue_TAS_annotation, prepare_kjob
 from ..core.kueue import LOCAL_QUEUE_NAME

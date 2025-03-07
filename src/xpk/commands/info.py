@@ -20,7 +20,7 @@ from argparse import Namespace
 from tabulate import tabulate
 
 from ..core.commands import run_command_for_value
-from ..core.core import add_zone_and_project, get_cluster_credentials
+from ..core.cluster import get_cluster_credentials
 from ..core.gcloud_context import add_zone_and_project
 from ..core.kueue import verify_kueuectl
 from ..utils.console import xpk_exit, xpk_print

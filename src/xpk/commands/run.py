@@ -17,8 +17,8 @@ limitations under the License.
 from argparse import Namespace
 
 from ..core.commands import run_command_with_full_controls
-from ..core.core import add_zone_and_project, get_cluster_credentials
 from ..core.gcloud_context import add_zone_and_project
+from ..core.cluster import get_cluster_credentials
 from ..core.kjob import AppProfileDefaults, Kueue_TAS_annotation, prepare_kjob
 from ..core.kueue import LOCAL_QUEUE_NAME
 from ..utils.console import xpk_exit, xpk_print

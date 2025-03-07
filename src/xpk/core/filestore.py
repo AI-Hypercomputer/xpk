@@ -173,11 +173,6 @@ class FilestoreClient:
 
   def create_sc(self, name: str, network: str) -> dict:
     """Create a yaml representing filestore StorageClass."""
-    if self.instance is None:
-      xpk_print(
-          f"Filestore instance {self.name} does not exist or was not loaded."
-      )
-      xpk_exit(1)
     template_path = os.path.dirname(__file__) + FS_SC_PATH
     with open(template_path, "r", encoding="utf-8") as file:
       data: dict = yaml.load(file)
@@ -190,11 +185,6 @@ class FilestoreClient:
 
   def create_pv(self, name: str, vol: str, access_mode: str) -> dict:
     """Create a yaml representing filestore PersistentVolume."""
-    if self.instance is None:
-      xpk_print(
-          f"Filestore instance {self.name} does not exist or was not loaded."
-      )
-      xpk_exit(1)
     template_path = os.path.dirname(__file__) + FS_PV_PATH
     with open(template_path, "r", encoding="utf-8") as file:
       data: dict = yaml.load(file)
@@ -216,11 +206,6 @@ class FilestoreClient:
 
   def create_pvc(self, name: str, access_mode: str) -> dict:
     """Create a yaml representing filestore PersistentVolumeClaim."""
-    if self.instance is None:
-      xpk_print(
-          f"Filestore instance {self.name} does not exist or was not loaded."
-      )
-      xpk_exit(1)
     template_path = os.path.dirname(__file__) + FS_PVC_PATH
     with open(template_path, "r", encoding="utf-8") as file:
       data: dict = yaml.load(file)

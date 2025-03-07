@@ -18,7 +18,7 @@ import os
 from argparse import Namespace
 from dataclasses import dataclass
 
-import yaml
+import ruamel.yaml
 from google.cloud import storage as gcp_storage
 from kubernetes import client as k8s_client
 from kubernetes import utils
@@ -31,6 +31,9 @@ from tabulate import tabulate
 from ..utils.console import xpk_exit, xpk_print
 from ..utils.file import ensure_directory_exists
 from .config import XPK_SA
+
+
+yaml = ruamel.yaml.YAML()
 
 STORAGE_CRD_PATH = "/../api/storage_crd.yaml"
 STORAGE_TEMPLATE_PATH = "/../templates/storage.yaml"
@@ -493,14 +496,14 @@ def create_storage_crds(
   """
   template_path = os.path.dirname(__file__) + STORAGE_TEMPLATE_PATH
   with open(template_path, "r", encoding="utf-8") as file:
-    data = yaml.safe_load(file)
+    data = yaml.load(file)
 
   ensure_directory_exists(MANIFESTS_PATH)
   manifest_file_path = (
       f"{MANIFESTS_PATH}/{args.cluster}-{args.zone}-{args.name}-manifest.yaml"
   )
   with open(manifest_file_path, "w", encoding="utf-8") as f:
-    yaml.safe_dump_all(manifest, f)
+    yaml.dump_all(manifest, f)
 
   data["metadata"]["name"] = args.name
   data["spec"] = {
@@ -509,6 +512,7 @@ def create_storage_crds(
       "mount_point": args.mount_point,
       "readonly": args.readonly,
       "type": args.type,
+      "manifest": manifest_file_path,
   }
 
   for obj in manifest:

@@ -73,7 +73,9 @@ def storage_create(args: Namespace) -> None:
 
     k8s_api_client = setup_k8s_env(args)
     create_storage_crds(k8s_api_client, args, manifest)
-    create_volume_bundle_instance(k8s_api_client, args)
+    create_volume_bundle_instance(
+        k8s_api_client, args.name, manifest, args.readonly, args.mount_point
+    )
     return_code = update_cluster_with_workload_identity_if_necessary(args)
     if return_code > 0:
       xpk_exit(return_code)
@@ -116,7 +118,9 @@ def storage_attach(args: Namespace) -> None:
 
   k8s_api_client = setup_k8s_env(args)
   create_storage_crds(k8s_api_client, args, manifest)
-  create_volume_bundle_instance(k8s_api_client, args)
+  create_volume_bundle_instance(
+      k8s_api_client, args.name, manifest, args.readonly, args.mount_point
+  )
   return_code = update_cluster_with_workload_identity_if_necessary(args)
   if return_code > 0:
     xpk_exit(return_code)

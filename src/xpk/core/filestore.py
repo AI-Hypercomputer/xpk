@@ -182,7 +182,7 @@ class FilestoreClient:
     with open(template_path, "r", encoding="utf-8") as file:
       data: dict = yaml.load(file)
     data["metadata"]["name"] = get_storage_class_name(name)
-    data["parameters"]["tier"] = self.instance.tier
+    data["parameters"]["tier"] = self.instance.tier.name
     data["parameters"][
         "network"
     ] = f"projects/{self.project}/global/networks/{network}"

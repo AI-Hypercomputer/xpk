@@ -14,41 +14,29 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..core.commands import (
-    run_command_with_updates,
-    run_commands,
-)
-from ..core.core import (
-    CLUSTER_METADATA_CONFIGMAP,
-    GCS_FUSE_ANNOTATION,
-    VERTEX_TENSORBOARD_FEATURE_FLAG,
-    AcceleratorTypeToAcceleratorCharacteristics,
-    add_zone_and_project,
-    check_if_workload_can_schedule,
-    check_if_workload_exists,
-    create_accelerator_label,
+from ..core.cluster import (
     create_k8s_service_account,
-    create_machine_label,
-    create_vertex_experiment,
-    get_cluster_configmap,
     get_cluster_credentials,
-    get_cpu_affinity,
-    get_gke_outlier_dashboard,
-    get_gpu_rxdm_cmd,
-    get_gpu_rxdm_image,
-    get_gpu_scheduler,
-    get_gpu_tcp_volume,
-    get_gpu_volume,
+    setup_k8s_env,
+)
+from ..core.commands import run_command_with_updates, run_commands
+from ..core.config import (
+    GCS_FUSE_ANNOTATION_KEY,
+    GCS_FUSE_ANNOTATION_VALUE,
+    VERTEX_TENSORBOARD_FEATURE_FLAG,
+    XPK_CURRENT_VERSION,
+    parse_env_config,
+    XPK_SA,
+    DEFAULT_NAMESPACE,
+)
+from ..core.docker_container import (
     get_main_container_docker_image,
     get_user_workload_container,
-    get_volumes,
-    parse_env_config,
-    setup_k8s_env,
-    wait_for_job_completion,
-    xpk_current_version,
-    zone_to_region,
 )
+from ..core.docker_resources import get_volumes
+from ..core.gcloud_context import add_zone_and_project
 from ..core.kueue import LOCAL_QUEUE_NAME
+from ..core.monitoring import get_gke_outlier_dashboard
 from ..core.nap import (
     get_autoprovisioning_node_selector_args,
     is_autoprovisioning_enabled,
@@ -62,28 +50,47 @@ from ..core.pathways import (
     get_pathways_worker_args,
     get_user_workload_for_pathways,
 )
+from ..core.resources import CLUSTER_METADATA_CONFIGMAP, get_cluster_configmap
+from ..core.scheduling import (
+    check_if_workload_can_schedule,
+    create_accelerator_label,
+    create_machine_label,
+    get_cpu_affinity,
+    get_gpu_scheduler,
+)
 from ..core.storage import (
     GCS_FUSE_TYPE,
-    XPK_SA,
+    GCP_FILESTORE_TYPE,
     Storage,
     add_bucket_iam_members,
     get_storage_volume_mounts_yaml,
-    get_storage_volume_mounts_yaml_for_gpu,
     get_storage_volumes_yaml,
-    get_storage_volumes_yaml_for_gpu,
     get_storages_to_mount,
+    get_storage_volume_mounts_yaml_for_gpu,
+    get_storage_volumes_yaml_for_gpu,
 )
 from ..core.system_characteristics import (
     AcceleratorType,
+    AcceleratorTypeToAcceleratorCharacteristics,
     get_system_characteristics,
 )
-from ..core.workload import get_workload_list
+from ..core.vertex import create_vertex_experiment
+from ..core.workload import (
+    check_if_workload_exists,
+    get_gpu_rxdm_cmd,
+    get_gpu_rxdm_image,
+    get_gpu_tcp_volume,
+    get_gpu_volume,
+    get_workload_list,
+    wait_for_job_completion,
+    zone_to_region,
+)
+from ..core.workload_decorators import rdma_decorator, tcpxo_decorator, storage_decorator
 from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
-from ..core.workload_decorators import tcpxo_decorator, rdma_decorator
 from . import cluster_gcluster
 
-workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
+WORKLOAD_CREATE_YAML = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
 metadata:
   name: {args.workload}
@@ -132,7 +139,7 @@ spec:
 """
 
 
-gpu_workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
+GPU_WORKLOAD_CREATE_YAML = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
 metadata:
   name: {args.workload}
@@ -199,7 +206,7 @@ spec:
               {container}
 """
 
-a3_gpu_workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
+A3_GPU_WORKLOAD_CREATE_YAML = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
 metadata:
   name: {args.workload}
@@ -239,7 +246,7 @@ spec:
               {container}
 """
 
-pw_workload_create_yaml = """apiVersion: jobset.x-k8s.io/v1alpha2
+PW_WORKLOAD_CREATE_YAML = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
 metadata:
   name: {args.workload}
@@ -294,6 +301,44 @@ spec:
                 - mountPath: /tmp
                   name: shared-tmp
                 {storage_volume_mounts}
+                env:
+                  - name: PROJECT_ID
+                    value: {args.project}
+                  - name: LOCATION
+                    value: {args.zone}
+                  - name: CLUSTER_NAME
+                    value: {args.cluster}
+                  - name: POD_NAME
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.name
+                  - name: CONTAINER_NAME
+                    value: "pathways-worker"
+                  - name: NAMESPACE
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.namespace
+                  # Workaround for v6e
+                  - name: MEGASCALE_GRPC_ENABLE_XOR_TRACER
+                    value: "false"
+                  - name: MEGASCALE_NUM_SLICES
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: "metadata.labels['jobset.sigs.k8s.io/replicatedjob-replicas']"
+                  - name: JOBSET_NAME
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.annotations['jobset.sigs.k8s.io/jobset-name']
+                  - name: REPLICATED_JOB_NAME
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.annotations['jobset.sigs.k8s.io/replicatedjob-name']
+                  - name: MEGASCALE_SLICE_ID
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: "metadata.labels['jobset.sigs.k8s.io/job-index']"
+                  - name: MEGASCALE_COORDINATOR_ADDRESS
+                    value: "$(JOBSET_NAME)-$(REPLICATED_JOB_NAME)-$(MEGASCALE_SLICE_ID)-0.$(JOBSET_NAME)"
               {pathways_sidecar_container}
               nodeSelector:
                 {accelerator_label}
@@ -324,6 +369,22 @@ spec:
               - args:
                 {pathways_rm_args}
                 env:
+                - name: PROJECT_ID
+                  value: {args.project}
+                - name: LOCATION
+                  value: {args.zone}
+                - name: CLUSTER_NAME
+                  value: {args.cluster}
+                - name: POD_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
+                - name: CONTAINER_NAME
+                  value: "pathways-rm"
+                - name: NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
                 - name: REPLICATED_JOB_NAME
                   valueFrom:
                     fieldRef:
@@ -370,6 +431,23 @@ spec:
               containers:
               - args:
                 {pathways_proxy_args}
+                env:
+                - name: PROJECT_ID
+                  value: {args.project}
+                - name: LOCATION
+                  value: {args.zone}
+                - name: CLUSTER_NAME
+                  value: {args.cluster}
+                - name: POD_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
+                - name: CONTAINER_NAME
+                  value: "pathways-proxy"
+                - name: NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
                 image: {args.proxy_server_image}
                 imagePullPolicy: Always
                 name: pathways-proxy
@@ -393,6 +471,13 @@ def workload_create_pathways(args) -> None:
     0 if successful and 1 otherwise.
   """
   args.use_pathways = True
+  if args.headless:
+    xpk_print(
+        'Please use kubectl port forwarding to connect to the Pathways proxy.'
+        ' kubectl get pods kubectl port-forward <proxy-pod-name> 29000:29000'
+        ' JAX_PLATFORMS=proxy JAX_BACKEND_TARGET=grpc://127.0.0.1:29000 python'
+        " -c 'import pathwaysutils; import jax; print(jax.devices())'"
+    )
   workload_create(args)
 
 
@@ -406,15 +491,7 @@ def workload_create(args) -> None:
     0 if successful and 1 otherwise.
   """
   k8s_api_client = setup_k8s_env(args)
-  create_k8s_service_account(XPK_SA, 'default')
-
-  if args.headless:
-    xpk_print(
-        'Please use kubectl port forwarding to connect to the Pathways proxy.'
-        ' kubectl get pods kubectl port-forward <proxy-pod-name> 29000:29000'
-        ' JAX_PLATFORMS=proxy JAX_BACKEND_TARGET=grpc://127.0.0.1:29000 python'
-        " -c 'import pathwaysutils; import jax; print(jax.devices())'"
-    )
+  create_k8s_service_account(XPK_SA, DEFAULT_NAMESPACE)
 
   workload_exists = check_if_workload_exists(args)
 
@@ -450,12 +527,12 @@ def workload_create(args) -> None:
     cluster_xpk_version = cluster_config_map.get('xpk_version')
   if (
       cluster_xpk_version is not None
-      and cluster_xpk_version != xpk_current_version
+      and cluster_xpk_version != XPK_CURRENT_VERSION
   ):
     xpk_print(
         'Warning: Cluster has been created using XPK version:'
         f' {cluster_config_map["xpk_version"]} but the XPK version you are'
-        f' using to schedule workload is: {xpk_current_version}. Some features'
+        f' using to schedule workload is: {XPK_CURRENT_VERSION}. Some features'
         ' might not be available for this cluster. We recommend to'
         ' upgrade/downgrade your XPK version or cluster by running `xpk'
         ' cluster create`.'
@@ -491,10 +568,15 @@ def workload_create(args) -> None:
   gcs_fuse_storages = list(
       filter(lambda storage: storage.type == GCS_FUSE_TYPE, storages)
   )
+  gcpfilestore_storages: list[Storage] = list(
+      filter(lambda storage: storage.type == GCP_FILESTORE_TYPE, storages)
+  )
   storage_annotations = ''
   service_account = ''
   if len(gcs_fuse_storages) > 0:
-    storage_annotations = GCS_FUSE_ANNOTATION
+    storage_annotations = (
+        f'{GCS_FUSE_ANNOTATION_KEY}: "{GCS_FUSE_ANNOTATION_VALUE}"'
+    )
     service_account = XPK_SA
     xpk_print(f'Detected gcsfuse Storages to add: {gcs_fuse_storages}')
   else:
@@ -514,6 +596,14 @@ def workload_create(args) -> None:
                 operator: NotIn
                 values: [{restart_on_exit_codes}]"""
 
+  if len(gcpfilestore_storages) > 0:
+    xpk_print(
+        f'Detected gcp filestores instances to add: {gcpfilestore_storages}'
+    )
+    service_account = XPK_SA
+  else:
+    xpk_print('No gcp filestore instances to add detected.')
+  all_storages = gcs_fuse_storages + gcpfilestore_storages
   # Create the workload file based on accelerator type or workload type.
   if system.accelerator_type == AcceleratorType['GPU']:
     container, debugging_dashboard_id = get_user_workload_container(
@@ -526,7 +616,7 @@ def workload_create(args) -> None:
       xpk_exit(return_code)
 
     if system.device_type in cluster_gcluster.supported_device_types:
-      yml_string = a3_gpu_workload_create_yaml.format(
+      yml_string = A3_GPU_WORKLOAD_CREATE_YAML.format(
           args=args,
           container=container,
           service_account=XPK_SA,
@@ -537,10 +627,6 @@ def workload_create(args) -> None:
       if args.device_type == cluster_gcluster.a3mega_device_type:
         sub_networks = [f'{args.cluster}-gpunet-{i}-subnet' for i in range(8)]
         yml_string = tcpxo_decorator.decorate_jobset(yml_string, sub_networks)
-        if len(gcs_fuse_storages) > 0:
-          yml_string = tcpxo_decorator.decorate_jobset_with_storages(
-              yml_string, gcs_fuse_storages
-          )
 
       if args.device_type in (
           cluster_gcluster.a3ultra_device_type,
@@ -550,12 +636,11 @@ def workload_create(args) -> None:
             f'{args.cluster}-rdma-sub-{i}' for i in range(8)
         ]
         yml_string = rdma_decorator.decorate_jobset(yml_string, sub_networks)
-        if len(gcs_fuse_storages) > 0:
-          yml_string = rdma_decorator.decorate_jobset_with_storages(
-              yml_string, gcs_fuse_storages
-          )
+
+      if len(gcs_fuse_storages) + len(gcpfilestore_storages) > 0:
+        yml_string = storage_decorator.decorate_jobset(yml_string, all_storages)
     else:
-      yml_string = gpu_workload_create_yaml.format(
+      yml_string = GPU_WORKLOAD_CREATE_YAML.format(
           args=args,
           container=container,
           command=args.command,
@@ -565,9 +650,9 @@ def workload_create(args) -> None:
           gpu_rxdm_image=get_gpu_rxdm_image(system),
           gpu_rxdm_cmd=get_gpu_rxdm_cmd(system),
           gpu_tcp_volume=get_gpu_tcp_volume(system),
-          storage_volumes=get_storage_volumes_yaml_for_gpu(gcs_fuse_storages),
+          storage_volumes=get_storage_volumes_yaml_for_gpu(all_storages),
           storage_volume_mounts=get_storage_volume_mounts_yaml_for_gpu(
-              gcs_fuse_storages
+              all_storages
           ),
           storage_annotations=storage_annotations,
           service_account=service_account,
@@ -578,7 +663,7 @@ def workload_create(args) -> None:
   elif args.use_pathways and ensure_pathways_workload_prerequisites(
       args, system
   ):
-    yml_string = pw_workload_create_yaml.format(
+    yml_string = PW_WORKLOAD_CREATE_YAML.format(
         args=args,
         system=system,
         accelerator_label=create_accelerator_label(
@@ -598,9 +683,9 @@ def workload_create(args) -> None:
         autoprovisioning_args=autoprovisioning_args,
         backoff_limit=system.vms_per_slice * 4,
         storage_annotations=storage_annotations,
-        storage_volumes=get_storage_volumes_yaml(gcs_fuse_storages),
+        storage_volumes=get_storage_volumes_yaml(all_storages),
+        storage_volume_mounts=get_storage_volume_mounts_yaml(all_storages),
         pathways_rm_args=get_pathways_rm_args(args, system),
-        storage_volume_mounts=get_storage_volume_mounts_yaml(gcs_fuse_storages),
         service_account=service_account,
         failure_policy_rules=failure_policy_rules,
         pod_failure_policy=pod_failure_policy,
@@ -609,7 +694,7 @@ def workload_create(args) -> None:
     container, debugging_dashboard_id = get_user_workload_container(
         args, system
     )
-    yml_string = workload_create_yaml.format(
+    yml_string = WORKLOAD_CREATE_YAML.format(
         args=args,
         system=system,
         container=container,
@@ -635,7 +720,6 @@ def workload_create(args) -> None:
     xpk_exit(return_code)
 
   add_bucket_iam_members(args, storages)
-
   # Get GKE outlier dashboard for TPU
   outlier_dashboard_id = None
   if system.accelerator_type == AcceleratorType['TPU']:
@@ -663,10 +747,16 @@ def workload_create(args) -> None:
   if args.use_pathways:
     if args.headless:
       xpk_print(
-          ' \n ******* Please connect to your Pathways proxy at'
-          f' {args.pathways_proxy_address}, once you see "IFRT proxy server'
-          ' started with status OK" on the proxy link below.'
-          ' Remember to delete the workload once done! ****** \n'
+          '******* Please use kubectl port forwarding to connect to the'
+          ' Pathways proxy, once you see "IFRT proxy server started with status'
+          ' OK" on the proxy link below. Remember to delete the workload once'
+          ' done! ******* '
+      )
+      xpk_print(
+          'Steps to connect to the proxy: kubectl get pods | grep proxy ;'
+          ' kubectl port-forward <proxy-pod-name> 29000:29000; '
+          ' JAX_PLATFORMS=proxy; JAX_BACKEND_TARGET=grpc://127.0.0.1:29000;'
+          " python -c 'import pathwaysutils; import jax; print(jax.devices())'"
       )
       pathways_proxy_link = f'https://console.cloud.google.com/kubernetes/job/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}-proxy-0/details?project={args.project}'
       xpk_print(
@@ -711,7 +801,8 @@ def get_restart_exit_codes(args) -> list:
       else:
         exit_codes.append(int(item))
 
-  return exit_codes
+  # Remove duplicates that the user may have added.
+  return list(set(exit_codes))
 
 
 def workload_delete(args) -> None:

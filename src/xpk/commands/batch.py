@@ -14,13 +14,23 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import re
 from argparse import Namespace
 
-from ..core.kueue import LOCAL_QUEUE_NAME
-from ..utils.console import xpk_exit, xpk_print
-from ..core.core import add_zone_and_project, get_cluster_credentials
-from ..core.kjob import AppProfileDefaults
+from ..core.cluster import create_k8s_service_account, setup_k8s_env
 from ..core.commands import run_command_for_value
+from ..core.config import (
+    DEFAULT_NAMESPACE,
+    GCS_FUSE_ANNOTATION_KEY,
+    GCS_FUSE_ANNOTATION_VALUE,
+    XPK_SA,
+)
+from ..core.core import add_zone_and_project, get_cluster_credentials
+from ..core.gcloud_context import add_zone_and_project
+from ..core.kjob import AppProfileDefaults, Kueue_TAS_annotation, prepare_kjob
+from ..core.kueue import LOCAL_QUEUE_NAME
+from ..core.storage import get_auto_mount_gcsfuse_storages
+from ..utils.console import xpk_exit, xpk_print
 from .kind import set_local_cluster_command
 
 
@@ -40,15 +50,31 @@ def batch(args: Namespace) -> None:
     if set_cluster_command_code != 0:
       xpk_exit(set_cluster_command_code)
 
+  err_code = prepare_kjob(args)
+  if err_code > 0:
+    xpk_exit(err_code)
+
   submit_job(args)
 
 
 def submit_job(args: Namespace) -> None:
+  k8s_api_client = setup_k8s_env(args)
+  create_k8s_service_account(XPK_SA, DEFAULT_NAMESPACE)
+  gcs_fuse_storages = get_auto_mount_gcsfuse_storages(k8s_api_client)
+
   cmd = (
       'kubectl kjob create slurm'
       f' --profile {AppProfileDefaults.NAME.value}'
       f' --localqueue {LOCAL_QUEUE_NAME}'
+      f' --pod-template-annotation {Kueue_TAS_annotation}'
+      ' --first-node-ip'
   )
+
+  if len(gcs_fuse_storages) > 0:
+    cmd += (
+        ' --pod-template-annotation'
+        f' {GCS_FUSE_ANNOTATION_KEY}={GCS_FUSE_ANNOTATION_VALUE}'
+    )
 
   if args.ignore_unknown_flags:
     cmd += ' --ignore-unknown-flags'
@@ -100,8 +126,12 @@ def submit_job(args: Namespace) -> None:
   if args.time is not None:
     cmd += f' --time {args.time}'
 
-  return_code, _ = run_command_for_value(cmd, 'submit job', args)
+  return_code, return_value = run_command_for_value(cmd, 'submit job', args)
 
   if return_code != 0:
     xpk_print(f'Running batch job returned ERROR {return_code}')
     xpk_exit(return_code)
+
+  m = re.match(r'job\.batch/([-a-z0-9]+)', return_value)
+  if m:
+    xpk_print(f'Job name: {m.group(1)}')

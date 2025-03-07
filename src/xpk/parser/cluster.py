@@ -23,9 +23,11 @@ from ..commands.cluster import (
     cluster_describe,
     cluster_list,
 )
-from ..core.core import DEFAULT_VERTEX_TENSORBOARD_NAME
+from ..core.vertex import DEFAULT_VERTEX_TENSORBOARD_NAME
 from .common import add_shared_arguments
 from .validators import name_type
+from ..commands.config import xpk_cfg
+from ..core.config import CFG_BUCKET_KEY
 
 
 def set_cluster_parser(cluster_parser):
@@ -84,6 +86,13 @@ def set_cluster_parser(cluster_parser):
 
   ### Optional arguments specific to "cluster create"
   cluster_create_optional_arguments.add_argument(
+      '--cluster-state-gcs-bucket',
+      type=str,
+      default=xpk_cfg.get(CFG_BUCKET_KEY),
+      help='The name of the bucket to store cluster state.',
+      required=False,
+  )
+  cluster_create_optional_arguments.add_argument(
       '--num-nodes',
       type=int,
       default=2,
@@ -94,11 +103,10 @@ def set_cluster_parser(cluster_parser):
       '--enable-pathways',
       action='store_true',
       help=(
-          'DEPRECATING SOON!!! Please use `xpk cluster create-pathways`.'
-          ' Enable cluster to accept Pathways workloads.'
+          'Please use `xpk cluster create-pathways` instead to'
+          ' enable cluster to accept Pathways workloads.'
       ),
   )
-
   ### Autoprovisioning arguments specific to "cluster create"
   cluster_create_autoprovisioning_arguments = (
       cluster_create_parser.add_argument_group(
@@ -277,6 +285,13 @@ def set_cluster_parser(cluster_parser):
   )
 
   ### Optional Arguments
+  cluster_delete_optional_arguments.add_argument(
+      '--cluster-state-gcs-bucket',
+      type=str,
+      default=xpk_cfg.get(CFG_BUCKET_KEY),
+      help='The name of the bucket to store cluster state.',
+      required=False,
+  )
   add_shared_arguments(cluster_delete_optional_arguments)
   cluster_delete_parser.set_defaults(func=cluster_delete)
   cluster_delete_parser.add_argument(
@@ -563,6 +578,15 @@ def add_shared_cluster_create_optional_arguments(args_parsers):
             'Enable GSCFuse driver on the cluster. This enables Workload'
             ' Identity Federation. When using A3 ultra/A3 mega Workload'
             ' Identity is enabled by default.'
+        ),
+    )
+
+    custom_parser.add_argument(
+        '--enable-gcpfilestore-csi-driver',
+        action='store_true',
+        help=(
+            'Enable GCPFilestore driver on the cluster. This enables Workload'
+            ' Identity Federation.'
         ),
     )
 

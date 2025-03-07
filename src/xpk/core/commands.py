@@ -194,7 +194,7 @@ def run_command_with_updates(command, task, global_args, verbose=True) -> int:
       while True:
         return_code = child.poll()
         if return_code is None:
-          xpk_print(f'Waiting for `{task}`, for {i} seconds')
+          xpk_print(f'Waiting for `{task}`, for {i} seconds...', end='\r')
           time.sleep(1)
           i += 1
         else:
@@ -246,7 +246,7 @@ def run_command_for_value(
     int: return_code, default is 0
     str: return_val, default is '0'
   """
-  if global_args.dry_run:
+  if global_args is not None and global_args.dry_run:
     xpk_print(
         f'Task: `{task}` is implemented by the following command'
         ' not running since it is a dry run.'
@@ -268,7 +268,7 @@ def run_command_for_value(
         return_code = child.poll()
         if return_code is None:
           if not quiet:
-            xpk_print(f'Waiting for `{task}`, for {i} seconds')
+            xpk_print(f'Waiting for `{task}`, for {i} seconds...', end='\r')
           time.sleep(1)
           i += 1
         else:

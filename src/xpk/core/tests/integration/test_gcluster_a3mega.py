@@ -126,7 +126,7 @@ def test_create_a3_mega_deployment_files(setup_tests):
   )
 
   gcluster_manager = GclusterManager(
-      gcluster_command_runner=docker_manager,
+      gcluster_command_runner=docker_manager, remote_state_client=None
   )
 
   staged_bp_path = gcluster_manager.stage_files(
@@ -192,6 +192,7 @@ def create_test_a3_mega_deployment(docker_path: str, bp_path: str):
 
   gcluster_manager = GclusterManager(
       gcluster_command_runner=docker_manager,
+      remote_state_client=None,
   )
 
   staged_bp_path = gcluster_manager.stage_files(

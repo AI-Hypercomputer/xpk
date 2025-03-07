@@ -14,15 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..utils.console import xpk_exit, xpk_print
-from ..core.kueue import verify_kueuectl
-from ..core.commands import (
-    run_command_for_value,
-)
-from ..core.core import (add_zone_and_project, get_cluster_credentials)
 import json
-from tabulate import tabulate
 from argparse import Namespace
+
+from tabulate import tabulate
+
+from ..core.commands import run_command_for_value
+from ..core.core import add_zone_and_project, get_cluster_credentials
+from ..core.gcloud_context import add_zone_and_project
+from ..core.kueue import verify_kueuectl
+from ..utils.console import xpk_exit, xpk_print
 
 table_fmt = 'plain'
 

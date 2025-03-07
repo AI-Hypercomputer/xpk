@@ -14,11 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import os
+
+from ..core.commands import run_command_with_updates_retry
+from ..core.gcloud_context import zone_to_region
+from ..utils.console import xpk_print
 from .commands import run_command_with_updates_retry
 from .common import zone_to_region
-from .config import XpkConfig, GKE_ENDPOINT_KEY
-from ..utils.console import xpk_print
-import os
+from .config import GKE_ENDPOINT_KEY, XpkConfig
 
 CONTAINER_API_ENDPOINT = 'CLOUDSDK_API_ENDPOINT_OVERRIDES_CONTAINER'
 

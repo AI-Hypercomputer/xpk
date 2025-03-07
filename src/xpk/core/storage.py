@@ -23,21 +23,23 @@ from google.cloud import storage as gcp_storage
 from kubernetes import client as k8s_client
 from kubernetes import utils
 from kubernetes.client import ApiClient
-from kubernetes.client.exceptions import ApiException
+from kubernetes.client.rest import ApiException
 from kubernetes.client.models.v1_persistent_volume import V1PersistentVolume
 from kubernetes.utils import FailToCreateError
 from tabulate import tabulate
 
+from .config import XPK_SA
 from ..utils.console import xpk_exit, xpk_print
 
-XPK_SA = "xpk-sa"
 STORAGE_CRD_PATH = "/../api/storage_crd.yaml"
 STORAGE_TEMPLATE_PATH = "/../templates/storage.yaml"
-STORAGE_CRD_NAME = "storages.xpk.x-k8s.io"
-STORAGE_CRD_KIND = "Storage"
 XPK_API_GROUP_NAME = "xpk.x-k8s.io"
 XPK_API_GROUP_VERSION = "v1"
+STORAGE_CRD_KIND = "Storage"
+STORAGE_CRD_PLURAL = STORAGE_CRD_KIND.lower() + "s"
+STORAGE_CRD_NAME = f"{XPK_API_GROUP_NAME}.{STORAGE_CRD_PLURAL}"
 GCS_FUSE_TYPE = "gcsfuse"
+GCP_FILESTORE_TYPE = "gcpfilestore"
 
 
 @dataclass
@@ -55,7 +57,7 @@ class Storage:
       manifest: The path to a yaml file containing PersistentVolume and PersistentVolumeClaim for a given storage.
       pvc: The name of the PersistentVolumeClaim associated with the storage.
       pv: The name of the PersistentVolume associated with the storage.
-      bucket: The name of the bucket PersistentVolume refers to.
+      bucket: The name of the GCS Fuse bucket/ GCP Filestore PersistentVolume refers to.
   """
 
   name: str
@@ -113,11 +115,12 @@ class Storage:
     client = k8s_client.CoreV1Api()
     try:
       pv: V1PersistentVolume = client.read_persistent_volume(self.pv)
-    except client.ApiException as e:
+      return pv.spec.csi.volume_handle
+    except ApiException as e:
       xpk_print(
           f"Exception when calling CoreV1Api->read_persistent_volume: {e}"
       )
-    return pv.spec.csi.volume_handle
+      return ""
 
   def get_mount_options(self) -> list[str]:
     """
@@ -129,11 +132,12 @@ class Storage:
     client = k8s_client.CoreV1Api()
     try:
       pv: V1PersistentVolume = client.read_persistent_volume(self.pv)
-    except client.ApiException as e:
+      return pv.spec.mount_options
+    except ApiException as e:
       xpk_print(
           f"Exception when calling CoreV1Api->read_persistent_volume: {e}"
       )
-    return pv.spec.mount_options
+      return []
 
 
 def list_storages(k8s_api_client: ApiClient) -> list[Storage]:
@@ -151,10 +155,14 @@ def list_storages(k8s_api_client: ApiClient) -> list[Storage]:
     resp = api_instance.list_cluster_custom_object(
         group=XPK_API_GROUP_NAME,
         version=XPK_API_GROUP_VERSION,
-        plural=STORAGE_CRD_KIND.lower() + "s",
+        plural=STORAGE_CRD_PLURAL,
     )
   except ApiException as e:
     xpk_print(f"Kubernetes API exception while listing Storages: {e}")
+    if e.status == 404:
+      xpk_print("Storages not found, skipping")
+      return []
+    # If it's a different error, then we should just exit.
     xpk_exit(1)
 
   storages = []
@@ -179,6 +187,20 @@ def get_auto_mount_storages(k8s_api_client: ApiClient) -> list[Storage]:
     if storage.auto_mount is True:
       auto_mount_storages.append(storage)
   return auto_mount_storages
+
+
+def get_auto_mount_gcsfuse_storages(k8s_api_client: ApiClient) -> list[Storage]:
+  """
+  Retrieves all GCS Fuse Storage resources that have --auto-mount flag set to true.
+
+  Args:
+      k8s_api_client: An ApiClient object for interacting with the Kubernetes API.
+
+  Returns:
+      A list of GCS Fuse Storage objects that have `auto_mount` set to True.
+  """
+  storages: list[Storage] = get_auto_mount_storages(k8s_api_client)
+  return list(filter(lambda storage: storage.type == GCS_FUSE_TYPE, storages))
 
 
 def get_storages(
@@ -250,7 +272,7 @@ def get_storage(k8s_api_client: ApiClient, name: str) -> Storage:
         name=name,
         group=XPK_API_GROUP_NAME,
         version=XPK_API_GROUP_VERSION,
-        plural=STORAGE_CRD_KIND.lower() + "s",
+        plural=STORAGE_CRD_PLURAL,
     )
     return Storage(resp)
   except ApiException as e:
@@ -405,22 +427,23 @@ def add_bucket_iam_members(args: Namespace, storages: list[Storage]) -> None:
   storage_client = gcp_storage.Client()
 
   for storage in storages:
-    bucket = storage_client.bucket(storage.bucket)
-    policy = bucket.get_iam_policy(requested_policy_version=3)
-    if storage.readonly:
-      role = "roles/storage.objectViewer"
-    else:
-      role = "roles/storage.objectUser"
+    if storage.type == GCS_FUSE_TYPE:
+      bucket = storage_client.bucket(storage.bucket)
+      policy = bucket.get_iam_policy(requested_policy_version=3)
+      if storage.readonly:
+        role = "roles/storage.objectViewer"
+      else:
+        role = "roles/storage.objectUser"
 
-    member = (
-        f"principal://iam.googleapis.com/projects/{args.project_number}/"
-        f"locations/global/workloadIdentityPools/{args.project}.svc.id.goog/"
-        f"subject/ns/default/sa/{XPK_SA}"
-    )
+      member = (
+          f"principal://iam.googleapis.com/projects/{args.project_number}/"
+          f"locations/global/workloadIdentityPools/{args.project}.svc.id.goog/"
+          f"subject/ns/default/sa/{XPK_SA}"
+      )
 
-    policy.bindings.append({"role": role, "members": {member}})
-    bucket.set_iam_policy(policy)
-    xpk_print(f"Added {member} with role {role} to {storage.bucket}.")
+      policy.bindings.append({"role": role, "members": {member}})
+      bucket.set_iam_policy(policy)
+      xpk_print(f"Added {member} with role {role} to {storage.bucket}.")
 
 
 def print_storages_for_cluster(storages: list[Storage]) -> None:
@@ -451,7 +474,7 @@ def print_storages_for_cluster(storages: list[Storage]) -> None:
   )
 
 
-def create_storage_instance(k8s_api_client: ApiClient, args: Namespace) -> None:
+def create_storage_crds(k8s_api_client: ApiClient, args: Namespace) -> None:
   """
   Creates a new Storage custom resource in the Kubernetes cluster.
 
@@ -492,7 +515,7 @@ def create_storage_instance(k8s_api_client: ApiClient, args: Namespace) -> None:
     api_instance.create_cluster_custom_object(
         group=XPK_API_GROUP_NAME,
         version=XPK_API_GROUP_VERSION,
-        plural=STORAGE_CRD_KIND.lower() + "s",
+        plural=STORAGE_CRD_PLURAL,
         body=data,
     )
     xpk_print(f"Created {STORAGE_CRD_KIND} object: {data['metadata']['name']}")

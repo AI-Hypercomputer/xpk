@@ -14,23 +14,30 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import os
 import shutil
 from typing import Optional
-from ruamel import yaml
-import os
 
-from .blueprint_definitions import DeploymentGroup, DeploymentModule, Blueprint
-from ..system_characteristics import get_system_characteristics_by_device_type
-from ...utils.console import xpk_print, xpk_exit
+from ruamel import yaml
+
+from ...utils.console import xpk_exit, xpk_print
 from ...utils.file import ensure_directory_exists
-from ..core import CapacityType, h100_mega_device_type, h200_device_type, b200_device_type
-from ..config import XpkConfig, GKE_ENDPOINT_KEY
+from ..capacity import (
+    B200_DEVICE_TYPE,
+    H100_MEGA_DEVICE_TYPE,
+    H200_DEVICE_TYPE,
+    CapacityType,
+)
+from ..config import GKE_ENDPOINT_KEY, XpkConfig
+from ..system_characteristics import get_system_characteristics_by_device_type
+from .blueprint_definitions import Blueprint, DeploymentGroup, DeploymentModule
+
 
 yaml = yaml.YAML()
 
-a3mega_device_type = h100_mega_device_type
-a3ultra_device_type = h200_device_type
-a4_device_type = b200_device_type
+a3mega_device_type = H100_MEGA_DEVICE_TYPE
+a3ultra_device_type = H200_DEVICE_TYPE
+a4_device_type = B200_DEVICE_TYPE
 supported_device_types = {
     a3mega_device_type,
     a3ultra_device_type,
@@ -141,6 +148,7 @@ class BlueprintGenerator:
             "name_suffix": cluster_name,
             "enable_private_endpoint": False,
             "enable_gcsfuse_csi": True,
+            "enable_filestore_csi": True,
             "master_authorized_networks": [{
                 "cidr_block": (
                     f"{auth_cidr}"
@@ -360,6 +368,7 @@ class BlueprintGenerator:
       reservation: Optional[str | None] = None,
       gcs_bucket: Optional[str | None] = None,
       num_nodes: int = 2,
+      enable_filestore_csi_driver=True,
       prefix: str = "",
       mtu_size: int = 8896,
       system_node_pool_min_node_count: int = 2,
@@ -464,6 +473,7 @@ class BlueprintGenerator:
             "system_node_pool_machine_type": system_node_pool_machine_type,
             "enable_dcgm_monitoring": True,
             "enable_gcsfuse_csi": True,
+            "enable_filestore_csi": enable_filestore_csi_driver,
             "enable_private_endpoint": False,
             "master_authorized_networks": [{
                 "cidr_block": auth_cidr,
@@ -948,9 +958,9 @@ class BlueprintGenerator:
   def _get_terraforrm_backend_full_prefix(
       self, cluster_name: str, prefix: str = ""
   ) -> str:
-    full_prefix = f"xpk_terraform_state"
-    if len(prefix) > 0:
-      full_prefix = f"{full_prefix}/{prefix}"
+    full_prefix = "xpk_terraform_state"
+    if prefix:
+      full_prefix += f"/{prefix}"
     return f"{full_prefix}/{cluster_name}"
 
   def _save_blueprint_to_file(

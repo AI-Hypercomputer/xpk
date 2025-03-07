@@ -14,16 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from .cluster import XPK_SA
 from ..core.docker_container import get_user_workload_container
 from ..core.gcloud_context import zone_to_region
 from ..core.nodepool import get_all_nodepools_programmatic
 from ..utils.console import xpk_exit, xpk_print
-from .config import (
-    GCS_FUSE_ANNOTATION_KEY,
-    GCS_FUSE_ANNOTATION_VALUE,
-    AcceleratorType,
-)
-from .storage import XPK_SA, Storage, get_storage_volumes_yaml
+from .config import AcceleratorType
+from .storage import Storage, get_storage_volumes_yaml, GCS_FUSE_ANNOTATION
 from .system_characteristics import SystemCharacteristics
 
 PathwaysExpectedInstancesMap = {
@@ -333,9 +330,7 @@ def get_user_workload_for_pathways(
         storage_volumes=storage_volumes,
         pod_failure_policy=pod_failure_policy,
         service_account=XPK_SA,
-        gcs_fuse_annotation=(
-            f'{GCS_FUSE_ANNOTATION_KEY}: "{GCS_FUSE_ANNOTATION_VALUE}"'
-        ),
+        gcs_fuse_annotation=GCS_FUSE_ANNOTATION,
     )
 
 

@@ -15,9 +15,9 @@ limitations under the License.
 """
 
 from ..utils.console import xpk_exit, xpk_print
-from .capacity import H100_DEVICE_TYPE, H100_MEGA_DEVICE_TYPE
+from .capacity import DeviceType
 from .commands import run_command_for_value
-from .gcloud_context import zone_to_region
+from .gcloud_context import GCloudContextManager
 from .system_characteristics import SystemCharacteristics
 
 
@@ -215,7 +215,7 @@ def wait_for_job_completion(args) -> int:
           f'Timed out waiting for your workload after {timeout_msg}, see your'
           ' workload here:'
           # pylint: disable=line-too-long
-          f' https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
+          f' https://console.cloud.google.com/kubernetes/service/{GCloudContextManager.zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
       )
       return 124
     else:
@@ -225,7 +225,7 @@ def wait_for_job_completion(args) -> int:
   xpk_print(
       'Finished waiting for your workload, see your workload here:'
       # pylint: disable=line-too-long
-      f' https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
+      f' https://console.cloud.google.com/kubernetes/service/{GCloudContextManager.zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
   )
   status_cmd = (
       f'kubectl get jobset {args.workload} -o'
@@ -254,7 +254,7 @@ def get_gpu_volume(system: SystemCharacteristics) -> str:
     str: yaml containing gpu volume
   """
   gpu_volume = ''
-  if system.device_type == H100_DEVICE_TYPE:
+  if system.device_type == DeviceType.H100.value:
     gpu_volume = """- name: nvidia-install-dir-host
                 hostPath:
                   path: /home/kubernetes/bin/nvidia/lib64
@@ -269,7 +269,7 @@ def get_gpu_volume(system: SystemCharacteristics) -> str:
                 emptyDir:
               - name: tcpx-nccl-plugin-volume
                 emptyDir:"""
-  elif system.device_type == H100_MEGA_DEVICE_TYPE:
+  elif system.device_type == DeviceType.H100_MEGA.value:
     gpu_volume = """- name: nvidia-install-dir-host
                 hostPath:
                   path: /home/kubernetes/bin/nvidia/lib64
@@ -292,10 +292,10 @@ def get_gpu_rxdm_image(system: SystemCharacteristics) -> str:
     str: yaml containing the rxdm name and image
   """
   gpu_rxdm_image = ''
-  if system.device_type == H100_DEVICE_TYPE:
+  if system.device_type == DeviceType.H100.value:
     gpu_rxdm_image = """- name: tcpd-daemon
                 image: us-docker.pkg.dev/gce-ai-infra/gpudirect-tcpx/tcpgpudmarxd-dev:v2.0.9"""
-  elif system.device_type == H100_MEGA_DEVICE_TYPE:
+  elif system.device_type == DeviceType.H100_MEGA.value:
     gpu_rxdm_image = """- name: fastrak-daemon
                 image: us-docker.pkg.dev/gce-ai-infra/gpudirect-tcpxo/tcpgpudmarxd-dev:v1.0.9"""
   return gpu_rxdm_image
@@ -311,12 +311,12 @@ def get_gpu_rxdm_cmd(system: SystemCharacteristics) -> str:
     str: command of running rxdm container
   """
   gpu_rxdm_cmd = ''
-  if system.device_type == H100_DEVICE_TYPE:
+  if system.device_type == DeviceType.H100.value:
     gpu_rxdm_cmd = (
         '/tcpgpudmarxd/build/app/tcpgpudmarxd --gpu_nic_preset a3vm'
         ' --gpu_shmem_type fd --setup_param "--verbose 128 2 0"'
     )
-  elif system.device_type == H100_MEGA_DEVICE_TYPE:
+  elif system.device_type == DeviceType.H100_MEGA.value:
     gpu_rxdm_cmd = (
         'set -ex; chmod 755 /fts/entrypoint_rxdm_container.sh;'
         ' /fts/entrypoint_rxdm_container.sh --num_hops=2 --num_nics=8 --uid='
@@ -335,7 +335,7 @@ def get_gpu_tcp_volume(system: SystemCharacteristics) -> str:
     str: yaml containing gpu tcp volume
   """
   gpu_tcp_volume = ''
-  if system.device_type == H100_DEVICE_TYPE:
+  if system.device_type == DeviceType.H100.value:
     gpu_tcp_volume = """- name: tcpd-socket
                   mountPath: /tmp"""
   return gpu_tcp_volume

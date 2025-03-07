@@ -23,10 +23,6 @@ AUTOPROVISIONING_CONFIG_VALUE = 'AUTOPROVISION'
 AUTOPROVISIONING_CONFIG_MINIMUM_KEY = 'minimum_chips'
 AUTOPROVISIONING_CONFIG_MAXIMUM_KEY = 'maximum_chips'
 CAPACITY_TYPE_CONFIG_KEY = 'capacity_type'
-
-H100_DEVICE_TYPE = 'h100-80gb-8'
-H100_MEGA_DEVICE_TYPE = 'h100-mega-80gb-8'
-H200_DEVICE_TYPE = 'h200-141gb-8'
 RESERVATION_CONFIG_KEY = 'reservation_id'
 
 
@@ -37,149 +33,155 @@ class CapacityType(enum.Enum):
   UNKNOWN = 'unknown'
 
 
-def print_reservations(args) -> int:
-  """Print the reservations in the project.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  command = f'gcloud beta compute reservations list --project={args.project}'
-  return_code = run_command_with_updates(
-      command, 'Get all reservations in the project', args
-  )
-  if return_code != 0:
-    xpk_print(f'Get all reservations returned ERROR {return_code}')
-    return 1
-  return 0
+class DeviceType(enum.Enum):
+  H100 = 'h100-80gb-8'
+  H100_MEGA = 'h100-mega-80gb-8'
+  H200 = 'h200-141gb-8'
 
 
-def get_capacity_type(args) -> tuple[CapacityType, int]:
-  """Determine the capacity type based on user arguments.
+class CapacityManager:
+  """Manages capacity-related operations such as reservations and node selectors."""
 
-  Args:
-    args: user provided arguments for running the command.
+  def __init__(self, args):
+    self.args = args
 
-  Returns:
-    Tuple with string with the system characteristics and
-    int of 0 if successful and 1 otherwise.
-  """
-  capacity_type = CapacityType.UNKNOWN
-  num_types = 0
-  return_code = 0
+  def print_reservations(self) -> int:
+    """Print the reservations in the project.
 
-  # Determine the capacity argument.
-  if args.on_demand:
-    capacity_type = CapacityType.ON_DEMAND
-    num_types += 1
-  if args.reservation:
-    return_code = verify_reservation_exists(args)
-    if return_code > 0:
-      return capacity_type, return_code
-    capacity_type = CapacityType.RESERVATION
-    num_types += 1
-  if args.spot:
-    capacity_type = CapacityType.SPOT
-    num_types += 1
-
-  # Check that the number of user arguments provided is valid.
-  if num_types == 0:
-    capacity_type = CapacityType.UNKNOWN
-  elif num_types != 1:
-    xpk_print(
-        'ERROR: User specified more than one of the following arguments. Please'
-        ' specify only one of `--reservation=$RESERVATION_NAME`, `--on-demand`'
-        ' or `--spot`.'
+    Returns:
+      0 if successful and 1 otherwise.
+    """
+    command = (
+        f'gcloud beta compute reservations list --project={self.args.project}'
     )
-    return_code = 1
+    return_code = run_command_with_updates(
+        command, 'Get all reservations in the project', self.args
+    )
+    if return_code != 0:
+      xpk_print(f'Get all reservations returned ERROR {return_code}')
+      return 1
 
-  return capacity_type, return_code
+    return 0
 
+  def get_capacity_type(self) -> tuple[CapacityType, int]:
+    """Determine the capacity type based on user arguments.
 
-def verify_reservation_exists(args) -> int:
-  """Verify the reservation exists.
+    Returns:
+      Tuple with string with the system characteristics and
+      int of 0 if successful and 1 otherwise.
+    """
+    capacity_type = CapacityType.UNKNOWN
+    num_types = 0
+    return_code = 0
 
-  Args:
-    args: user provided arguments for running the command.
+    # Determine the capacity argument.
+    if self.args.on_demand:
+      capacity_type = CapacityType.ON_DEMAND
+      num_types += 1
 
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  command = (
-      f'gcloud beta compute reservations describe {args.reservation}'
-      f' --project={args.project} --zone={args.zone}'
-  )
-  return_code = run_command_with_updates(command, 'Describe reservation', args)
-  if return_code != 0:
-    xpk_print(f'Describe reservation returned ERROR {return_code}')
-    xpk_print('Please confirm that your reservation name is correct.')
-    return 1
-  return 0
+    if self.args.reservation:
+      return_code = self.verify_reservation_exists()
+      if return_code > 0:
+        return capacity_type, return_code
+      capacity_type = CapacityType.RESERVATION
+      num_types += 1
 
+    if self.args.spot:
+      capacity_type = CapacityType.SPOT
+      num_types += 1
 
-def get_capacity_arguments_from_capacity_type(
-    args, capacity_type: CapacityType
-) -> tuple[str, int]:
-  """Determine the TPU Nodepool creation capacity arguments needed.
-
-  Args:
-    args: user provided arguments for running the command.
-    capacity_type: The type of capacity the user configured.
-
-  Returns:
-    Tuple with string with the capacity argument to use and
-    int of 0 if successful and 1 otherwise.
-  """
-  capacity_args = ''
-  return_code = 0
-
-  match capacity_type:
-    case CapacityType.ON_DEMAND:
-      capacity_args = ''
-    case CapacityType.SPOT:
-      capacity_args = '--spot'
-    case CapacityType.RESERVATION:
-      capacity_args = (
-          f'--reservation-affinity=specific --reservation={args.reservation}'
-      )
-    case _:
+    # Check that the number of user arguments provided is valid.
+    if num_types == 0:
+      capacity_type = CapacityType.UNKNOWN
+    elif num_types != 1:
       xpk_print(
-          f'Unknown capacity type: {capacity_type}. Unable to determine'
-          ' capacity args.'
+          'ERROR: User specified more than one of the following arguments.'
+          ' Please specify only one of `--reservation=$RESERVATION_NAME`,'
+          ' `--on-demand` or `--spot`.'
       )
       return_code = 1
-  return capacity_args, return_code
 
+    return capacity_type, return_code
 
-def get_capacity_node_selectors_from_capacity_type(
-    args, capacity_type: str
-) -> tuple[str, int]:
-  """Determine the node selectors for a workload to run on a specific capacity type.
+  def verify_reservation_exists(self) -> int:
+    """Verify the reservation exists.
 
-  Args:
-    args: user provided arguments for running the command.
-    capacity_type: The type of capacity the user configured.
+    Returns:
+      0 if successful and 1 otherwise.
+    """
+    command = (
+        f'gcloud beta compute reservations describe {self.args.reservation}'
+        f' --project={self.args.project} --zone={self.args.zone}'
+    )
+    return_code = run_command_with_updates(
+        command, 'Describe reservation', self.args
+    )
+    if return_code != 0:
+      xpk_print(f'Describe reservation returned ERROR {return_code}')
+      xpk_print('Please confirm that your reservation name is correct.')
+      return 1
 
-  Returns:
-    Tuple with string with the node selectors to use and
-    int of 0 if successful and 1 otherwise.
-  """
-  node_selector = ''
-  return_code = 0
+    return 0
 
-  match capacity_type:
-    case CapacityType.ON_DEMAND.name:
-      node_selector = ''
-    case CapacityType.SPOT.name:
-      node_selector = 'cloud.google.com/gke-spot="true"'
-    case CapacityType.RESERVATION.name:
-      node_selector = f'cloud.google.com/reservation-name: {args.reservation}'
-    case _:
-      xpk_print(
-          f'Unknown capacity type: {capacity_type}. Unable to determine the'
-          ' node selectors.'
-      )
-      return_code = 1
-  return node_selector, return_code
+  def get_capacity_arguments(
+      self, capacity_type: CapacityType
+  ) -> tuple[str, int]:
+    """Determine the TPU Nodepool creation capacity arguments needed.
+
+    Args:
+      capacity_type: The type of capacity the user configured.
+
+    Returns:
+      Tuple with string with the capacity argument to use and
+      int of 0 if successful and 1 otherwise.
+    """
+    capacity_args = ''
+    return_code = 0
+
+    match capacity_type:
+      case CapacityType.ON_DEMAND:
+        capacity_args = ''
+      case CapacityType.SPOT:
+        capacity_args = '--spot'
+      case CapacityType.RESERVATION:
+        capacity_args = (
+            '--reservation-affinity=specific'
+            f' --reservation={self.args.reservation}'
+        )
+      case _:
+        xpk_print(
+            f'Unknown capacity type: {capacity_type}. Unable to determine'
+            ' capacity args.'
+        )
+        return_code = 1
+    return capacity_args, return_code
+
+  def get_capacity_node_selectors(self, capacity_type: str) -> tuple[str, int]:
+    """Determine the node selectors for a workload to run on a specific capacity type.
+
+    Args:
+      capacity_type: The type of capacity the user configured.
+
+    Returns:
+      Tuple with string with the node selectors to use and
+      int of 0 if successful and 1 otherwise.
+    """
+    node_selector = ''
+    return_code = 0
+
+    match capacity_type:
+      case CapacityType.ON_DEMAND.name:
+        node_selector = ''
+      case CapacityType.SPOT.name:
+        node_selector = 'cloud.google.com/gke-spot="true"'
+      case CapacityType.RESERVATION.name:
+        node_selector = (
+            f'cloud.google.com/reservation-name: {self.args.reservation}'
+        )
+      case _:
+        xpk_print(
+            f'Unknown capacity type: {capacity_type}. Unable to determine the'
+            ' node selectors.'
+        )
+        return_code = 1
+    return node_selector, return_code

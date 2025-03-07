@@ -14,15 +14,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..core.docker_container import get_user_workload_container
-from ..core.gcloud_context import zone_to_region
-from ..core.nodepool import get_all_nodepools_programmatic
 from ..utils.console import xpk_exit, xpk_print
-from .config import (
-    GCS_FUSE_ANNOTATION_KEY,
-    GCS_FUSE_ANNOTATION_VALUE,
-    AcceleratorType,
-)
+from .capacity import CapacityManager
+from .cluster import ClusterManager
+from .config import GCS_FUSE_ANNOTATION_KEY, GCS_FUSE_ANNOTATION_VALUE, AcceleratorType
+from .docker_container import ContainerConfig
+from .docker_image import DockerImageManager
+from .docker_resources import ContainerResources
+from .gcloud_context import GCloudContextManager
+from .monitoring import GKEDashboardManager
+from .nodepool import NodePoolManager
+from .resources import ResourceManager
 from .storage import XPK_SA, Storage, get_storage_volumes_yaml
 from .system_characteristics import SystemCharacteristics
 
@@ -189,7 +191,12 @@ def ensure_pathways_workload_prerequisites(args, system) -> bool:
     xpk_exit(1)
 
   # Ensure the cluster and CPU nodepools were created with create-pathways
-  all_node_pools = get_all_nodepools_programmatic(args)
+  capacity_manager = CapacityManager(args)
+  resource_manager = ResourceManager(args, capacity_manager, system)
+  nodepools_manager = NodePoolManager(
+      args, system, resource_manager, capacity_manager
+  )
+  all_node_pools = nodepools_manager.get_all_nodepools_programmatic()
   desired_pw_cpu_node_pools = {'cpu-user-np', 'cpu-rm-np', 'cpu-proxy-np'}
   if not desired_pw_cpu_node_pools.issubset(set(all_node_pools[0])):
     xpk_print(
@@ -217,7 +224,7 @@ def get_pathways_unified_query_link(args) -> str:
   query_params = (
       'resource.type%3D"k8s_container"%0A'
       f'resource.labels.project_id%3D"{args.project}"%0A'
-      f'resource.labels.location%3D"{zone_to_region(args.zone)}"%0A'
+      f'resource.labels.location%3D"{GCloudContextManager.zone_to_region(args.zone)}"%0A'
       f'resource.labels.cluster_name%3D"{args.cluster}"%0A'
       f'resource.labels.pod_name:"{args.workload}-"%0A'
       'severity>%3DDEFAULT'
@@ -292,6 +299,7 @@ def get_user_workload_for_pathways(
     str:
       Pathways server port as a YAML string
   """
+  cluster_manager = ClusterManager(args, system)
   user_workload_yaml = """- name: main
       replicas: 1
       template:
@@ -325,7 +333,18 @@ def get_user_workload_for_pathways(
   if args.headless:
     return ''
   else:
-    container, _ = get_user_workload_container(args, system)
+    docker_image_manager = DockerImageManager(args)
+    container_resources = ContainerResources(args, system, cluster_manager)
+    gke_dashboard_manager = GKEDashboardManager(args)
+    container_config = ContainerConfig(
+        args,
+        system,
+        docker_image_manager,
+        container_resources,
+        gke_dashboard_manager,
+        cluster_manager,
+    )
+    container, _ = container_config.get_user_workload_container()
     storage_volumes = get_storage_volumes_yaml(storages)
     return user_workload_yaml.format(
         args=args,

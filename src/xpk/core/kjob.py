@@ -16,19 +16,29 @@ limitations under the License.
 
 import os
 from argparse import Namespace
-import yaml
+from enum import Enum
 
+import yaml
 from kubernetes import client as k8s_client
 from kubernetes.client import ApiClient
 from kubernetes.client.rest import ApiException
-from .cluster import setup_k8s_env
-from .config import XPK_SA, DEFAULT_NAMESPACE
-from .storage import Storage, get_auto_mount_storages, GCS_FUSE_TYPE, GCP_FILESTORE_TYPE
-from ..utils.console import xpk_print, xpk_exit
-from .commands import run_command_for_value, run_kubectl_apply, run_command_with_updates
-from .config import XpkConfig, KJOB_SHELL_IMAGE, KJOB_SHELL_INTERACTIVE_COMMAND, KJOB_SHELL_WORKING_DIRECTORY, KJOB_BATCH_IMAGE, KJOB_BATCH_WORKING_DIRECTORY
-from .resources import get_cluster_system_characteristics, SystemCharacteristics, AcceleratorType
-from enum import Enum
+
+from ..utils.console import xpk_exit, xpk_print
+from .capacity import CapacityManager
+from .cluster import ClusterManager
+from .commands import run_command_for_value, run_command_with_updates, run_kubectl_apply
+from .config import (
+    DEFAULT_NAMESPACE,
+    KJOB_BATCH_IMAGE,
+    KJOB_BATCH_WORKING_DIRECTORY,
+    KJOB_SHELL_IMAGE,
+    KJOB_SHELL_INTERACTIVE_COMMAND,
+    KJOB_SHELL_WORKING_DIRECTORY,
+    XPK_SA,
+    XpkConfig,
+)
+from .resources import AcceleratorType, ResourceManager, SystemCharacteristics
+from .storage import GCP_FILESTORE_TYPE, GCS_FUSE_TYPE, Storage, get_auto_mount_storages
 
 KJOB_API_GROUP_NAME = "kjobctl.x-k8s.io"
 KJOB_API_GROUP_VERSION = "v1alpha1"
@@ -285,9 +295,12 @@ def create_pod_template_instance(args: Namespace, service_account: str) -> int:
 def prepare_kjob(args: Namespace) -> int:
   xpk_print("Preparing kjob")
 
-  system = get_cluster_system_characteristics(args)
+  capacity_manager = CapacityManager(args)
+  resource_manager = ResourceManager(args, capacity_manager, None)
+  system = resource_manager.get_cluster_system_characteristics()
+  cluster_manager = ClusterManager(args, system)
 
-  k8s_api_client = setup_k8s_env(args)
+  k8s_api_client = cluster_manager.setup_k8s_env()
   storages: list[Storage] = get_auto_mount_storages(k8s_api_client)
   gcs_fuse_storages = list(
       filter(lambda storage: storage.type == GCS_FUSE_TYPE, storages)

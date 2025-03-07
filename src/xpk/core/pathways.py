@@ -1,5 +1,4 @@
-"""
-Copyright 2024 Google LLC
+"""Copyright 2024 Google LLC
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,8 +17,8 @@ from ..core.docker_container import get_user_workload_container
 from ..core.gcloud_context import zone_to_region
 from ..core.nodepool import get_all_nodepools_programmatic
 from ..utils.console import xpk_exit, xpk_print
-from .config import GCS_FUSE_ANNOTATION, AcceleratorType
-from .storage import XPK_SA, Storage, get_storage_volumes_yaml
+from .config import AcceleratorType, GCS_FUSE_ANNOTATION
+from .storage import Storage, XPK_SA, get_storage_volumes_yaml
 from .system_characteristics import SystemCharacteristics
 
 PathwaysExpectedInstancesMap = {
@@ -33,6 +32,7 @@ PathwaysExpectedInstancesMap = {
 
 def get_pathways_worker_args(args) -> str:
   """Arguments for the Pathways workers.
+
   Args:
     args: user provided arguments for running the command.
 
@@ -52,6 +52,7 @@ def get_pathways_worker_args(args) -> str:
 
 def get_pathways_proxy_args(args) -> str:
   """Arguments for the Pathways proxy.
+
   Args:
     args: user provided arguments for running the command.
 
@@ -85,25 +86,28 @@ def get_pathways_sidecar_container(args) -> str:
   Returns:
     str: yaml containing arguments for the Pathways sidecar container.
   """
-  yaml = """  initContainers:
-                - name: remote-python-sidecar
-                  image: {args.remote_python_sidecar_image}
-                  imagePullPolicy: Always
-                  securityContext:
-                    privileged: true
-                  volumeMounts:
-                  - mountPath: /tmp  # Shared volume mount with the main container.
-                    name: shared-tmp
-                  restartPolicy: Always
-                  ports:
-                  - containerPort: 50051
-                  env:
-                  - name: XCLOUD_ENVIRONMENT
-                    value: GCP
-                  - name: GRPC_SERVER_ADDRESS
-                    value: '0.0.0.0:50051'
-                  - name: PORT
-                    value: '50051"""
+  yaml = """initContainers:
+              - name: remote-python-sidecar
+                image: {args.remote_python_sidecar_image}
+                imagePullPolicy: Always
+                securityContext:
+                  privileged: true
+                volumeMounts:
+                - mountPath: /tmp  # Shared volume mount with the main container.
+                  name: shared-tmp
+                - mountPath: /tmp/dataset
+                  name: gcs-dataset-pvc
+                  readOnly: false
+                restartPolicy: Always
+                ports:
+                - containerPort: 50051
+                env:
+                - name: XCLOUD_ENVIRONMENT
+                  value: GCP
+                - name: GRPC_SERVER_ADDRESS
+                  value: '0.0.0.0:50051'
+                - name: PORT
+                  value: '50051'"""
   if args.use_pathways and args.remote_python_sidecar_image is not None:
     return yaml.format(args=args)
   else:
@@ -228,6 +232,7 @@ def get_pathways_unified_query_link(args) -> str:
 
 def get_pathways_rm_args(args, system: SystemCharacteristics) -> str:
   """Arguments for the Pathways resource manager.
+
   Args:
     args: user provided arguments for running the command.
 
@@ -279,14 +284,13 @@ def get_user_workload_for_pathways(
     pod_failure_policy,
     storages: list[Storage],
 ) -> str:
-  """
-  Create a user workload container for Pathways.
+  """Create a user workload container for Pathways.
+
   Don't create one for Pathways headless mode.
 
   Args:
     args: user provided args.
     system: system characteristics.
-
 
   Returns:
     str:
@@ -339,6 +343,7 @@ def get_user_workload_for_pathways(
 
 def get_rm_address(args) -> str:
   """Generates the Pathways resource manager address.
+
   Args:
     args: user provided arguments for running the command.
 
@@ -351,6 +356,7 @@ def get_rm_address(args) -> str:
 
 def get_proxy_address(args) -> str:
   """Generates the Pathways proxy address.
+
   Args:
     args: user provided arguments for running the command.
 
@@ -363,6 +369,7 @@ def get_proxy_address(args) -> str:
 
 def get_pathways_expected_tpu_type(device_type: str) -> str:
   """Returns the device type expected by Pathways
+
   Args:
     device_type: the system characteristic device type
 

@@ -334,6 +334,13 @@ spec:
                   path: /tmp
                   type: DirectoryOrCreate
                 name: shared-tmp
+              - name: gcs-dataset-pvc
+                persistentVolumeClaim:
+                  claimName: dataset-bucket-pvc
+              - name: gke-gcsfuse-cache
+                emptyDir:
+                  medium: Memory
+                  sizeLimit: 100Gi
               {storage_volumes}
     - name: rm
       replicas: 1

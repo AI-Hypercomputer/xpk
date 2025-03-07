@@ -118,29 +118,29 @@ jobs:
     concurrency: # We support one build or nightly test to run at a time currently.
       group: linter-${{needs.set-variables.outputs.run-id}}
       cancel-in-progress: true
-    uses: ./.github/workflows/lint_and_format.yml
+    uses: ./.github/workflows/reusable_lint_and_format.yml
     with:
       run-id: '${{needs.set-variables.outputs.run-id}}'
   run-unit-tests:
-    uses: ./.github/workflows/unit_tests.yaml
+    needs: [install-dependencies, set-variables]
+    uses: ./.github/workflows/reusable_unit_tests.yaml
     with:
       run-id: ${{needs.set-variables.outputs.run-id}}
     concurrency: # We support one build or nightly test to run at a time currently.
       group: unit-tests-${{needs.set-variables.outputs.run-id}}
       cancel-in-progress: true
-    needs: [linter, set-variables]
   run-integration-tests:
-    uses: ./.github/workflows/integration_tests.yaml
+    needs: [install-dependencies, set-variables]
+    uses: ./.github/workflows/reusable_integration_tests.yaml
     with:
       run-id: '${{needs.set-variables.outputs.run-id}}'
     concurrency: # We support one build or nightly test to run at a time currently.
       group: integration-tests-${{needs.set-variables.outputs.run-id}}
       cancel-in-progress: true
     secrets: inherit
-    needs: [run-unit-tests, set-variables]
   cluster-private:
-    needs: [run-integration-tests, set-variables]
-    uses: ./.github/workflows/cluster_private.yaml
+    needs: [linter, run-unit-tests, run-integration-tests, set-variables]
+    uses: ./.github/workflows/reusable_cluster_private.yaml
     concurrency: # We support one build or nightly test to run at a time currently.
       group: cluster-private-${{needs.set-variables.outputs.run-id}}
       cancel-in-progress: true
@@ -152,11 +152,11 @@ jobs:
       location: '${{needs.set-variables.outputs.location}}'
     secrets: inherit
   cluster-create:
-    needs: [run-integration-tests, set-variables]
+    needs: [linter, run-unit-tests, run-integration-tests, set-variables]
     concurrency: # We support one build or nightly test to run at a time currently.
       group: cluster-create-${{needs.set-variables.outputs.run-id}}
       cancel-in-progress: true
-    uses: ./.github/workflows/cluster_create.yaml
+    uses: ./.github/workflows/reusable_cluster_create.yaml
     with:
       cluster-name: '${{needs.set-variables.outputs.cluster-name}}'
       tpu-type: '${{needs.set-variables.outputs.tpu-type || inputs.tpu-type}}'
@@ -166,7 +166,7 @@ jobs:
     secrets: inherit
   workloads-tests:
     needs: [cluster-create, set-variables]
-    uses: ./.github/workflows/workload_test.yaml
+    uses: ./.github/workflows/reusable_workload_tests.yaml
     concurrency: # We support one build or nightly test to run at a time currently.
       group: workload-tests-${{needs.set-variables.outputs.run-id}}
       cancel-in-progress: true
@@ -178,7 +178,7 @@ jobs:
     secrets: inherit
   batch-tests:
     needs: [cluster-create, set-variables]
-    uses: ./.github/workflows/batch_test.yaml
+    uses: ./.github/workflows/reusable_batch_tests.yaml
     concurrency: # We support one build or nightly test to run at a time currently.
       group: batch-tests-${{needs.set-variables.outputs.run-id}}
       cancel-in-progress: true
@@ -189,7 +189,7 @@ jobs:
     secrets: inherit
   filestore-tests:
     needs: [cluster-create, set-variables, batch-tests, workloads-tests]
-    uses: ./.github/workflows/filestore_tests.yaml
+    uses: ./.github/workflows/reusable_filestore_tests.yaml
     concurrency: # We support one build or nightly test to run at a time currently.
       group: filestore-tests-${{needs.set-variables.outputs.run-id}}
       cancel-in-progress: true
@@ -202,7 +202,7 @@ jobs:
     secrets: inherit
   fuse-tests:
     needs: [filestore-tests, set-variables]
-    uses: ./.github/workflows/fuse_tests.yaml
+    uses: ./.github/workflows/reusable_fuse_tests.yaml
     concurrency: # We support one build or nightly test to run at a time currently.
       group: fuse-tests-${{needs.set-variables.outputs.run-id}}
       cancel-in-progress: true
@@ -216,7 +216,7 @@ jobs:
   cluster-delete:
     if: always()
     needs: [set-variables, fuse-tests]
-    uses: ./.github/workflows/cluster_delete.yaml
+    uses: ./.github/workflows/reusable_cluster_delete.yaml
     with:
       cluster-name: ${{needs.set-variables.outputs.cluster-name}}
       run-id: ${{needs.set-variables.outputs.run-id}}

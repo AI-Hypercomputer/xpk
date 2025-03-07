@@ -961,7 +961,7 @@ class BlueprintGenerator:
     full_prefix = "xpk_terraform_state"
     if prefix:
       full_prefix += f"/{prefix}"
-    return f"{full_prefix}/{cluster_name}"
+    return f"{full_prefix}/{cluster_name}/"
 
   def _save_blueprint_to_file(
       self, blueprint_name: str, xpk_blueprint: Blueprint, prefix: str = ""

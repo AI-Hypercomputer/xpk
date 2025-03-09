@@ -713,7 +713,7 @@ def workload_create(args) -> None:
         ].resource_type,
         local_queue_name=LOCAL_QUEUE_NAME,
         autoprovisioning_args=autoprovisioning_args,
-        backoff_limit=system.vms_per_slice * 4,
+        backoff_limit=system.vms_per_slice * 10,
         storage_annotations=storage_annotations,
         storage_volumes=get_storage_volumes_yaml(all_storages),
         storage_volume_mounts=get_storage_volume_mounts_yaml(all_storages),

@@ -71,6 +71,8 @@ def get_env_container(args, system: SystemCharacteristics) -> str:
                   value: proxy
                 - name: JAX_BACKEND_TARGET
                   value: {proxy_address}
+                - name: IFRT_PROXY_ARRAY_IS_DELETED_HACK
+                  value: 'true'
                 - name: JOBSET_NAME
                   valueFrom:
                     fieldRef:

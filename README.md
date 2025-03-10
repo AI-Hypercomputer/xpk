@@ -450,7 +450,7 @@ A FUSE adapter lets you mount and access Cloud Storage buckets as local file sys
 
 To use the GCS FUSE with XPK you need to create a [Storage Bucket](https://console.cloud.google.com/storage/).
 
-Once it's ready you can use `xpk storage attach` with `--type=gcsfuse` command to attach to FUSE storage instance:
+Once it's ready you can use `xpk storage attach` with `--type=gcsfuse` command to attach a FUSE storage instance to your cluster:
 
 ```shell
 python3 xpk.py storage attach test-fuse-storage --type=gcsfuse \
@@ -472,7 +472,7 @@ Parameters:
 
 A Filestore adapter lets you mount and access [Filestore instances](https://cloud.google.com/filestore/) as local file systems, so applications can read and write objects in your volumes using standard file system semantics.
 
-To use the GCP Filestore with XPK you need to use `xpk storage create` command with `--type=gcpfilestore`:
+To create and attach a GCP Filestore instance to your cluster use `xpk storage create` command with `--type=gcpfilestore`:
 
 ```shell
 python3 xpk.py storage create test-fs-storage --type=gcpfilestore \
@@ -481,7 +481,7 @@ python3 xpk.py storage create test-fs-storage --type=gcpfilestore \
   --project=$PROJECT --cluster=$CLUSTER --zone=$ZONE
 ```
 
-You can also create a Filestore instance yourself and attach it with `xpk storage attach`:
+You can also attach an existing Filestore instance to your cluster using `xpk storage attach` command:
 
 ```shell
 python3 xpk.py storage attach test-fs-storage --type=gcpfilestore \
@@ -503,7 +503,7 @@ Commands `xpk storage create` and `xpk storage attach` with `--type=gcpfilestore
 - `--vol` - file share name of the Filestore instance that will be created.
 - `--instance` - the name of the Filestore instance. If not set then the name parameter is used as an instance name. Useful when connecting multiple volumes from the same Filestore instance.
 
-### List connected storages
+### List attached storages
 
 ```shell
 python3 xpk.py storage list \
@@ -512,7 +512,7 @@ python3 xpk.py storage list \
 
 ### Running workloads with storage
 
-If you specified `--auto-mount=true`, then all workloads deployed on a cluster will have the volume attached by default. If not, then in order to have the storage attached, you have to add `--storage` parameter to `workload create`:
+If you specified `--auto-mount=true` when creating or attaching a storage, then all workloads deployed on the cluster will have the volume attached by default. Otherwise, in order to have the storage attached, you have to add `--storage` parameter to `workload create` command:
 
 ```shell
 python3 xpk.py workload create \

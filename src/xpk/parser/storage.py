@@ -19,6 +19,7 @@ import argparse
 from ..commands.storage import (
     storage_attach,
     storage_create,
+    storage_delete,
     storage_detach,
     storage_list,
 )
@@ -254,20 +255,20 @@ def add_storage_detach_parser(
   add_kind_cluster_arguments(opt_args)
 
 
-# def add_storage_delete_parser(
-#     storage_subcommands_parser: argparse.ArgumentParser,
-# ):
-#   storage_delete_parser: argparse.ArgumentParser = (
-#       storage_subcommands_parser.add_parser(
-#           'delete', help='Delete XPK Storage.'
-#       )
-#   )
-#   storage_delete_parser.set_defaults(func=storage_delete)
-#   add_shared_arguments(storage_delete_parser)
+def add_storage_delete_parser(
+    storage_subcommands_parser: argparse.ArgumentParser,
+):
+  storage_delete_parser: argparse.ArgumentParser = (
+      storage_subcommands_parser.add_parser(
+          'delete', help='Delete XPK Storage.'
+      )
+  )
+  storage_delete_parser.set_defaults(func=storage_delete)
+  add_shared_arguments(storage_delete_parser)
 
-#   req_args = storage_delete_parser.add_argument_group(
-#       'Required Arguments',
-#       'Arguments required for storage delete.',
-#   )
-#   req_args.add_argument('name', type=str)
-#   req_args.add_argument('--cluster', type=str, required=True)
+  req_args = storage_delete_parser.add_argument_group(
+      'Required Arguments',
+      'Arguments required for storage delete.',
+  )
+  req_args.add_argument('name', type=str)
+  add_cluster_arguments(req_args, required=True)

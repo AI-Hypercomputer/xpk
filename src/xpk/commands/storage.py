@@ -93,6 +93,19 @@ def storage_create(args: Namespace) -> None:
     apply_kubectl_manifest(k8s_api_client, args.manifest)
 
 
+def storage_delete(args: Namespace) -> None:
+  add_zone_and_project(args)
+  if args.type == GCP_FILESTORE_TYPE:
+    filestore_client = FilestoreClient(
+        args.zone, args.name, args.project, args.tier
+    )
+    filestore_exists = filestore_client.check_filestore_instance_exists()
+    if not filestore_exists:
+      xpk_print(f"Filestore instance {args.name} does not exist.")
+      xpk_exit(1)
+    
+    filestore_client.delete_filestore_instance()
+
 def storage_attach(args: Namespace) -> None:
   if args.type == GCP_FILESTORE_TYPE and args.manifest is None:
     xpk_print("---manifest is required when attaching gcpfilestore storage.")

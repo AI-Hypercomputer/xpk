@@ -30,7 +30,7 @@ import time
 DockerRunCommandExitCode = 135
 dockerBuildErrorCode = 134
 ctk_dockerfile_path = "Dockerfile"
-ctk_build_ref = "v1.45.1"
+ctk_build_ref = "1.47.0"
 ctk_docker_image = "xpk-ctk"
 ctk_container_name = "xpk-ctk-container"
 gcloud_cfg_mount_path = "/root/.config/gcloud"

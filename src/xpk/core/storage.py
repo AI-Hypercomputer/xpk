@@ -500,7 +500,7 @@ def create_storage_crds(
 
   ensure_directory_exists(MANIFESTS_PATH)
   manifest_file_path = (
-      f"{MANIFESTS_PATH}/{args.cluster}-{args.zone}-{args.name}-manifest.yaml"
+      f"{MANIFESTS_PATH}/{args.project}-{args.zone}-{args.cluster}-{args.name}-manifest.yaml"
   )
   with open(manifest_file_path, "w", encoding="utf-8") as f:
     yaml.dump_all(manifest, f)

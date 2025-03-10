@@ -99,12 +99,10 @@ class FilestoreClient:
 
     for instance in instancesZonal:
       if instance.name == fullname_zonal:
-        self.location = self.zone
         return True
 
     for instance in instancesRegional:
       if instance.name == fullname_regional:
-        self.location = self.region
         return True
 
     return False
@@ -231,13 +229,31 @@ class FilestoreClient:
     return [pv, pvc, sc]
 
   def load_location(self) -> str:
-    """Load and return filestore location"""
+    """Load and return Filestore's location"""
     if self.location is not None:
       return str(self.location)
-
-    if not self.check_filestore_instance_exists():
-      xpk_print(f"Filestore instance {self.name} not found")
+    
+    parentZonal = self.get_parent(self.zone)
+    parentRegional = self.get_parent(self.region)
+    reqZonal = filestore_v1.ListInstancesRequest(parent=parentZonal)
+    reqRegional = filestore_v1.ListInstancesRequest(parent=parentRegional)
+    try:
+      instancesZonal = self._client.list_instances(reqZonal)
+      instancesRegional = self._client.list_instances(reqRegional)
+    except GoogleCloudError as e:
+      xpk_print(f"Exception while trying to list instances {e}")
       xpk_exit(1)
+
+    fullname_zonal = self.get_instance_fullname(parentZonal)
+    fullname_regional = self.get_instance_fullname(parentRegional)
+
+    for instance in instancesZonal:
+      if instance.name == fullname_zonal:
+        self.location = self.zone
+
+    for instance in instancesRegional:
+      if instance.name == fullname_regional:
+        self.location = self.region
 
     return str(self.location)
 

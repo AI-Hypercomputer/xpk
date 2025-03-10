@@ -647,11 +647,6 @@ class BlueprintGenerator:
     Returns:
       - Blueprint representing cluster toolkit blueprint
     """
-    staging_gke_endpoint = XpkConfig().get(GKE_ENDPOINT_KEY)  # For staging only
-    if staging_gke_endpoint is None or len(staging_gke_endpoint) == 0:
-      xpk_print("Error: A4 machines are not yet supported on GKE PROD.")
-      xpk_exit(1)
-
     nccl_installer_path = (
         f'$(ghpc_stage("{blueprint_name}"))/nccl-rdma-installer-a4.yaml'
     )
@@ -732,20 +727,13 @@ class BlueprintGenerator:
         source="modules/scheduler/gke-cluster",
         use=[net_0_id],
         settings={
-            "min_master_version": (
-                "1.32.1-gke.1420000"
-            ),  # Staging specific override - remove in prod
-            # "release_channel": "RAPID", # We'll probably need this in prod
-            # "version_prefix": "1.32.", # We'll probably need this in prod
-            # "maintenance_exclusions": [{  # We'll probably need this in prod
-            #     "name": "no-minor-or-node-upgrades-indefinite",
-            #     "start_time": "2024-12-01T00:00:00Z",
-            #     "end_time": "2025-12-22T00:00:00Z",
-            #     "exclusion_scope": "NO_MINOR_OR_NODE_UPGRADES",
-            # }],
+            "system_node_pool_machine_type": system_node_pool_machine_type,
+            "system_node_pool_node_count": {
+                "total_min_nodes": system_node_pool_min_node_count,
+                "total_max_nodes": 1000,
+            },
             "prefix_with_deployment_name": False,
             "name_suffix": cluster_name,
-            "system_node_pool_machine_type": system_node_pool_machine_type,
             "enable_dcgm_monitoring": True,
             "enable_gcsfuse_csi": True,
             "enable_private_endpoint": False,
@@ -753,10 +741,6 @@ class BlueprintGenerator:
                 "cidr_block": auth_cidr,
                 "display_name": "kubectl-access-network",
             }],
-            "system_node_pool_node_count": {
-                "total_min_nodes": system_node_pool_min_node_count,
-                "total_max_nodes": 1000,
-            },
             "additional_networks": (
                 f"$(concat([{{network={cluster_name}-net-1.network_name,"
                 f" subnetwork={cluster_name}-net-1.subnetwork_name,"
@@ -767,6 +751,14 @@ class BlueprintGenerator:
                 " alias_ip_range=[]}],"
                 f" {cluster_name}-rdma-net.subnetwork_interfaces_gke))"
             ),
+            "version_prefix": "1.32.",
+            "release_channel": "RAPID",
+            "maintenance_exclusions": [{
+                "name": "no-minor-or-node-upgrades-indefinite",
+                "start_time": "2024-12-01T00:00:00Z",
+                "end_time": "2025-12-22T00:00:00Z",
+                "exclusion_scope": "NO_MINOR_OR_NODE_UPGRADES",
+            }],
         },
         outputs=["instructions"],
     )
@@ -874,29 +866,6 @@ class BlueprintGenerator:
         ],
     )
 
-    terraform_providers = {  # For staging only
-        "google": {
-            "source": "hashicorp/google",
-            "version": "6.16.0",
-            "configuration": {
-                "project": project_id,
-                "region": region,
-                "zone": zone,
-                "container_custom_endpoint": staging_gke_endpoint,
-            },
-        },
-        "google-beta": {
-            "source": "hashicorp/google-beta",
-            "version": "6.16.0",
-            "configuration": {
-                "project": project_id,
-                "region": region,
-                "zone": zone,
-                "container_custom_endpoint": staging_gke_endpoint,
-            },
-        },
-    }
-
     a4_blueprint = Blueprint(
         terraform_backend_defaults=self._getblock_terraform_backend(
             gcs_bucket, cluster_name, prefix
@@ -905,7 +874,6 @@ class BlueprintGenerator:
         toolkit_modules_url=cluster_toolkit_url,
         toolkit_modules_version=cluster_toolkit_version,
         deployment_groups=[primary_group],
-        terraform_providers=terraform_providers,  # For staging only
         vars={
             "project_id": project_id,
             "deployment_name": blueprint_name,

@@ -16,12 +16,18 @@ limitations under the License.
 
 from argparse import Namespace
 
+from ..core.cluster import create_xpk_k8s_service_account
 from ..core.commands import run_command_with_full_controls
 from ..core.gcloud_context import add_zone_and_project
 from ..core.kueue import LOCAL_QUEUE_NAME
 from ..utils.console import xpk_exit, xpk_print
 from .common import set_cluster_command
-from ..core.kjob import AppProfileDefaults, prepare_kjob, Kueue_TAS_annotation
+from ..core.kjob import (
+    AppProfileDefaults,
+    prepare_kjob,
+    Kueue_TAS_annotation,
+    get_gcsfuse_annotation,
+)
 from .kind import set_local_cluster_command
 
 
@@ -45,6 +51,7 @@ def run(args: Namespace) -> None:
   err_code = prepare_kjob(args)
   if err_code > 0:
     xpk_exit(err_code)
+  create_xpk_k8s_service_account()
 
   submit_job(args)
 
@@ -58,6 +65,13 @@ def submit_job(args: Namespace) -> None:
       ' --wait'
       ' --rm'
   )
+
+  gcsfuse_annotation = get_gcsfuse_annotation(args)
+  if gcsfuse_annotation is not None:
+    cmd += f' --pod-template-annotation {gcsfuse_annotation}'
+
+  if args.timeout:
+    cmd += f' --wait-timeout {args.timeout}s'
 
   if args.ignore_unknown_flags:
     cmd += ' --ignore-unknown-flags'

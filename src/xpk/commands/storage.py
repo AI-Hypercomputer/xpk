@@ -21,6 +21,7 @@ from kubernetes.client.rest import ApiException
 
 from ..core import gcsfuse
 from ..core.cluster import (
+    DEFAULT_NAMESPACE,
     add_zone_and_project,
     get_cluster_network,
     setup_k8s_env,
@@ -28,7 +29,6 @@ from ..core.cluster import (
     update_cluster_with_gcsfuse_driver_if_necessary,
     update_cluster_with_workload_identity_if_necessary,
 )
-from ..core.config import DEFAULT_NAMESPACE
 from ..core.filestore import FilestoreClient, get_storage_class_name
 from ..core.kjob import (
     KJOB_API_GROUP_NAME,

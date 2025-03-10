@@ -31,8 +31,7 @@ from tabulate import tabulate
 
 from ..utils.console import xpk_exit, xpk_print
 from ..utils.file import ensure_directory_exists
-from .config import XPK_SA
-
+from .cluster import XPK_SA
 
 yaml = ruamel.yaml.YAML()
 
@@ -41,11 +40,12 @@ STORAGE_TEMPLATE_PATH = "/../templates/storage.yaml"
 XPK_API_GROUP_NAME = "xpk.x-k8s.io"
 XPK_API_GROUP_VERSION = "v1"
 STORAGE_CRD_KIND = "Storage"
-STORAGE_CRD_PLURAL = STORAGE_CRD_KIND.lower() + "s"
+STORAGE_CRD_PLURAL = "storages"
 STORAGE_CRD_NAME = f"{XPK_API_GROUP_NAME}.{STORAGE_CRD_PLURAL}"
 GCS_FUSE_TYPE = "gcsfuse"
 GCP_FILESTORE_TYPE = "gcpfilestore"
 MANIFESTS_PATH = os.path.abspath("xpkclusters/storage-manifests")
+GCS_FUSE_ANNOTATION = 'gke-gcsfuse/volumes: "true"'
 
 
 @dataclass

@@ -118,6 +118,8 @@ jobs:
       run: python3 xpk.py job cancel $READ_JOB_NAME --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} | grep "job.batch/$READ_JOB_NAME deleted"
     - name: Delete batch-read.log file
       run: rm batch-read.log
+    - name: Run a run-read job on the cluster
+      run: python3 xpk.py run --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} batch-read.sh --timeout 60
     - name: Delete batch-read.sh file
       run: rm batch-read.sh
     - name: Create shell and exit it immediately
@@ -241,6 +243,8 @@ jobs:
       run: python3 xpk.py job cancel $READ_JOB_NAME --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} | grep "job.batch/$READ_JOB_NAME deleted"
     - name: Delete batch-read.log file
       run: rm batch-read.log
+    - name: Run a run-read job on the cluster
+      run: python3 xpk.py run --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} batch-read.sh --timeout 60
     - name: Delete batch-read.sh file
       run: rm batch-read.sh
     - name: Create shell and exit it immediately

@@ -232,7 +232,7 @@ class FilestoreClient:
     """Load and return Filestore's location"""
     if self.location is not None:
       return str(self.location)
-    
+
     parentZonal = self.get_parent(self.zone)
     parentRegional = self.get_parent(self.region)
     reqZonal = filestore_v1.ListInstancesRequest(parent=parentZonal)

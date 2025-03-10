@@ -17,6 +17,7 @@ limitations under the License.
 import os
 from argparse import Namespace
 from dataclasses import dataclass
+from typing import Any
 
 import ruamel.yaml
 from google.cloud import storage as gcp_storage
@@ -479,6 +480,75 @@ def print_storages_for_cluster(storages: list[Storage]) -> None:
   )
 
 
+def save_manifest(args: Namespace, manifest: list[dict]):
+  """
+  Saves manifest to file in xpkclusters/storage-manifests.
+
+  Args:
+      args: An argparser Namespace object containing arguments for creating the
+            Storage resource.
+      manifest: A list of some of: PersistentVolume, PersistentVolumeClaim and
+                StorageClass definitions
+
+  Returns:
+      manifest_path: Manifest file path
+  """
+  ensure_directory_exists(MANIFESTS_PATH)
+  manifest_path = f"{MANIFESTS_PATH}/{args.project}-{args.zone}-{args.cluster}-{args.name}-manifest.yaml"
+  with open(manifest_path, "w", encoding="utf-8") as f:
+    yaml.dump_all(manifest, f)
+  return manifest_path
+
+
+def save_storage_crds(k8s_api_client: ApiClient, data: Any):
+  """
+  Saves a new Storage custom resource in the Kubernetes cluster.
+
+  Args:
+      k8s_api_client: An ApiClient object for interacting with the Kubernetes API.
+      data: A dictionary containing data to save.
+  """
+  api_instance = k8s_client.CustomObjectsApi(k8s_api_client)
+
+  api_instance.create_cluster_custom_object(
+      group=XPK_API_GROUP_NAME,
+      version=XPK_API_GROUP_VERSION,
+      plural=STORAGE_CRD_PLURAL,
+      body=data,
+  )
+  xpk_print(f"Created {STORAGE_CRD_KIND} object: {data['metadata']['name']}")
+
+
+def fill_storage_template(
+    template: dict, args: Namespace, manifest: list[dict], manifest_path: str
+):
+  """
+  Populates storage.yaml template with data.
+
+  Args:
+      template: A storage custom resource definition template
+      args: An argparse Namespace object containing the arguments for creating
+            the Storage resource.
+      manifest: A list of some of: PersistentVolume, PersistentVolumeClaim and
+                StorageClass definitions
+  """
+  template["metadata"]["name"] = args.name
+  template["spec"] = {
+      "auto_mount": args.auto_mount,
+      "cluster": args.cluster,
+      "mount_point": args.mount_point,
+      "readonly": args.readonly,
+      "type": args.type,
+      "manifest": manifest_path,
+  }
+
+  for obj in manifest:
+    if obj["kind"] == "PersistentVolume":
+      template["spec"]["pv"] = obj["metadata"]["name"]
+    elif obj["kind"] == "PersistentVolumeClaim":
+      template["spec"]["pvc"] = obj["metadata"]["name"]
+
+
 def create_storage_crds(
     k8s_api_client: ApiClient, args: Namespace, manifest: list[dict]
 ) -> None:
@@ -493,43 +563,17 @@ def create_storage_crds(
       k8s_api_client: An ApiClient object for interacting with the Kubernetes API.
       args: An argparse Namespace object containing the arguments for creating
             the Storage resource.
+      manifest: A list of some of: PersistentVolume, PersistentVolumeClaim and
+                StorageClass definitions
   """
-  template_path = os.path.dirname(__file__) + STORAGE_TEMPLATE_PATH
-  with open(template_path, "r", encoding="utf-8") as file:
-    data = yaml.load(file)
-
-  ensure_directory_exists(MANIFESTS_PATH)
-  manifest_file_path = (
-      f"{MANIFESTS_PATH}/{args.project}-{args.zone}-{args.cluster}-{args.name}-manifest.yaml"
-  )
-  with open(manifest_file_path, "w", encoding="utf-8") as f:
-    yaml.dump_all(manifest, f)
-
-  data["metadata"]["name"] = args.name
-  data["spec"] = {
-      "auto_mount": args.auto_mount,
-      "cluster": args.cluster,
-      "mount_point": args.mount_point,
-      "readonly": args.readonly,
-      "type": args.type,
-      "manifest": manifest_file_path,
-  }
-
-  for obj in manifest:
-    if obj["kind"] == "PersistentVolume":
-      data["spec"]["pv"] = obj["metadata"]["name"]
-    elif obj["kind"] == "PersistentVolumeClaim":
-      data["spec"]["pvc"] = obj["metadata"]["name"]
-
-  api_instance = k8s_client.CustomObjectsApi(k8s_api_client)
   try:
-    api_instance.create_cluster_custom_object(
-        group=XPK_API_GROUP_NAME,
-        version=XPK_API_GROUP_VERSION,
-        plural=STORAGE_CRD_PLURAL,
-        body=data,
-    )
-    xpk_print(f"Created {STORAGE_CRD_KIND} object: {data['metadata']['name']}")
+    template_path = os.path.dirname(__file__) + STORAGE_TEMPLATE_PATH
+    with open(template_path, "r", encoding="utf-8") as file:
+      template = yaml.load(file)
+
+    manifest_path = save_manifest(args, manifest)
+    fill_storage_template(template, args, manifest, manifest_path)
+    save_storage_crds(k8s_api_client, template)
   except ApiException as e:
     if e.status == 409:
       xpk_print(f"Storage: {args.name} already exists. Skipping its creation")

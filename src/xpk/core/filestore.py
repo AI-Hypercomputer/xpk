@@ -131,7 +131,11 @@ class FilestoreClient:
   ) -> None:
     """Create new Filestore instance"""
 
-    self.location = self.zone if TIERS[tier].value == "Zonal" else self.region
+    self.location = (
+        self.zone
+        if TIERS[tier].value == Availability.ZONAL.value
+        else self.region
+    )
 
     file_shares = [
         FileShareConfig(

@@ -19,7 +19,14 @@ from transformers import AutoTokenizer, AutoModelForCausalLM, TrainingArguments,
 import torch
 from torch.distributed.elastic.multiprocessing.errors import record
 # 1. Data Loading and Preprocessing
+import os
+
+for name, value in os.environ.items():
+    print("{0}: {1}".format(name, value))
+
 dataset = load_dataset("json", data_files="training_data.jsonl", split="train")
+
+
 
 
 def create_prompt(example):

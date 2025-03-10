@@ -31,7 +31,6 @@ from ..core.kjob import (
 )
 from ..core.kueue import LOCAL_QUEUE_NAME
 from ..utils.console import xpk_exit, xpk_print
-from .common import set_cluster_command
 from .kind import set_local_cluster_command
 
 

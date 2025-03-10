@@ -28,7 +28,6 @@ from ..capacity import (
     H200_DEVICE_TYPE,
     CapacityType,
 )
-from ..config import GKE_ENDPOINT_KEY, XpkConfig
 from ..system_characteristics import get_system_characteristics_by_device_type
 from .blueprint_definitions import Blueprint, DeploymentGroup, DeploymentModule
 

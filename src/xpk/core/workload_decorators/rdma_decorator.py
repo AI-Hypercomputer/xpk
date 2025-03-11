@@ -18,7 +18,7 @@ import yaml
 from ...utils.yaml import literal_string
 
 
-def decorate_jobset(jobset_manifest_str, sub_networks) -> str:
+def decorate_jobset(jobset_manifest_str) -> str:
   """
   Decorates a JobSet manifest with the necessary components for rdma-daemon.
 
@@ -44,7 +44,7 @@ def decorate_jobset(jobset_manifest_str, sub_networks) -> str:
     spec.setdefault('tolerations', [])
     spec.setdefault('volumes', [])
 
-    add_annotations(job_manifest, sub_networks)
+    add_annotations(job_manifest)
     add_volumes(job_manifest)
     add_tolerations(job_manifest)
     update_gpu_containers(job_manifest)
@@ -52,15 +52,16 @@ def decorate_jobset(jobset_manifest_str, sub_networks) -> str:
   return yaml.dump(manifest, sort_keys=False)
 
 
-def add_annotations(job_manifest, sub_networks):
+def add_annotations(job_manifest):
   """Adds or updates annotations in the Pod template."""
   annotations = job_manifest['spec']['template']['metadata']['annotations']
   interfaces = [
       '[',
       '    {"interfaceName":"eth0","network":"default"},',
+      '    {"interfaceName":"eth1","network":"gvnic-1"},',
       *[
-          f'    {{"interfaceName":"eth{i + 1}","network":"{sub_networks[i]}"}}{"," if i<8 else ""}'
-          for i in range(9)
+          f'    {{"interfaceName":"eth{i + 2}","network":"rdma-{i}"}}{"," if i<7 else ""}'
+          for i in range(8)
       ],
       ']',
   ]

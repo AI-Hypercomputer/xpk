@@ -147,6 +147,10 @@ class BlueprintGenerator:
                 "total_min_nodes": system_node_pool_min_node_count,
                 "total_max_nodes": 1000,
             },
+            "k8s_network_names": {
+                "gvnic_prefix": "vpc",
+                "gvnic_start_index": 1,
+            },
         },
         outputs=["instructions"],
     )

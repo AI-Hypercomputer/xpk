@@ -40,7 +40,7 @@ jobs:
     runs-on: [ubuntu-22.04]
     env:
       # Names must be unique in parallel running tests.
-      FS_STORAGE_NAME: ${{secrets.INSTANCE_NAME}}-test-${{inputs.run-id}}
+      FS_STORAGE_NAME: ${{secrets.INSTANCE_NAME}}-fs-test-${{inputs.run-id}}
       FS_WRITE_WORKLOAD: "fs-write-workload"
       FS_READ_WORKLOAD: "fs-read-workload"
       FS_DELETE_WORKLOAD: "fs-delete-workload"

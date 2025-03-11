@@ -39,7 +39,7 @@ jobs:
   run-fuse-workload:
     runs-on: [ubuntu-22.04]
     env:
-      FUSE_STORAGE_NAME: ${{secrets.INSTANCE_NAME}}-test-${{inputs.run-id}}
+      FUSE_STORAGE_NAME: ${{secrets.INSTANCE_NAME}}-fuse-test-${{inputs.run-id}}
       FUSE_DELETE_WORKLOAD: "fuse-delete-workload"
       FUSE_READ_WORKLOAD: "fuse-read-workload"
       FUSE_WRITE_WORKLOAD: "fuse-write-workload"

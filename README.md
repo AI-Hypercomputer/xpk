@@ -520,10 +520,20 @@ python3 xpk.py workload create \
   --project=$PROJECT --cluster=$CLUSTER --zone=$ZONE \
   --tpu-type=v5litepod-16 --storage=test-storage
 ```
+
 ### Detaching storage
 
 ```shell
 python3 xpk.py storage detach $STORAGE_NAME \
+  --project=$PROJECT --cluster=$CLUSTER --zone=$ZONE
+```
+
+### Deleting storage
+
+XPK allows you to remove Filestore instances easily with `xpk storage delete` command. **Warning:** this deletes all data contained in the Filestore!
+
+```shell
+python3 xpk.py storage delete test-fs-instance \
   --project=$PROJECT --cluster=$CLUSTER --zone=$ZONE
 ```
 

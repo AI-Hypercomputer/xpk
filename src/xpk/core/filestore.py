@@ -171,11 +171,12 @@ class FilestoreClient:
     except GoogleCloudError as e:
       xpk_print(f"Error while creating Filestore instance: {e}")
       xpk_exit(1)
-    xpk_print(f"Filestore instance {self.get_parent()} created")
+    xpk_print(f"Filestore instance {self.instance.name} created")
 
   def delete_filestore_instance(self):
     # Initialize request
-    request = filestore_v1.DeleteInstanceRequest(name=self.name)
+    name = self.get_instance_fullname()
+    request = filestore_v1.DeleteInstanceRequest(name=name)
 
     # Make the request
     operation = self._client.delete_instance(request)
@@ -185,7 +186,7 @@ class FilestoreClient:
     except GoogleCloudError as e:
       xpk_print(f"Error while deleting Filestore instance: {e}")
       xpk_exit(1)
-    xpk_print(f"Filestore instance {self.get_parent()} deleted")
+    xpk_print(f"Filestore instance {name} deleted")
 
   def create_sc(self, name: str, network: str) -> dict:
     """Create a yaml representing filestore StorageClass."""

@@ -16,15 +16,19 @@ limitations under the License.
 
 from argparse import Namespace
 
-from ..core.cluster import setup_k8s_env, create_k8s_service_account
+from ..core.cluster import create_xpk_k8s_service_account
 from ..core.commands import run_command_for_value
-from ..core.config import GCS_FUSE_ANNOTATION_KEY, GCS_FUSE_ANNOTATION_VALUE, XPK_SA, DEFAULT_NAMESPACE
 from ..core.gcloud_context import add_zone_and_project
 from ..core.kueue import LOCAL_QUEUE_NAME
-from ..core.storage import get_auto_mount_gcsfuse_storages
 from ..utils.console import xpk_exit, xpk_print
 from .common import set_cluster_command
 from ..core.kjob import AppProfileDefaults, prepare_kjob, Kueue_TAS_annotation, get_pod_template_annotations
+from ..core.kjob import (
+    AppProfileDefaults,
+    prepare_kjob,
+    Kueue_TAS_annotation,
+    get_gcsfuse_annotation,
+)
 from .kind import set_local_cluster_command
 import re
 
@@ -49,6 +53,7 @@ def batch(args: Namespace) -> None:
   err_code = prepare_kjob(args)
   if err_code > 0:
     xpk_exit(err_code)
+  create_xpk_k8s_service_account()
 
   submit_job(args)
 
@@ -68,11 +73,9 @@ def submit_job(args: Namespace) -> None:
       f' \\\n --pod-template-annotation {interfaces} \\\n --first-node-ip'
   )
 
-  if len(gcs_fuse_storages) > 0:
-    cmd += (
-        ' --pod-template-annotation'
-        f' {GCS_FUSE_ANNOTATION_KEY}={GCS_FUSE_ANNOTATION_VALUE}'
-    )
+  gcsfuse_annotation = get_gcsfuse_annotation(args)
+  if gcsfuse_annotation is not None:
+    cmd += f' --pod-template-annotation {gcsfuse_annotation}'
 
   if args.ignore_unknown_flags:
     cmd += ' --ignore-unknown-flags'

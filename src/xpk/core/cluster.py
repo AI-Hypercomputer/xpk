@@ -35,6 +35,9 @@ JOBSET_VERSION = 'v0.7.2'
 INSTALLER_NCC_TCPX = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpx/nccl-tcpx-installer.yaml'
 INSTALLER_NCC_TCPXO = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpxo/nccl-tcpxo-installer.yaml'
 
+DEFAULT_NAMESPACE = 'default'
+XPK_SA = 'xpk-sa'
+
 
 # TODO(vbarr): Remove this function when jobsets gets enabled by default on
 # GKE clusters.
@@ -232,18 +235,22 @@ def setup_k8s_env(args) -> k8s_client.ApiClient:
   return k8s_client.ApiClient()  # pytype: disable=bad-return-type
 
 
-def create_k8s_service_account(name: str, namespace: str) -> None:
+def create_xpk_k8s_service_account() -> None:
   k8s_core_client = k8s_client.CoreV1Api()
-  sa = k8s_client.V1ServiceAccount(metadata=k8s_client.V1ObjectMeta(name=name))
+  sa = k8s_client.V1ServiceAccount(
+      metadata=k8s_client.V1ObjectMeta(name=XPK_SA)
+  )
 
-  xpk_print(f'Creating a new service account: {name}')
+  xpk_print(f'Creating a new service account: {XPK_SA}')
   try:
     k8s_core_client.create_namespaced_service_account(
-        namespace, sa, pretty=True
+        DEFAULT_NAMESPACE, sa, pretty=True
     )
     xpk_print(f'Created a new service account: {sa} successfully')
   except ApiException:
-    xpk_print(f'Service account: {name} already exists. Skipping its creation')
+    xpk_print(
+        f'Service account: {XPK_SA} already exists. Skipping its creation'
+    )
 
 
 def update_gke_cluster_with_clouddns(args) -> int:

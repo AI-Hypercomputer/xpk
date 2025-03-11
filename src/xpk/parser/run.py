@@ -14,10 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import argparse
-
 from ..commands.run import run
-from .common import add_shared_arguments, add_slurm_arguments
+from .common import (
+    add_shared_arguments,
+    add_slurm_arguments,
+    add_cluster_arguments,
+    add_kind_cluster_arguments,
+)
 
 
 def set_run_parser(run_parser):
@@ -30,19 +33,15 @@ def set_run_parser(run_parser):
 
   run_required_arguments.add_argument('script', help='script with task to run')
   run_optional_arguments.add_argument(
-      '--cluster',
-      type=str,
+      '--timeout',
+      type=int,
       default=None,
-      help='Cluster to which command applies.',
-  )
-  run_optional_arguments.add_argument(
-      '--kind-cluster',
-      type=bool,
-      action=argparse.BooleanOptionalAction,
-      default=False,
-      help='Apply command to a local test cluster.',
+      help='Amount of time to wait for job in seconds',
+      required=False,
   )
 
+  add_cluster_arguments(run_optional_arguments)
+  add_kind_cluster_arguments(run_optional_arguments)
   add_slurm_arguments(run_optional_arguments)
   add_shared_arguments(run_parser)
   run_parser.set_defaults(func=run)

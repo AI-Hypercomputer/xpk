@@ -16,12 +16,19 @@ limitations under the License.
 
 from argparse import Namespace
 
+from ..core.cluster import create_xpk_k8s_service_account
 from ..core.commands import run_command_with_full_controls
 from ..core.gcloud_context import add_zone_and_project
 from ..core.kueue import LOCAL_QUEUE_NAME
 from ..utils.console import xpk_exit, xpk_print
 from .common import set_cluster_command
 from ..core.kjob import JobTemplateDefaults, AppProfileDefaults, prepare_kjob, Kueue_TAS_annotation, get_pod_template_annotations
+from ..core.kjob import (
+    AppProfileDefaults,
+    prepare_kjob,
+    Kueue_TAS_annotation,
+    get_gcsfuse_annotation,
+)
 from .kind import set_local_cluster_command
 
 
@@ -45,6 +52,7 @@ def run(args: Namespace) -> None:
   err_code = prepare_kjob(args)
   if err_code > 0:
     xpk_exit(err_code)
+  create_xpk_k8s_service_account()
 
   submit_job(args)
 
@@ -52,17 +60,21 @@ def run(args: Namespace) -> None:
 def submit_job(args: Namespace) -> None:
   tcpxo, interfaces = get_pod_template_annotations(args)
   cmd = (
-      'kubectl kjob create slurm'
-      f' --profile {AppProfileDefaults.NAME.value}'
-      f' --localqueue {LOCAL_QUEUE_NAME}'
-      f' --pod-template-annotation {Kueue_TAS_annotation}\\\n'
-      f' --pod-template-annotation {tcpxo} \\\n'
-      f' --pod-template-annotation networking.gke.io/default-interface="eth0" \\\n'
-      f'  --pod-template-annotation {interfaces}'
-      f' --container-name {JobTemplateDefaults.CONTAINER_NAME.value}'
-      ' --wait'
-      ' --rm'
+      'kubectl kjob create slurm --profile'
+      f' {AppProfileDefaults.NAME.value} --localqueue'
+      f' {LOCAL_QUEUE_NAME} --pod-template-annotation'
+      f' {Kueue_TAS_annotation}\\\n --pod-template-annotation {tcpxo} \\\n'
+      ' --pod-template-annotation networking.gke.io/default-interface="eth0"'
+      f' \\\n  --pod-template-annotation {interfaces} --container-name'
+      f' {JobTemplateDefaults.CONTAINER_NAME.value} --wait --rm'
   )
+
+  gcsfuse_annotation = get_gcsfuse_annotation(args)
+  if gcsfuse_annotation is not None:
+    cmd += f' --pod-template-annotation {gcsfuse_annotation}'
+
+  if args.timeout:
+    cmd += f' --wait-timeout {args.timeout}s'
 
   if args.ignore_unknown_flags:
     cmd += ' --ignore-unknown-flags'

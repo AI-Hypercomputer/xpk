@@ -79,6 +79,8 @@ job_template_yaml = """
       completionMode: Indexed
       template:
         spec:
+          hostNetwork: true
+          dnsPolicy: ClusterFirstWithHostNet
           tolerations:
             - operator: "Exists"
               key: nvidia.com/gpu

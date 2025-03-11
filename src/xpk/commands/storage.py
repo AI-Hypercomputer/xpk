@@ -19,15 +19,17 @@ from argparse import Namespace
 from kubernetes import client as k8s_client
 from kubernetes.client.rest import ApiException
 
+from ..core import gcsfuse
 from ..core.cluster import (
-    setup_k8s_env,
-    update_cluster_with_gcsfuse_driver_if_necessary,
-    update_cluster_with_workload_identity_if_necessary,
-    update_cluster_with_gcpfilestore_driver_if_necessary,
+    DEFAULT_NAMESPACE,
     add_zone_and_project,
     get_cluster_network,
+    setup_k8s_env,
+    update_cluster_with_gcpfilestore_driver_if_necessary,
+    update_cluster_with_gcsfuse_driver_if_necessary,
+    update_cluster_with_workload_identity_if_necessary,
 )
-from ..core.config import DEFAULT_NAMESPACE
+from ..core.filestore import FilestoreClient, get_storage_class_name
 from ..core.kjob import (
     KJOB_API_GROUP_NAME,
     KJOB_API_GROUP_VERSION,
@@ -35,33 +37,24 @@ from ..core.kjob import (
     create_volume_bundle_instance,
 )
 from ..core.storage import (
-    GCS_FUSE_TYPE,
     GCP_FILESTORE_TYPE,
+    GCS_FUSE_TYPE,
+    STORAGE_CRD_PLURAL,
+    XPK_API_GROUP_NAME,
+    XPK_API_GROUP_VERSION,
     create_storage_crds,
     get_storage,
     list_storages,
     print_storages_for_cluster,
-    XPK_API_GROUP_NAME,
-    XPK_API_GROUP_VERSION,
-    STORAGE_CRD_PLURAL,
 )
 from ..utils.console import xpk_exit, xpk_print
 from ..utils.kubectl import apply_kubectl_manifest
-from ..utils.file import ensure_directory_exists
-from ..core.filestore import FilestoreClient, get_storage_class_name
-from ..core import gcsfuse
-import os
-
-manifests_path = os.path.abspath("xpkclusters/storage-manifests")
 
 
 def storage_create(args: Namespace) -> None:
-  ensure_directory_exists(manifests_path)
   add_zone_and_project(args)
   if args.type == GCP_FILESTORE_TYPE:
-    filestore_client = FilestoreClient(
-        args.zone, args.name, args.project, args.tier
-    )
+    filestore_client = FilestoreClient(args.zone, args.name, args.project)
     filestore_exists = filestore_client.check_filestore_instance_exists()
     if filestore_exists:
       xpk_print(f"Filestore instance {args.name} already exists.")
@@ -72,25 +65,24 @@ def storage_create(args: Namespace) -> None:
         f" {filestore_network}"
     )
     filestore_client.create_filestore_instance(
-        vol=args.vol, size=args.size, network=filestore_network
+        vol=args.vol, size=args.size, tier=args.tier, network=filestore_network
+    )
+    manifest = filestore_client.manifest(
+        args.name, args.vol, args.access_mode, filestore_network
     )
 
-    pv_data = filestore_client.create_pv(args.vol, access_mode=args.access_mode)
-    pvc_data = filestore_client.create_pvc(access_mode=args.access_mode)
-    sc = filestore_client.create_sc(filestore_network, args.project)
-    args.manifest = filestore_client.compile_to_manifest_yaml(
-        manifests_path, sc, pv_data, pvc_data
-    )
     k8s_api_client = setup_k8s_env(args)
-    create_storage_crds(k8s_api_client, args)
-    create_volume_bundle_instance(k8s_api_client, args)
+    create_storage_crds(k8s_api_client, args, manifest)
+    create_volume_bundle_instance(
+        k8s_api_client, args.name, manifest, args.readonly, args.mount_point
+    )
     return_code = update_cluster_with_workload_identity_if_necessary(args)
     if return_code > 0:
       xpk_exit(return_code)
     return_code = update_cluster_with_gcpfilestore_driver_if_necessary(args)
     if return_code > 0:
       xpk_exit(return_code)
-    apply_kubectl_manifest(k8s_api_client, args.manifest)
+    apply_kubectl_manifest(k8s_api_client, manifest)
 
 
 def storage_delete(args: Namespace) -> None:
@@ -107,11 +99,25 @@ def storage_delete(args: Namespace) -> None:
     filestore_client.delete_filestore_instance()
 
 def storage_attach(args: Namespace) -> None:
-  if args.type == GCP_FILESTORE_TYPE and args.manifest is None:
-    xpk_print("---manifest is required when attaching gcpfilestore storage.")
-    xpk_exit(1)
+  add_zone_and_project(args)
+  if args.type == GCP_FILESTORE_TYPE:
+    if args.instance is None:
+      args.instance = args.name
 
-  if args.type == GCS_FUSE_TYPE and args.manifest is None:
+    filestore_client = FilestoreClient(args.zone, args.instance, args.project)
+
+    filestore_exists = filestore_client.check_filestore_instance_exists()
+    if not filestore_exists:
+      xpk_print(f"Filestore instance {args.instance} does not exists.")
+      xpk_exit(1)
+
+    filestore_client.load_instance()
+    filestore_network = get_cluster_network(args)
+    manifest = filestore_client.manifest(
+        args.name, args.vol, args.access_mode, filestore_network
+    )
+
+  else:  # args.type == GCS_FUSE_TYPE:
     if args.size is None:
       xpk_print("--size is required when attaching gcsfuse storage.")
       xpk_exit(1)
@@ -119,18 +125,15 @@ def storage_attach(args: Namespace) -> None:
     if args.bucket is None:
       args.bucket = args.name
 
-    add_zone_and_project(args)
-    ensure_directory_exists(manifests_path)
-    args.manifest = (
-        f"{manifests_path}/{args.project}-{args.zone}-{args.name}-manifest.yaml"
-    )
-    gcsfuse.manifest(
-        args.manifest, name=args.name, bucket=args.bucket, size=args.size
+    manifest = gcsfuse.manifest(
+        name=args.name, bucket=args.bucket, size=args.size
     )
 
   k8s_api_client = setup_k8s_env(args)
-  create_storage_crds(k8s_api_client, args)
-  create_volume_bundle_instance(k8s_api_client, args)
+  create_storage_crds(k8s_api_client, args, manifest)
+  create_volume_bundle_instance(
+      k8s_api_client, args.name, manifest, args.readonly, args.mount_point
+  )
   return_code = update_cluster_with_workload_identity_if_necessary(args)
   if return_code > 0:
     xpk_exit(return_code)
@@ -144,7 +147,7 @@ def storage_attach(args: Namespace) -> None:
   if return_code > 0:
     xpk_exit(return_code)
 
-  apply_kubectl_manifest(k8s_api_client, args.manifest)
+  apply_kubectl_manifest(k8s_api_client, manifest)
 
 
 def storage_list(args: Namespace) -> None:

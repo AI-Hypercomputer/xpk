@@ -14,47 +14,38 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import os
+
 import ruamel.yaml
 
 yaml = ruamel.yaml.YAML()
+yaml_object_separator = "---\n"
+
+FUSE_PV_PATH = "/../templates/fuse-pv.yaml"
+FUSE_PVC_PATH = "/../templates/fuse-pvc.yaml"
 
 
-GCSFUSE_PV_TEMPLATE = """apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: {name}-pv
-spec:
-  accessModes:
-  - ReadWriteMany
-  capacity:
-    storage: {size}
-  storageClassName: example-storage-class
-  mountOptions:
-    - implicit-dirs
-  csi:
-    driver: gcsfuse.csi.storage.gke.io
-    volumeHandle: {bucket}
-    volumeAttributes:
-      gcsfuseLoggingSeverity: warning
-"""
-
-GCSFUSE_PVC_TEMPLATE = """apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: {name}-static-pvc
-  namespace: default
-spec:
-  accessModes:
-  - ReadWriteMany
-  resources:
-    requests:
-      storage: {size}
-  volumeName: {name}-pv
-  storageClassName: example-storage-class
-"""
+def create_pv(name: str, size: int, bucket: str) -> dict:
+  template_path = os.path.dirname(__file__) + FUSE_PV_PATH
+  with open(template_path, "r", encoding="utf-8") as file:
+    data: dict = yaml.load(file)
+  data["metadata"]["name"] = f"{name}-pv"
+  data["spec"]["capacity"]["storage"] = f"{size}Gi"
+  data["spec"]["csi"]["volumeHandle"] = bucket
+  return data
 
 
-def manifest(path: str, name: str, bucket: str, size: int):
+def create_pvc(name: str, size: int) -> dict:
+  template_path = os.path.dirname(__file__) + FUSE_PVC_PATH
+  with open(template_path, "r", encoding="utf-8") as file:
+    data: dict = yaml.load(file)
+  data["metadata"]["name"] = f"{name}-pvc"
+  data["spec"]["resources"]["requests"]["storage"] = f"{size}Gi"
+  data["spec"]["volumeName"] = f"{name}-pv"
+  return data
+
+
+def manifest(name: str, bucket: str, size: int) -> list[dict]:
   """Creates GCS FUSE manifest file.
 
   Args:
@@ -63,10 +54,6 @@ def manifest(path: str, name: str, bucket: str, size: int):
       bucket (str): name of the storage bucket
       size (str): size of the storage
   """
-  size = str(size) + "Gi"
-  pv = GCSFUSE_PV_TEMPLATE.format(name=name, size=size, bucket=bucket)
-  pvc = GCSFUSE_PVC_TEMPLATE.format(name=name, size=size)
-  with open(path, "w", encoding="utf-8") as f:
-    f.write(pv)
-    f.write("---\n")
-    f.write(pvc)
+  pv = create_pv(name, size, bucket)
+  pvc = create_pvc(name, size)
+  return [pv, pvc]

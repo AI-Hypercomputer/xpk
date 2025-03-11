@@ -39,7 +39,7 @@ jobs:
   run-fuse-workload:
     runs-on: [ubuntu-22.04]
     env:
-      FUSE_STORAGE_NAME: ${{secrets.INSTANCE_NAME}}-test-${{inputs.run-id}}
+      FUSE_STORAGE_NAME: ${{secrets.INSTANCE_NAME}}-fuse-test-${{inputs.run-id}}
       FUSE_DELETE_WORKLOAD: "fuse-delete-workload"
       FUSE_READ_WORKLOAD: "fuse-read-workload"
       FUSE_WRITE_WORKLOAD: "fuse-write-workload"
@@ -86,25 +86,25 @@ jobs:
       run: xpk --help
     - name: Authenticate Docker
       run: gcloud auth configure-docker --quiet
-    - name: Attach auto-mount GCP Filestore Storage instance
+    - name: Attach auto-mount GCS FUSE Storage instance
       run: python3 xpk.py storage attach $FUSE_STORAGE_NAME --cluster=${{inputs.cluster-name}} --zone=${{inputs.zone}} --type=gcsfuse --auto-mount=true --mount-point='/fuse-test-mount-point' --readonly=false --size=1 --bucket=$FUSE_BUCKET_NAME
     - name: List and verify existing Storages
       run: python3 xpk.py storage list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} | tee output.txt | grep $FUSE_STORAGE_NAME || (echo 'No storage found' && exit 143)
     - name: Verify VolumeBundle created
       run: kubectl get volumebundle $FUSE_STORAGE_NAME -o jsonpath='{.spec.containerVolumeMounts[0].mountPath}' | grep '/fuse-test-mount-point'
-    - name: Run workload to write file on filestore
-      run : python3 xpk.py workload create --workload $FUSE_WRITE_WORKLOAD --docker-image='marketplace.gcr.io/google/ubuntu2004' --command "mkdir /fuse-test-mount-point/$RANDOM_SEED/ && echo 'Test text message' > /fuse-test-mount-point/$RANDOM_SEED/test.txt || (echo 'Writing to filestore failed' && exit 143)" --cluster ${{inputs.cluster-name}} --tpu-type=${{inputs.tpu-type}} --zone ${{inputs.location}}
+    - name: Run workload to write file on storage
+      run : python3 xpk.py workload create --workload $FUSE_WRITE_WORKLOAD --docker-image='marketplace.gcr.io/google/ubuntu2004' --command "mkdir /fuse-test-mount-point/$RANDOM_SEED/ && echo 'Test text message' > /fuse-test-mount-point/$RANDOM_SEED/test.txt || (echo 'Writing to storage failed' && exit 143)" --cluster ${{inputs.cluster-name}} --tpu-type=${{inputs.tpu-type}} --zone ${{inputs.location}}
     - name: Wait for writer workload completion and confirm it succeeded
       run: python3 xpk.py workload list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} --wait-for-job-completion $FUSE_WRITE_WORKLOAD --timeout 300
-    - name: Run workload to read file on filestore
-      run : python3 xpk.py workload create --workload $FUSE_READ_WORKLOAD --command "grep 'Test text message' /fuse-test-mount-point/$RANDOM_SEED/test.txt || (echo 'Reading from filestore failed' && exit 143)" --cluster ${{inputs.cluster-name}} --tpu-type=${{inputs.tpu-type}} --zone ${{inputs.location}}
+    - name: Run workload to read file on storage
+      run : python3 xpk.py workload create --workload $FUSE_READ_WORKLOAD --command "grep 'Test text message' /fuse-test-mount-point/$RANDOM_SEED/test.txt || (echo 'Reading from storage failed' && exit 143)" --cluster ${{inputs.cluster-name}} --tpu-type=${{inputs.tpu-type}} --zone ${{inputs.location}}
     - name: Wait for reader workload completion and confirm it succeeded
       run: python3 xpk.py workload list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} --wait-for-job-completion $FUSE_READ_WORKLOAD --timeout 300
     - name: Create batch-read.sh script
       run: |
         cat <<EOF > batch-read.sh
         #!/bin/bash
-        grep 'Test text message' /fuse-test-mount-point/$RANDOM_SEED/test.txt || (echo 'Reading from filestore failed' && exit 143)
+        grep 'Test text message' /fuse-test-mount-point/$RANDOM_SEED/test.txt || (echo 'Reading from storage failed' && exit 143)
         EOF
     - name: Run a batch-read job on the cluster
       run: python3 xpk.py batch --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} batch-read.sh | tee batch-read.log
@@ -119,6 +119,8 @@ jobs:
       run: python3 xpk.py job cancel $READ_JOB_NAME --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} | grep "job.batch/$READ_JOB_NAME deleted"
     - name: Delete batch-read.log file
       run: rm batch-read.log
+    - name: Run a run-read job on the cluster
+      run: python3 xpk.py run --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} batch-read.sh --timeout 60
     - name: Delete batch-read.sh file
       run: rm batch-read.sh
     - name: Create shell and exit it immediately
@@ -137,11 +139,12 @@ jobs:
       run: python3 xpk.py shell stop --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}
     - name: Delete create-shell.exp file
       run: rm create-shell.exp
-    - name: Run workload to delete file on filestore
+    - name: Run workload to delete file on storage
       run : python3 xpk.py workload create --workload $FUSE_DELETE_WORKLOAD --command "rm -rf /fuse-test-mount-point/$RANDOM_SEED/test.txt || exit 143" --cluster ${{inputs.cluster-name}} --tpu-type=${{inputs.tpu-type}} --zone ${{inputs.location}}
     - name: Wait for delete workload completion and confirm it succeeded
       run: python3 xpk.py workload list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} --wait-for-job-completion $FUSE_DELETE_WORKLOAD --timeout 300
     - name: Delete storage
+      if: always()
       run: python3 xpk.py storage delete $FUSE_STORAGE_NAME --zone=${{inputs.zone}} --cluster=${{inputs.cluster-name}}
     - name: Verify VolumeBundle deleted
       run: |

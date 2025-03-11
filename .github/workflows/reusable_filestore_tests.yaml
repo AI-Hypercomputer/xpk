@@ -40,7 +40,7 @@ jobs:
     runs-on: [ubuntu-22.04]
     env:
       # Names must be unique in parallel running tests.
-      FS_STORAGE_NAME: ${{secrets.INSTANCE_NAME}}-test-${{inputs.run-id}}
+      FS_STORAGE_NAME: ${{secrets.INSTANCE_NAME}}-fs-test-${{inputs.run-id}}
       FS_WRITE_WORKLOAD: "fs-write-workload"
       FS_READ_WORKLOAD: "fs-read-workload"
       FS_DELETE_WORKLOAD: "fs-delete-workload"
@@ -86,14 +86,8 @@ jobs:
       run: xpk --help
     - name: Authenticate Docker
       run: gcloud auth configure-docker --quiet
-    - name: Fill Filestore manifest file
-      run: |
-        sed -i 's/PROJECT_NAME/${{secrets.PROJECT_NAME}}/g;  s/ZONE/${{inputs.zone}}/g; s/INSTANCE_NAME/${{secrets.INSTANCE_NAME}}/g; s/VOL_NAME/${{secrets.VOL_NAME}}/g; s/IP_ADDRESS/${{secrets.IP_ADDRESS}}/g' ./tests/data/fs-manifest.yaml
     - name: Attach auto-mount GCP Filestore Storage instance
-      run: |
-        python3 xpk.py storage attach $FS_STORAGE_NAME --cluster=${{inputs.cluster-name}} --zone=${{inputs.zone}} --type=gcpfilestore \
-        --auto-mount=true \
-        --mount-point='/fs-test-mount-point' --readonly=false --manifest='./tests/data/fs-manifest.yaml'
+      run: python3 xpk.py storage attach $FS_STORAGE_NAME --cluster=${{inputs.cluster-name}} --zone=${{inputs.zone}} --type=gcpfilestore --auto-mount=true --mount-point='/fs-test-mount-point' --readonly=false --vol=${{secrets.VOL_NAME}} --instance=${{secrets.INSTANCE_NAME}}
     - name: List and verify existing Storages
       run: python3 xpk.py storage list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} | tee output.txt | grep $FS_STORAGE_NAME || (echo 'No storage found' && exit 143)
     - name: Verify VolumeBundle created
@@ -124,6 +118,8 @@ jobs:
       run: python3 xpk.py job cancel $READ_JOB_NAME --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} | grep "job.batch/$READ_JOB_NAME deleted"
     - name: Delete batch-read.log file
       run: rm batch-read.log
+    - name: Run a run-read job on the cluster
+      run: python3 xpk.py run --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} batch-read.sh --timeout 60
     - name: Delete batch-read.sh file
       run: rm batch-read.sh
     - name: Create shell and exit it immediately
@@ -247,6 +243,8 @@ jobs:
       run: python3 xpk.py job cancel $READ_JOB_NAME --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} | grep "job.batch/$READ_JOB_NAME deleted"
     - name: Delete batch-read.log file
       run: rm batch-read.log
+    - name: Run a run-read job on the cluster
+      run: python3 xpk.py run --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} batch-read.sh --timeout 60
     - name: Delete batch-read.sh file
       run: rm batch-read.sh
     - name: Create shell and exit it immediately

@@ -54,14 +54,17 @@ from ..utils.kubectl import apply_kubectl_manifest
 def storage_create(args: Namespace) -> None:
   add_zone_and_project(args)
   if args.type == GCP_FILESTORE_TYPE:
-    filestore_client = FilestoreClient(args.zone, args.name, args.project)
+    if args.instance is None:
+      args.instance = args.name
+
+    filestore_client = FilestoreClient(args.zone, args.instance, args.project)
     filestore_exists = filestore_client.check_filestore_instance_exists()
     if filestore_exists:
-      xpk_print(f"Filestore instance {args.name} already exists.")
+      xpk_print(f"Filestore instance {args.instance} already exists.")
       xpk_exit(1)
     filestore_network = get_cluster_network(args)
     xpk_print(
-        f"Creating Filestore instance {args.name} in network:"
+        f"Creating Filestore instance {args.instance} in network:"
         f" {filestore_network}"
     )
     filestore_client.create_filestore_instance(
@@ -87,16 +90,32 @@ def storage_create(args: Namespace) -> None:
 
 def storage_delete(args: Namespace) -> None:
   add_zone_and_project(args)
-  if args.type == GCP_FILESTORE_TYPE:
-    filestore_client = FilestoreClient(
-        args.zone, args.name, args.project, args.tier
+  k8s_api_client = setup_k8s_env(args)
+  storages = list_storages(k8s_api_client)
+  filestore_client = FilestoreClient(args.zone, args.name, args.project)
+
+  if not filestore_client.check_filestore_instance_exists():
+    xpk_print(f"Filestore instance {args.name} does not exist.")
+    xpk_exit(1)
+
+  filestore_instance_name = filestore_client.get_instance_fullname()
+
+  children = [
+      storage.name
+      for storage in storages
+      if storage.bucket.startswith(filestore_instance_name)
+  ]
+
+  if children and not args.force:
+    xpk_print(
+        "Stopping filestore deletion. This instance has attached following"
+        f" storages: {', '.join(children)}. You need to detach them before"
+        " deleting the instance."
     )
-    filestore_exists = filestore_client.check_filestore_instance_exists()
-    if not filestore_exists:
-      xpk_print(f"Filestore instance {args.name} does not exist.")
-      xpk_exit(1)
-    
-    filestore_client.delete_filestore_instance()
+    xpk_exit(1)
+
+  filestore_client.delete_filestore_instance()
+
 
 def storage_attach(args: Namespace) -> None:
   add_zone_and_project(args)

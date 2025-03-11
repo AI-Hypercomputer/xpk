@@ -43,6 +43,7 @@ def set_storage_parser(storage_parser: argparse.ArgumentParser) -> None:
   add_storage_list_parser(storage_subcommands)
   add_storage_detach_parser(storage_subcommands)
   add_storage_create_parser(storage_subcommands)
+  add_storage_delete_parser(storage_subcommands)
 
 
 def add_storage_attach_parser(
@@ -228,6 +229,14 @@ def add_storage_create_parser(
       'Optional Arguments',
       'Optional arguments for storage create.',
   )
+  opt_args.add_argument(
+      '--instance',
+      type=str,
+      help=(
+          '(optional) Name of the filestore instance. If not set, then the'
+          ' "name" parameter is infered as an instance name.'
+      ),
+  )
   add_kind_cluster_arguments(opt_args)
 
 
@@ -291,3 +300,14 @@ def add_storage_delete_parser(
   )
   req_args.add_argument('name', type=str)
   add_cluster_arguments(req_args, required=True)
+
+  opt_args = storage_delete_parser.add_argument_group(
+      'Optional Arguments',
+      'Optional arguments for storage delete.',
+  )
+  opt_args.add_argument(
+      '--force',
+      '-f',
+      action='store_true',
+      help='Force filestore instance deletion even if it has attached storages',
+  )

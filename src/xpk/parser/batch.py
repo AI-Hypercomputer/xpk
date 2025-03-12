@@ -35,7 +35,9 @@ def set_batch_parser(batch_parser):
   batch_required_arguments.add_argument(
       'script', help='script with batch task to run'
   )
-
+  batch_required_arguments.add_argument(
+    '--device_type', help = 'gpu type to use with.'
+  )
   add_cluster_arguments(batch_optional_arguments)
   add_kind_cluster_arguments(batch_optional_arguments)
   add_shared_arguments(batch_optional_arguments)

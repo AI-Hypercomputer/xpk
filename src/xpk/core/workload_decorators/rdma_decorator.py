@@ -18,6 +18,21 @@ import yaml
 from ...utils.yaml import literal_string
 
 
+def decorate_job_template_with_a3ultra(job_manifest) -> str:
+  spec = (
+      job_manifest.setdefault('spec', {})
+      .setdefault('template', {})
+      .setdefault('spec', {})
+  )
+  spec.setdefault('tolerations', [])
+  spec.setdefault('volumes', [])
+
+  add_volumes(job_manifest)
+  add_tolerations(job_manifest)
+  update_gpu_containers(job_manifest)
+  return job_manifest
+
+
 def decorate_jobset(jobset_manifest_str, sub_networks) -> str:
   """
   Decorates a JobSet manifest with the necessary components for rdma-daemon.

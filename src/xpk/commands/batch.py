@@ -22,13 +22,7 @@ from ..core.gcloud_context import add_zone_and_project
 from ..core.kueue import LOCAL_QUEUE_NAME
 from ..utils.console import xpk_exit, xpk_print
 from .common import set_cluster_command
-from ..core.kjob import AppProfileDefaults, prepare_kjob, Kueue_TAS_annotation, get_pod_template_annotations
-from ..core.kjob import (
-    AppProfileDefaults,
-    prepare_kjob,
-    Kueue_TAS_annotation,
-    get_gcsfuse_annotation,
-)
+from ..core.kjob import AppProfileDefaults, prepare_kjob, Kueue_TAS_annotation, add_annotation_to_job, get_gcsfuse_annotation
 from .kind import set_local_cluster_command
 import re
 
@@ -59,18 +53,15 @@ def batch(args: Namespace) -> None:
 
 
 def submit_job(args: Namespace) -> None:
-  tcpxo, interfaces = get_pod_template_annotations(args)
-  k8s_api_client = setup_k8s_env(args)
-  create_k8s_service_account(XPK_SA, DEFAULT_NAMESPACE)
-  gcs_fuse_storages = get_auto_mount_gcsfuse_storages(k8s_api_client)
+
+  create_xpk_k8s_service_account()
 
   cmd = (
       'kubectl kjob create slurm  --profile'
       f' {AppProfileDefaults.NAME.value} \\\n --localqueue'
       f' {LOCAL_QUEUE_NAME} \\\n --pod-template-annotation'
-      f' {Kueue_TAS_annotation} \\\n --pod-template-annotation {tcpxo} \\\n'
-      ' --pod-template-annotation networking.gke.io/default-interface="eth0"'
-      f' \\\n --pod-template-annotation {interfaces} \\\n --first-node-ip'
+      f' {Kueue_TAS_annotation} '
+      ' --first-node-ip'
   )
 
   gcsfuse_annotation = get_gcsfuse_annotation(args)
@@ -79,8 +70,6 @@ def submit_job(args: Namespace) -> None:
 
   if args.ignore_unknown_flags:
     cmd += ' --ignore-unknown-flags'
-
-  cmd += f' -- {args.script} --partition {LOCAL_QUEUE_NAME}'
 
   if args.array is not None:
     cmd += f' --array {args.array}'
@@ -127,8 +116,10 @@ def submit_job(args: Namespace) -> None:
   if args.time is not None:
     cmd += f' --time {args.time}'
 
+  cmd = add_annotation_to_job(args, cmd)
+  cmd += f' -- {args.script} --partition {LOCAL_QUEUE_NAME}'
   return_code, return_value = run_command_for_value(cmd, 'submit job', args)
-
+  
   if return_code != 0:
     xpk_print(f'Running batch job returned ERROR {return_code}')
     xpk_exit(return_code)

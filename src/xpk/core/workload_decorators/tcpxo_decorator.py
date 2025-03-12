@@ -21,7 +21,7 @@ from ...utils.yaml import literal_string
 rxdm = 'v1.0.12'
 
 
-def decorate_kjob_job(job_manifest) -> str:
+def decorate_job_template_with_a3mega(job_manifest) -> str:
   spec = (
       job_manifest.setdefault('spec', {})
       .setdefault('template', {})

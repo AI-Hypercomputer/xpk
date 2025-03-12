@@ -182,11 +182,15 @@ class FilestoreClient:
         f"Filestore instance {self.get_instance_fullname(location)} created"
     )
 
-  def create_sc(self, name: str, network: str) -> dict:
-    """Create a yaml representing filestore StorageClass."""
-    template_path = os.path.dirname(__file__) + FS_SC_PATH
+  def load_template(self, template_name: str) -> dict:
+    template_path = os.path.dirname(__file__) + template_name
     with open(template_path, "r", encoding="utf-8") as file:
       data: dict = yaml.load(file)
+    return data
+
+  def create_sc(self, name: str, network: str) -> dict:
+    """Create a yaml representing filestore StorageClass."""
+    data = self.load_template(FS_SC_PATH)
     data["metadata"]["name"] = get_storage_class_name(name)
     data["parameters"]["tier"] = self.instance.tier.name
     data["parameters"][
@@ -196,10 +200,7 @@ class FilestoreClient:
 
   def create_pv(self, name: str, vol: str, access_mode: str) -> dict:
     """Create a yaml representing filestore PersistentVolume."""
-    template_path = os.path.dirname(__file__) + FS_PV_PATH
-    with open(template_path, "r", encoding="utf-8") as file:
-      data: dict = yaml.load(file)
-
+    data = self.load_template(FS_PV_PATH)
     data["metadata"]["name"] = get_pv_name(name)
     data["spec"]["storageClassName"] = get_storage_class_name(name)
     data["spec"]["capacity"]["storage"] = self.instance.file_shares[
@@ -216,9 +217,7 @@ class FilestoreClient:
 
   def create_pvc(self, name: str, access_mode: str) -> dict:
     """Create a yaml representing filestore PersistentVolumeClaim."""
-    template_path = os.path.dirname(__file__) + FS_PVC_PATH
-    with open(template_path, "r", encoding="utf-8") as file:
-      data: dict = yaml.load(file)
+    data = self.load_template(FS_PVC_PATH)
     data["metadata"]["name"] = get_pvc_name(name)
     data["spec"]["accessModes"] = [access_mode]
     data["spec"]["storageClassName"] = get_storage_class_name(name)

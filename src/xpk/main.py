@@ -33,10 +33,11 @@ Next Steps:
 
 import argparse
 import sys
-
+import inspect
 from .parser.core import set_parser
-from .utils.console import xpk_print
+from .utils.console import xpk_print, xpk_exit
 from .utils.validation import validate_dependencies
+from .parser.args import apply_args
 ################### Compatibility Check ###################
 # Check that the user runs the below version or greater.
 
@@ -64,7 +65,16 @@ xpk_print('Starting xpk', flush=True)
 validate_dependencies()
 main_args = parser.parse_args()
 main_args.enable_ray_cluster = False
-main_args.func(main_args)
+
+sig = inspect.signature(main_args.func)
+if len(sig.parameters) != 1 or 'args' not in sig.parameters:
+  raise RuntimeError('Invalid method signature')
+
+if sig.parameters['args'].annotation == argparse.Namespace:
+  main_args.func(main_args)
+else:
+  args = apply_args(main_args, sig.parameters['args'].annotation)
+  main_args.func(args)
 
 
 def main() -> None:

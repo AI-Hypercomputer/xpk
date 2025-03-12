@@ -47,11 +47,18 @@ from ..core.storage import (
     list_storages,
     print_storages_for_cluster,
 )
+from ..parser.args import (
+    StorageAttachArgs,
+    StorageCreateArgs,
+    StorageDeleteArgs,
+    StorageDetachArgs,
+    StorageListArgs,
+)
 from ..utils.console import xpk_exit, xpk_print
 from ..utils.kubectl import apply_kubectl_manifest
 
 
-def storage_create(args: Namespace) -> None:
+def storage_create(args: StorageCreateArgs) -> None:
   add_zone_and_project(args)
   if args.type == GCP_FILESTORE_TYPE:
     if args.instance is None:
@@ -88,8 +95,7 @@ def storage_create(args: Namespace) -> None:
     apply_kubectl_manifest(k8s_api_client, manifest)
 
 
-def storage_delete(args: Namespace) -> None:
-  add_zone_and_project(args)
+def storage_delete(args: StorageDeleteArgs) -> None:
   k8s_api_client = setup_k8s_env(args)
   storages = list_storages(k8s_api_client)
   filestore_client = FilestoreClient(args.zone, args.name, args.project)
@@ -117,8 +123,7 @@ def storage_delete(args: Namespace) -> None:
   filestore_client.delete_filestore_instance()
 
 
-def storage_attach(args: Namespace) -> None:
-  add_zone_and_project(args)
+def storage_attach(args: StorageAttachArgs) -> None:
   if args.type == GCP_FILESTORE_TYPE:
     if args.instance is None:
       args.instance = args.name
@@ -169,7 +174,7 @@ def storage_attach(args: Namespace) -> None:
   apply_kubectl_manifest(k8s_api_client, manifest)
 
 
-def storage_list(args: Namespace) -> None:
+def storage_list(args: StorageListArgs) -> None:
   k8s_api_client = setup_k8s_env(args)
   storages = list_storages(k8s_api_client)
   print_storages_for_cluster(storages)
@@ -200,7 +205,7 @@ def delete_resource(api_call, resource_name: str, resource_kind: str) -> None:
   xpk_print(f"Deleted {resource_kind}:{resource_name}")
 
 
-def storage_detach(args: Namespace) -> None:
+def storage_detach(args: StorageDetachArgs) -> None:
   k8s_api_client = setup_k8s_env(args)
   api_instance = k8s_client.CustomObjectsApi(k8s_api_client)
   core_api = k8s_client.CoreV1Api()

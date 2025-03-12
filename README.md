@@ -57,8 +57,8 @@ and the following CPU types:
 * n2-standard-32
 
 xpk also supports Google Cloud Storage solutions:
-* [Cloud Storage FUSE](https://cloud.google.com/storage/docs/gcs-fuse)
-* [Filestore](https://cloud.google.com/filestore#documentation)
+* [Cloud Storage FUSE](#fuse)
+* [Filestore](#filestore)
 
 # Permissions needed on Cloud Console:
 

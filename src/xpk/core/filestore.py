@@ -79,7 +79,7 @@ class FilestoreClient:
     self._client = filestore_v1.CloudFilestoreManagerClient()
     self.instance: Instance | None = None
 
-  def check_filestore_instance_exists(self) -> bool:
+  def check_instance_exists(self) -> bool:
     """Check if Filestore instance exists"""
     self.load_instance()
     return self.instance is not None
@@ -120,7 +120,7 @@ class FilestoreClient:
 
     return str(self.instance.name.split("/")[3])
 
-  def create_filestore_instance(
+  def create_instance(
       self,
       vol: str,
       size: int,

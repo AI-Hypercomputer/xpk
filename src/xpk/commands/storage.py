@@ -55,7 +55,7 @@ def storage_create(args: Namespace) -> None:
   add_zone_and_project(args)
   if args.type == GCP_FILESTORE_TYPE:
     filestore_client = FilestoreClient(args.zone, args.name, args.project)
-    filestore_exists = filestore_client.check_filestore_instance_exists()
+    filestore_exists = filestore_client.check_instance_exists()
     if filestore_exists:
       xpk_print(f"Filestore instance {args.name} already exists.")
       xpk_exit(1)
@@ -64,7 +64,7 @@ def storage_create(args: Namespace) -> None:
         f"Creating Filestore instance {args.name} in network:"
         f" {filestore_network}"
     )
-    filestore_client.create_filestore_instance(
+    filestore_client.create_instance(
         vol=args.vol, size=args.size, tier=args.tier, network=filestore_network
     )
     manifest = filestore_client.manifest(
@@ -93,7 +93,7 @@ def storage_attach(args: Namespace) -> None:
 
     filestore_client = FilestoreClient(args.zone, args.instance, args.project)
 
-    filestore_exists = filestore_client.check_filestore_instance_exists()
+    filestore_exists = filestore_client.check_instance_exists()
     if not filestore_exists:
       xpk_print(f"Filestore instance {args.instance} does not exists.")
       xpk_exit(1)

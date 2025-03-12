@@ -39,9 +39,6 @@ def set_run_parser(run_parser):
       help='Amount of time to wait for job in seconds',
       required=False,
   )
-  run_required_arguments.add_argument(
-    '--device_type', help = 'gpu type to use with.'
-  )
   add_cluster_arguments(run_optional_arguments)
   add_kind_cluster_arguments(run_optional_arguments)
   add_slurm_arguments(run_optional_arguments)

@@ -158,6 +158,7 @@ def created_by_gcluster(args) -> bool:
   bpg = prepare_blueprint_generator()
   return bpg.blueprint_exists(unique_name, prefix)
 
+
 def get_cluster_gpu_type(args) -> str:
   prepare_directories()
   region = zone_to_region(args.zone)
@@ -165,6 +166,7 @@ def get_cluster_gpu_type(args) -> str:
   prefix = get_prefix_path(args.project, region)
   bpg = prepare_blueprint_generator()
   return bpg.blueprint_exists(unique_name, prefix)
+
 
 def get_unique_name(project_id, region, cluster_name):
   unique_string_hash = hash_string(

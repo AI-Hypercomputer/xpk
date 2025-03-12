@@ -35,6 +35,7 @@ from .commands import run_command_for_value, run_kubectl_apply, run_command_with
 from .config import XpkConfig, KJOB_SHELL_IMAGE, KJOB_SHELL_INTERACTIVE_COMMAND, KJOB_SHELL_WORKING_DIRECTORY, KJOB_BATCH_IMAGE, KJOB_BATCH_WORKING_DIRECTORY
 from .resources import get_cluster_system_characteristics, SystemCharacteristics, AcceleratorType
 from enum import Enum
+from .resources import get_cluster_system_characteristics
 
 KJOB_API_GROUP_NAME = "kjobctl.x-k8s.io"
 KJOB_API_GROUP_VERSION = "v1alpha1"
@@ -294,7 +295,7 @@ def create_job_template_instance(
   working_directory = config.get(KJOB_BATCH_WORKING_DIRECTORY)
   if working_directory is None or len(working_directory) == 0:
     working_directory = JobTemplateDefaults.WORKING_DIRECTORY.value
-  print(system)
+  print(system.device_type)
   resources = (
       job_resources_template.format(gpu_per_node=system.chips_per_vm)
       if system is not None
@@ -320,7 +321,9 @@ def create_job_template_instance(
       service_account=service_account,
   )
   if system is not None and system.accelerator_type == AcceleratorType["GPU"]:
-    yml_string = decorate_job_template_with_gpu(yml_string, system.gke_accelerator)
+    yml_string = decorate_job_template_with_gpu(
+        yml_string, system.gke_accelerator
+    )
 
   return run_kubectl_apply(
       yml_string,
@@ -358,6 +361,8 @@ def create_pod_template_instance(args: Namespace, service_account: str) -> int:
       task="Creating PodTemplate",
       args=args,
   )
+
+
 
 
 def prepare_kjob(args: Namespace) -> int:
@@ -485,22 +490,26 @@ def add_h100_mega_annotations(args, cmd: str) -> str:
       ' --pod-template-annotation networking.gke.io/default-interface="eth0"'
       " \\\n"
   )
-  cmd += f" --pod-template-annotation {interfaces}"
+  cmd += f" --pod-template-annotation {interfaces} "
   return cmd
 
 
 def add_h200_ultra_annotations(args, cmd) -> str:
   eth0, interfaces = get_a3ultra_pod_template_annotations(args)
   cmd += f" --pod-template-annotation {eth0} \\\n"
-  cmd += f" --pod-template-annotation {interfaces}"
+  cmd += f" --pod-template-annotation {interfaces} \\\n"
   return cmd
 
-def get_gpu_type_from_cluster(args) -> str:
-  return args.device_type
 
+
+def get_gpu_type_from_cluster(args) -> str:
+  system = get_cluster_system_characteristics(args)
+  return system.device_type
 
 def add_annotation_to_job(args, cmd: str) -> str:
   gpu_type = get_gpu_type_from_cluster(args)
+
+  xpk_print("using gpu_type ", gpu_type)
   if gpu_type == H100_DEVICE_TYPE:
     return add_h100_mega_annotations(args, cmd)
   if gpu_type == H200_DEVICE_TYPE:

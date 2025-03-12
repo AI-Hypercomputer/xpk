@@ -56,10 +56,11 @@ def submit_job(args: Namespace) -> None:
       'kubectl kjob create slurm --profile'
       f' {AppProfileDefaults.NAME.value} '
       f' --localqueue {LOCAL_QUEUE_NAME} '
-      f' --pod-template-annotation {Kueue_TAS_annotation}\\\n'
+      f" --pod-template-annotation '{Kueue_TAS_annotation}'"
       f' --container-name {JobTemplateDefaults.CONTAINER_NAME.value}'
-      '  --wait --rm'
+      ' --wait --rm'
   )
+  cmd = add_annotation_to_job(args, cmd)
 
   gcsfuse_annotation = get_gcsfuse_annotation(args)
   if gcsfuse_annotation is not None:
@@ -71,6 +72,7 @@ def submit_job(args: Namespace) -> None:
   if args.ignore_unknown_flags:
     cmd += ' --ignore-unknown-flags'
 
+  cmd += f' -- {args.script} --partition {LOCAL_QUEUE_NAME}'
   if args.array is not None:
     cmd += f' --array {args.array}'
 
@@ -115,8 +117,7 @@ def submit_job(args: Namespace) -> None:
 
   if args.time is not None:
     cmd += f' --time {args.time}'
-  cmd = add_annotation_to_job(args, cmd)
-  cmd += f' -- {args.script} --partition {LOCAL_QUEUE_NAME}'
+
   return_code = run_command_with_full_controls(cmd, 'run task', args)
 
   if return_code != 0:

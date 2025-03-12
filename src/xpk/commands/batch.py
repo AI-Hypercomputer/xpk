@@ -63,14 +63,14 @@ def submit_job(args: Namespace) -> None:
       f' {Kueue_TAS_annotation} '
       ' --first-node-ip'
   )
-
+  cmd = add_annotation_to_job(args, cmd)
   gcsfuse_annotation = get_gcsfuse_annotation(args)
   if gcsfuse_annotation is not None:
     cmd += f' --pod-template-annotation {gcsfuse_annotation}'
 
   if args.ignore_unknown_flags:
     cmd += ' --ignore-unknown-flags'
-
+  cmd += f' -- {args.script} --partition {LOCAL_QUEUE_NAME}'
   if args.array is not None:
     cmd += f' --array {args.array}'
 
@@ -115,11 +115,9 @@ def submit_job(args: Namespace) -> None:
 
   if args.time is not None:
     cmd += f' --time {args.time}'
-
-  cmd = add_annotation_to_job(args, cmd)
-  cmd += f' -- {args.script} --partition {LOCAL_QUEUE_NAME}'
-  return_code, return_value = run_command_for_value(cmd, 'submit job', args)
   
+  return_code, return_value = run_command_for_value(cmd, 'submit job', args)
+
   if return_code != 0:
     xpk_print(f'Running batch job returned ERROR {return_code}')
     xpk_exit(return_code)

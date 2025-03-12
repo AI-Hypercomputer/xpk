@@ -78,6 +78,7 @@ def add_storage_attach_parser(
   req_args.add_argument(
       '--auto-mount',
       type=lambda v: v.lower() == 'true',
+      default=True,
       required=True,
       help='If true all workloads will have this storage mounted by default',
   )
@@ -163,24 +164,9 @@ def add_storage_create_parser(
   )
   add_shared_arguments(req_args)
   req_args.add_argument(
-      '--access-mode',
-      type=str,
-      choices=['ReadWriteOnce', 'ReadOnlyMany', 'ReadWriteMany'],
-      help='Access mode of created filestore instance',
-      default='ReadWriteMany',
-  )
-
-  req_args.add_argument(
       'name',
       type=str,
       help='The name of storage',
-  )
-  req_args.add_argument(
-      '--vol',
-      type=str,
-      help='The name of the volume to create',
-      required=True,
-      default='default',
   )
   req_args.add_argument(
       '--size',
@@ -191,17 +177,6 @@ def add_storage_create_parser(
       ),
       required=True,
   )
-  req_args.add_argument(
-      '--tier',
-      type=str,
-      help=(
-          'The tier of the filestore to create. Possible values are:'
-          ' [BASIC_HDD, BASIC_SSD, ZONAL, REGIONAL, ENTERPRISE]'
-      ),
-      choices=['BASIC_HDD', 'BASIC_SSD', 'ZONAL', 'REGIONAL', 'ENTERPRISE'],
-      required=True,
-      default='BASIC_HDD',
-  )
 
   req_args.add_argument(
       '--type',
@@ -211,9 +186,6 @@ def add_storage_create_parser(
       required=True,
   )
   add_cluster_arguments(req_args, required=True)
-  req_args.add_argument(
-      '--auto-mount', type=lambda v: v.lower() == 'true', required=True
-  )
   req_args.add_argument(
       '--mount-point',
       type=str,
@@ -227,6 +199,36 @@ def add_storage_create_parser(
       'Optional Arguments',
       'Optional arguments for storage create.',
   )
+  opt_args.add_argument(
+      '--vol',
+      type=str,
+      help='The name of the volume to create',
+      required=True,
+      default='default',
+  )
+  opt_args.add_argument(
+      '--tier',
+      type=str,
+      help=(
+          'The tier of the filestore to create. Possible values are:'
+          ' [BASIC_HDD, BASIC_SSD, ZONAL, REGIONAL, ENTERPRISE]'
+      ),
+      choices=['BASIC_HDD', 'BASIC_SSD', 'ZONAL', 'REGIONAL', 'ENTERPRISE'],
+      default='REGIONAL',
+  )
+  opt_args.add_argument(
+      '--auto-mount',
+      type=lambda v: v.lower() == 'true',
+      default=True,
+  )
+  opt_args.add_argument(
+      '--access-mode',
+      type=str,
+      choices=['ReadWriteOnce', 'ReadOnlyMany', 'ReadWriteMany'],
+      help='Access mode of created filestore instance',
+      default='ReadWriteMany',
+  )
+
   add_kind_cluster_arguments(opt_args)
 
 

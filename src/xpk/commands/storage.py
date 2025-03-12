@@ -98,7 +98,6 @@ def storage_attach(args: Namespace) -> None:
       xpk_print(f"Filestore instance {args.instance} does not exists.")
       xpk_exit(1)
 
-    filestore_client.load_instance()
     filestore_network = get_cluster_network(args)
     manifest = filestore_client.manifest(
         args.name, args.vol, args.access_mode, filestore_network

@@ -77,41 +77,48 @@ class FilestoreClient:
     self.name = name
     self.project = project
     self._client = filestore_v1.CloudFilestoreManagerClient()
-    self.location: str | None = None
     self.instance: Instance | None = None
 
-  def check_filestore_instance_exists(
-      self,
-  ) -> bool:
-    parentZonal = self.get_parent(self.zone)
-    parentRegional = self.get_parent(self.region)
-    reqZonal = filestore_v1.ListInstancesRequest(parent=parentZonal)
-    reqRegional = filestore_v1.ListInstancesRequest(parent=parentRegional)
-    try:
-      instancesZonal = self._client.list_instances(reqZonal)
-      instancesRegional = self._client.list_instances(reqRegional)
-    except GoogleCloudError as e:
-      xpk_print(f"Exception while trying to list instances {e}")
-      xpk_exit(1)
+  def check_filestore_instance_exists(self) -> bool:
+    """Check if Filestore instance exists"""
+    self.load_instance()
+    return self.instance is not None
 
-    fullname_zonal = self.get_instance_fullname(parentZonal)
-    fullname_regional = self.get_instance_fullname(parentRegional)
+  def load_instance(self, location: str | None = None) -> None:
+    """Load existing Filestore instance"""
+    if location is not None:
+      instance_name = self.get_instance_fullname(location)
+      request = filestore_v1.GetInstanceRequest(name=instance_name)
+      self.instance = self._client.get_instance(request)
+    else:
+      parentZonal = self.get_parent(self.zone)
+      parentRegional = self.get_parent(self.region)
+      reqZonal = filestore_v1.ListInstancesRequest(parent=parentZonal)
+      reqRegional = filestore_v1.ListInstancesRequest(parent=parentRegional)
+      try:
+        instancesZonal = self._client.list_instances(reqZonal)
+        instancesRegional = self._client.list_instances(reqRegional)
+      except GoogleCloudError as e:
+        xpk_print(f"Exception while trying to list instances {e}")
+        xpk_exit(1)
 
-    for instance in instancesZonal:
-      if instance.name == fullname_zonal:
-        return True
+      fullname_zonal = self.get_instance_fullname(self.zone)
+      fullname_regional = self.get_instance_fullname(self.region)
 
-    for instance in instancesRegional:
-      if instance.name == fullname_regional:
-        return True
+      for instance in instancesZonal:
+        if instance.name == fullname_zonal:
+          self.instance = instance
 
-    return False
+      for instance in instancesRegional:
+        if instance.name == fullname_regional:
+          self.instance = instance
 
-  def load_instance(self) -> None:
-    """Load existing filestore instance"""
-    instance_name = self.get_instance_fullname()
-    request = filestore_v1.GetInstanceRequest(name=instance_name)
-    self.instance = self._client.get_instance(request)
+  def get_instance_location(self) -> str:
+    """Get Filestore instance's location"""
+    if self.instance is None:
+      self.load_instance()
+
+    return str(self.instance.name.split("/")[3])
 
   def create_filestore_instance(
       self,
@@ -129,7 +136,7 @@ class FilestoreClient:
   ) -> None:
     """Create new Filestore instance"""
 
-    self.location = (
+    location = (
         self.zone
         if TIERS[tier].value == Availability.ZONAL.value
         else self.region
@@ -152,7 +159,7 @@ class FilestoreClient:
         )
     ]
     request = filestore_v1.CreateInstanceRequest(
-        parent=self.get_parent(),
+        parent=self.get_parent(location),
         instance_id=self.name,
         instance=Instance(
             description=description,
@@ -171,7 +178,9 @@ class FilestoreClient:
     except GoogleCloudError as e:
       xpk_print(f"Error while creating Filestore instance: {e}")
       xpk_exit(1)
-    xpk_print(f"Filestore instance {self.get_parent()} created")
+    xpk_print(
+        f"Filestore instance {self.get_instance_fullname(location)} created"
+    )
 
   def create_sc(self, name: str, network: str) -> dict:
     """Create a yaml representing filestore StorageClass."""
@@ -197,8 +206,7 @@ class FilestoreClient:
         0
     ].capacity_gb
     data["spec"]["accessModes"] = [access_mode]
-    parent = self.get_parent()
-    volumeHandle = f"{self.get_instance_fullname(parent)}/volumes/{vol}"
+    volumeHandle = f"{self.get_instance_fullname()}/volumes/{vol}"
     data["spec"]["csi"]["volumeHandle"] = volumeHandle
     data["spec"]["csi"]["volumeAttributes"]["ip"] = self.instance.networks[
         0
@@ -228,43 +236,14 @@ class FilestoreClient:
     sc = self.create_sc(name, network)
     return [pv, pvc, sc]
 
-  def load_location(self) -> str:
-    """Load and return Filestore's location"""
-    if self.location is not None:
-      return str(self.location)
-
-    parentZonal = self.get_parent(self.zone)
-    parentRegional = self.get_parent(self.region)
-    reqZonal = filestore_v1.ListInstancesRequest(parent=parentZonal)
-    reqRegional = filestore_v1.ListInstancesRequest(parent=parentRegional)
-    try:
-      instancesZonal = self._client.list_instances(reqZonal)
-      instancesRegional = self._client.list_instances(reqRegional)
-    except GoogleCloudError as e:
-      xpk_print(f"Exception while trying to list instances {e}")
-      xpk_exit(1)
-
-    fullname_zonal = self.get_instance_fullname(parentZonal)
-    fullname_regional = self.get_instance_fullname(parentRegional)
-
-    for instance in instancesZonal:
-      if instance.name == fullname_zonal:
-        self.location = self.zone
-
-    for instance in instancesRegional:
-      if instance.name == fullname_regional:
-        self.location = self.region
-
-    return str(self.location)
-
   def get_parent(self, location: str | None = None) -> str:
     """Get the Filestore's parent's name"""
     if location is None:
-      location = self.load_location()
+      location = self.get_instance_location()
     return f"projects/{self.project}/locations/{location}"
 
-  def get_instance_fullname(self, parent: str | None = None) -> str:
+  def get_instance_fullname(self, location: str | None = None) -> str:
     """Get the Filestore's full name"""
-    if parent is None:
-      parent = self.get_parent()
-    return f"{parent}/instances/{self.name}"
+    if location is None:
+      location = self.get_instance_location()
+    return f"projects/{self.project}/locations/{location}/instances/{self.name}"

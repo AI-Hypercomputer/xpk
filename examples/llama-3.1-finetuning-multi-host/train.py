@@ -27,8 +27,6 @@ for name, value in os.environ.items():
 dataset = load_dataset("json", data_files="training_data.jsonl", split="train")
 
 
-
-
 def create_prompt(example):
   prompt_template = """<|begin_of_text|><|start_header_id|>user<|end_header_id|>
 {instruction} {input}<|eot_id|><|start_header_id|>assistant<|end_header_id|>

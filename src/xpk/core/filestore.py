@@ -14,10 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import os
 from enum import Enum
 
-import ruamel.yaml
 from google.cloud import filestore_v1
 from google.cloud.exceptions import GoogleCloudError
 from google.cloud.filestore_v1.types import (
@@ -26,11 +24,9 @@ from google.cloud.filestore_v1.types import (
     NetworkConfig,
 )
 
+from ..utils import templates
 from ..utils.console import xpk_exit, xpk_print
 from .cluster import zone_to_region
-
-yaml = ruamel.yaml.YAML()
-yaml_object_separator = "---\n"
 
 FS_PV_PATH = "/../templates/filestore-pv.yaml"
 FS_PVC_PATH = "/../templates/filestore-pvc.yaml"
@@ -178,15 +174,9 @@ class FilestoreClient:
         f"Filestore instance {self.get_instance_fullname(location)} created"
     )
 
-  def load_template(self, template_name: str) -> dict:
-    template_path = os.path.dirname(__file__) + template_name
-    with open(template_path, "r", encoding="utf-8") as file:
-      data: dict = yaml.load(file)
-    return data
-
   def create_sc(self, name: str, network: str) -> dict:
     """Create a yaml representing filestore StorageClass."""
-    data = self.load_template(FS_SC_PATH)
+    data = templates.load(FS_SC_PATH)
     data["metadata"]["name"] = get_storage_class_name(name)
     data["parameters"]["tier"] = self.instance.tier.name
     data["parameters"][
@@ -196,7 +186,7 @@ class FilestoreClient:
 
   def create_pv(self, name: str, vol: str, access_mode: str) -> dict:
     """Create a yaml representing filestore PersistentVolume."""
-    data = self.load_template(FS_PV_PATH)
+    data = templates.load(FS_PV_PATH)
     data["metadata"]["name"] = get_pv_name(name)
     data["spec"]["storageClassName"] = get_storage_class_name(name)
     data["spec"]["capacity"]["storage"] = self.instance.file_shares[
@@ -213,7 +203,7 @@ class FilestoreClient:
 
   def create_pvc(self, name: str, access_mode: str) -> dict:
     """Create a yaml representing filestore PersistentVolumeClaim."""
-    data = self.load_template(FS_PVC_PATH)
+    data = templates.load(FS_PVC_PATH)
     data["metadata"]["name"] = get_pvc_name(name)
     data["spec"]["accessModes"] = [access_mode]
     data["spec"]["storageClassName"] = get_storage_class_name(name)

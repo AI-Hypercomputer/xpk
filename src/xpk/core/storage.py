@@ -31,6 +31,7 @@ from tabulate import tabulate
 
 from ..utils.console import xpk_exit, xpk_print
 from ..utils.file import ensure_directory_exists
+from ..utils import templates
 from .cluster import XPK_SA
 
 yaml = ruamel.yaml.YAML()
@@ -567,9 +568,7 @@ def create_storage_crds(
                 StorageClass definitions
   """
   try:
-    template_path = os.path.dirname(__file__) + STORAGE_TEMPLATE_PATH
-    with open(template_path, "r", encoding="utf-8") as file:
-      template = yaml.load(file)
+    template = templates.load(STORAGE_TEMPLATE_PATH)
 
     manifest_path = save_manifest(args, manifest)
     fill_storage_template(template, args, manifest, manifest_path)

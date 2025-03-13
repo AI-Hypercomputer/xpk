@@ -14,10 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import os
 from argparse import Namespace
-import yaml
 
+from ..utils import templates
 from kubernetes import client as k8s_client
 from kubernetes.client import ApiClient
 from kubernetes.client.rest import ApiException
@@ -342,10 +341,7 @@ def create_volume_bundle_instance(
       args: An argparse Namespace object containing the arguments for creating
             the Storage resource.
   """
-  abs_path = f"{os.path.dirname(__file__)}{VOLUME_BUNDLE_TEMPLATE_PATH}"
-  with open(abs_path, "r", encoding="utf-8") as file:
-    data = yaml.safe_load(file)
-
+  data = templates.load(VOLUME_BUNDLE_TEMPLATE_PATH)
   data["metadata"]["name"] = name
   spec = data["spec"]
   spec["volumes"] = []

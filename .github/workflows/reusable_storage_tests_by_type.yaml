@@ -47,6 +47,8 @@ on:
         required: true
       INSTANCE_NAME:
         required: true
+      BUCKET_NAME:
+        required: true
       VOL_NAME:
         required: true
       IP_ADDRESS:
@@ -118,7 +120,7 @@ jobs:
       if: inputs.storage-command == 'attach' && inputs.storage-type == 'gcsfuse'
       run: |
         python3 xpk.py storage attach ${{secrets.STORAGE_NAME}} --cluster=${{inputs.cluster-name}} --zone=${{inputs.zone}} --type=${{inputs.storage-type}} \
-        --auto-mount=true --mount-point='/${{inputs.storage-type}}-test-mount-point' --readonly=false --size=1
+        --auto-mount=true --mount-point='/${{inputs.storage-type}}-test-mount-point' --readonly=false --size=1 --bucket=${{secrets.BUCKET_NAME}}
     - name: Create auto-mount GCP Filestore Storage instance
       if: inputs.storage-command == 'create' && inputs.storage-type == 'gcpfilestore'
       run: |

@@ -55,7 +55,7 @@ jobs:
       INSTANCE_NAME: ${{secrets.INSTANCE_NAME}}
       VOL_NAME: ${{secrets.VOL_NAME}}
       IP_ADDRESS: ${{secrets.IP_ADDRESS}}
-      STORAGE_NAME: ${{secrets.INSTANCE_NAME}}-test-${{inputs.run-id}}
+      STORAGE_NAME: gcsfuse-test-${{inputs.run-id}}
   filestore-create-tests:
     uses: ./.github/workflows/reusable_storage_tests_by_type.yaml
     concurrency: # We support one build or nightly test to run at a time currently.
@@ -75,4 +75,4 @@ jobs:
       INSTANCE_NAME: ${{secrets.INSTANCE_NAME}}
       VOL_NAME: ${{secrets.VOL_NAME}}
       IP_ADDRESS: ${{secrets.IP_ADDRESS}}
-      STORAGE_NAME: ${{inputs.cluster-name}}-test
+      STORAGE_NAME: gcpfilestore-test-${{inputs.run-id}}

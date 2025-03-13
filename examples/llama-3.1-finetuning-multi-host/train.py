@@ -22,7 +22,7 @@ from torch.distributed.elastic.multiprocessing.errors import record
 import os
 
 for name, value in os.environ.items():
-    print("{0}: {1}".format(name, value))
+  print(f"{name}: {value}")
 
 dataset = load_dataset("json", data_files="training_data.jsonl", split="train")
 
@@ -99,11 +99,13 @@ trainer = Trainer(
     data_collator=DataCollatorForLanguageModeling(tokenizer, mlm=False),
 )
 
+
 @record
 def train_func():
   trainer.train()
   trainer.save_model("./llama3-finetuned-final")
   tokenizer.save_pretrained("./llama3-finetuned-final")
 
+
 if __name__ == "__main__":
-    train_func()
+  train_func()

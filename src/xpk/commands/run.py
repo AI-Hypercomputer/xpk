@@ -22,7 +22,8 @@ from ..core.gcloud_context import add_zone_and_project
 from ..core.kueue import LOCAL_QUEUE_NAME
 from ..utils.console import xpk_exit, xpk_print
 from .common import set_cluster_command
-from ..core.kjob import JobTemplateDefaults, AppProfileDefaults, prepare_kjob, Kueue_TAS_annotation, add_annotation_to_job, get_gcsfuse_annotation
+from ..core.kjob import JobTemplateDefaults, AppProfileDefaults, prepare_kjob, Kueue_TAS_annotation, get_gcsfuse_annotation
+from .kjob_shared import add_annotation_to_job
 from .kind import set_local_cluster_command
 
 

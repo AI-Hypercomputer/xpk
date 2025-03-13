@@ -76,7 +76,7 @@ def decorate_jobset(jobset_manifest_str, sub_networks) -> str:
   return yaml.dump(manifest, sort_keys=False)
 
 
-def get_interfaces_entry(sub_networks: list[str]) -> tuple[str, str]:
+def get_a3mega_interfaces_entry(sub_networks: list[str]) -> tuple[str, str]:
   interfaces = [
       '[',
       '    {"interfaceName":"eth0","network":"default"},',
@@ -109,7 +109,7 @@ def add_annotations(job_manifest, sub_networks):
   """Adds or updates annotations in the Pod template."""
   annotations = job_manifest['spec']['template']['metadata']['annotations']
   tcpxo_deamon_key, tcpxo_deamon_paths = get_tcpxo_deamon_entry()
-  interfaces_key, interfaces_value = get_interfaces_entry(sub_networks)
+  interfaces_key, interfaces_value = get_a3mega_interfaces_entry(sub_networks)
   annotations.update({
       tcpxo_deamon_key: tcpxo_deamon_paths,
       'networking.gke.io/default-interface': 'eth0',

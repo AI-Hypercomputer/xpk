@@ -18,8 +18,8 @@ from ..core.network import get_subnetworks_for_a3mega, get_subnetworks_for_a3ult
 from ..core.capacity import H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE
 from argparse import Namespace
 import yaml
-from .workload_decorators.tcpxo_decorator import get_tcpxo_deamon_entry, get_interfaces_entry, decorate_job_template_with_a3mega
-from .workload_decorators.rdma_decorator import get_interfaces_entry, decorate_job_template_with_a3ultra
+from .workload_decorators.tcpxo_decorator import get_tcpxo_deamon_entry, get_a3mega_interfaces_entry, decorate_job_template_with_a3mega
+from .workload_decorators.rdma_decorator import get_a3ultra_interfaces_entry, decorate_job_template_with_a3ultra
 import os
 from ..utils.console import xpk_print, xpk_exit
 
@@ -32,8 +32,6 @@ from .commands import run_command_for_value, run_kubectl_apply, run_command_with
 from .config import XpkConfig, KJOB_SHELL_IMAGE, KJOB_SHELL_INTERACTIVE_COMMAND, KJOB_SHELL_WORKING_DIRECTORY, KJOB_BATCH_IMAGE, KJOB_BATCH_WORKING_DIRECTORY
 from .resources import get_cluster_system_characteristics, SystemCharacteristics, AcceleratorType
 from enum import Enum
-
-from xpk.core.workload_decorators import rdma_decorator
 
 KJOB_API_GROUP_NAME = "kjobctl.x-k8s.io"
 KJOB_API_GROUP_VERSION = "v1alpha1"
@@ -146,9 +144,7 @@ default_interface_annotation = "networking.gke.io/default-interface=eth0"
 
 def get_a3ultra_pod_template_annotations(args: Namespace) -> list[str]:
   sub_networks = get_subnetworks_for_a3ultra(args.cluster)
-  interfaces_key, interfaces_value = rdma_decorator.get_interfaces_entry(
-      sub_networks
-  )
+  interfaces_key, interfaces_value = get_a3ultra_interfaces_entry(sub_networks)
 
   return [
       default_interface_annotation,
@@ -160,7 +156,7 @@ def get_a3mega_pod_template_annotations(args: Namespace) -> tuple[str, str]:
   """Adds or updates annotations in the Pod template."""
   sub_networks = get_subnetworks_for_a3mega(args.cluster)
   tcpxo_deamon_key, tcpxo_deamon_paths = get_tcpxo_deamon_entry()
-  interfaces_key, interfaces_value = get_interfaces_entry(sub_networks)
+  interfaces_key, interfaces_value = get_a3mega_interfaces_entry(sub_networks)
   tcpxo = f"{tcpxo_deamon_key}=$'{tcpxo_deamon_paths}'"
   interfaces = f"{interfaces_key}=$'{interfaces_value}'"
   return tcpxo, interfaces

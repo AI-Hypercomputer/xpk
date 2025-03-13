@@ -18,7 +18,7 @@ import yaml
 from ...utils.yaml import literal_string
 
 
-def decorate_job_template_with_a3ultra(job_manifest) -> str:
+def decorate_kjob_template(job_manifest) -> str:
   spec = (
       job_manifest.setdefault('spec', {})
       .setdefault('template', {})
@@ -67,7 +67,7 @@ def decorate_jobset(jobset_manifest_str, sub_networks) -> str:
   return yaml.dump(manifest, sort_keys=False)
 
 
-def get_a3ultra_interfaces_entry(sub_networks: list[str]) -> tuple[str, str]:
+def get_interfaces_entry(sub_networks: list[str]) -> tuple[str, str]:
   interfaces = [
       '[',
       '    {"interfaceName":"eth0","network":"default"},',
@@ -83,7 +83,7 @@ def get_a3ultra_interfaces_entry(sub_networks: list[str]) -> tuple[str, str]:
 def add_annotations(job_manifest, sub_networks):
   """Adds or updates annotations in the Pod template."""
   annotations = job_manifest['spec']['template']['metadata']['annotations']
-  interfaces_key, interfaces_value = get_a3ultra_interfaces_entry(sub_networks)
+  interfaces_key, interfaces_value = get_interfaces_entry(sub_networks)
   annotations.update({
       'networking.gke.io/default-interface': "'eth0'",
       interfaces_key: interfaces_value,

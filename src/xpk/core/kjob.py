@@ -14,12 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..core.network import get_subnetworks_for_a3mega, get_subnetworks_for_a3ultra
+from ..core.blueprint.blueprint_generator import get_subnetworks_for_a3mega, get_subnetworks_for_a3ultra
 from ..core.capacity import H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE
 from argparse import Namespace
 import yaml
-from .workload_decorators.tcpxo_decorator import get_tcpxo_deamon_entry, get_a3mega_interfaces_entry, decorate_job_template_with_a3mega
-from .workload_decorators.rdma_decorator import get_a3ultra_interfaces_entry, decorate_job_template_with_a3ultra
+from .workload_decorators.tcpxo_decorator import get_tcpxo_deamon_entry
 import os
 from ..utils.console import xpk_print, xpk_exit
 
@@ -32,6 +31,10 @@ from .commands import run_command_for_value, run_kubectl_apply, run_command_with
 from .config import XpkConfig, KJOB_SHELL_IMAGE, KJOB_SHELL_INTERACTIVE_COMMAND, KJOB_SHELL_WORKING_DIRECTORY, KJOB_BATCH_IMAGE, KJOB_BATCH_WORKING_DIRECTORY
 from .resources import get_cluster_system_characteristics, SystemCharacteristics, AcceleratorType
 from enum import Enum
+
+from ..core.workload_decorators import tcpxo_decorator
+
+from ..core.workload_decorators import rdma_decorator
 
 KJOB_API_GROUP_NAME = "kjobctl.x-k8s.io"
 KJOB_API_GROUP_VERSION = "v1alpha1"
@@ -142,24 +145,30 @@ Kueue_TAS_annotation = "kueue.x-k8s.io/podset-preferred-topology=cloud.google.co
 default_interface_annotation = "networking.gke.io/default-interface=eth0"
 
 
-def get_a3ultra_pod_template_annotations(args: Namespace) -> list[str]:
+def get_a3ultra_pod_template_annotations(args: Namespace) -> tuple[str, str]:
   sub_networks = get_subnetworks_for_a3ultra(args.cluster)
-  interfaces_key, interfaces_value = get_a3ultra_interfaces_entry(sub_networks)
+  interfaces_key, interfaces_value = rdma_decorator.get_interfaces_entry(
+      sub_networks
+  )
 
-  return [
+  return (
       default_interface_annotation,
       f"{interfaces_key}=$'{interfaces_value}'",
-  ]
+  )
 
 
-def get_a3mega_pod_template_annotations(args: Namespace) -> tuple[str, str]:
+def get_a3mega_pod_template_annotations(
+    args: Namespace,
+) -> tuple[str, str, str]:
   """Adds or updates annotations in the Pod template."""
   sub_networks = get_subnetworks_for_a3mega(args.cluster)
   tcpxo_deamon_key, tcpxo_deamon_paths = get_tcpxo_deamon_entry()
-  interfaces_key, interfaces_value = get_a3mega_interfaces_entry(sub_networks)
+  interfaces_key, interfaces_value = tcpxo_decorator.get_interfaces_entry(
+      sub_networks
+  )
   tcpxo = f"{tcpxo_deamon_key}=$'{tcpxo_deamon_paths}'"
   interfaces = f"{interfaces_key}=$'{interfaces_value}'"
-  return tcpxo, interfaces
+  return tcpxo, interfaces, default_interface_annotation
 
 
 def verify_kjob_installed(args: Namespace) -> int:
@@ -228,9 +237,9 @@ def create_app_profile_instance(
 def decorate_job_template_with_gpu(yml_string: str, gpu_type: str) -> str:
   job_spec = yaml.safe_load(yml_string)["template"]
   if gpu_type == H100_MEGA_DEVICE_TYPE:
-    job_spec = decorate_job_template_with_a3mega(job_spec)
+    job_spec = tcpxo_decorator.decorate_kjob_template(job_spec)
   if gpu_type == H200_DEVICE_TYPE:
-    job_spec = decorate_job_template_with_a3ultra(job_spec)
+    job_spec = rdma_decorator.decorate_kjob_template(job_spec)
   job_template_dict = yaml.safe_load(yml_string)
   job_template_dict["template"] = job_spec
   return yaml.dump(job_template_dict, sort_keys=False)
@@ -434,33 +443,3 @@ def get_gcsfuse_annotation(args: Namespace) -> str | None:
   if len(gcsfuse_storages) > 0:
     return "gke-gcsfuse/volumes=true"
   return None
-
-
-def add_h100_mega_annotations(args, cmd: str) -> str:
-  tcpxo, interfaces = get_a3mega_pod_template_annotations(args)
-  cmd += f" --pod-template-annotation {tcpxo} \\\n"
-  cmd += f" --pod-template-annotation {default_interface_annotation} \\\n"
-  cmd += f" --pod-template-annotation {interfaces} "
-  return cmd
-
-
-def add_h200_ultra_annotations(args, cmd) -> str:
-  eth0, interfaces = get_a3ultra_pod_template_annotations(args)
-  cmd += f" --pod-template-annotation {eth0} \\\n"
-  cmd += f" --pod-template-annotation {interfaces} \\\n"
-  return cmd
-
-
-def get_gpu_type_from_cluster(args) -> str:
-  system = get_cluster_system_characteristics(args)
-  return system.device_type
-
-
-def add_annotation_to_job(args, cmd: str) -> str:
-  gpu_type = get_gpu_type_from_cluster(args)
-
-  if gpu_type == H100_MEGA_DEVICE_TYPE:
-    return add_h100_mega_annotations(args, cmd)
-  if gpu_type == H200_DEVICE_TYPE:
-    return add_h200_ultra_annotations(args, cmd)
-  return cmd

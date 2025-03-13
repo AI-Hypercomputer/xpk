@@ -57,10 +57,10 @@ def submit_job(args: Namespace) -> None:
   create_xpk_k8s_service_account()
 
   cmd = (
-      'kubectl kjob create slurm  --profile'
-      f' {AppProfileDefaults.NAME.value} \\\n --localqueue'
-      f' {LOCAL_QUEUE_NAME} \\\n --pod-template-annotation'
-      f' {Kueue_TAS_annotation} '
+      'kubectl kjob create slurm'
+      f' --profile {AppProfileDefaults.NAME.value}'
+      f' --localqueue {LOCAL_QUEUE_NAME}'
+      f' --pod-template-annotation {Kueue_TAS_annotation}'
       ' --first-node-ip'
   )
   cmd = add_annotation_to_job(args, cmd)

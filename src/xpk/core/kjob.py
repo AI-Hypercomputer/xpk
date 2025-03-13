@@ -140,6 +140,7 @@ template:
 
 Kueue_TAS_annotation = "kueue.x-k8s.io/podset-preferred-topology=cloud.google.com/gce-topology-host"
 
+default_interface_annotation = "networking.gke.io/default-interface=eth0"
 
 def get_a3ultra_pod_template_annotations(args: Namespace) -> list[str]:
   sub_networks = get_subnetworks_for_a3ultra(args.cluster)
@@ -157,7 +158,7 @@ def get_a3ultra_pod_template_annotations(args: Namespace) -> list[str]:
       f"networking.gke.io/interfaces=$'{literal_string(interfaces_joined)}'"
   )
   return [
-      "networking.gke.io/default-interface=eth0",
+      default_interface_annotation,
       interfaces,
   ]
 
@@ -174,7 +175,7 @@ def get_a3mega_pod_template_annotations(args: Namespace) -> list[str]:
       ],
       "]",
   ]
-  joined = (
+  dev_paths = (
       "- path: /dev/nvidia0\n"
       "- path: /dev/nvidia1\n"
       "- path: /dev/nvidia2\n"
@@ -188,7 +189,7 @@ def get_a3mega_pod_template_annotations(args: Namespace) -> list[str]:
       "- path: /dev/dmabuf_import_helper"
   )
   interfaces_joined = interfaces[0] + "\n".join(interfaces[1:])
-  tcpxo = f"devices.gke.io/container.tcpxo-daemon=$'{joined}'"
+  tcpxo = f"devices.gke.io/container.tcpxo-daemon=$'{dev_paths}'"
   interfaces = (
       f"networking.gke.io/interfaces=$'{literal_string(interfaces_joined)}'"
   )
@@ -473,7 +474,7 @@ def add_h100_mega_annotations(args, cmd: str) -> str:
   tcpxo, interfaces = get_a3mega_pod_template_annotations(args)
   cmd += f" --pod-template-annotation {tcpxo} \\\n"
   cmd += (
-      ' --pod-template-annotation networking.gke.io/default-interface="eth0"'
+      f' --pod-template-annotation {default_interface_annotation}'
       " \\\n"
   )
   cmd += f" --pod-template-annotation {interfaces} "

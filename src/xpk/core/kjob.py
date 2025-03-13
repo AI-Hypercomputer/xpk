@@ -166,7 +166,7 @@ def get_a3mega_pod_template_annotations(args: Namespace) -> list[str]:
   """Adds or updates annotations in the Pod template."""
   sub_networks = get_subnetworks_for_a3mega(args.cluster)
   interfaces = [
-      "[",
+      "[\n",
       '    {"interfaceName":"eth0","network":"default"},',
       *[
           f'    {{"interfaceName":"eth{i + 1}","network":"{sub_networks[i]}"}}{"," if i<7 else ""}'

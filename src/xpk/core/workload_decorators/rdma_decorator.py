@@ -80,7 +80,7 @@ def add_annotations(job_manifest, sub_networks):
       ']',
   ]
   annotations.update({
-      'networking.gke.io/default-interface': 'eth0',
+      'networking.gke.io/default-interface': "'eth0'",
       'networking.gke.io/interfaces': literal_string('\n'.join(interfaces)),
   })
 

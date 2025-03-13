@@ -474,7 +474,7 @@ def add_h100_mega_annotations(args, cmd: str) -> str:
   tcpxo, interfaces = get_a3mega_pod_template_annotations(args)
   cmd += f" --pod-template-annotation {tcpxo} \\\n"
   cmd += (
-      f' --pod-template-annotation {default_interface_annotation}'
+      f" --pod-template-annotation {default_interface_annotation}"
       " \\\n"
   )
   cmd += f" --pod-template-annotation {interfaces} "

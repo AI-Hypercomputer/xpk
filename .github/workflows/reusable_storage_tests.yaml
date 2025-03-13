@@ -49,7 +49,6 @@ jobs:
       run-id: ${{inputs.run-id}}
       storage-type: 'gcpfilestore'
       storage-command: 'attach'
-      storage-manifest: './tests/data/fs-manifest.yaml'
     secrets:
       GCP_SA_KEY: ${{secrets.GCP_SA_KEY}}
       PROJECT_NAME: ${{secrets.PROJECT_NAME}}
@@ -71,7 +70,6 @@ jobs:
       run-id: ${{inputs.run-id}}
       storage-type: 'gcsfuse'
       storage-command: 'attach'
-      storage-manifest: './tests/data/gcsfuse-manifest.yaml'
     secrets:
       GCP_SA_KEY: ${{secrets.GCP_SA_KEY}}
       PROJECT_NAME: ${{secrets.PROJECT_NAME}}
@@ -93,7 +91,6 @@ jobs:
       run-id: ${{inputs.run-id}}
       storage-type: 'gcpfilestore'
       storage-command: 'create'
-      storage-manifest: './tests/data/fs-manifest.yaml'
     secrets:
       GCP_SA_KEY: ${{secrets.GCP_SA_KEY}}
       PROJECT_NAME: ${{secrets.PROJECT_NAME}}

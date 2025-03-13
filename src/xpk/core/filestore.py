@@ -79,45 +79,41 @@ class FilestoreClient:
     self._client = filestore_v1.CloudFilestoreManagerClient()
     self.instance: Instance | None = None
 
+  def get_instance(self) -> Instance | None:
+    """Get existing Filestore instance"""
+    parentZonal = self.get_parent(self.zone)
+    parentRegional = self.get_parent(self.region)
+    reqZonal = filestore_v1.ListInstancesRequest(parent=parentZonal)
+    reqRegional = filestore_v1.ListInstancesRequest(parent=parentRegional)
+    try:
+      instancesZonal = self._client.list_instances(reqZonal)
+      instancesRegional = self._client.list_instances(reqRegional)
+    except GoogleCloudError as e:
+      xpk_print(f"Exception while trying to list instances {e}")
+      xpk_exit(1)
+
+    fullname_zonal = self.get_instance_fullname(self.zone)
+    fullname_regional = self.get_instance_fullname(self.region)
+
+    for instance in instancesZonal:
+      if instance.name == fullname_zonal:
+        return instance
+
+    for instance in instancesRegional:
+      if instance.name == fullname_regional:
+        return instance
+
   def check_instance_exists(self) -> bool:
     """Check if Filestore instance exists"""
-    self.load_instance()
-    return self.instance is not None
+    instance = self.get_instance()
+    return instance is not None
 
-  def load_instance(self, location: str | None = None) -> None:
-    """Load existing Filestore instance"""
-    if location is not None:
-      instance_name = self.get_instance_fullname(location)
-      request = filestore_v1.GetInstanceRequest(name=instance_name)
-      self.instance = self._client.get_instance(request)
-    else:
-      parentZonal = self.get_parent(self.zone)
-      parentRegional = self.get_parent(self.region)
-      reqZonal = filestore_v1.ListInstancesRequest(parent=parentZonal)
-      reqRegional = filestore_v1.ListInstancesRequest(parent=parentRegional)
-      try:
-        instancesZonal = self._client.list_instances(reqZonal)
-        instancesRegional = self._client.list_instances(reqRegional)
-      except GoogleCloudError as e:
-        xpk_print(f"Exception while trying to list instances {e}")
-        xpk_exit(1)
-
-      fullname_zonal = self.get_instance_fullname(self.zone)
-      fullname_regional = self.get_instance_fullname(self.region)
-
-      for instance in instancesZonal:
-        if instance.name == fullname_zonal:
-          self.instance = instance
-
-      for instance in instancesRegional:
-        if instance.name == fullname_regional:
-          self.instance = instance
+  def load_instance(self) -> None:
+    if self.instance is None:
+      self.instance = self.get_instance()
 
   def get_instance_location(self) -> str:
     """Get Filestore instance's location"""
-    if self.instance is None:
-      self.load_instance()
-
     return str(self.instance.name.split("/")[3])
 
   def create_instance(
@@ -230,6 +226,7 @@ class FilestoreClient:
   def manifest(
       self, name: str, vol: str, access_mode: str, network: str
   ) -> list[dict]:
+    self.load_instance()
     pv = self.create_pv(name, vol, access_mode)
     pvc = self.create_pvc(name, access_mode)
     sc = self.create_sc(name, network)

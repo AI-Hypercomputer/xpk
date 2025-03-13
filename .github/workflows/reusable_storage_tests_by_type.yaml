@@ -123,8 +123,7 @@ jobs:
       if: inputs.storage-command == 'create'
       run: |
         python3 xpk.py storage create ${{secrets.STORAGE_NAME}} --cluster=${{inputs.cluster-name}} --zone=${{inputs.zone}} --type=${{inputs.storage-type}} \
-        --auto-mount=true --vol=vol1 --size=1024 --tier=BASIC_HDD \
-        --mount-point='/${{inputs.storage-type}}-test-mount-point' --readonly=false
+        --auto-mount=true --vol=vol1 --size=1024 --tier=BASIC_HDD --mount-point='/${{inputs.storage-type}}-test-mount-point' --readonly=false
     - name: List and verify existing Storages
       run: python3 xpk.py storage list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} | tee output.txt | grep ${{secrets.STORAGE_NAME}} || (echo 'No storage found' && exit 143)
     - name: Verify VolumeBundle created

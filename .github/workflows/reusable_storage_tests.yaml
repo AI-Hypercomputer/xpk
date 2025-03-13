@@ -36,28 +36,7 @@ on:
         type: string
 
 jobs:
-  filestore-attach-tests:
-    uses: ./.github/workflows/reusable_storage_tests_by_type.yaml
-    concurrency: # We support one build or nightly test to run at a time currently.
-      group: filestore-tests-${{inputs.run-id}}
-      cancel-in-progress: true
-    with:
-      cluster-name: ${{inputs.cluster-name}}
-      tpu-type: ${{inputs.tpu-type}}
-      zone: ${{inputs.zone}}
-      location: ${{inputs.location}}
-      run-id: ${{inputs.run-id}}
-      storage-type: 'gcpfilestore'
-      storage-command: 'attach'
-    secrets:
-      GCP_SA_KEY: ${{secrets.GCP_SA_KEY}}
-      PROJECT_NAME: ${{secrets.PROJECT_NAME}}
-      INSTANCE_NAME: ${{secrets.INSTANCE_NAME}}
-      VOL_NAME: ${{secrets.VOL_NAME}}
-      IP_ADDRESS: ${{secrets.IP_ADDRESS}}
-      STORAGE_NAME: ${{secrets.INSTANCE_NAME}}-test-${{inputs.run-id}}
   fuse-attach-tests:
-    needs: [ filestore-attach-tests ]
     uses: ./.github/workflows/reusable_storage_tests_by_type.yaml
     concurrency: # We support one build or nightly test to run at a time currently.
       group: fuse-tests-${{inputs.run-id}}
@@ -78,7 +57,6 @@ jobs:
       IP_ADDRESS: ${{secrets.IP_ADDRESS}}
       STORAGE_NAME: ${{secrets.INSTANCE_NAME}}-test-${{inputs.run-id}}
   filestore-create-tests:
-    needs: [ fuse-attach-tests ]
     uses: ./.github/workflows/reusable_storage_tests_by_type.yaml
     concurrency: # We support one build or nightly test to run at a time currently.
       group: filestore-tests-${{inputs.run-id}}

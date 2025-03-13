@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 from ..core.network import get_subnetworks_for_a3mega, get_subnetworks_for_a3ultra
-from ..core.capacity import H100_DEVICE_TYPE, H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE
+from ..core.capacity import H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE
 from ..utils.yaml import literal_string
 from argparse import Namespace
 import yaml
@@ -317,9 +317,7 @@ def create_job_template_instance(
   )
   if system is not None and system.accelerator_type == AcceleratorType["GPU"]:
     xpk_print("Decorating JobTemplate with gpu")
-    yml_string = decorate_job_template_with_gpu(
-        yml_string, system.device_type
-    )
+    yml_string = decorate_job_template_with_gpu(yml_string, system.device_type)
 
   return run_kubectl_apply(
       yml_string,

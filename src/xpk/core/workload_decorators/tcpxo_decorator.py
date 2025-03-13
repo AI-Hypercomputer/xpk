@@ -21,7 +21,7 @@ from ...utils.yaml import literal_string
 rxdm = 'v1.0.12'
 
 
-def decorate_job_template_with_a3mega(job_manifest) -> str:
+def decorate_job_template_with_a3mega(job_manifest: dict) -> dict:
   spec = (
       job_manifest.setdefault('spec', {})
       .setdefault('template', {})
@@ -37,7 +37,7 @@ def decorate_job_template_with_a3mega(job_manifest) -> str:
   return job_manifest
 
 
-def decorate_job(job_manifest, sub_networks) -> str:
+def decorate_job(job_manifest: dict, sub_networks: list[str]) -> dict:
   job_manifest.setdefault('spec', {}).setdefault('template', {}).setdefault(
       'metadata', {}
   ).setdefault('annotations', {})

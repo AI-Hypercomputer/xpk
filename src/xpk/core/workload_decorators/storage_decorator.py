@@ -16,7 +16,7 @@ limitations under the License.
 
 import yaml
 
-from ...core.storage import GCS_FUSE_TYPE, get_storage_volumes_yaml_dict, GCS_FUSE_ANNOTATION
+from ...core.storage import GCS_FUSE_TYPE, get_storage_volumes_yaml_dict
 
 
 def decorate_jobset(jobset_manifest_str, storages) -> str:
@@ -44,7 +44,7 @@ def add_annotations(job_manifest, storages):
   annotations = job_manifest['spec']['template']['metadata']['annotations']
   gcs_present = [storage.type == GCS_FUSE_TYPE for storage in storages]
   if gcs_present:
-    annotations.update({'gke-gcsfuse/volumes':'true'})
+    annotations.update({'gke-gcsfuse/volumes': 'true'})
 
 
 def add_volumes(job_manifest, storage_volumes):

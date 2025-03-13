@@ -76,9 +76,7 @@ def decorate_jobset(jobset_manifest_str, sub_networks) -> str:
   return yaml.dump(manifest, sort_keys=False)
 
 
-def add_annotations(job_manifest, sub_networks):
-  """Adds or updates annotations in the Pod template."""
-  annotations = job_manifest['spec']['template']['metadata']['annotations']
+def get_interfaces_entry(sub_networks: list[str]) -> tuple[str, str]:
   interfaces = [
       '[',
       '    {"interfaceName":"eth0","network":"default"},',
@@ -88,22 +86,34 @@ def add_annotations(job_manifest, sub_networks):
       ],
       ']',
   ]
+  return 'networking.gke.io/interfaces', literal_string('\n'.join(interfaces))
+
+
+def get_tcpxo_deamon_entry() -> tuple[str, str]:
+  return 'devices.gke.io/container.tcpxo-daemon', literal_string(
+      '- path: /dev/nvidia0\n'
+      '- path: /dev/nvidia1\n'
+      '- path: /dev/nvidia2\n'
+      '- path: /dev/nvidia3\n'
+      '- path: /dev/nvidia4\n'
+      '- path: /dev/nvidia5\n'
+      '- path: /dev/nvidia6\n'
+      '- path: /dev/nvidia7\n'
+      '- path: /dev/nvidiactl\n'
+      '- path: /dev/nvidia-uvm\n'
+      '- path: /dev/dmabuf_import_helper\n'
+  )
+
+
+def add_annotations(job_manifest, sub_networks):
+  """Adds or updates annotations in the Pod template."""
+  annotations = job_manifest['spec']['template']['metadata']['annotations']
+  tcpxo_deamon_key, tcpxo_deamon_paths = get_tcpxo_deamon_entry()
+  interfaces_key, interfaces_value = get_interfaces_entry(sub_networks)
   annotations.update({
-      'devices.gke.io/container.tcpxo-daemon': literal_string(
-          '- path: /dev/nvidia0\n'
-          '- path: /dev/nvidia1\n'
-          '- path: /dev/nvidia2\n'
-          '- path: /dev/nvidia3\n'
-          '- path: /dev/nvidia4\n'
-          '- path: /dev/nvidia5\n'
-          '- path: /dev/nvidia6\n'
-          '- path: /dev/nvidia7\n'
-          '- path: /dev/nvidiactl\n'
-          '- path: /dev/nvidia-uvm\n'
-          '- path: /dev/dmabuf_import_helper\n'
-      ),
+      tcpxo_deamon_key: tcpxo_deamon_paths,
       'networking.gke.io/default-interface': 'eth0',
-      'networking.gke.io/interfaces': literal_string('\n'.join(interfaces)),
+      interfaces_key: interfaces_value,
   })
 
 

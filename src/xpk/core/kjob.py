@@ -16,11 +16,10 @@ limitations under the License.
 
 from ..core.network import get_subnetworks_for_a3mega, get_subnetworks_for_a3ultra
 from ..core.capacity import H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE
-from ..utils.yaml import literal_string
 from argparse import Namespace
 import yaml
-from .workload_decorators.tcpxo_decorator import decorate_job_template_with_a3mega
-from .workload_decorators.rdma_decorator import decorate_job_template_with_a3ultra
+from .workload_decorators.tcpxo_decorator import get_tcpxo_deamon_entry, get_interfaces_entry, decorate_job_template_with_a3mega
+from .workload_decorators.rdma_decorator import get_interfaces_entry, decorate_job_template_with_a3ultra
 import os
 from ..utils.console import xpk_print, xpk_exit
 
@@ -33,6 +32,8 @@ from .commands import run_command_for_value, run_kubectl_apply, run_command_with
 from .config import XpkConfig, KJOB_SHELL_IMAGE, KJOB_SHELL_INTERACTIVE_COMMAND, KJOB_SHELL_WORKING_DIRECTORY, KJOB_BATCH_IMAGE, KJOB_BATCH_WORKING_DIRECTORY
 from .resources import get_cluster_system_characteristics, SystemCharacteristics, AcceleratorType
 from enum import Enum
+
+from xpk.core.workload_decorators import rdma_decorator
 
 KJOB_API_GROUP_NAME = "kjobctl.x-k8s.io"
 KJOB_API_GROUP_VERSION = "v1alpha1"
@@ -142,57 +143,26 @@ Kueue_TAS_annotation = "kueue.x-k8s.io/podset-preferred-topology=cloud.google.co
 
 default_interface_annotation = "networking.gke.io/default-interface=eth0"
 
+
 def get_a3ultra_pod_template_annotations(args: Namespace) -> list[str]:
   sub_networks = get_subnetworks_for_a3ultra(args.cluster)
-  interfaces = [
-      "[\n",
-      '    {"interfaceName":"eth0","network":"default"},',
-      *[
-          f'    {{"interfaceName":"eth{i + 1}","network":"{sub_networks[i]}"}}{"," if i<8 else ""}'
-          for i in range(9)
-      ],
-      "]",
-  ]
-  interfaces_joined = interfaces[0] + "\n".join(interfaces[1:])
-  interfaces = (
-      f"networking.gke.io/interfaces=$'{literal_string(interfaces_joined)}'"
+  interfaces_key, interfaces_value = rdma_decorator.get_interfaces_entry(
+      sub_networks
   )
+
   return [
       default_interface_annotation,
-      interfaces,
+      f"{interfaces_key}=$'{interfaces_value}'",
   ]
 
 
-def get_a3mega_pod_template_annotations(args: Namespace) -> list[str]:
+def get_a3mega_pod_template_annotations(args: Namespace) -> tuple[str, str]:
   """Adds or updates annotations in the Pod template."""
   sub_networks = get_subnetworks_for_a3mega(args.cluster)
-  interfaces = [
-      "[\n",
-      '    {"interfaceName":"eth0","network":"default"},',
-      *[
-          f'    {{"interfaceName":"eth{i + 1}","network":"{sub_networks[i]}"}}{"," if i<7 else ""}'
-          for i in range(8)
-      ],
-      "]",
-  ]
-  dev_paths = (
-      "- path: /dev/nvidia0\n"
-      "- path: /dev/nvidia1\n"
-      "- path: /dev/nvidia2\n"
-      "- path: /dev/nvidia3\n"
-      "- path: /dev/nvidia4\n"
-      "- path: /dev/nvidia5\n"
-      "- path: /dev/nvidia6\n"
-      "- path: /dev/nvidia7\n"
-      "- path: /dev/nvidiactl\n"
-      "- path: /dev/nvidia-uvm\n"
-      "- path: /dev/dmabuf_import_helper"
-  )
-  interfaces_joined = interfaces[0] + "\n".join(interfaces[1:])
-  tcpxo = f"devices.gke.io/container.tcpxo-daemon=$'{dev_paths}'"
-  interfaces = (
-      f"networking.gke.io/interfaces=$'{literal_string(interfaces_joined)}'"
-  )
+  tcpxo_deamon_key, tcpxo_deamon_paths = get_tcpxo_deamon_entry()
+  interfaces_key, interfaces_value = get_interfaces_entry(sub_networks)
+  tcpxo = f"{tcpxo_deamon_key}=$'{tcpxo_deamon_paths}'"
+  interfaces = f"{interfaces_key}=$'{interfaces_value}'"
   return tcpxo, interfaces
 
 
@@ -473,10 +443,7 @@ def get_gcsfuse_annotation(args: Namespace) -> str | None:
 def add_h100_mega_annotations(args, cmd: str) -> str:
   tcpxo, interfaces = get_a3mega_pod_template_annotations(args)
   cmd += f" --pod-template-annotation {tcpxo} \\\n"
-  cmd += (
-      f" --pod-template-annotation {default_interface_annotation}"
-      " \\\n"
-  )
+  cmd += f" --pod-template-annotation {default_interface_annotation} \\\n"
   cmd += f" --pod-template-annotation {interfaces} "
   return cmd
 

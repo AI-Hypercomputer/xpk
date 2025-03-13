@@ -70,7 +70,9 @@ def submit_job(args: Namespace) -> None:
 
   if args.ignore_unknown_flags:
     cmd += ' --ignore-unknown-flags'
+
   cmd += f' -- {args.script} --partition {LOCAL_QUEUE_NAME}'
+
   if args.array is not None:
     cmd += f' --array {args.array}'
 

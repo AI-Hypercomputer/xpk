@@ -144,7 +144,7 @@ Kueue_TAS_annotation = "kueue.x-k8s.io/podset-preferred-topology=cloud.google.co
 def get_a3ultra_pod_template_annotations(args: Namespace) -> list[str]:
   sub_networks = get_subnetworks_for_a3ultra(args.cluster)
   interfaces = [
-      "[",
+      "[\n",
       '    {"interfaceName":"eth0","network":"default"},',
       *[
           f'    {{"interfaceName":"eth{i + 1}","network":"{sub_networks[i]}"}}{"," if i<8 else ""}'
@@ -189,9 +189,6 @@ def get_a3mega_pod_template_annotations(args: Namespace) -> list[str]:
   )
   interfaces_joined = interfaces[0] + "\n".join(interfaces[1:])
   tcpxo = f"devices.gke.io/container.tcpxo-daemon=$'{joined}'"
-  # annotations.append(
-  #     "networking.gke.io/default-interface=\"eth0\"",
-  # )
   interfaces = (
       f"networking.gke.io/interfaces=$'{literal_string(interfaces_joined)}'"
   )

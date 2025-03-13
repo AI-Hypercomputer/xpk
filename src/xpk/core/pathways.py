@@ -14,13 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from .cluster import XPK_SA
 from ..core.docker_container import get_user_workload_container
-from ..core.gcloud_context import zone_to_region
 from ..core.nodepool import get_all_nodepools_programmatic
 from ..utils.console import xpk_exit, xpk_print
+from .cluster import XPK_SA
 from .config import AcceleratorType
-from .storage import Storage, get_storage_volumes_yaml, GCS_FUSE_ANNOTATION
+from .gcloud.context import GCloudContextManager
+from .storage import GCS_FUSE_ANNOTATION, Storage, get_storage_volumes_yaml
 from .system_characteristics import SystemCharacteristics
 
 PathwaysExpectedInstancesMap = {
@@ -214,7 +214,7 @@ def get_pathways_unified_query_link(args) -> str:
   query_params = (
       'resource.type%3D"k8s_container"%0A'
       f'resource.labels.project_id%3D"{args.project}"%0A'
-      f'resource.labels.location%3D"{zone_to_region(args.zone)}"%0A'
+      f'resource.labels.location%3D"{GCloudContextManager.zone_to_region(args.zone)}"%0A'
       f'resource.labels.cluster_name%3D"{args.cluster}"%0A'
       f'resource.labels.pod_name:"{args.workload}-"%0A'
       'severity>%3DDEFAULT'

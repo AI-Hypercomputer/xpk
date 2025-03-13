@@ -20,7 +20,7 @@ import sys
 from ruamel.yaml import YAML
 
 from ..core.commands import run_command_for_value, run_command_with_updates
-from ..core.gcloud_context import add_zone_and_project
+from ..core.gcloud.context import GCloudContextManager
 from ..core.kjob import AppProfileDefaults
 from ..utils.console import xpk_exit, xpk_print
 from .common import set_cluster_command
@@ -142,7 +142,7 @@ def job_list(args) -> None:
     None
   """
   if not args.kind_cluster:
-    add_zone_and_project(args)
+    GCloudContextManager.add_zone_and_project(args)
     set_cluster_command_code = set_cluster_command(args)
     msg = f'Listing jobs for project {args.project} and zone {args.zone}:'
   else:
@@ -177,7 +177,7 @@ def job_cancel(args) -> None:
   """
   xpk_print(f'Starting job cancel for job: {args.name}', flush=True)
   if not args.kind_cluster:
-    add_zone_and_project(args)
+    GCloudContextManager.add_zone_and_project(args)
     set_cluster_command_code = set_cluster_command(args)
   else:
     set_cluster_command_code = set_local_cluster_command(args)

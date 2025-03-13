@@ -313,7 +313,6 @@ def create_job_template_instance(
       service_account=service_account,
   )
   if system is not None and system.accelerator_type == AcceleratorType["GPU"]:
-    xpk_print("Decorating JobTemplate with gpu")
     yml_string = decorate_job_template_with_gpu(yml_string, system.device_type)
 
   return run_kubectl_apply(
@@ -336,7 +335,6 @@ def create_pod_template_instance(args: Namespace, service_account: str) -> int:
   if pod_image is None or len(pod_image) == 0:
     pod_image = PodTemplateDefaults.IMAGE.value
   working_directory = config.get(KJOB_SHELL_WORKING_DIRECTORY)
-  xpk_print("working directory is: ", working_directory)
   if working_directory is None or len(working_directory) == 0:
     working_directory = PodTemplateDefaults.WORKING_DIRECTORY.value
 
@@ -355,7 +353,6 @@ def create_pod_template_instance(args: Namespace, service_account: str) -> int:
 
 
 def prepare_kjob(args: Namespace) -> int:
-  xpk_print("Preparing kjob")
   system = get_cluster_system_characteristics(args)
 
   k8s_api_client = setup_k8s_env(args)
@@ -502,4 +499,4 @@ def add_annotation_to_job(args, cmd: str) -> str:
     return add_h100_mega_annotations(args, cmd)
   if gpu_type == H200_DEVICE_TYPE:
     return add_h200_ultra_annotations(args, cmd)
-  return ""
+  return cmd

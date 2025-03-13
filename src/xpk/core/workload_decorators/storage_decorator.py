@@ -44,7 +44,7 @@ def add_annotations(job_manifest, storages):
   annotations = job_manifest['spec']['template']['metadata']['annotations']
   gcs_present = [storage.type == GCS_FUSE_TYPE for storage in storages]
   if gcs_present:
-    annotations.update(GCS_FUSE_ANNOTATION)
+    annotations.update({'gke-gcsfuse/volumes':'true'})
 
 
 def add_volumes(job_manifest, storage_volumes):

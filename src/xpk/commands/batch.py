@@ -115,7 +115,7 @@ def submit_job(args: Namespace) -> None:
 
   if args.time is not None:
     cmd += f' --time {args.time}'
-  
+
   return_code, return_value = run_command_for_value(cmd, 'submit job', args)
 
   if return_code != 0:

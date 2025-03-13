@@ -58,7 +58,7 @@ def submit_job(args: Namespace) -> None:
       f' --localqueue {LOCAL_QUEUE_NAME} '
       f" --pod-template-annotation '{Kueue_TAS_annotation}'"
       f' --container-name {JobTemplateDefaults.CONTAINER_NAME.value}'
-      ' --wait --rm'
+      ' --wait --rm  --first-node-ip'
   )
   cmd = add_annotation_to_job(args, cmd)
 

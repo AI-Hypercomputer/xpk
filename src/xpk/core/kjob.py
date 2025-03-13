@@ -14,8 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import sys
-
 from ..core.network import get_subnetworks_for_a3mega, get_subnetworks_for_a3ultra
 from ..core.capacity import H100_DEVICE_TYPE, H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE
 from ..utils.yaml import literal_string
@@ -35,7 +33,6 @@ from .commands import run_command_for_value, run_kubectl_apply, run_command_with
 from .config import XpkConfig, KJOB_SHELL_IMAGE, KJOB_SHELL_INTERACTIVE_COMMAND, KJOB_SHELL_WORKING_DIRECTORY, KJOB_BATCH_IMAGE, KJOB_BATCH_WORKING_DIRECTORY
 from .resources import get_cluster_system_characteristics, SystemCharacteristics, AcceleratorType
 from enum import Enum
-from .resources import get_cluster_system_characteristics
 
 KJOB_API_GROUP_NAME = "kjobctl.x-k8s.io"
 KJOB_API_GROUP_VERSION = "v1alpha1"
@@ -77,7 +74,6 @@ job_template_yaml = """
       completionMode: Indexed
       template:
         spec:
-          hostNetwork: true
           dnsPolicy: ClusterFirstWithHostNet
           tolerations:
             - operator: "Exists"
@@ -295,7 +291,6 @@ def create_job_template_instance(
   working_directory = config.get(KJOB_BATCH_WORKING_DIRECTORY)
   if working_directory is None or len(working_directory) == 0:
     working_directory = JobTemplateDefaults.WORKING_DIRECTORY.value
-  print(system.device_type)
   resources = (
       job_resources_template.format(gpu_per_node=system.chips_per_vm)
       if system is not None
@@ -321,8 +316,9 @@ def create_job_template_instance(
       service_account=service_account,
   )
   if system is not None and system.accelerator_type == AcceleratorType["GPU"]:
+    xpk_print("Decorating JobTemplate with gpu")
     yml_string = decorate_job_template_with_gpu(
-        yml_string, system.gke_accelerator
+        yml_string, system.device_type
     )
 
   return run_kubectl_apply(
@@ -361,8 +357,6 @@ def create_pod_template_instance(args: Namespace, service_account: str) -> int:
       task="Creating PodTemplate",
       args=args,
   )
-
-
 
 
 def prepare_kjob(args: Namespace) -> int:
@@ -501,16 +495,15 @@ def add_h200_ultra_annotations(args, cmd) -> str:
   return cmd
 
 
-
 def get_gpu_type_from_cluster(args) -> str:
   system = get_cluster_system_characteristics(args)
   return system.device_type
 
+
 def add_annotation_to_job(args, cmd: str) -> str:
   gpu_type = get_gpu_type_from_cluster(args)
 
-  xpk_print("using gpu_type ", gpu_type)
-  if gpu_type == H100_DEVICE_TYPE:
+  if gpu_type == H100_MEGA_DEVICE_TYPE:
     return add_h100_mega_annotations(args, cmd)
   if gpu_type == H200_DEVICE_TYPE:
     return add_h200_ultra_annotations(args, cmd)

@@ -93,11 +93,11 @@ class FilestoreClient:
 
     for instance in instancesZonal:
       if instance.name == fullname_zonal:
-        return instance
+        return instance  # pytype: disable=bad-return-type
 
     for instance in instancesRegional:
       if instance.name == fullname_regional:
-        return instance
+        return instance  # pytype: disable=bad-return-type
 
   def check_instance_exists(self) -> bool:
     """Check if Filestore instance exists"""

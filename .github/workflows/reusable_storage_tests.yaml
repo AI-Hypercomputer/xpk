@@ -52,9 +52,9 @@ jobs:
     secrets:
       GCP_SA_KEY: ${{secrets.GCP_SA_KEY}}
       PROJECT_NAME: ${{secrets.PROJECT_NAME}}
-      INSTANCE_NAME: ${{secrets.INSTANCE_NAME}}
       VOL_NAME: ${{secrets.VOL_NAME}}
       IP_ADDRESS: ${{secrets.IP_ADDRESS}}
+      BUCKET_NAME: ${{secrets.BUCKET_NAME}}
       STORAGE_NAME: gcsfuse-test-${{inputs.run-id}}
   filestore-create-tests:
     uses: ./.github/workflows/reusable_storage_tests_by_type.yaml
@@ -72,7 +72,7 @@ jobs:
     secrets:
       GCP_SA_KEY: ${{secrets.GCP_SA_KEY}}
       PROJECT_NAME: ${{secrets.PROJECT_NAME}}
-      INSTANCE_NAME: ${{secrets.INSTANCE_NAME}}
       VOL_NAME: ${{secrets.VOL_NAME}}
       IP_ADDRESS: ${{secrets.IP_ADDRESS}}
+      BUCKET_NAME: ${{secrets.BUCKET_NAME}}
       STORAGE_NAME: gcpfilestore-test-${{inputs.run-id}}

@@ -45,8 +45,6 @@ on:
         required: true
       PROJECT_NAME:
         required: true
-      INSTANCE_NAME:
-        required: true
       BUCKET_NAME:
         required: true
       VOL_NAME:

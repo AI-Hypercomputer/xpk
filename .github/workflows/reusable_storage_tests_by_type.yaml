@@ -40,16 +40,12 @@ on:
         required: true
         default: 'attach'
         type: string
-      storage-manifest:
-        required: false
-        default: './tests/data/fs-manifest.yaml'
-        type: string
     secrets:
       GCP_SA_KEY:
         required: true
       PROJECT_NAME:
         required: true
-      INSTANCE_NAME:
+      BUCKET_NAME:
         required: true
       VOL_NAME:
         required: true
@@ -118,22 +114,16 @@ jobs:
       run: xpk --help
     - name: Authenticate Docker
       run: gcloud auth configure-docker --quiet
-    - name: Fill Filestore manifest file
-      if: inputs.storage-type == 'gcpfilestore' && inputs.storage-command == 'attach'
-      run: |
-        sed -i 's/PROJECT_NAME/${{secrets.PROJECT_NAME}}/g;  s/ZONE/${{inputs.zone}}/g; s/INSTANCE_NAME/${{secrets.INSTANCE_NAME}}/g; s/VOL_NAME/${{secrets.VOL_NAME}}/g; s/IP_ADDRESS/${{secrets.IP_ADDRESS}}/g' ${{inputs.storage-manifest}}
-    - name: Attach auto-mount GCP Filestore Storage instance
-      if: inputs.storage-command == 'attach'
+    - name: Attach auto-mount GCS FUSE Storage instance
+      if: inputs.storage-command == 'attach' && inputs.storage-type == 'gcsfuse'
       run: |
         python3 xpk.py storage attach ${{secrets.STORAGE_NAME}} --cluster=${{inputs.cluster-name}} --zone=${{inputs.zone}} --type=${{inputs.storage-type}} \
-        --auto-mount=true \
-        --mount-point='/${{inputs.storage-type}}-test-mount-point' --readonly=false --manifest='${{inputs.storage-manifest}}'
+        --auto-mount=true --mount-point='/${{inputs.storage-type}}-test-mount-point' --readonly=false --size=1 --bucket=${{secrets.BUCKET_NAME}}
     - name: Create auto-mount GCP Filestore Storage instance
-      if: inputs.storage-command == 'create'
+      if: inputs.storage-command == 'create' && inputs.storage-type == 'gcpfilestore'
       run: |
         python3 xpk.py storage create ${{secrets.STORAGE_NAME}} --cluster=${{inputs.cluster-name}} --zone=${{inputs.zone}} --type=${{inputs.storage-type}} \
-        --auto-mount=true --vol=vol1 --size=1024 --tier=BASIC_HDD \
-        --mount-point='/${{inputs.storage-type}}-test-mount-point' --readonly=false
+        --auto-mount=true --vol=vol1 --size=1024 --tier=BASIC_HDD --mount-point='/${{inputs.storage-type}}-test-mount-point' --readonly=false
     - name: List and verify existing Storages
       run: python3 xpk.py storage list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} | tee output.txt | grep ${{secrets.STORAGE_NAME}} || (echo 'No storage found' && exit 143)
     - name: Verify VolumeBundle created
@@ -196,6 +186,7 @@ jobs:
     - name: Delete the delete workload on the cluster
       run: python3 xpk.py workload delete --workload $FS_DELETE_WORKLOAD --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}
     - name: Delete storage
+      if: always()
       run: python3 xpk.py storage delete ${{secrets.STORAGE_NAME}} --zone=${{inputs.zone}} --cluster=${{inputs.cluster-name}}
     - name: Verify VolumeBundle deleted
       run: |

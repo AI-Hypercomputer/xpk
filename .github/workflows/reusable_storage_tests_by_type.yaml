@@ -185,8 +185,8 @@ jobs:
       run: python3 xpk.py workload list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} --wait-for-job-completion $FS_DELETE_WORKLOAD --timeout 300
     - name: Delete the delete workload on the cluster
       run: python3 xpk.py workload delete --workload $FS_DELETE_WORKLOAD --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}
-    - name: Detach GCS FUSE Storage
-      if: always() && inputs.storage-command == 'attach' && inputs.storage-type == 'gcsfuse'
+    - name: Detach storage volumes
+      if: always()
       run: python3 xpk.py storage detach ${{secrets.STORAGE_NAME}} --cluster=${{inputs.cluster-name}} --zone=${{inputs.zone}}
     - name: Delete GCP Filestore Storage instance
       if: always() && inputs.storage-command == 'create' && inputs.storage-type == 'gcpfilestore'
@@ -194,6 +194,3 @@ jobs:
     - name: Verify VolumeBundle deleted
       run: |
         ! kubectl get volumebundle | grep ${{secrets.STORAGE_NAME}}
-    - name: Delete the filestore instance
-      if: always() && inputs.storage-command == 'create'
-      run: gcloud filestore instances delete ${{secrets.STORAGE_NAME}} --zone=${{inputs.zone}} --force

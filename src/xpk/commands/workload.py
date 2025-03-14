@@ -620,10 +620,11 @@ def workload_create(args) -> None:
         sub_networks = [f'{args.cluster}-gpunet-{i}-subnet' for i in range(8)]
         yml_string = tcpxo_decorator.decorate_jobset(yml_string, sub_networks)
 
-      if args.device_type == cluster_gcluster.a3ultra_device_type:
-        sub_networks = [f'{args.cluster}-sub-1'] + [
-            f'{args.cluster}-rdma-sub-{i}' for i in range(8)
-        ]
+      if args.device_type in (
+          cluster_gcluster.a3ultra_device_type,
+          cluster_gcluster.a4_device_type,
+      ):
+        sub_networks = ['gvnic-1'] + [f'rdma-{i}' for i in range(8)]
         yml_string = rdma_decorator.decorate_jobset(yml_string, sub_networks)
 
       if len(gcs_fuse_storages) + len(gcpfilestore_storages) > 0:

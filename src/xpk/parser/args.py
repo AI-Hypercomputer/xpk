@@ -155,4 +155,3 @@ class StorageCreateArgs(SharedArgs, ClusterArgs, KindClusterArgs):
   mount_point: str = None
   readonly: bool = None
   instance: Optional[str] = None
-

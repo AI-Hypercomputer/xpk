@@ -65,7 +65,7 @@ def storage_create(args: StorageCreateArgs) -> None:
       args.instance = args.name
 
     filestore_client = FilestoreClient(args.zone, args.instance, args.project)
-    filestore_exists = filestore_client.check_filestore_instance_exists()
+    filestore_exists = filestore_client.check_instance_exists()
     if filestore_exists:
       xpk_print(f"Filestore instance {args.instance} already exists.")
       xpk_exit(1)
@@ -74,7 +74,7 @@ def storage_create(args: StorageCreateArgs) -> None:
         f"Creating Filestore instance {args.instance} in network:"
         f" {filestore_network}"
     )
-    filestore_client.create_filestore_instance(
+    filestore_client.create_instance(
         vol=args.vol, size=args.size, tier=args.tier, network=filestore_network
     )
     manifest = filestore_client.manifest(
@@ -130,12 +130,11 @@ def storage_attach(args: StorageAttachArgs) -> None:
 
     filestore_client = FilestoreClient(args.zone, args.instance, args.project)
 
-    filestore_exists = filestore_client.check_filestore_instance_exists()
+    filestore_exists = filestore_client.check_instance_exists()
     if not filestore_exists:
       xpk_print(f"Filestore instance {args.instance} does not exists.")
       xpk_exit(1)
 
-    filestore_client.load_instance()
     filestore_network = get_cluster_network(args)
     manifest = filestore_client.manifest(
         args.name, args.vol, args.access_mode, filestore_network

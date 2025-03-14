@@ -14,21 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import os
-
-import ruamel.yaml
-
-yaml = ruamel.yaml.YAML()
-yaml_object_separator = "---\n"
+from ..utils import templates
 
 FUSE_PV_PATH = "/../templates/fuse-pv.yaml"
 FUSE_PVC_PATH = "/../templates/fuse-pvc.yaml"
 
 
 def create_pv(name: str, size: int, bucket: str) -> dict:
-  template_path = os.path.dirname(__file__) + FUSE_PV_PATH
-  with open(template_path, "r", encoding="utf-8") as file:
-    data: dict = yaml.load(file)
+  data = templates.load(FUSE_PV_PATH)
   data["metadata"]["name"] = f"{name}-pv"
   data["spec"]["capacity"]["storage"] = f"{size}Gi"
   data["spec"]["csi"]["volumeHandle"] = bucket
@@ -36,9 +29,7 @@ def create_pv(name: str, size: int, bucket: str) -> dict:
 
 
 def create_pvc(name: str, size: int) -> dict:
-  template_path = os.path.dirname(__file__) + FUSE_PVC_PATH
-  with open(template_path, "r", encoding="utf-8") as file:
-    data: dict = yaml.load(file)
+  data = templates.load(FUSE_PVC_PATH)
   data["metadata"]["name"] = f"{name}-pvc"
   data["spec"]["resources"]["requests"]["storage"] = f"{size}Gi"
   data["spec"]["volumeName"] = f"{name}-pv"

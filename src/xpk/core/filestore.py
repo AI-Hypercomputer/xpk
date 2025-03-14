@@ -110,6 +110,7 @@ class FilestoreClient:
 
   def get_instance_location(self) -> str:
     """Get Filestore instance's location"""
+    self.load_instance()
     return str(self.instance.name.split("/")[3])
 
   def create_instance(

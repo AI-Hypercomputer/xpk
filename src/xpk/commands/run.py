@@ -58,8 +58,8 @@ def submit_job(args: Namespace) -> None:
       f' {AppProfileDefaults.NAME.value} '
       f' --localqueue {LOCAL_QUEUE_NAME} '
       f" --pod-template-annotation '{Kueue_TAS_annotation}'"
-      f' --stream-containers {JobTemplateDefaults.CONTAINER_NAME.value}'
-      f' --worker-containers {JobTemplateDefaults.CONTAINER_NAME.value}'
+      f' --stream-container {JobTemplateDefaults.CONTAINER_NAME.value}'
+      f' --worker-container {JobTemplateDefaults.CONTAINER_NAME.value}'
       ' --wait --rm  --first-node-ip'
   )
   cmd = add_gpu_networking_annotations_to_command(args, cmd)

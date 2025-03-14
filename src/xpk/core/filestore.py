@@ -14,10 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import os
 from enum import Enum
 
-import ruamel.yaml
 from google.cloud import filestore_v1
 from google.cloud.exceptions import GoogleCloudError
 from google.cloud.filestore_v1.types import (
@@ -26,11 +24,9 @@ from google.cloud.filestore_v1.types import (
     NetworkConfig,
 )
 
+from ..utils import templates
 from ..utils.console import xpk_exit, xpk_print
 from .cluster import zone_to_region
-
-yaml = ruamel.yaml.YAML()
-yaml_object_separator = "---\n"
 
 FS_PV_PATH = "/../templates/filestore-pv.yaml"
 FS_PVC_PATH = "/../templates/filestore-pvc.yaml"
@@ -77,12 +73,10 @@ class FilestoreClient:
     self.name = name
     self.project = project
     self._client = filestore_v1.CloudFilestoreManagerClient()
-    self.location: str | None = None
     self.instance: Instance | None = None
 
-  def check_filestore_instance_exists(
-      self,
-  ) -> bool:
+  def get_instance(self) -> Instance | None:
+    """Get existing Filestore instance"""
     parentZonal = self.get_parent(self.zone)
     parentRegional = self.get_parent(self.region)
     reqZonal = filestore_v1.ListInstancesRequest(parent=parentZonal)
@@ -94,26 +88,31 @@ class FilestoreClient:
       xpk_print(f"Exception while trying to list instances {e}")
       xpk_exit(1)
 
-    fullname_zonal = self.get_instance_fullname(parentZonal)
-    fullname_regional = self.get_instance_fullname(parentRegional)
+    fullname_zonal = self.get_instance_fullname(self.zone)
+    fullname_regional = self.get_instance_fullname(self.region)
 
     for instance in instancesZonal:
       if instance.name == fullname_zonal:
-        return True
+        return instance  # pytype: disable=bad-return-type
 
     for instance in instancesRegional:
       if instance.name == fullname_regional:
-        return True
+        return instance  # pytype: disable=bad-return-type
 
-    return False
+  def check_instance_exists(self) -> bool:
+    """Check if Filestore instance exists"""
+    instance = self.get_instance()
+    return instance is not None
 
   def load_instance(self) -> None:
-    """Load existing filestore instance"""
-    instance_name = self.get_instance_fullname()
-    request = filestore_v1.GetInstanceRequest(name=instance_name)
-    self.instance = self._client.get_instance(request)
+    if self.instance is None:
+      self.instance = self.get_instance()
 
-  def create_filestore_instance(
+  def get_instance_location(self) -> str:
+    """Get Filestore instance's location"""
+    return str(self.instance.name.split("/")[3])
+
+  def create_instance(
       self,
       vol: str,
       size: int,
@@ -129,7 +128,7 @@ class FilestoreClient:
   ) -> None:
     """Create new Filestore instance"""
 
-    self.location = (
+    location = (
         self.zone
         if TIERS[tier].value == Availability.ZONAL.value
         else self.region
@@ -152,7 +151,7 @@ class FilestoreClient:
         )
     ]
     request = filestore_v1.CreateInstanceRequest(
-        parent=self.get_parent(),
+        parent=self.get_parent(location),
         instance_id=self.name,
         instance=Instance(
             description=description,
@@ -171,7 +170,9 @@ class FilestoreClient:
     except GoogleCloudError as e:
       xpk_print(f"Error while creating Filestore instance: {e}")
       xpk_exit(1)
-    xpk_print(f"Filestore instance {self.instance.name} created")
+    xpk_print(
+        f"Filestore instance {self.get_instance_fullname(location)} created"
+    )
 
   def delete_filestore_instance(self):
     # Initialize request
@@ -190,9 +191,7 @@ class FilestoreClient:
 
   def create_sc(self, name: str, network: str) -> dict:
     """Create a yaml representing filestore StorageClass."""
-    template_path = os.path.dirname(__file__) + FS_SC_PATH
-    with open(template_path, "r", encoding="utf-8") as file:
-      data: dict = yaml.load(file)
+    data = templates.load(FS_SC_PATH)
     data["metadata"]["name"] = get_storage_class_name(name)
     data["parameters"]["tier"] = self.instance.tier.name
     data["parameters"][
@@ -202,18 +201,14 @@ class FilestoreClient:
 
   def create_pv(self, name: str, vol: str, access_mode: str) -> dict:
     """Create a yaml representing filestore PersistentVolume."""
-    template_path = os.path.dirname(__file__) + FS_PV_PATH
-    with open(template_path, "r", encoding="utf-8") as file:
-      data: dict = yaml.load(file)
-
+    data = templates.load(FS_PV_PATH)
     data["metadata"]["name"] = get_pv_name(name)
     data["spec"]["storageClassName"] = get_storage_class_name(name)
     data["spec"]["capacity"]["storage"] = self.instance.file_shares[
         0
     ].capacity_gb
     data["spec"]["accessModes"] = [access_mode]
-    parent = self.get_parent()
-    volumeHandle = f"{self.get_instance_fullname(parent)}/volumes/{vol}"
+    volumeHandle = f"{self.get_instance_fullname()}/volumes/{vol}"
     data["spec"]["csi"]["volumeHandle"] = volumeHandle
     data["spec"]["csi"]["volumeAttributes"]["ip"] = self.instance.networks[
         0
@@ -223,9 +218,7 @@ class FilestoreClient:
 
   def create_pvc(self, name: str, access_mode: str) -> dict:
     """Create a yaml representing filestore PersistentVolumeClaim."""
-    template_path = os.path.dirname(__file__) + FS_PVC_PATH
-    with open(template_path, "r", encoding="utf-8") as file:
-      data: dict = yaml.load(file)
+    data = templates.load(FS_PVC_PATH)
     data["metadata"]["name"] = get_pvc_name(name)
     data["spec"]["accessModes"] = [access_mode]
     data["spec"]["storageClassName"] = get_storage_class_name(name)
@@ -238,48 +231,20 @@ class FilestoreClient:
   def manifest(
       self, name: str, vol: str, access_mode: str, network: str
   ) -> list[dict]:
+    self.load_instance()
     pv = self.create_pv(name, vol, access_mode)
     pvc = self.create_pvc(name, access_mode)
     sc = self.create_sc(name, network)
     return [pv, pvc, sc]
 
-  def load_location(self) -> str:
-    """Load and return Filestore's location"""
-    if self.location is not None:
-      return str(self.location)
-
-    parentZonal = self.get_parent(self.zone)
-    parentRegional = self.get_parent(self.region)
-    reqZonal = filestore_v1.ListInstancesRequest(parent=parentZonal)
-    reqRegional = filestore_v1.ListInstancesRequest(parent=parentRegional)
-    try:
-      instancesZonal = self._client.list_instances(reqZonal)
-      instancesRegional = self._client.list_instances(reqRegional)
-    except GoogleCloudError as e:
-      xpk_print(f"Exception while trying to list instances {e}")
-      xpk_exit(1)
-
-    fullname_zonal = self.get_instance_fullname(parentZonal)
-    fullname_regional = self.get_instance_fullname(parentRegional)
-
-    for instance in instancesZonal:
-      if instance.name == fullname_zonal:
-        self.location = self.zone
-
-    for instance in instancesRegional:
-      if instance.name == fullname_regional:
-        self.location = self.region
-
-    return str(self.location)
-
   def get_parent(self, location: str | None = None) -> str:
     """Get the Filestore's parent's name"""
     if location is None:
-      location = self.load_location()
+      location = self.get_instance_location()
     return f"projects/{self.project}/locations/{location}"
 
-  def get_instance_fullname(self, parent: str | None = None) -> str:
+  def get_instance_fullname(self, location: str | None = None) -> str:
     """Get the Filestore's full name"""
-    if parent is None:
-      parent = self.get_parent()
-    return f"{parent}/instances/{self.name}"
+    if location is None:
+      location = self.get_instance_location()
+    return f"projects/{self.project}/locations/{location}/instances/{self.name}"

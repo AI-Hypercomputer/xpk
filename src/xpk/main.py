@@ -70,7 +70,10 @@ sig = inspect.signature(main_args.func)
 if len(sig.parameters) != 1 or 'args' not in sig.parameters:
   raise RuntimeError('Invalid method signature')
 
-if sig.parameters['args'].annotation == argparse.Namespace:
+if sig.parameters['args'].annotation in [
+    argparse.Namespace,
+    inspect._empty,
+]:
   main_args.func(main_args)
 else:
   args = apply_args(main_args, sig.parameters['args'].annotation)

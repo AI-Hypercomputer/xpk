@@ -23,25 +23,26 @@ from ..utils.console import xpk_print
 
 
 class GlobalArgs:
+  """Class representing global args type"""
+
   dry_run: bool = False
 
 
 class KindClusterArgs:
+  """Class representing kind cluster args type"""
+
   kind_cluster: bool = False
 
 
 class ClusterArgs:
+  """Class representing cluster args type"""
 
-  @property
-  def cluster(self) -> str:
-    return self._cluster
-
-  @cluster.setter
-  def cluster(self, value: str):
-    self._cluster = value
+  cluster: str = None
 
 
 class SlurmArgs:
+  """Class representing slurm args type"""
+
   ignore_unknown_flags: bool = False
   array: Optional[str] = None
   cpus_per_task: Optional[str] = None
@@ -61,6 +62,7 @@ class SlurmArgs:
 
 
 class SharedArgs(GlobalArgs):
+  """Class representing shared args type"""
 
   @property
   def zone(self) -> str:
@@ -122,11 +124,9 @@ class StorageDetachArgs(SharedArgs, ClusterArgs, KindClusterArgs):
   name: str = None
 
 
-type StorageAccessMode = Literal[
-    'ReadWriteOnce', 'ReadOnlyMany', 'ReadWriteMany'
-]
+StorageAccessMode = Literal['ReadWriteOnce', 'ReadOnlyMany', 'ReadWriteMany']
 
-type FilestoreTier = Literal[
+FilestoreTier = Literal[
     'BASIC_HDD', 'BASIC_SSD', 'ZONAL', 'REGIONAL', 'ENTERPRISE'
 ]
 

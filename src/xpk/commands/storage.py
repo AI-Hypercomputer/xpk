@@ -14,8 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from argparse import Namespace
-
 from kubernetes import client as k8s_client
 from kubernetes.client.rest import ApiException
 

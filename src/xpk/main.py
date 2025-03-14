@@ -35,7 +35,7 @@ import argparse
 import sys
 import inspect
 from .parser.core import set_parser
-from .utils.console import xpk_print, xpk_exit
+from .utils.console import xpk_print
 from .utils.validation import validate_dependencies
 from .parser.args import apply_args
 ################### Compatibility Check ###################

@@ -71,7 +71,7 @@ from google.cloud import storage
 GCSFUSE_ANNOTATIONS = '''gke-gcsfuse/volumes: "true"
                 gke-gcsfuse/cpu-limit: "500m"
                 gke-gcsfuse/memory-limit: "350Gi"
-                gke-gcsfuse/ephemeral-storage-limit: "40Gi"'''
+                gke-gcsfuse/ephemeral-storage-limit: "30Gi"'''
 
 PARALLEL_STORE_ANNOTATIONS = '''gke-parallelstore/cpu-limit: "0"
                 gke-parallelstore/memory-limit: "0"
@@ -472,6 +472,8 @@ def workload_create(args) -> None:
       storage_annotations = PARALLEL_STORE_ANNOTATIONS
     elif storage_system == "gcsfuse":
       storage_annotations = GCSFUSE_ANNOTATIONS
+    elif storage_system == "pfs":
+      pass
     else: 
       xpk_print(f'Unknown storage system: {storage_system}')
       xpk_exit(1)

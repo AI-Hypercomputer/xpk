@@ -2048,7 +2048,7 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
 
   if is_gcsfuse:
     yaml = """- name: gke-gcsfuse-sidecar
-                image: gcr.io/gcs-tess/gcs-fuse-csi-driver-sidecar-mounter:v2.10.0_linux_amd64
+                image: gcr.io/gcs-tess/gcs-fuse-csi-driver-sidecar-mounter:mirvine-1.12.1-rc1
               - name: {docker_name}
                 image: {docker_image}
                 {image_pull_policy}
@@ -2202,6 +2202,11 @@ def get_volumes(args, system: SystemCharacteristics) -> str:
       else:
         xpk_print(f'Unknown storage volume: {storage_volume}')
         xpk_exit(1)
+    elif storage_system == 'pfs':
+      volumes += '''
+              - name: pfs-pvc
+                persistentVolumeClaim:
+                  claimName: preprov-pvc'''
     else:
       xpk_print(f'Unknown storage system: {storage_system}')
       xpk_exit(1)
@@ -2295,6 +2300,20 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
         volume_mount_yaml += '''
                 - mountPath: /tmp/gcsfuse
                   name: gcs-ckpt-pvc
+                  readOnly: false'''
+      else:
+        xpk_print(f'Unknown storage volume: {storage_volume}')
+        xpk_exit(1)
+    elif storage_system == 'pfs':
+      if storage_volume == 'dl':
+        volume_mount_yaml += '''
+                - mountPath: /tmp/dataset
+                  name: pfs-pvc
+                  readOnly: false'''
+      elif storage_volume == 'ckpt':
+        volume_mount_yaml += '''
+                - mountPath: /tmp/gcsfuse
+                  name: pfs-pvc
                   readOnly: false'''
       else:
         xpk_print(f'Unknown storage volume: {storage_volume}')

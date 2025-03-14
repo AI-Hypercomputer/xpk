@@ -19,7 +19,6 @@ from ..core.capacity import H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE
 from argparse import Namespace
 import yaml
 from .workload_decorators.tcpxo_decorator import get_tcpxo_deamon_entry
-import os
 from ..utils.console import xpk_print, xpk_exit
 
 from ..utils import templates

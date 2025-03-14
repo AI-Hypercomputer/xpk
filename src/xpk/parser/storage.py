@@ -313,3 +313,4 @@ def add_storage_delete_parser(
       action='store_true',
       help='Force filestore instance deletion even if it has attached storages',
   )
+  add_kind_cluster_arguments(opt_args)

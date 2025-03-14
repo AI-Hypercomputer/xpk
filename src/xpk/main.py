@@ -72,7 +72,7 @@ if len(sig.parameters) != 1 or 'args' not in sig.parameters:
 
 if sig.parameters['args'].annotation in [
     argparse.Namespace,
-    inspect._empty,
+    inspect.Parameter.empty,
 ]:
   main_args.func(main_args)
 else:

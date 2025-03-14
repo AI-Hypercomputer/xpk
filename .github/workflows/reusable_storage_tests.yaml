@@ -57,6 +57,7 @@ jobs:
       BUCKET_NAME: ${{secrets.BUCKET_NAME}}
       STORAGE_NAME: gcsfuse-test-${{inputs.run-id}}
   filestore-create-tests:
+    needs: [ fuse-attach-tests ]
     uses: ./.github/workflows/reusable_storage_tests_by_type.yaml
     concurrency: # We support one build or nightly test to run at a time currently.
       group: filestore-tests-${{inputs.run-id}}

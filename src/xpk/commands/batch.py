@@ -23,7 +23,7 @@ from ..core.kueue import LOCAL_QUEUE_NAME
 from ..utils.console import xpk_exit, xpk_print
 from .common import set_cluster_command
 from ..core.kjob import AppProfileDefaults, prepare_kjob, Kueue_TAS_annotation, get_gcsfuse_annotation
-from .kjob_shared import add_annotation_to_job
+from .kjob_common import add_gpu_networking_annotations_to_command
 from .kind import set_local_cluster_command
 import re
 
@@ -64,7 +64,7 @@ def submit_job(args: Namespace) -> None:
       f' --pod-template-annotation {Kueue_TAS_annotation}'
       ' --first-node-ip'
   )
-  cmd = add_annotation_to_job(args, cmd)
+  cmd = add_gpu_networking_annotations_to_command(args, cmd)
   gcsfuse_annotation = get_gcsfuse_annotation(args)
   if gcsfuse_annotation is not None:
     cmd += f' --pod-template-annotation {gcsfuse_annotation}'

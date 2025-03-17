@@ -109,12 +109,10 @@ def storage_delete(args: Namespace) -> None:
   ]
 
   if children and not args.force:
-    children_names = ", ".join(child.name for child in children)
     detach = get_user_input(
-        "Before deleting filestore instance it's recommended to detach all"
-        " volumes attached to it. This instance has following volumes"
-        f" attached: {children_names}\nDo you wish to detach them: y (yes) / n"
-        " (no):\n'"
+        "Deleting a filestore storage will destroy your filestore instance and"
+        " all its data in all volumes will be lost. Do you wish to delete the"
+        f" filestore instance {filestore_instance_name}: y (yes) / n (no):\n'"
     )
     if detach:
       for child in children:

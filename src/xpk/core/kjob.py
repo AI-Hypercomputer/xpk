@@ -14,7 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from ..core.blueprint.blueprint_generator import get_subnetworks_for_a3mega, get_subnetworks_for_a3ultra
+from ..core.capacity import H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE
 from argparse import Namespace
+import yaml
+from .workload_decorators.tcpxo_decorator import get_tcpxo_deamon_entry
+from ..utils.console import xpk_print, xpk_exit
 
 from ..utils import templates
 from kubernetes import client as k8s_client
@@ -22,11 +27,14 @@ from kubernetes.client import ApiClient
 from kubernetes.client.rest import ApiException
 from .cluster import setup_k8s_env, XPK_SA, DEFAULT_NAMESPACE
 from .storage import get_auto_mount_storages, get_auto_mount_gcsfuse_storages
-from ..utils.console import xpk_print, xpk_exit
 from .commands import run_command_for_value, run_kubectl_apply, run_command_with_updates
 from .config import XpkConfig, KJOB_SHELL_IMAGE, KJOB_SHELL_INTERACTIVE_COMMAND, KJOB_SHELL_WORKING_DIRECTORY, KJOB_BATCH_IMAGE, KJOB_BATCH_WORKING_DIRECTORY
 from .resources import get_cluster_system_characteristics, SystemCharacteristics, AcceleratorType
 from enum import Enum
+
+from ..core.workload_decorators import tcpxo_decorator
+
+from ..core.workload_decorators import rdma_decorator
 
 KJOB_API_GROUP_NAME = "kjobctl.x-k8s.io"
 KJOB_API_GROUP_VERSION = "v1alpha1"
@@ -68,6 +76,7 @@ job_template_yaml = """
       completionMode: Indexed
       template:
         spec:
+          dnsPolicy: ClusterFirstWithHostNet
           tolerations:
             - operator: "Exists"
               key: nvidia.com/gpu
@@ -133,6 +142,34 @@ template:
 
 Kueue_TAS_annotation = "kueue.x-k8s.io/podset-preferred-topology=cloud.google.com/gce-topology-host"
 
+default_interface_annotation = "networking.gke.io/default-interface=eth0"
+
+
+def get_a3ultra_pod_template_annotations(args: Namespace) -> tuple[str, str]:
+  sub_networks = get_subnetworks_for_a3ultra(args.cluster)
+  interfaces_key, interfaces_value = rdma_decorator.get_interfaces_entry(
+      sub_networks
+  )
+
+  return (
+      default_interface_annotation,
+      f"{interfaces_key}=$'{interfaces_value}'",
+  )
+
+
+def get_a3mega_pod_template_annotations(
+    args: Namespace,
+) -> tuple[str, str, str]:
+  """Adds or updates annotations in the Pod template."""
+  sub_networks = get_subnetworks_for_a3mega(args.cluster)
+  tcpxo_deamon_key, tcpxo_deamon_paths = get_tcpxo_deamon_entry()
+  interfaces_key, interfaces_value = tcpxo_decorator.get_interfaces_entry(
+      sub_networks
+  )
+  tcpxo = f"{tcpxo_deamon_key}=$'{tcpxo_deamon_paths}'"
+  interfaces = f"{interfaces_key}=$'{interfaces_value}'"
+  return tcpxo, interfaces, default_interface_annotation
+
 
 def verify_kjob_installed(args: Namespace) -> int:
   """Check if kjob is installed. If not provide user with proper communicate and exit.
@@ -175,7 +212,9 @@ def get_pod_template_interactive_command() -> str:
   return pod_command
 
 
-def create_app_profile_instance(args: Namespace, volume_bundles: [str]) -> int:
+def create_app_profile_instance(
+    args: Namespace, volume_bundles: list[str]
+) -> int:
   """Create new AppProfile instance on cluster with default settings.
 
   Args:
@@ -193,6 +232,17 @@ def create_app_profile_instance(args: Namespace, volume_bundles: [str]) -> int:
       task="Creating AppProfile",
       args=args,
   )
+
+
+def decorate_job_template_with_gpu(yml_string: str, gpu_type: str) -> str:
+  job_spec = yaml.safe_load(yml_string)["template"]
+  if gpu_type == H100_MEGA_DEVICE_TYPE:
+    job_spec = tcpxo_decorator.decorate_kjob_template(job_spec)
+  if gpu_type == H200_DEVICE_TYPE:
+    job_spec = rdma_decorator.decorate_kjob_template(job_spec)
+  job_template_dict = yaml.safe_load(yml_string)
+  job_template_dict["template"] = job_spec
+  return yaml.dump(job_template_dict, sort_keys=False)
 
 
 def create_job_template_instance(
@@ -214,7 +264,6 @@ def create_job_template_instance(
   working_directory = config.get(KJOB_BATCH_WORKING_DIRECTORY)
   if working_directory is None or len(working_directory) == 0:
     working_directory = JobTemplateDefaults.WORKING_DIRECTORY.value
-
   resources = (
       job_resources_template.format(gpu_per_node=system.chips_per_vm)
       if system is not None
@@ -228,19 +277,22 @@ def create_job_template_instance(
       and system.accelerator_type == AcceleratorType["GPU"]
       else ""
   )
+  yml_string = job_template_yaml.format(
+      name=JobTemplateDefaults.NAME.value,
+      parallelism=JobTemplateDefaults.PARALLELISM.value,
+      completions=JobTemplateDefaults.COMPLETIONS.value,
+      container_name=JobTemplateDefaults.CONTAINER_NAME.value,
+      image=job_image,
+      working_directory=working_directory,
+      resources=resources,
+      node_selector=node_selector,
+      service_account=service_account,
+  )
+  if system is not None and system.accelerator_type == AcceleratorType["GPU"]:
+    yml_string = decorate_job_template_with_gpu(yml_string, system.device_type)
 
   return run_kubectl_apply(
-      yml_string=job_template_yaml.format(
-          name=JobTemplateDefaults.NAME.value,
-          parallelism=JobTemplateDefaults.PARALLELISM.value,
-          completions=JobTemplateDefaults.COMPLETIONS.value,
-          container_name=JobTemplateDefaults.CONTAINER_NAME.value,
-          image=job_image,
-          working_directory=working_directory,
-          resources=resources,
-          node_selector=node_selector,
-          service_account=service_account,
-      ),
+      yml_string,
       task="Creating JobTemplate",
       args=args,
   )
@@ -277,8 +329,6 @@ def create_pod_template_instance(args: Namespace, service_account: str) -> int:
 
 
 def prepare_kjob(args: Namespace) -> int:
-  xpk_print("Preparing kjob")
-
   system = get_cluster_system_characteristics(args)
 
   k8s_api_client = setup_k8s_env(args)

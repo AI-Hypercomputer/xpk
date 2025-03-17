@@ -98,7 +98,7 @@ def storage_delete(args: StorageDeleteArgs) -> None:
   storages = list_storages(k8s_api_client)
   filestore_client = FilestoreClient(args.zone, args.name, args.project)
 
-  if not filestore_client.check_filestore_instance_exists():
+  if not filestore_client.check_instance_exists():
     xpk_print(f"Filestore instance {args.name} does not exist.")
     xpk_exit(1)
 

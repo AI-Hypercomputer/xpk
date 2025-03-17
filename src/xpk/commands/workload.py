@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from ..core.blueprint.blueprint_generator import get_subnetworks_for_a3mega, get_subnetworks_for_a3ultra
 from ..core.cluster import (
     create_xpk_k8s_service_account,
     get_cluster_credentials,
@@ -26,6 +27,7 @@ from ..core.docker_container import (
     get_main_container_docker_image,
     get_user_workload_container,
 )
+
 from ..core.docker_resources import get_volumes
 from ..core.gcloud_context import add_zone_and_project
 from ..core.kueue import LOCAL_QUEUE_NAME

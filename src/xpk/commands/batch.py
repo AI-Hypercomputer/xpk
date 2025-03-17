@@ -22,12 +22,8 @@ from ..core.gcloud_context import add_zone_and_project
 from ..core.kueue import LOCAL_QUEUE_NAME
 from ..utils.console import xpk_exit, xpk_print
 from .common import set_cluster_command
-from ..core.kjob import (
-    AppProfileDefaults,
-    prepare_kjob,
-    Kueue_TAS_annotation,
-    get_gcsfuse_annotation,
-)
+from ..core.kjob import AppProfileDefaults, JobTemplateDefaults, prepare_kjob, Kueue_TAS_annotation, get_gcsfuse_annotation
+from .kjob_common import add_gpu_networking_annotations_to_command
 from .kind import set_local_cluster_command
 import re
 
@@ -58,14 +54,18 @@ def batch(args: Namespace) -> None:
 
 
 def submit_job(args: Namespace) -> None:
+
+  create_xpk_k8s_service_account()
+
   cmd = (
       'kubectl kjob create slurm'
       f' --profile {AppProfileDefaults.NAME.value}'
       f' --localqueue {LOCAL_QUEUE_NAME}'
       f' --pod-template-annotation {Kueue_TAS_annotation}'
+      f' --worker-container {JobTemplateDefaults.CONTAINER_NAME.value}'
       ' --first-node-ip'
   )
-
+  cmd = add_gpu_networking_annotations_to_command(args, cmd)
   gcsfuse_annotation = get_gcsfuse_annotation(args)
   if gcsfuse_annotation is not None:
     cmd += f' --pod-template-annotation {gcsfuse_annotation}'

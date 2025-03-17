@@ -19,6 +19,7 @@ from google.cloud import resourcemanager_v3
 from kubernetes import client as k8s_client
 from kubernetes import config
 from kubernetes.client.exceptions import ApiException
+from .resources import get_cluster_system_characteristics
 
 from ..utils.console import xpk_exit, xpk_print
 from .capacity import H100_DEVICE_TYPE
@@ -233,6 +234,13 @@ def setup_k8s_env(args) -> k8s_client.ApiClient:
 
   config.load_kube_config()
   return k8s_client.ApiClient()  # pytype: disable=bad-return-type
+
+
+def get_gpu_type_from_cluster(args) -> str:
+  system = get_cluster_system_characteristics(args)
+  if not system is None:
+    return system.device_type
+  return ''
 
 
 def create_xpk_k8s_service_account() -> None:

@@ -175,6 +175,16 @@ def create_cluster_subnet(args, index) -> int:
   return 0
 
 
+def get_subnetworks_for_a3mega(cluster_name: str) -> list[str]:
+  return [f'{cluster_name}-gpunet-{i}-subnet' for i in range(8)]
+
+
+def get_subnetworks_for_a3ultra(cluster_name: str) -> list[str]:
+  return [f'{cluster_name}-sub-1'] + [
+      f'{cluster_name}-rdma-sub-{i}' for i in range(8)
+  ]
+
+
 def create_cluster_firewall_rule(args, index) -> int:
   """Create one GKE Cluster firewall rule.
 

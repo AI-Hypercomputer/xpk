@@ -81,10 +81,10 @@ def get_interfaces_entry() -> tuple[str, str]:
   return 'networking.gke.io/interfaces', literal_string('\n'.join(interfaces))
 
 
-def add_annotations(job_manifest, sub_networks):
+def add_annotations(job_manifest):
   """Adds or updates annotations in the Pod template."""
   annotations = job_manifest['spec']['template']['metadata']['annotations']
-  interfaces_key, interfaces_value = get_interfaces_entry(sub_networks)
+  interfaces_key, interfaces_value = get_interfaces_entry()
   annotations.update({
       'networking.gke.io/default-interface': "'eth0'",
       interfaces_key: interfaces_value,

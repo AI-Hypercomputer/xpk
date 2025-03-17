@@ -14,7 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..core.blueprint.blueprint_generator import get_subnetworks_for_a3mega, get_subnetworks_for_a3ultra
 from ..core.capacity import H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE
 from argparse import Namespace
 import yaml
@@ -145,11 +144,8 @@ Kueue_TAS_annotation = "kueue.x-k8s.io/podset-preferred-topology=cloud.google.co
 default_interface_annotation = "networking.gke.io/default-interface=eth0"
 
 
-def get_a3ultra_pod_template_annotations(args: Namespace) -> tuple[str, str]:
-  sub_networks = get_subnetworks_for_a3ultra(args.cluster)
-  interfaces_key, interfaces_value = rdma_decorator.get_interfaces_entry(
-      sub_networks
-  )
+def get_a3ultra_pod_template_annotations() -> tuple[str, str]:
+  interfaces_key, interfaces_value = rdma_decorator.get_interfaces_entry()
 
   return (
       default_interface_annotation,
@@ -157,15 +153,10 @@ def get_a3ultra_pod_template_annotations(args: Namespace) -> tuple[str, str]:
   )
 
 
-def get_a3mega_pod_template_annotations(
-    args: Namespace,
-) -> tuple[str, str, str]:
+def get_a3mega_pod_template_annotations() -> tuple[str, str, str]:
   """Adds or updates annotations in the Pod template."""
-  sub_networks = get_subnetworks_for_a3mega(args.cluster)
   tcpxo_deamon_key, tcpxo_deamon_paths = get_tcpxo_deamon_entry()
-  interfaces_key, interfaces_value = tcpxo_decorator.get_interfaces_entry(
-      sub_networks
-  )
+  interfaces_key, interfaces_value = tcpxo_decorator.get_interfaces_entry()
   tcpxo = f"{tcpxo_deamon_key}=$'{tcpxo_deamon_paths}'"
   interfaces = f"{interfaces_key}=$'{interfaces_value}'"
   return tcpxo, interfaces, default_interface_annotation

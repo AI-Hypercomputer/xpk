@@ -17,6 +17,7 @@ limitations under the License.
 from argparse import Namespace
 
 from kubernetes import client as k8s_client
+from kubernetes.client import ApiClient
 from kubernetes.client.rest import ApiException
 
 from ..core import gcsfuse
@@ -42,12 +43,13 @@ from ..core.storage import (
     STORAGE_CRD_PLURAL,
     XPK_API_GROUP_NAME,
     XPK_API_GROUP_VERSION,
+    Storage,
     create_storage_crds,
     get_storage,
     list_storages,
     print_storages_for_cluster,
 )
-from ..utils.console import xpk_exit, xpk_print
+from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.kubectl import apply_kubectl_manifest
 
 
@@ -101,18 +103,22 @@ def storage_delete(args: Namespace) -> None:
   filestore_instance_name = filestore_client.get_instance_fullname()
 
   children = [
-      storage.name
+      storage
       for storage in storages
       if storage.bucket.startswith(filestore_instance_name)
   ]
 
   if children and not args.force:
-    xpk_print(
-        "Stopping filestore deletion. This instance has attached following"
-        f" storages: {', '.join(children)}. You need to detach them before"
-        " deleting the instance."
+    children_names = ", ".join(child.name for child in children)
+    detach = get_user_input(
+        "Before deleting filestore instance it's recommended to detach all"
+        " volumes attached to it. This instance has following volumes"
+        f" attached: {children_names}\nDo you wish to detach them: y (yes) / n"
+        " (no):\n'"
     )
-    xpk_exit(1)
+    if detach:
+      for child in children:
+        delete_storage_resources(k8s_api_client, child)
 
   filestore_client.delete_filestore_instance()
 
@@ -174,6 +180,12 @@ def storage_list(args: Namespace) -> None:
   print_storages_for_cluster(storages)
 
 
+def storage_detach(args: Namespace) -> None:
+  k8s_api_client = setup_k8s_env(args)
+  storage = get_storage(k8s_api_client, args.name)
+  delete_storage_resources(k8s_api_client, storage)
+
+
 def delete_resource(api_call, resource_name: str, resource_kind: str) -> None:
   """
   Deletes a Kubernetes resource and handles potential API exceptions.
@@ -199,12 +211,18 @@ def delete_resource(api_call, resource_name: str, resource_kind: str) -> None:
   xpk_print(f"Deleted {resource_kind}:{resource_name}")
 
 
-def storage_detach(args: Namespace) -> None:
-  k8s_api_client = setup_k8s_env(args)
+def delete_storage_resources(k8s_api_client: ApiClient, storage: Storage):
+  """
+  Deletes storage PV, PVC, SC and custom resources (if they exist).
+
+  Args:
+    k8s_api_client: An ApiClient object for interacting with the Kubernetes API.
+    storage: Storage to delete
+  """
   api_instance = k8s_client.CustomObjectsApi(k8s_api_client)
   core_api = k8s_client.CoreV1Api()
   storage_api = k8s_client.StorageV1Api()
-  storage = get_storage(k8s_api_client, args.name)
+
   delete_resource(
       lambda name: core_api.delete_namespaced_persistent_volume_claim(
           name, "default"
@@ -212,6 +230,7 @@ def storage_detach(args: Namespace) -> None:
       storage.pvc,
       "Persistent Volume Claim",
   )
+
   delete_resource(
       core_api.delete_persistent_volume, storage.pv, "Persistent Volume"
   )
@@ -219,7 +238,7 @@ def storage_detach(args: Namespace) -> None:
   if storage.type == GCP_FILESTORE_TYPE:
     delete_resource(
         storage_api.delete_storage_class,
-        get_storage_class_name(args.name),
+        get_storage_class_name(storage.name),
         "Storage Class",
     )
 
@@ -231,7 +250,7 @@ def storage_detach(args: Namespace) -> None:
           version=KJOB_API_GROUP_VERSION,
           plural=KJOB_API_VOLUME_BUNDLE_PLURAL,
       ),
-      args.name,
+      storage.name,
       "VolumeBundle",
   )
 
@@ -242,6 +261,6 @@ def storage_detach(args: Namespace) -> None:
           version=XPK_API_GROUP_VERSION,
           plural=STORAGE_CRD_PLURAL,
       ),
-      args.name,
+      storage.name,
       "Storage",
   )

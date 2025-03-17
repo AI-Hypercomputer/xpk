@@ -14,10 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import os
 from argparse import Namespace
-import yaml
 
+from ..utils import templates
 from kubernetes import client as k8s_client
 from kubernetes.client import ApiClient
 from kubernetes.client.rest import ApiException
@@ -324,7 +323,11 @@ def apply_kjob_crds(args: Namespace) -> int:
 
 
 def create_volume_bundle_instance(
-    k8s_api_client: ApiClient, args: Namespace
+    k8s_api_client: ApiClient,
+    name: str,
+    manifest: list[dict],
+    readonly: bool,
+    mount_point: str,
 ) -> None:
   """
   Creates a new VolumeBundle resource in the Kubernetes cluster.
@@ -338,30 +341,25 @@ def create_volume_bundle_instance(
       args: An argparse Namespace object containing the arguments for creating
             the Storage resource.
   """
-  abs_path = f"{os.path.dirname(__file__)}{VOLUME_BUNDLE_TEMPLATE_PATH}"
-  with open(abs_path, "r", encoding="utf-8") as file:
-    data = yaml.safe_load(file)
-
-  data["metadata"]["name"] = args.name
+  data = templates.load(VOLUME_BUNDLE_TEMPLATE_PATH)
+  data["metadata"]["name"] = name
   spec = data["spec"]
   spec["volumes"] = []
   spec["containerVolumeMounts"] = []
 
-  with open(args.manifest, "r", encoding="utf-8") as f:
-    pv_pvc_definitions = yaml.safe_load_all(f)
-    for obj in pv_pvc_definitions:
-      if obj["kind"] == "PersistentVolumeClaim":
-        spec["volumes"].append({
-            "name": obj["metadata"]["name"],
-            "persistentVolumeClaim": {
-                "claimName": obj["metadata"]["name"],
-                "readOnly": args.readonly,
-            },
-        })
-        spec["containerVolumeMounts"].append({
-            "name": obj["metadata"]["name"],
-            "mountPath": args.mount_point,
-        })
+  for obj in manifest:
+    if obj["kind"] == "PersistentVolumeClaim":
+      spec["volumes"].append({
+          "name": obj["metadata"]["name"],
+          "persistentVolumeClaim": {
+              "claimName": obj["metadata"]["name"],
+              "readOnly": readonly,
+          },
+      })
+      spec["containerVolumeMounts"].append({
+          "name": obj["metadata"]["name"],
+          "mountPath": mount_point,
+      })
 
   data["spec"] = spec
 
@@ -380,9 +378,7 @@ def create_volume_bundle_instance(
     )
   except ApiException as e:
     if e.status == 409:
-      xpk_print(
-          f"VolumeBundle: {args.name} already exists. Skipping its creation"
-      )
+      xpk_print(f"VolumeBundle: {name} already exists. Skipping its creation")
     else:
       xpk_print(f"Encountered error during VolumeBundle creation: {e}")
       xpk_exit(1)

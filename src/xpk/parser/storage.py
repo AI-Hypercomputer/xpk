@@ -16,11 +16,16 @@ limitations under the License.
 
 import argparse
 
-from ..commands.storage import storage_attach, storage_delete, storage_list, storage_create
+from ..commands.storage import (
+    storage_attach,
+    storage_create,
+    storage_delete,
+    storage_list,
+)
 from .common import (
-    add_shared_arguments,
     add_cluster_arguments,
     add_kind_cluster_arguments,
+    add_shared_arguments,
 )
 
 
@@ -71,21 +76,70 @@ def add_storage_attach_parser(
   )
   add_cluster_arguments(req_args, required=True)
   req_args.add_argument(
-      '--auto-mount', type=lambda v: v.lower() == 'true', required=True
+      '--auto-mount',
+      type=lambda v: v.lower() == 'true',
+      default=True,
+      required=True,
+      help='If true all workloads will have this storage mounted by default',
   )
   req_args.add_argument(
       '--mount-point',
       type=str,
       required=True,
+      help='Path on which a given storage should be mounted for a workload',
   )
   req_args.add_argument(
-      '--readonly', type=lambda v: v.lower() == 'true', required=True
+      '--readonly',
+      type=lambda v: v.lower() == 'true',
+      required=True,
+      help='If true workloads can only read from storage',
   )
 
-  req_args.add_argument(
-      '--manifest',
+  gcsfuse_args = storage_attach_parser.add_argument_group(
+      'FUSE arguments',
+      'Arguments used when --type=gcsfuse',
+  )
+  gcsfuse_args.add_argument(
+      '--size',
+      type=int,
+      help='The size of the volume to attach in gigabytes.',
+  )
+  gcsfuse_args.add_argument(
+      '--bucket',
       type=str,
-      required=True,
+      help=(
+          '(optional) Name of the bucket. If not set, then the "name" parameter'
+          ' is infered as a bucket name.'
+      ),
+  )
+
+  gcpfilestore_args = storage_attach_parser.add_argument_group(
+      'Filestore arguments',
+      'Arguments used when --type=gcpfilestore',
+  )
+  gcpfilestore_args.add_argument(
+      '--vol',
+      type=str,
+      help='(optional) The name of the volume to create. Default: "default"',
+      default='default',
+  )
+  gcpfilestore_args.add_argument(
+      '--access-mode',
+      type=str,
+      choices=['ReadWriteOnce', 'ReadOnlyMany', 'ReadWriteMany'],
+      help=(
+          '(optional) Access mode of created filestore instance. Default:'
+          ' "ReadWriteMany"'
+      ),
+      default='ReadWriteMany',
+  )
+  gcpfilestore_args.add_argument(
+      '--instance',
+      type=str,
+      help=(
+          '(optional) Name of the filestore instance. If not set, then the'
+          ' "name" parameter is infered as an instance name.'
+      ),
   )
 
   opt_args = storage_attach_parser.add_argument_group(
@@ -110,24 +164,9 @@ def add_storage_create_parser(
   )
   add_shared_arguments(req_args)
   req_args.add_argument(
-      '--access-mode',
-      type=str,
-      choices=['ReadWriteOnce', 'ReadOnlyMany', 'ReadWriteMany'],
-      help='Access mode of created filestore instance',
-      default='ReadWriteMany',
-  )
-
-  req_args.add_argument(
       'name',
       type=str,
       help='The name of storage',
-  )
-  req_args.add_argument(
-      '--vol',
-      type=str,
-      help='The name of the volume to create',
-      required=True,
-      default='default',
   )
   req_args.add_argument(
       '--size',
@@ -138,29 +177,15 @@ def add_storage_create_parser(
       ),
       required=True,
   )
-  req_args.add_argument(
-      '--tier',
-      type=str,
-      help=(
-          'The tier of the filestore to create. Possible values are:'
-          ' [BASIC_HDD, BASIC_SSD, ZONAL, REGIONAL, ENTERPRISE]'
-      ),
-      choices=['BASIC_HDD', 'BASIC_SSD', 'ZONAL', 'REGIONAL', 'ENTERPRISE'],
-      required=True,
-      default='BASIC_HDD',
-  )
 
   req_args.add_argument(
       '--type',
       type=str,
-      help='The type of storage. Currently supported types: [ "gcpfilestore"]',
+      help='The type of storage. Currently supported types: ["gcpfilestore"]',
       choices=['gcpfilestore'],
       required=True,
   )
   add_cluster_arguments(req_args, required=True)
-  req_args.add_argument(
-      '--auto-mount', type=lambda v: v.lower() == 'true', required=True
-  )
   req_args.add_argument(
       '--mount-point',
       type=str,
@@ -174,6 +199,36 @@ def add_storage_create_parser(
       'Optional Arguments',
       'Optional arguments for storage create.',
   )
+  opt_args.add_argument(
+      '--vol',
+      type=str,
+      help='The name of the volume to create',
+      required=True,
+      default='default',
+  )
+  opt_args.add_argument(
+      '--tier',
+      type=str,
+      help=(
+          'The tier of the filestore to create. Possible values are:'
+          ' [BASIC_HDD, BASIC_SSD, ZONAL, REGIONAL, ENTERPRISE]'
+      ),
+      choices=['BASIC_HDD', 'BASIC_SSD', 'ZONAL', 'REGIONAL', 'ENTERPRISE'],
+      default='REGIONAL',
+  )
+  opt_args.add_argument(
+      '--auto-mount',
+      type=lambda v: v.lower() == 'true',
+      default=True,
+  )
+  opt_args.add_argument(
+      '--access-mode',
+      type=str,
+      choices=['ReadWriteOnce', 'ReadOnlyMany', 'ReadWriteMany'],
+      help='Access mode of created filestore instance',
+      default='ReadWriteMany',
+  )
+
   add_kind_cluster_arguments(opt_args)
 
 

@@ -21,6 +21,42 @@ from ...utils.yaml import literal_string
 rxdm = 'v1.0.12'
 
 
+def decorate_kjob_template(job_manifest: dict) -> dict:
+  spec = (
+      job_manifest.setdefault('spec', {})
+      .setdefault('template', {})
+      .setdefault('spec', {})
+  )
+  spec.setdefault('tolerations', [])
+  spec.setdefault('volumes', [])
+
+  add_volumes(job_manifest)
+  add_tolerations(job_manifest)
+  add_tcpxo_daemon_container(job_manifest)
+  update_gpu_containers(job_manifest)
+  return job_manifest
+
+
+def decorate_job(job_manifest: dict, sub_networks: list[str]) -> dict:
+  job_manifest.setdefault('spec', {}).setdefault('template', {}).setdefault(
+      'metadata', {}
+  ).setdefault('annotations', {})
+  spec = (
+      job_manifest.setdefault('spec', {})
+      .setdefault('template', {})
+      .setdefault('spec', {})
+  )
+  spec.setdefault('tolerations', [])
+  spec.setdefault('volumes', [])
+
+  add_annotations(job_manifest, sub_networks)
+  add_volumes(job_manifest)
+  add_tolerations(job_manifest)
+  add_tcpxo_daemon_container(job_manifest)
+  update_gpu_containers(job_manifest)
+  return job_manifest
+
+
 def decorate_jobset(jobset_manifest_str, sub_networks) -> str:
   """
   Decorates a JobSet manifest with the necessary components for tcpxo-daemon.
@@ -36,29 +72,11 @@ def decorate_jobset(jobset_manifest_str, sub_networks) -> str:
 
   for job in manifest['spec']['replicatedJobs']:
     job_manifest = job['template']
-    job_manifest.setdefault('spec', {}).setdefault('template', {}).setdefault(
-        'metadata', {}
-    ).setdefault('annotations', {})
-    spec = (
-        job_manifest.setdefault('spec', {})
-        .setdefault('template', {})
-        .setdefault('spec', {})
-    )
-    spec.setdefault('tolerations', [])
-    spec.setdefault('volumes', [])
-
-    add_annotations(job_manifest, sub_networks)
-    add_volumes(job_manifest)
-    add_tolerations(job_manifest)
-    add_tcpxo_daemon_container(job_manifest)
-    update_gpu_containers(job_manifest)
-
+    job_manifest = decorate_job(job_manifest, sub_networks)
   return yaml.dump(manifest, sort_keys=False)
 
 
-def add_annotations(job_manifest, sub_networks):
-  """Adds or updates annotations in the Pod template."""
-  annotations = job_manifest['spec']['template']['metadata']['annotations']
+def get_interfaces_entry(sub_networks: list[str]) -> tuple[str, str]:
   interfaces = [
       '[',
       '    {"interfaceName":"eth0","network":"default"},',
@@ -68,22 +86,34 @@ def add_annotations(job_manifest, sub_networks):
       ],
       ']',
   ]
+  return 'networking.gke.io/interfaces', literal_string('\n'.join(interfaces))
+
+
+def get_tcpxo_deamon_entry() -> tuple[str, str]:
+  return 'devices.gke.io/container.tcpxo-daemon', literal_string(
+      '- path: /dev/nvidia0\n'
+      '- path: /dev/nvidia1\n'
+      '- path: /dev/nvidia2\n'
+      '- path: /dev/nvidia3\n'
+      '- path: /dev/nvidia4\n'
+      '- path: /dev/nvidia5\n'
+      '- path: /dev/nvidia6\n'
+      '- path: /dev/nvidia7\n'
+      '- path: /dev/nvidiactl\n'
+      '- path: /dev/nvidia-uvm\n'
+      '- path: /dev/dmabuf_import_helper\n'
+  )
+
+
+def add_annotations(job_manifest, sub_networks):
+  """Adds or updates annotations in the Pod template."""
+  annotations = job_manifest['spec']['template']['metadata']['annotations']
+  tcpxo_deamon_key, tcpxo_deamon_paths = get_tcpxo_deamon_entry()
+  interfaces_key, interfaces_value = get_interfaces_entry(sub_networks)
   annotations.update({
-      'devices.gke.io/container.tcpxo-daemon': literal_string(
-          '- path: /dev/nvidia0\n'
-          '- path: /dev/nvidia1\n'
-          '- path: /dev/nvidia2\n'
-          '- path: /dev/nvidia3\n'
-          '- path: /dev/nvidia4\n'
-          '- path: /dev/nvidia5\n'
-          '- path: /dev/nvidia6\n'
-          '- path: /dev/nvidia7\n'
-          '- path: /dev/nvidiactl\n'
-          '- path: /dev/nvidia-uvm\n'
-          '- path: /dev/dmabuf_import_helper\n'
-      ),
+      tcpxo_deamon_key: tcpxo_deamon_paths,
       'networking.gke.io/default-interface': 'eth0',
-      'networking.gke.io/interfaces': literal_string('\n'.join(interfaces)),
+      interfaces_key: interfaces_value,
   })
 
 
@@ -135,8 +165,8 @@ def add_tcpxo_daemon_container(job_manifest):
       ],
       'env': [{'name': 'LD_LIBRARY_PATH', 'value': '/usr/local/nvidia/lib64'}],
   }
-  job_manifest['spec']['template']['spec']['containers'].insert(
-      0, tcpxo_daemon_container
+  job_manifest['spec']['template']['spec']['containers'].append(
+      tcpxo_daemon_container
   )
 
 

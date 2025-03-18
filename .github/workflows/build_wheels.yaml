@@ -17,6 +17,10 @@ name: PyPi releases
 on:
   workflow_dispatch:
     inputs:
+      pypi:
+        type: boolean
+        required: false
+        default: false
       testpypi:
         type: boolean
         required: false
@@ -83,7 +87,7 @@ jobs:
         verbose: true
   publish-to-pypi:
     name: Publish Python distribution to PyPI
-    if: startsWith(github.ref, 'refs/tags/')  # only publish to PyPI on tag pushes
+    if: ${{inputs.pypi}} == true || startsWith(github.ref, 'refs/tags/')  # only publish to PyPI on tag pushes
     needs:
     - build
     runs-on: ubuntu-latest

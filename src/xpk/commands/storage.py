@@ -115,7 +115,8 @@ def storage_delete(args: Namespace) -> None:
         f" filestore instance {filestore_instance_name}?\n y (yes) / n (no):\n'"
     )
     if not detach:
-      return
+      xpk_print("Deleting storage canceled.")
+      xpk_exit(0)
 
   for child in children:
     delete_storage_resources(k8s_api_client, child)

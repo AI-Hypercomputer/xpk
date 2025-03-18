@@ -145,7 +145,7 @@ spec:
                   claimName: ckpt-bucket-pvc
               - name: gcs-dataset-pvc
                 persistentVolumeClaim:
-                  claimName: cached-dataset-bucket-pvc
+                  claimName: dataset-bucket-pvc
               - name: gke-gcsfuse-cache
                 emptyDir:
                   medium: Memory
@@ -292,11 +292,17 @@ spec:
           template:
             metadata:
               annotations:
+                gke-gcsfuse/volumes: "true"
+                gke-gcsfuse/cpu-limit: "500m"
+                gke-gcsfuse/memory-limit: "350Gi"
+                gke-gcsfuse/ephemeral-storage-limit: "40Gi"
                 {storage_annotations}
             spec:
               terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
               serviceAccountName: {service_account}
               containers:
+              - name: gke-gcsfuse-sidecar
+                image: gcr.io/gcs-tess/gcs-fuse-csi-driver-sidecar-mounter:v2.10.0_linux_amd64
               - args:
                 {pathways_worker_args}
                 image: {args.server_image}

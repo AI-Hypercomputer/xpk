@@ -31,7 +31,7 @@ from .gcloud_context import add_zone_and_project, get_gke_server_config, zone_to
 from .nodepool import upgrade_gke_nodepools_version
 from .system_characteristics import SystemCharacteristics
 
-JOBSET_VERSION = 'v0.7.2'
+JOBSET_VERSION = 'v0.8.0'
 INSTALLER_NCC_TCPX = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpx/nccl-tcpx-installer.yaml'
 INSTALLER_NCC_TCPXO = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpxo/nccl-tcpxo-installer.yaml'
 

@@ -24,6 +24,4 @@ def get_xpk_version() -> str:
 
 def version(args) -> None:  # pylint: disable=unused-argument
   """Get version of xpk."""
-  xpk_version, git_hash = __version__.split('+')
-  xpk_print('xpk_version:', xpk_version)
-  xpk_print('git commit hash:', git_hash)
+  xpk_print('xpk_version:', __version__)

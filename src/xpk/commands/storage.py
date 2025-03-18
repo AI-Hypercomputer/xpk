@@ -112,11 +112,13 @@ def storage_delete(args: Namespace) -> None:
     detach = get_user_input(
         "Deleting a filestore storage will destroy your filestore instance and"
         " all its data in all volumes will be lost. Do you wish to delete the"
-        f" filestore instance {filestore_instance_name}: y (yes) / n (no):\n'"
+        f" filestore instance {filestore_instance_name}?\n y (yes) / n (no):\n'"
     )
-    if detach:
-      for child in children:
-        delete_storage_resources(k8s_api_client, child)
+    if not detach:
+      return
+
+  for child in children:
+    delete_storage_resources(k8s_api_client, child)
 
   filestore_client.delete_filestore_instance()
 

@@ -86,6 +86,7 @@ job_template_yaml = """
               workingDir: {working_directory}
               {resources}
           {node_selector}
+          priorityClassName: {priority}
           restartPolicy: OnFailure
           serviceAccountName: {service_account}
 """
@@ -286,6 +287,7 @@ def create_job_template_instance(
       working_directory=working_directory,
       resources=resources,
       node_selector=node_selector,
+      priority=args.priority if hasattr(args, "priority") else "medium",
       service_account=service_account,
   )
   if system is not None and system.accelerator_type == AcceleratorType["GPU"]:

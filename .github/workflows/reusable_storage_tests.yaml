@@ -36,29 +36,7 @@ on:
         type: string
 
 jobs:
-  filestore-attach-tests:
-    uses: ./.github/workflows/reusable_storage_tests_by_type.yaml
-    concurrency: # We support one build or nightly test to run at a time currently.
-      group: filestore-tests-${{inputs.run-id}}
-      cancel-in-progress: true
-    with:
-      cluster-name: ${{inputs.cluster-name}}
-      tpu-type: ${{inputs.tpu-type}}
-      zone: ${{inputs.zone}}
-      location: ${{inputs.location}}
-      run-id: ${{inputs.run-id}}
-      storage-type: 'gcpfilestore'
-      storage-command: 'attach'
-      storage-manifest: './tests/data/fs-manifest.yaml'
-    secrets:
-      GCP_SA_KEY: ${{secrets.GCP_SA_KEY}}
-      PROJECT_NAME: ${{secrets.PROJECT_NAME}}
-      INSTANCE_NAME: ${{secrets.INSTANCE_NAME}}
-      VOL_NAME: ${{secrets.VOL_NAME}}
-      IP_ADDRESS: ${{secrets.IP_ADDRESS}}
-      STORAGE_NAME: ${{secrets.INSTANCE_NAME}}-test-${{inputs.run-id}}
   fuse-attach-tests:
-    needs: [ filestore-attach-tests ]
     uses: ./.github/workflows/reusable_storage_tests_by_type.yaml
     concurrency: # We support one build or nightly test to run at a time currently.
       group: fuse-tests-${{inputs.run-id}}
@@ -71,14 +49,13 @@ jobs:
       run-id: ${{inputs.run-id}}
       storage-type: 'gcsfuse'
       storage-command: 'attach'
-      storage-manifest: './tests/data/gcsfuse-manifest.yaml'
     secrets:
       GCP_SA_KEY: ${{secrets.GCP_SA_KEY}}
       PROJECT_NAME: ${{secrets.PROJECT_NAME}}
-      INSTANCE_NAME: ${{secrets.INSTANCE_NAME}}
       VOL_NAME: ${{secrets.VOL_NAME}}
       IP_ADDRESS: ${{secrets.IP_ADDRESS}}
-      STORAGE_NAME: ${{secrets.INSTANCE_NAME}}-test-${{inputs.run-id}}
+      BUCKET_NAME: ${{secrets.BUCKET_NAME}}
+      STORAGE_NAME: gcsfuse-test-${{inputs.run-id}}
   filestore-create-tests:
     needs: [ fuse-attach-tests ]
     uses: ./.github/workflows/reusable_storage_tests_by_type.yaml
@@ -93,11 +70,10 @@ jobs:
       run-id: ${{inputs.run-id}}
       storage-type: 'gcpfilestore'
       storage-command: 'create'
-      storage-manifest: './tests/data/fs-manifest.yaml'
     secrets:
       GCP_SA_KEY: ${{secrets.GCP_SA_KEY}}
       PROJECT_NAME: ${{secrets.PROJECT_NAME}}
-      INSTANCE_NAME: ${{secrets.INSTANCE_NAME}}
       VOL_NAME: ${{secrets.VOL_NAME}}
       IP_ADDRESS: ${{secrets.IP_ADDRESS}}
-      STORAGE_NAME: ${{inputs.cluster-name}}-test
+      BUCKET_NAME: ${{secrets.BUCKET_NAME}}
+      STORAGE_NAME: gcpfilestore-test-${{inputs.run-id}}

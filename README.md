@@ -16,6 +16,8 @@
 
 [![Build Tests](https://github.com/google/xpk/actions/workflows/build_tests.yaml/badge.svg)](https://github.com/google/xpk/actions/workflows/build_tests.yaml)
 [![Nightly Tests](https://github.com/google/xpk/actions/workflows/nightly_tests.yaml/badge.svg)](https://github.com/google/xpk/actions/workflows/nightly_tests.yaml)
+[![Develop Tests](https://github.com/AI-Hypercomputer/xpk/actions/workflows/build_tests.yaml/badge.svg?branch=develop)](https://github.com/AI-Hypercomputer/xpk/actions/workflows/build_tests.yaml)
+[![Develop Nightly Tests](https://github.com/AI-Hypercomputer/xpk/actions/workflows/nightly_tests.yaml/badge.svg?branch=develop)](https://github.com/AI-Hypercomputer/xpk/actions/workflows/nightly_tests.yaml)
 
 # Overview
 
@@ -54,7 +56,11 @@ and the following GPU types:
 and the following CPU types:
 * n2-standard-32
 
-# Cloud Console Permissions on the user or service account needed to run XPK:
+xpk also supports Google Cloud Storage solutions:
+* [Cloud Storage FUSE](#fuse)
+* [Filestore](#filestore)
+
+# Permissions needed on Cloud Console:
 
 * Artifact Registry Writer
 * Compute Admin
@@ -64,6 +70,7 @@ and the following CPU types:
 * Service Account User
 * Storage Admin
 * Vertex AI Administrator
+* Filestore Editor (This role is neccessary if you want to run `storage create` command with `--type=gcpfilestore`)
 
 # Prerequisites
 
@@ -85,17 +92,28 @@ Following tools must be installed:
 # sudo may be required
 apt-get -y install make
 ```
-In addition, below dependencies will be installed with `make install` command:
+In addition, below dependencies can be installed either using provided links or using `make install` command, if xpk is downloaded via `git clone` command:
 - kueuectl (install from [here](https://kueue.sigs.k8s.io/docs/reference/kubectl-kueue/installation/))
 - kjob (installation instructions [here](https://github.com/kubernetes-sigs/kjob/blob/main/docs/installation.md))
 
 # Installation
-To install xpk, run the following command and install additional tools, mentioned in [prerequisites](#prerequisites). [Makefile](https://github.com/AI-Hypercomputer/xpk/blob/main/Makefile) provides a way to install all neccessary tools:
+To install xpk, install required tools mentioned in [prerequisites](#prerequisites). [Makefile](https://github.com/AI-Hypercomputer/xpk/blob/main/Makefile) provides a way to install all neccessary tools. XPK can be installed via pip:
 
 ```shell
 pip install xpk
 ```
 
+If you see an error saying: `This environment is externally managed`, please use a virtual environment.
+
+```shell
+  ## One time step of creating the venv
+  VENV_DIR=~/venvp3
+  python3 -m venv $VENV_DIR
+  ## Enter your venv.
+  source $VENV_DIR/bin/activate
+  ## Clone the repository and installing dependencies.
+  pip install xpk
+```
 
 If you are running XPK by cloning GitHub repository, first run the
 following commands to begin using XPK commands:
@@ -147,6 +165,8 @@ cleanup with a `Cluster Delete`.
 
 If you have failures with workloads not running, use `xpk inspector` to investigate
 more.
+
+If you need your Workloads to have persistent storage, use `xpk storage` to find out more.
 
 ## Cluster Create
 
@@ -422,6 +442,101 @@ Currently, the below flags/arguments are supported for A3-Mega and A3-Ultra mach
   * --on-demand (only A3-Mega)
 
 
+## Storage
+Currently XPK supports two types of storages: Cloud Storage FUSE and Google Cloud Filestore.
+
+### FUSE
+A FUSE adapter lets you mount and access Cloud Storage buckets as local file systems, so applications can read and write objects in your bucket using standard file system semantics.
+
+To use the GCS FUSE with XPK you need to create a [Storage Bucket](https://console.cloud.google.com/storage/).
+
+Once it's ready you can use `xpk storage attach` with `--type=gcsfuse` command to attach a FUSE storage instance to your cluster:
+
+```shell
+python3 xpk.py storage attach test-fuse-storage --type=gcsfuse \
+  --project=$PROJECT --cluster=$CLUSTER --zone=$ZONE 
+  --mount-point='/test-mount-point' --readonly=false \
+  --bucket=test-bucket --size=1 --auto-mount=false
+```
+
+Parameters:
+
+- `--type` - type of the storage, currently xpk supports `gcsfuse` and `gcpfilestore` only.
+- `--auto-mount` - if set to true all workloads will have this storage mounted by default.
+- `--mount-point` - the path on which this storage should be mounted for a workload.
+- `--readonly` - if set to true, workload can only read from storage.
+- `--size` - size of the storage in Gb.
+- `--bucket` - name of the storage bucket. If not set then the name of the storage is used as a bucket name.
+
+### Filestore
+
+A Filestore adapter lets you mount and access [Filestore instances](https://cloud.google.com/filestore/) as local file systems, so applications can read and write objects in your volumes using standard file system semantics.
+
+To create and attach a GCP Filestore instance to your cluster use `xpk storage create` command with `--type=gcpfilestore`:
+
+```shell
+python3 xpk.py storage create test-fs-storage --type=gcpfilestore \
+  --auto-mount=false --mount-point=/data-fs --readonly=false \
+  --size=1024 --tier=BASIC_HDD --access_mode=ReadWriteMany --vol=default \
+  --project=$PROJECT --cluster=$CLUSTER --zone=$ZONE
+```
+
+You can also attach an existing Filestore instance to your cluster using `xpk storage attach` command:
+
+```shell
+python3 xpk.py storage attach test-fs-storage --type=gcpfilestore \
+  --auto-mount=false --mount-point=/data-fs --readonly=false \
+  --size=1024 --tier=BASIC_HDD --access_mode=ReadWriteMany --vol=default \
+  --project=$PROJECT --cluster=$CLUSTER --zone=$ZONE
+```
+
+The command above is also useful when attaching multiple volumes from the same Filestore instance.
+
+Commands `xpk storage create` and `xpk storage attach` with `--type=gcpfilestore` accept following arguments:
+- `--type` - type of the storage.
+- `--auto-mount` - if set to true all workloads will have this storage mounted by default.
+- `--mount-point` - the path on which this storage should be mounted for a workload.
+- `--readonly` - if set to true, workload can only read from storage.
+- `--size` - size of the Filestore instance that will be created in Gb.
+- `--tier` - tier of the Filestore instance that will be created. Possible options are: `[BASIC_HDD, BASIC_SSD, ZONAL, REGIONAL, ENTERPRISE]`
+- `--access-mode` - access mode of the Filestore instance that will be created. Possible values are: `[ReadWriteOnce, ReadOnlyMany, ReadWriteMany]`
+- `--vol` - file share name of the Filestore instance that will be created.
+- `--instance` - the name of the Filestore instance. If not set then the name parameter is used as an instance name. Useful when connecting multiple volumes from the same Filestore instance.
+
+### List attached storages
+
+```shell
+python3 xpk.py storage list \
+  --project=$PROJECT --cluster $CLUSTER --zone=$ZONE
+```
+
+### Running workloads with storage
+
+If you specified `--auto-mount=true` when creating or attaching a storage, then all workloads deployed on the cluster will have the volume attached by default. Otherwise, in order to have the storage attached, you have to add `--storage` parameter to `workload create` command:
+
+```shell
+python3 xpk.py workload create \
+  --workload xpk-test-workload --command "echo goodbye" \
+  --project=$PROJECT --cluster=$CLUSTER --zone=$ZONE \
+  --tpu-type=v5litepod-16 --storage=test-storage
+```
+
+### Detaching storage
+
+```shell
+python3 xpk.py storage detach $STORAGE_NAME \
+  --project=$PROJECT --cluster=$CLUSTER --zone=$ZONE
+```
+
+### Deleting storage
+
+XPK allows you to remove Filestore instances easily with `xpk storage delete` command. **Warning:** this deletes all data contained in the Filestore!
+
+```shell
+python3 xpk.py storage delete test-fs-instance \
+  --project=$PROJECT --cluster=$CLUSTER --zone=$ZONE
+```
+
 ## Workload Create
 *   Workload Create (submit training job):
 
@@ -429,7 +544,7 @@ Currently, the below flags/arguments are supported for A3-Mega and A3-Ultra mach
     python3 xpk.py workload create \
     --workload xpk-test-workload --command "echo goodbye" \
     --cluster xpk-test \
-    --tpu-type=v5litepod-16
+    --tpu-type=v5litepod-16 --projet=$PROJECT
     ```
 
 *   Workload Create for Pathways:
@@ -501,6 +616,8 @@ To submit jobs on a cluster with A3 machines, run the below command. To create a
   --num-nodes=$WOKRKLOAD_NUM_NODES
   ```
 > The docker image flags/arguments introduced in [workloads section](#workload-create) can be used with A3 machines as well.
+
+In order to run NCCL test on A3 Ultra machines check out [this guide](/examples/nccl/nccl.md).
 
 ### Workload Priority and Preemption
 * Set the priority level of your workload with `--priority=LEVEL`
@@ -640,8 +757,6 @@ Check out [MaxText example](https://github.com/google/maxtext/pull/570) on how t
     ```
 
 * Workload List supports waiting for the completion of a specific job. XPK will follow an existing job until it has finished or the `timeout`, if provided, has been reached  and then list the job. If no `timeout` is specified, the default value is set to the max value, 1 week. You may also set `timeout=0` to poll the job once.
-(Note: `restart-on-user-code-failure` must be set
-when creating the workload otherwise the workload will always finish with `Completed` status.)
 
   Wait for a job to complete.
 
@@ -731,6 +846,35 @@ Inspector output is saved to a file.
   [XPK] Task: `List Jobs with filter-by-status=RUNNING with filter-by-jobs=None` is implemented by `kubectl get workloads -o=custom-columns="Jobset Name:.metadata.ownerReferences[0].name,Created Time:.metadata.creationTimestamp,Priority:.spec.priorityClassName,TPU VMs Needed:.spec.podSets[0].count,TPU VMs Running/Ran:.status.admission.podSetAssignments[-1].count,TPU VMs Done:.status.reclaimablePods[0].count,Status:.status.conditions[-1].type,Status Message:.status.conditions[-1].message,Status Time:.status.conditions[-1].lastTransitionTime"  | awk -e 'NR == 1 || ($7 ~ "Admitted|Evicted" && $5 ~ /^[0-9]+$/ && $5 > 0) {print $0}' `, hiding output unless there is an error.
   [XPK] Find xpk inspector output file: /tmp/tmp0pd6_k1o
   [XPK] Exiting XPK cleanly
+  ```
+
+## Run
+* `xpk run` lets you execute scripts on a cluster with ease. It automates task execution, handles interruptions, and streams job output to your console.
+
+  ```shell
+  python xpk.py run --kind-cluster -n 2 -t 0-2 examples/job.sh 
+  ```
+
+* Example Output:
+
+  ```shell
+  [XPK] Starting xpk
+  [XPK] Task: `get current-context` is implemented by `kubectl config current-context`, hiding output unless there is an error.
+  [XPK] No local cluster name specified. Using current-context `kind-kind`
+  [XPK] Task: `run task` is implemented by `kubectl kjob create slurm --profile xpk-def-app-profile --localqueue multislice-queue --wait --rm -- examples/job.sh --partition multislice-queue --ntasks 2 --time 0-2`. Streaming output and input live.
+  job.batch/xpk-def-app-profile-slurm-g4vr6 created
+  configmap/xpk-def-app-profile-slurm-g4vr6 created
+  service/xpk-def-app-profile-slurm-g4vr6 created
+  Starting log streaming for pod xpk-def-app-profile-slurm-g4vr6-1-4rmgk...
+  Now processing task ID: 3
+  Starting log streaming for pod xpk-def-app-profile-slurm-g4vr6-0-bg6dm...
+  Now processing task ID: 1
+  exit
+  exit
+  Now processing task ID: 2
+  exit
+  Job logs streaming finished.[XPK] Task: `run task` terminated with code `0`
+  [XPK] XPK Done.
   ```
 
 ## GPU usage
@@ -1215,6 +1359,8 @@ gcloud beta compute reservations describe $RESERVATION --project=$PROJECT_ID --z
 
 ## 403 error on workload create when using `--base-docker-image` flag
 You need authority to push to the registry from your local machine. Try running `gcloud auth configure-docker`.
+## `Kubernetes API exception` - 404 error
+If error of this kind appeared after updating xpk version it's possible that you need to rerun `cluster create` command in order to update resource definitions.
 
 # TPU Workload Debugging
 

@@ -14,12 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import shutil
-from xpk.core.blueprint.blueprint_generator import BlueprintGenerator
-from xpk.core.blueprint.blueprint_definitions import Blueprint
-from xpk.core.core import CapacityType
-import ruamel.yaml
 import os
+import shutil
+
+import ruamel.yaml
+
+from xpk.core.blueprint.blueprint_definitions import Blueprint
+from xpk.core.blueprint.blueprint_generator import BlueprintGenerator
+from xpk.core.capacity import CapacityType
 
 yaml = ruamel.yaml.YAML()
 
@@ -62,6 +64,7 @@ def test_generate_a3_mega_blueprint():
     with open(bp.blueprint_file, encoding="utf-8") as generated_blueprint:
       ctk_test = yaml.load(generated_blueprint)
       assert ctk_yaml.blueprint_name == ctk_test.blueprint_name
+      assert ctk_test.terraform_backend_defaults is None
       assert ctk_yaml.toolkit_modules_url == ctk_test.toolkit_modules_url
       assert (
           ctk_yaml.toolkit_modules_version == ctk_test.toolkit_modules_version
@@ -96,22 +99,32 @@ def test_generate_a3_ultra_blueprint():
       reservation="test-reservation",
       system_node_pool_machine_type="e2-standard-16",
       capacity_type=CapacityType.RESERVATION,
+      gcs_bucket="test-bucket",
+      prefix="testdir",
   )
   with open(a3_ultra_yaml_test_path, encoding="utf-8") as stream:
     ctk_yaml = yaml.load(stream)
     with open(bp.blueprint_file, encoding="utf-8") as generated_blueprint:
       ctk_test = yaml.load(generated_blueprint)
       assert ctk_yaml.blueprint_name == ctk_test.blueprint_name
+      assert (
+          ctk_yaml.terraform_backend_defaults
+          == ctk_test.terraform_backend_defaults
+      )
       assert ctk_yaml.toolkit_modules_url == ctk_test.toolkit_modules_url
       assert (
           ctk_yaml.toolkit_modules_version == ctk_test.toolkit_modules_version
       )
       assert ctk_test.deployment_groups == ctk_yaml.deployment_groups
       assert os.path.exists(
-          os.path.join(tmp_test_dir, blueprint_name, "mlgru-disable.yaml")
+          os.path.join(
+              tmp_test_dir, "testdir", blueprint_name, "mlgru-disable.yaml"
+          )
       )
       assert os.path.exists(
-          os.path.join(tmp_test_dir, blueprint_name, "nccl-installer.yaml")
+          os.path.join(
+              tmp_test_dir, "testdir", blueprint_name, "nccl-installer.yaml"
+          )
       )
 
   shutil.rmtree(tmp_test_dir)

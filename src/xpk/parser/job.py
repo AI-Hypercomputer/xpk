@@ -18,6 +18,7 @@ import argparse
 from ..commands.job import job_info, job_list, job_cancel
 
 from .common import add_shared_arguments
+from .validators import name_type
 
 
 def set_job_parser(job_parser: argparse.ArgumentParser):
@@ -45,11 +46,31 @@ def set_job_parser(job_parser: argparse.ArgumentParser):
 
 
 def set_job_info_parser(job_info_parser: argparse.ArgumentParser):
-  job_info_parser_required_arguments = job_info_parser.add_argument_group(
+  job_info_required_arguments = job_info_parser.add_argument_group(
       'Required arguments',
       'The basic information required to identify the job.',
   )
-  job_info_parser_required_arguments.add_argument(
+  job_info_optional_arguments = job_info_parser.add_argument_group(
+      'Optional Arguments', 'Arguments optional for job info.'
+  )
+
+  ### Required arguments
+  job_info_required_arguments.add_argument(
+      '--cluster',
+      type=name_type,
+      default=None,
+      help='The name of the cluster to info jobs on.',
+      required=True,
+  )
+
+  job_info_optional_arguments.add_argument(
+      '--kind-cluster',
+      type=bool,
+      action=argparse.BooleanOptionalAction,
+      default=False,
+      help='Apply command to a local test cluster.',
+  )
+  job_info_required_arguments.add_argument(
       'name',
       type=str,
       default=None,
@@ -71,7 +92,7 @@ def set_job_list_parser(job_list_parser: argparse.ArgumentParser):
   ### Required arguments
   job_list_required_arguments.add_argument(
       '--cluster',
-      type=str,
+      type=name_type,
       default=None,
       help='The name of the cluster to list jobs on.',
       required=True,
@@ -108,7 +129,7 @@ def set_job_cancel_parser(job_cancel_parser: argparse.ArgumentParser):
 
   job_cancel_required_arguments.add_argument(
       '--cluster',
-      type=str,
+      type=name_type,
       default=None,
       help='The name of the cluster to delete the job on.',
       required=True,

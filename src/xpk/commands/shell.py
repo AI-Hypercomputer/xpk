@@ -12,11 +12,16 @@ limitations under the License.
 """
 
 from ..core.commands import run_command_with_full_controls, run_command_for_value, run_command_with_updates
+from ..core.cluster import get_cluster_credentials, add_zone_and_project, create_xpk_k8s_service_account
 from ..utils.console import xpk_exit, xpk_print
 from argparse import Namespace
 
-from ..core.kjob import AppProfileDefaults, PodTemplateDefaults
-
+from ..core.kjob import (
+    AppProfileDefaults,
+    prepare_kjob,
+    get_pod_template_interactive_command,
+    get_gcsfuse_annotation,
+)
 
 exit_instructions = 'To exit the shell input "exit".'
 
@@ -45,6 +50,10 @@ def shell(args: Namespace):
 
 
 def get_existing_shell_pod_name(args: Namespace) -> str | None:
+  if not args.kind_cluster:
+    add_zone_and_project(args)
+    get_cluster_credentials(args)
+
   return_code, shell_name = run_command_for_value(
       command=(
           'kubectl get pods --no-headers --field-selector status.phase=Running'
@@ -70,11 +79,22 @@ def get_existing_shell_pod_name(args: Namespace) -> str | None:
 
 
 def connect_to_new_interactive_shell(args: Namespace) -> int:
+  err_code = prepare_kjob(args)
+  if err_code > 0:
+    xpk_exit(err_code)
+  create_xpk_k8s_service_account()
+
+  cmd = (
+      'kubectl-kjob create interactive --profile'
+      f' {AppProfileDefaults.NAME.value} --pod-running-timeout 180s'
+  )
+
+  gcsfuse_annotation = get_gcsfuse_annotation(args)
+  if gcsfuse_annotation is not None:
+    cmd += f' --pod-template-annotation {gcsfuse_annotation}'
+
   return run_command_with_full_controls(
-      command=(
-          'kubectl-kjob create interactive --profile'
-          f' {AppProfileDefaults.NAME.value} --pod-running-timeout 30s'
-      ),
+      command=cmd,
       task='Creating new interactive shell and entering it',
       global_args=args,
       instructions=exit_instructions,
@@ -87,7 +107,7 @@ def connect_to_existing_interactive_shell(
   return run_command_with_full_controls(
       command=(
           f'kubectl exec --stdin --tty {pod_name} --'
-          f' {PodTemplateDefaults.INTERACTIVE_COMMAND.value}'
+          f' {get_pod_template_interactive_command()}'
       ),
       task='Entering existing interactive shell',
       global_args=args,

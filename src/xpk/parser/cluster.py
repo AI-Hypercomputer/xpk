@@ -23,8 +23,11 @@ from ..commands.cluster import (
     cluster_describe,
     cluster_list,
 )
-from ..core.core import DEFAULT_VERTEX_TENSORBOARD_NAME
+from ..core.vertex import DEFAULT_VERTEX_TENSORBOARD_NAME
 from .common import add_shared_arguments
+from .validators import name_type
+from ..commands.config import xpk_cfg
+from ..core.config import CFG_BUCKET_KEY
 
 
 def set_cluster_parser(cluster_parser):
@@ -82,6 +85,13 @@ def set_cluster_parser(cluster_parser):
   )
 
   ### Optional arguments specific to "cluster create"
+  cluster_create_optional_arguments.add_argument(
+      '--cluster-state-gcs-bucket',
+      type=str,
+      default=xpk_cfg.get(CFG_BUCKET_KEY),
+      help='The name of the bucket to store cluster state.',
+      required=False,
+  )
   cluster_create_optional_arguments.add_argument(
       '--num-nodes',
       type=int,
@@ -268,13 +278,20 @@ def set_cluster_parser(cluster_parser):
   ### Required arguments
   cluster_delete_required_arguments.add_argument(
       '--cluster',
-      type=str,
+      type=name_type,
       default=None,
       help='The name of the cluster to be deleted.',
       required=True,
   )
 
   ### Optional Arguments
+  cluster_delete_optional_arguments.add_argument(
+      '--cluster-state-gcs-bucket',
+      type=str,
+      default=xpk_cfg.get(CFG_BUCKET_KEY),
+      help='The name of the bucket to store cluster state.',
+      required=False,
+  )
   add_shared_arguments(cluster_delete_optional_arguments)
   cluster_delete_parser.set_defaults(func=cluster_delete)
   cluster_delete_parser.add_argument(
@@ -325,7 +342,7 @@ def set_cluster_parser(cluster_parser):
   ### Required arguments
   cluster_cacheimage_required_arguments.add_argument(
       '--cluster',
-      type=str,
+      type=name_type,
       default=None,
       help='The name of the cluster to cache the image.',
       required=True,
@@ -369,7 +386,7 @@ def set_cluster_parser(cluster_parser):
   ### Required arguments
   cluster_describe_required_arguments.add_argument(
       '--cluster',
-      type=str,
+      type=name_type,
       default=None,
       help='The name of the cluster to be describe.',
       required=True,
@@ -401,7 +418,7 @@ def add_shared_cluster_create_required_arguments(args_parsers):
   for custom_parser in args_parsers:
     custom_parser.add_argument(
         '--cluster',
-        type=str,
+        type=name_type,
         default=None,
         help=(
             'The name of the cluster. Will be used as the prefix for internal'
@@ -545,6 +562,31 @@ def add_shared_cluster_create_optional_arguments(args_parsers):
             ' cluster will be provisioned. It replaces existing authorized'
             ' networks if used with an existing private cluster.'
             ' Example usage: --authorized-networks 1.2.3.0/24 1.2.4.5/32'
+        ),
+    )
+    custom_parser.add_argument(
+        '--enable-workload-identity',
+        action='store_true',
+        help=(
+            'Enable Workload Identity Federation on the cluster and node-pools.'
+        ),
+    )
+    custom_parser.add_argument(
+        '--enable-gcsfuse-csi-driver',
+        action='store_true',
+        help=(
+            'Enable GSCFuse driver on the cluster. This enables Workload'
+            ' Identity Federation. When using A3 ultra/A3 mega Workload'
+            ' Identity is enabled by default.'
+        ),
+    )
+
+    custom_parser.add_argument(
+        '--enable-gcpfilestore-csi-driver',
+        action='store_true',
+        help=(
+            'Enable GCPFilestore driver on the cluster. This enables Workload'
+            ' Identity Federation.'
         ),
     )
 

@@ -14,14 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from xpk.commands.cluster_gcluster import get_unique_name
-from xpk.core.docker_manager import DockerManager
-from xpk.core.gcluster_manager import GclusterManager
-from xpk.core.blueprint.blueprint_generator import BlueprintGenerator
-from xpk.core.core import CapacityType
-import pytest
 import os
 import shutil
+
+import pytest
+
+from xpk.commands.cluster_gcluster import get_unique_name
+from xpk.core.blueprint.blueprint_generator import BlueprintGenerator
+from xpk.core.capacity import CapacityType
+from xpk.core.docker_manager import DockerManager
+from xpk.core.gcluster_manager import GclusterManager
 
 ctk_gcloud_cfg = os.getenv("GCLOUD_CFG_PATH")
 project_id = os.getenv("PROJECT_ID")
@@ -93,7 +95,7 @@ def test_create_a3_ultra_deployment_files(setup_tests):
       os.path.join(blueprint_deps_test_path, "nccl-installer.yaml")
   )
   gcluster_manager = GclusterManager(
-      gcluster_command_runner=docker_manager,
+      gcluster_command_runner=docker_manager, remote_state_client=None
   )
 
   staged_bp_path = gcluster_manager.stage_files(
@@ -158,7 +160,7 @@ def test_create_a3_ultra_deployment(setup_tests):
       os.path.join(blueprint_deps_test_path, "nccl-installer.yaml")
   )
   gcluster_manager = GclusterManager(
-      gcluster_command_runner=docker_manager,
+      gcluster_command_runner=docker_manager, remote_state_client=None
   )
 
   staged_bp_path = gcluster_manager.stage_files(

@@ -20,9 +20,9 @@ from ..commands.workload import (
     workload_delete,
     workload_list,
 )
-from ..core.core import default_docker_image, default_script_dir
-from .validators import directory_path_type, workload_name_type
+from ..core.docker_image import DEFAULT_DOCKER_IMAGE, DEFAULT_SCRIPT_DIR
 from .common import add_shared_arguments
+from .validators import directory_path_type, name_type
 
 
 def set_workload_parsers(workload_parser):
@@ -110,6 +110,12 @@ def set_workload_parsers(workload_parser):
       ),
   )
 
+  workload_create_parser_optional_arguments.add_argument(
+      '--storage',
+      action='append',
+      default=[],
+      help='Names of storages the workload uses',
+  )
   workload_create_parser_optional_arguments.add_argument(
       '--num-nodes',
       type=int,
@@ -277,6 +283,12 @@ def set_workload_parsers(workload_parser):
       ),
       required=False,
   )
+  workload_create_pathways_parser_optional_arguments.add_argument(
+      '--storage',
+      action='append',
+      default=[],
+      help='Names of storages the workload uses',
+  )
 
   workload_create_pathways_parser_optional_arguments.add_argument(
       '--custom-pathways-server-args',
@@ -360,7 +372,7 @@ def set_workload_parsers(workload_parser):
   ### "workload delete" Required arguments
   workload_delete_parser_required_arguments.add_argument(
       '--cluster',
-      type=str,
+      type=name_type,
       default=None,
       help='The name of the cluster to delete the job on.',
       required=True,
@@ -368,7 +380,7 @@ def set_workload_parsers(workload_parser):
   ### "workload delete" Optional arguments
   workload_delete_parser_optional_arguments.add_argument(
       '--workload',
-      type=workload_name_type,
+      type=name_type,
       default=None,
       help=(
           'The name of the workload to delete. If the workload is not'
@@ -419,7 +431,7 @@ def set_workload_parsers(workload_parser):
 
   workload_list_parser.add_argument(
       '--cluster',
-      type=str,
+      type=name_type,
       default=None,
       help='The name of the cluster to list jobs on.',
       required=True,
@@ -495,14 +507,14 @@ def add_shared_workload_create_required_arguments(args_parsers):
   for custom_parser in args_parsers:
     custom_parser.add_argument(
         '--workload',
-        type=workload_name_type,
+        type=name_type,
         default=None,
         help='The name of the workload to run.',
         required=True,
     )
     custom_parser.add_argument(
         '--cluster',
-        type=str,
+        type=name_type,
         default=None,
         help='The name of the cluster to run the job on.',
         required=True,
@@ -571,6 +583,12 @@ def add_shared_workload_create_optional_arguments(args_parsers):
         ),
     )
     custom_parser.add_argument(
+        '--remote-python-sidecar-image',
+        type=str,
+        default=None,
+        help='Remote Python sidecar server image.',
+    )
+    custom_parser.add_argument(
         '--enable-debug-logs',
         action='store_true',
         help=(
@@ -579,14 +597,16 @@ def add_shared_workload_create_optional_arguments(args_parsers):
         ),
     )
     custom_parser.add_argument(
-        '--restart-on-user-code-failure',
-        action='store_true',
+        '--restart-on-exit-codes',
+        type=str,
+        default=None,
         help=(
-            'Adding this argument will return user failures back to the jobset'
-            ' manager allowing restarts on user code when --max-restarts is set'
-            ' greater than 0. By default, this is not enabled, and workloads'
-            ' will not restart from user code failures. This is enabled by'
-            ' default on Pathways workloads.'
+            'Adding this argument specifies additional user-defined exit codes'
+            ' that allow restarting the workload when --max-restarts is set to'
+            ' a value greater than 0. By default, workloads restart on exit'
+            ' codes 42 and 127-255. Any exit codes provided through this flag'
+            ' will be included alongside the default codes for restarting'
+            ' conditions.'
         ),
     )
     custom_parser.add_argument(
@@ -640,10 +660,10 @@ def add_shared_workload_base_docker_image_arguments(args_parsers):
     custom_parser.add_argument(
         '--base-docker-image',
         type=str,
-        default=default_docker_image,
+        default=DEFAULT_DOCKER_IMAGE,
         help=(
             'The base docker-image to use, default'
-            f' {default_docker_image}. If using a custom docker image it'
+            f' {DEFAULT_DOCKER_IMAGE}. If using a custom docker image it'
             ' is typically addressed as gcr.io/${PROJECT}/${NAME}:latest.'
             ' This docker image will be used as a base image by default and'
             ' the `--script-dir` by default will be added to the image.'
@@ -652,7 +672,7 @@ def add_shared_workload_base_docker_image_arguments(args_parsers):
     custom_parser.add_argument(
         '--script-dir',
         type=directory_path_type,
-        default=default_script_dir,
+        default=DEFAULT_SCRIPT_DIR,
         help=(
             'The local location of the directory to copy to the docker image'
             ' and run the main command from. Defaults to current working'

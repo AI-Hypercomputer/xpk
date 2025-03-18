@@ -14,36 +14,28 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..core.commands import (
-    run_command_for_value,
-    run_command_with_updates,
-    run_command_with_updates_retry,
-)
-from ..core.core import (
-    VERTEX_TENSORBOARD_FEATURE_FLAG,
-    add_zone_and_project,
-    create_cluster_configmaps,
-    create_cluster_network_config,
-    create_vertex_tensorboard,
-    delete_cluster_subnets,
+from tabulate import tabulate
+
+from ..core.capacity import H100_DEVICE_TYPE
+from ..core.cluster import (
     get_all_clusters_programmatic,
-    get_gke_control_plane_version,
-    get_gke_node_pool_version,
-    get_gke_server_config,
-    h100_device_type,
+    get_cluster_credentials,
     install_nccl_on_cluster,
-    run_gke_node_pool_create_command,
     set_jobset_on_cluster,
-    set_up_cluster_network_for_gpu,
-    zone_to_region,
-    get_user_input,
+    setup_k8s_env,
+    update_cluster_with_gcsfuse_driver_if_necessary,
+    update_cluster_with_workload_identity_if_necessary,
 )
 from ..core.cluster_private import authorize_private_cluster_access_if_necessary
-from ..core.kjob import (
-    verify_kjob_installed,
-    prepare_kjob,
-    apply_kjob_crds,
+from ..core.commands import run_command_for_value, run_command_with_updates
+from ..core.config import VERTEX_TENSORBOARD_FEATURE_FLAG
+from ..core.gcloud_context import (
+    add_zone_and_project,
+    get_gke_control_plane_version,
+    get_gke_server_config,
+    zone_to_region,
 )
+from ..core.kjob import apply_kjob_crds, prepare_kjob, verify_kjob_installed
 from ..core.kueue import (
     cluster_preheat_yml,
     install_kueue_crs,
@@ -51,19 +43,28 @@ from ..core.kueue import (
     wait_for_kueue_available,
 )
 from ..core.nap import enable_autoprovisioning_on_cluster
+from ..core.network import (
+    create_cluster_network_config,
+    delete_cluster_subnets,
+    set_up_cluster_network_for_gpu,
+)
+from ..core.nodepool import get_gke_node_pool_version, run_gke_node_pool_create_command
 from ..core.ray import install_ray_cluster
+from ..core.resources import create_cluster_configmaps
+from ..core.storage import install_storage_crd
 from ..core.system_characteristics import (
     AcceleratorType,
     AcceleratorTypeToAcceleratorCharacteristics,
     SystemCharacteristics,
     get_system_characteristics,
 )
+from ..core.vertex import create_vertex_tensorboard
 from ..core.workload import get_workload_list
+from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
-from ..utils.console import xpk_exit, xpk_print
 from . import cluster_gcluster
-
-from tabulate import tabulate
+from .common import set_cluster_command
+from ..core.cluster import update_cluster_with_gcpfilestore_driver_if_necessary
 
 
 def cluster_create(args) -> None:
@@ -115,10 +116,36 @@ def cluster_create(args) -> None:
     xpk_exit(authorize_private_cluster_access_command_code)
 
   # ToDo(roshanin@) - Re-enable CloudDNS on Pathways clusters conditionally.
+  # Enable WorkloadIdentity if not enabled already.
+  if (
+      args.enable_workload_identity
+      or args.enable_gcsfuse_csi_driver
+      or args.enable_gcpfilestore_csi_driver
+  ):
+    update_cluster_command_code = (
+        update_cluster_with_workload_identity_if_necessary(args)
+    )
+    if update_cluster_command_code != 0:
+      xpk_exit(update_cluster_command_code)
 
-  set_cluster_command_code = set_cluster_command(args)
-  if set_cluster_command_code != 0:
-    xpk_exit(set_cluster_command_code)
+  # Enable GCSFuse CSI Driver if not enabled already.
+  if args.enable_gcsfuse_csi_driver:
+    update_cluster_command_code = (
+        update_cluster_with_gcsfuse_driver_if_necessary(args)
+    )
+    if update_cluster_command_code != 0:
+      xpk_exit(update_cluster_command_code)
+
+  if args.enable_gcpfilestore_csi_driver:
+    update_cluster_command_code = (
+        update_cluster_with_gcpfilestore_driver_if_necessary(args)
+    )
+    if update_cluster_command_code != 0:
+      xpk_exit(update_cluster_command_code)
+
+  # Update Pathways clusters with CloudDNS if not enabled already.
+
+  get_cluster_credentials(args)
 
   # create Vertex Tensorboard for new and existing clusters if create-vertex-tensorboard is set
   tensorboard_config = {}
@@ -134,7 +161,7 @@ def cluster_create(args) -> None:
     if set_up_cluster_network_code != 0:
       xpk_exit(set_up_cluster_network_code)
 
-  if system.device_type == h100_device_type:
+  if system.device_type == H100_DEVICE_TYPE:
     xpk_print('Creating Network Config for cluster')
     create_cluster_network_config_code = create_cluster_network_config(args)
     if create_cluster_network_config_code != 0:
@@ -153,6 +180,24 @@ def cluster_create(args) -> None:
   )
   if run_gke_node_pool_create_command_code != 0:
     xpk_exit(run_gke_node_pool_create_command_code)
+
+  # Provision node pools dynamically based on incoming workloads:
+  # Currently autoprovisioning is not supported with Pathways.
+  autoprovisioning_config = None
+  if not args.enable_pathways and args.enable_autoprovisioning:
+    xpk_print('Enabling Autoprovisioning')
+    autoprovisioning_config, return_code = enable_autoprovisioning_on_cluster(
+        args, system
+    )
+    if return_code != 0:
+      xpk_exit(return_code)
+
+  xpk_print('Creating ConfigMap for cluster')
+  create_cluster_configmaps_code = create_cluster_configmaps(
+      args, system, tensorboard_config, autoprovisioning_config
+  )
+  if create_cluster_configmaps_code != 0:
+    xpk_exit(create_cluster_configmaps_code)
 
   xpk_print(
       'Enabling the jobset API on our cluster, to be deprecated when Jobset is'
@@ -177,20 +222,12 @@ def cluster_create(args) -> None:
   if err_code > 0:
     xpk_exit(err_code)
 
-  xpk_print('Preparing kjob')
   err_code = prepare_kjob(args)
   if err_code > 0:
     xpk_exit(err_code)
-  # Provision node pools dynamically based on incoming workloads:
-  # Currently autoprovisioning is not supported with Pathways.
-  autoprovisioning_config = None
-  if not args.enable_pathways and args.enable_autoprovisioning:
-    xpk_print('Enabling Autoprovisioning')
-    autoprovisioning_config, return_code = enable_autoprovisioning_on_cluster(
-        args, system
-    )
-    if return_code != 0:
-      xpk_exit(return_code)
+
+  k8s_client = setup_k8s_env(args)
+  install_storage_crd(k8s_client)
 
   xpk_print('Wait for Kueue to be fully available')
   wait_for_kueue_available_code = wait_for_kueue_available(args)
@@ -209,13 +246,6 @@ def cluster_create(args) -> None:
     install_nccl_code = install_nccl_on_cluster(args, system)
     if install_nccl_code != 0:
       xpk_exit(install_nccl_code)
-
-  xpk_print('Creating ConfigMap for cluster')
-  create_cluster_configmaps_code = create_cluster_configmaps(
-      args, system, tensorboard_config, autoprovisioning_config
-  )
-  if create_cluster_configmaps_code != 0:
-    xpk_exit(create_cluster_configmaps_code)
 
   if args.enable_ray_cluster:
     return_code = install_ray_cluster(args, system)
@@ -249,7 +279,12 @@ def cluster_delete(args) -> None:
     cluster_gcluster.cluster_delete(args)
     xpk_exit(0)
 
+  set_cluster_command_code = set_cluster_command(args)
+  if set_cluster_command_code != 0:
+    xpk_exit(set_cluster_command_code)
+
   run_gke_cluster_delete_command_code = run_gke_cluster_delete_command(args)
+
   if run_gke_cluster_delete_command_code != 0:
     xpk_exit(run_gke_cluster_delete_command_code)
   xpk_print(f'GKE commands done! Cluster {args.cluster} deleted.\n')
@@ -270,9 +305,7 @@ def cluster_cacheimage(args) -> None:
   )
   add_zone_and_project(args)
 
-  set_cluster_command_code = set_cluster_command(args)
-  if set_cluster_command_code != 0:
-    xpk_exit(set_cluster_command_code)
+  get_cluster_credentials(args)
   system, return_code = get_system_characteristics(args)
 
   if return_code > 0:
@@ -321,9 +354,7 @@ def cluster_describe(args) -> None:
   xpk_print(f'Starting nodepool list for cluster: {args.cluster}', flush=True)
   add_zone_and_project(args)
 
-  set_cluster_command_code = set_cluster_command(args)
-  if set_cluster_command_code != 0:
-    xpk_exit(set_cluster_command_code)
+  get_cluster_credentials(args)
 
   return_code, data_table = nodepools_build_table(args)
   if return_code != 0:
@@ -752,33 +783,26 @@ def run_gke_cluster_create_command(
   if args.enable_ray_cluster:
     command += ' --addons RayOperator'
 
+  if (
+      args.enable_workload_identity
+      or args.enable_gcsfuse_csi_driver
+      or args.enable_gcpfilestore_csi_driver
+  ):
+    command += f' --workload-pool={args.project}.svc.id.goog'
+
+  addons = []
+  if args.enable_gcsfuse_csi_driver:
+    addons.append('GcsFuseCsiDriver')
+
+  if args.enable_gcpfilestore_csi_driver:
+    addons.append('GcpFilestoreCsiDriver')
+
+  if len(addons) > 0:
+    addons_str = ','.join(addons)
+    command += f' --addons={addons_str}'
+
   return_code = run_command_with_updates(command, 'GKE Cluster Create', args)
   if return_code != 0:
     xpk_print(f'GKE Cluster Create request returned ERROR {return_code}')
     return 1
   return 0
-
-
-def set_cluster_command(args) -> int:
-  """Run cluster configuration command to set the kubectl config.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  command = (
-      'gcloud container clusters get-credentials'
-      f' {args.cluster} --region={zone_to_region(args.zone)}'
-      f' --project={args.project} &&'
-      ' kubectl config view && kubectl config set-context --current'
-      ' --namespace=default'
-  )
-  task = f'get-credentials to cluster {args.cluster}'
-  return_code = run_command_with_updates_retry(
-      command, task, args, verbose=False
-  )
-  if return_code != 0:
-    xpk_print(f'{task} returned ERROR {return_code}')
-  return return_code

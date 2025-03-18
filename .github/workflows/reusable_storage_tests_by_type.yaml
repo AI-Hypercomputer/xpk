@@ -188,9 +188,13 @@ jobs:
     - name: Detach storage volumes
       if: always()
       run: python3 xpk.py storage detach ${{secrets.STORAGE_NAME}} --cluster=${{inputs.cluster-name}} --zone=${{inputs.zone}}
-    - name: Delete GCP Filestore Storage instance
-      if: always() && inputs.storage-command == 'create' && inputs.storage-type == 'gcpfilestore'
-      run: python3 xpk.py storage delete ${{secrets.STORAGE_NAME}} --cluster=${{inputs.cluster-name}} --zone=${{inputs.zone}}
     - name: Verify VolumeBundle deleted
       run: |
         ! kubectl get volumebundle | grep ${{secrets.STORAGE_NAME}}
+    - name: Delete GCP Filestore Storage instance
+      if: always() && inputs.storage-command == 'create' && inputs.storage-type == 'gcpfilestore'
+      run: python3 xpk.py storage delete ${{secrets.STORAGE_NAME}} --cluster=${{inputs.cluster-name}} --zone=${{inputs.zone}}
+    - name: Verify deletion of GCP Filestore Storage instance
+      if: inputs.storage-command == 'create' && inputs.storage-type == 'gcpfilestore'
+      run: |
+        ! gcloud filestore instances list | grep ${{secrets.STORAGE_NAME}}

@@ -187,9 +187,9 @@ UserFacingNameToSystemCharacteristics = {
     ),
     'v6e-8': SystemCharacteristics(
         '2x4',
-        2,
+        1,
         'tpu-v6e-slice',
-        'ct6e-standard-4t',
+        'ct6e-standard-8t',
         4,
         AcceleratorType['TPU'],
         'v6e-8',

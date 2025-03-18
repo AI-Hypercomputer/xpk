@@ -14,7 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import importlib.metadata as importlib_metadata
 import os
 import re
 
@@ -25,8 +24,8 @@ from ..utils.console import xpk_print
 from .system_characteristics import AcceleratorType, SystemCharacteristics
 
 # This is the version for XPK PyPI package
-__version__ = importlib_metadata.version('xpk')
-XPK_CURRENT_VERSION = __version__.split('+')[0]
+__version__ = 'v0.6.0'
+XPK_CURRENT_VERSION = __version__
 XPK_CONFIG_FILE = os.path.expanduser('~/.config/xpk/config.yaml')
 
 CONFIGS_KEY = 'configs'

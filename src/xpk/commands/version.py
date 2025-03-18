@@ -15,7 +15,10 @@ limitations under the License.
 """
 
 from ..core.config import __version__
-from ..utils.console import xpk_print
+from ..utils.console import xpk_print, xpk_exit
+from ..core.commands import run_command_for_value
+import importlib.metadata as importlib_metadata
+import os
 
 
 def get_xpk_version() -> str:
@@ -24,6 +27,20 @@ def get_xpk_version() -> str:
 
 def version(args) -> None:  # pylint: disable=unused-argument
   """Get version of xpk."""
-  xpk_version, git_hash = __version__.split('+')
+  xpk_version = __version__
+  git_hash = ''
+
+  if os.path.exists(os.path.join(os.getcwd(), '.git')):
+    code, git_hash = run_command_for_value(
+        'git rev-parse HEAD',
+        task='Get latest hash',
+        global_args=args,
+        quiet=True,
+    )
+    if code != 0:
+      xpk_exit(code)
+  else:
+    xpk_version, git_hash = importlib_metadata.version('xpk').split('+')
+
   xpk_print('xpk_version:', xpk_version)
   xpk_print('git commit hash:', git_hash)

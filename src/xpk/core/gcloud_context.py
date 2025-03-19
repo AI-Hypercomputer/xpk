@@ -18,8 +18,72 @@ import subprocess
 import sys
 from dataclasses import dataclass
 
-from ..utils.console import xpk_print
+from google.api_core.exceptions import PermissionDenied
+from google.cloud import resourcemanager_v3
+from typing import Optional
+
+from ..parser.args import GlobalConfig
+from ..utils.console import xpk_exit, xpk_print
 from .commands import run_command_for_value
+
+
+class GcloudConfig(GlobalConfig):
+  """Class representing gcloud project config"""
+
+  gke_version: Optional[str] = None
+
+  @property
+  def zone(self) -> str:
+    if self._zone is None:
+      self._zone = get_zone()
+      if self._project is None:
+        self._project = get_project()
+      xpk_print(f'Working on {self._project} and {self._zone}')
+    return self._zone
+
+  @zone.setter
+  def zone(self, value: str):
+    self._zone = value
+
+  @property
+  def region(self):
+    return zone_to_region(self.zone)
+
+  @property
+  def project(self) -> str:
+    if self._project is None:
+      self._project = get_project()
+      if self._zone is None:
+        self._zone = get_zone()
+      xpk_print(f'Working on {self._project} and {self._zone}')
+    return self._project
+
+  @project.setter
+  def project(self, value: str):
+    self._project = value
+
+  @property
+  def project_number(self) -> str:
+    if self._project_number is None:
+      client = resourcemanager_v3.ProjectsClient()
+      request = resourcemanager_v3.GetProjectRequest()
+      request.name = f'projects/{self.project}'
+      try:
+        response = client.get_project(request=request)
+      except PermissionDenied as e:
+        xpk_print(
+            f"Couldn't translate project id: {self.project} to project number."
+            f' Error: {e}'
+        )
+        xpk_exit(1)
+      parts = response.name.split('/', 1)
+      xpk_print(f'Project number for project: {self.project} is {parts[1]}')
+      self._project_number = str(parts[1])
+    return self._project_number
+
+  @project_number.setter
+  def project_number(self, value: str):
+    self._project_number = value
 
 
 def get_project():
@@ -62,7 +126,8 @@ def get_zone():
   return zone_outputs[-1]  # The zone name lives on the last line of the output
 
 
-def add_zone_and_project(args):
+# TODO: remove when we stop using Namespaces as args
+def add_zone_and_project(args: GcloudConfig):
   """Obtains the zone and project names from gcloud configs if not defined.
 
   Args:
@@ -75,7 +140,7 @@ def add_zone_and_project(args):
   xpk_print(f'Working on {args.project} and {args.zone}')
 
 
-def zone_to_region(zone) -> str:
+def zone_to_region(zone: str) -> str:
   """Helper function converts zone name to region name.
 
   Args:
@@ -96,7 +161,9 @@ class GkeServerConfig:
   valid_versions: set[str]
 
 
-def get_gke_server_config(args) -> tuple[int, GkeServerConfig | None]:
+def get_gke_server_config(
+    args: GcloudConfig,
+) -> tuple[int, GkeServerConfig | None]:
   """Determine the GKE versions supported by gcloud currently.
 
   Args:
@@ -154,7 +221,7 @@ def get_gke_server_config(args) -> tuple[int, GkeServerConfig | None]:
 
 
 def get_gke_control_plane_version(
-    args, gke_server_config: GkeServerConfig
+    args: GcloudConfig, gke_server_config: GkeServerConfig
 ) -> tuple[int, str | None]:
   """Determine gke control plane version for cluster creation.
 

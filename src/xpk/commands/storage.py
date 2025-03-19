@@ -21,7 +21,6 @@ from kubernetes.client.rest import ApiException
 from ..core import gcsfuse
 from ..core.cluster import (
     DEFAULT_NAMESPACE,
-    add_zone_and_project,
     get_cluster_network,
     setup_k8s_env,
     update_cluster_with_gcpfilestore_driver_if_necessary,
@@ -47,19 +46,18 @@ from ..core.storage import (
     list_storages,
     print_storages_for_cluster,
 )
-from ..parser.args import (
+from ..utils.console import get_user_input, xpk_exit, xpk_print
+from ..utils.kubectl import apply_kubectl_manifest
+from .args.storage import (
     StorageAttachArgs,
     StorageCreateArgs,
     StorageDeleteArgs,
     StorageDetachArgs,
     StorageListArgs,
 )
-from ..utils.console import get_user_input, xpk_exit, xpk_print
-from ..utils.kubectl import apply_kubectl_manifest
 
 
 def storage_create(args: StorageCreateArgs) -> None:
-  add_zone_and_project(args)
   if args.type == GCP_FILESTORE_TYPE:
     if args.instance is None:
       args.instance = args.name

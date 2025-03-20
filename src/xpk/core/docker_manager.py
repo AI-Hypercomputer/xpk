@@ -30,7 +30,7 @@ import time
 DockerRunCommandExitCode = 135
 dockerBuildErrorCode = 134
 ctk_dockerfile_path = "Dockerfile"
-ctk_build_ref = "fd48fd8"  # git commit hash, to prevent docker caching
+ctk_build_ref = "develop"
 ctk_docker_image = "xpk-ctk"
 ctk_container_name = "xpk-ctk-container"
 gcloud_cfg_mount_path = "/root/.config/gcloud"

@@ -16,7 +16,6 @@ limitations under the License.
 
 import yaml
 from ...utils.yaml import literal_string
-from ..network import get_subnetworks_for_a3mega, get_subnetworks_for_a3ultra
 
 # Component version
 rxdm = 'v1.0.12'

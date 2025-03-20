@@ -33,7 +33,7 @@ def decorate_kjob_template(job_manifest) -> str:
   return job_manifest
 
 
-def decorate_jobset(jobset_manifest_str) -> str:
+def decorate_jobset(jobset_manifest_str: str, sub_networks: list[str]) -> str:
   """
   Decorates a JobSet manifest with the necessary components for rdma-daemon.
 
@@ -59,7 +59,7 @@ def decorate_jobset(jobset_manifest_str) -> str:
     spec.setdefault('tolerations', [])
     spec.setdefault('volumes', [])
 
-    add_annotations(job_manifest)
+    add_annotations(job_manifest, sub_networks)
     add_volumes(job_manifest)
     add_tolerations(job_manifest)
     update_gpu_containers(job_manifest)
@@ -67,24 +67,23 @@ def decorate_jobset(jobset_manifest_str) -> str:
   return yaml.dump(manifest, sort_keys=False)
 
 
-def get_interfaces_entry() -> tuple[str, str]:
+def get_interfaces_entry(sub_networks: list[str]) -> tuple[str, str]:
   interfaces = [
       '[',
       '    {"interfaceName":"eth0","network":"default"},',
-      '    {"interfaceName":"eth1","network":"gvnic-1"},',
       *[
-          f'    {{"interfaceName":"eth{i + 2}","network":"rdma-{i}"}}{"," if i<7 else ""}'
-          for i in range(8)
+          f'    {{"interfaceName":"eth{i + 1}","network":"{sub_networks[i]}"}}{"," if i<8 else ""}'
+          for i in range(9)
       ],
       ']',
   ]
   return 'networking.gke.io/interfaces', literal_string('\n'.join(interfaces))
 
 
-def add_annotations(job_manifest):
+def add_annotations(job_manifest: dict, sub_networks: list[str]):
   """Adds or updates annotations in the Pod template."""
   annotations = job_manifest['spec']['template']['metadata']['annotations']
-  interfaces_key, interfaces_value = get_interfaces_entry()
+  interfaces_key, interfaces_value = get_interfaces_entry(sub_networks)
   annotations.update({
       'networking.gke.io/default-interface': "'eth0'",
       interfaces_key: interfaces_value,

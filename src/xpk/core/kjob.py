@@ -14,26 +14,40 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..core.capacity import H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE
 from argparse import Namespace
-import yaml
-from .workload_decorators.tcpxo_decorator import get_tcpxo_deamon_entry
-from ..utils.console import xpk_print, xpk_exit
+from enum import Enum
 
-from ..utils import templates
+import yaml
 from kubernetes import client as k8s_client
 from kubernetes.client import ApiClient
 from kubernetes.client.rest import ApiException
-from .cluster import setup_k8s_env, XPK_SA, DEFAULT_NAMESPACE
-from .storage import get_auto_mount_storages, get_auto_mount_gcsfuse_storages
-from .commands import run_command_for_value, run_kubectl_apply, run_command_with_updates
-from .config import XpkConfig, KJOB_SHELL_IMAGE, KJOB_SHELL_INTERACTIVE_COMMAND, KJOB_SHELL_WORKING_DIRECTORY, KJOB_BATCH_IMAGE, KJOB_BATCH_WORKING_DIRECTORY
-from .resources import get_cluster_system_characteristics, SystemCharacteristics, AcceleratorType
-from enum import Enum
 
-from ..core.workload_decorators import tcpxo_decorator
-
-from ..core.workload_decorators import rdma_decorator
+from ..core.capacity import H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE
+from ..core.workload_decorators import rdma_decorator, tcpxo_decorator
+from ..utils import templates
+from ..utils.console import xpk_exit, xpk_print
+from .cluster import DEFAULT_NAMESPACE, XPK_SA, setup_k8s_env
+from .commands import (
+    run_command_for_value,
+    run_command_with_updates,
+    run_kubectl_apply,
+)
+from .config import (
+    KJOB_BATCH_IMAGE,
+    KJOB_BATCH_WORKING_DIRECTORY,
+    KJOB_SHELL_IMAGE,
+    KJOB_SHELL_INTERACTIVE_COMMAND,
+    KJOB_SHELL_WORKING_DIRECTORY,
+    XpkConfig,
+)
+from .network import get_subnetworks_for_a3mega, get_subnetworks_for_a3ultra
+from .resources import (
+    AcceleratorType,
+    SystemCharacteristics,
+    get_cluster_system_characteristics,
+)
+from .storage import get_auto_mount_gcsfuse_storages, get_auto_mount_storages
+from .workload_decorators.tcpxo_decorator import get_tcpxo_deamon_entry
 
 KJOB_API_GROUP_NAME = "kjobctl.x-k8s.io"
 KJOB_API_GROUP_VERSION = "v1alpha1"
@@ -144,8 +158,11 @@ Kueue_TAS_annotation = "kueue.x-k8s.io/podset-preferred-topology=cloud.google.co
 default_interface_annotation = "networking.gke.io/default-interface=eth0"
 
 
-def get_a3ultra_pod_template_annotations() -> tuple[str, str]:
-  interfaces_key, interfaces_value = rdma_decorator.get_interfaces_entry()
+def get_a3ultra_pod_template_annotations(args: Namespace) -> tuple[str, str]:
+  sub_networks = get_subnetworks_for_a3ultra(args.cluster)
+  interfaces_key, interfaces_value = rdma_decorator.get_interfaces_entry(
+      sub_networks
+  )
 
   return (
       default_interface_annotation,
@@ -153,10 +170,15 @@ def get_a3ultra_pod_template_annotations() -> tuple[str, str]:
   )
 
 
-def get_a3mega_pod_template_annotations() -> tuple[str, str, str]:
+def get_a3mega_pod_template_annotations(
+    args: Namespace,
+) -> tuple[str, str, str]:
   """Adds or updates annotations in the Pod template."""
+  sub_networks = get_subnetworks_for_a3mega(args.cluster)
   tcpxo_deamon_key, tcpxo_deamon_paths = get_tcpxo_deamon_entry()
-  interfaces_key, interfaces_value = tcpxo_decorator.get_interfaces_entry()
+  interfaces_key, interfaces_value = tcpxo_decorator.get_interfaces_entry(
+      sub_networks
+  )
   tcpxo = f"{tcpxo_deamon_key}=$'{tcpxo_deamon_paths}'"
   interfaces = f"{interfaces_key}=$'{interfaces_value}'"
   return tcpxo, interfaces, default_interface_annotation

@@ -80,6 +80,7 @@ from ..core.workload import (
     wait_for_job_completion,
     zone_to_region,
 )
+from ..core.network import get_subnetworks_for_a3mega, get_subnetworks_for_a3ultra
 from ..core.workload_decorators import rdma_decorator, tcpxo_decorator, storage_decorator
 from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
@@ -618,10 +619,12 @@ def workload_create(args) -> None:
       )
 
       if args.device_type == cluster_gcluster.a3mega_device_type:
-        yml_string = tcpxo_decorator.decorate_jobset(yml_string)
+        sub_networks = get_subnetworks_for_a3mega(args.cluster)
+        yml_string = tcpxo_decorator.decorate_jobset(yml_string, sub_networks)
 
       if args.device_type == cluster_gcluster.a3ultra_device_type:
-        yml_string = rdma_decorator.decorate_jobset(yml_string)
+        sub_networks = get_subnetworks_for_a3ultra(args.cluster)
+        yml_string = rdma_decorator.decorate_jobset(yml_string, sub_networks)
 
       if len(gcs_fuse_storages) + len(gcpfilestore_storages) > 0:
         yml_string = storage_decorator.decorate_jobset(yml_string, all_storages)

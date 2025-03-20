@@ -40,16 +40,6 @@ cluster_toolkit_url = "github.com/GoogleCloudPlatform/cluster-toolkit"
 cluster_toolkit_version = "v1.47.0"
 
 
-def get_subnetworks_for_a3mega(cluster_name: str) -> list[str]:
-  return [f"{cluster_name}-gpunet-{i}-subnet" for i in range(8)]
-
-
-def get_subnetworks_for_a3ultra(cluster_name: str) -> list[str]:
-  return [f"{cluster_name}-sub-1"] + [
-      f"{cluster_name}-rdma-sub-{i}" for i in range(8)
-  ]
-
-
 class BlueprintGeneratorOutput:
   """BlueprintGeneratorOutput is a class containing fields with output blueprint file path and path to blueprint dependencies.
   Atributes:
@@ -158,7 +148,8 @@ class BlueprintGenerator:
                 "total_max_nodes": 1000,
             },
             "k8s_network_names": {
-                "gvnic_prefix": "vpc",
+                "gvnic_prefix": f"{cluster_name}-gpunet-",
+                "gvnic_postfix": "-subnet",
                 "gvnic_start_index": 1,
             },
         },
@@ -494,6 +485,9 @@ class BlueprintGenerator:
                 " alias_ip_range=[]}],"
                 f" {cluster_name}-rdma-net.subnetwork_interfaces_gke))"
             ),
+            "k8s_network_names": {
+                "rdma_prefix": f"{cluster_name}-rdma-sub-",
+            },
         },
         outputs=["instructions"],
     )

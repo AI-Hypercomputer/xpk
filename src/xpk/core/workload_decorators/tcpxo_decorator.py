@@ -16,6 +16,7 @@ limitations under the License.
 
 import yaml
 from ...utils.yaml import literal_string
+from ..network import get_subnetworks_for_a3mega, get_subnetworks_for_a3ultra
 
 # Component version
 rxdm = 'v1.0.12'
@@ -37,7 +38,7 @@ def decorate_kjob_template(job_manifest: dict) -> dict:
   return job_manifest
 
 
-def decorate_job(job_manifest: dict) -> dict:
+def decorate_job(job_manifest: dict, sub_networks: list[str]) -> dict:
   job_manifest.setdefault('spec', {}).setdefault('template', {}).setdefault(
       'metadata', {}
   ).setdefault('annotations', {})
@@ -49,7 +50,7 @@ def decorate_job(job_manifest: dict) -> dict:
   spec.setdefault('tolerations', [])
   spec.setdefault('volumes', [])
 
-  add_annotations(job_manifest)
+  add_annotations(job_manifest, sub_networks)
   add_volumes(job_manifest)
   add_tolerations(job_manifest)
   add_tcpxo_daemon_container(job_manifest)
@@ -57,7 +58,7 @@ def decorate_job(job_manifest: dict) -> dict:
   return job_manifest
 
 
-def decorate_jobset(jobset_manifest_str) -> str:
+def decorate_jobset(jobset_manifest_str: str, sub_networks: list[str]) -> str:
   """
   Decorates a JobSet manifest with the necessary components for tcpxo-daemon.
 
@@ -72,16 +73,16 @@ def decorate_jobset(jobset_manifest_str) -> str:
 
   for job in manifest['spec']['replicatedJobs']:
     job_manifest = job['template']
-    job_manifest = decorate_job(job_manifest)
+    job_manifest = decorate_job(job_manifest, sub_networks)
   return yaml.dump(manifest, sort_keys=False)
 
 
-def get_interfaces_entry() -> tuple[str, str]:
+def get_interfaces_entry(sub_networks: list[str]) -> tuple[str, str]:
   interfaces = [
       '[',
       '    {"interfaceName":"eth0","network":"default"},',
       *[
-          f'    {{"interfaceName":"eth{i + 1}","network":"vpc{i+1}"}}{"," if i<7 else ""}'
+          f'    {{"interfaceName":"eth{i + 1}","network":"{sub_networks[i]}"}}{"," if i<7 else ""}'
           for i in range(8)
       ],
       ']',
@@ -105,11 +106,11 @@ def get_tcpxo_deamon_entry() -> tuple[str, str]:
   )
 
 
-def add_annotations(job_manifest):
+def add_annotations(job_manifest: dict, sub_networks: list[str]):
   """Adds or updates annotations in the Pod template."""
   annotations = job_manifest['spec']['template']['metadata']['annotations']
   tcpxo_deamon_key, tcpxo_deamon_paths = get_tcpxo_deamon_entry()
-  interfaces_key, interfaces_value = get_interfaces_entry()
+  interfaces_key, interfaces_value = get_interfaces_entry(sub_networks)
   annotations.update({
       tcpxo_deamon_key: tcpxo_deamon_paths,
       'networking.gke.io/default-interface': 'eth0',

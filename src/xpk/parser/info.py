@@ -14,10 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import argparse
+
 from ..commands.info import info
 from .common import add_shared_arguments
 from .validators import name_type
-import argparse
 
 
 def set_info_parser(info_parser: argparse.ArgumentParser) -> None:

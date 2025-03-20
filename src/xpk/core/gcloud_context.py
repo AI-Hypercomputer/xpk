@@ -22,7 +22,7 @@ from google.api_core.exceptions import PermissionDenied
 from google.cloud import resourcemanager_v3
 from typing import Optional
 
-from ..parser.args import GlobalConfig
+from .args import GlobalConfig
 from ..utils.console import xpk_exit, xpk_print
 from .commands import run_command_for_value
 
@@ -32,6 +32,10 @@ class GcloudConfig(GlobalConfig):
 
   gke_version: Optional[str] = None
 
+  _zone: Optional[str] = None
+  _project: Optional[str] = None
+  _project_number: Optional[str] = None
+
   @property
   def zone(self) -> str:
     if self._zone is None:
@@ -39,7 +43,7 @@ class GcloudConfig(GlobalConfig):
       if self._project is None:
         self._project = get_project()
       xpk_print(f'Working on {self._project} and {self._zone}')
-    return self._zone
+    return str(self._zone)
 
   @zone.setter
   def zone(self, value: str):
@@ -56,7 +60,7 @@ class GcloudConfig(GlobalConfig):
       if self._zone is None:
         self._zone = get_zone()
       xpk_print(f'Working on {self._project} and {self._zone}')
-    return self._project
+    return str(self._project)
 
   @project.setter
   def project(self, value: str):
@@ -79,7 +83,7 @@ class GcloudConfig(GlobalConfig):
       parts = response.name.split('/', 1)
       xpk_print(f'Project number for project: {self.project} is {parts[1]}')
       self._project_number = str(parts[1])
-    return self._project_number
+    return str(self._project_number)
 
   @project_number.setter
   def project_number(self, value: str):

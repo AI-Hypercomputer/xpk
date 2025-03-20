@@ -16,7 +16,7 @@ limitations under the License.
 
 import inspect
 from argparse import Namespace
-from typing import Any, Optional, Literal
+from typing import Any, Optional
 
 
 class GlobalConfig:
@@ -46,14 +46,17 @@ class SlurmConfig:
   time: Optional[str] = None
 
 
-def apply_args(main_args: Namespace, annotation: Any):
+def apply_args(main_args: Namespace, annotation: Any) -> Any:
   args = annotation()
+
+  # getters and setters
   for param in inspect.get_annotations(annotation):
     if param in main_args:
       setattr(args, param, getattr(main_args, param))
 
+  # parameters
   for param, _ in inspect.getmembers(annotation):
     if param in main_args:
       setattr(args, param, getattr(main_args, param))
 
-  return args
+  return args  # pytype: disable=bad-return-type

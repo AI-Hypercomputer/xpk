@@ -14,16 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..commands.kind import (
-    cluster_create,
-    cluster_delete,
-    cluster_list,
-)
+import argparse
+
+from ..commands.kind import cluster_create, cluster_delete, cluster_list
 from .common import add_global_arguments
 from .validators import name_type
 
 
-def set_kind_parser(kind_parser):
+def set_kind_parser(kind_parser: argparse.ArgumentParser):
   cluster_subcommands = kind_parser.add_subparsers(
       title='kind subcommands',
       dest='xpk_kind_subcommands',

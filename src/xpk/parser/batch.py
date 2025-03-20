@@ -14,16 +14,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import argparse
+
+from ..commands.batch import batch
 from .common import (
-    add_shared_arguments,
-    add_slurm_arguments,
     add_cluster_arguments,
     add_kind_cluster_arguments,
+    add_shared_arguments,
+    add_slurm_arguments,
 )
-from ..commands.batch import batch
 
 
-def set_batch_parser(batch_parser):
+def set_batch_parser(batch_parser: argparse.ArgumentParser):
   batch_required_arguments = batch_parser.add_argument_group(
       'batch Built-in Arguments', 'Arguments required for `batch`.'
   )

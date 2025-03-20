@@ -16,20 +16,19 @@ limitations under the License.
 
 import argparse
 
-from .config import set_config_parsers
-
 from ..utils.console import xpk_print
-from .cluster import set_cluster_parser
-from .inspector import set_inspector_parser
-from .storage import set_storage_parser
-from .workload import set_workload_parsers
 from .batch import set_batch_parser
-from .job import set_job_parser
+from .cluster import set_cluster_parser
+from .config import set_config_parsers
 from .info import set_info_parser
+from .inspector import set_inspector_parser
+from .job import set_job_parser
 from .kind import set_kind_parser
-from .shell import set_shell_parser
-from .version import set_version_parser
 from .run import set_run_parser
+from .shell import set_shell_parser
+from .storage import set_storage_parser
+from .version import set_version_parser
+from .workload import set_workload_parsers
 
 
 def set_parser(parser: argparse.ArgumentParser):

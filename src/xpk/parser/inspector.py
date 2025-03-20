@@ -14,12 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import argparse
+
 from ..commands.inspector import inspector
-from .validators import name_type
 from .common import add_shared_arguments
+from .validators import name_type
 
 
-def set_inspector_parser(inspector_parser):
+def set_inspector_parser(inspector_parser: argparse.ArgumentParser):
   inspector_parser.add_subparsers(
       title='inspector subcommands',
       dest='xpk_inspector_subcommands',

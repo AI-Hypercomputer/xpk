@@ -14,12 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import argparse
+
 from ..commands.config import get_config, set_config
 from ..core.config import DEFAULT_KEYS
 from .common import add_shared_arguments
 
 
-def set_config_parsers(config_parser):
+def set_config_parsers(config_parser: argparse.ArgumentParser):
   add_shared_arguments(config_parser)
 
   config_subcommands = config_parser.add_subparsers(

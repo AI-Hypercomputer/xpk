@@ -18,14 +18,20 @@ import datetime
 import subprocess
 import sys
 import time
-from argparse import Namespace
 
-from ..utils.objects import chunks
-from ..utils.file import make_tmp_files, write_tmp_file
 from ..utils.console import xpk_print
+from ..utils.file import make_tmp_files, write_tmp_file
+from ..utils.objects import chunks
+from .args import GlobalConfig
 
 
-def run_commands(commands, jobname, per_command_name, batch=10, dry_run=False):
+def run_commands(
+    commands: list[str],
+    jobname: str,
+    per_command_name: list[str],
+    batch=10,
+    dry_run=False,
+):
   """Run commands in groups of `batch`.
 
   Args:
@@ -65,7 +71,9 @@ def run_commands(commands, jobname, per_command_name, batch=10, dry_run=False):
   return max_return_code
 
 
-def run_command_batch(commands, jobname, per_command_name, output_logs):
+def run_command_batch(
+    commands: list[str], jobname: str, per_command_name, output_logs
+):
   """Runs commands in parallel.
 
   Args:
@@ -130,7 +138,12 @@ def run_command_batch(commands, jobname, per_command_name, output_logs):
 
 
 def run_command_with_updates_retry(
-    command, task, args, verbose=True, num_retry_attempts=5, wait_seconds=10
+    command: str,
+    task: str,
+    args: GlobalConfig,
+    verbose=True,
+    num_retry_attempts=5,
+    wait_seconds=10,
 ) -> int:
   """Generic run commands function with updates and retry logic.
 
@@ -161,7 +174,9 @@ def run_command_with_updates_retry(
   return return_code
 
 
-def run_command_with_updates(command, task, global_args, verbose=True) -> int:
+def run_command_with_updates(
+    command: str, task: str, global_args: GlobalConfig, verbose=True
+) -> int:
   """Generic run commands function with updates.
 
   Args:
@@ -221,9 +236,9 @@ def run_command_with_updates(command, task, global_args, verbose=True) -> int:
 
 
 def run_command_for_value(
-    command,
-    task,
-    global_args,
+    command: str,
+    task: str,
+    global_args: GlobalConfig,
     dry_run_return_val='0',
     print_timer=False,
     hide_error=False,
@@ -302,7 +317,7 @@ def run_command_for_value(
 def run_command_with_full_controls(
     command: str,
     task: str,
-    global_args: Namespace,
+    global_args: GlobalConfig,
     instructions: str | None = None,
 ) -> int:
   """Run command in current shell with system out, in and error handles. Wait
@@ -349,7 +364,7 @@ def run_command_with_full_controls(
   return return_code
 
 
-def run_kubectl_apply(yml_string: str, task: str, args: Namespace) -> int:
+def run_kubectl_apply(yml_string: str, task: str, args: GlobalConfig) -> int:
   tmp = write_tmp_file(yml_string)
   command = f'kubectl apply -f {str(tmp.file.name)}'
   err_code = run_command_with_updates(command, task, args)

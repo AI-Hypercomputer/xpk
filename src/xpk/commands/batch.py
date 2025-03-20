@@ -14,21 +14,31 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from argparse import Namespace
+import re
 
-from ..core.cluster import create_xpk_k8s_service_account
+from ..core.args import SlurmConfig
+from ..core.cluster import ClusterConfig, create_xpk_k8s_service_account
 from ..core.commands import run_command_for_value
 from ..core.gcloud_context import add_zone_and_project
+from ..core.kjob import (
+    AppProfileDefaults,
+    JobTemplateDefaults,
+    Kueue_TAS_annotation,
+    get_gcsfuse_annotation,
+    prepare_kjob,
+)
 from ..core.kueue import LOCAL_QUEUE_NAME
 from ..utils.console import xpk_exit, xpk_print
 from .common import set_cluster_command
-from ..core.kjob import AppProfileDefaults, JobTemplateDefaults, prepare_kjob, Kueue_TAS_annotation, get_gcsfuse_annotation
-from .kjob_common import add_gpu_networking_annotations_to_command
 from .kind import set_local_cluster_command
-import re
+from .kjob_common import add_gpu_networking_annotations_to_command
 
 
-def batch(args: Namespace) -> None:
+class BatchArgs(ClusterConfig, SlurmConfig):
+  script: str = None
+
+
+def batch(args: BatchArgs) -> None:
   """Run batch task.
      This function runs passed script in non-blocking manner.
   Args:
@@ -53,7 +63,7 @@ def batch(args: Namespace) -> None:
   submit_job(args)
 
 
-def submit_job(args: Namespace) -> None:
+def submit_job(args: BatchArgs) -> None:
 
   create_xpk_k8s_service_account()
 

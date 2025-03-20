@@ -14,8 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from argparse import Namespace
-
 from kubernetes import client as k8s_client
 from kubernetes.client import ApiClient
 from kubernetes.client.rest import ApiException
@@ -23,7 +21,6 @@ from kubernetes.client.rest import ApiException
 from ..core import gcsfuse
 from ..core.cluster import (
     DEFAULT_NAMESPACE,
-    add_zone_and_project,
     get_cluster_network,
     setup_k8s_env,
     update_cluster_with_gcpfilestore_driver_if_necessary,
@@ -51,10 +48,16 @@ from ..core.storage import (
 )
 from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.kubectl import apply_kubectl_manifest
+from .args.storage import (
+    StorageAttachArgs,
+    StorageCreateArgs,
+    StorageDeleteArgs,
+    StorageDetachArgs,
+    StorageListArgs,
+)
 
 
-def storage_create(args: Namespace) -> None:
-  add_zone_and_project(args)
+def storage_create(args: StorageCreateArgs) -> None:
   if args.type == GCP_FILESTORE_TYPE:
     if args.instance is None:
       args.instance = args.name
@@ -90,8 +93,7 @@ def storage_create(args: Namespace) -> None:
     apply_kubectl_manifest(k8s_api_client, manifest)
 
 
-def storage_delete(args: Namespace) -> None:
-  add_zone_and_project(args)
+def storage_delete(args: StorageDeleteArgs) -> None:
   k8s_api_client = setup_k8s_env(args)
   storages = list_storages(k8s_api_client)
   filestore_client = FilestoreClient(args.zone, args.name, args.project)
@@ -124,8 +126,7 @@ def storage_delete(args: Namespace) -> None:
   filestore_client.delete_filestore_instance()
 
 
-def storage_attach(args: Namespace) -> None:
-  add_zone_and_project(args)
+def storage_attach(args: StorageAttachArgs) -> None:
   if args.type == GCP_FILESTORE_TYPE:
     if args.instance is None:
       args.instance = args.name
@@ -175,13 +176,13 @@ def storage_attach(args: Namespace) -> None:
   apply_kubectl_manifest(k8s_api_client, manifest)
 
 
-def storage_list(args: Namespace) -> None:
+def storage_list(args: StorageListArgs) -> None:
   k8s_api_client = setup_k8s_env(args)
   storages = list_storages(k8s_api_client)
   print_storages_for_cluster(storages)
 
 
-def storage_detach(args: Namespace) -> None:
+def storage_detach(args: StorageDetachArgs) -> None:
   k8s_api_client = setup_k8s_env(args)
   storage = get_storage(k8s_api_client, args.name)
   delete_storage_resources(k8s_api_client, storage)

@@ -14,6 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import argparse
+
 from ..commands.cluster import (
     cluster_cacheimage,
     cluster_create,
@@ -23,14 +25,14 @@ from ..commands.cluster import (
     cluster_describe,
     cluster_list,
 )
+from ..commands.config import xpk_cfg
+from ..core.config import CFG_BUCKET_KEY
 from ..core.vertex import DEFAULT_VERTEX_TENSORBOARD_NAME
 from .common import add_shared_arguments
 from .validators import name_type
-from ..commands.config import xpk_cfg
-from ..core.config import CFG_BUCKET_KEY
 
 
-def set_cluster_parser(cluster_parser):
+def set_cluster_parser(cluster_parser: argparse.ArgumentParser):
   cluster_subcommands = cluster_parser.add_subparsers(
       title='cluster subcommands',
       dest='xpk_cluster_subcommands',

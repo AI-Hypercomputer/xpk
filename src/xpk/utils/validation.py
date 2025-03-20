@@ -14,12 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..core.commands import run_command_for_value
-from .console import xpk_exit, xpk_print
 from ..commands.config import xpk_cfg
-from ..core.config import DEPENDENCIES_KEY
 from ..commands.version import get_xpk_version
-
+from ..core.args import GlobalConfig
+from ..core.commands import run_command_for_value
+from ..core.config import DEPENDENCIES_KEY
+from .console import xpk_exit, xpk_print
 
 validation_commands = {
     'kubectl': {
@@ -72,7 +72,7 @@ def validate_dependencies():
     for name, check in validation_commands.items():
       cmd, message = check['command'], check['message']
       code, _ = run_command_for_value(
-          cmd, f'Validate {name} installation.', None
+          cmd, f'Validate {name} installation.', GlobalConfig()
       )
       if code != 0:
         xpk_print(message)

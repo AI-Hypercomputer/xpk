@@ -18,6 +18,7 @@ from dataclasses import dataclass
 
 from ..utils.console import xpk_print
 from ..utils.file import write_tmp_file
+from .args import GlobalConfig
 from .capacity import (
     AUTOPROVISIONING_CONFIG_MAXIMUM_KEY,
     AUTOPROVISIONING_CONFIG_MINIMUM_KEY,
@@ -27,9 +28,14 @@ from .capacity import (
     CapacityType,
     get_capacity_type,
 )
+from .cluster import ClusterConfig
 from .commands import run_command_for_value, run_commands
 from .config import XPK_CURRENT_VERSION
-from .system_characteristics import AcceleratorType, get_system_characteristics_by_device_type, SystemCharacteristics
+from .system_characteristics import (
+    AcceleratorType,
+    SystemCharacteristics,
+    get_system_characteristics_by_device_type,
+)
 
 CLUSTER_RESOURCES_CONFIGMAP = 'resources-configmap'
 CLUSTER_METADATA_CONFIGMAP = 'metadata-configmap'
@@ -50,7 +56,9 @@ class AutoprovisioningConfig:
   maximum_chips: int
 
 
-def get_cluster_configmap(args, configmap_name) -> dict[str, str] | None:
+def get_cluster_configmap(
+    args: GlobalConfig, configmap_name: str
+) -> dict[str, str] | None:
   """Run the Get GKE Cluster ConfigMap request.
 
   Args:
@@ -188,7 +196,7 @@ def create_or_update_cluster_configmap(configmap_yml: dict) -> int:
   return 0
 
 
-def check_cluster_resources(args, system) -> tuple[bool, bool]:
+def check_cluster_resources(args: ClusterConfig, system) -> tuple[bool, bool]:
   """Check if cluster has resources of a specified device_type/gke_accelerator.
   This check will be skipped if <args.cluster>-<_CLUSTER_RESOURCES_CONFIGMAP> ConfigMap doesn't exist for the cluster.
 
@@ -216,7 +224,9 @@ def check_cluster_resources(args, system) -> tuple[bool, bool]:
   return True, False
 
 
-def get_cluster_system_characteristics(args) -> SystemCharacteristics | None:
+def get_cluster_system_characteristics(
+    args: ClusterConfig,
+) -> SystemCharacteristics | None:
   """Get systemCharcteristics based on the cluster resources configMap
   Args:
     args: user provided arguments for running the command.

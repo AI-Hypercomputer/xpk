@@ -65,8 +65,9 @@ deployment_groups:
       system_node_pool_node_count:
         total_min_nodes: 5
         total_max_nodes: 1000
-      k8s_network_names: 
-        gvnic_prefix: "vpc"
+      k8s_network_names:
+        gvnic_prefix: "bar-gpunet-"
+        gvnic_postfix: "-subnet"
         gvnic_start_index: 1
     outputs: [instructions]
   - !DeploymentModule

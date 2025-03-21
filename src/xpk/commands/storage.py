@@ -75,7 +75,7 @@ def storage_create(args: Namespace) -> None:
     )
     if args.manifest is not None:
       with open(args.manifest, "r", encoding="utf-8") as f:
-        manifest = yaml.safe_load_all(f)
+        manifest = list(yaml.safe_load_all(f))
     else:
       manifest = filestore_client.manifest(
           args.name, args.vol, args.access_mode, filestore_network
@@ -144,7 +144,7 @@ def storage_attach(args: Namespace) -> None:
 
     if args.manifest is not None:
       with open(args.manifest, "r", encoding="utf-8") as f:
-        manifest = yaml.safe_load_all(f)
+        manifest = list(yaml.safe_load_all(f))
     else:
       filestore_network = get_cluster_network(args)
       manifest = filestore_client.manifest(
@@ -161,7 +161,7 @@ def storage_attach(args: Namespace) -> None:
 
     if args.manifest is not None:
       with open(args.manifest, "r", encoding="utf-8") as f:
-        manifest = yaml.safe_load_all(f)
+        manifest = list(yaml.safe_load_all(f))
     else:
       manifest = gcsfuse.manifest(
           name=args.name, bucket=args.bucket, size=args.size

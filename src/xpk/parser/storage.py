@@ -148,6 +148,11 @@ def add_storage_attach_parser(
       'Optional Arguments',
       'Optional arguments for storage create.',
   )
+  opt_args.add_argument(
+      '--manifest',
+      type=str,
+      help='Path to manifest file containing volume definitions',
+  )
   add_kind_cluster_arguments(opt_args)
 
 
@@ -237,6 +242,11 @@ def add_storage_create_parser(
       choices=['ReadWriteOnce', 'ReadOnlyMany', 'ReadWriteMany'],
       help='Access mode of created filestore instance',
       default='ReadWriteMany',
+  )
+  opt_args.add_argument(
+      '--manifest',
+      type=str,
+      help='Path to manifest file containing volume definitions',
   )
 
   add_kind_cluster_arguments(opt_args)

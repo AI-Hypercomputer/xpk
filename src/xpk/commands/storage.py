@@ -16,6 +16,7 @@ limitations under the License.
 
 from argparse import Namespace
 
+import yaml
 from kubernetes import client as k8s_client
 from kubernetes.client import ApiClient
 from kubernetes.client.rest import ApiException
@@ -72,9 +73,13 @@ def storage_create(args: Namespace) -> None:
     filestore_client.create_instance(
         vol=args.vol, size=args.size, tier=args.tier, network=filestore_network
     )
-    manifest = filestore_client.manifest(
-        args.name, args.vol, args.access_mode, filestore_network
-    )
+    if args.manifest is not None:
+      with open(args.manifest, "r", encoding="utf-8") as f:
+        manifest = yaml.safe_load_all(f)
+    else:
+      manifest = filestore_client.manifest(
+          args.name, args.vol, args.access_mode, filestore_network
+      )
 
     k8s_api_client = setup_k8s_env(args)
     create_storage_crds(k8s_api_client, args, manifest)
@@ -137,22 +142,30 @@ def storage_attach(args: Namespace) -> None:
       xpk_print(f"Filestore instance {args.instance} does not exists.")
       xpk_exit(1)
 
-    filestore_network = get_cluster_network(args)
-    manifest = filestore_client.manifest(
-        args.name, args.vol, args.access_mode, filestore_network
-    )
+    if args.manifest is not None:
+      with open(args.manifest, "r", encoding="utf-8") as f:
+        manifest = yaml.safe_load_all(f)
+    else:
+      filestore_network = get_cluster_network(args)
+      manifest = filestore_client.manifest(
+          args.name, args.vol, args.access_mode, filestore_network
+      )
 
   else:  # args.type == GCS_FUSE_TYPE:
-    if args.size is None:
+    if args.manifest is None and args.size is None:
       xpk_print("--size is required when attaching gcsfuse storage.")
       xpk_exit(1)
 
     if args.bucket is None:
       args.bucket = args.name
 
-    manifest = gcsfuse.manifest(
-        name=args.name, bucket=args.bucket, size=args.size
-    )
+    if args.manifest is not None:
+      with open(args.manifest, "r", encoding="utf-8") as f:
+        manifest = yaml.safe_load_all(f)
+    else:
+      manifest = gcsfuse.manifest(
+          name=args.name, bucket=args.bucket, size=args.size
+      )
 
   k8s_api_client = setup_k8s_env(args)
   create_storage_crds(k8s_api_client, args, manifest)

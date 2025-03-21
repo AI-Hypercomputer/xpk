@@ -57,7 +57,7 @@ def decorate_job(job_manifest: dict, sub_networks: list[str]) -> dict:
   return job_manifest
 
 
-def decorate_jobset(jobset_manifest_str, sub_networks) -> str:
+def decorate_jobset(jobset_manifest_str: str, sub_networks: list[str]) -> str:
   """
   Decorates a JobSet manifest with the necessary components for tcpxo-daemon.
 
@@ -105,7 +105,7 @@ def get_tcpxo_deamon_entry() -> tuple[str, str]:
   )
 
 
-def add_annotations(job_manifest, sub_networks):
+def add_annotations(job_manifest: dict, sub_networks: list[str]):
   """Adds or updates annotations in the Pod template."""
   annotations = job_manifest['spec']['template']['metadata']['annotations']
   tcpxo_deamon_key, tcpxo_deamon_paths = get_tcpxo_deamon_entry()

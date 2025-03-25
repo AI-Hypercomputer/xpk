@@ -117,6 +117,7 @@ deployment_groups:
       k8s_network_names:
         rdma_prefix: "gke-a3-ultra-rdma-sub-"
         rdma_start_index: 0
+        rdma_postfix: ""
     outputs: [instructions]
 
   - !DeploymentModule

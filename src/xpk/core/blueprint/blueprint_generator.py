@@ -488,6 +488,7 @@ class BlueprintGenerator:
             "k8s_network_names": {
                 "rdma_prefix": f"{cluster_name}-rdma-sub-",
                 "rdma_start_index": 0,
+                "rdma_postfix": "",
             },
         },
         outputs=["instructions"],

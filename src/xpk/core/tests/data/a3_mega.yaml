@@ -16,7 +16,7 @@
 !Blueprint
 blueprint_name: xpk-gke-a3-megagpu
 toolkit_modules_url: github.com/GoogleCloudPlatform/cluster-toolkit
-toolkit_modules_version: v1.47.0
+toolkit_modules_version: develop
 
 vars:
   project_id: "foo"
@@ -68,7 +68,7 @@ deployment_groups:
       k8s_network_names:
         gvnic_prefix: "bar-gpunet-"
         gvnic_postfix: "-subnet"
-        gvnic_start_index: 1
+        gvnic_start_index: 0
     outputs: [instructions]
   - !DeploymentModule
     id: group_placement_0

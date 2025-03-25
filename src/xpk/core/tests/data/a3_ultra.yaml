@@ -14,7 +14,7 @@
 !Blueprint
 blueprint_name: xpk-gke-a3-ultra
 toolkit_modules_url: github.com/GoogleCloudPlatform/cluster-toolkit
-toolkit_modules_version: v1.47.0
+toolkit_modules_version: develop
 
 vars:
 
@@ -116,6 +116,7 @@ deployment_groups:
       additional_networks: $(concat([{network=gke-a3-ultra-net-1.network_name, subnetwork=gke-a3-ultra-net-1.subnetwork_name, subnetwork_project="foo", nic_type="GVNIC", queue_count=null, network_ip=null, stack_type=null, access_config=[{nat_ip=null, public_ptr_domain_name=null, network_tier=null}], ipv6_access_config=[], alias_ip_range=[]}], gke-a3-ultra-rdma-net.subnetwork_interfaces_gke))
       k8s_network_names:
         rdma_prefix: "gke-a3-ultra-rdma-sub-"
+        rdma_start_index: 0
     outputs: [instructions]
 
   - !DeploymentModule

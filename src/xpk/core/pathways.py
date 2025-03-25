@@ -87,20 +87,20 @@ def get_pathways_sidecar_container(args) -> str:
     str: yaml containing arguments for the Pathways sidecar container.
   """
   yaml = """initContainers:
-            - name: remote-python-sidecar
-              image: {args.remote_python_sidecar_image}
-              imagePullPolicy: Always
-              securityContext:
-                privileged: true
-              volumeMounts:
-              - mountPath: /tmp  # Shared volume mount with the main container.
-                name: shared-tmp
-              restartPolicy: Always
-              ports:
-              - containerPort: 50051
-              env:
-              - name: GRPC_SERVER_ADDRESS
-                value: '0.0.0.0:50051'"""
+              - name: remote-python-sidecar
+                image: {args.remote_python_sidecar_image}
+                imagePullPolicy: Always
+                securityContext:
+                  privileged: true
+                volumeMounts:
+                - mountPath: /tmp  # Shared volume mount with the main container.
+                  name: shared-tmp
+                restartPolicy: Always
+                ports:
+                - containerPort: 50051
+                env:
+                - name: GRPC_SERVER_ADDRESS
+                  value: '0.0.0.0:50051'"""
   if args.use_pathways and args.remote_python_sidecar_image is not None:
     return yaml.format(args=args)
   else:

@@ -12,39 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-# Use a google-cloud-cli image as the base
-ARG BASE_IMAGE=gcr.io/google.com/cloudsdktool/google-cloud-cli:stable
-FROM ${BASE_IMAGE}
+FROM golang:1.24.1-alpine
 
 # Install necessary tools and libraries
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        apt-transport-https \
-        ca-certificates \
-        curl \
-        gnupg \
-        lsb-release \
-        git \
-        make \
-        unzip \
-        wget
+RUN apk add git make bash
 
-# Install Go
-ARG GO_VERSION=1.23.0
-RUN wget -q "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz" -O go.tar.gz && \
-    tar -C /usr/local -xzf go.tar.gz && \
-    rm go.tar.gz
-
-# Set GOPATH and add to PATH
-ENV GOPATH /go
-ENV PATH $PATH:/usr/local/go/bin:$GOPATH/bin
+ARG KJOB_BRANCH=main
+ARG KJOB_COMMIT_HASH=e2c92af44c047016cd5789995f6276b79f22663d
 
 # Clone the kjob repository
-ARG KJOB_BRANCH=main
-RUN git clone --branch ${KJOB_BRANCH} https://github.com/kubernetes-sigs/kjob.git /kjob
+RUN git clone --branch ${KJOB_BRANCH} --single-branch https://github.com/kubernetes-sigs/kjob.git /kjob
 
-# Build the gcluster binary
 WORKDIR /kjob
+
+# Checkout to stable commit
+RUN git checkout ${KJOB_COMMIT_HASH}
+
+# Build the kubectl-kjob binary
 RUN make kubectl-kjob
 

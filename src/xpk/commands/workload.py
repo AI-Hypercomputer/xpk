@@ -14,7 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..core.blueprint.blueprint_generator import get_subnetworks_for_a3mega, get_subnetworks_for_a3ultra
 from ..core.cluster import (
     create_xpk_k8s_service_account,
     get_cluster_credentials,
@@ -81,6 +80,7 @@ from ..core.workload import (
     wait_for_job_completion,
     zone_to_region,
 )
+from ..core.network import get_subnetworks_for_a3mega, get_subnetworks_for_a3ultra
 from ..core.workload_decorators import rdma_decorator, tcpxo_decorator, storage_decorator
 from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file

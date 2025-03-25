@@ -37,7 +37,7 @@ blueprint_dependencies_dir = {
 }
 
 cluster_toolkit_url = "github.com/GoogleCloudPlatform/cluster-toolkit"
-cluster_toolkit_version = "v1.47.0"
+cluster_toolkit_version = "develop"
 
 
 class BlueprintGeneratorOutput:
@@ -150,7 +150,7 @@ class BlueprintGenerator:
             "k8s_network_names": {
                 "gvnic_prefix": f"{cluster_name}-gpunet-",
                 "gvnic_postfix": "-subnet",
-                "gvnic_start_index": 1,
+                "gvnic_start_index": 0,
             },
         },
         outputs=["instructions"],
@@ -487,6 +487,7 @@ class BlueprintGenerator:
             ),
             "k8s_network_names": {
                 "rdma_prefix": f"{cluster_name}-rdma-sub-",
+                "rdma_start_index": 0,
             },
         },
         outputs=["instructions"],

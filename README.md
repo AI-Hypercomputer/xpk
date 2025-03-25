@@ -467,6 +467,7 @@ Parameters:
 - `--readonly` - if set to true, workload can only read from storage.
 - `--size` - size of the storage in Gb.
 - `--bucket` - name of the storage bucket. If not set then the name of the storage is used as a bucket name.
+- `--manifest` - path to the manifest file containing PersistentVolume and PresistentVolumeClaim definitions. If set, then values from manifest override the following parameters: `--size` and `--bucket`.
 
 ### Filestore
 
@@ -502,6 +503,7 @@ Commands `xpk storage create` and `xpk storage attach` with `--type=gcpfilestore
 - `--access-mode` - access mode of the Filestore instance that will be created. Possible values are: `[ReadWriteOnce, ReadOnlyMany, ReadWriteMany]`
 - `--vol` - file share name of the Filestore instance that will be created.
 - `--instance` - the name of the Filestore instance. If not set then the name parameter is used as an instance name. Useful when connecting multiple volumes from the same Filestore instance.
+- `--manifest` - path to the manifest file containing PersistentVolume, PresistentVolumeClaim and StorageClass definitions. If set, then values from manifest override the following parameters: `--access-mode`, `--size` and `--volume`.
 
 ### List attached storages
 
@@ -520,10 +522,20 @@ python3 xpk.py workload create \
   --project=$PROJECT --cluster=$CLUSTER --zone=$ZONE \
   --tpu-type=v5litepod-16 --storage=test-storage
 ```
-### Deleting storage
+
+### Detaching storage
 
 ```shell
-python3 xpk.py storage delete $STORAGE_NAME \
+python3 xpk.py storage detach $STORAGE_NAME \
+  --project=$PROJECT --cluster=$CLUSTER --zone=$ZONE
+```
+
+### Deleting storage
+
+XPK allows you to remove Filestore instances easily with `xpk storage delete` command. **Warning:** this deletes all data contained in the Filestore!
+
+```shell
+python3 xpk.py storage delete test-fs-instance \
   --project=$PROJECT --cluster=$CLUSTER --zone=$ZONE
 ```
 

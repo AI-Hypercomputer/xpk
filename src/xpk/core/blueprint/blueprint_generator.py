@@ -49,7 +49,7 @@ blueprint_dependencies_dir = {
 }
 
 cluster_toolkit_url = "github.com/GoogleCloudPlatform/cluster-toolkit"
-cluster_toolkit_version = "v1.47.0"
+cluster_toolkit_version = "develop"
 
 
 def get_subnetworks_for_a3mega(cluster_name: str) -> list[str]:
@@ -171,6 +171,11 @@ class BlueprintGenerator:
             "system_node_pool_node_count": {
                 "total_min_nodes": system_node_pool_min_node_count,
                 "total_max_nodes": 1000,
+            },
+            "k8s_network_names": {
+                "gvnic_prefix": f"{cluster_name}-gpunet-",
+                "gvnic_postfix": "-subnet",
+                "gvnic_start_index": 0,
             },
         },
         outputs=["instructions"],
@@ -505,6 +510,11 @@ class BlueprintGenerator:
                 " alias_ip_range=[]}],"
                 f" {cluster_name}-rdma-net.subnetwork_interfaces_gke))"
             ),
+            "k8s_network_names": {
+                "rdma_prefix": f"{cluster_name}-rdma-sub-",
+                "rdma_start_index": 0,
+                "rdma_postfix": "",
+            },
         },
         outputs=["instructions"],
     )

@@ -19,7 +19,7 @@ from ..core.capacity import H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE
 from ..core.cluster import get_gpu_type_from_cluster
 
 
-def add_tcpxo_annotations(args, cmd: str) -> str:
+def add_tcpxo_annotations(args, cmd) -> str:
   tcpxo, interfaces, eth0 = get_a3mega_pod_template_annotations(args)
   cmd += f" --pod-template-annotation {tcpxo} \\\n"
   cmd += f" --pod-template-annotation {eth0} \\\n"

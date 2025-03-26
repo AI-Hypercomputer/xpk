@@ -247,3 +247,13 @@ def add_slurm_arguments(custom_parser: argparse.ArgumentParser):
           'and "days-hours:minutes:seconds".'
       ),
   )
+  custom_parser.add_argument(
+      '--priority',
+      type=str,
+      default='medium',
+      choices=['very-low', 'low', 'medium', 'high', 'very-high'],
+      help=(
+          'A priority, one of `very-low`, `low`, `medium`, `high` or'
+          ' `very-high`. Defaults to `medium`.'
+      ),
+  )

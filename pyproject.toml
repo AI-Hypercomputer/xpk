@@ -48,7 +48,7 @@ dependencies = [
 "Bug Tracker" = "https://github.com/google/xpk/issues"
 
 [build-system]
-requires = ["setuptools>=61.0", "setuptools-git-versioning"]
+requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project.scripts]
@@ -65,15 +65,13 @@ dev = [
     "docker==7.1.0"
 ]
 
+[tool.setuptools.dynamic]
+version = {attr = "xpk.core.config.__version__"}
+
 [tool.setuptools]
 packages = ["xpk", "xpk.parser", "xpk.core", "xpk.commands", "xpk.api", "xpk.templates", "xpk.utils", "xpk.core.blueprint", "xpk.core.remote_state", "xpk.core.workload_decorators"]
 package-dir = {"" = "src"}
 package-data = {"xpk.api" = ["storage_crd.yaml"], "xpk.templates" = ["storage.yaml"]}
-
-[tool.setuptools-git-versioning]
-enabled = true
-dev_template = "{tag}+{sha}"
-dirty_template = "{tag}+{sha}.dirty"
 
 [tool.pyink]
 # Formatting configuration to follow Google style-guide.

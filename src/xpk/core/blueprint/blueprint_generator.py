@@ -61,8 +61,9 @@ def get_subnetworks_for_a3ultra(cluster_name: str) -> list[str]:
       f"{cluster_name}-rdma-sub-{i}" for i in range(8)
   ]
 
+
 def get_subnetworks_for_a4() -> list[str]:
-  return ['gvnic-1'] + [f'rdma-{i}' for i in range(8)]
+  return ["gvnic-1"] + [f"rdma-{i}" for i in range(8)]
 
 
 class BlueprintGeneratorOutput:

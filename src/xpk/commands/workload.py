@@ -43,10 +43,6 @@ from ..core.nap import (
     get_autoprovisioning_node_selector_args,
     is_autoprovisioning_enabled,
 )
-from ..core.network import (
-    get_subnetworks_for_a3mega,
-    get_subnetworks_for_a3ultra,
-)
 from ..core.pathways import (
     ensure_pathways_workload_prerequisites,
     get_pathways_proxy_args,

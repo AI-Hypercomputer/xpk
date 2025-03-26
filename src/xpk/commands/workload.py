@@ -633,12 +633,12 @@ def workload_create(args) -> None:
         sub_networks = get_subnetworks_for_a3mega(args.cluster)
         yml_string = tcpxo_decorator.decorate_jobset(yml_string, sub_networks)
 
-      if args.device_type == cluster_gcluster.a4_device_type:
-        sub_networks = get_subnetworks_for_a4()
-        yml_string = rdma_decorator.decorate_jobset(yml_string, sub_networks)
-
       if args.device_type == cluster_gcluster.a3ultra_device_type:
         sub_networks = get_subnetworks_for_a3ultra(args.cluster)
+        yml_string = rdma_decorator.decorate_jobset(yml_string, sub_networks)
+
+      if args.device_type == cluster_gcluster.a4_device_type:
+        sub_networks = get_subnetworks_for_a4()
         yml_string = rdma_decorator.decorate_jobset(yml_string, sub_networks)
 
       if len(gcs_fuse_storages) + len(gcpfilestore_storages) > 0:

@@ -46,7 +46,6 @@ mkdir-bin:
 install-kueuectl: mkdir-bin
 	curl -Lo $(BIN_PATH)/kubectl-kueue $(KUEUECTL_URL);
 	chmod +x $(BIN_PATH)/kubectl-kueue;
-	sudo mv -f $(BIN_PATH)/kubectl-kueue $(USR_BIN_PATH)/kubectl-kueue;
 
 .PHONY: install-kjobctl
 install-kjobctl: mkdir-bin
@@ -58,7 +57,6 @@ install-kjobctl: mkdir-bin
 	docker cp $(KJOB_DOCKER_CONTAINER):/kjob/bin/kubectl-kjob $(BIN_PATH)/kubectl-kjob;
 	docker rm -f $(KJOB_DOCKER_CONTAINER);
 	docker image rm $(KJOB_DOCKER_IMG);
-	sudo mv -f $(BIN_PATH)/kubectl-kjob $(USR_BIN_PATH)/kubectl-kjob;
 
 .PHONY: install-gcloud-auth-plugin
 install-gcloud-auth-plugin:

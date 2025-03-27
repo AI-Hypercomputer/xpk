@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 from ..core.kjob import get_a3mega_pod_template_annotations, get_a3ultra_pod_template_annotations
-from ..core.capacity import H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE
+from ..core.capacity import H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE, B200_DEVICE_TYPE
 from ..core.cluster import get_gpu_type_from_cluster
 
 
@@ -39,6 +39,6 @@ def add_gpu_networking_annotations_to_command(args, cmd: str) -> str:
 
   if gpu_type == H100_MEGA_DEVICE_TYPE:
     return add_tcpxo_annotations(args, cmd)
-  if gpu_type == H200_DEVICE_TYPE:
+  if gpu_type == H200_DEVICE_TYPE or gpu_type == B200_DEVICE_TYPE:
     return add_rdma_annotations(args, cmd)
   return cmd

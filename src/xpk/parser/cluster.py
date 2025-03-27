@@ -584,10 +584,13 @@ def add_shared_cluster_create_optional_arguments(args_parsers):
     custom_parser.add_argument(
         '--enable-gcpfilestore-csi-driver',
         action='store_true',
-        help=(
-            'Enable GCPFilestore driver on the cluster. This enables Workload'
-            ' Identity Federation.'
-        ),
+        help='Enable GCPFilestore driver on the cluster.',
+    )
+
+    custom_parser.add_argument(
+        '--enable-parallelstore-csi-driver',
+        action='store_true',
+        help='Enable Parallelstore driver on the cluster.',
     )
 
 

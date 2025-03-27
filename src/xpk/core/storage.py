@@ -45,6 +45,7 @@ STORAGE_CRD_PLURAL = "storages"
 STORAGE_CRD_NAME = f"{XPK_API_GROUP_NAME}.{STORAGE_CRD_PLURAL}"
 GCS_FUSE_TYPE = "gcsfuse"
 GCP_FILESTORE_TYPE = "gcpfilestore"
+PARALLELSTORE_TYPE = "parallelstore"
 MANIFESTS_PATH = os.path.abspath("xpkclusters/storage-manifests")
 GCS_FUSE_ANNOTATION = 'gke-gcsfuse/volumes: "true"'
 
@@ -208,6 +209,24 @@ def get_auto_mount_gcsfuse_storages(k8s_api_client: ApiClient) -> list[Storage]:
   """
   storages: list[Storage] = get_auto_mount_storages(k8s_api_client)
   return list(filter(lambda storage: storage.type == GCS_FUSE_TYPE, storages))
+
+
+def get_auto_mount_parallelstore_storages(
+    k8s_api_client: ApiClient,
+) -> list[Storage]:
+  """
+  Retrieves all GCS Fuse Storage resources that have --auto-mount flag set to true.
+
+  Args:
+      k8s_api_client: An ApiClient object for interacting with the Kubernetes API.
+
+  Returns:
+      A list of GCS Fuse Storage objects that have `auto_mount` set to True.
+  """
+  storages: list[Storage] = get_auto_mount_storages(k8s_api_client)
+  return list(
+      filter(lambda storage: storage.type == PARALLELSTORE_TYPE, storages)
+  )
 
 
 def get_storages(

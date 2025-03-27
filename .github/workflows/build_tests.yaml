@@ -90,16 +90,7 @@ jobs:
     - uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Check if cache exists
-      id: check-cache
-      uses: actions/cache@v3
-      with:
-        path: |
-          usr/local/bin/
-          ~/.cache/pip
-          ${{env.pythonLocation}}
-        key: xpk-deps-${{ matrix.python-version }}-${{needs.set-variables.outputs.run-id}}
-        lookup-only: true
+
     - name: install dependencies
       if : steps.check-cache.outputs.cache-hit != 'true'
       run: make install-lint && make install-dev && cp ./bin/kubectl-kueue /usr/local/bin/kubectl-kueue && cp ./bin/kubectl-kjob /usr/local/bin/kubectl-kjob

@@ -135,6 +135,26 @@ def update_cluster_with_gcpfilestore_driver_if_necessary(args) -> int:
   return 0
 
 
+def update_cluster_with_parallelstore_driver_if_necessary(args) -> int:
+  """Updates a GKE cluster to enable Parallelstore CSI driver, if not enabled already.
+  Args:
+    args: user provided arguments for running the command.
+  Returns:
+    0 if successful and error code otherwise.
+  """
+
+  if is_driver_enabled_on_cluster(args, driver='parallelstoreCsiDriver'):
+    return 0
+  cluster_update_return_code = update_gke_cluster_with_addon(
+      args, 'ParallelstoreCsiDriver'
+  )
+  if cluster_update_return_code > 0:
+    xpk_print('Updating GKE cluster to enable Parallelstore CSI driver failed!')
+    return cluster_update_return_code
+
+  return 0
+
+
 def is_driver_enabled_on_cluster(args, driver: str) -> bool:
   """Checks if GCSFuse CSI driver is enabled on the cluster.
   Args:

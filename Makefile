@@ -15,7 +15,6 @@ PROJECT_DIR := $(realpath $(shell dirname $(firstword $(MAKEFILE_LIST))))
 KJOB_DOCKER_IMG := xpk_kjob
 KJOB_DOCKER_CONTAINER := xpk_kjob_container
 BIN_PATH=$(PROJECT_DIR)/bin
-USR_BIN_PATH=/usr/local/bin
 
 .PHONY: install
 install: check-python check-gcloud install-gcloud-auth-plugin install-kueuectl install-kjobctl pip-install

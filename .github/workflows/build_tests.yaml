@@ -98,7 +98,7 @@ jobs:
           usr/local/bin/
           ~/.cache/pip
           ${{env.pythonLocation}}
-        key: xpk-deps-${{ matrix.python-version }}-${{github.run_id	}}-${{github.run_attempt}}
+        key: xpk-deps-${{ matrix.python-version }}-${{github.run_id}}-${{github.run_attempt}}
         lookup-only: true
     - name: install dependencies
       if : steps.check-cache.outputs.cache-hit != 'true'
@@ -112,7 +112,7 @@ jobs:
           /usr/local/bin/kubectl-kjob
           ~/.cache/pip
           ${{env.pythonLocation}}
-        key: xpk-deps-${{ matrix.python-version }}-${{github.run_id	}}-${{github.run_attempt}}
+        key: xpk-deps-${{ matrix.python-version }}-${{github.run_id}}-${{github.run_attempt}}
   linter:
     needs: [install-dependencies, set-variables]
     concurrency: # We support one build or nightly test to run at a time currently.

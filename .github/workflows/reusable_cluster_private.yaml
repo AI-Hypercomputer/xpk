@@ -67,7 +67,7 @@ jobs:
           /usr/local/bin/kubectl-kjob
           ~/.cache/pip
           ${{env.pythonLocation}}
-        key: xpk-deps-3.10-${{github.run_id	}}-${{github.run_attempt}}
+        key: xpk-deps-3.10-${{github.run_id}}-${{github.run_attempt}}
         restore-keys: xpk-deps-3.10
     - name: Set Google Cloud CLI properties to a unused zone to verify --zone arg is passed properly in commands.
       run: |

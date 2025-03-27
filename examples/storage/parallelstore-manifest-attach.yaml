@@ -1,0 +1,48 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: xpk-parallelstore-pv
+spec:
+  storageClassName: xpk-parallelstore-class
+  capacity:
+    storage: 12000Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  volumeMode: Filesystem
+  csi:
+    driver: parallelstore.csi.storage.gke.io
+    volumeHandle: "supercomputer-testing/europe-west1-b/xpk-l4-12/default-pool/default-container"
+    volumeAttributes:
+      accessPoints: 10.159.112.4, 10.159.112.3, 10.159.112.2
+      network: projects/supercomputer-testing/global/networks/xpk-l4-12-net-1
+  claimRef:
+    name: xpk-parallelstore-pvc
+    namespace: default
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: xpk-parallelstore-pvc
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: xpk-parallelstore-class
+  resources:
+    requests:
+      storage: 12000Gi
+#---
+# kind: StorageClass
+# apiVersion: storage.k8s.io/v1
+# metadata:
+#   name: xpk-parallelstore-class
+#   namespace: default
+# provisioner: parallelstore.csi.storage.gke.io
+# volumeBindingMode: Immediate
+# reclaimPolicy: Delete
+# allowedTopologies:
+# - matchLabelExpressions:
+#   - key: topology.gke.io/zone
+#     values:
+#       europe-west1-b

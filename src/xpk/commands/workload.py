@@ -55,6 +55,7 @@ from ..core.scheduling import (
 from ..core.storage import (
     GCS_FUSE_TYPE,
     GCP_FILESTORE_TYPE,
+    PARALLELSTORE_TYPE,
     Storage,
     add_bucket_iam_members,
     get_storage_volume_mounts_yaml,
@@ -567,6 +568,9 @@ def workload_create(args) -> None:
   gcpfilestore_storages: list[Storage] = list(
       filter(lambda storage: storage.type == GCP_FILESTORE_TYPE, storages)
   )
+  parallelstore_storages: list[Storage] = list(
+      filter(lambda storage: storage.type == PARALLELSTORE_TYPE, storages)
+  )
   storage_annotations = ''
   service_account = ''
   if len(gcs_fuse_storages) > 0:
@@ -597,7 +601,9 @@ def workload_create(args) -> None:
     service_account = XPK_SA
   else:
     xpk_print('No gcp filestore instances to add detected.')
-  all_storages = gcs_fuse_storages + gcpfilestore_storages
+  all_storages = (
+      gcs_fuse_storages + gcpfilestore_storages + parallelstore_storages
+  )
   # Create the workload file based on accelerator type or workload type.
   if system.accelerator_type == AcceleratorType['GPU']:
     container, debugging_dashboard_id = get_user_workload_container(
@@ -626,7 +632,12 @@ def workload_create(args) -> None:
         sub_networks = get_subnetworks_for_a3ultra(args.cluster)
         yml_string = rdma_decorator.decorate_jobset(yml_string, sub_networks)
 
-      if len(gcs_fuse_storages) + len(gcpfilestore_storages) > 0:
+      if (
+          len(gcs_fuse_storages)
+          + len(gcpfilestore_storages)
+          + len(parallelstore_storages)
+          > 0
+      ):
         yml_string = storage_decorator.decorate_jobset(yml_string, all_storages)
     else:
       yml_string = GPU_WORKLOAD_CREATE_YAML.format(

@@ -211,6 +211,24 @@ def get_auto_mount_gcsfuse_storages(k8s_api_client: ApiClient) -> list[Storage]:
   return list(filter(lambda storage: storage.type == GCS_FUSE_TYPE, storages))
 
 
+def get_auto_mount_parallelstore_storages(
+    k8s_api_client: ApiClient,
+) -> list[Storage]:
+  """
+  Retrieves all GCS Fuse Storage resources that have --auto-mount flag set to true.
+
+  Args:
+      k8s_api_client: An ApiClient object for interacting with the Kubernetes API.
+
+  Returns:
+      A list of GCS Fuse Storage objects that have `auto_mount` set to True.
+  """
+  storages: list[Storage] = get_auto_mount_storages(k8s_api_client)
+  return list(
+      filter(lambda storage: storage.type == PARALLELSTORE_TYPE, storages)
+  )
+
+
 def get_storages(
     k8s_api_client: ApiClient, requested_storages: list[str]
 ) -> list[Storage]:

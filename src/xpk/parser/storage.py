@@ -73,7 +73,7 @@ def add_storage_attach_parser(
           'The type of storage. Currently supported types: ["gcsfuse",'
           ' "gcpfilestore"]'
       ),
-      choices=['gcsfuse', 'gcpfilestore'],
+      choices=['gcsfuse', 'gcpfilestore', 'parallelstore'],
       required=True,
   )
   add_cluster_arguments(req_args, required=True)
@@ -142,6 +142,11 @@ def add_storage_attach_parser(
           '(optional) Name of the filestore instance. If not set, then the'
           ' "name" parameter is infered as an instance name.'
       ),
+  )
+
+  parallelstore_args = storage_attach_parser.add_argument_group(
+      'Parallelstore arguments',
+      'Arguments used when --type=gcpfilestore',
   )
 
   opt_args = storage_attach_parser.add_argument_group(

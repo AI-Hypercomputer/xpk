@@ -142,7 +142,6 @@ def update_cluster_with_parallelstore_driver_if_necessary(args) -> int:
   Returns:
     0 if successful and error code otherwise.
   """
-
   if is_driver_enabled_on_cluster(args, driver='parallelstoreCsiDriver'):
     return 0
   cluster_update_return_code = update_gke_cluster_with_addon(
@@ -175,7 +174,7 @@ def is_driver_enabled_on_cluster(args, driver: str) -> bool:
   )
   if return_code != 0:
     xpk_exit(return_code)
-  if gcsfuse_driver_enabled.lower() == 'true':
+  if gcsfuse_driver_enabled.strip().lower() == 'true':
     xpk_print(f'{driver} driver is enabled on the cluster, no update needed.')
     return True
   return False
@@ -466,7 +465,7 @@ def is_gcsfuse_driver_enabled_on_cluster(args) -> bool:
   )
   if return_code != 0:
     xpk_exit(return_code)
-  if gcsfuse_driver_enabled.lower() == 'true':
+  if gcsfuse_driver_enabled.strip().lower() == 'true':
     xpk_print('GCSFuse CSI driver is enabled on the cluster, no update needed.')
     return True
   return False

@@ -45,6 +45,7 @@ STORAGE_CRD_PLURAL = "storages"
 STORAGE_CRD_NAME = f"{XPK_API_GROUP_NAME}.{STORAGE_CRD_PLURAL}"
 GCS_FUSE_TYPE = "gcsfuse"
 GCP_FILESTORE_TYPE = "gcpfilestore"
+PARALLELSTORE_TYPE = "parallelstore"
 MANIFESTS_PATH = os.path.abspath("xpkclusters/storage-manifests")
 GCS_FUSE_ANNOTATION = 'gke-gcsfuse/volumes: "true"'
 

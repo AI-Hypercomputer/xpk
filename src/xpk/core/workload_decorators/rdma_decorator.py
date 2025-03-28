@@ -33,7 +33,7 @@ def decorate_kjob_template(job_manifest) -> str:
   return job_manifest
 
 
-def decorate_jobset(jobset_manifest_str, sub_networks) -> str:
+def decorate_jobset(jobset_manifest_str: str, sub_networks: list[str]) -> str:
   """
   Decorates a JobSet manifest with the necessary components for rdma-daemon.
 
@@ -80,7 +80,7 @@ def get_interfaces_entry(sub_networks: list[str]) -> tuple[str, str]:
   return 'networking.gke.io/interfaces', literal_string('\n'.join(interfaces))
 
 
-def add_annotations(job_manifest, sub_networks):
+def add_annotations(job_manifest: dict, sub_networks: list[str]):
   """Adds or updates annotations in the Pod template."""
   annotations = job_manifest['spec']['template']['metadata']['annotations']
   interfaces_key, interfaces_value = get_interfaces_entry(sub_networks)

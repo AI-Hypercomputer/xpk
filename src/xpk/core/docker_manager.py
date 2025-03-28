@@ -30,12 +30,12 @@ import time
 DockerRunCommandExitCode = 135
 dockerBuildErrorCode = 134
 ctk_dockerfile_path = "Dockerfile"
-ctk_build_ref = "v1.45.1"
+ctk_build_ref = "develop"
 ctk_docker_image = "xpk-ctk"
 ctk_container_name = "xpk-ctk-container"
 gcloud_cfg_mount_path = "/root/.config/gcloud"
 working_dir_mount_path = "/out"
-dockerfile_gh_path = f"https://raw.githubusercontent.com/GoogleCloudPlatform/cluster-toolkit/refs/tags/{ctk_build_ref}/tools/cloud-build/images/cluster-toolkit-dockerfile/Dockerfile"
+dockerfile_gh_path = "https://raw.githubusercontent.com/GoogleCloudPlatform/cluster-toolkit/refs/heads/develop/tools/cloud-build/images/cluster-toolkit-dockerfile/Dockerfile"
 upload_dir_name = "uploads"
 
 

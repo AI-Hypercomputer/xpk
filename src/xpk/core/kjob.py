@@ -22,6 +22,10 @@ from kubernetes import client as k8s_client
 from kubernetes.client import ApiClient
 from kubernetes.client.rest import ApiException
 
+from ..core.blueprint.blueprint_generator import (
+    get_subnetworks_for_a3mega,
+    get_subnetworks_for_a3ultra,
+)
 from ..core.capacity import H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE
 from ..core.workload_decorators import rdma_decorator, tcpxo_decorator
 from ..utils import templates
@@ -40,7 +44,6 @@ from .config import (
     KJOB_SHELL_WORKING_DIRECTORY,
     XpkConfig,
 )
-from .network import get_subnetworks_for_a3mega, get_subnetworks_for_a3ultra
 from .resources import (
     AcceleratorType,
     SystemCharacteristics,

@@ -37,7 +37,7 @@ def add_gpu_networking_annotations_to_command(args, cmd: str) -> str:
   elif gpu_type == B200_DEVICE_TYPE:
     annotations = get_a4_pod_template_annotations()
   else:
-    raise RuntimeError(f"Invalid gpu_type: {gpu_type}")
+    annotations = []
 
   flags = [
       f" --pod-template-annotation {annotation} " for annotation in annotations

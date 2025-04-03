@@ -161,6 +161,19 @@ def set_workload_parsers(workload_parser):
           ' create Pathways workloads.'
       ),
   )
+  workload_create_parser_optional_arguments.add_argument(
+      '--restart-on-exit-codes',
+      type=str,
+      default=None,
+      help=(
+          'Adding this argument specifies additional user-defined exit codes'
+          ' that allow restarting the workload when --max-restarts is set to'
+          ' a value greater than 0. By default, workloads restart on exit'
+          ' codes 42 and 127-255. Any exit codes provided through this flag'
+          ' will be included alongside the default codes for restarting'
+          ' conditions.'
+      ),
+  )
 
   # Autoprovisioning workload arguments
   workload_create_autoprovisioning_arguments.add_argument(
@@ -585,7 +598,7 @@ def add_shared_workload_create_optional_arguments(args_parsers):
     custom_parser.add_argument(
         '--remote-python-sidecar-image',
         type=str,
-        default=None,
+        default='',
         help='Remote Python sidecar server image.',
     )
     custom_parser.add_argument(
@@ -594,19 +607,6 @@ def add_shared_workload_create_optional_arguments(args_parsers):
         help=(
             'Set this flag to get verbose logging to investigate the issue in'
             ' the workload.'
-        ),
-    )
-    custom_parser.add_argument(
-        '--restart-on-exit-codes',
-        type=str,
-        default=None,
-        help=(
-            'Adding this argument specifies additional user-defined exit codes'
-            ' that allow restarting the workload when --max-restarts is set to'
-            ' a value greater than 0. By default, workloads restart on exit'
-            ' codes 42 and 127-255. Any exit codes provided through this flag'
-            ' will be included alongside the default codes for restarting'
-            ' conditions.'
         ),
     )
     custom_parser.add_argument(

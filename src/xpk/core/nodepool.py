@@ -138,35 +138,36 @@ def run_gke_node_pool_create_command(
       else:
         node_pools_to_remain.append(node_pool_name)
 
-    # Workload Identity for existing nodepools
-    if args.enable_workload_identity or args.enable_gcsfuse_csi_driver:
-      for node_pool_name in existing_node_pool_names:
-        if not node_pool_name in node_pools_to_delete:
-          # Check if workload identity is not already enabled:
-          return_code, existing_node_pool_medadata_mode = (
-              get_nodepool_workload_metadata_mode(args, node_pool_name)
-          )
-          if return_code != 0:
-            return 1
+    if not args.enable_pathways:
+      # Workload Identity for existing nodepools
+      if args.enable_workload_identity or args.enable_gcsfuse_csi_driver:
+        for node_pool_name in existing_node_pool_names:
+          if not node_pool_name in node_pools_to_delete:
+            # Check if workload identity is not already enabled:
+            return_code, existing_node_pool_medadata_mode = (
+                get_nodepool_workload_metadata_mode(args, node_pool_name)
+            )
+            if return_code != 0:
+              return 1
 
-          if (
-              existing_node_pool_zone
-              and existing_node_pool_medadata_mode != 'GKE_METADATA'
-          ):
-            command = (
-                'gcloud container node-pools update'
-                f' {node_pool_name} --cluster={args.cluster}'
-                f' --zone={zone_to_region(args.zone)}'
-                f' --project={args.project} --quiet'
-                ' --workload-metadata=GKE_METADATA'
-            )
-            task = (
-                'Update nodepool with Workload Identity enabled'
-                f' {node_pool_name}'
-            )
-            update_WI_commands.append(command)
-            update_WI_task_names.append(task)
-            node_pools_to_update_WI.append(node_pool_name)
+            if (
+                existing_node_pool_zone
+                and existing_node_pool_medadata_mode != 'GKE_METADATA'
+            ):
+              command = (
+                  'gcloud container node-pools update'
+                  f' {node_pool_name} --cluster={args.cluster}'
+                  f' --zone={zone_to_region(args.zone)}'
+                  f' --project={args.project} --quiet'
+                  ' --workload-metadata=GKE_METADATA'
+              )
+              task = (
+                  'Update nodepool with Workload Identity enabled'
+                  f' {node_pool_name}'
+              )
+              update_WI_commands.append(command)
+              update_WI_task_names.append(task)
+              node_pools_to_update_WI.append(node_pool_name)
 
   # Deletion of nodepools should happen before attempting to create new nodepools for the case
   # when cluster is getting updated from 'x' device_type/gke_accelerator to 'y' device_type/gke_accelerator.
@@ -298,8 +299,9 @@ def run_gke_node_pool_create_command(
           f' --scopes=storage-full,gke-default,{CLOUD_PLATFORM_AUTH_SCOPE_URL}'
       )
 
-    if args.enable_workload_identity or args.enable_gcsfuse_csi_driver:
-      command += ' --workload-metadata=GKE_METADATA'
+    if not args.enable_pathways:
+      if args.enable_workload_identity or args.enable_gcsfuse_csi_driver:
+        command += ' --workload-metadata=GKE_METADATA'
 
     task = f'NodepoolCreate-{node_pool_name}'
     create_commands.append(command)

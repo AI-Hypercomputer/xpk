@@ -22,6 +22,7 @@ from ..core.cluster import (
     get_cluster_credentials,
     install_nccl_on_cluster,
     set_jobset_on_cluster,
+    set_pathways_job_on_cluster,
     setup_k8s_env,
     update_cluster_with_gcsfuse_driver_if_necessary,
     update_cluster_with_workload_identity_if_necessary,
@@ -116,32 +117,33 @@ def cluster_create(args) -> None:
     xpk_exit(authorize_private_cluster_access_command_code)
 
   # ToDo(roshanin@) - Re-enable CloudDNS on Pathways clusters conditionally.
-  # Enable WorkloadIdentity if not enabled already.
-  if (
-      args.enable_workload_identity
-      or args.enable_gcsfuse_csi_driver
-      or args.enable_gcpfilestore_csi_driver
-  ):
-    update_cluster_command_code = (
-        update_cluster_with_workload_identity_if_necessary(args)
-    )
-    if update_cluster_command_code != 0:
-      xpk_exit(update_cluster_command_code)
+  if not args.enable_pathways:
+    # Enable WorkloadIdentity if not enabled already.
+    if (
+        args.enable_workload_identity
+        or args.enable_gcsfuse_csi_driver
+        or args.enable_gcpfilestore_csi_driver
+    ):
+      update_cluster_command_code = (
+          update_cluster_with_workload_identity_if_necessary(args)
+      )
+      if update_cluster_command_code != 0:
+        xpk_exit(update_cluster_command_code)
 
-  # Enable GCSFuse CSI Driver if not enabled already.
-  if args.enable_gcsfuse_csi_driver:
-    update_cluster_command_code = (
-        update_cluster_with_gcsfuse_driver_if_necessary(args)
-    )
-    if update_cluster_command_code != 0:
-      xpk_exit(update_cluster_command_code)
+    # Enable GCSFuse CSI Driver if not enabled already.
+    if args.enable_gcsfuse_csi_driver:
+      update_cluster_command_code = (
+          update_cluster_with_gcsfuse_driver_if_necessary(args)
+      )
+      if update_cluster_command_code != 0:
+        xpk_exit(update_cluster_command_code)
 
-  if args.enable_gcpfilestore_csi_driver:
-    update_cluster_command_code = (
-        update_cluster_with_gcpfilestore_driver_if_necessary(args)
-    )
-    if update_cluster_command_code != 0:
-      xpk_exit(update_cluster_command_code)
+    if args.enable_gcpfilestore_csi_driver:
+      update_cluster_command_code = (
+          update_cluster_with_gcpfilestore_driver_if_necessary(args)
+      )
+      if update_cluster_command_code != 0:
+        xpk_exit(update_cluster_command_code)
 
   # Update Pathways clusters with CloudDNS if not enabled already.
 
@@ -205,6 +207,11 @@ def cluster_create(args) -> None:
   set_jobset_on_cluster_code = set_jobset_on_cluster(args)
   if set_jobset_on_cluster_code != 0:
     xpk_exit(set_jobset_on_cluster_code)
+
+  if args.enable_pathways:
+    set_pathways_job_on_cluster_code = set_pathways_job_on_cluster(args)
+    if set_pathways_job_on_cluster_code != 0:
+      xpk_exit(set_pathways_job_on_cluster_code)
 
   xpk_print('Enabling Kueue on the cluster')
   install_kueue_on_cluster_code = install_kueue_on_cluster(args)
@@ -782,19 +789,20 @@ def run_gke_cluster_create_command(
   if args.enable_ray_cluster:
     command += ' --addons RayOperator'
 
-  if (
-      args.enable_workload_identity
-      or args.enable_gcsfuse_csi_driver
-      or args.enable_gcpfilestore_csi_driver
-  ):
-    command += f' --workload-pool={args.project}.svc.id.goog'
+  if not args.enable_pathways:
+    if (
+        args.enable_workload_identity
+        or args.enable_gcsfuse_csi_driver
+        or args.enable_gcpfilestore_csi_driver
+    ):
+      command += f' --workload-pool={args.project}.svc.id.goog'
 
-  addons = []
-  if args.enable_gcsfuse_csi_driver:
-    addons.append('GcsFuseCsiDriver')
+    addons = []
+    if args.enable_gcsfuse_csi_driver:
+      addons.append('GcsFuseCsiDriver')
 
-  if args.enable_gcpfilestore_csi_driver:
-    addons.append('GcpFilestoreCsiDriver')
+    if args.enable_gcpfilestore_csi_driver:
+      addons.append('GcpFilestoreCsiDriver')
 
   if len(addons) > 0:
     addons_str = ','.join(addons)

@@ -32,81 +32,6 @@ PathwaysExpectedInstancesMap = {
 }
 
 
-def get_pathways_worker_args(args) -> str:
-  """Arguments for the Pathways workers.
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    str: yaml containing arguments for the Pathways workers.
-  """
-  yaml = """- --server_port=29001
-                - --resource_manager_address={rm_address}
-                - --gcs_scratch_location={args.pathways_gcs_location}"""
-  if args.use_pathways:
-    if args.custom_pathways_worker_args:
-      yaml = append_custom_pathways_args(yaml, args.custom_pathways_worker_args)
-    return yaml.format(args=args, rm_address=get_rm_address(args))
-  else:
-    return ''
-
-
-def get_pathways_proxy_args(args) -> str:
-  """Arguments for the Pathways proxy.
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    str: yaml containing arguments for the Pathways proxy.
-  """
-  yaml = """- --server_port=29000
-                - --resource_manager_address={rm_address}
-                - --gcs_scratch_location={args.pathways_gcs_location}"""
-
-  if args.use_pathways:
-    if args.custom_pathways_proxy_server_args:
-      yaml = append_custom_pathways_args(
-          yaml, args.custom_pathways_proxy_server_args
-      )
-    return yaml.format(args=args, rm_address=get_rm_address(args))
-  else:
-    return ''
-
-
-def get_pathways_sidecar_container(args) -> str:
-  """This is a sidecar container that runs the remote python server.
-
-      It is a special case of the initContainer (designated by restartPolicy:
-      Always)
-      See https://kubernetes.io/docs/concepts/workloads/pods/sidecar-containers/
-      for more details.
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    str: yaml containing arguments for the Pathways sidecar container.
-  """
-  yaml = """initContainers:
-              - name: remote-python-sidecar
-                image: {args.remote_python_sidecar_image}
-                imagePullPolicy: Always
-                securityContext:
-                  privileged: true
-                volumeMounts:
-                - mountPath: /tmp  # Shared volume mount with the main container.
-                  name: shared-tmp
-                restartPolicy: Always
-                ports:
-                - containerPort: 50051
-                env:
-                - name: GRPC_SERVER_ADDRESS
-                  value: '0.0.0.0:50051'"""
-  if args.use_pathways and args.remote_python_sidecar_image is not None:
-    return yaml.format(args=args)
-  else:
-    return ''
-
-
 def add_pw_resource_flavors(args):
   """Add resource flavors required for Pathways enabled clusters."""
   resource_flavor_yaml = """apiVersion: kueue.x-k8s.io/v1beta1
@@ -223,58 +148,26 @@ def get_pathways_unified_query_link(args) -> str:
   return f'https://console.cloud.google.com/logs/query;query={query_params}'
 
 
-def get_pathways_rm_args(args, system: SystemCharacteristics) -> str:
-  """Arguments for the Pathways resource manager.
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    str: yaml containing arguments for the Pathways resource manager.
-  """
-  yaml = """- --server_port=29001
-                - --gcs_scratch_location={args.pathways_gcs_location}
-                - --node_type=resource_manager
-                - --instance_count={instance_count}
-                - --instance_type={instance_type}"""
-  if args.use_pathways:
-    if args.custom_pathways_server_args:
-      yaml = append_custom_pathways_args(yaml, args.custom_pathways_server_args)
-    return yaml.format(
-        args=args,
-        instance_count=args.num_slices,
-        instance_type=f'{get_pathways_expected_tpu_type(system.device_type)}:{system.topology}',
-    )
-  else:
-    return ''
-
-
-def append_custom_pathways_args(yaml, custom_args) -> str:
-  """Append custom Pathways args to the YAML with proper indentation.
-
-  Args:
-      yaml (string): existing yaml containing args
+def append_custom_pathways_args(custom_args) -> str:
+  """Append custom Pathways args to Pathways components using a YAML with proper indentation.
 
   Returns:
       yaml (string): yaml with additional args appended.
   """
-  second_line = yaml.split('\n')[1]
-  if (
-      not second_line
-  ):  # to cover edge case if only one arg remains, we would have to look at the entire YAML in this case.
-    return yaml
-  # Calculate the indentation based on the second line of existing YAML.
-  indentation = ' ' * (len(second_line) - len(second_line.lstrip()))
-  custom_args = custom_args.split(' ')
-  for arg in custom_args:
-    yaml += '\n' + indentation + '- ' + arg
+  yaml = """"""
+  indentation = (
+      ' ' * 10
+  )  # Currently 6, based on the YAML, may need to update in the future.
+  if custom_args:
+    custom_args = custom_args.split(' ')
+    for arg in custom_args:
+      yaml += '\n' + indentation + '- ' + arg
   return yaml
 
 
 def get_user_workload_for_pathways(
     args,
     system: SystemCharacteristics,
-    pod_failure_policy,
-    storages: list[Storage],
 ) -> str:
   """
   Create a user workload container for Pathways.
@@ -289,48 +182,29 @@ def get_user_workload_for_pathways(
     str:
       Pathways server port as a YAML string
   """
-  user_workload_yaml = """- name: main
-      replicas: 1
-      template:
-        metadata:
-          labels:
-            xpk.google.com/workload: {args.workload}
-        spec:
-          backoffLimit: 0
-          completions: 1
-          parallelism: 1
-          {pod_failure_policy}
-          template:
-            metadata:
-              annotations:
-                {gcs_fuse_annotation}
-            spec:
-              containers:
+  user_workload_yaml = """
+          metadata:
+          spec:
+            containers:
               {container}
-              serviceAccountName: {service_account}
-              nodeSelector:
-                cloud.google.com/gke-nodepool: cpu-user-np
-              hostNetwork: true
-              dnsPolicy: ClusterFirstWithHostNet
-              restartPolicy: Never
-              volumes:
-              - hostPath:
-                  path: /tmp
-                  type: DirectoryOrCreate
-                name: shared-tmp
-              {storage_volumes}"""
+            nodeSelector:
+              cloud.google.com/gke-nodepool: cpu-user-np
+            hostNetwork: true
+            dnsPolicy: ClusterFirstWithHostNet
+            restartPolicy: Never
+            volumes:
+            - hostPath:
+                path: /tmp
+                type: DirectoryOrCreate
+              name: shared-tmp
+    """
   if args.headless:
     return ''
   else:
     container, _ = get_user_workload_container(args, system)
-    storage_volumes = get_storage_volumes_yaml(storages)
     return user_workload_yaml.format(
         args=args,
         container=container,
-        storage_volumes=storage_volumes,
-        pod_failure_policy=pod_failure_policy,
-        service_account=XPK_SA,
-        gcs_fuse_annotation=GCS_FUSE_ANNOTATION,
     )
 
 
@@ -354,7 +228,9 @@ def get_proxy_address(args) -> str:
   Returns:
     str: Fully qualified proxy address.
   """
-  proxy_address = f'grpc://{args.workload}-proxy-0-0.{args.workload}:29000'
+  proxy_address = (
+      f'grpc://{args.workload}-pathways-head-0-0.{args.workload}:29000'
+  )
   return proxy_address
 
 

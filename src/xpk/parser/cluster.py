@@ -107,6 +107,29 @@ def set_cluster_parser(cluster_parser):
           ' enable cluster to accept Pathways workloads.'
       ),
   )
+  cluster_create_optional_arguments.add_argument(
+      '--enable-workload-identity',
+      action='store_true',
+      help='Enable Workload Identity Federation on the cluster and node-pools.',
+  )
+  cluster_create_optional_arguments.add_argument(
+      '--enable-gcsfuse-csi-driver',
+      action='store_true',
+      help=(
+          'Enable GSCFuse driver on the cluster. This enables Workload'
+          ' Identity Federation. When using A3 ultra/A3 mega Workload'
+          ' Identity is enabled by default.'
+      ),
+  )
+  cluster_create_optional_arguments.add_argument(
+      '--enable-gcpfilestore-csi-driver',
+      action='store_true',
+      help=(
+          'Enable GCPFilestore driver on the cluster. This enables Workload'
+          ' Identity Federation.'
+      ),
+  )
+
   ### Autoprovisioning arguments specific to "cluster create"
   cluster_create_autoprovisioning_arguments = (
       cluster_create_parser.add_argument_group(
@@ -562,31 +585,6 @@ def add_shared_cluster_create_optional_arguments(args_parsers):
             ' cluster will be provisioned. It replaces existing authorized'
             ' networks if used with an existing private cluster.'
             ' Example usage: --authorized-networks 1.2.3.0/24 1.2.4.5/32'
-        ),
-    )
-    custom_parser.add_argument(
-        '--enable-workload-identity',
-        action='store_true',
-        help=(
-            'Enable Workload Identity Federation on the cluster and node-pools.'
-        ),
-    )
-    custom_parser.add_argument(
-        '--enable-gcsfuse-csi-driver',
-        action='store_true',
-        help=(
-            'Enable GSCFuse driver on the cluster. This enables Workload'
-            ' Identity Federation. When using A3 ultra/A3 mega Workload'
-            ' Identity is enabled by default.'
-        ),
-    )
-
-    custom_parser.add_argument(
-        '--enable-gcpfilestore-csi-driver',
-        action='store_true',
-        help=(
-            'Enable GCPFilestore driver on the cluster. This enables Workload'
-            ' Identity Federation.'
         ),
     )
 

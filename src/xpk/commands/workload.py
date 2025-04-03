@@ -258,7 +258,113 @@ spec:
     operator: "All"
     targetReplicatedJobs:
     - {args.targetReplicatedJob}
+  startupPolicy:
+    startupPolicyOrder: InOrder
   replicatedJobs:
+    - name: rm
+      replicas: 1
+      template:
+        metadata:
+          labels:
+            xpk.google.com/workload: {args.workload}
+        spec:
+          backoffLimit: 0
+          completions: 1
+          parallelism: 1
+          template:
+            spec:
+              containers:
+              - args:
+                {pathways_rm_args}
+                env:
+                - name: REPLICATED_JOB_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.annotations['jobset.sigs.k8s.io/replicatedjob-name']
+                - name: JOBSET_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.annotations['jobset.sigs.k8s.io/jobset-name']
+                - name: HOST_ADDRESS
+                  value: $(JOBSET_NAME)-$(REPLICATED_JOB_NAME)-0-0.$(JOBSET_NAME)
+                - name: TPU_SKIP_MDS_QUERY
+                  value: "true"
+                - name: PROJECT_ID
+                  value: {args.project}
+                - name: LOCATION
+                  value: {args.zone}
+                - name: CLUSTER_NAME
+                  value: {args.cluster}
+                - name: POD_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
+                - name: CONTAINER_NAME
+                  value: "pathways-rm"
+                - name: NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
+                imagePullPolicy: Always
+                name: pathways-rm
+                ports:
+                - containerPort: 29001
+                securityContext:
+                  privileged: true
+                volumeMounts:
+                - mountPath: /tmp
+                  name: shared-tmp
+              nodeSelector:
+                cloud.google.com/gke-nodepool: cpu-rm-np
+              hostNetwork: true
+              dnsPolicy: ClusterFirstWithHostNet
+              volumes:
+              - hostPath:
+                  path: /tmp
+                  type: DirectoryOrCreate
+                name: shared-tmp
+    - name: proxy
+      replicas: 1
+      template:
+        metadata:
+          labels:
+            xpk.google.com/workload: {args.workload}
+        spec:
+          backoffLimit: 0
+          completions: 1
+          parallelism: 1
+          template:
+            spec:
+              containers:
+              - args:
+                {pathways_proxy_args}
+                env:
+                - name: PROJECT_ID
+                  value: {args.project}
+                - name: LOCATION
+                  value: {args.zone}
+                - name: CLUSTER_NAME
+                  value: {args.cluster}
+                - name: POD_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
+                - name: CONTAINER_NAME
+                  value: "pathways-proxy"
+                - name: NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
+                image: {args.proxy_server_image}
+                imagePullPolicy: Always
+                name: pathways-proxy
+                ports:
+                - containerPort: 29000
+              hostNetwork: true
+              dnsPolicy: ClusterFirstWithHostNet
+              nodeSelector:
+                cloud.google.com/gke-nodepool: cpu-proxy-np
+    {user_workload}
     - name: worker
       replicas: {args.num_slices}
       template:
@@ -349,111 +455,6 @@ spec:
                   type: DirectoryOrCreate
                 name: shared-tmp
               {storage_volumes}
-    - name: rm
-      replicas: 1
-      template:
-        metadata:
-          labels:
-            xpk.google.com/workload: {args.workload}
-        spec:
-          backoffLimit: 0
-          completions: 1
-          parallelism: 1
-          template:
-            spec:
-              containers:
-              - args:
-                {pathways_rm_args}
-                env:
-                - name: PROJECT_ID
-                  value: {args.project}
-                - name: LOCATION
-                  value: {args.zone}
-                - name: CLUSTER_NAME
-                  value: {args.cluster}
-                - name: POD_NAME
-                  valueFrom:
-                    fieldRef:
-                      fieldPath: metadata.name
-                - name: CONTAINER_NAME
-                  value: "pathways-rm"
-                - name: NAMESPACE
-                  valueFrom:
-                    fieldRef:
-                      fieldPath: metadata.namespace
-                - name: REPLICATED_JOB_NAME
-                  valueFrom:
-                    fieldRef:
-                      fieldPath: metadata.annotations['jobset.sigs.k8s.io/replicatedjob-name']
-                - name: JOBSET_NAME
-                  valueFrom:
-                    fieldRef:
-                      fieldPath: metadata.annotations['jobset.sigs.k8s.io/jobset-name']
-                - name: HOST_ADDRESS
-                  value: $(JOBSET_NAME)-$(REPLICATED_JOB_NAME)-0-0.$(JOBSET_NAME)
-                - name: TPU_SKIP_MDS_QUERY
-                  value: "true"
-                image: {args.server_image}
-                imagePullPolicy: Always
-                name: pathways-rm
-                ports:
-                - containerPort: 29001
-                securityContext:
-                  privileged: true
-                volumeMounts:
-                - mountPath: /tmp
-                  name: shared-tmp
-              nodeSelector:
-                cloud.google.com/gke-nodepool: cpu-rm-np
-              hostNetwork: true
-              dnsPolicy: ClusterFirstWithHostNet
-              volumes:
-              - hostPath:
-                  path: /tmp
-                  type: DirectoryOrCreate
-                name: shared-tmp
-    - name: proxy
-      replicas: 1
-      template:
-        metadata:
-          labels:
-            xpk.google.com/workload: {args.workload}
-        spec:
-          backoffLimit: 0
-          completions: 1
-          parallelism: 1
-          template:
-            spec:
-              containers:
-              - args:
-                {pathways_proxy_args}
-                env:
-                - name: PROJECT_ID
-                  value: {args.project}
-                - name: LOCATION
-                  value: {args.zone}
-                - name: CLUSTER_NAME
-                  value: {args.cluster}
-                - name: POD_NAME
-                  valueFrom:
-                    fieldRef:
-                      fieldPath: metadata.name
-                - name: CONTAINER_NAME
-                  value: "pathways-proxy"
-                - name: NAMESPACE
-                  valueFrom:
-                    fieldRef:
-                      fieldPath: metadata.namespace
-                image: {args.proxy_server_image}
-                imagePullPolicy: Always
-                name: pathways-proxy
-                ports:
-                - containerPort: 29000
-              hostNetwork: true
-              dnsPolicy: ClusterFirstWithHostNet
-              nodeSelector:
-                cloud.google.com/gke-nodepool: cpu-proxy-np
-    {user_workload}
 """
 
 
@@ -742,8 +743,7 @@ def workload_create(args) -> None:
           ' done! ******* '
       )
       xpk_print(
-          'Steps to connect to the proxy: kubectl get pods | grep proxy ;'
-          ' kubectl port-forward <proxy-pod-name> 29000:29000; '
+          'Steps to connect to the proxy: kubectl get pods | grep {args.workload}-proxy-0 | awk "{print $1}" | xargs -I {} kubectl port-forward {} 29000:29000 &'
           ' JAX_PLATFORMS=proxy; JAX_BACKEND_TARGET=grpc://127.0.0.1:29000;'
           " python -c 'import pathwaysutils; import jax; print(jax.devices())'"
       )

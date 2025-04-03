@@ -20,10 +20,10 @@ import sys
 from ruamel.yaml import YAML
 
 from ..core.commands import run_command_for_value, run_command_with_updates
+from ..core.cluster import get_cluster_credentials
 from ..core.gcloud_context import add_zone_and_project
 from ..core.kjob import AppProfileDefaults
 from ..utils.console import xpk_exit, xpk_print
-from .common import set_cluster_command
 from .kind import set_local_cluster_command
 
 
@@ -143,14 +143,14 @@ def job_list(args) -> None:
   """
   if not args.kind_cluster:
     add_zone_and_project(args)
-    set_cluster_command_code = set_cluster_command(args)
+    get_cluster_credentials(args)
     msg = f'Listing jobs for project {args.project} and zone {args.zone}:'
   else:
     set_cluster_command_code = set_local_cluster_command(args)
     msg = 'Listing jobs:'
+    if set_cluster_command_code != 0:
+      xpk_exit(set_cluster_command_code)
 
-  if set_cluster_command_code != 0:
-    xpk_exit(set_cluster_command_code)
   xpk_print(msg, flush=True)
 
   return_code = run_slurm_job_list_command(args)
@@ -178,12 +178,11 @@ def job_cancel(args) -> None:
   xpk_print(f'Starting job cancel for job: {args.name}', flush=True)
   if not args.kind_cluster:
     add_zone_and_project(args)
-    set_cluster_command_code = set_cluster_command(args)
+    get_cluster_credentials(args)
   else:
     set_cluster_command_code = set_local_cluster_command(args)
-
-  if set_cluster_command_code != 0:
-    xpk_exit(set_cluster_command_code)
+    if set_cluster_command_code != 0:
+      xpk_exit(set_cluster_command_code)
 
   return_code = run_slurm_job_delete_command(args)
   xpk_exit(return_code)

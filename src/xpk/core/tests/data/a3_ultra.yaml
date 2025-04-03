@@ -22,7 +22,7 @@ terraform_backend_defaults:
   type: gcs
   configuration:
     bucket: test-bucket
-    prefix: xpk_terraform_state/testdir/tfstate/
+    prefix: xpk_terraform_state/testdir/gke-a3-ultra/
 
 deployment_groups:
 - !DeploymentGroup

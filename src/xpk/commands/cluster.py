@@ -46,7 +46,7 @@ from ..core.nap import enable_autoprovisioning_on_cluster
 from ..core.network import (
     create_cluster_network_config,
     delete_cluster_subnets,
-    set_up_cluster_network_for_gpu,
+    set_up_cluster_network_for_a3,
 )
 from ..core.nodepool import get_gke_node_pool_version, run_gke_node_pool_create_command
 from ..core.ray import install_ray_cluster
@@ -155,13 +155,12 @@ def cluster_create(args) -> None:
     if not tensorboard_config:
       xpk_exit(1)
 
-  if system.accelerator_type == AcceleratorType['GPU']:
+  if system.device_type == H100_DEVICE_TYPE:
     xpk_print('Setting up Network for cluster')
-    set_up_cluster_network_code = set_up_cluster_network_for_gpu(args, system)
+    set_up_cluster_network_code = set_up_cluster_network_for_a3(args)
     if set_up_cluster_network_code != 0:
       xpk_exit(set_up_cluster_network_code)
 
-  if system.device_type == H100_DEVICE_TYPE:
     xpk_print('Creating Network Config for cluster')
     create_cluster_network_config_code = create_cluster_network_config(args)
     if create_cluster_network_config_code != 0:

@@ -283,12 +283,10 @@ def run_gke_node_pool_create_command(
       command += (
           ' --accelerator'
           f' type={system.gke_accelerator},count={str(system.chips_per_vm)},gpu-driver-version=latest'
-          ' --no-enable-autoupgrade '
-          f' --scopes={CLOUD_PLATFORM_AUTH_SCOPE_URL} --additional-node-network'
-          f' network={args.cluster}-net-1,subnetwork={subnet_prefix}-sub-1'
+          f' --no-enable-autoupgrade --scopes={CLOUD_PLATFORM_AUTH_SCOPE_URL}'
       )
       if device_type == H100_MEGA_DEVICE_TYPE:
-        for i in range(2, 9):
+        for i in range(1, 9):
           command += (
               ' --additional-node-network'
               f' network={args.cluster}-net-{i},subnetwork={subnet_prefix}-sub-{i}'

@@ -286,25 +286,14 @@ def run_gke_node_pool_create_command(
           ' --no-enable-autoupgrade '
           f' --scopes={CLOUD_PLATFORM_AUTH_SCOPE_URL} --additional-node-network'
           f' network={args.cluster}-net-1,subnetwork={subnet_prefix}-sub-1'
-          ' --additional-node-network'
-          f' network={args.cluster}-net-2,subnetwork={subnet_prefix}-sub-2'
-          ' --additional-node-network'
-          f' network={args.cluster}-net-3,subnetwork={subnet_prefix}-sub-3'
-          ' --additional-node-network'
-          f' network={args.cluster}-net-4,subnetwork={subnet_prefix}-sub-4'
       )
       if device_type == H100_MEGA_DEVICE_TYPE:
-        command += (
-            ' --additional-node-network'
-            f' network={args.cluster}-net-5,subnetwork={subnet_prefix}-sub-5'
-            ' --additional-node-network'
-            f' network={args.cluster}-net-6,subnetwork={subnet_prefix}-sub-6'
-            ' --additional-node-network'
-            f' network={args.cluster}-net-7,subnetwork={subnet_prefix}-sub-7'
-            ' --additional-node-network'
-            f' network={args.cluster}-net-8,subnetwork={subnet_prefix}-sub-8'
-            ' --max-pods-per-node=32'
-        )
+        for i in range(2, 9):
+          command += (
+              ' --additional-node-network'
+              f' network={args.cluster}-net-{i},subnetwork={subnet_prefix}-sub-{i}'
+          )
+        command += ' --max-pods-per-node=32'
     elif system.accelerator_type == AcceleratorType['CPU']:
       command += f' --num-nodes={system.vms_per_slice}'
       command += (

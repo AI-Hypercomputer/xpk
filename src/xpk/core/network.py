@@ -259,7 +259,7 @@ def set_up_cluster_network_for_gpu(args, system: SystemCharacteristics) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
-  num_networks = 5 if system.device_type == H100_DEVICE_TYPE else 9
+  num_networks = 5 if system.device_type == H100_DEVICE_TYPE else 2
   for i in range(1, num_networks):
     return_code = create_cluster_network(args, i)
     if return_code != 0:

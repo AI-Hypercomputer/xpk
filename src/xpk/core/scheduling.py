@@ -229,6 +229,21 @@ def create_accelerator_label(accelerator_type, system) -> str:
   )
 
 
+def create_tpu_machine_type(accelerator_type, system) -> str:
+  """Generates TPU machine type..
+
+  Args:
+    accelerator_type: type of accelerator.
+    system: system characteristics.
+
+  Returns:
+    The accelerator label.
+  """
+  if accelerator_type == AcceleratorType['TPU']:
+    return f'{system.gce_machine_type}'
+  return ''
+
+
 def create_machine_label(
     accelerator_type, system, autoprovisioning_enabled: bool = False
 ) -> str:
@@ -250,4 +265,25 @@ def create_machine_label(
         f'{AcceleratorTypeToAcceleratorCharacteristics[accelerator_type].machine_label}:'
         f' {system.topology}'
     )
+  return ''
+
+
+def create_tpu_topology(
+    accelerator_type, system, autoprovisioning_enabled: bool = False
+) -> str:
+  """Generates TPU topology.
+
+  Args:
+    accelerator_type: type of accelerator.
+    system: system characteristics.
+    autoprovisioning_enabled: describes autoprovisioning enablement.
+
+  Returns:
+    The machine label.
+  """
+  if (
+      accelerator_type == AcceleratorType['TPU']
+      and not autoprovisioning_enabled
+  ):
+    return f'{system.topology}'
   return ''

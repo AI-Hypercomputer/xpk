@@ -46,7 +46,7 @@ from .resources import (
     SystemCharacteristics,
     get_cluster_system_characteristics,
 )
-from .storage import get_auto_mount_gcsfuse_storages, get_auto_mount_storages
+from .storage import get_auto_mount_gcsfuse_storages, get_auto_mount_storages, get_auto_mount_parallelstore_storages
 from .workload_decorators.tcpxo_decorator import get_tcpxo_deamon_entry
 
 KJOB_API_GROUP_NAME = "kjobctl.x-k8s.io"
@@ -449,9 +449,16 @@ def create_volume_bundle_instance(
       xpk_exit(1)
 
 
-def get_gcsfuse_annotation(args: Namespace) -> str | None:
+def get_storage_annotations(args: Namespace) -> list[str]:
+  annotations = []
   k8s_api_client = setup_k8s_env(args)
+
   gcsfuse_storages = get_auto_mount_gcsfuse_storages(k8s_api_client)
   if len(gcsfuse_storages) > 0:
-    return "gke-gcsfuse/volumes=true"
-  return None
+    annotations.append("gke-gcsfuse/volumes=true")
+
+  parallelstore_storages = get_auto_mount_parallelstore_storages(k8s_api_client)
+  if len(parallelstore_storages) > 0:
+    annotations.append("gke-parallelstore/volumes=true")
+
+  return annotations

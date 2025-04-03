@@ -15,7 +15,6 @@ PROJECT_DIR := $(realpath $(shell dirname $(firstword $(MAKEFILE_LIST))))
 KJOB_DOCKER_IMG := xpk_kjob
 KJOB_DOCKER_CONTAINER := xpk_kjob_container
 BIN_PATH=$(PROJECT_DIR)/bin
-USR_BIN_PATH=/usr/local/bin
 
 .PHONY: install
 install: check-python check-gcloud install-gcloud-auth-plugin install-kueuectl install-kjobctl pip-install
@@ -46,7 +45,6 @@ mkdir-bin:
 install-kueuectl: mkdir-bin
 	curl -Lo $(BIN_PATH)/kubectl-kueue $(KUEUECTL_URL);
 	chmod +x $(BIN_PATH)/kubectl-kueue;
-	sudo mv -f $(BIN_PATH)/kubectl-kueue $(USR_BIN_PATH)/kubectl-kueue;
 
 .PHONY: install-kjobctl
 install-kjobctl: mkdir-bin
@@ -58,7 +56,6 @@ install-kjobctl: mkdir-bin
 	docker cp $(KJOB_DOCKER_CONTAINER):/kjob/bin/kubectl-kjob $(BIN_PATH)/kubectl-kjob;
 	docker rm -f $(KJOB_DOCKER_CONTAINER);
 	docker image rm $(KJOB_DOCKER_IMG);
-	sudo mv -f $(BIN_PATH)/kubectl-kjob $(USR_BIN_PATH)/kubectl-kjob;
 
 .PHONY: install-gcloud-auth-plugin
 install-gcloud-auth-plugin:

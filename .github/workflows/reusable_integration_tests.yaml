@@ -46,7 +46,7 @@ jobs:
             /usr/local/bin/kubectl-kjob
             ~/.cache/pip
             ${{env.pythonLocation}}
-          key: xpk-deps-3.10-${{inputs.run-id}}
+          key: xpk-deps-3.10-${{github.run_id}}-${{github.run_attempt}}
           restore-keys: xpk-deps-3.10
       - name: "Set auth cidr"
         run: echo "AUTH_CIDR=$(curl api.ipify.org)/32" >> $GITHUB_ENV

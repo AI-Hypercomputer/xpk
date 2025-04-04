@@ -183,10 +183,13 @@ def get_volumes(args, system: SystemCharacteristics) -> str:
               """
 
   if args.ramdisk_directory != '':
+    driver = 'phase1-checkpoint.csi.storage.gke.io'
+    if args.mtc_enabled:
+      driver = 'multitier-checkpoint.csi.storage.gke.io'
     volumes += """
               - name: cache
                 csi:
-                  driver: phase1-checkpoint.csi.storage.gke.io"""
+                  driver: {driver}"""
 
   if (
       system.accelerator_type == AcceleratorType['TPU']

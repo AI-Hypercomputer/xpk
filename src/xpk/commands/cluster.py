@@ -22,6 +22,7 @@ from ..core.cluster import (
     get_cluster_credentials,
     install_nccl_on_cluster,
     set_jobset_on_cluster,
+    set_pathways_job_on_cluster,
     setup_k8s_env,
     update_cluster_with_gcsfuse_driver_if_necessary,
     update_cluster_with_workload_identity_if_necessary,
@@ -205,6 +206,10 @@ def cluster_create(args) -> None:
   set_jobset_on_cluster_code = set_jobset_on_cluster(args)
   if set_jobset_on_cluster_code != 0:
     xpk_exit(set_jobset_on_cluster_code)
+
+  set_pathways_job_on_cluster_code = set_pathways_job_on_cluster(args)
+  if set_pathways_job_on_cluster_code != 0:
+    xpk_exit(set_pathways_job_on_cluster_code)
 
   xpk_print('Enabling Kueue on the cluster')
   install_kueue_on_cluster_code = install_kueue_on_cluster(args)
@@ -792,10 +797,8 @@ def run_gke_cluster_create_command(
   addons = []
   if args.enable_gcsfuse_csi_driver:
     addons.append('GcsFuseCsiDriver')
-
   if args.enable_gcpfilestore_csi_driver:
     addons.append('GcpFilestoreCsiDriver')
-
   if len(addons) > 0:
     addons_str = ','.join(addons)
     command += f' --addons={addons_str}'

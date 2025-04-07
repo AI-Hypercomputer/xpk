@@ -20,7 +20,7 @@ from ..core.kjob import (
     AppProfileDefaults,
     prepare_kjob,
     get_pod_template_interactive_command,
-    get_gcsfuse_annotation,
+    get_gcsfuse_annotations,
 )
 
 exit_instructions = 'To exit the shell input "exit".'
@@ -88,10 +88,7 @@ def connect_to_new_interactive_shell(args: Namespace) -> int:
       'kubectl-kjob create interactive --profile'
       f' {AppProfileDefaults.NAME.value} --pod-running-timeout 180s'
   )
-
-  gcsfuse_annotation = get_gcsfuse_annotation(args)
-  if gcsfuse_annotation is not None:
-    cmd += f' --pod-template-annotation {gcsfuse_annotation}'
+  cmd += get_gcsfuse_annotations(args)
 
   return run_command_with_full_controls(
       command=cmd,

@@ -20,15 +20,12 @@ FUSE_PV_PATH = "/../templates/fuse-pv.yaml"
 FUSE_PVC_PATH = "/../templates/fuse-pvc.yaml"
 
 
-def create_pv(
-    name: str, size: int, bucket: str, mount_options: str | None
-) -> dict:
+def create_pv(name: str, size: int, bucket: str, mount_options: str) -> dict:
   data = templates.load(FUSE_PV_PATH)
   data["metadata"]["name"] = f"{name}-pv"
   data["spec"]["capacity"]["storage"] = f"{size}Gi"
   data["spec"]["csi"]["volumeHandle"] = bucket
-  if mount_options:
-    data["spec"]["mountOptions"] = mount_options.split(',')
+  data["spec"]["mountOptions"] = mount_options.split(",")
   return data
 
 
@@ -41,7 +38,7 @@ def create_pvc(name: str, size: int) -> dict:
 
 
 def manifest(
-    name: str, bucket: str, size: int, mount_options: str | None
+    name: str, bucket: str, size: int, mount_options: str
 ) -> list[dict]:
   """Creates GCS FUSE manifest file.
 

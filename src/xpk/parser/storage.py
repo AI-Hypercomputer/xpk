@@ -157,6 +157,7 @@ def add_storage_attach_parser(
       '--mount-options',
       type=str,
       help='Comma-separated list of mountOptions for PersistentVolume',
+      default='implicit-dirs',
   )
   add_kind_cluster_arguments(opt_args)
 

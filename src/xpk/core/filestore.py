@@ -201,7 +201,7 @@ class FilestoreClient:
     return data
 
   def create_pv(
-      self, name: str, vol: str, access_mode: str, mount_options: str | None
+      self, name: str, vol: str, access_mode: str, mount_options: str
   ) -> dict:
     """Create a yaml representing filestore PersistentVolume."""
     data = templates.load(FS_PV_PATH)
@@ -217,8 +217,7 @@ class FilestoreClient:
         0
     ].ip_addresses[0]
     data["spec"]["csi"]["volumeAttributes"]["volume"] = vol
-    if mount_options:
-      data["spec"]["mountOptions"] = mount_options.split(',')
+    data["spec"]["mountOptions"] = mount_options.split(",")
     return data
 
   def create_pvc(self, name: str, access_mode: str) -> dict:
@@ -239,7 +238,7 @@ class FilestoreClient:
       vol: str,
       access_mode: str,
       network: str,
-      mount_options: str | None,
+      mount_options: str,
   ) -> list[dict]:
     self.load_instance()
     pv = self.create_pv(name, vol, access_mode, mount_options)

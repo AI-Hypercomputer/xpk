@@ -470,7 +470,7 @@ def workload_create_pathways(args) -> None:
   if args.headless:
     xpk_print(
         'Please use kubectl port forwarding to connect to the Pathways proxy.'
-        ' kubectl get pods kubectl port-forward <proxy-pod-name> 29000:29000'
+        f' kubectl get pods | grep {args.workload}-pathways-head | awk "{print $1}" | xargs -I {} kubectl port-forward {} 29000:29000 &'
         ' JAX_PLATFORMS=proxy JAX_BACKEND_TARGET=grpc://127.0.0.1:29000 python'
         " -c 'import pathwaysutils; import jax; print(jax.devices())'"
     )
@@ -743,8 +743,8 @@ def workload_create(args) -> None:
       )
       xpk_print(
           'Steps to connect to the proxy: kubectl get pods | grep proxy ;'
-          ' kubectl port-forward <proxy-pod-name> 29000:29000; '
-          ' JAX_PLATFORMS=proxy; JAX_BACKEND_TARGET=grpc://127.0.0.1:29000;'
+          f' kubectl get pods | grep {args.workload}-pathways-head | awk "{print $1}" | xargs -I {} kubectl port-forward {} 29000:29000 &'
+          ' JAX_PLATFORMS=proxy JAX_BACKEND_TARGET=grpc://127.0.0.1:29000'
           " python -c 'import pathwaysutils; import jax; print(jax.devices())'"
       )
       pathways_proxy_link = f'https://console.cloud.google.com/kubernetes/job/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}-proxy-0/details?project={args.project}'

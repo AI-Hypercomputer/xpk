@@ -74,7 +74,7 @@ def get_pathways_proxy_args(args) -> str:
 
 
 def get_pathways_sidecar_container(args) -> str:
-  """This is a sidecar container that runs the remote python server.
+  """This is a sidecar container that runs the colocated python server.
 
       It is a special case of the initContainer (designated by restartPolicy:
       Always)
@@ -87,8 +87,8 @@ def get_pathways_sidecar_container(args) -> str:
     str: yaml containing arguments for the Pathways sidecar container.
   """
   yaml = """initContainers:
-              - name: remote-python-sidecar
-                image: {args.remote_python_sidecar_image}
+              - name: colocated-python-sidecar
+                image: {args.colocated_python_sidecar_image}
                 imagePullPolicy: Always
                 securityContext:
                   privileged: true
@@ -101,7 +101,7 @@ def get_pathways_sidecar_container(args) -> str:
                 env:
                 - name: GRPC_SERVER_ADDRESS
                   value: '0.0.0.0:50051'"""
-  if args.use_pathways and args.remote_python_sidecar_image is not None:
+  if args.use_pathways and args.colocated_python_sidecar_image is not None:
     return yaml.format(args=args)
   else:
     return ''

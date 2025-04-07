@@ -59,6 +59,7 @@ and the following CPU types:
 xpk also supports Google Cloud Storage solutions:
 * [Cloud Storage FUSE](#fuse)
 * [Filestore](#filestore)
+* [Parallelstore](#parallelstore)
 
 # Permissions needed on Cloud Console:
 
@@ -443,7 +444,10 @@ Currently, the below flags/arguments are supported for A3-Mega and A3-Ultra mach
 
 
 ## Storage
-Currently XPK supports two types of storages: Cloud Storage FUSE and Google Cloud Filestore.
+Currently XPK supports three types of storages:
+- Cloud Storage FUSE
+- Google Cloud Filestore
+- Google Cloud Parallelstore
 
 ### FUSE
 A FUSE adapter lets you mount and access Cloud Storage buckets as local file systems, so applications can read and write objects in your bucket using standard file system semantics.
@@ -471,7 +475,7 @@ Parameters:
 
 ### Filestore
 
-A Filestore adapter lets you mount and access [Filestore instances](https://cloud.google.com/filestore/) as local file systems, so applications can read and write objects in your volumes using standard file system semantics.
+A Filestore adapter lets you mount and access [Filestore instances](https://cloud.google.com/filestore/) as local file systems, so applications can read and write files in your volumes using standard file system semantics.
 
 To create and attach a GCP Filestore instance to your cluster use `xpk storage create` command with `--type=gcpfilestore`:
 
@@ -504,6 +508,30 @@ Commands `xpk storage create` and `xpk storage attach` with `--type=gcpfilestore
 - `--vol` - file share name of the Filestore instance that will be created.
 - `--instance` - the name of the Filestore instance. If not set then the name parameter is used as an instance name. Useful when connecting multiple volumes from the same Filestore instance.
 - `--manifest` - path to the manifest file containing PersistentVolume, PresistentVolumeClaim and StorageClass definitions. If set, then values from manifest override the following parameters: `--access-mode`, `--size` and `--volume`.
+
+### Parallelstore
+
+A Parallelstore adapter lets you mount and access [Parallelstore instances](https://cloud.google.com/parallelstore/) as local file systems, so applications can read and write files in your volumes using standard file system semantics.
+
+To use the GCS Parallelstore with XPK you need to create a [Parallelstore Instance](https://console.cloud.google.com/parallelstore/).
+
+Once it's ready you can use `xpk storage attach` with `--type=parallelstore` command to attach a Parallelstore instance to your cluster. Currently, attaching a Parallelstore is supported only by providing a manifest file.
+
+```shell
+python3 xpk.py storage attach test-parallelstore-storage --type=parallelstore \
+  --project=$PROJECT --cluster=$CLUSTER --zone=$ZONE \
+  --mount-point='/test-mount-point' --readonly=false \
+  --auto-mount=true \
+  --manifest='./examples/storage/parallelstore-manifest-attach.yaml'
+```
+
+Parameters:
+
+- `--type` - type of the storage `parallelstore`
+- `--auto-mount` - if set to true all workloads will have this storage mounted by default.
+- `--mount-point` - the path on which this storage should be mounted for a workload.
+- `--readonly` - if set to true, workload can only read from storage.
+- `--manifest` - path to the manifest file containing PersistentVolume and PresistentVolumeClaim definitions.
 
 ### List attached storages
 

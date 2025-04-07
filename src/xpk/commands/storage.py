@@ -134,6 +134,7 @@ def storage_delete(args: Namespace) -> None:
 
 def storage_attach(args: Namespace) -> None:
   add_zone_and_project(args)
+  manifest = [{}]
   if args.type == GCP_FILESTORE_TYPE:
     if args.instance is None:
       args.instance = args.name

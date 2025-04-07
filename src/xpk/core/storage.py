@@ -319,7 +319,7 @@ def install_storage_crd(k8s_api_client: ApiClient) -> None:
       xpk_exit(1)
 
 
-def get_storage_annotations_yaml(storages: list[Storage], offset: int) -> str:
+def get_storage_annotations(storages: list[Storage]) -> list[str]:
   """
   Generates the storage annotations for workloads in the format of a YAML snippet.
 
@@ -330,13 +330,10 @@ def get_storage_annotations_yaml(storages: list[Storage], offset: int) -> str:
   Returns:
       A string containing the YAML representation of the storage annotations.
   """
-  sep = "\n" + (" " * offset)
   if any(storage.type == GCS_FUSE_TYPE for storage in storages):
-    return sep.join(
-        f'{key}: "{value}"' for key, value in GCS_FUSE_ANNOTATIONS.items()
-    )
+    return [f'{key}: "{value}"' for key, value in GCS_FUSE_ANNOTATIONS.items()]
   else:
-    return ""
+    return []
 
 
 def get_storage_volume_mounts_yaml(storages: list[Storage]) -> str:

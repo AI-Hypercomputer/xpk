@@ -22,7 +22,7 @@ from .cluster import XPK_SA
 from .config import AcceleratorType
 from .storage import (
     Storage,
-    get_storage_annotations_yaml,
+    get_storage_annotations,
     get_storage_volumes_yaml,
 )
 from .system_characteristics import SystemCharacteristics
@@ -328,14 +328,15 @@ def get_user_workload_for_pathways(
   else:
     container, _ = get_user_workload_container(args, system)
     storage_volumes = get_storage_volumes_yaml(storages)
-    storage_annotations = get_storage_annotations_yaml(storages, 16)
     return user_workload_yaml.format(
         args=args,
         container=container,
         storage_volumes=storage_volumes,
         pod_failure_policy=pod_failure_policy,
         service_account=XPK_SA,
-        storage_annotations=storage_annotations,
+        storage_annotations=('\n' + (' ' * 16)).join(
+            get_storage_annotations(storages)
+        ),
     )
 
 

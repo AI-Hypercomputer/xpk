@@ -62,7 +62,7 @@ from ..core.storage import (
     get_storages_to_mount,
     get_storage_volume_mounts_yaml_for_gpu,
     get_storage_volumes_yaml_for_gpu,
-    get_storage_annotations_yaml,
+    get_storage_annotations,
 )
 from ..core.system_characteristics import (
     AcceleratorType,
@@ -641,7 +641,9 @@ def workload_create(args) -> None:
           storage_volume_mounts=get_storage_volume_mounts_yaml_for_gpu(
               all_storages
           ),
-          storage_annotations=get_storage_annotations_yaml(all_storages, 12),
+          storage_annotations=('\n' + (' ' * 12)).join(
+              get_storage_annotations(all_storages)
+          ),
           service_account=service_account,
           failure_policy_rules=failure_policy_rules,
           pod_failure_policy=pod_failure_policy,
@@ -669,7 +671,9 @@ def workload_create(args) -> None:
         local_queue_name=LOCAL_QUEUE_NAME,
         autoprovisioning_args=autoprovisioning_args,
         backoff_limit=system.vms_per_slice * 4,
-        storage_annotations=get_storage_annotations_yaml(all_storages, 16),
+        storage_annotations=('\n' + (' ' * 16)).join(
+            get_storage_annotations(all_storages)
+        ),
         storage_volumes=get_storage_volumes_yaml(all_storages),
         storage_volume_mounts=get_storage_volume_mounts_yaml(all_storages),
         pathways_rm_args=get_pathways_rm_args(args, system),
@@ -693,7 +697,9 @@ def workload_create(args) -> None:
         local_queue_name=LOCAL_QUEUE_NAME,
         autoprovisioning_args=autoprovisioning_args,
         volumes=get_volumes(args, system),
-        storage_annotations=get_storage_annotations_yaml(all_storages, 16),
+        storage_annotations=('\n' + (' ' * 16)).join(
+            get_storage_annotations(all_storages)
+        ),
         service_account=service_account,
         failure_policy_rules=failure_policy_rules,
         pod_failure_policy=pod_failure_policy,

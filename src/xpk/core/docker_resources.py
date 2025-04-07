@@ -182,11 +182,14 @@ def get_volumes(args, system: SystemCharacteristics) -> str:
                 name: dshm-2
               """
 
-  if args.ramdisk_directory != '':
-    volumes += """
+  if hasattr(args, 'ramdisk_directory') and args.ramdisk_directory != '':
+    driver = 'phase1-checkpoint.csi.storage.gke.io'
+    if hasattr(args, 'mtc_enabled') and args.mtc_enabled:
+      driver = 'multitier-checkpoint.csi.storage.gke.io'
+    volumes += f"""
               - name: cache
                 csi:
-                  driver: phase1-checkpoint.csi.storage.gke.io"""
+                  driver: {driver}"""
 
   if (
       system.accelerator_type == AcceleratorType['TPU']
@@ -229,7 +232,7 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
                   name: dshm-2
                 """
 
-  if args.ramdisk_directory != '':
+  if hasattr(args, 'ramdisk_directory') and args.ramdisk_directory != '':
     volume_mount_yaml += f"""
                 - mountPath: /{args.ramdisk_directory}
                   name: cache"""

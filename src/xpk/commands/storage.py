@@ -148,7 +148,7 @@ def storage_attach(args: Namespace) -> None:
     else:
       filestore_network = get_cluster_network(args)
       manifest = filestore_client.manifest(
-          args.name, args.vol, args.access_mode, filestore_network
+          args.name, args.vol, args.access_mode, filestore_network, args.mount_options
       )
 
   else:  # args.type == GCS_FUSE_TYPE:
@@ -163,9 +163,7 @@ def storage_attach(args: Namespace) -> None:
       with open(args.manifest, "r", encoding="utf-8") as f:
         manifest = list(yaml.safe_load_all(f))
     else:
-      manifest = gcsfuse.manifest(
-          name=args.name, bucket=args.bucket, size=args.size
-      )
+      manifest = gcsfuse.manifest(args.name, args.bucket, args.size, args.mount_options)
 
   k8s_api_client = setup_k8s_env(args)
   create_storage_crds(k8s_api_client, args, manifest)

@@ -258,6 +258,7 @@ def add_storage_create_parser(
       '--mount-options',
       type=str,
       help='Comma-separated list of mountOptions for PersistentVolume',
+      default='',
   )
 
   add_kind_cluster_arguments(opt_args)

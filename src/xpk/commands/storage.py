@@ -78,7 +78,11 @@ def storage_create(args: Namespace) -> None:
         manifest = list(yaml.safe_load_all(f))
     else:
       manifest = filestore_client.manifest(
-          args.name, args.vol, args.access_mode, filestore_network
+          args.name,
+          args.vol,
+          args.access_mode,
+          filestore_network,
+          args.mount_options,
       )
 
     k8s_api_client = setup_k8s_env(args)

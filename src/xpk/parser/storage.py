@@ -144,11 +144,6 @@ def add_storage_attach_parser(
       ),
   )
 
-  parallelstore_args = storage_attach_parser.add_argument_group(
-      'Parallelstore arguments',
-      'Arguments used when --type=gcpfilestore',
-  )
-
   opt_args = storage_attach_parser.add_argument_group(
       'Optional Arguments',
       'Optional arguments for storage create.',

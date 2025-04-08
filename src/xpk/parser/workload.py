@@ -135,6 +135,24 @@ def set_workload_parsers(workload_parser):
       ),
   )
   workload_create_parser_optional_arguments.add_argument(
+      '--ramdisk-directory',
+      type=str,
+      default='',
+      help=(
+          'The directory of the locally mounted RAM disk. This is only to'
+          ' be used with the CSI driver provided by GKE.'
+      ),
+  )
+  workload_create_parser_optional_arguments.add_argument(
+      '--mtc-enabled',
+      action='store_true',
+      help=(
+          'The workload can use multi-tier checkpointing controllers when the'
+          ' --ramdisk-directory argument is used with this additional'
+          ' argument.'
+      ),
+  )
+  workload_create_parser_optional_arguments.add_argument(
       '--debug-dump-gcs',
       type=str,
       default=None,
@@ -607,15 +625,6 @@ def add_shared_workload_create_optional_arguments(args_parsers):
             ' codes 42 and 127-255. Any exit codes provided through this flag'
             ' will be included alongside the default codes for restarting'
             ' conditions.'
-        ),
-    )
-    custom_parser.add_argument(
-        '--ramdisk-directory',
-        type=str,
-        default='',
-        help=(
-            'The directory of the locally mounted RAM disk. This is only to'
-            ' be used with the CSI driver provided by GKE.'
         ),
     )
 

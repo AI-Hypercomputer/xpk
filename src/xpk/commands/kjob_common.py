@@ -28,9 +28,9 @@ def add_tcpxo_annotations(args, cmd) -> str:
 
 
 def add_rdma_annotations(args, cmd) -> str:
-  eth0, interfaces = get_a3ultra_pod_template_annotations(args)
-  cmd += f" --pod-template-annotation {eth0} \\\n"
-  cmd += f" --pod-template-annotation {interfaces} \\\n"
+  # eth0, interfaces = get_a3ultra_pod_template_annotations(args)
+  # cmd += f" --pod-template-annotation {eth0} \\\n"
+  # cmd += f" --pod-template-annotation {interfaces} \\\n"
   return cmd
 
 

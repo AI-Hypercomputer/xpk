@@ -590,7 +590,13 @@ def add_shared_cluster_create_optional_arguments(args_parsers):
     custom_parser.add_argument(
         '--enable-parallelstore-csi-driver',
         action='store_true',
-        help='Enable Parallelstore driver on the cluster.',
+        help='Enable Parallelstore CSI driver on the cluster.',
+    )
+
+    custom_parser.add_argument(
+        '--enable-pd-csi-driver',
+        action='store_true',
+        help='Enable PersistentDisk CSI driver on the cluster.',
     )
 
 

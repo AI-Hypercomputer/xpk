@@ -28,6 +28,7 @@ from ..core.cluster import (
     get_cluster_network,
     setup_k8s_env,
     update_cluster_with_parallelstore_driver_if_necessary,
+    update_cluster_with_pd_driver_if_necessary,
     update_cluster_with_gcpfilestore_driver_if_necessary,
     update_cluster_with_gcsfuse_driver_if_necessary,
     update_cluster_with_workload_identity_if_necessary,
@@ -42,6 +43,7 @@ from ..core.kjob import (
 from ..core.storage import (
     GCP_FILESTORE_TYPE,
     GCS_FUSE_TYPE,
+    GCE_PD_TYPE,
     PARALLELSTORE_TYPE,
     STORAGE_CRD_PLURAL,
     XPK_API_GROUP_NAME,
@@ -171,9 +173,12 @@ def storage_attach(args: Namespace) -> None:
           name=args.name, bucket=args.bucket, size=args.size
       )
 
-  elif args.type == PARALLELSTORE_TYPE:
+  elif args.type in [PARALLELSTORE_TYPE, GCE_PD_TYPE]:
     if args.manifest is None:
-      xpk_print("Parallelstore is currently only supported with --manifest")
+      xpk_print(
+          "Parallelstore and PersistentDisk are currently supported only with"
+          " --manifest"
+      )
       xpk_exit(1)
 
     with open(args.manifest, "r", encoding="utf-8") as f:
@@ -211,6 +216,11 @@ def enable_csi_drivers_if_necessary(args: Namespace) -> None:
 
   if args.type == PARALLELSTORE_TYPE:
     return_code = update_cluster_with_parallelstore_driver_if_necessary(args)
+    if return_code > 0:
+      xpk_exit(return_code)
+
+  if args.type == GCE_PD_TYPE:
+    return_code = update_cluster_with_pd_driver_if_necessary(args)
     if return_code > 0:
       xpk_exit(return_code)
 

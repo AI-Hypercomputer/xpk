@@ -56,6 +56,7 @@ from ..core.storage import (
     GCS_FUSE_TYPE,
     GCP_FILESTORE_TYPE,
     PARALLELSTORE_TYPE,
+    GCE_PD_TYPE,
     Storage,
     add_bucket_iam_members,
     get_storage_volume_mounts_yaml,
@@ -571,6 +572,9 @@ def workload_create(args) -> None:
   parallelstore_storages: list[Storage] = list(
       filter(lambda storage: storage.type == PARALLELSTORE_TYPE, storages)
   )
+  pd_storages: list[Storage] = list(
+      filter(lambda storage: storage.type == GCE_PD_TYPE, storages)
+  )
   storage_annotations = ''
   service_account = ''
   if len(gcs_fuse_storages) > 0:
@@ -602,7 +606,10 @@ def workload_create(args) -> None:
   else:
     xpk_print('No gcp filestore instances to add detected.')
   all_storages = (
-      gcs_fuse_storages + gcpfilestore_storages + parallelstore_storages
+      gcs_fuse_storages
+      + gcpfilestore_storages
+      + parallelstore_storages
+      + pd_storages
   )
   # Create the workload file based on accelerator type or workload type.
   if system.accelerator_type == AcceleratorType['GPU']:
@@ -636,6 +643,7 @@ def workload_create(args) -> None:
           len(gcs_fuse_storages)
           + len(gcpfilestore_storages)
           + len(parallelstore_storages)
+          + len(pd_storages)
           > 0
       ):
         yml_string = storage_decorator.decorate_jobset(yml_string, all_storages)

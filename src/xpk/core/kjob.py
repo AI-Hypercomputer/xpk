@@ -455,8 +455,6 @@ def get_gcsfuse_annotations(args: Namespace) -> str:
   gcsfuse_storages = get_auto_mount_gcsfuse_storages(k8s_api_client)
   annotations = []
   if len(gcsfuse_storages) > 0:
-    annotations = [
-        f" --pod-template-annotation {key}={value}"
-        for key, value in GCS_FUSE_ANNOTATIONS.items()
-    ]
-  return "".join(annotations)
+    for key, value in GCS_FUSE_ANNOTATIONS.items():
+      annotations.append(f"{key}={value}")
+  return annotations

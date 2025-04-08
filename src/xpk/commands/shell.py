@@ -88,7 +88,9 @@ def connect_to_new_interactive_shell(args: Namespace) -> int:
       'kubectl-kjob create interactive --profile'
       f' {AppProfileDefaults.NAME.value} --pod-running-timeout 180s'
   )
-  cmd += get_gcsfuse_annotations(args)
+
+  for annotation in get_gcsfuse_annotations(args):
+    cmd += f' --pod-template-annotation {annotation}'
 
   return run_command_with_full_controls(
       command=cmd,

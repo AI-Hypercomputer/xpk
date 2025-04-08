@@ -66,7 +66,9 @@ def submit_job(args: Namespace) -> None:
       ' --first-node-ip'
   )
   cmd = add_gpu_networking_annotations_to_command(args, cmd)
-  cmd += get_gcsfuse_annotations(args)
+
+  for annotation in get_gcsfuse_annotations(args):
+    cmd += f' --pod-template-annotation {annotation}'
 
   if args.ignore_unknown_flags:
     cmd += ' --ignore-unknown-flags'

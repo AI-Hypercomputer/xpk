@@ -289,7 +289,7 @@ def get_gpu_rxdm_container(
   gpu_rxdm_image = get_gpu_rxdm_image(system)
   if not gpu_rxdm_image:
     return ''
-  
+
   gpu_rxdm_container_template = """{gpu_rxdm_image}
                 imagePullPolicy: Always
                 command:
@@ -310,7 +310,7 @@ def get_gpu_rxdm_container(
                 env:
                 - name: LD_LIBRARY_PATH
                   value: /usr/local/nvidia/lib64"""
-  
+
   return gpu_rxdm_container_template.format(
       gpu_rxdm_image=gpu_rxdm_image,
       gpu_rxdm_cmd=get_gpu_rxdm_cmd(system),

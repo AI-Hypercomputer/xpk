@@ -67,7 +67,6 @@ from ..core.storage import (
     add_bucket_iam_members,
     get_storage_volume_mounts_yaml,
     get_storage_volumes_yaml,
-    get_storage_volumes_yaml_for_gpu,
     get_storages_to_mount,
 )
 from ..core.system_characteristics import (
@@ -79,7 +78,6 @@ from ..core.vertex import create_vertex_experiment
 from ..core.workload import (
     check_if_workload_exists,
     get_gpu_rxdm_container,
-    get_gpu_volume,
     get_workload_list,
     wait_for_job_completion,
     zone_to_region,

@@ -18,6 +18,7 @@ from ..utils.console import xpk_exit, xpk_print
 from .capacity import H100_DEVICE_TYPE, H100_MEGA_DEVICE_TYPE
 from .commands import run_command_for_value
 from .gcloud_context import zone_to_region
+from .storage import Storage, get_storage_volume_mounts_yaml_for_gpu
 from .system_characteristics import SystemCharacteristics
 
 
@@ -280,6 +281,44 @@ def get_gpu_volume(system: SystemCharacteristics) -> str:
               - name: workload-terminated-volume
                 emptyDir:"""
   return gpu_volume
+
+
+def get_gpu_rxdm_container(
+    system: SystemCharacteristics, all_storages: list[Storage]
+) -> str:
+  gpu_rxdm_image = get_gpu_rxdm_image(system)
+  if not gpu_rxdm_image:
+    return ''
+  
+  gpu_rxdm_container_template = """{gpu_rxdm_image}
+                imagePullPolicy: Always
+                command:
+                - "bash"
+                - "-c"
+                - |
+                  {gpu_rxdm_cmd} &
+                  while [ ! -e "/usr/share/workload/workload_terminated" ]; do sleep 10; echo "sleeping"; done
+                securityContext:
+                  privileged: true
+                volumeMounts:
+                {gpu_tcp_volume}
+                {storage_volume_mounts}
+                - name: nvidia-install-dir-host
+                  mountPath: /usr/local/nvidia/lib64
+                - name: workload-terminated-volume
+                  mountPath: /usr/share/workload
+                env:
+                - name: LD_LIBRARY_PATH
+                  value: /usr/local/nvidia/lib64"""
+  
+  return gpu_rxdm_container_template.format(
+      gpu_rxdm_image=gpu_rxdm_image,
+      gpu_rxdm_cmd=get_gpu_rxdm_cmd(system),
+      gpu_tcp_volume=get_gpu_tcp_volume(system),
+      storage_volume_mounts=get_storage_volume_mounts_yaml_for_gpu(
+          all_storages
+      ),
+  )
 
 
 def get_gpu_rxdm_image(system: SystemCharacteristics) -> str:

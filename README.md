@@ -221,6 +221,7 @@ all zones.
     --num-slices=4 --on-demand \
     --tpu-type=v5litepod-16
     ```
+    Note that Pathways clusters need a CPU nodepool of n2-standard-64 or higher.
 
 *   Cluster Create for Ray:
     A cluster with KubeRay enabled and a RayCluster can be created using `cluster create-ray`.

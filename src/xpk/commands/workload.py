@@ -64,7 +64,7 @@ from ..core.storage import (
     get_storages_to_mount,
     get_storage_volume_mounts_yaml_for_gpu,
     get_storage_volumes_yaml_for_gpu,
-    GCS_FUSE_ANNOTATION,
+    get_storage_annotations,
 )
 from ..core.system_characteristics import (
     AcceleratorType,
@@ -378,10 +378,9 @@ def workload_create(args) -> None:
     if return_code != 0:
       xpk_exit(return_code)
 
-  # Currently storage customization is not supported for Pathways workloads. b/408468941
-  storage_annotations = ''
   service_account = ''
-  all_storages = ''
+  all_storages = []
+  # Currently storage customization is not supported for Pathways workloads. b/408468941
   if not args.use_pathways:
     storages: list[Storage] = get_storages_to_mount(
         k8s_api_client, args.storage
@@ -393,17 +392,16 @@ def workload_create(args) -> None:
         filter(lambda storage: storage.type == GCP_FILESTORE_TYPE, storages)
     )
     if len(gcs_fuse_storages) > 0:
-      storage_annotations = GCS_FUSE_ANNOTATION
       service_account = XPK_SA
       xpk_print(f'Detected gcsfuse Storages to add: {gcs_fuse_storages}')
     else:
       xpk_print('No gcsfuse Storages to add detected')
 
     if len(gcpfilestore_storages) > 0:
+      service_account = XPK_SA
       xpk_print(
           f'Detected gcp filestores instances to add: {gcpfilestore_storages}'
       )
-      service_account = XPK_SA
     else:
       xpk_print('No gcp filestore instances to add detected.')
     all_storages = gcs_fuse_storages + gcpfilestore_storages
@@ -472,7 +470,9 @@ def workload_create(args) -> None:
           storage_volume_mounts=get_storage_volume_mounts_yaml_for_gpu(
               all_storages
           ),
-          storage_annotations=storage_annotations,
+          storage_annotations=('\n' + (' ' * 12)).join(
+              get_storage_annotations(all_storages)
+          ),
           service_account=service_account,
           failure_policy_rules=failure_policy_rules,
           pod_failure_policy=pod_failure_policy,
@@ -509,7 +509,9 @@ def workload_create(args) -> None:
         local_queue_name=LOCAL_QUEUE_NAME,
         autoprovisioning_args=autoprovisioning_args,
         volumes=get_volumes(args, system),
-        storage_annotations=storage_annotations,
+        storage_annotations=('\n' + (' ' * 16)).join(
+            get_storage_annotations(all_storages)
+        ),
         service_account=service_account,
         failure_policy_rules=failure_policy_rules,
         pod_failure_policy=pod_failure_policy,

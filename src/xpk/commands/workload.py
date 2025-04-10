@@ -391,7 +391,6 @@ def workload_create(args) -> None:
     gcpfilestore_storages: list[Storage] = list(
         filter(lambda storage: storage.type == GCP_FILESTORE_TYPE, storages)
     )
-    service_account = ''
     if len(gcs_fuse_storages) > 0:
       service_account = XPK_SA
       xpk_print(f'Detected gcsfuse Storages to add: {gcs_fuse_storages}')

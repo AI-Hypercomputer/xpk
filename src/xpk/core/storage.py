@@ -330,10 +330,11 @@ def get_storage_annotations(storages: list[Storage]) -> list[str]:
   Returns:
       A string containing the YAML representation of the storage annotations.
   """
+  annotations = []
   if any(storage.type == GCS_FUSE_TYPE for storage in storages):
-    return [f'{key}: "{value}"' for key, value in GCS_FUSE_ANNOTATIONS.items()]
-  else:
-    return []
+    for key, value in GCS_FUSE_ANNOTATIONS.items():
+      annotations.append(f'{key}: "{value}"')
+  return annotations
 
 
 def get_storage_volume_mounts_yaml(storages: list[Storage]) -> str:

@@ -450,7 +450,7 @@ def create_volume_bundle_instance(
       xpk_exit(1)
 
 
-def get_gcsfuse_annotations(args: Namespace) -> str:
+def get_gcsfuse_annotations(args: Namespace) -> list[str]:
   k8s_api_client = setup_k8s_env(args)
   gcsfuse_storages = get_auto_mount_gcsfuse_storages(k8s_api_client)
   annotations = []

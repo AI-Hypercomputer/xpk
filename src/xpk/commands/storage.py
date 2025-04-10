@@ -164,7 +164,10 @@ def storage_attach(args: Namespace) -> None:
         manifest = list(yaml.safe_load_all(f))
     else:
       manifest = gcsfuse.manifest(
-          name=args.name, bucket=args.bucket, size=args.size
+          name=args.name,
+          bucket=args.bucket,
+          size=args.size,
+          prefetch_metadata=args.prefetch_metadata,
       )
 
   k8s_api_client = setup_k8s_env(args)

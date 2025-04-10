@@ -20,11 +20,17 @@ FUSE_PV_PATH = "/../templates/fuse-pv.yaml"
 FUSE_PVC_PATH = "/../templates/fuse-pvc.yaml"
 
 
-def create_pv(name: str, size: int, bucket: str) -> dict:
+def create_pv(
+    name: str, size: int, bucket: str, prefetch_metadata: bool
+) -> dict:
   data = templates.load(FUSE_PV_PATH)
   data["metadata"]["name"] = f"{name}-pv"
   data["spec"]["capacity"]["storage"] = f"{size}Gi"
   data["spec"]["csi"]["volumeHandle"] = bucket
+  if prefetch_metadata:
+    data["spec"]["csi"]["volumeAttributes"][
+        "gcsfuseMetadataPrefetchOnMount"
+    ] = "true"
   return data
 
 
@@ -36,15 +42,20 @@ def create_pvc(name: str, size: int) -> dict:
   return data
 
 
-def manifest(name: str, bucket: str, size: int) -> list[dict]:
-  """Creates GCS FUSE manifest file.
+def manifest(
+    name: str, bucket: str, size: int, prefetch_metadata: bool
+) -> list[dict]:
+  """Creates GCS FUSE storage manifests.
 
   Args:
-      path (str): path to the file where the manifest will be created
       name (str): base name of the volumes
       bucket (str): name of the storage bucket
       size (str): size of the storage
+      prefetch_metadata (bool): if set, then enables metadata pre-population when mounting the volume
+
+  Returns:
+      list[dict]: list of manifests
   """
-  pv = create_pv(name, size, bucket)
+  pv = create_pv(name, size, bucket, prefetch_metadata)
   pvc = create_pvc(name, size)
   return [pv, pvc]

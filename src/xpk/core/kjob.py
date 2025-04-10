@@ -23,6 +23,7 @@ from kubernetes.client import ApiClient
 from kubernetes.client.rest import ApiException
 
 from ..core.capacity import H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE
+from ..core.storage import GCS_FUSE_ANNOTATIONS, PARALLELSTORE_ANNOTATIONS
 from ..core.workload_decorators import rdma_decorator, tcpxo_decorator
 from ..utils import templates
 from ..utils.console import xpk_exit, xpk_print
@@ -455,10 +456,12 @@ def get_storage_annotations(args: Namespace) -> list[str]:
 
   gcsfuse_storages = get_auto_mount_gcsfuse_storages(k8s_api_client)
   if len(gcsfuse_storages) > 0:
-    annotations.append("gke-gcsfuse/volumes=true")
+    for key, value in GCS_FUSE_ANNOTATIONS.items():
+      annotations.append(f"{key}={value}")
 
   parallelstore_storages = get_auto_mount_parallelstore_storages(k8s_api_client)
   if len(parallelstore_storages) > 0:
-    annotations.append("gke-parallelstore/volumes=true")
+    for key, value in PARALLELSTORE_ANNOTATIONS.items():
+      annotations.append(f"{key}={value}")
 
   return annotations

@@ -37,6 +37,8 @@ CLOUD_PLATFORM_AUTH_SCOPE_URL = (
     '"https://www.googleapis.com/auth/cloud-platform"'
 )
 
+OLDER_PATHWAYS_CPU_NP_TO_DELETE = ['cpu-rm-np', 'cpu-proxy-np', 'cpu-user-np']
+
 
 def run_gke_node_pool_create_command(
     args, system, gke_node_pool_version
@@ -122,7 +124,10 @@ def run_gke_node_pool_create_command(
         args, system, existing_node_pool_names, desired_node_pool_names
     )
     for node_pool_name in existing_node_pool_names:
-      if node_pool_name.find(f'{args.cluster}-np-') != 0:
+      if (
+          node_pool_name.find(f'{args.cluster}-np-') != 0
+          and node_pool_name not in OLDER_PATHWAYS_CPU_NP_TO_DELETE
+      ):
         continue
 
       if node_pool_name in node_pools_to_delete:
@@ -305,7 +310,7 @@ def run_gke_node_pool_create_command(
     create_commands.append(command)
     create_task_names.append(task)
 
-  desired_pw_cpu_node_pools = ['cpu-user-np', 'cpu-rm-np', 'cpu-proxy-np']
+  desired_pw_cpu_node_pools = ['cpu-np']
   if args.enable_pathways:
     # Pathways needs CPU nodepools in addition to TPU nodepools
     for node_pool_name in desired_pw_cpu_node_pools:
@@ -355,11 +360,9 @@ def get_node_pools_to_delete(
   check_resource, is_requested_resource_in_cluster = check_cluster_resources(
       args, system
   )
-  for existing_node_pool_name in existing_node_pool_names:
-    # Deletion logic would leave behind any Pathways CPU nodepools.
-    if existing_node_pool_name.find(f'{args.cluster}-np-') != 0:
-      continue
+  xpk_print('Existing node pool names ', existing_node_pool_names)
 
+  for existing_node_pool_name in existing_node_pool_names:
     # Nodepools will be deleted in two scenarios:
     # Scenario 1: Cluster exists with 3 nodepools of 'x' device_type/gke_accelerator and now we are updating
     # the cluster to 2 nodepools of 'x' device_type/gke_accelerator. In this case, we will delete
@@ -367,6 +370,18 @@ def get_node_pools_to_delete(
     # Scenario 2: Cluster exists with 2 nodepools of 'x' device_type/gke_accelerator and now we are updating
     # the cluster to 2 nodepools of 'y' device_type/gke_accelerator. In this case, we will delete
     # '{args.cluster}-np-0' and '{args.cluster}-np-1' from the cluster.
+    # Scenario 3: Deletes older Pathways CPU nodepools named cpu-rm-np, cpu-proxy-np and cpu-user-np
+
+    if existing_node_pool_name in OLDER_PATHWAYS_CPU_NP_TO_DELETE:
+      node_pools_to_delete.append(existing_node_pool_name)
+      xpk_print(
+          'Upgrading Pathways version on the cluster. Deleting older pathways'
+          ' nodepool ',
+          existing_node_pool_name,
+      )
+
+    if existing_node_pool_name.find(f'{args.cluster}-np-') != 0:
+      continue
     if existing_node_pool_name not in desired_node_pool_names or (
         check_resource and not is_requested_resource_in_cluster
     ):

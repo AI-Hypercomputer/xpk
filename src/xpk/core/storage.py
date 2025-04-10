@@ -48,7 +48,15 @@ GCP_FILESTORE_TYPE = "gcpfilestore"
 PARALLELSTORE_TYPE = "parallelstore"
 GCE_PD_TYPE = "pd"
 MANIFESTS_PATH = os.path.abspath("xpkclusters/storage-manifests")
-GCS_FUSE_ANNOTATION = 'gke-gcsfuse/volumes: "true"'
+GCS_FUSE_ANNOTATIONS = {
+    "gke-gcsfuse/volumes": "true",
+    "gke-gcsfuse/cpu-limit": "0",
+    "gke-gcsfuse/memory-limit": "0",
+    "gke-gcsfuse/ephemeral-storage-limit": "0",
+}
+PARALLELSTORE_ANNOTATIONS = {
+    "gke-parallelstore/volumes": "true",
+}
 
 
 @dataclass
@@ -332,6 +340,29 @@ def install_storage_crd(k8s_api_client: ApiClient) -> None:
     else:
       xpk_print(f"Encountered error during installing Storage CRD: {e}")
       xpk_exit(1)
+
+
+def get_storage_annotations(storages: list[Storage]) -> list[str]:
+  """
+  Generates the storage annotations for workloads in the format of a YAML snippet.
+
+  Args:
+      storages: A list of Storage objects
+      offset: An integer specifying the depth of the YAML file
+
+  Returns:
+      A string containing the YAML representation of the storage annotations.
+  """
+  annotations = []
+  if any(storage.type == GCS_FUSE_TYPE for storage in storages):
+    for key, value in GCS_FUSE_ANNOTATIONS.items():
+      annotations.append(f'{key}: "{value}"')
+
+  if any(storage.type == PARALLELSTORE_TYPE for storage in storages):
+    for key, value in PARALLELSTORE_ANNOTATIONS.items():
+      annotations.append(f'{key}: "{value}"')
+
+  return annotations
 
 
 def get_storage_volume_mounts_yaml(storages: list[Storage]) -> str:

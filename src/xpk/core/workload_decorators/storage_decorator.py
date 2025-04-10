@@ -16,7 +16,7 @@ limitations under the License.
 
 import yaml
 
-from ...core.storage import GCS_FUSE_TYPE, get_storage_volumes_yaml_dict, GCS_FUSE_ANNOTATION
+from ...core.storage import GCS_FUSE_TYPE, PARALLELSTORE_TYPE, get_storage_volumes_yaml_dict, GCS_FUSE_ANNOTATIONS, PARALLELSTORE_ANNOTATIONS
 
 
 def decorate_jobset(jobset_manifest_str, storages) -> str:
@@ -42,9 +42,12 @@ def decorate_jobset(jobset_manifest_str, storages) -> str:
 def add_annotations(job_manifest, storages):
   """Adds or updates storage annotations in the Pod template."""
   annotations = job_manifest['spec']['template']['metadata']['annotations']
-  gcs_present = [storage.type == GCS_FUSE_TYPE for storage in storages]
+  gcs_present = any(storage.type == GCS_FUSE_TYPE for storage in storages)
   if gcs_present:
-    annotations.update(GCS_FUSE_ANNOTATION)
+    annotations.update(GCS_FUSE_ANNOTATIONS)
+  gcs_present = any(storage.type == PARALLELSTORE_TYPE for storage in storages)
+  if gcs_present:
+    annotations.update(PARALLELSTORE_ANNOTATIONS)
 
 
 def add_volumes(job_manifest, storage_volumes):

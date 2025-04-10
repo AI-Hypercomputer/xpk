@@ -378,20 +378,6 @@ def workload_create(args) -> None:
     if return_code != 0:
       xpk_exit(return_code)
 
-  storages: list[Storage] = get_storages_to_mount(k8s_api_client, args.storage)
-  gcs_fuse_storages = list(
-      filter(lambda storage: storage.type == GCS_FUSE_TYPE, storages)
-  )
-  gcpfilestore_storages: list[Storage] = list(
-      filter(lambda storage: storage.type == GCP_FILESTORE_TYPE, storages)
-  )
-  service_account = ''
-  if len(gcs_fuse_storages) > 0:
-    service_account = XPK_SA
-    xpk_print(f'Detected gcsfuse Storages to add: {gcs_fuse_storages}')
-  else:
-    xpk_print('No gcsfuse Storages to add detected')
-
   service_account = ''
   all_storages = []
   # Currently storage customization is not supported for Pathways workloads. b/408468941

@@ -16,7 +16,7 @@
 !Blueprint
 blueprint_name: xpk-gke-a3-megagpu
 toolkit_modules_url: github.com/GoogleCloudPlatform/cluster-toolkit
-toolkit_modules_version: develop
+toolkit_modules_version: 1.48.0
 
 vars:
   project_id: "foo"
@@ -106,7 +106,8 @@ deployment_groups:
         install: true
         version: "v0.10.0"
         config_path: $(ghpc_stage("xpk-gke-a3-megagpu"))/kueue-xpk-configuration.yaml.tftpl
-        config_template_vars: {num_chips: "16"}
+        config_template_vars:
+          num_chips: 16
       jobset:
         install: true
         version: v0.7.2

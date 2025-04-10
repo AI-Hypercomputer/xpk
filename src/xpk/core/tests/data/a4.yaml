@@ -14,7 +14,7 @@
 !Blueprint
 blueprint_name: xpk-gke-a4
 toolkit_modules_url: github.com/GoogleCloudPlatform/cluster-toolkit
-toolkit_modules_version: develop
+toolkit_modules_version: 1.48.0
 
 vars:
 
@@ -168,7 +168,7 @@ deployment_groups:
         version: v0.10.0
         config_path: $(ghpc_stage("xpk-gke-a4"))/kueue-xpk-configuration.yaml.tftpl
         config_template_vars:
-          num_chips: '16'
+          num_chips: 16
       jobset:
         install: true
         version: v0.7.2

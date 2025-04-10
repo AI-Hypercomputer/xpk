@@ -49,7 +49,7 @@ blueprint_dependencies_dir = {
 }
 
 cluster_toolkit_url = "github.com/GoogleCloudPlatform/cluster-toolkit"
-cluster_toolkit_version = "develop"
+cluster_toolkit_version = "1.48.0"
 
 
 def get_subnetworks_for_a3mega(cluster_name: str) -> list[str]:
@@ -221,7 +221,7 @@ class BlueprintGenerator:
                 "install": True,
                 "version": "v0.10.0",  # TAS feature-gates is enabled in CT
                 "config_path": f'$(ghpc_stage("{blueprint_name}"))/kueue-xpk-configuration.yaml.tftpl',
-                "config_template_vars": {"num_chips": f"{num_chips}"},
+                "config_template_vars": {"num_chips": num_chips},
             },
             "jobset": {"install": True, "version": "v0.7.2"},
             "apply_manifests": [{
@@ -515,6 +515,8 @@ class BlueprintGenerator:
                 "rdma_prefix": f"{cluster_name}-rdma-sub-",
                 "rdma_start_index": 0,
                 "rdma_postfix": "",
+                "gvnic_prefix": f"{cluster_name}-gpunet-",
+                "gvnic_start_index": 0,
             },
         },
         outputs=["instructions"],
@@ -572,7 +574,7 @@ class BlueprintGenerator:
                 "install": True,
                 "version": "v0.10.0",  # TAS feature-gates is enabled in CT
                 "config_path": f'$(ghpc_stage("{blueprint_name}"))/kueue-xpk-configuration.yaml.tftpl',
-                "config_template_vars": {"num_chips": f"{num_chips}"},
+                "config_template_vars": {"num_chips": num_chips},
             },
             "jobset": {"install": True, "version": "v0.7.2"},
             "apply_manifests": [
@@ -840,7 +842,7 @@ class BlueprintGenerator:
                 "install": True,
                 "version": "v0.10.0",  # TAS feature-gates is enabled in CT
                 "config_path": f'$(ghpc_stage("{blueprint_name}"))/kueue-xpk-configuration.yaml.tftpl',
-                "config_template_vars": {"num_chips": f"{num_chips}"},
+                "config_template_vars": {"num_chips": num_chips},
             },
             "jobset": {"install": True, "version": "v0.7.2"},
             "apply_manifests": [

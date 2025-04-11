@@ -22,6 +22,11 @@ from kubernetes import client as k8s_client
 from kubernetes.client import ApiClient
 from kubernetes.client.rest import ApiException
 
+from ..core.blueprint.blueprint_generator import (
+    get_subnetworks_for_a3mega,
+    get_subnetworks_for_a3ultra,
+    get_subnetworks_for_a4,
+)
 from ..core.capacity import H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE
 from ..core.storage import GCS_FUSE_ANNOTATIONS, PARALLELSTORE_ANNOTATIONS
 from ..core.workload_decorators import rdma_decorator, tcpxo_decorator
@@ -41,7 +46,6 @@ from .config import (
     KJOB_SHELL_WORKING_DIRECTORY,
     XpkConfig,
 )
-from .network import get_subnetworks_for_a3mega, get_subnetworks_for_a3ultra
 from .resources import (
     AcceleratorType,
     SystemCharacteristics,
@@ -158,6 +162,18 @@ template:
 Kueue_TAS_annotation = "kueue.x-k8s.io/podset-preferred-topology=cloud.google.com/gce-topology-host"
 
 default_interface_annotation = "networking.gke.io/default-interface=eth0"
+
+
+def get_a4_pod_template_annotations() -> tuple[str, str]:
+  sub_networks = get_subnetworks_for_a4()
+  interfaces_key, interfaces_value = rdma_decorator.get_interfaces_entry(
+      sub_networks
+  )
+
+  return (
+      default_interface_annotation,
+      f"{interfaces_key}=$'{interfaces_value}'",
+  )
 
 
 def get_a3ultra_pod_template_annotations(args: Namespace) -> tuple[str, str]:

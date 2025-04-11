@@ -1,0 +1,193 @@
+# Copyright 2024 "Google LLC"
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+!Blueprint
+blueprint_name: xpk-gke-a4
+toolkit_modules_url: github.com/GoogleCloudPlatform/cluster-toolkit
+toolkit_modules_version: v1.48.0
+
+vars:
+
+terraform_backend_defaults:
+  type: gcs
+  configuration:
+    bucket: test-bucket
+    prefix: xpk_terraform_state/testdir/gke-a4/
+
+deployment_groups:
+- !DeploymentGroup
+  modules:
+  - !DeploymentModule
+    id: gke-a4-net-0
+    source: modules/network/vpc
+    settings:
+      network_name: gke-a4-net-0
+      mtu: 8896
+      subnetworks:
+      - subnet_name: gke-a4-sub-0
+        subnet_region: us-central1
+        subnet_ip: 192.168.0.0/18
+      secondary_ranges_list:
+      - subnetwork_name: gke-a4-sub-0
+        ranges:
+        - range_name: pods
+          ip_cidr_range: 10.4.0.0/14
+        - range_name: services
+          ip_cidr_range: 10.0.32.0/20
+      firewall_rules:
+      - name: gke-a4-internal-0
+        ranges:
+        - 192.168.0.0/16
+        allow:
+        - protocol: tcp
+          ports:
+          - 0-65535
+        - protocol: udp
+          ports:
+          - 0-65535
+        - protocol: icmp
+
+  - !DeploymentModule
+    id: gke-a4-net-1
+    source: modules/network/vpc
+    settings:
+      network_name: gke-a4-net-1
+      mtu: 8896
+      subnetworks:
+      - subnet_name: gke-a4-sub-1
+        subnet_region: us-central1
+        subnet_ip: 192.168.64.0/18
+      firewall_rules:
+      - name: gke-a4-internal-1
+        ranges:
+        - 192.168.0.0/16
+        allow:
+        - protocol: tcp
+          ports:
+          - 0-65535
+        - protocol: udp
+          ports:
+          - 0-65535
+        - protocol: icmp
+
+  - !DeploymentModule
+    id: gke-a4-rdma-net
+    source: modules/network/gpu-rdma-vpc
+    settings:
+      network_name: gke-a4-rdma-net
+      mtu: 8896
+      network_profile: 
+        https://www.googleapis.com/compute/beta/projects/foo/global/networkProfiles/us-central1-c-vpc-roce
+      network_routing_mode: REGIONAL
+      subnetworks_template:
+        name_prefix: gke-a4-rdma-sub
+        count: 8
+        ip_range: 192.168.128.0/18
+        region: us-central1
+
+  - !DeploymentModule
+    id: gke-a4-a4-cluster
+    source: modules/scheduler/gke-cluster
+    outputs:
+    - instructions
+    settings:
+      system_node_pool_machine_type: e2-standard-16
+      system_node_pool_node_count:
+        total_min_nodes: 2
+        total_max_nodes: 1000
+      prefix_with_deployment_name: false
+      name_suffix: gke-a4
+      enable_dcgm_monitoring: true
+      enable_gcsfuse_csi: true
+      enable_private_endpoint: false
+      master_authorized_networks:
+      - cidr_block: 10.0.0.0/32
+        display_name: kubectl-access-network
+      additional_networks: $(concat([{network=gke-a4-net-1.network_name, subnetwork=gke-a4-net-1.subnetwork_name,
+        subnetwork_project="foo", nic_type="GVNIC", queue_count=null,
+        network_ip=null, stack_type=null, access_config=[{nat_ip=null, public_ptr_domain_name=null,
+        network_tier=null}], ipv6_access_config=[], alias_ip_range=[]}], gke-a4-rdma-net.subnetwork_interfaces_gke))
+      version_prefix: 1.32.
+      release_channel: RAPID
+      maintenance_exclusions:
+      - name: no-minor-or-node-upgrades-indefinite
+        start_time: '2024-12-01T00:00:00Z'
+        end_time: '2025-12-22T00:00:00Z'
+        exclusion_scope: NO_MINOR_OR_NODE_UPGRADES
+    use:
+    - gke-a4-net-0
+  - !DeploymentModule
+    id: gke-a4-a4-pool
+    source: modules/compute/gke-node-pool
+    use:
+    - gke-a4-a4-cluster
+    outputs:
+    - instructions
+    settings:
+      machine_type: a4-highgpu-8g
+      auto_upgrade: true
+      zones:
+      - us-central1-c
+      disk_type: hyperdisk-balanced
+      static_node_count: 2
+      local_ssd_count_ephemeral_storage: 32
+      spot: false
+      reservation_affinity:
+        consume_reservation_type: SPECIFIC_RESERVATION
+        specific_reservations:
+        - name: test-reservation
+      max_pods_per_node: 32
+      guest_accelerator:
+      - type: nvidia-b200
+        count: 8
+        gpu_driver_installation_config:
+          gpu_driver_version: LATEST
+      additional_networks: $(concat([{network=gke-a4-net-1.network_name, subnetwork=gke-a4-net-1.subnetwork_name,
+        subnetwork_project="foo", nic_type="GVNIC", queue_count=null,
+        network_ip=null, stack_type=null, access_config=[{nat_ip=null, public_ptr_domain_name=null,
+        network_tier=null}], ipv6_access_config=[], alias_ip_range=[]}], gke-a4-rdma-net.subnetwork_interfaces_gke))
+
+  - !DeploymentModule
+    id: workload-manager-install
+    source: modules/management/kubectl-apply
+    use:
+    - gke-a4-a4-cluster
+    settings:
+      kueue:
+        install: true
+        version: v0.10.0
+        config_path: $(ghpc_stage("xpk-gke-a4"))/kueue-xpk-configuration.yaml.tftpl
+        config_template_vars:
+          num_chips: 16
+      jobset:
+        install: true
+        version: v0.7.2
+      apply_manifests:
+      - source: $(ghpc_stage("xpk-gke-a4"))/nccl-rdma-installer-a4.yaml
+      - source: $(ghpc_stage("xpk-gke-a4"))/storage_crd.yaml
+
+  - !DeploymentModule
+    id: workload_configmap
+    source: modules/management/kubectl-apply
+    settings:
+      apply_manifests:
+      - source: $(ghpc_stage("xpk-gke-a4"))/config-map.yaml.tftpl
+        template_vars:
+          resource_config_name: gke-a4-resources-configmap
+          num_nodes: '2'
+          cluster_config_name: gke-a4-metadata-configmap
+          capacity_type: reservation
+          reservation: test-reservation
+    use:
+    - gke-a4-a4-cluster
+  group: primary

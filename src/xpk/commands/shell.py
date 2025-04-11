@@ -12,14 +12,16 @@ limitations under the License.
 """
 
 from ..core.commands import run_command_with_full_controls, run_command_for_value, run_command_with_updates
-from ..core.cluster import get_cluster_credentials, add_zone_and_project, setup_k8s_env, create_k8s_service_account
-from ..core.config import GCS_FUSE_ANNOTATION_KEY, GCS_FUSE_ANNOTATION_VALUE, XPK_SA, DEFAULT_NAMESPACE
-from ..core.storage import get_auto_mount_gcsfuse_storages
+from ..core.cluster import get_cluster_credentials, add_zone_and_project, create_xpk_k8s_service_account
 from ..utils.console import xpk_exit, xpk_print
 from argparse import Namespace
 
-from ..core.kjob import AppProfileDefaults, prepare_kjob, get_pod_template_interactive_command
-
+from ..core.kjob import (
+    AppProfileDefaults,
+    prepare_kjob,
+    get_pod_template_interactive_command,
+    get_storage_annotations,
+)
 
 exit_instructions = 'To exit the shell input "exit".'
 
@@ -80,21 +82,15 @@ def connect_to_new_interactive_shell(args: Namespace) -> int:
   err_code = prepare_kjob(args)
   if err_code > 0:
     xpk_exit(err_code)
-
-  k8s_api_client = setup_k8s_env(args)
-  create_k8s_service_account(XPK_SA, DEFAULT_NAMESPACE)
-  gcs_fuse_storages = get_auto_mount_gcsfuse_storages(k8s_api_client)
+  create_xpk_k8s_service_account()
 
   cmd = (
       'kubectl-kjob create interactive --profile'
       f' {AppProfileDefaults.NAME.value} --pod-running-timeout 180s'
   )
 
-  if len(gcs_fuse_storages) > 0:
-    cmd += (
-        ' --pod-template-annotation'
-        f' {GCS_FUSE_ANNOTATION_KEY}={GCS_FUSE_ANNOTATION_VALUE}'
-    )
+  for annotation in get_storage_annotations(args):
+    cmd += f' --pod-template-annotation {annotation}'
 
   return run_command_with_full_controls(
       command=cmd,

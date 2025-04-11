@@ -14,7 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import importlib.metadata as importlib_metadata
 import os
 import re
 
@@ -25,13 +24,11 @@ from ..utils.console import xpk_print
 from .system_characteristics import AcceleratorType, SystemCharacteristics
 
 # This is the version for XPK PyPI package
-__version__ = importlib_metadata.version('xpk')
-XPK_CURRENT_VERSION = __version__.split('+')[0]
+__version__ = 'v0.6.0'
+XPK_CURRENT_VERSION = __version__
 XPK_CONFIG_FILE = os.path.expanduser('~/.config/xpk/config.yaml')
 
 CONFIGS_KEY = 'configs'
-DEFAULT_NAMESPACE = 'default'
-XPK_SA = 'xpk-sa'
 CFG_BUCKET_KEY = 'cluster-state-gcs-bucket'
 CLUSTER_NAME_KEY = 'cluster-name'
 PROJECT_KEY = 'project-id'
@@ -58,8 +55,6 @@ DEFAULT_KEYS = [
     KJOB_SHELL_WORKING_DIRECTORY,
 ]
 VERTEX_TENSORBOARD_FEATURE_FLAG = XPK_CURRENT_VERSION >= '0.4.0'
-GCS_FUSE_ANNOTATION_KEY = 'gke-gcsfuse/volumes'
-GCS_FUSE_ANNOTATION_VALUE = 'true'
 
 
 yaml = ruamel.yaml.YAML()

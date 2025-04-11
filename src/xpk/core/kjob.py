@@ -14,29 +14,45 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import os
 from argparse import Namespace
-import yaml
+from enum import Enum
 
+import yaml
 from kubernetes import client as k8s_client
 from kubernetes.client import ApiClient
 from kubernetes.client.rest import ApiException
-from .cluster import setup_k8s_env
-from .config import XPK_SA, DEFAULT_NAMESPACE
-from .storage import Storage, get_auto_mount_storages, GCS_FUSE_TYPE, GCP_FILESTORE_TYPE
-from ..utils.console import xpk_print, xpk_exit
-from .commands import run_command_for_value, run_kubectl_apply, run_command_with_updates
-from .config import XpkConfig, KJOB_SHELL_IMAGE, KJOB_SHELL_INTERACTIVE_COMMAND, KJOB_SHELL_WORKING_DIRECTORY, KJOB_BATCH_IMAGE, KJOB_BATCH_WORKING_DIRECTORY
-from .resources import get_cluster_system_characteristics, SystemCharacteristics, AcceleratorType
-from enum import Enum
+
+from ..core.capacity import H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE
+from ..core.storage import GCS_FUSE_ANNOTATIONS, PARALLELSTORE_ANNOTATIONS
+from ..core.workload_decorators import rdma_decorator, tcpxo_decorator
+from ..utils import templates
+from ..utils.console import xpk_exit, xpk_print
+from .cluster import DEFAULT_NAMESPACE, XPK_SA, setup_k8s_env
+from .commands import (
+    run_command_for_value,
+    run_command_with_updates,
+    run_kubectl_apply,
+)
+from .config import (
+    KJOB_BATCH_IMAGE,
+    KJOB_BATCH_WORKING_DIRECTORY,
+    KJOB_SHELL_IMAGE,
+    KJOB_SHELL_INTERACTIVE_COMMAND,
+    KJOB_SHELL_WORKING_DIRECTORY,
+    XpkConfig,
+)
+from .network import get_subnetworks_for_a3mega, get_subnetworks_for_a3ultra
+from .resources import (
+    AcceleratorType,
+    SystemCharacteristics,
+    get_cluster_system_characteristics,
+)
+from .storage import get_auto_mount_gcsfuse_storages, get_auto_mount_storages, get_auto_mount_parallelstore_storages
+from .workload_decorators.tcpxo_decorator import get_tcpxo_deamon_entry
 
 KJOB_API_GROUP_NAME = "kjobctl.x-k8s.io"
 KJOB_API_GROUP_VERSION = "v1alpha1"
-KJOB_API_VOLUME_BUNDLE_KIND = "VolumeBundle"
-KJOB_API_VOLUME_BUNDLE_PLURAL = KJOB_API_VOLUME_BUNDLE_KIND.lower() + "s"
-KJOB_API_VOLUME_BUNDLE_CRD_NAME = (
-    f"{KJOB_API_VOLUME_BUNDLE_PLURAL}.{KJOB_API_GROUP_NAME}"
-)
+KJOB_API_VOLUME_BUNDLE_PLURAL = "volumebundles"
 VOLUME_BUNDLE_TEMPLATE_PATH = "/../templates/volume_bundle.yaml"
 
 
@@ -74,6 +90,7 @@ job_template_yaml = """
       completionMode: Indexed
       template:
         spec:
+          dnsPolicy: ClusterFirstWithHostNet
           tolerations:
             - operator: "Exists"
               key: nvidia.com/gpu
@@ -83,6 +100,7 @@ job_template_yaml = """
               workingDir: {working_directory}
               {resources}
           {node_selector}
+          priorityClassName: {priority}
           restartPolicy: OnFailure
           serviceAccountName: {service_account}
 """
@@ -139,6 +157,34 @@ template:
 
 Kueue_TAS_annotation = "kueue.x-k8s.io/podset-preferred-topology=cloud.google.com/gce-topology-host"
 
+default_interface_annotation = "networking.gke.io/default-interface=eth0"
+
+
+def get_a3ultra_pod_template_annotations(args: Namespace) -> tuple[str, str]:
+  sub_networks = get_subnetworks_for_a3ultra(args.cluster)
+  interfaces_key, interfaces_value = rdma_decorator.get_interfaces_entry(
+      sub_networks
+  )
+
+  return (
+      default_interface_annotation,
+      f"{interfaces_key}=$'{interfaces_value}'",
+  )
+
+
+def get_a3mega_pod_template_annotations(
+    args: Namespace,
+) -> tuple[str, str, str]:
+  """Adds or updates annotations in the Pod template."""
+  sub_networks = get_subnetworks_for_a3mega(args.cluster)
+  tcpxo_deamon_key, tcpxo_deamon_paths = get_tcpxo_deamon_entry()
+  interfaces_key, interfaces_value = tcpxo_decorator.get_interfaces_entry(
+      sub_networks
+  )
+  tcpxo = f"{tcpxo_deamon_key}=$'{tcpxo_deamon_paths}'"
+  interfaces = f"{interfaces_key}=$'{interfaces_value}'"
+  return tcpxo, interfaces, default_interface_annotation
+
 
 def verify_kjob_installed(args: Namespace) -> int:
   """Check if kjob is installed. If not provide user with proper communicate and exit.
@@ -181,7 +227,9 @@ def get_pod_template_interactive_command() -> str:
   return pod_command
 
 
-def create_app_profile_instance(args: Namespace, volume_bundles: [str]) -> int:
+def create_app_profile_instance(
+    args: Namespace, volume_bundles: list[str]
+) -> int:
   """Create new AppProfile instance on cluster with default settings.
 
   Args:
@@ -199,6 +247,17 @@ def create_app_profile_instance(args: Namespace, volume_bundles: [str]) -> int:
       task="Creating AppProfile",
       args=args,
   )
+
+
+def decorate_job_template_with_gpu(yml_string: str, gpu_type: str) -> str:
+  job_spec = yaml.safe_load(yml_string)["template"]
+  if gpu_type == H100_MEGA_DEVICE_TYPE:
+    job_spec = tcpxo_decorator.decorate_kjob_template(job_spec)
+  if gpu_type == H200_DEVICE_TYPE:
+    job_spec = rdma_decorator.decorate_kjob_template(job_spec)
+  job_template_dict = yaml.safe_load(yml_string)
+  job_template_dict["template"] = job_spec
+  return yaml.dump(job_template_dict, sort_keys=False)
 
 
 def create_job_template_instance(
@@ -220,7 +279,6 @@ def create_job_template_instance(
   working_directory = config.get(KJOB_BATCH_WORKING_DIRECTORY)
   if working_directory is None or len(working_directory) == 0:
     working_directory = JobTemplateDefaults.WORKING_DIRECTORY.value
-
   resources = (
       job_resources_template.format(gpu_per_node=system.chips_per_vm)
       if system is not None
@@ -234,19 +292,23 @@ def create_job_template_instance(
       and system.accelerator_type == AcceleratorType["GPU"]
       else ""
   )
+  yml_string = job_template_yaml.format(
+      name=JobTemplateDefaults.NAME.value,
+      parallelism=JobTemplateDefaults.PARALLELISM.value,
+      completions=JobTemplateDefaults.COMPLETIONS.value,
+      container_name=JobTemplateDefaults.CONTAINER_NAME.value,
+      image=job_image,
+      working_directory=working_directory,
+      resources=resources,
+      node_selector=node_selector,
+      priority=args.priority if hasattr(args, "priority") else "medium",
+      service_account=service_account,
+  )
+  if system is not None and system.accelerator_type == AcceleratorType["GPU"]:
+    yml_string = decorate_job_template_with_gpu(yml_string, system.device_type)
 
   return run_kubectl_apply(
-      yml_string=job_template_yaml.format(
-          name=JobTemplateDefaults.NAME.value,
-          parallelism=JobTemplateDefaults.PARALLELISM.value,
-          completions=JobTemplateDefaults.COMPLETIONS.value,
-          container_name=JobTemplateDefaults.CONTAINER_NAME.value,
-          image=job_image,
-          working_directory=working_directory,
-          resources=resources,
-          node_selector=node_selector,
-          service_account=service_account,
-      ),
+      yml_string,
       task="Creating JobTemplate",
       args=args,
   )
@@ -283,21 +345,13 @@ def create_pod_template_instance(args: Namespace, service_account: str) -> int:
 
 
 def prepare_kjob(args: Namespace) -> int:
-  xpk_print("Preparing kjob")
-
   system = get_cluster_system_characteristics(args)
 
   k8s_api_client = setup_k8s_env(args)
-  storages: list[Storage] = get_auto_mount_storages(k8s_api_client)
-  gcs_fuse_storages = list(
-      filter(lambda storage: storage.type == GCS_FUSE_TYPE, storages)
-  )
-  gcp_filestore_storages = list(
-      filter(lambda storage: storage.type == GCP_FILESTORE_TYPE, storages)
-  )
+  storages = get_auto_mount_storages(k8s_api_client)
 
   service_account = ""
-  if len(gcs_fuse_storages) > 0 or len(gcp_filestore_storages) > 0:
+  if len(storages) > 0:
     service_account = XPK_SA
 
   job_err_code = create_job_template_instance(args, system, service_account)
@@ -307,8 +361,7 @@ def prepare_kjob(args: Namespace) -> int:
   if pod_err_code > 0:
     return pod_err_code
 
-  all_storages = gcs_fuse_storages + gcp_filestore_storages
-  volume_bundles = [item.name for item in all_storages]
+  volume_bundles = [item.name for item in storages]
 
   return create_app_profile_instance(args, volume_bundles)
 
@@ -335,7 +388,11 @@ def apply_kjob_crds(args: Namespace) -> int:
 
 
 def create_volume_bundle_instance(
-    k8s_api_client: ApiClient, args: Namespace
+    k8s_api_client: ApiClient,
+    name: str,
+    manifest: list[dict],
+    readonly: bool,
+    mount_point: str,
 ) -> None:
   """
   Creates a new VolumeBundle resource in the Kubernetes cluster.
@@ -349,30 +406,25 @@ def create_volume_bundle_instance(
       args: An argparse Namespace object containing the arguments for creating
             the Storage resource.
   """
-  abs_path = f"{os.path.dirname(__file__)}{VOLUME_BUNDLE_TEMPLATE_PATH}"
-  with open(abs_path, "r", encoding="utf-8") as file:
-    data = yaml.safe_load(file)
-
-  data["metadata"]["name"] = args.name
+  data = templates.load(VOLUME_BUNDLE_TEMPLATE_PATH)
+  data["metadata"]["name"] = name
   spec = data["spec"]
   spec["volumes"] = []
   spec["containerVolumeMounts"] = []
 
-  with open(args.manifest, "r", encoding="utf-8") as f:
-    pv_pvc_definitions = yaml.safe_load_all(f)
-    for obj in pv_pvc_definitions:
-      if obj["kind"] == "PersistentVolumeClaim":
-        spec["volumes"].append({
-            "name": obj["metadata"]["name"],
-            "persistentVolumeClaim": {
-                "claimName": obj["metadata"]["name"],
-                "readOnly": args.readonly,
-            },
-        })
-        spec["containerVolumeMounts"].append({
-            "name": obj["metadata"]["name"],
-            "mountPath": args.mount_point,
-        })
+  for obj in manifest:
+    if obj["kind"] == "PersistentVolumeClaim":
+      spec["volumes"].append({
+          "name": obj["metadata"]["name"],
+          "persistentVolumeClaim": {
+              "claimName": obj["metadata"]["name"],
+              "readOnly": readonly,
+          },
+      })
+      spec["containerVolumeMounts"].append({
+          "name": obj["metadata"]["name"],
+          "mountPath": mount_point,
+      })
 
   data["spec"] = spec
 
@@ -386,14 +438,29 @@ def create_volume_bundle_instance(
         body=data,
     )
     xpk_print(
-        f"Created {KJOB_API_VOLUME_BUNDLE_CRD_NAME} object:"
+        f"Created {KJOB_API_VOLUME_BUNDLE_PLURAL}.{KJOB_API_GROUP_NAME} object:"
         f" {data['metadata']['name']}"
     )
   except ApiException as e:
     if e.status == 409:
-      xpk_print(
-          f"VolumeBundle: {args.name} already exists. Skipping its creation"
-      )
+      xpk_print(f"VolumeBundle: {name} already exists. Skipping its creation")
     else:
       xpk_print(f"Encountered error during VolumeBundle creation: {e}")
       xpk_exit(1)
+
+
+def get_storage_annotations(args: Namespace) -> list[str]:
+  annotations = []
+  k8s_api_client = setup_k8s_env(args)
+
+  gcsfuse_storages = get_auto_mount_gcsfuse_storages(k8s_api_client)
+  if len(gcsfuse_storages) > 0:
+    for key, value in GCS_FUSE_ANNOTATIONS.items():
+      annotations.append(f"{key}={value}")
+
+  parallelstore_storages = get_auto_mount_parallelstore_storages(k8s_api_client)
+  if len(parallelstore_storages) > 0:
+    for key, value in PARALLELSTORE_ANNOTATIONS.items():
+      annotations.append(f"{key}={value}")
+
+  return annotations

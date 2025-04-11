@@ -14,14 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..core.config import __version__
-from ..utils.console import xpk_print
+import os
+
+import ruamel.yaml
+
+yaml = ruamel.yaml.YAML()
 
 
-def get_xpk_version() -> str:
-  return __version__
-
-
-def version(args) -> None:  # pylint: disable=unused-argument
-  """Get version of xpk."""
-  xpk_print('xpk_version:', __version__)
+def load(path: str) -> dict:
+  template_path = os.path.dirname(__file__) + path
+  with open(template_path, "r", encoding="utf-8") as file:
+    data: dict = yaml.load(file)
+  return data

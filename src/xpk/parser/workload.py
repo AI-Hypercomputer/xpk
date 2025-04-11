@@ -135,6 +135,24 @@ def set_workload_parsers(workload_parser):
       ),
   )
   workload_create_parser_optional_arguments.add_argument(
+      '--ramdisk-directory',
+      type=str,
+      default='',
+      help=(
+          'The directory of the locally mounted RAM disk. This is only to'
+          ' be used with the CSI driver provided by GKE.'
+      ),
+  )
+  workload_create_parser_optional_arguments.add_argument(
+      '--mtc-enabled',
+      action='store_true',
+      help=(
+          'The workload can use multi-tier checkpointing controllers when the'
+          ' --ramdisk-directory argument is used with this additional'
+          ' argument.'
+      ),
+  )
+  workload_create_parser_optional_arguments.add_argument(
       '--debug-dump-gcs',
       type=str,
       default=None,
@@ -159,6 +177,19 @@ def set_workload_parsers(workload_parser):
       help=(
           'Please use `xpk workload create-pathways` instead to'
           ' create Pathways workloads.'
+      ),
+  )
+  workload_create_parser_optional_arguments.add_argument(
+      '--restart-on-exit-codes',
+      type=str,
+      default=None,
+      help=(
+          'Adding this argument specifies additional user-defined exit codes'
+          ' that allow restarting the workload when --max-restarts is set to'
+          ' a value greater than 0. By default, workloads restart on exit'
+          ' codes 42 and 127-255. Any exit codes provided through this flag'
+          ' will be included alongside the default codes for restarting'
+          ' conditions.'
       ),
   )
 
@@ -244,9 +275,7 @@ def set_workload_parsers(workload_parser):
   workload_create_pathways_parser_optional_arguments.add_argument(
       '--proxy-server-image',
       type=str,
-      default=(
-          'us-docker.pkg.dev/cloud-tpu-v2-images/pathways/proxy_server:latest'
-      ),
+      default='',
       help=(
           'Please provide the proxy server image for Pathways. This arg can'
           ' only be used in `xpk workload create-pathways`.'
@@ -255,7 +284,7 @@ def set_workload_parsers(workload_parser):
   workload_create_pathways_parser_optional_arguments.add_argument(
       '--server-image',
       type=str,
-      default='us-docker.pkg.dev/cloud-tpu-v2-images/pathways/server:latest',
+      default='',
       help=(
           'Please provide the server image for Pathways. This arg can only be'
           ' used in `xpk workload create-pathways`.'
@@ -293,7 +322,7 @@ def set_workload_parsers(workload_parser):
   workload_create_pathways_parser_optional_arguments.add_argument(
       '--custom-pathways-server-args',
       type=str,
-      default=None,
+      default='',
       help=(
           'Provide custom Pathways server args as follows -'
           " --custom-pathways-server-args='--arg_1=xxx --arg2=yyy'"
@@ -304,7 +333,7 @@ def set_workload_parsers(workload_parser):
   workload_create_pathways_parser_optional_arguments.add_argument(
       '--custom-pathways-proxy-server-args',
       type=str,
-      default=None,
+      default='',
       help=(
           'Provide custom Pathways proxy server args as follows -'
           " --custom-pathways-proxy-server-args='--arg_1=xxx --arg2=yyy'"
@@ -315,10 +344,31 @@ def set_workload_parsers(workload_parser):
   workload_create_pathways_parser_optional_arguments.add_argument(
       '--custom-pathways-worker-args',
       type=str,
-      default=None,
+      default='',
       help=(
           'Provide custom Pathways worker args as follows -'
           " --custom-pathways-worker-args='--arg_1=xxx --arg2=yyy'"
+      ),
+      required=False,
+  )
+
+  workload_create_pathways_parser_optional_arguments.add_argument(
+      '--elastic-slices',
+      type=int,
+      default=0,
+      help=(
+          'Enable elastic slices in Pathways and specify'
+          ' the number of slices the workload could lose.'
+      ),
+      required=False,
+  )
+  workload_create_pathways_parser_optional_arguments.add_argument(
+      '--max-slice-restarts',
+      type=int,
+      default=1,
+      help=(
+          'Specify the maximum times the workers in a slice can be'
+          ' restarted. Used with --elastic-slices for Pathways workloads.'
       ),
       required=False,
   )
@@ -583,9 +633,9 @@ def add_shared_workload_create_optional_arguments(args_parsers):
         ),
     )
     custom_parser.add_argument(
-        '--remote-python-sidecar-image',
+        '--colocated-python-sidecar-image',
         type=str,
-        default=None,
+        default='',
         help='Remote Python sidecar server image.',
     )
     custom_parser.add_argument(
@@ -594,28 +644,6 @@ def add_shared_workload_create_optional_arguments(args_parsers):
         help=(
             'Set this flag to get verbose logging to investigate the issue in'
             ' the workload.'
-        ),
-    )
-    custom_parser.add_argument(
-        '--restart-on-exit-codes',
-        type=str,
-        default=None,
-        help=(
-            'Adding this argument specifies additional user-defined exit codes'
-            ' that allow restarting the workload when --max-restarts is set to'
-            ' a value greater than 0. By default, workloads restart on exit'
-            ' codes 42 and 127-255. Any exit codes provided through this flag'
-            ' will be included alongside the default codes for restarting'
-            ' conditions.'
-        ),
-    )
-    custom_parser.add_argument(
-        '--ramdisk-directory',
-        type=str,
-        default='',
-        help=(
-            'The directory of the locally mounted RAM disk. This is only to'
-            ' be used with the CSI driver provided by GKE.'
         ),
     )
 

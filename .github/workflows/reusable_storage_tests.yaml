@@ -1,0 +1,79 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License
+
+name: Storage Tests
+
+on:
+  workflow_call:
+    inputs:
+      cluster-name:
+        type: string
+        required: true
+      tpu-type:
+        description: 'TPU Type'
+        required: false
+        default: 'v4-8'
+        type: string
+      zone:
+        type: string
+        required: true
+      location:
+        type: string
+        required: true
+      run-id:
+        required: true
+        type: string
+
+jobs:
+  fuse-attach-tests:
+    uses: ./.github/workflows/reusable_storage_tests_by_type.yaml
+    concurrency: # We support one build or nightly test to run at a time currently.
+      group: fuse-tests-${{inputs.run-id}}
+      cancel-in-progress: true
+    with:
+      cluster-name: ${{inputs.cluster-name}}
+      tpu-type: ${{inputs.tpu-type}}
+      zone: ${{inputs.zone}}
+      location: ${{inputs.location}}
+      run-id: ${{inputs.run-id}}
+      storage-type: 'gcsfuse'
+      storage-command: 'attach'
+    secrets:
+      GCP_SA_KEY: ${{secrets.GCP_SA_KEY}}
+      PROJECT_NAME: ${{secrets.PROJECT_NAME}}
+      VOL_NAME: ${{secrets.VOL_NAME}}
+      IP_ADDRESS: ${{secrets.IP_ADDRESS}}
+      BUCKET_NAME: ${{secrets.BUCKET_NAME}}
+      STORAGE_NAME: gcsfuse-test-${{inputs.run-id}}
+  filestore-create-tests:
+    needs: [ fuse-attach-tests ]
+    uses: ./.github/workflows/reusable_storage_tests_by_type.yaml
+    concurrency: # We support one build or nightly test to run at a time currently.
+      group: filestore-tests-${{inputs.run-id}}
+      cancel-in-progress: true
+    with:
+      cluster-name: ${{inputs.cluster-name}}
+      tpu-type: ${{inputs.tpu-type}}
+      zone: ${{inputs.zone}}
+      location: ${{inputs.location}}
+      run-id: ${{inputs.run-id}}
+      storage-type: 'gcpfilestore'
+      storage-command: 'create'
+    secrets:
+      GCP_SA_KEY: ${{secrets.GCP_SA_KEY}}
+      PROJECT_NAME: ${{secrets.PROJECT_NAME}}
+      VOL_NAME: ${{secrets.VOL_NAME}}
+      IP_ADDRESS: ${{secrets.IP_ADDRESS}}
+      BUCKET_NAME: ${{secrets.BUCKET_NAME}}
+      STORAGE_NAME: gcpfilestore-test-${{inputs.run-id}}

@@ -56,9 +56,11 @@ and the following GPU types:
 and the following CPU types:
 * n2-standard-32
 
-xpk also supports Google Cloud Storage solutions:
-* [Cloud Storage FUSE](https://cloud.google.com/storage/docs/gcs-fuse)
-* [Filestore](https://cloud.google.com/filestore#documentation)
+xpk also supports [Google Cloud Storage solutions](#storage):
+* [Cloud Storage FUSE](#fuse)
+* [Filestore](#filestore)
+* [Parallelstore](#parallelstore)
+* [Block storage (Persistent Disk, Hyperdisk)](#block-storage-persistent-disk-hyperdisk)
 
 # Permissions needed on Cloud Console:
 
@@ -221,6 +223,7 @@ all zones.
     --num-slices=4 --on-demand \
     --tpu-type=v5litepod-16
     ```
+    Note that Pathways clusters need a CPU nodepool of n2-standard-64 or higher.
 
 *   Cluster Create for Ray:
     A cluster with KubeRay enabled and a RayCluster can be created using `cluster create-ray`.
@@ -443,102 +446,153 @@ Currently, the below flags/arguments are supported for A3-Mega and A3-Ultra mach
 
 
 ## Storage
-Currently XPK supports two types of storages: Cloud Storage FUSE and Google Cloud Filestore.
+Currently XPK supports the below types of storages:
+- [Cloud Storage FUSE](#fuse)
+- [Google Cloud Filestore](#filestore)
+- [Google Cloud Parallelstore](#parallelstore)
+- [Google Cloud Block storages (Persistent Disk, Hyperdisk)](#block-storage-persistent-disk-hyperdisk)
 
 ### FUSE
 A FUSE adapter lets you mount and access Cloud Storage buckets as local file systems, so applications can read and write objects in your bucket using standard file system semantics.
 
-To use the GCS FUSE with XPK user needs to:
-- create a [Storage Bucket](https://pantheon.corp.google.com/storage/)
-- create a manifest with PersistentVolume and PersistentVolumeClaim that mounts to the Bucket. To learn how to properly
-set up PersistentVolume and PersistentVolumeClaim visit [GKE Cloud Storage documentation](https://cloud.google.com/kubernetes-engine/docs/how-to/persistent-volumes/cloud-storage-fuse-csi-driver#provision-static)
+To use the GCS FUSE with XPK you need to create a [Storage Bucket](https://console.cloud.google.com/storage/).
 
-Once it's ready user can define:
+Once it's ready you can use `xpk storage attach` with `--type=gcsfuse` command to attach a FUSE storage instance to your cluster:
 
-- `--type` - defines a type of a storage, currently xpk supports `gcsfuse` and `gcpfilestore` only.
-- `--auto-mount` - if set to true means that all workloads should have a given storage mounted by default.
-- `--mount-point` - defines the path on which a given storage should be mounted for a workload.
-- `--manifest` - defines the path to manifest which contains PersistentVolume and PersistentVolumeClaim definitions
+```shell
+python3 xpk.py storage attach test-fuse-storage --type=gcsfuse \
+  --project=$PROJECT --cluster=$CLUSTER --zone=$ZONE 
+  --mount-point='/test-mount-point' --readonly=false \
+  --bucket=test-bucket --size=1 --auto-mount=false
+```
+
+Parameters:
+
+- `--type` - type of the storage, currently xpk supports `gcsfuse` and `gcpfilestore` only.
+- `--auto-mount` - if set to true all workloads will have this storage mounted by default.
+- `--mount-point` - the path on which this storage should be mounted for a workload.
 - `--readonly` - if set to true, workload can only read from storage.
-
-* Attach to gcsfuse storage instance.
-
-    ```shell
-    python3 xpk.py storage attach test-storage --project=$PROJECT
-    --cluster=xpk-test --type=gcsfuse --auto-mount=false \
-    --mount-point='/test-mount-point' --readonly=false \
-    --manifest='examples/storage/gcsfuse-manifest.yaml'
-    ```
-
-* Create a simple Workload with Storage attached
-    ```shell
-    python3 xpk.py workload create \
-    --workload xpk-test-workload --command "echo goodbye" \
-    --cluster xpk-test \
-    --tpu-type=v5litepod-16 \
-    --storage test-storage --project=$PROJECT
-    ```
+- `--size` - size of the storage in Gb.
+- `--bucket` - name of the storage bucket. If not set then the name of the storage is used as a bucket name.
+- `--manifest` - path to the manifest file containing PersistentVolume and PresistentVolumeClaim definitions. If set, then values from manifest override the following parameters: `--size` and `--bucket`.
 
 ### Filestore
 
-A Filestore adapter lets you mount and access Filestore instances as local file systems, so applications can read and write objects in your volumes using standard file system semantics.
+A Filestore adapter lets you mount and access [Filestore instances](https://cloud.google.com/filestore/) as local file systems, so applications can read and write files in your volumes using standard file system semantics.
 
-To use the GCP Filestore with XPK user needs to create a a [Filestore instance](https://pantheon.corp.google.com/filestore/)
-and a manifest with PersistentVolume and PersistentVolumeClaim that mounts to the Filestore. To learn how to properly
-set up PersistentVolume and PersistentVolumeClaim visit [GKE Filestore documentation](https://cloud.google.com/filestore/docs/csi-driver#access)
+To create and attach a GCP Filestore instance to your cluster use `xpk storage create` command with `--type=gcpfilestore`:
 
-Creating Filestore storage and attaching it to workload can be achieved in two ways:
+```shell
+python3 xpk.py storage create test-fs-storage --type=gcpfilestore \
+  --auto-mount=false --mount-point=/data-fs --readonly=false \
+  --size=1024 --tier=BASIC_HDD --access_mode=ReadWriteMany --vol=default \
+  --project=$PROJECT --cluster=$CLUSTER --zone=$ZONE
+```
 
-* Use `xpk storage attach` command, to attach existing filestore instance to your workloads. User must specify `--type=gcpfilestore`. This command will use existing instance of Filestore, which you can find in your gcp console, or by running `gcloud filestore instances list`. Manifest file containing Filestore details must be provided. To see examples of manifest file please visit [this guide](https://cloud.google.com/kubernetes-engine/docs/how-to/persistent-volumes/filestore-csi-driver#access) or [test example](tests/data/fs-manifest.yaml). The existing Filestore instance must be in the same VPC network as your GKE Cluster.
+You can also attach an existing Filestore instance to your cluster using `xpk storage attach` command:
 
-    ```shell
-    python3 xpk.py storage attach fs-storage-attach --project=$PROJECT
-    --cluster=xpk-test --type=gcpfilestore --auto-mount=false \
-    --mount-point='/test-mount-point' --readonly=false \
-    --manifest='examples/storage/filestore-manifest-attach.yaml'
-    ```
+```shell
+python3 xpk.py storage attach test-fs-storage --type=gcpfilestore \
+  --auto-mount=false --mount-point=/data-fs --readonly=false \
+  --size=1024 --tier=BASIC_HDD --access_mode=ReadWriteMany --vol=default \
+  --project=$PROJECT --cluster=$CLUSTER --zone=$ZONE
+```
 
-* Use `xpk storage create` command, to create new Filestore instace that will be attached to your workloads. Created Filestore instance is in 
-same VPC as your cluster. Please note that to delete cluster for A3 Mega/A3 Ultra which is using Filestore instance it is needed to delete the instance manually before running `python3 xpk.py cluster delete` command.
+The command above is also useful when attaching multiple volumes from the same Filestore instance.
 
-Command `storage create` accepts below arguments:
-- `--type` - defines a type of a storage, currently xpk supports `gcsfuse` and `gcpfilestore` only.
-- `--auto-mount` - if set to true means that all workloads should have a given storage mounted by default.
-- `--mount-point` - defines the path on which a given storage should be mounted for a workload.
-- `--manifest` - defines the path to manifest which contains PersistentVolume and PersistentVolumeClaim definitions
+Commands `xpk storage create` and `xpk storage attach` with `--type=gcpfilestore` accept following arguments:
+- `--type` - type of the storage.
+- `--auto-mount` - if set to true all workloads will have this storage mounted by default.
+- `--mount-point` - the path on which this storage should be mounted for a workload.
 - `--readonly` - if set to true, workload can only read from storage.
-- `--size` - size of the Filestore instance that will be created, in Gb or Tb
+- `--size` - size of the Filestore instance that will be created in Gb.
 - `--tier` - tier of the Filestore instance that will be created. Possible options are: `[BASIC_HDD, BASIC_SSD, ZONAL, REGIONAL, ENTERPRISE]`
 - `--access-mode` - access mode of the Filestore instance that will be created. Possible values are: `[ReadWriteOnce, ReadOnlyMany, ReadWriteMany]`
 - `--vol` - file share name of the Filestore instance that will be created.
+- `--instance` - the name of the Filestore instance. If not set then the name parameter is used as an instance name. Useful when connecting multiple volumes from the same Filestore instance.
+- `--manifest` - path to the manifest file containing PersistentVolume, PresistentVolumeClaim and StorageClass definitions. If set, then values from manifest override the following parameters: `--access-mode`, `--size` and `--volume`.
 
-* Create a Filestore storage instance.
-  ```shell
-  python3 xpk.py storage create $STORAGE_NAME --cluster=$CLUSTER \
-  --zone=$ZONE --type=gcpfilestore \
-  --auto-mount=true --vol=vol1 --size=1024 --tier=BASIC_HDD \
-  --mount-point='/fs-test-mount-point' --readonly=false --project=$PROJECT
-  ```
+### Parallelstore
 
-* Create a simple Workload with created filestore.
-    ```shell
-    python3 xpk.py workload create \
-    --workload xpk-test-workload --command "echo goodbye" \
-    --cluster xpk-test \
-    --tpu-type=v5litepod-16 \
-    --project=$PROJECT
-    ```
+A Parallelstore adapter lets you mount and access [Parallelstore instances](https://cloud.google.com/parallelstore/) as local file systems, so applications can read and write files in your volumes using standard file system semantics.
 
+To use the GCS Parallelstore with XPK you need to create a [Parallelstore Instance](https://console.cloud.google.com/parallelstore/).
 
-* List Storage
-    ```shell
-    python3 xpk.py storage list --cluster xpk-test --zone=us-central2-b --project=$PROJECT
-    ```
+Once it's ready you can use `xpk storage attach` with `--type=parallelstore` command to attach a Parallelstore instance to your cluster. Currently, attaching a Parallelstore is supported only by providing a manifest file.
 
-* Delete Storage
-    ```shell
-    python3 xpk.py storage delete $STORAGE_NAME  --cluster xpk-test --zone=us-central2-b --project=$PROJECT
-    ```
+```shell
+python3 xpk.py storage attach test-parallelstore-storage --type=parallelstore \
+  --project=$PROJECT --cluster=$CLUSTER --zone=$ZONE \
+  --mount-point='/test-mount-point' --readonly=false \
+  --auto-mount=true \
+  --manifest='./examples/storage/parallelstore-manifest-attach.yaml'
+```
+
+Parameters:
+
+- `--type` - type of the storage `parallelstore`
+- `--auto-mount` - if set to true all workloads will have this storage mounted by default.
+- `--mount-point` - the path on which this storage should be mounted for a workload.
+- `--readonly` - if set to true, workload can only read from storage.
+- `--manifest` - path to the manifest file containing PersistentVolume and PresistentVolumeClaim definitions.
+
+### Block storage (Persistent Disk, Hyperdisk)
+
+A PersistentDisk adapter lets you mount and access Google Cloud Block storage solutions ([Persistent Disk](https://cloud.google.com/kubernetes-engine/docs/concepts/storage-overview#pd), [Hyperdisk](https://cloud.google.com/kubernetes-engine/docs/concepts/storage-overview#hyperdisk)) as local file systems, so applications can read and write files in your volumes using standard file system semantics.
+
+To use the GCE PersistentDisk with XPK you need to create a [disk in GCE](https://cloud.google.com/compute/docs/disks). Please consider that the disk type you are creating is [compatible with the VMs](https://cloud.google.com/compute/docs/machine-resource#machine_type_comparison) in the default and accelerator nodepools.
+
+Once it's ready you can use `xpk storage attach` with `--type=pd` command to attach a PersistentDisk instance to your cluster. Currently, attaching a PersistentDisk is supported only by providing a manifest file.
+
+```shell
+python3 xpk.py storage attach test-pd-storage --type=pd \
+  --project=$PROJECT --cluster=$CLUSTER --zone=$ZONE \
+  --mount-point='/test-mount-point' --readonly=false \
+  --auto-mount=true \
+  --manifest='./examples/storage/pd-manifest-attach.yaml'
+```
+
+Parameters:
+
+- `--type` - type of the storage `pd`
+- `--auto-mount` - if set to true all workloads will have this storage mounted by default.
+- `--mount-point` - the path on which this storage should be mounted for a workload.
+- `--readonly` - if set to true, workload can only read from storage.
+- `--manifest` - path to the manifest file containing PersistentVolume and PresistentVolumeClaim definitions.
+
+### List attached storages
+
+```shell
+python3 xpk.py storage list \
+  --project=$PROJECT --cluster $CLUSTER --zone=$ZONE
+```
+
+### Running workloads with storage
+
+If you specified `--auto-mount=true` when creating or attaching a storage, then all workloads deployed on the cluster will have the volume attached by default. Otherwise, in order to have the storage attached, you have to add `--storage` parameter to `workload create` command:
+
+```shell
+python3 xpk.py workload create \
+  --workload xpk-test-workload --command "echo goodbye" \
+  --project=$PROJECT --cluster=$CLUSTER --zone=$ZONE \
+  --tpu-type=v5litepod-16 --storage=test-storage
+```
+
+### Detaching storage
+
+```shell
+python3 xpk.py storage detach $STORAGE_NAME \
+  --project=$PROJECT --cluster=$CLUSTER --zone=$ZONE
+```
+
+### Deleting storage
+
+XPK allows you to remove Filestore instances easily with `xpk storage delete` command. **Warning:** this deletes all data contained in the Filestore!
+
+```shell
+python3 xpk.py storage delete test-fs-instance \
+  --project=$PROJECT --cluster=$CLUSTER --zone=$ZONE
+```
 
 ## Workload Create
 *   Workload Create (submit training job):

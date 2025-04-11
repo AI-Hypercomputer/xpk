@@ -17,29 +17,46 @@ limitations under the License.
 import os
 from argparse import Namespace
 from dataclasses import dataclass
+from typing import Any
 
-import yaml
+import ruamel.yaml
 from google.cloud import storage as gcp_storage
 from kubernetes import client as k8s_client
 from kubernetes import utils
 from kubernetes.client import ApiClient
-from kubernetes.client.rest import ApiException
 from kubernetes.client.models.v1_persistent_volume import V1PersistentVolume
+from kubernetes.client.rest import ApiException
 from kubernetes.utils import FailToCreateError
 from tabulate import tabulate
 
-from .config import XPK_SA
 from ..utils.console import xpk_exit, xpk_print
+from ..utils.file import ensure_directory_exists
+from ..utils import templates
+from .cluster import XPK_SA
+
+yaml = ruamel.yaml.YAML()
 
 STORAGE_CRD_PATH = "/../api/storage_crd.yaml"
 STORAGE_TEMPLATE_PATH = "/../templates/storage.yaml"
 XPK_API_GROUP_NAME = "xpk.x-k8s.io"
 XPK_API_GROUP_VERSION = "v1"
 STORAGE_CRD_KIND = "Storage"
-STORAGE_CRD_PLURAL = STORAGE_CRD_KIND.lower() + "s"
+STORAGE_CRD_PLURAL = "storages"
 STORAGE_CRD_NAME = f"{XPK_API_GROUP_NAME}.{STORAGE_CRD_PLURAL}"
 GCS_FUSE_TYPE = "gcsfuse"
 GCP_FILESTORE_TYPE = "gcpfilestore"
+PARALLELSTORE_TYPE = "parallelstore"
+GCE_PD_TYPE = "pd"
+MANIFESTS_PATH = os.path.abspath("xpkclusters/storage-manifests")
+GCS_FUSE_ANNOTATIONS = {
+    "gke-gcsfuse/volumes": "true",
+    "gke-gcsfuse/cpu-limit": "0",
+    "gke-gcsfuse/memory-limit": "0",
+    "gke-gcsfuse/ephemeral-storage-limit": "0",
+}
+PARALLELSTORE_ANNOTATIONS = {
+    "gke-parallelstore/volumes": "true",
+}
 
 
 @dataclass
@@ -203,6 +220,24 @@ def get_auto_mount_gcsfuse_storages(k8s_api_client: ApiClient) -> list[Storage]:
   return list(filter(lambda storage: storage.type == GCS_FUSE_TYPE, storages))
 
 
+def get_auto_mount_parallelstore_storages(
+    k8s_api_client: ApiClient,
+) -> list[Storage]:
+  """
+  Retrieves all GCS Fuse Storage resources that have --auto-mount flag set to true.
+
+  Args:
+      k8s_api_client: An ApiClient object for interacting with the Kubernetes API.
+
+  Returns:
+      A list of GCS Fuse Storage objects that have `auto_mount` set to True.
+  """
+  storages: list[Storage] = get_auto_mount_storages(k8s_api_client)
+  return list(
+      filter(lambda storage: storage.type == PARALLELSTORE_TYPE, storages)
+  )
+
+
 def get_storages(
     k8s_api_client: ApiClient, requested_storages: list[str]
 ) -> list[Storage]:
@@ -305,6 +340,29 @@ def install_storage_crd(k8s_api_client: ApiClient) -> None:
     else:
       xpk_print(f"Encountered error during installing Storage CRD: {e}")
       xpk_exit(1)
+
+
+def get_storage_annotations(storages: list[Storage]) -> list[str]:
+  """
+  Generates the storage annotations for workloads in the format of a YAML snippet.
+
+  Args:
+      storages: A list of Storage objects
+      offset: An integer specifying the depth of the YAML file
+
+  Returns:
+      A string containing the YAML representation of the storage annotations.
+  """
+  annotations = []
+  if any(storage.type == GCS_FUSE_TYPE for storage in storages):
+    for key, value in GCS_FUSE_ANNOTATIONS.items():
+      annotations.append(f'{key}: "{value}"')
+
+  if any(storage.type == PARALLELSTORE_TYPE for storage in storages):
+    for key, value in PARALLELSTORE_ANNOTATIONS.items():
+      annotations.append(f'{key}: "{value}"')
+
+  return annotations
 
 
 def get_storage_volume_mounts_yaml(storages: list[Storage]) -> str:
@@ -474,7 +532,78 @@ def print_storages_for_cluster(storages: list[Storage]) -> None:
   )
 
 
-def create_storage_crds(k8s_api_client: ApiClient, args: Namespace) -> None:
+def save_manifest(args: Namespace, manifest: list[dict]):
+  """
+  Saves manifest to file in xpkclusters/storage-manifests.
+
+  Args:
+      args: An argparser Namespace object containing arguments for creating the
+            Storage resource.
+      manifest: A list of some of: PersistentVolume, PersistentVolumeClaim and
+                StorageClass definitions
+
+  Returns:
+      manifest_path: Manifest file path
+  """
+  ensure_directory_exists(MANIFESTS_PATH)
+  manifest_path = f"{MANIFESTS_PATH}/{args.project}-{args.zone}-{args.cluster}-{args.name}-manifest.yaml"
+  with open(manifest_path, "w", encoding="utf-8") as f:
+    yaml.dump_all(manifest, f)
+  return manifest_path
+
+
+def save_storage_crds(k8s_api_client: ApiClient, data: Any):
+  """
+  Saves a new Storage custom resource in the Kubernetes cluster.
+
+  Args:
+      k8s_api_client: An ApiClient object for interacting with the Kubernetes API.
+      data: A dictionary containing data to save.
+  """
+  api_instance = k8s_client.CustomObjectsApi(k8s_api_client)
+
+  api_instance.create_cluster_custom_object(
+      group=XPK_API_GROUP_NAME,
+      version=XPK_API_GROUP_VERSION,
+      plural=STORAGE_CRD_PLURAL,
+      body=data,
+  )
+  xpk_print(f"Created {STORAGE_CRD_KIND} object: {data['metadata']['name']}")
+
+
+def fill_storage_template(
+    template: dict, args: Namespace, manifest: list[dict], manifest_path: str
+):
+  """
+  Populates storage.yaml template with data.
+
+  Args:
+      template: A storage custom resource definition template
+      args: An argparse Namespace object containing the arguments for creating
+            the Storage resource.
+      manifest: A list of some of: PersistentVolume, PersistentVolumeClaim and
+                StorageClass definitions
+  """
+  template["metadata"]["name"] = args.name
+  template["spec"] = {
+      "auto_mount": args.auto_mount,
+      "cluster": args.cluster,
+      "mount_point": args.mount_point,
+      "readonly": args.readonly,
+      "type": args.type,
+      "manifest": manifest_path,
+  }
+
+  for obj in manifest:
+    if obj["kind"] == "PersistentVolume":
+      template["spec"]["pv"] = obj["metadata"]["name"]
+    elif obj["kind"] == "PersistentVolumeClaim":
+      template["spec"]["pvc"] = obj["metadata"]["name"]
+
+
+def create_storage_crds(
+    k8s_api_client: ApiClient, args: Namespace, manifest: list[dict]
+) -> None:
   """
   Creates a new Storage custom resource in the Kubernetes cluster.
 
@@ -486,39 +615,15 @@ def create_storage_crds(k8s_api_client: ApiClient, args: Namespace) -> None:
       k8s_api_client: An ApiClient object for interacting with the Kubernetes API.
       args: An argparse Namespace object containing the arguments for creating
             the Storage resource.
+      manifest: A list of some of: PersistentVolume, PersistentVolumeClaim and
+                StorageClass definitions
   """
-  abs_path = f"{os.path.dirname(__file__)}{STORAGE_TEMPLATE_PATH}"
-  with open(abs_path, "r", encoding="utf-8") as file:
-    data = yaml.safe_load(file)
-
-  data["metadata"]["name"] = args.name
-  spec = data["spec"]
-  spec["cluster"] = args.cluster
-  spec["type"] = args.type
-  spec["auto_mount"] = args.auto_mount
-  spec["mount_point"] = args.mount_point
-  spec["readonly"] = args.readonly
-  spec["manifest"] = args.manifest
-
-  with open(args.manifest, "r", encoding="utf-8") as f:
-    pv_pvc_definitions = yaml.safe_load_all(f)
-    for obj in pv_pvc_definitions:
-      if obj["kind"] == "PersistentVolume":
-        spec["pv"] = obj["metadata"]["name"]
-      elif obj["kind"] == "PersistentVolumeClaim":
-        spec["pvc"] = obj["metadata"]["name"]
-
-  data["spec"] = spec
-
-  api_instance = k8s_client.CustomObjectsApi(k8s_api_client)
   try:
-    api_instance.create_cluster_custom_object(
-        group=XPK_API_GROUP_NAME,
-        version=XPK_API_GROUP_VERSION,
-        plural=STORAGE_CRD_PLURAL,
-        body=data,
-    )
-    xpk_print(f"Created {STORAGE_CRD_KIND} object: {data['metadata']['name']}")
+    template = templates.load(STORAGE_TEMPLATE_PATH)
+
+    manifest_path = save_manifest(args, manifest)
+    fill_storage_template(template, args, manifest, manifest_path)
+    save_storage_crds(k8s_api_client, template)
   except ApiException as e:
     if e.status == 409:
       xpk_print(f"Storage: {args.name} already exists. Skipping its creation")

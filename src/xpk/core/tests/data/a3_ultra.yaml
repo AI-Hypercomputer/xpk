@@ -14,7 +14,7 @@
 !Blueprint
 blueprint_name: xpk-gke-a3-ultra
 toolkit_modules_url: github.com/GoogleCloudPlatform/cluster-toolkit
-toolkit_modules_version: 1.48.0
+toolkit_modules_version: v1.48.0
 
 vars:
 
@@ -118,8 +118,8 @@ deployment_groups:
         rdma_prefix: "gke-a3-ultra-rdma-sub-"
         rdma_start_index: 0
         rdma_postfix: ""
-        gvnic_prefix: "gke-a3-ultra-gpunet-"
-        gvnic_start_index: 0
+        gvnic_prefix: "gke-a3-ultra-sub-"
+        gvnic_start_index: 1
     outputs: [instructions]
 
   - !DeploymentModule

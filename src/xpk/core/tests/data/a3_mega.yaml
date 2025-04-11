@@ -16,7 +16,7 @@
 !Blueprint
 blueprint_name: xpk-gke-a3-megagpu
 toolkit_modules_url: github.com/GoogleCloudPlatform/cluster-toolkit
-toolkit_modules_version: 1.48.0
+toolkit_modules_version: v1.48.0
 
 vars:
   project_id: "foo"

@@ -49,7 +49,7 @@ blueprint_dependencies_dir = {
 }
 
 cluster_toolkit_url = "github.com/GoogleCloudPlatform/cluster-toolkit"
-cluster_toolkit_version = "1.48.0"
+cluster_toolkit_version = "v1.48.0"
 
 
 def get_subnetworks_for_a3mega(cluster_name: str) -> list[str]:
@@ -515,8 +515,8 @@ class BlueprintGenerator:
                 "rdma_prefix": f"{cluster_name}-rdma-sub-",
                 "rdma_start_index": 0,
                 "rdma_postfix": "",
-                "gvnic_prefix": f"{cluster_name}-gpunet-",
-                "gvnic_start_index": 0,
+                "gvnic_prefix": f"{cluster_name}-sub-",
+                "gvnic_start_index": 1,
             },
         },
         outputs=["instructions"],

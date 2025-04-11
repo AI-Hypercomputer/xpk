@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: xpk-pd-pv
+spec:
+  storageClassName: "xpk-pd-class"
+  capacity:
+    storage: STORAGE_SIZE #ex: 100G
+  accessModes:
+    - ReadWriteOnce
+  claimRef:
+    name: xpk-pd-pvc
+    namespace: default
+  csi:
+    driver: pd.csi.storage.gke.io
+    volumeHandle: projects/PROJECT_ID/zones/ZONE/disks/INSTANCE_NAME #for regional: projects/PROJECT_ID/regions/REGION/disks/INSTANCE_NAME
+    fsType: ext4
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  namespace: default
+  name: xpk-pd-pvc
+spec:
+  storageClassName: "xpk-pd-class"
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: STORAGE_SIZE #ex: 100G

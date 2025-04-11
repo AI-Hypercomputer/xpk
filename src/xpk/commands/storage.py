@@ -27,6 +27,8 @@ from ..core.cluster import (
     add_zone_and_project,
     get_cluster_network,
     setup_k8s_env,
+    update_cluster_with_parallelstore_driver_if_necessary,
+    update_cluster_with_pd_driver_if_necessary,
     update_cluster_with_gcpfilestore_driver_if_necessary,
     update_cluster_with_gcsfuse_driver_if_necessary,
     update_cluster_with_workload_identity_if_necessary,
@@ -41,6 +43,8 @@ from ..core.kjob import (
 from ..core.storage import (
     GCP_FILESTORE_TYPE,
     GCS_FUSE_TYPE,
+    GCE_PD_TYPE,
+    PARALLELSTORE_TYPE,
     STORAGE_CRD_PLURAL,
     XPK_API_GROUP_NAME,
     XPK_API_GROUP_VERSION,
@@ -86,9 +90,10 @@ def storage_create(args: Namespace) -> None:
     create_volume_bundle_instance(
         k8s_api_client, args.name, manifest, args.readonly, args.mount_point
     )
-    return_code = update_cluster_with_workload_identity_if_necessary(args)
-    if return_code > 0:
-      xpk_exit(return_code)
+    # Not required for Filestore. Will be uncommented when adding GCSFuse create
+    # return_code = update_cluster_with_workload_identity_if_necessary(args)
+    # if return_code > 0:
+    #   xpk_exit(return_code)
     return_code = update_cluster_with_gcpfilestore_driver_if_necessary(args)
     if return_code > 0:
       xpk_exit(return_code)
@@ -131,6 +136,7 @@ def storage_delete(args: Namespace) -> None:
 
 def storage_attach(args: Namespace) -> None:
   add_zone_and_project(args)
+  manifest = [{}]
   if args.type == GCP_FILESTORE_TYPE:
     if args.instance is None:
       args.instance = args.name
@@ -151,7 +157,7 @@ def storage_attach(args: Namespace) -> None:
           args.name, args.vol, args.access_mode, filestore_network
       )
 
-  else:  # args.type == GCS_FUSE_TYPE:
+  elif args.type == GCS_FUSE_TYPE:
     if args.manifest is None and args.size is None:
       xpk_print("--size is required when attaching gcsfuse storage.")
       xpk_exit(1)
@@ -167,25 +173,56 @@ def storage_attach(args: Namespace) -> None:
           name=args.name, bucket=args.bucket, size=args.size
       )
 
+  elif args.type in [PARALLELSTORE_TYPE, GCE_PD_TYPE]:
+    if args.manifest is None:
+      xpk_print(
+          "Parallelstore and PersistentDisk are currently supported only with"
+          " --manifest"
+      )
+      xpk_exit(1)
+
+    with open(args.manifest, "r", encoding="utf-8") as f:
+      manifest = list(yaml.safe_load_all(f))
+
+  else:
+    xpk_print(f"Storage type {args.type} is not supported.")
+    xpk_exit(1)
+
   k8s_api_client = setup_k8s_env(args)
   create_storage_crds(k8s_api_client, args, manifest)
   create_volume_bundle_instance(
       k8s_api_client, args.name, manifest, args.readonly, args.mount_point
   )
-  return_code = update_cluster_with_workload_identity_if_necessary(args)
-  if return_code > 0:
-    xpk_exit(return_code)
 
-  # args.type can have only two values after parsing
-  return_code = (
-      update_cluster_with_gcsfuse_driver_if_necessary(args)
-      if args.type == GCS_FUSE_TYPE
-      else update_cluster_with_gcpfilestore_driver_if_necessary(args)
-  )
-  if return_code > 0:
-    xpk_exit(return_code)
+  enable_csi_drivers_if_necessary(args)
 
   apply_kubectl_manifest(k8s_api_client, manifest)
+
+
+def enable_csi_drivers_if_necessary(args: Namespace) -> None:
+  if args.type == GCS_FUSE_TYPE:
+    return_code = update_cluster_with_workload_identity_if_necessary(args)
+    if return_code > 0:
+      xpk_exit(return_code)
+
+    return_code = update_cluster_with_gcsfuse_driver_if_necessary(args)
+    if return_code > 0:
+      xpk_exit(return_code)
+
+  if args.type == GCP_FILESTORE_TYPE:
+    return_code = update_cluster_with_gcpfilestore_driver_if_necessary(args)
+    if return_code > 0:
+      xpk_exit(return_code)
+
+  if args.type == PARALLELSTORE_TYPE:
+    return_code = update_cluster_with_parallelstore_driver_if_necessary(args)
+    if return_code > 0:
+      xpk_exit(return_code)
+
+  if args.type == GCE_PD_TYPE:
+    return_code = update_cluster_with_pd_driver_if_necessary(args)
+    if return_code > 0:
+      xpk_exit(return_code)
 
 
 def storage_list(args: Namespace) -> None:

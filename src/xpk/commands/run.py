@@ -26,7 +26,7 @@ from ..core.kjob import (
     AppProfileDefaults,
     JobTemplateDefaults,
     Kueue_TAS_annotation,
-    get_gcsfuse_annotations,
+    get_storage_annotations,
     prepare_kjob,
 )
 from ..core.kueue import LOCAL_QUEUE_NAME
@@ -71,7 +71,7 @@ def submit_job(args: Namespace) -> None:
   )
   cmd = add_gpu_networking_annotations_to_command(args, cmd)
 
-  for annotation in get_gcsfuse_annotations(args):
+  for annotation in get_storage_annotations(args):
     cmd += f' --pod-template-annotation {annotation}'
 
   if args.timeout:

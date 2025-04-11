@@ -27,7 +27,7 @@ from ..core.kjob import (
     AppProfileDefaults,
     JobTemplateDefaults,
     Kueue_TAS_annotation,
-    get_gcsfuse_annotation,
+    get_gcsfuse_annotations,
     prepare_kjob,
 )
 from ..core.kueue import LOCAL_QUEUE_NAME
@@ -73,9 +73,9 @@ def submit_job(args: Namespace) -> None:
       ' --first-node-ip'
   )
   cmd = add_gpu_networking_annotations_to_command(args, cmd)
-  gcsfuse_annotation = get_gcsfuse_annotation(args)
-  if gcsfuse_annotation is not None:
-    cmd += f' --pod-template-annotation {gcsfuse_annotation}'
+
+  for annotation in get_gcsfuse_annotations(args):
+    cmd += f' --pod-template-annotation {annotation}'
 
   if args.ignore_unknown_flags:
     cmd += ' --ignore-unknown-flags'

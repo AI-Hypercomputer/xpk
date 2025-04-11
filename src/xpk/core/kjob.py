@@ -28,6 +28,7 @@ from ..core.blueprint.blueprint_generator import (
     get_subnetworks_for_a4,
 )
 from ..core.capacity import H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE
+from ..core.storage import GCS_FUSE_ANNOTATIONS
 from ..core.workload_decorators import rdma_decorator, tcpxo_decorator
 from ..utils import templates
 from ..utils.console import xpk_exit, xpk_print
@@ -465,9 +466,11 @@ def create_volume_bundle_instance(
       xpk_exit(1)
 
 
-def get_gcsfuse_annotation(args: Namespace) -> str | None:
+def get_gcsfuse_annotations(args: Namespace) -> list[str]:
   k8s_api_client = setup_k8s_env(args)
   gcsfuse_storages = get_auto_mount_gcsfuse_storages(k8s_api_client)
+  annotations = []
   if len(gcsfuse_storages) > 0:
-    return "gke-gcsfuse/volumes=true"
-  return None
+    for key, value in GCS_FUSE_ANNOTATIONS.items():
+      annotations.append(f"{key}={value}")
+  return annotations

@@ -200,7 +200,9 @@ class FilestoreClient:
     ] = f"projects/{self.project}/global/networks/{network}"
     return data
 
-  def create_pv(self, name: str, vol: str, access_mode: str) -> dict:
+  def create_pv(
+      self, name: str, vol: str, access_mode: str, mount_options: str
+  ) -> dict:
     """Create a yaml representing filestore PersistentVolume."""
     data = templates.load(FS_PV_PATH)
     data["metadata"]["name"] = get_pv_name(name)
@@ -215,6 +217,7 @@ class FilestoreClient:
         0
     ].ip_addresses[0]
     data["spec"]["csi"]["volumeAttributes"]["volume"] = vol
+    data["spec"]["mountOptions"] = mount_options.split(",")
     return data
 
   def create_pvc(self, name: str, access_mode: str) -> dict:
@@ -230,10 +233,15 @@ class FilestoreClient:
     return data
 
   def manifest(
-      self, name: str, vol: str, access_mode: str, network: str
+      self,
+      name: str,
+      vol: str,
+      access_mode: str,
+      network: str,
+      mount_options: str,
   ) -> list[dict]:
     self.load_instance()
-    pv = self.create_pv(name, vol, access_mode)
+    pv = self.create_pv(name, vol, access_mode, mount_options)
     pvc = self.create_pvc(name, access_mode)
     sc = self.create_sc(name, network)
     return [pv, pvc, sc]

@@ -153,6 +153,12 @@ def add_storage_attach_parser(
       type=str,
       help='Path to manifest file containing volume definitions',
   )
+  opt_args.add_argument(
+      '--mount-options',
+      type=str,
+      help='Comma-separated list of mountOptions for PersistentVolume',
+      default='implicit-dirs',
+  )
   add_kind_cluster_arguments(opt_args)
 
 
@@ -247,6 +253,12 @@ def add_storage_create_parser(
       '--manifest',
       type=str,
       help='Path to manifest file containing volume definitions',
+  )
+  opt_args.add_argument(
+      '--mount-options',
+      type=str,
+      help='Comma-separated list of mountOptions for PersistentVolume',
+      default='',
   )
 
   add_kind_cluster_arguments(opt_args)

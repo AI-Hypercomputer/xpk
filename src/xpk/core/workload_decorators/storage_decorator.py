@@ -45,7 +45,9 @@ def add_annotations(job_manifest, storages):
   gcs_present = any(storage.type == GCS_FUSE_TYPE for storage in storages)
   if gcs_present:
     annotations.update(GCS_FUSE_ANNOTATIONS)
-  parallelstore_present = any(storage.type == PARALLELSTORE_TYPE for storage in storages)
+  parallelstore_present = any(
+      storage.type == PARALLELSTORE_TYPE for storage in storages
+  )
   if parallelstore_present:
     annotations.update(PARALLELSTORE_ANNOTATIONS)
 

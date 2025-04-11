@@ -14,12 +14,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import yaml
+
+from ..utils import templates
 from ..utils.console import xpk_exit, xpk_print
 from .capacity import H100_DEVICE_TYPE, H100_MEGA_DEVICE_TYPE
 from .commands import run_command_for_value
 from .gcloud_context import zone_to_region
-from .storage import Storage, get_storage_volume_mounts_yaml_for_gpu
+from .storage import Storage, get_storage_volume_mounts_for_gpu
 from .system_characteristics import SystemCharacteristics
+
+RXDM_CONTAINER_A3HIGH_PATH = '/../templates/rxdm_container_a3high.yaml'
+RXDM_CONTAINER_A3MEGA_PATH = '/../templates/rxdm_container_a3mega.yaml'
 
 
 def workload_list_awk_command(filter_key) -> str:
@@ -245,136 +251,36 @@ def wait_for_job_completion(args) -> int:
   return 0
 
 
-def get_gpu_volume(system: SystemCharacteristics) -> str:
-  """Get gpu volume based on user provided arguments.
-
-  Args:
-    system: system characteristics.
-
-  Returns:
-    str: yaml containing gpu volume
-  """
-  gpu_volume = ''
-  if system.device_type == H100_DEVICE_TYPE:
-    gpu_volume = """- name: nvidia-install-dir-host
-                hostPath:
-                  path: /home/kubernetes/bin/nvidia/lib64
-              - name: tcpd-socket
-                hostPath:
-                  path: /run/tcpx
-              - name: shared-memory
-                emptyDir:
-                  medium: "Memory"
-                  sizeLimit: 200Gi
-              - name: workload-terminated-volume
-                emptyDir:
-              - name: tcpx-nccl-plugin-volume
-                emptyDir:"""
-  elif system.device_type == H100_MEGA_DEVICE_TYPE:
-    gpu_volume = """- name: nvidia-install-dir-host
-                hostPath:
-                  path: /home/kubernetes/bin/nvidia/lib64
-              - name: shared-memory
-                emptyDir:
-                  medium: "Memory"
-                  sizeLimit: 1Gi
-              - name: workload-terminated-volume
-                emptyDir:"""
-  return gpu_volume
-
-
-def get_gpu_rxdm_container(
-    system: SystemCharacteristics, all_storages: list[Storage]
+def add_gpu_rxdm_container(
+    jobset_manifest_str: str,
+    system: SystemCharacteristics,
+    all_storages: list[Storage],
 ) -> str:
-  gpu_rxdm_image = get_gpu_rxdm_image(system)
-  if not gpu_rxdm_image:
-    return ''
-
-  gpu_rxdm_container_template = """{gpu_rxdm_image}
-                imagePullPolicy: Always
-                command:
-                - "bash"
-                - "-c"
-                - |
-                  {gpu_rxdm_cmd} &
-                  while [ ! -e "/usr/share/workload/workload_terminated" ]; do sleep 10; echo "sleeping"; done
-                securityContext:
-                  privileged: true
-                volumeMounts:
-                {gpu_tcp_volume}
-                {storage_volume_mounts}
-                - name: nvidia-install-dir-host
-                  mountPath: /usr/local/nvidia/lib64
-                - name: workload-terminated-volume
-                  mountPath: /usr/share/workload
-                env:
-                - name: LD_LIBRARY_PATH
-                  value: /usr/local/nvidia/lib64"""
-
-  return gpu_rxdm_container_template.format(
-      gpu_rxdm_image=gpu_rxdm_image,
-      gpu_rxdm_cmd=get_gpu_rxdm_cmd(system),
-      gpu_tcp_volume=get_gpu_tcp_volume(system),
-      storage_volume_mounts=get_storage_volume_mounts_yaml_for_gpu(
-          all_storages
-      ),
-  )
-
-
-def get_gpu_rxdm_image(system: SystemCharacteristics) -> str:
-  """Get config of rxdm based on user provided arguments.
+  """Add gpu rxdm container to jobset manifest based on user provided arguments.
 
   Args:
+    jobset_manifest_str: the JobSet manifest as a YAML string.
     system: system characteristics.
+    all_storages: list of all storages.
 
   Returns:
-    str: yaml containing the rxdm name and image
+    str: the modified JobSet manifest as a YAML string.
   """
-  gpu_rxdm_image = ''
   if system.device_type == H100_DEVICE_TYPE:
-    gpu_rxdm_image = """- name: tcpd-daemon
-                image: us-docker.pkg.dev/gce-ai-infra/gpudirect-tcpx/tcpgpudmarxd-dev:v2.0.9"""
+    gpu_rxdm_container = templates.load(RXDM_CONTAINER_A3HIGH_PATH)
   elif system.device_type == H100_MEGA_DEVICE_TYPE:
-    gpu_rxdm_image = """- name: fastrak-daemon
-                image: us-docker.pkg.dev/gce-ai-infra/gpudirect-tcpxo/tcpgpudmarxd-dev:v1.0.9"""
-  return gpu_rxdm_image
+    gpu_rxdm_container = templates.load(RXDM_CONTAINER_A3MEGA_PATH)
+  else:
+    return jobset_manifest_str
 
+  storage_volume_mounts = get_storage_volume_mounts_for_gpu(all_storages)
+  gpu_rxdm_container['volumeMounts'].extend(storage_volume_mounts)
 
-def get_gpu_rxdm_cmd(system: SystemCharacteristics) -> str:
-  """Get rxdm command based on user provided arguments.
+  manifest = yaml.safe_load(jobset_manifest_str)
 
-  Args:
-    system: system characteristics.
-
-  Returns:
-    str: command of running rxdm container
-  """
-  gpu_rxdm_cmd = ''
-  if system.device_type == H100_DEVICE_TYPE:
-    gpu_rxdm_cmd = (
-        '/tcpgpudmarxd/build/app/tcpgpudmarxd --gpu_nic_preset a3vm'
-        ' --gpu_shmem_type fd --setup_param "--verbose 128 2 0"'
+  for job in manifest['spec']['replicatedJobs']:
+    job['template']['spec']['template']['spec']['containers'].append(
+        gpu_rxdm_container
     )
-  elif system.device_type == H100_MEGA_DEVICE_TYPE:
-    gpu_rxdm_cmd = (
-        'set -ex; chmod 755 /fts/entrypoint_rxdm_container.sh;'
-        ' /fts/entrypoint_rxdm_container.sh --num_hops=2 --num_nics=8 --uid='
-        ' --alsologtostderr'
-    )
-  return gpu_rxdm_cmd
 
-
-def get_gpu_tcp_volume(system: SystemCharacteristics) -> str:
-  """Get gpu tcp volume based on user provided arguments.
-
-  Args:
-    system: system characteristics.
-
-  Returns:
-    str: yaml containing gpu tcp volume
-  """
-  gpu_tcp_volume = ''
-  if system.device_type == H100_DEVICE_TYPE:
-    gpu_tcp_volume = """- name: tcpd-socket
-                  mountPath: /tmp"""
-  return gpu_tcp_volume
+  return yaml.dump(manifest, sort_keys=False)

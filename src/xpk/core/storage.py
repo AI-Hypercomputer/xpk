@@ -383,26 +383,29 @@ def get_storage_volumes_yaml(storages: list[Storage]) -> str:
   return yaml_str
 
 
-def get_storage_volume_mounts_yaml_for_gpu(storages: list[Storage]) -> str:
+def get_storage_volume_mounts_for_gpu(
+    storages: list[Storage],
+) -> list[dict]:
   """
   Generates the YAML representation of the volumeMounts section for the given Storages.
 
-  This function creates the YAML snippet that defines how the storage volumes
+  This function creates the list of storage specifications that define how the storage volumes
   should be mounted within a Pod's containers.
 
   Args:
       storages: A list of Storage objects.
 
   Returns:
-      A string containing the YAML representation of the volumeMounts section.
+      A list containing the dictionary representation of the volumeMounts section.
   """
-  yaml_str = ""
-  for storage in storages:
-    yaml_str += f"""- name: {storage.pv}
-                  mountPath: {storage.mount_point}
-                  readOnly: {storage.readonly}
-            """
-  return yaml_str
+  return [
+      {
+          "name": storage.pv,
+          "mountPath": storage.mount_point,
+          "readOnly": storage.readonly,
+      }
+      for storage in storages
+  ]
 
 
 def get_storage_volumes_yaml_for_gpu(storages: list[Storage]) -> str:

@@ -78,7 +78,7 @@ from ..core.system_characteristics import (
 from ..core.vertex import create_vertex_experiment
 from ..core.workload import (
     check_if_workload_exists,
-    get_gpu_rxdm_container,
+    add_gpu_rxdm_container,
     get_workload_list,
     wait_for_job_completion,
     zone_to_region,
@@ -185,7 +185,6 @@ spec:
               volumes:
               {volumes}
               containers:
-              {gpu_rxdm_container}
               {container}
 """
 
@@ -447,7 +446,6 @@ def workload_create(args) -> None:
           container=container,
           gpu_scheduler=gpu_scheduler,
           volumes=get_volumes(args, system),
-          gpu_rxdm_container=get_gpu_rxdm_container(system, all_storages),
           storage_annotations=('\n' + (' ' * 12)).join(
               get_storage_annotations(all_storages)
           ),
@@ -455,6 +453,7 @@ def workload_create(args) -> None:
           failure_policy_rules=failure_policy_rules,
           pod_failure_policy=pod_failure_policy,
       )
+      yml_string = add_gpu_rxdm_container(yml_string, system, all_storages)
 
   elif args.use_pathways and ensure_pathways_workload_prerequisites(
       args, system

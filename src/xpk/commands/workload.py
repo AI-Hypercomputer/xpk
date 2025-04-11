@@ -59,6 +59,8 @@ from ..core.scheduling import (
 from ..core.storage import (
     GCS_FUSE_TYPE,
     GCP_FILESTORE_TYPE,
+    PARALLELSTORE_TYPE,
+    GCE_PD_TYPE,
     Storage,
     add_bucket_iam_members,
     get_storages_to_mount,
@@ -391,6 +393,12 @@ def workload_create(args) -> None:
     gcpfilestore_storages: list[Storage] = list(
         filter(lambda storage: storage.type == GCP_FILESTORE_TYPE, storages)
     )
+    parallelstore_storages: list[Storage] = list(
+        filter(lambda storage: storage.type == PARALLELSTORE_TYPE, storages)
+    )
+    pd_storages: list[Storage] = list(
+        filter(lambda storage: storage.type == GCE_PD_TYPE, storages)
+    )
     if len(gcs_fuse_storages) > 0:
       service_account = XPK_SA
       xpk_print(f'Detected gcsfuse Storages to add: {gcs_fuse_storages}')
@@ -404,7 +412,28 @@ def workload_create(args) -> None:
       )
     else:
       xpk_print('No gcp filestore instances to add detected.')
-    all_storages = gcs_fuse_storages + gcpfilestore_storages
+
+    if len(parallelstore_storages) > 0:
+      service_account = XPK_SA
+      xpk_print(
+          'Detected gcp parallelstore instances to add:'
+          f' {parallelstore_storages}'
+      )
+    else:
+      xpk_print('No gcp filestore instances to add detected.')
+
+    if len(pd_storages) > 0:
+      service_account = XPK_SA
+      xpk_print(f'Detected gce persistent disk instances to add: {pd_storages}')
+    else:
+      xpk_print('No gce persistent disk instances to add detected.')
+
+    all_storages = (
+        gcs_fuse_storages
+        + gcpfilestore_storages
+        + parallelstore_storages
+        + pd_storages
+    )
 
   # Currently failure policy rules are supported for Pathways workloads. b/408465881
   failure_policy_rules = ''
@@ -453,7 +482,13 @@ def workload_create(args) -> None:
         sub_networks = get_subnetworks_for_a3ultra(args.cluster)
         yml_string = rdma_decorator.decorate_jobset(yml_string, sub_networks)
 
-      if len(gcs_fuse_storages) + len(gcpfilestore_storages) > 0:
+      if (
+          len(gcs_fuse_storages)
+          + len(gcpfilestore_storages)
+          + len(parallelstore_storages)
+          + len(pd_storages)
+          > 0
+      ):
         yml_string = storage_decorator.decorate_jobset(yml_string, all_storages)
     else:
       yml_string = GPU_WORKLOAD_CREATE_YAML.format(

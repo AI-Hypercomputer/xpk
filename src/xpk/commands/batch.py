@@ -22,7 +22,7 @@ from ..core.gcloud_context import add_zone_and_project
 from ..core.kueue import LOCAL_QUEUE_NAME
 from ..utils.console import xpk_exit, xpk_print
 from .common import set_cluster_command
-from ..core.kjob import AppProfileDefaults, JobTemplateDefaults, prepare_kjob, Kueue_TAS_annotation, get_gcsfuse_annotations
+from ..core.kjob import AppProfileDefaults, JobTemplateDefaults, prepare_kjob, Kueue_TAS_annotation, get_storage_annotations
 from .kjob_common import add_gpu_networking_annotations_to_command
 from .kind import set_local_cluster_command
 import re
@@ -67,7 +67,7 @@ def submit_job(args: Namespace) -> None:
   )
   cmd = add_gpu_networking_annotations_to_command(args, cmd)
 
-  for annotation in get_gcsfuse_annotations(args):
+  for annotation in get_storage_annotations(args):
     cmd += f' --pod-template-annotation {annotation}'
 
   if args.ignore_unknown_flags:

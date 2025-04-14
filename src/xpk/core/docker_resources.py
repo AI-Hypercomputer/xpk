@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from .capacity import H100_DEVICE_TYPE, H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE
+from .capacity import H100_DEVICE_TYPE, H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE, B200_DEVICE_TYPE
 from .cluster import setup_k8s_env
 from .storage import GCS_FUSE_TYPE, GCP_FILESTORE_TYPE, Storage, get_storages_to_mount
 from .system_characteristics import AcceleratorType, SystemCharacteristics
@@ -64,22 +64,6 @@ def get_env_container(args, system: SystemCharacteristics) -> str:
     str:
       YAML with the env config for the main container, as a YAML string.
   """
-  pw_env_yaml = """
-                - name: XCLOUD_ENVIRONMENT
-                  value: GCP
-                - name: JAX_PLATFORMS
-                  value: proxy
-                - name: JAX_BACKEND_TARGET
-                  value: {proxy_address}
-                - name: JOBSET_NAME
-                  valueFrom:
-                    fieldRef:
-                      fieldPath: metadata.annotations['jobset.sigs.k8s.io/jobset-name']"""
-  if args.use_pathways:
-    return pw_env_yaml.format(
-        args=args, proxy_address=args.pathways_proxy_address
-    )
-
   gpu_env_yaml = """
                   - name: REPLICATED_JOB_NAME
                     valueFrom:
@@ -265,6 +249,7 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
     elif (
         system.device_type == H100_MEGA_DEVICE_TYPE
         or system.device_type == H200_DEVICE_TYPE
+        or system.device_type == B200_DEVICE_TYPE
     ):
       volume_mount_yaml = ''
 

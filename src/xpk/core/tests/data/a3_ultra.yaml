@@ -14,7 +14,7 @@
 !Blueprint
 blueprint_name: xpk-gke-a3-ultra
 toolkit_modules_url: github.com/GoogleCloudPlatform/cluster-toolkit
-toolkit_modules_version: develop
+toolkit_modules_version: v1.48.0
 
 vars:
 
@@ -22,7 +22,7 @@ terraform_backend_defaults:
   type: gcs
   configuration:
     bucket: test-bucket
-    prefix: xpk_terraform_state/testdir/tfstate/
+    prefix: xpk_terraform_state/testdir/gke-a3-ultra/
 
 deployment_groups:
 - !DeploymentGroup
@@ -118,6 +118,8 @@ deployment_groups:
         rdma_prefix: "gke-a3-ultra-rdma-sub-"
         rdma_start_index: 0
         rdma_postfix: ""
+        gvnic_prefix: "gke-a3-ultra-sub-"
+        gvnic_start_index: 1
     outputs: [instructions]
 
   - !DeploymentModule
@@ -154,7 +156,7 @@ deployment_groups:
         version: v0.10.0  # TAS feature-gates is enabled in CT
         config_path: $(ghpc_stage("xpk-gke-a3-ultra"))/kueue-xpk-configuration.yaml.tftpl
         config_template_vars:
-         num_chips: "16"
+         num_chips: 16
       jobset:
         install: true
         version: v0.7.2

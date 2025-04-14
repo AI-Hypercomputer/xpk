@@ -20,10 +20,10 @@ from argparse import Namespace
 from tabulate import tabulate
 
 from ..core.commands import run_command_for_value
+from ..core.cluster import get_cluster_credentials
 from ..core.gcloud_context import add_zone_and_project
 from ..core.kueue import verify_kueuectl
 from ..utils.console import xpk_exit, xpk_print
-from .common import set_cluster_command
 
 table_fmt = 'plain'
 
@@ -37,9 +37,7 @@ def info(args: Namespace) -> None:
     None
   """
   add_zone_and_project(args)
-  set_cluster_command_code = set_cluster_command(args)
-  if set_cluster_command_code != 0:
-    xpk_exit(set_cluster_command_code)
+  get_cluster_credentials(args)
 
   verify_kueuectl(args)
   lq, cq = bool(args.localqueue), bool(args.clusterqueue)

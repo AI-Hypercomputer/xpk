@@ -24,7 +24,7 @@ from ..utils.console import xpk_print
 from .system_characteristics import AcceleratorType, SystemCharacteristics
 
 # This is the version for XPK PyPI package
-__version__ = 'v0.7.2'
+__version__ = 'v0.8.0'
 XPK_CURRENT_VERSION = __version__
 XPK_CONFIG_FILE = os.path.expanduser('~/.config/xpk/config.yaml')
 
@@ -39,6 +39,7 @@ KJOB_SHELL_IMAGE = 'shell-image'
 KJOB_SHELL_INTERACTIVE_COMMAND = 'shell-interactive-command'
 KJOB_SHELL_WORKING_DIRECTORY = 'shell-working-directory'
 CONFIGS_KEY = 'configs'
+GKE_ENDPOINT_KEY = 'gke-endpoint'
 DEPENDENCIES_KEY = 'deps-verified-version'
 XPK_CONFIG_FILE = os.path.expanduser('~/.config/xpk/config.yaml')
 
@@ -47,6 +48,7 @@ DEFAULT_KEYS = [
     CLUSTER_NAME_KEY,
     PROJECT_KEY,
     ZONE_KEY,
+    GKE_ENDPOINT_KEY,
     DEPENDENCIES_KEY,
     KJOB_BATCH_IMAGE,
     KJOB_BATCH_WORKING_DIRECTORY,

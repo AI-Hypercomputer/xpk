@@ -60,3 +60,5 @@ class Blueprint:
   toolkit_modules_url: str
   toolkit_modules_version: str
   vars: dict[str, str | list[str]] | None
+  terraform_providers: Optional[dict[str, Any]] = None
+  validators: Optional[list[Any]] = None

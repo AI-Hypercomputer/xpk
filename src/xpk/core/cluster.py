@@ -32,7 +32,8 @@ from .gcloud_context import add_zone_and_project, get_gke_server_config, zone_to
 from .nodepool import upgrade_gke_nodepools_version
 from .system_characteristics import SystemCharacteristics
 
-JOBSET_VERSION = 'v0.7.2'
+JOBSET_VERSION = 'v0.8.0'
+PATHWAYS_JOB_VERSION = 'v0.1.0'
 INSTALLER_NCC_TCPX = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpx/nccl-tcpx-installer.yaml'
 INSTALLER_NCC_TCPXO = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpxo/nccl-tcpxo-installer.yaml'
 
@@ -56,6 +57,35 @@ def set_jobset_on_cluster(args) -> int:
       f' https://github.com/kubernetes-sigs/jobset/releases/download/{JOBSET_VERSION}/manifests.yaml'
   )
   task = f'Install Jobset on {args.cluster}'
+  return_code = run_command_with_updates_retry(command, task, args)
+
+  if return_code != 0:
+    xpk_print(f'{task} returned with ERROR {return_code}.\n')
+    xpk_print(
+        "This LIKELY means you're missing Kubernetes Permissions, you can"
+        ' validate this by checking if the error references permission problems'
+        ' such as `requires one of ["container.*"] permission(s)`. Follow our'
+        ' readme:'
+        ' https://github.com/google/xpk/blob/main/README.md#troubleshooting for'
+        ' instructions on how to fix these permissions.'
+    )
+  return return_code
+
+
+def set_pathways_job_on_cluster(args) -> int:
+  """Add PathwaysJob command on server side and ask user to verify it is created.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  command = (
+      'kubectl apply --server-side -f'
+      f' https://github.com/google/pathways-job/releases/download/{PATHWAYS_JOB_VERSION}/install.yaml'
+  )
+  task = f'Install PathwaysJob on {args.cluster}'
   return_code = run_command_with_updates_retry(command, task, args)
 
   if return_code != 0:
@@ -135,8 +165,48 @@ def update_cluster_with_gcpfilestore_driver_if_necessary(args) -> int:
   return 0
 
 
+def update_cluster_with_parallelstore_driver_if_necessary(args) -> int:
+  """Updates a GKE cluster to enable Parallelstore CSI driver, if not enabled already.
+  Args:
+    args: user provided arguments for running the command.
+  Returns:
+    0 if successful and error code otherwise.
+  """
+  if is_driver_enabled_on_cluster(args, driver='parallelstoreCsiDriver'):
+    return 0
+  cluster_update_return_code = update_gke_cluster_with_addon(
+      args, 'ParallelstoreCsiDriver'
+  )
+  if cluster_update_return_code > 0:
+    xpk_print('Updating GKE cluster to enable Parallelstore CSI driver failed!')
+    return cluster_update_return_code
+
+  return 0
+
+
+def update_cluster_with_pd_driver_if_necessary(args) -> int:
+  """Updates a GKE cluster to enable PersistentDisk CSI driver, if not enabled already.
+  Args:
+    args: user provided arguments for running the command.
+  Returns:
+    0 if successful and error code otherwise.
+  """
+  if is_driver_enabled_on_cluster(args, driver='gcePersistentDiskCsiDriver'):
+    return 0
+  cluster_update_return_code = update_gke_cluster_with_addon(
+      args, 'GcePersistentDiskCsiDriver'
+  )
+  if cluster_update_return_code > 0:
+    xpk_print(
+        'Updating GKE cluster to enable PersistentDisk CSI driver failed!'
+    )
+    return cluster_update_return_code
+
+  return 0
+
+
 def is_driver_enabled_on_cluster(args, driver: str) -> bool:
-  """Checks if GCSFuse CSI driver is enabled on the cluster.
+  """Checks if the CSI driver is enabled on the cluster.
   Args:
     args: user provided arguments for running the command.
     driver (str) : name of the driver
@@ -148,14 +218,14 @@ def is_driver_enabled_on_cluster(args, driver: str) -> bool:
       f' --project={args.project} --region={zone_to_region(args.zone)}'
       f' --format="value(addonsConfig.{driver}Config.enabled)"'
   )
-  return_code, gcsfuse_driver_enabled = run_command_for_value(
+  return_code, driver_enabled = run_command_for_value(
       command,
       f'Checks if {driver} driver is enabled in cluster describe.',
       args,
   )
   if return_code != 0:
     xpk_exit(return_code)
-  if gcsfuse_driver_enabled.lower() == 'true':
+  if driver_enabled.strip().lower() == 'true':
     xpk_print(f'{driver} driver is enabled on the cluster, no update needed.')
     return True
   return False
@@ -446,7 +516,7 @@ def is_gcsfuse_driver_enabled_on_cluster(args) -> bool:
   )
   if return_code != 0:
     xpk_exit(return_code)
-  if gcsfuse_driver_enabled.lower() == 'true':
+  if gcsfuse_driver_enabled.strip().lower() == 'true':
     xpk_print('GCSFuse CSI driver is enabled on the cluster, no update needed.')
     return True
   return False

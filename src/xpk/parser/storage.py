@@ -146,7 +146,7 @@ def add_storage_attach_parser(
 
   opt_args = storage_attach_parser.add_argument_group(
       'Optional Arguments',
-      'Optional arguments for storage create.',
+      'Optional arguments for storage attach.',
   )
   opt_args.add_argument(
       '--manifest',

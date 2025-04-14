@@ -20,7 +20,7 @@ from ..core.kjob import (
     AppProfileDefaults,
     prepare_kjob,
     get_pod_template_interactive_command,
-    get_gcsfuse_annotations,
+    get_storage_annotations,
 )
 
 exit_instructions = 'To exit the shell input "exit".'
@@ -89,7 +89,7 @@ def connect_to_new_interactive_shell(args: Namespace) -> int:
       f' {AppProfileDefaults.NAME.value} --pod-running-timeout 180s'
   )
 
-  for annotation in get_gcsfuse_annotations(args):
+  for annotation in get_storage_annotations(args):
     cmd += f' --pod-template-annotation {annotation}'
 
   return run_command_with_full_controls(

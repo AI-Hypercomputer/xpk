@@ -165,8 +165,48 @@ def update_cluster_with_gcpfilestore_driver_if_necessary(args) -> int:
   return 0
 
 
+def update_cluster_with_parallelstore_driver_if_necessary(args) -> int:
+  """Updates a GKE cluster to enable Parallelstore CSI driver, if not enabled already.
+  Args:
+    args: user provided arguments for running the command.
+  Returns:
+    0 if successful and error code otherwise.
+  """
+  if is_driver_enabled_on_cluster(args, driver='parallelstoreCsiDriver'):
+    return 0
+  cluster_update_return_code = update_gke_cluster_with_addon(
+      args, 'ParallelstoreCsiDriver'
+  )
+  if cluster_update_return_code > 0:
+    xpk_print('Updating GKE cluster to enable Parallelstore CSI driver failed!')
+    return cluster_update_return_code
+
+  return 0
+
+
+def update_cluster_with_pd_driver_if_necessary(args) -> int:
+  """Updates a GKE cluster to enable PersistentDisk CSI driver, if not enabled already.
+  Args:
+    args: user provided arguments for running the command.
+  Returns:
+    0 if successful and error code otherwise.
+  """
+  if is_driver_enabled_on_cluster(args, driver='gcePersistentDiskCsiDriver'):
+    return 0
+  cluster_update_return_code = update_gke_cluster_with_addon(
+      args, 'GcePersistentDiskCsiDriver'
+  )
+  if cluster_update_return_code > 0:
+    xpk_print(
+        'Updating GKE cluster to enable PersistentDisk CSI driver failed!'
+    )
+    return cluster_update_return_code
+
+  return 0
+
+
 def is_driver_enabled_on_cluster(args, driver: str) -> bool:
-  """Checks if GCSFuse CSI driver is enabled on the cluster.
+  """Checks if the CSI driver is enabled on the cluster.
   Args:
     args: user provided arguments for running the command.
     driver (str) : name of the driver
@@ -178,14 +218,14 @@ def is_driver_enabled_on_cluster(args, driver: str) -> bool:
       f' --project={args.project} --region={zone_to_region(args.zone)}'
       f' --format="value(addonsConfig.{driver}Config.enabled)"'
   )
-  return_code, gcsfuse_driver_enabled = run_command_for_value(
+  return_code, driver_enabled = run_command_for_value(
       command,
       f'Checks if {driver} driver is enabled in cluster describe.',
       args,
   )
   if return_code != 0:
     xpk_exit(return_code)
-  if gcsfuse_driver_enabled.lower() == 'true':
+  if driver_enabled.strip().lower() == 'true':
     xpk_print(f'{driver} driver is enabled on the cluster, no update needed.')
     return True
   return False
@@ -476,7 +516,7 @@ def is_gcsfuse_driver_enabled_on_cluster(args) -> bool:
   )
   if return_code != 0:
     xpk_exit(return_code)
-  if gcsfuse_driver_enabled.lower() == 'true':
+  if gcsfuse_driver_enabled.strip().lower() == 'true':
     xpk_print('GCSFuse CSI driver is enabled on the cluster, no update needed.')
     return True
   return False

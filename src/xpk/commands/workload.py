@@ -14,6 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from ..core.blueprint.blueprint_generator import (
+    get_subnetworks_for_a3mega,
+    get_subnetworks_for_a3ultra,
+    get_subnetworks_for_a4,
+)
 from ..core.cluster import (
     XPK_SA,
     create_xpk_k8s_service_account,
@@ -43,13 +48,13 @@ from ..core.network import (
     get_subnetworks_for_a3ultra,
 )
 from ..core.pathways import (
-    check_if_pathways_job_is_installed,
-    ensure_pathways_workload_prerequisites,
-    get_pathways_unified_query_link,
+    append_custom_colocated_python_sidecar,
     append_custom_pathways_proxy_server,
     append_custom_pathways_server,
     append_custom_pathways_worker,
-    append_custom_colocated_python_sidecar,
+    check_if_pathways_job_is_installed,
+    ensure_pathways_workload_prerequisites,
+    get_pathways_unified_query_link,
     get_user_workload_for_pathways,
     try_to_delete_pathwaysjob_first,
 )
@@ -58,18 +63,20 @@ from ..core.scheduling import (
     check_if_workload_can_schedule,
     create_accelerator_label,
     create_machine_label,
-    create_tpu_topology,
     create_tpu_machine_type,
+    create_tpu_topology,
     get_cpu_affinity,
     get_gpu_scheduler,
 )
 from ..core.storage import (
+    GCE_PD_TYPE,
     GCP_FILESTORE_TYPE,
     GCS_FUSE_TYPE,
+    PARALLELSTORE_TYPE,
     Storage,
     add_bucket_iam_members,
-    get_storages_to_mount,
     get_storage_annotations,
+    get_storages_to_mount,
 )
 from ..core.system_characteristics import (
     AcceleratorType,
@@ -77,8 +84,8 @@ from ..core.system_characteristics import (
 )
 from ..core.vertex import create_vertex_experiment
 from ..core.workload import (
-    check_if_workload_exists,
     add_gpu_rxdm_container,
+    check_if_workload_exists,
     get_workload_list,
     wait_for_job_completion,
     zone_to_region,
@@ -376,6 +383,12 @@ def workload_create(args) -> None:
     gcpfilestore_storages: list[Storage] = list(
         filter(lambda storage: storage.type == GCP_FILESTORE_TYPE, storages)
     )
+    parallelstore_storages: list[Storage] = list(
+        filter(lambda storage: storage.type == PARALLELSTORE_TYPE, storages)
+    )
+    pd_storages: list[Storage] = list(
+        filter(lambda storage: storage.type == GCE_PD_TYPE, storages)
+    )
     if len(gcs_fuse_storages) > 0:
       service_account = XPK_SA
       xpk_print(f'Detected gcsfuse Storages to add: {gcs_fuse_storages}')
@@ -389,7 +402,28 @@ def workload_create(args) -> None:
       )
     else:
       xpk_print('No gcp filestore instances to add detected.')
-    all_storages = gcs_fuse_storages + gcpfilestore_storages
+
+    if len(parallelstore_storages) > 0:
+      service_account = XPK_SA
+      xpk_print(
+          'Detected gcp parallelstore instances to add:'
+          f' {parallelstore_storages}'
+      )
+    else:
+      xpk_print('No gcp filestore instances to add detected.')
+
+    if len(pd_storages) > 0:
+      service_account = XPK_SA
+      xpk_print(f'Detected gce persistent disk instances to add: {pd_storages}')
+    else:
+      xpk_print('No gce persistent disk instances to add detected.')
+
+    all_storages = (
+        gcs_fuse_storages
+        + gcpfilestore_storages
+        + parallelstore_storages
+        + pd_storages
+    )
 
   # Currently failure policy rules are supported for Pathways workloads. b/408465881
   failure_policy_rules = ''
@@ -438,7 +472,11 @@ def workload_create(args) -> None:
         sub_networks = get_subnetworks_for_a3ultra(args.cluster)
         yml_string = rdma_decorator.decorate_jobset(yml_string, sub_networks)
 
-      if len(gcs_fuse_storages) + len(gcpfilestore_storages) > 0:
+      if args.device_type == cluster_gcluster.a4_device_type:
+        sub_networks = get_subnetworks_for_a4()
+        yml_string = rdma_decorator.decorate_jobset(yml_string, sub_networks)
+
+      if all_storages:
         yml_string = storage_decorator.decorate_jobset(yml_string, all_storages)
     else:
       yml_string = GPU_WORKLOAD_CREATE_YAML.format(

@@ -474,6 +474,7 @@ Parameters:
 - `--readonly` - if set to true, workload can only read from storage.
 - `--size` - size of the storage in Gb.
 - `--bucket` - name of the storage bucket. If not set then the name of the storage is used as a bucket name.
+- `--mount-options` - comma-separated list of additional mount options for PersistentVolume ([reference](https://cloud.google.com/kubernetes-engine/docs/how-to/cloud-storage-fuse-csi-driver-perf#mount-options)).
 - `--manifest` - path to the manifest file containing PersistentVolume and PresistentVolumeClaim definitions. If set, then values from manifest override the following parameters: `--size` and `--bucket`.
 
 ### Filestore

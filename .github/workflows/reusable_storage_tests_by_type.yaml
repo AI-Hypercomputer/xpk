@@ -118,7 +118,7 @@ jobs:
       if: inputs.storage-command == 'attach' && inputs.storage-type == 'gcsfuse'
       run: |
         python3 xpk.py storage attach ${{secrets.STORAGE_NAME}} --cluster=${{inputs.cluster-name}} --zone=${{inputs.zone}} --type=${{inputs.storage-type}} \
-        --auto-mount=true --mount-point='/${{inputs.storage-type}}-test-mount-point' --readonly=false --size=1 --bucket=${{secrets.BUCKET_NAME}} --mount-options rename-dir-limit=10000
+        --auto-mount=true --mount-point='/${{inputs.storage-type}}-test-mount-point' --readonly=false --size=1 --bucket=${{secrets.BUCKET_NAME}} --mount-options rename-dir-limit=10000 --prefetch-metadata
     - name: Create auto-mount GCP Filestore Storage instance
       if: inputs.storage-command == 'create' && inputs.storage-type == 'gcpfilestore'
       run: |
@@ -131,6 +131,10 @@ jobs:
     - name: Verify Persistent Volume mount options
       if: inputs.storage-command == 'attach' && inputs.storage-type == 'gcsfuse'
       run: kubectl get pv ${{secrets.STORAGE_NAME}}-pv -oyaml | grep rename-dir-limit=10000 || (echo 'Invalid storage mount options' && exit 143)
+    - name: Verify that metadata pre-population is enabled
+      if: inputs.storage-command == 'attach' && inputs.storage-type == 'gcsfuse'
+      run: |
+        kubectl get pv ${{secrets.STORAGE_NAME}}-pv -oyaml | grep 'gcsfuseMetadataPrefetchOnMount: true' || (echo 'Metadata pre-population was not enabled' && exit 143)
     - name: Run workload to write file on filestore
       run: python3 xpk.py workload create --workload $FS_WRITE_WORKLOAD --num-slices=1 --docker-image='marketplace.gcr.io/google/ubuntu2004' --command "mkdir /${{inputs.storage-type}}-test-mount-point/$RANDOM_SEED/ && echo 'Test text message' > /${{inputs.storage-type}}-test-mount-point/$RANDOM_SEED/test.txt || (echo 'Writing to filestore failed' && exit 143)" --cluster ${{inputs.cluster-name}} --tpu-type=${{inputs.tpu-type}} --zone ${{inputs.zone}}
     - name: Wait for writer workload completion and confirm it succeeded

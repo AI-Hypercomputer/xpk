@@ -65,15 +65,13 @@ from ..core.scheduling import (
     get_gpu_scheduler,
 )
 from ..core.storage import (
+    GCE_PD_TYPE,
     GCP_FILESTORE_TYPE,
     GCS_FUSE_TYPE,
     PARALLELSTORE_TYPE,
-    GCE_PD_TYPE,
     Storage,
     add_bucket_iam_members,
     get_storage_annotations,
-    get_storage_volume_mounts_yaml_for_gpu,
-    get_storage_volumes_yaml_for_gpu,
     get_storages_to_mount,
 )
 from ..core.system_characteristics import (
@@ -82,11 +80,8 @@ from ..core.system_characteristics import (
 )
 from ..core.vertex import create_vertex_experiment
 from ..core.workload import (
+    add_gpu_rxdm_container,
     check_if_workload_exists,
-    get_gpu_rxdm_cmd,
-    get_gpu_rxdm_image,
-    get_gpu_tcp_volume,
-    get_gpu_volume,
     get_workload_list,
     wait_for_job_completion,
     zone_to_region,
@@ -153,7 +148,8 @@ GPU_WORKLOAD_CREATE_YAML = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
 metadata:
   name: {args.workload}
-  annotations: {storage_annotations}
+  annotations:
+    {storage_annotations}
   labels:
     kueue.x-k8s.io/queue-name: multislice-queue  # Name of the LocalQueue
     xpk.google.com/workload: {args.workload}
@@ -190,29 +186,8 @@ spec:
               - operator: "Exists"
                 key: nvidia.com/gpu
               volumes:
-              {gpu_volume}
-              {storage_volumes}
+              {volumes}
               containers:
-              {gpu_rxdm_image}
-                imagePullPolicy: Always
-                command:
-                - "bash"
-                - "-c"
-                - |
-                  {gpu_rxdm_cmd} &
-                  while [ ! -e "/usr/share/workload/workload_terminated" ]; do sleep 10; echo "sleeping"; done
-                securityContext:
-                  privileged: true
-                volumeMounts:
-                {gpu_tcp_volume}
-                {storage_volume_mounts}
-                - name: nvidia-install-dir-host
-                  mountPath: /usr/local/nvidia/lib64
-                - name: workload-terminated-volume
-                  mountPath: /usr/share/workload
-                env:
-                - name: LD_LIBRARY_PATH
-                  value: /usr/local/nvidia/lib64
               {container}
 """
 
@@ -503,17 +478,8 @@ def workload_create(args) -> None:
       yml_string = GPU_WORKLOAD_CREATE_YAML.format(
           args=args,
           container=container,
-          command=args.command,
-          chips_per_vm=system.chips_per_vm,
           gpu_scheduler=gpu_scheduler,
-          gpu_volume=get_gpu_volume(system),
-          gpu_rxdm_image=get_gpu_rxdm_image(system),
-          gpu_rxdm_cmd=get_gpu_rxdm_cmd(system),
-          gpu_tcp_volume=get_gpu_tcp_volume(system),
-          storage_volumes=get_storage_volumes_yaml_for_gpu(all_storages),
-          storage_volume_mounts=get_storage_volume_mounts_yaml_for_gpu(
-              all_storages
-          ),
+          volumes=get_volumes(args, system),
           storage_annotations=('\n' + (' ' * 12)).join(
               get_storage_annotations(all_storages)
           ),
@@ -521,6 +487,7 @@ def workload_create(args) -> None:
           failure_policy_rules=failure_policy_rules,
           pod_failure_policy=pod_failure_policy,
       )
+      yml_string = add_gpu_rxdm_container(yml_string, system, all_storages)
 
   elif args.use_pathways and ensure_pathways_workload_prerequisites(
       args, system

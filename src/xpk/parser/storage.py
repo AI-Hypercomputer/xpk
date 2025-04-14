@@ -190,7 +190,6 @@ def add_storage_create_parser(
       ),
       required=True,
   )
-
   req_args.add_argument(
       '--type',
       type=str,

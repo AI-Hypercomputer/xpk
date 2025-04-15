@@ -35,7 +35,7 @@ def add_gpu_networking_annotations_to_command(args, cmd: str) -> str:
   elif gpu_type == H200_DEVICE_TYPE:
     annotations = get_a3ultra_pod_template_annotations(args)
   elif gpu_type == B200_DEVICE_TYPE:
-    annotations = get_a4_pod_template_annotations()
+    annotations = get_a4_pod_template_annotations(args)
   else:
     annotations = []
 

@@ -14,11 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..core.blueprint.blueprint_generator import (
-    get_subnetworks_for_a3mega,
-    get_subnetworks_for_a3ultra,
-    get_subnetworks_for_a4,
-)
 from ..core.cluster import (
     XPK_SA,
     create_xpk_k8s_service_account,
@@ -43,6 +38,7 @@ from ..core.nap import (
     get_autoprovisioning_node_selector_args,
     is_autoprovisioning_enabled,
 )
+from ..core.network import get_cluster_subnetworks
 from ..core.pathways import (
     append_custom_colocated_python_sidecar,
     append_custom_pathways_proxy_server,
@@ -460,16 +456,13 @@ def workload_create(args) -> None:
           pod_failure_policy=pod_failure_policy,
       )
 
+      sub_networks = get_cluster_subnetworks(args)
       if args.device_type == cluster_gcluster.a3mega_device_type:
-        sub_networks = get_subnetworks_for_a3mega(args.cluster)
         yml_string = tcpxo_decorator.decorate_jobset(yml_string, sub_networks)
-
-      if args.device_type == cluster_gcluster.a3ultra_device_type:
-        sub_networks = get_subnetworks_for_a3ultra(args.cluster)
-        yml_string = rdma_decorator.decorate_jobset(yml_string, sub_networks)
-
-      if args.device_type == cluster_gcluster.a4_device_type:
-        sub_networks = get_subnetworks_for_a4()
+      elif args.device_type in [
+          cluster_gcluster.a3ultra_device_type,
+          cluster_gcluster.a4_device_type,
+      ]:
         yml_string = rdma_decorator.decorate_jobset(yml_string, sub_networks)
 
       if all_storages:

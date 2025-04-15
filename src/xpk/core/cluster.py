@@ -37,6 +37,7 @@ PATHWAYS_JOB_VERSION = 'v0.1.0'
 INSTALLER_NCC_TCPX = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpx/nccl-tcpx-installer.yaml'
 INSTALLER_NCC_TCPXO = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpxo/nccl-tcpxo-installer.yaml'
 CONFIG_NCCL_TCPX = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpx/nccl-config.yaml'
+NRI_DEVICE_INJECTOR = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/nri_device_injector/nri-device-injector.yaml'
 
 DEFAULT_NAMESPACE = 'default'
 XPK_SA = 'xpk-sa'
@@ -139,6 +140,31 @@ def install_nccl_on_cluster(args, system: SystemCharacteristics) -> int:
           f'Install NCCL Config On Cluster request returned ERROR {return_code}'
       )
       return 1
+
+  return 0
+
+
+def install_nri_on_cluster(args) -> int:
+  """Install NRI Device Injector on the cluster.
+
+  Args:
+    args: user provided arguments for running the command.
+    system: system characteristics.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  command = f'kubectl apply -f {NRI_DEVICE_INJECTOR}'
+  return_code = run_command_with_updates(
+      command, 'Install NRI Device Injector On Cluster', args
+  )
+
+  if return_code != 0:
+    xpk_print(
+        'Install NRI Device Injector On Cluster request returned ERROR'
+        f' {return_code}'
+    )
+    return 1
 
   return 0
 

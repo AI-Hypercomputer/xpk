@@ -36,6 +36,7 @@ JOBSET_VERSION = 'v0.8.0'
 PATHWAYS_JOB_VERSION = 'v0.1.0'
 INSTALLER_NCC_TCPX = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpx/nccl-tcpx-installer.yaml'
 INSTALLER_NCC_TCPXO = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpxo/nccl-tcpxo-installer.yaml'
+CONFIG_NCCL_TCPX = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpx/nccl-config.yaml'
 
 DEFAULT_NAMESPACE = 'default'
 XPK_SA = 'xpk-sa'
@@ -125,6 +126,19 @@ def install_nccl_on_cluster(args, system: SystemCharacteristics) -> int:
         f'Install NCCL Plugin On Cluster request returned ERROR {return_code}'
     )
     return 1
+
+  if system.device_type == H100_DEVICE_TYPE:
+    command = f'kubectl apply -f {CONFIG_NCCL_TCPX}'
+
+    return_code = run_command_with_updates(
+        command, 'Install NCCL Config On Cluster', args
+    )
+
+    if return_code != 0:
+      xpk_print(
+          f'Install NCCL Config On Cluster request returned ERROR {return_code}'
+      )
+      return 1
 
   return 0
 

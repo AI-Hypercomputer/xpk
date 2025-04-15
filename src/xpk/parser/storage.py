@@ -114,6 +114,15 @@ def add_storage_attach_parser(
           ' is infered as a bucket name.'
       ),
   )
+  gcsfuse_args.add_argument(
+      '--prefetch-metadata',
+      action=argparse.BooleanOptionalAction,
+      default=True,
+      help=(
+          '(optional) Enables metadata pre-population when'
+          ' mounting the volume. True by default.'
+      ),
+  )
 
   gcpfilestore_args = storage_attach_parser.add_argument_group(
       'Filestore arguments',

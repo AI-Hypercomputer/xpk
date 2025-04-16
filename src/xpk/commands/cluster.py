@@ -269,7 +269,7 @@ def cluster_create(args) -> None:
 
   if system.device_type == H100_DEVICE_TYPE:
     xpk_print('Installing NRI device injector for cluster')
-    install_nri_code = install_nri_on_cluster(args, system)
+    install_nri_code = install_nri_on_cluster(args)
     if install_nri_code != 0:
       xpk_exit(install_nri_code)
 

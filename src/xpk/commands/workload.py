@@ -192,7 +192,7 @@ kind: JobSet
 metadata:
   name: {args.workload}
   labels:
-    kueue.x-k8s.io/queue-name: multislice-queue  # Name of the LocalQueue
+    # kueue.x-k8s.io/queue-name: multislice-queue  # Name of the LocalQueue
     xpk.google.com/workload: {args.workload}
 spec:
   ttlSecondsAfterFinished: {args.ttl_seconds_after_finished}
@@ -215,7 +215,7 @@ spec:
               annotations:
                 kueue.x-k8s.io/podset-preferred-topology: "cloud.google.com/gce-topology-host"
             spec:
-              priorityClassName: {args.priority}
+              # priorityClassName: {args.priority}
               restartPolicy: Never
               dnsPolicy: ClusterFirstWithHostNet
               terminationGracePeriodSeconds: {args.termination_grace_period_seconds}

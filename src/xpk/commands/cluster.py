@@ -21,14 +21,15 @@ from ..core.cluster import (
     get_all_clusters_programmatic,
     get_cluster_credentials,
     install_nccl_on_cluster,
+    install_nri_on_cluster,
     set_jobset_on_cluster,
     set_pathways_job_on_cluster,
     setup_k8s_env,
-    update_cluster_with_gcsfuse_driver_if_necessary,
-    update_cluster_with_workload_identity_if_necessary,
     update_cluster_with_gcpfilestore_driver_if_necessary,
+    update_cluster_with_gcsfuse_driver_if_necessary,
     update_cluster_with_parallelstore_driver_if_necessary,
     update_cluster_with_pd_driver_if_necessary,
+    update_cluster_with_workload_identity_if_necessary,
 )
 from ..core.cluster_private import authorize_private_cluster_access_if_necessary
 from ..core.commands import run_command_for_value, run_command_with_updates
@@ -52,7 +53,10 @@ from ..core.network import (
     delete_cluster_subnets,
     set_up_cluster_network_for_a3,
 )
-from ..core.nodepool import get_gke_node_pool_version, run_gke_node_pool_create_command
+from ..core.nodepool import (
+    get_gke_node_pool_version,
+    run_gke_node_pool_create_command,
+)
 from ..core.ray import install_ray_cluster
 from ..core.resources import create_cluster_configmaps
 from ..core.storage import install_storage_crd
@@ -262,6 +266,12 @@ def cluster_create(args) -> None:
     install_nccl_code = install_nccl_on_cluster(args, system)
     if install_nccl_code != 0:
       xpk_exit(install_nccl_code)
+
+  if system.device_type == H100_DEVICE_TYPE:
+    xpk_print('Installing NRI device injector for cluster')
+    install_nri_code = install_nri_on_cluster(args)
+    if install_nri_code != 0:
+      xpk_exit(install_nri_code)
 
   if args.enable_ray_cluster:
     return_code = install_ray_cluster(args, system)

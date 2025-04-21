@@ -475,6 +475,7 @@ Parameters:
 - `--size` - size of the storage in Gb.
 - `--bucket` - name of the storage bucket. If not set then the name of the storage is used as a bucket name.
 - `--mount-options` - comma-separated list of additional mount options for PersistentVolume ([reference](https://cloud.google.com/kubernetes-engine/docs/how-to/cloud-storage-fuse-csi-driver-perf#mount-options)).
+- `--prefetch-metadata` - enables metadata pre-population when mounting the volume by setting parameter `gcsfuseMetadataPrefetchOnMount` to `true` ([reference](https://cloud.google.com/kubernetes-engine/docs/how-to/cloud-storage-fuse-csi-driver-perf#metadata-prefetch)).
 - `--manifest` - path to the manifest file containing PersistentVolume and PresistentVolumeClaim definitions. If set, then values from manifest override the following parameters: `--size` and `--bucket`.
 
 ### Filestore
@@ -617,7 +618,7 @@ python3 xpk.py storage delete test-fs-instance \
     --cluster xpk-pw-test \
     --docker-name='user-workload' \
     --docker-image=<maxtext docker image> \
-    --command='python3 MaxText/train.py MaxText/configs/base.yml base_output_directory=<output directory> dataset_path=<dataset path> per_device_batch_size=1 enable_checkpointing=false enable_profiler=false remat_policy=full global_parameter_scale=4 steps=300 max_target_length=2048 use_iota_embed=true reuse_example_batch=1 dataset_type=synthetic attention=flash gcs_metrics=True run_name=$(USER)-pw-xpk-test-1'
+    --command='python3 -m MaxText.train MaxText/configs/base.yml base_output_directory=<output directory> dataset_path=<dataset path> per_device_batch_size=1 enable_checkpointing=false enable_profiler=false remat_policy=full global_parameter_scale=4 steps=300 max_target_length=2048 use_iota_embed=true reuse_example_batch=1 dataset_type=synthetic attention=flash gcs_metrics=True run_name=$(USER)-pw-xpk-test-1 enable_single_controller=True'
     ```
 
     Regular workload can also be submitted on a Pathways enabled cluster (created with `cluster create-pathways`)
@@ -631,7 +632,7 @@ python3 xpk.py storage delete test-fs-instance \
     --cluster xpk-pw-test \
     --docker-name='user-workload' \
     --docker-image=<maxtext docker image> \
-    --command='python3 MaxText/train.py MaxText/configs/base.yml base_output_directory=<output directory> dataset_path=<dataset path> per_device_batch_size=1 enable_checkpointing=false enable_profiler=false remat_policy=full global_parameter_scale=4 steps=300 max_target_length=2048 use_iota_embed=true reuse_example_batch=1 dataset_type=synthetic attention=flash gcs_metrics=True run_name=$(USER)-pw-xpk-test-1'
+    --command='python3 -m MaxText.train MaxText/configs/base.yml base_output_directory=<output directory> dataset_path=<dataset path> per_device_batch_size=1 enable_checkpointing=false enable_profiler=false remat_policy=full global_parameter_scale=4 steps=300 max_target_length=2048 use_iota_embed=true reuse_example_batch=1 dataset_type=synthetic attention=flash gcs_metrics=True run_name=$(USER)-pw-xpk-test-1'
     ```
 
     Pathways in headless mode - Pathways now offers the capability to run JAX workloads in Vertex AI notebooks or in GCE VMs!

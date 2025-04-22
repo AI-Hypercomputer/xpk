@@ -22,6 +22,17 @@ from kubernetes import client as k8s_client
 from kubernetes.client import ApiClient
 from kubernetes.client.rest import ApiException
 
+from ..core.capacity import (
+    H100_DEVICE_TYPE,
+    H100_MEGA_DEVICE_TYPE,
+    H200_DEVICE_TYPE,
+)
+from ..core.storage import GCS_FUSE_ANNOTATIONS, PARALLELSTORE_ANNOTATIONS
+from ..core.workload_decorators import (
+    rdma_decorator,
+    tcpx_decorator,
+    tcpxo_decorator,
+)
 from ..utils import templates
 from ..utils.console import xpk_exit, xpk_print
 from .capacity import H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE
@@ -268,6 +279,8 @@ def create_app_profile_instance(
 
 def decorate_job_template_with_gpu(yml_string: str, gpu_type: str) -> str:
   job_spec = yaml.safe_load(yml_string)["template"]
+  if gpu_type == H100_DEVICE_TYPE:
+    job_spec = tcpx_decorator.decorate_kjob_template(job_spec)
   if gpu_type == H100_MEGA_DEVICE_TYPE:
     job_spec = tcpxo_decorator.decorate_kjob_template(job_spec)
   if gpu_type == H200_DEVICE_TYPE:

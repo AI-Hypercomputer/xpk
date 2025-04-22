@@ -50,8 +50,9 @@ xpk supports the following TPU types:
 and the following GPU types:
 * A100
 * A3-Highgpu (h100)
-* A3-Mega (h100-mega) - [Create cluster](#provisioning-a3-ultra-and-a3-mega-clusters-gpu-machines), [Create workloads](#workloads-for-a3-ultra-and-a3-mega-clusters-gpu-machines)
-* A3-Ultra (h200) - [Create cluster](#provisioning-a3-ultra-and-a3-mega-clusters-gpu-machines), [Create workloads](#workloads-for-a3-ultra-and-a3-mega-clusters-gpu-machines)
+* A3-Mega (h100-mega) - [Create cluster](#provisioning-a3-ultra-a3-mega-and-a4-clusters-gpu-machines), [Create workloads](#workloads-for-a3-ultra-a3-mega-and-a4-clusters-gpu-machines)
+* A3-Ultra (h200) - [Create cluster](#provisioning-a3-ultra-a3-mega-and-a4-clusters-gpu-machines), [Create workloads](#workloads-for-a3-ultra-a3-mega-and-a4-clusters-gpu-machines)
+* A4 (b200) - [Create cluster](#provisioning-a3-ultra-a3-mega-and-a4-clusters-gpu-machines), [Create workloads](#workloads-for-a3-ultra-a3-mega-and-a4-clusters-gpu-machines)
 
 and the following CPU types:
 * n2-standard-32
@@ -425,24 +426,32 @@ will fail the cluster creation process because Vertex AI Tensorboard is not supp
     --tpu-type=v5litepod-16
     ```
 
-## Provisioning A3-Ultra and A3-Mega clusters (GPU machines)
-To create a cluster with A3 machines, run the below command. To create workloads on these clusters see [here](#workloads-for-a3-ultra-and-a3-mega-clusters-gpu-machines).
-  * For A3-Ultra: --device-type=h200-141gb-8
-  * For A3-Mega: --device-type=h100-mega-80gb-8
+## Provisioning A3 Ultra, A3 Mega and A4 clusters (GPU machines)
+To create a cluster with A3 or A4 machines, run the command below with selected device type. To create workloads on these clusters see [here](#workloads-for-a3-ultra-a3-mega-and-a4-clusters-gpu-machines).
 
-  ```shell
-  python3 xpk.py cluster create \
-  --cluster CLUSTER_NAME --device-type=h200-141gb-8 \
+**Note:** Creating A3 Ultra, A3 Mega and A4 clusters is currently supported **only** on linux/amd64 architecture.
+
+Machine | Device type
+:- | :-
+A3 Mega | `h100-mega-80gb-8`
+A3 Ultra | `h200-141gb-8`
+A4 | `b200-8`
+
+
+```shell
+python3 xpk.py cluster create \
+  --cluster CLUSTER_NAME --device-type DEVICE_TYPE \
   --zone=$COMPUTE_ZONE  --project=$PROJECT_ID \
-  --num-nodes=4 --reservation=$RESERVATION_ID
-  ```
-Currently, the below flags/arguments are supported for A3-Mega and A3-Ultra machines:
-  * --num-nodes
-  * --default-pool-cpu-machine-type
-  * --default-pool-cpu-num-nodes
-  * --reservation
-  * --spot
-  * --on-demand (only A3-Mega)
+  --num-nodes=$NUM_NODES --reservation=$RESERVATION_ID
+```
+
+Currently, the below flags/arguments are supported for A3 Mega, A3 Ultra and A4 machines:
+  * `--num-nodes`
+  * `--default-pool-cpu-machine-type`
+  * `--default-pool-cpu-num-nodes`
+  * `--reservation`
+  * `--spot`
+  * `--on-demand` (A3 Mega only)
 
 
 ## Storage
@@ -618,7 +627,7 @@ python3 xpk.py storage delete test-fs-instance \
     --cluster xpk-pw-test \
     --docker-name='user-workload' \
     --docker-image=<maxtext docker image> \
-    --command='python3 MaxText/train.py MaxText/configs/base.yml base_output_directory=<output directory> dataset_path=<dataset path> per_device_batch_size=1 enable_checkpointing=false enable_profiler=false remat_policy=full global_parameter_scale=4 steps=300 max_target_length=2048 use_iota_embed=true reuse_example_batch=1 dataset_type=synthetic attention=flash gcs_metrics=True run_name=$(USER)-pw-xpk-test-1'
+    --command='python3 -m MaxText.train MaxText/configs/base.yml base_output_directory=<output directory> dataset_path=<dataset path> per_device_batch_size=1 enable_checkpointing=false enable_profiler=false remat_policy=full global_parameter_scale=4 steps=300 max_target_length=2048 use_iota_embed=true reuse_example_batch=1 dataset_type=synthetic attention=flash gcs_metrics=True run_name=$(USER)-pw-xpk-test-1 enable_single_controller=True'
     ```
 
     Regular workload can also be submitted on a Pathways enabled cluster (created with `cluster create-pathways`)
@@ -632,7 +641,7 @@ python3 xpk.py storage delete test-fs-instance \
     --cluster xpk-pw-test \
     --docker-name='user-workload' \
     --docker-image=<maxtext docker image> \
-    --command='python3 MaxText/train.py MaxText/configs/base.yml base_output_directory=<output directory> dataset_path=<dataset path> per_device_batch_size=1 enable_checkpointing=false enable_profiler=false remat_policy=full global_parameter_scale=4 steps=300 max_target_length=2048 use_iota_embed=true reuse_example_batch=1 dataset_type=synthetic attention=flash gcs_metrics=True run_name=$(USER)-pw-xpk-test-1'
+    --command='python3 -m MaxText.train MaxText/configs/base.yml base_output_directory=<output directory> dataset_path=<dataset path> per_device_batch_size=1 enable_checkpointing=false enable_profiler=false remat_policy=full global_parameter_scale=4 steps=300 max_target_length=2048 use_iota_embed=true reuse_example_batch=1 dataset_type=synthetic attention=flash gcs_metrics=True run_name=$(USER)-pw-xpk-test-1'
     ```
 
     Pathways in headless mode - Pathways now offers the capability to run JAX workloads in Vertex AI notebooks or in GCE VMs!
@@ -662,21 +671,27 @@ increase this to a large number, say 50. Real jobs can be interrupted due to
 hardware failures and software updates. We assume your job has implemented
 checkpointing so the job restarts near where it was interrupted.
 
-### Workloads for A3-Ultra and A3-Mega clusters (GPU machines)
-To submit jobs on a cluster with A3 machines, run the below command. To create a cluster with A3 machines see [here](#provisioning-a3-ultra-and-a3-mega-clusters-gpu-machines).
-  * For A3-Ultra: --device-type=h200-141gb-8
-  * For A3-Mega: --device-type=h100-mega-80gb-8
+### Workloads for A3 Ultra, A3 Mega and A4 clusters (GPU machines)
+To submit jobs on a cluster with A3 or A4 machines, run the command with selected device type. To create a cluster with A3 or A4 machines see [here](#provisioning-a3-ultra-a3-mega-and-a4-clusters-gpu-machines).
 
-  ```shell
-  python3 xpk.py workload create \
+
+Machine | Device type
+:- | :-
+A3 Mega | `h100-mega-80gb-8`
+A3 Ultra | `h200-141gb-8`
+A4 | `b200-8`
+
+```shell
+python3 xpk.py workload create \
   --workload=$WORKLOAD_NAME --command="echo goodbye" \
-  --cluster=$CLUSTER_NAME --device-type=h200-141gb-8 \
+  --cluster=$CLUSTER_NAME --device-type DEVICE_TYPE \
   --zone=$COMPUTE_ZONE  --project=$PROJECT_ID \
   --num-nodes=$WOKRKLOAD_NUM_NODES
-  ```
-> The docker image flags/arguments introduced in [workloads section](#workload-create) can be used with A3 machines as well.
+```
 
-In order to run NCCL test on A3 Ultra machines check out [this guide](/examples/nccl/nccl.md).
+> The docker image flags/arguments introduced in [workloads section](#workload-create) can be used with A3 or A4 machines as well.
+
+In order to run NCCL test on A3 machines check out [this guide](/examples/nccl/nccl.md).
 
 ### Workload Priority and Preemption
 * Set the priority level of your workload with `--priority=LEVEL`

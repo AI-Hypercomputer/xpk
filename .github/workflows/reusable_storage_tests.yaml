@@ -106,7 +106,7 @@ jobs:
       tpu-type: ${{inputs.tpu-type}}
       zone: ${{inputs.zone}}
       storage-type: 'gcpfilestore'
-      storage-command: 'create'
+      storage-command: 'attach'
       storage-name: gcpfilestore-test-${{inputs.run-id}}
     secrets:
       GCP_SA_KEY: ${{secrets.GCP_SA_KEY}}

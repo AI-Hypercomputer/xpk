@@ -185,6 +185,9 @@ class BlueprintGenerator:
         },
         outputs=["instructions"],
     )
+    if capacity_type == CapacityType.FLEX_START:
+      a3_megagpu_pool_0.settings.update(self.get_dws_flex_start())
+
     num_chips = num_nodes * system.chips_per_vm
     workload = DeploymentModule(
         id="workload_component_install",
@@ -534,6 +537,8 @@ class BlueprintGenerator:
         },
         outputs=["instructions"],
     )
+    if capacity_type == CapacityType.FLEX_START:
+      gpu_pool.settings.update(self.get_dws_flex_start())
 
     num_chips = num_nodes * system.chips_per_vm
     workload_manager_install_id = "workload-manager-install"
@@ -701,6 +706,14 @@ class BlueprintGenerator:
         dirs_exist_ok=True,
     )
     return deployment_files_path
+
+  def get_dws_flex_start(self) -> dict:
+    return {
+        "enable_queued_provisioning": True,
+        "autoscaling_total_min_nodes": 0,
+        "auto_repair": False,
+        "auto_upgrade": False,
+    }
 
 
 yaml.register_class(Blueprint)

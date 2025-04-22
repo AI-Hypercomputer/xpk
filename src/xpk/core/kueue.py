@@ -54,6 +54,26 @@ spec:
     {accelerator_label}
     {machine_label}
 ---
+apiVersion: kueue.x-k8s.io/v1beta1
+  kind: AdmissionCheck
+  metadata:
+    name: dws-prov
+  spec:
+    controllerName: kueue.x-k8s.io/provisioning-request
+    parameters:
+      apiGroup: kueue.x-k8s.io
+      kind: ProvisioningRequestConfig
+      name: dws-config
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ProvisioningRequestConfig
+metadata:
+  name: dws-config
+spec:
+  provisioningClassName: queued-provisioning.gke.io
+  managedResources:
+  - nvidia.com/gpu
+---
 {pw_resource_flavors}
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: ClusterQueue
@@ -67,6 +87,7 @@ spec:
   resourceGroups:
   {covered_resources_config}
   {pw_resources_kueue}
+  {admission_checks}
 ---
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: LocalQueue
@@ -294,6 +315,13 @@ def install_kueue_crs(
   else:
     # Determine total chips based on user specified topology.
     total_chips = get_total_chips_requested_from_args(args, system)
+  if args.flex_start:
+    admission_checks = """
+  admissionChecks:
+  - dws-prov
+"""
+  else:
+    admission_checks = ''
 
   covered_resources_config = get_kueue_covered_resources_config(
       cluster_hardware_name=cluster_hardware_name,
@@ -315,6 +343,7 @@ def install_kueue_crs(
       ].resource_type,
       pw_resource_flavors=add_pw_resource_flavors(args),
       pw_resources_kueue=add_pw_resources_to_kueue(args),
+      admission_checks=admission_checks,
       cluster_queue_name=CLUSTER_QUEUE_NAME,
       local_queue_name=LOCAL_QUEUE_NAME,
   )

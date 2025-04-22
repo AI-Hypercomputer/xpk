@@ -35,6 +35,7 @@ class CapacityType(enum.Enum):
   RESERVATION = 'reservation'
   SPOT = 'spot'
   UNKNOWN = 'unknown'
+  FLEX_START = 'flex_start'
 
 
 def print_reservations(args) -> int:
@@ -83,6 +84,9 @@ def get_capacity_type(args) -> tuple[CapacityType, int]:
   if args.spot:
     capacity_type = CapacityType.SPOT
     num_types += 1
+  if args.flex_start:
+    capacity_type = CapacityType.FLEX_START
+    num_types += 1
 
   # Check that the number of user arguments provided is valid.
   if num_types == 0:
@@ -90,8 +94,8 @@ def get_capacity_type(args) -> tuple[CapacityType, int]:
   elif num_types != 1:
     xpk_print(
         'ERROR: User specified more than one of the following arguments. Please'
-        ' specify only one of `--reservation=$RESERVATION_NAME`, `--on-demand`'
-        ' or `--spot`.'
+        ' specify only one of `--reservation=$RESERVATION_NAME`, `--on-demand`,'
+        ' `--flex-start` or `--spot`.'
     )
     return_code = 1
 
@@ -122,7 +126,7 @@ def verify_reservation_exists(args) -> int:
 def get_capacity_arguments_from_capacity_type(
     args, capacity_type: CapacityType
 ) -> tuple[str, int]:
-  """Determine the TPU Nodepool creation capacity arguments needed.
+  """Determine the Nodepool creation capacity arguments needed.
 
   Args:
     args: user provided arguments for running the command.
@@ -140,6 +144,12 @@ def get_capacity_arguments_from_capacity_type(
       capacity_args = ''
     case CapacityType.SPOT:
       capacity_args = '--spot'
+    case CapacityType.FLEX_START:
+      capacity_args = (
+          '--enable-queued-provisioning --enable-autoscaling'
+          ' --enable-autoscaling --location-policy=ANY'
+          ' --reservation-affinity=none --no-enable-autorepair --max-nodes=1000'
+      )
     case CapacityType.RESERVATION:
       capacity_args = (
           f'--reservation-affinity=specific --reservation={args.reservation}'
@@ -172,6 +182,8 @@ def get_capacity_node_selectors_from_capacity_type(
   match capacity_type:
     case CapacityType.ON_DEMAND.name:
       node_selector = ''
+    case CapacityType.FLEX_START.name:
+      node_selector = 'cloud.google.com/gke-queued="true"'
     case CapacityType.SPOT.name:
       node_selector = 'cloud.google.com/gke-spot="true"'
     case CapacityType.RESERVATION.name:

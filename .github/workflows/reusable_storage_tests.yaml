@@ -55,7 +55,6 @@ jobs:
     uses: ./.github/workflows/reusable_storage_delete.yaml
     concurrency: # We support one build or nightly test to run at a time currently.
       group: fuse-tests-${{inputs.run-id}}
-      cancel-in-progress: true
     with:
       cluster-name: ${{inputs.cluster-name}}
       zone: ${{inputs.zone}}
@@ -86,7 +85,6 @@ jobs:
     uses: ./.github/workflows/reusable_storage_delete.yaml
     concurrency: # We support one build or nightly test to run at a time currently.
       group: filestore-tests-${{inputs.run-id}}
-      cancel-in-progress: true
     with:
       cluster-name: ${{inputs.cluster-name}}
       zone: ${{inputs.zone}}
@@ -118,7 +116,6 @@ jobs:
     uses: ./.github/workflows/reusable_storage_delete.yaml
     concurrency: # We support one build or nightly test to run at a time currently.
       group: filestore-tests-${{inputs.run-id}}
-      cancel-in-progress: true
     with:
       cluster-name: ${{inputs.cluster-name}}
       zone: ${{inputs.zone}}

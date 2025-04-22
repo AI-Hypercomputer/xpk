@@ -86,7 +86,6 @@ def storage_create(args: Namespace) -> None:
           args.vol,
           args.access_mode,
           filestore_network,
-          args.mount_options,
       )
 
     k8s_api_client = setup_k8s_env(args)
@@ -162,7 +161,6 @@ def storage_attach(args: Namespace) -> None:
           args.vol,
           args.access_mode,
           filestore_network,
-          args.mount_options,
       )
 
   elif args.type == GCS_FUSE_TYPE:

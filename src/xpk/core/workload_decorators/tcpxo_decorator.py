@@ -77,16 +77,12 @@ def decorate_jobset(jobset_manifest_str: str, sub_networks: list[str]) -> str:
 
 
 def get_interfaces_entry(sub_networks: list[str]) -> tuple[str, str]:
-  interfaces = [
-      '[',
-      '    {"interfaceName":"eth0","network":"default"},',
-      *[
-          f'    {{"interfaceName":"eth{i + 1}","network":"{sub_networks[i]}"}}{"," if i<7 else ""}'
-          for i in range(8)
-      ],
-      ']',
-  ]
-  return 'networking.gke.io/interfaces', literal_string('\n'.join(interfaces))
+  entries = ',\n'.join([
+      f'    {{"interfaceName":"eth{i}","network":"{network}"}}'
+      for i, network in enumerate(sub_networks)
+  ])
+  interfaces = f'[\n{entries}\n]'
+  return 'networking.gke.io/interfaces', literal_string(interfaces)
 
 
 def get_tcpxo_deamon_entry() -> tuple[str, str]:

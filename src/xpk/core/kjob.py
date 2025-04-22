@@ -22,20 +22,9 @@ from kubernetes import client as k8s_client
 from kubernetes.client import ApiClient
 from kubernetes.client.rest import ApiException
 
-from ..core.capacity import (
-    H100_DEVICE_TYPE,
-    H100_MEGA_DEVICE_TYPE,
-    H200_DEVICE_TYPE,
-)
-from ..core.storage import GCS_FUSE_ANNOTATIONS, PARALLELSTORE_ANNOTATIONS
-from ..core.workload_decorators import (
-    rdma_decorator,
-    tcpx_decorator,
-    tcpxo_decorator,
-)
 from ..utils import templates
 from ..utils.console import xpk_exit, xpk_print
-from .capacity import H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE
+from .capacity import H100_DEVICE_TYPE, H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE
 from .cluster import DEFAULT_NAMESPACE, XPK_SA, setup_k8s_env
 from .commands import (
     run_command_for_value,
@@ -63,7 +52,11 @@ from .storage import (
     get_auto_mount_parallelstore_storages,
     get_auto_mount_storages,
 )
-from .workload_decorators import rdma_decorator, tcpxo_decorator
+from .workload_decorators import (
+    rdma_decorator,
+    tcpx_decorator,
+    tcpxo_decorator,
+)
 from .workload_decorators.tcpxo_decorator import get_tcpxo_deamon_entry
 
 KJOB_API_GROUP_NAME = "kjobctl.x-k8s.io"

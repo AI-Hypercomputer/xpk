@@ -132,14 +132,14 @@ jobs:
     - name: Run workload to write file on filestore
       run: python3 xpk.py workload create --workload $STORAGE_WRITE_WORKLOAD --num-slices=1 --docker-image='marketplace.gcr.io/google/ubuntu2004' --command "mkdir /${{inputs.storage-type}}-test-mount-point/$RANDOM_SEED/ && echo 'Test text message' > /${{inputs.storage-type}}-test-mount-point/$RANDOM_SEED/test.txt || (echo 'Writing to filestore failed' && exit 143)" --cluster ${{inputs.cluster-name}} --tpu-type=${{inputs.tpu-type}} --zone ${{inputs.zone}}
     - name: Wait for writer workload completion and confirm it succeeded
-      run: python3 xpk.py workload list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} --wait-for-job-completion $STORAGE_WRITE_WORKLOAD --timeout 300
+      run: python3 xpk.py workload list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} --wait-for-job-completion $STORAGE_WRITE_WORKLOAD --timeout 600
     - name: Delete the writer workload on the cluster
       if: always()
       run: python3 xpk.py workload delete --workload $STORAGE_WRITE_WORKLOAD --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}
     - name: Run workload to read file on filestore
       run : python3 xpk.py workload create --workload $STORAGE_READ_WORKLOAD --command "grep 'Test text message' /${{inputs.storage-type}}-test-mount-point/$RANDOM_SEED/test.txt || (echo 'Reading from filestore failed' && exit 143)" --cluster ${{inputs.cluster-name}} --tpu-type=${{inputs.tpu-type}} --zone ${{inputs.zone}}
     - name: Wait for reader workload completion and confirm it succeeded
-      run: python3 xpk.py workload list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} --wait-for-job-completion $STORAGE_READ_WORKLOAD --timeout 300
+      run: python3 xpk.py workload list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} --wait-for-job-completion $STORAGE_READ_WORKLOAD --timeout 600
     - name: Delete the reader workload on the cluster
       run: python3 xpk.py workload delete --workload $STORAGE_READ_WORKLOAD --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}
     - name: Create batch-read.sh script

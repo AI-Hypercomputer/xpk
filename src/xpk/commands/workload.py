@@ -14,19 +14,27 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from ..core.blueprint.blueprint_generator import (
+    get_subnetworks_for_a3mega,
+    get_subnetworks_for_a3ultra,
+    get_subnetworks_for_a4,
+)
 from ..core.cluster import (
+    XPK_SA,
     create_xpk_k8s_service_account,
     get_cluster_credentials,
     setup_k8s_env,
-    XPK_SA,
 )
 from ..core.commands import run_command_with_updates, run_commands
-from ..core.config import VERTEX_TENSORBOARD_FEATURE_FLAG, XPK_CURRENT_VERSION, parse_env_config
+from ..core.config import (
+    VERTEX_TENSORBOARD_FEATURE_FLAG,
+    XPK_CURRENT_VERSION,
+    parse_env_config,
+)
 from ..core.docker_container import (
     get_main_container_docker_image,
     get_user_workload_container,
 )
-
 from ..core.docker_resources import get_volumes
 from ..core.gcloud_context import add_zone_and_project
 from ..core.kueue import LOCAL_QUEUE_NAME
@@ -36,13 +44,13 @@ from ..core.nap import (
     is_autoprovisioning_enabled,
 )
 from ..core.pathways import (
-    check_if_pathways_job_is_installed,
-    ensure_pathways_workload_prerequisites,
-    get_pathways_unified_query_link,
+    append_custom_colocated_python_sidecar,
     append_custom_pathways_proxy_server,
     append_custom_pathways_server,
     append_custom_pathways_worker,
-    append_custom_colocated_python_sidecar,
+    check_if_pathways_job_is_installed,
+    ensure_pathways_workload_prerequisites,
+    get_pathways_unified_query_link,
     get_user_workload_for_pathways,
     try_to_delete_pathwaysjob_first,
 )
@@ -51,22 +59,20 @@ from ..core.scheduling import (
     check_if_workload_can_schedule,
     create_accelerator_label,
     create_machine_label,
-    create_tpu_topology,
     create_tpu_machine_type,
+    create_tpu_topology,
     get_cpu_affinity,
     get_gpu_scheduler,
 )
 from ..core.storage import (
-    GCS_FUSE_TYPE,
-    GCP_FILESTORE_TYPE,
-    PARALLELSTORE_TYPE,
     GCE_PD_TYPE,
+    GCP_FILESTORE_TYPE,
+    GCS_FUSE_TYPE,
+    PARALLELSTORE_TYPE,
     Storage,
     add_bucket_iam_members,
-    get_storages_to_mount,
-    get_storage_volume_mounts_yaml_for_gpu,
-    get_storage_volumes_yaml_for_gpu,
     get_storage_annotations,
+    get_storages_to_mount,
 )
 from ..core.system_characteristics import (
     AcceleratorType,
@@ -74,17 +80,17 @@ from ..core.system_characteristics import (
 )
 from ..core.vertex import create_vertex_experiment
 from ..core.workload import (
+    add_gpu_rxdm_container,
     check_if_workload_exists,
-    get_gpu_rxdm_cmd,
-    get_gpu_rxdm_image,
-    get_gpu_tcp_volume,
-    get_gpu_volume,
     get_workload_list,
     wait_for_job_completion,
     zone_to_region,
 )
-from ..core.network import get_subnetworks_for_a3mega, get_subnetworks_for_a3ultra
-from ..core.workload_decorators import rdma_decorator, tcpxo_decorator, storage_decorator
+from ..core.workload_decorators import (
+    rdma_decorator,
+    storage_decorator,
+    tcpxo_decorator,
+)
 from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
 from . import cluster_gcluster
@@ -142,7 +148,8 @@ GPU_WORKLOAD_CREATE_YAML = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
 metadata:
   name: {args.workload}
-  annotations: {storage_annotations}
+  annotations:
+    {storage_annotations}
   labels:
     kueue.x-k8s.io/queue-name: multislice-queue  # Name of the LocalQueue
     xpk.google.com/workload: {args.workload}
@@ -179,29 +186,8 @@ spec:
               - operator: "Exists"
                 key: nvidia.com/gpu
               volumes:
-              {gpu_volume}
-              {storage_volumes}
+              {volumes}
               containers:
-              {gpu_rxdm_image}
-                imagePullPolicy: Always
-                command:
-                - "bash"
-                - "-c"
-                - |
-                  {gpu_rxdm_cmd} &
-                  while [ ! -e "/usr/share/workload/workload_terminated" ]; do sleep 10; echo "sleeping"; done
-                securityContext:
-                  privileged: true
-                volumeMounts:
-                {gpu_tcp_volume}
-                {storage_volume_mounts}
-                - name: nvidia-install-dir-host
-                  mountPath: /usr/local/nvidia/lib64
-                - name: workload-terminated-volume
-                  mountPath: /usr/share/workload
-                env:
-                - name: LD_LIBRARY_PATH
-                  value: /usr/local/nvidia/lib64
               {container}
 """
 
@@ -482,29 +468,18 @@ def workload_create(args) -> None:
         sub_networks = get_subnetworks_for_a3ultra(args.cluster)
         yml_string = rdma_decorator.decorate_jobset(yml_string, sub_networks)
 
-      if (
-          len(gcs_fuse_storages)
-          + len(gcpfilestore_storages)
-          + len(parallelstore_storages)
-          + len(pd_storages)
-          > 0
-      ):
+      if args.device_type == cluster_gcluster.a4_device_type:
+        sub_networks = get_subnetworks_for_a4()
+        yml_string = rdma_decorator.decorate_jobset(yml_string, sub_networks)
+
+      if all_storages:
         yml_string = storage_decorator.decorate_jobset(yml_string, all_storages)
     else:
       yml_string = GPU_WORKLOAD_CREATE_YAML.format(
           args=args,
           container=container,
-          command=args.command,
-          chips_per_vm=system.chips_per_vm,
           gpu_scheduler=gpu_scheduler,
-          gpu_volume=get_gpu_volume(system),
-          gpu_rxdm_image=get_gpu_rxdm_image(system),
-          gpu_rxdm_cmd=get_gpu_rxdm_cmd(system),
-          gpu_tcp_volume=get_gpu_tcp_volume(system),
-          storage_volumes=get_storage_volumes_yaml_for_gpu(all_storages),
-          storage_volume_mounts=get_storage_volume_mounts_yaml_for_gpu(
-              all_storages
-          ),
+          volumes=get_volumes(args, system),
           storage_annotations=('\n' + (' ' * 12)).join(
               get_storage_annotations(all_storages)
           ),
@@ -512,6 +487,7 @@ def workload_create(args) -> None:
           failure_policy_rules=failure_policy_rules,
           pod_failure_policy=pod_failure_policy,
       )
+      yml_string = add_gpu_rxdm_container(yml_string, system, all_storages)
 
   elif args.use_pathways and ensure_pathways_workload_prerequisites(
       args, system

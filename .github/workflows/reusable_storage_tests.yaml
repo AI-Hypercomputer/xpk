@@ -51,6 +51,7 @@ jobs:
 
   fuse-detach-tests:
     if: always()
+    needs: [fuse-attach-tests]
     uses: ./.github/workflows/reusable_storage_delete.yaml
     concurrency: # We support one build or nightly test to run at a time currently.
       group: fuse-tests-${{inputs.run-id}}
@@ -64,7 +65,7 @@ jobs:
       GCP_SA_KEY: ${{secrets.GCP_SA_KEY}}
 
   filestore-create-tests:
-    needs: [ fuse-attach-tests ]
+    needs: [fuse-attach-tests]
     uses: ./.github/workflows/reusable_storage_create.yaml
     concurrency: # We support one build or nightly test to run at a time currently.
       group: filestore-tests-${{inputs.run-id}}
@@ -95,7 +96,7 @@ jobs:
       GCP_SA_KEY: ${{secrets.GCP_SA_KEY}}
 
   filestore-attach-tests:
-    needs: [ filestore-detach-tests ]
+    needs: [filestore-detach-tests]
     uses: ./.github/workflows/reusable_storage_create.yaml
     concurrency: # We support one build or nightly test to run at a time currently.
       group: filestore-tests-${{inputs.run-id}}

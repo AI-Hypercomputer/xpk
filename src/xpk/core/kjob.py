@@ -21,11 +21,12 @@ from kubernetes import client as k8s_client
 from kubernetes.client import ApiClient
 from kubernetes.client.rest import ApiException
 
-from ..utils import templates
+from ..args.cluster import ClusterConfig
 from ..args.common import GlobalConfig
+from ..utils import templates
 from ..utils.console import xpk_exit, xpk_print
 from .capacity import H100_DEVICE_TYPE, H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE
-from .cluster import DEFAULT_NAMESPACE, XPK_SA, ClusterConfig, setup_k8s_env
+from .cluster import DEFAULT_NAMESPACE, XPK_SA, setup_k8s_env
 from .commands import (
     run_command_for_value,
     run_command_with_updates,

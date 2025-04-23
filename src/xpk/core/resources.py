@@ -16,9 +16,10 @@ limitations under the License.
 
 from dataclasses import dataclass
 
+from ..args.cluster import ClusterConfig
+from ..args.common import GlobalConfig
 from ..utils.console import xpk_print
 from ..utils.file import write_tmp_file
-from ..args.common import GlobalConfig
 from .capacity import (
     AUTOPROVISIONING_CONFIG_MAXIMUM_KEY,
     AUTOPROVISIONING_CONFIG_MINIMUM_KEY,
@@ -28,7 +29,6 @@ from .capacity import (
     CapacityType,
     get_capacity_type,
 )
-from .cluster import ClusterConfig
 from .commands import run_command_for_value, run_commands
 from .config import XPK_CURRENT_VERSION
 from .system_characteristics import (

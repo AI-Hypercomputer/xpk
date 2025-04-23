@@ -32,7 +32,7 @@ from .gcloud_context import (
     get_gke_server_config,
     zone_to_region,
 )
-from ..args.gcloud_context import GcloudConfig
+from ..args.cluster import ClusterConfig
 from .nodepool import upgrade_gke_nodepools_version
 from .resources import get_cluster_system_characteristics
 from .system_characteristics import SystemCharacteristics
@@ -47,12 +47,6 @@ NRI_DEVICE_INJECTOR = 'https://raw.githubusercontent.com/GoogleCloudPlatform/con
 DEFAULT_NAMESPACE = 'default'
 XPK_SA = 'xpk-sa'
 
-
-class ClusterConfig(GcloudConfig):
-  """Class representing cluster config"""
-
-  kind_cluster: bool = False
-  cluster: str = None
 
 
 # TODO(vbarr): Remove this function when jobsets gets enabled by default on

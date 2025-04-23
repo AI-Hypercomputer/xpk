@@ -21,14 +21,10 @@ from kubernetes import client as k8s_client
 from kubernetes.client import ApiClient
 from kubernetes.client.rest import ApiException
 
-from ..core.blueprint.blueprint_generator import (
-    get_subnetworks_for_a3mega,
-    get_subnetworks_for_a3ultra,
-)
-from ..core.capacity import H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE
-from ..core.workload_decorators import rdma_decorator, tcpxo_decorator
 from ..utils import templates
+from .config.common import GlobalConfig
 from ..utils.console import xpk_exit, xpk_print
+from .capacity import H100_DEVICE_TYPE, H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE
 from .cluster import DEFAULT_NAMESPACE, XPK_SA, ClusterConfig, setup_k8s_env
 from .commands import (
     run_command_for_value,
@@ -43,14 +39,25 @@ from .config import (
     KJOB_SHELL_WORKING_DIRECTORY,
     XpkConfig,
 )
+from .network import get_cluster_subnetworks
 from .resources import (
     AcceleratorType,
     SystemCharacteristics,
     get_cluster_system_characteristics,
 )
-from .storage import get_auto_mount_gcsfuse_storages, get_auto_mount_storages
+from .storage import (
+    GCS_FUSE_ANNOTATIONS,
+    PARALLELSTORE_ANNOTATIONS,
+    get_auto_mount_gcsfuse_storages,
+    get_auto_mount_parallelstore_storages,
+    get_auto_mount_storages,
+)
+from .workload_decorators import (
+    rdma_decorator,
+    tcpx_decorator,
+    tcpxo_decorator,
+)
 from .workload_decorators.tcpxo_decorator import get_tcpxo_deamon_entry
-from .args import GlobalConfig
 
 KJOB_API_GROUP_NAME = "kjobctl.x-k8s.io"
 KJOB_API_GROUP_VERSION = "v1alpha1"
@@ -102,6 +109,7 @@ job_template_yaml = """
               workingDir: {working_directory}
               {resources}
           {node_selector}
+          priorityClassName: {priority}
           restartPolicy: OnFailure
           serviceAccountName: {service_account}
 """
@@ -161,10 +169,22 @@ Kueue_TAS_annotation = "kueue.x-k8s.io/podset-preferred-topology=cloud.google.co
 default_interface_annotation = "networking.gke.io/default-interface=eth0"
 
 
+def get_a4_pod_template_annotations(args: ClusterConfig) -> tuple[str, str]:
+  sub_networks = get_cluster_subnetworks(args)
+  interfaces_key, interfaces_value = rdma_decorator.get_interfaces_entry(
+      sub_networks
+  )
+
+  return (
+      default_interface_annotation,
+      f"{interfaces_key}=$'{interfaces_value}'",
+  )
+
+
 def get_a3ultra_pod_template_annotations(
     args: ClusterConfig,
 ) -> tuple[str, str]:
-  sub_networks = get_subnetworks_for_a3ultra(args.cluster)
+  sub_networks = get_cluster_subnetworks(args)
   interfaces_key, interfaces_value = rdma_decorator.get_interfaces_entry(
       sub_networks
   )
@@ -179,7 +199,7 @@ def get_a3mega_pod_template_annotations(
     args: ClusterConfig,
 ) -> tuple[str, str, str]:
   """Adds or updates annotations in the Pod template."""
-  sub_networks = get_subnetworks_for_a3mega(args.cluster)
+  sub_networks = get_cluster_subnetworks(args)
   tcpxo_deamon_key, tcpxo_deamon_paths = get_tcpxo_deamon_entry()
   interfaces_key, interfaces_value = tcpxo_decorator.get_interfaces_entry(
       sub_networks
@@ -254,6 +274,8 @@ def create_app_profile_instance(
 
 def decorate_job_template_with_gpu(yml_string: str, gpu_type: str) -> str:
   job_spec = yaml.safe_load(yml_string)["template"]
+  if gpu_type == H100_DEVICE_TYPE:
+    job_spec = tcpx_decorator.decorate_kjob_template(job_spec)
   if gpu_type == H100_MEGA_DEVICE_TYPE:
     job_spec = tcpxo_decorator.decorate_kjob_template(job_spec)
   if gpu_type == H200_DEVICE_TYPE:
@@ -304,6 +326,7 @@ def create_job_template_instance(
       working_directory=working_directory,
       resources=resources,
       node_selector=node_selector,
+      priority=args.priority if hasattr(args, "priority") else "medium",
       service_account=service_account,
   )
   if system is not None and system.accelerator_type == AcceleratorType["GPU"]:
@@ -454,9 +477,18 @@ def create_volume_bundle_instance(
       xpk_exit(1)
 
 
-def get_gcsfuse_annotation(args: ClusterConfig) -> str | None:
+def get_storage_annotations(args: ClusterConfig) -> list[str]:
+  annotations = []
   k8s_api_client = setup_k8s_env(args)
+
   gcsfuse_storages = get_auto_mount_gcsfuse_storages(k8s_api_client)
   if len(gcsfuse_storages) > 0:
-    return "gke-gcsfuse/volumes=true"
-  return None
+    for key, value in GCS_FUSE_ANNOTATIONS.items():
+      annotations.append(f"{key}={value}")
+
+  parallelstore_storages = get_auto_mount_parallelstore_storages(k8s_api_client)
+  if len(parallelstore_storages) > 0:
+    for key, value in PARALLELSTORE_ANNOTATIONS.items():
+      annotations.append(f"{key}={value}")
+
+  return annotations

@@ -57,7 +57,7 @@ def decorate_job(job_manifest: dict, sub_networks: list[str]) -> dict:
   return job_manifest
 
 
-def decorate_jobset(jobset_manifest_str, sub_networks) -> str:
+def decorate_jobset(jobset_manifest_str: str, sub_networks: list[str]) -> str:
   """
   Decorates a JobSet manifest with the necessary components for tcpxo-daemon.
 
@@ -77,16 +77,12 @@ def decorate_jobset(jobset_manifest_str, sub_networks) -> str:
 
 
 def get_interfaces_entry(sub_networks: list[str]) -> tuple[str, str]:
-  interfaces = [
-      '[',
-      '    {"interfaceName":"eth0","network":"default"},',
-      *[
-          f'    {{"interfaceName":"eth{i + 1}","network":"{sub_networks[i]}"}}{"," if i<7 else ""}'
-          for i in range(8)
-      ],
-      ']',
-  ]
-  return 'networking.gke.io/interfaces', literal_string('\n'.join(interfaces))
+  entries = ',\n'.join([
+      f'    {{"interfaceName":"eth{i}","network":"{network}"}}'
+      for i, network in enumerate(sub_networks)
+  ])
+  interfaces = f'[\n{entries}\n]'
+  return 'networking.gke.io/interfaces', literal_string(interfaces)
 
 
 def get_tcpxo_deamon_entry() -> tuple[str, str]:
@@ -105,7 +101,7 @@ def get_tcpxo_deamon_entry() -> tuple[str, str]:
   )
 
 
-def add_annotations(job_manifest, sub_networks):
+def add_annotations(job_manifest: dict, sub_networks: list[str]):
   """Adds or updates annotations in the Pod template."""
   annotations = job_manifest['spec']['template']['metadata']['annotations']
   tcpxo_deamon_key, tcpxo_deamon_paths = get_tcpxo_deamon_entry()

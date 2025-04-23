@@ -28,18 +28,21 @@ from .commands import (
     run_command_with_updates_retry,
 )
 from .gcloud_context import (
-    GcloudConfig,
     add_zone_and_project,
     get_gke_server_config,
     zone_to_region,
 )
+from .args.gcloud_context import GcloudConfig
 from .nodepool import upgrade_gke_nodepools_version
 from .resources import get_cluster_system_characteristics
 from .system_characteristics import SystemCharacteristics
 
-JOBSET_VERSION = 'v0.7.2'
+JOBSET_VERSION = 'v0.8.0'
+PATHWAYS_JOB_VERSION = 'v0.1.0'
 INSTALLER_NCC_TCPX = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpx/nccl-tcpx-installer.yaml'
 INSTALLER_NCC_TCPXO = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpxo/nccl-tcpxo-installer.yaml'
+CONFIG_NCCL_TCPX = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpx/nccl-config.yaml'
+NRI_DEVICE_INJECTOR = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/nri_device_injector/nri-device-injector.yaml'
 
 DEFAULT_NAMESPACE = 'default'
 XPK_SA = 'xpk-sa'
@@ -83,6 +86,35 @@ def set_jobset_on_cluster(args: ClusterConfig) -> int:
   return return_code
 
 
+def set_pathways_job_on_cluster(args: ClusterConfig) -> int:
+  """Add PathwaysJob command on server side and ask user to verify it is created.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  command = (
+      'kubectl apply --server-side -f'
+      f' https://github.com/google/pathways-job/releases/download/{PATHWAYS_JOB_VERSION}/install.yaml'
+  )
+  task = f'Install PathwaysJob on {args.cluster}'
+  return_code = run_command_with_updates_retry(command, task, args)
+
+  if return_code != 0:
+    xpk_print(f'{task} returned with ERROR {return_code}.\n')
+    xpk_print(
+        "This LIKELY means you're missing Kubernetes Permissions, you can"
+        ' validate this by checking if the error references permission problems'
+        ' such as `requires one of ["container.*"] permission(s)`. Follow our'
+        ' readme:'
+        ' https://github.com/google/xpk/blob/main/README.md#troubleshooting for'
+        ' instructions on how to fix these permissions.'
+    )
+  return return_code
+
+
 def install_nccl_on_cluster(
     args: ClusterConfig, system: SystemCharacteristics
 ) -> int:
@@ -107,6 +139,44 @@ def install_nccl_on_cluster(
   if return_code != 0:
     xpk_print(
         f'Install NCCL Plugin On Cluster request returned ERROR {return_code}'
+    )
+    return 1
+
+  if system.device_type == H100_DEVICE_TYPE:
+    command = f'kubectl apply -f {CONFIG_NCCL_TCPX}'
+
+    return_code = run_command_with_updates(
+        command, 'Install NCCL Config On Cluster', args
+    )
+
+    if return_code != 0:
+      xpk_print(
+          f'Install NCCL Config On Cluster request returned ERROR {return_code}'
+      )
+      return 1
+
+  return 0
+
+
+def install_nri_on_cluster(args: ClusterConfig) -> int:
+  """Install NRI Device Injector on the cluster.
+
+  Args:
+    args: user provided arguments for running the command.
+    system: system characteristics.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  command = f'kubectl apply -f {NRI_DEVICE_INJECTOR}'
+  return_code = run_command_with_updates(
+      command, 'Install NRI Device Injector On Cluster', args
+  )
+
+  if return_code != 0:
+    xpk_print(
+        'Install NRI Device Injector On Cluster request returned ERROR'
+        f' {return_code}'
     )
     return 1
 
@@ -151,8 +221,50 @@ def update_cluster_with_gcpfilestore_driver_if_necessary(
   return 0
 
 
+def update_cluster_with_parallelstore_driver_if_necessary(
+    args: ClusterConfig,
+) -> int:
+  """Updates a GKE cluster to enable Parallelstore CSI driver, if not enabled already.
+  Args:
+    args: user provided arguments for running the command.
+  Returns:
+    0 if successful and error code otherwise.
+  """
+  if is_driver_enabled_on_cluster(args, driver='parallelstoreCsiDriver'):
+    return 0
+  cluster_update_return_code = update_gke_cluster_with_addon(
+      args, 'ParallelstoreCsiDriver'
+  )
+  if cluster_update_return_code > 0:
+    xpk_print('Updating GKE cluster to enable Parallelstore CSI driver failed!')
+    return cluster_update_return_code
+
+  return 0
+
+
+def update_cluster_with_pd_driver_if_necessary(args: ClusterConfig) -> int:
+  """Updates a GKE cluster to enable PersistentDisk CSI driver, if not enabled already.
+  Args:
+    args: user provided arguments for running the command.
+  Returns:
+    0 if successful and error code otherwise.
+  """
+  if is_driver_enabled_on_cluster(args, driver='gcePersistentDiskCsiDriver'):
+    return 0
+  cluster_update_return_code = update_gke_cluster_with_addon(
+      args, 'GcePersistentDiskCsiDriver'
+  )
+  if cluster_update_return_code > 0:
+    xpk_print(
+        'Updating GKE cluster to enable PersistentDisk CSI driver failed!'
+    )
+    return cluster_update_return_code
+
+  return 0
+
+
 def is_driver_enabled_on_cluster(args: ClusterConfig, driver: str) -> bool:
-  """Checks if GCSFuse CSI driver is enabled on the cluster.
+  """Checks if the CSI driver is enabled on the cluster.
   Args:
     args: user provided arguments for running the command.
     driver (str) : name of the driver
@@ -164,14 +276,14 @@ def is_driver_enabled_on_cluster(args: ClusterConfig, driver: str) -> bool:
       f' --project={args.project} --region={zone_to_region(args.zone)}'
       f' --format="value(addonsConfig.{driver}Config.enabled)"'
   )
-  return_code, gcsfuse_driver_enabled = run_command_for_value(
+  return_code, driver_enabled = run_command_for_value(
       command,
       f'Checks if {driver} driver is enabled in cluster describe.',
       args,
   )
   if return_code != 0:
     xpk_exit(return_code)
-  if gcsfuse_driver_enabled.lower() == 'true':
+  if driver_enabled.strip().lower() == 'true':
     xpk_print(f'{driver} driver is enabled on the cluster, no update needed.')
     return True
   return False
@@ -254,7 +366,7 @@ def setup_k8s_env(args: ClusterConfig) -> k8s_client.ApiClient:
   return k8s_client.ApiClient()  # pytype: disable=bad-return-type
 
 
-def get_gpu_type_from_cluster(args) -> str:
+def get_gpu_type_from_cluster(args: ClusterConfig) -> str:
   system = get_cluster_system_characteristics(args)
   if not system is None:
     return system.device_type
@@ -363,7 +475,7 @@ def update_gke_cluster_with_gcsfuse_driver_enabled(args: ClusterConfig) -> int:
 
 
 def upgrade_gke_control_plane_version(
-    args: ClusterConfig, default_rapid_gke_version
+    args: ClusterConfig, default_rapid_gke_version: str
 ) -> int:
   """Upgrade GKE cluster's control plane version before updating nodepools to use CloudDNS.
 
@@ -468,7 +580,7 @@ def is_gcsfuse_driver_enabled_on_cluster(args: ClusterConfig) -> bool:
   )
   if return_code != 0:
     xpk_exit(return_code)
-  if gcsfuse_driver_enabled.lower() == 'true':
+  if gcsfuse_driver_enabled.strip().lower() == 'true':
     xpk_print('GCSFuse CSI driver is enabled on the cluster, no update needed.')
     return True
   return False

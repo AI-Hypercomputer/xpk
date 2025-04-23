@@ -50,15 +50,18 @@ xpk supports the following TPU types:
 and the following GPU types:
 * A100
 * A3-Highgpu (h100)
-* A3-Mega (h100-mega) - [Create cluster](#provisioning-a3-ultra-and-a3-mega-clusters-gpu-machines), [Create workloads](#workloads-for-a3-ultra-and-a3-mega-clusters-gpu-machines)
-* A3-Ultra (h200) - [Create cluster](#provisioning-a3-ultra-and-a3-mega-clusters-gpu-machines), [Create workloads](#workloads-for-a3-ultra-and-a3-mega-clusters-gpu-machines)
+* A3-Mega (h100-mega) - [Create cluster](#provisioning-a3-ultra-a3-mega-and-a4-clusters-gpu-machines), [Create workloads](#workloads-for-a3-ultra-a3-mega-and-a4-clusters-gpu-machines)
+* A3-Ultra (h200) - [Create cluster](#provisioning-a3-ultra-a3-mega-and-a4-clusters-gpu-machines), [Create workloads](#workloads-for-a3-ultra-a3-mega-and-a4-clusters-gpu-machines)
+* A4 (b200) - [Create cluster](#provisioning-a3-ultra-a3-mega-and-a4-clusters-gpu-machines), [Create workloads](#workloads-for-a3-ultra-a3-mega-and-a4-clusters-gpu-machines)
 
 and the following CPU types:
 * n2-standard-32
 
-xpk also supports Google Cloud Storage solutions:
+xpk also supports [Google Cloud Storage solutions](#storage):
 * [Cloud Storage FUSE](#fuse)
 * [Filestore](#filestore)
+* [Parallelstore](#parallelstore)
+* [Block storage (Persistent Disk, Hyperdisk)](#block-storage-persistent-disk-hyperdisk)
 
 # Permissions needed on Cloud Console:
 
@@ -221,6 +224,7 @@ all zones.
     --num-slices=4 --on-demand \
     --tpu-type=v5litepod-16
     ```
+    Note that Pathways clusters need a CPU nodepool of n2-standard-64 or higher.
 
 *   Cluster Create for Ray:
     A cluster with KubeRay enabled and a RayCluster can be created using `cluster create-ray`.
@@ -422,28 +426,40 @@ will fail the cluster creation process because Vertex AI Tensorboard is not supp
     --tpu-type=v5litepod-16
     ```
 
-## Provisioning A3-Ultra and A3-Mega clusters (GPU machines)
-To create a cluster with A3 machines, run the below command. To create workloads on these clusters see [here](#workloads-for-a3-ultra-and-a3-mega-clusters-gpu-machines).
-  * For A3-Ultra: --device-type=h200-141gb-8
-  * For A3-Mega: --device-type=h100-mega-80gb-8
+## Provisioning A3 Ultra, A3 Mega and A4 clusters (GPU machines)
+To create a cluster with A3 or A4 machines, run the command below with selected device type. To create workloads on these clusters see [here](#workloads-for-a3-ultra-a3-mega-and-a4-clusters-gpu-machines).
 
-  ```shell
-  python3 xpk.py cluster create \
-  --cluster CLUSTER_NAME --device-type=h200-141gb-8 \
+**Note:** Creating A3 Ultra, A3 Mega and A4 clusters is currently supported **only** on linux/amd64 architecture.
+
+Machine | Device type
+:- | :-
+A3 Mega | `h100-mega-80gb-8`
+A3 Ultra | `h200-141gb-8`
+A4 | `b200-8`
+
+
+```shell
+python3 xpk.py cluster create \
+  --cluster CLUSTER_NAME --device-type DEVICE_TYPE \
   --zone=$COMPUTE_ZONE  --project=$PROJECT_ID \
-  --num-nodes=4 --reservation=$RESERVATION_ID
-  ```
-Currently, the below flags/arguments are supported for A3-Mega and A3-Ultra machines:
-  * --num-nodes
-  * --default-pool-cpu-machine-type
-  * --default-pool-cpu-num-nodes
-  * --reservation
-  * --spot
-  * --on-demand (only A3-Mega)
+  --num-nodes=$NUM_NODES --reservation=$RESERVATION_ID
+```
+
+Currently, the below flags/arguments are supported for A3 Mega, A3 Ultra and A4 machines:
+  * `--num-nodes`
+  * `--default-pool-cpu-machine-type`
+  * `--default-pool-cpu-num-nodes`
+  * `--reservation`
+  * `--spot`
+  * `--on-demand` (A3 Mega only)
 
 
 ## Storage
-Currently XPK supports two types of storages: Cloud Storage FUSE and Google Cloud Filestore.
+Currently XPK supports the below types of storages:
+- [Cloud Storage FUSE](#fuse)
+- [Google Cloud Filestore](#filestore)
+- [Google Cloud Parallelstore](#parallelstore)
+- [Google Cloud Block storages (Persistent Disk, Hyperdisk)](#block-storage-persistent-disk-hyperdisk)
 
 ### FUSE
 A FUSE adapter lets you mount and access Cloud Storage buckets as local file systems, so applications can read and write objects in your bucket using standard file system semantics.
@@ -467,10 +483,13 @@ Parameters:
 - `--readonly` - if set to true, workload can only read from storage.
 - `--size` - size of the storage in Gb.
 - `--bucket` - name of the storage bucket. If not set then the name of the storage is used as a bucket name.
+- `--mount-options` - comma-separated list of additional mount options for PersistentVolume ([reference](https://cloud.google.com/kubernetes-engine/docs/how-to/cloud-storage-fuse-csi-driver-perf#mount-options)).
+- `--prefetch-metadata` - enables metadata pre-population when mounting the volume by setting parameter `gcsfuseMetadataPrefetchOnMount` to `true` ([reference](https://cloud.google.com/kubernetes-engine/docs/how-to/cloud-storage-fuse-csi-driver-perf#metadata-prefetch)).
+- `--manifest` - path to the manifest file containing PersistentVolume and PresistentVolumeClaim definitions. If set, then values from manifest override the following parameters: `--size` and `--bucket`.
 
 ### Filestore
 
-A Filestore adapter lets you mount and access [Filestore instances](https://cloud.google.com/filestore/) as local file systems, so applications can read and write objects in your volumes using standard file system semantics.
+A Filestore adapter lets you mount and access [Filestore instances](https://cloud.google.com/filestore/) as local file systems, so applications can read and write files in your volumes using standard file system semantics.
 
 To create and attach a GCP Filestore instance to your cluster use `xpk storage create` command with `--type=gcpfilestore`:
 
@@ -502,6 +521,55 @@ Commands `xpk storage create` and `xpk storage attach` with `--type=gcpfilestore
 - `--access-mode` - access mode of the Filestore instance that will be created. Possible values are: `[ReadWriteOnce, ReadOnlyMany, ReadWriteMany]`
 - `--vol` - file share name of the Filestore instance that will be created.
 - `--instance` - the name of the Filestore instance. If not set then the name parameter is used as an instance name. Useful when connecting multiple volumes from the same Filestore instance.
+- `--manifest` - path to the manifest file containing PersistentVolume, PresistentVolumeClaim and StorageClass definitions. If set, then values from manifest override the following parameters: `--access-mode`, `--size` and `--volume`.
+
+### Parallelstore
+
+A Parallelstore adapter lets you mount and access [Parallelstore instances](https://cloud.google.com/parallelstore/) as local file systems, so applications can read and write files in your volumes using standard file system semantics.
+
+To use the GCS Parallelstore with XPK you need to create a [Parallelstore Instance](https://console.cloud.google.com/parallelstore/).
+
+Once it's ready you can use `xpk storage attach` with `--type=parallelstore` command to attach a Parallelstore instance to your cluster. Currently, attaching a Parallelstore is supported only by providing a manifest file.
+
+```shell
+python3 xpk.py storage attach test-parallelstore-storage --type=parallelstore \
+  --project=$PROJECT --cluster=$CLUSTER --zone=$ZONE \
+  --mount-point='/test-mount-point' --readonly=false \
+  --auto-mount=true \
+  --manifest='./examples/storage/parallelstore-manifest-attach.yaml'
+```
+
+Parameters:
+
+- `--type` - type of the storage `parallelstore`
+- `--auto-mount` - if set to true all workloads will have this storage mounted by default.
+- `--mount-point` - the path on which this storage should be mounted for a workload.
+- `--readonly` - if set to true, workload can only read from storage.
+- `--manifest` - path to the manifest file containing PersistentVolume and PresistentVolumeClaim definitions.
+
+### Block storage (Persistent Disk, Hyperdisk)
+
+A PersistentDisk adapter lets you mount and access Google Cloud Block storage solutions ([Persistent Disk](https://cloud.google.com/kubernetes-engine/docs/concepts/storage-overview#pd), [Hyperdisk](https://cloud.google.com/kubernetes-engine/docs/concepts/storage-overview#hyperdisk)) as local file systems, so applications can read and write files in your volumes using standard file system semantics.
+
+To use the GCE PersistentDisk with XPK you need to create a [disk in GCE](https://cloud.google.com/compute/docs/disks). Please consider that the disk type you are creating is [compatible with the VMs](https://cloud.google.com/compute/docs/machine-resource#machine_type_comparison) in the default and accelerator nodepools.
+
+Once it's ready you can use `xpk storage attach` with `--type=pd` command to attach a PersistentDisk instance to your cluster. Currently, attaching a PersistentDisk is supported only by providing a manifest file.
+
+```shell
+python3 xpk.py storage attach test-pd-storage --type=pd \
+  --project=$PROJECT --cluster=$CLUSTER --zone=$ZONE \
+  --mount-point='/test-mount-point' --readonly=false \
+  --auto-mount=true \
+  --manifest='./examples/storage/pd-manifest-attach.yaml'
+```
+
+Parameters:
+
+- `--type` - type of the storage `pd`
+- `--auto-mount` - if set to true all workloads will have this storage mounted by default.
+- `--mount-point` - the path on which this storage should be mounted for a workload.
+- `--readonly` - if set to true, workload can only read from storage.
+- `--manifest` - path to the manifest file containing PersistentVolume and PresistentVolumeClaim definitions.
 
 ### List attached storages
 
@@ -559,7 +627,7 @@ python3 xpk.py storage delete test-fs-instance \
     --cluster xpk-pw-test \
     --docker-name='user-workload' \
     --docker-image=<maxtext docker image> \
-    --command='python3 MaxText/train.py MaxText/configs/base.yml base_output_directory=<output directory> dataset_path=<dataset path> per_device_batch_size=1 enable_checkpointing=false enable_profiler=false remat_policy=full global_parameter_scale=4 steps=300 max_target_length=2048 use_iota_embed=true reuse_example_batch=1 dataset_type=synthetic attention=flash gcs_metrics=True run_name=$(USER)-pw-xpk-test-1'
+    --command='python3 -m MaxText.train MaxText/configs/base.yml base_output_directory=<output directory> dataset_path=<dataset path> per_device_batch_size=1 enable_checkpointing=false enable_profiler=false remat_policy=full global_parameter_scale=4 steps=300 max_target_length=2048 use_iota_embed=true reuse_example_batch=1 dataset_type=synthetic attention=flash gcs_metrics=True run_name=$(USER)-pw-xpk-test-1 enable_single_controller=True'
     ```
 
     Regular workload can also be submitted on a Pathways enabled cluster (created with `cluster create-pathways`)
@@ -573,7 +641,7 @@ python3 xpk.py storage delete test-fs-instance \
     --cluster xpk-pw-test \
     --docker-name='user-workload' \
     --docker-image=<maxtext docker image> \
-    --command='python3 MaxText/train.py MaxText/configs/base.yml base_output_directory=<output directory> dataset_path=<dataset path> per_device_batch_size=1 enable_checkpointing=false enable_profiler=false remat_policy=full global_parameter_scale=4 steps=300 max_target_length=2048 use_iota_embed=true reuse_example_batch=1 dataset_type=synthetic attention=flash gcs_metrics=True run_name=$(USER)-pw-xpk-test-1'
+    --command='python3 -m MaxText.train MaxText/configs/base.yml base_output_directory=<output directory> dataset_path=<dataset path> per_device_batch_size=1 enable_checkpointing=false enable_profiler=false remat_policy=full global_parameter_scale=4 steps=300 max_target_length=2048 use_iota_embed=true reuse_example_batch=1 dataset_type=synthetic attention=flash gcs_metrics=True run_name=$(USER)-pw-xpk-test-1'
     ```
 
     Pathways in headless mode - Pathways now offers the capability to run JAX workloads in Vertex AI notebooks or in GCE VMs!
@@ -603,21 +671,27 @@ increase this to a large number, say 50. Real jobs can be interrupted due to
 hardware failures and software updates. We assume your job has implemented
 checkpointing so the job restarts near where it was interrupted.
 
-### Workloads for A3-Ultra and A3-Mega clusters (GPU machines)
-To submit jobs on a cluster with A3 machines, run the below command. To create a cluster with A3 machines see [here](#provisioning-a3-ultra-and-a3-mega-clusters-gpu-machines).
-  * For A3-Ultra: --device-type=h200-141gb-8
-  * For A3-Mega: --device-type=h100-mega-80gb-8
+### Workloads for A3 Ultra, A3 Mega and A4 clusters (GPU machines)
+To submit jobs on a cluster with A3 or A4 machines, run the command with selected device type. To create a cluster with A3 or A4 machines see [here](#provisioning-a3-ultra-a3-mega-and-a4-clusters-gpu-machines).
 
-  ```shell
-  python3 xpk.py workload create \
+
+Machine | Device type
+:- | :-
+A3 Mega | `h100-mega-80gb-8`
+A3 Ultra | `h200-141gb-8`
+A4 | `b200-8`
+
+```shell
+python3 xpk.py workload create \
   --workload=$WORKLOAD_NAME --command="echo goodbye" \
-  --cluster=$CLUSTER_NAME --device-type=h200-141gb-8 \
+  --cluster=$CLUSTER_NAME --device-type DEVICE_TYPE \
   --zone=$COMPUTE_ZONE  --project=$PROJECT_ID \
   --num-nodes=$WOKRKLOAD_NUM_NODES
-  ```
-> The docker image flags/arguments introduced in [workloads section](#workload-create) can be used with A3 machines as well.
+```
 
-In order to run NCCL test on A3 Ultra machines check out [this guide](/examples/nccl/nccl.md).
+> The docker image flags/arguments introduced in [workloads section](#workload-create) can be used with A3 or A4 machines as well.
+
+In order to run NCCL test on A3 machines check out [this guide](/examples/nccl/nccl.md).
 
 ### Workload Priority and Preemption
 * Set the priority level of your workload with `--priority=LEVEL`

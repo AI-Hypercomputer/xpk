@@ -16,20 +16,23 @@ limitations under the License.
 
 import re
 
-from ..core.args import SlurmConfig
-from ..core.cluster import ClusterConfig, create_xpk_k8s_service_account
+from ..core.args.slurm import SlurmConfig
+from ..core.cluster import (
+    ClusterConfig,
+    create_xpk_k8s_service_account,
+    get_cluster_credentials,
+)
 from ..core.commands import run_command_for_value
 from ..core.gcloud_context import add_zone_and_project
 from ..core.kjob import (
     AppProfileDefaults,
     JobTemplateDefaults,
     Kueue_TAS_annotation,
-    get_gcsfuse_annotation,
+    get_storage_annotations,
     prepare_kjob,
 )
 from ..core.kueue import LOCAL_QUEUE_NAME
 from ..utils.console import xpk_exit, xpk_print
-from .common import set_cluster_command
 from .kind import set_local_cluster_command
 from .kjob_common import add_gpu_networking_annotations_to_command
 
@@ -48,12 +51,11 @@ def batch(args: BatchArgs) -> None:
   """
   if not args.kind_cluster:
     add_zone_and_project(args)
-    set_cluster_command_code = set_cluster_command(args)
+    get_cluster_credentials(args)
   else:
     set_cluster_command_code = set_local_cluster_command(args)
-
-  if set_cluster_command_code != 0:
-    xpk_exit(set_cluster_command_code)
+    if set_cluster_command_code != 0:
+      xpk_exit(set_cluster_command_code)
 
   err_code = prepare_kjob(args)
   if err_code > 0:
@@ -76,9 +78,9 @@ def submit_job(args: BatchArgs) -> None:
       ' --first-node-ip'
   )
   cmd = add_gpu_networking_annotations_to_command(args, cmd)
-  gcsfuse_annotation = get_gcsfuse_annotation(args)
-  if gcsfuse_annotation is not None:
-    cmd += f' --pod-template-annotation {gcsfuse_annotation}'
+
+  for annotation in get_storage_annotations(args):
+    cmd += f' --pod-template-annotation {annotation}'
 
   if args.ignore_unknown_flags:
     cmd += ' --ignore-unknown-flags'

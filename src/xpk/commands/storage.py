@@ -14,6 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from argparse import Namespace
+
+import yaml
 from kubernetes import client as k8s_client
 from kubernetes.client import ApiClient
 from kubernetes.client.rest import ApiException
@@ -23,6 +26,8 @@ from ..core.cluster import (
     DEFAULT_NAMESPACE,
     get_cluster_network,
     setup_k8s_env,
+    update_cluster_with_parallelstore_driver_if_necessary,
+    update_cluster_with_pd_driver_if_necessary,
     update_cluster_with_gcpfilestore_driver_if_necessary,
     update_cluster_with_gcsfuse_driver_if_necessary,
     update_cluster_with_workload_identity_if_necessary,
@@ -37,6 +42,8 @@ from ..core.kjob import (
 from ..core.storage import (
     GCP_FILESTORE_TYPE,
     GCS_FUSE_TYPE,
+    GCE_PD_TYPE,
+    PARALLELSTORE_TYPE,
     STORAGE_CRD_PLURAL,
     XPK_API_GROUP_NAME,
     XPK_API_GROUP_VERSION,
@@ -75,18 +82,27 @@ def storage_create(args: StorageCreateArgs) -> None:
     filestore_client.create_instance(
         vol=args.vol, size=args.size, tier=args.tier, network=filestore_network
     )
-    manifest = filestore_client.manifest(
-        args.name, args.vol, args.access_mode, filestore_network
-    )
+    if args.manifest is not None:
+      with open(args.manifest, "r", encoding="utf-8") as f:
+        manifest = list(yaml.safe_load_all(f))
+    else:
+      manifest = filestore_client.manifest(
+          args.name,
+          args.vol,
+          args.access_mode,
+          filestore_network,
+          args.mount_options,
+      )
 
     k8s_api_client = setup_k8s_env(args)
     create_storage_crds(k8s_api_client, args, manifest)
     create_volume_bundle_instance(
         k8s_api_client, args.name, manifest, args.readonly, args.mount_point
     )
-    return_code = update_cluster_with_workload_identity_if_necessary(args)
-    if return_code > 0:
-      xpk_exit(return_code)
+    # Not required for Filestore. Will be uncommented when adding GCSFuse create
+    # return_code = update_cluster_with_workload_identity_if_necessary(args)
+    # if return_code > 0:
+    #   xpk_exit(return_code)
     return_code = update_cluster_with_gcpfilestore_driver_if_necessary(args)
     if return_code > 0:
       xpk_exit(return_code)
@@ -127,6 +143,7 @@ def storage_delete(args: StorageDeleteArgs) -> None:
 
 
 def storage_attach(args: StorageAttachArgs) -> None:
+  manifest = [{}]
   if args.type == GCP_FILESTORE_TYPE:
     if args.instance is None:
       args.instance = args.name
@@ -138,42 +155,89 @@ def storage_attach(args: StorageAttachArgs) -> None:
       xpk_print(f"Filestore instance {args.instance} does not exists.")
       xpk_exit(1)
 
-    filestore_network = get_cluster_network(args)
-    manifest = filestore_client.manifest(
-        args.name, args.vol, args.access_mode, filestore_network
-    )
+    if args.manifest is not None:
+      with open(args.manifest, "r", encoding="utf-8") as f:
+        manifest = list(yaml.safe_load_all(f))
+    else:
+      filestore_network = get_cluster_network(args)
+      manifest = filestore_client.manifest(
+          args.name,
+          args.vol,
+          args.access_mode,
+          filestore_network,
+          args.mount_options,
+      )
 
-  else:  # args.type == GCS_FUSE_TYPE:
-    if args.size is None:
+  elif args.type == GCS_FUSE_TYPE:
+    if args.manifest is None and args.size is None:
       xpk_print("--size is required when attaching gcsfuse storage.")
       xpk_exit(1)
 
     if args.bucket is None:
       args.bucket = args.name
 
-    manifest = gcsfuse.manifest(
-        name=args.name, bucket=args.bucket, size=args.size
-    )
+    if args.manifest is not None:
+      with open(args.manifest, "r", encoding="utf-8") as f:
+        manifest = list(yaml.safe_load_all(f))
+    else:
+      manifest = gcsfuse.manifest(
+          args.name,
+          args.bucket,
+          args.size,
+          args.mount_options,
+          args.prefetch_metadata,
+      )
+
+  elif args.type in [PARALLELSTORE_TYPE, GCE_PD_TYPE]:
+    if args.manifest is None:
+      xpk_print(
+          "Parallelstore and PersistentDisk are currently supported only with"
+          " --manifest"
+      )
+      xpk_exit(1)
+
+    with open(args.manifest, "r", encoding="utf-8") as f:
+      manifest = list(yaml.safe_load_all(f))
+
+  else:
+    xpk_print(f"Storage type {args.type} is not supported.")
+    xpk_exit(1)
 
   k8s_api_client = setup_k8s_env(args)
   create_storage_crds(k8s_api_client, args, manifest)
   create_volume_bundle_instance(
       k8s_api_client, args.name, manifest, args.readonly, args.mount_point
   )
-  return_code = update_cluster_with_workload_identity_if_necessary(args)
-  if return_code > 0:
-    xpk_exit(return_code)
 
-  # args.type can have only two values after parsing
-  return_code = (
-      update_cluster_with_gcsfuse_driver_if_necessary(args)
-      if args.type == GCS_FUSE_TYPE
-      else update_cluster_with_gcpfilestore_driver_if_necessary(args)
-  )
-  if return_code > 0:
-    xpk_exit(return_code)
+  enable_csi_drivers_if_necessary(args)
 
   apply_kubectl_manifest(k8s_api_client, manifest)
+
+
+def enable_csi_drivers_if_necessary(args: StorageAttachArgs) -> None:
+  if args.type == GCS_FUSE_TYPE:
+    return_code = update_cluster_with_workload_identity_if_necessary(args)
+    if return_code > 0:
+      xpk_exit(return_code)
+
+    return_code = update_cluster_with_gcsfuse_driver_if_necessary(args)
+    if return_code > 0:
+      xpk_exit(return_code)
+
+  if args.type == GCP_FILESTORE_TYPE:
+    return_code = update_cluster_with_gcpfilestore_driver_if_necessary(args)
+    if return_code > 0:
+      xpk_exit(return_code)
+
+  if args.type == PARALLELSTORE_TYPE:
+    return_code = update_cluster_with_parallelstore_driver_if_necessary(args)
+    if return_code > 0:
+      xpk_exit(return_code)
+
+  if args.type == GCE_PD_TYPE:
+    return_code = update_cluster_with_pd_driver_if_necessary(args)
+    if return_code > 0:
+      xpk_exit(return_code)
 
 
 def storage_list(args: StorageListArgs) -> None:

@@ -14,12 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..utils.console import xpk_print
+from ..utils.console import xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
-from .capacity import H100_DEVICE_TYPE
 from .commands import run_command_for_value, run_command_with_updates
 from .gcloud_context import zone_to_region
-from .system_characteristics import SystemCharacteristics
 
 # cluster_network_yaml: the config when creating the network for a3 cluster
 CLUSTER_NETWORK_YAML = """
@@ -175,16 +173,6 @@ def create_cluster_subnet(args, index) -> int:
   return 0
 
 
-def get_subnetworks_for_a3mega(cluster_name: str) -> list[str]:
-  return [f'{cluster_name}-gpunet-{i}-subnet' for i in range(8)]
-
-
-def get_subnetworks_for_a3ultra(cluster_name: str) -> list[str]:
-  return [f'{cluster_name}-sub-1'] + [
-      f'{cluster_name}-rdma-sub-{i}' for i in range(8)
-  ]
-
-
 def create_cluster_firewall_rule(args, index) -> int:
   """Create one GKE Cluster firewall rule.
 
@@ -247,20 +235,40 @@ def create_cluster_network_config(args) -> int:
   return 0
 
 
-def set_up_cluster_network_for_gpu(args, system: SystemCharacteristics) -> int:
-  """Set up GKE Cluster networks, subnets and firewall rules for A3/A3+.
-  Note: there are 4 NICs for GPU-GPU bw and 1 NIC for host in an A3 node,
-  and there are 8 NICs for GPU-GPU bw and 1 NIC for host in an A3+ node.
+def get_cluster_subnetworks(args) -> list[str]:
+  """Gets the list of cluster networks.
 
   Args:
     args: user provided arguments for running the command.
-    system: system characteristics.
+
+  Returns:
+    list[str]: list of cluster networks
+  """
+  command = 'kubectl get GKENetworkParamSet'
+  return_code, stdout = run_command_for_value(
+      command, 'Get Cluster Networks', args
+  )
+  if return_code != 0:
+    xpk_print('GKE Cluster Get NetworkParamSet failed')
+    xpk_exit(return_code)
+
+  networks = [line.split()[0] for line in stdout.splitlines()][1:]
+
+  return networks
+
+
+def set_up_cluster_network_for_a3(args) -> int:
+  """Set up GKE Cluster networks, subnets and firewall rules for A3.
+  Note: there are 4 NICs for GPU-GPU bw and 1 NIC for host in an A3 node.
+
+  Args:
+    args: user provided arguments for running the command.
 
   Returns:
     0 if successful and 1 otherwise.
   """
-  num_networks = 5 if system.device_type == H100_DEVICE_TYPE else 9
-  for i in range(1, num_networks):
+  num_networks = 4
+  for i in range(1, num_networks + 1):
     return_code = create_cluster_network(args, i)
     if return_code != 0:
       return 1
@@ -315,7 +323,10 @@ def get_all_networks_programmatic(args) -> tuple[list[str], int]:
   Returns:
     List of networks and 0 if successful and 1 otherwise.
   """
-  command = 'gcloud compute networks list --format="csv[no-heading](name)"'
+  command = (
+      'gcloud compute networks list --format="csv[no-heading](name)" '
+      f' --project={args.project}'
+  )
   return_code, raw_network_output = run_command_for_value(
       command, 'Get All Networks', args
   )
@@ -365,7 +376,8 @@ def get_all_firewall_rules_programmatic(args) -> tuple[list[str], int]:
     List of firewall rules and 0 if successful and 1 otherwise.
   """
   command = (
-      'gcloud compute firewall-rules list --format="csv[no-heading](name)"'
+      'gcloud compute firewall-rules list --format="csv[no-heading](name)" '
+      f' --project={args.project}'
   )
   return_code, raw_subnets_output = run_command_for_value(
       command, 'Get All Firewall Rules', args

@@ -16,26 +16,27 @@ limitations under the License.
 
 import os
 
-from ..core.remote_state.remote_state_client import RemoteStateClient
-from ..core.remote_state.fuse_remote_state import FuseStateClient
 from ..core.blueprint.blueprint_generator import (
     BlueprintGenerator,
     BlueprintGeneratorOutput,
     a3mega_device_type,
     a3ultra_device_type,
+    a4_device_type,
     supported_device_types,
 )
-from ..core.commands import run_command_for_value
 from ..core.capacity import get_capacity_type
+from ..core.cluster import get_cluster_credentials
+from ..core.commands import run_command_for_value
 from ..core.docker_manager import DockerManager
 from ..core.gcloud_context import zone_to_region
 from ..core.gcluster_manager import GclusterManager
+from ..core.kjob import apply_kjob_crds, prepare_kjob
+from ..core.remote_state.fuse_remote_state import FuseStateClient
+from ..core.remote_state.remote_state_client import RemoteStateClient
 from ..utils.console import xpk_exit, xpk_print
 from ..utils.file import ensure_directory_exists
 from ..utils.network import all_IPs_cidr
 from ..utils.objects import hash_string
-from ..core.cluster import get_cluster_credentials
-from ..core.kjob import apply_kjob_crds, prepare_kjob
 
 blueprints_path = os.path.abspath('xpkclusters/blueprints')
 gcluster_working_dir = os.path.abspath('xpkclusters/gcluster-out')
@@ -265,5 +266,21 @@ def generate_blueprint(
           system_node_pool_machine_type=args.default_pool_cpu_machine_type,
           system_node_pool_min_node_count=args.default_pool_cpu_num_nodes,
           gcs_bucket=args.cluster_state_gcs_bucket,
+      )
+    if args.device_type == a4_device_type:
+      num_nodes = args.num_nodes if not args.num_nodes is None else 2
+      return bpg.generate_a4_blueprint(
+          blueprint_name=blueprint_name,
+          prefix=prefix,
+          cluster_name=args.cluster,
+          region=zone_to_region(args.zone),
+          project_id=args.project,
+          zone=args.zone,
+          auth_cidr=all_IPs_cidr,
+          num_nodes=num_nodes,
+          reservation=args.reservation if args.reservation else None,
+          capacity_type=capacity_type,
+          system_node_pool_machine_type=args.default_pool_cpu_machine_type,
+          system_node_pool_min_node_count=args.default_pool_cpu_num_nodes,
       )
   return None

@@ -109,6 +109,7 @@ def set_cluster_parser(cluster_parser: argparse.ArgumentParser):
           ' enable cluster to accept Pathways workloads.'
       ),
   )
+
   ### Autoprovisioning arguments specific to "cluster create"
   cluster_create_autoprovisioning_arguments = (
       cluster_create_parser.add_argument_group(
@@ -464,7 +465,7 @@ def add_shared_cluster_create_optional_arguments(args_parsers):
     custom_parser.add_argument(
         '--pathways-gce-machine-type',
         type=str,
-        default='n1-standard-32',
+        default='n2-standard-64',
         help='The CPU type for Pathways CPU nodepools',
     )
     custom_parser.add_argument(
@@ -582,14 +583,22 @@ def add_shared_cluster_create_optional_arguments(args_parsers):
             ' Identity is enabled by default.'
         ),
     )
-
     custom_parser.add_argument(
         '--enable-gcpfilestore-csi-driver',
         action='store_true',
-        help=(
-            'Enable GCPFilestore driver on the cluster. This enables Workload'
-            ' Identity Federation.'
-        ),
+        help='Enable GCPFilestore driver on the cluster.',
+    )
+
+    custom_parser.add_argument(
+        '--enable-parallelstore-csi-driver',
+        action='store_true',
+        help='Enable Parallelstore CSI driver on the cluster.',
+    )
+
+    custom_parser.add_argument(
+        '--enable-pd-csi-driver',
+        action='store_true',
+        help='Enable PersistentDisk CSI driver on the cluster.',
     )
 
 

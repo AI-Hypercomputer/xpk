@@ -21,9 +21,14 @@ from ..core.cluster import (
     get_all_clusters_programmatic,
     get_cluster_credentials,
     install_nccl_on_cluster,
+    install_nri_on_cluster,
     set_jobset_on_cluster,
+    set_pathways_job_on_cluster,
     setup_k8s_env,
+    update_cluster_with_gcpfilestore_driver_if_necessary,
     update_cluster_with_gcsfuse_driver_if_necessary,
+    update_cluster_with_parallelstore_driver_if_necessary,
+    update_cluster_with_pd_driver_if_necessary,
     update_cluster_with_workload_identity_if_necessary,
 )
 from ..core.cluster_private import authorize_private_cluster_access_if_necessary
@@ -46,9 +51,12 @@ from ..core.nap import enable_autoprovisioning_on_cluster
 from ..core.network import (
     create_cluster_network_config,
     delete_cluster_subnets,
-    set_up_cluster_network_for_gpu,
+    set_up_cluster_network_for_a3,
 )
-from ..core.nodepool import get_gke_node_pool_version, run_gke_node_pool_create_command
+from ..core.nodepool import (
+    get_gke_node_pool_version,
+    run_gke_node_pool_create_command,
+)
 from ..core.ray import install_ray_cluster
 from ..core.resources import create_cluster_configmaps
 from ..core.storage import install_storage_crd
@@ -64,7 +72,6 @@ from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
 from . import cluster_gcluster
 from .common import set_cluster_command
-from ..core.cluster import update_cluster_with_gcpfilestore_driver_if_necessary
 
 
 def cluster_create(args) -> None:
@@ -117,11 +124,7 @@ def cluster_create(args) -> None:
 
   # ToDo(roshanin@) - Re-enable CloudDNS on Pathways clusters conditionally.
   # Enable WorkloadIdentity if not enabled already.
-  if (
-      args.enable_workload_identity
-      or args.enable_gcsfuse_csi_driver
-      or args.enable_gcpfilestore_csi_driver
-  ):
+  if args.enable_workload_identity or args.enable_gcsfuse_csi_driver:
     update_cluster_command_code = (
         update_cluster_with_workload_identity_if_necessary(args)
     )
@@ -143,6 +146,20 @@ def cluster_create(args) -> None:
     if update_cluster_command_code != 0:
       xpk_exit(update_cluster_command_code)
 
+  if args.enable_parallelstore_csi_driver:
+    update_cluster_command_code = (
+        update_cluster_with_parallelstore_driver_if_necessary(args)
+    )
+    if update_cluster_command_code != 0:
+      xpk_exit(update_cluster_command_code)
+
+  if args.enable_pd_csi_driver:
+    update_cluster_command_code = update_cluster_with_pd_driver_if_necessary(
+        args
+    )
+    if update_cluster_command_code != 0:
+      xpk_exit(update_cluster_command_code)
+
   # Update Pathways clusters with CloudDNS if not enabled already.
 
   get_cluster_credentials(args)
@@ -155,13 +172,12 @@ def cluster_create(args) -> None:
     if not tensorboard_config:
       xpk_exit(1)
 
-  if system.accelerator_type == AcceleratorType['GPU']:
+  if system.device_type == H100_DEVICE_TYPE:
     xpk_print('Setting up Network for cluster')
-    set_up_cluster_network_code = set_up_cluster_network_for_gpu(args, system)
+    set_up_cluster_network_code = set_up_cluster_network_for_a3(args)
     if set_up_cluster_network_code != 0:
       xpk_exit(set_up_cluster_network_code)
 
-  if system.device_type == H100_DEVICE_TYPE:
     xpk_print('Creating Network Config for cluster')
     create_cluster_network_config_code = create_cluster_network_config(args)
     if create_cluster_network_config_code != 0:
@@ -207,6 +223,10 @@ def cluster_create(args) -> None:
   if set_jobset_on_cluster_code != 0:
     xpk_exit(set_jobset_on_cluster_code)
 
+  set_pathways_job_on_cluster_code = set_pathways_job_on_cluster(args)
+  if set_pathways_job_on_cluster_code != 0:
+    xpk_exit(set_pathways_job_on_cluster_code)
+
   xpk_print('Enabling Kueue on the cluster')
   install_kueue_on_cluster_code = install_kueue_on_cluster(args)
   if install_kueue_on_cluster_code != 0:
@@ -246,6 +266,12 @@ def cluster_create(args) -> None:
     install_nccl_code = install_nccl_on_cluster(args, system)
     if install_nccl_code != 0:
       xpk_exit(install_nccl_code)
+
+  if system.device_type == H100_DEVICE_TYPE:
+    xpk_print('Installing NRI device injector for cluster')
+    install_nri_code = install_nri_on_cluster(args)
+    if install_nri_code != 0:
+      xpk_exit(install_nri_code)
 
   if args.enable_ray_cluster:
     return_code = install_ray_cluster(args, system)
@@ -783,19 +809,20 @@ def run_gke_cluster_create_command(
   if args.enable_ray_cluster:
     command += ' --addons RayOperator'
 
-  if (
-      args.enable_workload_identity
-      or args.enable_gcsfuse_csi_driver
-      or args.enable_gcpfilestore_csi_driver
-  ):
+  if args.enable_workload_identity or args.enable_gcsfuse_csi_driver:
     command += f' --workload-pool={args.project}.svc.id.goog'
 
   addons = []
   if args.enable_gcsfuse_csi_driver:
     addons.append('GcsFuseCsiDriver')
-
   if args.enable_gcpfilestore_csi_driver:
     addons.append('GcpFilestoreCsiDriver')
+
+  if args.enable_parallelstore_csi_driver:
+    addons.append('ParallelstoreCsiDriver')
+
+  if args.enable_pd_csi_driver:
+    addons.append('GcePersistentDiskCsiDriver')
 
   if len(addons) > 0:
     addons_str = ','.join(addons)

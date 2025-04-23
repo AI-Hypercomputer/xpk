@@ -290,12 +290,12 @@ def delete_storage_resources(k8s_api_client: ApiClient, storage: Storage):
           name, "default", {"metadata": {"finalizers": []}}
       ),
       storage.pvc,
-      "Persistent Volume Claim",
+      "Persistent Volume Claim finalizers",
   )
 
   delete_resource(
       lambda name: core_api.delete_namespaced_persistent_volume_claim(
-          name, "default"
+          name, "default", grace_period_seconds=0
       ),
       storage.pvc,
       "Persistent Volume Claim",

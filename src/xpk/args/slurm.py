@@ -1,5 +1,5 @@
 """
-Copyright 2024 Google LLC
+Copyright 2025 Google LLC
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,15 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import inspect
-from argparse import Namespace
-from typing import Any, Optional
-
-
-class GlobalConfig:
-  """Class representing global args type"""
-
-  dry_run: bool = False
+from typing import Optional
 
 
 class SlurmConfig:
@@ -44,19 +36,3 @@ class SlurmConfig:
   job_name: Optional[str] = None
   chdir: Optional[str] = None
   time: Optional[str] = None
-
-
-def apply_args(main_args: Namespace, annotation: Any) -> Any:
-  args = annotation()
-
-  # getters and setters
-  for param in inspect.get_annotations(annotation):
-    if param in main_args:
-      setattr(args, param, getattr(main_args, param))
-
-  # parameters
-  for param, _ in inspect.getmembers(annotation):
-    if param in main_args:
-      setattr(args, param, getattr(main_args, param))
-
-  return args  # pytype: disable=bad-return-type

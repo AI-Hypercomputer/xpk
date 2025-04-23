@@ -32,7 +32,7 @@ from .gcloud_context import (
     get_gke_server_config,
     zone_to_region,
 )
-from .args.gcloud_context import GcloudConfig
+from ..args.gcloud_context import GcloudConfig
 from .nodepool import upgrade_gke_nodepools_version
 from .resources import get_cluster_system_characteristics
 from .system_characteristics import SystemCharacteristics

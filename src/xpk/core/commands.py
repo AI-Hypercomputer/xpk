@@ -22,7 +22,7 @@ import time
 from ..utils.console import xpk_print
 from ..utils.file import make_tmp_files, write_tmp_file
 from ..utils.objects import chunks
-from .args import GlobalConfig
+from ..args.common import GlobalConfig
 
 
 def run_commands(

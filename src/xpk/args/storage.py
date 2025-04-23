@@ -14,13 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import Optional, Literal
-from ...core.cluster import ClusterConfig
+from typing import Optional, Literal, TypeAlias
+from .cluster import ClusterConfig
 
 
-StorageAccessMode = Literal['ReadWriteOnce', 'ReadOnlyMany', 'ReadWriteMany']
+StorageAccessMode: TypeAlias = Literal[
+    'ReadWriteOnce', 'ReadOnlyMany', 'ReadWriteMany'
+]
 
-FilestoreTier = Literal[
+FilestoreTier: TypeAlias = Literal[
     'BASIC_HDD', 'BASIC_SSD', 'ZONAL', 'REGIONAL', 'ENTERPRISE'
 ]
 

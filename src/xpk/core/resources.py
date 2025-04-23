@@ -18,7 +18,7 @@ from dataclasses import dataclass
 
 from ..utils.console import xpk_print
 from ..utils.file import write_tmp_file
-from .args import GlobalConfig
+from ..args.common import GlobalConfig
 from .capacity import (
     AUTOPROVISIONING_CONFIG_MAXIMUM_KEY,
     AUTOPROVISIONING_CONFIG_MINIMUM_KEY,

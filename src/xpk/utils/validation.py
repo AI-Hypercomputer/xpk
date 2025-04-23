@@ -14,9 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from ..args.common import GlobalConfig
 from ..commands.config import xpk_cfg
 from ..commands.version import get_xpk_version
-from ..core.args import GlobalConfig
 from ..core.commands import run_command_for_value
 from ..core.config import DEPENDENCIES_KEY
 from .console import xpk_exit, xpk_print

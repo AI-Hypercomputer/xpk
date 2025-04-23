@@ -16,9 +16,8 @@ limitations under the License.
 
 import re
 
-from ..core.args.slurm import SlurmConfig
+from ..args.batch import BatchArgs
 from ..core.cluster import (
-    ClusterConfig,
     create_xpk_k8s_service_account,
     get_cluster_credentials,
 )
@@ -35,10 +34,6 @@ from ..core.kueue import LOCAL_QUEUE_NAME
 from ..utils.console import xpk_exit, xpk_print
 from .kind import set_local_cluster_command
 from .kjob_common import add_gpu_networking_annotations_to_command
-
-
-class BatchArgs(ClusterConfig, SlurmConfig):
-  script: str = None
 
 
 def batch(args: BatchArgs) -> None:

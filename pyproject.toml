@@ -69,7 +69,7 @@ dev = [
 version = {attr = "xpk.core.config.__version__"}
 
 [tool.setuptools]
-packages = ["xpk", "xpk.parser", "xpk.core", "xpk.commands", "xpk.api", "xpk.templates", "xpk.utils", "xpk.core.blueprint", "xpk.core.remote_state", "xpk.core.workload_decorators"]
+packages = ["xpk", "xpk.parser", "xpk.core", "xpk.commands", "xpk.api", "xpk.args", "xpk.templates", "xpk.utils", "xpk.core.blueprint", "xpk.core.remote_state", "xpk.core.workload_decorators"]
 package-dir = {"" = "src"}
 package-data = {"xpk.api" = ["storage_crd.yaml"], "xpk.templates" = ["storage.yaml"]}
 

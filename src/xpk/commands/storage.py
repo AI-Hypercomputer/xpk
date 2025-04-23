@@ -14,22 +14,27 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from argparse import Namespace
-
 import yaml
 from kubernetes import client as k8s_client
 from kubernetes.client import ApiClient
 from kubernetes.client.rest import ApiException
 
+from ..args.storage import (
+    StorageAttachArgs,
+    StorageCreateArgs,
+    StorageDeleteArgs,
+    StorageDetachArgs,
+    StorageListArgs,
+)
 from ..core import gcsfuse
 from ..core.cluster import (
     DEFAULT_NAMESPACE,
     get_cluster_network,
     setup_k8s_env,
-    update_cluster_with_parallelstore_driver_if_necessary,
-    update_cluster_with_pd_driver_if_necessary,
     update_cluster_with_gcpfilestore_driver_if_necessary,
     update_cluster_with_gcsfuse_driver_if_necessary,
+    update_cluster_with_parallelstore_driver_if_necessary,
+    update_cluster_with_pd_driver_if_necessary,
     update_cluster_with_workload_identity_if_necessary,
 )
 from ..core.filestore import FilestoreClient, get_storage_class_name
@@ -40,9 +45,9 @@ from ..core.kjob import (
     create_volume_bundle_instance,
 )
 from ..core.storage import (
+    GCE_PD_TYPE,
     GCP_FILESTORE_TYPE,
     GCS_FUSE_TYPE,
-    GCE_PD_TYPE,
     PARALLELSTORE_TYPE,
     STORAGE_CRD_PLURAL,
     XPK_API_GROUP_NAME,
@@ -55,13 +60,6 @@ from ..core.storage import (
 )
 from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.kubectl import apply_kubectl_manifest
-from .args.storage import (
-    StorageAttachArgs,
-    StorageCreateArgs,
-    StorageDeleteArgs,
-    StorageDetachArgs,
-    StorageListArgs,
-)
 
 
 def storage_create(args: StorageCreateArgs) -> None:

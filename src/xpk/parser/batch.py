@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import argparse
+from argparse import ArgumentParser
 
 from ..commands.batch import batch
 from .common import (
@@ -25,7 +25,7 @@ from .common import (
 )
 
 
-def set_batch_parser(batch_parser: argparse.ArgumentParser):
+def set_batch_parser(batch_parser: ArgumentParser):
   batch_required_arguments = batch_parser.add_argument_group(
       'batch Built-in Arguments', 'Arguments required for `batch`.'
   )

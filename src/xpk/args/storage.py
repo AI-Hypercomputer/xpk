@@ -18,6 +18,10 @@ from typing import Optional, Literal, TypeAlias
 from .cluster import ClusterConfig
 
 
+StorageType: TypeAlias = Literal[
+    'gcsfuse', 'gcpfilestore', 'parallelstore', 'pd'
+]
+
 StorageAccessMode: TypeAlias = Literal[
     'ReadWriteOnce', 'ReadOnlyMany', 'ReadWriteMany'
 ]
@@ -29,7 +33,7 @@ FilestoreTier: TypeAlias = Literal[
 
 class StorageAttachArgs(ClusterConfig):
   name: str = None
-  type: Literal['gcsfuse', 'gcpfilestore'] = None
+  type: StorageType = None
   auto_mount: bool = None
   mount_point: str = None
   readonly: bool = None
@@ -38,6 +42,9 @@ class StorageAttachArgs(ClusterConfig):
   vol: Optional[str] = None
   access_mode: StorageAccessMode = 'ReadWriteMany'
   instance: Optional[str] = None
+  prefetch_metadata: bool = True
+  manifest: Optional[str] = None
+  mount_options: Optional[str] = 'implicit-dirs'
 
 
 class StorageCreateArgs(ClusterConfig):
@@ -51,6 +58,7 @@ class StorageCreateArgs(ClusterConfig):
   mount_point: str = None
   readonly: bool = None
   instance: Optional[str] = None
+  manifest: Optional[str] = None
 
 
 class StorageDeleteArgs(ClusterConfig):

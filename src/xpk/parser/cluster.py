@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import argparse
+from argparse import ArgumentParser, _ArgumentGroup
 
 from ..commands.cluster import (
     cluster_cacheimage,
@@ -32,7 +32,7 @@ from .common import add_shared_arguments
 from .validators import name_type
 
 
-def set_cluster_parser(cluster_parser: argparse.ArgumentParser):
+def set_cluster_parser(cluster_parser: ArgumentParser):
   cluster_subcommands = cluster_parser.add_subparsers(
       title='cluster subcommands',
       dest='xpk_cluster_subcommands',
@@ -412,7 +412,9 @@ def set_cluster_parser(cluster_parser: argparse.ArgumentParser):
   cluster_list_parser.set_defaults(func=cluster_list)
 
 
-def add_shared_cluster_create_required_arguments(args_parsers):
+def add_shared_cluster_create_required_arguments(
+    args_parsers: list[_ArgumentGroup],
+):
   """Add shared required arguments in cluster create and Pathways cluster create.
 
   Args:
@@ -431,7 +433,9 @@ def add_shared_cluster_create_required_arguments(args_parsers):
     )
 
 
-def add_shared_cluster_create_optional_arguments(args_parsers):
+def add_shared_cluster_create_optional_arguments(
+    args_parsers: list[_ArgumentGroup],
+):
   """Add shared optional arguments in cluster create and Pathways cluster create.
 
   Args:
@@ -602,7 +606,9 @@ def add_shared_cluster_create_optional_arguments(args_parsers):
     )
 
 
-def add_shared_cluster_create_tensorboard_arguments(args_parsers):
+def add_shared_cluster_create_tensorboard_arguments(
+    args_parsers: list[_ArgumentGroup],
+):
   """Add shared tensorboard arguments in cluster create and Pathways cluster create.
   Note that this feature enables non-Pathways workloads to use tensorboard arguments
   on a Pathways cluster.
@@ -639,7 +645,9 @@ def add_shared_cluster_create_tensorboard_arguments(args_parsers):
     )
 
 
-def add_shared_cluster_create_capacity_arguments(args_parsers):
+def add_shared_cluster_create_capacity_arguments(
+    args_parsers: list[_ArgumentGroup],
+):
   """Add shared capacity arguments in cluster create and Pathways cluster create.
 
   Args:

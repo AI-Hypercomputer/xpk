@@ -19,9 +19,49 @@ from typing import Optional
 from google.api_core.exceptions import PermissionDenied
 from google.cloud import resourcemanager_v3
 
-from ..core.gcloud_context import get_project, get_zone, zone_to_region
+import subprocess
+import sys
 from ..utils.console import xpk_exit, xpk_print
 from .common import GlobalConfig
+
+def get_project():
+  """Get GCE project from `gcloud config get project`.
+
+  Returns:
+     The project name.
+  """
+  completed_command = subprocess.run(
+      ['gcloud', 'config', 'get', 'project'], check=True, capture_output=True
+  )
+  project_outputs = completed_command.stdout.decode().strip().split('\n')
+  if len(project_outputs) < 1 or project_outputs[-1] == '':
+    sys.exit(
+        'You must specify the project in the project flag or set it with'
+        " 'gcloud config set project <project>'"
+    )
+  return project_outputs[
+      -1
+  ]  # The project name lives on the last line of the output
+
+
+def get_zone():
+  """Get GCE zone from `gcloud config get compute/zone`.
+
+  Returns:
+     The zone name.
+  """
+  completed_command = subprocess.run(
+      ['gcloud', 'config', 'get', 'compute/zone'],
+      check=True,
+      capture_output=True,
+  )
+  zone_outputs = completed_command.stdout.decode().strip().split('\n')
+  if len(zone_outputs) < 1 or zone_outputs[-1] == '':
+    sys.exit(
+        "You must specify the zone in the zone flag or set it with 'gcloud"
+        " config set compute/zone <zone>'"
+    )
+  return zone_outputs[-1]  # The zone name lives on the last line of the output
 
 
 class GcloudConfig(GlobalConfig):
@@ -48,7 +88,7 @@ class GcloudConfig(GlobalConfig):
 
   @property
   def region(self):
-    return zone_to_region(self.zone)
+    return '-'.join(self.zone.split('-')[:2])
 
   @property
   def project(self) -> str:

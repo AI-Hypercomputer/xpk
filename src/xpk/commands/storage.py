@@ -287,7 +287,7 @@ def delete_storage_resources(k8s_api_client: ApiClient, storage: Storage):
   # remove kubernetes.io/pvc-protection
   delete_resource(
       lambda name: core_api.patch_namespaced_persistent_volume_claim(
-          name, "default", {"metadata": {"finalizers": None}}
+          name, "default", {"metadata": {"finalizers": []}}
       ),
       storage.pvc,
       "Persistent Volume Claim",

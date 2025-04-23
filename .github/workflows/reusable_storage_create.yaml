@@ -28,7 +28,6 @@ on:
         required: true
       storage-type: # gcpfilestore or gcsfuse
         required: false
-        default: 'gcpfilestore'
         type: string
       storage-command: # attach or create
         required: true
@@ -44,6 +43,7 @@ on:
         required: true
 jobs:
   storage-create:
+    name: "${{inputs.storage-type}}-${{inputs.storage-command}}"
     runs-on: [ubuntu-22.04]
     env:
       STORAGE_WRITE_WORKLOAD: "${{inputs.storage-type}}-${{inputs.storage-command}}-write-workload"

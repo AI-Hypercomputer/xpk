@@ -21,6 +21,9 @@ on:
       zone:
         type: string
         required: true
+      storage-type: # gcpfilestore or gcsfuse
+        required: true
+        type: string
       storage-command: # detach or delete
         required: true
         default: 'detach'
@@ -33,6 +36,7 @@ on:
         required: true
 jobs:
   storage-delete:
+    name: "${{inputs.storage-type}}-${{inputs.storage-command}}"
     runs-on: [ubuntu-22.04]
     steps:
     - name: Validate storage-command

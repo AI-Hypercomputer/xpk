@@ -58,6 +58,7 @@ jobs:
     with:
       cluster-name: ${{inputs.cluster-name}}
       zone: ${{inputs.zone}}
+      storage-type: 'gcsfuse'
       storage-command: 'detach'
       storage-name: fuse-test-${{inputs.run-id}}
     secrets:
@@ -88,6 +89,7 @@ jobs:
     with:
       cluster-name: ${{inputs.cluster-name}}
       zone: ${{inputs.zone}}
+      storage-type: 'gcpfilestore'
       storage-command: 'detach'
       storage-name: 'gcpfilestore-test-${{inputs.run-id}}'
     secrets:
@@ -119,6 +121,7 @@ jobs:
     with:
       cluster-name: ${{inputs.cluster-name}}
       zone: ${{inputs.zone}}
+      storage-type: 'gcpfilestore'
       storage-command: 'delete'
       storage-name: gcpfilestore-test-${{inputs.run-id}}
     secrets:

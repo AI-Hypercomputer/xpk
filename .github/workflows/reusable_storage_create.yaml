@@ -130,7 +130,7 @@ jobs:
       run: |
         kubectl get pv ${{inputs.storage-name}}-pv -oyaml | grep 'gcsfuseMetadataPrefetchOnMount: "true"' || (echo 'Metadata pre-population was not enabled' && exit 143)
     - name: Run workload to write file on filestore
-      run: python3 xpk.py workload create --workload $STORAGE_WRITE_WORKLOAD --num-slices=1 --docker-image='marketplace.gcr.io/google/ubuntu2004' --command "mkdir /${{inputs.storage-type}}-test-mount-point/$RANDOM_SEED/ && echo 'Test text message' > /${{inputs.storage-type}}-test-mount-point/$RANDOM_SEED/test.txt || (echo 'Writing to filestore failed' && exit 143)" --cluster ${{inputs.cluster-name}} --tpu-type=${{inputs.tpu-type}} --zone ${{inputs.zone}}
+      run: python3 xpk.py workload create --workload $STORAGE_WRITE_WORKLOAD --num-slices=1 --docker-image='marketplace.gcr.io/google/ubuntu2004' --command "mkdir -p /${{inputs.storage-type}}-test-mount-point/$RANDOM_SEED/ && echo 'Test text message' > /${{inputs.storage-type}}-test-mount-point/$RANDOM_SEED/test.txt || (echo 'Writing to filestore failed' && exit 143)" --cluster ${{inputs.cluster-name}} --tpu-type=${{inputs.tpu-type}} --zone ${{inputs.zone}}
     - name: Wait for writer workload completion and confirm it succeeded
       run: python3 xpk.py workload list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} --wait-for-job-completion $STORAGE_WRITE_WORKLOAD --timeout 300
     - name: Delete the writer workload on the cluster

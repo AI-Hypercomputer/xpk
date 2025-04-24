@@ -284,18 +284,9 @@ def delete_storage_resources(k8s_api_client: ApiClient, storage: Storage):
   core_api = k8s_client.CoreV1Api()
   storage_api = k8s_client.StorageV1Api()
 
-  # remove kubernetes.io/pvc-protection
-  delete_resource(
-      lambda name: core_api.patch_namespaced_persistent_volume_claim(
-          name, "default", {"metadata": {"finalizers": []}}
-      ),
-      storage.pvc,
-      "Persistent Volume Claim finalizers",
-  )
-
   delete_resource(
       lambda name: core_api.delete_namespaced_persistent_volume_claim(
-          name, "default", grace_period_seconds=0
+          name, "default"
       ),
       storage.pvc,
       "Persistent Volume Claim",
@@ -333,4 +324,13 @@ def delete_storage_resources(k8s_api_client: ApiClient, storage: Storage):
       ),
       storage.name,
       "Storage",
+  )
+
+  # remove kubernetes.io/pvc-protection
+  delete_resource(
+      lambda name: core_api.patch_namespaced_persistent_volume_claim(
+          name, "default", {"metadata": {"finalizers": None}}
+      ),
+      storage.pvc,
+      "Persistent Volume Claim finalizers",
   )

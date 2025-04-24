@@ -37,7 +37,7 @@ import inspect
 from .parser.core import set_parser
 from .utils.console import xpk_print
 from .utils.validation import validate_dependencies
-from .core.args.utils import apply_args
+from .args.utils import apply_args
 
 ################### Compatibility Check ###################
 # Check that the user runs the below version or greater.

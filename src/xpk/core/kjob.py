@@ -22,24 +22,9 @@ from kubernetes import client as k8s_client
 from kubernetes.client import ApiClient
 from kubernetes.client.rest import ApiException
 
-from ..core.blueprint.blueprint_generator import (
-    get_subnetworks_for_a3mega,
-    get_subnetworks_for_a3ultra,
-    get_subnetworks_for_a4,
-)
-from ..core.capacity import (
-    H100_DEVICE_TYPE,
-    H100_MEGA_DEVICE_TYPE,
-    H200_DEVICE_TYPE,
-)
-from ..core.storage import GCS_FUSE_ANNOTATIONS, PARALLELSTORE_ANNOTATIONS
-from ..core.workload_decorators import (
-    rdma_decorator,
-    tcpx_decorator,
-    tcpxo_decorator,
-)
 from ..utils import templates
 from ..utils.console import xpk_exit, xpk_print
+from .capacity import H100_DEVICE_TYPE, H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE
 from .cluster import DEFAULT_NAMESPACE, XPK_SA, setup_k8s_env
 from .commands import (
     run_command_for_value,
@@ -54,15 +39,23 @@ from .config import (
     KJOB_SHELL_WORKING_DIRECTORY,
     XpkConfig,
 )
+from .network import get_cluster_subnetworks
 from .resources import (
     AcceleratorType,
     SystemCharacteristics,
     get_cluster_system_characteristics,
 )
 from .storage import (
+    GCS_FUSE_ANNOTATIONS,
+    PARALLELSTORE_ANNOTATIONS,
     get_auto_mount_gcsfuse_storages,
     get_auto_mount_parallelstore_storages,
     get_auto_mount_storages,
+)
+from .workload_decorators import (
+    rdma_decorator,
+    tcpx_decorator,
+    tcpxo_decorator,
 )
 from .workload_decorators.tcpxo_decorator import get_tcpxo_deamon_entry
 
@@ -176,8 +169,8 @@ Kueue_TAS_annotation = "kueue.x-k8s.io/podset-preferred-topology=cloud.google.co
 default_interface_annotation = "networking.gke.io/default-interface=eth0"
 
 
-def get_a4_pod_template_annotations() -> tuple[str, str]:
-  sub_networks = get_subnetworks_for_a4()
+def get_a4_pod_template_annotations(args) -> tuple[str, str]:
+  sub_networks = get_cluster_subnetworks(args)
   interfaces_key, interfaces_value = rdma_decorator.get_interfaces_entry(
       sub_networks
   )
@@ -189,7 +182,7 @@ def get_a4_pod_template_annotations() -> tuple[str, str]:
 
 
 def get_a3ultra_pod_template_annotations(args: Namespace) -> tuple[str, str]:
-  sub_networks = get_subnetworks_for_a3ultra(args.cluster)
+  sub_networks = get_cluster_subnetworks(args)
   interfaces_key, interfaces_value = rdma_decorator.get_interfaces_entry(
       sub_networks
   )
@@ -204,7 +197,7 @@ def get_a3mega_pod_template_annotations(
     args: Namespace,
 ) -> tuple[str, str, str]:
   """Adds or updates annotations in the Pod template."""
-  sub_networks = get_subnetworks_for_a3mega(args.cluster)
+  sub_networks = get_cluster_subnetworks(args)
   tcpxo_deamon_key, tcpxo_deamon_paths = get_tcpxo_deamon_entry()
   interfaces_key, interfaces_value = tcpxo_decorator.get_interfaces_entry(
       sub_networks

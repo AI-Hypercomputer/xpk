@@ -24,6 +24,7 @@ import sys
 from ..utils.console import xpk_exit, xpk_print
 from .common import GlobalConfig
 
+
 def get_project():
   """Get GCE project from `gcloud config get project`.
 

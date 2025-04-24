@@ -21,7 +21,6 @@ from .commands import run_command_for_value
 from ..args.gcloud_context import GcloudConfig, get_project, get_zone
 
 
-
 # TODO: remove when we stop using Namespaces as args
 def add_zone_and_project(args: GcloudConfig):
   """Obtains the zone and project names from gcloud configs if not defined.

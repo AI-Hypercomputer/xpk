@@ -48,7 +48,6 @@ DEFAULT_NAMESPACE = 'default'
 XPK_SA = 'xpk-sa'
 
 
-
 # TODO(vbarr): Remove this function when jobsets gets enabled by default on
 # GKE clusters.
 def set_jobset_on_cluster(args: ClusterConfig) -> int:

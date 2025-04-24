@@ -33,6 +33,7 @@ FilestoreTier: TypeAlias = Literal[
 
 class StorageAttachArgs(ClusterConfig):
   """Class representing storage attach args type"""
+
   name: str = None
   type: StorageType = None
   auto_mount: bool = None
@@ -50,6 +51,7 @@ class StorageAttachArgs(ClusterConfig):
 
 class StorageCreateArgs(ClusterConfig):
   """Class representing storage create args type"""
+
   name: str = None
   access_mode: StorageAccessMode = 'ReadWriteMany'
   vol: str = 'default'
@@ -65,15 +67,18 @@ class StorageCreateArgs(ClusterConfig):
 
 class StorageDeleteArgs(ClusterConfig):
   """Class representing storage delete args type"""
+
   name: str = None
   force: Optional[bool] = False
 
 
 class StorageDetachArgs(ClusterConfig):
   """Class representing storage detach args type"""
+
   name: str = None
 
 
 class StorageListArgs(ClusterConfig):
   """Class representing storage list args type"""
+
   pass

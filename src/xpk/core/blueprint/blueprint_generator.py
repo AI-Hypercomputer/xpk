@@ -156,7 +156,7 @@ class BlueprintGenerator:
         source="modules/scheduler/gke-cluster",
         use=[primary_vpc_name, gpu_subnets_name],
         settings={
-            "release_channel": "RAPID",
+            "release_channel": "UNSPECIFIED" if capacity_type == CapacityType.FLEX_START else "RAPID",
             "prefix_with_deployment_name": False,
             "name_suffix": cluster_name,
             "enable_private_endpoint": False,
@@ -190,15 +190,14 @@ class BlueprintGenerator:
             "group_placement_max_distance": group_placement_max_distance,
         },
     )
-
+    nodepool_used_deps= ["gke_cluster", gpu_subnets_name, "group_placement_0"] if reservation else ["gke_cluster", gpu_subnets_name]
     a3_megagpu_pool_0 = DeploymentModule(
         id="a3_megagpu_pool_0",
         source="modules/compute/gke-node-pool",
-        use=["gke_cluster", gpu_subnets_name, "group_placement_0"],
+        use=nodepool_used_deps,
         settings={
             "name": f"{cluster_name}-a3-megagpu-pool-0",
             "machine_type": system.gce_machine_type,
-            "static_node_count": num_nodes,
             "zones": [zone],
             "host_maintenance_interval": "PERIODIC",
             "reservation_affinity": self._getblock_reservation_affinity(
@@ -207,12 +206,14 @@ class BlueprintGenerator:
             "run_workload_script": False,
             "spot": capacity_type == CapacityType.SPOT,
             "max_pods_per_node": 32,
-            "auto_upgrade": True,
+            "auto_upgrade": True if capacity_type != CapacityType.FLEX_START else False,
         },
         outputs=["instructions"],
     )
     if capacity_type == CapacityType.FLEX_START:
       a3_megagpu_pool_0.settings.update(self.get_dws_flex_start())
+    else:
+      a3_megagpu_pool_0.settings.update({"static_node_count": num_nodes})
 
     num_chips = num_nodes * system.chips_per_vm
     workload = DeploymentModule(

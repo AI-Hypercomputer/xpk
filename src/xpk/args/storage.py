@@ -63,6 +63,7 @@ class StorageCreateArgs(ClusterConfig):
   readonly: bool = None
   instance: Optional[str] = None
   manifest: Optional[str] = None
+  mount_options: Optional[str] = 'implicit-dirs'
 
 
 class StorageDeleteArgs(ClusterConfig):

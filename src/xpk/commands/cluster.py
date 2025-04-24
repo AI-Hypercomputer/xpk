@@ -58,6 +58,7 @@ from ..core.nodepool import (
     run_gke_node_pool_create_command,
 )
 from ..core.ray import install_ray_cluster
+from ..core.mtc import install_mtc_on_cluster
 from ..core.resources import create_cluster_configmaps
 from ..core.storage import install_storage_crd
 from ..core.system_characteristics import (
@@ -277,6 +278,12 @@ def cluster_create(args) -> None:
     return_code = install_ray_cluster(args, system)
     if return_code != 0:
       xpk_print('Installation of RayCluster failed.')
+      xpk_exit(return_code)
+
+  if hasattr(args, 'enable_mtc') and args.enable_mtc:
+    return_code = install_mtc_on_cluster(args, system)
+    if return_code != 0:
+      xpk_print('Installation of MTC failed.')
       xpk_exit(return_code)
 
   xpk_print('GKE commands done! Resources are created.')
@@ -815,6 +822,7 @@ def run_gke_cluster_create_command(
   addons = []
   if args.enable_gcsfuse_csi_driver:
     addons.append('GcsFuseCsiDriver')
+
   if args.enable_gcpfilestore_csi_driver:
     addons.append('GcpFilestoreCsiDriver')
 
@@ -823,6 +831,9 @@ def run_gke_cluster_create_command(
 
   if args.enable_pd_csi_driver:
     addons.append('GcePersistentDiskCsiDriver')
+
+  if hasattr(args, 'enable_mtc') and args.enable_mtc:
+    addons.append('HighScaleCheckpointing')
 
   if len(addons) > 0:
     addons_str = ','.join(addons)

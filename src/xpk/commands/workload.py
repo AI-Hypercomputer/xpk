@@ -402,7 +402,7 @@ def workload_create(args) -> None:
           f' {parallelstore_storages}'
       )
     else:
-      xpk_print('No gcp filestore instances to add detected.')
+      xpk_print('No gcp parallelstore instances to add detected.')
 
     if len(pd_storages) > 0:
       service_account = XPK_SA

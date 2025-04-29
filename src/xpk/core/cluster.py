@@ -218,7 +218,7 @@ def get_cluster_nodes_info(args) -> list[dict]:
   if err_code != 0:
     xpk_exit(err_code)
   data = yaml.safe_load(val)
-  return data['items']
+  return data['items']  # pytype: disable=bad-return-type
 
 
 def count_nodes_on_cluster(args, system: SystemCharacteristics) -> int:
@@ -238,7 +238,8 @@ def count_nodes_on_cluster(args, system: SystemCharacteristics) -> int:
         f' {system.device_type}'
     )
     xpk_exit(1)
-  return sum(acc == accelerator for acc in accelerators)
+  num_nodes: int = sum(acc == accelerator for acc in accelerators)
+  return num_nodes
 
 
 def get_cluster_network(args) -> str:

@@ -17,6 +17,7 @@ limitations under the License.
 from argparse import ArgumentParser
 
 from ..commands.cluster import (
+    cluster_adapt,
     cluster_cacheimage,
     cluster_create,
     cluster_create_pathways,
@@ -68,6 +69,10 @@ def set_cluster_parser(cluster_parser: ArgumentParser):
   cluster_list_parser = cluster_subcommands.add_parser(
       'list', help='List cloud clusters.'
   )
+  cluster_adapt_parser = cluster_subcommands.add_parser(
+      'adapt', help='Adapt an existing cluster for XPK.'
+  )
+
   set_cluster_create_parser(cluster_create_parser)
   set_cluster_create_pathways_parser(cluster_create_pathways_parser)
   set_cluster_create_ray_parser(cluster_create_ray_cluster_parser)
@@ -75,6 +80,7 @@ def set_cluster_parser(cluster_parser: ArgumentParser):
   set_cluster_cacheimage_parser(cluster_cacheimage_parser)
   set_cluster_describe_parser(cluster_describe_parser)
   set_cluster_list_parser(cluster_list_parser)
+  set_cluster_adapt_parser(cluster_adapt_parser)
 
 
 def set_cluster_create_parser(cluster_create_parser: ArgumentParser):
@@ -452,6 +458,138 @@ def set_cluster_list_parser(cluster_list_parser: ArgumentParser):
   add_shared_arguments(cluster_list_optional_arguments)
 
   cluster_list_parser.set_defaults(func=cluster_list)
+
+
+def set_cluster_adapt_parser(cluster_adapt_parser: ArgumentParser):
+  ### Required arguments
+  cluster_adapt_required_arguments = cluster_adapt_parser.add_argument_group(
+      'Required Arguments',
+      'Arguments required for cluster adapt.',
+  )
+  cluster_adapt_required_arguments.add_argument(
+      '--cluster',
+      type=name_type,
+      default=None,
+      help='The name of the cluster to be adapted.',
+      required=True,
+  )
+
+  cluster_adapt_device_group = (
+      cluster_adapt_required_arguments.add_mutually_exclusive_group(
+          required=True
+      )
+  )
+  cluster_adapt_device_group.add_argument(
+      '--tpu-type',
+      type=str,
+      default=None,
+      help='The tpu type used on cluster, v5litepod-16, etc.',
+  )
+  cluster_adapt_device_group.add_argument(
+      '--device-type',
+      type=str,
+      default=None,
+      help=(
+          'The device type used on cluster (can be tpu or gpu or cpu), eg.'
+          ' h100-80gb-8, n2-standard-32-4 etc.'
+      ),
+  )
+
+  ### Optional arguments
+  cluster_adapt_optional_arguments = cluster_adapt_parser.add_argument_group(
+      'Optional Arguments',
+      'Arguments optional for cluster adapt.',
+  )
+
+  cluster_adapt_optional_arguments.add_argument(
+      '--num-nodes',
+      type=int,
+      help='The number of nodes of a cluster.',
+  )
+  cluster_adapt_optional_arguments.add_argument(
+      '--enable-workload-identity',
+      action='store_true',
+      help='Enable Workload Identity Federation on the cluster and node-pools.',
+  )
+  cluster_adapt_optional_arguments.add_argument(
+      '--enable-gcsfuse-csi-driver',
+      action='store_true',
+      help=(
+          'Enable GSCFuse driver on the cluster. This enables Workload'
+          ' Identity Federation. When using A3 ultra/A3 mega Workload'
+          ' Identity is enabled by default.'
+      ),
+  )
+  cluster_adapt_optional_arguments.add_argument(
+      '--enable-gcpfilestore-csi-driver',
+      action='store_true',
+      help='Enable GCPFilestore driver on the cluster.',
+  )
+  cluster_adapt_optional_arguments.add_argument(
+      '--enable-parallelstore-csi-driver',
+      action='store_true',
+      help='Enable Parallelstore CSI driver on the cluster.',
+  )
+  cluster_adapt_optional_arguments.add_argument(
+      '--enable-pd-csi-driver',
+      action='store_true',
+      help='Enable PersistentDisk CSI driver on the cluster.',
+  )
+  cluster_adapt_optional_arguments.add_argument(
+      '--num-slices',
+      type=int,
+      default=1,
+      help='The number of slices to run the job on, defaults to 1.',
+      required=False,
+  )
+  add_shared_arguments(cluster_adapt_optional_arguments)
+
+  cluster_adapt_capacity_arguments = cluster_adapt_parser.add_argument_group(
+      'Capacity Arguments', 'Arguments related to capacity for cluster create.'
+  )
+  add_shared_cluster_create_capacity_arguments(cluster_adapt_capacity_arguments)
+
+  cluster_adapt_autoprovisioning_arguments = (
+      cluster_adapt_parser.add_argument_group(
+          'Optional Autoprovisioning Arguments',
+          'Arguments optional for enabling autoprovisioning.',
+      )
+  )
+  cluster_adapt_autoprovisioning_arguments.add_argument(
+      '--enable-autoprovisioning',
+      action='store_true',
+      help=(
+          'Enable GKE features for autoprovisioning node pools in GKE clusters.'
+      ),
+  )
+  cluster_adapt_autoprovisioning_arguments.add_argument(
+      '--autoprovisioning-min-chips',
+      type=int,
+      help=(
+          'Optionally set the minimum autoprovisioning accelerator resources in'
+          ' units of chips.By default, autoprovisioning will use the number of'
+          ' resources in the cluster as the minimum, and maximum.'
+      ),
+  )
+  cluster_adapt_autoprovisioning_arguments.add_argument(
+      '--autoprovisioning-max-chips',
+      type=int,
+      help=(
+          'Optionally set the maximum autoprovisioning accelerator resources in'
+          ' units of chips.By default, autoprovisioning will use the number of'
+          ' resources in the cluster as the minimum, and maximum.'
+      ),
+  )
+
+  cluster_adapt_tensorboard_arguments = cluster_adapt_parser.add_argument_group(
+      'Optional Vertex AI Tensorboard Arguments',
+      'Arguments for creating Vertex AI Tensorboard in cluster adapt.',
+  )
+  add_shared_cluster_create_tensorboard_arguments(
+      cluster_adapt_tensorboard_arguments
+  )
+
+  cluster_adapt_parser.set_defaults(func=cluster_adapt)
 
 
 def add_shared_cluster_create_required_arguments(parser: ArgumentParser):

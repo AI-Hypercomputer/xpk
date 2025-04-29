@@ -142,7 +142,11 @@ class BlueprintGenerator:
         source="modules/scheduler/gke-cluster",
         use=[primary_vpc_name, gpu_subnets_name],
         settings={
-            "release_channel": "UNSPECIFIED" if capacity_type == CapacityType.FLEX_START else "RAPID",
+            "release_channel": (
+                "UNSPECIFIED"
+                if capacity_type == CapacityType.FLEX_START
+                else "RAPID"
+            ),
             "prefix_with_deployment_name": False,
             "name_suffix": cluster_name,
             "enable_private_endpoint": False,
@@ -176,7 +180,11 @@ class BlueprintGenerator:
             "group_placement_max_distance": group_placement_max_distance,
         },
     )
-    nodepool_used_deps= ["gke_cluster", gpu_subnets_name, "group_placement_0"] if reservation else ["gke_cluster", gpu_subnets_name]
+    nodepool_used_deps = (
+        ["gke_cluster", gpu_subnets_name, "group_placement_0"]
+        if reservation
+        else ["gke_cluster", gpu_subnets_name]
+    )
     a3_megagpu_pool_0 = DeploymentModule(
         id="a3_megagpu_pool_0",
         source="modules/compute/gke-node-pool",
@@ -192,7 +200,9 @@ class BlueprintGenerator:
             "run_workload_script": False,
             "spot": capacity_type == CapacityType.SPOT,
             "max_pods_per_node": 32,
-            "auto_upgrade": True if capacity_type != CapacityType.FLEX_START else False,
+            "auto_upgrade": (
+                True if capacity_type != CapacityType.FLEX_START else False
+            ),
         },
         outputs=["instructions"],
     )
@@ -468,14 +478,22 @@ class BlueprintGenerator:
         source="modules/scheduler/gke-cluster",
         use=[net_0_id],
         settings={
-            "release_channel": "RAPID",
+            "release_channel": (
+                "UNSPECIFIED"
+                if capacity_type == CapacityType.FLEX_START
+                else "RAPID"
+            ),
             "version_prefix": "1.31.",
-            "maintenance_exclusions": [{
-                "name": "no-minor-or-node-upgrades-indefinite",
-                "start_time": "2024-12-01T00:00:00Z",
-                "end_time": "2025-12-22T00:00:00Z",
-                "exclusion_scope": "NO_MINOR_OR_NODE_UPGRADES",
-            }],
+            "maintenance_exclusions": (
+                []
+                if capacity_type == CapacityType.FLEX_START
+                else [{
+                    "name": "no-minor-or-node-upgrades-indefinite",
+                    "start_time": "2024-12-01T00:00:00Z",
+                    "end_time": "2025-12-22T00:00:00Z",
+                    "exclusion_scope": "NO_MINOR_OR_NODE_UPGRADES",
+                }]
+            ),
             "prefix_with_deployment_name": False,
             "name_suffix": cluster_name,
             "system_node_pool_machine_type": system_node_pool_machine_type,
@@ -524,9 +542,10 @@ class BlueprintGenerator:
         use=[cluster_id],
         settings={
             "machine_type": system.gce_machine_type,
-            "auto_upgrade": True,
+            "auto_upgrade": (
+                True if capacity_type != CapacityType.FLEX_START else False
+            ),
             "zones": [zone],
-            "static_node_count": num_nodes,
             "spot": capacity_type == CapacityType.SPOT,
             "reservation_affinity": self._getblock_reservation_affinity(
                 reservation
@@ -554,6 +573,8 @@ class BlueprintGenerator:
     )
     if capacity_type == CapacityType.FLEX_START:
       gpu_pool.settings.update(self.get_dws_flex_start())
+    else:
+      gpu_pool.settings.update({"static_node_count": num_nodes})
 
     num_chips = num_nodes * system.chips_per_vm
     workload_manager_install_id = "workload-manager-install"
@@ -769,13 +790,21 @@ class BlueprintGenerator:
                 f" {cluster_name}-rdma-net.subnetwork_interfaces_gke))"
             ),
             "version_prefix": "1.32.",
-            "release_channel": "RAPID",
-            "maintenance_exclusions": [{
-                "name": "no-minor-or-node-upgrades-indefinite",
-                "start_time": "2024-12-01T00:00:00Z",
-                "end_time": "2025-12-22T00:00:00Z",
-                "exclusion_scope": "NO_MINOR_OR_NODE_UPGRADES",
-            }],
+            "release_channel": (
+                "UNSPECIFIED"
+                if capacity_type == CapacityType.FLEX_START
+                else "RAPID"
+            ),
+            "maintenance_exclusions": (
+                []
+                if capacity_type == CapacityType.FLEX_START
+                else [{
+                    "name": "no-minor-or-node-upgrades-indefinite",
+                    "start_time": "2024-12-01T00:00:00Z",
+                    "end_time": "2025-12-22T00:00:00Z",
+                    "exclusion_scope": "NO_MINOR_OR_NODE_UPGRADES",
+                }]
+            ),
         },
         outputs=["instructions"],
     )
@@ -792,10 +821,11 @@ class BlueprintGenerator:
         use=[cluster_id],
         settings={
             "machine_type": system.gce_machine_type,
-            "auto_upgrade": True,
+            "auto_upgrade": (
+                True if capacity_type != CapacityType.FLEX_START else False
+            ),
             "zones": [zone],
             "disk_type": "hyperdisk-balanced",
-            "static_node_count": num_nodes,
             "local_ssd_count_ephemeral_storage": 32,
             "spot": capacity_type == CapacityType.SPOT,
             "reservation_affinity": self._getblock_reservation_affinity(
@@ -822,6 +852,10 @@ class BlueprintGenerator:
         },
         outputs=["instructions"],
     )
+    if capacity_type == CapacityType.FLEX_START:
+      gpu_pool.settings.update(self.get_dws_flex_start())
+    else:
+      gpu_pool.settings.update({"static_node_count": num_nodes})
 
     num_chips = num_nodes * system.chips_per_vm
     workload_manager_install_id = "workload-manager-install"

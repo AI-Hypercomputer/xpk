@@ -55,15 +55,15 @@ spec:
     {machine_label}
 ---
 apiVersion: kueue.x-k8s.io/v1beta1
-  kind: AdmissionCheck
-  metadata:
-    name: dws-prov
-  spec:
-    controllerName: kueue.x-k8s.io/provisioning-request
-    parameters:
-      apiGroup: kueue.x-k8s.io
-      kind: ProvisioningRequestConfig
-      name: dws-config
+kind: AdmissionCheck
+metadata:
+  name: dws-prov
+spec:
+  controllerName: kueue.x-k8s.io/provisioning-request
+  parameters:
+    apiGroup: kueue.x-k8s.io
+    kind: ProvisioningRequestConfig
+    name: dws-config
 ---
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: ProvisioningRequestConfig

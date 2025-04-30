@@ -143,38 +143,11 @@ def set_cluster_create_parser(cluster_create_parser: ArgumentParser):
       ),
   )
 
-  ### Autoprovisioning arguments specific to "cluster create"
-  cluster_create_autoprovisioning_arguments = (
-      cluster_create_parser.add_argument_group(
-          'Optional Autoprovisioning Arguments',
-          'Arguments optional for enabling autoprovisioning.',
-      )
+  autoprovisioning_arguments = cluster_create_parser.add_argument_group(
+      'Autoprovisioning Arguments',
+      'Optional arguments for enabling autoprovisioning.',
   )
-  cluster_create_autoprovisioning_arguments.add_argument(
-      '--enable-autoprovisioning',
-      action='store_true',
-      help=(
-          'Enable GKE features for autoprovisioning node pools in GKE clusters.'
-      ),
-  )
-  cluster_create_autoprovisioning_arguments.add_argument(
-      '--autoprovisioning-min-chips',
-      type=int,
-      help=(
-          'Optionally set the minimum autoprovisioning accelerator resources in'
-          ' units of chips.By default, autoprovisioning will use the number of'
-          ' resources in the cluster as the minimum, and maximum.'
-      ),
-  )
-  cluster_create_autoprovisioning_arguments.add_argument(
-      '--autoprovisioning-max-chips',
-      type=int,
-      help=(
-          'Optionally set the maximum autoprovisioning accelerator resources in'
-          ' units of chips.By default, autoprovisioning will use the number of'
-          ' resources in the cluster as the minimum, and maximum.'
-      ),
-  )
+  add_autoprovisioning_arguments(autoprovisioning_arguments)
 
   ### Capacity arguments specific to "cluster create"
   cluster_create_capacity_arguments = cluster_create_parser.add_argument_group(
@@ -461,18 +434,11 @@ def set_cluster_list_parser(cluster_list_parser: ArgumentParser):
 
 
 def set_cluster_adapt_parser(cluster_adapt_parser: ArgumentParser):
-  ### Required arguments
   cluster_adapt_required_arguments = cluster_adapt_parser.add_argument_group(
       'Required Arguments',
       'Arguments required for cluster adapt.',
   )
-  cluster_adapt_required_arguments.add_argument(
-      '--cluster',
-      type=name_type,
-      default=None,
-      help='The name of the cluster to be adapted.',
-      required=True,
-  )
+  add_shared_cluster_create_required_arguments(cluster_adapt_required_arguments)
 
   cluster_adapt_device_group = (
       cluster_adapt_required_arguments.add_mutually_exclusive_group(
@@ -495,12 +461,10 @@ def set_cluster_adapt_parser(cluster_adapt_parser: ArgumentParser):
       ),
   )
 
-  ### Optional arguments
   cluster_adapt_optional_arguments = cluster_adapt_parser.add_argument_group(
       'Optional Arguments',
       'Arguments optional for cluster adapt.',
   )
-
   cluster_adapt_optional_arguments.add_argument(
       '--num-nodes',
       type=int,
@@ -512,36 +476,13 @@ def set_cluster_adapt_parser(cluster_adapt_parser: ArgumentParser):
       help='Enable Workload Identity Federation on the cluster and node-pools.',
   )
   cluster_adapt_optional_arguments.add_argument(
-      '--enable-gcsfuse-csi-driver',
-      action='store_true',
-      help=(
-          'Enable GSCFuse driver on the cluster. This enables Workload'
-          ' Identity Federation. When using A3 ultra/A3 mega Workload'
-          ' Identity is enabled by default.'
-      ),
-  )
-  cluster_adapt_optional_arguments.add_argument(
-      '--enable-gcpfilestore-csi-driver',
-      action='store_true',
-      help='Enable GCPFilestore driver on the cluster.',
-  )
-  cluster_adapt_optional_arguments.add_argument(
-      '--enable-parallelstore-csi-driver',
-      action='store_true',
-      help='Enable Parallelstore CSI driver on the cluster.',
-  )
-  cluster_adapt_optional_arguments.add_argument(
-      '--enable-pd-csi-driver',
-      action='store_true',
-      help='Enable PersistentDisk CSI driver on the cluster.',
-  )
-  cluster_adapt_optional_arguments.add_argument(
       '--num-slices',
       type=int,
       default=1,
       help='The number of slices to run the job on, defaults to 1.',
       required=False,
   )
+  add_driver_arguments(cluster_adapt_optional_arguments)
   add_shared_arguments(cluster_adapt_optional_arguments)
 
   cluster_adapt_capacity_arguments = cluster_adapt_parser.add_argument_group(
@@ -551,35 +492,11 @@ def set_cluster_adapt_parser(cluster_adapt_parser: ArgumentParser):
 
   cluster_adapt_autoprovisioning_arguments = (
       cluster_adapt_parser.add_argument_group(
-          'Optional Autoprovisioning Arguments',
-          'Arguments optional for enabling autoprovisioning.',
+          'Autoprovisioning Arguments',
+          'Optional arguments for enabling autoprovisioning.',
       )
   )
-  cluster_adapt_autoprovisioning_arguments.add_argument(
-      '--enable-autoprovisioning',
-      action='store_true',
-      help=(
-          'Enable GKE features for autoprovisioning node pools in GKE clusters.'
-      ),
-  )
-  cluster_adapt_autoprovisioning_arguments.add_argument(
-      '--autoprovisioning-min-chips',
-      type=int,
-      help=(
-          'Optionally set the minimum autoprovisioning accelerator resources in'
-          ' units of chips.By default, autoprovisioning will use the number of'
-          ' resources in the cluster as the minimum, and maximum.'
-      ),
-  )
-  cluster_adapt_autoprovisioning_arguments.add_argument(
-      '--autoprovisioning-max-chips',
-      type=int,
-      help=(
-          'Optionally set the maximum autoprovisioning accelerator resources in'
-          ' units of chips.By default, autoprovisioning will use the number of'
-          ' resources in the cluster as the minimum, and maximum.'
-      ),
-  )
+  add_autoprovisioning_arguments(cluster_adapt_autoprovisioning_arguments)
 
   cluster_adapt_tensorboard_arguments = cluster_adapt_parser.add_argument_group(
       'Optional Vertex AI Tensorboard Arguments',
@@ -590,6 +507,34 @@ def set_cluster_adapt_parser(cluster_adapt_parser: ArgumentParser):
   )
 
   cluster_adapt_parser.set_defaults(func=cluster_adapt)
+
+
+def add_autoprovisioning_arguments(parser: ArgumentParser):
+  parser.add_argument(
+      '--enable-autoprovisioning',
+      action='store_true',
+      help=(
+          'Enable GKE features for autoprovisioning node pools in GKE clusters.'
+      ),
+  )
+  parser.add_argument(
+      '--autoprovisioning-min-chips',
+      type=int,
+      help=(
+          'Optionally set the minimum autoprovisioning accelerator resources in'
+          ' units of chips.By default, autoprovisioning will use the number of'
+          ' resources in the cluster as the minimum, and maximum.'
+      ),
+  )
+  parser.add_argument(
+      '--autoprovisioning-max-chips',
+      type=int,
+      help=(
+          'Optionally set the maximum autoprovisioning accelerator resources in'
+          ' units of chips.By default, autoprovisioning will use the number of'
+          ' resources in the cluster as the minimum, and maximum.'
+      ),
+  )
 
 
 def add_shared_cluster_create_required_arguments(parser: ArgumentParser):
@@ -750,6 +695,10 @@ def add_shared_cluster_create_optional_arguments(parser: ArgumentParser):
       action='store_true',
       help='Enable Workload Identity Federation on the cluster and node-pools.',
   )
+  add_driver_arguments(parser)
+
+
+def add_driver_arguments(parser: ArgumentParser):
   parser.add_argument(
       '--enable-gcsfuse-csi-driver',
       action='store_true',

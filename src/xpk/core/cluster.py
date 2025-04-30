@@ -209,7 +209,7 @@ def get_cluster_nodes_info(args) -> list[dict]:
     List of nodes info yaml objects.
   """
   xpk_print("Getting cluster's info...")
-  command = 'kubectl get nodes -oyaml'
+  command = 'kubectl get nodes -o yaml'
   err_code, val = run_command_for_value(
       command=command,
       task='Get cluster nodes info',

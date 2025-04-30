@@ -221,7 +221,12 @@ class BlueprintGenerator:
                 "install": True,
                 "version": "v0.10.0",  # TAS feature-gates is enabled in CT
                 "config_path": f'$(ghpc_stage("{blueprint_name}"))/kueue-xpk-configuration.yaml.tftpl',
-                "config_template_vars": {"num_chips": num_chips},
+                "config_template_vars": {
+                    "num_chips": num_chips,
+                    "flex_start": (
+                        1 if capacity_type == CapacityType.FLEX_START else 0
+                    ),
+                },
             },
             "jobset": {"install": True, "version": "v0.7.2"},
             "apply_manifests": [{
@@ -587,7 +592,12 @@ class BlueprintGenerator:
                 "install": True,
                 "version": "v0.10.0",  # TAS feature-gates is enabled in CT
                 "config_path": f'$(ghpc_stage("{blueprint_name}"))/kueue-xpk-configuration.yaml.tftpl',
-                "config_template_vars": {"num_chips": num_chips},
+                "config_template_vars": {
+                    "num_chips": num_chips,
+                    "flex_start": (
+                        1 if capacity_type == CapacityType.FLEX_START else 0
+                    ),
+                },
             },
             "jobset": {"install": True, "version": "v0.7.2"},
             "apply_manifests": [
@@ -868,7 +878,12 @@ class BlueprintGenerator:
                 "install": True,
                 "version": "v0.10.0",  # TAS feature-gates is enabled in CT
                 "config_path": f'$(ghpc_stage("{blueprint_name}"))/kueue-xpk-configuration.yaml.tftpl',
-                "config_template_vars": {"num_chips": num_chips},
+                "config_template_vars": {
+                    "num_chips": num_chips,
+                    "flex_start": (
+                        1 if capacity_type == CapacityType.FLEX_START else 0
+                    ),
+                },
             },
             "jobset": {"install": True, "version": "v0.7.2"},
             "apply_manifests": [

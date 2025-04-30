@@ -19,15 +19,15 @@ spec:
   topologyName: "gke-default"
 ---
 apiVersion: kueue.x-k8s.io/v1beta1
-  kind: AdmissionCheck
-  metadata:
-    name: dws-prov
-  spec:
-    controllerName: kueue.x-k8s.io/provisioning-request
-    parameters:
-      apiGroup: kueue.x-k8s.io
-      kind: ProvisioningRequestConfig
-      name: dws-config
+kind: AdmissionCheck
+metadata:
+  name: dws-prov
+spec:
+  controllerName: kueue.x-k8s.io/provisioning-request
+  parameters:
+    apiGroup: kueue.x-k8s.io
+    kind: ProvisioningRequestConfig
+    name: dws-config
 ---
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: ProvisioningRequestConfig
@@ -55,7 +55,7 @@ spec:
         nominalQuota: 10000
       - name: "memory"
         nominalQuota: 10000Gi
-  %{~ if enable_queue_provisioning ~}
+  %{~ if flex_start==1 ~}
   admissionChecks:
    - dws-prov
   %{ endif }

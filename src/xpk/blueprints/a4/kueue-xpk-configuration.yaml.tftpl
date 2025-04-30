@@ -55,7 +55,7 @@ spec:
         nominalQuota: 10000
       - name: "memory"
         nominalQuota: 10000Gi
-  %{~ if enable_queue_provisioning ~}
+  %{~ if flex_start==1 ~}
   admissionChecks:
    - dws-prov
   %{ endif }

@@ -16,7 +16,9 @@ metadata:
 spec:
   nodeLabels:
     cloud.google.com/gke-accelerator: nvidia-h100-mega-80gb
+  %{~ if flex_start==0 ~}
   topologyName: "gke-default"
+  %{ endif }
 ---
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: AdmissionCheck

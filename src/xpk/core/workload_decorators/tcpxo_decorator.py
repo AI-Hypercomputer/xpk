@@ -103,6 +103,8 @@ def get_tcpxo_deamon_entry() -> tuple[str, str]:
 
 def add_annotations(job_manifest: dict, sub_networks: list[str]):
   """Adds or updates annotations in the Pod template."""
+  if job_manifest['spec']['template']['metadata']['annotations'] is None:
+    job_manifest['spec']['template']['metadata']['annotations'] = {}
   annotations = job_manifest['spec']['template']['metadata']['annotations']
   tcpxo_deamon_key, tcpxo_deamon_paths = get_tcpxo_deamon_entry()
   interfaces_key, interfaces_value = get_interfaces_entry(sub_networks)

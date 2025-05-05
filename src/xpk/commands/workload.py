@@ -213,7 +213,6 @@ spec:
               labels:
                 xpk.google.com/workload: {args.workload}
               annotations: {annotations}
-                kueue.x-k8s.io/podset-preferred-topology: "cloud.google.com/gce-topology-host"
             spec:
               priorityClassName: {args.priority}
               restartPolicy: Never

@@ -21,16 +21,11 @@
 
 # Overview
 
-xpk (Accelerated Processing Kit, pronounced x-p-k,) is a software tool to help
-Cloud developers to orchestrate training jobs on accelerators such as TPUs and
-GPUs on GKE. xpk handles the "multihost pods" of TPUs, GPUs (HGX H100) and CPUs
-(n2-standard-32) as first class citizens.
+XPK (Accelerated Processing Kit, pronounced x-p-k) is a command line interface that simplifies cluster creation and workload execution on Google Kubernetes Engine (GKE). XPK generates preconfigured, training-optimized clusters and allows easy workload scheduling without any Kubernetes expertise.
 
-xpk decouples provisioning capacity from running jobs. There are two structures:
-clusters (provisioned VMs) and workloads (training jobs). Clusters represent the
-physical resources you have available. Workloads represent training jobs -- at
-any time some of these will be completed, others will be running and some will
-be queued, waiting for cluster resources to become available.
+XPK is recommended for quick creation of GKE clusters for proofs of concepts and testing.
+
+XPK decouples provisioning capacity from running jobs. There are two structures: clusters (provisioned VMs) and workloads (training jobs). Clusters represent the physical resources you have available. Workloads represent training jobs -- at any time some of these will be completed, others will be running and some will be queued, waiting for cluster resources to become available.
 
 The ideal workflow starts by provisioning the clusters for all of the ML
 hardware you have reserved. Then, without re-provisioning, submit jobs as
@@ -41,7 +36,7 @@ return the hardware back to the shared pool when they complete, developers can
 achieve better use of finite hardware resources. And automated tests can run
 overnight while resources tend to be underutilized.
 
-xpk supports the following TPU types:
+XPK supports the following TPU types:
 * v4
 * v5e
 * v5p
@@ -57,7 +52,7 @@ and the following GPU types:
 and the following CPU types:
 * n2-standard-32
 
-xpk also supports [Google Cloud Storage solutions](#storage):
+XPK also supports [Google Cloud Storage solutions](#storage):
 * [Cloud Storage FUSE](#fuse)
 * [Filestore](#filestore)
 * [Parallelstore](#parallelstore)

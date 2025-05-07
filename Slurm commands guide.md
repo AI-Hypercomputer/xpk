@@ -26,13 +26,13 @@ To recreate a usual Slurm setup, first prepare your environment by provisioning 
 
 1. Export the variables for easier commands manipulation:
 
-	```
+	```shell
 	export CLUSTER_NAME CLUSTER_NAME
 	export COMPUTE_ZONE COMPUTE_ZONE
 	export PROJECT_ID PROJECT_ID
 	```
 2. Create a cluster using **cluster create** command and providing machine type and provisioning mode of your choice. 
-	```
+	```shell
 	python3 xpk.py cluster create
 	--cluster=$CLUSTER_NAME
 	--zone=$COMPUTE_ZONE
@@ -51,45 +51,51 @@ To recreate a usual Slurm setup, first prepare your environment by provisioning 
 	- PROVISIONING MODE: provide provisioning mode of your choice. 
 	--enable-workload-identity and --enable-gcpfilestore-csi-driver options are not required but they will speed up shared file system creation in the next step.
 
-Create storage using xpk storage create command. XPK supports attaching GCS Bucket and Filestore storages and creating Filestore storage. If you already have the storage, follow the instructions outlined in the next step.
-
-xpk storage create STORAGE_NAME
---project=$PROJECT_ID
---zone=$COMPUTE_ZONE
---cluster=$CLUSTER_NAME
---type=gcpfilestore \
---size=1024 \
---access-mode=ReadWriteMany \
---vol=home \
---tier=REGIONAL \
---mount-point /home \
---auto-mount=true \
---readonly=false \
-Replace the following variables:
-STORAGE_NAME name of your storage
-
-Initialize XPK configuration. You can customize the configuration based on your needs, like in the example of Llama 3 finetuning provided below:
-
+3. Create storage using **xpk storage create** command. XPK supports attaching GCS Bucket and Filestore storages and creating Filestore storage. If you already have the storage, follow the instructions outlined in [Storage](https://github.com/AI-Hypercomputer/xpk/blob/main/README.md#storage.)
+	```shell
+	xpk storage create STORAGE_NAME
+	--project=$PROJECT_ID
+	--zone=$COMPUTE_ZONE
+	--cluster=$CLUSTER_NAME
+	--type=gcpfilestore \
+	--size=1024 \
+	--access-mode=ReadWriteMany \
+	--vol=home \
+	--tier=REGIONAL \
+	--mount-point /home \
+	--auto-mount=true \
+	--readonly=false \
+	 ```
+	Replace the following variables:
+	- STORAGE_NAME name of your storage
+	
+ 
+4. Initialize XPK configuration. You can customize the configuration based on your needs, like in the example of Llama 3 finetuning provided below:
+```shell
 python3 xpk.py config set shell-interactive-command /bin/bash
 python3 xpk.py config set shell-working-directory /home/llama3
 python3 xpk.py config set shell-image pytorch/pytorch:2.6.0-cuda12.6-cudnn9-devel
 python3 xpk.py config set batch-working-directory /home/llama3
 python3 xpk.py config set batch-image pytorch/pytorch:2.6.0-cuda12.6-cudnn9-runtime
+```
 
-Prepare and upload scripts
-Prepare scripts
-This section specifies the changes needed for Slurm scripts used for batch executions for slurm-like commands in XPK.
+## Prepare and upload scripts
 
-Currently xpk batch supports the following cases:
-Batch job with a single task and single step per task.
-Batch job with multiple parallel tasks and single step per task.
-Array job with a single task per job and single step per task
-As a result, XPK runs script validation to ensure it executes only the above use cases. For successful script validation and later job execution, apply the following script updates:
-The number of steps in a task is limited to 1. Thus, ensure there is only one step in the job script, invoked by one srun invocation.
-Ensure there is only one srun invocation per script and it is the final command in the script.
-Do not include other Slurm commands invocation within the script (e.g. scontrol, sinfo etc.)
+### 1. Prepare scripts
+   This section specifies the changes needed for Slurm scripts used for batch executions for slurm-like commands in XPK.	
+	
+ Currently xpk batch supports the following cases:\
+	1. Batch job with a single task and single step per task.\
+	2. Batch job with multiple parallel tasks and single step per task.\
+	3. Array job with a single task per job and single step per task.\
+	As a result, XPK runs script validation to ensure it executes only the above use cases.
 
-xpk shell | Slurm login node- download scripts, models and data sets: 
+For successful script validation and later job execution, apply the following script updates:
+	- The number of steps in a task is limited to 1. Thus, ensure there is only one step in the job script, invoked by one srun invocation.
+	- Ensure there is only one srun invocation per script and it is the final command in the script.
+	- Do not include other Slurm commands invocation within the script (e.g. scontrol, sinfo etc.)
+
+### 2. xpk shell | Slurm login node - download scripts, models and data sets:
 Through the xpk shell you can access the shared file system or edit files (e.g. when quick model changes are needed). It is the equivalent of the Slurm login node. To access the remote system use xpk shell command:
 
 python3 xpk.py shell \

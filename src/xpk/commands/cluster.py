@@ -242,14 +242,12 @@ def cluster_create(args) -> None:
     if update_cluster_command_code != 0:
       xpk_exit(update_cluster_command_code)
 
+  get_cluster_credentials(args)
+
   k8s_client = setup_k8s_env(args)
 
   install_storage_crd(k8s_client)
   install_storage_csis(args)
-
-  # Update Pathways clusters with CloudDNS if not enabled already.
-
-  get_cluster_credentials(args)
 
   # create Vertex Tensorboard for new and existing clusters if create-vertex-tensorboard is set
   tensorboard_config = {}

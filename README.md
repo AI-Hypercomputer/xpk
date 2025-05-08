@@ -70,77 +70,92 @@ XPK also supports [Google Cloud Storage solutions](#storage):
 * Vertex AI Administrator
 * Filestore Editor (This role is neccessary if you want to run `storage create` command with `--type=gcpfilestore`)
 
-# Prerequisites
+# Installation
 
-Following tools must be installed:
+There are 2 ways to install XPK:
 
-- python >= 3.10 (download from [here](https://www.python.org/downloads/))
-- pip ([installation instruction](https://pip.pypa.io/en/stable/installation/))
-- python venv ([installation instruction](https://virtualenv.pypa.io/en/latest/installation.html))
+- via Python package installer (`pip`),
+- clone from git and build from source.
+
+## Prerequisites
+
+The following tools must be installed:
+
+- python >= 3.10: download from [here](https://www.python.org/downloads/)
+- pip: [installation instructions](https://pip.pypa.io/en/stable/installation/)
+- python venv: [installation instructions](https://virtualenv.pypa.io/en/latest/installation.html)
 (all three of above can be installed at once from [here](https://packaging.python.org/en/latest/guides/installing-using-linux-tools/#installing-pip-setuptools-wheel-with-linux-package-managers))
-- gcloud (install from [here](https://cloud.google.com/sdk/gcloud#download_and_install_the))
+- gcloud: install from [here](https://cloud.google.com/sdk/gcloud#download_and_install_the) and afterwards:
   - Run `gcloud init` 
   - [Authenticate](https://cloud.google.com/sdk/gcloud/reference/auth/application-default/login) to Google Cloud
-- kubectl (install from [here](https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl#install_kubectl))
-  - Install `gke-gcloud-auth-plugin` from [here](https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl#install_plugin)
-- docker ([installation instruction](https://docs.docker.com/engine/install/))
+- kubectl: install from [here](https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl#install_kubectl) and afterwards install `gke-gcloud-auth-plugin` from [here](https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl#install_plugin)
+- docker: [installation instructions](https://docs.docker.com/engine/install/) and afterwards:
+  - Configure sudoless docker: [guide](https://docs.docker.com/engine/install/linux-postinstall/)
   - Run `gcloud auth configure-docker` to ensure images can be uploaded to registry 
-- make - please run below command.
-```shell
-# sudo may be required
-apt-get -y install make
-```
-In addition, below dependencies can be installed either using provided links or using `make install` command, if xpk is downloaded via `git clone` command:
-- kueuectl (install from [here](https://kueue.sigs.k8s.io/docs/reference/kubectl-kueue/installation/))
-- kjob (installation instructions [here](https://github.com/kubernetes-sigs/kjob/blob/main/docs/installation.md))
 
-# Installation
-To install xpk, install required tools mentioned in [prerequisites](#prerequisites). [Makefile](https://github.com/AI-Hypercomputer/xpk/blob/main/Makefile) provides a way to install all neccessary tools. XPK can be installed via pip:
+### Additional prerequisites when installing from pip
+
+- kueuectl: install from [here](https://kueue.sigs.k8s.io/docs/reference/kubectl-kueue/installation/)
+- kjob: installation instructions [here](https://github.com/kubernetes-sigs/kjob/blob/main/docs/installation.md)
+
+### Additional prerequisites when installing from source
+
+- git: [installation instructions](https://git-scm.com/downloads/linux)
+- make: install by running `apt-get -y install make` (`sudo` might be required)
+
+## Installation via pip
+
+To install XPK using pip, first install required tools mentioned in [prerequisites](#prerequisites) and [additional prerequisites](#additional-prerequisites-when-installing-from-pip). Then you can install XPK simply by running:
 
 ```shell
 pip install xpk
 ```
 
-If you see an error saying: `This environment is externally managed`, please use a virtual environment.
+If you see an error saying: `This environment is externally managed`, please use a virtual environment. For example:
 
 ```shell
-  ## One time step of creating the venv
-  VENV_DIR=~/venvp3
-  python3 -m venv $VENV_DIR
-  ## Enter your venv.
-  source $VENV_DIR/bin/activate
-  ## Clone the repository and installing dependencies.
-  pip install xpk
+# One time step of creating the virtual environment
+VENV_DIR=~/venvp3
+python3 -m venv $VENV_DIR
+
+# Activate your virtual environment
+source $VENV_DIR/bin/activate
+
+# Install XPK in virtual environment using pip
+pip install xpk
 ```
 
-If you are running XPK by cloning GitHub repository, first run the
-following commands to begin using XPK commands:
+## Installation from source
+
+To install XPK from source, first install required tools mentioned in [prerequisites](#prerequisites) and [additional prerequisites](#additional-prerequisites-when-installing-from-source). Afterwards you can install XPK from source using `make`
 
 ```shell
+# Clone the XPK repository
 git clone https://github.com/google/xpk.git
 cd xpk
-# Install required dependencies with make
+
+# Install required dependencies and build XPK with make
 make install && export PATH=$PATH:$PWD/bin
 ```
 
-If you want to have installed dependecies persist in your PATH please run:
-`echo $PWD/bin` and add its value to `PATH` in .bashrc  or .zshrc
+If you want the dependecies to be available in your PATH please run: `echo $PWD/bin` and add its value to `PATH` in .bashrc or .zshrc file.
 
-If you see an error saying: `This environment is externally managed`, please use a virtual environment.
-
-Example:
+If you see an error saying: `This environment is externally managed`, please use a virtual environment. For example:
 
 ```shell
-  ## One time step of creating the venv
-  VENV_DIR=~/venvp3
-  python3 -m venv $VENV_DIR
-  ## Enter your venv.
-  source $VENV_DIR/bin/activate
-  ## Clone the repository and installing dependencies.
-  git clone https://github.com/google/xpk.git
-  cd xpk
-  # Install required dependencies with make
-  make install && export PATH=$PATH:$PWD/bin
+# One time step of creating the virtual environment
+VENV_DIR=~/venvp3
+python3 -m venv $VENV_DIR
+
+# Activate your virtual environment
+source $VENV_DIR/bin/activate
+
+# Clone the XPK repository
+git clone https://github.com/google/xpk.git
+cd xpk
+
+# Install required dependencies and build XPK with make
+make install && export PATH=$PATH:$PWD/bin
 ```
 
 # XPK for Large Scale (>1k VMs)

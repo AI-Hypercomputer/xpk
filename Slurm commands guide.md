@@ -31,7 +31,7 @@ To recreate a usual Slurm setup, first prepare your environment by provisioning 
 	export COMPUTE_ZONE COMPUTE_ZONE
 	export PROJECT_ID PROJECT_ID
 	```
-2. Create a cluster using **cluster create** command and providing machine type and provisioning mode of your choice. 
+2. Create a cluster using `xpk cluster create` command and providing machine type and provisioning mode of your choice. 
 	```shell
 	python3 xpk.py cluster create
 	--cluster=$CLUSTER_NAME
@@ -46,12 +46,12 @@ To recreate a usual Slurm setup, first prepare your environment by provisioning 
  	```
  
 	Replace the following variables:
-	- DEVICE_TYPE: name of your machine
-	- NUM_NODES: number of worker nodes in the nodepool
-	- PROVISIONING MODE: provide provisioning mode of your choice. 
-	--enable-workload-identity and --enable-gcpfilestore-csi-driver options are not required but they will speed up shared file system creation in the next step.
+	- `DEVICE_TYPE`: name of your machine
+	- `NUM_NODES`: number of worker nodes in the nodepool
+	- `PROVISIONING MODE`: provide provisioning mode of your choice.\
+	`--enable-workload-identity` and `--enable-gcpfilestore-csi-driver` options are not required but they will speed up shared file system creation in the next step.
 
-3. Create storage using **xpk storage create** command. XPK supports attaching GCS Bucket and Filestore storages and creating Filestore storage. If you already have the storage, follow the instructions outlined in [Storage](https://github.com/AI-Hypercomputer/xpk/blob/main/README.md#storage.)
+3. Create storage using `xpk storage create` command. XPK supports attaching GCS Bucket and Filestore storages and creating Filestore storage. If you already have the storage, follow the instructions outlined in [Storage](https://github.com/AI-Hypercomputer/xpk/blob/main/README.md#storage.)
 	```shell
 	xpk storage create STORAGE_NAME
 	--project=$PROJECT_ID
@@ -67,7 +67,7 @@ To recreate a usual Slurm setup, first prepare your environment by provisioning 
 	--readonly=false \
 	 ```
 	Replace the following variables:
-	- STORAGE_NAME name of your storage
+	- `STORAGE_NAME` name of your storage
 	
  
 4. Initialize XPK configuration. You can customize the configuration based on your needs, like in the example of Llama 3 finetuning provided below:
@@ -91,10 +91,10 @@ python3 xpk.py config set batch-image pytorch/pytorch:2.6.0-cuda12.6-cudnn9-runt
 	3. Array job with a single task per job and single step per task.\
 	As a result, XPK runs script validation to ensure it executes only the above use cases.
 
-For successful script validation and later job execution, apply the following script updates:
-	- The number of steps in a task is limited to 1. Thus, ensure there is only one step in the job script, invoked by one srun invocation.
-	- Ensure there is only one srun invocation per script and it is the final command in the script.
-	- Do not include other Slurm commands invocation within the script (e.g. scontrol, sinfo etc.)
+For successful script validation and later job execution, apply the following script updates:\
+-- The number of steps in a task is limited to one. Thus, ensure there is only one step in the job script, invoked by one srun invocation.\
+-- Ensure there is only one srun invocation per script and it is the final command in the script.\
+-- Do not include other Slurm commands invocation within the script (e.g. scontrol, sinfo etc.)\
 
 ### 2. xpk shell | Slurm login node - download scripts, models and data sets:
 Through the xpk shell you can access the shared file system or edit files (e.g. when quick model changes are needed). It is the equivalent of the Slurm login node. To access the remote system use xpk shell command:
@@ -341,41 +341,27 @@ srun -n 1 my_program < $input_file
 ## Options
 Slurm like commands support the following Slurm-like options:
 
--a, --array 
-
-
---cpus-per-task
-how much cpus a container inside a pod requires.
--e, --error 
-where to redirect std error stream of a task.  If not passed it proceeds to stdout, and is available via kubectl logs.
---gpus-per-task
-how much gpus a container inside a pod requires.
-- -i, –input
-what to pipe into the script.
--J, --job-name=<jobname>
-what is the job name
- --mem-per-cpu
-how much memory a container requires, it multiplies the number of requested cpus per task by mem-per-cpu.
---mem-per-task
- how much memory a container requires.
--N, --nodes 
-number of pods to be used at a time - parallelism in indexed jobs.
--n, --ntasks
-number of identical containers inside of a pod, usually 1.
--o, --output 
-where to redirect the standard output stream of a task. If not passed it proceeds to stdout, and is available via kubectl logs.
--D, --chdir
-Change directory before executing the script.
---partition
- local queue name
-
-
+| Option | Description |
+| --- | --- |
+|-a, --array | array job  |
+| --cpus-per-task | how much cpus a container inside a pod requires. |
+|-e, --error | where to redirect std error stream of a task.  If not passed it proceeds to stdout, and is available via kubectl logs.|
+|--gpus-per-task | how much gpus a container inside a pod requires.|
+|- -i, –input | what to pipe into the script.|
+|-J, --job-name=<jobname> | what is the job name |
+| --mem-per-cpu | how much memory a container requires, it multiplies the number of requested cpus per task by mem-per-cpu.|
+|--mem-per-task | how much memory a container requires.|
+|-N, --nodes | number of pods to be used at a time - parallelism in indexed jobs.|
+|-n, --ntasks| number of identical containers inside of a pod, usually 1.|
+|-o, --output| where to redirect the standard output stream of a task. If not passed it proceeds to stdout, and is available via kubectl logs.|
+|-D, --chdir| Change directory before executing the script.|
+|--partition| local queue name|
 
 Flags can be passed as a part of command line or inside of the script using the following format:
-
-#SBATCH --job-name=array_job
-#SBATCH --output=array_job_%A_%a.out
-#SBATCH --error=array_job_%A_%a.err
+```
+#SBATCH --job-name=array_job\
+#SBATCH --output=array_job_%A_%a.out\
+#SBATCH --error=array_job_%A_%a.err\
 #SBATCH --array=1-22
-
+```
 Inline parameters (the ones provided in the CLI command) overwrite the parameters in the script.

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import argparse
+from argparse import ArgumentParser, BooleanOptionalAction
 
 from ..commands.storage import (
     storage_attach,
@@ -30,7 +30,7 @@ from .common import (
 )
 
 
-def set_storage_parser(storage_parser: argparse.ArgumentParser) -> None:
+def set_storage_parser(storage_parser: ArgumentParser) -> None:
   storage_subcommands = storage_parser.add_subparsers(
       title='storage subcommands',
       dest='xpk_storage_subcommands',
@@ -39,22 +39,31 @@ def set_storage_parser(storage_parser: argparse.ArgumentParser) -> None:
           ' specific subcommands for more details.'
       ),
   )
-  add_storage_attach_parser(storage_subcommands)
-  add_storage_list_parser(storage_subcommands)
-  add_storage_detach_parser(storage_subcommands)
-  add_storage_create_parser(storage_subcommands)
-  add_storage_delete_parser(storage_subcommands)
 
-
-def add_storage_attach_parser(
-    storage_subcommands_parser: argparse.ArgumentParser,
-) -> None:
-
-  storage_attach_parser: argparse.ArgumentParser = (
-      storage_subcommands_parser.add_parser(
-          'attach', help='attach XPK Storage.'
-      )
+  storage_attach_parser = storage_subcommands.add_parser(
+      'attach', help='Attach XPK Storage.'
   )
+  storage_create_parser = storage_subcommands.add_parser(
+      'create', help='Create XPK Storage.'
+  )
+  storage_delete_parser = storage_subcommands.add_parser(
+      'delete', help='Delete XPK Storage.'
+  )
+  storage_detach_parser = storage_subcommands.add_parser(
+      'detach', help='Detach XPK Storage.'
+  )
+  storage_list_parser = storage_subcommands.add_parser(
+      'list', help='List XPK Storages.'
+  )
+
+  set_storage_attach_parser(storage_attach_parser)
+  set_storage_create_parser(storage_create_parser)
+  set_storage_delete_parser(storage_delete_parser)
+  set_storage_detach_parser(storage_detach_parser)
+  set_storage_list_parser(storage_list_parser)
+
+
+def set_storage_attach_parser(storage_attach_parser: ArgumentParser) -> None:
   storage_attach_parser.set_defaults(func=storage_attach)
   req_args = storage_attach_parser.add_argument_group(
       'Required Arguments',
@@ -116,7 +125,7 @@ def add_storage_attach_parser(
   )
   gcsfuse_args.add_argument(
       '--prefetch-metadata',
-      action=argparse.BooleanOptionalAction,
+      action=BooleanOptionalAction,
       default=True,
       help=(
           '(optional) Enables metadata pre-population when'
@@ -171,14 +180,7 @@ def add_storage_attach_parser(
   add_kind_cluster_arguments(opt_args)
 
 
-def add_storage_create_parser(
-    storage_subcommands_parser: argparse.ArgumentParser,
-) -> None:
-  storage_create_parser: argparse.ArgumentParser = (
-      storage_subcommands_parser.add_parser(
-          'create', help='create XPK Storage.'
-      )
-  )
+def set_storage_create_parser(storage_create_parser: ArgumentParser) -> None:
   storage_create_parser.set_defaults(func=storage_create)
   req_args = storage_create_parser.add_argument_group(
       'Required Arguments',
@@ -272,12 +274,7 @@ def add_storage_create_parser(
   add_kind_cluster_arguments(opt_args)
 
 
-def add_storage_list_parser(
-    storage_subcommands_parser: argparse.ArgumentParser,
-):
-  storage_list_parser: argparse.ArgumentParser = (
-      storage_subcommands_parser.add_parser('list', help='List XPK Storages.')
-  )
+def set_storage_list_parser(storage_list_parser: ArgumentParser):
   storage_list_parser.set_defaults(func=storage_list)
   add_shared_arguments(storage_list_parser)
   req_args = storage_list_parser.add_argument_group(
@@ -290,14 +287,7 @@ def add_storage_list_parser(
   )
 
 
-def add_storage_detach_parser(
-    storage_subcommands_parser: argparse.ArgumentParser,
-):
-  storage_detach_parser: argparse.ArgumentParser = (
-      storage_subcommands_parser.add_parser(
-          'detach', help='Detach XPK Storage.'
-      )
-  )
+def set_storage_detach_parser(storage_detach_parser: ArgumentParser):
   storage_detach_parser.set_defaults(func=storage_detach)
   add_shared_arguments(storage_detach_parser)
 
@@ -315,14 +305,7 @@ def add_storage_detach_parser(
   add_kind_cluster_arguments(opt_args)
 
 
-def add_storage_delete_parser(
-    storage_subcommands_parser: argparse.ArgumentParser,
-):
-  storage_delete_parser: argparse.ArgumentParser = (
-      storage_subcommands_parser.add_parser(
-          'delete', help='Delete XPK Storage.'
-      )
-  )
+def set_storage_delete_parser(storage_delete_parser: ArgumentParser):
   storage_delete_parser.set_defaults(func=storage_delete)
   add_shared_arguments(storage_delete_parser)
 

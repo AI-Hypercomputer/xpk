@@ -14,7 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from argparse import Namespace
 from enum import Enum
 
 import yaml
@@ -22,6 +21,8 @@ from kubernetes import client as k8s_client
 from kubernetes.client import ApiClient
 from kubernetes.client.rest import ApiException
 
+from ..args.cluster import ClusterConfig
+from ..args.common import GlobalConfig
 from ..utils import templates
 from ..utils.console import xpk_exit, xpk_print
 from .capacity import H100_DEVICE_TYPE, H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE
@@ -169,7 +170,7 @@ Kueue_TAS_annotation = "kueue.x-k8s.io/podset-preferred-topology=cloud.google.co
 default_interface_annotation = "networking.gke.io/default-interface=eth0"
 
 
-def get_a4_pod_template_annotations(args) -> tuple[str, str]:
+def get_a4_pod_template_annotations(args: ClusterConfig) -> tuple[str, str]:
   sub_networks = get_cluster_subnetworks(args)
   interfaces_key, interfaces_value = rdma_decorator.get_interfaces_entry(
       sub_networks
@@ -181,7 +182,9 @@ def get_a4_pod_template_annotations(args) -> tuple[str, str]:
   )
 
 
-def get_a3ultra_pod_template_annotations(args: Namespace) -> tuple[str, str]:
+def get_a3ultra_pod_template_annotations(
+    args: ClusterConfig,
+) -> tuple[str, str]:
   sub_networks = get_cluster_subnetworks(args)
   interfaces_key, interfaces_value = rdma_decorator.get_interfaces_entry(
       sub_networks
@@ -194,7 +197,7 @@ def get_a3ultra_pod_template_annotations(args: Namespace) -> tuple[str, str]:
 
 
 def get_a3mega_pod_template_annotations(
-    args: Namespace,
+    args: ClusterConfig,
 ) -> tuple[str, str, str]:
   """Adds or updates annotations in the Pod template."""
   sub_networks = get_cluster_subnetworks(args)
@@ -207,7 +210,7 @@ def get_a3mega_pod_template_annotations(
   return tcpxo, interfaces, default_interface_annotation
 
 
-def verify_kjob_installed(args: Namespace) -> int:
+def verify_kjob_installed(args: GlobalConfig) -> int:
   """Check if kjob is installed. If not provide user with proper communicate and exit.
   Args:
     args - user provided arguments.
@@ -249,7 +252,7 @@ def get_pod_template_interactive_command() -> str:
 
 
 def create_app_profile_instance(
-    args: Namespace, volume_bundles: list[str]
+    args: GlobalConfig, volume_bundles: list[str]
 ) -> int:
   """Create new AppProfile instance on cluster with default settings.
 
@@ -284,7 +287,7 @@ def decorate_job_template_with_gpu(yml_string: str, gpu_type: str) -> str:
 
 
 def create_job_template_instance(
-    args: Namespace,
+    args: GlobalConfig,
     system: SystemCharacteristics | None,
     service_account: str,
 ) -> int:
@@ -337,7 +340,9 @@ def create_job_template_instance(
   )
 
 
-def create_pod_template_instance(args: Namespace, service_account: str) -> int:
+def create_pod_template_instance(
+    args: GlobalConfig, service_account: str
+) -> int:
   """Create new PodTemplate instance on cluster with default settings.
 
   Args:
@@ -367,7 +372,7 @@ def create_pod_template_instance(args: Namespace, service_account: str) -> int:
   )
 
 
-def prepare_kjob(args: Namespace) -> int:
+def prepare_kjob(args: ClusterConfig) -> int:
   system = get_cluster_system_characteristics(args)
 
   k8s_api_client = setup_k8s_env(args)
@@ -390,7 +395,7 @@ def prepare_kjob(args: Namespace) -> int:
   return create_app_profile_instance(args, volume_bundles)
 
 
-def apply_kjob_crds(args: Namespace) -> int:
+def apply_kjob_crds(args: GlobalConfig) -> int:
   """Apply kjob CRDs on cluster.
 
   This function install kjob CRDs files from kjobctl printcrds.
@@ -473,7 +478,7 @@ def create_volume_bundle_instance(
       xpk_exit(1)
 
 
-def get_storage_annotations(args: Namespace) -> list[str]:
+def get_storage_annotations(args: ClusterConfig) -> list[str]:
   annotations = []
   k8s_api_client = setup_k8s_env(args)
 

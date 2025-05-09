@@ -19,7 +19,6 @@ from google.cloud import resourcemanager_v3
 from kubernetes import client as k8s_client
 from kubernetes import config
 from kubernetes.client.exceptions import ApiException
-from .resources import get_cluster_system_characteristics
 
 from ..utils.console import xpk_exit, xpk_print
 from .capacity import H100_DEVICE_TYPE
@@ -28,8 +27,14 @@ from .commands import (
     run_command_with_updates,
     run_command_with_updates_retry,
 )
-from .gcloud_context import add_zone_and_project, get_gke_server_config, zone_to_region
+from .gcloud_context import (
+    add_zone_and_project,
+    get_gke_server_config,
+    zone_to_region,
+)
+from ..args.cluster import ClusterConfig
 from .nodepool import upgrade_gke_nodepools_version
+from .resources import get_cluster_system_characteristics
 from .system_characteristics import SystemCharacteristics
 
 JOBSET_VERSION = 'v0.8.0'
@@ -45,7 +50,7 @@ XPK_SA = 'xpk-sa'
 
 # TODO(vbarr): Remove this function when jobsets gets enabled by default on
 # GKE clusters.
-def set_jobset_on_cluster(args) -> int:
+def set_jobset_on_cluster(args: ClusterConfig) -> int:
   """Add jobset command on server side and ask user to verify it is created.
 
   Args:
@@ -74,7 +79,7 @@ def set_jobset_on_cluster(args) -> int:
   return return_code
 
 
-def set_pathways_job_on_cluster(args) -> int:
+def set_pathways_job_on_cluster(args: ClusterConfig) -> int:
   """Add PathwaysJob command on server side and ask user to verify it is created.
 
   Args:
@@ -103,7 +108,9 @@ def set_pathways_job_on_cluster(args) -> int:
   return return_code
 
 
-def install_nccl_on_cluster(args, system: SystemCharacteristics) -> int:
+def install_nccl_on_cluster(
+    args: ClusterConfig, system: SystemCharacteristics
+) -> int:
   """Install NCCL plugin on the cluster.
 
   Args:
@@ -144,7 +151,7 @@ def install_nccl_on_cluster(args, system: SystemCharacteristics) -> int:
   return 0
 
 
-def install_nri_on_cluster(args) -> int:
+def install_nri_on_cluster(args: ClusterConfig) -> int:
   """Install NRI Device Injector on the cluster.
 
   Args:
@@ -169,7 +176,7 @@ def install_nri_on_cluster(args) -> int:
   return 0
 
 
-def get_cluster_network(args) -> str:
+def get_cluster_network(args: ClusterConfig) -> str:
   xpk_print("Getting cluster's VPC network...")
   cluster_network_cmd = (
       'gcloud container clusters describe'
@@ -185,7 +192,9 @@ def get_cluster_network(args) -> str:
   return val.strip()
 
 
-def update_cluster_with_gcpfilestore_driver_if_necessary(args) -> int:
+def update_cluster_with_gcpfilestore_driver_if_necessary(
+    args: ClusterConfig,
+) -> int:
   """Updates a GKE cluster to enable GCPFilestore CSI driver, if not enabled already.
   Args:
     args: user provided arguments for running the command.
@@ -205,7 +214,9 @@ def update_cluster_with_gcpfilestore_driver_if_necessary(args) -> int:
   return 0
 
 
-def update_cluster_with_parallelstore_driver_if_necessary(args) -> int:
+def update_cluster_with_parallelstore_driver_if_necessary(
+    args: ClusterConfig,
+) -> int:
   """Updates a GKE cluster to enable Parallelstore CSI driver, if not enabled already.
   Args:
     args: user provided arguments for running the command.
@@ -224,7 +235,7 @@ def update_cluster_with_parallelstore_driver_if_necessary(args) -> int:
   return 0
 
 
-def update_cluster_with_pd_driver_if_necessary(args) -> int:
+def update_cluster_with_pd_driver_if_necessary(args: ClusterConfig) -> int:
   """Updates a GKE cluster to enable PersistentDisk CSI driver, if not enabled already.
   Args:
     args: user provided arguments for running the command.
@@ -245,7 +256,7 @@ def update_cluster_with_pd_driver_if_necessary(args) -> int:
   return 0
 
 
-def is_driver_enabled_on_cluster(args, driver: str) -> bool:
+def is_driver_enabled_on_cluster(args: ClusterConfig, driver: str) -> bool:
   """Checks if the CSI driver is enabled on the cluster.
   Args:
     args: user provided arguments for running the command.
@@ -271,7 +282,7 @@ def is_driver_enabled_on_cluster(args, driver: str) -> bool:
   return False
 
 
-def update_gke_cluster_with_addon(args, addon: str) -> int:
+def update_gke_cluster_with_addon(args: ClusterConfig, addon: str) -> int:
   """Run the GKE cluster update command for existing cluster and enabling passed addon.
   Args:
     args: user provided arguments for running the command.
@@ -295,7 +306,7 @@ def update_gke_cluster_with_addon(args, addon: str) -> int:
   return 0
 
 
-def get_all_clusters_programmatic(args) -> tuple[list[str], int]:
+def get_all_clusters_programmatic(args: ClusterConfig) -> tuple[list[str], int]:
   """Gets all the clusters associated with the project / region.
 
   Args:
@@ -319,6 +330,7 @@ def get_all_clusters_programmatic(args) -> tuple[list[str], int]:
   return raw_cluster_output.splitlines(), 0
 
 
+# TODO: remove this function when we move to only using Configs and not Namespaces, make it on-demand in GcloudConfig
 def project_id_to_project_number(project_id: str) -> str:
   client = resourcemanager_v3.ProjectsClient()
   request = resourcemanager_v3.GetProjectRequest()
@@ -336,17 +348,18 @@ def project_id_to_project_number(project_id: str) -> str:
   return str(parts[1])
 
 
-def setup_k8s_env(args) -> k8s_client.ApiClient:
+def setup_k8s_env(args: ClusterConfig) -> k8s_client.ApiClient:
   if not getattr(args, 'kind_cluster', False):
     add_zone_and_project(args)
     get_cluster_credentials(args)
+    # TODO: remove line below when we move to only using Configs and not Namespaces
     args.project_number = project_id_to_project_number(args.project)
 
   config.load_kube_config()
   return k8s_client.ApiClient()  # pytype: disable=bad-return-type
 
 
-def get_gpu_type_from_cluster(args) -> str:
+def get_gpu_type_from_cluster(args: ClusterConfig) -> str:
   system = get_cluster_system_characteristics(args)
   if not system is None:
     return system.device_type
@@ -371,7 +384,7 @@ def create_xpk_k8s_service_account() -> None:
     )
 
 
-def update_gke_cluster_with_clouddns(args) -> int:
+def update_gke_cluster_with_clouddns(args: ClusterConfig) -> int:
   """Run the GKE cluster update command for existing clusters and enable CloudDNS.
 
   Args:
@@ -399,7 +412,9 @@ def update_gke_cluster_with_clouddns(args) -> int:
   return 0
 
 
-def update_gke_cluster_with_workload_identity_enabled(args) -> int:
+def update_gke_cluster_with_workload_identity_enabled(
+    args: ClusterConfig,
+) -> int:
   """Run the GKE cluster update command for existing cluster and enable Workload Identity Federation.
   Args:
     args: user provided arguments for running the command.
@@ -426,7 +441,7 @@ def update_gke_cluster_with_workload_identity_enabled(args) -> int:
   return 0
 
 
-def update_gke_cluster_with_gcsfuse_driver_enabled(args) -> int:
+def update_gke_cluster_with_gcsfuse_driver_enabled(args: ClusterConfig) -> int:
   """Run the GKE cluster update command for existing cluster and enable GCSFuse CSI driver.
   Args:
     args: user provided arguments for running the command.
@@ -452,7 +467,9 @@ def update_gke_cluster_with_gcsfuse_driver_enabled(args) -> int:
   return 0
 
 
-def upgrade_gke_control_plane_version(args, default_rapid_gke_version) -> int:
+def upgrade_gke_control_plane_version(
+    args: ClusterConfig, default_rapid_gke_version: str
+) -> int:
   """Upgrade GKE cluster's control plane version before updating nodepools to use CloudDNS.
 
   Args:
@@ -485,7 +502,7 @@ def upgrade_gke_control_plane_version(args, default_rapid_gke_version) -> int:
   return 0
 
 
-def is_cluster_using_clouddns(args) -> bool:
+def is_cluster_using_clouddns(args: ClusterConfig) -> bool:
   """Checks if cluster is using CloudDNS.
   Args:
     args: user provided arguments for running the command.
@@ -509,7 +526,7 @@ def is_cluster_using_clouddns(args) -> bool:
   return False
 
 
-def is_workload_identity_enabled_on_cluster(args) -> bool:
+def is_workload_identity_enabled_on_cluster(args: ClusterConfig) -> bool:
   """Checks if Workload Identity Federation is enabled on the cluster.
   Args:
     args: user provided arguments for running the command.
@@ -537,7 +554,7 @@ def is_workload_identity_enabled_on_cluster(args) -> bool:
   return False
 
 
-def is_gcsfuse_driver_enabled_on_cluster(args) -> bool:
+def is_gcsfuse_driver_enabled_on_cluster(args: ClusterConfig) -> bool:
   """Checks if GCSFuse CSI driver is enabled on the cluster.
   Args:
     args: user provided arguments for running the command.
@@ -562,7 +579,7 @@ def is_gcsfuse_driver_enabled_on_cluster(args) -> bool:
   return False
 
 
-def update_cluster_with_clouddns_if_necessary(args) -> int:
+def update_cluster_with_clouddns_if_necessary(args: ClusterConfig) -> int:
   """Updates a GKE cluster to use CloudDNS, if not enabled already.
 
   Args:
@@ -607,7 +624,9 @@ def update_cluster_with_clouddns_if_necessary(args) -> int:
   return 0
 
 
-def update_cluster_with_workload_identity_if_necessary(args) -> int:
+def update_cluster_with_workload_identity_if_necessary(
+    args: ClusterConfig,
+) -> int:
   """Updates a GKE cluster to enable Workload Identity Federation, if not enabled already.
   Args:
     args: user provided arguments for running the command.
@@ -629,7 +648,7 @@ def update_cluster_with_workload_identity_if_necessary(args) -> int:
   return 0
 
 
-def update_cluster_with_gcsfuse_driver_if_necessary(args) -> int:
+def update_cluster_with_gcsfuse_driver_if_necessary(args: ClusterConfig) -> int:
   """Updates a GKE cluster to enable GCSFuse CSI driver, if not enabled already.
   Args:
     args: user provided arguments for running the command.
@@ -649,7 +668,7 @@ def update_cluster_with_gcsfuse_driver_if_necessary(args) -> int:
   return 0
 
 
-def get_cluster_credentials(args) -> None:
+def get_cluster_credentials(args: ClusterConfig) -> None:
   """Run cluster configuration command to set the kubectl config.
 
   Args:

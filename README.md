@@ -85,11 +85,12 @@ The following tools must be installed:
 - pip: [installation instructions](https://pip.pypa.io/en/stable/installation/)
 - python venv: [installation instructions](https://virtualenv.pypa.io/en/latest/installation.html)
 (all three of above can be installed at once from [here](https://packaging.python.org/en/latest/guides/installing-using-linux-tools/#installing-pip-setuptools-wheel-with-linux-package-managers))
-- gcloud: install from [here](https://cloud.google.com/sdk/gcloud#download_and_install_the) and afterwards:
+- gcloud: install from [here](https://cloud.google.com/sdk/gcloud#download_and_install_the) and then:
   - Run `gcloud init` 
   - [Authenticate](https://cloud.google.com/sdk/gcloud/reference/auth/application-default/login) to Google Cloud
-- kubectl: install from [here](https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl#install_kubectl) and afterwards install `gke-gcloud-auth-plugin` from [here](https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl#install_plugin)
-- docker: [installation instructions](https://docs.docker.com/engine/install/) and afterwards:
+- kubectl: install from [here](https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl#install_kubectl) and then:
+  - Install `gke-gcloud-auth-plugin` from [here](https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl#install_plugin)
+- docker: [installation instructions](https://docs.docker.com/engine/install/) and then:
   - Configure sudoless docker: [guide](https://docs.docker.com/engine/install/linux-postinstall/)
   - Run `gcloud auth configure-docker` to ensure images can be uploaded to registry 
 

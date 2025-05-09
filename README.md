@@ -1533,5 +1533,5 @@ python xpk.py batch [other-options] --kind-cluster script
 Please note that all other xpk subcommands are intended for use with cloud systems on Google Cloud Engine (GCE) and don't support local testing. This includes commands like cluster, info, inspector, etc.
 
 # Other advanced usage
-[Use a Jupyter notebook to interact with a Cloud TPU cluster](xpk-notebooks.md)
+[Use a Jupyter notebook to interact with a Cloud TPU cluster](xpk-notebooks.md) \
 [Use Slurm like commands in XPK to execute workloads on top of GKE](xpk-slurm-commands.md)

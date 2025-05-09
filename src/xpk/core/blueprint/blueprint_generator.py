@@ -52,20 +52,6 @@ cluster_toolkit_url = "github.com/GoogleCloudPlatform/cluster-toolkit"
 cluster_toolkit_version = "v1.48.0"
 
 
-def get_subnetworks_for_a3mega(cluster_name: str) -> list[str]:
-  return [f"{cluster_name}-gpunet-{i}-subnet" for i in range(8)]
-
-
-def get_subnetworks_for_a3ultra(cluster_name: str) -> list[str]:
-  return [f"{cluster_name}-sub-1"] + [
-      f"{cluster_name}-rdma-sub-{i}" for i in range(8)
-  ]
-
-
-def get_subnetworks_for_a4() -> list[str]:
-  return ["gvnic-1"] + [f"rdma-{i}" for i in range(8)]
-
-
 class BlueprintGeneratorOutput:
   """BlueprintGeneratorOutput is a class containing fields with output blueprint file path and path to blueprint dependencies.
   Atributes:

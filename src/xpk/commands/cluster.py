@@ -21,14 +21,15 @@ from ..core.cluster import (
     get_all_clusters_programmatic,
     get_cluster_credentials,
     install_nccl_on_cluster,
+    install_nri_on_cluster,
     set_jobset_on_cluster,
     set_pathways_job_on_cluster,
     setup_k8s_env,
-    update_cluster_with_gcsfuse_driver_if_necessary,
-    update_cluster_with_workload_identity_if_necessary,
     update_cluster_with_gcpfilestore_driver_if_necessary,
+    update_cluster_with_gcsfuse_driver_if_necessary,
     update_cluster_with_parallelstore_driver_if_necessary,
     update_cluster_with_pd_driver_if_necessary,
+    update_cluster_with_workload_identity_if_necessary,
 )
 from ..core.cluster_private import authorize_private_cluster_access_if_necessary
 from ..core.commands import run_command_for_value, run_command_with_updates
@@ -52,8 +53,12 @@ from ..core.network import (
     delete_cluster_subnets,
     set_up_cluster_network_for_a3,
 )
-from ..core.nodepool import get_gke_node_pool_version, run_gke_node_pool_create_command
+from ..core.nodepool import (
+    get_gke_node_pool_version,
+    run_gke_node_pool_create_command,
+)
 from ..core.ray import install_ray_cluster
+from ..core.mtc import install_mtc_on_cluster
 from ..core.resources import create_cluster_configmaps
 from ..core.storage import install_storage_crd
 from ..core.system_characteristics import (
@@ -263,10 +268,22 @@ def cluster_create(args) -> None:
     if install_nccl_code != 0:
       xpk_exit(install_nccl_code)
 
+  if system.device_type == H100_DEVICE_TYPE:
+    xpk_print('Installing NRI device injector for cluster')
+    install_nri_code = install_nri_on_cluster(args)
+    if install_nri_code != 0:
+      xpk_exit(install_nri_code)
+
   if args.enable_ray_cluster:
     return_code = install_ray_cluster(args, system)
     if return_code != 0:
       xpk_print('Installation of RayCluster failed.')
+      xpk_exit(return_code)
+
+  if hasattr(args, 'enable_mtc') and args.enable_mtc:
+    return_code = install_mtc_on_cluster(args, system)
+    if return_code != 0:
+      xpk_print('Installation of MTC failed.')
       xpk_exit(return_code)
 
   xpk_print('GKE commands done! Resources are created.')
@@ -805,6 +822,7 @@ def run_gke_cluster_create_command(
   addons = []
   if args.enable_gcsfuse_csi_driver:
     addons.append('GcsFuseCsiDriver')
+
   if args.enable_gcpfilestore_csi_driver:
     addons.append('GcpFilestoreCsiDriver')
 
@@ -813,6 +831,9 @@ def run_gke_cluster_create_command(
 
   if args.enable_pd_csi_driver:
     addons.append('GcePersistentDiskCsiDriver')
+
+  if hasattr(args, 'enable_mtc') and args.enable_mtc:
+    addons.append('HighScaleCheckpointing')
 
   if len(addons) > 0:
     addons_str = ','.join(addons)

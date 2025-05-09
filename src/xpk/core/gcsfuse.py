@@ -20,11 +20,21 @@ FUSE_PV_PATH = "/../templates/fuse-pv.yaml"
 FUSE_PVC_PATH = "/../templates/fuse-pvc.yaml"
 
 
-def create_pv(name: str, size: int, bucket: str, mount_options: str) -> dict:
+def create_pv(
+    name: str,
+    size: int,
+    bucket: str,
+    mount_options: str,
+    prefetch_metadata: bool,
+) -> dict:
   data = templates.load(FUSE_PV_PATH)
   data["metadata"]["name"] = f"{name}-pv"
   data["spec"]["capacity"]["storage"] = f"{size}Gi"
   data["spec"]["csi"]["volumeHandle"] = bucket
+  if prefetch_metadata:
+    data["spec"]["csi"]["volumeAttributes"][
+        "gcsfuseMetadataPrefetchOnMount"
+    ] = "true"
   data["spec"]["mountOptions"] = mount_options.split(",")
   return data
 
@@ -38,16 +48,24 @@ def create_pvc(name: str, size: int) -> dict:
 
 
 def manifest(
-    name: str, bucket: str, size: int, mount_options: str
+    name: str,
+    bucket: str,
+    size: int,
+    mount_options: str,
+    prefetch_metadata: bool,
 ) -> list[dict]:
-  """Creates GCS FUSE manifest file.
+  """Creates GCS FUSE storage manifest file.
 
   Args:
       name (str): base name of the volumes
       bucket (str): name of the storage bucket
       size (str): size of the storage (in GB)
+      prefetch_metadata (bool): if set, then enables metadata pre-population when mounting the volume
       mount_options (str): comma-separated list of mountOptions for PersistentVolume
+
+  Returns:
+      list[dict]: list of manifests
   """
-  pv = create_pv(name, size, bucket, mount_options)
+  pv = create_pv(name, size, bucket, mount_options, prefetch_metadata)
   pvc = create_pvc(name, size)
   return [pv, pvc]

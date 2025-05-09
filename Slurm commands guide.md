@@ -20,6 +20,22 @@ XPK enables intuitive workload scheduling for ML researchers by offering Slurm-l
 
 This document provides a guide to fine-tuning Large Language Models (LLMs) using XPK Slurm Like commands. By leveraging the power of XPK and adapting its familiar Slurm command structures, users can efficiently train and optimize LLMs for specific use cases.
 
+Slurm - XPK commands mapping:
+
+| Slurm command | XPK command |
+| --- | --- |
+|Slurm login node| xpk shell |
+|srun |xpk run  |
+|sbatch |xpk batch |
+|squeue |xpk job ls |
+|scancel |xpk job cancel |
+|sacct |xpk job info |
+|sinfo |xpk info|
+|Array jobs| See [Array jobs](https://github.com/kzmyslona/xpk/edit/patch-2/Slurm%20commands%20guide.md#options) |
+|Options |See [Options](https://github.com/kzmyslona/xpk/edit/patch-2/Slurm%20commands%20guide.md#options)|
+
+
+
 ## Set up the environment
 
 To recreate a usual Slurm setup, first prepare your environment by provisioning the cluster and creating and attaching storage. 
@@ -27,11 +43,15 @@ To recreate a usual Slurm setup, first prepare your environment by provisioning 
 1. Export the variables for easier commands manipulation:
 
 	```shell
-	export CLUSTER_NAME CLUSTER_NAME
-	export COMPUTE_ZONE COMPUTE_ZONE
-	export PROJECT_ID PROJECT_ID
+	export CLUSTER_NAME="CLUSTER NAME"
+	export COMPUTE_ZONE="COMPUTE ZONE"
+	export PROJECT_ID="PROJECT ID"
 	```
-2. Create a cluster using `xpk cluster create` command and providing machine type and provisioning mode of your choice. 
+ 	Replace the following variables:
+	- `CLUSTER NAME` - name of your cluster
+ 	- `COMPUTE ZONE `- compute zone the cluster is at
+  	- `PROJECT ID`- id of your project
+3. Create a cluster using `xpk cluster create` command and providing machine type and provisioning mode of your choice. 
 	```shell
 	python3 xpk.py cluster create
 	--cluster=$CLUSTER_NAME
@@ -51,7 +71,7 @@ To recreate a usual Slurm setup, first prepare your environment by provisioning 
 	- `PROVISIONING MODE`: provide provisioning mode of your choice.\
 	`--enable-workload-identity` and `--enable-gcpfilestore-csi-driver` options are not required but they will speed up shared file system creation in the next step.
 
-3. Create storage using `xpk storage create` command. XPK supports attaching GCS Bucket and Filestore storages and creating Filestore storage. If you already have the storage, follow the instructions outlined in [Storage](https://github.com/AI-Hypercomputer/xpk/blob/main/README.md#storage.)
+4. Create storage using `xpk storage create` command. XPK supports attaching GCS Bucket and Filestore storages and creating Filestore storage. If you already have the storage, follow the instructions outlined in [Storage](https://github.com/AI-Hypercomputer/xpk/blob/main/README.md#storage.)
 	```shell
 	xpk storage create STORAGE_NAME
 	--project=$PROJECT_ID
@@ -70,7 +90,7 @@ To recreate a usual Slurm setup, first prepare your environment by provisioning 
 	- `STORAGE_NAME` name of your storage
 	
  
-4. Initialize XPK configuration. You can customize the configuration based on your needs, like in the example of Llama 3 finetuning provided below:
+5. Initialize XPK configuration. You can customize the configuration based on your needs, like in the example of Llama 3 finetuning provided below:
 
 ```shell
 python3 xpk.py config set shell-interactive-command /bin/bash
@@ -83,18 +103,18 @@ python3 xpk.py config set batch-image pytorch/pytorch:2.6.0-cuda12.6-cudnn9-runt
 ## Prepare and upload scripts
 
 ### 1. Prepare scripts
-   This section specifies the changes needed for Slurm scripts used for batch executions for slurm-like commands in XPK.	
+This section specifies the changes needed for Slurm scripts used for batch executions for slurm-like commands in XPK.	
 	
- Currently xpk batch supports the following cases:\
-	1. Batch job with a single task and single step per task.\
-	2. Batch job with multiple parallel tasks and single step per task.\
-	3. Array job with a single task per job and single step per task.\
-	As a result, XPK runs script validation to ensure it executes only the above use cases.
+Currently xpk batch supports the following Slurm script cases:
+1. Batch job with a single task and single step per task.
+2. Batch job with multiple parallel tasks and single step per task.
+3. Array job with a single task per job and single step per task.
+As a result, XPK runs script validation to ensure it executes only the above use cases.
 
-For successful script validation and later job execution, apply the following script updates:\
--- The number of steps in a task is limited to one. Thus, ensure there is only one step in the job script, invoked by one srun invocation.\
--- Ensure there is only one srun invocation per script and it is the final command in the script.\
--- Do not include other Slurm commands invocation within the script (e.g. scontrol, sinfo etc.)\
+For successful script validation and later job execution, apply the following script updates:
+- The number of steps in a task is limited to one. Thus, ensure there is only one step in the job script, invoked by one srun invocation.
+- Ensure there is only one srun invocation per script and it is the final command in the script.
+- Do not include other Slurm commands invocation within the script (e.g. scontrol, sinfo etc.).
 
 ### 2. xpk shell | Slurm login node - download scripts, models and data sets:
 Through the xpk shell you can access the shared file system or edit files (e.g. when quick model changes are needed). It is the equivalent of the Slurm login node. To access the remote system use xpk shell command:

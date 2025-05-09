@@ -53,16 +53,16 @@ To recreate a usual Slurm setup, first prepare your environment by provisioning 
   	- `PROJECT ID`- id of your project
 3. Create a cluster using `xpk cluster create` command and providing machine type and provisioning mode of your choice. 
 	```shell
-	python3 xpk.py cluster create
-	--cluster=$CLUSTER_NAME
-	--zone=$COMPUTE_ZONE
-	--project=$PROJECT_ID
-	--device-type=DEVICE_TYPE
-	--num-nodes=NUM_NODES
-	--PROVISIONING MODE
-	--enable-workload-identity 
-	--enable-gcpfilestore-csi-driver 
-	--default-pool-cpu-num-nodes=2
+	python3 xpk.py cluster create \
+	--cluster=$CLUSTER_NAME \
+	--zone=$COMPUTE_ZONE \
+	--project=$PROJECT_ID \
+	--device-type=DEVICE_TYPE \
+	--num-nodes=NUM_NODES \
+	--PROVISIONING MODE \
+	--enable-workload-identity  \
+	--enable-gcpfilestore-csi-driver  \
+	--default-pool-cpu-num-nodes=2 
  	```
  
 	Replace the following variables:
@@ -73,10 +73,10 @@ To recreate a usual Slurm setup, first prepare your environment by provisioning 
 
 4. Create storage using `xpk storage create` command. XPK supports attaching GCS Bucket and Filestore storages and creating Filestore storage. If you already have the storage, follow the instructions outlined in [Storage](https://github.com/AI-Hypercomputer/xpk/blob/main/README.md#storage.)
 	```shell
-	xpk storage create STORAGE_NAME
-	--project=$PROJECT_ID
-	--zone=$COMPUTE_ZONE
-	--cluster=$CLUSTER_NAME
+	xpk storage create STORAGE_NAME \
+	--project=$PROJECT_ID \
+	--zone=$COMPUTE_ZONE \
+	--cluster=$CLUSTER_NAME \
 	--type=gcpfilestore \
 	--size=1024 \
 	--access-mode=ReadWriteMany \
@@ -84,7 +84,7 @@ To recreate a usual Slurm setup, first prepare your environment by provisioning 
 	--tier=REGIONAL \
 	--mount-point /home \
 	--auto-mount=true \
-	--readonly=false \
+	--readonly=false 
 	 ```
 	Replace the following variables:
 	- `STORAGE_NAME` name of your storage
@@ -223,27 +223,23 @@ python3 xpk.py shell stop \
 --project $PROJECT \
 --zone $ZONE \
 --cluster $CLUSTER
-Delete shared storage
-python3 xpk.py storage delete \
---project $PROJECT \
---zone $ZONE \
---cluster $CLUSTER
-[cluster]
-Delete XPK cluster
-python3 xpk.py cluster delete \
---project $PROJECT \
---zone $ZONE \
---cluster $CLUSTER
 ```
+
 ### 2. Delete shared storage
 ```shell
 python3 xpk.py storage delete \
 --project $PROJECT \
 --zone $ZONE \
 --cluster $CLUSTER
-[cluster]
 ```
 
+### 3. Delete XPK cluster
+```shell
+python3 xpk.py cluster delete \
+--project $PROJECT \
+--zone $ZONE \
+--cluster $CLUSTER
+```
 # More Slurm mode features:
 
 ## Job management - check the status of your job
@@ -268,7 +264,6 @@ xpk-def-app-profile-slurm-fz5z8   xpk-def-app-profile   multislice-queue   1/1  
 If you want to cancel a job, use xpk cancel and provide the job id you wish to cancel.
 ```shell
 xpk cancel <job_id>
-Observability  - check the details of your job
 ```
 
 ### 3. xpk job info | sacct
@@ -281,7 +276,7 @@ python3 xpk.py job info JOB NAME \
 ```
 
 The expected output should look like this:
-```shell
+```
 Job name: xpk-def-app-profile-slurm-6s6ff
 Script name: ./job.sh
 Profile: default_xpk-def-app-profile
@@ -328,7 +323,7 @@ Entrypoint environment variables template:
 ### 4. xpk info | sinfo
 To monitor the status of queues, use xpk info command, which will provide an overview of the local and cluster queues as well as their status. 
 
-```shell
+```
 [XPK] Local Queues usage 
 QUEUE               ADMITTED_WORKLOADS    PENDING_WORKLOADS  2xv4-8:google.com/tpu
 multislice-queue                     0                    0  0/8
@@ -342,7 +337,7 @@ cluster-queue
 Slurm mode in XPK supports execution of array jobs, provided that the job scripts follow the requirements described in section Prepare your scripts . 
 The script example below defines an array job named array_job with ten jobs (indices 1 through 10), each job using one task with one CPU and 4 GB of memory. The job runs in the compute partition with a wall time limit of one hour. Output for each job is directed to a file named array_job_%A_%a.out, where %A is the job ID and %a is the array index. Within each job, the SLURM_ARRAY_TASK_ID variable is used to construct an input file name, and srun executes my_program with one task and input from the corresponding file.
 
-```shell
+```bash
 #!/bin/bash
 #SBATCH --job-name=array_job
 #SBATCH --array=1-10

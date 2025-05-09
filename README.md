@@ -1534,3 +1534,4 @@ Please note that all other xpk subcommands are intended for use with cloud syste
 
 # Other advanced usage
 [Use a Jupyter notebook to interact with a Cloud TPU cluster](xpk-notebooks.md)
+[Use Slurm like commands in XPK to execute workloads on top of GKE](Slurm commands guide.md)

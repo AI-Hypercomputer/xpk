@@ -15,8 +15,8 @@ limitations under the License.
 """
 
 import argparse
-from ..commands.job import job_info, job_list, job_cancel
 
+from ..commands.job import job_cancel, job_info, job_list
 from .common import add_shared_arguments
 from .validators import name_type
 

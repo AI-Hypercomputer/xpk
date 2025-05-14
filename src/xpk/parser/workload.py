@@ -208,15 +208,25 @@ def set_workload_parsers(workload_parser):
       help=(
           'Sets autoprovisioning to use reservation resources for the workload'
           ' request. This will attempt to find the provided reservation. See'
-          ' `--spot` or `--on-demand` for other capacity types.'
+          ' `--spot`, `--flex-start` or `--on-demand` for other capacity types.'
       ),
   )
   workload_create_autoprovisioning_arguments.add_argument(
       '--spot',
       action='store_true',
       help=(
-          'Sets autoprovisioning to use spot resources.'
-          ' See `--reservation` or `--on-demand` for other capacity types.'
+          'Sets autoprovisioning to use spot resources. See `--reservation`,'
+          ' `--flex-start` or `--on-demand` for other capacity types.'
+      ),
+  )
+
+  workload_create_autoprovisioning_arguments.add_argument(
+      '--flex-start',
+      action='store_true',
+      help=(
+          'Sets autoprovisioning to use flex-start resources. See'
+          ' `--reservation`, `--spot` or `--on-demand` for other capacity'
+          ' types.'
       ),
   )
 

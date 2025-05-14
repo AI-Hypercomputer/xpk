@@ -212,7 +212,7 @@ spec:
             metadata:
               labels:
                 xpk.google.com/workload: {args.workload}
-              annotations:
+              annotations: {annotations}
                 kueue.x-k8s.io/podset-preferred-topology: "cloud.google.com/gce-topology-host"
             spec:
               priorityClassName: {args.priority}
@@ -446,7 +446,14 @@ def workload_create(args) -> None:
     )
     if return_code != 0:
       xpk_exit(return_code)
-
+    annotations = (
+        ''
+        if args.flex_start
+        else (
+            'kueue.x-k8s.io/podset-preferred-topology:'
+            ' "cloud.google.com/gce-topology-host"'
+        )
+    )
     if system.device_type in cluster_gcluster.supported_device_types:
       yml_string = A3_GPU_WORKLOAD_CREATE_YAML.format(
           args=args,
@@ -454,6 +461,7 @@ def workload_create(args) -> None:
           service_account=XPK_SA,
           failure_policy_rules=failure_policy_rules,
           pod_failure_policy=pod_failure_policy,
+          annotations=annotations,
       )
 
       sub_networks = get_cluster_subnetworks(args)

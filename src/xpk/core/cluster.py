@@ -33,7 +33,7 @@ from .nodepool import upgrade_gke_nodepools_version
 from .system_characteristics import SystemCharacteristics
 
 JOBSET_VERSION = 'v0.8.0'
-PATHWAYS_JOB_VERSION = 'v0.1.0'
+PATHWAYS_JOB_VERSION = 'v0.1.1'
 INSTALLER_NCC_TCPX = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpx/nccl-tcpx-installer.yaml'
 INSTALLER_NCC_TCPXO = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpxo/nccl-tcpxo-installer.yaml'
 CONFIG_NCCL_TCPX = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpx/nccl-config.yaml'

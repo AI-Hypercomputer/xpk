@@ -70,12 +70,6 @@ deployment_groups:
         gvnic_postfix: "-subnet"
         gvnic_start_index: 0
     outputs: [instructions]
-  - !DeploymentModule
-    id: group_placement_0
-    source: modules/compute/resource-policy
-    settings:
-      name: bar-gp-np-0
-      group_placement_max_distance: 2
 
   - !DeploymentModule
     id: a3_megagpu_pool_0
@@ -128,3 +122,10 @@ deployment_groups:
           capacity_type: "reservation",
           reservation: "test-reservation",
           }
+
+  - !DeploymentModule
+    id: group_placement_0
+    source: modules/compute/resource-policy
+    settings:
+      name: bar-gp-np-0
+      group_placement_max_distance: 2

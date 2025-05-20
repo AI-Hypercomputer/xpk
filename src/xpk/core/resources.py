@@ -236,3 +236,24 @@ def get_cluster_system_characteristics(args) -> SystemCharacteristics | None:
       return system
 
   return None
+
+
+def get_cluster_capacity_type(args) -> CapacityType | None:
+  """Get systemCharcteristics based on the cluster resources configMap
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    returns system characteristics
+  """
+  metadata_configmap_name = f'{args.cluster}-{CLUSTER_METADATA_CONFIGMAP}'
+  cluster_config_map = get_cluster_configmap(args, metadata_configmap_name)
+
+  if cluster_config_map is None:
+    return None
+
+  capacityValue = cluster_config_map.get('capacity_type')
+  if capacityValue is not None:
+    return CapacityType[capacityValue]
+
+  return None

@@ -180,7 +180,7 @@ class BlueprintGenerator:
     a3_megagpu_pool_0 = DeploymentModule(
         id="a3_megagpu_pool_0",
         source="modules/compute/gke-node-pool",
-        use=["gke_cluster", gpu_subnets_name, "group_placement_0"],
+        use=["gke_cluster", gpu_subnets_name],
         settings={
             "name": f"{cluster_name}-a3-megagpu-pool-0",
             "machine_type": system.gce_machine_type,
@@ -243,12 +243,17 @@ class BlueprintGenerator:
             primary_vpc,
             gpunets,
             gke_cluster,
-            group_placement_0,
             a3_megagpu_pool_0,
             workload,
             workload_configmap,
         ],
     )
+
+    set_placement_policy = capacity_type != CapacityType.SPOT
+    if set_placement_policy:
+      a3_megagpu_pool_0.use.append(group_placement_0.id)
+      primary_group.modules.append(group_placement_0)
+
     a3_mega_blueprint = Blueprint(
         terraform_backend_defaults=self._getblock_terraform_backend(
             gcs_bucket, cluster_name, prefix

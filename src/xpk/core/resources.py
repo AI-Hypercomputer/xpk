@@ -254,6 +254,6 @@ def get_cluster_capacity_type(args) -> CapacityType | None:
 
   capacityValue = cluster_config_map.get('capacity_type')
   if capacityValue is not None:
-    return CapacityType[capacityValue]
+    return CapacityType[capacityValue.upper()]
 
   return None

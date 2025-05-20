@@ -197,6 +197,9 @@ class BlueprintGenerator:
         },
         outputs=["instructions"],
     )
+
+    set_placement_policy = capacity_type != CapacityType.SPOT
+    tas_name = "topologyName: 'gke-default'" if set_placement_policy else ""
     num_chips = num_nodes * system.chips_per_vm
     workload = DeploymentModule(
         id="workload_component_install",
@@ -207,7 +210,10 @@ class BlueprintGenerator:
                 "install": True,
                 "version": "v0.10.0",  # TAS feature-gates is enabled in CT
                 "config_path": f'$(ghpc_stage("{blueprint_name}"))/kueue-xpk-configuration.yaml.tftpl',
-                "config_template_vars": {"num_chips": num_chips},
+                "config_template_vars": {
+                    "num_chips": num_chips,
+                    "tas_name": tas_name,
+                },
             },
             "jobset": {"install": True, "version": "v0.7.2"},
             "apply_manifests": [{
@@ -249,7 +255,6 @@ class BlueprintGenerator:
         ],
     )
 
-    set_placement_policy = capacity_type != CapacityType.SPOT
     if set_placement_policy:
       a3_megagpu_pool_0.use.append(group_placement_0.id)
       primary_group.modules.append(group_placement_0)

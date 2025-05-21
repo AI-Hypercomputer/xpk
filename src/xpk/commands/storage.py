@@ -14,23 +14,27 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from argparse import Namespace
-
 import yaml
 from kubernetes import client as k8s_client
 from kubernetes.client import ApiClient
 from kubernetes.client.rest import ApiException
 
+from ..args.storage import (
+    StorageAttachArgs,
+    StorageCreateArgs,
+    StorageDeleteArgs,
+    StorageDetachArgs,
+    StorageListArgs,
+)
 from ..core import gcsfuse
 from ..core.cluster import (
     DEFAULT_NAMESPACE,
-    add_zone_and_project,
     get_cluster_network,
     setup_k8s_env,
-    update_cluster_with_parallelstore_driver_if_necessary,
-    update_cluster_with_pd_driver_if_necessary,
     update_cluster_with_gcpfilestore_driver_if_necessary,
     update_cluster_with_gcsfuse_driver_if_necessary,
+    update_cluster_with_parallelstore_driver_if_necessary,
+    update_cluster_with_pd_driver_if_necessary,
     update_cluster_with_workload_identity_if_necessary,
 )
 from ..core.filestore import FilestoreClient, get_storage_class_name
@@ -41,9 +45,9 @@ from ..core.kjob import (
     create_volume_bundle_instance,
 )
 from ..core.storage import (
+    GCE_PD_TYPE,
     GCP_FILESTORE_TYPE,
     GCS_FUSE_TYPE,
-    GCE_PD_TYPE,
     PARALLELSTORE_TYPE,
     STORAGE_CRD_PLURAL,
     XPK_API_GROUP_NAME,
@@ -58,8 +62,7 @@ from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.kubectl import apply_kubectl_manifest
 
 
-def storage_create(args: Namespace) -> None:
-  add_zone_and_project(args)
+def storage_create(args: StorageCreateArgs) -> None:
   if args.type == GCP_FILESTORE_TYPE:
     if args.instance is None:
       args.instance = args.name
@@ -103,8 +106,7 @@ def storage_create(args: Namespace) -> None:
     apply_kubectl_manifest(k8s_api_client, manifest)
 
 
-def storage_delete(args: Namespace) -> None:
-  add_zone_and_project(args)
+def storage_delete(args: StorageDeleteArgs) -> None:
   k8s_api_client = setup_k8s_env(args)
   storages = list_storages(k8s_api_client)
   filestore_client = FilestoreClient(args.zone, args.name, args.project)
@@ -137,8 +139,7 @@ def storage_delete(args: Namespace) -> None:
   filestore_client.delete_filestore_instance()
 
 
-def storage_attach(args: Namespace) -> None:
-  add_zone_and_project(args)
+def storage_attach(args: StorageAttachArgs) -> None:
   manifest = [{}]
   if args.type == GCP_FILESTORE_TYPE:
     if args.instance is None:
@@ -209,7 +210,7 @@ def storage_attach(args: Namespace) -> None:
   apply_kubectl_manifest(k8s_api_client, manifest)
 
 
-def enable_csi_drivers_if_necessary(args: Namespace) -> None:
+def enable_csi_drivers_if_necessary(args: StorageAttachArgs) -> None:
   if args.type == GCS_FUSE_TYPE:
     return_code = update_cluster_with_workload_identity_if_necessary(args)
     if return_code > 0:
@@ -235,13 +236,13 @@ def enable_csi_drivers_if_necessary(args: Namespace) -> None:
       xpk_exit(return_code)
 
 
-def storage_list(args: Namespace) -> None:
+def storage_list(args: StorageListArgs) -> None:
   k8s_api_client = setup_k8s_env(args)
   storages = list_storages(k8s_api_client)
   print_storages_for_cluster(storages)
 
 
-def storage_detach(args: Namespace) -> None:
+def storage_detach(args: StorageDetachArgs) -> None:
   k8s_api_client = setup_k8s_env(args)
   storage = get_storage(k8s_api_client, args.name)
   delete_storage_resources(k8s_api_client, storage)

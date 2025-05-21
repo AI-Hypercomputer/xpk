@@ -89,6 +89,7 @@ from ..core.workload_decorators import (
 )
 from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
+from .common import is_TAS_possible
 from . import cluster_gcluster
 
 WORKLOAD_CREATE_YAML = """apiVersion: jobset.x-k8s.io/v1alpha2
@@ -213,7 +214,7 @@ spec:
               labels:
                 xpk.google.com/workload: {args.workload}
               annotations:
-                kueue.x-k8s.io/podset-preferred-topology: "cloud.google.com/gce-topology-host"
+                {kueue_TAS_annotation}
             spec:
               priorityClassName: {args.priority}
               restartPolicy: Never
@@ -447,6 +448,13 @@ def workload_create(args) -> None:
     if return_code != 0:
       xpk_exit(return_code)
 
+    kueue_TAS_annotation = (
+        'kueue.x-k8s.io/podset-preferred-topology:'
+        ' "cloud.google.com/gce-topology-host"'
+    )
+    if not is_TAS_possible(args):
+      kueue_TAS_annotation = ''
+
     if system.device_type in cluster_gcluster.supported_device_types:
       yml_string = A3_GPU_WORKLOAD_CREATE_YAML.format(
           args=args,
@@ -454,6 +462,7 @@ def workload_create(args) -> None:
           service_account=XPK_SA,
           failure_policy_rules=failure_policy_rules,
           pod_failure_policy=pod_failure_policy,
+          kueue_TAS_annotation=kueue_TAS_annotation,
       )
 
       sub_networks = get_cluster_subnetworks(args)

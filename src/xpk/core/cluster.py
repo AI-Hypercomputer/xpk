@@ -617,14 +617,14 @@ def update_cluster_with_workload_identity_if_necessary(args) -> int:
 
   if is_workload_identity_enabled_on_cluster(args):
     return 0
-  cluster_update_return_code = (
-      update_gke_cluster_with_workload_identity_enabled(args)
-  )
-  if cluster_update_return_code > 0:
-    xpk_print(
-        'Updating GKE cluster to enable Workload Identity Federation failed!'
-    )
-    return cluster_update_return_code
+  # cluster_update_return_code = (
+  #     update_gke_cluster_with_workload_identity_enabled(args)
+  # )
+  # if cluster_update_return_code > 0:
+  #   xpk_print(
+  #       'Updating GKE cluster to enable Workload Identity Federation failed!'
+  #   )
+  #   return cluster_update_return_code
 
   return 0
 

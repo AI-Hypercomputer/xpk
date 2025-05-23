@@ -529,6 +529,12 @@ def add_shared_cluster_create_optional_arguments(parser: ArgumentParser):
       help='The CPU type for Pathways CPU nodepools',
   )
   parser.add_argument(
+      '--pathways-highmem-gce-machine-type',
+      type=str,
+      default='c4-highmem-192',
+      help='The highmem CPU type for Pathways CPU nodepools',
+  )
+  parser.add_argument(
       '--default-pool-cpu-machine-type',
       type=str,
       default='e2-standard-16',

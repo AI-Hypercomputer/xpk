@@ -96,9 +96,8 @@ def cluster_adapt(args) -> None:
   )
   add_zone_and_project(args)
 
-  if (
-      system.accelerator_type == AcceleratorType['GPU']
-      and 'num_nodes' not in args
+  if system.accelerator_type == AcceleratorType['GPU'] and not getattr(
+      args, 'num_nodes'
   ):
     xpk_print(
         'Argument --num-nodes was not provided, trying to determine number of'

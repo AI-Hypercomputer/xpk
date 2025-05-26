@@ -14,55 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import subprocess
-import sys
 from dataclasses import dataclass
 
 from ..utils.console import xpk_print
 from .commands import run_command_for_value
+from ..args.gcloud_context import GcloudConfig, get_project, get_zone
 
 
-def get_project():
-  """Get GCE project from `gcloud config get project`.
-
-  Returns:
-     The project name.
-  """
-  completed_command = subprocess.run(
-      ['gcloud', 'config', 'get', 'project'], check=True, capture_output=True
-  )
-  project_outputs = completed_command.stdout.decode().strip().split('\n')
-  if len(project_outputs) < 1 or project_outputs[-1] == '':
-    sys.exit(
-        'You must specify the project in the project flag or set it with'
-        " 'gcloud config set project <project>'"
-    )
-  return project_outputs[
-      -1
-  ]  # The project name lives on the last line of the output
-
-
-def get_zone():
-  """Get GCE zone from `gcloud config get compute/zone`.
-
-  Returns:
-     The zone name.
-  """
-  completed_command = subprocess.run(
-      ['gcloud', 'config', 'get', 'compute/zone'],
-      check=True,
-      capture_output=True,
-  )
-  zone_outputs = completed_command.stdout.decode().strip().split('\n')
-  if len(zone_outputs) < 1 or zone_outputs[-1] == '':
-    sys.exit(
-        "You must specify the zone in the zone flag or set it with 'gcloud"
-        " config set compute/zone <zone>'"
-    )
-  return zone_outputs[-1]  # The zone name lives on the last line of the output
-
-
-def add_zone_and_project(args):
+# TODO: remove when we stop using Namespaces as args
+def add_zone_and_project(args: GcloudConfig):
   """Obtains the zone and project names from gcloud configs if not defined.
 
   Args:
@@ -75,7 +35,7 @@ def add_zone_and_project(args):
   xpk_print(f'Working on {args.project} and {args.zone}')
 
 
-def zone_to_region(zone) -> str:
+def zone_to_region(zone: str) -> str:
   """Helper function converts zone name to region name.
 
   Args:
@@ -96,7 +56,9 @@ class GkeServerConfig:
   valid_versions: set[str]
 
 
-def get_gke_server_config(args) -> tuple[int, GkeServerConfig | None]:
+def get_gke_server_config(
+    args: GcloudConfig,
+) -> tuple[int, GkeServerConfig | None]:
   """Determine the GKE versions supported by gcloud currently.
 
   Args:
@@ -154,7 +116,7 @@ def get_gke_server_config(args) -> tuple[int, GkeServerConfig | None]:
 
 
 def get_gke_control_plane_version(
-    args, gke_server_config: GkeServerConfig
+    args: GcloudConfig, gke_server_config: GkeServerConfig
 ) -> tuple[int, str | None]:
   """Determine gke control plane version for cluster creation.
 

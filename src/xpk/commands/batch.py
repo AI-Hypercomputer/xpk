@@ -15,8 +15,8 @@ limitations under the License.
 """
 
 import re
-from argparse import Namespace
 
+from ..args.batch import BatchArgs
 from ..core.cluster import (
     create_xpk_k8s_service_account,
     get_cluster_credentials,
@@ -35,7 +35,7 @@ from .kind import set_local_cluster_command
 from .kjob_common import add_gpu_networking_annotations_to_command, add_TAS_annotations_to_command
 
 
-def batch(args: Namespace) -> None:
+def batch(args: BatchArgs) -> None:
   """Run batch task.
      This function runs passed script in non-blocking manner.
   Args:
@@ -59,7 +59,7 @@ def batch(args: Namespace) -> None:
   submit_job(args)
 
 
-def submit_job(args: Namespace) -> None:
+def submit_job(args: BatchArgs) -> None:
 
   create_xpk_k8s_service_account()
 

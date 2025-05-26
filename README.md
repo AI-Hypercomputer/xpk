@@ -464,6 +464,21 @@ Currently, the below flags/arguments are supported for A3 Mega, A3 Ultra and A4 
   * `--spot`
   * `--on-demand` (A3 Mega only)
 
+## Running XPK on existing clusters
+
+In order to run XPK commands on a cluster it needs to be set up correctly. This is done automatically when creating a cluster using `xpk cluster create`. For clusters created differently (e.g.: with `gcluster`) there is a dedicated command: `xpk cluster adapt`. This command installs required config maps, kueue, jobset, CSI drivers etc.
+
+Currently `xpk cluster adapt` supports only the following device types:
+
+- `h200-141gb-8` (A3 Ultra)
+
+Example usage: 
+```shell
+python3 xpk.py cluster adapt \
+  --cluster=$CLUSTER_NAME --device-type=$DEVICE_TYPE \
+  --zone=$COMPUTE_ZONE  --project=$PROJECT_ID \
+  --num-nodes=$NUM_NODES --reservation=$RESERVATION_ID
+```
 
 ## Storage
 Currently XPK supports the below types of storages:

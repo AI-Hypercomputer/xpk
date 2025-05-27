@@ -155,6 +155,8 @@ def append_custom_pathways_flags(custom_args, prev_indentation=8) -> str:
   if custom_args:
     custom_args = custom_args.split(' ')
     for arg in custom_args:
+      if arg == '':
+        continue
       yaml += '\n' + indentation + '- ' + arg
   return yaml
 

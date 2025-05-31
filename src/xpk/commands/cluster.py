@@ -280,11 +280,11 @@ def cluster_create(args) -> None:
       xpk_print('Installation of RayCluster failed.')
       xpk_exit(return_code)
 
-  if hasattr(args, 'enable_mtc') and args.enable_mtc:
-    return_code = install_mtc_on_cluster(args, system)
-    if return_code != 0:
-      xpk_print('Installation of MTC failed.')
-      xpk_exit(return_code)
+  # if hasattr(args, 'enable_mtc') and args.enable_mtc:
+  #   return_code = install_mtc_on_cluster(args, system)
+  #   if return_code != 0:
+  #     xpk_print('Installation of MTC failed.')
+  #     xpk_exit(return_code)
 
   xpk_print('GKE commands done! Resources are created.')
   xpk_print(

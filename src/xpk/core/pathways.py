@@ -32,6 +32,14 @@ metadata:
 spec:
   nodeLabels:
     cloud.google.com/gke-nodepool: cpu-np
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ResourceFlavor
+metadata:
+  name: highmem-cpu-user
+spec:
+  nodeLabels:
+    cloud.google.com/gke-nodepool: highmem-cpu-np
 ---"""
   if args.enable_pathways:
     return resource_flavor_yaml
@@ -47,7 +55,13 @@ def add_pw_resources_to_kueue(args):
       - name: "cpu"
         nominalQuota: 480
       - name: "memory"
-        nominalQuota: 2000G"""
+        nominalQuota: 2000G
+    - name: highmem-cpu-user
+      resources:
+      - name: "cpu"
+        nominalQuota: 480
+      - name: "memory"
+        nominalQuota: 4000G"""
   if args.enable_pathways:
     return resources_yaml
   return ''
@@ -79,7 +93,7 @@ def ensure_pathways_workload_prerequisites(args, system) -> bool:
 
   # Ensure the cluster and CPU nodepools were created with create-pathways
   all_node_pools = get_all_nodepools_programmatic(args)
-  desired_pw_cpu_node_pools = {'cpu-np'}
+  desired_pw_cpu_node_pools = {'cpu-np', 'highmem-cpu-np'}
   if not desired_pw_cpu_node_pools.issubset(set(all_node_pools[0])):
     xpk_print(
         'Cluster needs to be created with `xpk create-pathways` to run'
@@ -263,8 +277,6 @@ def get_user_workload_for_pathways(
           spec:
             containers:
               {container}
-            nodeSelector:
-              cloud.google.com/gke-nodepool: cpu-np
             hostNetwork: true
             dnsPolicy: ClusterFirstWithHostNet
             restartPolicy: Never

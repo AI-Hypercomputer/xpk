@@ -186,7 +186,6 @@ class BlueprintGenerator:
             "machine_type": system.gce_machine_type,
             "static_node_count": num_nodes,
             "zones": [zone],
-            "host_maintenance_interval": "PERIODIC",
             "reservation_affinity": self._getblock_reservation_affinity(
                 reservation
             ),

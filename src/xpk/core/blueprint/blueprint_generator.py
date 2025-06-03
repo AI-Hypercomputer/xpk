@@ -211,7 +211,6 @@ class BlueprintGenerator:
     else:
       a3_megagpu_pool_0.settings.update({"static_node_count": num_nodes})
 
-
     set_placement_policy = capacity_type != CapacityType.SPOT
     tas_name = "topologyName: 'gke-default'" if set_placement_policy else ""
     num_chips = num_nodes * system.chips_per_vm

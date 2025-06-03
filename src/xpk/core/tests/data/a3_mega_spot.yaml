@@ -101,6 +101,7 @@ deployment_groups:
         config_path: $(ghpc_stage("xpk-gke-a3-megagpu"))/kueue-xpk-configuration.yaml.tftpl
         config_template_vars:
           num_chips: 16
+          flex_start: 0
           tas_name: ""
       jobset:
         install: true

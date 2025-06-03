@@ -226,13 +226,10 @@ class BlueprintGenerator:
                 "config_path": f'$(ghpc_stage("{blueprint_name}"))/kueue-xpk-configuration.yaml.tftpl',
                 "config_template_vars": {
                     "num_chips": num_chips,
-<<<<<<< HEAD
                     "flex_start": (
                         1 if capacity_type == CapacityType.FLEX_START else 0
                     ),
-=======
                     "tas_name": tas_name,
->>>>>>> 78d1a313a8e094dc303f5cd00e58fb3a7fa89656
                 },
             },
             "jobset": {"install": True, "version": "v0.7.2"},
@@ -276,7 +273,6 @@ class BlueprintGenerator:
     )
 
     if set_placement_policy:
-      a3_megagpu_pool_0.use.append(group_placement_0.id)
       primary_group.modules.append(group_placement_0)
 
     a3_mega_blueprint = Blueprint(

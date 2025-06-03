@@ -89,6 +89,7 @@ from ..core.workload_decorators import (
 )
 from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
+from .common import is_TAS_possible
 from . import cluster_gcluster
 
 WORKLOAD_CREATE_YAML = """apiVersion: jobset.x-k8s.io/v1alpha2
@@ -447,12 +448,13 @@ def workload_create(args) -> None:
       xpk_exit(return_code)
     annotations = (
         ''
-        if args.flex_start
+        if args.flex_start or not is_TAS_possible(args)
         else (
             'kueue.x-k8s.io/podset-preferred-topology:'
             ' "cloud.google.com/gce-topology-host"'
         )
     )
+
     if system.device_type in cluster_gcluster.supported_device_types:
       yml_string = A3_GPU_WORKLOAD_CREATE_YAML.format(
           args=args,

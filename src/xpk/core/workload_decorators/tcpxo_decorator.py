@@ -103,9 +103,11 @@ def get_tcpxo_deamon_entry() -> tuple[str, str]:
 
 def add_annotations(job_manifest: dict, sub_networks: list[str]):
   """Adds or updates annotations in the Pod template."""
-  if job_manifest['spec']['template']['metadata']['annotations'] is None:
-    job_manifest['spec']['template']['metadata']['annotations'] = {}
-  annotations = job_manifest['spec']['template']['metadata']['annotations']
+  metadata = job_manifest['spec']['template']['metadata']
+  annotations = metadata.get('annotations')
+  if annotations is None:
+    annotations = {}
+    metadata['annotations'] = annotations
   tcpxo_deamon_key, tcpxo_deamon_paths = get_tcpxo_deamon_entry()
   interfaces_key, interfaces_value = get_interfaces_entry(sub_networks)
   annotations.update({
@@ -147,6 +149,7 @@ def add_tcpxo_daemon_container(job_manifest):
       'name': 'tcpxo-daemon',
       'image': f'us-docker.pkg.dev/gce-ai-infra/gpudirect-tcpxo/tcpgpudmarxd-dev:{rxdm}',
       'imagePullPolicy': 'Always',
+      'restartPolicy': 'Always',
       'command': ['/bin/sh', '-c'],
       'args': [
           'set -ex\nchmod 755'
@@ -163,9 +166,9 @@ def add_tcpxo_daemon_container(job_manifest):
       ],
       'env': [{'name': 'LD_LIBRARY_PATH', 'value': '/usr/local/nvidia/lib64'}],
   }
-  job_manifest['spec']['template']['spec']['containers'].append(
-      tcpxo_daemon_container
-  )
+  spec = job_manifest['spec']['template']['spec']
+  spec.setdefault('initContainers', [])
+  spec['initContainers'].append(tcpxo_daemon_container)
 
 
 def update_gpu_containers(job_manifest):

@@ -139,6 +139,7 @@ def add_tcpxo_daemon_container(job_manifest):
       'name': 'tcpx-daemon',
       'image': f'us-docker.pkg.dev/gce-ai-infra/gpudirect-tcpx/tcpgpudmarxd-dev:{tcpx}',
       'imagePullPolicy': 'Always',
+      'restartPolicy': 'Always',
       'command': [
           '/tcpgpudmarxd/build/app/tcpgpudmarxd',
           '--gpu_nic_preset',
@@ -159,9 +160,9 @@ def add_tcpxo_daemon_container(job_manifest):
       ],
       'env': [{'name': 'LD_LIBRARY_PATH', 'value': '/usr/local/nvidia/lib64'}],
   }
-  job_manifest['spec']['template']['spec']['containers'].append(
-      tcpxo_daemon_container
-  )
+  spec = job_manifest['spec']['template']['spec']
+  spec.setdefault('initContainers', [])
+  spec['initContainers'].append(tcpxo_daemon_container)
 
 
 def update_gpu_containers(job_manifest):

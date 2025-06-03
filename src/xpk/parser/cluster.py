@@ -189,6 +189,12 @@ def set_cluster_create_parser(cluster_create_parser: ArgumentParser):
       cluster_create_tensorboard_arguments
   )
 
+  ### MTC arguments specific to "cluster create"
+  cluster_create_mtc_arguments = cluster_create_parser.add_argument_group(
+      'Optional MTC Arguments',
+      'Arguments for configuring MTC in cluster create.',
+  )
+  add_shared_cluster_create_mtc_arguments(cluster_create_mtc_arguments)
   cluster_create_parser.set_defaults(func=cluster_create)
 
 
@@ -244,6 +250,14 @@ def set_cluster_create_pathways_parser(
       cluster_create_pathways_tensorboard_arguments
   )
 
+  ### MTC arguments specific to "cluster create"
+  cluster_create_mtc_arguments = (
+      cluster_create_pathways_parser.add_argument_group(
+          'Optional MTC Arguments',
+          'Arguments for configuring MTC in cluster create.',
+      )
+  )
+  add_shared_cluster_create_mtc_arguments(cluster_create_mtc_arguments)
   cluster_create_pathways_parser.set_defaults(func=cluster_create_pathways)
 
 
@@ -313,6 +327,12 @@ def set_cluster_create_ray_parser(cluster_create_ray_parser: ArgumentParser):
       cluster_create_ray_tensorboard_arguments
   )
 
+  ### MTC arguments specific to "cluster create"
+  cluster_create_mtc_arguments = cluster_create_ray_parser.add_argument_group(
+      'Optional MTC Arguments',
+      'Arguments for configuring MTC in cluster create.',
+  )
+  add_shared_cluster_create_mtc_arguments(cluster_create_mtc_arguments)
   cluster_create_ray_parser.set_defaults(func=cluster_create_ray_cluster)
 
 
@@ -715,5 +735,45 @@ def add_shared_cluster_create_capacity_arguments(parser: ArgumentParser):
           'Sets node pool creation to use DWS Flex Start resources. See'
           ' `--reservation`, `--on-demand` or `--spot` for other capacity'
           ' types.'
+      ),
+  )
+
+
+def add_shared_cluster_create_mtc_arguments(parser: ArgumentParser):
+  """Add shared Multi-tier Checkpointing arguments in cluster create and Pathways cluster create.
+
+  Args:
+      List of cluster create MTC arguments parsers
+  """
+  parser.add_argument(
+      '--enable-mtc',
+      action='store_true',
+      help='Enable MTC on the cluster.',
+  )
+  parser.add_argument(
+      '--mtc-ramdisk-size',
+      type=str,
+      default=None,
+      help=(
+          '(Required if --enable-mtc is true) The size of the RAM disk to be'
+          ' used for multi-tier checkpointing. e.g. "64Mi" '
+      ),
+  )
+  parser.add_argument(
+      '--mtc-gcs-bucket',
+      type=str,
+      default=None,
+      help=(
+          '(Required if --enable-mtc is true) The GCS bucket to be used for'
+          ' multi-tier checkpointing.'
+      ),
+  )
+  parser.add_argument(
+      '--mtc-toleration-key',
+      type=str,
+      default=None,
+      help=(
+          '(Optional) The tolerance key to be used for multi-tier'
+          ' checkpointing. By default, it is set to "google.com/tpu".'
       ),
   )

@@ -515,7 +515,7 @@ python3 xpk.py workload create \
  --tpu-type=v5litepod-256 \
  --num-slices=${NUMSLICES}  \
  --scheduler=gke.io/high-throughput-scheduler \
- --command "python3 MaxText/train.py MaxText/configs/base.yml base_output_directory=gs://maxtext-experiments-tpem/ dataset_path=gs://max-datasets-rogue/ steps=100 per_device_batch_size=1"
+ --command "python3 -m MaxText.train MaxText/configs/base.yml base_output_directory=gs://maxtext-experiments-tpem/ dataset_path=gs://max-datasets-rogue/ steps=100 per_device_batch_size=1"
 
 # [XPK] Starting xpk
 # [XPK] Working on args.project='PROJECT' and us-central2-b

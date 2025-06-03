@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..utils.console import xpk_print
+from ..utils.console import xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
 from .commands import run_command_for_value, run_command_with_updates
 from .gcloud_context import zone_to_region
@@ -173,16 +173,6 @@ def create_cluster_subnet(args, index) -> int:
   return 0
 
 
-def get_subnetworks_for_a3mega(cluster_name: str) -> list[str]:
-  return [f'{cluster_name}-gpunet-{i}-subnet' for i in range(8)]
-
-
-def get_subnetworks_for_a3ultra(cluster_name: str) -> list[str]:
-  return [f'{cluster_name}-sub-1'] + [
-      f'{cluster_name}-rdma-sub-{i}' for i in range(8)
-  ]
-
-
 def create_cluster_firewall_rule(args, index) -> int:
   """Create one GKE Cluster firewall rule.
 
@@ -243,6 +233,28 @@ def create_cluster_network_config(args) -> int:
     return 1
 
   return 0
+
+
+def get_cluster_subnetworks(args) -> list[str]:
+  """Gets the list of cluster networks.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    list[str]: list of cluster networks
+  """
+  command = 'kubectl get GKENetworkParamSet'
+  return_code, stdout = run_command_for_value(
+      command, 'Get Cluster Networks', args
+  )
+  if return_code != 0:
+    xpk_print('GKE Cluster Get NetworkParamSet failed')
+    xpk_exit(return_code)
+
+  networks = [line.split()[0] for line in stdout.splitlines()][1:]
+
+  return networks
 
 
 def set_up_cluster_network_for_a3(args) -> int:

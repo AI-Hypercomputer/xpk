@@ -68,16 +68,12 @@ def decorate_jobset(jobset_manifest_str: str, sub_networks: list[str]) -> str:
 
 
 def get_interfaces_entry(sub_networks: list[str]) -> tuple[str, str]:
-  interfaces = [
-      '[',
-      '    {"interfaceName":"eth0","network":"default"},',
-      *[
-          f'    {{"interfaceName":"eth{i + 1}","network":"{sub_networks[i]}"}}{"," if i<8 else ""}'
-          for i in range(9)
-      ],
-      ']',
-  ]
-  return 'networking.gke.io/interfaces', literal_string('\n'.join(interfaces))
+  entries = ',\n'.join([
+      f'    {{"interfaceName":"eth{i}","network":"{network}"}}'
+      for i, network in enumerate(sub_networks)
+  ])
+  interfaces = f'[\n{entries}\n]'
+  return 'networking.gke.io/interfaces', literal_string(interfaces)
 
 
 def add_annotations(job_manifest: dict, sub_networks: list[str]):

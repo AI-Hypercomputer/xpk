@@ -114,6 +114,15 @@ def add_storage_attach_parser(
           ' is infered as a bucket name.'
       ),
   )
+  gcsfuse_args.add_argument(
+      '--prefetch-metadata',
+      action=argparse.BooleanOptionalAction,
+      default=True,
+      help=(
+          '(optional) Enables metadata pre-population when'
+          ' mounting the volume. True by default.'
+      ),
+  )
 
   gcpfilestore_args = storage_attach_parser.add_argument_group(
       'Filestore arguments',
@@ -146,12 +155,18 @@ def add_storage_attach_parser(
 
   opt_args = storage_attach_parser.add_argument_group(
       'Optional Arguments',
-      'Optional arguments for storage create.',
+      'Optional arguments for storage attach.',
   )
   opt_args.add_argument(
       '--manifest',
       type=str,
       help='Path to manifest file containing volume definitions',
+  )
+  opt_args.add_argument(
+      '--mount-options',
+      type=str,
+      help='Comma-separated list of mountOptions for PersistentVolume',
+      default='implicit-dirs',
   )
   add_kind_cluster_arguments(opt_args)
 
@@ -184,7 +199,6 @@ def add_storage_create_parser(
       ),
       required=True,
   )
-
   req_args.add_argument(
       '--type',
       type=str,
@@ -247,6 +261,12 @@ def add_storage_create_parser(
       '--manifest',
       type=str,
       help='Path to manifest file containing volume definitions',
+  )
+  opt_args.add_argument(
+      '--mount-options',
+      type=str,
+      help='Comma-separated list of mountOptions for PersistentVolume',
+      default='',
   )
 
   add_kind_cluster_arguments(opt_args)

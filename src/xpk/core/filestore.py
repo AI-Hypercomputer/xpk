@@ -230,7 +230,11 @@ class FilestoreClient:
     return data
 
   def manifest(
-      self, name: str, vol: str, access_mode: str, network: str
+      self,
+      name: str,
+      vol: str,
+      access_mode: str,
+      network: str,
   ) -> list[dict]:
     self.load_instance()
     pv = self.create_pv(name, vol, access_mode)

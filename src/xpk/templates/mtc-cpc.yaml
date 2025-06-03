@@ -1,0 +1,15 @@
+apiVersion: checkpointing.gke.io/v1
+kind: CheckpointConfiguration
+metadata:
+  name: my-checkpointconfiguration
+spec:
+  cloudStorageBucketName:
+  # This field is optional
+  nodeSelector:
+    node.kubernetes.io/instance-type:
+  # This field is optional
+  tolerations:
+  - key:
+    operator: Exists
+    effect: NoSchedule
+  inMemoryVolumeSize:

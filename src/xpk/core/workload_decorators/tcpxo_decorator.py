@@ -77,16 +77,12 @@ def decorate_jobset(jobset_manifest_str: str, sub_networks: list[str]) -> str:
 
 
 def get_interfaces_entry(sub_networks: list[str]) -> tuple[str, str]:
-  interfaces = [
-      '[',
-      '    {"interfaceName":"eth0","network":"default"},',
-      *[
-          f'    {{"interfaceName":"eth{i + 1}","network":"{sub_networks[i]}"}}{"," if i<7 else ""}'
-          for i in range(8)
-      ],
-      ']',
-  ]
-  return 'networking.gke.io/interfaces', literal_string('\n'.join(interfaces))
+  entries = ',\n'.join([
+      f'    {{"interfaceName":"eth{i}","network":"{network}"}}'
+      for i, network in enumerate(sub_networks)
+  ])
+  interfaces = f'[\n{entries}\n]'
+  return 'networking.gke.io/interfaces', literal_string(interfaces)
 
 
 def get_tcpxo_deamon_entry() -> tuple[str, str]:
@@ -107,7 +103,11 @@ def get_tcpxo_deamon_entry() -> tuple[str, str]:
 
 def add_annotations(job_manifest: dict, sub_networks: list[str]):
   """Adds or updates annotations in the Pod template."""
-  annotations = job_manifest['spec']['template']['metadata']['annotations']
+  metadata = job_manifest['spec']['template']['metadata']
+  annotations = metadata.get('annotations')
+  if annotations is None:
+    annotations = {}
+    metadata['annotations'] = annotations
   tcpxo_deamon_key, tcpxo_deamon_paths = get_tcpxo_deamon_entry()
   interfaces_key, interfaces_value = get_interfaces_entry(sub_networks)
   annotations.update({
@@ -149,6 +149,7 @@ def add_tcpxo_daemon_container(job_manifest):
       'name': 'tcpxo-daemon',
       'image': f'us-docker.pkg.dev/gce-ai-infra/gpudirect-tcpxo/tcpgpudmarxd-dev:{rxdm}',
       'imagePullPolicy': 'Always',
+      'restartPolicy': 'Always',
       'command': ['/bin/sh', '-c'],
       'args': [
           'set -ex\nchmod 755'
@@ -165,9 +166,9 @@ def add_tcpxo_daemon_container(job_manifest):
       ],
       'env': [{'name': 'LD_LIBRARY_PATH', 'value': '/usr/local/nvidia/lib64'}],
   }
-  job_manifest['spec']['template']['spec']['containers'].append(
-      tcpxo_daemon_container
-  )
+  spec = job_manifest['spec']['template']['spec']
+  spec.setdefault('initContainers', [])
+  spec['initContainers'].append(tcpxo_daemon_container)
 
 
 def update_gpu_containers(job_manifest):

@@ -82,7 +82,10 @@ def storage_create(args: Namespace) -> None:
         manifest = list(yaml.safe_load_all(f))
     else:
       manifest = filestore_client.manifest(
-          args.name, args.vol, args.access_mode, filestore_network
+          args.name,
+          args.vol,
+          args.access_mode,
+          filestore_network,
       )
 
     k8s_api_client = setup_k8s_env(args)
@@ -154,7 +157,10 @@ def storage_attach(args: Namespace) -> None:
     else:
       filestore_network = get_cluster_network(args)
       manifest = filestore_client.manifest(
-          args.name, args.vol, args.access_mode, filestore_network
+          args.name,
+          args.vol,
+          args.access_mode,
+          filestore_network,
       )
 
   elif args.type == GCS_FUSE_TYPE:
@@ -170,7 +176,11 @@ def storage_attach(args: Namespace) -> None:
         manifest = list(yaml.safe_load_all(f))
     else:
       manifest = gcsfuse.manifest(
-          name=args.name, bucket=args.bucket, size=args.size
+          args.name,
+          args.bucket,
+          args.size,
+          args.mount_options,
+          args.prefetch_metadata,
       )
 
   elif args.type in [PARALLELSTORE_TYPE, GCE_PD_TYPE]:
@@ -314,4 +324,13 @@ def delete_storage_resources(k8s_api_client: ApiClient, storage: Storage):
       ),
       storage.name,
       "Storage",
+  )
+
+  # remove kubernetes.io/pvc-protection
+  delete_resource(
+      lambda name: core_api.patch_namespaced_persistent_volume_claim(
+          name, "default", {"metadata": {"finalizers": None}}
+      ),
+      storage.pvc,
+      "Persistent Volume Claim finalizers",
   )

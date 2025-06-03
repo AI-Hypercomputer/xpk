@@ -30,7 +30,7 @@ from ..capacity import (
 )
 from ..system_characteristics import get_system_characteristics_by_device_type
 from .blueprint_definitions import Blueprint, DeploymentGroup, DeploymentModule
-
+from ..kueue import KUEUE_VERSION
 
 yaml = yaml.YAML()
 
@@ -222,7 +222,7 @@ class BlueprintGenerator:
         settings={
             "kueue": {
                 "install": True,
-                "version": "v0.10.0",  # TAS feature-gates is enabled in CT
+                "version": KUEUE_VERSION,  # TAS feature-gates is enabled in CT
                 "config_path": f'$(ghpc_stage("{blueprint_name}"))/kueue-xpk-configuration.yaml.tftpl',
                 "config_template_vars": {
                     "num_chips": num_chips,
@@ -598,7 +598,7 @@ class BlueprintGenerator:
         settings={
             "kueue": {
                 "install": True,
-                "version": "v0.10.0",  # TAS feature-gates is enabled in CT
+                "version": KUEUE_VERSION,  # TAS feature-gates is enabled in CT
                 "config_path": f'$(ghpc_stage("{blueprint_name}"))/kueue-xpk-configuration.yaml.tftpl',
                 "config_template_vars": {
                     "num_chips": num_chips,
@@ -884,7 +884,7 @@ class BlueprintGenerator:
         settings={
             "kueue": {
                 "install": True,
-                "version": "v0.10.0",  # TAS feature-gates is enabled in CT
+                "version": KUEUE_VERSION,  # TAS feature-gates is enabled in CT
                 "config_path": f'$(ghpc_stage("{blueprint_name}"))/kueue-xpk-configuration.yaml.tftpl',
                 "config_template_vars": {
                     "num_chips": num_chips,

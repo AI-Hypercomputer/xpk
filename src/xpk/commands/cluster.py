@@ -790,6 +790,7 @@ def run_gke_cluster_create_command(
       f' --num-nodes {args.default_pool_cpu_num_nodes}'
       f' {args.custom_cluster_arguments}'
       f' {rapid_release_cmd}'
+      ' --enable-dns-access'
   )
 
   enable_ip_alias = False

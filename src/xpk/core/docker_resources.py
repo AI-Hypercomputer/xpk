@@ -34,8 +34,8 @@ def get_main_container_resources(
       Workload resources port as a YAML string
   """
   # Resources requirements for Pathways workload containers are known.
-  resources_yaml = """cpu: "24"
-                    memory: 100G"""
+  resources_yaml = f"""cpu: "60"
+                    memory: 490G"""
   if args.use_pathways:
     return resources_yaml
 

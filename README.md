@@ -14,10 +14,10 @@
  limitations under the License.
  -->
 
-[![Build Tests](https://github.com/google/xpk/actions/workflows/build_tests.yaml/badge.svg)](https://github.com/google/xpk/actions/workflows/build_tests.yaml)
-[![Nightly Tests](https://github.com/google/xpk/actions/workflows/nightly_tests.yaml/badge.svg)](https://github.com/google/xpk/actions/workflows/nightly_tests.yaml)
-[![Develop Tests](https://github.com/AI-Hypercomputer/xpk/actions/workflows/build_tests.yaml/badge.svg?branch=develop)](https://github.com/AI-Hypercomputer/xpk/actions/workflows/build_tests.yaml)
-[![Develop Nightly Tests](https://github.com/AI-Hypercomputer/xpk/actions/workflows/nightly_tests.yaml/badge.svg?branch=develop)](https://github.com/AI-Hypercomputer/xpk/actions/workflows/nightly_tests.yaml)
+[![Build Tests](https://github.com/google/xpk/actions/workflows/build_tests.yaml/badge.svg?query=branch%3Amain)](https://github.com/google/xpk/actions/workflows/build_tests.yaml?query=branch%3Amain)
+[![Nightly Tests](https://github.com/google/xpk/actions/workflows/nightly_tests.yaml/badge.svg?query=branch%3Amain)](https://github.com/google/xpk/actions/workflows/nightly_tests.yaml?query=branch%3Amain)
+[![Develop Tests](https://github.com/AI-Hypercomputer/xpk/actions/workflows/build_tests.yaml/badge.svg?query=branch%3Adevelop)](https://github.com/AI-Hypercomputer/xpk/actions/workflows/build_tests.yaml?query=branch%3Adevelop)
+[![Develop Nightly Tests](https://github.com/AI-Hypercomputer/xpk/actions/workflows/nightly_tests.yaml/badge.svg?query=branch%3Adevelop)](https://github.com/AI-Hypercomputer/xpk/actions/workflows/nightly_tests.yaml?query=branch%3Adevelop)
 
 # Overview
 

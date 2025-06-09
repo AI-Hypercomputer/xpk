@@ -734,6 +734,7 @@ def get_cluster_credentials(args) -> None:
   command = (
       'gcloud container clusters get-credentials'
       f' {args.cluster} --region={zone_to_region(args.zone)}'
+      ' --dns-endpoint'
       f' --project={args.project} &&'
       ' kubectl config view && kubectl config set-context --current'
       ' --namespace=default'

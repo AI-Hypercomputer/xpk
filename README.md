@@ -466,7 +466,7 @@ Currently, the below flags/arguments are supported for A3 Mega, A3 Ultra and A4 
 
 ## Running XPK on existing clusters
 
-In order to run XPK commands on a cluster it needs to be set up correctly. This is done automatically when creating a cluster using `xpk cluster create`. For clusters created differently (e.g.: with `gcluster`) there is a dedicated command: `xpk cluster adapt`. This command installs required config maps, kueue, jobset, CSI drivers etc.
+In order to run XPK commands on a cluster it needs to be set up correctly. This is done automatically when creating a cluster using `xpk cluster create`. For clusters created differently (e.g.: with 'gcloud' or a Cluster Toolkit blueprint) there is a dedicated command: `xpk cluster adapt`. This command installs required config maps, kueue, jobset, CSI drivers etc.
 
 Currently `xpk cluster adapt` supports only the following device types:
 

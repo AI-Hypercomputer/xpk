@@ -162,9 +162,10 @@ def cluster_adapt(args) -> None:
   if set_jobset_on_cluster_code != 0:
     xpk_exit(set_jobset_on_cluster_code)
 
-  set_pathways_job_on_cluster_code = set_pathways_job_on_cluster(args)
-  if set_pathways_job_on_cluster_code != 0:
-    xpk_exit(set_pathways_job_on_cluster_code)
+  # TODO: Uncomment when cluster_adapt will support TPU cluters
+  # set_pathways_job_on_cluster_code = set_pathways_job_on_cluster(args)
+  # if set_pathways_job_on_cluster_code != 0:
+  #   xpk_exit(set_pathways_job_on_cluster_code)
 
   install_kueue(args, system, autoprovisioning_config)
 

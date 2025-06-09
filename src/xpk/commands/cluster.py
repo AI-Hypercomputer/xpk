@@ -101,7 +101,7 @@ def cluster_adapt(args) -> None:
   ):
     xpk_print(
         'Argument --num-nodes was not provided, trying to determine number of'
-        ' nodes based on cluster configuration...'
+        ' nodes based on the available nodes in the cluster...'
     )
     args.num_nodes = count_nodes_on_cluster(args, system)
     if args.num_nodes == 0:

@@ -229,16 +229,13 @@ def count_nodes_on_cluster(args, system: SystemCharacteristics) -> int:
       for node in nodes_info
       if 'cloud.google.com/gke-accelerator' in node['metadata']['labels']
   ]
-  accelerator = None
-  if system.device_type == H200_DEVICE_TYPE:
-    accelerator = 'nvidia-h200-141gb'
-  else:
+  if system.device_type != H200_DEVICE_TYPE:
     xpk_print(
         'Automatic node detection is not supported for device type:'
         f' {system.device_type}'
     )
     xpk_exit(1)
-  num_nodes: int = sum(acc == accelerator for acc in accelerators)
+  num_nodes: int = sum(acc == system.gke_accelerator for acc in accelerators)
   return num_nodes
 
 

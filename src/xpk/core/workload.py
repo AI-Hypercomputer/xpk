@@ -131,7 +131,7 @@ def get_workload_list(args) -> tuple[int, str]:
   )
   workload_list_filter_job_cmd = determine_workload_list_filter_by_job(args)
   command = (
-      f'kubectl get workloads -o=custom-columns="{s}" '
+      f'kubectl get workloads --ignore-not-found -o=custom-columns="{s}" '
       f'{workload_list_filter_status_cmd} {workload_list_filter_job_cmd}'
   )
 

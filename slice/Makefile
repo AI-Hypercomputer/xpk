@@ -177,6 +177,7 @@ KUSTOMIZE ?= $(LOCALBIN)/kustomize
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 GOLANGCI_LINT = $(LOCALBIN)/golangci-lint
+GO_CMD ?= go
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v5.6.0
@@ -186,6 +187,11 @@ ENVTEST_VERSION ?= $(shell go list -m -f "{{ .Version }}" sigs.k8s.io/controller
 #ENVTEST_K8S_VERSION is the version of Kubernetes to use for setting up ENVTEST binaries (i.e. 1.31)
 ENVTEST_K8S_VERSION ?= $(shell go list -m -f "{{ .Version }}" k8s.io/api | awk -F'[v.]' '{printf "1.%d", $$3}')
 GOLANGCI_LINT_VERSION ?= v2.1.0
+
+# Versions for external controllers
+EXTERNAL_CRDS_DIR ?= dep-crds
+
+KUEUE_ROOT = $(shell $(GO_CMD) list -m -mod=readonly -f "{{.Dir}}" sigs.k8s.io/kueue)
 
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
@@ -230,3 +236,22 @@ mv $(1) $(1)-$(3) ;\
 } ;\
 ln -sf $(1)-$(3) $(1)
 endef
+
+##@ External CRDs
+.PHONY: kueue-crd
+kueue-crd: ## Copy the CRDs from the jobset-operator to the dep-crds directory.
+	mkdir -p $(EXTERNAL_CRDS_DIR)/kueue/
+	cp -f $(KUEUE_ROOT)/config/components/crd/bases/* $(EXTERNAL_CRDS_DIR)/kueue/
+
+
+.PHONY: dep-crds
+dep-crds: kueue-crd
+	@echo "Copying CRDs from external operators to dep-crds directory"
+
+.PHONY: install-dep-crds
+install-dep-crds: dep-crds ## Install CRDs into the K8s cluster specified in ~/.kube/config.
+	$(KUBECTL) create -R -f $(EXTERNAL_CRDS_DIR)
+
+.PHONY: uninstall-dep-crds
+uninstall-dep-crds:
+	$(KUBECTL) delete -R -f $(EXTERNAL_CRDS_DIR)

@@ -3,15 +3,15 @@
 # and allow the plugins properly work.
 # More info: https://book.kubebuilder.io/reference/project-config.html
 cliVersion: 4.6.0
-domain: my.domain
+domain: x-k8s.io
 layout:
 - go.kubebuilder.io/v4
 projectName: slice-controller
 repo: tpu-slice-controller
 resources:
 - controller: true
-  domain: my.domain
-  group: kueue.x-k8s.io
+  domain: x-k8s.io
+  group: kueue
   kind: Workload
   version: v1beta1
 version: "3"

@@ -80,6 +80,7 @@ deployment_groups:
       machine_type: a3-megagpu-8g
       static_node_count: 2
       zones: [us-central1-c]
+      host_maintenance_interval: PERIODIC
       reservation_affinity:
         consume_reservation_type: NO_RESERVATION
         specific_reservations: []

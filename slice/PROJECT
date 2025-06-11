@@ -8,4 +8,10 @@ layout:
 - go.kubebuilder.io/v4
 projectName: slice-controller
 repo: tpu-slice-controller
+resources:
+- controller: true
+  domain: my.domain
+  group: kueue.x-k8s.io
+  kind: Workload
+  version: v1beta1
 version: "3"

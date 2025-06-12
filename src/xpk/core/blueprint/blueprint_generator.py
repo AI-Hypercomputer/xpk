@@ -188,7 +188,11 @@ class BlueprintGenerator:
             "machine_type": system.gce_machine_type,
             "static_node_count": num_nodes,
             "zones": [zone],
-            "host_maintenance_interval": "PERIODIC",
+            "host_maintenance_interval": (
+                None
+                if capacity_type == CapacityType.RESERVATION
+                else "PERIODIC"
+            ),
             "reservation_affinity": self._getblock_reservation_affinity(
                 reservation
             ),

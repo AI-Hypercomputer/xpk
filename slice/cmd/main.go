@@ -39,6 +39,7 @@ import (
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
 
 	"tpu-slice-controller/internal/controller"
+	"tpu-slice-controller/internal/webhooks"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -199,6 +200,12 @@ func main() {
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
+		os.Exit(1)
+	}
+
+	// Register the webhook
+	if err := webhooks.SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "JobSet")
 		os.Exit(1)
 	}
 

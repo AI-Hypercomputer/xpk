@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from .capacity import H100_DEVICE_TYPE, H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE, B200_DEVICE_TYPE
+from .capacity import H100_DEVICE_TYPE, H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE
 from .cluster import setup_k8s_env
 from .storage import GCS_FUSE_TYPE, GCP_FILESTORE_TYPE, Storage, get_storages_to_mount
 from .system_characteristics import AcceleratorType, SystemCharacteristics
@@ -95,10 +95,6 @@ def get_env_container(args, system: SystemCharacteristics) -> str:
     gpu_direct_name = 'fastrak'
     if args.device_type == H100_DEVICE_TYPE:
       gpu_direct_name = 'tcpx'
-      gpu_env_yaml += """
-                  - name: LD_LIBRARY_PATH
-                    value: /usr/local/nvidia/lib64
-"""
     elif args.device_type == H100_MEGA_DEVICE_TYPE:
       gpu_direct_name = 'tcpxo'
     elif args.device_type == H200_DEVICE_TYPE:
@@ -235,23 +231,7 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
                   mountPath: /shared-volume
                 """
   elif system.accelerator_type == AcceleratorType['GPU']:
-    if system.device_type == H100_DEVICE_TYPE:
-      volume_mount_yaml = """- name: nvidia-install-dir-host
-                  mountPath: /usr/local/nvidia/lib64
-                - name: tcpx-nccl-plugin-volume
-                  mountPath: /usr/local/tcpx
-                - name: tcpd-socket
-                  mountPath: /tmp
-                - name: shared-memory
-                  mountPath: /dev/shm
-                - name: workload-terminated-volume
-                  mountPath: /usr/share/workload"""
-    elif (
-        system.device_type == H100_MEGA_DEVICE_TYPE
-        or system.device_type == H200_DEVICE_TYPE
-        or system.device_type == B200_DEVICE_TYPE
-    ):
-      volume_mount_yaml = ''
+    volume_mount_yaml = ''
 
   storages: list[Storage] = get_storages_to_mount(
       setup_k8s_env(args), args.storage

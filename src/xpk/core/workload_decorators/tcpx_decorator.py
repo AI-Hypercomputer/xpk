@@ -25,7 +25,7 @@ tcpx = 'v2.0.11'
 def decorate_kjob_template(job_manifest: dict) -> dict:
   add_volumes(job_manifest)
   add_tolerations(job_manifest)
-  add_tcpxo_daemon_container(job_manifest)
+  add_tcpx_daemon_container(job_manifest)
   update_gpu_containers(job_manifest)
   return job_manifest
 
@@ -34,7 +34,7 @@ def decorate_job(job_manifest: dict) -> dict:
   add_annotations(job_manifest)
   add_volumes(job_manifest)
   add_tolerations(job_manifest)
-  add_tcpxo_daemon_container(job_manifest)
+  add_tcpx_daemon_container(job_manifest)
   update_gpu_containers(job_manifest)
   return job_manifest
 
@@ -133,8 +133,8 @@ def add_volumes(job_manifest: dict):
   volumes.append({'name': 'proc-sys', 'hostPath': {'path': '/proc/sys'}})
 
 
-def add_tcpxo_daemon_container(job_manifest):
-  """Adds the tcpxo-daemon container to the Pod spec."""
+def add_tcpx_daemon_container(job_manifest):
+  """Adds the tcpx-daemon container to the Pod spec."""
   tcpxo_daemon_container = {
       'name': 'tcpx-daemon',
       'image': f'us-docker.pkg.dev/gce-ai-infra/gpudirect-tcpx/tcpgpudmarxd-dev:{tcpx}',

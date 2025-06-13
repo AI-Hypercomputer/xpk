@@ -24,7 +24,9 @@ from ..core.kjob import (
     get_a3mega_pod_template_annotations,
     get_a3ultra_pod_template_annotations,
     get_a4_pod_template_annotations,
+    Kueue_TAS_annotation,
 )
+from .common import is_TAS_possible
 
 
 def add_gpu_networking_annotations_to_command(args, cmd: str) -> str:
@@ -35,7 +37,7 @@ def add_gpu_networking_annotations_to_command(args, cmd: str) -> str:
   elif gpu_type == H200_DEVICE_TYPE:
     annotations = get_a3ultra_pod_template_annotations(args)
   elif gpu_type == B200_DEVICE_TYPE:
-    annotations = get_a4_pod_template_annotations()
+    annotations = get_a4_pod_template_annotations(args)
   else:
     annotations = []
 
@@ -43,5 +45,12 @@ def add_gpu_networking_annotations_to_command(args, cmd: str) -> str:
       f" --pod-template-annotation {annotation} " for annotation in annotations
   ]
   cmd += "\\\n".join(flags)
+
+  return cmd
+
+
+def add_TAS_annotations_to_command(args, cmd: str) -> str:
+  if is_TAS_possible(args):
+    cmd += f" --pod-template-annotation {Kueue_TAS_annotation}"
 
   return cmd

@@ -14,11 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..core.blueprint.blueprint_generator import (
-    get_subnetworks_for_a3mega,
-    get_subnetworks_for_a3ultra,
-    get_subnetworks_for_a4,
-)
 from ..core.cluster import (
     XPK_SA,
     create_xpk_k8s_service_account,
@@ -43,6 +38,7 @@ from ..core.nap import (
     get_autoprovisioning_node_selector_args,
     is_autoprovisioning_enabled,
 )
+from ..core.network import get_cluster_subnetworks
 from ..core.pathways import (
     append_custom_colocated_python_sidecar,
     append_custom_pathways_proxy_server,
@@ -93,6 +89,7 @@ from ..core.workload_decorators import (
 )
 from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
+from .common import is_TAS_possible
 from . import cluster_gcluster
 
 WORKLOAD_CREATE_YAML = """apiVersion: jobset.x-k8s.io/v1alpha2
@@ -217,7 +214,7 @@ spec:
               labels:
                 xpk.google.com/workload: {args.workload}
               annotations:
-                kueue.x-k8s.io/podset-preferred-topology: "cloud.google.com/gce-topology-host"
+                {kueue_TAS_annotation}
             spec:
               priorityClassName: {args.priority}
               restartPolicy: Never
@@ -406,7 +403,7 @@ def workload_create(args) -> None:
           f' {parallelstore_storages}'
       )
     else:
-      xpk_print('No gcp filestore instances to add detected.')
+      xpk_print('No gcp parallelstore instances to add detected.')
 
     if len(pd_storages) > 0:
       service_account = XPK_SA
@@ -451,6 +448,13 @@ def workload_create(args) -> None:
     if return_code != 0:
       xpk_exit(return_code)
 
+    kueue_TAS_annotation = (
+        'kueue.x-k8s.io/podset-preferred-topology:'
+        ' "cloud.google.com/gce-topology-host"'
+    )
+    if not is_TAS_possible(args):
+      kueue_TAS_annotation = ''
+
     if system.device_type in cluster_gcluster.supported_device_types:
       yml_string = A3_GPU_WORKLOAD_CREATE_YAML.format(
           args=args,
@@ -458,18 +462,16 @@ def workload_create(args) -> None:
           service_account=XPK_SA,
           failure_policy_rules=failure_policy_rules,
           pod_failure_policy=pod_failure_policy,
+          kueue_TAS_annotation=kueue_TAS_annotation,
       )
 
+      sub_networks = get_cluster_subnetworks(args)
       if args.device_type == cluster_gcluster.a3mega_device_type:
-        sub_networks = get_subnetworks_for_a3mega(args.cluster)
         yml_string = tcpxo_decorator.decorate_jobset(yml_string, sub_networks)
-
-      if args.device_type == cluster_gcluster.a3ultra_device_type:
-        sub_networks = get_subnetworks_for_a3ultra(args.cluster)
-        yml_string = rdma_decorator.decorate_jobset(yml_string, sub_networks)
-
-      if args.device_type == cluster_gcluster.a4_device_type:
-        sub_networks = get_subnetworks_for_a4()
+      elif args.device_type in [
+          cluster_gcluster.a3ultra_device_type,
+          cluster_gcluster.a4_device_type,
+      ]:
         yml_string = rdma_decorator.decorate_jobset(yml_string, sub_networks)
 
       if all_storages:

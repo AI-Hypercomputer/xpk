@@ -52,20 +52,6 @@ cluster_toolkit_url = "github.com/GoogleCloudPlatform/cluster-toolkit"
 cluster_toolkit_version = "v1.48.0"
 
 
-def get_subnetworks_for_a3mega(cluster_name: str) -> list[str]:
-  return [f"{cluster_name}-gpunet-{i}-subnet" for i in range(8)]
-
-
-def get_subnetworks_for_a3ultra(cluster_name: str) -> list[str]:
-  return [f"{cluster_name}-sub-1"] + [
-      f"{cluster_name}-rdma-sub-{i}" for i in range(8)
-  ]
-
-
-def get_subnetworks_for_a4() -> list[str]:
-  return ["gvnic-1"] + [f"rdma-{i}" for i in range(8)]
-
-
 class BlueprintGeneratorOutput:
   """BlueprintGeneratorOutput is a class containing fields with output blueprint file path and path to blueprint dependencies.
   Atributes:
@@ -194,13 +180,17 @@ class BlueprintGenerator:
     a3_megagpu_pool_0 = DeploymentModule(
         id="a3_megagpu_pool_0",
         source="modules/compute/gke-node-pool",
-        use=["gke_cluster", gpu_subnets_name, "group_placement_0"],
+        use=["gke_cluster", gpu_subnets_name],
         settings={
             "name": f"{cluster_name}-a3-megagpu-pool-0",
             "machine_type": system.gce_machine_type,
             "static_node_count": num_nodes,
             "zones": [zone],
-            "host_maintenance_interval": "PERIODIC",
+            "host_maintenance_interval": (
+                None
+                if capacity_type == CapacityType.RESERVATION
+                else "PERIODIC"
+            ),
             "reservation_affinity": self._getblock_reservation_affinity(
                 reservation
             ),
@@ -211,6 +201,9 @@ class BlueprintGenerator:
         },
         outputs=["instructions"],
     )
+
+    set_placement_policy = capacity_type != CapacityType.SPOT
+    tas_name = "topologyName: 'gke-default'" if set_placement_policy else ""
     num_chips = num_nodes * system.chips_per_vm
     workload = DeploymentModule(
         id="workload_component_install",
@@ -221,7 +214,10 @@ class BlueprintGenerator:
                 "install": True,
                 "version": "v0.10.0",  # TAS feature-gates is enabled in CT
                 "config_path": f'$(ghpc_stage("{blueprint_name}"))/kueue-xpk-configuration.yaml.tftpl',
-                "config_template_vars": {"num_chips": num_chips},
+                "config_template_vars": {
+                    "num_chips": num_chips,
+                    "tas_name": tas_name,
+                },
             },
             "jobset": {"install": True, "version": "v0.7.2"},
             "apply_manifests": [{
@@ -257,12 +253,16 @@ class BlueprintGenerator:
             primary_vpc,
             gpunets,
             gke_cluster,
-            group_placement_0,
             a3_megagpu_pool_0,
             workload,
             workload_configmap,
         ],
     )
+
+    if set_placement_policy:
+      a3_megagpu_pool_0.use.append(group_placement_0.id)
+      primary_group.modules.append(group_placement_0)
+
     a3_mega_blueprint = Blueprint(
         terraform_backend_defaults=self._getblock_terraform_backend(
             gcs_bucket, cluster_name, prefix

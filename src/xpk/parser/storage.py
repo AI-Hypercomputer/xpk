@@ -70,8 +70,8 @@ def add_storage_attach_parser(
       '--type',
       type=str,
       help=(
-          'The type of storage. Currently supported types: ["gcsfuse",'
-          ' "gcpfilestore"]'
+          'The type of storage. Currently supported types: "gcsfuse",'
+          ' "gcpfilestore", "parallelstore", "pd"'
       ),
       choices=['gcsfuse', 'gcpfilestore', 'parallelstore', 'pd'],
       required=True,
@@ -112,6 +112,15 @@ def add_storage_attach_parser(
       help=(
           '(optional) Name of the bucket. If not set, then the "name" parameter'
           ' is infered as a bucket name.'
+      ),
+  )
+  gcsfuse_args.add_argument(
+      '--prefetch-metadata',
+      action=argparse.BooleanOptionalAction,
+      default=True,
+      help=(
+          '(optional) Enables metadata pre-population when'
+          ' mounting the volume. True by default.'
       ),
   )
 

@@ -14,23 +14,18 @@
  limitations under the License.
  -->
 
-[![Build Tests](https://github.com/google/xpk/actions/workflows/build_tests.yaml/badge.svg)](https://github.com/google/xpk/actions/workflows/build_tests.yaml)
-[![Nightly Tests](https://github.com/google/xpk/actions/workflows/nightly_tests.yaml/badge.svg)](https://github.com/google/xpk/actions/workflows/nightly_tests.yaml)
-[![Develop Tests](https://github.com/AI-Hypercomputer/xpk/actions/workflows/build_tests.yaml/badge.svg?branch=develop)](https://github.com/AI-Hypercomputer/xpk/actions/workflows/build_tests.yaml)
-[![Develop Nightly Tests](https://github.com/AI-Hypercomputer/xpk/actions/workflows/nightly_tests.yaml/badge.svg?branch=develop)](https://github.com/AI-Hypercomputer/xpk/actions/workflows/nightly_tests.yaml)
+[![Build Tests](https://github.com/google/xpk/actions/workflows/build_tests.yaml/badge.svg?query=branch%3Amain)](https://github.com/google/xpk/actions/workflows/build_tests.yaml?query=branch%3Amain)
+[![Nightly Tests](https://github.com/google/xpk/actions/workflows/nightly_tests.yaml/badge.svg?query=branch%3Amain)](https://github.com/google/xpk/actions/workflows/nightly_tests.yaml?query=branch%3Amain)
+[![Develop Tests](https://github.com/AI-Hypercomputer/xpk/actions/workflows/build_tests.yaml/badge.svg?query=branch%3Adevelop)](https://github.com/AI-Hypercomputer/xpk/actions/workflows/build_tests.yaml?query=branch%3Adevelop)
+[![Develop Nightly Tests](https://github.com/AI-Hypercomputer/xpk/actions/workflows/nightly_tests.yaml/badge.svg?query=branch%3Adevelop)](https://github.com/AI-Hypercomputer/xpk/actions/workflows/nightly_tests.yaml?query=branch%3Adevelop)
 
 # Overview
 
-xpk (Accelerated Processing Kit, pronounced x-p-k,) is a software tool to help
-Cloud developers to orchestrate training jobs on accelerators such as TPUs and
-GPUs on GKE. xpk handles the "multihost pods" of TPUs, GPUs (HGX H100) and CPUs
-(n2-standard-32) as first class citizens.
+XPK (Accelerated Processing Kit, pronounced x-p-k) is a command line interface that simplifies cluster creation and workload execution on Google Kubernetes Engine (GKE). XPK generates preconfigured, training-optimized clusters and allows easy workload scheduling without any Kubernetes expertise.
 
-xpk decouples provisioning capacity from running jobs. There are two structures:
-clusters (provisioned VMs) and workloads (training jobs). Clusters represent the
-physical resources you have available. Workloads represent training jobs -- at
-any time some of these will be completed, others will be running and some will
-be queued, waiting for cluster resources to become available.
+XPK is recommended for quick creation of GKE clusters for proofs of concepts and testing.
+
+XPK decouples provisioning capacity from running jobs. There are two structures: clusters (provisioned VMs) and workloads (training jobs). Clusters represent the physical resources you have available. Workloads represent training jobs -- at any time some of these will be completed, others will be running and some will be queued, waiting for cluster resources to become available.
 
 The ideal workflow starts by provisioning the clusters for all of the ML
 hardware you have reserved. Then, without re-provisioning, submit jobs as
@@ -41,7 +36,7 @@ return the hardware back to the shared pool when they complete, developers can
 achieve better use of finite hardware resources. And automated tests can run
 overnight while resources tend to be underutilized.
 
-xpk supports the following TPU types:
+XPK supports the following TPU types:
 * v4
 * v5e
 * v5p
@@ -50,13 +45,14 @@ xpk supports the following TPU types:
 and the following GPU types:
 * A100
 * A3-Highgpu (h100)
-* A3-Mega (h100-mega) - [Create cluster](#provisioning-a3-ultra-and-a3-mega-clusters-gpu-machines), [Create workloads](#workloads-for-a3-ultra-and-a3-mega-clusters-gpu-machines)
-* A3-Ultra (h200) - [Create cluster](#provisioning-a3-ultra-and-a3-mega-clusters-gpu-machines), [Create workloads](#workloads-for-a3-ultra-and-a3-mega-clusters-gpu-machines)
+* A3-Mega (h100-mega) - [Create cluster](#provisioning-a3-ultra-a3-mega-and-a4-clusters-gpu-machines), [Create workloads](#workloads-for-a3-ultra-a3-mega-and-a4-clusters-gpu-machines)
+* A3-Ultra (h200) - [Create cluster](#provisioning-a3-ultra-a3-mega-and-a4-clusters-gpu-machines), [Create workloads](#workloads-for-a3-ultra-a3-mega-and-a4-clusters-gpu-machines)
+* A4 (b200) - [Create cluster](#provisioning-a3-ultra-a3-mega-and-a4-clusters-gpu-machines), [Create workloads](#workloads-for-a3-ultra-a3-mega-and-a4-clusters-gpu-machines)
 
 and the following CPU types:
 * n2-standard-32
 
-xpk also supports [Google Cloud Storage solutions](#storage):
+XPK also supports [Google Cloud Storage solutions](#storage):
 * [Cloud Storage FUSE](#fuse)
 * [Filestore](#filestore)
 * [Parallelstore](#parallelstore)
@@ -74,77 +70,93 @@ xpk also supports [Google Cloud Storage solutions](#storage):
 * Vertex AI Administrator
 * Filestore Editor (This role is neccessary if you want to run `storage create` command with `--type=gcpfilestore`)
 
-# Prerequisites
+# Installation
 
-Following tools must be installed:
+There are 2 ways to install XPK:
 
-- python >= 3.10 (download from [here](https://www.python.org/downloads/))
-- pip ([installation instruction](https://pip.pypa.io/en/stable/installation/))
-- python venv ([installation instruction](https://virtualenv.pypa.io/en/latest/installation.html))
+- via Python package installer (`pip`),
+- clone from git and build from source.
+
+## Prerequisites
+
+The following tools must be installed:
+
+- python >= 3.10: download from [here](https://www.python.org/downloads/)
+- pip: [installation instructions](https://pip.pypa.io/en/stable/installation/)
+- python venv: [installation instructions](https://virtualenv.pypa.io/en/latest/installation.html)
 (all three of above can be installed at once from [here](https://packaging.python.org/en/latest/guides/installing-using-linux-tools/#installing-pip-setuptools-wheel-with-linux-package-managers))
-- gcloud (install from [here](https://cloud.google.com/sdk/gcloud#download_and_install_the))
+- gcloud: install from [here](https://cloud.google.com/sdk/gcloud#download_and_install_the) and then:
   - Run `gcloud init` 
   - [Authenticate](https://cloud.google.com/sdk/gcloud/reference/auth/application-default/login) to Google Cloud
-- kubectl (install from [here](https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl#install_kubectl))
+- kubectl: install from [here](https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl#install_kubectl) and then:
   - Install `gke-gcloud-auth-plugin` from [here](https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl#install_plugin)
-- docker ([installation instruction](https://docs.docker.com/engine/install/))
+- docker: [installation instructions](https://docs.docker.com/engine/install/) and then:
+  - Configure sudoless docker: [guide](https://docs.docker.com/engine/install/linux-postinstall/)
   - Run `gcloud auth configure-docker` to ensure images can be uploaded to registry 
-- make - please run below command.
-```shell
-# sudo may be required
-apt-get -y install make
-```
-In addition, below dependencies can be installed either using provided links or using `make install` command, if xpk is downloaded via `git clone` command:
-- kueuectl (install from [here](https://kueue.sigs.k8s.io/docs/reference/kubectl-kueue/installation/))
-- kjob (installation instructions [here](https://github.com/kubernetes-sigs/kjob/blob/main/docs/installation.md))
 
-# Installation
-To install xpk, install required tools mentioned in [prerequisites](#prerequisites). [Makefile](https://github.com/AI-Hypercomputer/xpk/blob/main/Makefile) provides a way to install all neccessary tools. XPK can be installed via pip:
+### Additional prerequisites when installing from pip
+
+- kueuectl: install from [here](https://kueue.sigs.k8s.io/docs/reference/kubectl-kueue/installation/)
+- kjob: installation instructions [here](https://github.com/kubernetes-sigs/kjob/blob/main/docs/installation.md)
+
+### Additional prerequisites when installing from source
+
+- git: [installation instructions](https://git-scm.com/downloads/linux)
+- make: install by running `apt-get -y install make` (`sudo` might be required)
+
+## Installation via pip
+
+To install XPK using pip, first install required tools mentioned in [prerequisites](#prerequisites) and [additional prerequisites](#additional-prerequisites-when-installing-from-pip). Then you can install XPK simply by running:
 
 ```shell
 pip install xpk
 ```
 
-If you see an error saying: `This environment is externally managed`, please use a virtual environment.
+If you see an error saying: `This environment is externally managed`, please use a virtual environment. For example:
 
 ```shell
-  ## One time step of creating the venv
-  VENV_DIR=~/venvp3
-  python3 -m venv $VENV_DIR
-  ## Enter your venv.
-  source $VENV_DIR/bin/activate
-  ## Clone the repository and installing dependencies.
-  pip install xpk
+# One time step of creating the virtual environment
+VENV_DIR=~/venvp3
+python3 -m venv $VENV_DIR
+
+# Activate your virtual environment
+source $VENV_DIR/bin/activate
+
+# Install XPK in virtual environment using pip
+pip install xpk
 ```
 
-If you are running XPK by cloning GitHub repository, first run the
-following commands to begin using XPK commands:
+## Installation from source
+
+To install XPK from source, first install required tools mentioned in [prerequisites](#prerequisites) and [additional prerequisites](#additional-prerequisites-when-installing-from-source). Afterwards you can install XPK from source using `make`
 
 ```shell
+# Clone the XPK repository
 git clone https://github.com/google/xpk.git
 cd xpk
-# Install required dependencies with make
+
+# Install required dependencies and build XPK with make
 make install && export PATH=$PATH:$PWD/bin
 ```
 
-If you want to have installed dependecies persist in your PATH please run:
-`echo $PWD/bin` and add its value to `PATH` in .bashrc  or .zshrc
+If you want the dependecies to be available in your PATH please run: `echo $PWD/bin` and add its value to `PATH` in .bashrc or .zshrc file.
 
-If you see an error saying: `This environment is externally managed`, please use a virtual environment.
-
-Example:
+If you see an error saying: `This environment is externally managed`, please use a virtual environment. For example:
 
 ```shell
-  ## One time step of creating the venv
-  VENV_DIR=~/venvp3
-  python3 -m venv $VENV_DIR
-  ## Enter your venv.
-  source $VENV_DIR/bin/activate
-  ## Clone the repository and installing dependencies.
-  git clone https://github.com/google/xpk.git
-  cd xpk
-  # Install required dependencies with make
-  make install && export PATH=$PATH:$PWD/bin
+# One time step of creating the virtual environment
+VENV_DIR=~/venvp3
+python3 -m venv $VENV_DIR
+
+# Activate your virtual environment
+source $VENV_DIR/bin/activate
+
+# Clone the XPK repository
+git clone https://github.com/google/xpk.git
+cd xpk
+
+# Install required dependencies and build XPK with make
+make install && export PATH=$PATH:$PWD/bin
 ```
 
 # XPK for Large Scale (>1k VMs)
@@ -425,25 +437,48 @@ will fail the cluster creation process because Vertex AI Tensorboard is not supp
     --tpu-type=v5litepod-16
     ```
 
-## Provisioning A3-Ultra and A3-Mega clusters (GPU machines)
-To create a cluster with A3 machines, run the below command. To create workloads on these clusters see [here](#workloads-for-a3-ultra-and-a3-mega-clusters-gpu-machines).
-  * For A3-Ultra: --device-type=h200-141gb-8
-  * For A3-Mega: --device-type=h100-mega-80gb-8
+## Provisioning A3 Ultra, A3 Mega and A4 clusters (GPU machines)
+To create a cluster with A3 or A4 machines, run the command below with selected device type. To create workloads on these clusters see [here](#workloads-for-a3-ultra-a3-mega-and-a4-clusters-gpu-machines).
 
-  ```shell
-  python3 xpk.py cluster create \
-  --cluster CLUSTER_NAME --device-type=h200-141gb-8 \
+**Note:** Creating A3 Ultra, A3 Mega and A4 clusters is currently supported **only** on linux/amd64 architecture.
+
+Machine | Device type
+:- | :-
+A3 Mega | `h100-mega-80gb-8`
+A3 Ultra | `h200-141gb-8`
+A4 | `b200-8`
+
+
+```shell
+python3 xpk.py cluster create \
+  --cluster CLUSTER_NAME --device-type DEVICE_TYPE \
   --zone=$COMPUTE_ZONE  --project=$PROJECT_ID \
-  --num-nodes=4 --reservation=$RESERVATION_ID
-  ```
-Currently, the below flags/arguments are supported for A3-Mega and A3-Ultra machines:
-  * --num-nodes
-  * --default-pool-cpu-machine-type
-  * --default-pool-cpu-num-nodes
-  * --reservation
-  * --spot
-  * --on-demand (only A3-Mega)
+  --num-nodes=$NUM_NODES --reservation=$RESERVATION_ID
+```
 
+Currently, the below flags/arguments are supported for A3 Mega, A3 Ultra and A4 machines:
+  * `--num-nodes`
+  * `--default-pool-cpu-machine-type`
+  * `--default-pool-cpu-num-nodes`
+  * `--reservation`
+  * `--spot`
+  * `--on-demand` (A3 Mega only)
+
+## Running XPK on existing clusters
+
+In order to run XPK commands on a cluster it needs to be set up correctly. This is done automatically when creating a cluster using `xpk cluster create`. For clusters created differently (e.g.: with 'gcloud' or a Cluster Toolkit blueprint) there is a dedicated command: `xpk cluster adapt`. This command installs required config maps, kueue, jobset, CSI drivers etc.
+
+Currently `xpk cluster adapt` supports only the following device types:
+
+- `h200-141gb-8` (A3 Ultra)
+
+Example usage: 
+```shell
+python3 xpk.py cluster adapt \
+  --cluster=$CLUSTER_NAME --device-type=$DEVICE_TYPE \
+  --zone=$COMPUTE_ZONE  --project=$PROJECT_ID \
+  --num-nodes=$NUM_NODES --reservation=$RESERVATION_ID
+```
 
 ## Storage
 Currently XPK supports the below types of storages:
@@ -475,6 +510,7 @@ Parameters:
 - `--size` - size of the storage in Gb.
 - `--bucket` - name of the storage bucket. If not set then the name of the storage is used as a bucket name.
 - `--mount-options` - comma-separated list of additional mount options for PersistentVolume ([reference](https://cloud.google.com/kubernetes-engine/docs/how-to/cloud-storage-fuse-csi-driver-perf#mount-options)).
+- `--prefetch-metadata` - enables metadata pre-population when mounting the volume by setting parameter `gcsfuseMetadataPrefetchOnMount` to `true` ([reference](https://cloud.google.com/kubernetes-engine/docs/how-to/cloud-storage-fuse-csi-driver-perf#metadata-prefetch)).
 - `--manifest` - path to the manifest file containing PersistentVolume and PresistentVolumeClaim definitions. If set, then values from manifest override the following parameters: `--size` and `--bucket`.
 
 ### Filestore
@@ -661,21 +697,27 @@ increase this to a large number, say 50. Real jobs can be interrupted due to
 hardware failures and software updates. We assume your job has implemented
 checkpointing so the job restarts near where it was interrupted.
 
-### Workloads for A3-Ultra and A3-Mega clusters (GPU machines)
-To submit jobs on a cluster with A3 machines, run the below command. To create a cluster with A3 machines see [here](#provisioning-a3-ultra-and-a3-mega-clusters-gpu-machines).
-  * For A3-Ultra: --device-type=h200-141gb-8
-  * For A3-Mega: --device-type=h100-mega-80gb-8
+### Workloads for A3 Ultra, A3 Mega and A4 clusters (GPU machines)
+To submit jobs on a cluster with A3 or A4 machines, run the command with selected device type. To create a cluster with A3 or A4 machines see [here](#provisioning-a3-ultra-a3-mega-and-a4-clusters-gpu-machines).
 
-  ```shell
-  python3 xpk.py workload create \
+
+Machine | Device type
+:- | :-
+A3 Mega | `h100-mega-80gb-8`
+A3 Ultra | `h200-141gb-8`
+A4 | `b200-8`
+
+```shell
+python3 xpk.py workload create \
   --workload=$WORKLOAD_NAME --command="echo goodbye" \
-  --cluster=$CLUSTER_NAME --device-type=h200-141gb-8 \
+  --cluster=$CLUSTER_NAME --device-type DEVICE_TYPE \
   --zone=$COMPUTE_ZONE  --project=$PROJECT_ID \
   --num-nodes=$WOKRKLOAD_NUM_NODES
-  ```
-> The docker image flags/arguments introduced in [workloads section](#workload-create) can be used with A3 machines as well.
+```
 
-In order to run NCCL test on A3 Ultra machines check out [this guide](/examples/nccl/nccl.md).
+> The docker image flags/arguments introduced in [workloads section](#workload-create) can be used with A3 or A4 machines as well.
+
+In order to run NCCL test on A3 machines check out [this guide](/examples/nccl/nccl.md).
 
 ### Workload Priority and Preemption
 * Set the priority level of your workload with `--priority=LEVEL`
@@ -1522,4 +1564,5 @@ python xpk.py batch [other-options] --kind-cluster script
 Please note that all other xpk subcommands are intended for use with cloud systems on Google Cloud Engine (GCE) and don't support local testing. This includes commands like cluster, info, inspector, etc.
 
 # Other advanced usage
-[Use a Jupyter notebook to interact with a Cloud TPU cluster](xpk-notebooks.md)
+[Use a Jupyter notebook to interact with a Cloud TPU cluster](xpk-notebooks.md) \
+[Use Slurm like commands in XPK to execute workloads on top of GKE](xpk-slurm-commands.md)

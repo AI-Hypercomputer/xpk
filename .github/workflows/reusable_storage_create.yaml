@@ -26,40 +26,29 @@ on:
       zone:
         type: string
         required: true
-      location:
-        type: string
-        required: true
-      run-id:
-        required: true
-        type: string
       storage-type: # gcpfilestore or gcsfuse
         required: false
-        default: 'gcpfilestore'
         type: string
       storage-command: # attach or create
         required: true
         default: 'attach'
         type: string
+      storage-name:
+        required: true
+        type: string
     secrets:
       GCP_SA_KEY:
         required: true
-      PROJECT_NAME:
-        required: true
       BUCKET_NAME:
         required: true
-      VOL_NAME:
-        required: true
-      IP_ADDRESS:
-        required: true
-      STORAGE_NAME:
-        required: true
 jobs:
-  storage-tests:
+  storage-create:
+    name: "${{inputs.storage-type}}-${{inputs.storage-command}}"
     runs-on: [ubuntu-22.04]
     env:
-      FS_WRITE_WORKLOAD: "${{inputs.storage-type}}-${{inputs.storage-command}}-write-workload"
-      FS_READ_WORKLOAD: "${{inputs.storage-type}}-${{inputs.storage-command}}-read-workload"
-      FS_DELETE_WORKLOAD: "${{inputs.storage-type}}-${{inputs.storage-command}}-delete-workload"
+      STORAGE_WRITE_WORKLOAD: "${{inputs.storage-type}}-${{inputs.storage-command}}-write-workload"
+      STORAGE_READ_WORKLOAD: "${{inputs.storage-type}}-${{inputs.storage-command}}-read-workload"
+      STORAGE_DELETE_WORKLOAD: "${{inputs.storage-type}}-${{inputs.storage-command}}-delete-workload"
     steps:
     - name: Validate storage-type
       run: |
@@ -117,33 +106,42 @@ jobs:
     - name: Attach auto-mount GCS FUSE Storage instance
       if: inputs.storage-command == 'attach' && inputs.storage-type == 'gcsfuse'
       run: |
-        python3 xpk.py storage attach ${{secrets.STORAGE_NAME}} --cluster=${{inputs.cluster-name}} --zone=${{inputs.zone}} --type=${{inputs.storage-type}} \
-        --auto-mount=true --mount-point='/${{inputs.storage-type}}-test-mount-point' --readonly=false --size=1 --bucket=${{secrets.BUCKET_NAME}} --mount-options rename-dir-limit=10000
+        python3 xpk.py storage attach ${{inputs.storage-name}} --cluster=${{inputs.cluster-name}} --zone=${{inputs.zone}} --type=${{inputs.storage-type}} \
+        --auto-mount=true --mount-point='/${{inputs.storage-type}}-test-mount-point' --readonly=false --size=1 --bucket=${{secrets.BUCKET_NAME}} --mount-options rename-dir-limit=10000 --prefetch-metadata
     - name: Create auto-mount GCP Filestore Storage instance
       if: inputs.storage-command == 'create' && inputs.storage-type == 'gcpfilestore'
       run: |
-        python3 xpk.py storage create ${{secrets.STORAGE_NAME}} --cluster=${{inputs.cluster-name}} --zone=${{inputs.zone}} --type=${{inputs.storage-type}} \
+        python3 xpk.py storage create ${{inputs.storage-name}} --cluster=${{inputs.cluster-name}} --zone=${{inputs.zone}} --type=${{inputs.storage-type}} \
         --auto-mount=true --vol=vol1 --size=1024 --tier=BASIC_HDD --mount-point='/${{inputs.storage-type}}-test-mount-point' --readonly=false
+    - name: Attach an existing GCP Filestore Storage instance
+      if: inputs.storage-command == 'attach' && inputs.storage-type == 'gcpfilestore'
+      run: |
+        python3 xpk.py storage attach ${{inputs.storage-name}} --cluster=${{inputs.cluster-name}} --zone=${{inputs.zone}} --type=${{inputs.storage-type}} \
+        --auto-mount=true --vol=vol1 --mount-point='/${{inputs.storage-type}}-test-mount-point' --readonly=false
     - name: List and verify existing Storages
-      run: python3 xpk.py storage list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} | tee output.txt | grep ${{secrets.STORAGE_NAME}} || (echo 'No storage found' && exit 143)
+      run: python3 xpk.py storage list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} | tee output.txt | grep ${{inputs.storage-name}} || (echo 'No storage found' && exit 143)
     - name: Verify VolumeBundle created
-      run: kubectl get volumebundle ${{secrets.STORAGE_NAME}} -o jsonpath='{.spec.containerVolumeMounts[0].mountPath}' | grep '/${{inputs.storage-type}}-test-mount-point'
+      run: kubectl get volumebundle ${{inputs.storage-name}} -o jsonpath='{.spec.containerVolumeMounts[0].mountPath}' | grep '/${{inputs.storage-type}}-test-mount-point'
     - name: Verify Persistent Volume mount options
       if: inputs.storage-command == 'attach' && inputs.storage-type == 'gcsfuse'
-      run: kubectl get pv ${{secrets.STORAGE_NAME}}-pv -oyaml | grep rename-dir-limit=10000 || (echo 'Invalid storage mount options' && exit 143)
+      run: kubectl get pv ${{inputs.storage-name}}-pv -oyaml | grep rename-dir-limit=10000 || (echo 'Invalid storage mount options' && exit 143)
+    - name: Verify that metadata pre-population is enabled
+      if: inputs.storage-command == 'attach' && inputs.storage-type == 'gcsfuse'
+      run: |
+        kubectl get pv ${{inputs.storage-name}}-pv -oyaml | grep 'gcsfuseMetadataPrefetchOnMount: "true"' || (echo 'Metadata pre-population was not enabled' && exit 143)
     - name: Run workload to write file on filestore
-      run: python3 xpk.py workload create --workload $FS_WRITE_WORKLOAD --num-slices=1 --docker-image='marketplace.gcr.io/google/ubuntu2004' --command "mkdir /${{inputs.storage-type}}-test-mount-point/$RANDOM_SEED/ && echo 'Test text message' > /${{inputs.storage-type}}-test-mount-point/$RANDOM_SEED/test.txt || (echo 'Writing to filestore failed' && exit 143)" --cluster ${{inputs.cluster-name}} --tpu-type=${{inputs.tpu-type}} --zone ${{inputs.zone}}
+      run: python3 xpk.py workload create --workload $STORAGE_WRITE_WORKLOAD --num-slices=1 --docker-image='marketplace.gcr.io/google/ubuntu2004' --command "mkdir -p /${{inputs.storage-type}}-test-mount-point/$RANDOM_SEED/ && echo 'Test text message' > /${{inputs.storage-type}}-test-mount-point/$RANDOM_SEED/test.txt || (echo 'Writing to filestore failed' && exit 143)" --cluster ${{inputs.cluster-name}} --tpu-type=${{inputs.tpu-type}} --zone ${{inputs.zone}}
     - name: Wait for writer workload completion and confirm it succeeded
-      run: python3 xpk.py workload list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} --wait-for-job-completion $FS_WRITE_WORKLOAD --timeout 300
+      run: python3 xpk.py workload list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} --wait-for-job-completion $STORAGE_WRITE_WORKLOAD --timeout 300
     - name: Delete the writer workload on the cluster
       if: always()
-      run: python3 xpk.py workload delete --workload $FS_WRITE_WORKLOAD --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}
+      run: python3 xpk.py workload delete --workload $STORAGE_WRITE_WORKLOAD --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}
     - name: Run workload to read file on filestore
-      run : python3 xpk.py workload create --workload $FS_READ_WORKLOAD --command "grep 'Test text message' /${{inputs.storage-type}}-test-mount-point/$RANDOM_SEED/test.txt || (echo 'Reading from filestore failed' && exit 143)" --cluster ${{inputs.cluster-name}} --tpu-type=${{inputs.tpu-type}} --zone ${{inputs.zone}}
+      run : python3 xpk.py workload create --workload $STORAGE_READ_WORKLOAD --command "grep 'Test text message' /${{inputs.storage-type}}-test-mount-point/$RANDOM_SEED/test.txt || (echo 'Reading from filestore failed' && exit 143)" --cluster ${{inputs.cluster-name}} --tpu-type=${{inputs.tpu-type}} --zone ${{inputs.zone}}
     - name: Wait for reader workload completion and confirm it succeeded
-      run: python3 xpk.py workload list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} --wait-for-job-completion $FS_READ_WORKLOAD --timeout 300
+      run: python3 xpk.py workload list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} --wait-for-job-completion $STORAGE_READ_WORKLOAD --timeout 300
     - name: Delete the reader workload on the cluster
-      run: python3 xpk.py workload delete --workload $FS_READ_WORKLOAD --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}
+      run: python3 xpk.py workload delete --workload $STORAGE_READ_WORKLOAD --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}
     - name: Create batch-read.sh script
       run: |
         cat <<EOF > batch-read.sh
@@ -183,21 +181,8 @@ jobs:
     - name: Delete create-shell.exp file
       run: rm create-shell.exp
     - name: Run workload to delete file on filestore
-      run : python3 xpk.py workload create --workload $FS_DELETE_WORKLOAD --command "rm -rf /${{inputs.storage-type}}-test-mount-point/$RANDOM_SEED/test.txt || exit 143" --num-slices=1 --cluster ${{inputs.cluster-name}} --tpu-type=${{inputs.tpu-type}} --zone ${{inputs.zone}}
+      run : python3 xpk.py workload create --workload $STORAGE_DELETE_WORKLOAD --command "rm -rf /${{inputs.storage-type}}-test-mount-point/$RANDOM_SEED/test.txt || exit 143" --num-slices=1 --cluster ${{inputs.cluster-name}} --tpu-type=${{inputs.tpu-type}} --zone ${{inputs.zone}}
     - name: Wait for delete workload completion and confirm it succeeded
-      run: python3 xpk.py workload list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} --wait-for-job-completion $FS_DELETE_WORKLOAD --timeout 300
+      run: python3 xpk.py workload list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} --wait-for-job-completion $STORAGE_DELETE_WORKLOAD --timeout 300
     - name: Delete the delete workload on the cluster
-      run: python3 xpk.py workload delete --workload $FS_DELETE_WORKLOAD --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}
-    - name: Detach storage volumes
-      if: always()
-      run: python3 xpk.py storage detach ${{secrets.STORAGE_NAME}} --cluster=${{inputs.cluster-name}} --zone=${{inputs.zone}}
-    - name: Verify VolumeBundle deleted
-      run: |
-        ! kubectl get volumebundle | grep ${{secrets.STORAGE_NAME}}
-    - name: Delete GCP Filestore Storage instance
-      if: always() && inputs.storage-command == 'create' && inputs.storage-type == 'gcpfilestore'
-      run: python3 xpk.py storage delete ${{secrets.STORAGE_NAME}} --cluster=${{inputs.cluster-name}} --zone=${{inputs.zone}}
-    - name: Verify deletion of GCP Filestore Storage instance
-      if: inputs.storage-command == 'create' && inputs.storage-type == 'gcpfilestore'
-      run: |
-        ! gcloud filestore instances list | grep ${{secrets.STORAGE_NAME}}
+      run: python3 xpk.py workload delete --workload $STORAGE_DELETE_WORKLOAD --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}

@@ -95,6 +95,7 @@ from ..core.workload_decorators import (
 )
 from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
+from . import cluster_gcluster
 from .common import is_TAS_possible
 
 WORKLOAD_CREATE_YAML = """apiVersion: jobset.x-k8s.io/v1alpha2
@@ -460,12 +461,10 @@ def workload_create(args) -> None:
     if not is_TAS_possible(args):
       kueue_TAS_annotation = ''
 
-    if system.device_type in [
-        a3high_device_type,
-        a3mega_device_type,
-        a3ultra_device_type,
-        a4_device_type,
-    ]:
+    if (
+        system.device_type in cluster_gcluster.supported_device_types
+        or system.device_type == a3high_device_type
+    ):
       yml_string = A3_GPU_WORKLOAD_CREATE_YAML.format(
           args=args,
           container=container,

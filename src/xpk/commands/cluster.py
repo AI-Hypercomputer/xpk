@@ -320,7 +320,7 @@ def cluster_create(args) -> None:
 
   install_kueue(args, system, autoprovisioning_config)
 
-  # install_kjob(args)
+  install_kjob(args)
 
   # Update memory limit of Jobset Controller Manager
   k8s_api_client = setup_k8s_env(args)

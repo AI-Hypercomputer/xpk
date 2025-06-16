@@ -73,6 +73,11 @@ from ..core.vertex import create_vertex_tensorboard
 from ..core.workload import get_workload_list
 from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
+from ..utils.kubectl import (
+    apply_kubectl_manifest,
+    update_jobset_manifest,
+    update_kueue_manifest,
+)
 from . import cluster_gcluster
 from .common import set_cluster_command
 
@@ -315,8 +320,32 @@ def cluster_create(args) -> None:
 
   install_kueue(args, system, autoprovisioning_config)
 
-  install_kjob(args)
+  # install_kjob(args)
 
+  # Update memory limit of Jobset Controller Manager
+  k8s_api_client = setup_k8s_env(args)
+  jobset_manifest = update_jobset_manifest(args)
+  if jobset_manifest is None:
+    xpk_print(
+        "Updated jobset manifest is empty, not updating the jobset controller."
+    )
+  xpk_print("Updating Jobset Controller Manager")
+  return_code = apply_kubectl_manifest(k8s_api_client, [jobset_manifest])
+  if return_code != 0:
+    xpk_print(f'Updating Jobset Controller Manager returned ERROR {return_code}')
+    return return_code
+
+  kueue_manifest = update_kueue_manifest(args)
+  if kueue_manifest is None:
+    xpk_print(
+        "Updated Kueue manifest is empty, not updating the Kueue controller."
+    )
+  xpk_print("Updating Kueue Controller Manager")
+  return_code = apply_kubectl_manifest(k8s_api_client, [kueue_manifest])
+  if return_code != 0:
+    xpk_print(f'Updating Kueue Controller Manager returned ERROR {return_code}')
+    return return_code
+  
   if system.accelerator_type == AcceleratorType['GPU']:
     prepare_gpus(args, system)
 

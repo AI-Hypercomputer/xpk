@@ -194,7 +194,11 @@ class BlueprintGenerator:
             "name": f"{cluster_name}-a3-megagpu-pool-0",
             "machine_type": system.gce_machine_type,
             "zones": [zone],
-            "host_maintenance_interval": "PERIODIC",
+            "host_maintenance_interval": (
+                None
+                if capacity_type == CapacityType.RESERVATION
+                else "PERIODIC"
+            ),
             "reservation_affinity": self._getblock_reservation_affinity(
                 reservation
             ),

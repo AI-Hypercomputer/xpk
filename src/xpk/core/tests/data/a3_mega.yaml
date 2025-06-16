@@ -79,7 +79,7 @@ deployment_groups:
       name: bar-a3-megagpu-pool-0
       machine_type: a3-megagpu-8g
       zones: [us-central1-c]
-      host_maintenance_interval: PERIODIC
+      host_maintenance_interval:
       reservation_affinity:
         consume_reservation_type: SPECIFIC_RESERVATION
         specific_reservations:

@@ -21,6 +21,7 @@ from packaging.version import Version
 
 from ..utils.console import xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
+from .capacity import B200_DEVICE_TYPE, H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE
 from .commands import (
     run_command_for_value,
     run_command_with_updates,
@@ -45,6 +46,19 @@ WAIT_FOR_KUEUE_TIMEOUT = '5m'
 
 packaging.version.VERSION_PATTERN = r'^v\d+\.\d+\.\d+$'
 
+topology_yaml = """apiVersion: kueue.x-k8s.io/v1alpha1
+kind: Topology
+metadata:
+  name: "gke-default"
+spec:
+  levels:
+  - nodeLabel: "cloud.google.com/gce-topology-block"
+  - nodeLabel: "cloud.google.com/gce-topology-subblock"
+  - nodeLabel: "cloud.google.com/gce-topology-host"
+  - nodeLabel: "kubernetes.io/hostname"
+---
+"""
+
 cluster_set_crd_yaml = """apiVersion: kueue.x-k8s.io/v1beta1
 kind: ResourceFlavor
 metadata:
@@ -53,6 +67,7 @@ spec:
   nodeLabels:
     {accelerator_label}
     {machine_label}
+  {topology_label}
 ---
 {pw_resource_flavors}
 apiVersion: kueue.x-k8s.io/v1beta1
@@ -300,6 +315,14 @@ def install_kueue_crs(
       resource_type=resource_type,
       total_chips=total_chips,
   )
+  topology_label = ''
+  if system.device_type in [
+      H100_MEGA_DEVICE_TYPE,
+      H200_DEVICE_TYPE,
+      B200_DEVICE_TYPE,
+  ]:
+    topology_label = 'topologyName: "gke-default"'
+
   yml_string = cluster_set_crd_yaml.format(
       system=system,
       cluster_hardware_name=cluster_hardware_name,
@@ -309,6 +332,7 @@ def install_kueue_crs(
       machine_label=create_machine_label(
           system.accelerator_type, system, autoprovisioning_enabled
       ),
+      topology_label=topology_label,
       covered_resources_config=covered_resources_config,
       resource_type=AcceleratorTypeToAcceleratorCharacteristics[
           system.accelerator_type
@@ -318,6 +342,12 @@ def install_kueue_crs(
       cluster_queue_name=CLUSTER_QUEUE_NAME,
       local_queue_name=LOCAL_QUEUE_NAME,
   )
+  if system.device_type in [
+      H100_MEGA_DEVICE_TYPE,
+      H200_DEVICE_TYPE,
+      B200_DEVICE_TYPE,
+  ]:
+    yml_string = topology_yaml + yml_string
 
   tmp = write_tmp_file(yml_string)
   command = f'kubectl apply -f {str(tmp.file.name)}'

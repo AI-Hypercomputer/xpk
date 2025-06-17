@@ -19,6 +19,8 @@ package webhooks
 import (
 	"testing"
 
+	kueueconstants "sigs.k8s.io/kueue/pkg/controller/constants"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
@@ -29,11 +31,6 @@ import (
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
 
 	utiltesting "tpu-slice-controller/internal/util/testing"
-)
-
-const (
-	annotationValueTBD = "TBD"
-	QueueLabel         = "kueue.x-k8s.io/queue-name"
 )
 
 func TestDefault(t *testing.T) {
@@ -79,7 +76,7 @@ func TestDefault(t *testing.T) {
 				},
 				ObjectMeta: ctrl.ObjectMeta{
 					Labels: map[string]string{
-						QueueLabel: "local-queue",
+						kueueconstants.QueueLabel: "local-queue",
 					},
 					Namespace: metav1.NamespaceDefault,
 				},
@@ -107,7 +104,7 @@ func TestDefault(t *testing.T) {
 				},
 				ObjectMeta: ctrl.ObjectMeta{
 					Labels: map[string]string{
-						QueueLabel: "local-queue",
+						kueueconstants.QueueLabel: "local-queue",
 					},
 					Namespace: metav1.NamespaceDefault,
 				},

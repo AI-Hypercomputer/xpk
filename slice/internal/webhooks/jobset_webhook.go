@@ -32,6 +32,10 @@ const (
 	PodSetSliceSizeAnnotation             = "kueue.x-k8s.io/podset-slice-size"
 )
 
+const (
+	annotationValueTBD = "TBD"
+)
+
 // JobSetWebhook is the schema for your resource (ensure this matches your resource definition).
 type JobSetWebhook struct{}
 
@@ -61,9 +65,9 @@ func (r *JobSetWebhook) Default(ctx context.Context, obj runtime.Object) error {
 		if rj.Template.Annotations == nil {
 			rj.Template.Annotations = make(map[string]string)
 		}
-		rj.Template.Annotations[PodSetRequiredTopologyAnnotation] = "TBD"
-		rj.Template.Annotations[PodSetSliceRequiredTopologyAnnotation] = "TBD"
-		rj.Template.Annotations[PodSetSliceSizeAnnotation] = "TBD"
+		rj.Template.Annotations[PodSetRequiredTopologyAnnotation] = annotationValueTBD
+		rj.Template.Annotations[PodSetSliceRequiredTopologyAnnotation] = annotationValueTBD
+		rj.Template.Annotations[PodSetSliceSizeAnnotation] = annotationValueTBD
 
 		jobSet.Spec.ReplicatedJobs[i] = rj
 	}

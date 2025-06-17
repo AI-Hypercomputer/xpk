@@ -19,34 +19,111 @@ package controller
 import (
 	"context"
 
-	"k8s.io/apimachinery/pkg/runtime"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
+	"sigs.k8s.io/kueue/pkg/workload"
+
+	"tpu-slice-controller/api/v1alpha1"
 )
+
+const CleanupSliceFinalizerName = "accelerator.gke.io/slice"
 
 // WorkloadReconciler reconciles a Workload object
 type WorkloadReconciler struct {
-	client.Client
-	Scheme *runtime.Scheme
+	client client.Client
 }
 
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the Workload object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.21.0/pkg/reconcile
+var _ reconcile.Reconciler = (*WorkloadReconciler)(nil)
+
+func NewWorkloadReconciler(cl client.Client) *WorkloadReconciler {
+	return &WorkloadReconciler{
+		client: cl,
+	}
+}
+
+// +kubebuilder:rbac:groups=kueue.x-k8s.io,resources=workloads,verbs=get;list;watch;create;update;patch
+// +kubebuilder:rbac:groups=slice.accelerator.gke.io,resources=slices,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=slice.accelerator.gke.io,resources=slices/finalizers,verbs=update
+
 func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = logf.FromContext(ctx)
+	wl := &kueue.Workload{}
+	err := r.client.Get(ctx, req.NamespacedName, wl)
+	if err != nil {
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
 
-	// TODO(user): your logic here
+	log := ctrl.LoggerFrom(ctx)
+	log.V(2).Info("Reconcile Workload")
 
-	return ctrl.Result{}, nil
+	if r.shouldFinalize(wl) {
+		if controllerutil.ContainsFinalizer(wl, CleanupSliceFinalizerName) {
+			err = r.client.Delete(ctx, r.newEmptySlice(wl))
+			if client.IgnoreNotFound(err) != nil {
+				return ctrl.Result{}, err
+			}
+			controllerutil.RemoveFinalizer(wl, CleanupSliceFinalizerName)
+			if err := r.client.Update(ctx, wl); err != nil {
+				return ctrl.Result{}, err
+			}
+			log.V(5).Info("Removed finalizer")
+		}
+		return ctrl.Result{}, nil
+	}
+
+	if controllerutil.AddFinalizer(wl, CleanupSliceFinalizerName) {
+		if err := r.client.Update(ctx, wl); err != nil {
+			log.V(5).Info("Added finalizer")
+			return ctrl.Result{}, err
+		}
+	}
+
+	return ctrl.Result{}, r.createSliceIfNotExist(ctx, wl)
+}
+
+func (r *WorkloadReconciler) shouldFinalize(wl *kueue.Workload) bool {
+	return !wl.DeletionTimestamp.IsZero() || workload.IsFinished(wl) || workload.IsEvicted(wl) || !workload.IsActive(wl)
+}
+
+func (r *WorkloadReconciler) newEmptySlice(wl *kueue.Workload) *v1alpha1.Slice {
+	return &v1alpha1.Slice{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      wl.Name,
+			Namespace: wl.Namespace,
+		},
+	}
+}
+
+func (r *WorkloadReconciler) newSlice(wl *kueue.Workload) (*v1alpha1.Slice, error) {
+	slice := r.newEmptySlice(wl)
+
+	if err := controllerutil.SetControllerReference(wl, slice, r.client.Scheme()); err != nil {
+		return nil, err
+	}
+
+	return slice, nil
+}
+
+func (r *WorkloadReconciler) createSliceIfNotExist(ctx context.Context, wl *kueue.Workload) error {
+	slice := r.newEmptySlice(wl)
+
+	err := r.client.Get(ctx, client.ObjectKeyFromObject(slice), slice)
+	if client.IgnoreNotFound(err) != nil {
+		return err
+	}
+	if err == nil {
+		return nil
+	}
+
+	slice, err = r.newSlice(wl)
+	if err != nil {
+		return err
+	}
+
+	return r.client.Create(ctx, slice)
 }
 
 // SetupWithManager sets up the controller with the Manager.

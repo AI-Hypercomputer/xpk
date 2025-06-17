@@ -698,7 +698,22 @@ def cluster_create_ray_cluster(args) -> None:
   cluster_create(args)
 
 def update_coredns(args):
+  """Updates and deploys CoreDNS within a cluster.
 
+  This function performs the following steps:
+  1. Installs 'jq'.
+  2. Clones the CoreDNS deployment repository from GitHub if it doesn't already exist.
+  3. Retrieves Google Kubernetes Engine (GKE) cluster credentials.
+  4. Deploys CoreDNS to the cluster.
+  5. Scales down the 'kube-dns-autoscaler' and 'kube-dns' deployments.
+  6. Scales up the 'coredns' deployment to 15 replicas.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
   home_dir = os.path.expanduser("~")
   coredns_repo_dir_name = "deployment" 
   coredns_repo_full_path = os.path.join(home_dir, coredns_repo_dir_name)

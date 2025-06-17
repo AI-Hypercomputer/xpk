@@ -16,7 +16,7 @@ limitations under the License.
 
 from tabulate import tabulate
 
-from ..core.capacity import H100_DEVICE_TYPE
+from ..core.capacity import H100_DEVICE_TYPE, H200_DEVICE_TYPE, B200_DEVICE_TYPE
 from ..core.cluster import (
     get_all_clusters_programmatic,
     get_cluster_credentials,
@@ -25,6 +25,8 @@ from ..core.cluster import (
     set_jobset_on_cluster,
     set_pathways_job_on_cluster,
     setup_k8s_env,
+    disable_mglru_on_cluster,
+    count_nodes_on_cluster,
     update_cluster_with_gcpfilestore_driver_if_necessary,
     update_cluster_with_gcsfuse_driver_if_necessary,
     update_cluster_with_parallelstore_driver_if_necessary,
@@ -75,14 +77,123 @@ from . import cluster_gcluster
 from .common import set_cluster_command
 
 
+def cluster_adapt(args) -> None:
+  """Function that performs cluster adaptation.
+
+  Args:
+    args: user provided arguments for running the command.
+  """
+  args.enable_pathways = False
+
+  system, return_code = get_system_characteristics(args)
+
+  if return_code > 0:
+    xpk_print('Fetching system characteristics failed!')
+    xpk_exit(return_code)
+
+  xpk_print(
+      f'Starting cluster adaptation for cluster {args.cluster}:', flush=True
+  )
+  add_zone_and_project(args)
+
+  if system.accelerator_type == AcceleratorType['GPU'] and not getattr(
+      args, 'num_nodes'
+  ):
+    xpk_print(
+        'Argument --num-nodes was not provided, trying to determine number of'
+        ' nodes based on the available nodes in the cluster...'
+    )
+    args.num_nodes = count_nodes_on_cluster(args, system)
+    if args.num_nodes == 0:
+      xpk_print(
+          'Found unexpected number of nodes. Is the --device-type correct?'
+      )
+      xpk_exit(1)
+    else:
+      xpk_print(f'Using {args.num_nodes} nodes.')
+
+  # ToDo(roshanin@) - Re-enable CloudDNS on Pathways clusters conditionally.
+  # Enable WorkloadIdentity if not enabled already.
+  if args.enable_workload_identity or args.enable_gcsfuse_csi_driver:
+    update_cluster_command_code = (
+        update_cluster_with_workload_identity_if_necessary(args)
+    )
+    if update_cluster_command_code != 0:
+      xpk_exit(update_cluster_command_code)
+
+  get_cluster_credentials(args)
+
+  k8s_client = setup_k8s_env(args)
+
+  install_storage_crd(k8s_client)
+  install_storage_csis(args)
+
+  # create Vertex Tensorboard for new and existing clusters if create-vertex-tensorboard is set
+  tensorboard_config = {}
+  if VERTEX_TENSORBOARD_FEATURE_FLAG and args.create_vertex_tensorboard:
+    tensorboard_config = create_vertex_tensorboard(args)
+    # exit if failed to create Tensorboard in Vertex AI
+    if not tensorboard_config:
+      xpk_exit(1)
+
+  # Provision node pools dynamically based on incoming workloads:
+  # Currently autoprovisioning is not supported with Pathways.
+  autoprovisioning_config = None
+  if args.enable_autoprovisioning:
+    xpk_print('Enabling Autoprovisioning')
+    autoprovisioning_config, return_code = enable_autoprovisioning_on_cluster(
+        args, system
+    )
+    if return_code != 0:
+      xpk_exit(return_code)
+
+  xpk_print('Creating ConfigMap for cluster')
+  create_cluster_configmaps_code = create_cluster_configmaps(
+      args, system, tensorboard_config, autoprovisioning_config
+  )
+  if create_cluster_configmaps_code != 0:
+    xpk_exit(create_cluster_configmaps_code)
+
+  xpk_print(
+      'Enabling the jobset API on our cluster, to be deprecated when Jobset is'
+      ' globally available'
+  )
+  set_jobset_on_cluster_code = set_jobset_on_cluster(args)
+  if set_jobset_on_cluster_code != 0:
+    xpk_exit(set_jobset_on_cluster_code)
+
+  # TODO: Uncomment when cluster_adapt will support TPU cluters
+  # set_pathways_job_on_cluster_code = set_pathways_job_on_cluster(args)
+  # if set_pathways_job_on_cluster_code != 0:
+  #   xpk_exit(set_pathways_job_on_cluster_code)
+
+  install_kueue(args, system, autoprovisioning_config)
+
+  install_kjob(args)
+
+  if system.accelerator_type == AcceleratorType['GPU']:
+    prepare_gpus(args, system)
+
+  if args.enable_ray_cluster:
+    return_code = install_ray_cluster(args, system)
+    if return_code != 0:
+      xpk_print('Installation of RayCluster failed.')
+      xpk_exit(return_code)
+
+  xpk_print('GKE commands done! Resources are created.')
+  xpk_print(
+      'See your GKE Cluster here:'
+      # pylint: disable=line-too-long
+      f' https://console.cloud.google.com/kubernetes/clusters/details/{zone_to_region(args.zone)}/{args.cluster}/details?project={args.project}'
+  )
+  xpk_exit(0)
+
+
 def cluster_create(args) -> None:
   """Function around cluster creation.
 
   Args:
     args: user provided arguments for running the command.
-
-  Returns:
-    0 if successful and 1 otherwise.
   """
   system, return_code = get_system_characteristics(args)
 
@@ -132,38 +243,12 @@ def cluster_create(args) -> None:
     if update_cluster_command_code != 0:
       xpk_exit(update_cluster_command_code)
 
-  # Enable GCSFuse CSI Driver if not enabled already.
-  if args.enable_gcsfuse_csi_driver:
-    update_cluster_command_code = (
-        update_cluster_with_gcsfuse_driver_if_necessary(args)
-    )
-    if update_cluster_command_code != 0:
-      xpk_exit(update_cluster_command_code)
-
-  if args.enable_gcpfilestore_csi_driver:
-    update_cluster_command_code = (
-        update_cluster_with_gcpfilestore_driver_if_necessary(args)
-    )
-    if update_cluster_command_code != 0:
-      xpk_exit(update_cluster_command_code)
-
-  if args.enable_parallelstore_csi_driver:
-    update_cluster_command_code = (
-        update_cluster_with_parallelstore_driver_if_necessary(args)
-    )
-    if update_cluster_command_code != 0:
-      xpk_exit(update_cluster_command_code)
-
-  if args.enable_pd_csi_driver:
-    update_cluster_command_code = update_cluster_with_pd_driver_if_necessary(
-        args
-    )
-    if update_cluster_command_code != 0:
-      xpk_exit(update_cluster_command_code)
-
-  # Update Pathways clusters with CloudDNS if not enabled already.
-
   get_cluster_credentials(args)
+
+  k8s_client = setup_k8s_env(args)
+
+  install_storage_crd(k8s_client)
+  install_storage_csis(args)
 
   # create Vertex Tensorboard for new and existing clusters if create-vertex-tensorboard is set
   tensorboard_config = {}
@@ -228,51 +313,12 @@ def cluster_create(args) -> None:
   if set_pathways_job_on_cluster_code != 0:
     xpk_exit(set_pathways_job_on_cluster_code)
 
-  xpk_print('Enabling Kueue on the cluster')
-  install_kueue_on_cluster_code = install_kueue_on_cluster(args)
-  if install_kueue_on_cluster_code != 0:
-    xpk_exit(install_kueue_on_cluster_code)
+  install_kueue(args, system, autoprovisioning_config)
 
-  xpk_print('Verifying kjob installation')
-  err_code = verify_kjob_installed(args)
-  if err_code > 0:
-    xpk_exit(err_code)
-
-  xpk_print('Applying kjob CDRs')
-  err_code = apply_kjob_crds(args)
-  if err_code > 0:
-    xpk_exit(err_code)
-
-  err_code = prepare_kjob(args)
-  if err_code > 0:
-    xpk_exit(err_code)
-
-  k8s_client = setup_k8s_env(args)
-  install_storage_crd(k8s_client)
-
-  xpk_print('Wait for Kueue to be fully available')
-  wait_for_kueue_available_code = wait_for_kueue_available(args)
-  if wait_for_kueue_available_code != 0:
-    xpk_exit(wait_for_kueue_available_code)
-
-  xpk_print('Install Kueue Custom Resources')
-  enable_kueue_credentials_code = install_kueue_crs(
-      args, system, autoprovisioning_config
-  )
-  if enable_kueue_credentials_code != 0:
-    xpk_exit(enable_kueue_credentials_code)
+  install_kjob(args)
 
   if system.accelerator_type == AcceleratorType['GPU']:
-    xpk_print('Installing NCCL Plugin for cluster')
-    install_nccl_code = install_nccl_on_cluster(args, system)
-    if install_nccl_code != 0:
-      xpk_exit(install_nccl_code)
-
-  if system.device_type == H100_DEVICE_TYPE:
-    xpk_print('Installing NRI device injector for cluster')
-    install_nri_code = install_nri_on_cluster(args)
-    if install_nri_code != 0:
-      xpk_exit(install_nri_code)
+    prepare_gpus(args, system)
 
   if args.enable_ray_cluster:
     return_code = install_ray_cluster(args, system)
@@ -790,6 +836,7 @@ def run_gke_cluster_create_command(
       f' --num-nodes {args.default_pool_cpu_num_nodes}'
       f' {args.custom_cluster_arguments}'
       f' {rapid_release_cmd}'
+      ' --enable-dns-access'
   )
 
   enable_ip_alias = False
@@ -844,3 +891,87 @@ def run_gke_cluster_create_command(
     xpk_print(f'GKE Cluster Create request returned ERROR {return_code}')
     return 1
   return 0
+
+
+def install_storage_csis(args):
+  if args.enable_gcsfuse_csi_driver:
+    update_cluster_command_code = (
+        update_cluster_with_gcsfuse_driver_if_necessary(args)
+    )
+    if update_cluster_command_code != 0:
+      xpk_exit(update_cluster_command_code)
+
+  if args.enable_gcpfilestore_csi_driver:
+    update_cluster_command_code = (
+        update_cluster_with_gcpfilestore_driver_if_necessary(args)
+    )
+    if update_cluster_command_code != 0:
+      xpk_exit(update_cluster_command_code)
+
+  if args.enable_parallelstore_csi_driver:
+    update_cluster_command_code = (
+        update_cluster_with_parallelstore_driver_if_necessary(args)
+    )
+    if update_cluster_command_code != 0:
+      xpk_exit(update_cluster_command_code)
+
+  if args.enable_pd_csi_driver:
+    update_cluster_command_code = update_cluster_with_pd_driver_if_necessary(
+        args
+    )
+    if update_cluster_command_code != 0:
+      xpk_exit(update_cluster_command_code)
+
+
+def install_kjob(args):
+  xpk_print('Verifying kjob installation')
+  err_code = verify_kjob_installed(args)
+  if err_code > 0:
+    xpk_exit(err_code)
+
+  xpk_print('Applying kjob CDRs')
+  err_code = apply_kjob_crds(args)
+  if err_code > 0:
+    xpk_exit(err_code)
+
+  err_code = prepare_kjob(args)
+  if err_code > 0:
+    xpk_exit(err_code)
+
+
+def install_kueue(args, system: SystemCharacteristics, autoprovisioning_config):
+  xpk_print('Enabling Kueue on the cluster')
+  install_kueue_on_cluster_code = install_kueue_on_cluster(args)
+  if install_kueue_on_cluster_code != 0:
+    xpk_exit(install_kueue_on_cluster_code)
+
+  xpk_print('Wait for Kueue to be fully available')
+  wait_for_kueue_available_code = wait_for_kueue_available(args)
+  if wait_for_kueue_available_code != 0:
+    xpk_exit(wait_for_kueue_available_code)
+
+  xpk_print('Install Kueue Custom Resources')
+  enable_kueue_credentials_code = install_kueue_crs(
+      args, system, autoprovisioning_config
+  )
+  if enable_kueue_credentials_code != 0:
+    xpk_exit(enable_kueue_credentials_code)
+
+
+def prepare_gpus(args, system: SystemCharacteristics):
+  xpk_print('Installing NCCL Plugin for cluster')
+  install_nccl_code = install_nccl_on_cluster(args, system)
+  if install_nccl_code != 0:
+    xpk_exit(install_nccl_code)
+
+  if system.device_type == H100_DEVICE_TYPE:
+    xpk_print('Installing NRI device injector for cluster')
+    install_nri_code = install_nri_on_cluster(args)
+    if install_nri_code != 0:
+      xpk_exit(install_nri_code)
+
+  if system.device_type in [H200_DEVICE_TYPE, B200_DEVICE_TYPE]:
+    xpk_print('Disabling MGLRU')
+    err_code = disable_mglru_on_cluster(args)
+    if err_code > 0:
+      xpk_exit(err_code)

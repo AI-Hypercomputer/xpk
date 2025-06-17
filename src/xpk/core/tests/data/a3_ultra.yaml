@@ -14,7 +14,7 @@
 !Blueprint
 blueprint_name: xpk-gke-a3-ultra
 toolkit_modules_url: github.com/GoogleCloudPlatform/cluster-toolkit
-toolkit_modules_version: v1.48.0
+toolkit_modules_version: v1.51.0
 
 vars:
 
@@ -94,7 +94,7 @@ deployment_groups:
     use: [gke-a3-ultra-net-0]
     settings:
       release_channel: "RAPID"
-      version_prefix: "1.31."
+      version_prefix: "1.32."
       maintenance_exclusions:
       - name: no-minor-or-node-upgrades-indefinite
         start_time: "2024-12-01T00:00:00Z"
@@ -132,6 +132,8 @@ deployment_groups:
       zones: [us-central1-c]
       spot: false
       max_pods_per_node: 32
+      enable_flex_start: false
+      enable_queued_provisioning: false
       guest_accelerator:
       - type: nvidia-h200-141gb
         count: 8
@@ -153,7 +155,7 @@ deployment_groups:
     settings:
       kueue:
         install: true
-        version: v0.10.0  # TAS feature-gates is enabled in CT
+        version: v0.12.1  # TAS feature-gates is enabled in CT
         config_path: $(ghpc_stage("xpk-gke-a3-ultra"))/kueue-xpk-configuration.yaml.tftpl
         config_template_vars:
          num_chips: 16

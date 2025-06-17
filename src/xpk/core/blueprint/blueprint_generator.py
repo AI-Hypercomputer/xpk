@@ -147,6 +147,7 @@ class BlueprintGenerator:
                 if capacity_type == CapacityType.FLEX_START
                 else "RAPID"
             ),
+            "version_prefix": "1.32.",
             "prefix_with_deployment_name": False,
             "name_suffix": cluster_name,
             "enable_private_endpoint": False,
@@ -190,7 +191,12 @@ class BlueprintGenerator:
         source="modules/compute/gke-node-pool",
         use=nodepool_used_deps,
         settings={
-            "enable_flex_start": True if CapacityType.FLEX_START else False,
+            "enable_flex_start": (
+                True if capacity_type == CapacityType.FLEX_START else False
+            ),
+            "enable_queued_provisioning": (
+                True if capacity_type == CapacityType.FLEX_START else False
+            ),
             "name": f"{cluster_name}-a3-megagpu-pool-0",
             "machine_type": system.gce_machine_type,
             "zones": [zone],
@@ -499,7 +505,7 @@ class BlueprintGenerator:
                 if capacity_type == CapacityType.FLEX_START
                 else "RAPID"
             ),
-            "version_prefix": "1.31.",
+            "version_prefix": "1.32.",
             "maintenance_exclusions": (
                 []
                 if capacity_type == CapacityType.FLEX_START
@@ -566,7 +572,12 @@ class BlueprintGenerator:
             "reservation_affinity": self._getblock_reservation_affinity(
                 reservation
             ),
-            "enable_flex_start": True if capacity_type != CapacityType.FLEX_START else False,
+            "enable_flex_start": (
+                True if capacity_type == CapacityType.FLEX_START else False
+            ),
+            "enable_queued_provisioning": (
+                True if capacity_type == CapacityType.FLEX_START else False
+            ),
             "max_pods_per_node": 32,
             "guest_accelerator": [{
                 "type": "nvidia-h200-141gb",
@@ -852,6 +863,12 @@ class BlueprintGenerator:
             "spot": capacity_type == CapacityType.SPOT,
             "reservation_affinity": self._getblock_reservation_affinity(
                 reservation
+            ),
+            "enable_flex_start": (
+                True if capacity_type == CapacityType.FLEX_START else False
+            ),
+            "enable_queued_provisioning": (
+                True if capacity_type == CapacityType.FLEX_START else False
             ),
             "max_pods_per_node": 32,
             "guest_accelerator": [{

@@ -14,7 +14,7 @@
 !Blueprint
 blueprint_name: xpk-gke-a4
 toolkit_modules_url: github.com/GoogleCloudPlatform/cluster-toolkit
-toolkit_modules_version: v1.48.0
+toolkit_modules_version: v1.51.0
 
 vars:
 
@@ -146,6 +146,8 @@ deployment_groups:
         specific_reservations:
         - name: test-reservation
       max_pods_per_node: 32
+      enable_flex_start: false
+      enable_queued_provisioning: false
       guest_accelerator:
       - type: nvidia-b200
         count: 8
@@ -165,7 +167,7 @@ deployment_groups:
     settings:
       kueue:
         install: true
-        version: v0.10.0
+        version: v0.12.1
         config_path: $(ghpc_stage("xpk-gke-a4"))/kueue-xpk-configuration.yaml.tftpl
         config_template_vars:
           num_chips: 16

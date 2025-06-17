@@ -45,6 +45,8 @@ def check_if_workload_can_schedule(args, system: SystemCharacteristics) -> bool:
     )
     return True
 
+  if args.flex_start:
+    return True
   # Check for gke accelerator type:
   missing_gke_accelerator_type = False
   if not cluster_config_map.get(system.gke_accelerator):

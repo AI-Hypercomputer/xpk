@@ -14,6 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from ..core.blueprint.blueprint_generator import (
+    a3high_device_type,
+    a3mega_device_type,
+    a3ultra_device_type,
+    a4_device_type,
+)
 from ..core.cluster import (
     XPK_SA,
     create_xpk_k8s_service_account,
@@ -76,7 +82,6 @@ from ..core.system_characteristics import (
 )
 from ..core.vertex import create_vertex_experiment
 from ..core.workload import (
-    add_gpu_rxdm_container,
     check_if_workload_exists,
     get_workload_list,
     wait_for_job_completion,
@@ -85,12 +90,13 @@ from ..core.workload import (
 from ..core.workload_decorators import (
     rdma_decorator,
     storage_decorator,
+    tcpx_decorator,
     tcpxo_decorator,
 )
 from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
-from .common import is_TAS_possible
 from . import cluster_gcluster
+from .common import is_TAS_possible
 
 WORKLOAD_CREATE_YAML = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
@@ -455,7 +461,10 @@ def workload_create(args) -> None:
         )
     )
 
-    if system.device_type in cluster_gcluster.supported_device_types:
+    if (
+        system.device_type in cluster_gcluster.supported_device_types
+        or system.device_type == a3high_device_type
+    ):
       yml_string = A3_GPU_WORKLOAD_CREATE_YAML.format(
           args=args,
           container=container,
@@ -466,12 +475,11 @@ def workload_create(args) -> None:
       )
 
       sub_networks = get_cluster_subnetworks(args)
-      if args.device_type == cluster_gcluster.a3mega_device_type:
+      if args.device_type == a3high_device_type:
+        yml_string = tcpx_decorator.decorate_jobset(yml_string)
+      elif args.device_type == a3mega_device_type:
         yml_string = tcpxo_decorator.decorate_jobset(yml_string, sub_networks)
-      elif args.device_type in [
-          cluster_gcluster.a3ultra_device_type,
-          cluster_gcluster.a4_device_type,
-      ]:
+      elif args.device_type in [a3ultra_device_type, a4_device_type]:
         yml_string = rdma_decorator.decorate_jobset(yml_string, sub_networks)
 
       if all_storages:
@@ -489,7 +497,6 @@ def workload_create(args) -> None:
           failure_policy_rules=failure_policy_rules,
           pod_failure_policy=pod_failure_policy,
       )
-      yml_string = add_gpu_rxdm_container(yml_string, system, all_storages)
 
   elif args.use_pathways and ensure_pathways_workload_prerequisites(
       args, system

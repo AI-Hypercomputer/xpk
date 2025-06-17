@@ -189,7 +189,7 @@ ENVTEST_K8S_VERSION ?= $(shell go list -m -f "{{ .Version }}" k8s.io/api | awk -
 GOLANGCI_LINT_VERSION ?= v2.1.0
 
 # Versions for external controllers
-EXTERNAL_CRDS_DIR ?= dep-crds
+EXTERNAL_CRDS_DIR ?= deps-crds
 
 KUEUE_ROOT = $(shell $(GO_CMD) list -m -mod=readonly -f "{{.Dir}}" sigs.k8s.io/kueue)
 

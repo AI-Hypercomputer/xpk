@@ -20,9 +20,8 @@ import (
 	"context"
 	"fmt"
 
-	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -75,12 +74,13 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 }
 
 func (r *WorkloadReconciler) deleteSlice(ctx context.Context, name, ns string) error {
-	var slice *v1alpha1.Slice
-	err := r.Get(ctx, types.NamespacedName{Name: name, Namespace: ns}, slice)
-	if err != nil && !errors.IsNotFound(err) {
-		return err
+	slice := &v1alpha1.Slice{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: ns,
+		},
 	}
-	err = r.Delete(ctx, slice)
+	err := r.Delete(ctx, slice)
 
 	return client.IgnoreNotFound(err)
 }

@@ -75,8 +75,9 @@ from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
 from . import cluster_gcluster
 from .common import set_cluster_command
-
+import shutil
 import os
+import subprocess
 
 def cluster_adapt(args) -> None:
   """Function that performs cluster adaptation.
@@ -714,20 +715,20 @@ def update_coredns(args):
   Returns:
     0 if successful and 1 otherwise.
   """
-  home_dir = os.path.expanduser("~")
+  coredns_repo_dir = os.path.expanduser("/tmp/")
   coredns_repo_dir_name = "deployment" 
-  coredns_repo_full_path = os.path.join(home_dir, coredns_repo_dir_name)
+  coredns_repo_full_path = os.path.join(coredns_repo_dir, coredns_repo_dir_name)
   coredns_k8s_path = os.path.join(coredns_repo_full_path, "kubernetes")
 
   command_jq_install = (
     f'sudo apt install jq -y'
   )
   return_code = run_command_with_updates(
-        command_jq_install, 'Install jq', args
-    )
+    command_jq_install, 'Install jq', args
+  )
   if return_code != 0:
-        xpk_print(f'[XPK] Install jq error {return_code}')
-        xpk_exit(return_code)
+    xpk_print(f'[XPK] Install jq error {return_code}')
+    xpk_exit(return_code)
 
   # Check if the target directory already exists to avoid errors caused by duplicate cloning
   if os.path.exists(coredns_repo_full_path):
@@ -744,25 +745,13 @@ def update_coredns(args):
       xpk_print(f'[XPK] Clone deployment error {return_code}')
       xpk_exit(return_code)
 
-
-  cluster_name = os.environ.get('CLUSTER_NAME')
-  region = os.environ.get('REGION')
-  project = os.environ.get('PROJECT')          
-
-  if not all([cluster_name, region, project]):
-    missing_vars = []
-    if not cluster_name: missing_vars.append('CLUSTER_NAME')
-    if not region: missing_vars.append('REGION')
-    if not project: missing_vars.append('PROJECT')
-    xpk_print(f"[XPK] Error: Missing required environment variable:{', '.join(missing_vars)}. Please ensure these variables are set.")
-    xpk_exit(1)
-
   command_get_credentials = (
-    f'gcloud container clusters get-credentials {cluster_name} --dns-endpoint '
-    f'--region={region} --project={project} && kubectl config view '
+    f'gcloud container clusters get-credentials {args.cluster} --dns-endpoint '
+    f'--region={zone_to_region(args.zone)} --project={args.project} && kubectl config view '
     f'&& kubectl config set-context --current --namespace=default'
   )
   xpk_print(f"[XPK] Task: 'Get cluster credentials' in progress.")
+  return_code = get_cluster_credentials(args)
   return_code = run_command_with_updates(
     command_get_credentials, 'Get cluster credentials', args
   )
@@ -790,16 +779,19 @@ def update_coredns(args):
     )
     if return_code != 0:
       xpk_print(f'[XPK] Deploy CoreDNS error {return_code}')
-      xpk_exit(return_code)
+      pass
 
   finally:
       # Whether it succeeds or fails, always restore to the original directory
       os.chdir(original_cwd)
-
+  if return_code != 0:
+    xpk_exit(return_code)
+  
   # Scale down kube-dns-autoscaler
   command_autoscaler_scale_down = (
     'kubectl scale deployment kube-dns-autoscaler --replicas=0 --namespace=kube-system'
   )
+  # Note: The scaling down command has been issued, but the actual scaling process may take some time.
   xpk_print(f"[XPK] Task: 'Scaling down kube-dns-autoscaler' in progress")
   return_code = run_command_with_updates(
     command_autoscaler_scale_down, 'Scale down kube-dns-autoscaler', args
@@ -809,10 +801,11 @@ def update_coredns(args):
     xpk_exit(return_code)
   xpk_print("\n[XPK] kube-dns-autoscaler has been scaled down.")
 
-  # Scale down kube-dns (or CoreDNS)
+  # Scale down kube-dns 
   command_dns_scale_down = (
     'kubectl scale deployment kube-dns --replicas=0 --namespace=kube-system'
   )
+  # Note: The scaling down command has been issued, but the actual scaling process may take some time.
   xpk_print(f"[XPK] Task: 'Scaling down kube-dns' in progress")
   return_code = run_command_with_updates(
     command_dns_scale_down, 'Scale down kube-dns', args
@@ -822,8 +815,9 @@ def update_coredns(args):
     xpk_exit(return_code)
   xpk_print("\n[XPK] kube-dns has been scaled down.")
 
+  # Scale up core-dns
   command_coredns_scale = (
-    'kubectl scale deployment coredns --replicas=15 -n kube-system'
+    'kubectl scale deployment coredns --replicas=1 -n kube-system'
   )
   xpk_print(f"[XPK] Task: 'Scale CoreDNS' in progress")
   return_code = run_command_with_updates(
@@ -833,9 +827,67 @@ def update_coredns(args):
     xpk_print(f'[XPK] Scale CoreDNS error {return_code}')
     xpk_exit(return_code)
 
+  # Waiting for CoreDNS to scale up and reach a Ready state.
+  command_wait_coredns_ready = (
+    f'kubectl wait --for=condition=ready deployment/coredns '
+    f'--namespace=kube-system --timeout=180s'
+  ) 
+  xpk_print(f"[XPK] Task: 'Waiting for CoreDNS to become ready'...")
+  return_code = run_command_with_updates(
+    command_wait_coredns_ready, 'Wait for CoreDNS Ready', args
+  )
+  if return_code != 0:
+    xpk_print(f'[XPK] Error: CoreDNS did not become ready within the timeout.')
+    xpk_exit(1) 
+
   xpk_print("\n[XPK] The CoreDNS setup process has been completed.")
   
+  xpk_print(f"[XPK] Task: 'Deleting CoreDNS deployment directory' in progress: {coredns_repo_full_path}")
+  try:
+    shutil.rmtree(coredns_repo_full_path)
+    xpk_print(f"[XPK] Successfully deleted directory: {coredns_repo_full_path}")
+  except OSError as e:
+    xpk_print(f"[XPK] Error deleting directory {coredns_repo_full_path}: {e}")
+
   return 0
+
+def coredns_deployment_exists(namespace: str = 'kube-system') -> bool:
+  """Checks if the CoreDNS deployment exists in the given namespace.
+
+  Args:
+    namespace: The Kubernetes namespace to check for the CoreDNS deployment.
+
+  Returns:
+    True if the 'coredns' deployment exists, False otherwise.
+  """
+  command = f"kubectl get deployment coredns -n {namespace}"
+  try:
+    # Use subprocess.run with check=False to capture exit code without raising an exception
+    result = subprocess.run(command, shell=True, check=False, capture_output=True)
+    return result.returncode == 0
+  except Exception as e:
+    xpk_print(f"Error checking CoreDNS deployment existence: {e}")
+    return False
+
+def update_coredns_if_necessary(args) -> int:
+  """Updates and deploys CoreDNS within the cluster if it's not already present.
+
+  This function checks for the existence of the CoreDNS deployment.
+  If it's not found, it proceeds to deploy and configure CoreDNS.
+
+  Args:
+    args: User-provided arguments for running the command.
+
+  Returns:
+    0 if successful (CoreDNS was already present or successfully deployed),
+    and 1 otherwise.
+  """
+  if coredns_deployment_exists(namespace='kube-system'):
+    xpk_print('Skipping CoreDNS deployment since it already exists.')
+    return 0
+  else:
+    xpk_print('CoreDNS deployment not found. Proceeding with CoreDNS setup.')
+    return update_coredns(args)
 
 
 def create_cluster_if_necessary(

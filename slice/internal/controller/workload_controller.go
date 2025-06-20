@@ -45,7 +45,7 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	log := ctrl.LoggerFrom(ctx)
 	log.V(2).Info("Reconcile Workload")
 
-	sliceName := fmt.Sprintf("%s-slice", wl.Name)
+	sliceName := fmt.Sprintf("%s-%s-slice", wl.Namespace, wl.Name)
 	if !wl.DeletionTimestamp.IsZero() {
 		if controllerutil.ContainsFinalizer(&wl, v1alpha1.CleanupSliceFinalizerName) {
 			if err := r.deleteSlice(ctx, sliceName, wl.Namespace); err != nil {

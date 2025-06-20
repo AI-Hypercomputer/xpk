@@ -38,6 +38,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
 
+	"tpu-slice-controller/api/v1alpha1"
 	"tpu-slice-controller/internal/controller"
 	"tpu-slice-controller/internal/webhooks"
 	// +kubebuilder:scaffold:imports
@@ -50,6 +51,7 @@ var (
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(v1alpha1.AddToScheme(scheme))
 	utilruntime.Must(kueue.AddToScheme(scheme))
 
 	// +kubebuilder:scaffold:scheme

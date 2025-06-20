@@ -18,12 +18,16 @@ package controller
 
 import (
 	"context"
+	"fmt"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
+
+	"tpu-slice-controller/api/v1alpha1"
 )
 
 // WorkloadReconciler reconciles a Workload object
@@ -32,21 +36,53 @@ type WorkloadReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the Workload object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.21.0/pkg/reconcile
 func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = logf.FromContext(ctx)
+	var wl kueue.Workload
+	if err := r.Get(ctx, req.NamespacedName, &wl); err != nil {
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
 
-	// TODO(user): your logic here
+	log := ctrl.LoggerFrom(ctx)
+	log.V(2).Info("Reconcile Workload")
+
+	sliceName := fmt.Sprintf("%s-%s-slice", wl.Namespace, wl.Name)
+	if !wl.DeletionTimestamp.IsZero() {
+		if controllerutil.ContainsFinalizer(&wl, v1alpha1.CleanupSliceFinalizerName) {
+			if err := r.deleteSlice(ctx, sliceName, wl.Namespace); err != nil {
+				return ctrl.Result{}, err
+			}
+
+			controllerutil.RemoveFinalizer(&wl, v1alpha1.CleanupSliceFinalizerName)
+			if err := r.Update(ctx, &wl); err != nil {
+				return ctrl.Result{}, err
+			}
+			log.V(5).Info("Removed finalizer")
+		}
+		return ctrl.Result{}, nil
+	}
+
+	if controllerutil.AddFinalizer(&wl, v1alpha1.CleanupSliceFinalizerName) {
+		if err := r.Update(ctx, &wl); err != nil {
+			log.V(5).Info("Added finalizer")
+			return ctrl.Result{}, err
+		}
+
+		return ctrl.Result{}, nil
+	}
 
 	return ctrl.Result{}, nil
+}
+
+func (r *WorkloadReconciler) deleteSlice(ctx context.Context, name, ns string) error {
+	slice := &v1alpha1.Slice{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: ns,
+		},
+	}
+	err := r.Delete(ctx, slice)
+
+	return client.IgnoreNotFound(err)
 }
 
 // SetupWithManager sets up the controller with the Manager.

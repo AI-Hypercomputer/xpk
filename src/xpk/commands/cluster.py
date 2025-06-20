@@ -862,20 +862,20 @@ def update_coredns(args):
     os.chdir(coredns_k8s_path)
 
     command_deploy_coredns = (
-        f'./deploy.sh | kubectl apply -f -'
+      f'./deploy.sh | kubectl apply -f -'
     )
     xpk_print(f"Task: 'Deploy CoreDNS' in progress, Located at '{coredns_k8s_path}'")
     
     return_code = run_command_with_updates(
-        command_deploy_coredns, 'Deploy CoreDNS', args
+      command_deploy_coredns, 'Deploy CoreDNS', args
     )
     if return_code != 0:
       xpk_print(f'Deploy CoreDNS error {return_code}')
       pass
 
   finally:
-      # Whether it succeeds or fails, always restore to the original directory
-      os.chdir(original_cwd)
+    # Whether it succeeds or fails, always restore to the original directory
+    os.chdir(original_cwd)
   if return_code != 0:
     xpk_exit(return_code)
   
@@ -923,8 +923,8 @@ def update_coredns(args):
 
   # Call the check function here
   if not check_coredns_status(timeout=300):
-      xpk_print("CoreDNS verification failed, it might not have fully started.")
-      xpk_exit(1) 
+    xpk_print("CoreDNS verification failed, it might not have fully started.")
+    xpk_exit(1) 
   
   xpk_print("CoreDNS has successfully started and passed verification.")
 
@@ -1001,7 +1001,7 @@ def create_cluster_if_necessary(
     return 0
   else:
     return run_gke_cluster_create_command(
-        args, gke_control_plane_version, system
+      args, gke_control_plane_version, system
     )
 
 

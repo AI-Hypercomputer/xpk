@@ -834,36 +834,6 @@ def parse_command_args_to_dict(arg_string: str) -> dict:
     i += 1
   return parsed_args
 
-def format_params_to_command_string(params: dict) -> str:
-  """Formats a dictionary of parameters back into a command-line argument string.
-
-  This function takes a dictionary of processed parameters (after de-duplication
-  and priority handling) and converts them into a single string suitable for
-  execution as part of a shell command (e.g., gcloud). It correctly formats
-  boolean flags, key-value pairs, and handles values containing spaces by
-  enclosing them in quotes.
-
-  Args:
-    params: A dictionary where keys are parameter names (e.g., "--project")
-      and values are their corresponding values (e.g., "my-project", True).
-
-  Returns:
-    A single string representing the command-line arguments, ready to be appended
-    to the main command.
-  """
-  parts = []
-  for key, value in params.items():
-    if value is True: 
-      parts.append(key)
-    elif value is False: 
-      parts.append(key)
-    elif value is not None and value != '': 
-      if ' ' in str(value):
-        parts.append(f"{key}=\"{value}\"")
-      else:
-        parts.append(f"{key}={value}")
-  return ' '.join(parts)
-
 
 def run_gke_cluster_create_command(
     args, gke_control_plane_version: str, system: SystemCharacteristics
@@ -881,15 +851,14 @@ def run_gke_cluster_create_command(
   machine_type = args.default_pool_cpu_machine_type
   if args.cluster_cpu_machine_type != '':
     xpk_print(
-        'Warning: Note that cluster-cpu-machine-type is soon to be',
-        ' deprecated. Please use --default-pool-cpu-machine-type instead,'
-        ' to denote the machine type of the default cpu node pool. Set'
-        ' the machine type of other cpu nodepools using `--device-type`.',
+      'Warning: Note that cluster-cpu-machine-type is soon to be',
+      ' deprecated. Please use --default-pool-cpu-machine-type instead,'
+      ' to denote the machine type of the default cpu node pool. Set'
+      ' the machine type of other cpu nodepools using `--device-type`.',
     )
     machine_type = args.cluster_cpu_machine_type
 
   final_gcloud_args = {}
-
   
   final_gcloud_args['--project'] = args.project
   final_gcloud_args['--region'] = zone_to_region(args.zone)
@@ -901,84 +870,87 @@ def run_gke_cluster_create_command(
   final_gcloud_args['--total-max-nodes'] = 1000
   final_gcloud_args['--num-nodes'] = args.default_pool_cpu_num_nodes
   final_gcloud_args['--enable-dns-access'] = True 
-  final_gcloud_args['--enable-dns-access'] = True # 預設啟用 DNS 存取
-  final_gcloud_args['--master-ipv4-cidr'] = '172.16.0.32/28' # 檢查正確的預設值
-  final_gcloud_args['--cluster-ipv4-cidr'] = '10.224.0.0/12' # 確保這是 /12
-
+  final_gcloud_args['--master-ipv4-cidr'] = '172.16.0.32/28' 
+  final_gcloud_args['--cluster-ipv4-cidr'] = '10.224.0.0/12' 
 
   if args.gke_version is not None:
-      final_gcloud_args['--release-channel'] = 'rapid'
+    final_gcloud_args['--release-channel'] = 'rapid'
 
   conditional_params = {}
 
   if args.private or args.authorized_networks is not None:
-      conditional_params['--enable-master-authorized-networks'] = True
-      conditional_params['--enable-private-nodes'] = True
-      conditional_params['--enable-ip-alias'] = True 
+    conditional_params['--enable-master-authorized-networks'] = True
+    conditional_params['--enable-private-nodes'] = True
+    conditional_params['--enable-ip-alias'] = True 
 
   if system.accelerator_type == AcceleratorType['GPU']:
-      conditional_params['--enable-dataplane-v2'] = True
-      conditional_params['--enable-multi-networking'] = True
-      conditional_params['--no-enable-autoupgrade'] = True 
-      conditional_params['--enable-ip-alias'] = True 
+    conditional_params['--enable-dataplane-v2'] = True
+    conditional_params['--enable-multi-networking'] = True
+    conditional_params['--no-enable-autoupgrade'] = True 
+    conditional_params['--enable-ip-alias'] = True 
   else:
-      conditional_params['--location-policy'] = 'BALANCED'
-      conditional_params['--scopes'] = 'storage-full,gke-default'
-      if args.enable_pathways:
-          conditional_params['--enable-ip-alias'] = True 
+    conditional_params['--location-policy'] = 'BALANCED'
+    conditional_params['--scopes'] = 'storage-full,gke-default'
+    if args.enable_pathways:
+      conditional_params['--enable-ip-alias'] = True 
 
   if args.enable_ray_cluster:
-      conditional_params['--addons'] = 'RayOperator' 
+    conditional_params['--addons'] = 'RayOperator' 
 
   if args.enable_workload_identity or args.enable_gcsfuse_csi_driver:
-      conditional_params['--workload-pool'] = f'{args.project}.svc.id.goog'
+    conditional_params['--workload-pool'] = f'{args.project}.svc.id.goog'
 
   addons = []
   if args.enable_gcsfuse_csi_driver:
-      addons.append('GcsFuseCsiDriver')
+    addons.append('GcsFuseCsiDriver')
+
   if args.enable_gcpfilestore_csi_driver:
-      addons.append('GcpFilestoreCsiDriver')
+    addons.append('GcpFilestoreCsiDriver')
+
   if args.enable_parallelstore_csi_driver:
-      addons.append('ParallelstoreCsiDriver')
+    addons.append('ParallelstoreCsiDriver')
+
   if args.enable_pd_csi_driver:
-      addons.append('GcePersistentDiskCsiDriver')
+    addons.append('GcePersistentDiskCsiDriver')
+
   if hasattr(args, 'enable_mtc') and args.enable_mtc:
-      addons.append('HighScaleCheckpointing')
+    addons.append('HighScaleCheckpointing')
+
   if len(addons) > 0:
-      conditional_params['--addons'] = ','.join(addons) 
+    conditional_params['--addons'] = ','.join(addons) 
 
   for key, value in conditional_params.items():
-      if key not in final_gcloud_args: 
-          final_gcloud_args[key] = value
-      elif key == '--addons' and key in final_gcloud_args: 
-          final_gcloud_args[key] = ','.join(list(set(final_gcloud_args[key].split(',') + value.split(','))))
+    if key not in final_gcloud_args: 
+      final_gcloud_args[key] = value
+    elif key == '--addons' and key in final_gcloud_args: 
+      final_gcloud_args[key] = ','.join(list(set(final_gcloud_args[key].split(',') + value.split(','))))
 
 
   user_parsed_args = parse_command_args_to_dict(args.custom_cluster_arguments)
   for key, value in user_parsed_args.items():
-      if key.startswith('--no-') and key[5:] in final_gcloud_args:
-          del final_gcloud_args[key[5:]] 
-          final_gcloud_args[key] = True 
-      elif key.startswith('--enable-') and f'--no-{key[2:]}' in final_gcloud_args:
-            del final_gcloud_args[f'--no-{key[2:]}']
-            final_gcloud_args[key] = value
-      else:
-          final_gcloud_args[key] = value
+    if key.startswith('--no-') and key[5:] in final_gcloud_args:
+      del final_gcloud_args[key[5:]] 
+      final_gcloud_args[key] = True 
+    elif key.startswith('--enable-') and f'--no-{key[2:]}' in final_gcloud_args:
+      del final_gcloud_args[f'--no-{key[2:]}']
+      final_gcloud_args[key] = value
+    else:
+      final_gcloud_args[key] = value
 
   
   command_parts = ['gcloud beta container clusters create', args.cluster]
   
   
   for key, value in final_gcloud_args.items():
-      if value is True:
-          command_parts.append(key)
-      elif value is False: 
-          pass 
-      elif value is not None and value != '':
-          if ' ' in str(value):
-              command_parts.append(f"{key}=\"{value}\"")
-          else:
-              command_parts.append(f"{key}={value}")
+    if value is True:
+      command_parts.append(key)
+    elif value is False: 
+      pass 
+    elif value is not None and value != '':
+      if ' ' in str(value):
+        command_parts.append(f"{key}=\"{value}\"")
+      else:
+        command_parts.append(f"{key}={value}")
   
   command = ' '.join(command_parts)
 

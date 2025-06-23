@@ -28,6 +28,8 @@ from ..core.kueue import get_kueue_version
 from .console import xpk_print
 
 KUEUE_VERSION = 'v0.10.0'
+MEMORY_SIZE_PER_VM = 1.2
+MIN_MEMORY_LIMIT_SIZE = 4096
 
 def apply_kubectl_manifest(client, manifest) -> int:
   xpk_print('Applying manifest')
@@ -68,12 +70,8 @@ def apply_kubectl_manifest(client, manifest) -> int:
         status_code = 1
   return status_code
 
-
-def update_jobset_manifest(args):
-  """Update the jobset manifest to increase the resources for the jobset controller manager.
-
-  Args:
-    args: user provided arguments for running the command.
+def get_jobset_manifest():
+  """Get the jobset manifest.
 
   Returns:
     The updated jobset manifest.
@@ -85,6 +83,7 @@ def update_jobset_manifest(args):
     response = requests.get(manifest_url, timeout=10)
     response.raise_for_status()  # Raise an exception for HTTP errors
     manifest_content = response.text
+    return manifest_content
   except requests.exceptions.Timeout as e:
     xpk_print(f"Error: Request to {manifest_url} after 10 seconds: {e}")
     xpk_exit(1)
@@ -96,6 +95,17 @@ def update_jobset_manifest(args):
     xpk_print("Manifest content not found.")
     xpk_exit(1)
 
+
+def update_jobset_manifest(args):
+  """Update the jobset manifest to increase the resources for the jobset controller manager.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    The updated jobset manifest.
+  """
+  manifest_content = get_jobset_manifest()
   # Load all YAML documents from the manifest
   yaml_data_list = list(yaml.safe_load_all(manifest_content))
   # Iterate through the yaml_data to find the Deployment for
@@ -136,7 +146,7 @@ def update_jobset_manifest(args):
           new_cpu_request = "500m"
           new_memory_request = "128Mi"
           # 1.2MiB per VM or 4GiB (whichever is greater).
-          new_memory_limit = f"{max(math.ceil(int(out) * 1.2), 4096)}Mi"
+          new_memory_limit = f"{max(math.ceil(int(out) * MEMORY_SIZE_PER_VM), MIN_MEMORY_LIMIT_SIZE)}Mi"
 
           if parse_resource_value(current_cpu_request) < parse_resource_value(
               new_cpu_request
@@ -161,6 +171,31 @@ def update_jobset_manifest(args):
         return yaml_data
   xpk_print("Jobset controller no updation required.")
 
+def get_kueue_manifest():
+  """Get the kueue manifest.
+
+  Returns:
+    The updated kueue manifest.
+  """
+  manifest_url = f"https://github.com/kubernetes-sigs/kueue/releases/download/{KUEUE_VERSION}/manifests.yaml"
+  manifest_content = None
+  # Fetch the manifest content
+  try:
+    response = requests.get(manifest_url, timeout=10)
+    response.raise_for_status()  # Raise an exception for HTTP errors
+    manifest_content = response.text
+    return manifest_content
+  except requests.exceptions.Timeout as e:
+    xpk_print(f"Error: Request to {manifest_url} after 10 seconds: {e}")
+    xpk_exit(1)
+  except requests.exceptions.RequestException as e:
+    xpk_print(f"Error fetching manifest from {manifest_url}: {e}")
+    xpk_exit(1)
+
+  if manifest_content is None:
+    xpk_print("Manifest content not found.")
+    xpk_exit(1)
+
 def update_kueue_manifest(args):
   """Update the kueue manifest to increase the resources for the kueue controller manager.
 
@@ -182,24 +217,7 @@ def update_kueue_manifest(args):
       upgrade_code = delete_multikueueconfigs_definitions(args)
       if upgrade_code != 0:
         return upgrade_code
-  manifest_url = f"https://github.com/kubernetes-sigs/kueue/releases/download/{KUEUE_VERSION}/manifests.yaml"
-  manifest_content = None
-  # Fetch the manifest content
-  try:
-    response = requests.get(manifest_url, timeout=10)
-    response.raise_for_status()  # Raise an exception for HTTP errors
-    manifest_content = response.text
-  except requests.exceptions.Timeout as e:
-    xpk_print(f"Error: Request to {manifest_url} after 10 seconds: {e}")
-    xpk_exit(1)
-  except requests.exceptions.RequestException as e:
-    xpk_print(f"Error fetching manifest from {manifest_url}: {e}")
-    xpk_exit(1)
-
-  if manifest_content is None:
-    xpk_print("Manifest content not found.")
-    xpk_exit(1)
-
+  manifest_content = get_kueue_manifest()
   # Load all YAML documents from the manifest
   yaml_data_list = list(yaml.safe_load_all(manifest_content))
   # Iterate through the yaml_data to find the Deployment for
@@ -240,7 +258,7 @@ def update_kueue_manifest(args):
           new_cpu_request = "500m"
           new_memory_request = "128Mi"
           # 1.2MiB per VM or 4GiB (whichever is greater).
-          new_memory_limit = f"{max(math.ceil(int(out) * 1.2), 4096)}Mi"
+          new_memory_limit = f"{max(math.ceil(int(out) * MEMORY_SIZE_PER_VM), MIN_MEMORY_LIMIT_SIZE)}Mi"
 
           if parse_resource_value(current_cpu_request) < parse_resource_value(
               new_cpu_request

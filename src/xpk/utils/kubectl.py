@@ -163,8 +163,6 @@ def update_jobset_manifest(args):
           ):
             container["resources"]["limits"]["memory"] = new_memory_limit
             update_manifest = True
-          container["resources"]["limits"]["memory"] = new_memory_limit
-          update_manifest = True
           break
       if update_manifest:
         xpk_print("Jobset controller updation required.")
@@ -275,8 +273,6 @@ def update_kueue_manifest(args):
           ):
             container["resources"]["limits"]["memory"] = new_memory_limit
             update_manifest = True
-          container["resources"]["limits"]["memory"] = new_memory_limit
-          update_manifest = True
           break
       if update_manifest:
         xpk_print("Kueue controller updation required.")

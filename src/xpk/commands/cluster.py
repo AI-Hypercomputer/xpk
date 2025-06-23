@@ -81,7 +81,7 @@ import subprocess
 
 
 from kubernetes import client, config
-from kubernetes.stream import stream
+from kubernetes.client.rest import ApiException
 import time
 
 def cluster_adapt(args) -> None:
@@ -234,6 +234,11 @@ def cluster_create(args) -> None:
   )
   if create_cluster_command_code != 0:
     xpk_exit(create_cluster_command_code)
+
+  if args.enable_pathways == True:
+    update_coredns_command_code = update_coredns_if_necessary(args)
+    if update_coredns_command_code != 0:
+      xpk_exit(update_cluster_command_code)
 
   authorize_private_cluster_access_command_code = (
       authorize_private_cluster_access_if_necessary(args)
@@ -704,22 +709,110 @@ def cluster_create_ray_cluster(args) -> None:
   cluster_create(args)
 
 
+def _load_kubernetes_config():
+  """
+  Loads Kubernetes configuration, trying kubeconfig first, then in-cluster.
+  Returns True on success, False on failure.
+  """
+  try:
+    config.load_kube_config()
+    xpk_print("Kubeconfig loaded successfully.")
+    return True
+  except config.ConfigException:
+    xpk_print("Failed to load kubeconfig, attempting to use in-cluster configuration...")
+    try:
+      config.load_incluster_config()
+      xpk_print("In-cluster configuration loaded successfully.")
+      return True
+    except config.ConfigException:
+      xpk_print("Error: Could not find Kubernetes configuration. Please ensure you are running inside a cluster or have configured kubeconfig.")
+      return False
+  except Exception as e:
+    xpk_print(f"Unknown error during Kubernetes config loading: {e}")
+    return False
+  
+def _check_deployment_readiness(args, app_v1_api, namespace, deployment_name):
+  """
+  Checks if the specified deployment is fully ready.
+  Returns True if ready, False otherwise (including not found or API errors).
+  """
+  try:
+    deployment = app_v1_api.read_namespaced_deployment_status(name=deployment_name, namespace=namespace)
+    ready_replicas = deployment.status.ready_replicas or 0
+    total_replicas = deployment.status.replicas or 0
+
+    if ready_replicas == total_replicas and total_replicas > 0:
+      xpk_print(f"Deployment '{deployment_name}' is ready ({ready_replicas}/{total_replicas}).")
+      return True
+    else:
+      xpk_print(f"Deployment '{deployment_name}' is not fully ready yet ({ready_replicas}/{total_replicas}).")
+      return False
+  except ApiException as e:
+    if e.status == 404:
+      xpk_print(f"Error: Deployment '{deployment_name}' not found in namespace '{namespace}'.")
+      update_coredns(args)
+    else:
+      xpk_print(f"API error when reading deployment status for '{deployment_name}': {e}")
+      xpk_exit(1)
+  except Exception as e:
+    xpk_print(f"Unknown error occurred while checking deployment '{deployment_name}': {e}")
+    xpk_exit(1)
+
+
+def _check_coredns_pods_status(core_v1_api, namespace):
+  """
+  Checks if all CoreDNS Pods are in a Running phase and Ready condition.
+  Returns True if all pods are ready, False otherwise.
+  """
+  try:
+    # Assuming "k8s-app=kube-dns" is the correct label selector for CoreDNS pods
+    pods = core_v1_api.list_namespaced_pod(namespace=namespace, label_selector="k8s-app=kube-dns")
+
+    if not pods.items:
+      xpk_print("No CoreDNS Pods found with label 'k8s-app=kube-dns'. Waiting...")
+      return False
+
+    all_pods_ready = True
+    for pod in pods.items:
+      pod_name = pod.metadata.name
+      # Check Pod Phase
+      if pod.status.phase != "Running":
+        xpk_print(f"Pod '{pod_name}' status is '{pod.status.phase}'. Waiting...")
+        all_pods_ready = False
+        break # Exit early if one pod isn't running
+
+      # Check Ready condition
+      ready_condition_found = False
+      if pod.status.conditions:
+        for condition in pod.status.conditions:
+          if condition.type == "Ready" and condition.status == "True":
+            ready_condition_found = True
+            break
+      
+      if not ready_condition_found:
+        xpk_print(f"Pod '{pod_name}' is not fully ready yet (Ready condition not True). Waiting...")
+        all_pods_ready = False
+        break # Exit early if one pod isn't ready
+
+    return all_pods_ready
+    
+  except ApiException as e:
+    xpk_print(f"API error when listing CoreDNS Pods: {e}")
+    return False
+  except Exception as e:
+    xpk_print(f"Unknown error occurred while checking CoreDNS Pods: {e}")
+    return False
+
 # -- CoreDNS Check Function --
-def check_coredns_status(namespace="kube-system", deployment_name="coredns", timeout=120):
+def check_coredns_status(args, namespace="kube-system", deployment_name="coredns", timeout=120):
   """
   Checks the operational status of CoreDNS, including its Deployment and Pods capabilities.
   """
   xpk_print(f"Checking CoreDNS status (Namespace: {namespace}, Deployment: {deployment_name})...")
 
-  try:
-    config.load_kube_config()
-  except config.ConfigException:
-    xpk_print("Failed to load kubeconfig, attempting to use in-cluster configuration...")
-    try:
-      config.load_incluster_config()
-    except config.ConfigException:
-      xpk_print("Error: Could not find Kubernetes configuration. Please ensure you are running inside a cluster or have configured kubeconfig.")
-      return False
+  # 1. Load Kubernetes configuration
+  if not _load_kubernetes_config():
+    return False
 
   v1 = client.CoreV1Api()
   app_v1 = client.AppsV1Api()
@@ -727,67 +820,24 @@ def check_coredns_status(namespace="kube-system", deployment_name="coredns", tim
   start_time = time.time()
 
   while time.time() - start_time < timeout:
-    # Check the Deployment's Ready status
-    try:
-      deployment = app_v1.read_namespaced_deployment_status(name=deployment_name, namespace=namespace)
-      if deployment.status.ready_replicas is not None and \
-        deployment.status.replicas is not None and \
-        deployment.status.ready_replicas == deployment.status.replicas:
-        xpk_print(f"Deployment '{deployment_name}' is ready ({deployment.status.ready_replicas}/{deployment.status.replicas}).")
-      else:
-        xpk_print(f"Deployment '{deployment_name}' is not fully ready yet ({deployment.status.ready_replicas or 0}/{deployment.status.replicas or 0}). Waiting...")
-        time.sleep(5)
-        continue
-    except client.ApiException as e:
-      if e.status == 404:
-        xpk_print(f"Error: Deployment '{deployment_name}' not found in namespace '{namespace}'.")
-      else:
-        xpk_print(f"API error when reading deployment status: {e}")
-      return False
-    except Exception as e:
-      xpk_print(f"Unknown error occurred while checking deployment: {e}")
-      return False
+    # 2. Check Deployment readiness
+    deployment_ok = _check_deployment_readiness(args, app_v1, namespace, deployment_name)
+    if not deployment_ok:
+      time.sleep(5) # Wait before retrying deployment check
+      continue
 
-    # Checking the status of all CoreDNS Pods
-    try:
-      pods = v1.list_namespaced_pod(namespace=namespace, label_selector="k8s-app=kube-dns")
-      all_pods_ready = True
-      if not pods.items:
-        xpk_print("No CoreDNS Pods found. Waiting...")
-        all_pods_ready = False
+    # 3. Check all CoreDNS Pods status
+    pods_ok = _check_coredns_pods_status(v1, namespace)
+    if not pods_ok:
+      time.sleep(5) # Wait before retrying pod check
+      continue
 
-      for pod in pods.items:
-        if pod.status.phase != "Running":
-          xpk_print(f"Pod '{pod.metadata.name}' status is '{pod.status.phase}'. Waiting...")
-          all_pods_ready = False
-          break
-          
-        ready_condition = False
-        if pod.status.conditions:
-          for condition in pod.status.conditions:
-            if condition.type == "Ready" and condition.status == "True":
-              ready_condition = True
-              break
-          
-        if not ready_condition:
-          xpk_print(f"Pod '{pod.metadata.name}' is not fully ready yet. Waiting...")
-          all_pods_ready = False
-          break
-        
-      if not all_pods_ready:
-        time.sleep(5)
-        continue
+    # If both deployment and pods are OK, return True
+    return True
 
-      return True
-      
-    except client.ApiException as e:
-      xpk_print(f"API error when listing Pods: {e}")
-      return False
-    except Exception as e:
-      xpk_print(f"Unknown error occurred while checking Pods: {e}")
-      return False
-
+  xpk_print(f"Timeout reached. CoreDNS did not become fully ready within {timeout} seconds.")
   return False
+
 
 
 def update_coredns(args):
@@ -837,19 +887,19 @@ def update_coredns(args):
       xpk_print(f'Clone deployment error {return_code}')
       xpk_exit(return_code)
 
-  command_get_credentials = (
-    f'gcloud container clusters get-credentials {args.cluster} --dns-endpoint '
-    f'--region={zone_to_region(args.zone)} --project={args.project} && kubectl config view '
-    f'&& kubectl config set-context --current --namespace=default'
-  )
-  xpk_print(f"Task: 'Get cluster credentials' in progress.")
-  return_code = get_cluster_credentials(args)
-  return_code = run_command_with_updates(
-    command_get_credentials, 'Get cluster credentials', args
-  )
-  if return_code != 0:
-    xpk_print(f'Failed to get cluster credentials {return_code}')
-    xpk_exit(return_code)
+  # command_get_credentials = (
+  #   f'gcloud container clusters get-credentials {args.cluster} --dns-endpoint '
+  #   f'--region={zone_to_region(args.zone)} --project={args.project} && kubectl config view '
+  #   f'&& kubectl config set-context --current --namespace=default'
+  # )
+  # xpk_print(f"Task: 'Get cluster credentials' in progress.")
+  # return_code = get_cluster_credentials(args)
+  # return_code = run_command_with_updates(
+  #   command_get_credentials, 'Get cluster credentials', args
+  # )
+  # if return_code != 0:
+  #   xpk_print(f'Failed to get cluster credentials {return_code}')
+  #   xpk_exit(return_code)
 
   if not os.path.isdir(coredns_k8s_path):
     xpk_print(f"Error：CoreDNS Kubernetes path '{coredns_k8s_path}' does not exist. Has git clone been successful?")
@@ -922,7 +972,7 @@ def update_coredns(args):
   xpk_print("CoreDNS scale up command sent. Now verifying CoreDNS readiness...")
 
   # Call the check function here
-  if not check_coredns_status(timeout=300):
+  if not check_coredns_status(args, timeout=120):
     xpk_print("CoreDNS verification failed, it might not have fully started.")
     xpk_exit(1) 
   
@@ -939,7 +989,7 @@ def update_coredns(args):
 
   return 0
 
-def coredns_deployment_exists(namespace: str = 'kube-system') -> bool:
+def coredns_deployment_exists(args, namespace: str = 'kube-system') -> bool:
   """Checks if the CoreDNS deployment exists in the given namespace.
 
   Args:
@@ -948,11 +998,17 @@ def coredns_deployment_exists(namespace: str = 'kube-system') -> bool:
   Returns:
     True if the 'coredns' deployment exists, False otherwise.
   """
+  
   command = f"kubectl get deployment coredns -n {namespace}"
   try:
-    # Use subprocess.run with check=False to capture exit code without raising an exception
-    result = subprocess.run(command, shell=True, check=False, capture_output=True)
-    return result.returncode == 0
+    xpk_print(f"Task: 'Checking CoreDNS deployment existence' in progress for namespace: {namespace}")
+    return_code = run_command_with_updates(
+      command, f"Check CoreDNS deployment in {namespace}", args
+    )
+    if not check_coredns_status(args, timeout=120):
+      xpk_print("CoreDNS verification failed, it might not have fully started.")
+      xpk_exit(1) 
+    return return_code == 0
   except Exception as e:
     xpk_print(f"Error checking CoreDNS deployment existence: {e}")
     return False
@@ -970,7 +1026,8 @@ def update_coredns_if_necessary(args) -> int:
     0 if successful (CoreDNS was already present or successfully deployed),
     and 1 otherwise.
   """
-  if coredns_deployment_exists(namespace='kube-system'):
+  get_cluster_credentials(args)
+  if coredns_deployment_exists(args, namespace='kube-system'):
     xpk_print('Skipping CoreDNS deployment since it already exists.')
     return 0
   else:
@@ -997,7 +1054,6 @@ def create_cluster_if_necessary(
     return 1
   if args.cluster in all_clusters:
     xpk_print('Skipping cluster creation since it already exists.')
-    update_coredns_if_necessary(args)
     return 0
   else:
     return run_gke_cluster_create_command(
@@ -1172,9 +1228,6 @@ def run_gke_cluster_create_command(
   if return_code != 0:
     xpk_print(f'GKE Cluster Create request returned ERROR {return_code}')
     return 1
-  else:
-    if args.enable_pathways == True:
-      update_coredns_if_necessary(args)
   return 0
 
 

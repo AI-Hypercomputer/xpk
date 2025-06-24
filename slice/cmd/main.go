@@ -1,5 +1,5 @@
 /*
-Copyright 2025.
+Copyright The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,10 +22,6 @@ import (
 	"os"
 	"path/filepath"
 
-	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
-	// to ensure that exec-entrypoint and run can make use of them.
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
-
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -41,7 +37,10 @@ import (
 	"tpu-slice-controller/api/v1alpha1"
 	"tpu-slice-controller/internal/controller"
 	"tpu-slice-controller/internal/webhooks"
-	// +kubebuilder:scaffold:imports
+
+	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
+	// to ensure that exec-entrypoint and run can make use of them.
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
 
 var (
@@ -57,7 +56,6 @@ func init() {
 	// +kubebuilder:scaffold:scheme
 }
 
-// nolint:gocyclo
 func main() {
 	var metricsAddr string
 	var metricsCertPath, metricsCertName, metricsCertKey string

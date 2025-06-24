@@ -1,5 +1,5 @@
 /*
-Copyright 2025.
+Copyright The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,22 +19,20 @@ package controller
 import (
 	"testing"
 	"time"
-	utiltesting "tpu-slice-controller/internal/util/testing"
-
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
 
 	"tpu-slice-controller/api/v1alpha1"
-
-	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
+	utiltesting "tpu-slice-controller/internal/util/testing"
 )
 
 var (
@@ -47,9 +45,9 @@ var (
 
 func TestWorkloadReconciler(t *testing.T) {
 	baseWorkloadName := "workload"
-	baseRequest := types.NamespacedName{Name: baseWorkloadName, Namespace: v1.NamespaceDefault}
-	baseWorkloadWrapper := utiltesting.MakeWorkload(baseWorkloadName, v1.NamespaceDefault)
-	baseSliceWrapper := utiltesting.MakeSliceWrapper(baseWorkloadName, v1.NamespaceDefault)
+	baseRequest := types.NamespacedName{Name: baseWorkloadName, Namespace: corev1.NamespaceDefault}
+	baseWorkloadWrapper := utiltesting.MakeWorkload(baseWorkloadName, corev1.NamespaceDefault)
+	baseSliceWrapper := utiltesting.MakeSliceWrapper(baseWorkloadName, corev1.NamespaceDefault)
 
 	cases := map[string]struct {
 		request       types.NamespacedName
@@ -60,7 +58,7 @@ func TestWorkloadReconciler(t *testing.T) {
 		wantErr       error
 	}{
 		"workload not found": {
-			request:       types.NamespacedName{Name: "other-workload", Namespace: v1.NamespaceDefault},
+			request:       types.NamespacedName{Name: "other-workload", Namespace: corev1.NamespaceDefault},
 			workload:      baseWorkloadWrapper.DeepCopy(),
 			slice:         baseSliceWrapper.DeepCopy(),
 			wantWorkloads: []kueue.Workload{*baseWorkloadWrapper.DeepCopy()},

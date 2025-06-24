@@ -24,10 +24,9 @@ from kubernetes.dynamic import DynamicClient
 
 from ..core.cluster import JOBSET_VERSION
 from ..core.commands import run_command_for_value
-from ..core.kueue import get_kueue_version
+from ..core.kueue import get_kueue_version, KUEUE_VERSION
 from .console import xpk_print
 
-KUEUE_VERSION = 'v0.10.0'
 MEMORY_SIZE_PER_VM = 1.2
 MIN_MEMORY_LIMIT_SIZE = 4096
 
@@ -96,7 +95,7 @@ def get_jobset_manifest():
     xpk_exit(1)
 
 
-def update_jobset_manifest(args):
+def update_jobset_resources_if_necessary(args):
   """Update the jobset manifest to increase the resources for the jobset controller manager.
 
   Args:
@@ -123,13 +122,7 @@ def update_jobset_manifest(args):
       containers = yaml_data["spec"]["template"]["spec"]["containers"]
       for container in containers:
         if container["name"] == "manager":
-          # Update resource limits and requests
-          current_cpu_request = (
-              container["resources"].get("requests", {}).get("cpu", "0m")
-          )
-          current_memory_request = (
-              container["resources"].get("requests", {}).get("memory", "0Mi")
-          )
+          # Update memory limit
           current_memory_limit = (
               container["resources"].get("limits", {}).get("memory", "0Mi")
           )
@@ -143,21 +136,8 @@ def update_jobset_manifest(args):
           )
           if return_code != 0:
             xpk_exit(1)
-          new_cpu_request = "500m"
-          new_memory_request = "128Mi"
           # 1.2MiB per VM or 4GiB (whichever is greater).
           new_memory_limit = f"{max(math.ceil(int(out) * MEMORY_SIZE_PER_VM), MIN_MEMORY_LIMIT_SIZE)}Mi"
-
-          if parse_resource_value(current_cpu_request) < parse_resource_value(
-              new_cpu_request
-          ):
-            container["resources"]["requests"]["cpu"] = new_cpu_request
-            update_manifest = True
-          if parse_resource_value(
-              current_memory_request
-          ) < parse_resource_value(new_memory_request):
-            container["resources"]["requests"]["memory"] = new_memory_request
-            update_manifest = True
           if parse_resource_value(current_memory_limit) < parse_resource_value(
               new_memory_limit
           ):
@@ -166,8 +146,9 @@ def update_jobset_manifest(args):
           break
       if update_manifest:
         xpk_print("Jobset controller updation required.")
-        return yaml_data
+        return update_manifest, yaml_data
   xpk_print("Jobset controller no updation required.")
+  return update_manifest, yaml_data
 
 def get_kueue_manifest():
   """Get the kueue manifest.
@@ -194,7 +175,7 @@ def get_kueue_manifest():
     xpk_print("Manifest content not found.")
     xpk_exit(1)
 
-def update_kueue_manifest(args):
+def update_kueue_resources_if_necessary(args):
   """Update the kueue manifest to increase the resources for the kueue controller manager.
 
   Args:
@@ -233,13 +214,7 @@ def update_kueue_manifest(args):
       containers = yaml_data["spec"]["template"]["spec"]["containers"]
       for container in containers:
         if container["name"] == "manager":
-          # Update resource limits and requests
-          current_cpu_request = (
-              container["resources"].get("requests", {}).get("cpu", "0m")
-          )
-          current_memory_request = (
-              container["resources"].get("requests", {}).get("memory", "0Mi")
-          )
+          # Update memory limit
           current_memory_limit = (
               container["resources"].get("limits", {}).get("memory", "0Mi")
           )
@@ -253,21 +228,8 @@ def update_kueue_manifest(args):
           )
           if return_code != 0:
             xpk_exit(1)
-          new_cpu_request = "500m"
-          new_memory_request = "128Mi"
           # 1.2MiB per VM or 4GiB (whichever is greater).
           new_memory_limit = f"{max(math.ceil(int(out) * MEMORY_SIZE_PER_VM), MIN_MEMORY_LIMIT_SIZE)}Mi"
-
-          if parse_resource_value(current_cpu_request) < parse_resource_value(
-              new_cpu_request
-          ):
-            container["resources"]["requests"]["cpu"] = new_cpu_request
-            update_manifest = True
-          if parse_resource_value(
-              current_memory_request
-          ) < parse_resource_value(new_memory_request):
-            container["resources"]["requests"]["memory"] = new_memory_request
-            update_manifest = True
           if parse_resource_value(current_memory_limit) < parse_resource_value(
               new_memory_limit
           ):
@@ -276,8 +238,9 @@ def update_kueue_manifest(args):
           break
       if update_manifest:
         xpk_print("Kueue controller updation required.")
-        return yaml_data
+        return update_manifest, yaml_data
   xpk_print("Kueue controller no updation required.")
+  return update_manifest, yaml_data
 
 def parse_resource_value(value) -> int:
   if value.endswith("m"):

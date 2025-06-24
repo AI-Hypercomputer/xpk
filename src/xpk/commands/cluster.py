@@ -791,7 +791,8 @@ def _verify_coredns_readiness(args, timeout: int = 120, namespace: str = 'kube-s
   if return_code_kube_dns == 0:
     xpk_print("kube-dns did not scale down successfully within the timeout.")
     xpk_exit(1) # Exit if kube-dns cannot scale down
-
+  else:
+    xpk_print("kube-dns did not scale down successfully within the timeout.")
   # Wait for CoreDNS to be fully scaled up and available
   command_coredns_wait_available = (
     f"kubectl wait deployment/coredns --for=condition=Available=true "

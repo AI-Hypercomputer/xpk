@@ -835,6 +835,31 @@ def parse_command_args_to_dict(arg_string: str) -> dict:
   return parsed_args
 
 
+
+def process_gcloud_args(user_parsed_args, final_gcloud_args):
+  """
+  Processes custom cluster arguments and updates the final gcloud arguments dictionary.
+
+  This function handles special cases for '--no-' and '--enable-' prefixes
+  in custom arguments to correctly modify the gcloud arguments.
+
+  """
+
+  for key, value in user_parsed_args.items():
+    if key.startswith('--no-'):
+      opposite_key = f'--{key[5:]}'
+      if opposite_key in final_gcloud_args:
+        del final_gcloud_args[opposite_key]
+      final_gcloud_args[key] = True
+    elif key.startswith('--enable-'):
+      opposite_key = f'--no-{key[2:]}'
+      if opposite_key in final_gcloud_args:
+        del final_gcloud_args[opposite_key]
+      final_gcloud_args[key] = value
+    else:
+      # For all other arguments, simply add or update their values.
+      final_gcloud_args[key] = value
+
 def run_gke_cluster_create_command(
     args, gke_control_plane_version: str, system: SystemCharacteristics
 ) -> int:
@@ -870,7 +895,9 @@ def run_gke_cluster_create_command(
   final_gcloud_args['--total-max-nodes'] = 1000
   final_gcloud_args['--num-nodes'] = args.default_pool_cpu_num_nodes
   final_gcloud_args['--enable-dns-access'] = True 
+  # This value is from here: https://cloud.google.com/kubernetes-engine/docs/how-to/legacy/network-isolation
   final_gcloud_args['--master-ipv4-cidr'] = '172.16.0.32/28' 
+  # This value is from here https://cloud.google.com/vpc/docs/subnets
   final_gcloud_args['--cluster-ipv4-cidr'] = '10.224.0.0/12' 
 
   if args.gke_version is not None:
@@ -927,19 +954,9 @@ def run_gke_cluster_create_command(
 
 
   user_parsed_args = parse_command_args_to_dict(args.custom_cluster_arguments)
-  for key, value in user_parsed_args.items():
-    if key.startswith('--no-') and key[5:] in final_gcloud_args:
-      del final_gcloud_args[key[5:]] 
-      final_gcloud_args[key] = True 
-    elif key.startswith('--enable-') and f'--no-{key[2:]}' in final_gcloud_args:
-      del final_gcloud_args[f'--no-{key[2:]}']
-      final_gcloud_args[key] = value
-    else:
-      final_gcloud_args[key] = value
-
+  process_gcloud_args(user_parsed_args, final_gcloud_args)
   
   command_parts = ['gcloud beta container clusters create', args.cluster]
-  
   
   for key, value in final_gcloud_args.items():
     if value is True:

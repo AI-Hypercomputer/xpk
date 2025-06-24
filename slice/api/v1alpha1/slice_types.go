@@ -1,5 +1,5 @@
 /*
-Copyright 2025.
+Copyright The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -43,10 +43,10 @@ type SliceStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
 	// Populated to match the physical topology of block the Super-Slice is running on
-	BlockId string `json:"blockId,omitempty"`
+	BlockID string `json:"blockId,omitempty"`
 
 	// Populated to list of physical topology of sub-block the Super-Slice is running on
-	SubBlockIds []string `json:"subBlockIds,omitempty"`
+	SubBlockIDs []string `json:"subBlockIds,omitempty"`
 }
 
 // +kubebuilder:object:root=true

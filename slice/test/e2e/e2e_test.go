@@ -1,5 +1,5 @@
 /*
-Copyright 2025.
+Copyright The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -24,10 +24,10 @@ import (
 	"path/filepath"
 	"time"
 
+	"tpu-slice-controller/test/utils"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-
-	"tpu-slice-controller/test/utils"
 )
 
 // namespace where the project is deployed in

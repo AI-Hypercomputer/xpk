@@ -75,7 +75,6 @@ from ..core.vertex import create_vertex_tensorboard
 from ..core.workload import get_workload_list
 from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
-from ..utils.kubectl import apply_kubectl_manifest
 from . import cluster_gcluster
 from .common import set_cluster_command
 
@@ -173,7 +172,6 @@ def cluster_adapt(args) -> None:
   install_kueue(args, system, autoprovisioning_config)
 
   install_kjob(args)
-
   if system.accelerator_type == AcceleratorType['GPU']:
     prepare_gpus(args, system)
 

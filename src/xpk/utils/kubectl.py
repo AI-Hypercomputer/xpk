@@ -13,23 +13,10 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-import math
-import requests
-import yaml
-import packaging
-from packaging.version import Version
 
 from kubernetes.client.exceptions import ApiException
 from kubernetes.dynamic import DynamicClient
 
-from ..core.cluster import JOBSET_VERSION
-from ..core.commands import run_command_for_value
-from ..core.kueue import (
-    get_kueue_version, 
-    KUEUE_VERSION,
-    MEMORY_SIZE_PER_VM,
-    MIN_MEMORY_LIMIT_SIZE,
-)
 from .console import xpk_print
 
 
@@ -71,93 +58,3 @@ def apply_kubectl_manifest(client, manifest) -> int:
         xpk_print(f'Error applying {kind}: {e}')
         status_code = 1
   return status_code
-
-def get_jobset_manifest():
-  """Get the jobset manifest.
-
-  Returns:
-    The updated jobset manifest.
-  """
-  manifest_url = f"https://github.com/kubernetes-sigs/jobset/releases/download/{JOBSET_VERSION}/manifests.yaml"
-  manifest_content = None
-  # Fetch the manifest content
-  try:
-    response = requests.get(manifest_url, timeout=10)
-    response.raise_for_status()  # Raise an exception for HTTP errors
-    manifest_content = response.text
-    return manifest_content
-  except requests.exceptions.Timeout as e:
-    xpk_print(f"Error: Request to {manifest_url} after 10 seconds: {e}")
-    xpk_exit(1)
-  except requests.exceptions.RequestException as e:
-    xpk_print(f"Error fetching manifest from {manifest_url}: {e}")
-    xpk_exit(1)
-
-  if manifest_content is None:
-    xpk_print("Manifest content not found.")
-    xpk_exit(1)
-
-
-def update_jobset_resources_if_necessary(args):
-  """Update the jobset manifest to increase the resources for the jobset controller manager.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    The updated jobset manifest.
-  """
-  manifest_content = get_jobset_manifest()
-  # Load all YAML documents from the manifest
-  yaml_data_list = list(yaml.safe_load_all(manifest_content))
-  # Iterate through the yaml_data to find the Deployment for
-  # jobset-controller-manager
-  update_manifest = False
-  for yaml_data in yaml_data_list:
-    if (
-        yaml_data
-        and yaml_data.get("apiVersion") == "apps/v1"
-        and yaml_data.get("kind") == "Deployment"
-        and yaml_data.get("metadata", {}).get("name")
-        == "jobset-controller-manager"
-    ):
-      # Found the Deployment, now modify the resources
-      containers = yaml_data["spec"]["template"]["spec"]["containers"]
-      for container in containers:
-        if container["name"] == "manager":
-          # Update memory limit
-          current_memory_limit = (
-              container["resources"].get("limits", {}).get("memory", "0Mi")
-          )
-
-          # Define new values for comparison
-          cmd_total_node_num = (
-              'kubectl get node --no-headers | wc -l'
-          )
-          return_code, out = run_command_for_value(
-              cmd_total_node_num, 'Count total nodes', args
-          )
-          if return_code != 0:
-            xpk_exit(1)
-          # 1.2MiB per VM or 4GiB (whichever is greater).
-          new_memory_limit = f"{max(math.ceil(int(out) * MEMORY_SIZE_PER_VM), MIN_MEMORY_LIMIT_SIZE)}Mi"
-          if parse_resource_value(current_memory_limit) < parse_resource_value(
-              new_memory_limit
-          ):
-            container["resources"]["limits"]["memory"] = new_memory_limit
-            update_manifest = True
-          break
-      if update_manifest:
-        xpk_print("Jobset controller updation required.")
-        return update_manifest, yaml_data
-  xpk_print("Jobset controller no updation required.")
-  return update_manifest, yaml_data
-
-def parse_resource_value(value) -> int:
-  if value.endswith("m"):
-    return int(value[:-1])
-  if value.endswith("Mi"):
-    return int(value[:-2])
-  if value.endswith("Gi"):
-    return int(value[:-2]) * 1024
-  return int(value)

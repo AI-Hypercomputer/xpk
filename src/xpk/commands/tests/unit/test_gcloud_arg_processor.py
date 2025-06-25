@@ -20,14 +20,14 @@ class TestProcessGcloudArgs(unittest.TestCase):
     user_args = {'--no-enable-logging': True}
     process_gcloud_args(user_args, final_args)
     self.assertEqual(final_args, {'--no-enable-logging': True})
-    self.assertNotIn('--enable-logging', final_args) # Check that enable flag is removed
+    self.assertNotIn('--enable-logging', final_args) 
 
   def test_enable_flag_overrides_no_enable(self):
     final_args = {'--no-enable-monitoring': True}
     user_args = {'--enable-monitoring': True}
     process_gcloud_args(user_args, final_args)
     self.assertEqual(final_args, {'--enable-monitoring': True})
-    self.assertNotIn('--no-enable-monitoring', final_args) # Check that no-enable flag is removed
+    self.assertNotIn('--no-enable-monitoring', final_args) 
 
   def test_no_conflict(self):
     final_args = {'--param1': 'value1'}
@@ -52,7 +52,7 @@ class TestProcessGcloudArgs(unittest.TestCase):
         '--zone': 'us-central1-a', # Overrides
         '--no-enable-ip-alias': True,      # Overrides --enable-ip-alias
         '--disk-size': '200GB',     # New
-        '--enable-public-ip': True # Overrides --no-public-ip
+        '--enable-public-ip': True # Overrides --no-enable-public-ip
     }
     process_gcloud_args(user_args, final_args)
     self.assertEqual(final_args, {

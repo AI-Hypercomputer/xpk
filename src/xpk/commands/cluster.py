@@ -42,12 +42,14 @@ from ..core.gcloud_context import (
     get_gke_server_config,
     zone_to_region,
 )
+from ..core.jobset import update_jobset_resources_if_necessary
 from ..core.kjob import apply_kjob_crds, prepare_kjob, verify_kjob_installed
 from ..core.kueue import (
     cluster_preheat_yml,
     install_kueue_crs,
     install_kueue_on_cluster,
     wait_for_kueue_available,
+    update_kueue_resources_if_necessary,
 )
 from ..core.nap import enable_autoprovisioning_on_cluster
 from ..core.network import (
@@ -73,11 +75,7 @@ from ..core.vertex import create_vertex_tensorboard
 from ..core.workload import get_workload_list
 from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
-from ..utils.kubectl import (
-    apply_kubectl_manifest,
-    update_jobset_resources_if_necessary,
-    update_kueue_resources_if_necessary,
-)
+from ..utils.kubectl import apply_kubectl_manifest
 from . import cluster_gcluster
 from .common import set_cluster_command
 
@@ -313,6 +311,9 @@ def cluster_create(args) -> None:
   set_jobset_on_cluster_code = set_jobset_on_cluster(args)
   if set_jobset_on_cluster_code != 0:
     xpk_exit(set_jobset_on_cluster_code)
+  update_jobset_resources_code = update_jobset_resources_if_necessary(args)
+  if update_jobset_resources_code != 0:
+    xpk_exit(update_jobset_resources_code)
 
   set_pathways_job_on_cluster_code = set_pathways_job_on_cluster(args)
   if set_pathways_job_on_cluster_code != 0:
@@ -321,32 +322,6 @@ def cluster_create(args) -> None:
   install_kueue(args, system, autoprovisioning_config)
 
   install_kjob(args)
-
-  # Update memory limit of Jobset Controller Manager
-  k8s_api_client = setup_k8s_env(args)
-  update_jobset_command_code, jobset_manifest = update_jobset_resources_if_necessary(args)
-  if update_jobset_command_code !=0:
-    if jobset_manifest is None:
-      xpk_print(
-        "Updated jobset manifest is empty, not updating the jobset controller."
-      )
-    xpk_print("Updating Jobset Controller Manager")
-    return_code = apply_kubectl_manifest(k8s_api_client, [jobset_manifest])
-    if return_code != 0:
-      xpk_print(f'Updating Jobset Controller Manager returned ERROR {return_code}')
-      return return_code
-
-  update_kueue_command_code, kueue_manifest = update_kueue_resources_if_necessary(args)
-  if update_kueue_command_code !=0:
-    if kueue_manifest is None:
-      xpk_print(
-          "Updated Kueue manifest is empty, not updating the Kueue controller."
-      )
-    xpk_print("Updating Kueue Controller Manager")
-    return_code = apply_kubectl_manifest(k8s_api_client, [kueue_manifest])
-    if return_code != 0:
-      xpk_print(f'Updating Kueue Controller Manager returned ERROR {return_code}')
-      return return_code
   
   if system.accelerator_type == AcceleratorType['GPU']:
     prepare_gpus(args, system)
@@ -988,6 +963,10 @@ def install_kueue(args, system: SystemCharacteristics, autoprovisioning_config):
   if enable_kueue_credentials_code != 0:
     xpk_exit(enable_kueue_credentials_code)
 
+  xpk_print('Update Kueue Controller Manager resources')
+  update_kueue_resources_code = update_kueue_resources_if_necessary(args)
+  if update_kueue_resources_code != 0:
+    xpk_exit(update_kueue_resources_code)
 
 def prepare_gpus(args, system: SystemCharacteristics):
   xpk_print('Installing NCCL Plugin for cluster')

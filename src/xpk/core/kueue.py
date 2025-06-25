@@ -465,7 +465,7 @@ def get_kueue_covered_resources_config(
     total_chips: total number of chips for the specific resource type.
 
   Returns:
-    0 if successful and 1 otherwise.
+    A string of Kueue covered resources configuration.
   """
   config_format = """
   - coveredResources: ["{resource_type}"]
@@ -489,7 +489,7 @@ def update_kueue_resources_if_necessary(args):
     args: user provided arguments for running the command.
 
   Returns:
-    The updated kueue manifest.
+    0 if successful and 1 otherwise.
   """
   # Get total number of nodes
   cmd_total_node_num = (

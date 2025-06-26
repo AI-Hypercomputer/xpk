@@ -105,6 +105,57 @@ func TestWorkloadReconciler(t *testing.T) {
 					Obj(),
 			},
 		},
+		"parse TAS Assignment to populate NodeSelector in Slice": {
+			request: baseRequest,
+			workload: baseWorkloadWrapper.Clone().
+				UID(types.UID(baseWorkloadName)).
+				PodSetAssignments(utiltesting.MakePodSetAssignment("psa1").
+					TopologyAssignment(nil, []kueue.TopologyDomainAssignment{
+						{
+							Values: []string{"domain1", "domain2"},
+							Count:  2,
+						},
+					}).Obj(),
+					utiltesting.MakePodSetAssignment("psa2").
+						TopologyAssignment(nil, []kueue.TopologyDomainAssignment{
+							{
+								Values: []string{"domain2", "domain3"},
+								Count:  2,
+							},
+						}).
+						Obj(),
+				).Obj(),
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapper.Clone().
+					UID(types.UID(baseWorkloadName)).
+					PodSetAssignments(utiltesting.MakePodSetAssignment("psa1").
+						TopologyAssignment(nil, []kueue.TopologyDomainAssignment{
+							{
+								Values: []string{"domain1", "domain2"},
+								Count:  2,
+							},
+						}).Obj(),
+						utiltesting.MakePodSetAssignment("psa2").
+							TopologyAssignment(nil, []kueue.TopologyDomainAssignment{
+								{
+									Values: []string{"domain2", "domain3"},
+									Count:  2,
+								},
+							}).
+							Obj(),
+					).
+					Finalizers(CleanupSliceFinalizerName).
+					Obj(),
+			},
+			wantSlices: []v1alpha1.Slice{
+				*baseSliceWrapper.Clone().
+					ControllerReference(kueue.GroupVersion.WithKind("Workload"), baseWorkloadName, baseWorkloadName).
+					NodeSelector(map[string][]string{
+						TPUReservationSubblockLabel: {"domain1", "domain2", "domain3"},
+					}).
+					Obj(),
+			},
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {

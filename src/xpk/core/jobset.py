@@ -12,26 +12,6 @@ from .commands import (
 )
 
 jobset_controller_manager_yml = """
-apiVersion: v1
-kind: Service
-metadata:
-  labels:
-    app.kubernetes.io/component: webhook
-    app.kubernetes.io/created-by: jobset
-    app.kubernetes.io/instance: webhook-service
-    app.kubernetes.io/managed-by: kustomize
-    app.kubernetes.io/name: service
-    app.kubernetes.io/part-of: jobset
-  name: jobset-webhook-service
-  namespace: jobset-system
-spec:
-  ports:
-  - port: 443
-    protocol: TCP
-    targetPort: 9443
-  selector:
-    control-plane: controller-manager
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:

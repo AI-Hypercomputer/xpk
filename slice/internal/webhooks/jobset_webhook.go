@@ -33,7 +33,7 @@ const (
 )
 
 const (
-	annotationValueTBD = "TBD"
+	AnnotationValueTBD = "TBD"
 )
 
 // JobSetWebhook is the schema for your resource (ensure this matches your resource definition).
@@ -46,7 +46,7 @@ func SetupWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-// +kubebuilder:webhook:path=/mutate-jobset-x-k8s-io-v1alpha2-jobset,mutating=true,failurePolicy=fail,sideEffects=None,groups=jobset.x-k8s.io,resources=jobsets,verbs=create,versions=v1alpha2,name=mjobset.accelerator.gke.io,admissionReviewVersions=v1
+// +kubebuilder:webhook:path=/mutate-jobset-x-k8s-io-v1alpha2-jobset,mutating=true,failurePolicy=fail,sideEffects=None,groups=jobset.x-k8s.io,resources=jobsets,verbs=create,versions=v1alpha2,name=mjobset.kb.io,admissionReviewVersions=v1
 var _ webhook.CustomDefaulter = &JobSetWebhook{}
 
 // Default implements webhook.CustomDefaulter so a webhook will be registered for the type
@@ -65,9 +65,9 @@ func (r *JobSetWebhook) Default(ctx context.Context, obj runtime.Object) error {
 		if rj.Template.Annotations == nil {
 			rj.Template.Annotations = make(map[string]string)
 		}
-		rj.Template.Annotations[PodSetRequiredTopologyAnnotation] = annotationValueTBD
-		rj.Template.Annotations[PodSetSliceRequiredTopologyAnnotation] = annotationValueTBD
-		rj.Template.Annotations[PodSetSliceSizeAnnotation] = annotationValueTBD
+		rj.Template.Annotations[PodSetRequiredTopologyAnnotation] = AnnotationValueTBD
+		rj.Template.Annotations[PodSetSliceRequiredTopologyAnnotation] = AnnotationValueTBD
+		rj.Template.Annotations[PodSetSliceSizeAnnotation] = AnnotationValueTBD
 
 		jobSet.Spec.ReplicatedJobs[i] = rj
 	}

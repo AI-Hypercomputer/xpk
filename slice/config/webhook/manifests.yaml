@@ -1,7 +1,8 @@
+---
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
-  name: jobset.accelerator.gke.io
+  name: mutating-webhook-configuration
 webhooks:
 - admissionReviewVersions:
   - v1
@@ -11,7 +12,7 @@ webhooks:
       namespace: system
       path: /mutate-jobset-x-k8s-io-v1alpha2-jobset
   failurePolicy: Fail
-  name: mjobset.accelerator.gke.io
+  name: mjobset.kb.io
   rules:
   - apiGroups:
     - jobset.x-k8s.io

@@ -33,6 +33,7 @@ type SliceSpec struct {
 	AcceleratorTopology string `json:"acceleratorTopology"`
 
 	// Required, set of nodePools to use to form slice
+	// +optional
 	NodePools []string `json:"nodePools"`
 
 	// Optional, set of nodeSelector to use to form slice

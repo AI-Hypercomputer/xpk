@@ -79,10 +79,6 @@ import shutil
 import os
 
 
-from kubernetes import client, config
-from kubernetes.client.rest import ApiException
-import time
-
 def cluster_adapt(args) -> None:
   """Function that performs cluster adaptation.
 
@@ -233,8 +229,6 @@ def cluster_create(args) -> None:
   )
   if create_cluster_command_code != 0:
     xpk_exit(create_cluster_command_code)
-
-
 
   authorize_private_cluster_access_command_code = (
       authorize_private_cluster_access_if_necessary(args)
@@ -747,7 +741,6 @@ def _deploy_coredns_manifests(args, coredns_k8s_path: str):
     return_code = run_command_with_updates(command_deploy_coredns, 'Deploy CoreDNS', args)
     if return_code != 0:
       xpk_print(f'Deploy CoreDNS error {return_code}')
-      pass
 
   finally:
     xpk_print(f"Restoring working directory to: {original_cwd}") 

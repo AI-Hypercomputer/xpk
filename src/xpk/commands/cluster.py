@@ -75,11 +75,6 @@ from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
 from . import cluster_gcluster
 from .common import set_cluster_command
-import argparse
-
-
-
-
 import shlex
 
 def cluster_adapt(args) -> None:
@@ -794,7 +789,6 @@ def run_gke_clusters_list_command(args) -> int:
 
   return 0
 
-
 def parse_command_args_to_dict(arg_string: str) -> dict:
   """Parses a command-line argument string into a dictionary of parameters.
 
@@ -817,6 +811,8 @@ def parse_command_args_to_dict(arg_string: str) -> dict:
     return parsed_args
 
   tokens = shlex.split(arg_string)
+  # After shlex.split: Print the tokens list
+  xpk_print(f"Shlex-split tokens: {tokens}")
   i = 0
   while i < len(tokens):
     token = tokens[i]
@@ -833,9 +829,10 @@ def parse_command_args_to_dict(arg_string: str) -> dict:
     elif token.startswith('-'): 
       pass
     i += 1
+  # After parsing: Print the final parsed dictionary
+  xpk_print(f"Final parsed_args: {parsed_args}")
+  xpk_print(f"-------------------------------------------")
   return parsed_args
-
-
 
 def process_gcloud_args(user_parsed_args, final_gcloud_args):
   """
@@ -845,7 +842,6 @@ def process_gcloud_args(user_parsed_args, final_gcloud_args):
   in custom arguments to correctly modify the gcloud arguments.
 
   """
-
   for key, value in user_parsed_args.items():
     if key.startswith('--no-'):
       opposite_key = f'--{key[5:]}'
@@ -854,12 +850,22 @@ def process_gcloud_args(user_parsed_args, final_gcloud_args):
       final_gcloud_args[key] = True
     elif key.startswith('--enable-'):
       opposite_key = f'--no-{key[2:]}'
+      opposite_disable_key = f'--disable-{key[9:]}'
       if opposite_key in final_gcloud_args:
         del final_gcloud_args[opposite_key]
+      if opposite_disable_key in final_gcloud_args:
+        del final_gcloud_args[opposite_disable_key]
       final_gcloud_args[key] = value
+    elif key.startswith('--disable-'):
+      feature_name = key[10:]
+      opposite_enable_key = f'--enable-{feature_name}'
+      if opposite_enable_key in final_gcloud_args:
+        del final_gcloud_args[opposite_enable_key]
+      final_gcloud_args[key] = True
     else:
       # For all other arguments, simply add or update their values.
       final_gcloud_args[key] = value
+
 
 def run_gke_cluster_create_command(
     args, gke_control_plane_version: str, system: SystemCharacteristics
@@ -952,7 +958,6 @@ def run_gke_cluster_create_command(
       final_gcloud_args[key] = value
     elif key == '--addons' and key in final_gcloud_args: 
       final_gcloud_args[key] = ','.join(list(set(final_gcloud_args[key].split(',') + value.split(','))))
-
 
   user_parsed_args = parse_command_args_to_dict(args.custom_cluster_arguments)
   process_gcloud_args(user_parsed_args, final_gcloud_args)

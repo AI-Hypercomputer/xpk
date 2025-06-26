@@ -9,10 +9,10 @@ namespace: slice-controller-system
 namePrefix: slice-controller-
 
 # Labels to add to all resources and selectors.
-#labels:
-#- includeSelectors: true
-#  pairs:
-#    someName: someValue
+labels:
+- includeSelectors: true
+  pairs:
+    control-plane: controller-manager
 
 resources:
 - ../crd
@@ -23,6 +23,7 @@ resources:
 - ../webhook
 # [CERTMANAGER] To enable cert-manager, uncomment all sections with 'CERTMANAGER'. 'WEBHOOK' components are required.
 #- ../certmanager
+- ../internalcert
 # [PROMETHEUS] To enable prometheus monitor, uncomment all sections with 'PROMETHEUS'.
 #- ../prometheus
 # [METRICS] Expose the controller manager metrics service.
@@ -50,9 +51,7 @@ patches:
 
 # [WEBHOOK] To enable webhook, uncomment all the sections with [WEBHOOK] prefix including the one in
 # crd/kustomization.yaml
-#- path: manager_webhook_patch.yaml
-#  target:
-#    kind: Deployment
+- path: manager_webhook_patch.yaml
 
 # [CERTMANAGER] To enable cert-manager, uncomment all sections with 'CERTMANAGER' prefix.
 # Uncomment the following replacements to add the cert-manager CA injection annotations

@@ -17,27 +17,71 @@ limitations under the License.
 package utils
 
 import (
-	"bufio"
-	"bytes"
+	"context"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
+	"sync"
+	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/onsi/ginkgo/v2"
+	"github.com/onsi/gomega"
+	zaplog "go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
+	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
+	podconstants "sigs.k8s.io/kueue/pkg/controller/jobs/pod/constants"
+
+	"tpu-slice-controller/internal/util/testing"
 )
 
 const (
-	prometheusOperatorVersion = "v0.77.1"
-	prometheusOperatorURL     = "https://github.com/prometheus-operator/prometheus-operator/" +
-		"releases/download/%s/bundle.yaml"
-
-	certmanagerVersion = "v1.16.3"
-	certmanagerURLTmpl = "https://github.com/cert-manager/cert-manager/releases/download/%s/cert-manager.yaml"
+	defaultLogLevel = -3
 )
 
-func warnError(err error) {
-	_, _ = fmt.Fprintf(ginkgo.GinkgoWriter, "warning: %v\n", err)
+func logLevel() int {
+	level, err := strconv.Atoi(os.Getenv("TEST_LOG_LEVEL"))
+	if err != nil {
+		return defaultLogLevel
+	}
+	return level
+}
+
+var SetupLogger = sync.OnceFunc(func() {
+	ctrl.SetLogger(NewTestingLogger(ginkgo.GinkgoWriter, logLevel()))
+})
+
+func NewTestingLogger(writer io.Writer, level int) logr.Logger {
+	opts := func(o *zap.Options) {
+		o.TimeEncoder = zapcore.RFC3339NanoTimeEncoder
+		o.ZapOpts = []zaplog.Option{zaplog.AddCaller()}
+	}
+	return zap.New(
+		zap.WriteTo(writer),
+		zap.UseDevMode(true),
+		zap.Level(zapcore.Level(level)),
+		opts)
+}
+
+func GetSliceNamespace() string {
+	if ns := os.Getenv("SLICE_NAMESPACE"); ns != "" {
+		return ns
+	}
+	return DefaultNamespace
 }
 
 // Run executes the provided command within this context
@@ -58,123 +102,6 @@ func Run(cmd *exec.Cmd) (string, error) {
 	}
 
 	return string(output), nil
-}
-
-// InstallPrometheusOperator installs the prometheus Operator to be used to export the enabled metrics.
-func InstallPrometheusOperator() error {
-	url := fmt.Sprintf(prometheusOperatorURL, prometheusOperatorVersion)
-	cmd := exec.Command("kubectl", "create", "-f", url)
-	_, err := Run(cmd)
-	return err
-}
-
-// UninstallPrometheusOperator uninstalls the prometheus
-func UninstallPrometheusOperator() {
-	url := fmt.Sprintf(prometheusOperatorURL, prometheusOperatorVersion)
-	cmd := exec.Command("kubectl", "delete", "-f", url)
-	if _, err := Run(cmd); err != nil {
-		warnError(err)
-	}
-}
-
-// IsPrometheusCRDsInstalled checks if any Prometheus CRDs are installed
-// by verifying the existence of key CRDs related to Prometheus.
-func IsPrometheusCRDsInstalled() bool {
-	// List of common Prometheus CRDs
-	prometheusCRDs := []string{
-		"prometheuses.monitoring.coreos.com",
-		"prometheusrules.monitoring.coreos.com",
-		"prometheusagents.monitoring.coreos.com",
-	}
-
-	cmd := exec.Command("kubectl", "get", "crds", "-o", "custom-columns=NAME:.metadata.name")
-	output, err := Run(cmd)
-	if err != nil {
-		return false
-	}
-	crdList := GetNonEmptyLines(output)
-	for _, crd := range prometheusCRDs {
-		for _, line := range crdList {
-			if strings.Contains(line, crd) {
-				return true
-			}
-		}
-	}
-
-	return false
-}
-
-// UninstallCertManager uninstalls the cert manager
-func UninstallCertManager() {
-	url := fmt.Sprintf(certmanagerURLTmpl, certmanagerVersion)
-	cmd := exec.Command("kubectl", "delete", "-f", url)
-	if _, err := Run(cmd); err != nil {
-		warnError(err)
-	}
-}
-
-// InstallCertManager installs the cert manager bundle.
-func InstallCertManager() error {
-	url := fmt.Sprintf(certmanagerURLTmpl, certmanagerVersion)
-	cmd := exec.Command("kubectl", "apply", "-f", url)
-	if _, err := Run(cmd); err != nil {
-		return err
-	}
-	// Wait for cert-manager-webhook to be ready, which can take time if cert-manager
-	// was re-installed after uninstalling on a cluster.
-	cmd = exec.Command("kubectl", "wait", "deployment.apps/cert-manager-webhook",
-		"--for", "condition=Available",
-		"--namespace", "cert-manager",
-		"--timeout", "5m",
-	)
-
-	_, err := Run(cmd)
-	return err
-}
-
-// IsCertManagerCRDsInstalled checks if any Cert Manager CRDs are installed
-// by verifying the existence of key CRDs related to Cert Manager.
-func IsCertManagerCRDsInstalled() bool {
-	// List of common Cert Manager CRDs
-	certManagerCRDs := []string{
-		"certificates.cert-manager.io",
-		"issuers.cert-manager.io",
-		"clusterissuers.cert-manager.io",
-		"certificaterequests.cert-manager.io",
-		"orders.acme.cert-manager.io",
-		"challenges.acme.cert-manager.io",
-	}
-
-	// Execute the kubectl command to get all CRDs
-	cmd := exec.Command("kubectl", "get", "crds")
-	output, err := Run(cmd)
-	if err != nil {
-		return false
-	}
-
-	// Check if any of the Cert Manager CRDs are present
-	crdList := GetNonEmptyLines(output)
-	for _, crd := range certManagerCRDs {
-		for _, line := range crdList {
-			if strings.Contains(line, crd) {
-				return true
-			}
-		}
-	}
-
-	return false
-}
-
-// LoadImageToKindClusterWithName loads a local docker image to the kind cluster
-func LoadImageToKindClusterWithName(name string) error {
-	cluster := "kind"
-	if v, ok := os.LookupEnv("KIND_CLUSTER"); ok {
-		cluster = v
-	}
-	kindOptions := []string{"load", "docker-image", name, "--name", cluster}
-	cmd := exec.Command("kind", kindOptions...)
-	_, err := Run(cmd)
-	return err
 }
 
 // GetNonEmptyLines converts given command output string into individual objects
@@ -201,52 +128,125 @@ func GetProjectDir() (string, error) {
 	return wd, nil
 }
 
-// UncommentCode searches for target in the file and remove the comment prefix
-// of the target content. The target content may span multiple lines.
-func UncommentCode(filename, target, prefix string) error {
-	// false positive
-	content, err := os.ReadFile(filename)
-	if err != nil {
-		return fmt.Errorf("failed to read file %q: %w", filename, err)
-	}
-	strContent := string(content)
+func ExpectAllPodsInNamespaceDeleted(ctx context.Context, c client.Client, ns *corev1.Namespace) {
+	ginkgo.GinkgoHelper()
+	pods := corev1.PodList{}
+	gomega.Eventually(func(g gomega.Gomega) {
+		g.Expect(c.List(ctx, &pods, client.InNamespace(ns.Name))).Should(gomega.Succeed())
+		g.Expect(pods.Items).Should(gomega.BeEmpty())
+	}, LongTimeout, Interval).Should(gomega.Succeed())
+}
 
-	idx := strings.Index(strContent, target)
-	if idx < 0 {
-		return fmt.Errorf("unable to find the code %q to be uncomment", target)
+func deleteAllObjectsInNamespace(ctx context.Context, c client.Client, ns *corev1.Namespace, obj client.Object) error {
+	err := c.DeleteAllOf(ctx, obj, client.InNamespace(ns.Name), client.PropagationPolicy(metav1.DeletePropagationBackground))
+	if err != nil && !apierrors.IsNotFound(err) && !errors.Is(err, &meta.NoKindMatchError{}) {
+		return err
 	}
+	return nil
+}
 
-	out := new(bytes.Buffer)
-	_, err = out.Write(content[:idx])
-	if err != nil {
-		return fmt.Errorf("failed to write to output: %w", err)
+func DeleteAllJobSetsInNamespace(ctx context.Context, c client.Client, ns *corev1.Namespace) error {
+	return deleteAllObjectsInNamespace(ctx, c, ns, &jobset.JobSet{})
+}
+
+func DeleteAllJobsInNamespace(ctx context.Context, c client.Client, ns *corev1.Namespace) error {
+	return deleteAllObjectsInNamespace(ctx, c, ns, &batchv1.Job{})
+}
+
+func deleteAllPodsInNamespace(ctx context.Context, c client.Client, ns *corev1.Namespace, offset int) error {
+	if err := client.IgnoreNotFound(c.DeleteAllOf(ctx, &corev1.Pod{}, client.InNamespace(ns.Name))); err != nil {
+		return fmt.Errorf("deleting all Pods in namespace %q: %w", ns.Name, err)
 	}
+	gomega.EventuallyWithOffset(offset, func(g gomega.Gomega) {
+		pods := corev1.PodList{}
+		g.Expect(client.IgnoreNotFound(c.List(ctx, &pods, client.InNamespace(ns.Name)))).
+			Should(gomega.Succeed(), "listing Pods with a finalizer in namespace %q", ns.Name)
+		for _, p := range pods.Items {
+			if controllerutil.RemoveFinalizer(&p, podconstants.PodFinalizer) {
+				g.Expect(client.IgnoreNotFound(c.Update(ctx, &p))).Should(gomega.Succeed(), "removing finalizer")
+			}
+		}
+	}, LongTimeout, Interval).Should(gomega.Succeed())
+	return nil
+}
 
-	scanner := bufio.NewScanner(bytes.NewBufferString(target))
-	if !scanner.Scan() {
+func deleteWorkloadsInNamespace(ctx context.Context, c client.Client, ns *corev1.Namespace, offset int) error {
+	if err := c.DeleteAllOf(ctx, &kueue.Workload{}, client.InNamespace(ns.Name)); err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+	gomega.EventuallyWithOffset(offset, func(g gomega.Gomega) {
+		workloads := kueue.WorkloadList{}
+		g.Expect(c.List(ctx, &workloads, client.InNamespace(ns.Name))).Should(gomega.Succeed())
+		for _, wl := range workloads.Items {
+			if controllerutil.RemoveFinalizer(&wl, kueue.ResourceInUseFinalizerName) {
+				g.Expect(client.IgnoreNotFound(c.Update(ctx, &wl))).Should(gomega.Succeed())
+			}
+		}
+	}, LongTimeout, Interval).Should(gomega.Succeed())
+	return nil
+}
+
+type objAsPtr[T any] interface {
+	client.Object
+	*T
+}
+
+func DeleteObject[PtrT objAsPtr[T], T any](ctx context.Context, c client.Client, o PtrT) error {
+	if o != nil {
+		if err := c.Delete(ctx, o); err != nil && !apierrors.IsNotFound(err) {
+			return err
+		}
+	}
+	return nil
+}
+
+func expectObjectToBeDeletedWithTimeout[PtrT objAsPtr[T], T any](ctx context.Context, k8sClient client.Client, o PtrT, deleteNow bool, timeout time.Duration) {
+	if o == nil {
+		return
+	}
+	if deleteNow {
+		gomega.ExpectWithOffset(2, client.IgnoreNotFound(DeleteObject(ctx, k8sClient, o))).To(gomega.Succeed())
+	}
+	gomega.EventuallyWithOffset(2, func(g gomega.Gomega) {
+		newObj := PtrT(new(T))
+		g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(o), newObj)).Should(testing.BeNotFoundError())
+	}, timeout, Interval).Should(gomega.Succeed())
+}
+
+func ExpectObjectToBeDeleted[PtrT objAsPtr[T], T any](ctx context.Context, k8sClient client.Client, o PtrT, deleteNow bool) {
+	expectObjectToBeDeletedWithTimeout(ctx, k8sClient, o, deleteNow, Timeout)
+}
+
+// DeleteNamespace deletes all objects the tests typically create in the namespace.
+func DeleteNamespace(ctx context.Context, c client.Client, ns *corev1.Namespace) error {
+	if ns == nil {
 		return nil
 	}
-	for {
-		if _, err = out.WriteString(strings.TrimPrefix(scanner.Text(), prefix)); err != nil {
-			return fmt.Errorf("failed to write to output: %w", err)
-		}
-		// Avoid writing a newline in case the previous line was the last in target.
-		if !scanner.Scan() {
-			break
-		}
-		if _, err = out.WriteString("\n"); err != nil {
-			return fmt.Errorf("failed to write to output: %w", err)
-		}
+
+	if err := DeleteAllJobSetsInNamespace(ctx, c, ns); err != nil {
+		return err
 	}
 
-	if _, err = out.Write(content[idx+len(target):]); err != nil {
-		return fmt.Errorf("failed to write to output: %w", err)
+	if err := DeleteAllJobsInNamespace(ctx, c, ns); err != nil {
+		return err
 	}
 
-	// false positive
-	if err = os.WriteFile(filename, out.Bytes(), 0644); err != nil {
-		return fmt.Errorf("failed to write file %q: %w", filename, err)
+	if err := deleteAllPodsInNamespace(ctx, c, ns, 2); err != nil {
+		return err
+	}
+
+	if err := deleteWorkloadsInNamespace(ctx, c, ns, 2); err != nil {
+		return err
+	}
+
+	if err := c.DeleteAllOf(ctx, &kueue.LocalQueue{}, client.InNamespace(ns.Name)); err != nil && !apierrors.IsNotFound(err) {
+		return err
 	}
 
 	return nil
+}
+
+func MustCreate(ctx context.Context, c client.Client, obj client.Object) {
+	ginkgo.GinkgoHelper()
+	gomega.Expect(c.Create(ctx, obj)).Should(gomega.Succeed())
 }

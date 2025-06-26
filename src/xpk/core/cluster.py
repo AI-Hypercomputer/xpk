@@ -38,7 +38,7 @@ from .resources import get_cluster_system_characteristics
 from .system_characteristics import SystemCharacteristics
 
 JOBSET_VERSION = 'v0.8.0'
-PATHWAYS_JOB_VERSION = 'v0.1.1'
+PATHWAYS_JOB_VERSION = 'v0.1.2'
 INSTALLER_NCCL_TCPX = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpx/nccl-tcpx-installer.yaml'
 INSTALLER_NCCL_TCPXO = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpxo/nccl-tcpxo-installer.yaml'
 INSTALLER_NCCL_RDMA = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-rdma/nccl-rdma-installer.yaml'
@@ -731,7 +731,6 @@ def get_cluster_credentials(args) -> None:
   command = (
       'gcloud container clusters get-credentials'
       f' {args.cluster} --region={zone_to_region(args.zone)}'
-      ' --dns-endpoint'
       f' --project={args.project} &&'
       ' kubectl config view && kubectl config set-context --current'
       ' --namespace=default'

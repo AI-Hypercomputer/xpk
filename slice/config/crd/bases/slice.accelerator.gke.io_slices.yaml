@@ -64,10 +64,18 @@ spec:
                 items:
                   type: string
                 type: array
+              nodeSelector:
+                additionalProperties:
+                  items:
+                    type: string
+                  type: array
+                description: |-
+                  Optional, set of nodeSelector to use to form slice
+                  This is used to select nodes based on labels.
+                type: object
             required:
             - acceleratorTopology
             - acceleratorType
-            - nodePools
             type: object
           status:
             description: SliceStatus defines the observed state of Slice.

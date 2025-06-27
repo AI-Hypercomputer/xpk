@@ -34,6 +34,10 @@ type SliceSpec struct {
 
 	// Required, set of nodePools to use to form slice
 	NodePools []string `json:"nodePools"`
+
+	// Optional, set of nodeSelector to use to form slice
+	// This is used to select nodes based on labels.
+	NodeSelector map[string][]string `json:"nodeSelector,omitempty"`
 }
 
 // SliceStatus defines the observed state of Slice.

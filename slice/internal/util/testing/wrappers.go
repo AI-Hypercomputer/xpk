@@ -130,6 +130,45 @@ func (w *WorkloadWrapper) Active(a bool) *WorkloadWrapper {
 	return w
 }
 
+// PodSetAssignments sets the PodSetAssignments for the workload.
+func (w *WorkloadWrapper) PodSetAssignments(assignments ...kueue.PodSetAssignment) *WorkloadWrapper {
+	if w.Status.Admission == nil {
+		w.Status.Admission = &kueue.Admission{
+			PodSetAssignments: make([]kueue.PodSetAssignment, 0, len(assignments)),
+		}
+	}
+	w.Status.Admission.PodSetAssignments = assignments
+	return w
+}
+
+type PodSetAssignmentWrapper struct {
+	kueue.PodSetAssignment
+}
+
+func MakePodSetAssignment(name string) *PodSetAssignmentWrapper {
+	return &PodSetAssignmentWrapper{
+		kueue.PodSetAssignment{
+			Name: kueue.NewPodSetReference(name),
+		},
+	}
+}
+
+func (w *PodSetAssignmentWrapper) TopologyAssignment(levels []string, domains []kueue.TopologyDomainAssignment) *PodSetAssignmentWrapper {
+	if w.PodSetAssignment.TopologyAssignment == nil {
+		w.PodSetAssignment.TopologyAssignment = &kueue.TopologyAssignment{
+			Levels:  make([]string, len(levels)),
+			Domains: make([]kueue.TopologyDomainAssignment, 0, len(domains)),
+		}
+	}
+	w.PodSetAssignment.TopologyAssignment.Levels = append(w.PodSetAssignment.TopologyAssignment.Levels, levels...)
+	w.PodSetAssignment.TopologyAssignment.Domains = append(w.PodSetAssignment.TopologyAssignment.Domains, domains...)
+	return w
+}
+
+func (w *PodSetAssignmentWrapper) Obj() kueue.PodSetAssignment {
+	return w.PodSetAssignment
+}
+
 // SliceWrapper wraps a Slice.
 type SliceWrapper struct {
 	v1alpha1.Slice
@@ -156,6 +195,11 @@ func (s *SliceWrapper) Obj() *v1alpha1.Slice {
 
 func (s *SliceWrapper) ControllerReference(gvk schema.GroupVersionKind, name, uid string) *SliceWrapper {
 	AppendOwnerReference(&s.Slice, gvk, name, uid, ptr.To(true), ptr.To(true))
+	return s
+}
+
+func (s *SliceWrapper) NodeSelector(ns map[string][]string) *SliceWrapper {
+	s.Spec.NodeSelector = ns
 	return s
 }
 

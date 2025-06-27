@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"slices"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -30,7 +31,10 @@ import (
 	"tpu-slice-controller/api/v1alpha1"
 )
 
-const CleanupSliceFinalizerName = "accelerator.gke.io/slice"
+const (
+	CleanupSliceFinalizerName   = "accelerator.gke.io/slice"
+	TPUReservationSubblockLabel = "cloud.google.com/gke-tpu-reservation-subblock"
+)
 
 // WorkloadReconciler reconciles a Workload object
 type WorkloadReconciler struct {
@@ -102,6 +106,26 @@ func (r *WorkloadReconciler) newSlice(wl *kueue.Workload) (*v1alpha1.Slice, erro
 
 	if err := controllerutil.SetControllerReference(wl, slice, r.client.Scheme()); err != nil {
 		return nil, err
+	}
+
+	if wl.Status.Admission != nil && wl.Status.Admission.PodSetAssignments != nil {
+		for _, psa := range wl.Status.Admission.PodSetAssignments {
+			for _, domain := range psa.TopologyAssignment.Domains {
+				if slice.Spec.NodeSelector == nil {
+					slice.Spec.NodeSelector = make(map[string][]string)
+				}
+				if slice.Spec.NodeSelector[TPUReservationSubblockLabel] == nil {
+					slice.Spec.NodeSelector[TPUReservationSubblockLabel] = []string{}
+				}
+				// make sure there are no duplicates in the nodeSelector
+				for _, v := range domain.Values {
+					exists := slices.Contains(slice.Spec.NodeSelector[TPUReservationSubblockLabel], v)
+					if !exists {
+						slice.Spec.NodeSelector[TPUReservationSubblockLabel] = append(slice.Spec.NodeSelector[TPUReservationSubblockLabel], v)
+					}
+				}
+			}
+		}
 	}
 
 	return slice, nil

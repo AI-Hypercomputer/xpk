@@ -131,6 +131,9 @@ def add_volumes(job_manifest: dict):
   })
   volumes.append({'name': 'sys', 'hostPath': {'path': '/sys'}})
   volumes.append({'name': 'proc-sys', 'hostPath': {'path': '/proc/sys'}})
+  volumes.append(
+      {'name': 'dshm', 'emptyDir': {'medium': 'Memory', 'sizeLimit': '128Gi'}}
+  )
 
 
 def add_tcpx_daemon_container(job_manifest):
@@ -176,4 +179,7 @@ def update_gpu_containers(job_manifest):
       volumeMounts.append({'name': 'tcpx-socket', 'mountPath': '/tmp'})
       volumeMounts.append(
           {'name': 'libraries', 'mountPath': '/usr/local/nvidia/lib64'}
+      )
+      container['volumeMounts'].append(
+          {'name': 'dshm', 'mountPath': '/dev/shm'}
       )

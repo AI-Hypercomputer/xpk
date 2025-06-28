@@ -31,7 +31,7 @@ from ..capacity import (
 )
 from ..system_characteristics import get_system_characteristics_by_device_type
 from .blueprint_definitions import Blueprint, DeploymentGroup, DeploymentModule
-
+from ..kueue import KUEUE_VERSION
 
 yaml = yaml.YAML()
 
@@ -51,7 +51,7 @@ blueprint_dependencies_dir = {
 }
 
 cluster_toolkit_url = "github.com/GoogleCloudPlatform/cluster-toolkit"
-cluster_toolkit_version = "v1.48.0"
+cluster_toolkit_version = "v1.51.0"
 
 
 class BlueprintGeneratorOutput:
@@ -144,7 +144,12 @@ class BlueprintGenerator:
         source="modules/scheduler/gke-cluster",
         use=[primary_vpc_name, gpu_subnets_name],
         settings={
-            "release_channel": "RAPID",
+            "release_channel": (
+                "UNSPECIFIED"
+                if capacity_type == CapacityType.FLEX_START
+                else "RAPID"
+            ),
+            "version_prefix": "1.32.",
             "prefix_with_deployment_name": False,
             "name_suffix": cluster_name,
             "enable_private_endpoint": False,
@@ -178,15 +183,24 @@ class BlueprintGenerator:
             "group_placement_max_distance": group_placement_max_distance,
         },
     )
-
+    nodepool_used_deps = (
+        ["gke_cluster", gpu_subnets_name, "group_placement_0"]
+        if reservation
+        else ["gke_cluster", gpu_subnets_name]
+    )
     a3_megagpu_pool_0 = DeploymentModule(
         id="a3_megagpu_pool_0",
         source="modules/compute/gke-node-pool",
-        use=["gke_cluster", gpu_subnets_name],
+        use=nodepool_used_deps,
         settings={
+            "enable_flex_start": (
+                True if capacity_type == CapacityType.FLEX_START else False
+            ),
+            "enable_queued_provisioning": (
+                True if capacity_type == CapacityType.FLEX_START else False
+            ),
             "name": f"{cluster_name}-a3-megagpu-pool-0",
             "machine_type": system.gce_machine_type,
-            "static_node_count": num_nodes,
             "zones": [zone],
             "host_maintenance_interval": (
                 None
@@ -199,10 +213,16 @@ class BlueprintGenerator:
             "run_workload_script": False,
             "spot": capacity_type == CapacityType.SPOT,
             "max_pods_per_node": 32,
-            "auto_upgrade": True,
+            "auto_upgrade": (
+                True if capacity_type != CapacityType.FLEX_START else False
+            ),
         },
         outputs=["instructions"],
     )
+    if capacity_type == CapacityType.FLEX_START:
+      a3_megagpu_pool_0.settings.update(self.get_dws_flex_start())
+    else:
+      a3_megagpu_pool_0.settings.update({"static_node_count": num_nodes})
 
     set_placement_policy = capacity_type != CapacityType.SPOT
     tas_name = "topologyName: 'gke-default'" if set_placement_policy else ""
@@ -214,10 +234,13 @@ class BlueprintGenerator:
         settings={
             "kueue": {
                 "install": True,
-                "version": "v0.10.0",  # TAS feature-gates is enabled in CT
+                "version": KUEUE_VERSION,  # TAS feature-gates is enabled in CT
                 "config_path": f'$(ghpc_stage("{blueprint_name}"))/kueue-xpk-configuration.yaml.tftpl',
                 "config_template_vars": {
                     "num_chips": num_chips,
+                    "flex_start": (
+                        1 if capacity_type == CapacityType.FLEX_START else 0
+                    ),
                     "tas_name": tas_name,
                 },
             },
@@ -262,7 +285,6 @@ class BlueprintGenerator:
     )
 
     if set_placement_policy:
-      a3_megagpu_pool_0.use.append(group_placement_0.id)
       primary_group.modules.append(group_placement_0)
 
     a3_mega_blueprint = Blueprint(
@@ -480,14 +502,22 @@ class BlueprintGenerator:
         source="modules/scheduler/gke-cluster",
         use=[net_0_id],
         settings={
-            "release_channel": "RAPID",
-            "version_prefix": "1.31.",
-            "maintenance_exclusions": [{
-                "name": "no-minor-or-node-upgrades-indefinite",
-                "start_time": "2024-12-01T00:00:00Z",
-                "end_time": "2025-12-22T00:00:00Z",
-                "exclusion_scope": "NO_MINOR_OR_NODE_UPGRADES",
-            }],
+            "release_channel": (
+                "UNSPECIFIED"
+                if capacity_type == CapacityType.FLEX_START
+                else "RAPID"
+            ),
+            "version_prefix": "1.32.",
+            "maintenance_exclusions": (
+                []
+                if capacity_type == CapacityType.FLEX_START
+                else [{
+                    "name": "no-minor-or-node-upgrades-indefinite",
+                    "start_time": "2024-12-01T00:00:00Z",
+                    "end_time": "2025-12-22T00:00:00Z",
+                    "exclusion_scope": "NO_MINOR_OR_NODE_UPGRADES",
+                }]
+            ),
             "prefix_with_deployment_name": False,
             "name_suffix": cluster_name,
             "system_node_pool_machine_type": system_node_pool_machine_type,
@@ -536,12 +566,19 @@ class BlueprintGenerator:
         use=[cluster_id],
         settings={
             "machine_type": system.gce_machine_type,
-            "auto_upgrade": True,
+            "auto_upgrade": (
+                True if capacity_type != CapacityType.FLEX_START else False
+            ),
             "zones": [zone],
-            "static_node_count": num_nodes,
             "spot": capacity_type == CapacityType.SPOT,
             "reservation_affinity": self._getblock_reservation_affinity(
                 reservation
+            ),
+            "enable_flex_start": (
+                True if capacity_type == CapacityType.FLEX_START else False
+            ),
+            "enable_queued_provisioning": (
+                True if capacity_type == CapacityType.FLEX_START else False
             ),
             "max_pods_per_node": 32,
             "guest_accelerator": [{
@@ -564,6 +601,10 @@ class BlueprintGenerator:
         },
         outputs=["instructions"],
     )
+    if capacity_type == CapacityType.FLEX_START:
+      gpu_pool.settings.update(self.get_dws_flex_start())
+    else:
+      gpu_pool.settings.update({"static_node_count": num_nodes})
 
     num_chips = num_nodes * system.chips_per_vm
     workload_manager_install_id = "workload-manager-install"
@@ -574,9 +615,14 @@ class BlueprintGenerator:
         settings={
             "kueue": {
                 "install": True,
-                "version": "v0.10.0",  # TAS feature-gates is enabled in CT
+                "version": KUEUE_VERSION,  # TAS feature-gates is enabled in CT
                 "config_path": f'$(ghpc_stage("{blueprint_name}"))/kueue-xpk-configuration.yaml.tftpl',
-                "config_template_vars": {"num_chips": num_chips},
+                "config_template_vars": {
+                    "num_chips": num_chips,
+                    "flex_start": (
+                        1 if capacity_type == CapacityType.FLEX_START else 0
+                    ),
+                },
             },
             "jobset": {"install": True, "version": "v0.7.2"},
             "apply_manifests": [
@@ -779,13 +825,21 @@ class BlueprintGenerator:
                 f" {cluster_name}-rdma-net.subnetwork_interfaces_gke))"
             ),
             "version_prefix": "1.32.",
-            "release_channel": "RAPID",
-            "maintenance_exclusions": [{
-                "name": "no-minor-or-node-upgrades-indefinite",
-                "start_time": "2024-12-01T00:00:00Z",
-                "end_time": "2025-12-22T00:00:00Z",
-                "exclusion_scope": "NO_MINOR_OR_NODE_UPGRADES",
-            }],
+            "release_channel": (
+                "UNSPECIFIED"
+                if capacity_type == CapacityType.FLEX_START
+                else "RAPID"
+            ),
+            "maintenance_exclusions": (
+                []
+                if capacity_type == CapacityType.FLEX_START
+                else [{
+                    "name": "no-minor-or-node-upgrades-indefinite",
+                    "start_time": "2024-12-01T00:00:00Z",
+                    "end_time": "2025-12-22T00:00:00Z",
+                    "exclusion_scope": "NO_MINOR_OR_NODE_UPGRADES",
+                }]
+            ),
         },
         outputs=["instructions"],
     )
@@ -802,14 +856,21 @@ class BlueprintGenerator:
         use=[cluster_id],
         settings={
             "machine_type": system.gce_machine_type,
-            "auto_upgrade": True,
+            "auto_upgrade": (
+                True if capacity_type != CapacityType.FLEX_START else False
+            ),
             "zones": [zone],
             "disk_type": "hyperdisk-balanced",
-            "static_node_count": num_nodes,
             "local_ssd_count_ephemeral_storage": 32,
             "spot": capacity_type == CapacityType.SPOT,
             "reservation_affinity": self._getblock_reservation_affinity(
                 reservation
+            ),
+            "enable_flex_start": (
+                True if capacity_type == CapacityType.FLEX_START else False
+            ),
+            "enable_queued_provisioning": (
+                True if capacity_type == CapacityType.FLEX_START else False
             ),
             "max_pods_per_node": 32,
             "guest_accelerator": [{
@@ -832,6 +893,10 @@ class BlueprintGenerator:
         },
         outputs=["instructions"],
     )
+    if capacity_type == CapacityType.FLEX_START:
+      gpu_pool.settings.update(self.get_dws_flex_start())
+    else:
+      gpu_pool.settings.update({"static_node_count": num_nodes})
 
     num_chips = num_nodes * system.chips_per_vm
     workload_manager_install_id = "workload-manager-install"
@@ -842,9 +907,14 @@ class BlueprintGenerator:
         settings={
             "kueue": {
                 "install": True,
-                "version": "v0.10.0",  # TAS feature-gates is enabled in CT
+                "version": KUEUE_VERSION,  # TAS feature-gates is enabled in CT
                 "config_path": f'$(ghpc_stage("{blueprint_name}"))/kueue-xpk-configuration.yaml.tftpl',
-                "config_template_vars": {"num_chips": num_chips},
+                "config_template_vars": {
+                    "num_chips": num_chips,
+                    "flex_start": (
+                        1 if capacity_type == CapacityType.FLEX_START else 0
+                    ),
+                },
             },
             "jobset": {"install": True, "version": "v0.7.2"},
             "apply_manifests": [
@@ -993,6 +1063,14 @@ class BlueprintGenerator:
         dirs_exist_ok=True,
     )
     return deployment_files_path
+
+  def get_dws_flex_start(self) -> dict:
+    return {
+        "enable_queued_provisioning": True,
+        "autoscaling_total_min_nodes": 0,
+        "auto_repair": False,
+        "auto_upgrade": False,
+    }
 
 
 yaml.register_class(Blueprint)

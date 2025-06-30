@@ -153,7 +153,7 @@ deployment_groups:
     settings:
       kueue:
         install: true
-        version: v0.10.0  # TAS feature-gates is enabled in CT
+        version: v0.12.1  # TAS feature-gates is enabled in CT
         config_path: $(ghpc_stage("xpk-gke-a3-ultra"))/kueue-xpk-configuration.yaml.tftpl
         config_template_vars:
          num_chips: 16

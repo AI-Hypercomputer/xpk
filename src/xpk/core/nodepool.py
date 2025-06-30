@@ -315,13 +315,20 @@ def run_gke_node_pool_create_command(
     # Pathways needs CPU nodepools in addition to TPU nodepools
     for node_pool_name in desired_pw_cpu_node_pools:
       if node_pool_name in existing_node_pool_names:
-        continue
-      command = (
-          'gcloud beta container node-pools create'
-          f' {node_pool_name} --node-version={gke_node_pool_version} --cluster={args.cluster} --project={args.project} --node-locations={args.zone} --region={zone_to_region(args.zone)} --num-nodes=1'
-          f' --machine-type={args.pathways_gce_machine_type} --scopes=storage-full,gke-default,{CLOUD_PLATFORM_AUTH_SCOPE_URL} --enable-autoscaling'
-          ' --min-nodes=1 --max-nodes=20'
-      )
+        # Resize Pathways CPU nodepool to have at least 4 nodes
+        command = (
+            'gcloud container clusters resize'
+            f' {args.cluster} --project={args.project} --node-pool'
+            f' {node_pool_name} --num-nodes=4'
+            f' --region={zone_to_region(args.zone)} --quiet'
+        )
+      else:
+        command = (
+            'gcloud beta container node-pools create'
+            f' {node_pool_name} --node-version={gke_node_pool_version} --cluster={args.cluster} --project={args.project} --node-locations={args.zone} --region={zone_to_region(args.zone)} --num-nodes=4'
+            f' --machine-type={args.pathways_gce_machine_type} --scopes=storage-full,gke-default,{CLOUD_PLATFORM_AUTH_SCOPE_URL} --enable-autoscaling'
+            ' --min-nodes=1 --max-nodes=20'
+        )
       task = f'NodepoolCreate-{node_pool_name}'
       create_commands.append(command)
       create_task_names.append(task)

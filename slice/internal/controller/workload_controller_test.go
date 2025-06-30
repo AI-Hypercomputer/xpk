@@ -90,18 +90,13 @@ func TestWorkloadReconciler(t *testing.T) {
 			slice:         baseSliceWrapper.DeepCopy(),
 			wantWorkloads: []kueue.Workload{*baseWorkloadWrapper.Clone().Active(false).Obj()},
 		},
-		"should add finalizer and create slice": {
+		"should add a finalizer but shouldn't create a Slice because there's no TopologyAssignment yet": {
 			request:  baseRequest,
-			workload: baseWorkloadWrapper.UID(types.UID(baseWorkloadName)).DeepCopy(),
+			workload: baseWorkloadWrapper.Clone().UID(types.UID(baseWorkloadName)).Obj(),
 			wantWorkloads: []kueue.Workload{
 				*baseWorkloadWrapper.Clone().
 					UID(types.UID(baseWorkloadName)).
 					Finalizers(CleanupSliceFinalizerName).
-					Obj(),
-			},
-			wantSlices: []v1alpha1.Slice{
-				*baseSliceWrapper.Clone().
-					ControllerReference(kueue.GroupVersion.WithKind("Workload"), baseWorkloadName, baseWorkloadName).
 					Obj(),
 			},
 		},

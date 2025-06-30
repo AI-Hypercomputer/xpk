@@ -53,6 +53,7 @@ GCS_FUSE_ANNOTATIONS = {
     "gke-gcsfuse/cpu-limit": "0",
     "gke-gcsfuse/memory-limit": "0",
     "gke-gcsfuse/ephemeral-storage-limit": "0",
+    "gke-gcsfuse/metadata-prefetch-memory-limit": "0", 
 }
 PARALLELSTORE_ANNOTATIONS = {
     "gke-parallelstore/volumes": "true",

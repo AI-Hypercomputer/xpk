@@ -423,6 +423,19 @@ def get_gpu_type_from_cluster(args) -> str:
   return ''
 
 
+def setup_k8s_service_accounts() -> None:
+  """
+  Creates/sets up SAs and the roles for them
+  """
+  default_sa = 'default'
+
+  create_xpk_k8s_service_account()
+
+  role_name = create_pod_reader_role()
+  create_role_binding(default_sa, role_name)
+  create_role_binding(XPK_SA, role_name)
+
+
 def create_xpk_k8s_service_account() -> None:
   k8s_core_client = k8s_client.CoreV1Api()
   sa = k8s_client.V1ServiceAccount(
@@ -439,6 +452,94 @@ def create_xpk_k8s_service_account() -> None:
     xpk_print(
         f'Service account: {XPK_SA} already exists. Skipping its creation'
     )
+
+
+def create_pod_reader_role() -> str:
+  """
+  Creates the 'pod-reader' Role in the default namespace.
+  """
+  k8s_rbac_client = k8s_client.RbacAuthorizationV1Api()
+  role_name = 'pod-reader'
+
+  role = k8s_client.V1Role(
+      metadata=k8s_client.V1ObjectMeta(
+          name=role_name, namespace=DEFAULT_NAMESPACE
+      ),
+      rules=[
+          k8s_client.V1PolicyRule(
+              api_groups=[''],
+              resources=['pods', 'services'],
+              verbs=['get', 'list', 'watch'],
+          ),
+          k8s_client.V1PolicyRule(
+              api_groups=['batch'],
+              resources=['jobs'],
+              verbs=['get', 'list', 'watch'],
+          ),
+      ],
+  )
+
+  xpk_print(
+      f'Attempting to create Role: {role_name} in namespace:'
+      f' {DEFAULT_NAMESPACE}'
+  )
+  try:
+    k8s_rbac_client.create_namespaced_role(DEFAULT_NAMESPACE, role, pretty=True)
+    xpk_print(f'Successfully created Role: {role_name}')
+    return role_name
+  except ApiException as e:
+    if e.status == 409:  # Conflict, meaning it already exists
+      xpk_print(f'Role: {role_name} already exists. Skipping its creation.')
+      return role_name
+    else:
+      xpk_print(f'Error creating Role {role_name}: {e}')
+      xpk_exit(1)
+
+
+def create_role_binding(sa: str, role_name: str) -> None:
+  """
+  Creates a RoleBinding to associate the Service Account
+  with the Role in the default namespace.
+  Assumes the Service Account and the Role already exist.
+  """
+  k8s_rbac_client = k8s_client.RbacAuthorizationV1Api()
+  role_binding_name = f'{sa}-{role_name}-binding'
+
+  role_binding = k8s_client.V1RoleBinding(
+      metadata=k8s_client.V1ObjectMeta(
+          name=role_binding_name, namespace=DEFAULT_NAMESPACE
+      ),
+      subjects=[
+          k8s_client.RbacV1Subject(
+              kind='ServiceAccount', name=sa, namespace=DEFAULT_NAMESPACE
+          )
+      ],
+      role_ref=k8s_client.V1RoleRef(
+          kind='Role', name=role_name, api_group='rbac.authorization.k8s.io'
+      ),
+  )
+
+  xpk_print(
+      f'Attempting to create RoleBinding: {role_binding_name} for Service'
+      f' Account: {XPK_SA} to Role: {role_name} in namespace:'
+      f' {DEFAULT_NAMESPACE}'
+  )
+  try:
+    k8s_rbac_client.create_namespaced_role_binding(
+        DEFAULT_NAMESPACE, role_binding, pretty=True
+    )
+    xpk_print(
+        f'Successfully created RoleBinding: {role_binding_name} for {XPK_SA}'
+    )
+  except ApiException as e:
+    if e.status == 409:  # Conflict, meaning it already exists
+      xpk_print(
+          f'RoleBinding: {role_binding_name} already exists. Skipping its'
+          ' creation.'
+      )
+    else:
+      xpk_print(f'Error creating RoleBinding {role_binding_name}: {e}')
+      xpk_exit(1)
 
 
 def update_gke_cluster_with_clouddns(args) -> int:

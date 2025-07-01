@@ -42,10 +42,8 @@ type SliceSpec struct {
 	// For example, to select nodes in cubes cube-1 and cube-2, you could use:
 	// {"cloud.google.com/gke-tpu-reservation-subblock": ["cube-1", "cube-2"]}
 	//
-	// +required
 	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:XValidation:rule="self.all(k, k in ['cloud.google.com/gke-tpu-reservation-subblock', 'cloud.google.com/gke-nodepool'])",message="NodeSelector keys must be one of ['cloud.google.com/gke-tpu-reservation-subblock', 'cloud.google.com/gke-nodepool']"
-	NodeSelector map[string][]string `json:"nodeSelector,omitempty"`
+	NodeSelector map[string][]string `json:"nodeSelector"`
 }
 
 // SliceStatus defines the observed state of Slice.

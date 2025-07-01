@@ -75,11 +75,6 @@ spec:
                   For example, to select nodes in cubes cube-1 and cube-2, you could use:
                   {"cloud.google.com/gke-tpu-reservation-subblock": ["cube-1", "cube-2"]}
                 type: object
-                x-kubernetes-validations:
-                - message: NodeSelector keys must be one of ['cloud.google.com/gke-tpu-reservation-subblock',
-                    'cloud.google.com/gke-nodepool']
-                  rule: self.all(k, k in ['cloud.google.com/gke-tpu-reservation-subblock',
-                    'cloud.google.com/gke-nodepool'])
             required:
             - acceleratorTopology
             - acceleratorType

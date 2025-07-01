@@ -32,12 +32,18 @@ type SliceSpec struct {
 	// +kubebuilder:validation:Immutable
 	AcceleratorTopology string `json:"acceleratorTopology"`
 
-	// Required, set of nodePools to use to form slice
-	NodePools []string `json:"nodePools"`
-
-	// Optional, set of nodeSelector to use to form slice
-	// This is used to select nodes based on labels.
-	NodeSelector map[string][]string `json:"nodeSelector,omitempty"`
+	// Required, set of nodes to use to form a slice.
+	// NodeSelector specifies a set of label-based selectors for nodes that can form the
+	// slice. The controller will select nodes where for each key-value pair in the map,
+	// the node's label value for that key is present in the corresponding string slice.
+	// This allows for a flexible "match any of these values for this label" selection.
+	// The nodeSelector will follow an AND over the map entries but an OR within the list
+	// items of the entry.
+	// For example, to select nodes in cubes cube-1 and cube-2, you could use:
+	// {"cloud.google.com/gke-tpu-reservation-subblock": ["cube-1", "cube-2"]}
+	//
+	// +kubebuilder:validation:Required
+	NodeSelector map[string][]string `json:"nodeSelector"`
 }
 
 // SliceStatus defines the observed state of Slice.

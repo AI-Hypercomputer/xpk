@@ -89,7 +89,22 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 }
 
 func (r *WorkloadReconciler) shouldFinalize(wl *kueue.Workload) bool {
-	return !wl.DeletionTimestamp.IsZero() || workload.IsFinished(wl) || workload.IsEvicted(wl) || !workload.IsActive(wl)
+	return !wl.DeletionTimestamp.IsZero() ||
+		workload.IsFinished(wl) ||
+		workload.IsEvicted(wl) ||
+		!workload.IsActive(wl) ||
+		!r.hasTopologyAssignment(wl)
+}
+
+func (r *WorkloadReconciler) hasTopologyAssignment(wl *kueue.Workload) bool {
+	if wl.Status.Admission != nil && wl.Status.Admission.PodSetAssignments != nil {
+		for _, psa := range wl.Status.Admission.PodSetAssignments {
+			if psa.TopologyAssignment != nil {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (r *WorkloadReconciler) newEmptySlice(wl *kueue.Workload) *v1alpha1.Slice {
@@ -147,13 +162,6 @@ func (r *WorkloadReconciler) createSliceIfNotExist(ctx context.Context, wl *kueu
 	slice, err = r.newSlice(wl)
 	if err != nil {
 		return err
-	}
-
-	// We should wait for TopologyAssignments.
-	if len(slice.Spec.NodeSelector) == 0 {
-		log := ctrl.LoggerFrom(ctx)
-		log.V(2).Info("Workload does not have TopologyAssignments. Skipping Slice creation for now.")
-		return nil
 	}
 
 	return r.client.Create(ctx, slice)

@@ -90,13 +90,19 @@ func TestWorkloadReconciler(t *testing.T) {
 			slice:         baseSliceWrapper.DeepCopy(),
 			wantWorkloads: []kueue.Workload{*baseWorkloadWrapper.Clone().Active(false).Obj()},
 		},
-		"should add a finalizer but shouldn't create a Slice because there's no TopologyAssignment yet": {
-			request:  baseRequest,
-			workload: baseWorkloadWrapper.Clone().UID(types.UID(baseWorkloadName)).Obj(),
+		"should delete finalizer because workload doesn't have PodSetAssignment": {
+			request:       baseRequest,
+			workload:      baseWorkloadWrapper.Clone().Obj(),
+			wantWorkloads: []kueue.Workload{*baseWorkloadWrapper.Clone().Obj()},
+		},
+		"should delete finalizer because workload doesn't have TopologyAssignment": {
+			request: baseRequest,
+			workload: baseWorkloadWrapper.Clone().
+				PodSetAssignments(utiltesting.MakePodSetAssignment("psa1").Obj()).
+				Obj(),
 			wantWorkloads: []kueue.Workload{
 				*baseWorkloadWrapper.Clone().
-					UID(types.UID(baseWorkloadName)).
-					Finalizers(CleanupSliceFinalizerName).
+					PodSetAssignments(utiltesting.MakePodSetAssignment("psa1").Obj()).
 					Obj(),
 			},
 		},

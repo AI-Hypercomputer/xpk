@@ -211,7 +211,7 @@ def append_custom_pathways_worker(args) -> str:
   """
   yaml = """"""
   if args.server_image or args.custom_pathways_worker_args:
-    yaml = """- componentType: pathways_worker"""
+    yaml = """- componentType: worker"""
   indentation = (
       ' ' * 8
   )  # Currently 8, based on the YAML, may need to update in the future.

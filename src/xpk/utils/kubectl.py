@@ -20,10 +20,11 @@ from kubernetes.dynamic import DynamicClient
 from .console import xpk_print
 
 
-def apply_kubectl_manifest(client, manifest):
+def apply_kubectl_manifest(client, manifest) -> int:
   xpk_print('Applying manifest')
   dynamic_client = DynamicClient(client)
 
+  status_code = 0
   for obj in manifest:
     api_version = obj['apiVersion']
     kind = obj['kind']
@@ -55,3 +56,5 @@ def apply_kubectl_manifest(client, manifest):
         )
       else:
         xpk_print(f'Error applying {kind}: {e}')
+        status_code = 1
+  return status_code

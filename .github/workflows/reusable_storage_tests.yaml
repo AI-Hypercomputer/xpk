@@ -28,16 +28,13 @@ on:
       zone:
         type: string
         required: true
-      location:
-        type: string
-        required: true
       run-id:
         required: true
         type: string
 
 jobs:
   fuse-attach-tests:
-    uses: ./.github/workflows/reusable_storage_tests_by_type.yaml
+    uses: ./.github/workflows/reusable_storage_create.yaml
     concurrency: # We support one build or nightly test to run at a time currently.
       group: fuse-tests-${{inputs.run-id}}
       cancel-in-progress: true
@@ -45,20 +42,31 @@ jobs:
       cluster-name: ${{inputs.cluster-name}}
       tpu-type: ${{inputs.tpu-type}}
       zone: ${{inputs.zone}}
-      location: ${{inputs.location}}
-      run-id: ${{inputs.run-id}}
       storage-type: 'gcsfuse'
       storage-command: 'attach'
+      storage-name: fuse-test-${{inputs.run-id}}
     secrets:
       GCP_SA_KEY: ${{secrets.GCP_SA_KEY}}
-      PROJECT_NAME: ${{secrets.PROJECT_NAME}}
-      VOL_NAME: ${{secrets.VOL_NAME}}
-      IP_ADDRESS: ${{secrets.IP_ADDRESS}}
       BUCKET_NAME: ${{secrets.BUCKET_NAME}}
-      STORAGE_NAME: gcsfuse-test-${{inputs.run-id}}
+
+  fuse-detach-tests:
+    if: always()
+    needs: [fuse-attach-tests]
+    uses: ./.github/workflows/reusable_storage_delete.yaml
+    concurrency: # We support one build or nightly test to run at a time currently.
+      group: fuse-tests-${{inputs.run-id}}
+    with:
+      cluster-name: ${{inputs.cluster-name}}
+      zone: ${{inputs.zone}}
+      storage-type: 'gcsfuse'
+      storage-command: 'detach'
+      storage-name: fuse-test-${{inputs.run-id}}
+    secrets:
+      GCP_SA_KEY: ${{secrets.GCP_SA_KEY}}
+
   filestore-create-tests:
-    needs: [ fuse-attach-tests ]
-    uses: ./.github/workflows/reusable_storage_tests_by_type.yaml
+    needs: [fuse-attach-tests]
+    uses: ./.github/workflows/reusable_storage_create.yaml
     concurrency: # We support one build or nightly test to run at a time currently.
       group: filestore-tests-${{inputs.run-id}}
       cancel-in-progress: true
@@ -66,14 +74,56 @@ jobs:
       cluster-name: ${{inputs.cluster-name}}
       tpu-type: ${{inputs.tpu-type}}
       zone: ${{inputs.zone}}
-      location: ${{inputs.location}}
-      run-id: ${{inputs.run-id}}
       storage-type: 'gcpfilestore'
       storage-command: 'create'
+      storage-name: gcpfilestore-test-${{inputs.run-id}}
     secrets:
       GCP_SA_KEY: ${{secrets.GCP_SA_KEY}}
-      PROJECT_NAME: ${{secrets.PROJECT_NAME}}
-      VOL_NAME: ${{secrets.VOL_NAME}}
-      IP_ADDRESS: ${{secrets.IP_ADDRESS}}
       BUCKET_NAME: ${{secrets.BUCKET_NAME}}
-      STORAGE_NAME: gcpfilestore-test-${{inputs.run-id}}
+
+  filestore-detach-tests:
+    needs: [filestore-create-tests]
+    uses: ./.github/workflows/reusable_storage_delete.yaml
+    concurrency: # We support one build or nightly test to run at a time currently.
+      group: filestore-tests-${{inputs.run-id}}
+    with:
+      cluster-name: ${{inputs.cluster-name}}
+      zone: ${{inputs.zone}}
+      storage-type: 'gcpfilestore'
+      storage-command: 'detach'
+      storage-name: 'gcpfilestore-test-${{inputs.run-id}}'
+    secrets:
+      GCP_SA_KEY: ${{secrets.GCP_SA_KEY}}
+
+  filestore-attach-tests:
+    needs: [filestore-detach-tests]
+    uses: ./.github/workflows/reusable_storage_create.yaml
+    concurrency: # We support one build or nightly test to run at a time currently.
+      group: filestore-tests-${{inputs.run-id}}
+      cancel-in-progress: true
+    with:
+      cluster-name: ${{inputs.cluster-name}}
+      tpu-type: ${{inputs.tpu-type}}
+      zone: ${{inputs.zone}}
+      storage-type: 'gcpfilestore'
+      storage-command: 'attach'
+      storage-name: gcpfilestore-test-${{inputs.run-id}}
+    secrets:
+      GCP_SA_KEY: ${{secrets.GCP_SA_KEY}}
+      BUCKET_NAME: ${{secrets.BUCKET_NAME}}
+
+  filestore-delete-tests:
+    if: always()
+    needs: [filestore-create-tests, filestore-attach-tests]
+    uses: ./.github/workflows/reusable_storage_delete.yaml
+    concurrency: # We support one build or nightly test to run at a time currently.
+      group: filestore-tests-${{inputs.run-id}}
+    with:
+      cluster-name: ${{inputs.cluster-name}}
+      zone: ${{inputs.zone}}
+      storage-type: 'gcpfilestore'
+      storage-command: 'delete'
+      storage-name: gcpfilestore-test-${{inputs.run-id}}
+    secrets:
+      GCP_SA_KEY: ${{secrets.GCP_SA_KEY}}
+

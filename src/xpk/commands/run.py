@@ -17,7 +17,7 @@ limitations under the License.
 from argparse import Namespace
 
 from ..core.cluster import (
-    create_xpk_k8s_service_account,
+    setup_k8s_service_accounts,
     get_cluster_credentials,
 )
 from ..core.commands import run_command_with_full_controls
@@ -25,14 +25,13 @@ from ..core.gcloud_context import add_zone_and_project
 from ..core.kjob import (
     AppProfileDefaults,
     JobTemplateDefaults,
-    Kueue_TAS_annotation,
     get_storage_annotations,
     prepare_kjob,
 )
 from ..core.kueue import LOCAL_QUEUE_NAME
 from ..utils.console import xpk_exit, xpk_print
 from .kind import set_local_cluster_command
-from .kjob_common import add_gpu_networking_annotations_to_command
+from .kjob_common import add_gpu_networking_annotations_to_command, add_TAS_annotations_to_command
 
 
 def run(args: Namespace) -> None:
@@ -54,7 +53,7 @@ def run(args: Namespace) -> None:
   err_code = prepare_kjob(args)
   if err_code > 0:
     xpk_exit(err_code)
-  create_xpk_k8s_service_account()
+  setup_k8s_service_accounts()
 
   submit_job(args)
 
@@ -64,12 +63,12 @@ def submit_job(args: Namespace) -> None:
       'kubectl kjob create slurm --profile'
       f' {AppProfileDefaults.NAME.value} '
       f' --localqueue {LOCAL_QUEUE_NAME} '
-      f" --pod-template-annotation '{Kueue_TAS_annotation}'"
       f' --stream-container {JobTemplateDefaults.CONTAINER_NAME.value}'
       f' --worker-container {JobTemplateDefaults.CONTAINER_NAME.value}'
       ' --wait --rm  --first-node-ip'
   )
   cmd = add_gpu_networking_annotations_to_command(args, cmd)
+  cmd = add_TAS_annotations_to_command(args, cmd)
 
   for annotation in get_storage_annotations(args):
     cmd += f' --pod-template-annotation {annotation}'

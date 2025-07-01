@@ -24,7 +24,7 @@ from ..utils.console import xpk_print
 from .system_characteristics import AcceleratorType, SystemCharacteristics
 
 # This is the version for XPK PyPI package
-__version__ = 'v0.6.0'
+__version__ = 'v0.8.0'
 XPK_CURRENT_VERSION = __version__
 XPK_CONFIG_FILE = os.path.expanduser('~/.config/xpk/config.yaml')
 

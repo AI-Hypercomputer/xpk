@@ -81,4 +81,4 @@ jobs:
       run: gcloud container clusters describe ${{inputs.cluster-name}}-private --location=${{inputs.location}} --format="value(privateClusterConfig.enablePrivateNodes)" | grep 'True' || (echo 'The created cluster is not private.' && exit 1)
     - name: Delete the cluster created
       if: always()
-      run: echo 'y' | python xpk.py cluster delete --cluster ${{inputs.cluster-name}}-private --zone=${{inputs.zone}}
+      run: python xpk.py cluster delete --cluster ${{inputs.cluster-name}}-private --zone=${{inputs.zone}} --force

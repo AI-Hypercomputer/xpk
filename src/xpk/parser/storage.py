@@ -70,8 +70,8 @@ def add_storage_attach_parser(
       '--type',
       type=str,
       help=(
-          'The type of storage. Currently supported types: ["gcsfuse",'
-          ' "gcpfilestore"]'
+          'The type of storage. Currently supported types: "gcsfuse",'
+          ' "gcpfilestore", "parallelstore", "pd"'
       ),
       choices=['gcsfuse', 'gcpfilestore', 'parallelstore', 'pd'],
       required=True,
@@ -199,7 +199,6 @@ def add_storage_create_parser(
       ),
       required=True,
   )
-
   req_args.add_argument(
       '--type',
       type=str,

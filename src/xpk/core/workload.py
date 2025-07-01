@@ -14,18 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import yaml
-
-from ..utils import templates
 from ..utils.console import xpk_exit, xpk_print
-from .capacity import H100_DEVICE_TYPE, H100_MEGA_DEVICE_TYPE
 from .commands import run_command_for_value
 from .gcloud_context import zone_to_region
-from .storage import Storage, get_storage_volume_mounts_for_gpu
-from .system_characteristics import SystemCharacteristics
-
-RXDM_CONTAINER_A3HIGH_PATH = '/../templates/rxdm_container_a3high.yaml'
-RXDM_CONTAINER_A3MEGA_PATH = '/../templates/rxdm_container_a3mega.yaml'
 
 
 def workload_list_awk_command(filter_key) -> str:
@@ -131,7 +122,7 @@ def get_workload_list(args) -> tuple[int, str]:
   )
   workload_list_filter_job_cmd = determine_workload_list_filter_by_job(args)
   command = (
-      f'kubectl get workloads -o=custom-columns="{s}" '
+      f'kubectl get workloads --ignore-not-found -o=custom-columns="{s}" '
       f'{workload_list_filter_status_cmd} {workload_list_filter_job_cmd}'
   )
 
@@ -249,38 +240,3 @@ def wait_for_job_completion(args) -> int:
     xpk_print('Your workload did not complete successfully')
     return 125
   return 0
-
-
-def add_gpu_rxdm_container(
-    jobset_manifest_str: str,
-    system: SystemCharacteristics,
-    all_storages: list[Storage],
-) -> str:
-  """Add gpu rxdm container to jobset manifest based on user provided arguments.
-
-  Args:
-    jobset_manifest_str: the JobSet manifest as a YAML string.
-    system: system characteristics.
-    all_storages: list of all storages.
-
-  Returns:
-    str: the modified JobSet manifest as a YAML string.
-  """
-  if system.device_type == H100_DEVICE_TYPE:
-    gpu_rxdm_container = templates.load(RXDM_CONTAINER_A3HIGH_PATH)
-  elif system.device_type == H100_MEGA_DEVICE_TYPE:
-    gpu_rxdm_container = templates.load(RXDM_CONTAINER_A3MEGA_PATH)
-  else:
-    return jobset_manifest_str
-
-  storage_volume_mounts = get_storage_volume_mounts_for_gpu(all_storages)
-  gpu_rxdm_container['volumeMounts'].extend(storage_volume_mounts)
-
-  manifest = yaml.safe_load(jobset_manifest_str)
-
-  for job in manifest['spec']['replicatedJobs']:
-    job['template']['spec']['template']['spec']['containers'].append(
-        gpu_rxdm_container
-    )
-
-  return yaml.dump(manifest, sort_keys=False)

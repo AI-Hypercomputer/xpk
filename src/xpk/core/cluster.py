@@ -423,7 +423,7 @@ def get_gpu_type_from_cluster(args) -> str:
   return ''
 
 
-def setup_k8s_service_accounts() -> str:
+def setup_k8s_service_accounts() -> None:
   """
   Creates/sets up SAs and the roles for them
   """

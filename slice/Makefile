@@ -240,6 +240,10 @@ EXTERNAL_CRDS_DIR ?= dep-crds
 KUEUE_ROOT = $(shell $(GO_CMD) list -m -mod=readonly -f "{{.Dir}}" sigs.k8s.io/kueue)
 JOBSET_ROOT = $(shell $(GO_CMD) list -m -mod=readonly -f "{{.Dir}}" sigs.k8s.io/jobset)
 
+.PHONY: gomod-download
+gomod-download:
+	$(GO_CMD) mod download
+
 .PHONY: kind
 kind: ## Download kind locally if necessary.
 	@GOBIN=$(BIN_DIR) GO111MODULE=on $(GO_CMD) install sigs.k8s.io/kind@$(KIND_VERSION)
@@ -304,5 +308,5 @@ jobset-operator-crd: ## Copy the CRDs from the jobset-operator to the dep-crds d
 		chmod u-w kustomization.yaml
 
 .PHONY: dep-crds
-dep-crds: kueue-operator-crd jobset-operator-crd
+dep-crds: gomod-download kueue-operator-crd jobset-operator-crd
 	@echo "Copying CRDs from external operators to dep-crds directory"

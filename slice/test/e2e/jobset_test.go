@@ -26,9 +26,9 @@ import (
 	kueuealpha "sigs.k8s.io/kueue/apis/kueue/v1alpha1"
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
 	jobsetcontroller "sigs.k8s.io/kueue/pkg/controller/jobs/jobset"
-	"tpu-slice-controller/internal/controller"
 
 	slice "tpu-slice-controller/api/v1alpha1"
+	"tpu-slice-controller/internal/controller"
 	"tpu-slice-controller/internal/util/testing"
 	testingjobsjobset "tpu-slice-controller/internal/util/testingjobs/jobset"
 	"tpu-slice-controller/internal/webhooks"

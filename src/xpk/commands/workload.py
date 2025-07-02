@@ -219,8 +219,7 @@ spec:
             metadata:
               labels:
                 xpk.google.com/workload: {args.workload}
-              annotations:
-                {kueue_TAS_annotation}
+              annotations: {annotations}
             spec:
               priorityClassName: {args.priority}
               restartPolicy: Never
@@ -453,13 +452,14 @@ def workload_create(args) -> None:
     )
     if return_code != 0:
       xpk_exit(return_code)
-
-    kueue_TAS_annotation = (
-        'kueue.x-k8s.io/podset-preferred-topology:'
-        ' "cloud.google.com/gce-topology-host"'
+    annotations = (
+        ''
+        if args.flex_start or not is_TAS_possible(args)
+        else (
+            'kueue.x-k8s.io/podset-preferred-topology:'
+            ' "cloud.google.com/gce-topology-host"'
+        )
     )
-    if not is_TAS_possible(args):
-      kueue_TAS_annotation = ''
 
     if (
         system.device_type in cluster_gcluster.supported_device_types
@@ -471,7 +471,7 @@ def workload_create(args) -> None:
           service_account=XPK_SA,
           failure_policy_rules=failure_policy_rules,
           pod_failure_policy=pod_failure_policy,
-          kueue_TAS_annotation=kueue_TAS_annotation,
+          annotations=annotations,
       )
 
       sub_networks = get_cluster_subnetworks(args)

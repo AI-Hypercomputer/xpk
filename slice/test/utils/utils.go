@@ -46,6 +46,7 @@ import (
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
 	podconstants "sigs.k8s.io/kueue/pkg/controller/jobs/pod/constants"
 
+	"tpu-slice-controller/internal/controller"
 	"tpu-slice-controller/internal/util/testing"
 )
 
@@ -178,7 +179,8 @@ func deleteWorkloadsInNamespace(ctx context.Context, c client.Client, ns *corev1
 		workloads := kueue.WorkloadList{}
 		g.Expect(c.List(ctx, &workloads, client.InNamespace(ns.Name))).Should(gomega.Succeed())
 		for _, wl := range workloads.Items {
-			if controllerutil.RemoveFinalizer(&wl, kueue.ResourceInUseFinalizerName) {
+			if controllerutil.RemoveFinalizer(&wl, kueue.ResourceInUseFinalizerName) ||
+				controllerutil.RemoveFinalizer(&wl, controller.CleanupSliceFinalizerName) {
 				g.Expect(client.IgnoreNotFound(c.Update(ctx, &wl))).Should(gomega.Succeed())
 			}
 		}

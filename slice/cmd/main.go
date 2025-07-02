@@ -18,7 +18,9 @@ package main
 
 import (
 	"crypto/tls"
+	"errors"
 	"flag"
+	"net/http"
 	"os"
 	"path/filepath"
 
@@ -32,10 +34,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
+	kueuealpha "sigs.k8s.io/kueue/apis/kueue/v1alpha1"
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
 
 	"tpu-slice-controller/api/v1alpha1"
 	"tpu-slice-controller/internal/controller"
+	"tpu-slice-controller/internal/util/cert"
 	"tpu-slice-controller/internal/webhooks"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -52,6 +57,8 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(v1alpha1.AddToScheme(scheme))
 	utilruntime.Must(kueue.AddToScheme(scheme))
+	utilruntime.Must(kueuealpha.AddToScheme(scheme))
+	utilruntime.Must(jobset.AddToScheme(scheme))
 
 	// +kubebuilder:scaffold:scheme
 }
@@ -203,17 +210,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Register the webhook
-	if err := webhooks.SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "JobSet")
+	certsReady := make(chan struct{})
+	if err = cert.CertsManager(mgr, certsReady); err != nil {
+		setupLog.Error(err, "unable to setup cert rotation")
 		os.Exit(1)
 	}
-
-	if err := controller.NewWorkloadReconciler(mgr.GetClient()).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Workload")
-		os.Exit(1)
-	}
-	// +kubebuilder:scaffold:builder
 
 	if metricsCertWatcher != nil {
 		setupLog.Info("Adding metrics certificate watcher to manager")
@@ -231,18 +232,58 @@ func main() {
 		}
 	}
 
-	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
-		setupLog.Error(err, "unable to set up health check")
-		os.Exit(1)
-	}
-	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
-		setupLog.Error(err, "unable to set up ready check")
-		os.Exit(1)
-	}
+	go setupControllers(mgr, certsReady)
+
+	setupProbeEndpoints(mgr, certsReady)
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
+		os.Exit(1)
+	}
+}
+
+func setupControllers(mgr ctrl.Manager, certsReady chan struct{}) {
+	// The controllers won't work until the webhooks are operating, and the webhook won't work until the
+	// certs are all in place.
+	cert.WaitForCertsReady(setupLog, certsReady)
+
+	// Register the webhook
+	if err := webhooks.SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "JobSet")
+		os.Exit(1)
+	}
+
+	if err := controller.NewWorkloadReconciler(mgr.GetClient()).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Workload")
+		os.Exit(1)
+	}
+
+	// +kubebuilder:scaffold:builder
+}
+
+func setupProbeEndpoints(mgr ctrl.Manager, certsReady <-chan struct{}) {
+	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
+		setupLog.Error(err, "unable to set up health check")
+		os.Exit(1)
+	}
+
+	// Wait for the webhook server to be listening before advertising the
+	// Slice deployment replica as ready. This allows users to wait with sending
+	// the first requests, requiring webhooks, until the Slice deployment is
+	// available, so that the early requests are not rejected during the Slice's
+	// startup. We wrap the call to GetWebhookServer in a closure to delay calling
+	// the function, otherwise a not fully-initialized webhook server (without
+	// ready certs) fails the start of the manager.
+	if err := mgr.AddReadyzCheck("readyz", func(req *http.Request) error {
+		select {
+		case <-certsReady:
+			return mgr.GetWebhookServer().StartedChecker()(req)
+		default:
+			return errors.New("certificates are not ready")
+		}
+	}); err != nil {
+		setupLog.Error(err, "unable to set up ready check")
 		os.Exit(1)
 	}
 }

@@ -1,5 +1,16 @@
-# Image URL to use all building/pushing image targets
-IMG ?= controller:latest
+# Copyright 2025 The Kubernetes Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -8,16 +19,51 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
-# CONTAINER_TOOL defines the container tool to be used for building images.
-# Be aware that the target commands are only tested with Docker which is
-# scaffolded by default. However, you might want to replace it to use other
-# tools. (i.e. podman)
-CONTAINER_TOOL ?= docker
+GO_VERSION := $(shell awk '/^go /{print $$2}' go.mod|head -n1)
+
+BASE_IMAGE ?= gcr.io/distroless/static:nonroot
+BUILDER_IMAGE ?= golang:$(GO_VERSION)
+CGO_ENABLED ?= 0
+
+PLATFORMS ?= linux/amd64,linux/arm64
+HOST_IMAGE_PLATFORM ?= linux/$(shell go env GOARCH)
+
+PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
+BIN_DIR ?= $(PROJECT_DIR)/bin
+ARTIFACTS ?= $(BIN_DIR)
+TOOLS_DIR := $(PROJECT_DIR)/hack/tools
+
+DOCKER_BUILDX_CMD ?= docker buildx
+IMAGE_BUILD_CMD ?= $(DOCKER_BUILDX_CMD) build
 
 # Setting SHELL to bash allows bash commands to be executed by recipes.
 # Options are set to exit when a recipe line exits non-zero or a piped command fails.
 SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
+
+GIT_TAG ?= $(shell git describe --tags --dirty --always)
+
+RELEASE_VERSION=v0.1.0
+RELEASE_BRANCH=main
+
+STAGING_REGISTRY := us-central1-docker.pkg.dev/k8s-staging-images
+K8S_REGISTRY := registry.k8s.io
+STAGING_IMAGE_REGISTRY := $(STAGING_REGISTRY)/slice
+IMAGE_REGISTRY ?= $(STAGING_IMAGE_REGISTRY)
+IMAGE_REPO := $(IMAGE_REGISTRY)/slice
+IMAGE_TAG := $(IMAGE_REPO):$(GIT_TAG)
+
+KIND_CLUSTER_NAME ?= kind
+CREATE_KIND_CLUSTER ?= true
+
+# Folder where the e2e tests are located.
+E2E_K8S_VERSIONS ?= 1.33.1
+E2E_K8S_VERSION ?= 1.33
+E2E_K8S_FULL_VERSION ?= $(filter $(E2E_K8S_VERSION).%,$(E2E_K8S_VERSIONS))
+# Default to E2E_K8S_VERSION.0 if no match is found
+E2E_K8S_FULL_VERSION := $(or $(E2E_K8S_FULL_VERSION),$(E2E_K8S_VERSION).0)
+E2E_KIND_VERSION ?= kindest/node:v$(E2E_K8S_FULL_VERSION)
+E2E_RUN_ONLY_ENV ?= false
 
 .PHONY: all
 all: build
@@ -51,15 +97,15 @@ generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and
 
 .PHONY: fmt
 fmt: ## Run go fmt against code.
-	go fmt ./...
+	$(GO_CMD) fmt ./...
 
 .PHONY: vet
 vet: ## Run go vet against code.
-	go vet ./...
+	$(GO_CMD) vet ./...
 
 .PHONY: test
 test: manifests generate fmt vet setup-envtest ## Run tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /e2e) -coverprofile cover.out
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(BIN_DIR) -p path)" $(GO_CMD) test $$(go list ./... | grep -v /e2e) -coverprofile cover.out
 
 # TODO(user): To use a different vendor for e2e tests, modify the setup under 'tests/e2e'.
 # The default setup assumes Kind is pre-installed and builds/loads the Manager Docker image locally.
@@ -67,18 +113,17 @@ test: manifests generate fmt vet setup-envtest ## Run tests.
 # - CERT_MANAGER_INSTALL_SKIP=true
 KIND_CLUSTER ?= slice-controller-test-e2e
 
-.PHONY: setup-test-e2e
-setup-test-e2e: ## Set up a Kind cluster for e2e tests if it does not exist
-	@command -v $(KIND) >/dev/null 2>&1 || { \
-		echo "Kind is not installed. Please install Kind manually."; \
-		exit 1; \
-	}
-	$(KIND) create cluster --name $(KIND_CLUSTER)
-
 .PHONY: test-e2e
-test-e2e: setup-test-e2e manifests generate fmt vet ## Run the e2e tests. Expected an isolated environment using Kind.
-	KIND_CLUSTER=$(KIND_CLUSTER) go test ./test/e2e/ -v -ginkgo.v
-	$(MAKE) cleanup-test-e2e
+test-e2e: kustomize yq dep-crds kind ginkgo run-test-e2e-$(E2E_KIND_VERSION:kindest/node:v%=%)
+
+run-test-e2e-%: K8S_VERSION = $(@:run-test-e2e-%=%)
+run-test-e2e-%:
+	@echo Running e2e for k8s ${K8S_VERSION}
+	E2E_KIND_VERSION="kindest/node:v$(K8S_VERSION)" KIND_CLUSTER_NAME=$(KIND_CLUSTER_NAME) CREATE_KIND_CLUSTER=$(CREATE_KIND_CLUSTER) \
+		EXTERNAL_CRDS_DIR=$(EXTERNAL_CRDS_DIR) ARTIFACTS="$(ARTIFACTS)/$@" IMAGE_TAG=$(IMAGE_TAG) GINKGO_ARGS="$(GINKGO_ARGS)" \
+		KUEUE_IMAGE=$(KUEUE_IMAGE) JOBSET_IMAGE=$(JOBSET_IMAGE) \
+		TEST_LOG_LEVEL=$(TEST_LOG_LEVEL) E2E_RUN_ONLY_ENV=$(E2E_RUN_ONLY_ENV) \
+		./hack/e2e-test.sh
 
 .PHONY: cleanup-test-e2e
 cleanup-test-e2e: ## Tear down the Kind cluster used for e2e tests
@@ -99,40 +144,31 @@ lint-config: golangci-lint ## Verify golangci-lint linter configuration
 ##@ Build
 
 .PHONY: build
-build: manifests generate fmt vet ## Build manager binary.
-	go build -o bin/manager cmd/main.go
+build: ## Build manager binary.
+	$(GO_BUILD_ENV) $(GO_CMD) build -ldflags="$(LD_FLAGS)" -o bin/manager cmd/main.go
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
-	go run ./cmd/main.go
+	$(GO_CMD) run ./cmd/main.go
 
-# If you wish to build the manager image targeting other platforms you can use the --platform flag.
-# (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.
-# More info: https://docs.docker.com/develop/develop-images/build_enhancements/
-.PHONY: docker-build
-docker-build: ## Build docker image with the manager.
-	$(CONTAINER_TOOL) build -t ${IMG} .
+.PHONY: image-build
+image-build:
+	$(IMAGE_BUILD_CMD) \
+		-t $(IMAGE_TAG) \
+		-t $(IMAGE_REPO):$(RELEASE_BRANCH) \
+		--platform=$(PLATFORMS) \
+		--build-arg BASE_IMAGE=$(BASE_IMAGE) \
+		--build-arg BUILDER_IMAGE=$(BUILDER_IMAGE) \
+		--build-arg CGO_ENABLED=$(CGO_ENABLED) \
+		$(PUSH) \
+		$(IMAGE_BUILD_EXTRA_OPTS) \
+		./
 
-.PHONY: docker-push
-docker-push: ## Push docker image with the manager.
-	$(CONTAINER_TOOL) push ${IMG}
-
-# PLATFORMS defines the target platforms for the manager image be built to provide support to multiple
-# architectures. (i.e. make docker-buildx IMG=myregistry/mypoperator:0.0.1). To use this option you need to:
-# - be able to use docker buildx. More info: https://docs.docker.com/build/buildx/
-# - have enabled BuildKit. More info: https://docs.docker.com/develop/develop-images/build_enhancements/
-# - be able to push the image to your registry (i.e. if you do not set a valid value via IMG=<myregistry/image:<tag>> then the export will fail)
-# To adequately provide solutions that are compatible with multiple platforms, you should consider using this option.
-PLATFORMS ?= linux/arm64,linux/amd64,linux/s390x,linux/ppc64le
-.PHONY: docker-buildx
-docker-buildx: ## Build and push docker image for the manager for cross-platform support
-	# copy existing Dockerfile and insert --platform=${BUILDPLATFORM} into Dockerfile.cross, and preserve the original Dockerfile
-	sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{BUILDPLATFORM\}/' Dockerfile > Dockerfile.cross
-	- $(CONTAINER_TOOL) buildx create --name slice-controller-builder
-	$(CONTAINER_TOOL) buildx use slice-controller-builder
-	- $(CONTAINER_TOOL) buildx build --push --platform=$(PLATFORMS) --tag ${IMG} -f Dockerfile.cross .
-	- $(CONTAINER_TOOL) buildx rm slice-controller-builder
-	rm Dockerfile.cross
+# Build an image just for the host architecture that can be used for Kind E2E tests.
+.PHONY: kind-image-build
+kind-image-build: PLATFORMS=$(HOST_IMAGE_PLATFORM)
+kind-image-build: PUSH=--load
+kind-image-build: kind image-build
 
 .PHONY: build-installer
 build-installer: manifests generate kustomize ## Generate a consolidated YAML with CRDs and deployment.
@@ -165,93 +201,112 @@ undeploy: kustomize ## Undeploy controller from the K8s cluster specified in ~/.
 
 ##@ Dependencies
 
-## Location to install dependencies to
-LOCALBIN ?= $(shell pwd)/bin
-$(LOCALBIN):
-	mkdir -p $(LOCALBIN)
-
 ## Tool Binaries
 KUBECTL ?= kubectl
-KIND ?= kind
-KUSTOMIZE ?= $(LOCALBIN)/kustomize
-CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
-ENVTEST ?= $(LOCALBIN)/setup-envtest
-GOLANGCI_LINT = $(LOCALBIN)/golangci-lint
+KIND ?= $(BIN_DIR)/kind
+KUSTOMIZE ?= $(BIN_DIR)/kustomize
+GINKGO = $(BIN_DIR)/ginkgo
+CONTROLLER_GEN ?= $(BIN_DIR)/controller-gen
+ENVTEST ?= $(BIN_DIR)/setup-envtest
+GOLANGCI_LINT ?= $(BIN_DIR)/golangci-lint
+YQ ?= $(BIN_DIR)/yq
+
 GO_CMD ?= go
 
 ## Tool Versions
-KUSTOMIZE_VERSION ?= v5.6.0
-CONTROLLER_TOOLS_VERSION ?= v0.18.0
+KIND_VERSION ?= $(shell cd $(TOOLS_DIR); $(GO_CMD) list -m -f '{{.Version}}' sigs.k8s.io/kind)
+KUSTOMIZE_VERSION ?= $(shell cd $(TOOLS_DIR); $(GO_CMD) list -m -f '{{.Version}}' sigs.k8s.io/kustomize/kustomize/v5)
+GINKGO_VERSION ?= $(shell cd $(TOOLS_DIR); $(GO_CMD) list -m -f '{{.Version}}' github.com/onsi/ginkgo/v2)
+CONTROLLER_GEN_VERSION ?= $(shell cd $(TOOLS_DIR); $(GO_CMD) list -m -f '{{.Version}}' sigs.k8s.io/controller-tools)
 #ENVTEST_VERSION is the version of controller-runtime release branch to fetch the envtest setup script (i.e. release-0.20)
-ENVTEST_VERSION ?= $(shell go list -m -f "{{ .Version }}" sigs.k8s.io/controller-runtime | awk -F'[v.]' '{printf "release-%d.%d", $$2, $$3}')
+ENVTEST_VERSION ?= $(shell $(GO_CMD) list -m -f "{{ .Version }}" sigs.k8s.io/controller-runtime | awk -F'[v.]' '{printf "release-%d.%d", $$2, $$3}')
 #ENVTEST_K8S_VERSION is the version of Kubernetes to use for setting up ENVTEST binaries (i.e. 1.31)
-ENVTEST_K8S_VERSION ?= $(shell go list -m -f "{{ .Version }}" k8s.io/api | awk -F'[v.]' '{printf "1.%d", $$3}')
-GOLANGCI_LINT_VERSION ?= v2.1.0
+ENVTEST_K8S_VERSION ?= $(shell $(GO_CMD) list -m -f "{{ .Version }}" k8s.io/api | awk -F'[v.]' '{printf "1.%d", $$3}')
+GOLANGCI_LINT_VERSION ?= $(shell cd $(TOOLS_DIR); $(GO_CMD) list -m -f '{{.Version}}' github.com/golangci/golangci-lint/v2)
+YQ_VERSION ?= $(shell cd $(TOOLS_DIR); $(GO_CMD) list -m -f '{{.Version}}' github.com/mikefarah/yq/v4)
+
+KUEUE_VERSION ?= $(shell $(GO_CMD) list -m -f "{{.Version}}" sigs.k8s.io/kueue)
+KUEUE_IMAGE := $(K8S_REGISTRY)/kueue/kueue:$(KUEUE_VERSION)
+
+# TODO: Remove it after release v0.13.0
+KUEUE_IMAGE := $(STAGING_REGISTRY)/kueue/kueue:main
+
+JOBSET_VERSION ?= $(shell $(GO_CMD) list -m -f "{{.Version}}" sigs.k8s.io/jobset)
+JOBSET_IMAGE := $(K8S_REGISTRY)/jobset/jobset:$(JOBSET_VERSION)
 
 # Versions for external controllers
 EXTERNAL_CRDS_DIR ?= dep-crds
 
 KUEUE_ROOT = $(shell $(GO_CMD) list -m -mod=readonly -f "{{.Dir}}" sigs.k8s.io/kueue)
+JOBSET_ROOT = $(shell $(GO_CMD) list -m -mod=readonly -f "{{.Dir}}" sigs.k8s.io/jobset)
+
+.PHONY: gomod-download
+gomod-download:
+	$(GO_CMD) mod download
+
+.PHONY: kind
+kind: ## Download kind locally if necessary.
+	@GOBIN=$(BIN_DIR) GO111MODULE=on $(GO_CMD) install sigs.k8s.io/kind@$(KIND_VERSION)
 
 .PHONY: kustomize
-kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
-$(KUSTOMIZE): $(LOCALBIN)
-	$(call go-install-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v5,$(KUSTOMIZE_VERSION))
+kustomize: ## Download kustomize locally if necessary.
+	@GOBIN=$(BIN_DIR) GO111MODULE=on $(GO_CMD) install sigs.k8s.io/kustomize/kustomize/v5@$(KUSTOMIZE_VERSION)
+
+.PHONY: ginkgo
+ginkgo: ## Download ginkgo locally if necessary.
+	@GOBIN=$(BIN_DIR) GO111MODULE=on $(GO_CMD) install github.com/onsi/ginkgo/v2/ginkgo@$(GINKGO_VERSION)
 
 .PHONY: controller-gen
-controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary.
-$(CONTROLLER_GEN): $(LOCALBIN)
-	$(call go-install-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen,$(CONTROLLER_TOOLS_VERSION))
+controller-gen: ## Download controller-gen locally if necessary.
+	@GOBIN=$(BIN_DIR) GO111MODULE=on $(GO_CMD) install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION)
 
 .PHONY: setup-envtest
 setup-envtest: envtest ## Download the binaries required for ENVTEST in the local bin directory.
 	@echo "Setting up envtest binaries for Kubernetes version $(ENVTEST_K8S_VERSION)..."
-	@$(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path || { \
+	@$(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(BIN_DIR) -p path || { \
 		echo "Error: Failed to set up envtest binaries for version $(ENVTEST_K8S_VERSION)."; \
 		exit 1; \
 	}
 
 .PHONY: envtest
-envtest: $(ENVTEST) ## Download setup-envtest locally if necessary.
-$(ENVTEST): $(LOCALBIN)
-	$(call go-install-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest,$(ENVTEST_VERSION))
+envtest: ## Download envtest-setup locally if necessary.
+	@GOBIN=$(BIN_DIR) GO111MODULE=on $(GO_CMD) install sigs.k8s.io/controller-runtime/tools/setup-envtest@$(ENVTEST_VERSION)
 
 .PHONY: golangci-lint
-golangci-lint: $(GOLANGCI_LINT) ## Download golangci-lint locally if necessary.
-$(GOLANGCI_LINT): $(LOCALBIN)
-	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/v2/cmd/golangci-lint,$(GOLANGCI_LINT_VERSION))
+golangci-lint: ## Download golangci-lint locally if necessary.
+	@GOBIN=$(BIN_DIR) GO111MODULE=on $(GO_CMD) install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
 
-# go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
-# $1 - target path with name of binary
-# $2 - package url which can be installed
-# $3 - specific version of package
-define go-install-tool
-@[ -f "$(1)-$(3)" ] || { \
-set -e; \
-package=$(2)@$(3) ;\
-echo "Downloading $${package}" ;\
-rm -f $(1) || true ;\
-GOBIN=$(LOCALBIN) go install $${package} ;\
-mv $(1) $(1)-$(3) ;\
-} ;\
-ln -sf $(1)-$(3) $(1)
-endef
+.PHONY: yq
+yq: ## Download yq locally if necessary.
+	@GOBIN=$(BIN_DIR) GO111MODULE=on $(GO_CMD) install github.com/mikefarah/yq/v4@$(YQ_VERSION)
 
 ##@ External CRDs
-.PHONY: kueue-crd
-kueue-crd: ## Copy the CRDs from the jobset-operator to the dep-crds directory.
-	mkdir -p $(EXTERNAL_CRDS_DIR)/kueue/
-	cp -f $(KUEUE_ROOT)/config/components/crd/bases/* $(EXTERNAL_CRDS_DIR)/kueue/
+.PHONY: kueue-operator-crd
+kueue-operator-crd: ## Copy the CRDs from the kueue-operator to the dep-crds directory.
+	if [ -d "$(EXTERNAL_CRDS_DIR)/kueue-operator" ]; then \
+		chmod -R u+w "$(EXTERNAL_CRDS_DIR)/kueue-operator" && \
+		rm -rf "$(EXTERNAL_CRDS_DIR)/kueue-operator"; \
+	fi
+	mkdir -p $(EXTERNAL_CRDS_DIR)/kueue-operator/
+	cp -R -f $(KUEUE_ROOT)/config $(EXTERNAL_CRDS_DIR)/kueue-operator
+	cd "$(EXTERNAL_CRDS_DIR)/kueue-operator/config/components/manager" && \
+		chmod u+w kustomization.yaml && \
+		$(KUSTOMIZE) edit set image controller=$(KUEUE_IMAGE) && \
+		chmod u-w kustomization.yaml
 
+.PHONY: jobset-operator-crd
+jobset-operator-crd: ## Copy the CRDs from the jobset-operator to the dep-crds directory.
+	if [ -d "$(EXTERNAL_CRDS_DIR)/jobset-operator" ]; then \
+		chmod -R u+w "$(EXTERNAL_CRDS_DIR)/jobset-operator" && \
+		rm -rf "$(EXTERNAL_CRDS_DIR)/jobset-operator"; \
+	fi
+	mkdir -p $(EXTERNAL_CRDS_DIR)/jobset-operator/
+	cp -R -f $(JOBSET_ROOT)/config $(EXTERNAL_CRDS_DIR)/jobset-operator
+	cd "$(EXTERNAL_CRDS_DIR)/jobset-operator/config/components/manager" && \
+		chmod u+w kustomization.yaml && \
+		$(KUSTOMIZE) edit set image controller=$(JOBSET_IMAGE) && \
+		chmod u-w kustomization.yaml
 
 .PHONY: dep-crds
-dep-crds: kueue-crd
+dep-crds: gomod-download kueue-operator-crd jobset-operator-crd
 	@echo "Copying CRDs from external operators to dep-crds directory"
-
-.PHONY: install-dep-crds
-install-dep-crds: dep-crds ## Install CRDs into the K8s cluster specified in ~/.kube/config.
-	$(KUBECTL) create -R -f $(EXTERNAL_CRDS_DIR)
-
-.PHONY: uninstall-dep-crds
-uninstall-dep-crds:
-	$(KUBECTL) delete -R -f $(EXTERNAL_CRDS_DIR)

@@ -1,11 +1,12 @@
-name: Lint
+name: Tests
 
 on:
   push:
+    branches: ["slice-main"]
   pull_request:
 
 jobs:
-  lint:
+  test:
     name: Run on Ubuntu
     runs-on: ubuntu-latest
     steps:
@@ -15,9 +16,9 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version-file: ./slice/go.mod
 
-      - name: Run linter
-        uses: golangci/golangci-lint-action@v8
-        with:
-          version: v2.1.0
+      - name: Running Tests
+        run: |
+          cd ./slice
+          make test

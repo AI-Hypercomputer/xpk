@@ -22,16 +22,15 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"time"
+
+	"github.com/onsi/ginkgo/v2"
+	"github.com/onsi/gomega"
 
 	"tpu-slice-controller/test/utils"
-
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 )
 
 // namespace where the project is deployed in
-const namespace = "slice-controller-system"
+var namespace = utils.GetSliceNamespace()
 
 // serviceAccountName created for the project
 const serviceAccountName = "slice-controller-controller-manager"
@@ -42,97 +41,54 @@ const metricsServiceName = "slice-controller-controller-manager-metrics-service"
 // metricsRoleBindingName is the name of the RBAC that will be created to allow get the metrics data
 const metricsRoleBindingName = "slice-controller-metrics-binding"
 
-var _ = Describe("Manager", Ordered, func() {
-	var controllerPodName string
+var _ = ginkgo.Describe("Manager", ginkgo.Ordered, func() {
+	var (
+		controllerPodName string
+	)
 
-	// Before running the tests, set up the environment by creating the namespace,
-	// enforce the restricted security policy to the namespace, installing CRDs,
-	// and deploying the controller.
-	BeforeAll(func() {
-		By("creating manager namespace")
-		cmd := exec.Command("kubectl", "create", "ns", namespace)
-		_, err := utils.Run(cmd)
-		Expect(err).NotTo(HaveOccurred(), "Failed to create namespace")
-
-		By("labeling the namespace to enforce the restricted security policy")
-		cmd = exec.Command("kubectl", "label", "--overwrite", "ns", namespace,
-			"pod-security.kubernetes.io/enforce=restricted")
-		_, err = utils.Run(cmd)
-		Expect(err).NotTo(HaveOccurred(), "Failed to label namespace with restricted policy")
-
-		// By("installing CRDs")
-		// cmd = exec.Command("make", "install")
-		// _, err = utils.Run(cmd)
-		// Expect(err).NotTo(HaveOccurred(), "Failed to install CRDs")
-
-		By("installing external CRDs")
-		cmd = exec.Command("make", "install-dep-crds")
-		_, err = utils.Run(cmd)
-		Expect(err).NotTo(HaveOccurred(), "Failed to install external CRDs")
-
-		By("deploying the controller-manager")
-		cmd = exec.Command("make", "deploy", fmt.Sprintf("IMG=%s", projectImage))
-		_, err = utils.Run(cmd)
-		Expect(err).NotTo(HaveOccurred(), "Failed to deploy the controller-manager")
-	})
-
-	// After all tests have been executed, clean up by undeploying the controller, uninstalling CRDs,
-	// and deleting the namespace.
-	AfterAll(func() {
-		By("cleaning up the curl pod for metrics")
+	ginkgo.AfterAll(func() {
+		ginkgo.By("cleaning up the curl pod for metrics")
 		cmd := exec.Command("kubectl", "delete", "pod", "curl-metrics", "-n", namespace)
 		_, _ = utils.Run(cmd)
 
-		By("undeploying the controller-manager")
-		cmd = exec.Command("make", "undeploy")
-		_, _ = utils.Run(cmd)
-
-		By("uninstalling external CRDs")
-		cmd = exec.Command("make", "uninstall-dep-crds")
-		_, _ = utils.Run(cmd)
-
-		// By("uninstalling CRDs")
-		// cmd = exec.Command("make", "uninstall")
-		// _, _ = utils.Run(cmd)
-
-		By("removing manager namespace")
-		cmd = exec.Command("kubectl", "delete", "ns", namespace)
+		ginkgo.By("cleaning up the curl pod for metrics")
+		cmd = exec.Command("kubectl", "delete", "clusterrolebinding", metricsRoleBindingName)
 		_, _ = utils.Run(cmd)
 	})
 
 	// After each test, check for failures and collect logs, events,
 	// and pod descriptions for debugging.
-	AfterEach(func() {
-		specReport := CurrentSpecReport()
+	ginkgo.AfterEach(func() {
+		specReport := ginkgo.CurrentSpecReport()
 		if specReport.Failed() {
-			By("Fetching controller manager pod logs")
+			ginkgo.By("Fetching controller manager pod logs")
 			cmd := exec.Command("kubectl", "logs", controllerPodName, "-n", namespace)
 			controllerLogs, err := utils.Run(cmd)
 			if err == nil {
-				_, _ = fmt.Fprintf(GinkgoWriter, "Controller logs:\n %s", controllerLogs)
+				_, _ = fmt.Fprintf(ginkgo.GinkgoWriter, "Controller logs:\n %s", controllerLogs)
 			} else {
-				_, _ = fmt.Fprintf(GinkgoWriter, "Failed to get Controller logs: %s", err)
+				_, _ = fmt.Fprintf(ginkgo.GinkgoWriter, "Failed to get Controller logs: %s", err)
 			}
 
-			By("Fetching Kubernetes events")
+			ginkgo.By("Fetching Kubernetes events")
 			cmd = exec.Command("kubectl", "get", "events", "-n", namespace, "--sort-by=.lastTimestamp")
 			eventsOutput, err := utils.Run(cmd)
 			if err == nil {
-				_, _ = fmt.Fprintf(GinkgoWriter, "Kubernetes events:\n%s", eventsOutput)
+				_, _ = fmt.Fprintf(ginkgo.GinkgoWriter, "Kubernetes events:\n%s", eventsOutput)
 			} else {
-				_, _ = fmt.Fprintf(GinkgoWriter, "Failed to get Kubernetes events: %s", err)
+				_, _ = fmt.Fprintf(ginkgo.GinkgoWriter, "Failed to get Kubernetes events: %s", err)
 			}
 
-			By("Fetching curl-metrics logs")
+			ginkgo.By("Fetching curl-metrics logs")
 			cmd = exec.Command("kubectl", "logs", "curl-metrics", "-n", namespace)
 			metricsOutput, err := utils.Run(cmd)
 			if err == nil {
-				_, _ = fmt.Fprintf(GinkgoWriter, "Metrics logs:\n %s", metricsOutput)
+				_, _ = fmt.Fprintf(ginkgo.GinkgoWriter, "Metrics logs:\n %s", metricsOutput)
 			} else {
-				_, _ = fmt.Fprintf(GinkgoWriter, "Failed to get curl-metrics logs: %s", err)
+				_, _ = fmt.Fprintf(ginkgo.GinkgoWriter, "Failed to get curl-metrics logs: %s", err)
 			}
 
-			By("Fetching controller manager pod description")
+			ginkgo.By("Fetching controller manager pod description")
 			cmd = exec.Command("kubectl", "describe", "pod", controllerPodName, "-n", namespace)
 			podDescription, err := utils.Run(cmd)
 			if err == nil {
@@ -143,13 +99,10 @@ var _ = Describe("Manager", Ordered, func() {
 		}
 	})
 
-	SetDefaultEventuallyTimeout(2 * time.Minute)
-	SetDefaultEventuallyPollingInterval(time.Second)
-
-	Context("Manager", func() {
-		It("should run successfully", func() {
-			By("validating that the controller-manager pod is running as expected")
-			verifyControllerUp := func(g Gomega) {
+	ginkgo.Context("Manager", func() {
+		ginkgo.It("should run successfully", func() {
+			ginkgo.By("validating that the controller-manager pod is running as expected")
+			gomega.Eventually(func(g gomega.Gomega) {
 				// Get the name of the controller-manager pod
 				cmd := exec.Command("kubectl", "get",
 					"pods", "-l", "control-plane=controller-manager",
@@ -161,11 +114,11 @@ var _ = Describe("Manager", Ordered, func() {
 				)
 
 				podOutput, err := utils.Run(cmd)
-				g.Expect(err).NotTo(HaveOccurred(), "Failed to retrieve controller-manager pod information")
+				g.Expect(err).NotTo(gomega.HaveOccurred(), "Failed to retrieve controller-manager pod information")
 				podNames := utils.GetNonEmptyLines(podOutput)
-				g.Expect(podNames).To(HaveLen(1), "expected 1 controller pod running")
+				g.Expect(podNames).To(gomega.HaveLen(1), "expected 1 controller pod running")
 				controllerPodName = podNames[0]
-				g.Expect(controllerPodName).To(ContainSubstring("controller-manager"))
+				g.Expect(controllerPodName).To(gomega.ContainSubstring("controller-manager"))
 
 				// Validate the pod's status
 				cmd = exec.Command("kubectl", "get",
@@ -173,51 +126,48 @@ var _ = Describe("Manager", Ordered, func() {
 					"-n", namespace,
 				)
 				output, err := utils.Run(cmd)
-				g.Expect(err).NotTo(HaveOccurred())
-				g.Expect(output).To(Equal("Running"), "Incorrect controller-manager pod status")
-			}
-			Eventually(verifyControllerUp).Should(Succeed())
+				g.Expect(err).NotTo(gomega.HaveOccurred())
+				g.Expect(output).To(gomega.Equal("Running"), "Incorrect controller-manager pod status")
+			}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 		})
 
-		It("should ensure the metrics endpoint is serving metrics", func() {
-			By("creating a ClusterRoleBinding for the service account to allow access to metrics")
+		ginkgo.It("should ensure the metrics endpoint is serving metrics", func() {
+			ginkgo.By("creating a ClusterRoleBinding for the service account to allow access to metrics")
 			cmd := exec.Command("kubectl", "create", "clusterrolebinding", metricsRoleBindingName,
 				"--clusterrole=slice-controller-metrics-reader",
 				fmt.Sprintf("--serviceaccount=%s:%s", namespace, serviceAccountName),
 			)
 			_, err := utils.Run(cmd)
-			Expect(err).NotTo(HaveOccurred(), "Failed to create ClusterRoleBinding")
+			gomega.Expect(err).NotTo(gomega.HaveOccurred(), "Failed to create ClusterRoleBinding")
 
-			By("validating that the metrics service is available")
+			ginkgo.By("validating that the metrics service is available")
 			cmd = exec.Command("kubectl", "get", "service", metricsServiceName, "-n", namespace)
 			_, err = utils.Run(cmd)
-			Expect(err).NotTo(HaveOccurred(), "Metrics service should exist")
+			gomega.Expect(err).NotTo(gomega.HaveOccurred(), "Metrics service should exist")
 
-			By("getting the service account token")
+			ginkgo.By("getting the service account token")
 			token, err := serviceAccountToken()
-			Expect(err).NotTo(HaveOccurred())
-			Expect(token).NotTo(BeEmpty())
+			gomega.Expect(err).NotTo(gomega.HaveOccurred())
+			gomega.Expect(token).NotTo(gomega.BeEmpty())
 
-			By("waiting for the metrics endpoint to be ready")
-			verifyMetricsEndpointReady := func(g Gomega) {
+			ginkgo.By("waiting for the metrics endpoint to be ready")
+			gomega.Eventually(func(g gomega.Gomega) {
 				cmd := exec.Command("kubectl", "get", "endpoints", metricsServiceName, "-n", namespace)
 				output, err := utils.Run(cmd)
-				g.Expect(err).NotTo(HaveOccurred())
-				g.Expect(output).To(ContainSubstring("8443"), "Metrics endpoint is not ready")
-			}
-			Eventually(verifyMetricsEndpointReady).Should(Succeed())
+				g.Expect(err).NotTo(gomega.HaveOccurred())
+				g.Expect(output).To(gomega.ContainSubstring("8443"), "Metrics endpoint is not ready")
+			}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 
-			By("verifying that the controller manager is serving the metrics server")
-			verifyMetricsServerStarted := func(g Gomega) {
+			ginkgo.By("verifying that the controller manager is serving the metrics server")
+			gomega.Eventually(func(g gomega.Gomega) {
 				cmd := exec.Command("kubectl", "logs", controllerPodName, "-n", namespace)
 				output, err := utils.Run(cmd)
-				g.Expect(err).NotTo(HaveOccurred())
-				g.Expect(output).To(ContainSubstring("controller-runtime.metrics\tServing metrics server"),
+				g.Expect(err).NotTo(gomega.HaveOccurred())
+				g.Expect(output).To(gomega.ContainSubstring("controller-runtime.metrics\tServing metrics server"),
 					"Metrics server not yet started")
-			}
-			Eventually(verifyMetricsServerStarted).Should(Succeed())
+			}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 
-			By("creating the curl-metrics pod to access the metrics endpoint")
+			ginkgo.By("creating the curl-metrics pod to access the metrics endpoint")
 			cmd = exec.Command("kubectl", "run", "curl-metrics", "--restart=Never",
 				"--namespace", namespace,
 				"--image=curlimages/curl:latest",
@@ -245,22 +195,21 @@ var _ = Describe("Manager", Ordered, func() {
 					}
 				}`, token, metricsServiceName, namespace, serviceAccountName))
 			_, err = utils.Run(cmd)
-			Expect(err).NotTo(HaveOccurred(), "Failed to create curl-metrics pod")
+			gomega.Expect(err).NotTo(gomega.HaveOccurred(), "Failed to create curl-metrics pod")
 
-			By("waiting for the curl-metrics pod to complete.")
-			verifyCurlUp := func(g Gomega) {
+			ginkgo.By("waiting for the curl-metrics pod to complete.")
+			gomega.Eventually(func(g gomega.Gomega) {
 				cmd := exec.Command("kubectl", "get", "pods", "curl-metrics",
 					"-o", "jsonpath={.status.phase}",
 					"-n", namespace)
 				output, err := utils.Run(cmd)
-				g.Expect(err).NotTo(HaveOccurred())
-				g.Expect(output).To(Equal("Succeeded"), "curl pod in wrong status")
-			}
-			Eventually(verifyCurlUp, 5*time.Minute).Should(Succeed())
+				g.Expect(err).NotTo(gomega.HaveOccurred())
+				g.Expect(output).To(gomega.Equal("Succeeded"), "curl pod in wrong status")
+			}, utils.LongTimeout, utils.Interval).Should(gomega.Succeed())
 
-			By("getting the metrics by checking curl-metrics logs")
+			ginkgo.By("getting the metrics by checking curl-metrics logs")
 			metricsOutput := getMetricsOutput()
-			Expect(metricsOutput).To(ContainSubstring(
+			gomega.Expect(metricsOutput).To(gomega.ContainSubstring(
 				"controller_runtime_reconcile_total",
 			))
 		})
@@ -271,7 +220,7 @@ var _ = Describe("Manager", Ordered, func() {
 		// Consider applying sample/CR(s) and check their status and/or verifying
 		// the reconciliation by using the metrics, i.e.:
 		// metricsOutput := getMetricsOutput()
-		// Expect(metricsOutput).To(ContainSubstring(
+		// Expect(metricsOutput).To(gomega.ContainSubstring(
 		//    fmt.Sprintf(`controller_runtime_reconcile_total{controller="%s",result="success"} 1`,
 		//    strings.ToLower(<Kind>),
 		// ))
@@ -296,7 +245,7 @@ func serviceAccountToken() (string, error) {
 	}
 
 	var out string
-	verifyTokenCreation := func(g Gomega) {
+	gomega.Eventually(func(g gomega.Gomega) {
 		// Execute kubectl command to create the token
 		cmd := exec.Command("kubectl", "create", "--raw", fmt.Sprintf(
 			"/api/v1/namespaces/%s/serviceaccounts/%s/token",
@@ -305,27 +254,26 @@ func serviceAccountToken() (string, error) {
 		), "-f", tokenRequestFile)
 
 		output, err := cmd.CombinedOutput()
-		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(err).NotTo(gomega.HaveOccurred())
 
 		// Parse the JSON output to extract the token
 		var token tokenRequest
 		err = json.Unmarshal(output, &token)
-		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(err).NotTo(gomega.HaveOccurred())
 
 		out = token.Status.Token
-	}
-	Eventually(verifyTokenCreation).Should(Succeed())
+	}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 
 	return out, err
 }
 
 // getMetricsOutput retrieves and returns the logs from the curl pod used to access the metrics endpoint.
 func getMetricsOutput() string {
-	By("getting the curl-metrics logs")
+	ginkgo.By("getting the curl-metrics logs")
 	cmd := exec.Command("kubectl", "logs", "curl-metrics", "-n", namespace)
 	metricsOutput, err := utils.Run(cmd)
-	Expect(err).NotTo(HaveOccurred(), "Failed to retrieve logs from curl pod")
-	Expect(metricsOutput).To(ContainSubstring("< HTTP/1.1 200 OK"))
+	gomega.Expect(err).NotTo(gomega.HaveOccurred(), "Failed to retrieve logs from curl pod")
+	gomega.Expect(metricsOutput).To(gomega.ContainSubstring("< HTTP/1.1 200 OK"))
 	return metricsOutput
 }
 

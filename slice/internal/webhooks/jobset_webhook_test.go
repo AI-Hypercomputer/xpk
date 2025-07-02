@@ -84,17 +84,17 @@ func TestDefault(t *testing.T) {
 						{
 							Name: "rj1",
 							Template: utiltesting.MakeJobTemplate("rj1", "").
-								SetAnnotation(PodSetRequiredTopologyAnnotation, annotationValueTBD).
-								SetAnnotation(PodSetSliceRequiredTopologyAnnotation, annotationValueTBD).
-								SetAnnotation(PodSetSliceSizeAnnotation, annotationValueTBD).
+								SetAnnotation(PodSetRequiredTopologyAnnotation, AnnotationValueTBD).
+								SetAnnotation(PodSetSliceRequiredTopologyAnnotation, AnnotationValueTBD).
+								SetAnnotation(PodSetSliceSizeAnnotation, AnnotationValueTBD).
 								Obj(),
 						},
 						{
 							Name: "rj2",
 							Template: utiltesting.MakeJobTemplate("rj2", "").
-								SetAnnotation(PodSetRequiredTopologyAnnotation, annotationValueTBD).
-								SetAnnotation(PodSetSliceRequiredTopologyAnnotation, annotationValueTBD).
-								SetAnnotation(PodSetSliceSizeAnnotation, annotationValueTBD).
+								SetAnnotation(PodSetRequiredTopologyAnnotation, AnnotationValueTBD).
+								SetAnnotation(PodSetSliceRequiredTopologyAnnotation, AnnotationValueTBD).
+								SetAnnotation(PodSetSliceSizeAnnotation, AnnotationValueTBD).
 								Obj(),
 						},
 					},

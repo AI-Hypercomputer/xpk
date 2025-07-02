@@ -18,7 +18,7 @@ import re
 from argparse import Namespace
 
 from ..core.cluster import (
-    create_xpk_k8s_service_account,
+    setup_k8s_service_accounts,
     get_cluster_credentials,
 )
 from ..core.commands import run_command_for_value
@@ -54,14 +54,14 @@ def batch(args: Namespace) -> None:
   err_code = prepare_kjob(args)
   if err_code > 0:
     xpk_exit(err_code)
-  create_xpk_k8s_service_account()
+  setup_k8s_service_accounts()
 
   submit_job(args)
 
 
 def submit_job(args: Namespace) -> None:
 
-  create_xpk_k8s_service_account()
+  setup_k8s_service_accounts()
 
   cmd = (
       'kubectl kjob create slurm'

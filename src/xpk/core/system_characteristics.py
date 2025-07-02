@@ -1156,7 +1156,7 @@ UserFacingNameToSystemCharacteristics = {
         2,
         'tpu-v5-lite-podslice',
         'ct5lp-hightpu-4t',
-        8,
+        4,
         AcceleratorType['TPU'],
         'v5litepod-8',
     ),

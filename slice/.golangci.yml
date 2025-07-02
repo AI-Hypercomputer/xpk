@@ -7,7 +7,6 @@ run:
 linters:
   enable:
     - copyloopvar
-    - dupl
     - dupword
     - durationcheck
     - fatcontext

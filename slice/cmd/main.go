@@ -232,12 +232,18 @@ func main() {
 		}
 	}
 
+	ctx := ctrl.SetupSignalHandler()
+	if err := controller.SetupWorkloadIndexer(ctx, mgr.GetFieldIndexer()); err != nil {
+		setupLog.Error(err, "unable to setup indexes")
+		os.Exit(1)
+	}
+
 	go setupControllers(mgr, certsReady)
 
 	setupProbeEndpoints(mgr, certsReady)
 
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}

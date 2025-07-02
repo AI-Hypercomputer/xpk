@@ -19,6 +19,7 @@ package jobset
 import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	jobsetapi "sigs.k8s.io/jobset/api/jobset/v1alpha2"
 	jobsetutil "sigs.k8s.io/jobset/pkg/util/testing"
@@ -40,16 +41,18 @@ var TestPodSpec = corev1.PodSpec{
 }
 
 type ReplicatedJobRequirements struct {
-	Name           string
-	Replicas       int32
-	Parallelism    int32
-	Completions    int32
-	Labels         map[string]string
-	Annotations    map[string]string
-	PodAnnotations map[string]string
-	NodeSelector   map[string]string
-	Image          string
-	Args           []string
+	Name                          string
+	Replicas                      int32
+	Parallelism                   int32
+	Completions                   int32
+	Labels                        map[string]string
+	Annotations                   map[string]string
+	PodAnnotations                map[string]string
+	NodeSelector                  map[string]string
+	Image                         string
+	Args                          []string
+	TerminationGracePeriodSeconds int64
+	LifecyclePreStopSleepSeconds  int64
 }
 
 // MakeJobSet creates a wrapper for a suspended JobSet
@@ -61,6 +64,11 @@ func MakeJobSet(name, ns string) *JobSetWrapper {
 // Obj returns the inner JobSet.
 func (j *JobSetWrapper) Obj() *jobsetapi.JobSet {
 	return &j.JobSet
+}
+
+func (j *JobSetWrapper) UID(uid string) *JobSetWrapper {
+	j.ObjectMeta.UID = types.UID(uid)
+	return j
 }
 
 // ReplicatedJobs sets a new set of ReplicatedJobs in the inner JobSet.
@@ -78,12 +86,19 @@ func (j *JobSetWrapper) ReplicatedJobs(replicatedJobs ...ReplicatedJobRequiremen
 			jt.Spec.BackoffLimit = ptr.To[int32](0)
 			spec := &jt.Spec.Template.Spec
 			spec.RestartPolicy = corev1.RestartPolicyNever
-			spec.TerminationGracePeriodSeconds = ptr.To[int64](0)
+			spec.TerminationGracePeriodSeconds = ptr.To[int64](req.TerminationGracePeriodSeconds)
 			spec.Containers = []corev1.Container{
 				{
 					Name:  "c",
 					Image: req.Image,
 					Args:  req.Args,
+					Lifecycle: &corev1.Lifecycle{
+						PreStop: &corev1.LifecycleHandler{
+							Sleep: &corev1.SleepAction{
+								Seconds: req.LifecyclePreStopSleepSeconds,
+							},
+						},
+					},
 				},
 			}
 		}

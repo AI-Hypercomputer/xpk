@@ -33,6 +33,7 @@ import (
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
 	jobsetcontroller "sigs.k8s.io/kueue/pkg/controller/jobs/jobset"
 	"sigs.k8s.io/kueue/pkg/workload"
+	"sigs.k8s.io/kueue/test/util"
 
 	slice "tpu-slice-controller/api/v1alpha1"
 	"tpu-slice-controller/internal/controller"
@@ -279,6 +280,10 @@ var _ = ginkgo.Describe("JobSet", func() {
 				ginkgo.By("Checking that Slice is deleted", func() {
 					utils.ExpectObjectToBeDeleted(ctx, k8sClient, createdSlice, false)
 				})
+
+				ginkgo.By("Checking that Workload is deleted", func() {
+					utils.ExpectObjectToBeDeleted(ctx, k8sClient, createdWorkload, false)
+				})
 			},
 			ginkgo.Entry("TPU topology 4x4x4 and parallelism 16", testCase{
 				tpuTopology:   "4x4x4",
@@ -417,5 +422,111 @@ var _ = ginkgo.Describe("JobSet", func() {
 				},
 			}),
 		)
+
+		ginkgo.It("should delete the Workload finalizer after all Pods have gracefully terminated", func() {
+			jobSet := testingjobsjobset.MakeJobSet("jobset", ns.Name).
+				Queue(lq.Name).
+				ReplicatedJobs(
+					testingjobsjobset.ReplicatedJobRequirements{
+						Name:        "rj1",
+						Image:       utils.E2eTestAgnHostImage,
+						Args:        utils.BehaviorWaitForDeletion,
+						Replicas:    1,
+						Parallelism: 1,
+						Completions: 1,
+						PodAnnotations: map[string]string{
+							core.TPUTopologyAnnotation: "4x4x4",
+						},
+						NodeSelector: map[string]string{
+							core.TPUAcceleratorLabel: tpuAccelerator,
+						},
+						TerminationGracePeriodSeconds: 60,
+						LifecyclePreStopSleepSeconds:  60,
+					},
+				).
+				RequestAndLimit("rj1", extraResource, "1").
+				Obj()
+
+			ginkgo.By("Creating a JobSet", func() {
+				utils.MustCreate(ctx, k8sClient, jobSet)
+			})
+
+			createdWorkload := &kueue.Workload{}
+			wlKey := types.NamespacedName{
+				Name:      jobsetcontroller.GetWorkloadNameForJobSet(jobSet.Name, jobSet.UID),
+				Namespace: ns.Name,
+			}
+
+			createdSlice := &slice.Slice{}
+			sliceKey := types.NamespacedName{
+				Name:      wlKey.Name,
+				Namespace: wlKey.Namespace,
+			}
+
+			ginkgo.By("Checking that Slice is created", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
+				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Adding Ready condition", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
+					meta.SetStatusCondition(&createdSlice.Status.Conditions, metav1.Condition{
+						Type:    string(slice.Forming),
+						Status:  metav1.ConditionFalse,
+						Reason:  "Test",
+						Message: "Test",
+					})
+					meta.SetStatusCondition(&createdSlice.Status.Conditions, metav1.Condition{
+						Type:    string(slice.Ready),
+						Status:  metav1.ConditionTrue,
+						Reason:  "Test",
+						Message: "Test",
+					})
+					g.Expect(k8sClient.Status().Update(ctx, createdSlice)).To(gomega.Succeed())
+				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Checking that the Workload is admitted", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
+					g.Expect(workload.IsAdmitted(createdWorkload)).Should(gomega.BeTrue())
+				}, utils.LongTimeout, utils.Timeout).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Checking that all pods are running", func() {
+				pods := &corev1.PodList{}
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.List(ctx, pods, client.InNamespace(ns.Name))).To(gomega.Succeed())
+					g.Expect(pods.Items).Should(gomega.HaveLen(1))
+					for _, pod := range pods.Items {
+						g.Expect(pod.Status.Phase).To(gomega.Equal(corev1.PodRunning))
+					}
+				}, util.LongTimeout, util.Interval).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Deactivating the Workload", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
+					createdWorkload.Spec.Active = ptr.To(false)
+					g.Expect(k8sClient.Update(ctx, createdWorkload)).Should(gomega.Succeed())
+				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Checking that Slice is still exists and waiting for Pods termination", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
+				}, utils.ConsistentDuration, utils.ShortInterval).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Deleting the Pods", func() {
+				utils.DeleteAllPodsInNamespace(ctx, k8sClient, ns)
+			})
+
+			ginkgo.By("Checking that the Slice is deleted", func() {
+				utils.ExpectObjectToBeDeleted(ctx, k8sClient, createdSlice, false)
+			})
+		})
 	})
 })

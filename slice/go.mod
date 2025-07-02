@@ -19,6 +19,16 @@ require (
 )
 
 require (
+	github.com/cert-manager/cert-manager v1.18.2 // indirect
+	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674 // indirect
+	github.com/kylelemons/godebug v1.1.0 // indirect
+	github.com/moby/spdystream v0.5.0 // indirect
+	github.com/mxk/go-flowrate v0.0.0-20140419014527-cca7078d478f // indirect
+	sigs.k8s.io/gateway-api v1.1.0 // indirect
+	sigs.k8s.io/lws v0.6.2 // indirect
+)
+
+require (
 	cel.dev/expr v0.19.1 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect

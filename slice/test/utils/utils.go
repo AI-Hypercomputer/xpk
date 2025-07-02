@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"k8s.io/utils/ptr"
 	"os"
 	"os/exec"
 	"strconv"
@@ -46,6 +47,7 @@ import (
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
 	podconstants "sigs.k8s.io/kueue/pkg/controller/jobs/pod/constants"
 
+	"tpu-slice-controller/internal/controller"
 	"tpu-slice-controller/internal/util/testing"
 )
 
@@ -153,6 +155,10 @@ func DeleteAllJobsInNamespace(ctx context.Context, c client.Client, ns *corev1.N
 	return deleteAllObjectsInNamespace(ctx, c, ns, &batchv1.Job{})
 }
 
+func DeleteAllPodsInNamespace(ctx context.Context, c client.Client, ns *corev1.Namespace) {
+	gomega.ExpectWithOffset(1, deleteAllPodsInNamespace(ctx, c, ns, 2)).To(gomega.Succeed())
+}
+
 func deleteAllPodsInNamespace(ctx context.Context, c client.Client, ns *corev1.Namespace, offset int) error {
 	if err := client.IgnoreNotFound(c.DeleteAllOf(ctx, &corev1.Pod{}, client.InNamespace(ns.Name))); err != nil {
 		return fmt.Errorf("deleting all Pods in namespace %q: %w", ns.Name, err)
@@ -165,6 +171,11 @@ func deleteAllPodsInNamespace(ctx context.Context, c client.Client, ns *corev1.N
 			if controllerutil.RemoveFinalizer(&p, podconstants.PodFinalizer) {
 				g.Expect(client.IgnoreNotFound(c.Update(ctx, &p))).Should(gomega.Succeed(), "removing finalizer")
 			}
+			opts := &client.DeleteOptions{
+				GracePeriodSeconds: ptr.To[int64](0),
+			}
+			err := c.Delete(ctx, &p, opts)
+			g.Expect(client.IgnoreNotFound(err)).To(gomega.Succeed())
 		}
 	}, LongTimeout, Interval).Should(gomega.Succeed())
 	return nil
@@ -178,7 +189,14 @@ func deleteWorkloadsInNamespace(ctx context.Context, c client.Client, ns *corev1
 		workloads := kueue.WorkloadList{}
 		g.Expect(c.List(ctx, &workloads, client.InNamespace(ns.Name))).Should(gomega.Succeed())
 		for _, wl := range workloads.Items {
+			update := false
 			if controllerutil.RemoveFinalizer(&wl, kueue.ResourceInUseFinalizerName) {
+				update = true
+			}
+			if controllerutil.RemoveFinalizer(&wl, controller.SliceControllerName) {
+				update = true
+			}
+			if update {
 				g.Expect(client.IgnoreNotFound(c.Update(ctx, &wl))).Should(gomega.Succeed())
 			}
 		}

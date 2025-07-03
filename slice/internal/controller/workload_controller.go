@@ -89,7 +89,22 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 }
 
 func (r *WorkloadReconciler) shouldFinalize(wl *kueue.Workload) bool {
-	return !wl.DeletionTimestamp.IsZero() || workload.IsFinished(wl) || workload.IsEvicted(wl) || !workload.IsActive(wl)
+	return !wl.DeletionTimestamp.IsZero() ||
+		workload.IsFinished(wl) ||
+		workload.IsEvicted(wl) ||
+		!workload.IsActive(wl) ||
+		!r.hasTopologyAssignment(wl)
+}
+
+func (r *WorkloadReconciler) hasTopologyAssignment(wl *kueue.Workload) bool {
+	if wl.Status.Admission != nil && wl.Status.Admission.PodSetAssignments != nil {
+		for _, psa := range wl.Status.Admission.PodSetAssignments {
+			if psa.TopologyAssignment != nil {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (r *WorkloadReconciler) newEmptySlice(wl *kueue.Workload) *v1alpha1.Slice {
@@ -110,18 +125,20 @@ func (r *WorkloadReconciler) newSlice(wl *kueue.Workload) (*v1alpha1.Slice, erro
 
 	if wl.Status.Admission != nil && wl.Status.Admission.PodSetAssignments != nil {
 		for _, psa := range wl.Status.Admission.PodSetAssignments {
-			for _, domain := range psa.TopologyAssignment.Domains {
-				if slice.Spec.NodeSelector == nil {
-					slice.Spec.NodeSelector = make(map[string][]string)
-				}
-				if slice.Spec.NodeSelector[TPUReservationSubblockLabel] == nil {
-					slice.Spec.NodeSelector[TPUReservationSubblockLabel] = []string{}
-				}
-				// make sure there are no duplicates in the nodeSelector
-				for _, v := range domain.Values {
-					exists := slices.Contains(slice.Spec.NodeSelector[TPUReservationSubblockLabel], v)
-					if !exists {
-						slice.Spec.NodeSelector[TPUReservationSubblockLabel] = append(slice.Spec.NodeSelector[TPUReservationSubblockLabel], v)
+			if psa.TopologyAssignment != nil {
+				for _, domain := range psa.TopologyAssignment.Domains {
+					if slice.Spec.NodeSelector == nil {
+						slice.Spec.NodeSelector = make(map[string][]string)
+					}
+					if slice.Spec.NodeSelector[TPUReservationSubblockLabel] == nil {
+						slice.Spec.NodeSelector[TPUReservationSubblockLabel] = []string{}
+					}
+					// make sure there are no duplicates in the nodeSelector
+					for _, v := range domain.Values {
+						exists := slices.Contains(slice.Spec.NodeSelector[TPUReservationSubblockLabel], v)
+						if !exists {
+							slice.Spec.NodeSelector[TPUReservationSubblockLabel] = append(slice.Spec.NodeSelector[TPUReservationSubblockLabel], v)
+						}
 					}
 				}
 			}

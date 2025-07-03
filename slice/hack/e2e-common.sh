@@ -109,7 +109,7 @@ function cluster_slice_deploy {
     (cd config/manager && $KUSTOMIZE edit set image controller="$IMAGE_TAG")
 
     local build_output
-    build_output=$($KUSTOMIZE build "${ROOT_DIR}/config/default")
+    build_output=$($KUSTOMIZE build "${ROOT_DIR}/config/dev")
     build_output="${build_output//$DEFAULT_SLICE_NAMESPACE/$SLICE_NAMESPACE}"
     echo "$build_output" | kubectl apply --kubeconfig="$1" --server-side -f -
 

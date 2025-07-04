@@ -20,9 +20,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
+	"strings"
 	"time"
 
-	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -55,7 +56,7 @@ const (
 	SliceControllerName         = "accelerator.gke.io/slice"
 	TPUReservationSubblockLabel = "cloud.google.com/gke-tpu-reservation-subblock"
 
-	SliceCreatedEventType          = "SliceCreated"
+	SlicesCreatedEventType         = "SlicesCreated"
 	FailedCreateSliceEventType     = "FailedCreateSlice"
 	AdmissionCheckUpdatedEventType = "AdmissionCheckUpdated"
 )
@@ -106,8 +107,8 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	if finalize, reason := shouldFinalize(wl); finalize {
 		if controllerutil.ContainsFinalizer(wl, SliceControllerName) {
-			log.V(3).Info(fmt.Sprintf("Cleaning up the Slice and finalize the Workload because %s", reason))
-			cleanedUp, err := r.cleanupSlice(ctx, wl)
+			log.V(3).Info(fmt.Sprintf("Cleaning up the Slices and finalizing the Workload because %s", reason))
+			cleanedUp, err := r.cleanupSlices(ctx, wl)
 			if err != nil {
 				return ctrl.Result{}, err
 			}
@@ -148,19 +149,27 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, nil
 	}
 
-	slice := v1alpha1.Slice{}
-	err = r.client.Get(ctx, core.SliceKeyFromWorkload(wl), &slice)
-	if apierrors.IsNotFound(err) {
-		// slice not found, create it and exit.
-		err = r.createSlice(ctx, log, wl, ac)
-		return ctrl.Result{}, err
-	} else if err != nil {
-		// error fetching slice
-		log.Error(err, "Failed to fetch the Slice")
+	slices, err := r.findWorkloadSlices(ctx, wl)
+	if err != nil {
+		log.Error(err, "Failed to list Slices")
 		return ctrl.Result{}, err
 	}
 
-	err = r.syncAdmissionCheckStatus(ctx, wl, ac, &slice)
+	deleted, _, _ := r.groupSlices(slices)
+	if len(deleted) > 0 {
+		log.V(3).Info(
+			"Waiting for deleted Slices to be cleaned up; skipping reconciliation for now",
+			"deletedSlices", klog.KObjSlice(deleted),
+		)
+		return ctrl.Result{}, err
+	}
+
+	changed, err := r.syncSlices(ctx, wl, ac, slices)
+	if err != nil || changed {
+		return ctrl.Result{}, err
+	}
+
+	err = r.syncAdmissionCheckStatus(ctx, wl, ac, slices)
 	return ctrl.Result{}, client.IgnoreNotFound(err)
 }
 
@@ -204,48 +213,98 @@ func isJobSetOwner(wl *kueue.Workload) bool {
 	return false
 }
 
-func (r *WorkloadReconciler) cleanupSlice(ctx context.Context, wl *kueue.Workload) (bool, error) {
-	slice := v1alpha1.Slice{}
-	sliceKey := core.SliceKeyFromWorkload(wl)
+func (r *WorkloadReconciler) cleanupSlices(ctx context.Context, wl *kueue.Workload) (bool, error) {
+	log := ctrl.LoggerFrom(ctx)
 
-	log := ctrl.LoggerFrom(ctx).WithValues("slice", klog.KRef(sliceKey.Namespace, sliceKey.Name))
-	ctrl.LoggerInto(ctx, log)
-
-	err := r.client.Get(ctx, sliceKey, &slice)
-	if apierrors.IsNotFound(err) {
-		// slice not found
-		return true, nil
-	} else if err != nil {
-		// error fetching slice
-		log.Error(err, "Failed to fetch the Slice")
+	slices, err := r.findWorkloadSlices(ctx, wl)
+	if err != nil {
+		log.Error(err, "Failed to fetch Slices")
 		return false, err
 	}
 
-	if !slice.DeletionTimestamp.IsZero() {
-		log.V(3).Info("Slice already deleted, finishing cleanup")
+	deleted, deformed, other := r.groupSlices(slices)
+
+	if len(deleted) == len(slices) {
+		log.V(3).Info("All slices already deleted; finishing cleanup")
 		return true, nil
 	}
 
-	if !core.Deformed(&slice) {
+	if len(deformed) > 0 {
+		log.V(3).Info("Found Slices in deformed state; cleaning them up", "deformedSlices", klog.KObjSlice(deformed))
+		// We still need to delete deformed Slices because requeueing causes a conflict error during Slice creation.
+		err = r.deleteSlices(ctx, deformed)
+		if err != nil {
+			return false, err
+		}
+	}
+
+	if len(other) > 0 {
 		terminated, err := r.ownerPodsFinished(ctx, wl)
 		if err != nil || !terminated {
 			return false, err
 		}
-	} else {
-		log.V(3).Info("Slice in deformed state")
-		// We still need to delete the Slice because requeueing causes a conflict error during Slice creation.
 	}
 
-	log.V(3).Info("Deleting the Slice")
-
-	err = r.client.Delete(ctx, &slice)
-	if apierrors.IsNotFound(err) {
-		return true, nil
-	} else if err != nil {
-		log.Error(err, "Failed to delete the Slice")
+	log.V(3).Info("Deleting Slices", "slices", klog.KObjSlice(other))
+	err = r.deleteSlices(ctx, other)
+	if err != nil {
+		return false, err
 	}
 
-	return true, err
+	return true, nil
+}
+
+func (r *WorkloadReconciler) findWorkloadSlices(ctx context.Context, wl *kueue.Workload) ([]v1alpha1.Slice, error) {
+	slices := &v1alpha1.SliceList{}
+	opts := []client.ListOption{
+		client.InNamespace(wl.Namespace),
+		client.MatchingFields{OwnerReferenceUID: string(wl.UID)},
+	}
+	if err := r.client.List(ctx, slices, opts...); err != nil {
+		return nil, err
+	}
+	return slices.Items, nil
+}
+
+// groupSlices categorizes a list of Slice objects into three groups based on their state.
+// It separates slices into deleted (marked for deletion), deformed (being torn down),
+// and other (active) slices.
+//
+// Parameters:
+//
+//	slices - A slice of v1alpha1.Slice objects to be categorized.
+//
+// Returns:
+//   - A slice containing deleted Slice objects (with non-zero DeletionTimestamp).
+//   - A slice containing deformed Slice objects (being torn down).
+//   - A slice containing other Slice objects (active/valid slices).
+func (r *WorkloadReconciler) groupSlices(slices []v1alpha1.Slice) ([]v1alpha1.Slice, []v1alpha1.Slice, []v1alpha1.Slice) {
+	var deleted, deformed, other []v1alpha1.Slice
+	for _, slice := range slices {
+		switch {
+		case !slice.DeletionTimestamp.IsZero():
+			deleted = append(deleted, slice)
+		case core.Deformed(&slice):
+			deformed = append(deformed, slice)
+		default:
+			other = append(other, slice)
+		}
+	}
+	return deleted, deformed, other
+}
+
+func (r *WorkloadReconciler) deleteSlices(ctx context.Context, slices []v1alpha1.Slice) error {
+	log := ctrl.LoggerFrom(ctx)
+	for _, slice := range slices {
+		log = log.WithValues("slice", klog.KObj(&slice))
+		log.V(3).Info("Deleting the Slice")
+		err := r.client.Delete(ctx, &slice)
+		if client.IgnoreNotFound(err) != nil {
+			log.Error(err, "Failed to delete the Slice")
+			return err
+		}
+	}
+	return nil
 }
 
 func (r *WorkloadReconciler) ownerPodsFinished(ctx context.Context, wl *kueue.Workload) (bool, error) {
@@ -361,46 +420,76 @@ func (r *WorkloadReconciler) sliceAC(ctx context.Context, wl *kueue.Workload) (*
 	return workload.FindAdmissionCheck(wl.Status.AdmissionChecks, relevantChecks[0]), nil
 }
 
-func parseTopologyAssignmentIntoNodeSelector(slice *v1alpha1.Slice, wl *kueue.Workload) {
-	nodeSelectors := sets.New[string]()
+func (r *WorkloadReconciler) syncSlices(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, slices []v1alpha1.Slice) (bool, error) {
+	slicesByName := make(map[string]*v1alpha1.Slice, len(slices))
+	for _, slice := range slices {
+		slicesByName[slice.Name] = &slice
+	}
+
+	changed := false
+
 	for _, psa := range wl.Status.Admission.PodSetAssignments {
-		// we already validated that all assignments have a valid level,
-		// in validateRelevantWorkload.
-		subblockLevelIndex := topology.SubblockLevelIndex(&psa)
-		for _, domain := range psa.TopologyAssignment.Domains {
-			nodeSelectors.Insert(domain.Values[subblockLevelIndex])
+		sliceName := core.SliceName(wl.Name, psa.Name)
+
+		if _, exist := slicesByName[sliceName]; exist {
+			// Slice already exists, nothing to do.
+			continue
 		}
+
+		createdSlice, err := r.createSlice(ctx, wl, ac, &psa)
+		if err != nil {
+			return false, err
+		}
+
+		slices = append(slices, *createdSlice)
+		changed = true
+	}
+
+	if changed {
+		msg := fmt.Sprintf("The Slices %v have been created", joinSliceNames(slices))
+		ctrl.LoggerFrom(ctx).V(3).Info(msg)
+		r.record.Event(wl, corev1.EventTypeNormal, SlicesCreatedEventType, msg)
+		ac.Message = msg
+		return true, r.updateWorkloadAdmissionCheckStatus(ctx, wl, ac)
+	}
+
+	return false, nil
+}
+
+func parseTopologyAssignmentIntoNodeSelector(slice *v1alpha1.Slice, psa *kueue.PodSetAssignment) {
+	nodeSelectors := sets.New[string]()
+	// we already validated that all assignments have a valid level,
+	// in validateRelevantWorkload.
+	subblockLevelIndex := topology.SubblockLevelIndex(psa)
+	for _, domain := range psa.TopologyAssignment.Domains {
+		nodeSelectors.Insert(domain.Values[subblockLevelIndex])
 	}
 	slice.Spec.NodeSelector = map[string][]string{
 		TPUReservationSubblockLabel: sets.List(nodeSelectors),
 	}
 }
 
-func (r *WorkloadReconciler) createSlice(ctx context.Context, log logr.Logger, wl *kueue.Workload, ac *kueue.AdmissionCheckState) error {
-	slice := core.SliceWithMetadata(wl)
-	log = log.WithValues("slice", klog.KObj(slice))
+func (r *WorkloadReconciler) createSlice(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, psa *kueue.PodSetAssignment) (*v1alpha1.Slice, error) {
+	slice := core.SliceWithMetadata(wl, psa.Name)
+	log := ctrl.LoggerFrom(ctx).WithValues("slice", klog.KObj(slice))
 	log.V(3).Info("Creating Slice")
 
 	if err := controllerutil.SetControllerReference(wl, slice, r.client.Scheme()); err != nil {
-		return err
+		return nil, err
 	}
-	parseTopologyAssignmentIntoNodeSelector(slice, wl)
+	parseTopologyAssignmentIntoNodeSelector(slice, psa)
 
 	if err := r.client.Create(ctx, slice); err != nil {
-		msg := fmt.Sprintf("Error creating Slice %q: %v", slice.Name, err)
+		msg := fmt.Sprintf("Error creating Slice %q: %v", client.ObjectKeyFromObject(slice), err)
 		log.Error(err, msg)
 		r.record.Event(wl, corev1.EventTypeWarning, FailedCreateSliceEventType, api.TruncateEventMessage(msg))
+		ac.State = kueue.CheckStatePending
 		ac.Message = api.TruncateConditionMessage(msg)
 		patchErr := r.updateWorkloadAdmissionCheckStatus(ctx, wl, ac)
-		return errors.Join(err, patchErr)
+		return nil, errors.Join(err, patchErr)
 	}
 
-	msg := fmt.Sprintf("The Slice %s has been created", client.ObjectKeyFromObject(slice))
-	log.V(3).Info(msg)
-	r.record.Event(wl, corev1.EventTypeNormal, SliceCreatedEventType, msg)
-	ac.Message = msg
-
-	return r.updateWorkloadAdmissionCheckStatus(ctx, wl, ac)
+	return slice, nil
 }
 
 func (r *WorkloadReconciler) updateWorkloadAdmissionCheckStatus(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState) error {
@@ -413,27 +502,50 @@ func (r *WorkloadReconciler) updateWorkloadAdmissionCheckStatus(ctx context.Cont
 	return err
 }
 
-// syncAdmissionCheckStatus syncs the admission check status with the state of the slice.
-func (r *WorkloadReconciler) syncAdmissionCheckStatus(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, slice *v1alpha1.Slice) error {
-	originalState := ac.State
+func joinSliceNames(slices []v1alpha1.Slice) string {
+	sliceNames := make([]string, len(slices))
+	for index, slice := range slices {
+		sliceNames[index] = fmt.Sprintf("%q", client.ObjectKeyFromObject(&slice))
+	}
+	sort.Strings(sliceNames)
+	return strings.Join(sliceNames, ", ")
+}
 
-	errCond := meta.FindStatusCondition(slice.Status.Conditions, string(v1alpha1.Error))
+// syncAdmissionCheckStatus syncs the admission check status with the state of the Slices.
+func (r *WorkloadReconciler) syncAdmissionCheckStatus(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, slices []v1alpha1.Slice) error {
+	originalState := ac.State
+	originalMessage := ac.Message
+
+	slicesByStatus := make(map[v1alpha1.SliceConditionType][]v1alpha1.Slice)
+	for _, slice := range slices {
+		for _, status := range core.SliceStatuses {
+			if meta.IsStatusConditionTrue(slice.Status.Conditions, string(status)) {
+				slicesByStatus[status] = append(slicesByStatus[status], slice)
+			}
+		}
+	}
 
 	switch {
-	case core.Forming(slice):
-		ac.Message = fmt.Sprintf("The Slice %q is being formed", slice.Name)
-	case core.Ready(slice):
-		ac.State = kueue.CheckStateReady
-		ac.Message = fmt.Sprintf("The Slice %q is fully operational", slice.Name)
-	case core.Degraded(slice):
-		ac.State = kueue.CheckStateReady
-		ac.Message = fmt.Sprintf("The Slice %q is running with reduced capacity or performance", slice.Name)
-	case core.Deformed(slice):
+	case len(slicesByStatus[v1alpha1.Error]) > 0:
 		ac.State = kueue.CheckStateRejected
-		ac.Message = fmt.Sprintf("The Slice %q is being torn down", slice.Name)
-	case errCond != nil && errCond.Status == metav1.ConditionTrue:
+		ac.Message = fmt.Sprintf("The Slices %s are not operational due to an errors", joinSliceNames(slicesByStatus[v1alpha1.Error]))
+	case len(slicesByStatus[v1alpha1.Deformed]) > 0:
 		ac.State = kueue.CheckStateRejected
-		ac.Message = fmt.Sprintf("The Slice %q is not operational due to an error: %s", slice.Name, errCond.Message)
+		ac.Message = fmt.Sprintf("The Slices %s are being torn down", joinSliceNames(slicesByStatus[v1alpha1.Deformed]))
+	case len(slicesByStatus[v1alpha1.Forming]) > 0:
+		ac.State = kueue.CheckStatePending
+		ac.Message = fmt.Sprintf("The Slices %s are being formed", joinSliceNames(slicesByStatus[v1alpha1.Forming]))
+	case len(slicesByStatus[v1alpha1.Degraded]) > 0:
+		ac.State = kueue.CheckStateReady
+		ac.Message = fmt.Sprintf("The Slices %s are running with reduced capacity or performance", joinSliceNames(slicesByStatus[v1alpha1.Degraded]))
+	case len(slicesByStatus[v1alpha1.Ready]) > 0:
+		ac.State = kueue.CheckStateReady
+		ac.Message = fmt.Sprintf("The Slices %s are fully operational", joinSliceNames(slicesByStatus[v1alpha1.Ready]))
+	}
+
+	// No changes.
+	if originalState == ac.State && ac.Message == originalMessage {
+		return nil
 	}
 
 	err := r.updateWorkloadAdmissionCheckStatus(ctx, wl, ac)

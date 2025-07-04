@@ -233,7 +233,7 @@ func main() {
 	}
 
 	ctx := ctrl.SetupSignalHandler()
-	if err := controller.SetupWorkloadIndexer(ctx, mgr.GetFieldIndexer()); err != nil {
+	if err := controller.SetupIndexer(ctx, mgr.GetFieldIndexer()); err != nil {
 		setupLog.Error(err, "unable to setup indexes")
 		os.Exit(1)
 	}

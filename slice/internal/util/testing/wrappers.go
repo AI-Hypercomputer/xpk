@@ -226,6 +226,15 @@ func (w *PodSetAssignmentWrapper) Obj() kueue.PodSetAssignment {
 	return w.PodSetAssignment
 }
 
+func (w *PodSetAssignmentWrapper) Clone() *PodSetAssignmentWrapper {
+	return &PodSetAssignmentWrapper{PodSetAssignment: *w.DeepCopy()}
+}
+
+func (w *PodSetAssignmentWrapper) Name(name string) *PodSetAssignmentWrapper {
+	w.PodSetAssignment.Name = kueue.PodSetReference(name)
+	return w
+}
+
 // SliceWrapper wraps a Slice.
 type SliceWrapper struct {
 	v1alpha1.Slice
@@ -248,6 +257,21 @@ func (s *SliceWrapper) Clone() *SliceWrapper {
 
 func (s *SliceWrapper) Obj() *v1alpha1.Slice {
 	return &s.Slice
+}
+
+func (s *SliceWrapper) Name(name string) *SliceWrapper {
+	s.Slice.Name = name
+	return s
+}
+
+func (s *SliceWrapper) AcceleratorType(acceleratorType string) *SliceWrapper {
+	s.Spec.AcceleratorType = acceleratorType
+	return s
+}
+
+func (s *SliceWrapper) AcceleratorTopology(acceleratorTopology string) *SliceWrapper {
+	s.Spec.AcceleratorTopology = acceleratorTopology
+	return s
 }
 
 func (s *SliceWrapper) ControllerReference(gvk schema.GroupVersionKind, name, uid string) *SliceWrapper {

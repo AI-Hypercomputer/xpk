@@ -93,6 +93,11 @@ func (w *WorkloadWrapper) UID(uid types.UID) *WorkloadWrapper {
 	return w
 }
 
+func (w *WorkloadWrapper) ControllerReference(gvk schema.GroupVersionKind, name, uid string) *WorkloadWrapper {
+	AppendOwnerReference(&w.Workload, gvk, name, uid, ptr.To(true), ptr.To(true))
+	return w
+}
+
 func (w *WorkloadWrapper) DeletionTimestamp(t time.Time) *WorkloadWrapper {
 	w.Workload.DeletionTimestamp = ptr.To(metav1.NewTime(t).Rfc3339Copy())
 	return w

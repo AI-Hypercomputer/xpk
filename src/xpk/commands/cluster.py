@@ -966,6 +966,7 @@ def install_kueue(args, system: SystemCharacteristics, autoprovisioning_config):
   if update_kueue_resources_code != 0:
     xpk_exit(update_kueue_resources_code)
 
+
 def prepare_gpus(args, system: SystemCharacteristics):
   xpk_print('Installing NCCL Plugin for cluster')
   install_nccl_code = install_nccl_on_cluster(args, system)

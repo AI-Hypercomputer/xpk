@@ -262,6 +262,7 @@ spec:
         name: manager-config
 """
 
+
 def verify_kueuectl(args: Namespace) -> None:
   """Verify if kueuectl is installed.
   Args:
@@ -482,6 +483,7 @@ def get_kueue_covered_resources_config(
   )
   return config_string
 
+
 def update_kueue_resources_if_necessary(args):
   """Update the kueue manifest to increase the resources for the kueue controller manager.
 
@@ -492,16 +494,16 @@ def update_kueue_resources_if_necessary(args):
     0 if successful and 1 otherwise.
   """
   # Get total number of nodes
-  cmd_total_node_num = (
-      'kubectl get node --no-headers | wc -l'
-  )
+  cmd_total_node_num = 'kubectl get node --no-headers | wc -l'
   return_code, out = run_command_for_value(
       cmd_total_node_num, 'Count total nodes', args
   )
   if return_code != 0:
     xpk_exit(1)
   # 1.2MiB per VM or 4GiB (whichever is greater).
-  new_memory_limit = f'{max(math.ceil(int(out) * MEMORY_SIZE_PER_VM), MIN_MEMORY_LIMIT_SIZE)}Mi'
+  new_memory_limit = (
+      f'{max(math.ceil(int(out) * MEMORY_SIZE_PER_VM), MIN_MEMORY_LIMIT_SIZE)}Mi'
+  )
   yml_string = kueue_controller_manager_yml.format(
       memory_limit_size=new_memory_limit,
   )

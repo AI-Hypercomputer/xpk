@@ -320,7 +320,7 @@ def cluster_create(args) -> None:
   install_kueue(args, system, autoprovisioning_config)
 
   install_kjob(args)
-  
+
   if system.accelerator_type == AcceleratorType['GPU']:
     prepare_gpus(args, system)
 

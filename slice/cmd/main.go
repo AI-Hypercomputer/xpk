@@ -254,8 +254,8 @@ func setupControllers(mgr ctrl.Manager, certsReady chan struct{}) {
 		os.Exit(1)
 	}
 
-	if err := controller.NewWorkloadReconciler(mgr.GetClient()).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Workload")
+	if failedCtrl, err := controller.SetupControllers(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", failedCtrl)
 		os.Exit(1)
 	}
 

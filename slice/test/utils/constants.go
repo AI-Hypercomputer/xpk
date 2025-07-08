@@ -26,10 +26,12 @@ const (
 )
 
 const (
-	Timeout        = 10 * time.Second
-	LongTimeout    = 45 * time.Second
-	StartUpTimeout = 5 * time.Minute
-	Interval       = time.Millisecond * 250
+	Timeout            = 10 * time.Second
+	LongTimeout        = 45 * time.Second
+	StartUpTimeout     = 5 * time.Minute
+	ConsistentDuration = time.Second
+	ShortInterval      = 10 * time.Millisecond
+	Interval           = time.Millisecond * 250
 )
 
 var (

@@ -7,6 +7,15 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - events
+  verbs:
+  - create
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
   - secrets
   verbs:
   - get
@@ -22,6 +31,23 @@ rules:
   - list
   - update
   - watch
+- apiGroups:
+  - kueue.x-k8s.io
+  resources:
+  - admissionchecks
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - kueue.x-k8s.io
+  resources:
+  - admissionchecks/status
+  - workloads/status
+  verbs:
+  - get
+  - patch
+  - update
 - apiGroups:
   - kueue.x-k8s.io
   resources:

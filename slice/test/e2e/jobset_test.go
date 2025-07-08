@@ -23,6 +23,8 @@ import (
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -30,6 +32,7 @@ import (
 	kueuealpha "sigs.k8s.io/kueue/apis/kueue/v1alpha1"
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
 	jobsetcontroller "sigs.k8s.io/kueue/pkg/controller/jobs/jobset"
+	"sigs.k8s.io/kueue/pkg/workload"
 
 	slice "tpu-slice-controller/api/v1alpha1"
 	"tpu-slice-controller/internal/controller"
@@ -52,6 +55,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 		topology *kueuealpha.Topology
 		ns       *corev1.Namespace
 		rf       *kueue.ResourceFlavor
+		ac       *kueue.AdmissionCheck
 		cq       *kueue.ClusterQueue
 		lq       *kueue.LocalQueue
 	)
@@ -71,7 +75,11 @@ var _ = ginkgo.Describe("JobSet", func() {
 			Obj()
 		utils.MustCreate(ctx, k8sClient, rf)
 
+		ac = testing.MakeAdmissionCheck("ac").ControllerName(controller.SliceControllerName).Obj()
+		utils.MustCreate(ctx, k8sClient, ac)
+
 		cq = testing.MakeClusterQueue("cq").
+			AdmissionChecks(kueue.AdmissionCheckReference(ac.Name)).
 			ResourceGroup(*testing.MakeFlavorQuotas(rf.Name).
 				Resource(extraResource, "128").
 				Obj()).
@@ -85,6 +93,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 	ginkgo.AfterEach(func() {
 		gomega.Expect(utils.DeleteNamespace(ctx, k8sClient, ns)).To(gomega.Succeed())
 		utils.ExpectObjectToBeDeleted(ctx, k8sClient, cq, true)
+		utils.ExpectObjectToBeDeleted(ctx, k8sClient, ac, true)
 		utils.ExpectObjectToBeDeleted(ctx, k8sClient, rf, true)
 		utils.ExpectObjectToBeDeleted(ctx, k8sClient, topology, true)
 		utils.ExpectAllPodsInNamespaceDeleted(ctx, k8sClient, ns)
@@ -192,6 +201,43 @@ var _ = ginkgo.Describe("JobSet", func() {
 						g.Expect(createdSlice.Spec.NodeSelector).To(gomega.HaveLen(1))
 						g.Expect(createdSlice.Spec.NodeSelector).To(gomega.BeComparableTo(tc.wantNodeSelector))
 					}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+				})
+
+				ginkgo.By("Checking that the Workload waiting for admission", func() {
+					gomega.Eventually(func(g gomega.Gomega) {
+						g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
+						g.Expect(workload.IsAdmitted(createdWorkload)).Should(gomega.BeFalse())
+						g.Expect(createdWorkload.Status.AdmissionChecks).Should(gomega.BeComparableTo([]kueue.AdmissionCheckState{{
+							Name:    kueue.AdmissionCheckReference(ac.Name),
+							State:   kueue.CheckStatePending,
+							Message: fmt.Sprintf("The Slice %q has been created", createdSlice.Name),
+						}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates")))
+					}, utils.ConsistentDuration, utils.ShortInterval).Should(gomega.Succeed())
+				})
+
+				ginkgo.By("Adding Ready condition", func() {
+					gomega.Eventually(func(g gomega.Gomega) {
+						g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
+						meta.SetStatusCondition(&createdSlice.Status.Conditions, metav1.Condition{
+							Type:    string(slice.Ready),
+							Status:  metav1.ConditionTrue,
+							Reason:  "Test",
+							Message: "Test",
+						})
+						g.Expect(k8sClient.Status().Update(ctx, createdSlice)).To(gomega.Succeed())
+					}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+				})
+
+				ginkgo.By("Checking that the Workload is admitted and admission check status is ready", func() {
+					gomega.Eventually(func(g gomega.Gomega) {
+						g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
+						g.Expect(workload.IsAdmitted(createdWorkload)).Should(gomega.BeTrue())
+						g.Expect(createdWorkload.Status.AdmissionChecks).Should(gomega.BeComparableTo([]kueue.AdmissionCheckState{{
+							Name:    kueue.AdmissionCheckReference(ac.Name),
+							State:   kueue.CheckStateReady,
+							Message: fmt.Sprintf("The Slice %q has been created and configured", createdWorkload.Name),
+						}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates")))
+					}, utils.LongTimeout, utils.Timeout).Should(gomega.Succeed())
 				})
 
 				ginkgo.By("Deleting JobSet", func() {

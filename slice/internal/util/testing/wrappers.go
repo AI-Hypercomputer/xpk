@@ -21,7 +21,7 @@ import (
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/meta"
+	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -111,7 +111,7 @@ func (w *WorkloadWrapper) Finished() *WorkloadWrapper {
 		Reason:             "ByTest",
 		Message:            "Finished by test",
 	}
-	meta.SetStatusCondition(&w.Status.Conditions, cond)
+	apimeta.SetStatusCondition(&w.Status.Conditions, cond)
 	return w
 }
 
@@ -123,7 +123,7 @@ func (w *WorkloadWrapper) Evicted() *WorkloadWrapper {
 		Reason:             "ByTest",
 		Message:            "Evicted by test",
 	}
-	meta.SetStatusCondition(&w.Status.Conditions, cond)
+	apimeta.SetStatusCondition(&w.Status.Conditions, cond)
 	return w
 }
 
@@ -140,6 +140,17 @@ func (w *WorkloadWrapper) PodSetAssignments(assignments ...kueue.PodSetAssignmen
 		}
 	}
 	w.Status.Admission.PodSetAssignments = assignments
+	return w
+}
+
+func (w *WorkloadWrapper) AdmissionCheck(admissionCheckState kueue.AdmissionCheckState) *WorkloadWrapper {
+	var admissionCheckStates []kueue.AdmissionCheckState
+	for _, acs := range w.Status.AdmissionChecks {
+		if acs.Name != admissionCheckState.Name {
+			admissionCheckStates = append(admissionCheckStates, acs)
+		}
+	}
+	w.Status.AdmissionChecks = append(admissionCheckStates, admissionCheckState)
 	return w
 }
 
@@ -202,6 +213,18 @@ func (s *SliceWrapper) ControllerReference(gvk schema.GroupVersionKind, name, ui
 
 func (s *SliceWrapper) NodeSelector(ns map[string][]string) *SliceWrapper {
 	s.Spec.NodeSelector = ns
+	return s
+}
+
+func (s *SliceWrapper) Ready() *SliceWrapper {
+	cond := metav1.Condition{
+		Type:               string(v1alpha1.Ready),
+		Status:             metav1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
+		Reason:             "ByTest",
+		Message:            "Ready by test",
+	}
+	apimeta.SetStatusCondition(&s.Status.Conditions, cond)
 	return s
 }
 
@@ -333,6 +356,12 @@ func (c *ClusterQueueWrapper) ResourceGroup(flavors ...kueue.FlavorQuotas) *Clus
 	return c
 }
 
+// AdmissionChecks replaces the queue additional checks
+func (c *ClusterQueueWrapper) AdmissionChecks(checks ...kueue.AdmissionCheckReference) *ClusterQueueWrapper {
+	c.Spec.AdmissionChecks = checks
+	return c
+}
+
 // FlavorQuotasWrapper wraps a FlavorQuotas object.
 type FlavorQuotasWrapper struct{ kueue.FlavorQuotas }
 
@@ -450,4 +479,45 @@ func (t *TopologyWrapper) Levels(levels ...string) *TopologyWrapper {
 
 func (t *TopologyWrapper) Obj() *kueuealpha.Topology {
 	return &t.Topology
+}
+
+type AdmissionCheckWrapper struct{ kueue.AdmissionCheck }
+
+func MakeAdmissionCheck(name string) *AdmissionCheckWrapper {
+	return &AdmissionCheckWrapper{
+		AdmissionCheck: kueue.AdmissionCheck{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: name,
+			},
+		},
+	}
+}
+
+func (ac *AdmissionCheckWrapper) Obj() *kueue.AdmissionCheck {
+	return &ac.AdmissionCheck
+}
+
+func (ac *AdmissionCheckWrapper) Clone() *AdmissionCheckWrapper {
+	return &AdmissionCheckWrapper{AdmissionCheck: *ac.DeepCopy()}
+}
+
+func (ac *AdmissionCheckWrapper) Name(name string) *AdmissionCheckWrapper {
+	ac.ObjectMeta.Name = name
+	return ac
+}
+
+func (ac *AdmissionCheckWrapper) ControllerName(c string) *AdmissionCheckWrapper {
+	ac.Spec.ControllerName = c
+	return ac
+}
+
+// Generation sets the generation of the AdmissionCheck.
+func (ac *AdmissionCheckWrapper) Generation(num int64) *AdmissionCheckWrapper {
+	ac.ObjectMeta.Generation = num
+	return ac
+}
+
+func (ac *AdmissionCheckWrapper) Condition(cond metav1.Condition) *AdmissionCheckWrapper {
+	apimeta.SetStatusCondition(&ac.Status.Conditions, cond)
+	return ac
 }

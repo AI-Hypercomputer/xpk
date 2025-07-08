@@ -22,7 +22,7 @@ from ..core.blueprint.blueprint_generator import (
 )
 from ..core.cluster import (
     XPK_SA,
-    create_xpk_k8s_service_account,
+    setup_k8s_service_accounts,
     get_cluster_credentials,
     setup_k8s_env,
 )
@@ -296,7 +296,7 @@ def workload_create(args) -> None:
     0 if successful and 1 otherwise.
   """
   k8s_api_client = setup_k8s_env(args)
-  create_xpk_k8s_service_account()
+  setup_k8s_service_accounts()
 
   workload_exists = check_if_workload_exists(args)
 

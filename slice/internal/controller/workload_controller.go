@@ -18,9 +18,16 @@ package controller
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"maps"
 	"slices"
 
+	"golang.org/x/sync/errgroup"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -29,11 +36,23 @@ import (
 	"sigs.k8s.io/kueue/pkg/workload"
 
 	"tpu-slice-controller/api/v1alpha1"
+	"tpu-slice-controller/internal/util/parallelize"
 )
 
 const (
 	CleanupSliceFinalizerName   = "accelerator.gke.io/slice"
-	TPUReservationSubblockLabel = "cloud.google.com/gke-tpu-reservation-subblock"
+	TPUReservationSubBlockLabel = "cloud.google.com/gke-tpu-reservation-subblock"
+	NodePoolLabel               = "cloud.google.com/gke-nodepool"
+	TPUTopologyLabel            = "cloud.google.com/gke-tpu-topology"
+	TPUAcceleratorLabel         = "cloud.google.com/gke-tpu-accelerator"
+)
+
+var (
+	errPodSetNotFound              = errors.New("PodSet not found")
+	errPodSetAssignmentNotFound    = errors.New("PodSetAssignment not found")
+	errTPUTopologyLabelNotFound    = fmt.Errorf("%s label not found", TPUTopologyLabel)
+	errTPUAcceleratorLabelNotFound = fmt.Errorf("%s label not found", TPUAcceleratorLabel)
+	errTopologyAssignmentNotFound  = errors.New("TopologyAssignment not found")
 )
 
 // WorkloadReconciler reconciles a Workload object
@@ -64,18 +83,7 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	log.V(2).Info("Reconcile Workload")
 
 	if r.shouldFinalize(wl) {
-		if controllerutil.ContainsFinalizer(wl, CleanupSliceFinalizerName) {
-			err = r.client.Delete(ctx, r.newEmptySlice(wl))
-			if client.IgnoreNotFound(err) != nil {
-				return ctrl.Result{}, err
-			}
-			controllerutil.RemoveFinalizer(wl, CleanupSliceFinalizerName)
-			if err := r.client.Update(ctx, wl); err != nil {
-				return ctrl.Result{}, err
-			}
-			log.V(5).Info("Removed finalizer")
-		}
-		return ctrl.Result{}, nil
+		return ctrl.Result{}, client.IgnoreNotFound(r.finalize(ctx, wl))
 	}
 
 	if controllerutil.AddFinalizer(wl, CleanupSliceFinalizerName) {
@@ -85,45 +93,187 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		}
 	}
 
-	return ctrl.Result{}, r.createSliceIfNotExist(ctx, wl)
+	return ctrl.Result{}, r.createSlicesIfNotExist(ctx, wl)
 }
 
 func (r *WorkloadReconciler) shouldFinalize(wl *kueue.Workload) bool {
 	return !wl.DeletionTimestamp.IsZero() || workload.IsFinished(wl) || workload.IsEvicted(wl) || !workload.IsActive(wl)
 }
 
-func (r *WorkloadReconciler) newEmptySlice(wl *kueue.Workload) *v1alpha1.Slice {
-	return &v1alpha1.Slice{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      wl.Name,
-			Namespace: wl.Namespace,
-		},
+func (r *WorkloadReconciler) finalize(ctx context.Context, wl *kueue.Workload) error {
+	if !controllerutil.ContainsFinalizer(wl, CleanupSliceFinalizerName) {
+		return nil
 	}
+
+	log := ctrl.LoggerFrom(ctx)
+
+	slices, err := r.findWorkloadSlices(ctx, wl)
+	if err != nil {
+		log.Error(err, "Failed to find Slices")
+		return err
+	}
+
+	err = parallelize.Until(ctx, len(slices), func(i int) error {
+		slice := &slices[i]
+		err = r.client.Delete(ctx, slice)
+		if client.IgnoreNotFound(err) != nil {
+			log.Error(err, "Failed to delete the Slice", "slice", klog.KObj(slice))
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	controllerutil.RemoveFinalizer(wl, CleanupSliceFinalizerName)
+	if err := r.client.Update(ctx, wl); err != nil {
+		if !apierrors.IsNotFound(err) {
+			log.Error(err, "Failed to remove finalizer")
+		}
+		return err
+	}
+
+	log.V(5).Info("Removed finalizer")
+
+	return nil
 }
 
-func (r *WorkloadReconciler) newSlice(wl *kueue.Workload) (*v1alpha1.Slice, error) {
-	slice := r.newEmptySlice(wl)
-
-	if err := controllerutil.SetControllerReference(wl, slice, r.client.Scheme()); err != nil {
+func (r *WorkloadReconciler) findWorkloadSlices(ctx context.Context, wl *kueue.Workload) ([]v1alpha1.Slice, error) {
+	slices := &v1alpha1.SliceList{}
+	opts := []client.ListOption{
+		client.InNamespace(wl.Namespace),
+		client.MatchingFields{OwnerReferenceUID: string(wl.UID)},
+	}
+	if err := r.client.List(ctx, slices, opts...); err != nil {
 		return nil, err
 	}
+	return slices.Items, nil
+}
 
-	if wl.Status.Admission != nil && wl.Status.Admission.PodSetAssignments != nil {
+func (r *WorkloadReconciler) createSlicesIfNotExist(ctx context.Context, wl *kueue.Workload) error {
+	log := ctrl.LoggerFrom(ctx)
+
+	createdSlices, err := r.findWorkloadSlices(ctx, wl)
+	if err != nil {
+		log.Error(err, "Failed to find Slices")
+		return err
+	}
+
+	createdSlicesByName := make(map[string]*v1alpha1.Slice, len(createdSlices))
+	for _, slice := range createdSlices {
+		createdSlicesByName[slice.Name] = &slice
+	}
+
+	var toCreate []*v1alpha1.Slice
+
+	if wl.Status.Admission != nil {
 		for _, psa := range wl.Status.Admission.PodSetAssignments {
-			for _, domain := range psa.TopologyAssignment.Domains {
-				if slice.Spec.NodeSelector == nil {
-					slice.Spec.NodeSelector = make(map[string][]string)
+			sliceName := GetSliceName(wl.Name, psa.Name)
+
+			if _, ok := createdSlicesByName[sliceName]; ok {
+				delete(createdSlicesByName, sliceName)
+				continue
+			}
+
+			slice, err := newSlice(wl, psa.Name)
+			if err != nil {
+				if !isUnsupportedPodSetError(err) {
+					log.Error(err, "Failed to create a Slice")
+					return err
 				}
-				if slice.Spec.NodeSelector[TPUReservationSubblockLabel] == nil {
-					slice.Spec.NodeSelector[TPUReservationSubblockLabel] = []string{}
-				}
-				// make sure there are no duplicates in the nodeSelector
-				for _, v := range domain.Values {
-					exists := slices.Contains(slice.Spec.NodeSelector[TPUReservationSubblockLabel], v)
-					if !exists {
-						slice.Spec.NodeSelector[TPUReservationSubblockLabel] = append(slice.Spec.NodeSelector[TPUReservationSubblockLabel], v)
-					}
-				}
+				log.V(8).Info("Failed to create Slice", "error", err)
+				continue
+			}
+
+			if err := controllerutil.SetControllerReference(wl, slice, r.client.Scheme()); err != nil {
+				return err
+			}
+
+			toCreate = append(toCreate, slice)
+		}
+	}
+
+	eg, ctx := errgroup.WithContext(ctx)
+
+	eg.Go(func() error {
+		return parallelize.Until(ctx, len(toCreate), func(i int) error {
+			slice := toCreate[i]
+			err = r.client.Create(ctx, slice)
+			if err != nil {
+				log.Error(err, "Failed to create a Slice", "slice", klog.KObj(slice))
+				return err
+			}
+			return nil
+		})
+	})
+
+	toDelete := slices.Collect(maps.Values(createdSlicesByName))
+	eg.Go(func() error {
+		return parallelize.Until(ctx, len(toDelete), func(i int) error {
+			slice := toDelete[i]
+			err = r.client.Delete(ctx, slice)
+			if client.IgnoreNotFound(err) != nil {
+				log.Error(err, "Failed to delete the redundant Slice", "slice", klog.KObj(slice))
+				return err
+			}
+			return nil
+		})
+	})
+
+	return eg.Wait()
+}
+
+func GetSliceName(workloadName string, podSetName kueue.PodSetReference) string {
+	return fmt.Sprintf("%s-%s", workloadName, podSetName)
+}
+
+func newSlice(wl *kueue.Workload, podSetName kueue.PodSetReference) (*v1alpha1.Slice, error) {
+	ps := findPodSet(wl, podSetName)
+	if findPodSet(wl, podSetName) == nil {
+		return nil, errPodSetNotFound
+	}
+
+	if ps.Template.Spec.NodeSelector[TPUTopologyLabel] == "" {
+		return nil, errTPUTopologyLabelNotFound
+	}
+
+	if ps.Template.Spec.NodeSelector[TPUAcceleratorLabel] == "" {
+		return nil, errTPUAcceleratorLabelNotFound
+	}
+
+	psa := findPodSetAssignment(wl, podSetName)
+	if psa == nil {
+		return nil, errPodSetAssignmentNotFound
+	}
+
+	if psa.TopologyAssignment == nil {
+		return nil, errTopologyAssignmentNotFound
+	}
+
+	slice := &v1alpha1.Slice{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      GetSliceName(wl.Name, podSetName),
+			Namespace: wl.Namespace,
+		},
+		Spec: v1alpha1.SliceSpec{
+			AcceleratorTopology: ps.Template.Spec.NodeSelector[TPUTopologyLabel],
+			AcceleratorType:     ps.Template.Spec.NodeSelector[TPUAcceleratorLabel],
+			NodeSelector:        make(map[string][]string),
+		},
+	}
+
+	for _, domain := range psa.TopologyAssignment.Domains {
+		if ps.Template.Spec.NodeSelector[TPUReservationSubBlockLabel] != "" {
+			subBlockDomains := sets.New[string](domain.Values...)
+			if subBlockDomains.Len() > 0 {
+				slice.Spec.NodeSelector[TPUReservationSubBlockLabel] = sets.List(subBlockDomains)
+			}
+		}
+		if ps.Template.Spec.NodeSelector[NodePoolLabel] != "" {
+			nodePoolDomains := sets.New[string](domain.Values...)
+			if nodePoolDomains.Len() > 0 {
+				slice.Spec.NodeSelector[NodePoolLabel] = sets.List(nodePoolDomains)
 			}
 		}
 	}
@@ -131,29 +281,34 @@ func (r *WorkloadReconciler) newSlice(wl *kueue.Workload) (*v1alpha1.Slice, erro
 	return slice, nil
 }
 
-func (r *WorkloadReconciler) createSliceIfNotExist(ctx context.Context, wl *kueue.Workload) error {
-	slice := r.newEmptySlice(wl)
-
-	err := r.client.Get(ctx, client.ObjectKeyFromObject(slice), slice)
-	if client.IgnoreNotFound(err) != nil {
-		return err
+func findPodSet(wl *kueue.Workload, podSetName kueue.PodSetReference) *kueue.PodSet {
+	for _, ps := range wl.Spec.PodSets {
+		if ps.Name == podSetName {
+			return &ps
+		}
 	}
-	if err == nil {
-		return nil
-	}
+	return nil
+}
 
-	slice, err = r.newSlice(wl)
-	if err != nil {
-		return err
+func findPodSetAssignment(wl *kueue.Workload, podSetName kueue.PodSetReference) *kueue.PodSetAssignment {
+	for _, psa := range wl.Status.Admission.PodSetAssignments {
+		if psa.Name == podSetName {
+			return &psa
+		}
 	}
+	return nil
+}
 
-	return r.client.Create(ctx, slice)
+func isUnsupportedPodSetError(err error) bool {
+	return errors.Is(err, errTPUTopologyLabelNotFound) ||
+		errors.Is(err, errTPUAcceleratorLabelNotFound) ||
+		errors.Is(err, errTopologyAssignmentNotFound)
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *WorkloadReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&kueue.Workload{}).
-		Named("workload").
+		Named("workload_controller").
 		Complete(r)
 }

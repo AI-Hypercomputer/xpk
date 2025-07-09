@@ -47,6 +47,7 @@ type ReplicatedJobRequirements struct {
 	Labels         map[string]string
 	Annotations    map[string]string
 	PodAnnotations map[string]string
+	NodeSelector   map[string]string
 	Image          string
 	Args           []string
 }
@@ -84,6 +85,7 @@ func (j *JobSetWrapper) ReplicatedJobs(replicatedJobs ...ReplicatedJobRequiremen
 					Args:  req.Args,
 				},
 			}
+			spec.NodeSelector = req.NodeSelector
 		}
 		j.Spec.ReplicatedJobs[index] = jobsetutil.MakeReplicatedJob(req.Name).Job(jt).Replicas(req.Replicas).Obj()
 	}

@@ -132,6 +132,11 @@ func (w *WorkloadWrapper) Active(a bool) *WorkloadWrapper {
 	return w
 }
 
+func (w *WorkloadWrapper) PodSets(podSets ...kueue.PodSet) *WorkloadWrapper {
+	w.Spec.PodSets = podSets
+	return w
+}
+
 // PodSetAssignments sets the PodSetAssignments for the workload.
 func (w *WorkloadWrapper) PodSetAssignments(assignments ...kueue.PodSetAssignment) *WorkloadWrapper {
 	if w.Status.Admission == nil {
@@ -141,6 +146,56 @@ func (w *WorkloadWrapper) PodSetAssignments(assignments ...kueue.PodSetAssignmen
 	}
 	w.Status.Admission.PodSetAssignments = assignments
 	return w
+}
+
+func (w *WorkloadWrapper) Admission(admission *kueue.Admission) *WorkloadWrapper {
+	w.Status.Admission = admission
+	return w
+}
+
+type PodSetWrapper struct{ kueue.PodSet }
+
+func MakePodSet(name kueue.PodSetReference) *PodSetWrapper {
+	return &PodSetWrapper{
+		kueue.PodSet{
+			Name:  name,
+			Count: int32(1),
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					RestartPolicy: corev1.RestartPolicyNever,
+					Containers: []corev1.Container{
+						{
+							Name: "c",
+							Resources: corev1.ResourceRequirements{
+								Requests: make(corev1.ResourceList),
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func (p *PodSetWrapper) Clone() *PodSetWrapper {
+	return &PodSetWrapper{PodSet: *p.DeepCopy()}
+}
+
+func (p *PodSetWrapper) Obj() *kueue.PodSet {
+	return &p.PodSet
+}
+
+func (p *PodSetWrapper) Name(name string) *PodSetWrapper {
+	p.PodSet.Name = kueue.PodSetReference(name)
+	return p
+}
+
+func (p *PodSetWrapper) NodeSelector(k, v string) *PodSetWrapper {
+	if p.Template.Spec.NodeSelector == nil {
+		p.Template.Spec.NodeSelector = make(map[string]string)
+	}
+	p.Template.Spec.NodeSelector[k] = v
+	return p
 }
 
 type PodSetAssignmentWrapper struct {
@@ -167,8 +222,17 @@ func (w *PodSetAssignmentWrapper) TopologyAssignment(levels []string, domains []
 	return w
 }
 
-func (w *PodSetAssignmentWrapper) Obj() kueue.PodSetAssignment {
-	return w.PodSetAssignment
+func (w *PodSetAssignmentWrapper) Obj() *kueue.PodSetAssignment {
+	return &w.PodSetAssignment
+}
+
+func (w *PodSetAssignmentWrapper) Clone() *PodSetAssignmentWrapper {
+	return &PodSetAssignmentWrapper{PodSetAssignment: *w.DeepCopy()}
+}
+
+func (w *PodSetAssignmentWrapper) Name(name string) *PodSetAssignmentWrapper {
+	w.PodSetAssignment.Name = kueue.PodSetReference(name)
+	return w
 }
 
 // SliceWrapper wraps a Slice.
@@ -193,6 +257,21 @@ func (s *SliceWrapper) Clone() *SliceWrapper {
 
 func (s *SliceWrapper) Obj() *v1alpha1.Slice {
 	return &s.Slice
+}
+
+func (s *SliceWrapper) Name(name string) *SliceWrapper {
+	s.Slice.Name = name
+	return s
+}
+
+func (s *SliceWrapper) AcceleratorType(acceleratorType string) *SliceWrapper {
+	s.Spec.AcceleratorType = acceleratorType
+	return s
+}
+
+func (s *SliceWrapper) AcceleratorTopology(acceleratorTopology string) *SliceWrapper {
+	s.Spec.AcceleratorTopology = acceleratorTopology
+	return s
 }
 
 func (s *SliceWrapper) ControllerReference(gvk schema.GroupVersionKind, name, uid string) *SliceWrapper {

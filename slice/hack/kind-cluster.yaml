@@ -24,10 +24,15 @@ nodes:
   - role: worker
     labels:
       instance-type: on-demand
+      cloud.google.com/gke-tpu-topology: 2x2x2
+      cloud.google.com/gke-tpu-accelerator: tpu-v4-podslice
+      cloud.google.com/gke-tpu-reservation-subblock: tpu-subblock-1
   - role: worker
     labels:
-      instance-type: spot
-
+      instance-type: on-demand
+      cloud.google.com/gke-tpu-topology: 2x2x2
+      cloud.google.com/gke-tpu-accelerator: tpu-v4-podslice
+      cloud.google.com/gke-nodepool: tpu-v4-pool
 kubeadmConfigPatches:
   - |
     kind: JoinConfiguration

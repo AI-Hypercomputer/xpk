@@ -14,10 +14,10 @@
  limitations under the License.
  -->
 
-[![Build Tests](https://github.com/google/xpk/actions/workflows/build_tests.yaml/badge.svg)](https://github.com/google/xpk/actions/workflows/build_tests.yaml)
-[![Nightly Tests](https://github.com/google/xpk/actions/workflows/nightly_tests.yaml/badge.svg)](https://github.com/google/xpk/actions/workflows/nightly_tests.yaml)
-[![Develop Tests](https://github.com/AI-Hypercomputer/xpk/actions/workflows/build_tests.yaml/badge.svg?branch=develop)](https://github.com/AI-Hypercomputer/xpk/actions/workflows/build_tests.yaml)
-[![Develop Nightly Tests](https://github.com/AI-Hypercomputer/xpk/actions/workflows/nightly_tests.yaml/badge.svg?branch=develop)](https://github.com/AI-Hypercomputer/xpk/actions/workflows/nightly_tests.yaml)
+[![Build Tests](https://github.com/google/xpk/actions/workflows/build_tests.yaml/badge.svg?query=branch%3Amain)](https://github.com/google/xpk/actions/workflows/build_tests.yaml?query=branch%3Amain)
+[![Nightly Tests](https://github.com/google/xpk/actions/workflows/nightly_tests.yaml/badge.svg?query=branch%3Amain)](https://github.com/google/xpk/actions/workflows/nightly_tests.yaml?query=branch%3Amain)
+[![Develop Tests](https://github.com/AI-Hypercomputer/xpk/actions/workflows/build_tests.yaml/badge.svg?query=branch%3Adevelop)](https://github.com/AI-Hypercomputer/xpk/actions/workflows/build_tests.yaml?query=branch%3Adevelop)
+[![Develop Nightly Tests](https://github.com/AI-Hypercomputer/xpk/actions/workflows/nightly_tests.yaml/badge.svg?query=branch%3Adevelop)](https://github.com/AI-Hypercomputer/xpk/actions/workflows/nightly_tests.yaml?query=branch%3Adevelop)
 
 # Overview
 
@@ -464,6 +464,21 @@ Currently, the below flags/arguments are supported for A3 Mega, A3 Ultra and A4 
   * `--spot`
   * `--on-demand` (A3 Mega only)
 
+## Running XPK on existing clusters
+
+In order to run XPK commands on a cluster it needs to be set up correctly. This is done automatically when creating a cluster using `xpk cluster create`. For clusters created differently (e.g.: with 'gcloud' or a Cluster Toolkit blueprint) there is a dedicated command: `xpk cluster adapt`. This command installs required config maps, kueue, jobset, CSI drivers etc.
+
+Currently `xpk cluster adapt` supports only the following device types:
+
+- `h200-141gb-8` (A3 Ultra)
+
+Example usage: 
+```shell
+python3 xpk.py cluster adapt \
+  --cluster=$CLUSTER_NAME --device-type=$DEVICE_TYPE \
+  --zone=$COMPUTE_ZONE  --project=$PROJECT_ID \
+  --num-nodes=$NUM_NODES --reservation=$RESERVATION_ID
+```
 
 ## Storage
 Currently XPK supports the below types of storages:

@@ -14,30 +14,37 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import yaml
 from google.api_core.exceptions import PermissionDenied
 from google.cloud import resourcemanager_v3
 from kubernetes import client as k8s_client
 from kubernetes import config
 from kubernetes.client.exceptions import ApiException
-from .resources import get_cluster_system_characteristics
 
 from ..utils.console import xpk_exit, xpk_print
-from .capacity import H100_DEVICE_TYPE
+from .capacity import B200_DEVICE_TYPE, H100_DEVICE_TYPE, H200_DEVICE_TYPE
 from .commands import (
     run_command_for_value,
     run_command_with_updates,
     run_command_with_updates_retry,
 )
-from .gcloud_context import add_zone_and_project, get_gke_server_config, zone_to_region
+from .gcloud_context import (
+    add_zone_and_project,
+    get_gke_server_config,
+    zone_to_region,
+)
 from .nodepool import upgrade_gke_nodepools_version
+from .resources import get_cluster_system_characteristics
 from .system_characteristics import SystemCharacteristics
 
 JOBSET_VERSION = 'v0.8.0'
-PATHWAYS_JOB_VERSION = 'v0.1.1'
-INSTALLER_NCC_TCPX = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpx/nccl-tcpx-installer.yaml'
-INSTALLER_NCC_TCPXO = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpxo/nccl-tcpxo-installer.yaml'
+PATHWAYS_JOB_VERSION = 'v0.1.2'
+INSTALLER_NCCL_TCPX = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpx/nccl-tcpx-installer.yaml'
+INSTALLER_NCCL_TCPXO = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpxo/nccl-tcpxo-installer.yaml'
+INSTALLER_NCCL_RDMA = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-rdma/nccl-rdma-installer.yaml'
 CONFIG_NCCL_TCPX = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpx/nccl-config.yaml'
 NRI_DEVICE_INJECTOR = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/nri_device_injector/nri-device-injector.yaml'
+MGLRU_DISABLE = 'https://raw.githubusercontent.com/GoogleCloudPlatform/cluster-toolkit/refs/heads/main/examples/gke-a3-ultragpu/mglru-disable.yaml'
 
 DEFAULT_NAMESPACE = 'default'
 XPK_SA = 'xpk-sa'
@@ -114,9 +121,11 @@ def install_nccl_on_cluster(args, system: SystemCharacteristics) -> int:
     0 if successful and 1 otherwise.
   """
   if system.device_type == H100_DEVICE_TYPE:
-    command = f'kubectl apply -f {INSTALLER_NCC_TCPX}'
+    command = f'kubectl apply -f {INSTALLER_NCCL_TCPX}'
+  elif system.device_type in [H200_DEVICE_TYPE, B200_DEVICE_TYPE]:
+    command = f'kubectl apply -f {INSTALLER_NCCL_RDMA}'
   else:
-    command = f'kubectl apply -f {INSTALLER_NCC_TCPXO}'
+    command = f'kubectl apply -f {INSTALLER_NCCL_TCPXO}'
 
   return_code = run_command_with_updates(
       command, 'Install NCCL Plugin On Cluster', args
@@ -144,6 +153,27 @@ def install_nccl_on_cluster(args, system: SystemCharacteristics) -> int:
   return 0
 
 
+def disable_mglru_on_cluster(args) -> int:
+  """Disable MGLRU on the cluster.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  command = f'kubectl apply -f {MGLRU_DISABLE}'
+  return_code = run_command_with_updates(
+      command, 'Disable MGLRU On Cluster', args
+  )
+
+  if return_code != 0:
+    xpk_print('Disablig MGLRU On Cluster request returned ERROR')
+    return 1
+
+  return 0
+
+
 def install_nri_on_cluster(args) -> int:
   """Install NRI Device Injector on the cluster.
 
@@ -167,6 +197,46 @@ def install_nri_on_cluster(args) -> int:
     return 1
 
   return 0
+
+
+def get_cluster_nodes_info(args) -> list[dict]:
+  """Get list of cluster's nodes descrition in yaml format
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    List of nodes info yaml objects.
+  """
+  xpk_print("Getting cluster's info...")
+  command = 'kubectl get nodes -o yaml'
+  err_code, val = run_command_for_value(
+      command=command,
+      task='Get cluster nodes info',
+      global_args=args,
+  )
+  if err_code != 0:
+    xpk_exit(err_code)
+  data = yaml.safe_load(val)
+  return data['items']  # pytype: disable=bad-return-type
+
+
+def count_nodes_on_cluster(args, system: SystemCharacteristics) -> int:
+  """Count cluster nodes by accelerator type"""
+  nodes_info = get_cluster_nodes_info(args)
+  accelerators = [
+      node['metadata']['labels']['cloud.google.com/gke-accelerator']
+      for node in nodes_info
+      if 'cloud.google.com/gke-accelerator' in node['metadata']['labels']
+  ]
+  if system.device_type != H200_DEVICE_TYPE:
+    xpk_print(
+        'Automatic node detection is not supported for device type:'
+        f' {system.device_type}'
+    )
+    xpk_exit(1)
+  num_nodes: int = sum(acc == system.gke_accelerator for acc in accelerators)
+  return num_nodes
 
 
 def get_cluster_network(args) -> str:
@@ -353,6 +423,19 @@ def get_gpu_type_from_cluster(args) -> str:
   return ''
 
 
+def setup_k8s_service_accounts() -> None:
+  """
+  Creates/sets up SAs and the roles for them
+  """
+  default_sa = 'default'
+
+  create_xpk_k8s_service_account()
+
+  role_name = create_pod_reader_role()
+  create_role_binding(default_sa, role_name)
+  create_role_binding(XPK_SA, role_name)
+
+
 def create_xpk_k8s_service_account() -> None:
   k8s_core_client = k8s_client.CoreV1Api()
   sa = k8s_client.V1ServiceAccount(
@@ -369,6 +452,94 @@ def create_xpk_k8s_service_account() -> None:
     xpk_print(
         f'Service account: {XPK_SA} already exists. Skipping its creation'
     )
+
+
+def create_pod_reader_role() -> str:
+  """
+  Creates the 'pod-reader' Role in the default namespace.
+  """
+  k8s_rbac_client = k8s_client.RbacAuthorizationV1Api()
+  role_name = 'pod-reader'
+
+  role = k8s_client.V1Role(
+      metadata=k8s_client.V1ObjectMeta(
+          name=role_name, namespace=DEFAULT_NAMESPACE
+      ),
+      rules=[
+          k8s_client.V1PolicyRule(
+              api_groups=[''],
+              resources=['pods', 'services'],
+              verbs=['get', 'list', 'watch'],
+          ),
+          k8s_client.V1PolicyRule(
+              api_groups=['batch'],
+              resources=['jobs'],
+              verbs=['get', 'list', 'watch'],
+          ),
+      ],
+  )
+
+  xpk_print(
+      f'Attempting to create Role: {role_name} in namespace:'
+      f' {DEFAULT_NAMESPACE}'
+  )
+  try:
+    k8s_rbac_client.create_namespaced_role(DEFAULT_NAMESPACE, role, pretty=True)
+    xpk_print(f'Successfully created Role: {role_name}')
+    return role_name
+  except ApiException as e:
+    if e.status == 409:  # Conflict, meaning it already exists
+      xpk_print(f'Role: {role_name} already exists. Skipping its creation.')
+      return role_name
+    else:
+      xpk_print(f'Error creating Role {role_name}: {e}')
+      xpk_exit(1)
+
+
+def create_role_binding(sa: str, role_name: str) -> None:
+  """
+  Creates a RoleBinding to associate the Service Account
+  with the Role in the default namespace.
+  Assumes the Service Account and the Role already exist.
+  """
+  k8s_rbac_client = k8s_client.RbacAuthorizationV1Api()
+  role_binding_name = f'{sa}-{role_name}-binding'
+
+  role_binding = k8s_client.V1RoleBinding(
+      metadata=k8s_client.V1ObjectMeta(
+          name=role_binding_name, namespace=DEFAULT_NAMESPACE
+      ),
+      subjects=[
+          k8s_client.RbacV1Subject(
+              kind='ServiceAccount', name=sa, namespace=DEFAULT_NAMESPACE
+          )
+      ],
+      role_ref=k8s_client.V1RoleRef(
+          kind='Role', name=role_name, api_group='rbac.authorization.k8s.io'
+      ),
+  )
+
+  xpk_print(
+      f'Attempting to create RoleBinding: {role_binding_name} for Service'
+      f' Account: {XPK_SA} to Role: {role_name} in namespace:'
+      f' {DEFAULT_NAMESPACE}'
+  )
+  try:
+    k8s_rbac_client.create_namespaced_role_binding(
+        DEFAULT_NAMESPACE, role_binding, pretty=True
+    )
+    xpk_print(
+        f'Successfully created RoleBinding: {role_binding_name} for {XPK_SA}'
+    )
+  except ApiException as e:
+    if e.status == 409:  # Conflict, meaning it already exists
+      xpk_print(
+          f'RoleBinding: {role_binding_name} already exists. Skipping its'
+          ' creation.'
+      )
+    else:
+      xpk_print(f'Error creating RoleBinding {role_binding_name}: {e}')
+      xpk_exit(1)
 
 
 def update_gke_cluster_with_clouddns(args) -> int:

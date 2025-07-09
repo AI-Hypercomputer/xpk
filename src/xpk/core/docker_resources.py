@@ -129,7 +129,7 @@ def get_gpu_env(args, system) -> str:
       args=args,
       chips_per_vm=system.chips_per_vm,
       gpu_direct_name=gpu_direct_name,
-      custom_envs=format_env_dict(args.env),
+      custom_envs=format_env_dict(args.env, system),
   )
 
 

@@ -123,7 +123,7 @@ def get_gpu_env(args, system) -> str:
       ),
   }
 
-  args.env |= gpu_env_dic
+  args.env = gpu_env_dic | args.env
 
   return gpu_env_yaml.format(
       args=args,
@@ -169,7 +169,7 @@ def get_cpu_env(args, system) -> str:
       ),
   }
 
-  args.env |= cpu_env_dic
+  args.env = cpu_env_dic | args.env
 
   return yaml.format(custom_envs=format_env_dict(args.env, system))
 

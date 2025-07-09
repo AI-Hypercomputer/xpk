@@ -129,6 +129,8 @@ spec:
                 {storage_annotations}
             spec:
               schedulerName: {args.scheduler}
+              imagePullSecrets:
+              - name: {args.docker_image_pull_secret}
               restartPolicy: Never
               {affinity}
               nodeSelector:
@@ -181,6 +183,8 @@ spec:
               {gpu_scheduler}
               priorityClassName: {args.priority}
               restartPolicy: Never
+              imagePullSecrets:
+              - name: {args.docker_image_pull_secret}
               hostNetwork: true
               dnsPolicy: ClusterFirstWithHostNet
               terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
@@ -224,6 +228,8 @@ spec:
             spec:
               priorityClassName: {args.priority}
               restartPolicy: Never
+              imagePullSecrets:
+              - name: {args.docker_image_pull_secret}
               dnsPolicy: ClusterFirstWithHostNet
               terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
               serviceAccountName: {service_account}

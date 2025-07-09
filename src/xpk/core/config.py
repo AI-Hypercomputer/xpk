@@ -20,7 +20,6 @@ import ruamel.yaml
 
 from ..utils import file
 from ..utils.console import xpk_print
-from .system_characteristics import AcceleratorType, SystemCharacteristics
 
 # This is the version for XPK PyPI package
 __version__ = 'v0.8.0'

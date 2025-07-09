@@ -98,7 +98,10 @@ def get_capacity_type(args) -> tuple[CapacityType, int]:
 
   return capacity_type, return_code
 
-def get_reservation_maintenance_interval(reservation: str, zone: str, project: str) -> str:
+
+def get_reservation_maintenance_interval(
+    reservation: str, zone: str, project: str
+) -> str:
   """Get reservation maintenance interval.
 
   Args:
@@ -111,13 +114,18 @@ def get_reservation_maintenance_interval(reservation: str, zone: str, project: s
       f'gcloud beta compute reservations describe {reservation}'
       f' --project={project} --zone={zone} --format="value(specificReservation.instanceProperties.maintenanceInterval)"'
   )
-  return_code, output = run_command_for_value(command, 'Get reservation maintenance interval', None)
+  return_code, output = run_command_for_value(
+      command, 'Get reservation maintenance interval', None
+  )
   if return_code != 0:
     xpk_print(f'Get reservation maintenance interval ERROR {return_code}')
-    return ""
+    return ''
   return output.strip()
 
-def get_reservation_placement_policy(reservation: str, zone: str, project: str) -> str:
+
+def get_reservation_placement_policy(
+    reservation: str, zone: str, project: str
+) -> str:
   """Get reservation maintenance interval.
 
   Args:
@@ -130,11 +138,14 @@ def get_reservation_placement_policy(reservation: str, zone: str, project: str) 
       f'gcloud beta compute reservations describe {reservation}'
       f' --project={project} --zone={zone} --format="value(resourcePolicies.policy)"'
   )
-  return_code, output = run_command_for_value(command, 'Get reservation placement policy', None)
+  return_code, output = run_command_for_value(
+      command, 'Get reservation placement policy', None
+  )
   if return_code != 0:
     xpk_print(f'Get reservation placement policy ERROR {return_code}')
-    return ""
+    return ''
   return output.strip()
+
 
 def verify_reservation_exists(args) -> int:
   """Verify the reservation exists.

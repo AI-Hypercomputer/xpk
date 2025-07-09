@@ -52,7 +52,6 @@ deployment_groups:
     source: modules/scheduler/gke-cluster
     use: [network1, gpunets]
     settings:
-      release_channel: RAPID
       prefix_with_deployment_name: false
       name_suffix: bar
       enable_private_endpoint: false
@@ -78,17 +77,21 @@ deployment_groups:
     settings:
       name: bar-a3-megagpu-pool-0
       machine_type: a3-megagpu-8g
+      guest_accelerator: 
+      - type: nvidia-h100-mega-80gb
+        count: 8
+        gpu_driver_installation_config:
+          gpu_driver_version: DEFAULT
       static_node_count: 2
       zones: [us-central1-c]
-      host_maintenance_interval:
+      host_maintenance_interval: ''
+      placement_policy:
       reservation_affinity:
         consume_reservation_type: SPECIFIC_RESERVATION
         specific_reservations:
         - name: test-reservation
       run_workload_script: false
       spot: false
-      max_pods_per_node : 32
-      auto_upgrade: true
     outputs: [instructions]
 
   - !DeploymentModule

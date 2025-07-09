@@ -178,13 +178,28 @@ class BlueprintGenerator:
             "group_placement_max_distance": group_placement_max_distance,
         },
     )
-    maintenance_interval = get_reservation_maintenance_interval(reservation, zone, project_id) if reservation != None else "PERIODIC"
-    placement_policy_name = get_reservation_placement_policy(reservation, zone, project_id) if reservation != None else None
-    placement_policy = {
-      "type": "COMPACT",
-      "name": placement_policy_name.split("/")[-1]
-    }
-    xpk_print(f"Maintenance interval for reservation {reservation} is {maintenance_interval}")
+    maintenance_interval = (
+        get_reservation_maintenance_interval(reservation, zone, project_id)
+        if reservation is not None
+        else "PERIODIC"
+    )
+    placement_policy_name = (
+        get_reservation_placement_policy(reservation, zone, project_id)
+        if reservation is not None
+        else None
+    )
+    placement_policy = (
+        {
+            "type": "COMPACT",
+            "name": placement_policy_name.split("/")[-1],
+        }
+        if placement_policy_name is not None
+        else ""
+    )
+    xpk_print(
+        f"Maintenance interval for reservation {reservation} is"
+        f" {maintenance_interval}"
+    )
     a3_megagpu_pool_0 = DeploymentModule(
         id="a3_megagpu_pool_0",
         source="modules/compute/gke-node-pool",
@@ -192,11 +207,19 @@ class BlueprintGenerator:
         settings={
             "name": f"{cluster_name}-a3-megagpu-pool-0",
             "machine_type": system.gce_machine_type,
-            "guest_accelerator": [{"type":"nvidia-h100-mega-80gb", "count": 8, "gpu_driver_installation_config": {"gpu_driver_version": "DEFAULT"}}],
+            "guest_accelerator": [{
+                "type": "nvidia-h100-mega-80gb",
+                "count": 8,
+                "gpu_driver_installation_config": {
+                    "gpu_driver_version": "DEFAULT"
+                },
+            }],
             "static_node_count": num_nodes,
             "zones": [zone],
             "host_maintenance_interval": maintenance_interval,
-            "placement_policy": placement_policy if placement_policy_name != "" else None,
+            "placement_policy": (
+                placement_policy if placement_policy_name != "" else None
+            ),
             "reservation_affinity": self._getblock_reservation_affinity(
                 reservation
             ),

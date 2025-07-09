@@ -182,7 +182,7 @@ class BlueprintGenerator:
     placement_policy_name = get_reservation_placement_policy(reservation, zone, project_id) if reservation != None else None
     placement_policy = {
       "type": "COMPACT",
-      "name": placement_policy_name
+      "name": placement_policy_name.split("/")[-1]
     }
     xpk_print(f"Maintenance interval for reservation {reservation} is {maintenance_interval}")
     a3_megagpu_pool_0 = DeploymentModule(
@@ -265,7 +265,7 @@ class BlueprintGenerator:
         ],
     )
 
-    if set_placement_policy and placement_policy_name != "":
+    if set_placement_policy and placement_policy_name == "":
       a3_megagpu_pool_0.use.append(group_placement_0.id)
       primary_group.modules.append(group_placement_0)
 

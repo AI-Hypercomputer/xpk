@@ -185,7 +185,7 @@ def format_env_dict(env, system: SystemCharacteristics) -> str:
   return ''.join(env_format.format(key=k, value=v) for k, v in env.items())
 
 
-def parse_env_config(args, tensorboard_config, system: SystemCharacteristics):
+def parse_env_config(args, tensorboard_config):
   """Parses the environment configurations to the a dictionary.
 
   Args:

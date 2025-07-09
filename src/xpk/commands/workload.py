@@ -349,7 +349,7 @@ def workload_create(args) -> None:
     if not tensorboard_config:
       xpk_exit(1)
 
-  parse_env_config(args, tensorboard_config, system)
+  parse_env_config(args, tensorboard_config)
 
   autoprovisioning_args = ''
   autoprovisioning_enabled, return_code = is_autoprovisioning_enabled(

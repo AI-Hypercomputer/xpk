@@ -27,16 +27,12 @@ from ..core.cluster import (
     setup_k8s_env,
 )
 from ..core.commands import run_command_with_updates, run_commands
-from ..core.config import (
-    VERTEX_TENSORBOARD_FEATURE_FLAG,
-    XPK_CURRENT_VERSION,
-    parse_env_config,
-)
+from ..core.config import (VERTEX_TENSORBOARD_FEATURE_FLAG, XPK_CURRENT_VERSION)
 from ..core.docker_container import (
     get_main_container_docker_image,
     get_user_workload_container,
 )
-from ..core.docker_resources import get_volumes
+from ..core.docker_resources import get_volumes, parse_env_config
 from ..core.gcloud_context import add_zone_and_project
 from ..core.kueue import LOCAL_QUEUE_NAME
 from ..core.monitoring import get_gke_outlier_dashboard

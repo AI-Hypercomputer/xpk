@@ -114,7 +114,6 @@ def get_reservation_maintenance_interval(reservation: str, zone: str, project: s
   return_code, output = run_command_for_value(command, 'Get reservation maintenance interval', None)
   if return_code != 0:
     xpk_print(f'Get reservation maintenance interval ERROR {return_code}')
-    xpk_print('Please confirm that your reservation name is correct.')
     return ""
   return output.strip()
 
@@ -134,7 +133,6 @@ def get_reservation_placement_policy(reservation: str, zone: str, project: str) 
   return_code, output = run_command_for_value(command, 'Get reservation placement policy', None)
   if return_code != 0:
     xpk_print(f'Get reservation placement policy ERROR {return_code}')
-    xpk_print('Please confirm that your reservation name is correct.')
     return ""
   return output.strip()
 

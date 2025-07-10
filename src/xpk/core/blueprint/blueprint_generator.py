@@ -193,7 +193,7 @@ class BlueprintGenerator:
             "type": "COMPACT",
             "name": placement_policy_name.split("/")[-1],
         }
-        if placement_policy_name is not None
+        if placement_policy_name is not None and len(placement_policy_name) > 0
         else None
     )
     xpk_print(

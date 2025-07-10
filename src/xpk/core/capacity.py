@@ -126,7 +126,7 @@ def get_reservation_maintenance_interval(
 def get_reservation_placement_policy(
     reservation: str, zone: str, project: str
 ) -> str:
-  """Get reservation maintenance interval.
+  """Get reservation placement policy.
 
   Args:
     args: user provided arguments for running the command.

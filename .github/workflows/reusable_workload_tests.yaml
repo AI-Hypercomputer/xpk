@@ -84,7 +84,8 @@ jobs:
     - name: List out the workloads on the cluster
       run: python3 xpk.py workload list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}
     - name: Create a kubectl secret to use with private images
-    - run: kubectl create secret docker-registry gcr-key \
+      run: | 
+        kubectl create secret docker-registry gcr-key \
         --docker-server=${{secrets.DOCKER_REPO_SERVER}}ubuntu2004 \
         --docker-username=_json_key \
         --docker-password=${{ secrets.GCP_SA_KEY }} \

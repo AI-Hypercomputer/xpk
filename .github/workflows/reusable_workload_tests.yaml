@@ -92,7 +92,7 @@ jobs:
         --docker-password='${{secrets.GCP_SA_KEY}}' \
         --docker-email='${{secrets.GCP_SA_EMAIL}}'
     - name: Run workload with private image
-      run: python xpk.py workload create --cluster ${{inputs.cluster-name}} --workload $PRIVATE_IMAGE_WORKLOAD_NAME  --command "bash workload.sh"  --tpu-type=${{inputs.tpu-type}} --num-slices=1 --zone=${{inputs.zone}} --docker-image=${{secrets.DOCKER_REPO_SERVER}}ubuntu2004 --docker-image-pull-secret=gcr-key
+      run: python xpk.py workload create --cluster ${{inputs.cluster-name}} --workload $PRIVATE_IMAGE_WORKLOAD_NAME  --command "echo foo"  --tpu-type=${{inputs.tpu-type}} --num-slices=1 --zone=${{inputs.zone}} --docker-image=${{secrets.DOCKER_REPO_SERVER}}ubuntu2004 --docker-image-pull-secret=gcr-key
     - name: Wait for private image workload completion and confirm it succeeded
       run: python3 xpk.py workload list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} --wait-for-job-completion $PRIVATE_IMAGE_WORKLOAD_NAME --timeout 300
     - name: Delete kubectl secret

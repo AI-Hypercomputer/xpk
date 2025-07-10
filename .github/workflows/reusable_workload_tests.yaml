@@ -83,6 +83,14 @@ jobs:
       run: python3 xpk.py workload list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} --wait-for-job-completion $PATHWAYS_WORKLOAD_NAME --timeout 300
     - name: List out the workloads on the cluster
       run: python3 xpk.py workload list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}
+    - name: Create a kubectl secret to use with private images
+    - run: kubectl create secret docker-registry gcr-key \
+        --docker-server=${{secrets.DOCKER_REPO_SERVER}}ubuntu2004 \
+        --docker-username=_json_key \
+        --docker-password=${{ secrets.GCP_SA_KEY }} \
+        --docker-email=${{secrets.GCP_SA_EMAIL}}
+    - name: Run workload with private image
+      run: python xpk.py workload create --cluster ${{inputs.cluster-name}} --workload $WORKLOAD_NAME  --command "bash workload.sh"  --tpu-type=${{inputs.tpu-type}} --num-slices=1 --zone=${{inputs.zone}} --docker-image=${{secrets.DOCKER_REPO_SERVER}}ubuntu2004 --docker-image-pull-secret=gcr-key
     - name: Run xpk info
       run: python3 xpk.py info --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} | tee output.txt | grep -P "^(?=.*QUEUE)(?=.*PENDING_WORKLOADS)(?=.*ADMITTED_WORKLOADS)(?=.*1x${{inputs.tpu-type}}:google.com/tpu)(?=.*cpu-user:cpu)(?=.*cpu-user:memory)" || (echo 'Invalid command output' && cat output.txt && exit 1)
     - name: Delete the workload on the cluster

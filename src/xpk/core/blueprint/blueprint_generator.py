@@ -194,7 +194,7 @@ class BlueprintGenerator:
             "name": placement_policy_name.split("/")[-1],
         }
         if placement_policy_name is not None
-        else ""
+        else None
     )
     xpk_print(
         f"Maintenance interval for reservation {reservation} is"
@@ -217,9 +217,6 @@ class BlueprintGenerator:
             "static_node_count": num_nodes,
             "zones": [zone],
             "host_maintenance_interval": maintenance_interval,
-            "placement_policy": (
-                placement_policy if placement_policy_name != "" else None
-            ),
             "reservation_affinity": self._getblock_reservation_affinity(
                 reservation
             ),
@@ -287,6 +284,8 @@ class BlueprintGenerator:
             workload_configmap,
         ],
     )
+    if placement_policy is not None:
+      a3_megagpu_pool_0.settings["placement_policy"] = placement_policy
 
     if set_placement_policy and placement_policy_name == "":
       a3_megagpu_pool_0.use.append(group_placement_0.id)

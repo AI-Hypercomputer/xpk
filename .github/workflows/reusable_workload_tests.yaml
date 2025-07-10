@@ -89,7 +89,7 @@ jobs:
         --docker-server=${{secrets.DOCKER_REPO_SERVER}}ubuntu2004 \
         --docker-username=_json_key \
         --docker-password='${{secrets.GCP_SA_KEY}}' \
-        --docker-email='${{secrets.GCP_SA_EMAIL}}''
+        --docker-email='${{secrets.GCP_SA_EMAIL}}'
     - name: Run workload with private image
       run: python xpk.py workload create --cluster ${{inputs.cluster-name}} --workload $WORKLOAD_NAME  --command "bash workload.sh"  --tpu-type=${{inputs.tpu-type}} --num-slices=1 --zone=${{inputs.zone}} --docker-image=${{secrets.DOCKER_REPO_SERVER}}ubuntu2004 --docker-image-pull-secret=gcr-key
     - name: Wait for private image workload completion and confirm it succeeded

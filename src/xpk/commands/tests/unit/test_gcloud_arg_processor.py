@@ -1,13 +1,20 @@
+"""Unit tests for the gcloud_arg_parser module in xpk.commands."""
+
 import unittest
-from ...cluster import process_gcloud_args
+from src.xpk.commands.cluster import process_gcloud_args
+
 
 class TestProcessGcloudArgs(unittest.TestCase):
+  """Tests the process_gcloud_args function from the cluster module."""
 
   def test_add_new_argument(self):
     final_args = {'--existing-key': 'existing-value'}
     user_args = {'--new-key': 'new-value'}
     process_gcloud_args(user_args, final_args)
-    self.assertEqual(final_args, {'--existing-key': 'existing-value', '--new-key': 'new-value'})
+    self.assertEqual(
+        final_args,
+        {'--existing-key': 'existing-value', '--new-key': 'new-value'},
+    )
 
   def test_override_existing_argument(self):
     final_args = {'--common-key': 'old-value'}
@@ -20,14 +27,14 @@ class TestProcessGcloudArgs(unittest.TestCase):
     user_args = {'--no-enable-logging': True}
     process_gcloud_args(user_args, final_args)
     self.assertEqual(final_args, {'--no-enable-logging': True})
-    self.assertNotIn('--enable-logging', final_args) 
+    self.assertNotIn('--enable-logging', final_args)
 
   def test_enable_flag_overrides_no_enable(self):
     final_args = {'--no-enable-monitoring': True}
     user_args = {'--enable-monitoring': True}
     process_gcloud_args(user_args, final_args)
     self.assertEqual(final_args, {'--enable-monitoring': True})
-    self.assertNotIn('--no-enable-monitoring', final_args) 
+    self.assertNotIn('--no-enable-monitoring', final_args)
 
   def test_no_conflict(self):
     final_args = {'--param1': 'value1'}
@@ -46,25 +53,30 @@ class TestProcessGcloudArgs(unittest.TestCase):
         '--zone': 'us-east1-b',
         '--enable-ip-alias': True,
         '--machine-type': 'n1-standard-4',
-        '--no-enable-public-ip': True # This will be removed if --enable-public-ip is set
+        '--no-enable-public-ip': (
+            True  # This will be removed if --enable-public-ip is set
+        ),
     }
     user_args = {
-        '--zone': 'us-central1-a', # Overrides
-        '--no-enable-ip-alias': True,      # Overrides --enable-ip-alias
-        '--disk-size': '200GB',     # New
-        '--enable-public-ip': True # Overrides --no-enable-public-ip
+        '--zone': 'us-central1-a',  # Overrides
+        '--no-enable-ip-alias': True,  # Overrides --enable-ip-alias
+        '--disk-size': '200GB',  # New
+        '--enable-public-ip': True,  # Overrides --no-enable-public-ip
     }
     process_gcloud_args(user_args, final_args)
-    self.assertEqual(final_args, {
-        '--zone': 'us-central1-a',
-        '--no-enable-ip-alias': True,
-        '--machine-type': 'n1-standard-4', # Not affected
-        '--disk-size': '200GB',
-        '--enable-public-ip': True
-    })
+    self.assertEqual(
+        final_args,
+        {
+            '--zone': 'us-central1-a',
+            '--no-enable-ip-alias': True,
+            '--machine-type': 'n1-standard-4',  # Not affected
+            '--disk-size': '200GB',
+            '--enable-public-ip': True,
+        },
+    )
     self.assertNotIn('--enable-ip-alias', final_args)
     self.assertNotIn('--no-enable-public-ip', final_args)
-    
+
   def test_disable_flag_is_added(self):
     """
     Tests that a --disable- flag from user_args is simply added to final_args
@@ -73,17 +85,16 @@ class TestProcessGcloudArgs(unittest.TestCase):
     final_args = {'--existing-flag': 'value'}
     user_args = {'--disable-dataplane-v2': True}
     process_gcloud_args(user_args, final_args)
-    self.assertEqual(final_args, {
-        '--existing-flag': 'value',
-        '--disable-dataplane-v2': True
-    })
+    self.assertEqual(
+        final_args, {'--existing-flag': 'value', '--disable-dataplane-v2': True}
+    )
 
   def test_enable_flag_overrides_disable(self):
     """
     Tests that an --enable- flag from user_args overrides a --disable- flag
     present in final_args.
     """
-    final_args = {'--disable-logging': True} # Existing disable flag
+    final_args = {'--disable-logging': True}  # Existing disable flag
     user_args = {'--enable-logging': True}  # User wants to enable
     process_gcloud_args(user_args, final_args)
     self.assertEqual(final_args, {'--enable-logging': True})
@@ -100,6 +111,7 @@ class TestProcessGcloudArgs(unittest.TestCase):
     process_gcloud_args(user_args, final_args)
     self.assertEqual(final_args, {'--disable-some-feature': True})
     self.assertNotIn('--enable-some-feature', final_args)
+
 
 if __name__ == '__main__':
   # Run python3 -m src.xpk.commands.tests.unit.test_gcloud_arg_processor under the xpk folder.

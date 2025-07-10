@@ -77,6 +77,7 @@ from . import cluster_gcluster
 from .common import set_cluster_command
 import shlex
 
+
 def cluster_adapt(args) -> None:
   """Function that performs cluster adaptation.
 
@@ -789,6 +790,7 @@ def run_gke_clusters_list_command(args) -> int:
 
   return 0
 
+
 def parse_command_args_to_dict(arg_string: str) -> dict:
   """Parses a command-line argument string into a dictionary of parameters.
 
@@ -812,27 +814,28 @@ def parse_command_args_to_dict(arg_string: str) -> dict:
 
   tokens = shlex.split(arg_string)
   # After shlex.split: Print the tokens list
-  xpk_print(f"Shlex-split tokens: {tokens}")
+  xpk_print(f'Shlex-split tokens: {tokens}')
   i = 0
   while i < len(tokens):
     token = tokens[i]
     if token.startswith('--'):
-      if '=' in token: 
+      if '=' in token:
         key, value = token.split('=', 1)
         parsed_args[key] = value
-      else: 
-        if i + 1 < len(tokens) and not tokens[i+1].startswith('--'):
-          parsed_args[token] = tokens[i+1]
-          i += 1 
-        else: 
-            parsed_args[token] = True 
-    elif token.startswith('-'): 
+      else:
+        if i + 1 < len(tokens) and not tokens[i + 1].startswith('--'):
+          parsed_args[token] = tokens[i + 1]
+          i += 1
+        else:
+          parsed_args[token] = True
+    elif token.startswith('-'):
       pass
     i += 1
   # After parsing: Print the final parsed dictionary
-  xpk_print(f"Final parsed_args: {parsed_args}")
-  xpk_print(f"-------------------------------------------")
+  xpk_print(f'Final parsed_args: {parsed_args}')
+  xpk_print('-------------------------------------------')
   return parsed_args
+
 
 def process_gcloud_args(user_parsed_args, final_gcloud_args):
   """
@@ -883,29 +886,28 @@ def run_gke_cluster_create_command(
   machine_type = args.default_pool_cpu_machine_type
   if args.cluster_cpu_machine_type != '':
     xpk_print(
-      'Warning: Note that cluster-cpu-machine-type is soon to be',
-      ' deprecated. Please use --default-pool-cpu-machine-type instead,'
-      ' to denote the machine type of the default cpu node pool. Set'
-      ' the machine type of other cpu nodepools using `--device-type`.',
+        'Warning: Note that cluster-cpu-machine-type is soon to be',
+        ' deprecated. Please use --default-pool-cpu-machine-type instead,'
+        ' to denote the machine type of the default cpu node pool. Set'
+        ' the machine type of other cpu nodepools using `--device-type`.',
     )
     machine_type = args.cluster_cpu_machine_type
 
   final_gcloud_args = {}
-  
   final_gcloud_args['--project'] = args.project
   final_gcloud_args['--region'] = zone_to_region(args.zone)
   final_gcloud_args['--node-locations'] = args.zone
   final_gcloud_args['--cluster-version'] = gke_control_plane_version
   final_gcloud_args['--machine-type'] = machine_type
-  final_gcloud_args['--enable-autoscaling'] = True 
+  final_gcloud_args['--enable-autoscaling'] = True
   final_gcloud_args['--total-min-nodes'] = 1
   final_gcloud_args['--total-max-nodes'] = 1000
   final_gcloud_args['--num-nodes'] = args.default_pool_cpu_num_nodes
-  final_gcloud_args['--enable-dns-access'] = True 
+  final_gcloud_args['--enable-dns-access'] = True
   # This value is from here: https://cloud.google.com/kubernetes-engine/docs/how-to/legacy/network-isolation
-  final_gcloud_args['--master-ipv4-cidr'] = '172.16.0.32/28' 
+  final_gcloud_args['--master-ipv4-cidr'] = '172.16.0.32/28'
   # This value is from here https://cloud.google.com/vpc/docs/subnets
-  final_gcloud_args['--cluster-ipv4-cidr'] = '10.224.0.0/12' 
+  final_gcloud_args['--cluster-ipv4-cidr'] = '10.224.0.0/12'
 
   if args.gke_version is not None:
     final_gcloud_args['--release-channel'] = 'rapid'
@@ -915,21 +917,21 @@ def run_gke_cluster_create_command(
   if args.private or args.authorized_networks is not None:
     conditional_params['--enable-master-authorized-networks'] = True
     conditional_params['--enable-private-nodes'] = True
-    conditional_params['--enable-ip-alias'] = True 
+    conditional_params['--enable-ip-alias'] = True
 
   if system.accelerator_type == AcceleratorType['GPU']:
     conditional_params['--enable-dataplane-v2'] = True
     conditional_params['--enable-multi-networking'] = True
-    conditional_params['--no-enable-autoupgrade'] = True 
-    conditional_params['--enable-ip-alias'] = True 
+    conditional_params['--no-enable-autoupgrade'] = True
+    conditional_params['--enable-ip-alias'] = True
   else:
     conditional_params['--location-policy'] = 'BALANCED'
     conditional_params['--scopes'] = 'storage-full,gke-default'
     if args.enable_pathways:
-      conditional_params['--enable-ip-alias'] = True 
+      conditional_params['--enable-ip-alias'] = True
 
   if args.enable_ray_cluster:
-    conditional_params['--addons'] = 'RayOperator' 
+    conditional_params['--addons'] = 'RayOperator'
 
   if args.enable_workload_identity or args.enable_gcsfuse_csi_driver:
     conditional_params['--workload-pool'] = f'{args.project}.svc.id.goog'
@@ -951,30 +953,30 @@ def run_gke_cluster_create_command(
     addons.append('HighScaleCheckpointing')
 
   if len(addons) > 0:
-    conditional_params['--addons'] = ','.join(addons) 
+    conditional_params['--addons'] = ','.join(addons)
 
   for key, value in conditional_params.items():
-    if key not in final_gcloud_args: 
+    if key not in final_gcloud_args:
       final_gcloud_args[key] = value
-    elif key == '--addons' and key in final_gcloud_args: 
-      final_gcloud_args[key] = ','.join(list(set(final_gcloud_args[key].split(',') + value.split(','))))
+    elif key == '--addons' and key in final_gcloud_args:
+      final_gcloud_args[key] = ','.join(
+          list(set(final_gcloud_args[key].split(',') + value.split(',')))
+      )
 
   user_parsed_args = parse_command_args_to_dict(args.custom_cluster_arguments)
   process_gcloud_args(user_parsed_args, final_gcloud_args)
 
   command_parts = ['gcloud beta container clusters create', args.cluster]
-  
   for key, value in final_gcloud_args.items():
     if value is True:
       command_parts.append(key)
-    elif value is False: 
-      pass 
-    elif value is not None and value != '':
+    elif value is False:
+      pass
+    elif value is not None and value != ' ':
       if ' ' in str(value):
-        command_parts.append(f"{key}=\"{value}\"")
+        command_parts.append(f'{key}="{value}"')
       else:
-        command_parts.append(f"{key}={value}")
-  
+        command_parts.append(f'{key}={value}')
   command = ' '.join(command_parts)
 
   return_code = run_command_with_updates(command, 'GKE Cluster Create', args)

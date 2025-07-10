@@ -222,8 +222,6 @@ class BlueprintGenerator:
             ),
             "run_workload_script": False,
             "spot": capacity_type == CapacityType.SPOT,
-            # "max_pods_per_node": 32,
-            # "auto_upgrade": True,
         },
         outputs=["instructions"],
     )

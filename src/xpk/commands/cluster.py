@@ -869,15 +869,6 @@ def cleanup_coredns_repo(coredns_repo_full_path: str):
 def update_coredns(args):
   """Updates and deploys CoreDNS within a cluster.
 
-  This function performs the following steps:
-  1. Installs 'jq'.
-  2. Clones the CoreDNS deployment repository from GitHub if it doesn't already exist.
-  3. Deploys CoreDNS to the cluster.
-  4. Scales down the 'kube-dns-autoscaler' and 'kube-dns' deployments.
-  5. Scales up the 'coredns' deployment to 15 replicas.
-  6. Waits for kube-dns to scale down and coredns to be ready using kubectl wait.
-  7. Cleans up the cloned repository.
-
   Args:
     args: user provided arguments for running the command.
 

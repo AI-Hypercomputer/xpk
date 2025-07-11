@@ -100,7 +100,7 @@ deployment_groups:
     settings:
       kueue:
         install: true
-        version: "v0.12.1"
+        version: "v0.12.2"
         config_path: $(ghpc_stage("xpk-gke-a3-megagpu"))/kueue-xpk-configuration.yaml.tftpl
         config_template_vars:
           num_chips: 16

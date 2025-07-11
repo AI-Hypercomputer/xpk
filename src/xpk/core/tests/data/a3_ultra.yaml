@@ -132,8 +132,6 @@ deployment_groups:
       zones: [us-central1-c]
       spot: false
       max_pods_per_node: 32
-      enable_flex_start: false
-      enable_queued_provisioning: false
       guest_accelerator:
       - type: nvidia-h200-141gb
         count: 8

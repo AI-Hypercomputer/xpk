@@ -79,7 +79,6 @@ deployment_groups:
     settings:
       name: bar-a3-megagpu-pool-0
       machine_type: a3-megagpu-8g
-      static_node_count: 2
       zones: [us-central1-c]
       host_maintenance_interval: PERIODIC
       reservation_affinity:
@@ -88,9 +87,13 @@ deployment_groups:
       run_workload_script: false
       spot: true
       max_pods_per_node : 32
-      enable_flex_start: false
-      enable_queued_provisioning: false
+      guest_accelerator:
+      - type: nvidia-h100-mega-80gb
+        count: 8
+        gpu_driver_installation_config:
+          gpu_driver_version: "LATEST"
       auto_upgrade: true
+      static_node_count: 2
     outputs: [instructions]
 
   - !DeploymentModule
@@ -105,7 +108,6 @@ deployment_groups:
         config_template_vars:
           num_chips: 16
           flex_start: 0
-          tas_name: ""
       jobset:
         install: true
         version: v0.7.2

@@ -146,8 +146,6 @@ deployment_groups:
         specific_reservations:
         - name: test-reservation
       max_pods_per_node: 32
-      enable_flex_start: false
-      enable_queued_provisioning: false
       guest_accelerator:
       - type: nvidia-b200
         count: 8

@@ -15,8 +15,19 @@ metadata:
   name: "1xh100-mega-80gb-8"
 spec:
   nodeLabels:
-    cloud.google.com/gke-accelerator: nvidia-h100-mega-80gb
-  ${tas_name}
+    cloud.google.com/gke-accelerator: "nvidia-h100-mega-80gb"
+  %{~ if flex_start==0 ~}
+  topologyName: "gke-default"
+  %{ endif }
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ProvisioningRequestConfig
+metadata:
+  name: dws-config
+spec:
+  provisioningClassName: queued-provisioning.gke.io
+  managedResources:
+  - nvidia.com/gpu
 ---
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: AdmissionCheck
@@ -28,15 +39,6 @@ spec:
     apiGroup: kueue.x-k8s.io
     kind: ProvisioningRequestConfig
     name: dws-config
----
-apiVersion: kueue.x-k8s.io/v1beta1
-kind: ProvisioningRequestConfig
-metadata:
-  name: dws-config
-spec:
-  provisioningClassName: queued-provisioning.gke.io
-  managedResources:
-  - nvidia.com/gpu
 ---
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: ClusterQueue

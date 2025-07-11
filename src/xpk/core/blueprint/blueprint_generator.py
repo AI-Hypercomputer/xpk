@@ -193,12 +193,6 @@ class BlueprintGenerator:
         source="modules/compute/gke-node-pool",
         use=nodepool_used_deps,
         settings={
-            "enable_flex_start": (
-                True if capacity_type == CapacityType.FLEX_START else False
-            ),
-            "enable_queued_provisioning": (
-                True if capacity_type == CapacityType.FLEX_START else False
-            ),
             "name": f"{cluster_name}-a3-megagpu-pool-0",
             "machine_type": system.gce_machine_type,
             "zones": [zone],
@@ -213,6 +207,13 @@ class BlueprintGenerator:
             "run_workload_script": False,
             "spot": capacity_type == CapacityType.SPOT,
             "max_pods_per_node": 32,
+            "guest_accelerator": [{
+                "type": "nvidia-h100-mega-80gb",
+                "count": 8,
+                "gpu_driver_installation_config": {
+                    "gpu_driver_version": "LATEST"
+                },
+            }],
             "auto_upgrade": (
                 True if capacity_type != CapacityType.FLEX_START else False
             ),
@@ -225,7 +226,6 @@ class BlueprintGenerator:
       a3_megagpu_pool_0.settings.update({"static_node_count": num_nodes})
 
     set_placement_policy = capacity_type != CapacityType.SPOT
-    tas_name = "topologyName: 'gke-default'" if set_placement_policy else ""
     num_chips = num_nodes * system.chips_per_vm
     workload = DeploymentModule(
         id="workload_component_install",
@@ -241,7 +241,6 @@ class BlueprintGenerator:
                     "flex_start": (
                         1 if capacity_type == CapacityType.FLEX_START else 0
                     ),
-                    "tas_name": tas_name,
                 },
             },
             "jobset": {"install": True, "version": "v0.7.2"},
@@ -574,12 +573,6 @@ class BlueprintGenerator:
             "reservation_affinity": self._getblock_reservation_affinity(
                 reservation
             ),
-            "enable_flex_start": (
-                True if capacity_type == CapacityType.FLEX_START else False
-            ),
-            "enable_queued_provisioning": (
-                True if capacity_type == CapacityType.FLEX_START else False
-            ),
             "max_pods_per_node": 32,
             "guest_accelerator": [{
                 "type": "nvidia-h200-141gb",
@@ -866,12 +859,6 @@ class BlueprintGenerator:
             "reservation_affinity": self._getblock_reservation_affinity(
                 reservation
             ),
-            "enable_flex_start": (
-                True if capacity_type == CapacityType.FLEX_START else False
-            ),
-            "enable_queued_provisioning": (
-                True if capacity_type == CapacityType.FLEX_START else False
-            ),
             "max_pods_per_node": 32,
             "guest_accelerator": [{
                 "type": system.gke_accelerator,
@@ -1066,6 +1053,7 @@ class BlueprintGenerator:
 
   def get_dws_flex_start(self) -> dict:
     return {
+        "enable_flex_start": True,
         "enable_queued_provisioning": True,
         "autoscaling_total_min_nodes": 0,
         "auto_repair": False,

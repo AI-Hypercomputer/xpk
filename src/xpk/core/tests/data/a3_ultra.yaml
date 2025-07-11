@@ -14,7 +14,7 @@
 !Blueprint
 blueprint_name: xpk-gke-a3-ultra
 toolkit_modules_url: github.com/GoogleCloudPlatform/cluster-toolkit
-toolkit_modules_version: v1.48.0
+toolkit_modules_version: v1.57.1
 
 vars:
 

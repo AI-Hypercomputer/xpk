@@ -51,7 +51,7 @@ blueprint_dependencies_dir = {
 }
 
 cluster_toolkit_url = "github.com/GoogleCloudPlatform/cluster-toolkit"
-cluster_toolkit_version = "v1.48.0"
+cluster_toolkit_version = "v1.57.1"
 
 
 class BlueprintGeneratorOutput:

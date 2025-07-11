@@ -16,6 +16,7 @@ limitations under the License.
 
 from argparse import Namespace
 
+import math
 import packaging
 from packaging.version import Version
 
@@ -43,6 +44,8 @@ KUEUE_VERSION = 'v0.12.1'
 CLUSTER_QUEUE_NAME = 'cluster-queue'
 LOCAL_QUEUE_NAME = 'multislice-queue'
 WAIT_FOR_KUEUE_TIMEOUT = '5m'
+MEMORY_SIZE_PER_VM = 1.2
+MIN_MEMORY_LIMIT_SIZE = 4096
 
 packaging.version.VERSION_PATTERN = r'^v\d+\.\d+\.\d+$'
 
@@ -164,6 +167,99 @@ spec:
       - image: {image_name}
         name: {cachekey}
         command: [ "sleep", "inf" ]
+"""
+
+kueue_controller_manager_yml = """
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/name: kueue
+    control-plane: controller-manager
+  name: kueue-controller-manager
+  namespace: kueue-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      control-plane: controller-manager
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: manager
+      labels:
+        app.kubernetes.io/component: controller
+        app.kubernetes.io/name: kueue
+        control-plane: controller-manager
+    spec:
+      containers:
+      - args:
+        - --config=/controller_manager_config.yaml
+        - --zap-log-level=2
+        command:
+        - /manager
+        image: registry.k8s.io/kueue/kueue:v0.10.0
+        imagePullPolicy: Always
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        name: manager
+        ports:
+        - containerPort: 8082
+          name: visibility
+          protocol: TCP
+        - containerPort: 9443
+          name: webhook-server
+          protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          limits:
+            cpu: 500m
+            memory: {memory_limit_size}
+          requests:
+            cpu: 500m
+            memory: 512Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+        volumeMounts:
+        - mountPath: /tmp/k8s-webhook-server/serving-certs
+          name: cert
+          readOnly: true
+        - mountPath: /controller_manager_config.yaml
+          name: manager-config
+          subPath: controller_manager_config.yaml
+      - args:
+        - --secure-listen-address=0.0.0.0:8443
+        - --upstream=http://127.0.0.1:8080/
+        - --logtostderr=true
+        - --v=10
+        image: registry.k8s.io/kubebuilder/kube-rbac-proxy:v0.16.0
+        name: kube-rbac-proxy
+        ports:
+        - containerPort: 8443
+          name: https
+          protocol: TCP
+      securityContext:
+        runAsNonRoot: true
+      serviceAccountName: kueue-controller-manager
+      terminationGracePeriodSeconds: 10
+      volumes:
+      - name: cert
+        secret:
+          defaultMode: 420
+          secretName: kueue-webhook-server-cert
+      - configMap:
+          name: kueue-manager-config
+        name: manager-config
 """
 
 
@@ -386,3 +482,36 @@ def get_kueue_covered_resources_config(
       total_chips=total_chips,
   )
   return config_string
+
+
+def update_kueue_resources_if_necessary(args):
+  """Update the kueue manifest to increase the resources for the kueue controller manager.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  # Get total number of nodes
+  cmd_total_node_num = 'kubectl get node --no-headers | wc -l'
+  return_code, out = run_command_for_value(
+      cmd_total_node_num, 'Count total nodes', args
+  )
+  if return_code != 0:
+    xpk_exit(1)
+  # 1.2MiB per VM or 4GiB (whichever is greater).
+  new_memory_limit = (
+      f'{max(math.ceil(int(out) * MEMORY_SIZE_PER_VM), MIN_MEMORY_LIMIT_SIZE)}Mi'
+  )
+  yml_string = kueue_controller_manager_yml.format(
+      memory_limit_size=new_memory_limit,
+  )
+  tmp = write_tmp_file(yml_string)
+  command = f'kubectl apply -f {str(tmp.file.name)}'
+
+  task = 'Updating Kueue Controller Manager resources'
+  return_code = run_command_with_updates_retry(command, task, args)
+  if return_code != 0:
+    xpk_print(f'{task} returned ERROR {return_code}')
+  return return_code

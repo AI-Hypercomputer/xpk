@@ -23,6 +23,7 @@ from ruamel import yaml
 from ...utils.console import xpk_exit, xpk_print
 from ...utils.file import ensure_directory_exists
 from ..capacity import (
+    H100_DEVICE_TYPE,
     B200_DEVICE_TYPE,
     H100_MEGA_DEVICE_TYPE,
     H200_DEVICE_TYPE,
@@ -34,6 +35,7 @@ from .blueprint_definitions import Blueprint, DeploymentGroup, DeploymentModule
 
 yaml = yaml.YAML()
 
+a3high_device_type = H100_DEVICE_TYPE
 a3mega_device_type = H100_MEGA_DEVICE_TYPE
 a3ultra_device_type = H200_DEVICE_TYPE
 a4_device_type = B200_DEVICE_TYPE

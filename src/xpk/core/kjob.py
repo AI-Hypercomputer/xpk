@@ -40,11 +40,8 @@ from .config import (
     XpkConfig,
 )
 from .network import get_cluster_subnetworks
-from .resources import (
-    AcceleratorType,
-    SystemCharacteristics,
-    get_cluster_system_characteristics,
-)
+from .system_characteristics import AcceleratorType, SystemCharacteristics
+from .resources import get_cluster_system_characteristics
 from .storage import (
     GCS_FUSE_ANNOTATIONS,
     PARALLELSTORE_ANNOTATIONS,

@@ -19,8 +19,7 @@ from ..core.docker_container import get_user_workload_container
 from ..core.gcloud_context import zone_to_region
 from ..core.nodepool import get_all_nodepools_programmatic
 from ..utils.console import xpk_exit, xpk_print
-from .config import AcceleratorType
-from .system_characteristics import SystemCharacteristics
+from .system_characteristics import AcceleratorType, SystemCharacteristics
 
 
 def add_pw_resource_flavors(args):

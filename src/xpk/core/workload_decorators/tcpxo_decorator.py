@@ -15,6 +15,7 @@ limitations under the License.
 """
 
 import yaml
+
 from ...utils.yaml import literal_string
 
 # Component version
@@ -141,6 +142,9 @@ def add_volumes(job_manifest):
       'name': 'aperture-devices',
       'hostPath': {'path': '/dev/aperture_devices'},
   })
+  volumes.append(
+      {'name': 'dshm', 'emptyDir': {'medium': 'Memory', 'sizeLimit': '128Gi'}}
+  )
 
 
 def add_tcpxo_daemon_container(job_manifest):
@@ -188,4 +192,7 @@ def update_gpu_containers(job_manifest):
       )
       container['volumeMounts'].append(
           {'name': 'libraries', 'mountPath': '/usr/local/nvidia'}
+      )
+      container['volumeMounts'].append(
+          {'name': 'dshm', 'mountPath': '/dev/shm'}
       )

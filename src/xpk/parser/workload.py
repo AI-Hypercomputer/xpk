@@ -738,6 +738,14 @@ def add_shared_workload_docker_image_arguments(args_parsers):
             ' directly by the xpk workload.'
         ),
     )
+    custom_parser.add_argument(
+        '--docker-image-pull-secret',
+        type=str,
+        help=(
+            'Name of the secret that will be used to pull image from'
+            ' private repository'
+        ),
+    )
 
 
 def add_shared_workload_create_tensorboard_arguments(args_parsers):

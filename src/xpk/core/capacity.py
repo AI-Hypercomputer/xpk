@@ -147,7 +147,7 @@ def get_capacity_arguments_from_capacity_type(
       capacity_args = '--spot'
     case CapacityType.FLEX_START:
       capacity_args = (
-          ' --enable-autoscaling --location-policy=ANY'
+          ' --flex-start --enable-autoscaling --location-policy=ANY'
           ' --reservation-affinity=none --no-enable-autorepair --max-nodes=1'
       )
     case CapacityType.RESERVATION:

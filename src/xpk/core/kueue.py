@@ -447,8 +447,8 @@ def install_kueue_crs(
   ]:
     topology_label = 'topologyName: "gke-default"'
   res_type = AcceleratorTypeToAcceleratorCharacteristics[
-          system.accelerator_type
-      ].resource_type
+      system.accelerator_type
+  ].resource_type
   yml_string = cluster_set_crd_yaml.format(
       system=system,
       cluster_hardware_name=cluster_hardware_name,
@@ -464,7 +464,7 @@ def install_kueue_crs(
       pw_resource_flavors=add_pw_resource_flavors(args),
       pw_resources_kueue=add_pw_resources_to_kueue(args),
       admission_checks=admission_checks,
-      managed_resource = res_type,
+      managed_resource=res_type,
       cluster_queue_name=CLUSTER_QUEUE_NAME,
       local_queue_name=LOCAL_QUEUE_NAME,
   )

@@ -191,6 +191,6 @@ def get_gke_control_plane_version(
         ' argument or rely on the default gke version:'
         f' {gke_server_config.default_rapid_gke_version}'
     )
-    return 1, None
+    #return 1, None
 
   return 0, master_gke_version

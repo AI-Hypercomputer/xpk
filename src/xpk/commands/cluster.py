@@ -820,12 +820,12 @@ def run_gke_cluster_create_command(
 
   # If the user passes in the gke version then we use that directly instead of the rapid release.
   # This allows users to directly pass a specified gke version without release channel constraints.
-  rapid_release_cmd = ''
-  if args.gke_version is not None:
-    rapid_release_cmd = ' --release-channel rapid'
+  #rapid_release_cmd = ''
+  #if args.gke_version is not None:
+  #  rapid_release_cmd = ' --release-channel=None'
 
   command = (
-      'gcloud beta container clusters create'
+      'gcloud container clusters create'
       f' {args.cluster} --project={args.project}'
       f' --region={zone_to_region(args.zone)}'
       f' --node-locations={args.zone}'
@@ -835,7 +835,7 @@ def run_gke_cluster_create_command(
       ' --total-min-nodes 1 --total-max-nodes 1000'
       f' --num-nodes {args.default_pool_cpu_num_nodes}'
       f' {args.custom_cluster_arguments}'
-      f' {rapid_release_cmd}'
+   #   f' {rapid_release_cmd}'
       ' --enable-dns-access'
   )
 

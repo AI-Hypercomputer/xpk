@@ -506,7 +506,7 @@ def get_gke_node_pool_version(
         ' using --gke-version=x or remove the arg and depend on xpk default of'
         f' {current_gke_master_version}'
     )
-    return 1, None
+    #return 1, None
   return 0, node_pool_gke_version
 
 

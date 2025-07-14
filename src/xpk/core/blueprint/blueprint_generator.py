@@ -51,7 +51,7 @@ blueprint_dependencies_dir = {
 }
 
 cluster_toolkit_url = "github.com/GoogleCloudPlatform/cluster-toolkit"
-cluster_toolkit_version = "v1.48.0"
+cluster_toolkit_version = "v1.57.1"
 
 
 class BlueprintGeneratorOutput:
@@ -214,7 +214,7 @@ class BlueprintGenerator:
         settings={
             "kueue": {
                 "install": True,
-                "version": "v0.10.0",  # TAS feature-gates is enabled in CT
+                "version": "v0.12.2",  # TAS feature-gates is enabled in CT
                 "config_path": f'$(ghpc_stage("{blueprint_name}"))/kueue-xpk-configuration.yaml.tftpl',
                 "config_template_vars": {
                     "num_chips": num_chips,
@@ -574,7 +574,7 @@ class BlueprintGenerator:
         settings={
             "kueue": {
                 "install": True,
-                "version": "v0.10.0",  # TAS feature-gates is enabled in CT
+                "version": "v0.12.2",  # TAS feature-gates is enabled in CT
                 "config_path": f'$(ghpc_stage("{blueprint_name}"))/kueue-xpk-configuration.yaml.tftpl',
                 "config_template_vars": {"num_chips": num_chips},
             },
@@ -842,7 +842,7 @@ class BlueprintGenerator:
         settings={
             "kueue": {
                 "install": True,
-                "version": "v0.10.0",  # TAS feature-gates is enabled in CT
+                "version": "v0.12.2",  # TAS feature-gates is enabled in CT
                 "config_path": f'$(ghpc_stage("{blueprint_name}"))/kueue-xpk-configuration.yaml.tftpl',
                 "config_template_vars": {"num_chips": num_chips},
             },

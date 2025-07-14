@@ -90,7 +90,7 @@ metadata:
 spec:
   provisioningClassName: queued-provisioning.gke.io
   managedResources:
-  - {managed_resource}
+  - nvidia.com/gpu
 ---
 {pw_resource_flavors}
 apiVersion: kueue.x-k8s.io/v1beta1
@@ -464,7 +464,6 @@ def install_kueue_crs(
       pw_resource_flavors=add_pw_resource_flavors(args),
       pw_resources_kueue=add_pw_resources_to_kueue(args),
       admission_checks=admission_checks,
-      managed_resource=res_type,
       cluster_queue_name=CLUSTER_QUEUE_NAME,
       local_queue_name=LOCAL_QUEUE_NAME,
   )

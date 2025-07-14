@@ -14,7 +14,7 @@
 !Blueprint
 blueprint_name: xpk-gke-a3-ultra
 toolkit_modules_url: github.com/GoogleCloudPlatform/cluster-toolkit
-toolkit_modules_version: v1.48.0
+toolkit_modules_version: v1.57.1
 
 vars:
 
@@ -153,7 +153,7 @@ deployment_groups:
     settings:
       kueue:
         install: true
-        version: v0.10.0  # TAS feature-gates is enabled in CT
+        version: v0.12.2  # TAS feature-gates is enabled in CT
         config_path: $(ghpc_stage("xpk-gke-a3-ultra"))/kueue-xpk-configuration.yaml.tftpl
         config_template_vars:
          num_chips: 16

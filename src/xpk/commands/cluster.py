@@ -42,12 +42,14 @@ from ..core.gcloud_context import (
     get_gke_server_config,
     zone_to_region,
 )
+from ..core.jobset import update_jobset_resources_if_necessary
 from ..core.kjob import apply_kjob_crds, prepare_kjob, verify_kjob_installed
 from ..core.kueue import (
     cluster_preheat_yml,
     install_kueue_crs,
     install_kueue_on_cluster,
     wait_for_kueue_available,
+    update_kueue_resources_if_necessary,
 )
 from ..core.nap import enable_autoprovisioning_on_cluster
 from ..core.network import (
@@ -171,7 +173,6 @@ def cluster_adapt(args) -> None:
   install_kueue(args, system, autoprovisioning_config)
 
   install_kjob(args)
-
   if system.accelerator_type == AcceleratorType['GPU']:
     prepare_gpus(args, system)
 
@@ -309,6 +310,9 @@ def cluster_create(args) -> None:
   set_jobset_on_cluster_code = set_jobset_on_cluster(args)
   if set_jobset_on_cluster_code != 0:
     xpk_exit(set_jobset_on_cluster_code)
+  update_jobset_resources_code = update_jobset_resources_if_necessary(args)
+  if update_jobset_resources_code != 0:
+    xpk_exit(update_jobset_resources_code)
 
   set_pathways_job_on_cluster_code = set_pathways_job_on_cluster(args)
   if set_pathways_job_on_cluster_code != 0:
@@ -1050,6 +1054,11 @@ def install_kueue(args, system: SystemCharacteristics, autoprovisioning_config):
   )
   if enable_kueue_credentials_code != 0:
     xpk_exit(enable_kueue_credentials_code)
+
+  xpk_print('Update Kueue Controller Manager resources')
+  update_kueue_resources_code = update_kueue_resources_if_necessary(args)
+  if update_kueue_resources_code != 0:
+    xpk_exit(update_kueue_resources_code)
 
 
 def prepare_gpus(args, system: SystemCharacteristics):

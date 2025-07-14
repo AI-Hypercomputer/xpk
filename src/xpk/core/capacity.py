@@ -16,7 +16,7 @@ limitations under the License.
 
 import enum
 
-from ..utils.console import xpk_print
+from ..utils.console import xpk_print, xpk_exit
 from .commands import run_command_with_updates, run_command_for_value
 
 AUTOPROVISIONING_CONFIG_VALUE = 'AUTOPROVISION'
@@ -119,7 +119,7 @@ def get_reservation_maintenance_interval(
   )
   if return_code != 0:
     xpk_print(f'Get reservation maintenance interval ERROR {return_code}')
-    return ''
+    xpk_exit(1)
   return output.strip()
 
 
@@ -143,7 +143,7 @@ def get_reservation_placement_policy(
   )
   if return_code != 0:
     xpk_print(f'Get reservation placement policy ERROR {return_code}')
-    return ''
+    xpk_exit(1)
   return output.strip()
 
 

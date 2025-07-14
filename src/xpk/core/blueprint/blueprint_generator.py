@@ -22,7 +22,7 @@ from ruamel import yaml
 
 from ...utils.console import xpk_exit, xpk_print
 from ...utils.file import ensure_directory_exists
-from ..capacity import get_reservation_maintenance_interval, get_reservation_placement_policy
+
 from ..capacity import (
     H100_DEVICE_TYPE,
     B200_DEVICE_TYPE,
@@ -95,6 +95,8 @@ class BlueprintGenerator:
       group_placement_max_distance: int = 2,
       subnetwork_cidr_suffix: int = 24,
       reservation: str | None = None,
+      reservation_placement_policy: dict[str, str] | None = None,
+      reservation_maintenance_interval: str = "PERIODIC",
       gcs_bucket: Optional[str | None] = None,
       capacity_type: CapacityType = CapacityType.ON_DEMAND,
       system_node_pool_min_node_count: int = 2,
@@ -178,28 +180,7 @@ class BlueprintGenerator:
             "group_placement_max_distance": group_placement_max_distance,
         },
     )
-    maintenance_interval = (
-        get_reservation_maintenance_interval(reservation, zone, project_id)
-        if reservation is not None
-        else "PERIODIC"
-    )
-    placement_policy_name = (
-        get_reservation_placement_policy(reservation, zone, project_id)
-        if reservation is not None
-        else None
-    )
-    placement_policy = (
-        {
-            "type": "COMPACT",
-            "name": placement_policy_name.split("/")[-1],
-        }
-        if placement_policy_name is not None and len(placement_policy_name) > 0
-        else None
-    )
-    xpk_print(
-        f"Maintenance interval for reservation {reservation} is"
-        f" {maintenance_interval}"
-    )
+
     a3_megagpu_pool_0 = DeploymentModule(
         id="a3_megagpu_pool_0",
         source="modules/compute/gke-node-pool",
@@ -216,7 +197,7 @@ class BlueprintGenerator:
             }],
             "static_node_count": num_nodes,
             "zones": [zone],
-            "host_maintenance_interval": maintenance_interval,
+            "host_maintenance_interval": reservation_maintenance_interval,
             "reservation_affinity": self._getblock_reservation_affinity(
                 reservation
             ),
@@ -282,10 +263,12 @@ class BlueprintGenerator:
             workload_configmap,
         ],
     )
-    if placement_policy is not None:
-      a3_megagpu_pool_0.settings["placement_policy"] = placement_policy
+    if reservation_placement_policy is not None:
+      a3_megagpu_pool_0.settings["placement_policy"] = (
+          reservation_placement_policy
+      )
 
-    if set_placement_policy and placement_policy_name == "":
+    if set_placement_policy and reservation_placement_policy is None:
       a3_megagpu_pool_0.use.append(group_placement_0.id)
       primary_group.modules.append(group_placement_0)
 

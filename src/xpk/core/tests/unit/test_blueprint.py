@@ -54,6 +54,10 @@ def test_generate_a3_mega_blueprint():
       region="us-central1",
       zone="us-central1-c",
       auth_cidr="10.0.0.0/32",
+      reservation_placement_policy={
+        "type": "COMPACT",
+        "name": "test-reservation-placement"
+      },
       reservation="test-reservation",
       capacity_type=CapacityType.RESERVATION,
       system_node_pool_min_node_count=5,

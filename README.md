@@ -227,6 +227,13 @@ all zones.
     --num-slices=4 --spot
     ```
 
+* Cluster Create (DWS flex queued capacity):
+    ```shell
+        python3 xpk.py cluster create \
+        --cluster xpk-test --tpu-type=v5litepod-16 \
+        --num-slices=4 --flex
+    ```
+
 * Cluster Create for Pathways:
     Pathways compatible cluster can be created using `cluster create-pathways`.
     ```shell
@@ -463,6 +470,7 @@ Currently, the below flags/arguments are supported for A3 Mega, A3 Ultra and A4 
   * `--reservation`
   * `--spot`
   * `--on-demand` (A3 Mega only)
+  * `--flex`
 
 ## Running XPK on existing clusters
 
@@ -638,8 +646,14 @@ python3 xpk.py storage delete test-fs-instance \
     python3 xpk.py workload create \
     --workload xpk-test-workload --command "echo goodbye" \
     --cluster xpk-test \
-    --tpu-type=v5litepod-16 --projet=$PROJECT
+    --tpu-type=v5litepod-16 --project=$PROJECT
     ```
+*   Workload create(DWS flex with queued provisioning):
+        ```shell
+    python3 xpk.py workload create \
+    --workload xpk-test-workload --command "echo goodbye" \
+    --cluster xpk-test  --flex \
+    --tpu-type=v5litepod-16 --project=$PROJECT
 
 *   Workload Create for Pathways:
     Pathways workload can be submitted using `workload create-pathways` on a Pathways enabled cluster (created with `cluster create-pathways`)

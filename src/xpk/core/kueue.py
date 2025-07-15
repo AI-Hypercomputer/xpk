@@ -506,6 +506,10 @@ def get_kueue_covered_resources_config(
       resources:
       - name: "{resource_type}"
         nominalQuota: {total_chips}
+      - name: "cpu"
+        nominalQuota: 99999999999
+      - name: "memory"
+        nominalQuota: 9999999Ti
   """
   config_string = config_format.format(
       cluster_hardware_name=cluster_hardware_name,

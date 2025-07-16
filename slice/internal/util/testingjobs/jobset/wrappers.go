@@ -19,6 +19,7 @@ package jobset
 import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	jobsetapi "sigs.k8s.io/jobset/api/jobset/v1alpha2"
 	jobsetutil "sigs.k8s.io/jobset/pkg/util/testing"
@@ -60,6 +61,16 @@ func MakeJobSet(name, ns string) *JobSetWrapper {
 // Obj returns the inner JobSet.
 func (j *JobSetWrapper) Obj() *jobsetapi.JobSet {
 	return &j.JobSet
+}
+
+// Clone returns a DeepCopy of j.
+func (j *JobSetWrapper) Clone() *JobSetWrapper {
+	return &JobSetWrapper{JobSet: *j.DeepCopy()}
+}
+
+func (j *JobSetWrapper) UID(uid string) *JobSetWrapper {
+	j.ObjectMeta.UID = types.UID(uid)
+	return j
 }
 
 // ReplicatedJobs sets a new set of ReplicatedJobs in the inner JobSet.

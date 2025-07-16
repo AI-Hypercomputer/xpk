@@ -20,22 +20,29 @@ import (
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
 	kueuealpha "sigs.k8s.io/kueue/apis/kueue/v1alpha1"
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
+	jobcontroller "sigs.k8s.io/kueue/pkg/controller/jobs/job"
 	jobsetcontroller "sigs.k8s.io/kueue/pkg/controller/jobs/jobset"
+	"sigs.k8s.io/kueue/test/util"
 
 	slice "tpu-slice-controller/api/v1alpha1"
 	"tpu-slice-controller/internal/controller"
 	"tpu-slice-controller/internal/util/testing"
+	testingjobsjob "tpu-slice-controller/internal/util/testingjobs/job"
 	testingjobsjobset "tpu-slice-controller/internal/util/testingjobs/jobset"
 	"tpu-slice-controller/internal/webhooks"
 	"tpu-slice-controller/test/utils"
 )
 
-var _ = ginkgo.Describe("JobSet", func() {
+var _ = ginkgo.Describe("Slice", func() {
 	var (
 		topology *kueuealpha.Topology
 		ns       *corev1.Namespace
@@ -45,7 +52,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 	)
 
 	ginkgo.BeforeEach(func() {
-		ns = testing.MakeNamespaceWithGenerateName("e2e-jobset-")
+		ns = testing.MakeNamespaceWithGenerateName("e2e-slice-")
 		utils.MustCreate(ctx, k8sClient, ns)
 
 		topology = testing.MakeDefaultOneLevelTopology("hostname")
@@ -76,6 +83,58 @@ var _ = ginkgo.Describe("JobSet", func() {
 		utils.ExpectAllPodsInNamespaceDeleted(ctx, k8sClient, ns)
 	})
 
+	ginkgo.When("Creating a Job", func() {
+		ginkgo.It("shouldn't create Slice", func() {
+			job := testingjobsjob.MakeJob("test-job", ns.Name).
+				Queue(kueue.LocalQueueName(lq.Name)).
+				Parallelism(3).
+				Completions(3).
+				RequestAndLimit(corev1.ResourceCPU, "200m").
+				PodAnnotation(kueuealpha.PodSetRequiredTopologyAnnotation, corev1.LabelHostname).
+				Image(util.E2eTestAgnHostImage, util.BehaviorWaitForDeletion).
+				Obj()
+
+			ginkgo.By("Creating the Job", func() {
+				util.MustCreate(ctx, k8sClient, job)
+			})
+
+			createdWorkload := &kueue.Workload{}
+			wlKey := types.NamespacedName{
+				Name:      jobcontroller.GetWorkloadNameForJob(job.Name, job.UID),
+				Namespace: ns.Name,
+			}
+
+			ginkgo.By("Waiting for admission of workload and verify TopologyAssignment", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
+					g.Expect(createdWorkload.Status.Admission).ShouldNot(gomega.BeNil())
+				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+
+				gomega.Expect(createdWorkload.Status.Admission).ShouldNot(gomega.BeNil())
+				gomega.Expect(createdWorkload.Status.Admission.PodSetAssignments).Should(gomega.HaveLen(1))
+				gomega.Expect(createdWorkload.Status.Admission.PodSetAssignments[0].TopologyAssignment).Should(gomega.BeComparableTo(
+					&kueue.TopologyAssignment{
+						Levels: []string{corev1.LabelHostname},
+						Domains: []kueue.TopologyDomainAssignment{{
+							Count:  3,
+							Values: []string{"kind-worker"},
+						}},
+					},
+				))
+			})
+
+			createdSlice := &slice.Slice{}
+			sliceKey := types.NamespacedName{
+				Name:      wlKey.Name,
+				Namespace: wlKey.Namespace,
+			}
+
+			gomega.Consistently(func(g gomega.Gomega) {
+				g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(testing.BeNotFoundError())
+			}, utils.ConsistentDuration, utils.ShortInterval).Should(gomega.Succeed())
+		})
+	})
+
 	ginkgo.When("Creating a JobSet", func() {
 		ginkgo.It("should create Slice based on created Workload", func() {
 			jobSet := testingjobsjobset.MakeJobSet("jobset", ns.Name).
@@ -104,8 +163,8 @@ var _ = ginkgo.Describe("JobSet", func() {
 						},
 					},
 				).
-				RequestAndLimit("rj1", "cpu", "200m").
-				RequestAndLimit("rj2", "cpu", "200m").
+				RequestAndLimit("rj1", corev1.ResourceCPU, "200m").
+				RequestAndLimit("rj2", corev1.ResourceCPU, "200m").
 				Obj()
 
 			ginkgo.By("Creating the JobSet", func() {
@@ -174,8 +233,48 @@ var _ = ginkgo.Describe("JobSet", func() {
 				}, utils.LongTimeout, utils.Interval).Should(gomega.Succeed())
 			})
 
-			ginkgo.By("Deleting JobSet", func() {
-				utils.ExpectObjectToBeDeleted(ctx, k8sClient, jobSet, true)
+			ginkgo.By("Adding Slice finalizer", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
+					controllerutil.AddFinalizer(createdSlice, controller.CleanupSliceFinalizerName)
+					g.Expect(k8sClient.Update(ctx, createdSlice)).To(gomega.Succeed())
+				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Deactivating the Workload", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
+					createdWorkload.Spec.Active = ptr.To(false)
+					g.Expect(k8sClient.Update(ctx, createdWorkload)).Should(gomega.Succeed())
+				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Adding Deformed condition", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
+					meta.SetStatusCondition(&createdSlice.Status.Conditions, metav1.Condition{
+						Type:    string(slice.Deformed),
+						Status:  metav1.ConditionTrue,
+						Reason:  "Test",
+						Message: "Test",
+					})
+					g.Expect(k8sClient.Status().Update(ctx, createdSlice)).To(gomega.Succeed())
+				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Checking that the Workload finalizer is removed", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
+					g.Expect(controllerutil.ContainsFinalizer(createdWorkload, controller.CleanupSliceFinalizerName)).Should(gomega.BeTrue())
+				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Removing Slice finalizer", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
+					controllerutil.RemoveFinalizer(createdSlice, controller.CleanupSliceFinalizerName)
+					g.Expect(k8sClient.Update(ctx, createdSlice)).To(gomega.Succeed())
+				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
 
 			ginkgo.By("Checking that Slice is deleted", func() {

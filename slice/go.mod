@@ -13,12 +13,19 @@ require (
 )
 
 require (
+	github.com/cert-manager/cert-manager v1.18.1 // indirect
+	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674 // indirect
 	github.com/kubeflow/mpi-operator v0.6.0 // indirect
 	github.com/kubeflow/training-operator v1.9.2 // indirect
+	github.com/kylelemons/godebug v1.1.0 // indirect
+	github.com/moby/spdystream v0.5.0 // indirect
+	github.com/mxk/go-flowrate v0.0.0-20140419014527-cca7078d478f // indirect
 	github.com/project-codeflare/appwrapper v1.1.2 // indirect
 	github.com/ray-project/kuberay/ray-operator v1.3.2 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
+	sigs.k8s.io/gateway-api v1.1.0 // indirect
+	sigs.k8s.io/lws v0.6.2 // indirect
 )
 
 require (
@@ -99,7 +106,7 @@ require (
 	k8s.io/apiserver v0.33.2 // indirect
 	k8s.io/component-base v0.33.2 // indirect
 	k8s.io/component-helpers v0.33.2 // indirect
-	k8s.io/klog/v2 v2.130.1 // indirect
+	k8s.io/klog/v2 v2.130.1
 	k8s.io/kube-openapi v0.0.0-20250318190949-c8a335a9a2ff // indirect
 	k8s.io/utils v0.0.0-20250321185631-1f6e0b77f77e
 	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.31.2 // indirect

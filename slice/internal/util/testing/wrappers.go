@@ -80,30 +80,35 @@ func MakeWorkload(name, ns string) *WorkloadWrapper {
 	}}
 }
 
-func (w *WorkloadWrapper) Obj() *kueue.Workload {
-	return &w.Workload
+func (s *WorkloadWrapper) Obj() *kueue.Workload {
+	return &s.Workload
 }
 
-func (w *WorkloadWrapper) Clone() *WorkloadWrapper {
-	return &WorkloadWrapper{Workload: *w.DeepCopy()}
+func (s *WorkloadWrapper) Clone() *WorkloadWrapper {
+	return &WorkloadWrapper{Workload: *s.DeepCopy()}
 }
 
-func (w *WorkloadWrapper) UID(uid types.UID) *WorkloadWrapper {
-	w.Workload.UID = uid
-	return w
+func (s *WorkloadWrapper) UID(uid types.UID) *WorkloadWrapper {
+	s.Workload.UID = uid
+	return s
 }
 
-func (w *WorkloadWrapper) DeletionTimestamp(t time.Time) *WorkloadWrapper {
-	w.Workload.DeletionTimestamp = ptr.To(metav1.NewTime(t).Rfc3339Copy())
-	return w
+func (s *WorkloadWrapper) ControllerReference(gvk schema.GroupVersionKind, name, uid string) *WorkloadWrapper {
+	AppendOwnerReference(&s.Workload, gvk, name, uid, ptr.To(true), ptr.To(true))
+	return s
 }
 
-func (w *WorkloadWrapper) Finalizers(fin ...string) *WorkloadWrapper {
-	w.ObjectMeta.Finalizers = fin
-	return w
+func (s *WorkloadWrapper) DeletionTimestamp(t time.Time) *WorkloadWrapper {
+	s.Workload.DeletionTimestamp = ptr.To(metav1.NewTime(t).Rfc3339Copy())
+	return s
 }
 
-func (w *WorkloadWrapper) Finished() *WorkloadWrapper {
+func (s *WorkloadWrapper) Finalizers(fin ...string) *WorkloadWrapper {
+	s.ObjectMeta.Finalizers = fin
+	return s
+}
+
+func (s *WorkloadWrapper) Finished() *WorkloadWrapper {
 	cond := metav1.Condition{
 		Type:               kueue.WorkloadFinished,
 		Status:             metav1.ConditionTrue,
@@ -111,11 +116,11 @@ func (w *WorkloadWrapper) Finished() *WorkloadWrapper {
 		Reason:             "ByTest",
 		Message:            "Finished by test",
 	}
-	meta.SetStatusCondition(&w.Status.Conditions, cond)
-	return w
+	meta.SetStatusCondition(&s.Status.Conditions, cond)
+	return s
 }
 
-func (w *WorkloadWrapper) Evicted() *WorkloadWrapper {
+func (s *WorkloadWrapper) Evicted() *WorkloadWrapper {
 	cond := metav1.Condition{
 		Type:               kueue.WorkloadEvicted,
 		Status:             metav1.ConditionTrue,
@@ -123,24 +128,24 @@ func (w *WorkloadWrapper) Evicted() *WorkloadWrapper {
 		Reason:             "ByTest",
 		Message:            "Evicted by test",
 	}
-	meta.SetStatusCondition(&w.Status.Conditions, cond)
-	return w
+	meta.SetStatusCondition(&s.Status.Conditions, cond)
+	return s
 }
 
-func (w *WorkloadWrapper) Active(a bool) *WorkloadWrapper {
-	w.Spec.Active = ptr.To(a)
-	return w
+func (s *WorkloadWrapper) Active(a bool) *WorkloadWrapper {
+	s.Spec.Active = ptr.To(a)
+	return s
 }
 
 // PodSetAssignments sets the PodSetAssignments for the workload.
-func (w *WorkloadWrapper) PodSetAssignments(assignments ...kueue.PodSetAssignment) *WorkloadWrapper {
-	if w.Status.Admission == nil {
-		w.Status.Admission = &kueue.Admission{
+func (s *WorkloadWrapper) PodSetAssignments(assignments ...kueue.PodSetAssignment) *WorkloadWrapper {
+	if s.Status.Admission == nil {
+		s.Status.Admission = &kueue.Admission{
 			PodSetAssignments: make([]kueue.PodSetAssignment, 0, len(assignments)),
 		}
 	}
-	w.Status.Admission.PodSetAssignments = assignments
-	return w
+	s.Status.Admission.PodSetAssignments = assignments
+	return s
 }
 
 type PodSetAssignmentWrapper struct {
@@ -202,6 +207,28 @@ func (s *SliceWrapper) ControllerReference(gvk schema.GroupVersionKind, name, ui
 
 func (s *SliceWrapper) NodeSelector(ns map[string][]string) *SliceWrapper {
 	s.Spec.NodeSelector = ns
+	return s
+}
+
+func (s *SliceWrapper) Deformed() *SliceWrapper {
+	cond := metav1.Condition{
+		Type:               string(v1alpha1.Deformed),
+		Status:             metav1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
+		Reason:             "ByTest",
+		Message:            "Deformed by test",
+	}
+	meta.SetStatusCondition(&s.Status.Conditions, cond)
+	return s
+}
+
+func (s *SliceWrapper) Finalizers(fin ...string) *SliceWrapper {
+	s.ObjectMeta.Finalizers = fin
+	return s
+}
+
+func (s *SliceWrapper) DeletionTimestamp(t time.Time) *SliceWrapper {
+	s.Slice.DeletionTimestamp = ptr.To(metav1.NewTime(t).Rfc3339Copy())
 	return s
 }
 

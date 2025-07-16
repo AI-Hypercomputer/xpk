@@ -118,7 +118,7 @@ func (r *WorkloadReconciler) newSlice(wl *kueue.Workload) (*v1alpha1.Slice, erro
 		}
 	}
 	slice.Spec.NodeSelector = map[string][]string{
-		TPUReservationSubblockLabel: nodeSelectors.UnsortedList(),
+		TPUReservationSubblockLabel: sets.List(nodeSelectors),
 	}
 	return slice, nil
 }

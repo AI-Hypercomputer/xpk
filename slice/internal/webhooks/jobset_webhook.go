@@ -18,22 +18,24 @@ package webhooks
 
 import (
 	"context"
+	"regexp"
+	"strconv"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/jobset/api/jobset/v1alpha2"
+	kueuealpha "sigs.k8s.io/kueue/apis/kueue/v1alpha1"
 	kueueconstants "sigs.k8s.io/kueue/pkg/controller/constants"
 )
 
 const (
-	PodSetRequiredTopologyAnnotation      = "kueue.x-k8s.io/podset-required-topology"
-	PodSetSliceRequiredTopologyAnnotation = "kueue.x-k8s.io/podset-slice-required-topology"
-	PodSetSliceSizeAnnotation             = "kueue.x-k8s.io/podset-slice-size"
-)
-
-const (
-	AnnotationValueTBD = "TBD"
+	TPUTopologyAnnotation = "cloud.google.com/gke-tpu-topology"
+	TPUAcceleratorLabel   = "cloud.google.com/gke-tpu-accelerator"
+	TPUBlockLabel         = "cloud.google.com/gke-tpu-block"
+	TPUSubBlockLabel      = "cloud.google.com/gke-tpu-subblock"
 )
 
 // JobSetWebhook is the schema for your resource (ensure this matches your resource definition).
@@ -55,22 +57,58 @@ func (r *JobSetWebhook) Default(ctx context.Context, obj runtime.Object) error {
 	log := ctrl.LoggerFrom(ctx).WithName("jobset-accelerator-gke-webhook")
 	log.V(5).Info("Applying defaults")
 
-	// handle webhooks for Kueue related JobSets
-	cq, ok := jobSet.Labels[kueueconstants.QueueLabel]
-	if !ok || cq == "" {
+	if jobSet.Labels[kueueconstants.QueueLabel] == "" {
 		return nil
 	}
 
-	for i, rj := range jobSet.Spec.ReplicatedJobs {
-		if rj.Template.Annotations == nil {
-			rj.Template.Annotations = make(map[string]string)
+	for i := range jobSet.Spec.ReplicatedJobs {
+		err := r.annotateReplicatedJobWithTopology(&jobSet.Spec.ReplicatedJobs[i])
+		if err != nil {
+			return err
 		}
-		rj.Template.Annotations[PodSetRequiredTopologyAnnotation] = AnnotationValueTBD
-		rj.Template.Annotations[PodSetSliceRequiredTopologyAnnotation] = AnnotationValueTBD
-		rj.Template.Annotations[PodSetSliceSizeAnnotation] = AnnotationValueTBD
-
-		jobSet.Spec.ReplicatedJobs[i] = rj
 	}
 
 	return nil
+}
+
+func (r *JobSetWebhook) annotateReplicatedJobWithTopology(rj *v1alpha2.ReplicatedJob) error {
+	tpuTopology := rj.Template.Spec.Template.Annotations[TPUTopologyAnnotation]
+	tpuAccelerator := rj.Template.Spec.Template.Spec.NodeSelector[TPUAcceleratorLabel]
+
+	validTopology, _ := regexp.MatchString("[0-9]+x[0-9]+x[0-9]+", tpuTopology)
+	if !validTopology || tpuAccelerator != "tpu-v7x" {
+		return nil
+	}
+
+	if rj.Template.Spec.Template.Annotations == nil {
+		rj.Template.Spec.Template.Annotations = make(map[string]string)
+	}
+
+	rj.Template.Spec.Template.Annotations[kueuealpha.PodSetRequiredTopologyAnnotation] = TPUBlockLabel
+	rj.Template.Spec.Template.Annotations[kueuealpha.PodSetSliceRequiredTopologyAnnotation] = TPUSubBlockLabel
+
+	size, err := r.podSetSliceSize(tpuTopology, ptr.Deref(rj.Template.Spec.Parallelism, 1))
+	if err != nil {
+		return err
+	}
+	rj.Template.Spec.Template.Annotations[kueuealpha.PodSetSliceSizeAnnotation] = size
+
+	return nil
+}
+
+func (r *JobSetWebhook) podSetSliceSize(tpuTopology string, parallelism int32) (string, error) {
+	dimensions := strings.Split(tpuTopology, "x")
+	totalChips := int64(1)
+
+	for _, dim := range dimensions {
+		parsedDim, err := strconv.ParseInt(dim, 10, 8)
+		if err != nil {
+			return "", err
+		}
+		totalChips *= parsedDim
+	}
+
+	subBlockCount := totalChips / 64
+
+	return strconv.FormatInt(int64(parallelism)/subBlockCount, 10), nil
 }

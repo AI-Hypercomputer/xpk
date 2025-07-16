@@ -47,6 +47,7 @@ type ReplicatedJobRequirements struct {
 	Labels         map[string]string
 	Annotations    map[string]string
 	PodAnnotations map[string]string
+	NodeSelector   map[string]string
 	Image          string
 	Args           []string
 }
@@ -72,6 +73,7 @@ func (j *JobSetWrapper) ReplicatedJobs(replicatedJobs ...ReplicatedJobRequiremen
 		jt.Spec.Parallelism = ptr.To(req.Parallelism)
 		jt.Spec.Completions = ptr.To(req.Completions)
 		jt.Spec.Template.Annotations = req.PodAnnotations
+		jt.Spec.Template.Spec.NodeSelector = req.NodeSelector
 		if len(req.Image) > 0 {
 			jt.Spec.BackoffLimit = ptr.To[int32](0)
 			spec := &jt.Spec.Template.Spec

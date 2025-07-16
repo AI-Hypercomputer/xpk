@@ -28,7 +28,7 @@ from .commands import (
     run_command_with_updates,
     run_command_with_updates_retry,
 )
-from .pathways import add_pw_resource_flavors, add_pw_resources_to_kueue
+from .pathways import add_pw_resource_flavors
 from .resources import AutoprovisioningConfig
 from .scheduling import (
     create_accelerator_label,
@@ -104,7 +104,6 @@ spec:
   namespaceSelector: {{}} # match all.
   resourceGroups:
   {covered_resources_config}
-  {pw_resources_kueue}
   {admission_checks}
 ---
 apiVersion: kueue.x-k8s.io/v1beta1
@@ -439,6 +438,7 @@ def install_kueue_crs(
       cluster_hardware_name=cluster_hardware_name,
       resource_type=resource_type,
       total_chips=total_chips,
+      args=args,
   )
   topology_label = ''
   if system.device_type in [
@@ -463,7 +463,6 @@ def install_kueue_crs(
       covered_resources_config=covered_resources_config,
       resource_type=res_type,
       pw_resource_flavors=add_pw_resource_flavors(args),
-      pw_resources_kueue=add_pw_resources_to_kueue(args),
       admission_checks=admission_checks,
       managed_resource=res_type,
       cluster_queue_name=CLUSTER_QUEUE_NAME,
@@ -487,7 +486,7 @@ def install_kueue_crs(
 
 
 def get_kueue_covered_resources_config(
-    cluster_hardware_name, resource_type, total_chips
+    cluster_hardware_name, resource_type, total_chips, args
 ) -> str:
   """Gets Kueue covered resources configuration.
 
@@ -506,10 +505,28 @@ def get_kueue_covered_resources_config(
       resources:
       - name: "{resource_type}"
         nominalQuota: {total_chips}
+  """
+
+  if args.enable_pathways:
+    config_format = """
+  - coveredResources: ["{resource_type}", "cpu", "memory"]
+    flavors:
+    - name: {cluster_hardware_name}
+      resources:
+      - name: "{resource_type}"
+        nominalQuota: {total_chips}
       - name: "cpu"
         nominalQuota: 99999999999
       - name: "memory"
         nominalQuota: 9999999Ti
+    - name: cpu-user
+      resources:
+      - name: "{resource_type}"
+        nominalQuota: 0
+      - name: "cpu"
+        nominalQuota: 480
+      - name: "memory"
+        nominalQuota: 2000G
   """
   config_string = config_format.format(
       cluster_hardware_name=cluster_hardware_name,

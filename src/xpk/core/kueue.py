@@ -469,7 +469,7 @@ def get_kueue_covered_resources_config(
     A string of Kueue covered resources configuration.
   """
   config_format = """
-  - coveredResources: ["{resource_type}"]
+  - coveredResources: ["{resource_type}", "cpu", "memory"]
     flavors:
     - name: {cluster_hardware_name}
       resources:
@@ -479,6 +479,14 @@ def get_kueue_covered_resources_config(
         nominalQuota: 99999999999
       - name: "memory"
         nominalQuota: 9999999Ti
+    - name: cpu-user
+      resources:
+      - name: "{resource_type}"
+        nominalQuota: 0
+      - name: "cpu"
+        nominalQuota: 480
+      - name: "memory"
+        nominalQuota: 2000G
   """
   config_string = config_format.format(
       cluster_hardware_name=cluster_hardware_name,

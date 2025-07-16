@@ -18,22 +18,28 @@ package webhooks
 
 import (
 	"context"
+	"fmt"
+	"strconv"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/jobset/api/jobset/v1alpha2"
+	kueuealpha "sigs.k8s.io/kueue/apis/kueue/v1alpha1"
 	kueueconstants "sigs.k8s.io/kueue/pkg/controller/constants"
 )
 
 const (
-	PodSetRequiredTopologyAnnotation      = "kueue.x-k8s.io/podset-required-topology"
-	PodSetSliceRequiredTopologyAnnotation = "kueue.x-k8s.io/podset-slice-required-topology"
-	PodSetSliceSizeAnnotation             = "kueue.x-k8s.io/podset-slice-size"
+	TPUTopologyAnnotation = "cloud.google.com/gke-tpu-topology"
+	TPUAcceleratorLabel   = "cloud.google.com/gke-tpu-accelerator"
+	TPUBlockAnnotation    = "cloud.google.com/gke-tpu-block"
+	TPUSubBlockAnnotation = "cloud.google.com/gke-tpu-subblock"
 )
 
-const (
-	AnnotationValueTBD = "TBD"
+var (
+	errInvalidTPUTopologyAnnotation = fmt.Errorf("invalid %s annotation", TPUTopologyAnnotation)
 )
 
 // JobSetWebhook is the schema for your resource (ensure this matches your resource definition).
@@ -55,22 +61,55 @@ func (r *JobSetWebhook) Default(ctx context.Context, obj runtime.Object) error {
 	log := ctrl.LoggerFrom(ctx).WithName("jobset-accelerator-gke-webhook")
 	log.V(5).Info("Applying defaults")
 
-	// handle webhooks for Kueue related JobSets
-	cq, ok := jobSet.Labels[kueueconstants.QueueLabel]
-	if !ok || cq == "" {
+	if jobSet.Labels[kueueconstants.QueueLabel] == "" {
 		return nil
 	}
 
 	for i, rj := range jobSet.Spec.ReplicatedJobs {
+		tpuTopology := rj.Template.Spec.Template.Annotations[TPUTopologyAnnotation]
+		tpuAccelerator := rj.Template.Spec.Template.Spec.NodeSelector[TPUAcceleratorLabel]
+
+		if tpuTopology == "" || tpuAccelerator == "" {
+			continue
+		}
+
 		if rj.Template.Annotations == nil {
 			rj.Template.Annotations = make(map[string]string)
 		}
-		rj.Template.Annotations[PodSetRequiredTopologyAnnotation] = AnnotationValueTBD
-		rj.Template.Annotations[PodSetSliceRequiredTopologyAnnotation] = AnnotationValueTBD
-		rj.Template.Annotations[PodSetSliceSizeAnnotation] = AnnotationValueTBD
+
+		rj.Template.Annotations[kueuealpha.PodSetRequiredTopologyAnnotation] = rj.Template.Spec.Template.Annotations[TPUBlockAnnotation]
+		rj.Template.Annotations[kueuealpha.PodSetSliceRequiredTopologyAnnotation] = rj.Template.Spec.Template.Annotations[TPUSubBlockAnnotation]
+
+		podSetSliceSize, err := podSetSliceSize(tpuTopology, rj.Template.Spec.Parallelism)
+		if err != nil {
+			return err
+		}
+		rj.Template.Annotations[kueuealpha.PodSetSliceSizeAnnotation] = fmt.Sprint(podSetSliceSize)
 
 		jobSet.Spec.ReplicatedJobs[i] = rj
 	}
 
 	return nil
+}
+
+func podSetSliceSize(tpuTopology string, parallelism *int32) (int32, error) {
+	dimensions := strings.Split(tpuTopology, "x")
+	if len(dimensions) < 2 || len(dimensions) > 3 {
+		return 0, fmt.Errorf("%w: invalid dimension count in %q", errInvalidTPUTopologyAnnotation, tpuTopology)
+	}
+
+	subBlockCount := int32(1)
+	for _, dim := range dimensions {
+		if dim == "" {
+			return 0, fmt.Errorf("%w: empty dimension in %q", errInvalidTPUTopologyAnnotation, tpuTopology)
+		}
+
+		partInt, err := strconv.ParseInt(dim, 10, 32)
+		if err != nil {
+			return 0, fmt.Errorf("%w: failed to parse dimension %q: %v", errInvalidTPUTopologyAnnotation, dim, err)
+		}
+		subBlockCount *= int32(partInt)
+	}
+
+	return ptr.Deref(parallelism, 1) / (subBlockCount / 64), nil
 }

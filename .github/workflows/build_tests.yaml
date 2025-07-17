@@ -36,6 +36,7 @@ jobs:
       cancel-in-progress: true
     outputs:
       cluster-name: ${{ steps.set-cluster-name.outputs.cluster-name }}
+      cluster-name-dws: ${{ steps.set-cluster-name.outputs.cluster-name }}
       group-name: ${{ steps.set-group-name.outputs.group-name }}
       zone: ${{ steps.set-zone.outputs.zone }}
       tpu-type: ${{ steps.set-tpu-type.outputs.tpu-type }}
@@ -59,6 +60,10 @@ jobs:
       id: set-cluster-name
       run: |
         echo cluster-name=build-xpk-2-nodepools-${{steps.set-run-id.outputs.run-id}} >> $GITHUB_OUTPUT
+    - name: set cluster-name-dws
+      id: set-cluster-name-dws
+      run: |
+        echo cluster-name-dws=build-xpk-2-nodepools-dws-${{steps.set-run-id.outputs.run-id}} >> $GITHUB_OUTPUT
     - name: set group-name
       id: set-group-name
       run: |    
@@ -158,6 +163,7 @@ jobs:
       cancel-in-progress: true
     uses: ./.github/workflows/reusable_cluster_create.yaml
     with:
+      cluster-name-dws: '${{needs.set-variables.outputs.cluster-name-dws}}'
       cluster-name: '${{needs.set-variables.outputs.cluster-name}}'
       tpu-type: '${{needs.set-variables.outputs.tpu-type || inputs.tpu-type}}'
       zone: '${{needs.set-variables.outputs.zone}}'
@@ -172,6 +178,7 @@ jobs:
       cancel-in-progress: true
     with:
       cluster-name: ${{needs.set-variables.outputs.cluster-name}}
+      cluster-name-dws: '${{needs.set-variables.outputs.cluster-name-dws}}'
       tpu-type: ${{needs.set-variables.outputs.tpu-type}}
       zone: ${{needs.set-variables.outputs.zone}}
       run-id: '${{needs.set-variables.outputs.run-id}}'

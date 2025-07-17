@@ -16,7 +16,7 @@ metadata:
 spec:
   nodeLabels:
     cloud.google.com/gke-accelerator: "nvidia-h100-mega-80gb"
-  %{~ if flex_start==0 ~}
+  %{~ if reservation==0 ~}
   topologyName: "gke-default"
   %{ endif }
 ---

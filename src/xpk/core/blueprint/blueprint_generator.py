@@ -238,8 +238,8 @@ class BlueprintGenerator:
                 "config_path": f'$(ghpc_stage("{blueprint_name}"))/kueue-xpk-configuration.yaml.tftpl',
                 "config_template_vars": {
                     "num_chips": num_chips,
-                    "flex_start": (
-                        1 if capacity_type == CapacityType.FLEX_START else 0
+                    "reservation": (
+                        1 if capacity_type == CapacityType.RESERVATION else 0
                     ),
                 },
             },

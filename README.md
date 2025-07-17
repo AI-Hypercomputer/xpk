@@ -489,7 +489,7 @@ Currently XPK supports the below types of storages:
 - [Google Cloud Managed Lustre](#managed-lustre)
 
 ### FUSE
-A FUSE adapter lets you mount and access Cloud Storage buckets as local file systems, so applications can read and write objects in your bucket using standard file system semantics.
+A FUSE adapter lets you mount and access Cloud Storage buckets as local file systems, so workloads can read and write objects in your bucket using standard file system semantics.
 
 To use the GCS FUSE with XPK you need to create a [Storage Bucket](https://console.cloud.google.com/storage/).
 
@@ -516,7 +516,7 @@ Parameters:
 
 ### Filestore
 
-A Filestore adapter lets you mount and access [Filestore instances](https://cloud.google.com/filestore/) as local file systems, so applications can read and write files in your volumes using standard file system semantics.
+A Filestore adapter lets you mount and access [Filestore instances](https://cloud.google.com/filestore/) as local file systems, so workloads can read and write files in your volumes using standard file system semantics.
 
 To create and attach a GCP Filestore instance to your cluster use `xpk storage create` command with `--type=gcpfilestore`:
 
@@ -552,7 +552,7 @@ Commands `xpk storage create` and `xpk storage attach` with `--type=gcpfilestore
 
 ### Parallelstore
 
-A Parallelstore adapter lets you mount and access [Parallelstore instances](https://cloud.google.com/parallelstore/) as local file systems, so applications can read and write files in your volumes using standard file system semantics.
+A Parallelstore adapter lets you mount and access [Parallelstore instances](https://cloud.google.com/parallelstore/) as local file systems, so workloads can read and write files in your volumes using standard file system semantics.
 
 To use the GCS Parallelstore with XPK you need to create a [Parallelstore Instance](https://console.cloud.google.com/parallelstore/).
 
@@ -576,7 +576,7 @@ Parameters:
 
 ### Block storage (Persistent Disk, Hyperdisk)
 
-A PersistentDisk adapter lets you mount and access Google Cloud Block storage solutions ([Persistent Disk](https://cloud.google.com/kubernetes-engine/docs/concepts/storage-overview#pd), [Hyperdisk](https://cloud.google.com/kubernetes-engine/docs/concepts/storage-overview#hyperdisk)) as local file systems, so applications can read and write files in your volumes using standard file system semantics.
+A PersistentDisk adapter lets you mount and access Google Cloud Block storage solutions ([Persistent Disk](https://cloud.google.com/kubernetes-engine/docs/concepts/storage-overview#pd), [Hyperdisk](https://cloud.google.com/kubernetes-engine/docs/concepts/storage-overview#hyperdisk)) as local file systems, so workloads can read and write files in your volumes using standard file system semantics.
 
 To use the GCE PersistentDisk with XPK you need to create a [disk in GCE](https://cloud.google.com/compute/docs/disks). Please consider that the disk type you are creating is [compatible with the VMs](https://cloud.google.com/compute/docs/machine-resource#machine_type_comparison) in the default and accelerator nodepools.
 
@@ -600,9 +600,9 @@ Parameters:
 
 ### Managed Lustre
 
-A Managed Lustre adaptor lets you mount and access [Google Cloud Managed Lustre instances](https://cloud.google.com/kubernetes-engine/docs/concepts/managed-lustre) as local file systems, so applications can read and write files in your volumes using standard file system semantics.
+A Managed Lustre adaptor lets you mount and access [Google Cloud Managed Lustre instances](https://cloud.google.com/kubernetes-engine/docs/concepts/managed-lustre) as local file systems, so workloads can read and write files in your volumes using standard file system semantics.
 
-To use the GCP Managed Lustre with XPK you need to create a [an instance](https://cloud.google.com/managed-lustre/docs/create-instance). Please make sure you Enable GKE Support when creating the instance (gcloud ex. `--gke-support-enabled`).
+To use the GCP Managed Lustre with XPK you need to create [an instance](https://cloud.google.com/managed-lustre/docs/create-instance). Please make sure you enable GKE support when creating the instance (gcloud ex. `--gke-support-enabled`).
 
 Once it's ready you can use `xpk storage attach` with `--type=lustre` command to attach a Managed Lustre instance to your cluster. Currently, attaching a Managed Lustre instance is supported only by providing a manifest file.
 

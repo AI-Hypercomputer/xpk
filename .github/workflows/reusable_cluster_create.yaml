@@ -30,6 +30,7 @@ on:
         type: string
       tpu-type-dws:
         description: 'TPU Type for DWS flex nodepool'
+        type: string
         required: false
         default: v5p-8
       zone:

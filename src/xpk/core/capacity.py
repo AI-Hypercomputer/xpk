@@ -85,7 +85,7 @@ def get_capacity_type(args) -> tuple[CapacityType, int]:
   if args.spot:
     capacity_type = CapacityType.SPOT
     num_types += 1
-  if args.flex_start:
+  if args.flex:
     capacity_type = CapacityType.FLEX_START
     num_types += 1
 

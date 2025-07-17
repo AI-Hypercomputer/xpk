@@ -427,7 +427,7 @@ def install_kueue_crs(
   else:
     # Determine total chips based on user specified topology.
     total_chips = get_total_chips_requested_from_args(args, system)
-  if args.flex_start and flex_with_tpu is False:
+  if args.flex and flex_with_tpu is False:
     admission_checks = """
   admissionChecks:
   - dws-prov

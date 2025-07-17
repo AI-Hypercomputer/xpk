@@ -26,7 +26,7 @@ on:
       tpu-type:
         description: 'TPU Type'
         required: false
-        default: 'v4-2x2x1'
+        default: 'v4-8'
         type: string
       tpu-type-dws:
         description: 'TPU Type for DWS flex nodepool'

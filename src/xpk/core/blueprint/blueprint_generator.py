@@ -22,6 +22,7 @@ from ruamel import yaml
 
 from ...utils.console import xpk_exit, xpk_print
 from ...utils.file import ensure_directory_exists
+
 from ..capacity import (
     H100_DEVICE_TYPE,
     B200_DEVICE_TYPE,
@@ -94,6 +95,8 @@ class BlueprintGenerator:
       group_placement_max_distance: int = 2,
       subnetwork_cidr_suffix: int = 24,
       reservation: str | None = None,
+      reservation_placement_policy: dict[str, str] | None = None,
+      reservation_maintenance_interval: str = "PERIODIC",
       gcs_bucket: Optional[str | None] = None,
       capacity_type: CapacityType = CapacityType.ON_DEMAND,
       system_node_pool_min_node_count: int = 2,
@@ -144,12 +147,6 @@ class BlueprintGenerator:
         source="modules/scheduler/gke-cluster",
         use=[primary_vpc_name, gpu_subnets_name],
         settings={
-            "release_channel": (
-                "UNSPECIFIED"
-                if capacity_type == CapacityType.FLEX_START
-                else "RAPID"
-            ),
-            "version_prefix": "1.32.",
             "prefix_with_deployment_name": False,
             "name_suffix": cluster_name,
             "enable_private_endpoint": False,
@@ -183,11 +180,8 @@ class BlueprintGenerator:
             "group_placement_max_distance": group_placement_max_distance,
         },
     )
-    nodepool_used_deps = (
-        ["gke_cluster", gpu_subnets_name, "group_placement_0"]
-        if reservation
-        else ["gke_cluster", gpu_subnets_name]
-    )
+    nodepool_used_deps = ["gke_cluster", gpu_subnets_name]
+
     a3_megagpu_pool_0 = DeploymentModule(
         id="a3_megagpu_pool_0",
         source="modules/compute/gke-node-pool",
@@ -196,11 +190,7 @@ class BlueprintGenerator:
             "name": f"{cluster_name}-a3-megagpu-pool-0",
             "machine_type": system.gce_machine_type,
             "zones": [zone],
-            "host_maintenance_interval": (
-                None
-                if capacity_type == CapacityType.RESERVATION
-                else "PERIODIC"
-            ),
+            "host_maintenance_interval": reservation_maintenance_interval,
             "reservation_affinity": self._getblock_reservation_affinity(
                 reservation
             ),
@@ -274,6 +264,17 @@ class BlueprintGenerator:
             }]
         },
     )
+
+    print(reservation_placement_policy)
+    if reservation_placement_policy is not None:
+      a3_megagpu_pool_0.settings["placement_policy"] = (
+          reservation_placement_policy
+      )
+
+    if set_placement_policy and reservation_placement_policy is None:
+      a3_megagpu_pool_0.use.append(group_placement_0.id)
+      primary_group.modules.append(group_placement_0)
+
     primary_group = DeploymentGroup(
         group="primary",
         modules=[
@@ -285,9 +286,6 @@ class BlueprintGenerator:
             workload_configmap,
         ],
     )
-
-    if set_placement_policy:
-      primary_group.modules.append(group_placement_0)
 
     a3_mega_blueprint = Blueprint(
         terraform_backend_defaults=self._getblock_terraform_backend(
@@ -1059,6 +1057,7 @@ class BlueprintGenerator:
         "enable_flex_start": True,
         "enable_queued_provisioning": True,
         "autoscaling_total_min_nodes": 0,
+        "release_channel": "UNSPECIFIED",
         "auto_repair": False,
         "auto_upgrade": False,
     }

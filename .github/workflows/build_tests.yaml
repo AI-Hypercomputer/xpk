@@ -20,10 +20,10 @@ on:
       tpu-type:
         description: 'TPU Type'
         required: true
-        default: 'v4-2x2x1'
+        default: 'v4-8'
         type: choice
         options:
-          - v4-2x2x1
+          - v4-8
   push:
     branches: ["main","develop"]
   pull_request: # By default this runs for types assigned, opened and synchronize.
@@ -75,7 +75,7 @@ jobs:
     - name: set tpu-type
       id: set-tpu-type
       run: |
-        echo tpu-type=v4-2x2x1 >> $GITHUB_OUTPUT
+        echo tpu-type=v4-8 >> $GITHUB_OUTPUT
     - name: set location
       id: set-location
       run: |    

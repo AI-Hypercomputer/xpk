@@ -52,8 +52,6 @@ deployment_groups:
     source: modules/scheduler/gke-cluster
     use: [network1, gpunets]
     settings:
-      release_channel: RAPID
-      version_prefix: '1.32.'
       prefix_with_deployment_name: false
       name_suffix: bar
       enable_private_endpoint: false
@@ -75,19 +73,19 @@ deployment_groups:
   - !DeploymentModule
     id: a3_megagpu_pool_0
     source: modules/compute/gke-node-pool
-    use: [gke_cluster, gpunets, group_placement_0]
+    use: [gke_cluster, gpunets]
     settings:
       name: bar-a3-megagpu-pool-0
       machine_type: a3-megagpu-8g
       zones: [us-central1-c]
-      host_maintenance_interval:
+      host_maintenance_interval: 'PERIODIC'
       reservation_affinity:
         consume_reservation_type: SPECIFIC_RESERVATION
         specific_reservations:
         - name: test-reservation
       run_workload_script: false
       spot: false
-      max_pods_per_node : 32
+      max_pods_per_node: 32
       guest_accelerator:
       - type: nvidia-h100-mega-80gb
         count: 8
@@ -95,6 +93,9 @@ deployment_groups:
           gpu_driver_version: "LATEST"
       auto_upgrade: true
       static_node_count: 2
+      placement_policy: 
+        type: COMPACT
+        name: test-reservation-placement
     outputs: [instructions]
 
   - !DeploymentModule
@@ -130,10 +131,3 @@ deployment_groups:
           capacity_type: "reservation",
           reservation: "test-reservation",
           }
-
-  - !DeploymentModule
-    id: group_placement_0
-    source: modules/compute/resource-policy
-    settings:
-      name: bar-gp-np-0
-      group_placement_max_distance: 2

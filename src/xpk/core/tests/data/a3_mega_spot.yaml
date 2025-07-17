@@ -52,8 +52,6 @@ deployment_groups:
     source: modules/scheduler/gke-cluster
     use: [network1, gpunets]
     settings:
-      release_channel: RAPID
-      version_prefix: '1.32.'
       prefix_with_deployment_name: false
       name_suffix: bar
       enable_private_endpoint: false
@@ -85,8 +83,8 @@ deployment_groups:
         consume_reservation_type: NO_RESERVATION
         specific_reservations: []
       run_workload_script: false
+      max_pods_per_node: 32
       spot: true
-      max_pods_per_node : 32
       guest_accelerator:
       - type: nvidia-h100-mega-80gb
         count: 8

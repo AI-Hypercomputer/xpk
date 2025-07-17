@@ -36,7 +36,7 @@ jobs:
       cancel-in-progress: true
     outputs:
       cluster-name: ${{ steps.set-cluster-name.outputs.cluster-name }}
-      cluster-name-dws: ${{ steps.set-cluster-name.outputs.cluster-name-dws }}
+      cluster-name-dws: ${{ steps.set-cluster-name-dws.outputs.cluster-name-dws }}
       group-name: ${{ steps.set-group-name.outputs.group-name }}
       zone: ${{ steps.set-zone.outputs.zone }}
       tpu-type: ${{ steps.set-tpu-type.outputs.tpu-type }}

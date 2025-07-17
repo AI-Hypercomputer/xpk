@@ -211,6 +211,7 @@ jobs:
     needs: [set-variables, storage-tests]
     uses: ./.github/workflows/reusable_cluster_delete.yaml
     with:
+      cluster-name-dws: ${{needs.set-variables.outputs.cluster-name-dws}}
       cluster-name: ${{needs.set-variables.outputs.cluster-name}}
       run-id: ${{needs.set-variables.outputs.run-id}}
       zone: ${{needs.set-variables.outputs.zone}}

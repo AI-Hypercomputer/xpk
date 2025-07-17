@@ -105,7 +105,7 @@ func podSetSliceSize(tpuTopology string, parallelism int32) (int32, error) {
 		return 0, fmt.Errorf("%w: invalid dimension count in %q", errInvalidTPUTopologyAnnotation, tpuTopology)
 	}
 
-	subBlockCount := int32(1)
+	totalChips := int32(1)
 	for _, dim := range dimensions {
 		if dim == "" {
 			return 0, fmt.Errorf("%w: empty dimension in %q", errInvalidTPUTopologyAnnotation, tpuTopology)
@@ -115,8 +115,10 @@ func podSetSliceSize(tpuTopology string, parallelism int32) (int32, error) {
 		if err != nil {
 			return 0, fmt.Errorf("%w: failed to parse dimension %q: %v", errInvalidTPUTopologyAnnotation, dim, err)
 		}
-		subBlockCount *= int32(partInt)
+		totalChips *= int32(partInt)
 	}
 
-	return parallelism / (subBlockCount / 64), nil
+	subBlockCount := totalChips / 64
+
+	return parallelism / subBlockCount, nil
 }

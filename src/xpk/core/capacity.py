@@ -96,7 +96,7 @@ def get_capacity_type(args) -> tuple[CapacityType, int]:
     xpk_print(
         'ERROR: User specified more than one of the following arguments. Please'
         ' specify only one of `--reservation=$RESERVATION_NAME`, `--on-demand`,'
-        ' `--flex-start` or `--spot`.'
+        ' `--flex` or `--spot`.'
     )
     return_code = 1
 
@@ -147,7 +147,7 @@ def get_capacity_arguments_from_capacity_type(
       capacity_args = '--spot'
     case CapacityType.FLEX_START:
       capacity_args = (
-          ' --flex-start --enable-queued-provisioning --enable-autoscaling'
+          ' --flex --enable-queued-provisioning --enable-autoscaling'
           ' --location-policy=ANY --reservation-affinity=none'
           ' --no-enable-autorepair --max-nodes=1'
       )

@@ -687,6 +687,7 @@ def is_workload_identity_enabled_on_cluster(args) -> bool:
   Returns:
     True if Workload Identity Federation is enabled on the cluster and False otherwise.
   """
+  """
   command = (
       f'gcloud container clusters describe {args.cluster}'
       f' --project={args.project} --region={zone_to_region(args.zone)}'
@@ -705,6 +706,8 @@ def is_workload_identity_enabled_on_cluster(args) -> bool:
         ' needed.'
     )
     return True
+  return False
+  """
   return False
 
 

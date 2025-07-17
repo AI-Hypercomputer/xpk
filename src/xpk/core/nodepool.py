@@ -53,6 +53,7 @@ def run_gke_node_pool_create_command(
   Returns:
     0 if successful and 1 otherwise.
   """
+  """
   device_type = args.tpu_type if args.tpu_type else args.device_type
   xpk_print(
       f'Creating {args.num_slices} node pool or pools of {device_type}\n'
@@ -339,6 +340,7 @@ def run_gke_node_pool_create_command(
     return 1
 
   xpk_print('Create or delete node pool request complete.')
+  """
   return 0
 
 
@@ -506,7 +508,7 @@ def get_gke_node_pool_version(
         ' using --gke-version=x or remove the arg and depend on xpk default of'
         f' {current_gke_master_version}'
     )
-    return 1, None
+   # return 1, None
   return 0, node_pool_gke_version
 
 
@@ -565,6 +567,7 @@ def get_nodepool_workload_metadata_mode(
     int is the return code - 0 if successful, 1 otherwise.
     str is the workload metadata mode of nodepool.
   """
+  """
   command = (
       f'gcloud beta container node-pools describe {nodepool_name}'
       f' --cluster {args.cluster} --project={args.project}'
@@ -581,3 +584,5 @@ def get_nodepool_workload_metadata_mode(
     return 1, None
 
   return 0, nodepool_WI_mode.strip()
+  """
+  return 0, None

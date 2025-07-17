@@ -16,8 +16,8 @@ limitations under the License.
 
 import enum
 
-from ..utils.console import xpk_print
-from .commands import run_command_with_updates
+from ..utils.console import xpk_print, xpk_exit
+from .commands import run_command_with_updates, run_command_for_value
 
 AUTOPROVISIONING_CONFIG_VALUE = 'AUTOPROVISION'
 AUTOPROVISIONING_CONFIG_MINIMUM_KEY = 'minimum_chips'
@@ -97,6 +97,54 @@ def get_capacity_type(args) -> tuple[CapacityType, int]:
     return_code = 1
 
   return capacity_type, return_code
+
+
+def get_reservation_maintenance_interval(
+    reservation: str, zone: str, project: str
+) -> str:
+  """Get reservation maintenance interval.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  command = (
+      f'gcloud beta compute reservations describe {reservation}'
+      f' --project={project} --zone={zone} --format="value(specificReservation.instanceProperties.maintenanceInterval)"'
+  )
+  return_code, output = run_command_for_value(
+      command, 'Get reservation maintenance interval', None
+  )
+  if return_code != 0:
+    xpk_print(f'Get reservation maintenance interval ERROR {return_code}')
+    xpk_exit(1)
+  return output.strip()
+
+
+def get_reservation_placement_policy(
+    reservation: str, zone: str, project: str
+) -> str:
+  """Get reservation placement policy.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  command = (
+      f'gcloud beta compute reservations describe {reservation}'
+      f' --project={project} --zone={zone} --format="value(resourcePolicies.policy)"'
+  )
+  return_code, output = run_command_for_value(
+      command, 'Get reservation placement policy', None
+  )
+  if return_code != 0:
+    xpk_print(f'Get reservation placement policy ERROR {return_code}')
+    xpk_exit(1)
+  return output.strip()
 
 
 def verify_reservation_exists(args) -> int:

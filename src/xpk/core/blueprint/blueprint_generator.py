@@ -271,10 +271,6 @@ class BlueprintGenerator:
           reservation_placement_policy
       )
 
-    if set_placement_policy and reservation_placement_policy is None:
-      a3_megagpu_pool_0.use.append(group_placement_0.id)
-      primary_group.modules.append(group_placement_0)
-
     primary_group = DeploymentGroup(
         group="primary",
         modules=[
@@ -286,7 +282,9 @@ class BlueprintGenerator:
             workload_configmap,
         ],
     )
-
+    if set_placement_policy and reservation_placement_policy is None:
+      a3_megagpu_pool_0.use.append(group_placement_0.id)
+      primary_group.modules.append(group_placement_0)
     a3_mega_blueprint = Blueprint(
         terraform_backend_defaults=self._getblock_terraform_backend(
             gcs_bucket, cluster_name, prefix

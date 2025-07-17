@@ -325,7 +325,7 @@ def update_cluster_with_lustre_driver_if_necessary(args) -> int:
   if is_driver_enabled_on_cluster(
       args, driver='lustreCsiDriver'
   ) and is_driver_enabled_on_cluster(
-      args, driver='lustreCsiDriver', config='enableLegacyLustrePort'
+      args, driver='lustreCsiDriver', config_key='enableLegacyLustrePort'
   ):
     return 0
   cluster_update_return_code = update_gke_cluster_with_lustre_driver_enabled(

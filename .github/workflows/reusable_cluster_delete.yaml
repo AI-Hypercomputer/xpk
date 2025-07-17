@@ -23,7 +23,7 @@ on:
       cluster-name-dws:
         required: true
         type: string
-      zone:
+      zone-dws:
         required: false
         type: string
         default: us-east5-a

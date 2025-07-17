@@ -241,6 +241,9 @@ class BlueprintGenerator:
                     "reservation": (
                         1 if capacity_type == CapacityType.RESERVATION else 0
                     ),
+                    "flex_start": (
+                        1 if capacity_type == CapacityType.FLEX_START else 0
+                    ),
                 },
             },
             "jobset": {"install": True, "version": "v0.7.2"},

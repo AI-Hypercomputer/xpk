@@ -192,7 +192,38 @@ func TestDefault(t *testing.T) {
 					},
 				}).
 				Obj(),
-			wantErr: errInvalidTPUTopologyAnnotation,
+		},
+		"shouldn't set default values because unsupported tpu accelerator": {
+			jobSet: testingjobjobset.MakeJobSet(baseJobSetName, utils.DefaultNamespace).
+				Queue("queue-name").
+				ReplicatedJobs(testingjobjobset.ReplicatedJobRequirements{
+					Name:        "rj1",
+					Parallelism: 12,
+					PodAnnotations: map[string]string{
+						TPUTopologyAnnotation: "4x4x12",
+						TPUBlockAnnotation:    "cloud.google.com/topology-rack",
+						TPUSubBlockAnnotation: "cloud.google.com/topology-host",
+					},
+					NodeSelector: map[string]string{
+						TPUAcceleratorLabel: "test",
+					},
+				}).
+				Obj(),
+			wantJobSet: testingjobjobset.MakeJobSet(baseJobSetName, utils.DefaultNamespace).
+				Queue("queue-name").
+				ReplicatedJobs(testingjobjobset.ReplicatedJobRequirements{
+					Name:        "rj1",
+					Parallelism: 12,
+					PodAnnotations: map[string]string{
+						TPUTopologyAnnotation: "4x4x12",
+						TPUBlockAnnotation:    "cloud.google.com/topology-rack",
+						TPUSubBlockAnnotation: "cloud.google.com/topology-host",
+					},
+					NodeSelector: map[string]string{
+						TPUAcceleratorLabel: "test",
+					},
+				}).
+				Obj(),
 		},
 	}
 
@@ -209,52 +240,6 @@ func TestDefault(t *testing.T) {
 				if diff := cmp.Diff(tc.wantJobSet, tc.jobSet); diff != "" {
 					t.Errorf("Default() mismatch (-want,+got):\n%s", diff)
 				}
-			}
-		})
-	}
-}
-
-func TestPodSetSliceSize(t *testing.T) {
-	testCases := map[string]struct {
-		tpuTopology         string
-		parallelism         int32
-		wantPodSetSliceSize int32
-		wantErr             error
-	}{
-		"invalid dimension count (1D)": {
-			tpuTopology: "2",
-			parallelism: 12,
-			wantErr:     errInvalidTPUTopologyAnnotation,
-		},
-		"invalid dimension count (4D)": {
-			tpuTopology: "2x2x2x2",
-			parallelism: 12,
-			wantErr:     errInvalidTPUTopologyAnnotation,
-		},
-		"empty dimension": {
-			tpuTopology: "xx",
-			parallelism: 12,
-			wantErr:     errInvalidTPUTopologyAnnotation,
-		},
-		"failed to parse dimension": {
-			tpuTopology: "invalidxinvalidxinvalid",
-			parallelism: 12,
-			wantErr:     errInvalidTPUTopologyAnnotation,
-		},
-		"valid topology annotation": {
-			tpuTopology:         "4x4x12",
-			parallelism:         12,
-			wantPodSetSliceSize: 4,
-		},
-	}
-	for name, tc := range testCases {
-		t.Run(name, func(t *testing.T) {
-			size, err := podSetSliceSize(tc.tpuTopology, tc.parallelism)
-			if diff := cmp.Diff(tc.wantPodSetSliceSize, size); diff != "" {
-				t.Errorf("Size mismatch (-want,+got):\n%s", diff)
-			}
-			if diff := cmp.Diff(tc.wantErr, err, cmpopts.EquateErrors()); diff != "" {
-				t.Errorf("Error mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

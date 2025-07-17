@@ -19,6 +19,7 @@ package webhooks
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -36,10 +37,6 @@ const (
 	TPUAcceleratorLabel   = "cloud.google.com/gke-tpu-accelerator"
 	TPUBlockAnnotation    = "cloud.google.com/gke-tpu-block"
 	TPUSubBlockAnnotation = "cloud.google.com/gke-tpu-subblock"
-)
-
-var (
-	errInvalidTPUTopologyAnnotation = fmt.Errorf("invalid %s annotation", TPUTopologyAnnotation)
 )
 
 // JobSetWebhook is the schema for your resource (ensure this matches your resource definition).
@@ -79,7 +76,8 @@ func (r *JobSetWebhook) annotateReplicatedJobWithTopology(rj *v1alpha2.Replicate
 	tpuTopology := rj.Template.Spec.Template.Annotations[TPUTopologyAnnotation]
 	tpuAccelerator := rj.Template.Spec.Template.Spec.NodeSelector[TPUAcceleratorLabel]
 
-	if tpuTopology == "" || tpuAccelerator == "" {
+	validTopology, _ := regexp.MatchString("[0-9]+x[0-9]+x[0-9]+", tpuTopology)
+	if !validTopology || tpuAccelerator != "tpu-v7x" {
 		return nil
 	}
 
@@ -90,7 +88,7 @@ func (r *JobSetWebhook) annotateReplicatedJobWithTopology(rj *v1alpha2.Replicate
 	rj.Template.Annotations[kueuealpha.PodSetRequiredTopologyAnnotation] = rj.Template.Spec.Template.Annotations[TPUBlockAnnotation]
 	rj.Template.Annotations[kueuealpha.PodSetSliceRequiredTopologyAnnotation] = rj.Template.Spec.Template.Annotations[TPUSubBlockAnnotation]
 
-	size, err := podSetSliceSize(tpuTopology, ptr.Deref(rj.Template.Spec.Parallelism, 1))
+	size, err := r.podSetSliceSize(tpuTopology, ptr.Deref(rj.Template.Spec.Parallelism, 1))
 	if err != nil {
 		return err
 	}
@@ -99,21 +97,14 @@ func (r *JobSetWebhook) annotateReplicatedJobWithTopology(rj *v1alpha2.Replicate
 	return nil
 }
 
-func podSetSliceSize(tpuTopology string, parallelism int32) (int32, error) {
+func (r *JobSetWebhook) podSetSliceSize(tpuTopology string, parallelism int32) (int32, error) {
 	dimensions := strings.Split(tpuTopology, "x")
-	if len(dimensions) < 2 || len(dimensions) > 3 {
-		return 0, fmt.Errorf("%w: invalid dimension count in %q", errInvalidTPUTopologyAnnotation, tpuTopology)
-	}
-
 	totalChips := int32(1)
-	for _, dim := range dimensions {
-		if dim == "" {
-			return 0, fmt.Errorf("%w: empty dimension in %q", errInvalidTPUTopologyAnnotation, tpuTopology)
-		}
 
+	for _, dim := range dimensions {
 		partInt, err := strconv.ParseInt(dim, 10, 32)
 		if err != nil {
-			return 0, fmt.Errorf("%w: failed to parse dimension %q: %v", errInvalidTPUTopologyAnnotation, dim, err)
+			return 0, err
 		}
 		totalChips *= int32(partInt)
 	}

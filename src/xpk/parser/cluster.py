@@ -743,6 +743,11 @@ def add_driver_arguments(parser: ArgumentParser):
       action='store_true',
       help='Enable PersistentDisk CSI driver on the cluster.',
   )
+  parser.add_argument(
+      '--enable-lustre-csi-driver',
+      action='store_true',
+      help='Enable Lustre CSI driver on the cluster.',
+  )
 
 
 def add_shared_cluster_create_tensorboard_arguments(parser: ArgumentParser):

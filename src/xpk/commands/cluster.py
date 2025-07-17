@@ -31,6 +31,7 @@ from ..core.cluster import (
     update_cluster_with_gcsfuse_driver_if_necessary,
     update_cluster_with_parallelstore_driver_if_necessary,
     update_cluster_with_pd_driver_if_necessary,
+    update_cluster_with_lustre_driver_if_necessary,
     update_cluster_with_workload_identity_if_necessary,
 )
 from ..core.cluster_private import authorize_private_cluster_access_if_necessary
@@ -42,12 +43,14 @@ from ..core.gcloud_context import (
     get_gke_server_config,
     zone_to_region,
 )
+from ..core.jobset import update_jobset_resources_if_necessary
 from ..core.kjob import apply_kjob_crds, prepare_kjob, verify_kjob_installed
 from ..core.kueue import (
     cluster_preheat_yml,
     install_kueue_crs,
     install_kueue_on_cluster,
     wait_for_kueue_available,
+    update_kueue_resources_if_necessary,
 )
 from ..core.nap import enable_autoprovisioning_on_cluster
 from ..core.network import (
@@ -172,7 +175,6 @@ def cluster_adapt(args) -> None:
   install_kueue(args, system, autoprovisioning_config)
 
   install_kjob(args)
-
   if system.accelerator_type == AcceleratorType['GPU']:
     prepare_gpus(args, system)
 
@@ -314,6 +316,9 @@ def cluster_create(args) -> None:
   set_jobset_on_cluster_code = set_jobset_on_cluster(args)
   if set_jobset_on_cluster_code != 0:
     xpk_exit(set_jobset_on_cluster_code)
+  update_jobset_resources_code = update_jobset_resources_if_necessary(args)
+  if update_jobset_resources_code != 0:
+    xpk_exit(update_jobset_resources_code)
 
   set_pathways_job_on_cluster_code = set_pathways_job_on_cluster(args)
   if set_pathways_job_on_cluster_code != 0:
@@ -1138,6 +1143,10 @@ def run_gke_cluster_create_command(
   if args.enable_pd_csi_driver:
     addons.append('GcePersistentDiskCsiDriver')
 
+  if args.enable_lustre_csi_driver:
+    addons.append('LustreCsiDriver')
+    command += ' --enable-legacy-lustre-port'
+
   if hasattr(args, 'enable_mtc') and args.enable_mtc:
     addons.append('HighScaleCheckpointing')
 
@@ -1181,6 +1190,13 @@ def install_storage_csis(args):
     if update_cluster_command_code != 0:
       xpk_exit(update_cluster_command_code)
 
+  if args.enable_lustre_csi_driver:
+    update_cluster_command_code = (
+        update_cluster_with_lustre_driver_if_necessary(args)
+    )
+    if update_cluster_command_code != 0:
+      xpk_exit(update_cluster_command_code)
+
 
 def install_kjob(args):
   xpk_print('Verifying kjob installation')
@@ -1215,6 +1231,11 @@ def install_kueue(args, system: SystemCharacteristics, autoprovisioning_config):
   )
   if enable_kueue_credentials_code != 0:
     xpk_exit(enable_kueue_credentials_code)
+
+  xpk_print('Update Kueue Controller Manager resources')
+  update_kueue_resources_code = update_kueue_resources_if_necessary(args)
+  if update_kueue_resources_code != 0:
+    xpk_exit(update_kueue_resources_code)
 
 
 def prepare_gpus(args, system: SystemCharacteristics):

@@ -89,7 +89,7 @@ jobs:
     - name: Check xpk installation
       run: xpk --help
     - name: Create a DWS flex queued xpk cluster 
-      run: python xpk.py cluster create --cluster ${{inputs.cluster-name-dws}} --tpu-type=${{inputs.tpu-type-dws}}  --num-slices=1 --zone=${{inputs.zone-dws}} --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=2 --flex --enable-gcpfilestore-csi-driver --enable-gcsfuse-csi-driver --custom-cluster-arguments="${CLUSTER_ARGUMENTS}"
+      run: python xpk.py cluster create --cluster ${{inputs.cluster-name-dws}} --tpu-type=${{inputs.tpu-type-dws}}  --num-slices=1 --zone=${{inputs.zone-dws}} --default-pool-cpu-num-nodes=2 --flex --enable-gcpfilestore-csi-driver --enable-gcsfuse-csi-driver --custom-cluster-arguments="${CLUSTER_ARGUMENTS}"
     - name: Create a Pathways-enabled XPK Cluster with 2x ${{inputs.tpu-type}} nodepools. Larger num-nodes to avoid master resizing.
       run: python xpk.py cluster create-pathways --cluster ${{inputs.cluster-name}} --tpu-type=${{inputs.tpu-type}}  --num-slices=1 --zone=${{inputs.zone}} --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=2 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --enable-gcpfilestore-csi-driver --enable-gcsfuse-csi-driver --custom-cluster-arguments="${CLUSTER_ARGUMENTS}"
 

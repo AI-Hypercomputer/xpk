@@ -89,6 +89,7 @@ deployment_groups:
         consume_reservation_type: NO_RESERVATION
         specific_reservations: []
       run_workload_script: false
+      max_pods_per_node: 32
       spot: true
     outputs: [instructions]
 

@@ -91,6 +91,7 @@ deployment_groups:
         - name: test-reservation
       run_workload_script: false
       spot: false
+      max_pods_per_node: 32
       placement_policy:
         type: COMPACT
         name: test-reservation-placement

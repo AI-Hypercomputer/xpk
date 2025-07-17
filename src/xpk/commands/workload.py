@@ -521,7 +521,6 @@ def workload_create(args) -> None:
     container, debugging_dashboard_id = get_user_workload_container(
         args, system
     )
-    print('accelerator type: ', system.accelerator_type)
     yml_string = WORKLOAD_CREATE_YAML.format(
         args=args,
         system=system,
@@ -541,11 +540,7 @@ def workload_create(args) -> None:
         tpu_toleration="""
               - operator: "Exists"
                 key: google.com/tpu
-        """
-        if system.accelerator_type
-        == system.accelerator_type
-        == AcceleratorType['TPU']
-        else '',
+        """ if system.accelerator_type == AcceleratorType['TPU'] else '',
         failure_policy_rules=failure_policy_rules,
         pod_failure_policy=pod_failure_policy,
     )

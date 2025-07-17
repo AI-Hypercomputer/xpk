@@ -21,7 +21,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"k8s.io/utils/ptr"
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
 	kueuealpha "sigs.k8s.io/kueue/apis/kueue/v1alpha1"
 
@@ -218,33 +217,33 @@ func TestDefault(t *testing.T) {
 func TestPodSetSliceSize(t *testing.T) {
 	testCases := map[string]struct {
 		tpuTopology         string
-		parallelism         *int32
+		parallelism         int32
 		wantPodSetSliceSize int32
 		wantErr             error
 	}{
 		"invalid dimension count (1D)": {
 			tpuTopology: "2",
-			parallelism: ptr.To[int32](12),
+			parallelism: 12,
 			wantErr:     errInvalidTPUTopologyAnnotation,
 		},
 		"invalid dimension count (4D)": {
 			tpuTopology: "2x2x2x2",
-			parallelism: ptr.To[int32](12),
+			parallelism: 12,
 			wantErr:     errInvalidTPUTopologyAnnotation,
 		},
 		"empty dimension": {
 			tpuTopology: "xx",
-			parallelism: ptr.To[int32](12),
+			parallelism: 12,
 			wantErr:     errInvalidTPUTopologyAnnotation,
 		},
 		"failed to parse dimension": {
 			tpuTopology: "invalidxinvalidxinvalid",
-			parallelism: ptr.To[int32](12),
+			parallelism: 12,
 			wantErr:     errInvalidTPUTopologyAnnotation,
 		},
 		"valid topology annotation": {
 			tpuTopology:         "4x4x12",
-			parallelism:         ptr.To[int32](12),
+			parallelism:         12,
 			wantPodSetSliceSize: 4,
 		},
 	}

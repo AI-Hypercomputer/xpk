@@ -80,11 +80,11 @@ func (r *JobSetWebhook) Default(ctx context.Context, obj runtime.Object) error {
 		rj.Template.Annotations[kueuealpha.PodSetRequiredTopologyAnnotation] = rj.Template.Spec.Template.Annotations[TPUBlockAnnotation]
 		rj.Template.Annotations[kueuealpha.PodSetSliceRequiredTopologyAnnotation] = rj.Template.Spec.Template.Annotations[TPUSubBlockAnnotation]
 
-		podSetSliceSize, err := podSetSliceSize(tpuTopology, rj.Template.Spec.Parallelism)
+		size, err := podSetSliceSize(tpuTopology, ptr.Deref(rj.Template.Spec.Parallelism, 1))
 		if err != nil {
 			return err
 		}
-		rj.Template.Annotations[kueuealpha.PodSetSliceSizeAnnotation] = fmt.Sprint(podSetSliceSize)
+		rj.Template.Annotations[kueuealpha.PodSetSliceSizeAnnotation] = fmt.Sprint(size)
 
 		jobSet.Spec.ReplicatedJobs[i] = rj
 	}
@@ -92,7 +92,7 @@ func (r *JobSetWebhook) Default(ctx context.Context, obj runtime.Object) error {
 	return nil
 }
 
-func podSetSliceSize(tpuTopology string, parallelism *int32) (int32, error) {
+func podSetSliceSize(tpuTopology string, parallelism int32) (int32, error) {
 	dimensions := strings.Split(tpuTopology, "x")
 	if len(dimensions) < 2 || len(dimensions) > 3 {
 		return 0, fmt.Errorf("%w: invalid dimension count in %q", errInvalidTPUTopologyAnnotation, tpuTopology)
@@ -111,5 +111,5 @@ func podSetSliceSize(tpuTopology string, parallelism *int32) (int32, error) {
 		subBlockCount *= int32(partInt)
 	}
 
-	return ptr.Deref(parallelism, 1) / (subBlockCount / 64), nil
+	return parallelism / (subBlockCount / 64), nil
 }

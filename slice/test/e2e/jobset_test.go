@@ -35,6 +35,13 @@ import (
 	"tpu-slice-controller/test/utils"
 )
 
+const (
+	tpuTopology    = "4x4x12"
+	tpuBlock       = "tpu-block"
+	tpuSubBlock    = "tpu-subblock"
+	tpuAccelerator = "tpu-v7x"
+)
+
 var _ = ginkgo.Describe("JobSet", func() {
 	var (
 		topology *kueuealpha.Topology
@@ -48,7 +55,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 		ns = testing.MakeNamespaceWithGenerateName("e2e-jobset-")
 		utils.MustCreate(ctx, k8sClient, ns)
 
-		topology = testing.MakeDefaultOneLevelTopology("hostname")
+		topology = testing.MakeDefaultOneLevelTopology("topology")
 		utils.MustCreate(ctx, k8sClient, topology)
 
 		rf = testing.MakeResourceFlavor("rf").
@@ -59,7 +66,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 
 		cq = testing.MakeClusterQueue("cq").
 			ResourceGroup(*testing.MakeFlavorQuotas(rf.Name).
-				Resource(corev1.ResourceCPU, "2").
+				Resource(corev1.ResourceCPU, "5").
 				Obj()).
 			Obj()
 		utils.MustCreate(ctx, k8sClient, cq)
@@ -86,10 +93,15 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Image:       utils.E2eTestAgnHostImage,
 						Args:        utils.BehaviorWaitForDeletion,
 						Replicas:    1,
-						Parallelism: 1,
+						Parallelism: 6,
 						Completions: 1,
 						PodAnnotations: map[string]string{
-							kueuealpha.PodSetRequiredTopologyAnnotation: corev1.LabelHostname,
+							webhooks.TPUTopologyAnnotation: tpuTopology,
+							webhooks.TPUBlockAnnotation:    tpuBlock,
+							webhooks.TPUSubBlockAnnotation: tpuSubBlock,
+						},
+						NodeSelector: map[string]string{
+							webhooks.TPUAcceleratorLabel: tpuAccelerator,
 						},
 					},
 					testingjobsjobset.ReplicatedJobRequirements{
@@ -97,10 +109,15 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Image:       utils.E2eTestAgnHostImage,
 						Args:        utils.BehaviorWaitForDeletion,
 						Replicas:    1,
-						Parallelism: 1,
+						Parallelism: 6,
 						Completions: 1,
 						PodAnnotations: map[string]string{
-							kueuealpha.PodSetRequiredTopologyAnnotation: corev1.LabelHostname,
+							webhooks.TPUTopologyAnnotation: tpuTopology,
+							webhooks.TPUBlockAnnotation:    tpuBlock,
+							webhooks.TPUSubBlockAnnotation: tpuSubBlock,
+						},
+						NodeSelector: map[string]string{
+							webhooks.TPUAcceleratorLabel: tpuAccelerator,
 						},
 					},
 				).
@@ -118,9 +135,9 @@ var _ = ginkgo.Describe("JobSet", func() {
 				gomega.Eventually(func(g gomega.Gomega) {
 					g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(jobSet), createdJobSet)).To(gomega.Succeed())
 					for _, replicatedJob := range createdJobSet.Spec.ReplicatedJobs {
-						g.Expect(replicatedJob.Template.Annotations[webhooks.PodSetRequiredTopologyAnnotation]).Should(gomega.Equal(webhooks.AnnotationValueTBD))
-						g.Expect(replicatedJob.Template.Annotations[webhooks.PodSetSliceRequiredTopologyAnnotation]).Should(gomega.Equal(webhooks.AnnotationValueTBD))
-						g.Expect(replicatedJob.Template.Annotations[webhooks.PodSetSliceSizeAnnotation]).Should(gomega.Equal(webhooks.AnnotationValueTBD))
+						g.Expect(replicatedJob.Template.Annotations[kueuealpha.PodSetRequiredTopologyAnnotation]).Should(gomega.Equal(tpuBlock))
+						g.Expect(replicatedJob.Template.Annotations[kueuealpha.PodSetSliceRequiredTopologyAnnotation]).Should(gomega.Equal(tpuSubBlock))
+						g.Expect(replicatedJob.Template.Annotations[kueuealpha.PodSetSliceSizeAnnotation]).Should(gomega.Equal("2"))
 					}
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})

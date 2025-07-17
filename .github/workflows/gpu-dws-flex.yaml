@@ -15,11 +15,18 @@
 name: gpu-dws-flex
 
 on:
-  push:
-    branches: ["develop"]
   workflow_dispatch:
-  schedule: # Schedule the job run at 12AM PST daily.
-    - cron: '0 8 * * *'
+    inputs:
+      tpu-type:
+        description: 'TPU Type'
+        required: true
+        default: 'v4-8'
+        type: choice
+        options:
+          - v4-8
+  push:
+    branches: ["main","develop"]
+  pull_request: # By default this runs for types assigned, opened and synchronize.
 
 
 env:

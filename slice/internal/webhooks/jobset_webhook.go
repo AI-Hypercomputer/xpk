@@ -65,29 +65,36 @@ func (r *JobSetWebhook) Default(ctx context.Context, obj runtime.Object) error {
 		return nil
 	}
 
-	for i, rj := range jobSet.Spec.ReplicatedJobs {
-		tpuTopology := rj.Template.Spec.Template.Annotations[TPUTopologyAnnotation]
-		tpuAccelerator := rj.Template.Spec.Template.Spec.NodeSelector[TPUAcceleratorLabel]
-
-		if tpuTopology == "" || tpuAccelerator == "" {
-			continue
-		}
-
-		if rj.Template.Annotations == nil {
-			rj.Template.Annotations = make(map[string]string)
-		}
-
-		rj.Template.Annotations[kueuealpha.PodSetRequiredTopologyAnnotation] = rj.Template.Spec.Template.Annotations[TPUBlockAnnotation]
-		rj.Template.Annotations[kueuealpha.PodSetSliceRequiredTopologyAnnotation] = rj.Template.Spec.Template.Annotations[TPUSubBlockAnnotation]
-
-		size, err := podSetSliceSize(tpuTopology, ptr.Deref(rj.Template.Spec.Parallelism, 1))
+	for i := range jobSet.Spec.ReplicatedJobs {
+		err := r.annotateReplicatedJobWithTopology(&jobSet.Spec.ReplicatedJobs[i])
 		if err != nil {
 			return err
 		}
-		rj.Template.Annotations[kueuealpha.PodSetSliceSizeAnnotation] = fmt.Sprint(size)
-
-		jobSet.Spec.ReplicatedJobs[i] = rj
 	}
+
+	return nil
+}
+
+func (r *JobSetWebhook) annotateReplicatedJobWithTopology(rj *v1alpha2.ReplicatedJob) error {
+	tpuTopology := rj.Template.Spec.Template.Annotations[TPUTopologyAnnotation]
+	tpuAccelerator := rj.Template.Spec.Template.Spec.NodeSelector[TPUAcceleratorLabel]
+
+	if tpuTopology == "" || tpuAccelerator == "" {
+		return nil
+	}
+
+	if rj.Template.Annotations == nil {
+		rj.Template.Annotations = make(map[string]string)
+	}
+
+	rj.Template.Annotations[kueuealpha.PodSetRequiredTopologyAnnotation] = rj.Template.Spec.Template.Annotations[TPUBlockAnnotation]
+	rj.Template.Annotations[kueuealpha.PodSetSliceRequiredTopologyAnnotation] = rj.Template.Spec.Template.Annotations[TPUSubBlockAnnotation]
+
+	size, err := podSetSliceSize(tpuTopology, ptr.Deref(rj.Template.Spec.Parallelism, 1))
+	if err != nil {
+		return err
+	}
+	rj.Template.Annotations[kueuealpha.PodSetSliceSizeAnnotation] = fmt.Sprint(size)
 
 	return nil
 }

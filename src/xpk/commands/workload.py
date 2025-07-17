@@ -458,7 +458,7 @@ def workload_create(args) -> None:
       xpk_exit(return_code)
     annotations = (
         ''
-        if args.flex_start or not is_TAS_possible(args)
+        if not is_TAS_possible(args)
         else (
             'kueue.x-k8s.io/podset-preferred-topology:'
             ' "cloud.google.com/gce-topology-host"'

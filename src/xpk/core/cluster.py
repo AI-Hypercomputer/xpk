@@ -341,7 +341,7 @@ def update_cluster_with_lustre_driver_if_necessary(args) -> int:
 
 
 def is_driver_enabled_on_cluster(
-    args, driver: str, config: str = 'enabled', config_val: str = 'true'
+    args, driver: str, config_key: str = 'enabled', config_val: str = 'true'
 ) -> bool:
   """Checks if the CSI driver is enabled on the cluster.
   Args:
@@ -355,18 +355,19 @@ def is_driver_enabled_on_cluster(
   command = (
       f'gcloud container clusters describe {args.cluster}'
       f' --project={args.project} --region={zone_to_region(args.zone)}'
-      f' --format="value(addonsConfig.{driver}Config.{config})"'
+      f' --format="value(addonsConfig.{driver}Config.{config_key})"'
   )
   return_code, driver_enabled = run_command_for_value(
       command,
-      f'Checks if {driver} driver is enabled in cluster describe.',
+      f"Checks if {driver} driver's {config_key} is enabled in cluster"
+      ' describe.',
       args,
   )
   if return_code != 0:
     xpk_exit(return_code)
   if driver_enabled.strip().lower() == config_val.lower():
     xpk_print(
-        f"{driver} driver's {config} config is {config_val} on the cluster."
+        f"{driver} driver's {config_key} config is {config_val} on the cluster."
     )
     return True
   return False

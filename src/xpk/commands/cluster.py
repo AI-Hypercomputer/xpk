@@ -31,6 +31,7 @@ from ..core.cluster import (
     update_cluster_with_gcsfuse_driver_if_necessary,
     update_cluster_with_parallelstore_driver_if_necessary,
     update_cluster_with_pd_driver_if_necessary,
+    update_cluster_with_lustre_driver_if_necessary,
     update_cluster_with_workload_identity_if_necessary,
 )
 from ..core.cluster_private import authorize_private_cluster_access_if_necessary
@@ -883,6 +884,10 @@ def run_gke_cluster_create_command(
   if args.enable_pd_csi_driver:
     addons.append('GcePersistentDiskCsiDriver')
 
+  if args.enable_lustre_csi_driver:
+    addons.append('LustreCsiDriver')
+    command += ' --enable-legacy-lustre-port'
+
   if hasattr(args, 'enable_mtc') and args.enable_mtc:
     addons.append('HighScaleCheckpointing')
 
@@ -922,6 +927,13 @@ def install_storage_csis(args):
   if args.enable_pd_csi_driver:
     update_cluster_command_code = update_cluster_with_pd_driver_if_necessary(
         args
+    )
+    if update_cluster_command_code != 0:
+      xpk_exit(update_cluster_command_code)
+
+  if args.enable_lustre_csi_driver:
+    update_cluster_command_code = (
+        update_cluster_with_lustre_driver_if_necessary(args)
     )
     if update_cluster_command_code != 0:
       xpk_exit(update_cluster_command_code)

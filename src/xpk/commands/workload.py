@@ -67,6 +67,7 @@ from ..core.storage import (
     GCP_FILESTORE_TYPE,
     GCS_FUSE_TYPE,
     PARALLELSTORE_TYPE,
+    LUSTRE_TYPE,
     Storage,
     add_bucket_iam_members,
     get_storage_annotations,
@@ -390,6 +391,9 @@ def workload_create(args) -> None:
     pd_storages: list[Storage] = list(
         filter(lambda storage: storage.type == GCE_PD_TYPE, storages)
     )
+    lustre_storages: list[Storage] = list(
+        filter(lambda storage: storage.type == LUSTRE_TYPE, storages)
+    )
     if len(gcs_fuse_storages) > 0:
       service_account = XPK_SA
       xpk_print(f'Detected gcsfuse Storages to add: {gcs_fuse_storages}')
@@ -419,11 +423,18 @@ def workload_create(args) -> None:
     else:
       xpk_print('No gce persistent disk instances to add detected.')
 
+    if len(lustre_storages) > 0:
+      service_account = XPK_SA
+      xpk_print(f'Detected managed lustre instances to add: {lustre_storages}')
+    else:
+      xpk_print('No managed lustre instances to add detected.')
+
     all_storages = (
         gcs_fuse_storages
         + gcpfilestore_storages
         + parallelstore_storages
         + pd_storages
+        + lustre_storages
     )
 
   # Currently failure policy rules are supported for Pathways workloads. b/408465881

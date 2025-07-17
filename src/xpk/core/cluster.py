@@ -315,18 +315,47 @@ def update_cluster_with_pd_driver_if_necessary(args) -> int:
   return 0
 
 
-def is_driver_enabled_on_cluster(args, driver: str) -> bool:
+def update_cluster_with_lustre_driver_if_necessary(args) -> int:
+  """Updates a GKE cluster to enable Lustre CSI driver, if not enabled already.
+  Args:
+    args: user provided arguments for running the command.
+  Returns:
+    0 if successful and error code otherwise.
+  """
+  if is_driver_enabled_on_cluster(
+      args, driver='lustreCsiDriver'
+  ) and is_driver_enabled_on_cluster(
+      args, driver='lustreCsiDriver', config='enableLegacyLustrePort'
+  ):
+    return 0
+  cluster_update_return_code = update_gke_cluster_with_lustre_driver_enabled(
+      args
+  )
+  if cluster_update_return_code > 0:
+    xpk_print(
+        'Updating GKE cluster to enable PersistentDisk CSI driver failed!'
+    )
+    return cluster_update_return_code
+
+  return 0
+
+
+def is_driver_enabled_on_cluster(
+    args, driver: str, config: str = 'enabled', config_val: str = 'true'
+) -> bool:
   """Checks if the CSI driver is enabled on the cluster.
   Args:
     args: user provided arguments for running the command.
     driver (str) : name of the driver
+    config (str): the config to look for; by default looks for "enabled" parameter
+    config_val (str): the value indicating the enabled; default vale is "true"
   Returns:
     True if driver is enabled on the cluster and False otherwise.
   """
   command = (
       f'gcloud container clusters describe {args.cluster}'
       f' --project={args.project} --region={zone_to_region(args.zone)}'
-      f' --format="value(addonsConfig.{driver}Config.enabled)"'
+      f' --format="value(addonsConfig.{driver}Config.{config})"'
   )
   return_code, driver_enabled = run_command_for_value(
       command,
@@ -335,8 +364,10 @@ def is_driver_enabled_on_cluster(args, driver: str) -> bool:
   )
   if return_code != 0:
     xpk_exit(return_code)
-  if driver_enabled.strip().lower() == 'true':
-    xpk_print(f'{driver} driver is enabled on the cluster, no update needed.')
+  if driver_enabled.strip().lower() == config_val.lower():
+    xpk_print(
+        f"{driver} driver's {config} config is {config_val} on the cluster."
+    )
     return True
   return False
 
@@ -616,6 +647,32 @@ def update_gke_cluster_with_gcsfuse_driver_enabled(args) -> int:
   )
   return_code = run_command_with_updates(
       command, 'GKE Cluster Update to enable GCSFuse CSI driver', args
+  )
+  if return_code != 0:
+    xpk_print(f'GKE Cluster Update request returned ERROR {return_code}')
+    return 1
+  return 0
+
+
+def update_gke_cluster_with_lustre_driver_enabled(args) -> int:
+  """Run the GKE cluster update command for existing cluster and enable Lustre CSI driver.
+  Args:
+    args: user provided arguments for running the command.
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  command = (
+      'gcloud container clusters update'
+      f' {args.cluster} --project={args.project}'
+      f' --region={zone_to_region(args.zone)}'
+      ' --enable-legacy-lustre-port'
+      ' --quiet'
+  )
+  xpk_print(
+      'Updating GKE cluster to enable Lustre CSI driver, may take a while!'
+  )
+  return_code = run_command_with_updates(
+      command, 'GKE Cluster Update to enable Lustre CSI driver', args
   )
   if return_code != 0:
     xpk_print(f'GKE Cluster Update request returned ERROR {return_code}')

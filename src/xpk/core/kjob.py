@@ -347,6 +347,7 @@ def create_pod_template_instance(args: Namespace, service_account: str) -> int:
   if pod_image is None or len(pod_image) == 0:
     pod_image = PodTemplateDefaults.IMAGE.value
   working_directory = config.get(KJOB_SHELL_WORKING_DIRECTORY)
+  xpk_print("working directory is: ", working_directory)
   if working_directory is None or len(working_directory) == 0:
     working_directory = PodTemplateDefaults.WORKING_DIRECTORY.value
 
@@ -377,7 +378,6 @@ def prepare_kjob(args: Namespace) -> int:
   job_err_code = create_job_template_instance(args, system, service_account)
   if job_err_code > 0:
     return job_err_code
-
   pod_err_code = create_pod_template_instance(args, service_account)
   if pod_err_code > 0:
     return pod_err_code

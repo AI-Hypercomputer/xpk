@@ -37,6 +37,7 @@ from ..utils.console import xpk_exit, xpk_print
 from ..utils.file import ensure_directory_exists
 from ..utils.network import all_IPs_cidr
 from ..utils.objects import hash_string
+from ..core.capacity import get_reservation_maintenance_interval, get_reservation_placement_policy
 
 blueprints_path = os.path.abspath('xpkclusters/blueprints')
 gcluster_working_dir = os.path.abspath('xpkclusters/gcluster-out')
@@ -234,6 +235,30 @@ def generate_blueprint(
   if args.device_type in supported_device_types:
     if args.device_type == a3mega_device_type:
       num_nodes = args.num_nodes if not args.num_nodes is None else 2
+
+      maintenance_interval = (
+          get_reservation_maintenance_interval(
+              args.reservation, args.zone, args.project
+          )
+          if args.reservation is not None
+          else 'PERIODIC'
+      )
+      placement_policy_name = (
+          get_reservation_placement_policy(
+              args.reservation, args.zone, args.project
+          )
+          if args.reservation is not None
+          else None
+      )
+      placement_policy = (
+          {
+              'type': 'COMPACT',
+              'name': placement_policy_name.split('/')[-1],
+          }
+          if placement_policy_name is not None
+          and len(placement_policy_name) > 0
+          else None
+      )
       return bpg.generate_a3_mega_blueprint(
           blueprint_name=blueprint_name,
           prefix=prefix,
@@ -243,6 +268,8 @@ def generate_blueprint(
           zone=args.zone,
           auth_cidr=all_IPs_cidr,
           num_nodes=num_nodes,
+          reservation_maintenance_interval=maintenance_interval,
+          reservation_placement_policy=placement_policy,
           reservation=args.reservation if args.reservation else None,
           capacity_type=capacity_type,
           system_node_pool_machine_type=args.default_pool_cpu_machine_type,

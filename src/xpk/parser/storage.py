@@ -71,9 +71,9 @@ def add_storage_attach_parser(
       type=str,
       help=(
           'The type of storage. Currently supported types: "gcsfuse",'
-          ' "gcpfilestore", "parallelstore", "pd"'
+          ' "gcpfilestore", "parallelstore", "pd", "lustre"'
       ),
-      choices=['gcsfuse', 'gcpfilestore', 'parallelstore', 'pd'],
+      choices=['gcsfuse', 'gcpfilestore', 'parallelstore', 'pd', 'lustre'],
       required=True,
   )
   add_cluster_arguments(req_args, required=True)

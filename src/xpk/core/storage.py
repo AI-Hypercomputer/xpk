@@ -46,6 +46,7 @@ STORAGE_CRD_NAME = f"{XPK_API_GROUP_NAME}.{STORAGE_CRD_PLURAL}"
 GCS_FUSE_TYPE = "gcsfuse"
 GCP_FILESTORE_TYPE = "gcpfilestore"
 PARALLELSTORE_TYPE = "parallelstore"
+LUSTRE_TYPE = "lustre"
 GCE_PD_TYPE = "pd"
 MANIFESTS_PATH = os.path.abspath("xpkclusters/storage-manifests")
 GCS_FUSE_ANNOTATIONS = {

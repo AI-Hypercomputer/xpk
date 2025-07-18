@@ -80,6 +80,8 @@ def add_annotations(job_manifest: dict, sub_networks: list[str]):
   """Adds or updates annotations in the Pod template."""
   annotations = job_manifest['spec']['template']['metadata']['annotations']
   interfaces_key, interfaces_value = get_interfaces_entry(sub_networks)
+  if annotations is None:
+    annotations = {}
   annotations.update({
       'networking.gke.io/default-interface': 'eth0',
       interfaces_key: interfaces_value,

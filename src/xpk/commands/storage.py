@@ -29,6 +29,7 @@ from ..core.cluster import (
     setup_k8s_env,
     update_cluster_with_parallelstore_driver_if_necessary,
     update_cluster_with_pd_driver_if_necessary,
+    update_cluster_with_lustre_driver_if_necessary,
     update_cluster_with_gcpfilestore_driver_if_necessary,
     update_cluster_with_gcsfuse_driver_if_necessary,
     update_cluster_with_workload_identity_if_necessary,
@@ -45,6 +46,7 @@ from ..core.storage import (
     GCS_FUSE_TYPE,
     GCE_PD_TYPE,
     PARALLELSTORE_TYPE,
+    LUSTRE_TYPE,
     STORAGE_CRD_PLURAL,
     XPK_API_GROUP_NAME,
     XPK_API_GROUP_VERSION,
@@ -183,11 +185,11 @@ def storage_attach(args: Namespace) -> None:
           args.prefetch_metadata,
       )
 
-  elif args.type in [PARALLELSTORE_TYPE, GCE_PD_TYPE]:
+  elif args.type in [PARALLELSTORE_TYPE, GCE_PD_TYPE, LUSTRE_TYPE]:
     if args.manifest is None:
       xpk_print(
-          "Parallelstore and PersistentDisk are currently supported only with"
-          " --manifest"
+          "Parallelstore, PersistentDisk, and Lustre are currently supported"
+          " only with --manifest"
       )
       xpk_exit(1)
 
@@ -231,6 +233,11 @@ def enable_csi_drivers_if_necessary(args: Namespace) -> None:
 
   if args.type == GCE_PD_TYPE:
     return_code = update_cluster_with_pd_driver_if_necessary(args)
+    if return_code > 0:
+      xpk_exit(return_code)
+
+  if args.type == LUSTRE_TYPE:
+    return_code = update_cluster_with_lustre_driver_if_necessary(args)
     if return_code > 0:
       xpk_exit(return_code)
 

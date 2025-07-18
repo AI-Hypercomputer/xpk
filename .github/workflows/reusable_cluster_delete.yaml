@@ -20,6 +20,13 @@ on:
       zone:
         required: true
         type: string
+      cluster-name-dws:
+        required: true
+        type: string
+      zone-dws:
+        required: false
+        type: string
+        default: us-east5-a
       run-id:
         required: true
         type: string
@@ -62,3 +69,6 @@ jobs:
     - name: Delete the cluster created
       if: always()
       run: python xpk.py cluster delete --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} --force
+    - name: Delete the cluster created
+      if: always()
+      run: python xpk.py cluster delete --cluster ${{inputs.cluster-name-dws}} --zone=${{inputs.zone-dws}} --force

@@ -18,7 +18,7 @@ import os
 import re
 from .capacity import H100_DEVICE_TYPE, H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE
 from .cluster import setup_k8s_env
-from .storage import GCS_FUSE_TYPE, GCP_FILESTORE_TYPE, Storage, get_storages_to_mount
+from .storage import GCS_FUSE_TYPE, GCP_FILESTORE_TYPE, PARALLELSTORE_TYPE, GCE_PD_TYPE, LUSTRE_TYPE, Storage, get_storages_to_mount
 from .system_characteristics import AcceleratorType, SystemCharacteristics
 
 
@@ -276,13 +276,13 @@ def get_volumes(args, system: SystemCharacteristics) -> str:
       setup_k8s_env(args), args.storage
   )
   for storage in storages:
-    if storage.type == GCS_FUSE_TYPE:
-      volumes += f"""- name: {storage.pv}
-                persistentVolumeClaim:
-                  claimName: {storage.pvc}
-                  readOnly: {storage.readonly}
-              """
-    if storage.type == GCP_FILESTORE_TYPE:
+    if storage.type in {
+        GCS_FUSE_TYPE,
+        GCP_FILESTORE_TYPE,
+        PARALLELSTORE_TYPE,
+        GCE_PD_TYPE,
+        LUSTRE_TYPE,
+    }:
       volumes += f"""- name: {storage.pv}
                 persistentVolumeClaim:
                   claimName: {storage.pvc}
@@ -329,12 +329,13 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
       setup_k8s_env(args), args.storage
   )
   for storage in storages:
-    if storage.type == GCS_FUSE_TYPE:
-      volume_mount_yaml += f"""- name: {storage.pv}
-                  mountPath: {storage.mount_point}
-                  readOnly: {storage.readonly}
-                """
-    if storage.type == GCP_FILESTORE_TYPE:
+    if storage.type in {
+        GCS_FUSE_TYPE,
+        GCP_FILESTORE_TYPE,
+        PARALLELSTORE_TYPE,
+        GCE_PD_TYPE,
+        LUSTRE_TYPE,
+    }:
       volume_mount_yaml += f"""- name: {storage.pv}
                   mountPath: {storage.mount_point}
                   readOnly: {storage.readonly}

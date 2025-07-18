@@ -39,16 +39,16 @@ spec:
 
 def add_pw_resources_to_kueue(args):
   """Add resource flavors required for Pathways, to the cluster queue."""
-  resources_yaml = """- coveredResources: ["cpu", "memory"]
-    flavors:
-    - name: cpu-user
-      resources:
-      - name: "cpu"
-        nominalQuota: 480
-      - name: "memory"
-        nominalQuota: 2000G"""
-  if args.enable_pathways:
-    return resources_yaml
+  # resources_yaml = """- coveredResources: ["cpu", "memory"]
+  #   flavors:
+  #   - name: cpu-user
+  #     resources:
+  #     - name: "cpu"
+  #       nominalQuota: 480
+  #     - name: "memory"
+  #       nominalQuota: 2000G"""
+  # if args.enable_pathways:
+  #   return resources_yaml
   return ''
 
 

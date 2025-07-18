@@ -52,6 +52,10 @@ from ..core.pathways import (
     get_user_workload_for_pathways,
     try_to_delete_pathwaysjob_first,
 )
+from ..core.resources import get_cluster_capacity_type, get_cluster_system_characteristics
+from ..core.capacity import (
+    CapacityType,
+)
 from ..core.resources import CLUSTER_METADATA_CONFIGMAP, get_cluster_configmap
 from ..core.scheduling import (
     check_if_workload_can_schedule,
@@ -467,9 +471,16 @@ def workload_create(args) -> None:
     )
     if return_code != 0:
       xpk_exit(return_code)
+    system_characteristics = get_cluster_system_characteristics(args)
+    capacity_type = get_cluster_capacity_type(args)
+
     annotations = (
         ''
-        if not is_TAS_possible(args)
+        if not is_TAS_possible(
+            system_characteristics,
+            capacity_type,
+            flex=True if capacity_type == CapacityType.FLEX_START else False,
+        )
         else (
             'kueue.x-k8s.io/podset-preferred-topology:'
             ' "cloud.google.com/gce-topology-host"'

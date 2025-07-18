@@ -15,10 +15,12 @@ limitations under the License.
 """
 
 from ..core.commands import run_command_with_updates_retry
-from ..core.resources import get_cluster_capacity_type, get_cluster_system_characteristics
 from ..core.capacity import H100_MEGA_DEVICE_TYPE, CapacityType
 from ..core.gcloud_context import zone_to_region
 from ..utils.console import xpk_print, xpk_exit
+from ..core.system_characteristics import (
+    SystemCharacteristics,
+)
 
 
 def set_cluster_command(args) -> int:
@@ -47,7 +49,11 @@ def set_cluster_command(args) -> int:
   return return_code
 
 
-def is_TAS_possible(args) -> bool:
+def is_TAS_possible(
+    system_characteristics: SystemCharacteristics,
+    capacity_type: CapacityType,
+    flex: bool,
+) -> bool:
   """Check cluster's machine_type and capacity type to determine if Kueue TAS is possible
 
   Args:
@@ -56,8 +62,6 @@ def is_TAS_possible(args) -> bool:
   Returns:
     True if possible and False otherwise.
   """
-  system_characteristics = get_cluster_system_characteristics(args)
-  capacity_type = get_cluster_capacity_type(args)
 
   if system_characteristics is None:
     xpk_print('system_characteristics data was not found in configmaps.')
@@ -67,7 +71,7 @@ def is_TAS_possible(args) -> bool:
     xpk_print('capacity_type data was not found in configmaps.')
     xpk_exit(1)
 
-  if args.flex:
+  if flex:
     return False
 
   if (

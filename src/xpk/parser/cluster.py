@@ -797,25 +797,36 @@ def add_shared_cluster_create_capacity_arguments(parser: ArgumentParser):
       '--on-demand',
       action='store_true',
       help=(
-          'Sets node pool creation to use on-demand resources. '
-          ' See `--reservation` or `--spot` for other capacity types.'
+          'Sets node pool creation to use on-demand resources.  See'
+          ' `--reservation`, `--flex` or `--spot` for other capacity'
+          ' types.'
       ),
   )
   parser.add_argument(
       '--reservation',
       type=str,
       help=(
-          'The reservation to be used for acquiring resources in the'
-          ' cluster. This will attempt to find the provided reservation.'
-          ' See `--spot` or `--on-demand` for other capacity types.'
+          'The reservation to be used for acquiring resources in the cluster.'
+          ' This will attempt to find the provided reservation. See `--spot`,'
+          ' `--flex` or `--on-demand` for other capacity types.'
       ),
   )
   parser.add_argument(
       '--spot',
       action='store_true',
       help=(
-          'Sets node pool creation to use spot resources.'
-          ' See `--reservation` or `--on-demand` for other capacity types.'
+          'Sets node pool creation to use spot resources. See'
+          ' `--reservation`, `--flex` or `--on-demand` for other'
+          ' capacity types.'
+      ),
+  )
+  parser.add_argument(
+      '--flex',
+      action='store_true',
+      help=(
+          'Sets node pool creation to use DWS Flex Start resources. See'
+          ' `--reservation`, `--on-demand` or `--spot` for other capacity'
+          ' types.'
       ),
   )
 

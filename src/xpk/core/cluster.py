@@ -38,7 +38,7 @@ from .resources import get_cluster_system_characteristics
 from .system_characteristics import SystemCharacteristics
 
 JOBSET_VERSION = 'v0.8.0'
-PATHWAYS_JOB_VERSION = 'v0.1.1'
+PATHWAYS_JOB_VERSION = 'v0.1.2'
 INSTALLER_NCCL_TCPX = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpx/nccl-tcpx-installer.yaml'
 INSTALLER_NCCL_TCPXO = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpxo/nccl-tcpxo-installer.yaml'
 INSTALLER_NCCL_RDMA = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-rdma/nccl-rdma-installer.yaml'
@@ -315,28 +315,60 @@ def update_cluster_with_pd_driver_if_necessary(args) -> int:
   return 0
 
 
-def is_driver_enabled_on_cluster(args, driver: str) -> bool:
+def update_cluster_with_lustre_driver_if_necessary(args) -> int:
+  """Updates a GKE cluster to enable Lustre CSI driver, if not enabled already.
+  Args:
+    args: user provided arguments for running the command.
+  Returns:
+    0 if successful and error code otherwise.
+  """
+  if is_driver_enabled_on_cluster(
+      args, driver='lustreCsiDriver'
+  ) and is_driver_enabled_on_cluster(
+      args, driver='lustreCsiDriver', config_key='enableLegacyLustrePort'
+  ):
+    return 0
+  cluster_update_return_code = update_gke_cluster_with_lustre_driver_enabled(
+      args
+  )
+  if cluster_update_return_code > 0:
+    xpk_print(
+        'Updating GKE cluster to enable PersistentDisk CSI driver failed!'
+    )
+    return cluster_update_return_code
+
+  return 0
+
+
+def is_driver_enabled_on_cluster(
+    args, driver: str, config_key: str = 'enabled', config_val: str = 'true'
+) -> bool:
   """Checks if the CSI driver is enabled on the cluster.
   Args:
     args: user provided arguments for running the command.
     driver (str) : name of the driver
+    config (str): the config to look for; by default looks for "enabled" parameter
+    config_val (str): the value indicating the enabled; default vale is "true"
   Returns:
     True if driver is enabled on the cluster and False otherwise.
   """
   command = (
       f'gcloud container clusters describe {args.cluster}'
       f' --project={args.project} --region={zone_to_region(args.zone)}'
-      f' --format="value(addonsConfig.{driver}Config.enabled)"'
+      f' --format="value(addonsConfig.{driver}Config.{config_key})"'
   )
   return_code, driver_enabled = run_command_for_value(
       command,
-      f'Checks if {driver} driver is enabled in cluster describe.',
+      f"Checks if {driver} driver's {config_key} is enabled in cluster"
+      ' describe.',
       args,
   )
   if return_code != 0:
     xpk_exit(return_code)
-  if driver_enabled.strip().lower() == 'true':
-    xpk_print(f'{driver} driver is enabled on the cluster, no update needed.')
+  if driver_enabled.strip().lower() == config_val.lower():
+    xpk_print(
+        f"{driver} driver's {config_key} config is {config_val} on the cluster."
+    )
     return True
   return False
 
@@ -423,6 +455,19 @@ def get_gpu_type_from_cluster(args) -> str:
   return ''
 
 
+def setup_k8s_service_accounts() -> None:
+  """
+  Creates/sets up SAs and the roles for them
+  """
+  default_sa = 'default'
+
+  create_xpk_k8s_service_account()
+
+  role_name = create_pod_reader_role()
+  create_role_binding(default_sa, role_name)
+  create_role_binding(XPK_SA, role_name)
+
+
 def create_xpk_k8s_service_account() -> None:
   k8s_core_client = k8s_client.CoreV1Api()
   sa = k8s_client.V1ServiceAccount(
@@ -439,6 +484,94 @@ def create_xpk_k8s_service_account() -> None:
     xpk_print(
         f'Service account: {XPK_SA} already exists. Skipping its creation'
     )
+
+
+def create_pod_reader_role() -> str:
+  """
+  Creates the 'pod-reader' Role in the default namespace.
+  """
+  k8s_rbac_client = k8s_client.RbacAuthorizationV1Api()
+  role_name = 'pod-reader'
+
+  role = k8s_client.V1Role(
+      metadata=k8s_client.V1ObjectMeta(
+          name=role_name, namespace=DEFAULT_NAMESPACE
+      ),
+      rules=[
+          k8s_client.V1PolicyRule(
+              api_groups=[''],
+              resources=['pods', 'services'],
+              verbs=['get', 'list', 'watch'],
+          ),
+          k8s_client.V1PolicyRule(
+              api_groups=['batch'],
+              resources=['jobs'],
+              verbs=['get', 'list', 'watch'],
+          ),
+      ],
+  )
+
+  xpk_print(
+      f'Attempting to create Role: {role_name} in namespace:'
+      f' {DEFAULT_NAMESPACE}'
+  )
+  try:
+    k8s_rbac_client.create_namespaced_role(DEFAULT_NAMESPACE, role, pretty=True)
+    xpk_print(f'Successfully created Role: {role_name}')
+    return role_name
+  except ApiException as e:
+    if e.status == 409:  # Conflict, meaning it already exists
+      xpk_print(f'Role: {role_name} already exists. Skipping its creation.')
+      return role_name
+    else:
+      xpk_print(f'Error creating Role {role_name}: {e}')
+      xpk_exit(1)
+
+
+def create_role_binding(sa: str, role_name: str) -> None:
+  """
+  Creates a RoleBinding to associate the Service Account
+  with the Role in the default namespace.
+  Assumes the Service Account and the Role already exist.
+  """
+  k8s_rbac_client = k8s_client.RbacAuthorizationV1Api()
+  role_binding_name = f'{sa}-{role_name}-binding'
+
+  role_binding = k8s_client.V1RoleBinding(
+      metadata=k8s_client.V1ObjectMeta(
+          name=role_binding_name, namespace=DEFAULT_NAMESPACE
+      ),
+      subjects=[
+          k8s_client.RbacV1Subject(
+              kind='ServiceAccount', name=sa, namespace=DEFAULT_NAMESPACE
+          )
+      ],
+      role_ref=k8s_client.V1RoleRef(
+          kind='Role', name=role_name, api_group='rbac.authorization.k8s.io'
+      ),
+  )
+
+  xpk_print(
+      f'Attempting to create RoleBinding: {role_binding_name} for Service'
+      f' Account: {XPK_SA} to Role: {role_name} in namespace:'
+      f' {DEFAULT_NAMESPACE}'
+  )
+  try:
+    k8s_rbac_client.create_namespaced_role_binding(
+        DEFAULT_NAMESPACE, role_binding, pretty=True
+    )
+    xpk_print(
+        f'Successfully created RoleBinding: {role_binding_name} for {XPK_SA}'
+    )
+  except ApiException as e:
+    if e.status == 409:  # Conflict, meaning it already exists
+      xpk_print(
+          f'RoleBinding: {role_binding_name} already exists. Skipping its'
+          ' creation.'
+      )
+    else:
+      xpk_print(f'Error creating RoleBinding {role_binding_name}: {e}')
+      xpk_exit(1)
 
 
 def update_gke_cluster_with_clouddns(args) -> int:
@@ -515,6 +648,32 @@ def update_gke_cluster_with_gcsfuse_driver_enabled(args) -> int:
   )
   return_code = run_command_with_updates(
       command, 'GKE Cluster Update to enable GCSFuse CSI driver', args
+  )
+  if return_code != 0:
+    xpk_print(f'GKE Cluster Update request returned ERROR {return_code}')
+    return 1
+  return 0
+
+
+def update_gke_cluster_with_lustre_driver_enabled(args) -> int:
+  """Run the GKE cluster update command for existing cluster and enable Lustre CSI driver.
+  Args:
+    args: user provided arguments for running the command.
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  command = (
+      'gcloud container clusters update'
+      f' {args.cluster} --project={args.project}'
+      f' --region={zone_to_region(args.zone)}'
+      ' --enable-legacy-lustre-port'
+      ' --quiet'
+  )
+  xpk_print(
+      'Updating GKE cluster to enable Lustre CSI driver, may take a while!'
+  )
+  return_code = run_command_with_updates(
+      command, 'GKE Cluster Update to enable Lustre CSI driver', args
   )
   if return_code != 0:
     xpk_print(f'GKE Cluster Update request returned ERROR {return_code}')
@@ -731,7 +890,6 @@ def get_cluster_credentials(args) -> None:
   command = (
       'gcloud container clusters get-credentials'
       f' {args.cluster} --region={zone_to_region(args.zone)}'
-      ' --dns-endpoint'
       f' --project={args.project} &&'
       ' kubectl config view && kubectl config set-context --current'
       ' --namespace=default'

@@ -14,23 +14,25 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from ..core.blueprint.blueprint_generator import (
+    a3high_device_type,
+    a3mega_device_type,
+    a3ultra_device_type,
+    a4_device_type,
+)
 from ..core.cluster import (
     XPK_SA,
-    create_xpk_k8s_service_account,
+    setup_k8s_service_accounts,
     get_cluster_credentials,
     setup_k8s_env,
 )
 from ..core.commands import run_command_with_updates, run_commands
-from ..core.config import (
-    VERTEX_TENSORBOARD_FEATURE_FLAG,
-    XPK_CURRENT_VERSION,
-    parse_env_config,
-)
+from ..core.config import (VERTEX_TENSORBOARD_FEATURE_FLAG, XPK_CURRENT_VERSION)
 from ..core.docker_container import (
     get_main_container_docker_image,
     get_user_workload_container,
 )
-from ..core.docker_resources import get_volumes
+from ..core.docker_resources import get_volumes, parse_env_config
 from ..core.gcloud_context import add_zone_and_project
 from ..core.kueue import LOCAL_QUEUE_NAME
 from ..core.monitoring import get_gke_outlier_dashboard
@@ -50,6 +52,10 @@ from ..core.pathways import (
     get_user_workload_for_pathways,
     try_to_delete_pathwaysjob_first,
 )
+from ..core.resources import get_cluster_capacity_type, get_cluster_system_characteristics
+from ..core.capacity import (
+    CapacityType,
+)
 from ..core.resources import CLUSTER_METADATA_CONFIGMAP, get_cluster_configmap
 from ..core.scheduling import (
     check_if_workload_can_schedule,
@@ -65,6 +71,7 @@ from ..core.storage import (
     GCP_FILESTORE_TYPE,
     GCS_FUSE_TYPE,
     PARALLELSTORE_TYPE,
+    LUSTRE_TYPE,
     Storage,
     add_bucket_iam_members,
     get_storage_annotations,
@@ -76,7 +83,6 @@ from ..core.system_characteristics import (
 )
 from ..core.vertex import create_vertex_experiment
 from ..core.workload import (
-    add_gpu_rxdm_container,
     check_if_workload_exists,
     get_workload_list,
     wait_for_job_completion,
@@ -85,12 +91,13 @@ from ..core.workload import (
 from ..core.workload_decorators import (
     rdma_decorator,
     storage_decorator,
+    tcpx_decorator,
     tcpxo_decorator,
 )
 from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
-from .common import is_TAS_possible
 from . import cluster_gcluster
+from .common import is_TAS_possible
 
 WORKLOAD_CREATE_YAML = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
@@ -123,6 +130,8 @@ spec:
                 {storage_annotations}
             spec:
               schedulerName: {args.scheduler}
+              imagePullSecrets:
+              - name: {args.docker_image_pull_secret}
               restartPolicy: Never
               {affinity}
               nodeSelector:
@@ -136,6 +145,8 @@ spec:
               containers:
               {container}
               serviceAccountName: {service_account}
+              tolerations:
+              {tpu_toleration}
               volumes:
               {volumes}
 """
@@ -175,6 +186,8 @@ spec:
               {gpu_scheduler}
               priorityClassName: {args.priority}
               restartPolicy: Never
+              imagePullSecrets:
+              - name: {args.docker_image_pull_secret}
               hostNetwork: true
               dnsPolicy: ClusterFirstWithHostNet
               terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
@@ -213,11 +226,12 @@ spec:
             metadata:
               labels:
                 xpk.google.com/workload: {args.workload}
-              annotations:
-                {kueue_TAS_annotation}
+              annotations: {annotations}
             spec:
               priorityClassName: {args.priority}
               restartPolicy: Never
+              imagePullSecrets:
+              - name: {args.docker_image_pull_secret}
               dnsPolicy: ClusterFirstWithHostNet
               terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
               serviceAccountName: {service_account}
@@ -291,7 +305,7 @@ def workload_create(args) -> None:
     0 if successful and 1 otherwise.
   """
   k8s_api_client = setup_k8s_env(args)
-  create_xpk_k8s_service_account()
+  setup_k8s_service_accounts()
 
   workload_exists = check_if_workload_exists(args)
 
@@ -347,7 +361,7 @@ def workload_create(args) -> None:
     if not tensorboard_config:
       xpk_exit(1)
 
-  parse_env_config(args, tensorboard_config, system)
+  parse_env_config(args, tensorboard_config)
 
   autoprovisioning_args = ''
   autoprovisioning_enabled, return_code = is_autoprovisioning_enabled(
@@ -382,6 +396,9 @@ def workload_create(args) -> None:
     pd_storages: list[Storage] = list(
         filter(lambda storage: storage.type == GCE_PD_TYPE, storages)
     )
+    lustre_storages: list[Storage] = list(
+        filter(lambda storage: storage.type == LUSTRE_TYPE, storages)
+    )
     if len(gcs_fuse_storages) > 0:
       service_account = XPK_SA
       xpk_print(f'Detected gcsfuse Storages to add: {gcs_fuse_storages}')
@@ -411,11 +428,18 @@ def workload_create(args) -> None:
     else:
       xpk_print('No gce persistent disk instances to add detected.')
 
+    if len(lustre_storages) > 0:
+      service_account = XPK_SA
+      xpk_print(f'Detected managed lustre instances to add: {lustre_storages}')
+    else:
+      xpk_print('No managed lustre instances to add detected.')
+
     all_storages = (
         gcs_fuse_storages
         + gcpfilestore_storages
         + parallelstore_storages
         + pd_storages
+        + lustre_storages
     )
 
   # Currently failure policy rules are supported for Pathways workloads. b/408465881
@@ -447,31 +471,41 @@ def workload_create(args) -> None:
     )
     if return_code != 0:
       xpk_exit(return_code)
+    system_characteristics = get_cluster_system_characteristics(args)
+    capacity_type = get_cluster_capacity_type(args)
 
-    kueue_TAS_annotation = (
-        'kueue.x-k8s.io/podset-preferred-topology:'
-        ' "cloud.google.com/gce-topology-host"'
+    annotations = (
+        ''
+        if not is_TAS_possible(
+            system_characteristics,
+            capacity_type,
+            flex=True if capacity_type == CapacityType.FLEX_START else False,
+        )
+        else (
+            'kueue.x-k8s.io/podset-preferred-topology:'
+            ' "cloud.google.com/gce-topology-host"'
+        )
     )
-    if not is_TAS_possible(args):
-      kueue_TAS_annotation = ''
 
-    if system.device_type in cluster_gcluster.supported_device_types:
+    if (
+        system.device_type in cluster_gcluster.supported_device_types
+        or system.device_type == a3high_device_type
+    ):
       yml_string = A3_GPU_WORKLOAD_CREATE_YAML.format(
           args=args,
           container=container,
           service_account=XPK_SA,
           failure_policy_rules=failure_policy_rules,
           pod_failure_policy=pod_failure_policy,
-          kueue_TAS_annotation=kueue_TAS_annotation,
+          annotations=annotations,
       )
 
       sub_networks = get_cluster_subnetworks(args)
-      if args.device_type == cluster_gcluster.a3mega_device_type:
+      if args.device_type == a3high_device_type:
+        yml_string = tcpx_decorator.decorate_jobset(yml_string)
+      elif args.device_type == a3mega_device_type:
         yml_string = tcpxo_decorator.decorate_jobset(yml_string, sub_networks)
-      elif args.device_type in [
-          cluster_gcluster.a3ultra_device_type,
-          cluster_gcluster.a4_device_type,
-      ]:
+      elif args.device_type in [a3ultra_device_type, a4_device_type]:
         yml_string = rdma_decorator.decorate_jobset(yml_string, sub_networks)
 
       if all_storages:
@@ -489,7 +523,6 @@ def workload_create(args) -> None:
           failure_policy_rules=failure_policy_rules,
           pod_failure_policy=pod_failure_policy,
       )
-      yml_string = add_gpu_rxdm_container(yml_string, system, all_storages)
 
   elif args.use_pathways and ensure_pathways_workload_prerequisites(
       args, system
@@ -526,6 +559,10 @@ def workload_create(args) -> None:
             get_storage_annotations(all_storages)
         ),
         service_account=service_account,
+        tpu_toleration="""
+              - operator: "Exists"
+                key: google.com/tpu
+        """ if system.accelerator_type == AcceleratorType['TPU'] else '',
         failure_policy_rules=failure_policy_rules,
         pod_failure_policy=pod_failure_policy,
     )

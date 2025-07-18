@@ -40,11 +40,8 @@ from .config import (
     XpkConfig,
 )
 from .network import get_cluster_subnetworks
-from .resources import (
-    AcceleratorType,
-    SystemCharacteristics,
-    get_cluster_system_characteristics,
-)
+from .system_characteristics import AcceleratorType, SystemCharacteristics
+from .resources import get_cluster_system_characteristics
 from .storage import (
     GCS_FUSE_ANNOTATIONS,
     PARALLELSTORE_ANNOTATIONS,
@@ -380,7 +377,6 @@ def prepare_kjob(args: Namespace) -> int:
   job_err_code = create_job_template_instance(args, system, service_account)
   if job_err_code > 0:
     return job_err_code
-
   pod_err_code = create_pod_template_instance(args, service_account)
   if pod_err_code > 0:
     return pod_err_code

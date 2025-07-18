@@ -12,7 +12,7 @@ limitations under the License.
 """
 
 from ..core.commands import run_command_with_full_controls, run_command_for_value, run_command_with_updates
-from ..core.cluster import get_cluster_credentials, add_zone_and_project, create_xpk_k8s_service_account
+from ..core.cluster import get_cluster_credentials, add_zone_and_project, setup_k8s_service_accounts
 from ..utils.console import xpk_exit, xpk_print
 from argparse import Namespace
 
@@ -82,7 +82,7 @@ def connect_to_new_interactive_shell(args: Namespace) -> int:
   err_code = prepare_kjob(args)
   if err_code > 0:
     xpk_exit(err_code)
-  create_xpk_k8s_service_account()
+  setup_k8s_service_accounts()
 
   cmd = (
       'kubectl-kjob create interactive --profile'

@@ -208,15 +208,25 @@ def set_workload_parsers(workload_parser):
       help=(
           'Sets autoprovisioning to use reservation resources for the workload'
           ' request. This will attempt to find the provided reservation. See'
-          ' `--spot` or `--on-demand` for other capacity types.'
+          ' `--spot`, `--flex` or `--on-demand` for other capacity types.'
       ),
   )
   workload_create_autoprovisioning_arguments.add_argument(
       '--spot',
       action='store_true',
       help=(
-          'Sets autoprovisioning to use spot resources.'
-          ' See `--reservation` or `--on-demand` for other capacity types.'
+          'Sets autoprovisioning to use spot resources. See `--reservation`,'
+          ' `--flex` or `--on-demand` for other capacity types.'
+      ),
+  )
+
+  workload_create_autoprovisioning_arguments.add_argument(
+      '--flex',
+      action='store_true',
+      help=(
+          'Sets autoprovisioning to use flex-start resources. See'
+          ' `--reservation`, `--spot` or `--on-demand` for other capacity'
+          ' types.'
       ),
   )
 
@@ -726,6 +736,14 @@ def add_shared_workload_docker_image_arguments(args_parsers):
             ' custom docker image it is typically addressed as'
             ' gcr.io/${PROJECT}/${NAME}:latest. This docker image will be used'
             ' directly by the xpk workload.'
+        ),
+    )
+    custom_parser.add_argument(
+        '--docker-image-pull-secret',
+        type=str,
+        help=(
+            'Name of the secret that will be used to pull image from'
+            ' private repository'
         ),
     )
 

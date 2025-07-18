@@ -16,8 +16,8 @@ limitations under the License.
 
 import enum
 
-from ..utils.console import xpk_print
-from .commands import run_command_with_updates
+from ..utils.console import xpk_print, xpk_exit
+from .commands import run_command_with_updates, run_command_for_value
 
 AUTOPROVISIONING_CONFIG_VALUE = 'AUTOPROVISION'
 AUTOPROVISIONING_CONFIG_MINIMUM_KEY = 'minimum_chips'
@@ -36,6 +36,7 @@ class CapacityType(enum.Enum):
   RESERVATION = 'reservation'
   SPOT = 'spot'
   UNKNOWN = 'unknown'
+  FLEX_START = 'flex_start'
 
 
 def print_reservations(args) -> int:
@@ -84,6 +85,9 @@ def get_capacity_type(args) -> tuple[CapacityType, int]:
   if args.spot:
     capacity_type = CapacityType.SPOT
     num_types += 1
+  if args.flex:
+    capacity_type = CapacityType.FLEX_START
+    num_types += 1
 
   # Check that the number of user arguments provided is valid.
   if num_types == 0:
@@ -91,12 +95,60 @@ def get_capacity_type(args) -> tuple[CapacityType, int]:
   elif num_types != 1:
     xpk_print(
         'ERROR: User specified more than one of the following arguments. Please'
-        ' specify only one of `--reservation=$RESERVATION_NAME`, `--on-demand`'
-        ' or `--spot`.'
+        ' specify only one of `--reservation=$RESERVATION_NAME`, `--on-demand`,'
+        ' `--flex` or `--spot`.'
     )
     return_code = 1
 
   return capacity_type, return_code
+
+
+def get_reservation_maintenance_interval(
+    reservation: str, zone: str, project: str
+) -> str:
+  """Get reservation maintenance interval.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  command = (
+      f'gcloud beta compute reservations describe {reservation}'
+      f' --project={project} --zone={zone} --format="value(specificReservation.instanceProperties.maintenanceInterval)"'
+  )
+  return_code, output = run_command_for_value(
+      command, 'Get reservation maintenance interval', None
+  )
+  if return_code != 0:
+    xpk_print(f'Get reservation maintenance interval ERROR {return_code}')
+    xpk_exit(1)
+  return output.strip()
+
+
+def get_reservation_placement_policy(
+    reservation: str, zone: str, project: str
+) -> str:
+  """Get reservation placement policy.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  command = (
+      f'gcloud beta compute reservations describe {reservation}'
+      f' --project={project} --zone={zone} --format="value(resourcePolicies.policy)"'
+  )
+  return_code, output = run_command_for_value(
+      command, 'Get reservation placement policy', None
+  )
+  if return_code != 0:
+    xpk_print(f'Get reservation placement policy ERROR {return_code}')
+    xpk_exit(1)
+  return output.strip()
 
 
 def verify_reservation_exists(args) -> int:
@@ -121,9 +173,9 @@ def verify_reservation_exists(args) -> int:
 
 
 def get_capacity_arguments_from_capacity_type(
-    args, capacity_type: CapacityType
+    args, capacity_type: CapacityType, max_nodes: int
 ) -> tuple[str, int]:
-  """Determine the TPU Nodepool creation capacity arguments needed.
+  """Determine the Nodepool creation capacity arguments needed.
 
   Args:
     args: user provided arguments for running the command.
@@ -141,6 +193,12 @@ def get_capacity_arguments_from_capacity_type(
       capacity_args = ''
     case CapacityType.SPOT:
       capacity_args = '--spot'
+    case CapacityType.FLEX_START:
+      capacity_args = (
+          ' --flex-start --enable-queued-provisioning --enable-autoscaling'
+          ' --location-policy=ANY --reservation-affinity=none'
+          f' --no-enable-autorepair --max-nodes={max_nodes}'
+      )
     case CapacityType.RESERVATION:
       capacity_args = (
           f'--reservation-affinity=specific --reservation={args.reservation}'
@@ -173,6 +231,8 @@ def get_capacity_node_selectors_from_capacity_type(
   match capacity_type:
     case CapacityType.ON_DEMAND.name:
       node_selector = ''
+    case CapacityType.FLEX_START.name:
+      node_selector = 'cloud.google.com/gke-queued="true"'
     case CapacityType.SPOT.name:
       node_selector = 'cloud.google.com/gke-spot="true"'
     case CapacityType.RESERVATION.name:

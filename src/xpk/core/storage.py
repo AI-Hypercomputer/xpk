@@ -46,6 +46,7 @@ STORAGE_CRD_NAME = f"{XPK_API_GROUP_NAME}.{STORAGE_CRD_PLURAL}"
 GCS_FUSE_TYPE = "gcsfuse"
 GCP_FILESTORE_TYPE = "gcpfilestore"
 PARALLELSTORE_TYPE = "parallelstore"
+LUSTRE_TYPE = "lustre"
 GCE_PD_TYPE = "pd"
 MANIFESTS_PATH = os.path.abspath("xpkclusters/storage-manifests")
 GCS_FUSE_ANNOTATIONS = {
@@ -363,101 +364,6 @@ def get_storage_annotations(storages: list[Storage]) -> list[str]:
       annotations.append(f'{key}: "{value}"')
 
   return annotations
-
-
-def get_storage_volume_mounts_yaml(storages: list[Storage]) -> str:
-  """
-  Generates the YAML representation of the volumeMounts section for the given Storages.
-
-  This function creates the YAML snippet that defines how the storage volumes
-  should be mounted within a Pod's containers.
-
-  Args:
-      storages: A list of Storage objects.
-
-  Returns:
-      A string containing the YAML representation of the volumeMounts section.
-  """
-  yaml_str = ""
-  for storage in storages:
-    yaml_str += f"""- name: {storage.pv}
-                  mountPath: {storage.mount_point}
-                  readOnly: {storage.readonly}
-            """
-  return yaml_str
-
-
-def get_storage_volumes_yaml(storages: list[Storage]) -> str:
-  """
-  Generates the YAML representation of the volumes section for the given Storages.
-
-  This function creates the YAML snippet that defines the volumes to be
-  mounted in a Pod, including the PersistentVolumeClaim associated with
-  each Storage.
-
-  Args:
-      storages: A list of Storage objects.
-
-  Returns:
-      A string containing the YAML representation of the volumes section.
-  """
-  yaml_str = ""
-  for storage in storages:
-    yaml_str += f"""- name: {storage.pv}
-                persistentVolumeClaim:
-                  claimName: {storage.pvc}
-                  readOnly: {storage.readonly}
-            """
-  return yaml_str
-
-
-def get_storage_volume_mounts_for_gpu(
-    storages: list[Storage],
-) -> list[dict]:
-  """
-  Generates the YAML representation of the volumeMounts section for the given Storages.
-
-  This function creates the list of storage specifications that define how the storage volumes
-  should be mounted within a Pod's containers.
-
-  Args:
-      storages: A list of Storage objects.
-
-  Returns:
-      A list containing the dictionary representation of the volumeMounts section.
-  """
-  return [
-      {
-          "name": storage.pv,
-          "mountPath": storage.mount_point,
-          "readOnly": storage.readonly,
-      }
-      for storage in storages
-  ]
-
-
-def get_storage_volumes_yaml_for_gpu(storages: list[Storage]) -> str:
-  """
-  Generates the YAML representation of the volumes section for the given Storages.
-
-  This function creates the YAML snippet that defines the volumes to be
-  mounted in a Pod, including the PersistentVolumeClaim associated with
-  each Storage.
-
-  Args:
-      storages: A list of Storage objects.
-
-  Returns:
-      A string containing the YAML representation of the volumes section.
-  """
-  yaml_str = ""
-  for storage in storages:
-    yaml_str += f"""- name: {storage.pv}
-                persistentVolumeClaim:
-                  claimName: {storage.pvc}
-                  readOnly: {storage.readonly}
-            """
-  return yaml_str
 
 
 def get_storage_volumes_yaml_dict(storages: list[Storage]) -> list[dict]:

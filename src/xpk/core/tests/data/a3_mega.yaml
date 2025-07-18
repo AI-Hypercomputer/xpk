@@ -16,7 +16,7 @@
 !Blueprint
 blueprint_name: xpk-gke-a3-megagpu
 toolkit_modules_url: github.com/GoogleCloudPlatform/cluster-toolkit
-toolkit_modules_version: v1.48.0
+toolkit_modules_version: v1.57.1
 
 vars:
   project_id: "foo"
@@ -52,7 +52,6 @@ deployment_groups:
     source: modules/scheduler/gke-cluster
     use: [network1, gpunets]
     settings:
-      release_channel: RAPID
       prefix_with_deployment_name: false
       name_suffix: bar
       enable_private_endpoint: false
@@ -74,21 +73,29 @@ deployment_groups:
   - !DeploymentModule
     id: a3_megagpu_pool_0
     source: modules/compute/gke-node-pool
-    use: [gke_cluster, gpunets, group_placement_0]
+    use: [gke_cluster, gpunets]
     settings:
       name: bar-a3-megagpu-pool-0
       machine_type: a3-megagpu-8g
-      static_node_count: 2
       zones: [us-central1-c]
-      host_maintenance_interval:
+      host_maintenance_interval: 'PERIODIC'
       reservation_affinity:
         consume_reservation_type: SPECIFIC_RESERVATION
         specific_reservations:
         - name: test-reservation
       run_workload_script: false
       spot: false
-      max_pods_per_node : 32
+      max_pods_per_node: 32
+      guest_accelerator:
+      - type: nvidia-h100-mega-80gb
+        count: 8
+        gpu_driver_installation_config:
+          gpu_driver_version: "LATEST"
       auto_upgrade: true
+      static_node_count: 2
+      placement_policy: 
+        type: COMPACT
+        name: test-reservation-placement
     outputs: [instructions]
 
   - !DeploymentModule
@@ -98,11 +105,12 @@ deployment_groups:
     settings:
       kueue:
         install: true
-        version: "v0.10.0"
+        version: "v0.12.2"
         config_path: $(ghpc_stage("xpk-gke-a3-megagpu"))/kueue-xpk-configuration.yaml.tftpl
         config_template_vars:
           num_chips: 16
-          tas_name: "topologyName: 'gke-default'"
+          reservation: 1
+          flex_start: 0
       jobset:
         install: true
         version: v0.7.2
@@ -123,10 +131,3 @@ deployment_groups:
           capacity_type: "reservation",
           reservation: "test-reservation",
           }
-
-  - !DeploymentModule
-    id: group_placement_0
-    source: modules/compute/resource-policy
-    settings:
-      name: bar-gp-np-0
-      group_placement_max_distance: 2

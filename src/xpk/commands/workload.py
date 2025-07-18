@@ -52,6 +52,10 @@ from ..core.pathways import (
     get_user_workload_for_pathways,
     try_to_delete_pathwaysjob_first,
 )
+from ..core.resources import get_cluster_capacity_type, get_cluster_system_characteristics
+from ..core.capacity import (
+    CapacityType,
+)
 from ..core.resources import CLUSTER_METADATA_CONFIGMAP, get_cluster_configmap
 from ..core.scheduling import (
     check_if_workload_can_schedule,
@@ -67,6 +71,7 @@ from ..core.storage import (
     GCP_FILESTORE_TYPE,
     GCS_FUSE_TYPE,
     PARALLELSTORE_TYPE,
+    LUSTRE_TYPE,
     Storage,
     add_bucket_iam_members,
     get_storage_annotations,
@@ -140,6 +145,8 @@ spec:
               containers:
               {container}
               serviceAccountName: {service_account}
+              tolerations:
+              {tpu_toleration}
               volumes:
               {volumes}
 """
@@ -219,8 +226,7 @@ spec:
             metadata:
               labels:
                 xpk.google.com/workload: {args.workload}
-              annotations:
-                {kueue_TAS_annotation}
+              annotations: {annotations}
             spec:
               priorityClassName: {args.priority}
               restartPolicy: Never
@@ -390,6 +396,9 @@ def workload_create(args) -> None:
     pd_storages: list[Storage] = list(
         filter(lambda storage: storage.type == GCE_PD_TYPE, storages)
     )
+    lustre_storages: list[Storage] = list(
+        filter(lambda storage: storage.type == LUSTRE_TYPE, storages)
+    )
     if len(gcs_fuse_storages) > 0:
       service_account = XPK_SA
       xpk_print(f'Detected gcsfuse Storages to add: {gcs_fuse_storages}')
@@ -419,11 +428,18 @@ def workload_create(args) -> None:
     else:
       xpk_print('No gce persistent disk instances to add detected.')
 
+    if len(lustre_storages) > 0:
+      service_account = XPK_SA
+      xpk_print(f'Detected managed lustre instances to add: {lustre_storages}')
+    else:
+      xpk_print('No managed lustre instances to add detected.')
+
     all_storages = (
         gcs_fuse_storages
         + gcpfilestore_storages
         + parallelstore_storages
         + pd_storages
+        + lustre_storages
     )
 
   # Currently failure policy rules are supported for Pathways workloads. b/408465881
@@ -455,13 +471,21 @@ def workload_create(args) -> None:
     )
     if return_code != 0:
       xpk_exit(return_code)
+    system_characteristics = get_cluster_system_characteristics(args)
+    capacity_type = get_cluster_capacity_type(args)
 
-    kueue_TAS_annotation = (
-        'kueue.x-k8s.io/podset-preferred-topology:'
-        ' "cloud.google.com/gce-topology-host"'
+    annotations = (
+        ''
+        if not is_TAS_possible(
+            system_characteristics,
+            capacity_type,
+            flex=True if capacity_type == CapacityType.FLEX_START else False,
+        )
+        else (
+            'kueue.x-k8s.io/podset-preferred-topology:'
+            ' "cloud.google.com/gce-topology-host"'
+        )
     )
-    if not is_TAS_possible(args):
-      kueue_TAS_annotation = ''
 
     if (
         system.device_type in cluster_gcluster.supported_device_types
@@ -473,7 +497,7 @@ def workload_create(args) -> None:
           service_account=XPK_SA,
           failure_policy_rules=failure_policy_rules,
           pod_failure_policy=pod_failure_policy,
-          kueue_TAS_annotation=kueue_TAS_annotation,
+          annotations=annotations,
       )
 
       sub_networks = get_cluster_subnetworks(args)
@@ -535,6 +559,10 @@ def workload_create(args) -> None:
             get_storage_annotations(all_storages)
         ),
         service_account=service_account,
+        tpu_toleration="""
+              - operator: "Exists"
+                key: google.com/tpu
+        """ if system.accelerator_type == AcceleratorType['TPU'] else '',
         failure_policy_rules=failure_policy_rules,
         pod_failure_policy=pod_failure_policy,
     )

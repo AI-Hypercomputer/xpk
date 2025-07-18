@@ -139,7 +139,6 @@ deployment_groups:
       zones:
       - us-central1-c
       disk_type: hyperdisk-balanced
-      static_node_count: 2
       local_ssd_count_ephemeral_storage: 32
       spot: false
       reservation_affinity:
@@ -156,6 +155,7 @@ deployment_groups:
         subnetwork_project="foo", nic_type="GVNIC", queue_count=null,
         network_ip=null, stack_type=null, access_config=[{nat_ip=null, public_ptr_domain_name=null,
         network_tier=null}], ipv6_access_config=[], alias_ip_range=[]}], gke-a4-rdma-net.subnetwork_interfaces_gke))
+      static_node_count: 2
 
   - !DeploymentModule
     id: workload-manager-install
@@ -165,10 +165,11 @@ deployment_groups:
     settings:
       kueue:
         install: true
-        version: v0.10.0
+        version: v0.12.2
         config_path: $(ghpc_stage("xpk-gke-a4"))/kueue-xpk-configuration.yaml.tftpl
         config_template_vars:
           num_chips: 16
+          flex_start: 0
       jobset:
         install: true
         version: v0.7.2

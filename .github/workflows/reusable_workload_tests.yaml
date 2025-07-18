@@ -18,18 +18,30 @@ on:
       cluster-name:
         required: true
         type: string
+      cluster-name-dws:
+        required: true
+        type: string
       tpu-type:
         required: true
         type: string
+      tpu-type-dws:
+        required: false
+        type: string
+        default: v5p-8
       zone:
         required: true
         type: string
+      zone-dws:
+        required: false
+        type: string
+        default: us-east5-a
       run-id:
         required: true
         type: string
 
 env:
   WORKLOAD_NAME: xpktest-build-${{ github.run_attempt }}
+  WORKLOAD_NAME_DWS: xpktest-build-${{ github.run_attempt }}-dws
   PRIVATE_IMAGE_WORKLOAD_NAME: xpktest-build-priv-${{ github.run_attempt }}
   PATHWAYS_WORKLOAD_NAME: xpkpw-build-${{ github.run_attempt }}
 
@@ -78,6 +90,10 @@ jobs:
       run: python3 xpk.py inspector --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}  --workload $WORKLOAD_NAME
     - name: Wait for workload completion and confirm it succeeded
       run: python3 xpk.py workload list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} --wait-for-job-completion $WORKLOAD_NAME --timeout 300
+    - name: Run dws flex queued TPU workload
+      run: python3 xpk.py workload create --workload $WORKLOAD_NAME_DWS --cluster ${{inputs.cluster-name-dws}} --zone=${{inputs.zone-dws}} --tpu-type=${{inputs.tpu-type-dws}}  --flex --command "echo foo" --num-slices=1
+    - name: Wait for workload completion and confirm it succeeded
+      run: python3 xpk.py workload list --cluster ${{inputs.cluster-name-dws}} --zone=${{inputs.zone-dws}} --wait-for-job-completion $WORKLOAD_NAME_DWS --timeout 500
     - name: Run a Pathways workload on Ubuntu base image
       run: python xpk.py workload create-pathways --cluster ${{inputs.cluster-name}} --workload $PATHWAYS_WORKLOAD_NAME --docker-image='marketplace.gcr.io/google/ubuntu2004' --tpu-type=${{inputs.tpu-type}} --num-slices=1 --zone=${{inputs.zone}} --command "echo \"Hello world from a test script! \""
     - name: Wait for Pathways workload completion and confirm it succeeded

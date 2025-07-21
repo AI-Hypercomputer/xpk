@@ -914,6 +914,7 @@ def run_gke_cluster_create_command(
   # This value is from here https://cloud.google.com/vpc/docs/subnets
   final_gcloud_args['--cluster-ipv4-cidr'] = '10.224.0.0/12'
   final_gcloud_args['--enable-private-nodes'] = True
+  final_gcloud_args['--enable-ip-alias'] = True
 
   if args.gke_version is not None:
     final_gcloud_args['--release-channel'] = 'rapid'

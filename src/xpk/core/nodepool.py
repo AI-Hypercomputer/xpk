@@ -77,8 +77,12 @@ def run_gke_node_pool_create_command(
     if return_code > 0:
       xpk_print('Listing all reservations failed!')
     return_code = 1
+  if system.accelerator_type == AcceleratorType['TPU']:
+    max_nodes = system.vms_per_slice
+  else:
+    max_nodes = 1000
   capacity_args, return_code = get_capacity_arguments_from_capacity_type(
-      args, capacity_type
+      args, capacity_type, max_nodes
   )
   if return_code > 0:
     xpk_print('Parsing capacity arguments failed!')

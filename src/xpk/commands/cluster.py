@@ -957,7 +957,7 @@ def run_gke_cluster_create_command(
 
   if args.enable_lustre_csi_driver:
     addons.append('LustreCsiDriver')
-    command += ' --enable-legacy-lustre-port'
+    conditional_params['--enable-legacy-lustre-port'] = True
 
   if hasattr(args, 'enable_mtc') and args.enable_mtc:
     addons.append('HighScaleCheckpointing')

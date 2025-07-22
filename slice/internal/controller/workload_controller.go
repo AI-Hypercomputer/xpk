@@ -18,9 +18,9 @@ package controller
 
 import (
 	"context"
-	"slices"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -107,27 +107,19 @@ func (r *WorkloadReconciler) newSlice(wl *kueue.Workload) (*v1alpha1.Slice, erro
 	if err := controllerutil.SetControllerReference(wl, slice, r.client.Scheme()); err != nil {
 		return nil, err
 	}
-
-	if wl.Status.Admission != nil && wl.Status.Admission.PodSetAssignments != nil {
-		for _, psa := range wl.Status.Admission.PodSetAssignments {
-			for _, domain := range psa.TopologyAssignment.Domains {
-				if slice.Spec.NodeSelector == nil {
-					slice.Spec.NodeSelector = make(map[string][]string)
-				}
-				if slice.Spec.NodeSelector[TPUReservationSubblockLabel] == nil {
-					slice.Spec.NodeSelector[TPUReservationSubblockLabel] = []string{}
-				}
-				// make sure there are no duplicates in the nodeSelector
-				for _, v := range domain.Values {
-					exists := slices.Contains(slice.Spec.NodeSelector[TPUReservationSubblockLabel], v)
-					if !exists {
-						slice.Spec.NodeSelector[TPUReservationSubblockLabel] = append(slice.Spec.NodeSelector[TPUReservationSubblockLabel], v)
-					}
-				}
-			}
-		}
+	if wl.Status.Admission == nil || wl.Status.Admission.PodSetAssignments == nil {
+		return slice, nil
 	}
 
+	nodeSelectors := sets.New[string]()
+	for _, psa := range wl.Status.Admission.PodSetAssignments {
+		for _, domain := range psa.TopologyAssignment.Domains {
+			nodeSelectors.Insert(domain.Values...)
+		}
+	}
+	slice.Spec.NodeSelector = map[string][]string{
+		TPUReservationSubblockLabel: nodeSelectors.UnsortedList(),
+	}
 	return slice, nil
 }
 

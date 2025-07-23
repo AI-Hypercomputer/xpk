@@ -173,7 +173,7 @@ def verify_reservation_exists(args) -> int:
 
 
 def get_capacity_arguments_from_capacity_type(
-    args, capacity_type: CapacityType
+    args, capacity_type: CapacityType, max_nodes: int
 ) -> tuple[str, int]:
   """Determine the Nodepool creation capacity arguments needed.
 
@@ -197,7 +197,7 @@ def get_capacity_arguments_from_capacity_type(
       capacity_args = (
           ' --flex-start --enable-queued-provisioning --enable-autoscaling'
           ' --location-policy=ANY --reservation-affinity=none'
-          ' --no-enable-autorepair --max-nodes=1'
+          f' --no-enable-autorepair --max-nodes={max_nodes}'
       )
     case CapacityType.RESERVATION:
       capacity_args = (

@@ -333,6 +333,7 @@ def create_job_template_instance(
       args=args,
   )
 
+
 def create_pod_template_instance(args: Namespace, service_account: str) -> int:
   """Create new PodTemplate instance on cluster with default settings.
 
@@ -346,7 +347,6 @@ def create_pod_template_instance(args: Namespace, service_account: str) -> int:
   if pod_image is None or len(pod_image) == 0:
     pod_image = PodTemplateDefaults.IMAGE.value
   working_directory = config.get(KJOB_SHELL_WORKING_DIRECTORY)
-
   if working_directory is None or len(working_directory) == 0:
     working_directory = PodTemplateDefaults.WORKING_DIRECTORY.value
 

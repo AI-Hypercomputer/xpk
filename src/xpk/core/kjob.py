@@ -333,6 +333,7 @@ def create_job_template_instance(
       args=args,
   )
 
+
 def create_pod_template_instance(args: Namespace, service_account: str) -> int:
   """Create new PodTemplate instance on cluster with default settings.
 

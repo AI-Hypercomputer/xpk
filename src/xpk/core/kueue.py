@@ -220,7 +220,7 @@ spec:
         - --zap-log-level=2
         command:
         - /manager
-        image: registry.k8s.io/kueue/kueue:v0.12.2
+        image: registry.k8s.io/kueue/kueue:{KUEUE_VERSION}
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
@@ -258,17 +258,6 @@ spec:
         - mountPath: /controller_manager_config.yaml
           name: manager-config
           subPath: controller_manager_config.yaml
-      - args:
-        - --secure-listen-address=0.0.0.0:8443
-        - --upstream=http://127.0.0.1:8080/
-        - --logtostderr=true
-        - --v=10
-        image: registry.k8s.io/kubebuilder/kube-rbac-proxy:v0.16.0
-        name: kube-rbac-proxy
-        ports:
-        - containerPort: 8443
-          name: https
-          protocol: TCP
       securityContext:
         runAsNonRoot: true
       serviceAccountName: kueue-controller-manager
@@ -536,7 +525,7 @@ def update_kueue_resources_if_necessary(args):
       f'{max(math.ceil(int(out) * MEMORY_SIZE_PER_VM), MIN_MEMORY_LIMIT_SIZE)}Mi'
   )
   yml_string = kueue_controller_manager_yml.format(
-      memory_limit_size=new_memory_limit,
+      memory_limit_size=new_memory_limit, KUEUE_VERSION=KUEUE_VERSION
   )
   tmp = write_tmp_file(yml_string)
   command = f'kubectl apply -f {str(tmp.file.name)}'

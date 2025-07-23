@@ -525,8 +525,7 @@ def update_kueue_resources_if_necessary(args):
       f'{max(math.ceil(int(out) * MEMORY_SIZE_PER_VM), MIN_MEMORY_LIMIT_SIZE)}Mi'
   )
   yml_string = kueue_controller_manager_yml.format(
-      memory_limit_size=new_memory_limit,
-      KUEUE_VERSION=KUEUE_VERSION
+      memory_limit_size=new_memory_limit, KUEUE_VERSION=KUEUE_VERSION
   )
   tmp = write_tmp_file(yml_string)
   command = f'kubectl apply -f {str(tmp.file.name)}'

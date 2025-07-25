@@ -23,11 +23,22 @@ nodes:
             v: "3"
   - role: worker
     labels:
-      instance-type: on-demand
+      cloud.google.com/gke-node-group: tas-group
+      cloud.google.com/gke-tpu-accelerator: tpu-v7x
+      cloud.google.com/gke-tpu-block: b1
+      cloud.google.com/gke-tpu-subblock: sb1
   - role: worker
     labels:
-      instance-type: spot
-
+      cloud.google.com/gke-node-group: tas-group
+      cloud.google.com/gke-tpu-accelerator: tpu-v7x
+      cloud.google.com/gke-tpu-block: b2
+      cloud.google.com/gke-tpu-subblock: sb2
+  - role: worker
+    labels:
+      cloud.google.com/gke-node-group: tas-group
+      cloud.google.com/gke-tpu-accelerator: tpu-v7x
+      cloud.google.com/gke-tpu-block: b2
+      cloud.google.com/gke-tpu-subblock: sb3
 kubeadmConfigPatches:
   - |
     kind: JoinConfiguration

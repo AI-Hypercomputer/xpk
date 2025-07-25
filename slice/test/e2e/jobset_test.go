@@ -17,10 +17,14 @@ limitations under the License.
 package e2e
 
 import (
+	"fmt"
+
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
 	kueuealpha "sigs.k8s.io/kueue/apis/kueue/v1alpha1"
@@ -33,6 +37,14 @@ import (
 	testingjobsjobset "tpu-slice-controller/internal/util/testingjobs/jobset"
 	"tpu-slice-controller/internal/webhooks"
 	"tpu-slice-controller/test/utils"
+)
+
+const (
+	tpuAccelerator = "tpu-v7x"
+)
+
+var (
+	ignorePodSetTopologyRequestFields = cmpopts.IgnoreFields(kueue.PodSetTopologyRequest{}, "PodIndexLabel", "SubGroupIndexLabel", "SubGroupCount", "PodSetSliceSize")
 )
 
 var _ = ginkgo.Describe("JobSet", func() {
@@ -48,18 +60,20 @@ var _ = ginkgo.Describe("JobSet", func() {
 		ns = testing.MakeNamespaceWithGenerateName("e2e-jobset-")
 		utils.MustCreate(ctx, k8sClient, ns)
 
-		topology = testing.MakeDefaultOneLevelTopology("hostname")
+		topology = testing.MakeTopology("topology").
+			Levels(webhooks.TPUBlockLabel, webhooks.TPUSubBlockLabel).
+			Obj()
 		utils.MustCreate(ctx, k8sClient, topology)
 
 		rf = testing.MakeResourceFlavor("rf").
-			NodeLabel("instance-type", "on-demand").
+			NodeLabel(nodeGroupLabel, nodeGroup).
 			TopologyName(topology.Name).
 			Obj()
 		utils.MustCreate(ctx, k8sClient, rf)
 
 		cq = testing.MakeClusterQueue("cq").
 			ResourceGroup(*testing.MakeFlavorQuotas(rf.Name).
-				Resource(corev1.ResourceCPU, "2").
+				Resource(extraResource, "128").
 				Obj()).
 			Obj()
 		utils.MustCreate(ctx, k8sClient, cq)
@@ -77,110 +91,189 @@ var _ = ginkgo.Describe("JobSet", func() {
 	})
 
 	ginkgo.When("Creating a JobSet", func() {
-		ginkgo.It("should create Slice based on created Workload", func() {
-			jobSet := testingjobsjobset.MakeJobSet("jobset", ns.Name).
-				Queue(lq.Name).
-				ReplicatedJobs(
-					testingjobsjobset.ReplicatedJobRequirements{
-						Name:        "rj1",
-						Image:       utils.E2eTestAgnHostImage,
-						Args:        utils.BehaviorWaitForDeletion,
-						Replicas:    1,
-						Parallelism: 1,
-						Completions: 1,
-						PodAnnotations: map[string]string{
-							kueuealpha.PodSetRequiredTopologyAnnotation: corev1.LabelHostname,
+		type testCase struct {
+			tpuTopology      string
+			parallelism      int32
+			wantSliceSize    int32
+			wantDomains      []kueue.TopologyDomainAssignment
+			wantNodeSelector map[string][]string
+		}
+		ginkgo.DescribeTable("it should create Slice based on created Workload with",
+			func(tc testCase) {
+				jobSet := testingjobsjobset.MakeJobSet("jobset", ns.Name).
+					Queue(lq.Name).
+					ReplicatedJobs(
+						testingjobsjobset.ReplicatedJobRequirements{
+							Name:        "rj1",
+							Image:       utils.E2eTestAgnHostImage,
+							Args:        utils.BehaviorWaitForDeletion,
+							Replicas:    1,
+							Parallelism: tc.parallelism,
+							Completions: tc.parallelism,
+							PodAnnotations: map[string]string{
+								webhooks.TPUTopologyAnnotation: tc.tpuTopology,
+							},
+							NodeSelector: map[string]string{
+								webhooks.TPUAcceleratorLabel: tpuAccelerator,
+							},
 						},
-					},
-					testingjobsjobset.ReplicatedJobRequirements{
-						Name:        "rj2",
-						Image:       utils.E2eTestAgnHostImage,
-						Args:        utils.BehaviorWaitForDeletion,
-						Replicas:    1,
-						Parallelism: 1,
-						Completions: 1,
-						PodAnnotations: map[string]string{
-							kueuealpha.PodSetRequiredTopologyAnnotation: corev1.LabelHostname,
+					).
+					RequestAndLimit("rj1", extraResource, "1").
+					RequestAndLimit("rj2", extraResource, "1").
+					Obj()
+
+				ginkgo.By("Creating a JobSet", func() {
+					utils.MustCreate(ctx, k8sClient, jobSet)
+				})
+
+				createdJobSet := &jobset.JobSet{}
+
+				ginkgo.By("Checking that the JobSet is created with annotations", func() {
+					gomega.Eventually(func(g gomega.Gomega) {
+						g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(jobSet), createdJobSet)).To(gomega.Succeed())
+						for _, replicatedJob := range createdJobSet.Spec.ReplicatedJobs {
+							annotations := replicatedJob.Template.Spec.Template.Annotations
+							g.Expect(annotations[kueuealpha.PodSetRequiredTopologyAnnotation]).
+								Should(gomega.Equal(webhooks.TPUBlockLabel))
+							g.Expect(annotations[kueuealpha.PodSetSliceRequiredTopologyAnnotation]).
+								Should(gomega.Equal(webhooks.TPUSubBlockLabel))
+							g.Expect(annotations[kueuealpha.PodSetSliceSizeAnnotation]).
+								Should(gomega.Equal(fmt.Sprint(tc.wantSliceSize)))
+						}
+					}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+				})
+
+				createdWorkload := &kueue.Workload{}
+				wlKey := types.NamespacedName{
+					Name:      jobsetcontroller.GetWorkloadNameForJobSet(jobSet.Name, jobSet.UID),
+					Namespace: ns.Name,
+				}
+
+				ginkgo.By("Validating the Workload", func() {
+					gomega.Eventually(func(g gomega.Gomega) {
+						g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).To(gomega.Succeed())
+						g.Expect(createdWorkload.Spec.PodSets).To(gomega.HaveLen(1))
+						g.Expect(createdWorkload.Spec.PodSets[0].TopologyRequest).To(gomega.BeComparableTo(&kueue.PodSetTopologyRequest{
+							Required:                    ptr.To(webhooks.TPUBlockLabel),
+							PodSetSliceRequiredTopology: ptr.To(webhooks.TPUSubBlockLabel),
+							SubGroupCount:               ptr.To[int32](2),
+							PodSetSliceSize:             ptr.To[int32](tc.wantSliceSize),
+						}, ignorePodSetTopologyRequestFields))
+					}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+				})
+
+				ginkgo.By("Waiting for Admission of the Workload", func() {
+					gomega.Eventually(func(g gomega.Gomega) {
+						g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
+						g.Expect(createdWorkload.Status.Admission).ShouldNot(gomega.BeNil())
+					}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+				})
+
+				ginkgo.By("Verifying TopologyAssignment", func() {
+					gomega.Expect(createdWorkload.Status.Admission).ShouldNot(gomega.BeNil())
+					gomega.Expect(createdWorkload.Status.Admission.PodSetAssignments).Should(gomega.HaveLen(1))
+					gomega.Expect(createdWorkload.Status.Admission.PodSetAssignments[0].TopologyAssignment).Should(gomega.BeComparableTo(
+						&kueue.TopologyAssignment{
+							Levels:  []string{webhooks.TPUBlockLabel, webhooks.TPUSubBlockLabel},
+							Domains: tc.wantDomains,
 						},
-					},
-				).
-				RequestAndLimit("rj1", "cpu", "200m").
-				RequestAndLimit("rj2", "cpu", "200m").
-				Obj()
-
-			ginkgo.By("Creating the JobSet", func() {
-				utils.MustCreate(ctx, k8sClient, jobSet)
-			})
-
-			createdJobSet := &jobset.JobSet{}
-
-			ginkgo.By("Checking that JobSet is created with annotations", func() {
-				gomega.Eventually(func(g gomega.Gomega) {
-					g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(jobSet), createdJobSet)).To(gomega.Succeed())
-					for _, replicatedJob := range createdJobSet.Spec.ReplicatedJobs {
-						g.Expect(replicatedJob.Template.Annotations[webhooks.PodSetRequiredTopologyAnnotation]).Should(gomega.Equal(webhooks.AnnotationValueTBD))
-						g.Expect(replicatedJob.Template.Annotations[webhooks.PodSetSliceRequiredTopologyAnnotation]).Should(gomega.Equal(webhooks.AnnotationValueTBD))
-						g.Expect(replicatedJob.Template.Annotations[webhooks.PodSetSliceSizeAnnotation]).Should(gomega.Equal(webhooks.AnnotationValueTBD))
-					}
-				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
-			})
-
-			createdWorkload := &kueue.Workload{}
-			wlKey := types.NamespacedName{
-				Name:      jobsetcontroller.GetWorkloadNameForJobSet(jobSet.Name, jobSet.UID),
-				Namespace: ns.Name,
-			}
-
-			ginkgo.By("Waiting for admission of workload and verify TopologyAssignment", func() {
-				gomega.Eventually(func(g gomega.Gomega) {
-					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
-					g.Expect(createdWorkload.Status.Admission).ShouldNot(gomega.BeNil())
-				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
-				gomega.Expect(createdWorkload.Status.Admission).ShouldNot(gomega.BeNil())
-				gomega.Expect(createdWorkload.Status.Admission.PodSetAssignments).Should(gomega.HaveLen(2))
-				gomega.Expect(createdWorkload.Status.Admission.PodSetAssignments[0].TopologyAssignment).Should(gomega.BeComparableTo(
-					&kueue.TopologyAssignment{
-						Levels: []string{corev1.LabelHostname},
-						Domains: []kueue.TopologyDomainAssignment{{
-							Count:  1,
-							Values: []string{"kind-worker"},
-						}},
-					},
-				))
-				gomega.Expect(createdWorkload.Status.Admission.PodSetAssignments[1].TopologyAssignment).Should(gomega.BeComparableTo(
-					&kueue.TopologyAssignment{
-						Levels: []string{corev1.LabelHostname},
-						Domains: []kueue.TopologyDomainAssignment{{
-							Count:  1,
-							Values: []string{"kind-worker"},
-						}},
-					},
-				))
-			})
-
-			createdSlice := &slice.Slice{}
-			sliceKey := types.NamespacedName{
-				Name:      wlKey.Name,
-				Namespace: wlKey.Namespace,
-			}
-
-			ginkgo.By("Checking that Slice is created", func() {
-				gomega.Eventually(func(g gomega.Gomega) {
-					g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
-					g.Expect(createdSlice.Spec.NodeSelector).To(gomega.HaveLen(1))
-					g.Expect(createdSlice.Spec.NodeSelector).To(gomega.HaveKeyWithValue(
-						controller.TPUReservationSubblockLabel, []string{"kind-worker"},
 					))
-				}, utils.LongTimeout, utils.Interval).Should(gomega.Succeed())
-			})
+				})
 
-			ginkgo.By("Deleting JobSet", func() {
-				utils.ExpectObjectToBeDeleted(ctx, k8sClient, jobSet, true)
-			})
+				createdSlice := &slice.Slice{}
+				sliceKey := types.NamespacedName{
+					Name:      wlKey.Name,
+					Namespace: wlKey.Namespace,
+				}
 
-			ginkgo.By("Checking that Slice is deleted", func() {
-				utils.ExpectObjectToBeDeleted(ctx, k8sClient, createdSlice, false)
-			})
-		})
+				ginkgo.By("Checking that Slice is created", func() {
+					gomega.Eventually(func(g gomega.Gomega) {
+						g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
+						g.Expect(createdSlice.Spec.NodeSelector).To(gomega.HaveLen(1))
+						g.Expect(createdSlice.Spec.NodeSelector).To(gomega.BeComparableTo(tc.wantNodeSelector))
+					}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+				})
+
+				ginkgo.By("Deleting JobSet", func() {
+					utils.ExpectObjectToBeDeleted(ctx, k8sClient, jobSet, true)
+				})
+
+				ginkgo.By("Checking that Slice is deleted", func() {
+					utils.ExpectObjectToBeDeleted(ctx, k8sClient, createdSlice, false)
+				})
+			},
+			ginkgo.Entry("TPU topology 4x4x4 and parallelism 16", testCase{
+				tpuTopology:   "4x4x4",
+				parallelism:   16,
+				wantSliceSize: 16,
+				wantDomains: []kueue.TopologyDomainAssignment{{
+					Values: []string{"b1", "sb1"},
+					Count:  16,
+				}},
+				wantNodeSelector: map[string][]string{
+					controller.TPUReservationSubblockLabel: {"b1", "sb1"},
+				},
+			}),
+			ginkgo.Entry("TPU topology 4x4x4 and parallelism 16", testCase{
+				tpuTopology:   "4x4x4",
+				parallelism:   64,
+				wantSliceSize: 64,
+				wantDomains: []kueue.TopologyDomainAssignment{{
+					Values: []string{"b1", "sb1"},
+					Count:  64,
+				}},
+				wantNodeSelector: map[string][]string{
+					controller.TPUReservationSubblockLabel: {"b1", "sb1"},
+				},
+			}),
+			ginkgo.Entry("TPU topology 4x4x12 and parallelism 48", testCase{
+				tpuTopology:   "4x4x12",
+				parallelism:   48,
+				wantSliceSize: 16,
+				wantDomains: []kueue.TopologyDomainAssignment{{
+					Values: []string{"b1", "sb1"},
+					Count:  48,
+				}},
+				wantNodeSelector: map[string][]string{
+					controller.TPUReservationSubblockLabel: {"b1", "sb1"},
+				},
+			}),
+			ginkgo.Entry("TPU topology 4x4x12 and parallelism 96", testCase{
+				tpuTopology:   "4x4x12",
+				parallelism:   96,
+				wantSliceSize: 32,
+				wantDomains: []kueue.TopologyDomainAssignment{
+					{
+						Values: []string{"b2", "sb2"},
+						Count:  64,
+					},
+					{
+						Values: []string{"b2", "sb3"},
+						Count:  32,
+					},
+				},
+				wantNodeSelector: map[string][]string{
+					controller.TPUReservationSubblockLabel: {"b2", "sb2", "sb3"},
+				},
+			}),
+			ginkgo.Entry("TPU topology 4x4x8 and parallelism 128", testCase{
+				tpuTopology:   "4x4x8",
+				parallelism:   128,
+				wantSliceSize: 64,
+				wantDomains: []kueue.TopologyDomainAssignment{
+					{
+						Values: []string{"b2", "sb2"},
+						Count:  64,
+					},
+					{
+						Values: []string{"b2", "sb3"},
+						Count:  64,
+					},
+				},
+				wantNodeSelector: map[string][]string{
+					controller.TPUReservationSubblockLabel: {"b2", "sb2", "sb3"},
+				},
+			}),
+		)
 	})
 })

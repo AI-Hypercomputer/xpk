@@ -21,96 +21,184 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
-	ctrl "sigs.k8s.io/controller-runtime"
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
-	kueueconstants "sigs.k8s.io/kueue/pkg/controller/constants"
+	kueuealpha "sigs.k8s.io/kueue/apis/kueue/v1alpha1"
 
-	utiltesting "tpu-slice-controller/internal/util/testing"
+	testingjobjobset "tpu-slice-controller/internal/util/testingjobs/jobset"
+	"tpu-slice-controller/test/utils"
 )
 
 func TestDefault(t *testing.T) {
-	testCases := []struct {
-		name    string
-		jobSet  *jobset.JobSet
-		want    *jobset.JobSet
-		wantErr error
+	const (
+		baseJobSetName = "jobset"
+	)
+
+	testCases := map[string]struct {
+		jobSet     *jobset.JobSet
+		wantJobSet *jobset.JobSet
+		wantErr    error
 	}{
-		{
-			name: "TestDefault_No_Local_Queue_label",
-			jobSet: &jobset.JobSet{
-				Spec: jobset.JobSetSpec{
-					ManagedBy: ptr.To(jobset.JobSetControllerName),
-				},
-				ObjectMeta: ctrl.ObjectMeta{
-					Namespace: metav1.NamespaceDefault,
-				},
-			},
-			want: &jobset.JobSet{
-				Spec: jobset.JobSetSpec{
-					ManagedBy: ptr.To(jobset.JobSetControllerName),
-				},
-				ObjectMeta: ctrl.ObjectMeta{
-					Namespace: metav1.NamespaceDefault,
-				},
-			},
+		"no queue label": {
+			jobSet: testingjobjobset.MakeJobSet(baseJobSetName, utils.DefaultNamespace).
+				ReplicatedJobs(testingjobjobset.ReplicatedJobRequirements{
+					Name:        "rj1",
+					Parallelism: 12,
+					PodAnnotations: map[string]string{
+						TPUTopologyAnnotation: "4x4x12",
+					},
+					NodeSelector: map[string]string{
+						TPUAcceleratorLabel: "tpu-v7x",
+					},
+				}).
+				Obj(),
+			wantJobSet: testingjobjobset.MakeJobSet(baseJobSetName, utils.DefaultNamespace).
+				ReplicatedJobs(testingjobjobset.ReplicatedJobRequirements{
+					Name:        "rj1",
+					Parallelism: 12,
+					PodAnnotations: map[string]string{
+						TPUTopologyAnnotation: "4x4x12",
+					},
+					NodeSelector: map[string]string{
+						TPUAcceleratorLabel: "tpu-v7x",
+					},
+				}).
+				Obj(),
 		},
-		{
-			name: "TestDefault_With_Local_Queue_label",
-			jobSet: &jobset.JobSet{
-				Spec: jobset.JobSetSpec{
-					ReplicatedJobs: []jobset.ReplicatedJob{
-						{
-							Name:     "rj1",
-							Template: utiltesting.MakeJobTemplate("rj1", "").Obj(),
-						},
-						{
-							Name:     "rj2",
-							Template: utiltesting.MakeJobTemplate("rj2", "").Obj(),
-						},
+		"no tpu topology annotation": {
+			jobSet: testingjobjobset.MakeJobSet(baseJobSetName, utils.DefaultNamespace).
+				Queue("queue-name").
+				ReplicatedJobs(testingjobjobset.ReplicatedJobRequirements{
+					Name:        "rj1",
+					Parallelism: 12,
+					NodeSelector: map[string]string{
+						TPUAcceleratorLabel: "tpu-v7x",
 					},
-				},
-				ObjectMeta: ctrl.ObjectMeta{
-					Labels: map[string]string{
-						kueueconstants.QueueLabel: "local-queue",
+				}).
+				Obj(),
+			wantJobSet: testingjobjobset.MakeJobSet(baseJobSetName, utils.DefaultNamespace).
+				Queue("queue-name").
+				ReplicatedJobs(testingjobjobset.ReplicatedJobRequirements{
+					Name:        "rj1",
+					Parallelism: 12,
+					NodeSelector: map[string]string{
+						TPUAcceleratorLabel: "tpu-v7x",
 					},
-					Namespace: metav1.NamespaceDefault,
-				},
-			},
-			want: &jobset.JobSet{
-				Spec: jobset.JobSetSpec{
-					ReplicatedJobs: []jobset.ReplicatedJob{
-						{
-							Name: "rj1",
-							Template: utiltesting.MakeJobTemplate("rj1", "").
-								SetAnnotation(PodSetRequiredTopologyAnnotation, AnnotationValueTBD).
-								SetAnnotation(PodSetSliceRequiredTopologyAnnotation, AnnotationValueTBD).
-								SetAnnotation(PodSetSliceSizeAnnotation, AnnotationValueTBD).
-								Obj(),
-						},
-						{
-							Name: "rj2",
-							Template: utiltesting.MakeJobTemplate("rj2", "").
-								SetAnnotation(PodSetRequiredTopologyAnnotation, AnnotationValueTBD).
-								SetAnnotation(PodSetSliceRequiredTopologyAnnotation, AnnotationValueTBD).
-								SetAnnotation(PodSetSliceSizeAnnotation, AnnotationValueTBD).
-								Obj(),
-						},
+				}).
+				Obj(),
+		},
+		"no tpu accelerator node selector label": {
+			jobSet: testingjobjobset.MakeJobSet(baseJobSetName, utils.DefaultNamespace).
+				Queue("queue-name").
+				ReplicatedJobs(testingjobjobset.ReplicatedJobRequirements{
+					Name:        "rj1",
+					Parallelism: 12,
+					PodAnnotations: map[string]string{
+						TPUTopologyAnnotation: "4x4x12",
 					},
-				},
-				ObjectMeta: ctrl.ObjectMeta{
-					Labels: map[string]string{
-						kueueconstants.QueueLabel: "local-queue",
+				}).
+				Obj(),
+			wantJobSet: testingjobjobset.MakeJobSet(baseJobSetName, utils.DefaultNamespace).
+				Queue("queue-name").
+				ReplicatedJobs(testingjobjobset.ReplicatedJobRequirements{
+					Name:        "rj1",
+					Parallelism: 12,
+					PodAnnotations: map[string]string{
+						TPUTopologyAnnotation: "4x4x12",
 					},
-					Namespace: metav1.NamespaceDefault,
-				},
-			},
+				}).
+				Obj(),
+		},
+		"should set default values": {
+			jobSet: testingjobjobset.MakeJobSet(baseJobSetName, utils.DefaultNamespace).
+				Queue("queue-name").
+				ReplicatedJobs(testingjobjobset.ReplicatedJobRequirements{
+					Name:        "rj1",
+					Parallelism: 12,
+					PodAnnotations: map[string]string{
+						TPUTopologyAnnotation: "4x4x12",
+					},
+					NodeSelector: map[string]string{
+						TPUAcceleratorLabel: "tpu-v7x",
+					},
+				}).
+				Obj(),
+			wantJobSet: testingjobjobset.MakeJobSet(baseJobSetName, utils.DefaultNamespace).
+				Queue("queue-name").
+				ReplicatedJobs(testingjobjobset.ReplicatedJobRequirements{
+					Name:        "rj1",
+					Parallelism: 12,
+					PodAnnotations: map[string]string{
+						TPUTopologyAnnotation:                            "4x4x12",
+						kueuealpha.PodSetRequiredTopologyAnnotation:      TPUBlockLabel,
+						kueuealpha.PodSetSliceRequiredTopologyAnnotation: TPUSubBlockLabel,
+						kueuealpha.PodSetSliceSizeAnnotation:             "4",
+					},
+					NodeSelector: map[string]string{
+						TPUAcceleratorLabel: "tpu-v7x",
+					},
+				}).
+				Obj(),
+		},
+		"shouldn't set default values because invalid topology annotation": {
+			jobSet: testingjobjobset.MakeJobSet(baseJobSetName, utils.DefaultNamespace).
+				Queue("queue-name").
+				ReplicatedJobs(testingjobjobset.ReplicatedJobRequirements{
+					Name:        "rj1",
+					Parallelism: 12,
+					PodAnnotations: map[string]string{
+						TPUTopologyAnnotation: "invalid",
+					},
+					NodeSelector: map[string]string{
+						TPUAcceleratorLabel: "tpu-v7x",
+					},
+				}).
+				Obj(),
+			wantJobSet: testingjobjobset.MakeJobSet(baseJobSetName, utils.DefaultNamespace).
+				Queue("queue-name").
+				ReplicatedJobs(testingjobjobset.ReplicatedJobRequirements{
+					Name:        "rj1",
+					Parallelism: 12,
+					PodAnnotations: map[string]string{
+						TPUTopologyAnnotation: "invalid",
+					},
+					NodeSelector: map[string]string{
+						TPUAcceleratorLabel: "tpu-v7x",
+					},
+				}).
+				Obj(),
+		},
+		"shouldn't set default values because unsupported tpu accelerator": {
+			jobSet: testingjobjobset.MakeJobSet(baseJobSetName, utils.DefaultNamespace).
+				Queue("queue-name").
+				ReplicatedJobs(testingjobjobset.ReplicatedJobRequirements{
+					Name:        "rj1",
+					Parallelism: 12,
+					PodAnnotations: map[string]string{
+						TPUTopologyAnnotation: "4x4x12",
+					},
+					NodeSelector: map[string]string{
+						TPUAcceleratorLabel: "test",
+					},
+				}).
+				Obj(),
+			wantJobSet: testingjobjobset.MakeJobSet(baseJobSetName, utils.DefaultNamespace).
+				Queue("queue-name").
+				ReplicatedJobs(testingjobjobset.ReplicatedJobRequirements{
+					Name:        "rj1",
+					Parallelism: 12,
+					PodAnnotations: map[string]string{
+						TPUTopologyAnnotation: "4x4x12",
+					},
+					NodeSelector: map[string]string{
+						TPUAcceleratorLabel: "test",
+					},
+				}).
+				Obj(),
 		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
 			ctx := t.Context()
 			webhook := &JobSetWebhook{}
 
@@ -118,8 +206,8 @@ func TestDefault(t *testing.T) {
 			if diff := cmp.Diff(tc.wantErr, gotErr, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("Default() error mismatch (-want +got):\n%s", diff)
 			}
-			if tc.want != nil {
-				if diff := cmp.Diff(tc.want, tc.jobSet); diff != "" {
+			if tc.wantJobSet != nil {
+				if diff := cmp.Diff(tc.wantJobSet, tc.jobSet); diff != "" {
 					t.Errorf("Default() mismatch (-want,+got):\n%s", diff)
 				}
 			}

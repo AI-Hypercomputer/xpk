@@ -21,12 +21,11 @@ import (
 )
 
 const (
-	SliceName              = "slice"
-	WorkloadControllerName = SliceName + "-workload-controller"
+	SliceWorkloadControllerName = "slice-workload-controller"
 )
 
 func SetupControllers(mgr ctrl.Manager) (string, error) {
-	wlRec := NewWorkloadReconciler(mgr.GetClient(), mgr.GetEventRecorderFor(WorkloadControllerName))
+	wlRec := NewWorkloadReconciler(mgr.GetClient(), mgr.GetEventRecorderFor(SliceWorkloadControllerName))
 	if err := wlRec.SetupWithManager(mgr); err != nil {
 		return "Workload", err
 	}

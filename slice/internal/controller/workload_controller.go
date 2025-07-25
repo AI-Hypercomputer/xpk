@@ -244,6 +244,7 @@ func (r *WorkloadReconciler) updateWorkloadAdmissionCheckStatus(ctx context.Cont
 	return err
 }
 
+// syncAdmissionCheckStatus syncs the admission check status with the state of the slice.
 func (r *WorkloadReconciler) syncAdmissionCheckStatus(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, slice *v1alpha1.Slice) error {
 	if !meta.IsStatusConditionTrue(slice.Status.Conditions, string(v1alpha1.Ready)) {
 		return nil

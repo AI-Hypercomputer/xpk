@@ -252,6 +252,8 @@ spec:
         securityContext:
           allowPrivilegeEscalation: false
         volumeMounts:
+        - mountPath: /visibility
+          name: visibility
         - mountPath: /tmp/k8s-webhook-server/serving-certs
           name: cert
           readOnly: true
@@ -263,6 +265,8 @@ spec:
       serviceAccountName: kueue-controller-manager
       terminationGracePeriodSeconds: 10
       volumes:
+      - name: visibility
+        emptyDir: {{}}
       - name: cert
         secret:
           defaultMode: 420

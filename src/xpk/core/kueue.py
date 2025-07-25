@@ -190,88 +190,6 @@ spec:
         command: [ "sleep", "inf" ]
 """
 
-kueue_controller_manager_yml = """
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  labels:
-    app.kubernetes.io/component: controller
-    app.kubernetes.io/name: kueue
-    control-plane: controller-manager
-  name: kueue-controller-manager
-  namespace: kueue-system
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      control-plane: controller-manager
-  template:
-    metadata:
-      annotations:
-        kubectl.kubernetes.io/default-container: manager
-      labels:
-        app.kubernetes.io/component: controller
-        app.kubernetes.io/name: kueue
-        control-plane: controller-manager
-    spec:
-      containers:
-      - args:
-        - --config=/controller_manager_config.yaml
-        - --zap-log-level=2
-        command:
-        - /manager
-        image: registry.k8s.io/kueue/kueue:{KUEUE_VERSION}
-        imagePullPolicy: Always
-        livenessProbe:
-          httpGet:
-            path: /healthz
-            port: 8081
-          initialDelaySeconds: 15
-          periodSeconds: 20
-        name: manager
-        ports:
-        - containerPort: 8082
-          name: visibility
-          protocol: TCP
-        - containerPort: 9443
-          name: webhook-server
-          protocol: TCP
-        readinessProbe:
-          httpGet:
-            path: /readyz
-            port: 8081
-          initialDelaySeconds: 5
-          periodSeconds: 10
-        resources:
-          limits:
-            cpu: 500m
-            memory: {memory_limit_size}
-          requests:
-            cpu: 500m
-            memory: 512Mi
-        securityContext:
-          allowPrivilegeEscalation: false
-        volumeMounts:
-        - mountPath: /tmp/k8s-webhook-server/serving-certs
-          name: cert
-          readOnly: true
-        - mountPath: /controller_manager_config.yaml
-          name: manager-config
-          subPath: controller_manager_config.yaml
-      securityContext:
-        runAsNonRoot: true
-      serviceAccountName: kueue-controller-manager
-      terminationGracePeriodSeconds: 10
-      volumes:
-      - name: cert
-        secret:
-          defaultMode: 420
-          secretName: kueue-webhook-server-cert
-      - configMap:
-          name: kueue-manager-config
-        name: manager-config
-"""
-
 
 def verify_kueuectl(args: Namespace) -> None:
   """Verify if kueuectl is installed.
@@ -524,11 +442,12 @@ def update_kueue_resources_if_necessary(args):
   new_memory_limit = (
       f'{max(math.ceil(int(out) * MEMORY_SIZE_PER_VM), MIN_MEMORY_LIMIT_SIZE)}Mi'
   )
-  yml_string = kueue_controller_manager_yml.format(
-      memory_limit_size=new_memory_limit, KUEUE_VERSION=KUEUE_VERSION
-  )
-  tmp = write_tmp_file(yml_string)
-  command = f'kubectl apply -f {str(tmp.file.name)}'
+  kueue_controller_manager_yaml = 'https://raw.githubusercontent.com/GoogleCloudPlatform/cluster-toolkit/refs/tags/v1.57.1/modules/management/kubectl-apply/manifests/kueue-v0.12.2.yaml'
+  # yml_string = kueue_controller_manager_yml.format(
+  #     memory_limit_size=new_memory_limit, KUEUE_VERSION=KUEUE_VERSION
+  # )
+  # tmp = write_tmp_file(yml_string)
+  command = f'kubectl apply -f {kueue_controller_manager_yaml}'
 
   task = 'Updating Kueue Controller Manager resources'
   return_code = run_command_with_updates_retry(command, task, args)

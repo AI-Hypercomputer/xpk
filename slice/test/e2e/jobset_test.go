@@ -212,12 +212,43 @@ var _ = ginkgo.Describe("JobSet", func() {
 							State:   kueue.CheckStatePending,
 							Message: fmt.Sprintf("The Slice %q has been created", createdSlice.Name),
 						}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates")))
-					}, utils.ConsistentDuration, utils.ShortInterval).Should(gomega.Succeed())
+					}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+				})
+
+				ginkgo.By("Adding Forming condition", func() {
+					gomega.Eventually(func(g gomega.Gomega) {
+						g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
+						meta.SetStatusCondition(&createdSlice.Status.Conditions, metav1.Condition{
+							Type:    string(slice.Forming),
+							Status:  metav1.ConditionTrue,
+							Reason:  "Test",
+							Message: "Test",
+						})
+						g.Expect(k8sClient.Status().Update(ctx, createdSlice)).To(gomega.Succeed())
+					}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+				})
+
+				ginkgo.By("Checking that the Workload still waiting for admission", func() {
+					gomega.Eventually(func(g gomega.Gomega) {
+						g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
+						g.Expect(workload.IsAdmitted(createdWorkload)).Should(gomega.BeFalse())
+						g.Expect(createdWorkload.Status.AdmissionChecks).Should(gomega.BeComparableTo([]kueue.AdmissionCheckState{{
+							Name:    kueue.AdmissionCheckReference(ac.Name),
+							State:   kueue.CheckStatePending,
+							Message: fmt.Sprintf("The Slice %q is being formed", createdSlice.Name),
+						}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates")))
+					}, utils.LongTimeout, utils.Interval).Should(gomega.Succeed())
 				})
 
 				ginkgo.By("Adding Ready condition", func() {
 					gomega.Eventually(func(g gomega.Gomega) {
 						g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
+						meta.SetStatusCondition(&createdSlice.Status.Conditions, metav1.Condition{
+							Type:    string(slice.Forming),
+							Status:  metav1.ConditionFalse,
+							Reason:  "Test",
+							Message: "Test",
+						})
 						meta.SetStatusCondition(&createdSlice.Status.Conditions, metav1.Condition{
 							Type:    string(slice.Ready),
 							Status:  metav1.ConditionTrue,
@@ -235,7 +266,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						g.Expect(createdWorkload.Status.AdmissionChecks).Should(gomega.BeComparableTo([]kueue.AdmissionCheckState{{
 							Name:    kueue.AdmissionCheckReference(ac.Name),
 							State:   kueue.CheckStateReady,
-							Message: fmt.Sprintf("The Slice %q has been created and configured", createdWorkload.Name),
+							Message: fmt.Sprintf("The Slice %q is fully operational", createdWorkload.Name),
 						}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates")))
 					}, utils.LongTimeout, utils.Timeout).Should(gomega.Succeed())
 				})

@@ -228,6 +228,54 @@ func (s *SliceWrapper) Ready() *SliceWrapper {
 	return s
 }
 
+func (s *SliceWrapper) Forming() *SliceWrapper {
+	cond := metav1.Condition{
+		Type:               string(v1alpha1.Forming),
+		Status:             metav1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
+		Reason:             "ByTest",
+		Message:            "Forming by test",
+	}
+	apimeta.SetStatusCondition(&s.Status.Conditions, cond)
+	return s
+}
+
+func (s *SliceWrapper) Deformed() *SliceWrapper {
+	cond := metav1.Condition{
+		Type:               string(v1alpha1.Deformed),
+		Status:             metav1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
+		Reason:             "ByTest",
+		Message:            "Deformed by test",
+	}
+	apimeta.SetStatusCondition(&s.Status.Conditions, cond)
+	return s
+}
+
+func (s *SliceWrapper) Degraded() *SliceWrapper {
+	cond := metav1.Condition{
+		Type:               string(v1alpha1.Degraded),
+		Status:             metav1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
+		Reason:             "ByTest",
+		Message:            "Degraded by test",
+	}
+	apimeta.SetStatusCondition(&s.Status.Conditions, cond)
+	return s
+}
+
+func (s *SliceWrapper) Error() *SliceWrapper {
+	cond := metav1.Condition{
+		Type:               string(v1alpha1.Error),
+		Status:             metav1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
+		Reason:             "ByTest",
+		Message:            "Error by test",
+	}
+	apimeta.SetStatusCondition(&s.Status.Conditions, cond)
+	return s
+}
+
 func AppendOwnerReference(obj client.Object, gvk schema.GroupVersionKind, name, uid string, controller, blockDeletion *bool) {
 	obj.SetOwnerReferences(append(obj.GetOwnerReferences(), metav1.OwnerReference{
 		APIVersion:         gvk.GroupVersion().String(),

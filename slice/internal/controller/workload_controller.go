@@ -246,17 +246,33 @@ func (r *WorkloadReconciler) updateWorkloadAdmissionCheckStatus(ctx context.Cont
 
 // syncAdmissionCheckStatus syncs the admission check status with the state of the slice.
 func (r *WorkloadReconciler) syncAdmissionCheckStatus(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, slice *v1alpha1.Slice) error {
-	if !meta.IsStatusConditionTrue(slice.Status.Conditions, string(v1alpha1.Ready)) {
-		return nil
-	}
 	originalState := ac.State
-	ac.State = kueue.CheckStateReady
-	ac.Message = fmt.Sprintf("The Slice %q has been created and configured", slice.Name)
+
+	errCond := meta.FindStatusCondition(slice.Status.Conditions, string(v1alpha1.Error))
+
+	switch {
+	case meta.IsStatusConditionTrue(slice.Status.Conditions, string(v1alpha1.Forming)):
+		ac.Message = fmt.Sprintf("The Slice %q is being formed", slice.Name)
+	case meta.IsStatusConditionTrue(slice.Status.Conditions, string(v1alpha1.Ready)):
+		ac.State = kueue.CheckStateReady
+		ac.Message = fmt.Sprintf("The Slice %q is fully operational", slice.Name)
+	case meta.IsStatusConditionTrue(slice.Status.Conditions, string(v1alpha1.Degraded)):
+		ac.State = kueue.CheckStateReady
+		ac.Message = fmt.Sprintf("The Slice %q is running with reduced capacity or performance", slice.Name)
+	case meta.IsStatusConditionTrue(slice.Status.Conditions, string(v1alpha1.Deformed)):
+		ac.State = kueue.CheckStateRejected
+		ac.Message = fmt.Sprintf("The Slice %q is being torn down", slice.Name)
+	case errCond != nil && errCond.Status == metav1.ConditionTrue:
+		ac.State = kueue.CheckStateRejected
+		ac.Message = fmt.Sprintf("The Slice %q is not operational due to an error: %s", slice.Name, errCond.Message)
+	}
+
 	err := r.updateWorkloadAdmissionCheckStatus(ctx, wl, ac)
-	if err == nil {
-		message := fmt.Sprintf("Admission check %q updated state from %q to %q", ac.Name, originalState, kueue.CheckStateReady)
+	if err == nil && originalState != ac.State {
+		message := fmt.Sprintf("Admission check %q updated state from %q to %q", ac.Name, originalState, ac.State)
 		r.record.Event(wl, corev1.EventTypeNormal, AdmissionCheckUpdatedEventType, message)
 	}
+
 	return err
 }
 

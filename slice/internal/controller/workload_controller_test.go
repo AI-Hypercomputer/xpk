@@ -251,6 +251,26 @@ func TestWorkloadReconciler(t *testing.T) {
 				},
 			},
 		},
+		"should update the Workload AdmissionCheckState when the Slice status is changed to Forming": {
+			request: baseRequest,
+			objs: []client.Object{
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapper.Finalizers(SliceControllerName).DeepCopy(),
+				baseSliceWrapper.Clone().Forming().Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapper.Clone().
+					Finalizers(SliceControllerName).
+					AdmissionCheck(kueue.AdmissionCheckState{
+						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
+						State:              kueue.CheckStatePending,
+						LastTransitionTime: metav1.NewTime(now),
+						Message:            fmt.Sprintf(`The Slice %q is being formed`, baseWorkloadName),
+					}).
+					Obj(),
+			},
+			wantSlices: []slice.Slice{*baseSliceWrapper.Clone().Forming().Obj()},
+		},
 		"should update the Workload AdmissionCheckState when the Slice status is changed to Ready": {
 			request: baseRequest,
 			objs: []client.Object{
@@ -265,7 +285,7 @@ func TestWorkloadReconciler(t *testing.T) {
 						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
 						State:              kueue.CheckStateReady,
 						LastTransitionTime: metav1.NewTime(now),
-						Message:            fmt.Sprintf(`The Slice %q has been created and configured`, baseWorkloadName),
+						Message:            fmt.Sprintf(`The Slice %q is fully operational`, baseWorkloadName),
 					}).
 					Obj(),
 			},
@@ -276,6 +296,90 @@ func TestWorkloadReconciler(t *testing.T) {
 					EventType: corev1.EventTypeNormal,
 					Reason:    AdmissionCheckUpdatedEventType,
 					Message:   fmt.Sprintf(`Admission check %q updated state from "Pending" to "Ready"`, baseAdmissionCheckName),
+				},
+			},
+		},
+		"should update the Workload AdmissionCheckState when the Slice status is changed to Degraded": {
+			request: baseRequest,
+			objs: []client.Object{
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapper.Finalizers(SliceControllerName).DeepCopy(),
+				baseSliceWrapper.Clone().Degraded().Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapper.Clone().
+					Finalizers(SliceControllerName).
+					AdmissionCheck(kueue.AdmissionCheckState{
+						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
+						State:              kueue.CheckStateReady,
+						LastTransitionTime: metav1.NewTime(now),
+						Message:            fmt.Sprintf(`The Slice %q is running with reduced capacity or performance`, baseWorkloadName),
+					}).
+					Obj(),
+			},
+			wantSlices: []slice.Slice{*baseSliceWrapper.Clone().Degraded().Obj()},
+			wantEvents: []utiltesting.EventRecord{
+				{
+					Key:       client.ObjectKeyFromObject(baseWorkloadWrapper),
+					EventType: corev1.EventTypeNormal,
+					Reason:    AdmissionCheckUpdatedEventType,
+					Message:   fmt.Sprintf(`Admission check %q updated state from "Pending" to "Ready"`, baseAdmissionCheckName),
+				},
+			},
+		},
+		"should update the Workload AdmissionCheckState when the Slice status is changed to Deformed": {
+			request: baseRequest,
+			objs: []client.Object{
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapper.Finalizers(SliceControllerName).DeepCopy(),
+				baseSliceWrapper.Clone().Deformed().Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapper.Clone().
+					Finalizers(SliceControllerName).
+					AdmissionCheck(kueue.AdmissionCheckState{
+						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
+						State:              kueue.CheckStateRejected,
+						LastTransitionTime: metav1.NewTime(now),
+						Message:            fmt.Sprintf(`The Slice %q is being torn down`, baseWorkloadName),
+					}).
+					Obj(),
+			},
+			wantSlices: []slice.Slice{*baseSliceWrapper.Clone().Deformed().Obj()},
+			wantEvents: []utiltesting.EventRecord{
+				{
+					Key:       client.ObjectKeyFromObject(baseWorkloadWrapper),
+					EventType: corev1.EventTypeNormal,
+					Reason:    AdmissionCheckUpdatedEventType,
+					Message:   fmt.Sprintf(`Admission check %q updated state from "Pending" to "Rejected"`, baseAdmissionCheckName),
+				},
+			},
+		},
+		"should update the Workload AdmissionCheckState when the Slice status is changed to Error": {
+			request: baseRequest,
+			objs: []client.Object{
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapper.Finalizers(SliceControllerName).DeepCopy(),
+				baseSliceWrapper.Clone().Error().Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapper.Clone().
+					Finalizers(SliceControllerName).
+					AdmissionCheck(kueue.AdmissionCheckState{
+						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
+						State:              kueue.CheckStateRejected,
+						LastTransitionTime: metav1.NewTime(now),
+						Message:            fmt.Sprintf(`The Slice %q is not operational due to an error: Error by test`, baseWorkloadName),
+					}).
+					Obj(),
+			},
+			wantSlices: []slice.Slice{*baseSliceWrapper.Clone().Error().Obj()},
+			wantEvents: []utiltesting.EventRecord{
+				{
+					Key:       client.ObjectKeyFromObject(baseWorkloadWrapper),
+					EventType: corev1.EventTypeNormal,
+					Reason:    AdmissionCheckUpdatedEventType,
+					Message:   fmt.Sprintf(`Admission check %q updated state from "Pending" to "Rejected"`, baseAdmissionCheckName),
 				},
 			},
 		},
@@ -294,7 +398,7 @@ func TestWorkloadReconciler(t *testing.T) {
 						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
 						State:              kueue.CheckStateReady,
 						LastTransitionTime: metav1.NewTime(now),
-						Message:            fmt.Sprintf(`The Slice %q has been created and configured`, baseWorkloadName),
+						Message:            fmt.Sprintf(`The Slice %q is fully operational`, baseWorkloadName),
 					}).
 					Obj(),
 			},

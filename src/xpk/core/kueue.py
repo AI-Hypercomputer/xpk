@@ -16,10 +16,9 @@ limitations under the License.
 
 from argparse import Namespace
 
-import math
 import packaging
 from packaging.version import Version
-
+from ..core.blueprint.blueprint_generator import cluster_toolkit_version
 from ..utils.console import xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
 from .capacity import B200_DEVICE_TYPE, H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE
@@ -273,7 +272,7 @@ def install_kueue_on_cluster(args) -> int:
 
   command = (
       'kubectl apply --server-side --force-conflicts -f'
-      f' https://github.com/kubernetes-sigs/kueue/releases/download/{KUEUE_VERSION}/manifests.yaml'
+      f' https://raw.githubusercontent.com/GoogleCloudPlatform/cluster-toolkit/refs/tags/{cluster_toolkit_version}/modules/management/kubectl-apply/manifests/kueue-{KUEUE_VERSION}.yaml'
   )
   task = 'Set Kueue On Cluster'
   return_code = run_command_with_updates_retry(command, task, args)
@@ -420,37 +419,3 @@ def get_kueue_covered_resources_config(
       total_chips=total_chips,
   )
   return config_string
-
-
-def update_kueue_resources_if_necessary(args):
-  """Update the kueue manifest to increase the resources for the kueue controller manager.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  # Get total number of nodes
-  cmd_total_node_num = 'kubectl get node --no-headers | wc -l'
-  return_code, out = run_command_for_value(
-      cmd_total_node_num, 'Count total nodes', args
-  )
-  if return_code != 0:
-    xpk_exit(1)
-  # 1.2MiB per VM or 4GiB (whichever is greater).
-  # new_memory_limit = (
-  #     f'{max(math.ceil(int(out) * MEMORY_SIZE_PER_VM), MIN_MEMORY_LIMIT_SIZE)}Mi'
-  # )
-  kueue_controller_manager_yaml = 'https://raw.githubusercontent.com/GoogleCloudPlatform/cluster-toolkit/refs/tags/v1.57.1/modules/management/kubectl-apply/manifests/kueue-v0.12.2.yaml'
-  # yml_string = kueue_controller_manager_yml.format(
-  #     memory_limit_size=new_memory_limit, KUEUE_VERSION=KUEUE_VERSION
-  # )
-  # tmp = write_tmp_file(yml_string)
-  command = f'kubectl apply -f {kueue_controller_manager_yaml}'
-
-  task = 'Updating Kueue Controller Manager resources'
-  return_code = run_command_with_updates_retry(command, task, args)
-  if return_code != 0:
-    xpk_print(f'{task} returned ERROR {return_code}')
-  return return_code

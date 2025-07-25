@@ -50,7 +50,6 @@ from ..core.kueue import (
     install_kueue_crs,
     install_kueue_on_cluster,
     wait_for_kueue_available,
-    update_kueue_resources_if_necessary,
 )
 from ..core.nap import enable_autoprovisioning_on_cluster
 from ..core.network import (
@@ -972,11 +971,6 @@ def install_kueue(args, system: SystemCharacteristics, autoprovisioning_config):
   )
   if enable_kueue_credentials_code != 0:
     xpk_exit(enable_kueue_credentials_code)
-
-  xpk_print('Update Kueue Controller Manager resources')
-  update_kueue_resources_code = update_kueue_resources_if_necessary(args)
-  if update_kueue_resources_code != 0:
-    xpk_exit(update_kueue_resources_code)
 
 
 def prepare_gpus(args, system: SystemCharacteristics):

@@ -272,7 +272,8 @@ def install_kueue_on_cluster(args) -> int:
 
   command = (
       'kubectl apply --server-side --force-conflicts -f'
-      f' https://raw.githubusercontent.com/GoogleCloudPlatform/cluster-toolkit/refs/tags/{cluster_toolkit_version}/modules/management/kubectl-apply/manifests/kueue-{KUEUE_VERSION}.yaml'
+      f' https://raw.githubusercontent.com/GoogleCloudPlatform/cluster-toolkit/refs/tags/{cluster_toolkit_version}'
+      f'/modules/management/kubectl-apply/manifests/kueue-{KUEUE_VERSION}.yaml'
   )
   task = 'Set Kueue On Cluster'
   return_code = run_command_with_updates_retry(command, task, args)

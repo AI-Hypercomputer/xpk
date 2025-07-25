@@ -189,7 +189,6 @@ spec:
         command: [ "sleep", "inf" ]
 """
 
-
 def verify_kueuectl(args: Namespace) -> None:
   """Verify if kueuectl is installed.
   Args:

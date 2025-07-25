@@ -17,6 +17,7 @@ limitations under the License.
 package testing
 
 import (
+	"fmt"
 	"time"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -132,17 +133,6 @@ func (w *WorkloadWrapper) Active(a bool) *WorkloadWrapper {
 	return w
 }
 
-// PodSetAssignments sets the PodSetAssignments for the workload.
-func (w *WorkloadWrapper) PodSetAssignments(assignments ...kueue.PodSetAssignment) *WorkloadWrapper {
-	if w.Status.Admission == nil {
-		w.Status.Admission = &kueue.Admission{
-			PodSetAssignments: make([]kueue.PodSetAssignment, 0, len(assignments)),
-		}
-	}
-	w.Status.Admission.PodSetAssignments = assignments
-	return w
-}
-
 func (w *WorkloadWrapper) AdmissionCheck(admissionCheckState kueue.AdmissionCheckState) *WorkloadWrapper {
 	var admissionCheckStates []kueue.AdmissionCheckState
 	for _, acs := range w.Status.AdmissionChecks {
@@ -151,6 +141,19 @@ func (w *WorkloadWrapper) AdmissionCheck(admissionCheckState kueue.AdmissionChec
 		}
 	}
 	w.Status.AdmissionChecks = append(admissionCheckStates, admissionCheckState)
+	return w
+}
+
+// ReserveQuota sets workload admission and adds a "QuotaReserved" status condition
+func (w *WorkloadWrapper) ReserveQuota(a *kueue.Admission, now time.Time) *WorkloadWrapper {
+	w.Status.Admission = a
+	w.Status.Conditions = []metav1.Condition{{
+		Type:               kueue.WorkloadQuotaReserved,
+		Status:             metav1.ConditionTrue,
+		LastTransitionTime: metav1.NewTime(now),
+		Reason:             "AdmittedByTest",
+		Message:            fmt.Sprintf("Admitted by ClusterQueue %s", w.Status.Admission.ClusterQueue),
+	}}
 	return w
 }
 

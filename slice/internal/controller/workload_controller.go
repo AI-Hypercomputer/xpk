@@ -114,17 +114,6 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, nil
 	}
 
-	if controllerutil.AddFinalizer(wl, SliceControllerName) {
-		if err = r.client.Update(ctx, wl); err != nil {
-			if !apierrors.IsNotFound(err) {
-				log.Error(err, "Failed to add finalizer")
-			}
-			return ctrl.Result{}, client.IgnoreNotFound(err)
-		}
-		log.V(5).Info("Added finalizer")
-		return ctrl.Result{}, nil
-	}
-
 	ac, err := r.sliceAC(ctx, wl)
 	if err != nil {
 		return reconcile.Result{}, err
@@ -136,6 +125,21 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	log = log.WithValues("admissionCheck", ac.Name)
 	ctrl.LoggerInto(ctx, log)
+
+	if !r.shouldAddFinalizer(wl) {
+		return ctrl.Result{}, nil
+	}
+
+	if controllerutil.AddFinalizer(wl, SliceControllerName) {
+		if err = r.client.Update(ctx, wl); err != nil {
+			if !apierrors.IsNotFound(err) {
+				log.Error(err, "Failed to add finalizer")
+			}
+			return ctrl.Result{}, client.IgnoreNotFound(err)
+		}
+		log.V(5).Info("Added finalizer")
+		return ctrl.Result{}, nil
+	}
 
 	if ac.State == kueue.CheckStateReady {
 		log.V(5).Info("Admission check is ready — nothing to do")
@@ -158,6 +162,19 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 func (r *WorkloadReconciler) shouldFinalize(wl *kueue.Workload) bool {
 	return !wl.DeletionTimestamp.IsZero() || workload.IsFinished(wl) || workload.IsEvicted(wl) || !workload.IsActive(wl)
+}
+
+func (r *WorkloadReconciler) shouldAddFinalizer(wl *kueue.Workload) bool {
+	if !workload.HasQuotaReservation(wl) || wl.Status.Admission == nil {
+		return false
+	}
+	for _, psa := range wl.Status.Admission.PodSetAssignments {
+		// Only workloads with a TopologyAssignment should be processed.
+		if psa.TopologyAssignment != nil {
+			return true
+		}
+	}
+	return false
 }
 
 func (r *WorkloadReconciler) sliceAC(ctx context.Context, wl *kueue.Workload) (*kueue.AdmissionCheckState, error) {
@@ -192,9 +209,6 @@ func (r *WorkloadReconciler) newSlice(wl *kueue.Workload) (*v1alpha1.Slice, erro
 	if err := controllerutil.SetControllerReference(wl, slice, r.client.Scheme()); err != nil {
 		return nil, err
 	}
-	if wl.Status.Admission == nil || wl.Status.Admission.PodSetAssignments == nil {
-		return slice, nil
-	}
 
 	nodeSelectors := sets.New[string]()
 	for _, psa := range wl.Status.Admission.PodSetAssignments {
@@ -209,12 +223,14 @@ func (r *WorkloadReconciler) newSlice(wl *kueue.Workload) (*v1alpha1.Slice, erro
 }
 
 func (r *WorkloadReconciler) createSlice(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState) error {
+	log := ctrl.LoggerFrom(ctx)
+
 	slice, err := r.newSlice(wl)
 	if err != nil {
 		return err
 	}
 
-	log := ctrl.LoggerFrom(ctx).WithValues("slice", klog.KObj(slice))
+	log = log.WithValues("slice", klog.KObj(slice))
 
 	err = r.client.Create(ctx, slice)
 	if err != nil {

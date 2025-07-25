@@ -69,8 +69,31 @@ func TestWorkloadReconciler(t *testing.T) {
 			LastTransitionTime: metav1.NewTime(now),
 			Message:            "",
 		})
+	baseWorkloadWrapperWithAdmission := baseWorkloadWrapper.Clone().
+		ReserveQuota(
+			&kueue.Admission{
+				PodSetAssignments: []kueue.PodSetAssignment{
+					utiltesting.MakePodSetAssignment("psa1").
+						TopologyAssignment(nil, []kueue.TopologyDomainAssignment{
+							{
+								Values: []string{"domain1", "domain2"},
+								Count:  2,
+							},
+						}).Obj(),
+					utiltesting.MakePodSetAssignment("psa2").
+						TopologyAssignment(nil, []kueue.TopologyDomainAssignment{
+							{
+								Values: []string{"domain2", "domain3"},
+								Count:  2,
+							},
+						}).
+						Obj(),
+				},
+			}, now,
+		)
 	baseSliceWrapper := utiltesting.MakeSliceWrapper(baseWorkloadName, corev1.NamespaceDefault).
-		ControllerReference(kueue.GroupVersion.WithKind("Workload"), baseWorkloadName, baseWorkloadName)
+		ControllerReference(kueue.GroupVersion.WithKind("Workload"), baseWorkloadName, baseWorkloadName).
+		NodeSelector(map[string][]string{TPUReservationSubblockLabel: {"domain1", "domain2", "domain3"}})
 
 	cases := map[string]struct {
 		interceptorFuncsCreate func(ctx context.Context, client client.WithWatch, obj client.Object, opts ...client.CreateOption) error
@@ -82,9 +105,13 @@ func TestWorkloadReconciler(t *testing.T) {
 		wantEvents             []utiltesting.EventRecord
 	}{
 		"should skip reconciliation because the Workload was not found": {
-			request:       types.NamespacedName{Name: "other-workload", Namespace: corev1.NamespaceDefault},
-			objs:          []client.Object{baseWorkloadWrapper.DeepCopy()},
-			wantWorkloads: []kueue.Workload{*baseWorkloadWrapper.DeepCopy()},
+			request: types.NamespacedName{Name: "other-workload", Namespace: corev1.NamespaceDefault},
+			objs: []client.Object{
+				baseWorkloadWrapper.Clone().Finalizers(SliceControllerName).DeletionTimestamp(now).Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapper.Clone().Finalizers(SliceControllerName).DeletionTimestamp(now).Obj(),
+			},
 		},
 		"should delete the finalizer because the Workload has a DeletionTimestamp": {
 			request: baseRequest,
@@ -117,13 +144,58 @@ func TestWorkloadReconciler(t *testing.T) {
 			},
 			wantWorkloads: []kueue.Workload{*baseWorkloadWrapper.Clone().Active(false).Obj()},
 		},
+		"shouldn't add finalizer because there’s no Admission": {
+			request: baseRequest,
+			objs: []client.Object{
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapper.DeepCopy(),
+			},
+			wantWorkloads: []kueue.Workload{*baseWorkloadWrapper.DeepCopy()},
+		},
+		"shouldn't add finalizer because there’s no TopologyAssignment": {
+			request: baseRequest,
+			objs: []client.Object{
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapper.Clone().
+					ReserveQuota(
+						&kueue.Admission{
+							PodSetAssignments: []kueue.PodSetAssignment{
+								utiltesting.MakePodSetAssignment("psa1").Obj(),
+							},
+						}, now,
+					).
+					Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapper.Clone().
+					ReserveQuota(
+						&kueue.Admission{
+							PodSetAssignments: []kueue.PodSetAssignment{
+								utiltesting.MakePodSetAssignment("psa1").Obj(),
+							},
+						}, now,
+					).
+					Obj(),
+			},
+		},
+		"shouldn't add finalizer because there’s no AdmissionCheck": {
+			request: baseRequest,
+			objs: []client.Object{
+				baseWorkloadWrapperWithAdmission.DeepCopy(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapperWithAdmission.Clone().Obj(),
+			},
+		},
 		"should add finalizer": {
 			request: baseRequest,
 			objs: []client.Object{
-				baseWorkloadWrapper.DeepCopy(),
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapperWithAdmission.DeepCopy(),
 			},
 			wantWorkloads: []kueue.Workload{
-				*baseWorkloadWrapper.Clone().Finalizers(SliceControllerName).
+				*baseWorkloadWrapperWithAdmission.Clone().
+					Finalizers(SliceControllerName).
 					Obj(),
 			},
 		},
@@ -131,10 +203,10 @@ func TestWorkloadReconciler(t *testing.T) {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
-				baseWorkloadWrapper.Finalizers(SliceControllerName).DeepCopy(),
+				baseWorkloadWrapperWithAdmission.Finalizers(SliceControllerName).DeepCopy(),
 			},
 			wantWorkloads: []kueue.Workload{
-				*baseWorkloadWrapper.Clone().
+				*baseWorkloadWrapperWithAdmission.Clone().
 					Finalizers(SliceControllerName).
 					AdmissionCheck(kueue.AdmissionCheckState{
 						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
@@ -158,27 +230,10 @@ func TestWorkloadReconciler(t *testing.T) {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
-				baseWorkloadWrapper.Clone().
-					Finalizers(SliceControllerName).
-					PodSetAssignments(utiltesting.MakePodSetAssignment("psa1").
-						TopologyAssignment(nil, []kueue.TopologyDomainAssignment{
-							{
-								Values: []string{"domain1", "domain2"},
-								Count:  2,
-							},
-						}).Obj(),
-						utiltesting.MakePodSetAssignment("psa2").
-							TopologyAssignment(nil, []kueue.TopologyDomainAssignment{
-								{
-									Values: []string{"domain2", "domain3"},
-									Count:  2,
-								},
-							}).
-							Obj(),
-					).Obj(),
+				baseWorkloadWrapperWithAdmission.Clone().Finalizers(SliceControllerName).Obj(),
 			},
 			wantWorkloads: []kueue.Workload{
-				*baseWorkloadWrapper.Clone().
+				*baseWorkloadWrapperWithAdmission.Clone().
 					Finalizers(SliceControllerName).
 					AdmissionCheck(kueue.AdmissionCheckState{
 						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
@@ -186,28 +241,10 @@ func TestWorkloadReconciler(t *testing.T) {
 						LastTransitionTime: metav1.NewTime(now),
 						Message:            fmt.Sprintf(`The Slice "%s" has been created`, baseWorkloadName),
 					}).
-					PodSetAssignments(utiltesting.MakePodSetAssignment("psa1").
-						TopologyAssignment(nil, []kueue.TopologyDomainAssignment{
-							{
-								Values: []string{"domain1", "domain2"},
-								Count:  2,
-							},
-						}).Obj(),
-						utiltesting.MakePodSetAssignment("psa2").
-							TopologyAssignment(nil, []kueue.TopologyDomainAssignment{
-								{
-									Values: []string{"domain2", "domain3"},
-									Count:  2,
-								},
-							}).
-							Obj(),
-					).
 					Obj(),
 			},
 			wantSlices: []slice.Slice{
-				*baseSliceWrapper.Clone().
-					NodeSelector(map[string][]string{TPUReservationSubblockLabel: {"domain1", "domain2", "domain3"}}).
-					Obj(),
+				*baseSliceWrapper.DeepCopy(),
 			},
 			wantEvents: []utiltesting.EventRecord{
 				{
@@ -228,10 +265,10 @@ func TestWorkloadReconciler(t *testing.T) {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
-				baseWorkloadWrapper.Finalizers(SliceControllerName).DeepCopy(),
+				baseWorkloadWrapperWithAdmission.Finalizers(SliceControllerName).DeepCopy(),
 			},
 			wantWorkloads: []kueue.Workload{
-				*baseWorkloadWrapper.Clone().
+				*baseWorkloadWrapperWithAdmission.Clone().
 					Finalizers(SliceControllerName).
 					AdmissionCheck(kueue.AdmissionCheckState{
 						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
@@ -255,11 +292,11 @@ func TestWorkloadReconciler(t *testing.T) {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
-				baseWorkloadWrapper.Finalizers(SliceControllerName).DeepCopy(),
+				baseWorkloadWrapperWithAdmission.Finalizers(SliceControllerName).DeepCopy(),
 				baseSliceWrapper.Clone().Forming().Obj(),
 			},
 			wantWorkloads: []kueue.Workload{
-				*baseWorkloadWrapper.Clone().
+				*baseWorkloadWrapperWithAdmission.Clone().
 					Finalizers(SliceControllerName).
 					AdmissionCheck(kueue.AdmissionCheckState{
 						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
@@ -275,11 +312,11 @@ func TestWorkloadReconciler(t *testing.T) {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
-				baseWorkloadWrapper.Finalizers(SliceControllerName).DeepCopy(),
+				baseWorkloadWrapperWithAdmission.Finalizers(SliceControllerName).DeepCopy(),
 				baseSliceWrapper.Clone().Ready().Obj(),
 			},
 			wantWorkloads: []kueue.Workload{
-				*baseWorkloadWrapper.Clone().
+				*baseWorkloadWrapperWithAdmission.Clone().
 					Finalizers(SliceControllerName).
 					AdmissionCheck(kueue.AdmissionCheckState{
 						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
@@ -303,11 +340,11 @@ func TestWorkloadReconciler(t *testing.T) {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
-				baseWorkloadWrapper.Finalizers(SliceControllerName).DeepCopy(),
+				baseWorkloadWrapperWithAdmission.Finalizers(SliceControllerName).DeepCopy(),
 				baseSliceWrapper.Clone().Degraded().Obj(),
 			},
 			wantWorkloads: []kueue.Workload{
-				*baseWorkloadWrapper.Clone().
+				*baseWorkloadWrapperWithAdmission.Clone().
 					Finalizers(SliceControllerName).
 					AdmissionCheck(kueue.AdmissionCheckState{
 						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
@@ -331,11 +368,11 @@ func TestWorkloadReconciler(t *testing.T) {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
-				baseWorkloadWrapper.Finalizers(SliceControllerName).DeepCopy(),
+				baseWorkloadWrapperWithAdmission.Finalizers(SliceControllerName).DeepCopy(),
 				baseSliceWrapper.Clone().Deformed().Obj(),
 			},
 			wantWorkloads: []kueue.Workload{
-				*baseWorkloadWrapper.Clone().
+				*baseWorkloadWrapperWithAdmission.Clone().
 					Finalizers(SliceControllerName).
 					AdmissionCheck(kueue.AdmissionCheckState{
 						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
@@ -359,11 +396,11 @@ func TestWorkloadReconciler(t *testing.T) {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
-				baseWorkloadWrapper.Finalizers(SliceControllerName).DeepCopy(),
+				baseWorkloadWrapperWithAdmission.Finalizers(SliceControllerName).DeepCopy(),
 				baseSliceWrapper.Clone().Error().Obj(),
 			},
 			wantWorkloads: []kueue.Workload{
-				*baseWorkloadWrapper.Clone().
+				*baseWorkloadWrapperWithAdmission.Clone().
 					Finalizers(SliceControllerName).
 					AdmissionCheck(kueue.AdmissionCheckState{
 						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
@@ -388,11 +425,11 @@ func TestWorkloadReconciler(t *testing.T) {
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
 				baseAdmissionCheckWrapper.Clone().Name(baseAdmissionCheckName + "2").Obj(),
-				baseWorkloadWrapper.Finalizers(SliceControllerName).DeepCopy(),
+				baseWorkloadWrapperWithAdmission.Finalizers(SliceControllerName).DeepCopy(),
 				baseSliceWrapper.Clone().Ready().Obj(),
 			},
 			wantWorkloads: []kueue.Workload{
-				*baseWorkloadWrapper.Clone().
+				*baseWorkloadWrapperWithAdmission.Clone().
 					Finalizers(SliceControllerName).
 					AdmissionCheck(kueue.AdmissionCheckState{
 						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),

@@ -36,9 +36,9 @@ import (
 
 	slice "tpu-slice-controller/api/v1alpha1"
 	"tpu-slice-controller/internal/controller"
+	"tpu-slice-controller/internal/core"
 	"tpu-slice-controller/internal/util/testing"
 	testingjobsjobset "tpu-slice-controller/internal/util/testingjobs/jobset"
-	"tpu-slice-controller/internal/webhooks"
 	"tpu-slice-controller/test/utils"
 )
 
@@ -65,7 +65,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 		utils.MustCreate(ctx, k8sClient, ns)
 
 		topology = testing.MakeTopology("topology").
-			Levels(webhooks.TPUBlockLabel, webhooks.TPUSubBlockLabel).
+			Levels(core.TPUBlockLabel, core.TPUSubBlockLabel).
 			Obj()
 		utils.MustCreate(ctx, k8sClient, topology)
 
@@ -120,10 +120,10 @@ var _ = ginkgo.Describe("JobSet", func() {
 							Parallelism: tc.parallelism,
 							Completions: tc.parallelism,
 							PodAnnotations: map[string]string{
-								webhooks.TPUTopologyAnnotation: tc.tpuTopology,
+								core.TPUTopologyAnnotation: tc.tpuTopology,
 							},
 							NodeSelector: map[string]string{
-								webhooks.TPUAcceleratorLabel: tpuAccelerator,
+								core.TPUAcceleratorLabel: tpuAccelerator,
 							},
 						},
 					).
@@ -143,9 +143,9 @@ var _ = ginkgo.Describe("JobSet", func() {
 						for _, replicatedJob := range createdJobSet.Spec.ReplicatedJobs {
 							annotations := replicatedJob.Template.Spec.Template.Annotations
 							g.Expect(annotations[kueuealpha.PodSetRequiredTopologyAnnotation]).
-								Should(gomega.Equal(webhooks.TPUBlockLabel))
+								Should(gomega.Equal(core.TPUBlockLabel))
 							g.Expect(annotations[kueuealpha.PodSetSliceRequiredTopologyAnnotation]).
-								Should(gomega.Equal(webhooks.TPUSubBlockLabel))
+								Should(gomega.Equal(core.TPUSubBlockLabel))
 							g.Expect(annotations[kueuealpha.PodSetSliceSizeAnnotation]).
 								Should(gomega.Equal(fmt.Sprint(tc.wantSliceSize)))
 						}
@@ -163,8 +163,8 @@ var _ = ginkgo.Describe("JobSet", func() {
 						g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).To(gomega.Succeed())
 						g.Expect(createdWorkload.Spec.PodSets).To(gomega.HaveLen(1))
 						g.Expect(createdWorkload.Spec.PodSets[0].TopologyRequest).To(gomega.BeComparableTo(&kueue.PodSetTopologyRequest{
-							Required:                    ptr.To(webhooks.TPUBlockLabel),
-							PodSetSliceRequiredTopology: ptr.To(webhooks.TPUSubBlockLabel),
+							Required:                    ptr.To(core.TPUBlockLabel),
+							PodSetSliceRequiredTopology: ptr.To(core.TPUSubBlockLabel),
 							SubGroupCount:               ptr.To[int32](2),
 							PodSetSliceSize:             ptr.To[int32](tc.wantSliceSize),
 						}, ignorePodSetTopologyRequestFields))
@@ -183,7 +183,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 					gomega.Expect(createdWorkload.Status.Admission.PodSetAssignments).Should(gomega.HaveLen(1))
 					gomega.Expect(createdWorkload.Status.Admission.PodSetAssignments[0].TopologyAssignment).Should(gomega.BeComparableTo(
 						&kueue.TopologyAssignment{
-							Levels:  []string{webhooks.TPUBlockLabel, webhooks.TPUSubBlockLabel},
+							Levels:  []string{core.TPUBlockLabel, core.TPUSubBlockLabel},
 							Domains: tc.wantDomains,
 						},
 					))

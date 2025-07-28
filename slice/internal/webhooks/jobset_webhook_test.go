@@ -24,6 +24,7 @@ import (
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
 	kueuealpha "sigs.k8s.io/kueue/apis/kueue/v1alpha1"
 
+	"tpu-slice-controller/internal/core"
 	testingjobjobset "tpu-slice-controller/internal/util/testingjobs/jobset"
 	"tpu-slice-controller/test/utils"
 )
@@ -44,10 +45,10 @@ func TestDefault(t *testing.T) {
 					Name:        "rj1",
 					Parallelism: 12,
 					PodAnnotations: map[string]string{
-						TPUTopologyAnnotation: "4x4x12",
+						core.TPUTopologyAnnotation: "4x4x12",
 					},
 					NodeSelector: map[string]string{
-						TPUAcceleratorLabel: "tpu-v7x",
+						core.TPUAcceleratorLabel: "tpu-v7x",
 					},
 				}).
 				Obj(),
@@ -56,10 +57,10 @@ func TestDefault(t *testing.T) {
 					Name:        "rj1",
 					Parallelism: 12,
 					PodAnnotations: map[string]string{
-						TPUTopologyAnnotation: "4x4x12",
+						core.TPUTopologyAnnotation: "4x4x12",
 					},
 					NodeSelector: map[string]string{
-						TPUAcceleratorLabel: "tpu-v7x",
+						core.TPUAcceleratorLabel: "tpu-v7x",
 					},
 				}).
 				Obj(),
@@ -71,7 +72,7 @@ func TestDefault(t *testing.T) {
 					Name:        "rj1",
 					Parallelism: 12,
 					NodeSelector: map[string]string{
-						TPUAcceleratorLabel: "tpu-v7x",
+						core.TPUAcceleratorLabel: "tpu-v7x",
 					},
 				}).
 				Obj(),
@@ -81,7 +82,7 @@ func TestDefault(t *testing.T) {
 					Name:        "rj1",
 					Parallelism: 12,
 					NodeSelector: map[string]string{
-						TPUAcceleratorLabel: "tpu-v7x",
+						core.TPUAcceleratorLabel: "tpu-v7x",
 					},
 				}).
 				Obj(),
@@ -93,7 +94,7 @@ func TestDefault(t *testing.T) {
 					Name:        "rj1",
 					Parallelism: 12,
 					PodAnnotations: map[string]string{
-						TPUTopologyAnnotation: "4x4x12",
+						core.TPUTopologyAnnotation: "4x4x12",
 					},
 				}).
 				Obj(),
@@ -103,7 +104,7 @@ func TestDefault(t *testing.T) {
 					Name:        "rj1",
 					Parallelism: 12,
 					PodAnnotations: map[string]string{
-						TPUTopologyAnnotation: "4x4x12",
+						core.TPUTopologyAnnotation: "4x4x12",
 					},
 				}).
 				Obj(),
@@ -115,10 +116,10 @@ func TestDefault(t *testing.T) {
 					Name:        "rj1",
 					Parallelism: 12,
 					PodAnnotations: map[string]string{
-						TPUTopologyAnnotation: "4x4x12",
+						core.TPUTopologyAnnotation: "4x4x12",
 					},
 					NodeSelector: map[string]string{
-						TPUAcceleratorLabel: "tpu-v7x",
+						core.TPUAcceleratorLabel: "tpu-v7x",
 					},
 				}).
 				Obj(),
@@ -128,13 +129,13 @@ func TestDefault(t *testing.T) {
 					Name:        "rj1",
 					Parallelism: 12,
 					PodAnnotations: map[string]string{
-						TPUTopologyAnnotation:                            "4x4x12",
-						kueuealpha.PodSetRequiredTopologyAnnotation:      TPUBlockLabel,
-						kueuealpha.PodSetSliceRequiredTopologyAnnotation: TPUSubBlockLabel,
+						core.TPUTopologyAnnotation:                       "4x4x12",
+						kueuealpha.PodSetRequiredTopologyAnnotation:      core.TPUBlockLabel,
+						kueuealpha.PodSetSliceRequiredTopologyAnnotation: core.TPUSubBlockLabel,
 						kueuealpha.PodSetSliceSizeAnnotation:             "4",
 					},
 					NodeSelector: map[string]string{
-						TPUAcceleratorLabel: "tpu-v7x",
+						core.TPUAcceleratorLabel: "tpu-v7x",
 					},
 				}).
 				Obj(),
@@ -146,10 +147,10 @@ func TestDefault(t *testing.T) {
 					Name:        "rj1",
 					Parallelism: 12,
 					PodAnnotations: map[string]string{
-						TPUTopologyAnnotation: "invalid",
+						core.TPUTopologyAnnotation: "invalid",
 					},
 					NodeSelector: map[string]string{
-						TPUAcceleratorLabel: "tpu-v7x",
+						core.TPUAcceleratorLabel: "tpu-v7x",
 					},
 				}).
 				Obj(),
@@ -159,10 +160,10 @@ func TestDefault(t *testing.T) {
 					Name:        "rj1",
 					Parallelism: 12,
 					PodAnnotations: map[string]string{
-						TPUTopologyAnnotation: "invalid",
+						core.TPUTopologyAnnotation: "invalid",
 					},
 					NodeSelector: map[string]string{
-						TPUAcceleratorLabel: "tpu-v7x",
+						core.TPUAcceleratorLabel: "tpu-v7x",
 					},
 				}).
 				Obj(),
@@ -174,10 +175,10 @@ func TestDefault(t *testing.T) {
 					Name:        "rj1",
 					Parallelism: 12,
 					PodAnnotations: map[string]string{
-						TPUTopologyAnnotation: "4x4x12",
+						core.TPUTopologyAnnotation: "4x4x12",
 					},
 					NodeSelector: map[string]string{
-						TPUAcceleratorLabel: "test",
+						core.TPUAcceleratorLabel: "test",
 					},
 				}).
 				Obj(),
@@ -187,10 +188,10 @@ func TestDefault(t *testing.T) {
 					Name:        "rj1",
 					Parallelism: 12,
 					PodAnnotations: map[string]string{
-						TPUTopologyAnnotation: "4x4x12",
+						core.TPUTopologyAnnotation: "4x4x12",
 					},
 					NodeSelector: map[string]string{
-						TPUAcceleratorLabel: "test",
+						core.TPUAcceleratorLabel: "test",
 					},
 				}).
 				Obj(),

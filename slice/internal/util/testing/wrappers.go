@@ -157,6 +157,42 @@ func (w *WorkloadWrapper) ReserveQuota(a *kueue.Admission, now time.Time) *Workl
 	return w
 }
 
+func (w *WorkloadWrapper) PodSets(podSets ...kueue.PodSet) *WorkloadWrapper {
+	w.Spec.PodSets = podSets
+	return w
+}
+
+type PodSetWrapper struct{ kueue.PodSet }
+
+func MakePodSet(name kueue.PodSetReference, count int) *PodSetWrapper {
+	return &PodSetWrapper{
+		kueue.PodSet{
+			Name:  name,
+			Count: int32(count),
+		},
+	}
+}
+
+func (w *PodSetWrapper) Obj() *kueue.PodSet {
+	return &w.PodSet
+}
+
+func (w *PodSetWrapper) Annotation(key, value string) *PodSetWrapper {
+	if w.Template.Annotations == nil {
+		w.Template.Annotations = make(map[string]string)
+	}
+	w.Template.Annotations[key] = value
+	return w
+}
+
+func (w *PodSetWrapper) NodeSelector(key, value string) *PodSetWrapper {
+	if w.Template.Spec.NodeSelector == nil {
+		w.Template.Spec.NodeSelector = make(map[string]string)
+	}
+	w.Template.Spec.NodeSelector[key] = value
+	return w
+}
+
 type PodSetAssignmentWrapper struct {
 	kueue.PodSetAssignment
 }

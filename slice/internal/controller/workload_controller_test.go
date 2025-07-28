@@ -41,6 +41,7 @@ import (
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
 
 	slice "tpu-slice-controller/api/v1alpha1"
+	"tpu-slice-controller/internal/core"
 	utiltesting "tpu-slice-controller/internal/util/testing"
 )
 
@@ -69,18 +70,29 @@ func TestWorkloadReconciler(t *testing.T) {
 			LastTransitionTime: metav1.NewTime(now),
 			Message:            "",
 		})
-	baseWorkloadWrapperWithAdmission := baseWorkloadWrapper.Clone().
+	baseWorkloadWrapperWithPodSets := baseWorkloadWrapper.Clone().
+		PodSets(
+			*utiltesting.MakePodSet("ps1", 2).
+				Annotation(core.TPUTopologyAnnotation, "4x4x12").
+				NodeSelector(core.TPUAcceleratorLabel, "tpu-v7x").
+				Obj(),
+			*utiltesting.MakePodSet("ps2", 2).
+				Annotation(core.TPUTopologyAnnotation, "4x4x12").
+				NodeSelector(core.TPUAcceleratorLabel, "tpu-v7x").
+				Obj(),
+		)
+	baseWorkloadWrapperWithAdmission := baseWorkloadWrapperWithPodSets.Clone().
 		ReserveQuota(
 			&kueue.Admission{
 				PodSetAssignments: []kueue.PodSetAssignment{
-					utiltesting.MakePodSetAssignment("psa1").
+					utiltesting.MakePodSetAssignment("ps1").
 						TopologyAssignment(nil, []kueue.TopologyDomainAssignment{
 							{
 								Values: []string{"domain1", "domain2"},
 								Count:  2,
 							},
 						}).Obj(),
-					utiltesting.MakePodSetAssignment("psa2").
+					utiltesting.MakePodSetAssignment("ps2").
 						TopologyAssignment(nil, []kueue.TopologyDomainAssignment{
 							{
 								Values: []string{"domain2", "domain3"},
@@ -144,23 +156,27 @@ func TestWorkloadReconciler(t *testing.T) {
 			},
 			wantWorkloads: []kueue.Workload{*baseWorkloadWrapper.Clone().Active(false).Obj()},
 		},
-		"shouldn't add finalizer because there’s no Admission": {
-			request: baseRequest,
-			objs: []client.Object{
-				baseAdmissionCheckWrapper.DeepCopy(),
-				baseWorkloadWrapper.DeepCopy(),
-			},
-			wantWorkloads: []kueue.Workload{*baseWorkloadWrapper.DeepCopy()},
-		},
-		"shouldn't add finalizer because there’s no TopologyAssignment": {
+		"shouldn't add finalizer because invalid TPU topology annotation": {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
 				baseWorkloadWrapper.Clone().
+					PodSets(
+						*utiltesting.MakePodSet("ps", 2).
+							Annotation(core.TPUTopologyAnnotation, "4x4").
+							NodeSelector(core.TPUAcceleratorLabel, "tpu-v7x").
+							Obj(),
+					).
 					ReserveQuota(
 						&kueue.Admission{
 							PodSetAssignments: []kueue.PodSetAssignment{
-								utiltesting.MakePodSetAssignment("psa1").Obj(),
+								utiltesting.MakePodSetAssignment("ps1").
+									TopologyAssignment(nil, []kueue.TopologyDomainAssignment{
+										{
+											Values: []string{"domain1", "domain2"},
+											Count:  2,
+										},
+									}).Obj(),
 							},
 						}, now,
 					).
@@ -168,10 +184,110 @@ func TestWorkloadReconciler(t *testing.T) {
 			},
 			wantWorkloads: []kueue.Workload{
 				*baseWorkloadWrapper.Clone().
+					PodSets(
+						*utiltesting.MakePodSet("ps", 2).
+							Annotation(core.TPUTopologyAnnotation, "4x4").
+							NodeSelector(core.TPUAcceleratorLabel, "tpu-v7x").
+							Obj(),
+					).
 					ReserveQuota(
 						&kueue.Admission{
 							PodSetAssignments: []kueue.PodSetAssignment{
-								utiltesting.MakePodSetAssignment("psa1").Obj(),
+								utiltesting.MakePodSetAssignment("ps1").
+									TopologyAssignment(nil, []kueue.TopologyDomainAssignment{
+										{
+											Values: []string{"domain1", "domain2"},
+											Count:  2,
+										},
+									}).Obj(),
+							},
+						}, now,
+					).
+					Obj(),
+			},
+		},
+		"shouldn't add finalizer because invalid TPU accelerator node selector": {
+			request: baseRequest,
+			objs: []client.Object{
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapper.Clone().
+					PodSets(
+						*utiltesting.MakePodSet("ps", 2).
+							Annotation(core.TPUTopologyAnnotation, "4x4x12").
+							NodeSelector(core.TPUAcceleratorLabel, "invalid").
+							Obj(),
+					).
+					ReserveQuota(
+						&kueue.Admission{
+							PodSetAssignments: []kueue.PodSetAssignment{
+								utiltesting.MakePodSetAssignment("ps1").
+									TopologyAssignment(nil, []kueue.TopologyDomainAssignment{
+										{
+											Values: []string{"domain1", "domain2"},
+											Count:  2,
+										},
+									}).Obj(),
+							},
+						}, now,
+					).
+					Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapper.Clone().
+					PodSets(
+						*utiltesting.MakePodSet("ps", 2).
+							Annotation(core.TPUTopologyAnnotation, "4x4x12").
+							NodeSelector(core.TPUAcceleratorLabel, "invalid").
+							Obj(),
+					).
+					ReserveQuota(
+						&kueue.Admission{
+							PodSetAssignments: []kueue.PodSetAssignment{
+								utiltesting.MakePodSetAssignment("ps1").
+									TopologyAssignment(nil, []kueue.TopologyDomainAssignment{
+										{
+											Values: []string{"domain1", "domain2"},
+											Count:  2,
+										},
+									}).Obj(),
+							},
+						}, now,
+					).
+					Obj(),
+			},
+		},
+		"shouldn't add finalizer because there’s no Admission": {
+			request: baseRequest,
+			objs: []client.Object{
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapperWithPodSets.DeepCopy(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapperWithPodSets.DeepCopy(),
+			},
+		},
+		"shouldn't add finalizer because there’s no TopologyAssignment": {
+			request: baseRequest,
+			objs: []client.Object{
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapperWithPodSets.Clone().
+					ReserveQuota(
+						&kueue.Admission{
+							PodSetAssignments: []kueue.PodSetAssignment{
+								utiltesting.MakePodSetAssignment("ps1").Obj(),
+								utiltesting.MakePodSetAssignment("ps2").Obj(),
+							},
+						}, now,
+					).
+					Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapperWithPodSets.Clone().
+					ReserveQuota(
+						&kueue.Admission{
+							PodSetAssignments: []kueue.PodSetAssignment{
+								utiltesting.MakePodSetAssignment("ps1").Obj(),
+								utiltesting.MakePodSetAssignment("ps2").Obj(),
 							},
 						}, now,
 					).
@@ -184,7 +300,7 @@ func TestWorkloadReconciler(t *testing.T) {
 				baseWorkloadWrapperWithAdmission.DeepCopy(),
 			},
 			wantWorkloads: []kueue.Workload{
-				*baseWorkloadWrapperWithAdmission.Clone().Obj(),
+				*baseWorkloadWrapperWithAdmission.DeepCopy(),
 			},
 		},
 		"should add finalizer": {

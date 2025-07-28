@@ -43,6 +43,7 @@ import (
 	"sigs.k8s.io/kueue/pkg/workload"
 
 	"tpu-slice-controller/api/v1alpha1"
+	"tpu-slice-controller/internal/core"
 	"tpu-slice-controller/internal/util/api"
 )
 
@@ -126,7 +127,7 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	log = log.WithValues("admissionCheck", ac.Name)
 	ctrl.LoggerInto(ctx, log)
 
-	if !r.shouldAddFinalizer(wl) {
+	if !r.isRelevantWorkload(wl) {
 		return ctrl.Result{}, nil
 	}
 
@@ -165,12 +166,26 @@ func (r *WorkloadReconciler) shouldFinalize(wl *kueue.Workload) bool {
 	return !wl.DeletionTimestamp.IsZero() || workload.IsFinished(wl) || workload.IsEvicted(wl) || !workload.IsActive(wl)
 }
 
-func (r *WorkloadReconciler) shouldAddFinalizer(wl *kueue.Workload) bool {
-	if !workload.HasQuotaReservation(wl) || wl.Status.Admission == nil {
-		return false
+func (r *WorkloadReconciler) isRelevantWorkload(wl *kueue.Workload) bool {
+	return hasRelevantPodSet(wl.Spec.PodSets) &&
+		workload.HasQuotaReservation(wl) &&
+		wl.Status.Admission != nil &&
+		hasRelevantPodSetAssignment(wl.Status.Admission.PodSetAssignments)
+}
+
+func hasRelevantPodSet(podSets []kueue.PodSet) bool {
+	// At least one PodSet should be relevant.
+	for _, ps := range podSets {
+		if core.IsRelevantPodTemplateSpec(ps.Template) {
+			return true
+		}
 	}
-	for _, psa := range wl.Status.Admission.PodSetAssignments {
-		// Only workloads with a TopologyAssignment should be processed.
+	return false
+}
+
+func hasRelevantPodSetAssignment(podSetAssignments []kueue.PodSetAssignment) bool {
+	for _, psa := range podSetAssignments {
+		// Only podSet with a TopologyAssignment should be processed.
 		if psa.TopologyAssignment != nil {
 			return true
 		}

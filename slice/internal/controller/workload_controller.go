@@ -157,7 +157,8 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, r.createSlice(ctx, wl, ac)
 	}
 
-	return ctrl.Result{}, client.IgnoreNotFound(r.syncAdmissionCheckStatus(ctx, wl, ac, slice))
+	err = r.syncAdmissionCheckStatus(ctx, wl, ac, slice)
+	return ctrl.Result{}, client.IgnoreNotFound(err)
 }
 
 func (r *WorkloadReconciler) shouldFinalize(wl *kueue.Workload) bool {

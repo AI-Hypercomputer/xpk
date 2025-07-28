@@ -47,7 +47,7 @@ const (
 )
 
 var (
-	ignorePodSetTopologyRequestFields = cmpopts.IgnoreFields(kueue.PodSetTopologyRequest{}, "PodIndexLabel", "SubGroupIndexLabel", "SubGroupCount", "PodSetSliceSize")
+	ignorePodSetTopologyRequestFields = cmpopts.IgnoreFields(kueue.PodSetTopologyRequest{}, "PodIndexLabel", "SubGroupIndexLabel")
 )
 
 var _ = ginkgo.Describe("JobSet", func() {
@@ -81,7 +81,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 		cq = testing.MakeClusterQueue("cq").
 			AdmissionChecks(kueue.AdmissionCheckReference(ac.Name)).
 			ResourceGroup(*testing.MakeFlavorQuotas(rf.Name).
-				Resource(extraResource, "128").
+				Resource(extraResource, "9999").
 				Obj()).
 			Obj()
 		utils.MustCreate(ctx, k8sClient, cq)
@@ -104,6 +104,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 			tpuTopology      string
 			parallelism      int32
 			wantSliceSize    int32
+			tpuRequests      string
 			wantDomains      []kueue.TopologyDomainAssignment
 			wantNodeSelector map[string][]string
 		}
@@ -127,8 +128,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 							},
 						},
 					).
-					RequestAndLimit("rj1", extraResource, "1").
-					RequestAndLimit("rj2", extraResource, "1").
+					RequestAndLimit("rj1", extraResource, tc.tpuRequests).
 					Obj()
 
 				ginkgo.By("Creating a JobSet", func() {
@@ -165,8 +165,8 @@ var _ = ginkgo.Describe("JobSet", func() {
 						g.Expect(createdWorkload.Spec.PodSets[0].TopologyRequest).To(gomega.BeComparableTo(&kueue.PodSetTopologyRequest{
 							Required:                    ptr.To(core.TPUBlockLabel),
 							PodSetSliceRequiredTopology: ptr.To(core.TPUSubBlockLabel),
-							SubGroupCount:               ptr.To[int32](2),
-							PodSetSliceSize:             ptr.To[int32](tc.wantSliceSize),
+							SubGroupCount:               ptr.To[int32](1),
+							PodSetSliceSize:             ptr.To(tc.wantSliceSize),
 						}, ignorePodSetTopologyRequestFields))
 					}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 				})
@@ -281,6 +281,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 			},
 			ginkgo.Entry("TPU topology 4x4x4 and parallelism 16", testCase{
 				tpuTopology:   "4x4x4",
+				tpuRequests:   "4",
 				parallelism:   16,
 				wantSliceSize: 16,
 				wantDomains: []kueue.TopologyDomainAssignment{{
@@ -293,6 +294,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 			}),
 			ginkgo.Entry("TPU topology 4x4x4 and parallelism 16", testCase{
 				tpuTopology:   "4x4x4",
+				tpuRequests:   "1",
 				parallelism:   64,
 				wantSliceSize: 64,
 				wantDomains: []kueue.TopologyDomainAssignment{{
@@ -305,36 +307,53 @@ var _ = ginkgo.Describe("JobSet", func() {
 			}),
 			ginkgo.Entry("TPU topology 4x4x12 and parallelism 48", testCase{
 				tpuTopology:   "4x4x12",
+				tpuRequests:   "4",
 				parallelism:   48,
 				wantSliceSize: 16,
-				wantDomains: []kueue.TopologyDomainAssignment{{
-					Values: []string{"b1", "sb1"},
-					Count:  48,
-				}},
+				wantDomains: []kueue.TopologyDomainAssignment{
+					{
+						Values: []string{"b2", "sb2"},
+						Count:  16,
+					},
+					{
+						Values: []string{"b2", "sb3"},
+						Count:  16,
+					},
+					{
+						Values: []string{"b2", "sb4"},
+						Count:  16,
+					},
+				},
 				wantNodeSelector: map[string][]string{
-					controller.TPUReservationSubblockLabel: {"b1", "sb1"},
+					controller.TPUReservationSubblockLabel: {"b2", "sb2", "sb3", "sb4"},
 				},
 			}),
 			ginkgo.Entry("TPU topology 4x4x12 and parallelism 96", testCase{
 				tpuTopology:   "4x4x12",
+				tpuRequests:   "2",
 				parallelism:   96,
 				wantSliceSize: 32,
 				wantDomains: []kueue.TopologyDomainAssignment{
 					{
 						Values: []string{"b2", "sb2"},
-						Count:  64,
+						Count:  32,
 					},
 					{
 						Values: []string{"b2", "sb3"},
 						Count:  32,
 					},
+					{
+						Values: []string{"b2", "sb4"},
+						Count:  32,
+					},
 				},
 				wantNodeSelector: map[string][]string{
-					controller.TPUReservationSubblockLabel: {"b2", "sb2", "sb3"},
+					controller.TPUReservationSubblockLabel: {"b2", "sb2", "sb3", "sb4"},
 				},
 			}),
 			ginkgo.Entry("TPU topology 4x4x8 and parallelism 128", testCase{
 				tpuTopology:   "4x4x8",
+				tpuRequests:   "1",
 				parallelism:   128,
 				wantSliceSize: 64,
 				wantDomains: []kueue.TopologyDomainAssignment{

@@ -18,7 +18,6 @@ package webhooks
 
 import (
 	"context"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -29,13 +28,8 @@ import (
 	"sigs.k8s.io/jobset/api/jobset/v1alpha2"
 	kueuealpha "sigs.k8s.io/kueue/apis/kueue/v1alpha1"
 	kueueconstants "sigs.k8s.io/kueue/pkg/controller/constants"
-)
 
-const (
-	TPUTopologyAnnotation = "cloud.google.com/gke-tpu-topology"
-	TPUAcceleratorLabel   = "cloud.google.com/gke-tpu-accelerator"
-	TPUBlockLabel         = "cloud.google.com/gke-tpu-block"
-	TPUSubBlockLabel      = "cloud.google.com/gke-tpu-subblock"
+	"tpu-slice-controller/internal/core"
 )
 
 // JobSetWebhook is the schema for your resource (ensure this matches your resource definition).
@@ -72,11 +66,7 @@ func (r *JobSetWebhook) Default(ctx context.Context, obj runtime.Object) error {
 }
 
 func (r *JobSetWebhook) annotateReplicatedJobWithTopology(rj *v1alpha2.ReplicatedJob) error {
-	tpuTopology := rj.Template.Spec.Template.Annotations[TPUTopologyAnnotation]
-	tpuAccelerator := rj.Template.Spec.Template.Spec.NodeSelector[TPUAcceleratorLabel]
-
-	validTopology, _ := regexp.MatchString("[0-9]+x[0-9]+x[0-9]+", tpuTopology)
-	if !validTopology || tpuAccelerator != "tpu-v7x" {
+	if !core.IsRelevantPodTemplateSpec(rj.Template.Spec.Template) {
 		return nil
 	}
 
@@ -84,10 +74,13 @@ func (r *JobSetWebhook) annotateReplicatedJobWithTopology(rj *v1alpha2.Replicate
 		rj.Template.Spec.Template.Annotations = make(map[string]string)
 	}
 
-	rj.Template.Spec.Template.Annotations[kueuealpha.PodSetRequiredTopologyAnnotation] = TPUBlockLabel
-	rj.Template.Spec.Template.Annotations[kueuealpha.PodSetSliceRequiredTopologyAnnotation] = TPUSubBlockLabel
+	rj.Template.Spec.Template.Annotations[kueuealpha.PodSetRequiredTopologyAnnotation] = core.TPUBlockLabel
+	rj.Template.Spec.Template.Annotations[kueuealpha.PodSetSliceRequiredTopologyAnnotation] = core.TPUSubBlockLabel
 
-	size, err := r.podSetSliceSize(tpuTopology, ptr.Deref(rj.Template.Spec.Parallelism, 1))
+	size, err := r.podSetSliceSize(
+		rj.Template.Spec.Template.Annotations[core.TPUTopologyAnnotation],
+		ptr.Deref(rj.Template.Spec.Parallelism, 1),
+	)
 	if err != nil {
 		return err
 	}

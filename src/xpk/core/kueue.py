@@ -244,14 +244,16 @@ spec:
           periodSeconds: 10
         resources:
           limits:
-            cpu: 500m
+            cpu: 750m
             memory: {memory_limit_size}
           requests:
-            cpu: 500m
+            cpu: 750m
             memory: 512Mi
         securityContext:
           allowPrivilegeEscalation: false
         volumeMounts:
+        - mountPath: /visibility
+          name: visibility
         - mountPath: /tmp/k8s-webhook-server/serving-certs
           name: cert
           readOnly: true
@@ -263,6 +265,8 @@ spec:
       serviceAccountName: kueue-controller-manager
       terminationGracePeriodSeconds: 10
       volumes:
+      - name: visibility
+        emptyDir: {{}}
       - name: cert
         secret:
           defaultMode: 420

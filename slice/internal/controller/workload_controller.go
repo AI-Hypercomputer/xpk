@@ -142,11 +142,6 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, nil
 	}
 
-	if ac.State == kueue.CheckStateReady {
-		log.V(5).Info("Admission check is ready — nothing to do")
-		return reconcile.Result{}, nil
-	}
-
 	slice := r.newEmptySlice(wl)
 
 	err = r.client.Get(ctx, client.ObjectKeyFromObject(slice), slice)

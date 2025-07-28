@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -44,6 +45,7 @@ import (
 
 	"tpu-slice-controller/api/v1alpha1"
 	"tpu-slice-controller/internal/core"
+	"tpu-slice-controller/internal/topology"
 	"tpu-slice-controller/internal/util/api"
 )
 
@@ -127,7 +129,7 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	log = log.WithValues("admissionCheck", ac.Name)
 	ctrl.LoggerInto(ctx, log)
 
-	if !r.isRelevantWorkload(wl) {
+	if !r.isRelevantWorkload(wl, log) {
 		return ctrl.Result{}, nil
 	}
 
@@ -161,27 +163,34 @@ func (r *WorkloadReconciler) shouldFinalize(wl *kueue.Workload) bool {
 	return !wl.DeletionTimestamp.IsZero() || workload.IsFinished(wl) || workload.IsEvicted(wl) || !workload.IsActive(wl)
 }
 
-func (r *WorkloadReconciler) isRelevantWorkload(wl *kueue.Workload) bool {
-	return hasRelevantPodSet(wl.Spec.PodSets) &&
-		workload.HasQuotaReservation(wl) &&
-		wl.Status.Admission != nil &&
-		hasRelevantPodSetAssignment(wl.Status.Admission.PodSetAssignments)
+func (r *WorkloadReconciler) isRelevantWorkload(wl *kueue.Workload, log logr.Logger) bool {
+	if !hasRelevantPodSet(wl.Spec.PodSets) {
+		log.V(3).Info("Skipping workload as it does not have a relevant podset")
+		return false
+	}
+	if !workload.HasQuotaReservation(wl) {
+		log.V(3).Info("Skipping workload as it does not have a quota reservation")
+		return false
+	}
+	if wl.Status.Admission == nil {
+		log.V(3).Info("Skipping workload as it has no admission")
+		return false
+	}
+	if !topology.AnyAssignment(wl.Status.Admission) {
+		log.V(3).Info("Skipping workload as it has no topology assignment")
+		return false
+	}
+	if !topology.AllAssignmentsValid(wl.Status.Admission) {
+		log.V(3).Info("Skipping workload as it has invalid topology assignments")
+		return false
+	}
+	return true
 }
 
 func hasRelevantPodSet(podSets []kueue.PodSet) bool {
 	// At least one PodSet should be relevant.
 	for _, ps := range podSets {
 		if core.IsRelevantPodTemplateSpec(ps.Template) {
-			return true
-		}
-	}
-	return false
-}
-
-func hasRelevantPodSetAssignment(podSetAssignments []kueue.PodSetAssignment) bool {
-	for _, psa := range podSetAssignments {
-		// Only podSet with a TopologyAssignment should be processed.
-		if psa.TopologyAssignment != nil {
 			return true
 		}
 	}
@@ -223,8 +232,11 @@ func (r *WorkloadReconciler) newSlice(wl *kueue.Workload) (*v1alpha1.Slice, erro
 
 	nodeSelectors := sets.New[string]()
 	for _, psa := range wl.Status.Admission.PodSetAssignments {
+		// we already validated that all assignments have a valid level,
+		// in isRelevantWorkload.
+		subblockLevelIndex := topology.SubblockLevelIndex(&psa)
 		for _, domain := range psa.TopologyAssignment.Domains {
-			nodeSelectors.Insert(domain.Values...)
+			nodeSelectors.Insert(domain.Values[subblockLevelIndex])
 		}
 	}
 	slice.Spec.NodeSelector = map[string][]string{

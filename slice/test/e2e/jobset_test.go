@@ -289,7 +289,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 					Count:  16,
 				}},
 				wantNodeSelector: map[string][]string{
-					controller.TPUReservationSubblockLabel: {"b1", "sb1"},
+					controller.TPUReservationSubblockLabel: {"sb1"},
 				},
 			}),
 			ginkgo.Entry("TPU topology 4x4x4 and parallelism 16", testCase{
@@ -302,7 +302,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 					Count:  64,
 				}},
 				wantNodeSelector: map[string][]string{
-					controller.TPUReservationSubblockLabel: {"b1", "sb1"},
+					controller.TPUReservationSubblockLabel: {"sb1"},
 				},
 			}),
 			ginkgo.Entry("TPU topology 4x4x12 and parallelism 48", testCase{
@@ -325,7 +325,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 					},
 				},
 				wantNodeSelector: map[string][]string{
-					controller.TPUReservationSubblockLabel: {"b2", "sb2", "sb3", "sb4"},
+					controller.TPUReservationSubblockLabel: {"sb2", "sb3", "sb4"},
 				},
 			}),
 			ginkgo.Entry("TPU topology 4x4x12 and parallelism 96", testCase{
@@ -348,7 +348,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 					},
 				},
 				wantNodeSelector: map[string][]string{
-					controller.TPUReservationSubblockLabel: {"b2", "sb2", "sb3", "sb4"},
+					controller.TPUReservationSubblockLabel: {"sb2", "sb3", "sb4"},
 				},
 			}),
 			ginkgo.Entry("TPU topology 4x4x8 and parallelism 128", testCase{
@@ -367,7 +367,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 					},
 				},
 				wantNodeSelector: map[string][]string{
-					controller.TPUReservationSubblockLabel: {"b2", "sb2", "sb3"},
+					controller.TPUReservationSubblockLabel: {"sb2", "sb3"},
 				},
 			}),
 		)

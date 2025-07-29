@@ -86,16 +86,16 @@ func TestWorkloadReconciler(t *testing.T) {
 			&kueue.Admission{
 				PodSetAssignments: []kueue.PodSetAssignment{
 					utiltesting.MakePodSetAssignment("ps1").
-						TopologyAssignment(nil, []kueue.TopologyDomainAssignment{
+						TopologyAssignment([]string{core.TPUBlockLabel, core.TPUSubBlockLabel}, []kueue.TopologyDomainAssignment{
 							{
-								Values: []string{"domain1", "domain2"},
+								Values: []string{"block1", "subblock1"},
 								Count:  2,
 							},
 						}).Obj(),
 					utiltesting.MakePodSetAssignment("ps2").
-						TopologyAssignment(nil, []kueue.TopologyDomainAssignment{
+						TopologyAssignment([]string{core.TPUBlockLabel, core.TPUSubBlockLabel}, []kueue.TopologyDomainAssignment{
 							{
-								Values: []string{"domain2", "domain3"},
+								Values: []string{"block1", "subblock2"},
 								Count:  2,
 							},
 						}).
@@ -105,7 +105,7 @@ func TestWorkloadReconciler(t *testing.T) {
 		)
 	baseSliceWrapper := utiltesting.MakeSliceWrapper(baseWorkloadName, corev1.NamespaceDefault).
 		ControllerReference(kueue.GroupVersion.WithKind("Workload"), baseWorkloadName, baseWorkloadName).
-		NodeSelector(map[string][]string{TPUReservationSubblockLabel: {"domain1", "domain2", "domain3"}})
+		NodeSelector(map[string][]string{TPUReservationSubblockLabel: {"subblock1", "subblock2"}})
 
 	cases := map[string]struct {
 		interceptorFuncsCreate func(ctx context.Context, client client.WithWatch, obj client.Object, opts ...client.CreateOption) error

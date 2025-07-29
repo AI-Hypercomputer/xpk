@@ -208,7 +208,7 @@ func MakePodSetAssignment(name string) *PodSetAssignmentWrapper {
 func (w *PodSetAssignmentWrapper) TopologyAssignment(levels []string, domains []kueue.TopologyDomainAssignment) *PodSetAssignmentWrapper {
 	if w.PodSetAssignment.TopologyAssignment == nil {
 		w.PodSetAssignment.TopologyAssignment = &kueue.TopologyAssignment{
-			Levels:  make([]string, len(levels)),
+			Levels:  make([]string, 0, len(levels)),
 			Domains: make([]kueue.TopologyDomainAssignment, 0, len(domains)),
 		}
 	}

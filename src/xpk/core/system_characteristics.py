@@ -95,6 +95,7 @@ def get_system_characteristics_by_device_type(
 
 def get_tpu_system_characteristics_map(
     prefix: str,
+    tensorcores_per_chip: int,
     gke_accelerator: str,
     machine_type: str,
     supported_topologies: list[str],
@@ -102,6 +103,7 @@ def get_tpu_system_characteristics_map(
   system_characteristics_map = {}
   for topology in supported_topologies:
     total_chips = reduce(mul, (int(x) for x in topology.split('x')), 1)
+    num_tensorcores = total_chips * tensorcores_per_chip
     chips_per_vm = 1 if total_chips == 1 else 4
     vms_per_slice = total_chips // chips_per_vm
     system = SystemCharacteristics(
@@ -111,10 +113,10 @@ def get_tpu_system_characteristics_map(
         machine_type,
         chips_per_vm,
         AcceleratorType['TPU'],
-        f'{prefix}-{total_chips}',
+        f'{prefix}-{num_tensorcores}',
     )
     system_characteristics_map[f'{prefix}-{topology}'] = system
-    system_characteristics_map[f'{prefix}-{total_chips}'] = system
+    system_characteristics_map[f'{prefix}-{num_tensorcores}'] = system
 
   return system_characteristics_map
 
@@ -241,16 +243,18 @@ UserFacingNameToSystemCharacteristics = {
     ),
     # TPU system characteristics
     **get_tpu_system_characteristics_map(
-        'v6e', 'tpu-v6e-slice', 'ct6e-standard-1t', ['1x1']
+        'v6e', 1, 'tpu-v6e-slice', 'ct6e-standard-1t', ['1x1']
     ),
     **get_tpu_system_characteristics_map(
         'v6e',
+        1,
         'tpu-v6e-slice',
         'ct6e-standard-4t',
         ['2x2', '2x4', '4x4', '4x8', '8x8', '8x16', '16x16'],
     ),
     **get_tpu_system_characteristics_map(
         'v5p',
+        2,
         'tpu-v5p-slice',
         'ct5p-hightpu-4t',
         [
@@ -354,12 +358,14 @@ UserFacingNameToSystemCharacteristics = {
     ),
     **get_tpu_system_characteristics_map(
         'v5litepod',
+        1,
         'tpu-v5-lite-podslice',
         'ct5lp-hightpu-4t',
         ['2x4', '4x4', '4x8', '8x8', '8x16', '16x16'],
     ),
     **get_tpu_system_characteristics_map(
         'v4',
+        2,
         'tpu-v4-podslice',
         'ct4p-hightpu-4t',
         [

@@ -97,11 +97,11 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	log := ctrl.LoggerFrom(ctx)
-	log.V(2).Info("Reconcile Workload")
+	log.V(3).Info("Reconcile Workload")
 
 	if r.shouldFinalize(wl) {
 		if controllerutil.ContainsFinalizer(wl, SliceControllerName) {
-			err = r.client.Delete(ctx, r.newEmptySlice(wl))
+			err = r.client.Delete(ctx, core.SliceWithMetadata(wl))
 			if client.IgnoreNotFound(err) != nil {
 				return ctrl.Result{}, err
 			}
@@ -112,8 +112,12 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 				}
 				return ctrl.Result{}, client.IgnoreNotFound(err)
 			}
-			log.V(5).Info("Removed finalizer")
+			log.V(3).Info("Removed finalizer")
 		}
+		return ctrl.Result{}, nil
+	}
+
+	if !r.isRelevantWorkload(wl, log) {
 		return ctrl.Result{}, nil
 	}
 
@@ -122,16 +126,12 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return reconcile.Result{}, err
 	}
 	if ac == nil {
-		log.V(5).Info("Admission check not found – ignoring reconciliation for now")
+		log.V(3).Info("Admission check not found - skipping reconciliation")
 		return reconcile.Result{}, nil
 	}
 
 	log = log.WithValues("admissionCheck", ac.Name)
 	ctrl.LoggerInto(ctx, log)
-
-	if !r.isRelevantWorkload(wl, log) {
-		return ctrl.Result{}, nil
-	}
 
 	if controllerutil.AddFinalizer(wl, SliceControllerName) {
 		if err = r.client.Update(ctx, wl); err != nil {
@@ -140,22 +140,23 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 			}
 			return ctrl.Result{}, client.IgnoreNotFound(err)
 		}
-		log.V(5).Info("Added finalizer")
+		log.V(3).Info("Added finalizer")
 		return ctrl.Result{}, nil
 	}
 
-	slice := r.newEmptySlice(wl)
-
-	err = r.client.Get(ctx, client.ObjectKeyFromObject(slice), slice)
-	if client.IgnoreNotFound(err) != nil {
+	slice := v1alpha1.Slice{}
+	err = r.client.Get(ctx, core.SliceKeyFromWorkload(wl), &slice)
+	if apierrors.IsNotFound(err) {
+		// slice not found, create it and exit.
+		err = r.createSlice(ctx, log, wl, ac)
+		return ctrl.Result{}, err
+	} else if err != nil {
+		// error fetching slice
 		log.Error(err, "Failed to fetch the Slice")
 		return ctrl.Result{}, err
 	}
-	if err != nil {
-		return ctrl.Result{}, r.createSlice(ctx, wl, ac)
-	}
 
-	err = r.syncAdmissionCheckStatus(ctx, wl, ac, slice)
+	err = r.syncAdmissionCheckStatus(ctx, wl, ac, &slice)
 	return ctrl.Result{}, client.IgnoreNotFound(err)
 }
 
@@ -214,22 +215,7 @@ func (r *WorkloadReconciler) sliceAC(ctx context.Context, wl *kueue.Workload) (*
 	return workload.FindAdmissionCheck(wl.Status.AdmissionChecks, relevantChecks[0]), nil
 }
 
-func (r *WorkloadReconciler) newEmptySlice(wl *kueue.Workload) *v1alpha1.Slice {
-	return &v1alpha1.Slice{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      wl.Name,
-			Namespace: wl.Namespace,
-		},
-	}
-}
-
-func (r *WorkloadReconciler) newSlice(wl *kueue.Workload) (*v1alpha1.Slice, error) {
-	slice := r.newEmptySlice(wl)
-
-	if err := controllerutil.SetControllerReference(wl, slice, r.client.Scheme()); err != nil {
-		return nil, err
-	}
-
+func parseTopologyAssignmentIntoNodeSelector(slice *v1alpha1.Slice, wl *kueue.Workload) {
 	nodeSelectors := sets.New[string]()
 	for _, psa := range wl.Status.Admission.PodSetAssignments {
 		// we already validated that all assignments have a valid level,
@@ -242,21 +228,19 @@ func (r *WorkloadReconciler) newSlice(wl *kueue.Workload) (*v1alpha1.Slice, erro
 	slice.Spec.NodeSelector = map[string][]string{
 		TPUReservationSubblockLabel: sets.List(nodeSelectors),
 	}
-	return slice, nil
 }
 
-func (r *WorkloadReconciler) createSlice(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState) error {
-	log := ctrl.LoggerFrom(ctx)
+func (r *WorkloadReconciler) createSlice(ctx context.Context, log logr.Logger, wl *kueue.Workload, ac *kueue.AdmissionCheckState) error {
+	slice := core.SliceWithMetadata(wl)
+	log = log.WithValues("slice", klog.KObj(slice))
+	log.V(3).Info("Creating Slice")
 
-	slice, err := r.newSlice(wl)
-	if err != nil {
+	if err := controllerutil.SetControllerReference(wl, slice, r.client.Scheme()); err != nil {
 		return err
 	}
+	parseTopologyAssignmentIntoNodeSelector(slice, wl)
 
-	log = log.WithValues("slice", klog.KObj(slice))
-
-	err = r.client.Create(ctx, slice)
-	if err != nil {
+	if err := r.client.Create(ctx, slice); err != nil {
 		msg := fmt.Sprintf("Error creating Slice %q: %v", slice.Name, err)
 		log.Error(err, msg)
 		r.record.Event(wl, corev1.EventTypeWarning, FailedCreateSliceEventType, api.TruncateEventMessage(msg))
@@ -265,8 +249,8 @@ func (r *WorkloadReconciler) createSlice(ctx context.Context, wl *kueue.Workload
 		return errors.Join(err, patchErr)
 	}
 
-	msg := fmt.Sprintf("The Slice %q has been created", slice.Name)
-	log.V(5).Info(msg)
+	msg := fmt.Sprintf("The Slice %s has been created", client.ObjectKeyFromObject(slice))
+	log.V(3).Info(msg)
 	r.record.Event(wl, corev1.EventTypeNormal, SliceCreatedEventType, msg)
 	ac.Message = msg
 
@@ -356,11 +340,11 @@ func (h *sliceHandler) handleEvent(ctx context.Context, obj client.Object, q wor
 
 	owner := metav1.GetControllerOf(slice)
 	if owner == nil {
-		log.V(5).Info("Owner not found")
+		log.V(3).Info("Owner not found")
 		return
 	}
 
-	log.V(5).Info("Handle Slice event", "workload", klog.KRef(slice.Namespace, slice.Name))
+	log.V(3).Info("Handle Slice event", "workload", klog.KRef(slice.Namespace, slice.Name))
 
 	req := reconcile.Request{
 		NamespacedName: types.NamespacedName{

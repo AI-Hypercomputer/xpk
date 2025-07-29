@@ -210,7 +210,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						g.Expect(createdWorkload.Status.AdmissionChecks).Should(gomega.BeComparableTo([]kueue.AdmissionCheckState{{
 							Name:    kueue.AdmissionCheckReference(ac.Name),
 							State:   kueue.CheckStatePending,
-							Message: fmt.Sprintf("The Slice %q has been created", createdSlice.Name),
+							Message: fmt.Sprintf("The Slice %s/%s has been created", createdSlice.Namespace, createdSlice.Name),
 						}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates")))
 					}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 				})

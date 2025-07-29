@@ -874,8 +874,9 @@ def process_gcloud_args(user_parsed_args, final_gcloud_args):
       # For all other arguments, simply add or update their values.
       final_gcloud_args[key] = value
 
+
 def merge_conditional_params(conditional_params, final_gcloud_args):
-  """  
+  """
   Merge conditional parameters into the final gcloud arguments dictionary. Specifically handle the --addons parameter by merging its values.
   """
   for key, value in conditional_params.items():
@@ -883,10 +884,13 @@ def merge_conditional_params(conditional_params, final_gcloud_args):
       final_gcloud_args[key] = value
     elif key == '--addons' and key in final_gcloud_args:
       final_gcloud_args[key] = ','.join(
-        list(set(final_gcloud_args[key].split(',') + value.split(',')))
+          list(set(final_gcloud_args[key].split(',') + value.split(',')))
       )
 
-def construct_gcloud_command_string(cluster_name: str, gcloud_args: dict) -> str:
+
+def construct_gcloud_command_string(
+    cluster_name: str, gcloud_args: dict
+) -> str:
   """
   Constructs the gcloud command string from a dictionary of arguments.
 
@@ -898,7 +902,6 @@ def construct_gcloud_command_string(cluster_name: str, gcloud_args: dict) -> str
   Returns:
     A complete gcloud command string.
   """
-  # Start with the base command and the cluster name
   command_parts = ['gcloud beta container clusters create', cluster_name]
 
   for key, value in gcloud_args.items():
@@ -913,6 +916,7 @@ def construct_gcloud_command_string(cluster_name: str, gcloud_args: dict) -> str
         command_parts.append(f'{key}={value}')
 
   return ' '.join(command_parts)
+
 
 def run_gke_cluster_create_command(
     args, gke_control_plane_version: str, system: SystemCharacteristics

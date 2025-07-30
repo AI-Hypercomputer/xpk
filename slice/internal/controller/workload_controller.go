@@ -117,7 +117,8 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, nil
 	}
 
-	if !r.isRelevantWorkload(wl, log) {
+	if err = validateRelevantWorkload(wl); err != nil {
+		log.V(3).Info(fmt.Sprintf("Skipping workload as it %s", err.Error()))
 		return ctrl.Result{}, nil
 	}
 
@@ -164,28 +165,23 @@ func (r *WorkloadReconciler) shouldFinalize(wl *kueue.Workload) bool {
 	return !wl.DeletionTimestamp.IsZero() || workload.IsFinished(wl) || workload.IsEvicted(wl) || !workload.IsActive(wl)
 }
 
-func (r *WorkloadReconciler) isRelevantWorkload(wl *kueue.Workload, log logr.Logger) bool {
+func validateRelevantWorkload(wl *kueue.Workload) error {
 	if !hasRelevantPodSet(wl.Spec.PodSets) {
-		log.V(3).Info("Skipping workload as it does not have a relevant podset")
-		return false
+		return errors.New("does not have a relevant podset")
 	}
 	if !workload.HasQuotaReservation(wl) {
-		log.V(3).Info("Skipping workload as it does not have a quota reservation")
-		return false
+		return errors.New("does not have a quota reservation")
 	}
 	if wl.Status.Admission == nil {
-		log.V(3).Info("Skipping workload as it has no admission")
-		return false
+		return errors.New("has no admission")
 	}
 	if !topology.AnyAssignment(wl.Status.Admission) {
-		log.V(3).Info("Skipping workload as it has no topology assignment")
-		return false
+		return errors.New("has no topology assignment")
 	}
 	if !topology.AllAssignmentsValid(wl.Status.Admission) {
-		log.V(3).Info("Skipping workload as it has invalid topology assignments")
-		return false
+		return errors.New("has invalid topology assignments")
 	}
-	return true
+	return nil
 }
 
 func hasRelevantPodSet(podSets []kueue.PodSet) bool {
@@ -219,7 +215,7 @@ func parseTopologyAssignmentIntoNodeSelector(slice *v1alpha1.Slice, wl *kueue.Wo
 	nodeSelectors := sets.New[string]()
 	for _, psa := range wl.Status.Admission.PodSetAssignments {
 		// we already validated that all assignments have a valid level,
-		// in isRelevantWorkload.
+		// in validateRelevantWorkload.
 		subblockLevelIndex := topology.SubblockLevelIndex(&psa)
 		for _, domain := range psa.TopologyAssignment.Domains {
 			nodeSelectors.Insert(domain.Values[subblockLevelIndex])

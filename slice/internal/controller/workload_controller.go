@@ -99,8 +99,9 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	log := ctrl.LoggerFrom(ctx)
 	log.V(3).Info("Reconcile Workload")
 
-	if r.shouldFinalize(wl) {
+	if finalize, reason := shouldFinalize(wl); finalize {
 		if controllerutil.ContainsFinalizer(wl, SliceControllerName) {
+			log.V(3).Info(fmt.Sprintf("Cleaning up the Slice and finalize the Workload because %s", reason))
 			err = r.client.Delete(ctx, core.SliceWithMetadata(wl))
 			if client.IgnoreNotFound(err) != nil {
 				return ctrl.Result{}, err
@@ -161,8 +162,24 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	return ctrl.Result{}, client.IgnoreNotFound(err)
 }
 
-func (r *WorkloadReconciler) shouldFinalize(wl *kueue.Workload) bool {
-	return !wl.DeletionTimestamp.IsZero() || workload.IsFinished(wl) || workload.IsEvicted(wl) || !workload.IsActive(wl)
+func shouldFinalize(wl *kueue.Workload) (bool, string) {
+	if !wl.DeletionTimestamp.IsZero() {
+		return true, "it has been deleted"
+	}
+
+	if workload.IsFinished(wl) {
+		return true, "it has finished"
+	}
+
+	if workload.IsEvicted(wl) {
+		return true, "it was evicted"
+	}
+
+	if !workload.IsActive(wl) {
+		return true, "it is no longer active"
+	}
+
+	return false, ""
 }
 
 func validateRelevantWorkload(wl *kueue.Workload) error {

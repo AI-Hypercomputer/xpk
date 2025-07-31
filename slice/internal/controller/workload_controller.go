@@ -38,7 +38,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
@@ -106,16 +105,19 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	log.V(3).Info("Reconcile Workload")
 
 	if finalize, reason := shouldFinalize(wl); finalize {
-		log.V(3).Info(fmt.Sprintf("Cleaning up the Slice and finalize the Workload because %s", reason))
-		cleanedUp, err := r.cleanupSlice(ctx, wl)
-		if err != nil {
-			return ctrl.Result{}, err
+		if controllerutil.ContainsFinalizer(wl, SliceControllerName) {
+			log.V(3).Info(fmt.Sprintf("Cleaning up the Slice and finalize the Workload because %s", reason))
+			cleanedUp, err := r.cleanupSlice(ctx, wl)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+			if !cleanedUp {
+				return ctrl.Result{RequeueAfter: cleanupRetryAfter}, nil
+			}
+			err = r.finalizeWorkload(ctx, wl)
+			return ctrl.Result{}, client.IgnoreNotFound(err)
 		}
-		if !cleanedUp {
-			return ctrl.Result{RequeueAfter: cleanupRetryAfter}, err
-		}
-		err = r.finalizeWorkload(ctx, wl)
-		return ctrl.Result{}, client.IgnoreNotFound(err)
+		return ctrl.Result{}, nil
 	}
 
 	if err = validateRelevantWorkload(wl); err != nil {
@@ -448,46 +450,8 @@ func (r *WorkloadReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&kueue.Workload{}).
 		Named("workload_controller").
-		WithEventFilter(r).
 		Watches(&v1alpha1.Slice{}, &sliceHandler{client: r.client}).
 		Complete(r)
-}
-
-var _ predicate.Predicate = (*WorkloadReconciler)(nil)
-
-func (r *WorkloadReconciler) Create(e event.CreateEvent) bool {
-	return r.handleEvent(e.Object)
-}
-
-func (r *WorkloadReconciler) Delete(e event.DeleteEvent) bool {
-	return r.handleEvent(e.Object)
-}
-
-func (r *WorkloadReconciler) Update(e event.UpdateEvent) bool {
-	return r.handleEvent(e.ObjectNew)
-}
-
-func (r *WorkloadReconciler) Generic(event.GenericEvent) bool {
-	// Nothing handle for Generic event.
-	return false
-}
-
-func shouldHandleWorkload(wl *kueue.Workload) bool {
-	// We should handle all Workloads that have the cleanup slice finalizer.
-	if controllerutil.ContainsFinalizer(wl, SliceControllerName) {
-		return true
-	}
-	finalize, _ := shouldFinalize(wl)
-	// If the Workload doesn’t have a finalizer, we can handle only relevant workloads.
-	return !finalize && validateRelevantWorkload(wl) == nil
-}
-
-func (r *WorkloadReconciler) handleEvent(obj client.Object) bool {
-	wl, isWorkload := obj.(*kueue.Workload)
-	if !isWorkload {
-		return true
-	}
-	return shouldHandleWorkload(wl)
 }
 
 var _ handler.EventHandler = (*sliceHandler)(nil)

@@ -103,6 +103,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 		type testCase struct {
 			tpuTopology      string
 			parallelism      int32
+			replicas         int32
 			wantSliceSize    int32
 			tpuRequests      string
 			wantDomains      []kueue.TopologyDomainAssignment
@@ -117,7 +118,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 							Name:        "rj1",
 							Image:       utils.E2eTestAgnHostImage,
 							Args:        utils.BehaviorWaitForDeletion,
-							Replicas:    1,
+							Replicas:    tc.replicas,
 							Parallelism: tc.parallelism,
 							Completions: tc.parallelism,
 							PodAnnotations: map[string]string{
@@ -165,7 +166,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						g.Expect(createdWorkload.Spec.PodSets[0].TopologyRequest).To(gomega.BeComparableTo(&kueue.PodSetTopologyRequest{
 							Required:                    ptr.To(core.TPUBlockLabel),
 							PodSetSliceRequiredTopology: ptr.To(core.TPUSubBlockLabel),
-							SubGroupCount:               ptr.To[int32](1),
+							SubGroupCount:               ptr.To(tc.replicas),
 							PodSetSliceSize:             ptr.To(tc.wantSliceSize),
 						}, ignorePodSetTopologyRequestFields))
 					}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
@@ -283,6 +284,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 				tpuTopology:   "4x4x4",
 				tpuRequests:   "4",
 				parallelism:   16,
+				replicas:      1,
 				wantSliceSize: 16,
 				wantDomains: []kueue.TopologyDomainAssignment{{
 					Values: []string{"b1", "sb1"},
@@ -296,6 +298,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 				tpuTopology:   "4x4x4",
 				tpuRequests:   "1",
 				parallelism:   64,
+				replicas:      1,
 				wantSliceSize: 64,
 				wantDomains: []kueue.TopologyDomainAssignment{{
 					Values: []string{"b1", "sb1"},
@@ -309,6 +312,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 				tpuTopology:   "4x4x12",
 				tpuRequests:   "4",
 				parallelism:   48,
+				replicas:      1,
 				wantSliceSize: 16,
 				wantDomains: []kueue.TopologyDomainAssignment{
 					{
@@ -332,6 +336,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 				tpuTopology:   "4x4x12",
 				tpuRequests:   "2",
 				parallelism:   96,
+				replicas:      1,
 				wantSliceSize: 32,
 				wantDomains: []kueue.TopologyDomainAssignment{
 					{
@@ -355,6 +360,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 				tpuTopology:   "4x4x8",
 				tpuRequests:   "1",
 				parallelism:   128,
+				replicas:      1,
 				wantSliceSize: 64,
 				wantDomains: []kueue.TopologyDomainAssignment{
 					{
@@ -368,6 +374,46 @@ var _ = ginkgo.Describe("JobSet", func() {
 				},
 				wantNodeSelector: map[string][]string{
 					controller.TPUReservationSubblockLabel: {"sb2", "sb3"},
+				},
+			}),
+			ginkgo.Entry("TPU topology 4x4x4 split across 2 replicas", testCase{
+				tpuTopology:   "4x4x4",
+				tpuRequests:   "4",
+				parallelism:   8,
+				replicas:      2,
+				wantSliceSize: 16,
+				wantDomains: []kueue.TopologyDomainAssignment{
+					{
+						Values: []string{"b1", "sb1"},
+						Count:  16,
+					},
+				},
+				wantNodeSelector: map[string][]string{
+					controller.TPUReservationSubblockLabel: {"sb1"},
+				},
+			}),
+			ginkgo.Entry("TPU topology 4x4x12 split across 3 replicas", testCase{
+				tpuTopology:   "4x4x12",
+				tpuRequests:   "4",
+				parallelism:   16,
+				replicas:      3,
+				wantSliceSize: 16,
+				wantDomains: []kueue.TopologyDomainAssignment{
+					{
+						Values: []string{"b2", "sb2"},
+						Count:  16,
+					},
+					{
+						Values: []string{"b2", "sb3"},
+						Count:  16,
+					},
+					{
+						Values: []string{"b2", "sb4"},
+						Count:  16,
+					},
+				},
+				wantNodeSelector: map[string][]string{
+					controller.TPUReservationSubblockLabel: {"sb2", "sb3", "sb4"},
 				},
 			}),
 		)

@@ -87,6 +87,9 @@ func (j *JobSetWrapper) ReplicatedJobs(replicatedJobs ...ReplicatedJobRequiremen
 				},
 			}
 		}
+		if req.Replicas == 0 {
+			req.Replicas = 1
+		}
 		j.Spec.ReplicatedJobs[index] = jobsetutil.MakeReplicatedJob(req.Name).Job(jt).Replicas(req.Replicas).Obj()
 	}
 	return j

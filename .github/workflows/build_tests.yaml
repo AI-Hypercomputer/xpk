@@ -40,6 +40,7 @@ jobs:
       group-name: ${{ steps.set-group-name.outputs.group-name }}
       zone: ${{ steps.set-zone.outputs.zone }}
       tpu-type: ${{ steps.set-tpu-type.outputs.tpu-type }}
+      tpu-type-topology: ${{ steps.set-tpu-type-topology.outputs.tpu-type-topology }}
       location: ${{steps.set-location.outputs.location}}
       run-id: ${{steps.set-run-id.outputs.run-id}}
     steps:
@@ -76,6 +77,10 @@ jobs:
       id: set-tpu-type
       run: |
         echo tpu-type=v4-8 >> $GITHUB_OUTPUT
+    - name: set tpu-type-topology
+      id: set-tpu-type-topology
+      run: |
+        echo tpu-type-topology=v4-2x2x1 >> $GITHUB_OUTPUT
     - name: set location
       id: set-location
       run: |    
@@ -152,7 +157,7 @@ jobs:
     with:
       run-id: '${{needs.set-variables.outputs.run-id}}'
       cluster-name: '${{needs.set-variables.outputs.cluster-name}}'
-      tpu-type: '${{needs.set-variables.outputs.tpu-type || inputs.tpu-type}}'
+      tpu-type: '${{needs.set-variables.outputs.tpu-type-topology || inputs.tpu-type}}'
       zone: '${{needs.set-variables.outputs.zone}}'
       location: '${{needs.set-variables.outputs.location}}'
     secrets: inherit
@@ -165,7 +170,7 @@ jobs:
     with:
       cluster-name-dws: '${{needs.set-variables.outputs.cluster-name-dws}}'
       cluster-name: '${{needs.set-variables.outputs.cluster-name}}'
-      tpu-type: '${{needs.set-variables.outputs.tpu-type || inputs.tpu-type}}'
+      tpu-type: '${{needs.set-variables.outputs.tpu-type-topology || inputs.tpu-type}}'
       zone: '${{needs.set-variables.outputs.zone}}'
       location: '${{needs.set-variables.outputs.location}}'
       run-id: '${{needs.set-variables.outputs.run-id}}'
@@ -180,6 +185,7 @@ jobs:
       cluster-name: ${{needs.set-variables.outputs.cluster-name}}
       cluster-name-dws: '${{needs.set-variables.outputs.cluster-name-dws}}'
       tpu-type: ${{needs.set-variables.outputs.tpu-type}}
+      tpu-type-topology: ${{needs.set-variables.outputs.tpu-type-topology}}
       zone: ${{needs.set-variables.outputs.zone}}
       run-id: '${{needs.set-variables.outputs.run-id}}'
     secrets: inherit

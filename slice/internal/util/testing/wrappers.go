@@ -162,6 +162,11 @@ func (w *WorkloadWrapper) PodSets(podSets ...kueue.PodSet) *WorkloadWrapper {
 	return w
 }
 
+func (w *WorkloadWrapper) ControllerReference(gvk schema.GroupVersionKind, name, uid string) *WorkloadWrapper {
+	AppendOwnerReference(&w.Workload, gvk, name, uid, ptr.To(true), ptr.To(true))
+	return w
+}
+
 type PodSetWrapper struct{ kueue.PodSet }
 
 func MakePodSet(name kueue.PodSetReference, count int) *PodSetWrapper {
@@ -312,6 +317,16 @@ func (s *SliceWrapper) Error() *SliceWrapper {
 		Message:            "Error by test",
 	}
 	apimeta.SetStatusCondition(&s.Status.Conditions, cond)
+	return s
+}
+
+func (s *SliceWrapper) Finalizers(fin ...string) *SliceWrapper {
+	s.ObjectMeta.Finalizers = fin
+	return s
+}
+
+func (s *SliceWrapper) DeletionTimestamp(t time.Time) *SliceWrapper {
+	s.Slice.DeletionTimestamp = ptr.To(metav1.NewTime(t).Rfc3339Copy())
 	return s
 }
 

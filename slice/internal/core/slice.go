@@ -15,6 +15,7 @@
 package core
 
 import (
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
@@ -36,4 +37,20 @@ func SliceWithMetadata(wl *kueue.Workload) *v1alpha1.Slice {
 			Namespace: wl.Namespace,
 		},
 	}
+}
+
+func Forming(slice *v1alpha1.Slice) bool {
+	return meta.IsStatusConditionTrue(slice.Status.Conditions, string(v1alpha1.Forming))
+}
+
+func Ready(slice *v1alpha1.Slice) bool {
+	return meta.IsStatusConditionTrue(slice.Status.Conditions, string(v1alpha1.Ready))
+}
+
+func Degraded(slice *v1alpha1.Slice) bool {
+	return meta.IsStatusConditionTrue(slice.Status.Conditions, string(v1alpha1.Degraded))
+}
+
+func Deformed(slice *v1alpha1.Slice) bool {
+	return meta.IsStatusConditionTrue(slice.Status.Conditions, string(v1alpha1.Deformed))
 }

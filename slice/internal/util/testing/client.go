@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 type EventRecord struct {
@@ -89,4 +90,17 @@ func wrapSSAPatch(patch client.Patch) client.Patch {
 // comes to detecting conflicts between managers or removing fields that are missing from the patch.
 func TreatSSAAsStrategicMerge(ctx context.Context, clnt client.Client, subResourceName string, obj client.Object, patch client.Patch, opts ...client.SubResourcePatchOption) error {
 	return clnt.SubResource(subResourceName).Patch(ctx, obj, wrapSSAPatch(patch), opts...)
+}
+
+type builderIndexer struct {
+	*fake.ClientBuilder
+}
+
+func (b *builderIndexer) IndexField(_ context.Context, obj client.Object, field string, extractValue client.IndexerFunc) error {
+	b.ClientBuilder = b.WithIndex(obj, field, extractValue)
+	return nil
+}
+
+func AsIndexer(builder *fake.ClientBuilder) client.FieldIndexer {
+	return &builderIndexer{ClientBuilder: builder}
 }

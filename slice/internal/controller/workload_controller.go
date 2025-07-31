@@ -39,6 +39,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
 	"sigs.k8s.io/kueue/pkg/util/admissioncheck"
 	"sigs.k8s.io/kueue/pkg/workload"
@@ -47,6 +48,7 @@ import (
 	"tpu-slice-controller/internal/core"
 	"tpu-slice-controller/internal/topology"
 	"tpu-slice-controller/internal/util/api"
+	utilpod "tpu-slice-controller/internal/util/pod"
 )
 
 const (
@@ -60,6 +62,7 @@ const (
 
 const (
 	updatesBatchPeriod = time.Second
+	cleanupRetryAfter  = 5 * time.Second
 )
 
 var (
@@ -88,6 +91,8 @@ func NewWorkloadReconciler(cl client.Client, record record.EventRecorder) *Workl
 // +kubebuilder:rbac:groups=slice.accelerator.gke.io,resources=slices,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=slice.accelerator.gke.io,resources=slices/finalizers,verbs=update
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;watch;update;patch
+// +kubebuilder:rbac:groups=jobset.x-k8s.io,resources=jobsets,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch
 
 func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	wl := &kueue.Workload{}
@@ -102,18 +107,15 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	if finalize, reason := shouldFinalize(wl); finalize {
 		if controllerutil.ContainsFinalizer(wl, SliceControllerName) {
 			log.V(3).Info(fmt.Sprintf("Cleaning up the Slice and finalize the Workload because %s", reason))
-			err = r.client.Delete(ctx, core.SliceWithMetadata(wl))
-			if client.IgnoreNotFound(err) != nil {
+			cleanedUp, err := r.cleanupSlice(ctx, wl)
+			if err != nil {
 				return ctrl.Result{}, err
 			}
-			controllerutil.RemoveFinalizer(wl, SliceControllerName)
-			if err := r.client.Update(ctx, wl); err != nil {
-				if !apierrors.IsNotFound(err) {
-					log.Error(err, "Failed to remove finalizer")
-				}
-				return ctrl.Result{}, client.IgnoreNotFound(err)
+			if !cleanedUp {
+				return ctrl.Result{RequeueAfter: cleanupRetryAfter}, nil
 			}
-			log.V(3).Info("Removed finalizer")
+			err = r.finalizeWorkload(ctx, wl)
+			return ctrl.Result{}, client.IgnoreNotFound(err)
 		}
 		return ctrl.Result{}, nil
 	}
@@ -179,10 +181,141 @@ func shouldFinalize(wl *kueue.Workload) (bool, string) {
 		return true, "it is no longer active"
 	}
 
+	if !controllerutil.HasControllerReference(wl) {
+		return true, "it doesn't have owner"
+	}
+
+	if !hasSupportedOwner(wl) {
+		return true, "it has an unsupported owner"
+	}
+
 	return false, ""
 }
 
+func hasSupportedOwner(wl *kueue.Workload) bool {
+	// For now, we only support JobSets.
+	return isJobSetOwner(wl)
+}
+
+func isJobSetOwner(wl *kueue.Workload) bool {
+	if owner := metav1.GetControllerOf(wl); owner != nil {
+		return owner.APIVersion == jobset.SchemeGroupVersion.String() && owner.Kind == "JobSet"
+	}
+	return false
+}
+
+func (r *WorkloadReconciler) cleanupSlice(ctx context.Context, wl *kueue.Workload) (bool, error) {
+	slice := v1alpha1.Slice{}
+	sliceKey := core.SliceKeyFromWorkload(wl)
+
+	log := ctrl.LoggerFrom(ctx).WithValues("slice", klog.KRef(sliceKey.Namespace, sliceKey.Name))
+	ctrl.LoggerInto(ctx, log)
+
+	err := r.client.Get(ctx, sliceKey, &slice)
+	if apierrors.IsNotFound(err) {
+		// slice not found
+		return true, nil
+	} else if err != nil {
+		// error fetching slice
+		log.Error(err, "Failed to fetch the Slice")
+		return false, err
+	}
+
+	if !slice.DeletionTimestamp.IsZero() {
+		log.V(3).Info("Slice already deleted, finishing cleanup")
+		return true, nil
+	}
+
+	if !core.Deformed(&slice) {
+		terminated, err := r.ownerPodsFinished(ctx, wl)
+		if err != nil || !terminated {
+			return false, err
+		}
+	} else {
+		log.V(3).Info("Slice in deformed state")
+		// We still need to delete the Slice because requeueing causes a conflict error during Slice creation.
+	}
+
+	log.V(3).Info("Deleting the Slice")
+
+	err = r.client.Delete(ctx, &slice)
+	if apierrors.IsNotFound(err) {
+		return true, nil
+	} else if err != nil {
+		log.Error(err, "Failed to delete the Slice")
+	}
+
+	return true, err
+}
+
+func (r *WorkloadReconciler) ownerPodsFinished(ctx context.Context, wl *kueue.Workload) (bool, error) {
+	// For now, we only support JobSets.
+	if isJobSetOwner(wl) {
+		return r.jobSetPodsFinished(ctx, wl)
+	}
+	// Finalize Workloads that have no owner or have unsupported owner types.
+	return true, nil
+}
+
+func (r *WorkloadReconciler) jobSetPodsFinished(ctx context.Context, wl *kueue.Workload) (bool, error) {
+	owner := metav1.GetControllerOf(wl)
+	log := ctrl.LoggerFrom(ctx).WithValues("jobSet", klog.KRef(wl.Namespace, owner.Name))
+	jobSet := &jobset.JobSet{}
+	jobSetKey := types.NamespacedName{Name: owner.Name, Namespace: wl.Namespace}
+	if err := r.client.Get(ctx, jobSetKey, jobSet); err != nil {
+		if apierrors.IsNotFound(err) {
+			log.V(3).Info("JobSet already deleted")
+			// That means the JobSet has already been deleted, along with all associated Jobs and Pods
+			// we should delete Slice and cleanup Workload.
+			return true, nil
+		} else {
+			log.Error(err, "Failed to get JobSet")
+			return false, err
+		}
+	}
+
+	pods := &corev1.PodList{}
+	opts := []client.ListOption{
+		client.InNamespace(wl.Namespace),
+		client.MatchingLabels{jobset.JobSetNameKey: owner.Name},
+	}
+	if err := r.client.List(ctx, pods, opts...); err != nil {
+		log.Error(err, "Failed to get Pods")
+		return false, err
+	}
+
+	for _, pod := range pods.Items {
+		if !utilpod.IsTerminated(&pod) {
+			log.V(3).Info("Pods are still running – skipping finalization for now")
+			return false, nil
+		}
+	}
+
+	log.V(3).Info("All Pods in the JobSet have finished")
+
+	return true, nil
+}
+
+func (r *WorkloadReconciler) finalizeWorkload(ctx context.Context, wl *kueue.Workload) error {
+	log := ctrl.LoggerFrom(ctx)
+
+	controllerutil.RemoveFinalizer(wl, SliceControllerName)
+	if err := r.client.Update(ctx, wl); err != nil {
+		if !apierrors.IsNotFound(err) {
+			log.Error(err, "Failed to remove the finalizer")
+		}
+		return err
+	}
+
+	log.V(3).Info("Removed finalizer")
+
+	return nil
+}
+
 func validateRelevantWorkload(wl *kueue.Workload) error {
+	if !hasSupportedOwner(wl) {
+		return errors.New("does not have a supported owner")
+	}
 	if !hasRelevantPodSet(wl.Spec.PodSets) {
 		return errors.New("does not have a relevant podset")
 	}
@@ -287,15 +420,15 @@ func (r *WorkloadReconciler) syncAdmissionCheckStatus(ctx context.Context, wl *k
 	errCond := meta.FindStatusCondition(slice.Status.Conditions, string(v1alpha1.Error))
 
 	switch {
-	case meta.IsStatusConditionTrue(slice.Status.Conditions, string(v1alpha1.Forming)):
+	case core.Forming(slice):
 		ac.Message = fmt.Sprintf("The Slice %q is being formed", slice.Name)
-	case meta.IsStatusConditionTrue(slice.Status.Conditions, string(v1alpha1.Ready)):
+	case core.Ready(slice):
 		ac.State = kueue.CheckStateReady
 		ac.Message = fmt.Sprintf("The Slice %q is fully operational", slice.Name)
-	case meta.IsStatusConditionTrue(slice.Status.Conditions, string(v1alpha1.Degraded)):
+	case core.Degraded(slice):
 		ac.State = kueue.CheckStateReady
 		ac.Message = fmt.Sprintf("The Slice %q is running with reduced capacity or performance", slice.Name)
-	case meta.IsStatusConditionTrue(slice.Status.Conditions, string(v1alpha1.Deformed)):
+	case core.Deformed(slice):
 		ac.State = kueue.CheckStateRejected
 		ac.Message = fmt.Sprintf("The Slice %q is being torn down", slice.Name)
 	case errCond != nil && errCond.Status == metav1.ConditionTrue:
@@ -330,8 +463,8 @@ type sliceHandler struct {
 func (h *sliceHandler) Generic(context.Context, event.GenericEvent, workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 }
 
-func (h *sliceHandler) Create(ctx context.Context, e event.CreateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
-	h.handleEvent(ctx, e.Object, q)
+func (h *sliceHandler) Create(context.Context, event.CreateEvent, workqueue.TypedRateLimitingInterface[reconcile.Request]) {
+	// No need to handle create event. We should wait for at least Forming state.
 }
 
 func (h *sliceHandler) Delete(ctx context.Context, e event.DeleteEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {

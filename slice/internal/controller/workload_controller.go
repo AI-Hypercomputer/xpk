@@ -426,12 +426,7 @@ func (r *WorkloadReconciler) syncSlices(ctx context.Context, wl *kueue.Workload,
 		slicesByName[slice.Name] = &slice
 	}
 
-	capacity := len(wl.Status.Admission.PodSetAssignments) - len(slicesByName)
-	if capacity < 0 {
-		capacity = 0
-	}
-	createdSlices := make([]v1alpha1.Slice, 0, capacity)
-
+	createdSlices := make([]v1alpha1.Slice, 0, len(wl.Status.Admission.PodSetAssignments))
 	for _, psa := range wl.Status.Admission.PodSetAssignments {
 		sliceName := core.SliceName(wl.Name, psa.Name)
 

@@ -541,7 +541,7 @@ func TestWorkloadReconciler(t *testing.T) {
 						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
 						State:              kueue.CheckStatePending,
 						LastTransitionTime: metav1.NewTime(now),
-						Message:            `The Slices "default/workload-ps1", "default/workload-ps2" have been created`,
+						Message:            `Slices are in states: 2 Created`,
 					}).
 					Obj(),
 			},
@@ -571,7 +571,7 @@ func TestWorkloadReconciler(t *testing.T) {
 						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
 						State:              kueue.CheckStatePending,
 						LastTransitionTime: metav1.NewTime(now),
-						Message:            `The Slices "default/workload-ps1", "default/workload-ps2" have been created`,
+						Message:            `Slices are in states: 2 Created`,
 					}).
 					Obj(),
 			},
@@ -584,7 +584,7 @@ func TestWorkloadReconciler(t *testing.T) {
 					Key:       client.ObjectKeyFromObject(baseWorkloadWrapper),
 					EventType: corev1.EventTypeNormal,
 					Reason:    SlicesCreatedEventType,
-					Message:   `The Slices "default/workload-ps1", "default/workload-ps2" have been created`,
+					Message:   `The Slices "default/workload-ps2" have been created`,
 				},
 			},
 		},
@@ -600,7 +600,7 @@ func TestWorkloadReconciler(t *testing.T) {
 						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
 						State:              kueue.CheckStatePending,
 						LastTransitionTime: metav1.NewTime(now),
-						Message:            `The Slices "default/workload-ps1", "default/workload-ps2" have been created`,
+						Message:            `Slices are in states: 2 Created`,
 					}).
 					Obj(),
 			},
@@ -649,7 +649,53 @@ func TestWorkloadReconciler(t *testing.T) {
 				},
 			},
 		},
-		"should update the Workload AdmissionCheckState when Slices status is changed to Forming": {
+		"should update the Workload's AdmissionCheckState": {
+			request: baseRequest,
+			objs: []client.Object{
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapperWithFinalizer.DeepCopy(),
+				baseSlice1Wrapper.Clone().Obj(),
+				baseSlice2Wrapper.Clone().Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapperWithFinalizer.Clone().
+					AdmissionCheck(kueue.AdmissionCheckState{
+						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
+						State:              kueue.CheckStatePending,
+						LastTransitionTime: metav1.NewTime(now),
+						Message:            `Slices are in states: 2 Created`,
+					}).
+					Obj(),
+			},
+			wantSlices: []slice.Slice{
+				*baseSlice1Wrapper.Clone().Obj(),
+				*baseSlice2Wrapper.Clone().Obj(),
+			},
+		},
+		"should update the Workload's AdmissionCheckState when one Slice is in the Forming state": {
+			request: baseRequest,
+			objs: []client.Object{
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapperWithFinalizer.DeepCopy(),
+				baseSlice1Wrapper.Clone().Forming().Obj(),
+				baseSlice2Wrapper.Clone().Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapperWithFinalizer.Clone().
+					AdmissionCheck(kueue.AdmissionCheckState{
+						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
+						State:              kueue.CheckStatePending,
+						LastTransitionTime: metav1.NewTime(now),
+						Message:            `Slices are in states: 1 Created, 1 Forming`,
+					}).
+					Obj(),
+			},
+			wantSlices: []slice.Slice{
+				*baseSlice1Wrapper.Clone().Forming().Obj(),
+				*baseSlice2Wrapper.Clone().Obj(),
+			},
+		},
+		"should update the Workload's AdmissionCheckState when all Slices are in the Forming state": {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
@@ -663,7 +709,7 @@ func TestWorkloadReconciler(t *testing.T) {
 						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
 						State:              kueue.CheckStatePending,
 						LastTransitionTime: metav1.NewTime(now),
-						Message:            `The Slices "default/workload-ps1", "default/workload-ps2" are being formed`,
+						Message:            `Slices are in states: 2 Forming`,
 					}).
 					Obj(),
 			},
@@ -672,7 +718,30 @@ func TestWorkloadReconciler(t *testing.T) {
 				*baseSlice2Wrapper.Clone().Forming().Obj(),
 			},
 		},
-		"should update the Workload AdmissionCheckState when the Slice status is changed to Ready": {
+		"should update the Workload's AdmissionCheckState when one Slice is in the Ready state": {
+			request: baseRequest,
+			objs: []client.Object{
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapperWithFinalizer.DeepCopy(),
+				baseSlice1Wrapper.Clone().Ready().Obj(),
+				baseSlice2Wrapper.Clone().Forming().Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapperWithFinalizer.Clone().
+					AdmissionCheck(kueue.AdmissionCheckState{
+						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
+						State:              kueue.CheckStatePending,
+						LastTransitionTime: metav1.NewTime(now),
+						Message:            `Slices are in states: 1 Forming, 1 Ready`,
+					}).
+					Obj(),
+			},
+			wantSlices: []slice.Slice{
+				*baseSlice1Wrapper.Clone().Ready().Obj(),
+				*baseSlice2Wrapper.Clone().Forming().Obj(),
+			},
+		},
+		"should update the Workload's AdmissionCheckState when all Slices are in the Ready state": {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
@@ -686,7 +755,7 @@ func TestWorkloadReconciler(t *testing.T) {
 						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
 						State:              kueue.CheckStateReady,
 						LastTransitionTime: metav1.NewTime(now),
-						Message:            `The Slices "default/workload-ps1", "default/workload-ps2" are fully operational`,
+						Message:            `Slices are in states: 2 Ready`,
 					}).
 					Obj(),
 			},
@@ -703,12 +772,12 @@ func TestWorkloadReconciler(t *testing.T) {
 				},
 			},
 		},
-		"should update the Workload AdmissionCheckState when the Slice status is changed to Degraded": {
+		"should update the Workload's AdmissionCheckState when one Slice is in the Ready state and another is in the Degraded state": {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
 				baseWorkloadWrapperWithFinalizer.DeepCopy(),
-				baseSlice1Wrapper.Clone().Degraded().Obj(),
+				baseSlice1Wrapper.Clone().Ready().Obj(),
 				baseSlice2Wrapper.Clone().Degraded().Obj(),
 			},
 			wantWorkloads: []kueue.Workload{
@@ -717,12 +786,12 @@ func TestWorkloadReconciler(t *testing.T) {
 						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
 						State:              kueue.CheckStateReady,
 						LastTransitionTime: metav1.NewTime(now),
-						Message:            `The Slices "default/workload-ps1", "default/workload-ps2" are running with reduced capacity or performance`,
+						Message:            `Slices are in states: 1 Degraded, 1 Ready`,
 					}).
 					Obj(),
 			},
 			wantSlices: []slice.Slice{
-				*baseSlice1Wrapper.Clone().Degraded().Obj(),
+				*baseSlice1Wrapper.Clone().Ready().Obj(),
 				*baseSlice2Wrapper.Clone().Degraded().Obj()},
 			wantEvents: []utiltesting.EventRecord{
 				{
@@ -733,13 +802,13 @@ func TestWorkloadReconciler(t *testing.T) {
 				},
 			},
 		},
-		"should update the Workload AdmissionCheckState when the Slice status is changed to Deformed": {
+		"should update the Workload's AdmissionCheckState when one Slice is in the Error state": {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
 				baseWorkloadWrapperWithFinalizer.DeepCopy(),
-				baseSlice1Wrapper.Clone().Deformed().Obj(),
-				baseSlice2Wrapper.Clone().Deformed().Obj(),
+				baseSlice1Wrapper.Clone().Ready().Obj(),
+				baseSlice2Wrapper.Clone().Error().Obj(),
 			},
 			wantWorkloads: []kueue.Workload{
 				*baseWorkloadWrapperWithFinalizer.Clone().
@@ -747,13 +816,13 @@ func TestWorkloadReconciler(t *testing.T) {
 						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
 						State:              kueue.CheckStateRejected,
 						LastTransitionTime: metav1.NewTime(now),
-						Message:            `The Slices "default/workload-ps1", "default/workload-ps2" are being torn down`,
+						Message:            `Slices are in states: 1 Error, 1 Ready. Errors: Error by test`,
 					}).
 					Obj(),
 			},
 			wantSlices: []slice.Slice{
-				*baseSlice1Wrapper.Clone().Deformed().Obj(),
-				*baseSlice2Wrapper.Clone().Deformed().Obj()},
+				*baseSlice1Wrapper.Clone().Ready().Obj(),
+				*baseSlice2Wrapper.Clone().Error().Obj()},
 			wantEvents: []utiltesting.EventRecord{
 				{
 					Key:       client.ObjectKeyFromObject(baseWorkloadWrapper),
@@ -763,13 +832,13 @@ func TestWorkloadReconciler(t *testing.T) {
 				},
 			},
 		},
-		"should update the Workload AdmissionCheckState when the Slice status is changed to Error": {
+		"should update the Workload's AdmissionCheckState when one Slice is in the Deformed state": {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
 				baseWorkloadWrapperWithFinalizer.DeepCopy(),
-				baseSlice1Wrapper.Clone().Error().Obj(),
-				baseSlice2Wrapper.Clone().Error().Obj(),
+				baseSlice1Wrapper.Clone().Ready().Obj(),
+				baseSlice2Wrapper.Clone().Deformed().Obj(),
 			},
 			wantWorkloads: []kueue.Workload{
 				*baseWorkloadWrapperWithFinalizer.Clone().
@@ -777,14 +846,13 @@ func TestWorkloadReconciler(t *testing.T) {
 						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
 						State:              kueue.CheckStateRejected,
 						LastTransitionTime: metav1.NewTime(now),
-						Message:            `The Slices "default/workload-ps1", "default/workload-ps2" are not operational due to an errors`,
+						Message:            `Slices are in states: 1 Deformed, 1 Ready`,
 					}).
 					Obj(),
 			},
 			wantSlices: []slice.Slice{
-				*baseSlice1Wrapper.Clone().Error().Obj(),
-				*baseSlice2Wrapper.Clone().Error().Obj(),
-			},
+				*baseSlice1Wrapper.Clone().Ready().Obj(),
+				*baseSlice2Wrapper.Clone().Deformed().Obj()},
 			wantEvents: []utiltesting.EventRecord{
 				{
 					Key:       client.ObjectKeyFromObject(baseWorkloadWrapper),
@@ -809,7 +877,7 @@ func TestWorkloadReconciler(t *testing.T) {
 						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
 						State:              kueue.CheckStateReady,
 						LastTransitionTime: metav1.NewTime(now),
-						Message:            `The Slices "default/workload-ps1", "default/workload-ps2" are fully operational`,
+						Message:            `Slices are in states: 2 Ready`,
 					}).
 					Obj(),
 			},

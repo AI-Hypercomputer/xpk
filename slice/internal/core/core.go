@@ -20,7 +20,13 @@ import (
 	"regexp"
 
 	corev1 "k8s.io/api/core/v1"
+
+	"tpu-slice-controller/api/v1alpha1"
 )
+
+var SliceStates = []v1alpha1.SliceConditionType{
+	v1alpha1.Error, v1alpha1.Deformed, v1alpha1.Forming, v1alpha1.Degraded, v1alpha1.Ready,
+}
 
 func IsValidTPUTopology(tpuTopology string) bool {
 	validTopology, _ := regexp.MatchString("[0-9]+x[0-9]+x[0-9]+", tpuTopology)

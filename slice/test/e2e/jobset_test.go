@@ -210,7 +210,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						g.Expect(createdWorkload.Status.AdmissionChecks).Should(gomega.BeComparableTo([]kueue.AdmissionCheckState{{
 							Name:    kueue.AdmissionCheckReference(ac.Name),
 							State:   kueue.CheckStatePending,
-							Message: fmt.Sprintf(`The Slices "%s/%s" have been created`, createdSlice.Namespace, createdSlice.Name),
+							Message: `Slices are in states: 1 Created`,
 						}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates")))
 					}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 				})
@@ -235,7 +235,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						g.Expect(createdWorkload.Status.AdmissionChecks).Should(gomega.BeComparableTo([]kueue.AdmissionCheckState{{
 							Name:    kueue.AdmissionCheckReference(ac.Name),
 							State:   kueue.CheckStatePending,
-							Message: fmt.Sprintf(`The Slices "%s/%s" are being formed`, createdSlice.Namespace, createdSlice.Name),
+							Message: `Slices are in states: 1 Forming`,
 						}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates")))
 					}, utils.LongTimeout, utils.Interval).Should(gomega.Succeed())
 				})
@@ -266,7 +266,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						g.Expect(createdWorkload.Status.AdmissionChecks).Should(gomega.BeComparableTo([]kueue.AdmissionCheckState{{
 							Name:    kueue.AdmissionCheckReference(ac.Name),
 							State:   kueue.CheckStateReady,
-							Message: fmt.Sprintf(`The Slices "%s/%s" are fully operational`, createdSlice.Namespace, createdSlice.Name),
+							Message: `Slices are in states: 1 Ready`,
 						}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates")))
 					}, utils.LongTimeout, utils.Timeout).Should(gomega.Succeed())
 				})
@@ -675,13 +675,9 @@ var _ = ginkgo.Describe("JobSet", func() {
 					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
 					g.Expect(workload.IsAdmitted(createdWorkload)).Should(gomega.BeFalse())
 					g.Expect(createdWorkload.Status.AdmissionChecks).Should(gomega.BeComparableTo([]kueue.AdmissionCheckState{{
-						Name:  kueue.AdmissionCheckReference(ac.Name),
-						State: kueue.CheckStatePending,
-						Message: fmt.Sprintf(
-							`The Slices "%s/%s", "%s/%s" have been created`,
-							createdSlice1.Namespace, createdSlice1.Name,
-							createdSlice2.Namespace, createdSlice2.Name,
-						),
+						Name:    kueue.AdmissionCheckReference(ac.Name),
+						State:   kueue.CheckStatePending,
+						Message: `Slices are in states: 2 Created`,
 					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates")))
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
@@ -706,7 +702,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 					g.Expect(createdWorkload.Status.AdmissionChecks).Should(gomega.BeComparableTo([]kueue.AdmissionCheckState{{
 						Name:    kueue.AdmissionCheckReference(ac.Name),
 						State:   kueue.CheckStatePending,
-						Message: fmt.Sprintf(`The Slices "%s/%s" are being formed`, createdSlice1.Namespace, createdSlice1.Name),
+						Message: `Slices are in states: 1 Created, 1 Forming`,
 					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates")))
 				}, utils.LongTimeout, utils.Interval).Should(gomega.Succeed())
 			})
@@ -729,13 +725,9 @@ var _ = ginkgo.Describe("JobSet", func() {
 					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
 					g.Expect(workload.IsAdmitted(createdWorkload)).Should(gomega.BeFalse())
 					g.Expect(createdWorkload.Status.AdmissionChecks).Should(gomega.BeComparableTo([]kueue.AdmissionCheckState{{
-						Name:  kueue.AdmissionCheckReference(ac.Name),
-						State: kueue.CheckStatePending,
-						Message: fmt.Sprintf(
-							`The Slices "%s/%s", "%s/%s" are being formed`,
-							createdSlice1.Namespace, createdSlice1.Name,
-							createdSlice2.Namespace, createdSlice2.Name,
-						),
+						Name:    kueue.AdmissionCheckReference(ac.Name),
+						State:   kueue.CheckStatePending,
+						Message: `Slices are in states: 2 Forming`,
 					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates")))
 				}, utils.LongTimeout, utils.Interval).Should(gomega.Succeed())
 			})
@@ -766,7 +758,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 					g.Expect(createdWorkload.Status.AdmissionChecks).Should(gomega.BeComparableTo([]kueue.AdmissionCheckState{{
 						Name:    kueue.AdmissionCheckReference(ac.Name),
 						State:   kueue.CheckStatePending,
-						Message: fmt.Sprintf(`The Slices "%s/%s" are being formed`, createdSlice2.Namespace, createdSlice2.Name),
+						Message: `Slices are in states: 1 Forming, 1 Ready`,
 					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates")))
 				}, utils.LongTimeout, utils.Interval).Should(gomega.Succeed())
 			})
@@ -795,13 +787,9 @@ var _ = ginkgo.Describe("JobSet", func() {
 					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
 					g.Expect(workload.IsAdmitted(createdWorkload)).Should(gomega.BeTrue())
 					g.Expect(createdWorkload.Status.AdmissionChecks).Should(gomega.BeComparableTo([]kueue.AdmissionCheckState{{
-						Name:  kueue.AdmissionCheckReference(ac.Name),
-						State: kueue.CheckStateReady,
-						Message: fmt.Sprintf(
-							`The Slices "%s/%s", "%s/%s" are fully operational`,
-							createdSlice1.Namespace, createdSlice1.Name,
-							createdSlice2.Namespace, createdSlice2.Name,
-						),
+						Name:    kueue.AdmissionCheckReference(ac.Name),
+						State:   kueue.CheckStateReady,
+						Message: `Slices are in states: 2 Ready`,
 					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates")))
 				}, utils.LongTimeout, utils.Timeout).Should(gomega.Succeed())
 			})

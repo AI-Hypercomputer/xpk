@@ -25,10 +25,6 @@ import (
 	"tpu-slice-controller/api/v1alpha1"
 )
 
-var SliceStatuses = []v1alpha1.SliceConditionType{
-	v1alpha1.Error, v1alpha1.Deformed, v1alpha1.Forming, v1alpha1.Degraded, v1alpha1.Ready,
-}
-
 func SliceKeyFromWorkload(wl *kueue.Workload, podSetName kueue.PodSetReference) client.ObjectKey {
 	slice := SliceWithMetadata(wl, podSetName)
 	return client.ObjectKeyFromObject(slice)

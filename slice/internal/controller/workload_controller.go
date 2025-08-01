@@ -164,8 +164,8 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, err
 	}
 
-	changed, err := r.syncSlices(ctx, wl, ac, slices)
-	if err != nil || changed {
+	err = r.syncSlices(ctx, wl, ac, &slices)
+	if err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -420,13 +420,17 @@ func (r *WorkloadReconciler) sliceAC(ctx context.Context, wl *kueue.Workload) (*
 	return workload.FindAdmissionCheck(wl.Status.AdmissionChecks, relevantChecks[0]), nil
 }
 
-func (r *WorkloadReconciler) syncSlices(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, slices []v1alpha1.Slice) (bool, error) {
-	slicesByName := make(map[string]*v1alpha1.Slice, len(slices))
-	for _, slice := range slices {
+func (r *WorkloadReconciler) syncSlices(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, slices *[]v1alpha1.Slice) error {
+	slicesByName := make(map[string]*v1alpha1.Slice, len(*slices))
+	for _, slice := range *slices {
 		slicesByName[slice.Name] = &slice
 	}
 
-	changed := false
+	capacity := len(wl.Status.Admission.PodSetAssignments) - len(slicesByName)
+	if capacity < 0 {
+		capacity = 0
+	}
+	createdSlices := make([]v1alpha1.Slice, 0, capacity)
 
 	for _, psa := range wl.Status.Admission.PodSetAssignments {
 		sliceName := core.SliceName(wl.Name, psa.Name)
@@ -438,30 +442,28 @@ func (r *WorkloadReconciler) syncSlices(ctx context.Context, wl *kueue.Workload,
 
 		createdSlice, err := r.createSlice(ctx, wl, ac, &psa)
 		if err != nil {
-			return false, err
+			return err
 		}
 
-		slices = append(slices, *createdSlice)
-		changed = true
+		*slices = append(*slices, *createdSlice)
+		createdSlices = append(createdSlices, *createdSlice)
 	}
 
-	if changed {
-		msg := fmt.Sprintf("The Slices %v have been created", joinSliceNames(slices))
+	if len(createdSlices) > 0 {
+		msg := buildCreationEventMessage(createdSlices)
 		ctrl.LoggerFrom(ctx).V(3).Info(msg)
-		r.record.Event(wl, corev1.EventTypeNormal, SlicesCreatedEventType, msg)
-		ac.Message = msg
-		return true, r.updateWorkloadAdmissionCheckStatus(ctx, wl, ac)
+		r.record.Event(wl, corev1.EventTypeNormal, SlicesCreatedEventType, api.TruncateEventMessage(msg))
 	}
 
-	return false, nil
+	return nil
 }
 
-func parseTopologyAssignmentIntoNodeSelector(slice *v1alpha1.Slice, psa *kueue.PodSetAssignment) {
+func parseTopologyAssignmentIntoNodeSelector(slice *v1alpha1.Slice, topologyAssignment *kueue.TopologyAssignment) {
 	nodeSelectors := sets.New[string]()
 	// we already validated that all assignments have a valid level,
 	// in validateRelevantWorkload.
-	subblockLevelIndex := topology.SubblockLevelIndex(psa)
-	for _, domain := range psa.TopologyAssignment.Domains {
+	subblockLevelIndex := topology.SubblockLevelIndex(topologyAssignment)
+	for _, domain := range topologyAssignment.Domains {
 		nodeSelectors.Insert(domain.Values[subblockLevelIndex])
 	}
 	slice.Spec.NodeSelector = map[string][]string{
@@ -477,7 +479,7 @@ func (r *WorkloadReconciler) createSlice(ctx context.Context, wl *kueue.Workload
 	if err := controllerutil.SetControllerReference(wl, slice, r.client.Scheme()); err != nil {
 		return nil, err
 	}
-	parseTopologyAssignmentIntoNodeSelector(slice, psa)
+	parseTopologyAssignmentIntoNodeSelector(slice, psa.TopologyAssignment)
 
 	if err := r.client.Create(ctx, slice); err != nil {
 		msg := fmt.Sprintf("Error creating Slice %q: %v", client.ObjectKeyFromObject(slice), err)
@@ -502,13 +504,13 @@ func (r *WorkloadReconciler) updateWorkloadAdmissionCheckStatus(ctx context.Cont
 	return err
 }
 
-func joinSliceNames(slices []v1alpha1.Slice) string {
+func buildCreationEventMessage(slices []v1alpha1.Slice) string {
 	sliceNames := make([]string, len(slices))
 	for index, slice := range slices {
 		sliceNames[index] = fmt.Sprintf("%q", client.ObjectKeyFromObject(&slice))
 	}
 	sort.Strings(sliceNames)
-	return strings.Join(sliceNames, ", ")
+	return fmt.Sprintf("The Slices %s have been created", strings.Join(sliceNames, ", "))
 }
 
 // syncAdmissionCheckStatus syncs the admission check status with the state of the Slices.
@@ -516,45 +518,92 @@ func (r *WorkloadReconciler) syncAdmissionCheckStatus(ctx context.Context, wl *k
 	originalState := ac.State
 	originalMessage := ac.Message
 
-	slicesByStatus := make(map[v1alpha1.SliceConditionType][]v1alpha1.Slice)
-	for _, slice := range slices {
-		for _, status := range core.SliceStatuses {
-			if meta.IsStatusConditionTrue(slice.Status.Conditions, string(status)) {
-				slicesByStatus[status] = append(slicesByStatus[status], slice)
-			}
-		}
-	}
-
-	switch {
-	case len(slicesByStatus[v1alpha1.Error]) > 0:
-		ac.State = kueue.CheckStateRejected
-		ac.Message = fmt.Sprintf("The Slices %s are not operational due to an errors", joinSliceNames(slicesByStatus[v1alpha1.Error]))
-	case len(slicesByStatus[v1alpha1.Deformed]) > 0:
-		ac.State = kueue.CheckStateRejected
-		ac.Message = fmt.Sprintf("The Slices %s are being torn down", joinSliceNames(slicesByStatus[v1alpha1.Deformed]))
-	case len(slicesByStatus[v1alpha1.Forming]) > 0:
-		ac.State = kueue.CheckStatePending
-		ac.Message = fmt.Sprintf("The Slices %s are being formed", joinSliceNames(slicesByStatus[v1alpha1.Forming]))
-	case len(slicesByStatus[v1alpha1.Degraded]) > 0:
-		ac.State = kueue.CheckStateReady
-		ac.Message = fmt.Sprintf("The Slices %s are running with reduced capacity or performance", joinSliceNames(slicesByStatus[v1alpha1.Degraded]))
-	case len(slicesByStatus[v1alpha1.Ready]) > 0:
-		ac.State = kueue.CheckStateReady
-		ac.Message = fmt.Sprintf("The Slices %s are fully operational", joinSliceNames(slicesByStatus[v1alpha1.Ready]))
-	}
+	prepareAdmissionCheckStatus(ac, slices)
 
 	// No changes.
 	if originalState == ac.State && ac.Message == originalMessage {
 		return nil
 	}
 
-	err := r.updateWorkloadAdmissionCheckStatus(ctx, wl, ac)
-	if err == nil && originalState != ac.State {
+	if err := r.updateWorkloadAdmissionCheckStatus(ctx, wl, ac); err != nil {
+		return err
+	}
+
+	log := ctrl.LoggerFrom(ctx)
+
+	if originalState != ac.State {
 		message := fmt.Sprintf("Admission check %q updated state from %q to %q", ac.Name, originalState, ac.State)
+		log.V(3).Info(message)
 		r.record.Event(wl, corev1.EventTypeNormal, AdmissionCheckUpdatedEventType, message)
 	}
 
-	return err
+	if ac.Message != originalMessage {
+		// Logging error messages if exists
+		for _, slice := range slices {
+			cond := meta.FindStatusCondition(slice.Status.Conditions, string(v1alpha1.Error))
+			if cond != nil && cond.Status == metav1.ConditionTrue {
+				log.V(2).Info(
+					"WARNING: The Slice is not operational due to an error",
+					"slice", klog.KObj(&slice),
+					"error", cond.Message,
+				)
+			}
+		}
+	}
+
+	return nil
+}
+
+func groupSlicesByState(slices []v1alpha1.Slice) (map[v1alpha1.SliceConditionType][]v1alpha1.Slice, []v1alpha1.Slice) {
+	slicesByState := make(map[v1alpha1.SliceConditionType][]v1alpha1.Slice)
+	var noState []v1alpha1.Slice
+	for _, slice := range slices {
+		foundState := false
+		for _, status := range core.SliceStates {
+			if meta.IsStatusConditionTrue(slice.Status.Conditions, string(status)) {
+				slicesByState[status] = append(slicesByState[status], slice)
+				foundState = true
+				break
+			}
+		}
+		if !foundState {
+			noState = append(noState, slice)
+		}
+	}
+	return slicesByState, noState
+}
+
+func prepareAdmissionCheckStatus(ac *kueue.AdmissionCheckState, slices []v1alpha1.Slice) {
+	slicesByState, noState := groupSlicesByState(slices)
+
+	switch {
+	case len(slicesByState[v1alpha1.Error]) > 0 || len(slicesByState[v1alpha1.Deformed]) > 0:
+		ac.State = kueue.CheckStateRejected
+	case len(slices) == len(slicesByState[v1alpha1.Degraded])+len(slicesByState[v1alpha1.Ready]):
+		ac.State = kueue.CheckStateReady
+	}
+
+	var stateMessages []string
+	if len(noState) > 0 {
+		stateMessages = append(stateMessages, fmt.Sprintf("%d Created", len(noState)))
+	}
+
+	for _, state := range core.SliceStates {
+		if count := len(slicesByState[state]); count > 0 {
+			stateMessages = append(stateMessages, fmt.Sprintf("%d %s", count, state))
+		}
+	}
+
+	ac.Message = fmt.Sprintf("Slices are in states: %s", strings.Join(stateMessages, ", "))
+
+	if len(slicesByState[v1alpha1.Error]) > 0 {
+		var errMessages []string
+		for _, slice := range slicesByState[v1alpha1.Error] {
+			cond := meta.FindStatusCondition(slice.Status.Conditions, string(v1alpha1.Error))
+			errMessages = append(errMessages, cond.Message)
+		}
+		ac.Message += ". Errors: " + strings.Join(errMessages, "; ")
+	}
 }
 
 // SetupWithManager sets up the controller with the Manager.

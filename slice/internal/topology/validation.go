@@ -34,7 +34,7 @@ func AllAssignmentsValid(admission *kueue.Admission) bool {
 		if psa.TopologyAssignment == nil {
 			continue
 		}
-		if SubblockLevelIndex(&psa) == -1 {
+		if SubblockLevelIndex(psa.TopologyAssignment) == -1 {
 			return false
 		}
 	}

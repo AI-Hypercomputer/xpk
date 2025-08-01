@@ -43,6 +43,7 @@ import (
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
 	"sigs.k8s.io/kueue/pkg/util/admissioncheck"
+	"sigs.k8s.io/kueue/pkg/util/podset"
 	"sigs.k8s.io/kueue/pkg/workload"
 
 	"tpu-slice-controller/api/v1alpha1"
@@ -428,6 +429,10 @@ func (r *WorkloadReconciler) syncSlices(ctx context.Context, wl *kueue.Workload,
 
 	createdSlices := make([]v1alpha1.Slice, 0, len(wl.Status.Admission.PodSetAssignments))
 	for _, psa := range wl.Status.Admission.PodSetAssignments {
+		if !shouldCreateSliceForPodSetAssignment(wl, psa) {
+			continue
+		}
+
 		sliceName := core.SliceName(wl.Name, psa.Name)
 
 		if _, exist := slicesByName[sliceName]; exist {
@@ -451,6 +456,13 @@ func (r *WorkloadReconciler) syncSlices(ctx context.Context, wl *kueue.Workload,
 	}
 
 	return nil
+}
+
+func shouldCreateSliceForPodSetAssignment(wl *kueue.Workload, psa kueue.PodSetAssignment) bool {
+	if podSet := podset.FindPodSetByName(wl.Spec.PodSets, psa.Name); podSet != nil {
+		return core.IsRelevantPodTemplateSpec(podSet.Template) && topology.IsAssignmentValid(psa)
+	}
+	return false
 }
 
 func parseTopologyAssignmentIntoNodeSelector(slice *v1alpha1.Slice, topologyAssignment *kueue.TopologyAssignment) {

@@ -124,9 +124,11 @@ func TestWorkloadReconciler(t *testing.T) {
 	baseWorkloadWrapperWithAdmissionAndOwner := baseWorkloadWrapperWithAdmission.Clone().
 		ControllerReference(jobset.SchemeGroupVersion.WithKind("JobSet"), baseJobSetName, baseJobSetName)
 	baseWorkloadWrapperWithFinalizer := baseWorkloadWrapperWithAdmissionAndOwner.Clone().Finalizers(SliceControllerName)
-	baseSliceWrapper := utiltesting.MakeSliceWrapper(baseWorkloadName, corev1.NamespaceDefault).
+	baseSlice1Wrapper := utiltesting.MakeSliceWrapper(core.SliceName(baseWorkloadName, "ps1"), corev1.NamespaceDefault).
 		ControllerReference(kueue.GroupVersion.WithKind("Workload"), baseWorkloadName, baseWorkloadName).
-		NodeSelector(map[string][]string{TPUReservationSubblockLabel: {"subblock1", "subblock2"}})
+		NodeSelector(map[string][]string{TPUReservationSubblockLabel: {"subblock1"}})
+	baseSlice2Wrapper := baseSlice1Wrapper.Clone().Name(core.SliceName(baseWorkloadName, "ps2")).
+		NodeSelector(map[string][]string{TPUReservationSubblockLabel: {"subblock2"}})
 
 	cases := map[string]struct {
 		interceptorFuncsCreate func(ctx context.Context, client client.WithWatch, obj client.Object, opts ...client.CreateOption) error
@@ -142,6 +144,28 @@ func TestWorkloadReconciler(t *testing.T) {
 			objs:          []client.Object{baseWorkloadWrapper.Clone().Finalizers(SliceControllerName).Obj()},
 			wantWorkloads: []kueue.Workload{*baseWorkloadWrapper.Clone().Finalizers(SliceControllerName).Obj()},
 		},
+		"should skip reconciliation because the Workload already finalized": {
+			request: baseRequest,
+			objs: []client.Object{
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapperWithAdmissionAndOwner.Clone().
+					Finalizers("test").
+					DeletionTimestamp(now).
+					Obj(),
+				baseSlice1Wrapper.Clone().DeletionTimestamp(now).Finalizers("test").Obj(),
+				baseSlice2Wrapper.Clone().DeletionTimestamp(now).Finalizers("test").Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapperWithAdmissionAndOwner.Clone().
+					Finalizers("test").
+					DeletionTimestamp(now).
+					Obj(),
+			},
+			wantSlices: []slice.Slice{
+				*baseSlice1Wrapper.Clone().DeletionTimestamp(now).Finalizers("test").Obj(),
+				*baseSlice2Wrapper.Clone().DeletionTimestamp(now).Finalizers("test").Obj(),
+			},
+		},
 		"should delete the finalizer because the Workload has a DeletionTimestamp": {
 			request: baseRequest,
 			objs: []client.Object{
@@ -150,6 +174,8 @@ func TestWorkloadReconciler(t *testing.T) {
 					DeletionTimestamp(now).
 					Finalizers(SliceControllerName).
 					Obj(),
+				baseSlice1Wrapper.DeepCopy(),
+				baseSlice2Wrapper.DeepCopy(),
 			},
 		},
 		"should delete the finalizer because the Workload is finished": {
@@ -160,6 +186,8 @@ func TestWorkloadReconciler(t *testing.T) {
 					Finished().
 					Finalizers(SliceControllerName).
 					Obj(),
+				baseSlice1Wrapper.DeepCopy(),
+				baseSlice2Wrapper.DeepCopy(),
 			},
 			wantWorkloads: []kueue.Workload{*baseWorkloadWrapperWithAdmissionAndOwner.Clone().Finished().Obj()},
 		},
@@ -171,6 +199,8 @@ func TestWorkloadReconciler(t *testing.T) {
 					Evicted().
 					Finalizers(SliceControllerName).
 					Obj(),
+				baseSlice1Wrapper.DeepCopy(),
+				baseSlice2Wrapper.DeepCopy(),
 			},
 			wantWorkloads: []kueue.Workload{*baseWorkloadWrapperWithAdmissionAndOwner.Clone().Evicted().Obj()},
 		},
@@ -182,6 +212,8 @@ func TestWorkloadReconciler(t *testing.T) {
 					Active(false).
 					Finalizers(SliceControllerName).
 					Obj(),
+				baseSlice1Wrapper.DeepCopy(),
+				baseSlice2Wrapper.DeepCopy(),
 			},
 			wantWorkloads: []kueue.Workload{*baseWorkloadWrapperWithAdmissionAndOwner.Clone().Active(false).Obj()},
 		},
@@ -190,6 +222,8 @@ func TestWorkloadReconciler(t *testing.T) {
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
 				baseWorkloadWrapperWithAdmission.Clone().Finalizers(SliceControllerName).Obj(),
+				baseSlice1Wrapper.DeepCopy(),
+				baseSlice2Wrapper.DeepCopy(),
 			},
 			wantWorkloads: []kueue.Workload{*baseWorkloadWrapperWithAdmission.DeepCopy()},
 		},
@@ -201,6 +235,8 @@ func TestWorkloadReconciler(t *testing.T) {
 					ControllerReference(batchv1.SchemeGroupVersion.WithKind("Job"), baseJobName, baseJobName).
 					Finalizers(SliceControllerName).
 					Obj(),
+				baseSlice1Wrapper.DeepCopy(),
+				baseSlice2Wrapper.DeepCopy(),
 			},
 			wantWorkloads: []kueue.Workload{
 				*baseWorkloadWrapperWithAdmission.Clone().
@@ -208,7 +244,7 @@ func TestWorkloadReconciler(t *testing.T) {
 					Obj(),
 			},
 		},
-		"should delete the finalizer because the Slice status Deformed": {
+		"should delete the finalizer because Slices with status Deformed": {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
@@ -218,13 +254,14 @@ func TestWorkloadReconciler(t *testing.T) {
 					Active(false).
 					Finalizers(SliceControllerName).
 					Obj(),
-				baseSliceWrapper.Clone().Deformed().Obj(),
+				baseSlice1Wrapper.Clone().Deformed().Obj(),
+				baseSlice2Wrapper.Clone().Deformed().Obj(),
 			},
 			wantWorkloads: []kueue.Workload{
 				*baseWorkloadWrapperWithAdmissionAndOwner.Clone().Active(false).Obj(),
 			},
 		},
-		"shouldn't delete the finalizer because the Slice status Degraded": {
+		"shouldn't delete the finalizer because Slices status Degraded": {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
@@ -234,7 +271,8 @@ func TestWorkloadReconciler(t *testing.T) {
 					Active(false).
 					Finalizers(SliceControllerName).
 					Obj(),
-				baseSliceWrapper.Clone().Degraded().Obj(),
+				baseSlice1Wrapper.Clone().Degraded().Obj(),
+				baseSlice2Wrapper.Clone().Degraded().Obj(),
 			},
 			wantWorkloads: []kueue.Workload{
 				*baseWorkloadWrapperWithAdmissionAndOwner.Clone().
@@ -243,10 +281,11 @@ func TestWorkloadReconciler(t *testing.T) {
 					Obj(),
 			},
 			wantSlices: []slice.Slice{
-				*baseSliceWrapper.Clone().Degraded().Obj(),
+				*baseSlice1Wrapper.Clone().Degraded().Obj(),
+				*baseSlice2Wrapper.Clone().Degraded().Obj(),
 			},
 		},
-		"should delete the Slice because the Pod Status Succeeded": {
+		"should delete the finalizer because the Pod Status Succeeded": {
 			request: baseRequest,
 			objs: []client.Object{
 				baseJobSetWrapper.DeepCopy(),
@@ -255,7 +294,8 @@ func TestWorkloadReconciler(t *testing.T) {
 					Active(false).
 					Finalizers(SliceControllerName).
 					Obj(),
-				baseSliceWrapper.DeepCopy(),
+				baseSlice1Wrapper.DeepCopy(),
+				baseSlice2Wrapper.DeepCopy(),
 			},
 			wantWorkloads: []kueue.Workload{
 				*baseWorkloadWrapperWithAdmissionAndOwner.Clone().
@@ -263,7 +303,7 @@ func TestWorkloadReconciler(t *testing.T) {
 					Obj(),
 			},
 		},
-		"should delete the Slice because the Pod Status PodFailed": {
+		"should delete the finalizer because the Pod Status PodFailed": {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
@@ -273,7 +313,8 @@ func TestWorkloadReconciler(t *testing.T) {
 					Active(false).
 					Finalizers(SliceControllerName).
 					Obj(),
-				baseSliceWrapper.DeepCopy(),
+				baseSlice1Wrapper.DeepCopy(),
+				baseSlice2Wrapper.DeepCopy(),
 			},
 			wantWorkloads: []kueue.Workload{
 				*baseWorkloadWrapperWithAdmissionAndOwner.Clone().
@@ -281,7 +322,7 @@ func TestWorkloadReconciler(t *testing.T) {
 					Obj(),
 			},
 		},
-		"shouldn't delete the Slice because the Pods still running": {
+		"shouldn't delete the finalizer because Pods still running": {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
@@ -292,7 +333,8 @@ func TestWorkloadReconciler(t *testing.T) {
 					Active(false).
 					Finalizers(SliceControllerName).
 					Obj(),
-				baseSliceWrapper.DeepCopy(),
+				baseSlice1Wrapper.DeepCopy(),
+				baseSlice2Wrapper.DeepCopy(),
 			},
 			wantWorkloads: []kueue.Workload{
 				*baseWorkloadWrapperWithAdmissionAndOwner.Clone().
@@ -301,10 +343,11 @@ func TestWorkloadReconciler(t *testing.T) {
 					Obj(),
 			},
 			wantSlices: []slice.Slice{
-				*baseSliceWrapper.DeepCopy(),
+				*baseSlice1Wrapper.DeepCopy(),
+				*baseSlice2Wrapper.DeepCopy(),
 			},
 		},
-		"shouldn't delete the Slice because one of the Pods still running": {
+		"shouldn't delete the finalizer because one of the Pods still running": {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
@@ -315,7 +358,8 @@ func TestWorkloadReconciler(t *testing.T) {
 					Active(false).
 					Finalizers(SliceControllerName).
 					Obj(),
-				baseSliceWrapper.DeepCopy(),
+				baseSlice1Wrapper.DeepCopy(),
+				baseSlice2Wrapper.DeepCopy(),
 			},
 			wantWorkloads: []kueue.Workload{
 				*baseWorkloadWrapperWithAdmissionAndOwner.Clone().
@@ -324,7 +368,8 @@ func TestWorkloadReconciler(t *testing.T) {
 					Obj(),
 			},
 			wantSlices: []slice.Slice{
-				*baseSliceWrapper.DeepCopy(),
+				*baseSlice1Wrapper.DeepCopy(),
+				*baseSlice2Wrapper.DeepCopy(),
 			},
 		},
 		"shouldn't add finalizer because invalid TPU topology annotation": {
@@ -484,7 +529,7 @@ func TestWorkloadReconciler(t *testing.T) {
 				*baseWorkloadWrapperWithFinalizer.DeepCopy(),
 			},
 		},
-		"should create a Slice": {
+		"should create Slices": {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
@@ -496,17 +541,50 @@ func TestWorkloadReconciler(t *testing.T) {
 						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
 						State:              kueue.CheckStatePending,
 						LastTransitionTime: metav1.NewTime(now),
-						Message:            "The Slice default/workload has been created",
+						Message:            `Slices are in states: 2 Created`,
 					}).
 					Obj(),
 			},
-			wantSlices: []slice.Slice{*baseSliceWrapper.DeepCopy()},
+			wantSlices: []slice.Slice{
+				*baseSlice1Wrapper.DeepCopy(),
+				*baseSlice2Wrapper.DeepCopy(),
+			},
 			wantEvents: []utiltesting.EventRecord{
 				{
 					Key:       client.ObjectKeyFromObject(baseWorkloadWrapper),
 					EventType: corev1.EventTypeNormal,
-					Reason:    SliceCreatedEventType,
-					Message:   "The Slice default/workload has been created",
+					Reason:    SlicesCreatedEventType,
+					Message:   `The Slices "default/workload-ps1", "default/workload-ps2" have been created`,
+				},
+			},
+		},
+		"should create missed Slices": {
+			request: baseRequest,
+			objs: []client.Object{
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapperWithFinalizer.DeepCopy(),
+				baseSlice1Wrapper.DeepCopy(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapperWithFinalizer.Clone().
+					AdmissionCheck(kueue.AdmissionCheckState{
+						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
+						State:              kueue.CheckStatePending,
+						LastTransitionTime: metav1.NewTime(now),
+						Message:            `Slices are in states: 2 Created`,
+					}).
+					Obj(),
+			},
+			wantSlices: []slice.Slice{
+				*baseSlice1Wrapper.DeepCopy(),
+				*baseSlice2Wrapper.DeepCopy(),
+			},
+			wantEvents: []utiltesting.EventRecord{
+				{
+					Key:       client.ObjectKeyFromObject(baseWorkloadWrapper),
+					EventType: corev1.EventTypeNormal,
+					Reason:    SlicesCreatedEventType,
+					Message:   `The Slices "default/workload-ps2" have been created`,
 				},
 			},
 		},
@@ -522,19 +600,20 @@ func TestWorkloadReconciler(t *testing.T) {
 						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
 						State:              kueue.CheckStatePending,
 						LastTransitionTime: metav1.NewTime(now),
-						Message:            "The Slice default/workload has been created",
+						Message:            `Slices are in states: 2 Created`,
 					}).
 					Obj(),
 			},
 			wantSlices: []slice.Slice{
-				*baseSliceWrapper.DeepCopy(),
+				*baseSlice1Wrapper.DeepCopy(),
+				*baseSlice2Wrapper.DeepCopy(),
 			},
 			wantEvents: []utiltesting.EventRecord{
 				{
 					Key:       client.ObjectKeyFromObject(baseWorkloadWrapper),
 					EventType: corev1.EventTypeNormal,
-					Reason:    SliceCreatedEventType,
-					Message:   "The Slice default/workload has been created",
+					Reason:    SlicesCreatedEventType,
+					Message:   `The Slices "default/workload-ps1", "default/workload-ps2" have been created`,
 				},
 			},
 		},
@@ -556,7 +635,7 @@ func TestWorkloadReconciler(t *testing.T) {
 						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
 						State:              kueue.CheckStatePending,
 						LastTransitionTime: metav1.NewTime(now),
-						Message:            "Error creating Slice \"workload\": test error",
+						Message:            `Error creating Slice "default/workload-ps1": test error`,
 					}).
 					Obj(),
 			},
@@ -566,16 +645,17 @@ func TestWorkloadReconciler(t *testing.T) {
 					Key:       client.ObjectKeyFromObject(baseWorkloadWrapper),
 					EventType: corev1.EventTypeWarning,
 					Reason:    FailedCreateSliceEventType,
-					Message:   `Error creating Slice "workload": test error`,
+					Message:   `Error creating Slice "default/workload-ps1": test error`,
 				},
 			},
 		},
-		"should update the Workload AdmissionCheckState when the Slice status is changed to Forming": {
+		"should update the Workload's AdmissionCheckState": {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
 				baseWorkloadWrapperWithFinalizer.DeepCopy(),
-				baseSliceWrapper.Clone().Forming().Obj(),
+				baseSlice1Wrapper.Clone().Obj(),
+				baseSlice2Wrapper.Clone().Obj(),
 			},
 			wantWorkloads: []kueue.Workload{
 				*baseWorkloadWrapperWithFinalizer.Clone().
@@ -583,18 +663,91 @@ func TestWorkloadReconciler(t *testing.T) {
 						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
 						State:              kueue.CheckStatePending,
 						LastTransitionTime: metav1.NewTime(now),
-						Message:            fmt.Sprintf(`The Slice %q is being formed`, baseWorkloadName),
+						Message:            `Slices are in states: 2 Created`,
 					}).
 					Obj(),
 			},
-			wantSlices: []slice.Slice{*baseSliceWrapper.Clone().Forming().Obj()},
+			wantSlices: []slice.Slice{
+				*baseSlice1Wrapper.Clone().Obj(),
+				*baseSlice2Wrapper.Clone().Obj(),
+			},
 		},
-		"should update the Workload AdmissionCheckState when the Slice status is changed to Ready": {
+		"should update the Workload's AdmissionCheckState when one Slice is in the Forming state": {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
 				baseWorkloadWrapperWithFinalizer.DeepCopy(),
-				baseSliceWrapper.Clone().Ready().Obj(),
+				baseSlice1Wrapper.Clone().Forming().Obj(),
+				baseSlice2Wrapper.Clone().Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapperWithFinalizer.Clone().
+					AdmissionCheck(kueue.AdmissionCheckState{
+						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
+						State:              kueue.CheckStatePending,
+						LastTransitionTime: metav1.NewTime(now),
+						Message:            `Slices are in states: 1 Created, 1 Forming`,
+					}).
+					Obj(),
+			},
+			wantSlices: []slice.Slice{
+				*baseSlice1Wrapper.Clone().Forming().Obj(),
+				*baseSlice2Wrapper.Clone().Obj(),
+			},
+		},
+		"should update the Workload's AdmissionCheckState when all Slices are in the Forming state": {
+			request: baseRequest,
+			objs: []client.Object{
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapperWithFinalizer.DeepCopy(),
+				baseSlice1Wrapper.Clone().Forming().Obj(),
+				baseSlice2Wrapper.Clone().Forming().Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapperWithFinalizer.Clone().
+					AdmissionCheck(kueue.AdmissionCheckState{
+						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
+						State:              kueue.CheckStatePending,
+						LastTransitionTime: metav1.NewTime(now),
+						Message:            `Slices are in states: 2 Forming`,
+					}).
+					Obj(),
+			},
+			wantSlices: []slice.Slice{
+				*baseSlice1Wrapper.Clone().Forming().Obj(),
+				*baseSlice2Wrapper.Clone().Forming().Obj(),
+			},
+		},
+		"should update the Workload's AdmissionCheckState when one Slice is in the Ready state": {
+			request: baseRequest,
+			objs: []client.Object{
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapperWithFinalizer.DeepCopy(),
+				baseSlice1Wrapper.Clone().Ready().Obj(),
+				baseSlice2Wrapper.Clone().Forming().Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapperWithFinalizer.Clone().
+					AdmissionCheck(kueue.AdmissionCheckState{
+						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
+						State:              kueue.CheckStatePending,
+						LastTransitionTime: metav1.NewTime(now),
+						Message:            `Slices are in states: 1 Forming, 1 Ready`,
+					}).
+					Obj(),
+			},
+			wantSlices: []slice.Slice{
+				*baseSlice1Wrapper.Clone().Ready().Obj(),
+				*baseSlice2Wrapper.Clone().Forming().Obj(),
+			},
+		},
+		"should update the Workload's AdmissionCheckState when all Slices are in the Ready state": {
+			request: baseRequest,
+			objs: []client.Object{
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapperWithFinalizer.DeepCopy(),
+				baseSlice1Wrapper.Clone().Ready().Obj(),
+				baseSlice2Wrapper.Clone().Ready().Obj(),
 			},
 			wantWorkloads: []kueue.Workload{
 				*baseWorkloadWrapperWithFinalizer.Clone().
@@ -602,11 +755,14 @@ func TestWorkloadReconciler(t *testing.T) {
 						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
 						State:              kueue.CheckStateReady,
 						LastTransitionTime: metav1.NewTime(now),
-						Message:            fmt.Sprintf(`The Slice %q is fully operational`, baseWorkloadName),
+						Message:            `Slices are in states: 2 Ready`,
 					}).
 					Obj(),
 			},
-			wantSlices: []slice.Slice{*baseSliceWrapper.Clone().Ready().Obj()},
+			wantSlices: []slice.Slice{
+				*baseSlice1Wrapper.Clone().Ready().Obj(),
+				*baseSlice2Wrapper.Clone().Ready().Obj(),
+			},
 			wantEvents: []utiltesting.EventRecord{
 				{
 					Key:       client.ObjectKeyFromObject(baseWorkloadWrapper),
@@ -616,12 +772,13 @@ func TestWorkloadReconciler(t *testing.T) {
 				},
 			},
 		},
-		"should update the Workload AdmissionCheckState when the Slice status is changed to Degraded": {
+		"should update the Workload's AdmissionCheckState when one Slice is in the Ready state and another is in the Degraded state": {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
 				baseWorkloadWrapperWithFinalizer.DeepCopy(),
-				baseSliceWrapper.Clone().Degraded().Obj(),
+				baseSlice1Wrapper.Clone().Ready().Obj(),
+				baseSlice2Wrapper.Clone().Degraded().Obj(),
 			},
 			wantWorkloads: []kueue.Workload{
 				*baseWorkloadWrapperWithFinalizer.Clone().
@@ -629,11 +786,13 @@ func TestWorkloadReconciler(t *testing.T) {
 						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
 						State:              kueue.CheckStateReady,
 						LastTransitionTime: metav1.NewTime(now),
-						Message:            fmt.Sprintf(`The Slice %q is running with reduced capacity or performance`, baseWorkloadName),
+						Message:            `Slices are in states: 1 Degraded, 1 Ready`,
 					}).
 					Obj(),
 			},
-			wantSlices: []slice.Slice{*baseSliceWrapper.Clone().Degraded().Obj()},
+			wantSlices: []slice.Slice{
+				*baseSlice1Wrapper.Clone().Ready().Obj(),
+				*baseSlice2Wrapper.Clone().Degraded().Obj()},
 			wantEvents: []utiltesting.EventRecord{
 				{
 					Key:       client.ObjectKeyFromObject(baseWorkloadWrapper),
@@ -643,12 +802,13 @@ func TestWorkloadReconciler(t *testing.T) {
 				},
 			},
 		},
-		"should update the Workload AdmissionCheckState when the Slice status is changed to Deformed": {
+		"should update the Workload's AdmissionCheckState when one Slice is in the Error state": {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
 				baseWorkloadWrapperWithFinalizer.DeepCopy(),
-				baseSliceWrapper.Clone().Deformed().Obj(),
+				baseSlice1Wrapper.Clone().Ready().Obj(),
+				baseSlice2Wrapper.Clone().Error().Obj(),
 			},
 			wantWorkloads: []kueue.Workload{
 				*baseWorkloadWrapperWithFinalizer.Clone().
@@ -656,11 +816,13 @@ func TestWorkloadReconciler(t *testing.T) {
 						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
 						State:              kueue.CheckStateRejected,
 						LastTransitionTime: metav1.NewTime(now),
-						Message:            fmt.Sprintf(`The Slice %q is being torn down`, baseWorkloadName),
+						Message:            `Slices are in states: 1 Error, 1 Ready. Errors: Error by test`,
 					}).
 					Obj(),
 			},
-			wantSlices: []slice.Slice{*baseSliceWrapper.Clone().Deformed().Obj()},
+			wantSlices: []slice.Slice{
+				*baseSlice1Wrapper.Clone().Ready().Obj(),
+				*baseSlice2Wrapper.Clone().Error().Obj()},
 			wantEvents: []utiltesting.EventRecord{
 				{
 					Key:       client.ObjectKeyFromObject(baseWorkloadWrapper),
@@ -670,12 +832,13 @@ func TestWorkloadReconciler(t *testing.T) {
 				},
 			},
 		},
-		"should update the Workload AdmissionCheckState when the Slice status is changed to Error": {
+		"should update the Workload's AdmissionCheckState when one Slice is in the Deformed state": {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
 				baseWorkloadWrapperWithFinalizer.DeepCopy(),
-				baseSliceWrapper.Clone().Error().Obj(),
+				baseSlice1Wrapper.Clone().Ready().Obj(),
+				baseSlice2Wrapper.Clone().Deformed().Obj(),
 			},
 			wantWorkloads: []kueue.Workload{
 				*baseWorkloadWrapperWithFinalizer.Clone().
@@ -683,11 +846,13 @@ func TestWorkloadReconciler(t *testing.T) {
 						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
 						State:              kueue.CheckStateRejected,
 						LastTransitionTime: metav1.NewTime(now),
-						Message:            fmt.Sprintf(`The Slice %q is not operational due to an error: Error by test`, baseWorkloadName),
+						Message:            `Slices are in states: 1 Deformed, 1 Ready`,
 					}).
 					Obj(),
 			},
-			wantSlices: []slice.Slice{*baseSliceWrapper.Clone().Error().Obj()},
+			wantSlices: []slice.Slice{
+				*baseSlice1Wrapper.Clone().Ready().Obj(),
+				*baseSlice2Wrapper.Clone().Deformed().Obj()},
 			wantEvents: []utiltesting.EventRecord{
 				{
 					Key:       client.ObjectKeyFromObject(baseWorkloadWrapper),
@@ -703,7 +868,8 @@ func TestWorkloadReconciler(t *testing.T) {
 				baseAdmissionCheckWrapper.DeepCopy(),
 				baseAdmissionCheckWrapper.Clone().Name(baseAdmissionCheckName + "2").Obj(),
 				baseWorkloadWrapperWithFinalizer.DeepCopy(),
-				baseSliceWrapper.Clone().Ready().Obj(),
+				baseSlice1Wrapper.Clone().Ready().Obj(),
+				baseSlice2Wrapper.Clone().Ready().Obj(),
 			},
 			wantWorkloads: []kueue.Workload{
 				*baseWorkloadWrapperWithFinalizer.Clone().
@@ -711,11 +877,14 @@ func TestWorkloadReconciler(t *testing.T) {
 						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
 						State:              kueue.CheckStateReady,
 						LastTransitionTime: metav1.NewTime(now),
-						Message:            fmt.Sprintf(`The Slice %q is fully operational`, baseWorkloadName),
+						Message:            `Slices are in states: 2 Ready`,
 					}).
 					Obj(),
 			},
-			wantSlices: []slice.Slice{*baseSliceWrapper.Clone().Ready().Obj()},
+			wantSlices: []slice.Slice{
+				*baseSlice1Wrapper.Clone().Ready().Obj(),
+				*baseSlice2Wrapper.Clone().Ready().Obj(),
+			},
 			wantEvents: []utiltesting.EventRecord{
 				{
 					Key:       client.ObjectKeyFromObject(baseWorkloadWrapper),
@@ -744,6 +913,11 @@ func TestWorkloadReconciler(t *testing.T) {
 				WithStatusSubresource(&kueue.Workload{}).
 				WithObjects(tc.objs...).
 				WithInterceptorFuncs(interceptorFuncs)
+
+			indexer := utiltesting.AsIndexer(clientBuilder)
+			if err := SetupIndexer(ctx, indexer); err != nil {
+				t.Fatalf("Setup failed: %v", err)
+			}
 
 			kClient := clientBuilder.Build()
 			recorder := &utiltesting.EventRecorder{}
@@ -826,7 +1000,7 @@ func TestSliceHandlerHandleEvent(t *testing.T) {
 			clientBuilder := fake.NewClientBuilder().WithScheme(scheme)
 
 			indexer := utiltesting.AsIndexer(clientBuilder)
-			if err := SetupWorkloadIndexer(ctx, indexer); err != nil {
+			if err := SetupIndexer(ctx, indexer); err != nil {
 				t.Fatalf("Setup failed: %v", err)
 			}
 

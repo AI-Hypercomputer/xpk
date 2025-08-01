@@ -15,6 +15,8 @@
 package core
 
 import (
+	"fmt"
+
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -23,32 +25,22 @@ import (
 	"tpu-slice-controller/api/v1alpha1"
 )
 
-// TODO: we will soon need to key per podset, in #520
-func SliceKeyFromWorkload(wl *kueue.Workload) client.ObjectKey {
-	slice := SliceWithMetadata(wl)
+func SliceKeyFromWorkload(wl *kueue.Workload, podSetName kueue.PodSetReference) client.ObjectKey {
+	slice := SliceWithMetadata(wl, podSetName)
 	return client.ObjectKeyFromObject(slice)
 }
 
-// TODO: we will soon need to key per podset, in #520
-func SliceWithMetadata(wl *kueue.Workload) *v1alpha1.Slice {
+func SliceWithMetadata(wl *kueue.Workload, podSetName kueue.PodSetReference) *v1alpha1.Slice {
 	return &v1alpha1.Slice{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      wl.Name,
+			Name:      SliceName(wl.Name, podSetName),
 			Namespace: wl.Namespace,
 		},
 	}
 }
 
-func Forming(slice *v1alpha1.Slice) bool {
-	return meta.IsStatusConditionTrue(slice.Status.Conditions, string(v1alpha1.Forming))
-}
-
-func Ready(slice *v1alpha1.Slice) bool {
-	return meta.IsStatusConditionTrue(slice.Status.Conditions, string(v1alpha1.Ready))
-}
-
-func Degraded(slice *v1alpha1.Slice) bool {
-	return meta.IsStatusConditionTrue(slice.Status.Conditions, string(v1alpha1.Degraded))
+func SliceName(workloadName string, podSetName kueue.PodSetReference) string {
+	return fmt.Sprintf("%s-%s", workloadName, podSetName)
 }
 
 func Deformed(slice *v1alpha1.Slice) bool {

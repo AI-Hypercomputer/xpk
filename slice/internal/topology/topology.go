@@ -22,8 +22,8 @@ import (
 
 // SubblockLevelIndex returns the index of the TPUSubBlock topology
 // assignment, or -1 if it doesn't exist.
-func SubblockLevelIndex(psa *kueue.PodSetAssignment) int {
-	for i, level := range psa.TopologyAssignment.Levels {
+func SubblockLevelIndex(topologyAssignment *kueue.TopologyAssignment) int {
+	for i, level := range topologyAssignment.Levels {
 		if level == core.TPUSubBlockLabel {
 			return i
 		}

@@ -101,6 +101,7 @@ func (j *JobSetWrapper) ReplicatedJobs(replicatedJobs ...ReplicatedJobRequiremen
 					},
 				},
 			}
+			spec.NodeSelector = req.NodeSelector
 		}
 		if req.Replicas == 0 {
 			req.Replicas = 1

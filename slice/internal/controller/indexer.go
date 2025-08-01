@@ -24,6 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
 
+	"tpu-slice-controller/api/v1alpha1"
 	"tpu-slice-controller/internal/util/slices"
 )
 
@@ -31,12 +32,17 @@ const (
 	OwnerReferenceUID = "metadata.ownerReferences.uid"
 )
 
-// SetupWorkloadIndexer configures the indexer to index specific fields for kueue.Workload resources.
-func SetupWorkloadIndexer(ctx context.Context, indexer client.FieldIndexer) error {
-	if err := indexer.IndexField(ctx, &kueue.Workload{}, OwnerReferenceUID, func(obj client.Object) []string {
-		return slices.Map(obj.GetOwnerReferences(), func(o *metav1.OwnerReference) string { return string(o.UID) })
-	}); err != nil {
+func indexOwnerReferenceUID(obj client.Object) []string {
+	return slices.Map(obj.GetOwnerReferences(), func(o *metav1.OwnerReference) string { return string(o.UID) })
+}
+
+// SetupIndexer configures the indexer to index specific fields for kueue.Workload and v1alpha1.Slice resources.
+func SetupIndexer(ctx context.Context, indexer client.FieldIndexer) error {
+	if err := indexer.IndexField(ctx, &kueue.Workload{}, OwnerReferenceUID, indexOwnerReferenceUID); err != nil {
 		return fmt.Errorf("setting index on ownerReferences.uid for Workload: %w", err)
+	}
+	if err := indexer.IndexField(ctx, &v1alpha1.Slice{}, OwnerReferenceUID, indexOwnerReferenceUID); err != nil {
+		return fmt.Errorf("setting index on ownerReferences.uid for Slice: %w", err)
 	}
 	return nil
 }

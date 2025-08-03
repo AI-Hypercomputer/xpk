@@ -28,7 +28,7 @@ from .commands import (
     run_command_with_updates,
     run_command_with_updates_retry,
 )
-from .pathways import add_pw_resource_flavors, add_pw_resources_to_kueue
+from .pathways import add_pw_resource_flavors
 from .resources import AutoprovisioningConfig
 from .scheduling import (
     create_accelerator_label,
@@ -104,7 +104,6 @@ spec:
   namespaceSelector: {{}} # match all.
   resourceGroups:
   {covered_resources_config}
-  {pw_resources_kueue}
   {admission_checks}
 ---
 apiVersion: kueue.x-k8s.io/v1beta1
@@ -432,6 +431,7 @@ def install_kueue_crs(
       cluster_hardware_name=cluster_hardware_name,
       resource_type=resource_type,
       total_chips=total_chips,
+      enable_pathways=args.enable_pathways,
   )
   topology_label = ''
   if system.device_type in [
@@ -456,7 +456,6 @@ def install_kueue_crs(
       covered_resources_config=covered_resources_config,
       resource_type=res_type,
       pw_resource_flavors=add_pw_resource_flavors(args),
-      pw_resources_kueue=add_pw_resources_to_kueue(args),
       admission_checks=admission_checks,
       managed_resource=res_type,
       cluster_queue_name=CLUSTER_QUEUE_NAME,
@@ -480,7 +479,7 @@ def install_kueue_crs(
 
 
 def get_kueue_covered_resources_config(
-    cluster_hardware_name, resource_type, total_chips
+    cluster_hardware_name, resource_type, total_chips, enable_pathways
 ) -> str:
   """Gets Kueue covered resources configuration.
 
@@ -488,22 +487,42 @@ def get_kueue_covered_resources_config(
     cluster_hardware_name: cluster hardware name.
     resource_type: resource type of tpu or gpu.
     total_chips: total number of chips for the specific resource type.
+    enable_pathways: if pathways is enabled.
 
   Returns:
     A string of Kueue covered resources configuration.
   """
+  pathways_resources = ''
+  if enable_pathways:
+    pathways_resources = """
+    - name: cpu-user
+      resources:
+      - name: "cpu"
+        nominalQuota: 480
+      - name: "memory"
+        nominalQuota: 2000G
+      - name: "{resource_type}"
+        nominalQuota: 0
+  """.format(resource_type=resource_type)
+
   config_format = """
-  - coveredResources: ["{resource_type}"]
+  - coveredResources: ["cpu", "memory", "{resource_type}"]
     flavors:
     - name: {cluster_hardware_name}
       resources:
+      - name: "cpu"
+        nominalQuota: "9999999999"
+      - name: "memory"
+        nominalQuota: "99999999999Gi"
       - name: "{resource_type}"
         nominalQuota: {total_chips}
+{pathways_resources}
   """
   config_string = config_format.format(
       cluster_hardware_name=cluster_hardware_name,
       resource_type=resource_type,
       total_chips=total_chips,
+      pathways_resources=pathways_resources,
   )
   return config_string
 

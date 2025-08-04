@@ -558,6 +558,116 @@ func TestWorkloadReconciler(t *testing.T) {
 				},
 			},
 		},
+		"should create Slices only for relevant PodSets (invalid pod template)": {
+			request: baseRequest,
+			objs: []client.Object{
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapperWithFinalizer.Clone().
+					ControllerReference(jobset.SchemeGroupVersion.WithKind("JobSet"), baseJobSetName, baseJobSetName).
+					PodSets(
+						*utiltesting.MakePodSet("ps1", 2).
+							Annotation(core.TPUTopologyAnnotation, "4x4x12").
+							NodeSelector(core.TPUAcceleratorLabel, "tpu-v7x").
+							Obj(),
+						*utiltesting.MakePodSet("ps2", 2).
+							Annotation(core.TPUTopologyAnnotation, "4x4x12").
+							NodeSelector(core.TPUAcceleratorLabel, "tpu-v8x").
+							Obj(),
+					).
+					Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapperWithFinalizer.Clone().
+					ControllerReference(jobset.SchemeGroupVersion.WithKind("JobSet"), baseJobSetName, baseJobSetName).
+					PodSets(
+						*utiltesting.MakePodSet("ps1", 2).
+							Annotation(core.TPUTopologyAnnotation, "4x4x12").
+							NodeSelector(core.TPUAcceleratorLabel, "tpu-v7x").
+							Obj(),
+						*utiltesting.MakePodSet("ps2", 2).
+							Annotation(core.TPUTopologyAnnotation, "4x4x12").
+							NodeSelector(core.TPUAcceleratorLabel, "tpu-v8x").
+							Obj(),
+					).
+					AdmissionCheck(kueue.AdmissionCheckState{
+						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
+						State:              kueue.CheckStatePending,
+						LastTransitionTime: metav1.NewTime(now),
+						Message:            `Slices are in states: 1 Created`,
+					}).
+					Obj(),
+			},
+			wantSlices: []slice.Slice{
+				*baseSlice1Wrapper.DeepCopy(),
+			},
+			wantEvents: []utiltesting.EventRecord{
+				{
+					Key:       client.ObjectKeyFromObject(baseWorkloadWrapper),
+					EventType: corev1.EventTypeNormal,
+					Reason:    SlicesCreatedEventType,
+					Message:   `The Slices "default/workload-ps1" have been created`,
+				},
+			},
+		},
+		"should create Slices only for relevant PodSets (invalid assignment)": {
+			request: baseRequest,
+			objs: []client.Object{
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapperWithFinalizer.Clone().
+					ControllerReference(jobset.SchemeGroupVersion.WithKind("JobSet"), baseJobSetName, baseJobSetName).
+					ReserveQuota(
+						&kueue.Admission{
+							PodSetAssignments: []kueue.PodSetAssignment{
+								utiltesting.MakePodSetAssignment("ps1").
+									TopologyAssignment([]string{core.TPUBlockLabel, core.TPUSubBlockLabel}, []kueue.TopologyDomainAssignment{
+										{
+											Values: []string{"block1", "subblock1"},
+											Count:  2,
+										},
+									}).Obj(),
+								utiltesting.MakePodSetAssignment("ps2").Obj(),
+							},
+						}, now,
+					).
+					Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapperWithFinalizer.Clone().
+					ControllerReference(jobset.SchemeGroupVersion.WithKind("JobSet"), baseJobSetName, baseJobSetName).
+					ReserveQuota(
+						&kueue.Admission{
+							PodSetAssignments: []kueue.PodSetAssignment{
+								utiltesting.MakePodSetAssignment("ps1").
+									TopologyAssignment([]string{core.TPUBlockLabel, core.TPUSubBlockLabel}, []kueue.TopologyDomainAssignment{
+										{
+											Values: []string{"block1", "subblock1"},
+											Count:  2,
+										},
+									}).Obj(),
+								utiltesting.MakePodSetAssignment("ps2").Obj(),
+							},
+						}, now,
+					).
+					AdmissionCheck(kueue.AdmissionCheckState{
+						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
+						State:              kueue.CheckStatePending,
+						LastTransitionTime: metav1.NewTime(now),
+						Message:            `Slices are in states: 1 Created`,
+					}).
+					Obj(),
+			},
+			wantSlices: []slice.Slice{
+				*baseSlice1Wrapper.DeepCopy(),
+			},
+			wantEvents: []utiltesting.EventRecord{
+				{
+					Key:       client.ObjectKeyFromObject(baseWorkloadWrapper),
+					EventType: corev1.EventTypeNormal,
+					Reason:    SlicesCreatedEventType,
+					Message:   `The Slices "default/workload-ps1" have been created`,
+				},
+			},
+		},
 		"should create missed Slices": {
 			request: baseRequest,
 			objs: []client.Object{

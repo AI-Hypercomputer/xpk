@@ -58,8 +58,15 @@ var (
 	errTest = errors.New("test error")
 )
 
+var (
+	jobSetGVK   = jobset.SchemeGroupVersion.WithKind("JobSet")
+	jobGVK      = batchv1.SchemeGroupVersion.WithKind("Job")
+	workloadGVK = kueue.SchemeGroupVersion.WithKind("Workload")
+)
+
 func TestWorkloadReconciler(t *testing.T) {
 	const (
+		baseACName       = "ac"
 		baseJobName      = "job"
 		baseJobSetName   = "jobset"
 		basePod1Name     = "pod1"
@@ -68,69 +75,71 @@ func TestWorkloadReconciler(t *testing.T) {
 	)
 
 	now := time.Now().Truncate(time.Second)
-	fakeClock := testingclock.NewFakeClock(now)
 
-	baseAdmissionCheckName := "ac"
+	buildAdmissionCheckState := func(state kueue.CheckState, message string) kueue.AdmissionCheckState {
+		return kueue.AdmissionCheckState{
+			Name:               baseACName,
+			State:              state,
+			LastTransitionTime: metav1.NewTime(now),
+			Message:            message,
+		}
+	}
+
+	buildEventRecord := func(eventType, reason, message string) utiltesting.EventRecord {
+		return utiltesting.EventRecord{
+			Key:       client.ObjectKey{Namespace: corev1.NamespaceDefault, Name: baseWorkloadName},
+			EventType: eventType,
+			Reason:    reason,
+			Message:   message,
+		}
+	}
+
 	baseRequest := types.NamespacedName{Name: baseWorkloadName, Namespace: corev1.NamespaceDefault}
 	baseJobSetWrapper := utiltestingjobsjobset.MakeJobSet(baseJobSetName, corev1.NamespaceDefault)
 	basePod1Wrapper := utiltestingjobspod.MakePod(basePod1Name, corev1.NamespaceDefault).
-		OwnerReference(baseJobSetName, jobset.SchemeGroupVersion.WithKind("JobSet")).
+		OwnerReference(baseJobSetName, jobSetGVK).
 		Label(jobset.JobSetNameKey, baseJobSetName)
 	basePod2Wrapper := basePod1Wrapper.Clone().Name(basePod2Name)
-	baseAdmissionCheckWrapper := utiltesting.MakeAdmissionCheck(baseAdmissionCheckName).ControllerName(SliceControllerName)
+	baseAdmissionCheckWrapper := utiltesting.MakeAdmissionCheck(baseACName).ControllerName(SliceControllerName)
+	basePodSet1Wrapper := *utiltesting.MakePodSet("ps1", 2).
+		Annotation(core.TPUTopologyAnnotation, "4x4x12").
+		NodeSelector(core.TPUAcceleratorLabel, "tpu-v7x")
+	basePodSet2Wrapper := basePodSet1Wrapper.Clone().Name("ps2")
+	basePodSets := []kueue.PodSet{
+		*basePodSet1Wrapper.DeepCopy(),
+		*basePodSet2Wrapper.DeepCopy(),
+	}
+	baseLevels := []string{core.TPUBlockLabel, core.TPUSubBlockLabel}
+	basePodSetAssignment1Wrapper := utiltesting.MakePodSetAssignment("ps1").
+		TopologyAssignment(baseLevels, []kueue.TopologyDomainAssignment{
+			{
+				Values: []string{"block1", "subblock1"},
+				Count:  2,
+			},
+		})
+	basePodSetAssignment2Wrapper := utiltesting.MakePodSetAssignment("ps2").
+		TopologyAssignment(baseLevels, []kueue.TopologyDomainAssignment{
+			{
+				Values: []string{"block1", "subblock2"},
+				Count:  2,
+			},
+		})
+	baseAdmission := &kueue.Admission{
+		PodSetAssignments: []kueue.PodSetAssignment{
+			basePodSetAssignment1Wrapper.Obj(),
+			basePodSetAssignment2Wrapper.Obj(),
+		},
+	}
 	baseWorkloadWrapper := utiltesting.MakeWorkload(baseWorkloadName, corev1.NamespaceDefault).
 		UID(baseWorkloadName).
-		AdmissionCheck(kueue.AdmissionCheckState{
-			Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
-			State:              kueue.CheckStatePending,
-			LastTransitionTime: metav1.NewTime(now),
-			Message:            "",
-		})
-	baseWorkloadWrapperWithPodSets := baseWorkloadWrapper.Clone().
-		PodSets(
-			*utiltesting.MakePodSet("ps1", 2).
-				Annotation(core.TPUTopologyAnnotation, "4x4x12").
-				NodeSelector(core.TPUAcceleratorLabel, "tpu-v7x").
-				Obj(),
-			*utiltesting.MakePodSet("ps2", 2).
-				Annotation(core.TPUTopologyAnnotation, "4x4x12").
-				NodeSelector(core.TPUAcceleratorLabel, "tpu-v7x").
-				Obj(),
-		)
-	baseWorkloadWrapperWithPodSetsAndOwner := baseWorkloadWrapperWithPodSets.Clone().
-		ControllerReference(jobset.SchemeGroupVersion.WithKind("JobSet"), baseJobSetName, baseJobSetName)
-	baseWorkloadWrapperWithAdmission := baseWorkloadWrapperWithPodSets.Clone().
-		ReserveQuota(
-			&kueue.Admission{
-				PodSetAssignments: []kueue.PodSetAssignment{
-					utiltesting.MakePodSetAssignment("ps1").
-						TopologyAssignment([]string{core.TPUBlockLabel, core.TPUSubBlockLabel}, []kueue.TopologyDomainAssignment{
-							{
-								Values: []string{"block1", "subblock1"},
-								Count:  2,
-							},
-						}).Obj(),
-					utiltesting.MakePodSetAssignment("ps2").
-						TopologyAssignment([]string{core.TPUBlockLabel, core.TPUSubBlockLabel}, []kueue.TopologyDomainAssignment{
-							{
-								Values: []string{"block1", "subblock2"},
-								Count:  2,
-							},
-						}).
-						Obj(),
-				},
-			}, now,
-		)
-	baseWorkloadWrapperWithAdmissionAndOwner := baseWorkloadWrapperWithAdmission.Clone().
-		ControllerReference(jobset.SchemeGroupVersion.WithKind("JobSet"), baseJobSetName, baseJobSetName)
-	baseWorkloadWrapperWithFinalizer := baseWorkloadWrapperWithAdmissionAndOwner.Clone().Finalizers(SliceControllerName)
+		AdmissionCheck(buildAdmissionCheckState(kueue.CheckStatePending, ""))
 	baseSlice1Wrapper := utiltesting.MakeSliceWrapper(core.SliceName(baseWorkloadName, "ps1"), corev1.NamespaceDefault).
-		ControllerReference(kueue.GroupVersion.WithKind("Workload"), baseWorkloadName, baseWorkloadName).
+		ControllerReference(workloadGVK, baseWorkloadName, baseWorkloadName).
 		NodeSelector(map[string][]string{TPUReservationSubblockLabel: {"subblock1"}})
 	baseSlice2Wrapper := baseSlice1Wrapper.Clone().Name(core.SliceName(baseWorkloadName, "ps2")).
 		NodeSelector(map[string][]string{TPUReservationSubblockLabel: {"subblock2"}})
 
-	cases := map[string]struct {
+	testCases := map[string]struct {
 		interceptorFuncsCreate func(ctx context.Context, client client.WithWatch, obj client.Object, opts ...client.CreateOption) error
 		request                types.NamespacedName
 		objs                   []client.Object
@@ -148,7 +157,10 @@ func TestWorkloadReconciler(t *testing.T) {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
-				baseWorkloadWrapperWithAdmissionAndOwner.Clone().
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Finalizers("test").
 					DeletionTimestamp(now).
 					Obj(),
@@ -156,7 +168,10 @@ func TestWorkloadReconciler(t *testing.T) {
 				baseSlice2Wrapper.Clone().DeletionTimestamp(now).Finalizers("test").Obj(),
 			},
 			wantWorkloads: []kueue.Workload{
-				*baseWorkloadWrapperWithAdmissionAndOwner.Clone().
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Finalizers("test").
 					DeletionTimestamp(now).
 					Obj(),
@@ -170,7 +185,10 @@ func TestWorkloadReconciler(t *testing.T) {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
-				baseWorkloadWrapperWithAdmissionAndOwner.Clone().
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					DeletionTimestamp(now).
 					Finalizers(SliceControllerName).
 					Obj(),
@@ -182,65 +200,94 @@ func TestWorkloadReconciler(t *testing.T) {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
-				baseWorkloadWrapperWithAdmissionAndOwner.Clone().
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Finished().
 					Finalizers(SliceControllerName).
 					Obj(),
 				baseSlice1Wrapper.DeepCopy(),
 				baseSlice2Wrapper.DeepCopy(),
 			},
-			wantWorkloads: []kueue.Workload{*baseWorkloadWrapperWithAdmissionAndOwner.Clone().Finished().Obj()},
+			wantWorkloads: []kueue.Workload{*baseWorkloadWrapper.Clone().
+				PodSets(basePodSets...).
+				ReserveQuota(baseAdmission, now).
+				ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).Finished().Obj()},
 		},
 		"should delete the finalizer because the Workload is evicted": {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
-				baseWorkloadWrapperWithAdmissionAndOwner.Clone().
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Evicted().
 					Finalizers(SliceControllerName).
 					Obj(),
 				baseSlice1Wrapper.DeepCopy(),
 				baseSlice2Wrapper.DeepCopy(),
 			},
-			wantWorkloads: []kueue.Workload{*baseWorkloadWrapperWithAdmissionAndOwner.Clone().Evicted().Obj()},
+			wantWorkloads: []kueue.Workload{*baseWorkloadWrapper.Clone().
+				PodSets(basePodSets...).
+				ReserveQuota(baseAdmission, now).
+				ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).Evicted().Obj()},
 		},
 		"should delete the finalizer because the Workload is deactivated": {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
-				baseWorkloadWrapperWithAdmissionAndOwner.Clone().
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Active(false).
 					Finalizers(SliceControllerName).
 					Obj(),
 				baseSlice1Wrapper.DeepCopy(),
 				baseSlice2Wrapper.DeepCopy(),
 			},
-			wantWorkloads: []kueue.Workload{*baseWorkloadWrapperWithAdmissionAndOwner.Clone().Active(false).Obj()},
+			wantWorkloads: []kueue.Workload{*baseWorkloadWrapper.Clone().
+				PodSets(basePodSets...).
+				ReserveQuota(baseAdmission, now).
+				ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).Active(false).Obj()},
 		},
 		"should delete the finalizer because the Workload has no owner": {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
-				baseWorkloadWrapperWithAdmission.Clone().Finalizers(SliceControllerName).Obj(),
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).Finalizers(SliceControllerName).Obj(),
 				baseSlice1Wrapper.DeepCopy(),
 				baseSlice2Wrapper.DeepCopy(),
 			},
-			wantWorkloads: []kueue.Workload{*baseWorkloadWrapperWithAdmission.DeepCopy()},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					Obj(),
+			},
 		},
 		"should delete the finalizer because the Workload has an unsupported owner": {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
-				baseWorkloadWrapperWithAdmission.Clone().
-					ControllerReference(batchv1.SchemeGroupVersion.WithKind("Job"), baseJobName, baseJobName).
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobGVK, baseJobName, baseJobName).
 					Finalizers(SliceControllerName).
 					Obj(),
 				baseSlice1Wrapper.DeepCopy(),
 				baseSlice2Wrapper.DeepCopy(),
 			},
 			wantWorkloads: []kueue.Workload{
-				*baseWorkloadWrapperWithAdmission.Clone().
-					ControllerReference(batchv1.SchemeGroupVersion.WithKind("Job"), baseJobName, baseJobName).
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobGVK, baseJobName, baseJobName).
 					Obj(),
 			},
 		},
@@ -250,7 +297,10 @@ func TestWorkloadReconciler(t *testing.T) {
 				baseAdmissionCheckWrapper.DeepCopy(),
 				baseJobSetWrapper.DeepCopy(),
 				basePod1Wrapper.DeepCopy(),
-				baseWorkloadWrapperWithAdmissionAndOwner.Clone().
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Active(false).
 					Finalizers(SliceControllerName).
 					Obj(),
@@ -258,7 +308,10 @@ func TestWorkloadReconciler(t *testing.T) {
 				baseSlice2Wrapper.Clone().Deformed().Obj(),
 			},
 			wantWorkloads: []kueue.Workload{
-				*baseWorkloadWrapperWithAdmissionAndOwner.Clone().Active(false).Obj(),
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).Active(false).Obj(),
 			},
 		},
 		"shouldn't delete the finalizer because Slices status Degraded": {
@@ -267,7 +320,10 @@ func TestWorkloadReconciler(t *testing.T) {
 				baseAdmissionCheckWrapper.DeepCopy(),
 				baseJobSetWrapper.DeepCopy(),
 				basePod1Wrapper.DeepCopy(),
-				baseWorkloadWrapperWithAdmissionAndOwner.Clone().
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Active(false).
 					Finalizers(SliceControllerName).
 					Obj(),
@@ -275,7 +331,10 @@ func TestWorkloadReconciler(t *testing.T) {
 				baseSlice2Wrapper.Clone().Degraded().Obj(),
 			},
 			wantWorkloads: []kueue.Workload{
-				*baseWorkloadWrapperWithAdmissionAndOwner.Clone().
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Active(false).
 					Finalizers(SliceControllerName).
 					Obj(),
@@ -290,7 +349,10 @@ func TestWorkloadReconciler(t *testing.T) {
 			objs: []client.Object{
 				baseJobSetWrapper.DeepCopy(),
 				basePod1Wrapper.Clone().StatusPhase(corev1.PodSucceeded).Obj(),
-				baseWorkloadWrapperWithAdmissionAndOwner.Clone().
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Active(false).
 					Finalizers(SliceControllerName).
 					Obj(),
@@ -298,7 +360,10 @@ func TestWorkloadReconciler(t *testing.T) {
 				baseSlice2Wrapper.DeepCopy(),
 			},
 			wantWorkloads: []kueue.Workload{
-				*baseWorkloadWrapperWithAdmissionAndOwner.Clone().
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Active(false).
 					Obj(),
 			},
@@ -309,7 +374,10 @@ func TestWorkloadReconciler(t *testing.T) {
 				baseAdmissionCheckWrapper.DeepCopy(),
 				baseJobSetWrapper.DeepCopy(),
 				basePod1Wrapper.Clone().StatusPhase(corev1.PodFailed).Obj(),
-				baseWorkloadWrapperWithAdmissionAndOwner.Clone().
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Active(false).
 					Finalizers(SliceControllerName).
 					Obj(),
@@ -317,7 +385,10 @@ func TestWorkloadReconciler(t *testing.T) {
 				baseSlice2Wrapper.DeepCopy(),
 			},
 			wantWorkloads: []kueue.Workload{
-				*baseWorkloadWrapperWithAdmissionAndOwner.Clone().
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Active(false).
 					Obj(),
 			},
@@ -329,7 +400,10 @@ func TestWorkloadReconciler(t *testing.T) {
 				baseJobSetWrapper.DeepCopy(),
 				basePod1Wrapper.DeepCopy(),
 				basePod2Wrapper.DeepCopy(),
-				baseWorkloadWrapperWithAdmissionAndOwner.Clone().
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Active(false).
 					Finalizers(SliceControllerName).
 					Obj(),
@@ -337,7 +411,10 @@ func TestWorkloadReconciler(t *testing.T) {
 				baseSlice2Wrapper.DeepCopy(),
 			},
 			wantWorkloads: []kueue.Workload{
-				*baseWorkloadWrapperWithAdmissionAndOwner.Clone().
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Active(false).
 					Finalizers(SliceControllerName).
 					Obj(),
@@ -354,7 +431,10 @@ func TestWorkloadReconciler(t *testing.T) {
 				baseJobSetWrapper.DeepCopy(),
 				basePod1Wrapper.Clone().StatusPhase(corev1.PodSucceeded).Obj(),
 				basePod2Wrapper.DeepCopy(),
-				baseWorkloadWrapperWithAdmissionAndOwner.Clone().
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Active(false).
 					Finalizers(SliceControllerName).
 					Obj(),
@@ -362,7 +442,10 @@ func TestWorkloadReconciler(t *testing.T) {
 				baseSlice2Wrapper.DeepCopy(),
 			},
 			wantWorkloads: []kueue.Workload{
-				*baseWorkloadWrapperWithAdmissionAndOwner.Clone().
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Active(false).
 					Finalizers(SliceControllerName).
 					Obj(),
@@ -376,7 +459,8 @@ func TestWorkloadReconciler(t *testing.T) {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
-				baseWorkloadWrapperWithAdmissionAndOwner.Clone().
+				baseWorkloadWrapper.Clone().
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					PodSets(
 						*utiltesting.MakePodSet("ps", 2).
 							Annotation(core.TPUTopologyAnnotation, "4x4").
@@ -399,7 +483,8 @@ func TestWorkloadReconciler(t *testing.T) {
 					Obj(),
 			},
 			wantWorkloads: []kueue.Workload{
-				*baseWorkloadWrapperWithAdmissionAndOwner.Clone().
+				*baseWorkloadWrapper.Clone().
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					PodSets(
 						*utiltesting.MakePodSet("ps", 2).
 							Annotation(core.TPUTopologyAnnotation, "4x4").
@@ -426,7 +511,8 @@ func TestWorkloadReconciler(t *testing.T) {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
-				baseWorkloadWrapperWithAdmissionAndOwner.Clone().
+				baseWorkloadWrapper.Clone().
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					PodSets(
 						*utiltesting.MakePodSet("ps", 2).
 							Annotation(core.TPUTopologyAnnotation, "4x4x12").
@@ -449,7 +535,8 @@ func TestWorkloadReconciler(t *testing.T) {
 					Obj(),
 			},
 			wantWorkloads: []kueue.Workload{
-				*baseWorkloadWrapperWithAdmissionAndOwner.Clone().
+				*baseWorkloadWrapper.Clone().
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					PodSets(
 						*utiltesting.MakePodSet("ps", 2).
 							Annotation(core.TPUTopologyAnnotation, "4x4x12").
@@ -476,17 +563,25 @@ func TestWorkloadReconciler(t *testing.T) {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
-				baseWorkloadWrapperWithPodSetsAndOwner.DeepCopy(),
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Obj(),
 			},
 			wantWorkloads: []kueue.Workload{
-				*baseWorkloadWrapperWithPodSetsAndOwner.DeepCopy(),
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Obj(),
 			},
 		},
 		"shouldn't add finalizer because there’s no TopologyAssignment": {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
-				baseWorkloadWrapperWithPodSetsAndOwner.Clone().
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					ReserveQuota(
 						&kueue.Admission{
 							PodSetAssignments: []kueue.PodSetAssignment{
@@ -497,7 +592,9 @@ func TestWorkloadReconciler(t *testing.T) {
 					Obj(),
 			},
 			wantWorkloads: []kueue.Workload{
-				*baseWorkloadWrapperWithPodSetsAndOwner.Clone().
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					ReserveQuota(
 						&kueue.Admission{
 							PodSetAssignments: []kueue.PodSetAssignment{
@@ -512,10 +609,17 @@ func TestWorkloadReconciler(t *testing.T) {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
-				baseWorkloadWrapperWithAdmissionAndOwner.DeepCopy(),
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Obj(),
 			},
 			wantWorkloads: []kueue.Workload{
-				*baseWorkloadWrapperWithAdmissionAndOwner.Clone().
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Finalizers(SliceControllerName).
 					Obj(),
 			},
@@ -523,26 +627,40 @@ func TestWorkloadReconciler(t *testing.T) {
 		"shouldn't create a Slice because there’s no AdmissionCheck": {
 			request: baseRequest,
 			objs: []client.Object{
-				baseWorkloadWrapperWithFinalizer.DeepCopy(),
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					Obj(),
 			},
 			wantWorkloads: []kueue.Workload{
-				*baseWorkloadWrapperWithFinalizer.DeepCopy(),
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					Obj(),
 			},
 		},
 		"should create Slices": {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
-				baseWorkloadWrapperWithFinalizer.DeepCopy(),
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					Obj(),
 			},
 			wantWorkloads: []kueue.Workload{
-				*baseWorkloadWrapperWithFinalizer.Clone().
-					AdmissionCheck(kueue.AdmissionCheckState{
-						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
-						State:              kueue.CheckStatePending,
-						LastTransitionTime: metav1.NewTime(now),
-						Message:            `Slices are in states: 2 Created`,
-					}).
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStatePending, `Slices are in states: 2 Created`)).
 					Obj(),
 			},
 			wantSlices: []slice.Slice{
@@ -550,20 +668,20 @@ func TestWorkloadReconciler(t *testing.T) {
 				*baseSlice2Wrapper.DeepCopy(),
 			},
 			wantEvents: []utiltesting.EventRecord{
-				{
-					Key:       client.ObjectKeyFromObject(baseWorkloadWrapper),
-					EventType: corev1.EventTypeNormal,
-					Reason:    SlicesCreatedEventType,
-					Message:   `The Slices "default/workload-ps1", "default/workload-ps2" have been created`,
-				},
+				buildEventRecord(corev1.EventTypeNormal, SlicesCreatedEventType,
+					`The Slices "default/workload-ps1", "default/workload-ps2" have been created`),
 			},
 		},
 		"should create Slices only for relevant PodSets (invalid pod template)": {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
-				baseWorkloadWrapperWithFinalizer.Clone().
-					ControllerReference(jobset.SchemeGroupVersion.WithKind("JobSet"), baseJobSetName, baseJobSetName).
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					PodSets(
 						*utiltesting.MakePodSet("ps1", 2).
 							Annotation(core.TPUTopologyAnnotation, "4x4x12").
@@ -577,8 +695,12 @@ func TestWorkloadReconciler(t *testing.T) {
 					Obj(),
 			},
 			wantWorkloads: []kueue.Workload{
-				*baseWorkloadWrapperWithFinalizer.Clone().
-					ControllerReference(jobset.SchemeGroupVersion.WithKind("JobSet"), baseJobSetName, baseJobSetName).
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					PodSets(
 						*utiltesting.MakePodSet("ps1", 2).
 							Annotation(core.TPUTopologyAnnotation, "4x4x12").
@@ -589,42 +711,31 @@ func TestWorkloadReconciler(t *testing.T) {
 							NodeSelector(core.TPUAcceleratorLabel, "tpu-v8x").
 							Obj(),
 					).
-					AdmissionCheck(kueue.AdmissionCheckState{
-						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
-						State:              kueue.CheckStatePending,
-						LastTransitionTime: metav1.NewTime(now),
-						Message:            `Slices are in states: 1 Created`,
-					}).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStatePending, `Slices are in states: 1 Created`)).
 					Obj(),
 			},
 			wantSlices: []slice.Slice{
 				*baseSlice1Wrapper.DeepCopy(),
 			},
 			wantEvents: []utiltesting.EventRecord{
-				{
-					Key:       client.ObjectKeyFromObject(baseWorkloadWrapper),
-					EventType: corev1.EventTypeNormal,
-					Reason:    SlicesCreatedEventType,
-					Message:   `The Slices "default/workload-ps1" have been created`,
-				},
+				buildEventRecord(corev1.EventTypeNormal, SlicesCreatedEventType,
+					`The Slices "default/workload-ps1" have been created`),
 			},
 		},
 		"should create Slices only for relevant PodSets (invalid assignment)": {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
-				baseWorkloadWrapperWithFinalizer.Clone().
-					ControllerReference(jobset.SchemeGroupVersion.WithKind("JobSet"), baseJobSetName, baseJobSetName).
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					ReserveQuota(
 						&kueue.Admission{
 							PodSetAssignments: []kueue.PodSetAssignment{
-								utiltesting.MakePodSetAssignment("ps1").
-									TopologyAssignment([]string{core.TPUBlockLabel, core.TPUSubBlockLabel}, []kueue.TopologyDomainAssignment{
-										{
-											Values: []string{"block1", "subblock1"},
-											Count:  2,
-										},
-									}).Obj(),
+								*basePodSetAssignment1Wrapper.DeepCopy(),
 								utiltesting.MakePodSetAssignment("ps2").Obj(),
 							},
 						}, now,
@@ -632,57 +743,50 @@ func TestWorkloadReconciler(t *testing.T) {
 					Obj(),
 			},
 			wantWorkloads: []kueue.Workload{
-				*baseWorkloadWrapperWithFinalizer.Clone().
-					ControllerReference(jobset.SchemeGroupVersion.WithKind("JobSet"), baseJobSetName, baseJobSetName).
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					ReserveQuota(
 						&kueue.Admission{
 							PodSetAssignments: []kueue.PodSetAssignment{
-								utiltesting.MakePodSetAssignment("ps1").
-									TopologyAssignment([]string{core.TPUBlockLabel, core.TPUSubBlockLabel}, []kueue.TopologyDomainAssignment{
-										{
-											Values: []string{"block1", "subblock1"},
-											Count:  2,
-										},
-									}).Obj(),
+								*basePodSetAssignment1Wrapper.DeepCopy(),
 								utiltesting.MakePodSetAssignment("ps2").Obj(),
 							},
 						}, now,
 					).
-					AdmissionCheck(kueue.AdmissionCheckState{
-						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
-						State:              kueue.CheckStatePending,
-						LastTransitionTime: metav1.NewTime(now),
-						Message:            `Slices are in states: 1 Created`,
-					}).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStatePending, `Slices are in states: 1 Created`)).
 					Obj(),
 			},
 			wantSlices: []slice.Slice{
 				*baseSlice1Wrapper.DeepCopy(),
 			},
 			wantEvents: []utiltesting.EventRecord{
-				{
-					Key:       client.ObjectKeyFromObject(baseWorkloadWrapper),
-					EventType: corev1.EventTypeNormal,
-					Reason:    SlicesCreatedEventType,
-					Message:   `The Slices "default/workload-ps1" have been created`,
-				},
+				buildEventRecord(corev1.EventTypeNormal, SlicesCreatedEventType,
+					`The Slices "default/workload-ps1" have been created`),
 			},
 		},
 		"should create missed Slices": {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
-				baseWorkloadWrapperWithFinalizer.DeepCopy(),
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					Obj(),
 				baseSlice1Wrapper.DeepCopy(),
 			},
 			wantWorkloads: []kueue.Workload{
-				*baseWorkloadWrapperWithFinalizer.Clone().
-					AdmissionCheck(kueue.AdmissionCheckState{
-						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
-						State:              kueue.CheckStatePending,
-						LastTransitionTime: metav1.NewTime(now),
-						Message:            `Slices are in states: 2 Created`,
-					}).
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStatePending, `Slices are in states: 2 Created`)).
 					Obj(),
 			},
 			wantSlices: []slice.Slice{
@@ -690,28 +794,28 @@ func TestWorkloadReconciler(t *testing.T) {
 				*baseSlice2Wrapper.DeepCopy(),
 			},
 			wantEvents: []utiltesting.EventRecord{
-				{
-					Key:       client.ObjectKeyFromObject(baseWorkloadWrapper),
-					EventType: corev1.EventTypeNormal,
-					Reason:    SlicesCreatedEventType,
-					Message:   `The Slices "default/workload-ps2" have been created`,
-				},
+				buildEventRecord(corev1.EventTypeNormal, SlicesCreatedEventType,
+					`The Slices "default/workload-ps2" have been created`),
 			},
 		},
 		"parse TAS Assignment to populate NodeSelector in Slice": {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
-				baseWorkloadWrapperWithFinalizer.DeepCopy(),
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					Obj(),
 			},
 			wantWorkloads: []kueue.Workload{
-				*baseWorkloadWrapperWithFinalizer.Clone().
-					AdmissionCheck(kueue.AdmissionCheckState{
-						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
-						State:              kueue.CheckStatePending,
-						LastTransitionTime: metav1.NewTime(now),
-						Message:            `Slices are in states: 2 Created`,
-					}).
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStatePending, `Slices are in states: 2 Created`)).
 					Obj(),
 			},
 			wantSlices: []slice.Slice{
@@ -719,12 +823,8 @@ func TestWorkloadReconciler(t *testing.T) {
 				*baseSlice2Wrapper.DeepCopy(),
 			},
 			wantEvents: []utiltesting.EventRecord{
-				{
-					Key:       client.ObjectKeyFromObject(baseWorkloadWrapper),
-					EventType: corev1.EventTypeNormal,
-					Reason:    SlicesCreatedEventType,
-					Message:   `The Slices "default/workload-ps1", "default/workload-ps2" have been created`,
-				},
+				buildEventRecord(corev1.EventTypeNormal, SlicesCreatedEventType,
+					`The Slices "default/workload-ps1", "default/workload-ps2" have been created`),
 			},
 		},
 		"error on Slice creation": {
@@ -737,90 +837,102 @@ func TestWorkloadReconciler(t *testing.T) {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
-				baseWorkloadWrapperWithFinalizer.DeepCopy(),
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					Obj(),
 			},
 			wantWorkloads: []kueue.Workload{
-				*baseWorkloadWrapperWithFinalizer.Clone().
-					AdmissionCheck(kueue.AdmissionCheckState{
-						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
-						State:              kueue.CheckStatePending,
-						LastTransitionTime: metav1.NewTime(now),
-						Message:            `Error creating Slice "default/workload-ps1": test error`,
-					}).
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStatePending, `Error creating Slice "default/workload-ps1": test error`)).
 					Obj(),
 			},
 			wantErr: errTest,
 			wantEvents: []utiltesting.EventRecord{
-				{
-					Key:       client.ObjectKeyFromObject(baseWorkloadWrapper),
-					EventType: corev1.EventTypeWarning,
-					Reason:    FailedCreateSliceEventType,
-					Message:   `Error creating Slice "default/workload-ps1": test error`,
-				},
+				buildEventRecord(corev1.EventTypeWarning, FailedCreateSliceEventType,
+					`Error creating Slice "default/workload-ps1": test error`),
 			},
 		},
 		"should update the Workload's AdmissionCheckState": {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
-				baseWorkloadWrapperWithFinalizer.DeepCopy(),
-				baseSlice1Wrapper.Clone().Obj(),
-				baseSlice2Wrapper.Clone().Obj(),
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					Obj(),
+				baseSlice1Wrapper.DeepCopy(),
+				baseSlice2Wrapper.DeepCopy(),
 			},
 			wantWorkloads: []kueue.Workload{
-				*baseWorkloadWrapperWithFinalizer.Clone().
-					AdmissionCheck(kueue.AdmissionCheckState{
-						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
-						State:              kueue.CheckStatePending,
-						LastTransitionTime: metav1.NewTime(now),
-						Message:            `Slices are in states: 2 Created`,
-					}).
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStatePending, `Slices are in states: 2 Created`)).
 					Obj(),
 			},
 			wantSlices: []slice.Slice{
-				*baseSlice1Wrapper.Clone().Obj(),
-				*baseSlice2Wrapper.Clone().Obj(),
+				*baseSlice1Wrapper.DeepCopy(),
+				*baseSlice2Wrapper.DeepCopy(),
 			},
 		},
 		"should update the Workload's AdmissionCheckState when one Slice is in the Forming state": {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
-				baseWorkloadWrapperWithFinalizer.DeepCopy(),
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					Obj(),
 				baseSlice1Wrapper.Clone().Forming().Obj(),
-				baseSlice2Wrapper.Clone().Obj(),
+				baseSlice2Wrapper.DeepCopy(),
 			},
 			wantWorkloads: []kueue.Workload{
-				*baseWorkloadWrapperWithFinalizer.Clone().
-					AdmissionCheck(kueue.AdmissionCheckState{
-						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
-						State:              kueue.CheckStatePending,
-						LastTransitionTime: metav1.NewTime(now),
-						Message:            `Slices are in states: 1 Created, 1 Forming`,
-					}).
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStatePending, `Slices are in states: 1 Created, 1 Forming`)).
 					Obj(),
 			},
 			wantSlices: []slice.Slice{
 				*baseSlice1Wrapper.Clone().Forming().Obj(),
-				*baseSlice2Wrapper.Clone().Obj(),
+				*baseSlice2Wrapper.DeepCopy(),
 			},
 		},
 		"should update the Workload's AdmissionCheckState when all Slices are in the Forming state": {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
-				baseWorkloadWrapperWithFinalizer.DeepCopy(),
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					Obj(),
 				baseSlice1Wrapper.Clone().Forming().Obj(),
 				baseSlice2Wrapper.Clone().Forming().Obj(),
 			},
 			wantWorkloads: []kueue.Workload{
-				*baseWorkloadWrapperWithFinalizer.Clone().
-					AdmissionCheck(kueue.AdmissionCheckState{
-						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
-						State:              kueue.CheckStatePending,
-						LastTransitionTime: metav1.NewTime(now),
-						Message:            `Slices are in states: 2 Forming`,
-					}).
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStatePending, `Slices are in states: 2 Forming`)).
 					Obj(),
 			},
 			wantSlices: []slice.Slice{
@@ -832,18 +944,22 @@ func TestWorkloadReconciler(t *testing.T) {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
-				baseWorkloadWrapperWithFinalizer.DeepCopy(),
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					Obj(),
 				baseSlice1Wrapper.Clone().Ready().Obj(),
 				baseSlice2Wrapper.Clone().Forming().Obj(),
 			},
 			wantWorkloads: []kueue.Workload{
-				*baseWorkloadWrapperWithFinalizer.Clone().
-					AdmissionCheck(kueue.AdmissionCheckState{
-						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
-						State:              kueue.CheckStatePending,
-						LastTransitionTime: metav1.NewTime(now),
-						Message:            `Slices are in states: 1 Forming, 1 Ready`,
-					}).
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStatePending, `Slices are in states: 1 Forming, 1 Ready`)).
 					Obj(),
 			},
 			wantSlices: []slice.Slice{
@@ -855,18 +971,22 @@ func TestWorkloadReconciler(t *testing.T) {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
-				baseWorkloadWrapperWithFinalizer.DeepCopy(),
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					Obj(),
 				baseSlice1Wrapper.Clone().Ready().Obj(),
 				baseSlice2Wrapper.Clone().Ready().Obj(),
 			},
 			wantWorkloads: []kueue.Workload{
-				*baseWorkloadWrapperWithFinalizer.Clone().
-					AdmissionCheck(kueue.AdmissionCheckState{
-						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
-						State:              kueue.CheckStateReady,
-						LastTransitionTime: metav1.NewTime(now),
-						Message:            `Slices are in states: 2 Ready`,
-					}).
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStateReady, `Slices are in states: 2 Ready`)).
 					Obj(),
 			},
 			wantSlices: []slice.Slice{
@@ -874,121 +994,121 @@ func TestWorkloadReconciler(t *testing.T) {
 				*baseSlice2Wrapper.Clone().Ready().Obj(),
 			},
 			wantEvents: []utiltesting.EventRecord{
-				{
-					Key:       client.ObjectKeyFromObject(baseWorkloadWrapper),
-					EventType: corev1.EventTypeNormal,
-					Reason:    AdmissionCheckUpdatedEventType,
-					Message:   fmt.Sprintf(`Admission check %q updated state from "Pending" to "Ready"`, baseAdmissionCheckName),
-				},
+				buildEventRecord(corev1.EventTypeNormal, AdmissionCheckUpdatedEventType,
+					fmt.Sprintf(`Admission check %q updated state from "Pending" to "Ready"`, baseACName)),
 			},
 		},
 		"should update the Workload's AdmissionCheckState when one Slice is in the Ready state and another is in the Degraded state": {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
-				baseWorkloadWrapperWithFinalizer.DeepCopy(),
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					Obj(),
 				baseSlice1Wrapper.Clone().Ready().Obj(),
 				baseSlice2Wrapper.Clone().Degraded().Obj(),
 			},
 			wantWorkloads: []kueue.Workload{
-				*baseWorkloadWrapperWithFinalizer.Clone().
-					AdmissionCheck(kueue.AdmissionCheckState{
-						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
-						State:              kueue.CheckStateReady,
-						LastTransitionTime: metav1.NewTime(now),
-						Message:            `Slices are in states: 1 Degraded, 1 Ready`,
-					}).
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStateReady, `Slices are in states: 1 Degraded, 1 Ready`)).
 					Obj(),
 			},
 			wantSlices: []slice.Slice{
 				*baseSlice1Wrapper.Clone().Ready().Obj(),
 				*baseSlice2Wrapper.Clone().Degraded().Obj()},
 			wantEvents: []utiltesting.EventRecord{
-				{
-					Key:       client.ObjectKeyFromObject(baseWorkloadWrapper),
-					EventType: corev1.EventTypeNormal,
-					Reason:    AdmissionCheckUpdatedEventType,
-					Message:   fmt.Sprintf(`Admission check %q updated state from "Pending" to "Ready"`, baseAdmissionCheckName),
-				},
+				buildEventRecord(corev1.EventTypeNormal, AdmissionCheckUpdatedEventType,
+					fmt.Sprintf(`Admission check %q updated state from "Pending" to "Ready"`, baseACName)),
 			},
 		},
 		"should update the Workload's AdmissionCheckState when one Slice is in the Error state": {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
-				baseWorkloadWrapperWithFinalizer.DeepCopy(),
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					Obj(),
 				baseSlice1Wrapper.Clone().Ready().Obj(),
 				baseSlice2Wrapper.Clone().Error().Obj(),
 			},
 			wantWorkloads: []kueue.Workload{
-				*baseWorkloadWrapperWithFinalizer.Clone().
-					AdmissionCheck(kueue.AdmissionCheckState{
-						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
-						State:              kueue.CheckStateRejected,
-						LastTransitionTime: metav1.NewTime(now),
-						Message:            `Slices are in states: 1 Error, 1 Ready. Errors: Error by test`,
-					}).
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStateRejected, `Slices are in states: 1 Error, 1 Ready. Errors: Error by test`)).
 					Obj(),
 			},
 			wantSlices: []slice.Slice{
 				*baseSlice1Wrapper.Clone().Ready().Obj(),
 				*baseSlice2Wrapper.Clone().Error().Obj()},
 			wantEvents: []utiltesting.EventRecord{
-				{
-					Key:       client.ObjectKeyFromObject(baseWorkloadWrapper),
-					EventType: corev1.EventTypeNormal,
-					Reason:    AdmissionCheckUpdatedEventType,
-					Message:   fmt.Sprintf(`Admission check %q updated state from "Pending" to "Rejected"`, baseAdmissionCheckName),
-				},
+				buildEventRecord(corev1.EventTypeNormal, AdmissionCheckUpdatedEventType,
+					fmt.Sprintf(`Admission check %q updated state from "Pending" to "Rejected"`, baseACName)),
 			},
 		},
 		"should update the Workload's AdmissionCheckState when one Slice is in the Deformed state": {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
-				baseWorkloadWrapperWithFinalizer.DeepCopy(),
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					Obj(),
 				baseSlice1Wrapper.Clone().Ready().Obj(),
 				baseSlice2Wrapper.Clone().Deformed().Obj(),
 			},
 			wantWorkloads: []kueue.Workload{
-				*baseWorkloadWrapperWithFinalizer.Clone().
-					AdmissionCheck(kueue.AdmissionCheckState{
-						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
-						State:              kueue.CheckStateRejected,
-						LastTransitionTime: metav1.NewTime(now),
-						Message:            `Slices are in states: 1 Deformed, 1 Ready`,
-					}).
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStateRejected, `Slices are in states: 1 Deformed, 1 Ready`)).
 					Obj(),
 			},
 			wantSlices: []slice.Slice{
 				*baseSlice1Wrapper.Clone().Ready().Obj(),
 				*baseSlice2Wrapper.Clone().Deformed().Obj()},
 			wantEvents: []utiltesting.EventRecord{
-				{
-					Key:       client.ObjectKeyFromObject(baseWorkloadWrapper),
-					EventType: corev1.EventTypeNormal,
-					Reason:    AdmissionCheckUpdatedEventType,
-					Message:   fmt.Sprintf(`Admission check %q updated state from "Pending" to "Rejected"`, baseAdmissionCheckName),
-				},
+				buildEventRecord(corev1.EventTypeNormal, AdmissionCheckUpdatedEventType,
+					fmt.Sprintf(`Admission check %q updated state from "Pending" to "Rejected"`, baseACName)),
 			},
 		},
 		"should use the first AdmissionCheck if more than one is found": {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
-				baseAdmissionCheckWrapper.Clone().Name(baseAdmissionCheckName + "2").Obj(),
-				baseWorkloadWrapperWithFinalizer.DeepCopy(),
+				baseAdmissionCheckWrapper.Clone().Name(baseACName + "2").Obj(),
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					Obj(),
 				baseSlice1Wrapper.Clone().Ready().Obj(),
 				baseSlice2Wrapper.Clone().Ready().Obj(),
 			},
 			wantWorkloads: []kueue.Workload{
-				*baseWorkloadWrapperWithFinalizer.Clone().
-					AdmissionCheck(kueue.AdmissionCheckState{
-						Name:               kueue.AdmissionCheckReference(baseAdmissionCheckName),
-						State:              kueue.CheckStateReady,
-						LastTransitionTime: metav1.NewTime(now),
-						Message:            `Slices are in states: 2 Ready`,
-					}).
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStateReady, `Slices are in states: 2 Ready`)).
 					Obj(),
 			},
 			wantSlices: []slice.Slice{
@@ -996,16 +1116,12 @@ func TestWorkloadReconciler(t *testing.T) {
 				*baseSlice2Wrapper.Clone().Ready().Obj(),
 			},
 			wantEvents: []utiltesting.EventRecord{
-				{
-					Key:       client.ObjectKeyFromObject(baseWorkloadWrapper),
-					EventType: corev1.EventTypeNormal,
-					Reason:    AdmissionCheckUpdatedEventType,
-					Message:   fmt.Sprintf(`Admission check %q updated state from "Pending" to "Ready"`, baseAdmissionCheckName),
-				},
+				buildEventRecord(corev1.EventTypeNormal, AdmissionCheckUpdatedEventType,
+					fmt.Sprintf(`Admission check %q updated state from "Pending" to "Ready"`, baseACName)),
 			},
 		},
 	}
-	for name, tc := range cases {
+	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			scheme := runtime.NewScheme()
 			utilruntime.Must(corev1.AddToScheme(scheme))
@@ -1032,7 +1148,7 @@ func TestWorkloadReconciler(t *testing.T) {
 			kClient := clientBuilder.Build()
 			recorder := &utiltesting.EventRecorder{}
 			reconciler := NewWorkloadReconciler(kClient, recorder)
-			reconciler.clock = fakeClock
+			reconciler.clock = testingclock.NewFakeClock(now)
 
 			_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: tc.request})
 			if diff := cmp.Diff(tc.wantErr, err, cmpopts.EquateErrors()); diff != "" {
@@ -1084,7 +1200,7 @@ func TestSliceHandlerHandleEvent(t *testing.T) {
 		},
 		"has a workload that should be handled": {
 			obj: utiltesting.MakeSliceWrapper(baseSliceName, corev1.NamespaceDefault).
-				ControllerReference(kueue.SchemeGroupVersion.WithKind("Workload"), baseWlName, baseWlName).
+				ControllerReference(workloadGVK, baseWlName, baseWlName).
 				Obj(),
 			want: []requestDuration{
 				{

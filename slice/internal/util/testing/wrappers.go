@@ -182,6 +182,15 @@ func (w *PodSetWrapper) Obj() *kueue.PodSet {
 	return &w.PodSet
 }
 
+func (w *PodSetWrapper) Clone() *PodSetWrapper {
+	return &PodSetWrapper{PodSet: *w.DeepCopy()}
+}
+
+func (w *PodSetWrapper) Name(name string) *PodSetWrapper {
+	w.PodSet.Name = kueue.PodSetReference(name)
+	return w
+}
+
 func (w *PodSetWrapper) Annotation(key, value string) *PodSetWrapper {
 	if w.Template.Annotations == nil {
 		w.Template.Annotations = make(map[string]string)

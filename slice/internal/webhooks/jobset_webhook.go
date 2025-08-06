@@ -49,17 +49,21 @@ var _ webhook.CustomDefaulter = &JobSetWebhook{}
 func (r *JobSetWebhook) Default(ctx context.Context, obj runtime.Object) error {
 	jobSet := obj.(*v1alpha2.JobSet)
 	log := ctrl.LoggerFrom(ctx).WithName("jobset-accelerator-gke-webhook")
-	log.V(5).Info("Applying defaults")
+	log = log.WithValues("jobsetName", jobSet.Name)
+	log.V(5).Info("Defaulting JobSet")
 
 	if jobSet.Labels[kueueconstants.QueueLabel] == "" {
+		log.V(5).Info("Skipping due to missing Kueue Label")
 		return nil
 	}
 
 	for i := range jobSet.Spec.ReplicatedJobs {
 		rj := &jobSet.Spec.ReplicatedJobs[i]
 		if !core.IsRelevantPodTemplateSpec(rj.Template.Spec.Template) {
+			log.V(5).Info("Skipping annotating ReplicatedJob due to TPU Annotation or Node Selector misconfigured")
 			continue
 		}
+		log.V(5).Info("Annotating ReplicatedJob")
 		annotateReplicatedJobWithSliceHealth(rj)
 		err := r.annotateReplicatedJobWithTopology(rj)
 		if err != nil {
@@ -93,6 +97,9 @@ func (r *JobSetWebhook) annotateReplicatedJobWithTopology(rj *v1alpha2.Replicate
 }
 
 func annotateReplicatedJobWithSliceHealth(rj *v1alpha2.ReplicatedJob) {
+	if rj.Template.Spec.Template.Spec.NodeSelector == nil {
+		rj.Template.Spec.Template.Spec.NodeSelector = make(map[string]string)
+	}
 	rj.Template.Spec.Template.Spec.NodeSelector[core.TPUSliceHealthNodeSelectorKey] = core.TPUSliceHealthNodeSelectorValue
 }
 

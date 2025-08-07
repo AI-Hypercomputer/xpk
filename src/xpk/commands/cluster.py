@@ -953,7 +953,7 @@ def update_coredns_if_necessary(args) -> int:
     0 if successful (CoreDNS was already present or successfully deployed),
     and 1 otherwise.
   """
-  if args.enable_cloud_dns:
+  if '--cluster-dns=clouddns' in args.custom_cluster_arguments:
     xpk_print('Skipping CoreDNS deployment since Cloud DNS is enabled.')
     return 0
   elif coredns_deployment_exists(args, namespace='kube-system'):
@@ -1133,9 +1133,6 @@ def run_gke_cluster_create_command(
 
   if args.enable_workload_identity or args.enable_gcsfuse_csi_driver:
     command += f' --workload-pool={args.project}.svc.id.goog'
-
-  if args.enable_cloud_dns:
-    command += f' --cluster-dns=clouddns'
 
   addons = []
   if args.enable_gcsfuse_csi_driver:

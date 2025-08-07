@@ -54,8 +54,7 @@ import (
 )
 
 const (
-	SliceControllerName         = "accelerator.gke.io/slice"
-	TPUReservationSubblockLabel = "cloud.google.com/gke-tpu-reservation-subblock"
+	SliceControllerName = "accelerator.gke.io/slice"
 
 	SlicesCreatedEventType         = "SlicesCreated"
 	FailedCreateSliceEventType     = "FailedCreateSlice"
@@ -473,8 +472,11 @@ func parseTopologyAssignmentIntoNodeSelector(slice *v1alpha1.Slice, topologyAssi
 	for _, domain := range topologyAssignment.Domains {
 		nodeSelectors.Insert(domain.Values[subblockLevelIndex])
 	}
+	// In future, we want to make sure nodeSelectorKey
+	// matches PodSetSliceRequiredTopologyAnnotation.
+	nodeSelectorKey := core.TPUSubBlockLabel
 	slice.Spec.NodeSelector = map[string][]string{
-		TPUReservationSubblockLabel: sets.List(nodeSelectors),
+		nodeSelectorKey: sets.List(nodeSelectors),
 	}
 }
 

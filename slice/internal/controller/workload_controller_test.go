@@ -135,9 +135,9 @@ func TestWorkloadReconciler(t *testing.T) {
 		AdmissionCheck(buildAdmissionCheckState(kueue.CheckStatePending, ""))
 	baseSlice1Wrapper := utiltesting.MakeSliceWrapper(core.SliceName(baseWorkloadName, "ps1"), corev1.NamespaceDefault).
 		ControllerReference(workloadGVK, baseWorkloadName, baseWorkloadName).
-		NodeSelector(map[string][]string{TPUReservationSubblockLabel: {"subblock1"}})
+		NodeSelector(map[string][]string{"cloud.google.com/gke-tpu-slice-4x4x4-id": {"subblock1"}})
 	baseSlice2Wrapper := baseSlice1Wrapper.Clone().Name(core.SliceName(baseWorkloadName, "ps2")).
-		NodeSelector(map[string][]string{TPUReservationSubblockLabel: {"subblock2"}})
+		NodeSelector(map[string][]string{"cloud.google.com/gke-tpu-slice-4x4x4-id": {"subblock2"}})
 
 	testCases := map[string]struct {
 		interceptorFuncsCreate func(ctx context.Context, client client.WithWatch, obj client.Object, opts ...client.CreateOption) error

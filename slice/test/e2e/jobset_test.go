@@ -44,10 +44,6 @@ import (
 	"tpu-slice-controller/test/utils"
 )
 
-const (
-	tpuAccelerator = "tpu-v7x"
-)
-
 var (
 	ignorePodSetTopologyRequestFields = cmpopts.IgnoreFields(kueue.PodSetTopologyRequest{}, "PodIndexLabel", "SubGroupIndexLabel")
 )
@@ -67,7 +63,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 		utils.MustCreate(ctx, k8sClient, ns)
 
 		topology = testing.MakeTopology("topology").
-			Levels(core.TPUBlockLabel, core.TPUSubBlockLabel).
+			Levels("cloud.google.com/gce-topology-block", "cloud.google.com/gke-tpu-slice-4x4x4-id").
 			Obj()
 		utils.MustCreate(ctx, k8sClient, topology)
 
@@ -124,10 +120,10 @@ var _ = ginkgo.Describe("JobSet", func() {
 							Parallelism: tc.parallelism,
 							Completions: tc.parallelism,
 							PodAnnotations: map[string]string{
-								core.TPUTopologyAnnotation: tc.tpuTopology,
+								"cloud.google.com/gke-tpu-topology": tc.tpuTopology,
 							},
 							NodeSelector: map[string]string{
-								core.TPUAcceleratorLabel: tpuAccelerator,
+								"cloud.google.com/gke-tpu-accelerator": "tpu-v7x",
 							},
 						},
 					).
@@ -146,11 +142,11 @@ var _ = ginkgo.Describe("JobSet", func() {
 						for _, replicatedJob := range createdJobSet.Spec.ReplicatedJobs {
 							// annotations for 2-level TAS.
 							annotations := replicatedJob.Template.Spec.Template.Annotations
-							g.Expect(annotations[kueuealpha.PodSetRequiredTopologyAnnotation]).
-								Should(gomega.Equal(core.TPUBlockLabel))
-							g.Expect(annotations[kueuealpha.PodSetSliceRequiredTopologyAnnotation]).
-								Should(gomega.Equal(core.TPUSubBlockLabel))
-							g.Expect(annotations[kueuealpha.PodSetSliceSizeAnnotation]).
+							g.Expect(annotations["kueue.x-k8s.io/podset-required-topology"]).
+								Should(gomega.Equal("cloud.google.com/gce-topology-block"))
+							g.Expect(annotations["kueue.x-k8s.io/podset-slice-required-topology"]).
+								Should(gomega.Equal("cloud.google.com/gke-tpu-slice-4x4x4-id"))
+							g.Expect(annotations["kueue.x-k8s.io/podset-slice-size"]).
 								Should(gomega.Equal(fmt.Sprint(tc.wantSliceSize)))
 
 							// node health
@@ -170,8 +166,8 @@ var _ = ginkgo.Describe("JobSet", func() {
 						g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).To(gomega.Succeed())
 						g.Expect(createdWorkload.Spec.PodSets).To(gomega.HaveLen(1))
 						g.Expect(createdWorkload.Spec.PodSets[0].TopologyRequest).To(gomega.BeComparableTo(&kueue.PodSetTopologyRequest{
-							Required:                    ptr.To(core.TPUBlockLabel),
-							PodSetSliceRequiredTopology: ptr.To(core.TPUSubBlockLabel),
+							Required:                    ptr.To("cloud.google.com/gce-topology-block"),
+							PodSetSliceRequiredTopology: ptr.To("cloud.google.com/gke-tpu-slice-4x4x4-id"),
 							SubGroupCount:               ptr.To(tc.replicas),
 							PodSetSliceSize:             ptr.To(tc.wantSliceSize),
 						}, ignorePodSetTopologyRequestFields))
@@ -190,7 +186,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 					gomega.Expect(createdWorkload.Status.Admission.PodSetAssignments).Should(gomega.HaveLen(1))
 					gomega.Expect(createdWorkload.Status.Admission.PodSetAssignments[0].TopologyAssignment).Should(gomega.BeComparableTo(
 						&kueue.TopologyAssignment{
-							Levels:  []string{core.TPUBlockLabel, core.TPUSubBlockLabel},
+							Levels:  []string{"cloud.google.com/gce-topology-block", "cloud.google.com/gke-tpu-slice-4x4x4-id"},
 							Domains: tc.wantDomains,
 						},
 					))
@@ -437,10 +433,10 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Parallelism: 1,
 						Completions: 1,
 						PodAnnotations: map[string]string{
-							core.TPUTopologyAnnotation: "4x4x4",
+							"cloud.google.com/gke-tpu-topology": "4x4x4",
 						},
 						NodeSelector: map[string]string{
-							core.TPUAcceleratorLabel: tpuAccelerator,
+							"cloud.google.com/gke-tpu-accelerator": "tpu-v7x",
 						},
 						TerminationGracePeriodSeconds: 60,
 						LifecyclePreStopSleepSeconds:  60,
@@ -547,10 +543,10 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Parallelism: 16,
 						Completions: 16,
 						PodAnnotations: map[string]string{
-							core.TPUTopologyAnnotation: "4x4x4",
+							"cloud.google.com/gke-tpu-topology": "4x4x4",
 						},
 						NodeSelector: map[string]string{
-							core.TPUAcceleratorLabel: tpuAccelerator,
+							"cloud.google.com/gke-tpu-accelerator": "tpu-v7x",
 						},
 					},
 					testingjobsjobset.ReplicatedJobRequirements{
@@ -561,10 +557,10 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Parallelism: 16,
 						Completions: 16,
 						PodAnnotations: map[string]string{
-							core.TPUTopologyAnnotation: "4x4x4",
+							"cloud.google.com/gke-tpu-topology": "4x4x4",
 						},
 						NodeSelector: map[string]string{
-							core.TPUAcceleratorLabel: tpuAccelerator,
+							"cloud.google.com/gke-tpu-accelerator": "tpu-v7x",
 						},
 					},
 				).
@@ -583,11 +579,11 @@ var _ = ginkgo.Describe("JobSet", func() {
 					g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(jobSet), createdJobSet)).To(gomega.Succeed())
 					for _, replicatedJob := range createdJobSet.Spec.ReplicatedJobs {
 						annotations := replicatedJob.Template.Spec.Template.Annotations
-						g.Expect(annotations[kueuealpha.PodSetRequiredTopologyAnnotation]).
-							Should(gomega.Equal(core.TPUBlockLabel))
-						g.Expect(annotations[kueuealpha.PodSetSliceRequiredTopologyAnnotation]).
-							Should(gomega.Equal(core.TPUSubBlockLabel))
-						g.Expect(annotations[kueuealpha.PodSetSliceSizeAnnotation]).
+						g.Expect(annotations["kueue.x-k8s.io/podset-required-topology"]).
+							Should(gomega.Equal("cloud.google.com/gce-topology-block"))
+						g.Expect(annotations["kueue.x-k8s.io/podset-slice-required-topology"]).
+							Should(gomega.Equal("cloud.google.com/gke-tpu-slice-4x4x4-id"))
+						g.Expect(annotations["kueue.x-k8s.io/podset-slice-size"]).
 							Should(gomega.Equal(strconv.Itoa(16)))
 					}
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
@@ -604,14 +600,14 @@ var _ = ginkgo.Describe("JobSet", func() {
 					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).To(gomega.Succeed())
 					g.Expect(createdWorkload.Spec.PodSets).To(gomega.HaveLen(2))
 					g.Expect(createdWorkload.Spec.PodSets[0].TopologyRequest).To(gomega.BeComparableTo(&kueue.PodSetTopologyRequest{
-						Required:                    ptr.To(core.TPUBlockLabel),
-						PodSetSliceRequiredTopology: ptr.To(core.TPUSubBlockLabel),
+						Required:                    ptr.To("cloud.google.com/gce-topology-block"),
+						PodSetSliceRequiredTopology: ptr.To("cloud.google.com/gke-tpu-slice-4x4x4-id"),
 						SubGroupCount:               ptr.To[int32](1),
 						PodSetSliceSize:             ptr.To[int32](16),
 					}, ignorePodSetTopologyRequestFields))
 					g.Expect(createdWorkload.Spec.PodSets[1].TopologyRequest).To(gomega.BeComparableTo(&kueue.PodSetTopologyRequest{
-						Required:                    ptr.To(core.TPUBlockLabel),
-						PodSetSliceRequiredTopology: ptr.To(core.TPUSubBlockLabel),
+						Required:                    ptr.To("cloud.google.com/gce-topology-block"),
+						PodSetSliceRequiredTopology: ptr.To("cloud.google.com/gke-tpu-slice-4x4x4-id"),
 						SubGroupCount:               ptr.To[int32](1),
 						PodSetSliceSize:             ptr.To[int32](16),
 					}, ignorePodSetTopologyRequestFields))
@@ -630,7 +626,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 				gomega.Expect(createdWorkload.Status.Admission.PodSetAssignments).Should(gomega.HaveLen(2))
 				gomega.Expect(createdWorkload.Status.Admission.PodSetAssignments[0].TopologyAssignment).Should(gomega.BeComparableTo(
 					&kueue.TopologyAssignment{
-						Levels: []string{core.TPUBlockLabel, core.TPUSubBlockLabel},
+						Levels: []string{"cloud.google.com/gce-topology-block", "cloud.google.com/gke-tpu-slice-4x4x4-id"},
 						Domains: []kueue.TopologyDomainAssignment{{
 							Values: []string{"b1", "sb1"},
 							Count:  16,
@@ -639,7 +635,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 				))
 				gomega.Expect(createdWorkload.Status.Admission.PodSetAssignments[1].TopologyAssignment).Should(gomega.BeComparableTo(
 					&kueue.TopologyAssignment{
-						Levels: []string{core.TPUBlockLabel, core.TPUSubBlockLabel},
+						Levels: []string{"cloud.google.com/gce-topology-block", "cloud.google.com/gke-tpu-slice-4x4x4-id"},
 						Domains: []kueue.TopologyDomainAssignment{{
 							Values: []string{"b2", "sb2"},
 							Count:  16,

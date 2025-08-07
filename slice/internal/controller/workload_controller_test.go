@@ -102,14 +102,14 @@ func TestWorkloadReconciler(t *testing.T) {
 	basePod2Wrapper := basePod1Wrapper.Clone().Name(basePod2Name)
 	baseAdmissionCheckWrapper := utiltesting.MakeAdmissionCheck(baseACName).ControllerName(SliceControllerName)
 	basePodSet1Wrapper := *utiltesting.MakePodSet("ps1", 2).
-		Annotation(core.TPUTopologyAnnotation, "4x4x12").
-		NodeSelector(core.TPUAcceleratorLabel, "tpu-v7x")
+		Annotation("cloud.google.com/gke-tpu-topology", "4x4x12").
+		NodeSelector("cloud.google.com/gke-tpu-accelerator", "tpu-v7x")
 	basePodSet2Wrapper := basePodSet1Wrapper.Clone().Name("ps2")
 	basePodSets := []kueue.PodSet{
 		*basePodSet1Wrapper.DeepCopy(),
 		*basePodSet2Wrapper.DeepCopy(),
 	}
-	baseLevels := []string{core.TPUBlockLabel, core.TPUSubBlockLabel}
+	baseLevels := []string{"cloud.google.com/gce-topology-block", "cloud.google.com/gke-tpu-slice-4x4x4-id"}
 	basePodSetAssignment1Wrapper := utiltesting.MakePodSetAssignment("ps1").
 		TopologyAssignment(baseLevels, []kueue.TopologyDomainAssignment{
 			{
@@ -463,8 +463,8 @@ func TestWorkloadReconciler(t *testing.T) {
 					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					PodSets(
 						*utiltesting.MakePodSet("ps", 2).
-							Annotation(core.TPUTopologyAnnotation, "4x4").
-							NodeSelector(core.TPUAcceleratorLabel, "tpu-v7x").
+							Annotation("cloud.google.com/gke-tpu-topology", "4x4").
+							NodeSelector("cloud.google.com/gke-tpu-accelerator", "tpu-v7x").
 							Obj(),
 					).
 					ReserveQuota(
@@ -487,8 +487,8 @@ func TestWorkloadReconciler(t *testing.T) {
 					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					PodSets(
 						*utiltesting.MakePodSet("ps", 2).
-							Annotation(core.TPUTopologyAnnotation, "4x4").
-							NodeSelector(core.TPUAcceleratorLabel, "tpu-v7x").
+							Annotation("cloud.google.com/gke-tpu-topology", "4x4").
+							NodeSelector("cloud.google.com/gke-tpu-accelerator", "tpu-v7x").
 							Obj(),
 					).
 					ReserveQuota(
@@ -515,8 +515,8 @@ func TestWorkloadReconciler(t *testing.T) {
 					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					PodSets(
 						*utiltesting.MakePodSet("ps", 2).
-							Annotation(core.TPUTopologyAnnotation, "4x4x12").
-							NodeSelector(core.TPUAcceleratorLabel, "invalid").
+							Annotation("cloud.google.com/gke-tpu-topology", "4x4x12").
+							NodeSelector("cloud.google.com/gke-tpu-accelerator", "invalid").
 							Obj(),
 					).
 					ReserveQuota(
@@ -539,8 +539,8 @@ func TestWorkloadReconciler(t *testing.T) {
 					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					PodSets(
 						*utiltesting.MakePodSet("ps", 2).
-							Annotation(core.TPUTopologyAnnotation, "4x4x12").
-							NodeSelector(core.TPUAcceleratorLabel, "invalid").
+							Annotation("cloud.google.com/gke-tpu-topology", "4x4x12").
+							NodeSelector("cloud.google.com/gke-tpu-accelerator", "invalid").
 							Obj(),
 					).
 					ReserveQuota(
@@ -684,12 +684,12 @@ func TestWorkloadReconciler(t *testing.T) {
 					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					PodSets(
 						*utiltesting.MakePodSet("ps1", 2).
-							Annotation(core.TPUTopologyAnnotation, "4x4x12").
-							NodeSelector(core.TPUAcceleratorLabel, "tpu-v7x").
+							Annotation("cloud.google.com/gke-tpu-topology", "4x4x12").
+							NodeSelector("cloud.google.com/gke-tpu-accelerator", "tpu-v7x").
 							Obj(),
 						*utiltesting.MakePodSet("ps2", 2).
-							Annotation(core.TPUTopologyAnnotation, "4x4x12").
-							NodeSelector(core.TPUAcceleratorLabel, "tpu-v8x").
+							Annotation("cloud.google.com/gke-tpu-topology", "4x4x12").
+							NodeSelector("cloud.google.com/gke-tpu-accelerator", "tpu-v8x").
 							Obj(),
 					).
 					Obj(),
@@ -703,12 +703,12 @@ func TestWorkloadReconciler(t *testing.T) {
 					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					PodSets(
 						*utiltesting.MakePodSet("ps1", 2).
-							Annotation(core.TPUTopologyAnnotation, "4x4x12").
-							NodeSelector(core.TPUAcceleratorLabel, "tpu-v7x").
+							Annotation("cloud.google.com/gke-tpu-topology", "4x4x12").
+							NodeSelector("cloud.google.com/gke-tpu-accelerator", "tpu-v7x").
 							Obj(),
 						*utiltesting.MakePodSet("ps2", 2).
-							Annotation(core.TPUTopologyAnnotation, "4x4x12").
-							NodeSelector(core.TPUAcceleratorLabel, "tpu-v8x").
+							Annotation("cloud.google.com/gke-tpu-topology", "4x4x12").
+							NodeSelector("cloud.google.com/gke-tpu-accelerator", "tpu-v8x").
 							Obj(),
 					).
 					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStatePending, `Slices are in states: 1 Created`)).

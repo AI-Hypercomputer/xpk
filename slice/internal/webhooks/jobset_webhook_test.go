@@ -135,7 +135,8 @@ func TestDefault(t *testing.T) {
 						kueuealpha.PodSetSliceSizeAnnotation:             "4",
 					},
 					NodeSelector: map[string]string{
-						core.TPUAcceleratorLabel: "tpu-v7x",
+						core.TPUAcceleratorLabel:                      "tpu-v7x",
+						"cloud.google.com/gke-tpu-slice-4x4x4-health": "true",
 					},
 				}).
 				Obj(),

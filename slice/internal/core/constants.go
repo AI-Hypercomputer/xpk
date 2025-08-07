@@ -21,4 +21,7 @@ const (
 	TPUAcceleratorLabel   = "cloud.google.com/gke-tpu-accelerator"
 	TPUBlockLabel         = "cloud.google.com/gce-topology-block"
 	TPUSubBlockLabel      = "cloud.google.com/gke-tpu-slice-4x4x4-id"
+
+	TPUSliceHealthNodeSelectorKey   = "cloud.google.com/gke-tpu-slice-4x4x4-health"
+	TPUSliceHealthNodeSelectorValue = "true"
 )

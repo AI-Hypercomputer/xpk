@@ -140,10 +140,11 @@ var _ = ginkgo.Describe("JobSet", func() {
 
 				createdJobSet := &jobset.JobSet{}
 
-				ginkgo.By("Checking that the JobSet is created with annotations", func() {
+				ginkgo.By("Checking that the JobSet is created with annotations/selectors", func() {
 					gomega.Eventually(func(g gomega.Gomega) {
 						g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(jobSet), createdJobSet)).To(gomega.Succeed())
 						for _, replicatedJob := range createdJobSet.Spec.ReplicatedJobs {
+							// annotations for 2-level TAS.
 							annotations := replicatedJob.Template.Spec.Template.Annotations
 							g.Expect(annotations[kueuealpha.PodSetRequiredTopologyAnnotation]).
 								Should(gomega.Equal(core.TPUBlockLabel))
@@ -151,6 +152,9 @@ var _ = ginkgo.Describe("JobSet", func() {
 								Should(gomega.Equal(core.TPUSubBlockLabel))
 							g.Expect(annotations[kueuealpha.PodSetSliceSizeAnnotation]).
 								Should(gomega.Equal(fmt.Sprint(tc.wantSliceSize)))
+
+							// node health
+							g.Expect(replicatedJob.Template.Spec.Template.Spec.NodeSelector["cloud.google.com/gke-tpu-slice-4x4x4-health"]).Should(gomega.Equal("true"))
 						}
 					}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 				})

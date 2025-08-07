@@ -953,7 +953,10 @@ def update_coredns_if_necessary(args) -> int:
     0 if successful (CoreDNS was already present or successfully deployed),
     and 1 otherwise.
   """
-  if coredns_deployment_exists(args, namespace='kube-system'):
+  if args.enable_cloud_dns:
+    xpk_print('Skipping CoreDNS deployment since Cloud DNS is enabled.')
+    return 0
+  elif coredns_deployment_exists(args, namespace='kube-system'):
     xpk_print('Skipping CoreDNS deployment since it already exists.')
     return 0
   else:

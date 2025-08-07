@@ -25,26 +25,26 @@ nodes:
     labels:
       cloud.google.com/gke-node-group: tas-group
       cloud.google.com/gke-tpu-accelerator: tpu-v7x
-      cloud.google.com/gke-tpu-block: b1
-      cloud.google.com/gke-tpu-subblock: sb1
+      cloud.google.com/gce-topology-block: b1
+      cloud.google.com/gke-tpu-slice-4x4x4-id: sb1
   - role: worker
     labels:
       cloud.google.com/gke-node-group: tas-group
       cloud.google.com/gke-tpu-accelerator: tpu-v7x
-      cloud.google.com/gke-tpu-block: b2
-      cloud.google.com/gke-tpu-subblock: sb2
+      cloud.google.com/gce-topology-block: b2
+      cloud.google.com/gke-tpu-slice-4x4x4-id: sb2
   - role: worker
     labels:
       cloud.google.com/gke-node-group: tas-group
       cloud.google.com/gke-tpu-accelerator: tpu-v7x
-      cloud.google.com/gke-tpu-block: b2
-      cloud.google.com/gke-tpu-subblock: sb3
+      cloud.google.com/gce-topology-block: b2
+      cloud.google.com/gke-tpu-slice-4x4x4-id: sb3
   - role: worker
     labels:
       cloud.google.com/gke-node-group: tas-group
       cloud.google.com/gke-tpu-accelerator: tpu-v7x
-      cloud.google.com/gke-tpu-block: b2
-      cloud.google.com/gke-tpu-subblock: sb4
+      cloud.google.com/gce-topology-block: b2
+      cloud.google.com/gke-tpu-slice-4x4x4-id: sb4
 kubeadmConfigPatches:
   - |
     kind: JoinConfiguration

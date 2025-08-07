@@ -715,6 +715,11 @@ def add_shared_cluster_create_optional_arguments(parser: ArgumentParser):
       action='store_true',
       help='Enable Workload Identity Federation on the cluster and node-pools.',
   )
+  parser.add_argument(
+      '--cloud-dns',
+      action='store_true',
+      help='Enable Cloud DNS on the cluster and node-pools.',
+  )
   add_driver_arguments(parser)
 
 

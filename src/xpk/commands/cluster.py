@@ -1131,6 +1131,9 @@ def run_gke_cluster_create_command(
   if args.enable_workload_identity or args.enable_gcsfuse_csi_driver:
     command += f' --workload-pool={args.project}.svc.id.goog'
 
+  if args.cloud_dns:
+    command += f' --cluster-dns=clouddns'
+
   addons = []
   if args.enable_gcsfuse_csi_driver:
     addons.append('GcsFuseCsiDriver')

@@ -56,7 +56,12 @@ func (r *JobSetWebhook) Default(ctx context.Context, obj runtime.Object) error {
 	}
 
 	for i := range jobSet.Spec.ReplicatedJobs {
-		err := r.annotateReplicatedJobWithTopology(&jobSet.Spec.ReplicatedJobs[i])
+		rj := &jobSet.Spec.ReplicatedJobs[i]
+		if !core.IsRelevantPodTemplateSpec(rj.Template.Spec.Template) {
+			continue
+		}
+		annotateReplicatedJobWithSliceHealth(rj)
+		err := r.annotateReplicatedJobWithTopology(rj)
 		if err != nil {
 			return err
 		}
@@ -66,10 +71,6 @@ func (r *JobSetWebhook) Default(ctx context.Context, obj runtime.Object) error {
 }
 
 func (r *JobSetWebhook) annotateReplicatedJobWithTopology(rj *v1alpha2.ReplicatedJob) error {
-	if !core.IsRelevantPodTemplateSpec(rj.Template.Spec.Template) {
-		return nil
-	}
-
 	if rj.Template.Spec.Template.Annotations == nil {
 		rj.Template.Spec.Template.Annotations = make(map[string]string)
 	}
@@ -89,6 +90,10 @@ func (r *JobSetWebhook) annotateReplicatedJobWithTopology(rj *v1alpha2.Replicate
 	rj.Template.Spec.Template.Annotations[kueuealpha.PodSetSliceSizeAnnotation] = size
 
 	return nil
+}
+
+func annotateReplicatedJobWithSliceHealth(rj *v1alpha2.ReplicatedJob) {
+	rj.Template.Spec.Template.Spec.NodeSelector[core.TPUSliceHealthNodeSelectorKey] = core.TPUSliceHealthNodeSelectorValue
 }
 
 func (r *JobSetWebhook) podSetSliceSize(tpuTopology string, parallelism int32) (string, error) {

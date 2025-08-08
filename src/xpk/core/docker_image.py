@@ -150,6 +150,67 @@ def build_docker_image_from_base_image(args, verbose=True) -> tuple[int, str]:
   return return_code, cloud_docker_image
 
 
+
+# def setup_docker_image(args) -> tuple[int, str]:
+#   """Does steps to verify docker args, check image, and build image (if asked).
+
+#   Args:
+#     args: user provided arguments for running the command.
+
+#   Returns:
+#     tuple:
+#       0 if successful and 1 otherwise.
+#       Name of the docker image to use.
+#   """
+#   use_base_docker_image = use_base_docker_image_or_docker_image(args)
+
+#   docker_image = args.base_docker_image
+#   if use_base_docker_image:
+#     validate_docker_image_code = validate_docker_image(docker_image, args)
+#     if validate_docker_image_code != 0:
+#       xpk_exit(validate_docker_image_code)
+#     build_docker_image_code, docker_image = build_docker_image_from_base_image(
+#         args
+#     )
+#     if build_docker_image_code != 0:
+#       xpk_exit(build_docker_image_code)
+#   else:
+#     docker_image = args.docker_image
+#     validate_docker_image_code = validate_docker_image(args.docker_image, args)
+#     if validate_docker_image_code != 0:
+#       xpk_exit(validate_docker_image_code)
+
+#   return 0, docker_image
+
+
+# def use_base_docker_image_or_docker_image(args) -> bool:
+#   """Checks for correct docker image arguments.
+
+#   Args:
+#     args: user provided arguments for running the command.
+
+#   Returns:
+#     True if intended to use base docker image, False to use docker image.
+#   """
+#   use_base_docker_image = True
+#   # Check if (base_docker_image and script_dir) or (docker_image) is set.
+#   if args.docker_image is not None:
+#     if args.script_dir is not DEFAULT_SCRIPT_DIR:
+#       xpk_print(
+#           '`--script-dir` and --docker-image can not be used together. Please'
+#           ' see `--help` command for more details.'
+#       )
+#       xpk_exit(1)
+#     if args.base_docker_image is not DEFAULT_DOCKER_IMAGE:
+#       xpk_print(
+#           '`--base-docker-image` and --docker-image can not be used together.'
+#           ' Please see `--help` command for more details.'
+#       )
+#       xpk_exit(1)
+#     use_base_docker_image = False
+#   return use_base_docker_image
+
+
 def setup_docker_image(args) -> tuple[int, str]:
   """Does steps to verify docker args, check image, and build image (if asked).
 
@@ -161,50 +222,40 @@ def setup_docker_image(args) -> tuple[int, str]:
       0 if successful and 1 otherwise.
       Name of the docker image to use.
   """
-  use_base_docker_image = use_base_docker_image_or_docker_image(args)
 
-  docker_image = args.base_docker_image
-  if use_base_docker_image:
-    validate_docker_image_code = validate_docker_image(docker_image, args)
-    if validate_docker_image_code != 0:
-      xpk_exit(validate_docker_image_code)
-    build_docker_image_code, docker_image = build_docker_image_from_base_image(
-        args
-    )
-    if build_docker_image_code != 0:
-      xpk_exit(build_docker_image_code)
-  else:
     docker_image = args.docker_image
-    validate_docker_image_code = validate_docker_image(args.docker_image, args)
-    if validate_docker_image_code != 0:
-      xpk_exit(validate_docker_image_code)
+    if not docker_image or docker_image == DEFAULT_DOCKER_IMAGE:
+        docker_image = args.base_docker_image  # fallback for legacy users
 
-  return 0, docker_image
+    if not docker_image or docker_image == DEFAULT_DOCKER_IMAGE:
+        xpk_print("Error: No docker image specified. Please provide --docker-image.")
+        xpk_exit(1)
 
+    cloud_prefixes = [
+        "gcr.io", "docker.pkg.dev", "us-docker.pkg.dev"
+    ]
+    is_cloud_image = any(docker_image.startswith(prefix) for prefix in cloud_prefixes)
 
-def use_base_docker_image_or_docker_image(args) -> bool:
-  """Checks for correct docker image arguments.
+    if is_cloud_image:
+        if args.script_dir is not DEFAULT_SCRIPT_DIR:
+            xpk_print(
+                "Error: `--script-dir` cannot be used with a cloud docker image.\n"
+                "Hint: If you need to customize the image with local scripts, "
+                "use a local base image (e.g., `ubuntu:20.04`) instead of a prebuilt cloud image."
+            )
+            xpk_exit(1)
 
-  Args:
-    args: user provided arguments for running the command.
+        validate_code = validate_docker_image(docker_image, args)
+        if validate_code != 0:
+            xpk_exit(validate_code)
 
-  Returns:
-    True if intended to use base docker image, False to use docker image.
-  """
-  use_base_docker_image = True
-  # Check if (base_docker_image and script_dir) or (docker_image) is set.
-  if args.docker_image is not None:
-    if args.script_dir is not DEFAULT_SCRIPT_DIR:
-      xpk_print(
-          '`--script-dir` and --docker-image can not be used together. Please'
-          ' see `--help` command for more details.'
-      )
-      xpk_exit(1)
-    if args.base_docker_image is not DEFAULT_DOCKER_IMAGE:
-      xpk_print(
-          '`--base-docker-image` and --docker-image can not be used together.'
-          ' Please see `--help` command for more details.'
-      )
-      xpk_exit(1)
-    use_base_docker_image = False
-  return use_base_docker_image
+    else:
+        validate_code = validate_docker_image(docker_image, args)
+        if validate_code != 0:
+            xpk_exit(validate_code)
+
+        build_code, docker_image = build_docker_image_from_base_image(args)
+        if build_code != 0:
+            xpk_exit(build_code)
+
+    return 0, docker_image

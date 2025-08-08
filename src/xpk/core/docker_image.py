@@ -26,6 +26,7 @@ from .commands import run_command_with_updates
 DEFAULT_DOCKER_IMAGE = 'python:3.10'
 DEFAULT_SCRIPT_DIR = os.getcwd()
 PLATFORM = 'linux/amd64'
+CLOUD_PREFIXES = ['gcr.io', 'docker.pkg.dev', 'us-docker.pkg.dev']
 
 
 def validate_docker_image(docker_image, args) -> int:
@@ -223,18 +224,18 @@ def setup_docker_image(args) -> tuple[int, str]:
   """
 
   docker_image = args.docker_image
-  if not docker_image or docker_image == DEFAULT_DOCKER_IMAGE:
+
+  if not docker_image and args.base_docker_image:
     docker_image = args.base_docker_image  # fallback for legacy users
 
-  if not docker_image or docker_image == DEFAULT_DOCKER_IMAGE:
+  if not docker_image:
     xpk_print(
-        'Error: No docker image specified. Please provide --docker-image.'
+        f'No docker image specified, using default: {DEFAULT_DOCKER_IMAGE}'
     )
-    xpk_exit(1)
+    docker_image = DEFAULT_DOCKER_IMAGE
 
-  cloud_prefixes = ['gcr.io', 'docker.pkg.dev', 'us-docker.pkg.dev']
   is_cloud_image = any(
-      docker_image.startswith(prefix) for prefix in cloud_prefixes
+      docker_image.startswith(prefix) for prefix in CLOUD_PREFIXES
   )
 
   if is_cloud_image:

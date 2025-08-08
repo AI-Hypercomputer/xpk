@@ -150,7 +150,6 @@ def build_docker_image_from_base_image(args, verbose=True) -> tuple[int, str]:
   return return_code, cloud_docker_image
 
 
-
 # def setup_docker_image(args) -> tuple[int, str]:
 #   """Does steps to verify docker args, check image, and build image (if asked).
 
@@ -223,39 +222,42 @@ def setup_docker_image(args) -> tuple[int, str]:
       Name of the docker image to use.
   """
 
-    docker_image = args.docker_image
-    if not docker_image or docker_image == DEFAULT_DOCKER_IMAGE:
-        docker_image = args.base_docker_image  # fallback for legacy users
+  docker_image = args.docker_image
+  if not docker_image or docker_image == DEFAULT_DOCKER_IMAGE:
+    docker_image = args.base_docker_image  # fallback for legacy users
 
-    if not docker_image or docker_image == DEFAULT_DOCKER_IMAGE:
-        xpk_print("Error: No docker image specified. Please provide --docker-image.")
-        xpk_exit(1)
+  if not docker_image or docker_image == DEFAULT_DOCKER_IMAGE:
+    xpk_print(
+        'Error: No docker image specified. Please provide --docker-image.'
+    )
+    xpk_exit(1)
 
-    cloud_prefixes = [
-        "gcr.io", "docker.pkg.dev", "us-docker.pkg.dev"
-    ]
-    is_cloud_image = any(docker_image.startswith(prefix) for prefix in cloud_prefixes)
+  cloud_prefixes = ['gcr.io', 'docker.pkg.dev', 'us-docker.pkg.dev']
+  is_cloud_image = any(
+      docker_image.startswith(prefix) for prefix in cloud_prefixes
+  )
 
-    if is_cloud_image:
-        if args.script_dir is not DEFAULT_SCRIPT_DIR:
-            xpk_print(
-                "Error: `--script-dir` cannot be used with a cloud docker image.\n"
-                "Hint: If you need to customize the image with local scripts, "
-                "use a local base image (e.g., `ubuntu:20.04`) instead of a prebuilt cloud image."
-            )
-            xpk_exit(1)
+  if is_cloud_image:
+    if args.script_dir is not DEFAULT_SCRIPT_DIR:
+      xpk_print(
+          'Error: `--script-dir` cannot be used with a cloud docker'
+          ' image.\nHint: If you need to customize the image with local'
+          ' scripts, use a local base image (e.g., `ubuntu:20.04`) instead of a'
+          ' prebuilt cloud image.'
+      )
+      xpk_exit(1)
 
-        validate_code = validate_docker_image(docker_image, args)
-        if validate_code != 0:
-            xpk_exit(validate_code)
+    validate_code = validate_docker_image(docker_image, args)
+    if validate_code != 0:
+      xpk_exit(validate_code)
 
-    else:
-        validate_code = validate_docker_image(docker_image, args)
-        if validate_code != 0:
-            xpk_exit(validate_code)
+  else:
+    validate_code = validate_docker_image(docker_image, args)
+    if validate_code != 0:
+      xpk_exit(validate_code)
 
-        build_code, docker_image = build_docker_image_from_base_image(args)
-        if build_code != 0:
-            xpk_exit(build_code)
+    build_code, docker_image = build_docker_image_from_base_image(args)
+    if build_code != 0:
+      xpk_exit(build_code)
 
-    return 0, docker_image
+  return 0, docker_image

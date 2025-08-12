@@ -99,9 +99,20 @@ def enable_autoprovisioning_on_cluster(
       f' --region={zone_to_region(args.zone)} --enable-autoprovisioning'
       ' --autoprovisioning-config-file'
       f' {autoprovisioning_config.config_filename}'
-      ' --autoscaling-profile=optimize-utilization'
   )
   task = 'Update cluster with autoprovisioning enabled'
+  return_code = run_command_with_updates(command, task, args)
+  if return_code != 0:
+    xpk_print(f'{task} request returned ERROR {return_code}')
+    return autoprovisioning_config, return_code
+
+  command = (
+      'gcloud container clusters update'
+      f' {args.cluster} --project={args.project}'
+      f' --region={zone_to_region(args.zone)}'
+      ' --autoscaling-profile=optimize-utilization'
+  )
+  task = 'Update cluster with autoscaling-profile'
   return_code = run_command_with_updates(command, task, args)
   if return_code != 0:
     xpk_print(f'{task} request returned ERROR {return_code}')

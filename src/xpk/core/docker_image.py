@@ -17,6 +17,7 @@ limitations under the License.
 import datetime
 import os
 import random
+import re
 import string
 
 from ..utils.console import xpk_exit, xpk_print
@@ -26,7 +27,11 @@ from .commands import run_command_with_updates
 DEFAULT_DOCKER_IMAGE = 'python:3.10'
 DEFAULT_SCRIPT_DIR = os.getcwd()
 PLATFORM = 'linux/amd64'
-CLOUD_PREFIXES = ['gcr.io', 'docker.pkg.dev', 'us-docker.pkg.dev']
+CLOUD_PREFIXES = [
+    r'^gcr\.io',
+    r'^docker\.pkg\.dev',
+    r'^([a-z0-9-]+)-docker\.pkg\.dev',
+]
 
 
 def validate_docker_image(docker_image, args) -> int:
@@ -151,66 +156,6 @@ def build_docker_image_from_base_image(args, verbose=True) -> tuple[int, str]:
   return return_code, cloud_docker_image
 
 
-# def setup_docker_image(args) -> tuple[int, str]:
-#   """Does steps to verify docker args, check image, and build image (if asked).
-
-#   Args:
-#     args: user provided arguments for running the command.
-
-#   Returns:
-#     tuple:
-#       0 if successful and 1 otherwise.
-#       Name of the docker image to use.
-#   """
-#   use_base_docker_image = use_base_docker_image_or_docker_image(args)
-
-#   docker_image = args.base_docker_image
-#   if use_base_docker_image:
-#     validate_docker_image_code = validate_docker_image(docker_image, args)
-#     if validate_docker_image_code != 0:
-#       xpk_exit(validate_docker_image_code)
-#     build_docker_image_code, docker_image = build_docker_image_from_base_image(
-#         args
-#     )
-#     if build_docker_image_code != 0:
-#       xpk_exit(build_docker_image_code)
-#   else:
-#     docker_image = args.docker_image
-#     validate_docker_image_code = validate_docker_image(args.docker_image, args)
-#     if validate_docker_image_code != 0:
-#       xpk_exit(validate_docker_image_code)
-
-#   return 0, docker_image
-
-
-# def use_base_docker_image_or_docker_image(args) -> bool:
-#   """Checks for correct docker image arguments.
-
-#   Args:
-#     args: user provided arguments for running the command.
-
-#   Returns:
-#     True if intended to use base docker image, False to use docker image.
-#   """
-#   use_base_docker_image = True
-#   # Check if (base_docker_image and script_dir) or (docker_image) is set.
-#   if args.docker_image is not None:
-#     if args.script_dir is not DEFAULT_SCRIPT_DIR:
-#       xpk_print(
-#           '`--script-dir` and --docker-image can not be used together. Please'
-#           ' see `--help` command for more details.'
-#       )
-#       xpk_exit(1)
-#     if args.base_docker_image is not DEFAULT_DOCKER_IMAGE:
-#       xpk_print(
-#           '`--base-docker-image` and --docker-image can not be used together.'
-#           ' Please see `--help` command for more details.'
-#       )
-#       xpk_exit(1)
-#     use_base_docker_image = False
-#   return use_base_docker_image
-
-
 def setup_docker_image(args) -> tuple[int, str]:
   """Does steps to verify docker args, check image, and build image (if asked).
 
@@ -235,7 +180,7 @@ def setup_docker_image(args) -> tuple[int, str]:
     docker_image = DEFAULT_DOCKER_IMAGE
 
   is_cloud_image = any(
-      docker_image.startswith(prefix) for prefix in CLOUD_PREFIXES
+      re.match(prefix, docker_image) for prefix in CLOUD_PREFIXES
   )
 
   if is_cloud_image:

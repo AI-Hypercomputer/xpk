@@ -49,7 +49,6 @@ var _ webhook.CustomDefaulter = &JobSetWebhook{}
 func (r *JobSetWebhook) Default(ctx context.Context, obj runtime.Object) error {
 	jobSet := obj.(*v1alpha2.JobSet)
 	log := ctrl.LoggerFrom(ctx).WithName("jobset-accelerator-gke-webhook")
-	log = log.WithValues("jobsetName", jobSet.Name)
 	log.V(5).Info("Defaulting JobSet")
 
 	if jobSet.Labels[kueueconstants.QueueLabel] == "" {

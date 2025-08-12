@@ -354,3 +354,29 @@ def run_kubectl_apply(yml_string: str, task: str, args: Namespace) -> int:
   command = f'kubectl apply -f {str(tmp.file.name)}'
   err_code = run_command_with_updates(command, task, args)
   return err_code
+
+def run_command_and_capture_output(
+    command: str,
+    task,
+    args 
+) -> tuple[int, str]:
+  """Executes a command and captures its output and return code.
+
+    Args:
+      command (str): The command string to execute.
+
+    Returns:
+      tuple[int, str]: A tuple containing the return code and the captured output string.
+  """
+  try:
+    result = subprocess.run(
+      command,
+      shell=True,
+      capture_output=True,
+      text=True,
+      check=False
+    )
+    output = result.stdout + result.stderr
+    return result.returncode, output
+  except Exception as e:
+    return 1, str(e)

@@ -27,6 +27,7 @@ from .commands import (
     run_command_for_value,
     run_command_with_updates,
     run_command_with_updates_retry,
+    run_command_and_capture_output,
 )
 from .gcloud_context import (
     add_zone_and_project,
@@ -64,6 +65,7 @@ def set_jobset_on_cluster(args) -> int:
   command = (
       'kubectl apply --server-side -f'
       f' https://github.com/kubernetes-sigs/jobset/releases/download/{JOBSET_VERSION}/manifests.yaml'
+      ' --force-conflicts'
   )
   task = f'Install Jobset on {args.cluster}'
   return_code = run_command_with_updates_retry(command, task, args)
@@ -877,6 +879,49 @@ def update_cluster_with_gcsfuse_driver_if_necessary(args) -> int:
 
   return 0
 
+def test_and_retry_credentials_with_dns_logic(args) -> int:
+  """Tests kubectl credentials and retries with default settings if a DNS error is found.
+  
+  Args:
+    args: user provided arguments for running the command.
+    
+  Returns:
+    0 if credentials are valid after retrying, 1 otherwise.
+  """
+
+  xpk_print('Testing credentials with kubectl...')
+  kubectl_command = 'kubectl get pods'
+  kubectl_return_code, kubectl_output = run_command_and_capture_output(
+    kubectl_command, 'kubectl get pods', args
+  )
+  xpk_print(kubectl_output)
+  
+  if kubectl_return_code != 0:
+    dns_endpoint_error = 'control_plane_endpoints_config.dns_endpoint_config.allow_external_traffic is disabled'
+    if dns_endpoint_error in kubectl_output:
+      xpk_print('Detected DNS endpoint-related error. Retrying without --dns-endpoint flag...')
+
+      without_dns_command = (
+        'gcloud container clusters get-credentials'
+        f' {args.cluster} --region={zone_to_region(args.zone)}'
+        f' --project={args.project} &&'
+        ' kubectl config view && kubectl config set-context --current'
+        ' --namespace=default'
+      )
+      return_code = run_command_with_updates_retry(
+          without_dns_command, 'get-credentials to cluster', args, verbose=False
+      )
+      if return_code != 0:
+        xpk_print('Failed to get credentials even without --dns-endpoint. Exiting.')
+        xpk_exit(return_code)
+
+      return 0
+    else:
+      xpk_print(f'kubectl failed with an unhandled error: {kubectl_output}')
+      xpk_exit(kubectl_return_code)
+  
+  xpk_print('Credentials test succeeded.')
+  return 0
 
 def get_cluster_credentials(args) -> None:
   """Run cluster configuration command to set the kubectl config.
@@ -890,14 +935,18 @@ def get_cluster_credentials(args) -> None:
   command = (
       'gcloud container clusters get-credentials'
       f' {args.cluster} --region={zone_to_region(args.zone)}'
+      # ' --dns-endpoint'
       f' --project={args.project} &&'
       ' kubectl config view && kubectl config set-context --current'
       ' --namespace=default'
   )
-  task = f'get-credentials to cluster {args.cluster}'
+  task = f'get-credentials-dns-endpoint to cluster {args.cluster}'
   return_code = run_command_with_updates_retry(
       command, task, args, verbose=False
   )
-  if return_code != 0:
-    xpk_print(f'{task} returned ERROR {return_code}')
-    xpk_exit(return_code)
+  if return_code == 0:
+    return_code = test_and_retry_credentials_with_dns_logic(args)
+    xpk_print('Finished get-credentials and kubectl setup.')
+
+  return return_code
+

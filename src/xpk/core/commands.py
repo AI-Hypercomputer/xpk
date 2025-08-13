@@ -358,7 +358,7 @@ def run_kubectl_apply(yml_string: str, task: str, args: Namespace) -> int:
 def run_command_and_capture_output(
     command: str,
     task,
-    args 
+    global_args
 ) -> tuple[int, str]:
   """Executes a command and captures its output and return code.
 
@@ -368,6 +368,13 @@ def run_command_and_capture_output(
     Returns:
       tuple[int, str]: A tuple containing the return code and the captured output string.
   """
+  if global_args.dry_run:
+    xpk_print(
+        f'Task: `{task}` is implemented by the following command'
+        ' not running since it is a dry run.'
+        f' \n{command}'
+    )
+    return 0
   try:
     result = subprocess.run(
       command,
@@ -377,6 +384,6 @@ def run_command_and_capture_output(
       check=False
     )
     output = result.stdout + result.stderr
-    return result.returncode, output
+    return output, result.returncode
   except Exception as e:
-    return 1, str(e)
+    return str(e), 1

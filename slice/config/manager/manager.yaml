@@ -63,7 +63,9 @@ spec:
         args:
           - --leader-elect
           - --health-probe-bind-address=:8081
+          - --zap-log-level=5
         image: controller:latest
+        imagePullPolicy: Always
         name: manager
         ports: []
         securityContext:

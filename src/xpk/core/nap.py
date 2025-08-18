@@ -187,7 +187,7 @@ def create_autoprovisioning_config(
   """
   memory_limits = """
   minimum: 1
-  maximum: 10000000
+  maximum: 10000
   """
 
   # By default, the maximum chips is set to be the current number of resources used

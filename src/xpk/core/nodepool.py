@@ -281,7 +281,9 @@ def run_gke_node_pool_create_command(
     )
     if system.accelerator_type == AcceleratorType['TPU']:
       command += f' --node-version={gke_node_pool_version}'
-      topology_product = reduce(mul, (int(x) for x in system.topology.split('x')), 1)
+      topology_product = reduce(
+          mul, (int(x) for x in system.topology.split('x')), 1
+      )
       if capacity_type == CapacityType.FLEX_START:
         command += ' --num-nodes=0'
       elif topology_product > 1:

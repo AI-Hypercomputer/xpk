@@ -508,6 +508,7 @@ def get_kueue_covered_resources_config(
   config_format = """
   - coveredResources: ["cpu", "memory", "{resource_type}"]
     flavors:
+{pathways_resources}
     - name: {cluster_hardware_name}
       resources:
       - name: "cpu"
@@ -516,7 +517,6 @@ def get_kueue_covered_resources_config(
         nominalQuota: "99999999999Gi"
       - name: "{resource_type}"
         nominalQuota: {total_chips}
-{pathways_resources}
   """
   config_string = config_format.format(
       cluster_hardware_name=cluster_hardware_name,

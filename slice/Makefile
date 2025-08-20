@@ -125,10 +125,6 @@ run-test-e2e-%:
 		TEST_LOG_LEVEL=$(TEST_LOG_LEVEL) E2E_RUN_ONLY_ENV=$(E2E_RUN_ONLY_ENV) \
 		./hack/e2e-test.sh
 
-.PHONY: cleanup-test-e2e
-cleanup-test-e2e: ## Tear down the Kind cluster used for e2e tests
-	@$(KIND) delete cluster --name $(KIND_CLUSTER)
-
 .PHONY: lint
 lint: golangci-lint ## Run golangci-lint linter
 	$(GOLANGCI_LINT) run

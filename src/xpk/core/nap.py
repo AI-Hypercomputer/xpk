@@ -183,11 +183,11 @@ def create_autoprovisioning_config(
   # is not controlled by NAP.
   cpu_limits = """
   minimum: 1
-  maximum: 10000
+  maximum: 1000000
   """
   memory_limits = """
   minimum: 1
-  maximum: 10000
+  maximum: 10000000
   """
 
   # By default, the maximum chips is set to be the current number of resources used

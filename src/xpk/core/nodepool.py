@@ -325,7 +325,7 @@ def run_gke_node_pool_create_command(
     if args.enable_workload_identity or args.enable_gcsfuse_csi_driver:
       command += ' --workload-metadata=GKE_METADATA'
 
-    command += args.custom_nodepool_arguments
+    command += f' {args.custom_nodepool_arguments}'
 
     task = f'NodepoolCreate-{node_pool_name}'
     create_commands.append(command)

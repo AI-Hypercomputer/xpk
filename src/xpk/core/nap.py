@@ -42,6 +42,8 @@ AUTOPROVISIONING_CONFIG_FILE = """
 management:
   autoRepair: true
   autoUpgrade: true
+scopes:
+  - "https://www.googleapis.com/auth/devstorage.read_write"
 autoprovisioningLocations:
   {zones}
 {resource_limits}

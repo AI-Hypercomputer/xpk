@@ -493,10 +493,17 @@ def get_kueue_covered_resources_config(
     A string of Kueue covered resources configuration.
   """
   config_format = """
-  - coveredResources: ["{resource_type}"]
+  - coveredResources:
+    - cpu
+    - memory
+    - "{resource_type}"
     flavors:
     - name: {cluster_hardware_name}
       resources:
+      - name: cpu
+        nominalQuota: 999999999999
+      - name: memory
+        nominalQuota: 99999999Ti
       - name: "{resource_type}"
         nominalQuota: {total_chips}
   """

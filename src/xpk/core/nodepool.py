@@ -32,6 +32,8 @@ from .resources import (
     create_or_update_cluster_configmap,
 )
 from .system_characteristics import AcceleratorType
+from functools import reduce
+from operator import mul
 
 CLOUD_PLATFORM_AUTH_SCOPE_URL = (
     '"https://www.googleapis.com/auth/cloud-platform"'
@@ -275,20 +277,24 @@ def run_gke_node_pool_create_command(
         f' --host-maintenance-interval={args.host_maintenance_interval}'
         f' {capacity_args}'
         ' --enable-gvnic'
-        f' {args.custom_nodepool_arguments}'
     )
     if system.accelerator_type == AcceleratorType['TPU']:
       command += f' --node-version={gke_node_pool_version}'
+      topology_product = reduce(
+          mul, (int(x) for x in system.topology.split('x')), 1
+      )
       if capacity_type == CapacityType.FLEX_START:
         command += ' --num-nodes=0'
-      else:
+      elif topology_product > 1:
         command += f' --num-nodes={system.vms_per_slice}'
-      command += ' --placement-type=COMPACT  --max-pods-per-node 15'
       command += (
           f' --scopes=storage-full,gke-default,{CLOUD_PLATFORM_AUTH_SCOPE_URL}'
       )
-      command += f' --tpu-topology={system.topology}'
-      command += f' {args.custom_tpu_nodepool_arguments}'
+
+      if topology_product > 1:
+        command += ' --placement-type=COMPACT  --max-pods-per-node 15'
+        command += f' --tpu-topology={system.topology}'
+        command += f' {args.custom_tpu_nodepool_arguments}'
     elif system.accelerator_type == AcceleratorType['GPU']:
       subnet_prefix = f'{args.cluster}-{zone_to_region(args.zone)}'
       if capacity_type == CapacityType.FLEX_START:
@@ -318,6 +324,8 @@ def run_gke_node_pool_create_command(
 
     if args.enable_workload_identity or args.enable_gcsfuse_csi_driver:
       command += ' --workload-metadata=GKE_METADATA'
+
+    command += f' {args.custom_nodepool_arguments}'
 
     task = f'NodepoolCreate-{node_pool_name}'
     create_commands.append(command)

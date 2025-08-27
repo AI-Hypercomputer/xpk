@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from typing import List
 from ..utils.console import get_user_input, xpk_print
 from .capacity import (
     AUTOPROVISIONING_CONFIG_VALUE,
@@ -90,20 +91,26 @@ def run_gke_node_pool_create_command(
     xpk_print('Parsing capacity arguments failed!')
     return return_code
 
-  if system.accelerator_type == AcceleratorType['GPU']:
-    xpk_print(
-        f'Creating 1 node pool with {args.num_nodes} nodes of'
-        f' {system.device_type}\nUnderlyingly, we assume that means: {system}'
-    )
-    desired_node_pool_names = [f'{args.cluster}-np-0']
-  else:
-    xpk_print(
-        f'Creating {args.num_slices} node pool or pools of'
-        f' {system.device_type}\nUnderlyingly, we assume that means: {system}'
-    )
-    desired_node_pool_names = [
-        f'{args.cluster}-np-{slice_num}' for slice_num in range(args.num_slices)
-    ]
+  desired_node_pool_count = (
+      1
+      if system.accelerator_type == AcceleratorType['GPU']
+      else args.num_slices
+  )
+  message = (
+      (
+          f'Creating 1 node pool with {args.num_nodes} nodes of'
+          f' {system.device_type}\nUnderlyingly, we assume that means: {system}'
+      )
+      if system.accelerator_type == AcceleratorType['GPU']
+      else (
+          f'Creating {args.num_slices} node pool or pools of'
+          f' {system.device_type}\nUnderlyingly, we assume that means: {system}'
+      )
+  )
+  xpk_print(message)
+  desired_node_pool_names = get_desired_node_pool_names(
+      existing_node_pool_names, args.cluster, desired_node_pool_count
+  )
 
   node_pools_to_remain = []
   delete_commands = []
@@ -602,3 +609,21 @@ def get_nodepool_workload_metadata_mode(
     return 1, None
 
   return 0, nodepool_WI_mode.strip()
+
+
+def get_desired_node_pool_names(
+    existing_node_pool_names: List[str],
+    cluster_name: str,
+    desired_node_pool_count: int,
+) -> List[str]:
+  cluster_node_pools = [
+      np
+      for np in existing_node_pool_names
+      if np.startswith(f'{cluster_name}-np-')
+  ]
+  result = set(cluster_node_pools[:desired_node_pool_count])
+  i = 0
+  while len(result) < desired_node_pool_count:
+    result.add(f'{cluster_name}-np-{i}')
+    i += 1
+  return list(result)

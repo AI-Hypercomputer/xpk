@@ -170,6 +170,17 @@ def setup_docker_image(args) -> tuple[int, str]:
 
   docker_image = args.docker_image
 
+  if (
+      docker_image
+      and args.base_docker_image
+      and args.base_docker_image is not DEFAULT_DOCKER_IMAGE
+  ):
+    xpk_print(
+        '`--base-docker-image` and --docker-image can not be used together.'
+        ' Please see `--help` command for more details.'
+    )
+    xpk_exit(1)
+
   if not docker_image and args.base_docker_image:
     docker_image = args.base_docker_image  # fallback for legacy users
 
@@ -183,27 +194,18 @@ def setup_docker_image(args) -> tuple[int, str]:
       re.match(prefix, docker_image) for prefix in CLOUD_PREFIXES
   )
 
-  if is_cloud_image:
-    if args.script_dir is not DEFAULT_SCRIPT_DIR:
-      xpk_print(
-          'Error: `--script-dir` cannot be used with a cloud docker'
-          ' image.\nHint: If you need to customize the image with local'
-          ' scripts, use a local base image (e.g., `ubuntu:20.04`) instead of a'
-          ' prebuilt cloud image.'
-      )
-      xpk_exit(1)
-
+  if (
+      args.script_dir and args.script_dir != DEFAULT_SCRIPT_DIR
+  ) or not is_cloud_image:
     validate_code = validate_docker_image(docker_image, args)
     if validate_code != 0:
       xpk_exit(validate_code)
-
+    build_code, docker_image = build_docker_image_from_base_image(args)
+    if build_code != 0:
+      xpk_exit(build_code)
   else:
     validate_code = validate_docker_image(docker_image, args)
     if validate_code != 0:
       xpk_exit(validate_code)
-
-    build_code, docker_image = build_docker_image_from_base_image(args)
-    if build_code != 0:
-      xpk_exit(build_code)
 
   return 0, docker_image

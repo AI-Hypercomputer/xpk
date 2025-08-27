@@ -710,6 +710,9 @@ def cluster_create_ray_cluster(args) -> None:
 
 def install_jq(args):
   """Installs 'jq' utility."""
+  if shutil.which('jq'):
+    xpk_print("Task: 'Install jq' skipped, jq already installed.")
+    return
   command_jq_install = 'sudo apt install jq -y'
   xpk_print("Task: 'Install jq' in progress.")
   return_code = run_command_with_updates(command_jq_install, 'Install jq', args)

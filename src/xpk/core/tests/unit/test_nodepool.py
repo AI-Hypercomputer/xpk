@@ -70,9 +70,9 @@ def test_compute_desired_node_pool_names_with_consecutive_numbers_missing_and_de
 def test_compute_desired_node_pool_names_with_unknown_node_pools():
   result = get_desired_node_pool_names(
       existing_node_pool_names=[
+          "unknown-node-pool",
           node_pool_name(0),
           node_pool_name(3),
-          "unknown-node-pool",
       ],
       cluster_name=CLUSTER_NAME,
       desired_node_pool_count=2,

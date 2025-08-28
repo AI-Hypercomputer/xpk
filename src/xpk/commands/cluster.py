@@ -786,7 +786,7 @@ def scale_down_deployment(
   if return_code != 0:
     xpk_print(f'Scale down {deployment_name} error {return_code}')
     xpk_exit(return_code)
-  xpk_print(f'\n{deployment_name} has been scaled down.')
+  xpk_print(f'{deployment_name} has been scaled down.')
 
 
 def scale_up_coredns(args, replicas: int = 15, namespace: str = 'kube-system'):

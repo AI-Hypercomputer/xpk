@@ -355,18 +355,17 @@ def run_kubectl_apply(yml_string: str, task: str, args: Namespace) -> int:
   err_code = run_command_with_updates(command, task, args)
   return err_code
 
+
 def run_command_and_capture_output(
-    command: str,
-    task,
-    global_args
+    command: str, task, global_args
 ) -> tuple[int, str]:
   """Executes a command and captures its output and return code.
 
-    Args:
-      command (str): The command string to execute.
+  Args:
+    command (str): The command string to execute.
 
-    Returns:
-      tuple[int, str]: A tuple containing the return code and the captured output string.
+  Returns:
+    tuple[int, str]: A tuple containing the return code and the captured output string.
   """
   if global_args.dry_run:
     xpk_print(
@@ -377,13 +376,14 @@ def run_command_and_capture_output(
     return 0
   try:
     result = subprocess.run(
-      command,
-      shell=True,
-      capture_output=True,
-      text=True,
-      check=False
+        command, shell=True, capture_output=True, text=True, check=False
     )
     output = result.stdout + result.stderr
     return output, result.returncode
-  except Exception as e:
-    return str(e), 1
+  except subprocess.CalledProcessError as e:
+    error_output = e.stdout + e.stderr
+    xpk_print(f'Task {task} failed with return code {e.returncode}')
+    xpk_print('*' * 80)
+    xpk_print(error_output)
+    xpk_print('*' * 80)
+    return error_output, e.returncode

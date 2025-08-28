@@ -150,7 +150,8 @@ jobs:
     secrets: inherit
   cluster-private:
     needs: [linter, run-unit-tests, run-integration-tests, set-variables]
-    environment: pr
+    environment:
+      name: pr
     uses: ./.github/workflows/reusable_cluster_private.yaml
     concurrency: # We support one build or nightly test to run at a time currently.
       group: cluster-private-${{needs.set-variables.outputs.run-id}}
@@ -168,7 +169,6 @@ jobs:
       group: cluster-create-${{needs.set-variables.outputs.run-id}}
       cancel-in-progress: true
     uses: ./.github/workflows/reusable_cluster_create.yaml
-    environment: pr
     with:
       cluster-name-dws: '${{needs.set-variables.outputs.cluster-name-dws}}'
       cluster-name: '${{needs.set-variables.outputs.cluster-name}}'
@@ -180,7 +180,6 @@ jobs:
   workloads-tests:
     needs: [cluster-create, set-variables]
     uses: ./.github/workflows/reusable_workload_tests.yaml
-    environment: pr
     concurrency: # We support one build or nightly test to run at a time currently.
       group: workload-tests-${{needs.set-variables.outputs.run-id}}
       cancel-in-progress: true
@@ -195,7 +194,6 @@ jobs:
   batch-tests:
     needs: [cluster-create, set-variables]
     uses: ./.github/workflows/reusable_batch_tests.yaml
-    environment: pr
     concurrency: # We support one build or nightly test to run at a time currently.
       group: batch-tests-${{needs.set-variables.outputs.run-id}}
       cancel-in-progress: true
@@ -207,7 +205,6 @@ jobs:
   storage-tests:
     needs: [cluster-create, set-variables, batch-tests, workloads-tests]
     uses: ./.github/workflows/reusable_storage_tests.yaml
-    environment: pr
     concurrency: # We support one build or nightly test to run at a time currently.
       group: storage-tests-${{needs.set-variables.outputs.run-id}}
       cancel-in-progress: true
@@ -221,7 +218,6 @@ jobs:
     if: always()
     needs: [set-variables, storage-tests]
     uses: ./.github/workflows/reusable_cluster_delete.yaml
-    environment: pr
     with:
       cluster-name-dws: ${{needs.set-variables.outputs.cluster-name-dws}}
       cluster-name: ${{needs.set-variables.outputs.cluster-name}}

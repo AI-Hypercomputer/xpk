@@ -150,8 +150,6 @@ jobs:
     secrets: inherit
   cluster-private:
     needs: [linter, run-unit-tests, run-integration-tests, set-variables]
-    environment:
-      name: pr
     uses: ./.github/workflows/reusable_cluster_private.yaml
     concurrency: # We support one build or nightly test to run at a time currently.
       group: cluster-private-${{needs.set-variables.outputs.run-id}}

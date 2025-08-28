@@ -482,8 +482,9 @@ def workload_create(args) -> None:
             flex=True if capacity_type == CapacityType.FLEX_START else False,
         )
         else (
-            'kueue.x-k8s.io/podset-preferred-topology:'
-            ' "cloud.google.com/gce-topology-host"'
+            """
+                kueue.x-k8s.io/podset-preferred-topology: "cloud.google.com/gce-topology-host"
+            """
         )
     )
 

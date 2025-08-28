@@ -51,6 +51,8 @@ env:
 jobs:
   run-workloads:
     runs-on: [ubuntu-22.04]
+    environment:
+      name: integration_tests
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-python@v5

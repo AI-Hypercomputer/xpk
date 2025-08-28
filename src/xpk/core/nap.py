@@ -42,6 +42,8 @@ AUTOPROVISIONING_CONFIG_FILE = """
 management:
   autoRepair: true
   autoUpgrade: true
+scopes:
+  - "https://www.googleapis.com/auth/devstorage.read_write"
 autoprovisioningLocations:
   {zones}
 {resource_limits}
@@ -99,9 +101,20 @@ def enable_autoprovisioning_on_cluster(
       f' --region={zone_to_region(args.zone)} --enable-autoprovisioning'
       ' --autoprovisioning-config-file'
       f' {autoprovisioning_config.config_filename}'
-      ' --autoscaling-profile=optimize-utilization'
   )
   task = 'Update cluster with autoprovisioning enabled'
+  return_code = run_command_with_updates(command, task, args)
+  if return_code != 0:
+    xpk_print(f'{task} request returned ERROR {return_code}')
+    return autoprovisioning_config, return_code
+
+  command = (
+      'gcloud container clusters update'
+      f' {args.cluster} --project={args.project}'
+      f' --region={zone_to_region(args.zone)}'
+      ' --autoscaling-profile=optimize-utilization'
+  )
+  task = 'Update cluster with autoscaling-profile'
   return_code = run_command_with_updates(command, task, args)
   if return_code != 0:
     xpk_print(f'{task} request returned ERROR {return_code}')
@@ -172,11 +185,11 @@ def create_autoprovisioning_config(
   # is not controlled by NAP.
   cpu_limits = """
   minimum: 1
-  maximum: 10000
+  maximum: 1000000
   """
   memory_limits = """
   minimum: 1
-  maximum: 10000
+  maximum: 10000000
   """
 
   # By default, the maximum chips is set to be the current number of resources used

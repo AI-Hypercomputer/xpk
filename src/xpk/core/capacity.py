@@ -232,9 +232,9 @@ def get_capacity_node_selectors_from_capacity_type(
     case CapacityType.ON_DEMAND.name:
       node_selector = ''
     case CapacityType.FLEX_START.name:
-      node_selector = 'cloud.google.com/gke-queued="true"'
+      node_selector = 'cloud.google.com/gke-queued: "true"'
     case CapacityType.SPOT.name:
-      node_selector = 'cloud.google.com/gke-spot="true"'
+      node_selector = 'cloud.google.com/gke-spot: "true"'
     case CapacityType.RESERVATION.name:
       node_selector = f'cloud.google.com/reservation-name: {args.reservation}'
     case _:

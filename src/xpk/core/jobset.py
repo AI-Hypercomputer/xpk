@@ -81,7 +81,7 @@ spec:
           limits:
             memory: {memory_limit_size}
           requests:
-            cpu: 500m
+            cpu: 1000m
             memory: 128Mi
         securityContext:
           allowPrivilegeEscalation: false

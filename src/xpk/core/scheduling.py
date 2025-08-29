@@ -49,7 +49,7 @@ def check_if_workload_can_schedule(args, system: SystemCharacteristics) -> bool:
   missing_gke_accelerator_type = False
   if not cluster_config_map.get(system.gke_accelerator):
     xpk_print(
-        f'Gke Accelerator Type Check: {args.workload} is requesting'
+        f'GKE Accelerator Type Check: {args.workload} is requesting'
         f' {system.gke_accelerator} but cluster only contains'
         f' {cluster_config_map.keys()}. '
     )

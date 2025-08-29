@@ -31,13 +31,13 @@ on:
       storage-name:
         required: true
         type: string
-    secrets:
-      GCP_SA_KEY:
-        required: true
+
 jobs:
   storage-delete:
     name: "${{inputs.storage-type}}-${{inputs.storage-command}}"
     runs-on: [ubuntu-22.04]
+    environment:
+      name: integration_tests
     steps:
     - name: Validate storage-command
       run: |

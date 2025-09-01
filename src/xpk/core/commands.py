@@ -387,4 +387,3 @@ def run_command_and_capture_output(
     xpk_print(error_output)
     xpk_print('*' * 80)
     return error_output, e.returncode
-  

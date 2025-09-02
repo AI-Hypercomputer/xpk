@@ -71,7 +71,7 @@ def is_TAS_possible(
     xpk_print('capacity_type data was not found in configmaps.')
     xpk_exit(1)
 
-  if not flex:
+  if flex:
     return False
 
   if (

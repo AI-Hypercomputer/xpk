@@ -224,9 +224,6 @@ YQ_VERSION ?= $(shell cd $(TOOLS_DIR); $(GO_CMD) list -m -f '{{.Version}}' githu
 KUEUE_VERSION ?= $(shell $(GO_CMD) list -m -f "{{.Version}}" sigs.k8s.io/kueue)
 KUEUE_IMAGE := $(K8S_REGISTRY)/kueue/kueue:$(KUEUE_VERSION)
 
-# TODO: Remove it after release v0.13.0
-KUEUE_IMAGE := $(STAGING_REGISTRY)/kueue/kueue:main
-
 JOBSET_VERSION ?= $(shell $(GO_CMD) list -m -f "{{.Version}}" sigs.k8s.io/jobset)
 JOBSET_IMAGE := $(K8S_REGISTRY)/jobset/jobset:$(JOBSET_VERSION)
 

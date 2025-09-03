@@ -121,7 +121,9 @@ def test_get_tcpx_deamon_annotation():
       "- path: /dev/nvidiactl\n"
       "- path: /dev/nvidia-uvm\n"
   )
-  assert str(annotation["devices.gke.io/container.tcpx-daemon"]) == expected_value
+  assert (
+      str(annotation["devices.gke.io/container.tcpx-daemon"]) == expected_value
+  )
 
 
 def test_decorate_jobset():
@@ -129,8 +131,12 @@ def test_decorate_jobset():
   decorated_str = tcpx_decorator.decorate_jobset(BASE_JOBSET_MANIFEST_STR)
   manifest = yaml.safe_load(decorated_str)
 
-  pod_template_spec = manifest["spec"]["replicatedJobs"][0]["template"]["spec"]["template"]["spec"]
-  pod_template_metadata = manifest["spec"]["replicatedJobs"][0]["template"]["spec"]["template"]["metadata"]
+  pod_template_spec = manifest["spec"]["replicatedJobs"][0]["template"]["spec"][
+      "template"
+  ]["spec"]
+  pod_template_metadata = manifest["spec"]["replicatedJobs"][0]["template"][
+      "spec"
+  ]["template"]["metadata"]
 
   # Check annotations
   annotations = pod_template_metadata["annotations"]
@@ -141,7 +147,12 @@ def test_decorate_jobset():
 
   # Check tolerations
   tolerations = pod_template_spec["tolerations"]
-  assert {"key": "user-workload", "operator": "Equal", "value": "true", "effect": "NoSchedule"} in tolerations
+  assert {
+      "key": "user-workload",
+      "operator": "Equal",
+      "value": "true",
+      "effect": "NoSchedule",
+  } in tolerations
 
   # Check volumes
   volumes = pod_template_spec["volumes"]
@@ -168,7 +179,9 @@ def test_decorate_jobset():
   assert env_vars["LD_LIBRARY_PATH"] == "/usr/local/nvidia/lib64"
 
   # Check volume mounts
-  volume_mounts = {vm["name"]: vm["mountPath"] for vm in gpu_container["volumeMounts"]}
+  volume_mounts = {
+      vm["name"]: vm["mountPath"] for vm in gpu_container["volumeMounts"]
+  }
   assert volume_mounts["tcpx-socket"] == "/tmp"
   assert volume_mounts["libraries"] == "/usr/local/nvidia/lib64"
   assert volume_mounts["dshm"] == "/dev/shm"
@@ -203,11 +216,18 @@ def test_decorate_kjob_template():
   pod_template_spec = decorated_manifest["spec"]["template"]["spec"]
 
   # Check annotations are NOT added
-  assert "annotations" not in decorated_manifest["spec"]["template"].get("metadata", {})
+  assert "annotations" not in decorated_manifest["spec"]["template"].get(
+      "metadata", {}
+  )
 
   # Check tolerations
   tolerations = pod_template_spec["tolerations"]
-  assert {"key": "user-workload", "operator": "Equal", "value": "true", "effect": "NoSchedule"} in tolerations
+  assert {
+      "key": "user-workload",
+      "operator": "Equal",
+      "value": "true",
+      "effect": "NoSchedule",
+  } in tolerations
 
   # Check volumes
   volumes = pod_template_spec["volumes"]
@@ -234,7 +254,9 @@ def test_decorate_kjob_template():
   assert env_vars["LD_LIBRARY_PATH"] == "/usr/local/nvidia/lib64"
 
   # Check volume mounts
-  volume_mounts = {vm["name"]: vm["mountPath"] for vm in gpu_container["volumeMounts"]}
+  volume_mounts = {
+      vm["name"]: vm["mountPath"] for vm in gpu_container["volumeMounts"]
+  }
   assert volume_mounts["tcpx-socket"] == "/tmp"
   assert volume_mounts["libraries"] == "/usr/local/nvidia/lib64"
   assert volume_mounts["dshm"] == "/dev/shm"

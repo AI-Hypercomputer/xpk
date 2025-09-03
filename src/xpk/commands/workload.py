@@ -766,10 +766,8 @@ def workload_list(args) -> None:
       project=args.project,
       cluster=args.cluster,
       zone=args.zone,
-      job_filter=args.filter_by_job,
+      job_name_filter=args.filter_by_job,
   )
-  xpk_print(
-      f'See your workloads in Cloud Console: {workload_list_gcp_link}'
-  )
+  xpk_print(f'See your workloads in Cloud Console: {workload_list_gcp_link}')
 
   xpk_exit(0)

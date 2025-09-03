@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import re
 from ..utils.console import xpk_exit, xpk_print
 from .commands import run_command_for_value
 from .gcloud_context import zone_to_region
@@ -240,3 +241,27 @@ def wait_for_job_completion(args) -> int:
     xpk_print('Your workload did not complete successfully')
     return 125
   return 0
+
+
+GCP_NAME_FILTER_VALUE_REGEX = re.compile(r'[a-z0-9\-]+')
+"""Defines correct name prefix value (contains only letters, numbers and dashes) that can be used in GCP filter chips."""
+
+
+def get_workload_list_gcp_link(
+    project: str,
+    cluster: str,
+    zone: str,
+    job_filter: str | None,
+) -> str:
+  filters_encoded = [
+      f'%257B_22k_22_3A_22Cluster_22_2C_22t_22_3A10_2C_22v_22_3A_22_5C_22{cluster}_5C_22_22_2C_22i_22_3A_22metadata%252FclusterReference%252Fname_22%257D',
+      f'%257B_22k_22_3A_22Location_22_2C_22t_22_3A10_2C_22v_22_3A_22_5C_22{zone_to_region(zone)}_5C_22_22_2C_22i_22_3A_22metadata%252FclusterReference%252FgcpLocation_22%257D',
+      '%257B_22k_22_3A_22Type_22_2C_22t_22_3A10_2C_22v_22_3A_22_5C_22Job_5C_22_22_2C_22i_22_3A_22type_meta%252FkindName_22%257D',
+  ]
+  if job_filter and GCP_NAME_FILTER_VALUE_REGEX.fullmatch(job_filter):
+    filters_encoded.append(
+        f'%257B_22k_22_3A_22Name_22_2C_22t_22_3A10_2C_22v_22_3A_22_5C_22{job_filter}_5C_22_22_2C_22i_22_3A_22metadata%252Fname_22%257D'
+    )
+  filters_state = '_2C'.join(filters_encoded)
+
+  return f'https://console.cloud.google.com/kubernetes/workload/overview?project={project}&pageState=(%22workload_list_table%22:(%22f%22:%22%255B{filters_state}%255D%22))'

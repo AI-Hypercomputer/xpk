@@ -184,8 +184,6 @@ def test_decorate_job():
   job_manifest = copy.deepcopy(BASE_JOB_MANIFEST)
 
   decorated_manifest = tcpx_decorator.decorate_job(job_manifest)
-
-  pod_template_spec = decorated_manifest["spec"]["template"]["spec"]
   pod_template_metadata = decorated_manifest["spec"]["template"]["metadata"]
 
   # Check annotations

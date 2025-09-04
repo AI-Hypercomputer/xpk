@@ -927,7 +927,7 @@ def test_and_retry_credentials_with_dns_logic(args) -> int:
   return 0
 
 
-def get_cluster_credentials(args) -> None:
+def get_cluster_credentials(args) -> int:
   """Run cluster configuration command to set the kubectl config.
 
   Args:

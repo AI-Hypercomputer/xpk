@@ -358,7 +358,7 @@ def run_kubectl_apply(yml_string: str, task: str, args: Namespace) -> int:
 
 def run_command_and_capture_output(
     command: str, task, global_args
-) -> tuple[int, str]:
+) -> tuple[str, int]:
   """Executes a command and captures its output and return code.
 
   Args:

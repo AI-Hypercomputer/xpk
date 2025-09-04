@@ -227,7 +227,8 @@ spec:
             metadata:
               labels:
                 xpk.google.com/workload: {args.workload}
-              annotations: {annotations}
+              annotations:
+                {annotations}
             spec:
               priorityClassName: {args.priority}
               restartPolicy: Never

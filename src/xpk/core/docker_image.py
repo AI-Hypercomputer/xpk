@@ -17,6 +17,7 @@ limitations under the License.
 import datetime
 import os
 import random
+import re
 import string
 
 from ..utils.console import xpk_exit, xpk_print
@@ -26,6 +27,11 @@ from .commands import run_command_with_updates
 DEFAULT_DOCKER_IMAGE = 'python:3.10'
 DEFAULT_SCRIPT_DIR = os.getcwd()
 PLATFORM = 'linux/amd64'
+CLOUD_PREFIXES = [
+    r'^gcr\.io',
+    r'^docker\.pkg\.dev',
+    r'^([a-z0-9-]+)-docker\.pkg\.dev',
+]
 
 
 def validate_docker_image(docker_image, args) -> int:
@@ -161,50 +167,45 @@ def setup_docker_image(args) -> tuple[int, str]:
       0 if successful and 1 otherwise.
       Name of the docker image to use.
   """
-  use_base_docker_image = use_base_docker_image_or_docker_image(args)
 
-  docker_image = args.base_docker_image
-  if use_base_docker_image:
-    validate_docker_image_code = validate_docker_image(docker_image, args)
-    if validate_docker_image_code != 0:
-      xpk_exit(validate_docker_image_code)
-    build_docker_image_code, docker_image = build_docker_image_from_base_image(
-        args
+  docker_image = args.docker_image
+
+  if (
+      docker_image
+      and args.base_docker_image
+      and args.base_docker_image is not DEFAULT_DOCKER_IMAGE
+  ):
+    xpk_print(
+        '`--base-docker-image` and --docker-image can not be used together.'
+        ' Please see `--help` command for more details.'
     )
-    if build_docker_image_code != 0:
-      xpk_exit(build_docker_image_code)
+    xpk_exit(1)
+
+  if not docker_image and args.base_docker_image:
+    docker_image = args.base_docker_image  # fallback for legacy users
+
+  if not docker_image:
+    xpk_print(
+        f'No docker image specified, using default: {DEFAULT_DOCKER_IMAGE}'
+    )
+    docker_image = DEFAULT_DOCKER_IMAGE
+
+  is_cloud_image = any(
+      re.match(prefix, docker_image) for prefix in CLOUD_PREFIXES
+  )
+
+  if (
+      args.script_dir and args.script_dir != DEFAULT_SCRIPT_DIR
+  ) or not is_cloud_image:
+    validate_code = validate_docker_image(docker_image, args)
+    if validate_code != 0:
+      xpk_exit(validate_code)
+    build_code, docker_image = build_docker_image_from_base_image(args)
+    if build_code != 0:
+      xpk_exit(build_code)
   else:
-    docker_image = args.docker_image
-    validate_docker_image_code = validate_docker_image(args.docker_image, args)
-    if validate_docker_image_code != 0:
-      xpk_exit(validate_docker_image_code)
+    validate_code = validate_docker_image(docker_image, args)
+    if validate_code != 0:
+      xpk_exit(validate_code)
 
   return 0, docker_image
-
-
-def use_base_docker_image_or_docker_image(args) -> bool:
-  """Checks for correct docker image arguments.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    True if intended to use base docker image, False to use docker image.
-  """
-  use_base_docker_image = True
-  # Check if (base_docker_image and script_dir) or (docker_image) is set.
-  if args.docker_image is not None:
-    if args.script_dir is not DEFAULT_SCRIPT_DIR:
-      xpk_print(
-          '`--script-dir` and --docker-image can not be used together. Please'
-          ' see `--help` command for more details.'
-      )
-      xpk_exit(1)
-    if args.base_docker_image is not DEFAULT_DOCKER_IMAGE:
-      xpk_print(
-          '`--base-docker-image` and --docker-image can not be used together.'
-          ' Please see `--help` command for more details.'
-      )
-      xpk_exit(1)
-    use_base_docker_image = False
-  return use_base_docker_image

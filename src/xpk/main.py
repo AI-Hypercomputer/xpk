@@ -56,18 +56,17 @@ if (
       f' User currently is running {user_major_version}.{user_minor_version}'
   )
 
-# Create top level parser for xpk command.
-parser = argparse.ArgumentParser(description='xpk command', prog='xpk')
-set_parser(parser=parser)
-
-xpk_print('Starting xpk', flush=True)
-validate_dependencies()
-main_args = parser.parse_args()
-main_args.enable_ray_cluster = False
-main_args.func(main_args)
-
 
 def main() -> None:
+  # Create top level parser for xpk command.
+  parser = argparse.ArgumentParser(description='xpk command', prog='xpk')
+  set_parser(parser=parser)
+
+  xpk_print('Starting xpk', flush=True)
+  validate_dependencies()
+  main_args = parser.parse_args()
+  main_args.enable_ray_cluster = False
+  main_args.func(main_args)
   xpk_print('XPK Done.', flush=True)
 
 

@@ -36,15 +36,13 @@ on:
       storage-name:
         required: true
         type: string
-    secrets:
-      GCP_SA_KEY:
-        required: true
-      BUCKET_NAME:
-        required: true
+
 jobs:
   storage-create:
     name: "${{inputs.storage-type}}-${{inputs.storage-command}}"
     runs-on: [ubuntu-22.04]
+    environment:
+      name: integration_tests
     env:
       STORAGE_WRITE_WORKLOAD: "${{inputs.storage-type}}-${{inputs.storage-command}}-write-workload"
       STORAGE_READ_WORKLOAD: "${{inputs.storage-type}}-${{inputs.storage-command}}-read-workload"

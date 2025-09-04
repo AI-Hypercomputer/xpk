@@ -45,9 +45,6 @@ jobs:
       storage-type: 'gcsfuse'
       storage-command: 'attach'
       storage-name: fuse-test-${{inputs.run-id}}
-    secrets:
-      GCP_SA_KEY: ${{secrets.GCP_SA_KEY}}
-      BUCKET_NAME: ${{secrets.BUCKET_NAME}}
 
   fuse-detach-tests:
     if: always()
@@ -61,8 +58,6 @@ jobs:
       storage-type: 'gcsfuse'
       storage-command: 'detach'
       storage-name: fuse-test-${{inputs.run-id}}
-    secrets:
-      GCP_SA_KEY: ${{secrets.GCP_SA_KEY}}
 
   filestore-create-tests:
     needs: [fuse-attach-tests]
@@ -77,9 +72,6 @@ jobs:
       storage-type: 'gcpfilestore'
       storage-command: 'create'
       storage-name: gcpfilestore-test-${{inputs.run-id}}
-    secrets:
-      GCP_SA_KEY: ${{secrets.GCP_SA_KEY}}
-      BUCKET_NAME: ${{secrets.BUCKET_NAME}}
 
   filestore-detach-tests:
     needs: [filestore-create-tests]
@@ -92,8 +84,6 @@ jobs:
       storage-type: 'gcpfilestore'
       storage-command: 'detach'
       storage-name: 'gcpfilestore-test-${{inputs.run-id}}'
-    secrets:
-      GCP_SA_KEY: ${{secrets.GCP_SA_KEY}}
 
   filestore-attach-tests:
     needs: [filestore-detach-tests]
@@ -108,9 +98,6 @@ jobs:
       storage-type: 'gcpfilestore'
       storage-command: 'attach'
       storage-name: gcpfilestore-test-${{inputs.run-id}}
-    secrets:
-      GCP_SA_KEY: ${{secrets.GCP_SA_KEY}}
-      BUCKET_NAME: ${{secrets.BUCKET_NAME}}
 
   filestore-delete-tests:
     if: always()
@@ -124,6 +111,4 @@ jobs:
       storage-type: 'gcpfilestore'
       storage-command: 'delete'
       storage-name: gcpfilestore-test-${{inputs.run-id}}
-    secrets:
-      GCP_SA_KEY: ${{secrets.GCP_SA_KEY}}
 

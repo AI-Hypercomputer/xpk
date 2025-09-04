@@ -89,6 +89,10 @@ metadata:
   name: dws-config
 spec:
   provisioningClassName: queued-provisioning.gke.io
+  podSetUpdates:
+    nodeSelector:
+    - key: autoscaling.gke.io/provisioning-request
+      valueFromProvisioningClassDetail: ResizeRequestName
   managedResources:
   - {managed_resource}
 ---

@@ -294,7 +294,7 @@ def cluster_create(args) -> None:
   # Provision node pools dynamically based on incoming workloads:
   # Currently autoprovisioning is not supported with Pathways.
   autoprovisioning_config = None
-  if not args.enable_pathways and args.enable_autoprovisioning:
+  if args.enable_autoprovisioning:
     xpk_print('Enabling Autoprovisioning')
     autoprovisioning_config, return_code = enable_autoprovisioning_on_cluster(
         args, system

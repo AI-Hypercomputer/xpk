@@ -141,8 +141,6 @@ def cluster_adapt(args) -> None:
     if not tensorboard_config:
       xpk_exit(1)
 
-  # Provision node pools dynamically based on incoming workloads:
-  # Currently autoprovisioning is not supported with Pathways.
   autoprovisioning_config = None
   if args.enable_autoprovisioning:
     xpk_print('Enabling Autoprovisioning')

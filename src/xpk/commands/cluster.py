@@ -819,7 +819,7 @@ def check_deployment_exists(args, deployment_name: str, namespace: str) -> bool:
 
 
 def verify_coredns_readiness(
-    args, timeout: int = 120, namespace: str = 'kube-system'
+    args, timeout: int = 240, namespace: str = 'kube-system'
 ):
   """Verifies CoreDNS readiness using kubectl wait commands."""
   xpk_print('Now verifying CoreDNS readiness...')

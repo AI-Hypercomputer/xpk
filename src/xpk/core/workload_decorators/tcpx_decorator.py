@@ -131,6 +131,7 @@ def add_volumes(job_manifest: dict):
   })
   volumes.append({'name': 'sys', 'hostPath': {'path': '/sys'}})
   volumes.append({'name': 'proc-sys', 'hostPath': {'path': '/proc/sys'}})
+  volumes.append({'name': 'tcpx-socket', 'hostPath': {'path': '/run/tcpx'}})
   volumes.append(
       {'name': 'dshm', 'emptyDir': {'medium': 'Memory', 'sizeLimit': '128Gi'}}
   )

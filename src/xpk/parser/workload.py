@@ -452,7 +452,7 @@ def set_workload_parsers(workload_parser):
       type=str,
       help=(
           'Filters the arguments based on job name. Provide a regex'
-          ' expressionto parse jobs that match the pattern or provide a job'
+          ' expression to parse jobs that match the pattern or provide a job'
           ' name to delete a single job.'
       ),
   )
@@ -521,7 +521,7 @@ def set_workload_parsers(workload_parser):
       type=str,
       help=(
           'Filters the arguments based on job name. Provide a regex'
-          ' expressionto parse jobs that match the pattern or provide a job'
+          ' expression to parse jobs that match the pattern or provide a job'
           ' name to view a single job.'
       ),
       required=False,

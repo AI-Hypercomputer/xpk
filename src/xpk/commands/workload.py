@@ -85,6 +85,7 @@ from ..core.vertex import create_vertex_experiment
 from ..core.workload import (
     check_if_workload_exists,
     get_workload_list,
+    get_workload_list_gcp_link,
     wait_for_job_completion,
     zone_to_region,
 )
@@ -761,4 +762,13 @@ def workload_list(args) -> None:
     xpk_print(f'List Job request returned ERROR {return_code}')
     xpk_exit(return_code)
   xpk_print(f'Workload List Output:\n{return_value}')
+
+  workload_list_gcp_link = get_workload_list_gcp_link(
+      project=args.project,
+      cluster=args.cluster,
+      zone=args.zone,
+      job_name_filter=args.filter_by_job,
+  )
+  xpk_print(f'See your workloads in Cloud Console: {workload_list_gcp_link}')
+
   xpk_exit(0)

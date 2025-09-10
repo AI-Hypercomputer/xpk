@@ -14,9 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from xpk.core.docker_manager import DockerManager
-from xpk.core.gcluster_manager import GclusterManager
-from xpk.core.blueprint.blueprint_generator import BlueprintGenerator
+from src.xpk.core.docker_manager import DockerManager
+from src.xpk.core.gcluster_manager import GclusterManager
+from src.xpk.core.blueprint.blueprint_generator import BlueprintGenerator
 import os
 import pytest
 import shutil

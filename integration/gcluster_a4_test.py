@@ -19,11 +19,11 @@ import shutil
 
 import pytest
 
-from xpk.commands.cluster_gcluster import get_unique_name
-from xpk.core.blueprint.blueprint_generator import BlueprintGenerator
-from xpk.core.capacity import CapacityType
-from xpk.core.docker_manager import DockerManager
-from xpk.core.gcluster_manager import GclusterManager
+from src.xpk.commands.cluster_gcluster import get_unique_name
+from src.xpk.core.blueprint.blueprint_generator import BlueprintGenerator
+from src.xpk.core.capacity import CapacityType
+from src.xpk.core.docker_manager import DockerManager
+from src.xpk.core.gcluster_manager import GclusterManager
 
 ctk_gcloud_cfg = os.getenv("GCLOUD_CFG_PATH")
 project_id = os.getenv("PROJECT_ID")

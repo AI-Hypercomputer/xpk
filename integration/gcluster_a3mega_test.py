@@ -14,10 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from xpk.commands.cluster_gcluster import get_unique_name
-from xpk.core.docker_manager import DockerManager
-from xpk.core.gcluster_manager import GclusterManager
-from xpk.core.blueprint.blueprint_generator import BlueprintGenerator
+from src.xpk.commands.cluster_gcluster import get_unique_name
+from src.xpk.core.docker_manager import DockerManager
+from src.xpk.core.gcluster_manager import GclusterManager
+from src.xpk.core.blueprint.blueprint_generator import BlueprintGenerator
 import pytest
 import os
 import shutil

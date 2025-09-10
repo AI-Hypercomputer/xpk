@@ -16,7 +16,7 @@ limitations under the License.
 
 import docker
 from docker.errors import APIError
-from xpk.core.docker_manager import DockerManager, ctk_build_ref
+from src.xpk.core.docker_manager import DockerManager, ctk_build_ref
 import pytest
 import os
 import time

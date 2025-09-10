@@ -15,5 +15,5 @@ export GCLOUD_CFG_PATH=...
 To run tests:
 
 ```bash
-pytest src/xpk/core/tests/integration
+pytest integration
 ```

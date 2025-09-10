@@ -19,18 +19,18 @@ import shutil
 
 import pytest
 
-from src.xpk.commands.cluster_gcluster import get_unique_name
-from src.xpk.core.blueprint.blueprint_generator import BlueprintGenerator
-from src.xpk.core.capacity import CapacityType
-from src.xpk.core.docker_manager import DockerManager
-from src.xpk.core.gcluster_manager import GclusterManager
+from xpk.commands.cluster_gcluster import get_unique_name
+from xpk.core.blueprint.blueprint_generator import BlueprintGenerator
+from xpk.core.capacity import CapacityType
+from xpk.core.docker_manager import DockerManager
+from xpk.core.gcluster_manager import GclusterManager
 
 ctk_gcloud_cfg = os.getenv("GCLOUD_CFG_PATH")
 project_id = os.getenv("PROJECT_ID")
 region = os.getenv("REGION")
 zone = os.getenv("ZONE")
 auth_cidr = os.getenv("AUTH_CIDR")
-cluster_name = os.getenv("A4_TEST_CLUSTER_NAME")
+cluster_name = os.getenv("A3_ULTRA_TEST_CLUSTER_NAME")
 
 
 @pytest.fixture(name="setup_tests")
@@ -49,11 +49,11 @@ def prepare_test():
 
 @pytest.mark.skip(
     reason=(
-        "This test requires A4 capacity, therefore it should not be run on each"
+        "This test requires A3 capacity, therefore it should not be run on each"
         " build. Please invoke it manually if needed. "
     )
 )
-def test_create_a4_deployment_files(setup_tests):
+def test_create_a3_ultra_deployment_files(setup_tests):
   assert project_id is not None
   assert region is not None
   assert zone is not None
@@ -61,7 +61,7 @@ def test_create_a4_deployment_files(setup_tests):
   assert ctk_gcloud_cfg is not None
   assert cluster_name is not None
   docker_path, bp_path = setup_tests[0], setup_tests[1]
-  blueprint_name = f"{cluster_name}-a4-xpk"
+  blueprint_name = f"{cluster_name}-a3-ultra-xpk"
 
   docker_manager = DockerManager(
       gcloud_cfg_path=ctk_gcloud_cfg, working_dir=docker_path
@@ -69,7 +69,7 @@ def test_create_a4_deployment_files(setup_tests):
   docker_manager.initialize()
   prefix = f"{project_id}-{region}".lower()
   bpm = BlueprintGenerator(storage_path=bp_path)
-  a4_blueprint = bpm.generate_a4_blueprint(
+  a3_mega_blueprint = bpm.generate_a3_ultra_blueprint(
       cluster_name=cluster_name,
       blueprint_name=blueprint_name,
       region=region,
@@ -83,8 +83,8 @@ def test_create_a4_deployment_files(setup_tests):
   )
   blueprint_test_path = os.path.join(bp_path, prefix, f"{blueprint_name}.yaml")
   blueprint_deps_test_path = os.path.join(bp_path, blueprint_name)
-  assert a4_blueprint.blueprint_file == blueprint_test_path
-  assert a4_blueprint.blueprint_dependencies == blueprint_deps_test_path
+  assert a3_mega_blueprint.blueprint_file == blueprint_test_path
+  assert a3_mega_blueprint.blueprint_dependencies == blueprint_deps_test_path
 
   assert os.path.isfile(blueprint_test_path)
   assert os.path.isdir(blueprint_deps_test_path)
@@ -99,8 +99,8 @@ def test_create_a4_deployment_files(setup_tests):
   )
 
   staged_bp_path = gcluster_manager.stage_files(
-      blueprint_file=a4_blueprint.blueprint_file,
-      blueprint_dependencies=a4_blueprint.blueprint_dependencies,
+      blueprint_file=a3_mega_blueprint.blueprint_file,
+      blueprint_dependencies=a3_mega_blueprint.blueprint_dependencies,
       prefix=prefix,
   )
   assert staged_bp_path == os.path.join(
@@ -114,11 +114,11 @@ def test_create_a4_deployment_files(setup_tests):
 
 @pytest.mark.skip(
     reason=(
-        "This test requires A4 capacity, therefore it should not be run on each"
+        "This test requires A3 capacity, therefore it should not be run on each"
         " build. Please invoke it manually if needed. "
     )
 )
-def test_create_a4_deployment(setup_tests):
+def test_create_a3_ultra_deployment(setup_tests):
   assert project_id is not None
   assert region is not None
   assert zone is not None
@@ -126,7 +126,7 @@ def test_create_a4_deployment(setup_tests):
   assert ctk_gcloud_cfg is not None
   assert cluster_name is not None
   docker_path, bp_path = setup_tests[0], setup_tests[1]
-  blueprint_name = f"{cluster_name}-a4-xpk"
+  blueprint_name = f"{cluster_name}-a3-ultra-xpk"
 
   docker_manager = DockerManager(
       gcloud_cfg_path=ctk_gcloud_cfg, working_dir=docker_path
@@ -134,7 +134,7 @@ def test_create_a4_deployment(setup_tests):
   docker_manager.initialize()
 
   bpm = BlueprintGenerator(storage_path=bp_path)
-  a4_blueprint = bpm.generate_a4_blueprint(
+  a3_mega_blueprint = bpm.generate_a3_ultra_blueprint(
       cluster_name=cluster_name,
       blueprint_name=blueprint_name,
       region=region,
@@ -148,8 +148,8 @@ def test_create_a4_deployment(setup_tests):
   blueprint_test_path = os.path.join(bp_path, f"{blueprint_name}.yaml")
   blueprint_deps_test_path = os.path.join(bp_path, blueprint_name)
 
-  assert a4_blueprint.blueprint_file == blueprint_test_path
-  assert a4_blueprint.blueprint_dependencies == blueprint_deps_test_path
+  assert a3_mega_blueprint.blueprint_file == blueprint_test_path
+  assert a3_mega_blueprint.blueprint_dependencies == blueprint_deps_test_path
 
   assert os.path.isfile(blueprint_test_path)
   assert os.path.isdir(blueprint_deps_test_path)
@@ -164,8 +164,8 @@ def test_create_a4_deployment(setup_tests):
   )
 
   staged_bp_path = gcluster_manager.stage_files(
-      blueprint_file=a4_blueprint.blueprint_file,
-      blueprint_dependencies=a4_blueprint.blueprint_dependencies,
+      blueprint_file=a3_mega_blueprint.blueprint_file,
+      blueprint_dependencies=a3_mega_blueprint.blueprint_dependencies,
   )
 
   gcluster_manager.deploy(

@@ -35,7 +35,7 @@ run-unittests:
 	pytest  -vv src/xpk/
 
 run-integrationtests:
-	pytest integration/
+	pytest src/integration/
 
 .PHONY: mkdir-bin
 mkdir-bin:

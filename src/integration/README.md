@@ -15,5 +15,5 @@ export GCLOUD_CFG_PATH=...
 To run tests:
 
 ```bash
-pytest integration
+pytest src/integration
 ```

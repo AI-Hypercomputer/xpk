@@ -85,7 +85,7 @@ def zone_to_region(zone) -> str:
      The region name.
   """
   zone_terms = zone.split('-')
-  return zone_terms[0] + '-' + zone_terms[1]  # pytype: disable=bad-return-type
+  return zone_terms[0] + '-' + zone_terms[1]
 
 
 @dataclass

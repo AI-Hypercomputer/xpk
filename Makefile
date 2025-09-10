@@ -71,11 +71,11 @@ check-python:
 	python3 --version || (echo "python3 not installed. Please install python in version required by xpk" && exit 1)
 
 .PHONY: install-lint
-install-lint: install-pytype install-pyink install-pylint pip-install
+install-lint: install-mypy install-pyink install-pylint pip-install
 
-.PHONY: install-pytype
-install-pytype:
-	pip install pytype
+.PHONY: install-mypy
+install-mypy:
+	pip install mypy
 
 .PHONY: install-pyink
 install-pyink:
@@ -86,7 +86,7 @@ install-pylint:
 	pip install pylint
 
 .PHONY: verify
-verify: install-lint pylint pyink pytype
+verify: install-lint pylint pyink mypy
 
 .PHONY: pylint
 pylint:
@@ -100,6 +100,6 @@ pyink:
 pyink-fix:
 	pyink .
 
-.PHONY: pytype
-pytype:
-	pytype --config=pytype-conf.cfg
+.PHONY: mypy
+mypy:
+	mypy

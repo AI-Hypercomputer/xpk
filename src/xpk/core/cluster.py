@@ -218,7 +218,7 @@ def get_cluster_nodes_info(args) -> list[dict]:
   if err_code != 0:
     xpk_exit(err_code)
   data = yaml.safe_load(val)
-  return data['items']  # pytype: disable=bad-return-type
+  return data['items']
 
 
 def count_nodes_on_cluster(args, system: SystemCharacteristics) -> int:
@@ -445,7 +445,7 @@ def setup_k8s_env(args) -> k8s_client.ApiClient:
     args.project_number = project_id_to_project_number(args.project)
 
   config.load_kube_config()
-  return k8s_client.ApiClient()  # pytype: disable=bad-return-type
+  return k8s_client.ApiClient()
 
 
 def get_gpu_type_from_cluster(args) -> str:
@@ -819,7 +819,7 @@ def update_cluster_with_clouddns_if_necessary(args) -> int:
       xpk_exit(server_config_return_code)
     upgrade_master_return_code = upgrade_gke_control_plane_version(
         args,
-        gke_server_config.default_rapid_gke_version,  # pytype: disable=attribute-error
+        gke_server_config.default_rapid_gke_version,
     )
     if upgrade_master_return_code > 0:
       xpk_print("Updating GKE cluster's control plane upgrade failed!")
@@ -828,7 +828,7 @@ def update_cluster_with_clouddns_if_necessary(args) -> int:
     # Upgrade nodepools version after the master upgrade.
     node_pool_update_code = upgrade_gke_nodepools_version(
         args,
-        gke_server_config.default_rapid_gke_version,  # pytype: disable=attribute-error
+        gke_server_config.default_rapid_gke_version,
     )
     if node_pool_update_code > 0:
       xpk_print('Upgrading nodepools version failed!')

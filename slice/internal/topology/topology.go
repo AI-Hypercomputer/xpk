@@ -16,15 +16,12 @@ package topology
 
 import (
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
-
-	"tpu-slice-controller/internal/core"
 )
 
-// SubblockLevelIndex returns the index of the TPUSubBlock topology
-// assignment, or -1 if it doesn't exist.
-func SubblockLevelIndex(topologyAssignment *kueue.TopologyAssignment) int {
-	for i, level := range topologyAssignment.Levels {
-		if level == core.TPUSubBlockLabel {
+// LevelIndex returns the index of the specific level topology assignment, or -1 if it doesn't exist.
+func LevelIndex(topologyAssignment *kueue.TopologyAssignment, level string) int {
+	for i, currentLevel := range topologyAssignment.Levels {
+		if level == currentLevel {
 			return i
 		}
 	}

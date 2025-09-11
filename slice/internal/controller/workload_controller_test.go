@@ -605,6 +605,83 @@ func TestWorkloadReconciler(t *testing.T) {
 					Obj(),
 			},
 		},
+		"shouldn’t add finalizer because not all assignments are valid (no gke-tpu-slice-4x4x4-id level or hostname level)": {
+			request: baseRequest,
+			objs: []client.Object{
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(&kueue.Admission{
+						PodSetAssignments: []kueue.PodSetAssignment{
+							utiltesting.MakePodSetAssignment("ps1").
+								TopologyAssignment([]string{"cloud.google.com/gce-topology-block"}, []kueue.TopologyDomainAssignment{
+									{
+										Values: []string{"worker1"},
+										Count:  2,
+									},
+								}).Obj(),
+						},
+					}, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(&kueue.Admission{
+						PodSetAssignments: []kueue.PodSetAssignment{
+							utiltesting.MakePodSetAssignment("ps1").
+								TopologyAssignment([]string{"cloud.google.com/gce-topology-block"}, []kueue.TopologyDomainAssignment{
+									{
+										Values: []string{"worker1"},
+										Count:  2,
+									},
+								}).Obj(),
+						},
+					}, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Obj(),
+			},
+		},
+		"shouldn't add finalizer because not all assignments are valid (node with label gke-tpu-slice-4x4x4-id not found)": {
+			request: baseRequest,
+			objs: []client.Object{
+				utiltesting.MakeNode("worker1").Obj(),
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(&kueue.Admission{
+						PodSetAssignments: []kueue.PodSetAssignment{
+							utiltesting.MakePodSetAssignment("ps1").
+								TopologyAssignment([]string{"cloud.google.com/gce-topology-block"}, []kueue.TopologyDomainAssignment{
+									{
+										Values: []string{"worker1"},
+										Count:  2,
+									},
+								}).Obj(),
+						},
+					}, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(&kueue.Admission{
+						PodSetAssignments: []kueue.PodSetAssignment{
+							utiltesting.MakePodSetAssignment("ps1").
+								TopologyAssignment([]string{"cloud.google.com/gce-topology-block"}, []kueue.TopologyDomainAssignment{
+									{
+										Values: []string{"worker1"},
+										Count:  2,
+									},
+								}).Obj(),
+						},
+					}, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Obj(),
+			},
+		},
 		"should add finalizer": {
 			request: baseRequest,
 			objs: []client.Object{
@@ -813,6 +890,71 @@ func TestWorkloadReconciler(t *testing.T) {
 				*baseWorkloadWrapper.Clone().
 					PodSets(basePodSets...).
 					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStatePending, `Slices are in states: 2 Created`)).
+					Obj(),
+			},
+			wantSlices: []slice.Slice{
+				*baseSlice1Wrapper.DeepCopy(),
+				*baseSlice2Wrapper.DeepCopy(),
+			},
+			wantEvents: []utiltesting.EventRecord{
+				buildEventRecord(corev1.EventTypeNormal, SlicesCreatedEventType,
+					`The Slices "default/workload-ps1", "default/workload-ps2" have been created`),
+			},
+		},
+		"parse TAS Assignment to populate NodeSelector in Slice (hostname)": {
+			request: baseRequest,
+			objs: []client.Object{
+				utiltesting.MakeNode("worker1").Label("cloud.google.com/gke-tpu-slice-4x4x4-id", "subblock1").Obj(),
+				utiltesting.MakeNode("worker2").Label("cloud.google.com/gke-tpu-slice-4x4x4-id", "subblock2").Obj(),
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(&kueue.Admission{
+						PodSetAssignments: []kueue.PodSetAssignment{
+							utiltesting.MakePodSetAssignment("ps1").
+								TopologyAssignment([]string{"kubernetes.io/hostname"}, []kueue.TopologyDomainAssignment{
+									{
+										Values: []string{"worker1"},
+										Count:  2,
+									},
+								}).Obj(),
+							utiltesting.MakePodSetAssignment("ps2").
+								TopologyAssignment([]string{"kubernetes.io/hostname"}, []kueue.TopologyDomainAssignment{
+									{
+										Values: []string{"worker2"},
+										Count:  2,
+									},
+								}).Obj(),
+						},
+					}, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(&kueue.Admission{
+						PodSetAssignments: []kueue.PodSetAssignment{
+							utiltesting.MakePodSetAssignment("ps1").
+								TopologyAssignment([]string{"kubernetes.io/hostname"}, []kueue.TopologyDomainAssignment{
+									{
+										Values: []string{"worker1"},
+										Count:  2,
+									},
+								}).Obj(),
+							utiltesting.MakePodSetAssignment("ps2").
+								TopologyAssignment([]string{"kubernetes.io/hostname"}, []kueue.TopologyDomainAssignment{
+									{
+										Values: []string{"worker2"},
+										Count:  2,
+									},
+								}).Obj(),
+						},
+					}, now).
 					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Finalizers(SliceControllerName).
 					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStatePending, `Slices are in states: 2 Created`)).

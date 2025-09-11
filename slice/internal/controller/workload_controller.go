@@ -87,6 +87,7 @@ func NewWorkloadReconciler(cl client.Client, record record.EventRecorder) *Workl
 	}
 }
 
+// +kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch
 // +kubebuilder:rbac:groups=kueue.x-k8s.io,resources=workloads,verbs=get;list;watch;create;update;patch
 // +kubebuilder:rbac:groups=kueue.x-k8s.io,resources=workloads/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=slice.accelerator.gke.io,resources=slices,verbs=get;list;watch;create;update;patch;delete
@@ -121,7 +122,12 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, nil
 	}
 
-	if err = validateRelevantWorkload(wl); err != nil {
+	nodes, err := r.getNodes(ctx)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	if err = validateRelevantWorkload(wl, nodes); err != nil {
 		log.V(3).Info(fmt.Sprintf("Skipping workload as it %s", err.Error()))
 		return ctrl.Result{}, nil
 	}
@@ -164,7 +170,7 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, err
 	}
 
-	err = r.syncSlices(ctx, wl, ac, &slices)
+	err = r.syncSlices(ctx, wl, ac, &slices, nodes)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -199,6 +205,19 @@ func shouldFinalize(wl *kueue.Workload) (bool, string) {
 	}
 
 	return false, ""
+}
+
+func (r *WorkloadReconciler) getNodes(ctx context.Context) (map[string]corev1.Node, error) {
+	nodes := &corev1.NodeList{}
+	err := r.client.List(ctx, nodes)
+	if err != nil {
+		return nil, err
+	}
+	mapNodes := make(map[string]corev1.Node)
+	for _, node := range nodes.Items {
+		mapNodes[node.Name] = node
+	}
+	return mapNodes, nil
 }
 
 func hasSupportedOwner(wl *kueue.Workload) bool {
@@ -371,7 +390,7 @@ func (r *WorkloadReconciler) finalizeWorkload(ctx context.Context, wl *kueue.Wor
 	return nil
 }
 
-func validateRelevantWorkload(wl *kueue.Workload) error {
+func validateRelevantWorkload(wl *kueue.Workload, nodes map[string]corev1.Node) error {
 	if !hasSupportedOwner(wl) {
 		return errors.New("does not have a supported owner")
 	}
@@ -387,7 +406,7 @@ func validateRelevantWorkload(wl *kueue.Workload) error {
 	if !topology.AnyAssignment(wl.Status.Admission) {
 		return errors.New("has no topology assignment")
 	}
-	if !topology.AllAssignmentsValid(wl.Status.Admission) {
+	if !topology.AllAssignmentsValid(wl.Status.Admission, nodes) {
 		return errors.New("has invalid topology assignments")
 	}
 	return nil
@@ -420,7 +439,13 @@ func (r *WorkloadReconciler) sliceAC(ctx context.Context, wl *kueue.Workload) (*
 	return workload.FindAdmissionCheck(wl.Status.AdmissionChecks, relevantChecks[0]), nil
 }
 
-func (r *WorkloadReconciler) syncSlices(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, slices *[]v1alpha1.Slice) error {
+func (r *WorkloadReconciler) syncSlices(
+	ctx context.Context,
+	wl *kueue.Workload,
+	ac *kueue.AdmissionCheckState,
+	slices *[]v1alpha1.Slice,
+	nodes map[string]corev1.Node,
+) error {
 	slicesByName := make(map[string]*v1alpha1.Slice, len(*slices))
 	for _, slice := range *slices {
 		slicesByName[slice.Name] = &slice
@@ -428,7 +453,7 @@ func (r *WorkloadReconciler) syncSlices(ctx context.Context, wl *kueue.Workload,
 
 	createdSlices := make([]v1alpha1.Slice, 0, len(wl.Status.Admission.PodSetAssignments))
 	for _, psa := range wl.Status.Admission.PodSetAssignments {
-		if !shouldCreateSliceForPodSetAssignment(wl, psa) {
+		if !shouldCreateSliceForPodSetAssignment(wl, psa, nodes) {
 			continue
 		}
 
@@ -439,7 +464,7 @@ func (r *WorkloadReconciler) syncSlices(ctx context.Context, wl *kueue.Workload,
 			continue
 		}
 
-		createdSlice, err := r.createSlice(ctx, wl, ac, &psa)
+		createdSlice, err := r.createSlice(ctx, wl, ac, &psa, nodes)
 		if err != nil {
 			return err
 		}
@@ -457,22 +482,27 @@ func (r *WorkloadReconciler) syncSlices(ctx context.Context, wl *kueue.Workload,
 	return nil
 }
 
-func shouldCreateSliceForPodSetAssignment(wl *kueue.Workload, psa kueue.PodSetAssignment) bool {
+func shouldCreateSliceForPodSetAssignment(wl *kueue.Workload, psa kueue.PodSetAssignment, nodes map[string]corev1.Node) bool {
 	if podSet := podset.FindPodSetByName(wl.Spec.PodSets, psa.Name); podSet != nil {
-		return core.IsRelevantPodTemplateSpec(podSet.Template) && topology.IsAssignmentValid(psa)
+		return core.IsRelevantPodTemplateSpec(podSet.Template) && topology.IsAssignmentValid(psa, nodes)
 	}
 	return false
 }
 
-func parseTopologyAssignmentIntoNodeSelector(slice *v1alpha1.Slice, topologyAssignment *kueue.TopologyAssignment) {
+func parseTopologyAssignmentIntoNodeSelector(slice *v1alpha1.Slice, topologyAssignment *kueue.TopologyAssignment, nodes map[string]corev1.Node) {
 	nodeSelectors := sets.New[string]()
 	// we already validated that all assignments have a valid level,
 	// in validateRelevantWorkload.
-	subblockLevelIndex := topology.SubblockLevelIndex(topologyAssignment)
-	for _, domain := range topologyAssignment.Domains {
-		nodeSelectors.Insert(domain.Values[subblockLevelIndex])
+	if subblockLevelIndex := topology.LevelIndex(topologyAssignment, core.TPUSubBlockLabel); subblockLevelIndex != -1 {
+		for _, domain := range topologyAssignment.Domains {
+			nodeSelectors.Insert(domain.Values[subblockLevelIndex])
+		}
+	} else if hostnameLevelIndex := topology.LevelIndex(topologyAssignment, corev1.LabelHostname); hostnameLevelIndex != -1 {
+		for _, domain := range topologyAssignment.Domains {
+			nodeSelectors.Insert(topology.GetTPUSubBlockLabelValue(domain, hostnameLevelIndex, nodes))
+		}
 	}
-	// In future, we want to make sure nodeSelectorKey
+	// In the future, we want to make sure nodeSelectorKey
 	// matches PodSetSliceRequiredTopologyAnnotation.
 	nodeSelectorKey := core.TPUSubBlockLabel
 	slice.Spec.NodeSelector = map[string][]string{
@@ -480,7 +510,7 @@ func parseTopologyAssignmentIntoNodeSelector(slice *v1alpha1.Slice, topologyAssi
 	}
 }
 
-func (r *WorkloadReconciler) createSlice(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, psa *kueue.PodSetAssignment) (*v1alpha1.Slice, error) {
+func (r *WorkloadReconciler) createSlice(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, psa *kueue.PodSetAssignment, nodes map[string]corev1.Node) (*v1alpha1.Slice, error) {
 	slice := core.SliceWithMetadata(wl, psa.Name)
 	log := ctrl.LoggerFrom(ctx).WithValues("slice", klog.KObj(slice))
 	log.V(3).Info("Creating Slice")
@@ -488,7 +518,7 @@ func (r *WorkloadReconciler) createSlice(ctx context.Context, wl *kueue.Workload
 	if err := controllerutil.SetControllerReference(wl, slice, r.client.Scheme()); err != nil {
 		return nil, err
 	}
-	parseTopologyAssignmentIntoNodeSelector(slice, psa.TopologyAssignment)
+	parseTopologyAssignmentIntoNodeSelector(slice, psa.TopologyAssignment, nodes)
 
 	if err := r.client.Create(ctx, slice); err != nil {
 		msg := fmt.Sprintf("Error creating Slice %q: %v", client.ObjectKeyFromObject(slice), err)

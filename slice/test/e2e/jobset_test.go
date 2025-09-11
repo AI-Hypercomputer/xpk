@@ -63,7 +63,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 		utils.MustCreate(ctx, k8sClient, ns)
 
 		topology = testing.MakeTopology("topology").
-			Levels("cloud.google.com/gce-topology-block", "cloud.google.com/gke-tpu-slice-4x4x4-id").
+			Levels("cloud.google.com/gce-topology-block", "cloud.google.com/gke-tpu-slice-4x4x4-id", corev1.LabelHostname).
 			Obj()
 		utils.MustCreate(ctx, k8sClient, topology)
 
@@ -186,7 +186,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 					gomega.Expect(createdWorkload.Status.Admission.PodSetAssignments).Should(gomega.HaveLen(1))
 					gomega.Expect(createdWorkload.Status.Admission.PodSetAssignments[0].TopologyAssignment).Should(gomega.BeComparableTo(
 						&kueue.TopologyAssignment{
-							Levels:  []string{"cloud.google.com/gce-topology-block", "cloud.google.com/gke-tpu-slice-4x4x4-id"},
+							Levels:  []string{corev1.LabelHostname},
 							Domains: tc.wantDomains,
 						},
 					))
@@ -283,28 +283,28 @@ var _ = ginkgo.Describe("JobSet", func() {
 					utils.ExpectObjectToBeDeleted(ctx, k8sClient, createdWorkload, false)
 				})
 			},
-			ginkgo.Entry("TPU topology 4x4x4 and parallelism 16", testCase{
+			ginkgo.Entry("TPU topology 4x4x4, TPU topology 4 and parallelism 16", testCase{
 				tpuTopology:   "4x4x4",
 				tpuRequests:   "4",
 				parallelism:   16,
 				replicas:      1,
 				wantSliceSize: 16,
 				wantDomains: []kueue.TopologyDomainAssignment{{
-					Values: []string{"b1", "sb1"},
+					Values: []string{"kind-worker"},
 					Count:  16,
 				}},
 				wantSliceNodeSelector: map[string][]string{
 					"cloud.google.com/gke-tpu-slice-4x4x4-id": {"sb1"},
 				},
 			}),
-			ginkgo.Entry("TPU topology 4x4x4 and parallelism 16", testCase{
+			ginkgo.Entry("TPU topology, TPU topology 1 4x4x4 and parallelism 16", testCase{
 				tpuTopology:   "4x4x4",
 				tpuRequests:   "1",
 				parallelism:   64,
 				replicas:      1,
 				wantSliceSize: 64,
 				wantDomains: []kueue.TopologyDomainAssignment{{
-					Values: []string{"b1", "sb1"},
+					Values: []string{"kind-worker"},
 					Count:  64,
 				}},
 				wantSliceNodeSelector: map[string][]string{
@@ -319,15 +319,15 @@ var _ = ginkgo.Describe("JobSet", func() {
 				wantSliceSize: 16,
 				wantDomains: []kueue.TopologyDomainAssignment{
 					{
-						Values: []string{"b2", "sb2"},
+						Values: []string{"kind-worker2"},
 						Count:  16,
 					},
 					{
-						Values: []string{"b2", "sb3"},
+						Values: []string{"kind-worker3"},
 						Count:  16,
 					},
 					{
-						Values: []string{"b2", "sb4"},
+						Values: []string{"kind-worker4"},
 						Count:  16,
 					},
 				},
@@ -343,15 +343,15 @@ var _ = ginkgo.Describe("JobSet", func() {
 				wantSliceSize: 32,
 				wantDomains: []kueue.TopologyDomainAssignment{
 					{
-						Values: []string{"b2", "sb2"},
+						Values: []string{"kind-worker2"},
 						Count:  32,
 					},
 					{
-						Values: []string{"b2", "sb3"},
+						Values: []string{"kind-worker3"},
 						Count:  32,
 					},
 					{
-						Values: []string{"b2", "sb4"},
+						Values: []string{"kind-worker4"},
 						Count:  32,
 					},
 				},
@@ -367,11 +367,11 @@ var _ = ginkgo.Describe("JobSet", func() {
 				wantSliceSize: 64,
 				wantDomains: []kueue.TopologyDomainAssignment{
 					{
-						Values: []string{"b2", "sb2"},
+						Values: []string{"kind-worker2"},
 						Count:  64,
 					},
 					{
-						Values: []string{"b2", "sb3"},
+						Values: []string{"kind-worker3"},
 						Count:  64,
 					},
 				},
@@ -387,7 +387,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 				wantSliceSize: 16,
 				wantDomains: []kueue.TopologyDomainAssignment{
 					{
-						Values: []string{"b1", "sb1"},
+						Values: []string{"kind-worker"},
 						Count:  16,
 					},
 				},
@@ -403,15 +403,15 @@ var _ = ginkgo.Describe("JobSet", func() {
 				wantSliceSize: 16,
 				wantDomains: []kueue.TopologyDomainAssignment{
 					{
-						Values: []string{"b2", "sb2"},
+						Values: []string{"kind-worker2"},
 						Count:  16,
 					},
 					{
-						Values: []string{"b2", "sb3"},
+						Values: []string{"kind-worker3"},
 						Count:  16,
 					},
 					{
-						Values: []string{"b2", "sb4"},
+						Values: []string{"kind-worker4"},
 						Count:  16,
 					},
 				},
@@ -626,18 +626,18 @@ var _ = ginkgo.Describe("JobSet", func() {
 				gomega.Expect(createdWorkload.Status.Admission.PodSetAssignments).Should(gomega.HaveLen(2))
 				gomega.Expect(createdWorkload.Status.Admission.PodSetAssignments[0].TopologyAssignment).Should(gomega.BeComparableTo(
 					&kueue.TopologyAssignment{
-						Levels: []string{"cloud.google.com/gce-topology-block", "cloud.google.com/gke-tpu-slice-4x4x4-id"},
+						Levels: []string{"kubernetes.io/hostname"},
 						Domains: []kueue.TopologyDomainAssignment{{
-							Values: []string{"b1", "sb1"},
+							Values: []string{"kind-worker"},
 							Count:  16,
 						}},
 					},
 				))
 				gomega.Expect(createdWorkload.Status.Admission.PodSetAssignments[1].TopologyAssignment).Should(gomega.BeComparableTo(
 					&kueue.TopologyAssignment{
-						Levels: []string{"cloud.google.com/gce-topology-block", "cloud.google.com/gke-tpu-slice-4x4x4-id"},
+						Levels: []string{"kubernetes.io/hostname"},
 						Domains: []kueue.TopologyDomainAssignment{{
-							Values: []string{"b2", "sb2"},
+							Values: []string{"kind-worker2"},
 							Count:  16,
 						}},
 					},

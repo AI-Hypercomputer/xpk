@@ -108,13 +108,7 @@ def create_cluster_configmaps(
   device_type = system.device_type
   if system.accelerator_type == AcceleratorType['GPU']:
     resources_data = f'{device_type}: "{int(args.num_nodes)}"'
-  elif (
-      not args.enable_pathways
-      and args.enable_autoprovisioning
-      and autoprovisioning_config
-  ):
-    # Currently autoprovisioning is not supported with Pathways.
-    # Auto provisioning will have variable topologies for a gke accelerator type.
+  elif args.enable_autoprovisioning and autoprovisioning_config:
     resources_data = (
         f'{system.gke_accelerator}: {AUTOPROVISIONING_CONFIG_VALUE}'
     )

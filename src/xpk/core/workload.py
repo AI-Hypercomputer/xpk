@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import re
 from ..utils.console import xpk_exit, xpk_print
 from .commands import run_command_for_value
 from .gcloud_context import zone_to_region
@@ -240,3 +241,13 @@ def wait_for_job_completion(args) -> int:
     xpk_print('Your workload did not complete successfully')
     return 125
   return 0
+
+
+GCP_NAME_FILTER_VALUE_REGEX = re.compile(r'[a-z0-9\-]+')
+"""Defines correct name prefix value (contains only letters, numbers and dashes) that can be used in GCP filter chips."""
+
+
+def get_jobsets_list_gcp_link(project: str) -> str:
+  """Returns a link to Cloud Console JobSets list"""
+
+  return f'https://console.cloud.google.com/kubernetes/aiml/deployments/jobs?project={project}'

@@ -75,7 +75,7 @@ install-lint: install-mypy install-pyink install-pylint pip-install
 
 .PHONY: install-mypy
 install-mypy:
-	pip install mypy types-PyYAML types-docker
+	pip install mypy types-PyYAML==6.0 types-docker==7.1
 
 .PHONY: install-pyink
 install-pyink:

@@ -74,7 +74,7 @@ def decorate_jobset(jobset_manifest_str: str, sub_networks: list[str]) -> str:
   for job in manifest['spec']['replicatedJobs']:
     job_manifest = job['template']
     job_manifest = decorate_job(job_manifest, sub_networks)
-  return yaml.dump(manifest, sort_keys=False)
+  return yaml.dump(manifest, sort_keys=False)  # type: ignore[no-any-return]
 
 
 def get_interfaces_entry(sub_networks: list[str]) -> tuple[str, str]:

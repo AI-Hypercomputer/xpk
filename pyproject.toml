@@ -65,7 +65,7 @@ dev = [
     "docker==7.1.0",
     "mypy ~= 1.17",
     "types-PyYAML == 6.0.2",
-    "types-docker == 7.1.0",
+    "types-docker ~= 7.1.0.0",
 ]
 
 [tool.setuptools.dynamic]

@@ -63,9 +63,9 @@ dev = [
     "pre-commit",
     "pytest",
     "docker==7.1.0",
-    "mypy >= 1.17, < 2",
-    "types-PyYAML == 6.0",
-    "types-docker == 7.1",
+    "mypy ~= 1.17",
+    "types-PyYAML == 6.0.2",
+    "types-docker == 7.1.0",
 ]
 
 [tool.setuptools.dynamic]

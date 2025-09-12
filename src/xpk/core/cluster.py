@@ -218,7 +218,7 @@ def get_cluster_nodes_info(args) -> list[dict]:
   if err_code != 0:
     xpk_exit(err_code)
   data = yaml.safe_load(val)
-  return data['items']
+  return data['items']  # type: ignore[no-any-return]
 
 
 def count_nodes_on_cluster(args, system: SystemCharacteristics) -> int:
@@ -526,6 +526,7 @@ def create_pod_reader_role() -> str:
     else:
       xpk_print(f'Error creating Role {role_name}: {e}')
       xpk_exit(1)
+      raise RuntimeError('Never') from None
 
 
 def create_role_binding(sa: str, role_name: str) -> None:
@@ -817,6 +818,8 @@ def update_cluster_with_clouddns_if_necessary(args) -> int:
     server_config_return_code, gke_server_config = get_gke_server_config(args)
     if server_config_return_code != 0:
       xpk_exit(server_config_return_code)
+    assert gke_server_config
+
     upgrade_master_return_code = upgrade_gke_control_plane_version(
         args,
         gke_server_config.default_rapid_gke_version,

@@ -87,6 +87,7 @@ class FilestoreClient:
     except GoogleCloudError as e:
       xpk_print(f"Exception while trying to list instances {e}")
       xpk_exit(1)
+      raise RuntimeError("Never") from None
 
     fullname_zonal = self.get_instance_fullname(self.zone)
     fullname_regional = self.get_instance_fullname(self.region)
@@ -98,6 +99,7 @@ class FilestoreClient:
     for instance in instancesRegional:
       if instance.name == fullname_regional:
         return instance
+    return None
 
   def check_instance_exists(self) -> bool:
     """Check if Filestore instance exists"""
@@ -111,6 +113,7 @@ class FilestoreClient:
   def get_instance_location(self) -> str:
     """Get Filestore instance's location"""
     self.load_instance()
+    assert self.instance
     return str(self.instance.name.split("/")[3])
 
   def create_instance(
@@ -192,6 +195,7 @@ class FilestoreClient:
 
   def create_sc(self, name: str, network: str) -> dict:
     """Create a yaml representing filestore StorageClass."""
+    assert self.instance
     data = templates.load(FS_SC_PATH)
     data["metadata"]["name"] = get_storage_class_name(name)
     data["parameters"]["tier"] = self.instance.tier.name
@@ -202,6 +206,7 @@ class FilestoreClient:
 
   def create_pv(self, name: str, vol: str, access_mode: str) -> dict:
     """Create a yaml representing filestore PersistentVolume."""
+    assert self.instance
     data = templates.load(FS_PV_PATH)
     data["metadata"]["name"] = get_pv_name(name)
     data["spec"]["storageClassName"] = get_storage_class_name(name)
@@ -219,6 +224,7 @@ class FilestoreClient:
 
   def create_pvc(self, name: str, access_mode: str) -> dict:
     """Create a yaml representing filestore PersistentVolumeClaim."""
+    assert self.instance
     data = templates.load(FS_PVC_PATH)
     data["metadata"]["name"] = get_pvc_name(name)
     data["spec"]["accessModes"] = [access_mode]

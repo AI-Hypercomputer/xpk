@@ -75,7 +75,7 @@ def add_zone_and_project(args):
   xpk_print(f'Working on {args.project} and {args.zone}')
 
 
-def zone_to_region(zone) -> str:
+def zone_to_region(zone: str) -> str:
   """Helper function converts zone name to region name.
 
   Args:

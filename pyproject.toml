@@ -62,7 +62,10 @@ dev = [
     "pylint>=2.6.0",
     "pre-commit",
     "pytest",
-    "docker==7.1.0"
+    "docker==7.1.0",
+    "mypy >= 1.17, < 2",
+    "types-PyYAML == 6.0",
+    "types-docker == 7.1",
 ]
 
 [tool.setuptools.dynamic]
@@ -79,3 +82,36 @@ line-length = 80
 unstable = true
 pyink-indentation = 2
 pyink-use-majority-quotes = true
+
+[tool.mypy]
+warn_return_any = true
+warn_unused_configs = true
+follow_untyped_imports = true
+# Remove follow_imports below once the exclude list is empty:
+follow_imports = "silent"
+files = "src"
+exclude = [
+  'src/xpk/commands/cluster_gcluster\.py',
+  'src/xpk/commands/cluster\.py',
+  'src/xpk/commands/info\.py',
+  'src/xpk/commands/job\.py',
+  'src/xpk/commands/kjob_common\.py',
+  'src/xpk/commands/storage\.py',
+  'src/xpk/commands/workload\.py',
+  'src/xpk/core/blueprint/blueprint_generator\.py',
+  'src/xpk/core/cluster_private\.py',
+  'src/xpk/core/commands\.py',
+  'src/xpk/core/config\.py',
+  'src/xpk/core/gcluster_manager\.py',
+  'src/xpk/core/kueue\.py',
+  'src/xpk/core/nap\.py',
+  'src/xpk/core/ray\.py',
+  'src/xpk/core/storage\.py',
+  'src/xpk/core/workload_decorators/rdma_decorator\.py',
+  'src/xpk/core/workload_decorators/tcpx_decorator\.py',
+  'src/xpk/parser/cluster\.py',
+  'src/xpk/parser/info\.py',
+  'src/xpk/parser/job\.py',
+  'src/xpk/parser/shell\.py',
+  'src/xpk/parser/storage\.py',
+]

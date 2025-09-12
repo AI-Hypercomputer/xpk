@@ -247,23 +247,7 @@ GCP_NAME_FILTER_VALUE_REGEX = re.compile(r'[a-z0-9\-]+')
 """Defines correct name prefix value (contains only letters, numbers and dashes) that can be used in GCP filter chips."""
 
 
-def get_workload_list_gcp_link(
-    project: str,
-    cluster: str,
-    zone: str,
-    job_name_filter: str | None,
-) -> str:
-  """Returns a link to Cloud Console Workloads list"""
+def get_jobsets_list_gcp_link(project: str) -> str:
+  """Returns a link to Cloud Console JobSets list"""
 
-  filters_encoded = [
-      f'%257B_22k_22_3A_22Cluster_22_2C_22t_22_3A10_2C_22v_22_3A_22_5C_22{cluster}_5C_22_22_2C_22i_22_3A_22metadata%252FclusterReference%252Fname_22%257D',
-      f'%257B_22k_22_3A_22Location_22_2C_22t_22_3A10_2C_22v_22_3A_22_5C_22{zone_to_region(zone)}_5C_22_22_2C_22i_22_3A_22metadata%252FclusterReference%252FgcpLocation_22%257D',
-      '%257B_22k_22_3A_22Type_22_2C_22t_22_3A10_2C_22v_22_3A_22_5C_22Job_5C_22_22_2C_22i_22_3A_22type_meta%252FkindName_22%257D',
-  ]
-  if job_name_filter and GCP_NAME_FILTER_VALUE_REGEX.fullmatch(job_name_filter):
-    filters_encoded.append(
-        f'%257B_22k_22_3A_22Name_22_2C_22t_22_3A10_2C_22v_22_3A_22_5C_22{job_name_filter}_5C_22_22_2C_22i_22_3A_22metadata%252Fname_22%257D'
-    )
-  filters_state = '_2C'.join(filters_encoded)
-
-  return f'https://console.cloud.google.com/kubernetes/workload/overview?project={project}&pageState=(%22workload_list_table%22:(%22f%22:%22%255B{filters_state}%255D%22))'
+  return f'https://console.cloud.google.com/kubernetes/aiml/deployments/jobs?project={project}'

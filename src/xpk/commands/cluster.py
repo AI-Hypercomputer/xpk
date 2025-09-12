@@ -141,8 +141,6 @@ def cluster_adapt(args) -> None:
     if not tensorboard_config:
       xpk_exit(1)
 
-  # Provision node pools dynamically based on incoming workloads:
-  # Currently autoprovisioning is not supported with Pathways.
   autoprovisioning_config = None
   if args.enable_autoprovisioning:
     xpk_print('Enabling Autoprovisioning')
@@ -294,7 +292,7 @@ def cluster_create(args) -> None:
   # Provision node pools dynamically based on incoming workloads:
   # Currently autoprovisioning is not supported with Pathways.
   autoprovisioning_config = None
-  if not args.enable_pathways and args.enable_autoprovisioning:
+  if args.enable_autoprovisioning:
     xpk_print('Enabling Autoprovisioning')
     autoprovisioning_config, return_code = enable_autoprovisioning_on_cluster(
         args, system
@@ -819,7 +817,7 @@ def check_deployment_exists(args, deployment_name: str, namespace: str) -> bool:
 
 
 def verify_coredns_readiness(
-    args, timeout: int = 120, namespace: str = 'kube-system'
+    args, timeout: int = 240, namespace: str = 'kube-system'
 ):
   """Verifies CoreDNS readiness using kubectl wait commands."""
   xpk_print('Now verifying CoreDNS readiness...')

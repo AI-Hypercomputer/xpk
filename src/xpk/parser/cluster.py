@@ -208,6 +208,14 @@ def set_cluster_create_pathways_parser(
       cluster_create_pathways_optional_arguments
   )
 
+  autoprovisioning_arguments = (
+      cluster_create_pathways_parser.add_argument_group(
+          'Autoprovisioning Arguments',
+          'Optional arguments for enabling autoprovisioning.',
+      )
+  )
+  add_autoprovisioning_arguments(autoprovisioning_arguments)
+
   ### Capacity arguments specific to "cluster create-pathways"
   cluster_create_pathways_capacity_arguments = (
       cluster_create_pathways_parser.add_argument_group(

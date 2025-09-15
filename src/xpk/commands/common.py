@@ -50,8 +50,8 @@ def set_cluster_command(args) -> int:
 
 
 def is_TAS_possible(
-    system_characteristics: SystemCharacteristics,
-    capacity_type: CapacityType,
+    system_characteristics: SystemCharacteristics | None,
+    capacity_type: CapacityType | None,
     flex: bool,
 ) -> bool:
   """Check cluster's machine_type and capacity type to determine if Kueue TAS is possible
@@ -66,10 +66,12 @@ def is_TAS_possible(
   if system_characteristics is None:
     xpk_print('system_characteristics data was not found in configmaps.')
     xpk_exit(1)
+    raise RuntimeError('Unreachable')
 
   if capacity_type is None:
     xpk_print('capacity_type data was not found in configmaps.')
     xpk_exit(1)
+    raise RuntimeError('Unreachable')
 
   if not flex:
     return False

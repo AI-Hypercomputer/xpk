@@ -55,7 +55,7 @@ class SystemCharacteristics:
   gke_accelerator: str
   gce_machine_type: str
   chips_per_vm: int
-  accelerator_type: AcceleratorType  # type: ignore
+  accelerator_type: int
   device_type: str
 
 

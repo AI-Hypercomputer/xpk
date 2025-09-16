@@ -28,6 +28,10 @@ from .common import (
     add_kind_cluster_arguments,
     add_shared_arguments,
 )
+from typing import Protocol, Any
+
+class Subcommands(Protocol):
+    def add_parser(self, *args, **kwargs) -> Any: ...
 
 
 def set_storage_parser(storage_parser: argparse.ArgumentParser) -> None:
@@ -47,7 +51,7 @@ def set_storage_parser(storage_parser: argparse.ArgumentParser) -> None:
 
 
 def add_storage_attach_parser(
-    storage_subcommands_parser: argparse.ArgumentParser,
+    storage_subcommands_parser: Subcommands,
 ) -> None:
 
   storage_attach_parser: argparse.ArgumentParser = (
@@ -172,7 +176,7 @@ def add_storage_attach_parser(
 
 
 def add_storage_create_parser(
-    storage_subcommands_parser: argparse.ArgumentParser,
+    storage_subcommands_parser: Subcommands
 ) -> None:
   storage_create_parser: argparse.ArgumentParser = (
       storage_subcommands_parser.add_parser(
@@ -273,8 +277,8 @@ def add_storage_create_parser(
 
 
 def add_storage_list_parser(
-    storage_subcommands_parser: argparse.ArgumentParser,
-):
+    storage_subcommands_parser: Subcommands
+) -> None:
   storage_list_parser: argparse.ArgumentParser = (
       storage_subcommands_parser.add_parser('list', help='List XPK Storages.')
   )
@@ -291,8 +295,8 @@ def add_storage_list_parser(
 
 
 def add_storage_detach_parser(
-    storage_subcommands_parser: argparse.ArgumentParser,
-):
+    storage_subcommands_parser: Subcommands
+) -> None:
   storage_detach_parser: argparse.ArgumentParser = (
       storage_subcommands_parser.add_parser(
           'detach', help='Detach XPK Storage.'
@@ -316,8 +320,8 @@ def add_storage_detach_parser(
 
 
 def add_storage_delete_parser(
-    storage_subcommands_parser: argparse.ArgumentParser,
-):
+    storage_subcommands_parser: Subcommands
+) -> None:
   storage_delete_parser: argparse.ArgumentParser = (
       storage_subcommands_parser.add_parser(
           'delete', help='Delete XPK Storage.'

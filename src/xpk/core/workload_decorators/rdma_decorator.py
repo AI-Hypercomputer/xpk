@@ -18,7 +18,7 @@ import yaml
 from ...utils.yaml import literal_string
 
 
-def decorate_kjob_template(job_manifest) -> str:
+def decorate_kjob_template(job_manifest: dict) -> dict:
   spec = (
       job_manifest.setdefault('spec', {})
       .setdefault('template', {})
@@ -64,7 +64,8 @@ def decorate_jobset(jobset_manifest_str: str, sub_networks: list[str]) -> str:
     add_tolerations(job_manifest)
     update_gpu_containers(job_manifest)
 
-  return yaml.dump(manifest, sort_keys=False)
+  yaml_str: str = yaml.dump(manifest, sort_keys=False)
+  return yaml_str
 
 
 def get_interfaces_entry(sub_networks: list[str]) -> tuple[str, str]:

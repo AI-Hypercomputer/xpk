@@ -321,7 +321,7 @@ def workload_create(args) -> None:
   xpk_print('Starting workload create', flush=True)
   system, return_code = get_system_characteristics(args)
 
-  if return_code > 0:
+  if return_code > 0 or system is None:
     xpk_print('Fetching system characteristics failed!')
     xpk_exit(return_code)
 
@@ -347,7 +347,7 @@ def workload_create(args) -> None:
   ):
     xpk_print(
         'Warning: Cluster has been created using XPK version:'
-        f' {cluster_config_map["xpk_version"]} but the XPK version you are'
+        f' {cluster_xpk_version} but the XPK version you are'
         f' using to schedule workload is: {XPK_CURRENT_VERSION}. Some features'
         ' might not be available for this cluster. We recommend to'
         ' upgrade/downgrade your XPK version or cluster by running `xpk'
@@ -356,7 +356,7 @@ def workload_create(args) -> None:
 
   debugging_dashboard_id = None
 
-  tensorboard_config = {}
+  tensorboard_config: dict | None = {}
   if VERTEX_TENSORBOARD_FEATURE_FLAG and args.use_vertex_tensorboard:
     tensorboard_config = create_vertex_experiment(args)
     # exit if failed to create Experiment in Vertex AI
@@ -452,8 +452,8 @@ def workload_create(args) -> None:
       - action: FailJobSet
         onJobFailureReasons:
         - PodFailurePolicy"""
-    restart_on_exit_codes = get_restart_exit_codes(args)
-    restart_on_exit_codes = ','.join(map(str, restart_on_exit_codes))
+    restart_on_exit_codes_list = get_restart_exit_codes(args)
+    restart_on_exit_codes = ','.join(map(str, restart_on_exit_codes_list))
     pod_failure_policy = f"""
           podFailurePolicy:
             rules:

@@ -92,7 +92,7 @@ def cluster_adapt(args) -> None:
 
   system, return_code = get_system_characteristics(args)
 
-  if return_code > 0:
+  if return_code > 0 or system is None:
     xpk_print('Fetching system characteristics failed!')
     xpk_exit(return_code)
 
@@ -199,7 +199,7 @@ def cluster_create(args) -> None:
   """
   system, return_code = get_system_characteristics(args)
 
-  if return_code > 0:
+  if return_code > 0 or system is None:
     xpk_print('Fetching system characteristics failed!')
     xpk_exit(return_code)
 
@@ -215,13 +215,13 @@ def cluster_create(args) -> None:
     xpk_exit(0)
 
   return_code, gke_server_config = get_gke_server_config(args)
-  if return_code != 0:
+  if return_code != 0 or gke_server_config is None:
     xpk_exit(return_code)
 
   return_code, gke_control_plane_version = get_gke_control_plane_version(
       args, gke_server_config
   )
-  if return_code != 0:
+  if return_code != 0 or gke_control_plane_version is None:
     xpk_exit(return_code)
 
   create_cluster_command_code = create_cluster_if_necessary(
@@ -396,7 +396,7 @@ def cluster_cacheimage(args) -> None:
   get_cluster_credentials(args)
   system, return_code = get_system_characteristics(args)
 
-  if return_code > 0:
+  if return_code > 0 or system is None:
     xpk_print('Fetching system characteristics failed!')
     xpk_exit(return_code)
 
@@ -813,7 +813,7 @@ def check_deployment_exists(args, deployment_name: str, namespace: str) -> bool:
   result = run_command_with_updates(
       command, 'Waiting for kubeDNS to be checked.', args
   )
-  return result
+  return result != 0
 
 
 def verify_coredns_readiness(
@@ -872,7 +872,7 @@ def cleanup_coredns_repo(coredns_repo_full_path: str):
     xpk_print(f'Error deleting directory {coredns_repo_full_path}: {e}')
 
 
-def update_coredns(args):
+def update_coredns(args) -> int:
   """Updates and deploys CoreDNS within a cluster.
 
   Args:

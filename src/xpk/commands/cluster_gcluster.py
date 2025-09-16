@@ -310,4 +310,5 @@ def generate_blueprint(
           system_node_pool_machine_type=args.default_pool_cpu_machine_type,
           system_node_pool_min_node_count=args.default_pool_cpu_num_nodes,
       )
-  return None
+  xpk_print('Device type is not supported.')
+  xpk_exit(1)

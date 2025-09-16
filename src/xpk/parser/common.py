@@ -15,24 +15,27 @@ limitations under the License.
 """
 
 import argparse
+from typing import Protocol, Any
 
+class ParserOrArgumentGroup(Protocol):
+    def add_argument(self, *args, **kwargs) -> Any: ...
 
 def add_shared_arguments(
-    custom_parser: argparse.ArgumentParser, required=False
+    custom_parser_or_group: ParserOrArgumentGroup, required=False
 ) -> None:
-  """Add shared arguments to the parser.
+  """Add shared arguments to the parser or argument group.
 
   Args:
-    custom_parser: parser to add shared arguments to.
+    custom_parser_or_group: parser or argument group to add shared arguments to.
   """
-  custom_parser.add_argument(
+  custom_parser_or_group.add_argument(
       '--project',
       type=str,
       default=None,
       help='GCE project name, defaults to "gcloud config project."',
       required=required,
   )
-  custom_parser.add_argument(
+  custom_parser_or_group.add_argument(
       '--zone',
       type=str,
       default=None,
@@ -43,7 +46,7 @@ def add_shared_arguments(
       ),
       required=required,
   )
-  custom_parser.add_argument(
+  custom_parser_or_group.add_argument(
       '--dry-run',
       type=bool,
       action=argparse.BooleanOptionalAction,
@@ -58,14 +61,14 @@ def add_shared_arguments(
 
 
 def add_cluster_arguments(
-    custom_parser: argparse.ArgumentParser, required=False
+    custom_parser_or_group: ParserOrArgumentGroup, required=False
 ) -> None:
-  """Add cluster argument to the parser.
+  """Add cluster argument to the parser or argument group.
 
   Args:
-    custom_parser: parser to add shared arguments to.
+    custom_parser_or_group: parser or argument group to add shared arguments to.
   """
-  custom_parser.add_argument(
+  custom_parser_or_group.add_argument(
       '--cluster',
       type=str,
       default=None,
@@ -74,13 +77,13 @@ def add_cluster_arguments(
   )
 
 
-def add_kind_cluster_arguments(custom_parser: argparse.ArgumentParser) -> None:
-  """Add kind cluster arguments to the parser.
+def add_kind_cluster_arguments(custom_parser_or_group: ParserOrArgumentGroup) -> None:
+  """Add kind cluster arguments to the parser or argument group.
 
   Args:
-    custom_parser: parser to add shared arguments to.
+    custom_parser_or_group: parser or argument group to add shared arguments to.
   """
-  custom_parser.add_argument(
+  custom_parser_or_group.add_argument(
       '--kind-cluster',
       type=bool,
       action=argparse.BooleanOptionalAction,
@@ -89,13 +92,13 @@ def add_kind_cluster_arguments(custom_parser: argparse.ArgumentParser) -> None:
   )
 
 
-def add_global_arguments(custom_parser: argparse.ArgumentParser):
+def add_global_arguments(custom_parser_or_group: ParserOrArgumentGroup):
   """Add global - no cloud dependent -  arguments to the parser.
 
   Args:
-    custom_parser: parser to add global arguments to.
+    custom_parser_or_group: parser or argument group to add global arguments to.
   """
-  custom_parser.add_argument(
+  custom_parser_or_group.add_argument(
       '--dry-run',
       type=bool,
       action=argparse.BooleanOptionalAction,
@@ -108,20 +111,20 @@ def add_global_arguments(custom_parser: argparse.ArgumentParser):
   )
 
 
-def add_slurm_arguments(custom_parser: argparse.ArgumentParser):
+def add_slurm_arguments(custom_parser_or_group: ParserOrArgumentGroup):
   """Add Slurm job arguments to the parser.
 
   Args:
-    custom_parser: parser to add global arguments to.
+    custom_parser_or_group: parser or argument group to add global arguments to.
   """
-  custom_parser.add_argument(
+  custom_parser_or_group.add_argument(
       '--ignore-unknown-flags',
       type=bool,
       action=argparse.BooleanOptionalAction,
       default=False,
       help='Ignore all the unsupported flags in the bash script.',
   )
-  custom_parser.add_argument(
+  custom_parser_or_group.add_argument(
       '-a',
       '--array',
       type=str,
@@ -137,32 +140,32 @@ def add_slurm_arguments(custom_parser: argparse.ArgumentParser):
           ' 0. The maximum index value is 2147483647.'
       ),
   )
-  custom_parser.add_argument(
+  custom_parser_or_group.add_argument(
       '-c',
       '--cpus-per-task',
       type=str,
       default=None,
       help='How much cpus a container inside a pod requires.',
   )
-  custom_parser.add_argument(
+  custom_parser_or_group.add_argument(
       '--gpus-per-task',
       type=str,
       default=None,
       help='How much gpus a container inside a pod requires.',
   )
-  custom_parser.add_argument(
+  custom_parser_or_group.add_argument(
       '--mem',
       type=str,
       default=None,
       help='How much memory a pod requires.',
   )
-  custom_parser.add_argument(
+  custom_parser_or_group.add_argument(
       '--mem-per-task',
       type=str,
       default=None,
       help='How much memory a container requires.',
   )
-  custom_parser.add_argument(
+  custom_parser_or_group.add_argument(
       '--mem-per-cpu',
       type=str,
       default=None,
@@ -171,7 +174,7 @@ def add_slurm_arguments(custom_parser: argparse.ArgumentParser):
           'of requested cpus per task by mem-per-cpu.'
       ),
   )
-  custom_parser.add_argument(
+  custom_parser_or_group.add_argument(
       '--mem-per-gpu',
       type=str,
       default=None,
@@ -180,21 +183,21 @@ def add_slurm_arguments(custom_parser: argparse.ArgumentParser):
           'of requested gpus per task by mem-per-gpu.'
       ),
   )
-  custom_parser.add_argument(
+  custom_parser_or_group.add_argument(
       '-N',
       '--nodes',
       type=int,
       default=None,
       help='Number of pods to be used at a time.',
   )
-  custom_parser.add_argument(
+  custom_parser_or_group.add_argument(
       '-n',
       '--ntasks',
       type=int,
       default=None,
       help='Number of identical containers inside of a pod, usually 1.',
   )
-  custom_parser.add_argument(
+  custom_parser_or_group.add_argument(
       '-o',
       '--output',
       type=str,
@@ -204,7 +207,7 @@ def add_slurm_arguments(custom_parser: argparse.ArgumentParser):
           ' passed it proceeds to stdout, and is available via kubectl logs.'
       ),
   )
-  custom_parser.add_argument(
+  custom_parser_or_group.add_argument(
       '-e',
       '--error',
       type=str,
@@ -214,27 +217,27 @@ def add_slurm_arguments(custom_parser: argparse.ArgumentParser):
           ' proceeds to stdout, and is available via kubectl logs.'
       ),
   )
-  custom_parser.add_argument(
+  custom_parser_or_group.add_argument(
       '--input',
       type=str,
       default=None,
       help='What to pipe into the script.',
   )
-  custom_parser.add_argument(
+  custom_parser_or_group.add_argument(
       '-J',
       '--job-name',
       type=str,
       default=None,
       help='What is the job name.',
   )
-  custom_parser.add_argument(
+  custom_parser_or_group.add_argument(
       '-D',
       '--chdir',
       type=str,
       default=None,
       help='Change directory before executing the script.',
   )
-  custom_parser.add_argument(
+  custom_parser_or_group.add_argument(
       '-t',
       '--time',
       type=str,
@@ -247,7 +250,7 @@ def add_slurm_arguments(custom_parser: argparse.ArgumentParser):
           'and "days-hours:minutes:seconds".'
       ),
   )
-  custom_parser.add_argument(
+  custom_parser_or_group.add_argument(
       '--priority',
       type=str,
       default='medium',

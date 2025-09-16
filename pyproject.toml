@@ -100,27 +100,6 @@ no_implicit_reexport = false
 follow_imports = "silent"
 files = "src"
 exclude = [
-  'src/xpk/commands/cluster_gcluster\.py',
-  'src/xpk/commands/cluster\.py',
-  'src/xpk/commands/info\.py',
-  'src/xpk/commands/job\.py',
-  'src/xpk/commands/kjob_common\.py',
-  'src/xpk/commands/storage\.py',
-  'src/xpk/commands/workload\.py',
   'src/xpk/core/blueprint/blueprint_generator\.py',
-  'src/xpk/core/cluster_private\.py',
-  'src/xpk/core/commands\.py',
-  'src/xpk/core/config\.py',
-  'src/xpk/core/gcluster_manager\.py',
-  'src/xpk/core/kueue\.py',
-  'src/xpk/core/nap\.py',
-  'src/xpk/core/ray\.py',
-  'src/xpk/core/storage\.py',
-  'src/xpk/core/workload_decorators/rdma_decorator\.py',
-  'src/xpk/core/workload_decorators/tcpx_decorator\.py',
-  'src/xpk/parser/cluster\.py',
-  'src/xpk/parser/info\.py',
-  'src/xpk/parser/job\.py',
-  'src/xpk/parser/shell\.py',
-  'src/xpk/parser/storage\.py',
+
 ]

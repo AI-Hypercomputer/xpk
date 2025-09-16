@@ -324,7 +324,7 @@ def delete_multikueueclusters_definitions(args) -> int:
   return return_code
 
 
-def get_kueue_version(args) -> (int, str):
+def get_kueue_version(args) -> tuple[int, str]:
   command = 'kubectl kueue version'
   task = 'Get kueue version on server'
   return_code, val = run_command_for_value(command, task, args)

@@ -217,8 +217,8 @@ def get_cluster_nodes_info(args) -> list[dict]:
   )
   if err_code != 0:
     xpk_exit(err_code)
-  data = yaml.safe_load(val)
-  return data['items']  # type: ignore[no-any-return]
+  data: dict[str, list[dict]] = yaml.safe_load(val)
+  return data['items']
 
 
 def count_nodes_on_cluster(args, system: SystemCharacteristics) -> int:

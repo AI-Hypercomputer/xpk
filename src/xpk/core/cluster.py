@@ -526,7 +526,6 @@ def create_pod_reader_role() -> str:
     else:
       xpk_print(f'Error creating Role {role_name}: {e}')
       xpk_exit(1)
-      raise RuntimeError('Never') from None
 
 
 def create_role_binding(sa: str, role_name: str) -> None:

@@ -66,12 +66,10 @@ def is_TAS_possible(
   if system_characteristics is None:
     xpk_print('system_characteristics data was not found in configmaps.')
     xpk_exit(1)
-    raise RuntimeError('Unreachable')
 
   if capacity_type is None:
     xpk_print('capacity_type data was not found in configmaps.')
     xpk_exit(1)
-    raise RuntimeError('Unreachable')
 
   if not flex:
     return False

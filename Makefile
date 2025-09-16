@@ -32,10 +32,10 @@ install-pytest:
 
 .PHONY: run-unittests
 run-unittests:
-	pytest  -vv src/xpk/core/tests/unit/
+	pytest  -vv src/xpk/
 
 run-integrationtests:
-	pytest src/xpk/core/tests/integration/
+	pytest src/integration/
 
 .PHONY: mkdir-bin
 mkdir-bin:

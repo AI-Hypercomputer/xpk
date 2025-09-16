@@ -101,5 +101,4 @@ follow_imports = "silent"
 files = "src"
 exclude = [
   'src/xpk/core/blueprint/blueprint_generator\.py',
-
 ]

@@ -126,10 +126,11 @@ def get_pods(pods_text: str) -> list[dict[str, str]]:
 
 
 def get_script_name(job_yaml: dict) -> str | None:
-  return cast(str | None,
+  return cast(
+      str | None,
       job_yaml.get('metadata', {})
       .get('annotations', {})
-      .get('kjobctl.x-k8s.io/script', '')
+      .get('kjobctl.x-k8s.io/script', ''),
   )
 
 

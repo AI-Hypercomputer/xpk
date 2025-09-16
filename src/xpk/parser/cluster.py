@@ -565,7 +565,9 @@ def add_autoprovisioning_arguments(parser_or_group: ParserOrArgumentGroup):
   )
 
 
-def add_shared_cluster_create_required_arguments(parser_or_group: ParserOrArgumentGroup):
+def add_shared_cluster_create_required_arguments(
+    parser_or_group: ParserOrArgumentGroup,
+):
   """Add shared required arguments in cluster create and Pathways cluster create.
 
   Args:
@@ -583,7 +585,9 @@ def add_shared_cluster_create_required_arguments(parser_or_group: ParserOrArgume
   )
 
 
-def add_shared_cluster_create_optional_arguments(parser_or_group: ParserOrArgumentGroup):
+def add_shared_cluster_create_optional_arguments(
+    parser_or_group: ParserOrArgumentGroup,
+):
   """Add shared optional arguments in cluster create and Pathways cluster create.
 
   Args:
@@ -758,7 +762,9 @@ def add_driver_arguments(parser_or_group: ParserOrArgumentGroup):
   )
 
 
-def add_shared_cluster_create_tensorboard_arguments(parser_or_group: ParserOrArgumentGroup):
+def add_shared_cluster_create_tensorboard_arguments(
+    parser_or_group: ParserOrArgumentGroup,
+):
   """Add shared tensorboard arguments in cluster create and Pathways cluster create.
   Note that this feature enables non-Pathways workloads to use tensorboard arguments
   on a Pathways cluster.
@@ -795,7 +801,9 @@ def add_shared_cluster_create_tensorboard_arguments(parser_or_group: ParserOrArg
   )
 
 
-def add_shared_cluster_create_capacity_arguments(parser_or_group: ParserOrArgumentGroup):
+def add_shared_cluster_create_capacity_arguments(
+    parser_or_group: ParserOrArgumentGroup,
+):
   """Add shared capacity arguments in cluster create and Pathways cluster create.
 
   Args:
@@ -839,7 +847,9 @@ def add_shared_cluster_create_capacity_arguments(parser_or_group: ParserOrArgume
   )
 
 
-def add_shared_cluster_create_mtc_arguments(parser_or_group: ParserOrArgumentGroup):
+def add_shared_cluster_create_mtc_arguments(
+    parser_or_group: ParserOrArgumentGroup,
+):
   """Add shared Multi-tier Checkpointing arguments in cluster create and Pathways cluster create.
 
   Args:

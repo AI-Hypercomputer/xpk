@@ -17,8 +17,12 @@ limitations under the License.
 import argparse
 from typing import Protocol, Any
 
+
 class ParserOrArgumentGroup(Protocol):
-    def add_argument(self, *args, **kwargs) -> Any: ...
+
+  def add_argument(self, *args, **kwargs) -> Any:
+    ...
+
 
 def add_shared_arguments(
     custom_parser_or_group: ParserOrArgumentGroup, required=False
@@ -77,7 +81,9 @@ def add_cluster_arguments(
   )
 
 
-def add_kind_cluster_arguments(custom_parser_or_group: ParserOrArgumentGroup) -> None:
+def add_kind_cluster_arguments(
+    custom_parser_or_group: ParserOrArgumentGroup,
+) -> None:
   """Add kind cluster arguments to the parser or argument group.
 
   Args:

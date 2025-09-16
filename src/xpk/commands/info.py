@@ -176,7 +176,7 @@ def get_flavors_usage(
     Dict where for each (key, value):
     - key is flavorName:resourceName
     - value is string formatted as 'flavorResourceReservation/flavorResourceQuota'
- """
+  """
   status = q_entry['status']
   flavors_res = status[res_field]
   queue_type = q_entry['kind']

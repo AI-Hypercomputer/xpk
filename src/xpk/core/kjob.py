@@ -460,7 +460,7 @@ def create_volume_bundle_instance(
     )
     xpk_print(
         f"Created {KJOB_API_VOLUME_BUNDLE_PLURAL}.{KJOB_API_GROUP_NAME} object:"
-        f" {data["metadata"]["name"]}"
+        f" {data['metadata']['name']}"
     )
   except ApiException as e:
     if e.status == 409:

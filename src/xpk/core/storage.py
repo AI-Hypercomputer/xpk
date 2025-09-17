@@ -477,7 +477,7 @@ def save_storage_crds(k8s_api_client: ApiClient, data: Any):
       plural=STORAGE_CRD_PLURAL,
       body=data,
   )
-  xpk_print(f"Created {STORAGE_CRD_KIND} object: {data["metadata"]["name"]}")
+  xpk_print(f"Created {STORAGE_CRD_KIND} object: {data['metadata']['name']}")
 
 
 def fill_storage_template(

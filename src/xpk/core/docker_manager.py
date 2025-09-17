@@ -200,7 +200,7 @@ class DockerManager(CommandRunner):
   def _print_logs_from_container(self, container):
     output = container.attach(stdout=True, stream=True, logs=True)
     for line in output:
-      xpk_print(f"[gcluster] {line.decode("utf-8").strip()}")
+      xpk_print(f"[gcluster] {line.decode('utf-8').strip()}")
 
   def upload_directory_to_working_dir(self, path: str, prefix: str = "") -> str:
     """Move file or directory from specified path to directory containing deployment files

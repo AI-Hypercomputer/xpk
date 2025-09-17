@@ -190,7 +190,7 @@ def update_cluster_authorized_networks(args, authorized_networks) -> int:
       f' {args.cluster} --project={args.project}'
       f' --region={zone_to_region(args.zone)}'
       ' --enable-master-authorized-networks'
-      f' --master-authorized-networks={','.join(authorized_networks)}'
+      f' --master-authorized-networks={",".join(authorized_networks)}'
       ' --quiet'
   )
 

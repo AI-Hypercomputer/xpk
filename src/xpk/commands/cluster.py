@@ -806,6 +806,7 @@ def scale_up_coredns(args, replicas: int = 15, namespace: str = 'kube-system'):
 
 def check_deployment_exists(args, deployment_name: str, namespace: str) -> bool:
   """Check for the existence of a specific Deployment in a given namespace."""
+  # TODO: rewrite this to be more obvious, check if it is correct
   command = (
       f'kubectl get deployment {deployment_name} -n'
       f' {namespace} --ignore-not-found'

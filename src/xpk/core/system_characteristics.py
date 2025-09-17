@@ -55,7 +55,7 @@ class SystemCharacteristics:
   gke_accelerator: str
   gce_machine_type: str
   chips_per_vm: int
-  accelerator_type: int
+  accelerator_type: int # TODO: use enums
   device_type: str
 
 

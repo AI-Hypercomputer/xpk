@@ -20,7 +20,7 @@ BIN_PATH=$(PROJECT_DIR)/bin
 install: check-python check-gcloud install-gcloud-auth-plugin install-kueuectl install-kjobctl pip-install
 
 .PHONY: install-dev
-install-dev: check-python check-gcloud mkdir-bin install-kueuectl install-kjobctl pip-install install-pytest
+install-dev: check-python check-gcloud mkdir-bin install-kueuectl install-kjobctl pip-install install-pytest install-lint
 
 .PHONY: pip-install
 pip-install:
@@ -32,10 +32,10 @@ install-pytest:
 
 .PHONY: run-unittests
 run-unittests:
-	pytest  -vv src/xpk/core/tests/unit/
+	pytest  -vv src/xpk/
 
 run-integrationtests:
-	pytest src/xpk/core/tests/integration/
+	pytest src/integration/
 
 .PHONY: mkdir-bin
 mkdir-bin:

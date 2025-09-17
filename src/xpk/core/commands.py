@@ -274,9 +274,9 @@ def run_command_for_value(
         else:
           if not quiet:
             xpk_print(f'Task: `{task}` terminated with code `{return_code}`')
-          out, err = child.communicate()
-          out, err = str(out, 'UTF-8'), str(err, 'UTF-8')
-          return return_code, f'{out}\n{err}'
+          out_bytes, err_bytes = child.communicate()
+          out_str, err_str = str(out_bytes, 'UTF-8'), str(err_bytes, 'UTF-8')
+          return return_code, f'{out_str}\n{err_str}'
   else:
     if not quiet:
       xpk_print(

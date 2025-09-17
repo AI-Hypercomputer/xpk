@@ -217,8 +217,8 @@ def get_cluster_nodes_info(args) -> list[dict]:
   )
   if err_code != 0:
     xpk_exit(err_code)
-  data = yaml.safe_load(val)
-  return data['items']  # type: ignore[no-any-return]
+  data: dict[str, list[dict]] = yaml.safe_load(val)
+  return data['items']
 
 
 def count_nodes_on_cluster(args, system: SystemCharacteristics) -> int:
@@ -526,7 +526,6 @@ def create_pod_reader_role() -> str:
     else:
       xpk_print(f'Error creating Role {role_name}: {e}')
       xpk_exit(1)
-      raise RuntimeError('Never') from None
 
 
 def create_role_binding(sa: str, role_name: str) -> None:

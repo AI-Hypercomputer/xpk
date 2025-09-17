@@ -277,7 +277,8 @@ def decorate_job_template_with_gpu(yml_string: str, gpu_type: str) -> str:
     job_spec = rdma_decorator.decorate_kjob_template(job_spec)
   job_template_dict = yaml.safe_load(yml_string)
   job_template_dict["template"] = job_spec
-  return yaml.dump(job_template_dict, sort_keys=False)  # type: ignore[no-any-return]
+  yaml_result: str = yaml.dump(job_template_dict, sort_keys=False)
+  return yaml_result
 
 
 def create_job_template_instance(

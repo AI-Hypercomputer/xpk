@@ -131,6 +131,11 @@ jobs:
     uses: ./.github/workflows/reusable_lint_and_format.yml
     with:
       run-id: '${{needs.set-variables.outputs.run-id}}'
+  verify-goldens:
+    needs: [install-dependencies, set-variables]
+    uses: ./.github/workflows/reusable_goldens.yaml
+    with:
+      run-id: '${{needs.set-variables.outputs.run-id}}'
   run-unit-tests:
     needs: [install-dependencies, set-variables]
     uses: ./.github/workflows/reusable_unit_tests.yaml

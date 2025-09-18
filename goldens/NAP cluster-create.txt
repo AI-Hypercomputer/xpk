@@ -1,0 +1,47 @@
+[XPK] Starting xpk
+[XPK] Starting cluster create for cluster golden-cluster:
+[XPK] Working on golden-project and us-central1-a
+[XPK] Task: `Determine server supported GKE versions for default rapid gke version` is implemented by the following command not running since it is a dry run. 
+gcloud container get-server-config --project=golden-project --region=us-central1 --flatten="channels" --filter="channels.channel=RAPID" --format="value(channels.defaultVersion)"
+[XPK] Task: `Determine server supported GKE versions for valid versions` is implemented by the following command not running since it is a dry run. 
+gcloud container get-server-config --project=golden-project --region=us-central1 --flatten="channels" --filter="channels.channel=RAPID" --format="value(channels.validVersions)"
+[XPK] Task: `Find if Cluster Exists` is implemented by the following command not running since it is a dry run. 
+gcloud container clusters list --project=golden-project --region=us-central1 --format="csv[no-heading](name)"
+[XPK] Task: `GKE Cluster Create` is implemented by the following command not running since it is a dry run. 
+gcloud beta container clusters create golden-cluster --project=golden-project --region=us-central1 --node-locations=us-central1-a --cluster-version=0 --machine-type=e2-standard-16 --enable-autoscaling --total-min-nodes 1 --total-max-nodes 1000 --num-nodes 6   --enable-dns-access --autoscaling-profile=optimize-utilization --location-policy=BALANCED --scopes=storage-full,gke-default
+[XPK] Task: `Check if Private Nodes is enabled in cluster.` is implemented by the following command not running since it is a dry run. 
+gcloud container clusters describe golden-cluster --project=golden-project --region=us-central1 --format="value(privateClusterConfig.enablePrivateNodes)"
+[XPK] Private Nodes is not enabled on the cluster.
+[XPK] Cluster is public and no need to authorize networks.
+[XPK] Try 1: get-credentials to cluster golden-cluster
+[XPK] Task: `get-credentials to cluster golden-cluster` is implemented by the following command not running since it is a dry run. 
+gcloud container clusters get-credentials golden-cluster --region=us-central1 --project=golden-project && kubectl config view && kubectl config set-context --current --namespace=default
+[XPK] Task: 'Checking CoreDNS deployment existence' in progress for namespace: kube-system
+[XPK] Task: `Check CoreDNS deployment in kube-system` is implemented by the following command not running since it is a dry run. 
+kubectl get deployment coredns -n kube-system
+[XPK] Now verifying CoreDNS readiness...
+[XPK] Task: `Waiting for kubeDNS to be checked.` is implemented by the following command not running since it is a dry run. 
+kubectl get deployment kube-dns -n kube-system --ignore-not-found
+[XPK] kube-dns deployment not found.
+[XPK] Verifying if CoreDNS is available...
+[XPK] Task: `Wait for coredns available` is implemented by the following command not running since it is a dry run. 
+kubectl wait deployment/coredns --for=condition=Available=true --namespace=kube-system --timeout=240s
+[XPK] CoreDNS has successfully started and passed verification.
+[XPK] CoreDNS deployment 'coredns' found in namespace 'kube-system'.
+[XPK] Skipping CoreDNS deployment since it already exists.
+[XPK] Working on golden-project and us-central1-a
+[XPK] Try 1: get-credentials to cluster golden-cluster
+[XPK] Task: `get-credentials to cluster golden-cluster` is implemented by the following command not running since it is a dry run. 
+gcloud container clusters get-credentials golden-cluster --region=us-central1 --project=golden-project && kubectl config view && kubectl config set-context --current --namespace=default
+[XPK] Couldn't translate project id: golden-project to project number. Error: 403 Permission 'resourcemanager.projects.get' denied on resource '//cloudresourcemanager.googleapis.com/projects/golden-project' (or it may not exist). [reason: "IAM_PERMISSION_DENIED"
+domain: "cloudresourcemanager.googleapis.com"
+metadata {
+  key: "resource"
+  value: "projects/golden-project"
+}
+metadata {
+  key: "permission"
+  value: "resourcemanager.projects.get"
+}
+]
+[XPK] XPK failed, error code 1

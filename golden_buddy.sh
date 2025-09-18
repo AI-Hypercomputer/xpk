@@ -28,7 +28,7 @@ cat "$GOLDENS_FILE" | yq -r '.goldens | to_entries[] | [.key, .value.command] | 
     if [[ "$MODE" = "verify" ]]; then
       printf "${YELLOW}Evaluating: %s${NC}\n" "$key"
     fi
-    eval "$command" > "$GOLDENS_DIR/$key.txt" 2>&1
+    eval "$command" > "$GOLDENS_DIR/${key// /_}.txt" 2>&1
 done
 
 if [[ "$MODE" = "verify" ]]; then

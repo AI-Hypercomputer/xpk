@@ -173,7 +173,7 @@ def run_command_with_updates(command, task, global_args, verbose=True) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
-  if global_args.dry_run:
+  if global_args.dry_run is True:
     xpk_print(
         f'Task: `{task}` is implemented by the following command'
         ' not running since it is a dry run.'

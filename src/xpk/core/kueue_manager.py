@@ -21,6 +21,7 @@ from ..core.commands import (
     run_command_with_updates,
     run_command_with_updates_retry,
 )
+from ..utils.file import write_tmp_file
 from ..utils.console import xpk_print, xpk_exit
 
 WAIT_FOR_KUEUE_TIMEOUT = "10m"
@@ -119,7 +120,9 @@ class KueueManager:
     """
     # Step 1: Install directly from the official URL
     manifest_url = f"https://github.com/kubernetes-sigs/kueue/releases/download/{self.kueue_version}/manifests.yaml"
-    install_command = f"kubectl apply -f {manifest_url}"
+    install_command = (
+        f"kubectl apply --server-side --force-conflicts -f {manifest_url}"
+    )
     return_code = run_command_with_updates_retry(
         install_command, "Install Kueue", Namespace(dry_run=dry_run)
     )
@@ -298,7 +301,9 @@ class KueueManager:
 
   def _apply_manifest(self, manifest: str, dry_run: bool = False) -> int:
     task = "Applying Kueue Custom Resources"
-    return run_command_with_updates(manifest, task, Namespace(dry_run=dry_run))
+    tmp_file = write_tmp_file(manifest).name
+    command = f"kubectl apply -f {tmp_file}"
+    return run_command_with_updates(command, task, Namespace(dry_run=dry_run))
 
   def _update_kueue_resources_if_necessary(self, dry_run: bool = False):
     # Patch memory size limit if necessary

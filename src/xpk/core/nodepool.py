@@ -265,7 +265,9 @@ def run_gke_node_pool_create_command(
       )
       configmap_yml = {}
       configmap_yml[resources_configmap_name] = resources_yml
-      return_code = create_or_update_cluster_configmap(configmap_yml)
+      return_code = create_or_update_cluster_configmap(
+          configmap_yml, args.dry_run
+      )
       if return_code != 0:
         return 1
 
@@ -461,7 +463,7 @@ def get_nodepool_zone(args, nodepool_name) -> tuple[int, str | None]:
       f' --region={zone_to_region(args.zone)} --format="value(locations)"'
   )
   return_code, nodepool_zone = run_command_for_value(
-      command, 'Get Node Pool Zone', args
+      command, 'Get Node Pool Zone', args, dry_run_return_val=args.zone
   )
   if return_code != 0:
     xpk_print(f'Get Node Pool Zone returned ERROR {return_code}')
@@ -570,7 +572,10 @@ def upgrade_gke_nodepools_version(args, default_rapid_gke_version) -> int:
   for i, command in enumerate(commands):
     xpk_print(f'To complete {task_names[i]} we are executing {command}')
   max_return_code = run_commands(
-      commands, 'Update GKE node pools to default RAPID GKE version', task_names
+      commands,
+      'Update GKE node pools to default RAPID GKE version',
+      task_names,
+      dry_run=args.dry_run,
   )
   if max_return_code != 0:
     xpk_print(

@@ -346,7 +346,7 @@ def inspector(args) -> None:
       )
 
   # Summarize inspector:
-  xpk_print(f'Find xpk inspector output file: {inspector_file.name}')
+  xpk_print(f'Find xpk inspector output file: {inspector_file}')
 
   if final_return_code != 0:
     xpk_print(

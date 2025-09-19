@@ -569,7 +569,7 @@ def workload_create(args) -> None:
         pod_failure_policy=pod_failure_policy,
     )
   tmp = write_tmp_file(yml_string)
-  command = f'kubectl apply -f {str(tmp.file.name)}'
+  command = f'kubectl apply -f {str(tmp)}'
   return_code = run_command_with_updates(command, 'Creating Workload', args)
 
   if return_code != 0:
@@ -725,7 +725,11 @@ def workload_delete(args) -> None:
       )
     else:
       return_code = run_commands(
-          commands, 'Delete Workload', task_names, batch=100
+          commands,
+          'Delete Workload',
+          task_names,
+          batch=100,
+          dry_run=args.dry_run,
       )
 
     if return_code != 0:

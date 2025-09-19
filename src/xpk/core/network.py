@@ -221,7 +221,7 @@ def create_cluster_network_config(args) -> int:
   """
   yml_string = CLUSTER_NETWORK_YAML.format(cluster_name=args.cluster)
   tmp = write_tmp_file(yml_string)
-  command = f'kubectl apply -f {str(tmp.file.name)}'
+  command = f'kubectl apply -f {str(tmp)}'
 
   return_code = run_command_with_updates(
       command, 'GKE Cluster Create Network Config', args

@@ -76,6 +76,7 @@ from ..core.vertex import create_vertex_tensorboard
 from ..core.workload import get_workload_list
 from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
+from ..utils.execution_context import is_dry_run
 from . import cluster_gcluster
 from .common import set_cluster_command
 import shutil
@@ -128,9 +129,10 @@ def cluster_adapt(args) -> None:
 
   get_cluster_credentials(args)
 
-  k8s_client = setup_k8s_env(args)
+  if not is_dry_run():
+    k8s_client = setup_k8s_env(args)
+    install_storage_crd(k8s_client)
 
-  install_storage_crd(k8s_client)
   install_storage_csis(args)
 
   # create Vertex Tensorboard for new and existing clusters if create-vertex-tensorboard is set
@@ -251,9 +253,10 @@ def cluster_create(args) -> None:
   if update_coredns_command_code != 0:
     xpk_exit(update_cluster_command_code)
 
-  k8s_client = setup_k8s_env(args)
+  if not is_dry_run():
+    k8s_client = setup_k8s_env(args)
+    install_storage_crd(k8s_client)
 
-  install_storage_crd(k8s_client)
   install_storage_csis(args)
 
   # create Vertex Tensorboard for new and existing clusters if create-vertex-tensorboard is set
@@ -409,10 +412,8 @@ def cluster_cacheimage(args) -> None:
       nodeSelectorKey=node_selector_key,
   )
   tmp = write_tmp_file(yml_string)
-  command_apply = f'kubectl apply -f {str(tmp.file.name)}'
-  command_delete = (
-      f'kubectl delete -f {str(tmp.file.name)} --ignore-not-found=true'
-  )
+  command_apply = f'kubectl apply -f {str(tmp)}'
+  command_delete = f'kubectl delete -f {str(tmp)} --ignore-not-found=true'
 
   return_code = run_command_with_updates(
       command_delete, 'Deleting Cached Image', args

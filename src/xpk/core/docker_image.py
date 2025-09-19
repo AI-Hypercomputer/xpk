@@ -94,7 +94,7 @@ def build_docker_image_from_base_image(args, verbose=True) -> tuple[int, str]:
   )
   tmp = write_tmp_file(docker_file)
   docker_build_command = (
-      f'docker buildx build --platform={PLATFORM} -f {str(tmp.file.name)} -t'
+      f'docker buildx build --platform={PLATFORM} -f {str(tmp)} -t'
       f' {docker_name} {args.script_dir}'
   )
   xpk_print(f'Building {args.script_dir} into docker image.')

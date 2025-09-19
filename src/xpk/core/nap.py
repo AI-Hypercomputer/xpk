@@ -250,7 +250,7 @@ def create_autoprovisioning_config(
       zones=f'- {args.zone}',
   )
   autoprovisioning_config = AutoprovisioningConfig(
-      config_filename=write_tmp_file(yml_string).name,
+      config_filename=write_tmp_file(yml_string),
       minimum_chips=minimum,
       maximum_chips=maximum,
   )

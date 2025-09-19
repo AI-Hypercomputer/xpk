@@ -47,10 +47,6 @@ from ..core.jobset import update_jobset_resources_if_necessary
 from ..core.kjob import apply_kjob_crds, prepare_kjob, verify_kjob_installed
 from ..core.kueue import (
     cluster_preheat_yml,
-    install_kueue_crs,
-    install_kueue_on_cluster,
-    wait_for_kueue_available,
-    update_kueue_resources_if_necessary,
 )
 from ..core.kueue_manager import (KueueConfig, KueueManager)
 from ..core.nap import enable_autoprovisioning_on_cluster
@@ -1222,26 +1218,6 @@ def install_kjob(args):
 
 def install_kueue(args, system: SystemCharacteristics, autoprovisioning_config):
   xpk_print('Enabling Kueue on the cluster')
-  """install_kueue_on_cluster_code = install_kueue_on_cluster(args)
-  if install_kueue_on_cluster_code != 0:
-    xpk_exit(install_kueue_on_cluster_code)
-
-  xpk_print('Wait for Kueue to be fully available')
-  wait_for_kueue_available_code = wait_for_kueue_available(args)
-  if wait_for_kueue_available_code != 0:
-    xpk_exit(wait_for_kueue_available_code)
-
-  xpk_print('Install Kueue Custom Resources')
-  enable_kueue_credentials_code = install_kueue_crs(
-      args, system, autoprovisioning_config
-  )
-  if enable_kueue_credentials_code != 0:
-    xpk_exit(enable_kueue_credentials_code)
-
-  xpk_print('Update Kueue Controller Manager resources')
-  update_kueue_resources_code = update_kueue_resources_if_necessary(args)
-  if update_kueue_resources_code != 0:
-    xpk_exit(update_kueue_resources_code)"""
   kueue_manager = KueueManager()
   kueue_manager.install_or_upgrade(
       KueueConfig(

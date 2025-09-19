@@ -37,6 +37,10 @@ run-unittests:
 run-integrationtests:
 	pytest src/integration/
 
+.PHONY: goldens
+goldens:
+	./golden_buddy.sh update goldens.yaml goldens
+
 .PHONY: mkdir-bin
 mkdir-bin:
 	mkdir -p $(BIN_PATH)

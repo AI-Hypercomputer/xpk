@@ -1,0 +1,5 @@
+goldens:
+  "NAP cluster-create with pathways":
+    command: python3 xpk.py cluster create-pathways --project=golden-project --zone=us-central1-a --enable-autoprovisioning --cluster=golden-cluster --tpu-type=tpu7x-8 --on-demand --dry-run
+  "NAP cluster-create":
+    command: python3 xpk.py cluster create --project=golden-project --zone=us-central1-a --enable-autoprovisioning --cluster=golden-cluster --tpu-type=tpu7x-8 --on-demand --dry-run

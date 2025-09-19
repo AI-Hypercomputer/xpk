@@ -141,3 +141,9 @@ dmypy.json
 
 # XPK/Cluster Toolkit working directory
 xpkclusters/*
+
+# gemini-cli settings
+.gemini/
+
+# GitHub App credentials
+gha-creds-*.json

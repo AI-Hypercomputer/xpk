@@ -187,8 +187,6 @@ class KueueManager:
         kueue_config.total_chips,
         kueue_config.is_pathways_cluster,
         kueue_config.autoprovisioning_enabled,
-        kueue_config.cpu_quota,
-        kueue_config.memory_quota,
         kueue_config.flex,
     )
 
@@ -216,8 +214,6 @@ class KueueManager:
       total_chips,
       is_pathways,
       autoprovisioning,
-      cpu_quota,
-      memory_quota,
       flex,
   ) -> Dict[str, Any]:
     """Prepares the context for the Jinja2 template."""
@@ -256,13 +252,11 @@ class KueueManager:
 
     # Main resource group
     resource_groups = [{
-        "coveredResources": [managed_resource, "cpu", "memory"],
+        "coveredResources": [managed_resource],
         "flavors": [{
             "name": main_flavor_name,
             "resources": [
                 {"name": managed_resource, "nominalQuota": total_chips},
-                {"name": "cpu", "nominalQuota": cpu_quota},
-                {"name": "memory", "nominalQuota": memory_quota},
             ],
         }],
     }]

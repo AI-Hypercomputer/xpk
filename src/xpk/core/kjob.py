@@ -368,8 +368,10 @@ def create_pod_template_instance(args: Namespace, service_account: str) -> int:
 def prepare_kjob(args: Namespace) -> int:
   system = get_cluster_system_characteristics(args)
 
-  k8s_api_client = setup_k8s_env(args)
-  storages = get_auto_mount_storages(k8s_api_client)
+  storages = []
+  if not args.dry_run:
+    k8s_api_client = setup_k8s_env(args)
+    storages = get_auto_mount_storages(k8s_api_client)
 
   service_account = ""
   if len(storages) > 0:

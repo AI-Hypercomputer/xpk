@@ -221,7 +221,8 @@ class KueueManager:
   ) -> Dict[str, Any]:
     """Prepares the context for the Jinja2 template."""
     # Main accelerator flavor
-    main_flavor_name = f"{num_slices}x{system.device_type.replace("_", "-")}"
+    device_type_str = system.device_type.replace("_", "-")
+    main_flavor_name = f"{num_slices}x{device_type_str}"
 
     node_labels_dict = {}
     accelerator_label = create_accelerator_label(

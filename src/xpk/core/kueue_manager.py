@@ -71,10 +71,7 @@ class KueueManager:
     # Step 1: Install directly from the official URL
     return_code, installed_version = self._get_installed_kueue_version(dry_run)
 
-    if return_code != 0:
-      return return_code
-
-    if installed_version >= self.kueue_version:
+    if return_code == 0 and installed_version >= self.kueue_version:
       print(
           f"Kueue version {installed_version} is already up to date. Skipping"
           " installation."

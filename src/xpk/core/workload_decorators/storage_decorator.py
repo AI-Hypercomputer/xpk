@@ -36,7 +36,8 @@ def decorate_jobset(jobset_manifest_str, storages) -> str:
     job_manifest = job['template']
     add_annotations(job_manifest, storages)
     add_volumes(job_manifest, storage_volumes)
-  return yaml.dump(manifest, sort_keys=False)
+  yaml_result: str = yaml.dump(manifest, sort_keys=False)
+  return yaml_result
 
 
 def add_annotations(job_manifest, storages):

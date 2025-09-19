@@ -18,6 +18,7 @@ import re
 import sys
 
 from ruamel.yaml import YAML
+from typing import cast
 
 from ..core.commands import run_command_for_value, run_command_with_updates
 from ..core.cluster import get_cluster_credentials
@@ -84,7 +85,7 @@ def job_info(args):
 
 
 def get_profile(job_yaml: dict) -> str:
-  containers = (
+  containers: list[dict] = (
       job_yaml.get('spec', {})
       .get('template', {})
       .get('spec', {})
@@ -96,13 +97,13 @@ def get_profile(job_yaml: dict) -> str:
 
 
 def get_mounts(job_yaml: dict) -> list[dict]:
-  containers = (
+  containers: list[dict] = (
       job_yaml.get('spec', {})
       .get('template', {})
       .get('spec', {})
       .get('containers', [])
   )
-  mounts = next(iter(containers), {}).get('volumeMounts', [])
+  mounts: list[dict] = next(iter(containers), {}).get('volumeMounts', [])
   return mounts
 
 
@@ -112,23 +113,24 @@ def get_kjob_env_vars(job_desc_text: str) -> list[tuple[str, str]]:
   return search_res
 
 
-def get_pods(pods_text: str) -> list[str]:
+def get_pods(pods_text: str) -> list[dict[str, str]]:
   pods_lines = pods_text.strip().split('\n')
-  pods_lines = [line.split() for line in pods_lines]
+  pods_lines_tokenized = [line.split() for line in pods_lines]
   return [
       {
-          'Name': line[0],
-          'Status': line[2],
+          'Name': tokens[0],
+          'Status': tokens[2],
       }
-      for line in pods_lines
+      for tokens in pods_lines_tokenized
   ]
 
 
 def get_script_name(job_yaml: dict) -> str | None:
-  return (
+  return cast(
+      str | None,
       job_yaml.get('metadata', {})
       .get('annotations', {})
-      .get('kjobctl.x-k8s.io/script', '')
+      .get('kjobctl.x-k8s.io/script', ''),
   )
 
 

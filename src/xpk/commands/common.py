@@ -50,8 +50,8 @@ def set_cluster_command(args) -> int:
 
 
 def is_TAS_possible(
-    system_characteristics: SystemCharacteristics,
-    capacity_type: CapacityType,
+    system_characteristics: SystemCharacteristics | None,
+    capacity_type: CapacityType | None,
     flex: bool,
 ) -> bool:
   """Check cluster's machine_type and capacity type to determine if Kueue TAS is possible

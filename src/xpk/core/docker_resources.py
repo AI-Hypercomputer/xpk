@@ -72,7 +72,7 @@ def get_env_container(args, system: SystemCharacteristics) -> str:
   if system.accelerator_type == AcceleratorType['CPU']:
     return get_cpu_env(args, system)
 
-  return format_env_dict(args.env, system)  # pytype: disable=bad-return-type
+  return format_env_dict(args.env, system)
 
 
 def get_gpu_env(args, system) -> str:

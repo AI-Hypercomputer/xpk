@@ -37,6 +37,7 @@ from .resources import (
 )
 from .scheduling import get_total_chips_requested_from_args
 from .system_characteristics import AcceleratorType, SystemCharacteristics
+from typing import cast
 
 AUTOPROVISIONING_CONFIG_FILE = """
 management:
@@ -336,11 +337,13 @@ def get_autoprovisioning_node_selector_args(args) -> tuple[str, int]:
       )
       return node_selector_args, 1
 
-    return_code, capacity_type_str = get_value_from_map(
+    return_code, optional_capacity_type_str = get_value_from_map(
         CAPACITY_TYPE_CONFIG_KEY, cluster_config_map
     )
     if return_code != 0:
       return node_selector_args, return_code
+    # return_code==0 implies capacity_type is defined
+    capacity_type_str = cast(str, optional_capacity_type_str)
 
     if capacity_type_str == CapacityType.RESERVATION.name:
       return_code, args.reservation = get_value_from_map(

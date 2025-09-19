@@ -78,14 +78,13 @@ def run_command_batch(commands, jobname, per_command_name, output_logs):
     The max return code and a list of all the return codes.
   """
 
+  files = [open(f, 'w', encoding='utf-8') for f in output_logs]
   children = []
   start_time = datetime.datetime.now()
-  for i, command in enumerate(commands):
+  for command, file in zip(commands, files):
     children.append(
         # subprocess managed by list pylint: disable=consider-using-with
-        subprocess.Popen(
-            command, stdout=output_logs[i], stderr=output_logs[i], shell=True
-        )
+        subprocess.Popen(command, stdout=file, stderr=file, shell=True)
     )
 
   while True:
@@ -99,7 +98,7 @@ def run_command_batch(commands, jobname, per_command_name, output_logs):
       slow_worker_text = per_command_name[slow_worker_index]
       slow_str = (
           f', task {slow_worker_text} still working, logfile'
-          f' {output_logs[slow_worker_index].name}'
+          f' {output_logs[slow_worker_index]}'
       )
     else:
       slow_str = ''
@@ -116,7 +115,7 @@ def run_command_batch(commands, jobname, per_command_name, output_logs):
       )
       xpk_print(
           f'Failure is {per_command_name[failing_index]}'
-          f' and logfile {output_logs[failing_index].name}'
+          f' and logfile {output_logs[failing_index]}'
       )
       for child in children:
         child.terminate()
@@ -126,6 +125,10 @@ def run_command_batch(commands, jobname, per_command_name, output_logs):
       break
 
     time.sleep(1)
+
+  for file in files:
+    file.close()
+
   return max_returncode, returncodes
 
 
@@ -351,6 +354,6 @@ def run_command_with_full_controls(
 
 def run_kubectl_apply(yml_string: str, task: str, args: Namespace) -> int:
   tmp = write_tmp_file(yml_string)
-  command = f'kubectl apply -f {str(tmp.file.name)}'
+  command = f'kubectl apply -f {str(tmp)}'
   err_code = run_command_with_updates(command, task, args)
   return err_code

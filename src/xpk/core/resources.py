@@ -172,7 +172,7 @@ def create_or_update_cluster_configmap(
   task_names = []
   for configmap_name, yml_string in configmap_yml.items():
     tmp = write_tmp_file(yml_string)
-    command = f'kubectl apply -f {str(tmp.file.name)}'
+    command = f'kubectl apply -f {str(tmp)}'
     commands.append(command)
     task_name = f'ConfigMap CreateOrUpdate-{configmap_name}'
     task_names.append(task_name)

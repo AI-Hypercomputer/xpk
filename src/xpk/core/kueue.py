@@ -474,7 +474,7 @@ def install_kueue_crs(
     yml_string = topology_yaml + yml_string
 
   tmp = write_tmp_file(yml_string)
-  command = f'kubectl apply -f {str(tmp.file.name)}'
+  command = f'kubectl apply -f {str(tmp)}'
 
   task = 'Applying Kueue Custom Resources'
   return_code = run_command_with_updates_retry(command, task, args)
@@ -536,7 +536,7 @@ def update_kueue_resources_if_necessary(args):
       memory_limit_size=new_memory_limit, KUEUE_VERSION=KUEUE_VERSION
   )
   tmp = write_tmp_file(yml_string)
-  command = f'kubectl apply -f {str(tmp.file.name)}'
+  command = f'kubectl apply -f {str(tmp)}'
 
   task = 'Updating Kueue Controller Manager resources'
   return_code = run_command_with_updates_retry(command, task, args)

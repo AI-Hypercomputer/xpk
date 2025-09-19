@@ -569,7 +569,7 @@ def workload_create(args) -> None:
         pod_failure_policy=pod_failure_policy,
     )
   tmp = write_tmp_file(yml_string)
-  command = f'kubectl apply -f {str(tmp.file.name)}'
+  command = f'kubectl apply -f {str(tmp)}'
   return_code = run_command_with_updates(command, 'Creating Workload', args)
 
   if return_code != 0:

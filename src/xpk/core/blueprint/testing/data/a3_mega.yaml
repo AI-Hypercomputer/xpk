@@ -16,7 +16,7 @@
 !Blueprint
 blueprint_name: xpk-gke-a3-megagpu
 toolkit_modules_url: github.com/GoogleCloudPlatform/cluster-toolkit
-toolkit_modules_version: v1.57.1
+toolkit_modules_version: v1.62.2
 
 vars:
   project_id: "foo"
@@ -78,13 +78,14 @@ deployment_groups:
       name: bar-a3-megagpu-pool-0
       machine_type: a3-megagpu-8g
       zones: [us-central1-c]
-      host_maintenance_interval: PERIODIC
+      host_maintenance_interval: 'PERIODIC'
       reservation_affinity:
-        consume_reservation_type: NO_RESERVATION
-        specific_reservations: []
+        consume_reservation_type: SPECIFIC_RESERVATION
+        specific_reservations:
+        - name: test-reservation
       run_workload_script: false
+      spot: false
       max_pods_per_node: 32
-      spot: true
       guest_accelerator:
       - type: nvidia-h100-mega-80gb
         count: 8
@@ -92,6 +93,9 @@ deployment_groups:
           gpu_driver_version: "LATEST"
       auto_upgrade: true
       static_node_count: 2
+      placement_policy: 
+        type: COMPACT
+        name: test-reservation-placement
     outputs: [instructions]
 
   - !DeploymentModule
@@ -105,7 +109,7 @@ deployment_groups:
         config_path: $(ghpc_stage("xpk-gke-a3-megagpu"))/kueue-xpk-configuration.yaml.tftpl
         config_template_vars:
           num_chips: 16
-          reservation: 0
+          reservation: 1
           flex_start: 0
       jobset:
         install: true
@@ -124,6 +128,6 @@ deployment_groups:
           resource_config_name: "bar-resources-configmap",
           num_nodes: "2",
           cluster_config_name: "bar-metadata-configmap",
-          capacity_type: "spot",
-          reservation: "None",
+          capacity_type: "reservation",
+          reservation: "test-reservation",
           }

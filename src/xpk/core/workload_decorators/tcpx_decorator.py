@@ -55,7 +55,8 @@ def decorate_jobset(jobset_manifest_str: str) -> str:
   for job in manifest['spec']['replicatedJobs']:
     job_manifest = job['template']
     job_manifest = decorate_job(job_manifest)
-  return yaml.dump(manifest, sort_keys=False)
+  yaml_str: str = yaml.dump(manifest, sort_keys=False)
+  return yaml_str
 
 
 def get_interfaces_annotation() -> dict:
@@ -131,6 +132,7 @@ def add_volumes(job_manifest: dict):
   })
   volumes.append({'name': 'sys', 'hostPath': {'path': '/sys'}})
   volumes.append({'name': 'proc-sys', 'hostPath': {'path': '/proc/sys'}})
+  volumes.append({'name': 'tcpx-socket', 'hostPath': {'path': '/run/tcpx'}})
   volumes.append(
       {'name': 'dshm', 'emptyDir': {'medium': 'Memory', 'sizeLimit': '128Gi'}}
   )
@@ -168,7 +170,7 @@ def add_tcpx_daemon_container(job_manifest):
   spec['initContainers'].append(tcpxo_daemon_container)
 
 
-def update_gpu_containers(job_manifest):
+def update_gpu_containers(job_manifest) -> None:
   for container in job_manifest['spec']['template']['spec']['containers']:
     if 'nvidia.com/gpu' in container.get('resources', {}).get('limits', {}):
       env: list = container.setdefault('env', [])

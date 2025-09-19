@@ -43,7 +43,7 @@ from .system_characteristics import (
 KUEUE_VERSION = 'v0.12.2'
 CLUSTER_QUEUE_NAME = 'cluster-queue'
 LOCAL_QUEUE_NAME = 'multislice-queue'
-WAIT_FOR_KUEUE_TIMEOUT = '5m'
+WAIT_FOR_KUEUE_TIMEOUT = '10m'
 MEMORY_SIZE_PER_VM = 1.2
 MIN_MEMORY_LIMIT_SIZE = 4096
 
@@ -89,6 +89,10 @@ metadata:
   name: dws-config
 spec:
   provisioningClassName: queued-provisioning.gke.io
+  podSetUpdates:
+    nodeSelector:
+    - key: autoscaling.gke.io/provisioning-request
+      valueFromProvisioningClassDetail: ResizeRequestName
   managedResources:
   - {managed_resource}
 ---
@@ -320,7 +324,7 @@ def delete_multikueueclusters_definitions(args) -> int:
   return return_code
 
 
-def get_kueue_version(args) -> (int, str):
+def get_kueue_version(args) -> tuple[int, str]:
   command = 'kubectl kueue version'
   task = 'Get kueue version on server'
   return_code, val = run_command_for_value(command, task, args)

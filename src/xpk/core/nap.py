@@ -37,6 +37,7 @@ from .resources import (
 )
 from .scheduling import get_total_chips_requested_from_args
 from .system_characteristics import AcceleratorType, SystemCharacteristics
+from typing import cast
 
 AUTOPROVISIONING_CONFIG_FILE = """
 management:
@@ -269,9 +270,6 @@ def is_autoprovisioning_enabled(
     bool is true if autoprovisioning is enabled, false otherwise.
     int of 0 if successful and 1 otherwise.
   """
-  # Currently autoprovisioning is not enabled for Pathways workloads. b/360898087
-  if args.use_pathways:
-    return False, 0
 
   resources_configmap_name = f'{args.cluster}-{CLUSTER_RESOURCES_CONFIGMAP}'
   cluster_config_map = get_cluster_configmap(args, resources_configmap_name)
@@ -339,11 +337,13 @@ def get_autoprovisioning_node_selector_args(args) -> tuple[str, int]:
       )
       return node_selector_args, 1
 
-    return_code, capacity_type_str = get_value_from_map(
+    return_code, optional_capacity_type_str = get_value_from_map(
         CAPACITY_TYPE_CONFIG_KEY, cluster_config_map
     )
     if return_code != 0:
       return node_selector_args, return_code
+    # return_code==0 implies capacity_type is defined
+    capacity_type_str = cast(str, optional_capacity_type_str)
 
     if capacity_type_str == CapacityType.RESERVATION.name:
       return_code, args.reservation = get_value_from_map(

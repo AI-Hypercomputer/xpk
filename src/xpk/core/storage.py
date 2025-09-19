@@ -17,7 +17,7 @@ limitations under the License.
 import os
 from argparse import Namespace
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 import ruamel.yaml
 from google.cloud import storage as gcp_storage
@@ -95,17 +95,17 @@ class Storage:
     Args:
         data: A dictionary containing the Storage resource definition.
     """
-    metadata: k8s_client.V1ObjectMeta = data.get("metadata", {})
+    metadata = data.get("metadata", {})
     self.name = metadata.get("name")
     spec = data.get("spec", {})
-    self.type: str = spec.get("type")
-    self.auto_mount: bool = spec.get("auto_mount")
-    self.mount_point: bool = spec.get("mount_point")
-    self.readonly: bool = spec.get("readonly")
-    self.manifest: str = spec.get("manifest")
-    self.pvc: str = spec.get("pvc")
-    self.pv: str = spec.get("pv")
-    self.bucket: str = self._get_bucket()
+    self.type = spec.get("type")
+    self.auto_mount = spec.get("auto_mount")
+    self.mount_point = spec.get("mount_point")
+    self.readonly = spec.get("readonly")
+    self.manifest = spec.get("manifest")
+    self.pvc = spec.get("pvc")
+    self.pv = spec.get("pv")
+    self.bucket = self._get_bucket()
 
   def fields_as_list(self) -> list[str]:
     """
@@ -117,9 +117,9 @@ class Storage:
     return [
         self.name,
         self.type,
-        self.auto_mount,
+        str(self.auto_mount),
         self.mount_point,
-        self.readonly,
+        str(self.readonly),
         self.manifest,
     ]
 
@@ -133,7 +133,7 @@ class Storage:
     client = k8s_client.CoreV1Api()
     try:
       pv: V1PersistentVolume = client.read_persistent_volume(self.pv)
-      return pv.spec.csi.volume_handle
+      return cast(str, pv.spec.csi.volume_handle)
     except ApiException as e:
       xpk_print(
           f"Exception when calling CoreV1Api->read_persistent_volume: {e}"
@@ -150,7 +150,7 @@ class Storage:
     client = k8s_client.CoreV1Api()
     try:
       pv: V1PersistentVolume = client.read_persistent_volume(self.pv)
-      return pv.spec.mount_options
+      return cast(list[str], pv.spec.mount_options)
     except ApiException as e:
       xpk_print(
           f"Exception when calling CoreV1Api->read_persistent_volume: {e}"

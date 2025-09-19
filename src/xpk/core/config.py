@@ -22,7 +22,7 @@ from ..utils import file
 from ..utils.console import xpk_print
 
 # This is the version for XPK PyPI package
-__version__ = 'v0.11.0'
+__version__ = 'v0.12.0'
 XPK_CURRENT_VERSION = __version__
 XPK_CONFIG_FILE = os.path.expanduser('~/.config/xpk/config.yaml')
 
@@ -71,13 +71,12 @@ class XpkConfig:
     dir_path = '/'.join(self._config.split('/')[:-1])
     file.ensure_directory_exists(dir_path)
 
-    config_yaml = {'version': 'v1', CONFIGS_KEY: {}}
     if not os.path.exists(self._config):
       return None
 
     with open(self._config, encoding='utf-8', mode='r') as stream:
       config_yaml: dict = yaml.load(stream)
-    return config_yaml
+      return config_yaml
 
   def _save_configs(self, config_yaml: dict) -> None:
     with open(self._config, encoding='utf-8', mode='w') as stream:
@@ -109,7 +108,7 @@ class XpkConfig:
 
   def get_all(
       self,
-  ) -> dict[str, dict[str, str] | str] | None:
+  ) -> dict[str, str] | None:
     config_yaml = self._open_configs()
     if config_yaml is None:
       return None

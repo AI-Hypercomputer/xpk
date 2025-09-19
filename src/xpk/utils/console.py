@@ -15,6 +15,7 @@ limitations under the License.
 """
 
 import sys
+from typing import NoReturn
 
 
 def xpk_print(*args, **kwargs):
@@ -29,7 +30,7 @@ def xpk_print(*args, **kwargs):
   sys.stdout.flush()
 
 
-def xpk_exit(error_code):
+def xpk_exit(error_code) -> NoReturn:
   """Helper function to exit xpk with an associated error code.
 
   Args:

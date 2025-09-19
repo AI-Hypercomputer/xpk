@@ -39,7 +39,5 @@ jobs:
           ${{env.pythonLocation}}
         key: xpk-deps-3.10-${{github.run_id}}-${{github.run_attempt}}
         restore-keys: xpk-deps-3.10-
-    # - name: Install dependecies
-    #   run: make install-dev
     - name: Run unit tests
       run: make run-unittests

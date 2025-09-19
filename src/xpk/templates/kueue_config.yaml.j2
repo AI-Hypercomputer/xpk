@@ -45,7 +45,7 @@ spec:
   preemption:
       reclaimWithinCohort: Never # Don't preempt other queues in the cohort.
       withinClusterQueue: LowerPriority
-  namespaceSelector: {% raw %}{{}}{% endraw %} # match all.
+  namespaceSelector: {% raw %}{}{% endraw %} # match all.
   resourceGroups:
   {{ resource_groups }}
   {{ admission_checks }}

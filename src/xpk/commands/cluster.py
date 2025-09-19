@@ -52,6 +52,7 @@ from ..core.kueue import (
     wait_for_kueue_available,
     update_kueue_resources_if_necessary,
 )
+from ..core.kueue_manager import (KueueConfig, KueueManager)
 from ..core.nap import enable_autoprovisioning_on_cluster
 from ..core.network import (
     create_cluster_network_config,
@@ -65,6 +66,7 @@ from ..core.nodepool import (
 from ..core.ray import install_ray_cluster
 from ..core.mtc import install_mtc_on_cluster
 from ..core.resources import create_cluster_configmaps
+from ..core.scheduling import get_total_chips_requested_from_args
 from ..core.storage import install_storage_crd
 from ..core.system_characteristics import (
     AcceleratorType,
@@ -1218,7 +1220,7 @@ def install_kjob(args):
 
 def install_kueue(args, system: SystemCharacteristics, autoprovisioning_config):
   xpk_print('Enabling Kueue on the cluster')
-  install_kueue_on_cluster_code = install_kueue_on_cluster(args)
+  """install_kueue_on_cluster_code = install_kueue_on_cluster(args)
   if install_kueue_on_cluster_code != 0:
     xpk_exit(install_kueue_on_cluster_code)
 
@@ -1237,7 +1239,16 @@ def install_kueue(args, system: SystemCharacteristics, autoprovisioning_config):
   xpk_print('Update Kueue Controller Manager resources')
   update_kueue_resources_code = update_kueue_resources_if_necessary(args)
   if update_kueue_resources_code != 0:
-    xpk_exit(update_kueue_resources_code)
+    xpk_exit(update_kueue_resources_code)"""
+  kueue_manager = KueueManager()
+  kueue_manager.install_or_upgrade(
+      KueueConfig(
+          system,
+          total_chips=get_total_chips_requested_from_args(args, system),
+          autoprovisioning_enabled=autoprovisioning_config,
+      ),
+      dry_run=args.dry_run,
+  )
 
 
 def prepare_gpus(args, system: SystemCharacteristics):

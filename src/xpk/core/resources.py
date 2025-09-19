@@ -66,7 +66,10 @@ def get_cluster_configmap(args, configmap_name) -> dict[str, str] | None:
   )
 
   return_code, return_value = run_command_for_value(
-      command, 'GKE Cluster Get ConfigMap', args
+      command,
+      'GKE Cluster Get ConfigMap',
+      args,
+      dry_run_return_val='map[key1:value1]',
   )
   if return_code != 0:
     xpk_print(f'GKE Cluster Get ConfigMap request returned ERROR {return_code}')

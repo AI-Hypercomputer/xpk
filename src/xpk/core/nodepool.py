@@ -461,7 +461,7 @@ def get_nodepool_zone(args, nodepool_name) -> tuple[int, str | None]:
       f' --region={zone_to_region(args.zone)} --format="value(locations)"'
   )
   return_code, nodepool_zone = run_command_for_value(
-      command, 'Get Node Pool Zone', args
+      command, 'Get Node Pool Zone', args, dry_run_return_val=args.zone
   )
   if return_code != 0:
     xpk_print(f'Get Node Pool Zone returned ERROR {return_code}')

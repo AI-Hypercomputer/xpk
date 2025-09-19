@@ -51,7 +51,7 @@ kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="Conf
 [XPK] Default Chips quota is minimum: 0, maximum: 4.
 [XPK] Chips quota is minimum: 0, maximum: 4. XPK will autoprovision 4 chips based on incoming workload requests, keeping at least 0 available at all times, and maximum of 4. If the difference (4 chips) is small, rescaling will not work well.
 [XPK] Task: `Update cluster with autoprovisioning enabled` is implemented by the following command not running since it is a dry run. 
-gcloud container clusters update golden-cluster --project=golden-project --region=us-central1 --enable-autoprovisioning --autoprovisioning-config-file /tmp/tmp0tm7xgea
+gcloud container clusters update golden-cluster --project=golden-project --region=us-central1 --enable-autoprovisioning --autoprovisioning-config-file 6062bfee91f21efca86f2c3261129f06b1896ad9b68d2ecdba9589bea9e15ddf
 [XPK] Task: `Update cluster with autoscaling-profile` is implemented by the following command not running since it is a dry run. 
 gcloud container clusters update golden-cluster --project=golden-project --region=us-central1 --autoscaling-profile=optimize-utilization
 [XPK] Task: `Get All Node Pools` is implemented by the following command not running since it is a dry run. 
@@ -69,7 +69,7 @@ kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-s
 kubectl get node --no-headers | wc -l
 [XPK] Try 1: Updating jobset Controller Manager resources
 [XPK] Task: `Updating jobset Controller Manager resources` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f /tmp/tmpr77f1l_i
+kubectl apply -f 1b31e624e490f9c8c4ef4e369f08d3fa467990af5a261e4405bd045265d70e95
 [XPK] Try 1: Install PathwaysJob on golden-cluster
 [XPK] Task: `Install PathwaysJob on golden-cluster` is implemented by the following command not running since it is a dry run. 
 kubectl apply --server-side -f https://github.com/google/pathways-job/releases/download/v0.1.2/install.yaml
@@ -85,13 +85,13 @@ kubectl wait deploy/kueue-controller-manager -nkueue-system --for=condition=avai
 [XPK] Install Kueue Custom Resources
 [XPK] Try 1: Applying Kueue Custom Resources
 [XPK] Task: `Applying Kueue Custom Resources` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f /tmp/tmpw2z1p6o6
+kubectl apply -f 898c7686cc5ef7f026f74e55b73b5843767e3f1abb9639169f02ebc44d06af73
 [XPK] Update Kueue Controller Manager resources
 [XPK] Task: `Count total nodes` is implemented by the following command not running since it is a dry run. 
 kubectl get node --no-headers | wc -l
 [XPK] Try 1: Updating Kueue Controller Manager resources
 [XPK] Task: `Updating Kueue Controller Manager resources` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f /tmp/tmps6yqbp3k
+kubectl apply -f 012e1b15b6941e9d47cb2cdb35488d57c2f3ce0ef0b18093d2759f2e02ed81dc
 [XPK] Verifying kjob installation
 [XPK] Task: `Verify kjob installation ` is implemented by the following command not running since it is a dry run. 
 kubectl-kjob help
@@ -103,11 +103,11 @@ kubectl kjob printcrds | kubectl apply --server-side -f -
 [XPK] Task: `GKE Cluster Get ConfigMap` is implemented by the following command not running since it is a dry run. 
 kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="ConfigData:data" --no-headers=true
 [XPK] Task: `Creating JobTemplate` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f /tmp/tmpx194gzds
+kubectl apply -f 4abb796ed6e7c9d7256a51f13124efd989fc12ee83839bed432fcf7d64f68e61
 [XPK] Task: `Creating PodTemplate` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f /tmp/tmpwtgdocpu
+kubectl apply -f a63aa3c4593c38ad90671fd8b067d1886f6313ad558379b364b51791aa50f4e8
 [XPK] Task: `Creating AppProfile` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f /tmp/tmpeglcqxqy
+kubectl apply -f 1d13ddebae3c90a05ba26b312df088982dd0df0edc4f4013b88384e476c20486
 [XPK] GKE commands done! Resources are created.
 [XPK] See your GKE Cluster here: https://console.cloud.google.com/kubernetes/clusters/details/us-central1/golden-cluster/details?project=golden-project
 [XPK] Exiting XPK cleanly

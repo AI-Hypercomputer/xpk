@@ -134,7 +134,7 @@ def update_jobset_resources_if_necessary(args):
       memory_limit_size=new_memory_limit,
   )
   tmp = write_tmp_file(yml_string)
-  command = f'kubectl apply -f {str(tmp.file.name)}'
+  command = f'kubectl apply -f {str(tmp)}'
 
   task = 'Updating jobset Controller Manager resources'
   return_code = run_command_with_updates_retry(command, task, args)

@@ -411,10 +411,8 @@ def cluster_cacheimage(args) -> None:
       nodeSelectorKey=node_selector_key,
   )
   tmp = write_tmp_file(yml_string)
-  command_apply = f'kubectl apply -f {str(tmp.file.name)}'
-  command_delete = (
-      f'kubectl delete -f {str(tmp.file.name)} --ignore-not-found=true'
-  )
+  command_apply = f'kubectl apply -f {str(tmp)}'
+  command_delete = f'kubectl delete -f {str(tmp)} --ignore-not-found=true'
 
   return_code = run_command_with_updates(
       command_delete, 'Deleting Cached Image', args

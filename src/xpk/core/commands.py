@@ -351,6 +351,6 @@ def run_command_with_full_controls(
 
 def run_kubectl_apply(yml_string: str, task: str, args: Namespace) -> int:
   tmp = write_tmp_file(yml_string)
-  command = f'kubectl apply -f {str(tmp.file.name)}'
+  command = f'kubectl apply -f {str(tmp)}'
   err_code = run_command_with_updates(command, task, args)
   return err_code

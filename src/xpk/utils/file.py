@@ -16,7 +16,6 @@ limitations under the License.
 
 import tempfile
 import os
-from .console import xpk_print
 
 
 def make_tmp_files(per_command_name):
@@ -79,4 +78,3 @@ def ensure_directory_exists(directory_path):
   """
   if not os.path.exists(directory_path):
     os.makedirs(directory_path)
-    xpk_print(f"Directory '{directory_path}' created successfully.")

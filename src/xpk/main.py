@@ -63,9 +63,10 @@ def main() -> None:
   set_parser(parser=parser)
 
   xpk_print('Starting xpk', flush=True)
-  validate_dependencies()
   main_args = parser.parse_args()
   main_args.enable_ray_cluster = False
+  if not main_args.dry_run:
+    validate_dependencies()
   main_args.func(main_args)
   xpk_print('XPK Done.', flush=True)
 

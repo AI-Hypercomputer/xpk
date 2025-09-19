@@ -50,7 +50,7 @@ kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="Conf
 [XPK] Default Chips quota is minimum: 0, maximum: 4.
 [XPK] Chips quota is minimum: 0, maximum: 4. XPK will autoprovision 4 chips based on incoming workload requests, keeping at least 0 available at all times, and maximum of 4. If the difference (4 chips) is small, rescaling will not work well.
 [XPK] Task: `Update cluster with autoprovisioning enabled` is implemented by the following command not running since it is a dry run. 
-gcloud container clusters update golden-cluster --project=golden-project --region=us-central1 --enable-autoprovisioning --autoprovisioning-config-file /tmp/tmp6u01jbnn
+gcloud container clusters update golden-cluster --project=golden-project --region=us-central1 --enable-autoprovisioning --autoprovisioning-config-file /tmp/tmpsuskbte7
 [XPK] Task: `Update cluster with autoscaling-profile` is implemented by the following command not running since it is a dry run. 
 gcloud container clusters update golden-cluster --project=golden-project --region=us-central1 --autoscaling-profile=optimize-utilization
 [XPK] Task: `Get All Node Pools` is implemented by the following command not running since it is a dry run. 
@@ -68,7 +68,7 @@ kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-s
 kubectl get node --no-headers | wc -l
 [XPK] Try 1: Updating jobset Controller Manager resources
 [XPK] Task: `Updating jobset Controller Manager resources` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f /tmp/tmpvoeegf0b
+kubectl apply -f /tmp/tmpicwygqe5
 [XPK] Try 1: Install PathwaysJob on golden-cluster
 [XPK] Task: `Install PathwaysJob on golden-cluster` is implemented by the following command not running since it is a dry run. 
 kubectl apply --server-side -f https://github.com/google/pathways-job/releases/download/v0.1.2/install.yaml
@@ -84,13 +84,13 @@ kubectl wait deploy/kueue-controller-manager -nkueue-system --for=condition=avai
 [XPK] Install Kueue Custom Resources
 [XPK] Try 1: Applying Kueue Custom Resources
 [XPK] Task: `Applying Kueue Custom Resources` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f /tmp/tmp5k9xh_2s
+kubectl apply -f /tmp/tmp2pl1x2l5
 [XPK] Update Kueue Controller Manager resources
 [XPK] Task: `Count total nodes` is implemented by the following command not running since it is a dry run. 
 kubectl get node --no-headers | wc -l
 [XPK] Try 1: Updating Kueue Controller Manager resources
 [XPK] Task: `Updating Kueue Controller Manager resources` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f /tmp/tmpsaa3cv7f
+kubectl apply -f /tmp/tmphldrxn84
 [XPK] Verifying kjob installation
 [XPK] Task: `Verify kjob installation ` is implemented by the following command not running since it is a dry run. 
 kubectl-kjob help
@@ -102,11 +102,11 @@ kubectl kjob printcrds | kubectl apply --server-side -f -
 [XPK] Task: `GKE Cluster Get ConfigMap` is implemented by the following command not running since it is a dry run. 
 kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="ConfigData:data" --no-headers=true
 [XPK] Task: `Creating JobTemplate` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f /tmp/tmp3_f1kc4o
+kubectl apply -f /tmp/tmp9i99gvvc
 [XPK] Task: `Creating PodTemplate` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f /tmp/tmp3idt8n79
+kubectl apply -f /tmp/tmpol0mqc2j
 [XPK] Task: `Creating AppProfile` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f /tmp/tmpjawng3oa
+kubectl apply -f /tmp/tmpp1jjce0p
 [XPK] GKE commands done! Resources are created.
 [XPK] See your GKE Cluster here: https://console.cloud.google.com/kubernetes/clusters/details/us-central1/golden-cluster/details?project=golden-project
 [XPK] Exiting XPK cleanly

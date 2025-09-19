@@ -42,6 +42,7 @@ class KueueConfig:
   cpu_quota: int = 10000
   memory_quota: str = "10000Gi"
   flex: bool = False
+  num_slices: int = 1
 
 
 class KueueManager:
@@ -188,6 +189,7 @@ class KueueManager:
         kueue_config.is_pathways_cluster,
         kueue_config.autoprovisioning_enabled,
         kueue_config.flex,
+        kueue_config.num_slices,
     )
 
     rendered_manifest = template.render(context)
@@ -215,10 +217,11 @@ class KueueManager:
       is_pathways,
       autoprovisioning,
       flex,
+      num_slices,
   ) -> Dict[str, Any]:
     """Prepares the context for the Jinja2 template."""
     # Main accelerator flavor
-    main_flavor_name = f"1x{system.device_type.replace("_", "-")}"
+    main_flavor_name = f"{num_slices}x{system.device_type.replace("_", "-")}"
 
     node_labels_dict = {}
     accelerator_label = create_accelerator_label(

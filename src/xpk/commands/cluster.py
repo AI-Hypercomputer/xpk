@@ -1248,6 +1248,7 @@ def install_kueue(args, system: SystemCharacteristics, autoprovisioning_config):
           system,
           total_chips=get_total_chips_requested_from_args(args, system),
           autoprovisioning_enabled=autoprovisioning_config,
+          num_slices=args.num_slices,
       ),
       dry_run=args.dry_run,
   )

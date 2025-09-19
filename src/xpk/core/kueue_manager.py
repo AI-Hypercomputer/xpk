@@ -48,7 +48,7 @@ class KueueConfig:
 class KueueManager:
   """Manages the installation and configuration of Kueue on an XPK cluster."""
 
-  def __init__(self, kueue_version: str = "v0.13.3"):
+  def __init__(self, kueue_version: str = "v0.12.2"):
     self.kueue_version = kueue_version
     self.template_env = Environment(
         loader=FileSystemLoader("src/xpk/templates/")
@@ -94,7 +94,7 @@ class KueueManager:
         task,
         Namespace(dry_run=dry_run),
         dry_run_return_val="""
-        v0.13.2""",
+        v0.12.1""",
     )
     if return_code != 0:
       return return_code, ""

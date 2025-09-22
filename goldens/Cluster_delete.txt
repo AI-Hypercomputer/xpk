@@ -1,0 +1,16 @@
+[XPK] Starting xpk
+[XPK] Starting cluster delete for cluster: golden-cluster
+[XPK] Working on golden-project and us-central1-a
+[XPK] Try 1: get-credentials to cluster golden-cluster
+[XPK] Task: `get-credentials to cluster golden-cluster` is implemented by the following command not running since it is a dry run. 
+gcloud container clusters get-credentials golden-cluster --region=us-central1 --dns-endpoint --project=golden-project && kubectl config view && kubectl config set-context --current --namespace=default
+[XPK] Get the name of the workloads in the cluster.
+[XPK] Task: `List Jobs with filter-by-status=EVERYTHING` is implemented by the following command not running since it is a dry run. 
+kubectl get workloads --ignore-not-found -o=custom-columns="Jobset Name:.metadata.ownerReferences[0].name,Created Time:.metadata.creationTimestamp,Priority:.spec.priorityClassName,TPU VMs Needed:.spec.podSets[0].count,TPU VMs Running/Ran:.status.admission.podSetAssignments[-1].count,TPU VMs Done:.status.reclaimablePods[0].count,Status:.status.conditions[-1].type,Status Message:.status.conditions[-1].message,Status Time:.status.conditions[-1].lastTransitionTime"  
+[XPK] Task: `Cluster Delete` is implemented by the following command not running since it is a dry run. 
+gcloud beta container clusters delete golden-cluster --project=golden-project --region=us-central1 --quiet
+[XPK] Task: `Get All Subnets` is implemented by the following command not running since it is a dry run. 
+gcloud compute networks subnets list --filter=name~"golden-cluster-us-central1-sub-*" --project=golden-project
+[XPK] GKE commands done! Cluster golden-cluster deleted.
+
+[XPK] Exiting XPK cleanly

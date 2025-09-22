@@ -15,6 +15,7 @@ limitations under the License.
 """
 
 from ..utils.console import xpk_print
+from ..utils.execution_context import is_dry_run
 from .capacity import AUTOPROVISIONING_CONFIG_MAXIMUM_KEY, AUTOPROVISIONING_CONFIG_VALUE
 from .resources import CLUSTER_RESOURCES_CONFIGMAP, get_cluster_configmap
 from .system_characteristics import (
@@ -43,6 +44,9 @@ def check_if_workload_can_schedule(args, system: SystemCharacteristics) -> bool:
         'No ConfigMap exist for cluster with the name'
         f' {resources_configmap_name}.'
     )
+    return True
+
+  if is_dry_run():
     return True
 
   # Check for gke accelerator type:

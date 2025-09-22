@@ -16,6 +16,7 @@ limitations under the License.
 
 from typing import List
 from ..utils.console import get_user_input, xpk_print
+from ..utils.topology import get_topology_product, is_topology_valid
 from .capacity import (
     AUTOPROVISIONING_CONFIG_VALUE,
     H100_MEGA_DEVICE_TYPE,
@@ -33,8 +34,7 @@ from .resources import (
     create_or_update_cluster_configmap,
 )
 from .system_characteristics import AcceleratorType
-from functools import reduce
-from operator import mul
+
 
 CLOUD_PLATFORM_AUTH_SCOPE_URL = (
     '"https://www.googleapis.com/auth/cloud-platform"'
@@ -271,6 +271,14 @@ def run_gke_node_pool_create_command(
       if return_code != 0:
         return 1
 
+  placement_args = ''
+  if system.accelerator_type == AcceleratorType['GPU'] and is_topology_valid(
+      system.topology
+  ):
+    placement_policy = f'{args.cluster}-placement-policy'
+    ensure_resource_policy_exists(placement_policy, args, system.topology)
+    placement_args = f'--placement-policy={placement_policy}'
+
   create_commands = []
   create_task_names = []
   for node_pool_name in desired_node_pool_names:
@@ -285,13 +293,12 @@ def run_gke_node_pool_create_command(
         f' --machine-type={system.gce_machine_type}'
         f' --host-maintenance-interval={args.host_maintenance_interval}'
         f' {capacity_args}'
+        f' {placement_args}'
         ' --enable-gvnic'
     )
     if system.accelerator_type == AcceleratorType['TPU']:
       command += f' --node-version={gke_node_pool_version}'
-      topology_product = reduce(
-          mul, (int(x) for x in system.topology.split('x')), 1
-      )
+      topology_product = get_topology_product(system.topology)
       if capacity_type == CapacityType.FLEX_START:
         command += ' --num-nodes=0'
       elif topology_product > 1:
@@ -632,3 +639,37 @@ def get_desired_node_pool_names(
     result.add(f'{cluster_name}-np-{i}')
     i += 1
   return list(result)
+
+
+def ensure_resource_policy_exists(
+    resource_policy_name: str, args, topology: str
+) -> None:
+  return_code, _ = run_command_for_value(
+      (
+          'gcloud compute resource-policies describe'
+          f' {resource_policy_name} '
+          f'--project={args.project} '
+          f'--region={zone_to_region(args.zone)}'
+      ),
+      'Retrieve resource policy',
+      args,
+  )
+
+  if return_code == 0:
+    return
+
+  return_code, _ = run_command_for_value(
+      (
+          'gcloud compute resource-policies create workload-policy '
+          f'{resource_policy_name} '
+          f'--project={args.project} '
+          f'--region={zone_to_region(args.zone)} '
+          '--type=HIGH_THROUGHPUT '
+          f'--accelerator-topology={topology}'
+      ),
+      'Create resource policy',
+      args,
+  )
+
+  if return_code != 0:
+    raise RuntimeError('Unable to create resource policy')

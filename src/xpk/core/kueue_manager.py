@@ -101,7 +101,9 @@ class KueueManager:
 
     return self._configure(kueue_config, dry_run)
 
-  def _get_installed_kueue_version(self, dry_run: bool = False) -> str:
+  def _get_installed_kueue_version(
+      self, dry_run: bool = False
+  ) -> tuple[int, str]:
     command = "kubectl kueue version"
     task = "Get kueue version on server"
     return_code, val = run_command_for_value(
@@ -213,12 +215,10 @@ class KueueManager:
         H200_DEVICE_TYPE,
         B200_DEVICE_TYPE,
     ]:
-      topology_yaml: str = self.template_env.get_template(
-          KUEUE_TOPOLOGY_JINJA_FILE
-      )
-      rendered_manifest = topology_yaml + rendered_manifest
+      topology_yaml = self.template_env.get_template(KUEUE_TOPOLOGY_JINJA_FILE)
+      rendered_manifest = topology_yaml.render() + rendered_manifest
 
-    return_code = self._apply_manifest(rendered_manifest, "Kueue Configuration")
+    return_code = self._apply_manifest(rendered_manifest)
     if return_code != 0:
       return return_code
 
@@ -320,7 +320,7 @@ class KueueManager:
     command = f"kubectl apply -f {tmp_file}"
     return run_command_with_updates(command, task, Namespace(dry_run=dry_run))
 
-  def _update_kueue_resources_if_necessary(self, dry_run: bool = False):
+  def _update_kueue_resources_if_necessary(self, dry_run: bool = False) -> int:
     # Patch memory size limit if necessary
     # Get total number of nodes
     cmd_total_node_num = "kubectl get node --no-headers | wc -l"

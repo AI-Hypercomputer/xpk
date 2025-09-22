@@ -242,13 +242,16 @@ class KueueManager:
     accelerator_label = create_accelerator_label(
         system.accelerator_type, system
     )
-    key, value = accelerator_label.split(":", 1)
-    node_labels_dict[key] = value.strip()
+    if accelerator_label:
+      key, value = accelerator_label.split(":", 1)
+      node_labels_dict[key] = value.strip()
+
     machine_label = create_machine_label(
         system.accelerator_type, system, autoprovisioning
     )
-    key, value = machine_label.split(":", 1)
-    node_labels_dict[key] = value.strip()
+    if machine_label:
+      key, value = machine_label.split(":", 1)
+      node_labels_dict[key] = value.strip()
 
     topology_label = ""
     if system.device_type in [

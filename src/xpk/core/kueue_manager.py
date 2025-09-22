@@ -218,7 +218,7 @@ class KueueManager:
       topology_yaml = self.template_env.get_template(KUEUE_TOPOLOGY_JINJA_FILE)
       rendered_manifest = topology_yaml.render() + rendered_manifest
 
-    return_code = self._apply_manifest(rendered_manifest)
+    return_code = self._apply_manifest(rendered_manifest, dry_run)
     if return_code != 0:
       return return_code
 

@@ -19,6 +19,7 @@ from ..core.docker_container import get_user_workload_container
 from ..core.gcloud_context import zone_to_region
 from ..core.nodepool import get_all_nodepools_programmatic
 from ..utils.console import xpk_exit, xpk_print
+from ..utils.execution_context import is_dry_run
 from .system_characteristics import AcceleratorType, SystemCharacteristics
 
 
@@ -79,7 +80,10 @@ def ensure_pathways_workload_prerequisites(args, system) -> bool:
   # Ensure the cluster and CPU nodepools were created with create-pathways
   all_node_pools = get_all_nodepools_programmatic(args)
   desired_pw_cpu_node_pools = {'cpu-np'}
-  if not desired_pw_cpu_node_pools.issubset(set(all_node_pools[0])):
+  if (
+      not desired_pw_cpu_node_pools.issubset(set(all_node_pools[0]))
+      and not is_dry_run()
+  ):
     xpk_print(
         'Cluster needs to be created with `xpk create-pathways` to run'
         ' Pathways workloads.'

@@ -31,6 +31,7 @@ from ..core.kjob import (
 )
 from ..core.kueue import LOCAL_QUEUE_NAME
 from ..utils.console import xpk_exit, xpk_print
+from ..utils.execution_context import is_dry_run
 from .kind import set_local_cluster_command
 from .kjob_common import add_gpu_networking_annotations_to_command, add_TAS_annotations_to_command
 
@@ -51,18 +52,16 @@ def batch(args: Namespace) -> None:
     if set_cluster_command_code != 0:
       xpk_exit(set_cluster_command_code)
 
-  err_code = prepare_kjob(args)
-  if err_code > 0:
-    xpk_exit(err_code)
-  setup_k8s_service_accounts()
+  if not is_dry_run():
+    err_code = prepare_kjob(args)
+    if err_code > 0:
+      xpk_exit(err_code)
+    setup_k8s_service_accounts()
 
   submit_job(args)
 
 
 def submit_job(args: Namespace) -> None:
-
-  setup_k8s_service_accounts()
-
   cmd = (
       'kubectl kjob create slurm'
       f' --profile {AppProfileDefaults.NAME.value}'
@@ -73,7 +72,8 @@ def submit_job(args: Namespace) -> None:
   cmd = add_gpu_networking_annotations_to_command(args, cmd)
   cmd = add_TAS_annotations_to_command(args, cmd)
 
-  for annotation in get_storage_annotations(args):
+  annotations = [] if is_dry_run() else get_storage_annotations(args)
+  for annotation in annotations:
     cmd += f' --pod-template-annotation {annotation}'
 
   if args.ignore_unknown_flags:

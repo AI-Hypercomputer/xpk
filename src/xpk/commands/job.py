@@ -28,6 +28,28 @@ from ..utils.console import xpk_exit, xpk_print
 from .kind import set_local_cluster_command
 
 
+JOBS_DRY_RUN_YAML = """
+items:
+- apiVersion: slurm.k8s.io/v1alpha1
+  kind: SlurmJob
+  metadata:
+    annotations:
+      kjobctl.x-k8s.io/script: echo hello
+    creationTimestamp: '2024-04-29T12:00:00Z'
+    labels:
+      kjobctl.x-k8s.io/app-profile: default
+    name: golden-job
+    namespace: default
+  spec:
+    script: echo hello
+"""
+
+PODS_DRY_RUN_RESULT = """
+foo-pod 2/2 Running 0 2d
+bar-pod 1/1 Evicted 0 1d
+"""
+
+
 def job_info(args):
   """Run commands obtaining information about a job given by name.
 
@@ -52,7 +74,10 @@ def job_info(args):
       f' metadata.name=={job_name}'
   )
   job_code, job_text = run_command_for_value(
-      job_command, 'Getting job info', args
+      job_command,
+      'Getting job info',
+      args,
+      dry_run_return_val=JOBS_DRY_RUN_YAML,
   )
   if job_code != 0:
     xpk_print(f'Job info request returned ERROR {job_code}')
@@ -60,7 +85,10 @@ def job_info(args):
 
   pods_command = f'kubectl get pods -l=job-name={job_name} --no-headers'
   pods_code, pods_text = run_command_for_value(
-      pods_command, 'Getting pods list', args
+      pods_command,
+      'Getting pods list',
+      args,
+      dry_run_return_val=PODS_DRY_RUN_RESULT,
   )
   if pods_code != 0:
     xpk_print(f'Pods list request returned ERROR {pods_code}')

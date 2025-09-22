@@ -95,7 +95,11 @@ def add_current_machine_to_networks_if_needed(
           "Adding current machine's IP address to the authorized networks"
           ' failed!'
       )
-      return add_current_machine_to_networks_return_code, authorized_networks
+      return (
+          add_current_machine_to_networks_return_code,
+          False,
+          authorized_networks,
+      )
 
   return 0, is_current_machine_in_network, authorized_networks
 

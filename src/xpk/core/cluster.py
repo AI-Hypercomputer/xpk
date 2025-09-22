@@ -217,8 +217,8 @@ def get_cluster_nodes_info(args) -> list[dict]:
   )
   if err_code != 0:
     xpk_exit(err_code)
-  data = yaml.safe_load(val)
-  return data['items']  # type: ignore[no-any-return]
+  data: dict[str, list[dict]] = yaml.safe_load(val)
+  return data['items']
 
 
 def count_nodes_on_cluster(args, system: SystemCharacteristics) -> int:
@@ -442,7 +442,11 @@ def setup_k8s_env(args) -> k8s_client.ApiClient:
   if not getattr(args, 'kind_cluster', False):
     add_zone_and_project(args)
     get_cluster_credentials(args)
-    args.project_number = project_id_to_project_number(args.project)
+    args.project_number = (
+        project_id_to_project_number(args.project)
+        if not args.dry_run
+        else abs(hash(args.project) % (10**12))  # 12 digit hash
+    )
 
   config.load_kube_config()
   return k8s_client.ApiClient()
@@ -526,7 +530,6 @@ def create_pod_reader_role() -> str:
     else:
       xpk_print(f'Error creating Role {role_name}: {e}')
       xpk_exit(1)
-      raise RuntimeError('Never') from None
 
 
 def create_role_binding(sa: str, role_name: str) -> None:

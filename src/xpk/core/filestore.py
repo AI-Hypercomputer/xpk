@@ -87,7 +87,6 @@ class FilestoreClient:
     except GoogleCloudError as e:
       xpk_print(f"Exception while trying to list instances {e}")
       xpk_exit(1)
-      raise RuntimeError("Never") from None
 
     fullname_zonal = self.get_instance_fullname(self.zone)
     fullname_regional = self.get_instance_fullname(self.region)

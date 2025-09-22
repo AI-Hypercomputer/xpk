@@ -112,7 +112,7 @@ jobs:
         lookup-only: true
     - name: install dependencies
       if : steps.check-cache.outputs.cache-hit != 'true'
-      run: make install-lint && make install-dev && cp ./bin/kubectl-kueue /usr/local/bin/kubectl-kueue && cp ./bin/kubectl-kjob /usr/local/bin/kubectl-kjob
+      run: make install-dev && cp ./bin/kubectl-kueue /usr/local/bin/kubectl-kueue && cp ./bin/kubectl-kjob /usr/local/bin/kubectl-kjob
     - name: Cache dependencies
       if : steps.check-cache.outputs.cache-hit != 'true'
       uses: actions/cache/save@v3
@@ -129,6 +129,11 @@ jobs:
       group: linter-${{needs.set-variables.outputs.run-id}}
       cancel-in-progress: true
     uses: ./.github/workflows/reusable_lint_and_format.yml
+    with:
+      run-id: '${{needs.set-variables.outputs.run-id}}'
+  verify-goldens:
+    needs: [install-dependencies, set-variables]
+    uses: ./.github/workflows/reusable_goldens.yaml
     with:
       run-id: '${{needs.set-variables.outputs.run-id}}'
   run-unit-tests:

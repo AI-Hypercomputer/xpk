@@ -195,10 +195,12 @@ def get_capacity_arguments_from_capacity_type(
       capacity_args = '--spot'
     case CapacityType.FLEX_START:
       capacity_args = (
-          ' --flex-start --enable-queued-provisioning --enable-autoscaling'
+          ' --flex-start --enable-autoscaling'
           ' --location-policy=ANY --reservation-affinity=none'
           f' --no-enable-autorepair --max-nodes={max_nodes}'
       )
+      if args.num_slices <= 1:
+        capacity_args += ' --enable-queued-provisioning'
     case CapacityType.RESERVATION:
       capacity_args = (
           f'--reservation-affinity=specific --reservation={args.reservation}'

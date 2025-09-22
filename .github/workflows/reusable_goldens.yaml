@@ -19,8 +19,11 @@ on:
         required: true
         type: string
 
+permissions:
+  contents: read
+
 jobs:
-  run-unit-tests:
+  verify-goldens:
     runs-on: [ubuntu-22.04]
     steps:
     - uses: actions/checkout@v4
@@ -39,5 +42,7 @@ jobs:
           ${{env.pythonLocation}}
         key: xpk-deps-3.10-${{github.run_id}}-${{github.run_attempt}}
         restore-keys: xpk-deps-3.10-
-    - name: Run unit tests
-      run: make run-unittests
+    - name: Verify goldens
+      run: ./golden_buddy.sh verify goldens.yaml goldens
+      env:
+        UPDATE_GOLDEN_COMMAND: make goldens

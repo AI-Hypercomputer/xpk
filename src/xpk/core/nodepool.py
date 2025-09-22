@@ -277,7 +277,7 @@ def run_gke_node_pool_create_command(
   ):
     placement_policy = f'{args.cluster}-placement-policy'
     ensure_resource_policy_exists(placement_policy, args, system.topology)
-    placement_args = f'--placement-policy={placement_policy}'
+    placement_args = f' --placement-policy={placement_policy}'
 
   create_commands = []
   create_task_names = []
@@ -293,7 +293,7 @@ def run_gke_node_pool_create_command(
         f' --machine-type={system.gce_machine_type}'
         f' --host-maintenance-interval={args.host_maintenance_interval}'
         f' {capacity_args}'
-        f' {placement_args}'
+        f'{placement_args}'
         ' --enable-gvnic'
     )
     if system.accelerator_type == AcceleratorType['TPU']:

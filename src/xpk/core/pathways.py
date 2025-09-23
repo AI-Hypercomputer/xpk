@@ -116,7 +116,7 @@ def check_if_pathways_job_is_installed(args) -> bool:
       ' custom-columns=NAME:.metadata.name'
   )
   task = f'Check if PathwaysJob is installed on {args.cluster}'
-  return_code, return_msg = run_command_for_value(command, task, args)
+  return_code, return_msg = run_command_for_value(command, task)
   # return_msg contains the name of the controller pod, if found.
   xpk_print('check_if_pathways_job_is_installed', return_code, return_msg)
 

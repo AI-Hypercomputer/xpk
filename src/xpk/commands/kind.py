@@ -240,7 +240,7 @@ def get_all_local_clusters_programmatic(args) -> tuple[list[str], int]:
   """
   command = 'kind get clusters'
   return_code, raw_cluster_output = run_command_for_value(
-      command, 'Find if Cluster Exists', args
+      command, 'Find if Cluster Exists'
   )
   if return_code != 0:
     xpk_print(f'Find if Cluster Exists returned ERROR {return_code}')
@@ -261,7 +261,7 @@ def set_local_cluster_command(args) -> int:
   if not args.cluster:
     command = 'kubectl config current-context'
     return_code, current_context = run_command_for_value(
-        command, 'get current-context', args
+        command, 'get current-context'
     )
     xpk_print(
         'No local cluster name specified. Using current-context'

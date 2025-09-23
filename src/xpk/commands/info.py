@@ -214,7 +214,7 @@ def run_kueuectl_list_localqueue(args: Namespace) -> str:
   command = 'kubectl kueue list localqueue -o json'
   if args.namespace != '':
     command += f' --namespace {args.namespace}'
-  return_code, val = run_command_for_value(command, 'list localqueue', args)
+  return_code, val = run_command_for_value(command, 'list localqueue')
 
   if return_code != 0:
     xpk_print(f'Cluster info request returned ERROR {return_code}')
@@ -233,7 +233,7 @@ def run_kueuectl_list_clusterqueue(args: Namespace) -> str:
   """
   command = 'kubectl kueue list clusterqueue -o json'
 
-  return_code, val = run_command_for_value(command, 'list clusterqueue', args)
+  return_code, val = run_command_for_value(command, 'list clusterqueue')
 
   if return_code != 0:
     xpk_print(f'Cluster info request returned ERROR {return_code}')

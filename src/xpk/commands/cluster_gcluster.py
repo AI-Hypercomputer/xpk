@@ -213,7 +213,6 @@ def validate_state_gcs_bucket(args):
   err_code, _ = run_command_for_value(
       bucket_validate_cmd,
       'Validate remote state bucket existence.',
-      global_args=args,
   )
   if err_code != 0:
     xpk_exit(err_code)

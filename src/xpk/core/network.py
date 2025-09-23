@@ -245,9 +245,7 @@ def get_cluster_subnetworks(args) -> list[str]:
     list[str]: list of cluster networks
   """
   command = 'kubectl get GKENetworkParamSet'
-  return_code, stdout = run_command_for_value(
-      command, 'Get Cluster Networks', args
-  )
+  return_code, stdout = run_command_for_value(command, 'Get Cluster Networks')
   if return_code != 0:
     xpk_print('GKE Cluster Get NetworkParamSet failed')
     xpk_exit(return_code)
@@ -328,7 +326,7 @@ def get_all_networks_programmatic(args) -> tuple[list[str], int]:
       f' --project={args.project}'
   )
   return_code, raw_network_output = run_command_for_value(
-      command, 'Get All Networks', args
+      command, 'Get All Networks'
   )
   if return_code != 0:
     xpk_print(f'Get All Networks returned ERROR {return_code}')
@@ -353,7 +351,7 @@ def get_all_subnets_programmatic(args) -> tuple[list[str], int]:
       f' --filter=name~"{subnet_name_filter}" --project={args.project}'
   )
   return_code, raw_subnets_output = run_command_for_value(
-      command, 'Get All Subnets', args
+      command, 'Get All Subnets'
   )
   if return_code != 0:
     xpk_print(f'Get All Subnets returned ERROR {return_code}')
@@ -380,7 +378,7 @@ def get_all_firewall_rules_programmatic(args) -> tuple[list[str], int]:
       f' --project={args.project}'
   )
   return_code, raw_subnets_output = run_command_for_value(
-      command, 'Get All Firewall Rules', args
+      command, 'Get All Firewall Rules'
   )
   if return_code != 0:
     xpk_print(f'Get All Firewall Rules returned ERROR {return_code}')

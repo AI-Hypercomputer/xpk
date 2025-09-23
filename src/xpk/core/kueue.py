@@ -292,7 +292,7 @@ def verify_kueuectl(args: Namespace) -> None:
 
   command = 'kubectl kueue version'
   task = 'Verify kueuectl installation on cluster'
-  verify_kueuectl_installed_code, _ = run_command_for_value(command, task, args)
+  verify_kueuectl_installed_code, _ = run_command_for_value(command, task)
 
   if verify_kueuectl_installed_code == 0:
     xpk_print('kueuectl found')
@@ -327,7 +327,7 @@ def delete_multikueueclusters_definitions(args) -> int:
 def get_kueue_version(args) -> tuple[int, str]:
   command = 'kubectl kueue version'
   task = 'Get kueue version on server'
-  return_code, val = run_command_for_value(command, task, args)
+  return_code, val = run_command_for_value(command, task)
   if return_code != 0:
     return return_code, ''
   lines = val.splitlines()
@@ -524,7 +524,7 @@ def update_kueue_resources_if_necessary(args):
   # Get total number of nodes
   cmd_total_node_num = 'kubectl get node --no-headers | wc -l'
   return_code, out = run_command_for_value(
-      cmd_total_node_num, 'Count total nodes', args
+      cmd_total_node_num, 'Count total nodes'
   )
   if return_code != 0:
     xpk_exit(1)

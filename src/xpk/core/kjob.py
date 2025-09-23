@@ -214,7 +214,7 @@ def verify_kjob_installed(args: Namespace) -> int:
   """
   command = "kubectl-kjob help"
   task = "Verify kjob installation "
-  verify_kjob_installed_code, _ = run_command_for_value(command, task, args)
+  verify_kjob_installed_code, _ = run_command_for_value(command, task)
 
   if verify_kjob_installed_code == 0:
     xpk_print("kjob found")

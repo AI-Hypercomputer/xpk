@@ -184,13 +184,13 @@ def generate_available_resources(label, args, percent) -> tuple:
       f"kubectl get nodes -l {label} -o jsonpath='{{.items[0].metadata.name}}'"
   )
   task = f'Getting nodes with label {label}'
-  _, node_name = run_command_for_value(command, task, args)
+  _, node_name = run_command_for_value(command, task)
 
   command = (
       f"kubectl get node {node_name} -o jsonpath='{{.status.allocatable.cpu}}'"
   )
   task = 'Fetching available CPU on node'
-  _, available_cpu = run_command_for_value(command, task, args)
+  _, available_cpu = run_command_for_value(command, task)
   match = re.match(r'(\d+)([a-zA-Z]+)', available_cpu)
   if not match:
     xpk_print(
@@ -207,7 +207,7 @@ def generate_available_resources(label, args, percent) -> tuple:
       " jsonpath='{.status.allocatable.memory}'"
   )
   task = 'Fetching available memory on node'
-  _, available_memory = run_command_for_value(command, task, args)
+  _, available_memory = run_command_for_value(command, task)
   match = re.match(r'(\d+)([a-zA-Z]+)', available_memory)
   if not match:
     xpk_print(

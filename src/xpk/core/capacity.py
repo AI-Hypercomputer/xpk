@@ -119,7 +119,7 @@ def get_reservation_maintenance_interval(
       f' --project={project} --zone={zone} --format="value(specificReservation.instanceProperties.maintenanceInterval)"'
   )
   return_code, output = run_command_for_value(
-      command, 'Get reservation maintenance interval', None
+      command, 'Get reservation maintenance interval'
   )
   if return_code != 0:
     xpk_print(f'Get reservation maintenance interval ERROR {return_code}')
@@ -143,7 +143,7 @@ def get_reservation_placement_policy(
       f' --project={project} --zone={zone} --format="value(resourcePolicies.policy)"'
   )
   return_code, output = run_command_for_value(
-      command, 'Get reservation placement policy', None
+      command, 'Get reservation placement policy'
   )
   if return_code != 0:
     xpk_print(f'Get reservation placement policy ERROR {return_code}')

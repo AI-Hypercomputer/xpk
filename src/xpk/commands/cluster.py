@@ -461,7 +461,6 @@ def cluster_describe(args) -> None:
       r'kubectl get node --no-headers=true'
       r" --selector='cloud.google.com/gke-tpu-accelerator' | wc -l",
       'Count TPU Nodes',
-      args,
   )
   if return_code_node_output != 0:
     xpk_exit(return_code_node_output)
@@ -472,7 +471,6 @@ def cluster_describe(args) -> None:
       "kubectl get pod -o=custom-columns='Status:.status.phase' | grep -i"
       ' Running | wc -l',
       'Count TPU Pods',
-      args,
   )
   if return_code_pod_output != 0:
     xpk_exit(return_code_pod_output)
@@ -563,7 +561,7 @@ def get_node_pools_name(args) -> tuple[list[str], int]:
       " custom-columns='NODEPOOL:.metadata.labels.cloud\\.google\\.com/gke-nodepool'"
       " | grep -v 'none' | sort | uniq"
   )
-  return_code, out = run_command_for_value(cmd_nodepools, 'Nodepool list', args)
+  return_code, out = run_command_for_value(cmd_nodepools, 'Nodepool list')
   if return_code != 0:
     return [], return_code
 
@@ -579,7 +577,7 @@ def get_slice_node_pool_size(args) -> tuple[list[str], int]:
       ' | uniq -c'
   )
   return_code, out = run_command_for_value(
-      cmd_slices, 'Count nodes per nodepool slice', args
+      cmd_slices, 'Count nodes per nodepool slice'
   )
   if return_code != 0:
     return [], return_code
@@ -595,7 +593,7 @@ def get_node_pool_instance_type(args) -> tuple[list[str], int]:
       " 'none' | sort | uniq"
   )
   return_code, out = run_command_for_value(
-      cmd_type_nodepool, 'Instance type of nodepools', args
+      cmd_type_nodepool, 'Instance type of nodepools'
   )
   if return_code != 0:
     return [], return_code
@@ -614,7 +612,6 @@ def get_expected_healthy_nodes(args) -> tuple[list[str], int]:
   return_code, out = run_command_for_value(
       cmd_expected_healthy_nodes,
       'Count expected healthy nodes per nodepool',
-      args,
   )
   if return_code != 0:
     return [], return_code
@@ -635,7 +632,7 @@ def get_actual_healthy_nodes(args) -> tuple[list[str], int]:
       ' | uniq -c'
   )
   return_code, out = run_command_for_value(
-      cmd_actual_healthy_nodes, 'Count actual healthy nodes per nodepool', args
+      cmd_actual_healthy_nodes, 'Count actual healthy nodes per nodepool'
   )
   if return_code != 0:
     return [], return_code
@@ -655,7 +652,7 @@ def get_total_nodes_per_node_pool(args) -> tuple[list[str], int]:
       ' | uniq -c'
   )
   return_code, out = run_command_for_value(
-      cmd_total_nodes, 'Count total nodes per nodepool', args
+      cmd_total_nodes, 'Count total nodes per nodepool'
   )
   if return_code != 0:
     return [], return_code

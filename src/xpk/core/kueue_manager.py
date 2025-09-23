@@ -52,10 +52,10 @@ MIN_MEMORY_LIMIT_SIZE = 4096
 class KueueConfig:
   system: SystemCharacteristics
   total_chips: int
+  cpu_quota: int
+  memory_quota: str
   is_pathways_cluster: bool = False
   autoprovisioning_enabled: bool = False
-  cpu_quota: int = 10000
-  memory_quota: str = "10000Gi"
   flex: bool = False
   num_slices: int = 1
 
@@ -206,6 +206,8 @@ class KueueManager:
         kueue_config.autoprovisioning_enabled,
         kueue_config.flex,
         kueue_config.num_slices,
+        kueue_config.cpu_quota,
+        kueue_config.memory_quota,
     )
 
     rendered_manifest = template.render(context)
@@ -232,6 +234,8 @@ class KueueManager:
       autoprovisioning,
       flex,
       num_slices,
+      cpu_quota,
+      memory_quota,
   ) -> Dict[str, Any]:
     """Prepares the context for the Jinja2 template."""
     # Main accelerator flavor
@@ -271,15 +275,19 @@ class KueueManager:
         system.accelerator_type
     ].resource_type
 
-    # Main resource group
+    covered_resources = [managed_resource]
+    resources = [{"name": managed_resource, "nominalQuota": total_chips}]
+
+    if cpu_quota:
+      covered_resources.append("cpu")
+      resources.append({"name": "cpu", "nominalQuota": cpu_quota})
+    if memory_quota:
+      covered_resources.append("memory")
+      resources.append({"name": "memory", "nominalQuota": memory_quota})
+
     resource_groups = [{
-        "coveredResources": [managed_resource],
-        "flavors": [{
-            "name": main_flavor_name,
-            "resources": [
-                {"name": managed_resource, "nominalQuota": total_chips},
-            ],
-        }],
+        "coveredResources": covered_resources,
+        "flavors": [{"name": main_flavor_name, "resources": resources}],
     }]
 
     # Add Pathway-specific resources if needed

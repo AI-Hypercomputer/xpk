@@ -71,9 +71,7 @@ def validate_dependencies():
   if deps_version is None or deps_version != xpk_version:
     for name, check in validation_commands.items():
       cmd, message = check['command'], check['message']
-      code, _ = run_command_for_value(
-          cmd, f'Validate {name} installation.', None
-      )
+      code, _ = run_command_for_value(cmd, f'Validate {name} installation.')
       if code != 0:
         xpk_print(message)
         xpk_exit(code)

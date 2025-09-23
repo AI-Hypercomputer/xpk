@@ -39,7 +39,7 @@ def info(args: Namespace) -> None:
   add_zone_and_project(args)
   get_cluster_credentials(args)
 
-  verify_kueuectl(args)
+  verify_kueuectl()
   lq, cq = bool(args.localqueue), bool(args.clusterqueue)
   if not lq and not cq:
     lq, cq = True, True
@@ -48,7 +48,7 @@ def info(args: Namespace) -> None:
   if lq:
     lqs = run_kueuectl_list_localqueue(args)
 
-  cqs = run_kueuectl_list_clusterqueue(args)
+  cqs = run_kueuectl_list_clusterqueue()
   quotas = get_nominal_quotas(cqs)
 
   if lq and lqs is not None:
@@ -214,7 +214,7 @@ def run_kueuectl_list_localqueue(args: Namespace) -> str:
   command = 'kubectl kueue list localqueue -o json'
   if args.namespace != '':
     command += f' --namespace {args.namespace}'
-  return_code, val = run_command_for_value(command, 'list localqueue', args)
+  return_code, val = run_command_for_value(command, 'list localqueue')
 
   if return_code != 0:
     xpk_print(f'Cluster info request returned ERROR {return_code}')
@@ -222,18 +222,15 @@ def run_kueuectl_list_localqueue(args: Namespace) -> str:
   return val
 
 
-def run_kueuectl_list_clusterqueue(args: Namespace) -> str:
+def run_kueuectl_list_clusterqueue() -> str:
   """Run the kueuectl list clusterqueue command.
-
-  Args:
-    args: user provided arguments for running the command.
 
   Returns:
     kueuectl list clusterqueue formatted as json string
   """
   command = 'kubectl kueue list clusterqueue -o json'
 
-  return_code, val = run_command_for_value(command, 'list clusterqueue', args)
+  return_code, val = run_command_for_value(command, 'list clusterqueue')
 
   if return_code != 0:
     xpk_print(f'Cluster info request returned ERROR {return_code}')

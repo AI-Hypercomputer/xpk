@@ -473,7 +473,6 @@ def install_kueue_crs(
   ]:
     yml_string = topology_yaml + yml_string
 
-  print(yml_string)
   tmp = write_tmp_file(yml_string)
   command = f'kubectl apply -f {str(tmp)}'
 

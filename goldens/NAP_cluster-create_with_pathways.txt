@@ -85,7 +85,7 @@ kubectl wait deploy/kueue-controller-manager -nkueue-system --for=condition=avai
 [XPK] Install Kueue Custom Resources
 [XPK] Try 1: Applying Kueue Custom Resources
 [XPK] Task: `Applying Kueue Custom Resources` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f 898c7686cc5ef7f026f74e55b73b5843767e3f1abb9639169f02ebc44d06af73
+kubectl apply -f 7ffd24a656c1ec9c1d331862e352cefd5348637b0f776a8e3db888b04fa7fad6
 [XPK] Update Kueue Controller Manager resources
 [XPK] Task: `Count total nodes` is implemented by the following command not running since it is a dry run. 
 kubectl get node --no-headers | wc -l

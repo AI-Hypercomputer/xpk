@@ -183,6 +183,12 @@ def set_cluster_create_parser(cluster_create_parser: ArgumentParser):
 
   cluster_create_parser.set_defaults(func=cluster_create)
 
+  cluster_create_resource_limits = cluster_create_parser.add_argument_group(
+      'Optional Resource Limits Arguments',
+      'Arguments for configuring resource limits in cluster create.',
+  )
+  add_resource_limits(cluster_create_resource_limits)
+
 
 def set_cluster_create_pathways_parser(
     cluster_create_pathways_parser: ArgumentParser,

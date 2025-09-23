@@ -1218,12 +1218,20 @@ def install_kjob(args):
 
 def install_kueue(args, system: SystemCharacteristics, autoprovisioning_config):
   xpk_print('Enabling Kueue on the cluster')
+  autoprovisioning_enabled = False
+  if autoprovisioning_config:
+    # Determine total resources available based on autoprovisioning max chips.
+    autoprovisioning_enabled = True
+    total_chips = autoprovisioning_config.maximum_chips
+  else:
+    # Determine total chips based on user specified topology.
+    total_chips = get_total_chips_requested_from_args(args, system)
   kueue_manager = KueueManager()
   kueue_manager.install_or_upgrade(
       KueueConfig(
           system,
-          total_chips=get_total_chips_requested_from_args(args, system),
-          autoprovisioning_enabled=autoprovisioning_config,
+          total_chips=total_chips,
+          autoprovisioning_enabled=autoprovisioning_enabled,
           num_slices=args.num_slices,
           memory_quota=args.memory_quota,
           cpu_quota=args.cpu_quota,

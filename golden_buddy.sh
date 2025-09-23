@@ -99,7 +99,8 @@ yq -r '.goldens | keys[]' "$GOLDENS_FILE" | \
     if [[ "$MODE" = "verify" ]]; then
       printf "${YELLOW}Evaluating: %s${NC}\n" "$key"
     fi
-    eval "$command" > "$GOLDENS_DIR/${key// /_}.txt" 2>&1
+    echo "\$ $command" > "$GOLDENS_DIR/${key// /_}.txt"
+    eval "$command" >> "$GOLDENS_DIR/${key// /_}.txt" 2>&1
 done
 
 if [[ "$MODE" = "verify" ]]; then

@@ -199,11 +199,8 @@ def install_nri_on_cluster(args) -> int:
   return 0
 
 
-def get_cluster_nodes_info(args) -> list[dict]:
+def get_cluster_nodes_info() -> list[dict]:
   """Get list of cluster's nodes descrition in yaml format
-
-  Args:
-    args: user provided arguments for running the command.
 
   Returns:
     List of nodes info yaml objects.
@@ -220,9 +217,9 @@ def get_cluster_nodes_info(args) -> list[dict]:
   return data['items']
 
 
-def count_nodes_on_cluster(args, system: SystemCharacteristics) -> int:
+def count_nodes_on_cluster(system: SystemCharacteristics) -> int:
   """Count cluster nodes by accelerator type"""
-  nodes_info = get_cluster_nodes_info(args)
+  nodes_info = get_cluster_nodes_info()
   accelerators = [
       node['metadata']['labels']['cloud.google.com/gke-accelerator']
       for node in nodes_info

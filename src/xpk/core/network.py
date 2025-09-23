@@ -235,11 +235,8 @@ def create_cluster_network_config(args) -> int:
   return 0
 
 
-def get_cluster_subnetworks(args) -> list[str]:
+def get_cluster_subnetworks() -> list[str]:
   """Gets the list of cluster networks.
-
-  Args:
-    args: user provided arguments for running the command.
 
   Returns:
     list[str]: list of cluster networks

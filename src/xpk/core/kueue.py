@@ -281,10 +281,8 @@ spec:
 """
 
 
-def verify_kueuectl(args: Namespace) -> None:
+def verify_kueuectl() -> None:
   """Verify if kueuectl is installed.
-  Args:
-    args: user provided arguments.
   Returns:
     None
   """
@@ -324,7 +322,7 @@ def delete_multikueueclusters_definitions(args) -> int:
   return return_code
 
 
-def get_kueue_version(args) -> tuple[int, str]:
+def get_kueue_version() -> tuple[int, str]:
   command = 'kubectl kueue version'
   task = 'Get kueue version on server'
   return_code, val = run_command_for_value(command, task)
@@ -348,7 +346,7 @@ def install_kueue_on_cluster(args) -> int:
     0 if successful and 1 otherwise.
   """
 
-  err_code, kueue_version_installed = get_kueue_version(args)
+  err_code, kueue_version_installed = get_kueue_version()
   if err_code == 0:
     if Version(kueue_version_installed) < Version('v0.9.0') and Version(
         KUEUE_VERSION

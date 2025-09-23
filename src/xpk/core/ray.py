@@ -106,12 +106,12 @@ def install_ray_cluster(args, system) -> int:
 
   label = 'cloud.google.com/gke-nodepool=default-pool'
   available_head_cpu, available_head_mem = generate_available_resources(
-      label, args, HEAD_CPU
+      label, HEAD_CPU
   )
 
   label = f'cloud.google.com/gke-tpu-accelerator={system.gke_accelerator}'
   available_worker_cpu, available_worker_mem = generate_available_resources(
-      label, args, WORKER_CPU
+      label, WORKER_CPU
   )
 
   yml_string = ray_cluster_crd_yaml.format(
@@ -168,12 +168,11 @@ def delete_ray_cluster(args) -> None:
   return
 
 
-def generate_available_resources(label, args, percent) -> tuple:
+def generate_available_resources(label, percent) -> tuple:
   """Generate the available resources for the nodes that match the given label
 
   Args:
     label: the label used to match the appropriate nodes
-    args: user provided arguments for running the command
     percent: the percent of the available resources to use
 
   Returns:

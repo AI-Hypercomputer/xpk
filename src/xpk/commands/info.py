@@ -39,7 +39,7 @@ def info(args: Namespace) -> None:
   add_zone_and_project(args)
   get_cluster_credentials(args)
 
-  verify_kueuectl(args)
+  verify_kueuectl()
   lq, cq = bool(args.localqueue), bool(args.clusterqueue)
   if not lq and not cq:
     lq, cq = True, True
@@ -48,7 +48,7 @@ def info(args: Namespace) -> None:
   if lq:
     lqs = run_kueuectl_list_localqueue(args)
 
-  cqs = run_kueuectl_list_clusterqueue(args)
+  cqs = run_kueuectl_list_clusterqueue()
   quotas = get_nominal_quotas(cqs)
 
   if lq and lqs is not None:
@@ -222,11 +222,8 @@ def run_kueuectl_list_localqueue(args: Namespace) -> str:
   return val
 
 
-def run_kueuectl_list_clusterqueue(args: Namespace) -> str:
+def run_kueuectl_list_clusterqueue() -> str:
   """Run the kueuectl list clusterqueue command.
-
-  Args:
-    args: user provided arguments for running the command.
 
   Returns:
     kueuectl list clusterqueue formatted as json string

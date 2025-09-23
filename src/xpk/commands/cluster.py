@@ -109,7 +109,7 @@ def cluster_adapt(args) -> None:
         'Argument --num-nodes was not provided, trying to determine number of'
         ' nodes based on the available nodes in the cluster...'
     )
-    args.num_nodes = count_nodes_on_cluster(args, system)
+    args.num_nodes = count_nodes_on_cluster(system)
     if args.num_nodes == 0:
       xpk_print(
           'Found unexpected number of nodes. Is the --device-type correct?'
@@ -445,7 +445,7 @@ def cluster_describe(args) -> None:
 
   get_cluster_credentials(args)
 
-  return_code, data_table = nodepools_build_table(args)
+  return_code, data_table = nodepools_build_table()
   if return_code != 0:
     xpk_exit(return_code)
 
@@ -485,7 +485,7 @@ def cluster_describe(args) -> None:
   xpk_exit(0)
 
 
-def nodepools_build_table(args) -> tuple[int, list[list]]:
+def nodepools_build_table() -> tuple[int, list[list]]:
   table = [[
       'NODEPOOL_NAME',
       'SLICE',
@@ -497,14 +497,14 @@ def nodepools_build_table(args) -> tuple[int, list[list]]:
 
   nodepools_data = {}
 
-  nodepools, return_code = get_node_pools_name(args)
+  nodepools, return_code = get_node_pools_name()
   if return_code != 0:
     xpk_print(f'Get node pools name returned ERROR {return_code}')
 
   for name in nodepools:
     nodepools_data[name] = [name]
 
-  slices, return_code = get_slice_node_pool_size(args)
+  slices, return_code = get_slice_node_pool_size()
   if return_code != 0:
     xpk_print(f'Get slice node pool size returned ERROR {return_code}')
 
@@ -513,7 +513,7 @@ def nodepools_build_table(args) -> tuple[int, list[list]]:
     count, nodepool_name = s[0], s[1]
     nodepools_data[nodepool_name].append(count)
 
-  type_nodepool, return_code = get_node_pool_instance_type(args)
+  type_nodepool, return_code = get_node_pool_instance_type()
   if return_code != 0:
     xpk_print(f'Get node pool instance type returned ERROR {return_code}')
 
@@ -522,7 +522,7 @@ def nodepools_build_table(args) -> tuple[int, list[list]]:
     nodepool_name, instance_type = tn[0], tn[1]
     nodepools_data[nodepool_name].append(instance_type)
 
-  expected_healthy_nodes, return_code = get_expected_healthy_nodes(args)
+  expected_healthy_nodes, return_code = get_expected_healthy_nodes()
   if return_code != 0:
     xpk_print(f'Get expected healthy nodes returned ERROR {return_code}')
 
@@ -531,7 +531,7 @@ def nodepools_build_table(args) -> tuple[int, list[list]]:
     count, nodepool_name = ehn[0], ehn[1]
     nodepools_data[nodepool_name].append(count)
 
-  actual_healthy_nodes, return_code = get_actual_healthy_nodes(args)
+  actual_healthy_nodes, return_code = get_actual_healthy_nodes()
   if return_code != 0:
     xpk_print(f'Get actual healthy nodes returned ERROR {return_code}')
 
@@ -540,7 +540,7 @@ def nodepools_build_table(args) -> tuple[int, list[list]]:
     count, nodepool_name = ahn[0], ahn[1]
     nodepools_data[nodepool_name].append(count)
 
-  total_nodes, return_code = get_total_nodes_per_node_pool(args)
+  total_nodes, return_code = get_total_nodes_per_node_pool()
   if return_code != 0:
     xpk_print(f'Get total nodes per node pool returned ERROR {return_code}')
 
@@ -555,7 +555,7 @@ def nodepools_build_table(args) -> tuple[int, list[list]]:
   return 0, table
 
 
-def get_node_pools_name(args) -> tuple[list[str], int]:
+def get_node_pools_name() -> tuple[list[str], int]:
   cmd_nodepools = (
       'kubectl get node --no-headers=true -o'
       " custom-columns='NODEPOOL:.metadata.labels.cloud\\.google\\.com/gke-nodepool'"
@@ -568,7 +568,7 @@ def get_node_pools_name(args) -> tuple[list[str], int]:
   return out.splitlines(), 0
 
 
-def get_slice_node_pool_size(args) -> tuple[list[str], int]:
+def get_slice_node_pool_size() -> tuple[list[str], int]:
   cmd_slices = (
       'kubectl get node --no-headers=true -o'
       " custom-columns=':metadata.labels.cloud\\.google\\.com/gke-nodepool'"
@@ -585,7 +585,7 @@ def get_slice_node_pool_size(args) -> tuple[list[str], int]:
   return out.splitlines(), 0
 
 
-def get_node_pool_instance_type(args) -> tuple[list[str], int]:
+def get_node_pool_instance_type() -> tuple[list[str], int]:
   cmd_type_nodepool = (
       'kubectl get node --no-headers=true -o'
       " custom-columns='NODEPOOL:.metadata.labels.cloud\\.google\\.com/gke-nodepool,"
@@ -601,7 +601,7 @@ def get_node_pool_instance_type(args) -> tuple[list[str], int]:
   return out.splitlines(), 0
 
 
-def get_expected_healthy_nodes(args) -> tuple[list[str], int]:
+def get_expected_healthy_nodes() -> tuple[list[str], int]:
   cmd_expected_healthy_nodes = (
       'kubectl get node --no-headers=true -o'
       " custom-columns=':metadata.labels.cloud\\.google\\.com/gke-nodepool'"
@@ -619,7 +619,7 @@ def get_expected_healthy_nodes(args) -> tuple[list[str], int]:
   return out.splitlines(), 0
 
 
-def get_actual_healthy_nodes(args) -> tuple[list[str], int]:
+def get_actual_healthy_nodes() -> tuple[list[str], int]:
   cmd_actual_healthy_nodes = (
       'kubectl get node --no-headers=true -o'
       " custom-columns='NODE_NAME:metadata.name,"
@@ -640,7 +640,7 @@ def get_actual_healthy_nodes(args) -> tuple[list[str], int]:
   return out.splitlines(), 0
 
 
-def get_total_nodes_per_node_pool(args) -> tuple[list[str], int]:
+def get_total_nodes_per_node_pool() -> tuple[list[str], int]:
   cmd_total_nodes = (
       'kubectl get node --no-headers=true -o'
       " custom-columns='NODE_NAME:metadata.name,"
@@ -1201,7 +1201,7 @@ def install_storage_csis(args):
 
 def install_kjob(args):
   xpk_print('Verifying kjob installation')
-  err_code = verify_kjob_installed(args)
+  err_code = verify_kjob_installed()
   if err_code > 0:
     xpk_exit(err_code)
 

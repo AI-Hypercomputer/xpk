@@ -334,7 +334,7 @@ def workload_create(args) -> None:
   xpk_print('Starting workload create', flush=True)
 
   metadata_configmap_name = f'{args.cluster}-{CLUSTER_METADATA_CONFIGMAP}'
-  cluster_config_map = get_cluster_configmap(args, metadata_configmap_name)
+  cluster_config_map = get_cluster_configmap(metadata_configmap_name)
   cluster_xpk_version = None
   if cluster_config_map is None:
     xpk_print(
@@ -507,7 +507,7 @@ def workload_create(args) -> None:
           annotations=annotations,
       )
 
-      sub_networks = get_cluster_subnetworks(args)
+      sub_networks = get_cluster_subnetworks()
       if args.device_type == a3high_device_type:
         yml_string = tcpx_decorator.decorate_jobset(yml_string)
       elif args.device_type == a3mega_device_type:

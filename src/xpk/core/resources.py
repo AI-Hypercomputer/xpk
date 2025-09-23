@@ -50,11 +50,10 @@ class AutoprovisioningConfig:
   maximum_chips: int
 
 
-def get_cluster_configmap(args, configmap_name) -> dict[str, str] | None:
+def get_cluster_configmap(configmap_name) -> dict[str, str] | None:
   """Run the Get GKE Cluster ConfigMap request.
 
   Args:
-    args: user provided arguments for running the command.
     configmap_name: name of the configmap.
 
   Returns:
@@ -205,7 +204,7 @@ def check_cluster_resources(args, system) -> tuple[bool, bool]:
     True if device_type/gke_accelerator exists in the cluster, False otherwise.
   """
   resources_configmap_name = f'{args.cluster}-{CLUSTER_RESOURCES_CONFIGMAP}'
-  resources_config_map = get_cluster_configmap(args, resources_configmap_name)
+  resources_config_map = get_cluster_configmap(resources_configmap_name)
   if resources_config_map is None:
     xpk_print(
         f'No ConfigMap exist for cluster with the name {resources_config_map}.'
@@ -228,7 +227,7 @@ def get_cluster_system_characteristics(args) -> SystemCharacteristics | None:
     returns system characteristics
   """
   resources_configmap_name = f'{args.cluster}-{CLUSTER_RESOURCES_CONFIGMAP}'
-  cluster_config_map = get_cluster_configmap(args, resources_configmap_name)
+  cluster_config_map = get_cluster_configmap(resources_configmap_name)
 
   if cluster_config_map is None:
     return None
@@ -250,7 +249,7 @@ def get_cluster_capacity_type(args) -> CapacityType | None:
     returns system characteristics
   """
   metadata_configmap_name = f'{args.cluster}-{CLUSTER_METADATA_CONFIGMAP}'
-  cluster_config_map = get_cluster_configmap(args, metadata_configmap_name)
+  cluster_config_map = get_cluster_configmap(metadata_configmap_name)
 
   if cluster_config_map is None:
     return None

@@ -110,7 +110,7 @@ while read -r key; do
   if [[ "$MODE" = "verify" ]]; then
     git add $REFERENCE_FILE
     
-    DIFF_OUTPUT=$(git diff HEAD -- $REFERENCE_FILE | cat)
+    DIFF_OUTPUT=$(git diff --color=always HEAD -- $REFERENCE_FILE | cat)
     
     git reset HEAD -- $REFERENCE_FILE &> /dev/null
     git restore $REFERENCE_FILE &> /dev/null

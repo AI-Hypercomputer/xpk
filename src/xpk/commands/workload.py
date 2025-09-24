@@ -575,7 +575,7 @@ def workload_create(args) -> None:
     )
   tmp = write_tmp_file(yml_string)
   command = f'kubectl apply -f {str(tmp)}'
-  return_code = run_command_with_updates(command, 'Creating Workload', args)
+  return_code = run_command_with_updates(command, 'Creating Workload')
 
   if return_code != 0:
     xpk_print(f'Create Workload request returned ERROR {return_code}')
@@ -725,9 +725,7 @@ def workload_delete(args) -> None:
 
     # Not batching deletion for single workload
     if len(workloads) == 1:
-      return_code = run_command_with_updates(
-          commands[0], 'Delete Workload', args
-      )
+      return_code = run_command_with_updates(commands[0], 'Delete Workload')
     else:
       return_code = run_commands(
           commands,

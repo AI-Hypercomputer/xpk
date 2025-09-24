@@ -195,7 +195,7 @@ def update_cluster_authorized_networks(args, authorized_networks) -> int:
   )
 
   return_code = run_command_with_updates(
-      command, 'GKE Cluster Update master authorized networks', args
+      command, 'GKE Cluster Update master authorized networks'
   )
 
   if return_code != 0:

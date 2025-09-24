@@ -242,9 +242,7 @@ def get_pod_template_interactive_command() -> str:
   return pod_command
 
 
-def create_app_profile_instance(
-    args: Namespace, volume_bundles: list[str]
-) -> int:
+def create_app_profile_instance(volume_bundles: list[str]) -> int:
   """Create new AppProfile instance on cluster with default settings.
 
   Args:
@@ -260,7 +258,6 @@ def create_app_profile_instance(
           volume_bundles=volume_bundles,
       ),
       task="Creating AppProfile",
-      args=args,
   )
 
 
@@ -328,15 +325,12 @@ def create_job_template_instance(
   return run_kubectl_apply(
       yml_string,
       task="Creating JobTemplate",
-      args=args,
   )
 
 
-def create_pod_template_instance(args: Namespace, service_account: str) -> int:
+def create_pod_template_instance(service_account: str) -> int:
   """Create new PodTemplate instance on cluster with default settings.
 
-  Args:
-    args - user provided arguments
   Returns:
     exit_code > 0 if creating PodTemplate fails, 0 otherwise
   """
@@ -358,7 +352,6 @@ def create_pod_template_instance(args: Namespace, service_account: str) -> int:
           service_account=service_account,
       ),
       task="Creating PodTemplate",
-      args=args,
   )
 
 
@@ -377,29 +370,27 @@ def prepare_kjob(args: Namespace) -> int:
   job_err_code = create_job_template_instance(args, system, service_account)
   if job_err_code > 0:
     return job_err_code
-  pod_err_code = create_pod_template_instance(args, service_account)
+  pod_err_code = create_pod_template_instance(service_account)
   if pod_err_code > 0:
     return pod_err_code
 
   volume_bundles = [item.name for item in storages]
 
-  return create_app_profile_instance(args, volume_bundles)
+  return create_app_profile_instance(volume_bundles)
 
 
-def apply_kjob_crds(args: Namespace) -> int:
+def apply_kjob_crds() -> int:
   """Apply kjob CRDs on cluster.
 
   This function install kjob CRDs files from kjobctl printcrds.
   It creates all neccessary kjob CRDs.
 
-  Args:
-    args - user provided arguments
   Returns:
     None
   """
   command = "kubectl kjob printcrds | kubectl apply --server-side -f -"
   task = "Create kjob CRDs on cluster"
-  return_code = run_command_with_updates(command, task, args)
+  return_code = run_command_with_updates(command, task)
   if return_code != 0:
     xpk_print(f"{task} returned ERROR {return_code}")
     return return_code

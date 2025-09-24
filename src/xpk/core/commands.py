@@ -175,7 +175,6 @@ def run_command_with_updates(command, task, verbose=True) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
-  
   if is_dry_run():
     xpk_print(
         f'Task: `{task}` is implemented by the following command'

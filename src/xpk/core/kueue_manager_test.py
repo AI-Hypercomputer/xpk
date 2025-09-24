@@ -47,8 +47,8 @@ class KueueManagerTest(unittest.TestCase):
         autoprovisioning=False,
         flex=False,
         num_slices=2,
-        cpu_quota=100,
-        memory_quota="100Gi",
+        cpu_limit=100,
+        memory_limit="100Gi",
     )
 
     self.assertEqual(context["cluster_queue_name"], "cluster-queue")
@@ -88,8 +88,8 @@ class KueueManagerTest(unittest.TestCase):
         autoprovisioning=False,
         flex=False,
         num_slices=2,
-        cpu_quota=100,
-        memory_quota="100Gi",
+        cpu_limit=100,
+        memory_limit="100Gi",
     )
 
     self.assertEqual(len(context["flavors"]), 2)
@@ -113,8 +113,8 @@ class KueueManagerTest(unittest.TestCase):
         autoprovisioning=False,
         flex=True,
         num_slices=2,
-        cpu_quota=100,
-        memory_quota="100Gi",
+        cpu_limit=100,
+        memory_limit="100Gi",
     )
     self.assertIn("admissionChecks", context["admission_checks"])
     self.assertIn("dws-prov", context["admission_checks"])
@@ -236,8 +236,8 @@ class KueueManagerTest(unittest.TestCase):
     kueue_config = KueueConfig(
         system=self.mock_system_chars,
         total_chips=8,
-        cpu_quota=100,
-        memory_quota="100Gi",
+        cpu_limit=100,
+        memory_limit="100Gi",
     )
 
     result = self.kueue_manager._configure(kueue_config)

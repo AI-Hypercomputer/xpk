@@ -15,7 +15,6 @@ limitations under the License.
 """
 
 import math
-from argparse import Namespace
 from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
 import json
@@ -52,8 +51,8 @@ MIN_MEMORY_LIMIT_SIZE = 4096
 class KueueConfig:
   system: SystemCharacteristics
   total_chips: int
-  cpu_quota: int
-  memory_quota: str
+  cpu_limit: int
+  memory_limit: str
   is_pathways_cluster: bool = False
   autoprovisioning_enabled: bool = False
   flex: bool = False
@@ -73,7 +72,6 @@ class KueueManager:
       self,
       kueue_config: KueueConfig,
       tolerations: Optional[List[Dict[str, Any]]] = None,
-      dry_run: bool = False,
   ) -> int:
     """
     Ensures the correct version of Kueue is installed. Upgrades if the installed
@@ -81,10 +79,9 @@ class KueueManager:
 
     Args:
         tolerations: An optional list of tolerations to apply to the kueue-controller-manager.
-        dry_run: If true, the command will not actually be executed.
     """
     # Step 1: Install directly from the official URL
-    return_code, installed_version = self._get_installed_kueue_version(dry_run)
+    return_code, installed_version = self._get_installed_kueue_version()
 
     if return_code == 0 and installed_version >= self.kueue_version:
       print(
@@ -95,21 +92,18 @@ class KueueManager:
 
     print(f"Installing/Upgrading Kueue to version {self.kueue_version}...")
 
-    install_return_code = self._install(tolerations, dry_run)
+    install_return_code = self._install(tolerations)
     if install_return_code != 0:
       return install_return_code
 
-    return self._configure(kueue_config, dry_run)
+    return self._configure(kueue_config)
 
-  def _get_installed_kueue_version(
-      self, dry_run: bool = False
-  ) -> tuple[int, str]:
+  def _get_installed_kueue_version(self) -> tuple[int, str]:
     command = "kubectl kueue version"
     task = "Get kueue version on server"
     return_code, val = run_command_for_value(
         command,
         task,
-        Namespace(dry_run=dry_run),
         dry_run_return_val="""
         v0.12.1""",
     )
@@ -125,14 +119,12 @@ class KueueManager:
   def _install(
       self,
       tolerations: Optional[List[Dict[str, Any]]] = None,
-      dry_run: bool = False,
   ) -> int:
     """
     Installs Kueue from the official manifest and then applies any necessary patches.
 
     Args:
         tolerations: An optional list of tolerations to apply to the kueue-controller-manager.
-        dry_run: If true, the command will not actually be executed.
     """
     # Step 1: Install directly from the official URL
     manifest_url = f"https://github.com/kubernetes-sigs/kueue/releases/download/{self.kueue_version}/manifests.yaml"
@@ -140,7 +132,7 @@ class KueueManager:
         f"kubectl apply --server-side --force-conflicts -f {manifest_url}"
     )
     return_code = run_command_with_updates_retry(
-        install_command, "Install Kueue", Namespace(dry_run=dry_run)
+        install_command, "Install Kueue"
     )
     if return_code != 0:
       return return_code
@@ -154,15 +146,15 @@ class KueueManager:
           f" --type='strategic' --patch='{patch_str}'"
       )
       return_code = run_command_with_updates_retry(
-          patch_command, "Patch Kueue Tolerations", Namespace(dry_run=dry_run)
+          patch_command, "Patch Kueue Tolerations"
       )
       if return_code != 0:
         return return_code
 
     # Step 3: Wait for Kueue to be available
-    return self._wait_for_kueue_available(dry_run)
+    return self._wait_for_kueue_available()
 
-  def _wait_for_kueue_available(self, dry_run: bool = False) -> int:
+  def _wait_for_kueue_available(self) -> int:
     """Wait for Kueue to be fully available.
 
     Args:
@@ -176,9 +168,7 @@ class KueueManager:
         f" --for=condition=available --timeout={WAIT_FOR_KUEUE_TIMEOUT}"
     )
     task = "Wait for Kueue to be available"
-    return_code = run_command_with_updates(
-        command, task, Namespace(dry_run=dry_run)
-    )
+    return_code = run_command_with_updates(command, task)
     if return_code != 0:
       xpk_print(f"{task} returned ERROR {return_code}")
     return return_code
@@ -186,7 +176,6 @@ class KueueManager:
   def _configure(
       self,
       kueue_config: KueueConfig,
-      dry_run: bool = False,
   ) -> int:
     """
     Configures Kueue with opinionated defaults for XPK.
@@ -206,8 +195,8 @@ class KueueManager:
         kueue_config.autoprovisioning_enabled,
         kueue_config.flex,
         kueue_config.num_slices,
-        kueue_config.cpu_quota,
-        kueue_config.memory_quota,
+        kueue_config.cpu_limit,
+        kueue_config.memory_limit,
     )
 
     rendered_manifest = template.render(context)
@@ -220,11 +209,11 @@ class KueueManager:
       topology_yaml = self.template_env.get_template(KUEUE_TOPOLOGY_JINJA_FILE)
       rendered_manifest = topology_yaml.render() + rendered_manifest
 
-    return_code = self._apply_manifest(rendered_manifest, dry_run)
+    return_code = self._apply_manifest(rendered_manifest)
     if return_code != 0:
       return return_code
 
-    return self._update_kueue_resources_if_necessary(dry_run)
+    return self._update_kueue_resources_if_necessary()
 
   def _build_template_context(
       self,
@@ -234,8 +223,8 @@ class KueueManager:
       autoprovisioning,
       flex,
       num_slices,
-      cpu_quota,
-      memory_quota,
+      cpu_limit,
+      memory_limit,
   ) -> Dict[str, Any]:
     """Prepares the context for the Jinja2 template."""
     # Main accelerator flavor
@@ -278,12 +267,12 @@ class KueueManager:
     covered_resources = [managed_resource]
     resources = [{"name": managed_resource, "nominalQuota": total_chips}]
 
-    if cpu_quota:
+    if cpu_limit:
       covered_resources.append("cpu")
-      resources.append({"name": "cpu", "nominalQuota": cpu_quota})
-    if memory_quota:
+      resources.append({"name": "cpu", "nominalQuota": cpu_limit})
+    if memory_limit:
       covered_resources.append("memory")
-      resources.append({"name": "memory", "nominalQuota": memory_quota})
+      resources.append({"name": "memory", "nominalQuota": memory_limit})
 
     resource_groups = [{
         "coveredResources": covered_resources,
@@ -325,18 +314,18 @@ class KueueManager:
         "admission_checks": admission_checks,
     }
 
-  def _apply_manifest(self, manifest: str, dry_run: bool = False) -> int:
+  def _apply_manifest(self, manifest: str) -> int:
     task = "Applying Kueue Custom Resources"
     tmp_file = write_tmp_file(manifest)
     command = f"kubectl apply -f {tmp_file}"
-    return run_command_with_updates(command, task, Namespace(dry_run=dry_run))
+    return run_command_with_updates(command, task)
 
-  def _update_kueue_resources_if_necessary(self, dry_run: bool = False) -> int:
+  def _update_kueue_resources_if_necessary(self) -> int:
     # Patch memory size limit if necessary
     # Get total number of nodes
     cmd_total_node_num = "kubectl get node --no-headers | wc -l"
     return_code, out = run_command_for_value(
-        cmd_total_node_num, "Count total nodes", Namespace(dry_run=dry_run)
+        cmd_total_node_num, "Count total nodes"
     )
     if return_code != 0:
       xpk_exit(1)
@@ -365,7 +354,6 @@ class KueueManager:
     return_code = run_command_with_updates_retry(
         patch_command,
         task,
-        Namespace(dry_run=dry_run),
     )
     if return_code != 0:
       xpk_print(f"{task} returned ERROR {return_code}")

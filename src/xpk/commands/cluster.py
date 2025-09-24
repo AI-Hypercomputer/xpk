@@ -1104,6 +1104,7 @@ def run_gke_cluster_create_command(
       f' {rapid_release_cmd}'
       ' --enable-dns-access'
       ' --autoscaling-profile=optimize-utilization'
+      ' --labels=gke_product_type=xpk'
   )
 
   enable_ip_alias = False

@@ -53,6 +53,7 @@ blueprint_dependencies_dir = {
 
 cluster_toolkit_url = "github.com/GoogleCloudPlatform/cluster-toolkit"
 cluster_toolkit_version = "v1.62.2"
+common_cluster_labels = {"gke_product_type": "xpk"}
 
 
 class BlueprintGeneratorOutput:
@@ -298,6 +299,7 @@ class BlueprintGenerator:
             "deployment_name": blueprint_name,
             "region": region,
             "zone": zone,
+            "labels": common_cluster_labels,
         },
     )
 
@@ -676,6 +678,7 @@ class BlueprintGenerator:
             "deployment_name": blueprint_name,
             "region": region,
             "zone": zone,
+            "labels": common_cluster_labels,
         },
     )
 
@@ -962,6 +965,7 @@ class BlueprintGenerator:
             "deployment_name": blueprint_name,
             "region": region,
             "zone": zone,
+            "labels": common_cluster_labels,
         },
     )
 

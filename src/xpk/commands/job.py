@@ -62,9 +62,7 @@ def job_info(args):
   job_name = args.name
 
   desc_command = f'kubectl-kjob describe slurm {job_name}'
-  desc_code, desc_text = run_command_for_value(
-      desc_command, 'Getting job data', args
-  )
+  desc_code, desc_text = run_command_for_value(desc_command, 'Getting job data')
   if desc_code != 0:
     xpk_print(f'Data info request returned ERROR {desc_code}')
     xpk_exit(desc_code)
@@ -76,7 +74,6 @@ def job_info(args):
   job_code, job_text = run_command_for_value(
       job_command,
       'Getting job info',
-      args,
       dry_run_return_val=JOBS_DRY_RUN_YAML,
   )
   if job_code != 0:
@@ -87,7 +84,6 @@ def job_info(args):
   pods_code, pods_text = run_command_for_value(
       pods_command,
       'Getting pods list',
-      args,
       dry_run_return_val=PODS_DRY_RUN_RESULT,
   )
   if pods_code != 0:

@@ -1,3 +1,4 @@
+$ python3 xpk.py cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-8 --spot --dry-run
 [XPK] Starting xpk
 [XPK] Starting cluster create for cluster golden-cluster:
 [XPK] Working on golden-project and us-central1-a
@@ -73,7 +74,7 @@ kubectl wait deploy/kueue-controller-manager -nkueue-system --for=condition=avai
 [XPK] Install Kueue Custom Resources
 [XPK] Try 1: Applying Kueue Custom Resources
 [XPK] Task: `Applying Kueue Custom Resources` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f 0f9af4fcbf6d012aed0c8e09d49827dc34495d3eed2893af6b68b2d121a519ac
+kubectl apply -f c49da377b542c14a80a64a13236f8d3a1c8e022dc7c82cc6f6f0560d980ee9e7
 [XPK] Update Kueue Controller Manager resources
 [XPK] Task: `Count total nodes` is implemented by the following command not running since it is a dry run. 
 kubectl get node --no-headers | wc -l

@@ -122,7 +122,7 @@ def update_jobset_resources_if_necessary(args):
   # Get total number of nodes
   cmd_total_node_num = 'kubectl get node --no-headers | wc -l'
   return_code, out = run_command_for_value(
-      cmd_total_node_num, 'Count total nodes', args
+      cmd_total_node_num, 'Count total nodes'
   )
   if return_code != 0:
     xpk_exit(1)

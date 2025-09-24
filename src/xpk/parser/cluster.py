@@ -174,6 +174,13 @@ def set_cluster_create_parser(cluster_create_parser: ArgumentParser):
       'Arguments for configuring MTC in cluster create.',
   )
   add_shared_cluster_create_mtc_arguments(cluster_create_mtc_arguments)
+
+  cluster_create_resource_limits = cluster_create_parser.add_argument_group(
+      'Optional Resource Limits Arguments',
+      'Arguments for configuring resource limits in cluster create.',
+  )
+  add_resource_limits(cluster_create_resource_limits)
+
   cluster_create_parser.set_defaults(func=cluster_create)
 
 
@@ -245,6 +252,15 @@ def set_cluster_create_pathways_parser(
       )
   )
   add_shared_cluster_create_mtc_arguments(cluster_create_mtc_arguments)
+
+  cluster_create_resource_limits = (
+      cluster_create_pathways_parser.add_argument_group(
+          'Optional Resource Limits Arguments',
+          'Arguments for configuring resource limits in cluster create.',
+      )
+  )
+  add_resource_limits(cluster_create_resource_limits)
+
   cluster_create_pathways_parser.set_defaults(func=cluster_create_pathways)
 
 
@@ -320,6 +336,13 @@ def set_cluster_create_ray_parser(cluster_create_ray_parser: ArgumentParser):
       'Arguments for configuring MTC in cluster create.',
   )
   add_shared_cluster_create_mtc_arguments(cluster_create_mtc_arguments)
+
+  cluster_create_resource_limits = cluster_create_ray_parser.add_argument_group(
+      'Optional Resource Limits Arguments',
+      'Arguments for configuring resource limits in cluster create.',
+  )
+  add_resource_limits(cluster_create_resource_limits)
+
   cluster_create_ray_parser.set_defaults(func=cluster_create_ray_cluster)
 
 
@@ -886,4 +909,24 @@ def add_shared_cluster_create_mtc_arguments(
           '(Optional) The tolerance key to be used for multi-tier'
           ' checkpointing. By default, it is set to "google.com/tpu".'
       ),
+  )
+
+
+def add_resource_limits(parser_or_group: ParserOrArgumentGroup):
+  """Add resource limits arguments in cluster create.
+
+  Args:
+      List of cluster create resource limits arguments parsers or group
+  """
+  parser_or_group.add_argument(
+      '--memory-limit',
+      type=str,
+      default=None,
+      help='The memory limit for the Kueue controller manager.',
+  )
+  parser_or_group.add_argument(
+      '--cpu-limit',
+      type=int,
+      default=None,
+      help='The CPU limit for the Kueue controller manager.',
   )

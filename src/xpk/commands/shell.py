@@ -60,7 +60,6 @@ def get_existing_shell_pod_name(args: Namespace) -> str | None:
           ' -o custom-columns=":metadata.name"'
       ),
       task='Get existing interactive shell pod name.',
-      global_args=args,
   )
   if return_code != 0:
     xpk_print(

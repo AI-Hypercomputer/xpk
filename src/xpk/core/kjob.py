@@ -167,8 +167,8 @@ Kueue_TAS_annotation = "kueue.x-k8s.io/podset-preferred-topology=cloud.google.co
 default_interface_annotation = "networking.gke.io/default-interface=eth0"
 
 
-def get_a4_pod_template_annotations(args) -> tuple[str, str]:
-  sub_networks = get_cluster_subnetworks(args)
+def get_a4_pod_template_annotations() -> tuple[str, str]:
+  sub_networks = get_cluster_subnetworks()
   interfaces_key, interfaces_value = rdma_decorator.get_interfaces_entry(
       sub_networks
   )
@@ -179,8 +179,8 @@ def get_a4_pod_template_annotations(args) -> tuple[str, str]:
   )
 
 
-def get_a3ultra_pod_template_annotations(args: Namespace) -> tuple[str, str]:
-  sub_networks = get_cluster_subnetworks(args)
+def get_a3ultra_pod_template_annotations() -> tuple[str, str]:
+  sub_networks = get_cluster_subnetworks()
   interfaces_key, interfaces_value = rdma_decorator.get_interfaces_entry(
       sub_networks
   )
@@ -191,11 +191,9 @@ def get_a3ultra_pod_template_annotations(args: Namespace) -> tuple[str, str]:
   )
 
 
-def get_a3mega_pod_template_annotations(
-    args: Namespace,
-) -> tuple[str, str, str]:
+def get_a3mega_pod_template_annotations() -> tuple[str, str, str]:
   """Adds or updates annotations in the Pod template."""
-  sub_networks = get_cluster_subnetworks(args)
+  sub_networks = get_cluster_subnetworks()
   tcpxo_deamon_key, tcpxo_deamon_paths = get_tcpxo_deamon_entry()
   interfaces_key, interfaces_value = tcpxo_decorator.get_interfaces_entry(
       sub_networks
@@ -205,16 +203,14 @@ def get_a3mega_pod_template_annotations(
   return tcpxo, interfaces, default_interface_annotation
 
 
-def verify_kjob_installed(args: Namespace) -> int:
+def verify_kjob_installed() -> int:
   """Check if kjob is installed. If not provide user with proper communicate and exit.
-  Args:
-    args - user provided arguments.
   Returns:
     error code > if kjob not installed, otherwise 0
   """
   command = "kubectl-kjob help"
   task = "Verify kjob installation "
-  verify_kjob_installed_code, _ = run_command_for_value(command, task, args)
+  verify_kjob_installed_code, _ = run_command_for_value(command, task)
 
   if verify_kjob_installed_code == 0:
     xpk_print("kjob found")
@@ -246,9 +242,7 @@ def get_pod_template_interactive_command() -> str:
   return pod_command
 
 
-def create_app_profile_instance(
-    args: Namespace, volume_bundles: list[str]
-) -> int:
+def create_app_profile_instance(volume_bundles: list[str]) -> int:
   """Create new AppProfile instance on cluster with default settings.
 
   Args:
@@ -264,7 +258,6 @@ def create_app_profile_instance(
           volume_bundles=volume_bundles,
       ),
       task="Creating AppProfile",
-      args=args,
   )
 
 
@@ -332,15 +325,12 @@ def create_job_template_instance(
   return run_kubectl_apply(
       yml_string,
       task="Creating JobTemplate",
-      args=args,
   )
 
 
-def create_pod_template_instance(args: Namespace, service_account: str) -> int:
+def create_pod_template_instance(service_account: str) -> int:
   """Create new PodTemplate instance on cluster with default settings.
 
-  Args:
-    args - user provided arguments
   Returns:
     exit_code > 0 if creating PodTemplate fails, 0 otherwise
   """
@@ -362,7 +352,6 @@ def create_pod_template_instance(args: Namespace, service_account: str) -> int:
           service_account=service_account,
       ),
       task="Creating PodTemplate",
-      args=args,
   )
 
 
@@ -381,29 +370,27 @@ def prepare_kjob(args: Namespace) -> int:
   job_err_code = create_job_template_instance(args, system, service_account)
   if job_err_code > 0:
     return job_err_code
-  pod_err_code = create_pod_template_instance(args, service_account)
+  pod_err_code = create_pod_template_instance(service_account)
   if pod_err_code > 0:
     return pod_err_code
 
   volume_bundles = [item.name for item in storages]
 
-  return create_app_profile_instance(args, volume_bundles)
+  return create_app_profile_instance(volume_bundles)
 
 
-def apply_kjob_crds(args: Namespace) -> int:
+def apply_kjob_crds() -> int:
   """Apply kjob CRDs on cluster.
 
   This function install kjob CRDs files from kjobctl printcrds.
   It creates all neccessary kjob CRDs.
 
-  Args:
-    args - user provided arguments
   Returns:
     None
   """
   command = "kubectl kjob printcrds | kubectl apply --server-side -f -"
   task = "Create kjob CRDs on cluster"
-  return_code = run_command_with_updates(command, task, args)
+  return_code = run_command_with_updates(command, task)
   if return_code != 0:
     xpk_print(f"{task} returned ERROR {return_code}")
     return return_code

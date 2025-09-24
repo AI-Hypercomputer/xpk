@@ -42,9 +42,7 @@ def set_cluster_command(args) -> int:
       ' --namespace=default'
   )
   task = f'get-credentials to cluster {args.cluster}'
-  return_code = run_command_with_updates_retry(
-      command, task, args, verbose=False
-  )
+  return_code = run_command_with_updates_retry(command, task, verbose=False)
   if return_code != 0:
     xpk_print(f'{task} returned ERROR {return_code}')
   return return_code

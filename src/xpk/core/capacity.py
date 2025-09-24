@@ -50,7 +50,7 @@ def print_reservations(args) -> int:
   """
   command = f'gcloud beta compute reservations list --project={args.project}'
   return_code = run_command_with_updates(
-      command, 'Get all reservations in the project', args
+      command, 'Get all reservations in the project'
   )
   if return_code != 0:
     xpk_print(f'Get all reservations returned ERROR {return_code}')
@@ -119,7 +119,7 @@ def get_reservation_maintenance_interval(
       f' --project={project} --zone={zone} --format="value(specificReservation.instanceProperties.maintenanceInterval)"'
   )
   return_code, output = run_command_for_value(
-      command, 'Get reservation maintenance interval', None
+      command, 'Get reservation maintenance interval'
   )
   if return_code != 0:
     xpk_print(f'Get reservation maintenance interval ERROR {return_code}')
@@ -143,7 +143,7 @@ def get_reservation_placement_policy(
       f' --project={project} --zone={zone} --format="value(resourcePolicies.policy)"'
   )
   return_code, output = run_command_for_value(
-      command, 'Get reservation placement policy', None
+      command, 'Get reservation placement policy'
   )
   if return_code != 0:
     xpk_print(f'Get reservation placement policy ERROR {return_code}')
@@ -164,7 +164,7 @@ def verify_reservation_exists(args) -> int:
       f'gcloud beta compute reservations describe {args.reservation}'
       f' --project={args.project} --zone={args.zone}'
   )
-  return_code = run_command_with_updates(command, 'Describe reservation', args)
+  return_code = run_command_with_updates(command, 'Describe reservation')
   if return_code != 0:
     xpk_print(f'Describe reservation returned ERROR {return_code}')
     xpk_print('Please confirm that your reservation name is correct.')

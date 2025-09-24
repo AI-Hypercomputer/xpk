@@ -133,7 +133,6 @@ def is_cluster_private(args) -> bool:
   return_code, private_nodes_enabled = run_command_for_value(
       command,
       'Check if Private Nodes is enabled in cluster.',
-      args,
   )
 
   if return_code != 0:
@@ -164,7 +163,6 @@ def get_cluster_authorized_networks(args) -> list[str]:
   return_code, authorized_networks = run_command_for_value(
       command,
       'Fetching the list of authorized network from cluster describe.',
-      args,
       dry_run_return_val='127.0.0.1/32',
   )
 
@@ -197,7 +195,7 @@ def update_cluster_authorized_networks(args, authorized_networks) -> int:
   )
 
   return_code = run_command_with_updates(
-      command, 'GKE Cluster Update master authorized networks', args
+      command, 'GKE Cluster Update master authorized networks'
   )
 
   if return_code != 0:

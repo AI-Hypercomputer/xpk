@@ -126,7 +126,7 @@ def create_cluster_network(args, index) -> int:
         ' --subnet-mode=custom --mtu=8244'
     )
     return_code = run_command_with_updates(
-        command, 'Create Cluster Network', args, verbose=False
+        command, 'Create Cluster Network', verbose=False
     )
 
     if return_code != 0:
@@ -161,7 +161,7 @@ def create_cluster_subnet(args, index) -> int:
         f' --region={zone_to_region(args.zone)} --range=192.168.{index}.0/24'
     )
     return_code = run_command_with_updates(
-        command, 'Create Cluster Subnet', args, verbose=False
+        command, 'Create Cluster Subnet', verbose=False
     )
 
     if return_code != 0:
@@ -197,7 +197,7 @@ def create_cluster_firewall_rule(args, index) -> int:
         ' --rules=tcp:0-65535,udp:0-65535,icmp --source-ranges=192.168.0.0/16'
     )
     return_code = run_command_with_updates(
-        command, 'Create Cluster Firewall Rule', args, verbose=False
+        command, 'Create Cluster Firewall Rule', verbose=False
     )
 
     if return_code != 0:
@@ -224,7 +224,7 @@ def create_cluster_network_config(args) -> int:
   command = f'kubectl apply -f {str(tmp)}'
 
   return_code = run_command_with_updates(
-      command, 'GKE Cluster Create Network Config', args
+      command, 'GKE Cluster Create Network Config'
   )
   if return_code != 0:
     xpk_print(
@@ -297,7 +297,7 @@ def delete_cluster_subnets(args) -> int:
     )
 
     return_code = run_command_with_updates(
-        command, 'Delete Cluster Subnet', args, verbose=False
+        command, 'Delete Cluster Subnet', verbose=False
     )
 
     if return_code != 0:

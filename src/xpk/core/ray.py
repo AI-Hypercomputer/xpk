@@ -102,7 +102,7 @@ def install_ray_cluster(args, system) -> int:
     0 if successful and 1 otherwise.
   """
 
-  delete_ray_cluster(args)
+  delete_ray_cluster()
 
   label = 'cloud.google.com/gke-nodepool=default-pool'
   available_head_cpu, available_head_mem = generate_available_resources(
@@ -136,7 +136,7 @@ def install_ray_cluster(args, system) -> int:
   task = 'Applying RayCluster'
   retry_attempts = 1
   return_code = run_command_with_updates_retry(
-      command, task, args, num_retry_attempts=retry_attempts
+      command, task, num_retry_attempts=retry_attempts
   )
   if return_code != 0:
     xpk_print(f'{task} not successful.')
@@ -144,11 +144,8 @@ def install_ray_cluster(args, system) -> int:
   return return_code
 
 
-def delete_ray_cluster(args) -> None:
+def delete_ray_cluster() -> None:
   """Delete all RayClusters on the cluster
-
-  Args:
-    args: user provided arguments for running the command.
 
   Returns:
     None
@@ -158,7 +155,7 @@ def delete_ray_cluster(args) -> None:
   task = 'Deleting old RayCluster'
   retry_attempts = 1
   return_code = run_command_with_updates_retry(
-      command, task, args, num_retry_attempts=retry_attempts
+      command, task, num_retry_attempts=retry_attempts
   )
 
   if return_code != 0:

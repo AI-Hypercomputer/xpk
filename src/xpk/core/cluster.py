@@ -66,7 +66,7 @@ def set_jobset_on_cluster(args) -> int:
       f' -f https://github.com/kubernetes-sigs/jobset/releases/download/{JOBSET_VERSION}/manifests.yaml'
   )
   task = f'Install Jobset on {args.cluster}'
-  return_code = run_command_with_updates_retry(command, task, args)
+  return_code = run_command_with_updates_retry(command, task)
 
   if return_code != 0:
     xpk_print(f'{task} returned with ERROR {return_code}.\n')
@@ -95,7 +95,7 @@ def set_pathways_job_on_cluster(args) -> int:
       f' https://github.com/google/pathways-job/releases/download/{PATHWAYS_JOB_VERSION}/install.yaml'
   )
   task = f'Install PathwaysJob on {args.cluster}'
-  return_code = run_command_with_updates_retry(command, task, args)
+  return_code = run_command_with_updates_retry(command, task)
 
   if return_code != 0:
     xpk_print(f'{task} returned with ERROR {return_code}.\n')
@@ -110,11 +110,10 @@ def set_pathways_job_on_cluster(args) -> int:
   return return_code
 
 
-def install_nccl_on_cluster(args, system: SystemCharacteristics) -> int:
+def install_nccl_on_cluster(system: SystemCharacteristics) -> int:
   """Install NCCL plugin on the cluster.
 
   Args:
-    args: user provided arguments for running the command.
     system: system characteristics.
 
   Returns:
@@ -128,7 +127,7 @@ def install_nccl_on_cluster(args, system: SystemCharacteristics) -> int:
     command = f'kubectl apply -f {INSTALLER_NCCL_TCPXO}'
 
   return_code = run_command_with_updates(
-      command, 'Install NCCL Plugin On Cluster', args
+      command, 'Install NCCL Plugin On Cluster'
   )
 
   if return_code != 0:
@@ -141,7 +140,7 @@ def install_nccl_on_cluster(args, system: SystemCharacteristics) -> int:
     command = f'kubectl apply -f {CONFIG_NCCL_TCPX}'
 
     return_code = run_command_with_updates(
-        command, 'Install NCCL Config On Cluster', args
+        command, 'Install NCCL Config On Cluster'
     )
 
     if return_code != 0:
@@ -153,19 +152,14 @@ def install_nccl_on_cluster(args, system: SystemCharacteristics) -> int:
   return 0
 
 
-def disable_mglru_on_cluster(args) -> int:
+def disable_mglru_on_cluster() -> int:
   """Disable MGLRU on the cluster.
-
-  Args:
-    args: user provided arguments for running the command.
 
   Returns:
     0 if successful and 1 otherwise.
   """
   command = f'kubectl apply -f {MGLRU_DISABLE}'
-  return_code = run_command_with_updates(
-      command, 'Disable MGLRU On Cluster', args
-  )
+  return_code = run_command_with_updates(command, 'Disable MGLRU On Cluster')
 
   if return_code != 0:
     xpk_print('Disablig MGLRU On Cluster request returned ERROR')
@@ -174,11 +168,10 @@ def disable_mglru_on_cluster(args) -> int:
   return 0
 
 
-def install_nri_on_cluster(args) -> int:
+def install_nri_on_cluster() -> int:
   """Install NRI Device Injector on the cluster.
 
   Args:
-    args: user provided arguments for running the command.
     system: system characteristics.
 
   Returns:
@@ -186,7 +179,7 @@ def install_nri_on_cluster(args) -> int:
   """
   command = f'kubectl apply -f {NRI_DEVICE_INJECTOR}'
   return_code = run_command_with_updates(
-      command, 'Install NRI Device Injector On Cluster', args
+      command, 'Install NRI Device Injector On Cluster'
   )
 
   if return_code != 0:
@@ -383,7 +376,7 @@ def update_gke_cluster_with_addon(args, addon: str) -> int:
   )
   xpk_print(f'Updating GKE cluster to enable {addon}, may take a while!')
   return_code = run_command_with_updates(
-      command, f'GKE Cluster Update to enable {addon}', args
+      command, f'GKE Cluster Update to enable {addon}'
   )
   if return_code != 0:
     xpk_print(f'GKE Cluster Update request returned ERROR {return_code}')
@@ -592,7 +585,7 @@ def update_gke_cluster_with_clouddns(args) -> int:
   )
   xpk_print('Updating GKE cluster to use Cloud DNS, may take a while!')
   return_code = run_command_with_updates(
-      command, 'GKE Cluster Update to enable Cloud DNS', args
+      command, 'GKE Cluster Update to enable Cloud DNS'
   )
   if return_code != 0:
     xpk_print(f'GKE Cluster Update request returned ERROR {return_code}')
@@ -619,7 +612,7 @@ def update_gke_cluster_with_workload_identity_enabled(args) -> int:
       ' while!'
   )
   return_code = run_command_with_updates(
-      command, 'GKE Cluster Update to enable Workload Identity Federation', args
+      command, 'GKE Cluster Update to enable Workload Identity Federation'
   )
   if return_code != 0:
     xpk_print(f'GKE Cluster Update request returned ERROR {return_code}')
@@ -645,7 +638,7 @@ def update_gke_cluster_with_gcsfuse_driver_enabled(args) -> int:
       'Updating GKE cluster to enable GCSFuse CSI driver, may take a while!'
   )
   return_code = run_command_with_updates(
-      command, 'GKE Cluster Update to enable GCSFuse CSI driver', args
+      command, 'GKE Cluster Update to enable GCSFuse CSI driver'
   )
   if return_code != 0:
     xpk_print(f'GKE Cluster Update request returned ERROR {return_code}')
@@ -671,7 +664,7 @@ def update_gke_cluster_with_lustre_driver_enabled(args) -> int:
       'Updating GKE cluster to enable Lustre CSI driver, may take a while!'
   )
   return_code = run_command_with_updates(
-      command, 'GKE Cluster Update to enable Lustre CSI driver', args
+      command, 'GKE Cluster Update to enable Lustre CSI driver'
   )
   if return_code != 0:
     xpk_print(f'GKE Cluster Update request returned ERROR {return_code}')
@@ -701,7 +694,6 @@ def upgrade_gke_control_plane_version(args, default_rapid_gke_version) -> int:
   return_code = run_command_with_updates(
       command,
       'GKE Cluster control plane version update to enable Cloud DNS',
-      args,
   )
   if return_code != 0:
     xpk_print(
@@ -892,9 +884,7 @@ def get_cluster_credentials(args) -> None:
       ' --namespace=default'
   )
   task = f'get-credentials to cluster {args.cluster}'
-  return_code = run_command_with_updates_retry(
-      command, task, args, verbose=False
-  )
+  return_code = run_command_with_updates_retry(command, task, verbose=False)
   if return_code != 0:
     xpk_print(f'{task} returned ERROR {return_code}')
     xpk_exit(return_code)

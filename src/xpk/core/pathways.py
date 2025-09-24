@@ -323,7 +323,7 @@ def try_to_delete_pathwaysjob_first(args, workloads) -> bool:
 
   # Not batching deletion for single workload
   if len(workloads) == 1:
-    return_code = run_command_with_updates(commands[0], 'Delete Workload', args)
+    return_code = run_command_with_updates(commands[0], 'Delete Workload')
   else:
     return_code = run_commands(
         commands, 'Delete Workload', task_names, batch=100, dry_run=args.dry_run

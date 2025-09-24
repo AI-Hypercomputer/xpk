@@ -652,7 +652,6 @@ def ensure_resource_policy_exists(
           f'--region={zone_to_region(args.zone)}'
       ),
       'Retrieve resource policy',
-      args,
   )
 
   if return_code == 0:
@@ -668,7 +667,6 @@ def ensure_resource_policy_exists(
           f'--accelerator-topology={topology}'
       ),
       'Create resource policy',
-      args,
   )
 
   if return_code != 0:

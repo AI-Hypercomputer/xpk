@@ -62,6 +62,7 @@ dev = [
     "pylint>=2.6.0",
     "pre-commit",
     "pytest",
+    "pytest-mock==3.15.1",
     "docker==7.1.0",
     "mypy ~= 1.17",
     "types-PyYAML == 6.0.2",

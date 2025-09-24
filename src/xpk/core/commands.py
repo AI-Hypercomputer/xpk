@@ -23,6 +23,7 @@ from argparse import Namespace
 from ..utils.objects import chunks
 from ..utils.file import make_tmp_files, write_tmp_file
 from ..utils.console import xpk_print
+from ..utils.execution_context import is_dry_run
 
 
 def run_commands(commands, jobname, per_command_name, batch=10, dry_run=False):
@@ -78,14 +79,13 @@ def run_command_batch(commands, jobname, per_command_name, output_logs):
     The max return code and a list of all the return codes.
   """
 
+  files = [open(f, 'w', encoding='utf-8') for f in output_logs]
   children = []
   start_time = datetime.datetime.now()
-  for i, command in enumerate(commands):
+  for command, file in zip(commands, files):
     children.append(
         # subprocess managed by list pylint: disable=consider-using-with
-        subprocess.Popen(
-            command, stdout=output_logs[i], stderr=output_logs[i], shell=True
-        )
+        subprocess.Popen(command, stdout=file, stderr=file, shell=True)
     )
 
   while True:
@@ -99,7 +99,7 @@ def run_command_batch(commands, jobname, per_command_name, output_logs):
       slow_worker_text = per_command_name[slow_worker_index]
       slow_str = (
           f', task {slow_worker_text} still working, logfile'
-          f' {output_logs[slow_worker_index].name}'
+          f' {output_logs[slow_worker_index]}'
       )
     else:
       slow_str = ''
@@ -116,7 +116,7 @@ def run_command_batch(commands, jobname, per_command_name, output_logs):
       )
       xpk_print(
           f'Failure is {per_command_name[failing_index]}'
-          f' and logfile {output_logs[failing_index].name}'
+          f' and logfile {output_logs[failing_index]}'
       )
       for child in children:
         child.terminate()
@@ -126,18 +126,21 @@ def run_command_batch(commands, jobname, per_command_name, output_logs):
       break
 
     time.sleep(1)
+
+  for file in files:
+    file.close()
+
   return max_returncode, returncodes
 
 
 def run_command_with_updates_retry(
-    command, task, args, verbose=True, num_retry_attempts=5, wait_seconds=10
+    command, task, verbose=True, num_retry_attempts=5, wait_seconds=10
 ) -> int:
   """Generic run commands function with updates and retry logic.
 
   Args:
     command: command to execute
     task: user-facing name of the task
-    args: user provided arguments for running the command.
     verbose: shows stdout and stderr if set to true. Set to True by default.
     num_retry_attempts: number of attempts to retry the command.
         This has a default value in the function arguments.
@@ -157,23 +160,22 @@ def run_command_with_updates_retry(
       time.sleep(wait_seconds)
     i += 1
     xpk_print(f'Try {i}: {task}')
-    return_code = run_command_with_updates(command, task, args, verbose=verbose)
+    return_code = run_command_with_updates(command, task, verbose=verbose)
   return return_code
 
 
-def run_command_with_updates(command, task, global_args, verbose=True) -> int:
+def run_command_with_updates(command, task, verbose=True) -> int:
   """Generic run commands function with updates.
 
   Args:
     command: command to execute
     task: user-facing name of the task
-    global_args: user provided arguments for running the command.
     verbose: shows stdout and stderr if set to true. Set to True by default.
 
   Returns:
     0 if successful and 1 otherwise.
   """
-  if global_args.dry_run:
+  if is_dry_run():
     xpk_print(
         f'Task: `{task}` is implemented by the following command'
         ' not running since it is a dry run.'
@@ -223,7 +225,6 @@ def run_command_with_updates(command, task, global_args, verbose=True) -> int:
 def run_command_for_value(
     command,
     task,
-    global_args,
     dry_run_return_val='0',
     print_timer=False,
     hide_error=False,
@@ -236,7 +237,6 @@ def run_command_for_value(
   Args:
     command: user provided command to run.
     task: user provided task name for running the command.
-    global_args: user provided arguments for running the command.
     dry_run_return_val: return value of this command for dry run.
     print_timer: print out the time the command is running.
     hide_error: hide the error from the command output upon success.
@@ -246,7 +246,7 @@ def run_command_for_value(
     int: return_code, default is 0
     str: return_val, default is '0'
   """
-  if global_args is not None and global_args.dry_run:
+  if is_dry_run():
     xpk_print(
         f'Task: `{task}` is implemented by the following command'
         ' not running since it is a dry run.'
@@ -349,8 +349,8 @@ def run_command_with_full_controls(
   return return_code
 
 
-def run_kubectl_apply(yml_string: str, task: str, args: Namespace) -> int:
+def run_kubectl_apply(yml_string: str, task: str) -> int:
   tmp = write_tmp_file(yml_string)
-  command = f'kubectl apply -f {str(tmp.file.name)}'
-  err_code = run_command_with_updates(command, task, args)
+  command = f'kubectl apply -f {str(tmp)}'
+  err_code = run_command_with_updates(command, task)
   return err_code

@@ -131,7 +131,7 @@ def get_workload_list(args) -> tuple[int, str]:
   if hasattr(args, 'filter_by_job'):
     task += f' with filter-by-job={args.filter_by_job}'
 
-  return_code, return_value = run_command_for_value(command, task, args)
+  return_code, return_value = run_command_for_value(command, task)
   return return_code, return_value
 
 
@@ -152,7 +152,7 @@ def check_if_workload_exists(args) -> bool:
 
   command = f"kubectl get workloads -o=custom-columns='{s}'"
   return_code, return_msg = run_command_for_value(
-      command, 'Check if Workload Already Exists', args
+      command, 'Check if Workload Already Exists'
   )
 
   if return_code != 0:
@@ -186,7 +186,7 @@ def wait_for_job_completion(args) -> int:
   # Get the full workload name
   get_workload_name_cmd = f'kubectl get workloads | grep jobset-{args.workload}'
   return_code, return_value = run_command_for_value(
-      get_workload_name_cmd, 'Get full workload name', args
+      get_workload_name_cmd, 'Get full workload name'
   )
   if return_code != 0:
     xpk_print(f'Get full workload name request returned ERROR {return_code}')
@@ -205,7 +205,6 @@ def wait_for_job_completion(args) -> int:
   return_code, return_value = run_command_for_value(
       wait_cmd,
       f'Wait for workload to finish with timeout of {timeout_msg}',
-      args,
       print_timer=True,
   )
   if return_code != 0:
@@ -231,7 +230,7 @@ def wait_for_job_completion(args) -> int:
       " jsonpath='{.status.conditions[-1].type}'"
   )
   return_code, return_value = run_command_for_value(
-      status_cmd, 'Get jobset status', args
+      status_cmd, 'Get jobset status'
   )
   if return_code != 0:
     xpk_print(f'Get workload status request returned ERROR {return_code}')

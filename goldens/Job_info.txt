@@ -1,0 +1,21 @@
+$ python3 xpk.py job info golden-job --project=golden-project --zone=us-central1-a --cluster=golden-cluster --dry-run
+[XPK] Starting xpk
+[XPK] Task: `Getting job data` is implemented by the following command not running since it is a dry run. 
+kubectl-kjob describe slurm golden-job
+[XPK] Task: `Getting job info` is implemented by the following command not running since it is a dry run. 
+kubectl-kjob list slurm -o yaml --field-selector metadata.name==golden-job
+[XPK] Task: `Getting pods list` is implemented by the following command not running since it is a dry run. 
+kubectl get pods -l=job-name=golden-job --no-headers
+Job name: golden-job
+Script name: echo hello
+Profile: ''
+Labels:
+  kjobctl.x-k8s.io/app-profile: default
+Mounts: []
+Pods:
+- Name: foo-pod
+  Status: Running
+- Name: bar-pod
+  Status: Evicted
+Entrypoint environment variables template: []
+[XPK] XPK Done.

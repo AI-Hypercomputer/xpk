@@ -20,11 +20,15 @@ BIN_PATH=$(PROJECT_DIR)/bin
 install: check-python check-gcloud install-gcloud-auth-plugin install-kueuectl install-kjobctl pip-install
 
 .PHONY: install-dev
-install-dev: check-python check-gcloud mkdir-bin install-kueuectl install-kjobctl pip-install install-pytest install-lint
+install-dev: check-python check-gcloud mkdir-bin install-kueuectl install-kjobctl pip-install pip-install-dev install-pytest install-lint
+
+.PHONY: pip-install-dev
+pip-install-dev:
+	pip install -e ".[dev]"
 
 .PHONY: pip-install
 pip-install:
-	pip install .
+	pip install -e .
 
 .PHONY: install-pytest
 install-pytest:

@@ -76,6 +76,7 @@ from ..core.vertex import create_vertex_tensorboard
 from ..core.workload import get_workload_list
 from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
+from ..utils.execution_context import is_dry_run
 from . import cluster_gcluster
 from .common import set_cluster_command
 import shutil
@@ -108,7 +109,7 @@ def cluster_adapt(args) -> None:
         'Argument --num-nodes was not provided, trying to determine number of'
         ' nodes based on the available nodes in the cluster...'
     )
-    args.num_nodes = count_nodes_on_cluster(args, system)
+    args.num_nodes = count_nodes_on_cluster(system)
     if args.num_nodes == 0:
       xpk_print(
           'Found unexpected number of nodes. Is the --device-type correct?'
@@ -128,9 +129,10 @@ def cluster_adapt(args) -> None:
 
   get_cluster_credentials(args)
 
-  k8s_client = setup_k8s_env(args)
+  if not is_dry_run():
+    k8s_client = setup_k8s_env(args)
+    install_storage_crd(k8s_client)
 
-  install_storage_crd(k8s_client)
   install_storage_csis(args)
 
   # create Vertex Tensorboard for new and existing clusters if create-vertex-tensorboard is set
@@ -174,7 +176,7 @@ def cluster_adapt(args) -> None:
 
   install_kjob(args)
   if system.accelerator_type == AcceleratorType['GPU']:
-    prepare_gpus(args, system)
+    prepare_gpus(system)
 
   if args.enable_ray_cluster:
     return_code = install_ray_cluster(args, system)
@@ -247,13 +249,14 @@ def cluster_create(args) -> None:
 
   get_cluster_credentials(args)
 
-  update_coredns_command_code = update_coredns_if_necessary(args)
+  update_coredns_command_code = update_coredns_if_necessary()
   if update_coredns_command_code != 0:
     xpk_exit(update_cluster_command_code)
 
-  k8s_client = setup_k8s_env(args)
+  if not is_dry_run():
+    k8s_client = setup_k8s_env(args)
+    install_storage_crd(k8s_client)
 
-  install_storage_crd(k8s_client)
   install_storage_csis(args)
 
   # create Vertex Tensorboard for new and existing clusters if create-vertex-tensorboard is set
@@ -314,7 +317,7 @@ def cluster_create(args) -> None:
   set_jobset_on_cluster_code = set_jobset_on_cluster(args)
   if set_jobset_on_cluster_code != 0:
     xpk_exit(set_jobset_on_cluster_code)
-  update_jobset_resources_code = update_jobset_resources_if_necessary(args)
+  update_jobset_resources_code = update_jobset_resources_if_necessary()
   if update_jobset_resources_code != 0:
     xpk_exit(update_jobset_resources_code)
 
@@ -327,7 +330,7 @@ def cluster_create(args) -> None:
   install_kjob(args)
 
   if system.accelerator_type == AcceleratorType['GPU']:
-    prepare_gpus(args, system)
+    prepare_gpus(system)
 
   if args.enable_ray_cluster:
     return_code = install_ray_cluster(args, system)
@@ -409,21 +412,17 @@ def cluster_cacheimage(args) -> None:
       nodeSelectorKey=node_selector_key,
   )
   tmp = write_tmp_file(yml_string)
-  command_apply = f'kubectl apply -f {str(tmp.file.name)}'
-  command_delete = (
-      f'kubectl delete -f {str(tmp.file.name)} --ignore-not-found=true'
-  )
+  command_apply = f'kubectl apply -f {str(tmp)}'
+  command_delete = f'kubectl delete -f {str(tmp)} --ignore-not-found=true'
 
   return_code = run_command_with_updates(
-      command_delete, 'Deleting Cached Image', args
+      command_delete, 'Deleting Cached Image'
   )
   if return_code != 0:
     xpk_print(f'Delete Cached Image returned ERROR {return_code}')
     xpk_exit(return_code)
 
-  return_code = run_command_with_updates(
-      command_apply, 'Creating Cached Image', args
-  )
+  return_code = run_command_with_updates(command_apply, 'Creating Cached Image')
   if return_code != 0:
     xpk_print(f'Create Cached Image returned ERROR {return_code}')
     xpk_exit(return_code)
@@ -444,7 +443,7 @@ def cluster_describe(args) -> None:
 
   get_cluster_credentials(args)
 
-  return_code, data_table = nodepools_build_table(args)
+  return_code, data_table = nodepools_build_table()
   if return_code != 0:
     xpk_exit(return_code)
 
@@ -460,7 +459,6 @@ def cluster_describe(args) -> None:
       r'kubectl get node --no-headers=true'
       r" --selector='cloud.google.com/gke-tpu-accelerator' | wc -l",
       'Count TPU Nodes',
-      args,
   )
   if return_code_node_output != 0:
     xpk_exit(return_code_node_output)
@@ -471,7 +469,6 @@ def cluster_describe(args) -> None:
       "kubectl get pod -o=custom-columns='Status:.status.phase' | grep -i"
       ' Running | wc -l',
       'Count TPU Pods',
-      args,
   )
   if return_code_pod_output != 0:
     xpk_exit(return_code_pod_output)
@@ -486,7 +483,7 @@ def cluster_describe(args) -> None:
   xpk_exit(0)
 
 
-def nodepools_build_table(args) -> tuple[int, list[list]]:
+def nodepools_build_table() -> tuple[int, list[list]]:
   table = [[
       'NODEPOOL_NAME',
       'SLICE',
@@ -498,14 +495,14 @@ def nodepools_build_table(args) -> tuple[int, list[list]]:
 
   nodepools_data = {}
 
-  nodepools, return_code = get_node_pools_name(args)
+  nodepools, return_code = get_node_pools_name()
   if return_code != 0:
     xpk_print(f'Get node pools name returned ERROR {return_code}')
 
   for name in nodepools:
     nodepools_data[name] = [name]
 
-  slices, return_code = get_slice_node_pool_size(args)
+  slices, return_code = get_slice_node_pool_size()
   if return_code != 0:
     xpk_print(f'Get slice node pool size returned ERROR {return_code}')
 
@@ -514,7 +511,7 @@ def nodepools_build_table(args) -> tuple[int, list[list]]:
     count, nodepool_name = s[0], s[1]
     nodepools_data[nodepool_name].append(count)
 
-  type_nodepool, return_code = get_node_pool_instance_type(args)
+  type_nodepool, return_code = get_node_pool_instance_type()
   if return_code != 0:
     xpk_print(f'Get node pool instance type returned ERROR {return_code}')
 
@@ -523,7 +520,7 @@ def nodepools_build_table(args) -> tuple[int, list[list]]:
     nodepool_name, instance_type = tn[0], tn[1]
     nodepools_data[nodepool_name].append(instance_type)
 
-  expected_healthy_nodes, return_code = get_expected_healthy_nodes(args)
+  expected_healthy_nodes, return_code = get_expected_healthy_nodes()
   if return_code != 0:
     xpk_print(f'Get expected healthy nodes returned ERROR {return_code}')
 
@@ -532,7 +529,7 @@ def nodepools_build_table(args) -> tuple[int, list[list]]:
     count, nodepool_name = ehn[0], ehn[1]
     nodepools_data[nodepool_name].append(count)
 
-  actual_healthy_nodes, return_code = get_actual_healthy_nodes(args)
+  actual_healthy_nodes, return_code = get_actual_healthy_nodes()
   if return_code != 0:
     xpk_print(f'Get actual healthy nodes returned ERROR {return_code}')
 
@@ -541,7 +538,7 @@ def nodepools_build_table(args) -> tuple[int, list[list]]:
     count, nodepool_name = ahn[0], ahn[1]
     nodepools_data[nodepool_name].append(count)
 
-  total_nodes, return_code = get_total_nodes_per_node_pool(args)
+  total_nodes, return_code = get_total_nodes_per_node_pool()
   if return_code != 0:
     xpk_print(f'Get total nodes per node pool returned ERROR {return_code}')
 
@@ -556,20 +553,20 @@ def nodepools_build_table(args) -> tuple[int, list[list]]:
   return 0, table
 
 
-def get_node_pools_name(args) -> tuple[list[str], int]:
+def get_node_pools_name() -> tuple[list[str], int]:
   cmd_nodepools = (
       'kubectl get node --no-headers=true -o'
       " custom-columns='NODEPOOL:.metadata.labels.cloud\\.google\\.com/gke-nodepool'"
       " | grep -v 'none' | sort | uniq"
   )
-  return_code, out = run_command_for_value(cmd_nodepools, 'Nodepool list', args)
+  return_code, out = run_command_for_value(cmd_nodepools, 'Nodepool list')
   if return_code != 0:
     return [], return_code
 
   return out.splitlines(), 0
 
 
-def get_slice_node_pool_size(args) -> tuple[list[str], int]:
+def get_slice_node_pool_size() -> tuple[list[str], int]:
   cmd_slices = (
       'kubectl get node --no-headers=true -o'
       " custom-columns=':metadata.labels.cloud\\.google\\.com/gke-nodepool'"
@@ -578,7 +575,7 @@ def get_slice_node_pool_size(args) -> tuple[list[str], int]:
       ' | uniq -c'
   )
   return_code, out = run_command_for_value(
-      cmd_slices, 'Count nodes per nodepool slice', args
+      cmd_slices, 'Count nodes per nodepool slice'
   )
   if return_code != 0:
     return [], return_code
@@ -586,7 +583,7 @@ def get_slice_node_pool_size(args) -> tuple[list[str], int]:
   return out.splitlines(), 0
 
 
-def get_node_pool_instance_type(args) -> tuple[list[str], int]:
+def get_node_pool_instance_type() -> tuple[list[str], int]:
   cmd_type_nodepool = (
       'kubectl get node --no-headers=true -o'
       " custom-columns='NODEPOOL:.metadata.labels.cloud\\.google\\.com/gke-nodepool,"
@@ -594,7 +591,7 @@ def get_node_pool_instance_type(args) -> tuple[list[str], int]:
       " 'none' | sort | uniq"
   )
   return_code, out = run_command_for_value(
-      cmd_type_nodepool, 'Instance type of nodepools', args
+      cmd_type_nodepool, 'Instance type of nodepools'
   )
   if return_code != 0:
     return [], return_code
@@ -602,7 +599,7 @@ def get_node_pool_instance_type(args) -> tuple[list[str], int]:
   return out.splitlines(), 0
 
 
-def get_expected_healthy_nodes(args) -> tuple[list[str], int]:
+def get_expected_healthy_nodes() -> tuple[list[str], int]:
   cmd_expected_healthy_nodes = (
       'kubectl get node --no-headers=true -o'
       " custom-columns=':metadata.labels.cloud\\.google\\.com/gke-nodepool'"
@@ -613,7 +610,6 @@ def get_expected_healthy_nodes(args) -> tuple[list[str], int]:
   return_code, out = run_command_for_value(
       cmd_expected_healthy_nodes,
       'Count expected healthy nodes per nodepool',
-      args,
   )
   if return_code != 0:
     return [], return_code
@@ -621,7 +617,7 @@ def get_expected_healthy_nodes(args) -> tuple[list[str], int]:
   return out.splitlines(), 0
 
 
-def get_actual_healthy_nodes(args) -> tuple[list[str], int]:
+def get_actual_healthy_nodes() -> tuple[list[str], int]:
   cmd_actual_healthy_nodes = (
       'kubectl get node --no-headers=true -o'
       " custom-columns='NODE_NAME:metadata.name,"
@@ -634,7 +630,7 @@ def get_actual_healthy_nodes(args) -> tuple[list[str], int]:
       ' | uniq -c'
   )
   return_code, out = run_command_for_value(
-      cmd_actual_healthy_nodes, 'Count actual healthy nodes per nodepool', args
+      cmd_actual_healthy_nodes, 'Count actual healthy nodes per nodepool'
   )
   if return_code != 0:
     return [], return_code
@@ -642,7 +638,7 @@ def get_actual_healthy_nodes(args) -> tuple[list[str], int]:
   return out.splitlines(), 0
 
 
-def get_total_nodes_per_node_pool(args) -> tuple[list[str], int]:
+def get_total_nodes_per_node_pool() -> tuple[list[str], int]:
   cmd_total_nodes = (
       'kubectl get node --no-headers=true -o'
       " custom-columns='NODE_NAME:metadata.name,"
@@ -654,7 +650,7 @@ def get_total_nodes_per_node_pool(args) -> tuple[list[str], int]:
       ' | uniq -c'
   )
   return_code, out = run_command_for_value(
-      cmd_total_nodes, 'Count total nodes per nodepool', args
+      cmd_total_nodes, 'Count total nodes per nodepool'
   )
   if return_code != 0:
     return [], return_code
@@ -706,20 +702,20 @@ def cluster_create_ray_cluster(args) -> None:
   cluster_create(args)
 
 
-def install_jq(args):
+def install_jq():
   """Installs 'jq' utility."""
   if shutil.which('jq'):
     xpk_print("Task: 'Install jq' skipped, jq already installed.")
     return
   command_jq_install = 'sudo apt install jq -y'
   xpk_print("Task: 'Install jq' in progress.")
-  return_code = run_command_with_updates(command_jq_install, 'Install jq', args)
+  return_code = run_command_with_updates(command_jq_install, 'Install jq')
   if return_code != 0:
     xpk_print(f'Install jq error {return_code}')
     xpk_exit(return_code)
 
 
-def clone_coredns_deployment_repo(args, coredns_repo_full_path: str):
+def clone_coredns_deployment_repo(coredns_repo_full_path: str):
   """Clones the CoreDNS deployment repository if it doesn't exist."""
   if os.path.exists(coredns_repo_full_path):
     xpk_print(
@@ -734,15 +730,13 @@ def clone_coredns_deployment_repo(args, coredns_repo_full_path: str):
       "Task: 'Clone deployment' in progress, Target"
       f' directory:{coredns_repo_full_path}.'
   )
-  return_code = run_command_with_updates(
-      command_git_clone, 'Clone deployment', args
-  )
+  return_code = run_command_with_updates(command_git_clone, 'Clone deployment')
   if return_code != 0:
     xpk_print(f'Clone deployment error {return_code}')
     xpk_exit(return_code)
 
 
-def deploy_coredns_manifests(args, coredns_k8s_path: str):
+def deploy_coredns_manifests(coredns_k8s_path: str):
   """Deploys CoreDNS manifests to the cluster."""
   if not os.path.isdir(coredns_k8s_path):
     xpk_print(
@@ -760,7 +754,7 @@ def deploy_coredns_manifests(args, coredns_k8s_path: str):
         f"Task: 'Deploy CoreDNS' in progress, Located at '{coredns_k8s_path}'"
     )
     return_code = run_command_with_updates(
-        command_deploy_coredns, 'Deploy CoreDNS', args
+        command_deploy_coredns, 'Deploy CoreDNS'
     )
     if return_code != 0:
       xpk_print(f'Deploy CoreDNS error {return_code}')
@@ -772,9 +766,7 @@ def deploy_coredns_manifests(args, coredns_k8s_path: str):
     xpk_exit(return_code)
 
 
-def scale_down_deployment(
-    args, deployment_name: str, namespace: str = 'kube-system'
-):
+def scale_down_deployment(deployment_name: str, namespace: str = 'kube-system'):
   """Scales down a specified Kubernetes deployment to 0 replicas."""
   command = (
       f'kubectl scale deployment {deployment_name} --replicas=0'
@@ -782,7 +774,7 @@ def scale_down_deployment(
   )
   xpk_print(f"Task: 'Scaling down {deployment_name}' in progress")
   return_code = run_command_with_updates(
-      command, f'Scale down {deployment_name}', args
+      command, f'Scale down {deployment_name}'
   )
   if return_code != 0:
     xpk_print(f'Scale down {deployment_name} error {return_code}')
@@ -790,21 +782,19 @@ def scale_down_deployment(
   xpk_print(f'\n{deployment_name} has been scaled down.')
 
 
-def scale_up_coredns(args, replicas: int = 15, namespace: str = 'kube-system'):
+def scale_up_coredns(replicas: int = 15, namespace: str = 'kube-system'):
   """Scales up the CoreDNS deployment to a specified number of replicas."""
   command_coredns_scale = (
       f'kubectl scale deployment coredns --replicas={replicas} -n {namespace}'
   )
   xpk_print(f"Task: 'Scale CoreDNS' in progress (to {replicas} replicas)")
-  return_code = run_command_with_updates(
-      command_coredns_scale, 'Scale CoreDNS', args
-  )
+  return_code = run_command_with_updates(command_coredns_scale, 'Scale CoreDNS')
   if return_code != 0:
     xpk_print(f'Scale CoreDNS error {return_code}')
     xpk_exit(return_code)
 
 
-def check_deployment_exists(args, deployment_name: str, namespace: str) -> bool:
+def check_deployment_exists(deployment_name: str, namespace: str) -> bool:
   """Check for the existence of a specific Deployment in a given namespace."""
   # TODO: rewrite this to be more obvious, check if it is correct
   command = (
@@ -812,17 +802,17 @@ def check_deployment_exists(args, deployment_name: str, namespace: str) -> bool:
       f' {namespace} --ignore-not-found'
   )
   result = run_command_with_updates(
-      command, 'Waiting for kubeDNS to be checked.', args
+      command, 'Waiting for kubeDNS to be checked.'
   )
   return result != 0
 
 
 def verify_coredns_readiness(
-    args, timeout: int = 240, namespace: str = 'kube-system'
+    timeout: int = 240, namespace: str = 'kube-system'
 ):
   """Verifies CoreDNS readiness using kubectl wait commands."""
   xpk_print('Now verifying CoreDNS readiness...')
-  kube_dns_exists = check_deployment_exists(args, 'kube-dns', namespace)
+  kube_dns_exists = check_deployment_exists('kube-dns', namespace)
   if kube_dns_exists:
     # Wait for kube-dns to be fully scaled down
     command_kube_dns_wait_scaled_down = (
@@ -832,7 +822,7 @@ def verify_coredns_readiness(
     )
     xpk_print('Verifying if kube-dns has scaled down...')
     return_code_kube_dns = run_command_with_updates(
-        command_kube_dns_wait_scaled_down, 'Wait for kube-dns scale down', args
+        command_kube_dns_wait_scaled_down, 'Wait for kube-dns scale down'
     )
     if return_code_kube_dns != 0:
       xpk_print('kube-dns did not scale down successfully within the timeout.')
@@ -848,7 +838,7 @@ def verify_coredns_readiness(
   )
   xpk_print('Verifying if CoreDNS is available...')
   return_code_coredns = run_command_with_updates(
-      command_coredns_wait_available, 'Wait for coredns available', args
+      command_coredns_wait_available, 'Wait for coredns available'
   )
   if return_code_coredns != 0:
     xpk_print(
@@ -873,11 +863,8 @@ def cleanup_coredns_repo(coredns_repo_full_path: str):
     xpk_print(f'Error deleting directory {coredns_repo_full_path}: {e}')
 
 
-def update_coredns(args) -> int:
+def update_coredns() -> int:
   """Updates and deploys CoreDNS within a cluster.
-
-  Args:
-    args: user provided arguments for running the command.
 
   Returns:
     0 if successful and 1 otherwise.
@@ -887,23 +874,23 @@ def update_coredns(args) -> int:
   coredns_repo_full_path = os.path.join(coredns_repo_dir, coredns_repo_dir_name)
   coredns_k8s_path = os.path.join(coredns_repo_full_path, 'kubernetes')
   # 1. Install jq
-  install_jq(args)
+  install_jq()
 
   # 2. Clone CoreDNS deployment repository
-  clone_coredns_deployment_repo(args, coredns_repo_full_path)
+  clone_coredns_deployment_repo(coredns_repo_full_path)
 
   # 3. Deploy CoreDNS to the cluster
-  deploy_coredns_manifests(args, coredns_k8s_path)
+  deploy_coredns_manifests(coredns_k8s_path)
 
   # 4. Scale down kube-dns-autoscaler
-  scale_down_deployment(args, 'kube-dns-autoscaler')
+  scale_down_deployment('kube-dns-autoscaler')
 
   # 5. Scale down kube-dns
-  scale_down_deployment(args, 'kube-dns')
+  scale_down_deployment('kube-dns')
 
   # 6. Scale up coredns and verify readiness
-  scale_up_coredns(args, replicas=15)
-  verify_coredns_readiness(args, timeout=120)
+  scale_up_coredns(replicas=15)
+  verify_coredns_readiness(timeout=120)
 
   xpk_print('The CoreDNS setup process has been completed.')
 
@@ -913,7 +900,7 @@ def update_coredns(args) -> int:
   return 0
 
 
-def coredns_deployment_exists(args, namespace: str = 'kube-system') -> bool:
+def coredns_deployment_exists(namespace: str = 'kube-system') -> bool:
   """Checks if the CoreDNS deployment exists in the given namespace.
 
   Args:
@@ -928,10 +915,10 @@ def coredns_deployment_exists(args, namespace: str = 'kube-system') -> bool:
       f' namespace: {namespace}'
   )
   return_code = run_command_with_updates(
-      command, f'Check CoreDNS deployment in {namespace}', args
+      command, f'Check CoreDNS deployment in {namespace}'
   )
   if return_code == 0:
-    verify_coredns_readiness(args)
+    verify_coredns_readiness()
     xpk_print(f"CoreDNS deployment 'coredns' found in namespace '{namespace}'.")
     return True
   else:
@@ -942,25 +929,22 @@ def coredns_deployment_exists(args, namespace: str = 'kube-system') -> bool:
     return False
 
 
-def update_coredns_if_necessary(args) -> int:
+def update_coredns_if_necessary() -> int:
   """Updates and deploys CoreDNS within the cluster if it's not already present.
 
   This function checks for the existence of the CoreDNS deployment.
   If it's not found, it proceeds to deploy and configure CoreDNS.
 
-  Args:
-    args: User-provided arguments for running the command.
-
   Returns:
     0 if successful (CoreDNS was already present or successfully deployed),
     and 1 otherwise.
   """
-  if coredns_deployment_exists(args, namespace='kube-system'):
+  if coredns_deployment_exists(namespace='kube-system'):
     xpk_print('Skipping CoreDNS deployment since it already exists.')
     return 0
   else:
     xpk_print('CoreDNS deployment not found. Proceeding with CoreDNS setup.')
-    return update_coredns(args)
+    return update_coredns()
 
 
 def create_cluster_if_necessary(
@@ -1023,7 +1007,7 @@ def run_gke_cluster_delete_command(args) -> int:
       f' --region={zone_to_region(args.zone)} --quiet'
   )
 
-  return_code = run_command_with_updates(command, 'Cluster Delete', args)
+  return_code = run_command_with_updates(command, 'Cluster Delete')
   if return_code != 0:
     xpk_print(f'Cluster delete request returned ERROR {return_code}')
     return 1
@@ -1048,7 +1032,7 @@ def run_gke_clusters_list_command(args) -> int:
       'gcloud container clusters list'
       f' --project={args.project} --region={zone_to_region(args.zone)}'
   )
-  return_code = run_command_with_updates(command, 'Cluster List', args)
+  return_code = run_command_with_updates(command, 'Cluster List')
   if return_code != 0:
     xpk_print(f'Cluster list request returned ERROR {return_code}')
     return 1
@@ -1158,7 +1142,7 @@ def run_gke_cluster_create_command(
     addons_str = ','.join(addons)
     command += f' --addons={addons_str}'
 
-  return_code = run_command_with_updates(command, 'GKE Cluster Create', args)
+  return_code = run_command_with_updates(command, 'GKE Cluster Create')
   if return_code != 0:
     xpk_print(f'GKE Cluster Create request returned ERROR {return_code}')
     return 1
@@ -1204,12 +1188,12 @@ def install_storage_csis(args):
 
 def install_kjob(args):
   xpk_print('Verifying kjob installation')
-  err_code = verify_kjob_installed(args)
+  err_code = verify_kjob_installed()
   if err_code > 0:
     xpk_exit(err_code)
 
   xpk_print('Applying kjob CDRs')
-  err_code = apply_kjob_crds(args)
+  err_code = apply_kjob_crds()
   if err_code > 0:
     xpk_exit(err_code)
 
@@ -1220,12 +1204,12 @@ def install_kjob(args):
 
 def install_kueue(args, system: SystemCharacteristics, autoprovisioning_config):
   xpk_print('Enabling Kueue on the cluster')
-  install_kueue_on_cluster_code = install_kueue_on_cluster(args)
+  install_kueue_on_cluster_code = install_kueue_on_cluster()
   if install_kueue_on_cluster_code != 0:
     xpk_exit(install_kueue_on_cluster_code)
 
   xpk_print('Wait for Kueue to be fully available')
-  wait_for_kueue_available_code = wait_for_kueue_available(args)
+  wait_for_kueue_available_code = wait_for_kueue_available()
   if wait_for_kueue_available_code != 0:
     xpk_exit(wait_for_kueue_available_code)
 
@@ -1237,25 +1221,25 @@ def install_kueue(args, system: SystemCharacteristics, autoprovisioning_config):
     xpk_exit(enable_kueue_credentials_code)
 
   xpk_print('Update Kueue Controller Manager resources')
-  update_kueue_resources_code = update_kueue_resources_if_necessary(args)
+  update_kueue_resources_code = update_kueue_resources_if_necessary()
   if update_kueue_resources_code != 0:
     xpk_exit(update_kueue_resources_code)
 
 
-def prepare_gpus(args, system: SystemCharacteristics):
+def prepare_gpus(system: SystemCharacteristics):
   xpk_print('Installing NCCL Plugin for cluster')
-  install_nccl_code = install_nccl_on_cluster(args, system)
+  install_nccl_code = install_nccl_on_cluster(system)
   if install_nccl_code != 0:
     xpk_exit(install_nccl_code)
 
   if system.device_type == H100_DEVICE_TYPE:
     xpk_print('Installing NRI device injector for cluster')
-    install_nri_code = install_nri_on_cluster(args)
+    install_nri_code = install_nri_on_cluster()
     if install_nri_code != 0:
       xpk_exit(install_nri_code)
 
   if system.device_type in [H200_DEVICE_TYPE, B200_DEVICE_TYPE]:
     xpk_print('Disabling MGLRU')
-    err_code = disable_mglru_on_cluster(args)
+    err_code = disable_mglru_on_cluster()
     if err_code > 0:
       xpk_exit(err_code)

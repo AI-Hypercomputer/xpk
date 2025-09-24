@@ -139,7 +139,6 @@ def get_gke_server_config(args) -> tuple[int, GkeServerConfig | None]:
     return_code, cmd_output = run_command_for_value(
         command,
         command_description,
-        args,
         hide_error=True,
     )
     if return_code != 0:

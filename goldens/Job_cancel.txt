@@ -1,5 +1,6 @@
 $ python3 xpk.py job cancel golden-job --project=golden-project --zone=us-central1-a --cluster=golden-cluster --dry-run
 [XPK] Starting xpk
+[XPK] Skipping dependency validation.
 [XPK] Starting job cancel for job: ['golden-job']
 [XPK] Working on golden-project and us-central1-a
 [XPK] Try 1: get-credentials to cluster golden-cluster

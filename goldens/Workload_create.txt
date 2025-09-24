@@ -1,5 +1,6 @@
 $ python3 xpk.py workload create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --command "bash hello" --tpu-type=v5p-8 --num-slices=1 --script-dir=/tmp --dry-run
 [XPK] Starting xpk
+[XPK] Skipping dependency validation.
 [XPK] Task: `Check if Workload Already Exists` is implemented by the following command not running since it is a dry run. 
 kubectl get workloads -o=custom-columns='Jobset:.metadata.ownerReferences[0].name'
 [XPK] Starting workload create

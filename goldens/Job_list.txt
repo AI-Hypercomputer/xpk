@@ -1,5 +1,6 @@
 $ python3 xpk.py job ls --project=golden-project --zone=us-central1-a --cluster=golden-cluster --dry-run
 [XPK] Starting xpk
+[XPK] Skipping dependency validation.
 [XPK] Working on golden-project and us-central1-a
 [XPK] Try 1: get-credentials to cluster golden-cluster
 [XPK] Task: `get-credentials to cluster golden-cluster` is implemented by the following command not running since it is a dry run. 

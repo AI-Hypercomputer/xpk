@@ -36,7 +36,7 @@ def check_if_workload_can_schedule(args, system: SystemCharacteristics) -> bool:
     returns true if workload can schedule, otherwise returns false.
   """
   resources_configmap_name = f'{args.cluster}-{CLUSTER_RESOURCES_CONFIGMAP}'
-  cluster_config_map = get_cluster_configmap(args, resources_configmap_name)
+  cluster_config_map = get_cluster_configmap(resources_configmap_name)
 
   # Prevents workload creation failure for existing clusters with no ConfigMap
   if cluster_config_map is None:

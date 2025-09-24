@@ -14,8 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from argparse import Namespace
-
 import math
 import packaging
 from packaging.version import Version
@@ -281,10 +279,8 @@ spec:
 """
 
 
-def verify_kueuectl(args: Namespace) -> None:
+def verify_kueuectl() -> None:
   """Verify if kueuectl is installed.
-  Args:
-    args: user provided arguments.
   Returns:
     None
   """
@@ -292,7 +288,7 @@ def verify_kueuectl(args: Namespace) -> None:
 
   command = 'kubectl kueue version'
   task = 'Verify kueuectl installation on cluster'
-  verify_kueuectl_installed_code, _ = run_command_for_value(command, task, args)
+  verify_kueuectl_installed_code, _ = run_command_for_value(command, task)
 
   if verify_kueuectl_installed_code == 0:
     xpk_print('kueuectl found')
@@ -306,28 +302,28 @@ def verify_kueuectl(args: Namespace) -> None:
     xpk_exit(verify_kueuectl_installed_code)
 
 
-def delete_multikueueconfigs_definitions(args) -> int:
+def delete_multikueueconfigs_definitions() -> int:
   command = 'kubectl delete crd multikueueconfigs.kueue.x-k8s.io'
   task = 'Delete multikueueconfigs crds'
-  return_code = run_command_with_updates_retry(command, task, args)
+  return_code = run_command_with_updates_retry(command, task)
   if return_code != 0:
     xpk_print(f'{task} returned ERROR {return_code}')
   return return_code
 
 
-def delete_multikueueclusters_definitions(args) -> int:
+def delete_multikueueclusters_definitions() -> int:
   command = 'kubectl delete crd multikueueclusters.kueue.x-k8s.io'
   task = 'Delete multikueueclusters crds'
-  return_code = run_command_with_updates_retry(command, task, args)
+  return_code = run_command_with_updates_retry(command, task)
   if return_code != 0:
     xpk_print(f'{task} returned ERROR {return_code}')
   return return_code
 
 
-def get_kueue_version(args) -> tuple[int, str]:
+def get_kueue_version() -> tuple[int, str]:
   command = 'kubectl kueue version'
   task = 'Get kueue version on server'
-  return_code, val = run_command_for_value(command, task, args)
+  return_code, val = run_command_for_value(command, task)
   if return_code != 0:
     return return_code, ''
   lines = val.splitlines()
@@ -338,26 +334,23 @@ def get_kueue_version(args) -> tuple[int, str]:
   return return_code, manager_image_version
 
 
-def install_kueue_on_cluster(args) -> int:
+def install_kueue_on_cluster() -> int:
   """Install Kueue on the cluster.
-
-  Args:
-    args: user provided arguments for running the command.
 
   Returns:
     0 if successful and 1 otherwise.
   """
 
-  err_code, kueue_version_installed = get_kueue_version(args)
+  err_code, kueue_version_installed = get_kueue_version()
   if err_code == 0:
     if Version(kueue_version_installed) < Version('v0.9.0') and Version(
         KUEUE_VERSION
     ) >= Version('v0.9.0'):
       xpk_print('Upgrading kueue on cluster from version < 0.9.0.')
-      upgrade_code = delete_multikueueclusters_definitions(args)
+      upgrade_code = delete_multikueueclusters_definitions()
       if upgrade_code != 0:
         return upgrade_code
-      upgrade_code = delete_multikueueconfigs_definitions(args)
+      upgrade_code = delete_multikueueconfigs_definitions()
       if upgrade_code != 0:
         return upgrade_code
 
@@ -366,17 +359,14 @@ def install_kueue_on_cluster(args) -> int:
       f' https://github.com/kubernetes-sigs/kueue/releases/download/{KUEUE_VERSION}/manifests.yaml'
   )
   task = 'Set Kueue On Cluster'
-  return_code = run_command_with_updates_retry(command, task, args)
+  return_code = run_command_with_updates_retry(command, task)
   if return_code != 0:
     xpk_print(f'{task} returned ERROR {return_code}')
   return return_code
 
 
-def wait_for_kueue_available(args: Namespace) -> int:
+def wait_for_kueue_available() -> int:
   """Wait for Kueue to be fully available.
-
-  Args:
-    args: user provided arguments for running the command.
 
   Returns:
     0 if successful and 1 otherwise.
@@ -386,7 +376,7 @@ def wait_for_kueue_available(args: Namespace) -> int:
       f' --for=condition=available --timeout={WAIT_FOR_KUEUE_TIMEOUT}'
   )
   task = 'Wait for Kueue to be available'
-  return_code = run_command_with_updates(command, task, args)
+  return_code = run_command_with_updates(command, task)
   if return_code != 0:
     xpk_print(f'{task} returned ERROR {return_code}')
   return return_code
@@ -436,6 +426,8 @@ def install_kueue_crs(
       cluster_hardware_name=cluster_hardware_name,
       resource_type=resource_type,
       total_chips=total_chips,
+      cpu_limit=args.cpu_limit,
+      memory_limit=args.memory_limit,
   )
   topology_label = ''
   if system.device_type in [
@@ -477,14 +469,14 @@ def install_kueue_crs(
   command = f'kubectl apply -f {str(tmp)}'
 
   task = 'Applying Kueue Custom Resources'
-  return_code = run_command_with_updates_retry(command, task, args)
+  return_code = run_command_with_updates_retry(command, task)
   if return_code != 0:
     xpk_print(f'{task} returned ERROR {return_code}')
   return return_code
 
 
 def get_kueue_covered_resources_config(
-    cluster_hardware_name, resource_type, total_chips
+    cluster_hardware_name, resource_type, total_chips, cpu_limit, memory_limit
 ) -> str:
   """Gets Kueue covered resources configuration.
 
@@ -497,26 +489,37 @@ def get_kueue_covered_resources_config(
     A string of Kueue covered resources configuration.
   """
   config_format = """
-  - coveredResources: ["{resource_type}"]
+  - coveredResources: {resource_types}
     flavors:
     - name: {cluster_hardware_name}
       resources:
       - name: "{resource_type}"
-        nominalQuota: {total_chips}
-  """
+        nominalQuota: {total_chips}"""
+  resource_types = [resource_type]
+  if cpu_limit:
+    config_format = config_format + """
+      - name: "cpu"
+        nominalQuota: {cpu_limit}"""
+    resource_types.append('cpu')
+  if memory_limit:
+    config_format = config_format + """
+      - name: "memory"
+        nominalQuota: {memory_limit}"""
+    resource_types.append('memory')
+
   config_string = config_format.format(
       cluster_hardware_name=cluster_hardware_name,
+      resource_types=resource_types,
       resource_type=resource_type,
       total_chips=total_chips,
+      cpu_limit=cpu_limit,
+      memory_limit=memory_limit,
   )
   return config_string
 
 
-def update_kueue_resources_if_necessary(args):
+def update_kueue_resources_if_necessary():
   """Update the kueue manifest to increase the resources for the kueue controller manager.
-
-  Args:
-    args: user provided arguments for running the command.
 
   Returns:
     0 if successful and 1 otherwise.
@@ -524,7 +527,7 @@ def update_kueue_resources_if_necessary(args):
   # Get total number of nodes
   cmd_total_node_num = 'kubectl get node --no-headers | wc -l'
   return_code, out = run_command_for_value(
-      cmd_total_node_num, 'Count total nodes', args
+      cmd_total_node_num, 'Count total nodes'
   )
   if return_code != 0:
     xpk_exit(1)
@@ -539,7 +542,7 @@ def update_kueue_resources_if_necessary(args):
   command = f'kubectl apply -f {str(tmp)}'
 
   task = 'Updating Kueue Controller Manager resources'
-  return_code = run_command_with_updates_retry(command, task, args)
+  return_code = run_command_with_updates_retry(command, task)
   if return_code != 0:
     xpk_print(f'{task} returned ERROR {return_code}')
   return return_code

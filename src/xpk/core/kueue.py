@@ -281,10 +281,8 @@ spec:
 """
 
 
-def verify_kueuectl(args: Namespace) -> None:
+def verify_kueuectl() -> None:
   """Verify if kueuectl is installed.
-  Args:
-    args: user provided arguments.
   Returns:
     None
   """
@@ -292,7 +290,7 @@ def verify_kueuectl(args: Namespace) -> None:
 
   command = 'kubectl kueue version'
   task = 'Verify kueuectl installation on cluster'
-  verify_kueuectl_installed_code, _ = run_command_for_value(command, task, args)
+  verify_kueuectl_installed_code, _ = run_command_for_value(command, task)
 
   if verify_kueuectl_installed_code == 0:
     xpk_print('kueuectl found')
@@ -324,10 +322,10 @@ def delete_multikueueclusters_definitions(args) -> int:
   return return_code
 
 
-def get_kueue_version(args) -> tuple[int, str]:
+def get_kueue_version() -> tuple[int, str]:
   command = 'kubectl kueue version'
   task = 'Get kueue version on server'
-  return_code, val = run_command_for_value(command, task, args)
+  return_code, val = run_command_for_value(command, task)
   if return_code != 0:
     return return_code, ''
   lines = val.splitlines()
@@ -348,7 +346,7 @@ def install_kueue_on_cluster(args) -> int:
     0 if successful and 1 otherwise.
   """
 
-  err_code, kueue_version_installed = get_kueue_version(args)
+  err_code, kueue_version_installed = get_kueue_version()
   if err_code == 0:
     if Version(kueue_version_installed) < Version('v0.9.0') and Version(
         KUEUE_VERSION
@@ -475,7 +473,6 @@ def install_kueue_crs(
   ]:
     yml_string = topology_yaml + yml_string
 
-  print(yml_string)
   tmp = write_tmp_file(yml_string)
   command = f'kubectl apply -f {str(tmp)}'
 
@@ -541,7 +538,7 @@ def update_kueue_resources_if_necessary(args):
   # Get total number of nodes
   cmd_total_node_num = 'kubectl get node --no-headers | wc -l'
   return_code, out = run_command_for_value(
-      cmd_total_node_num, 'Count total nodes', args
+      cmd_total_node_num, 'Count total nodes'
   )
   if return_code != 0:
     xpk_exit(1)

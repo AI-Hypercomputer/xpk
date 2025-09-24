@@ -174,13 +174,14 @@ def set_cluster_create_parser(cluster_create_parser: ArgumentParser):
       'Arguments for configuring MTC in cluster create.',
   )
   add_shared_cluster_create_mtc_arguments(cluster_create_mtc_arguments)
-  cluster_create_parser.set_defaults(func=cluster_create)
 
   cluster_create_resource_limits = cluster_create_parser.add_argument_group(
       'Optional Resource Limits Arguments',
       'Arguments for configuring resource limits in cluster create.',
   )
   add_resource_limits(cluster_create_resource_limits)
+
+  cluster_create_parser.set_defaults(func=cluster_create)
 
 
 def set_cluster_create_pathways_parser(
@@ -251,6 +252,15 @@ def set_cluster_create_pathways_parser(
       )
   )
   add_shared_cluster_create_mtc_arguments(cluster_create_mtc_arguments)
+
+  cluster_create_resource_limits = (
+      cluster_create_pathways_parser.add_argument_group(
+          'Optional Resource Limits Arguments',
+          'Arguments for configuring resource limits in cluster create.',
+      )
+  )
+  add_resource_limits(cluster_create_resource_limits)
+
   cluster_create_pathways_parser.set_defaults(func=cluster_create_pathways)
 
 
@@ -326,6 +336,13 @@ def set_cluster_create_ray_parser(cluster_create_ray_parser: ArgumentParser):
       'Arguments for configuring MTC in cluster create.',
   )
   add_shared_cluster_create_mtc_arguments(cluster_create_mtc_arguments)
+
+  cluster_create_resource_limits = cluster_create_ray_parser.add_argument_group(
+      'Optional Resource Limits Arguments',
+      'Arguments for configuring resource limits in cluster create.',
+  )
+  add_resource_limits(cluster_create_resource_limits)
+
   cluster_create_ray_parser.set_defaults(func=cluster_create_ray_cluster)
 
 

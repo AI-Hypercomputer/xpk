@@ -90,7 +90,7 @@ def cluster_create(args) -> None:
 
   get_cluster_credentials(args)
 
-  err_code = apply_kjob_crds(args)
+  err_code = apply_kjob_crds()
   if err_code > 0:
     xpk_exit(err_code)
 

@@ -65,7 +65,7 @@ def cluster_create(args) -> None:
     xpk_exit(set_jobset_on_cluster_code)
 
   xpk_print('Enabling Kueue on the cluster')
-  install_kueue_on_cluster_code = install_kueue_on_cluster(args)
+  install_kueue_on_cluster_code = install_kueue_on_cluster()
   if install_kueue_on_cluster_code != 0:
     xpk_exit(install_kueue_on_cluster_code)
 
@@ -75,7 +75,7 @@ def cluster_create(args) -> None:
     xpk_exit(err_code)
 
   xpk_print('Applying kjob CDRs')
-  err_code = apply_kjob_crds(args)
+  err_code = apply_kjob_crds()
   if err_code > 0:
     xpk_exit(err_code)
 
@@ -88,7 +88,7 @@ def cluster_create(args) -> None:
   install_storage_crd(k8s_client)
 
   xpk_print('Wait for Kueue to be fully available')
-  wait_for_kueue_available_code = wait_for_kueue_available(args)
+  wait_for_kueue_available_code = wait_for_kueue_available()
   if wait_for_kueue_available_code != 0:
     xpk_exit(wait_for_kueue_available_code)
 
@@ -131,16 +131,13 @@ def cluster_delete(args) -> None:
   xpk_exit(0)
 
 
-def cluster_list(args) -> None:
+def cluster_list() -> None:
   """Function around cluster list.
-
-  Args:
-    args: user provided arguments for running the command.
 
   Returns:
     0 if successful and 1 otherwise.
   """
-  if run_kind_clusters_list_command(args):
+  if run_kind_clusters_list_command():
     xpk_exit(1)
   xpk_exit(0)
 
@@ -179,7 +176,7 @@ def run_kind_cluster_delete_command(args) -> int:
   if args.cluster:
     command += f' --name={args.cluster}'
 
-  return_code = run_command_with_updates(command, 'Cluster Delete', args)
+  return_code = run_command_with_updates(command, 'Cluster Delete')
   if return_code != 0:
     xpk_print(f'Cluster delete request returned ERROR {return_code}')
     return 1
@@ -187,17 +184,14 @@ def run_kind_cluster_delete_command(args) -> int:
   return 0
 
 
-def run_kind_clusters_list_command(args) -> int:
+def run_kind_clusters_list_command() -> int:
   """List Kind Clusters within the project and location.
-
-  Args:
-    args: user provided arguments for running the command.
 
   Returns:
     0 if successful and 1 otherwise.
   """
   command = 'kind get clusters'
-  return_code = run_command_with_updates(command, 'Cluster List', args)
+  return_code = run_command_with_updates(command, 'Cluster List')
   if return_code != 0:
     xpk_print(f'Cluster list request returned ERROR {return_code}')
     return 1
@@ -222,7 +216,7 @@ def run_kind_cluster_create_command(args) -> int:
   if args.k8s_version:
     command += f' --image=kindest/node:v{args.k8s_version}'
 
-  return_code = run_command_with_updates(command, 'Kind Cluster Create', args)
+  return_code = run_command_with_updates(command, 'Kind Cluster Create')
   if return_code != 0:
     xpk_print(f'GKE Cluster Create request returned ERROR {return_code}')
     return 1
@@ -273,7 +267,6 @@ def set_local_cluster_command(args) -> int:
   return_code = run_command_with_updates(
       command,
       task,
-      args,
   )
   if return_code != 0:
     xpk_print(f'{task} returned ERROR {return_code}')

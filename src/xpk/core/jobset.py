@@ -110,11 +110,8 @@ spec:
 """
 
 
-def update_jobset_resources_if_necessary(args):
+def update_jobset_resources_if_necessary():
   """Update the jobset manifest to increase the resources for the jobset controller manager.
-
-  Args:
-    args: user provided arguments for running the command.
 
   Returns:
     0 if successful and 1 otherwise.
@@ -137,7 +134,7 @@ def update_jobset_resources_if_necessary(args):
   command = f'kubectl apply -f {str(tmp)}'
 
   task = 'Updating jobset Controller Manager resources'
-  return_code = run_command_with_updates_retry(command, task, args)
+  return_code = run_command_with_updates_retry(command, task)
   if return_code != 0:
     xpk_print(f'{task} returned ERROR {return_code}')
   return return_code

@@ -134,14 +134,13 @@ def run_command_batch(commands, jobname, per_command_name, output_logs):
 
 
 def run_command_with_updates_retry(
-    command, task, args, verbose=True, num_retry_attempts=5, wait_seconds=10
+    command, task, verbose=True, num_retry_attempts=5, wait_seconds=10
 ) -> int:
   """Generic run commands function with updates and retry logic.
 
   Args:
     command: command to execute
     task: user-facing name of the task
-    args: user provided arguments for running the command.
     verbose: shows stdout and stderr if set to true. Set to True by default.
     num_retry_attempts: number of attempts to retry the command.
         This has a default value in the function arguments.
@@ -161,23 +160,22 @@ def run_command_with_updates_retry(
       time.sleep(wait_seconds)
     i += 1
     xpk_print(f'Try {i}: {task}')
-    return_code = run_command_with_updates(command, task, args, verbose=verbose)
+    return_code = run_command_with_updates(command, task, verbose=verbose)
   return return_code
 
 
-def run_command_with_updates(command, task, global_args, verbose=True) -> int:
+def run_command_with_updates(command, task, verbose=True) -> int:
   """Generic run commands function with updates.
 
   Args:
     command: command to execute
     task: user-facing name of the task
-    global_args: user provided arguments for running the command.
     verbose: shows stdout and stderr if set to true. Set to True by default.
 
   Returns:
     0 if successful and 1 otherwise.
   """
-  if global_args.dry_run:
+  if is_dry_run():
     xpk_print(
         f'Task: `{task}` is implemented by the following command'
         ' not running since it is a dry run.'
@@ -351,8 +349,8 @@ def run_command_with_full_controls(
   return return_code
 
 
-def run_kubectl_apply(yml_string: str, task: str, args: Namespace) -> int:
+def run_kubectl_apply(yml_string: str, task: str) -> int:
   tmp = write_tmp_file(yml_string)
   command = f'kubectl apply -f {str(tmp)}'
-  err_code = run_command_with_updates(command, task, args)
+  err_code = run_command_with_updates(command, task)
   return err_code

@@ -104,7 +104,7 @@ def enable_autoprovisioning_on_cluster(
       f' {autoprovisioning_config.config_filename}'
   )
   task = 'Update cluster with autoprovisioning enabled'
-  return_code = run_command_with_updates(command, task, args)
+  return_code = run_command_with_updates(command, task)
   if return_code != 0:
     xpk_print(f'{task} request returned ERROR {return_code}')
     return autoprovisioning_config, return_code
@@ -116,7 +116,7 @@ def enable_autoprovisioning_on_cluster(
       ' --autoscaling-profile=optimize-utilization'
   )
   task = 'Update cluster with autoscaling-profile'
-  return_code = run_command_with_updates(command, task, args)
+  return_code = run_command_with_updates(command, task)
   if return_code != 0:
     xpk_print(f'{task} request returned ERROR {return_code}')
     return autoprovisioning_config, return_code

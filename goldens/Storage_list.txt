@@ -1,0 +1,4 @@
+[XPK] Starting xpk
+NAME    TYPE    AUTO MOUNT    MOUNT POINT    READONLY    MANIFEST
+------  ------  ------------  -------------  ----------  ----------
+[XPK] XPK Done.

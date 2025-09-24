@@ -18,6 +18,7 @@ import ipaddress
 import socket
 import requests
 from .console import xpk_print
+from .execution_context import is_dry_run
 
 # Retrives machine's external IP address
 ip_resolver_url = "http://api.ipify.org"
@@ -35,6 +36,9 @@ def get_current_machine_ip(external_ip=True):
   Returns:
     The IP address as a string.
   """
+
+  if is_dry_run():
+    return 0, "127.0.0.1"
 
   try:
     if external_ip:

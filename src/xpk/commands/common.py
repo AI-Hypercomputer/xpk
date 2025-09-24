@@ -18,6 +18,7 @@ from ..core.commands import run_command_with_updates_retry
 from ..core.capacity import H100_MEGA_DEVICE_TYPE, CapacityType
 from ..core.gcloud_context import zone_to_region
 from ..utils.console import xpk_print, xpk_exit
+from ..utils.execution_context import is_dry_run
 from ..core.system_characteristics import (
     SystemCharacteristics,
 )
@@ -62,6 +63,9 @@ def is_TAS_possible(
   Returns:
     True if possible and False otherwise.
   """
+
+  if is_dry_run():
+    return True
 
   if system_characteristics is None:
     xpk_print('system_characteristics data was not found in configmaps.')

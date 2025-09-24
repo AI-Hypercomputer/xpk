@@ -97,6 +97,7 @@ from ..core.workload_decorators import (
 )
 from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
+from ..utils.execution_context import is_dry_run
 from . import cluster_gcluster
 from .common import is_TAS_possible
 
@@ -306,8 +307,10 @@ def workload_create(args) -> None:
   Returns:
     0 if successful and 1 otherwise.
   """
-  k8s_api_client = setup_k8s_env(args)
-  setup_k8s_service_accounts()
+  k8s_api_client = None
+  if not is_dry_run():
+    k8s_api_client = setup_k8s_env(args)
+    setup_k8s_service_accounts()
 
   workload_exists = check_if_workload_exists(args)
 
@@ -383,8 +386,10 @@ def workload_create(args) -> None:
   all_storages = []
   # Currently storage customization is not supported for Pathways workloads. b/408468941
   if not args.use_pathways:
-    storages: list[Storage] = get_storages_to_mount(
-        k8s_api_client, args.storage
+    storages: list[Storage] = (
+        []
+        if k8s_api_client is None
+        else get_storages_to_mount(k8s_api_client, args.storage)
     )
     gcs_fuse_storages = list(
         filter(lambda storage: storage.type == GCS_FUSE_TYPE, storages)
@@ -569,14 +574,14 @@ def workload_create(args) -> None:
         pod_failure_policy=pod_failure_policy,
     )
   tmp = write_tmp_file(yml_string)
-  command = f'kubectl apply -f {str(tmp.file.name)}'
+  command = f'kubectl apply -f {str(tmp)}'
   return_code = run_command_with_updates(command, 'Creating Workload', args)
 
   if return_code != 0:
     xpk_print(f'Create Workload request returned ERROR {return_code}')
     xpk_exit(return_code)
 
-  if not args.use_pathways:
+  if not args.use_pathways and not is_dry_run():
     add_bucket_iam_members(args, storages)
 
   # Get GKE outlier dashboard for TPU
@@ -725,7 +730,11 @@ def workload_delete(args) -> None:
       )
     else:
       return_code = run_commands(
-          commands, 'Delete Workload', task_names, batch=100
+          commands,
+          'Delete Workload',
+          task_names,
+          batch=100,
+          dry_run=args.dry_run,
       )
 
     if return_code != 0:
@@ -743,8 +752,6 @@ def workload_list(args) -> None:
   Returns:
     0 if successful and 1 otherwise.
   """
-  xpk_print(args)
-
   xpk_print('Starting workload list', flush=True)
   add_zone_and_project(args)
   get_cluster_credentials(args)

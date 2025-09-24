@@ -1,0 +1,12 @@
+[XPK] Starting xpk
+[XPK] Starting Workload delete
+[XPK] Working on golden-project and us-central1-a
+[XPK] Try 1: get-credentials to cluster golden-cluster
+[XPK] Task: `get-credentials to cluster golden-cluster` is implemented by the following command not running since it is a dry run. 
+gcloud container clusters get-credentials golden-cluster --region=us-central1 --project=golden-project && kubectl config view && kubectl config set-context --current --namespace=default
+[XPK] Task: `Check if PathwaysJob is installed on golden-cluster` is implemented by the following command not running since it is a dry run. 
+kubectl get pods -n pathways-job-system --no-headers -o custom-columns=NAME:.metadata.name
+[XPK] check_if_pathways_job_is_installed 0 0
+[XPK] Task: `Delete Workload` is implemented by the following command not running since it is a dry run. 
+kubectl delete pathwaysjob golden-workload -n default
+[XPK] Exiting XPK cleanly

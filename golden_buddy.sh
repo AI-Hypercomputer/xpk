@@ -90,8 +90,9 @@ fi
 
 mkdir -p "$GOLDENS_DIR"
 
-cat "$GOLDENS_FILE" | yq -r '.goldens | to_entries[] | [.key, .value.command] | @tsv' | \
-  while IFS=$'\t' read -r key command; do
+yq -r '.goldens | keys[]' "$GOLDENS_FILE" | \
+  while read -r key; do
+    command=$(yq -r '.goldens["'"$key"'"].command' "$GOLDENS_FILE")
     if [[ "$MODE" = "update" ]]; then
       printf "${YELLOW}Updating: %s${NC}\n" "$key"
     fi

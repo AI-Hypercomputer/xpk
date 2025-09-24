@@ -436,6 +436,8 @@ def install_kueue_crs(
       cluster_hardware_name=cluster_hardware_name,
       resource_type=resource_type,
       total_chips=total_chips,
+      cpu_limit=args.cpu_limit,
+      memory_limit=args.memory_limit,
   )
   topology_label = ''
   if system.device_type in [
@@ -474,7 +476,7 @@ def install_kueue_crs(
     yml_string = topology_yaml + yml_string
 
   tmp = write_tmp_file(yml_string)
-  command = f'kubectl apply -f {str(tmp.file.name)}'
+  command = f'kubectl apply -f {str(tmp)}'
 
   task = 'Applying Kueue Custom Resources'
   return_code = run_command_with_updates_retry(command, task, args)
@@ -484,7 +486,7 @@ def install_kueue_crs(
 
 
 def get_kueue_covered_resources_config(
-    cluster_hardware_name, resource_type, total_chips
+    cluster_hardware_name, resource_type, total_chips, cpu_limit, memory_limit
 ) -> str:
   """Gets Kueue covered resources configuration.
 
@@ -497,17 +499,31 @@ def get_kueue_covered_resources_config(
     A string of Kueue covered resources configuration.
   """
   config_format = """
-  - coveredResources: ["{resource_type}"]
+  - coveredResources: {resource_types}
     flavors:
     - name: {cluster_hardware_name}
       resources:
       - name: "{resource_type}"
-        nominalQuota: {total_chips}
-  """
+        nominalQuota: {total_chips}"""
+  resource_types = [resource_type]
+  if cpu_limit:
+    config_format = config_format + """
+      - name: "cpu"
+        nominalQuota: {cpu_limit}"""
+    resource_types.append('cpu')
+  if memory_limit:
+    config_format = config_format + """
+      - name: "memory"
+        nominalQuota: {memory_limit}"""
+    resource_types.append('memory')
+
   config_string = config_format.format(
       cluster_hardware_name=cluster_hardware_name,
+      resource_types=resource_types,
       resource_type=resource_type,
       total_chips=total_chips,
+      cpu_limit=cpu_limit,
+      memory_limit=memory_limit,
   )
   return config_string
 
@@ -536,7 +552,7 @@ def update_kueue_resources_if_necessary(args):
       memory_limit_size=new_memory_limit, KUEUE_VERSION=KUEUE_VERSION
   )
   tmp = write_tmp_file(yml_string)
-  command = f'kubectl apply -f {str(tmp.file.name)}'
+  command = f'kubectl apply -f {str(tmp)}'
 
   task = 'Updating Kueue Controller Manager resources'
   return_code = run_command_with_updates_retry(command, task, args)

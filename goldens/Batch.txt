@@ -1,0 +1,14 @@
+[XPK] Starting xpk
+[XPK] Working on golden-project and us-central1-a
+[XPK] Try 1: get-credentials to cluster golden-cluster
+[XPK] Task: `get-credentials to cluster golden-cluster` is implemented by the following command not running since it is a dry run. 
+gcloud container clusters get-credentials golden-cluster --region=us-central1 --project=golden-project && kubectl config view && kubectl config set-context --current --namespace=default
+[XPK] Task: `GKE Cluster Get ConfigMap` is implemented by the following command not running since it is a dry run. 
+kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="ConfigData:data" --no-headers=true
+[XPK] Task: `GKE Cluster Get ConfigMap` is implemented by the following command not running since it is a dry run. 
+kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="ConfigData:data" --no-headers=true
+[XPK] Task: `GKE Cluster Get ConfigMap` is implemented by the following command not running since it is a dry run. 
+kubectl get configmap golden-cluster-metadata-configmap -o=custom-columns="ConfigData:data" --no-headers=true
+[XPK] Task: `submit job` is implemented by the following command not running since it is a dry run. 
+kubectl kjob create slurm --profile xpk-def-app-profile --localqueue multislice-queue --worker-container xpk-batch-container --first-node-ip --pod-template-annotation kueue.x-k8s.io/podset-preferred-topology=cloud.google.com/gce-topology-host -- batch-read.sh --partition multislice-queue
+[XPK] XPK Done.

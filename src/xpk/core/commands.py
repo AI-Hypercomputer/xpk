@@ -23,6 +23,7 @@ from argparse import Namespace
 from ..utils.objects import chunks
 from ..utils.file import make_tmp_files, write_tmp_file
 from ..utils.console import xpk_print
+from ..utils.execution_context import is_dry_run
 
 
 def run_commands(commands, jobname, per_command_name, batch=10, dry_run=False):
@@ -226,7 +227,6 @@ def run_command_with_updates(command, task, global_args, verbose=True) -> int:
 def run_command_for_value(
     command,
     task,
-    global_args,
     dry_run_return_val='0',
     print_timer=False,
     hide_error=False,
@@ -239,7 +239,6 @@ def run_command_for_value(
   Args:
     command: user provided command to run.
     task: user provided task name for running the command.
-    global_args: user provided arguments for running the command.
     dry_run_return_val: return value of this command for dry run.
     print_timer: print out the time the command is running.
     hide_error: hide the error from the command output upon success.
@@ -249,7 +248,7 @@ def run_command_for_value(
     int: return_code, default is 0
     str: return_val, default is '0'
   """
-  if global_args is not None and global_args.dry_run:
+  if is_dry_run():
     xpk_print(
         f'Task: `{task}` is implemented by the following command'
         ' not running since it is a dry run.'

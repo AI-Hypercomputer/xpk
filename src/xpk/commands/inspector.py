@@ -41,7 +41,7 @@ def inspector_run_command_helper(
   prefix = f'Command: {command}\nCommand Description: {command_description}\n'
   postfix = '========================================================'
   return_code, command_output = run_command_for_value(
-      command, f'{command_description}', args
+      command, f'{command_description}'
   )
 
   if return_code != 0:

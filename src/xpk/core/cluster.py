@@ -199,11 +199,8 @@ def install_nri_on_cluster(args) -> int:
   return 0
 
 
-def get_cluster_nodes_info(args) -> list[dict]:
+def get_cluster_nodes_info() -> list[dict]:
   """Get list of cluster's nodes descrition in yaml format
-
-  Args:
-    args: user provided arguments for running the command.
 
   Returns:
     List of nodes info yaml objects.
@@ -213,7 +210,6 @@ def get_cluster_nodes_info(args) -> list[dict]:
   err_code, val = run_command_for_value(
       command=command,
       task='Get cluster nodes info',
-      global_args=args,
   )
   if err_code != 0:
     xpk_exit(err_code)
@@ -221,9 +217,9 @@ def get_cluster_nodes_info(args) -> list[dict]:
   return data['items']
 
 
-def count_nodes_on_cluster(args, system: SystemCharacteristics) -> int:
+def count_nodes_on_cluster(system: SystemCharacteristics) -> int:
   """Count cluster nodes by accelerator type"""
-  nodes_info = get_cluster_nodes_info(args)
+  nodes_info = get_cluster_nodes_info()
   accelerators = [
       node['metadata']['labels']['cloud.google.com/gke-accelerator']
       for node in nodes_info
@@ -248,7 +244,6 @@ def get_cluster_network(args) -> str:
   err_code, val = run_command_for_value(
       command=cluster_network_cmd,
       task='Get network cluster is in',
-      global_args=args,
   )
   if err_code != 0:
     xpk_exit(err_code)
@@ -361,7 +356,6 @@ def is_driver_enabled_on_cluster(
       command,
       f"Checks if {driver} driver's {config_key} is enabled in cluster"
       ' describe.',
-      args,
   )
   if return_code != 0:
     xpk_exit(return_code)
@@ -412,7 +406,7 @@ def get_all_clusters_programmatic(args) -> tuple[list[str], int]:
       ' --format="csv[no-heading](name)"'
   )
   return_code, raw_cluster_output = run_command_for_value(
-      command, 'Find if Cluster Exists', args
+      command, 'Find if Cluster Exists'
   )
   if return_code != 0:
     xpk_print(f'Find if Cluster Exists returned ERROR {return_code}')
@@ -734,7 +728,6 @@ def is_cluster_using_clouddns(args) -> bool:
   return_code, _ = run_command_for_value(
       command,
       'Check if Cloud DNS is enabled in cluster describe.',
-      args,
   )
   if return_code == 0:
     xpk_print('Cloud DNS is enabled on the cluster, no update needed.')
@@ -757,7 +750,6 @@ def is_workload_identity_enabled_on_cluster(args) -> bool:
   return_code, workload_pool = run_command_for_value(
       command,
       'Checks if Workload Identity Federation is enabled in cluster describe.',
-      args,
   )
   if return_code != 0:
     xpk_exit(return_code)
@@ -785,7 +777,6 @@ def is_gcsfuse_driver_enabled_on_cluster(args) -> bool:
   return_code, gcsfuse_driver_enabled = run_command_for_value(
       command,
       'Checks if GCSFuse CSI driver is enabled in cluster describe.',
-      args,
   )
   if return_code != 0:
     xpk_exit(return_code)

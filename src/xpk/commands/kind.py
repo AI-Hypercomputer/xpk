@@ -70,7 +70,7 @@ def cluster_create(args) -> None:
     xpk_exit(install_kueue_on_cluster_code)
 
   xpk_print('Verifying kjob installation')
-  err_code = verify_kjob_installed(args)
+  err_code = verify_kjob_installed()
   if err_code > 0:
     xpk_exit(err_code)
 
@@ -154,7 +154,7 @@ def create_cluster_if_necessary(args) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
-  all_clusters, return_code = get_all_local_clusters_programmatic(args)
+  all_clusters, return_code = get_all_local_clusters_programmatic()
   if return_code > 0:
     xpk_print('Listing all clusters failed!')
     return 1
@@ -229,18 +229,15 @@ def run_kind_cluster_create_command(args) -> int:
   return 0
 
 
-def get_all_local_clusters_programmatic(args) -> tuple[list[str], int]:
+def get_all_local_clusters_programmatic() -> tuple[list[str], int]:
   """Gets all the local clusters.
-
-  Args:
-    args: user provided arguments for running the command.
 
   Returns:
     List of cluster names and 0 if successful and 1 otherwise.
   """
   command = 'kind get clusters'
   return_code, raw_cluster_output = run_command_for_value(
-      command, 'Find if Cluster Exists', args
+      command, 'Find if Cluster Exists'
   )
   if return_code != 0:
     xpk_print(f'Find if Cluster Exists returned ERROR {return_code}')
@@ -261,7 +258,7 @@ def set_local_cluster_command(args) -> int:
   if not args.cluster:
     command = 'kubectl config current-context'
     return_code, current_context = run_command_for_value(
-        command, 'get current-context', args
+        command, 'get current-context'
     )
     xpk_print(
         'No local cluster name specified. Using current-context'

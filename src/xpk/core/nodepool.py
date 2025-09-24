@@ -443,7 +443,7 @@ def get_all_nodepools_programmatic(args) -> tuple[list[str], int]:
       ' --format="csv[no-heading](name)"'
   )
   return_code, raw_nodepool_output = run_command_for_value(
-      command, 'Get All Node Pools', args
+      command, 'Get All Node Pools'
   )
   if return_code != 0:
     xpk_print(f'Get All Node Pools returned ERROR {return_code}')
@@ -470,7 +470,7 @@ def get_nodepool_zone(args, nodepool_name) -> tuple[int, str | None]:
       f' --region={zone_to_region(args.zone)} --format="value(locations)"'
   )
   return_code, nodepool_zone = run_command_for_value(
-      command, 'Get Node Pool Zone', args, dry_run_return_val=args.zone
+      command, 'Get Node Pool Zone', dry_run_return_val=args.zone
   )
   if return_code != 0:
     xpk_print(f'Get Node Pool Zone returned ERROR {return_code}')
@@ -503,7 +503,7 @@ def get_gke_node_pool_version(
   )
 
   return_code, current_gke_master_version = run_command_for_value(
-      command, command_description, args
+      command, command_description
   )
   if return_code != 0:
     xpk_print(
@@ -611,7 +611,7 @@ def get_nodepool_workload_metadata_mode(
       f' --region={zone_to_region(args.zone)} --format="value(config.workloadMetadataConfig.mode)"'
   )
   return_code, nodepool_WI_mode = run_command_for_value(
-      command, 'Get Node Pool Workload Identity Metadata Mode', args
+      command, 'Get Node Pool Workload Identity Metadata Mode'
   )
   if return_code != 0:
     xpk_print(

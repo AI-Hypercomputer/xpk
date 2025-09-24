@@ -40,7 +40,7 @@ def get_gke_dashboard(args, dashboard_filter) -> tuple[bool, str | None]:
   )
 
   return_code, return_value = run_command_for_value(
-      command, 'GKE Dashboard List', args
+      command, 'GKE Dashboard List'
   )
 
   if return_code != 0:

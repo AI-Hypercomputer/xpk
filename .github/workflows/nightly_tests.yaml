@@ -19,6 +19,8 @@ on:
   schedule: # Schedule the job run at 12AM PST daily.
     - cron: '0 8 * * *'
 
+permissions:
+  contents: read
 
 env:
   CLUSTER_NETWORK_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}} --subnetwork=${{secrets.SUBNETWORK_NAME}}"

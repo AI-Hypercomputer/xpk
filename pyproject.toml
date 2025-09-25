@@ -68,6 +68,7 @@ dev = [
     "mypy ~= 1.17",
     "types-PyYAML == 6.0.2",
     "types-docker ~= 7.1.0.0",
+    "pylint-per-file-ignores" = "1.4.0"
 ]
 
 [tool.setuptools.dynamic]

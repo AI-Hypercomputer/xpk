@@ -243,7 +243,7 @@ class KueueManagerTest(unittest.TestCase):
     result = self.kueue_manager._configure(kueue_config)
 
     self.assertEqual(result, 0)
-    mock_apply_manifest.assert_called_once_with("---", False)
+    mock_apply_manifest.assert_called_once_with("---")
     mock_update_resources.assert_called_once()
 
   @patch("xpk.core.kueue_manager.run_command_for_value")

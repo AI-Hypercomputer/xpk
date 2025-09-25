@@ -24,8 +24,6 @@ on:
         type: choice
         options:
           - v4-8
-  push:
-    branches: ["main","develop"]
   pull_request: # By default this runs for types assigned, opened and synchronize.
 
 jobs:

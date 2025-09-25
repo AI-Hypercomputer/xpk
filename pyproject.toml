@@ -104,9 +104,3 @@ files = "src"
 exclude = [
   'src/xpk/core/blueprint/blueprint_generator\.py',
 ]
-
-[tool.pylint.'MESSAGES CONTROL']
-# In pyproject.toml or a similar setup
-per-file-ignores =
-    # Regex for matching test files
-    *_test.py: protected-access

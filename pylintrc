@@ -31,6 +31,10 @@ unsafe-load-any-extension=no
 
 [MESSAGES CONTROL]
 
+per-file-ignores =
+    # Ignore in any file that ENDS with '_test.py'
+    .*_test\.py: protected-access
+
 # Only show warnings with the listed confidence levels. Leave empty to show
 # all. Valid levels: HIGH, INFERENCE, INFERENCE_FAILURE, UNDEFINED
 confidence=

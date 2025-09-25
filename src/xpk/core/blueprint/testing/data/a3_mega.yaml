@@ -23,6 +23,7 @@ vars:
   deployment_name: xpk-gke-a3-megagpu
   region: us-central1
   zone: us-central1-c
+  labels: {gke_product_type: xpk}
 
 deployment_groups:
 - !DeploymentGroup

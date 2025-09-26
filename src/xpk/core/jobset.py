@@ -110,11 +110,8 @@ spec:
 """
 
 
-def update_jobset_resources_if_necessary(args):
+def update_jobset_resources_if_necessary():
   """Update the jobset manifest to increase the resources for the jobset controller manager.
-
-  Args:
-    args: user provided arguments for running the command.
 
   Returns:
     0 if successful and 1 otherwise.
@@ -122,7 +119,7 @@ def update_jobset_resources_if_necessary(args):
   # Get total number of nodes
   cmd_total_node_num = 'kubectl get node --no-headers | wc -l'
   return_code, out = run_command_for_value(
-      cmd_total_node_num, 'Count total nodes', args
+      cmd_total_node_num, 'Count total nodes'
   )
   if return_code != 0:
     xpk_exit(1)
@@ -134,10 +131,10 @@ def update_jobset_resources_if_necessary(args):
       memory_limit_size=new_memory_limit,
   )
   tmp = write_tmp_file(yml_string)
-  command = f'kubectl apply -f {str(tmp.file.name)}'
+  command = f'kubectl apply -f {str(tmp)}'
 
   task = 'Updating jobset Controller Manager resources'
-  return_code = run_command_with_updates_retry(command, task, args)
+  return_code = run_command_with_updates_retry(command, task)
   if return_code != 0:
     xpk_print(f'{task} returned ERROR {return_code}')
   return return_code

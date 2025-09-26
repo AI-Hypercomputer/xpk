@@ -34,7 +34,7 @@ from ..system_characteristics import get_system_characteristics_by_device_type
 from .blueprint_definitions import Blueprint, DeploymentGroup, DeploymentModule
 from ..kueue import KUEUE_VERSION
 
-yaml = yaml.YAML()
+yaml_parser = yaml.YAML()
 
 a3high_device_type = H100_DEVICE_TYPE
 a3mega_device_type = H100_MEGA_DEVICE_TYPE
@@ -53,6 +53,7 @@ blueprint_dependencies_dir = {
 
 cluster_toolkit_url = "github.com/GoogleCloudPlatform/cluster-toolkit"
 cluster_toolkit_version = "v1.62.2"
+common_cluster_labels = {"gke_product_type": "xpk"}
 
 
 class BlueprintGeneratorOutput:
@@ -298,6 +299,7 @@ class BlueprintGenerator:
             "deployment_name": blueprint_name,
             "region": region,
             "zone": zone,
+            "labels": common_cluster_labels,
         },
     )
 
@@ -676,6 +678,7 @@ class BlueprintGenerator:
             "deployment_name": blueprint_name,
             "region": region,
             "zone": zone,
+            "labels": common_cluster_labels,
         },
     )
 
@@ -962,6 +965,7 @@ class BlueprintGenerator:
             "deployment_name": blueprint_name,
             "region": region,
             "zone": zone,
+            "labels": common_cluster_labels,
         },
     )
 
@@ -1019,7 +1023,7 @@ class BlueprintGenerator:
   ) -> str:
     blueprint_path = self._get_blueprint_path(blueprint_name, prefix)
     with open(blueprint_path, "w+", encoding="utf-8") as blueprint_file:
-      yaml.dump(xpk_blueprint, blueprint_file)
+      yaml_parser.dump(xpk_blueprint, blueprint_file)
     return blueprint_path
 
   def _get_blueprint_path(self, blueprint_name, prefix: str = ""):
@@ -1033,7 +1037,7 @@ class BlueprintGenerator:
     ensure_directory_exists(storage_path_with_prefix)
     return storage_path_with_prefix
 
-  def blueprint_exists(self, blueprint_name, prefix: str = ""):
+  def blueprint_exists(self, blueprint_name, prefix: str = "") -> bool:
     blueprint_path = self._get_blueprint_path(blueprint_name, prefix)
     return os.path.exists(blueprint_path)
 
@@ -1061,6 +1065,6 @@ class BlueprintGenerator:
     }
 
 
-yaml.register_class(Blueprint)
-yaml.register_class(DeploymentGroup)
-yaml.register_class(DeploymentModule)
+yaml_parser.register_class(Blueprint)
+yaml_parser.register_class(DeploymentGroup)
+yaml_parser.register_class(DeploymentModule)

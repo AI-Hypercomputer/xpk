@@ -50,11 +50,10 @@ class AutoprovisioningConfig:
   maximum_chips: int
 
 
-def get_cluster_configmap(args, configmap_name) -> dict[str, str] | None:
+def get_cluster_configmap(configmap_name) -> dict[str, str] | None:
   """Run the Get GKE Cluster ConfigMap request.
 
   Args:
-    args: user provided arguments for running the command.
     configmap_name: name of the configmap.
 
   Returns:
@@ -66,7 +65,9 @@ def get_cluster_configmap(args, configmap_name) -> dict[str, str] | None:
   )
 
   return_code, return_value = run_command_for_value(
-      command, 'GKE Cluster Get ConfigMap', args
+      command,
+      'GKE Cluster Get ConfigMap',
+      dry_run_return_val='map[]',
   )
   if return_code != 0:
     xpk_print(f'GKE Cluster Get ConfigMap request returned ERROR {return_code}')
@@ -81,8 +82,10 @@ def get_cluster_configmap(args, configmap_name) -> dict[str, str] | None:
     configs = return_value[4:-1].split(' ')
 
     for config in configs:
-      key, value = config.strip().split(':')
-      config_map[key] = value
+      parts = config.strip().split(':')
+      if len(parts) != 2:
+        continue
+      config_map[parts[0]] = parts[1]
   return config_map
 
 
@@ -150,10 +153,12 @@ def create_cluster_configmaps(
       args=args, name=metadata_configmap_name, data=metadata
   )
   configmap_yml[metadata_configmap_name] = metadata_yml
-  return create_or_update_cluster_configmap(configmap_yml)
+  return create_or_update_cluster_configmap(configmap_yml, args.dry_run)
 
 
-def create_or_update_cluster_configmap(configmap_yml: dict) -> int:
+def create_or_update_cluster_configmap(
+    configmap_yml: dict, dry_run: bool
+) -> int:
   """
   Args:
     configmap_yml: dict containing ConfigMap name and yml string.
@@ -165,13 +170,16 @@ def create_or_update_cluster_configmap(configmap_yml: dict) -> int:
   task_names = []
   for configmap_name, yml_string in configmap_yml.items():
     tmp = write_tmp_file(yml_string)
-    command = f'kubectl apply -f {str(tmp.file.name)}'
+    command = f'kubectl apply -f {str(tmp)}'
     commands.append(command)
     task_name = f'ConfigMap CreateOrUpdate-{configmap_name}'
     task_names.append(task_name)
 
   return_code = run_commands(
-      commands, 'GKE Cluster CreateOrUpdate ConfigMap(s)', task_names
+      commands,
+      'GKE Cluster CreateOrUpdate ConfigMap(s)',
+      task_names,
+      dry_run=dry_run,
   )
   if return_code != 0:
     xpk_print(
@@ -196,7 +204,7 @@ def check_cluster_resources(args, system) -> tuple[bool, bool]:
     True if device_type/gke_accelerator exists in the cluster, False otherwise.
   """
   resources_configmap_name = f'{args.cluster}-{CLUSTER_RESOURCES_CONFIGMAP}'
-  resources_config_map = get_cluster_configmap(args, resources_configmap_name)
+  resources_config_map = get_cluster_configmap(resources_configmap_name)
   if resources_config_map is None:
     xpk_print(
         f'No ConfigMap exist for cluster with the name {resources_config_map}.'
@@ -219,7 +227,7 @@ def get_cluster_system_characteristics(args) -> SystemCharacteristics | None:
     returns system characteristics
   """
   resources_configmap_name = f'{args.cluster}-{CLUSTER_RESOURCES_CONFIGMAP}'
-  cluster_config_map = get_cluster_configmap(args, resources_configmap_name)
+  cluster_config_map = get_cluster_configmap(resources_configmap_name)
 
   if cluster_config_map is None:
     return None
@@ -241,7 +249,7 @@ def get_cluster_capacity_type(args) -> CapacityType | None:
     returns system characteristics
   """
   metadata_configmap_name = f'{args.cluster}-{CLUSTER_METADATA_CONFIGMAP}'
-  cluster_config_map = get_cluster_configmap(args, metadata_configmap_name)
+  cluster_config_map = get_cluster_configmap(metadata_configmap_name)
 
   if cluster_config_map is None:
     return None

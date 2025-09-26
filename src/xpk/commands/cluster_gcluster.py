@@ -90,7 +90,7 @@ def cluster_create(args) -> None:
 
   get_cluster_credentials(args)
 
-  err_code = apply_kjob_crds(args)
+  err_code = apply_kjob_crds()
   if err_code > 0:
     xpk_exit(err_code)
 
@@ -213,7 +213,6 @@ def validate_state_gcs_bucket(args):
   err_code, _ = run_command_for_value(
       bucket_validate_cmd,
       'Validate remote state bucket existence.',
-      global_args=args,
   )
   if err_code != 0:
     xpk_exit(err_code)
@@ -310,4 +309,5 @@ def generate_blueprint(
           system_node_pool_machine_type=args.default_pool_cpu_machine_type,
           system_node_pool_min_node_count=args.default_pool_cpu_num_nodes,
       )
-  return None
+  xpk_print('Device type is not supported.')
+  xpk_exit(1)

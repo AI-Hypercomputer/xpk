@@ -29,7 +29,7 @@ from ..commands.cluster import (
 from ..commands.config import xpk_cfg
 from ..core.config import CFG_BUCKET_KEY
 from ..core.vertex import DEFAULT_VERTEX_TENSORBOARD_NAME
-from .common import add_shared_arguments
+from .common import add_shared_arguments, ParserOrArgumentGroup
 from .validators import name_type
 
 
@@ -174,6 +174,13 @@ def set_cluster_create_parser(cluster_create_parser: ArgumentParser):
       'Arguments for configuring MTC in cluster create.',
   )
   add_shared_cluster_create_mtc_arguments(cluster_create_mtc_arguments)
+
+  cluster_create_resource_limits = cluster_create_parser.add_argument_group(
+      'Optional Resource Limits Arguments',
+      'Arguments for configuring resource limits in cluster create.',
+  )
+  add_resource_limits(cluster_create_resource_limits)
+
   cluster_create_parser.set_defaults(func=cluster_create)
 
 
@@ -245,6 +252,15 @@ def set_cluster_create_pathways_parser(
       )
   )
   add_shared_cluster_create_mtc_arguments(cluster_create_mtc_arguments)
+
+  cluster_create_resource_limits = (
+      cluster_create_pathways_parser.add_argument_group(
+          'Optional Resource Limits Arguments',
+          'Arguments for configuring resource limits in cluster create.',
+      )
+  )
+  add_resource_limits(cluster_create_resource_limits)
+
   cluster_create_pathways_parser.set_defaults(func=cluster_create_pathways)
 
 
@@ -320,6 +336,13 @@ def set_cluster_create_ray_parser(cluster_create_ray_parser: ArgumentParser):
       'Arguments for configuring MTC in cluster create.',
   )
   add_shared_cluster_create_mtc_arguments(cluster_create_mtc_arguments)
+
+  cluster_create_resource_limits = cluster_create_ray_parser.add_argument_group(
+      'Optional Resource Limits Arguments',
+      'Arguments for configuring resource limits in cluster create.',
+  )
+  add_resource_limits(cluster_create_resource_limits)
+
   cluster_create_ray_parser.set_defaults(func=cluster_create_ray_cluster)
 
 
@@ -537,15 +560,15 @@ def set_cluster_adapt_parser(cluster_adapt_parser: ArgumentParser):
   cluster_adapt_parser.set_defaults(func=cluster_adapt)
 
 
-def add_autoprovisioning_arguments(parser: ArgumentParser):
-  parser.add_argument(
+def add_autoprovisioning_arguments(parser_or_group: ParserOrArgumentGroup):
+  parser_or_group.add_argument(
       '--enable-autoprovisioning',
       action='store_true',
       help=(
           'Enable GKE features for autoprovisioning node pools in GKE clusters.'
       ),
   )
-  parser.add_argument(
+  parser_or_group.add_argument(
       '--autoprovisioning-min-chips',
       type=int,
       help=(
@@ -554,7 +577,7 @@ def add_autoprovisioning_arguments(parser: ArgumentParser):
           ' resources in the cluster as the minimum, and maximum.'
       ),
   )
-  parser.add_argument(
+  parser_or_group.add_argument(
       '--autoprovisioning-max-chips',
       type=int,
       help=(
@@ -565,13 +588,15 @@ def add_autoprovisioning_arguments(parser: ArgumentParser):
   )
 
 
-def add_shared_cluster_create_required_arguments(parser: ArgumentParser):
+def add_shared_cluster_create_required_arguments(
+    parser_or_group: ParserOrArgumentGroup,
+):
   """Add shared required arguments in cluster create and Pathways cluster create.
 
   Args:
-    parser: cluster create argument parser or argument group
+    parser_or_group: cluster create argument parser or argument group
   """
-  parser.add_argument(
+  parser_or_group.add_argument(
       '--cluster',
       type=name_type,
       default=None,
@@ -583,21 +608,23 @@ def add_shared_cluster_create_required_arguments(parser: ArgumentParser):
   )
 
 
-def add_shared_cluster_create_optional_arguments(parser: ArgumentParser):
+def add_shared_cluster_create_optional_arguments(
+    parser_or_group: ParserOrArgumentGroup,
+):
   """Add shared optional arguments in cluster create and Pathways cluster create.
 
   Args:
-    parser: cluster create argument parser or argument group
+    parser_or_group: cluster create argument parser or argument group
   """
-  add_shared_arguments(parser)
-  parser.add_argument(
+  add_shared_arguments(parser_or_group)
+  parser_or_group.add_argument(
       '--host-maintenance-interval',
       type=str,
       choices=['AS_NEEDED', 'PERIODIC'],
       default='AS_NEEDED',
       help='The maintenance policy of the cluster and respective clusters.',
   )
-  parser.add_argument(
+  parser_or_group.add_argument(
       '--gke-version',
       type=str,
       help=(
@@ -606,20 +633,20 @@ def add_shared_cluster_create_optional_arguments(parser: ArgumentParser):
           ' recommended version.'
       ),
   )
-  parser.add_argument(
+  parser_or_group.add_argument(
       '--num-slices',
       type=int,
       default=1,
       help='The number of slices to run the job on, defaults to 1.',
       required=False,
   )
-  parser.add_argument(
+  parser_or_group.add_argument(
       '--pathways-gce-machine-type',
       type=str,
       default='n2-standard-64',
       help='The CPU type for Pathways CPU nodepools',
   )
-  parser.add_argument(
+  parser_or_group.add_argument(
       '--default-pool-cpu-machine-type',
       type=str,
       default='e2-standard-16',
@@ -628,7 +655,7 @@ def add_shared_cluster_create_optional_arguments(parser: ArgumentParser):
           ' regional clusters, all zones must support the machine type.'
       ),
   )
-  parser.add_argument(
+  parser_or_group.add_argument(
       '--cluster-cpu-machine-type',
       type=str,
       default='',
@@ -639,7 +666,7 @@ def add_shared_cluster_create_optional_arguments(parser: ArgumentParser):
           ' cpu nodepools using --device-type.'
       ),
   )
-  parser.add_argument(
+  parser_or_group.add_argument(
       '--default-pool-cpu-num-nodes',
       type=int,
       default=6,
@@ -649,7 +676,7 @@ def add_shared_cluster_create_optional_arguments(parser: ArgumentParser):
           ' over time.'
       ),
   )
-  parser.add_argument(
+  parser_or_group.add_argument(
       '--custom-cluster-arguments',
       type=str,
       default='',
@@ -660,7 +687,7 @@ def add_shared_cluster_create_optional_arguments(parser: ArgumentParser):
           " --custom-cluster-arguments='--network=mtu9k --subnetwork=mtu9k'"
       ),
   )
-  parser.add_argument(
+  parser_or_group.add_argument(
       '--custom-nodepool-arguments',
       type=str,
       default='',
@@ -671,7 +698,7 @@ def add_shared_cluster_create_optional_arguments(parser: ArgumentParser):
           ' --custom-nodepool-arguments="--disk-size=300"'
       ),
   )
-  parser.add_argument(
+  parser_or_group.add_argument(
       '--force',
       action='store_true',
       help=(
@@ -679,7 +706,7 @@ def add_shared_cluster_create_optional_arguments(parser: ArgumentParser):
           ' additional approval.'
       ),
   )
-  parser.add_argument(
+  parser_or_group.add_argument(
       '--custom-tpu-nodepool-arguments',
       type=str,
       default='',
@@ -690,7 +717,7 @@ def add_shared_cluster_create_optional_arguments(parser: ArgumentParser):
           ' --custom-tpu-nodepool-arguments="--enable-ip-alias"'
       ),
   )
-  parser.add_argument(
+  parser_or_group.add_argument(
       '--private',
       action='store_true',
       help=(
@@ -703,7 +730,7 @@ def add_shared_cluster_create_optional_arguments(parser: ArgumentParser):
           ' clusters.'
       ),
   )
-  parser.add_argument(
+  parser_or_group.add_argument(
       '--authorized-networks',
       action='extend',
       nargs='+',
@@ -718,16 +745,16 @@ def add_shared_cluster_create_optional_arguments(parser: ArgumentParser):
           ' Example usage: --authorized-networks 1.2.3.0/24 1.2.4.5/32'
       ),
   )
-  parser.add_argument(
+  parser_or_group.add_argument(
       '--enable-workload-identity',
       action='store_true',
       help='Enable Workload Identity Federation on the cluster and node-pools.',
   )
-  add_driver_arguments(parser)
+  add_driver_arguments(parser_or_group)
 
 
-def add_driver_arguments(parser: ArgumentParser):
-  parser.add_argument(
+def add_driver_arguments(parser_or_group: ParserOrArgumentGroup):
+  parser_or_group.add_argument(
       '--enable-gcsfuse-csi-driver',
       action='store_true',
       help=(
@@ -736,42 +763,44 @@ def add_driver_arguments(parser: ArgumentParser):
           ' Identity is enabled by default.'
       ),
   )
-  parser.add_argument(
+  parser_or_group.add_argument(
       '--enable-gcpfilestore-csi-driver',
       action='store_true',
       help='Enable GCPFilestore driver on the cluster.',
   )
-  parser.add_argument(
+  parser_or_group.add_argument(
       '--enable-parallelstore-csi-driver',
       action='store_true',
       help='Enable Parallelstore CSI driver on the cluster.',
   )
-  parser.add_argument(
+  parser_or_group.add_argument(
       '--enable-pd-csi-driver',
       action='store_true',
       help='Enable PersistentDisk CSI driver on the cluster.',
   )
-  parser.add_argument(
+  parser_or_group.add_argument(
       '--enable-lustre-csi-driver',
       action='store_true',
       help='Enable Lustre CSI driver on the cluster.',
   )
 
 
-def add_shared_cluster_create_tensorboard_arguments(parser: ArgumentParser):
+def add_shared_cluster_create_tensorboard_arguments(
+    parser_or_group: ParserOrArgumentGroup,
+):
   """Add shared tensorboard arguments in cluster create and Pathways cluster create.
   Note that this feature enables non-Pathways workloads to use tensorboard arguments
   on a Pathways cluster.
 
   Args:
-    parser: cluster create argument parser or argument group
+    parser_or_group: cluster create argument parser or argument group
   """
-  parser.add_argument(
+  parser_or_group.add_argument(
       '--create-vertex-tensorboard',
       action='store_true',
       help='Set this flag to create a Tensorboard instance in Vertex AI.',
   )
-  parser.add_argument(
+  parser_or_group.add_argument(
       '--tensorboard-region',
       type=str,
       default='us-central1',
@@ -782,7 +811,7 @@ def add_shared_cluster_create_tensorboard_arguments(parser: ArgumentParser):
           ' instance will be created in us-central1.'
       ),
   )
-  parser.add_argument(
+  parser_or_group.add_argument(
       '--tensorboard-name',
       type=str,
       required=False,
@@ -795,13 +824,15 @@ def add_shared_cluster_create_tensorboard_arguments(parser: ArgumentParser):
   )
 
 
-def add_shared_cluster_create_capacity_arguments(parser: ArgumentParser):
+def add_shared_cluster_create_capacity_arguments(
+    parser_or_group: ParserOrArgumentGroup,
+):
   """Add shared capacity arguments in cluster create and Pathways cluster create.
 
   Args:
-    parser: cluster create argument parser or argument group
+    parser_or_group: cluster create argument parser or argument group
   """
-  parser.add_argument(
+  parser_or_group.add_argument(
       '--on-demand',
       action='store_true',
       help=(
@@ -810,7 +841,7 @@ def add_shared_cluster_create_capacity_arguments(parser: ArgumentParser):
           ' types.'
       ),
   )
-  parser.add_argument(
+  parser_or_group.add_argument(
       '--reservation',
       type=str,
       help=(
@@ -819,7 +850,7 @@ def add_shared_cluster_create_capacity_arguments(parser: ArgumentParser):
           ' `--flex` or `--on-demand` for other capacity types.'
       ),
   )
-  parser.add_argument(
+  parser_or_group.add_argument(
       '--spot',
       action='store_true',
       help=(
@@ -828,7 +859,7 @@ def add_shared_cluster_create_capacity_arguments(parser: ArgumentParser):
           ' capacity types.'
       ),
   )
-  parser.add_argument(
+  parser_or_group.add_argument(
       '--flex',
       action='store_true',
       help=(
@@ -839,18 +870,20 @@ def add_shared_cluster_create_capacity_arguments(parser: ArgumentParser):
   )
 
 
-def add_shared_cluster_create_mtc_arguments(parser: ArgumentParser):
+def add_shared_cluster_create_mtc_arguments(
+    parser_or_group: ParserOrArgumentGroup,
+):
   """Add shared Multi-tier Checkpointing arguments in cluster create and Pathways cluster create.
 
   Args:
-      List of cluster create MTC arguments parsers
+      List of cluster create MTC arguments parsers or group
   """
-  parser.add_argument(
+  parser_or_group.add_argument(
       '--enable-mtc',
       action='store_true',
       help='Enable MTC on the cluster.',
   )
-  parser.add_argument(
+  parser_or_group.add_argument(
       '--mtc-ramdisk-size',
       type=str,
       default=None,
@@ -859,7 +892,7 @@ def add_shared_cluster_create_mtc_arguments(parser: ArgumentParser):
           ' used for multi-tier checkpointing. e.g. "64Mi" '
       ),
   )
-  parser.add_argument(
+  parser_or_group.add_argument(
       '--mtc-gcs-bucket',
       type=str,
       default=None,
@@ -868,7 +901,7 @@ def add_shared_cluster_create_mtc_arguments(parser: ArgumentParser):
           ' multi-tier checkpointing.'
       ),
   )
-  parser.add_argument(
+  parser_or_group.add_argument(
       '--mtc-toleration-key',
       type=str,
       default=None,
@@ -876,4 +909,24 @@ def add_shared_cluster_create_mtc_arguments(parser: ArgumentParser):
           '(Optional) The tolerance key to be used for multi-tier'
           ' checkpointing. By default, it is set to "google.com/tpu".'
       ),
+  )
+
+
+def add_resource_limits(parser_or_group: ParserOrArgumentGroup):
+  """Add resource limits arguments in cluster create.
+
+  Args:
+      List of cluster create resource limits arguments parsers or group
+  """
+  parser_or_group.add_argument(
+      '--memory-limit',
+      type=str,
+      default=None,
+      help='The memory limit for the Kueue controller manager.',
+  )
+  parser_or_group.add_argument(
+      '--cpu-limit',
+      type=int,
+      default=None,
+      help='The CPU limit for the Kueue controller manager.',
   )

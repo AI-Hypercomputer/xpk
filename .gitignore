@@ -5,6 +5,7 @@
 *__pycache__*
 tmp/
 .pytype
+.mypy_cache
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -140,3 +141,9 @@ dmypy.json
 
 # XPK/Cluster Toolkit working directory
 xpkclusters/*
+
+# gemini-cli settings
+.gemini/
+
+# GitHub App credentials
+gha-creds-*.json

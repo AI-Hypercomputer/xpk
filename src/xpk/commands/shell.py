@@ -60,7 +60,6 @@ def get_existing_shell_pod_name(args: Namespace) -> str | None:
           ' -o custom-columns=":metadata.name"'
       ),
       task='Get existing interactive shell pod name.',
-      global_args=args,
   )
   if return_code != 0:
     xpk_print(
@@ -130,7 +129,6 @@ def shell_stop(args: Namespace):
   return_code = run_command_with_updates(
       command=f'kubectl delete pod {exisitng_shell_pod_name}',
       task='Deleting the existing shell.',
-      global_args=args,
   )
   if return_code != 0:
     xpk_exit(return_code)

@@ -55,7 +55,7 @@ class SystemCharacteristics:
   gke_accelerator: str
   gce_machine_type: str
   chips_per_vm: int
-  accelerator_type: AcceleratorType  # type: ignore
+  accelerator_type: int  # TODO: use enums
   device_type: str
 
 
@@ -202,6 +202,24 @@ UserFacingNameToSystemCharacteristics = {
         8,
         AcceleratorType['GPU'],
         'a100-40gb-8',
+    ),
+    'gb200-4': SystemCharacteristics(
+        '1x72',
+        1,
+        'nvidia-gb200',
+        'a4x-highgpu-4g',
+        4,
+        AcceleratorType['GPU'],
+        'gb200-4',
+    ),
+    'gb200-4-nolssd': SystemCharacteristics(
+        '1x72',
+        1,
+        'nvidia-gb200',
+        'a4x-highgpu-4g-nolssd',
+        4,
+        AcceleratorType['GPU'],
+        'gb200-4',
     ),
     'b200-8': SystemCharacteristics(
         'N/A',

@@ -1,5 +1,5 @@
 """
-Copyright 2024 Google LLC
+Copyright 2025 Google LLC
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -13,3 +13,25 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+
+from functools import reduce
+from operator import mul
+
+
+def is_topology_valid(topology: str) -> bool:
+  try:
+    parse_topology(topology)
+    return True
+  except ValueError:
+    return False
+
+
+def get_topology_product(topology: str) -> int:
+  return reduce(mul, parse_topology(topology), 1)
+
+
+def parse_topology(topology: str) -> list[int]:
+  if len(topology) <= 0:
+    raise ValueError("Topology is an empty string")
+
+  return [int(el) for el in topology.lower().split("x")]

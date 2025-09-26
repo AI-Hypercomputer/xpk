@@ -156,7 +156,6 @@ def enable_autoprovisioning_on_cluster(
       commands,
       'Update node pools with autoprovisioning support',
       task_names,
-      dry_run=args.dry_run,
   )
   if max_return_code != 0:
     xpk_print(

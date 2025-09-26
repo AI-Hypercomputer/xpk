@@ -41,6 +41,7 @@ XPK supports the following TPU types:
 * v5e
 * v5p
 * Trillium (v6e)
+* Ironwood (tpu7x)
 
 and the following GPU types:
 * A100
@@ -48,6 +49,7 @@ and the following GPU types:
 * A3-Mega (h100-mega) - [Create cluster](#provisioning-a3-ultra-a3-mega-and-a4-clusters-gpu-machines), [Create workloads](#workloads-for-a3-ultra-a3-mega-and-a4-clusters-gpu-machines)
 * A3-Ultra (h200) - [Create cluster](#provisioning-a3-ultra-a3-mega-and-a4-clusters-gpu-machines), [Create workloads](#workloads-for-a3-ultra-a3-mega-and-a4-clusters-gpu-machines)
 * A4 (b200) - [Create cluster](#provisioning-a3-ultra-a3-mega-and-a4-clusters-gpu-machines), [Create workloads](#workloads-for-a3-ultra-a3-mega-and-a4-clusters-gpu-machines)
+* A4X (gb200)
 
 and the following CPU types:
 * n2-standard-32

@@ -18,7 +18,6 @@ import datetime
 import subprocess
 import sys
 import time
-from argparse import Namespace
 
 from ..utils.objects import chunks
 from ..utils.file import make_tmp_files, write_tmp_file
@@ -301,7 +300,6 @@ def run_command_for_value(
 def run_command_with_full_controls(
     command: str,
     task: str,
-    global_args: Namespace,
     instructions: str | None = None,
 ) -> int:
   """Run command in current shell with system out, in and error handles. Wait
@@ -310,13 +308,12 @@ def run_command_with_full_controls(
   Args:
     command: command to execute
     task: user-facing name of the task
-    global_args: user provided arguments for running the command.
     verbose: shows stdout and stderr if set to true. Set to True by default.
 
   Returns:
     0 if successful and 1 otherwise.
   """
-  if global_args.dry_run:
+  if is_dry_run():
     xpk_print(
         f'Task: `{task}` is implemented by the following command'
         ' not running since it is a dry run.'

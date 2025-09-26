@@ -38,9 +38,7 @@ def shell(args: Namespace):
   if exisitng_shell_pod_name is None:
     return_code = connect_to_new_interactive_shell(args)
   else:
-    return_code = connect_to_existing_interactive_shell(
-        exisitng_shell_pod_name, args
-    )
+    return_code = connect_to_existing_interactive_shell(exisitng_shell_pod_name)
 
   if return_code != 0:
     xpk_print(f'The command failed with code {return_code}.')
@@ -94,21 +92,17 @@ def connect_to_new_interactive_shell(args: Namespace) -> int:
   return run_command_with_full_controls(
       command=cmd,
       task='Creating new interactive shell and entering it',
-      global_args=args,
       instructions=exit_instructions,
   )
 
 
-def connect_to_existing_interactive_shell(
-    pod_name: str, args: Namespace
-) -> int:
+def connect_to_existing_interactive_shell(pod_name: str) -> int:
   return run_command_with_full_controls(
       command=(
           f'kubectl exec --stdin --tty {pod_name} --'
           f' {get_pod_template_interactive_command()}'
       ),
       task='Entering existing interactive shell',
-      global_args=args,
       instructions=exit_instructions,
   )
 

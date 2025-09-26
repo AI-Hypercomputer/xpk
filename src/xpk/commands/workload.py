@@ -732,7 +732,6 @@ def workload_delete(args) -> None:
           'Delete Workload',
           task_names,
           batch=100,
-          dry_run=args.dry_run,
       )
 
     if return_code != 0:

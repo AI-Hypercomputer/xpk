@@ -17,7 +17,6 @@ limitations under the License.
 import datetime
 import os
 import random
-import re
 import string
 import subprocess
 
@@ -195,7 +194,10 @@ def setup_docker_image(args) -> tuple[int, str]:
     docker_image = DEFAULT_DOCKER_IMAGE
 
   result = subprocess.run(
-      ["docker", "images", "-q", docker_image], capture_output=True, text=True
+      ['docker', 'images', '-q', docker_image],
+      capture_output=True,
+      text=True,
+      check=True,
   )
   is_local = bool(result.stdout.strip())
 

@@ -267,6 +267,7 @@ PW_WORKLOAD_CREATE_YAML = """
         maxSliceRestarts: {args.max_slice_restarts}
         terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
         priorityClassName: {args.priority}
+        capacityNodeSelector: {capacity_node_selector}
       pathwaysDir: {args.pathways_gcs_location} #This bucket needs to be created in advance.
       controller:
         # #Pod template for training, default mode.
@@ -545,6 +546,7 @@ def workload_create(args) -> None:
         colocated_python_sidecar=append_custom_colocated_python_sidecar(args),
         user_workload=get_user_workload_for_pathways(args, system),
         local_queue_name=LOCAL_QUEUE_NAME,
+        capacity_node_selector=autoprovisioning_args,
     )
   else:
     container, debugging_dashboard_id = get_user_workload_container(

@@ -934,9 +934,7 @@ def get_cluster_credentials(args) -> int:
       ' --namespace=default'
   )
   task = f'get-credentials-dns-endpoint to cluster {args.cluster}'
-  return_code = run_command_with_updates_retry(
-      command, task, verbose=False
-  )
+  return_code = run_command_with_updates_retry(command, task, verbose=False)
 
   if return_code != 0:
     xpk_print(f'{task} returned ERROR {return_code}')

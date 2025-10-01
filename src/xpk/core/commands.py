@@ -369,7 +369,7 @@ def run_command_and_capture_output(
         ' not running since it is a dry run.'
         f' \n{command}'
     )
-    return "",0
+    return '', 0
   try:
     result = subprocess.run(
         command, shell=True, capture_output=True, text=True, check=False

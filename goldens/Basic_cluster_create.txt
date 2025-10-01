@@ -14,9 +14,15 @@ gcloud beta container clusters create golden-cluster --project=golden-project --
 gcloud container clusters describe golden-cluster --project=golden-project --region=us-central1 --format="value(privateClusterConfig.enablePrivateNodes)"
 [XPK] Private Nodes is not enabled on the cluster.
 [XPK] Cluster is public and no need to authorize networks.
-[XPK] Try 1: get-credentials to cluster golden-cluster
-[XPK] Task: `get-credentials to cluster golden-cluster` is implemented by the following command not running since it is a dry run. 
-gcloud container clusters get-credentials golden-cluster --region=us-central1 --project=golden-project && kubectl config view && kubectl config set-context --current --namespace=default
+[XPK] Try 1: get-credentials-dns-endpoint to cluster golden-cluster
+[XPK] Task: `get-credentials-dns-endpoint to cluster golden-cluster` is implemented by the following command not running since it is a dry run. 
+gcloud container clusters get-credentials golden-cluster --region=us-central1 --dns-endpoint --project=golden-project && kubectl config view && kubectl config set-context --current --namespace=default
+[XPK] Testing credentials with kubectl...
+[XPK] Task: `kubectl get pods` is implemented by the following command not running since it is a dry run. 
+kubectl get pods
+[XPK] 
+[XPK] Credentials test succeeded.
+[XPK] Finished get-credentials and kubectl setup.
 [XPK] Task: 'Checking CoreDNS deployment existence' in progress for namespace: kube-system
 [XPK] Task: `Check CoreDNS deployment in kube-system` is implemented by the following command not running since it is a dry run. 
 kubectl get deployment coredns -n kube-system
@@ -53,7 +59,7 @@ kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="Conf
 [XPK] Enabling the jobset API on our cluster, to be deprecated when Jobset is globally available
 [XPK] Try 1: Install Jobset on golden-cluster
 [XPK] Task: `Install Jobset on golden-cluster` is implemented by the following command not running since it is a dry run. 
-kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-sigs/jobset/releases/download/v0.8.0/manifests.yaml
+kubectl apply --server-side -f https://github.com/kubernetes-sigs/jobset/releases/download/v0.8.0/manifests.yaml --force-conflicts
 [XPK] Task: `Count total nodes` is implemented by the following command not running since it is a dry run. 
 kubectl get node --no-headers | wc -l
 [XPK] Try 1: Updating jobset Controller Manager resources
@@ -70,7 +76,7 @@ kubectl kueue version
 kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-sigs/kueue/releases/download/v0.12.2/manifests.yaml
 [XPK] Wait for Kueue to be fully available
 [XPK] Task: `Wait for Kueue to be available` is implemented by the following command not running since it is a dry run. 
-kubectl wait deploy/kueue-controller-manager -nkueue-system --for=condition=available --timeout=10m
+kubectl wait deploy/kueue-controller-manager -n kueue-system --for=condition=available --timeout=10m
 [XPK] Install Kueue Custom Resources
 [XPK] Try 1: Applying Kueue Custom Resources
 [XPK] Task: `Applying Kueue Custom Resources` is implemented by the following command not running since it is a dry run. 

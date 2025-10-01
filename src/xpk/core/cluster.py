@@ -908,7 +908,7 @@ def test_and_retry_credentials_with_dns_logic(args) -> int:
       ' --namespace=default'
   )
   return_code = run_command_with_updates_retry(
-      without_dns_command, 'get-credentials to cluster', args, verbose=False
+      without_dns_command, 'get-credentials to cluster', verbose=False
   )
   if return_code != 0:
     xpk_print('Failed to get credentials even without --dns-endpoint. Exiting.')
@@ -935,13 +935,13 @@ def get_cluster_credentials(args) -> int:
   )
   task = f'get-credentials-dns-endpoint to cluster {args.cluster}'
   return_code = run_command_with_updates_retry(
-      command, task, args, verbose=False
+      command, task, verbose=False
   )
-  
+
   if return_code != 0:
     xpk_print(f'{task} returned ERROR {return_code}')
     xpk_exit(return_code)
-    
+
   return_code = test_and_retry_credentials_with_dns_logic(args)
   xpk_print('Finished get-credentials and kubectl setup.')
 

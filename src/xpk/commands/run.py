@@ -126,7 +126,7 @@ def submit_job(args: Namespace) -> None:
   if args.time is not None:
     cmd += f' --time {args.time}'
 
-  return_code = run_command_with_full_controls(cmd, 'run task', args)
+  return_code = run_command_with_full_controls(cmd, 'run task')
 
   if return_code != 0:
     xpk_print(f'Running task returned ERROR {return_code}')

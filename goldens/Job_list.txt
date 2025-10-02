@@ -1,16 +1,15 @@
 $ python3 xpk.py job ls --project=golden-project --zone=us-central1-a --cluster=golden-cluster --dry-run
-[XPK] Starting xpk
-[XPK] Working on golden-project and us-central1-a
-[XPK] Try 1: get-credentials-dns-endpoint to cluster golden-cluster
-[XPK] Task: `get-credentials-dns-endpoint to cluster golden-cluster` is implemented by the following command not running since it is a dry run. 
-gcloud container clusters get-credentials golden-cluster --region=us-central1 --dns-endpoint --project=golden-project && kubectl config view && kubectl config set-context --current --namespace=default
-[XPK] Testing credentials with kubectl...
-[XPK] Task: `kubectl get pods` is implemented by the following command not running since it is a dry run. 
-kubectl get pods
-[XPK] 
-[XPK] Credentials test succeeded.
-[XPK] Finished get-credentials and kubectl setup.
-[XPK] Listing jobs for project golden-project and zone us-central1-a:
-[XPK] Task: `list jobs` is implemented by the following command not running since it is a dry run. 
-kubectl-kjob list slurm  --profile xpk-def-app-profile
-[XPK] Exiting XPK cleanly
+Traceback (most recent call last):
+  File "/usr/local/google/home/lidanny/Desktop/Project/xpk-config-test/fork/xpk/xpk.py", line 34, in <module>
+    from src.xpk.main import main
+  File "/usr/local/google/home/lidanny/Desktop/Project/xpk-config-test/fork/xpk/src/xpk/main.py", line 37, in <module>
+    from .parser.core import set_parser
+  File "/usr/local/google/home/lidanny/Desktop/Project/xpk-config-test/fork/xpk/src/xpk/parser/core.py", line 19, in <module>
+    from .config import set_config_parsers
+  File "/usr/local/google/home/lidanny/Desktop/Project/xpk-config-test/fork/xpk/src/xpk/parser/config.py", line 17, in <module>
+    from ..commands.config import get_config, set_config
+  File "/usr/local/google/home/lidanny/Desktop/Project/xpk-config-test/fork/xpk/src/xpk/commands/config.py", line 17, in <module>
+    from ..core.config import XpkConfig
+  File "/usr/local/google/home/lidanny/Desktop/Project/xpk-config-test/fork/xpk/src/xpk/core/config.py", line 19, in <module>
+    import ruamel.yaml
+ModuleNotFoundError: No module named 'ruamel'

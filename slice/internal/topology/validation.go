@@ -14,7 +14,12 @@
 
 package topology
 
-import kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
+import (
+	corev1 "k8s.io/api/core/v1"
+	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
+
+	"tpu-slice-controller/internal/core"
+)
 
 // AnyAssignment returns true if there exists
 // at least 1 podset with a topology assignment.
@@ -29,18 +34,40 @@ func AnyAssignment(admission *kueue.Admission) bool {
 
 // AllAssignmentsValid ensures each PodSetAssignment which has a TopologyAssignment
 // defined the TPUSubBlock topology level.
-func AllAssignmentsValid(admission *kueue.Admission) bool {
+func AllAssignmentsValid(admission *kueue.Admission, nodes map[string]corev1.Node) bool {
 	for _, psa := range admission.PodSetAssignments {
 		if psa.TopologyAssignment == nil {
 			continue
 		}
-		if !IsAssignmentValid(psa) {
+		if !IsAssignmentValid(psa, nodes) {
 			return false
 		}
 	}
 	return true
 }
 
-func IsAssignmentValid(psa kueue.PodSetAssignment) bool {
-	return psa.TopologyAssignment != nil && SubblockLevelIndex(psa.TopologyAssignment) != -1
+func IsAssignmentValid(psa kueue.PodSetAssignment, nodes map[string]corev1.Node) bool {
+	if psa.TopologyAssignment == nil {
+		return false
+	}
+
+	hostnameLevelIndex := HostnameLevelIndex(psa.TopologyAssignment)
+	if hostnameLevelIndex == -1 {
+		return false
+	}
+
+	for _, domain := range psa.TopologyAssignment.Domains {
+		nodeName := domain.Values[hostnameLevelIndex]
+		if GetTPUSubBlockLabelValue(nodes, nodeName) == "" {
+			return false
+		}
+	}
+	return true
+}
+
+func GetTPUSubBlockLabelValue(nodes map[string]corev1.Node, nodeName string) string {
+	if node, ok := nodes[nodeName]; ok {
+		return node.Labels[core.TPUSubBlockLabel]
+	}
+	return ""
 }

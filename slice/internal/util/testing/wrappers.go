@@ -656,3 +656,37 @@ func (ac *AdmissionCheckWrapper) Condition(cond metav1.Condition) *AdmissionChec
 	apimeta.SetStatusCondition(&ac.Status.Conditions, cond)
 	return ac
 }
+
+// NodeWrapper wraps a Node.
+type NodeWrapper struct {
+	corev1.Node
+}
+
+// MakeNode creates a wrapper for a Node
+func MakeNode(name string) *NodeWrapper {
+	return &NodeWrapper{corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+	},
+	}
+}
+
+// Obj returns the inner Node.
+func (n *NodeWrapper) Obj() *corev1.Node {
+	return &n.Node
+}
+
+// Clone returns a deep copy of the NodeWrapper.
+func (n *NodeWrapper) Clone() *NodeWrapper {
+	return &NodeWrapper{Node: *n.Obj().DeepCopy()}
+}
+
+// Label adds a label to the Node
+func (n *NodeWrapper) Label(k, v string) *NodeWrapper {
+	if n.Labels == nil {
+		n.Labels = make(map[string]string)
+	}
+	n.Labels[k] = v
+	return n
+}

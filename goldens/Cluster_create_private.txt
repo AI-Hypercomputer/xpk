@@ -1,5 +1,6 @@
 $ python3 xpk.py cluster create-pathways --project=golden-project --zone=us-central1-a --cluster=golden-cluster-private --private --tpu-type=v5p-8  --num-slices=1 --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=4 --reservation=golden-reservation --dry-run
 [XPK] Starting xpk
+[XPK] Skipping dependency validation.
 [XPK] Starting cluster create for cluster golden-cluster-private:
 [XPK] Working on golden-project and us-central1-a
 [XPK] Task: `Determine server supported GKE versions for default rapid gke version` is implemented by the following command not running since it is a dry run. 

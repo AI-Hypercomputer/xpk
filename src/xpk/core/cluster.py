@@ -27,7 +27,6 @@ from .commands import (
     run_command_for_value,
     run_command_with_updates,
     run_command_with_updates_retry,
-    run_command_and_capture_output,
 )
 from .gcloud_context import (
     add_zone_and_project,
@@ -63,9 +62,8 @@ def set_jobset_on_cluster(args) -> int:
     0 if successful and 1 otherwise.
   """
   command = (
-      'kubectl apply --server-side -f'
-      f' https://github.com/kubernetes-sigs/jobset/releases/download/{JOBSET_VERSION}/manifests.yaml'
-      ' --force-conflicts'
+      'kubectl apply --server-side --force-conflicts'
+      f' -f https://github.com/kubernetes-sigs/jobset/releases/download/{JOBSET_VERSION}/manifests.yaml'
   )
   task = f'Install Jobset on {args.cluster}'
   return_code = run_command_with_updates_retry(command, task)
@@ -881,8 +879,8 @@ def test_and_retry_credentials_with_dns_logic(args) -> int:
 
   xpk_print('Testing credentials with kubectl...')
   kubectl_command = 'kubectl get pods'
-  kubectl_output, kubectl_return_code = run_command_and_capture_output(
-      kubectl_command, 'kubectl get pods', args
+  kubectl_return_code, kubectl_output = run_command_for_value(
+      kubectl_command, 'kubectl get pods'
   )
   xpk_print(kubectl_output)
   if kubectl_return_code == 0:

@@ -350,36 +350,3 @@ def run_kubectl_apply(yml_string: str, task: str) -> int:
   command = f'kubectl apply -f {str(tmp)}'
   err_code = run_command_with_updates(command, task)
   return err_code
-
-
-def run_command_and_capture_output(
-    command: str, task
-) -> tuple[str, int]:
-  """Executes a command and captures its output and return code.
-
-  Args:
-    command (str): The command string to execute.
-
-  Returns:
-    tuple[int, str]: A tuple containing the return code and the captured output string.
-  """
-  if is_dry_run():
-    xpk_print(
-        f'Task: `{task}` is implemented by the following command'
-        ' not running since it is a dry run.'
-        f' \n{command}'
-    )
-    return '', 0
-  try:
-    result = subprocess.run(
-        command, shell=True, capture_output=True, text=True, check=False
-    )
-    output = result.stdout + result.stderr
-    return output, result.returncode
-  except subprocess.CalledProcessError as e:
-    error_output = e.stdout + e.stderr
-    xpk_print(f'Task {task} failed with return code {e.returncode}')
-    xpk_print('*' * 80)
-    xpk_print(error_output)
-    xpk_print('*' * 80)
-    return error_output, e.returncode

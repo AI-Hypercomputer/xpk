@@ -882,7 +882,6 @@ def test_and_retry_credentials_with_dns_logic(args) -> int:
   kubectl_return_code, kubectl_output = run_command_for_value(
       kubectl_command, 'kubectl get pods'
   )
-  xpk_print(kubectl_output)
   if kubectl_return_code == 0:
     xpk_print('Credentials test succeeded.')
     return 0

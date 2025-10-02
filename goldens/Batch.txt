@@ -7,7 +7,6 @@ gcloud container clusters get-credentials golden-cluster --region=us-central1 --
 [XPK] Testing credentials with kubectl...
 [XPK] Task: `kubectl get pods` is implemented by the following command not running since it is a dry run. 
 kubectl get pods
-[XPK] 0
 [XPK] Credentials test succeeded.
 [XPK] Finished get-credentials and kubectl setup.
 [XPK] Task: `GKE Cluster Get ConfigMap` is implemented by the following command not running since it is a dry run. 

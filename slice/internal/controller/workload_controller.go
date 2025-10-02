@@ -493,15 +493,10 @@ func parseTopologyAssignmentIntoNodeSelector(slice *v1alpha1.Slice, topologyAssi
 	nodeSelectors := sets.New[string]()
 	// we already validated that all assignments have a valid level,
 	// in validateRelevantWorkload.
-	if subblockLevelIndex := topology.SubblockLevelIndex(topologyAssignment); subblockLevelIndex != -1 {
-		for _, domain := range topologyAssignment.Domains {
-			nodeSelectors.Insert(domain.Values[subblockLevelIndex])
-		}
-	} else if hostnameLevelIndex := topology.HostnameLevelIndex(topologyAssignment); hostnameLevelIndex != -1 {
-		for _, domain := range topologyAssignment.Domains {
-			nodeName := domain.Values[hostnameLevelIndex]
-			nodeSelectors.Insert(topology.GetTPUSubBlockLabelValue(nodes, nodeName))
-		}
+	hostnameLevelIndex := topology.HostnameLevelIndex(topologyAssignment)
+	for _, domain := range topologyAssignment.Domains {
+		nodeName := domain.Values[hostnameLevelIndex]
+		nodeSelectors.Insert(topology.GetTPUSubBlockLabelValue(nodes, nodeName))
 	}
 	// In the future, we want to make sure nodeSelectorKey
 	// matches PodSetSliceRequiredTopologyAnnotation.

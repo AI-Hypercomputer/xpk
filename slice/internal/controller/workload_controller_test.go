@@ -109,18 +109,18 @@ func TestWorkloadReconciler(t *testing.T) {
 		*basePodSet1Wrapper.DeepCopy(),
 		*basePodSet2Wrapper.DeepCopy(),
 	}
-	baseLevels := []string{"cloud.google.com/gce-topology-block", "cloud.google.com/gke-tpu-slice-4x4x4-id"}
+	baseLevels := []string{"kubernetes.io/hostname"}
 	basePodSetAssignment1Wrapper := utiltesting.MakePodSetAssignment("ps1").
 		TopologyAssignment(baseLevels, []kueue.TopologyDomainAssignment{
 			{
-				Values: []string{"block1", "subblock1"},
+				Values: []string{"worker1"},
 				Count:  2,
 			},
 		})
 	basePodSetAssignment2Wrapper := utiltesting.MakePodSetAssignment("ps2").
 		TopologyAssignment(baseLevels, []kueue.TopologyDomainAssignment{
 			{
-				Values: []string{"block1", "subblock2"},
+				Values: []string{"worker2"},
 				Count:  2,
 			},
 		})
@@ -138,6 +138,9 @@ func TestWorkloadReconciler(t *testing.T) {
 		NodeSelector(map[string][]string{"cloud.google.com/gke-tpu-slice-4x4x4-id": {"subblock1"}})
 	baseSlice2Wrapper := baseSlice1Wrapper.Clone().Name(core.SliceName(baseWorkloadName, "ps2")).
 		NodeSelector(map[string][]string{"cloud.google.com/gke-tpu-slice-4x4x4-id": {"subblock2"}})
+
+	worker1Node := utiltesting.MakeNode("worker1").Label("cloud.google.com/gke-tpu-slice-4x4x4-id", "subblock1")
+	worker2Node := utiltesting.MakeNode("worker2").Label("cloud.google.com/gke-tpu-slice-4x4x4-id", "subblock2")
 
 	testCases := map[string]struct {
 		interceptorFuncsCreate func(ctx context.Context, client client.WithWatch, obj client.Object, opts ...client.CreateOption) error
@@ -605,16 +608,18 @@ func TestWorkloadReconciler(t *testing.T) {
 					Obj(),
 			},
 		},
-		"shouldn’t add finalizer because not all assignments are valid (no gke-tpu-slice-4x4x4-id level or hostname level)": {
+		"shouldn’t add finalizer because not all assignments are valid (no hostname level)": {
 			request: baseRequest,
 			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				worker2Node.DeepCopy(),
 				baseAdmissionCheckWrapper.DeepCopy(),
 				baseWorkloadWrapper.Clone().
 					PodSets(basePodSets...).
 					ReserveQuota(&kueue.Admission{
 						PodSetAssignments: []kueue.PodSetAssignment{
 							utiltesting.MakePodSetAssignment("ps1").
-								TopologyAssignment([]string{"cloud.google.com/gce-topology-block"}, []kueue.TopologyDomainAssignment{
+								TopologyAssignment([]string{"cloud.google.com/gce-topology-block", "cloud.google.com/gke-tpu-slice-4x4x4-id"}, []kueue.TopologyDomainAssignment{
 									{
 										Values: []string{"worker1"},
 										Count:  2,
@@ -631,7 +636,7 @@ func TestWorkloadReconciler(t *testing.T) {
 					ReserveQuota(&kueue.Admission{
 						PodSetAssignments: []kueue.PodSetAssignment{
 							utiltesting.MakePodSetAssignment("ps1").
-								TopologyAssignment([]string{"cloud.google.com/gce-topology-block"}, []kueue.TopologyDomainAssignment{
+								TopologyAssignment([]string{"cloud.google.com/gce-topology-block", "cloud.google.com/gke-tpu-slice-4x4x4-id"}, []kueue.TopologyDomainAssignment{
 									{
 										Values: []string{"worker1"},
 										Count:  2,
@@ -643,41 +648,41 @@ func TestWorkloadReconciler(t *testing.T) {
 					Obj(),
 			},
 		},
-		"shouldn't add finalizer because not all assignments are valid (node with label gke-tpu-slice-4x4x4-id not found)": {
+		"shouldn’t add finalizer because node not found": {
 			request: baseRequest,
 			objs: []client.Object{
-				utiltesting.MakeNode("worker1").Obj(),
+				worker1Node.DeepCopy(),
 				baseAdmissionCheckWrapper.DeepCopy(),
 				baseWorkloadWrapper.Clone().
 					PodSets(basePodSets...).
-					ReserveQuota(&kueue.Admission{
-						PodSetAssignments: []kueue.PodSetAssignment{
-							utiltesting.MakePodSetAssignment("ps1").
-								TopologyAssignment([]string{"cloud.google.com/gce-topology-block"}, []kueue.TopologyDomainAssignment{
-									{
-										Values: []string{"worker1"},
-										Count:  2,
-									},
-								}).Obj(),
-						},
-					}, now).
+					ReserveQuota(baseAdmission, now).
 					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Obj(),
 			},
 			wantWorkloads: []kueue.Workload{
 				*baseWorkloadWrapper.Clone().
 					PodSets(basePodSets...).
-					ReserveQuota(&kueue.Admission{
-						PodSetAssignments: []kueue.PodSetAssignment{
-							utiltesting.MakePodSetAssignment("ps1").
-								TopologyAssignment([]string{"cloud.google.com/gce-topology-block"}, []kueue.TopologyDomainAssignment{
-									{
-										Values: []string{"worker1"},
-										Count:  2,
-									},
-								}).Obj(),
-						},
-					}, now).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Obj(),
+			},
+		},
+		"shouldn’t add finalizer because the worker2 node lacks the cloud.google.com/gke-tpu-slice-4x4x4-id label": {
+			request: baseRequest,
+			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				utiltesting.MakeNode("worker2").Obj(),
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
 					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Obj(),
 			},
@@ -685,6 +690,8 @@ func TestWorkloadReconciler(t *testing.T) {
 		"should add finalizer": {
 			request: baseRequest,
 			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				worker2Node.DeepCopy(),
 				baseAdmissionCheckWrapper.DeepCopy(),
 				baseWorkloadWrapper.Clone().
 					PodSets(basePodSets...).
@@ -704,6 +711,8 @@ func TestWorkloadReconciler(t *testing.T) {
 		"shouldn't create a Slice because there’s no AdmissionCheck": {
 			request: baseRequest,
 			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				worker2Node.DeepCopy(),
 				baseWorkloadWrapper.Clone().
 					PodSets(basePodSets...).
 					ReserveQuota(baseAdmission, now).
@@ -723,6 +732,8 @@ func TestWorkloadReconciler(t *testing.T) {
 		"should create Slices": {
 			request: baseRequest,
 			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				worker2Node.DeepCopy(),
 				baseAdmissionCheckWrapper.DeepCopy(),
 				baseWorkloadWrapper.Clone().
 					PodSets(basePodSets...).
@@ -752,6 +763,8 @@ func TestWorkloadReconciler(t *testing.T) {
 		"should create Slices only for relevant PodSets (invalid pod template)": {
 			request: baseRequest,
 			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				worker2Node.DeepCopy(),
 				baseAdmissionCheckWrapper.DeepCopy(),
 				baseWorkloadWrapper.Clone().
 					PodSets(basePodSets...).
@@ -802,6 +815,8 @@ func TestWorkloadReconciler(t *testing.T) {
 		"should create Slices only for relevant PodSets (invalid assignment)": {
 			request: baseRequest,
 			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				worker2Node.DeepCopy(),
 				baseAdmissionCheckWrapper.DeepCopy(),
 				baseWorkloadWrapper.Clone().
 					PodSets(basePodSets...).
@@ -848,6 +863,8 @@ func TestWorkloadReconciler(t *testing.T) {
 		"should create missed Slices": {
 			request: baseRequest,
 			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				worker2Node.DeepCopy(),
 				baseAdmissionCheckWrapper.DeepCopy(),
 				baseWorkloadWrapper.Clone().
 					PodSets(basePodSets...).
@@ -878,6 +895,8 @@ func TestWorkloadReconciler(t *testing.T) {
 		"parse TAS Assignment to populate NodeSelector in Slice": {
 			request: baseRequest,
 			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				worker2Node.DeepCopy(),
 				baseAdmissionCheckWrapper.DeepCopy(),
 				baseWorkloadWrapper.Clone().
 					PodSets(basePodSets...).
@@ -907,8 +926,8 @@ func TestWorkloadReconciler(t *testing.T) {
 		"parse TAS Assignment to populate NodeSelector in Slice (hostname)": {
 			request: baseRequest,
 			objs: []client.Object{
-				utiltesting.MakeNode("worker1").Label("cloud.google.com/gke-tpu-slice-4x4x4-id", "subblock1").Obj(),
-				utiltesting.MakeNode("worker2").Label("cloud.google.com/gke-tpu-slice-4x4x4-id", "subblock2").Obj(),
+				worker1Node.DeepCopy(),
+				worker2Node.DeepCopy(),
 				baseAdmissionCheckWrapper.DeepCopy(),
 				baseWorkloadWrapper.Clone().
 					PodSets(basePodSets...).
@@ -978,6 +997,8 @@ func TestWorkloadReconciler(t *testing.T) {
 			},
 			request: baseRequest,
 			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				worker2Node.DeepCopy(),
 				baseAdmissionCheckWrapper.DeepCopy(),
 				baseWorkloadWrapper.Clone().
 					PodSets(basePodSets...).
@@ -1004,6 +1025,8 @@ func TestWorkloadReconciler(t *testing.T) {
 		"should update the Workload's AdmissionCheckState": {
 			request: baseRequest,
 			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				worker2Node.DeepCopy(),
 				baseAdmissionCheckWrapper.DeepCopy(),
 				baseWorkloadWrapper.Clone().
 					PodSets(basePodSets...).
@@ -1031,6 +1054,8 @@ func TestWorkloadReconciler(t *testing.T) {
 		"should update the Workload's AdmissionCheckState when one Slice is in the Forming state": {
 			request: baseRequest,
 			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				worker2Node.DeepCopy(),
 				baseAdmissionCheckWrapper.DeepCopy(),
 				baseWorkloadWrapper.Clone().
 					PodSets(basePodSets...).
@@ -1058,6 +1083,8 @@ func TestWorkloadReconciler(t *testing.T) {
 		"should update the Workload's AdmissionCheckState when all Slices are in the Forming state": {
 			request: baseRequest,
 			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				worker2Node.DeepCopy(),
 				baseAdmissionCheckWrapper.DeepCopy(),
 				baseWorkloadWrapper.Clone().
 					PodSets(basePodSets...).
@@ -1085,6 +1112,8 @@ func TestWorkloadReconciler(t *testing.T) {
 		"should update the Workload's AdmissionCheckState when one Slice is in the Ready state": {
 			request: baseRequest,
 			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				worker2Node.DeepCopy(),
 				baseAdmissionCheckWrapper.DeepCopy(),
 				baseWorkloadWrapper.Clone().
 					PodSets(basePodSets...).
@@ -1112,6 +1141,8 @@ func TestWorkloadReconciler(t *testing.T) {
 		"should update the Workload's AdmissionCheckState when all Slices are in the Ready state": {
 			request: baseRequest,
 			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				worker2Node.DeepCopy(),
 				baseAdmissionCheckWrapper.DeepCopy(),
 				baseWorkloadWrapper.Clone().
 					PodSets(basePodSets...).
@@ -1143,6 +1174,8 @@ func TestWorkloadReconciler(t *testing.T) {
 		"should update the Workload's AdmissionCheckState when one Slice is in the Ready state and another is in the Degraded state": {
 			request: baseRequest,
 			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				worker2Node.DeepCopy(),
 				baseAdmissionCheckWrapper.DeepCopy(),
 				baseWorkloadWrapper.Clone().
 					PodSets(basePodSets...).
@@ -1173,6 +1206,8 @@ func TestWorkloadReconciler(t *testing.T) {
 		"should update the Workload's AdmissionCheckState when one Slice is in the Error state": {
 			request: baseRequest,
 			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				worker2Node.DeepCopy(),
 				baseAdmissionCheckWrapper.DeepCopy(),
 				baseWorkloadWrapper.Clone().
 					PodSets(basePodSets...).
@@ -1203,6 +1238,8 @@ func TestWorkloadReconciler(t *testing.T) {
 		"should update the Workload's AdmissionCheckState when one Slice is in the Deformed state": {
 			request: baseRequest,
 			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				worker2Node.DeepCopy(),
 				baseAdmissionCheckWrapper.DeepCopy(),
 				baseWorkloadWrapper.Clone().
 					PodSets(basePodSets...).
@@ -1233,6 +1270,8 @@ func TestWorkloadReconciler(t *testing.T) {
 		"should use the first AdmissionCheck if more than one is found": {
 			request: baseRequest,
 			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				worker2Node.DeepCopy(),
 				baseAdmissionCheckWrapper.DeepCopy(),
 				baseAdmissionCheckWrapper.Clone().Name(baseACName + "2").Obj(),
 				baseWorkloadWrapper.Clone().

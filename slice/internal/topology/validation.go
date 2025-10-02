@@ -51,32 +51,23 @@ func IsAssignmentValid(psa kueue.PodSetAssignment, nodes map[string]corev1.Node)
 		return false
 	}
 
-	if SubblockLevelIndex(psa.TopologyAssignment) != -1 {
-		return true
-	}
-
 	hostnameLevelIndex := HostnameLevelIndex(psa.TopologyAssignment)
 	if hostnameLevelIndex == -1 {
 		return false
 	}
 
 	for _, domain := range psa.TopologyAssignment.Domains {
-		if hostnameLevelIndex >= len(domain.Values) {
-			return false
-		}
 		nodeName := domain.Values[hostnameLevelIndex]
 		if GetTPUSubBlockLabelValue(nodes, nodeName) == "" {
 			return false
 		}
 	}
-
 	return true
 }
 
 func GetTPUSubBlockLabelValue(nodes map[string]corev1.Node, nodeName string) string {
-	node, ok := nodes[nodeName]
-	if !ok {
-		return ""
+	if node, ok := nodes[nodeName]; ok {
+		return node.Labels[core.TPUSubBlockLabel]
 	}
-	return node.Labels[core.TPUSubBlockLabel]
+	return ""
 }

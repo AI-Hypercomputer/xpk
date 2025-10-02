@@ -15,15 +15,27 @@
 package topology
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
+
+	"tpu-slice-controller/internal/core"
 )
 
-// LevelIndex returns the index of the specific level topology assignment, or -1 if it doesn't exist.
-func LevelIndex(topologyAssignment *kueue.TopologyAssignment, level string) int {
+func levelIndex(topologyAssignment *kueue.TopologyAssignment, level string) int {
 	for i, currentLevel := range topologyAssignment.Levels {
 		if level == currentLevel {
 			return i
 		}
 	}
 	return -1
+}
+
+// HostnameLevelIndex returns the index of the hostname level in the topology assignment, or -1 if none exists.
+func HostnameLevelIndex(topologyAssignment *kueue.TopologyAssignment) int {
+	return levelIndex(topologyAssignment, corev1.LabelHostname)
+}
+
+// SubblockLevelIndex returns the index of the subblock level in the topology assignment, or -1 if none exists.
+func SubblockLevelIndex(topologyAssignment *kueue.TopologyAssignment) int {
+	return levelIndex(topologyAssignment, core.TPUSubBlockLabel)
 }

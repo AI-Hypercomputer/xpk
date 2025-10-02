@@ -63,7 +63,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 		utils.MustCreate(ctx, k8sClient, ns)
 
 		topology = testing.MakeTopology("topology").
-			Levels("cloud.google.com/gce-topology-block", "cloud.google.com/gke-tpu-slice-4x4x4-id", corev1.LabelHostname).
+			Levels("cloud.google.com/gce-topology-block", "cloud.google.com/gke-tpu-slice-4x4x4-id", "kubernetes.io/hostname").
 			Obj()
 		utils.MustCreate(ctx, k8sClient, topology)
 
@@ -186,7 +186,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 					gomega.Expect(createdWorkload.Status.Admission.PodSetAssignments).Should(gomega.HaveLen(1))
 					gomega.Expect(createdWorkload.Status.Admission.PodSetAssignments[0].TopologyAssignment).Should(gomega.BeComparableTo(
 						&kueue.TopologyAssignment{
-							Levels:  []string{corev1.LabelHostname},
+							Levels:  []string{"kubernetes.io/hostname"},
 							Domains: tc.wantDomains,
 						},
 					))

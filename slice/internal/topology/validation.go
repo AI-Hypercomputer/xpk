@@ -51,11 +51,11 @@ func IsAssignmentValid(psa kueue.PodSetAssignment, nodes map[string]corev1.Node)
 		return false
 	}
 
-	if LevelIndex(psa.TopologyAssignment, core.TPUSubBlockLabel) != -1 {
+	if SubblockLevelIndex(psa.TopologyAssignment) != -1 {
 		return true
 	}
 
-	hostnameLevelIndex := LevelIndex(psa.TopologyAssignment, corev1.LabelHostname)
+	hostnameLevelIndex := HostnameLevelIndex(psa.TopologyAssignment)
 	if hostnameLevelIndex == -1 {
 		return false
 	}
@@ -64,7 +64,8 @@ func IsAssignmentValid(psa kueue.PodSetAssignment, nodes map[string]corev1.Node)
 		if hostnameLevelIndex >= len(domain.Values) {
 			return false
 		}
-		if GetTPUSubBlockLabelValue(domain, hostnameLevelIndex, nodes) == "" {
+		nodeName := domain.Values[hostnameLevelIndex]
+		if GetTPUSubBlockLabelValue(nodes, nodeName) == "" {
 			return false
 		}
 	}
@@ -72,8 +73,8 @@ func IsAssignmentValid(psa kueue.PodSetAssignment, nodes map[string]corev1.Node)
 	return true
 }
 
-func GetTPUSubBlockLabelValue(domain kueue.TopologyDomainAssignment, index int, nodes map[string]corev1.Node) string {
-	node, ok := nodes[domain.Values[index]]
+func GetTPUSubBlockLabelValue(nodes map[string]corev1.Node, nodeName string) string {
+	node, ok := nodes[nodeName]
 	if !ok {
 		return ""
 	}

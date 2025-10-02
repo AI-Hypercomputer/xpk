@@ -213,7 +213,7 @@ func (r *WorkloadReconciler) getNodes(ctx context.Context) (map[string]corev1.No
 	if err != nil {
 		return nil, err
 	}
-	mapNodes := make(map[string]corev1.Node)
+	mapNodes := make(map[string]corev1.Node, len(nodes.Items))
 	for _, node := range nodes.Items {
 		mapNodes[node.Name] = node
 	}
@@ -493,13 +493,14 @@ func parseTopologyAssignmentIntoNodeSelector(slice *v1alpha1.Slice, topologyAssi
 	nodeSelectors := sets.New[string]()
 	// we already validated that all assignments have a valid level,
 	// in validateRelevantWorkload.
-	if subblockLevelIndex := topology.LevelIndex(topologyAssignment, core.TPUSubBlockLabel); subblockLevelIndex != -1 {
+	if subblockLevelIndex := topology.SubblockLevelIndex(topologyAssignment); subblockLevelIndex != -1 {
 		for _, domain := range topologyAssignment.Domains {
 			nodeSelectors.Insert(domain.Values[subblockLevelIndex])
 		}
-	} else if hostnameLevelIndex := topology.LevelIndex(topologyAssignment, corev1.LabelHostname); hostnameLevelIndex != -1 {
+	} else if hostnameLevelIndex := topology.HostnameLevelIndex(topologyAssignment); hostnameLevelIndex != -1 {
 		for _, domain := range topologyAssignment.Domains {
-			nodeSelectors.Insert(topology.GetTPUSubBlockLabelValue(domain, hostnameLevelIndex, nodes))
+			nodeName := domain.Values[hostnameLevelIndex]
+			nodeSelectors.Insert(topology.GetTPUSubBlockLabelValue(nodes, nodeName))
 		}
 	}
 	// In the future, we want to make sure nodeSelectorKey

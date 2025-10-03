@@ -47,11 +47,8 @@ from ..core.jobset import update_jobset_resources_if_necessary
 from ..core.kjob import apply_kjob_crds, prepare_kjob, verify_kjob_installed
 from ..core.kueue import (
     cluster_preheat_yml,
-    install_kueue_crs,
-    install_kueue_on_cluster,
-    wait_for_kueue_available,
-    update_kueue_resources_if_necessary,
 )
+from ..core.kueue_manager import (KueueConfig, KueueManager)
 from ..core.nap import enable_autoprovisioning_on_cluster
 from ..core.network import (
     create_cluster_network_config,
@@ -65,6 +62,7 @@ from ..core.nodepool import (
 from ..core.ray import install_ray_cluster
 from ..core.mtc import install_mtc_on_cluster
 from ..core.resources import create_cluster_configmaps
+from ..core.scheduling import get_total_chips_requested_from_args
 from ..core.storage import install_storage_crd
 from ..core.system_characteristics import (
     AcceleratorType,
@@ -1204,26 +1202,25 @@ def install_kjob(args):
 
 def install_kueue(args, system: SystemCharacteristics, autoprovisioning_config):
   xpk_print('Enabling Kueue on the cluster')
-  install_kueue_on_cluster_code = install_kueue_on_cluster()
-  if install_kueue_on_cluster_code != 0:
-    xpk_exit(install_kueue_on_cluster_code)
-
-  xpk_print('Wait for Kueue to be fully available')
-  wait_for_kueue_available_code = wait_for_kueue_available()
-  if wait_for_kueue_available_code != 0:
-    xpk_exit(wait_for_kueue_available_code)
-
-  xpk_print('Install Kueue Custom Resources')
-  enable_kueue_credentials_code = install_kueue_crs(
-      args, system, autoprovisioning_config
+  autoprovisioning_enabled = False
+  if autoprovisioning_config:
+    # Determine total resources available based on autoprovisioning max chips.
+    autoprovisioning_enabled = True
+    total_chips = autoprovisioning_config.maximum_chips
+  else:
+    # Determine total chips based on user specified topology.
+    total_chips = get_total_chips_requested_from_args(args, system)
+  kueue_manager = KueueManager()
+  kueue_manager.install_or_upgrade(
+      KueueConfig(
+          system,
+          total_chips=total_chips,
+          autoprovisioning_enabled=autoprovisioning_enabled,
+          num_slices=args.num_slices,
+          memory_limit=args.memory_limit,
+          cpu_limit=args.cpu_limit,
+      ),
   )
-  if enable_kueue_credentials_code != 0:
-    xpk_exit(enable_kueue_credentials_code)
-
-  xpk_print('Update Kueue Controller Manager resources')
-  update_kueue_resources_code = update_kueue_resources_if_necessary()
-  if update_kueue_resources_code != 0:
-    xpk_exit(update_kueue_resources_code)
 
 
 def prepare_gpus(system: SystemCharacteristics):

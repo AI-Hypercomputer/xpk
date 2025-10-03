@@ -81,23 +81,20 @@ kubectl apply -f 1b31e624e490f9c8c4ef4e369f08d3fa467990af5a261e4405bd045265d70e9
 kubectl apply --server-side -f https://github.com/google/pathways-job/releases/download/v0.1.2/install.yaml
 [XPK] Enabling Kueue on the cluster
 [XPK] Task: `Get kueue version on server` is implemented by the following command not running since it is a dry run. 
-kubectl kueue version
-[XPK] Try 1: Set Kueue On Cluster
-[XPK] Task: `Set Kueue On Cluster` is implemented by the following command not running since it is a dry run. 
+kubectl get deployment kueue-controller-manager -n kueue-system -o jsonpath='{.spec.template.spec.containers[0].image}'
+[XPK] Installing Kueue version v0.12.2...
+[XPK] Try 1: Install Kueue
+[XPK] Task: `Install Kueue` is implemented by the following command not running since it is a dry run. 
 kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-sigs/kueue/releases/download/v0.12.2/manifests.yaml
-[XPK] Wait for Kueue to be fully available
 [XPK] Task: `Wait for Kueue to be available` is implemented by the following command not running since it is a dry run. 
-kubectl wait deploy/kueue-controller-manager -n kueue-system --for=condition=available --timeout=10m
-[XPK] Install Kueue Custom Resources
-[XPK] Try 1: Applying Kueue Custom Resources
+kubectl wait deploy/kueue-controller-manager -nkueue-system --for=condition=available --timeout=10m
 [XPK] Task: `Applying Kueue Custom Resources` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f eaa77bda2c85901c627ae9bb4baacdb37df006d6bf267b319b6bc8b2cbf7ca7e
-[XPK] Update Kueue Controller Manager resources
+kubectl apply -f e5fccf0957dcb7f60400bb4e28ce8c5fc251a9aeb6d67793dc119554d13dc900
 [XPK] Task: `Count total nodes` is implemented by the following command not running since it is a dry run. 
 kubectl get node --no-headers | wc -l
 [XPK] Try 1: Updating Kueue Controller Manager resources
 [XPK] Task: `Updating Kueue Controller Manager resources` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f 012e1b15b6941e9d47cb2cdb35488d57c2f3ce0ef0b18093d2759f2e02ed81dc
+kubectl patch deployment kueue-controller-manager -n kueue-system --type='strategic' --patch='{"spec": {"template": {"spec": {"containers": [{"name": "manager", "resources": {"limits": {"memory": "4096Mi"}}}]}}}}'
 [XPK] Verifying kjob installation
 [XPK] Task: `Verify kjob installation ` is implemented by the following command not running since it is a dry run. 
 kubectl-kjob help

@@ -1,5 +1,6 @@
 $ python3 xpk.py cluster create --project=golden-project --zone=us-central1-a --enable-autoprovisioning --cluster=golden-cluster --tpu-type=tpu7x-8 --on-demand --dry-run
 [XPK] Starting xpk
+[XPK] Skipping dependency validation.
 [XPK] Starting cluster create for cluster golden-cluster:
 [XPK] Working on golden-project and us-central1-a
 [XPK] Task: `Determine server supported GKE versions for default rapid gke version` is implemented by the following command not running since it is a dry run. 
@@ -14,9 +15,14 @@ gcloud beta container clusters create golden-cluster --project=golden-project --
 gcloud container clusters describe golden-cluster --project=golden-project --region=us-central1 --format="value(privateClusterConfig.enablePrivateNodes)"
 [XPK] Private Nodes is not enabled on the cluster.
 [XPK] Cluster is public and no need to authorize networks.
-[XPK] Try 1: get-credentials to cluster golden-cluster
-[XPK] Task: `get-credentials to cluster golden-cluster` is implemented by the following command not running since it is a dry run. 
-gcloud container clusters get-credentials golden-cluster --region=us-central1 --project=golden-project && kubectl config view && kubectl config set-context --current --namespace=default
+[XPK] Try 1: get-credentials-dns-endpoint to cluster golden-cluster
+[XPK] Task: `get-credentials-dns-endpoint to cluster golden-cluster` is implemented by the following command not running since it is a dry run. 
+gcloud container clusters get-credentials golden-cluster --region=us-central1 --dns-endpoint --project=golden-project && kubectl config view && kubectl config set-context --current --namespace=default
+[XPK] Testing credentials with kubectl...
+[XPK] Task: `kubectl get pods` is implemented by the following command not running since it is a dry run. 
+kubectl get pods
+[XPK] Credentials test succeeded.
+[XPK] Finished get-credentials and kubectl setup.
 [XPK] Task: 'Checking CoreDNS deployment existence' in progress for namespace: kube-system
 [XPK] Task: `Check CoreDNS deployment in kube-system` is implemented by the following command not running since it is a dry run. 
 kubectl get deployment coredns -n kube-system

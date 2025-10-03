@@ -83,6 +83,11 @@ GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
 NC='\033[0m'
 
+if ! command -v yq &> /dev/null; then
+  echo -e "${RED}Error: 'yq' command not found. Please install yq to continue.${NC}" >&2
+  exit 1
+fi
+
 if [[ "$MODE" != "update" && "$MODE" != "verify" ]]; then
   echo "Error: Unsupported mode '$MODE'. Must be 'update' or 'verify'." >&2
   exit 1

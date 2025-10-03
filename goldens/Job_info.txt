@@ -1,5 +1,6 @@
 $ python3 xpk.py job info golden-job --project=golden-project --zone=us-central1-a --cluster=golden-cluster --dry-run
 [XPK] Starting xpk
+[XPK] Skipping dependency validation.
 [XPK] Task: `Getting job data` is implemented by the following command not running since it is a dry run. 
 kubectl-kjob describe slurm golden-job
 [XPK] Task: `Getting job info` is implemented by the following command not running since it is a dry run. 

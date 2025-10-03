@@ -7,7 +7,7 @@ metadata:
 spec:
   nodeLabels: {{ flavor.nodeLabels | tojson }}
   {% if flavor.topologyLabel %}
-  topologyLabel: {{ flavor.topologyLabel }}
+  {{ flavor.topologyLabel }}
   {% endif %}
 {% endfor %}
 ---

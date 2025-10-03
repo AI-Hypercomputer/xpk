@@ -67,7 +67,10 @@ def main() -> None:
   main_args = parser.parse_args()
   main_args.enable_ray_cluster = False
   set_dry_run('dry_run' in main_args and main_args.dry_run)
-  if not main_args.dry_run:
+  if main_args.dry_run or main_args.skip_validation:
+    xpk_print('Skipping dependency validation.', flush=True)
+  else:
+    xpk_print('Validating dependencies...', flush=True)
     validate_dependencies()
   main_args.func(main_args)
   xpk_print('XPK Done.', flush=True)

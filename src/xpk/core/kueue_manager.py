@@ -129,18 +129,15 @@ class KueueManager:
     Args:
         tolerations: An optional list of tolerations to apply to the kueue-controller-manager.
     """
-    # Install directly from the official URL
     return_code = self.__install_kueue_crs()
     if return_code != 0:
       return return_code
 
-    # Apply tolerations if necessary
     if tolerations:
       return_code = self.__patch_tolerations(tolerations)
       if return_code != 0:
         return return_code
 
-    # Wait for Kueue to be available
     return self.__wait_for_kueue_available()
 
   def __install_kueue_crs(self) -> int:

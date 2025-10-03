@@ -62,6 +62,17 @@ def add_shared_arguments(
       ),
       required=required,
   )
+  custom_parser_or_group.add_argument(
+      '--skip-validation',
+      type=bool,
+      action=argparse.BooleanOptionalAction,
+      default=False,
+      help=(
+          'Skip dependency validation checks (kubectl, gcloud, docker, etc). '
+          'Independent of --dry-run.'
+      ),
+      required=required,
+  )
 
 
 def add_cluster_arguments(

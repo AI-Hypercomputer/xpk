@@ -1,5 +1,6 @@
 $ python3 xpk.py cluster delete --project=golden-project --zone=us-central1-a --cluster=golden-cluster --dry-run
 [XPK] Starting xpk
+[XPK] Skipping dependency validation.
 [XPK] Starting cluster delete for cluster: golden-cluster
 [XPK] Working on golden-project and us-central1-a
 [XPK] Try 1: get-credentials to cluster golden-cluster

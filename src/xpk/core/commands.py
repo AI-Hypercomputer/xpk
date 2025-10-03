@@ -18,7 +18,6 @@ import datetime
 import subprocess
 import sys
 import time
-from argparse import Namespace
 
 from ..utils.objects import chunks
 from ..utils.file import make_tmp_files, write_tmp_file
@@ -26,7 +25,7 @@ from ..utils.console import xpk_print
 from ..utils.execution_context import is_dry_run
 
 
-def run_commands(commands, jobname, per_command_name, batch=10, dry_run=False):
+def run_commands(commands, jobname, per_command_name, batch=10):
   """Run commands in groups of `batch`.
 
   Args:
@@ -34,7 +33,6 @@ def run_commands(commands, jobname, per_command_name, batch=10, dry_run=False):
     jobname: the name of the job.
     per_command_name: list of command names.
     batch: number of commands to run in parallel.
-    dry_run: enables dry_run if set to true.
 
   Returns:
     0 if successful and 1 otherwise.
@@ -47,7 +45,7 @@ def run_commands(commands, jobname, per_command_name, batch=10, dry_run=False):
       f'Breaking up a total of {len(commands)} commands into'
       f' {len(commands_batched)} batches'
   )
-  if dry_run:
+  if is_dry_run():
     xpk_print('Pretending all the jobs succeeded')
     return 0
 
@@ -302,7 +300,6 @@ def run_command_for_value(
 def run_command_with_full_controls(
     command: str,
     task: str,
-    global_args: Namespace,
     instructions: str | None = None,
 ) -> int:
   """Run command in current shell with system out, in and error handles. Wait
@@ -311,13 +308,12 @@ def run_command_with_full_controls(
   Args:
     command: command to execute
     task: user-facing name of the task
-    global_args: user provided arguments for running the command.
     verbose: shows stdout and stderr if set to true. Set to True by default.
 
   Returns:
     0 if successful and 1 otherwise.
   """
-  if global_args.dry_run:
+  if is_dry_run():
     xpk_print(
         f'Task: `{task}` is implemented by the following command'
         ' not running since it is a dry run.'

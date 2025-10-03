@@ -212,7 +212,6 @@ def run_gke_node_pool_create_command(
         delete_commands,
         'Delete Nodepools',
         delete_task_names,
-        dry_run=args.dry_run,
     )
     if max_return_code != 0:
       xpk_print(f'Delete Nodepools returned ERROR {max_return_code}')
@@ -240,7 +239,6 @@ def run_gke_node_pool_create_command(
           update_WI_commands,
           'Enable Workload Identity on existing Nodepools',
           update_WI_task_names,
-          dry_run=args.dry_run,
       )
       if max_return_code != 0:
         xpk_print(
@@ -265,9 +263,7 @@ def run_gke_node_pool_create_command(
       )
       configmap_yml = {}
       configmap_yml[resources_configmap_name] = resources_yml
-      return_code = create_or_update_cluster_configmap(
-          configmap_yml, args.dry_run
-      )
+      return_code = create_or_update_cluster_configmap(configmap_yml)
       if return_code != 0:
         return 1
 
@@ -369,7 +365,6 @@ def run_gke_node_pool_create_command(
       create_commands,
       'Create Nodepools',
       create_task_names,
-      dry_run=args.dry_run,
   )
   if max_return_code != 0:
     xpk_print(f'Create Nodepools returned ERROR {max_return_code}')
@@ -582,7 +577,6 @@ def upgrade_gke_nodepools_version(args, default_rapid_gke_version) -> int:
       commands,
       'Update GKE node pools to default RAPID GKE version',
       task_names,
-      dry_run=args.dry_run,
   )
   if max_return_code != 0:
     xpk_print(

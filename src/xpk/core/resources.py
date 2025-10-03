@@ -153,12 +153,10 @@ def create_cluster_configmaps(
       args=args, name=metadata_configmap_name, data=metadata
   )
   configmap_yml[metadata_configmap_name] = metadata_yml
-  return create_or_update_cluster_configmap(configmap_yml, args.dry_run)
+  return create_or_update_cluster_configmap(configmap_yml)
 
 
-def create_or_update_cluster_configmap(
-    configmap_yml: dict, dry_run: bool
-) -> int:
+def create_or_update_cluster_configmap(configmap_yml: dict) -> int:
   """
   Args:
     configmap_yml: dict containing ConfigMap name and yml string.
@@ -179,7 +177,6 @@ def create_or_update_cluster_configmap(
       commands,
       'GKE Cluster CreateOrUpdate ConfigMap(s)',
       task_names,
-      dry_run=dry_run,
   )
   if return_code != 0:
     xpk_print(

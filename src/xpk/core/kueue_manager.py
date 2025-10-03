@@ -62,11 +62,11 @@ class KueueConfig:
 class KueueManager:
   """Manages the installation and configuration of Kueue on an XPK cluster."""
 
-  def __init__(self, kueue_version: str = "v0.12.2"):
+  def __init__(
+      self, kueue_version: str = "v0.12.2", template_path="src/xpk/templates/"
+  ):
     self.kueue_version = kueue_version
-    self.template_env = Environment(
-        loader=FileSystemLoader("src/xpk/templates/")
-    )
+    self.template_env = Environment(loader=FileSystemLoader(template_path))
 
   def install_or_upgrade(
       self,
@@ -80,26 +80,31 @@ class KueueManager:
     Args:
         tolerations: An optional list of tolerations to apply to the kueue-controller-manager.
     """
-    # Step 1: Install directly from the official URL
-    return_code, installed_version = self._get_installed_kueue_version()
+    return_code, installed_version = self.__get_installed_kueue_version()
 
-    if return_code == 0 and installed_version >= self.kueue_version:
-      print(
-          f"Kueue version {installed_version} is already up to date. Skipping"
-          " installation."
-      )
-      return 0
+    if return_code == 0:
+      if installed_version and installed_version >= self.kueue_version:
+        xpk_print(
+            f"Kueue version {installed_version} is already up to date. Skipping"
+            " installation."
+        )
+        return 0
+      else:
+        xpk_print(f"Upgrading Kueue to version {self.kueue_version}...")
+    else:
+      xpk_print(f"Installing Kueue version {self.kueue_version}...")
 
-    print(f"Installing/Upgrading Kueue to version {self.kueue_version}...")
-
-    install_return_code = self._install(tolerations)
+    install_return_code = self.__install(tolerations)
     if install_return_code != 0:
       return install_return_code
 
-    return self._configure(kueue_config)
+    return self.__configure(kueue_config)
 
-  def _get_installed_kueue_version(self) -> tuple[int, str]:
-    command = "kubectl kueue version"
+  def __get_installed_kueue_version(self) -> tuple[int, str | None]:
+    command = (
+        "kubectl get deployment kueue-controller-manager -n kueue-system -o"
+        " jsonpath='{.spec.template.spec.containers[0].image}'"
+    )
     task = "Get kueue version on server"
     return_code, val = run_command_for_value(
         command,
@@ -108,15 +113,13 @@ class KueueManager:
         v0.12.1""",
     )
     if return_code != 0:
-      return return_code, ""
-    lines = val.splitlines()
-    if len(lines) == 1:
-      return 1, ""
-    server_version_line = lines[1]
-    manager_image_version = server_version_line.split(":")[-1]
-    return return_code, manager_image_version
+      return return_code, None
+    version_tag = val.split(":")
+    if len(version_tag) == 1:
+      return 1, None
+    return return_code, version_tag[-1]
 
-  def _install(
+  def __install(
       self,
       tolerations: Optional[List[Dict[str, Any]]] = None,
   ) -> int:
@@ -126,35 +129,49 @@ class KueueManager:
     Args:
         tolerations: An optional list of tolerations to apply to the kueue-controller-manager.
     """
-    # Step 1: Install directly from the official URL
+    # Install directly from the official URL
+    return_code = self.__install_kueue_crs()
+    if return_code != 0:
+      return return_code
+
+    # Apply tolerations if necessary
+    if tolerations:
+      return_code = self.__patch_tolerations(tolerations)
+      if return_code != 0:
+        return return_code
+
+    # Wait for Kueue to be available
+    return self.__wait_for_kueue_available()
+
+  def __install_kueue_crs(self) -> int:
     manifest_url = f"https://github.com/kubernetes-sigs/kueue/releases/download/{self.kueue_version}/manifests.yaml"
     install_command = (
         f"kubectl apply --server-side --force-conflicts -f {manifest_url}"
     )
+    task = "Installing Kueue Custom Resources"
     return_code = run_command_with_updates_retry(
         install_command, "Install Kueue"
     )
     if return_code != 0:
-      return return_code
+      xpk_print(f"{task} returned ERROR {return_code}")
+    return return_code
 
-    # Step 2: Patch the deployment if tolerations are provided
-    if tolerations:
-      patch = {"spec": {"template": {"spec": {"tolerations": tolerations}}}}
-      patch_str = json.dumps(patch)
-      patch_command = (
-          "kubectl patch deployment kueue-controller-manager -n kueue-system"
-          f" --type='strategic' --patch='{patch_str}'"
-      )
-      return_code = run_command_with_updates_retry(
-          patch_command, "Patch Kueue Tolerations"
-      )
-      if return_code != 0:
-        return return_code
+  def __patch_tolerations(self, tolerations: List[Dict[str, Any]]) -> int:
+    patch = {"spec": {"template": {"spec": {"tolerations": tolerations}}}}
+    patch_str = json.dumps(patch)
+    patch_command = (
+        "kubectl patch deployment kueue-controller-manager -n kueue-system"
+        f" --type='strategic' --patch='{patch_str}'"
+    )
+    task = "Patch Kueue Tolerations"
+    return_code = run_command_with_updates_retry(
+        patch_command, "Patch Kueue Tolerations"
+    )
+    if return_code != 0:
+      xpk_print(f"{task} returned ERROR {return_code}")
+    return return_code
 
-    # Step 3: Wait for Kueue to be available
-    return self._wait_for_kueue_available()
-
-  def _wait_for_kueue_available(self) -> int:
+  def __wait_for_kueue_available(self) -> int:
     """Wait for Kueue to be fully available.
 
     Args:
@@ -173,7 +190,7 @@ class KueueManager:
       xpk_print(f"{task} returned ERROR {return_code}")
     return return_code
 
-  def _configure(
+  def __configure(
       self,
       kueue_config: KueueConfig,
   ) -> int:
@@ -188,15 +205,15 @@ class KueueManager:
     template = self.template_env.get_template(KUEUE_CONFIG_JINJA_FILE)
 
     # The manager builds the context internally based on its opinionated logic
-    context = self._build_template_context(
-        kueue_config.system,
-        kueue_config.total_chips,
-        kueue_config.is_pathways_cluster,
-        kueue_config.autoprovisioning_enabled,
-        kueue_config.flex,
-        kueue_config.num_slices,
-        kueue_config.cpu_limit,
-        kueue_config.memory_limit,
+    context = self.__build_template_context(
+        system=kueue_config.system,
+        total_chips=kueue_config.total_chips,
+        is_pathways=kueue_config.is_pathways_cluster,
+        autoprovisioning=kueue_config.autoprovisioning_enabled,
+        flex=kueue_config.flex,
+        num_slices=kueue_config.num_slices,
+        cpu_limit=kueue_config.cpu_limit,
+        memory_limit=kueue_config.memory_limit,
     )
 
     rendered_manifest = template.render(context)
@@ -209,22 +226,22 @@ class KueueManager:
       topology_yaml = self.template_env.get_template(KUEUE_TOPOLOGY_JINJA_FILE)
       rendered_manifest = topology_yaml.render() + rendered_manifest
 
-    return_code = self._apply_manifest(rendered_manifest)
+    return_code = self.__apply_manifest(rendered_manifest)
     if return_code != 0:
       return return_code
 
-    return self._update_kueue_resources_if_necessary()
+    return self.__update_kueue_resources_if_necessary()
 
-  def _build_template_context(
+  def __build_template_context(
       self,
-      system,
-      total_chips,
-      is_pathways,
-      autoprovisioning,
-      flex,
-      num_slices,
-      cpu_limit,
-      memory_limit,
+      system: SystemCharacteristics,
+      total_chips: int,
+      is_pathways: bool,
+      autoprovisioning: bool,
+      flex: bool,
+      num_slices: int,
+      cpu_limit: int,
+      memory_limit: str,
   ) -> Dict[str, Any]:
     """Prepares the context for the Jinja2 template."""
     # Main accelerator flavor
@@ -314,14 +331,14 @@ class KueueManager:
         "admission_checks": admission_checks,
     }
 
-  def _apply_manifest(self, manifest: str) -> int:
+  def __apply_manifest(self, manifest: str) -> int:
     task = "Applying Kueue Custom Resources"
     tmp_file = write_tmp_file(manifest)
     command = f"kubectl apply -f {tmp_file}"
     return run_command_with_updates(command, task)
 
-  def _update_kueue_resources_if_necessary(self) -> int:
-    # Patch memory size limit if necessary
+  def __update_kueue_resources_if_necessary(self) -> int:
+    """Patch memory size limit if necessary."""
     # Get total number of nodes
     cmd_total_node_num = "kubectl get node --no-headers | wc -l"
     return_code, out = run_command_for_value(

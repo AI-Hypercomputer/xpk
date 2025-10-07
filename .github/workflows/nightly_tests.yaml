@@ -151,6 +151,13 @@ jobs:
     - name: Delete the cluster created
       if: always()
       run: python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --force
+    - name: Upload nodepool creation log
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: private-nodepool-log-${{github.run_id}}
+        # The path to the file to upload, using the wildcard pattern
+        path: /tmp/NodepoolCreate-$TPU_CLUSTER_NAME-np-*
 
   pw-cluster-and-workload:
     runs-on: [ubuntu-22.04]
@@ -195,6 +202,13 @@ jobs:
     - name: Delete the Pathways cluster created
       if: always()
       run: python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --force
+    - name: Upload nodepool creation log
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: private-nodepool-log-${{github.run_id}}
+        # The path to the file to upload, using the wildcard pattern
+        path: /tmp/NodepoolCreate-$TPU_CLUSTER_NAME-np-*
 
   rc-cluster:
     runs-on: [ubuntu-22.04]
@@ -230,6 +244,13 @@ jobs:
     - name: Delete the RayCluster-enabled XPK cluster
       if: always()
       run: python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+    - name: Upload nodepool creation log
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: private-nodepool-log-${{github.run_id}}
+        # The path to the file to upload, using the wildcard pattern
+        path: /tmp/NodepoolCreate-$TPU_CLUSTER_NAME-np-*
 
   set-variables:
     runs-on: [ubuntu-22.04]

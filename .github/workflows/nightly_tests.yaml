@@ -151,13 +151,27 @@ jobs:
     - name: Delete the cluster created
       if: always()
       run: python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --force
-    - name: Upload nodepool creation log
+    - name: Upload cluster nodepool creation log
       if: always()
       uses: actions/upload-artifact@v4
       with:
         name: cluster-nodepool-log-${{github.run_id}}
         # The path to the file to upload, using the wildcard pattern
         path: /tmp/NodepoolCreate-$TPU_CLUSTER_NAME-np-*
+    - name: Upload empty cluster nodepool creation log
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: empty-cluster-nodepool-log-${{github.run_id}}
+        # The path to the file to upload, using the wildcard pattern
+        path: /tmp/NodepoolCreate-$EMPTY_CLUSTER_NAME-np-*
+    - name: Upload private cluster nodepool creation log
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: empty-private-cluster-nodepool-log-${{github.run_id}}
+        # The path to the file to upload, using the wildcard pattern
+        path: /tmp/NodepoolCreate-$PRIVATE_CLUSTER_NAME-np-*
 
   pw-cluster-and-workload:
     runs-on: [ubuntu-22.04]

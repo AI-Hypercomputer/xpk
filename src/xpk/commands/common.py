@@ -18,6 +18,7 @@ from ..core.commands import run_command_with_updates_retry
 from ..core.capacity import H100_MEGA_DEVICE_TYPE, CapacityType
 from ..core.gcloud_context import zone_to_region
 from ..utils.console import xpk_print, xpk_exit
+from ..utils.execution_context import is_dry_run
 from ..core.system_characteristics import (
     SystemCharacteristics,
 )
@@ -41,17 +42,15 @@ def set_cluster_command(args) -> int:
       ' --namespace=default'
   )
   task = f'get-credentials to cluster {args.cluster}'
-  return_code = run_command_with_updates_retry(
-      command, task, args, verbose=False
-  )
+  return_code = run_command_with_updates_retry(command, task, verbose=False)
   if return_code != 0:
     xpk_print(f'{task} returned ERROR {return_code}')
   return return_code
 
 
 def is_TAS_possible(
-    system_characteristics: SystemCharacteristics,
-    capacity_type: CapacityType,
+    system_characteristics: SystemCharacteristics | None,
+    capacity_type: CapacityType | None,
     flex: bool,
 ) -> bool:
   """Check cluster's machine_type and capacity type to determine if Kueue TAS is possible
@@ -62,6 +61,9 @@ def is_TAS_possible(
   Returns:
     True if possible and False otherwise.
   """
+
+  if is_dry_run():
+    return True
 
   if system_characteristics is None:
     xpk_print('system_characteristics data was not found in configmaps.')

@@ -16,10 +16,11 @@ limitations under the License.
 
 import tempfile
 import os
-from .console import xpk_print
+import hashlib
+from .execution_context import is_dry_run
 
 
-def make_tmp_files(per_command_name):
+def make_tmp_files(per_command_name: list[str]) -> list[str]:
   """Make temporary files for each command.
 
   Args:
@@ -28,16 +29,19 @@ def make_tmp_files(per_command_name):
   Returns:
     A list of temporary files for each command.
   """
+  if is_dry_run():
+    return [_hash_filename(command) for command in per_command_name]
+
   # Supports removal of spaces from command names before converting to file name.
   return [
       tempfile.NamedTemporaryFile(
           delete=False, prefix=command.replace(' ', '-') + '-'
-      )
+      ).file.name
       for command in per_command_name
   ]
 
 
-def write_tmp_file(payload):
+def write_tmp_file(payload: str) -> str:
   """Writes `payload` to a temporary file.
 
   Args:
@@ -46,14 +50,17 @@ def write_tmp_file(payload):
   Returns:
     A file object that was written to.
   """
+  if is_dry_run():
+    return _hash_filename(payload)
+
   with tempfile.NamedTemporaryFile(delete=False) as tmp:
     with open(file=tmp.name, mode='w', encoding='utf=8') as f:
       f.write(payload)
       f.flush()
-    return tmp
+    return tmp.file.name
 
 
-def append_tmp_file(payload, file):
+def append_tmp_file(payload: str, file: str) -> str:
   """Appends `payload` to an already created file.
 
   Use `write_temporary_file` to create a file.
@@ -65,18 +72,26 @@ def append_tmp_file(payload, file):
   Returns:
     A file object that was written to.
   """
-  with open(file=file.name, mode='a', encoding='utf=8') as f:
+  if is_dry_run():
+    return file
+
+  with open(file=file, mode='a', encoding='utf=8') as f:
     f.write(payload)
     f.flush()
   return file
 
 
-def ensure_directory_exists(directory_path):
+def ensure_directory_exists(directory_path: str) -> None:
   """Checks if a directory exists and creates it if it doesn't.
 
   Args:
     directory_path: The path to the directory.
   """
-  if not os.path.exists(directory_path):
+  if not is_dry_run() and not os.path.exists(directory_path):
     os.makedirs(directory_path)
-    xpk_print(f"Directory '{directory_path}' created successfully.")
+
+
+def _hash_filename(seed: str) -> str:
+  m = hashlib.sha256()
+  m.update(seed.encode('utf-8'))
+  return m.hexdigest()

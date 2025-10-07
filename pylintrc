@@ -19,7 +19,7 @@ persistent=no
 
 # List of plugins (as comma separated values of python modules names) to load,
 # usually to register additional checkers.
-load-plugins=
+load-plugins=pylint_per_file_ignores
 
 # Use multiple processes to speed up Pylint.
 jobs=4
@@ -30,6 +30,9 @@ unsafe-load-any-extension=no
 
 
 [MESSAGES CONTROL]
+
+per-file-ignores =
+  .*_test\.py:protected-access # ignore "protected-access" errors in test files
 
 # Only show warnings with the listed confidence levels. Leave empty to show
 # all. Valid levels: HIGH, INFERENCE, INFERENCE_FAILURE, UNDEFINED
@@ -243,9 +246,6 @@ generated-members=
 
 # Maximum number of characters on a single line.
 max-line-length=88
-
-# TODO(https://github.com/pylint-dev/pylint/issues/3352): Direct pylint to exempt
-# lines made too long by directives to pytype.
 
 # Regexp for a line that is allowed to be longer than the limit.
 ignore-long-lines=(?x)(

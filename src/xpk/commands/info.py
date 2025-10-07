@@ -39,7 +39,7 @@ def info(args: Namespace) -> None:
   add_zone_and_project(args)
   get_cluster_credentials(args)
 
-  verify_kueuectl(args)
+  verify_kueuectl()
   lq, cq = bool(args.localqueue), bool(args.clusterqueue)
   if not lq and not cq:
     lq, cq = True, True
@@ -48,22 +48,22 @@ def info(args: Namespace) -> None:
   if lq:
     lqs = run_kueuectl_list_localqueue(args)
 
-  cqs = run_kueuectl_list_clusterqueue(args)
+  cqs = run_kueuectl_list_clusterqueue()
   quotas = get_nominal_quotas(cqs)
 
-  if lq:
+  if lq and lqs is not None:
     print_formatted_lqs(lqs, quotas)
 
   if cq:
     print_formatted_cqs(cqs, quotas)
 
 
-def get_nominal_quotas(cqs: list[dict]) -> dict[str, dict[str, str]]:
+def get_nominal_quotas(cqs: str) -> dict[str, dict[str, str]]:
   """Get quotas from clusterqueues.
   This function retrieves how much of resource in each flavor is assigned to cluster queue.
   It parses flavors of passed cluster queues.
   Args:
-    - cqs - list of cluster queues.
+    - cqs - string containing a list of cluster queues in JSON format.
   Returns:
     - dictionary of cluster queues resources quotas in format:
     {cq_name:{"flavorName:resourceName":quota}}
@@ -75,7 +75,7 @@ def get_nominal_quotas(cqs: list[dict]) -> dict[str, dict[str, str]]:
     xpk_print(cqs)
     xpk_exit(1)
 
-  quotas = {}
+  quotas: dict[str, dict] = {}
   for cq in cq_list:
     spec = cq['spec']
     cq_name = cq['metadata']['name']
@@ -89,7 +89,7 @@ def get_nominal_quotas(cqs: list[dict]) -> dict[str, dict[str, str]]:
   return quotas
 
 
-def print_formatted_cqs(cqs: list[dict], nominalQuotas) -> None:
+def print_formatted_cqs(cqs: str, nominalQuotas) -> None:
   try:
     cq_list = json.loads(cqs)['items']
   except ValueError:
@@ -105,7 +105,7 @@ def print_formatted_cqs(cqs: list[dict], nominalQuotas) -> None:
   )
 
 
-def print_formatted_lqs(lqs: list[dict], nominalQuotas) -> None:
+def print_formatted_lqs(lqs: str, nominalQuotas) -> None:
   try:
     lq_list = json.loads(lqs)['items']
   except ValueError:
@@ -143,18 +143,18 @@ def parse_queue_lists(
 
 
 def get_flavors_resources_reservations(
-    cq_name: str, flavors_res: list[dict]
+    cq_name: str, flavors_res: dict
 ) -> dict[str, dict[str, str]]:
   """Get usage of flavors resources.
   This function parser flavorsReservation section of clusterQueue of LocalQueue.
   Args:
     - cq_name - name of ClusterQueue to which flavors belong.
-    - flavors_res - list of reservations made by flavors
+    - flavors_res - dict of reservations made by flavors
   Returns:
     Dict containing usage of each resource in flavor for each flavor in cluster or local queue.
     Dict format: {cq_name: {{flavor:resource}:reservation}}
   """
-  reservations = {}
+  reservations: dict[str, dict] = {}
   reservations[cq_name] = {}
   for flavor_name, flavor_resources_reservation_list in flavors_res.items():
     for resource in flavor_resources_reservation_list:
@@ -167,15 +167,15 @@ def get_flavors_resources_reservations(
 
 def get_flavors_usage(
     q_entry: dict, res_field: str, flavor_resource_quotas: dict
-) -> list[dict]:
+) -> dict[str, str]:
   """Parse q_entry to retrieve list of each resource usage in flavour.
   Args:
     q_entry - single entry into either LocalQueue or ClusterQueue structured as json
     flavor_resource_quotas - nominalQuota of flavors resource usage for each clusterqueue
   Returns:
-    list of dicts where each list entry is in format (key, entry) where:
+    Dict where for each (key, value):
     - key is flavorName:resourceName
-    - entry is flavorResourceReservation/flavorResourceQuota
+    - value is string formatted as 'flavorResourceReservation/flavorResourceQuota'
   """
   status = q_entry['status']
   flavors_res = status[res_field]
@@ -214,7 +214,7 @@ def run_kueuectl_list_localqueue(args: Namespace) -> str:
   command = 'kubectl kueue list localqueue -o json'
   if args.namespace != '':
     command += f' --namespace {args.namespace}'
-  return_code, val = run_command_for_value(command, 'list localqueue', args)
+  return_code, val = run_command_for_value(command, 'list localqueue')
 
   if return_code != 0:
     xpk_print(f'Cluster info request returned ERROR {return_code}')
@@ -222,18 +222,15 @@ def run_kueuectl_list_localqueue(args: Namespace) -> str:
   return val
 
 
-def run_kueuectl_list_clusterqueue(args: Namespace) -> str:
+def run_kueuectl_list_clusterqueue() -> str:
   """Run the kueuectl list clusterqueue command.
-
-  Args:
-    args: user provided arguments for running the command.
 
   Returns:
     kueuectl list clusterqueue formatted as json string
   """
   command = 'kubectl kueue list clusterqueue -o json'
 
-  return_code, val = run_command_for_value(command, 'list clusterqueue', args)
+  return_code, val = run_command_for_value(command, 'list clusterqueue')
 
   if return_code != 0:
     xpk_print(f'Cluster info request returned ERROR {return_code}')

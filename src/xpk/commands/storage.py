@@ -58,6 +58,7 @@ from ..core.storage import (
 )
 from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.kubectl import apply_kubectl_manifest
+from ..utils.execution_context import is_dry_run
 
 
 def storage_create(args: Namespace) -> None:
@@ -141,7 +142,7 @@ def storage_delete(args: Namespace) -> None:
 
 def storage_attach(args: Namespace) -> None:
   add_zone_and_project(args)
-  manifest = [{}]
+  manifest: list[dict] = [{}]
   if args.type == GCP_FILESTORE_TYPE:
     if args.instance is None:
       args.instance = args.name
@@ -243,8 +244,10 @@ def enable_csi_drivers_if_necessary(args: Namespace) -> None:
 
 
 def storage_list(args: Namespace) -> None:
-  k8s_api_client = setup_k8s_env(args)
-  storages = list_storages(k8s_api_client)
+  storages = []
+  if not is_dry_run():
+    k8s_api_client = setup_k8s_env(args)
+    storages = list_storages(k8s_api_client)
   print_storages_for_cluster(storages)
 
 

@@ -37,6 +37,7 @@ from .resources import (
 )
 from .scheduling import get_total_chips_requested_from_args
 from .system_characteristics import AcceleratorType, SystemCharacteristics
+from typing import cast
 
 AUTOPROVISIONING_CONFIG_FILE = """
 management:
@@ -103,7 +104,7 @@ def enable_autoprovisioning_on_cluster(
       f' {autoprovisioning_config.config_filename}'
   )
   task = 'Update cluster with autoprovisioning enabled'
-  return_code = run_command_with_updates(command, task, args)
+  return_code = run_command_with_updates(command, task)
   if return_code != 0:
     xpk_print(f'{task} request returned ERROR {return_code}')
     return autoprovisioning_config, return_code
@@ -115,7 +116,7 @@ def enable_autoprovisioning_on_cluster(
       ' --autoscaling-profile=optimize-utilization'
   )
   task = 'Update cluster with autoscaling-profile'
-  return_code = run_command_with_updates(command, task, args)
+  return_code = run_command_with_updates(command, task)
   if return_code != 0:
     xpk_print(f'{task} request returned ERROR {return_code}')
     return autoprovisioning_config, return_code
@@ -155,7 +156,6 @@ def enable_autoprovisioning_on_cluster(
       commands,
       'Update node pools with autoprovisioning support',
       task_names,
-      dry_run=args.dry_run,
   )
   if max_return_code != 0:
     xpk_print(
@@ -249,7 +249,7 @@ def create_autoprovisioning_config(
       zones=f'- {args.zone}',
   )
   autoprovisioning_config = AutoprovisioningConfig(
-      config_filename=write_tmp_file(yml_string).name,
+      config_filename=write_tmp_file(yml_string),
       minimum_chips=minimum,
       maximum_chips=maximum,
   )
@@ -271,7 +271,7 @@ def is_autoprovisioning_enabled(
   """
 
   resources_configmap_name = f'{args.cluster}-{CLUSTER_RESOURCES_CONFIGMAP}'
-  cluster_config_map = get_cluster_configmap(args, resources_configmap_name)
+  cluster_config_map = get_cluster_configmap(resources_configmap_name)
 
   if cluster_config_map is None:
     xpk_print(
@@ -324,7 +324,7 @@ def get_autoprovisioning_node_selector_args(args) -> tuple[str, int]:
   if capacity_type_str == CapacityType.UNKNOWN.name:
     # Use default settings from cluster creation.
     metadata_configmap_name = f'{args.cluster}-{CLUSTER_METADATA_CONFIGMAP}'
-    cluster_config_map = get_cluster_configmap(args, metadata_configmap_name)
+    cluster_config_map = get_cluster_configmap(metadata_configmap_name)
 
     # Error out if the metadata config map doesn't exist, and is attempting to use
     # autoprovisioning.
@@ -336,11 +336,13 @@ def get_autoprovisioning_node_selector_args(args) -> tuple[str, int]:
       )
       return node_selector_args, 1
 
-    return_code, capacity_type_str = get_value_from_map(
+    return_code, optional_capacity_type_str = get_value_from_map(
         CAPACITY_TYPE_CONFIG_KEY, cluster_config_map
     )
     if return_code != 0:
       return node_selector_args, return_code
+    # return_code==0 implies capacity_type is defined
+    capacity_type_str = cast(str, optional_capacity_type_str)
 
     if capacity_type_str == CapacityType.RESERVATION.name:
       return_code, args.reservation = get_value_from_map(
@@ -366,7 +368,7 @@ def get_autoprovisioning_node_selector_args(args) -> tuple[str, int]:
 
 def get_cluster_provisioner(args) -> str:
   metadata_configmap_name = f'{args.cluster}-{CLUSTER_METADATA_CONFIGMAP}'
-  cluster_config_map = get_cluster_configmap(args, metadata_configmap_name)
+  cluster_config_map = get_cluster_configmap(metadata_configmap_name)
   cluster_provisioner = 'gcloud'
   if not cluster_config_map is None:
     provisioner = cluster_config_map.get('provisioner')

@@ -20,6 +20,7 @@ from .capacity import H100_DEVICE_TYPE, H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE
 from .cluster import setup_k8s_env
 from .storage import GCS_FUSE_TYPE, GCP_FILESTORE_TYPE, PARALLELSTORE_TYPE, GCE_PD_TYPE, LUSTRE_TYPE, Storage, get_storages_to_mount
 from .system_characteristics import AcceleratorType, SystemCharacteristics
+from ..utils.execution_context import is_dry_run
 
 
 def get_main_container_resources(
@@ -72,7 +73,7 @@ def get_env_container(args, system: SystemCharacteristics) -> str:
   if system.accelerator_type == AcceleratorType['CPU']:
     return get_cpu_env(args, system)
 
-  return format_env_dict(args.env, system)  # pytype: disable=bad-return-type
+  return format_env_dict(args.env, system)
 
 
 def get_gpu_env(args, system) -> str:
@@ -272,8 +273,10 @@ def get_volumes(args, system: SystemCharacteristics) -> str:
               - name: shared-data
               """
 
-  storages: list[Storage] = get_storages_to_mount(
-      setup_k8s_env(args), args.storage
+  storages: list[Storage] = (
+      []
+      if is_dry_run()
+      else get_storages_to_mount(setup_k8s_env(args), args.storage)
   )
   for storage in storages:
     if storage.type in {
@@ -325,8 +328,10 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
   elif system.accelerator_type == AcceleratorType['GPU']:
     volume_mount_yaml = ''
 
-  storages: list[Storage] = get_storages_to_mount(
-      setup_k8s_env(args), args.storage
+  storages: list[Storage] = (
+      []
+      if is_dry_run()
+      else get_storages_to_mount(setup_k8s_env(args), args.storage)
   )
   for storage in storages:
     if storage.type in {

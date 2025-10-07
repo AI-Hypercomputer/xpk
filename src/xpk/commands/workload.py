@@ -97,6 +97,7 @@ from ..core.workload_decorators import (
 )
 from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
+from ..utils.execution_context import is_dry_run
 from . import cluster_gcluster
 from .common import is_TAS_possible
 
@@ -266,6 +267,8 @@ PW_WORKLOAD_CREATE_YAML = """
         maxSliceRestarts: {args.max_slice_restarts}
         terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
         priorityClassName: {args.priority}
+        nodeSelector:
+          {autoprovisioning_args}
       pathwaysDir: {args.pathways_gcs_location} #This bucket needs to be created in advance.
       controller:
         # #Pod template for training, default mode.
@@ -306,8 +309,10 @@ def workload_create(args) -> None:
   Returns:
     0 if successful and 1 otherwise.
   """
-  k8s_api_client = setup_k8s_env(args)
-  setup_k8s_service_accounts()
+  k8s_api_client = None
+  if not is_dry_run():
+    k8s_api_client = setup_k8s_env(args)
+    setup_k8s_service_accounts()
 
   workload_exists = check_if_workload_exists(args)
 
@@ -321,7 +326,7 @@ def workload_create(args) -> None:
   xpk_print('Starting workload create', flush=True)
   system, return_code = get_system_characteristics(args)
 
-  if return_code > 0:
+  if return_code > 0 or system is None:
     xpk_print('Fetching system characteristics failed!')
     xpk_exit(return_code)
 
@@ -331,7 +336,7 @@ def workload_create(args) -> None:
   xpk_print('Starting workload create', flush=True)
 
   metadata_configmap_name = f'{args.cluster}-{CLUSTER_METADATA_CONFIGMAP}'
-  cluster_config_map = get_cluster_configmap(args, metadata_configmap_name)
+  cluster_config_map = get_cluster_configmap(metadata_configmap_name)
   cluster_xpk_version = None
   if cluster_config_map is None:
     xpk_print(
@@ -347,7 +352,7 @@ def workload_create(args) -> None:
   ):
     xpk_print(
         'Warning: Cluster has been created using XPK version:'
-        f' {cluster_config_map["xpk_version"]} but the XPK version you are'
+        f' {cluster_xpk_version} but the XPK version you are'
         f' using to schedule workload is: {XPK_CURRENT_VERSION}. Some features'
         ' might not be available for this cluster. We recommend to'
         ' upgrade/downgrade your XPK version or cluster by running `xpk'
@@ -356,7 +361,7 @@ def workload_create(args) -> None:
 
   debugging_dashboard_id = None
 
-  tensorboard_config = {}
+  tensorboard_config: dict | None = {}
   if VERTEX_TENSORBOARD_FEATURE_FLAG and args.use_vertex_tensorboard:
     tensorboard_config = create_vertex_experiment(args)
     # exit if failed to create Experiment in Vertex AI
@@ -383,8 +388,10 @@ def workload_create(args) -> None:
   all_storages = []
   # Currently storage customization is not supported for Pathways workloads. b/408468941
   if not args.use_pathways:
-    storages: list[Storage] = get_storages_to_mount(
-        k8s_api_client, args.storage
+    storages: list[Storage] = (
+        []
+        if k8s_api_client is None
+        else get_storages_to_mount(k8s_api_client, args.storage)
     )
     gcs_fuse_storages = list(
         filter(lambda storage: storage.type == GCS_FUSE_TYPE, storages)
@@ -452,8 +459,8 @@ def workload_create(args) -> None:
       - action: FailJobSet
         onJobFailureReasons:
         - PodFailurePolicy"""
-    restart_on_exit_codes = get_restart_exit_codes(args)
-    restart_on_exit_codes = ','.join(map(str, restart_on_exit_codes))
+    restart_on_exit_codes_list = get_restart_exit_codes(args)
+    restart_on_exit_codes = ','.join(map(str, restart_on_exit_codes_list))
     pod_failure_policy = f"""
           podFailurePolicy:
             rules:
@@ -503,7 +510,7 @@ def workload_create(args) -> None:
           annotations=annotations,
       )
 
-      sub_networks = get_cluster_subnetworks(args)
+      sub_networks = get_cluster_subnetworks()
       if args.device_type == a3high_device_type:
         yml_string = tcpx_decorator.decorate_jobset(yml_string)
       elif args.device_type == a3mega_device_type:
@@ -541,6 +548,7 @@ def workload_create(args) -> None:
         colocated_python_sidecar=append_custom_colocated_python_sidecar(args),
         user_workload=get_user_workload_for_pathways(args, system),
         local_queue_name=LOCAL_QUEUE_NAME,
+        autoprovisioning_args=autoprovisioning_args,
     )
   else:
     container, debugging_dashboard_id = get_user_workload_container(
@@ -570,14 +578,14 @@ def workload_create(args) -> None:
         pod_failure_policy=pod_failure_policy,
     )
   tmp = write_tmp_file(yml_string)
-  command = f'kubectl apply -f {str(tmp.file.name)}'
-  return_code = run_command_with_updates(command, 'Creating Workload', args)
+  command = f'kubectl apply -f {str(tmp)}'
+  return_code = run_command_with_updates(command, 'Creating Workload')
 
   if return_code != 0:
     xpk_print(f'Create Workload request returned ERROR {return_code}')
     xpk_exit(return_code)
 
-  if not args.use_pathways:
+  if not args.use_pathways and not is_dry_run():
     add_bucket_iam_members(args, storages)
 
   # Get GKE outlier dashboard for TPU
@@ -721,12 +729,13 @@ def workload_delete(args) -> None:
 
     # Not batching deletion for single workload
     if len(workloads) == 1:
-      return_code = run_command_with_updates(
-          commands[0], 'Delete Workload', args
-      )
+      return_code = run_command_with_updates(commands[0], 'Delete Workload')
     else:
       return_code = run_commands(
-          commands, 'Delete Workload', task_names, batch=100
+          commands,
+          'Delete Workload',
+          task_names,
+          batch=100,
       )
 
     if return_code != 0:
@@ -744,8 +753,6 @@ def workload_list(args) -> None:
   Returns:
     0 if successful and 1 otherwise.
   """
-  xpk_print(args)
-
   xpk_print('Starting workload list', flush=True)
   add_zone_and_project(args)
   get_cluster_credentials(args)

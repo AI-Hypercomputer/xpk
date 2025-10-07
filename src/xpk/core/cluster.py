@@ -66,7 +66,7 @@ def set_jobset_on_cluster(args) -> int:
       f' -f https://github.com/kubernetes-sigs/jobset/releases/download/{JOBSET_VERSION}/manifests.yaml'
   )
   task = f'Install Jobset on {args.cluster}'
-  return_code = run_command_with_updates_retry(command, task, args)
+  return_code = run_command_with_updates_retry(command, task)
 
   if return_code != 0:
     xpk_print(f'{task} returned with ERROR {return_code}.\n')
@@ -95,7 +95,7 @@ def set_pathways_job_on_cluster(args) -> int:
       f' https://github.com/google/pathways-job/releases/download/{PATHWAYS_JOB_VERSION}/install.yaml'
   )
   task = f'Install PathwaysJob on {args.cluster}'
-  return_code = run_command_with_updates_retry(command, task, args)
+  return_code = run_command_with_updates_retry(command, task)
 
   if return_code != 0:
     xpk_print(f'{task} returned with ERROR {return_code}.\n')
@@ -110,11 +110,10 @@ def set_pathways_job_on_cluster(args) -> int:
   return return_code
 
 
-def install_nccl_on_cluster(args, system: SystemCharacteristics) -> int:
+def install_nccl_on_cluster(system: SystemCharacteristics) -> int:
   """Install NCCL plugin on the cluster.
 
   Args:
-    args: user provided arguments for running the command.
     system: system characteristics.
 
   Returns:
@@ -128,7 +127,7 @@ def install_nccl_on_cluster(args, system: SystemCharacteristics) -> int:
     command = f'kubectl apply -f {INSTALLER_NCCL_TCPXO}'
 
   return_code = run_command_with_updates(
-      command, 'Install NCCL Plugin On Cluster', args
+      command, 'Install NCCL Plugin On Cluster'
   )
 
   if return_code != 0:
@@ -141,7 +140,7 @@ def install_nccl_on_cluster(args, system: SystemCharacteristics) -> int:
     command = f'kubectl apply -f {CONFIG_NCCL_TCPX}'
 
     return_code = run_command_with_updates(
-        command, 'Install NCCL Config On Cluster', args
+        command, 'Install NCCL Config On Cluster'
     )
 
     if return_code != 0:
@@ -153,19 +152,14 @@ def install_nccl_on_cluster(args, system: SystemCharacteristics) -> int:
   return 0
 
 
-def disable_mglru_on_cluster(args) -> int:
+def disable_mglru_on_cluster() -> int:
   """Disable MGLRU on the cluster.
-
-  Args:
-    args: user provided arguments for running the command.
 
   Returns:
     0 if successful and 1 otherwise.
   """
   command = f'kubectl apply -f {MGLRU_DISABLE}'
-  return_code = run_command_with_updates(
-      command, 'Disable MGLRU On Cluster', args
-  )
+  return_code = run_command_with_updates(command, 'Disable MGLRU On Cluster')
 
   if return_code != 0:
     xpk_print('Disablig MGLRU On Cluster request returned ERROR')
@@ -174,11 +168,10 @@ def disable_mglru_on_cluster(args) -> int:
   return 0
 
 
-def install_nri_on_cluster(args) -> int:
+def install_nri_on_cluster() -> int:
   """Install NRI Device Injector on the cluster.
 
   Args:
-    args: user provided arguments for running the command.
     system: system characteristics.
 
   Returns:
@@ -186,7 +179,7 @@ def install_nri_on_cluster(args) -> int:
   """
   command = f'kubectl apply -f {NRI_DEVICE_INJECTOR}'
   return_code = run_command_with_updates(
-      command, 'Install NRI Device Injector On Cluster', args
+      command, 'Install NRI Device Injector On Cluster'
   )
 
   if return_code != 0:
@@ -199,11 +192,8 @@ def install_nri_on_cluster(args) -> int:
   return 0
 
 
-def get_cluster_nodes_info(args) -> list[dict]:
+def get_cluster_nodes_info() -> list[dict]:
   """Get list of cluster's nodes descrition in yaml format
-
-  Args:
-    args: user provided arguments for running the command.
 
   Returns:
     List of nodes info yaml objects.
@@ -213,17 +203,16 @@ def get_cluster_nodes_info(args) -> list[dict]:
   err_code, val = run_command_for_value(
       command=command,
       task='Get cluster nodes info',
-      global_args=args,
   )
   if err_code != 0:
     xpk_exit(err_code)
-  data = yaml.safe_load(val)
-  return data['items']  # pytype: disable=bad-return-type
+  data: dict[str, list[dict]] = yaml.safe_load(val)
+  return data['items']
 
 
-def count_nodes_on_cluster(args, system: SystemCharacteristics) -> int:
+def count_nodes_on_cluster(system: SystemCharacteristics) -> int:
   """Count cluster nodes by accelerator type"""
-  nodes_info = get_cluster_nodes_info(args)
+  nodes_info = get_cluster_nodes_info()
   accelerators = [
       node['metadata']['labels']['cloud.google.com/gke-accelerator']
       for node in nodes_info
@@ -248,7 +237,6 @@ def get_cluster_network(args) -> str:
   err_code, val = run_command_for_value(
       command=cluster_network_cmd,
       task='Get network cluster is in',
-      global_args=args,
   )
   if err_code != 0:
     xpk_exit(err_code)
@@ -361,7 +349,6 @@ def is_driver_enabled_on_cluster(
       command,
       f"Checks if {driver} driver's {config_key} is enabled in cluster"
       ' describe.',
-      args,
   )
   if return_code != 0:
     xpk_exit(return_code)
@@ -389,7 +376,7 @@ def update_gke_cluster_with_addon(args, addon: str) -> int:
   )
   xpk_print(f'Updating GKE cluster to enable {addon}, may take a while!')
   return_code = run_command_with_updates(
-      command, f'GKE Cluster Update to enable {addon}', args
+      command, f'GKE Cluster Update to enable {addon}'
   )
   if return_code != 0:
     xpk_print(f'GKE Cluster Update request returned ERROR {return_code}')
@@ -412,7 +399,7 @@ def get_all_clusters_programmatic(args) -> tuple[list[str], int]:
       ' --format="csv[no-heading](name)"'
   )
   return_code, raw_cluster_output = run_command_for_value(
-      command, 'Find if Cluster Exists', args
+      command, 'Find if Cluster Exists'
   )
   if return_code != 0:
     xpk_print(f'Find if Cluster Exists returned ERROR {return_code}')
@@ -442,10 +429,14 @@ def setup_k8s_env(args) -> k8s_client.ApiClient:
   if not getattr(args, 'kind_cluster', False):
     add_zone_and_project(args)
     get_cluster_credentials(args)
-    args.project_number = project_id_to_project_number(args.project)
+    args.project_number = (
+        project_id_to_project_number(args.project)
+        if not args.dry_run
+        else abs(hash(args.project) % (10**12))  # 12 digit hash
+    )
 
   config.load_kube_config()
-  return k8s_client.ApiClient()  # pytype: disable=bad-return-type
+  return k8s_client.ApiClient()
 
 
 def get_gpu_type_from_cluster(args) -> str:
@@ -594,7 +585,7 @@ def update_gke_cluster_with_clouddns(args) -> int:
   )
   xpk_print('Updating GKE cluster to use Cloud DNS, may take a while!')
   return_code = run_command_with_updates(
-      command, 'GKE Cluster Update to enable Cloud DNS', args
+      command, 'GKE Cluster Update to enable Cloud DNS'
   )
   if return_code != 0:
     xpk_print(f'GKE Cluster Update request returned ERROR {return_code}')
@@ -621,7 +612,7 @@ def update_gke_cluster_with_workload_identity_enabled(args) -> int:
       ' while!'
   )
   return_code = run_command_with_updates(
-      command, 'GKE Cluster Update to enable Workload Identity Federation', args
+      command, 'GKE Cluster Update to enable Workload Identity Federation'
   )
   if return_code != 0:
     xpk_print(f'GKE Cluster Update request returned ERROR {return_code}')
@@ -647,7 +638,7 @@ def update_gke_cluster_with_gcsfuse_driver_enabled(args) -> int:
       'Updating GKE cluster to enable GCSFuse CSI driver, may take a while!'
   )
   return_code = run_command_with_updates(
-      command, 'GKE Cluster Update to enable GCSFuse CSI driver', args
+      command, 'GKE Cluster Update to enable GCSFuse CSI driver'
   )
   if return_code != 0:
     xpk_print(f'GKE Cluster Update request returned ERROR {return_code}')
@@ -673,7 +664,7 @@ def update_gke_cluster_with_lustre_driver_enabled(args) -> int:
       'Updating GKE cluster to enable Lustre CSI driver, may take a while!'
   )
   return_code = run_command_with_updates(
-      command, 'GKE Cluster Update to enable Lustre CSI driver', args
+      command, 'GKE Cluster Update to enable Lustre CSI driver'
   )
   if return_code != 0:
     xpk_print(f'GKE Cluster Update request returned ERROR {return_code}')
@@ -703,7 +694,6 @@ def upgrade_gke_control_plane_version(args, default_rapid_gke_version) -> int:
   return_code = run_command_with_updates(
       command,
       'GKE Cluster control plane version update to enable Cloud DNS',
-      args,
   )
   if return_code != 0:
     xpk_print(
@@ -730,7 +720,6 @@ def is_cluster_using_clouddns(args) -> bool:
   return_code, _ = run_command_for_value(
       command,
       'Check if Cloud DNS is enabled in cluster describe.',
-      args,
   )
   if return_code == 0:
     xpk_print('Cloud DNS is enabled on the cluster, no update needed.')
@@ -753,7 +742,6 @@ def is_workload_identity_enabled_on_cluster(args) -> bool:
   return_code, workload_pool = run_command_for_value(
       command,
       'Checks if Workload Identity Federation is enabled in cluster describe.',
-      args,
   )
   if return_code != 0:
     xpk_exit(return_code)
@@ -781,7 +769,6 @@ def is_gcsfuse_driver_enabled_on_cluster(args) -> bool:
   return_code, gcsfuse_driver_enabled = run_command_for_value(
       command,
       'Checks if GCSFuse CSI driver is enabled in cluster describe.',
-      args,
   )
   if return_code != 0:
     xpk_exit(return_code)
@@ -817,9 +804,11 @@ def update_cluster_with_clouddns_if_necessary(args) -> int:
     server_config_return_code, gke_server_config = get_gke_server_config(args)
     if server_config_return_code != 0:
       xpk_exit(server_config_return_code)
+    assert gke_server_config
+
     upgrade_master_return_code = upgrade_gke_control_plane_version(
         args,
-        gke_server_config.default_rapid_gke_version,  # pytype: disable=attribute-error
+        gke_server_config.default_rapid_gke_version,
     )
     if upgrade_master_return_code > 0:
       xpk_print("Updating GKE cluster's control plane upgrade failed!")
@@ -828,7 +817,7 @@ def update_cluster_with_clouddns_if_necessary(args) -> int:
     # Upgrade nodepools version after the master upgrade.
     node_pool_update_code = upgrade_gke_nodepools_version(
         args,
-        gke_server_config.default_rapid_gke_version,  # pytype: disable=attribute-error
+        gke_server_config.default_rapid_gke_version,
     )
     if node_pool_update_code > 0:
       xpk_print('Upgrading nodepools version failed!')
@@ -878,7 +867,53 @@ def update_cluster_with_gcsfuse_driver_if_necessary(args) -> int:
   return 0
 
 
-def get_cluster_credentials(args) -> None:
+def test_and_retry_credentials_with_dns_logic(args) -> int:
+  """Tests kubectl credentials and retries with default settings if a DNS error is found.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if credentials are valid after retrying, 1 otherwise.
+  """
+
+  xpk_print('Testing credentials with kubectl...')
+  kubectl_command = 'kubectl get pods'
+  kubectl_return_code, kubectl_output = run_command_for_value(
+      kubectl_command, 'kubectl get pods'
+  )
+  if kubectl_return_code == 0:
+    xpk_print('Credentials test succeeded.')
+    return 0
+
+  dns_endpoint_error = (
+      'control_plane_endpoints_config.dns_endpoint_config.allow_external_traffic'
+      ' is disabled'
+  )
+  if dns_endpoint_error not in kubectl_output:
+    xpk_print(f'kubectl failed with an unhandled error: {kubectl_output}')
+    xpk_exit(kubectl_return_code)
+  xpk_print(
+      'Detected DNS endpoint-related error. Retrying without --dns-endpoint'
+      ' flag...'
+  )
+  without_dns_command = (
+      'gcloud container clusters get-credentials'
+      f' {args.cluster} --region={zone_to_region(args.zone)}'
+      f' --project={args.project} &&'
+      ' kubectl config view && kubectl config set-context --current'
+      ' --namespace=default'
+  )
+  return_code = run_command_with_updates_retry(
+      without_dns_command, 'get-credentials to cluster', verbose=False
+  )
+  if return_code != 0:
+    xpk_print('Failed to get credentials even without --dns-endpoint. Exiting.')
+    xpk_exit(return_code)
+  return 0
+
+
+def get_cluster_credentials(args) -> int:
   """Run cluster configuration command to set the kubectl config.
 
   Args:
@@ -890,14 +925,19 @@ def get_cluster_credentials(args) -> None:
   command = (
       'gcloud container clusters get-credentials'
       f' {args.cluster} --region={zone_to_region(args.zone)}'
+      ' --dns-endpoint'
       f' --project={args.project} &&'
       ' kubectl config view && kubectl config set-context --current'
       ' --namespace=default'
   )
-  task = f'get-credentials to cluster {args.cluster}'
-  return_code = run_command_with_updates_retry(
-      command, task, args, verbose=False
-  )
+  task = f'get-credentials-dns-endpoint to cluster {args.cluster}'
+  return_code = run_command_with_updates_retry(command, task, verbose=False)
+
   if return_code != 0:
     xpk_print(f'{task} returned ERROR {return_code}')
     xpk_exit(return_code)
+
+  return_code = test_and_retry_credentials_with_dns_logic(args)
+  xpk_print('Finished get-credentials and kubectl setup.')
+
+  return return_code

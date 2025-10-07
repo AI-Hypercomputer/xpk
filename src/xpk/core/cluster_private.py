@@ -19,6 +19,7 @@ from ..utils.network import (
     add_current_machine_to_networks,
     is_current_machine_in_any_network,
 )
+from ..utils.execution_context import is_dry_run
 from ..utils.objects import is_text_true
 from .commands import run_command_for_value, run_command_with_updates
 from .gcloud_context import zone_to_region
@@ -37,7 +38,7 @@ def authorize_private_cluster_access_if_necessary(args) -> int:
     if not args.private and args.authorized_networks is None:
       xpk_print('Cluster is public and no need to authorize networks.')
       return 0
-    else:
+    elif not is_dry_run():
       xpk_print(
           'Cannot convert an existing public cluster to private. The arguments'
           ' --private and --authorized-networks are not acceptable for public'
@@ -95,7 +96,11 @@ def add_current_machine_to_networks_if_needed(
           "Adding current machine's IP address to the authorized networks"
           ' failed!'
       )
-      return add_current_machine_to_networks_return_code, authorized_networks
+      return (
+          add_current_machine_to_networks_return_code,
+          False,
+          authorized_networks,
+      )
 
   return 0, is_current_machine_in_network, authorized_networks
 
@@ -128,7 +133,6 @@ def is_cluster_private(args) -> bool:
   return_code, private_nodes_enabled = run_command_for_value(
       command,
       'Check if Private Nodes is enabled in cluster.',
-      args,
   )
 
   if return_code != 0:
@@ -159,7 +163,7 @@ def get_cluster_authorized_networks(args) -> list[str]:
   return_code, authorized_networks = run_command_for_value(
       command,
       'Fetching the list of authorized network from cluster describe.',
-      args,
+      dry_run_return_val='127.0.0.1/32',
   )
 
   if return_code != 0:
@@ -191,7 +195,7 @@ def update_cluster_authorized_networks(args, authorized_networks) -> int:
   )
 
   return_code = run_command_with_updates(
-      command, 'GKE Cluster Update master authorized networks', args
+      command, 'GKE Cluster Update master authorized networks'
   )
 
   if return_code != 0:

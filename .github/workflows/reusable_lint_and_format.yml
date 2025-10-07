@@ -49,5 +49,5 @@ jobs:
       run: make pylint
     - name: Check format with pyink
       run: make pyink
-    - name: Run pytype
-      run: make pytype
+    - name: Run mypy
+      run: make mypy

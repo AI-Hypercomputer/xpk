@@ -20,11 +20,15 @@ BIN_PATH=$(PROJECT_DIR)/bin
 install: check-python check-gcloud install-gcloud-auth-plugin install-kueuectl install-kjobctl pip-install
 
 .PHONY: install-dev
-install-dev: check-python check-gcloud mkdir-bin install-kueuectl install-kjobctl pip-install install-pytest
+install-dev: check-python check-gcloud mkdir-bin install-kueuectl install-kjobctl pip-install pip-install-dev install-pytest install-lint
+
+.PHONY: pip-install-dev
+pip-install-dev:
+	pip install -e ".[dev]"
 
 .PHONY: pip-install
 pip-install:
-	pip install .
+	pip install -e .
 
 .PHONY: install-pytest
 install-pytest:
@@ -32,10 +36,14 @@ install-pytest:
 
 .PHONY: run-unittests
 run-unittests:
-	pytest  -vv src/xpk/core/tests/unit/
+	pytest  -vv src/xpk/
 
 run-integrationtests:
-	pytest src/xpk/core/tests/integration/
+	pytest src/integration/
+
+.PHONY: goldens
+goldens:
+	./golden_buddy.sh update goldens.yaml goldens
 
 .PHONY: mkdir-bin
 mkdir-bin:
@@ -71,11 +79,11 @@ check-python:
 	python3 --version || (echo "python3 not installed. Please install python in version required by xpk" && exit 1)
 
 .PHONY: install-lint
-install-lint: install-pytype install-pyink install-pylint pip-install
+install-lint: install-mypy install-pyink install-pylint pip-install
 
-.PHONY: install-pytype
-install-pytype:
-	pip install pytype
+.PHONY: install-mypy
+install-mypy:
+	pip install mypy~=1.17 types-PyYAML==6.0.2 types-docker~=7.1.0.0
 
 .PHONY: install-pyink
 install-pyink:
@@ -86,7 +94,7 @@ install-pylint:
 	pip install pylint
 
 .PHONY: verify
-verify: install-lint pylint pyink pytype
+verify: install-lint pylint pyink mypy
 
 .PHONY: pylint
 pylint:
@@ -100,6 +108,6 @@ pyink:
 pyink-fix:
 	pyink .
 
-.PHONY: pytype
-pytype:
-	pytype --config=pytype-conf.cfg
+.PHONY: mypy
+mypy:
+	mypy

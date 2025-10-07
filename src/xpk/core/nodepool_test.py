@@ -161,13 +161,13 @@ def test_placement_policy_created_for_gpu_with_valid_topology(
       zone="us-central1-a",
   )
   system = SystemCharacteristics(
-      "N/A",
-      1,
-      "nvidia-h100-80gb",
-      "a3-highgpu-8g",
-      8,
-      AcceleratorType["GPU"],
-      "h100-80gb-8",
+      topology="N/A",
+      vms_per_slice=1,
+      gke_accelerator="nvidia-h100-80gb",
+      gce_machine_type="a3-highgpu-8g",
+      chips_per_vm=8,
+      accelerator_type=AcceleratorType["GPU"],
+      device_type="h100-80gb-8",
   )
 
   run_gke_node_pool_create_command(args, system, "1.2.3")
@@ -190,13 +190,13 @@ def test_placement_policy_not_created_for_gpu_with_invalid_topology(
       zone="us-central1-a",
   )
   system = SystemCharacteristics(
-      "N/A",
-      1,
-      "nvidia-h100-80gb",
-      "a3-highgpu-8g",
-      8,
-      AcceleratorType["GPU"],
-      "h100-80gb-8",
+      topology="N/A",
+      vms_per_slice=1,
+      gke_accelerator="nvidia-h100-80gb",
+      gce_machine_type="a3-highgpu-8g",
+      chips_per_vm=8,
+      accelerator_type=AcceleratorType["GPU"],
+      device_type="h100-80gb-8",
   )
 
   run_gke_node_pool_create_command(args, system, "1.2.3")
@@ -221,13 +221,14 @@ def test_placement_policy_created_for_tpu7x_with_valid_topology(
       zone="us-central1-a",
   )
   system = SystemCharacteristics(
-      "2x2x1",
-      1,
-      "tpu7x",
-      "tpu7x-standard-4t",
-      4,
-      AcceleratorType["TPU"],
-      "tpu7x-8",
+      topology="2x2x1",
+      vms_per_slice=1,
+      gke_accelerator="tpu7x",
+      gce_machine_type="tpu7x-standard-4t",
+      chips_per_vm=4,
+      accelerator_type=AcceleratorType["TPU"],
+      device_type="tpu7x-8",
+      requires_placement_policy=True,
   )
 
   run_gke_node_pool_create_command(args, system, "1.2.3")
@@ -252,13 +253,13 @@ def test_placement_policy_not_created_for_non7x_tpu(
       zone="us-central1-a",
   )
   system = SystemCharacteristics(
-      "2x2",
-      1,
-      "v6e",
-      "tpu-v6e-slice",
-      4,
-      AcceleratorType["TPU"],
-      "v6e-4",
+      topology="2x2",
+      vms_per_slice=1,
+      gke_accelerator="v6e",
+      gce_machine_type="tpu-v6e-slice",
+      chips_per_vm=4,
+      accelerator_type=AcceleratorType["TPU"],
+      device_type="v6e-4",
   )
 
   run_gke_node_pool_create_command(args, system, "1.2.3")

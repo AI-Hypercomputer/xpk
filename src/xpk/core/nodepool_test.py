@@ -15,7 +15,12 @@ limitations under the License.
 """
 
 import pytest
-from xpk.core.nodepool import get_desired_node_pool_names, ensure_resource_policy_exists
+from xpk.core.nodepool import (
+    ensure_resource_policy_exists,
+    get_desired_node_pool_names,
+    run_gke_node_pool_create_command,
+)
+from xpk.core.system_characteristics import AcceleratorType, SystemCharacteristics
 
 CLUSTER_NAME = "running-cucumber"
 
@@ -116,3 +121,146 @@ def test_ensure_resource_policy_exits_without_existing_policy_throws_when_creati
         side_effect=[(1, ""), (1, "")],
     )
     ensure_resource_policy_exists("resource-policy", args, "2x2x1")
+
+
+@pytest.fixture
+def mock_nodepool_dependencies(mocker):
+  """Mocks dependencies for run_gke_node_pool_create_command."""
+  mocker.patch(
+      "xpk.core.nodepool.get_all_nodepools_programmatic", return_value=([], 0)
+  )
+  mocker.patch(
+      "xpk.core.nodepool.get_capacity_type", return_value=("on-demand", 0)
+  )
+  mocker.patch(
+      "xpk.core.nodepool.get_capacity_arguments_from_capacity_type",
+      return_value=("--on-demand", 0),
+  )
+  mocker.patch("xpk.core.nodepool.run_commands", return_value=0)
+  mocker.patch("xpk.core.nodepool.get_user_input", return_value=True)
+  mock_is_topology_valid = mocker.patch("xpk.core.nodepool.is_topology_valid")
+  mock_ensure_resource_policy = mocker.patch(
+      "xpk.core.nodepool.ensure_resource_policy_exists"
+  )
+  return mock_is_topology_valid, mock_ensure_resource_policy
+
+
+def test_placement_policy_created_for_gpu_with_valid_topology(
+    mocker, mock_nodepool_dependencies
+):
+  """Tests that placement policy is created for GPUs with a valid topology."""
+  mock_is_topology_valid, mock_ensure_resource_policy = (
+      mock_nodepool_dependencies
+  )
+  mock_is_topology_valid.return_value = True
+  args = mocker.Mock(
+      tpu_type=None,
+      device_type="h100-80gb-8",
+      cluster="test-cluster",
+      project="test-project",
+      zone="us-central1-a",
+  )
+  system = SystemCharacteristics(
+      "N/A",
+      1,
+      "nvidia-h100-80gb",
+      "a3-highgpu-8g",
+      8,
+      AcceleratorType["GPU"],
+      "h100-80gb-8",
+  )
+
+  run_gke_node_pool_create_command(args, system, "1.2.3")
+
+  mock_ensure_resource_policy.assert_called_once()
+
+
+def test_placement_policy_not_created_for_gpu_with_invalid_topology(
+    mocker, mock_nodepool_dependencies
+):
+  """Tests that placement policy is not created for GPUs with an invalid topology."""
+  mock_is_topology_valid, mock_ensure_resource_policy = (
+      mock_nodepool_dependencies
+  )
+  mock_is_topology_valid.return_value = False
+  args = mocker.Mock(
+      tpu_type=None,
+      device_type="h100-80gb-8",
+      cluster="test-cluster",
+      zone="us-central1-a",
+  )
+  system = SystemCharacteristics(
+      "N/A",
+      1,
+      "nvidia-h100-80gb",
+      "a3-highgpu-8g",
+      8,
+      AcceleratorType["GPU"],
+      "h100-80gb-8",
+  )
+
+  run_gke_node_pool_create_command(args, system, "1.2.3")
+
+  mock_ensure_resource_policy.assert_not_called()
+
+
+def test_placement_policy_created_for_tpu7x_with_valid_topology(
+    mocker, mock_nodepool_dependencies
+):
+  """Tests that placement policy is created for tpu7x with a valid topology."""
+  mock_is_topology_valid, mock_ensure_resource_policy = (
+      mock_nodepool_dependencies
+  )
+  mock_is_topology_valid.return_value = True
+  args = mocker.Mock(
+      tpu_type="tpu7x-8",
+      device_type=None,
+      num_slices=1,
+      cluster="test-cluster",
+      project="test-project",
+      zone="us-central1-a",
+  )
+  system = SystemCharacteristics(
+      "2x2x1",
+      1,
+      "tpu7x",
+      "tpu7x-standard-4t",
+      4,
+      AcceleratorType["TPU"],
+      "tpu7x-8",
+  )
+
+  run_gke_node_pool_create_command(args, system, "1.2.3")
+
+  mock_ensure_resource_policy.assert_called_once()
+
+
+def test_placement_policy_not_created_for_non7x_tpu(
+    mocker, mock_nodepool_dependencies
+):
+  """Tests that placement policy is not created for non-tpu7x TPUs."""
+  mock_is_topology_valid, mock_ensure_resource_policy = (
+      mock_nodepool_dependencies
+  )
+  mock_is_topology_valid.return_value = True
+  args = mocker.Mock(
+      tpu_type="v6e",
+      device_type=None,
+      num_slices=1,
+      cluster="test-cluster",
+      project="test-project",
+      zone="us-central1-a",
+  )
+  system = SystemCharacteristics(
+      "2x2",
+      1,
+      "v6e",
+      "tpu-v6e-slice",
+      4,
+      AcceleratorType["TPU"],
+      "v6e-4",
+  )
+
+  run_gke_node_pool_create_command(args, system, "1.2.3")
+
+  mock_ensure_resource_policy.assert_not_called()

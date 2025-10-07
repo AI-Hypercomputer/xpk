@@ -110,6 +110,27 @@ the '--force' flag and manually ensure that any custom configuration
 previously added to 'dist/chart/values.yaml' or 'dist/chart/manager/manager.yaml'
 is manually re-applied afterwards.
 
+#### Installing kueue
+```bash
+helm install kueue oci://registry.k8s.io/kueue/charts/kueue --version="0.14.0" \
+  --create-namespace --namespace=kueue-system
+```
+
+#### Installing slice using Helm
+```bash
+IMAGE_REPO=<some-registry>/slice-controller
+IMAGE_TAG=tag
+helm install slice ./charts/slice --set image.repository=$IMAGE_REPO --set image.tag=$IMAGE_TAG --set kueueResources.create=true --create-namespace --namespace slice-controller-system
+
+```
+
+### Uninstallation
+```bash
+helm uninstall slice --namespace=slice-controller-system
+helm uninstall kueue --namespace=kueue-system
+```
+
+
 ## Contributing
 // TODO(user): Add detailed information on how you would like others to contribute to this project
 

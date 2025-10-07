@@ -1,0 +1,39 @@
+nameOverride: ""
+fullnameOverride: ""
+
+replicaCount: 1
+
+image:
+  repository: us-central1-docker.pkg.dev/k8s-staging-images/slice/slice
+  pullPolicy: IfNotPresent
+  tag: main
+
+imagePullSecrets: []
+
+serviceAccount:
+  create: true
+  name: ""
+
+resources: {}
+
+kueueResources:
+  create: false
+  topology:
+    name: topology
+    levels:
+    - cloud.google.com/gce-topology-block
+    - cloud.google.com/gke-tpu-slice-4x4x4-id
+  resourceFlavor:
+    name: superslice-flavor
+    nodeLabels:
+      cloud.google.com/gke-tpu-accelerator: tpu-v7x
+      cloud.google.com/gke-tpu-slice-4x4x4-health: "true"
+  admissionCheck:
+    name: admissioncheck
+  clusterQueue:
+    name: superslice-clusterqueue
+    coveredResources:
+    - cloud.google.com/tpu
+  localQueue:
+    name: superslice-queue
+    namespace: default

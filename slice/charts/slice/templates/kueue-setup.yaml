@@ -1,0 +1,63 @@
+{{- if .Values.kueueResources.create -}}
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: Topology
+metadata:
+  name: {{ .Values.kueueResources.topology.name }}
+  labels:
+    {{- include "slice.labels" . | nindent 4 }}
+spec:
+  levels:
+  {{- range .Values.kueueResources.topology.levels }}
+  - nodeLabel: {{ . }}
+  {{- end }}
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ResourceFlavor
+metadata:
+  name: {{ .Values.kueueResources.resourceFlavor.name }}
+  labels:
+    {{- include "slice.labels" . | nindent 4 }}
+spec:
+  nodeLabels: {{- toYaml .Values.kueueResources.resourceFlavor.nodeLabels | nindent 4 }}
+  topologyName: {{ .Values.kueueResources.topology.name }}
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: AdmissionCheck
+metadata:
+  name: {{ .Values.kueueResources.admissionCheck.name }}
+  labels:
+    {{- include "slice.labels" . | nindent 4 }}
+spec:
+  controllerName: accelerator.gke.io/slice
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ClusterQueue
+metadata:
+  name: {{ .Values.kueueResources.clusterQueue.name }}
+  labels:
+    {{- include "slice.labels" . | nindent 4 }}
+spec:
+  namespaceSelector: {}
+  admissionChecks:
+  - {{ .Values.kueueResources.admissionCheck.name }}
+  resourceGroups:
+  - coveredResources:
+    {{- toYaml .Values.kueueResources.clusterQueue.coveredResources | nindent 4 }}
+    flavors:
+    - name: {{ .Values.kueueResources.resourceFlavor.name }}
+      resources:
+      {{- range .Values.kueueResources.clusterQueue.coveredResources }}
+      - name: {{ . }}
+        nominalQuota: "9999"
+      {{- end }}
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: LocalQueue
+metadata:
+  name: {{ .Values.kueueResources.localQueue.name }}
+  namespace: {{ .Values.kueueResources.localQueue.namespace }}
+  labels:
+    {{- include "slice.labels" . | nindent 4 }}
+spec:
+  clusterQueue: {{ .Values.kueueResources.clusterQueue.name }}
+{{- end }}

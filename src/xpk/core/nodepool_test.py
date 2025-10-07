@@ -146,7 +146,7 @@ def mock_nodepool_dependencies(mocker):
 
 
 def test_placement_policy_created_for_gpu_with_valid_topology(
-    mocker, mock_nodepool_dependencies
+    mocker, mock_nodepool_dependencies  # pylint: disable=redefined-outer-name
 ):
   """Tests that placement policy is created for GPUs with a valid topology."""
   mock_is_topology_valid, mock_ensure_resource_policy = (
@@ -176,7 +176,7 @@ def test_placement_policy_created_for_gpu_with_valid_topology(
 
 
 def test_placement_policy_not_created_for_gpu_with_invalid_topology(
-    mocker, mock_nodepool_dependencies
+    mocker, mock_nodepool_dependencies  # pylint: disable=redefined-outer-name
 ):
   """Tests that placement policy is not created for GPUs with an invalid topology."""
   mock_is_topology_valid, mock_ensure_resource_policy = (
@@ -205,7 +205,7 @@ def test_placement_policy_not_created_for_gpu_with_invalid_topology(
 
 
 def test_placement_policy_created_for_tpu7x_with_valid_topology(
-    mocker, mock_nodepool_dependencies
+    mocker, mock_nodepool_dependencies  # pylint: disable=redefined-outer-name
 ):
   """Tests that placement policy is created for tpu7x with a valid topology."""
   mock_is_topology_valid, mock_ensure_resource_policy = (
@@ -237,7 +237,7 @@ def test_placement_policy_created_for_tpu7x_with_valid_topology(
 
 
 def test_placement_policy_not_created_for_non7x_tpu(
-    mocker, mock_nodepool_dependencies
+    mocker, mock_nodepool_dependencies  # pylint: disable=redefined-outer-name
 ):
   """Tests that placement policy is not created for non-tpu7x TPUs."""
   mock_is_topology_valid, mock_ensure_resource_policy = (

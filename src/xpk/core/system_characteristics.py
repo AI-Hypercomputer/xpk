@@ -50,6 +50,31 @@ AcceleratorTypeToAcceleratorCharacteristics = {
 
 @dataclass
 class SystemCharacteristics:
+  """Contains the defining characteristics of a specific accelerator system.
+
+  This dataclass holds the hardware and configuration details for a given
+  accelerator type, such as its topology, machine type, and chip count. It
+  provides a standardized way to access system-specific information throughout
+  the application.
+
+  Attributes:
+    topology: The physical or logical layout of the accelerator chips (e.g.,
+      '2x2x1' for TPUs, 'N/A' for single-VM GPUs).
+    vms_per_slice: The number of Virtual Machines that constitute a single
+      accelerator slice.
+    gke_accelerator: The name of the accelerator as recognized by GKE (e.g.,
+      'nvidia-l4', 'tpu7x').
+    gce_machine_type: The GCE machine type that hosts the accelerator (e.g.,
+      'g2-standard-12').
+    chips_per_vm: The number of accelerator chips attached to a single VM.
+    accelerator_type: The category of the accelerator (e.g., TPU, GPU, CPU)
+      from the AcceleratorType enum.
+    device_type: A user-facing name for the specific hardware configuration
+      (e.g., 'l4-1', 'h100-80gb-8').
+    requires_placement_policy: A boolean indicating if a GCE resource
+      placement policy is required. This is automatically set to True for GPUs.
+  """
+
   topology: str
   vms_per_slice: int
   gke_accelerator: str

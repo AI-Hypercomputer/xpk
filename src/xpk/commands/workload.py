@@ -484,16 +484,12 @@ def workload_create(args) -> None:
     capacity_type = get_cluster_capacity_type(args)
 
     annotations = (
-        ''
-        if not is_TAS_possible(
-            system_characteristics,
-            capacity_type,
-            flex=True if capacity_type == CapacityType.FLEX_START else False,
-        )
-        else (
+        (
             'kueue.x-k8s.io/podset-preferred-topology:'
             ' "cloud.google.com/gce-topology-host"'
         )
+        if is_TAS_possible(system_characteristics, capacity_type)
+        else ''
     )
 
     if (

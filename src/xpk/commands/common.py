@@ -51,16 +51,8 @@ def set_cluster_command(args) -> int:
 def is_TAS_possible(
     system_characteristics: SystemCharacteristics | None,
     capacity_type: CapacityType | None,
-    flex: bool,
 ) -> bool:
-  """Check cluster's machine_type and capacity type to determine if Kueue TAS is possible
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    True if possible and False otherwise.
-  """
+  """Check cluster's machine_type and capacity type to determine if Kueue TAS is possible"""
 
   if is_dry_run():
     return True
@@ -73,13 +65,10 @@ def is_TAS_possible(
     xpk_print('capacity_type data was not found in configmaps.')
     xpk_exit(1)
 
-  if not flex:
+  if capacity_type != CapacityType.FLEX_START:
     return False
 
-  if (
-      system_characteristics.device_type == H100_MEGA_DEVICE_TYPE
-      and capacity_type != CapacityType.RESERVATION
-  ):
+  if system_characteristics.device_type == H100_MEGA_DEVICE_TYPE:
     return False
 
   return True

@@ -66,6 +66,6 @@ def is_TAS_possible(
     xpk_exit(1)
 
   return (
-      capacity_type == CapacityType.FLEX_START
-      and system_characteristics.device_type != H100_MEGA_DEVICE_TYPE
+      system_characteristics.device_type != H100_MEGA_DEVICE_TYPE
+      or capacity_type == CapacityType.RESERVATION
   )

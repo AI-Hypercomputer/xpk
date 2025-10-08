@@ -134,9 +134,13 @@ func TestWorkloadReconciler(t *testing.T) {
 		UID(baseWorkloadName).
 		AdmissionCheck(buildAdmissionCheckState(kueue.CheckStatePending, ""))
 	baseSlice1Wrapper := utiltesting.MakeSliceWrapper(core.SliceName(baseWorkloadName, "ps1"), corev1.NamespaceDefault).
+		AcceleratorType("tpu-v7x").
+		AcceleratorTopology("4x4x12").
 		ControllerReference(workloadGVK, baseWorkloadName, baseWorkloadName).
 		NodeSelector(map[string][]string{"cloud.google.com/gke-tpu-slice-4x4x4-id": {"subblock1"}})
 	baseSlice2Wrapper := baseSlice1Wrapper.Clone().Name(core.SliceName(baseWorkloadName, "ps2")).
+		AcceleratorType("tpu-v7x").
+		AcceleratorTopology("4x4x12").
 		NodeSelector(map[string][]string{"cloud.google.com/gke-tpu-slice-4x4x4-id": {"subblock2"}})
 
 	worker1Node := utiltesting.MakeNode("worker1").Label("cloud.google.com/gke-tpu-slice-4x4x4-id", "subblock1")

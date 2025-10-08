@@ -228,7 +228,7 @@ def test_placement_policy_created_for_tpu7x_with_valid_topology(
       chips_per_vm=4,
       accelerator_type=AcceleratorType["TPU"],
       device_type="tpu7x-8",
-      requires_placement_policy=True,
+      requires_workload_policy=True,
   )
 
   run_gke_node_pool_create_command(args, system, "1.2.3")

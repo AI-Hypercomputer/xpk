@@ -53,9 +53,6 @@ from ..core.pathways import (
     try_to_delete_pathwaysjob_first,
 )
 from ..core.resources import get_cluster_capacity_type, get_cluster_system_characteristics
-from ..core.capacity import (
-    CapacityType,
-)
 from ..core.resources import CLUSTER_METADATA_CONFIGMAP, get_cluster_configmap
 from ..core.scheduling import (
     check_if_workload_can_schedule,

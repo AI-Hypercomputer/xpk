@@ -55,14 +55,12 @@ kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="Conf
 gcloud compute resource-policies describe golden-cluster-placement-policy --project=golden-project --region=us-central1
 [XPK] To complete NodepoolCreate-golden-cluster-np-0 we are executing gcloud beta container node-pools create golden-cluster-np-0 --region=us-central1 --cluster=golden-cluster --project=golden-project --node-locations=us-central1-a --machine-type=a4x-highgpu-4g --host-maintenance-interval=AS_NEEDED --reservation-affinity=specific --reservation=golden-reservation --placement-policy=golden-cluster-placement-policy --enable-gvnic --num-nodes=2 --accelerator type=nvidia-gb200,count=4,gpu-driver-version=latest --no-enable-autoupgrade --scopes="https://www.googleapis.com/auth/cloud-platform" 
 [XPK] Breaking up a total of 1 commands into 1 batches
-[XPK] Commands to run: ['gcloud beta container node-pools create golden-cluster-np-0 --region=us-central1 --cluster=golden-cluster --project=golden-project --node-locations=us-central1-a --machine-type=a4x-highgpu-4g --host-maintenance-interval=AS_NEEDED --reservation-affinity=specific --reservation=golden-reservation --placement-policy=golden-cluster-placement-policy --enable-gvnic --num-nodes=2 --accelerator type=nvidia-gb200,count=4,gpu-driver-version=latest --no-enable-autoupgrade --scopes="https://www.googleapis.com/auth/cloud-platform" ']
 [XPK] Pretending all the jobs succeeded
 [XPK] Create or delete node pool request complete.
 [XPK] Creating ConfigMap for cluster
 [XPK] Task: `Describe reservation` is implemented by the following command not running since it is a dry run. 
 gcloud beta compute reservations describe golden-reservation --project=golden-project --zone=us-central1-a
 [XPK] Breaking up a total of 2 commands into 1 batches
-[XPK] Commands to run: ['kubectl apply -f 9476f7fa10da99ed4e0797d6d660cda076b5d6dfcd366a9e2560681f82697e99', 'kubectl apply -f 2c0842fa75ba28edfbe2c0e2fe13ce2ba742f99a6a8d133adfbf684ab4e2e3d5']
 [XPK] Pretending all the jobs succeeded
 [XPK] Enabling the jobset API on our cluster, to be deprecated when Jobset is globally available
 [XPK] Try 1: Install Jobset on golden-cluster

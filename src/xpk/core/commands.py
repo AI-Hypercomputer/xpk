@@ -46,7 +46,6 @@ def run_commands(commands, jobname, per_command_name, batch=10):
       f' {len(commands_batched)} batches'
   )
   if is_dry_run():
-    xpk_print(f'Commands to run: {commands}')
     xpk_print('Pretending all the jobs succeeded')
     return 0
 

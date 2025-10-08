@@ -53,12 +53,10 @@ kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="Conf
 gcloud compute resource-policies describe golden-cluster-placement-policy --project=golden-project --region=us-central1
 [XPK] To complete NodepoolCreate-golden-cluster-np-0 we are executing gcloud beta container node-pools create golden-cluster-np-0 --region=us-central1 --cluster=golden-cluster --project=golden-project --node-locations=us-central1-a --machine-type=tpu7x-standard-4t --host-maintenance-interval=AS_NEEDED --spot --placement-policy=golden-cluster-placement-policy --enable-gvnic --node-version=0 --num-nodes=1 --scopes=storage-full,gke-default,"https://www.googleapis.com/auth/cloud-platform" --max-pods-per-node 15 --tpu-topology=2x2x1  
 [XPK] Breaking up a total of 1 commands into 1 batches
-[XPK] Commands to run: ['gcloud beta container node-pools create golden-cluster-np-0 --region=us-central1 --cluster=golden-cluster --project=golden-project --node-locations=us-central1-a --machine-type=tpu7x-standard-4t --host-maintenance-interval=AS_NEEDED --spot --placement-policy=golden-cluster-placement-policy --enable-gvnic --node-version=0 --num-nodes=1 --scopes=storage-full,gke-default,"https://www.googleapis.com/auth/cloud-platform" --max-pods-per-node 15 --tpu-topology=2x2x1  ']
 [XPK] Pretending all the jobs succeeded
 [XPK] Create or delete node pool request complete.
 [XPK] Creating ConfigMap for cluster
 [XPK] Breaking up a total of 2 commands into 1 batches
-[XPK] Commands to run: ['kubectl apply -f 0604d72ef175c94fc796d8f02cff009b4241e85d444d22d414a56a47764d7bbb', 'kubectl apply -f c8573aa6da52a7cd1476567c7b202e466750bd0dfd58de920b83282bc03d3cc9']
 [XPK] Pretending all the jobs succeeded
 [XPK] Enabling the jobset API on our cluster, to be deprecated when Jobset is globally available
 [XPK] Try 1: Install Jobset on golden-cluster

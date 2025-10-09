@@ -1,0 +1,261 @@
+## Cluster Create
+
+First set the project and zone through gcloud config or xpk arguments.
+
+```shell
+PROJECT_ID=my-project-id
+ZONE=us-east5-b
+# gcloud config:
+gcloud config set project $PROJECT_ID
+gcloud config set compute/zone $ZONE
+# xpk arguments
+xpk .. --zone $ZONE --project $PROJECT_ID
+```
+
+The cluster created is a regional cluster to enable the GKE control plane across
+all zones.
+
+*   Cluster Create (provision reserved capacity):
+
+    ```shell
+    # Find your reservations
+    gcloud compute reservations list --project=$PROJECT_ID
+    # Run cluster create with reservation.
+    python3 xpk.py cluster create \
+    --cluster xpk-test --tpu-type=v5litepod-256 \
+    --num-slices=2 \
+    --reservation=$RESERVATION_ID
+    ```
+
+*   Cluster Create (provision on-demand capacity):
+
+    ```shell
+    python3 xpk.py cluster create \
+    --cluster xpk-test --tpu-type=v5litepod-16 \
+    --num-slices=4 --on-demand
+    ```
+
+*   Cluster Create (provision spot / preemptable capacity):
+
+    ```shell
+    python3 xpk.py cluster create \
+    --cluster xpk-test --tpu-type=v5litepod-16 \
+    --num-slices=4 --spot
+    ```
+
+* Cluster Create (DWS flex queued capacity):
+    ```shell
+        python3 xpk.py cluster create \
+        --cluster xpk-test --tpu-type=v5litepod-16 \
+        --num-slices=4 --flex
+    ```
+
+* Cluster Create for Pathways:
+Pathways compatible cluster can be created using `cluster create-pathways`.
+    ```shell
+    python3 xpk.py cluster create-pathways \
+    --cluster xpk-pw-test \
+    --num-slices=4 --on-demand \
+    --tpu-type=v5litepod-16
+    ```
+    Note that Pathways clusters need a CPU nodepool of n2-standard-64 or higher.
+
+*   Cluster Create for Ray:
+    A cluster with KubeRay enabled and a RayCluster can be created using `cluster create-ray`.
+    ```shell
+    python3 xpk.py cluster create-ray \
+    --cluster xpk-rc-test \
+    --ray-version=2.39.0 \
+    --num-slices=4 --on-demand \
+    --tpu-type=v5litepod-8
+    ```
+
+*   Cluster Create can be called again with the same `--cluster name` to modify
+    the number of slices or retry failed steps.
+
+    For example, if a user creates a cluster with 4 slices:
+
+    ```shell
+    python3 xpk.py cluster create \
+    --cluster xpk-test --tpu-type=v5litepod-16 \
+    --num-slices=4  --reservation=$RESERVATION_ID
+    ```
+
+    and recreates the cluster with 8 slices. The command will rerun to create 4
+    new slices:
+
+    ```shell
+    python3 xpk.py cluster create \
+    --cluster xpk-test --tpu-type=v5litepod-16 \
+    --num-slices=8  --reservation=$RESERVATION_ID
+    ```
+
+    and recreates the cluster with 6 slices. The command will rerun to delete 2
+    slices. The command will warn the user when deleting slices.
+    Use `--force` to skip prompts.
+
+    ```shell
+    python3 xpk.py cluster create \
+    --cluster xpk-test --tpu-type=v5litepod-16 \
+    --num-slices=6  --reservation=$RESERVATION_ID
+
+    # Skip delete prompts using --force.
+
+    python3 xpk.py cluster create --force \
+    --cluster xpk-test --tpu-type=v5litepod-16 \
+    --num-slices=6  --reservation=$RESERVATION_ID
+    ```
+
+    and recreates the cluster with 4 slices of v4-8. The command will rerun to delete
+    6 slices of v5litepod-16 and create 4 slices of v4-8. The command will warn the
+    user when deleting slices. Use `--force` to skip prompts.
+
+    ```shell
+    python3 xpk.py cluster create \
+    --cluster xpk-test --tpu-type=v4-8 \
+    --num-slices=4  --reservation=$RESERVATION_ID
+
+    # Skip delete prompts using --force.
+
+    python3 xpk.py cluster create --force \
+    --cluster xpk-test --tpu-type=v4-8 \
+    --num-slices=4  --reservation=$RESERVATION_ID
+    ```
+
+### Create Private Cluster
+
+XPK allows you to create a private GKE cluster for enhanced security. In a private cluster, nodes and pods are isolated from the public internet, providing an additional layer of protection for your workloads.
+
+To create a private cluster, use the following arguments:
+
+**`--private`**
+
+This flag enables the creation of a private GKE cluster. When this flag is set:
+
+*  Nodes and pods are isolated from the direct internet access.
+*  `master_authorized_networks` is automatically enabled.
+*  Access to the cluster's control plane is restricted to your current machine's IP address by default.
+
+**`--authorized-networks`**
+
+This argument allows you to specify additional IP ranges (in CIDR notation) that are authorized to access the private cluster's control plane and perform `kubectl` commands. 
+
+*  Even if this argument is not set when you have `--private`, your current machine's IP address will always be given access to the control plane.
+*  If this argument is used with an existing private cluster, it will replace the existing authorized networks.
+
+**Example Usage:**
+
+* To create a private cluster and allow access to Control Plane only to your current machine:
+
+  ```shell
+  python3 xpk.py cluster create \
+    --cluster=xpk-private-cluster \
+    --tpu-type=v4-8 --num-slices=2 \
+    --private
+  ```
+
+* To create a private cluster and allow access to Control Plane only to your current machine and the IP ranges `1.2.3.0/24` and `1.2.4.5/32`:
+
+  ```shell
+  python3 xpk.py cluster create \
+    --cluster=xpk-private-cluster \
+    --tpu-type=v4-8 --num-slices=2 \
+    --authorized-networks 1.2.3.0/24 1.2.4.5/32
+
+    # --private is optional when you set --authorized-networks
+  ```
+
+> **Important Notes:** 
+> * The argument `--private` is only applicable when creating new clusters. You cannot convert an existing public cluster to a private cluster using these flags.
+> * The argument `--authorized-networks` is applicable when creating new clusters or using an existing _*private*_ cluster. You cannot convert an existing public cluster to a private cluster using these flags.
+> * You need to [set up a Cluster NAT for your VPC network](https://cloud.google.com/nat/docs/set-up-manage-network-address-translation#creating_nat) so that the Nodes and Pods have outbound access to the internet. This is required because XPK installs and configures components such as kueue that need access to external sources like `registry.k8.io`.
+
+
+### Create Vertex AI Tensorboard
+*Note: This feature is available in XPK >= 0.4.0. Enable [Vertex AI API](https://cloud.google.com/vertex-ai/docs/start/cloud-environment#enable_vertexai_apis) in your Google Cloud console to use this feature. Make sure you have
+[Vertex AI Administrator](https://cloud.google.com/vertex-ai/docs/general/access-control#aiplatform.admin) role
+assigned to your user account.*
+
+Vertex AI Tensorboard is a fully managed version of open-source Tensorboard. To learn more about Vertex AI Tensorboard, visit [this](https://cloud.google.com/vertex-ai/docs/experiments/tensorboard-introduction). Note that Vertex AI Tensorboard is only available in [these](https://cloud.google.com/vertex-ai/docs/general/locations#available-regions) regions.
+
+You can create a Vertex AI Tensorboard for your cluster with `Cluster Create` command. XPK will create a single Vertex AI Tensorboard instance per cluster.
+
+* Create Vertex AI Tensorboard in default region with default Tensorboard name:
+
+```shell
+python3 xpk.py cluster create \
+--cluster xpk-test --num-slices=1 --tpu-type=v4-8 \
+--create-vertex-tensorboard
+```
+
+will create a Vertex AI Tensorboard with the name `xpk-test-tb-instance` (*<args.cluster>-tb-instance*) in `us-central1` (*default region*).
+
+* Create Vertex AI Tensorboard in user-specified region with default Tensorboard name:
+
+```shell
+python3 xpk.py cluster create \
+--cluster xpk-test --num-slices=1 --tpu-type=v4-8 \
+--create-vertex-tensorboard --tensorboard-region=us-west1
+```
+
+will create a Vertex AI Tensorboard with the name `xpk-test-tb-instance` (*<args.cluster>-tb-instance*) in `us-west1`.
+
+* Create Vertex AI Tensorboard in default region with user-specified Tensorboard name:
+
+```shell
+python3 xpk.py cluster create \
+--cluster xpk-test --num-slices=1 --tpu-type=v4-8 \
+--create-vertex-tensorboard --tensorboard-name=tb-testing
+```
+
+will create a Vertex AI Tensorboard with the name `tb-testing` in `us-central1`.
+
+* Create Vertex AI Tensorboard in user-specified region with user-specified Tensorboard name:
+
+```shell
+python3 xpk.py cluster create \
+--cluster xpk-test --num-slices=1 --tpu-type=v4-8 \
+--create-vertex-tensorboard --tensorboard-region=us-west1 --tensorboard-name=tb-testing
+```
+
+will create a Vertex AI Tensorboard instance with the name `tb-testing` in `us-west1`.
+
+* Create Vertex AI Tensorboard in an unsupported region:
+
+```shell
+python3 xpk.py cluster create \
+--cluster xpk-test --num-slices=1 --tpu-type=v4-8 \
+--create-vertex-tensorboard --tensorboard-region=us-central2
+```
+
+will fail the cluster creation process because Vertex AI Tensorboard is not supported in `us-central2`.
+
+## Cluster Delete
+*   Cluster Delete (deprovision capacity):
+
+    ```shell
+    python3 xpk.py cluster delete \
+    --cluster xpk-test
+    ```
+## Cluster List
+*   Cluster List (see provisioned capacity):
+
+    ```shell
+    python3 xpk.py cluster list
+    ```
+## Cluster Describe
+*   Cluster Describe (see capacity):
+
+    ```shell
+    python3 xpk.py cluster describe \
+    --cluster xpk-test
+    ```
+
+## Cluster Cacheimage
+*   Cluster Cacheimage (enables faster start times):
+
+    ```shell
+    python3 xpk.py cluster cacheimage \
+    --cluster xpk-test --docker-image gcr.io/your_docker_image \
+    --tpu-type=v5litepod-16
+    ```

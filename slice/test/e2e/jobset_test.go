@@ -221,6 +221,8 @@ var _ = ginkgo.Describe("JobSet", func() {
 						g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
 						g.Expect(createdSlice.Spec.NodeSelector).To(gomega.HaveLen(1))
 						g.Expect(createdSlice.Spec.NodeSelector).To(gomega.BeComparableTo(tc.wantSliceNodeSelector))
+						g.Expect(createdSlice.Spec.AcceleratorTopology).To(gomega.Equal(tc.tpuTopology))
+						g.Expect(createdSlice.Spec.AcceleratorType).To(gomega.Equal("tpu-v7x"))
 					}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 				})
 

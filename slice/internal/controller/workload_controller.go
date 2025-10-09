@@ -516,6 +516,10 @@ func (r *WorkloadReconciler) createSlice(ctx context.Context, wl *kueue.Workload
 	}
 	parseTopologyAssignmentIntoNodeSelector(slice, psa.TopologyAssignment, nodes)
 
+	ps := podset.FindPodSetByName(wl.Spec.PodSets, psa.Name)
+	slice.Spec.AcceleratorType = core.GetTPUAccelerator(ps.Template)
+	slice.Spec.AcceleratorTopology = core.GetTPUTopology(ps.Template)
+
 	if err := r.client.Create(ctx, slice); err != nil {
 		msg := fmt.Sprintf("Error creating Slice %q: %v", client.ObjectKeyFromObject(slice), err)
 		log.Error(err, msg)

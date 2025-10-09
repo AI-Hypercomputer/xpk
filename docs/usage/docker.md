@@ -1,0 +1,56 @@
+# How to add docker images to a xpk workload
+
+The default behavior is `xpk workload create` will layer the local directory (`--script-dir`) into
+the base docker image (`--base-docker-image`) and run the workload command.
+If you don't want this layering behavior, you can directly use `--docker-image`. Do not mix arguments from the two flows in the same command.
+
+## Recommended / Default Docker Flow: `--base-docker-image` and `--script-dir`
+This flow pulls the `--script-dir` into the `--base-docker-image` and runs the new docker image.
+
+* The below arguments are optional by default. xpk will pull the local
+  directory with a generic base docker image.
+
+  - `--base-docker-image` sets the base image that xpk will start with.
+
+  - `--script-dir` sets which directory to pull into the image. This defaults to the current working directory.
+
+  See `python3 xpk.py workload create --help` for more info.
+
+* Example with defaults which pulls the local directory into the base image:
+  ```shell
+  echo -e '#!/bin/bash 
+ echo "Hello world from a test script!"' > test.sh
+python3 xpk.py workload create --cluster xpk-test \
+--workload xpk-test-workload-base-image --command "bash test.sh" \
+--tpu-type=v5litepod-16 --num-slices=1
+  ```
+
+* Recommended Flow For Normal Sized Jobs (fewer than 10k accelerators):
+  ```shell
+  python3 xpk.py workload create --cluster xpk-test \
+--workload xpk-test-workload-base-image --command "bash custom_script.sh" \
+--base-docker-image=gcr.io/your_dependencies_docker_image \
+--tpu-type=v5litepod-16 --num-slices=1
+  ```
+
+## Optional Direct Docker Image Configuration: `--docker-image`
+If a user wants to directly set the docker image used and not layer in the
+current working directory, set `--docker-image` to the image to be use in the
+workload.
+
+* Running with `--docker-image`:
+  ```shell
+  python3 xpk.py workload create --cluster xpk-test \
+--workload xpk-test-workload-base-image --command "bash test.sh" \
+--tpu-type=v5litepod-16 --num-slices=1 --docker-image=gcr.io/your_docker_image
+  ```
+
+* Recommended Flow For Large Sized Jobs (more than 10k accelerators):
+  ```shell
+  python3 xpk.py cluster cacheimage \
+--cluster xpk-test --docker-image gcr.io/your_docker_image
+# Run workload create with the same image.
+python3 xpk.py workload create --cluster xpk-test \
+--workload xpk-test-workload-base-image --command "bash test.sh" \
+--tpu-type=v5litepod-16 --num-slices=1 --docker-image=gcr.io/your_docker_image
+  ```

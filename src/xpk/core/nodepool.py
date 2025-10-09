@@ -268,7 +268,7 @@ def run_gke_node_pool_create_command(
         return 1
 
   placement_args = ''
-  if system.requires_placement_policy and is_topology_valid(system.topology):
+  if system.requires_workload_policy and is_topology_valid(system.topology):
     placement_policy = f'{args.cluster}-placement-policy'
     ensure_resource_policy_exists(placement_policy, args, system.topology)
     placement_args = f' --placement-policy={placement_policy}'
@@ -302,8 +302,13 @@ def run_gke_node_pool_create_command(
       )
 
       if topology_product > 1:
-        command += ' --placement-type=COMPACT  --max-pods-per-node 15'
-        command += f' --tpu-topology={system.topology}'
+        # --placement-type=COMPACT enables group placement policy which
+        # is mutually exclusive with workload policy, --tpu-topology should
+        # also not be passed when workload policy is used
+        if not system.requires_workload_policy:
+          command += ' --placement-type=COMPACT'
+          command += f' --tpu-topology={system.topology}'
+        command += ' --max-pods-per-node 15'
         command += f' {args.custom_tpu_nodepool_arguments}'
     elif system.accelerator_type == AcceleratorType['GPU']:
       subnet_prefix = f'{args.cluster}-{zone_to_region(args.zone)}'

@@ -1,5 +1,5 @@
 <!--
- Copyright 2023 Google LLC
+ Copyright 2025 Google LLC
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -42,6 +42,21 @@ XPK supports the following TPU types:
 * v5p
 * Trillium (v6e)
 * Ironwood (tpu7x)
+XPK supports a variety of hardware accelerators.
+| Accelerator | Type               | Create Cluster                                                                                                | Create Workload                                                                                                 |
+|-------------|--------------------|---------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------|
+| TPU         | v4                 | [docs](./docs/usage/clusters.md)                                                                              | [docs](./docs/usage/workloads.md)                                                                               |
+| TPU         | v5e                | [docs](./docs/usage/clusters.md)                                                                              | [docs](./docs/usage/workloads.md)                                                                               |
+| TPU         | v5p                | [docs](./docs/usage/clusters.md)                                                                              | [docs](./docs/usage/workloads.md)                                                                               |
+| TPU         | Trillium (v6e)     | [docs](./docs/usage/clusters.md)                                                                              | [docs](./docs/usage/workloads.md)                                                                               |
+| TPU         | Ironwood (tpu7x)   | [docs](./docs/usage/clusters.md)                                                                              | [docs](./docs/usage/workloads.md)                                                                               |
+| GPU         | A100               | [docs](./docs/usage/gpu.md)                                                                                   | [docs](./docs/usage/workloads.md)                                                                               |
+| GPU         | A3-Highgpu (h100)  | [docs](./docs/usage/gpu.md)                                                                                   | [docs](./docs/usage/workloads.md)                                                                               |
+| GPU         | A3-Mega (h100-mega)| [docs](./docs/usage/clusters.md#provisioning-a3-ultra-a3-mega-and-a4-clusters-gpu-machines)                   | [docs](./docs/usage/workloads.md#workloads-for-a3-ultra-a3-mega-and-a4-clusters-gpu-machines)                   |
+| GPU         | A3-Ultra (h200)    | [docs](./docs/usage/clusters.md#provisioning-a3-ultra-a3-mega-and-a4-clusters-gpu-machines)                   | [docs](./docs/usage/workloads.md#workloads-for-a3-ultra-a3-mega-and-a4-clusters-gpu-machines)                   |
+| GPU         | A4 (b200)          | [docs](./docs/usage/clusters.md#provisioning-a3-ultra-a3-mega-and-a4-clusters-gpu-machines)                   | [docs](./docs/usage/workloads.md#workloads-for-a3-ultra-a3-mega-and-a4-clusters-gpu-machines)                   |
+| GPU         | A4X (gb200)        | [docs](./docs/usage/gpu.md)                                                                                   | [docs](./docs/usage/workloads.md)                                                                               |
+| CPU         | n2-standard-32     | [docs](./docs/usage/cpu.md)                                                                                   | [docs](./docs/usage/workloads.md)                                                                               |
 
 and the following GPU types:
 * A100
@@ -50,9 +65,16 @@ and the following GPU types:
 * A3-Ultra (h200) - [Create cluster](./docs/usage/clusters.md#provisioning-a3-ultra-a3-mega-and-a4-clusters-gpu-machines), [Create workloads](./docs/usage/workloads.md#workloads-for-a3-ultra-a3-mega-and-a4-clusters-gpu-machines)
 * A4 (b200) - [Create cluster](./docs/usage/clusters.md#provisioning-a3-ultra-a3-mega-and-a4-clusters-gpu-machines), [Create workloads](./docs/usage/workloads.md#workloads-for-a3-ultra-a3-mega-and-a4-clusters-gpu-machines)
 * A4X (gb200)
+XPK also supports the following [Google Cloud Storage solutions](./docs/usage/storage.md):
 
 and the following CPU types:
 * n2-standard-32
+| Storage Type                               | Documentation                                                                            |
+|--------------------------------------------|------------------------------------------------------------------------------------------|
+| Cloud Storage FUSE                         | [docs](./docs/usage/storage.md#fuse)                                                     |
+| Filestore                                  | [docs](./docs/usage/storage.md#filestore)                                                |
+| Parallelstore                              | [docs](./docs/usage/storage.md#parallelstore)                                            |
+| Block storage (Persistent Disk, Hyperdisk) | [docs](./docs/usage/storage.md#block-storage-persistent-disk-hyperdisk)                  |
 
 XPK also supports [Google Cloud Storage solutions](./docs/usage/storage.md):
 * [Cloud Storage FUSE](./docs/usage/storage.md#fuse)

@@ -70,7 +70,7 @@ hardware failures and software updates. We assume your job has implemented
 checkpointing so the job restarts near where it was interrupted.
 
 ### Workloads for A3 Ultra, A3 Mega and A4 clusters (GPU machines)
-To submit jobs on a cluster with A3 or A4 machines, run the command with selected device type. To create a cluster with A3 or A4 machines see [here](#provisioning-a3-ultra-a3-mega-and-a4-clusters-gpu-machines).
+To submit jobs on a cluster with A3 or A4 machines, run the command with selected device type. To create a cluster with A3 or A4 machines see [here](../clusters.md#provisioning-a3-ultra-a3-mega-and-a4-clusters-gpu-machines).
 
 
 Machine | Device type
@@ -89,7 +89,7 @@ python3 xpk.py workload create \
 
 > The docker image flags/arguments introduced in [workloads section](#workload-create) can be used with A3 or A4 machines as well.
 
-In order to run NCCL test on A3 machines check out [this guide](/examples/nccl/nccl.md).
+In order to run NCCL test on A3 machines check out [this guide](../../examples/nccl/nccl.md).
 
 ### Workload Priority and Preemption
 * Set the priority level of your workload with `--priority=LEVEL`

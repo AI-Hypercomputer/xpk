@@ -210,7 +210,7 @@ jobs:
     - name: Run a Pathways workload on Ubuntu base image
       run: python xpk.py workload create-pathways --cluster $TPU_CLUSTER_NAME --workload $WORKLOAD_NAME --docker-image='marketplace.gcr.io/google/ubuntu2004' --tpu-type=v4-8 --num-slices=2 --zone=us-central2-b --command "echo \"Hello world from a test script! \""
     - name: Wait for Pathways workload completion and confirm it succeeded
-      run: python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion $WORKLOAD_NAME --timeout 600
+      run: python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion $WORKLOAD_NAME --timeout 300
     - name: Delete the Pathways workload on the cluster
       run: python3 xpk.py workload delete --workload $WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
     - name: Delete the Pathways cluster created

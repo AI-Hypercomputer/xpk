@@ -19,7 +19,7 @@
 Inspector output is saved to a file.
 
     ```shell
-    python3 xpk.py inspector \
+    xpk inspector \
       --cluster $CLUSTER_NAME \
       --project $PROJECT_ID \
       --zone $ZONE

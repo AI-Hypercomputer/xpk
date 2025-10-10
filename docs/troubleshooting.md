@@ -29,7 +29,7 @@ Please select a CPU type that exists in all zones in the region.
 # Find CPU Types supported in zones.
 gcloud compute machine-types list --zones=$ZONE_LIST
 # Adjust default cpu machine type.
-python3 xpk.py cluster create --default-pool-cpu-machine-type=CPU_TYPE ...
+xpk cluster create --default-pool-cpu-machine-type=CPU_TYPE ...
 ```
 
 ## Workload creation fails
@@ -110,7 +110,7 @@ If error of this kind appeared after updating xpk version it's possible that you
 ## Verbose Logging
 If you are having trouble with your workload, try setting the `--enable-debug-logs` when you schedule it. This will give you more detailed logs to help pinpoint the issue. For example:
 ```shell
-python3 xpk.py workload create \
+xpk workload create \
 --cluster --workload xpk-test-workload \
 --command="echo hello world" --enable-debug-logs
 ```
@@ -142,7 +142,7 @@ This configuration will start collecting stack traces inside the `/tmp/debugging
 ### Explore Stack Traces
 To explore the stack traces collected in a temporary directory in Kubernetes Pod, you can run the following command to configure a sidecar container that will read the traces from `/tmp/debugging` directory.
  ```shell
-python3 xpk.py workload create \
+xpk workload create \
   --workload xpk-test-workload --command "python3 main.py" --cluster \
   xpk-test --tpu-type=v5litepod-16 --deploy-stacktrace-sidecar
  ```
@@ -153,12 +153,12 @@ To list available resources and queues use ```xpk info``` command. It allows to 
 
 To see queues with usage and workload info use:
 ```shell
-python3 xpk.py info --cluster my-cluster
+xpk info --cluster my-cluster
 ```
 
 You can specify what kind of resources(clusterqueue or localqueue) you want to see using flags --clusterqueue or --localqueue.
 ```shell
-python3 xpk.py info --cluster my-cluster --localqueue
+xpk info --cluster my-cluster --localqueue
 ```
 
 ```

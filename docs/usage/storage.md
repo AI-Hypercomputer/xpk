@@ -30,7 +30,7 @@ To use the GCS FUSE with XPK you need to create a [Storage Bucket](https://conso
 Once it's ready you can use `xpk storage attach` with `--type=gcsfuse` command to attach a FUSE storage instance to your cluster:
 
 ```shell
-python3 xpk.py storage attach test-fuse-storage --type=gcsfuse \
+xpk storage attach test-fuse-storage --type=gcsfuse \
   --project=$PROJECT --cluster=$CLUSTER --zone=$ZONE 
   --mount-point='/test-mount-point' --readonly=false \
   --bucket=test-bucket --size=1 --auto-mount=false
@@ -55,7 +55,7 @@ A Filestore adapter lets you mount and access [Filestore instances](https://clou
 To create and attach a GCP Filestore instance to your cluster use `xpk storage create` command with `--type=gcpfilestore`:
 
 ```shell
-python3 xpk.py storage create test-fs-storage --type=gcpfilestore \
+xpk storage create test-fs-storage --type=gcpfilestore \
   --auto-mount=false --mount-point=/data-fs --readonly=false \
   --size=1024 --tier=BASIC_HDD --access_mode=ReadWriteMany --vol=default \
   --project=$PROJECT --cluster=$CLUSTER --zone=$ZONE
@@ -64,7 +64,7 @@ python3 xpk.py storage create test-fs-storage --type=gcpfilestore \
 You can also attach an existing Filestore instance to your cluster using `xpk storage attach` command:
 
 ```shell
-python3 xpk.py storage attach test-fs-storage --type=gcpfilestore \
+xpk storage attach test-fs-storage --type=gcpfilestore \
   --auto-mount=false --mount-point=/data-fs --readonly=false \
   --size=1024 --tier=BASIC_HDD --access_mode=ReadWriteMany --vol=default \
   --project=$PROJECT --cluster=$CLUSTER --zone=$ZONE
@@ -93,7 +93,7 @@ To use the GCS Parallelstore with XPK you need to create a [Parallelstore Instan
 Once it's ready you can use `xpk storage attach` with `--type=parallelstore` command to attach a Parallelstore instance to your cluster. Currently, attaching a Parallelstore is supported only by providing a manifest file.
 
 ```shell
-python3 xpk.py storage attach test-parallelstore-storage --type=parallelstore \
+xpk storage attach test-parallelstore-storage --type=parallelstore \
   --project=$PROJECT --cluster=$CLUSTER --zone=$ZONE \
   --mount-point='/test-mount-point' --readonly=false \
   --auto-mount=true \
@@ -117,7 +117,7 @@ To use the GCE PersistentDisk with XPK you need to create a [disk in GCE](https:
 Once it's ready you can use `xpk storage attach` with `--type=pd` command to attach a PersistentDisk instance to your cluster. Currently, attaching a PersistentDisk is supported only by providing a manifest file.
 
 ```shell
-python3 xpk.py storage attach test-pd-storage --type=pd \
+xpk storage attach test-pd-storage --type=pd \
   --project=$PROJECT --cluster=$CLUSTER --zone=$ZONE \
   --mount-point='/test-mount-point' --readonly=false \
   --auto-mount=true \
@@ -141,7 +141,7 @@ To use the GCP Managed Lustre with XPK you need to create [an instance](https://
 Once it's ready you can use `xpk storage attach` with `--type=lustre` command to attach a Managed Lustre instance to your cluster. Currently, attaching a Managed Lustre instance is supported only by providing a manifest file.
 
 ```shell
-python3 xpk.py storage attach test-lustre-storage --type=lustre \
+xpk storage attach test-lustre-storage --type=lustre \
   --project=$PROJECT --cluster=$CLUSTER --zone=$ZONE \
   --mount-point='/test-mount-point' --readonly=false \
   --auto-mount=true \
@@ -159,7 +159,7 @@ Parameters:
 ### List attached storages
 
 ```shell
-python3 xpk.py storage list \
+xpk storage list \
   --project=$PROJECT --cluster $CLUSTER --zone=$ZONE
 ```
 
@@ -168,7 +168,7 @@ python3 xpk.py storage list \
 If you specified `--auto-mount=true` when creating or attaching a storage, then all workloads deployed on the cluster will have the volume attached by default. Otherwise, in order to have the storage attached, you have to add `--storage` parameter to `workload create` command:
 
 ```shell
-python3 xpk.py workload create \
+xpk workload create \
   --workload xpk-test-workload --command "echo goodbye" \
   --project=$PROJECT --cluster=$CLUSTER --zone=$ZONE \
   --tpu-type=v5litepod-16 --storage=test-storage
@@ -177,7 +177,7 @@ python3 xpk.py workload create \
 ### Detaching storage
 
 ```shell
-python3 xpk.py storage detach $STORAGE_NAME \
+xpk storage detach $STORAGE_NAME \
   --project=$PROJECT --cluster=$CLUSTER --zone=$ZONE
 ```
 
@@ -186,6 +186,6 @@ python3 xpk.py storage detach $STORAGE_NAME \
 XPK allows you to remove Filestore instances easily with `xpk storage delete` command. **Warning:** this deletes all data contained in the Filestore!
 
 ```shell
-python3 xpk.py storage delete test-fs-instance \
+xpk storage delete test-fs-instance \
   --project=$PROJECT --cluster=$CLUSTER --zone=$ZONE
 ```

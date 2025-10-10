@@ -37,7 +37,7 @@ all zones.
     # Find your reservations
     gcloud compute reservations list --project=$PROJECT_ID
     # Run cluster create with reservation.
-    python3 xpk.py cluster create \
+    xpk cluster create \
     --cluster xpk-test --tpu-type=v5litepod-256 \
     --num-slices=2 \
     --reservation=$RESERVATION_ID
@@ -46,7 +46,7 @@ all zones.
 *   Cluster Create (provision on-demand capacity):
 
     ```shell
-    python3 xpk.py cluster create \
+    xpk cluster create \
     --cluster xpk-test --tpu-type=v5litepod-16 \
     --num-slices=4 --on-demand
     ```
@@ -54,14 +54,14 @@ all zones.
 *   Cluster Create (provision spot / preemptable capacity):
 
     ```shell
-    python3 xpk.py cluster create \
+    xpk cluster create \
     --cluster xpk-test --tpu-type=v5litepod-16 \
     --num-slices=4 --spot
     ```
 
 * Cluster Create (DWS flex queued capacity):
     ```shell
-        python3 xpk.py cluster create \
+        xpk cluster create \
         --cluster xpk-test --tpu-type=v5litepod-16 \
         --num-slices=4 --flex
     ```
@@ -69,7 +69,7 @@ all zones.
 * Cluster Create for Pathways:
 Pathways compatible cluster can be created using `cluster create-pathways`.
     ```shell
-    python3 xpk.py cluster create-pathways \
+    xpk cluster create-pathways \
     --cluster xpk-pw-test \
     --num-slices=4 --on-demand \
     --tpu-type=v5litepod-16
@@ -79,7 +79,7 @@ Pathways compatible cluster can be created using `cluster create-pathways`.
 *   Cluster Create for Ray:
     A cluster with KubeRay enabled and a RayCluster can be created using `cluster create-ray`.
     ```shell
-    python3 xpk.py cluster create-ray \
+    xpk cluster create-ray \
     --cluster xpk-rc-test \
     --ray-version=2.39.0 \
     --num-slices=4 --on-demand \
@@ -92,7 +92,7 @@ Pathways compatible cluster can be created using `cluster create-pathways`.
     For example, if a user creates a cluster with 4 slices:
 
     ```shell
-    python3 xpk.py cluster create \
+    xpk cluster create \
     --cluster xpk-test --tpu-type=v5litepod-16 \
     --num-slices=4  --reservation=$RESERVATION_ID
     ```
@@ -101,7 +101,7 @@ Pathways compatible cluster can be created using `cluster create-pathways`.
     new slices:
 
     ```shell
-    python3 xpk.py cluster create \
+    xpk cluster create \
     --cluster xpk-test --tpu-type=v5litepod-16 \
     --num-slices=8  --reservation=$RESERVATION_ID
     ```
@@ -111,13 +111,13 @@ Pathways compatible cluster can be created using `cluster create-pathways`.
     Use `--force` to skip prompts.
 
     ```shell
-    python3 xpk.py cluster create \
+    xpk cluster create \
     --cluster xpk-test --tpu-type=v5litepod-16 \
     --num-slices=6  --reservation=$RESERVATION_ID
 
     # Skip delete prompts using --force.
 
-    python3 xpk.py cluster create --force \
+    xpk cluster create --force \
     --cluster xpk-test --tpu-type=v5litepod-16 \
     --num-slices=6  --reservation=$RESERVATION_ID
     ```
@@ -127,13 +127,13 @@ Pathways compatible cluster can be created using `cluster create-pathways`.
     user when deleting slices. Use `--force` to skip prompts.
 
     ```shell
-    python3 xpk.py cluster create \
+    xpk cluster create \
     --cluster xpk-test --tpu-type=v4-8 \
     --num-slices=4  --reservation=$RESERVATION_ID
 
     # Skip delete prompts using --force.
 
-    python3 xpk.py cluster create --force \
+    xpk cluster create --force \
     --cluster xpk-test --tpu-type=v4-8 \
     --num-slices=4  --reservation=$RESERVATION_ID
     ```
@@ -164,7 +164,7 @@ This argument allows you to specify additional IP ranges (in CIDR notation) that
 * To create a private cluster and allow access to Control Plane only to your current machine:
 
   ```shell
-  python3 xpk.py cluster create \
+  xpk cluster create \
     --cluster=xpk-private-cluster \
     --tpu-type=v4-8 --num-slices=2 \
     --private
@@ -173,7 +173,7 @@ This argument allows you to specify additional IP ranges (in CIDR notation) that
 * To create a private cluster and allow access to Control Plane only to your current machine and the IP ranges `1.2.3.0/24` and `1.2.4.5/32`:
 
   ```shell
-  python3 xpk.py cluster create \
+  xpk cluster create \
     --cluster=xpk-private-cluster \
     --tpu-type=v4-8 --num-slices=2 \
     --authorized-networks 1.2.3.0/24 1.2.4.5/32
@@ -199,7 +199,7 @@ You can create a Vertex AI Tensorboard for your cluster with `Cluster Create` co
 * Create Vertex AI Tensorboard in default region with default Tensorboard name:
 
 ```shell
-python3 xpk.py cluster create \
+xpk cluster create \
 --cluster xpk-test --num-slices=1 --tpu-type=v4-8 \
 --create-vertex-tensorboard
 ```
@@ -209,7 +209,7 @@ will create a Vertex AI Tensorboard with the name `xpk-test-tb-instance` (*<args
 * Create Vertex AI Tensorboard in user-specified region with default Tensorboard name:
 
 ```shell
-python3 xpk.py cluster create \
+xpk cluster create \
 --cluster xpk-test --num-slices=1 --tpu-type=v4-8 \
 --create-vertex-tensorboard --tensorboard-region=us-west1
 ```
@@ -219,7 +219,7 @@ will create a Vertex AI Tensorboard with the name `xpk-test-tb-instance` (*<args
 * Create Vertex AI Tensorboard in default region with user-specified Tensorboard name:
 
 ```shell
-python3 xpk.py cluster create \
+xpk cluster create \
 --cluster xpk-test --num-slices=1 --tpu-type=v4-8 \
 --create-vertex-tensorboard --tensorboard-name=tb-testing
 ```
@@ -229,7 +229,7 @@ will create a Vertex AI Tensorboard with the name `tb-testing` in `us-central1`.
 * Create Vertex AI Tensorboard in user-specified region with user-specified Tensorboard name:
 
 ```shell
-python3 xpk.py cluster create \
+xpk cluster create \
 --cluster xpk-test --num-slices=1 --tpu-type=v4-8 \
 --create-vertex-tensorboard --tensorboard-region=us-west1 --tensorboard-name=tb-testing
 ```
@@ -239,7 +239,7 @@ will create a Vertex AI Tensorboard instance with the name `tb-testing` in `us-w
 * Create Vertex AI Tensorboard in an unsupported region:
 
 ```shell
-python3 xpk.py cluster create \
+xpk cluster create \
 --cluster xpk-test --num-slices=1 --tpu-type=v4-8 \
 --create-vertex-tensorboard --tensorboard-region=us-central2
 ```
@@ -250,20 +250,20 @@ will fail the cluster creation process because Vertex AI Tensorboard is not supp
 *   Cluster Delete (deprovision capacity):
 
     ```shell
-    python3 xpk.py cluster delete \
+    xpk cluster delete \
     --cluster xpk-test
     ```
 ## Cluster List
 *   Cluster List (see provisioned capacity):
 
     ```shell
-    python3 xpk.py cluster list
+    xpk cluster list
     ```
 ## Cluster Describe
 *   Cluster Describe (see capacity):
 
     ```shell
-    python3 xpk.py cluster describe \
+    xpk cluster describe \
     --cluster xpk-test
     ```
 
@@ -271,7 +271,7 @@ will fail the cluster creation process because Vertex AI Tensorboard is not supp
 *   Cluster Cacheimage (enables faster start times):
 
     ```shell
-    python3 xpk.py cluster cacheimage \
+    xpk cluster cacheimage \
     --cluster xpk-test --docker-image gcr.io/your_docker_image \
     --tpu-type=v5litepod-16
     ```
@@ -289,7 +289,7 @@ A4 | `b200-8`
 
 
 ```shell
-python3 xpk.py cluster create \
+xpk cluster create \
   --cluster CLUSTER_NAME --device-type DEVICE_TYPE \
   --zone=$COMPUTE_ZONE  --project=$PROJECT_ID \
   --num-nodes=$NUM_NODES --reservation=$RESERVATION_ID
@@ -314,7 +314,7 @@ Currently `xpk cluster adapt` supports only the following device types:
 
 Example usage: 
 ```shell
-python3 xpk.py cluster adapt \
+xpk cluster adapt \
   --cluster=$CLUSTER_NAME --device-type=$DEVICE_TYPE \
   --zone=$COMPUTE_ZONE  --project=$PROJECT_ID \
   --num-nodes=$NUM_NODES --reservation=$RESERVATION_ID

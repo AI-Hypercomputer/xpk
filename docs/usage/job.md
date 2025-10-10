@@ -19,7 +19,7 @@
 *   Job List (see jobs submitted via batch command):
 
     ```shell
-    python3 xpk.py job ls --cluster xpk-test
+    xpk job ls --cluster xpk-test
     ```
 
 * Example Job List Output:
@@ -37,5 +37,5 @@
 *   Job Cancel (delete job submitted via batch command):
 
     ```shell
-    python3 xpk.py job cancel xpk-def-app-profile-slurm-74kbv --cluster xpk-test
+    xpk job cancel xpk-def-app-profile-slurm-74kbv --cluster xpk-test
     ```

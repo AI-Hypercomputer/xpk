@@ -30,7 +30,7 @@ xpk interfaces seamlessly with kind to manage Kubernetes clusters locally, facil
 *   Cluster create:
 
     ```shell
-    python3 xpk.py kind create \
+    xpk kind create \
     --cluster xpk-test
     ```
 
@@ -38,7 +38,7 @@ xpk interfaces seamlessly with kind to manage Kubernetes clusters locally, facil
 *   Cluster Delete:
 
     ```shell
-    python3 xpk.py kind delete \
+    xpk kind delete \
     --cluster xpk-test
     ```
 
@@ -46,7 +46,7 @@ xpk interfaces seamlessly with kind to manage Kubernetes clusters locally, facil
 *   Cluster List:
 
     ```shell
-    python3 xpk.py kind list
+    xpk kind list
     ```
 
 ## Local Testing Basics

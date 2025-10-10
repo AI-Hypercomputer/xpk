@@ -46,9 +46,9 @@ XPK supports the following TPU types:
 and the following GPU types:
 * A100
 * A3-Highgpu (h100)
-* A3-Mega (h100-mega) - [Create cluster](./docs/usage/clusters.md), [Create workloads](./docs/usage/workloads.md#workloads-for-a3-ultra-a3-mega-and-a4-clusters-gpu-machines)
-* A3-Ultra (h200) - [Create cluster](./docs/usage/clusters.md), [Create workloads](./docs/usage/workloads.md#workloads-for-a3-ultra-a3-mega-and-a4-clusters-gpu-machines)
-* A4 (b200) - [Create cluster](./docs/usage/clusters.md), [Create workloads](./docs/usage/workloads.md#workloads-for-a3-ultra-a3-mega-and-a4-clusters-gpu-machines)
+* A3-Mega (h100-mega) - [Create cluster](./docs/usage/clusters.md#provisioning-a3-ultra-a3-mega-and-a4-clusters-gpu-machines), [Create workloads](./docs/usage/workloads.md#workloads-for-a3-ultra-a3-mega-and-a4-clusters-gpu-machines)
+* A3-Ultra (h200) - [Create cluster](./docs/usage/clusters.md#provisioning-a3-ultra-a3-mega-and-a4-clusters-gpu-machines), [Create workloads](./docs/usage/workloads.md#workloads-for-a3-ultra-a3-mega-and-a4-clusters-gpu-machines)
+* A4 (b200) - [Create cluster](./docs/usage/clusters.md#provisioning-a3-ultra-a3-mega-and-a4-clusters-gpu-machines), [Create workloads](./docs/usage/workloads.md#workloads-for-a3-ultra-a3-mega-and-a4-clusters-gpu-machines)
 * A4X (gb200)
 
 and the following CPU types:

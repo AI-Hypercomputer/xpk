@@ -58,7 +58,7 @@ jobs:
         gcloud config get compute/zone
     - name: Install xpk dependencies
       run: |
-        make install 
+        make install
         echo $PWD/bin >> "$GITHUB_PATH"
     - name: Check xpk installation
       run: xpk --help
@@ -151,6 +151,24 @@ jobs:
     - name: Delete the cluster created
       if: always()
       run: python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --force
+    - name: Upload cluster nodepool creation log
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: cluster-nodepool-log-${{github.run_id}}
+        path: /tmp/NodepoolCreate-$TPU_CLUSTER_NAME-np-*
+    - name: Upload empty cluster nodepool creation log
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: empty-cluster-nodepool-log-${{github.run_id}}
+        path: /tmp/NodepoolCreate-$EMPTY_CLUSTER_NAME-np-*
+    - name: Upload private cluster nodepool creation log
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: empty-private-cluster-nodepool-log-${{github.run_id}}
+        path: /tmp/NodepoolCreate-$PRIVATE_CLUSTER_NAME-np-*
 
   pw-cluster-and-workload:
     runs-on: [ubuntu-22.04]
@@ -195,6 +213,12 @@ jobs:
     - name: Delete the Pathways cluster created
       if: always()
       run: python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --force
+    - name: Upload nodepool creation log
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: pw-nodepool-log-${{github.run_id}}
+        path: /tmp/NodepoolCreate-$TPU_CLUSTER_NAME-np-*
 
   rc-cluster:
     runs-on: [ubuntu-22.04]
@@ -230,6 +254,12 @@ jobs:
     - name: Delete the RayCluster-enabled XPK cluster
       if: always()
       run: python xpk.py cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+    - name: Upload nodepool creation log
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: rc-nodepool-log-${{github.run_id}}
+        path: /tmp/NodepoolCreate-$TPU_CLUSTER_NAME-np-*
 
   set-variables:
     runs-on: [ubuntu-22.04]
@@ -262,18 +292,18 @@ jobs:
     - name: set cluster-name
       id: set-cluster-name
       run: |
-        echo cluster-name=build-xpk-2-nodepools-${{steps.set-run-id.outputs.run-id}} >> $GITHUB_OUTPUT
+        echo cluster-name=xpk-${{steps.set-run-id.outputs.run-id}} >> $GITHUB_OUTPUT
     - name: set cluster-name-dws
       id: set-cluster-name-dws
       run: |
-        echo cluster-name-dws=build-xpk-2-nodepools-dws-${{steps.set-run-id.outputs.run-id}} >> $GITHUB_OUTPUT
+        echo cluster-name-dws=xpk-dws-${{steps.set-run-id.outputs.run-id}} >> $GITHUB_OUTPUT
     - name: set group-name
       id: set-group-name
-      run: |    
+      run: |
         echo group-name=xpk-${{steps.set-run-id.outputs.run-id}} >> $GITHUB_OUTPUT
     - name: set zone
       id: set-zone
-      run: |    
+      run: |
         echo zone=us-central2-b >> $GITHUB_OUTPUT
     - name: set tpu-type
       id: set-tpu-type
@@ -285,7 +315,7 @@ jobs:
         echo tpu-type-topology=v4-2x2x1 >> $GITHUB_OUTPUT
     - name: set location
       id: set-location
-      run: |    
+      run: |
         echo location=us-central2 >> $GITHUB_OUTPUT
   install-dependencies:
     needs: [set-variables]

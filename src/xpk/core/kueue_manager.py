@@ -332,7 +332,7 @@ class KueueManager:
   def __apply_manifest(self, manifest: str) -> int:
     task = "Applying Kueue Custom Resources"
     if is_dry_run():
-      xpk_print(f"Applying following Kueue resources:\n{manifest}")
+      xpk_print(f"Applying following Kueue resources:{manifest}")
     tmp_file = write_tmp_file(manifest)
     command = f"kubectl apply -f {tmp_file}"
     return run_command_with_updates(command, task)

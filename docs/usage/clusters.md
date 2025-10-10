@@ -259,3 +259,47 @@ will fail the cluster creation process because Vertex AI Tensorboard is not supp
     --cluster xpk-test --docker-image gcr.io/your_docker_image \
     --tpu-type=v5litepod-16
     ```
+
+## Provisioning A3 Ultra, A3 Mega and A4 clusters (GPU machines)
+To create a cluster with A3 or A4 machines, run the command below with selected device type. To create workloads on these clusters see [here](#workloads-for-a3-ultra-a3-mega-and-a4-clusters-gpu-machines).
+
+**Note:** Creating A3 Ultra, A3 Mega and A4 clusters is currently supported **only** on linux/amd64 architecture.
+
+Machine | Device type
+:- | :-
+A3 Mega | `h100-mega-80gb-8`
+A3 Ultra | `h200-141gb-8`
+A4 | `b200-8`
+
+
+```shell
+python3 xpk.py cluster create \
+  --cluster CLUSTER_NAME --device-type DEVICE_TYPE \
+  --zone=$COMPUTE_ZONE  --project=$PROJECT_ID \
+  --num-nodes=$NUM_NODES --reservation=$RESERVATION_ID
+```
+
+Currently, the below flags/arguments are supported for A3 Mega, A3 Ultra and A4 machines:
+  * `--num-nodes`
+  * `--default-pool-cpu-machine-type`
+  * `--default-pool-cpu-num-nodes`
+  * `--reservation`
+  * `--spot`
+  * `--on-demand` (A3 Mega only)
+  * `--flex`
+
+## Running XPK on existing clusters
+
+In order to run XPK commands on a cluster it needs to be set up correctly. This is done automatically when creating a cluster using `xpk cluster create`. For clusters created differently (e.g.: with 'gcloud' or a Cluster Toolkit blueprint) there is a dedicated command: `xpk cluster adapt`. This command installs required config maps, kueue, jobset, CSI drivers etc.
+
+Currently `xpk cluster adapt` supports only the following device types:
+
+- `h200-141gb-8` (A3 Ultra)
+
+Example usage: 
+```shell
+python3 xpk.py cluster adapt \
+  --cluster=$CLUSTER_NAME --device-type=$DEVICE_TYPE \
+  --zone=$COMPUTE_ZONE  --project=$PROJECT_ID \
+  --num-nodes=$NUM_NODES --reservation=$RESERVATION_ID
+```

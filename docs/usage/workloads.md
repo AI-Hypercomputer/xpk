@@ -70,7 +70,7 @@ hardware failures and software updates. We assume your job has implemented
 checkpointing so the job restarts near where it was interrupted.
 
 ### Workloads for A3 Ultra, A3 Mega and A4 clusters (GPU machines)
-To submit jobs on a cluster with A3 or A4 machines, run the command with selected device type. To create a cluster with A3 or A4 machines see [here](../clusters.md#provisioning-a3-ultra-a3-mega-and-a4-clusters-gpu-machines).
+To submit jobs on a cluster with A3 or A4 machines, run the command with selected device type. To create a cluster with A3 or A4 machines see [here](./clusters.md#provisioning-a3-ultra-a3-mega-and-a4-clusters-gpu-machines).
 
 
 Machine | Device type

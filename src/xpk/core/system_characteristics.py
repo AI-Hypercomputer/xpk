@@ -71,8 +71,8 @@ class SystemCharacteristics:
       from the AcceleratorType enum.
     device_type: A user-facing name for the specific hardware configuration
       (e.g., 'l4-1', 'h100-80gb-8').
-    requires_placement_policy: A boolean indicating if a GCE resource
-      placement policy is required. This is automatically set to True for GPUs.
+    requires_workload_policy: A boolean indicating if a GCE resource
+      workload policy is required. This is automatically set to True for GPUs.
   """
 
   topology: str
@@ -82,11 +82,11 @@ class SystemCharacteristics:
   chips_per_vm: int
   accelerator_type: int  # TODO: use enums
   device_type: str
-  requires_placement_policy: bool = False
+  requires_workload_policy: bool = False
 
   def __post_init__(self):
     if self.accelerator_type == AcceleratorType['GPU']:
-      self.requires_placement_policy = True
+      self.requires_workload_policy = True
 
 
 def get_system_characteristics(
@@ -129,7 +129,7 @@ def get_tpu_system_characteristics_map(
     gke_accelerator: str,
     machine_type: str,
     supported_topologies: list[str],
-    requires_placement_policy: bool = False,
+    requires_workload_policy: bool = False,
 ) -> dict[str, SystemCharacteristics]:
   system_characteristics_map = {}
   for topology in supported_topologies:
@@ -145,7 +145,7 @@ def get_tpu_system_characteristics_map(
         chips_per_vm=chips_per_vm,
         accelerator_type=AcceleratorType['TPU'],
         device_type=f'{prefix}-{num_tensorcores}',
-        requires_placement_policy=requires_placement_policy,
+        requires_workload_policy=requires_workload_policy,
     )
     system_characteristics_map[f'{prefix}-{topology}'] = system
     system_characteristics_map[f'{prefix}-{num_tensorcores}'] = system
@@ -298,7 +298,7 @@ UserFacingNameToSystemCharacteristics = {
         gke_accelerator='tpu7x',
         machine_type='tpu7x-standard-1t',
         supported_topologies=['1x1x1'],
-        requires_placement_policy=True,
+        requires_workload_policy=True,
     ),
     **get_tpu_system_characteristics_map(
         prefix='tpu7x',
@@ -405,7 +405,7 @@ UserFacingNameToSystemCharacteristics = {
             '8x8x8',
             '8x8x92',
         ],
-        requires_placement_policy=True,
+        requires_workload_policy=True,
     ),
     **get_tpu_system_characteristics_map(
         prefix='v6e',

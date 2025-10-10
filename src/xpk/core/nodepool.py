@@ -545,51 +545,6 @@ def get_gke_node_pool_version(
   return 0, node_pool_gke_version
 
 
-def upgrade_gke_nodepools_version(args, default_rapid_gke_version) -> int:
-  """Upgrade nodepools in the cluster to default rapid gke version. Recreates the nodes.
-
-  Args:
-    args: user provided arguments for running the command.
-    default_rapid_gke_version: Rapid default version for the upgrade.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  existing_node_pool_names, return_code = get_all_nodepools_programmatic(args)
-  if return_code != 0:
-    xpk_print('Listing all node pools failed!')
-    return return_code
-
-  # Batch execution to upgrade node pools simultaneously
-  commands = []
-  task_names = []
-  for node_pool_name in existing_node_pool_names:
-    commands.append(
-        'gcloud container clusters upgrade'
-        f' {args.cluster} --project={args.project}'
-        f' --region={zone_to_region(args.zone)}'
-        f' --cluster-version={default_rapid_gke_version}'
-        f' --node-pool={node_pool_name}'
-        ' --quiet'
-    )
-    task_names.append(f'Upgrading node pool {node_pool_name}.')
-
-  for i, command in enumerate(commands):
-    xpk_print(f'To complete {task_names[i]} we are executing {command}')
-  max_return_code = run_commands(
-      commands,
-      'Update GKE node pools to default RAPID GKE version',
-      task_names,
-  )
-  if max_return_code != 0:
-    xpk_print(
-        'GKE node pools update to default RAPID GKE version returned ERROR:'
-        f' {max_return_code}'
-    )
-    return int(max_return_code)
-  return 0
-
-
 def get_nodepool_workload_metadata_mode(
     args, nodepool_name
 ) -> tuple[int, str | None]:

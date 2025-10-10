@@ -30,10 +30,8 @@ from .commands import (
 )
 from .gcloud_context import (
     add_zone_and_project,
-    get_gke_server_config,
     zone_to_region,
 )
-from .nodepool import upgrade_gke_nodepools_version
 from .resources import get_cluster_system_characteristics
 from .system_characteristics import SystemCharacteristics
 
@@ -565,34 +563,6 @@ def create_role_binding(sa: str, role_name: str) -> None:
       xpk_exit(1)
 
 
-def update_gke_cluster_with_clouddns(args) -> int:
-  """Run the GKE cluster update command for existing clusters and enable CloudDNS.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  command = (
-      'gcloud container clusters update'
-      f' {args.cluster} --project={args.project}'
-      f' --region={zone_to_region(args.zone)}'
-      ' --cluster-dns=clouddns'
-      ' --cluster-dns-scope=vpc'
-      f' --cluster-dns-domain={args.cluster}-domain'
-      ' --quiet'
-  )
-  xpk_print('Updating GKE cluster to use Cloud DNS, may take a while!')
-  return_code = run_command_with_updates(
-      command, 'GKE Cluster Update to enable Cloud DNS'
-  )
-  if return_code != 0:
-    xpk_print(f'GKE Cluster Update request returned ERROR {return_code}')
-    return 1
-  return 0
-
-
 def update_gke_cluster_with_workload_identity_enabled(args) -> int:
   """Run the GKE cluster update command for existing cluster and enable Workload Identity Federation.
   Args:
@@ -672,61 +642,6 @@ def update_gke_cluster_with_lustre_driver_enabled(args) -> int:
   return 0
 
 
-def upgrade_gke_control_plane_version(args, default_rapid_gke_version) -> int:
-  """Upgrade GKE cluster's control plane version before updating nodepools to use CloudDNS.
-
-  Args:
-    args: user provided arguments for running the command.
-    default_rapid_gke_version: Rapid default version for the upgrade.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  command = (
-      'gcloud container clusters upgrade'
-      f' {args.cluster} --project={args.project}'
-      f' --region={zone_to_region(args.zone)}'
-      f' --cluster-version={default_rapid_gke_version}'
-      ' --master'
-      ' --quiet'
-  )
-  xpk_print("Updating GKE cluster's control plane version, may take a while!")
-  return_code = run_command_with_updates(
-      command,
-      'GKE Cluster control plane version update to enable Cloud DNS',
-  )
-  if return_code != 0:
-    xpk_print(
-        "GKE cluster's control plane version update request returned"
-        f' ERROR {return_code}'
-    )
-    return 1
-  return 0
-
-
-def is_cluster_using_clouddns(args) -> bool:
-  """Checks if cluster is using CloudDNS.
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    True if cluster is using CloudDNS and False otherwise.
-  """
-  command = (
-      f'gcloud container clusters describe {args.cluster}'
-      f' --project={args.project} --region={zone_to_region(args.zone)}'
-      ' 2> /dev/null | grep "clusterDns: CLOUD_DNS"'
-  )
-  return_code, _ = run_command_for_value(
-      command,
-      'Check if Cloud DNS is enabled in cluster describe.',
-  )
-  if return_code == 0:
-    xpk_print('Cloud DNS is enabled on the cluster, no update needed.')
-    return True
-  return False
-
-
 def is_workload_identity_enabled_on_cluster(args) -> bool:
   """Checks if Workload Identity Federation is enabled on the cluster.
   Args:
@@ -776,53 +691,6 @@ def is_gcsfuse_driver_enabled_on_cluster(args) -> bool:
     xpk_print('GCSFuse CSI driver is enabled on the cluster, no update needed.')
     return True
   return False
-
-
-def update_cluster_with_clouddns_if_necessary(args) -> int:
-  """Updates a GKE cluster to use CloudDNS, if not enabled already.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    0 if successful and error code otherwise.
-  """
-  all_clusters, return_code = get_all_clusters_programmatic(args)
-  if return_code > 0:
-    xpk_print('Listing all clusters failed!')
-    return 1
-  if args.cluster in all_clusters:
-    # If cluster is already using clouddns, no update necessary!
-    if is_cluster_using_clouddns(args):
-      return 0
-    cluster_update_return_code = update_gke_cluster_with_clouddns(args)
-    if cluster_update_return_code > 0:
-      xpk_print('Updating GKE cluster to use CloudDNS failed!')
-      return cluster_update_return_code
-
-    # Find default rapid control plane version and update the control plane to the same.
-    server_config_return_code, gke_server_config = get_gke_server_config(args)
-    if server_config_return_code != 0:
-      xpk_exit(server_config_return_code)
-    assert gke_server_config
-
-    upgrade_master_return_code = upgrade_gke_control_plane_version(
-        args,
-        gke_server_config.default_rapid_gke_version,
-    )
-    if upgrade_master_return_code > 0:
-      xpk_print("Updating GKE cluster's control plane upgrade failed!")
-      return upgrade_master_return_code
-
-    # Upgrade nodepools version after the master upgrade.
-    node_pool_update_code = upgrade_gke_nodepools_version(
-        args,
-        gke_server_config.default_rapid_gke_version,
-    )
-    if node_pool_update_code > 0:
-      xpk_print('Upgrading nodepools version failed!')
-      return node_pool_update_code
-  return 0
 
 
 def update_cluster_with_workload_identity_if_necessary(args) -> int:

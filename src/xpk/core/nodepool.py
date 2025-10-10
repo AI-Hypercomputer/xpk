@@ -268,9 +268,7 @@ def run_gke_node_pool_create_command(
         return 1
 
   placement_args = ''
-  if system.accelerator_type == AcceleratorType['GPU'] and is_topology_valid(
-      system.topology
-  ):
+  if system.requires_workload_policy and is_topology_valid(system.topology):
     placement_policy = f'{args.cluster}-placement-policy'
     ensure_resource_policy_exists(placement_policy, args, system.topology)
     placement_args = f' --placement-policy={placement_policy}'
@@ -304,8 +302,13 @@ def run_gke_node_pool_create_command(
       )
 
       if topology_product > 1:
-        command += ' --placement-type=COMPACT  --max-pods-per-node 15'
-        command += f' --tpu-topology={system.topology}'
+        # --placement-type=COMPACT enables group placement policy which
+        # is mutually exclusive with workload policy, --tpu-topology should
+        # also not be passed when workload policy is used
+        if not system.requires_workload_policy:
+          command += ' --placement-type=COMPACT'
+          command += f' --tpu-topology={system.topology}'
+        command += ' --max-pods-per-node 15'
         command += f' {args.custom_tpu_nodepool_arguments}'
     elif system.accelerator_type == AcceleratorType['GPU']:
       subnet_prefix = f'{args.cluster}-{zone_to_region(args.zone)}'
@@ -540,51 +543,6 @@ def get_gke_node_pool_version(
     )
     return 1, None
   return 0, node_pool_gke_version
-
-
-def upgrade_gke_nodepools_version(args, default_rapid_gke_version) -> int:
-  """Upgrade nodepools in the cluster to default rapid gke version. Recreates the nodes.
-
-  Args:
-    args: user provided arguments for running the command.
-    default_rapid_gke_version: Rapid default version for the upgrade.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  existing_node_pool_names, return_code = get_all_nodepools_programmatic(args)
-  if return_code != 0:
-    xpk_print('Listing all node pools failed!')
-    return return_code
-
-  # Batch execution to upgrade node pools simultaneously
-  commands = []
-  task_names = []
-  for node_pool_name in existing_node_pool_names:
-    commands.append(
-        'gcloud container clusters upgrade'
-        f' {args.cluster} --project={args.project}'
-        f' --region={zone_to_region(args.zone)}'
-        f' --cluster-version={default_rapid_gke_version}'
-        f' --node-pool={node_pool_name}'
-        ' --quiet'
-    )
-    task_names.append(f'Upgrading node pool {node_pool_name}.')
-
-  for i, command in enumerate(commands):
-    xpk_print(f'To complete {task_names[i]} we are executing {command}')
-  max_return_code = run_commands(
-      commands,
-      'Update GKE node pools to default RAPID GKE version',
-      task_names,
-  )
-  if max_return_code != 0:
-    xpk_print(
-        'GKE node pools update to default RAPID GKE version returned ERROR:'
-        f' {max_return_code}'
-    )
-    return int(max_return_code)
-  return 0
 
 
 def get_nodepool_workload_metadata_mode(

@@ -39,13 +39,13 @@ kubectl wait deployment/coredns --for=condition=Available=true --namespace=kube-
 [XPK] Task: `Determine current gke master version` is implemented by the following command not running since it is a dry run. 
 gcloud beta container clusters describe golden-cluster --region us-central1 --project golden-project --format="value(currentMasterVersion)"
 [XPK] Creating 1 node pool or pools of gb200-4
-We assume that the underlying system is: SystemCharacteristics(topology='1x72', vms_per_slice=1, gke_accelerator='nvidia-gb200', gce_machine_type='a4x-highgpu-4g', chips_per_vm=4, accelerator_type=2, device_type='gb200-4')
+We assume that the underlying system is: SystemCharacteristics(topology='1x72', vms_per_slice=1, gke_accelerator='nvidia-gb200', gce_machine_type='a4x-highgpu-4g', chips_per_vm=4, accelerator_type=2, device_type='gb200-4', requires_workload_policy=True)
 [XPK] Task: `Get All Node Pools` is implemented by the following command not running since it is a dry run. 
 gcloud beta container node-pools list --cluster golden-cluster --project=golden-project --region=us-central1 --format="csv[no-heading](name)"
 [XPK] Task: `Describe reservation` is implemented by the following command not running since it is a dry run. 
 gcloud beta compute reservations describe golden-reservation --project=golden-project --zone=us-central1-a
 [XPK] Creating 1 node pool with 2 nodes of gb200-4
-Underlyingly, we assume that means: SystemCharacteristics(topology='1x72', vms_per_slice=1, gke_accelerator='nvidia-gb200', gce_machine_type='a4x-highgpu-4g', chips_per_vm=4, accelerator_type=2, device_type='gb200-4')
+Underlyingly, we assume that means: SystemCharacteristics(topology='1x72', vms_per_slice=1, gke_accelerator='nvidia-gb200', gce_machine_type='a4x-highgpu-4g', chips_per_vm=4, accelerator_type=2, device_type='gb200-4', requires_workload_policy=True)
 [XPK] Task: `Get Node Pool Zone` is implemented by the following command not running since it is a dry run. 
 gcloud beta container node-pools describe 0 --cluster golden-cluster --project=golden-project --region=us-central1 --format="value(locations)"
 [XPK] Task: `GKE Cluster Get ConfigMap` is implemented by the following command not running since it is a dry run. 
@@ -83,6 +83,100 @@ kubectl get deployment kueue-controller-manager -n kueue-system -o jsonpath='{.s
 kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-sigs/kueue/releases/download/v0.12.2/manifests.yaml
 [XPK] Task: `Wait for Kueue to be available` is implemented by the following command not running since it is a dry run. 
 kubectl wait deploy/kueue-controller-manager -nkueue-system --for=condition=available --timeout=10m
+[XPK] Applying following Kueue resources:
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ResourceFlavor
+metadata:
+  name: "1xgb200-4"
+spec:
+  nodeLabels: {"cloud.google.com/gke-accelerator": "nvidia-gb200"}
+  
+
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: AdmissionCheck
+metadata:
+  name: dws-prov
+spec:
+  controllerName: kueue.x-k8s.io/provisioning-request
+  parameters:
+    apiGroup: kueue.x-k8s.io
+    kind: ProvisioningRequestConfig
+    name: dws-config
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ProvisioningRequestConfig
+metadata:
+  name: dws-config
+spec:
+  provisioningClassName: queued-provisioning.gke.io
+  podSetUpdates:
+    nodeSelector:
+    - key: autoscaling.gke.io/provisioning-request
+      valueFromProvisioningClassDetail: ResizeRequestName
+  managedResources:
+  - nvidia.com/gpu
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ClusterQueue
+metadata:
+  name: "cluster-queue"
+spec:
+  preemption:
+    reclaimWithinCohort: Never # Don't preempt other queues in the cohort.
+    withinClusterQueue: LowerPriority
+  namespaceSelector: {} # match all.
+  resourceGroups: [{'coveredResources': ['nvidia.com/gpu'], 'flavors': [{'name': '1xgb200-4', 'resources': [{'name': 'nvidia.com/gpu', 'nominalQuota': 8}]}]}]
+  
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: LocalQueue
+metadata:
+  namespace: default
+  name: multislice-queue
+spec:
+  clusterQueue: cluster-queue
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: very-low
+value: 100
+globalDefault: false
+description: "Very Low"
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: low
+value: 250
+globalDefault: false
+description: "Low"
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: medium
+value: 500
+globalDefault: false
+description: "Medium"
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: high
+value: 750
+globalDefault: false
+description: "High"
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: very-high
+value: 1000
+globalDefault: false
+description: "Very High"
 [XPK] Task: `Applying Kueue Custom Resources` is implemented by the following command not running since it is a dry run. 
 kubectl apply -f f807069b73747a423ec0d1915b2e919cfde400b01654de15746b566709b80f7e
 [XPK] Task: `Count total nodes` is implemented by the following command not running since it is a dry run. 

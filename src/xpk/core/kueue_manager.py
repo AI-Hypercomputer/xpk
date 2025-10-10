@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
 import json
 from jinja2 import Environment, FileSystemLoader
+from ..utils.execution_context import is_dry_run
 
 from .capacity import B200_DEVICE_TYPE, H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE
 from .scheduling import (
@@ -330,6 +331,8 @@ class KueueManager:
 
   def __apply_manifest(self, manifest: str) -> int:
     task = "Applying Kueue Custom Resources"
+    if is_dry_run():
+      xpk_print(f"Applying following Kueue resources:{manifest}")
     tmp_file = write_tmp_file(manifest)
     command = f"kubectl apply -f {tmp_file}"
     return run_command_with_updates(command, task)

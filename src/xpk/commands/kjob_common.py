@@ -54,7 +54,7 @@ def add_gpu_networking_annotations_to_command(args, cmd: str) -> str:
 def add_TAS_annotations_to_command(args, cmd: str) -> str:
   system_characteristics = get_cluster_system_characteristics(args)
   capacity_type = get_cluster_capacity_type(args)
-  if is_TAS_possible(system_characteristics, capacity_type, flex=False):
+  if is_TAS_possible(system_characteristics, capacity_type):
     cmd += f" --pod-template-annotation {Kueue_TAS_annotation}"
 
   return cmd

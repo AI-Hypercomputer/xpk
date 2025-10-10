@@ -46,9 +46,9 @@ XPK supports the following TPU types:
 and the following GPU types:
 * A100
 * A3-Highgpu (h100)
-* A3-Mega (h100-mega) - [Create cluster](./docs/usage/clusters.md#provisioning-a3-ultra-a3-mega-and-a4-clusters-gpu-machines), [Create workloads](./docs/usage/workloads.md#workloads-for-a3-ultra-a3-mega-and-a4-clusters-gpu-machines)
-* A3-Ultra (h200) - [Create cluster](./docs/usage/clusters.md#provisioning-a3-ultra-a3-mega-and-a4-clusters-gpu-machines), [Create workloads](./docs/usage/workloads.md#workloads-for-a3-ultra-a3-mega-and-a4-clusters-gpu-machines)
-* A4 (b200) - [Create cluster](./docs/usage/clusters.md#provisioning-a3-ultra-a3-mega-and-a4-clusters-gpu-machines), [Create workloads](./docs/usage/workloads.md#workloads-for-a3-ultra-a3-mega-and-a4-clusters-gpu-machines)
+* A3-Mega (h100-mega) - [Create cluster](./docs/usage/clusters.md), [Create workloads](./docs/usage/workloads.md#workloads-for-a3-ultra-a3-mega-and-a4-clusters-gpu-machines)
+* A3-Ultra (h200) - [Create cluster](./docs/usage/clusters.md), [Create workloads](./docs/usage/workloads.md#workloads-for-a3-ultra-a3-mega-and-a4-clusters-gpu-machines)
+* A4 (b200) - [Create cluster](./docs/usage/clusters.md), [Create workloads](./docs/usage/workloads.md#workloads-for-a3-ultra-a3-mega-and-a4-clusters-gpu-machines)
 * A4X (gb200)
 
 and the following CPU types:
@@ -64,14 +64,14 @@ XPK also supports [Google Cloud Storage solutions](./docs/usage/storage.md):
 
 * [Permissions](./docs/permissions.md)
 * [Installation](./docs/installation.md)
-* [Usage](./docs/usage/)
+* Usage:
   * [Clusters](./docs/usage/clusters.md)
+    * [GPU](./docs/usage/gpu.md)
+    * [CPU](./docs/usage/cpu.md)
+    * [Autoprovisioning](./docs/usage/autoprovisioning.md)
   * [Workloads](./docs/usage/workloads.md)
+    * [Docker](./docs/usage/docker.md)
   * [Storage](./docs/usage/storage.md)
-  * [GPU](./docs/usage/gpu.md)
-  * [CPU](./docs/usage/cpu.md)
-  * [Autoprovisioning](./docs/usage/autoprovisioning.md)
-  * [Docker](./docs/usage/docker.md)
   * [Advanced](./docs/usage/advanced.md)
   * [Inspector](./docs/usage/inspector.md)
   * [Run](./docs/usage/run.md)

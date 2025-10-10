@@ -18,14 +18,14 @@
 *   Workload Create (submit training job):
 
     ```shell
-    python3 xpk.py workload create \
+    xpk workload create \
     --workload xpk-test-workload --command "echo goodbye" \
     --cluster xpk-test \
     --tpu-type=v5litepod-16 --project=$PROJECT
     ```
 *   Workload create(DWS flex with queued provisioning):
         ```shell
-    python3 xpk.py workload create \
+    xpk workload create \
     --workload xpk-test-workload --command "echo goodbye" \
     --cluster xpk-test  --flex \
     --tpu-type=v5litepod-16 --project=$PROJECT
@@ -35,7 +35,7 @@
 
     Pathways workload example:
     ```shell
-    python3 xpk.py workload create-pathways \
+    xpk workload create-pathways \
     --workload xpk-pw-test \
     --num-slices=1 \
     --tpu-type=v5litepod-16 \
@@ -49,7 +49,7 @@
 
     Pathways workload example:
     ```shell
-    python3 xpk.py workload create-pathways \
+    xpk workload create-pathways \
     --workload xpk-regular-test \
     --num-slices=1 \
     --tpu-type=v5litepod-16 \
@@ -62,7 +62,7 @@
     Pathways in headless mode - Pathways now offers the capability to run JAX workloads in Vertex AI notebooks or in GCE VMs!
     Specify `--headless` with `workload create-pathways` when the user workload is not provided in a docker container.
     ```shell
-    python3 xpk.py workload create-pathways --headless \
+    xpk workload create-pathways --headless \
     --workload xpk-pw-headless \
     --num-slices=1 \
     --tpu-type=v5litepod-16 \
@@ -96,7 +96,7 @@ A3 Ultra | `h200-141gb-8`
 A4 | `b200-8`
 
 ```shell
-python3 xpk.py workload create \
+xpk workload create \
   --workload=$WORKLOAD_NAME --command="echo goodbye" \
   --cluster=$CLUSTER_NAME --device-type DEVICE_TYPE \
   --zone=$COMPUTE_ZONE  --project=$PROJECT_ID \
@@ -127,7 +127,7 @@ In order to run NCCL test on A3 machines check out [this guide](../../examples/n
 
       #### General Example:
       ```shell
-      python3 xpk.py workload create \
+      xpk workload create \
       --workload xpk-test-medium-workload --command "echo goodbye" --cluster \
       xpk-test --tpu-type=v5litepod-16 --priority=medium
       ```
@@ -144,7 +144,7 @@ XPK will create a Vertex AI Experiment in `workload create` command and attach t
 * Create Vertex AI Experiment with default Experiment name:
 
 ```shell
-python3 xpk.py workload create \
+xpk workload create \
 --cluster xpk-test --workload xpk-workload \
 --use-vertex-tensorboard
 ```
@@ -154,7 +154,7 @@ will create a Vertex AI Experiment with the name `xpk-test-xpk-workload` (*<args
 * Create Vertex AI Experiment with user-specified Experiment name:
 
 ```shell
-python3 xpk.py workload create \
+xpk workload create \
 --cluster xpk-test --workload xpk-workload \
 --use-vertex-tensorboard --experiment-name=test-experiment
 ```
@@ -167,7 +167,7 @@ Check out [MaxText example](https://github.com/google/maxtext/pull/570) on how t
 *   Workload Delete (delete training job):
 
     ```shell
-    python3 xpk.py workload delete \
+    xpk workload delete \
     --workload xpk-test-workload --cluster xpk-test
     ```
 
@@ -176,7 +176,7 @@ Check out [MaxText example](https://github.com/google/maxtext/pull/570) on how t
 *   Workload Delete (delete all training jobs in the cluster):
 
     ```shell
-    python3 xpk.py workload delete \
+    xpk workload delete \
     --cluster xpk-test
     ```
 
@@ -186,7 +186,7 @@ Check out [MaxText example](https://github.com/google/maxtext/pull/570) on how t
     * Filter by Job: `filter-by-job`
 
     ```shell
-    python3 xpk.py workload delete \
+    xpk workload delete \
     --cluster xpk-test --filter-by-job=$USER
     ```
 
@@ -195,7 +195,7 @@ Check out [MaxText example](https://github.com/google/maxtext/pull/570) on how t
     * Filter by Status: `filter-by-status`
 
     ```shell
-    python3 xpk.py workload delete \
+    xpk workload delete \
     --cluster xpk-test --filter-by-status=QUEUED
     ```
 
@@ -205,7 +205,7 @@ Check out [MaxText example](https://github.com/google/maxtext/pull/570) on how t
 *   Workload List (see training jobs):
 
     ```shell
-    python3 xpk.py workload list \
+    xpk workload list \
     --cluster xpk-test
     ```
 
@@ -240,7 +240,7 @@ Check out [MaxText example](https://github.com/google/maxtext/pull/570) on how t
   Filter the workload list by the name of a job.
 
     ```shell
-    python3 xpk.py workload list \
+    xpk workload list \
     --cluster xpk-test --filter-by-job=$USER
     ```
 
@@ -249,14 +249,14 @@ Check out [MaxText example](https://github.com/google/maxtext/pull/570) on how t
   Wait for a job to complete.
 
     ```shell
-    python3 xpk.py workload list \
+    xpk workload list \
     --cluster xpk-test --wait-for-job-completion=xpk-test-workload
     ```
 
   Wait for a job to complete with a timeout of 300 seconds.
 
     ```shell
-    python3 xpk.py workload list \
+    xpk workload list \
     --cluster xpk-test --wait-for-job-completion=xpk-test-workload \
     --timeout=300
     ```

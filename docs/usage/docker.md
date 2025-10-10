@@ -30,20 +30,20 @@ This flow pulls the `--script-dir` into the `--base-docker-image` and runs the n
 
   - `--script-dir` sets which directory to pull into the image. This defaults to the current working directory.
 
-  See `python3 xpk.py workload create --help` for more info.
+  See `xpk workload create --help` for more info.
 
 * Example with defaults which pulls the local directory into the base image:
   ```shell
   echo -e '#!/bin/bash 
  echo "Hello world from a test script!"' > test.sh
-python3 xpk.py workload create --cluster xpk-test \
+xpk workload create --cluster xpk-test \
 --workload xpk-test-workload-base-image --command "bash test.sh" \
 --tpu-type=v5litepod-16 --num-slices=1
   ```
 
 * Recommended Flow For Normal Sized Jobs (fewer than 10k accelerators):
   ```shell
-  python3 xpk.py workload create --cluster xpk-test \
+  xpk workload create --cluster xpk-test \
 --workload xpk-test-workload-base-image --command "bash custom_script.sh" \
 --base-docker-image=gcr.io/your_dependencies_docker_image \
 --tpu-type=v5litepod-16 --num-slices=1
@@ -56,17 +56,17 @@ workload.
 
 * Running with `--docker-image`:
   ```shell
-  python3 xpk.py workload create --cluster xpk-test \
+  xpk workload create --cluster xpk-test \
 --workload xpk-test-workload-base-image --command "bash test.sh" \
 --tpu-type=v5litepod-16 --num-slices=1 --docker-image=gcr.io/your_docker_image
   ```
 
 * Recommended Flow For Large Sized Jobs (more than 10k accelerators):
   ```shell
-  python3 xpk.py cluster cacheimage \
+  xpk cluster cacheimage \
 --cluster xpk-test --docker-image gcr.io/your_docker_image
 # Run workload create with the same image.
-python3 xpk.py workload create --cluster xpk-test \
+xpk workload create --cluster xpk-test \
 --workload xpk-test-workload-base-image --command "bash test.sh" \
 --tpu-type=v5litepod-16 --num-slices=1 --docker-image=gcr.io/your_docker_image
   ```

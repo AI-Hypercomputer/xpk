@@ -36,7 +36,7 @@ RESERVATION=reservation_id
 PROJECT=my_project
 ZONE=us-east5-b
 
-python3 xpk.py cluster create \
+xpk cluster create \
   --cluster $CLUSTER_NAME \
   --num-slices=$NUM_SLICES \
     --device-type=$DEVICE_TYPE \
@@ -73,7 +73,7 @@ RESERVATION=reservation_id
 PROJECT=my_project
 ZONE=us-east5-b
 
-python3 xpk.py cluster create \
+xpk cluster create \
   --cluster $CLUSTER_NAME \
   --num-slices=$NUM_SLICES \
     --device-type=$DEVICE_TYPE \
@@ -96,7 +96,7 @@ PROJECT=my_project
 ZONE=us-east5-b
 
 # This will create 2x v4-16 node pools and set the max autoprovisioned chips to 16.
-python3 xpk.py cluster create \
+xpk cluster create \
   --cluster $CLUSTER_NAME \
   --num-slices=$NUM_SLICES \
     --device-type=$DEVICE_TYPE \
@@ -116,7 +116,7 @@ PROJECT=my_project
 ZONE=us-east5-b
 
 # This will clear the node pools if they exist in the cluster and set the max autoprovisioned chips to 16
-python3 xpk.py cluster create \
+xpk cluster create \
   --cluster $CLUSTER_NAME \
   --num-slices=$NUM_SLICES \
     --device-type=$DEVICE_TYPE \
@@ -137,7 +137,7 @@ NEW_RESERVATION=new_reservation_id
 PROJECT=my_project
 ZONE=us-east5-b
 # Create a 2x v4-8 TPU workload.
-python3 xpk.py workload create \
+xpk workload create \
     --cluster $CLUSTER \
     --workload ${USER}-nap-${NUM_SLICES}x${DEVICE_TYPE}_$(date +%H-%M-%S) \
     --command "echo hello world from $NUM_SLICES $DEVICE_TYPE" \
@@ -150,7 +150,7 @@ NUM_SLICES=1
 DEVICE_TYPE=v4-16
 
 # Create a 1x v4-16 TPU workload.
-python3 xpk.py workload create \
+xpk workload create \
     --cluster $CLUSTER \
     --workload ${USER}-nap-${NUM_SLICES}x${DEVICE_TYPE}_$(date +%H-%M-%S) \
     --command "echo hello world from $NUM_SLICES $DEVICE_TYPE" \
@@ -160,7 +160,7 @@ python3 xpk.py workload create \
     --project=$PROJECT
 
 # Use a different reservation from what the cluster was created with.
-python3 xpk.py workload create \
+xpk workload create \
     --cluster $CLUSTER \
     --workload ${USER}-nap-${NUM_SLICES}x${DEVICE_TYPE}_$(date +%H-%M-%S) \
     --command "echo hello world from $NUM_SLICES $DEVICE_TYPE" \

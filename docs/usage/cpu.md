@@ -22,7 +22,7 @@ In order to use XPK for CPU, you can do so by using `device-type` flag.
 
     ```shell
     # Run cluster create with on demand capacity.
-    python3 xpk.py cluster create \
+    xpk cluster create \
     --cluster xpk-test \
     --device-type=n2-standard-32-256 \
     --num-slices=1 \
@@ -36,7 +36,7 @@ In order to use XPK for CPU, you can do so by using `device-type` flag.
 
     ```shell
     # Submit a workload
-    python3 xpk.py workload create \
+    xpk workload create \
     --cluster xpk-test \
     --num-slices=1 \
     --device-type=n2-standard-32-256 \

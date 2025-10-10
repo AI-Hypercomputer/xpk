@@ -87,5 +87,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: private-nodepool-log-${{github.run_id}}
-        # The path to the file to upload, using the wildcard pattern
         path: /tmp/NodepoolCreate-${{inputs.cluster-name}}-private-np-*

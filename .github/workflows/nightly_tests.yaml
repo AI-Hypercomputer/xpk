@@ -156,21 +156,18 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: cluster-nodepool-log-${{github.run_id}}
-        # The path to the file to upload, using the wildcard pattern
         path: /tmp/NodepoolCreate-$TPU_CLUSTER_NAME-np-*
     - name: Upload empty cluster nodepool creation log
       if: always()
       uses: actions/upload-artifact@v4
       with:
         name: empty-cluster-nodepool-log-${{github.run_id}}
-        # The path to the file to upload, using the wildcard pattern
         path: /tmp/NodepoolCreate-$EMPTY_CLUSTER_NAME-np-*
     - name: Upload private cluster nodepool creation log
       if: always()
       uses: actions/upload-artifact@v4
       with:
         name: empty-private-cluster-nodepool-log-${{github.run_id}}
-        # The path to the file to upload, using the wildcard pattern
         path: /tmp/NodepoolCreate-$PRIVATE_CLUSTER_NAME-np-*
 
   pw-cluster-and-workload:
@@ -221,7 +218,6 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: pw-nodepool-log-${{github.run_id}}
-        # The path to the file to upload, using the wildcard pattern
         path: /tmp/NodepoolCreate-$TPU_CLUSTER_NAME-np-*
 
   rc-cluster:
@@ -263,7 +259,6 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: rc-nodepool-log-${{github.run_id}}
-        # The path to the file to upload, using the wildcard pattern
         path: /tmp/NodepoolCreate-$TPU_CLUSTER_NAME-np-*
 
   set-variables:

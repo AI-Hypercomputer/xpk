@@ -34,12 +34,6 @@ return the hardware back to the shared pool when they complete, developers can
 achieve better use of finite hardware resources. And automated tests can run
 overnight while resources tend to be underutilized.
 
-XPK supports the following TPU types:
-* v4
-* v5e
-* v5p
-* Trillium (v6e)
-* Ironwood (tpu7x)
 XPK supports a variety of hardware accelerators.
 | Accelerator | Type               | Create Cluster                                                                                                | Create Workload                                                                                                 |
 |-------------|--------------------|---------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------|
@@ -56,29 +50,14 @@ XPK supports a variety of hardware accelerators.
 | GPU         | A4X (gb200)        | [docs](./docs/usage/gpu.md)                                                                                   | [docs](./docs/usage/workloads.md)                                                                               |
 | CPU         | n2-standard-32     | [docs](./docs/usage/cpu.md)                                                                                   | [docs](./docs/usage/workloads.md)                                                                               |
 
-and the following GPU types:
-* A100
-* A3-Highgpu (h100)
-* A3-Mega (h100-mega) - [Create cluster](./docs/usage/clusters.md#provisioning-a3-ultra-a3-mega-and-a4-clusters-gpu-machines), [Create workloads](./docs/usage/workloads.md#workloads-for-a3-ultra-a3-mega-and-a4-clusters-gpu-machines)
-* A3-Ultra (h200) - [Create cluster](./docs/usage/clusters.md#provisioning-a3-ultra-a3-mega-and-a4-clusters-gpu-machines), [Create workloads](./docs/usage/workloads.md#workloads-for-a3-ultra-a3-mega-and-a4-clusters-gpu-machines)
-* A4 (b200) - [Create cluster](./docs/usage/clusters.md#provisioning-a3-ultra-a3-mega-and-a4-clusters-gpu-machines), [Create workloads](./docs/usage/workloads.md#workloads-for-a3-ultra-a3-mega-and-a4-clusters-gpu-machines)
-* A4X (gb200)
 XPK also supports the following [Google Cloud Storage solutions](./docs/usage/storage.md):
 
-and the following CPU types:
-* n2-standard-32
 | Storage Type                               | Documentation                                                                            |
 |--------------------------------------------|------------------------------------------------------------------------------------------|
 | Cloud Storage FUSE                         | [docs](./docs/usage/storage.md#fuse)                                                     |
 | Filestore                                  | [docs](./docs/usage/storage.md#filestore)                                                |
 | Parallelstore                              | [docs](./docs/usage/storage.md#parallelstore)                                            |
 | Block storage (Persistent Disk, Hyperdisk) | [docs](./docs/usage/storage.md#block-storage-persistent-disk-hyperdisk)                  |
-
-XPK also supports [Google Cloud Storage solutions](./docs/usage/storage.md):
-* [Cloud Storage FUSE](./docs/usage/storage.md#fuse)
-* [Filestore](./docs/usage/storage.md#filestore)
-* [Parallelstore](./docs/usage/storage.md#parallelstore)
-* [Block storage (Persistent Disk, Hyperdisk)](./docs/usage/storage.md#block-storage-persistent-disk-hyperdisk)
 
 # Documentation
 

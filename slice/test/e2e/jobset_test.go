@@ -104,11 +104,32 @@ var _ = ginkgo.Describe("JobSet", func() {
 			replicas              int32
 			wantSliceSize         int32
 			tpuRequests           string
+			unhealthyNodes        []string
 			wantDomains           []kueue.TopologyDomainAssignment
 			wantSliceNodeSelector map[string][]string
 		}
 		ginkgo.DescribeTable("it should create Slice based on created Workload with",
 			func(tc testCase) {
+				for _, unhealthyNode := range tc.unhealthyNodes {
+					node := &corev1.Node{}
+					gomega.Eventually(func(g gomega.Gomega) {
+						g.Expect(k8sClient.Get(ctx, client.ObjectKey{Name: unhealthyNode}, node)).To(gomega.Succeed())
+						delete(node.Labels, "cloud.google.com/gke-tpu-slice-4x4x4-health")
+						g.Expect(k8sClient.Update(ctx, node)).To(gomega.Succeed())
+					}, util.Timeout, util.Interval).Should(gomega.Succeed())
+				}
+				// Revert changes after test
+				ginkgo.DeferCleanup(func() {
+					for _, unhealthyNode := range tc.unhealthyNodes {
+						node := &corev1.Node{}
+						gomega.Eventually(func(g gomega.Gomega) {
+							g.Expect(k8sClient.Get(ctx, client.ObjectKey{Name: unhealthyNode}, node)).To(gomega.Succeed())
+							node.Labels["cloud.google.com/gke-tpu-slice-4x4x4-health"] = "true"
+							g.Expect(k8sClient.Update(ctx, node)).To(gomega.Succeed())
+						}, util.Timeout, util.Interval).Should(gomega.Succeed())
+					}
+				})
+
 				jobSet := testingjobsjobset.MakeJobSet("jobset", ns.Name).
 					Queue(lq.Name).
 					ReplicatedJobs(
@@ -200,6 +221,8 @@ var _ = ginkgo.Describe("JobSet", func() {
 						g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
 						g.Expect(createdSlice.Spec.NodeSelector).To(gomega.HaveLen(1))
 						g.Expect(createdSlice.Spec.NodeSelector).To(gomega.BeComparableTo(tc.wantSliceNodeSelector))
+						g.Expect(createdSlice.Spec.AcceleratorTopology).To(gomega.Equal(tc.tpuTopology))
+						g.Expect(createdSlice.Spec.AcceleratorType).To(gomega.Equal("tpu-v7x"))
 					}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 				})
 
@@ -295,6 +318,21 @@ var _ = ginkgo.Describe("JobSet", func() {
 				}},
 				wantSliceNodeSelector: map[string][]string{
 					"cloud.google.com/gke-tpu-slice-4x4x4-id": {"sb1"},
+				},
+			}),
+			ginkgo.Entry("TPU topology 4x4x4, TPU topology 4 and parallelism 16 (missed kind-worker node)", testCase{
+				tpuTopology:    "4x4x4",
+				tpuRequests:    "4",
+				parallelism:    16,
+				replicas:       1,
+				unhealthyNodes: []string{"kind-worker"},
+				wantSliceSize:  16,
+				wantDomains: []kueue.TopologyDomainAssignment{{
+					Values: []string{"kind-worker2"},
+					Count:  16,
+				}},
+				wantSliceNodeSelector: map[string][]string{
+					"cloud.google.com/gke-tpu-slice-4x4x4-id": {"sb2"},
 				},
 			}),
 			ginkgo.Entry("TPU topology, TPU topology 1 4x4x4 and parallelism 16", testCase{

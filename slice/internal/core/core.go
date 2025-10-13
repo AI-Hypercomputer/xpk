@@ -34,10 +34,18 @@ func IsValidTPUTopology(tpuTopology string) bool {
 }
 
 func IsValidTPUAccelerator(tpuAccelerator string) bool {
-	return tpuAccelerator == "tpu-v7x"
+	return tpuAccelerator == AcceleratorTpu7x
 }
 
 func IsRelevantPodTemplateSpec(spec corev1.PodTemplateSpec) bool {
-	return IsValidTPUTopology(spec.Annotations[TPUTopologyAnnotation]) &&
-		IsValidTPUAccelerator(spec.Spec.NodeSelector[TPUAcceleratorLabel])
+	return IsValidTPUTopology(GetTPUTopology(spec)) &&
+		IsValidTPUAccelerator(GetTPUAccelerator(spec))
+}
+
+func GetTPUTopology(spec corev1.PodTemplateSpec) string {
+	return spec.Annotations[TPUTopologyAnnotation]
+}
+
+func GetTPUAccelerator(spec corev1.PodTemplateSpec) string {
+	return spec.Spec.NodeSelector[TPUAcceleratorLabel]
 }

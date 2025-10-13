@@ -15,6 +15,14 @@ limitations under the License.
 """
 
 class CommandExecutionException(Exception):
+  """Exception raised for errors in command execution.
+
+  Attributes:
+      command (str): The exact command string that was executed and failed.
+      task (str): A human-readable name or description of the task being performed.
+      return_code (int): The non-zero return code from the failed command.
+  """
+
   command: str
   task: str
   return_code: int

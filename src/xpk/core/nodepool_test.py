@@ -139,6 +139,9 @@ def mock_nodepool_dependencies(mocker):
       "xpk.core.nodepool.get_capacity_arguments_from_capacity_type",
       return_value=("--on-demand", 0),
   )
+  mocker.patch(
+      "xpk.core.nodepool.get_cluster_region", return_value="us-central1"
+  )
   mocker.patch("xpk.core.nodepool.run_commands", return_value=0)
   mocker.patch("xpk.core.nodepool.get_user_input", return_value=True)
   mock_is_topology_valid = mocker.patch("xpk.core.nodepool.is_topology_valid")

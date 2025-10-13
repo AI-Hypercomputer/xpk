@@ -16,7 +16,7 @@ limitations under the License.
 
 from ..core.cluster import get_cluster_credentials
 from ..core.commands import run_command_for_value
-from ..core.gcloud_context import add_zone_and_project, zone_to_region
+from ..core.gcloud_context import add_zone_and_project, get_cluster_region
 from ..core.kueue import CLUSTER_QUEUE_NAME, LOCAL_QUEUE_NAME
 from ..core.resources import CLUSTER_METADATA_CONFIGMAP, CLUSTER_RESOURCES_CONFIGMAP
 from ..utils.console import xpk_exit, xpk_print
@@ -138,8 +138,9 @@ def inspector(args) -> None:
       (
           (
               'gcloud beta container clusters list --project'
-              f' {args.project} --region {zone_to_region(args.zone)} | grep -e'
-              f' NAME -e {args.cluster}'
+              f' {args.project} --region'
+              f' {get_cluster_region(args.project, args.cluster, args.zone)} |'
+              f' grep -e NAME -e {args.cluster}'
           ),
           'GKE: Cluster Details',
       ),
@@ -160,7 +161,7 @@ def inspector(args) -> None:
       (
           (
               f'gcloud beta container node-pools list --cluster {args.cluster} '
-              f' --project={args.project} --region={zone_to_region(args.zone)}'
+              f' --project={args.project} --region={get_cluster_region(args.project, args.cluster, args.zone)}'
           ),
           'GKE: Node pool Details',
       ),
@@ -309,19 +310,25 @@ def inspector(args) -> None:
     workload_links = [(
         f'Cloud Console for the workload {args.workload}',
         # pylint: disable=line-too-long
-        f'https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}',
+        (
+            f'https://console.cloud.google.com/kubernetes/service/{get_cluster_region(args.project, args.cluster, args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
+        ),
     )]
 
   links = [
       (
           'Cloud Console for the GKE Cluster',
           # pylint: disable=line-too-long
-          f'https://console.cloud.google.com/kubernetes/clusters/details/{zone_to_region(args.zone)}/{args.cluster}/details?project={args.project}',
+          (
+              f'https://console.cloud.google.com/kubernetes/clusters/details/{get_cluster_region(args.project, args.cluster, args.zone)}/{args.cluster}/details?project={args.project}'
+          ),
       ),
       (
           'Cloud Console for all workloads in GKE Cluster',
           # pylint: disable=line-too-long
-          f'https://console.cloud.google.com/kubernetes/workload/overview?project={args.project}&pageState=((gke%2F{zone_to_region(args.zone)}%2F{args.cluster}))',
+          (
+              f'https://console.cloud.google.com/kubernetes/workload/overview?project={args.project}&pageState=((gke%2F{get_cluster_region(args.project, args.cluster, args.zone)}%2F{args.cluster}))'
+          ),
       ),
       (
           'Cloud Console for IAM Permissions',

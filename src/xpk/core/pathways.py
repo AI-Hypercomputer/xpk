@@ -16,7 +16,7 @@ limitations under the License.
 
 from ..core.commands import run_command_for_value, run_command_with_updates, run_commands
 from ..core.docker_container import get_user_workload_container
-from ..core.gcloud_context import zone_to_region
+from ..core.gcloud_context import get_cluster_region
 from ..core.nodepool import get_all_nodepools_programmatic
 from ..utils.console import xpk_exit, xpk_print
 from ..utils.execution_context import is_dry_run
@@ -138,7 +138,7 @@ def get_pathways_unified_query_link(args) -> str:
   query_params = (
       'resource.type%3D"k8s_container"%0A'
       f'resource.labels.project_id%3D"{args.project}"%0A'
-      f'resource.labels.location%3D"{zone_to_region(args.zone)}"%0A'
+      f'resource.labels.location%3D"{get_cluster_region(args.project, args.cluster, args.zone)}"%0A'
       f'resource.labels.cluster_name%3D"{args.cluster}"%0A'
       f'resource.labels.pod_name:"{args.workload}-"%0A'
       'severity>%3DDEFAULT'

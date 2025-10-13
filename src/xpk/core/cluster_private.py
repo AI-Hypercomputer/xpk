@@ -22,7 +22,7 @@ from ..utils.network import (
 from ..utils.execution_context import is_dry_run
 from ..utils.objects import is_text_true
 from .commands import run_command_for_value, run_command_with_updates
-from .gcloud_context import zone_to_region
+from .gcloud_context import get_cluster_region
 
 
 def authorize_private_cluster_access_if_necessary(args) -> int:
@@ -127,7 +127,7 @@ def is_cluster_private(args) -> bool:
   """
   command = (
       f'gcloud container clusters describe {args.cluster}'
-      f' --project={args.project} --region={zone_to_region(args.zone)}'
+      f' --project={args.project} --region={get_cluster_region(args.project, args.cluster, args.zone)}'
       ' --format="value(privateClusterConfig.enablePrivateNodes)"'
   )
   return_code, private_nodes_enabled = run_command_for_value(
@@ -157,7 +157,7 @@ def get_cluster_authorized_networks(args) -> list[str]:
   """
   command = (
       f'gcloud container clusters describe {args.cluster}'
-      f' --project={args.project} --region={zone_to_region(args.zone)}'
+      f' --project={args.project} --region={get_cluster_region(args.project, args.cluster, args.zone)}'
       ' --format="value(masterAuthorizedNetworksConfig.cidrBlocks[].cidrBlock)"'
   )
   return_code, authorized_networks = run_command_for_value(
@@ -188,7 +188,7 @@ def update_cluster_authorized_networks(args, authorized_networks) -> int:
   command = (
       'gcloud container clusters update'
       f' {args.cluster} --project={args.project}'
-      f' --region={zone_to_region(args.zone)}'
+      f' --region={get_cluster_region(args.project, args.cluster, args.zone)}'
       ' --enable-master-authorized-networks'
       f' --master-authorized-networks={",".join(authorized_networks)}'
       ' --quiet'

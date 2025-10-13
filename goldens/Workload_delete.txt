@@ -3,6 +3,8 @@ $ python3 xpk.py workload delete --project=golden-project --zone=us-central1-a -
 [XPK] Skipping dependency validation.
 [XPK] Starting Workload delete
 [XPK] Working on golden-project and us-central1-a
+[XPK] Task: `Find cluster region or zone` is implemented by the following command not running since it is a dry run. 
+gcloud container clusters list --project=golden-project --filter=name=golden-cluster --format="value(location)"
 [XPK] Try 1: get-credentials-dns-endpoint to cluster golden-cluster
 [XPK] Task: `get-credentials-dns-endpoint to cluster golden-cluster` is implemented by the following command not running since it is a dry run. 
 gcloud container clusters get-credentials golden-cluster --region=us-central1 --dns-endpoint --project=golden-project && kubectl config view && kubectl config set-context --current --namespace=default

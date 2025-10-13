@@ -15,6 +15,8 @@ kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="Conf
 [XPK] Task: `Check if PathwaysJob is installed on golden-cluster` is implemented by the following command not running since it is a dry run. 
 kubectl get pods -n pathways-job-system --no-headers -o custom-columns=NAME:.metadata.name
 [XPK] check_if_pathways_job_is_installed 0 0
+[XPK] Task: `Find cluster region or zone` is implemented by the following command not running since it is a dry run. 
+gcloud container clusters list --project=golden-project --filter=name=golden-cluster --format="value(location)"
 [XPK] Task: `Get All Node Pools` is implemented by the following command not running since it is a dry run. 
 gcloud beta container node-pools list --cluster golden-cluster --project=golden-project --region=us-central1 --format="csv[no-heading](name)"
 [XPK] Building /tmp into docker image.

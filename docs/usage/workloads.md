@@ -24,11 +24,12 @@
     --tpu-type=v5litepod-16 --project=$PROJECT
     ```
 *   Workload create(DWS flex with queued provisioning):
-        ```shell
+    ```shell
     xpk workload create \
     --workload xpk-test-workload --command "echo goodbye" \
     --cluster xpk-test  --flex \
     --tpu-type=v5litepod-16 --project=$PROJECT
+    ```
 
 *   Workload Create for Pathways:
     Pathways workload can be submitted using `workload create-pathways` on a Pathways enabled cluster (created with `cluster create-pathways`)

@@ -15,6 +15,7 @@ limitations under the License.
 """
 
 import math
+import textwrap
 from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
 import json
@@ -311,11 +312,11 @@ class KueueManager:
           }],
       })
 
-    if flex:
-      admission_checks = """
+    if flex and num_slices <= 1:
+      admission_checks = textwrap.dedent("""
         admissionChecks:
         - dws-prov
-      """
+      """)
     else:
       admission_checks = ""
 

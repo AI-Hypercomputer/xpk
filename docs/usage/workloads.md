@@ -23,7 +23,7 @@
     --cluster xpk-test \
     --tpu-type=v5litepod-16 --project=$PROJECT
     ```
-*   Workload create(DWS flex with queued provisioning):
+*   Workload create (DWS flex with queued provisioning):
     ```shell
     xpk workload create \
     --workload xpk-test-workload --command "echo goodbye" \

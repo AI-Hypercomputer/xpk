@@ -23,6 +23,7 @@ kueueResources:
     levels:
     - cloud.google.com/gce-topology-block
     - cloud.google.com/gke-tpu-slice-4x4x4-id
+    - kubernetes.io/hostname
   resourceFlavor:
     name: superslice-flavor
     nodeLabels:

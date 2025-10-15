@@ -35,7 +35,7 @@ def set_cluster_command(args) -> int:
   """
   command = (
       'gcloud container clusters get-credentials'
-      f' {args.cluster} --region={get_cluster_location(args.project, args.cluster, args.zone)} --dns-endpoint'
+      f' {args.cluster} --location={get_cluster_location(args.project, args.cluster, args.zone)} --dns-endpoint'
       f' --project={args.project} && kubectl config view && kubectl config'
       ' set-context --current --namespace=default'
   )

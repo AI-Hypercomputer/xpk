@@ -1100,7 +1100,6 @@ def parse_command_args_to_dict(arg_string: str) -> dict:
     i += 1
   # After parsing: Print the final parsed dictionary
   xpk_print(f'Final parsed_args: {parsed_args}')
-  xpk_print('-------------------------------------------')
   return parsed_args
 
 
@@ -1219,8 +1218,9 @@ def run_gke_cluster_create_command(
   # This value is from here https://cloud.google.com/vpc/docs/subnets
   final_gcloud_args['--cluster-ipv4-cidr'] = '10.224.0.0/12'
   final_gcloud_args['--enable-private-nodes'] = True
-  final_gcloud_args['--enable-ip-alias'] = True
+  final_gcloud_args['--enable-ip-alias'] = False
   final_gcloud_args['--autoscaling-profile'] = 'optimize-utilization'
+  final_gcloud_args['--labels'] = 'gke_product_type=xpk'
 
   if args.gke_version is not None:
     final_gcloud_args['--release-channel'] = 'rapid'

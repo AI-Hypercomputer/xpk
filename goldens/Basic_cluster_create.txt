@@ -1,101 +1,14 @@
-[XPK] Starting xpk
-[XPK] Starting cluster create for cluster golden-cluster:
-[XPK] Working on golden-project and us-central1-a
-[XPK] Task: `Determine server supported GKE versions for default rapid gke version` is implemented by the following command not running since it is a dry run. 
-gcloud container get-server-config --project=golden-project --region=us-central1 --flatten="channels" --filter="channels.channel=RAPID" --format="value(channels.defaultVersion)"
-[XPK] Task: `Determine server supported GKE versions for valid versions` is implemented by the following command not running since it is a dry run. 
-gcloud container get-server-config --project=golden-project --region=us-central1 --flatten="channels" --filter="channels.channel=RAPID" --format="value(channels.validVersions)"
-[XPK] Task: `Find if Cluster Exists` is implemented by the following command not running since it is a dry run. 
-gcloud container clusters list --project=golden-project --region=us-central1 --format="csv[no-heading](name)"
-[XPK] Task: `GKE Cluster Create` is implemented by the following command not running since it is a dry run. 
-gcloud beta container clusters create golden-cluster --project=golden-project --region=us-central1 --node-locations=us-central1-a --cluster-version=0 --machine-type=e2-standard-16 --enable-autoscaling --total-min-nodes 1 --total-max-nodes 1000 --num-nodes 6   --enable-dns-access --autoscaling-profile=optimize-utilization --location-policy=BALANCED --scopes=storage-full,gke-default
-[XPK] Task: `Check if Private Nodes is enabled in cluster.` is implemented by the following command not running since it is a dry run. 
-gcloud container clusters describe golden-cluster --project=golden-project --region=us-central1 --format="value(privateClusterConfig.enablePrivateNodes)"
-[XPK] Private Nodes is not enabled on the cluster.
-[XPK] Cluster is public and no need to authorize networks.
-[XPK] Try 1: get-credentials to cluster golden-cluster
-[XPK] Task: `get-credentials to cluster golden-cluster` is implemented by the following command not running since it is a dry run. 
-gcloud container clusters get-credentials golden-cluster --region=us-central1 --project=golden-project && kubectl config view && kubectl config set-context --current --namespace=default
-[XPK] Task: 'Checking CoreDNS deployment existence' in progress for namespace: kube-system
-[XPK] Task: `Check CoreDNS deployment in kube-system` is implemented by the following command not running since it is a dry run. 
-kubectl get deployment coredns -n kube-system
-[XPK] Now verifying CoreDNS readiness...
-[XPK] Task: `Waiting for kubeDNS to be checked.` is implemented by the following command not running since it is a dry run. 
-kubectl get deployment kube-dns -n kube-system --ignore-not-found
-[XPK] kube-dns deployment not found.
-[XPK] Verifying if CoreDNS is available...
-[XPK] Task: `Wait for coredns available` is implemented by the following command not running since it is a dry run. 
-kubectl wait deployment/coredns --for=condition=Available=true --namespace=kube-system --timeout=240s
-[XPK] CoreDNS has successfully started and passed verification.
-[XPK] CoreDNS deployment 'coredns' found in namespace 'kube-system'.
-[XPK] Skipping CoreDNS deployment since it already exists.
-[XPK] Task: `Determine current gke master version` is implemented by the following command not running since it is a dry run. 
-gcloud beta container clusters describe golden-cluster --region us-central1 --project golden-project --format="value(currentMasterVersion)"
-[XPK] Creating 1 node pool or pools of tpu7x-8
-We assume that the underlying system is: SystemCharacteristics(topology='2x2x1', vms_per_slice=1, gke_accelerator='tpu7x', gce_machine_type='tpu7x-standard-4t', chips_per_vm=4, accelerator_type=1, device_type='tpu7x-8')
-[XPK] Task: `Get All Node Pools` is implemented by the following command not running since it is a dry run. 
-gcloud beta container node-pools list --cluster golden-cluster --project=golden-project --region=us-central1 --format="csv[no-heading](name)"
-[XPK] Creating 1 node pool or pools of tpu7x-8
-Underlyingly, we assume that means: SystemCharacteristics(topology='2x2x1', vms_per_slice=1, gke_accelerator='tpu7x', gce_machine_type='tpu7x-standard-4t', chips_per_vm=4, accelerator_type=1, device_type='tpu7x-8')
-[XPK] Task: `Get Node Pool Zone` is implemented by the following command not running since it is a dry run. 
-gcloud beta container node-pools describe 0 --cluster golden-cluster --project=golden-project --region=us-central1 --format="value(locations)"
-[XPK] Task: `GKE Cluster Get ConfigMap` is implemented by the following command not running since it is a dry run. 
-kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="ConfigData:data" --no-headers=true
-[XPK] Existing node pool names  ['0']
-[XPK] To complete NodepoolCreate-golden-cluster-np-0 we are executing gcloud beta container node-pools create golden-cluster-np-0 --region=us-central1 --cluster=golden-cluster --project=golden-project --node-locations=us-central1-a --machine-type=tpu7x-standard-4t --host-maintenance-interval=AS_NEEDED --spot --enable-gvnic --node-version=0 --num-nodes=1 --scopes=storage-full,gke-default,"https://www.googleapis.com/auth/cloud-platform" --placement-type=COMPACT  --max-pods-per-node 15 --tpu-topology=2x2x1  
-[XPK] Breaking up a total of 1 commands into 1 batches
-[XPK] Pretending all the jobs succeeded
-[XPK] Create or delete node pool request complete.
-[XPK] Creating ConfigMap for cluster
-[XPK] Breaking up a total of 2 commands into 1 batches
-[XPK] Pretending all the jobs succeeded
-[XPK] Enabling the jobset API on our cluster, to be deprecated when Jobset is globally available
-[XPK] Try 1: Install Jobset on golden-cluster
-[XPK] Task: `Install Jobset on golden-cluster` is implemented by the following command not running since it is a dry run. 
-kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-sigs/jobset/releases/download/v0.8.0/manifests.yaml
-[XPK] Task: `Count total nodes` is implemented by the following command not running since it is a dry run. 
-kubectl get node --no-headers | wc -l
-[XPK] Try 1: Updating jobset Controller Manager resources
-[XPK] Task: `Updating jobset Controller Manager resources` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f 1b31e624e490f9c8c4ef4e369f08d3fa467990af5a261e4405bd045265d70e95
-[XPK] Try 1: Install PathwaysJob on golden-cluster
-[XPK] Task: `Install PathwaysJob on golden-cluster` is implemented by the following command not running since it is a dry run. 
-kubectl apply --server-side -f https://github.com/google/pathways-job/releases/download/v0.1.2/install.yaml
-[XPK] Enabling Kueue on the cluster
-[XPK] Task: `Get kueue version on server` is implemented by the following command not running since it is a dry run. 
-kubectl kueue version
-[XPK] Try 1: Set Kueue On Cluster
-[XPK] Task: `Set Kueue On Cluster` is implemented by the following command not running since it is a dry run. 
-kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-sigs/kueue/releases/download/v0.12.2/manifests.yaml
-[XPK] Wait for Kueue to be fully available
-[XPK] Task: `Wait for Kueue to be available` is implemented by the following command not running since it is a dry run. 
-kubectl wait deploy/kueue-controller-manager -nkueue-system --for=condition=available --timeout=10m
-[XPK] Install Kueue Custom Resources
-[XPK] Try 1: Applying Kueue Custom Resources
-[XPK] Task: `Applying Kueue Custom Resources` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f c49da377b542c14a80a64a13236f8d3a1c8e022dc7c82cc6f6f0560d980ee9e7
-[XPK] Update Kueue Controller Manager resources
-[XPK] Task: `Count total nodes` is implemented by the following command not running since it is a dry run. 
-kubectl get node --no-headers | wc -l
-[XPK] Try 1: Updating Kueue Controller Manager resources
-[XPK] Task: `Updating Kueue Controller Manager resources` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f 012e1b15b6941e9d47cb2cdb35488d57c2f3ce0ef0b18093d2759f2e02ed81dc
-[XPK] Verifying kjob installation
-[XPK] Task: `Verify kjob installation ` is implemented by the following command not running since it is a dry run. 
-kubectl-kjob help
-[XPK] kjob found
-[XPK] Applying kjob CDRs
-[XPK] Task: `Create kjob CRDs on cluster` is implemented by the following command not running since it is a dry run. 
-kubectl kjob printcrds | kubectl apply --server-side -f -
-[XPK] Creating kjob CRDs succeeded
-[XPK] Task: `GKE Cluster Get ConfigMap` is implemented by the following command not running since it is a dry run. 
-kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="ConfigData:data" --no-headers=true
-[XPK] Task: `Creating JobTemplate` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f 4abb796ed6e7c9d7256a51f13124efd989fc12ee83839bed432fcf7d64f68e61
-[XPK] Task: `Creating PodTemplate` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f a63aa3c4593c38ad90671fd8b067d1886f6313ad558379b364b51791aa50f4e8
-[XPK] Task: `Creating AppProfile` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f 1d13ddebae3c90a05ba26b312df088982dd0df0edc4f4013b88384e476c20486
-[XPK] GKE commands done! Resources are created.
-[XPK] See your GKE Cluster here: https://console.cloud.google.com/kubernetes/clusters/details/us-central1/golden-cluster/details?project=golden-project
-[XPK] Exiting XPK cleanly
+Traceback (most recent call last):
+  File "/usr/local/google/home/lidanny/Desktop/Project/xpk-config-test/fork/xpk/xpk.py", line 34, in <module>
+    from src.xpk.main import main
+  File "/usr/local/google/home/lidanny/Desktop/Project/xpk-config-test/fork/xpk/src/xpk/main.py", line 37, in <module>
+    from .parser.core import set_parser
+  File "/usr/local/google/home/lidanny/Desktop/Project/xpk-config-test/fork/xpk/src/xpk/parser/core.py", line 19, in <module>
+    from .config import set_config_parsers
+  File "/usr/local/google/home/lidanny/Desktop/Project/xpk-config-test/fork/xpk/src/xpk/parser/config.py", line 17, in <module>
+    from ..commands.config import get_config, set_config
+  File "/usr/local/google/home/lidanny/Desktop/Project/xpk-config-test/fork/xpk/src/xpk/commands/config.py", line 17, in <module>
+    from ..core.config import XpkConfig
+  File "/usr/local/google/home/lidanny/Desktop/Project/xpk-config-test/fork/xpk/src/xpk/core/config.py", line 19, in <module>
+    import ruamel.yaml
+ModuleNotFoundError: No module named 'ruamel'

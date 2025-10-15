@@ -26,7 +26,7 @@ from .capacity import (
     print_reservations,
 )
 from .commands import run_command_for_value, run_commands
-from .gcloud_context import GkeServerConfig, get_cluster_location
+from .gcloud_context import GkeServerConfig, get_cluster_location, zone_to_region
 from .resources import (
     CLUSTER_CONFIGMAP_YAML,
     CLUSTER_RESOURCES_CONFIGMAP,
@@ -601,7 +601,7 @@ def ensure_resource_policy_exists(
           'gcloud compute resource-policies describe'
           f' {resource_policy_name} '
           f'--project={args.project} '
-          f'--region={get_cluster_location(args.project, args.cluster, args.zone)}'
+          f'--region={zone_to_region(args.zone)}'
       ),
       'Retrieve resource policy',
   )
@@ -612,7 +612,7 @@ def ensure_resource_policy_exists(
   return_code, _ = run_command_for_value(
       (
           'gcloud compute resource-policies create workload-policy'
-          f' {resource_policy_name} --project={args.project} --region={get_cluster_location(args.project, args.cluster, args.zone)} --type=HIGH_THROUGHPUT'
+          f' {resource_policy_name} --project={args.project} --region={zone_to_region(args.zone)} --type=HIGH_THROUGHPUT'
           f' --accelerator-topology={topology}'
       ),
       'Create resource policy',

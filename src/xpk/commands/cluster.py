@@ -1217,6 +1217,7 @@ def install_kueue(args, system: SystemCharacteristics, autoprovisioning_config):
           total_chips=total_chips,
           autoprovisioning_enabled=autoprovisioning_enabled,
           num_slices=args.num_slices,
+          flex=args.flex,
           memory_limit=args.memory_limit,
           cpu_limit=args.cpu_limit,
           is_pathways_cluster=args.enable_pathways,

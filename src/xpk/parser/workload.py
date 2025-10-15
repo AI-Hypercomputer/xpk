@@ -193,43 +193,6 @@ def set_workload_parsers(workload_parser):
       ),
   )
 
-  # Autoprovisioning workload arguments
-  workload_create_autoprovisioning_arguments.add_argument(
-      '--on-demand',
-      action='store_true',
-      help=(
-          'Sets autoprovisioning to use on-demand resources for the workload'
-          ' request. See `--reservation` or `--spot` for other capacity types.'
-      ),
-  )
-  workload_create_autoprovisioning_arguments.add_argument(
-      '--reservation',
-      type=str,
-      help=(
-          'Sets autoprovisioning to use reservation resources for the workload'
-          ' request. This will attempt to find the provided reservation. See'
-          ' `--spot`, `--flex` or `--on-demand` for other capacity types.'
-      ),
-  )
-  workload_create_autoprovisioning_arguments.add_argument(
-      '--spot',
-      action='store_true',
-      help=(
-          'Sets autoprovisioning to use spot resources. See `--reservation`,'
-          ' `--flex` or `--on-demand` for other capacity types.'
-      ),
-  )
-
-  workload_create_autoprovisioning_arguments.add_argument(
-      '--flex',
-      action='store_true',
-      help=(
-          'Sets autoprovisioning to use flex-start resources. See'
-          ' `--reservation`, `--spot` or `--on-demand` for other capacity'
-          ' types.'
-      ),
-  )
-
   # "workload create-pathways" command parser.
   workload_create_pathways_parser = workload_subcommands.add_parser(
       'create-pathways', help='Create a new job.'
@@ -256,6 +219,12 @@ def set_workload_parsers(workload_parser):
       'Docker Image Arguments',
       '`--base-docker-image` is used by default. Set this argument if the'
       ' user wants the docker image to be used directly by the xpk workload.',
+  )
+  workload_create_pathways_autoprovisioning_arguments = (
+      workload_create_pathways_parser.add_argument_group(
+          'Optional Autoprovisioning Arguments',
+          'Arguments for configuring autoprovisioning.',
+      )
   )
   workload_create_pathways_vertex_tensorboard_arguments = (
       workload_create_pathways_parser.add_argument_group(
@@ -407,6 +376,10 @@ def set_workload_parsers(workload_parser):
       workload_vertex_tensorboard_arguments,
       workload_create_pathways_vertex_tensorboard_arguments,
   ])
+  add_shared_workload_create_autoprovisioning_arguments([
+      workload_create_autoprovisioning_arguments,
+      workload_create_pathways_autoprovisioning_arguments,
+  ])
 
   # Set defaults for both workload create and workload create-pathways after adding all shared args.
   workload_create_parser.set_defaults(func=workload_create)
@@ -452,7 +425,7 @@ def set_workload_parsers(workload_parser):
       type=str,
       help=(
           'Filters the arguments based on job name. Provide a regex'
-          ' expressionto parse jobs that match the pattern or provide a job'
+          ' expression to parse jobs that match the pattern or provide a job'
           ' name to delete a single job.'
       ),
   )
@@ -521,7 +494,7 @@ def set_workload_parsers(workload_parser):
       type=str,
       help=(
           'Filters the arguments based on job name. Provide a regex'
-          ' expressionto parse jobs that match the pattern or provide a job'
+          ' expression to parse jobs that match the pattern or provide a job'
           ' name to view a single job.'
       ),
       required=False,
@@ -768,5 +741,50 @@ def add_shared_workload_create_tensorboard_arguments(args_parsers):
             'The name of Vertex Experiment to create. '
             'If not specified, a Vertex Experiment with the name '
             '<cluster>-<workload> will be created.'
+        ),
+    )
+
+
+def add_shared_workload_create_autoprovisioning_arguments(args_parsers):
+  """Add shared autoprovisioning arguments
+
+  Args:
+      List of workload create optional arguments parsers
+  """
+  for custom_parser in args_parsers:
+    custom_parser.add_argument(
+        '--on-demand',
+        action='store_true',
+        help=(
+            'Sets autoprovisioning to use on-demand resources for the workload'
+            ' request. See `--reservation` or `--spot` for other capacity'
+            ' types.'
+        ),
+    )
+    custom_parser.add_argument(
+        '--reservation',
+        type=str,
+        help=(
+            'Sets autoprovisioning to use reservation resources for the'
+            ' workload request. This will attempt to find the provided'
+            ' reservation. See `--spot`, `--flex` or `--on-demand` for other'
+            ' capacity types.'
+        ),
+    )
+    custom_parser.add_argument(
+        '--spot',
+        action='store_true',
+        help=(
+            'Sets autoprovisioning to use spot resources. See `--reservation`,'
+            ' `--flex` or `--on-demand` for other capacity types.'
+        ),
+    )
+    custom_parser.add_argument(
+        '--flex',
+        action='store_true',
+        help=(
+            'Sets autoprovisioning to use flex-start resources. See'
+            ' `--reservation`, `--spot` or `--on-demand` for other capacity'
+            ' types.'
         ),
     )

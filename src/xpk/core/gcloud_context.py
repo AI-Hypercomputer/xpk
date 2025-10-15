@@ -75,7 +75,7 @@ def add_zone_and_project(args):
   xpk_print(f'Working on {args.project} and {args.zone}')
 
 
-def zone_to_region(zone) -> str:
+def zone_to_region(zone: str) -> str:
   """Helper function converts zone name to region name.
 
   Args:
@@ -85,7 +85,7 @@ def zone_to_region(zone) -> str:
      The region name.
   """
   zone_terms = zone.split('-')
-  return zone_terms[0] + '-' + zone_terms[1]  # pytype: disable=bad-return-type
+  return zone_terms[0] + '-' + zone_terms[1]
 
 
 @dataclass

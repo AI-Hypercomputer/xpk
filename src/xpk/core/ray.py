@@ -132,7 +132,7 @@ def install_ray_cluster(args, system) -> int:
   )
 
   tmp = write_tmp_file(yml_string)
-  command = f'kubectl apply -f {str(tmp.file.name)}'
+  command = f'kubectl apply -f {str(tmp)}'
   task = 'Applying RayCluster'
   retry_attempts = 1
   return_code = run_command_with_updates_retry(

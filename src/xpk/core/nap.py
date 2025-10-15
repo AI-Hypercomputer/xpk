@@ -37,11 +37,14 @@ from .resources import (
 )
 from .scheduling import get_total_chips_requested_from_args
 from .system_characteristics import AcceleratorType, SystemCharacteristics
+from typing import cast
 
 AUTOPROVISIONING_CONFIG_FILE = """
 management:
   autoRepair: true
   autoUpgrade: true
+scopes:
+  - "https://www.googleapis.com/auth/devstorage.read_write"
 autoprovisioningLocations:
   {zones}
 {resource_limits}
@@ -99,9 +102,20 @@ def enable_autoprovisioning_on_cluster(
       f' --region={zone_to_region(args.zone)} --enable-autoprovisioning'
       ' --autoprovisioning-config-file'
       f' {autoprovisioning_config.config_filename}'
-      ' --autoscaling-profile=optimize-utilization'
   )
   task = 'Update cluster with autoprovisioning enabled'
+  return_code = run_command_with_updates(command, task, args)
+  if return_code != 0:
+    xpk_print(f'{task} request returned ERROR {return_code}')
+    return autoprovisioning_config, return_code
+
+  command = (
+      'gcloud container clusters update'
+      f' {args.cluster} --project={args.project}'
+      f' --region={zone_to_region(args.zone)}'
+      ' --autoscaling-profile=optimize-utilization'
+  )
+  task = 'Update cluster with autoscaling-profile'
   return_code = run_command_with_updates(command, task, args)
   if return_code != 0:
     xpk_print(f'{task} request returned ERROR {return_code}')
@@ -172,11 +186,11 @@ def create_autoprovisioning_config(
   # is not controlled by NAP.
   cpu_limits = """
   minimum: 1
-  maximum: 10000
+  maximum: 1000000
   """
   memory_limits = """
   minimum: 1
-  maximum: 10000
+  maximum: 10000000
   """
 
   # By default, the maximum chips is set to be the current number of resources used
@@ -236,7 +250,7 @@ def create_autoprovisioning_config(
       zones=f'- {args.zone}',
   )
   autoprovisioning_config = AutoprovisioningConfig(
-      config_filename=write_tmp_file(yml_string).name,
+      config_filename=write_tmp_file(yml_string),
       minimum_chips=minimum,
       maximum_chips=maximum,
   )
@@ -256,9 +270,6 @@ def is_autoprovisioning_enabled(
     bool is true if autoprovisioning is enabled, false otherwise.
     int of 0 if successful and 1 otherwise.
   """
-  # Currently autoprovisioning is not enabled for Pathways workloads. b/360898087
-  if args.use_pathways:
-    return False, 0
 
   resources_configmap_name = f'{args.cluster}-{CLUSTER_RESOURCES_CONFIGMAP}'
   cluster_config_map = get_cluster_configmap(args, resources_configmap_name)
@@ -326,11 +337,13 @@ def get_autoprovisioning_node_selector_args(args) -> tuple[str, int]:
       )
       return node_selector_args, 1
 
-    return_code, capacity_type_str = get_value_from_map(
+    return_code, optional_capacity_type_str = get_value_from_map(
         CAPACITY_TYPE_CONFIG_KEY, cluster_config_map
     )
     if return_code != 0:
       return node_selector_args, return_code
+    # return_code==0 implies capacity_type is defined
+    capacity_type_str = cast(str, optional_capacity_type_str)
 
     if capacity_type_str == CapacityType.RESERVATION.name:
       return_code, args.reservation = get_value_from_map(

@@ -37,6 +37,7 @@ import sys
 from .parser.core import set_parser
 from .utils.console import xpk_print
 from .utils.validation import validate_dependencies
+from .utils.execution_context import set_dry_run
 ################### Compatibility Check ###################
 # Check that the user runs the below version or greater.
 
@@ -56,18 +57,19 @@ if (
       f' User currently is running {user_major_version}.{user_minor_version}'
   )
 
-# Create top level parser for xpk command.
-parser = argparse.ArgumentParser(description='xpk command', prog='xpk')
-set_parser(parser=parser)
-
-xpk_print('Starting xpk', flush=True)
-validate_dependencies()
-main_args = parser.parse_args()
-main_args.enable_ray_cluster = False
-main_args.func(main_args)
-
 
 def main() -> None:
+  # Create top level parser for xpk command.
+  parser = argparse.ArgumentParser(description='xpk command', prog='xpk')
+  set_parser(parser=parser)
+
+  xpk_print('Starting xpk', flush=True)
+  main_args = parser.parse_args()
+  main_args.enable_ray_cluster = False
+  set_dry_run('dry_run' in main_args and main_args.dry_run)
+  if not main_args.dry_run:
+    validate_dependencies()
+  main_args.func(main_args)
   xpk_print('XPK Done.', flush=True)
 
 

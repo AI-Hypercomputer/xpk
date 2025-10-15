@@ -23,6 +23,7 @@ from kubernetes.client import ApiClient
 from kubernetes.client.rest import ApiException
 
 from ..utils import templates
+from ..utils.execution_context import is_dry_run
 from ..utils.console import xpk_exit, xpk_print
 from .capacity import H100_DEVICE_TYPE, H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE
 from .cluster import DEFAULT_NAMESPACE, XPK_SA, setup_k8s_env
@@ -277,7 +278,8 @@ def decorate_job_template_with_gpu(yml_string: str, gpu_type: str) -> str:
     job_spec = rdma_decorator.decorate_kjob_template(job_spec)
   job_template_dict = yaml.safe_load(yml_string)
   job_template_dict["template"] = job_spec
-  return yaml.dump(job_template_dict, sort_keys=False)
+  yaml_result: str = yaml.dump(job_template_dict, sort_keys=False)
+  return yaml_result
 
 
 def create_job_template_instance(
@@ -367,8 +369,10 @@ def create_pod_template_instance(args: Namespace, service_account: str) -> int:
 def prepare_kjob(args: Namespace) -> int:
   system = get_cluster_system_characteristics(args)
 
-  k8s_api_client = setup_k8s_env(args)
-  storages = get_auto_mount_storages(k8s_api_client)
+  storages = []
+  if not is_dry_run():
+    k8s_api_client = setup_k8s_env(args)
+    storages = get_auto_mount_storages(k8s_api_client)
 
   service_account = ""
   if len(storages) > 0:

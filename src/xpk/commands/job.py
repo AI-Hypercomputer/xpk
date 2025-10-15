@@ -18,6 +18,7 @@ import re
 import sys
 
 from ruamel.yaml import YAML
+from typing import cast
 
 from ..core.commands import run_command_for_value, run_command_with_updates
 from ..core.cluster import get_cluster_credentials
@@ -25,6 +26,28 @@ from ..core.gcloud_context import add_zone_and_project
 from ..core.kjob import AppProfileDefaults
 from ..utils.console import xpk_exit, xpk_print
 from .kind import set_local_cluster_command
+
+
+JOBS_DRY_RUN_YAML = """
+items:
+- apiVersion: slurm.k8s.io/v1alpha1
+  kind: SlurmJob
+  metadata:
+    annotations:
+      kjobctl.x-k8s.io/script: echo hello
+    creationTimestamp: '2024-04-29T12:00:00Z'
+    labels:
+      kjobctl.x-k8s.io/app-profile: default
+    name: golden-job
+    namespace: default
+  spec:
+    script: echo hello
+"""
+
+PODS_DRY_RUN_RESULT = """
+foo-pod 2/2 Running 0 2d
+bar-pod 1/1 Evicted 0 1d
+"""
 
 
 def job_info(args):
@@ -51,7 +74,10 @@ def job_info(args):
       f' metadata.name=={job_name}'
   )
   job_code, job_text = run_command_for_value(
-      job_command, 'Getting job info', args
+      job_command,
+      'Getting job info',
+      args,
+      dry_run_return_val=JOBS_DRY_RUN_YAML,
   )
   if job_code != 0:
     xpk_print(f'Job info request returned ERROR {job_code}')
@@ -59,7 +85,10 @@ def job_info(args):
 
   pods_command = f'kubectl get pods -l=job-name={job_name} --no-headers'
   pods_code, pods_text = run_command_for_value(
-      pods_command, 'Getting pods list', args
+      pods_command,
+      'Getting pods list',
+      args,
+      dry_run_return_val=PODS_DRY_RUN_RESULT,
   )
   if pods_code != 0:
     xpk_print(f'Pods list request returned ERROR {pods_code}')
@@ -84,7 +113,7 @@ def job_info(args):
 
 
 def get_profile(job_yaml: dict) -> str:
-  containers = (
+  containers: list[dict] = (
       job_yaml.get('spec', {})
       .get('template', {})
       .get('spec', {})
@@ -96,13 +125,13 @@ def get_profile(job_yaml: dict) -> str:
 
 
 def get_mounts(job_yaml: dict) -> list[dict]:
-  containers = (
+  containers: list[dict] = (
       job_yaml.get('spec', {})
       .get('template', {})
       .get('spec', {})
       .get('containers', [])
   )
-  mounts = next(iter(containers), {}).get('volumeMounts', [])
+  mounts: list[dict] = next(iter(containers), {}).get('volumeMounts', [])
   return mounts
 
 
@@ -112,23 +141,24 @@ def get_kjob_env_vars(job_desc_text: str) -> list[tuple[str, str]]:
   return search_res
 
 
-def get_pods(pods_text: str) -> list[str]:
+def get_pods(pods_text: str) -> list[dict[str, str]]:
   pods_lines = pods_text.strip().split('\n')
-  pods_lines = [line.split() for line in pods_lines]
+  pods_lines_tokenized = [line.split() for line in pods_lines]
   return [
       {
-          'Name': line[0],
-          'Status': line[2],
+          'Name': tokens[0],
+          'Status': tokens[2],
       }
-      for line in pods_lines
+      for tokens in pods_lines_tokenized
   ]
 
 
 def get_script_name(job_yaml: dict) -> str | None:
-  return (
+  return cast(
+      str | None,
       job_yaml.get('metadata', {})
       .get('annotations', {})
-      .get('kjobctl.x-k8s.io/script', '')
+      .get('kjobctl.x-k8s.io/script', ''),
   )
 
 

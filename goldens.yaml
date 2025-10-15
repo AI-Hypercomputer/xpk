@@ -1,0 +1,31 @@
+goldens:
+  "NAP cluster-create with pathways":
+    command: python3 xpk.py cluster create-pathways --project=golden-project --zone=us-central1-a --enable-autoprovisioning --cluster=golden-cluster --tpu-type=tpu7x-8 --on-demand --dry-run
+  "NAP cluster-create":
+    command: python3 xpk.py cluster create --project=golden-project --zone=us-central1-a --enable-autoprovisioning --cluster=golden-cluster --tpu-type=tpu7x-8 --on-demand --dry-run
+  "Basic cluster create":
+    command: python3 xpk.py cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-8 --spot --dry-run
+  "Cluster create private":
+    command: python3 xpk.py cluster create-pathways --project=golden-project --zone=us-central1-a --cluster=golden-cluster-private --private --tpu-type=v5p-8  --num-slices=1 --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=4 --reservation=golden-reservation --dry-run
+  "Cluster delete":
+    command: python3 xpk.py cluster delete --project=golden-project --zone=us-central1-a --cluster=golden-cluster --dry-run
+  "Cluster delete force":
+    command: python3 xpk.py cluster delete --project=golden-project --zone=us-central1-a --cluster=golden-cluster --force --dry-run
+  "Workload create":
+    command: python3 xpk.py workload create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --command "bash hello" --tpu-type=v5p-8 --num-slices=1 --script-dir=/tmp --dry-run
+  "Workload create pathways":
+    command: python3 xpk.py workload create-pathways --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --command "bash hello" --tpu-type=v5p-8 --num-slices=1 --script-dir=/tmp --dry-run
+  "Workload delete":
+    command: python3 xpk.py workload delete --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --dry-run
+  "Workload list":
+    command: python3 xpk.py workload list --project=golden-project --zone=us-central1-a --cluster=golden-cluster --dry-run
+  "Storage list":
+    command: python3 xpk.py storage list --project=golden-project --zone=us-central1-a --cluster=golden-cluster --dry-run
+  "Job cancel":
+    command: python3 xpk.py job cancel golden-job --project=golden-project --zone=us-central1-a --cluster=golden-cluster --dry-run
+  "Batch":
+    command: python3 xpk.py batch --project=golden-project --zone=us-central1-a --cluster=golden-cluster --dry-run batch-read.sh
+  "Job list":
+    command: python3 xpk.py job ls --project=golden-project --zone=us-central1-a --cluster=golden-cluster --dry-run
+  "Job info":
+    command: python3 xpk.py job info golden-job --project=golden-project --zone=us-central1-a --cluster=golden-cluster --dry-run

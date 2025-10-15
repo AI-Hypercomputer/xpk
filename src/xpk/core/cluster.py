@@ -62,8 +62,8 @@ def set_jobset_on_cluster(args) -> int:
     0 if successful and 1 otherwise.
   """
   command = (
-      'kubectl apply --server-side -f'
-      f' https://github.com/kubernetes-sigs/jobset/releases/download/{JOBSET_VERSION}/manifests.yaml'
+      'kubectl apply --server-side --force-conflicts'
+      f' -f https://github.com/kubernetes-sigs/jobset/releases/download/{JOBSET_VERSION}/manifests.yaml'
   )
   task = f'Install Jobset on {args.cluster}'
   return_code = run_command_with_updates_retry(command, task, args)
@@ -217,8 +217,8 @@ def get_cluster_nodes_info(args) -> list[dict]:
   )
   if err_code != 0:
     xpk_exit(err_code)
-  data = yaml.safe_load(val)
-  return data['items']  # pytype: disable=bad-return-type
+  data: dict[str, list[dict]] = yaml.safe_load(val)
+  return data['items']
 
 
 def count_nodes_on_cluster(args, system: SystemCharacteristics) -> int:
@@ -442,10 +442,14 @@ def setup_k8s_env(args) -> k8s_client.ApiClient:
   if not getattr(args, 'kind_cluster', False):
     add_zone_and_project(args)
     get_cluster_credentials(args)
-    args.project_number = project_id_to_project_number(args.project)
+    args.project_number = (
+        project_id_to_project_number(args.project)
+        if not args.dry_run
+        else abs(hash(args.project) % (10**12))  # 12 digit hash
+    )
 
   config.load_kube_config()
-  return k8s_client.ApiClient()  # pytype: disable=bad-return-type
+  return k8s_client.ApiClient()
 
 
 def get_gpu_type_from_cluster(args) -> str:
@@ -817,9 +821,11 @@ def update_cluster_with_clouddns_if_necessary(args) -> int:
     server_config_return_code, gke_server_config = get_gke_server_config(args)
     if server_config_return_code != 0:
       xpk_exit(server_config_return_code)
+    assert gke_server_config
+
     upgrade_master_return_code = upgrade_gke_control_plane_version(
         args,
-        gke_server_config.default_rapid_gke_version,  # pytype: disable=attribute-error
+        gke_server_config.default_rapid_gke_version,
     )
     if upgrade_master_return_code > 0:
       xpk_print("Updating GKE cluster's control plane upgrade failed!")
@@ -828,7 +834,7 @@ def update_cluster_with_clouddns_if_necessary(args) -> int:
     # Upgrade nodepools version after the master upgrade.
     node_pool_update_code = upgrade_gke_nodepools_version(
         args,
-        gke_server_config.default_rapid_gke_version,  # pytype: disable=attribute-error
+        gke_server_config.default_rapid_gke_version,
     )
     if node_pool_update_code > 0:
       xpk_print('Upgrading nodepools version failed!')

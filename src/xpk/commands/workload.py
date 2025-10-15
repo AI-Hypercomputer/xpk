@@ -84,6 +84,7 @@ from ..core.system_characteristics import (
 from ..core.vertex import create_vertex_experiment
 from ..core.workload import (
     check_if_workload_exists,
+    get_jobsets_list_gcp_link,
     get_workload_list,
     wait_for_job_completion,
     zone_to_region,
@@ -96,6 +97,7 @@ from ..core.workload_decorators import (
 )
 from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
+from ..utils.execution_context import is_dry_run
 from . import cluster_gcluster
 from .common import is_TAS_possible
 
@@ -226,7 +228,8 @@ spec:
             metadata:
               labels:
                 xpk.google.com/workload: {args.workload}
-              annotations: {annotations}
+              annotations:
+                {annotations}
             spec:
               priorityClassName: {args.priority}
               restartPolicy: Never
@@ -304,8 +307,10 @@ def workload_create(args) -> None:
   Returns:
     0 if successful and 1 otherwise.
   """
-  k8s_api_client = setup_k8s_env(args)
-  setup_k8s_service_accounts()
+  k8s_api_client = None
+  if not is_dry_run():
+    k8s_api_client = setup_k8s_env(args)
+    setup_k8s_service_accounts()
 
   workload_exists = check_if_workload_exists(args)
 
@@ -319,7 +324,7 @@ def workload_create(args) -> None:
   xpk_print('Starting workload create', flush=True)
   system, return_code = get_system_characteristics(args)
 
-  if return_code > 0:
+  if return_code > 0 or system is None:
     xpk_print('Fetching system characteristics failed!')
     xpk_exit(return_code)
 
@@ -345,7 +350,7 @@ def workload_create(args) -> None:
   ):
     xpk_print(
         'Warning: Cluster has been created using XPK version:'
-        f' {cluster_config_map["xpk_version"]} but the XPK version you are'
+        f' {cluster_xpk_version} but the XPK version you are'
         f' using to schedule workload is: {XPK_CURRENT_VERSION}. Some features'
         ' might not be available for this cluster. We recommend to'
         ' upgrade/downgrade your XPK version or cluster by running `xpk'
@@ -354,7 +359,7 @@ def workload_create(args) -> None:
 
   debugging_dashboard_id = None
 
-  tensorboard_config = {}
+  tensorboard_config: dict | None = {}
   if VERTEX_TENSORBOARD_FEATURE_FLAG and args.use_vertex_tensorboard:
     tensorboard_config = create_vertex_experiment(args)
     # exit if failed to create Experiment in Vertex AI
@@ -381,8 +386,10 @@ def workload_create(args) -> None:
   all_storages = []
   # Currently storage customization is not supported for Pathways workloads. b/408468941
   if not args.use_pathways:
-    storages: list[Storage] = get_storages_to_mount(
-        k8s_api_client, args.storage
+    storages: list[Storage] = (
+        []
+        if k8s_api_client is None
+        else get_storages_to_mount(k8s_api_client, args.storage)
     )
     gcs_fuse_storages = list(
         filter(lambda storage: storage.type == GCS_FUSE_TYPE, storages)
@@ -450,8 +457,8 @@ def workload_create(args) -> None:
       - action: FailJobSet
         onJobFailureReasons:
         - PodFailurePolicy"""
-    restart_on_exit_codes = get_restart_exit_codes(args)
-    restart_on_exit_codes = ','.join(map(str, restart_on_exit_codes))
+    restart_on_exit_codes_list = get_restart_exit_codes(args)
+    restart_on_exit_codes = ','.join(map(str, restart_on_exit_codes_list))
     pod_failure_policy = f"""
           podFailurePolicy:
             rules:
@@ -567,14 +574,14 @@ def workload_create(args) -> None:
         pod_failure_policy=pod_failure_policy,
     )
   tmp = write_tmp_file(yml_string)
-  command = f'kubectl apply -f {str(tmp.file.name)}'
+  command = f'kubectl apply -f {str(tmp)}'
   return_code = run_command_with_updates(command, 'Creating Workload', args)
 
   if return_code != 0:
     xpk_print(f'Create Workload request returned ERROR {return_code}')
     xpk_exit(return_code)
 
-  if not args.use_pathways:
+  if not args.use_pathways and not is_dry_run():
     add_bucket_iam_members(args, storages)
 
   # Get GKE outlier dashboard for TPU
@@ -723,7 +730,11 @@ def workload_delete(args) -> None:
       )
     else:
       return_code = run_commands(
-          commands, 'Delete Workload', task_names, batch=100
+          commands,
+          'Delete Workload',
+          task_names,
+          batch=100,
+          dry_run=args.dry_run,
       )
 
     if return_code != 0:
@@ -741,8 +752,6 @@ def workload_list(args) -> None:
   Returns:
     0 if successful and 1 otherwise.
   """
-  xpk_print(args)
-
   xpk_print('Starting workload list', flush=True)
   add_zone_and_project(args)
   get_cluster_credentials(args)
@@ -760,4 +769,8 @@ def workload_list(args) -> None:
     xpk_print(f'List Job request returned ERROR {return_code}')
     xpk_exit(return_code)
   xpk_print(f'Workload List Output:\n{return_value}')
+
+  workload_list_gcp_link = get_jobsets_list_gcp_link(project=args.project)
+  xpk_print(f'See your workloads in Cloud Console: {workload_list_gcp_link}')
+
   xpk_exit(0)

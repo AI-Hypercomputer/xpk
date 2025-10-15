@@ -1,0 +1,9 @@
+[XPK] Starting xpk
+[XPK] Working on golden-project and us-central1-a
+[XPK] Try 1: get-credentials to cluster golden-cluster
+[XPK] Task: `get-credentials to cluster golden-cluster` is implemented by the following command not running since it is a dry run. 
+gcloud container clusters get-credentials golden-cluster --region=us-central1 --project=golden-project && kubectl config view && kubectl config set-context --current --namespace=default
+[XPK] Listing jobs for project golden-project and zone us-central1-a:
+[XPK] Task: `list jobs` is implemented by the following command not running since it is a dry run. 
+kubectl-kjob list slurm  --profile xpk-def-app-profile
+[XPK] Exiting XPK cleanly

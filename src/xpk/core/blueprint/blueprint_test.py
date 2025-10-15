@@ -27,10 +27,10 @@ yaml = ruamel.yaml.YAML()
 
 yaml.register_class(Blueprint)
 
-a3_yaml_test_path = "src/xpk/core/tests/data/a3_mega.yaml"
-a3_spot_yaml_test_path = "src/xpk/core/tests/data/a3_mega_spot.yaml"
-a3_ultra_yaml_test_path = "src/xpk/core/tests/data/a3_ultra.yaml"
-a4_yaml_test_path = "src/xpk/core/tests/data/a4.yaml"
+a3_yaml_test_path = "src/xpk/core/blueprint/testing/data/a3_mega.yaml"
+a3_spot_yaml_test_path = "src/xpk/core/blueprint/testing/data/a3_mega_spot.yaml"
+a3_ultra_yaml_test_path = "src/xpk/core/blueprint/testing/data/a3_ultra.yaml"
+a4_yaml_test_path = "src/xpk/core/blueprint/testing/data/a4.yaml"
 config_map_filename = "config-map.yaml.tftpl"
 kueue_conf_filename = "kueue-xpk-configuration.yaml.tftpl"
 tmp_test_dir = "/tmp/xpk_test"

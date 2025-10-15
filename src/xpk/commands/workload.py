@@ -84,7 +84,7 @@ from ..core.workload import (
     get_jobsets_list_gcp_link,
     get_workload_list,
     wait_for_job_completion,
-    get_cluster_region,
+    get_cluster_location,
 )
 from ..core.workload_decorators import (
     rdma_decorator,
@@ -619,7 +619,7 @@ def workload_create(args) -> None:
           " python -c 'import pathwaysutils; import jax; print(jax.devices())'"
       )
       pathways_proxy_link = (
-          f'https://console.cloud.google.com/kubernetes/job/{get_cluster_region(args.project, args.cluster, args.zone)}/{args.cluster}/default/{args.workload}-proxy-0/details?project={args.project}'
+          f'https://console.cloud.google.com/kubernetes/job/{get_cluster_location(args.project, args.cluster, args.zone)}/{args.cluster}/default/{args.workload}-proxy-0/details?project={args.project}'
       )
       xpk_print(
           'Follow the proxy here:'
@@ -634,7 +634,7 @@ def workload_create(args) -> None:
     xpk_print(
         'Follow your workload here:'
         # pylint: disable=line-too-long
-        f' https://console.cloud.google.com/kubernetes/service/{get_cluster_region(args.project, args.cluster, args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
+        f' https://console.cloud.google.com/kubernetes/service/{get_cluster_location(args.project, args.cluster, args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
     )
     duration_of_logs = 'P1D'  # Past 1 Day
     xpk_print(
@@ -643,7 +643,7 @@ def workload_create(args) -> None:
         ' ([prefix]-slice-job-[slice_number]-[worker_number])'
         ' after clicking the url if you want other worker logs.'
         # pylint: disable=line-too-long
-        f' https://console.cloud.google.com/logs/query;query=resource.type%3D%22k8s_container%22%0Aresource.labels.project_id%3D%22{args.project}%22%0Aresource.labels.location%3D%22{get_cluster_region(args.project, args.cluster, args.zone)}%22%0Aresource.labels.cluster_name%3D%22{args.cluster}%22%0Aresource.labels.namespace_name%3D%22default%22%0Aresource.labels.pod_name:%22{args.workload}-slice-job-0-0-%22%20severity%3E%3DDEFAULT;storageScope=project;duration={duration_of_logs}?e=13802955&mods=allow_workbench_image_override&project={args.project}'
+        f' https://console.cloud.google.com/logs/query;query=resource.type%3D%22k8s_container%22%0Aresource.labels.project_id%3D%22{args.project}%22%0Aresource.labels.location%3D%22{get_cluster_location(args.project, args.cluster, args.zone)}%22%0Aresource.labels.cluster_name%3D%22{args.cluster}%22%0Aresource.labels.namespace_name%3D%22default%22%0Aresource.labels.pod_name:%22{args.workload}-slice-job-0-0-%22%20severity%3E%3DDEFAULT;storageScope=project;duration={duration_of_logs}?e=13802955&mods=allow_workbench_image_override&project={args.project}'
     )
 
   xpk_exit(0)

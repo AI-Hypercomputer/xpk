@@ -92,7 +92,7 @@ def zone_to_region(zone: str) -> str:
 
 
 @lru_cache()
-def get_cluster_region(project: str, name: str, zone: str) -> str:
+def get_cluster_location(project: str, name: str, zone: str) -> str:
   """Helper function to resolve region for a given cluster"""
   result = run_command_for_value_or_raise(
       command=(

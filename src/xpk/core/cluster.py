@@ -30,7 +30,7 @@ from .commands import (
 )
 from .gcloud_context import (
     add_zone_and_project,
-    get_cluster_region,
+    get_cluster_location,
     zone_to_region,
 )
 from .resources import get_cluster_system_characteristics
@@ -231,7 +231,7 @@ def get_cluster_network(args) -> str:
   xpk_print("Getting cluster's VPC network...")
   cluster_network_cmd = (
       'gcloud container clusters describe'
-      f' {args.cluster} --zone={get_cluster_region(args.project, args.cluster, args.zone)} --project={args.project} --format="value(network)"'
+      f' {args.cluster} --zone={get_cluster_location(args.project, args.cluster, args.zone)} --project={args.project} --format="value(network)"'
   )
   err_code, val = run_command_for_value(
       command=cluster_network_cmd,
@@ -341,7 +341,7 @@ def is_driver_enabled_on_cluster(
   """
   command = (
       f'gcloud container clusters describe {args.cluster}'
-      f' --project={args.project} --region={get_cluster_region(args.project, args.cluster, args.zone)}'
+      f' --project={args.project} --region={get_cluster_location(args.project, args.cluster, args.zone)}'
       f' --format="value(addonsConfig.{driver}Config.{config_key})"'
   )
   return_code, driver_enabled = run_command_for_value(
@@ -369,7 +369,7 @@ def update_gke_cluster_with_addon(args, addon: str) -> int:
   command = (
       'gcloud container clusters update'
       f' {args.cluster} --project={args.project}'
-      f' --region={get_cluster_region(args.project, args.cluster, args.zone)}'
+      f' --region={get_cluster_location(args.project, args.cluster, args.zone)}'
       f' --update-addons {addon}=ENABLED'
       ' --quiet'
   )
@@ -575,7 +575,7 @@ def update_gke_cluster_with_workload_identity_enabled(args) -> int:
   command = (
       'gcloud container clusters update'
       f' {args.cluster} --project={args.project}'
-      f' --region={get_cluster_region(args.project, args.cluster, args.zone)}'
+      f' --region={get_cluster_location(args.project, args.cluster, args.zone)}'
       f' --workload-pool={args.project}.svc.id.goog'
       ' --quiet'
   )
@@ -602,7 +602,7 @@ def update_gke_cluster_with_gcsfuse_driver_enabled(args) -> int:
   command = (
       'gcloud container clusters update'
       f' {args.cluster} --project={args.project}'
-      f' --region={get_cluster_region(args.project, args.cluster, args.zone)}'
+      f' --region={get_cluster_location(args.project, args.cluster, args.zone)}'
       ' --update-addons GcsFuseCsiDriver=ENABLED'
       ' --quiet'
   )
@@ -628,7 +628,7 @@ def update_gke_cluster_with_lustre_driver_enabled(args) -> int:
   command = (
       'gcloud container clusters update'
       f' {args.cluster} --project={args.project}'
-      f' --region={get_cluster_region(args.project, args.cluster, args.zone)}'
+      f' --region={get_cluster_location(args.project, args.cluster, args.zone)}'
       ' --enable-legacy-lustre-port'
       ' --quiet'
   )
@@ -653,7 +653,7 @@ def is_workload_identity_enabled_on_cluster(args) -> bool:
   """
   command = (
       f'gcloud container clusters describe {args.cluster}'
-      f' --project={args.project} --region={get_cluster_region(args.project, args.cluster, args.zone)}'
+      f' --project={args.project} --region={get_cluster_location(args.project, args.cluster, args.zone)}'
       ' --format="value(workloadIdentityConfig.workloadPool)"'
   )
   return_code, workload_pool = run_command_for_value(
@@ -680,7 +680,7 @@ def is_gcsfuse_driver_enabled_on_cluster(args) -> bool:
   """
   command = (
       f'gcloud container clusters describe {args.cluster}'
-      f' --project={args.project} --region={get_cluster_region(args.project, args.cluster, args.zone)}'
+      f' --project={args.project} --region={get_cluster_location(args.project, args.cluster, args.zone)}'
       ' --format="value(addonsConfig.gcsFuseCsiDriverConfig.enabled)"'
   )
   return_code, gcsfuse_driver_enabled = run_command_for_value(
@@ -768,7 +768,7 @@ def test_and_retry_credentials_with_dns_logic(args) -> int:
       ' flag...'
   )
 
-  region = get_cluster_region(args.project, args.cluster, args.zone)
+  region = get_cluster_location(args.project, args.cluster, args.zone)
   without_dns_command = (
       'gcloud container clusters get-credentials'
       f' {args.cluster} --region={region}'
@@ -794,7 +794,7 @@ def get_cluster_credentials(args) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
-  region = get_cluster_region(args.project, args.cluster, args.zone)
+  region = get_cluster_location(args.project, args.cluster, args.zone)
   command = (
       'gcloud container clusters get-credentials'
       f' {args.cluster} --region={region} --dns-endpoint'

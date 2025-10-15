@@ -26,7 +26,7 @@ from .capacity import (
     print_reservations,
 )
 from .commands import run_command_for_value, run_commands
-from .gcloud_context import GkeServerConfig, get_cluster_region
+from .gcloud_context import GkeServerConfig, get_cluster_location
 from .resources import (
     CLUSTER_CONFIGMAP_YAML,
     CLUSTER_RESOURCES_CONFIGMAP,
@@ -147,7 +147,7 @@ def run_gke_node_pool_create_command(
         command = (
             'gcloud beta container node-pools delete'
             f' {node_pool_name} --cluster={args.cluster}'
-            f' --zone={get_cluster_region(args.project, args.cluster, args.zone)}'
+            f' --zone={get_cluster_location(args.project, args.cluster, args.zone)}'
             f' --project={args.project} --quiet'
         )
         task = f'NodepoolDelete-{node_pool_name}'
@@ -173,7 +173,7 @@ def run_gke_node_pool_create_command(
           ):
             command = (
                 'gcloud container node-pools update'
-                f' {node_pool_name} --cluster={args.cluster} --zone={get_cluster_region(args.project, args.cluster, args.zone)} --project={args.project} --quiet'
+                f' {node_pool_name} --cluster={args.cluster} --zone={get_cluster_location(args.project, args.cluster, args.zone)} --project={args.project} --quiet'
                 ' --workload-metadata=GKE_METADATA'
             )
             task = (
@@ -279,7 +279,7 @@ def run_gke_node_pool_create_command(
     command = (
         'gcloud beta container node-pools create'
         f' {node_pool_name}'
-        f' --region={get_cluster_region(args.project, args.cluster, args.zone)}'
+        f' --region={get_cluster_location(args.project, args.cluster, args.zone)}'
         f' --cluster={args.cluster}'
         f' --project={args.project} --node-locations={args.zone}'
         f' --machine-type={system.gce_machine_type}'
@@ -310,7 +310,7 @@ def run_gke_node_pool_create_command(
         command += f' {args.custom_tpu_nodepool_arguments}'
     elif system.accelerator_type == AcceleratorType['GPU']:
       subnet_prefix = (
-          f'{args.cluster}-{get_cluster_region(args.project, args.cluster, args.zone)}'
+          f'{args.cluster}-{get_cluster_location(args.project, args.cluster, args.zone)}'
       )
       if capacity_type == CapacityType.FLEX_START:
         command += ' --num-nodes=0'
@@ -354,7 +354,7 @@ def run_gke_node_pool_create_command(
         continue
       command = (
           'gcloud beta container node-pools create'
-          f' {node_pool_name} --node-version={gke_node_pool_version} --cluster={args.cluster} --project={args.project} --node-locations={args.zone} --region={get_cluster_region(args.project, args.cluster, args.zone)} --num-nodes=1'
+          f' {node_pool_name} --node-version={gke_node_pool_version} --cluster={args.cluster} --project={args.project} --node-locations={args.zone} --region={get_cluster_location(args.project, args.cluster, args.zone)} --num-nodes=1'
           f' --machine-type={args.pathways_gce_machine_type} --scopes=storage-full,gke-default,{CLOUD_PLATFORM_AUTH_SCOPE_URL} --enable-autoscaling'
           ' --min-nodes=1 --max-nodes=20'
       )
@@ -437,7 +437,7 @@ def get_all_nodepools_programmatic(args) -> tuple[list[str], int]:
   command = (
       'gcloud beta container node-pools list'
       ' --cluster'
-      f' {args.cluster} --project={args.project} --region={get_cluster_region(args.project, args.cluster, args.zone)}'
+      f' {args.cluster} --project={args.project} --region={get_cluster_location(args.project, args.cluster, args.zone)}'
       ' --format="csv[no-heading](name)"'
   )
   return_code, raw_nodepool_output = run_command_for_value(
@@ -465,7 +465,7 @@ def get_nodepool_zone(args, nodepool_name) -> tuple[int, str | None]:
   command = (
       f'gcloud beta container node-pools describe {nodepool_name}'
       f' --cluster {args.cluster} --project={args.project}'
-      f' --region={get_cluster_region(args.project, args.cluster, args.zone)} --format="value(locations)"'
+      f' --region={get_cluster_location(args.project, args.cluster, args.zone)} --format="value(locations)"'
   )
   return_code, nodepool_zone = run_command_for_value(
       command, 'Get Node Pool Zone', dry_run_return_val=args.zone
@@ -496,7 +496,7 @@ def get_gke_node_pool_version(
   command_description = 'Determine current gke master version'
   command = (
       f'gcloud beta container clusters describe {args.cluster} --region'
-      f' {get_cluster_region(args.project, args.cluster, args.zone)} --project'
+      f' {get_cluster_location(args.project, args.cluster, args.zone)} --project'
       f' {args.project} --format="value(currentMasterVersion)"'
   )
 
@@ -560,7 +560,7 @@ def get_nodepool_workload_metadata_mode(
   command = (
       f'gcloud beta container node-pools describe {nodepool_name}'
       f' --cluster {args.cluster} --project={args.project}'
-      f' --region={get_cluster_region(args.project, args.cluster, args.zone)} --format="value(config.workloadMetadataConfig.mode)"'
+      f' --region={get_cluster_location(args.project, args.cluster, args.zone)} --format="value(config.workloadMetadataConfig.mode)"'
   )
   return_code, nodepool_WI_mode = run_command_for_value(
       command, 'Get Node Pool Workload Identity Metadata Mode'
@@ -601,7 +601,7 @@ def ensure_resource_policy_exists(
           'gcloud compute resource-policies describe'
           f' {resource_policy_name} '
           f'--project={args.project} '
-          f'--region={get_cluster_region(args.project, args.cluster, args.zone)}'
+          f'--region={get_cluster_location(args.project, args.cluster, args.zone)}'
       ),
       'Retrieve resource policy',
   )
@@ -612,7 +612,7 @@ def ensure_resource_policy_exists(
   return_code, _ = run_command_for_value(
       (
           'gcloud compute resource-policies create workload-policy'
-          f' {resource_policy_name} --project={args.project} --region={get_cluster_region(args.project, args.cluster, args.zone)} --type=HIGH_THROUGHPUT'
+          f' {resource_policy_name} --project={args.project} --region={get_cluster_location(args.project, args.cluster, args.zone)} --type=HIGH_THROUGHPUT'
           f' --accelerator-topology={topology}'
       ),
       'Create resource policy',

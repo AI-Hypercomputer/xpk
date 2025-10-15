@@ -41,7 +41,7 @@ from ..core.gcloud_context import (
     add_zone_and_project,
     get_gke_control_plane_version,
     get_gke_server_config,
-    get_cluster_region,
+    get_cluster_location,
     zone_to_region,
 )
 from ..core.jobset import update_jobset_resources_if_necessary
@@ -187,7 +187,7 @@ def cluster_adapt(args) -> None:
   xpk_print(
       'See your GKE Cluster here:'
       # pylint: disable=line-too-long
-      f' https://console.cloud.google.com/kubernetes/clusters/details/{get_cluster_region(args.project, args.cluster, args.zone)}/{args.cluster}/details?project={args.project}'
+      f' https://console.cloud.google.com/kubernetes/clusters/details/{get_cluster_location(args.project, args.cluster, args.zone)}/{args.cluster}/details?project={args.project}'
   )
   xpk_exit(0)
 
@@ -347,7 +347,7 @@ def cluster_create(args) -> None:
   xpk_print(
       'See your GKE Cluster here:'
       # pylint: disable=line-too-long
-      f' https://console.cloud.google.com/kubernetes/clusters/details/{get_cluster_region(args.project, args.cluster, args.zone)}/{args.cluster}/details?project={args.project}'
+      f' https://console.cloud.google.com/kubernetes/clusters/details/{get_cluster_location(args.project, args.cluster, args.zone)}/{args.cluster}/details?project={args.project}'
   )
   xpk_exit(0)
 
@@ -1003,7 +1003,7 @@ def run_gke_cluster_delete_command(args) -> int:
   command = (
       'gcloud beta container clusters delete'
       f' {args.cluster} --project={args.project}'
-      f' --region={get_cluster_region(args.project, args.cluster, args.zone)} --quiet'
+      f' --region={get_cluster_location(args.project, args.cluster, args.zone)} --quiet'
   )
 
   return_code = run_command_with_updates(command, 'Cluster Delete')

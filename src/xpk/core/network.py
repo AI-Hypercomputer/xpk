@@ -17,7 +17,7 @@ limitations under the License.
 from ..utils.console import xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
 from .commands import run_command_for_value, run_command_with_updates
-from .gcloud_context import get_cluster_region
+from .gcloud_context import get_cluster_location
 
 # cluster_network_yaml: the config when creating the network for a3 cluster
 CLUSTER_NETWORK_YAML = """
@@ -153,14 +153,14 @@ def create_cluster_subnet(args, index) -> int:
     xpk_print('Listing all subnets failed!')
     return return_code
   subnet_name = (
-      f'{args.cluster}-{get_cluster_region(args.project, args.cluster, args.zone)}-sub-{index}'
+      f'{args.cluster}-{get_cluster_location(args.project, args.cluster, args.zone)}-sub-{index}'
   )
   if subnet_name not in existing_subnet_names:
     command = (
         f'gcloud compute --project={args.project}'
         f' networks subnets create {subnet_name}'
         f' --network={args.cluster}-net-{index}'
-        f' --region={get_cluster_region(args.project, args.cluster, args.zone)} --range=192.168.{index}.0/24'
+        f' --region={get_cluster_location(args.project, args.cluster, args.zone)} --range=192.168.{index}.0/24'
     )
     return_code = run_command_with_updates(
         command, 'Create Cluster Subnet', verbose=False
@@ -295,7 +295,7 @@ def delete_cluster_subnets(args) -> int:
   for subnet_name in existing_subnet_names:
     command = (
         f'gcloud compute networks subnets delete {subnet_name}'
-        f' --region={get_cluster_region(args.project, args.cluster, args.zone)} --project={args.project} --quiet'
+        f' --region={get_cluster_location(args.project, args.cluster, args.zone)} --project={args.project} --quiet'
     )
 
     return_code = run_command_with_updates(
@@ -344,7 +344,7 @@ def get_all_subnets_programmatic(args) -> tuple[list[str], int]:
     List of subnets and 0 if successful and 1 otherwise.
   """
   subnet_name_filter = (
-      f'{args.cluster}-{get_cluster_region(args.project, args.cluster, args.zone)}-sub-*'
+      f'{args.cluster}-{get_cluster_location(args.project, args.cluster, args.zone)}-sub-*'
   )
 
   command = (

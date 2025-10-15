@@ -92,7 +92,7 @@ def test_ensure_resource_policy_exists_with_existing_policy_retrieves_existing_p
     mocker,
 ):
   args = mocker.Mock(project="test-project", zone="us-central1-a")
-  mocker.patch("xpk.core.nodepool.get_cluster_region", return_value=args.zone)
+  mocker.patch("xpk.core.nodepool.get_cluster_location", return_value=args.zone)
   mock = mocker.patch(
       "xpk.core.nodepool.run_command_for_value", return_value=(0, "")
   )
@@ -104,7 +104,7 @@ def test_ensure_resource_policy_exists_without_existing_policy_creates_policy(
     mocker,
 ):
   args = mocker.Mock(project="test-project", zone="us-central1-a")
-  mocker.patch("xpk.core.nodepool.get_cluster_region", return_value=args.zone)
+  mocker.patch("xpk.core.nodepool.get_cluster_location", return_value=args.zone)
   mock = mocker.patch(
       "xpk.core.nodepool.run_command_for_value", side_effect=[(1, ""), (0, "")]
   )
@@ -118,7 +118,9 @@ def test_ensure_resource_policy_exits_without_existing_policy_throws_when_creati
 ):
   with pytest.raises(RuntimeError):
     args = mocker.Mock(project="test-project", zone="us-central1-a")
-    mocker.patch("xpk.core.nodepool.get_cluster_region", return_value=args.zone)
+    mocker.patch(
+        "xpk.core.nodepool.get_cluster_location", return_value=args.zone
+    )
     mocker.patch(
         "xpk.core.nodepool.run_command_for_value",
         side_effect=[(1, ""), (1, "")],
@@ -140,7 +142,7 @@ def mock_nodepool_dependencies(mocker):
       return_value=("--on-demand", 0),
   )
   mocker.patch(
-      "xpk.core.nodepool.get_cluster_region", return_value="us-central1"
+      "xpk.core.nodepool.get_cluster_location", return_value="us-central1"
   )
   mocker.patch("xpk.core.nodepool.run_commands", return_value=0)
   mocker.patch("xpk.core.nodepool.get_user_input", return_value=True)

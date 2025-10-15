@@ -49,7 +49,7 @@ def validate_docker_image(docker_image, args) -> int:
       f'gcloud container images describe {docker_image} --project {project}'
   )
   return_code = run_command_with_updates(
-      command, 'Validate Docker Image', args, verbose=False
+      command, 'Validate Docker Image', verbose=False
   )
   if return_code != 0:
     xpk_print(
@@ -104,7 +104,6 @@ def build_docker_image_from_base_image(args, verbose=True) -> tuple[int, str]:
   return_code = run_command_with_updates(
       docker_build_command,
       'Building script_dir into docker image',
-      args,
       verbose=verbose,
   )
   if return_code != 0:
@@ -134,7 +133,7 @@ def build_docker_image_from_base_image(args, verbose=True) -> tuple[int, str]:
   # Tag the docker image.
   tag_docker_image_command = f'docker tag {docker_name} {cloud_docker_image}'
   return_code = run_command_with_updates(
-      tag_docker_image_command, 'Tag Docker Image', args, verbose=verbose
+      tag_docker_image_command, 'Tag Docker Image', verbose=verbose
   )
   if return_code != 0:
     xpk_print(
@@ -147,7 +146,7 @@ def build_docker_image_from_base_image(args, verbose=True) -> tuple[int, str]:
   # Upload image to Artifact Registry.
   upload_docker_image_command = f'docker push {cloud_docker_image}'
   return_code = run_command_with_updates(
-      upload_docker_image_command, 'Upload Docker Image', args, verbose=verbose
+      upload_docker_image_command, 'Upload Docker Image', verbose=verbose
   )
   if return_code != 0:
     xpk_print(

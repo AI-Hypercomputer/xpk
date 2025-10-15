@@ -62,9 +62,7 @@ def job_info(args):
   job_name = args.name
 
   desc_command = f'kubectl-kjob describe slurm {job_name}'
-  desc_code, desc_text = run_command_for_value(
-      desc_command, 'Getting job data', args
-  )
+  desc_code, desc_text = run_command_for_value(desc_command, 'Getting job data')
   if desc_code != 0:
     xpk_print(f'Data info request returned ERROR {desc_code}')
     xpk_exit(desc_code)
@@ -76,7 +74,6 @@ def job_info(args):
   job_code, job_text = run_command_for_value(
       job_command,
       'Getting job info',
-      args,
       dry_run_return_val=JOBS_DRY_RUN_YAML,
   )
   if job_code != 0:
@@ -87,7 +84,6 @@ def job_info(args):
   pods_code, pods_text = run_command_for_value(
       pods_command,
       'Getting pods list',
-      args,
       dry_run_return_val=PODS_DRY_RUN_RESULT,
   )
   if pods_code != 0:
@@ -183,14 +179,14 @@ def job_list(args) -> None:
 
   xpk_print(msg, flush=True)
 
-  return_code = run_slurm_job_list_command(args)
+  return_code = run_slurm_job_list_command()
   xpk_exit(return_code)
 
 
-def run_slurm_job_list_command(args) -> int:
+def run_slurm_job_list_command() -> int:
   cmd = f'kubectl-kjob list slurm  --profile {AppProfileDefaults.NAME.value}'
 
-  return_code = run_command_with_updates(cmd, 'list jobs', args)
+  return_code = run_command_with_updates(cmd, 'list jobs')
   if return_code != 0:
     xpk_print(f'Listing jobs returned ERROR {return_code}')
   return return_code
@@ -222,7 +218,7 @@ def run_slurm_job_delete_command(args) -> int:
   list_of_jobs = ' '.join(args.name)
   cmd = f'kubectl-kjob delete slurm {list_of_jobs}'
 
-  return_code = run_command_with_updates(cmd, 'delete job', args)
+  return_code = run_command_with_updates(cmd, 'delete job')
   if return_code != 0:
     xpk_print(f'Delete job request returned ERROR {return_code}')
   return return_code

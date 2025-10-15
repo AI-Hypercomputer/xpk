@@ -17,6 +17,8 @@ toolkit_modules_url: github.com/GoogleCloudPlatform/cluster-toolkit
 toolkit_modules_version: v1.62.2
 
 vars:
+  labels: {gke_product_type: xpk}
+
 
 terraform_backend_defaults:
   type: gcs

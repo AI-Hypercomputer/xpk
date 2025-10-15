@@ -53,9 +53,6 @@ from ..core.pathways import (
     try_to_delete_pathwaysjob_first,
 )
 from ..core.resources import get_cluster_capacity_type, get_cluster_system_characteristics
-from ..core.capacity import (
-    CapacityType,
-)
 from ..core.resources import CLUSTER_METADATA_CONFIGMAP, get_cluster_configmap
 from ..core.scheduling import (
     check_if_workload_can_schedule,
@@ -267,6 +264,8 @@ PW_WORKLOAD_CREATE_YAML = """
         maxSliceRestarts: {args.max_slice_restarts}
         terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
         priorityClassName: {args.priority}
+        nodeSelector:
+          {autoprovisioning_args}
       pathwaysDir: {args.pathways_gcs_location} #This bucket needs to be created in advance.
       controller:
         # #Pod template for training, default mode.
@@ -334,7 +333,7 @@ def workload_create(args) -> None:
   xpk_print('Starting workload create', flush=True)
 
   metadata_configmap_name = f'{args.cluster}-{CLUSTER_METADATA_CONFIGMAP}'
-  cluster_config_map = get_cluster_configmap(args, metadata_configmap_name)
+  cluster_config_map = get_cluster_configmap(metadata_configmap_name)
   cluster_xpk_version = None
   if cluster_config_map is None:
     xpk_print(
@@ -482,16 +481,12 @@ def workload_create(args) -> None:
     capacity_type = get_cluster_capacity_type(args)
 
     annotations = (
-        ''
-        if not is_TAS_possible(
-            system_characteristics,
-            capacity_type,
-            flex=True if capacity_type == CapacityType.FLEX_START else False,
-        )
-        else (
+        (
             'kueue.x-k8s.io/podset-preferred-topology:'
             ' "cloud.google.com/gce-topology-host"'
         )
+        if is_TAS_possible(system_characteristics, capacity_type)
+        else ''
     )
 
     if (
@@ -507,7 +502,7 @@ def workload_create(args) -> None:
           annotations=annotations,
       )
 
-      sub_networks = get_cluster_subnetworks(args)
+      sub_networks = get_cluster_subnetworks()
       if args.device_type == a3high_device_type:
         yml_string = tcpx_decorator.decorate_jobset(yml_string)
       elif args.device_type == a3mega_device_type:
@@ -545,6 +540,7 @@ def workload_create(args) -> None:
         colocated_python_sidecar=append_custom_colocated_python_sidecar(args),
         user_workload=get_user_workload_for_pathways(args, system),
         local_queue_name=LOCAL_QUEUE_NAME,
+        autoprovisioning_args=autoprovisioning_args,
     )
   else:
     container, debugging_dashboard_id = get_user_workload_container(
@@ -575,7 +571,7 @@ def workload_create(args) -> None:
     )
   tmp = write_tmp_file(yml_string)
   command = f'kubectl apply -f {str(tmp)}'
-  return_code = run_command_with_updates(command, 'Creating Workload', args)
+  return_code = run_command_with_updates(command, 'Creating Workload')
 
   if return_code != 0:
     xpk_print(f'Create Workload request returned ERROR {return_code}')
@@ -725,16 +721,13 @@ def workload_delete(args) -> None:
 
     # Not batching deletion for single workload
     if len(workloads) == 1:
-      return_code = run_command_with_updates(
-          commands[0], 'Delete Workload', args
-      )
+      return_code = run_command_with_updates(commands[0], 'Delete Workload')
     else:
       return_code = run_commands(
           commands,
           'Delete Workload',
           task_names,
           batch=100,
-          dry_run=args.dry_run,
       )
 
     if return_code != 0:

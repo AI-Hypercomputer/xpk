@@ -66,7 +66,7 @@ def create_vertex_experiment(args) -> dict | None:
   )
 
   metadata_configmap_name = f'{args.cluster}-{CLUSTER_METADATA_CONFIGMAP}'
-  cluster_config_map = get_cluster_configmap(args, metadata_configmap_name)
+  cluster_config_map = get_cluster_configmap(metadata_configmap_name)
 
   if cluster_config_map is None or 'tensorboard_name' not in cluster_config_map:
     xpk_print(

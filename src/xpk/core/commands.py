@@ -23,7 +23,6 @@ from ..utils.objects import chunks
 from ..utils.file import make_tmp_files, write_tmp_file
 from ..utils.console import xpk_print
 from ..utils.execution_context import is_dry_run
-from ..utils.errors import CommandExecutionException
 
 
 def run_commands(commands, jobname, per_command_name, batch=10):
@@ -219,31 +218,6 @@ def run_command_with_updates(command, task, verbose=True) -> int:
       return e.returncode
     xpk_print(f'Task: `{task}` succeeded.')
     return 0
-
-
-def run_command_for_value_or_raise(
-    command,
-    task,
-    dry_run_return_val='0',
-    print_timer=False,
-    hide_error=False,
-    quiet=False,
-) -> str:
-  """Runs command and returns its output"""
-  return_code, output = run_command_for_value(
-      command=command,
-      task=task,
-      dry_run_return_val=dry_run_return_val,
-      print_timer=print_timer,
-      hide_error=hide_error,
-      quiet=quiet,
-  )
-  if return_code != 0:
-    raise CommandExecutionException(
-        command=command, task=task, return_code=return_code
-    )
-
-  return output
 
 
 def run_command_for_value(

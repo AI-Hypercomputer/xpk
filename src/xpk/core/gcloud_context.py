@@ -18,8 +18,8 @@ import subprocess
 import sys
 from dataclasses import dataclass
 
-from ..utils.console import xpk_print
-from .commands import run_command_for_value, run_command_for_value_or_raise
+from ..utils.console import xpk_print, xpk_exit
+from .commands import run_command_for_value
 from functools import lru_cache
 
 
@@ -93,8 +93,8 @@ def zone_to_region(zone: str) -> str:
 
 @lru_cache()
 def get_cluster_location(project: str, name: str, zone: str) -> str:
-  """Helper function to resolve region for a given cluster"""
-  result = run_command_for_value_or_raise(
+  """Helper function to resolve location for a given cluster"""
+  return_code, result = run_command_for_value(
       command=(
           'gcloud container clusters list '
           f'--project={project} '
@@ -104,6 +104,10 @@ def get_cluster_location(project: str, name: str, zone: str) -> str:
       task='Find cluster region or zone',
       dry_run_return_val=zone_to_region(zone),
   )
+
+  if return_code != 0:
+    xpk_print('Unable to determine cluster region or zone')
+    xpk_exit(return_code)
 
   regions = result.strip().splitlines()
   return zone if zone in regions else zone_to_region(zone)

@@ -35,8 +35,8 @@ def test_get_cluster_location_returns_cluster_region_when_cluster_is_regional(
     mocker,
 ):
   mocker.patch(
-      "xpk.core.gcloud_context.run_command_for_value_or_raise",
-      return_value="us-central1",
+      "xpk.core.gcloud_context.run_command_for_value",
+      return_value=(0, "us-central1"),
   )
 
   result = get_cluster_location(
@@ -50,8 +50,8 @@ def test_get_cluster_location_returns_cluster_zone_when_both_regional_and_zonal_
     mocker,
 ):
   mocker.patch(
-      "xpk.core.gcloud_context.run_command_for_value_or_raise",
-      return_value="us-central1\nus-central1-a",
+      "xpk.core.gcloud_context.run_command_for_value",
+      return_value=(0, "us-central1\nus-central1-a"),
   )
 
   result = get_cluster_location(
@@ -65,7 +65,7 @@ def test_get_cluster_location_returns_given_zone_converted_to_region_when_cluste
     mocker,
 ):
   mocker.patch(
-      "xpk.core.gcloud_context.run_command_for_value_or_raise", return_value=""
+      "xpk.core.gcloud_context.run_command_for_value", return_value=(0, "")
   )
 
   result = get_cluster_location(
@@ -77,7 +77,7 @@ def test_get_cluster_location_returns_given_zone_converted_to_region_when_cluste
 
 def test_get_cluster_location_caches_previous_command_result(mocker):
   mock = mocker.patch(
-      "xpk.core.gcloud_context.run_command_for_value_or_raise", return_value=""
+      "xpk.core.gcloud_context.run_command_for_value", return_value=(0, "")
   )
 
   get_cluster_location(project="project4", name="name4", zone="us-central1-a")
@@ -87,7 +87,7 @@ def test_get_cluster_location_caches_previous_command_result(mocker):
 
 def test_get_cluster_location_invokes_command_for_different_input_args(mocker):
   mock = mocker.patch(
-      "xpk.core.gcloud_context.run_command_for_value_or_raise", return_value=""
+      "xpk.core.gcloud_context.run_command_for_value", return_value=(0, "")
   )
 
   get_cluster_location(project="project5", name="name5", zone="us-central1-a")

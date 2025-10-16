@@ -768,10 +768,10 @@ def test_and_retry_credentials_with_dns_logic(args) -> int:
       ' flag...'
   )
 
-  region = get_cluster_location(args.project, args.cluster, args.zone)
+  location = get_cluster_location(args.project, args.cluster, args.zone)
   without_dns_command = (
       'gcloud container clusters get-credentials'
-      f' {args.cluster} --location={region}'
+      f' {args.cluster} --location={location}'
       f' --project={args.project} &&'
       ' kubectl config view && kubectl config set-context --current'
       ' --namespace=default'
@@ -794,10 +794,10 @@ def get_cluster_credentials(args) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
-  region = get_cluster_location(args.project, args.cluster, args.zone)
+  location = get_cluster_location(args.project, args.cluster, args.zone)
   command = (
       'gcloud container clusters get-credentials'
-      f' {args.cluster} --location={region} --dns-endpoint'
+      f' {args.cluster} --location={location} --dns-endpoint'
       f' --project={args.project} && kubectl config view && kubectl config'
       ' set-context --current --namespace=default'
   )

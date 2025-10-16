@@ -1003,7 +1003,7 @@ def run_gke_cluster_delete_command(args) -> int:
   command = (
       'gcloud beta container clusters delete'
       f' {args.cluster} --project={args.project}'
-      f' --region={get_cluster_location(args.project, args.cluster, args.zone)} --quiet'
+      f' --location={get_cluster_location(args.project, args.cluster, args.zone)} --quiet'
   )
 
   return_code = run_command_with_updates(command, 'Cluster Delete')

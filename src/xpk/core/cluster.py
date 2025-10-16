@@ -231,7 +231,7 @@ def get_cluster_network(args) -> str:
   xpk_print("Getting cluster's VPC network...")
   cluster_network_cmd = (
       'gcloud container clusters describe'
-      f' {args.cluster} --zone={get_cluster_location(args.project, args.cluster, args.zone)} --project={args.project} --format="value(network)"'
+      f' {args.cluster} --location={get_cluster_location(args.project, args.cluster, args.zone)} --project={args.project} --format="value(network)"'
   )
   err_code, val = run_command_for_value(
       command=cluster_network_cmd,
@@ -341,7 +341,7 @@ def is_driver_enabled_on_cluster(
   """
   command = (
       f'gcloud container clusters describe {args.cluster}'
-      f' --project={args.project} --region={get_cluster_location(args.project, args.cluster, args.zone)}'
+      f' --project={args.project} --location={get_cluster_location(args.project, args.cluster, args.zone)}'
       f' --format="value(addonsConfig.{driver}Config.{config_key})"'
   )
   return_code, driver_enabled = run_command_for_value(
@@ -653,7 +653,7 @@ def is_workload_identity_enabled_on_cluster(args) -> bool:
   """
   command = (
       f'gcloud container clusters describe {args.cluster}'
-      f' --project={args.project} --region={get_cluster_location(args.project, args.cluster, args.zone)}'
+      f' --project={args.project} --location={get_cluster_location(args.project, args.cluster, args.zone)}'
       ' --format="value(workloadIdentityConfig.workloadPool)"'
   )
   return_code, workload_pool = run_command_for_value(
@@ -680,7 +680,7 @@ def is_gcsfuse_driver_enabled_on_cluster(args) -> bool:
   """
   command = (
       f'gcloud container clusters describe {args.cluster}'
-      f' --project={args.project} --region={get_cluster_location(args.project, args.cluster, args.zone)}'
+      f' --project={args.project} --location={get_cluster_location(args.project, args.cluster, args.zone)}'
       ' --format="value(addonsConfig.gcsFuseCsiDriverConfig.enabled)"'
   )
   return_code, gcsfuse_driver_enabled = run_command_for_value(

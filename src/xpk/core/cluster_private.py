@@ -127,7 +127,7 @@ def is_cluster_private(args) -> bool:
   """
   command = (
       f'gcloud container clusters describe {args.cluster}'
-      f' --project={args.project} --region={get_cluster_location(args.project, args.cluster, args.zone)}'
+      f' --project={args.project} --location={get_cluster_location(args.project, args.cluster, args.zone)}'
       ' --format="value(privateClusterConfig.enablePrivateNodes)"'
   )
   return_code, private_nodes_enabled = run_command_for_value(
@@ -157,7 +157,7 @@ def get_cluster_authorized_networks(args) -> list[str]:
   """
   command = (
       f'gcloud container clusters describe {args.cluster}'
-      f' --project={args.project} --region={get_cluster_location(args.project, args.cluster, args.zone)}'
+      f' --project={args.project} --location={get_cluster_location(args.project, args.cluster, args.zone)}'
       ' --format="value(masterAuthorizedNetworksConfig.cidrBlocks[].cidrBlock)"'
   )
   return_code, authorized_networks = run_command_for_value(

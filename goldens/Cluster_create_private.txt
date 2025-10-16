@@ -41,7 +41,7 @@ kubectl wait deployment/coredns --for=condition=Available=true --namespace=kube-
 [XPK] CoreDNS deployment 'coredns' found in namespace 'kube-system'.
 [XPK] Skipping CoreDNS deployment since it already exists.
 [XPK] Task: `Determine current gke master version` is implemented by the following command not running since it is a dry run. 
-gcloud beta container clusters describe golden-cluster-private --region us-central1 --project golden-project --format="value(currentMasterVersion)"
+gcloud beta container clusters describe golden-cluster-private --location us-central1 --project golden-project --format="value(currentMasterVersion)"
 [XPK] Creating 1 node pool or pools of v5p-8
 We assume that the underlying system is: SystemCharacteristics(topology='2x2x1', vms_per_slice=1, gke_accelerator='tpu-v5p-slice', gce_machine_type='ct5p-hightpu-4t', chips_per_vm=4, accelerator_type=1, device_type='v5p-8', requires_workload_policy=False)
 [XPK] Task: `Get All Node Pools` is implemented by the following command not running since it is a dry run. 

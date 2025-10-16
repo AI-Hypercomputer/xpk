@@ -279,7 +279,7 @@ def run_gke_node_pool_create_command(
     command = (
         'gcloud beta container node-pools create'
         f' {node_pool_name}'
-        f' --region={get_cluster_location(args.project, args.cluster, args.zone)}'
+        f' --location={get_cluster_location(args.project, args.cluster, args.zone)}'
         f' --cluster={args.cluster}'
         f' --project={args.project} --node-locations={args.zone}'
         f' --machine-type={system.gce_machine_type}'
@@ -354,7 +354,7 @@ def run_gke_node_pool_create_command(
         continue
       command = (
           'gcloud beta container node-pools create'
-          f' {node_pool_name} --node-version={gke_node_pool_version} --cluster={args.cluster} --project={args.project} --node-locations={args.zone} --region={get_cluster_location(args.project, args.cluster, args.zone)} --num-nodes=1'
+          f' {node_pool_name} --node-version={gke_node_pool_version} --cluster={args.cluster} --project={args.project} --node-locations={args.zone} --location={get_cluster_location(args.project, args.cluster, args.zone)} --num-nodes=1'
           f' --machine-type={args.pathways_gce_machine_type} --scopes=storage-full,gke-default,{CLOUD_PLATFORM_AUTH_SCOPE_URL} --enable-autoscaling'
           ' --min-nodes=1 --max-nodes=20'
       )

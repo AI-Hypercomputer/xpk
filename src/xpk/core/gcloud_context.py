@@ -130,7 +130,7 @@ def get_gke_server_config(args) -> tuple[int, GkeServerConfig | None]:
   """
   base_command = (
       'gcloud container get-server-config'
-      f' --project={args.project} --region={zone_to_region(args.zone)}'
+      f' --project={args.project} --location={zone_to_region(args.zone)}'
   )
   default_rapid_gke_version_cmd = (
       base_command

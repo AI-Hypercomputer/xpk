@@ -100,7 +100,7 @@ def enable_autoprovisioning_on_cluster(
       'gcloud container clusters update'
       f' {args.cluster} '
       f'--project={args.project} '
-      f'--region={get_cluster_location(args.project, args.cluster, args.zone)} '
+      f'--location={get_cluster_location(args.project, args.cluster, args.zone)} '
       '--enable-autoprovisioning'
       ' --autoprovisioning-config-file'
       f' {autoprovisioning_config.config_filename}'
@@ -114,7 +114,7 @@ def enable_autoprovisioning_on_cluster(
   command = (
       'gcloud container clusters update'
       f' {args.cluster} --project={args.project}'
-      f' --region={get_cluster_location(args.project, args.cluster, args.zone)}'
+      f' --location={get_cluster_location(args.project, args.cluster, args.zone)}'
       ' --autoscaling-profile=optimize-utilization'
   )
   task = 'Update cluster with autoscaling-profile'

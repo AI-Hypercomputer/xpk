@@ -369,7 +369,7 @@ def update_gke_cluster_with_addon(args, addon: str) -> int:
   command = (
       'gcloud container clusters update'
       f' {args.cluster} --project={args.project}'
-      f' --region={get_cluster_location(args.project, args.cluster, args.zone)}'
+      f' --location={get_cluster_location(args.project, args.cluster, args.zone)}'
       f' --update-addons {addon}=ENABLED'
       ' --quiet'
   )
@@ -575,7 +575,7 @@ def update_gke_cluster_with_workload_identity_enabled(args) -> int:
   command = (
       'gcloud container clusters update'
       f' {args.cluster} --project={args.project}'
-      f' --region={get_cluster_location(args.project, args.cluster, args.zone)}'
+      f' --location={get_cluster_location(args.project, args.cluster, args.zone)}'
       f' --workload-pool={args.project}.svc.id.goog'
       ' --quiet'
   )
@@ -602,7 +602,7 @@ def update_gke_cluster_with_gcsfuse_driver_enabled(args) -> int:
   command = (
       'gcloud container clusters update'
       f' {args.cluster} --project={args.project}'
-      f' --region={get_cluster_location(args.project, args.cluster, args.zone)}'
+      f' --location={get_cluster_location(args.project, args.cluster, args.zone)}'
       ' --update-addons GcsFuseCsiDriver=ENABLED'
       ' --quiet'
   )
@@ -628,7 +628,7 @@ def update_gke_cluster_with_lustre_driver_enabled(args) -> int:
   command = (
       'gcloud container clusters update'
       f' {args.cluster} --project={args.project}'
-      f' --region={get_cluster_location(args.project, args.cluster, args.zone)}'
+      f' --location={get_cluster_location(args.project, args.cluster, args.zone)}'
       ' --enable-legacy-lustre-port'
       ' --quiet'
   )

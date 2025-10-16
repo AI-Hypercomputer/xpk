@@ -1076,7 +1076,7 @@ def run_gke_cluster_create_command(
   command = (
       'gcloud beta container clusters create'
       f' {args.cluster} --project={args.project}'
-      f' --location={zone_to_region(args.zone)}'
+      f' --region={zone_to_region(args.zone)}'
       f' --node-locations={args.zone}'
       f' --cluster-version={gke_control_plane_version}'
       f' --machine-type={machine_type}'

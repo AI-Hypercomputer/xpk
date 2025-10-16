@@ -437,7 +437,8 @@ def get_all_nodepools_programmatic(args) -> tuple[list[str], int]:
   command = (
       'gcloud beta container node-pools list'
       ' --cluster'
-      f' {args.cluster} --project={args.project} --region={get_cluster_location(args.project, args.cluster, args.zone)}'
+      f' {args.cluster} --project={args.project} '
+      f'--location={get_cluster_location(args.project, args.cluster, args.zone)}'
       ' --format="csv[no-heading](name)"'
   )
   return_code, raw_nodepool_output = run_command_for_value(

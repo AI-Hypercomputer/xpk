@@ -161,7 +161,7 @@ def inspector(args) -> None:
       (
           (
               f'gcloud beta container node-pools list --cluster {args.cluster} '
-              f' --project={args.project} --region={get_cluster_location(args.project, args.cluster, args.zone)}'
+              f' --project={args.project} --location={get_cluster_location(args.project, args.cluster, args.zone)}'
           ),
           'GKE: Node pool Details',
       ),

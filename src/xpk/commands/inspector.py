@@ -138,7 +138,7 @@ def inspector(args) -> None:
       (
           (
               'gcloud beta container clusters list --project'
-              f' {args.project} --region'
+              f' {args.project} --location'
               f' {get_cluster_location(args.project, args.cluster, args.zone)} |'
               f' grep -e NAME -e {args.cluster}'
           ),

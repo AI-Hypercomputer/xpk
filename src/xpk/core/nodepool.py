@@ -173,7 +173,7 @@ def run_gke_node_pool_create_command(
           ):
             command = (
                 'gcloud container node-pools update'
-                f' {node_pool_name} --cluster={args.cluster} --zone={get_cluster_location(args.project, args.cluster, args.zone)} --project={args.project} --quiet'
+                f' {node_pool_name} --cluster={args.cluster} --location={get_cluster_location(args.project, args.cluster, args.zone)} --project={args.project} --quiet'
                 ' --workload-metadata=GKE_METADATA'
             )
             task = (
@@ -496,7 +496,7 @@ def get_gke_node_pool_version(
   # By default use the current gke master version for creating node pools.
   command_description = 'Determine current gke master version'
   command = (
-      f'gcloud beta container clusters describe {args.cluster} --region'
+      f'gcloud beta container clusters describe {args.cluster} --location'
       f' {get_cluster_location(args.project, args.cluster, args.zone)} --project'
       f' {args.project} --format="value(currentMasterVersion)"'
   )

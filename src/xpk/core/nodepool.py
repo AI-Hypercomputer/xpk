@@ -466,7 +466,7 @@ def get_nodepool_zone(args, nodepool_name) -> tuple[int, str | None]:
   command = (
       f'gcloud beta container node-pools describe {nodepool_name}'
       f' --cluster {args.cluster} --project={args.project}'
-      f' --region={get_cluster_location(args.project, args.cluster, args.zone)} --format="value(locations)"'
+      f' --location={get_cluster_location(args.project, args.cluster, args.zone)} --format="value(locations)"'
   )
   return_code, nodepool_zone = run_command_for_value(
       command, 'Get Node Pool Zone', dry_run_return_val=args.zone
@@ -561,7 +561,7 @@ def get_nodepool_workload_metadata_mode(
   command = (
       f'gcloud beta container node-pools describe {nodepool_name}'
       f' --cluster {args.cluster} --project={args.project}'
-      f' --region={get_cluster_location(args.project, args.cluster, args.zone)} --format="value(config.workloadMetadataConfig.mode)"'
+      f' --location={get_cluster_location(args.project, args.cluster, args.zone)} --format="value(config.workloadMetadataConfig.mode)"'
   )
   return_code, nodepool_WI_mode = run_command_for_value(
       command, 'Get Node Pool Workload Identity Metadata Mode'

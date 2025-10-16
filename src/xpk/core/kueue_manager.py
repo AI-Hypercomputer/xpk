@@ -21,6 +21,7 @@ from typing import Optional, List, Dict, Any
 import json
 from jinja2 import Environment, FileSystemLoader
 from ..utils.execution_context import is_dry_run
+from ..utils.kueue import is_queued_cluster
 
 from .capacity import B200_DEVICE_TYPE, H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE
 from .scheduling import (
@@ -312,7 +313,7 @@ class KueueManager:
           }],
       })
 
-    if flex and num_slices <= 1:
+    if flex and is_queued_cluster(num_slices):
       admission_checks = textwrap.dedent("""
         admissionChecks:
         - dws-prov

@@ -187,11 +187,8 @@ def update_cluster_authorized_networks(args, authorized_networks) -> int:
   """
   command = (
       'gcloud container clusters update'
-      f' {args.cluster} --project={args.project}'
-      f' --location={get_cluster_location(args.project, args.cluster, args.zone)}'
-      ' --enable-master-authorized-networks'
-      f' --master-authorized-networks={",".join(authorized_networks)}'
-      ' --quiet'
+      f' {args.cluster} --project={args.project} --location={get_cluster_location(args.project, args.cluster, args.zone)} --enable-master-authorized-networks'
+      f' --master-authorized-networks={",".join(authorized_networks)} --quiet'
   )
 
   return_code = run_command_with_updates(

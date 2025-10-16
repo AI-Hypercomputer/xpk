@@ -368,10 +368,8 @@ def update_gke_cluster_with_addon(args, addon: str) -> int:
   """
   command = (
       'gcloud container clusters update'
-      f' {args.cluster} --project={args.project}'
-      f' --location={get_cluster_location(args.project, args.cluster, args.zone)}'
-      f' --update-addons {addon}=ENABLED'
-      ' --quiet'
+      f' {args.cluster} --project={args.project} --location={get_cluster_location(args.project, args.cluster, args.zone)} --update-addons'
+      f' {addon}=ENABLED --quiet'
   )
   xpk_print(f'Updating GKE cluster to enable {addon}, may take a while!')
   return_code = run_command_with_updates(
@@ -574,9 +572,7 @@ def update_gke_cluster_with_workload_identity_enabled(args) -> int:
   """
   command = (
       'gcloud container clusters update'
-      f' {args.cluster} --project={args.project}'
-      f' --location={get_cluster_location(args.project, args.cluster, args.zone)}'
-      f' --workload-pool={args.project}.svc.id.goog'
+      f' {args.cluster} --project={args.project} --location={get_cluster_location(args.project, args.cluster, args.zone)} --workload-pool={args.project}.svc.id.goog'
       ' --quiet'
   )
   xpk_print(
@@ -601,10 +597,8 @@ def update_gke_cluster_with_gcsfuse_driver_enabled(args) -> int:
   """
   command = (
       'gcloud container clusters update'
-      f' {args.cluster} --project={args.project}'
-      f' --location={get_cluster_location(args.project, args.cluster, args.zone)}'
-      ' --update-addons GcsFuseCsiDriver=ENABLED'
-      ' --quiet'
+      f' {args.cluster} --project={args.project} --location={get_cluster_location(args.project, args.cluster, args.zone)} --update-addons'
+      ' GcsFuseCsiDriver=ENABLED --quiet'
   )
   xpk_print(
       'Updating GKE cluster to enable GCSFuse CSI driver, may take a while!'
@@ -627,9 +621,7 @@ def update_gke_cluster_with_lustre_driver_enabled(args) -> int:
   """
   command = (
       'gcloud container clusters update'
-      f' {args.cluster} --project={args.project}'
-      f' --location={get_cluster_location(args.project, args.cluster, args.zone)}'
-      ' --enable-legacy-lustre-port'
+      f' {args.cluster} --project={args.project} --location={get_cluster_location(args.project, args.cluster, args.zone)} --enable-legacy-lustre-port'
       ' --quiet'
   )
   xpk_print(

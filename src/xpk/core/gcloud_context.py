@@ -106,7 +106,7 @@ def get_cluster_location(project: str, name: str, zone: str) -> str:
   )
 
   if return_code != 0:
-    xpk_print('Unable to determine cluster region or zone')
+    xpk_print('Error: Unable to determine cluster region or zone')
     xpk_exit(return_code)
 
   regions = result.strip().splitlines()

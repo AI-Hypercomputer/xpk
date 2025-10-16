@@ -16,7 +16,7 @@ limitations under the License.
 
 from ..core.commands import run_command_with_updates_retry
 from ..core.capacity import H100_MEGA_DEVICE_TYPE, CapacityType
-from ..core.gcloud_context import zone_to_region
+from ..core.gcloud_context import get_cluster_location
 from ..utils.console import xpk_print, xpk_exit
 from ..utils.execution_context import is_dry_run
 from ..core.system_characteristics import (
@@ -35,11 +35,9 @@ def set_cluster_command(args) -> int:
   """
   command = (
       'gcloud container clusters get-credentials'
-      f' {args.cluster} --region={zone_to_region(args.zone)}'
-      ' --dns-endpoint'
-      f' --project={args.project} &&'
-      ' kubectl config view && kubectl config set-context --current'
-      ' --namespace=default'
+      f' {args.cluster} --location={get_cluster_location(args.project, args.cluster, args.zone)} --dns-endpoint'
+      f' --project={args.project} && kubectl config view && kubectl config'
+      ' set-context --current --namespace=default'
   )
   task = f'get-credentials to cluster {args.cluster}'
   return_code = run_command_with_updates_retry(command, task, verbose=False)

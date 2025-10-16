@@ -27,7 +27,7 @@ from .capacity import (
     verify_reservation_exists,
 )
 from .commands import run_command_with_updates, run_commands
-from .gcloud_context import zone_to_region
+from .gcloud_context import get_cluster_location
 from .nodepool import get_all_nodepools_programmatic
 from .resources import (
     CLUSTER_METADATA_CONFIGMAP,
@@ -98,8 +98,7 @@ def enable_autoprovisioning_on_cluster(
 
   command = (
       'gcloud container clusters update'
-      f' {args.cluster} --project={args.project}'
-      f' --region={zone_to_region(args.zone)} --enable-autoprovisioning'
+      f' {args.cluster} --project={args.project} --location={get_cluster_location(args.project, args.cluster, args.zone)} --enable-autoprovisioning'
       ' --autoprovisioning-config-file'
       f' {autoprovisioning_config.config_filename}'
   )
@@ -112,7 +111,7 @@ def enable_autoprovisioning_on_cluster(
   command = (
       'gcloud container clusters update'
       f' {args.cluster} --project={args.project}'
-      f' --region={zone_to_region(args.zone)}'
+      f' --location={get_cluster_location(args.project, args.cluster, args.zone)}'
       ' --autoscaling-profile=optimize-utilization'
   )
   task = 'Update cluster with autoscaling-profile'
@@ -138,11 +137,8 @@ def enable_autoprovisioning_on_cluster(
       # Ignore node pools that are not created yet, and not of the accelerator type.
       continue
     commands.append(
-        f'gcloud container node-pools update {node_pool_name}'
-        f' --cluster {args.cluster}'
-        f' --project={args.project}'
-        f' --region={zone_to_region(args.zone)}'
-        ' --enable-autoprovisioning'
+        f'gcloud container node-pools update {node_pool_name} --cluster'
+        f' {args.cluster} --project={args.project} --location={get_cluster_location(args.project, args.cluster, args.zone)} --enable-autoprovisioning'
         ' --enable-autoscaling'
     )
     task_name = (

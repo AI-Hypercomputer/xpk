@@ -26,7 +26,7 @@ from .capacity import (
     print_reservations,
 )
 from .commands import run_command_for_value, run_commands
-from .gcloud_context import GkeServerConfig, zone_to_region
+from .gcloud_context import GkeServerConfig, get_cluster_location, zone_to_region
 from .resources import (
     CLUSTER_CONFIGMAP_YAML,
     CLUSTER_RESOURCES_CONFIGMAP,
@@ -147,7 +147,7 @@ def run_gke_node_pool_create_command(
         command = (
             'gcloud beta container node-pools delete'
             f' {node_pool_name} --cluster={args.cluster}'
-            f' --zone={zone_to_region(args.zone)}'
+            f' --zone={get_cluster_location(args.project, args.cluster, args.zone)}'
             f' --project={args.project} --quiet'
         )
         task = f'NodepoolDelete-{node_pool_name}'
@@ -173,9 +173,7 @@ def run_gke_node_pool_create_command(
           ):
             command = (
                 'gcloud container node-pools update'
-                f' {node_pool_name} --cluster={args.cluster}'
-                f' --zone={zone_to_region(args.zone)}'
-                f' --project={args.project} --quiet'
+                f' {node_pool_name} --cluster={args.cluster} --location={get_cluster_location(args.project, args.cluster, args.zone)} --project={args.project} --quiet'
                 ' --workload-metadata=GKE_METADATA'
             )
             task = (
@@ -281,7 +279,7 @@ def run_gke_node_pool_create_command(
     command = (
         'gcloud beta container node-pools create'
         f' {node_pool_name}'
-        f' --region={zone_to_region(args.zone)}'
+        f' --location={get_cluster_location(args.project, args.cluster, args.zone)}'
         f' --cluster={args.cluster}'
         f' --project={args.project} --node-locations={args.zone}'
         f' --machine-type={system.gce_machine_type}'
@@ -311,7 +309,9 @@ def run_gke_node_pool_create_command(
         command += ' --max-pods-per-node 15'
         command += f' {args.custom_tpu_nodepool_arguments}'
     elif system.accelerator_type == AcceleratorType['GPU']:
-      subnet_prefix = f'{args.cluster}-{zone_to_region(args.zone)}'
+      subnet_prefix = (
+          f'{args.cluster}-{get_cluster_location(args.project, args.cluster, args.zone)}'
+      )
       if capacity_type == CapacityType.FLEX_START:
         command += ' --num-nodes=0'
       else:
@@ -354,7 +354,7 @@ def run_gke_node_pool_create_command(
         continue
       command = (
           'gcloud beta container node-pools create'
-          f' {node_pool_name} --node-version={gke_node_pool_version} --cluster={args.cluster} --project={args.project} --node-locations={args.zone} --region={zone_to_region(args.zone)} --num-nodes=1'
+          f' {node_pool_name} --node-version={gke_node_pool_version} --cluster={args.cluster} --project={args.project} --node-locations={args.zone} --location={get_cluster_location(args.project, args.cluster, args.zone)} --num-nodes=1'
           f' --machine-type={args.pathways_gce_machine_type} --scopes=storage-full,gke-default,{CLOUD_PLATFORM_AUTH_SCOPE_URL} --enable-autoscaling'
           ' --min-nodes=1 --max-nodes=20'
       )
@@ -437,7 +437,8 @@ def get_all_nodepools_programmatic(args) -> tuple[list[str], int]:
   command = (
       'gcloud beta container node-pools list'
       ' --cluster'
-      f' {args.cluster} --project={args.project} --region={zone_to_region(args.zone)}'
+      f' {args.cluster} --project={args.project} '
+      f'--location={get_cluster_location(args.project, args.cluster, args.zone)}'
       ' --format="csv[no-heading](name)"'
   )
   return_code, raw_nodepool_output = run_command_for_value(
@@ -465,7 +466,7 @@ def get_nodepool_zone(args, nodepool_name) -> tuple[int, str | None]:
   command = (
       f'gcloud beta container node-pools describe {nodepool_name}'
       f' --cluster {args.cluster} --project={args.project}'
-      f' --region={zone_to_region(args.zone)} --format="value(locations)"'
+      f' --location={get_cluster_location(args.project, args.cluster, args.zone)} --format="value(locations)"'
   )
   return_code, nodepool_zone = run_command_for_value(
       command, 'Get Node Pool Zone', dry_run_return_val=args.zone
@@ -495,9 +496,9 @@ def get_gke_node_pool_version(
   # By default use the current gke master version for creating node pools.
   command_description = 'Determine current gke master version'
   command = (
-      f'gcloud beta container clusters describe {args.cluster}'
-      f' --region {zone_to_region(args.zone)} --project {args.project}'
-      ' --format="value(currentMasterVersion)"'
+      f'gcloud beta container clusters describe {args.cluster} --location'
+      f' {get_cluster_location(args.project, args.cluster, args.zone)} --project'
+      f' {args.project} --format="value(currentMasterVersion)"'
   )
 
   return_code, current_gke_master_version = run_command_for_value(
@@ -560,7 +561,7 @@ def get_nodepool_workload_metadata_mode(
   command = (
       f'gcloud beta container node-pools describe {nodepool_name}'
       f' --cluster {args.cluster} --project={args.project}'
-      f' --region={zone_to_region(args.zone)} --format="value(config.workloadMetadataConfig.mode)"'
+      f' --location={get_cluster_location(args.project, args.cluster, args.zone)} --format="value(config.workloadMetadataConfig.mode)"'
   )
   return_code, nodepool_WI_mode = run_command_for_value(
       command, 'Get Node Pool Workload Identity Metadata Mode'
@@ -611,12 +612,9 @@ def ensure_resource_policy_exists(
 
   return_code, _ = run_command_for_value(
       (
-          'gcloud compute resource-policies create workload-policy '
-          f'{resource_policy_name} '
-          f'--project={args.project} '
-          f'--region={zone_to_region(args.zone)} '
-          '--type=HIGH_THROUGHPUT '
-          f'--accelerator-topology={topology}'
+          'gcloud compute resource-policies create workload-policy'
+          f' {resource_policy_name} --project={args.project} --region={zone_to_region(args.zone)} --type=HIGH_THROUGHPUT'
+          f' --accelerator-topology={topology}'
       ),
       'Create resource policy',
   )

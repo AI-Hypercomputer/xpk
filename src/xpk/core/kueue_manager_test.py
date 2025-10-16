@@ -421,6 +421,86 @@ class KueueManagerTest(unittest.TestCase):
   @patch(
       "xpk.core.kueue_manager.KueueManager._KueueManager__update_kueue_resources_if_necessary"
   )
+  def test_configure_generates_correct_manifest_with_admission_checks(
+      self, mock_update_resources, mock_install, mock_apply_manifest
+  ):
+    """Test that __configure generates the correct manifest content for TPUs."""
+    mock_install.return_value = 0
+    mock_update_resources.return_value = 0
+    mock_apply_manifest.return_value = 0
+    kueue_config = KueueConfig(
+        system=self.mock_system_chars,
+        total_chips=8,
+        cpu_limit=100,
+        memory_limit="100Gi",
+        autoprovisioning_enabled=False,
+        num_slices=1,
+        flex=True,
+    )
+
+    with patch.object(
+        self.kueue_manager, "_KueueManager__get_installed_kueue_version"
+    ) as mock_get_version:
+      mock_get_version.return_value = (1, None)  # Trigger install
+      with (
+          patch.object(self.kueue_manager, "_KueueManager__install_kueue_crs"),
+          patch.object(
+              self.kueue_manager, "_KueueManager__wait_for_kueue_available"
+          ),
+      ):
+        self.kueue_manager.install_or_upgrade(kueue_config)
+
+    mock_apply_manifest.assert_called_once()
+    rendered_manifest = mock_apply_manifest.call_args[0][0]
+
+    self.assertNotIn("kind: Topology", rendered_manifest)
+    manifest_docs = list(yaml.safe_load_all(rendered_manifest))
+    cluster_queue = next(
+        (doc for doc in manifest_docs if doc["kind"] == "ClusterQueue"), None
+    )
+    self.assertIsNotNone(cluster_queue)
+    self.assertEqual(
+        cluster_queue["spec"]["resourceGroups"][0]["flavors"][0]["name"],
+        "1xv5p-8",
+    )
+    resources = cluster_queue["spec"]["resourceGroups"][0]["flavors"][0][
+        "resources"
+    ]
+    tpu_resource = next(
+        (r for r in resources if r["name"] == "google.com/tpu"), None
+    )
+    cpu_resource = next((r for r in resources if r["name"] == "cpu"), None)
+    memory_resource = next(
+        (r for r in resources if r["name"] == "memory"), None
+    )
+    self.assertIsNotNone(tpu_resource)
+    self.assertEqual(tpu_resource["nominalQuota"], 8)
+    self.assertIsNotNone(cpu_resource)
+    self.assertEqual(cpu_resource["nominalQuota"], 100)
+    self.assertIsNotNone(memory_resource)
+    self.assertEqual(memory_resource["nominalQuota"], "100Gi")
+    resource_flavor = next(
+        (doc for doc in manifest_docs if doc["kind"] == "ResourceFlavor"), None
+    )
+    self.assertIsNotNone(resource_flavor)
+    self.assertEqual(
+        resource_flavor["spec"]["nodeLabels"][
+            "cloud.google.com/gke-tpu-accelerator"
+        ],
+        "test-accelerator",
+    )
+    self.assertEqual(
+        resource_flavor["spec"]["nodeLabels"][
+            "cloud.google.com/gke-tpu-topology"
+        ],
+        "2x2x1",
+    )
+
+  @patch("xpk.core.kueue_manager.KueueManager._KueueManager__apply_manifest")
+  @patch("xpk.core.kueue_manager.KueueManager._KueueManager__install")
+  @patch(
+      "xpk.core.kueue_manager.KueueManager._KueueManager__update_kueue_resources_if_necessary"
+  )
   def test_configure_generates_correct_manifest_with_topology(
       self, mock_update_resources, mock_install, mock_apply_manifest
   ):

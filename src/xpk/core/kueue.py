@@ -47,7 +47,7 @@ MIN_MEMORY_LIMIT_SIZE = 4096
 
 packaging.version.VERSION_PATTERN = r'^v\d+\.\d+\.\d+$'
 
-topology_yaml = """apiVersion: kueue.x-k8s.io/v1alpha1
+topology_yaml = """apiVersion: kueue.x-k8s.io/v1beta1
 kind: Topology
 metadata:
   name: "gke-default"

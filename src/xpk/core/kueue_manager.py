@@ -66,7 +66,7 @@ class KueueManager:
   """Manages the installation and configuration of Kueue on an XPK cluster."""
 
   def __init__(
-      self, kueue_version: str = "v0.12.2", template_path="src/xpk/templates/"
+      self, kueue_version: str = "v0.14.1", template_path="src/xpk/templates/"
   ):
     self.kueue_version = kueue_version
     self.template_env = Environment(loader=FileSystemLoader(template_path))

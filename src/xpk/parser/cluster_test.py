@@ -44,15 +44,20 @@ def test_cluster_create_sub_slicing_is_false_by_default():
   parser = argparse.ArgumentParser()
 
   set_cluster_create_parser(parser)
-  args = parser.parse_args(["--cluster", "test-cluster", "--tpu-type", "test-tpu"])
+  args = parser.parse_args(
+      ["--cluster", "test-cluster", "--tpu-type", "test-tpu"]
+  )
 
   assert args.sub_slicing is False
+
 
 @patch("xpk.parser.cluster.SUB_SLICING_ENABLED", True)
 def test_cluster_create_sub_slicing_can_be_set():
   parser = argparse.ArgumentParser()
 
   set_cluster_create_parser(parser)
-  args = parser.parse_args(["--cluster", "test-cluster", "--tpu-type", "test-tpu", "--sub-slicing"])
+  args = parser.parse_args(
+      ["--cluster", "test-cluster", "--tpu-type", "test-tpu", "--sub-slicing"]
+  )
 
   assert args.sub_slicing is True

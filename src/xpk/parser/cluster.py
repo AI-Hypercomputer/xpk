@@ -16,6 +16,8 @@ limitations under the License.
 
 from argparse import ArgumentParser
 
+from xpk.utils.feature_flags import SUB_SLICING_ENABLED
+
 from ..commands.cluster import (
     cluster_adapt,
     cluster_cacheimage,
@@ -140,6 +142,14 @@ def set_cluster_create_parser(cluster_create_parser: ArgumentParser):
       help=(
           'Please use `xpk cluster create-pathways` instead to'
           ' enable cluster to accept Pathways workloads.'
+      ),
+  )
+  if SUB_SLICING_ENABLED:
+    cluster_create_optional_arguments.add_argument(
+      '--sub-slicing',
+      action='store_true',
+      help=(
+          'Whether to set up cluster to support sub-slicing'
       ),
   )
 

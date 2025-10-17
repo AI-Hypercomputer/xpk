@@ -31,6 +31,7 @@ class _SystemDependency:
 
 class SystemDependency(Enum):
   """Represents required system dependencies."""
+
   KUBECTL = _SystemDependency(
       command='kubectl --help',
       message=(

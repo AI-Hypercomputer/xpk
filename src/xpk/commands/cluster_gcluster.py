@@ -99,11 +99,27 @@ def cluster_create(args) -> None:
 
   get_cluster_credentials(args)
 
+  err_code = __install_kueue(args)
+  if err_code > 0:
+    xpk_exit(err_code)
+
+  err_code = apply_kjob_crds()
+  if err_code > 0:
+    xpk_exit(err_code)
+
+  err_code = prepare_kjob(args)
+  if err_code > 0:
+    xpk_exit(err_code)
+
+  xpk_exit(0)
+
+
+def __install_kueue(args) -> int:
   system, return_code = get_system_characteristics(args)
 
   if return_code > 0 or system is None:
     xpk_print('Fetching system characteristics failed!')
-    xpk_exit(return_code)
+    return return_code
 
   # Provision node pools dynamically based on incoming workloads:
   # Currently autoprovisioning is not supported with Pathways.
@@ -114,7 +130,7 @@ def cluster_create(args) -> None:
         args, system
     )
     if return_code != 0:
-      xpk_exit(return_code)
+      return return_code
 
   autoprovisioning_enabled = False
   if autoprovisioning_config:
@@ -125,6 +141,14 @@ def cluster_create(args) -> None:
     # Determine total chips based on user specified topology.
     total_chips = get_total_chips_requested_from_args(args, system)
   kueue_manager = KueueManager()
+
+  tolerations = [{
+      'key': 'components.gke.io/gke-managed-components',
+      'operator': 'Equal',
+      'value': 'true',
+      'effect': 'NoSchedule',
+  }]
+
   kueue_manager.install_or_upgrade(
       KueueConfig(
           system,
@@ -136,17 +160,9 @@ def cluster_create(args) -> None:
           is_pathways_cluster=args.enable_pathways,
           flex=args.flex,
       ),
+      tolerations=tolerations,
   )
-
-  err_code = apply_kjob_crds()
-  if err_code > 0:
-    xpk_exit(err_code)
-
-  err_code = prepare_kjob(args)
-  if err_code > 0:
-    xpk_exit(err_code)
-
-  xpk_exit(0)
+  return 0
 
 
 def cluster_delete(args) -> None:

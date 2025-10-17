@@ -31,6 +31,7 @@ from ..core.config import CFG_BUCKET_KEY
 from ..core.vertex import DEFAULT_VERTEX_TENSORBOARD_NAME
 from .common import add_shared_arguments, ParserOrArgumentGroup
 from .validators import name_type
+from ..utils.feature_flags import SUB_SLICING_ENABLED
 
 
 def set_cluster_parser(cluster_parser: ArgumentParser):
@@ -142,6 +143,12 @@ def set_cluster_create_parser(cluster_create_parser: ArgumentParser):
           ' enable cluster to accept Pathways workloads.'
       ),
   )
+  if SUB_SLICING_ENABLED:
+    cluster_create_optional_arguments.add_argument(
+        '--sub-slicing',
+        action='store_true',
+        help='Whether to set up cluster to support sub-slicing',
+    )
 
   autoprovisioning_arguments = cluster_create_parser.add_argument_group(
       'Autoprovisioning Arguments',

@@ -32,7 +32,8 @@ unsafe-load-any-extension=no
 [MESSAGES CONTROL]
 
 per-file-ignores =
-  .*_test\.py:protected-access # ignore "protected-access" errors in test files
+  .*_test\.py:protected-access,redefined-outer-name,unused-argument # ignore errors in test files. outer-name and unused-arguments are common patterns when using fixtures.
+  
 
 # Only show warnings with the listed confidence levels. Leave empty to show
 # all. Valid levels: HIGH, INFERENCE, INFERENCE_FAILURE, UNDEFINED

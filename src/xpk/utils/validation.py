@@ -19,58 +19,66 @@ from .console import xpk_exit, xpk_print
 from ..commands.config import xpk_cfg
 from ..core.config import DEPENDENCIES_KEY
 from ..commands.version import get_xpk_version
+from enum import Enum
+from dataclasses import dataclass
 
 
-validation_commands = {
-    'kubectl': {
-        'command': 'kubectl --help',
-        'message': (
-            '`kubectl` not installed. Please follow'
-            ' https://github.com/AI-Hypercomputer/xpk?tab=readme-ov-file#prerequisites'
-            ' to install xpk prerequisites.'
-        ),
-    },
-    'kjob': {
-        'command': 'kubectl kjob --help',
-        'message': (
-            '`kjobctl` not installed. Please follow'
-            ' https://github.com/AI-Hypercomputer/xpk?tab=readme-ov-file#prerequisites'
-            ' to install xpk prerequisites.'
-        ),
-    },
-    'gcloud': {
-        'command': 'gcloud version',
-        'message': (
-            '`gcloud not installed. Please follow'
-            ' https://github.com/AI-Hypercomputer/xpk?tab=readme-ov-file#prerequisites'
-            ' to install xpk prerequisites.'
-        ),
-    },
-    'docker': {
-        'command': 'docker version',
-        'message': (
-            '`docker` not installed. Please follow'
-            ' https://github.com/AI-Hypercomputer/xpk?tab=readme-ov-file#prerequisites'
-            ' to install xpk prerequisites.'
-        ),
-    },
-    'kueuectl': {
-        'command': 'kubectl kueue --help',
-        'message': (
-            '`kueuectl` not installed. Please follow'
-            ' https://github.com/AI-Hypercomputer/xpk?tab=readme-ov-file#prerequisites'
-            ' to install xpk prerequisites.'
-        ),
-    },
-}
+@dataclass
+class _SystemDependency:
+  command: str
+  message: str
+
+
+class SystemDependency(Enum):
+  KUBECTL = _SystemDependency(
+      command='kubectl --help',
+      message=(
+          '`kubectl` not installed. Please follow'
+          ' https://github.com/AI-Hypercomputer/xpk?tab=readme-ov-file#prerequisites'
+          ' to install xpk prerequisites.'
+      ),
+  )
+  KJOB = _SystemDependency(
+      command='kubectl kjob --help',
+      message=(
+          '`kjobctl` not installed. Please follow'
+          ' https://github.com/AI-Hypercomputer/xpk?tab=readme-ov-file#prerequisites'
+          ' to install xpk prerequisites.'
+      ),
+  )
+  GCLOUD = _SystemDependency(
+      command='gcloud version',
+      message=(
+          '`gcloud not installed. Please follow'
+          ' https://github.com/AI-Hypercomputer/xpk?tab=readme-ov-file#prerequisites'
+          ' to install xpk prerequisites.'
+      ),
+  )
+  DOCKER = _SystemDependency(
+      command='docker version',
+      message=(
+          '`docker` not installed. Please follow'
+          ' https://github.com/AI-Hypercomputer/xpk?tab=readme-ov-file#prerequisites'
+          ' to install xpk prerequisites.'
+      ),
+  )
+  KUEUECTL = _SystemDependency(
+      command='kubectl kueue --help',
+      message=(
+          '`kueuectl` not installed. Please follow'
+          ' https://github.com/AI-Hypercomputer/xpk?tab=readme-ov-file#prerequisites'
+          ' to install xpk prerequisites.'
+      ),
+  )
 
 
 def validate_dependencies():
   deps_version = xpk_cfg.get(DEPENDENCIES_KEY)
   xpk_version = get_xpk_version()
   if deps_version is None or deps_version != xpk_version:
-    for name, check in validation_commands.items():
-      cmd, message = check['command'], check['message']
+    for dependency in SystemDependency:
+      name, value = dependency.name, dependency.value
+      cmd, message = value.command, value.message
       code, _ = run_command_for_value(cmd, f'Validate {name} installation.')
       if code != 0:
         xpk_print(message)

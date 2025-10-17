@@ -15,10 +15,10 @@ limitations under the License.
 """
 
 from ..core.commands import run_command_for_value
+from ..core.config import __version__ as xpk_version
 from .console import xpk_exit, xpk_print
 from ..commands.config import xpk_cfg
 from ..core.config import DEPENDENCIES_KEY
-from ..commands.version import get_xpk_version
 from enum import Enum
 from dataclasses import dataclass
 
@@ -77,11 +77,10 @@ class SystemDependency(Enum):
 def validate_dependencies():
   """Validates all system dependencies if validation has not been done with current XPK version."""
   deps_version = xpk_cfg.get(DEPENDENCIES_KEY)
-  xpk_version = get_xpk_version()
   if deps_version is None or deps_version != xpk_version:
     for dependency in SystemDependency:
       validate_dependency(dependency)
-    xpk_cfg.set(DEPENDENCIES_KEY, get_xpk_version())
+    xpk_cfg.set(DEPENDENCIES_KEY, xpk_version)
 
 
 def validate_dependency(dependency: SystemDependency) -> None:

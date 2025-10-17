@@ -16,11 +16,16 @@ limitations under the License.
 
 import argparse
 from xpk.parser.cluster import set_cluster_create_parser
-from unittest.mock import patch
+import pytest
 
 
-@patch("xpk.parser.cluster.SUB_SLICING_ENABLED", False)
-def test_cluster_create_sub_slicing_is_hidden_with_flag_off():
+@pytest.fixture
+def with_sub_slicing_enabled(mocker):
+  mocker.patch("xpk.parser.cluster.SUB_SLICING_ENABLED", True)
+
+
+def test_cluster_create_sub_slicing_is_hidden_with_flag_off(mocker):
+  mocker.patch("xpk.parser.cluster.SUB_SLICING_ENABLED", False)
   parser = argparse.ArgumentParser()
 
   set_cluster_create_parser(parser)
@@ -29,8 +34,9 @@ def test_cluster_create_sub_slicing_is_hidden_with_flag_off():
   assert "--sub-slicing" not in help_str
 
 
-@patch("xpk.parser.cluster.SUB_SLICING_ENABLED", True)
-def test_cluster_create_sub_slicing_is_shown_with_flag_on():
+def test_cluster_create_sub_slicing_is_shown_with_flag_on(
+    with_sub_slicing_enabled,
+):
   parser = argparse.ArgumentParser()
 
   set_cluster_create_parser(parser)
@@ -39,8 +45,9 @@ def test_cluster_create_sub_slicing_is_shown_with_flag_on():
   assert "--sub-slicing" in help_str
 
 
-@patch("xpk.parser.cluster.SUB_SLICING_ENABLED", True)
-def test_cluster_create_sub_slicing_is_false_by_default():
+def test_cluster_create_sub_slicing_is_false_by_default(
+    with_sub_slicing_enabled,
+):
   parser = argparse.ArgumentParser()
 
   set_cluster_create_parser(parser)
@@ -51,8 +58,7 @@ def test_cluster_create_sub_slicing_is_false_by_default():
   assert args.sub_slicing is False
 
 
-@patch("xpk.parser.cluster.SUB_SLICING_ENABLED", True)
-def test_cluster_create_sub_slicing_can_be_set():
+def test_cluster_create_sub_slicing_can_be_set(with_sub_slicing_enabled):
   parser = argparse.ArgumentParser()
 
   set_cluster_create_parser(parser)

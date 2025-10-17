@@ -76,6 +76,7 @@ from ..core.workload import get_workload_list
 from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
 from ..utils.execution_context import is_dry_run
+from ..utils.validation import validate_dependencies, should_validate_dependencies
 from . import cluster_gcluster
 from .common import set_cluster_command
 import shutil
@@ -88,6 +89,8 @@ def cluster_adapt(args) -> None:
   Args:
     args: user provided arguments for running the command.
   """
+  if should_validate_dependencies(args):
+    validate_dependencies()
   args.enable_pathways = False
 
   system, return_code = get_system_characteristics(args)
@@ -198,6 +201,8 @@ def cluster_create(args) -> None:
   Args:
     args: user provided arguments for running the command.
   """
+  if should_validate_dependencies(args):
+    validate_dependencies()
   system, return_code = get_system_characteristics(args)
 
   if return_code > 0 or system is None:
@@ -361,6 +366,8 @@ def cluster_delete(args) -> None:
   Returns:
     0 if successful and 1 otherwise.
   """
+  if should_validate_dependencies(args):
+    validate_dependencies()
   xpk_print(f'Starting cluster delete for cluster: {args.cluster}', flush=True)
   add_zone_and_project(args)
 
@@ -390,6 +397,8 @@ def cluster_cacheimage(args) -> None:
   Returns:
     0 if successful and 1 otherwise.
   """
+  if should_validate_dependencies(args):
+    validate_dependencies()
   xpk_print(
       f'Starting cluster cacheimage for cluster: {args.cluster}', flush=True
   )
@@ -437,6 +446,8 @@ def cluster_describe(args) -> None:
   Returns:
     0 if successful and 1 otherwise.
   """
+  if should_validate_dependencies(args):
+    validate_dependencies()
   xpk_print(f'Starting nodepool list for cluster: {args.cluster}', flush=True)
   add_zone_and_project(args)
 
@@ -666,6 +677,8 @@ def cluster_list(args) -> None:
   Returns:
     0 if successful and 1 otherwise.
   """
+  if should_validate_dependencies(args):
+    validate_dependencies()
   add_zone_and_project(args)
   xpk_print(f'For project {args.project} and zone {args.zone}:', flush=True)
   if run_gke_clusters_list_command(args):

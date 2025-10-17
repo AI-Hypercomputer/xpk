@@ -36,7 +36,6 @@ import sys
 
 from .parser.core import set_parser
 from .utils.console import xpk_print
-from .utils.validation import validate_dependencies
 from .utils.execution_context import set_dry_run
 ################### Compatibility Check ###################
 # Check that the user runs the below version or greater.
@@ -66,14 +65,8 @@ def main() -> None:
   xpk_print('Starting xpk', flush=True)
   main_args = parser.parse_args()
   main_args.enable_ray_cluster = False
-  skip_validation = 'skip_validation' in main_args and main_args.skip_validation
   dry_run = 'dry_run' in main_args and main_args.dry_run
   set_dry_run(dry_run)
-  if dry_run or skip_validation:
-    xpk_print('Skipping dependency validation.', flush=True)
-  else:
-    xpk_print('Validating dependencies...', flush=True)
-    validate_dependencies()
   main_args.func(main_args)
   xpk_print('XPK Done.', flush=True)
 

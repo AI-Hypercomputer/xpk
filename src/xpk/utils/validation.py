@@ -74,6 +74,12 @@ class SystemDependency(Enum):
   )
 
 
+def should_validate_dependencies(args):
+  skip_validation = 'skip_validation' in args and args.skip_validation
+  dry_run = 'dry_run' in args and args.dry_run
+  return not skip_validation and not dry_run
+
+
 def validate_dependencies():
   """Validates all system dependencies if validation has not been done with current XPK version."""
   deps_version = xpk_cfg.get(DEPENDENCIES_KEY)

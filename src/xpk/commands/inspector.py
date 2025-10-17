@@ -21,6 +21,7 @@ from ..core.kueue import CLUSTER_QUEUE_NAME, LOCAL_QUEUE_NAME
 from ..core.resources import CLUSTER_METADATA_CONFIGMAP, CLUSTER_RESOURCES_CONFIGMAP
 from ..utils.console import xpk_exit, xpk_print
 from ..utils.file import append_tmp_file, write_tmp_file
+from ..utils.validation import validate_dependencies, should_validate_dependencies
 from .workload import get_workload_list
 
 
@@ -116,7 +117,8 @@ def inspector(args) -> None:
   # Future Improvements for inspector:
   # 2. List what is next in Queue.
   # 3. Split inspector into different subcommands to parse info easier.
-
+  if should_validate_dependencies(args):
+    validate_dependencies()
   final_return_code = 0
   xpk_print(args)
 

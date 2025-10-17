@@ -30,6 +30,7 @@ class _SystemDependency:
 
 
 class SystemDependency(Enum):
+  """Represents required system dependencies."""
   KUBECTL = _SystemDependency(
       command='kubectl --help',
       message=(
@@ -73,14 +74,20 @@ class SystemDependency(Enum):
 
 
 def validate_dependencies():
+  """Validates all system dependencies if validation has not been done with current XPK version."""
   deps_version = xpk_cfg.get(DEPENDENCIES_KEY)
   xpk_version = get_xpk_version()
   if deps_version is None or deps_version != xpk_version:
     for dependency in SystemDependency:
-      name, value = dependency.name, dependency.value
-      cmd, message = value.command, value.message
-      code, _ = run_command_for_value(cmd, f'Validate {name} installation.')
-      if code != 0:
-        xpk_print(message)
-        xpk_exit(code)
+      validate_dependency(dependency)
     xpk_cfg.set(DEPENDENCIES_KEY, get_xpk_version())
+
+
+def validate_dependency(dependency: SystemDependency) -> None:
+  """Validates system dependency and returns none or exits with error."""
+  name, value = dependency.name, dependency.value
+  cmd, message = value.command, value.message
+  code, _ = run_command_for_value(cmd, f'Validate {name} installation.')
+  if code != 0:
+    xpk_print(message)
+    xpk_exit(code)

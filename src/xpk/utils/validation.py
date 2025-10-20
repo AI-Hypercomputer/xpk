@@ -89,7 +89,7 @@ def validate_dependencies():
 
 
 def validate_dependencies_list(dependencies: list[SystemDependency]):
-  """Validates a list of system dependencies."""
+  """Validates a list of system dependencies and returns none or exits with error."""
   for dependency in dependencies:
     validate_dependency(dependency)
 

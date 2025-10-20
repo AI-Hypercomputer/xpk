@@ -14,10 +14,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..core.config import __version__
-from ..utils.console import xpk_print
+import pytest
+from .validation import validate_dependency, SystemDependency
 
 
-def version(args) -> None:  # pylint: disable=unused-argument
-  """Get version of xpk."""
-  xpk_print('xpk_version:', __version__)
+def test_validate_dependency_returns_nothing_for_successful_validation(mocker):
+  mocker.patch(
+      'xpk.utils.validation.run_command_for_value', return_value=(0, '')
+  )
+  validate_dependency(SystemDependency.DOCKER)
+
+
+def test_validate_dependency_exits_with_error_for_failed_validation(mocker):
+  mocker.patch(
+      'xpk.utils.validation.run_command_for_value', return_value=(1, '')
+  )
+  with pytest.raises(SystemExit):
+    validate_dependency(SystemDependency.DOCKER)

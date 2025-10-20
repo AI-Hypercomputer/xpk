@@ -1,6 +1,5 @@
 $ python3 xpk.py batch --project=golden-project --zone=us-central1-a --cluster=golden-cluster --dry-run batch-read.sh
 [XPK] Starting xpk
-[XPK] Skipping dependency validation.
 [XPK] Working on golden-project and us-central1-a
 [XPK] Task: `Find cluster region or zone` is implemented by the following command not running since it is a dry run. 
 gcloud container clusters list --project=golden-project --filter=name=golden-cluster --format="value(location)"

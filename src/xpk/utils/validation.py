@@ -15,64 +15,85 @@ limitations under the License.
 """
 
 from ..core.commands import run_command_for_value
+from ..core.config import __version__ as xpk_version
 from .console import xpk_exit, xpk_print
 from ..commands.config import xpk_cfg
 from ..core.config import DEPENDENCIES_KEY
-from ..commands.version import get_xpk_version
+from enum import Enum
+from dataclasses import dataclass
 
 
-validation_commands = {
-    'kubectl': {
-        'command': 'kubectl --help',
-        'message': (
-            '`kubectl` not installed. Please follow'
-            ' https://github.com/AI-Hypercomputer/xpk?tab=readme-ov-file#prerequisites'
-            ' to install xpk prerequisites.'
-        ),
-    },
-    'kjob': {
-        'command': 'kubectl kjob --help',
-        'message': (
-            '`kjobctl` not installed. Please follow'
-            ' https://github.com/AI-Hypercomputer/xpk?tab=readme-ov-file#prerequisites'
-            ' to install xpk prerequisites.'
-        ),
-    },
-    'gcloud': {
-        'command': 'gcloud version',
-        'message': (
-            '`gcloud not installed. Please follow'
-            ' https://github.com/AI-Hypercomputer/xpk?tab=readme-ov-file#prerequisites'
-            ' to install xpk prerequisites.'
-        ),
-    },
-    'docker': {
-        'command': 'docker version',
-        'message': (
-            '`docker` not installed. Please follow'
-            ' https://github.com/AI-Hypercomputer/xpk?tab=readme-ov-file#prerequisites'
-            ' to install xpk prerequisites.'
-        ),
-    },
-    'kueuectl': {
-        'command': 'kubectl kueue --help',
-        'message': (
-            '`kueuectl` not installed. Please follow'
-            ' https://github.com/AI-Hypercomputer/xpk?tab=readme-ov-file#prerequisites'
-            ' to install xpk prerequisites.'
-        ),
-    },
-}
+@dataclass
+class _SystemDependency:
+  command: str
+  message: str
+
+
+class SystemDependency(Enum):
+  """Represents required system dependencies."""
+
+  KUBECTL = _SystemDependency(
+      command='kubectl --help',
+      message=(
+          '`kubectl` not installed. Please follow'
+          ' https://github.com/AI-Hypercomputer/xpk?tab=readme-ov-file#prerequisites'
+          ' to install xpk prerequisites.'
+      ),
+  )
+  KJOB = _SystemDependency(
+      command='kubectl kjob --help',
+      message=(
+          '`kjobctl` not installed. Please follow'
+          ' https://github.com/AI-Hypercomputer/xpk?tab=readme-ov-file#prerequisites'
+          ' to install xpk prerequisites.'
+      ),
+  )
+  GCLOUD = _SystemDependency(
+      command='gcloud version',
+      message=(
+          '`gcloud not installed. Please follow'
+          ' https://github.com/AI-Hypercomputer/xpk?tab=readme-ov-file#prerequisites'
+          ' to install xpk prerequisites.'
+      ),
+  )
+  DOCKER = _SystemDependency(
+      command='docker version',
+      message=(
+          '`docker` not installed. Please follow'
+          ' https://github.com/AI-Hypercomputer/xpk?tab=readme-ov-file#prerequisites'
+          ' to install xpk prerequisites.'
+      ),
+  )
+  KUEUECTL = _SystemDependency(
+      command='kubectl kueue --help',
+      message=(
+          '`kueuectl` not installed. Please follow'
+          ' https://github.com/AI-Hypercomputer/xpk?tab=readme-ov-file#prerequisites'
+          ' to install xpk prerequisites.'
+      ),
+  )
+
+
+def should_validate_dependencies(args):
+  skip_validation = 'skip_validation' in args and args.skip_validation
+  dry_run = 'dry_run' in args and args.dry_run
+  return not skip_validation and not dry_run
 
 
 def validate_dependencies():
+  """Validates all system dependencies if validation has not been done with current XPK version."""
   deps_version = xpk_cfg.get(DEPENDENCIES_KEY)
-  xpk_version = get_xpk_version()
   if deps_version is None or deps_version != xpk_version:
-    for name, check in validation_commands.items():
-      cmd, message = check['command'], check['message']
-      code, _ = run_command_for_value(cmd, f'Validate {name} installation.')
-      if code != 0:
-        xpk_print(message)
-        xpk_exit(code)
-    xpk_cfg.set(DEPENDENCIES_KEY, get_xpk_version())
+    for dependency in SystemDependency:
+      validate_dependency(dependency)
+    xpk_cfg.set(DEPENDENCIES_KEY, xpk_version)
+
+
+def validate_dependency(dependency: SystemDependency) -> None:
+  """Validates system dependency and returns none or exits with error."""
+  name, value = dependency.name, dependency.value
+  cmd, message = value.command, value.message
+  code, _ = run_command_for_value(cmd, f'Validate {name} installation.')
+  if code != 0:
+    xpk_print(message)
+    xpk_exit(code)

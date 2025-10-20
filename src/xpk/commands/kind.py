@@ -52,7 +52,6 @@ def cluster_create(args) -> None:
         SystemDependency.KUBECTL,
         SystemDependency.KJOB,
         SystemDependency.GCLOUD,
-        SystemDependency.KUEUECTL,
     ])
   xpk_print(f'Starting cluster create for cluster {args.cluster}:', flush=True)
 

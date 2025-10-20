@@ -14,7 +14,7 @@ limitations under the License.
 from ..core.commands import run_command_with_full_controls, run_command_for_value, run_command_with_updates
 from ..core.cluster import get_cluster_credentials, add_zone_and_project, setup_k8s_service_accounts
 from ..utils.console import xpk_exit, xpk_print
-from ..utils.validation import validate_dependencies, should_validate_dependencies
+from ..utils.validation import validate_dependencies_list, SystemDependency, should_validate_dependencies
 from argparse import Namespace
 
 from ..core.kjob import (
@@ -35,7 +35,11 @@ def shell(args: Namespace):
     0 if successful and 1 otherwise.
   """
   if should_validate_dependencies(args):
-    validate_dependencies()
+    validate_dependencies_list([
+        SystemDependency.KUBECTL,
+        SystemDependency.KJOB,
+        SystemDependency.GCLOUD,
+    ])
   exisitng_shell_pod_name = get_existing_shell_pod_name(args)
 
   if exisitng_shell_pod_name is None:
@@ -118,7 +122,9 @@ def shell_stop(args: Namespace):
     0 if successful and 1 otherwise.
   """
   if should_validate_dependencies(args):
-    validate_dependencies()
+    validate_dependencies_list(
+        [SystemDependency.KUBECTL, SystemDependency.GCLOUD]
+    )
   exisitng_shell_pod_name = get_existing_shell_pod_name(args)
 
   if exisitng_shell_pod_name is None:

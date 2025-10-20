@@ -153,13 +153,6 @@ deployment_groups:
     source: modules/management/kubectl-apply
     use: [gke-a3-ultra-a3-ultragpu-cluster]
     settings:
-      kueue:
-        install: true
-        version: v0.12.2  # TAS feature-gates is enabled in CT
-        config_path: $(ghpc_stage("xpk-gke-a3-ultra"))/kueue-xpk-configuration.yaml.tftpl
-        config_template_vars:
-         num_chips: 16
-         flex_start: 0
       jobset:
         install: true
         version: v0.7.2
@@ -167,13 +160,13 @@ deployment_groups:
       - source: $(ghpc_stage("xpk-gke-a3-ultra"))/nccl-installer.yaml
       - source: $(ghpc_stage("xpk-gke-a3-ultra"))/mlgru-disable.yaml
       - source: $(ghpc_stage("xpk-gke-a3-ultra"))/storage_crd.yaml
-  
+
   - !DeploymentModule
     id: workload_configmap
     source: 'modules/management/kubectl-apply'
     use: ['gke-a3-ultra-a3-ultragpu-cluster']
     settings:
-      apply_manifests: 
+      apply_manifests:
       - source: '$(ghpc_stage("xpk-gke-a3-ultra"))/config-map.yaml.tftpl'
         template_vars: {
           resource_config_name: "gke-a3-ultra-resources-configmap",

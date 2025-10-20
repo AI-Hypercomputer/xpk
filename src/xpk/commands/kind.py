@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from ..core.kueue_manager import (KueueConfig, KueueManager)
 from ..core.commands import (
     run_command_for_value,
     run_command_with_updates,
@@ -24,11 +25,7 @@ from ..core.kjob import (
     prepare_kjob,
     apply_kjob_crds,
 )
-from ..core.kueue import (
-    install_kueue_on_cluster,
-    install_kueue_crs,
-    wait_for_kueue_available,
-)
+from ..core.scheduling import get_total_chips_requested_from_args
 from ..core.storage import install_storage_crd
 from ..core.system_characteristics import (
     SystemCharacteristics,
@@ -67,11 +64,6 @@ def cluster_create(args) -> None:
   if set_jobset_on_cluster_code != 0:
     xpk_exit(set_jobset_on_cluster_code)
 
-  xpk_print('Enabling Kueue on the cluster')
-  install_kueue_on_cluster_code = install_kueue_on_cluster()
-  if install_kueue_on_cluster_code != 0:
-    xpk_exit(install_kueue_on_cluster_code)
-
   xpk_print('Verifying kjob installation')
   err_code = verify_kjob_installed()
   if err_code > 0:
@@ -90,11 +82,6 @@ def cluster_create(args) -> None:
   k8s_client = setup_k8s_env(args)
   install_storage_crd(k8s_client)
 
-  xpk_print('Wait for Kueue to be fully available')
-  wait_for_kueue_available_code = wait_for_kueue_available()
-  if wait_for_kueue_available_code != 0:
-    xpk_exit(wait_for_kueue_available_code)
-
   args.num_slices = 1
   args.enable_pathways = False
   system = SystemCharacteristics(
@@ -107,10 +94,19 @@ def cluster_create(args) -> None:
       'kind',
   )
 
-  xpk_print('Install Kueue Custom Resources')
-  enable_kueue_credentials_code = install_kueue_crs(args, system, None)
-  if enable_kueue_credentials_code != 0:
-    xpk_exit(enable_kueue_credentials_code)
+  kueue_manager = KueueManager()
+  kueue_manager.install_or_upgrade(
+      KueueConfig(
+          system,
+          total_chips=get_total_chips_requested_from_args(args, system),
+          autoprovisioning_enabled=False,
+          num_slices=args.num_slices,
+          memory_limit=args.memory_limit,
+          cpu_limit=args.cpu_limit,
+          is_pathways_cluster=False,
+          flex=args.flex,
+      ),
+  )
 
   xpk_print('Kind commands done! Resources are created.')
   xpk_exit(0)

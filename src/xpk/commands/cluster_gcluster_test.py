@@ -95,6 +95,7 @@ def test_install_kueue_standard(
       chips_per_vm=8,
       accelerator_type=AcceleratorType["GPU"],
       device_type="h100-mega-80gb-8",
+      supports_sub_slicing=False,
   )
   mock_cluster_create_deps["get_system_characteristics"].return_value = (
       mock_system,
@@ -141,6 +142,7 @@ def test_install_kueue_with_autoprovisioning(
       chips_per_vm=8,
       accelerator_type=AcceleratorType["GPU"],
       device_type="h100-mega-80gb-8",
+      supports_sub_slicing=False,
   )
   mock_cluster_create_deps["get_system_characteristics"].return_value = (
       mock_system,

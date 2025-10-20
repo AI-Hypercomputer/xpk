@@ -599,7 +599,7 @@ def ensure_resource_policy_exists(
 ) -> None:
   return_code, _ = run_command_for_value(
       (
-          'gcloud compute resource-policies describe'
+          'gcloud alpha compute resource-policies describe'
           f' {resource_policy_name} '
           f'--project={args.project} '
           f'--region={zone_to_region(args.zone)}'
@@ -612,7 +612,7 @@ def ensure_resource_policy_exists(
 
   return_code, _ = run_command_for_value(
       (
-          'gcloud compute resource-policies create workload-policy'
+          'gcloud alpha compute resource-policies create workload-policy'
           f' {resource_policy_name} --project={args.project} --region={zone_to_region(args.zone)} --type=HIGH_THROUGHPUT'
           f' --accelerator-topology={topology}'
       ),

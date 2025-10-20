@@ -80,11 +80,11 @@ class KueueManagerTest(unittest.TestCase):
   )
   @patch("xpk.core.kueue_manager.KueueManager._KueueManager__install")
   @patch("xpk.core.kueue_manager.KueueManager._KueueManager__configure")
-  def test_install_or_upgrade_when_up_to_date(
+  def test_install_or_upgrade_when_newer_version_already_installed(
       self, mock_configure, mock_install, mock_get_version
   ):
     """Test install_or_upgrade when Kueue is already up to date."""
-    mock_get_version.return_value = (0, "v0.12.2")
+    mock_get_version.return_value = (0, "v0.12.3")
     kueue_config = MagicMock(spec=KueueConfig)
 
     result = self.kueue_manager.install_or_upgrade(kueue_config)

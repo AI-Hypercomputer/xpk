@@ -1,6 +1,5 @@
 $ python3 xpk.py workload list --project=golden-project --zone=us-central1-a --cluster=golden-cluster --dry-run
 [XPK] Starting xpk
-[XPK] Skipping dependency validation.
 [XPK] Starting workload list
 [XPK] Working on golden-project and us-central1-a
 [XPK] Task: `Find cluster region or zone` is implemented by the following command not running since it is a dry run. 

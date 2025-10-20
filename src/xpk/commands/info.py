@@ -24,6 +24,7 @@ from ..core.cluster import get_cluster_credentials
 from ..core.gcloud_context import add_zone_and_project
 from ..core.kueue import verify_kueuectl
 from ..utils.console import xpk_exit, xpk_print
+from ..utils.validation import validate_dependencies, should_validate_dependencies
 
 table_fmt = 'plain'
 
@@ -36,6 +37,8 @@ def info(args: Namespace) -> None:
   Returns:
     None
   """
+  if should_validate_dependencies(args):
+    validate_dependencies()
   add_zone_and_project(args)
   get_cluster_credentials(args)
 

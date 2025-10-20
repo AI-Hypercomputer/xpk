@@ -95,6 +95,7 @@ from ..core.workload_decorators import (
 from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
 from ..utils.execution_context import is_dry_run
+from ..utils.validation import validate_dependencies, should_validate_dependencies
 from . import cluster_gcluster
 from .common import is_TAS_possible
 
@@ -306,6 +307,8 @@ def workload_create(args) -> None:
   Returns:
     0 if successful and 1 otherwise.
   """
+  if should_validate_dependencies(args):
+    validate_dependencies()
   k8s_api_client = None
   if not is_dry_run():
     k8s_api_client = setup_k8s_env(args)
@@ -676,6 +679,8 @@ def workload_delete(args) -> None:
   Returns:
     0 if successful and 1 otherwise.
   """
+  if should_validate_dependencies(args):
+    validate_dependencies()
   xpk_print('Starting Workload delete', flush=True)
   add_zone_and_project(args)
   get_cluster_credentials(args)
@@ -747,6 +752,8 @@ def workload_list(args) -> None:
   Returns:
     0 if successful and 1 otherwise.
   """
+  if should_validate_dependencies(args):
+    validate_dependencies()
   xpk_print('Starting workload list', flush=True)
   add_zone_and_project(args)
   get_cluster_credentials(args)

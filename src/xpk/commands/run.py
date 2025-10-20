@@ -28,7 +28,7 @@ from ..core.kjob import (
     get_storage_annotations,
     prepare_kjob,
 )
-from ..core.kueue import LOCAL_QUEUE_NAME
+from ..core.kueue_manager import LOCAL_QUEUE_NAME
 from ..utils.console import xpk_exit, xpk_print
 from ..utils.validation import validate_dependencies, should_validate_dependencies
 from .kind import set_local_cluster_command

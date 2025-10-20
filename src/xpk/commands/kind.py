@@ -101,10 +101,10 @@ def cluster_create(args) -> None:
           total_chips=get_total_chips_requested_from_args(args, system),
           autoprovisioning_enabled=False,
           num_slices=args.num_slices,
-          memory_limit=args.memory_limit,
-          cpu_limit=args.cpu_limit,
+          memory_limit='',
+          cpu_limit=0,
           is_pathways_cluster=False,
-          flex=args.flex,
+          flex=False,
       ),
   )
 

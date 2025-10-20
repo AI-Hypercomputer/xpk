@@ -18,7 +18,7 @@ import math
 
 from ..utils.console import xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
-from ..core.kueue import (
+from ..core.kueue_manager import (
     MEMORY_SIZE_PER_VM,
     MIN_MEMORY_LIMIT_SIZE,
 )

@@ -32,7 +32,7 @@ from ..capacity import (
 )
 from ..system_characteristics import get_system_characteristics_by_device_type
 from .blueprint_definitions import Blueprint, DeploymentGroup, DeploymentModule
-from ..kueue import KUEUE_VERSION
+from ..kueue_manager import KUEUE_VERSION
 
 yaml_parser = yaml.YAML()
 

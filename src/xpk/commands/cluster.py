@@ -46,9 +46,6 @@ from ..core.gcloud_context import (
 )
 from ..core.jobset import update_jobset_resources_if_necessary
 from ..core.kjob import apply_kjob_crds, prepare_kjob, verify_kjob_installed
-from ..core.kueue import (
-    cluster_preheat_yml,
-)
 from ..core.kueue_manager import (KueueConfig, KueueManager)
 from ..core.nap import enable_autoprovisioning_on_cluster
 from ..core.network import (
@@ -81,6 +78,40 @@ from . import cluster_gcluster
 from .common import set_cluster_command
 import shutil
 import os
+
+cluster_preheat_yml = """
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {cachekey}
+  labels:
+    k8s-app: {cachekey}
+spec:
+  selector:
+    matchLabels:
+      k8s-app: {cachekey}
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        name: {cachekey}
+        k8s-app: {cachekey}
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: {nodeSelectorKey}
+                operator: Exists
+      tolerations:
+      - operator: "Exists"
+      containers:
+      - image: {image_name}
+        name: {cachekey}
+        command: [ "sleep", "inf" ]
+"""
 
 
 def cluster_adapt(args) -> None:

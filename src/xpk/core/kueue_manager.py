@@ -48,6 +48,7 @@ KUEUE_TOPOLOGY_JINJA_FILE = "kueue_topology.yaml.j2"
 KUEUE_CONTROLLER_MANAGER_JINJA_FILE = "kueue_controller_manager.yaml.j2"
 MEMORY_SIZE_PER_VM = 1.2
 MIN_MEMORY_LIMIT_SIZE = 4096
+KUEUE_VERSION = "v0.12.2"
 
 
 @dataclass
@@ -66,7 +67,9 @@ class KueueManager:
   """Manages the installation and configuration of Kueue on an XPK cluster."""
 
   def __init__(
-      self, kueue_version: str = "v0.12.2", template_path="src/xpk/templates/"
+      self,
+      kueue_version: str = KUEUE_VERSION,
+      template_path="src/xpk/templates/",
   ):
     self.kueue_version = kueue_version
     self.template_env = Environment(loader=FileSystemLoader(template_path))
@@ -377,3 +380,25 @@ class KueueManager:
     if return_code != 0:
       xpk_print(f"{task} returned ERROR {return_code}")
     return return_code
+
+  def verify_kueuectl(self) -> None:
+    """Verify if kueuectl is installed.
+    Returns:
+      None
+    """
+    xpk_print("Veryfing kueuectl installation")
+
+    command = "kubectl kueue version"
+    task = "Verify kueuectl installation on cluster"
+    verify_kueuectl_installed_code, _ = run_command_for_value(command, task)
+
+    if verify_kueuectl_installed_code == 0:
+      xpk_print("kueuectl found")
+
+    if verify_kueuectl_installed_code != 0:
+      xpk_print(
+          "kueuectl not found. Please follow"
+          " https://kueue.sigs.k8s.io/docs/reference/kubectl-kueue/installation/"
+          " to install kueuectl."
+      )
+      xpk_exit(verify_kueuectl_installed_code)

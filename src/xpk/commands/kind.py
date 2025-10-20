@@ -109,6 +109,7 @@ def cluster_create(args) -> None:
       1,
       AcceleratorType['CPU'],
       'kind',
+      supports_sub_slicing=False,
   )
 
   xpk_print('Install Kueue Custom Resources')

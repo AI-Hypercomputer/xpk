@@ -154,7 +154,7 @@ def mock_nodepool_dependencies(mocker):
 
 
 def test_placement_policy_created_for_gpu_with_valid_topology(
-    mocker, mock_nodepool_dependencies  # pylint: disable=redefined-outer-name
+    mocker, mock_nodepool_dependencies
 ):
   """Tests that placement policy is created for GPUs with a valid topology."""
   mock_is_topology_valid, mock_ensure_resource_policy = (
@@ -176,6 +176,7 @@ def test_placement_policy_created_for_gpu_with_valid_topology(
       chips_per_vm=8,
       accelerator_type=AcceleratorType["GPU"],
       device_type="h100-80gb-8",
+      supports_sub_slicing=False,
   )
 
   run_gke_node_pool_create_command(args, system, "1.2.3")
@@ -184,7 +185,7 @@ def test_placement_policy_created_for_gpu_with_valid_topology(
 
 
 def test_placement_policy_not_created_for_gpu_with_invalid_topology(
-    mocker, mock_nodepool_dependencies  # pylint: disable=redefined-outer-name
+    mocker, mock_nodepool_dependencies
 ):
   """Tests that placement policy is not created for GPUs with an invalid topology."""
   mock_is_topology_valid, mock_ensure_resource_policy = (
@@ -205,6 +206,7 @@ def test_placement_policy_not_created_for_gpu_with_invalid_topology(
       chips_per_vm=8,
       accelerator_type=AcceleratorType["GPU"],
       device_type="h100-80gb-8",
+      supports_sub_slicing=False,
   )
 
   run_gke_node_pool_create_command(args, system, "1.2.3")
@@ -213,7 +215,7 @@ def test_placement_policy_not_created_for_gpu_with_invalid_topology(
 
 
 def test_placement_policy_created_for_tpu7x_with_valid_topology(
-    mocker, mock_nodepool_dependencies  # pylint: disable=redefined-outer-name
+    mocker, mock_nodepool_dependencies
 ):
   """Tests that placement policy is created for tpu7x with a valid topology."""
   mock_is_topology_valid, mock_ensure_resource_policy = (
@@ -237,6 +239,7 @@ def test_placement_policy_created_for_tpu7x_with_valid_topology(
       accelerator_type=AcceleratorType["TPU"],
       device_type="tpu7x-8",
       requires_workload_policy=True,
+      supports_sub_slicing=False,
   )
 
   run_gke_node_pool_create_command(args, system, "1.2.3")
@@ -245,7 +248,7 @@ def test_placement_policy_created_for_tpu7x_with_valid_topology(
 
 
 def test_placement_policy_not_created_for_non7x_tpu(
-    mocker, mock_nodepool_dependencies  # pylint: disable=redefined-outer-name
+    mocker, mock_nodepool_dependencies
 ):
   """Tests that placement policy is not created for non-tpu7x TPUs."""
   mock_is_topology_valid, mock_ensure_resource_policy = (
@@ -268,6 +271,7 @@ def test_placement_policy_not_created_for_non7x_tpu(
       chips_per_vm=4,
       accelerator_type=AcceleratorType["TPU"],
       device_type="v6e-4",
+      supports_sub_slicing=True,
   )
 
   run_gke_node_pool_create_command(args, system, "1.2.3")

@@ -35,6 +35,7 @@ class KueueManagerTest(unittest.TestCase):
         chips_per_vm=8,
         accelerator_type=AcceleratorType["GPU"],
         device_type="h100-mega-80gb-8",
+        supports_sub_slicing=False,
     )
 
     self.mock_system_chars = SystemCharacteristics(
@@ -45,6 +46,7 @@ class KueueManagerTest(unittest.TestCase):
         chips_per_vm=4,
         accelerator_type=AcceleratorType["TPU"],
         device_type="v5p-8",
+        supports_sub_slicing=False,
     )
     mock_env = MagicMock()
 

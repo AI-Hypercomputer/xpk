@@ -91,10 +91,10 @@ def validate_dependencies():
 def validate_dependencies_list(dependencies: list[SystemDependency]):
   """Validates a list of system dependencies and returns none or exits with error."""
   for dependency in dependencies:
-    validate_dependency(dependency)
+    _validate_dependency(dependency)
 
 
-def validate_dependency(dependency: SystemDependency) -> None:
+def _validate_dependency(dependency: SystemDependency) -> None:
   """Validates system dependency and returns none or exits with error."""
   name, value = dependency.name, dependency.value
   cmd, message = value.command, value.message

@@ -32,7 +32,7 @@ from ..core.kjob import (
 from ..core.kueue_manager import LOCAL_QUEUE_NAME
 from ..utils.console import xpk_exit, xpk_print
 from ..utils.execution_context import is_dry_run
-from ..utils.validation import validate_dependencies, should_validate_dependencies
+from ..utils.validation import validate_dependencies_list, SystemDependency, should_validate_dependencies
 from .kind import set_local_cluster_command
 from .kjob_common import add_gpu_networking_annotations_to_command, add_TAS_annotations_to_command
 
@@ -46,7 +46,11 @@ def batch(args: Namespace) -> None:
     None
   """
   if should_validate_dependencies(args):
-    validate_dependencies()
+    validate_dependencies_list([
+        SystemDependency.KUBECTL,
+        SystemDependency.KJOB,
+        SystemDependency.GCLOUD,
+    ])
   if not args.kind_cluster:
     add_zone_and_project(args)
     get_cluster_credentials(args)

@@ -71,6 +71,7 @@ class SystemCharacteristics:
       from the AcceleratorType enum.
     device_type: A user-facing name for the specific hardware configuration
       (e.g., 'l4-1', 'h100-80gb-8').
+    supports_sub_slicing: Whether the Sub-slicing feature is supported.
     requires_workload_policy: A boolean indicating if a GCE resource
       workload policy is required. This is automatically set to True for GPUs.
   """
@@ -82,6 +83,7 @@ class SystemCharacteristics:
   chips_per_vm: int
   accelerator_type: int  # TODO: use enums
   device_type: str
+  supports_sub_slicing: bool
   requires_workload_policy: bool = False
 
   def __post_init__(self):
@@ -129,6 +131,7 @@ def get_tpu_system_characteristics_map(
     gke_accelerator: str,
     machine_type: str,
     supported_topologies: list[str],
+    supports_sub_slicing: bool,
     requires_workload_policy: bool = False,
 ) -> dict[str, SystemCharacteristics]:
   system_characteristics_map = {}
@@ -146,6 +149,7 @@ def get_tpu_system_characteristics_map(
         accelerator_type=AcceleratorType['TPU'],
         device_type=f'{prefix}-{num_tensorcores}',
         requires_workload_policy=requires_workload_policy,
+        supports_sub_slicing=supports_sub_slicing,
     )
     system_characteristics_map[f'{prefix}-{topology}'] = system
     system_characteristics_map[f'{prefix}-{num_tensorcores}'] = system
@@ -170,6 +174,7 @@ UserFacingNameToSystemCharacteristics = {
         chips_per_vm=1,
         accelerator_type=AcceleratorType['GPU'],
         device_type='l4-1',
+        supports_sub_slicing=False,
     ),
     'l4-2': SystemCharacteristics(
         topology='N/A',
@@ -179,6 +184,7 @@ UserFacingNameToSystemCharacteristics = {
         chips_per_vm=2,
         accelerator_type=AcceleratorType['GPU'],
         device_type='l4-2',
+        supports_sub_slicing=False,
     ),
     'l4-4': SystemCharacteristics(
         topology='N/A',
@@ -188,6 +194,7 @@ UserFacingNameToSystemCharacteristics = {
         chips_per_vm=4,
         accelerator_type=AcceleratorType['GPU'],
         device_type='l4-4',
+        supports_sub_slicing=False,
     ),
     'l4-8': SystemCharacteristics(
         topology='N/A',
@@ -197,6 +204,7 @@ UserFacingNameToSystemCharacteristics = {
         chips_per_vm=8,
         accelerator_type=AcceleratorType['GPU'],
         device_type='l4-8',
+        supports_sub_slicing=False,
     ),
     # A100-40gb-$CHIPSc
     'a100-40gb-1': SystemCharacteristics(
@@ -207,6 +215,7 @@ UserFacingNameToSystemCharacteristics = {
         chips_per_vm=1,
         accelerator_type=AcceleratorType['GPU'],
         device_type='a100-40gb-1',
+        supports_sub_slicing=False,
     ),
     'a100-40gb-2': SystemCharacteristics(
         topology='N/A',
@@ -216,6 +225,7 @@ UserFacingNameToSystemCharacteristics = {
         chips_per_vm=2,
         accelerator_type=AcceleratorType['GPU'],
         device_type='a100-40gb-2',
+        supports_sub_slicing=False,
     ),
     'a100-40gb-4': SystemCharacteristics(
         topology='N/A',
@@ -225,6 +235,7 @@ UserFacingNameToSystemCharacteristics = {
         chips_per_vm=4,
         accelerator_type=AcceleratorType['GPU'],
         device_type='a100-40gb-4',
+        supports_sub_slicing=False,
     ),
     'a100-40gb-8': SystemCharacteristics(
         topology='N/A',
@@ -234,6 +245,7 @@ UserFacingNameToSystemCharacteristics = {
         chips_per_vm=8,
         accelerator_type=AcceleratorType['GPU'],
         device_type='a100-40gb-8',
+        supports_sub_slicing=False,
     ),
     'gb200-4': SystemCharacteristics(
         topology='1x72',
@@ -243,6 +255,7 @@ UserFacingNameToSystemCharacteristics = {
         chips_per_vm=4,
         accelerator_type=AcceleratorType['GPU'],
         device_type='gb200-4',
+        supports_sub_slicing=False,
     ),
     'gb200-4-nolssd': SystemCharacteristics(
         topology='1x72',
@@ -252,6 +265,7 @@ UserFacingNameToSystemCharacteristics = {
         chips_per_vm=4,
         accelerator_type=AcceleratorType['GPU'],
         device_type='gb200-4',
+        supports_sub_slicing=False,
     ),
     'b200-8': SystemCharacteristics(
         topology='N/A',
@@ -261,6 +275,7 @@ UserFacingNameToSystemCharacteristics = {
         chips_per_vm=8,
         accelerator_type=AcceleratorType['GPU'],
         device_type='b200-8',
+        supports_sub_slicing=False,
     ),
     'h200-141gb-8': SystemCharacteristics(
         topology='N/A',
@@ -270,6 +285,7 @@ UserFacingNameToSystemCharacteristics = {
         chips_per_vm=8,
         accelerator_type=AcceleratorType['GPU'],
         device_type='h200-141gb-8',
+        supports_sub_slicing=False,
     ),
     # H100-80gb-$CHIPS
     'h100-80gb-8': SystemCharacteristics(
@@ -280,6 +296,7 @@ UserFacingNameToSystemCharacteristics = {
         chips_per_vm=8,
         accelerator_type=AcceleratorType['GPU'],
         device_type='h100-80gb-8',
+        supports_sub_slicing=False,
     ),
     # H100-mega-80gb-$CHIPS
     'h100-mega-80gb-8': SystemCharacteristics(
@@ -290,6 +307,7 @@ UserFacingNameToSystemCharacteristics = {
         chips_per_vm=8,
         accelerator_type=AcceleratorType['GPU'],
         device_type='h100-mega-80gb-8',
+        supports_sub_slicing=False,
     ),
     # TPU system characteristics
     **get_tpu_system_characteristics_map(
@@ -299,12 +317,15 @@ UserFacingNameToSystemCharacteristics = {
         machine_type='tpu7x-standard-1t',
         supported_topologies=['1x1x1'],
         requires_workload_policy=True,
+        supports_sub_slicing=False,
     ),
     **get_tpu_system_characteristics_map(
         prefix='tpu7x',
         tensorcores_per_chip=2,
         gke_accelerator='tpu7x',
         machine_type='tpu7x-standard-4t',
+        requires_workload_policy=True,
+        supports_sub_slicing=False,
         supported_topologies=[
             '12x12x12',
             '12x12x16',
@@ -405,13 +426,13 @@ UserFacingNameToSystemCharacteristics = {
             '8x8x8',
             '8x8x92',
         ],
-        requires_workload_policy=True,
     ),
     **get_tpu_system_characteristics_map(
         prefix='v6e',
         tensorcores_per_chip=1,
         gke_accelerator='tpu-v6e-slice',
         machine_type='ct6e-standard-1t',
+        supports_sub_slicing=False,
         supported_topologies=['1x1'],
     ),
     **get_tpu_system_characteristics_map(
@@ -419,6 +440,7 @@ UserFacingNameToSystemCharacteristics = {
         tensorcores_per_chip=1,
         gke_accelerator='tpu-v6e-slice',
         machine_type='ct6e-standard-4t',
+        supports_sub_slicing=True,
         supported_topologies=[
             '2x2',
             '2x4',
@@ -434,6 +456,7 @@ UserFacingNameToSystemCharacteristics = {
         tensorcores_per_chip=2,
         gke_accelerator='tpu-v5p-slice',
         machine_type='ct5p-hightpu-4t',
+        supports_sub_slicing=False,
         supported_topologies=[
             '2x2x1',
             '2x2x2',
@@ -538,6 +561,7 @@ UserFacingNameToSystemCharacteristics = {
         tensorcores_per_chip=1,
         gke_accelerator='tpu-v5-lite-podslice',
         machine_type='ct5lp-hightpu-4t',
+        supports_sub_slicing=False,
         supported_topologies=['2x4', '4x4', '4x8', '8x8', '8x16', '16x16'],
     ),
     **get_tpu_system_characteristics_map(
@@ -545,6 +569,7 @@ UserFacingNameToSystemCharacteristics = {
         tensorcores_per_chip=2,
         gke_accelerator='tpu-v4-podslice',
         machine_type='ct4p-hightpu-4t',
+        supports_sub_slicing=False,
         supported_topologies=[
             '2x2x1',
             '2x2x2',
@@ -571,6 +596,7 @@ UserFacingNameToSystemCharacteristics = {
         chips_per_vm=96,
         accelerator_type=AcceleratorType['CPU'],
         device_type='m1-megamem-96-1',
+        supports_sub_slicing=False,
     ),
     # n2-standard-#vCPUs-#VMs
     'n2-standard-64-1': SystemCharacteristics(
@@ -581,6 +607,7 @@ UserFacingNameToSystemCharacteristics = {
         chips_per_vm=64,
         accelerator_type=AcceleratorType['CPU'],
         device_type='n2-standard-64-1',
+        supports_sub_slicing=False,
     ),
     'n2-standard-32-1': SystemCharacteristics(
         topology='N/A',
@@ -590,6 +617,7 @@ UserFacingNameToSystemCharacteristics = {
         chips_per_vm=32,
         accelerator_type=AcceleratorType['CPU'],
         device_type='n2-standard-32-1',
+        supports_sub_slicing=False,
     ),
     'n2-standard-32-2': SystemCharacteristics(
         topology='N/A',
@@ -599,6 +627,7 @@ UserFacingNameToSystemCharacteristics = {
         chips_per_vm=32,
         accelerator_type=AcceleratorType['CPU'],
         device_type='n2-standard-32-2',
+        supports_sub_slicing=False,
     ),
     'n2-standard-32-4': SystemCharacteristics(
         topology='N/A',
@@ -608,6 +637,7 @@ UserFacingNameToSystemCharacteristics = {
         chips_per_vm=32,
         accelerator_type=AcceleratorType['CPU'],
         device_type='n2-standard-32-4',
+        supports_sub_slicing=False,
     ),
     'n2-standard-32-8': SystemCharacteristics(
         topology='N/A',
@@ -617,6 +647,7 @@ UserFacingNameToSystemCharacteristics = {
         chips_per_vm=32,
         accelerator_type=AcceleratorType['CPU'],
         device_type='n2-standard-32-8',
+        supports_sub_slicing=False,
     ),
     'n2-standard-32-16': SystemCharacteristics(
         topology='N/A',
@@ -626,6 +657,7 @@ UserFacingNameToSystemCharacteristics = {
         chips_per_vm=32,
         accelerator_type=AcceleratorType['CPU'],
         device_type='n2-standard-32-16',
+        supports_sub_slicing=False,
     ),
     'n2-standard-32-32': SystemCharacteristics(
         topology='N/A',
@@ -635,6 +667,7 @@ UserFacingNameToSystemCharacteristics = {
         chips_per_vm=32,
         accelerator_type=AcceleratorType['CPU'],
         device_type='n2-standard-32-32',
+        supports_sub_slicing=False,
     ),
     'n2-standard-32-64': SystemCharacteristics(
         topology='N/A',
@@ -644,6 +677,7 @@ UserFacingNameToSystemCharacteristics = {
         chips_per_vm=32,
         accelerator_type=AcceleratorType['CPU'],
         device_type='n2-standard-32-64',
+        supports_sub_slicing=False,
     ),
     'n2-standard-32-128': SystemCharacteristics(
         topology='N/A',
@@ -653,6 +687,7 @@ UserFacingNameToSystemCharacteristics = {
         chips_per_vm=32,
         accelerator_type=AcceleratorType['CPU'],
         device_type='n2-standard-32-128',
+        supports_sub_slicing=False,
     ),
     'n2-standard-32-256': SystemCharacteristics(
         topology='N/A',
@@ -662,6 +697,7 @@ UserFacingNameToSystemCharacteristics = {
         chips_per_vm=32,
         accelerator_type=AcceleratorType['CPU'],
         device_type='n2-standard-32-256',
+        supports_sub_slicing=False,
     ),
     'n2-standard-32-512': SystemCharacteristics(
         topology='N/A',
@@ -671,6 +707,7 @@ UserFacingNameToSystemCharacteristics = {
         chips_per_vm=32,
         accelerator_type=AcceleratorType['CPU'],
         device_type='n2-standard-32-512',
+        supports_sub_slicing=False,
     ),
     'n2-standard-32-1024': SystemCharacteristics(
         topology='N/A',
@@ -680,6 +717,7 @@ UserFacingNameToSystemCharacteristics = {
         chips_per_vm=32,
         accelerator_type=AcceleratorType['CPU'],
         device_type='n2-standard-32-1024',
+        supports_sub_slicing=False,
     ),
     'n2-standard-32-2048': SystemCharacteristics(
         topology='N/A',
@@ -689,6 +727,7 @@ UserFacingNameToSystemCharacteristics = {
         chips_per_vm=32,
         accelerator_type=AcceleratorType['CPU'],
         device_type='n2-standard-32-2048',
+        supports_sub_slicing=False,
     ),
 }
 """ If you modify UserFacingNameToSystemCharacteristics you should also modify

@@ -25,7 +25,7 @@ from ..core.cluster import get_cluster_credentials
 from ..core.gcloud_context import add_zone_and_project
 from ..core.kjob import AppProfileDefaults
 from ..utils.console import xpk_exit, xpk_print
-from ..utils.validation import validate_dependencies, should_validate_dependencies
+from ..utils.validation import validate_dependencies_list, SystemDependency, should_validate_dependencies
 from .kind import set_local_cluster_command
 
 
@@ -61,7 +61,11 @@ def job_info(args):
     None
   """
   if should_validate_dependencies(args):
-    validate_dependencies()
+    validate_dependencies_list([
+        SystemDependency.KUBECTL,
+        SystemDependency.KJOB,
+        SystemDependency.GCLOUD,
+    ])
   job_name = args.name
 
   desc_command = f'kubectl-kjob describe slurm {job_name}'
@@ -171,7 +175,11 @@ def job_list(args) -> None:
     None
   """
   if should_validate_dependencies(args):
-    validate_dependencies()
+    validate_dependencies_list([
+        SystemDependency.KUBECTL,
+        SystemDependency.KJOB,
+        SystemDependency.GCLOUD,
+    ])
   if not args.kind_cluster:
     add_zone_and_project(args)
     get_cluster_credentials(args)
@@ -207,7 +215,12 @@ def job_cancel(args) -> None:
     None
   """
   if should_validate_dependencies(args):
-    validate_dependencies()
+    validate_dependencies_list([
+        SystemDependency.KUBECTL,
+        SystemDependency.KJOB,
+        SystemDependency.GCLOUD,
+    ])
+
   xpk_print(f'Starting job cancel for job: {args.name}', flush=True)
   if not args.kind_cluster:
     add_zone_and_project(args)

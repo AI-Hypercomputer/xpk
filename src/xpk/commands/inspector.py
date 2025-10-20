@@ -21,7 +21,7 @@ from ..core.kueue_manager import CLUSTER_QUEUE_NAME, LOCAL_QUEUE_NAME
 from ..core.resources import CLUSTER_METADATA_CONFIGMAP, CLUSTER_RESOURCES_CONFIGMAP
 from ..utils.console import xpk_exit, xpk_print
 from ..utils.file import append_tmp_file, write_tmp_file
-from ..utils.validation import validate_dependencies, should_validate_dependencies
+from ..utils.validation import validate_dependencies_list, SystemDependency, should_validate_dependencies
 from .workload import get_workload_list
 
 
@@ -118,7 +118,9 @@ def inspector(args) -> None:
   # 2. List what is next in Queue.
   # 3. Split inspector into different subcommands to parse info easier.
   if should_validate_dependencies(args):
-    validate_dependencies()
+    validate_dependencies_list(
+        [SystemDependency.KUBECTL, SystemDependency.GCLOUD]
+    )
   final_return_code = 0
   xpk_print(args)
 

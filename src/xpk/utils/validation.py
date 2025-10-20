@@ -84,9 +84,14 @@ def validate_dependencies():
   """Validates all system dependencies if validation has not been done with current XPK version."""
   deps_version = xpk_cfg.get(DEPENDENCIES_KEY)
   if deps_version is None or deps_version != xpk_version:
-    for dependency in SystemDependency:
-      validate_dependency(dependency)
+    validate_dependencies_list(list(SystemDependency))
     xpk_cfg.set(DEPENDENCIES_KEY, xpk_version)
+
+
+def validate_dependencies_list(dependencies: list[SystemDependency]):
+  """Validates a list of system dependencies."""
+  for dependency in dependencies:
+    validate_dependency(dependency)
 
 
 def validate_dependency(dependency: SystemDependency) -> None:

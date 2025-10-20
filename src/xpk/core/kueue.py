@@ -38,7 +38,7 @@ from .system_characteristics import (
     SystemCharacteristics,
 )
 
-KUEUE_VERSION = 'v0.12.2'
+KUEUE_VERSION = 'v0.14.1'
 CLUSTER_QUEUE_NAME = 'cluster-queue'
 LOCAL_QUEUE_NAME = 'multislice-queue'
 WAIT_FOR_KUEUE_TIMEOUT = '10m'

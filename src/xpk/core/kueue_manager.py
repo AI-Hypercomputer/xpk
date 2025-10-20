@@ -113,7 +113,7 @@ class KueueManager:
         command,
         task,
         dry_run_return_val="""
-        v0.12.1""",
+        v0.14.1""",
     )
     if return_code != 0:
       return return_code, None

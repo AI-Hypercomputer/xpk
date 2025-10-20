@@ -167,7 +167,7 @@ deployment_groups:
     settings:
       kueue:
         install: true
-        version: v0.12.2
+        version: v0.14.1
         config_path: $(ghpc_stage("xpk-gke-a4"))/kueue-xpk-configuration.yaml.tftpl
         config_template_vars:
           num_chips: 16

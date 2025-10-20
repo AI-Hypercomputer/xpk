@@ -380,25 +380,3 @@ class KueueManager:
     if return_code != 0:
       xpk_print(f"{task} returned ERROR {return_code}")
     return return_code
-
-  def verify_kueuectl(self) -> None:
-    """Verify if kueuectl is installed.
-    Returns:
-      None
-    """
-    xpk_print("Veryfing kueuectl installation")
-
-    command = "kubectl kueue version"
-    task = "Verify kueuectl installation on cluster"
-    verify_kueuectl_installed_code, _ = run_command_for_value(command, task)
-
-    if verify_kueuectl_installed_code == 0:
-      xpk_print("kueuectl found")
-
-    if verify_kueuectl_installed_code != 0:
-      xpk_print(
-          "kueuectl not found. Please follow"
-          " https://kueue.sigs.k8s.io/docs/reference/kubectl-kueue/installation/"
-          " to install kueuectl."
-      )
-      xpk_exit(verify_kueuectl_installed_code)

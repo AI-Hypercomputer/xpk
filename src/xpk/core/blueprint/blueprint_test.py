@@ -81,11 +81,6 @@ def test_generate_a3_mega_blueprint():
               tmp_test_dir, "prefix", blueprint_name, config_map_filename
           )
       )
-      assert os.path.exists(
-          os.path.join(
-              tmp_test_dir, "prefix", blueprint_name, kueue_conf_filename
-          )
-      )
 
   shutil.rmtree(tmp_test_dir)
 

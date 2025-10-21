@@ -24,8 +24,8 @@ def test_create_sub_slicing_annotations_returns_valid_annotations():
 
   assert result == [
       (
-          f'kueue.x-k8s.io/podset-required-topology:'
-          f' "google.com/gke-tpu-slice-2x2-id"'
+          'kueue.x-k8s.io/podset-required-topology:'
+          ' "google.com/gke-tpu-slice-2x2-id"'
       ),
-      f'cloud.google.com/gke-tpu-slice-topology: 2x2',
+      'cloud.google.com/gke-tpu-slice-topology: 2x2',
   ]

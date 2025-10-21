@@ -15,9 +15,9 @@ limitations under the License.
 """
 
 import argparse
-from xpk.parser.cluster import set_cluster_create_parser
-import pytest
+from xpk.parser.workload import set_workload_create_parser
 from ..utils.feature_flags import FeatureFlags
+import pytest
 
 
 @pytest.fixture(autouse=True)
@@ -25,42 +25,58 @@ def with_sub_slicing_enabled():
   FeatureFlags.SUB_SLICING_ENABLED = True
 
 
-def test_cluster_create_sub_slicing_is_hidden_with_flag_off():
+def test_workload_create_sub_slicing_topology_is_hidden_with_flag_off():
   FeatureFlags.SUB_SLICING_ENABLED = False
   parser = argparse.ArgumentParser()
 
-  set_cluster_create_parser(parser)
+  set_workload_create_parser(parser)
   help_str = parser.format_help()
 
   assert "--sub-slicing" not in help_str
 
 
-def test_cluster_create_sub_slicing_is_shown_with_flag_on():
+def test_workload_create_sub_slicing_topology_is_shown_with_flag_on():
   parser = argparse.ArgumentParser()
 
-  set_cluster_create_parser(parser)
+  set_workload_create_parser(parser)
   help_str = parser.format_help()
 
   assert "--sub-slicing" in help_str
 
 
-def test_cluster_create_sub_slicing_is_false_by_default():
+def test_workload_create_sub_slicing_topology_is_none_by_default():
   parser = argparse.ArgumentParser()
 
-  set_cluster_create_parser(parser)
-  args = parser.parse_args(
-      ["--cluster", "test-cluster", "--tpu-type", "test-tpu"]
-  )
+  set_workload_create_parser(parser)
+  args = parser.parse_args([
+      "--cluster",
+      "test-cluster",
+      "--command",
+      "python3",
+      "--workload",
+      "test",
+      "--tpu-type",
+      "test-tpu",
+  ])
 
-  assert args.sub_slicing is False
+  assert args.sub_slicing_topology is None
 
 
-def test_cluster_create_sub_slicing_can_be_set():
+def test_workload_create_sub_slicing_topology_can_be_set():
   parser = argparse.ArgumentParser()
 
-  set_cluster_create_parser(parser)
-  args = parser.parse_args(
-      ["--cluster", "test-cluster", "--tpu-type", "test-tpu", "--sub-slicing"]
-  )
+  set_workload_create_parser(parser)
+  args = parser.parse_args([
+      "--cluster",
+      "test-cluster",
+      "--command",
+      "python3",
+      "--workload",
+      "test",
+      "--tpu-type",
+      "test-tpu",
+      "--sub-slicing-topology",
+      "2x2",
+  ])
 
-  assert args.sub_slicing is True
+  assert args.sub_slicing_topology is "2x2"

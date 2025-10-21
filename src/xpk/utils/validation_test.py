@@ -15,19 +15,23 @@ limitations under the License.
 """
 
 import pytest
-from .validation import validate_dependency, SystemDependency
+from .validation import validate_dependencies_list, SystemDependency
 
 
-def test_validate_dependency_returns_nothing_for_successful_validation(mocker):
+def test_validate_dependencies_list_returns_nothing_for_successful_validation(
+    mocker,
+):
   mocker.patch(
       'xpk.utils.validation.run_command_for_value', return_value=(0, '')
   )
-  validate_dependency(SystemDependency.DOCKER)
+  validate_dependencies_list([SystemDependency.DOCKER])
 
 
-def test_validate_dependency_exits_with_error_for_failed_validation(mocker):
+def test_validate_dependencies_list_exits_with_error_for_failed_validation(
+    mocker,
+):
   mocker.patch(
       'xpk.utils.validation.run_command_for_value', return_value=(1, '')
   )
   with pytest.raises(SystemExit):
-    validate_dependency(SystemDependency.DOCKER)
+    validate_dependencies_list([SystemDependency.DOCKER])

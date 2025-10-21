@@ -94,7 +94,7 @@ deployment_groups:
           gpu_driver_version: "LATEST"
       auto_upgrade: true
       static_node_count: 2
-      placement_policy: 
+      placement_policy:
         type: COMPACT
         name: test-reservation-placement
     outputs: [instructions]
@@ -104,18 +104,10 @@ deployment_groups:
     source: modules/management/kubectl-apply
     use: [gke_cluster]
     settings:
-      kueue:
-        install: true
-        version: "v0.12.2"
-        config_path: $(ghpc_stage("xpk-gke-a3-megagpu"))/kueue-xpk-configuration.yaml.tftpl
-        config_template_vars:
-          num_chips: 16
-          reservation: 1
-          flex_start: 0
       jobset:
         install: true
         version: v0.7.2
-      apply_manifests: 
+      apply_manifests:
       - source: $(ghpc_stage("xpk-gke-a3-megagpu"))/storage_crd.yaml
 
   - !DeploymentModule

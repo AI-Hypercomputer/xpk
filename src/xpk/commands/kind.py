@@ -35,7 +35,7 @@ from ..core.system_characteristics import (
     AcceleratorType,
 )
 from ..utils.console import (xpk_exit, xpk_print)
-from ..utils.validation import validate_dependencies, should_validate_dependencies
+from ..utils.validation import validate_dependencies_list, SystemDependency, should_validate_dependencies
 
 
 def cluster_create(args) -> None:
@@ -48,7 +48,11 @@ def cluster_create(args) -> None:
     0 if successful and 1 otherwise.
   """
   if should_validate_dependencies(args):
-    validate_dependencies()
+    validate_dependencies_list([
+        SystemDependency.KUBECTL,
+        SystemDependency.KJOB,
+        SystemDependency.GCLOUD,
+    ])
   xpk_print(f'Starting cluster create for cluster {args.cluster}:', flush=True)
 
   create_cluster_command_code = create_cluster_if_necessary(args)
@@ -127,7 +131,7 @@ def cluster_delete(args) -> None:
     0 if successful and 1 otherwise.
   """
   if should_validate_dependencies(args):
-    validate_dependencies()
+    validate_dependencies_list([SystemDependency.GCLOUD])
   xpk_print(f'Starting cluster delete for cluster: {args.cluster}', flush=True)
 
   run_kind_cluster_delete_command_code = run_kind_cluster_delete_command(args)
@@ -144,7 +148,7 @@ def cluster_list(args) -> None:
     0 if successful and 1 otherwise.
   """
   if should_validate_dependencies(args):
-    validate_dependencies()
+    validate_dependencies_list([SystemDependency.GCLOUD])
   if run_kind_clusters_list_command():
     xpk_exit(1)
   xpk_exit(0)

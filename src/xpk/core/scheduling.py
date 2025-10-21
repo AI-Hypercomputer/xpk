@@ -291,3 +291,21 @@ def create_tpu_topology(
   ):
     return f'{system.topology}'
   return ''
+
+
+def create_sub_slicing_annotations(subslicing_topology: str) -> list[str]:
+  """Generates subslicing annotations.
+
+  Args:
+    subslicing_topology: subslice topology.
+
+  Returns:
+    Annotations to be rendered in deployment yaml.
+  """
+  return [
+      (
+          'kueue.x-k8s.io/podset-required-topology:'
+          f' "google.com/gke-tpu-slice-{subslicing_topology}-id"'
+      ),
+      f'cloud.google.com/gke-tpu-slice-topology: {subslicing_topology}',
+  ]

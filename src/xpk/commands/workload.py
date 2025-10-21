@@ -62,6 +62,7 @@ from ..core.scheduling import (
     create_tpu_topology,
     get_cpu_affinity,
     get_gpu_scheduler,
+    create_sub_slicing_annotations,
 )
 from ..core.storage import (
     GCE_PD_TYPE,
@@ -128,6 +129,7 @@ spec:
                 xpk.google.com/workload: {args.workload}
               annotations:
                 {storage_annotations}
+                {subslicing_annotations}
             spec:
               schedulerName: {args.scheduler}
               imagePullSecrets:
@@ -560,6 +562,13 @@ def workload_create(args) -> None:
         affinity=get_cpu_affinity(system.accelerator_type),
         accelerator_label=create_accelerator_label(
             system.accelerator_type, system
+        ),
+        subslicing_annotations=(
+            ''
+            if args.sub_slicing_topology is None
+            else ('\n' + (' ' * 16)).join(
+                create_sub_slicing_annotations(args.sub_slicing_topology)
+            )
         ),
         machine_label=create_machine_label(system.accelerator_type, system),
         local_queue_name=LOCAL_QUEUE_NAME,

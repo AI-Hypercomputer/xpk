@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from typing import Generator, TypeVar
 import unittest
 import yaml
 from unittest.mock import MagicMock, patch
@@ -239,6 +240,7 @@ class KueueManagerTest(unittest.TestCase):
         total_chips=8,
         cpu_limit=100,
         memory_limit="100Gi",
+        configure_sub_slicing=False,
     )
 
     with (
@@ -264,6 +266,7 @@ class KueueManagerTest(unittest.TestCase):
         total_chips=8,
         cpu_limit=100,
         memory_limit="100Gi",
+        configure_sub_slicing=False,
     )
 
     with (
@@ -306,6 +309,7 @@ class KueueManagerTest(unittest.TestCase):
         total_chips=8,
         cpu_limit=100,
         memory_limit="100Gi",
+        configure_sub_slicing=False,
     )
 
     with (
@@ -344,7 +348,7 @@ class KueueManagerTest(unittest.TestCase):
   @patch(
       "xpk.core.kueue_manager.KueueManager._KueueManager__update_kueue_resources_if_necessary"
   )
-  def test_configure_generates_correct_manifest(
+  def test_configure_generates_correct_manifest_for_tpu(
       self, mock_update_resources, mock_install, mock_apply_manifest
   ):
     """Test that __configure generates the correct manifest content for TPUs."""
@@ -358,29 +362,17 @@ class KueueManagerTest(unittest.TestCase):
         memory_limit="100Gi",
         autoprovisioning_enabled=False,
         num_slices=2,
+        configure_sub_slicing=False,
     )
 
-    with patch.object(
-        self.kueue_manager, "_KueueManager__get_installed_kueue_version"
-    ) as mock_get_version:
-      mock_get_version.return_value = (1, None)  # Trigger install
-      with (
-          patch.object(self.kueue_manager, "_KueueManager__install_kueue_crs"),
-          patch.object(
-              self.kueue_manager, "_KueueManager__wait_for_kueue_available"
-          ),
-      ):
-        self.kueue_manager.install_or_upgrade(kueue_config)
-
-    mock_apply_manifest.assert_called_once()
-    rendered_manifest = mock_apply_manifest.call_args[0][0]
-
+    rendered_manifest = self._trigger_installation(
+        kueue_config, mock_apply_manifest
+    )
     self.assertNotIn("kind: Topology", rendered_manifest)
     manifest_docs = list(yaml.safe_load_all(rendered_manifest))
-    cluster_queue = next(
-        (doc for doc in manifest_docs if doc["kind"] == "ClusterQueue"), None
+    cluster_queue = _first(
+        doc for doc in manifest_docs if doc["kind"] == "ClusterQueue"
     )
-    self.assertIsNotNone(cluster_queue)
     self.assertEqual(
         cluster_queue["spec"]["resourceGroups"][0]["flavors"][0]["name"],
         "2xv5p-8",
@@ -388,23 +380,15 @@ class KueueManagerTest(unittest.TestCase):
     resources = cluster_queue["spec"]["resourceGroups"][0]["flavors"][0][
         "resources"
     ]
-    tpu_resource = next(
-        (r for r in resources if r["name"] == "google.com/tpu"), None
-    )
-    cpu_resource = next((r for r in resources if r["name"] == "cpu"), None)
-    memory_resource = next(
-        (r for r in resources if r["name"] == "memory"), None
-    )
-    self.assertIsNotNone(tpu_resource)
+    tpu_resource = _first(r for r in resources if r["name"] == "google.com/tpu")
+    cpu_resource = _first(r for r in resources if r["name"] == "cpu")
+    memory_resource = _first(r for r in resources if r["name"] == "memory")
     self.assertEqual(tpu_resource["nominalQuota"], 8)
-    self.assertIsNotNone(cpu_resource)
     self.assertEqual(cpu_resource["nominalQuota"], 100)
-    self.assertIsNotNone(memory_resource)
     self.assertEqual(memory_resource["nominalQuota"], "100Gi")
-    resource_flavor = next(
-        (doc for doc in manifest_docs if doc["kind"] == "ResourceFlavor"), None
+    resource_flavor = _first(
+        doc for doc in manifest_docs if doc["kind"] == "ResourceFlavor"
     )
-    self.assertIsNotNone(resource_flavor)
     self.assertEqual(
         resource_flavor["spec"]["nodeLabels"][
             "cloud.google.com/gke-tpu-accelerator"
@@ -423,10 +407,10 @@ class KueueManagerTest(unittest.TestCase):
   @patch(
       "xpk.core.kueue_manager.KueueManager._KueueManager__update_kueue_resources_if_necessary"
   )
-  def test_configure_generates_correct_manifest_with_admission_checks(
+  def test_configure_generates_manifest_with_admission_checks_for_flex_single_slice(
       self, mock_update_resources, mock_install, mock_apply_manifest
   ):
-    """Test that __configure generates the correct manifest content for TPUs."""
+    """Test that __configure generates the correct manifest with admission checks."""
     mock_install.return_value = 0
     mock_update_resources.return_value = 0
     mock_apply_manifest.return_value = 0
@@ -438,72 +422,29 @@ class KueueManagerTest(unittest.TestCase):
         autoprovisioning_enabled=False,
         num_slices=1,
         flex=True,
+        configure_sub_slicing=False,
     )
 
-    with patch.object(
-        self.kueue_manager, "_KueueManager__get_installed_kueue_version"
-    ) as mock_get_version:
-      mock_get_version.return_value = (1, None)  # Trigger install
-      with (
-          patch.object(self.kueue_manager, "_KueueManager__install_kueue_crs"),
-          patch.object(
-              self.kueue_manager, "_KueueManager__wait_for_kueue_available"
-          ),
-      ):
-        self.kueue_manager.install_or_upgrade(kueue_config)
+    rendered_manifest = self._trigger_installation(
+        kueue_config, mock_apply_manifest
+    )
 
-    mock_apply_manifest.assert_called_once()
-    rendered_manifest = mock_apply_manifest.call_args[0][0]
-
-    self.assertNotIn("kind: Topology", rendered_manifest)
     manifest_docs = list(yaml.safe_load_all(rendered_manifest))
-    cluster_queue = next(
-        (doc for doc in manifest_docs if doc["kind"] == "ClusterQueue"), None
+    cluster_queue = _first(
+        doc for doc in manifest_docs if doc["kind"] == "ClusterQueue"
     )
-    self.assertIsNotNone(cluster_queue)
     self.assertEqual(
         cluster_queue["spec"]["resourceGroups"][0]["flavors"][0]["name"],
         "1xv5p-8",
     )
-    resources = cluster_queue["spec"]["resourceGroups"][0]["flavors"][0][
-        "resources"
-    ]
-    tpu_resource = next(
-        (r for r in resources if r["name"] == "google.com/tpu"), None
-    )
-    cpu_resource = next((r for r in resources if r["name"] == "cpu"), None)
-    memory_resource = next(
-        (r for r in resources if r["name"] == "memory"), None
-    )
-    self.assertIsNotNone(tpu_resource)
-    self.assertEqual(tpu_resource["nominalQuota"], 8)
-    self.assertIsNotNone(cpu_resource)
-    self.assertEqual(cpu_resource["nominalQuota"], 100)
-    self.assertIsNotNone(memory_resource)
-    self.assertEqual(memory_resource["nominalQuota"], "100Gi")
-    resource_flavor = next(
-        (doc for doc in manifest_docs if doc["kind"] == "ResourceFlavor"), None
-    )
-    self.assertIsNotNone(resource_flavor)
-    self.assertEqual(
-        resource_flavor["spec"]["nodeLabels"][
-            "cloud.google.com/gke-tpu-accelerator"
-        ],
-        "test-accelerator",
-    )
-    self.assertEqual(
-        resource_flavor["spec"]["nodeLabels"][
-            "cloud.google.com/gke-tpu-topology"
-        ],
-        "2x2x1",
-    )
+    self.assertEqual(cluster_queue["spec"]["admissionChecks"][0], "dws-prov")
 
   @patch("xpk.core.kueue_manager.KueueManager._KueueManager__apply_manifest")
   @patch("xpk.core.kueue_manager.KueueManager._KueueManager__install")
   @patch(
       "xpk.core.kueue_manager.KueueManager._KueueManager__update_kueue_resources_if_necessary"
   )
-  def test_configure_generates_correct_manifest_with_topology(
+  def test_configure_generates_correct_manifest_with_gke_default_topology(
       self, mock_update_resources, mock_install, mock_apply_manifest
   ):
     """Test that __configure generates correct manifest for GPUs."""
@@ -516,28 +457,65 @@ class KueueManagerTest(unittest.TestCase):
         cpu_limit=100,
         memory_limit="100Gi",
         num_slices=2,
+        configure_sub_slicing=False,
     )
 
-    with patch.object(
-        self.kueue_manager, "_KueueManager__get_installed_kueue_version"
-    ) as mock_get_version:
-      mock_get_version.return_value = (1, None)  # Trigger install
-      self.kueue_manager.install_or_upgrade(kueue_config)
+    rendered_manifest = self._trigger_installation(
+        kueue_config, mock_apply_manifest
+    )
 
-    mock_apply_manifest.assert_called_once()
-    rendered_manifest = mock_apply_manifest.call_args[0][0]
-    self.assertIn("kind: Topology", rendered_manifest)
     manifest_docs = list(yaml.safe_load_all(rendered_manifest))
-    resource_flavor = next(
-        (doc for doc in manifest_docs if doc["kind"] == "ResourceFlavor"), None
+    resource_flavor = _first(
+        (doc for doc in manifest_docs if doc["kind"] == "ResourceFlavor")
     )
-    self.assertIsNotNone(resource_flavor)
     self.assertEqual(
         resource_flavor["spec"]["nodeLabels"][
             "cloud.google.com/gke-accelerator"
         ],
         "h100-mega-80gb-8",
     )
+    self.assertEqual(resource_flavor["spec"]["topologyName"], "gke-default")
+    topology = _first(
+        (doc for doc in manifest_docs if doc["kind"] == "Topology")
+    )
+    self.assertEqual(topology["metadata"]["name"], "gke-default")
+
+  @patch("xpk.core.kueue_manager.KueueManager._KueueManager__apply_manifest")
+  @patch("xpk.core.kueue_manager.KueueManager._KueueManager__install")
+  @patch(
+      "xpk.core.kueue_manager.KueueManager._KueueManager__update_kueue_resources_if_necessary"
+  )
+  def test_configure_generates_correct_manifest_with_sub_slicing(
+      self, mock_update_resources, mock_install, mock_apply_manifest
+  ):
+    """Test that __configure generates correct manifest with sub-slicing topology."""
+    mock_install.return_value = 0
+    mock_update_resources.return_value = 0
+    mock_apply_manifest.return_value = 0
+    kueue_config = KueueConfig(
+        system=self.mock_system_chars,
+        total_chips=16,
+        cpu_limit=100,
+        memory_limit="100Gi",
+        num_slices=2,
+        configure_sub_slicing=True,
+    )
+
+    rendered_manifest = self._trigger_installation(
+        kueue_config, mock_apply_manifest
+    )
+
+    manifest_docs = list(yaml.safe_load_all(rendered_manifest))
+    resource_flavor = _first(
+        (doc for doc in manifest_docs if doc["kind"] == "ResourceFlavor")
+    )
+    self.assertEqual(
+        resource_flavor["spec"]["topologyName"], "sub-slice-topology"
+    )
+    topology = _first(
+        (doc for doc in manifest_docs if doc["kind"] == "Topology")
+    )
+    self.assertEqual(topology["metadata"]["name"], "sub-slice-topology")
 
   @patch("xpk.core.kueue_manager.KueueManager._KueueManager__apply_manifest")
   @patch("xpk.core.kueue_manager.KueueManager._KueueManager__install")
@@ -558,39 +536,30 @@ class KueueManagerTest(unittest.TestCase):
         memory_limit="100Gi",
         is_pathways_cluster=True,
         num_slices=2,
+        configure_sub_slicing=False,
     )
 
-    with patch.object(
-        self.kueue_manager, "_KueueManager__get_installed_kueue_version"
-    ) as mock_get_version:
-      mock_get_version.return_value = (1, None)  # Trigger install
-      self.kueue_manager.install_or_upgrade(kueue_config)
-
-    mock_apply_manifest.assert_called_once()
-    rendered_manifest = mock_apply_manifest.call_args[0][0]
+    rendered_manifest = self._trigger_installation(
+        kueue_config, mock_apply_manifest
+    )
     manifest_docs = list(yaml.safe_load_all(rendered_manifest))
 
     # Check for the new "cpu-user" ResourceFlavor
-    cpu_user_flavor = next(
-        (
-            doc
-            for doc in manifest_docs
-            if doc["kind"] == "ResourceFlavor"
-            and doc["metadata"]["name"] == "cpu-user"
-        ),
-        None,
+    cpu_user_flavor = _first(
+        doc
+        for doc in manifest_docs
+        if doc["kind"] == "ResourceFlavor"
+        and doc["metadata"]["name"] == "cpu-user"
     )
-    self.assertIsNotNone(cpu_user_flavor)
     self.assertEqual(
         cpu_user_flavor["spec"]["nodeLabels"]["cloud.google.com/gke-nodepool"],
         "cpu-np",
     )
 
     # Check that the ClusterQueue has the new resource group for pathways
-    cluster_queue = next(
-        (doc for doc in manifest_docs if doc["kind"] == "ClusterQueue"), None
+    cluster_queue = _first(
+        doc for doc in manifest_docs if doc["kind"] == "ClusterQueue"
     )
-    self.assertIsNotNone(cluster_queue)
     self.assertEqual(len(cluster_queue["spec"]["resourceGroups"]), 2)
     pathways_rg = cluster_queue["spec"]["resourceGroups"][1]
     self.assertEqual(pathways_rg["coveredResources"], ["cpu", "memory"])
@@ -601,6 +570,28 @@ class KueueManagerTest(unittest.TestCase):
     self.assertEqual(
         pathways_rg["flavors"][0]["resources"][1]["nominalQuota"], "2000G"
     )
+
+  def _trigger_installation(
+      self, kueue_config: KueueConfig, mock_apply_manifest
+  ) -> str:
+    """Calls Kueue installation and returns the rendered manifest."""
+    with patch.object(
+        self.kueue_manager, "_KueueManager__get_installed_kueue_version"
+    ) as mock_get_version:
+      mock_get_version.return_value = (1, None)
+      self.kueue_manager.install_or_upgrade(kueue_config)
+
+    mock_apply_manifest.assert_called_once()
+    return mock_apply_manifest.call_args[0][0]
+
+
+T = TypeVar("T")
+
+
+def _first(generator: Generator[T]) -> T:
+  result = next(generator, None)
+  assert result is not None
+  return result
 
 
 if __name__ == "__main__":

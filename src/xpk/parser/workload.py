@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from argparse import ArgumentParser
 from ..commands.workload import (
     workload_create,
     workload_create_pathways,
@@ -25,7 +26,7 @@ from .common import add_shared_arguments
 from .validators import directory_path_type, name_type
 
 
-def set_workload_parsers(workload_parser):
+def set_workload_parsers(workload_parser: ArgumentParser):
   workload_subcommands = workload_parser.add_subparsers(
       title='workload subcommands',
       dest='xpk_workload_subcommands',
@@ -39,6 +40,28 @@ def set_workload_parsers(workload_parser):
   workload_create_parser = workload_subcommands.add_parser(
       'create', help='Create a new job.'
   )
+  set_workload_create_parser(workload_create_parser)
+
+  # "workload create-pathways" command parser.
+  workload_create_pathways_parser = workload_subcommands.add_parser(
+      'create-pathways', help='Create a new job.'
+  )
+  set_workload_create_pathways_parser(workload_create_pathways_parser)
+
+  # "workload delete" command parser.
+  workload_delete_parser = workload_subcommands.add_parser(
+      'delete', help='Delete job.'
+  )
+  set_workload_delete_parser(workload_delete_parser)
+
+  # "workload list" command parser.
+  workload_list_parser = workload_subcommands.add_parser(
+      'list', help='List jobs.'
+  )
+  set_workload_list_parser(workload_list_parser)
+
+
+def set_workload_create_parser(workload_create_parser: ArgumentParser):
   workload_create_parser_required_arguments = (
       workload_create_parser.add_argument_group(
           'Workload Built-in Arguments',
@@ -193,10 +216,33 @@ def set_workload_parsers(workload_parser):
       ),
   )
 
-  # "workload create-pathways" command parser.
-  workload_create_pathways_parser = workload_subcommands.add_parser(
-      'create-pathways', help='Create a new job.'
-  )
+  add_shared_workload_create_required_arguments([
+      workload_create_parser_required_arguments,
+  ])
+  add_shared_workload_create_optional_arguments([
+      workload_create_parser_optional_arguments,
+  ])
+  add_shared_workload_create_env_arguments([
+      workload_create_parser_optional_arguments,
+  ])
+  add_shared_workload_base_docker_image_arguments([
+      workload_base_docker_image_arguments,
+  ])
+  add_shared_workload_docker_image_arguments([
+      workload_docker_image_arguments,
+  ])
+  add_shared_workload_create_tensorboard_arguments([
+      workload_vertex_tensorboard_arguments,
+  ])
+  add_shared_workload_create_autoprovisioning_arguments([
+      workload_create_autoprovisioning_arguments,
+  ])
+  workload_create_parser.set_defaults(func=workload_create)
+
+
+def set_workload_create_pathways_parser(
+    workload_create_pathways_parser: ArgumentParser,
+):
   workload_create_pathways_parser_required_arguments = (
       workload_create_pathways_parser.add_argument_group(
           'Workload create-pathways Built-in Arguments',
@@ -232,7 +278,6 @@ def set_workload_parsers(workload_parser):
           'Arguments for creating Vertex AI Experiment in workload create.',
       )
   )
-
   ### "workload create-pathways" Required arguments, specific to Pathways
   workload_create_pathways_parser_required_arguments.add_argument(
       '--tpu-type',
@@ -353,42 +398,30 @@ def set_workload_parsers(workload_parser):
   )
 
   add_shared_workload_create_required_arguments([
-      workload_create_parser_required_arguments,
       workload_create_pathways_parser_required_arguments,
   ])
   add_shared_workload_create_optional_arguments([
-      workload_create_parser_optional_arguments,
       workload_create_pathways_parser_optional_arguments,
   ])
   add_shared_workload_create_env_arguments([
-      workload_create_parser_optional_arguments,
       workload_create_pathways_parser_optional_arguments,
   ])
   add_shared_workload_base_docker_image_arguments([
-      workload_base_docker_image_arguments,
       workload_create_pathways_base_docker_image_arguments,
   ])
   add_shared_workload_docker_image_arguments([
-      workload_docker_image_arguments,
       workload_create_pathways_docker_image_arguments,
   ])
   add_shared_workload_create_tensorboard_arguments([
-      workload_vertex_tensorboard_arguments,
       workload_create_pathways_vertex_tensorboard_arguments,
   ])
   add_shared_workload_create_autoprovisioning_arguments([
-      workload_create_autoprovisioning_arguments,
       workload_create_pathways_autoprovisioning_arguments,
   ])
-
-  # Set defaults for both workload create and workload create-pathways after adding all shared args.
-  workload_create_parser.set_defaults(func=workload_create)
   workload_create_pathways_parser.set_defaults(func=workload_create_pathways)
 
-  # "workload delete" command parser.
-  workload_delete_parser = workload_subcommands.add_parser(
-      'delete', help='Delete job.'
-  )
+
+def set_workload_delete_parser(workload_delete_parser: ArgumentParser):
   workload_delete_parser_required_arguments = (
       workload_delete_parser.add_argument_group(
           'Required Arguments',
@@ -454,14 +487,10 @@ def set_workload_parsers(workload_parser):
           'Forces workload deletion command to run without additional approval.'
       ),
   )
-
   workload_delete_parser.set_defaults(func=workload_delete)
 
-  # "workload list" command parser.
-  workload_list_parser = workload_subcommands.add_parser(
-      'list', help='List jobs.'
-  )
 
+def set_workload_list_parser(workload_list_parser: ArgumentParser):
   workload_list_parser.add_argument(
       '--cluster',
       type=name_type,

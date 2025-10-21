@@ -99,6 +99,7 @@ from ..utils.execution_context import is_dry_run
 from ..utils.validation import validate_dependencies_list, SystemDependency, should_validate_dependencies
 from . import cluster_gcluster
 from .common import is_TAS_possible
+from ..utils.feature_flags import FeatureFlags
 
 WORKLOAD_CREATE_YAML = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
@@ -565,7 +566,8 @@ def workload_create(args) -> None:
         ),
         subslicing_annotations=(
             ''
-            if args.sub_slicing_topology is None
+            if not FeatureFlags.SUB_SLICING_ENABLED
+            or args.sub_slicing_topology is None
             else ('\n' + (' ' * 16)).join(
                 create_sub_slicing_annotations(args.sub_slicing_topology)
             )

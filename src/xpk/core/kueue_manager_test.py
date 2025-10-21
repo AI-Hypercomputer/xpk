@@ -84,7 +84,7 @@ class KueueManagerTest(unittest.TestCase):
       self, mock_configure, mock_install, mock_get_version
   ):
     """Test install_or_upgrade when Kueue is already up to date."""
-    mock_get_version.return_value = (0, "v0.12.3")
+    mock_get_version.return_value = (0, "v0.99.9")
     kueue_config = MagicMock(spec=KueueConfig)
 
     result = self.kueue_manager.install_or_upgrade(kueue_config)

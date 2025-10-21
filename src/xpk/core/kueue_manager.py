@@ -49,7 +49,7 @@ KUEUE_TOPOLOGY_JINJA_FILE = "kueue_topology.yaml.j2"
 KUEUE_CONTROLLER_MANAGER_JINJA_FILE = "kueue_controller_manager.yaml.j2"
 MEMORY_SIZE_PER_VM = 1.2
 MIN_MEMORY_LIMIT_SIZE = 4096
-KUEUE_VERSION = "v0.12.2"
+KUEUE_VERSION = "v0.14.1"
 
 
 @dataclass
@@ -117,7 +117,7 @@ class KueueManager:
         command,
         task,
         dry_run_return_val="""
-        v0.12.1""",
+        v0.14.1""",
     )
     if return_code != 0:
       return return_code, None

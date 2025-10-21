@@ -16,8 +16,7 @@ limitations under the License.
 
 from tabulate import tabulate
 
-from xpk.utils.feature_flags import FeatureFlags
-
+from ..utils.feature_flags import FeatureFlags
 from ..core.capacity import H100_DEVICE_TYPE, H200_DEVICE_TYPE, B200_DEVICE_TYPE
 from ..core.cluster import (
     get_all_clusters_programmatic,

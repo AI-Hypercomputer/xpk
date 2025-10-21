@@ -16,8 +16,7 @@ limitations under the License.
 
 import os
 
-from xpk.utils.feature_flags import FeatureFlags
-
+from ..utils.feature_flags import FeatureFlags
 from ..utils.execution_context import is_dry_run
 from ..core.kueue_manager import KueueConfig, KueueManager
 from ..core.nap import enable_autoprovisioning_on_cluster

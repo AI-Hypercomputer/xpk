@@ -46,9 +46,6 @@ from ..core.gcloud_context import (
 )
 from ..core.jobset import update_jobset_resources_if_necessary
 from ..core.kjob import apply_kjob_crds, prepare_kjob, verify_kjob_installed
-from ..core.kueue import (
-    cluster_preheat_yml,
-)
 from ..core.kueue_manager import (KueueConfig, KueueManager)
 from ..core.nap import enable_autoprovisioning_on_cluster
 from ..core.network import (
@@ -79,8 +76,12 @@ from ..utils.execution_context import is_dry_run
 from ..utils.validation import validate_dependencies_list, SystemDependency, should_validate_dependencies
 from . import cluster_gcluster
 from .common import set_cluster_command
+from jinja2 import Environment, FileSystemLoader
+from ..utils.templates import TEMPLATE_PATH
 import shutil
 import os
+
+CLUSTER_PREHEAT_JINJA_FILE = 'cluster_preheat.yaml.j2'
 
 
 def cluster_adapt(args) -> None:
@@ -424,12 +425,15 @@ def cluster_cacheimage(args) -> None:
   node_selector_key = AcceleratorTypeToAcceleratorCharacteristics[
       system.accelerator_type
   ].accelerator_label
-  yml_string = cluster_preheat_yml.format(
+
+  template_env = Environment(loader=FileSystemLoader(TEMPLATE_PATH))
+  cluster_preheat_yaml = template_env.get_template(CLUSTER_PREHEAT_JINJA_FILE)
+  rendered_yaml = cluster_preheat_yaml.render(
       cachekey=args.cache_key,
       image_name=args.docker_image,
       nodeSelectorKey=node_selector_key,
   )
-  tmp = write_tmp_file(yml_string)
+  tmp = write_tmp_file(rendered_yaml)
   command_apply = f'kubectl apply -f {str(tmp)}'
   command_delete = f'kubectl delete -f {str(tmp)} --ignore-not-found=true'
 

@@ -22,7 +22,6 @@ from tabulate import tabulate
 from ..core.commands import run_command_for_value
 from ..core.cluster import get_cluster_credentials
 from ..core.gcloud_context import add_zone_and_project
-from ..core.kueue import verify_kueuectl
 from ..utils.console import xpk_exit, xpk_print
 from ..utils.validation import validate_dependencies_list, SystemDependency, should_validate_dependencies
 
@@ -46,7 +45,6 @@ def info(args: Namespace) -> None:
   add_zone_and_project(args)
   get_cluster_credentials(args)
 
-  verify_kueuectl()
   lq, cq = bool(args.localqueue), bool(args.clusterqueue)
   if not lq and not cq:
     lq, cq = True, True

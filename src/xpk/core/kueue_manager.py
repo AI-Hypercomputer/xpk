@@ -89,9 +89,9 @@ class KueueManager:
     return_code, installed_version = self.__get_installed_kueue_version()
 
     if return_code == 0:
-      if installed_version and installed_version >= self.kueue_version:
+      if installed_version and installed_version > self.kueue_version:
         xpk_print(
-            f"Kueue version {installed_version} is already up to date. Skipping"
+            f"Cluster has a newer Kueue version, {installed_version}. Skipping"
             " installation."
         )
         return 0

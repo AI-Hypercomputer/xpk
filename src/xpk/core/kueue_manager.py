@@ -39,6 +39,7 @@ from ..core.commands import (
 )
 from ..utils.file import write_tmp_file
 from ..utils.console import xpk_print, xpk_exit
+from ..utils.templates import TEMPLATE_PATH
 
 WAIT_FOR_KUEUE_TIMEOUT = "10m"
 CLUSTER_QUEUE_NAME = "cluster-queue"
@@ -69,7 +70,7 @@ class KueueManager:
   def __init__(
       self,
       kueue_version: str = KUEUE_VERSION,
-      template_path="src/xpk/templates/",
+      template_path=TEMPLATE_PATH,
   ):
     self.kueue_version = kueue_version
     self.template_env = Environment(loader=FileSystemLoader(template_path))

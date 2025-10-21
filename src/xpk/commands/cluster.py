@@ -76,42 +76,12 @@ from ..utils.execution_context import is_dry_run
 from ..utils.validation import validate_dependencies_list, SystemDependency, should_validate_dependencies
 from . import cluster_gcluster
 from .common import set_cluster_command
+from jinja2 import Environment, FileSystemLoader
+from ..utils.templates import TEMPLATE_PATH
 import shutil
 import os
 
-cluster_preheat_yml = """
-apiVersion: apps/v1
-kind: DaemonSet
-metadata:
-  name: {cachekey}
-  labels:
-    k8s-app: {cachekey}
-spec:
-  selector:
-    matchLabels:
-      k8s-app: {cachekey}
-  updateStrategy:
-    type: RollingUpdate
-  template:
-    metadata:
-      labels:
-        name: {cachekey}
-        k8s-app: {cachekey}
-    spec:
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-            - matchExpressions:
-              - key: {nodeSelectorKey}
-                operator: Exists
-      tolerations:
-      - operator: "Exists"
-      containers:
-      - image: {image_name}
-        name: {cachekey}
-        command: [ "sleep", "inf" ]
-"""
+CLUSTER_PREHEAT_JINJA_FILE = 'cluster_preheat.yaml.j2'
 
 
 def cluster_adapt(args) -> None:
@@ -455,12 +425,15 @@ def cluster_cacheimage(args) -> None:
   node_selector_key = AcceleratorTypeToAcceleratorCharacteristics[
       system.accelerator_type
   ].accelerator_label
-  yml_string = cluster_preheat_yml.format(
+
+  template_env = Environment(loader=FileSystemLoader(TEMPLATE_PATH))
+  cluster_preheat_yaml = template_env.get_template(CLUSTER_PREHEAT_JINJA_FILE)
+  rendered_yaml = cluster_preheat_yaml.render(
       cachekey=args.cache_key,
       image_name=args.docker_image,
       nodeSelectorKey=node_selector_key,
   )
-  tmp = write_tmp_file(yml_string)
+  tmp = write_tmp_file(rendered_yaml)
   command_apply = f'kubectl apply -f {str(tmp)}'
   command_delete = f'kubectl delete -f {str(tmp)} --ignore-not-found=true'
 

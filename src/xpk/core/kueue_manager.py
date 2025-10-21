@@ -39,6 +39,7 @@ from ..core.commands import (
 )
 from ..utils.file import write_tmp_file
 from ..utils.console import xpk_print, xpk_exit
+from ..utils.templates import TEMPLATE_PATH
 
 WAIT_FOR_KUEUE_TIMEOUT = "10m"
 CLUSTER_QUEUE_NAME = "cluster-queue"
@@ -48,6 +49,7 @@ KUEUE_TOPOLOGY_JINJA_FILE = "kueue_topology.yaml.j2"
 KUEUE_CONTROLLER_MANAGER_JINJA_FILE = "kueue_controller_manager.yaml.j2"
 MEMORY_SIZE_PER_VM = 1.2
 MIN_MEMORY_LIMIT_SIZE = 4096
+KUEUE_VERSION = "v0.14.1"
 
 
 @dataclass
@@ -66,7 +68,9 @@ class KueueManager:
   """Manages the installation and configuration of Kueue on an XPK cluster."""
 
   def __init__(
-      self, kueue_version: str = "v0.14.1", template_path="src/xpk/templates/"
+      self,
+      kueue_version: str = KUEUE_VERSION,
+      template_path=TEMPLATE_PATH,
   ):
     self.kueue_version = kueue_version
     self.template_env = Environment(loader=FileSystemLoader(template_path))

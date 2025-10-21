@@ -17,8 +17,12 @@ limitations under the License.
 import os
 
 
-def __getBooleanFlag(flag: str, default: bool) -> bool:
+def _get_boolean_flag(flag: str, default: bool) -> bool:
   return os.getenv(flag, str(default)).lower() == "true"
 
 
-SUB_SLICING_ENABLED = __getBooleanFlag("SUB_SLICING_ENABLED", default=False)
+class _FeatureFlags:
+  SUB_SLICING_ENABLED = _get_boolean_flag("SUB_SLICING_ENABLED", default=False)
+
+
+FeatureFlags = _FeatureFlags()

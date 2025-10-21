@@ -17,15 +17,16 @@ limitations under the License.
 import argparse
 from xpk.parser.cluster import set_cluster_create_parser
 import pytest
+from ..utils.feature_flags import FeatureFlags
 
 
 @pytest.fixture(autouse=True)
-def with_sub_slicing_enabled(mocker):
-  mocker.patch("xpk.parser.cluster.SUB_SLICING_ENABLED", True)
+def with_sub_slicing_enabled():
+  FeatureFlags.SUB_SLICING_ENABLED = True
 
 
-def test_cluster_create_sub_slicing_is_hidden_with_flag_off(mocker):
-  mocker.patch("xpk.parser.cluster.SUB_SLICING_ENABLED", False)
+def test_cluster_create_sub_slicing_is_hidden_with_flag_off():
+  FeatureFlags.SUB_SLICING_ENABLED = False
   parser = argparse.ArgumentParser()
 
   set_cluster_create_parser(parser)

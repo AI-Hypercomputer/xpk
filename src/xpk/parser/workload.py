@@ -663,7 +663,7 @@ def add_shared_workload_create_optional_arguments(args_parsers):
       custom_parser.add_argument(
           '--sub-slicing-topology',
           type=str,
-          help='Subslicing topology to use',
+          help='Sub-slicing topology to use',
           required=False,
       )
 

@@ -588,7 +588,7 @@ class KueueManagerTest(unittest.TestCase):
 T = TypeVar("T")
 
 
-def _first(generator: Generator[T]) -> T:
+def _first(generator: Generator[T, None, None]) -> T:
   result = next(generator, None)
   assert result is not None
   return result

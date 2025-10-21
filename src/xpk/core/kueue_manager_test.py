@@ -240,6 +240,7 @@ class KueueManagerTest(unittest.TestCase):
         total_chips=8,
         cpu_limit=100,
         memory_limit="100Gi",
+        configure_sub_slicing=False,
     )
 
     with (
@@ -265,6 +266,7 @@ class KueueManagerTest(unittest.TestCase):
         total_chips=8,
         cpu_limit=100,
         memory_limit="100Gi",
+        configure_sub_slicing=False,
     )
 
     with (
@@ -307,6 +309,7 @@ class KueueManagerTest(unittest.TestCase):
         total_chips=8,
         cpu_limit=100,
         memory_limit="100Gi",
+        configure_sub_slicing=False,
     )
 
     with (
@@ -344,7 +347,7 @@ class KueueManagerTest(unittest.TestCase):
   @patch(
       "xpk.core.kueue_manager.KueueManager._KueueManager__update_kueue_resources_if_necessary"
   )
-  def test_configure_generates_correct_manifest(
+  def test_configure_generates_correct_manifest_for_tpu(
       self, mock_update_resources, mock_install
   ):
     """Test that __configure generates the correct manifest content for TPUs."""
@@ -357,11 +360,11 @@ class KueueManagerTest(unittest.TestCase):
         memory_limit="100Gi",
         autoprovisioning_enabled=False,
         num_slices=2,
+        configure_sub_slicing=False,
     )
 
     rendered_manifest = self._trigger_installation(kueue_config)
 
-    self.assertNotIn("kind: Topology", rendered_manifest)
     manifest_docs = list(yaml.safe_load_all(rendered_manifest))
     cluster_queue = _first(
         doc for doc in manifest_docs if doc["kind"] == "ClusterQueue"
@@ -413,11 +416,11 @@ class KueueManagerTest(unittest.TestCase):
         autoprovisioning_enabled=False,
         num_slices=1,
         flex=True,
+        configure_sub_slicing=False,
     )
 
     rendered_manifest = self._trigger_installation(kueue_config)
 
-    self.assertNotIn("kind: Topology", rendered_manifest)
     manifest_docs = list(yaml.safe_load_all(rendered_manifest))
     cluster_queue = _first(
         doc for doc in manifest_docs if doc["kind"] == "ClusterQueue"
@@ -432,7 +435,7 @@ class KueueManagerTest(unittest.TestCase):
   @patch(
       "xpk.core.kueue_manager.KueueManager._KueueManager__update_kueue_resources_if_necessary"
   )
-  def test_configure_generates_correct_manifest_with_topology(
+  def test_configure_generates_correct_manifest_with_gke_default_topology(
       self, mock_update_resources, mock_install
   ):
     """Test that __configure generates correct manifest for GPUs."""
@@ -444,14 +447,14 @@ class KueueManagerTest(unittest.TestCase):
         cpu_limit=100,
         memory_limit="100Gi",
         num_slices=2,
+        configure_sub_slicing=False,
     )
 
     rendered_manifest = self._trigger_installation(kueue_config)
 
-    self.assertIn("kind: Topology", rendered_manifest)
     manifest_docs = list(yaml.safe_load_all(rendered_manifest))
     resource_flavor = _first(
-        doc for doc in manifest_docs if doc["kind"] == "ResourceFlavor"
+        (doc for doc in manifest_docs if doc["kind"] == "ResourceFlavor")
     )
     self.assertEqual(
         resource_flavor["spec"]["nodeLabels"][
@@ -459,6 +462,44 @@ class KueueManagerTest(unittest.TestCase):
         ],
         "h100-mega-80gb-8",
     )
+    self.assertEqual(resource_flavor["spec"]["topologyName"], "gke-default")
+    topology = _first(
+        (doc for doc in manifest_docs if doc["kind"] == "Topology")
+    )
+    self.assertEqual(topology["metadata"]["name"], "gke-default")
+
+  @patch("xpk.core.kueue_manager.KueueManager._KueueManager__install")
+  @patch(
+      "xpk.core.kueue_manager.KueueManager._KueueManager__update_kueue_resources_if_necessary"
+  )
+  def test_configure_generates_correct_manifest_with_sub_slicing(
+      self, mock_update_resources, mock_install
+  ):
+    """Test that __configure generates correct manifest with sub-slicing topology."""
+    mock_install.return_value = 0
+    mock_update_resources.return_value = 0
+    kueue_config = KueueConfig(
+        system=self.mock_system_chars,
+        total_chips=16,
+        cpu_limit=100,
+        memory_limit="100Gi",
+        num_slices=2,
+        configure_sub_slicing=True,
+    )
+
+    rendered_manifest = self._trigger_installation(kueue_config)
+
+    manifest_docs = list(yaml.safe_load_all(rendered_manifest))
+    resource_flavor = _first(
+        (doc for doc in manifest_docs if doc["kind"] == "ResourceFlavor")
+    )
+    self.assertEqual(
+        resource_flavor["spec"]["topologyName"], "sub-slice-topology"
+    )
+    topology = _first(
+        (doc for doc in manifest_docs if doc["kind"] == "Topology")
+    )
+    self.assertEqual(topology["metadata"]["name"], "sub-slice-topology")
 
   @patch("xpk.core.kueue_manager.KueueManager._KueueManager__install")
   @patch(
@@ -477,6 +518,7 @@ class KueueManagerTest(unittest.TestCase):
         memory_limit="100Gi",
         is_pathways_cluster=True,
         num_slices=2,
+        configure_sub_slicing=False,
     )
 
     rendered_manifest = self._trigger_installation(kueue_config)

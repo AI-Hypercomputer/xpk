@@ -1,5 +1,4 @@
 {% for flavor in flavors %}
----
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: ResourceFlavor
 metadata:
@@ -9,8 +8,8 @@ spec:
   {% if flavor.topologyLabel %}
   {{ flavor.topologyLabel }}
   {% endif %}
-{% endfor %}
 ---
+{% endfor %}
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: AdmissionCheck
 metadata:

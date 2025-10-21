@@ -17,7 +17,7 @@ limitations under the License.
 from ..core.cluster import get_cluster_credentials
 from ..core.commands import run_command_for_value
 from ..core.gcloud_context import add_zone_and_project, get_cluster_location
-from ..core.kueue import CLUSTER_QUEUE_NAME, LOCAL_QUEUE_NAME
+from ..core.kueue_manager import CLUSTER_QUEUE_NAME, LOCAL_QUEUE_NAME
 from ..core.resources import CLUSTER_METADATA_CONFIGMAP, CLUSTER_RESOURCES_CONFIGMAP
 from ..utils.console import xpk_exit, xpk_print
 from ..utils.file import append_tmp_file, write_tmp_file

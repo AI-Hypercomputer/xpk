@@ -119,11 +119,6 @@ def test_create_a3_mega_deployment_files(setup_tests):
   assert os.path.isfile(
       os.path.join(blueprint_deps_test_path, "config-map.yaml.tftpl")
   )
-  assert os.path.isfile(
-      os.path.join(
-          blueprint_deps_test_path, "kueue-xpk-configuration.yaml.tftpl"
-      )
-  )
 
   gcluster_manager = GclusterManager(
       gcluster_command_runner=docker_manager, remote_state_client=None

@@ -16,6 +16,12 @@ limitations under the License.
 
 import os
 
+from ..utils.execution_context import is_dry_run
+from ..core.kueue_manager import KueueConfig, KueueManager
+from ..core.nap import enable_autoprovisioning_on_cluster
+from ..core.scheduling import get_total_chips_requested_from_args
+from ..core.system_characteristics import get_system_characteristics
+
 from ..core.blueprint.blueprint_generator import (
     BlueprintGenerator,
     BlueprintGeneratorOutput,
@@ -75,20 +81,27 @@ def cluster_create(args) -> None:
   bp = generate_blueprint(blueprint_name=unique_name, args=args, prefix=prefix)
 
   # staging: sending the blueprint file(s) to gcluster's working directory
-  bp_staged_path = gcm.stage_files(
-      blueprint_file=bp.blueprint_file,
-      blueprint_dependencies=bp.blueprint_dependencies,
-      prefix=prefix,
-  )
-  gcm.deploy(
-      blueprint_path=bp_staged_path,
-      deployment_name=unique_name,
-      prefix=prefix,
-  )
-  if args.cluster_state_gcs_bucket is not None:
-    gcm.upload_state()
+  if is_dry_run():
+    xpk_print(f'Blueprint file: {bp.blueprint_file}')
+  else:
+    bp_staged_path = gcm.stage_files(
+        blueprint_file=bp.blueprint_file,
+        blueprint_dependencies=bp.blueprint_dependencies,
+        prefix=prefix,
+    )
+    gcm.deploy(
+        blueprint_path=bp_staged_path,
+        deployment_name=unique_name,
+        prefix=prefix,
+    )
+    if args.cluster_state_gcs_bucket is not None:
+      gcm.upload_state()
 
   get_cluster_credentials(args)
+
+  err_code = __install_kueue(args)
+  if err_code > 0:
+    xpk_exit(err_code)
 
   err_code = apply_kjob_crds()
   if err_code > 0:
@@ -99,6 +112,57 @@ def cluster_create(args) -> None:
     xpk_exit(err_code)
 
   xpk_exit(0)
+
+
+def __install_kueue(args) -> int:
+  system, return_code = get_system_characteristics(args)
+
+  if return_code > 0 or system is None:
+    xpk_print('Fetching system characteristics failed!')
+    return return_code
+
+  # Provision node pools dynamically based on incoming workloads:
+  # Currently autoprovisioning is not supported with Pathways.
+  autoprovisioning_config = None
+  if args.enable_autoprovisioning:
+    xpk_print('Enabling Autoprovisioning')
+    autoprovisioning_config, return_code = enable_autoprovisioning_on_cluster(
+        args, system
+    )
+    if return_code != 0:
+      return return_code
+
+  autoprovisioning_enabled = False
+  if autoprovisioning_config:
+    # Determine total resources available based on autoprovisioning max chips.
+    autoprovisioning_enabled = True
+    total_chips = autoprovisioning_config.maximum_chips
+  else:
+    # Determine total chips based on user specified topology.
+    total_chips = get_total_chips_requested_from_args(args, system)
+  kueue_manager = KueueManager()
+
+  tolerations = [{
+      'key': 'components.gke.io/gke-managed-components',
+      'operator': 'Equal',
+      'value': 'true',
+      'effect': 'NoSchedule',
+  }]
+
+  kueue_manager.install_or_upgrade(
+      KueueConfig(
+          system,
+          total_chips=total_chips,
+          autoprovisioning_enabled=autoprovisioning_enabled,
+          num_slices=args.num_slices,
+          memory_limit=args.memory_limit,
+          cpu_limit=args.cpu_limit,
+          is_pathways_cluster=args.enable_pathways,
+          flex=args.flex,
+      ),
+      tolerations=tolerations,
+  )
+  return 0
 
 
 def cluster_delete(args) -> None:

@@ -35,6 +35,7 @@ class KueueManagerTest(unittest.TestCase):
         chips_per_vm=8,
         accelerator_type=AcceleratorType["GPU"],
         device_type="h100-mega-80gb-8",
+        supports_sub_slicing=False,
     )
 
     self.mock_system_chars = SystemCharacteristics(
@@ -45,6 +46,7 @@ class KueueManagerTest(unittest.TestCase):
         chips_per_vm=4,
         accelerator_type=AcceleratorType["TPU"],
         device_type="v5p-8",
+        supports_sub_slicing=False,
     )
     mock_env = MagicMock()
 
@@ -78,7 +80,7 @@ class KueueManagerTest(unittest.TestCase):
   )
   @patch("xpk.core.kueue_manager.KueueManager._KueueManager__install")
   @patch("xpk.core.kueue_manager.KueueManager._KueueManager__configure")
-  def test_install_or_upgrade_when_up_to_date(
+  def test_install_or_upgrade_when_newer_version_already_installed(
       self, mock_configure, mock_install, mock_get_version
   ):
     """Test install_or_upgrade when Kueue is already up to date."""

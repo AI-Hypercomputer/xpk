@@ -88,7 +88,7 @@ deployment_groups:
     settings:
       network_name: gke-a4-rdma-net
       mtu: 8896
-      network_profile: 
+      network_profile:
         https://www.googleapis.com/compute/beta/projects/foo/global/networkProfiles/us-central1-c-vpc-roce
       network_routing_mode: REGIONAL
       subnetworks_template:
@@ -165,13 +165,6 @@ deployment_groups:
     use:
     - gke-a4-a4-cluster
     settings:
-      kueue:
-        install: true
-        version: v0.14.1
-        config_path: $(ghpc_stage("xpk-gke-a4"))/kueue-xpk-configuration.yaml.tftpl
-        config_template_vars:
-          num_chips: 16
-          flex_start: 0
       jobset:
         install: true
         version: v0.7.2

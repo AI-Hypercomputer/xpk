@@ -121,7 +121,7 @@ spec:
       replicas: {args.num_slices}
       template:
         spec:
-          parallelism: {vms_per_slice}    # Equal to the number of VMs per slice
+          parallelism: {vms_per_slice}    # Equal to the number of VMs per slice (or sub-slice).
           completions: {vms_per_slice}    # Same as the above.
           backoffLimit: 0   # When any pod fails, the job is failed
           {pod_failure_policy}
@@ -559,7 +559,6 @@ def workload_create(args) -> None:
     )
     yml_string = WORKLOAD_CREATE_YAML.format(
         args=args,
-        system=system,
         container=container,
         vms_per_slice=(
             compute_vms_per_slice(args.sub_slicing_topology)

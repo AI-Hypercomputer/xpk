@@ -29,21 +29,20 @@ class AcceleratorCharacteristics:
 
 
 AcceleratorTypeToAcceleratorCharacteristics = {
-    # TPU
     AcceleratorType['TPU']: AcceleratorCharacteristics(
-        'google.com/tpu',
-        'cloud.google.com/gke-tpu-accelerator',
-        'cloud.google.com/gke-tpu-topology',
+        resource_type='google.com/tpu',
+        accelerator_label='cloud.google.com/gke-tpu-accelerator',
+        machine_label='cloud.google.com/gke-tpu-topology',
     ),
-    # GPU
     AcceleratorType['GPU']: AcceleratorCharacteristics(
-        'nvidia.com/gpu',
-        'cloud.google.com/gke-accelerator',
-        'cloud.google.com/gce-machine-type',
+        resource_type='nvidia.com/gpu',
+        accelerator_label='cloud.google.com/gke-accelerator',
+        machine_label='cloud.google.com/gce-machine-type',
     ),
-    # CPU
     AcceleratorType['CPU']: AcceleratorCharacteristics(
-        'cpu', '', 'cloud.google.com/gke-nodepool'
+        resource_type='cpu',
+        accelerator_label='',
+        machine_label='cloud.google.com/gke-nodepool',
     ),
 }
 

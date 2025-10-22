@@ -32,7 +32,6 @@ from ..capacity import (
 )
 from ..system_characteristics import get_system_characteristics_by_device_type
 from .blueprint_definitions import Blueprint, DeploymentGroup, DeploymentModule
-from ..kueue import KUEUE_VERSION
 
 yaml_parser = yaml.YAML()
 
@@ -53,6 +52,7 @@ blueprint_dependencies_dir = {
 
 cluster_toolkit_url = "github.com/GoogleCloudPlatform/cluster-toolkit"
 cluster_toolkit_version = "v1.62.2"
+common_cluster_labels = {"gke_product_type": "xpk"}
 
 
 class BlueprintGeneratorOutput:
@@ -216,26 +216,11 @@ class BlueprintGenerator:
       a3_megagpu_pool_0.settings.update({"static_node_count": num_nodes})
 
     set_placement_policy = capacity_type != CapacityType.SPOT
-    num_chips = num_nodes * system.chips_per_vm
     workload = DeploymentModule(
         id="workload_component_install",
         source="modules/management/kubectl-apply",
         use=["gke_cluster"],
         settings={
-            "kueue": {
-                "install": True,
-                "version": KUEUE_VERSION,  # TAS feature-gates is enabled in CT
-                "config_path": f'$(ghpc_stage("{blueprint_name}"))/kueue-xpk-configuration.yaml.tftpl',
-                "config_template_vars": {
-                    "num_chips": num_chips,
-                    "reservation": (
-                        1 if capacity_type == CapacityType.RESERVATION else 0
-                    ),
-                    "flex_start": (
-                        1 if capacity_type == CapacityType.FLEX_START else 0
-                    ),
-                },
-            },
             "jobset": {"install": True, "version": "v0.7.2"},
             "apply_manifests": [{
                 "source": f'$(ghpc_stage("{blueprint_name}"))/storage_crd.yaml'
@@ -298,6 +283,7 @@ class BlueprintGenerator:
             "deployment_name": blueprint_name,
             "region": region,
             "zone": zone,
+            "labels": common_cluster_labels,
         },
     )
 
@@ -598,24 +584,12 @@ class BlueprintGenerator:
     else:
       gpu_pool.settings.update({"static_node_count": num_nodes})
 
-    num_chips = num_nodes * system.chips_per_vm
     workload_manager_install_id = "workload-manager-install"
     workload_manager_install = DeploymentModule(
         id=workload_manager_install_id,
         source="modules/management/kubectl-apply",
         use=[cluster_id],
         settings={
-            "kueue": {
-                "install": True,
-                "version": KUEUE_VERSION,  # TAS feature-gates is enabled in CT
-                "config_path": f'$(ghpc_stage("{blueprint_name}"))/kueue-xpk-configuration.yaml.tftpl',
-                "config_template_vars": {
-                    "num_chips": num_chips,
-                    "flex_start": (
-                        1 if capacity_type == CapacityType.FLEX_START else 0
-                    ),
-                },
-            },
             "jobset": {"install": True, "version": "v0.7.2"},
             "apply_manifests": [
                 {"source": nccl_installer_path},
@@ -676,6 +650,7 @@ class BlueprintGenerator:
             "deployment_name": blueprint_name,
             "region": region,
             "zone": zone,
+            "labels": common_cluster_labels,
         },
     )
 
@@ -884,24 +859,12 @@ class BlueprintGenerator:
     else:
       gpu_pool.settings.update({"static_node_count": num_nodes})
 
-    num_chips = num_nodes * system.chips_per_vm
     workload_manager_install_id = "workload-manager-install"
     workload_manager_install = DeploymentModule(
         id=workload_manager_install_id,
         source="modules/management/kubectl-apply",
         use=[cluster_id],
         settings={
-            "kueue": {
-                "install": True,
-                "version": KUEUE_VERSION,  # TAS feature-gates is enabled in CT
-                "config_path": f'$(ghpc_stage("{blueprint_name}"))/kueue-xpk-configuration.yaml.tftpl',
-                "config_template_vars": {
-                    "num_chips": num_chips,
-                    "flex_start": (
-                        1 if capacity_type == CapacityType.FLEX_START else 0
-                    ),
-                },
-            },
             "jobset": {"install": True, "version": "v0.7.2"},
             "apply_manifests": [
                 {"source": nccl_installer_path},
@@ -962,6 +925,7 @@ class BlueprintGenerator:
             "deployment_name": blueprint_name,
             "region": region,
             "zone": zone,
+            "labels": common_cluster_labels,
         },
     )
 

@@ -1,33 +1,15 @@
-apiVersion: kueue.x-k8s.io/v1alpha1
-kind: Topology
-metadata:
-  name: "gke-default"
-spec:
-  levels:
-  - nodeLabel: "cloud.google.com/gce-topology-block"
-  - nodeLabel: "cloud.google.com/gce-topology-subblock"
-  - nodeLabel: "cloud.google.com/gce-topology-host"
-  - nodeLabel: "kubernetes.io/hostname"
+{% for flavor in flavors %}
 ---
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: ResourceFlavor
 metadata:
-  name: "1xh200-141gb-8"
+  name: "{{ flavor.name }}"
 spec:
-  nodeLabels:
-    cloud.google.com/gke-accelerator: "nvidia-h200-141gb"
-  %{~ if flex_start==0 ~}
-  topologyName: "gke-default"
-  %{ endif }
----
-apiVersion: kueue.x-k8s.io/v1beta1
-kind: ProvisioningRequestConfig
-metadata:
-  name: dws-config
-spec:
-  provisioningClassName: queued-provisioning.gke.io
-  managedResources:
-  - nvidia.com/gpu
+  nodeLabels: {{ flavor.nodeLabels | tojson }}
+  {% if flavor.topologyLabel %}
+  {{ flavor.topologyLabel }}
+  {% endif %}
+{% endfor %}
 ---
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: AdmissionCheck
@@ -41,34 +23,37 @@ spec:
     name: dws-config
 ---
 apiVersion: kueue.x-k8s.io/v1beta1
+kind: ProvisioningRequestConfig
+metadata:
+  name: dws-config
+spec:
+  provisioningClassName: queued-provisioning.gke.io
+  podSetUpdates:
+    nodeSelector:
+    - key: autoscaling.gke.io/provisioning-request
+      valueFromProvisioningClassDetail: ResizeRequestName
+  managedResources:
+  - {{ managed_resource }}
+---
+apiVersion: kueue.x-k8s.io/v1beta1
 kind: ClusterQueue
 metadata:
-  name: cluster-queue
+  name: "{{ cluster_queue_name }}"
 spec:
+  preemption:
+    reclaimWithinCohort: Never # Don't preempt other queues in the cohort.
+    withinClusterQueue: LowerPriority
   namespaceSelector: {} # match all.
-  resourceGroups:
-  - coveredResources: ["nvidia.com/gpu", "cpu", "memory"]
-    flavors:
-    - name: "1xh200-141gb-8"
-      resources:
-      - name: "nvidia.com/gpu"
-        nominalQuota: ${num_chips}
-      - name: "cpu"
-        nominalQuota: 10000
-      - name: "memory"
-        nominalQuota: 10000Gi
-  %{~ if flex_start==1 ~}
-  admissionChecks:
-   - dws-prov
-  %{ endif }
+  resourceGroups: {{ resource_groups }}
+  {{ admission_checks | indent(2) }}
 ---
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: LocalQueue
 metadata:
   namespace: default
-  name: multislice-queue
+  name: {{ local_queue_name }}
 spec:
-  clusterQueue: cluster-queue
+  clusterQueue: {{ cluster_queue_name }}
 ---
 apiVersion: scheduling.k8s.io/v1
 kind: PriorityClass

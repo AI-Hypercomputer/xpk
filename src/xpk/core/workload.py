@@ -17,7 +17,7 @@ limitations under the License.
 import re
 from ..utils.console import xpk_exit, xpk_print
 from .commands import run_command_for_value
-from .gcloud_context import zone_to_region
+from .gcloud_context import get_cluster_location
 
 
 def workload_list_awk_command(filter_key) -> str:
@@ -131,7 +131,7 @@ def get_workload_list(args) -> tuple[int, str]:
   if hasattr(args, 'filter_by_job'):
     task += f' with filter-by-job={args.filter_by_job}'
 
-  return_code, return_value = run_command_for_value(command, task, args)
+  return_code, return_value = run_command_for_value(command, task)
   return return_code, return_value
 
 
@@ -152,7 +152,7 @@ def check_if_workload_exists(args) -> bool:
 
   command = f"kubectl get workloads -o=custom-columns='{s}'"
   return_code, return_msg = run_command_for_value(
-      command, 'Check if Workload Already Exists', args
+      command, 'Check if Workload Already Exists'
   )
 
   if return_code != 0:
@@ -186,7 +186,7 @@ def wait_for_job_completion(args) -> int:
   # Get the full workload name
   get_workload_name_cmd = f'kubectl get workloads | grep jobset-{args.workload}'
   return_code, return_value = run_command_for_value(
-      get_workload_name_cmd, 'Get full workload name', args
+      get_workload_name_cmd, 'Get full workload name'
   )
   if return_code != 0:
     xpk_print(f'Get full workload name request returned ERROR {return_code}')
@@ -205,7 +205,6 @@ def wait_for_job_completion(args) -> int:
   return_code, return_value = run_command_for_value(
       wait_cmd,
       f'Wait for workload to finish with timeout of {timeout_msg}',
-      args,
       print_timer=True,
   )
   if return_code != 0:
@@ -214,7 +213,7 @@ def wait_for_job_completion(args) -> int:
           f'Timed out waiting for your workload after {timeout_msg}, see your'
           ' workload here:'
           # pylint: disable=line-too-long
-          f' https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
+          f' https://console.cloud.google.com/kubernetes/service/{get_cluster_location(args.project, args.cluster, args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
       )
       return 124
     else:
@@ -224,14 +223,14 @@ def wait_for_job_completion(args) -> int:
   xpk_print(
       'Finished waiting for your workload, see your workload here:'
       # pylint: disable=line-too-long
-      f' https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
+      f' https://console.cloud.google.com/kubernetes/service/{get_cluster_location(args.project, args.cluster, args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
   )
   status_cmd = (
       f'kubectl get jobset {args.workload} -o'
       " jsonpath='{.status.conditions[-1].type}'"
   )
   return_code, return_value = run_command_for_value(
-      status_cmd, 'Get jobset status', args
+      status_cmd, 'Get jobset status'
   )
   if return_code != 0:
     xpk_print(f'Get workload status request returned ERROR {return_code}')

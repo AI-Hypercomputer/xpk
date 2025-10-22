@@ -14,6 +14,7 @@ limitations under the License.
 from ..core.commands import run_command_with_full_controls, run_command_for_value, run_command_with_updates
 from ..core.cluster import get_cluster_credentials, add_zone_and_project, setup_k8s_service_accounts
 from ..utils.console import xpk_exit, xpk_print
+from ..utils.validation import validate_dependencies_list, SystemDependency, should_validate_dependencies
 from argparse import Namespace
 
 from ..core.kjob import (
@@ -33,14 +34,18 @@ def shell(args: Namespace):
   Returns:
     0 if successful and 1 otherwise.
   """
+  if should_validate_dependencies(args):
+    validate_dependencies_list([
+        SystemDependency.KUBECTL,
+        SystemDependency.KJOB,
+        SystemDependency.GCLOUD,
+    ])
   exisitng_shell_pod_name = get_existing_shell_pod_name(args)
 
   if exisitng_shell_pod_name is None:
     return_code = connect_to_new_interactive_shell(args)
   else:
-    return_code = connect_to_existing_interactive_shell(
-        exisitng_shell_pod_name, args
-    )
+    return_code = connect_to_existing_interactive_shell(exisitng_shell_pod_name)
 
   if return_code != 0:
     xpk_print(f'The command failed with code {return_code}.')
@@ -60,7 +65,6 @@ def get_existing_shell_pod_name(args: Namespace) -> str | None:
           ' -o custom-columns=":metadata.name"'
       ),
       task='Get existing interactive shell pod name.',
-      global_args=args,
   )
   if return_code != 0:
     xpk_print(
@@ -95,21 +99,17 @@ def connect_to_new_interactive_shell(args: Namespace) -> int:
   return run_command_with_full_controls(
       command=cmd,
       task='Creating new interactive shell and entering it',
-      global_args=args,
       instructions=exit_instructions,
   )
 
 
-def connect_to_existing_interactive_shell(
-    pod_name: str, args: Namespace
-) -> int:
+def connect_to_existing_interactive_shell(pod_name: str) -> int:
   return run_command_with_full_controls(
       command=(
           f'kubectl exec --stdin --tty {pod_name} --'
           f' {get_pod_template_interactive_command()}'
       ),
       task='Entering existing interactive shell',
-      global_args=args,
       instructions=exit_instructions,
   )
 
@@ -121,6 +121,10 @@ def shell_stop(args: Namespace):
   Returns:
     0 if successful and 1 otherwise.
   """
+  if should_validate_dependencies(args):
+    validate_dependencies_list(
+        [SystemDependency.KUBECTL, SystemDependency.GCLOUD]
+    )
   exisitng_shell_pod_name = get_existing_shell_pod_name(args)
 
   if exisitng_shell_pod_name is None:
@@ -130,7 +134,6 @@ def shell_stop(args: Namespace):
   return_code = run_command_with_updates(
       command=f'kubectl delete pod {exisitng_shell_pod_name}',
       task='Deleting the existing shell.',
-      global_args=args,
   )
   if return_code != 0:
     xpk_exit(return_code)

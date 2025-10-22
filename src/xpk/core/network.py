@@ -17,7 +17,7 @@ limitations under the License.
 from ..utils.console import xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
 from .commands import run_command_for_value, run_command_with_updates
-from .gcloud_context import zone_to_region
+from .gcloud_context import zone_to_region, get_cluster_location
 
 # cluster_network_yaml: the config when creating the network for a3 cluster
 CLUSTER_NETWORK_YAML = """
@@ -126,7 +126,7 @@ def create_cluster_network(args, index) -> int:
         ' --subnet-mode=custom --mtu=8244'
     )
     return_code = run_command_with_updates(
-        command, 'Create Cluster Network', args, verbose=False
+        command, 'Create Cluster Network', verbose=False
     )
 
     if return_code != 0:
@@ -152,7 +152,9 @@ def create_cluster_subnet(args, index) -> int:
   if return_code > 0:
     xpk_print('Listing all subnets failed!')
     return return_code
-  subnet_name = f'{args.cluster}-{zone_to_region(args.zone)}-sub-{index}'
+  subnet_name = (
+      f'{args.cluster}-{get_cluster_location(args.project, args.cluster, args.zone)}-sub-{index}'
+  )
   if subnet_name not in existing_subnet_names:
     command = (
         f'gcloud compute --project={args.project}'
@@ -161,7 +163,7 @@ def create_cluster_subnet(args, index) -> int:
         f' --region={zone_to_region(args.zone)} --range=192.168.{index}.0/24'
     )
     return_code = run_command_with_updates(
-        command, 'Create Cluster Subnet', args, verbose=False
+        command, 'Create Cluster Subnet', verbose=False
     )
 
     if return_code != 0:
@@ -197,7 +199,7 @@ def create_cluster_firewall_rule(args, index) -> int:
         ' --rules=tcp:0-65535,udp:0-65535,icmp --source-ranges=192.168.0.0/16'
     )
     return_code = run_command_with_updates(
-        command, 'Create Cluster Firewall Rule', args, verbose=False
+        command, 'Create Cluster Firewall Rule', verbose=False
     )
 
     if return_code != 0:
@@ -224,7 +226,7 @@ def create_cluster_network_config(args) -> int:
   command = f'kubectl apply -f {str(tmp)}'
 
   return_code = run_command_with_updates(
-      command, 'GKE Cluster Create Network Config', args
+      command, 'GKE Cluster Create Network Config'
   )
   if return_code != 0:
     xpk_print(
@@ -235,19 +237,14 @@ def create_cluster_network_config(args) -> int:
   return 0
 
 
-def get_cluster_subnetworks(args) -> list[str]:
+def get_cluster_subnetworks() -> list[str]:
   """Gets the list of cluster networks.
-
-  Args:
-    args: user provided arguments for running the command.
 
   Returns:
     list[str]: list of cluster networks
   """
   command = 'kubectl get GKENetworkParamSet'
-  return_code, stdout = run_command_for_value(
-      command, 'Get Cluster Networks', args
-  )
+  return_code, stdout = run_command_for_value(command, 'Get Cluster Networks')
   if return_code != 0:
     xpk_print('GKE Cluster Get NetworkParamSet failed')
     xpk_exit(return_code)
@@ -302,7 +299,7 @@ def delete_cluster_subnets(args) -> int:
     )
 
     return_code = run_command_with_updates(
-        command, 'Delete Cluster Subnet', args, verbose=False
+        command, 'Delete Cluster Subnet', verbose=False
     )
 
     if return_code != 0:
@@ -328,7 +325,7 @@ def get_all_networks_programmatic(args) -> tuple[list[str], int]:
       f' --project={args.project}'
   )
   return_code, raw_network_output = run_command_for_value(
-      command, 'Get All Networks', args
+      command, 'Get All Networks'
   )
   if return_code != 0:
     xpk_print(f'Get All Networks returned ERROR {return_code}')
@@ -346,14 +343,16 @@ def get_all_subnets_programmatic(args) -> tuple[list[str], int]:
   Returns:
     List of subnets and 0 if successful and 1 otherwise.
   """
-  subnet_name_filter = f'{args.cluster}-{zone_to_region(args.zone)}-sub-*'
+  subnet_name_filter = (
+      f'{args.cluster}-{get_cluster_location(args.project, args.cluster, args.zone)}-sub-*'
+  )
 
   command = (
       'gcloud compute networks subnets list'
       f' --filter=name~"{subnet_name_filter}" --project={args.project}'
   )
   return_code, raw_subnets_output = run_command_for_value(
-      command, 'Get All Subnets', args
+      command, 'Get All Subnets'
   )
   if return_code != 0:
     xpk_print(f'Get All Subnets returned ERROR {return_code}')
@@ -380,7 +379,7 @@ def get_all_firewall_rules_programmatic(args) -> tuple[list[str], int]:
       f' --project={args.project}'
   )
   return_code, raw_subnets_output = run_command_for_value(
-      command, 'Get All Firewall Rules', args
+      command, 'Get All Firewall Rules'
   )
   if return_code != 0:
     xpk_print(f'Get All Firewall Rules returned ERROR {return_code}')

@@ -18,8 +18,9 @@ import subprocess
 import sys
 from dataclasses import dataclass
 
-from ..utils.console import xpk_print
+from ..utils.console import xpk_print, xpk_exit
 from .commands import run_command_for_value
+from functools import lru_cache
 
 
 def get_project():
@@ -85,7 +86,31 @@ def zone_to_region(zone: str) -> str:
      The region name.
   """
   zone_terms = zone.split('-')
+  if len(zone_terms) != 2 and len(zone_terms) != 3:
+    raise ValueError(f'Invalid zone name: {zone}')
   return zone_terms[0] + '-' + zone_terms[1]
+
+
+@lru_cache()
+def get_cluster_location(project: str, name: str, zone: str) -> str:
+  """Helper function to resolve location for a given cluster"""
+  return_code, result = run_command_for_value(
+      command=(
+          'gcloud container clusters list '
+          f'--project={project} '
+          f'--filter=name={name} '
+          '--format="value(location)"'
+      ),
+      task='Find cluster region or zone',
+      dry_run_return_val=zone_to_region(zone),
+  )
+
+  if return_code != 0:
+    xpk_print('Error: Unable to determine cluster region or zone')
+    xpk_exit(return_code)
+
+  regions = result.strip().splitlines()
+  return zone if zone in regions else zone_to_region(zone)
 
 
 @dataclass
@@ -139,7 +164,6 @@ def get_gke_server_config(args) -> tuple[int, GkeServerConfig | None]:
     return_code, cmd_output = run_command_for_value(
         command,
         command_description,
-        args,
         hide_error=True,
     )
     if return_code != 0:

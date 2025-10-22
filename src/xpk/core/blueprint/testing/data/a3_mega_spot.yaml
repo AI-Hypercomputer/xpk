@@ -23,6 +23,7 @@ vars:
   deployment_name: xpk-gke-a3-megagpu
   region: us-central1
   zone: us-central1-c
+  labels: {gke_product_type: xpk}
 
 deployment_groups:
 - !DeploymentGroup
@@ -99,18 +100,10 @@ deployment_groups:
     source: modules/management/kubectl-apply
     use: [gke_cluster]
     settings:
-      kueue:
-        install: true
-        version: "v0.12.2"
-        config_path: $(ghpc_stage("xpk-gke-a3-megagpu"))/kueue-xpk-configuration.yaml.tftpl
-        config_template_vars:
-          num_chips: 16
-          reservation: 0
-          flex_start: 0
       jobset:
         install: true
         version: v0.7.2
-      apply_manifests: 
+      apply_manifests:
       - source: $(ghpc_stage("xpk-gke-a3-megagpu"))/storage_crd.yaml
 
   - !DeploymentModule

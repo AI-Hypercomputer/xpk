@@ -1,3 +1,4 @@
+$ python3 xpk.py workload create-pathways --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --command "bash hello" --tpu-type=v5p-8 --num-slices=1 --script-dir=/tmp --dry-run
 [XPK] Starting xpk
 [XPK] Task: `Check if Workload Already Exists` is implemented by the following command not running since it is a dry run. 
 kubectl get workloads -o=custom-columns='Jobset:.metadata.ownerReferences[0].name'
@@ -13,8 +14,10 @@ kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="Conf
 [XPK] Task: `Check if PathwaysJob is installed on golden-cluster` is implemented by the following command not running since it is a dry run. 
 kubectl get pods -n pathways-job-system --no-headers -o custom-columns=NAME:.metadata.name
 [XPK] check_if_pathways_job_is_installed 0 0
+[XPK] Task: `Find cluster region or zone` is implemented by the following command not running since it is a dry run. 
+gcloud container clusters list --project=golden-project --filter=name=golden-cluster --format="value(location)"
 [XPK] Task: `Get All Node Pools` is implemented by the following command not running since it is a dry run. 
-gcloud beta container node-pools list --cluster golden-cluster --project=golden-project --region=us-central1 --format="csv[no-heading](name)"
+gcloud beta container node-pools list --cluster golden-cluster --project=golden-project --location=us-central1 --format="csv[no-heading](name)"
 [XPK] Building /tmp into docker image.
 [XPK] Task: `Building script_dir into docker image` is implemented by the following command not running since it is a dry run. 
 docker buildx build --platform=linux/amd64 -f 4b6736a12db8ea0f78ce793fd0d4ee0c94c652303f1dc0fecad085ea0993f688 -t dry-run-runner /tmp
@@ -24,7 +27,7 @@ docker tag dry-run-runner gcr.io/golden-project/dry-run-runner:prefix-current
 [XPK] Task: `Upload Docker Image` is implemented by the following command not running since it is a dry run. 
 docker push gcr.io/golden-project/dry-run-runner:prefix-current
 [XPK] Task: `Creating Workload` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f 871fa8b4813a0c43d7d5f0088986e20d11d4f093d6986a542d92a9420afa632b
+kubectl apply -f 574963d6d441695d681ff94ad241e713559f64b4ce519f4f1e0708c659f1c25d
 [XPK] Task: `GKE Dashboard List` is implemented by the following command not running since it is a dry run. 
 gcloud monitoring dashboards list --project=golden-project --filter="displayName:'GKE - TPU Monitoring Dashboard'" --format="value(name)" --verbosity=error
 [XPK] Check statistics and outlier mode of GKE metrics here: https://console.cloud.google.com/monitoring/dashboards/builder/0?project=golden-project&f.rlabel.cluster_name.ClusterName=golden-cluster. To view the metric data for your workload, select golden-workload from the JobName filter on the dashboard.

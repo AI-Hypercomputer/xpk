@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from ..core.kueue_manager import (KueueConfig, KueueManager)
 from ..core.commands import (
     run_command_for_value,
     run_command_with_updates,
@@ -24,17 +25,14 @@ from ..core.kjob import (
     prepare_kjob,
     apply_kjob_crds,
 )
-from ..core.kueue import (
-    install_kueue_on_cluster,
-    install_kueue_crs,
-    wait_for_kueue_available,
-)
+from ..core.scheduling import get_total_chips_requested_from_args
 from ..core.storage import install_storage_crd
 from ..core.system_characteristics import (
     SystemCharacteristics,
     AcceleratorType,
 )
 from ..utils.console import (xpk_exit, xpk_print)
+from ..utils.validation import validate_dependencies_list, SystemDependency, should_validate_dependencies
 
 
 def cluster_create(args) -> None:
@@ -46,6 +44,12 @@ def cluster_create(args) -> None:
   Returns:
     0 if successful and 1 otherwise.
   """
+  if should_validate_dependencies(args):
+    validate_dependencies_list([
+        SystemDependency.KUBECTL,
+        SystemDependency.KJOB,
+        SystemDependency.GCLOUD,
+    ])
   xpk_print(f'Starting cluster create for cluster {args.cluster}:', flush=True)
 
   create_cluster_command_code = create_cluster_if_necessary(args)
@@ -64,18 +68,13 @@ def cluster_create(args) -> None:
   if set_jobset_on_cluster_code != 0:
     xpk_exit(set_jobset_on_cluster_code)
 
-  xpk_print('Enabling Kueue on the cluster')
-  install_kueue_on_cluster_code = install_kueue_on_cluster(args)
-  if install_kueue_on_cluster_code != 0:
-    xpk_exit(install_kueue_on_cluster_code)
-
   xpk_print('Verifying kjob installation')
-  err_code = verify_kjob_installed(args)
+  err_code = verify_kjob_installed()
   if err_code > 0:
     xpk_exit(err_code)
 
   xpk_print('Applying kjob CDRs')
-  err_code = apply_kjob_crds(args)
+  err_code = apply_kjob_crds()
   if err_code > 0:
     xpk_exit(err_code)
 
@@ -87,11 +86,6 @@ def cluster_create(args) -> None:
   k8s_client = setup_k8s_env(args)
   install_storage_crd(k8s_client)
 
-  xpk_print('Wait for Kueue to be fully available')
-  wait_for_kueue_available_code = wait_for_kueue_available(args)
-  if wait_for_kueue_available_code != 0:
-    xpk_exit(wait_for_kueue_available_code)
-
   args.num_slices = 1
   args.enable_pathways = False
   system = SystemCharacteristics(
@@ -102,12 +96,22 @@ def cluster_create(args) -> None:
       1,
       AcceleratorType['CPU'],
       'kind',
+      supports_sub_slicing=False,
   )
 
-  xpk_print('Install Kueue Custom Resources')
-  enable_kueue_credentials_code = install_kueue_crs(args, system, None)
-  if enable_kueue_credentials_code != 0:
-    xpk_exit(enable_kueue_credentials_code)
+  kueue_manager = KueueManager()
+  kueue_manager.install_or_upgrade(
+      KueueConfig(
+          system,
+          total_chips=get_total_chips_requested_from_args(args, system),
+          autoprovisioning_enabled=False,
+          num_slices=args.num_slices,
+          memory_limit='',
+          cpu_limit=0,
+          is_pathways_cluster=False,
+          flex=False,
+      ),
+  )
 
   xpk_print('Kind commands done! Resources are created.')
   xpk_exit(0)
@@ -122,6 +126,8 @@ def cluster_delete(args) -> None:
   Returns:
     0 if successful and 1 otherwise.
   """
+  if should_validate_dependencies(args):
+    validate_dependencies_list([SystemDependency.GCLOUD])
   xpk_print(f'Starting cluster delete for cluster: {args.cluster}', flush=True)
 
   run_kind_cluster_delete_command_code = run_kind_cluster_delete_command(args)
@@ -134,13 +140,12 @@ def cluster_delete(args) -> None:
 def cluster_list(args) -> None:
   """Function around cluster list.
 
-  Args:
-    args: user provided arguments for running the command.
-
   Returns:
     0 if successful and 1 otherwise.
   """
-  if run_kind_clusters_list_command(args):
+  if should_validate_dependencies(args):
+    validate_dependencies_list([SystemDependency.GCLOUD])
+  if run_kind_clusters_list_command():
     xpk_exit(1)
   xpk_exit(0)
 
@@ -154,7 +159,7 @@ def create_cluster_if_necessary(args) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
-  all_clusters, return_code = get_all_local_clusters_programmatic(args)
+  all_clusters, return_code = get_all_local_clusters_programmatic()
   if return_code > 0:
     xpk_print('Listing all clusters failed!')
     return 1
@@ -179,7 +184,7 @@ def run_kind_cluster_delete_command(args) -> int:
   if args.cluster:
     command += f' --name={args.cluster}'
 
-  return_code = run_command_with_updates(command, 'Cluster Delete', args)
+  return_code = run_command_with_updates(command, 'Cluster Delete')
   if return_code != 0:
     xpk_print(f'Cluster delete request returned ERROR {return_code}')
     return 1
@@ -187,17 +192,14 @@ def run_kind_cluster_delete_command(args) -> int:
   return 0
 
 
-def run_kind_clusters_list_command(args) -> int:
+def run_kind_clusters_list_command() -> int:
   """List Kind Clusters within the project and location.
-
-  Args:
-    args: user provided arguments for running the command.
 
   Returns:
     0 if successful and 1 otherwise.
   """
   command = 'kind get clusters'
-  return_code = run_command_with_updates(command, 'Cluster List', args)
+  return_code = run_command_with_updates(command, 'Cluster List')
   if return_code != 0:
     xpk_print(f'Cluster list request returned ERROR {return_code}')
     return 1
@@ -222,25 +224,22 @@ def run_kind_cluster_create_command(args) -> int:
   if args.k8s_version:
     command += f' --image=kindest/node:v{args.k8s_version}'
 
-  return_code = run_command_with_updates(command, 'Kind Cluster Create', args)
+  return_code = run_command_with_updates(command, 'Kind Cluster Create')
   if return_code != 0:
     xpk_print(f'GKE Cluster Create request returned ERROR {return_code}')
     return 1
   return 0
 
 
-def get_all_local_clusters_programmatic(args) -> tuple[list[str], int]:
+def get_all_local_clusters_programmatic() -> tuple[list[str], int]:
   """Gets all the local clusters.
-
-  Args:
-    args: user provided arguments for running the command.
 
   Returns:
     List of cluster names and 0 if successful and 1 otherwise.
   """
   command = 'kind get clusters'
   return_code, raw_cluster_output = run_command_for_value(
-      command, 'Find if Cluster Exists', args
+      command, 'Find if Cluster Exists'
   )
   if return_code != 0:
     xpk_print(f'Find if Cluster Exists returned ERROR {return_code}')
@@ -261,7 +260,7 @@ def set_local_cluster_command(args) -> int:
   if not args.cluster:
     command = 'kubectl config current-context'
     return_code, current_context = run_command_for_value(
-        command, 'get current-context', args
+        command, 'get current-context'
     )
     xpk_print(
         'No local cluster name specified. Using current-context'
@@ -276,7 +275,6 @@ def set_local_cluster_command(args) -> int:
   return_code = run_command_with_updates(
       command,
       task,
-      args,
   )
   if return_code != 0:
     xpk_print(f'{task} returned ERROR {return_code}')

@@ -59,9 +59,14 @@ from ..core.storage import (
 from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.kubectl import apply_kubectl_manifest
 from ..utils.execution_context import is_dry_run
+from ..utils.validation import validate_dependencies_list, SystemDependency, should_validate_dependencies
 
 
 def storage_create(args: Namespace) -> None:
+  if should_validate_dependencies(args):
+    validate_dependencies_list(
+        [SystemDependency.KUBECTL, SystemDependency.GCLOUD]
+    )
   add_zone_and_project(args)
   if args.type == GCP_FILESTORE_TYPE:
     if args.instance is None:
@@ -107,6 +112,10 @@ def storage_create(args: Namespace) -> None:
 
 
 def storage_delete(args: Namespace) -> None:
+  if should_validate_dependencies(args):
+    validate_dependencies_list(
+        [SystemDependency.KUBECTL, SystemDependency.GCLOUD]
+    )
   add_zone_and_project(args)
   k8s_api_client = setup_k8s_env(args)
   storages = list_storages(k8s_api_client)
@@ -141,6 +150,10 @@ def storage_delete(args: Namespace) -> None:
 
 
 def storage_attach(args: Namespace) -> None:
+  if should_validate_dependencies(args):
+    validate_dependencies_list(
+        [SystemDependency.KUBECTL, SystemDependency.GCLOUD]
+    )
   add_zone_and_project(args)
   manifest: list[dict] = [{}]
   if args.type == GCP_FILESTORE_TYPE:
@@ -244,6 +257,10 @@ def enable_csi_drivers_if_necessary(args: Namespace) -> None:
 
 
 def storage_list(args: Namespace) -> None:
+  if should_validate_dependencies(args):
+    validate_dependencies_list(
+        [SystemDependency.KUBECTL, SystemDependency.GCLOUD]
+    )
   storages = []
   if not is_dry_run():
     k8s_api_client = setup_k8s_env(args)
@@ -252,6 +269,10 @@ def storage_list(args: Namespace) -> None:
 
 
 def storage_detach(args: Namespace) -> None:
+  if should_validate_dependencies(args):
+    validate_dependencies_list(
+        [SystemDependency.KUBECTL, SystemDependency.GCLOUD]
+    )
   k8s_api_client = setup_k8s_env(args)
   storage = get_storage(k8s_api_client, args.name)
   delete_storage_resources(k8s_api_client, storage)

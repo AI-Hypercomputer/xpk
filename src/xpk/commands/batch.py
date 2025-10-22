@@ -29,9 +29,10 @@ from ..core.kjob import (
     get_storage_annotations,
     prepare_kjob,
 )
-from ..core.kueue import LOCAL_QUEUE_NAME
+from ..core.kueue_manager import LOCAL_QUEUE_NAME
 from ..utils.console import xpk_exit, xpk_print
 from ..utils.execution_context import is_dry_run
+from ..utils.validation import validate_dependencies_list, SystemDependency, should_validate_dependencies
 from .kind import set_local_cluster_command
 from .kjob_common import add_gpu_networking_annotations_to_command, add_TAS_annotations_to_command
 
@@ -44,6 +45,12 @@ def batch(args: Namespace) -> None:
   Returns:
     None
   """
+  if should_validate_dependencies(args):
+    validate_dependencies_list([
+        SystemDependency.KUBECTL,
+        SystemDependency.KJOB,
+        SystemDependency.GCLOUD,
+    ])
   if not args.kind_cluster:
     add_zone_and_project(args)
     get_cluster_credentials(args)
@@ -126,7 +133,7 @@ def submit_job(args: Namespace) -> None:
   if args.time is not None:
     cmd += f' --time {args.time}'
 
-  return_code, return_value = run_command_for_value(cmd, 'submit job', args)
+  return_code, return_value = run_command_for_value(cmd, 'submit job')
 
   if return_code != 0:
     xpk_print(f'Running batch job returned ERROR {return_code}')

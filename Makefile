@@ -1,7 +1,7 @@
 KUEUE_REPO=https://github.com/kubernetes-sigs/kueue.git
 
 KUBECTL_VERSION := $(shell curl -L -s https://dl.k8s.io/release/stable.txt)
-KUEUE_VERSION=v0.12.2
+KUEUE_VERSION=v0.14.1
 KJOB_VERSION=v0.1.0
 
 OS := $(shell uname -s | tr A-Z a-z)
@@ -20,11 +20,15 @@ BIN_PATH=$(PROJECT_DIR)/bin
 install: check-python check-gcloud install-gcloud-auth-plugin install-kueuectl install-kjobctl pip-install
 
 .PHONY: install-dev
-install-dev: check-python check-gcloud mkdir-bin install-kueuectl install-kjobctl pip-install install-pytest install-lint
+install-dev: check-python check-gcloud mkdir-bin install-kueuectl install-kjobctl pip-install pip-install-dev install-pytest install-lint
+
+.PHONY: pip-install-dev
+pip-install-dev:
+	pip install -e ".[dev]"
 
 .PHONY: pip-install
 pip-install:
-	pip install .
+	pip install -e .
 
 .PHONY: install-pytest
 install-pytest:

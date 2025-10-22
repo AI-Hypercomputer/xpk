@@ -16,6 +16,7 @@ limitations under the License.
 
 from typing import List
 from ..utils.console import get_user_input, xpk_print
+from ..utils.topology import get_topology_product, is_topology_valid
 from .capacity import (
     AUTOPROVISIONING_CONFIG_VALUE,
     H100_MEGA_DEVICE_TYPE,
@@ -25,7 +26,7 @@ from .capacity import (
     print_reservations,
 )
 from .commands import run_command_for_value, run_commands
-from .gcloud_context import GkeServerConfig, zone_to_region
+from .gcloud_context import GkeServerConfig, get_cluster_location, zone_to_region
 from .resources import (
     CLUSTER_CONFIGMAP_YAML,
     CLUSTER_RESOURCES_CONFIGMAP,
@@ -33,8 +34,7 @@ from .resources import (
     create_or_update_cluster_configmap,
 )
 from .system_characteristics import AcceleratorType
-from functools import reduce
-from operator import mul
+
 
 CLOUD_PLATFORM_AUTH_SCOPE_URL = (
     '"https://www.googleapis.com/auth/cloud-platform"'
@@ -147,7 +147,7 @@ def run_gke_node_pool_create_command(
         command = (
             'gcloud beta container node-pools delete'
             f' {node_pool_name} --cluster={args.cluster}'
-            f' --zone={zone_to_region(args.zone)}'
+            f' --zone={get_cluster_location(args.project, args.cluster, args.zone)}'
             f' --project={args.project} --quiet'
         )
         task = f'NodepoolDelete-{node_pool_name}'
@@ -173,9 +173,7 @@ def run_gke_node_pool_create_command(
           ):
             command = (
                 'gcloud container node-pools update'
-                f' {node_pool_name} --cluster={args.cluster}'
-                f' --zone={zone_to_region(args.zone)}'
-                f' --project={args.project} --quiet'
+                f' {node_pool_name} --cluster={args.cluster} --location={get_cluster_location(args.project, args.cluster, args.zone)} --project={args.project} --quiet'
                 ' --workload-metadata=GKE_METADATA'
             )
             task = (
@@ -212,7 +210,6 @@ def run_gke_node_pool_create_command(
         delete_commands,
         'Delete Nodepools',
         delete_task_names,
-        dry_run=args.dry_run,
     )
     if max_return_code != 0:
       xpk_print(f'Delete Nodepools returned ERROR {max_return_code}')
@@ -240,7 +237,6 @@ def run_gke_node_pool_create_command(
           update_WI_commands,
           'Enable Workload Identity on existing Nodepools',
           update_WI_task_names,
-          dry_run=args.dry_run,
       )
       if max_return_code != 0:
         xpk_print(
@@ -265,11 +261,15 @@ def run_gke_node_pool_create_command(
       )
       configmap_yml = {}
       configmap_yml[resources_configmap_name] = resources_yml
-      return_code = create_or_update_cluster_configmap(
-          configmap_yml, args.dry_run
-      )
+      return_code = create_or_update_cluster_configmap(configmap_yml)
       if return_code != 0:
         return 1
+
+  placement_args = ''
+  if system.requires_workload_policy and is_topology_valid(system.topology):
+    placement_policy = f'{args.cluster}-placement-policy'
+    ensure_resource_policy_exists(placement_policy, args, system.topology)
+    placement_args = f' --placement-policy={placement_policy}'
 
   create_commands = []
   create_task_names = []
@@ -279,19 +279,18 @@ def run_gke_node_pool_create_command(
     command = (
         'gcloud beta container node-pools create'
         f' {node_pool_name}'
-        f' --region={zone_to_region(args.zone)}'
+        f' --location={get_cluster_location(args.project, args.cluster, args.zone)}'
         f' --cluster={args.cluster}'
         f' --project={args.project} --node-locations={args.zone}'
         f' --machine-type={system.gce_machine_type}'
         f' --host-maintenance-interval={args.host_maintenance_interval}'
         f' {capacity_args}'
+        f'{placement_args}'
         ' --enable-gvnic'
     )
     if system.accelerator_type == AcceleratorType['TPU']:
       command += f' --node-version={gke_node_pool_version}'
-      topology_product = reduce(
-          mul, (int(x) for x in system.topology.split('x')), 1
-      )
+      topology_product = get_topology_product(system.topology)
       if capacity_type == CapacityType.FLEX_START:
         command += ' --num-nodes=0'
       elif topology_product > 1:
@@ -301,11 +300,18 @@ def run_gke_node_pool_create_command(
       )
 
       if topology_product > 1:
-        command += ' --placement-type=COMPACT  --max-pods-per-node 15'
-        command += f' --tpu-topology={system.topology}'
+        # --placement-type=COMPACT enables group placement policy which
+        # is mutually exclusive with workload policy, --tpu-topology should
+        # also not be passed when workload policy is used
+        if not system.requires_workload_policy:
+          command += ' --placement-type=COMPACT'
+          command += f' --tpu-topology={system.topology}'
+        command += ' --max-pods-per-node 15'
         command += f' {args.custom_tpu_nodepool_arguments}'
     elif system.accelerator_type == AcceleratorType['GPU']:
-      subnet_prefix = f'{args.cluster}-{zone_to_region(args.zone)}'
+      subnet_prefix = (
+          f'{args.cluster}-{get_cluster_location(args.project, args.cluster, args.zone)}'
+      )
       if capacity_type == CapacityType.FLEX_START:
         command += ' --num-nodes=0'
       else:
@@ -348,7 +354,7 @@ def run_gke_node_pool_create_command(
         continue
       command = (
           'gcloud beta container node-pools create'
-          f' {node_pool_name} --node-version={gke_node_pool_version} --cluster={args.cluster} --project={args.project} --node-locations={args.zone} --region={zone_to_region(args.zone)} --num-nodes=1'
+          f' {node_pool_name} --node-version={gke_node_pool_version} --cluster={args.cluster} --project={args.project} --node-locations={args.zone} --location={get_cluster_location(args.project, args.cluster, args.zone)} --num-nodes=1'
           f' --machine-type={args.pathways_gce_machine_type} --scopes=storage-full,gke-default,{CLOUD_PLATFORM_AUTH_SCOPE_URL} --enable-autoscaling'
           ' --min-nodes=1 --max-nodes=20'
       )
@@ -362,7 +368,6 @@ def run_gke_node_pool_create_command(
       create_commands,
       'Create Nodepools',
       create_task_names,
-      dry_run=args.dry_run,
   )
   if max_return_code != 0:
     xpk_print(f'Create Nodepools returned ERROR {max_return_code}')
@@ -432,11 +437,12 @@ def get_all_nodepools_programmatic(args) -> tuple[list[str], int]:
   command = (
       'gcloud beta container node-pools list'
       ' --cluster'
-      f' {args.cluster} --project={args.project} --region={zone_to_region(args.zone)}'
+      f' {args.cluster} --project={args.project} '
+      f'--location={get_cluster_location(args.project, args.cluster, args.zone)}'
       ' --format="csv[no-heading](name)"'
   )
   return_code, raw_nodepool_output = run_command_for_value(
-      command, 'Get All Node Pools', args
+      command, 'Get All Node Pools'
   )
   if return_code != 0:
     xpk_print(f'Get All Node Pools returned ERROR {return_code}')
@@ -460,10 +466,10 @@ def get_nodepool_zone(args, nodepool_name) -> tuple[int, str | None]:
   command = (
       f'gcloud beta container node-pools describe {nodepool_name}'
       f' --cluster {args.cluster} --project={args.project}'
-      f' --region={zone_to_region(args.zone)} --format="value(locations)"'
+      f' --location={get_cluster_location(args.project, args.cluster, args.zone)} --format="value(locations)"'
   )
   return_code, nodepool_zone = run_command_for_value(
-      command, 'Get Node Pool Zone', args, dry_run_return_val=args.zone
+      command, 'Get Node Pool Zone', dry_run_return_val=args.zone
   )
   if return_code != 0:
     xpk_print(f'Get Node Pool Zone returned ERROR {return_code}')
@@ -490,13 +496,13 @@ def get_gke_node_pool_version(
   # By default use the current gke master version for creating node pools.
   command_description = 'Determine current gke master version'
   command = (
-      f'gcloud beta container clusters describe {args.cluster}'
-      f' --region {zone_to_region(args.zone)} --project {args.project}'
-      ' --format="value(currentMasterVersion)"'
+      f'gcloud beta container clusters describe {args.cluster} --location'
+      f' {get_cluster_location(args.project, args.cluster, args.zone)} --project'
+      f' {args.project} --format="value(currentMasterVersion)"'
   )
 
   return_code, current_gke_master_version = run_command_for_value(
-      command, command_description, args
+      command, command_description
   )
   if return_code != 0:
     xpk_print(
@@ -540,52 +546,6 @@ def get_gke_node_pool_version(
   return 0, node_pool_gke_version
 
 
-def upgrade_gke_nodepools_version(args, default_rapid_gke_version) -> int:
-  """Upgrade nodepools in the cluster to default rapid gke version. Recreates the nodes.
-
-  Args:
-    args: user provided arguments for running the command.
-    default_rapid_gke_version: Rapid default version for the upgrade.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  existing_node_pool_names, return_code = get_all_nodepools_programmatic(args)
-  if return_code != 0:
-    xpk_print('Listing all node pools failed!')
-    return return_code
-
-  # Batch execution to upgrade node pools simultaneously
-  commands = []
-  task_names = []
-  for node_pool_name in existing_node_pool_names:
-    commands.append(
-        'gcloud container clusters upgrade'
-        f' {args.cluster} --project={args.project}'
-        f' --region={zone_to_region(args.zone)}'
-        f' --cluster-version={default_rapid_gke_version}'
-        f' --node-pool={node_pool_name}'
-        ' --quiet'
-    )
-    task_names.append(f'Upgrading node pool {node_pool_name}.')
-
-  for i, command in enumerate(commands):
-    xpk_print(f'To complete {task_names[i]} we are executing {command}')
-  max_return_code = run_commands(
-      commands,
-      'Update GKE node pools to default RAPID GKE version',
-      task_names,
-      dry_run=args.dry_run,
-  )
-  if max_return_code != 0:
-    xpk_print(
-        'GKE node pools update to default RAPID GKE version returned ERROR:'
-        f' {max_return_code}'
-    )
-    return int(max_return_code)
-  return 0
-
-
 def get_nodepool_workload_metadata_mode(
     args, nodepool_name
 ) -> tuple[int, str | None]:
@@ -601,10 +561,10 @@ def get_nodepool_workload_metadata_mode(
   command = (
       f'gcloud beta container node-pools describe {nodepool_name}'
       f' --cluster {args.cluster} --project={args.project}'
-      f' --region={zone_to_region(args.zone)} --format="value(config.workloadMetadataConfig.mode)"'
+      f' --location={get_cluster_location(args.project, args.cluster, args.zone)} --format="value(config.workloadMetadataConfig.mode)"'
   )
   return_code, nodepool_WI_mode = run_command_for_value(
-      command, 'Get Node Pool Workload Identity Metadata Mode', args
+      command, 'Get Node Pool Workload Identity Metadata Mode'
   )
   if return_code != 0:
     xpk_print(
@@ -632,3 +592,32 @@ def get_desired_node_pool_names(
     result.add(f'{cluster_name}-np-{i}')
     i += 1
   return list(result)
+
+
+def ensure_resource_policy_exists(
+    resource_policy_name: str, args, topology: str
+) -> None:
+  return_code, _ = run_command_for_value(
+      (
+          'gcloud compute resource-policies describe'
+          f' {resource_policy_name} '
+          f'--project={args.project} '
+          f'--region={zone_to_region(args.zone)}'
+      ),
+      'Retrieve resource policy',
+  )
+
+  if return_code == 0:
+    return
+
+  return_code, _ = run_command_for_value(
+      (
+          'gcloud compute resource-policies create workload-policy'
+          f' {resource_policy_name} --project={args.project} --region={zone_to_region(args.zone)} --type=HIGH_THROUGHPUT'
+          f' --accelerator-topology={topology}'
+      ),
+      'Create resource policy',
+  )
+
+  if return_code != 0:
+    raise RuntimeError('Unable to create resource policy')

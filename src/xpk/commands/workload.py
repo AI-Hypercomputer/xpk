@@ -34,7 +34,7 @@ from ..core.docker_container import (
 )
 from ..core.docker_resources import get_volumes, parse_env_config
 from ..core.gcloud_context import add_zone_and_project
-from ..core.kueue import LOCAL_QUEUE_NAME
+from ..core.kueue_manager import LOCAL_QUEUE_NAME
 from ..core.monitoring import get_gke_outlier_dashboard
 from ..core.nap import (
     get_autoprovisioning_node_selector_args,
@@ -53,9 +53,6 @@ from ..core.pathways import (
     try_to_delete_pathwaysjob_first,
 )
 from ..core.resources import get_cluster_capacity_type, get_cluster_system_characteristics
-from ..core.capacity import (
-    CapacityType,
-)
 from ..core.resources import CLUSTER_METADATA_CONFIGMAP, get_cluster_configmap
 from ..core.scheduling import (
     check_if_workload_can_schedule,
@@ -65,6 +62,7 @@ from ..core.scheduling import (
     create_tpu_topology,
     get_cpu_affinity,
     get_gpu_scheduler,
+    create_sub_slicing_annotations,
 )
 from ..core.storage import (
     GCE_PD_TYPE,
@@ -87,7 +85,7 @@ from ..core.workload import (
     get_jobsets_list_gcp_link,
     get_workload_list,
     wait_for_job_completion,
-    zone_to_region,
+    get_cluster_location,
 )
 from ..core.workload_decorators import (
     rdma_decorator,
@@ -98,8 +96,10 @@ from ..core.workload_decorators import (
 from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
 from ..utils.execution_context import is_dry_run
+from ..utils.validation import validate_dependencies_list, SystemDependency, should_validate_dependencies
 from . import cluster_gcluster
 from .common import is_TAS_possible
+from ..utils.feature_flags import FeatureFlags
 
 WORKLOAD_CREATE_YAML = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
@@ -130,6 +130,7 @@ spec:
                 xpk.google.com/workload: {args.workload}
               annotations:
                 {storage_annotations}
+                {sub_slicing_annotations}
             spec:
               schedulerName: {args.scheduler}
               imagePullSecrets:
@@ -267,6 +268,8 @@ PW_WORKLOAD_CREATE_YAML = """
         maxSliceRestarts: {args.max_slice_restarts}
         terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
         priorityClassName: {args.priority}
+        nodeSelector:
+          {autoprovisioning_args}
       pathwaysDir: {args.pathways_gcs_location} #This bucket needs to be created in advance.
       controller:
         # #Pod template for training, default mode.
@@ -307,6 +310,12 @@ def workload_create(args) -> None:
   Returns:
     0 if successful and 1 otherwise.
   """
+  if should_validate_dependencies(args):
+    validate_dependencies_list([
+        SystemDependency.KUBECTL,
+        SystemDependency.GCLOUD,
+        SystemDependency.DOCKER,
+    ])
   k8s_api_client = None
   if not is_dry_run():
     k8s_api_client = setup_k8s_env(args)
@@ -334,7 +343,7 @@ def workload_create(args) -> None:
   xpk_print('Starting workload create', flush=True)
 
   metadata_configmap_name = f'{args.cluster}-{CLUSTER_METADATA_CONFIGMAP}'
-  cluster_config_map = get_cluster_configmap(args, metadata_configmap_name)
+  cluster_config_map = get_cluster_configmap(metadata_configmap_name)
   cluster_xpk_version = None
   if cluster_config_map is None:
     xpk_print(
@@ -482,16 +491,12 @@ def workload_create(args) -> None:
     capacity_type = get_cluster_capacity_type(args)
 
     annotations = (
-        ''
-        if not is_TAS_possible(
-            system_characteristics,
-            capacity_type,
-            flex=True if capacity_type == CapacityType.FLEX_START else False,
-        )
-        else (
+        (
             'kueue.x-k8s.io/podset-preferred-topology:'
             ' "cloud.google.com/gce-topology-host"'
         )
+        if is_TAS_possible(system_characteristics, capacity_type)
+        else ''
     )
 
     if (
@@ -507,7 +512,7 @@ def workload_create(args) -> None:
           annotations=annotations,
       )
 
-      sub_networks = get_cluster_subnetworks(args)
+      sub_networks = get_cluster_subnetworks()
       if args.device_type == a3high_device_type:
         yml_string = tcpx_decorator.decorate_jobset(yml_string)
       elif args.device_type == a3mega_device_type:
@@ -545,6 +550,7 @@ def workload_create(args) -> None:
         colocated_python_sidecar=append_custom_colocated_python_sidecar(args),
         user_workload=get_user_workload_for_pathways(args, system),
         local_queue_name=LOCAL_QUEUE_NAME,
+        autoprovisioning_args=autoprovisioning_args,
     )
   else:
     container, debugging_dashboard_id = get_user_workload_container(
@@ -557,6 +563,14 @@ def workload_create(args) -> None:
         affinity=get_cpu_affinity(system.accelerator_type),
         accelerator_label=create_accelerator_label(
             system.accelerator_type, system
+        ),
+        sub_slicing_annotations=(
+            ''
+            if not FeatureFlags.SUB_SLICING_ENABLED
+            or args.sub_slicing_topology is None
+            else ('\n' + (' ' * 16)).join(
+                create_sub_slicing_annotations(args.sub_slicing_topology)
+            )
         ),
         machine_label=create_machine_label(system.accelerator_type, system),
         local_queue_name=LOCAL_QUEUE_NAME,
@@ -575,7 +589,7 @@ def workload_create(args) -> None:
     )
   tmp = write_tmp_file(yml_string)
   command = f'kubectl apply -f {str(tmp)}'
-  return_code = run_command_with_updates(command, 'Creating Workload', args)
+  return_code = run_command_with_updates(command, 'Creating Workload')
 
   if return_code != 0:
     xpk_print(f'Create Workload request returned ERROR {return_code}')
@@ -622,7 +636,9 @@ def workload_create(args) -> None:
           ' JAX_PLATFORMS=proxy; JAX_BACKEND_TARGET=grpc://127.0.0.1:29000;'
           " python -c 'import pathwaysutils; import jax; print(jax.devices())'"
       )
-      pathways_proxy_link = f'https://console.cloud.google.com/kubernetes/job/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}-proxy-0/details?project={args.project}'
+      pathways_proxy_link = (
+          f'https://console.cloud.google.com/kubernetes/job/{get_cluster_location(args.project, args.cluster, args.zone)}/{args.cluster}/default/{args.workload}-proxy-0/details?project={args.project}'
+      )
       xpk_print(
           'Follow the proxy here:'
           # pylint: disable=line-too-long)
@@ -636,7 +652,7 @@ def workload_create(args) -> None:
     xpk_print(
         'Follow your workload here:'
         # pylint: disable=line-too-long
-        f' https://console.cloud.google.com/kubernetes/service/{zone_to_region(args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
+        f' https://console.cloud.google.com/kubernetes/service/{get_cluster_location(args.project, args.cluster, args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
     )
     duration_of_logs = 'P1D'  # Past 1 Day
     xpk_print(
@@ -645,7 +661,7 @@ def workload_create(args) -> None:
         ' ([prefix]-slice-job-[slice_number]-[worker_number])'
         ' after clicking the url if you want other worker logs.'
         # pylint: disable=line-too-long
-        f' https://console.cloud.google.com/logs/query;query=resource.type%3D%22k8s_container%22%0Aresource.labels.project_id%3D%22{args.project}%22%0Aresource.labels.location%3D%22{zone_to_region(args.zone)}%22%0Aresource.labels.cluster_name%3D%22{args.cluster}%22%0Aresource.labels.namespace_name%3D%22default%22%0Aresource.labels.pod_name:%22{args.workload}-slice-job-0-0-%22%20severity%3E%3DDEFAULT;storageScope=project;duration={duration_of_logs}?e=13802955&mods=allow_workbench_image_override&project={args.project}'
+        f' https://console.cloud.google.com/logs/query;query=resource.type%3D%22k8s_container%22%0Aresource.labels.project_id%3D%22{args.project}%22%0Aresource.labels.location%3D%22{get_cluster_location(args.project, args.cluster, args.zone)}%22%0Aresource.labels.cluster_name%3D%22{args.cluster}%22%0Aresource.labels.namespace_name%3D%22default%22%0Aresource.labels.pod_name:%22{args.workload}-slice-job-0-0-%22%20severity%3E%3DDEFAULT;storageScope=project;duration={duration_of_logs}?e=13802955&mods=allow_workbench_image_override&project={args.project}'
     )
 
   xpk_exit(0)
@@ -678,6 +694,10 @@ def workload_delete(args) -> None:
   Returns:
     0 if successful and 1 otherwise.
   """
+  if should_validate_dependencies(args):
+    validate_dependencies_list(
+        [SystemDependency.KUBECTL, SystemDependency.GCLOUD]
+    )
   xpk_print('Starting Workload delete', flush=True)
   add_zone_and_project(args)
   get_cluster_credentials(args)
@@ -725,16 +745,13 @@ def workload_delete(args) -> None:
 
     # Not batching deletion for single workload
     if len(workloads) == 1:
-      return_code = run_command_with_updates(
-          commands[0], 'Delete Workload', args
-      )
+      return_code = run_command_with_updates(commands[0], 'Delete Workload')
     else:
       return_code = run_commands(
           commands,
           'Delete Workload',
           task_names,
           batch=100,
-          dry_run=args.dry_run,
       )
 
     if return_code != 0:
@@ -752,6 +769,10 @@ def workload_list(args) -> None:
   Returns:
     0 if successful and 1 otherwise.
   """
+  if should_validate_dependencies(args):
+    validate_dependencies_list(
+        [SystemDependency.KUBECTL, SystemDependency.GCLOUD]
+    )
   xpk_print('Starting workload list', flush=True)
   add_zone_and_project(args)
   get_cluster_credentials(args)

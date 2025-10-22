@@ -36,7 +36,7 @@ def check_if_workload_can_schedule(args, system: SystemCharacteristics) -> bool:
     returns true if workload can schedule, otherwise returns false.
   """
   resources_configmap_name = f'{args.cluster}-{CLUSTER_RESOURCES_CONFIGMAP}'
-  cluster_config_map = get_cluster_configmap(args, resources_configmap_name)
+  cluster_config_map = get_cluster_configmap(resources_configmap_name)
 
   # Prevents workload creation failure for existing clusters with no ConfigMap
   if cluster_config_map is None:
@@ -291,3 +291,21 @@ def create_tpu_topology(
   ):
     return f'{system.topology}'
   return ''
+
+
+def create_sub_slicing_annotations(sub_slicing_topology: str) -> list[str]:
+  """Generates subslicing annotations.
+
+  Args:
+    sub_slicing_topology: subslice topology.
+
+  Returns:
+    Annotations to be rendered in deployment yaml.
+  """
+  return [
+      (
+          'kueue.x-k8s.io/podset-required-topology:'
+          f' "google.com/gke-tpu-slice-{sub_slicing_topology}-id"'
+      ),
+      f'cloud.google.com/gke-tpu-slice-topology: {sub_slicing_topology}',
+  ]

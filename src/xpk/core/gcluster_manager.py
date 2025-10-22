@@ -27,9 +27,6 @@ blueprint_file_name = 'xpk_blueprint.yaml'
 deployment_module = '/out/xpk-deployment'
 a3_utils_dir_name = 'a3-mega-xpk'
 config_map_repo_path = 'src/xpk/blueprints/a3-mega-xpk/config-map.yaml.tftpl'
-kueue_config_repo_path = (
-    'src/xpk/blueprints/a3-mega-xpk/kueue-xpk-configuration.yaml.tftpl'
-)
 
 
 class GclusterManager:

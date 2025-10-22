@@ -83,6 +83,11 @@ GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
 NC='\033[0m'
 
+if ! command -v yq &> /dev/null; then
+  echo -e "${RED}Error: 'yq' command not found. Please install yq to continue.${NC}" >&2
+  exit 1
+fi
+
 if [[ "$MODE" != "update" && "$MODE" != "verify" ]]; then
   echo "Error: Unsupported mode '$MODE'. Must be 'update' or 'verify'." >&2
   exit 1
@@ -90,31 +95,46 @@ fi
 
 mkdir -p "$GOLDENS_DIR"
 
-yq -r '.goldens | keys[]' "$GOLDENS_FILE" | \
-  while read -r key; do
-    command=$(yq -r '.goldens["'"$key"'"].command' "$GOLDENS_FILE")
-    if [[ "$MODE" = "update" ]]; then
-      printf "${YELLOW}Updating: %s${NC}\n" "$key"
+has_diffs=false
+while read -r key; do
+  command=$(yq -r '.goldens["'"$key"'"].command' "$GOLDENS_FILE")
+  if [[ "$MODE" = "update" ]]; then
+    printf "${YELLOW}Updating: %s...${NC} " "$key"
+  fi
+  if [[ "$MODE" = "verify" ]]; then
+    printf "${YELLOW}Evaluating: %s...${NC} " "$key"
+  fi
+
+  REFERENCE_FILE="$GOLDENS_DIR/${key// /_}.txt"
+  echo "\$ $command" > $REFERENCE_FILE
+  eval "$command" >> $REFERENCE_FILE 2>&1
+  if [[ "$MODE" = "update" ]]; then
+    printf "${GREEN}DONE${NC}\n"
+  fi
+  
+  if [[ "$MODE" = "verify" ]]; then
+    git add $REFERENCE_FILE
+    
+    DIFF_OUTPUT=$(git diff --color=always HEAD -- $REFERENCE_FILE | cat)
+    
+    git reset HEAD -- $REFERENCE_FILE &> /dev/null
+    git restore $REFERENCE_FILE &> /dev/null
+    git clean -fd -- $REFERENCE_FILE &> /dev/null
+
+    if [[ -n "$DIFF_OUTPUT" ]]; then
+      printf "${RED}FAIL${NC}\n"
+
+      has_diffs=true
+      echo "\$ $command" $REFERENCE_FILE
+      printf "%s\n" "$DIFF_OUTPUT" >&2
+    else
+      printf "${GREEN}OK${NC}\n"
     fi
-    if [[ "$MODE" = "verify" ]]; then
-      printf "${YELLOW}Evaluating: %s${NC}\n" "$key"
-    fi
-    eval "$command" > "$GOLDENS_DIR/${key// /_}.txt" 2>&1
-done
+  fi
+done < <(yq -r '.goldens | keys[]' "$GOLDENS_FILE")
 
 if [[ "$MODE" = "verify" ]]; then
-  git add "$GOLDENS_DIR"
-  DIFF_OUTPUT=$(git diff HEAD -- "$GOLDENS_DIR" | cat)
-
-  git reset HEAD -- "$GOLDENS_DIR" &> /dev/null
-  git restore "$GOLDENS_DIR" &> /dev/null
-  git clean -fd -- "$GOLDENS_DIR" &> /dev/null
-
-  if [[ -n "$DIFF_OUTPUT" ]]; then
-    printf "%s\n" "$DIFF_OUTPUT" >&2
-
-    echo "" >&2
-    
+  if [[ "$has_diffs" == true ]]; then
     printf "${RED}Golden diffs found! Please use the following command to regenerate goldens:${NC}\n" >&2
     printf "${YELLOW}\n\t%s${NC}\n\n" "${UPDATE_GOLDEN_COMMAND:-"golden_buddy.sh update $GOLDENS_FILE $GOLDENS_DIR"}" >&2
     exit 1

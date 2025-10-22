@@ -16,7 +16,7 @@ limitations under the License.
 
 from ..core.commands import run_command_with_updates_retry
 from ..core.capacity import H100_MEGA_DEVICE_TYPE, CapacityType
-from ..core.gcloud_context import zone_to_region
+from ..core.gcloud_context import get_cluster_location
 from ..utils.console import xpk_print, xpk_exit
 from ..utils.execution_context import is_dry_run
 from ..core.system_characteristics import (
@@ -35,16 +35,12 @@ def set_cluster_command(args) -> int:
   """
   command = (
       'gcloud container clusters get-credentials'
-      f' {args.cluster} --region={zone_to_region(args.zone)}'
-      ' --dns-endpoint'
-      f' --project={args.project} &&'
-      ' kubectl config view && kubectl config set-context --current'
-      ' --namespace=default'
+      f' {args.cluster} --location={get_cluster_location(args.project, args.cluster, args.zone)} --dns-endpoint'
+      f' --project={args.project} && kubectl config view && kubectl config'
+      ' set-context --current --namespace=default'
   )
   task = f'get-credentials to cluster {args.cluster}'
-  return_code = run_command_with_updates_retry(
-      command, task, args, verbose=False
-  )
+  return_code = run_command_with_updates_retry(command, task, verbose=False)
   if return_code != 0:
     xpk_print(f'{task} returned ERROR {return_code}')
   return return_code
@@ -53,16 +49,8 @@ def set_cluster_command(args) -> int:
 def is_TAS_possible(
     system_characteristics: SystemCharacteristics | None,
     capacity_type: CapacityType | None,
-    flex: bool,
 ) -> bool:
-  """Check cluster's machine_type and capacity type to determine if Kueue TAS is possible
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    True if possible and False otherwise.
-  """
+  """Check cluster's machine_type and capacity type to determine if Kueue TAS is possible"""
 
   if is_dry_run():
     return True
@@ -75,13 +63,7 @@ def is_TAS_possible(
     xpk_print('capacity_type data was not found in configmaps.')
     xpk_exit(1)
 
-  if not flex:
-    return False
-
-  if (
-      system_characteristics.device_type == H100_MEGA_DEVICE_TYPE
-      and capacity_type != CapacityType.RESERVATION
-  ):
-    return False
-
-  return True
+  return (
+      system_characteristics.device_type != H100_MEGA_DEVICE_TYPE
+      or capacity_type == CapacityType.RESERVATION
+  )

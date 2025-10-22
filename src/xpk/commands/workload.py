@@ -52,7 +52,7 @@ from ..core.pathways import (
     get_user_workload_for_pathways,
     try_to_delete_pathwaysjob_first,
 )
-from ..core.resources import get_cluster_capacity_type, get_cluster_system_characteristics
+from ..core.resources import get_cluster_capacity_type, get_cluster_system_characteristics, SystemCharacteristics
 from ..core.resources import CLUSTER_METADATA_CONFIGMAP, get_cluster_configmap
 from ..core.scheduling import (
     check_if_workload_can_schedule,
@@ -100,6 +100,7 @@ from ..utils.execution_context import is_dry_run
 from ..utils.validation import validate_dependencies_list, SystemDependency, should_validate_dependencies
 from . import cluster_gcluster
 from .common import is_TAS_possible
+from ..utils.topology import is_topology_contained
 from ..utils.feature_flags import FeatureFlags
 
 WORKLOAD_CREATE_YAML = """apiVersion: jobset.x-k8s.io/v1alpha2
@@ -281,6 +282,8 @@ PW_WORKLOAD_CREATE_YAML = """
       {user_workload}
 """
 
+SUBSLICING_TOPOLOGIES = ['2x2', '2x4', '4x4', '4x8', '8x8', '8x16', '16x16']
+
 
 def workload_create_pathways(args) -> None:
   """Run jobset apply command for a file, specifically for Pathways.
@@ -337,6 +340,9 @@ def workload_create(args) -> None:
   if return_code > 0 or system is None:
     xpk_print('Fetching system characteristics failed!')
     xpk_exit(return_code)
+
+  if FeatureFlags.SUB_SLICING_ENABLED and args.sub_slicing_topology is not None:
+    validate_sub_slicing_topology(system, args.sub_slicing_topology)
 
   if not check_if_workload_can_schedule(args, system):
     xpk_exit(1)
@@ -672,6 +678,26 @@ def workload_create(args) -> None:
     )
 
   xpk_exit(0)
+
+
+def validate_sub_slicing_topology(
+    system_characteristics: SystemCharacteristics, sub_slicing_topology: str
+) -> None:
+  if sub_slicing_topology not in SUBSLICING_TOPOLOGIES:
+    xpk_print(
+        'Invalid sub-slicing topology. Use one of the following:'
+        f' {", ".join(SUBSLICING_TOPOLOGIES)}'
+    )
+    xpk_exit(1)
+
+  if not is_topology_contained(
+      sub_slicing_topology, system_characteristics.topology
+  ):
+    xpk_print(
+        f'Invalid sub-slicing topology! {sub_slicing_topology} is not contained'
+        f' in {system_characteristics.topology}.'
+    )
+    xpk_exit(1)
 
 
 def get_restart_exit_codes(args) -> list:

@@ -62,6 +62,7 @@ from ..core.scheduling import (
     create_tpu_topology,
     get_cpu_affinity,
     get_gpu_scheduler,
+    create_sub_slicing_annotations,
 )
 from ..core.storage import (
     GCE_PD_TYPE,
@@ -98,6 +99,7 @@ from ..utils.execution_context import is_dry_run
 from ..utils.validation import validate_dependencies_list, SystemDependency, should_validate_dependencies
 from . import cluster_gcluster
 from .common import is_TAS_possible
+from ..utils.feature_flags import FeatureFlags
 
 WORKLOAD_CREATE_YAML = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
@@ -128,6 +130,7 @@ spec:
                 xpk.google.com/workload: {args.workload}
               annotations:
                 {storage_annotations}
+                {sub_slicing_annotations}
             spec:
               schedulerName: {args.scheduler}
               imagePullSecrets:
@@ -560,6 +563,14 @@ def workload_create(args) -> None:
         affinity=get_cpu_affinity(system.accelerator_type),
         accelerator_label=create_accelerator_label(
             system.accelerator_type, system
+        ),
+        sub_slicing_annotations=(
+            ''
+            if not FeatureFlags.SUB_SLICING_ENABLED
+            or args.sub_slicing_topology is None
+            else ('\n' + (' ' * 16)).join(
+                create_sub_slicing_annotations(args.sub_slicing_topology)
+            )
         ),
         machine_label=create_machine_label(system.accelerator_type, system),
         local_queue_name=LOCAL_QUEUE_NAME,

@@ -78,6 +78,7 @@ from ..core.storage import (
 from ..core.system_characteristics import (
     AcceleratorType,
     get_system_characteristics,
+    compute_vms_per_slice,
 )
 from ..core.vertex import create_vertex_experiment
 from ..core.workload import (
@@ -120,8 +121,8 @@ spec:
       replicas: {args.num_slices}
       template:
         spec:
-          parallelism: {system.vms_per_slice}    # Equal to the number of VMs per slice
-          completions: {system.vms_per_slice}    # Same as the above.
+          parallelism: {vms_per_slice}    # Equal to the number of VMs per slice
+          completions: {vms_per_slice}    # Same as the above.
           backoffLimit: 0   # When any pod fails, the job is failed
           {pod_failure_policy}
           template:
@@ -560,6 +561,13 @@ def workload_create(args) -> None:
         args=args,
         system=system,
         container=container,
+        vms_per_slice=(
+            compute_vms_per_slice(args.sub_slicing_topology)
+            if system.accelerator_type == AcceleratorType['TPU']
+            and FeatureFlags.SUB_SLICING_ENABLED
+            and args.sub_slicing_topology is not None
+            else system.vms_per_slice
+        ),
         affinity=get_cpu_affinity(system.accelerator_type),
         accelerator_label=create_accelerator_label(
             system.accelerator_type, system

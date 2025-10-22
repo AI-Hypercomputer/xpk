@@ -135,10 +135,9 @@ def get_tpu_system_characteristics_map(
 ) -> dict[str, SystemCharacteristics]:
   system_characteristics_map = {}
   for topology in supported_topologies:
-    total_chips = get_topology_product(topology)
-    num_tensorcores = total_chips * tensorcores_per_chip
-    chips_per_vm = 1 if total_chips == 1 else 4
-    vms_per_slice = total_chips // chips_per_vm
+    chips_per_vm = compute_chips_per_vm(topology)
+    vms_per_slice = compute_vms_per_slice(topology)
+    num_tensorcores = compute_num_tensorcores(tensorcores_per_chip, topology)
     system = SystemCharacteristics(
         topology=topology,
         vms_per_slice=vms_per_slice,
@@ -154,6 +153,19 @@ def get_tpu_system_characteristics_map(
     system_characteristics_map[f'{prefix}-{num_tensorcores}'] = system
 
   return system_characteristics_map
+
+
+def compute_chips_per_vm(topology: str) -> int:
+  return 1 if get_topology_product(topology) == 1 else 4
+
+
+def compute_num_tensorcores(tensorcores_per_chip: int, topology: str) -> int:
+  return get_topology_product(topology) * tensorcores_per_chip
+
+
+def compute_vms_per_slice(topology: str) -> int:
+  chips_per_vm = compute_chips_per_vm(topology)
+  return get_topology_product(topology) // chips_per_vm
 
 
 ################### Subcommand Helper Functions #############################

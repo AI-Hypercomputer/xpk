@@ -456,7 +456,7 @@ class KueueManagerTest(unittest.TestCase):
 
     manifest_docs = list(yaml.safe_load_all(rendered_manifest))
     resource_flavor = _first(
-        (doc for doc in manifest_docs if doc["kind"] == "ResourceFlavor")
+        doc for doc in manifest_docs if doc["kind"] == "ResourceFlavor"
     )
     self.assertEqual(
         resource_flavor["spec"]["nodeLabels"][
@@ -465,9 +465,7 @@ class KueueManagerTest(unittest.TestCase):
         "h100-mega-80gb-8",
     )
     self.assertEqual(resource_flavor["spec"]["topologyName"], "gke-default")
-    topology = _first(
-        (doc for doc in manifest_docs if doc["kind"] == "Topology")
-    )
+    topology = _first(doc for doc in manifest_docs if doc["kind"] == "Topology")
     self.assertEqual(topology["metadata"]["name"], "gke-default")
 
   @patch("xpk.core.kueue_manager.KueueManager._KueueManager__install")
@@ -493,14 +491,12 @@ class KueueManagerTest(unittest.TestCase):
 
     manifest_docs = list(yaml.safe_load_all(rendered_manifest))
     resource_flavor = _first(
-        (doc for doc in manifest_docs if doc["kind"] == "ResourceFlavor")
+        doc for doc in manifest_docs if doc["kind"] == "ResourceFlavor"
     )
     self.assertEqual(
         resource_flavor["spec"]["topologyName"], "sub-slice-topology"
     )
-    topology = _first(
-        (doc for doc in manifest_docs if doc["kind"] == "Topology")
-    )
+    topology = _first(doc for doc in manifest_docs if doc["kind"] == "Topology")
     self.assertEqual(topology["metadata"]["name"], "sub-slice-topology")
 
   @patch("xpk.core.kueue_manager.KueueManager._KueueManager__install")

@@ -81,7 +81,6 @@ kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-s
 [XPK] Task: `Wait for Kueue to be available` is implemented by the following command not running since it is a dry run. 
 kubectl wait deploy/kueue-controller-manager -nkueue-system --for=condition=available --timeout=10m
 [XPK] Applying following Kueue resources:
----
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: ResourceFlavor
 metadata:
@@ -89,8 +88,8 @@ metadata:
 spec:
   nodeLabels: {"cloud.google.com/gke-tpu-accelerator": "tpu7x", "cloud.google.com/gke-tpu-topology": "2x2x1"}
   
-
 ---
+
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: AdmissionCheck
 metadata:
@@ -175,7 +174,7 @@ value: 1000
 globalDefault: false
 description: "Very High"
 [XPK] Task: `Applying Kueue Custom Resources` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f a1fe8e014a200d6489b8871301a9e80de7e6f45e94b61ad0e60f40f254711bec
+kubectl apply -f ce52d2868b681f478f3f12e5696b1609e68b442a32f7f82603ba7064b825cf4f
 [XPK] Task: `Count total nodes` is implemented by the following command not running since it is a dry run. 
 kubectl get node --no-headers | wc -l
 [XPK] Try 1: Updating Kueue Controller Manager resources

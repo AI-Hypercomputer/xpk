@@ -1259,6 +1259,9 @@ def install_kueue(args, system: SystemCharacteristics, autoprovisioning_config):
           memory_limit=args.memory_limit,
           cpu_limit=args.cpu_limit,
           is_pathways_cluster=args.enable_pathways,
+          configure_sub_slicing=(
+              FeatureFlags.SUB_SLICING_ENABLED and args.sub_slicing
+          ),
       ),
   )
 

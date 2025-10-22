@@ -160,8 +160,9 @@ def __install_kueue(args) -> int:
           cpu_limit=args.cpu_limit,
           is_pathways_cluster=args.enable_pathways,
           flex=args.flex,
-          configure_sub_slicing=FeatureFlags.SUB_SLICING_ENABLED
-          and args.sub_slicing,
+          configure_sub_slicing=(
+              FeatureFlags.SUB_SLICING_ENABLED and args.sub_slicing
+          ),
       ),
       tolerations=tolerations,
   )

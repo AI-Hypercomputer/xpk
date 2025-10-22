@@ -130,7 +130,7 @@ spec:
                 xpk.google.com/workload: {args.workload}
               annotations:
                 {storage_annotations}
-                {subslicing_annotations}
+                {sub_slicing_annotations}
             spec:
               schedulerName: {args.scheduler}
               imagePullSecrets:
@@ -564,7 +564,7 @@ def workload_create(args) -> None:
         accelerator_label=create_accelerator_label(
             system.accelerator_type, system
         ),
-        subslicing_annotations=(
+        sub_slicing_annotations=(
             ''
             if not FeatureFlags.SUB_SLICING_ENABLED
             or args.sub_slicing_topology is None

@@ -15,8 +15,8 @@ limitations under the License.
 """
 
 from dataclasses import dataclass
-from functools import reduce
-from operator import mul
+from ..utils.topology import get_topology_product
+
 
 AcceleratorType = {'TPU': 1, 'GPU': 2, 'CPU': 3}
 
@@ -135,7 +135,7 @@ def get_tpu_system_characteristics_map(
 ) -> dict[str, SystemCharacteristics]:
   system_characteristics_map = {}
   for topology in supported_topologies:
-    total_chips = reduce(mul, (int(x) for x in topology.split('x')), 1)
+    total_chips = get_topology_product(topology)
     num_tensorcores = total_chips * tensorcores_per_chip
     chips_per_vm = 1 if total_chips == 1 else 4
     vms_per_slice = total_chips // chips_per_vm

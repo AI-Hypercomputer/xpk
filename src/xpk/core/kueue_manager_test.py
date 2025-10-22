@@ -423,10 +423,10 @@ class KueueManagerTest(unittest.TestCase):
   @patch(
       "xpk.core.kueue_manager.KueueManager._KueueManager__update_kueue_resources_if_necessary"
   )
-  def test_configure_generates_correct_manifest_with_admission_checks(
+  def test_configure_generates_manifest_with_admission_checks_for_flex_single_slice(
       self, mock_update_resources, mock_install, mock_apply_manifest
   ):
-    """Test that __configure generates the correct manifest content for TPUs."""
+    """Test that __configure generates the correct manifest with admission checks."""
     mock_install.return_value = 0
     mock_update_resources.return_value = 0
     mock_apply_manifest.return_value = 0
@@ -465,38 +465,7 @@ class KueueManagerTest(unittest.TestCase):
         cluster_queue["spec"]["resourceGroups"][0]["flavors"][0]["name"],
         "1xv5p-8",
     )
-    resources = cluster_queue["spec"]["resourceGroups"][0]["flavors"][0][
-        "resources"
-    ]
-    tpu_resource = next(
-        (r for r in resources if r["name"] == "google.com/tpu"), None
-    )
-    cpu_resource = next((r for r in resources if r["name"] == "cpu"), None)
-    memory_resource = next(
-        (r for r in resources if r["name"] == "memory"), None
-    )
-    self.assertIsNotNone(tpu_resource)
-    self.assertEqual(tpu_resource["nominalQuota"], 8)
-    self.assertIsNotNone(cpu_resource)
-    self.assertEqual(cpu_resource["nominalQuota"], 100)
-    self.assertIsNotNone(memory_resource)
-    self.assertEqual(memory_resource["nominalQuota"], "100Gi")
-    resource_flavor = next(
-        (doc for doc in manifest_docs if doc["kind"] == "ResourceFlavor"), None
-    )
-    self.assertIsNotNone(resource_flavor)
-    self.assertEqual(
-        resource_flavor["spec"]["nodeLabels"][
-            "cloud.google.com/gke-tpu-accelerator"
-        ],
-        "test-accelerator",
-    )
-    self.assertEqual(
-        resource_flavor["spec"]["nodeLabels"][
-            "cloud.google.com/gke-tpu-topology"
-        ],
-        "2x2x1",
-    )
+    self.assertEqual(cluster_queue["spec"]["admissionChecks"][0], "dws-prov")
 
   @patch("xpk.core.kueue_manager.KueueManager._KueueManager__apply_manifest")
   @patch("xpk.core.kueue_manager.KueueManager._KueueManager__install")

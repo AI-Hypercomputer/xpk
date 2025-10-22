@@ -365,6 +365,7 @@ class KueueManagerTest(unittest.TestCase):
 
     rendered_manifest = self._trigger_installation(kueue_config)
 
+    self.assertNotIn("kind: Topology", rendered_manifest)
     manifest_docs = list(yaml.safe_load_all(rendered_manifest))
     cluster_queue = _first(
         doc for doc in manifest_docs if doc["kind"] == "ClusterQueue"
@@ -421,6 +422,7 @@ class KueueManagerTest(unittest.TestCase):
 
     rendered_manifest = self._trigger_installation(kueue_config)
 
+    self.assertNotIn("kind: Topology", rendered_manifest)
     manifest_docs = list(yaml.safe_load_all(rendered_manifest))
     cluster_queue = _first(
         doc for doc in manifest_docs if doc["kind"] == "ClusterQueue"

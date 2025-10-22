@@ -110,6 +110,7 @@ def cluster_create(args) -> None:
           cpu_limit=0,
           is_pathways_cluster=False,
           flex=False,
+          configure_sub_slicing=False,
       ),
   )
 

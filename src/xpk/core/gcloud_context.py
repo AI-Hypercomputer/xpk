@@ -85,6 +85,7 @@ def zone_to_region(zone: str) -> str:
   Returns:
      The region name.
   """
+  return zone
   zone_terms = zone.split('-')
   if len(zone_terms) != 2 and len(zone_terms) != 3:
     raise ValueError(f'Invalid zone name: {zone}')

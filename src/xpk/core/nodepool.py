@@ -602,7 +602,7 @@ def ensure_resource_policy_exists(
           'gcloud compute resource-policies describe'
           f' {resource_policy_name} '
           f'--project={args.project} '
-          f'--region={zone_to_region(args.zone)}'
+          f'--region=us-central1'
       ),
       'Retrieve resource policy',
   )
@@ -613,7 +613,7 @@ def ensure_resource_policy_exists(
   return_code, _ = run_command_for_value(
       (
           'gcloud compute resource-policies create workload-policy'
-          f' {resource_policy_name} --project={args.project} --region={zone_to_region(args.zone)} --type=HIGH_THROUGHPUT'
+          f' {resource_policy_name} --project={args.project} --region=us-central1 --type=HIGH_THROUGHPUT'
           f' --accelerator-topology={topology}'
       ),
       'Create resource policy',

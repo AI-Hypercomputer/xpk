@@ -186,7 +186,9 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 			"erroredSlices", klog.KObjSlice(errored),
 		)
 		err = r.deleteSlices(ctx, errored)
-		return ctrl.Result{}, err
+		if err != nil {
+			return ctrl.Result{}, err
+		}
 	}
 	return ctrl.Result{}, nil
 }

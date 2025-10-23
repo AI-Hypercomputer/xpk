@@ -611,9 +611,11 @@ var _ = ginkgo.Describe("JobSet", func() {
 			createdSlice := &slice.Slice{}
 			sliceKey := core.SliceKeyFromWorkload(createdWorkload, "rj1")
 
+			var oldSliceUID types.UID
 			ginkgo.By("Checking that Slice is created", func() {
 				gomega.Eventually(func(g gomega.Gomega) {
 					g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
+					oldSliceUID = createdSlice.GetUID()
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
 
@@ -628,12 +630,6 @@ var _ = ginkgo.Describe("JobSet", func() {
 					})
 					g.Expect(k8sClient.Status().Update(ctx, createdSlice)).To(gomega.Succeed())
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
-			})
-
-			var oldSliceUID types.UID
-			ginkgo.By("Getting the old slice UID", func() {
-				gomega.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
-				oldSliceUID = createdSlice.GetUID()
 			})
 
 			ginkgo.By("Check that the errored slice is deleted", func() {
@@ -709,10 +705,11 @@ var _ = ginkgo.Describe("JobSet", func() {
 
 			createdSlice := &slice.Slice{}
 			sliceKey := core.SliceKeyFromWorkload(createdWorkload, "rj1")
-
+			var oldSliceUID types.UID
 			ginkgo.By("Checking that Slice is created and making it Ready", func() {
 				gomega.Eventually(func(g gomega.Gomega) {
 					g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
+					oldSliceUID = createdSlice.GetUID()
 					meta.SetStatusCondition(&createdSlice.Status.Conditions, metav1.Condition{Type: string(slice.Ready), Status: metav1.ConditionTrue, Reason: "TestReady"})
 					g.Expect(k8sClient.Status().Update(ctx, createdSlice)).To(gomega.Succeed())
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
@@ -731,12 +728,6 @@ var _ = ginkgo.Describe("JobSet", func() {
 					meta.SetStatusCondition(&createdSlice.Status.Conditions, metav1.Condition{Type: string(slice.Error), Status: metav1.ConditionTrue, Reason: "TestError", Message: "Slice has an error"})
 					g.Expect(k8sClient.Status().Update(ctx, createdSlice)).To(gomega.Succeed())
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
-			})
-
-			var oldSliceUID types.UID
-			ginkgo.By("Getting the old slice UID", func() {
-				gomega.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
-				oldSliceUID = createdSlice.GetUID()
 			})
 
 			ginkgo.By("Checking that the old slice is deleted", func() {

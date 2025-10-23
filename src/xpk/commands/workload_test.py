@@ -14,6 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import dataclasses
+from unittest.mock import MagicMock, patch
 import pytest
 from ..core.system_characteristics import SystemCharacteristics
 from .workload import _validate_sub_slicing_topology
@@ -60,3 +62,20 @@ def test_validate_sub_slicing_topology_exits_for_too_large_topology(xpk_print):
 
 def test_validate_sub_slicing_topology_does_nothing_for_supported_topology():
   _validate_sub_slicing_topology(SYSTEM_CHARACTERISTICS, '4x4')
+
+
+@patch('xpk.commands.common.xpk_print')
+def test_validate_sub_slicing_topology_fails_for_unsupported_system(
+    common_xpk_print: MagicMock,
+):
+  unsupported_system = dataclasses.replace(
+      SYSTEM_CHARACTERISTICS, supports_sub_slicing=False
+  )
+
+  with pytest.raises(SystemExit):
+    _validate_sub_slicing_topology(unsupported_system, '4x4')
+
+  assert (
+      'l4-1 does not support Sub-slicing.'
+      in common_xpk_print.mock_calls[0].args[0]
+  )

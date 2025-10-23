@@ -630,14 +630,6 @@ var _ = ginkgo.Describe("JobSet", func() {
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
 
-			ginkgo.By("Printing createdWorkload conditions for debugging", func() {
-				gomega.Eventually(func(g gomega.Gomega) {
-					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
-					ginkgo.GinkgoWriter.Printf("Workload conditions: %+v\n", createdWorkload.Status.Conditions)
-					g.Expect(createdWorkload.Status.Conditions).NotTo(gomega.BeEmpty())
-				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
-			})
-
 			var oldSliceUID types.UID
 			ginkgo.By("Getting the old slice UID", func() {
 				gomega.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())

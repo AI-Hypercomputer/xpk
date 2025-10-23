@@ -569,7 +569,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 			})
 		})
 
-		ginkgo.It("should recover after slice is in Error state", func() {
+		ginkgo.It("should recover after Slice is in error state", func() {
 			jobSet := testingjobsjobset.MakeJobSet("jobset", ns.Name).
 				Queue(lq.Name).
 				ReplicatedJobs(
@@ -619,7 +619,19 @@ var _ = ginkgo.Describe("JobSet", func() {
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
 
-			ginkgo.By("Adding Error condition", func() {
+			ginkgo.By("Checking that the Admission Check state is pending", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
+					g.Expect(workload.IsAdmitted(createdWorkload)).Should(gomega.BeFalse())
+					g.Expect(createdWorkload.Status.AdmissionChecks).Should(gomega.BeComparableTo([]kueue.AdmissionCheckState{{
+						Name:    kueue.AdmissionCheckReference(ac.Name),
+						State:   kueue.CheckStatePending,
+						Message: `Slices are in states: 1 Created`,
+					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates")))
+				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Setting Slice state to error", func() {
 				gomega.Eventually(func(g gomega.Gomega) {
 					g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
 					meta.SetStatusCondition(&createdSlice.Status.Conditions, metav1.Condition{
@@ -632,10 +644,6 @@ var _ = ginkgo.Describe("JobSet", func() {
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
 
-			ginkgo.By("Check that the errored slice is deleted", func() {
-				utils.ExpectObjectToBeDeleted(ctx, k8sClient, createdSlice, false)
-			})
-
 			ginkgo.By("Checking that a new Slice is created", func() {
 				gomega.Eventually(func(g gomega.Gomega) {
 					g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
@@ -643,7 +651,19 @@ var _ = ginkgo.Describe("JobSet", func() {
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
 
-			ginkgo.By("Adding Ready condition to the new slice", func() {
+			ginkgo.By("Checking that the Admission Check state is pending", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
+					g.Expect(workload.IsAdmitted(createdWorkload)).Should(gomega.BeFalse())
+					g.Expect(createdWorkload.Status.AdmissionChecks).Should(gomega.BeComparableTo([]kueue.AdmissionCheckState{{
+						Name:    kueue.AdmissionCheckReference(ac.Name),
+						State:   kueue.CheckStatePending,
+						Message: `Slices are in states: 1 Created`,
+					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates")))
+				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Adding ready condition to the new Slice", func() {
 				gomega.Eventually(func(g gomega.Gomega) {
 					g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
 					meta.SetStatusCondition(&createdSlice.Status.Conditions, metav1.Condition{
@@ -656,15 +676,32 @@ var _ = ginkgo.Describe("JobSet", func() {
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
 
-			ginkgo.By("Checking that the Workload is admitted", func() {
+			ginkgo.By("Checking that the Workload is admitted and the Admission Check state is ready", func() {
 				gomega.Eventually(func(g gomega.Gomega) {
 					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
 					g.Expect(workload.IsAdmitted(createdWorkload)).Should(gomega.BeTrue())
-				}, utils.LongTimeout, utils.Timeout).Should(gomega.Succeed())
+					g.Expect(createdWorkload.Status.AdmissionChecks).Should(gomega.BeComparableTo([]kueue.AdmissionCheckState{{
+						Name:    kueue.AdmissionCheckReference(ac.Name),
+						State:   kueue.CheckStateReady,
+						Message: `Slices are in states: 1 Ready`,
+					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates")))
+				}, utils.LongTimeout, utils.Interval).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Deleting JobSet", func() {
+				utils.ExpectObjectToBeDeleted(ctx, k8sClient, jobSet, true)
+			})
+
+			ginkgo.By("Checking that Slice is deleted", func() {
+				utils.ExpectObjectToBeDeleted(ctx, k8sClient, createdSlice, false)
+			})
+
+			ginkgo.By("Checking that Workload is deleted", func() {
+				utils.ExpectObjectToBeDeleted(ctx, k8sClient, createdWorkload, false)
 			})
 		})
 
-		ginkgo.It("should recover after a Ready slice changes to Error state", func() {
+		ginkgo.It("should recover after a ready Slice changes to error state", func() {
 			jobSet := testingjobsjobset.MakeJobSet("jobset", ns.Name).
 				Queue(lq.Name).
 				ReplicatedJobs(
@@ -696,7 +733,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 				Namespace: ns.Name,
 			}
 
-			ginkgo.By("Waiting for Admission of the Workload", func() {
+			ginkgo.By("Waiting for admission of the Workload", func() {
 				gomega.Eventually(func(g gomega.Gomega) {
 					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
 					g.Expect(createdWorkload.Status.Admission).ShouldNot(gomega.BeNil())
@@ -706,7 +743,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 			createdSlice := &slice.Slice{}
 			sliceKey := core.SliceKeyFromWorkload(createdWorkload, "rj1")
 			var oldSliceUID types.UID
-			ginkgo.By("Checking that Slice is created and making it Ready", func() {
+			ginkgo.By("Checking that Slice is created and making it ready", func() {
 				gomega.Eventually(func(g gomega.Gomega) {
 					g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
 					oldSliceUID = createdSlice.GetUID()
@@ -715,14 +752,19 @@ var _ = ginkgo.Describe("JobSet", func() {
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
 
-			ginkgo.By("Checking that the Workload is admitted", func() {
+			ginkgo.By("Checking that the Workload is admitted and the admission check state is ready", func() {
 				gomega.Eventually(func(g gomega.Gomega) {
 					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
 					g.Expect(workload.IsAdmitted(createdWorkload)).Should(gomega.BeTrue())
-				}, utils.LongTimeout, utils.Timeout).Should(gomega.Succeed())
+					g.Expect(createdWorkload.Status.AdmissionChecks).Should(gomega.BeComparableTo([]kueue.AdmissionCheckState{{
+						Name:    kueue.AdmissionCheckReference(ac.Name),
+						State:   kueue.CheckStateReady,
+						Message: `Slices are in states: 1 Ready`,
+					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates")))
+				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
 
-			ginkgo.By("Changing slice condition to Error", func() {
+			ginkgo.By("Changing Slice condition to error", func() {
 				gomega.Eventually(func(g gomega.Gomega) {
 					g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
 					meta.SetStatusCondition(&createdSlice.Status.Conditions, metav1.Condition{Type: string(slice.Error), Status: metav1.ConditionTrue, Reason: "TestError", Message: "Slice has an error"})
@@ -730,14 +772,15 @@ var _ = ginkgo.Describe("JobSet", func() {
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
 
-			ginkgo.By("Checking that the old slice is deleted", func() {
-				utils.ExpectObjectToBeDeleted(ctx, k8sClient, createdSlice, false)
-			})
-
-			ginkgo.By("Check that the Workload is evicted", func() {
+			ginkgo.By("Checking that the Workload is evicted and the Admission Check state is pending", func() {
 				gomega.Eventually(func(g gomega.Gomega) {
 					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
 					g.Expect(workload.IsAdmitted(createdWorkload)).Should(gomega.BeFalse())
+					g.Expect(createdWorkload.Status.AdmissionChecks).Should(gomega.BeComparableTo([]kueue.AdmissionCheckState{{
+						Name:    kueue.AdmissionCheckReference(ac.Name),
+						State:   kueue.CheckStatePending,
+						Message: `Slices are in states: 1 Created`,
+					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates")))
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
 
@@ -748,7 +791,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
 
-			ginkgo.By("Adding Ready condition to the new slice", func() {
+			ginkgo.By("Adding ready condition to the new Slice", func() {
 				gomega.Eventually(func(g gomega.Gomega) {
 					g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
 					meta.SetStatusCondition(&createdSlice.Status.Conditions, metav1.Condition{
@@ -761,11 +804,28 @@ var _ = ginkgo.Describe("JobSet", func() {
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
 
-			ginkgo.By("Checking that the Workload is admitted", func() {
+			ginkgo.By("Checking that the Workload is admitted and the Admission Check state is ready", func() {
 				gomega.Eventually(func(g gomega.Gomega) {
 					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
 					g.Expect(workload.IsAdmitted(createdWorkload)).Should(gomega.BeTrue())
-				}, utils.LongTimeout, utils.Timeout).Should(gomega.Succeed())
+					g.Expect(createdWorkload.Status.AdmissionChecks).Should(gomega.BeComparableTo([]kueue.AdmissionCheckState{{
+						Name:    kueue.AdmissionCheckReference(ac.Name),
+						State:   kueue.CheckStateReady,
+						Message: `Slices are in states: 1 Ready`,
+					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates")))
+				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Deleting JobSet", func() {
+				utils.ExpectObjectToBeDeleted(ctx, k8sClient, jobSet, true)
+			})
+
+			ginkgo.By("Checking that Slice is deleted", func() {
+				utils.ExpectObjectToBeDeleted(ctx, k8sClient, createdSlice, false)
+			})
+
+			ginkgo.By("Checking that Workload is deleted", func() {
+				utils.ExpectObjectToBeDeleted(ctx, k8sClient, createdWorkload, false)
 			})
 		})
 

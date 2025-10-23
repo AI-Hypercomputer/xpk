@@ -43,14 +43,19 @@ def test_validate_sub_slicing_topology_exits_for_unsupported_topology(
   with pytest.raises(SystemExit):
     validate_sub_slicing_topology(SYSTEM_CHARACTERISTICS, '2x1')
 
-  assert 'Use one of the following' in xpk_print.mock_calls[0].args[0]
+  assert (
+      'shape is invalid. It has to be one of' in xpk_print.mock_calls[0].args[0]
+  )
 
 
 def test_validate_sub_slicing_topology_exits_for_too_large_topology(xpk_print):
   with pytest.raises(SystemExit):
     validate_sub_slicing_topology(SYSTEM_CHARACTERISTICS, '16x16')
 
-  assert 'is not contained in' in xpk_print.mock_calls[0].args[0]
+  assert (
+      'shape is too large. The shape cannot be'
+      in xpk_print.mock_calls[0].args[0]
+  )
 
 
 def test_validate_sub_slicing_topology_does_nothing_for_supported_topology():

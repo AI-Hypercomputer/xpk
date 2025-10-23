@@ -40,7 +40,7 @@ def parse_topology(topology: str) -> list[int]:
 def is_topology_contained(contained: str, container: str) -> bool:
   contained_parsed = parse_topology(contained)
   container_parsed = parse_topology(container)
-  return len(contained_parsed) == len(container_parsed) and all([
+  return len(contained_parsed) == len(container_parsed) and all(
       contained <= container
       for contained, container in zip(contained_parsed, container_parsed)
-  ])
+  )

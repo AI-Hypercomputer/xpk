@@ -282,7 +282,7 @@ PW_WORKLOAD_CREATE_YAML = """
       {user_workload}
 """
 
-SUBSLICING_TOPOLOGIES = ['2x2', '2x4', '4x4', '4x8', '8x8', '8x16', '16x16']
+SUB_SLICING_TOPOLOGIES = ['2x2', '2x4', '4x4', '4x8', '8x8', '8x16', '16x16']
 
 
 def workload_create_pathways(args) -> None:
@@ -683,19 +683,20 @@ def workload_create(args) -> None:
 def validate_sub_slicing_topology(
     system_characteristics: SystemCharacteristics, sub_slicing_topology: str
 ) -> None:
-  if sub_slicing_topology not in SUBSLICING_TOPOLOGIES:
+  if sub_slicing_topology not in SUB_SLICING_TOPOLOGIES:
     xpk_print(
-        'Invalid sub-slicing topology. Use one of the following:'
-        f' {", ".join(SUBSLICING_TOPOLOGIES)}'
+        f'Error: --sub-slicing-topology={sub_slicing_topology} shape is'
+        f' invalid. It has to be one of: {", ".join(SUB_SLICING_TOPOLOGIES)}.'
     )
     xpk_exit(1)
 
   if not is_topology_contained(
-      sub_slicing_topology, system_characteristics.topology
+      contained=sub_slicing_topology, container=system_characteristics.topology
   ):
     xpk_print(
-        f'Invalid sub-slicing topology! {sub_slicing_topology} is not contained'
-        f' in {system_characteristics.topology}.'
+        f'Error: --sub-slicing-topology={sub_slicing_topology} shape is too'
+        ' large. The shape cannot be bigger than'
+        f' {system_characteristics.topology}.'
     )
     xpk_exit(1)
 

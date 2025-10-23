@@ -101,7 +101,7 @@ class KueueManager:
     Args:
         tolerations: An optional list of tolerations to apply to the kueue-controller-manager.
     """
-    return_code, installed_version = self.__get_installed_kueue_version()
+    return_code, installed_version = self.get_installed_kueue_version()
 
     if return_code == 0:
       if installed_version and installed_version > self.kueue_version:
@@ -121,7 +121,7 @@ class KueueManager:
 
     return self.__configure(kueue_config)
 
-  def __get_installed_kueue_version(self) -> tuple[int, str | None]:
+  def get_installed_kueue_version(self) -> tuple[int, str | None]:
     command = (
         "kubectl get deployment kueue-controller-manager -n kueue-system -o"
         " jsonpath='{.spec.template.spec.containers[0].image}'"

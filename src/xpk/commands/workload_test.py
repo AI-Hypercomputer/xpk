@@ -16,7 +16,7 @@ limitations under the License.
 
 import pytest
 from ..core.system_characteristics import SystemCharacteristics
-from .workload import validate_sub_slicing_topology
+from .workload import _validate_sub_slicing_topology
 
 
 SYSTEM_CHARACTERISTICS = SystemCharacteristics(
@@ -41,7 +41,7 @@ def test_validate_sub_slicing_topology_exits_for_unsupported_topology(
     xpk_print,
 ):
   with pytest.raises(SystemExit):
-    validate_sub_slicing_topology(SYSTEM_CHARACTERISTICS, '2x1')
+    _validate_sub_slicing_topology(SYSTEM_CHARACTERISTICS, '2x1')
 
   assert (
       'shape is invalid. It has to be one of' in xpk_print.mock_calls[0].args[0]
@@ -50,7 +50,7 @@ def test_validate_sub_slicing_topology_exits_for_unsupported_topology(
 
 def test_validate_sub_slicing_topology_exits_for_too_large_topology(xpk_print):
   with pytest.raises(SystemExit):
-    validate_sub_slicing_topology(SYSTEM_CHARACTERISTICS, '16x16')
+    _validate_sub_slicing_topology(SYSTEM_CHARACTERISTICS, '16x16')
 
   assert (
       'shape is too large. The shape cannot be'
@@ -59,4 +59,4 @@ def test_validate_sub_slicing_topology_exits_for_too_large_topology(xpk_print):
 
 
 def test_validate_sub_slicing_topology_does_nothing_for_supported_topology():
-  validate_sub_slicing_topology(SYSTEM_CHARACTERISTICS, '4x4')
+  _validate_sub_slicing_topology(SYSTEM_CHARACTERISTICS, '4x4')

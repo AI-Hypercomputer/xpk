@@ -342,7 +342,7 @@ def workload_create(args) -> None:
     xpk_exit(return_code)
 
   if FeatureFlags.SUB_SLICING_ENABLED and args.sub_slicing_topology is not None:
-    validate_sub_slicing_topology(system, args.sub_slicing_topology)
+    _validate_sub_slicing_topology(system, args.sub_slicing_topology)
 
   if not check_if_workload_can_schedule(args, system):
     xpk_exit(1)
@@ -680,7 +680,7 @@ def workload_create(args) -> None:
   xpk_exit(0)
 
 
-def validate_sub_slicing_topology(
+def _validate_sub_slicing_topology(
     system_characteristics: SystemCharacteristics, sub_slicing_topology: str
 ) -> None:
   if sub_slicing_topology not in SUB_SLICING_TOPOLOGIES:

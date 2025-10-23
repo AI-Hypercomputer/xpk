@@ -82,7 +82,7 @@ kubectl get node --no-headers | wc -l
 kubectl apply -f 1b31e624e490f9c8c4ef4e369f08d3fa467990af5a261e4405bd045265d70e95
 [XPK] Try 1: Install PathwaysJob on golden-cluster
 [XPK] Task: `Install PathwaysJob on golden-cluster` is implemented by the following command not running since it is a dry run. 
-kubectl apply --server-side -f https://github.com/google/pathways-job/releases/download/v0.1.3/install.yaml
+kubectl apply --server-side -f https://github.com/google/pathways-job/releases/download/v0.1.4/install.yaml
 [XPK] Enabling Kueue on the cluster
 [XPK] Task: `Get kueue version on server` is implemented by the following command not running since it is a dry run. 
 kubectl get deployment kueue-controller-manager -n kueue-system -o jsonpath='{.spec.template.spec.containers[0].image}'

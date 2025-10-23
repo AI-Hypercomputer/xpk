@@ -1,0 +1,14 @@
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: Topology
+metadata:
+  name: {{ sub_slice_topology_name }}
+spec:
+  levels:
+  - nodeLabel: "cloud.google.com/gke-tpu-slice-16x16-id"
+  - nodeLabel: "cloud.google.com/gke-tpu-slice-8x16-id"
+  - nodeLabel: "cloud.google.com/gke-tpu-slice-8x8-id"
+  - nodeLabel: "cloud.google.com/gke-tpu-slice-4x8-id"
+  - nodeLabel: "cloud.google.com/gke-tpu-slice-4x4-id"
+  - nodeLabel: "cloud.google.com/gke-tpu-slice-2x4-id"
+  - nodeLabel: "cloud.google.com/gke-tpu-slice-2x2-id"
+  - nodeLabel: "kubernetes.io/hostname"

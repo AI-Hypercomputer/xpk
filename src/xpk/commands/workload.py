@@ -52,7 +52,7 @@ from ..core.pathways import (
     get_user_workload_for_pathways,
     try_to_delete_pathwaysjob_first,
 )
-from ..core.resources import get_cluster_capacity_type, get_cluster_system_characteristics
+from ..core.resources import get_cluster_capacity_type, get_cluster_system_characteristics, SystemCharacteristics
 from ..core.resources import CLUSTER_METADATA_CONFIGMAP, get_cluster_configmap
 from ..core.scheduling import (
     check_if_workload_can_schedule,
@@ -78,6 +78,7 @@ from ..core.storage import (
 from ..core.system_characteristics import (
     AcceleratorType,
     get_system_characteristics,
+    compute_vms_per_slice,
 )
 from ..core.vertex import create_vertex_experiment
 from ..core.workload import (
@@ -98,7 +99,8 @@ from ..utils.file import write_tmp_file
 from ..utils.execution_context import is_dry_run
 from ..utils.validation import validate_dependencies_list, SystemDependency, should_validate_dependencies
 from . import cluster_gcluster
-from .common import is_TAS_possible
+from .common import is_TAS_possible, validate_sub_slicing_system
+from ..utils.topology import is_topology_contained
 from ..utils.feature_flags import FeatureFlags
 
 WORKLOAD_CREATE_YAML = """apiVersion: jobset.x-k8s.io/v1alpha2
@@ -120,8 +122,8 @@ spec:
       replicas: {args.num_slices}
       template:
         spec:
-          parallelism: {system.vms_per_slice}    # Equal to the number of VMs per slice
-          completions: {system.vms_per_slice}    # Same as the above.
+          parallelism: {vms_per_slice}    # Equal to the number of VMs per slice (or sub-slice).
+          completions: {vms_per_slice}    # Same as the above.
           backoffLimit: 0   # When any pod fails, the job is failed
           {pod_failure_policy}
           template:
@@ -280,6 +282,8 @@ PW_WORKLOAD_CREATE_YAML = """
       {user_workload}
 """
 
+SUB_SLICING_TOPOLOGIES = ['2x2', '2x4', '4x4', '4x8', '8x8', '8x16', '16x16']
+
 
 def workload_create_pathways(args) -> None:
   """Run jobset apply command for a file, specifically for Pathways.
@@ -330,12 +334,13 @@ def workload_create(args) -> None:
     )
     xpk_exit(1)
 
-  xpk_print('Starting workload create', flush=True)
   system, return_code = get_system_characteristics(args)
-
   if return_code > 0 or system is None:
     xpk_print('Fetching system characteristics failed!')
     xpk_exit(return_code)
+
+  if FeatureFlags.SUB_SLICING_ENABLED and args.sub_slicing_topology is not None:
+    _validate_sub_slicing_topology(system, args.sub_slicing_topology)
 
   if not check_if_workload_can_schedule(args, system):
     xpk_exit(1)
@@ -558,8 +563,14 @@ def workload_create(args) -> None:
     )
     yml_string = WORKLOAD_CREATE_YAML.format(
         args=args,
-        system=system,
         container=container,
+        vms_per_slice=(
+            compute_vms_per_slice(args.sub_slicing_topology)
+            if system.accelerator_type == AcceleratorType['TPU']
+            and FeatureFlags.SUB_SLICING_ENABLED
+            and args.sub_slicing_topology is not None
+            else system.vms_per_slice
+        ),
         affinity=get_cpu_affinity(system.accelerator_type),
         accelerator_label=create_accelerator_label(
             system.accelerator_type, system
@@ -665,6 +676,29 @@ def workload_create(args) -> None:
     )
 
   xpk_exit(0)
+
+
+def _validate_sub_slicing_topology(
+    system_characteristics: SystemCharacteristics, sub_slicing_topology: str
+) -> None:
+  if sub_slicing_topology not in SUB_SLICING_TOPOLOGIES:
+    xpk_print(
+        f'Error: --sub-slicing-topology={sub_slicing_topology} shape is'
+        f' invalid. It has to be one of: {", ".join(SUB_SLICING_TOPOLOGIES)}.'
+    )
+    xpk_exit(1)
+
+  if not is_topology_contained(
+      contained=sub_slicing_topology, container=system_characteristics.topology
+  ):
+    xpk_print(
+        f'Error: --sub-slicing-topology={sub_slicing_topology} shape is too'
+        ' large. The shape cannot be bigger than'
+        f' {system_characteristics.topology}.'
+    )
+    xpk_exit(1)
+
+  validate_sub_slicing_system(system_characteristics)
 
 
 def get_restart_exit_codes(args) -> list:

@@ -39,14 +39,16 @@ from ..core.commands import (
 )
 from ..utils.file import write_tmp_file
 from ..utils.console import xpk_print, xpk_exit
-from ..utils.templates import TEMPLATE_PATH
+from ..utils.templates import TEMPLATE_PATH, get_templates_absolute_path
 
 WAIT_FOR_KUEUE_TIMEOUT = "10m"
 CLUSTER_QUEUE_NAME = "cluster-queue"
 LOCAL_QUEUE_NAME = "multislice-queue"
+SUB_SLICE_TOPOLOGY_NAME = "sub-slice-topology"
 KUEUE_CONFIG_JINJA_FILE = "kueue_config.yaml.j2"
-KUEUE_TOPOLOGY_JINJA_FILE = "kueue_topology.yaml.j2"
+KUEUE_GKE_DEFAULT_TOPOLOGY_JINJA_FILE = "kueue_gke_default_topology.yaml.j2"
 KUEUE_CONTROLLER_MANAGER_JINJA_FILE = "kueue_controller_manager.yaml.j2"
+KUEUE_SUB_SLICING_TOPOLOGY_JINJA_FILE = "kueue_sub_slicing_topology.yaml.j2"
 MEMORY_SIZE_PER_VM = 1.2
 MIN_MEMORY_LIMIT_SIZE = 4096
 KUEUE_VERSION = "v0.14.1"
@@ -58,10 +60,17 @@ class KueueConfig:
   total_chips: int
   cpu_limit: int
   memory_limit: str
+  configure_sub_slicing: bool
   is_pathways_cluster: bool = False
   autoprovisioning_enabled: bool = False
   flex: bool = False
   num_slices: int = 1
+
+
+@dataclass
+class _NameAndYaml:
+  name: str
+  yaml: str
 
 
 class KueueManager:
@@ -73,7 +82,12 @@ class KueueManager:
       template_path=TEMPLATE_PATH,
   ):
     self.kueue_version = kueue_version
-    self.template_env = Environment(loader=FileSystemLoader(template_path))
+
+    self.template_env = Environment(
+        loader=FileSystemLoader(
+            searchpath=get_templates_absolute_path(template_path)
+        )
+    )
 
   def install_or_upgrade(
       self,
@@ -87,7 +101,7 @@ class KueueManager:
     Args:
         tolerations: An optional list of tolerations to apply to the kueue-controller-manager.
     """
-    return_code, installed_version = self.__get_installed_kueue_version()
+    return_code, installed_version = self.get_installed_kueue_version()
 
     if return_code == 0:
       if installed_version and installed_version > self.kueue_version:
@@ -107,7 +121,7 @@ class KueueManager:
 
     return self.__configure(kueue_config)
 
-  def __get_installed_kueue_version(self) -> tuple[int, str | None]:
+  def get_installed_kueue_version(self) -> tuple[int, str | None]:
     command = (
         "kubectl get deployment kueue-controller-manager -n kueue-system -o"
         " jsonpath='{.spec.template.spec.containers[0].image}'"
@@ -208,6 +222,13 @@ class KueueManager:
     """
     template = self.template_env.get_template(KUEUE_CONFIG_JINJA_FILE)
 
+    topology_name_and_yaml = self.__get_topology_name_and_yaml(
+        kueue_config.system, kueue_config.configure_sub_slicing
+    )
+    topology_name = (
+        topology_name_and_yaml.name if topology_name_and_yaml else None
+    )
+
     # The manager builds the context internally based on its opinionated logic
     context = self.__build_template_context(
         system=kueue_config.system,
@@ -218,18 +239,16 @@ class KueueManager:
         num_slices=kueue_config.num_slices,
         cpu_limit=kueue_config.cpu_limit,
         memory_limit=kueue_config.memory_limit,
+        topology_name=topology_name,
     )
 
-    rendered_manifest = template.render(context)
+    config_yaml = template.render(context)
+    yamls = [config_yaml]
 
-    if kueue_config.system.device_type in [
-        H100_MEGA_DEVICE_TYPE,
-        H200_DEVICE_TYPE,
-        B200_DEVICE_TYPE,
-    ]:
-      topology_yaml = self.template_env.get_template(KUEUE_TOPOLOGY_JINJA_FILE)
-      rendered_manifest = topology_yaml.render() + rendered_manifest
+    if topology_name_and_yaml:
+      yamls.append(topology_name_and_yaml.yaml)
 
+    rendered_manifest = "\n---\n".join(yamls)
     return_code = self.__apply_manifest(rendered_manifest)
     if return_code != 0:
       return return_code
@@ -246,6 +265,7 @@ class KueueManager:
       num_slices: int,
       cpu_limit: int,
       memory_limit: str,
+      topology_name: str | None,
   ) -> Dict[str, Any]:
     """Prepares the context for the Jinja2 template."""
     # Main accelerator flavor
@@ -267,13 +287,7 @@ class KueueManager:
       key, value = machine_label.split(":", 1)
       node_labels_dict[key] = value.strip()
 
-    topology_label = ""
-    if system.device_type in [
-        H100_MEGA_DEVICE_TYPE,
-        H200_DEVICE_TYPE,
-        B200_DEVICE_TYPE,
-    ]:
-      topology_label = 'topologyName: "gke-default"'
+    topology_label = f"topologyName: {topology_name}" if topology_name else ""
 
     flavors = [{
         "name": main_flavor_name,
@@ -334,6 +348,32 @@ class KueueManager:
         "local_queue_name": LOCAL_QUEUE_NAME,
         "admission_checks": admission_checks,
     }
+
+  def __get_topology_name_and_yaml(
+      self, system: SystemCharacteristics, configure_sub_slicing: bool
+  ) -> _NameAndYaml | None:
+    if system.device_type in [
+        H100_MEGA_DEVICE_TYPE,
+        H200_DEVICE_TYPE,
+        B200_DEVICE_TYPE,
+    ]:
+      return _NameAndYaml(
+          name="gke-default",
+          yaml=self.template_env.get_template(
+              KUEUE_GKE_DEFAULT_TOPOLOGY_JINJA_FILE
+          ).render(),
+      )
+    elif configure_sub_slicing:
+      return _NameAndYaml(
+          name=SUB_SLICE_TOPOLOGY_NAME,
+          yaml=self.template_env.get_template(
+              KUEUE_SUB_SLICING_TOPOLOGY_JINJA_FILE
+          ).render({
+              "sub_slice_topology_name": SUB_SLICE_TOPOLOGY_NAME,
+          }),
+      )
+    else:
+      return None
 
   def __apply_manifest(self, manifest: str) -> int:
     task = "Applying Kueue Custom Resources"

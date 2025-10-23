@@ -16,6 +16,7 @@ limitations under the License.
 
 from tabulate import tabulate
 
+from ..utils.feature_flags import FeatureFlags
 from ..core.capacity import H100_DEVICE_TYPE, H200_DEVICE_TYPE, B200_DEVICE_TYPE
 from ..core.cluster import (
     get_all_clusters_programmatic,
@@ -75,9 +76,9 @@ from ..utils.file import write_tmp_file
 from ..utils.execution_context import is_dry_run
 from ..utils.validation import validate_dependencies_list, SystemDependency, should_validate_dependencies
 from . import cluster_gcluster
-from .common import set_cluster_command
+from .common import set_cluster_command, validate_sub_slicing_system
 from jinja2 import Environment, FileSystemLoader
-from ..utils.templates import TEMPLATE_PATH
+from ..utils.templates import get_templates_absolute_path
 import shutil
 import os
 
@@ -200,6 +201,11 @@ def cluster_adapt(args) -> None:
   xpk_exit(0)
 
 
+def _validate_cluster_create_args(args, system: SystemCharacteristics):
+  if FeatureFlags.SUB_SLICING_ENABLED and args.sub_slicing:
+    validate_sub_slicing_system(system)
+
+
 def cluster_create(args) -> None:
   """Function around cluster creation.
 
@@ -212,11 +218,13 @@ def cluster_create(args) -> None:
         SystemDependency.KJOB,
         SystemDependency.GCLOUD,
     ])
-  system, return_code = get_system_characteristics(args)
 
+  system, return_code = get_system_characteristics(args)
   if return_code > 0 or system is None:
     xpk_print('Fetching system characteristics failed!')
     xpk_exit(return_code)
+
+  _validate_cluster_create_args(args, system)
 
   xpk_print(f'Starting cluster create for cluster {args.cluster}:', flush=True)
   add_zone_and_project(args)
@@ -426,7 +434,9 @@ def cluster_cacheimage(args) -> None:
       system.accelerator_type
   ].accelerator_label
 
-  template_env = Environment(loader=FileSystemLoader(TEMPLATE_PATH))
+  template_env = Environment(
+      loader=FileSystemLoader(searchpath=get_templates_absolute_path())
+  )
   cluster_preheat_yaml = template_env.get_template(CLUSTER_PREHEAT_JINJA_FILE)
   rendered_yaml = cluster_preheat_yaml.render(
       cachekey=args.cache_key,
@@ -1251,6 +1261,9 @@ def install_kueue(args, system: SystemCharacteristics, autoprovisioning_config):
           memory_limit=args.memory_limit,
           cpu_limit=args.cpu_limit,
           is_pathways_cluster=args.enable_pathways,
+          configure_sub_slicing=(
+              FeatureFlags.SUB_SLICING_ENABLED and args.sub_slicing
+          ),
       ),
   )
 

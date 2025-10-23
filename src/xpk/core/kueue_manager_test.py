@@ -76,9 +76,7 @@ class KueueManagerTest(unittest.TestCase):
       mock_install.assert_called_once()
       mock_configure.assert_called_once()
 
-  @patch(
-      "xpk.core.kueue_manager.KueueManager._KueueManager__get_installed_kueue_version"
-  )
+  @patch("xpk.core.kueue_manager.KueueManager.get_installed_kueue_version")
   @patch("xpk.core.kueue_manager.KueueManager._KueueManager__install")
   @patch("xpk.core.kueue_manager.KueueManager._KueueManager__configure")
   def test_install_or_upgrade_when_newer_version_already_installed(
@@ -95,9 +93,7 @@ class KueueManagerTest(unittest.TestCase):
     mock_install.assert_not_called()
     mock_configure.assert_not_called()
 
-  @patch(
-      "xpk.core.kueue_manager.KueueManager._KueueManager__get_installed_kueue_version"
-  )
+  @patch("xpk.core.kueue_manager.KueueManager.get_installed_kueue_version")
   def test_install_or_upgrade_when_outdated(
       self,
       mock_get_version,
@@ -121,9 +117,7 @@ class KueueManagerTest(unittest.TestCase):
     mock_install.assert_called_once()
     mock_configure.assert_called_once()
 
-  @patch(
-      "xpk.core.kueue_manager.KueueManager._KueueManager__get_installed_kueue_version"
-  )
+  @patch("xpk.core.kueue_manager.KueueManager.get_installed_kueue_version")
   def test_install_or_upgrade_when_not_installed(
       self,
       mock_get_version,
@@ -155,7 +149,7 @@ class KueueManagerTest(unittest.TestCase):
             return_value=0,
         ) as mock_run_retry,
         patch(
-            "xpk.core.kueue_manager.KueueManager._KueueManager__get_installed_kueue_version",
+            "xpk.core.kueue_manager.KueueManager.get_installed_kueue_version",
             return_value=(1, None),
         ),
         patch(
@@ -199,7 +193,7 @@ class KueueManagerTest(unittest.TestCase):
             return_value=0,
         ) as mock_run_retry,
         patch(
-            "xpk.core.kueue_manager.KueueManager._KueueManager__get_installed_kueue_version",
+            "xpk.core.kueue_manager.KueueManager.get_installed_kueue_version",
             return_value=(1, None),
         ),
         patch(
@@ -224,9 +218,7 @@ class KueueManagerTest(unittest.TestCase):
       self.assertEqual(result, 0)
       self.assertEqual(mock_run_retry.call_count, 0)
 
-  @patch(
-      "xpk.core.kueue_manager.KueueManager._KueueManager__get_installed_kueue_version"
-  )
+  @patch("xpk.core.kueue_manager.KueueManager.get_installed_kueue_version")
   @patch("xpk.core.kueue_manager.KueueManager._KueueManager__apply_manifest")
   def test_configuration_updates_resources(
       self, mock_apply_manifest, mock_get_version
@@ -240,6 +232,7 @@ class KueueManagerTest(unittest.TestCase):
         total_chips=8,
         cpu_limit=100,
         memory_limit="100Gi",
+        configure_sub_slicing=False,
     )
 
     with (
@@ -265,6 +258,7 @@ class KueueManagerTest(unittest.TestCase):
         total_chips=8,
         cpu_limit=100,
         memory_limit="100Gi",
+        configure_sub_slicing=False,
     )
 
     with (
@@ -274,7 +268,7 @@ class KueueManagerTest(unittest.TestCase):
         ),
         patch.object(
             self.kueue_manager,
-            "_KueueManager__get_installed_kueue_version",
+            "get_installed_kueue_version",
             return_value=(1, None),
         ),
         patch.object(
@@ -307,6 +301,7 @@ class KueueManagerTest(unittest.TestCase):
         total_chips=8,
         cpu_limit=100,
         memory_limit="100Gi",
+        configure_sub_slicing=False,
     )
 
     with (
@@ -316,7 +311,7 @@ class KueueManagerTest(unittest.TestCase):
         ),
         patch.object(
             self.kueue_manager,
-            "_KueueManager__get_installed_kueue_version",
+            "get_installed_kueue_version",
             return_value=(1, None),
         ),
         patch.object(
@@ -344,7 +339,7 @@ class KueueManagerTest(unittest.TestCase):
   @patch(
       "xpk.core.kueue_manager.KueueManager._KueueManager__update_kueue_resources_if_necessary"
   )
-  def test_configure_generates_correct_manifest(
+  def test_configure_generates_correct_manifest_for_tpu(
       self, mock_update_resources, mock_install
   ):
     """Test that __configure generates the correct manifest content for TPUs."""
@@ -357,6 +352,7 @@ class KueueManagerTest(unittest.TestCase):
         memory_limit="100Gi",
         autoprovisioning_enabled=False,
         num_slices=2,
+        configure_sub_slicing=False,
     )
 
     rendered_manifest = self._trigger_installation(kueue_config)
@@ -413,6 +409,7 @@ class KueueManagerTest(unittest.TestCase):
         autoprovisioning_enabled=False,
         num_slices=1,
         flex=True,
+        configure_sub_slicing=False,
     )
 
     rendered_manifest = self._trigger_installation(kueue_config)
@@ -432,7 +429,7 @@ class KueueManagerTest(unittest.TestCase):
   @patch(
       "xpk.core.kueue_manager.KueueManager._KueueManager__update_kueue_resources_if_necessary"
   )
-  def test_configure_generates_correct_manifest_with_topology(
+  def test_configure_generates_correct_manifest_with_gke_default_topology(
       self, mock_update_resources, mock_install
   ):
     """Test that __configure generates correct manifest for GPUs."""
@@ -444,11 +441,11 @@ class KueueManagerTest(unittest.TestCase):
         cpu_limit=100,
         memory_limit="100Gi",
         num_slices=2,
+        configure_sub_slicing=False,
     )
 
     rendered_manifest = self._trigger_installation(kueue_config)
 
-    self.assertIn("kind: Topology", rendered_manifest)
     manifest_docs = list(yaml.safe_load_all(rendered_manifest))
     resource_flavor = _first(
         doc for doc in manifest_docs if doc["kind"] == "ResourceFlavor"
@@ -459,6 +456,40 @@ class KueueManagerTest(unittest.TestCase):
         ],
         "h100-mega-80gb-8",
     )
+    self.assertEqual(resource_flavor["spec"]["topologyName"], "gke-default")
+    topology = _first(doc for doc in manifest_docs if doc["kind"] == "Topology")
+    self.assertEqual(topology["metadata"]["name"], "gke-default")
+
+  @patch("xpk.core.kueue_manager.KueueManager._KueueManager__install")
+  @patch(
+      "xpk.core.kueue_manager.KueueManager._KueueManager__update_kueue_resources_if_necessary"
+  )
+  def test_configure_generates_correct_manifest_with_sub_slicing(
+      self, mock_update_resources, mock_install
+  ):
+    """Test that __configure generates correct manifest with sub-slicing topology."""
+    mock_install.return_value = 0
+    mock_update_resources.return_value = 0
+    kueue_config = KueueConfig(
+        system=self.mock_system_chars,
+        total_chips=16,
+        cpu_limit=100,
+        memory_limit="100Gi",
+        num_slices=2,
+        configure_sub_slicing=True,
+    )
+
+    rendered_manifest = self._trigger_installation(kueue_config)
+
+    manifest_docs = list(yaml.safe_load_all(rendered_manifest))
+    resource_flavor = _first(
+        doc for doc in manifest_docs if doc["kind"] == "ResourceFlavor"
+    )
+    self.assertEqual(
+        resource_flavor["spec"]["topologyName"], "sub-slice-topology"
+    )
+    topology = _first(doc for doc in manifest_docs if doc["kind"] == "Topology")
+    self.assertEqual(topology["metadata"]["name"], "sub-slice-topology")
 
   @patch("xpk.core.kueue_manager.KueueManager._KueueManager__install")
   @patch(
@@ -477,6 +508,7 @@ class KueueManagerTest(unittest.TestCase):
         memory_limit="100Gi",
         is_pathways_cluster=True,
         num_slices=2,
+        configure_sub_slicing=False,
     )
 
     rendered_manifest = self._trigger_installation(kueue_config)
@@ -513,7 +545,7 @@ class KueueManagerTest(unittest.TestCase):
     """Calls Kueue installation and returns the rendered manifest."""
     with (
         patch.object(
-            self.kueue_manager, "_KueueManager__get_installed_kueue_version"
+            self.kueue_manager, "get_installed_kueue_version"
         ) as mock_get_version,
         patch.object(
             self.kueue_manager, "_KueueManager__apply_manifest"

@@ -67,3 +67,9 @@ def is_TAS_possible(
       system_characteristics.device_type != H100_MEGA_DEVICE_TYPE
       or capacity_type == CapacityType.RESERVATION
   )
+
+
+def validate_sub_slicing_system(system: SystemCharacteristics):
+  if not system.supports_sub_slicing:
+    xpk_print(f'Error: {system.device_type} does not support Sub-slicing.')
+    xpk_exit(1)

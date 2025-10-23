@@ -746,8 +746,6 @@ var _ = ginkgo.Describe("JobSet", func() {
 			ginkgo.By("Check that the Workload is evicted", func() {
 				gomega.Eventually(func(g gomega.Gomega) {
 					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
-					ginkgo.GinkgoWriter.Printf("Workload conditions: %+v\n", createdWorkload.Status.Conditions)
-					ginkgo.GinkgoWriter.Printf("Workload admission check status: %+v\n", createdWorkload.Status.AdmissionChecks)
 					g.Expect(workload.IsAdmitted(createdWorkload)).Should(gomega.BeFalse())
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})

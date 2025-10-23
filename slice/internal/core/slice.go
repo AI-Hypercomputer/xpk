@@ -46,3 +46,7 @@ func SliceName(workloadName string, podSetName kueue.PodSetReference) string {
 func Deformed(slice *v1alpha1.Slice) bool {
 	return meta.IsStatusConditionTrue(slice.Status.Conditions, string(v1alpha1.Deformed))
 }
+
+func Error(slice *v1alpha1.Slice) bool {
+	return meta.IsStatusConditionTrue(slice.Status.Conditions, string(v1alpha1.Error))
+}

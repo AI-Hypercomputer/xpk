@@ -161,7 +161,7 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, err
 	}
 
-	deleted, _, _ := r.groupSlices(slices)
+	deleted, _, errored, _ := r.groupSlices(slices)
 	if len(deleted) > 0 {
 		log.V(3).Info(
 			"Waiting for deleted Slices to be cleaned up; skipping reconciliation for now",
@@ -176,7 +176,19 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	err = r.syncAdmissionCheckStatus(ctx, wl, ac, slices)
-	return ctrl.Result{}, client.IgnoreNotFound(err)
+	if err != nil {
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	if len(errored) > 0 {
+		log.V(3).Info(
+			"Deleting errored Slices",
+			"erroredSlices", klog.KObjSlice(errored),
+		)
+		err = r.deleteSlices(ctx, errored)
+		return ctrl.Result{}, err
+	}
+	return ctrl.Result{}, nil
 }
 
 func shouldFinalize(wl *kueue.Workload) (bool, string) {
@@ -241,7 +253,7 @@ func (r *WorkloadReconciler) cleanupSlices(ctx context.Context, wl *kueue.Worklo
 		return false, err
 	}
 
-	deleted, deformed, other := r.groupSlices(slices)
+	deleted, deformed, errored, other := r.groupSlices(slices)
 
 	if len(deleted) == len(slices) {
 		log.V(3).Info("All slices already deleted; finishing cleanup")
@@ -257,15 +269,15 @@ func (r *WorkloadReconciler) cleanupSlices(ctx context.Context, wl *kueue.Worklo
 		}
 	}
 
-	if len(other) > 0 {
+	if len(other)+len(errored) > 0 {
 		terminated, err := r.ownerPodsFinished(ctx, wl)
 		if err != nil || !terminated {
 			return false, err
 		}
 	}
-
-	log.V(3).Info("Deleting Slices", "slices", klog.KObjSlice(other))
-	err = r.deleteSlices(ctx, other)
+	toDelete := append(errored, other...)
+	log.V(3).Info("Deleting Slices", "slices", klog.KObjSlice(toDelete))
+	err = r.deleteSlices(ctx, toDelete)
 	if err != nil {
 		return false, err
 	}
@@ -297,19 +309,21 @@ func (r *WorkloadReconciler) findWorkloadSlices(ctx context.Context, wl *kueue.W
 //   - A slice containing deleted Slice objects (with non-zero DeletionTimestamp).
 //   - A slice containing deformed Slice objects (being torn down).
 //   - A slice containing other Slice objects (active/valid slices).
-func (r *WorkloadReconciler) groupSlices(slices []v1alpha1.Slice) ([]v1alpha1.Slice, []v1alpha1.Slice, []v1alpha1.Slice) {
-	var deleted, deformed, other []v1alpha1.Slice
+func (r *WorkloadReconciler) groupSlices(slices []v1alpha1.Slice) ([]v1alpha1.Slice, []v1alpha1.Slice, []v1alpha1.Slice, []v1alpha1.Slice) {
+	var deleted, deformed, errored, other []v1alpha1.Slice
 	for _, slice := range slices {
 		switch {
 		case !slice.DeletionTimestamp.IsZero():
 			deleted = append(deleted, slice)
 		case core.Deformed(&slice):
 			deformed = append(deformed, slice)
+		case core.Error(&slice):
+			errored = append(errored, slice)
 		default:
 			other = append(other, slice)
 		}
 	}
-	return deleted, deformed, other
+	return deleted, deformed, errored, other
 }
 
 func (r *WorkloadReconciler) deleteSlices(ctx context.Context, slices []v1alpha1.Slice) error {
@@ -616,8 +630,10 @@ func prepareAdmissionCheckStatus(ac *kueue.AdmissionCheckState, slices []v1alpha
 	slicesByState, noState := groupSlicesByState(slices)
 
 	switch {
-	case len(slicesByState[v1alpha1.Error]) > 0 || len(slicesByState[v1alpha1.Deformed]) > 0:
+	case len(slicesByState[v1alpha1.Deformed]) > 0:
 		ac.State = kueue.CheckStateRejected
+	case len(slicesByState[v1alpha1.Error]) > 0:
+		ac.State = kueue.CheckStateRetry
 	case len(slices) == len(slicesByState[v1alpha1.Degraded])+len(slicesByState[v1alpha1.Ready]):
 		ac.State = kueue.CheckStateReady
 	}

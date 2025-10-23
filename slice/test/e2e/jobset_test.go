@@ -569,6 +569,225 @@ var _ = ginkgo.Describe("JobSet", func() {
 			})
 		})
 
+		ginkgo.It("should recover after slice is in Error state", func() {
+			jobSet := testingjobsjobset.MakeJobSet("jobset", ns.Name).
+				Queue(lq.Name).
+				ReplicatedJobs(
+					testingjobsjobset.ReplicatedJobRequirements{
+						Name:        "rj1",
+						Image:       utils.E2eTestAgnHostImage,
+						Args:        utils.BehaviorWaitForDeletion,
+						Replicas:    1,
+						Parallelism: 1,
+						Completions: 1,
+						PodAnnotations: map[string]string{
+							"cloud.google.com/gke-tpu-topology": "4x4x4",
+						},
+						NodeSelector: map[string]string{
+							"cloud.google.com/gke-tpu-accelerator": "tpu-v7x",
+						},
+					},
+				).
+				RequestAndLimit("rj1", extraResource, "1").
+				Obj()
+
+			ginkgo.By("Creating a JobSet", func() {
+				utils.MustCreate(ctx, k8sClient, jobSet)
+			})
+
+			createdWorkload := &kueue.Workload{}
+			wlKey := types.NamespacedName{
+				Name:      jobsetcontroller.GetWorkloadNameForJobSet(jobSet.Name, jobSet.UID),
+				Namespace: ns.Name,
+			}
+
+			ginkgo.By("Waiting for Admission of the Workload", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
+					g.Expect(createdWorkload.Status.Admission).ShouldNot(gomega.BeNil())
+				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+			})
+
+			createdSlice := &slice.Slice{}
+			sliceKey := core.SliceKeyFromWorkload(createdWorkload, "rj1")
+
+			ginkgo.By("Checking that Slice is created", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
+				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Adding Error condition", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
+					meta.SetStatusCondition(&createdSlice.Status.Conditions, metav1.Condition{
+						Type:    string(slice.Error),
+						Status:  metav1.ConditionTrue,
+						Reason:  "TestError",
+						Message: "Slice has an error",
+					})
+					g.Expect(k8sClient.Status().Update(ctx, createdSlice)).To(gomega.Succeed())
+				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Printing createdWorkload conditions for debugging", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
+					ginkgo.GinkgoWriter.Printf("Workload conditions: %+v\n", createdWorkload.Status.Conditions)
+					g.Expect(createdWorkload.Status.Conditions).NotTo(gomega.BeEmpty())
+				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+			})
+
+			var oldSliceUID types.UID
+			ginkgo.By("Getting the old slice UID", func() {
+				gomega.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
+				oldSliceUID = createdSlice.GetUID()
+			})
+
+			ginkgo.By("Check that the errored slice is deleted", func() {
+				utils.ExpectObjectToBeDeleted(ctx, k8sClient, createdSlice, false)
+			})
+
+			ginkgo.By("Checking that a new Slice is created", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
+					g.Expect(createdSlice.GetUID()).ShouldNot(gomega.Equal(oldSliceUID))
+				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Adding Ready condition to the new slice", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
+					meta.SetStatusCondition(&createdSlice.Status.Conditions, metav1.Condition{
+						Type:    string(slice.Ready),
+						Status:  metav1.ConditionTrue,
+						Reason:  "TestReady",
+						Message: "Slice is ready",
+					})
+					g.Expect(k8sClient.Status().Update(ctx, createdSlice)).To(gomega.Succeed())
+				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Checking that the Workload is admitted", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
+					g.Expect(workload.IsAdmitted(createdWorkload)).Should(gomega.BeTrue())
+				}, utils.LongTimeout, utils.Timeout).Should(gomega.Succeed())
+			})
+		})
+
+		ginkgo.It("should recover after a Ready slice changes to Error state", func() {
+			jobSet := testingjobsjobset.MakeJobSet("jobset", ns.Name).
+				Queue(lq.Name).
+				ReplicatedJobs(
+					testingjobsjobset.ReplicatedJobRequirements{
+						Name:        "rj1",
+						Image:       utils.E2eTestAgnHostImage,
+						Args:        utils.BehaviorWaitForDeletion,
+						Replicas:    1,
+						Parallelism: 1,
+						Completions: 1,
+						PodAnnotations: map[string]string{
+							"cloud.google.com/gke-tpu-topology": "4x4x4",
+						},
+						NodeSelector: map[string]string{
+							"cloud.google.com/gke-tpu-accelerator": "tpu-v7x",
+						},
+					},
+				).
+				RequestAndLimit("rj1", extraResource, "1").
+				Obj()
+
+			ginkgo.By("Creating a JobSet", func() {
+				utils.MustCreate(ctx, k8sClient, jobSet)
+			})
+
+			createdWorkload := &kueue.Workload{}
+			wlKey := types.NamespacedName{
+				Name:      jobsetcontroller.GetWorkloadNameForJobSet(jobSet.Name, jobSet.UID),
+				Namespace: ns.Name,
+			}
+
+			ginkgo.By("Waiting for Admission of the Workload", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
+					g.Expect(createdWorkload.Status.Admission).ShouldNot(gomega.BeNil())
+				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+			})
+
+			createdSlice := &slice.Slice{}
+			sliceKey := core.SliceKeyFromWorkload(createdWorkload, "rj1")
+
+			ginkgo.By("Checking that Slice is created and making it Ready", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
+					meta.SetStatusCondition(&createdSlice.Status.Conditions, metav1.Condition{Type: string(slice.Ready), Status: metav1.ConditionTrue, Reason: "TestReady"})
+					g.Expect(k8sClient.Status().Update(ctx, createdSlice)).To(gomega.Succeed())
+				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Checking that the Workload is admitted", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
+					g.Expect(workload.IsAdmitted(createdWorkload)).Should(gomega.BeTrue())
+				}, utils.LongTimeout, utils.Timeout).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Changing slice condition to Error", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
+					meta.SetStatusCondition(&createdSlice.Status.Conditions, metav1.Condition{Type: string(slice.Error), Status: metav1.ConditionTrue, Reason: "TestError", Message: "Slice has an error"})
+					g.Expect(k8sClient.Status().Update(ctx, createdSlice)).To(gomega.Succeed())
+				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+			})
+
+			var oldSliceUID types.UID
+			ginkgo.By("Getting the old slice UID", func() {
+				gomega.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
+				oldSliceUID = createdSlice.GetUID()
+			})
+
+			ginkgo.By("Checking that the old slice is deleted", func() {
+				utils.ExpectObjectToBeDeleted(ctx, k8sClient, createdSlice, false)
+			})
+
+			ginkgo.By("Check that the Workload is evicted", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
+					ginkgo.GinkgoWriter.Printf("Workload conditions: %+v\n", createdWorkload.Status.Conditions)
+					ginkgo.GinkgoWriter.Printf("Workload admission check status: %+v\n", createdWorkload.Status.AdmissionChecks)
+					g.Expect(workload.IsAdmitted(createdWorkload)).Should(gomega.BeFalse())
+				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Checking that a new Slice is created", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
+					g.Expect(createdSlice.GetUID()).ShouldNot(gomega.Equal(oldSliceUID))
+				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Adding Ready condition to the new slice", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
+					meta.SetStatusCondition(&createdSlice.Status.Conditions, metav1.Condition{
+						Type:    string(slice.Ready),
+						Status:  metav1.ConditionTrue,
+						Reason:  "TestReady",
+						Message: "Slice is ready",
+					})
+					g.Expect(k8sClient.Status().Update(ctx, createdSlice)).To(gomega.Succeed())
+				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Checking that the Workload is admitted", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
+					g.Expect(workload.IsAdmitted(createdWorkload)).Should(gomega.BeTrue())
+				}, utils.LongTimeout, utils.Timeout).Should(gomega.Succeed())
+			})
+		})
+
 		ginkgo.It("should create multiple Slices", func() {
 			jobSet := testingjobsjobset.MakeJobSet("jobset", ns.Name).
 				Queue(lq.Name).

@@ -319,7 +319,7 @@ func (r *WorkloadReconciler) groupSlices(slices []v1alpha1.Slice) ([]v1alpha1.Sl
 			deleted = append(deleted, slice)
 		case core.Deformed(&slice):
 			deformed = append(deformed, slice)
-		case core.Error(&slice):
+		case core.IsError(&slice):
 			errored = append(errored, slice)
 		default:
 			other = append(other, slice)

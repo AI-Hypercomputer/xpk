@@ -18,7 +18,7 @@ import os
 
 import ruamel.yaml
 
-TEMPLATE_PATH = "src/xpk/templates/"
+TEMPLATE_PATH = "templates"
 
 yaml = ruamel.yaml.YAML()
 

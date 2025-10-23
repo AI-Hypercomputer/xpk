@@ -77,7 +77,7 @@ from ..utils.execution_context import is_dry_run
 from ..utils.validation import validate_dependencies_list, SystemDependency, should_validate_dependencies
 from . import cluster_gcluster
 from .common import set_cluster_command
-from jinja2 import Environment, FileSystemLoader
+from jinja2 import Environment, PackageLoader
 from ..utils.templates import TEMPLATE_PATH
 import shutil
 import os
@@ -427,7 +427,7 @@ def cluster_cacheimage(args) -> None:
       system.accelerator_type
   ].accelerator_label
 
-  template_env = Environment(loader=FileSystemLoader(TEMPLATE_PATH))
+  template_env = Environment(loader=PackageLoader('xpk', TEMPLATE_PATH))
   cluster_preheat_yaml = template_env.get_template(CLUSTER_PREHEAT_JINJA_FILE)
   rendered_yaml = cluster_preheat_yaml.render(
       cachekey=args.cache_key,

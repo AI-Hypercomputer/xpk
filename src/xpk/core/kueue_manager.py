@@ -19,7 +19,7 @@ import textwrap
 from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
 import json
-from jinja2 import Environment, FileSystemLoader
+from jinja2 import Environment, PackageLoader
 from ..utils.execution_context import is_dry_run
 from ..utils.kueue import is_queued_cluster
 
@@ -82,7 +82,7 @@ class KueueManager:
       template_path=TEMPLATE_PATH,
   ):
     self.kueue_version = kueue_version
-    self.template_env = Environment(loader=FileSystemLoader(template_path))
+    self.template_env = Environment(loader=PackageLoader("xpk", template_path))
 
   def install_or_upgrade(
       self,

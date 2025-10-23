@@ -19,7 +19,7 @@ import textwrap
 from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
 import json
-from jinja2 import Environment, PackageLoader
+from jinja2 import Environment, FileSystemLoader
 from ..utils.execution_context import is_dry_run
 from ..utils.kueue import is_queued_cluster
 
@@ -39,7 +39,7 @@ from ..core.commands import (
 )
 from ..utils.file import write_tmp_file
 from ..utils.console import xpk_print, xpk_exit
-from ..utils.templates import TEMPLATE_PATH
+from ..utils.templates import TEMPLATE_PATH, get_templates_absolute_path
 
 WAIT_FOR_KUEUE_TIMEOUT = "10m"
 CLUSTER_QUEUE_NAME = "cluster-queue"
@@ -82,7 +82,12 @@ class KueueManager:
       template_path=TEMPLATE_PATH,
   ):
     self.kueue_version = kueue_version
-    self.template_env = Environment(loader=PackageLoader("xpk", template_path))
+
+    self.template_env = Environment(
+        loader=FileSystemLoader(
+            searchpath=get_templates_absolute_path(template_path)
+        )
+    )
 
   def install_or_upgrade(
       self,

@@ -28,3 +28,15 @@ def load(path: str) -> dict:
   with open(template_path, "r", encoding="utf-8") as file:
     data: dict = yaml.load(file)
   return data
+
+
+def get_templates_absolute_path(templates_path: str = TEMPLATE_PATH) -> str:
+  """
+  Return the absolute path to the templates folder
+
+  templates_path: The path to the templates folder relative to the src/xpk directory
+  """
+  current_file_path = os.path.abspath(__file__)
+  current_dir = os.path.dirname(current_file_path)
+  xpk_package_dir = os.path.dirname(current_dir)
+  return os.path.join(xpk_package_dir, templates_path)

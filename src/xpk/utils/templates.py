@@ -34,7 +34,8 @@ def get_templates_absolute_path(templates_path: str = TEMPLATE_PATH) -> str:
   """
   Return the absolute path to the templates folder
 
-  templates_path: The path to the templates folder relative to the src/xpk directory
+  Args:
+    templates_path: The path to the templates folder relative to the src/xpk directory
   """
   current_file_path = os.path.abspath(__file__)
   current_dir = os.path.dirname(current_file_path)

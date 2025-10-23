@@ -99,7 +99,7 @@ from ..utils.file import write_tmp_file
 from ..utils.execution_context import is_dry_run
 from ..utils.validation import validate_dependencies_list, SystemDependency, should_validate_dependencies
 from . import cluster_gcluster
-from .common import is_TAS_possible
+from .common import is_TAS_possible, validate_sub_slicing_system
 from ..utils.topology import is_topology_contained
 from ..utils.feature_flags import FeatureFlags
 
@@ -334,9 +334,7 @@ def workload_create(args) -> None:
     )
     xpk_exit(1)
 
-  xpk_print('Starting workload create', flush=True)
   system, return_code = get_system_characteristics(args)
-
   if return_code > 0 or system is None:
     xpk_print('Fetching system characteristics failed!')
     xpk_exit(return_code)
@@ -699,6 +697,8 @@ def _validate_sub_slicing_topology(
         f' {system_characteristics.topology}.'
     )
     xpk_exit(1)
+
+  validate_sub_slicing_system(system_characteristics)
 
 
 def get_restart_exit_codes(args) -> list:

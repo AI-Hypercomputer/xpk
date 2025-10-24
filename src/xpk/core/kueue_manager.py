@@ -112,9 +112,9 @@ class KueueManager:
         )
         return 0
       else:
-        xpk_print(f"Upgrading Kueue to version {self.kueue_version}...")
+        xpk_print(f"Upgrading Kueue to version v{self.kueue_version}...")
     else:
-      xpk_print(f"Installing Kueue version {self.kueue_version}...")
+      xpk_print(f"Installing Kueue version v{self.kueue_version}...")
 
     install_return_code = self.__install(tolerations)
     if install_return_code != 0:
@@ -162,7 +162,7 @@ class KueueManager:
     return self.__wait_for_kueue_available()
 
   def __install_kueue_crs(self) -> int:
-    manifest_url = f"https://github.com/kubernetes-sigs/kueue/releases/download/{self.kueue_version}/manifests.yaml"
+    manifest_url = f"https://github.com/kubernetes-sigs/kueue/releases/download/v{self.kueue_version}/manifests.yaml"
     install_command = (
         f"kubectl apply --server-side --force-conflicts -f {manifest_url}"
     )

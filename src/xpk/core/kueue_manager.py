@@ -40,6 +40,7 @@ from ..core.commands import (
 from ..utils.file import write_tmp_file
 from ..utils.console import xpk_print, xpk_exit
 from ..utils.templates import TEMPLATE_PATH, get_templates_absolute_path
+from packaging.version import Version
 
 WAIT_FOR_KUEUE_TIMEOUT = "10m"
 CLUSTER_QUEUE_NAME = "cluster-queue"
@@ -104,7 +105,9 @@ class KueueManager:
     return_code, installed_version = self.get_installed_kueue_version()
 
     if return_code == 0:
-      if installed_version and installed_version > self.kueue_version:
+      if installed_version and Version(installed_version) > Version(
+          self.kueue_version
+      ):
         xpk_print(
             f"Cluster has a newer Kueue version, {installed_version}. Skipping"
             " installation."

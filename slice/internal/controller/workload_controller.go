@@ -301,7 +301,7 @@ func (r *WorkloadReconciler) findWorkloadSlices(ctx context.Context, wl *kueue.W
 
 // groupSlices categorizes a list of Slice objects into four groups based on their state.
 // It separates slices into deleted (marked for deletion), deformed (being torn down),
-// errored and other (active) slices.
+// errored (has encountered an error) and other (active) slices.
 //
 // Parameters:
 //

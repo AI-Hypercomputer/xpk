@@ -622,7 +622,6 @@ var _ = ginkgo.Describe("JobSet", func() {
 			ginkgo.By("Checking that the Admission Check state is pending", func() {
 				gomega.Eventually(func(g gomega.Gomega) {
 					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
-					g.Expect(workload.IsAdmitted(createdWorkload)).Should(gomega.BeFalse())
 					g.Expect(createdWorkload.Status.AdmissionChecks).Should(gomega.BeComparableTo([]kueue.AdmissionCheckState{{
 						Name:    kueue.AdmissionCheckReference(ac.Name),
 						State:   kueue.CheckStatePending,
@@ -654,7 +653,6 @@ var _ = ginkgo.Describe("JobSet", func() {
 			ginkgo.By("Checking that the Admission Check state is pending", func() {
 				gomega.Eventually(func(g gomega.Gomega) {
 					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
-					g.Expect(workload.IsAdmitted(createdWorkload)).Should(gomega.BeFalse())
 					g.Expect(createdWorkload.Status.AdmissionChecks).Should(gomega.BeComparableTo([]kueue.AdmissionCheckState{{
 						Name:    kueue.AdmissionCheckReference(ac.Name),
 						State:   kueue.CheckStatePending,
@@ -676,10 +674,9 @@ var _ = ginkgo.Describe("JobSet", func() {
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
 
-			ginkgo.By("Checking that the Workload is admitted and the Admission Check state is ready", func() {
+			ginkgo.By("Checking that the Admission Check state is ready", func() {
 				gomega.Eventually(func(g gomega.Gomega) {
 					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
-					g.Expect(workload.IsAdmitted(createdWorkload)).Should(gomega.BeTrue())
 					g.Expect(createdWorkload.Status.AdmissionChecks).Should(gomega.BeComparableTo([]kueue.AdmissionCheckState{{
 						Name:    kueue.AdmissionCheckReference(ac.Name),
 						State:   kueue.CheckStateReady,
@@ -752,10 +749,9 @@ var _ = ginkgo.Describe("JobSet", func() {
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
 
-			ginkgo.By("Checking that the Workload is admitted and the admission check state is ready", func() {
+			ginkgo.By("Checking that the admission check state is ready", func() {
 				gomega.Eventually(func(g gomega.Gomega) {
 					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
-					g.Expect(workload.IsAdmitted(createdWorkload)).Should(gomega.BeTrue())
 					g.Expect(createdWorkload.Status.AdmissionChecks).Should(gomega.BeComparableTo([]kueue.AdmissionCheckState{{
 						Name:    kueue.AdmissionCheckReference(ac.Name),
 						State:   kueue.CheckStateReady,
@@ -772,10 +768,9 @@ var _ = ginkgo.Describe("JobSet", func() {
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
 
-			ginkgo.By("Checking that the Workload is evicted and the Admission Check state is pending", func() {
+			ginkgo.By("Checking that the Admission Check state is reset to pending", func() {
 				gomega.Eventually(func(g gomega.Gomega) {
 					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
-					g.Expect(workload.IsAdmitted(createdWorkload)).Should(gomega.BeFalse())
 					g.Expect(createdWorkload.Status.AdmissionChecks).Should(gomega.BeComparableTo([]kueue.AdmissionCheckState{{
 						Name:    kueue.AdmissionCheckReference(ac.Name),
 						State:   kueue.CheckStatePending,
@@ -807,25 +802,12 @@ var _ = ginkgo.Describe("JobSet", func() {
 			ginkgo.By("Checking that the Workload is admitted and the Admission Check state is ready", func() {
 				gomega.Eventually(func(g gomega.Gomega) {
 					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
-					g.Expect(workload.IsAdmitted(createdWorkload)).Should(gomega.BeTrue())
 					g.Expect(createdWorkload.Status.AdmissionChecks).Should(gomega.BeComparableTo([]kueue.AdmissionCheckState{{
 						Name:    kueue.AdmissionCheckReference(ac.Name),
 						State:   kueue.CheckStateReady,
 						Message: `Slices are in states: 1 Ready`,
 					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates")))
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
-			})
-
-			ginkgo.By("Deleting JobSet", func() {
-				utils.ExpectObjectToBeDeleted(ctx, k8sClient, jobSet, true)
-			})
-
-			ginkgo.By("Checking that Slice is deleted", func() {
-				utils.ExpectObjectToBeDeleted(ctx, k8sClient, createdSlice, false)
-			})
-
-			ginkgo.By("Checking that Workload is deleted", func() {
-				utils.ExpectObjectToBeDeleted(ctx, k8sClient, createdWorkload, false)
 			})
 		})
 

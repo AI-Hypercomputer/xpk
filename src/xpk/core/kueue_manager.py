@@ -133,8 +133,7 @@ class KueueManager:
     return_code, val = run_command_for_value(
         command,
         task,
-        dry_run_return_val="""
-        v0.12.1""",
+        dry_run_return_val="",
     )
     if return_code != 0:
       return return_code, None

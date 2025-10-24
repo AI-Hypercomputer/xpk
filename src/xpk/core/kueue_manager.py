@@ -39,7 +39,7 @@ from ..core.commands import (
 )
 from ..utils.file import write_tmp_file
 from ..utils.console import xpk_print, xpk_exit
-from ..utils.templates import TEMPLATE_PATH
+from ..utils.templates import TEMPLATE_PATH, get_templates_absolute_path
 
 WAIT_FOR_KUEUE_TIMEOUT = "10m"
 CLUSTER_QUEUE_NAME = "cluster-queue"
@@ -82,7 +82,12 @@ class KueueManager:
       template_path=TEMPLATE_PATH,
   ):
     self.kueue_version = kueue_version
-    self.template_env = Environment(loader=FileSystemLoader(template_path))
+
+    self.template_env = Environment(
+        loader=FileSystemLoader(
+            searchpath=get_templates_absolute_path(template_path)
+        )
+    )
 
   def install_or_upgrade(
       self,
@@ -96,7 +101,7 @@ class KueueManager:
     Args:
         tolerations: An optional list of tolerations to apply to the kueue-controller-manager.
     """
-    return_code, installed_version = self.__get_installed_kueue_version()
+    return_code, installed_version = self.get_installed_kueue_version()
 
     if return_code == 0:
       if installed_version and installed_version > self.kueue_version:
@@ -116,7 +121,7 @@ class KueueManager:
 
     return self.__configure(kueue_config)
 
-  def __get_installed_kueue_version(self) -> tuple[int, str | None]:
+  def get_installed_kueue_version(self) -> tuple[int, str | None]:
     command = (
         "kubectl get deployment kueue-controller-manager -n kueue-system -o"
         " jsonpath='{.spec.template.spec.containers[0].image}'"

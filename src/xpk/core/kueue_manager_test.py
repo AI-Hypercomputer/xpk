@@ -76,9 +76,7 @@ class KueueManagerTest(unittest.TestCase):
       mock_install.assert_called_once()
       mock_configure.assert_called_once()
 
-  @patch(
-      "xpk.core.kueue_manager.KueueManager._KueueManager__get_installed_kueue_version"
-  )
+  @patch("xpk.core.kueue_manager.KueueManager.get_installed_kueue_version")
   @patch("xpk.core.kueue_manager.KueueManager._KueueManager__install")
   @patch("xpk.core.kueue_manager.KueueManager._KueueManager__configure")
   def test_install_or_upgrade_when_newer_version_already_installed(
@@ -95,9 +93,7 @@ class KueueManagerTest(unittest.TestCase):
     mock_install.assert_not_called()
     mock_configure.assert_not_called()
 
-  @patch(
-      "xpk.core.kueue_manager.KueueManager._KueueManager__get_installed_kueue_version"
-  )
+  @patch("xpk.core.kueue_manager.KueueManager.get_installed_kueue_version")
   def test_install_or_upgrade_when_outdated(
       self,
       mock_get_version,
@@ -121,9 +117,7 @@ class KueueManagerTest(unittest.TestCase):
     mock_install.assert_called_once()
     mock_configure.assert_called_once()
 
-  @patch(
-      "xpk.core.kueue_manager.KueueManager._KueueManager__get_installed_kueue_version"
-  )
+  @patch("xpk.core.kueue_manager.KueueManager.get_installed_kueue_version")
   def test_install_or_upgrade_when_not_installed(
       self,
       mock_get_version,
@@ -155,7 +149,7 @@ class KueueManagerTest(unittest.TestCase):
             return_value=0,
         ) as mock_run_retry,
         patch(
-            "xpk.core.kueue_manager.KueueManager._KueueManager__get_installed_kueue_version",
+            "xpk.core.kueue_manager.KueueManager.get_installed_kueue_version",
             return_value=(1, None),
         ),
         patch(
@@ -199,7 +193,7 @@ class KueueManagerTest(unittest.TestCase):
             return_value=0,
         ) as mock_run_retry,
         patch(
-            "xpk.core.kueue_manager.KueueManager._KueueManager__get_installed_kueue_version",
+            "xpk.core.kueue_manager.KueueManager.get_installed_kueue_version",
             return_value=(1, None),
         ),
         patch(
@@ -224,9 +218,7 @@ class KueueManagerTest(unittest.TestCase):
       self.assertEqual(result, 0)
       self.assertEqual(mock_run_retry.call_count, 0)
 
-  @patch(
-      "xpk.core.kueue_manager.KueueManager._KueueManager__get_installed_kueue_version"
-  )
+  @patch("xpk.core.kueue_manager.KueueManager.get_installed_kueue_version")
   @patch("xpk.core.kueue_manager.KueueManager._KueueManager__apply_manifest")
   def test_configuration_updates_resources(
       self, mock_apply_manifest, mock_get_version
@@ -276,7 +268,7 @@ class KueueManagerTest(unittest.TestCase):
         ),
         patch.object(
             self.kueue_manager,
-            "_KueueManager__get_installed_kueue_version",
+            "get_installed_kueue_version",
             return_value=(1, None),
         ),
         patch.object(
@@ -319,7 +311,7 @@ class KueueManagerTest(unittest.TestCase):
         ),
         patch.object(
             self.kueue_manager,
-            "_KueueManager__get_installed_kueue_version",
+            "get_installed_kueue_version",
             return_value=(1, None),
         ),
         patch.object(
@@ -553,7 +545,7 @@ class KueueManagerTest(unittest.TestCase):
     """Calls Kueue installation and returns the rendered manifest."""
     with (
         patch.object(
-            self.kueue_manager, "_KueueManager__get_installed_kueue_version"
+            self.kueue_manager, "get_installed_kueue_version"
         ) as mock_get_version,
         patch.object(
             self.kueue_manager, "_KueueManager__apply_manifest"

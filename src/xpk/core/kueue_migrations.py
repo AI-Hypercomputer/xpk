@@ -27,14 +27,17 @@ from ..core.commands import (
 from ..utils.file import make_tmp_file
 
 
-class _Migration(ABC):
+class _KueueMigration(ABC):
+  """Abstract class for Kueue Migrations."""
 
   @property
   @abstractmethod
   def version(self) -> Version:
+    """Version introducing a breaking change and requiring the migration."""
     pass
 
   def run(self) -> int:
+    """Runs the migration."""
     code = self._pre_install()
     if code != 0:
       return code
@@ -57,7 +60,11 @@ class _Migration(ABC):
     return _install_kueue_manifest(self.version)
 
 
-class _Migration_v0_13_0(_Migration):
+class _KueueMigration_v0_13_0(_KueueMigration):
+  """Kueue migration to v0.13.0.
+
+  https://github.com/kubernetes-sigs/kueue/blob/main/CHANGELOG/CHANGELOG-0.13.md#upgrading-steps
+  """
 
   def __init__(self):
     self.cohorts_yaml_path = make_tmp_file("cohorts")
@@ -80,7 +87,7 @@ class _Migration_v0_13_0(_Migration):
     code, _ = run_command_for_value(
         command=(
             f"sed -i -e 's/v1alpha1/v1beta1/g' {self.cohorts_yaml_path} sed -i"
-            " -e 's/^ parent: (\S*)$/ parentName: \1/'"
+            " -e 's/^ parent: (\\S*)$/ parentName: \\1/'"
             f" {self.cohorts_yaml_path}"
         ),
         task="Replace v1alpha1 with v1beta1 in Cohorts",
@@ -102,7 +109,11 @@ class _Migration_v0_13_0(_Migration):
     return code
 
 
-class _Migration_v0_14_0(_Migration):
+class _KueueMigration_v0_14_0(_KueueMigration):
+  """Kueue migration to v0.14.0.
+
+  https://github.com/kubernetes-sigs/kueue/blob/main/CHANGELOG/CHANGELOG-0.14.md#upgrading-steps
+  """
 
   def __init__(self):
     self.topologies_yaml_path = make_tmp_file("topologies")
@@ -137,7 +148,7 @@ class _Migration_v0_14_0(_Migration):
       return code
 
     code, _ = run_command_for_value(
-        command="""kubectl get topology.kueue.x-k8s.io -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | while read -r name; do kubectl patch topology.kueue.x-k8s.io "$name" -p '{"metadata":{"finalizers":[]}}' --type='merge' done""",
+        command="""kubectl get topology.kueue.x-k8s.io -o jsonpath='{range .items[*]}{.metadata.name}{"\\n"}{end}' | while read -r name; do kubectl patch topology.kueue.x-k8s.io "$name" -p '{"metadata":{"finalizers":[]}}' --type='merge' done""",
         task="Remove Finalizers from Topologies",
     )
     return code
@@ -150,7 +161,10 @@ class _Migration_v0_14_0(_Migration):
     return code
 
 
-_MIGRATIONS: List[_Migration] = [_Migration_v0_13_0(), _Migration_v0_14_0()]
+_MIGRATIONS: List[_KueueMigration] = [
+    _KueueMigration_v0_13_0(),
+    _KueueMigration_v0_14_0(),
+]
 
 
 def _install_kueue_manifest(version: Version) -> int:
@@ -168,7 +182,16 @@ def _install_kueue_manifest(version: Version) -> int:
 def install_kueue_manifest_upgrading(
     from_version: Version | None, to_version: Version
 ) -> int:
-  """TODO"""
+  """Install desired Kueue manifest, resolving the conflicts during upgrade.
+
+  Args:
+    from_version: currently installed version. None for fresh installations.
+    to_version: desired version.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+
   if from_version is None:
     return _install_kueue_manifest(to_version)
 

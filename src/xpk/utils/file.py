@@ -20,6 +20,21 @@ import hashlib
 from .execution_context import is_dry_run
 
 
+def make_tmp_file(prefix: str) -> str:
+  """Makes temporary file with a given prefix.
+
+  Returns:
+    Path of the temporary file.
+  """
+  if is_dry_run():
+    return _hash_filename(prefix)
+
+  # Supports removal of spaces from prefix before converting to file name.
+  return tempfile.NamedTemporaryFile(
+      delete=False, prefix=prefix.replace(' ', '-') + '-'
+  ).file.name
+
+
 def make_tmp_files(per_command_name: list[str]) -> list[str]:
   """Make temporary files for each command.
 
@@ -29,16 +44,7 @@ def make_tmp_files(per_command_name: list[str]) -> list[str]:
   Returns:
     A list of temporary files for each command.
   """
-  if is_dry_run():
-    return [_hash_filename(command) for command in per_command_name]
-
-  # Supports removal of spaces from command names before converting to file name.
-  return [
-      tempfile.NamedTemporaryFile(
-          delete=False, prefix=command.replace(' ', '-') + '-'
-      ).file.name
-      for command in per_command_name
-  ]
+  return [make_tmp_file(command) for command in per_command_name]
 
 
 def write_tmp_file(payload: str) -> str:

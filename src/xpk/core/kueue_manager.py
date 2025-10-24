@@ -20,8 +20,11 @@ from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
 import json
 from jinja2 import Environment, FileSystemLoader
+
+from .kueue_migrations import install_kueue_manifest_upgrading
 from ..utils.execution_context import is_dry_run
 from ..utils.kueue import is_queued_cluster
+from packaging.version import Version
 
 from .capacity import B200_DEVICE_TYPE, H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE
 from .scheduling import (
@@ -40,7 +43,7 @@ from ..core.commands import (
 from ..utils.file import write_tmp_file
 from ..utils.console import xpk_print, xpk_exit
 from ..utils.templates import TEMPLATE_PATH, get_templates_absolute_path
-from packaging.version import Version
+
 
 WAIT_FOR_KUEUE_TIMEOUT = "10m"
 CLUSTER_QUEUE_NAME = "cluster-queue"
@@ -52,7 +55,7 @@ KUEUE_CONTROLLER_MANAGER_JINJA_FILE = "kueue_controller_manager.yaml.j2"
 KUEUE_SUB_SLICING_TOPOLOGY_JINJA_FILE = "kueue_sub_slicing_topology.yaml.j2"
 MEMORY_SIZE_PER_VM = 1.2
 MIN_MEMORY_LIMIT_SIZE = 4096
-KUEUE_VERSION = Version("v0.12.2")
+KUEUE_VERSION = Version("v0.14.1")
 
 
 @dataclass
@@ -116,7 +119,7 @@ class KueueManager:
     else:
       xpk_print(f"Installing Kueue version v{self.kueue_version}...")
 
-    install_return_code = self.__install(tolerations)
+    install_return_code = self.__install(installed_version, tolerations)
     if install_return_code != 0:
       return install_return_code
 
@@ -142,6 +145,7 @@ class KueueManager:
 
   def __install(
       self,
+      current_kueue_version: Version | None,
       tolerations: Optional[List[Dict[str, Any]]] = None,
   ) -> int:
     """
@@ -150,7 +154,10 @@ class KueueManager:
     Args:
         tolerations: An optional list of tolerations to apply to the kueue-controller-manager.
     """
-    return_code = self.__install_kueue_crs()
+    return_code = install_kueue_manifest_upgrading(
+        from_version=current_kueue_version,
+        to_version=self.kueue_version,
+    )
     if return_code != 0:
       return return_code
 
@@ -160,19 +167,6 @@ class KueueManager:
         return return_code
 
     return self.__wait_for_kueue_available()
-
-  def __install_kueue_crs(self) -> int:
-    manifest_url = f"https://github.com/kubernetes-sigs/kueue/releases/download/v{self.kueue_version}/manifests.yaml"
-    install_command = (
-        f"kubectl apply --server-side --force-conflicts -f {manifest_url}"
-    )
-    task = "Installing Kueue Custom Resources"
-    return_code = run_command_with_updates_retry(
-        install_command, "Install Kueue"
-    )
-    if return_code != 0:
-      xpk_print(f"{task} returned ERROR {return_code}")
-    return return_code
 
   def __patch_tolerations(self, tolerations: List[Dict[str, Any]]) -> int:
     patch = {"spec": {"template": {"spec": {"tolerations": tolerations}}}}

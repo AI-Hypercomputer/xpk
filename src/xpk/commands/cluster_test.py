@@ -27,7 +27,8 @@ from xpk.utils.feature_flags import FeatureFlags
 @dataclass
 class _Mocks:
   common_print_mock: MagicMock
-  common_exit_mock: MagicMock
+  commands_print_mock: MagicMock
+  commands_get_reservation_deployment_type: MagicMock
 
 
 @pytest.fixture
@@ -36,12 +37,17 @@ def mock_common_print_and_exit(mocker):
       'xpk.commands.common.xpk_print',
       return_value=None,
   )
-  common_exit_mock = mocker.patch(
-      'xpk.commands.common.xpk_exit',
-      return_value=None,
+  commands_print_mock = mocker.patch(
+      'xpk.commands.cluster.xpk_print', return_value=None
+  )
+  commands_get_reservation_deployment_type = mocker.patch(
+      'xpk.commands.cluster.get_reservation_deployment_type',
+      return_value='DENSE',
   )
   return _Mocks(
-      common_print_mock=common_print_mock, common_exit_mock=common_exit_mock
+      common_print_mock=common_print_mock,
+      commands_get_reservation_deployment_type=commands_get_reservation_deployment_type,
+      commands_print_mock=commands_print_mock,
   )
 
 
@@ -61,32 +67,82 @@ def test_validate_cluster_create_args_for_correct_args_pass(
   _validate_cluster_create_args(args, DEFAULT_TEST_SYSTEM)
 
   assert mock_common_print_and_exit.common_print_mock.call_count == 0
-  assert mock_common_print_and_exit.common_exit_mock.call_count == 0
 
 
 def test_validate_cluster_create_args_for_correct_sub_slicing_args_pass(
     mock_common_print_and_exit: _Mocks,
 ):
   FeatureFlags.SUB_SLICING_ENABLED = True
-  args = Namespace(sub_slicing=True)
+  args = Namespace(
+      sub_slicing=True,
+      reservation='test-reservation',
+      project='project',
+      zone='zone',
+  )
 
   _validate_cluster_create_args(args, SUB_SLICING_SYSTEM)
 
   assert mock_common_print_and_exit.common_print_mock.call_count == 0
-  assert mock_common_print_and_exit.common_exit_mock.call_count == 0
 
 
 def test_validate_cluster_create_args_for_not_supported_system_throws(
     mock_common_print_and_exit: _Mocks,
 ):
   FeatureFlags.SUB_SLICING_ENABLED = True
-  args = Namespace(sub_slicing=True)
+  args = Namespace(
+      sub_slicing=True,
+      reservation='test-reservation',
+      project='project',
+      zone='zone',
+  )
 
-  _validate_cluster_create_args(args, DEFAULT_TEST_SYSTEM)
+  with pytest.raises(SystemExit):
+    _validate_cluster_create_args(args, DEFAULT_TEST_SYSTEM)
 
   assert mock_common_print_and_exit.common_print_mock.call_count == 1
   assert (
       mock_common_print_and_exit.common_print_mock.call_args[0][0]
       == 'Error: l4-1 does not support Sub-slicing.'
   )
-  assert mock_common_print_and_exit.common_exit_mock.call_count == 1
+
+
+def test_validate_cluster_create_args_for_missing_reservation(
+    mock_common_print_and_exit: _Mocks,
+):
+  FeatureFlags.SUB_SLICING_ENABLED = True
+  args = Namespace(
+      sub_slicing=True, project='project', zone='zone', reservation=None
+  )
+
+  with pytest.raises(SystemExit):
+    _validate_cluster_create_args(args, SUB_SLICING_SYSTEM)
+
+  assert mock_common_print_and_exit.commands_print_mock.call_count == 1
+  assert (
+      'Validation failed: sub-slicing cluster creation requires'
+      in mock_common_print_and_exit.commands_print_mock.call_args[0][0]
+  )
+
+
+def test_validate_cluster_create_args_for_invalid_reservation(
+    mock_common_print_and_exit: _Mocks,
+):
+  FeatureFlags.SUB_SLICING_ENABLED = True
+  args = Namespace(
+      sub_slicing=True,
+      project='project',
+      zone='zone',
+      reservation='test-reservation',
+  )
+  mock_common_print_and_exit.commands_get_reservation_deployment_type.return_value = (
+      'SPARSE'
+  )
+
+  with pytest.raises(SystemExit):
+    _validate_cluster_create_args(args, SUB_SLICING_SYSTEM)
+
+  assert mock_common_print_and_exit.commands_print_mock.call_count == 5
+  assert (
+      'Refer to the documentation for more information on creating Cluster'
+      in mock_common_print_and_exit.commands_print_mock.call_args[0][0]
+  )

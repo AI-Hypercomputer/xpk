@@ -17,7 +17,7 @@ limitations under the License.
 from tabulate import tabulate
 
 from ..utils.feature_flags import FeatureFlags
-from ..core.capacity import H100_DEVICE_TYPE, H200_DEVICE_TYPE, B200_DEVICE_TYPE
+from ..core.capacity import H100_DEVICE_TYPE, H200_DEVICE_TYPE, B200_DEVICE_TYPE, get_reservation_deployment_type
 from ..core.cluster import (
     get_all_clusters_programmatic,
     get_cluster_credentials,
@@ -204,6 +204,37 @@ def cluster_adapt(args) -> None:
 def _validate_cluster_create_args(args, system: SystemCharacteristics):
   if FeatureFlags.SUB_SLICING_ENABLED and args.sub_slicing:
     validate_sub_slicing_system(system)
+    _validate_sub_slicing_reservation(args)
+
+
+def _validate_sub_slicing_reservation(args):
+  if args.reservation is None:
+    xpk_print(
+        'Error: Validation failed: sub-slicing cluster creation requires'
+        ' Cluster Director reservation to be specified.'
+    )
+    xpk_exit(1)
+
+  deployment_type = get_reservation_deployment_type(
+      reservation=args.reservation, project=args.project, zone=args.zone
+  )
+  if deployment_type != 'DENSE':
+    xpk_print(
+        'Error: Validation failed: The specified reservation'
+        f' "{args.reservation}" is not a Cluster Director reservation.'
+    )
+    xpk_print(
+        'Please provide a reservation created for Cluster Director to proceed.'
+    )
+    xpk_print('To list valid Cluster Director reservations, run:')
+    xpk_print(
+        '  gcloud compute reservations list --filter="deploymentType=DENSE"'
+    )
+    xpk_print(
+        'Refer to the documentation for more information on creating Cluster'
+        ' Director reservations.'
+    )
+    xpk_exit(1)
 
 
 def cluster_create(args) -> None:

@@ -1228,15 +1228,15 @@ func TestWorkloadReconciler(t *testing.T) {
 					ReserveQuota(baseAdmission, now).
 					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Finalizers(SliceControllerName).
-					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStateRejected, `Slices are in states: 1 Error, 1 Ready. Errors: Error by test`)).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStateRetry, `Slices are in states: 1 Error, 1 Ready. Errors: Error by test`)).
 					Obj(),
 			},
 			wantSlices: []slice.Slice{
 				*baseSlice1Wrapper.Clone().Ready().Obj(),
-				*baseSlice2Wrapper.Clone().Error().Obj()},
+			},
 			wantEvents: []utiltesting.EventRecord{
 				buildEventRecord(corev1.EventTypeNormal, AdmissionCheckUpdatedEventType,
-					fmt.Sprintf(`Admission check %q updated state from "Pending" to "Rejected"`, baseACName)),
+					fmt.Sprintf(`Admission check %q updated state from "Pending" to "Retry"`, baseACName)),
 			},
 		},
 		"should update the Workload's AdmissionCheckState when one Slice is in the Deformed state": {

@@ -26,7 +26,8 @@ from ..core.cluster import (
     get_cluster_credentials,
     setup_k8s_env,
 )
-from ..core.commands import run_command_with_updates, run_commands
+from ..core.commands import run_command_with_updates, run_commands, run_command_for_value
+from ..core.kueue_manager import KueueManager, SUB_SLICE_TOPOLOGY_NAME
 from ..core.config import (VERTEX_TENSORBOARD_FEATURE_FLAG, XPK_CURRENT_VERSION)
 from ..core.docker_container import (
     get_main_container_docker_image,
@@ -95,6 +96,7 @@ from ..core.workload_decorators import (
     tcpxo_decorator,
 )
 from ..utils.console import get_user_input, xpk_exit, xpk_print
+from packaging.version import Version
 from ..utils.file import write_tmp_file
 from ..utils.execution_context import is_dry_run
 from ..utils.validation import validate_dependencies_list, SystemDependency, should_validate_dependencies
@@ -283,6 +285,7 @@ PW_WORKLOAD_CREATE_YAML = """
 """
 
 SUB_SLICING_TOPOLOGIES = ['2x2', '2x4', '4x4', '4x8', '8x8', '8x16', '16x16']
+SUB_SLICING_MINIMUM_KUEUE_VERSION = Version('0.13.0')
 
 
 def workload_create_pathways(args) -> None:
@@ -340,6 +343,7 @@ def workload_create(args) -> None:
     xpk_exit(return_code)
 
   if FeatureFlags.SUB_SLICING_ENABLED and args.sub_slicing_topology is not None:
+    _validate_sub_slicing_availability()
     _validate_sub_slicing_topology(system, args.sub_slicing_topology)
 
   if not check_if_workload_can_schedule(args, system):
@@ -676,6 +680,43 @@ def workload_create(args) -> None:
     )
 
   xpk_exit(0)
+
+
+def _validate_sub_slicing_availability():
+  return_code, value = run_command_for_value(
+      command='kubectl get topology', task='Get defined topologies'
+  )
+
+  if return_code != 0:
+    xpk_print(
+        'Error: Unable to validate sub-slicing support on a given cluster.'
+    )
+    xpk_exit(1)
+
+  if SUB_SLICE_TOPOLOGY_NAME not in value:
+    xpk_print(
+        'Error: Cluster has not been not set up for Sub-slicing. Please enable'
+        ' --sub-slicing in "cluster create" command first.'
+    )
+    xpk_exit(1)
+
+  kueue_manager = KueueManager()
+  return_code, current_version = kueue_manager.get_installed_kueue_version()
+  if return_code != 0:
+    xpk_print(
+        'Error: Unable to validate sub-slicing support on a given cluster.'
+    )
+    xpk_exit(1)
+
+  if current_version < SUB_SLICING_MINIMUM_KUEUE_VERSION:
+    xpk_print(
+        "Error: Current Kueue version ({current_version}) doesn't support"
+        ' Sub-slicing. The minimal required version is'
+        ' v{SUB_SLICING_MINIMUM_KUEUE_VERSION}. Please either update Kueue'
+        ' manually, or run "cluster create --sub-slicing" on the existing'
+        ' cluster.'
+    )
+    xpk_exit(1)
 
 
 def _validate_sub_slicing_topology(

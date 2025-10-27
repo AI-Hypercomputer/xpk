@@ -143,12 +143,7 @@ def set_cluster_create_parser(cluster_create_parser: ArgumentParser):
           ' enable cluster to accept Pathways workloads.'
       ),
   )
-  if FeatureFlags.SUB_SLICING_ENABLED:
-    cluster_create_optional_arguments.add_argument(
-        '--sub-slicing',
-        action='store_true',
-        help='Whether to set up cluster to support sub-slicing',
-    )
+  add_sub_slicing_arguments(cluster_create_optional_arguments)
 
   autoprovisioning_arguments = cluster_create_parser.add_argument_group(
       'Autoprovisioning Arguments',
@@ -221,6 +216,7 @@ def set_cluster_create_pathways_parser(
   add_shared_cluster_create_optional_arguments(
       cluster_create_pathways_optional_arguments
   )
+  add_sub_slicing_arguments(cluster_create_pathways_optional_arguments)
 
   autoprovisioning_arguments = (
       cluster_create_pathways_parser.add_argument_group(
@@ -350,7 +346,9 @@ def set_cluster_create_ray_parser(cluster_create_ray_parser: ArgumentParser):
   )
   add_resource_limits(cluster_create_resource_limits)
 
-  cluster_create_ray_parser.set_defaults(func=cluster_create_ray_cluster)
+  cluster_create_ray_parser.set_defaults(
+      func=cluster_create_ray_cluster, sub_slicing=False
+  )
 
 
 def set_cluster_delete_parser(cluster_delete_parser: ArgumentParser):
@@ -565,6 +563,15 @@ def set_cluster_adapt_parser(cluster_adapt_parser: ArgumentParser):
   )
 
   cluster_adapt_parser.set_defaults(func=cluster_adapt)
+
+
+def add_sub_slicing_arguments(parser_or_group: ParserOrArgumentGroup):
+  if FeatureFlags.SUB_SLICING_ENABLED:
+    parser_or_group.add_argument(
+        '--sub-slicing',
+        action='store_true',
+        help='Whether to set up cluster to support sub-slicing',
+    )
 
 
 def add_autoprovisioning_arguments(parser_or_group: ParserOrArgumentGroup):

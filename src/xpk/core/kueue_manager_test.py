@@ -154,7 +154,7 @@ class KueueManagerTest(unittest.TestCase):
             return_value=(1, None),
         ),
         patch(
-            "xpk.core.kueue_manager.KueueManager._KueueManager__install_kueue_crs",
+            "xpk.core.kueue_manager.install_kueue_manifest_upgrading",
             return_value=0,
         ),
         patch(
@@ -198,7 +198,7 @@ class KueueManagerTest(unittest.TestCase):
             return_value=(1, None),
         ),
         patch(
-            "xpk.core.kueue_manager.KueueManager._KueueManager__install_kueue_crs",
+            "xpk.core.kueue_manager.install_kueue_manifest_upgrading",
             return_value=0,
         ),
         patch(

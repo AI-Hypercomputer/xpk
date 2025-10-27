@@ -90,7 +90,7 @@ class _KueueMigration_v0_13_0(_KueueMigration):
             " -e 's/^ parent: (\\S*)$/ parentName: \\1/'"
             f" {self.cohorts_yaml_path}"
         ),
-        task="Replace v1alpha1 with v1beta1 in Cohorts",
+        task="Update v1alpha1 Cohorts to v1beta1",
     )
     if code != 0:
       return code
@@ -135,7 +135,7 @@ class _KueueMigration_v0_14_0(_KueueMigration):
 
     code, _ = run_command_for_value(
         command=f"sed -i -e 's/v1alpha1/v1beta1/g' {self.topologies_yaml_path}",
-        task="Replace v1alpha1 with v1beta1 in Topologies",
+        task="Update v1alpha1 Topologies to v1beta1",
     )
     if code != 0:
       return code
@@ -156,15 +156,16 @@ class _KueueMigration_v0_14_0(_KueueMigration):
   def _post_install(self) -> int:
     code, _ = run_command_for_value(
         command=f"kubectl apply -f {self.topologies_yaml_path}",
-        task="Apply updated Cohorts",
+        task="Apply updated Topologies",
     )
     return code
 
 
-_MIGRATIONS: List[_KueueMigration] = [
-    _KueueMigration_v0_13_0(),
-    _KueueMigration_v0_14_0(),
-]
+def _get_migrations_list() -> list[_KueueMigration]:
+  return [
+      _KueueMigration_v0_13_0(),
+      _KueueMigration_v0_14_0(),
+  ]
 
 
 def _install_kueue_manifest(version: Version) -> int:
@@ -195,17 +196,18 @@ def install_kueue_manifest_upgrading(
   if from_version is None:
     return _install_kueue_manifest(to_version)
 
+  migrations = _get_migrations_list()
   migration_i = bisect.bisect_right(
-      _MIGRATIONS, from_version, key=lambda m: m.version
+      migrations, from_version, key=lambda m: m.version
   )
   last_run_migration_version: Version | None = None
 
   while (
-      migration_i < len(_MIGRATIONS)
-      and _MIGRATIONS[migration_i].version <= to_version
+      migration_i < len(migrations)
+      and migrations[migration_i].version <= to_version
   ):
-    code = _MIGRATIONS[migration_i].run()
-    last_run_migration_version = _MIGRATIONS[migration_i].version
+    code = migrations[migration_i].run()
+    last_run_migration_version = migrations[migration_i].version
     if code != 0:
       return code
     migration_i += 1

@@ -119,7 +119,7 @@ def test_validate_cluster_create_args_for_missing_reservation(
 
   assert mock_common_print_and_exit.commands_print_mock.call_count == 1
   assert (
-      'Validation failed: sub-slicing cluster creation requires'
+      'Validation failed: Sub-slicing cluster creation requires'
       in mock_common_print_and_exit.commands_print_mock.call_args[0][0]
   )
 

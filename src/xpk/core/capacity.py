@@ -152,6 +152,23 @@ def get_reservation_placement_policy(
   return output.strip()
 
 
+def get_reservation_deployment_type(
+    reservation: str, zone: str, project: str
+) -> str:
+  """Get reservation deployment type."""
+  command = (
+      f'gcloud beta compute reservations describe {reservation}'
+      f' --project={project} --zone={zone} --format="value(deploymentType)"'
+  )
+  return_code, output = run_command_for_value(
+      command, 'Get reservation deployment type', dry_run_return_val='DENSE'
+  )
+  if return_code != 0:
+    xpk_print(f'Get reservation deployment type ERROR {return_code}')
+    xpk_exit(1)
+  return output.strip()
+
+
 def verify_reservation_exists(args) -> int:
   """Verify the reservation exists.
 

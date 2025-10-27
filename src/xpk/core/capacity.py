@@ -161,7 +161,7 @@ def get_reservation_deployment_type(
       f' --project={project} --zone={zone} --format="value(deploymentType)"'
   )
   return_code, output = run_command_for_value(
-      command, 'Get reservation deployment type'
+      command, 'Get reservation deployment type', dry_run_return_val='DENSE'
   )
   if return_code != 0:
     xpk_print(f'Get reservation deployment type ERROR {return_code}')

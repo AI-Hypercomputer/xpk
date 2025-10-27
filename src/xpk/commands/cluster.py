@@ -210,7 +210,7 @@ def _validate_cluster_create_args(args, system: SystemCharacteristics):
 def _validate_sub_slicing_reservation(args):
   if args.reservation is None:
     xpk_print(
-        'Error: Validation failed: sub-slicing cluster creation requires'
+        'Error: Validation failed: Sub-slicing cluster creation requires'
         ' Cluster Director reservation to be specified.'
     )
     xpk_exit(1)
@@ -232,7 +232,8 @@ def _validate_sub_slicing_reservation(args):
     )
     xpk_print(
         'Refer to the documentation for more information on creating Cluster'
-        ' Director reservations.'
+        ' Director reservations:'
+        ' https://cloud.google.com/cluster-director/docs/reserve-capacity'
     )
     xpk_exit(1)
 

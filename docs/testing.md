@@ -72,7 +72,7 @@ goldens:
     description: "" # optional description allowing to better understand use-case
 ```
 
-Goldens after change in the code, or registering a new one can be re-generated using make goldens command.
+Goldens after change in the code, or registering a new one can be re-generated using `make goldens` command.
 
 ### Underlying execution mechanisms
 

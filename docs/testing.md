@@ -34,7 +34,7 @@ For example, a test name like `test_calculator_add_computes_sum_for_negative_num
 
 ### Developer guide to Unit Tests
 
-Unit tests are co-located with the production code. Specifically, the test file for any given module will bear the same name as the module, appended with a `_test.py` suffix (e.g., `gcloud_command.py` will have its tests in `gcloud_command_test.py`). When implementing new features or modifying existing code, it is imperative to ensure that corresponding unit tests are updated and added as necessary. These unit tests are automatically discovered among all `_test.py` files and can be executed using the make run-unittests command.
+Unit tests are co-located with the production code. Specifically, the test file for any given module will bear the same name as the module, appended with a `_test.py` suffix (e.g., `gcloud_command.py` will have its tests in `gcloud_command_test.py`). When implementing new features or modifying existing code, it is imperative to ensure that corresponding unit tests are updated and added as necessary. These unit tests are automatically discovered among all `_test.py` files and can be executed using the `make run-unittests` command.
 
 ### Isolating Units with Mocks and Fakes
 
@@ -45,7 +45,7 @@ A crucial aspect of effective unit testing is isolation. A unit test should only
 
 ### Unit Test Sample
 
-A good, state-of-the-art sample of [code](https://github.com/AI-Hypercomputer/xpk/blob/0434cf6a023069522f90d5846c6d980b68382b66/src/xpk/core/nodepool.py#L614) that has been correctly covered with unit tests can be found [here](https://github.com/AI-Hypercomputer/xpk/blob/0434cf6a023069522f90d5846c6d980b68382b66/src/xpk/core/tests/unit/test_nodepool.py#L26). This provided example serves as a practical guide and "source of truth" for developers, demonstrating best practices in unit test structure like naming. Another sample, leveraging mocks could be found [here](https://github.com/AI-Hypercomputer/xpk/blob/8464ce26cd0fd24c681e346b2c915ad918724e53/src/xpk/core/nodepool_test.py#L86).
+A good, state-of-the-art sample of [code](https://github.com/AI-Hypercomputer/xpk/blob/0434cf6a023069522f90d5846c6d980b68382b66/src/xpk/core/nodepool.py#L614) that has been correctly covered with unit tests can be found [here](https://github.com/AI-Hypercomputer/xpk/blob/8464ce26cd0fd24c681e346b2c915ad918724e53/src/xpk/core/nodepool_test.py#L26). This provided example serves as a practical guide and "source of truth" for developers, demonstrating best practices in unit test structure like naming. Another sample, leveraging mocks could be found [here](https://github.com/AI-Hypercomputer/xpk/blob/8464ce26cd0fd24c681e346b2c915ad918724e53/src/xpk/core/nodepool_test.py#L86).
 
 ## Golden Test
 
@@ -61,7 +61,7 @@ Each Golden test name should refer to a potential use case or persona utilizing 
 For example, a good golden test name could be: "NAP cluster-create with pathways".
 
 ### Developer guide to Golden Tests
-All golden tests are registered in the goldens.yaml file in the root directory. Their reference output is stored in text files located in goldens directory in the root directory.
+All golden tests are registered in the `goldens.yaml` file in the root directory. Their reference output is stored in text files located in goldens directory in the root directory.
 
 A sample structure of `goldens.yaml` file is defined as:
 

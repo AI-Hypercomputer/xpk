@@ -40,9 +40,8 @@ Unit tests are co-located with the production code. Specifically, the test file 
 
 A crucial aspect of effective unit testing is isolation. A unit test should only be concerned with the behavior of the specific unit it is testing, without being influenced by its dependencies (e.g., databases, external services, or complex objects). To achieve this, unit tests often utilize mocks or fake classes.
 
-Mocks are "test doubles" that simulate the behavior of real dependencies. They allow you to define what methods should be called, with what arguments, and what values they should return. This gives you complete control over the unit's environment and allows you to test specific interactions. The mocks are defined using pytest-mock library.
-
-Fake classes are simplified, in-memory implementations of actual dependencies. They provide a working (though often simplified) version of the dependency's functionality, making them useful when you need a more substantial stand-in than a simple mock.
+* Mocks are "test doubles" that simulate the behavior of real dependencies. They allow you to define what methods should be called, with what arguments, and what values they should return. This gives you complete control over the unit's environment and allows you to test specific interactions. The mocks are defined using pytest-mock library.
+* Fake classes are simplified, in-memory implementations of actual dependencies. They provide a working (though often simplified) version of the dependency's functionality, making them useful when you need a more substantial stand-in than a simple mock.
 
 ### Unit Test Sample
 
@@ -77,10 +76,10 @@ Goldens after change in the code, or registering a new one can be re-generated u
 
 ### Underlying execution mechanisms
 
-These tests are executed through the GoldenBuddy testing script located in the golden_buddy.sh file of the repository. The framework executes all registered commands in dry_run mode, then compares diffs between them with the reference output located in goldens directory.
+These tests are executed through the GoldenBuddy testing script located in the golden_buddy.sh file of the repository. The framework executes all registered commands in `dry_run` mode, then compares diffs between them with the reference output located in goldens directory.
 
 ## Integration Test
-Integration tests sit at the apex of the testing pyramid, being the most expensive and slowest to execute. This is primarily because they rely on actual Google Cloud Platform (GCP) infrastructure, which introduces potential flakiness due to external factors and makes it challenging to write given capacity constraints. Consequently, these tests should be reserved for ultimate verification before release, ensuring all of XPK's components function seamlessly together within a real GCP environment. They are not run on feature branches; instead, they are executed on the mainline (main) branch nightly after code merges, and right before a release to validate a new XPK release candidate. This strategic placement ensures a final, comprehensive check of the entire system's functionality in its production-like setting.
+Integration tests sit at the apex of the testing pyramid, being the most expensive and slowest to execute. This is primarily because they rely on actual Google Cloud Platform (GCP) infrastructure, which introduces potential flakiness due to external factors and makes it challenging to write given capacity constraints. Consequently, these tests should be reserved for ultimate verification before release, ensuring all of XPK's components function seamlessly together within a real GCP environment. They are not run on feature branches; instead, they are executed on the mainline (`main`) branch nightly after code merges, and right before a release to validate a new XPK release candidate. This strategic placement ensures a final, comprehensive check of the entire system's functionality in its production-like setting.
 
 ### Naming Conventions
 

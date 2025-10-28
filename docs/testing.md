@@ -63,7 +63,7 @@ For example, a good golden test name could be: "NAP cluster-create with pathways
 ### Developer guide to Golden Tests
 All golden tests are registered in the goldens.yaml file in the root directory. Their reference output is stored in text files located in goldens directory in the root directory.
 
-A sample structure of goldens.yaml file is defined as:
+A sample structure of `goldens.yaml` file is defined as:
 
 ```yaml
 goldens:

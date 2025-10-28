@@ -7,7 +7,7 @@ This section serves as a nice and handy summary of the testing strategy describe
 | Scope covered                 | Small                                 | Medium                               | Large                       |
 | Execution speed               | Milliseconds                          | Seconds                              | Minutes                     |
 | Amount in the codebase        | Hundreds                              | Dozens                               | Handful                     |
-| Real environment interation   | No                                    | No                                   | Yes                         |
+| Real environment interaction  | No                                    | No                                   | Yes                         |
 | Covers whole user journey     | No                                    | Yes                                  | Yes                         |
 | Runs on feature branches      | Yes                                   | Yes                                  | No                          |
 | Checks edge cases correctness | Yes                                   | No                                   | No                          |

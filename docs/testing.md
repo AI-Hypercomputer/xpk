@@ -26,15 +26,15 @@ Unit tests are the most granular and fastest type of test in the XPK’s testing
 
 A well-named unit test acts as living documentation for your codebase. The naming convention for XPK's unit tests should clearly convey three parts:
 
-* **Constant prefix:** Every test method should start with a test_ prefix.
+* **Constant prefix:** Every test method should start with a `test_` prefix.
 * **Name of the method/unit under test:** This immediately identifies what functionality is being scrutinized.
 * **Scenario under test:** Describes the specific conditions or inputs being applied.
 
-For example, a test name like test_calculator_add_computes_sum_for_negative_numbers_correctly() instantly tells you that the add method of the Calculator class is being tested with positive numbers, and the expected outcome is a correct sum.
+For example, a test name like `test_calculator_add_computes_sum_for_negative_numbers_correctly()` instantly tells you that the add method of the Calculator class is being tested with positive numbers, and the expected outcome is a correct sum.
 
 ### Developer guide to Unit Tests
 
-Unit tests are co-located with the production code. Specifically, the test file for any given module will bear the same name as the module, appended with a _test.py suffix (e.g., gcloud_command.py will have its tests in gcloud_command_test.py). When implementing new features or modifying existing code, it is imperative to ensure that corresponding unit tests are updated and added as necessary. These unit tests are automatically discovered among all _test.py files and can be executed using the make run-unittests command.
+Unit tests are co-located with the production code. Specifically, the test file for any given module will bear the same name as the module, appended with a `_test.py` suffix (e.g., `gcloud_command.py` will have its tests in `gcloud_command_test.py`). When implementing new features or modifying existing code, it is imperative to ensure that corresponding unit tests are updated and added as necessary. These unit tests are automatically discovered among all `_test.py` files and can be executed using the make run-unittests command.
 
 ### Isolating Units with Mocks and Fakes
 
@@ -59,7 +59,7 @@ Each Golden test name should refer to a potential use case or persona utilizing 
 * **Command name that is executed:** cluster create, cluster create-pathways, or workload list.
 * **Use case it is covering:** nap cluster creation, tpu cluster creation, workload status listing
 
-For example, a good golden test name could be: “NAP cluster-create with pathways”.
+For example, a good golden test name could be: "NAP cluster-create with pathways".
 
 ### Developer guide to Golden Tests
 All golden tests are registered in the goldens.yaml file in the root directory. Their reference output is stored in text files located in goldens directory in the root directory.
@@ -89,7 +89,7 @@ Similarly to goldens, each integration test name should refer to a potential use
 * **Command name that is executed:** cluster create, cluster create-pathways, or workload list.
 * **Use case it is covering:** nap cluster creation, tpu cluster creation, workload status listing
 
-For example, an integration golden test name could be: “NAP cluster-create with pathways”.
+For example, an integration golden test name could be: "NAP cluster-create with pathways".
 
 ### Developer guide to Integration Tests
 

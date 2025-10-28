@@ -66,8 +66,8 @@ Make intended code change, cover it with unit tests and iterate on the code by e
 ### Verify change against checklist
 
 Before opening a pull request make sure your change passes the following checklist:
-* Change is covered with unit tests
-* Goldens are up-to-date
+* Change is covered with unit tests.
+* Goldens are up-to-date - regenerate them using `make goldens` command.
 * Change is production ready, if not make sure it is covered with a feature flag. See sample flags [here](https://github.com/AI-Hypercomputer/xpk/blob/main/src/xpk/utils/feature_flags.py).
 
 **Code merged to the main branch is expected to be released at any given point in time, hence it needs to be treated as a production code.**

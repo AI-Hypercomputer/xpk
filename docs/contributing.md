@@ -25,11 +25,16 @@ Guidelines](https://opensource.google/conduct/).
 
 ## Contribution process
 
-## Steps
+1. [Create a virtual environment](#create-a-virtual-environment)
+1. [Fork and clone the repository](#fork-and-clone-the-repository)
+1. [Install XPK dev dependencies](#install-xpk-dev-dependencies)
+1. [Make your change](#make-your-change)
+1. [Verify change against checklist](#verify-change-against-checklist)
+1. [Open a Pull Request](#open-a-pull-request)
 
-0. <Optionally needed> Create a virtual environment:
+### Create a virtual environment
 
-Optionally use a venv to set up and develop xpk. This is needed for Google
+Use a venv to set up and develop xpk. This is needed for Google
 internal xpk development from a cloudtop machine.
 
 ```shell
@@ -41,59 +46,34 @@ python3 -m venv $VENV_DIR
 source $VENV_DIR/bin/activate
 ```
 
-1. Install developer tools including `pyink`, `pylint`, and `precommit` using
+### Fork and clone the repository
 
+All changes should be performed on your XPK fork, then proposed to the mainline repository through pull request process.
+More about how to work with forks can be found [here](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/fork-a-repo).
+
+### Install XPK dev dependencies
+
+Use the following script to install XPK python dependencies.
 ```shell
-git clone https://github.com/google/xpk.git
-cd xpk
 pip install .[dev]
 ```
+Also, follow [Prerequisites](https://github.com/AI-Hypercomputer/xpk?tab=readme-ov-file#prerequisites) section to ensure system dependencies are present on your machine.
 
-2. Install git hook scripts.
-```shell
-pre-commit install
-# Optionally run against files
-pre-commit run --all-files
-```
+### Make your change
 
-3. Support auto-formatting when committing changes!
-```shell
-# 1. Code will be autoformatted on:
-git commit -m "My cool new feature"
-# 2. If code needs to be reformatted, check what changes were made, and add them to the commit.
-git add -p
-# 3. Run git commit again, which should successfully pass pre-commit checks.
-git commit -m "My cool new feature"
+Make intended code change, cover it with unit tests and iterate on the code by executing local XPK version via `python3 xpk.py`.
 
+### Verify change against checklist
 
-# If you need, you can also manually format code by running:
-pyink .
-```
+Before opening a pull request make sure your change passes the following checklist:
+* Change is covered with unit tests.
+* Goldens are up-to-date - regenerate them using `make goldens` command.
+* Change is production ready, if not make sure it is covered with a feature flag. See sample flags [here](https://github.com/AI-Hypercomputer/xpk/blob/main/src/xpk/utils/feature_flags.py).
 
-### Code Reviews
+**Code merged to the main branch is expected to be released at any given point in time, hence it needs to be treated as a production code.**
+
+### Open a Pull Request
 
 All submissions, including submissions by project members, require review. We
 use [GitHub pull requests](https://docs.github.com/articles/about-pull-requests)
 for this purpose.
-
-### Testing
-Unit Tests for XPK coming soon.
-
-### Code style
-Before pushing your changes, you need to lint the code style via `pyink`. This
-is handled through `pre-commit` if you have that installed.
-
-To install `pyink`:
-
-```sh
-pip3 install pyink==24.3.0
-```
-
-To lint the code:
-
-```sh
-# Format files in the local directory.
-pyink .
-# Check if files need to be formatted.
-pyink --check .
-```

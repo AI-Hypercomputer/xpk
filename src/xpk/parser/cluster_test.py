@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 import argparse
-from xpk.parser.cluster import set_cluster_create_parser
+from xpk.parser.cluster import set_cluster_create_parser, set_cluster_create_pathways_parser, set_cluster_create_ray_parser
 import pytest
 from ..utils.feature_flags import FeatureFlags
 
@@ -64,3 +64,69 @@ def test_cluster_create_sub_slicing_can_be_set():
   )
 
   assert args.sub_slicing is True
+
+
+def test_cluster_create_pathways_sub_slicing_is_hidden_with_flag_off():
+  FeatureFlags.SUB_SLICING_ENABLED = False
+  parser = argparse.ArgumentParser()
+
+  set_cluster_create_pathways_parser(parser)
+  help_str = parser.format_help()
+
+  assert "--sub-slicing" not in help_str
+
+
+def test_cluster_create_pathways_sub_slicing_is_shown_with_flag_on():
+  parser = argparse.ArgumentParser()
+
+  set_cluster_create_pathways_parser(parser)
+  help_str = parser.format_help()
+
+  assert "--sub-slicing" in help_str
+
+
+def test_cluster_create_pathways_sub_slicing_is_false_by_default():
+  parser = argparse.ArgumentParser()
+
+  set_cluster_create_pathways_parser(parser)
+  args = parser.parse_args(
+      ["--cluster", "test-cluster", "--tpu-type", "test-tpu"]
+  )
+
+  assert args.sub_slicing is False
+
+
+def test_cluster_create_pathways_sub_slicing_can_be_set():
+  parser = argparse.ArgumentParser()
+
+  set_cluster_create_pathways_parser(parser)
+  args = parser.parse_args(
+      ["--cluster", "test-cluster", "--tpu-type", "test-tpu", "--sub-slicing"]
+  )
+
+  assert args.sub_slicing is True
+
+
+def test_cluster_create_ray_sub_slicing_is_hidden():
+  parser = argparse.ArgumentParser()
+
+  set_cluster_create_ray_parser(parser)
+  help_str = parser.format_help()
+
+  assert "--sub-slicing" not in help_str
+
+
+def test_cluster_create_ray_sub_slicing_is_false():
+  parser = argparse.ArgumentParser()
+
+  set_cluster_create_ray_parser(parser)
+  args = parser.parse_args([
+      "--cluster",
+      "test-cluster",
+      "--tpu-type",
+      "test-tpu",
+      "--ray-version",
+      "1.0.0",
+  ])
+
+  assert args.sub_slicing is False

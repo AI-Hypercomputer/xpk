@@ -596,6 +596,15 @@ def set_cluster_adapt_parser(cluster_adapt_parser: ArgumentParser):
   cluster_adapt_parser.set_defaults(func=cluster_adapt)
 
 
+def add_sub_slicing_arguments(parser_or_group: ParserOrArgumentGroup):
+  if FeatureFlags.SUB_SLICING_ENABLED:
+    parser_or_group.add_argument(
+        '--sub-slicing',
+        action='store_true',
+        help='Whether to set up cluster to support sub-slicing',
+    )
+
+
 def add_autoprovisioning_arguments(parser_or_group: ParserOrArgumentGroup):
   parser_or_group.add_argument(
       '--enable-autoprovisioning',

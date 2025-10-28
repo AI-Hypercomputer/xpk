@@ -23,8 +23,6 @@ on:
     - edited
     - ready_for_review
     - unlocked
-    branches:
-    - develop
 
 jobs:
   label-validation:

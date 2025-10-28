@@ -283,8 +283,6 @@ jobs:
           RUN_ID="dispatch"
         elif [ "${{ github.ref }}" == "refs/heads/main" ]; then
           RUN_ID="main"
-        elif [ "${{ github.ref }}" == "refs/heads/develop" ]; then
-          RUN_ID="develop"
         else
           RUN_ID="${{ github.event.number }}"
         fi

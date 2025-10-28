@@ -16,8 +16,6 @@
 
 [![Build Tests](https://github.com/google/xpk/actions/workflows/build_tests.yaml/badge.svg?query=branch%3Amain)](https://github.com/google/xpk/actions/workflows/build_tests.yaml?query=branch%3Amain)
 [![Nightly Tests](https://github.com/google/xpk/actions/workflows/nightly_tests.yaml/badge.svg?query=branch%3Amain)](https://github.com/google/xpk/actions/workflows/nightly_tests.yaml?query=branch%3Amain)
-[![Develop Tests](https://github.com/AI-Hypercomputer/xpk/actions/workflows/build_tests.yaml/badge.svg?query=branch%3Adevelop)](https://github.com/AI-Hypercomputer/xpk/actions/workflows/build_tests.yaml?query=branch%3Adevelop)
-[![Develop Nightly Tests](https://github.com/AI-Hypercomputer/xpk/actions/workflows/nightly_tests.yaml/badge.svg?query=branch%3Adevelop)](https://github.com/AI-Hypercomputer/xpk/actions/workflows/nightly_tests.yaml?query=branch%3Adevelop)
 
 # Overview
 

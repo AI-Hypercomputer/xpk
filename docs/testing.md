@@ -76,7 +76,7 @@ Goldens after change in the code, or registering a new one can be re-generated u
 
 ### Underlying execution mechanisms
 
-These tests are executed through the GoldenBuddy testing script located in the golden_buddy.sh file of the repository. The framework executes all registered commands in `dry_run` mode, then compares diffs between them with the reference output located in goldens directory.
+These tests are executed through the GoldenBuddy testing script located in the `golden_buddy.sh` file of the repository. The framework executes all registered commands in `dry_run` mode, then compares diffs between them with the reference output located in goldens directory.
 
 ## Integration Test
 Integration tests sit at the apex of the testing pyramid, being the most expensive and slowest to execute. This is primarily because they rely on actual Google Cloud Platform (GCP) infrastructure, which introduces potential flakiness due to external factors and makes it challenging to write given capacity constraints. Consequently, these tests should be reserved for ultimate verification before release, ensuring all of XPK's components function seamlessly together within a real GCP environment. They are not run on feature branches; instead, they are executed on the mainline (`main`) branch nightly after code merges, and right before a release to validate a new XPK release candidate. This strategic placement ensures a final, comprehensive check of the entire system's functionality in its production-like setting.

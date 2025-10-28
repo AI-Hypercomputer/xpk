@@ -44,13 +44,13 @@ class CommandsTester:
       self, result: tuple[int, str], *command_parts: str
   ):
     """Sets the result for the given command parts.
-    The command parts will be joined with ' .*' during comparison with the actual commands.
+    The command parts will be joined with ' .* ' during comparison with the actual commands.
     """
     pattern = self.__get_pattern_for_command_parts(*command_parts)
     self.__results[pattern] = result
 
   def assert_command_run(self, *command_parts: str, times: int = 1):
-    """Asserts the command composed from the command parts (joined with '. *') was run exactly `times` times."""
+    """Asserts the command composed from the command parts (joined with ' .* ') was run exactly `times` times."""
     matching = self.get_matching_commands(*command_parts)
     if not matching:
       raise AssertionError(
@@ -63,16 +63,20 @@ class CommandsTester:
       )
 
   def assert_command_not_run(self, *command_parts: str):
-    """Asserts the command composed from the command parts (joined with '. *') was never run."""
+    """Asserts the command composed from the command parts (joined with ' .* ') was never run."""
     if self.get_matching_commands(*command_parts):
       raise AssertionError(
           f"{command_parts} was found in {self.commands_history}"
       )
 
   def get_matching_commands(self, *command_parts: str) -> list[str]:
-    """Returns list of already run commands matching the command parts (joined with '. *')"""
+    """Returns list of already run commands matching the command parts (joined with ' .* ')."""
     pattern = self.__get_pattern_for_command_parts(*command_parts)
-    return [c for c in self.commands_history if pattern.match(c)]
+    return [
+        c
+        for c in self.commands_history
+        if self.__match_command_with_pattern(c, pattern)
+    ]
 
   # Unused arguments, but the signature has to match the original one:
   # pylint: disable=unused-argument
@@ -106,9 +110,17 @@ class CommandsTester:
   ) -> tuple[int, str]:
     self.commands_history.append(command)
     matching_results = [
-        kv[1] for kv in self.__results.items() if kv[0].match(command)
+        kv[1]
+        for kv in self.__results.items()
+        if self.__match_command_with_pattern(command, kv[0])
     ]
     return len(matching_results) > 0 and matching_results[0] or default_result
 
   def __get_pattern_for_command_parts(self, *command_parts: str) -> re.Pattern:
-    return re.compile(" .*".join(command_parts))
+    pattern_s = " " + " (.* )?".join(command_parts) + " "
+    return re.compile(pattern_s)
+
+  def __match_command_with_pattern(
+      self, command: str, pattern: re.Pattern
+  ) -> bool:
+    return pattern.match(" " + command + " ") is not None

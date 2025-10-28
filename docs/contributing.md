@@ -70,6 +70,8 @@ Before opening a pull request make sure your change passes the following checkli
 * Goldens are up-to-date - regenerate them using `make goldens` command.
 * Change is production ready, if not make sure it is covered with a feature flag. See sample flags [here](https://github.com/AI-Hypercomputer/xpk/blob/main/src/xpk/utils/feature_flags.py).
 
+You can read more about our testing guidance [here](./testing.md).
+
 **Code merged to the main branch is expected to be released at any given point in time, hence it needs to be treated as a production code.**
 
 ### Open a Pull Request

@@ -40,6 +40,7 @@ from ..core.commands import (
 from ..utils.file import write_tmp_file
 from ..utils.console import xpk_print, xpk_exit
 from ..utils.templates import TEMPLATE_PATH, get_templates_absolute_path
+from packaging.version import Version
 
 WAIT_FOR_KUEUE_TIMEOUT = "10m"
 CLUSTER_QUEUE_NAME = "cluster-queue"
@@ -51,7 +52,7 @@ KUEUE_CONTROLLER_MANAGER_JINJA_FILE = "kueue_controller_manager.yaml.j2"
 KUEUE_SUB_SLICING_TOPOLOGY_JINJA_FILE = "kueue_sub_slicing_topology.yaml.j2"
 MEMORY_SIZE_PER_VM = 1.2
 MIN_MEMORY_LIMIT_SIZE = 4096
-KUEUE_VERSION = "v0.12.2"
+KUEUE_VERSION = Version("v0.12.2")
 
 
 @dataclass
@@ -78,7 +79,7 @@ class KueueManager:
 
   def __init__(
       self,
-      kueue_version: str = KUEUE_VERSION,
+      kueue_version: Version = KUEUE_VERSION,
       template_path=TEMPLATE_PATH,
   ):
     self.kueue_version = kueue_version
@@ -111,9 +112,9 @@ class KueueManager:
         )
         return 0
       else:
-        xpk_print(f"Upgrading Kueue to version {self.kueue_version}...")
+        xpk_print(f"Upgrading Kueue to version v{self.kueue_version}...")
     else:
-      xpk_print(f"Installing Kueue version {self.kueue_version}...")
+      xpk_print(f"Installing Kueue version v{self.kueue_version}...")
 
     install_return_code = self.__install(tolerations)
     if install_return_code != 0:
@@ -121,7 +122,7 @@ class KueueManager:
 
     return self.__configure(kueue_config)
 
-  def get_installed_kueue_version(self) -> tuple[int, str | None]:
+  def get_installed_kueue_version(self) -> tuple[int, Version | None]:
     command = (
         "kubectl get deployment kueue-controller-manager -n kueue-system -o"
         " jsonpath='{.spec.template.spec.containers[0].image}'"
@@ -130,15 +131,14 @@ class KueueManager:
     return_code, val = run_command_for_value(
         command,
         task,
-        dry_run_return_val="""
-        v0.12.1""",
+        dry_run_return_val="",
     )
     if return_code != 0:
       return return_code, None
     version_tag = val.split(":")
     if len(version_tag) == 1:
       return 1, None
-    return return_code, version_tag[-1]
+    return return_code, Version(version_tag[-1])
 
   def __install(
       self,
@@ -162,7 +162,7 @@ class KueueManager:
     return self.__wait_for_kueue_available()
 
   def __install_kueue_crs(self) -> int:
-    manifest_url = f"https://github.com/kubernetes-sigs/kueue/releases/download/{self.kueue_version}/manifests.yaml"
+    manifest_url = f"https://github.com/kubernetes-sigs/kueue/releases/download/v{self.kueue_version}/manifests.yaml"
     install_command = (
         f"kubectl apply --server-side --force-conflicts -f {manifest_url}"
     )

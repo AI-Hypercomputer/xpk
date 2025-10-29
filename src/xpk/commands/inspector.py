@@ -28,6 +28,7 @@ from ..core.kueue_manager import has_sub_slicing_enabled
 
 _SPACER = '========================================================'
 
+
 def inspector_run_command_helper(
     args, command, command_description, file
 ) -> int:

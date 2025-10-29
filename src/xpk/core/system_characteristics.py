@@ -15,11 +15,18 @@ limitations under the License.
 """
 
 from dataclasses import dataclass
+from typing import Callable, Optional
+
+from ..core.workload_decorators import rdma_decorator, tcpxo_decorator, tcpx_decorator
 from ..utils.topology import get_topology_product
 from enum import Enum
 
 SUB_SLICING_TOPOLOGIES = ['2x4', '4x4', '4x8', '8x8', '8x16', '16x16']
 
+INSTALLER_NCCL_TCPX = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpx/nccl-tcpx-installer.yaml'
+INSTALLER_NCCL_TCPXO = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpxo/nccl-tcpxo-installer.yaml'
+INSTALLER_NCCL_RDMA = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-rdma/nccl-rdma-installer.yaml'
+INSTALLER_NCCL_RDMA_A4X = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-rdma/nccl-rdma-installer-a4x.yaml'
 
 class AcceleratorType(Enum):
   TPU = 1
@@ -54,6 +61,15 @@ AcceleratorTypeToAcceleratorCharacteristics = {
         machine_label='cloud.google.com/gke-nodepool',
     ),
 }
+
+
+@dataclass
+class GpuConfig:
+  """Contains GPU-specific configuration and requirements."""
+
+  requires_topology: bool
+  kjob_decorator_fn: Optional[Callable[[dict], dict]] = None
+  nccl_installer: Optional[str] = None
 
 
 @dataclass
@@ -93,10 +109,25 @@ class SystemCharacteristics:
   device_type: str
   supports_sub_slicing: bool
   requires_workload_policy: bool = False
+  gpu_config: Optional[GpuConfig] = None
 
   def __post_init__(self):
     if self.accelerator_type == AcceleratorType.GPU:
       self.requires_workload_policy = True
+
+      if self.gpu_config is None:
+        raise ValueError(
+            f"Validation Error: System '{self.device_type}' is a GPU, "
+            "but 'gpu_config' was not provided."
+        )
+
+  @property
+  def gpu_requires_topology(self) -> bool:
+    """
+    Safely returns whether the GPU config requires topology,
+    defaulting to False if no GPU config exists.
+    """
+    return self.gpu_config.requires_topology if self.gpu_config else False
 
 
 def get_system_characteristics(
@@ -231,6 +262,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.GPU,
         device_type='l4-1',
         supports_sub_slicing=False,
+        gpu_config=GpuConfig(requires_topology=False),
     ),
     'l4-2': SystemCharacteristics(
         topology='N/A',
@@ -241,6 +273,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.GPU,
         device_type='l4-2',
         supports_sub_slicing=False,
+        gpu_config=GpuConfig(requires_topology=False),
     ),
     'l4-4': SystemCharacteristics(
         topology='N/A',
@@ -251,6 +284,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.GPU,
         device_type='l4-4',
         supports_sub_slicing=False,
+        gpu_config=GpuConfig(requires_topology=False),
     ),
     'l4-8': SystemCharacteristics(
         topology='N/A',
@@ -261,6 +295,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.GPU,
         device_type='l4-8',
         supports_sub_slicing=False,
+        gpu_config=GpuConfig(requires_topology=False),
     ),
     # A100-40gb-$CHIPSc
     'a100-40gb-1': SystemCharacteristics(
@@ -272,6 +307,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.GPU,
         device_type='a100-40gb-1',
         supports_sub_slicing=False,
+        gpu_config=GpuConfig(requires_topology=False),
     ),
     'a100-40gb-2': SystemCharacteristics(
         topology='N/A',
@@ -282,6 +318,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.GPU,
         device_type='a100-40gb-2',
         supports_sub_slicing=False,
+        gpu_config=GpuConfig(requires_topology=False),
     ),
     'a100-40gb-4': SystemCharacteristics(
         topology='N/A',
@@ -292,6 +329,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.GPU,
         device_type='a100-40gb-4',
         supports_sub_slicing=False,
+        gpu_config=GpuConfig(requires_topology=False),
     ),
     'a100-40gb-8': SystemCharacteristics(
         topology='N/A',
@@ -302,6 +340,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.GPU,
         device_type='a100-40gb-8',
         supports_sub_slicing=False,
+        gpu_config=GpuConfig(requires_topology=False),
     ),
     'gb200-4': SystemCharacteristics(
         topology='1x72',
@@ -312,6 +351,11 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.GPU,
         device_type='gb200-4',
         supports_sub_slicing=False,
+        gpu_config=GpuConfig(
+            requires_topology=True,
+            nccl_installer=INSTALLER_NCCL_RDMA_A4X,
+            kjob_decorator_fn=rdma_decorator.decorate_kjob_template,
+        ),
     ),
     'gb200-4-nolssd': SystemCharacteristics(
         topology='1x72',
@@ -322,6 +366,11 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.GPU,
         device_type='gb200-4',
         supports_sub_slicing=False,
+        gpu_config=GpuConfig(
+            requires_topology=True,
+            nccl_installer=INSTALLER_NCCL_RDMA_A4X,
+            kjob_decorator_fn=rdma_decorator.decorate_kjob_template,
+        ),
     ),
     'b200-8': SystemCharacteristics(
         topology='N/A',
@@ -332,6 +381,11 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.GPU,
         device_type='b200-8',
         supports_sub_slicing=False,
+        gpu_config=GpuConfig(
+            requires_topology=True,
+            nccl_installer=INSTALLER_NCCL_RDMA,
+            kjob_decorator_fn=rdma_decorator.decorate_kjob_template,
+        ),
     ),
     'h200-141gb-8': SystemCharacteristics(
         topology='N/A',
@@ -342,6 +396,11 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.GPU,
         device_type='h200-141gb-8',
         supports_sub_slicing=False,
+        gpu_config=GpuConfig(
+            requires_topology=True,
+            nccl_installer=INSTALLER_NCCL_RDMA,
+            kjob_decorator_fn=rdma_decorator.decorate_kjob_template,
+        ),
     ),
     # H100-80gb-$CHIPS
     'h100-80gb-8': SystemCharacteristics(
@@ -353,6 +412,11 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.GPU,
         device_type='h100-80gb-8',
         supports_sub_slicing=False,
+        gpu_config=GpuConfig(
+            requires_topology=True,
+            nccl_installer=INSTALLER_NCCL_TCPX,
+            kjob_decorator_fn=tcpx_decorator.decorate_kjob_template,
+        ),
     ),
     # H100-mega-80gb-$CHIPS
     'h100-mega-80gb-8': SystemCharacteristics(
@@ -364,6 +428,11 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.GPU,
         device_type='h100-mega-80gb-8',
         supports_sub_slicing=False,
+        gpu_config=GpuConfig(
+            requires_topology=True,
+            nccl_installer=INSTALLER_NCCL_TCPXO,
+            kjob_decorator_fn=tcpxo_decorator.decorate_kjob_template,
+        ),
     ),
     # TPU system characteristics
     **get_tpu_system_characteristics_map(

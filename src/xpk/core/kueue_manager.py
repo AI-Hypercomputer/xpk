@@ -421,3 +421,14 @@ class KueueManager:
     if return_code != 0:
       xpk_print(f"{task} returned ERROR {return_code}")
     return return_code
+
+
+def has_sub_slicing_enabled() -> tuple[int, bool | None]:
+  return_code, value = run_command_for_value(
+      command="kubectl get topology", task="Get defined topologies"
+  )
+
+  if return_code != 0:
+    return return_code, None
+
+  return return_code, SUB_SLICE_TOPOLOGY_NAME in value

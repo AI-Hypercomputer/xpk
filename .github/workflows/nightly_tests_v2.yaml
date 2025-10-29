@@ -52,7 +52,7 @@ jobs:
           - name: XPK version
             run: xpk version
           - name: Create cluster
-            run: xpk cluster create --cluster=${NAME} --zone=${ZONE} --device-type=n2-standard-32-1 --on-demand
+            run: xpk cluster create --cluster=${NAME} --zone=${ZONE} --device-type=n2-standard-32-1 --on-demand --custom-cluster-arguments='${{ secrets.CLUSTER_ARGUMENTS }}'
           - name: Create workload
             run: xpk workload create --cluster=${NAME} --zone=${ZONE} --device-type=n2-standard-32-1 --workload=${WORKLOAD} --command "echo hello"
           - name: List workloads

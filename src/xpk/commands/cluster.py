@@ -1087,7 +1087,6 @@ def run_gke_cluster_delete_command(args) -> int:
   if return_code != 0:
     return return_code
 
-  # Delete resource policy if it exists
   placement_policy = f'{args.cluster}-placement-policy'
   return_code = delete_resource_policy_if_exists(placement_policy, args)
   if return_code != 0:

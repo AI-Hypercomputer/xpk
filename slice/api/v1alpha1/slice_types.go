@@ -26,24 +26,16 @@ import (
 type SliceSpec struct {
 	// AcceleratorType specifies the type of accelerator used in this slice.
 	// +kubebuilder:validation:Immutable
-	AcceleratorType string `json:"acceleratorType"`
+	Type string `json:"type"`
 
 	// Topology represents the network topology of the slice.
 	// +kubebuilder:validation:Immutable
-	AcceleratorTopology string `json:"acceleratorTopology"`
+	Topology string `json:"topology"`
 
-	// Required, set of nodes to use to form a slice.
-	// NodeSelector specifies a set of label-based selectors for nodes that can form the
-	// slice. The controller will select nodes where for each key-value pair in the map,
-	// the node's label value for that key is present in the corresponding string slice.
-	// This allows for a flexible "match any of these values for this label" selection.
-	// The nodeSelector will follow an AND over the map entries but an OR within the list
-	// items of the entry.
-	// For example, to select nodes in cubes cube-1 and cube-2, you could use:
-	// {"cloud.google.com/gke-tpu-reservation-subblock": ["cube-1", "cube-2"]}
-	//
-	// +kubebuilder:validation:Required
-	NodeSelector map[string][]string `json:"nodeSelector"`
+	// Partition Ids denotes the set of partitions to use to form a slice
+	// For slices that span multiple partitions, it will be a list of 4x4x4 Ids
+	// For sub-partition topology, it will be a single entry corresponding to the ID with the partition Ids
+	PartitionIDs []string `json:"partitionIds"`
 }
 
 // SliceStatus defines the observed state of Slice.
@@ -61,8 +53,8 @@ type SliceStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="Type",type=string,JSONPath=`.spec.acceleratorType`
-// +kubebuilder:printcolumn:name="Topology",type=string,JSONPath=`.spec.acceleratorTopology`
+// +kubebuilder:printcolumn:name="Type",type=string,JSONPath=`.spec.type`
+// +kubebuilder:printcolumn:name="Topology",type=string,JSONPath=`.spec.topology`
 // +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.conditions[0].type`
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 // Slice is the Schema for the slices API.

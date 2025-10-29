@@ -273,13 +273,13 @@ func (s *SliceWrapper) Name(name string) *SliceWrapper {
 	return s
 }
 
-func (s *SliceWrapper) AcceleratorType(acceleratorType string) *SliceWrapper {
-	s.Spec.AcceleratorType = acceleratorType
+func (s *SliceWrapper) Type(Type string) *SliceWrapper {
+	s.Spec.Type = Type
 	return s
 }
 
-func (s *SliceWrapper) AcceleratorTopology(acceleratorTopology string) *SliceWrapper {
-	s.Spec.AcceleratorTopology = acceleratorTopology
+func (s *SliceWrapper) Topology(topology string) *SliceWrapper {
+	s.Spec.Topology = topology
 	return s
 }
 
@@ -288,8 +288,8 @@ func (s *SliceWrapper) ControllerReference(gvk schema.GroupVersionKind, name, ui
 	return s
 }
 
-func (s *SliceWrapper) NodeSelector(ns map[string][]string) *SliceWrapper {
-	s.Spec.NodeSelector = ns
+func (s *SliceWrapper) PartitionIDs(ids ...string) *SliceWrapper {
+	s.Spec.PartitionIDs = ids
 	return s
 }
 

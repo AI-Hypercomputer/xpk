@@ -92,11 +92,11 @@ jobs:
     - name: Run xpk inspector with the workload created above
       run: python3 xpk.py inspector --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}}  --workload $WORKLOAD_NAME
     - name: Wait for workload completion and confirm it succeeded
-      run: python3 xpk.py workload list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} --wait-for-job-completion $WORKLOAD_NAME --timeout 300
+      run: ./backoff_retry.sh -c "python3 xpk.py workload list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} --wait-for-job-completion $WORKLOAD_NAME --timeout 300"
     - name: Run dws flex queued TPU workload
       run: python3 xpk.py workload create --workload $WORKLOAD_NAME_DWS --cluster ${{inputs.cluster-name-dws}} --zone=${{inputs.zone-dws}} --tpu-type=${{inputs.tpu-type-dws}}  --flex --command "echo foo" --num-slices=1
     - name: Wait for workload completion and confirm it succeeded
-      run: python3 xpk.py workload list --cluster ${{inputs.cluster-name-dws}} --zone=${{inputs.zone-dws}} --wait-for-job-completion $WORKLOAD_NAME_DWS --timeout 500
+      run: ./backoff_retry.sh -c "python3 xpk.py workload list --cluster ${{inputs.cluster-name-dws}} --zone=${{inputs.zone-dws}} --wait-for-job-completion $WORKLOAD_NAME_DWS --timeout 500"
     - name: Run a Pathways workload on Ubuntu base image
       run: python xpk.py workload create-pathways --cluster ${{inputs.cluster-name}} --workload $PATHWAYS_WORKLOAD_NAME --docker-image='marketplace.gcr.io/google/ubuntu2004' --tpu-type=${{inputs.tpu-type}} --num-slices=1 --zone=${{inputs.zone}} --command "echo \"Hello world from a test script! \""
     - name: Wait for Pathways workload completion and confirm it succeeded

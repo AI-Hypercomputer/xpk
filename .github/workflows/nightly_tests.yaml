@@ -87,7 +87,7 @@ jobs:
     - name: Run xpk inspector with the workload created above
       run: python3 xpk.py inspector --cluster $TPU_CLUSTER_NAME --zone=us-central2-b  --workload $WORKLOAD_NAME
     - name: Wait for workload completion and confirm it succeeded
-      run: python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion $WORKLOAD_NAME --timeout 300
+      run: ./backoff_retry.sh -c "python3 xpk.py workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion $WORKLOAD_NAME --timeout 300"
     - name: Run xpk info command
       run : python3 xpk.py info --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
     - name: Delete the workload on the cluster
@@ -201,7 +201,7 @@ jobs:
     - name: Check xpk installation
       run: xpk --help
     - name: Create an Pathways-enabled XPK Cluster with 2 x v4-8 nodepools
-      run: python xpk.py cluster create-pathways --cluster $TPU_CLUSTER_NAME --tpu-type=v4-8  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=4 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments="${CLUSTER_NETWORK_ARGUMENTS}"
+      run: ./backoff_retry.sh -c 'python xpk.py cluster create-pathways --cluster $TPU_CLUSTER_NAME --tpu-type=v4-8  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=4 --reservation="${{ secrets.GCP_TPU_V4_RESERVATION }}" --custom-cluster-arguments="${CLUSTER_NETWORK_ARGUMENTS}"'
     - name: Create test script to execute in workloads
       run: echo -e '#!/bin/bash \n echo "Hello world from a test script!"' > workload.sh
     - name: Run a Pathways workload on Ubuntu base image

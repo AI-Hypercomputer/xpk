@@ -16,7 +16,7 @@ limitations under the License.
 
 from typing import Literal
 
-from ..utils.execution_context import is_quiet
+from .execution_context import is_quiet
 
 
 def ask_for_user_consent(

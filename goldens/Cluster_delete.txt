@@ -14,6 +14,11 @@ kubectl get workloads --ignore-not-found -o=custom-columns="Jobset Name:.metadat
 gcloud beta container clusters delete golden-cluster --project=golden-project --location=us-central1 --quiet
 [XPK] Task: `Get All Subnets` is implemented by the following command not running since it is a dry run. 
 gcloud compute networks subnets list --filter=name~"golden-cluster-us-central1-sub-*" --project=golden-project
+[XPK] Task: `Check resource policy exists` is implemented by the following command not running since it is a dry run. 
+gcloud compute resource-policies describe golden-cluster-placement-policy --project=golden-project --region=us-central1
+[XPK] Task: `Delete resource policy` is implemented by the following command not running since it is a dry run. 
+gcloud compute resource-policies delete golden-cluster-placement-policy --project=golden-project --region=us-central1 --quiet
+[XPK] Deleted resource policy golden-cluster-placement-policy
 [XPK] GKE commands done! Cluster golden-cluster deleted.
 
 [XPK] Exiting XPK cleanly

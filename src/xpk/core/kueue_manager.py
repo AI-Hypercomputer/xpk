@@ -20,6 +20,8 @@ from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
 import json
 from jinja2 import Environment, FileSystemLoader
+
+from .user_input import ask_for_user_consent
 from ..utils.execution_context import is_dry_run
 from ..utils.kueue import is_queued_cluster
 
@@ -53,6 +55,7 @@ KUEUE_SUB_SLICING_TOPOLOGY_JINJA_FILE = "kueue_sub_slicing_topology.yaml.j2"
 MEMORY_SIZE_PER_VM = 1.2
 MIN_MEMORY_LIMIT_SIZE = 4096
 KUEUE_VERSION = Version("v0.14.2")
+LATEST_BREAKING_VERSION = Version("v0.14.0")
 
 
 @dataclass
@@ -103,16 +106,24 @@ class KueueManager:
         tolerations: An optional list of tolerations to apply to the kueue-controller-manager.
     """
     return_code, installed_version = self.get_installed_kueue_version()
+    upgrading = False
 
-    if return_code == 0:
-      if installed_version and installed_version > self.kueue_version:
+    if return_code == 0 and installed_version:
+      if installed_version > self.kueue_version:
         xpk_print(
             f"Cluster has a newer Kueue version, {installed_version}. Skipping"
             " installation."
         )
         return 0
       else:
-        xpk_print(f"Upgrading Kueue to version v{self.kueue_version}...")
+        upgrading = True
+
+    if upgrading:
+      xpk_print(f"Upgrading Kueue to version v{self.kueue_version}...")
+      assert installed_version
+      prepare_code = self.__prepare_for_upgrade(installed_version)
+      if prepare_code != 0:
+        return prepare_code
     else:
       xpk_print(f"Installing Kueue version v{self.kueue_version}...")
 
@@ -161,6 +172,63 @@ class KueueManager:
 
     return self.__wait_for_kueue_available()
 
+  def __prepare_for_upgrade(self, installed_version: Version) -> int:
+    if installed_version >= LATEST_BREAKING_VERSION:
+      return 0
+
+    changelog_link = f"https://github.com/kubernetes-sigs/kueue/blob/main/CHANGELOG/CHANGELOG-{self.kueue_version.major}.{self.kueue_version.minor}.md"
+    xpk_print(
+        f"Currently installed Kueue version v{installed_version} is"
+        f" incompatible with the newer v{self.kueue_version}."
+    )
+    xpk_print(
+        f"Please upgrade the Kueue manually (see {changelog_link} for help), or"
+        " consider deleting all existing Kueue resources."
+    )
+
+    agreed = ask_for_user_consent(
+        "Do you want to delete all existing Kueue resources from the cluster?"
+    )
+    if not agreed:
+      return 1
+
+    return self.__delete_all_kueue_resources()
+
+  def __delete_all_kueue_resources(self) -> int:
+    return_code, kueue_crds_string = run_command_for_value(
+        "kubectl get crd -o name | grep .kueue.x-k8s.io", "Get Kueue CRDs"
+    )
+    if return_code != 0:
+      return return_code
+
+    kueue_crds = [
+        line.strip().removeprefix(
+            "customresourcedefinition.apiextensions.k8s.io/"
+        )
+        for line in kueue_crds_string.strip().split("\n")
+    ]
+
+    for crd in kueue_crds:
+      return_code = run_command_with_updates(
+          f"kubectl delete {crd} --all", f"Delete all resources of type {crd}"
+      )
+      if return_code != 0:
+        return return_code
+
+    for crd in kueue_crds:
+      return_code = run_command_with_updates(
+          f"kubectl delete crd {crd}", f"Delete CRD {crd}"
+      )
+      if return_code != 0:
+        return return_code
+
+    return_code = run_command_with_updates(
+        "kubectl delete deployment kueue-controller-manager -n kueue-system",
+        "Delete Kueue Controller Manager deployment",
+    )
+
+    return return_code
+
   def __install_kueue_crs(self) -> int:
     manifest_url = f"https://github.com/kubernetes-sigs/kueue/releases/download/v{self.kueue_version}/manifests.yaml"
     install_command = (
@@ -199,7 +267,7 @@ class KueueManager:
       0 if successful and 1 otherwise.
     """
     command = (
-        "kubectl wait deploy/kueue-controller-manager -nkueue-system"
+        "kubectl wait deploy/kueue-controller-manager -n kueue-system"
         f" --for=condition=available --timeout={WAIT_FOR_KUEUE_TIMEOUT}"
     )
     task = "Wait for Kueue to be available"

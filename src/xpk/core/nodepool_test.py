@@ -16,6 +16,7 @@ limitations under the License.
 
 import pytest
 from xpk.core.nodepool import (
+    delete_resource_policy_if_exists,
     ensure_resource_policy_exists,
     get_desired_node_pool_names,
     run_gke_node_pool_create_command,
@@ -93,6 +94,9 @@ def test_ensure_resource_policy_exists_with_existing_policy_retrieves_existing_p
 ):
   args = mocker.Mock(project="test-project", zone="us-central1-a")
   mocker.patch("xpk.core.nodepool.get_cluster_location", return_value=args.zone)
+  mocker.patch(
+      "xpk.core.nodepool.delete_resource_policy_if_exists", return_value=0
+  )
   mock = mocker.patch(
       "xpk.core.nodepool.run_command_for_value", return_value=(0, "")
   )
@@ -105,27 +109,81 @@ def test_ensure_resource_policy_exists_without_existing_policy_creates_policy(
 ):
   args = mocker.Mock(project="test-project", zone="us-central1-a")
   mocker.patch("xpk.core.nodepool.get_cluster_location", return_value=args.zone)
+  mocker.patch(
+      "xpk.core.nodepool.delete_resource_policy_if_exists", return_value=0
+  )
   mock = mocker.patch(
-      "xpk.core.nodepool.run_command_for_value", side_effect=[(1, ""), (0, "")]
+      "xpk.core.nodepool.run_command_for_value", return_value=(0, "")
   )
   ensure_resource_policy_exists("resource-policy", args, "2x2x1")
-  assert mock.call_count == 2
-  assert mock.call_args_list[0].args[1] == "Retrieve resource policy"
+  mock.assert_called_once()
 
 
 def test_ensure_resource_policy_exits_without_existing_policy_throws_when_creation_fails(
     mocker,
 ):
-  with pytest.raises(RuntimeError):
-    args = mocker.Mock(project="test-project", zone="us-central1-a")
-    mocker.patch(
-        "xpk.core.nodepool.get_cluster_location", return_value=args.zone
-    )
-    mocker.patch(
-        "xpk.core.nodepool.run_command_for_value",
-        side_effect=[(1, ""), (1, "")],
-    )
-    ensure_resource_policy_exists("resource-policy", args, "2x2x1")
+  args = mocker.Mock(project="test-project", zone="us-central1-a")
+  mocker.patch("xpk.core.nodepool.get_cluster_location", return_value=args.zone)
+  mocker.patch(
+      "xpk.core.nodepool.delete_resource_policy_if_exists", return_value=0
+  )
+  mock_exit = mocker.patch("xpk.core.nodepool.xpk_exit")
+  mocker.patch("xpk.core.nodepool.run_command_for_value", side_effect=[(1, "")])
+  ensure_resource_policy_exists("resource-policy", args, "2x2x1")
+  mock_exit.assert_called_once_with(1)
+
+
+def test_delete_resource_policy_if_exists_with_existing_policy_deletes_successfully(
+    mocker,
+):
+  args = mocker.Mock(project="test-project", zone="us-central1-a")
+  mocker.patch("xpk.core.nodepool.zone_to_region", return_value="us-central1")
+  mock_run_command = mocker.patch(
+      "xpk.core.nodepool.run_command_for_value",
+      side_effect=[(0, "policy exists"), (0, "deleted")],
+  )
+
+  result = delete_resource_policy_if_exists("test-policy", args)
+
+  assert result == 0
+  assert mock_run_command.call_count == 2
+  # First call should be describe (check if exists)
+  assert "describe" in mock_run_command.call_args_list[0][0][0]
+  # Second call should be delete
+  assert "delete" in mock_run_command.call_args_list[1][0][0]
+
+
+def test_delete_resource_policy_if_exists_with_nonexistent_policy_returns_success(
+    mocker,
+):
+  args = mocker.Mock(project="test-project", zone="us-central1-a")
+  mocker.patch("xpk.core.nodepool.zone_to_region", return_value="us-central1")
+  # Policy doesn't exist (describe returns non-zero)
+  mock_run_command = mocker.patch(
+      "xpk.core.nodepool.run_command_for_value", return_value=(1, "not found")
+  )
+
+  result = delete_resource_policy_if_exists("test-policy", args)
+
+  assert result == 0  # Should return success when policy doesn't exist
+  assert mock_run_command.call_count == 1  # Only describe call, no delete
+  assert "describe" in mock_run_command.call_args_list[0][0][0]
+
+
+def test_delete_resource_policy_if_exists_with_deletion_failure_returns_error(
+    mocker,
+):
+  args = mocker.Mock(project="test-project", zone="us-central1-a")
+  mocker.patch("xpk.core.nodepool.zone_to_region", return_value="us-central1")
+  mock_run_command = mocker.patch(
+      "xpk.core.nodepool.run_command_for_value",
+      side_effect=[(0, "policy exists"), (1, "deletion failed")],
+  )
+
+  result = delete_resource_policy_if_exists("test-policy", args)
+
+  assert result == 1  # Should return error when deletion fails
+  assert mock_run_command.call_count == 2
 
 
 @pytest.fixture

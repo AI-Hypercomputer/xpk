@@ -22,6 +22,10 @@ jobs:
     cpu-cluster:
         runs-on: [ubuntu-22.04]
         needs: [build]
+        env:
+            NAME: xpk-test-${{github.run_id}}
+            ZONE: us-central1-a
+            WORKLOAD: test-workload
         steps:
           - uses: actions/setup-python@v5
             with:
@@ -44,3 +48,12 @@ jobs:
             run: pip install dist/xpk-*.whl
           - name: XPK version
             run: xpk version
+          - name: Create cluster
+            run: xpk cluster create --cluster=${NAME} --zone=${ZONE} --device-type=n2-standard-32-1 --on-demand
+          - name: Create workload
+            run: xpk workload create --cluster=${NAME} --zone=${ZONE} --device-type=n2-standard-32-1 --workload=${WORKLOAD} --command "echo hello"
+          - name: List workloads
+            run: xpk workload list --cluster=${NAME} --zone=${ZONE}
+          - name: Delete cluster
+            if: always()
+            run: xpk cluster delete --cluster=${NAME} --zone=${ZONE} --force

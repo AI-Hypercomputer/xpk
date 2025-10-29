@@ -15,14 +15,22 @@ limitations under the License.
 """
 
 dry_run = False
+quiet = False
 
 
-def set_dry_run(value: bool) -> None:
-  """Sets the dry_run flag."""
+def set_context(dry_run_value: bool, quiet_value: bool) -> None:
+  """Sets the dry_run and quiet flags."""
   global dry_run
-  dry_run = value
+  global quiet
+  dry_run = dry_run_value
+  quiet = quiet_value
 
 
 def is_dry_run() -> bool:
   """Returns the current value of the dry_run flag."""
   return dry_run
+
+
+def is_quiet() -> bool:
+  """Returns the current value of the quiet flag."""
+  return quiet

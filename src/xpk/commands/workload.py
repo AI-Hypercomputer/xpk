@@ -27,7 +27,7 @@ from ..core.cluster import (
     setup_k8s_env,
 )
 from ..core.commands import run_command_with_updates, run_commands, run_command_for_value
-from ..core.kueue_manager import KueueManager, SUB_SLICE_TOPOLOGY_NAME
+from ..core.kueue_manager import KueueManager
 from ..core.config import (VERTEX_TENSORBOARD_FEATURE_FLAG, XPK_CURRENT_VERSION)
 from ..core.docker_container import (
     get_main_container_docker_image,

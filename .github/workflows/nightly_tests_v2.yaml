@@ -44,6 +44,9 @@ jobs:
           - run: curl -Lo ./kubectl-kueue https://github.com/kubernetes-sigs/kueue/releases/download/v0.14.2/kubectl-kueue-linux-amd64
           - run: chmod +x ./kubectl-kueue
           - run: mv ./kubectl-kueue /usr/local/bin/kubectl-kueue
+          - run: curl -Lo ./kubectl-kjob https://github.com/kubernetes-sigs/kjob/releases/download/v0.1.0/kubectl-kjob-linux-amd64
+          - run: chmod +x ./kubectl-kjob
+          - run: mv ./kubectl-kjob /usr/local/bin/kubectl-kjob
           - name: Install XPK
             run: pip install dist/xpk-*.whl
           - name: XPK version

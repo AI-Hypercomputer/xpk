@@ -55,6 +55,7 @@ from ..core.network import (
     set_up_cluster_network_for_a3,
 )
 from ..core.nodepool import (
+    delete_resource_policy_if_exists,
     get_gke_node_pool_version,
     run_gke_node_pool_create_command,
 )
@@ -1083,6 +1084,12 @@ def run_gke_cluster_delete_command(args) -> int:
     return 1
 
   return_code = delete_cluster_subnets(args)
+  if return_code != 0:
+    return return_code
+
+  # Delete resource policy if it exists
+  placement_policy = f'{args.cluster}-placement-policy'
+  return_code = delete_resource_policy_if_exists(placement_policy, args)
   if return_code != 0:
     return return_code
 

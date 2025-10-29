@@ -597,19 +597,10 @@ def get_desired_node_pool_names(
 def ensure_resource_policy_exists(
     resource_policy_name: str, args, topology: str
 ) -> None:
-  return_code, _ = run_command_for_value(
-      (
-          'gcloud compute resource-policies describe'
-          f' {resource_policy_name} '
-          f'--project={args.project} '
-          f'--region={zone_to_region(args.zone)}'
-      ),
-      'Retrieve resource policy',
-  )
+  # Always delete existing policy first (if it exists) to ensure we have the correct topology
+  delete_resource_policy_if_exists(resource_policy_name, args)
 
-  if return_code == 0:
-    return
-
+  # Create new resource policy with the correct topology
   return_code, _ = run_command_for_value(
       (
           'gcloud compute resource-policies create workload-policy'
@@ -621,3 +612,51 @@ def ensure_resource_policy_exists(
 
   if return_code != 0:
     raise RuntimeError('Unable to create resource policy')
+
+
+def delete_resource_policy_if_exists(
+    resource_policy_name: str, args
+) -> int:
+  """Delete a resource policy if it exists.
+
+  Args:
+    resource_policy_name: Name of the resource policy to delete.
+    args: user provided arguments containing project and zone.
+
+  Returns:
+    0 if successful (policy deleted or didn't exist), 1 if error occurred.
+  """
+  # First check if the resource policy exists
+  return_code, _ = run_command_for_value(
+      (
+          'gcloud compute resource-policies describe'
+          f' {resource_policy_name} '
+          f'--project={args.project} '
+          f'--region={zone_to_region(args.zone)}'
+      ),
+      'Check resource policy exists',
+      verbose=False
+  )
+
+  # If policy doesn't exist, nothing to delete
+  if return_code != 0:
+    return 0
+
+  # Delete the resource policy
+  return_code, _ = run_command_for_value(
+      (
+          'gcloud compute resource-policies delete'
+          f' {resource_policy_name} '
+          f'--project={args.project} '
+          f'--region={zone_to_region(args.zone)} '
+          '--quiet'
+      ),
+      'Delete resource policy',
+  )
+
+  if return_code != 0:
+    xpk_print(f'Failed to delete resource policy {resource_policy_name}')
+    return 1
+  else:
+    xpk_print(f'Deleted resource policy {resource_policy_name}')
+    return 0

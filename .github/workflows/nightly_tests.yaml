@@ -16,6 +16,16 @@ name: Nightly Tests
 
 on:
   workflow_dispatch:
+    inputs:
+      gpu-type:
+        description: 'GPU Type'
+        required: false
+        default: ''
+        type: choice
+        options:
+          - 'h200-141gb-8'
+          - 'h100-mega-80gb-8'
+          - 'h100-80gb-8'
   schedule: # Schedule the job run at 12AM PST daily.
     - cron: '0 8 * * *'
 
@@ -26,6 +36,14 @@ env:
   CLUSTER_NETWORK_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}} --subnetwork=${{secrets.SUBNETWORK_NAME}}"
 
 jobs:
+  a3u-test:
+    if: inputs.gpu-type == 'h200-141gb-8'
+    uses: ./.github/workflows/a3u-workload.yaml
+    secrets: inherit
+  a3mega-test:
+    if: inputs.gpu-type == 'h100-mega-80gb-8'
+    uses: ./.github/workflows/a3mega-workload.yaml
+    secrets: inherit
   cluster-create-and-delete:
     runs-on: [ubuntu-22.04]
     concurrency: # We support one build test to run at a time currently.

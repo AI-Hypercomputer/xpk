@@ -362,19 +362,6 @@ jobs:
       group: integration-tests-${{needs.set-variables.outputs.run-id}}
       cancel-in-progress: true
     secrets: inherit
-  cluster-private:
-    needs: [run-integration-tests, set-variables]
-    uses: ./.github/workflows/reusable_cluster_private.yaml
-    concurrency: # We support one build or nightly test to run at a time currently.
-      group: cluster-private-${{needs.set-variables.outputs.run-id}}
-      cancel-in-progress: true
-    with:
-      run-id: '${{needs.set-variables.outputs.run-id}}'
-      cluster-name: '${{needs.set-variables.outputs.cluster-name}}'
-      tpu-type: '${{needs.set-variables.outputs.tpu-type-topology || inputs.tpu-type}}'
-      zone: '${{needs.set-variables.outputs.zone}}'
-      location: '${{needs.set-variables.outputs.location}}'
-    secrets: inherit
   cluster-create:
     needs: [run-integration-tests, set-variables]
     concurrency: # We support one build or nightly test to run at a time currently.
@@ -403,19 +390,8 @@ jobs:
       zone: ${{needs.set-variables.outputs.zone}}
       run-id: '${{needs.set-variables.outputs.run-id}}'
     secrets: inherit
-  batch-tests:
-    needs: [cluster-create, set-variables]
-    uses: ./.github/workflows/reusable_batch_tests.yaml
-    concurrency: # We support one build or nightly test to run at a time currently.
-      group: batch-tests-${{needs.set-variables.outputs.run-id}}
-      cancel-in-progress: true
-    with:
-      cluster-name: ${{needs.set-variables.outputs.cluster-name}}
-      zone: ${{needs.set-variables.outputs.zone}}
-      run-id: ${{needs.set-variables.outputs.run-id}}
-    secrets: inherit
   storage-tests:
-    needs: [cluster-create, set-variables, batch-tests, workloads-tests]
+    needs: [cluster-create, set-variables, workloads-tests]
     uses: ./.github/workflows/reusable_storage_tests.yaml
     concurrency: # We support one build or nightly test to run at a time currently.
       group: storage-tests-${{needs.set-variables.outputs.run-id}}

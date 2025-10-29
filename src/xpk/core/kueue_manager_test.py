@@ -561,6 +561,33 @@ class KueueManagerTest(unittest.TestCase):
     assert isinstance(manifest, str)
     return manifest
 
+  @patch("xpk.core.kueue_manager.run_command_for_value")
+  def test_has_sub_slicing_enabled_returns_exit_code_when_command_fails(
+      self, mock_run_for_value
+  ):
+    mock_run_for_value.return_value = (1, None)
+    return_code, result = self.kueue_manager.has_sub_slicing_enabled()
+    assert return_code == 1
+    assert result is None
+
+  @patch("xpk.core.kueue_manager.run_command_for_value")
+  def test_has_sub_slicing_enabled_returns_false_when_sub_slicing_topology_is_not_present(
+      self, mock_run_for_value
+  ):
+    mock_run_for_value.return_value = (0, "")
+    return_code, result = self.kueue_manager.has_sub_slicing_enabled()
+    assert return_code == 0
+    assert result is False
+
+  @patch("xpk.core.kueue_manager.run_command_for_value")
+  def test_has_sub_slicing_enabled_returns_false_when_sub_slicing_topology_is_not_present(
+      self, mock_run_for_value
+  ):
+    mock_run_for_value.return_value = (0, "sub-slice-topology")
+    return_code, result = self.kueue_manager.has_sub_slicing_enabled()
+    assert return_code == 0
+    assert result is True
+
 
 T = TypeVar("T")
 

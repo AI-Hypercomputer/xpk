@@ -683,24 +683,22 @@ def workload_create(args) -> None:
 
 
 def _validate_sub_slicing_availability():
-  return_code, value = run_command_for_value(
-      command='kubectl get topology', task='Get defined topologies'
-  )
+  kueue_manager = KueueManager()
 
+  return_code, sub_slicing_enabled = kueue_manager.has_sub_slicing_enabled()
   if return_code != 0:
     xpk_print(
         'Error: Unable to validate sub-slicing support on a given cluster.'
     )
     xpk_exit(1)
 
-  if SUB_SLICE_TOPOLOGY_NAME not in value:
+  if not sub_slicing_enabled:
     xpk_print(
         'Error: Cluster has not been not set up for Sub-slicing. Please enable'
         ' --sub-slicing in "cluster create" command first.'
     )
     xpk_exit(1)
 
-  kueue_manager = KueueManager()
   return_code, current_version = kueue_manager.get_installed_kueue_version()
   if return_code != 0:
     xpk_print(

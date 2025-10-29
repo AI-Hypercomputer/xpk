@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 from typing import List
-from ..utils.console import get_user_input, xpk_print
+from ..utils.console import get_user_input, xpk_exit, xpk_print
 from ..utils.topology import get_topology_product, is_topology_valid
 from .capacity import (
     AUTOPROVISIONING_CONFIG_VALUE,
@@ -611,12 +611,11 @@ def ensure_resource_policy_exists(
   )
 
   if return_code != 0:
-    raise RuntimeError('Unable to create resource policy')
+    xpk_print(f'Create resource policy request returned ERROR {return_code}')
+    xpk_exit(return_code)
 
 
-def delete_resource_policy_if_exists(
-    resource_policy_name: str, args
-) -> int:
+def delete_resource_policy_if_exists(resource_policy_name: str, args) -> int:
   """Delete a resource policy if it exists.
 
   Args:
@@ -635,7 +634,6 @@ def delete_resource_policy_if_exists(
           f'--region={zone_to_region(args.zone)}'
       ),
       'Check resource policy exists',
-      verbose=False
   )
 
   # If policy doesn't exist, nothing to delete

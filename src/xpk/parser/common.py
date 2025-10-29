@@ -73,6 +73,14 @@ def add_shared_arguments(
       ),
       required=required,
   )
+  custom_parser_or_group.add_argument(
+      '--quiet',
+      type=bool,
+      action=argparse.BooleanOptionalAction,
+      default=False,
+      help='Disables prompting before unintended destructive actions.',
+      required=required,
+  )
 
 
 def add_cluster_arguments(

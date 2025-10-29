@@ -13,24 +13,3 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-
-dry_run = False
-quiet = False
-
-
-def set_context(dry_run_value: bool, quiet_value: bool) -> None:
-  """Sets the dry_run and quiet flags."""
-  global dry_run
-  global quiet
-  dry_run = dry_run_value
-  quiet = quiet_value
-
-
-def is_dry_run() -> bool:
-  """Returns the current value of the dry_run flag."""
-  return dry_run
-
-
-def is_quiet() -> bool:
-  """Returns the current value of the quiet flag."""
-  return quiet

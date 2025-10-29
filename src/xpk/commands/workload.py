@@ -27,7 +27,7 @@ from ..core.cluster import (
     setup_k8s_env,
 )
 from ..core.commands import run_command_with_updates, run_commands
-from ..core.kueue_manager import KueueManager
+from ..core.kueue_manager import KueueManager, has_sub_slicing_enabled
 from ..core.config import (VERTEX_TENSORBOARD_FEATURE_FLAG, XPK_CURRENT_VERSION)
 from ..core.docker_container import (
     get_main_container_docker_image,
@@ -683,9 +683,7 @@ def workload_create(args) -> None:
 
 
 def _validate_sub_slicing_availability():
-  kueue_manager = KueueManager()
-
-  return_code, sub_slicing_enabled = kueue_manager.has_sub_slicing_enabled()
+  return_code, sub_slicing_enabled = has_sub_slicing_enabled()
   if return_code != 0:
     xpk_print(
         'Error: Unable to validate sub-slicing support on a given cluster.'
@@ -699,6 +697,7 @@ def _validate_sub_slicing_availability():
     )
     xpk_exit(1)
 
+  kueue_manager = KueueManager()
   return_code, current_version = kueue_manager.get_installed_kueue_version()
   if return_code != 0:
     xpk_print(

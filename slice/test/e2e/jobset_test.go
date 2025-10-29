@@ -99,14 +99,14 @@ var _ = ginkgo.Describe("JobSet", func() {
 
 	ginkgo.When("Creating a JobSet", func() {
 		type testCase struct {
-			tpuTopology           string
-			parallelism           int32
-			replicas              int32
-			wantSliceSize         int32
-			tpuRequests           string
-			unhealthyNodes        []string
-			wantDomains           []kueue.TopologyDomainAssignment
-			wantSliceNodeSelector map[string][]string
+			tpuTopology      string
+			parallelism      int32
+			replicas         int32
+			wantSliceSize    int32
+			tpuRequests      string
+			unhealthyNodes   []string
+			wantDomains      []kueue.TopologyDomainAssignment
+			wantPartitionIDs []string
 		}
 		ginkgo.DescribeTable("it should create Slice based on created Workload with",
 			func(tc testCase) {
@@ -219,10 +219,10 @@ var _ = ginkgo.Describe("JobSet", func() {
 				ginkgo.By("Checking that Slice is created", func() {
 					gomega.Eventually(func(g gomega.Gomega) {
 						g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
-						g.Expect(createdSlice.Spec.NodeSelector).To(gomega.HaveLen(1))
-						g.Expect(createdSlice.Spec.NodeSelector).To(gomega.BeComparableTo(tc.wantSliceNodeSelector))
-						g.Expect(createdSlice.Spec.AcceleratorTopology).To(gomega.Equal(tc.tpuTopology))
-						g.Expect(createdSlice.Spec.AcceleratorType).To(gomega.Equal("tpu-v7x"))
+						g.Expect(createdSlice.Spec.PartitionIDs).To(gomega.HaveLen(len(tc.wantPartitionIDs)))
+						g.Expect(createdSlice.Spec.PartitionIDs).To(gomega.BeComparableTo(tc.wantPartitionIDs))
+						g.Expect(createdSlice.Spec.Topology).To(gomega.Equal(tc.tpuTopology))
+						g.Expect(createdSlice.Spec.Type).To(gomega.Equal("tpu-v7x"))
 					}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 				})
 
@@ -316,9 +316,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 					Values: []string{"kind-worker"},
 					Count:  16,
 				}},
-				wantSliceNodeSelector: map[string][]string{
-					"cloud.google.com/gke-tpu-slice-4x4x4-id": {"sb1"},
-				},
+				wantPartitionIDs: []string{"sb1"},
 			}),
 			ginkgo.Entry("TPU topology 4x4x4, TPU topology 4 and parallelism 16 (missed kind-worker node)", testCase{
 				tpuTopology:    "4x4x4",
@@ -331,9 +329,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 					Values: []string{"kind-worker2"},
 					Count:  16,
 				}},
-				wantSliceNodeSelector: map[string][]string{
-					"cloud.google.com/gke-tpu-slice-4x4x4-id": {"sb2"},
-				},
+				wantPartitionIDs: []string{"sb2"},
 			}),
 			ginkgo.Entry("TPU topology, TPU topology 1 4x4x4 and parallelism 16", testCase{
 				tpuTopology:   "4x4x4",
@@ -345,9 +341,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 					Values: []string{"kind-worker"},
 					Count:  64,
 				}},
-				wantSliceNodeSelector: map[string][]string{
-					"cloud.google.com/gke-tpu-slice-4x4x4-id": {"sb1"},
-				},
+				wantPartitionIDs: []string{"sb1"},
 			}),
 			ginkgo.Entry("TPU topology 4x4x12 and parallelism 48", testCase{
 				tpuTopology:   "4x4x12",
@@ -369,9 +363,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Count:  16,
 					},
 				},
-				wantSliceNodeSelector: map[string][]string{
-					"cloud.google.com/gke-tpu-slice-4x4x4-id": {"sb2", "sb3", "sb4"},
-				},
+				wantPartitionIDs: []string{"sb2", "sb3", "sb4"},
 			}),
 			ginkgo.Entry("TPU topology 4x4x12 and parallelism 96", testCase{
 				tpuTopology:   "4x4x12",
@@ -393,9 +385,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Count:  32,
 					},
 				},
-				wantSliceNodeSelector: map[string][]string{
-					"cloud.google.com/gke-tpu-slice-4x4x4-id": {"sb2", "sb3", "sb4"},
-				},
+				wantPartitionIDs: []string{"sb2", "sb3", "sb4"},
 			}),
 			ginkgo.Entry("TPU topology 4x4x8 and parallelism 128", testCase{
 				tpuTopology:   "4x4x8",
@@ -413,9 +403,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Count:  64,
 					},
 				},
-				wantSliceNodeSelector: map[string][]string{
-					"cloud.google.com/gke-tpu-slice-4x4x4-id": {"sb2", "sb3"},
-				},
+				wantPartitionIDs: []string{"sb2", "sb3"},
 			}),
 			ginkgo.Entry("TPU topology 4x4x4 split across 2 replicas", testCase{
 				tpuTopology:   "4x4x4",
@@ -429,9 +417,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Count:  16,
 					},
 				},
-				wantSliceNodeSelector: map[string][]string{
-					"cloud.google.com/gke-tpu-slice-4x4x4-id": {"sb1"},
-				},
+				wantPartitionIDs: []string{"sb1"},
 			}),
 			ginkgo.Entry("TPU topology 4x4x12 split across 3 replicas", testCase{
 				tpuTopology:   "4x4x12",
@@ -453,9 +439,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Count:  16,
 					},
 				},
-				wantSliceNodeSelector: map[string][]string{
-					"cloud.google.com/gke-tpu-slice-4x4x4-id": {"sb2", "sb3", "sb4"},
-				},
+				wantPartitionIDs: []string{"sb2", "sb3", "sb4"},
 			}),
 		)
 
@@ -930,10 +914,8 @@ var _ = ginkgo.Describe("JobSet", func() {
 			ginkgo.By("Checking that Slice 1 is created", func() {
 				gomega.Eventually(func(g gomega.Gomega) {
 					g.Expect(k8sClient.Get(ctx, sliceKey1, createdSlice1)).To(gomega.Succeed())
-					g.Expect(createdSlice1.Spec.NodeSelector).To(gomega.HaveLen(1))
-					g.Expect(createdSlice1.Spec.NodeSelector).To(gomega.BeComparableTo(map[string][]string{
-						"cloud.google.com/gke-tpu-slice-4x4x4-id": {"sb1"},
-					}))
+					g.Expect(createdSlice1.Spec.PartitionIDs).To(gomega.HaveLen(1))
+					g.Expect(createdSlice1.Spec.PartitionIDs).To(gomega.BeComparableTo([]string{"sb1"}))
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
 
@@ -943,10 +925,8 @@ var _ = ginkgo.Describe("JobSet", func() {
 			ginkgo.By("Checking that Slice 2 is created", func() {
 				gomega.Eventually(func(g gomega.Gomega) {
 					g.Expect(k8sClient.Get(ctx, sliceKey2, createdSlice2)).To(gomega.Succeed())
-					g.Expect(createdSlice2.Spec.NodeSelector).To(gomega.HaveLen(1))
-					g.Expect(createdSlice2.Spec.NodeSelector).To(gomega.BeComparableTo(map[string][]string{
-						"cloud.google.com/gke-tpu-slice-4x4x4-id": {"sb2"},
-					}))
+					g.Expect(createdSlice2.Spec.PartitionIDs).To(gomega.HaveLen(1))
+					g.Expect(createdSlice2.Spec.PartitionIDs).To(gomega.BeComparableTo([]string{"sb2"}))
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
 

@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -507,20 +508,17 @@ func shouldCreateSliceForPodSetAssignment(wl *kueue.Workload, psa kueue.PodSetAs
 }
 
 func parseTopologyAssignmentIntoNodeSelector(slice *v1alpha1.Slice, topologyAssignment *kueue.TopologyAssignment, nodes map[string]corev1.Node) {
-	nodeSelectors := sets.New[string]()
+	subBlockIDs := sets.New[string]()
 	// we already validated that all assignments have a valid level,
 	// in validateRelevantWorkload.
 	hostnameLevelIndex := topology.HostnameLevelIndex(topologyAssignment)
 	for _, domain := range topologyAssignment.Domains {
 		nodeName := domain.Values[hostnameLevelIndex]
-		nodeSelectors.Insert(topology.GetTPUSubBlockLabelValue(nodes, nodeName))
+		subBlockIDs.Insert(topology.GetTPUSubBlockLabelValue(nodes, nodeName))
 	}
-	// In the future, we want to make sure nodeSelectorKey
-	// matches PodSetSliceRequiredTopologyAnnotation.
-	nodeSelectorKey := core.TPUSubBlockLabel
-	slice.Spec.NodeSelector = map[string][]string{
-		nodeSelectorKey: sets.List(nodeSelectors),
-	}
+	partitionIDs := subBlockIDs.UnsortedList()
+	slices.Sort(partitionIDs)
+	slice.Spec.PartitionIDs = partitionIDs
 }
 
 func (r *WorkloadReconciler) createSlice(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, psa *kueue.PodSetAssignment, nodes map[string]corev1.Node) (*v1alpha1.Slice, error) {
@@ -534,8 +532,8 @@ func (r *WorkloadReconciler) createSlice(ctx context.Context, wl *kueue.Workload
 	parseTopologyAssignmentIntoNodeSelector(slice, psa.TopologyAssignment, nodes)
 
 	ps := podset.FindPodSetByName(wl.Spec.PodSets, psa.Name)
-	slice.Spec.AcceleratorType = core.GetTPUAccelerator(ps.Template)
-	slice.Spec.AcceleratorTopology = core.GetTPUTopology(ps.Template)
+	slice.Spec.Type = core.GetTPUAccelerator(ps.Template)
+	slice.Spec.Topology = core.GetTPUTopology(ps.Template)
 
 	if err := r.client.Create(ctx, slice); err != nil {
 		msg := fmt.Sprintf("Error creating Slice %q: %v", client.ObjectKeyFromObject(slice), err)

@@ -1,0 +1,17 @@
+name: "Install kueue"
+description: "Installs kueue"
+
+inputs:
+  version:
+    description: 'The version to install"
+    required: false
+    default: '0.14.2'
+
+runs:
+  using: composite
+  steps:
+    - name: Install kubectl-kueue
+      run: |
+        curl -Lo ./kubectl-kueue https://github.com/kubernetes-sigs/kueue/releases/download/v${{inputs.version}}/kubectl-kueue-linux-amd64
+        chmod +x ./kubectl-kueue
+        mv ./kubectl-kueue /usr/local/bin/kubectl-kueue

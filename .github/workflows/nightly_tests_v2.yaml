@@ -43,11 +43,7 @@ jobs:
                 install_components: 'beta,gke-gcloud-auth-plugin'
           - name: Authenticate Docker
             run: gcloud auth configure-docker --quiet
-          - name: Install kubectl-kueue
-            run: |
-              curl -Lo ./kubectl-kueue https://github.com/kubernetes-sigs/kueue/releases/download/v0.14.2/kubectl-kueue-linux-amd64
-              chmod +x ./kubectl-kueue
-              mv ./kubectl-kueue /usr/local/bin/kubectl-kueue
+          - uses: ./.github/actions/install-kueue
           - name: Install kubectl-kjob
             run: |
               curl -Lo ./kubectl-kjob https://github.com/kubernetes-sigs/kjob/releases/download/v0.1.0/kubectl-kjob-linux-amd64

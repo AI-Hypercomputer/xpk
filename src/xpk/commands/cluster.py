@@ -180,7 +180,9 @@ def cluster_adapt(args) -> None:
   # if set_pathways_job_on_cluster_code != 0:
   #   xpk_exit(set_pathways_job_on_cluster_code)
 
-  install_kueue(args, system, autoprovisioning_config)
+  install_kueue_code = install_kueue(args, system, autoprovisioning_config)
+  if install_kueue_code != 0:
+    xpk_exit(install_kueue_code)
 
   install_kjob(args)
   if system.accelerator_type == AcceleratorType['GPU']:
@@ -378,7 +380,9 @@ def cluster_create(args) -> None:
   if set_pathways_job_on_cluster_code != 0:
     xpk_exit(set_pathways_job_on_cluster_code)
 
-  install_kueue(args, system, autoprovisioning_config)
+  install_kueue_code = install_kueue(args, system, autoprovisioning_config)
+  if install_kueue_code != 0:
+    xpk_exit(install_kueue_code)
 
   install_kjob(args)
 
@@ -1272,7 +1276,9 @@ def install_kjob(args):
     xpk_exit(err_code)
 
 
-def install_kueue(args, system: SystemCharacteristics, autoprovisioning_config):
+def install_kueue(
+    args, system: SystemCharacteristics, autoprovisioning_config
+) -> int:
   xpk_print('Enabling Kueue on the cluster')
   autoprovisioning_enabled = False
   if autoprovisioning_config:
@@ -1283,7 +1289,7 @@ def install_kueue(args, system: SystemCharacteristics, autoprovisioning_config):
     # Determine total chips based on user specified topology.
     total_chips = get_total_chips_requested_from_args(args, system)
   kueue_manager = KueueManager()
-  kueue_manager.install_or_upgrade(
+  return kueue_manager.install_or_upgrade(
       KueueConfig(
           system,
           total_chips=total_chips,

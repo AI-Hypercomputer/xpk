@@ -580,7 +580,7 @@ class KueueManagerTest(unittest.TestCase):
     assert result is False
 
   @patch("xpk.core.kueue_manager.run_command_for_value")
-  def test_has_sub_slicing_enabled_returns_false_when_sub_slicing_topology_is_not_present(
+  def test_has_sub_slicing_enabled_returns_true_when_sub_slicing_topology_is_not_present(
       self, mock_run_for_value
   ):
     mock_run_for_value.return_value = (0, "sub-slice-topology")

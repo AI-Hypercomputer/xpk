@@ -26,7 +26,7 @@ from ..core.cluster import (
     get_cluster_credentials,
     setup_k8s_env,
 )
-from ..core.commands import run_command_with_updates, run_commands, run_command_for_value
+from ..core.commands import run_command_with_updates, run_commands
 from ..core.kueue_manager import KueueManager
 from ..core.config import (VERTEX_TENSORBOARD_FEATURE_FLAG, XPK_CURRENT_VERSION)
 from ..core.docker_container import (

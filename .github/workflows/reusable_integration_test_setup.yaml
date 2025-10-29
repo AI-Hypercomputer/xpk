@@ -1,0 +1,37 @@
+name: "Integration test setup"
+
+on:
+    workflow_call:
+
+jobs:
+    setup-environment:
+        runs-on: [ubuntu-22.04]
+        steps:
+            - uses: actions/setup-python@v5
+              with:
+                python-version: '3.10'
+            - uses: actions/download-artifact@v4
+              with:
+                name: python-package-distributions
+                path: dist/
+            - uses: 'google-github-actions/auth@v2'
+              with:
+                credentials_json: '${{ secrets.GCP_SA_KEY }}'
+            - uses: google-github-actions/setup-gcloud@v2
+              with:
+                version: '>= 363.0.0'
+                install_components: 'beta,gke-gcloud-auth-plugin'
+            - name: Install kubectl-kueue
+              run: |
+                curl -Lo ./kubectl-kueue https://github.com/kubernetes-sigs/kueue/releases/download/v0.14.2/kubectl-kueue-linux-amd64
+                chmod +x ./kubectl-kueue
+                mv ./kubectl-kueue /usr/local/bin/kubectl-kueue
+            - name: Install kubectl-kjob
+              run: |
+                curl -Lo ./kubectl-kjob https://github.com/kubernetes-sigs/kjob/releases/download/v0.1.0/kubectl-kjob-linux-amd64
+                chmod +x ./kubectl-kjob
+                mv ./kubectl-kjob /usr/local/bin/kubectl-kjob
+            - name: Install XPK
+              run: pip install dist/xpk-*.whl
+            - name: XPK version
+              run: xpk version

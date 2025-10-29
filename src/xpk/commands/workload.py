@@ -26,8 +26,8 @@ from ..core.cluster import (
     get_cluster_credentials,
     setup_k8s_env,
 )
-from ..core.commands import run_command_with_updates, run_commands, run_command_for_value
-from ..core.kueue_manager import KueueManager, SUB_SLICE_TOPOLOGY_NAME
+from ..core.commands import run_command_with_updates, run_commands
+from ..core.kueue_manager import KueueManager, has_sub_slicing_enabled
 from ..core.config import (VERTEX_TENSORBOARD_FEATURE_FLAG, XPK_CURRENT_VERSION)
 from ..core.docker_container import (
     get_main_container_docker_image,
@@ -683,17 +683,14 @@ def workload_create(args) -> None:
 
 
 def _validate_sub_slicing_availability():
-  return_code, value = run_command_for_value(
-      command='kubectl get topology', task='Get defined topologies'
-  )
-
+  return_code, sub_slicing_enabled = has_sub_slicing_enabled()
   if return_code != 0:
     xpk_print(
         'Error: Unable to validate sub-slicing support on a given cluster.'
     )
     xpk_exit(1)
 
-  if SUB_SLICE_TOPOLOGY_NAME not in value:
+  if not sub_slicing_enabled:
     xpk_print(
         'Error: Cluster has not been not set up for Sub-slicing. Please enable'
         ' --sub-slicing in "cluster create" command first.'

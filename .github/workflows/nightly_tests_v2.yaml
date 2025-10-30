@@ -28,14 +28,6 @@ jobs:
   cluster-create-and-delete:
     runs-on: [ubuntu-22.04]
     needs: [build_wheel, build_actions]
-    concurrency: # We support one build test to run at a time currently.
-      group: nightly-test-cluster-group
-      cancel-in-progress: false
-    env:
-      EMPTY_CLUSTER_NAME: nightly-xpk-zero-nodepools
-      PRIVATE_CLUSTER_NAME: nightly-xpk-private-2-v4-8-nodepools
-      TPU_CLUSTER_NAME: nightly-xpk-2-v4-8-nodepools
-      WORKLOAD_NAME: xpktest-nightly-${{ github.run_attempt }}
     steps:
       - uses: actions/download-artifact@v4
         with:

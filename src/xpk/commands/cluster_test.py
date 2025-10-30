@@ -16,10 +16,10 @@ limitations under the License.
 
 from argparse import Namespace
 from dataclasses import dataclass
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 import pytest
 
-from xpk.commands.cluster import _validate_cluster_create_args
+from xpk.commands.cluster import _install_kueue, _validate_cluster_create_args
 from xpk.core.system_characteristics import SystemCharacteristics, UserFacingNameToSystemCharacteristics
 from xpk.utils.feature_flags import FeatureFlags
 
@@ -146,3 +146,26 @@ def test_validate_cluster_create_args_for_invalid_reservation(
       'Refer to the documentation for more information on creating Cluster'
       in mock_common_print_and_exit.commands_print_mock.call_args[0][0]
   )
+
+
+@patch('xpk.commands.cluster.KueueManager.install_or_upgrade')
+def test_install_kueue_returns_kueue_installation_code(
+    mock_kueue_manager_install: MagicMock,
+):
+  mock_kueue_manager_install.return_value = 17
+
+  code = _install_kueue(
+      args=Namespace(
+          num_slices=1,
+          num_nodes=1,
+          flex=False,
+          memory_limit='100Gi',
+          cpu_limit=100,
+          enable_pathways=False,
+          sub_slicing=False,
+      ),
+      system=DEFAULT_TEST_SYSTEM,
+      autoprovisioning_config=None,
+  )
+
+  assert code == 17

@@ -1,0 +1,17 @@
+name: "Install kjob"
+description: "Installs kjob"
+
+inputs:
+  version:
+    description: 'The version to install'
+    required: false
+    default: '0.1.0'
+
+runs:
+  using: composite
+  steps:
+    - name: Install kubectl-kjob
+      run: |
+        curl -Lo ./kubectl-kjob https://github.com/kubernetes-sigs/kjob/releases/download/v${{inputs.version}}/kubectl-kjob-linux-amd64
+        chmod +x ./kubectl-kjob
+        mv ./kubectl-kjob /usr/local/bin/kubectl-kjob

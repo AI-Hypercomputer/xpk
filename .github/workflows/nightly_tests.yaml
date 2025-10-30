@@ -40,7 +40,7 @@ jobs:
     env:
       EMPTY_CLUSTER_NAME: nightly-xpk-zero-nodepools
       PRIVATE_CLUSTER_NAME: nightly-xpk-private-2-v4-8-nodepools
-      DWS_FLEX_CLUSTER_NAME: xpk-dws-nightly-test-2-v4-8-nodepools
+      DWS_FLEX_CLUSTER_NAME: xpk-dws-nightly-test-2-v4-8
       TPU_CLUSTER_NAME: nightly-xpk-2-v5p-8-nodepools
       WORKLOAD_NAME: xpktest-nightly-${{ github.run_attempt }}
     steps:

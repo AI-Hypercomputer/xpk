@@ -11,6 +11,7 @@ runs:
   using: composite
   steps:
     - name: Install kubectl-kjob
+      shell: bash
       run: |
         curl -Lo ./kubectl-kjob https://github.com/kubernetes-sigs/kjob/releases/download/v${{inputs.version}}/kubectl-kjob-linux-amd64
         chmod +x ./kubectl-kjob

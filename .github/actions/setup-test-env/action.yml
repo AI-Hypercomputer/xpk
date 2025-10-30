@@ -39,7 +39,9 @@ runs:
         install_components: "beta,gke-gcloud-auth-plugin"
     - name: Authenticate Docker
       run: gcloud auth configure-docker --quiet
+      shell: bash
     - uses: ./.github/actions/install-kueue
     - uses: ./.github/actions/install-kjob
     - name: Install XPK
       run: pip install dist/xpk-*.whl
+      shell: bash

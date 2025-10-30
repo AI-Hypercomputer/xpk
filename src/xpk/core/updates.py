@@ -15,6 +15,7 @@ limitations under the License.
 """
 
 import json
+from json.decoder import JSONDecodeError
 from .commands import run_command_for_value
 from ..utils.console import xpk_print
 from ..utils.execution_context import is_dry_run
@@ -38,7 +39,7 @@ def get_latest_xpk_version() -> tuple[int, Version | None]:
   try:
     parsed = json.loads(result.strip())
     return 0, Version(parsed["latest"])
-  except:
+  except JSONDecodeError:
     return 1, None
 
 

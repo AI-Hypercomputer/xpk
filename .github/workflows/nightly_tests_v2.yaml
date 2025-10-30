@@ -35,5 +35,7 @@ jobs:
           path: .github/actions
       - name: Setup environment
         uses: ./.github/actions/setup-test-env
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
       - name: Check xpk installation
         run: xpk --help

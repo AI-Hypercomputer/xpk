@@ -90,7 +90,7 @@ kubectl get deployment kueue-controller-manager -n kueue-system -o jsonpath='{.s
 [XPK] Task: `Install Kueue` is implemented by the following command not running since it is a dry run. 
 kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-sigs/kueue/releases/download/v0.12.2/manifests.yaml
 [XPK] Task: `Wait for Kueue to be available` is implemented by the following command not running since it is a dry run. 
-kubectl wait deploy/kueue-controller-manager -nkueue-system --for=condition=available --timeout=10m
+kubectl wait deploy/kueue-controller-manager -n kueue-system --for=condition=available --timeout=10m
 [XPK] Applying following Kueue resources:
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: ResourceFlavor

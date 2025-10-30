@@ -35,8 +35,11 @@ def get_latest_xpk_version() -> tuple[int, Version | None]:
   if return_code != 0:
     return return_code, None
 
-  parsed = json.loads(result.strip())
-  return 0, Version(parsed["latest"])
+  try:
+    parsed = json.loads(result.strip())
+    return 0, Version(parsed["latest"])
+  except:
+    return 1, None
 
 
 def print_xpk_hello() -> None:

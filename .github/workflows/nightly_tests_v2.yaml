@@ -38,4 +38,4 @@ jobs:
         with:
           credentials_json: '${{ secrets.GCP_SA_KEY }}'
       - name: Check xpk installation
-        run: xpk --help
+        run: xpk version

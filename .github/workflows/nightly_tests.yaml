@@ -29,7 +29,7 @@ jobs:
   build_wheel:
     uses: ./.github/workflows/reusable_build_wheel.yaml
   build_actions:
-    uses: ./.github/workflows/reusable_build_actions.yaml
+    uses: ./.github/workflows/reusable_build_scripts.yaml
   cluster-create-and-delete:
     runs-on: [ubuntu-22.04]
     needs: [build_wheel, build_actions]
@@ -44,8 +44,7 @@ jobs:
     steps:
     - uses: actions/download-artifact@v4
       with:
-        name: custom-actions
-        path: .github/actions
+        name: custom-scripts
     - name: Setup environment
       uses: ./.github/actions/setup-test-env
       with:
@@ -172,8 +171,7 @@ jobs:
     steps:
     - uses: actions/download-artifact@v4
       with:
-        name: custom-actions
-        path: .github/actions
+        name: custom-scripts
     - name: Setup environment
       uses: ./.github/actions/setup-test-env
       with:
@@ -211,8 +209,7 @@ jobs:
     steps:
     - uses: actions/download-artifact@v4
       with:
-        name: custom-actions
-        path: .github/actions
+        name: custom-scripts
     - name: Setup environment
       uses: ./.github/actions/setup-test-env
       with:

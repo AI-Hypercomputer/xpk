@@ -12,22 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License
 
-name: Build Actions
+name: Build Scripts
 
 on:
-    workflow_call:
+  workflow_call:
 
 permissions:
   contents: read
 
 jobs:
-    build:
-        name: Build Actions
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v4
-            - name: Store the distribution packages
-              uses: actions/upload-artifact@v4
-              with:
-                  name: custom-actions
-                  path: .github/actions
+  build:
+    name: Build Scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Store repository scripts
+        uses: actions/upload-artifact@v4
+        with:
+          name: custom-scripts
+          path: |
+            .github/actions
+            backoff_retry.sh

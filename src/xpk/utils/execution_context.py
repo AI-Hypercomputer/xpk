@@ -20,9 +20,19 @@ quiet = False
 
 def set_context(dry_run_value: bool, quiet_value: bool) -> None:
   """Sets the dry_run and quiet flags."""
+  set_dry_run(dry_run_value)
+  set_quiet(quiet_value)
+
+
+def set_dry_run(dry_run_value: bool) -> None:
+  """Sets the dry_run flag."""
   global dry_run
-  global quiet
   dry_run = dry_run_value
+
+
+def set_quiet(quiet_value: bool) -> None:
+  """Sets the quiet flag."""
+  global quiet
   quiet = quiet_value
 
 

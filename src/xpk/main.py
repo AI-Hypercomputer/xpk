@@ -35,6 +35,7 @@ import argparse
 import sys
 
 from .parser.core import set_parser
+from .core.updates import print_xpk_hello
 from .utils.console import xpk_print
 from .utils.execution_context import set_context
 ################### Compatibility Check ###################
@@ -62,7 +63,7 @@ def main() -> None:
   parser = argparse.ArgumentParser(description='xpk command', prog='xpk')
   set_parser(parser=parser)
 
-  xpk_print('Starting xpk', flush=True)
+  print_xpk_hello()
   main_args = parser.parse_args()
   main_args.enable_ray_cluster = False
   set_context(

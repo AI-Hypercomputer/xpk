@@ -23,6 +23,10 @@ from ..utils.console import xpk_exit, xpk_print
 from ..utils.file import append_tmp_file, write_tmp_file
 from ..utils.validation import validate_dependencies_list, SystemDependency, should_validate_dependencies
 from .workload import get_workload_list
+from ..core.kueue_manager import has_sub_slicing_enabled
+
+
+_SPACER = '========================================================'
 
 
 def inspector_run_command_helper(
@@ -40,7 +44,6 @@ def inspector_run_command_helper(
     0 if successful and 1 otherwise.
   """
   prefix = f'Command: {command}\nCommand Description: {command_description}\n'
-  postfix = '========================================================'
   return_code, command_output = run_command_for_value(
       command, f'{command_description}'
   )
@@ -51,7 +54,7 @@ def inspector_run_command_helper(
     )
     return 1
 
-  inspector_command_output = f'{prefix} \n{command_output} \n{postfix} \n'
+  inspector_command_output = f'{prefix} \n{command_output} \n{_SPACER} \n'
   append_tmp_file(inspector_command_output, file)
 
   if args.print_to_terminal:
@@ -71,15 +74,25 @@ def inspector_run_workload_list_helper(args, command_description, file) -> int:
     0 if successful and 1 otherwise.
   """
   prefix = f'Command Description: {command_description}\n'
-  postfix = '========================================================'
   return_code, command_output = get_workload_list(args)
   if return_code != 0:
     xpk_exit(return_code)
-  inspector_command_output = f'{prefix} \n{command_output} \n{postfix} \n'
+  inspector_command_output = f'{prefix} \n{command_output} \n{_SPACER} \n'
   append_tmp_file(inspector_command_output, file)
   if args.print_to_terminal:
     xpk_print(inspector_command_output)
   return 0
+
+
+def inspector_run_sub_slicing_helper(args, file: str):
+  return_code, result = has_sub_slicing_enabled()
+  if return_code != 0:
+    xpk_exit(return_code)
+  if result:
+    output = f'Sub-slicing topology set up.\n{_SPACER}'
+    append_tmp_file(output, file)
+    if args.print_to_terminal:
+      xpk_print(output)
 
 
 def inspector_output_link_helper(args, link, link_description, file) -> int:
@@ -95,9 +108,7 @@ def inspector_output_link_helper(args, link, link_description, file) -> int:
     0 if successful and 1 otherwise.
   """
   inspector_link = (
-      f'Link Description: {link_description}\n'
-      f'Link: {link}\n'
-      '========================================================'
+      f'Link Description: {link_description}\nLink: {link}\n{_SPACER}\n'
   )
   append_tmp_file(inspector_link, file)
   if args.print_to_terminal:
@@ -307,6 +318,8 @@ def inspector(args) -> None:
           f'inspector failed in command: {command} description:'
           f' {command_description} return code: {return_code}'
       )
+
+  inspector_run_sub_slicing_helper(args, inspector_file)
 
   # Cloud Console Links:
   workload_links = []

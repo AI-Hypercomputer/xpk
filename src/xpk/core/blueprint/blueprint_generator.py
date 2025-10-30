@@ -211,9 +211,9 @@ class BlueprintGenerator:
         outputs=["instructions"],
     )
     if capacity_type == CapacityType.FLEX_START:
-      a3_megagpu_pool_0.updateSettings(self.get_dws_flex_start())
+      a3_megagpu_pool_0.update_settings(self.get_dws_flex_start())
     else:
-      a3_megagpu_pool_0.updateSettings({"static_node_count": num_nodes})
+      a3_megagpu_pool_0.update_settings({"static_node_count": num_nodes})
 
     set_placement_policy = capacity_type != CapacityType.SPOT
     workload = DeploymentModule(
@@ -252,7 +252,7 @@ class BlueprintGenerator:
 
     print(reservation_placement_policy)
     if reservation_placement_policy is not None:
-      a3_megagpu_pool_0.setSetting(
+      a3_megagpu_pool_0.set_setting(
           "placement_policy", reservation_placement_policy
       )
 
@@ -268,7 +268,7 @@ class BlueprintGenerator:
         ],
     )
     if set_placement_policy and reservation_placement_policy is None:
-      a3_megagpu_pool_0.appendUse(group_placement_0.id)
+      a3_megagpu_pool_0.append_use(group_placement_0.id)
       primary_group.modules.append(group_placement_0)
     a3_mega_blueprint = Blueprint(
         terraform_backend_defaults=self._getblock_terraform_backend(
@@ -580,9 +580,9 @@ class BlueprintGenerator:
         outputs=["instructions"],
     )
     if capacity_type == CapacityType.FLEX_START:
-      gpu_pool.updateSettings(self.get_dws_flex_start())
+      gpu_pool.update_settings(self.get_dws_flex_start())
     else:
-      gpu_pool.updateSettings({"static_node_count": num_nodes})
+      gpu_pool.update_settings({"static_node_count": num_nodes})
 
     workload_manager_install_id = "workload-manager-install"
     workload_manager_install = DeploymentModule(
@@ -855,9 +855,9 @@ class BlueprintGenerator:
         outputs=["instructions"],
     )
     if capacity_type == CapacityType.FLEX_START:
-      gpu_pool.updateSettings(self.get_dws_flex_start())
+      gpu_pool.update_settings(self.get_dws_flex_start())
     else:
-      gpu_pool.updateSettings({"static_node_count": num_nodes})
+      gpu_pool.update_settings({"static_node_count": num_nodes})
 
     workload_manager_install_id = "workload-manager-install"
     workload_manager_install = DeploymentModule(

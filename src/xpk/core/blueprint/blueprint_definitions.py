@@ -36,17 +36,17 @@ class DeploymentModule:
   settings: Optional[dict[str, Any]] = None
   use: Optional[list[str]] = None
 
-  def updateSettings(self, additionalSettings: dict[str, Any]) -> None:
+  def update_settings(self, additionalSettings: dict[str, Any]) -> None:
     if self.settings is None:
       self.settings = dict()
     self.settings.update(additionalSettings)
 
-  def setSetting(self, key: str, value: Any) -> None:
+  def set_setting(self, key: str, value: Any) -> None:
     if self.settings is None:
       self.settings = dict()
     self.settings[key] = value
 
-  def appendUse(self, use: str) -> None:
+  def append_use(self, use: str) -> None:
     if self.use is None:
       self.use = list()
     self.use.append(use)

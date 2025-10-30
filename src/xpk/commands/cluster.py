@@ -60,7 +60,7 @@ from ..core.nodepool import (
 )
 from ..core.ray import install_ray_cluster
 from ..core.mtc import install_mtc_on_cluster
-from ..core.resources import create_cluster_configmaps
+from ..core.resources import AutoprovisioningConfig, create_cluster_configmaps
 from ..core.scheduling import get_total_chips_requested_from_args
 from ..core.storage import install_storage_crd
 from ..core.system_characteristics import (
@@ -180,7 +180,7 @@ def cluster_adapt(args) -> None:
   # if set_pathways_job_on_cluster_code != 0:
   #   xpk_exit(set_pathways_job_on_cluster_code)
 
-  install_kueue_code = install_kueue(args, system, autoprovisioning_config)
+  install_kueue_code = _install_kueue(args, system, autoprovisioning_config)
   if install_kueue_code != 0:
     xpk_exit(install_kueue_code)
 
@@ -380,7 +380,7 @@ def cluster_create(args) -> None:
   if set_pathways_job_on_cluster_code != 0:
     xpk_exit(set_pathways_job_on_cluster_code)
 
-  install_kueue_code = install_kueue(args, system, autoprovisioning_config)
+  install_kueue_code = _install_kueue(args, system, autoprovisioning_config)
   if install_kueue_code != 0:
     xpk_exit(install_kueue_code)
 
@@ -1276,8 +1276,10 @@ def install_kjob(args):
     xpk_exit(err_code)
 
 
-def install_kueue(
-    args, system: SystemCharacteristics, autoprovisioning_config
+def _install_kueue(
+    args,
+    system: SystemCharacteristics,
+    autoprovisioning_config: AutoprovisioningConfig | None,
 ) -> int:
   xpk_print('Enabling Kueue on the cluster')
   autoprovisioning_enabled = False

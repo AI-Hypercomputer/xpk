@@ -120,7 +120,9 @@ class CommandsTester:
   ) -> tuple[int, str]:
     self.commands_history.append(command)
     matching_results = [
-        kv[1] for kv in self.__results.items() if kv[0].match(command)
+        result
+        for pattern, result in self.__results.items()
+        if pattern.match(command)
     ]
     return len(matching_results) > 0 and matching_results[0] or default_result
 

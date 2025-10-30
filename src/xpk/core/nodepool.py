@@ -267,7 +267,9 @@ def run_gke_node_pool_create_command(
 
   placement_args = ''
   if system.requires_workload_policy and is_topology_valid(system.topology):
-    placement_policy = f'{args.cluster}-placement-policy'
+    placement_policy = (
+        f'{system.device_type}-{system.topology}-placement-policy'
+    )
     ensure_resource_policy_exists(placement_policy, args, system.topology)
     placement_args = f' --placement-policy={placement_policy}'
 

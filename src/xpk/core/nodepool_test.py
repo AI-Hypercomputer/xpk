@@ -174,7 +174,7 @@ def test_placement_policy_created_for_gpu_with_valid_topology(
       gke_accelerator="nvidia-h100-80gb",
       gce_machine_type="a3-highgpu-8g",
       chips_per_vm=8,
-      accelerator_type=AcceleratorType["GPU"],
+      accelerator_type=AcceleratorType.GPU,
       device_type="h100-80gb-8",
       supports_sub_slicing=False,
   )
@@ -204,7 +204,7 @@ def test_placement_policy_not_created_for_gpu_with_invalid_topology(
       gke_accelerator="nvidia-h100-80gb",
       gce_machine_type="a3-highgpu-8g",
       chips_per_vm=8,
-      accelerator_type=AcceleratorType["GPU"],
+      accelerator_type=AcceleratorType.GPU,
       device_type="h100-80gb-8",
       supports_sub_slicing=False,
   )
@@ -236,7 +236,7 @@ def test_placement_policy_created_for_tpu7x_with_valid_topology(
       gke_accelerator="tpu7x",
       gce_machine_type="tpu7x-standard-4t",
       chips_per_vm=4,
-      accelerator_type=AcceleratorType["TPU"],
+      accelerator_type=AcceleratorType.TPU,
       device_type="tpu7x-8",
       requires_workload_policy=True,
       supports_sub_slicing=False,
@@ -269,7 +269,7 @@ def test_placement_policy_not_created_for_non7x_tpu(
       gke_accelerator="v6e",
       gce_machine_type="tpu-v6e-slice",
       chips_per_vm=4,
-      accelerator_type=AcceleratorType["TPU"],
+      accelerator_type=AcceleratorType.TPU,
       device_type="v6e-4",
       supports_sub_slicing=True,
   )

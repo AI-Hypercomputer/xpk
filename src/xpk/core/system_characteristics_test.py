@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from .system_characteristics import get_tpu_system_characteristics_map, SystemCharacteristics
+from .system_characteristics import get_tpu_system_characteristics_map, SystemCharacteristics, AcceleratorType
 
 
 def test_get_tpu_system_characteristics_map_returns_correct_values_for_1x1_topology():
@@ -34,7 +34,7 @@ def test_get_tpu_system_characteristics_map_returns_correct_values_for_1x1_topol
       gke_accelerator="test",
       gce_machine_type="test",
       chips_per_vm=1,
-      accelerator_type=1,
+      accelerator_type=AcceleratorType.TPU,
       device_type="test-1",
       supports_sub_slicing=False,
       requires_workload_policy=True,
@@ -62,7 +62,7 @@ def test_get_tpu_system_characteristics_map_returns_correct_values_for_2x2_topol
       gke_accelerator="test",
       gce_machine_type="test",
       chips_per_vm=4,
-      accelerator_type=1,
+      accelerator_type=AcceleratorType.TPU,
       device_type="test-8",
       supports_sub_slicing=False,
       requires_workload_policy=True,

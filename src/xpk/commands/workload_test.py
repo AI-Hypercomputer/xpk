@@ -17,7 +17,7 @@ limitations under the License.
 import dataclasses
 from unittest.mock import MagicMock, patch
 import pytest
-from ..core.system_characteristics import SystemCharacteristics
+from ..core.system_characteristics import SystemCharacteristics, AcceleratorType
 from .workload import _validate_sub_slicing_topology, _validate_sub_slicing_availability
 from packaging.version import Version
 
@@ -28,7 +28,7 @@ SYSTEM_CHARACTERISTICS = SystemCharacteristics(
     gke_accelerator='nvidia-l4',
     gce_machine_type='g2-standard-12',
     chips_per_vm=1,
-    accelerator_type=1,
+    accelerator_type=AcceleratorType.TPU,
     device_type='l4-1',
     supports_sub_slicing=True,
     requires_workload_policy=False,

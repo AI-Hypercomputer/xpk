@@ -296,15 +296,13 @@ def create_job_template_instance(
     working_directory = JobTemplateDefaults.WORKING_DIRECTORY.value
   resources = (
       job_resources_template.format(gpu_per_node=system.chips_per_vm)
-      if system is not None
-      and system.accelerator_type == AcceleratorType["GPU"]
+      if system is not None and system.accelerator_type == AcceleratorType.GPU
       else ""
   )
 
   node_selector = (
       job_node_selector_template.format(gpu_name=system.gke_accelerator)
-      if system is not None
-      and system.accelerator_type == AcceleratorType["GPU"]
+      if system is not None and system.accelerator_type == AcceleratorType.GPU
       else ""
   )
   yml_string = job_template_yaml.format(
@@ -319,7 +317,7 @@ def create_job_template_instance(
       priority=args.priority if hasattr(args, "priority") else "medium",
       service_account=service_account,
   )
-  if system is not None and system.accelerator_type == AcceleratorType["GPU"]:
+  if system is not None and system.accelerator_type == AcceleratorType.GPU:
     yml_string = decorate_job_template_with_gpu(yml_string, system.device_type)
 
   return run_kubectl_apply(

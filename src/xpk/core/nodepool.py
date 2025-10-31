@@ -80,7 +80,7 @@ def run_gke_node_pool_create_command(
     if return_code > 0:
       xpk_print('Listing all reservations failed!')
     return_code = 1
-  if system.accelerator_type == AcceleratorType['TPU']:
+  if system.accelerator_type == AcceleratorType.TPU:
     max_nodes = system.vms_per_slice
   else:
     max_nodes = 1000
@@ -92,16 +92,14 @@ def run_gke_node_pool_create_command(
     return return_code
 
   desired_node_pool_count = (
-      1
-      if system.accelerator_type == AcceleratorType['GPU']
-      else args.num_slices
+      1 if system.accelerator_type == AcceleratorType.GPU else args.num_slices
   )
   message = (
       (
           f'Creating 1 node pool with {args.num_nodes} nodes of'
           f' {system.device_type}\nUnderlyingly, we assume that means: {system}'
       )
-      if system.accelerator_type == AcceleratorType['GPU']
+      if system.accelerator_type == AcceleratorType.GPU
       else (
           f'Creating {args.num_slices} node pool or pools of'
           f' {system.device_type}\nUnderlyingly, we assume that means: {system}'
@@ -290,7 +288,7 @@ def run_gke_node_pool_create_command(
         f'{placement_args}'
         ' --enable-gvnic'
     )
-    if system.accelerator_type == AcceleratorType['TPU']:
+    if system.accelerator_type == AcceleratorType.TPU:
       command += f' --node-version={gke_node_pool_version}'
       topology_product = get_topology_product(system.topology)
       if capacity_type == CapacityType.FLEX_START:
@@ -310,7 +308,7 @@ def run_gke_node_pool_create_command(
           command += f' --tpu-topology={system.topology}'
         command += ' --max-pods-per-node 15'
         command += f' {args.custom_tpu_nodepool_arguments}'
-    elif system.accelerator_type == AcceleratorType['GPU']:
+    elif system.accelerator_type == AcceleratorType.GPU:
       subnet_prefix = (
           f'{args.cluster}-{get_cluster_location(args.project, args.cluster, args.zone)}'
       )
@@ -330,7 +328,7 @@ def run_gke_node_pool_create_command(
               f' network={args.cluster}-net-{i},subnetwork={subnet_prefix}-sub-{i}'
           )
         command += ' --max-pods-per-node=32'
-    elif system.accelerator_type == AcceleratorType['CPU']:
+    elif system.accelerator_type == AcceleratorType.CPU:
       if capacity_type == CapacityType.FLEX_START:
         command += ' --num-nodes=0'
       else:

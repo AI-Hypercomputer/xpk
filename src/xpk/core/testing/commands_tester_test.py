@@ -119,18 +119,11 @@ def test_get_matching_commands(mock_commands: CommandsTester):
   assert mock_commands.get_matching_commands("cmd", "bar") == ["cmd foo bar"]
 
 
-def test_get_matching_commands_does_not_match_parts_substrings(
+def test_get_matching_commands_matches_parts_substrings(
     mock_commands: CommandsTester,
 ):
   run_command_for_value("kubectl apply", task="Test command")
   run_command_for_value("kubectl", task="Test command")
 
-  assert mock_commands.get_matching_commands("kube") == []
-  assert mock_commands.get_matching_commands("ctl apply") == []
-
-
-def test_get_matching_commands_supports_regexps(mock_commands: CommandsTester):
-  run_command_for_value("kubectl apply -f dir/file", task="Test command")
-
-  assert len(mock_commands.get_matching_commands("kube.*")) == 1
-  assert len(mock_commands.get_matching_commands("kubectl", ".*file")) == 1
+  assert len(mock_commands.get_matching_commands("kube")) == 2
+  assert len(mock_commands.get_matching_commands("ctl apply")) == 1

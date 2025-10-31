@@ -22,7 +22,7 @@ from ..utils import file
 from ..utils.console import xpk_print
 
 # This is the version for XPK PyPI package
-__version__ = 'v0.14.2'
+__version__ = 'v0.14.3'
 XPK_CURRENT_VERSION = __version__
 XPK_CONFIG_FILE = os.path.expanduser('~/.config/xpk/config.yaml')
 

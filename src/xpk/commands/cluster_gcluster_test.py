@@ -93,7 +93,7 @@ def test_install_kueue_standard(
       gke_accelerator="nvidia-h100-mega-80gb",
       gce_machine_type="a3-megagpu-8g",
       chips_per_vm=8,
-      accelerator_type=AcceleratorType["GPU"],
+      accelerator_type=AcceleratorType.GPU,
       device_type="h100-mega-80gb-8",
       supports_sub_slicing=False,
   )
@@ -140,7 +140,7 @@ def test_install_kueue_with_autoprovisioning(
       gke_accelerator="nvidia-h100-mega-80gb",
       gce_machine_type="a3-megagpu-8g",
       chips_per_vm=8,
-      accelerator_type=AcceleratorType["GPU"],
+      accelerator_type=AcceleratorType.GPU,
       device_type="h100-mega-80gb-8",
       supports_sub_slicing=False,
   )

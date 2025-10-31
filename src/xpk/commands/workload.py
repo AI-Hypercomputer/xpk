@@ -487,7 +487,7 @@ def workload_create(args) -> None:
                 values: [{restart_on_exit_codes}]"""
 
   # Create the workload file based on accelerator type or workload type.
-  if system.accelerator_type == AcceleratorType['GPU']:
+  if system.accelerator_type == AcceleratorType.GPU:
     container, debugging_dashboard_id = get_user_workload_container(
         args, system
     )
@@ -570,7 +570,7 @@ def workload_create(args) -> None:
         container=container,
         vms_per_slice=(
             compute_vms_per_slice(args.sub_slicing_topology)
-            if system.accelerator_type == AcceleratorType['TPU']
+            if system.accelerator_type == AcceleratorType.TPU
             and FeatureFlags.SUB_SLICING_ENABLED
             and args.sub_slicing_topology is not None
             else system.vms_per_slice
@@ -598,7 +598,7 @@ def workload_create(args) -> None:
         tpu_toleration="""
               - operator: "Exists"
                 key: google.com/tpu
-        """ if system.accelerator_type == AcceleratorType['TPU'] else '',
+        """ if system.accelerator_type == AcceleratorType.TPU else '',
         failure_policy_rules=failure_policy_rules,
         pod_failure_policy=pod_failure_policy,
     )
@@ -615,7 +615,7 @@ def workload_create(args) -> None:
 
   # Get GKE outlier dashboard for TPU
   outlier_dashboard_id = None
-  if system.accelerator_type == AcceleratorType['TPU']:
+  if system.accelerator_type == AcceleratorType.TPU:
     outlier_dashboard_id = get_gke_outlier_dashboard(args)
 
   # Outlier and debugging dashboards

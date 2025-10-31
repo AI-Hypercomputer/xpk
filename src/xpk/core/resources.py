@@ -109,7 +109,7 @@ def create_cluster_configmaps(
 
   # ConfigMap to store resources available in the cluster.
   device_type = system.device_type
-  if system.accelerator_type == AcceleratorType['GPU']:
+  if system.accelerator_type == AcceleratorType.GPU:
     resources_data = f'{device_type}: "{int(args.num_nodes)}"'
   elif args.enable_autoprovisioning and autoprovisioning_config:
     resources_data = (

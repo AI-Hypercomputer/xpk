@@ -1,0 +1,23 @@
+name: Build KJob
+
+on:
+    workflow_call:
+
+permissions:
+    contents: read
+
+jobs:
+    build_kjob:
+        name: Build
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  persist-credentials: false
+            - name: Build kjob
+              run: ./tools/build-kjob.sh
+            - name: Store kjob
+              uses: actions/upload-artifact@v4
+              with:
+                  name: kjob-artifact
+                  path: kubectl-kjob

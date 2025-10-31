@@ -27,12 +27,14 @@ env:
   CLUSTER_NETWORK_ARGUMENTS_DWS: "--network=${{secrets.NETWORK_NAME}} --subnetwork=${{secrets.SUBNETWORK_NAME_DWS}}"
 
 jobs:
+  build_kjob:
+    uses: ./.github/workflows/reusable_build_kjob.yaml
   build_wheel:
     uses: ./.github/workflows/reusable_build_wheel.yaml
   build_actions:
     uses: ./.github/workflows/reusable_build_scripts.yaml
   cluster-create-and-delete:
-    runs-on: [ubuntu-22.04]
+    runs-on: [ubuntu-22.04, build_kjob, build_actions, build_wheel]
     needs: [build_wheel, build_actions]
     concurrency: # We support one build test to run at a time currently.
       group: nightly-test-cluster-group
@@ -171,7 +173,7 @@ jobs:
 
   pw-cluster-and-workload:
     runs-on: [ubuntu-22.04]
-    needs: [build_wheel, build_actions]
+    needs: [build_wheel, build_actions, build_kjob, build_actions, build_wheel]
     concurrency: # We support one build test to run at a time currently.
       group: nightly-pw-test-cluster-group
       cancel-in-progress: false
@@ -210,7 +212,7 @@ jobs:
 
   rc-cluster:
     runs-on: [ubuntu-22.04]
-    needs: [build_wheel, build_actions]
+    needs: [build_wheel, build_actions, build_kjob, build_actions, build_wheel]
     concurrency: # We support one build test to run at a time currently.
       group: nightly-rc-test-cluster-group
       cancel-in-progress: false
@@ -354,7 +356,7 @@ jobs:
       run-id: '${{needs.set-variables.outputs.run-id}}'
     secrets: inherit
   storage-tests:
-    needs: [cluster-create, set-variables]
+    needs: [cluster-create, set-variables, build_kjob, build_actions, build_wheel]
     uses: ./.github/workflows/reusable_storage_tests.yaml
     concurrency: # We support one build or nightly test to run at a time currently.
       group: storage-tests-${{needs.set-variables.outputs.run-id}}

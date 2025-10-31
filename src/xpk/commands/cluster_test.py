@@ -219,7 +219,7 @@ def test_run_gke_cluster_create_command_specifies_custom_cluster_arguments_last(
   )
 
 
-def test_run_gke_cluster_create_command_without_gke_version_has_rapid_channel_flag(
+def test_run_gke_cluster_create_command_without_gke_version_has_no_autoupgrade_flag(
     mocks: _Mocks,
 ):
   result = run_gke_cluster_create_command(
@@ -229,15 +229,12 @@ def test_run_gke_cluster_create_command_without_gke_version_has_rapid_channel_fl
   )
 
   assert result == 0
-  mocks.commands_tester.assert_command_run(
-      'clusters create', ' --release-channel rapid'
-  )
   mocks.commands_tester.assert_command_not_run(
       'clusters create', ' --no-enable-autoupgrade'
   )
 
 
-def test_run_gke_cluster_create_command_with_gke_version_has_no_rapid_channel_flag(
+def test_run_gke_cluster_create_command_with_gke_version_does_not_have_no_autoupgrade_flag(
     mocks: _Mocks,
 ):
   result = run_gke_cluster_create_command(
@@ -249,9 +246,6 @@ def test_run_gke_cluster_create_command_with_gke_version_has_no_rapid_channel_fl
   assert result == 0
   mocks.commands_tester.assert_command_run(
       'clusters create', ' --no-enable-autoupgrade'
-  )
-  mocks.commands_tester.assert_command_not_run(
-      'clusters create', ' --release-channel rapid'
   )
 
 

@@ -219,7 +219,7 @@ def test_run_gke_cluster_create_command_specifies_custom_cluster_arguments_last(
   )
 
 
-def test_run_gke_cluster_create_command_without_gke_version_has_no_autoupgrade_flag(
+def test_run_gke_cluster_create_command_without_gke_version_does_not_have_no_autoupgrade_flag(
     mocks: _Mocks,
 ):
   result = run_gke_cluster_create_command(
@@ -234,7 +234,7 @@ def test_run_gke_cluster_create_command_without_gke_version_has_no_autoupgrade_f
   )
 
 
-def test_run_gke_cluster_create_command_with_gke_version_does_not_have_no_autoupgrade_flag(
+def test_run_gke_cluster_create_command_with_gke_version_has_no_autoupgrade_flag(
     mocks: _Mocks,
 ):
   result = run_gke_cluster_create_command(

@@ -16,10 +16,9 @@ name: Lint and Format
 
 on:
   workflow_call:
-    inputs:
-      run-id:
-        required: true
-        type: string
+
+permissions:
+  contents: read
 
 jobs:
   build-and-test:

@@ -24,6 +24,9 @@ class AcceleratorType(Enum):
   GPU = 2
   CPU = 3
 
+  def __repr__(self):
+    return self._name_
+
 
 @dataclass
 class AcceleratorCharacteristics:

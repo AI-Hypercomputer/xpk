@@ -110,7 +110,7 @@ def cluster_adapt(args) -> None:
   )
   add_zone_and_project(args)
 
-  if system.accelerator_type == AcceleratorType['GPU'] and not getattr(
+  if system.accelerator_type == AcceleratorType.GPU and not getattr(
       args, 'num_nodes'
   ):
     xpk_print(
@@ -185,7 +185,7 @@ def cluster_adapt(args) -> None:
     xpk_exit(install_kueue_code)
 
   install_kjob(args)
-  if system.accelerator_type == AcceleratorType['GPU']:
+  if system.accelerator_type == AcceleratorType.GPU:
     prepare_gpus(system)
 
   if args.enable_ray_cluster:
@@ -386,7 +386,7 @@ def cluster_create(args) -> None:
 
   install_kjob(args)
 
-  if system.accelerator_type == AcceleratorType['GPU']:
+  if system.accelerator_type == AcceleratorType.GPU:
     prepare_gpus(system)
 
   if args.enable_ray_cluster:
@@ -1170,7 +1170,7 @@ def run_gke_cluster_create_command(
     enable_ip_alias = True
     command += ' --enable-master-authorized-networks --enable-private-nodes'
 
-  if system.accelerator_type == AcceleratorType['GPU']:
+  if system.accelerator_type == AcceleratorType.GPU:
     enable_ip_alias = True
     command += ' --enable-dataplane-v2 --enable-multi-networking'
   else:

@@ -35,7 +35,7 @@ class KueueManagerTest(unittest.TestCase):
         gke_accelerator="h100-mega-80gb-8",
         gce_machine_type="a3-megagpu-8g",
         chips_per_vm=8,
-        accelerator_type=AcceleratorType["GPU"],
+        accelerator_type=AcceleratorType.GPU,
         device_type="h100-mega-80gb-8",
         supports_sub_slicing=False,
     )
@@ -46,7 +46,7 @@ class KueueManagerTest(unittest.TestCase):
         gke_accelerator="test-accelerator",
         gce_machine_type="test-machine",
         chips_per_vm=4,
-        accelerator_type=AcceleratorType["TPU"],
+        accelerator_type=AcceleratorType.TPU,
         device_type="v5p-8",
         supports_sub_slicing=False,
     )

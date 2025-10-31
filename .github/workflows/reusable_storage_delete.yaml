@@ -34,6 +34,10 @@ on:
     secrets:
       GCP_SA_KEY:
         required: true
+  
+permissions:
+  contents: read
+
 jobs:
   storage-delete:
     name: "${{inputs.storage-type}}-${{inputs.storage-command}}"

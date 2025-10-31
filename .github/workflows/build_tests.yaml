@@ -67,3 +67,14 @@ jobs:
   run-unit-tests:
     needs: [install-dependencies]
     uses: ./.github/workflows/reusable_unit_tests.yaml
+  build_kjob:
+    uses: ./.github/workflows/reusable_build_kjob.yaml
+  test_kjob:
+    needs: [build_kjob]
+    runs-on: [ubuntu-22.04]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: kjob-artifact
+      - run: chmod +x kubectl-kjob
+      - run: ./kubectl-kjob create slurm

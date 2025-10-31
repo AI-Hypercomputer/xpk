@@ -26,6 +26,8 @@ env:
   CLUSTER_NETWORK_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}} --subnetwork=${{secrets.SUBNETWORK_NAME}}"
 
 jobs:
+  build_kjob:
+    uses: ./.github/workflows/reusable_build_kjob.yaml
   build_wheel:
     uses: ./.github/workflows/reusable_build_wheel.yaml
   build_actions:

@@ -97,7 +97,7 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
     )
 
   gpu_workload_terminate_command = ''
-  if system.accelerator_type == AcceleratorType['GPU']:
+  if system.accelerator_type == AcceleratorType.GPU:
     gpu_workload_terminate_command = (
         'echo Main app is done > /usr/share/workload/workload_terminated; '
     )
@@ -105,7 +105,7 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
   tpu_stacktrace_terminate_command = ''
   if (
       not args.use_pathways
-      and system.accelerator_type == AcceleratorType['TPU']
+      and system.accelerator_type == AcceleratorType.TPU
       and args.deploy_stacktrace_sidecar
   ):
     tpu_stacktrace_terminate_command = (
@@ -193,7 +193,7 @@ def get_user_workload_container(args, system: SystemCharacteristics):
   ].resource_type
   if (
       not args.use_pathways
-      and system.accelerator_type == AcceleratorType['TPU']
+      and system.accelerator_type == AcceleratorType.TPU
       and args.deploy_stacktrace_sidecar
   ):
     xpk_print(
@@ -219,7 +219,7 @@ def get_main_container_docker_image(args, system: SystemCharacteristics) -> str:
       Workload docker image as a YAML string
   """
 
-  if system.accelerator_type == AcceleratorType['GPU']:
+  if system.accelerator_type == AcceleratorType.GPU:
     return 'gpu-image'
 
   return f'{args.docker_name}'

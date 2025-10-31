@@ -16,7 +16,8 @@ limitations under the License.
 
 from tabulate import tabulate
 
-from ..core.capacity import H100_DEVICE_TYPE, H200_DEVICE_TYPE, B200_DEVICE_TYPE
+from ..utils.feature_flags import FeatureFlags
+from ..core.capacity import H100_DEVICE_TYPE, H200_DEVICE_TYPE, B200_DEVICE_TYPE, get_reservation_deployment_type
 from ..core.cluster import (
     get_all_clusters_programmatic,
     get_cluster_credentials,
@@ -59,7 +60,7 @@ from ..core.nodepool import (
 )
 from ..core.ray import install_ray_cluster
 from ..core.mtc import install_mtc_on_cluster
-from ..core.resources import create_cluster_configmaps
+from ..core.resources import AutoprovisioningConfig, create_cluster_configmaps
 from ..core.scheduling import get_total_chips_requested_from_args
 from ..core.storage import install_storage_crd
 from ..core.system_characteristics import (
@@ -75,9 +76,9 @@ from ..utils.file import write_tmp_file
 from ..utils.execution_context import is_dry_run
 from ..utils.validation import validate_dependencies_list, SystemDependency, should_validate_dependencies
 from . import cluster_gcluster
-from .common import set_cluster_command
+from .common import set_cluster_command, validate_sub_slicing_system
 from jinja2 import Environment, FileSystemLoader
-from ..utils.templates import TEMPLATE_PATH
+from ..utils.templates import get_templates_absolute_path
 import shutil
 import os
 
@@ -109,7 +110,7 @@ def cluster_adapt(args) -> None:
   )
   add_zone_and_project(args)
 
-  if system.accelerator_type == AcceleratorType['GPU'] and not getattr(
+  if system.accelerator_type == AcceleratorType.GPU and not getattr(
       args, 'num_nodes'
   ):
     xpk_print(
@@ -179,10 +180,12 @@ def cluster_adapt(args) -> None:
   # if set_pathways_job_on_cluster_code != 0:
   #   xpk_exit(set_pathways_job_on_cluster_code)
 
-  install_kueue(args, system, autoprovisioning_config)
+  install_kueue_code = _install_kueue(args, system, autoprovisioning_config)
+  if install_kueue_code != 0:
+    xpk_exit(install_kueue_code)
 
   install_kjob(args)
-  if system.accelerator_type == AcceleratorType['GPU']:
+  if system.accelerator_type == AcceleratorType.GPU:
     prepare_gpus(system)
 
   if args.enable_ray_cluster:
@@ -200,6 +203,43 @@ def cluster_adapt(args) -> None:
   xpk_exit(0)
 
 
+def _validate_cluster_create_args(args, system: SystemCharacteristics):
+  if FeatureFlags.SUB_SLICING_ENABLED and args.sub_slicing:
+    validate_sub_slicing_system(system)
+    _validate_sub_slicing_reservation(args)
+
+
+def _validate_sub_slicing_reservation(args):
+  if args.reservation is None:
+    xpk_print(
+        'Error: Validation failed: Sub-slicing cluster creation requires'
+        ' Cluster Director reservation to be specified.'
+    )
+    xpk_exit(1)
+
+  deployment_type = get_reservation_deployment_type(
+      reservation=args.reservation, project=args.project, zone=args.zone
+  )
+  if deployment_type != 'DENSE':
+    xpk_print(
+        'Error: Validation failed: The specified reservation'
+        f' "{args.reservation}" is not a Cluster Director reservation.'
+    )
+    xpk_print(
+        'Please provide a reservation created for Cluster Director to proceed.'
+    )
+    xpk_print('To list valid Cluster Director reservations, run:')
+    xpk_print(
+        '  gcloud compute reservations list --filter="deploymentType=DENSE"'
+    )
+    xpk_print(
+        'Refer to the documentation for more information on creating Cluster'
+        ' Director reservations:'
+        ' https://cloud.google.com/cluster-director/docs/reserve-capacity'
+    )
+    xpk_exit(1)
+
+
 def cluster_create(args) -> None:
   """Function around cluster creation.
 
@@ -212,11 +252,13 @@ def cluster_create(args) -> None:
         SystemDependency.KJOB,
         SystemDependency.GCLOUD,
     ])
-  system, return_code = get_system_characteristics(args)
 
+  system, return_code = get_system_characteristics(args)
   if return_code > 0 or system is None:
     xpk_print('Fetching system characteristics failed!')
     xpk_exit(return_code)
+
+  _validate_cluster_create_args(args, system)
 
   xpk_print(f'Starting cluster create for cluster {args.cluster}:', flush=True)
   add_zone_and_project(args)
@@ -338,11 +380,13 @@ def cluster_create(args) -> None:
   if set_pathways_job_on_cluster_code != 0:
     xpk_exit(set_pathways_job_on_cluster_code)
 
-  install_kueue(args, system, autoprovisioning_config)
+  install_kueue_code = _install_kueue(args, system, autoprovisioning_config)
+  if install_kueue_code != 0:
+    xpk_exit(install_kueue_code)
 
   install_kjob(args)
 
-  if system.accelerator_type == AcceleratorType['GPU']:
+  if system.accelerator_type == AcceleratorType.GPU:
     prepare_gpus(system)
 
   if args.enable_ray_cluster:
@@ -426,7 +470,9 @@ def cluster_cacheimage(args) -> None:
       system.accelerator_type
   ].accelerator_label
 
-  template_env = Environment(loader=FileSystemLoader(TEMPLATE_PATH))
+  template_env = Environment(
+      loader=FileSystemLoader(searchpath=get_templates_absolute_path())
+  )
   cluster_preheat_yaml = template_env.get_template(CLUSTER_PREHEAT_JINJA_FILE)
   rendered_yaml = cluster_preheat_yaml.render(
       cachekey=args.cache_key,
@@ -1125,7 +1171,7 @@ def run_gke_cluster_create_command(
     enable_ip_alias = True
     command += ' --enable-master-authorized-networks --enable-private-nodes'
 
-  if system.accelerator_type == AcceleratorType['GPU']:
+  if system.accelerator_type == AcceleratorType.GPU:
     enable_ip_alias = True
     command += (
         ' --enable-dataplane-v2'
@@ -1230,7 +1276,11 @@ def install_kjob(args):
     xpk_exit(err_code)
 
 
-def install_kueue(args, system: SystemCharacteristics, autoprovisioning_config):
+def _install_kueue(
+    args,
+    system: SystemCharacteristics,
+    autoprovisioning_config: AutoprovisioningConfig | None,
+) -> int:
   xpk_print('Enabling Kueue on the cluster')
   autoprovisioning_enabled = False
   if autoprovisioning_config:
@@ -1241,7 +1291,7 @@ def install_kueue(args, system: SystemCharacteristics, autoprovisioning_config):
     # Determine total chips based on user specified topology.
     total_chips = get_total_chips_requested_from_args(args, system)
   kueue_manager = KueueManager()
-  kueue_manager.install_or_upgrade(
+  return kueue_manager.install_or_upgrade(
       KueueConfig(
           system,
           total_chips=total_chips,
@@ -1251,6 +1301,9 @@ def install_kueue(args, system: SystemCharacteristics, autoprovisioning_config):
           memory_limit=args.memory_limit,
           cpu_limit=args.cpu_limit,
           is_pathways_cluster=args.enable_pathways,
+          configure_sub_slicing=(
+              FeatureFlags.SUB_SLICING_ENABLED and args.sub_slicing
+          ),
       ),
   )
 

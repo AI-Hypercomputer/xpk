@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 import pytest
-from .topology import is_topology_valid, get_topology_product, parse_topology
+from .topology import is_topology_valid, get_topology_product, parse_topology, is_topology_contained
 
 
 def test_is_topology_valid_with_invalid_topology():
@@ -41,3 +41,23 @@ def test_parse_topology_with_empty_input():
 def test_get_topology_product():
   result = get_topology_product("1x2x3")
   assert result == 6
+
+
+def test_is_topology_contained_with_container_smaller_than_contained_returns_false():
+  result = is_topology_contained(contained="3x3x3", container="2x2x2")
+  assert result is False
+
+
+def test_is_topology_contained_with_container_larger_than_contained_returns_true():
+  result = is_topology_contained(contained="1x1x1", container="2x2x2")
+  assert result is True
+
+
+def test_is_topology_contained_with_container_equal_to_contained_returns_true():
+  result = is_topology_contained(contained="2x2x2", container="2x2x2")
+  assert result is True
+
+
+def test_is_topology_contained_with_different_topologies_dimensions_returns_false():
+  result = is_topology_contained(contained="2x2", container="2x2x2")
+  assert result is False

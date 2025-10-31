@@ -35,8 +35,9 @@ import argparse
 import sys
 
 from .parser.core import set_parser
+from .core.updates import print_xpk_hello
 from .utils.console import xpk_print
-from .utils.execution_context import set_dry_run
+from .utils.execution_context import set_context
 ################### Compatibility Check ###################
 # Check that the user runs the below version or greater.
 
@@ -62,11 +63,13 @@ def main() -> None:
   parser = argparse.ArgumentParser(description='xpk command', prog='xpk')
   set_parser(parser=parser)
 
-  xpk_print('Starting xpk', flush=True)
   main_args = parser.parse_args()
   main_args.enable_ray_cluster = False
-  dry_run = 'dry_run' in main_args and main_args.dry_run
-  set_dry_run(dry_run)
+  set_context(
+      dry_run_value='dry_run' in main_args and main_args.dry_run,
+      quiet_value='quiet' in main_args and main_args.quiet,
+  )
+  print_xpk_hello()
   main_args.func(main_args)
   xpk_print('XPK Done.', flush=True)
 

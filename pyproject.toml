@@ -75,9 +75,12 @@ dev = [
 version = {attr = "xpk.core.config.__version__"}
 
 [tool.setuptools]
-packages = ["xpk", "xpk.parser", "xpk.core", "xpk.commands", "xpk.api", "xpk.templates", "xpk.utils", "xpk.core.blueprint", "xpk.core.remote_state", "xpk.core.workload_decorators"]
 package-dir = {"" = "src"}
-package-data = {"xpk.api" = ["storage_crd.yaml"], "xpk.templates" = ["storage.yaml"]}
+packages = { find = { where = ["src"] } }
+
+[tool.setuptools.package-data]
+"xpk" = ["templates/*"]
+"xpk.api" = ["*.yaml"]
 
 [tool.pyink]
 # Formatting configuration to follow Google style-guide.
@@ -89,7 +92,6 @@ pyink-use-majority-quotes = true
 [tool.mypy]
 follow_untyped_imports = true
 warn_unreachable = true
-
 strict = true
 # Current code is not compatible with all of the strict flags:
 disallow_any_generics = false
@@ -98,10 +100,4 @@ disallow_untyped_defs = false
 disallow_incomplete_defs = false
 check_untyped_defs = false
 no_implicit_reexport = false
-
-# Remove follow_imports below once the exclude list is empty:
-follow_imports = "silent"
 files = "src"
-exclude = [
-  'src/xpk/core/blueprint/blueprint_generator\.py',
-]

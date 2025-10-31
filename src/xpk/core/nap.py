@@ -85,7 +85,7 @@ def enable_autoprovisioning_on_cluster(
   # TODO(@vbarr): Support timeout period for idle np before they are deleted.
   # TODO(@vbarr): Support for hot idle configuration (timeout period is infinity).
   return_code = 0
-  if system.accelerator_type == AcceleratorType['CPU']:
+  if system.accelerator_type == AcceleratorType.CPU:
     xpk_print("Error: XPK NAP doesn't support Accelerators of Types: CPUs.")
     return None, 1
 

@@ -94,7 +94,7 @@ def cluster_create(args) -> None:
       'N/A',
       'N/A',
       1,
-      AcceleratorType['CPU'],
+      AcceleratorType.CPU,
       'kind',
       supports_sub_slicing=False,
   )
@@ -110,6 +110,7 @@ def cluster_create(args) -> None:
           cpu_limit=0,
           is_pathways_cluster=False,
           flex=False,
+          configure_sub_slicing=False,
       ),
   )
 

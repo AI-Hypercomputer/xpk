@@ -27,6 +27,7 @@ from ..core.cluster import (
     setup_k8s_env,
 )
 from ..core.commands import run_command_with_updates, run_commands
+from ..core.kueue_manager import KueueManager, has_sub_slicing_enabled
 from ..core.config import (VERTEX_TENSORBOARD_FEATURE_FLAG, XPK_CURRENT_VERSION)
 from ..core.docker_container import (
     get_main_container_docker_image,
@@ -52,7 +53,7 @@ from ..core.pathways import (
     get_user_workload_for_pathways,
     try_to_delete_pathwaysjob_first,
 )
-from ..core.resources import get_cluster_capacity_type, get_cluster_system_characteristics
+from ..core.resources import get_cluster_capacity_type, get_cluster_system_characteristics, SystemCharacteristics
 from ..core.resources import CLUSTER_METADATA_CONFIGMAP, get_cluster_configmap
 from ..core.scheduling import (
     check_if_workload_can_schedule,
@@ -62,6 +63,7 @@ from ..core.scheduling import (
     create_tpu_topology,
     get_cpu_affinity,
     get_gpu_scheduler,
+    create_sub_slicing_annotations,
 )
 from ..core.storage import (
     GCE_PD_TYPE,
@@ -77,6 +79,7 @@ from ..core.storage import (
 from ..core.system_characteristics import (
     AcceleratorType,
     get_system_characteristics,
+    compute_vms_per_slice,
 )
 from ..core.vertex import create_vertex_experiment
 from ..core.workload import (
@@ -93,11 +96,14 @@ from ..core.workload_decorators import (
     tcpxo_decorator,
 )
 from ..utils.console import get_user_input, xpk_exit, xpk_print
+from packaging.version import Version
 from ..utils.file import write_tmp_file
 from ..utils.execution_context import is_dry_run
 from ..utils.validation import validate_dependencies_list, SystemDependency, should_validate_dependencies
 from . import cluster_gcluster
-from .common import is_TAS_possible
+from .common import is_TAS_possible, validate_sub_slicing_system
+from ..utils.topology import is_topology_contained
+from ..utils.feature_flags import FeatureFlags
 
 WORKLOAD_CREATE_YAML = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
@@ -118,8 +124,8 @@ spec:
       replicas: {args.num_slices}
       template:
         spec:
-          parallelism: {system.vms_per_slice}    # Equal to the number of VMs per slice
-          completions: {system.vms_per_slice}    # Same as the above.
+          parallelism: {vms_per_slice}    # Equal to the number of VMs per slice (or sub-slice).
+          completions: {vms_per_slice}    # Same as the above.
           backoffLimit: 0   # When any pod fails, the job is failed
           {pod_failure_policy}
           template:
@@ -128,6 +134,7 @@ spec:
                 xpk.google.com/workload: {args.workload}
               annotations:
                 {storage_annotations}
+                {sub_slicing_annotations}
             spec:
               schedulerName: {args.scheduler}
               imagePullSecrets:
@@ -277,6 +284,9 @@ PW_WORKLOAD_CREATE_YAML = """
       {user_workload}
 """
 
+SUB_SLICING_TOPOLOGIES = ['2x2', '2x4', '4x4', '4x8', '8x8', '8x16', '16x16']
+SUB_SLICING_MINIMUM_KUEUE_VERSION = Version('0.13.0')
+
 
 def workload_create_pathways(args) -> None:
   """Run jobset apply command for a file, specifically for Pathways.
@@ -327,12 +337,14 @@ def workload_create(args) -> None:
     )
     xpk_exit(1)
 
-  xpk_print('Starting workload create', flush=True)
   system, return_code = get_system_characteristics(args)
-
   if return_code > 0 or system is None:
     xpk_print('Fetching system characteristics failed!')
     xpk_exit(return_code)
+
+  if FeatureFlags.SUB_SLICING_ENABLED and args.sub_slicing_topology is not None:
+    _validate_sub_slicing_availability()
+    _validate_sub_slicing_topology(system, args.sub_slicing_topology)
 
   if not check_if_workload_can_schedule(args, system):
     xpk_exit(1)
@@ -475,7 +487,7 @@ def workload_create(args) -> None:
                 values: [{restart_on_exit_codes}]"""
 
   # Create the workload file based on accelerator type or workload type.
-  if system.accelerator_type == AcceleratorType['GPU']:
+  if system.accelerator_type == AcceleratorType.GPU:
     container, debugging_dashboard_id = get_user_workload_container(
         args, system
     )
@@ -555,11 +567,25 @@ def workload_create(args) -> None:
     )
     yml_string = WORKLOAD_CREATE_YAML.format(
         args=args,
-        system=system,
         container=container,
+        vms_per_slice=(
+            compute_vms_per_slice(args.sub_slicing_topology)
+            if system.accelerator_type == AcceleratorType.TPU
+            and FeatureFlags.SUB_SLICING_ENABLED
+            and args.sub_slicing_topology is not None
+            else system.vms_per_slice
+        ),
         affinity=get_cpu_affinity(system.accelerator_type),
         accelerator_label=create_accelerator_label(
             system.accelerator_type, system
+        ),
+        sub_slicing_annotations=(
+            ''
+            if not FeatureFlags.SUB_SLICING_ENABLED
+            or args.sub_slicing_topology is None
+            else ('\n' + (' ' * 16)).join(
+                create_sub_slicing_annotations(args.sub_slicing_topology)
+            )
         ),
         machine_label=create_machine_label(system.accelerator_type, system),
         local_queue_name=LOCAL_QUEUE_NAME,
@@ -572,7 +598,7 @@ def workload_create(args) -> None:
         tpu_toleration="""
               - operator: "Exists"
                 key: google.com/tpu
-        """ if system.accelerator_type == AcceleratorType['TPU'] else '',
+        """ if system.accelerator_type == AcceleratorType.TPU else '',
         failure_policy_rules=failure_policy_rules,
         pod_failure_policy=pod_failure_policy,
     )
@@ -589,7 +615,7 @@ def workload_create(args) -> None:
 
   # Get GKE outlier dashboard for TPU
   outlier_dashboard_id = None
-  if system.accelerator_type == AcceleratorType['TPU']:
+  if system.accelerator_type == AcceleratorType.TPU:
     outlier_dashboard_id = get_gke_outlier_dashboard(args)
 
   # Outlier and debugging dashboards
@@ -654,6 +680,63 @@ def workload_create(args) -> None:
     )
 
   xpk_exit(0)
+
+
+def _validate_sub_slicing_availability():
+  return_code, sub_slicing_enabled = has_sub_slicing_enabled()
+  if return_code != 0:
+    xpk_print(
+        'Error: Unable to validate sub-slicing support on a given cluster.'
+    )
+    xpk_exit(1)
+
+  if not sub_slicing_enabled:
+    xpk_print(
+        'Error: Cluster has not been not set up for Sub-slicing. Please enable'
+        ' --sub-slicing in "cluster create" command first.'
+    )
+    xpk_exit(1)
+
+  kueue_manager = KueueManager()
+  return_code, current_version = kueue_manager.get_installed_kueue_version()
+  if return_code != 0:
+    xpk_print(
+        'Error: Unable to validate sub-slicing support on a given cluster.'
+    )
+    xpk_exit(1)
+
+  if current_version < SUB_SLICING_MINIMUM_KUEUE_VERSION:
+    xpk_print(
+        "Error: Current Kueue version ({current_version}) doesn't support"
+        ' Sub-slicing. The minimal required version is'
+        ' v{SUB_SLICING_MINIMUM_KUEUE_VERSION}. Please either update Kueue'
+        ' manually, or run "cluster create --sub-slicing" on the existing'
+        ' cluster.'
+    )
+    xpk_exit(1)
+
+
+def _validate_sub_slicing_topology(
+    system_characteristics: SystemCharacteristics, sub_slicing_topology: str
+) -> None:
+  if sub_slicing_topology not in SUB_SLICING_TOPOLOGIES:
+    xpk_print(
+        f'Error: --sub-slicing-topology={sub_slicing_topology} shape is'
+        f' invalid. It has to be one of: {", ".join(SUB_SLICING_TOPOLOGIES)}.'
+    )
+    xpk_exit(1)
+
+  if not is_topology_contained(
+      contained=sub_slicing_topology, container=system_characteristics.topology
+  ):
+    xpk_print(
+        f'Error: --sub-slicing-topology={sub_slicing_topology} shape is too'
+        ' large. The shape cannot be bigger than'
+        f' {system_characteristics.topology}.'
+    )
+    xpk_exit(1)
+
+  validate_sub_slicing_system(system_characteristics)
 
 
 def get_restart_exit_codes(args) -> list:

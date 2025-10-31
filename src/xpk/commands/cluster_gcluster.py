@@ -16,6 +16,7 @@ limitations under the License.
 
 import os
 
+from ..utils.feature_flags import FeatureFlags
 from ..utils.execution_context import is_dry_run
 from ..core.kueue_manager import KueueConfig, KueueManager
 from ..core.nap import enable_autoprovisioning_on_cluster
@@ -159,6 +160,9 @@ def __install_kueue(args) -> int:
           cpu_limit=args.cpu_limit,
           is_pathways_cluster=args.enable_pathways,
           flex=args.flex,
+          configure_sub_slicing=(
+              FeatureFlags.SUB_SLICING_ENABLED and args.sub_slicing
+          ),
       ),
       tolerations=tolerations,
   )

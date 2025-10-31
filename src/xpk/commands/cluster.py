@@ -1142,12 +1142,6 @@ def run_gke_cluster_create_command(
   # benefit from a larger initial `--num-nodes`. After the cluster is created,
   # the auto-scaler can reduce/increase the nodes based on the load.
 
-  # If the user passes in the gke version then we use that directly instead of the rapid release.
-  # This allows users to directly pass a specified gke version without release channel constraints.
-  rapid_release_cmd = ''
-  if args.gke_version is not None:
-    rapid_release_cmd = ' --release-channel rapid'
-
   command = (
       'gcloud beta container clusters create'
       f' {args.cluster} --project={args.project}'
@@ -1158,12 +1152,13 @@ def run_gke_cluster_create_command(
       ' --enable-autoscaling'
       ' --total-min-nodes 1 --total-max-nodes 1000'
       f' --num-nodes {args.default_pool_cpu_num_nodes}'
-      f' {args.custom_cluster_arguments}'
-      f' {rapid_release_cmd}'
       ' --enable-dns-access'
       ' --autoscaling-profile=optimize-utilization'
       ' --labels=gke_product_type=xpk'
   )
+
+  if args.gke_version or system.accelerator_type == AcceleratorType.GPU:
+    command += ' --no-enable-autoupgrade'
 
   enable_ip_alias = False
 
@@ -1173,10 +1168,7 @@ def run_gke_cluster_create_command(
 
   if system.accelerator_type == AcceleratorType.GPU:
     enable_ip_alias = True
-    command += (
-        ' --enable-dataplane-v2'
-        ' --enable-multi-networking --no-enable-autoupgrade'
-    )
+    command += ' --enable-dataplane-v2 --enable-multi-networking'
   else:
     command += ' --location-policy=BALANCED --scopes=storage-full,gke-default'
 
@@ -1215,6 +1207,9 @@ def run_gke_cluster_create_command(
   if len(addons) > 0:
     addons_str = ','.join(addons)
     command += f' --addons={addons_str}'
+
+  if args.custom_cluster_arguments:
+    command += f' {args.custom_cluster_arguments}'
 
   return_code = run_command_with_updates(command, 'GKE Cluster Create')
   if return_code != 0:

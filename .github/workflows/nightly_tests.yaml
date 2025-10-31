@@ -22,10 +22,6 @@ on:
 permissions:
   contents: read
 
-env:
-  CLUSTER_NETWORK_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}} --subnetwork=${{secrets.SUBNETWORK_NAME}}"
-  CLUSTER_NETWORK_ARGUMENTS_DWS: "--network=${{secrets.NETWORK_NAME}} --subnetwork=${{secrets.SUBNETWORK_NAME_DWS}}"
-
 jobs:
   build_kjob:
     uses: ./.github/workflows/reusable_build_kjob.yaml

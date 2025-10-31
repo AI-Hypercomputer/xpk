@@ -9,7 +9,7 @@ gcloud container get-server-config --project=golden-project --region=us-central1
 [XPK] Task: `Find if Cluster Exists` is implemented by the following command not running since it is a dry run. 
 gcloud container clusters list --project=golden-project --filter=location~"us-central1.*" --format="csv[no-heading](name)"
 [XPK] Task: `GKE Cluster Create` is implemented by the following command not running since it is a dry run. 
-gcloud beta container clusters create golden-cluster --project=golden-project --region=us-central1 --node-locations=us-central1-a --cluster-version=0 --machine-type=e2-standard-16 --enable-autoscaling --total-min-nodes 1 --total-max-nodes 1000 --num-nodes 6   --enable-dns-access --autoscaling-profile=optimize-utilization --labels=gke_product_type=xpk --location-policy=BALANCED --scopes=storage-full,gke-default --enable-ip-alias
+gcloud beta container clusters create golden-cluster --project=golden-project --region=us-central1 --node-locations=us-central1-a --cluster-version=0 --machine-type=e2-standard-16 --enable-autoscaling --total-min-nodes 1 --total-max-nodes 1000 --num-nodes 6 --enable-dns-access --autoscaling-profile=optimize-utilization --labels=gke_product_type=xpk --release-channel rapid --location-policy=BALANCED --scopes=storage-full,gke-default --enable-ip-alias
 [XPK] Task: `Find cluster region or zone` is implemented by the following command not running since it is a dry run. 
 gcloud container clusters list --project=golden-project --filter=name=golden-cluster --format="value(location)"
 [XPK] Task: `Check if Private Nodes is enabled in cluster.` is implemented by the following command not running since it is a dry run. 

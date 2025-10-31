@@ -43,10 +43,10 @@ def get_main_container_resources(
     return resources_yaml
 
   gpu_resources_yaml = """nvidia.com/gpu: {system.chips_per_vm}"""
-  if system.accelerator_type == AcceleratorType['GPU']:
+  if system.accelerator_type == AcceleratorType.GPU:
     return gpu_resources_yaml.format(system=system)
 
-  if system.accelerator_type == AcceleratorType['CPU']:
+  if system.accelerator_type == AcceleratorType.CPU:
     # CPUs don't have chips, but have a subresource called vCPUs.
     # system.chips_per_vm is used as a proxy for vCPUs.
     # Some vCPUs get used in hosting system pods of the workloads,
@@ -67,10 +67,10 @@ def get_env_container(args, system: SystemCharacteristics) -> str:
     str:
       YAML with the env config for the main container, as a YAML string.
   """
-  if system.accelerator_type == AcceleratorType['GPU']:
+  if system.accelerator_type == AcceleratorType.GPU:
     return get_gpu_env(args, system)
 
-  if system.accelerator_type == AcceleratorType['CPU']:
+  if system.accelerator_type == AcceleratorType.CPU:
     return get_cpu_env(args, system)
 
   return format_env_dict(args.env, system)
@@ -176,7 +176,7 @@ def get_cpu_env(args, system) -> str:
 
 
 def format_env_dict(env, system: SystemCharacteristics) -> str:
-  if system.accelerator_type == AcceleratorType['GPU']:
+  if system.accelerator_type == AcceleratorType.GPU:
     # For GPUs, it has two more spaces ahead of name and value respectively
     env_format = '''
                   - name: {key}
@@ -265,7 +265,7 @@ def get_volumes(args, system: SystemCharacteristics) -> str:
                   driver: {driver}"""
 
   if (
-      system.accelerator_type == AcceleratorType['TPU']
+      system.accelerator_type == AcceleratorType.TPU
       and args.deploy_stacktrace_sidecar
   ):
     volumes += """
@@ -317,7 +317,7 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
                   name: shared-tmp
                 """
   elif (
-      system.accelerator_type == AcceleratorType['TPU']
+      system.accelerator_type == AcceleratorType.TPU
       and args.deploy_stacktrace_sidecar
   ):
     volume_mount_yaml += """- name: tpu-stack-trace
@@ -325,7 +325,7 @@ def get_volume_mounts(args, system: SystemCharacteristics) -> str:
                 - name: shared-data
                   mountPath: /shared-volume
                 """
-  elif system.accelerator_type == AcceleratorType['GPU']:
+  elif system.accelerator_type == AcceleratorType.GPU:
     volume_mount_yaml = ''
 
   storages: list[Storage] = (
@@ -379,7 +379,7 @@ def add_container_ports(args, system: SystemCharacteristics) -> str:
     return ''
 
   gpu_port_yaml = """- containerPort: 6002"""
-  if system.accelerator_type == AcceleratorType['GPU']:
+  if system.accelerator_type == AcceleratorType.GPU:
     return gpu_port_yaml
   return port_yaml
 
@@ -394,7 +394,7 @@ def add_jax_coordinator_port(system) -> str:
     str:
       jax coordinator port as a YAML string
   """
-  if system.accelerator_type == AcceleratorType['CPU']:
+  if system.accelerator_type == AcceleratorType.CPU:
     return '- containerPort: 1234'
   return ''
 
@@ -411,6 +411,6 @@ def add_image_pull_policy_for_pw_or_gpu(args, system: SystemCharacteristics):
   """
   yaml = """imagePullPolicy: Always"""
 
-  if args.use_pathways or system.accelerator_type == AcceleratorType['GPU']:
+  if args.use_pathways or system.accelerator_type == AcceleratorType.GPU:
     return yaml.format(args=args)
   return ''

@@ -17,16 +17,17 @@ description: "Installs kjob"
 
 inputs:
   version:
-    description: 'The version to install'
+    description: "The version to install"
     required: false
-    default: '0.1.0'
+    default: "0.1.0"
 
 runs:
   using: composite
   steps:
-    - name: Install kubectl-kjob
-      shell: bash
-      run: |
-        curl -Lo ./kubectl-kjob https://github.com/kubernetes-sigs/kjob/releases/download/v${{inputs.version}}/kubectl-kjob-linux-amd64
-        chmod +x ./kubectl-kjob
-        mv ./kubectl-kjob /usr/local/bin/kubectl-kjob
+    - uses: actions/download-artifact@v4
+      with:
+        name: kjob-artifact
+    - name: Set permissions
+      run: chmod +x kubectl-kjob
+    - name: Move binary
+      run: mv ./kubectl-kjob /usr/local/bin/kubectl-kjob

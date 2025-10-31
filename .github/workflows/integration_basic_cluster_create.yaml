@@ -1,0 +1,163 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License
+
+name: Basic cluster create
+
+on:
+    workflow_call:
+
+permissions:
+  contents: read
+
+env:
+  CLUSTER_NETWORK_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}} --subnetwork=${{secrets.SUBNETWORK_NAME}}"
+  CLUSTER_NETWORK_ARGUMENTS_DWS: "--network=${{secrets.NETWORK_NAME}} --subnetwork=${{secrets.SUBNETWORK_NAME_DWS}}"
+
+jobs:
+    cluster-create-and-delete:
+        runs-on: [ubuntu-22.04]
+        concurrency: # We support one build test to run at a time currently.
+            group: nightly-test-cluster-group
+            cancel-in-progress: false
+        env:
+            EMPTY_CLUSTER_NAME: nightly-xpk-zero-nodepools
+            PRIVATE_CLUSTER_NAME: nightly-xpk-private-2-v4-8-nodepools
+            DWS_FLEX_CLUSTER_NAME: xpk-dws-nightly-test-2-v4-8
+            TPU_CLUSTER_NAME: nightly-xpk-2-v5p-8-nodepools
+            WORKLOAD_NAME: xpktest-nightly-${{ github.run_attempt }}
+        steps:
+            - uses: actions/download-artifact@v4
+              with:
+                  name: custom-scripts
+            - name: Setup environment
+              uses: ./.github/actions/setup-test-env
+              with:
+                  credentials_json: "${{ secrets.GCP_SA_KEY }}"
+            - name: Check xpk installation
+              run: xpk version
+            - name: Create an XPK Cluster with zero node pools
+              run: xpk cluster create --cluster $EMPTY_CLUSTER_NAME --tpu-type=v4-8  --num-slices=0 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments='${{ secrets.CLUSTER_ARGUMENTS }}'
+            - name: Delete the cluster created
+              run: xpk cluster delete --cluster $EMPTY_CLUSTER_NAME --zone=us-central2-b --force
+              if: always()
+            - name: Create a Private XPK Cluster with zero node pools
+              run: xpk cluster create --cluster $PRIVATE_CLUSTER_NAME --private --tpu-type=v4-8  --num-slices=0 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments='${CLUSTER_NETWORK_ARGUMENTS}'
+            - name: Verify the created cluster is private
+              run: gcloud container clusters describe $PRIVATE_CLUSTER_NAME --region=us-central2 --format="value(privateClusterConfig.enablePrivateNodes)" | grep 'True' || (echo 'The created cluster is not private.' && exit 1)
+            - name: Delete the cluster created
+              run: xpk cluster delete --cluster $PRIVATE_CLUSTER_NAME --zone=us-central2-b --force
+              if: always()
+            - name: Create an XPK Cluster with 2x v4-8 nodepools
+              run: xpk cluster create --cluster $TPU_CLUSTER_NAME --tpu-type=v4-8  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments='${{ secrets.CLUSTER_ARGUMENTS }}'
+            - name: Authenticate Docker
+              run: gcloud auth configure-docker --quiet
+            - name: Create test script to execute in workloads
+              run: echo -e '#!/bin/bash \n echo "Hello world from a test script!"' > workload.sh
+            - name: Run a base-docker-image workload
+              run: xpk workload create --cluster $TPU_CLUSTER_NAME --workload $WORKLOAD_NAME  --command "bash workload.sh"  --tpu-type=v4-8 --num-slices=2 --zone=us-central2-b
+            - name: List out the workloads on the cluster
+              run: xpk workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+            - name: Run xpk inspector with the workload created above
+              run: xpk inspector --cluster $TPU_CLUSTER_NAME --zone=us-central2-b  --workload $WORKLOAD_NAME
+            - name: Wait for workload completion and confirm it succeeded
+              run: xpk workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion $WORKLOAD_NAME --timeout 600
+            - name: Run xpk info command
+              run: xpk info --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+            - name: Delete the workload on the cluster
+              run: xpk workload delete --workload $WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+            - name: Create test script to execute in batch
+              run: echo -e '#!/bin/bash \n#SBATCH --unknown-flag=value\n echo "Hello world from a test script!"' > batch.sh
+            - name: Run a batch job on the cluster
+              run: xpk batch --cluster $TPU_CLUSTER_NAME --zone=us-central2-b batch.sh --ignore-unknown-flags --array 1-5 --nodes 2 --ntasks 3
+            - name: List out the jobs on the cluster
+              run: xpk job ls --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep 'xpk-def-app-profile-slurm-'
+            - name: Get created job name
+              run: |
+                  JOB_NAME=$(xpk job ls --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep 'xpk-def-app-profile-slurm-' | head -1 | awk '{print $1}')
+                  echo "JOB_NAME=${JOB_NAME}" >> $GITHUB_ENV
+            - name: Check job spec
+              run: |
+                  job_spec=$(kubectl get job ${JOB_NAME} -o jsonpath='{.spec}')
+                  echo "$job_spec" | grep '"completions":2'
+                  echo "$job_spec" | grep '"parallelism":2'
+                  echo "$job_spec" | jq '.template.spec.containers | length' | grep 3
+            - name: Get job info for the last job created on the cluster
+              run: xpk job info ${JOB_NAME} --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep -e "Entrypoint environment variables template:" -e "Job name:" -e "Labels:" -e "Mounts:" -e "Pods:" -e "Profile:" -e "Script name:" | wc -l | grep "7"
+            - name: Cancel the batch job on the cluster
+              run: xpk job cancel ${JOB_NAME} --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep "job.batch/${JOB_NAME} deleted"
+            - name: Create shell and exit it immediately
+              run: |
+                  cat <<EOF > create-shell.exp
+                  #!/usr/bin/expect
+                  set timeout 180
+                  spawn sh -c "xpk shell --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | tee shell.log"
+                  send "\n"
+                  expect {
+                    "/ # " {
+                        send "exit\n"
+                        # Wait for EOF after exit
+                        expect eof
+                        exit 0
+                    }
+                    timeout {
+                        puts "Timed out waiting for pod to be running"
+                        exit 1
+                    }
+                    eof {
+                        puts "Unexpected EOF before getting prompt"
+                        exit 1
+                    }
+                  }
+                  EOF
+                  chmod +x ./create-shell.exp
+                  expect ./create-shell.exp
+            - name: Check if shell exists and is running
+              run: |
+                  pod_name=$(grep 'waiting for pod' shell.log | awk -F'"' '{print $2}')
+                  kubectl wait --for='jsonpath={.status.conditions[?(@.type=="Ready")].status}=True' --timeout=1m pod/${pod_name}
+            - name: Stop the shell
+              run: xpk shell stop --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+            - name: Delete create-shell.exp file
+              run: rm create-shell.exp
+            - name: Delete shell.log file
+              run: rm shell.log
+            - name: Delete the cluster created
+              if: always()
+              run: xpk cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --force
+            - name: Create a DWS flex queued xpk cluster
+              run: xpk cluster create --cluster ${DWS_FLEX_CLUSTER_NAME} --tpu-type=v5p-8  --num-slices=1 --zone=us-east5-a --default-pool-cpu-num-nodes=2 --flex --custom-cluster-arguments="${CLUSTER_NETWORK_ARGUMENTS_DWS}"
+            - name: Run dws flex queued TPU workload
+              run: xpk workload create --workload xpktest-build-${{ github.run_attempt }}-dws --cluster ${DWS_FLEX_CLUSTER_NAME} --zone=us-east5-a --tpu-type=v5p-8  --flex --command "echo foo" --num-slices=1
+            - name: Wait for workload completion and confirm it succeeded
+              run: xpk workload list --cluster ${DWS_FLEX_CLUSTER_NAME} --zone=us-east5-a --wait-for-job-completion xpktest-build-${{ github.run_attempt }}-dws --timeout 1000
+            - name: Delete the DWS flex queued cluster
+              run: xpk cluster delete --cluster ${DWS_FLEX_CLUSTER_NAME} --zone=us-east5-a --force
+            - name: Upload cluster nodepool creation log
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: cluster-nodepool-log-${{github.run_id}}
+                  path: /tmp/NodepoolCreate-$TPU_CLUSTER_NAME-np-*
+            - name: Upload empty cluster nodepool creation log
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: empty-cluster-nodepool-log-${{github.run_id}}
+                  path: /tmp/NodepoolCreate-$EMPTY_CLUSTER_NAME-np-*
+            - name: Upload private cluster nodepool creation log
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: empty-private-cluster-nodepool-log-${{github.run_id}}
+                  path: /tmp/NodepoolCreate-$PRIVATE_CLUSTER_NAME-np-*

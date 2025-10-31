@@ -1,5 +1,5 @@
 $ python3 xpk.py workload delete --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --dry-run
-[XPK] Starting xpk
+[XPK] Starting xpk v0.14.2
 [XPK] Starting Workload delete
 [XPK] Working on golden-project and us-central1-a
 [XPK] Task: `Find cluster region or zone` is implemented by the following command not running since it is a dry run. 

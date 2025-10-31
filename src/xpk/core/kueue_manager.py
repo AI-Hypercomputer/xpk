@@ -199,7 +199,7 @@ class KueueManager:
       0 if successful and 1 otherwise.
     """
     command = (
-        "kubectl wait deploy/kueue-controller-manager -nkueue-system"
+        "kubectl wait deploy/kueue-controller-manager -n kueue-system"
         f" --for=condition=available --timeout={WAIT_FOR_KUEUE_TIMEOUT}"
     )
     task = "Wait for Kueue to be available"

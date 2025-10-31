@@ -1,0 +1,51 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License
+
+name: Basic cluster create
+
+on:
+    workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+    rc-cluster:
+        runs-on: [ubuntu-22.04]
+        concurrency: # We support one build test to run at a time currently.
+            group: nightly-rc-test-cluster-group
+            cancel-in-progress: false
+        env:
+            TPU_CLUSTER_NAME: rc-nightly-test-2-v4-8-nodepools
+        steps:
+            - uses: actions/download-artifact@v4
+              with:
+                  name: custom-scripts
+            - name: Setup environment
+              uses: ./.github/actions/setup-test-env
+              with:
+                  credentials_json: "${{ secrets.GCP_SA_KEY }}"
+            - name: Check xpk installation
+              run: xpk version
+            - name: Create a RayCluster-enabled XPK Cluster with 2 x v4-8 nodepools
+              run: xpk cluster create-ray --cluster $TPU_CLUSTER_NAME --tpu-type=v4-8  --num-slices=2 --zone=us-central2-b --ray-version=2.39.0 --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=4 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments='${{ secrets.CLUSTER_ARGUMENTS}}'
+            - name: Delete the RayCluster-enabled XPK cluster
+              if: always()
+              run: xpk cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+            - name: Upload nodepool creation log
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: rc-nodepool-log-${{github.run_id}}
+                  path: /tmp/NodepoolCreate-$TPU_CLUSTER_NAME-np-*

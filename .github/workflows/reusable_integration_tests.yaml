@@ -14,10 +14,6 @@
 
 on:
   workflow_call:
-    inputs:
-      run-id:
-        required: true
-        type: string
 
 jobs:
   integration-tests:

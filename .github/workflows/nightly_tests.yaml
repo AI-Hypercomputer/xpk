@@ -34,8 +34,8 @@ jobs:
   build_actions:
     uses: ./.github/workflows/reusable_build_scripts.yaml
   cluster-create-and-delete:
-    runs-on: [ubuntu-22.04, build_kjob, build_actions, build_wheel]
-    needs: [build_wheel, build_actions]
+    runs-on: [ubuntu-22.04]
+    needs: [build_wheel, build_actions, build_kjob]
     concurrency: # We support one build test to run at a time currently.
       group: nightly-test-cluster-group
       cancel-in-progress: false
@@ -173,7 +173,7 @@ jobs:
 
   pw-cluster-and-workload:
     runs-on: [ubuntu-22.04]
-    needs: [build_wheel, build_actions, build_kjob, build_actions, build_wheel]
+    needs: [build_wheel, build_actions, build_kjob]
     concurrency: # We support one build test to run at a time currently.
       group: nightly-pw-test-cluster-group
       cancel-in-progress: false
@@ -212,7 +212,7 @@ jobs:
 
   rc-cluster:
     runs-on: [ubuntu-22.04]
-    needs: [build_wheel, build_actions, build_kjob, build_actions, build_wheel]
+    needs: [build_wheel, build_actions, build_kjob]
     concurrency: # We support one build test to run at a time currently.
       group: nightly-rc-test-cluster-group
       cancel-in-progress: false

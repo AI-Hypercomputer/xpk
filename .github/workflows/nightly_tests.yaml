@@ -210,35 +210,10 @@ jobs:
         name: pw-nodepool-log-${{github.run_id}}
         path: /tmp/NodepoolCreate-$TPU_CLUSTER_NAME-np-*
 
-  rc-cluster:
-    runs-on: [ubuntu-22.04]
-    needs: [build_wheel, build_actions, build_kjob]
-    concurrency: # We support one build test to run at a time currently.
-      group: nightly-rc-test-cluster-group
-      cancel-in-progress: false
-    env:
-      TPU_CLUSTER_NAME: rc-nightly-test-2-v4-8-nodepools
-    steps:
-    - uses: actions/download-artifact@v4
-      with:
-        name: custom-scripts
-    - name: Setup environment
-      uses: ./.github/actions/setup-test-env
-      with:
-        credentials_json: "${{ secrets.GCP_SA_KEY }}"
-    - name: Check xpk installation
-      run: xpk version
-    - name: Create a RayCluster-enabled XPK Cluster with 2 x v4-8 nodepools
-      run: xpk cluster create-ray --cluster $TPU_CLUSTER_NAME --tpu-type=v4-8  --num-slices=2 --zone=us-central2-b --ray-version=2.39.0 --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=4 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments='${{ secrets.CLUSTER_ARGUMENTS}}'
-    - name: Delete the RayCluster-enabled XPK cluster
-      if: always()
-      run: xpk cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
-    - name: Upload nodepool creation log
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: rc-nodepool-log-${{github.run_id}}
-        path: /tmp/NodepoolCreate-$TPU_CLUSTER_NAME-np-*
+  ray_cluster_create:
+    needs: [build_kjob, build_actions, build_wheel]
+    uses: ./.github/workflows/integration_ray_cluster_create.yaml
+    secrets: inherit
 
   set-variables:
     runs-on: [ubuntu-22.04]

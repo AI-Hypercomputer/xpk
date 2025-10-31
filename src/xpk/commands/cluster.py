@@ -1159,7 +1159,7 @@ def run_gke_cluster_create_command(
 
   # If the user passes in the gke version then we use that directly instead of the rapid release.
   # This allows users to directly pass a specified gke version without release channel constraints.
-  if args.gke_version or system.accelerator_type == AcceleratorType['GPU']:
+  if args.gke_version or system.accelerator_type == AcceleratorType.GPU:
     command += ' --no-enable-autoupgrade'
   else:
     command += ' --release-channel rapid'

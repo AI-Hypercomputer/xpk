@@ -55,6 +55,7 @@ MIN_MEMORY_LIMIT_SIZE = 4096
 KUEUE_VERSION = Version("v0.12.2")
 SUB_SLICING_TOPOLOGIES = ["2x2", "2x4", "4x4", "4x8", "8x8", "8x16", "16x16"]
 
+
 @dataclass
 class KueueConfig:
   system: SystemCharacteristics

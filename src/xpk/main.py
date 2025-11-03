@@ -31,7 +31,8 @@ Next Steps:
     not be a universal argument.
 """
 
-import argparse, argcomplete
+import argparse
+import argcomplete
 import sys
 
 from .parser.core import set_parser

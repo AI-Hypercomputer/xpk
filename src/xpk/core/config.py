@@ -114,3 +114,6 @@ class XpkConfig:
       return None
     val: dict[str, str] = config_yaml[CONFIGS_KEY]
     return val
+
+
+xpk_config_instance = XpkConfig()

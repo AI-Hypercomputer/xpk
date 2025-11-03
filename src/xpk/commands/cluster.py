@@ -1157,7 +1157,7 @@ def run_gke_cluster_create_command(
       ' --labels=gke_product_type=xpk'
   )
 
-  if args.gke_version or system.accelerator_type == AcceleratorType.GPU:
+  if args.gke_version:
     command += ' --no-enable-autoupgrade'
 
   enable_ip_alias = False

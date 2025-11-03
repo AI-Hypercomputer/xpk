@@ -151,7 +151,7 @@ jobs:
     - name: Wait for workload completion and confirm it succeeded
       run: xpk workload list --cluster ${DWS_FLEX_CLUSTER_NAME} --zone=us-east5-a --wait-for-job-completion xpktest-build-${{ github.run_attempt }}-dws --timeout 1000
     - name: Delete the DWS flex queued cluster
-      run: xpk cluster delete --cluster ${DWS_FLEX_CLUSTER_NAME}
+      run: xpk cluster delete --cluster ${DWS_FLEX_CLUSTER_NAME} --zone=us-east5-a --force
     - name: Upload cluster nodepool creation log
       if: always()
       uses: actions/upload-artifact@v4

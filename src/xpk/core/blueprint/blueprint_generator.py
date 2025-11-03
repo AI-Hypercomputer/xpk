@@ -100,6 +100,7 @@ class BlueprintGenerator:
       gcs_bucket: Optional[str | None] = None,
       capacity_type: CapacityType = CapacityType.ON_DEMAND,
       system_node_pool_min_node_count: int = 2,
+      cluster_version: str | None = None,
   ) -> BlueprintGeneratorOutput:
     """Create A3 mega blueprint and directory containing its dependencies.
 
@@ -147,6 +148,12 @@ class BlueprintGenerator:
         source="modules/scheduler/gke-cluster",
         use=[primary_vpc_name, gpu_subnets_name],
         settings={
+            "maintenance_exclusions": [{
+                "name": "no-minor-or-node-upgrades-indefinite",
+                "start_time": "2024-12-01T00:00:00Z",
+                "end_time": "2199-12-22T00:00:00Z",
+                "exclusion_scope": "NO_MINOR_OR_NODE_UPGRADES",
+            }],
             "prefix_with_deployment_name": False,
             "name_suffix": cluster_name,
             "enable_private_endpoint": False,
@@ -171,6 +178,8 @@ class BlueprintGenerator:
         },
         outputs=["instructions"],
     )
+    if cluster_version:
+      gke_cluster.set_setting("min_master_version", cluster_version)
 
     group_placement_0 = DeploymentModule(
         id="group_placement_0",
@@ -399,6 +408,7 @@ class BlueprintGenerator:
       mtu_size: int = 8896,
       system_node_pool_min_node_count: int = 2,
       capacity_type: CapacityType = CapacityType.ON_DEMAND,
+      cluster_version: str | None = None,
   ) -> BlueprintGeneratorOutput:
     """Create A3 ultra blueprint.
 
@@ -486,22 +496,12 @@ class BlueprintGenerator:
         source="modules/scheduler/gke-cluster",
         use=[net_0_id],
         settings={
-            "release_channel": (
-                "UNSPECIFIED"
-                if capacity_type == CapacityType.FLEX_START
-                else "RAPID"
-            ),
-            "version_prefix": "1.32.",
-            "maintenance_exclusions": (
-                []
-                if capacity_type == CapacityType.FLEX_START
-                else [{
-                    "name": "no-minor-or-node-upgrades-indefinite",
-                    "start_time": "2024-12-01T00:00:00Z",
-                    "end_time": "2025-12-22T00:00:00Z",
-                    "exclusion_scope": "NO_MINOR_OR_NODE_UPGRADES",
-                }]
-            ),
+            "maintenance_exclusions": [{
+                "name": "no-minor-or-node-upgrades-indefinite",
+                "start_time": "2024-12-01T00:00:00Z",
+                "end_time": "2199-12-22T00:00:00Z",
+                "exclusion_scope": "NO_MINOR_OR_NODE_UPGRADES",
+            }],
             "prefix_with_deployment_name": False,
             "name_suffix": cluster_name,
             "system_node_pool_machine_type": system_node_pool_machine_type,
@@ -537,6 +537,8 @@ class BlueprintGenerator:
         },
         outputs=["instructions"],
     )
+    if cluster_version:
+      a3_ultra_cluster.set_setting("min_master_version", cluster_version)
     system, _ = get_system_characteristics_by_device_type(a3ultra_device_type)
     if system is None:
       xpk_print(
@@ -680,6 +682,7 @@ class BlueprintGenerator:
       prefix: str = "",
       system_node_pool_min_node_count: int = 2,
       capacity_type: CapacityType = CapacityType.ON_DEMAND,
+      cluster_version: str | None = None,
   ) -> BlueprintGeneratorOutput:
     """Create A4 blueprint.
 
@@ -767,6 +770,12 @@ class BlueprintGenerator:
         source="modules/scheduler/gke-cluster",
         use=[net_0_id],
         settings={
+            "maintenance_exclusions": [{
+                "name": "no-minor-or-node-upgrades-indefinite",
+                "start_time": "2024-12-01T00:00:00Z",
+                "end_time": "2199-12-22T00:00:00Z",
+                "exclusion_scope": "NO_MINOR_OR_NODE_UPGRADES",
+            }],
             "system_node_pool_machine_type": system_node_pool_machine_type,
             "system_node_pool_node_count": {
                 "total_min_nodes": system_node_pool_min_node_count,
@@ -791,25 +800,11 @@ class BlueprintGenerator:
                 " alias_ip_range=[]}],"
                 f" {cluster_name}-rdma-net.subnetwork_interfaces_gke))"
             ),
-            "version_prefix": "1.32.",
-            "release_channel": (
-                "UNSPECIFIED"
-                if capacity_type == CapacityType.FLEX_START
-                else "RAPID"
-            ),
-            "maintenance_exclusions": (
-                []
-                if capacity_type == CapacityType.FLEX_START
-                else [{
-                    "name": "no-minor-or-node-upgrades-indefinite",
-                    "start_time": "2024-12-01T00:00:00Z",
-                    "end_time": "2025-12-22T00:00:00Z",
-                    "exclusion_scope": "NO_MINOR_OR_NODE_UPGRADES",
-                }]
-            ),
         },
         outputs=["instructions"],
     )
+    if cluster_version:
+      a4_cluster.set_setting("min_master_version", cluster_version)
     system, _ = get_system_characteristics_by_device_type(a4_device_type)
     if system is None:
       xpk_print(
@@ -1019,7 +1014,6 @@ class BlueprintGenerator:
         "enable_flex_start": True,
         "enable_queued_provisioning": True,
         "autoscaling_total_min_nodes": 0,
-        "release_channel": "UNSPECIFIED",
         "auto_repair": False,
         "auto_upgrade": False,
     }

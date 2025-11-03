@@ -16,7 +16,6 @@ limitations under the License.
 
 from ..core.commands import run_command_for_value
 from .console import xpk_exit, xpk_print
-from ..core.config import DEPENDENCIES_KEY
 from enum import Enum
 from dataclasses import dataclass
 

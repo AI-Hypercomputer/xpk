@@ -750,3 +750,14 @@ UserFacingNameToSystemCharacteristics = {
 }
 """ If you modify UserFacingNameToSystemCharacteristics you should also modify
 the corresponding Map in MaxText/accelerator_to_spec_map.py """
+
+
+def get_system_characteristics_keys_by_accelerator_type(
+    accelerators: list[AcceleratorType] = list(AcceleratorType),
+) -> list[str]:
+  """Returns UserFacingNameToSystemCharacteristics keys for given AcceleratorTypes."""
+  return [
+      key
+      for key, value in UserFacingNameToSystemCharacteristics.items()
+      if value.accelerator_type in accelerators
+  ]

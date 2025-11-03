@@ -27,6 +27,7 @@ from ..commands.cluster import (
     cluster_list,
 )
 from ..commands.config import xpk_cfg
+from ..core.system_characteristics import get_system_characteristics_keys_by_accelerator_type, AcceleratorType
 from ..core.config import CFG_BUCKET_KEY
 from ..core.vertex import DEFAULT_VERTEX_TENSORBOARD_NAME
 from .common import add_shared_arguments, ParserOrArgumentGroup
@@ -103,6 +104,10 @@ def set_cluster_create_parser(cluster_create_parser: ArgumentParser):
       type=str,
       default=None,
       help='The tpu type to use, v5litepod-16, etc.',
+      metavar='TPU_TYPE',
+      choices=get_system_characteristics_keys_by_accelerator_type(
+          [AcceleratorType.TPU]
+      ),
   )
   cluster_device_group.add_argument(
       '--device-type',
@@ -112,6 +117,8 @@ def set_cluster_create_parser(cluster_create_parser: ArgumentParser):
           'The device type to use (can be tpu or gpu or cpu), v5litepod-16,'
           ' h100-80gb-8, n2-standard-32-4 etc.'
       ),
+      metavar='DEVICE_TYPE',
+      choices=get_system_characteristics_keys_by_accelerator_type(),
   )
 
   ### Optional arguments specific to "cluster create"
@@ -209,6 +216,10 @@ def set_cluster_create_pathways_parser(
       type=str,
       default=None,
       help='The tpu type to use, v5litepod-16, etc.',
+      metavar='TPU_TYPE',
+      choices=get_system_characteristics_keys_by_accelerator_type(
+          [AcceleratorType.TPU]
+      ),
   )
 
   ### Optional arguments specific to "cluster create-pathways"
@@ -287,6 +298,10 @@ def set_cluster_create_ray_parser(cluster_create_ray_parser: ArgumentParser):
       default=None,
       help='The tpu type to use, v5litepod-16, etc.',
       required=True,
+      metavar='TPU_TYPE',
+      choices=get_system_characteristics_keys_by_accelerator_type(
+          [AcceleratorType.TPU]
+      ),
   )
   # TODO(bzmarke): Add --device-type to support GPU/CPU
   cluster_create_ray_required_arguments.add_argument(
@@ -409,6 +424,10 @@ def set_cluster_cacheimage_parser(cluster_cacheimage_parser: ArgumentParser):
       type=str,
       default=None,
       help='The tpu type to cache images on, v5litepod-16, etc.',
+      metavar='TPU_TYPE',
+      choices=get_system_characteristics_keys_by_accelerator_type(
+          [AcceleratorType.TPU]
+      ),
   )
   cluster_cacheimage_group.add_argument(
       '--device-type',
@@ -418,6 +437,8 @@ def set_cluster_cacheimage_parser(cluster_cacheimage_parser: ArgumentParser):
           'The device type to cache images on (can be tpu or gpu),'
           ' v5litepod-16, h100-80gb-8, etc.'
       ),
+      metavar='DEVICE_TYPE',
+      choices=get_system_characteristics_keys_by_accelerator_type(),
   )
 
   ### Required arguments
@@ -508,6 +529,10 @@ def set_cluster_adapt_parser(cluster_adapt_parser: ArgumentParser):
       type=str,
       default=None,
       help='The tpu type used on cluster, v5litepod-16, etc.',
+      metavar='TPU_TYPE',
+      choices=get_system_characteristics_keys_by_accelerator_type(
+          [AcceleratorType.TPU]
+      ),
   )
   cluster_adapt_device_group.add_argument(
       '--device-type',
@@ -517,6 +542,8 @@ def set_cluster_adapt_parser(cluster_adapt_parser: ArgumentParser):
           'The device type used on cluster (can be tpu or gpu or cpu), eg.'
           ' h100-80gb-8, n2-standard-32-4 etc.'
       ),
+      metavar='DEVICE_TYPE',
+      choices=get_system_characteristics_keys_by_accelerator_type(),
   )
 
   cluster_adapt_optional_arguments = cluster_adapt_parser.add_argument_group(

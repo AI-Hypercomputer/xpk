@@ -32,6 +32,7 @@ Next Steps:
 """
 
 import argparse
+import argcomplete
 import sys
 
 from .parser.core import set_parser
@@ -62,6 +63,7 @@ def main() -> None:
   # Create top level parser for xpk command.
   parser = argparse.ArgumentParser(description='xpk command', prog='xpk')
   set_parser(parser=parser)
+  argcomplete.autocomplete(parser)
 
   main_args = parser.parse_args()
   main_args.enable_ray_cluster = False

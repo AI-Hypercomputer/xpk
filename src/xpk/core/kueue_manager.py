@@ -53,7 +53,7 @@ KUEUE_SUB_SLICING_TOPOLOGY_JINJA_FILE = "kueue_sub_slicing_topology.yaml.j2"
 MEMORY_SIZE_PER_VM = 1.2
 MIN_MEMORY_LIMIT_SIZE = 4096
 KUEUE_VERSION = Version("v0.12.2")
-
+SUB_SLICING_TOPOLOGIES = ["2x2", "2x4", "4x4", "4x8", "8x8", "8x16", "16x16"]
 
 @dataclass
 class KueueConfig:

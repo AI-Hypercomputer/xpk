@@ -27,7 +27,7 @@ from ..core.cluster import (
     setup_k8s_env,
 )
 from ..core.commands import run_command_with_updates, run_commands
-from ..core.kueue_manager import KueueManager, has_sub_slicing_enabled
+from ..core.kueue_manager import KueueManager, has_sub_slicing_enabled, SUB_SLICING_TOPOLOGIES
 from ..core.config import (VERTEX_TENSORBOARD_FEATURE_FLAG, XPK_CURRENT_VERSION)
 from ..core.docker_container import (
     get_main_container_docker_image,
@@ -284,7 +284,6 @@ PW_WORKLOAD_CREATE_YAML = """
       {user_workload}
 """
 
-SUB_SLICING_TOPOLOGIES = ['2x2', '2x4', '4x4', '4x8', '8x8', '8x16', '16x16']
 SUB_SLICING_MINIMUM_KUEUE_VERSION = Version('0.13.0')
 
 

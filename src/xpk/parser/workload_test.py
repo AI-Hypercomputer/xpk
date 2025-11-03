@@ -56,7 +56,7 @@ def test_workload_create_sub_slicing_topology_is_none_by_default():
       "--workload",
       "test",
       "--tpu-type",
-      "test-tpu",
+      "tpu7x-2",
   ])
 
   assert args.sub_slicing_topology is None
@@ -74,7 +74,7 @@ def test_workload_create_sub_slicing_topology_can_be_set():
       "--workload",
       "test",
       "--tpu-type",
-      "test-tpu",
+      "tpu7x-2",
       "--sub-slicing-topology",
       "2x2",
   ])

@@ -307,6 +307,8 @@ def cluster_create(args) -> None:
   update_coredns_command_code = update_coredns_if_necessary()
   if update_coredns_command_code != 0:
     xpk_exit(update_cluster_command_code)
+  
+  install_diagon_prerequisites()
 
   if not is_dry_run():
     k8s_client = setup_k8s_env(args)
@@ -1320,3 +1322,221 @@ def prepare_gpus(system: SystemCharacteristics):
     err_code = disable_mglru_on_cluster()
     if err_code > 0:
       xpk_exit(err_code)
+
+def install_cert_manager(version: str = 'v1.13.0'):
+  """
+  Apply the cert-manager manifest.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  
+  command = (
+      f'kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/'
+      f'{version}/cert-manager.yaml'
+  )
+
+  return_code = run_command_with_updates(
+      command, f'Applying cert-manager {version} manifest...'
+  )
+
+  if return_code != 0:
+    xpk_print(f'Applying cert-manager returned with ERROR {return_code}.\n')
+
+  return return_code
+
+def download_mldiagnostics_yaml(package_name: str, version: str):
+  """
+  Downloads the mldiagnostics injection webhook YAML from Artifact Registry.
+  
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+
+  command = (
+      f'gcloud artifacts generic download --repository=mldiagnostics-webhook-and-operator-yaml --location=us '
+      f'--package={package_name} --version={version} --destination=./ '
+      f'--project=ai-on-gke'
+  )
+  
+  return_code, return_output = run_command_for_value(
+      command, f'Starting gcloud artifacts download for {package_name} {version}...'
+  )
+  
+  if return_code != 0:
+    if 'already exists' in return_output:
+      xpk_print(f'Artifact file for {package_name} {version} already exists locally. Skipping download.')
+      return 0
+    xpk_print(f'gcloud download returned with ERROR {return_code}.\n')
+    xpk_exit(return_code)
+
+  xpk_print(f'Artifact download completed successfully.')
+  return return_code
+
+def create_mldiagnostics_namespace():
+  """
+  Creates the 'gke-diagon' namespace.
+    
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  
+  command = f'kubectl create namespace gke-diagon'
+  
+  return_code, return_output = run_command_for_value(
+      command, f'Starting kubectl create namespace...'
+  )
+  
+  if return_code != 0:
+    if 'already exists' in return_output:
+      xpk_print('Namespace already exists locally. Skipping creation.')
+      return 0
+    xpk_print(f'Namespace creation returned with ERROR {return_code}.\n')
+    xpk_exit(return_code)
+
+  xpk_print(f'gke-diagon Namespace created or already exists.')
+  return return_code
+
+def install_mldiagnostics_yaml(artifact_filename: str):
+  """
+  Applies the mldiagnostics injection webhook YAML manifest.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  
+  command = f'kubectl apply -f {artifact_filename}'
+  
+  return_code = run_command_with_updates(
+      command, f'Starting kubectl apply -f {artifact_filename} ...'
+  )
+  
+  if return_code != 0:
+    xpk_print(f'kubectl apply returned with ERROR {return_code}.\n')
+    xpk_exit(return_code)
+  
+  xpk_print(f'{artifact_filename} applied successfully.')
+
+  if os.path.exists(artifact_filename):
+    try:
+      os.remove(artifact_filename)
+      xpk_print(f'Successfully deleted local file: {artifact_filename}')
+      
+    except PermissionError:
+      xpk_print(f'Failed to delete file {artifact_filename} due to Permission Error.')
+      
+    except Exception as e:
+      xpk_print(f'Failed to delete file {artifact_filename}. Unexpected error: {e}')
+
+  else:
+    xpk_print(f'File {artifact_filename} does not exist locally. Skipping deletion (Cleanup assumed).')
+  
+  return return_code
+
+def label_default_namespace_mldiagnostics():
+  """
+  Labels the 'default' namespace with 'managed-mldiagnostics-gke=true'.
+  
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  
+  command = f'kubectl label namespace default managed-mldiagnostics-gke=true'
+  
+  return_code, return_output = run_command_for_value(
+      command, f"Starting kubectl label namespace default with managed-mldiagnostics-gke=true..."
+  )
+  
+  if return_code != 0:
+    xpk_print(f'Namespace labeling returned with ERROR {return_code}.\n')
+    xpk_exit(return_code)
+
+  xpk_print('default Namespace successfully labeled.')
+  return return_code
+
+def setup_ai_workloads_namespace() -> bool:
+  """
+  Creates the 'ai-workloads' namespace and labels it for diagnostics injection.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+
+  command_create = f'kubectl create namespace ai-workloads'
+  
+  return_code, return_output = run_command_for_value(
+      command_create, f'Starting kubectl create namespace ai-workloads...'
+  )
+  
+  if return_code != 0:
+    if 'already exists' in return_output:
+      xpk_print('Namespace already exists locally. Skipping creation.')
+      return 0
+    xpk_print(f'Namespace creation returned with ERROR {return_code}.\n')
+    xpk_exit(return_code)
+
+  xpk_print(f'ai-workloads Namespace created or already exists.')
+
+  command_label = f'kubectl label namespace ai-workloads diagon-enabled=true'
+
+  return_code = run_command_with_updates(
+      command_label, f'Starting kubectl label namespace ai-workloads with diagon-enabled=true...'
+  )
+  
+  if return_code != 0:
+    xpk_print(f'Namespace labeling returned with ERROR {return_code}.\n')
+  
+  xpk_print(f'ai-workloads Namespace successfully labeled.')
+  return return_code
+
+def install_diagon_prerequisites():
+  """
+  Diagon installation requirements.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+
+  return_code = install_cert_manager()
+  if return_code != 0:
+    return return_code
+  
+
+  webhook_package = "mldiagnostics-injection-webhook"
+  webhook_version = "v0.3.0"
+  webhook_filename = f"{webhook_package}-{webhook_version}.yaml"
+
+  return_code = download_mldiagnostics_yaml(package_name=webhook_package, version=webhook_version)
+  if return_code != 0:
+    return return_code
+  
+  return_code = create_mldiagnostics_namespace()
+  if return_code != 0:
+    return return_code
+
+  return_code = install_mldiagnostics_yaml(artifact_filename=webhook_filename)
+  if return_code != 0:
+    return return_code
+  
+  return_code = label_default_namespace_mldiagnostics()
+  if return_code != 0:
+    return return_code
+
+  # --- Install Operator ---
+  operator_package = "mldiagnostics-connection-operator"
+  operator_version = "v0.3.0"
+  operator_filename = f"{operator_package}-{operator_version}.yaml"
+  
+  return_code = download_mldiagnostics_yaml(package_name=operator_package, version=operator_version)
+  if return_code != 0:
+    return return_code
+    
+  return_code = install_mldiagnostics_yaml(artifact_filename=operator_filename)
+  if return_code != 0:
+    return return_code
+  return_code = setup_ai_workloads_namespace()
+  if return_code != 0:
+    return return_code
+  
+  xpk_print("All diagon installation and setup steps have been successfully completed!")
+  return return_code

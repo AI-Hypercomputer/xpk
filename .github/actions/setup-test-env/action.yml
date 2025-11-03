@@ -48,3 +48,6 @@ runs:
     - name: Install XPK
       run: pip install dist/xpk-*.whl
       shell: bash
+    - name: Install expect package
+      run: sudo apt-get install expect
+      shell: bash

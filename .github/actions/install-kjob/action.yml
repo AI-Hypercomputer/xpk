@@ -28,6 +28,8 @@ runs:
       with:
         name: kjob-artifact
     - name: Set permissions
+      shell: bash
       run: chmod +x kubectl-kjob
     - name: Move binary
+      shell: bash
       run: mv ./kubectl-kjob /usr/local/bin/kubectl-kjob

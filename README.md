@@ -104,6 +104,18 @@ The following tools must be installed:
 - git: [installation instructions](https://git-scm.com/downloads/linux)
 - make: install by running `apt-get -y install make` (`sudo` might be required)
 
+### Additional prerequisites to enable bash completion
+
+- Install [argcomplete](https://pypi.org/project/argcomplete/) globally on your machine.
+  ```shell
+  pip install argcomplete
+  activate-global-python-argcomplete
+  ```
+- Configure `argcomplete` for XPK.
+  ```shell
+  eval "$(register-python-argcomplete xpk)"
+  ```
+
 ## Installation via pip
 
 To install XPK using pip, first install required tools mentioned in [prerequisites](#prerequisites) and [additional prerequisites](#additional-prerequisites-when-installing-from-pip). Then you can install XPK simply by running:

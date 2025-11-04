@@ -473,11 +473,11 @@ def test_autocorrect_resource_both_limits_not_set(
   mock_commands.set_result_for_command(
       (0, "20 20"), "gcloud compute machine-types describe"
   )
-  config = dataclasses.replace(KUEUE_CONFIG, cpu_limit=None, memory_limit=None)
+  config = dataclasses.replace(KUEUE_CONFIG, cpu_limit=0, memory_limit="")
   kueue_manager.autocorrect_resource_limits(config, "test-project", "test-zone")
 
-  assert config.cpu_limit is None
-  assert config.memory_limit is None
+  assert config.cpu_limit == 0
+  assert config.memory_limit == ""
   mock_commands.assert_command_not_run("gcloud compute machine-types describe")
 
 
@@ -488,8 +488,8 @@ def test_autocorrect_resource_one_limit_not_set(
   mock_commands.set_result_for_command(
       (0, "20 20"), "gcloud compute machine-types describe"
   )
-  config_no_cpu = dataclasses.replace(KUEUE_CONFIG, cpu_limit=None)
-  config_no_memory = dataclasses.replace(KUEUE_CONFIG, memory_limit=None)
+  config_no_cpu = dataclasses.replace(KUEUE_CONFIG, cpu_limit=0)
+  config_no_memory = dataclasses.replace(KUEUE_CONFIG, memory_limit="")
   kueue_manager.autocorrect_resource_limits(
       config_no_cpu, "test-project", "test-zone"
   )
@@ -497,10 +497,10 @@ def test_autocorrect_resource_one_limit_not_set(
       config_no_memory, "test-project", "test-zone"
   )
 
-  assert config_no_cpu.cpu_limit is None
+  assert config_no_cpu.cpu_limit == 0
   assert config_no_cpu.memory_limit == "20Mi"
   assert config_no_memory.cpu_limit == 20
-  assert config_no_memory.memory_limit is None
+  assert config_no_memory.memory_limit == ""
   mock_commands.assert_command_run(
       "gcloud compute machine-types describe", times=2
   )

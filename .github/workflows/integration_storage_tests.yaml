@@ -17,6 +17,9 @@ name: Storage Tests
 on:
   workflow_call:
 
+permissions:
+  contents: read
+
 env:
   CLUSTER_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}} --subnetwork=${{secrets.SUBNETWORK_NAME}}"
 

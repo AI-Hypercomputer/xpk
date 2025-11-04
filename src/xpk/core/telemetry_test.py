@@ -14,11 +14,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import uuid
 from .config import xpk_config, CLIENT_ID_KEY
+from .telemetry import generate_client_id
 
 
-def generate_client_id():
-  """Generates Client ID and stores in configuration if not already present."""
-  if xpk_config.get(CLIENT_ID_KEY) is None:
-    xpk_config.set(CLIENT_ID_KEY, str(uuid.uuid4()))
+def test_generates_client_id_when_its_not_present():
+  xpk_config.set(CLIENT_ID_KEY, None)
+  generate_client_id()
+  assert xpk_config.get(CLIENT_ID_KEY) is not None
+
+
+def test_does_not_generate_client_id_when_its_present():
+  client_id = '1337'
+  xpk_config.set(CLIENT_ID_KEY, client_id)
+  generate_client_id()
+  assert xpk_config.get(CLIENT_ID_KEY) == client_id

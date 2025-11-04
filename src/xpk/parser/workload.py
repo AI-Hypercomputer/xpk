@@ -26,6 +26,7 @@ from .common import add_shared_arguments
 from .validators import directory_path_type, name_type
 from ..utils.feature_flags import FeatureFlags
 from ..core.kueue_manager import SUB_SLICING_TOPOLOGIES
+from ..core.system_characteristics import get_system_characteristics_keys_by_accelerator_type, AcceleratorType
 
 
 def set_workload_parsers(workload_parser: ArgumentParser):
@@ -124,6 +125,10 @@ def set_workload_create_parser(workload_create_parser: ArgumentParser):
       type=str,
       default=None,
       help='The tpu type to use, v5litepod-16, etc.',
+      metavar='TPU_TYPE',
+      choices=get_system_characteristics_keys_by_accelerator_type(
+          [AcceleratorType.TPU]
+      ),
   )
   workload_device_group.add_argument(
       '--device-type',
@@ -133,6 +138,8 @@ def set_workload_create_parser(workload_create_parser: ArgumentParser):
           'The device type to use (can be tpu or gpu or cpu), v5litepod-16,'
           ' h100-80gb-8, n2-standard-32-4 etc.'
       ),
+      metavar='DEVICE_TYPE',
+      choices=get_system_characteristics_keys_by_accelerator_type(),
   )
 
   workload_create_parser_optional_arguments.add_argument(
@@ -286,6 +293,10 @@ def set_workload_create_pathways_parser(
       type=str,
       default=None,
       help='The tpu type to use, v5litepod-16, etc.',
+      metavar='TPU_TYPE',
+      choices=get_system_characteristics_keys_by_accelerator_type(
+          [AcceleratorType.TPU]
+      ),
   )
 
   ### "workload create-pathways" Optional arguments, specific to Pathways

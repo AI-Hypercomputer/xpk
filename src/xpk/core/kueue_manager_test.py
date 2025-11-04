@@ -114,7 +114,7 @@ def test_install_or_upgrade_when_outdated(
   result = kueue_manager.install_or_upgrade(KUEUE_CONFIG)
 
   assert result == 0
-  mock_commands.assert_command_run("kubectl apply", "v0.14.2/manifests.yaml")
+  mock_commands.assert_command_run("kubectl apply", "v0.14.3/manifests.yaml")
   mock_commands.assert_command_run("kubectl apply -f", "/tmp/")
 
 
@@ -127,7 +127,7 @@ def test_install_or_upgrade_when_not_installed(
   result = kueue_manager.install_or_upgrade(KUEUE_CONFIG)
 
   assert result == 0
-  mock_commands.assert_command_run("kubectl apply", "v0.14.2/manifests.yaml")
+  mock_commands.assert_command_run("kubectl apply", "v0.14.3/manifests.yaml")
   mock_commands.assert_command_run("kubectl apply -f", "/tmp/")
 
 

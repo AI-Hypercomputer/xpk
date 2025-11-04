@@ -38,7 +38,7 @@ from .config import (
     KJOB_SHELL_IMAGE,
     KJOB_SHELL_INTERACTIVE_COMMAND,
     KJOB_SHELL_WORKING_DIRECTORY,
-    xpk_config_instance,
+    xpk_config,
 )
 from .network import get_cluster_subnetworks
 from .system_characteristics import AcceleratorType, SystemCharacteristics
@@ -234,7 +234,7 @@ def get_pod_template_interactive_command() -> str:
   Returns:
     str - PodTemplate's interactive command
   """
-  pod_command = xpk_config_instance.get(KJOB_SHELL_INTERACTIVE_COMMAND)
+  pod_command = xpk_config.get(KJOB_SHELL_INTERACTIVE_COMMAND)
   if pod_command is None or len(pod_command) == 0:
     pod_command = PodTemplateDefaults.INTERACTIVE_COMMAND.value
 
@@ -286,10 +286,10 @@ def create_job_template_instance(
   Returns:
     exit_code > 0 if creating JobTemplate fails, 0 otherwise
   """
-  job_image = xpk_config_instance.get(KJOB_BATCH_IMAGE)
+  job_image = xpk_config.get(KJOB_BATCH_IMAGE)
   if job_image is None or len(job_image) == 0:
     job_image = JobTemplateDefaults.IMAGE.value
-  working_directory = xpk_config_instance.get(KJOB_BATCH_WORKING_DIRECTORY)
+  working_directory = xpk_config.get(KJOB_BATCH_WORKING_DIRECTORY)
   if working_directory is None or len(working_directory) == 0:
     working_directory = JobTemplateDefaults.WORKING_DIRECTORY.value
   resources = (
@@ -330,10 +330,10 @@ def create_pod_template_instance(service_account: str) -> int:
   Returns:
     exit_code > 0 if creating PodTemplate fails, 0 otherwise
   """
-  pod_image = xpk_config_instance.get(KJOB_SHELL_IMAGE)
+  pod_image = xpk_config.get(KJOB_SHELL_IMAGE)
   if pod_image is None or len(pod_image) == 0:
     pod_image = PodTemplateDefaults.IMAGE.value
-  working_directory = xpk_config_instance.get(KJOB_SHELL_WORKING_DIRECTORY)
+  working_directory = xpk_config.get(KJOB_SHELL_WORKING_DIRECTORY)
   if working_directory is None or len(working_directory) == 0:
     working_directory = PodTemplateDefaults.WORKING_DIRECTORY.value
 

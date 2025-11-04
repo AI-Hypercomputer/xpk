@@ -116,4 +116,4 @@ class XpkConfig:
     return val
 
 
-xpk_config_instance = XpkConfig()
+xpk_config = XpkConfig()

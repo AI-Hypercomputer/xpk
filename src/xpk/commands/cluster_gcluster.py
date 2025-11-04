@@ -149,21 +149,24 @@ def __install_kueue(args) -> int:
       'value': 'true',
       'effect': 'NoSchedule',
   }]
-
-  kueue_manager.install_or_upgrade(
-      KueueConfig(
-          system,
-          total_chips=total_chips,
-          autoprovisioning_enabled=autoprovisioning_enabled,
-          num_slices=args.num_slices,
-          memory_limit=args.memory_limit,
-          cpu_limit=args.cpu_limit,
-          is_pathways_cluster=args.enable_pathways,
-          flex=args.flex,
-          configure_sub_slicing=(
-              FeatureFlags.SUB_SLICING_ENABLED and args.sub_slicing
-          ),
+  kueue_config = KueueConfig(
+      system,
+      total_chips=total_chips,
+      autoprovisioning_enabled=autoprovisioning_enabled,
+      num_slices=args.num_slices,
+      memory_limit=args.memory_limit,
+      cpu_limit=args.cpu_limit,
+      is_pathways_cluster=args.enable_pathways,
+      flex=args.flex,
+      configure_sub_slicing=(
+          FeatureFlags.SUB_SLICING_ENABLED and args.sub_slicing
       ),
+  )
+  kueue_manager.autocorrect_resource_limits(
+      kueue_config, args.project, args.zone
+  )
+  kueue_manager.install_or_upgrade(
+      kueue_config,
       tolerations=tolerations,
   )
   return 0

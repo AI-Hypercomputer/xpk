@@ -1286,21 +1286,23 @@ def _install_kueue(
     # Determine total chips based on user specified topology.
     total_chips = get_total_chips_requested_from_args(args, system)
   kueue_manager = KueueManager()
-  return kueue_manager.install_or_upgrade(
-      KueueConfig(
-          system,
-          total_chips=total_chips,
-          autoprovisioning_enabled=autoprovisioning_enabled,
-          num_slices=args.num_slices,
-          flex=args.flex,
-          memory_limit=args.memory_limit,
-          cpu_limit=args.cpu_limit,
-          is_pathways_cluster=args.enable_pathways,
-          configure_sub_slicing=(
-              FeatureFlags.SUB_SLICING_ENABLED and args.sub_slicing
-          ),
+  kueue_config = KueueConfig(
+      system,
+      total_chips=total_chips,
+      autoprovisioning_enabled=autoprovisioning_enabled,
+      num_slices=args.num_slices,
+      flex=args.flex,
+      memory_limit=args.memory_limit,
+      cpu_limit=args.cpu_limit,
+      is_pathways_cluster=args.enable_pathways,
+      configure_sub_slicing=(
+          FeatureFlags.SUB_SLICING_ENABLED and args.sub_slicing
       ),
   )
+  kueue_manager.autocorrect_resource_limits(
+      kueue_config, args.project, args.zone
+  )
+  return kueue_manager.install_or_upgrade(kueue_config)
 
 
 def prepare_gpus(system: SystemCharacteristics):

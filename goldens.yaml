@@ -5,6 +5,10 @@ goldens:
     command: python3 xpk.py cluster create --project=golden-project --zone=us-central1-a --enable-autoprovisioning --cluster=golden-cluster --tpu-type=tpu7x-8 --on-demand --dry-run
   "Basic cluster create":
     command: python3 xpk.py cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-8 --spot --dry-run
+  "Cluster create with CPU and memory limits below capacity":
+    command: python3 xpk.py cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-8 --spot --cpu-limit=1 --memory-limit=1Mi --dry-run
+  "Cluster create with CPU and memory limits above capacity":
+    command: python3 xpk.py cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-8 --spot --cpu-limit=20 --memory-limit=1Gi --dry-run
   "Cluster create with gb200-4":
     command: python3 xpk.py cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --device-type=gb200-4 --reservation=golden-reservation --dry-run
   "Cluster create private":

@@ -103,3 +103,17 @@ def test_cluster_create_ray_sub_slicing_is_hidden_but_set_to_false():
 
   assert args.sub_slicing is False
   assert "--sub-slicing" not in help_str
+
+def test_cluster_create_managed_mldiagnostics():
+  parser = argparse.ArgumentParser()
+
+  set_cluster_create_parser(parser)
+  args = parser.parse_args([
+      "--cluster",
+      "test-cluster",
+      "--tpu-type",
+      "v5p-8",
+      "--managed-ml-diagnostics",
+  ])
+
+  assert args.managed_ml_diagnostics is True

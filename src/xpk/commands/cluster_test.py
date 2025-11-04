@@ -84,6 +84,9 @@ def mocks(mocker) -> _Mocks:
           run_command_with_updates_path=(
               'xpk.commands.cluster.run_command_with_updates'
           ),
+          run_command_for_value_path=(
+              'xpk.commands.cluster.run_command_for_value'
+          ),
       ),
   )
 

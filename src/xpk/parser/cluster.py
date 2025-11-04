@@ -150,6 +150,13 @@ def set_cluster_create_parser(cluster_create_parser: ArgumentParser):
           ' enable cluster to accept Pathways workloads.'
       ),
   )
+
+  cluster_create_optional_arguments.add_argument(
+      '--managed-ml-diagnostics',
+      action='store_true',
+      help='Enables the installation of required ML Diagnostics components.',
+  )
+
   if FeatureFlags.SUB_SLICING_ENABLED:
     add_cluster_create_sub_slicing_arguments(cluster_create_optional_arguments)
 
@@ -240,6 +247,12 @@ def set_cluster_create_pathways_parser(
       )
   )
   add_autoprovisioning_arguments(autoprovisioning_arguments)
+
+  cluster_create_pathways_optional_arguments.add_argument(
+      '--managed-ml-diagnostics',
+      action='store_true',
+      help='Enables the installation of required ML Diagnostics components.',
+  )
 
   ### Capacity arguments specific to "cluster create-pathways"
   cluster_create_pathways_capacity_arguments = (

@@ -1009,7 +1009,7 @@ class BlueprintGenerator:
     )
     return deployment_files_path
 
-  def get_dws_flex_start(self) -> dict:
+  def get_dws_flex_start(self, num_slices) -> dict:
     return {
         "enable_flex_start": True,
         "enable_queued_provisioning": True,

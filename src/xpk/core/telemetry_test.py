@@ -14,8 +14,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import pytest
+import json
 from .config import xpk_config, CLIENT_ID_KEY
-from .telemetry import generate_client_id
+from .telemetry import generate_client_id, MetricsCollector
+from ..utils.execution_context import set_dry_run
+
+
+@pytest.fixture(autouse=True)
+def setup_mocks(mocker):
+  mocker.patch('xpk.core.telemetry._get_session_id', return_value='321231')
+  mocker.patch('time.time', return_value=0)
+  mocker.patch('platform.python_version', return_value='99.99.99')
+  xpk_config.set(CLIENT_ID_KEY, 'client_id')
+  MetricsCollector.clear()
 
 
 def test_generates_client_id_when_its_not_present():
@@ -24,8 +36,79 @@ def test_generates_client_id_when_its_not_present():
   assert xpk_config.get(CLIENT_ID_KEY) is not None
 
 
-def test_does_not_generate_client_id_when_its_present():
+def test_generate_client_id_does_not_regenerate_id_when_its_present():
   client_id = '1337'
   xpk_config.set(CLIENT_ID_KEY, client_id)
   generate_client_id()
   assert xpk_config.get(CLIENT_ID_KEY) == client_id
+
+
+def test_metrics_collector_logs_start_event_correctly():
+  set_dry_run(False)
+  MetricsCollector.log_start(command='test')
+  payload = json.loads(MetricsCollector.serialize())
+  extension_json = json.loads(payload['log_event'][0]['source_extension_json'])
+  assert extension_json == {
+      'client_install_id': 'client_id',
+      'console_type': 'XPK',
+      'event_metadata': [
+          {'key': 'session_id', 'value': '321231'},
+          {'key': 'dry_run', 'value': 'false'},
+          {'key': 'python_version', 'value': '99.99.99'},
+          {'key': 'command', 'value': 'test'},
+      ],
+      'event_name': 'start',
+      'event_type': 'commands',
+      'release_version': 'v0.14.3',
+  }
+
+
+def test_metrics_collector_logs_complete_event_correctly():
+  set_dry_run(True)
+  MetricsCollector.log_complete(exit_code=2)
+  payload = json.loads(MetricsCollector.serialize())
+  extension_json = json.loads(payload['log_event'][0]['source_extension_json'])
+  assert extension_json == {
+      'client_install_id': 'client_id',
+      'console_type': 'XPK',
+      'event_metadata': [
+          {'key': 'session_id', 'value': '321231'},
+          {'key': 'dry_run', 'value': 'true'},
+          {'key': 'python_version', 'value': '99.99.99'},
+          {'key': 'exit_code', 'value': '2'},
+      ],
+      'event_name': 'complete',
+      'event_type': 'commands',
+      'release_version': 'v0.14.3',
+  }
+
+
+def test_metrics_collector_logs_custom_event_correctly():
+  set_dry_run(False)
+  MetricsCollector.log_custom(name='test', metadata={'key': 'value'})
+  payload = json.loads(MetricsCollector.serialize())
+  extension_json = json.loads(payload['log_event'][0]['source_extension_json'])
+  assert extension_json == {
+      'client_install_id': 'client_id',
+      'console_type': 'XPK',
+      'event_metadata': [
+          {'key': 'session_id', 'value': '321231'},
+          {'key': 'dry_run', 'value': 'false'},
+          {'key': 'python_version', 'value': '99.99.99'},
+          {'key': 'key', 'value': 'value'},
+      ],
+      'event_name': 'test',
+      'event_type': 'custom',
+      'release_version': 'v0.14.3',
+  }
+
+
+def test_metrics_collector_logs_correct_envelope():
+  MetricsCollector.log_start(command='test')
+  MetricsCollector.log_custom(name='test', metadata={'key': 'value'})
+  MetricsCollector.log_complete(exit_code=2)
+  payload = json.loads(MetricsCollector.serialize())
+  assert payload['client_info'] == {'client_type': 'XPK'}
+  assert payload['log_source_name'] == 'CONCORD'
+  assert payload['request_time_ms'] == 0
+  assert len(payload['log_event']) == 3

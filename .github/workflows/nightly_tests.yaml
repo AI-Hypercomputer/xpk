@@ -44,7 +44,6 @@ jobs:
     uses: ./.github/workflows/integration_ray_cluster_create.yaml
     secrets: inherit
   install-dependencies:
-    needs: [set-variables]
     runs-on: ubuntu-22.04
     strategy:
       matrix:

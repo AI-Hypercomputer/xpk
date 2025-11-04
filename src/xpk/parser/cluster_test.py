@@ -64,3 +64,18 @@ def test_cluster_create_sub_slicing_can_be_set():
   )
 
   assert args.sub_slicing is True
+
+
+def test_cluster_create_managed_mldiagnostics():
+  parser = argparse.ArgumentParser()
+
+  set_cluster_create_parser(parser)
+  args = parser.parse_args([
+      "--cluster",
+      "test-cluster",
+      "--tpu-type",
+      "v5p-8",
+      "--managed-ml-diagnostics",
+  ])
+
+  assert args.managed_ml_diagnostics is True

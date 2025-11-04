@@ -44,6 +44,8 @@ from ..utils.console import xpk_print, xpk_exit
 from ..utils.templates import TEMPLATE_PATH, get_templates_absolute_path
 from packaging.version import Version
 
+KUEUE_VERSION = Version("v0.14.2")
+LATEST_BREAKING_VERSION = Version("v0.14.0")
 WAIT_FOR_KUEUE_TIMEOUT = "10m"
 CLUSTER_QUEUE_NAME = "cluster-queue"
 LOCAL_QUEUE_NAME = "multislice-queue"
@@ -54,8 +56,7 @@ KUEUE_CONTROLLER_MANAGER_JINJA_FILE = "kueue_controller_manager.yaml.j2"
 KUEUE_SUB_SLICING_TOPOLOGY_JINJA_FILE = "kueue_sub_slicing_topology.yaml.j2"
 MEMORY_SIZE_PER_VM = 1.2
 MIN_MEMORY_LIMIT_SIZE = 4096
-KUEUE_VERSION = Version("v0.14.2")
-LATEST_BREAKING_VERSION = Version("v0.14.0")
+SUB_SLICING_TOPOLOGIES = ["2x2", "2x4", "4x4", "4x8", "8x8", "8x16", "16x16"]
 
 
 @dataclass

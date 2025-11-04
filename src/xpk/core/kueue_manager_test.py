@@ -32,7 +32,7 @@ TPU_SYSTEM: SystemCharacteristics = SystemCharacteristics(
     gke_accelerator="test-accelerator",
     gce_machine_type="test-machine",
     chips_per_vm=4,
-    accelerator_type=AcceleratorType["TPU"],
+    accelerator_type=AcceleratorType.TPU,
     device_type="v5p-8",
     supports_sub_slicing=False,
 )
@@ -97,6 +97,7 @@ def test_install_or_upgrade_when_outdated(
     mock_commands: CommandsTester, kueue_manager: KueueManager
 ):
   """Test install_or_upgrade when an older version of Kueue is installed."""
+  # TODO:
   set_installed_kueue_version(mock_commands, Version("0.14.0"))
 
   result = kueue_manager.install_or_upgrade(KUEUE_CONFIG)
@@ -284,7 +285,7 @@ def test_configure_generates_correct_manifest_with_gke_default_topology(
           gke_accelerator="h100-mega-80gb-8",
           gce_machine_type="a3-megagpu-8g",
           chips_per_vm=8,
-          accelerator_type=AcceleratorType["GPU"],
+          accelerator_type=AcceleratorType.GPU,
           device_type="h100-mega-80gb-8",
           supports_sub_slicing=False,
       ),

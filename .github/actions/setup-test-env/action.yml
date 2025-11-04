@@ -1,0 +1,53 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License
+
+name: "Setup test environment"
+description: "Sets up integration test environment"
+
+inputs:
+  credentials_json:
+    description: "GCP Service Account Key"
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.10"
+    - uses: actions/download-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/
+    - name: Set permissions
+      run: chmod +x ./backoff_retry.sh
+      shell: bash
+    - uses: "google-github-actions/auth@v2"
+      with:
+        credentials_json: "${{ inputs.credentials_json }}"
+    - uses: google-github-actions/setup-gcloud@v2
+      with:
+        version: ">= 363.0.0"
+        install_components: "beta,gke-gcloud-auth-plugin"
+    - name: Authenticate Docker
+      run: gcloud auth configure-docker --quiet
+      shell: bash
+    - uses: ./.github/actions/install-kueue
+    - uses: ./.github/actions/install-kjob
+    - name: Install XPK
+      run: pip install dist/xpk-*.whl
+      shell: bash
+    - name: Install expect package
+      run: sudo apt-get install expect
+      shell: bash

@@ -27,7 +27,7 @@ from ..core.cluster import (
     setup_k8s_env,
 )
 from ..core.commands import run_command_with_updates, run_commands
-from ..core.kueue_manager import KueueManager, has_sub_slicing_enabled
+from ..core.kueue_manager import KueueManager, has_sub_slicing_enabled, SUB_SLICING_TOPOLOGIES
 from ..core.config import (VERTEX_TENSORBOARD_FEATURE_FLAG, XPK_CURRENT_VERSION)
 from ..core.docker_container import (
     get_main_container_docker_image,
@@ -284,7 +284,6 @@ PW_WORKLOAD_CREATE_YAML = """
       {user_workload}
 """
 
-SUB_SLICING_TOPOLOGIES = ['2x2', '2x4', '4x4', '4x8', '8x8', '8x16', '16x16']
 SUB_SLICING_MINIMUM_KUEUE_VERSION = Version('0.13.0')
 
 
@@ -487,7 +486,7 @@ def workload_create(args) -> None:
                 values: [{restart_on_exit_codes}]"""
 
   # Create the workload file based on accelerator type or workload type.
-  if system.accelerator_type == AcceleratorType['GPU']:
+  if system.accelerator_type == AcceleratorType.GPU:
     container, debugging_dashboard_id = get_user_workload_container(
         args, system
     )
@@ -570,7 +569,7 @@ def workload_create(args) -> None:
         container=container,
         vms_per_slice=(
             compute_vms_per_slice(args.sub_slicing_topology)
-            if system.accelerator_type == AcceleratorType['TPU']
+            if system.accelerator_type == AcceleratorType.TPU
             and FeatureFlags.SUB_SLICING_ENABLED
             and args.sub_slicing_topology is not None
             else system.vms_per_slice
@@ -598,7 +597,7 @@ def workload_create(args) -> None:
         tpu_toleration="""
               - operator: "Exists"
                 key: google.com/tpu
-        """ if system.accelerator_type == AcceleratorType['TPU'] else '',
+        """ if system.accelerator_type == AcceleratorType.TPU else '',
         failure_policy_rules=failure_policy_rules,
         pod_failure_policy=pod_failure_policy,
     )
@@ -615,7 +614,7 @@ def workload_create(args) -> None:
 
   # Get GKE outlier dashboard for TPU
   outlier_dashboard_id = None
-  if system.accelerator_type == AcceleratorType['TPU']:
+  if system.accelerator_type == AcceleratorType.TPU:
     outlier_dashboard_id = get_gke_outlier_dashboard(args)
 
   # Outlier and debugging dashboards

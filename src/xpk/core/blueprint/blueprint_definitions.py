@@ -36,6 +36,21 @@ class DeploymentModule:
   settings: Optional[dict[str, Any]] = None
   use: Optional[list[str]] = None
 
+  def update_settings(self, additionalSettings: dict[str, Any]) -> None:
+    if self.settings is None:
+      self.settings = dict()
+    self.settings.update(additionalSettings)
+
+  def set_setting(self, key: str, value: Any) -> None:
+    if self.settings is None:
+      self.settings = dict()
+    self.settings[key] = value
+
+  def append_use(self, use: str) -> None:
+    if self.use is None:
+      self.use = list()
+    self.use.append(use)
+
 
 @dataclass
 class DeploymentGroup:
@@ -59,6 +74,6 @@ class Blueprint:
   blueprint_name: Optional[str]
   toolkit_modules_url: str
   toolkit_modules_version: str
-  vars: dict[str, str | list[str]] | None
+  vars: dict[str, str | list[str] | dict[str, str]] | None
   terraform_providers: Optional[dict[str, Any]] = None
   validators: Optional[list[Any]] = None

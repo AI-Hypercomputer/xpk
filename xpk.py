@@ -1,3 +1,5 @@
+# PYTHON_ARGCOMPLETE_OK
+
 """
 Copyright 2024 Google LLC
 

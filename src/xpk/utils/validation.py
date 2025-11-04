@@ -15,10 +15,7 @@ limitations under the License.
 """
 
 from ..core.commands import run_command_for_value
-from ..core.config import __version__ as xpk_version
 from .console import xpk_exit, xpk_print
-from ..commands.config import xpk_cfg
-from ..core.config import DEPENDENCIES_KEY
 from enum import Enum
 from dataclasses import dataclass
 
@@ -78,14 +75,6 @@ def should_validate_dependencies(args):
   skip_validation = 'skip_validation' in args and args.skip_validation
   dry_run = 'dry_run' in args and args.dry_run
   return not skip_validation and not dry_run
-
-
-def validate_dependencies():
-  """Validates all system dependencies if validation has not been done with current XPK version."""
-  deps_version = xpk_cfg.get(DEPENDENCIES_KEY)
-  if deps_version is None or deps_version != xpk_version:
-    validate_dependencies_list(list(SystemDependency))
-    xpk_cfg.set(DEPENDENCIES_KEY, xpk_version)
 
 
 def validate_dependencies_list(dependencies: list[SystemDependency]):

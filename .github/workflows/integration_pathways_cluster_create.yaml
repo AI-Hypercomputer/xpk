@@ -1,0 +1,63 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License
+
+name: Basic cluster create
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+env:
+  CLUSTER_NETWORK_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}} --subnetwork=${{secrets.SUBNETWORK_NAME}}"
+
+jobs:
+  pw-cluster-and-workload:
+    runs-on: [ubuntu-22.04]
+    concurrency: # We support one build test to run at a time currently.
+      group: nightly-pw-test-cluster-group
+      cancel-in-progress: false
+    env:
+      TPU_CLUSTER_NAME: pw-nightly-test-2-v4-8-nodepools
+      WORKLOAD_NAME: xpkpw-nightly-${{ github.run_attempt }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: custom-scripts
+      - name: Setup environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          credentials_json: "${{ secrets.GCP_SA_KEY }}"
+      - name: Check xpk installation
+        run: xpk version
+      - name: Create an Pathways-enabled XPK Cluster with 2 x v4-8 nodepools
+        run: ./backoff_retry.sh -c 'xpk cluster create-pathways --cluster $TPU_CLUSTER_NAME --tpu-type=v4-8  --num-slices=2 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=4 --reservation="${{ secrets.GCP_TPU_V4_RESERVATION }}" --custom-cluster-arguments="${CLUSTER_NETWORK_ARGUMENTS}"'
+      - name: Create test script to execute in workloads
+        run: echo -e '#!/bin/bash \n echo "Hello world from a test script!"' > workload.sh
+      - name: Run a Pathways workload on Ubuntu base image
+        run: xpk workload create-pathways --cluster $TPU_CLUSTER_NAME --workload $WORKLOAD_NAME --docker-image='marketplace.gcr.io/google/ubuntu2004' --tpu-type=v4-8 --num-slices=2 --zone=us-central2-b --command "echo \"Hello world from a test script! \""
+      - name: Wait for Pathways workload completion and confirm it succeeded
+        run: xpk workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion $WORKLOAD_NAME --timeout 300
+      - name: Delete the Pathways workload on the cluster
+        run: xpk workload delete --workload $WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+      - name: Delete the Pathways cluster created
+        if: always()
+        run: xpk cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --force
+      - name: Upload nodepool creation log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pw-nodepool-log-${{github.run_id}}
+          path: /tmp/NodepoolCreate-$TPU_CLUSTER_NAME-np-*

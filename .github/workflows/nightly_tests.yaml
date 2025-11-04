@@ -90,6 +90,6 @@ jobs:
     secrets: inherit
   storage-tests:
     needs: [build_kjob, build_actions, build_wheel]
-    uses: ./.github/workflows/reusable_storage_tests.yaml
+    uses: ./.github/workflows/integration_storage_tests.yaml
     secrets: inherit
 

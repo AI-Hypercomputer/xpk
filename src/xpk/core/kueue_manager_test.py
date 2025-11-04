@@ -25,7 +25,6 @@ from xpk.core.kueue_manager import KueueConfig, KueueManager, has_sub_slicing_en
 from xpk.core.system_characteristics import AcceleratorType, SystemCharacteristics
 from xpk.core.testing.commands_tester import CommandsTester
 from packaging.version import Version
-import dataclasses
 
 TPU_SYSTEM: SystemCharacteristics = SystemCharacteristics(
     topology="2x2x1",

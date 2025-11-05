@@ -76,7 +76,9 @@ class _MetricsCollector:
     )
 
   def log_custom(
-      self, name: str, metadata: dict[MetricsEventMetadataKey, str] = {}
+      self,
+      name: str,
+      metadata: dict[MetricsEventMetadataKey, str] | None = None,
   ) -> None:
     """Logs custom event."""
     self._events.append(
@@ -84,7 +86,7 @@ class _MetricsCollector:
             time=time.time(),
             type="custom",
             name=name,
-            metadata=metadata,
+            metadata=metadata if metadata is not None else {},
         )
     )
 

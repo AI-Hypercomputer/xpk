@@ -71,9 +71,9 @@ from ..core.system_characteristics import (
 )
 from ..core.vertex import create_vertex_tensorboard
 from ..core.workload import get_workload_list
-from ..utils.console import get_user_input, xpk_exit, xpk_print
+from ..utils.console import ask_for_user_consent, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
-from ..utils.execution_context import is_dry_run
+from ..utils.execution_context import is_dry_run, is_quiet
 from ..utils.validation import validate_dependencies_list, SystemDependency, should_validate_dependencies
 from . import cluster_gcluster
 from .common import set_cluster_command, validate_sub_slicing_system
@@ -1056,7 +1056,7 @@ def run_gke_cluster_delete_command(args) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
-  if not args.force:
+  if not is_quiet():
     xpk_print('Get the name of the workloads in the cluster.')
     args.filter_by_status = 'EVERYTHING'
     return_code, return_value = get_workload_list(args)
@@ -1067,10 +1067,9 @@ def run_gke_cluster_delete_command(args) -> int:
     # Ignore Column Names line.
     if len(return_value) > 1:
       workloads = [x.split(' ')[0] for x in return_value.splitlines()][1:]
-      if workloads and not get_user_input(
+      if workloads and not ask_for_user_consent(
           f'Planning to delete {len(workloads)} workloads in the cluster'
-          f' {args.cluster} including {workloads}. \nDo you wish to delete: y'
-          ' (yes) / n (no):\n'
+          f' {args.cluster} including {workloads}. \nDo you wish to delete?'
       ):
         xpk_print('Skipping delete command.')
         return 0

@@ -16,6 +16,9 @@ limitations under the License.
 
 import sys
 from typing import NoReturn
+from typing import Literal
+
+from .execution_context import is_quiet
 
 
 def xpk_print(*args, **kwargs):
@@ -25,7 +28,7 @@ def xpk_print(*args, **kwargs):
     *args: user provided print args.
     **kwargs: user provided print args.
   """
-  sys.stdout.write('[XPK] ')
+  sys.stdout.write("[XPK] ")
   print(*args, **kwargs)
   sys.stdout.flush()
 
@@ -37,20 +40,36 @@ def xpk_exit(error_code) -> NoReturn:
     error_code: If the code provided is zero, then no issues occurred.
   """
   if error_code == 0:
-    xpk_print('Exiting XPK cleanly')
+    xpk_print("Exiting XPK cleanly")
     sys.exit(0)
   else:
-    xpk_print(f'XPK failed, error code {error_code}')
+    xpk_print(f"XPK failed, error code {error_code}")
     sys.exit(error_code)
 
 
-def get_user_input(input_msg):
-  """Function to get the user input for a prompt.
+def ask_for_user_consent(
+    question: str, default_option: Literal["Y", "N"] = "N"
+) -> bool:
+  """Prompts user with the given question, asking for a yes/no answer and returns a relevant boolean.
+  Important: immediatelly returns `True` in quiet mode!
+
+  Example prompt for `question='Continue?'`: `[XPK] Continue? (y/N): `.
 
   Args:
-    input_msg: message to be displayed by the prompt.
-  Returns:
-    True if user enter y or yes at the prompt, False otherwise.
+    question: The question to ask the user.
+    default_option: Option to use when user response is empty.
   """
-  user_input = input(input_msg)
-  return user_input in ('y', 'yes')
+  if is_quiet():
+    return True
+
+  options = "y/N" if default_option == "N" else "Y/n"
+  prompt = f"[XPK] {question} ({options}): "
+
+  while True:
+    user_input = input(prompt) or default_option
+    if user_input.lower() in ["yes", "y"]:
+      return True
+    elif user_input.lower() in ["no", "n"]:
+      return False
+    else:
+      xpk_print("Invalid input. Please enter: yes/no/y/n.")

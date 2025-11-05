@@ -1284,7 +1284,7 @@ def _install_kueue(
   else:
     # Determine total chips based on user specified topology.
     total_chips = get_total_chips_requested_from_args(args, system)
-  kueue_manager = KueueManager()
+  kueue_manager = KueueManager(args.project, args.zone)
   return kueue_manager.install_or_upgrade(
       KueueConfig(
           system,
@@ -1298,7 +1298,7 @@ def _install_kueue(
           configure_sub_slicing=(
               FeatureFlags.SUB_SLICING_ENABLED and args.sub_slicing
           ),
-      ),
+      )
   )
 
 

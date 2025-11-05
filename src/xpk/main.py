@@ -84,6 +84,7 @@ def main() -> None:
     MetricsCollector.log_complete(0)
   except SystemExit as e:
     MetricsCollector.log_complete(exit_code_to_int(e.code))
+    raise
   except:
     MetricsCollector.log_complete(-1)
     raise

@@ -18,7 +18,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from pytest_mock import MockerFixture
 
-from xpk.utils.console import ask_for_user_consent
+from .console import exit_code_to_int, ask_for_user_consent
 
 
 @pytest.fixture(autouse=True)
@@ -90,3 +90,17 @@ def test_ask_for_user_consent_with_quiet_mode_always_agrees(
 
   assert agreed is True
   mock_input.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "exit_code,expected",
+    [
+        (0, 0),
+        (1, 1),
+        ("Error", 1),
+        ({"foo": "bar"}, 1),
+        (None, 0),
+    ],
+)
+def test_exit_code_to_int_returns_correct_value(exit_code, expected):
+  assert exit_code_to_int(exit_code) == expected

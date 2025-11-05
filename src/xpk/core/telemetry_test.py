@@ -17,7 +17,7 @@ limitations under the License.
 import pytest
 import json
 from .config import xpk_config, CLIENT_ID_KEY
-from .telemetry import generate_client_id, MetricsCollector, MetricsEventMetadataKey
+from .telemetry import ensure_client_id, MetricsCollector, MetricsEventMetadataKey
 from ..utils.execution_context import set_dry_run
 
 
@@ -31,17 +31,26 @@ def setup_mocks(mocker):
   xpk_config.set(CLIENT_ID_KEY, None)
 
 
-def test_generates_client_id_when_its_not_present():
+def test_ensure_client_id_generates_client_id_when_its_not_present():
   xpk_config.set(CLIENT_ID_KEY, None)
-  generate_client_id()
+  ensure_client_id()
   assert xpk_config.get(CLIENT_ID_KEY) is not None
 
 
-def test_generate_client_id_does_not_regenerate_id_when_its_present():
+def test_ensure_client_id_does_not_regenerate_id_when_its_present():
   client_id = '1337'
   xpk_config.set(CLIENT_ID_KEY, client_id)
-  generate_client_id()
+  ensure_client_id()
   assert xpk_config.get(CLIENT_ID_KEY) == client_id
+
+
+def test_metrics_collector_generates_client_id_if_not_present():
+  xpk_config.set(CLIENT_ID_KEY, None)
+  MetricsCollector.log_start(command='test')
+  payload = json.loads(MetricsCollector.flush())
+  extension_json = json.loads(payload['log_event'][0]['source_extension_json'])
+  assert extension_json['client_install_id'] is not None
+  assert len(extension_json['client_install_id']) > 0
 
 
 def test_metrics_collector_logs_start_event_correctly():

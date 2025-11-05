@@ -37,7 +37,7 @@ import sys
 
 from .parser.core import set_parser
 from .core.updates import print_xpk_hello
-from .core.telemetry import generate_client_id, MetricsCollector
+from .core.telemetry import MetricsCollector
 from .utils.feature_flags import FeatureFlags
 from .utils.console import xpk_print, exit_code_to_int
 from .utils.execution_context import set_context
@@ -77,7 +77,6 @@ def main() -> None:
             or ('force' in main_args and main_args.force)
         ),
     )
-    generate_client_id()
     MetricsCollector.log_start(main_args.xpk_subcommands)
     print_xpk_hello()
     main_args.func(main_args)

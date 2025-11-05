@@ -24,10 +24,15 @@ from .config import xpk_config, CLIENT_ID_KEY, __version__ as xpk_version
 from ..utils.execution_context import is_dry_run
 
 
-def generate_client_id():
+def ensure_client_id() -> str:
   """Generates Client ID and stores in configuration if not already present."""
-  if xpk_config.get(CLIENT_ID_KEY) is None:
-    xpk_config.set(CLIENT_ID_KEY, str(uuid.uuid4()))
+  current_client_id = xpk_config.get(CLIENT_ID_KEY)
+  if current_client_id is not None:
+    return current_client_id
+
+  new_client_id = str(uuid.uuid4())
+  xpk_config.set(CLIENT_ID_KEY, new_client_id)
+  return new_client_id
 
 
 class MetricsEventMetadataKey(Enum):
@@ -143,7 +148,7 @@ def _get_base_concord_event() -> dict[str, str]:
   return {
       "release_version": xpk_version,
       "console_type": "XPK",
-      "client_install_id": xpk_config.get(CLIENT_ID_KEY),
+      "client_install_id": ensure_client_id(),
   }
 
 

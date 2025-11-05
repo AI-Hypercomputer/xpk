@@ -133,15 +133,13 @@ def storage_delete(args: Namespace) -> None:
       if storage.bucket.startswith(filestore_instance_name)
   ]
 
-  if children:
-    detach = ask_for_user_consent(
-        "Deleting a filestore storage will destroy your filestore instance and"
-        " all its data in all volumes will be lost. Do you wish to delete the"
-        f" filestore instance {filestore_instance_name}?"
-    )
-    if not detach:
-      xpk_print("Deleting storage canceled.")
-      xpk_exit(0)
+  if children and not ask_for_user_consent(
+      "Deleting a filestore storage will destroy your filestore instance and"
+      " all its data in all volumes will be lost. Do you wish to delete the"
+      f" filestore instance {filestore_instance_name}?"
+  ):
+    xpk_print("Deleting storage canceled.")
+    xpk_exit(0)
 
   for child in children:
     delete_storage_resources(k8s_api_client, child)

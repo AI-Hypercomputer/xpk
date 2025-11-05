@@ -212,13 +212,17 @@ def run_gke_node_pool_create_command(
 
   # Enable Workload Identity on existing Nodepools
   if update_WI_commands:
-    will_update_WI = node_pools_to_update_WI and ask_for_user_consent(
-        'Planning to enable Workload Identity Federation on'
-        f' {len(node_pools_to_update_WI)} existing node pools including'
-        f' {node_pools_to_update_WI}. This immediately enables Workload'
-        ' Identity Federation for GKE for any workloads running in the node'
-        ' pool. Also, xpk does not support disabling Workload Identity on'
-        ' clusters that have it enabled already \nDo you wish to update?'
+    will_update_WI = (
+        not node_pools_to_update_WI
+        or node_pools_to_update_WI
+        and ask_for_user_consent(
+            'Planning to enable Workload Identity Federation on'
+            f' {len(node_pools_to_update_WI)} existing node pools including'
+            f' {node_pools_to_update_WI}. This immediately enables Workload'
+            ' Identity Federation for GKE for any workloads running in the node'
+            ' pool. Also, xpk does not support disabling Workload Identity on'
+            ' clusters that have it enabled already \nDo you wish to update?'
+        )
     )
     if will_update_WI:
       for i, command in enumerate(update_WI_commands):

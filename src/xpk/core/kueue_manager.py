@@ -21,7 +21,6 @@ from typing import Optional, List, Dict, Any
 import json
 from jinja2 import Environment, FileSystemLoader
 
-from ..utils.user_input import ask_for_user_consent
 from ..utils.execution_context import is_dry_run
 from ..utils.kueue import is_queued_cluster
 
@@ -40,7 +39,7 @@ from ..core.commands import (
     run_command_with_updates_retry,
 )
 from ..utils.file import write_tmp_file
-from ..utils.console import xpk_print, xpk_exit
+from ..utils.console import xpk_print, xpk_exit, ask_for_user_consent
 from ..utils.templates import TEMPLATE_PATH, get_templates_absolute_path
 from packaging.version import Version
 

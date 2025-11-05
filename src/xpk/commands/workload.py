@@ -95,7 +95,7 @@ from ..core.workload_decorators import (
     tcpx_decorator,
     tcpxo_decorator,
 )
-from ..utils.console import get_user_input, xpk_exit, xpk_print
+from ..utils.console import ask_for_user_consent, xpk_exit, xpk_print
 from packaging.version import Version
 from ..utils.file import write_tmp_file
 from ..utils.execution_context import is_dry_run
@@ -783,11 +783,10 @@ def workload_delete(args) -> None:
       xpk_exit(return_code)
     # Skip the header
     workloads = [x.split(' ')[0] for x in return_value.splitlines()][1:]
-    if workloads and not args.force:
-      will_delete = get_user_input(
+    if workloads:
+      will_delete = ask_for_user_consent(
           f'Planning to delete {len(workloads)} workloads in the cluster'
-          f' {args.cluster} including {workloads}. \nDo you wish to delete: y'
-          ' (yes) / n (no):\n'
+          f' {args.cluster} including {workloads}. \nDo you wish to delete?'
       )
   else:
     workloads = [args.workload]

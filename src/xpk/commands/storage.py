@@ -56,7 +56,7 @@ from ..core.storage import (
     list_storages,
     print_storages_for_cluster,
 )
-from ..utils.console import get_user_input, xpk_exit, xpk_print
+from ..utils.console import ask_for_user_consent, xpk_exit, xpk_print
 from ..utils.kubectl import apply_kubectl_manifest
 from ..utils.execution_context import is_dry_run
 from ..utils.validation import validate_dependencies_list, SystemDependency, should_validate_dependencies
@@ -133,11 +133,11 @@ def storage_delete(args: Namespace) -> None:
       if storage.bucket.startswith(filestore_instance_name)
   ]
 
-  if children and not args.force:
-    detach = get_user_input(
+  if children:
+    detach = ask_for_user_consent(
         "Deleting a filestore storage will destroy your filestore instance and"
         " all its data in all volumes will be lost. Do you wish to delete the"
-        f" filestore instance {filestore_instance_name}?\n y (yes) / n (no):\n'"
+        f" filestore instance {filestore_instance_name}?"
     )
     if not detach:
       xpk_print("Deleting storage canceled.")

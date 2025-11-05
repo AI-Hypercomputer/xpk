@@ -18,12 +18,12 @@ from unittest.mock import MagicMock, patch
 import pytest
 from pytest_mock import MockerFixture
 
-from xpk.utils.user_input import ask_for_user_consent
+from xpk.utils.console import ask_for_user_consent
 
 
 @pytest.fixture(autouse=True)
 def mock_is_quiet(mocker: MockerFixture):
-  return mocker.patch("xpk.utils.user_input.is_quiet", return_value=False)
+  return mocker.patch("xpk.utils.console.is_quiet", return_value=False)
 
 
 @pytest.mark.parametrize(
@@ -41,7 +41,7 @@ def mock_is_quiet(mocker: MockerFixture):
         ("NO", False),
     ],
 )
-@patch("xpk.utils.user_input.input")
+@patch("xpk.utils.console.input")
 def test_ask_for_user_consent(mock_input: MagicMock, user_input, expected):
   mock_input.return_value = user_input
 
@@ -55,7 +55,7 @@ def fake_input_factory(user_inputs: list[str]):
   return fake_input
 
 
-@patch("xpk.utils.user_input.input", wraps=fake_input_factory(["invalid", "y"]))
+@patch("xpk.utils.console.input", wraps=fake_input_factory(["invalid", "y"]))
 def test_ask_for_user_consent_invalid_input(mock_input: MagicMock):
   agreed = ask_for_user_consent("Test question?")
 
@@ -63,7 +63,7 @@ def test_ask_for_user_consent_invalid_input(mock_input: MagicMock):
   assert mock_input.call_count == 2
 
 
-@patch("xpk.utils.user_input.input", return_value="")
+@patch("xpk.utils.console.input", return_value="")
 def test_ask_for_user_consent_default_No(mock_input: MagicMock):
   agreed = ask_for_user_consent("Test question?", default_option="N")
 
@@ -71,7 +71,7 @@ def test_ask_for_user_consent_default_No(mock_input: MagicMock):
   mock_input.assert_called_once_with("[XPK] Test question? (y/N): ")
 
 
-@patch("xpk.utils.user_input.input", return_value="")
+@patch("xpk.utils.console.input", return_value="")
 def test_ask_for_user_consent_default_Yes(mock_input: MagicMock):
   agreed = ask_for_user_consent("Test question?", default_option="Y")
 
@@ -79,7 +79,7 @@ def test_ask_for_user_consent_default_Yes(mock_input: MagicMock):
   mock_input.assert_called_once_with("[XPK] Test question? (Y/n): ")
 
 
-@patch("xpk.utils.user_input.input")
+@patch("xpk.utils.console.input")
 def test_ask_for_user_consent_with_quiet_mode_always_agrees(
     mock_input: MagicMock,
     mock_is_quiet: MagicMock,

@@ -70,7 +70,12 @@ def main() -> None:
   main_args.enable_ray_cluster = False
   set_context(
       dry_run_value='dry_run' in main_args and main_args.dry_run,
-      quiet_value='quiet' in main_args and main_args.quiet,
+      quiet_value=(
+          'quiet' in main_args
+          and main_args.quiet
+          or 'force' in main_args
+          and main_args.force
+      ),
   )
   generate_client_id()
   print_xpk_hello()

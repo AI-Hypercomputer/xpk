@@ -72,10 +72,6 @@ kubectl apply -f 1b31e624e490f9c8c4ef4e369f08d3fa467990af5a261e4405bd045265d70e9
 [XPK] Task: `Install PathwaysJob on golden-cluster` is implemented by the following command not running since it is a dry run. 
 kubectl apply --server-side -f https://github.com/google/pathways-job/releases/download/v0.1.4/install.yaml
 [XPK] Enabling Kueue on the cluster
-[XPK] Task: `Get vCPU and memory capacity for machine type` is implemented by the following command not running since it is a dry run. 
-gcloud compute machine-types describe tpu7x-standard-4t  --project=golden-project --zone=us-central1-a --format='value(guestCpus,memoryMb)'
-[XPK] The CPU limit is below the available capacity, which would lead to underutilization. We will set CPU limit to 10.
-[XPK] The memory limit is below the available capacity, which would lead to underutilization. We will set the memory limit to 10Mi.
 [XPK] Task: `Get kueue version on server` is implemented by the following command not running since it is a dry run. 
 kubectl get deployment kueue-controller-manager -n kueue-system -o jsonpath='{.spec.template.spec.containers[0].image}'
 [XPK] Installing Kueue version v0.12.2...
@@ -84,6 +80,10 @@ kubectl get deployment kueue-controller-manager -n kueue-system -o jsonpath='{.s
 kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-sigs/kueue/releases/download/v0.12.2/manifests.yaml
 [XPK] Task: `Wait for Kueue to be available` is implemented by the following command not running since it is a dry run. 
 kubectl wait deploy/kueue-controller-manager -n kueue-system --for=condition=available --timeout=10m
+[XPK] Task: `Get vCPU and memory capacity for machine type` is implemented by the following command not running since it is a dry run. 
+gcloud compute machine-types describe tpu7x-standard-4t  --project=golden-project --zone=us-central1-a --format='value(guestCpus,memoryMb)'
+[XPK] The CPU limit is below the available capacity, which would lead to underutilization. We will set CPU limit to 10.
+[XPK] The memory limit is below the available capacity, which would lead to underutilization. We will set the memory limit to 10Mi.
 [XPK] Applying following Kueue resources:
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: ResourceFlavor

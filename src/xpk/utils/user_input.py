@@ -16,6 +16,8 @@ limitations under the License.
 
 from typing import Literal
 
+from xpk.utils.console import xpk_print
+
 from .execution_context import is_quiet
 
 
@@ -44,4 +46,4 @@ def ask_for_user_consent(
     elif user_input.lower() in ["no", "n"]:
       return False
     else:
-      print("Invalid input. Please enter: yes/no/y/n.")
+      xpk_print("Invalid input. Please enter: yes/no/y/n.")

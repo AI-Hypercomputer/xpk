@@ -107,7 +107,6 @@ class KueueManager:
         tolerations: An optional list of tolerations to apply to the kueue-controller-manager.
     """
     return_code, installed_version = self.get_installed_kueue_version()
-    upgrading = False
 
     if return_code == 0 and installed_version:
       if installed_version > self.kueue_version:
@@ -117,14 +116,11 @@ class KueueManager:
         )
         return 0
       else:
-        upgrading = True
-
-    if upgrading:
-      xpk_print(f"Upgrading Kueue to version v{self.kueue_version}...")
-      assert installed_version
-      prepare_code = self.__prepare_for_upgrade(installed_version)
-      if prepare_code != 0:
-        return prepare_code
+        xpk_print(f"Upgrading Kueue to version v{self.kueue_version}...")
+        assert installed_version
+        prepare_code = self.__prepare_for_upgrade(installed_version)
+        if prepare_code != 0:
+          return prepare_code
     else:
       xpk_print(f"Installing Kueue version v{self.kueue_version}...")
 
@@ -184,11 +180,13 @@ class KueueManager:
     )
     xpk_print(
         f"Please upgrade the Kueue manually (see {changelog_link} for help), or"
-        " consider deleting all existing Kueue resources."
+        " consider allowing XPK to delete all existing Kueue resources and"
+        " create new ones."
     )
 
     agreed = ask_for_user_consent(
-        "Do you want to delete all existing Kueue resources from the cluster?"
+        "Do you want to delete all existing Kueue resources from the cluster"
+        " and create new ones?"
     )
     if not agreed:
       return 1
@@ -223,12 +221,10 @@ class KueueManager:
       if return_code != 0:
         return return_code
 
-    return_code = run_command_with_updates(
+    return run_command_with_updates(
         "kubectl delete deployment kueue-controller-manager -n kueue-system",
         "Delete Kueue Controller Manager deployment",
     )
-
-    return return_code
 
   def __install_kueue_crs(self) -> int:
     manifest_url = f"https://github.com/kubernetes-sigs/kueue/releases/download/v{self.kueue_version}/manifests.yaml"

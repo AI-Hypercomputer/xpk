@@ -187,11 +187,10 @@ def run_gke_node_pool_create_command(
   # when cluster is getting updated from 'x' device_type/gke_accelerator to 'y' device_type/gke_accelerator.
   # In that case, '{args.cluster}-np-i' nodepool will be re-created for 'y' device_type/gke_accelerator.
   if delete_commands:
-    will_delete = node_pools_to_delete and ask_for_user_consent(
+    if node_pools_to_delete and not ask_for_user_consent(
         f'Planning to delete {len(node_pools_to_delete)} node pools including'
         f' {node_pools_to_delete}. \nDo you wish to delete?'
-    )
-    if not will_delete:
+    ):
       xpk_print(
           'You have requested to not delete the existing nodepools in the'
           ' cluster. There will be no change to the cluster.'
@@ -216,12 +215,12 @@ def run_gke_node_pool_create_command(
     will_update_WI = node_pools_to_update_WI and ask_for_user_consent(
         'Planning to enable Workload Identity Federation on'
         f' {len(node_pools_to_update_WI)} existing node pools including'
-        f' {node_pools_to_update_WI}.This immediately enables Workload'
+        f' {node_pools_to_update_WI}. This immediately enables Workload'
         ' Identity Federation for GKE for any workloads running in the node'
         ' pool. Also, xpk does not support disabling Workload Identity on'
         ' clusters that have it enabled already \nDo you wish to update?'
     )
-    if not will_update_WI:
+    if will_update_WI:
       for i, command in enumerate(update_WI_commands):
         xpk_print(
             f'To complete {update_WI_task_names[i]} we are executing {command}'

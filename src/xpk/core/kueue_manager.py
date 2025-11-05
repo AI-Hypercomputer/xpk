@@ -21,7 +21,6 @@ from typing import Optional, List, Dict, Any
 import json
 from jinja2 import Environment, FileSystemLoader
 
-from ..utils.user_input import ask_for_user_consent
 from ..utils.execution_context import is_dry_run
 from ..utils.kueue import is_queued_cluster
 

@@ -16,8 +16,7 @@ limitations under the License.
 
 from typing import Literal
 
-from xpk.utils.console import xpk_print
-
+from .console import xpk_print
 from .execution_context import is_quiet
 
 

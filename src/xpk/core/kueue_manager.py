@@ -21,6 +21,7 @@ from typing import Optional, List, Dict, Any
 import json
 from jinja2 import Environment, FileSystemLoader
 
+from ..utils.user_input import ask_for_user_consent
 from ..utils.execution_context import is_dry_run
 from ..utils.kueue import is_queued_cluster
 
@@ -172,20 +173,17 @@ class KueueManager:
     if installed_version >= LATEST_BREAKING_VERSION:
       return 0
 
-    changelog_link = f"https://github.com/kubernetes-sigs/kueue/blob/main/CHANGELOG/CHANGELOG-{self.kueue_version.major}.{self.kueue_version.minor}.md"
     xpk_print(
         f"Currently installed Kueue version v{installed_version} is"
         f" incompatible with the newer v{self.kueue_version}."
     )
-    xpk_print(
-        f"Please upgrade the Kueue manually (see {changelog_link} for help), or"
-        " consider allowing XPK to delete all existing Kueue resources and"
-        " create new ones."
-    )
 
+    changelog_link = f"https://github.com/kubernetes-sigs/kueue/blob/main/CHANGELOG/CHANGELOG-{self.kueue_version.major}.{self.kueue_version.minor}.md"
     agreed = ask_for_user_consent(
-        "Do you want to delete all existing Kueue resources from the cluster"
-        " and create new ones?"
+        "Do you want to allow XPK to update Kueue automatically? This will"
+        " delete all existing Kueue resources and create new ones. If you"
+        " decline, you will need to upgrade the Kueue manually (see"
+        f" {changelog_link} for help)."
     )
     if not agreed:
       return 1

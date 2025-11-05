@@ -41,6 +41,10 @@ on:
         required: true
       BUCKET_NAME:
         required: true
+
+permissions:
+  contents: read
+
 jobs:
   storage-create:
     name: "${{inputs.storage-type}}-${{inputs.storage-command}}"

@@ -69,11 +69,6 @@ def mock_ask_for_user_consent(mocker: MockerFixture) -> MagicMock:
 
 
 @pytest.fixture(autouse=True)
-def mock_xpk_print(mocker: MockerFixture) -> MagicMock:
-  return mocker.patch("xpk.core.kueue_manager.xpk_print", return_value=None)
-
-
-@pytest.fixture(autouse=True)
 def mock_commands(mocker: MockerFixture) -> CommandsTester:
   return CommandsTester(
       mocker,
@@ -135,15 +130,11 @@ def test_upgrade_when_no_breaking_changes_between_versions_no_preparation_needed
     mock_commands: CommandsTester,
     kueue_manager: KueueManager,
     mock_ask_for_user_consent: MagicMock,
-    mock_xpk_print: MagicMock,
 ):
   set_installed_kueue_version(mock_commands, Version("0.14.0"))
 
   kueue_manager.install_or_upgrade(KUEUE_CONFIG)
 
-  assert all(
-      "CHANGELOG" not in call.args[0] for call in mock_xpk_print.mock_calls
-  )
   mock_ask_for_user_consent.assert_not_called()
 
 
@@ -151,7 +142,6 @@ def test_upgrade_with_breaking_changes_between_versions_runs_preparation(
     mock_commands: CommandsTester,
     kueue_manager: KueueManager,
     mock_ask_for_user_consent: MagicMock,
-    mock_xpk_print: MagicMock,
 ):
   set_installed_kueue_version(mock_commands, Version("0.11.0"))
   fake_crds = (
@@ -166,9 +156,10 @@ def test_upgrade_with_breaking_changes_between_versions_runs_preparation(
   result = kueue_manager.install_or_upgrade(KUEUE_CONFIG)
 
   assert result == 0
-  assert any(
-      "CHANGELOG/CHANGELOG-0.14.md" in call.args[0]
-      for call in mock_xpk_print.mock_calls
+  mock_ask_for_user_consent.assert_called_once()
+  assert (
+      "CHANGELOG/CHANGELOG-0.14.md"
+      in mock_ask_for_user_consent.mock_calls[0].args[0]
   )
   mock_commands.assert_command_run(
       "kubectl delete kueue-crd-1.kueue.x-k8s.io --all"

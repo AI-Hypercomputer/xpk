@@ -27,15 +27,14 @@ from ..core.cluster import (
     setup_k8s_env,
 )
 from ..core.commands import run_command_with_updates, run_commands
-from ..core.kueue_manager import KueueManager, has_sub_slicing_enabled, SUB_SLICING_TOPOLOGIES
 from ..core.config import (VERTEX_TENSORBOARD_FEATURE_FLAG, XPK_CURRENT_VERSION)
 from ..core.docker_container import (
     get_main_container_docker_image,
     get_user_workload_container,
 )
+from ..core.kueue_manager import has_sub_slicing_enabled, get_installed_kueue_version, SUB_SLICING_TOPOLOGIES, LOCAL_QUEUE_NAME
 from ..core.docker_resources import get_volumes, parse_env_config
 from ..core.gcloud_context import add_zone_and_project
-from ..core.kueue_manager import LOCAL_QUEUE_NAME
 from ..core.monitoring import get_gke_outlier_dashboard
 from ..core.nap import (
     get_autoprovisioning_node_selector_args,
@@ -696,8 +695,7 @@ def _validate_sub_slicing_availability():
     )
     xpk_exit(1)
 
-  kueue_manager = KueueManager()
-  return_code, current_version = kueue_manager.get_installed_kueue_version()
+  return_code, current_version = get_installed_kueue_version()
   if return_code != 0:
     xpk_print(
         'Error: Unable to validate sub-slicing support on a given cluster.'

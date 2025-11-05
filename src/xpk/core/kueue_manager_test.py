@@ -78,7 +78,7 @@ def mock_commands(mocker: MockerFixture) -> CommandsTester:
 @pytest.fixture(autouse=True)
 @patch("jinja2.Environment", return_value=MagicMock())
 def kueue_manager(mock_env: MagicMock) -> KueueManager:
-  return KueueManager()
+  return KueueManager("test-project", "test-zone")
 
 
 def test_install_or_upgrade_when_newer_version_already_installed(
@@ -199,6 +199,10 @@ def test_configure_generates_correct_manifest_for_tpu(
 ):
   """Test that __configure generates the correct manifest content for TPUs."""
   set_installed_kueue_version(mock_commands, None)
+  mock_commands.set_result_for_command(
+      (0, "100 102400"), "gcloud compute machine-types describe"
+  )
+
   tpu_kueue_config = dataclasses.replace(
       KUEUE_CONFIG, system=TPU_SYSTEM, num_slices=2
   )
@@ -237,6 +241,39 @@ def test_configure_generates_correct_manifest_for_tpu(
       resource_flavor["spec"]["nodeLabels"]["cloud.google.com/gke-tpu-topology"]
       == "2x2x1"
   )
+
+
+@patch("xpk.core.kueue_manager.write_tmp_file")
+def test_install_autocorrects_resource_limits(
+    write_tmp_file_mock: MagicMock,
+    mock_commands: CommandsTester,
+    kueue_manager: KueueManager,
+):
+  """Test that installation auto-corrects the specified resource limits."""
+  set_installed_kueue_version(mock_commands, None)
+  # set 50 vCPU, 200Gi memory
+  mock_commands.set_result_for_command(
+      (0, "50 204800"), "gcloud compute machine-types describe"
+  )
+
+  kueue_config = dataclasses.replace(
+      KUEUE_CONFIG, cpu_limit=100, memory_limit="100Gi"
+  )
+
+  kueue_manager.install_or_upgrade(kueue_config)
+
+  rendered_manifest: str = write_tmp_file_mock.call_args[0][0]
+  manifest_docs = list(yaml.safe_load_all(rendered_manifest))
+  cluster_queue = _first(
+      doc for doc in manifest_docs if doc["kind"] == "ClusterQueue"
+  )
+  resources = cluster_queue["spec"]["resourceGroups"][0]["flavors"][0][
+      "resources"
+  ]
+  cpu_resource = _first(r for r in resources if r["name"] == "cpu")
+  memory_resource = _first(r for r in resources if r["name"] == "memory")
+  assert cpu_resource["nominalQuota"] == 50
+  assert memory_resource["nominalQuota"] == "204800Mi"
 
 
 @patch("xpk.core.kueue_manager.write_tmp_file")
@@ -415,96 +452,3 @@ def _first(generator: Generator[T, None, None]) -> T:
   result = next(generator, None)
   assert result is not None
   return result
-
-
-def test_autocorrect_resource_limits_not_equal_to_capacity(
-    mock_commands: CommandsTester, kueue_manager: KueueManager
-):
-  """Test resource limits correction when they not equal to capacity."""
-  mock_commands.set_result_for_command(
-      (0, "20 20"), "gcloud compute machine-types describe"
-  )
-  config_above = dataclasses.replace(
-      KUEUE_CONFIG, cpu_limit=30, memory_limit="30Mi"
-  )
-  config_below = dataclasses.replace(
-      KUEUE_CONFIG, cpu_limit=10, memory_limit="10Mi"
-  )
-  config_above = kueue_manager.autocorrect_resource_limits(
-      config_above, "test-project", "test-zone"
-  )
-  config_below = kueue_manager.autocorrect_resource_limits(
-      config_below, "test-project", "test-zone"
-  )
-
-  assert config_above.cpu_limit == 20
-  assert config_above.memory_limit == "20Mi"
-  assert config_below.cpu_limit == 20
-  assert config_below.memory_limit == "20Mi"
-  mock_commands.assert_command_run(
-      "gcloud compute machine-types describe", times=2
-  )
-
-
-def test_autocorrect_resource_limits_equal_to_capacity(
-    mock_commands: CommandsTester, kueue_manager: KueueManager
-):
-  """Test resource limits correction when they are equal to capacity."""
-  mock_commands.set_result_for_command(
-      (0, "20 20"), "gcloud compute machine-types describe"
-  )
-  # setting memory limit to 20480Ki to verify it's correctly parsed as 20Mi
-  config = dataclasses.replace(
-      KUEUE_CONFIG, cpu_limit=20, memory_limit="20480Ki"
-  )
-  config = kueue_manager.autocorrect_resource_limits(
-      config, "test-project", "test-zone"
-  )
-
-  assert config.cpu_limit == 20
-  assert config.memory_limit == "20480Ki"
-  mock_commands.assert_command_run(
-      "gcloud compute machine-types describe", times=1
-  )
-
-
-def test_autocorrect_resource_both_limits_not_set(
-    mock_commands: CommandsTester, kueue_manager: KueueManager
-):
-  """Test resource limits correction when they are not set."""
-  mock_commands.set_result_for_command(
-      (0, "20 20"), "gcloud compute machine-types describe"
-  )
-  config = dataclasses.replace(KUEUE_CONFIG, cpu_limit=0, memory_limit="")
-  config = kueue_manager.autocorrect_resource_limits(
-      config, "test-project", "test-zone"
-  )
-
-  assert config.cpu_limit == 0
-  assert config.memory_limit == ""
-  mock_commands.assert_command_not_run("gcloud compute machine-types describe")
-
-
-def test_autocorrect_resource_one_limit_not_set(
-    mock_commands: CommandsTester, kueue_manager: KueueManager
-):
-  """Test resource limits correction when one of them is not set."""
-  mock_commands.set_result_for_command(
-      (0, "20 20"), "gcloud compute machine-types describe"
-  )
-  config_no_cpu = dataclasses.replace(KUEUE_CONFIG, cpu_limit=0)
-  config_no_memory = dataclasses.replace(KUEUE_CONFIG, memory_limit="")
-  config_no_cpu = kueue_manager.autocorrect_resource_limits(
-      config_no_cpu, "test-project", "test-zone"
-  )
-  config_no_memory = kueue_manager.autocorrect_resource_limits(
-      config_no_memory, "test-project", "test-zone"
-  )
-
-  assert config_no_cpu.cpu_limit == 0
-  assert config_no_cpu.memory_limit == "20Mi"
-  assert config_no_memory.cpu_limit == 20
-  assert config_no_memory.memory_limit == ""
-  mock_commands.assert_command_run(
-      "gcloud compute machine-types describe", times=2
-  )

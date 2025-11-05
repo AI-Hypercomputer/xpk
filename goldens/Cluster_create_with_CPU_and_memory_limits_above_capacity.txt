@@ -74,10 +74,10 @@ kubectl apply --server-side -f https://github.com/google/pathways-job/releases/d
 [XPK] Enabling Kueue on the cluster
 [XPK] Task: `Get kueue version on server` is implemented by the following command not running since it is a dry run. 
 kubectl get deployment kueue-controller-manager -n kueue-system -o jsonpath='{.spec.template.spec.containers[0].image}'
-[XPK] Installing Kueue version v0.12.2...
+[XPK] Installing Kueue version v0.14.3...
 [XPK] Try 1: Install Kueue
 [XPK] Task: `Install Kueue` is implemented by the following command not running since it is a dry run. 
-kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-sigs/kueue/releases/download/v0.12.2/manifests.yaml
+kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-sigs/kueue/releases/download/v0.14.3/manifests.yaml
 [XPK] Task: `Wait for Kueue to be available` is implemented by the following command not running since it is a dry run. 
 kubectl wait deploy/kueue-controller-manager -n kueue-system --for=condition=available --timeout=10m
 [XPK] Task: `Get vCPU and memory capacity for machine type` is implemented by the following command not running since it is a dry run. 

@@ -17,7 +17,7 @@ limitations under the License.
 import pytest
 import json
 from .config import xpk_config, CLIENT_ID_KEY
-from .telemetry import generate_client_id, MetricsCollector
+from .telemetry import generate_client_id, MetricsCollector, MetricsEventMetadataKey
 from ..utils.execution_context import set_dry_run
 
 
@@ -27,7 +27,8 @@ def setup_mocks(mocker):
   mocker.patch('time.time', return_value=0)
   mocker.patch('platform.python_version', return_value='99.99.99')
   xpk_config.set(CLIENT_ID_KEY, 'client_id')
-  MetricsCollector.clear()
+  yield
+  xpk_config.set(CLIENT_ID_KEY, None)
 
 
 def test_generates_client_id_when_its_not_present():
@@ -46,16 +47,16 @@ def test_generate_client_id_does_not_regenerate_id_when_its_present():
 def test_metrics_collector_logs_start_event_correctly():
   set_dry_run(False)
   MetricsCollector.log_start(command='test')
-  payload = json.loads(MetricsCollector.serialize())
+  payload = json.loads(MetricsCollector.flush())
   extension_json = json.loads(payload['log_event'][0]['source_extension_json'])
   assert extension_json == {
       'client_install_id': 'client_id',
       'console_type': 'XPK',
       'event_metadata': [
-          {'key': 'session_id', 'value': '321231'},
-          {'key': 'dry_run', 'value': 'false'},
-          {'key': 'python_version', 'value': '99.99.99'},
-          {'key': 'command', 'value': 'test'},
+          {'key': 'XPK_SESSION_ID', 'value': '321231'},
+          {'key': 'XPK_DRY_RUN', 'value': 'false'},
+          {'key': 'XPK_PYTHON_VERSION', 'value': '99.99.99'},
+          {'key': 'XPK_COMMAND', 'value': 'test'},
       ],
       'event_name': 'start',
       'event_type': 'commands',
@@ -66,16 +67,16 @@ def test_metrics_collector_logs_start_event_correctly():
 def test_metrics_collector_logs_complete_event_correctly():
   set_dry_run(True)
   MetricsCollector.log_complete(exit_code=2)
-  payload = json.loads(MetricsCollector.serialize())
+  payload = json.loads(MetricsCollector.flush())
   extension_json = json.loads(payload['log_event'][0]['source_extension_json'])
   assert extension_json == {
       'client_install_id': 'client_id',
       'console_type': 'XPK',
       'event_metadata': [
-          {'key': 'session_id', 'value': '321231'},
-          {'key': 'dry_run', 'value': 'true'},
-          {'key': 'python_version', 'value': '99.99.99'},
-          {'key': 'exit_code', 'value': '2'},
+          {'key': 'XPK_SESSION_ID', 'value': '321231'},
+          {'key': 'XPK_DRY_RUN', 'value': 'true'},
+          {'key': 'XPK_PYTHON_VERSION', 'value': '99.99.99'},
+          {'key': 'XPK_EXIT_CODE', 'value': '2'},
       ],
       'event_name': 'complete',
       'event_type': 'commands',
@@ -85,17 +86,19 @@ def test_metrics_collector_logs_complete_event_correctly():
 
 def test_metrics_collector_logs_custom_event_correctly():
   set_dry_run(False)
-  MetricsCollector.log_custom(name='test', metadata={'key': 'value'})
-  payload = json.loads(MetricsCollector.serialize())
+  MetricsCollector.log_custom(
+      name='test', metadata={MetricsEventMetadataKey.PROVISIONING_MODE: 'flex'}
+  )
+  payload = json.loads(MetricsCollector.flush())
   extension_json = json.loads(payload['log_event'][0]['source_extension_json'])
   assert extension_json == {
       'client_install_id': 'client_id',
       'console_type': 'XPK',
       'event_metadata': [
-          {'key': 'session_id', 'value': '321231'},
-          {'key': 'dry_run', 'value': 'false'},
-          {'key': 'python_version', 'value': '99.99.99'},
-          {'key': 'key', 'value': 'value'},
+          {'key': 'XPK_SESSION_ID', 'value': '321231'},
+          {'key': 'XPK_DRY_RUN', 'value': 'false'},
+          {'key': 'XPK_PYTHON_VERSION', 'value': '99.99.99'},
+          {'key': 'XPK_PROVISIONING_MODE', 'value': 'flex'},
       ],
       'event_name': 'test',
       'event_type': 'custom',
@@ -105,10 +108,20 @@ def test_metrics_collector_logs_custom_event_correctly():
 
 def test_metrics_collector_logs_correct_envelope():
   MetricsCollector.log_start(command='test')
-  MetricsCollector.log_custom(name='test', metadata={'key': 'value'})
+  MetricsCollector.log_custom(
+      name='test', metadata={MetricsEventMetadataKey.PROVISIONING_MODE: 'flex'}
+  )
   MetricsCollector.log_complete(exit_code=2)
-  payload = json.loads(MetricsCollector.serialize())
+  payload = json.loads(MetricsCollector.flush())
   assert payload['client_info'] == {'client_type': 'XPK'}
   assert payload['log_source_name'] == 'CONCORD'
   assert payload['request_time_ms'] == 0
   assert len(payload['log_event']) == 3
+
+
+def test_metrics_collector_does_not_flush_event_twice():
+  MetricsCollector.log_start(command='test')
+  MetricsCollector.flush()
+  MetricsCollector.log_start(command='version')
+  payload = json.loads(MetricsCollector.flush())
+  assert len(payload['log_event']) == 1

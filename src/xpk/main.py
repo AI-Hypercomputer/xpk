@@ -88,7 +88,7 @@ def main() -> None:
   finally:
     if FeatureFlags.TELEMETRY_ENABLED:
       # TODO(@scaliby): Flush to server instead of a console
-      xpk_print(MetricsCollector.serialize())
+      xpk_print(MetricsCollector.flush())
 
 
 if __name__ == '__main__':

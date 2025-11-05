@@ -18,6 +18,7 @@ import platform
 import uuid
 import json
 import time
+from enum import Enum
 from dataclasses import dataclass
 from .config import xpk_config, CLIENT_ID_KEY, __version__ as xpk_version
 from ..utils.execution_context import is_dry_run
@@ -28,15 +29,28 @@ def generate_client_id():
     xpk_config.set(CLIENT_ID_KEY, str(uuid.uuid4()))
 
 
+class MetricsEventMetadataKey(Enum):
+  SESSION_ID = "XPK_SESSION_ID"
+  DRY_RUN = "XPK_DRY_RUN"
+  PYTHON_VERSION = "XPK_PYTHON_VERSION"
+  ZONE = "XPK_ZONE"
+  SYSTEM_CHARACTERISTICS = "XPK_SYSTEM_CHARACTERISTICS"
+  PROVISIONING_MODE = "XPK_PROVISIONING_MODE"
+  COMMAND = "XPK_COMMAND"
+  EXIT_CODE = "XPK_EXIT_CODE"
+
+
 @dataclass
 class _MetricsEvent:
   time: float
   type: str
   name: str
-  metadata: dict[str, str]
+  metadata: dict[MetricsEventMetadataKey, str]
 
 
 class _MetricsCollector:
+  """Metrics collector for collecting various metrics and events across application."""
+
   _events: list[_MetricsEvent] = []
 
   def log_start(self, command: str) -> None:
@@ -46,7 +60,7 @@ class _MetricsCollector:
             time=time.time(),
             type="commands",
             name="start",
-            metadata={"command": command},
+            metadata={MetricsEventMetadataKey.COMMAND: command},
         )
     )
 
@@ -57,11 +71,13 @@ class _MetricsCollector:
             time=time.time(),
             type="commands",
             name="complete",
-            metadata={"exit_code": str(exit_code)},
+            metadata={MetricsEventMetadataKey.EXIT_CODE: str(exit_code)},
         )
     )
 
-  def log_custom(self, name: str, metadata: dict[str, str] = {}) -> None:
+  def log_custom(
+      self, name: str, metadata: dict[MetricsEventMetadataKey, str] = {}
+  ) -> None:
     """Logs custom event."""
     self._events.append(
         _MetricsEvent(
@@ -72,13 +88,11 @@ class _MetricsCollector:
         )
     )
 
-  def serialize(self) -> str:
-    """Serializes collected events into a clearcut payload."""
-    return _generate_payload(self._events)
-
-  def clear(self) -> None:
-    """Clears collected events."""
+  def flush(self) -> str:
+    """Flushes collected events into concord payload."""
+    result = _generate_payload(self._events)
     self._events.clear()
+    return result
 
 
 MetricsCollector = _MetricsCollector()
@@ -100,7 +114,8 @@ def _generate_payload(events: list[_MetricsEvent]) -> str:
             "event_type": event.type,
             "event_name": event.name,
             "event_metadata": [
-                {"key": key, "value": value} for key, value in metadata.items()
+                {"key": key.value, "value": value}
+                for key, value in metadata.items()
             ],
         }),
     })
@@ -113,11 +128,11 @@ def _generate_payload(events: list[_MetricsEvent]) -> str:
   })
 
 
-def _get_base_event_metadata() -> dict[str, str]:
+def _get_base_event_metadata() -> dict[MetricsEventMetadataKey, str]:
   return {
-      "session_id": _get_session_id(),
-      "dry_run": str(is_dry_run()).lower(),
-      "python_version": platform.python_version(),
+      MetricsEventMetadataKey.SESSION_ID: _get_session_id(),
+      MetricsEventMetadataKey.DRY_RUN: str(is_dry_run()).lower(),
+      MetricsEventMetadataKey.PYTHON_VERSION: platform.python_version(),
   }
 
 

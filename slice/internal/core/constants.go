@@ -16,6 +16,8 @@ limitations under the License.
 
 package core
 
+type MMIGHealthStatus string
+
 const (
 	TPUTopologyAnnotation = "cloud.google.com/gke-tpu-topology"
 	TPUAcceleratorLabel   = "cloud.google.com/gke-tpu-accelerator"
@@ -26,4 +28,19 @@ const (
 	TPUSliceHealthNodeSelectorValue = "true"
 
 	AcceleratorTpu7x = "tpu-v7x"
+
+	// MMIGHealthStatusIncomplete indicates the MMIG is incomplete.
+	MMIGHealthStatusIncomplete MMIGHealthStatus = "INCOMPLETE"
+	// MMIGHealthStatusActivating indicates the MMIG is activating.
+	MMIGHealthStatusActivating MMIGHealthStatus = "ACTIVATING"
+	// MMIGHealthStatusActive indicates the MMIG is active.
+	MMIGHealthStatusActive MMIGHealthStatus = "ACTIVE"
+	// MMIGHealthStatusActiveDegraded indicates the MMIG is active but degraded.
+	MMIGHealthStatusActiveDegraded MMIGHealthStatus = "ACTIVE_DEGRADED"
+	// MMIGHealthStatusDeactivating indicates the MMIG is deactivating.
+	MMIGHealthStatusDeactivating MMIGHealthStatus = "DEACTIVATING"
+	// MMIGHealthStatusFailed indicates the MMIG has failed.
+	MMIGHealthStatusFailed MMIGHealthStatus = "FAILED"
+	// MMIGHealthStatusUnknown indicates the MMIG health is unknown.
+	MMIGHealthStatusUnknown MMIGHealthStatus = "UNKNOWN"
 )

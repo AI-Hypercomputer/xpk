@@ -1,5 +1,5 @@
 /*
-Copyright The Kubernetes Authors.
+Copyright 2025.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,15 +21,25 @@ import (
 )
 
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
+type Type string
+
+const (
+	TypeV6e   Type = "v6e"
+	TypeTpu7x Type = "tpu-v7x"
+)
 
 // SliceSpec defines the desired state of Slice.
 type SliceSpec struct {
-	// AcceleratorType specifies the type of accelerator used in this slice.
+	// Type specifies the type of accelerator used in this slice, e.g., "v6e", "tpu-v7x".
 	// +kubebuilder:validation:Immutable
-	Type string `json:"type"`
+	// +kubebuilder:validation:Enum=v6e;tpu-v7x
+	Type Type `json:"type"`
 
 	// Topology represents the network topology of the slice.
+	// It defines the physical arrangement of TPU chips in a 2D or 3D mesg.
+	// The topology must be specified in `<X>x<Y>` or `<X>x<Y>x<Z>` format.
 	// +kubebuilder:validation:Immutable
+	// +kubebuilder:validation:Pattern=^\d+x\d+(x\d+)?$
 	Topology string `json:"topology"`
 
 	// Partition Ids denotes the set of partitions to use to form a slice
@@ -45,17 +55,17 @@ type SliceStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
 	// Populated to match the physical topology of block the Super-Slice is running on
-	BlockID string `json:"blockId,omitempty"`
+	BlockId string `json:"blockId,omitempty"`
 
 	// Populated to list of physical topology of sub-block the Super-Slice is running on
-	SubBlockIDs []string `json:"subBlockIds,omitempty"`
+	SubBlockIds []string `json:"subBlockIds,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Type",type=string,JSONPath=`.spec.type`
 // +kubebuilder:printcolumn:name="Topology",type=string,JSONPath=`.spec.topology`
-// +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.conditions[0].type`
+// +kubebuilder:printcolumn:name="State",type=string,JSONPath=`.status.conditions[?(@.type=="SliceState")].reason`
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 // Slice is the Schema for the slices API.
 type Slice struct {
@@ -75,22 +85,13 @@ type SliceList struct {
 	Items           []Slice `json:"items"`
 }
 
-// SliceConditionType defines the type of condition
-type SliceConditionType string
-
-const (
-	// Forming means the slice is being created and configured.
-	Forming SliceConditionType = "Forming"
-	// Ready means the slice is fully operational.
-	Ready SliceConditionType = "Ready"
-	// Degraded means the slice is operational but with reduced capacity or performance.
-	Degraded SliceConditionType = "Degraded"
-	// Deformed means the slice is being torn down.
-	Deformed SliceConditionType = "Deformed"
-	// Error means the slice has encountered an error and is not operational.
-	Error SliceConditionType = "Error"
-)
-
 func init() {
 	SchemeBuilder.Register(&Slice{}, &SliceList{})
 }
+
+// SliceStateReasonType defines the type of condition
+type SliceStateReasonType string
+
+const (
+	SliceStateConditionType = "Ready"
+)

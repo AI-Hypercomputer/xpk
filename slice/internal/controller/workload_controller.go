@@ -162,7 +162,7 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, err
 	}
 
-	deleted, _, errored, _ := r.groupSlices(slices)
+	deleted, _, toDelete, _ := r.groupSlices(slices)
 	if len(deleted) > 0 {
 		log.V(3).Info(
 			"Waiting for deleted Slices to be cleaned up; skipping reconciliation for now",
@@ -181,12 +181,12 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if len(errored) > 0 {
+	if len(toDelete) > 0 {
 		log.V(3).Info(
-			"Deleting errored Slices",
-			"erroredSlices", klog.KObjSlice(errored),
+			"Deleting Slices",
+			"slices", klog.KObjSlice(toDelete),
 		)
-		err = r.deleteSlices(ctx, errored)
+		err = r.deleteSlices(ctx, toDelete)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
@@ -314,20 +314,20 @@ func (r *WorkloadReconciler) findWorkloadSlices(ctx context.Context, wl *kueue.W
 //   - A slice containing errored Slice objects.
 //   - A slice containing other Slice objects (active/valid slices).
 func (r *WorkloadReconciler) groupSlices(slices []v1alpha1.Slice) ([]v1alpha1.Slice, []v1alpha1.Slice, []v1alpha1.Slice, []v1alpha1.Slice) {
-	var deleted, deformed, errored, other []v1alpha1.Slice
+	var deleted, deactivating, toDelete, other []v1alpha1.Slice
 	for _, slice := range slices {
 		switch {
 		case !slice.DeletionTimestamp.IsZero():
 			deleted = append(deleted, slice)
-		case core.Deformed(&slice):
-			deformed = append(deformed, slice)
-		case core.IsError(&slice):
-			errored = append(errored, slice)
+		case core.Deactivating(&slice):
+			deactivating = append(deactivating, slice)
+		case core.IsError(&slice) || core.IsStale(&slice):
+			toDelete = append(toDelete, slice)
 		default:
 			other = append(other, slice)
 		}
 	}
-	return deleted, deformed, errored, other
+	return deleted, deactivating, toDelete, other
 }
 
 func (r *WorkloadReconciler) deleteSlices(ctx context.Context, slices []v1alpha1.Slice) error {
@@ -532,7 +532,7 @@ func (r *WorkloadReconciler) createSlice(ctx context.Context, wl *kueue.Workload
 	parseTopologyAssignmentIntoNodeSelector(slice, psa.TopologyAssignment, nodes)
 
 	ps := podset.FindPodSetByName(wl.Spec.PodSets, psa.Name)
-	slice.Spec.Type = core.GetTPUAccelerator(ps.Template)
+	slice.Spec.Type = v1alpha1.Type(core.GetTPUAccelerator(ps.Template))
 	slice.Spec.Topology = core.GetTPUTopology(ps.Template)
 
 	if err := r.client.Create(ctx, slice); err != nil {
@@ -594,8 +594,8 @@ func (r *WorkloadReconciler) syncAdmissionCheckStatus(ctx context.Context, wl *k
 	if ac.Message != originalMessage {
 		// Logging error messages if exists
 		for _, slice := range slices {
-			cond := meta.FindStatusCondition(slice.Status.Conditions, string(v1alpha1.Error))
-			if cond != nil && cond.Status == metav1.ConditionTrue {
+			cond := meta.FindStatusCondition(slice.Status.Conditions, string(v1alpha1.SliceStateConditionType))
+			if cond != nil && cond.Status == metav1.ConditionFalse && cond.Reason == string(core.MMIGHealthStatusFailed) {
 				log.V(2).Info(
 					"WARNING: The Slice is not operational due to an error",
 					"slice", klog.KObj(&slice),
@@ -608,21 +608,16 @@ func (r *WorkloadReconciler) syncAdmissionCheckStatus(ctx context.Context, wl *k
 	return nil
 }
 
-func groupSlicesByState(slices []v1alpha1.Slice) (map[v1alpha1.SliceConditionType][]v1alpha1.Slice, []v1alpha1.Slice) {
-	slicesByState := make(map[v1alpha1.SliceConditionType][]v1alpha1.Slice)
+func groupSlicesByState(slices []v1alpha1.Slice) (map[core.MMIGHealthStatus][]v1alpha1.Slice, []v1alpha1.Slice) {
+	slicesByState := make(map[core.MMIGHealthStatus][]v1alpha1.Slice)
 	var noState []v1alpha1.Slice
 	for _, slice := range slices {
-		foundState := false
-		for _, status := range core.SliceStates {
-			if meta.IsStatusConditionTrue(slice.Status.Conditions, string(status)) {
-				slicesByState[status] = append(slicesByState[status], slice)
-				foundState = true
-				break
-			}
-		}
-		if !foundState {
+		cond := meta.FindStatusCondition(slice.Status.Conditions, string(v1alpha1.SliceStateConditionType))
+		if cond == nil {
 			noState = append(noState, slice)
+			continue
 		}
+		slicesByState[core.MMIGHealthStatus(cond.Reason)] = append(slicesByState[core.MMIGHealthStatus(cond.Reason)], slice)
 	}
 	return slicesByState, noState
 }
@@ -631,17 +626,17 @@ func prepareAdmissionCheckStatus(ac *kueue.AdmissionCheckState, slices []v1alpha
 	slicesByState, noState := groupSlicesByState(slices)
 
 	switch {
-	case len(slicesByState[v1alpha1.Deformed]) > 0:
-		ac.State = kueue.CheckStateRejected
-	case len(slicesByState[v1alpha1.Error]) > 0:
-		ac.State = kueue.CheckStateRetry
-	case len(slices) == len(slicesByState[v1alpha1.Degraded])+len(slicesByState[v1alpha1.Ready]):
+	case len(slices) == len(slicesByState[core.MMIGHealthStatusActiveDegraded])+len(slicesByState[core.MMIGHealthStatusActive]):
 		ac.State = kueue.CheckStateReady
+	case len(slicesByState[core.MMIGHealthStatusFailed]) > 0:
+		ac.State = kueue.CheckStateRetry
+	case len(slicesByState[core.MMIGHealthStatusDeactivating])+len(slicesByState[core.MMIGHealthStatusIncomplete])+len(slicesByState[core.MMIGHealthStatusUnknown]) > 0:
+		ac.State = kueue.CheckStateRejected
 	}
 
 	var stateMessages []string
 	if len(noState) > 0 {
-		stateMessages = append(stateMessages, fmt.Sprintf("%d Created", len(noState)))
+		stateMessages = append(stateMessages, fmt.Sprintf("%d CREATED", len(noState)))
 	}
 
 	for _, state := range core.SliceStates {
@@ -652,10 +647,10 @@ func prepareAdmissionCheckStatus(ac *kueue.AdmissionCheckState, slices []v1alpha
 
 	ac.Message = fmt.Sprintf("Slices are in states: %s", strings.Join(stateMessages, ", "))
 
-	if len(slicesByState[v1alpha1.Error]) > 0 {
+	if len(slicesByState[core.MMIGHealthStatusFailed]) > 0 {
 		var errMessages []string
-		for _, slice := range slicesByState[v1alpha1.Error] {
-			cond := meta.FindStatusCondition(slice.Status.Conditions, string(v1alpha1.Error))
+		for _, slice := range slicesByState[core.MMIGHealthStatusFailed] {
+			cond := meta.FindStatusCondition(slice.Status.Conditions, string(v1alpha1.SliceStateConditionType))
 			errMessages = append(errMessages, cond.Message)
 		}
 		ac.Message += ". Errors: " + strings.Join(errMessages, "; ")

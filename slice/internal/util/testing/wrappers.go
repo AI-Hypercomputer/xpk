@@ -33,6 +33,7 @@ import (
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
 
 	"tpu-slice-controller/api/v1alpha1"
+	"tpu-slice-controller/internal/core"
 )
 
 // JobTemplateWrapper wraps a JobTemplateSpec.
@@ -274,7 +275,7 @@ func (s *SliceWrapper) Name(name string) *SliceWrapper {
 }
 
 func (s *SliceWrapper) Type(Type string) *SliceWrapper {
-	s.Spec.Type = Type
+	s.Spec.Type = v1alpha1.Type(Type)
 	return s
 }
 
@@ -293,37 +294,37 @@ func (s *SliceWrapper) PartitionIDs(ids ...string) *SliceWrapper {
 	return s
 }
 
-func (s *SliceWrapper) Ready() *SliceWrapper {
+func (s *SliceWrapper) Active() *SliceWrapper {
 	cond := metav1.Condition{
-		Type:               string(v1alpha1.Ready),
+		Type:               string(v1alpha1.SliceStateConditionType),
 		Status:             metav1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
-		Reason:             "ByTest",
-		Message:            "Ready by test",
+		Reason:             string(core.MMIGHealthStatusActive),
+		Message:            "Active by test",
 	}
 	apimeta.SetStatusCondition(&s.Status.Conditions, cond)
 	return s
 }
 
-func (s *SliceWrapper) Forming() *SliceWrapper {
+func (s *SliceWrapper) Activating() *SliceWrapper {
 	cond := metav1.Condition{
-		Type:               string(v1alpha1.Forming),
-		Status:             metav1.ConditionTrue,
+		Type:               string(v1alpha1.SliceStateConditionType),
+		Status:             metav1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
-		Reason:             "ByTest",
-		Message:            "Forming by test",
+		Reason:             string(core.MMIGHealthStatusActivating),
+		Message:            "Activating by test",
 	}
 	apimeta.SetStatusCondition(&s.Status.Conditions, cond)
 	return s
 }
 
-func (s *SliceWrapper) Deformed() *SliceWrapper {
+func (s *SliceWrapper) Deactivating() *SliceWrapper {
 	cond := metav1.Condition{
-		Type:               string(v1alpha1.Deformed),
-		Status:             metav1.ConditionTrue,
+		Type:               string(v1alpha1.SliceStateConditionType),
+		Status:             metav1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
-		Reason:             "ByTest",
-		Message:            "Deformed by test",
+		Reason:             string(core.MMIGHealthStatusDeactivating),
+		Message:            "Deactivating by test",
 	}
 	apimeta.SetStatusCondition(&s.Status.Conditions, cond)
 	return s
@@ -331,22 +332,34 @@ func (s *SliceWrapper) Deformed() *SliceWrapper {
 
 func (s *SliceWrapper) Degraded() *SliceWrapper {
 	cond := metav1.Condition{
-		Type:               string(v1alpha1.Degraded),
+		Type:               string(v1alpha1.SliceStateConditionType),
 		Status:             metav1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
-		Reason:             "ByTest",
-		Message:            "Degraded by test",
+		Reason:             string(core.MMIGHealthStatusActiveDegraded),
+		Message:            "Active degraded by test",
 	}
 	apimeta.SetStatusCondition(&s.Status.Conditions, cond)
 	return s
 }
 
-func (s *SliceWrapper) Error() *SliceWrapper {
+func (s *SliceWrapper) Failed() *SliceWrapper {
 	cond := metav1.Condition{
-		Type:               string(v1alpha1.Error),
-		Status:             metav1.ConditionTrue,
+		Type:               string(v1alpha1.SliceStateConditionType),
+		Status:             metav1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
-		Reason:             "ByTest",
+		Reason:             string(core.MMIGHealthStatusFailed),
+		Message:            "Error by test",
+	}
+	apimeta.SetStatusCondition(&s.Status.Conditions, cond)
+	return s
+}
+
+func (s *SliceWrapper) Stale() *SliceWrapper {
+	cond := metav1.Condition{
+		Type:               string(v1alpha1.SliceStateConditionType),
+		Status:             metav1.ConditionFalse,
+		LastTransitionTime: metav1.NewTime(time.Now().Add(-core.ActivationTimeout)),
+		Reason:             string(core.MMIGHealthStatusActivating),
 		Message:            "Error by test",
 	}
 	apimeta.SetStatusCondition(&s.Status.Conditions, cond)

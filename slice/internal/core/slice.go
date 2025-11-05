@@ -16,6 +16,7 @@ package core
 
 import (
 	"fmt"
+	"time"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,6 +24,10 @@ import (
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
 
 	"tpu-slice-controller/api/v1alpha1"
+)
+
+const (
+	ActivationTimeout = 3 * time.Minute
 )
 
 func SliceKeyFromWorkload(wl *kueue.Workload, podSetName kueue.PodSetReference) client.ObjectKey {
@@ -43,10 +48,17 @@ func SliceName(workloadName string, podSetName kueue.PodSetReference) string {
 	return fmt.Sprintf("%s-%s", workloadName, podSetName)
 }
 
-func Deformed(slice *v1alpha1.Slice) bool {
-	return meta.IsStatusConditionTrue(slice.Status.Conditions, string(v1alpha1.Deformed))
+func IsStale(slice *v1alpha1.Slice) bool {
+	cond := meta.FindStatusCondition(slice.Status.Conditions, string(v1alpha1.SliceStateConditionType))
+	return cond != nil && cond.Status == metav1.ConditionFalse && time.Since(cond.LastTransitionTime.Time) >= ActivationTimeout
+}
+
+func Deactivating(slice *v1alpha1.Slice) bool {
+	cond := meta.FindStatusCondition(slice.Status.Conditions, string(v1alpha1.SliceStateConditionType))
+	return cond != nil && cond.Status == metav1.ConditionFalse && cond.Reason == string(MMIGHealthStatusDeactivating)
 }
 
 func IsError(slice *v1alpha1.Slice) bool {
-	return meta.IsStatusConditionTrue(slice.Status.Conditions, string(v1alpha1.Error))
+	cond := meta.FindStatusCondition(slice.Status.Conditions, string(v1alpha1.SliceStateConditionType))
+	return cond != nil && cond.Status == metav1.ConditionFalse && cond.Reason == string(MMIGHealthStatusFailed)
 }

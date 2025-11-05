@@ -114,8 +114,8 @@ func (in *SliceStatus) DeepCopyInto(out *SliceStatus) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	if in.SubBlockIds != nil {
-		in, out := &in.SubBlockIds, &out.SubBlockIds
+	if in.SubBlockIDs != nil {
+		in, out := &in.SubBlockIDs, &out.SubBlockIDs
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}

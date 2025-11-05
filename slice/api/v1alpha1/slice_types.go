@@ -55,17 +55,17 @@ type SliceStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
 	// Populated to match the physical topology of block the Super-Slice is running on
-	BlockId string `json:"blockId,omitempty"`
+	BlockID string `json:"blockId,omitempty"`
 
 	// Populated to list of physical topology of sub-block the Super-Slice is running on
-	SubBlockIds []string `json:"subBlockIds,omitempty"`
+	SubBlockIDs []string `json:"subBlockIds,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Type",type=string,JSONPath=`.spec.type`
 // +kubebuilder:printcolumn:name="Topology",type=string,JSONPath=`.spec.topology`
-// +kubebuilder:printcolumn:name="State",type=string,JSONPath=`.status.conditions[?(@.type=="SliceState")].reason`
+// +kubebuilder:printcolumn:name="State",type=string,JSONPath=`.status.conditions[?(@.type=="Ready")].reason`
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 // Slice is the Schema for the slices API.
 type Slice struct {
@@ -88,9 +88,6 @@ type SliceList struct {
 func init() {
 	SchemeBuilder.Register(&Slice{}, &SliceList{})
 }
-
-// SliceStateReasonType defines the type of condition
-type SliceStateReasonType string
 
 const (
 	SliceStateConditionType = "Ready"

@@ -84,6 +84,8 @@ def main() -> None:
     MetricsCollector.log_complete(0)
   except SystemExit as e:
     MetricsCollector.log_complete(exit_code_to_int(e.code))
+  except:
+    MetricsCollector.log_complete(1)
   finally:
     if FeatureFlags.TELEMETRY_ENABLED:
       # TODO(@scaliby): Flush to server instead of a console

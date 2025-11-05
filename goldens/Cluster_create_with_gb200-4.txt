@@ -9,7 +9,7 @@ gcloud container get-server-config --project=golden-project --region=us-central1
 [XPK] Task: `Find if Cluster Exists` is implemented by the following command not running since it is a dry run. 
 gcloud container clusters list --project=golden-project --filter=location~"us-central1.*" --format="csv[no-heading](name)"
 [XPK] Task: `GKE Cluster Create` is implemented by the following command not running since it is a dry run. 
-gcloud beta container clusters create golden-cluster --project=golden-project --region=us-central1 --node-locations=us-central1-a --cluster-version=0 --machine-type=e2-standard-16 --enable-autoscaling --total-min-nodes 1 --total-max-nodes 1000 --num-nodes 6 --enable-dns-access --autoscaling-profile=optimize-utilization --labels=gke_product_type=xpk --no-enable-autoupgrade --enable-dataplane-v2 --enable-multi-networking --enable-ip-alias
+gcloud beta container clusters create golden-cluster --project=golden-project --region=us-central1 --node-locations=us-central1-a --cluster-version=0 --machine-type=e2-standard-16 --enable-autoscaling --total-min-nodes 1 --total-max-nodes 1000 --num-nodes 6 --enable-dns-access --autoscaling-profile=optimize-utilization --labels=gke_product_type=xpk --enable-dataplane-v2 --enable-multi-networking --enable-ip-alias
 [XPK] Task: `Find cluster region or zone` is implemented by the following command not running since it is a dry run. 
 gcloud container clusters list --project=golden-project --filter=name=golden-cluster --format="value(location)"
 [XPK] Task: `Check if Private Nodes is enabled in cluster.` is implemented by the following command not running since it is a dry run. 
@@ -78,10 +78,10 @@ kubectl apply --server-side -f https://github.com/google/pathways-job/releases/d
 [XPK] Enabling Kueue on the cluster
 [XPK] Task: `Get kueue version on server` is implemented by the following command not running since it is a dry run. 
 kubectl get deployment kueue-controller-manager -n kueue-system -o jsonpath='{.spec.template.spec.containers[0].image}'
-[XPK] Installing Kueue version v0.12.2...
+[XPK] Installing Kueue version v0.14.3...
 [XPK] Try 1: Install Kueue
 [XPK] Task: `Install Kueue` is implemented by the following command not running since it is a dry run. 
-kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-sigs/kueue/releases/download/v0.12.2/manifests.yaml
+kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-sigs/kueue/releases/download/v0.14.3/manifests.yaml
 [XPK] Task: `Wait for Kueue to be available` is implemented by the following command not running since it is a dry run. 
 kubectl wait deploy/kueue-controller-manager -n kueue-system --for=condition=available --timeout=10m
 [XPK] Applying following Kueue resources:

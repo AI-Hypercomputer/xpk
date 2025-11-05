@@ -14,14 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..core.config import xpk_config
-from ..utils.console import xpk_print
+import uuid
+from .config import xpk_config, CLIENT_ID_KEY
 
 
-def set_config(args):
-  xpk_config.set(args.set_config_args[0], args.set_config_args[1])
-
-
-def get_config(args):
-  value = xpk_config.get(args.get_config_key[0])
-  xpk_print(value)
+def generate_client_id():
+  """Generates Client ID and stores in configuration if not already present."""
+  if xpk_config.get(CLIENT_ID_KEY) is None:
+    xpk_config.set(CLIENT_ID_KEY, str(uuid.uuid4()))

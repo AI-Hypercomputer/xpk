@@ -14,14 +14,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..core.config import xpk_config
-from ..utils.console import xpk_print
+from .config import xpk_config, CLIENT_ID_KEY
+from .telemetry import generate_client_id
 
 
-def set_config(args):
-  xpk_config.set(args.set_config_args[0], args.set_config_args[1])
+def test_generates_client_id_when_its_not_present():
+  xpk_config.set(CLIENT_ID_KEY, None)
+  generate_client_id()
+  assert xpk_config.get(CLIENT_ID_KEY) is not None
 
 
-def get_config(args):
-  value = xpk_config.get(args.get_config_key[0])
-  xpk_print(value)
+def test_does_not_generate_client_id_when_its_present():
+  client_id = '1337'
+  xpk_config.set(CLIENT_ID_KEY, client_id)
+  generate_client_id()
+  assert xpk_config.get(CLIENT_ID_KEY) == client_id

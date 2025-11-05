@@ -17,14 +17,10 @@ name: Nightly Tests
 on:
   workflow_dispatch:
   schedule: # Schedule the job run at 12AM PST daily.
-    - cron: '0 8 * * *'
+    - cron: "0 8 * * *"
 
 permissions:
   contents: read
-
-env:
-  CLUSTER_NETWORK_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}} --subnetwork=${{secrets.SUBNETWORK_NAME}}"
-  CLUSTER_NETWORK_ARGUMENTS_DWS: "--network=${{secrets.NETWORK_NAME}} --subnetwork=${{secrets.SUBNETWORK_NAME_DWS}}"
 
 jobs:
   build_kjob:
@@ -47,141 +43,11 @@ jobs:
     needs: [build_kjob, build_actions, build_wheel]
     uses: ./.github/workflows/integration_ray_cluster_create.yaml
     secrets: inherit
-
-  set-variables:
-    runs-on: [ubuntu-22.04]
-    concurrency:
-      group: set-variables-${{ github.event.number}}
-      cancel-in-progress: true
-    outputs:
-      cluster-name: ${{ steps.set-cluster-name.outputs.cluster-name }}
-      cluster-name-dws: ${{ steps.set-cluster-name-dws.outputs.cluster-name-dws }}
-      group-name: ${{ steps.set-group-name.outputs.group-name }}
-      zone: ${{ steps.set-zone.outputs.zone }}
-      tpu-type: ${{ steps.set-tpu-type.outputs.tpu-type }}
-      tpu-type-topology: ${{ steps.set-tpu-type-topology.outputs.tpu-type-topology }}
-      location: ${{steps.set-location.outputs.location}}
-      run-id: ${{steps.set-run-id.outputs.run-id}}
-    steps:
-    - name: set run-id
-      id: set-run-id
-      run: |
-        if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-          RUN_ID="dispatch"
-        elif [ "${{ github.ref }}" == "refs/heads/main" ]; then
-          RUN_ID="main"
-        else
-          RUN_ID="${{ github.event.number }}"
-        fi
-        echo run-id=$RUN_ID >> $GITHUB_OUTPUT
-    - name: set cluster-name
-      id: set-cluster-name
-      run: |
-        echo cluster-name=xpk-${{steps.set-run-id.outputs.run-id}} >> $GITHUB_OUTPUT
-    - name: set cluster-name-dws
-      id: set-cluster-name-dws
-      run: |
-        echo cluster-name-dws=xpk-dws-${{steps.set-run-id.outputs.run-id}} >> $GITHUB_OUTPUT
-    - name: set group-name
-      id: set-group-name
-      run: |
-        echo group-name=xpk-${{steps.set-run-id.outputs.run-id}} >> $GITHUB_OUTPUT
-    - name: set zone
-      id: set-zone
-      run: |
-        echo zone=us-central2-b >> $GITHUB_OUTPUT
-    - name: set tpu-type
-      id: set-tpu-type
-      run: |
-        echo tpu-type=v4-8 >> $GITHUB_OUTPUT
-    - name: set tpu-type-topology
-      id: set-tpu-type-topology
-      run: |
-        echo tpu-type-topology=v4-2x2x1 >> $GITHUB_OUTPUT
-    - name: set location
-      id: set-location
-      run: |
-        echo location=us-central2 >> $GITHUB_OUTPUT
-  install-dependencies:
-    needs: [set-variables]
-    runs-on: ubuntu-22.04
-    strategy:
-      matrix:
-        python-version: ["3.10", "3.11"]
-    steps:
-    - uses: actions/checkout@v4
-    - uses: google-github-actions/setup-gcloud@v2
-      with:
-        version: '>= 363.0.0'
-        install_components: 'beta, gke-gcloud-auth-plugin'
-    - uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Check if cache exists
-      id: check-cache
-      uses: actions/cache@v3
-      with:
-        path: |
-          usr/local/bin/
-          ~/.cache/pip
-          ${{env.pythonLocation}}
-        key: xpk-deps-${{ matrix.python-version }}-${{github.run_id}}-${{github.run_attempt}}
-        lookup-only: true
-    - name: install dependencies
-      if : steps.check-cache.outputs.cache-hit != 'true'
-      run: make install-dev && cp ./bin/kubectl-kueue /usr/local/bin/kubectl-kueue && cp ./bin/kubectl-kjob /usr/local/bin/kubectl-kjob
-    - name: Cache dependencies
-      if : steps.check-cache.outputs.cache-hit != 'true'
-      uses: actions/cache/save@v3
-      with:
-        path: |
-          /usr/local/bin/kubectl-kueue
-          /usr/local/bin/kubectl-kjob
-          ~/.cache/pip
-          ${{env.pythonLocation}}
-        key: xpk-deps-${{ matrix.python-version }}-${{github.run_id}}-${{github.run_attempt}}
-  run-integration-tests:
-    needs: [install-dependencies, set-variables]
-    uses: ./.github/workflows/reusable_integration_tests.yaml
-    with:
-      run-id: '${{needs.set-variables.outputs.run-id}}'
-    concurrency: # We support one build or nightly test to run at a time currently.
-      group: integration-tests-${{needs.set-variables.outputs.run-id}}
-      cancel-in-progress: true
-    secrets: inherit
-  cluster-create:
-    needs: [run-integration-tests, set-variables]
-    concurrency: # We support one build or nightly test to run at a time currently.
-      group: cluster-create-${{needs.set-variables.outputs.run-id}}
-      cancel-in-progress: true
-    uses: ./.github/workflows/reusable_cluster_create.yaml
-    with:
-      cluster-name-dws: '${{needs.set-variables.outputs.cluster-name-dws}}'
-      cluster-name: '${{needs.set-variables.outputs.cluster-name}}'
-      tpu-type: '${{needs.set-variables.outputs.tpu-type-topology || inputs.tpu-type}}'
-      zone: '${{needs.set-variables.outputs.zone}}'
-      location: '${{needs.set-variables.outputs.location}}'
-      run-id: '${{needs.set-variables.outputs.run-id}}'
+  legacy_integration:
+    needs: [build_kjob, build_actions, build_wheel]
+    uses: ./.github/workflows/integration_legacy_tests.yaml
     secrets: inherit
   storage-tests:
-    needs: [cluster-create, set-variables, build_kjob, build_actions, build_wheel]
-    uses: ./.github/workflows/reusable_storage_tests.yaml
-    concurrency: # We support one build or nightly test to run at a time currently.
-      group: storage-tests-${{needs.set-variables.outputs.run-id}}
-      cancel-in-progress: true
-    with:
-      cluster-name: ${{needs.set-variables.outputs.cluster-name}}
-      tpu-type: ${{needs.set-variables.outputs.tpu-type}}
-      zone: ${{needs.set-variables.outputs.zone}}
-      run-id: ${{needs.set-variables.outputs.run-id}}
-    secrets: inherit
-  cluster-delete:
-    if: always()
-    needs: [set-variables, storage-tests]
-    uses: ./.github/workflows/reusable_cluster_delete.yaml
-    with:
-      cluster-name-dws: ${{needs.set-variables.outputs.cluster-name-dws}}
-      cluster-name: ${{needs.set-variables.outputs.cluster-name}}
-      run-id: ${{needs.set-variables.outputs.run-id}}
-      zone: ${{needs.set-variables.outputs.zone}}
+    needs: [build_kjob, build_actions, build_wheel]
+    uses: ./.github/workflows/integration_storage_tests.yaml
     secrets: inherit

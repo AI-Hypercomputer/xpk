@@ -1299,7 +1299,7 @@ def _install_kueue(
           FeatureFlags.SUB_SLICING_ENABLED and args.sub_slicing
       ),
   )
-  kueue_manager.autocorrect_resource_limits(
+  kueue_config = kueue_manager.autocorrect_resource_limits(
       kueue_config, args.project, args.zone
   )
   return kueue_manager.install_or_upgrade(kueue_config)

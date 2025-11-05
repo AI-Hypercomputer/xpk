@@ -162,7 +162,7 @@ def __install_kueue(args) -> int:
           FeatureFlags.SUB_SLICING_ENABLED and args.sub_slicing
       ),
   )
-  kueue_manager.autocorrect_resource_limits(
+  kueue_config = kueue_manager.autocorrect_resource_limits(
       kueue_config, args.project, args.zone
   )
   kueue_manager.install_or_upgrade(

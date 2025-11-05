@@ -16,7 +16,7 @@ limitations under the License.
 
 import math
 import textwrap
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Optional, List, Dict, Any
 import json
 from jinja2 import Environment, FileSystemLoader
@@ -94,10 +94,10 @@ class KueueManager:
 
   def autocorrect_resource_limits(
       self, kueue_config: KueueConfig, project: str, zone: str
-  ) -> None:
+  ) -> KueueConfig:
     """Verify specified CPU and memory limits against machine type."""
     if not kueue_config.memory_limit and not kueue_config.cpu_limit:
-      return
+      return kueue_config
 
     # Get CPU and memory capacity from machine type
     command = (
@@ -116,50 +116,53 @@ class KueueManager:
           "Unable to verify vCPU and memory capacity for machine type."
           " XPK will proceed with using user-defined  limits."
       )
-      return
+      return kueue_config
 
+    kueue_config = replace(kueue_config)
     cpu_capacity_str, memory_capacity_MB_str = out.split()
     if kueue_config.cpu_limit:
-      self.__autocorrect_cpu_limit(kueue_config, cpu_capacity_str)
+      kueue_config.cpu_limit = self.__autocorrect_cpu_limit(
+          kueue_config.cpu_limit, int(cpu_capacity_str)
+      )
     if kueue_config.memory_limit:
-      self.__autocorrect_memory_limit(kueue_config, memory_capacity_MB_str)
+      kueue_config.memory_limit = self.__autocorrect_memory_limit(
+          kueue_config.memory_limit, memory_capacity_MB_str
+      )
+    return kueue_config
 
-  def __autocorrect_cpu_limit(
-      self, kueue_config: KueueConfig, cpu_capacity_str: str
-  ) -> None:
-    cpu_capacity = int(cpu_capacity_str)
-    if kueue_config.cpu_limit > cpu_capacity:
-      kueue_config.cpu_limit = cpu_capacity
+  def __autocorrect_cpu_limit(self, cpu_limit: int, cpu_capacity: int) -> int:
+    if cpu_limit > cpu_capacity:
       xpk_print(
           "The CPU limit is above the available capacity."
           f" We will set CPU limit to {cpu_capacity}."
       )
-    elif kueue_config.cpu_limit < cpu_capacity:
-      kueue_config.cpu_limit = cpu_capacity
+    elif cpu_limit < cpu_capacity:
       xpk_print(
           "The CPU limit is below the available capacity, which would lead"
           f" to underutilization. We will set CPU limit to {cpu_capacity}."
       )
+    return cpu_capacity
 
   def __autocorrect_memory_limit(
-      self, kueue_config: KueueConfig, memory_capacity_MB_str: str
-  ) -> None:
-    memory_limit_bytes = parse_quantity(kueue_config.memory_limit)
+      self, memory_limit_str: str, memory_capacity_MB_str: str
+  ) -> str:
+    memory_limit_bytes = parse_quantity(memory_limit_str)
     memory_capacity_bytes = int(memory_capacity_MB_str) << 20
     if memory_limit_bytes == memory_capacity_bytes:
-      return
-    kueue_config.memory_limit = memory_capacity_MB_str + "Mi"
+      return memory_limit_str
+    memory_limit_str = memory_capacity_MB_str + "Mi"
     if memory_limit_bytes > memory_capacity_bytes:
       xpk_print(
           "The memory limit is above the available capacity. We will set"
-          f" memory limit to {kueue_config.memory_limit}."
+          f" memory limit to {memory_limit_str}."
       )
     else:
       xpk_print(
           "The memory limit is below the available capacity, which would"
           " lead to underutilization. We will set the memory limit to"
-          f" {kueue_config.memory_limit}."
+          f" {memory_limit_str}."
       )
+    return memory_limit_str
 
   def install_or_upgrade(
       self,

@@ -107,15 +107,20 @@ def test_install_kueue_standard(
 
   mock_cluster_create_deps["xpk_exit"].assert_called_with(0)
   mock_kueue_manager = mock_cluster_create_deps["KueueManager"]
+
+  mock_kueue_manager.return_value.autocorrect_resource_limits.assert_called_once()
+  call_args, call_kwargs = (
+      mock_kueue_manager.return_value.autocorrect_resource_limits.call_args
+  )
+  kueue_config: KueueConfig = call_args[0]
+  assert kueue_config.system == mock_system
+  assert kueue_config.total_chips == 16
+  assert not kueue_config.autoprovisioning_enabled
+
   mock_kueue_manager.return_value.install_or_upgrade.assert_called_once()
   call_args, call_kwargs = (
       mock_kueue_manager.return_value.install_or_upgrade.call_args
   )
-  kueue_config: KueueConfig = call_args[0]
-
-  assert kueue_config.system == mock_system
-  assert kueue_config.total_chips == 16
-  assert not kueue_config.autoprovisioning_enabled
   assert "tolerations" in call_kwargs
   tolerations = call_kwargs["tolerations"]
   assert any(
@@ -158,16 +163,20 @@ def test_install_kueue_with_autoprovisioning(
   mock_cluster_create_deps["xpk_exit"].assert_called_with(0)
   mock_enable_autoprovisioning.assert_called_once_with(mock_args, mock_system)
   mock_kueue_manager = mock_cluster_create_deps["KueueManager"]
-  mock_kueue_manager.return_value.install_or_upgrade.assert_called_once()
 
+  mock_kueue_manager.return_value.autocorrect_resource_limits.assert_called_once()
   call_args, call_kwargs = (
-      mock_kueue_manager.return_value.install_or_upgrade.call_args
+      mock_kueue_manager.return_value.autocorrect_resource_limits.call_args
   )
   kueue_config: KueueConfig = call_args[0]
-
   assert kueue_config.system == mock_system
   assert kueue_config.total_chips == 128
   assert kueue_config.autoprovisioning_enabled
+
+  mock_kueue_manager.return_value.install_or_upgrade.assert_called_once()
+  call_args, call_kwargs = (
+      mock_kueue_manager.return_value.install_or_upgrade.call_args
+  )
   assert "tolerations" in call_kwargs
   tolerations = call_kwargs["tolerations"]
   assert any(

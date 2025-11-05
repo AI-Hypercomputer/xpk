@@ -430,10 +430,10 @@ def test_autocorrect_resource_limits_not_equal_to_capacity(
   config_below = dataclasses.replace(
       KUEUE_CONFIG, cpu_limit=10, memory_limit="10Mi"
   )
-  kueue_manager.autocorrect_resource_limits(
+  config_above = kueue_manager.autocorrect_resource_limits(
       config_above, "test-project", "test-zone"
   )
-  kueue_manager.autocorrect_resource_limits(
+  config_below = kueue_manager.autocorrect_resource_limits(
       config_below, "test-project", "test-zone"
   )
 
@@ -457,7 +457,9 @@ def test_autocorrect_resource_limits_equal_to_capacity(
   config = dataclasses.replace(
       KUEUE_CONFIG, cpu_limit=20, memory_limit="20480Ki"
   )
-  kueue_manager.autocorrect_resource_limits(config, "test-project", "test-zone")
+  config = kueue_manager.autocorrect_resource_limits(
+      config, "test-project", "test-zone"
+  )
 
   assert config.cpu_limit == 20
   assert config.memory_limit == "20480Ki"
@@ -474,7 +476,9 @@ def test_autocorrect_resource_both_limits_not_set(
       (0, "20 20"), "gcloud compute machine-types describe"
   )
   config = dataclasses.replace(KUEUE_CONFIG, cpu_limit=0, memory_limit="")
-  kueue_manager.autocorrect_resource_limits(config, "test-project", "test-zone")
+  config = kueue_manager.autocorrect_resource_limits(
+      config, "test-project", "test-zone"
+  )
 
   assert config.cpu_limit == 0
   assert config.memory_limit == ""
@@ -490,10 +494,10 @@ def test_autocorrect_resource_one_limit_not_set(
   )
   config_no_cpu = dataclasses.replace(KUEUE_CONFIG, cpu_limit=0)
   config_no_memory = dataclasses.replace(KUEUE_CONFIG, memory_limit="")
-  kueue_manager.autocorrect_resource_limits(
+  config_no_cpu = kueue_manager.autocorrect_resource_limits(
       config_no_cpu, "test-project", "test-zone"
   )
-  kueue_manager.autocorrect_resource_limits(
+  config_no_memory = kueue_manager.autocorrect_resource_limits(
       config_no_memory, "test-project", "test-zone"
   )
 

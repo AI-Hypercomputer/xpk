@@ -23,6 +23,7 @@ from dataclasses import dataclass
 from .config import xpk_config, CLIENT_ID_KEY, __version__ as xpk_version
 from ..utils.execution_context import is_dry_run
 
+
 def generate_client_id():
   """Generates Client ID and stores in configuration if not already present."""
   if xpk_config.get(CLIENT_ID_KEY) is None:

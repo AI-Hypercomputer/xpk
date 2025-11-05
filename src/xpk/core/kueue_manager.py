@@ -16,7 +16,7 @@ limitations under the License.
 
 import math
 import textwrap
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
 import json
 from jinja2 import Environment, FileSystemLoader
@@ -442,46 +442,12 @@ class KueueManager:
 
     cpu_capacity_str, memory_capacity_MB_str = out.split()
     if cpu_limit:
-      cpu_limit = self.__autocorrect_cpu_limit(cpu_limit, int(cpu_capacity_str))
+      cpu_limit = _autocorrect_cpu_limit(cpu_limit, int(cpu_capacity_str))
     if memory_limit_str:
-      memory_limit_str = self.__autocorrect_memory_limit(
+      memory_limit_str = _autocorrect_memory_limit(
           memory_limit_str, memory_capacity_MB_str
       )
     return cpu_limit, memory_limit_str
-
-  def __autocorrect_cpu_limit(self, cpu_limit: int, cpu_capacity: int) -> int:
-    if cpu_limit > cpu_capacity:
-      xpk_print(
-          "The CPU limit is above the available capacity."
-          f" We will set CPU limit to {cpu_capacity}."
-      )
-    elif cpu_limit < cpu_capacity:
-      xpk_print(
-          "The CPU limit is below the available capacity, which would lead"
-          f" to underutilization. We will set CPU limit to {cpu_capacity}."
-      )
-    return cpu_capacity
-
-  def __autocorrect_memory_limit(
-      self, memory_limit_str: str, memory_capacity_MB_str: str
-  ) -> str:
-    memory_limit_bytes = parse_quantity(memory_limit_str)
-    memory_capacity_bytes = int(memory_capacity_MB_str) << 20
-    if memory_limit_bytes == memory_capacity_bytes:
-      return memory_limit_str
-    memory_limit_str = memory_capacity_MB_str + "Mi"
-    if memory_limit_bytes > memory_capacity_bytes:
-      xpk_print(
-          "The memory limit is above the available capacity. We will set"
-          f" memory limit to {memory_limit_str}."
-      )
-    else:
-      xpk_print(
-          "The memory limit is below the available capacity, which would"
-          " lead to underutilization. We will set the memory limit to"
-          f" {memory_limit_str}."
-      )
-    return memory_limit_str
 
 
 def get_installed_kueue_version() -> tuple[int, Version | None]:
@@ -512,3 +478,39 @@ def has_sub_slicing_enabled() -> tuple[int, bool | None]:
     return return_code, None
 
   return return_code, SUB_SLICE_TOPOLOGY_NAME in value
+
+
+def _autocorrect_cpu_limit(cpu_limit: int, cpu_capacity: int) -> int:
+  if cpu_limit > cpu_capacity:
+    xpk_print(
+        "The CPU limit is above the available capacity."
+        f" We will set CPU limit to {cpu_capacity}."
+    )
+  elif cpu_limit < cpu_capacity:
+    xpk_print(
+        "The CPU limit is below the available capacity, which would lead"
+        f" to underutilization. We will set CPU limit to {cpu_capacity}."
+    )
+  return cpu_capacity
+
+
+def _autocorrect_memory_limit(
+    memory_limit_str: str, memory_capacity_MB_str: str
+) -> str:
+  memory_limit_bytes = parse_quantity(memory_limit_str)
+  memory_capacity_bytes = int(memory_capacity_MB_str) << 20
+  if memory_limit_bytes == memory_capacity_bytes:
+    return memory_limit_str
+  memory_limit_str = memory_capacity_MB_str + "Mi"
+  if memory_limit_bytes > memory_capacity_bytes:
+    xpk_print(
+        "The memory limit is above the available capacity. We will set"
+        f" memory limit to {memory_limit_str}."
+    )
+  else:
+    xpk_print(
+        "The memory limit is below the available capacity, which would"
+        " lead to underutilization. We will set the memory limit to"
+        f" {memory_limit_str}."
+    )
+  return memory_limit_str

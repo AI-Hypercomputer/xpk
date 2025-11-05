@@ -111,7 +111,6 @@ def test_install_kueue_standard(
   call_args, call_kwargs = (
       mock_kueue_manager.return_value.install_or_upgrade.call_args
   )
-
   kueue_config: KueueConfig = call_args[0]
   assert kueue_config.system == mock_system
   assert kueue_config.total_chips == 16
@@ -159,10 +158,10 @@ def test_install_kueue_with_autoprovisioning(
   mock_enable_autoprovisioning.assert_called_once_with(mock_args, mock_system)
   mock_kueue_manager = mock_cluster_create_deps["KueueManager"]
   mock_kueue_manager.return_value.install_or_upgrade.assert_called_once()
+
   call_args, call_kwargs = (
       mock_kueue_manager.return_value.install_or_upgrade.call_args
   )
-
   kueue_config: KueueConfig = call_args[0]
   assert kueue_config.system == mock_system
   assert kueue_config.total_chips == 128

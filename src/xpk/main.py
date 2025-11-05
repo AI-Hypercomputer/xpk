@@ -39,7 +39,7 @@ from .parser.core import set_parser
 from .core.updates import print_xpk_hello
 from .core.telemetry import generate_client_id, MetricsCollector
 from .utils.feature_flags import FeatureFlags
-from .utils.console import xpk_print
+from .utils.console import xpk_print, exit_code_to_int
 from .utils.execution_context import set_context
 ################### Compatibility Check ###################
 # Check that the user runs the below version or greater.
@@ -84,7 +84,7 @@ def main() -> None:
     xpk_print('XPK Done.', flush=True)
     MetricsCollector.log_complete(0)
   except SystemExit as e:
-    MetricsCollector.log_complete(e.code)
+    MetricsCollector.log_complete(exit_code_to_int(e.code))
   finally:
     if FeatureFlags.TELEMETRY_ENABLED:
       # TODO(@scaliby): Flush to server instead of a console

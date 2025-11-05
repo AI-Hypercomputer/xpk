@@ -73,3 +73,15 @@ def ask_for_user_consent(
       return False
     else:
       xpk_print("Invalid input. Please enter: yes/no/y/n.")
+
+
+def exit_code_to_int(exit_code: str | int | None) -> int:
+  """
+  Converts sys._ExitCode to an int value that is used to exit the program.
+  See more: https://github.com/python/typeshed/issues/8513#issue-1333671093
+  """
+  if isinstance(exit_code, int):
+    return int(exit_code)
+  if exit_code is None:
+    return 0
+  return 1

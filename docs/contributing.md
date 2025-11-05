@@ -61,7 +61,7 @@ Also, follow [Prerequisites](https://github.com/AI-Hypercomputer/xpk?tab=readme-
 
 ### Make your change
 
-Make intended code change, cover it with unit tests and iterate on the code by executing local XPK version via `python3 xpk.py`.
+Make intended code change, cover it with unit tests and iterate on the code by executing local XPK version via `xpk`.
 
 ### Verify change against checklist
 

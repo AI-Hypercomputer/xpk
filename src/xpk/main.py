@@ -71,10 +71,8 @@ def main() -> None:
   set_context(
       dry_run_value='dry_run' in main_args and main_args.dry_run,
       quiet_value=(
-          'quiet' in main_args
-          and main_args.quiet
-          or 'force' in main_args
-          and main_args.force
+          ('quiet' in main_args and main_args.quiet)
+          or ('force' in main_args and main_args.force)
       ),
   )
   generate_client_id()

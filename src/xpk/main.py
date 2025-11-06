@@ -37,7 +37,7 @@ import sys
 
 from .parser.core import set_parser
 from .core.updates import print_xpk_hello
-from .core.telemetry import MetricsCollector
+from .core.telemetry import MetricsCollector, send_clearcut_payload
 from .utils.feature_flags import FeatureFlags
 from .utils.console import xpk_print, exit_code_to_int
 from .utils.execution_context import set_context
@@ -90,8 +90,7 @@ def main() -> None:
     raise
   finally:
     if FeatureFlags.TELEMETRY_ENABLED:
-      # TODO(@scaliby): Flush to server instead of a console
-      xpk_print(MetricsCollector.flush())
+      send_clearcut_payload(MetricsCollector.flush())
 
 
 if __name__ == '__main__':

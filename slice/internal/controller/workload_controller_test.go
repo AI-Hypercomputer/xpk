@@ -298,29 +298,6 @@ func TestWorkloadReconciler(t *testing.T) {
 					Obj(),
 			},
 		},
-		"should delete the finalizer because Slices with status Deactivating": {
-			request: baseRequest,
-			objs: []client.Object{
-				baseAdmissionCheckWrapper.DeepCopy(),
-				baseJobSetWrapper.DeepCopy(),
-				basePod1Wrapper.DeepCopy(),
-				baseWorkloadWrapper.Clone().
-					PodSets(basePodSets...).
-					ReserveQuota(baseAdmission, now).
-					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
-					Active(false).
-					Finalizers(SliceControllerName).
-					Obj(),
-				baseSlice1Wrapper.Clone().Deactivating().Obj(),
-				baseSlice2Wrapper.Clone().Deactivating().Obj(),
-			},
-			wantWorkloads: []kueue.Workload{
-				*baseWorkloadWrapper.Clone().
-					PodSets(basePodSets...).
-					ReserveQuota(baseAdmission, now).
-					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).Active(false).Obj(),
-			},
-		},
 		"shouldn't delete the finalizer because Slices status Degraded": {
 			request: baseRequest,
 			objs: []client.Object{
@@ -1265,38 +1242,6 @@ func TestWorkloadReconciler(t *testing.T) {
 			},
 			wantSlices: []slice.Slice{
 				*baseSlice1Wrapper.Clone().Active().Obj(),
-			},
-		},
-		"should update the Workload's AdmissionCheckState when one Slice is in the Deformed state": {
-			request: baseRequest,
-			objs: []client.Object{
-				worker1Node.DeepCopy(),
-				worker2Node.DeepCopy(),
-				baseAdmissionCheckWrapper.DeepCopy(),
-				baseWorkloadWrapper.Clone().
-					PodSets(basePodSets...).
-					ReserveQuota(baseAdmission, now).
-					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
-					Finalizers(SliceControllerName).
-					Obj(),
-				baseSlice1Wrapper.Clone().Active().Obj(),
-				baseSlice2Wrapper.Clone().Deactivating().Obj(),
-			},
-			wantWorkloads: []kueue.Workload{
-				*baseWorkloadWrapper.Clone().
-					PodSets(basePodSets...).
-					ReserveQuota(baseAdmission, now).
-					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
-					Finalizers(SliceControllerName).
-					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStateRejected, `Slices are in states: 1 ACTIVE, 1 DEACTIVATING`)).
-					Obj(),
-			},
-			wantSlices: []slice.Slice{
-				*baseSlice1Wrapper.Clone().Active().Obj(),
-				*baseSlice2Wrapper.Clone().Deactivating().Obj()},
-			wantEvents: []utiltesting.EventRecord{
-				buildEventRecord(corev1.EventTypeNormal, AdmissionCheckUpdatedEventType,
-					fmt.Sprintf(`Admission check %q updated state from "Pending" to "Rejected"`, baseACName)),
 			},
 		},
 		"should use the first AdmissionCheck if more than one is found": {

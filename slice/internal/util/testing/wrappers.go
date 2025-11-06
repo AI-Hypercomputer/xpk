@@ -318,18 +318,6 @@ func (s *SliceWrapper) Activating() *SliceWrapper {
 	return s
 }
 
-func (s *SliceWrapper) Deactivating() *SliceWrapper {
-	cond := metav1.Condition{
-		Type:               string(v1alpha1.SliceStateConditionType),
-		Status:             metav1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(core.MMIGHealthStatusDeactivating),
-		Message:            "Deactivating by test",
-	}
-	apimeta.SetStatusCondition(&s.Status.Conditions, cond)
-	return s
-}
-
 func (s *SliceWrapper) Degraded() *SliceWrapper {
 	cond := metav1.Condition{
 		Type:               string(v1alpha1.SliceStateConditionType),

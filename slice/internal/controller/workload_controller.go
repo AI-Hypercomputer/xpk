@@ -162,7 +162,7 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, err
 	}
 
-	deleted, _, toDelete, _ := r.groupSlices(slices)
+	deleted, toDelete, _ := r.groupSlices(slices)
 	if len(deleted) > 0 {
 		log.V(3).Info(
 			"Waiting for deleted Slices to be cleaned up; skipping reconciliation for now",
@@ -256,20 +256,11 @@ func (r *WorkloadReconciler) cleanupSlices(ctx context.Context, wl *kueue.Worklo
 		return false, err
 	}
 
-	deleted, deformed, errored, other := r.groupSlices(slices)
+	deleted, errored, other := r.groupSlices(slices)
 
 	if len(deleted) == len(slices) {
 		log.V(3).Info("All slices already deleted; finishing cleanup")
 		return true, nil
-	}
-
-	if len(deformed) > 0 {
-		log.V(3).Info("Found Slices in deformed state; cleaning them up", "deformedSlices", klog.KObjSlice(deformed))
-		// We still need to delete deformed Slices because requeueing causes a conflict error during Slice creation.
-		err = r.deleteSlices(ctx, deformed)
-		if err != nil {
-			return false, err
-		}
 	}
 
 	if len(other)+len(errored) > 0 {
@@ -313,21 +304,19 @@ func (r *WorkloadReconciler) findWorkloadSlices(ctx context.Context, wl *kueue.W
 //   - A slice containing deformed Slice objects (being torn down).
 //   - A slice containing errored Slice objects.
 //   - A slice containing other Slice objects (active/valid slices).
-func (r *WorkloadReconciler) groupSlices(slices []v1alpha1.Slice) ([]v1alpha1.Slice, []v1alpha1.Slice, []v1alpha1.Slice, []v1alpha1.Slice) {
-	var deleted, deactivating, toDelete, other []v1alpha1.Slice
+func (r *WorkloadReconciler) groupSlices(slices []v1alpha1.Slice) ([]v1alpha1.Slice, []v1alpha1.Slice, []v1alpha1.Slice) {
+	var deleted, toDelete, other []v1alpha1.Slice
 	for _, slice := range slices {
 		switch {
 		case !slice.DeletionTimestamp.IsZero():
 			deleted = append(deleted, slice)
-		case core.Deactivating(&slice):
-			deactivating = append(deactivating, slice)
 		case core.IsError(&slice) || core.IsStale(&slice):
 			toDelete = append(toDelete, slice)
 		default:
 			other = append(other, slice)
 		}
 	}
-	return deleted, deactivating, toDelete, other
+	return deleted, toDelete, other
 }
 
 func (r *WorkloadReconciler) deleteSlices(ctx context.Context, slices []v1alpha1.Slice) error {
@@ -507,7 +496,7 @@ func shouldCreateSliceForPodSetAssignment(wl *kueue.Workload, psa kueue.PodSetAs
 	return false
 }
 
-func parseTopologyAssignmentIntoNodeSelector(slice *v1alpha1.Slice, topologyAssignment *kueue.TopologyAssignment, nodes map[string]corev1.Node) {
+func parseTopologyAssignmentIntoPartitionIDs(slice *v1alpha1.Slice, topologyAssignment *kueue.TopologyAssignment, nodes map[string]corev1.Node) {
 	subBlockIDs := sets.New[string]()
 	// we already validated that all assignments have a valid level,
 	// in validateRelevantWorkload.
@@ -529,7 +518,7 @@ func (r *WorkloadReconciler) createSlice(ctx context.Context, wl *kueue.Workload
 	if err := controllerutil.SetControllerReference(wl, slice, r.client.Scheme()); err != nil {
 		return nil, err
 	}
-	parseTopologyAssignmentIntoNodeSelector(slice, psa.TopologyAssignment, nodes)
+	parseTopologyAssignmentIntoPartitionIDs(slice, psa.TopologyAssignment, nodes)
 
 	ps := podset.FindPodSetByName(wl.Spec.PodSets, psa.Name)
 	slice.Spec.Type = v1alpha1.Type(core.GetTPUAccelerator(ps.Template))

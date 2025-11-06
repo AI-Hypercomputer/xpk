@@ -18,10 +18,68 @@ import platform
 import uuid
 import json
 import time
+import sys
+import importlib
+import subprocess
+import tempfile
 from enum import Enum
+from typing import Any
 from dataclasses import dataclass
 from .config import xpk_config, CLIENT_ID_KEY, __version__ as xpk_version
 from ..utils.execution_context import is_dry_run
+from ..utils.user_agent import get_user_agent
+
+
+def send_clearcut_payload(data: str, wait_to_complete: bool = False) -> None:
+  """Sends payload to clearcut endpoint."""
+  try:
+    file_path = _store_payload_in_temp_file(data)
+    _flush_temp_file_to_clearcut(file_path, wait_to_complete)
+  except Exception:  # pylint: disable=broad-exception-caught
+    pass
+
+
+def _store_payload_in_temp_file(data: str) -> str:
+  with tempfile.NamedTemporaryFile(
+      mode="w", delete=False, encoding="utf-8"
+  ) as file:
+    json.dump(
+        {
+            "data": data,
+            "url": "https://play.googleapis.com/log",
+            "params": {"format": "json_proto"},
+            "headers": {"User-Agent": get_user_agent()},
+            "method": "POST",
+        },
+        file,
+    )
+    return file.name
+
+
+def _flush_temp_file_to_clearcut(
+    file_path: str, wait_to_complete: bool
+) -> None:
+  with importlib.resources.path("xpk", "telemetry_uploader.py") as path:
+    kwargs: dict[str, Any] = {}
+    if sys.platform == "win32":
+      kwargs["creationflags"] = (
+          subprocess.DETACHED_PROCESS | subprocess.CREATE_NO_WINDOW
+      )
+    else:
+      kwargs["start_new_session"] = True
+
+    process = subprocess.Popen(
+        args=[
+            sys.executable,
+            str(path),
+            file_path,
+        ],
+        stdout=sys.stdout if wait_to_complete else subprocess.DEVNULL,
+        stderr=sys.stderr if wait_to_complete else subprocess.DEVNULL,
+        **kwargs,
+    )
+    if wait_to_complete:
+      process.wait()
 
 
 def ensure_client_id() -> str:

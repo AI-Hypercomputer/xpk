@@ -583,7 +583,7 @@ func (r *WorkloadReconciler) syncAdmissionCheckStatus(ctx context.Context, wl *k
 	if ac.Message != originalMessage {
 		// Logging error messages if exists
 		for _, slice := range slices {
-			cond := meta.FindStatusCondition(slice.Status.Conditions, string(v1alpha1.SliceStateConditionType))
+			cond := meta.FindStatusCondition(slice.Status.Conditions, v1alpha1.SliceStateConditionType)
 			if cond != nil && cond.Status == metav1.ConditionFalse && cond.Reason == string(core.MMIGHealthStatusFailed) {
 				log.V(2).Info(
 					"WARNING: The Slice is not operational due to an error",

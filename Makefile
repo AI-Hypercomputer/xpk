@@ -36,10 +36,10 @@ install-pytest:
 
 .PHONY: run-unittests
 run-unittests:
-	pytest  -vv src/xpk/
+	XPK_TESTER=false pytest  -vv src/xpk/
 
 run-integrationtests:
-	pytest src/integration/
+	XPK_TESTER=false pytest src/integration/
 
 .PHONY: goldens
 goldens:

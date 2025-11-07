@@ -324,7 +324,7 @@ func (s *SliceWrapper) Degraded() *SliceWrapper {
 		Status:             metav1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
 		Reason:             string(core.MMIGHealthStatusActiveDegraded),
-		Message:            "Active degraded by test",
+		Message:            "Degraded by test",
 	}
 	apimeta.SetStatusCondition(&s.Status.Conditions, cond)
 	return s

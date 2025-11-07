@@ -43,7 +43,7 @@ run-integrationtests:
 
 .PHONY: goldens
 goldens:
-	./golden_buddy.sh update goldens.yaml goldens
+	XPK_TESTER=false ./golden_buddy.sh update goldens.yaml goldens
 
 .PHONY: mkdir-bin
 mkdir-bin:

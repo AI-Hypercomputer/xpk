@@ -19,9 +19,12 @@ import shutil
 from typing import Optional
 
 from ruamel import yaml
+from packaging.version import parse
 
 from ...utils.console import xpk_exit, xpk_print
+from ...utils.versions import ReleaseChannel
 from ...utils.file import ensure_directory_exists
+
 
 from ..capacity import (
     H100_DEVICE_TYPE,
@@ -84,6 +87,8 @@ class BlueprintGenerator:
       region: str,
       zone: str,
       auth_cidr: str,
+      cluster_version: str,
+      release_channel: ReleaseChannel,
       prefix: str = "",
       num_nodes: int = 2,
       pods_ip_cidr_range: str = "10.4.0.0/14",
@@ -100,7 +105,6 @@ class BlueprintGenerator:
       gcs_bucket: Optional[str | None] = None,
       capacity_type: CapacityType = CapacityType.ON_DEMAND,
       system_node_pool_min_node_count: int = 2,
-      cluster_version: str | None = None,
   ) -> BlueprintGeneratorOutput:
     """Create A3 mega blueprint and directory containing its dependencies.
 
@@ -143,11 +147,17 @@ class BlueprintGenerator:
         },
     )
 
+    sanitized_version = cluster_version.replace("-", "+", 1)
+    version = parse(sanitized_version)
+    version_prefix = f"{version.major}.{version.minor}"
     gke_cluster = DeploymentModule(
         id="gke_cluster",
         source="modules/scheduler/gke-cluster",
         use=[primary_vpc_name, gpu_subnets_name],
         settings={
+            "release_channel": release_channel.value,
+            "version_prefix": version_prefix,
+            "min_master_version": cluster_version,
             "prefix_with_deployment_name": False,
             "name_suffix": cluster_name,
             "enable_private_endpoint": False,
@@ -172,8 +182,7 @@ class BlueprintGenerator:
         },
         outputs=["instructions"],
     )
-    if cluster_version:
-      gke_cluster.set_setting("min_master_version", cluster_version)
+    if release_channel != ReleaseChannel.RAPID:
       gke_cluster.set_setting(
           "maintenance_exclusions",
           [{
@@ -226,6 +235,9 @@ class BlueprintGenerator:
       a3_megagpu_pool_0.update_settings(self.get_dws_flex_start())
     else:
       a3_megagpu_pool_0.update_settings({"static_node_count": num_nodes})
+
+    if release_channel == ReleaseChannel.RAPID:
+      a3_megagpu_pool_0.set_setting("auto_upgrade", True)
 
     set_placement_policy = capacity_type != CapacityType.SPOT
     workload = DeploymentModule(
@@ -403,6 +415,8 @@ class BlueprintGenerator:
       zone: str,
       auth_cidr: str,
       system_node_pool_machine_type: str,
+      cluster_version: str,
+      release_channel: ReleaseChannel,
       reservation: Optional[str | None] = None,
       gcs_bucket: Optional[str | None] = None,
       num_nodes: int = 2,
@@ -411,7 +425,6 @@ class BlueprintGenerator:
       mtu_size: int = 8896,
       system_node_pool_min_node_count: int = 2,
       capacity_type: CapacityType = CapacityType.ON_DEMAND,
-      cluster_version: str | None = None,
   ) -> BlueprintGeneratorOutput:
     """Create A3 ultra blueprint.
 
@@ -493,12 +506,19 @@ class BlueprintGenerator:
             },
         },
     )
+
+    sanitized_version = cluster_version.replace("-", "+", 1)
+    version = parse(sanitized_version)
+    version_prefix = f"{version.major}.{version.minor}"
     cluster_id = f"{cluster_name}-a3-ultragpu-cluster"
     a3_ultra_cluster = DeploymentModule(
         id=cluster_id,
         source="modules/scheduler/gke-cluster",
         use=[net_0_id],
         settings={
+            "release_channel": release_channel.value,
+            "version_prefix": version_prefix,
+            "min_cluster_version": cluster_version,
             "prefix_with_deployment_name": False,
             "name_suffix": cluster_name,
             "system_node_pool_machine_type": system_node_pool_machine_type,
@@ -534,8 +554,7 @@ class BlueprintGenerator:
         },
         outputs=["instructions"],
     )
-    if cluster_version:
-      a3_ultra_cluster.set_setting("min_master_version", cluster_version)
+    if release_channel != ReleaseChannel.RAPID:
       a3_ultra_cluster.set_setting(
           "maintenance_exclusions",
           [{
@@ -592,6 +611,9 @@ class BlueprintGenerator:
       gpu_pool.update_settings(self.get_dws_flex_start())
     else:
       gpu_pool.update_settings({"static_node_count": num_nodes})
+
+    if release_channel == ReleaseChannel.RAPID:
+      gpu_pool.set_setting("auto_upgrade", True)
 
     workload_manager_install_id = "workload-manager-install"
     workload_manager_install = DeploymentModule(
@@ -683,13 +705,14 @@ class BlueprintGenerator:
       zone: str,
       auth_cidr: str,
       system_node_pool_machine_type: str,
+      cluster_version: str,
+      release_channel: ReleaseChannel,
       reservation: Optional[str | None] = None,
       gcs_bucket: Optional[str | None] = None,
       num_nodes: int = 2,
       prefix: str = "",
       system_node_pool_min_node_count: int = 2,
       capacity_type: CapacityType = CapacityType.ON_DEMAND,
-      cluster_version: str | None = None,
   ) -> BlueprintGeneratorOutput:
     """Create A4 blueprint.
 
@@ -771,12 +794,19 @@ class BlueprintGenerator:
             },
         },
     )
+
+    sanitized_version = cluster_version.replace("-", "+", 1)
+    version = parse(sanitized_version)
+    version_prefix = f"{version.major}.{version.minor}"
     cluster_id = f"{cluster_name}-a4-cluster"
     a4_cluster = DeploymentModule(
         id=cluster_id,
         source="modules/scheduler/gke-cluster",
         use=[net_0_id],
         settings={
+            "release_channel": release_channel.value,
+            "version_prefix": version_prefix,
+            "min_cluster_version": cluster_version,
             "system_node_pool_machine_type": system_node_pool_machine_type,
             "system_node_pool_node_count": {
                 "total_min_nodes": system_node_pool_min_node_count,
@@ -804,8 +834,7 @@ class BlueprintGenerator:
         },
         outputs=["instructions"],
     )
-    if cluster_version:
-      a4_cluster.set_setting("min_master_version", cluster_version)
+    if release_channel != ReleaseChannel.RAPID:
       a4_cluster.set_setting(
           "maintenance_exclusions",
           [{
@@ -864,6 +893,9 @@ class BlueprintGenerator:
       gpu_pool.update_settings(self.get_dws_flex_start())
     else:
       gpu_pool.update_settings({"static_node_count": num_nodes})
+
+    if release_channel == ReleaseChannel.RAPID:
+      gpu_pool.set_setting("auto_upgrade", True)
 
     workload_manager_install_id = "workload-manager-install"
     workload_manager_install = DeploymentModule(

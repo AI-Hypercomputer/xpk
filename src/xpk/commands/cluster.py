@@ -17,6 +17,7 @@ limitations under the License.
 from tabulate import tabulate
 
 from ..utils.feature_flags import FeatureFlags
+from ..utils.versions import ReleaseChannel
 from ..core.capacity import H100_DEVICE_TYPE, H200_DEVICE_TYPE, B200_DEVICE_TYPE, get_reservation_deployment_type
 from ..core.cluster import (
     get_all_clusters_programmatic,
@@ -263,15 +264,13 @@ def cluster_create(args) -> None:
   xpk_print(f'Starting cluster create for cluster {args.cluster}:', flush=True)
   add_zone_and_project(args)
 
-  if system.device_type in cluster_gcluster.supported_device_types:
-    xpk_print(
-        'Creating the cluster using Cluster Toolkit. Machine Type:'
-        f' {system.gce_machine_type} ...'
-    )
-    cluster_gcluster.cluster_create(args)
-    xpk_exit(0)
+  release_channel = (
+      ReleaseChannel.REGULAR if args.gke_version else ReleaseChannel.RAPID
+  )
 
-  return_code, gke_server_config = get_gke_server_config(args)
+  return_code, gke_server_config = get_gke_server_config(
+      args, release_channel=release_channel
+  )
   if return_code != 0 or gke_server_config is None:
     xpk_exit(return_code)
 
@@ -281,8 +280,20 @@ def cluster_create(args) -> None:
   if return_code != 0 or gke_control_plane_version is None:
     xpk_exit(return_code)
 
+  if system.device_type in cluster_gcluster.supported_device_types:
+    xpk_print(
+        'Creating the cluster using Cluster Toolkit. Machine Type:'
+        f' {system.gce_machine_type} ...'
+    )
+    cluster_gcluster.cluster_create(
+        args,
+        gke_control_plane_version=gke_control_plane_version,
+        release_channel=release_channel,
+    )
+    xpk_exit(0)
+
   create_cluster_command_code = create_cluster_if_necessary(
-      args, gke_control_plane_version, system
+      args, gke_control_plane_version, system, release_channel=release_channel
   )
   if create_cluster_command_code != 0:
     xpk_exit(create_cluster_command_code)
@@ -1022,7 +1033,10 @@ def update_coredns_if_necessary() -> int:
 
 
 def create_cluster_if_necessary(
-    args, gke_control_plane_version: str, system: SystemCharacteristics
+    args,
+    gke_control_plane_version: str,
+    system: SystemCharacteristics,
+    release_channel: ReleaseChannel,
 ) -> int:
   """Creates cluster if not present in the project.
 
@@ -1043,7 +1057,7 @@ def create_cluster_if_necessary(
     return 0
   else:
     return run_gke_cluster_create_command(
-        args, gke_control_plane_version, system
+        args, gke_control_plane_version, system, release_channel=release_channel
     )
 
 
@@ -1115,7 +1129,10 @@ def run_gke_clusters_list_command(args) -> int:
 
 
 def run_gke_cluster_create_command(
-    args, gke_control_plane_version: str, system: SystemCharacteristics
+    args,
+    gke_control_plane_version: str,
+    system: SystemCharacteristics,
+    release_channel: ReleaseChannel,
 ) -> int:
   """Run the Create GKE Cluster request.
 
@@ -1155,6 +1172,7 @@ def run_gke_cluster_create_command(
       ' --enable-dns-access'
       ' --autoscaling-profile=optimize-utilization'
       ' --labels=gke_product_type=xpk'
+      f' --release-channel={release_channel.value}'
   )
 
   if args.gke_version or system.accelerator_type == AcceleratorType.GPU:

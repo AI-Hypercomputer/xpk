@@ -851,7 +851,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Type:               string(slice.SliceStateConditionType),
 						Status:             metav1.ConditionFalse,
 						Reason:             string(core.MMIGHealthStatusActivating),
-						LastTransitionTime: metav1.NewTime(time.Now().Add(-core.ActivationTimeout)),
+						LastTransitionTime: metav1.NewTime(time.Now().Add(-3 * time.Minute)),
 						Message:            "Slice is stale",
 					})
 					g.Expect(k8sClient.Status().Update(ctx, createdSlice)).To(gomega.Succeed())

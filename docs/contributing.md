@@ -79,3 +79,7 @@ You can read more about our testing guidance [here](./testing.md).
 All submissions, including submissions by project members, require review. We
 use [GitHub pull requests](https://docs.github.com/articles/about-pull-requests)
 for this purpose.
+
+Review request tickets are triaged every two weeks. Once the ticket is submitted,
+reviewers will be notified over email and will reach out to you after the reviewer
+is assigned.

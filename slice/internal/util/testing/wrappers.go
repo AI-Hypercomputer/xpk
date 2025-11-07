@@ -348,7 +348,7 @@ func (s *SliceWrapper) Stale() *SliceWrapper {
 		Status:             metav1.ConditionFalse,
 		LastTransitionTime: metav1.NewTime(time.Now().Add(-core.ActivationTimeout)),
 		Reason:             string(core.MMIGHealthStatusActivating),
-		Message:            "Error by test",
+		Message:            "Stale by test",
 	}
 	apimeta.SetStatusCondition(&s.Status.Conditions, cond)
 	return s

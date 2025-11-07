@@ -55,7 +55,7 @@ func IsStale(slice *v1alpha1.Slice) bool {
 
 func Deactivating(slice *v1alpha1.Slice) bool {
 	cond := meta.FindStatusCondition(slice.Status.Conditions, string(v1alpha1.SliceStateConditionType))
-	return cond != nil && cond.Status == metav1.ConditionFalse && cond.Reason == string(MMIGHealthStatusDeactivating)
+	return cond != nil && cond.Status == metav1.ConditionFalse && cond.Reason == MMIGHealthStatusDeactivating
 }
 
 func IsError(slice *v1alpha1.Slice) bool {

@@ -27,7 +27,7 @@ import (
 )
 
 const (
-	ActivationTimeout = 3 * time.Minute
+	activationTimeout = 3 * time.Minute
 )
 
 func SliceKeyFromWorkload(wl *kueue.Workload, podSetName kueue.PodSetReference) client.ObjectKey {

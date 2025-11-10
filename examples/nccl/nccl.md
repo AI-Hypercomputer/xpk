@@ -11,7 +11,7 @@ Skip this step if you have already provisioned a GKE cluster with A3 Ultra or A3
 First step is to create a cluster with A3 Ultra or A3 Mega machine. Execute command below:
 
 ```
-xpk cluster create \
+python3 xpk.py cluster create \
     --cluster=$CLUSTER_NAME --device-type=$DEVICE_TYPE \
     --zone=$COMPUTE_ZONE  --project=$PROJECT_ID \
     --num-nodes=$CLUSTER_NUM_NODES --reservation=$RESERVATION_ID
@@ -26,7 +26,7 @@ The command to run NCCL tests on A3 clusters depends on the type of machine.
 
 
 ```bash
-xpk workload create \
+python3 xpk.py workload create \
     --workload=nccl-test --command="./examples/nccl/nccl-a3mega.sh" \
     --base-docker-image=us-docker.pkg.dev/gce-ai-infra/gpudirect-tcpxo/nccl-plugin-gpudirecttcpx-dev:v1.0.8-1 \
     --cluster=$CLUSTER_NAME --device-type=$DEVICE_TYPE \
@@ -37,7 +37,7 @@ xpk workload create \
 #### A3 Ultra
 
 ```bash
-xpk workload create \
+python3 xpk.py workload create \
     --workload=nccl-test --command="./examples/nccl/nccl-a3ultra.sh" \
     --base-docker-image=us-docker.pkg.dev/gce-ai-infra/gpudirect-gib/nccl-plugin-gib-diagnostic:v1.0.3 \
     --cluster=$CLUSTER_NAME --device-type=$DEVICE_TYPE \

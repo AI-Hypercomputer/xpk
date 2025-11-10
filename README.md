@@ -217,7 +217,7 @@ all zones.
     # Find your reservations
     gcloud compute reservations list --project=$PROJECT_ID
     # Run cluster create with reservation.
-    xpk cluster create \
+    python3 xpk.py cluster create \
     --cluster xpk-test --tpu-type=v5litepod-256 \
     --num-slices=2 \
     --reservation=$RESERVATION_ID
@@ -226,7 +226,7 @@ all zones.
 *   Cluster Create (provision on-demand capacity):
 
     ```shell
-    xpk cluster create \
+    python3 xpk.py cluster create \
     --cluster xpk-test --tpu-type=v5litepod-16 \
     --num-slices=4 --on-demand
     ```
@@ -234,14 +234,14 @@ all zones.
 *   Cluster Create (provision spot / preemptable capacity):
 
     ```shell
-    xpk cluster create \
+    python3 xpk.py cluster create \
     --cluster xpk-test --tpu-type=v5litepod-16 \
     --num-slices=4 --spot
     ```
 
 * Cluster Create (DWS flex queued capacity):
     ```shell
-        xpk cluster create \
+        python3 xpk.py cluster create \
         --cluster xpk-test --tpu-type=v5litepod-16 \
         --num-slices=4 --flex
     ```
@@ -249,7 +249,7 @@ all zones.
 * Cluster Create for Pathways:
     Pathways compatible cluster can be created using `cluster create-pathways`.
     ```shell
-    xpk cluster create-pathways \
+    python3 xpk.py cluster create-pathways \
     --cluster xpk-pw-test \
     --num-slices=4 --on-demand \
     --tpu-type=v5litepod-16
@@ -259,7 +259,7 @@ all zones.
 *   Cluster Create for Ray:
     A cluster with KubeRay enabled and a RayCluster can be created using `cluster create-ray`.
     ```shell
-    xpk cluster create-ray \
+    python3 xpk.py cluster create-ray \
     --cluster xpk-rc-test \
     --ray-version=2.39.0 \
     --num-slices=4 --on-demand \
@@ -272,7 +272,7 @@ all zones.
     For example, if a user creates a cluster with 4 slices:
 
     ```shell
-    xpk cluster create \
+    python3 xpk.py cluster create \
     --cluster xpk-test --tpu-type=v5litepod-16 \
     --num-slices=4  --reservation=$RESERVATION_ID
     ```
@@ -281,7 +281,7 @@ all zones.
     new slices:
 
     ```shell
-    xpk cluster create \
+    python3 xpk.py cluster create \
     --cluster xpk-test --tpu-type=v5litepod-16 \
     --num-slices=8  --reservation=$RESERVATION_ID
     ```
@@ -291,13 +291,13 @@ all zones.
     Use `--force` to skip prompts.
 
     ```shell
-    xpk cluster create \
+    python3 xpk.py cluster create \
     --cluster xpk-test --tpu-type=v5litepod-16 \
     --num-slices=6  --reservation=$RESERVATION_ID
 
     # Skip delete prompts using --force.
 
-    xpk cluster create --force \
+    python3 xpk.py cluster create --force \
     --cluster xpk-test --tpu-type=v5litepod-16 \
     --num-slices=6  --reservation=$RESERVATION_ID
     ```
@@ -307,13 +307,13 @@ all zones.
     user when deleting slices. Use `--force` to skip prompts.
 
     ```shell
-    xpk cluster create \
+    python3 xpk.py cluster create \
     --cluster xpk-test --tpu-type=v4-8 \
     --num-slices=4  --reservation=$RESERVATION_ID
 
     # Skip delete prompts using --force.
 
-    xpk cluster create --force \
+    python3 xpk.py cluster create --force \
     --cluster xpk-test --tpu-type=v4-8 \
     --num-slices=4  --reservation=$RESERVATION_ID
     ```
@@ -344,7 +344,7 @@ This argument allows you to specify additional IP ranges (in CIDR notation) that
 * To create a private cluster and allow access to Control Plane only to your current machine:
 
   ```shell
-  xpk cluster create \
+  python3 xpk.py cluster create \
     --cluster=xpk-private-cluster \
     --tpu-type=v4-8 --num-slices=2 \
     --private
@@ -353,7 +353,7 @@ This argument allows you to specify additional IP ranges (in CIDR notation) that
 * To create a private cluster and allow access to Control Plane only to your current machine and the IP ranges `1.2.3.0/24` and `1.2.4.5/32`:
 
   ```shell
-  xpk cluster create \
+  python3 xpk.py cluster create \
     --cluster=xpk-private-cluster \
     --tpu-type=v4-8 --num-slices=2 \
     --authorized-networks 1.2.3.0/24 1.2.4.5/32
@@ -379,7 +379,7 @@ You can create a Vertex AI Tensorboard for your cluster with `Cluster Create` co
 * Create Vertex AI Tensorboard in default region with default Tensorboard name:
 
 ```shell
-xpk cluster create \
+python3 xpk.py cluster create \
 --cluster xpk-test --num-slices=1 --tpu-type=v4-8 \
 --create-vertex-tensorboard
 ```
@@ -389,7 +389,7 @@ will create a Vertex AI Tensorboard with the name `xpk-test-tb-instance` (*<args
 * Create Vertex AI Tensorboard in user-specified region with default Tensorboard name:
 
 ```shell
-xpk cluster create \
+python3 xpk.py cluster create \
 --cluster xpk-test --num-slices=1 --tpu-type=v4-8 \
 --create-vertex-tensorboard --tensorboard-region=us-west1
 ```
@@ -399,7 +399,7 @@ will create a Vertex AI Tensorboard with the name `xpk-test-tb-instance` (*<args
 * Create Vertex AI Tensorboard in default region with user-specified Tensorboard name:
 
 ```shell
-xpk cluster create \
+python3 xpk.py cluster create \
 --cluster xpk-test --num-slices=1 --tpu-type=v4-8 \
 --create-vertex-tensorboard --tensorboard-name=tb-testing
 ```
@@ -409,7 +409,7 @@ will create a Vertex AI Tensorboard with the name `tb-testing` in `us-central1`.
 * Create Vertex AI Tensorboard in user-specified region with user-specified Tensorboard name:
 
 ```shell
-xpk cluster create \
+python3 xpk.py cluster create \
 --cluster xpk-test --num-slices=1 --tpu-type=v4-8 \
 --create-vertex-tensorboard --tensorboard-region=us-west1 --tensorboard-name=tb-testing
 ```
@@ -419,7 +419,7 @@ will create a Vertex AI Tensorboard instance with the name `tb-testing` in `us-w
 * Create Vertex AI Tensorboard in an unsupported region:
 
 ```shell
-xpk cluster create \
+python3 xpk.py cluster create \
 --cluster xpk-test --num-slices=1 --tpu-type=v4-8 \
 --create-vertex-tensorboard --tensorboard-region=us-central2
 ```
@@ -430,20 +430,20 @@ will fail the cluster creation process because Vertex AI Tensorboard is not supp
 *   Cluster Delete (deprovision capacity):
 
     ```shell
-    xpk cluster delete \
+    python3 xpk.py cluster delete \
     --cluster xpk-test
     ```
 ## Cluster List
 *   Cluster List (see provisioned capacity):
 
     ```shell
-    xpk cluster list
+    python3 xpk.py cluster list
     ```
 ## Cluster Describe
 *   Cluster Describe (see capacity):
 
     ```shell
-    xpk cluster describe \
+    python3 xpk.py cluster describe \
     --cluster xpk-test
     ```
 
@@ -451,7 +451,7 @@ will fail the cluster creation process because Vertex AI Tensorboard is not supp
 *   Cluster Cacheimage (enables faster start times):
 
     ```shell
-    xpk cluster cacheimage \
+    python3 xpk.py cluster cacheimage \
     --cluster xpk-test --docker-image gcr.io/your_docker_image \
     --tpu-type=v5litepod-16
     ```
@@ -469,7 +469,7 @@ A4 | `b200-8`
 
 
 ```shell
-xpk cluster create \
+python3 xpk.py cluster create \
   --cluster CLUSTER_NAME --device-type DEVICE_TYPE \
   --zone=$COMPUTE_ZONE  --project=$PROJECT_ID \
   --num-nodes=$NUM_NODES --reservation=$RESERVATION_ID
@@ -494,7 +494,7 @@ Currently `xpk cluster adapt` supports only the following device types:
 
 Example usage: 
 ```shell
-xpk cluster adapt \
+python3 xpk.py cluster adapt \
   --cluster=$CLUSTER_NAME --device-type=$DEVICE_TYPE \
   --zone=$COMPUTE_ZONE  --project=$PROJECT_ID \
   --num-nodes=$NUM_NODES --reservation=$RESERVATION_ID
@@ -516,7 +516,7 @@ To use the GCS FUSE with XPK you need to create a [Storage Bucket](https://conso
 Once it's ready you can use `xpk storage attach` with `--type=gcsfuse` command to attach a FUSE storage instance to your cluster:
 
 ```shell
-xpk storage attach test-fuse-storage --type=gcsfuse \
+python3 xpk.py storage attach test-fuse-storage --type=gcsfuse \
   --project=$PROJECT --cluster=$CLUSTER --zone=$ZONE 
   --mount-point='/test-mount-point' --readonly=false \
   --bucket=test-bucket --size=1 --auto-mount=false
@@ -541,7 +541,7 @@ A Filestore adapter lets you mount and access [Filestore instances](https://clou
 To create and attach a GCP Filestore instance to your cluster use `xpk storage create` command with `--type=gcpfilestore`:
 
 ```shell
-xpk storage create test-fs-storage --type=gcpfilestore \
+python3 xpk.py storage create test-fs-storage --type=gcpfilestore \
   --auto-mount=false --mount-point=/data-fs --readonly=false \
   --size=1024 --tier=BASIC_HDD --access_mode=ReadWriteMany --vol=default \
   --project=$PROJECT --cluster=$CLUSTER --zone=$ZONE
@@ -550,7 +550,7 @@ xpk storage create test-fs-storage --type=gcpfilestore \
 You can also attach an existing Filestore instance to your cluster using `xpk storage attach` command:
 
 ```shell
-xpk storage attach test-fs-storage --type=gcpfilestore \
+python3 xpk.py storage attach test-fs-storage --type=gcpfilestore \
   --auto-mount=false --mount-point=/data-fs --readonly=false \
   --size=1024 --tier=BASIC_HDD --access_mode=ReadWriteMany --vol=default \
   --project=$PROJECT --cluster=$CLUSTER --zone=$ZONE
@@ -579,7 +579,7 @@ To use the GCS Parallelstore with XPK you need to create a [Parallelstore Instan
 Once it's ready you can use `xpk storage attach` with `--type=parallelstore` command to attach a Parallelstore instance to your cluster. Currently, attaching a Parallelstore is supported only by providing a manifest file.
 
 ```shell
-xpk storage attach test-parallelstore-storage --type=parallelstore \
+python3 xpk.py storage attach test-parallelstore-storage --type=parallelstore \
   --project=$PROJECT --cluster=$CLUSTER --zone=$ZONE \
   --mount-point='/test-mount-point' --readonly=false \
   --auto-mount=true \
@@ -603,7 +603,7 @@ To use the GCE PersistentDisk with XPK you need to create a [disk in GCE](https:
 Once it's ready you can use `xpk storage attach` with `--type=pd` command to attach a PersistentDisk instance to your cluster. Currently, attaching a PersistentDisk is supported only by providing a manifest file.
 
 ```shell
-xpk storage attach test-pd-storage --type=pd \
+python3 xpk.py storage attach test-pd-storage --type=pd \
   --project=$PROJECT --cluster=$CLUSTER --zone=$ZONE \
   --mount-point='/test-mount-point' --readonly=false \
   --auto-mount=true \
@@ -627,7 +627,7 @@ To use the GCP Managed Lustre with XPK you need to create [an instance](https://
 Once it's ready you can use `xpk storage attach` with `--type=lustre` command to attach a Managed Lustre instance to your cluster. Currently, attaching a Managed Lustre instance is supported only by providing a manifest file.
 
 ```shell
-xpk storage attach test-lustre-storage --type=lustre \
+python3 xpk.py storage attach test-lustre-storage --type=lustre \
   --project=$PROJECT --cluster=$CLUSTER --zone=$ZONE \
   --mount-point='/test-mount-point' --readonly=false \
   --auto-mount=true \
@@ -645,7 +645,7 @@ Parameters:
 ### List attached storages
 
 ```shell
-xpk storage list \
+python3 xpk.py storage list \
   --project=$PROJECT --cluster $CLUSTER --zone=$ZONE
 ```
 
@@ -654,7 +654,7 @@ xpk storage list \
 If you specified `--auto-mount=true` when creating or attaching a storage, then all workloads deployed on the cluster will have the volume attached by default. Otherwise, in order to have the storage attached, you have to add `--storage` parameter to `workload create` command:
 
 ```shell
-xpk workload create \
+python3 xpk.py workload create \
   --workload xpk-test-workload --command "echo goodbye" \
   --project=$PROJECT --cluster=$CLUSTER --zone=$ZONE \
   --tpu-type=v5litepod-16 --storage=test-storage
@@ -663,7 +663,7 @@ xpk workload create \
 ### Detaching storage
 
 ```shell
-xpk storage detach $STORAGE_NAME \
+python3 xpk.py storage detach $STORAGE_NAME \
   --project=$PROJECT --cluster=$CLUSTER --zone=$ZONE
 ```
 
@@ -672,7 +672,7 @@ xpk storage detach $STORAGE_NAME \
 XPK allows you to remove Filestore instances easily with `xpk storage delete` command. **Warning:** this deletes all data contained in the Filestore!
 
 ```shell
-xpk storage delete test-fs-instance \
+python3 xpk.py storage delete test-fs-instance \
   --project=$PROJECT --cluster=$CLUSTER --zone=$ZONE
 ```
 
@@ -680,14 +680,14 @@ xpk storage delete test-fs-instance \
 *   Workload Create (submit training job):
 
     ```shell
-    xpk workload create \
+    python3 xpk.py workload create \
     --workload xpk-test-workload --command "echo goodbye" \
     --cluster xpk-test \
     --tpu-type=v5litepod-16 --project=$PROJECT
     ```
 *   Workload create(DWS flex with queued provisioning):
         ```shell
-    xpk workload create \
+    python3 xpk.py workload create \
     --workload xpk-test-workload --command "echo goodbye" \
     --cluster xpk-test  --flex \
     --tpu-type=v5litepod-16 --project=$PROJECT
@@ -697,7 +697,7 @@ xpk storage delete test-fs-instance \
 
     Pathways workload example:
     ```shell
-    xpk workload create-pathways \
+    python3 xpk.py workload create-pathways \
     --workload xpk-pw-test \
     --num-slices=1 \
     --tpu-type=v5litepod-16 \
@@ -711,7 +711,7 @@ xpk storage delete test-fs-instance \
 
     Pathways workload example:
     ```shell
-    xpk workload create-pathways \
+    python3 xpk.py workload create-pathways \
     --workload xpk-regular-test \
     --num-slices=1 \
     --tpu-type=v5litepod-16 \
@@ -724,7 +724,7 @@ xpk storage delete test-fs-instance \
     Pathways in headless mode - Pathways now offers the capability to run JAX workloads in Vertex AI notebooks or in GCE VMs!
     Specify `--headless` with `workload create-pathways` when the user workload is not provided in a docker container.
     ```shell
-    xpk workload create-pathways --headless \
+    python3 xpk.py workload create-pathways --headless \
     --workload xpk-pw-headless \
     --num-slices=1 \
     --tpu-type=v5litepod-16 \
@@ -759,7 +759,7 @@ A3 Ultra | `h200-141gb-8`
 A4 | `b200-8`
 
 ```shell
-xpk workload create \
+python3 xpk.py workload create \
   --workload=$WORKLOAD_NAME --command="echo goodbye" \
   --cluster=$CLUSTER_NAME --device-type DEVICE_TYPE \
   --zone=$COMPUTE_ZONE  --project=$PROJECT_ID \
@@ -790,7 +790,7 @@ In order to run NCCL test on A3 machines check out [this guide](/examples/nccl/n
 
   #### General Example:
   ```shell
-  xpk workload create \
+  python3 xpk.py workload create \
   --workload xpk-test-medium-workload --command "echo goodbye" --cluster \
   xpk-test --tpu-type=v5litepod-16 --priority=medium
   ```
@@ -807,7 +807,7 @@ XPK will create a Vertex AI Experiment in `workload create` command and attach t
 * Create Vertex AI Experiment with default Experiment name:
 
 ```shell
-xpk workload create \
+python3 xpk.py workload create \
 --cluster xpk-test --workload xpk-workload \
 --use-vertex-tensorboard
 ```
@@ -817,7 +817,7 @@ will create a Vertex AI Experiment with the name `xpk-test-xpk-workload` (*<args
 * Create Vertex AI Experiment with user-specified Experiment name:
 
 ```shell
-xpk workload create \
+python3 xpk.py workload create \
 --cluster xpk-test --workload xpk-workload \
 --use-vertex-tensorboard --experiment-name=test-experiment
 ```
@@ -830,7 +830,7 @@ Check out [MaxText example](https://github.com/google/maxtext/pull/570) on how t
 *   Workload Delete (delete training job):
 
     ```shell
-    xpk workload delete \
+    python3 xpk.py workload delete \
     --workload xpk-test-workload --cluster xpk-test
     ```
 
@@ -839,7 +839,7 @@ Check out [MaxText example](https://github.com/google/maxtext/pull/570) on how t
 *   Workload Delete (delete all training jobs in the cluster):
 
     ```shell
-    xpk workload delete \
+    python3 xpk.py workload delete \
     --cluster xpk-test
     ```
 
@@ -849,7 +849,7 @@ Check out [MaxText example](https://github.com/google/maxtext/pull/570) on how t
     * Filter by Job: `filter-by-job`
 
     ```shell
-    xpk workload delete \
+    python3 xpk.py workload delete \
     --cluster xpk-test --filter-by-job=$USER
     ```
 
@@ -858,7 +858,7 @@ Check out [MaxText example](https://github.com/google/maxtext/pull/570) on how t
     * Filter by Status: `filter-by-status`
 
     ```shell
-    xpk workload delete \
+    python3 xpk.py workload delete \
     --cluster xpk-test --filter-by-status=QUEUED
     ```
 
@@ -868,7 +868,7 @@ Check out [MaxText example](https://github.com/google/maxtext/pull/570) on how t
 *   Workload List (see training jobs):
 
     ```shell
-    xpk workload list \
+    python3 xpk.py workload list \
     --cluster xpk-test
     ```
 
@@ -903,7 +903,7 @@ Check out [MaxText example](https://github.com/google/maxtext/pull/570) on how t
   Filter the workload list by the name of a job.
 
     ```shell
-    xpk workload list \
+    python3 xpk.py workload list \
     --cluster xpk-test --filter-by-job=$USER
     ```
 
@@ -912,14 +912,14 @@ Check out [MaxText example](https://github.com/google/maxtext/pull/570) on how t
   Wait for a job to complete.
 
     ```shell
-    xpk workload list \
+    python3 xpk.py workload list \
     --cluster xpk-test --wait-for-job-completion=xpk-test-workload
     ```
 
   Wait for a job to complete with a timeout of 300 seconds.
 
     ```shell
-    xpk workload list \
+    python3 xpk.py workload list \
     --cluster xpk-test --wait-for-job-completion=xpk-test-workload \
     --timeout=300
     ```
@@ -935,7 +935,7 @@ Check out [MaxText example](https://github.com/google/maxtext/pull/570) on how t
 *   Job List (see jobs submitted via batch command):
 
     ```shell
-    xpk job ls --cluster xpk-test
+    python3 xpk.py job ls --cluster xpk-test
     ```
 
 * Example Job List Output:
@@ -953,7 +953,7 @@ Check out [MaxText example](https://github.com/google/maxtext/pull/570) on how t
 *   Job Cancel (delete job submitted via batch command):
 
     ```shell
-    xpk job cancel xpk-def-app-profile-slurm-74kbv --cluster xpk-test
+    python3 xpk.py job cancel xpk-def-app-profile-slurm-74kbv --cluster xpk-test
     ```
 
 ## Inspector
@@ -961,7 +961,7 @@ Check out [MaxText example](https://github.com/google/maxtext/pull/570) on how t
 Inspector output is saved to a file.
 
     ```shell
-    xpk inspector \
+    python3 xpk.py inspector \
       --cluster $CLUSTER_NAME \
       --project $PROJECT_ID \
       --zone $ZONE
@@ -1003,7 +1003,7 @@ Inspector output is saved to a file.
 * `xpk run` lets you execute scripts on a cluster with ease. It automates task execution, handles interruptions, and streams job output to your console.
 
   ```shell
-  xpk run --kind-cluster -n 2 -t 0-2 examples/job.sh 
+  python xpk.py run --kind-cluster -n 2 -t 0-2 examples/job.sh 
   ```
 
 * Example Output:
@@ -1039,7 +1039,7 @@ In order to use XPK for GPU, you can do so by using `device-type` flag.
     gcloud compute reservations list --project=$PROJECT_ID
 
     # Run cluster create with reservation.
-    xpk cluster create \
+    python3 xpk.py cluster create \
     --cluster xpk-test --device-type=h100-80gb-8 \
     --num-nodes=2 \
     --reservation=$RESERVATION_ID
@@ -1048,20 +1048,20 @@ In order to use XPK for GPU, you can do so by using `device-type` flag.
 *   Cluster Delete (deprovision capacity):
 
     ```shell
-    xpk cluster delete \
+    python3 xpk.py cluster delete \
     --cluster xpk-test
     ```
 
 *   Cluster List (see provisioned capacity):
 
     ```shell
-    xpk cluster list
+    python3 xpk.py cluster list
     ```
 
 *   Cluster Describe (see capacity):
 
     ```shell
-    xpk cluster describe \
+    python3 xpk.py cluster describe \
     --cluster xpk-test
     ```
 
@@ -1069,7 +1069,7 @@ In order to use XPK for GPU, you can do so by using `device-type` flag.
 *   Cluster Cacheimage (enables faster start times):
 
     ```shell
-    xpk cluster cacheimage \
+    python3 xpk.py cluster cacheimage \
     --cluster xpk-test --docker-image gcr.io/your_docker_image \
     --device-type=h100-80gb-8
     ```
@@ -1090,7 +1090,7 @@ In order to use XPK for GPU, you can do so by using `device-type` flag.
 
     ```shell
     # Submit a workload
-    xpk workload create \
+    python3 xpk.py workload create \
     --cluster xpk-test --device-type h100-80gb-8 \
     --workload xpk-test-workload \
     --command="echo hello world"
@@ -1099,7 +1099,7 @@ In order to use XPK for GPU, you can do so by using `device-type` flag.
 *   Workload Delete (delete training job):
 
     ```shell
-    xpk workload delete \
+    python3 xpk.py workload delete \
     --workload xpk-test-workload --cluster xpk-test
     ```
 
@@ -1108,7 +1108,7 @@ In order to use XPK for GPU, you can do so by using `device-type` flag.
 *   Workload Delete (delete all training jobs in the cluster):
 
     ```shell
-    xpk workload delete \
+    python3 xpk.py workload delete \
     --cluster xpk-test
     ```
 
@@ -1118,7 +1118,7 @@ In order to use XPK for GPU, you can do so by using `device-type` flag.
     * Filter by Job: `filter-by-job`
 
     ```shell
-    xpk workload delete \
+    python3 xpk.py workload delete \
     --cluster xpk-test --filter-by-job=$USER
     ```
 
@@ -1127,7 +1127,7 @@ In order to use XPK for GPU, you can do so by using `device-type` flag.
     * Filter by Status: `filter-by-status`
 
     ```shell
-    xpk workload delete \
+    python3 xpk.py workload delete \
     --cluster xpk-test --filter-by-status=QUEUED
     ```
 
@@ -1141,7 +1141,7 @@ In order to use XPK for CPU, you can do so by using `device-type` flag.
 
     ```shell
     # Run cluster create with on demand capacity.
-    xpk cluster create \
+    python3 xpk.py cluster create \
     --cluster xpk-test \
     --device-type=n2-standard-32-256 \
     --num-slices=1 \
@@ -1155,7 +1155,7 @@ In order to use XPK for CPU, you can do so by using `device-type` flag.
 
     ```shell
     # Submit a workload
-    xpk workload create \
+    python3 xpk.py workload create \
     --cluster xpk-test \
     --num-slices=1 \
     --device-type=n2-standard-32-256 \
@@ -1185,7 +1185,7 @@ RESERVATION=reservation_id
 PROJECT=my_project
 ZONE=us-east5-b
 
-xpk cluster create \
+python3 xpk.py cluster create \
   --cluster $CLUSTER_NAME \
   --num-slices=$NUM_SLICES \
     --device-type=$DEVICE_TYPE \
@@ -1222,7 +1222,7 @@ RESERVATION=reservation_id
 PROJECT=my_project
 ZONE=us-east5-b
 
-xpk cluster create \
+python3 xpk.py cluster create \
   --cluster $CLUSTER_NAME \
   --num-slices=$NUM_SLICES \
     --device-type=$DEVICE_TYPE \
@@ -1245,7 +1245,7 @@ PROJECT=my_project
 ZONE=us-east5-b
 
 # This will create 2x v4-16 node pools and set the max autoprovisioned chips to 16.
-xpk cluster create \
+python3 xpk.py cluster create \
   --cluster $CLUSTER_NAME \
   --num-slices=$NUM_SLICES \
     --device-type=$DEVICE_TYPE \
@@ -1265,7 +1265,7 @@ PROJECT=my_project
 ZONE=us-east5-b
 
 # This will clear the node pools if they exist in the cluster and set the max autoprovisioned chips to 16
-xpk cluster create \
+python3 xpk.py cluster create \
   --cluster $CLUSTER_NAME \
   --num-slices=$NUM_SLICES \
     --device-type=$DEVICE_TYPE \
@@ -1286,7 +1286,7 @@ Reconfigure the `--device-type` and `--num-slices`
   PROJECT=my_project
   ZONE=us-east5-b
   # Create a 2x v4-8 TPU workload.
-  xpk workload create \
+  python3 xpk.py workload create \
     --cluster $CLUSTER \
     --workload ${USER}-nap-${NUM_SLICES}x${DEVICE_TYPE}_$(date +%H-%M-%S) \
     --command "echo hello world from $NUM_SLICES $DEVICE_TYPE" \
@@ -1299,7 +1299,7 @@ Reconfigure the `--device-type` and `--num-slices`
   DEVICE_TYPE=v4-16
 
   # Create a 1x v4-16 TPU workload.
-  xpk workload create \
+  python3 xpk.py workload create \
     --cluster $CLUSTER \
     --workload ${USER}-nap-${NUM_SLICES}x${DEVICE_TYPE}_$(date +%H-%M-%S) \
     --command "echo hello world from $NUM_SLICES $DEVICE_TYPE" \
@@ -1309,7 +1309,7 @@ Reconfigure the `--device-type` and `--num-slices`
     --project=$PROJECT
 
   # Use a different reservation from what the cluster was created with.
-  xpk workload create \
+  python3 xpk.py workload create \
     --cluster $CLUSTER \
     --workload ${USER}-nap-${NUM_SLICES}x${DEVICE_TYPE}_$(date +%H-%M-%S) \
     --command "echo hello world from $NUM_SLICES $DEVICE_TYPE" \
@@ -1353,19 +1353,19 @@ This flow pulls the `--script-dir` into the `--base-docker-image` and runs the n
 
   - `--script-dir` sets which directory to pull into the image. This defaults to the current working directory.
 
-  See `xpk workload create --help` for more info.
+  See `python3 xpk.py workload create --help` for more info.
 
 * Example with defaults which pulls the local directory into the base image:
   ```shell
   echo -e '#!/bin/bash \n echo "Hello world from a test script!"' > test.sh
-  xpk workload create --cluster xpk-test \
+  python3 xpk.py workload create --cluster xpk-test \
   --workload xpk-test-workload-base-image --command "bash test.sh" \
   --tpu-type=v5litepod-16 --num-slices=1
   ```
 
 * Recommended Flow For Normal Sized Jobs (fewer than 10k accelerators):
   ```shell
-  xpk workload create --cluster xpk-test \
+  python3 xpk.py workload create --cluster xpk-test \
   --workload xpk-test-workload-base-image --command "bash custom_script.sh" \
   --base-docker-image=gcr.io/your_dependencies_docker_image \
   --tpu-type=v5litepod-16 --num-slices=1
@@ -1378,17 +1378,17 @@ workload.
 
 * Running with `--docker-image`:
   ```shell
-  xpk workload create --cluster xpk-test \
+  python3 xpk.py workload create --cluster xpk-test \
   --workload xpk-test-workload-base-image --command "bash test.sh" \
   --tpu-type=v5litepod-16 --num-slices=1 --docker-image=gcr.io/your_docker_image
   ```
 
 * Recommended Flow For Large Sized Jobs (more than 10k accelerators):
   ```shell
-  xpk cluster cacheimage \
+  python3 xpk.py cluster cacheimage \
   --cluster xpk-test --docker-image gcr.io/your_docker_image
   # Run workload create with the same image.
-  xpk workload create --cluster xpk-test \
+  python3 xpk.py workload create --cluster xpk-test \
   --workload xpk-test-workload-base-image --command "bash test.sh" \
   --tpu-type=v5litepod-16 --num-slices=1 --docker-image=gcr.io/your_docker_image
   ```
@@ -1437,7 +1437,7 @@ Please select a CPU type that exists in all zones in the region.
 # Find CPU Types supported in zones.
 gcloud compute machine-types list --zones=$ZONE_LIST
 # Adjust default cpu machine type.
-xpk cluster create --default-pool-cpu-machine-type=CPU_TYPE ...
+python3 xpk.py cluster create --default-pool-cpu-machine-type=CPU_TYPE ...
 ```
 
 ## Workload creation fails
@@ -1446,7 +1446,7 @@ Some XPK cluster configuration might be missing, if workload creation fails with
 
 `[XPK] b'error: the server doesn\'t have a resource type "workloads"\n'`
 
-Mitigate this error by re-running your `xpk cluster create ...` command, to refresh the cluster configurations.
+Mitigate this error by re-running your `xpk.py cluster create ...` command, to refresh the cluster configurations.
 
 ## Permission Issues: `requires one of ["permission_name"] permission(s)`.
 
@@ -1518,7 +1518,7 @@ If error of this kind appeared after updating xpk version it's possible that you
 ## Verbose Logging
 If you are having trouble with your workload, try setting the `--enable-debug-logs` when you schedule it. This will give you more detailed logs to help pinpoint the issue. For example:
 ```shell
-xpk workload create \
+python3 xpk.py workload create \
 --cluster --workload xpk-test-workload \
 --command="echo hello world" --enable-debug-logs
 ```
@@ -1550,7 +1550,7 @@ This configuration will start collecting stack traces inside the `/tmp/debugging
 ### Explore Stack Traces
 To explore the stack traces collected in a temporary directory in Kubernetes Pod, you can run the following command to configure a sidecar container that will read the traces from `/tmp/debugging` directory.
  ```shell
- xpk workload create \
+ python3 xpk.py workload create \
   --workload xpk-test-workload --command "python3 main.py" --cluster \
   xpk-test --tpu-type=v5litepod-16 --deploy-stacktrace-sidecar
  ```
@@ -1561,12 +1561,12 @@ To list available resources and queues use ```xpk info``` command. It allows to 
 
 To see queues with usage and workload info use:
 ```shell
-xpk info --cluster my-cluster
+python3 xpk.py info --cluster my-cluster
 ```
 
 You can specify what kind of resources(clusterqueue or localqueue) you want to see using flags --clusterqueue or --localqueue.
 ```shell
-xpk info --cluster my-cluster --localqueue
+python3 xpk.py info --cluster my-cluster --localqueue
 ```
 
 # Local testing with Kind
@@ -1585,7 +1585,7 @@ xpk interfaces seamlessly with kind to manage Kubernetes clusters locally, facil
 *   Cluster create:
 
     ```shell
-    xpk kind create \
+    python3 xpk.py kind create \
     --cluster xpk-test
     ```
 
@@ -1593,7 +1593,7 @@ xpk interfaces seamlessly with kind to manage Kubernetes clusters locally, facil
 *   Cluster Delete:
 
     ```shell
-    xpk kind delete \
+    python3 xpk.py kind delete \
     --cluster xpk-test
     ```
 
@@ -1601,7 +1601,7 @@ xpk interfaces seamlessly with kind to manage Kubernetes clusters locally, facil
 *   Cluster List:
 
     ```shell
-    xpk kind list
+    python3 xpk.py kind list
     ```
 
 ## Local Testing Basics
@@ -1609,7 +1609,7 @@ xpk interfaces seamlessly with kind to manage Kubernetes clusters locally, facil
 Local testing is available exclusively through the `batch` and `job` commands of xpk with the `--kind-cluster` flag. This allows you to simulate training jobs locally:
 
 ```shell
-xpk batch [other-options] --kind-cluster script
+python xpk.py batch [other-options] --kind-cluster script
 ```
 
 Please note that all other xpk subcommands are intended for use with cloud systems on Google Cloud Engine (GCE) and don't support local testing. This includes commands like cluster, info, inspector, etc.

@@ -53,7 +53,7 @@ To recreate a usual Slurm setup, first prepare your environment by provisioning 
   	- `PROJECT ID`- id of your project
 3. Create a cluster using `xpk cluster create` command and providing machine type and provisioning mode of your choice. 
 	```shell
-	xpk cluster create \
+	python3 xpk.py cluster create \
 	--cluster=$CLUSTER_NAME \
 	--zone=$COMPUTE_ZONE \
 	--project=$PROJECT_ID \
@@ -93,11 +93,11 @@ To recreate a usual Slurm setup, first prepare your environment by provisioning 
 5. Initialize XPK configuration. You can customize the configuration based on your needs, like in the example of Llama 3 finetuning provided below:
 
 ```shell
-xpk config set shell-interactive-command /bin/bash
-xpk config set shell-working-directory /home/llama3
-xpk config set shell-image pytorch/pytorch:2.6.0-cuda12.6-cudnn9-devel
-xpk config set batch-working-directory /home/llama3
-xpk config set batch-image pytorch/pytorch:2.6.0-cuda12.6-cudnn9-runtime
+python3 xpk.py config set shell-interactive-command /bin/bash
+python3 xpk.py config set shell-working-directory /home/llama3
+python3 xpk.py config set shell-image pytorch/pytorch:2.6.0-cuda12.6-cudnn9-devel
+python3 xpk.py config set batch-working-directory /home/llama3
+python3 xpk.py config set batch-image pytorch/pytorch:2.6.0-cuda12.6-cudnn9-runtime
 ```
 
 ## Prepare and upload scripts
@@ -119,7 +119,7 @@ For successful script validation and later job execution, apply the following sc
 ### 2. xpk shell | Slurm login node - download scripts, models and data sets:
 Through the xpk shell you can access the shared file system or edit files (e.g. when quick model changes are needed). It is the equivalent of the Slurm login node. To access the remote system use xpk shell command:
 ```shell
-xpk shell \
+python3 xpk.py shell \
 --project $PROJECT \
 --zone $ZONE \
 --cluster $CLUSTER
@@ -176,7 +176,7 @@ Just like in Slurm, you can submit jobs in XPK using the following methods: batc
 ### 1. xpk run | srun - run CUDA in interactive mode
 xpk run command runs a job in an interactive and blocking way, the results are printed over terminal and no other commands can be executed till the end.
 ```shell
-xpk run \
+python3 xpk.py run \
 --project [project] \
 --zone [zone] \
 --cluster [cluster] \
@@ -194,7 +194,7 @@ Device count: 8
 ### 2. xpk batch | sbatch - run training script in batch mode
 Once your script is ready, simply run the xpk batch command specifying which script to run to execute your workload.
 ```shell
-xpk batch \
+python3 xpk.py batch \
 --project [project] \
 --zone [zone] \
 --cluster [cluster] \
@@ -219,7 +219,7 @@ Once the execution is finished you should be able to see in the logs:
 ## Cleanup
 ### 1. Stop shell
 ```shell
-xpk shell stop \
+python3 xpk.py shell stop \
 --project $PROJECT \
 --zone $ZONE \
 --cluster $CLUSTER
@@ -227,7 +227,7 @@ xpk shell stop \
 
 ### 2. Delete shared storage
 ```shell
-xpk storage delete \
+python3 xpk.py storage delete \
 --project $PROJECT \
 --zone $ZONE \
 --cluster $CLUSTER
@@ -235,7 +235,7 @@ xpk storage delete \
 
 ### 3. Delete XPK cluster
 ```shell
-xpk cluster delete \
+python3 xpk.py cluster delete \
 --project $PROJECT \
 --zone $ZONE \
 --cluster $CLUSTER
@@ -247,7 +247,7 @@ xpk cluster delete \
 
 As in slurm squeue command, xpk uses xpk job ls command to list the jobs in the queue, which were scheduled through Slurm-like mode over a specific cluster.  It lists the jobs with the tasks completion status, duration and age
 ```shell
-xpk job ls \
+python3 xpk.py job ls \
 --project $PROJECT \
 --zone $ZONE \
 --cluster $CLUSTER
@@ -269,7 +269,7 @@ xpk cancel <job_id>
 ### 3. xpk job info | sacct
 To see the details of the job you submitted you can use xpk job info command. 
 ```shell
-xpk job info JOB NAME \
+python3 xpk.py job info JOB NAME \
 --project $PROJECT \
 --zone $ZONE \
 --cluster $CLUSTER

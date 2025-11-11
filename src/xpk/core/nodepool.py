@@ -287,13 +287,14 @@ def run_gke_node_pool_create_command(
       topology_product = get_topology_product(system.topology)
       if capacity_type == CapacityType.FLEX_START:
         command += ' --num-nodes=0'
-      elif topology_product > 1:
+      else:
         command += f' --num-nodes={system.vms_per_slice}'
       command += (
           f' --scopes=storage-full,gke-default,{CLOUD_PLATFORM_AUTH_SCOPE_URL}'
       )
 
-      if topology_product > 1:
+      # --tpu-topology should not be set for single-host single-slice node pools
+      if system.vms_per_slice > 1 or args.num_slices > 1:
         # --placement-type=COMPACT enables group placement policy which
         # is mutually exclusive with workload policy, --tpu-topology should
         # also not be passed when workload policy is used

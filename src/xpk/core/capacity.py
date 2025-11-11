@@ -115,9 +115,12 @@ def get_reservation_maintenance_interval(
   Returns:
     0 if successful and 1 otherwise.
   """
+  reservation_project, reservation_name = get_reservation_project_and_name(
+      reservation, project
+  )
   command = (
-      f'gcloud beta compute reservations describe {reservation}'
-      f' --project={project} --zone={zone} --format="value(specificReservation.instanceProperties.maintenanceInterval)"'
+      f'gcloud beta compute reservations describe {reservation_name}'
+      f' --project={reservation_project} --zone={zone} --format="value(specificReservation.instanceProperties.maintenanceInterval)"'
   )
   return_code, output = run_command_for_value(
       command, 'Get reservation maintenance interval'
@@ -139,9 +142,12 @@ def get_reservation_placement_policy(
   Returns:
     0 if successful and 1 otherwise.
   """
+  reservation_project, reservation_name = get_reservation_project_and_name(
+      reservation, project
+  )
   command = (
-      f'gcloud beta compute reservations describe {reservation}'
-      f' --project={project} --zone={zone} --format="value(resourcePolicies.policy)"'
+      f'gcloud beta compute reservations describe {reservation_name}'
+      f' --project={reservation_project} --zone={zone} --format="value(resourcePolicies.policy)"'
   )
   return_code, output = run_command_for_value(
       command, 'Get reservation placement policy'
@@ -156,9 +162,12 @@ def get_reservation_deployment_type(
     reservation: str, zone: str, project: str
 ) -> str:
   """Get reservation deployment type."""
+  reservation_project, reservation_name = get_reservation_project_and_name(
+      reservation, project
+  )
   command = (
-      f'gcloud beta compute reservations describe {reservation}'
-      f' --project={project} --zone={zone} --format="value(deploymentType)"'
+      f'gcloud beta compute reservations describe {reservation_name}'
+      f' --project={reservation_project} --zone={zone} --format="value(deploymentType)"'
   )
   return_code, output = run_command_for_value(
       command, 'Get reservation deployment type', dry_run_return_val='DENSE'
@@ -178,9 +187,12 @@ def verify_reservation_exists(args) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
+  reservation_project, reservation_name = get_reservation_project_and_name(
+      args.reservation, args.project
+  )
   command = (
-      f'gcloud beta compute reservations describe {args.reservation}'
-      f' --project={args.project} --zone={args.zone}'
+      f'gcloud beta compute reservations describe {reservation_name}'
+      f' --project={reservation_project} --zone={args.zone}'
   )
   return_code = run_command_with_updates(command, 'Describe reservation')
   if return_code != 0:
@@ -264,3 +276,29 @@ def get_capacity_node_selectors_from_capacity_type(
       )
       return_code = 1
   return node_selector, return_code
+
+
+def get_reservation_project_and_name(
+    reservation_name_or_path: str, cluster_project: str
+) -> tuple[str, str]:
+  """Get the reservation project and name.
+
+  Args:
+    reservation_name_or_path: either reservation name or reservation path in format
+      projects/RESERVATION_PROJECT_ID/reservations/RESERVATION_NAME
+    cluster_project: the cluster project
+
+  Returns:
+    Tuple with reservation project and reservation name.
+  """
+  if '/' not in reservation_name_or_path:
+    return cluster_project, reservation_name_or_path
+  reservation_parts = reservation_name_or_path.split('/')
+  if (
+      len(reservation_parts) != 4
+      or reservation_parts[0] != 'projects'
+      or reservation_parts[2] != 'reservations'
+  ):
+    xpk_print('Unable to parse reservation: ', reservation_name_or_path)
+    xpk_exit(1)
+  return reservation_parts[1], reservation_parts[3]

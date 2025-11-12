@@ -18,6 +18,7 @@ package core
 
 import (
 	"regexp"
+	"tpu-slice-controller/api/v1alpha1"
 
 	corev1 "k8s.io/api/core/v1"
 )
@@ -34,7 +35,7 @@ func IsValidTPUTopology(tpuTopology string) bool {
 }
 
 func IsValidTPUAccelerator(tpuAccelerator string) bool {
-	return tpuAccelerator == AcceleratorTpu7x
+	return tpuAccelerator == string(v1alpha1.TypeTpu7x)
 }
 
 func IsRelevantPodTemplateSpec(spec corev1.PodTemplateSpec) bool {

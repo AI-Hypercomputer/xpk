@@ -26,11 +26,9 @@ const (
 
 	TPUSliceHealthNodeSelectorKey   = "cloud.google.com/gke-tpu-slice-4x4x4-health"
 	TPUSliceHealthNodeSelectorValue = "true"
-
-	AcceleratorTpu7x = "tpu-v7x"
 )
 
-const(
+const (
 	// MMIGHealthStatusIncomplete indicates the MMIG is incomplete.
 	MMIGHealthStatusIncomplete MMIGHealthStatus = "INCOMPLETE"
 	// MMIGHealthStatusActivating indicates the MMIG is activating.

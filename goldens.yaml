@@ -5,6 +5,8 @@ goldens:
     command: xpk cluster create --project=golden-project --zone=us-central1-a --enable-autoprovisioning --cluster=golden-cluster --tpu-type=tpu7x-8 --on-demand --dry-run
   "Basic cluster create":
     command: xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-8 --spot --dry-run
+  "Cluster create for multi-host nodepool":
+    command: xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-16 --spot --dry-run
   "Cluster create with CPU and memory limits below capacity":
     command: xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-8 --spot --cpu-limit=1 --memory-limit=1Mi --dry-run
   "Cluster create with CPU and memory limits above capacity":

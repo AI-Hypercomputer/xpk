@@ -54,7 +54,7 @@ kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="Conf
 [XPK] Existing node pool names  ['0']
 [XPK] Task: `Retrieve resource policy` is implemented by the following command not running since it is a dry run. 
 gcloud compute resource-policies describe tpu7x-8-2x2x1-placement-policy --project=golden-project --region=us-central1
-[XPK] To complete NodepoolCreate-golden-cluster-np-0 we are executing gcloud beta container node-pools create golden-cluster-np-0 --location=us-central1 --cluster=golden-cluster --project=golden-project --node-locations=us-central1-a --machine-type=tpu7x-standard-4t --host-maintenance-interval=AS_NEEDED --reservation-affinity=specific --reservation=projects/reservation-project/reservations/golden-reservation --placement-policy=tpu7x-8-2x2x1-placement-policy --enable-gvnic --node-version=0 --num-nodes=1 --scopes=storage-full,gke-default,"https://www.googleapis.com/auth/cloud-platform" --max-pods-per-node 15  
+[XPK] To complete NodepoolCreate-golden-cluster-np-0 we are executing gcloud beta container node-pools create golden-cluster-np-0 --location=us-central1 --cluster=golden-cluster --project=golden-project --node-locations=us-central1-a --machine-type=tpu7x-standard-4t --host-maintenance-interval=AS_NEEDED --reservation-affinity=specific --reservation=projects/reservation-project/reservations/golden-reservation --placement-policy=tpu7x-8-2x2x1-placement-policy --enable-gvnic --node-version=0 --num-nodes=1 --scopes=storage-full,gke-default,"https://www.googleapis.com/auth/cloud-platform" 
 [XPK] Breaking up a total of 1 commands into 1 batches
 [XPK] Pretending all the jobs succeeded
 [XPK] Create or delete node pool request complete.

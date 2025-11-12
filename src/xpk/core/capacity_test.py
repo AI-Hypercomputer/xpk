@@ -16,7 +16,7 @@ limitations under the License.
 
 import pytest
 from unittest.mock import MagicMock, patch
-from .capacity import get_reservation_deployment_type
+from .capacity import get_reservation_deployment_type, get_reservation_project_and_name
 
 
 @patch('xpk.core.capacity.xpk_print')
@@ -48,3 +48,34 @@ def test_get_reservation_deployment_type_returns_deployment_type_when_command_su
       reservation='reservation', zone='zone', project='project'
   )
   assert result == 'DENSE'
+
+
+def test_get_reservation_project_and_name_parses_local_reservation():
+  project, name = get_reservation_project_and_name(
+      'test-reservation', 'cluster-project'
+  )
+
+  assert project == 'cluster-project'
+  assert name == 'test-reservation'
+
+
+def test_get_reservation_project_and_name_parses_shared_reservation():
+  project, name = get_reservation_project_and_name(
+      'projects/reservation-project/reservations/test-reservation',
+      'cluster-project',
+  )
+
+  assert project == 'reservation-project'
+  assert name == 'test-reservation'
+
+
+@patch('xpk.core.capacity.xpk_print')
+def test_get_reservation_project_and_name_fails_for_invalid_reservation(
+    xpk_print: MagicMock, mocker
+):
+  with pytest.raises(SystemExit):
+    get_reservation_project_and_name(
+        'invalid/reservation',
+        'cluster-project',
+    )
+  assert 'Unable to parse reservation' in xpk_print.mock_calls[0].args[0]

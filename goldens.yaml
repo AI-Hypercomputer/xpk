@@ -11,6 +11,8 @@ goldens:
     command: xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-8 --spot --cpu-limit=1 --memory-limit=1Mi --dry-run
   "Cluster create with CPU and memory limits above capacity":
     command: xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-8 --spot --cpu-limit=20 --memory-limit=1Gi --dry-run
+  "Cluster create with shared reservation":
+    command: xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-8 --reservation=projects/reservation-project/reservations/golden-reservation --dry-run
   "Cluster create with gb200-4":
     command: xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --device-type=gb200-4 --reservation=golden-reservation --dry-run
   "Cluster create private":

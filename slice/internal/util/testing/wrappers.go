@@ -296,7 +296,7 @@ func (s *SliceWrapper) PartitionIDs(ids ...string) *SliceWrapper {
 
 func (s *SliceWrapper) Active() *SliceWrapper {
 	cond := metav1.Condition{
-		Type:               string(v1alpha1.SliceStateConditionType),
+		Type:               v1alpha1.SliceStateConditionType,
 		Status:             metav1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
 		Reason:             string(core.MMIGHealthStatusActive),

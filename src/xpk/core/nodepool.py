@@ -292,8 +292,8 @@ def run_gke_node_pool_create_command(
           f' --scopes=storage-full,gke-default,{CLOUD_PLATFORM_AUTH_SCOPE_URL}'
       )
 
-      # --tpu-topology should not be set for single-host single-slice node pools
-      if system.vms_per_slice > 1 or args.num_slices > 1:
+      # --tpu-topology should not be set for single-host node pools
+      if system.vms_per_slice > 1:
         # --placement-type=COMPACT enables group placement policy which
         # is mutually exclusive with workload policy, --tpu-topology should
         # also not be passed when workload policy is used

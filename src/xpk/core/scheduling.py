@@ -19,6 +19,9 @@ from ..utils.topology import is_topology_valid
 from ..utils.execution_context import is_dry_run
 from .capacity import AUTOPROVISIONING_CONFIG_MAXIMUM_KEY, AUTOPROVISIONING_CONFIG_VALUE
 from .resources import CLUSTER_RESOURCES_CONFIGMAP, get_cluster_configmap
+from .commands import run_command_for_value
+from .gcloud_context import zone_to_region
+
 from .system_characteristics import (
     AcceleratorType,
     AcceleratorTypeToAcceleratorCharacteristics,
@@ -306,8 +309,36 @@ def create_sub_slicing_annotations(sub_slicing_topology: str) -> list[str]:
   ]
 
 
-def create_placement_policy_label(system: SystemCharacteristics) -> str:
+def ensure_resource_policy_exists(resource_policy_name: str, args, topology: str) -> None:
+  return_code, _ = run_command_for_value(
+      (
+          'gcloud compute resource-policies describe'
+          f' {resource_policy_name} '
+          f'--project={args.project} '
+          f'--region={zone_to_region(args.zone)}'
+      ),
+      'Retrieve resource policy',
+  )
+
+  if return_code == 0:
+    return
+
+  return_code, _ = run_command_for_value(
+      (
+          'gcloud compute resource-policies create workload-policy'
+          f' {resource_policy_name} --project={args.project} --region={zone_to_region(args.zone)} --type=HIGH_THROUGHPUT'
+          f' --accelerator-topology={topology}'
+      ),
+      'Create resource policy',
+  )
+
+  if return_code != 0:
+    raise RuntimeError('Unable to create resource policy')
+
+
+def create_placement_policy_label(system: SystemCharacteristics, args) -> str:
   name = get_placement_policy_name(system)
+  ensure_resource_policy_exists(name, args, system.topology)
   return f'cloud.google.com/placement-policy-name: {name}'
 
 

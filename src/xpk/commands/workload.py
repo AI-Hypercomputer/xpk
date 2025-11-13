@@ -526,9 +526,7 @@ def workload_create(args) -> None:
           pod_failure_policy=pod_failure_policy,
           annotations=annotations,
           placement_policy_label=(
-              create_placement_policy_label(system)
-              if is_placement_policy_supported(system)
-              else ''
+              create_placement_policy_label(system, args) if is_placement_policy_supported(system) else ''
           ),
       )
 
@@ -548,16 +546,12 @@ def workload_create(args) -> None:
           container=container,
           gpu_scheduler=gpu_scheduler,
           volumes=get_volumes(args, system),
-          storage_annotations=('\n' + (' ' * 12)).join(
-              get_storage_annotations(all_storages)
-          ),
+          storage_annotations=('\n' + (' ' * 12)).join(get_storage_annotations(all_storages)),
           service_account=service_account,
           failure_policy_rules=failure_policy_rules,
           pod_failure_policy=pod_failure_policy,
           placement_policy_label=(
-              create_placement_policy_label(system)
-              if is_placement_policy_supported(system)
-              else ''
+              create_placement_policy_label(system, args) if is_placement_policy_supported(system) else ''
           ),
       )
 
@@ -577,9 +571,7 @@ def workload_create(args) -> None:
         local_queue_name=LOCAL_QUEUE_NAME,
         autoprovisioning_args=autoprovisioning_args,
         placement_policy_label=(
-            create_placement_policy_label(system)
-            if is_placement_policy_supported(system)
-            else ''
+            create_placement_policy_label(system, args) if is_placement_policy_supported(system) else ''
         ),
     )
   else:
@@ -597,29 +589,20 @@ def workload_create(args) -> None:
             else system.vms_per_slice
         ),
         affinity=get_cpu_affinity(system.accelerator_type),
-        accelerator_label=create_accelerator_label(
-            system.accelerator_type, system
-        ),
+        accelerator_label=create_accelerator_label(system.accelerator_type, system),
         sub_slicing_annotations=(
             ''
-            if not FeatureFlags.SUB_SLICING_ENABLED
-            or args.sub_slicing_topology is None
-            else ('\n' + (' ' * 16)).join(
-                create_sub_slicing_annotations(args.sub_slicing_topology)
-            )
+            if not FeatureFlags.SUB_SLICING_ENABLED or args.sub_slicing_topology is None
+            else ('\n' + (' ' * 16)).join(create_sub_slicing_annotations(args.sub_slicing_topology))
         ),
         placement_policy_label=(
-            create_placement_policy_label(system)
-            if is_placement_policy_supported(system)
-            else ''
+            create_placement_policy_label(system, args) if is_placement_policy_supported(system) else ''
         ),
         machine_label=create_machine_label(system.accelerator_type, system),
         local_queue_name=LOCAL_QUEUE_NAME,
         autoprovisioning_args=autoprovisioning_args,
         volumes=get_volumes(args, system),
-        storage_annotations=('\n' + (' ' * 16)).join(
-            get_storage_annotations(all_storages)
-        ),
+        storage_annotations=('\n' + (' ' * 16)).join(get_storage_annotations(all_storages)),
         service_account=service_account,
         tpu_toleration="""
               - operator: "Exists"

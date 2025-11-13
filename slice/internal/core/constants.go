@@ -16,8 +16,6 @@ limitations under the License.
 
 package core
 
-type MMIGHealthStatus string
-
 const (
 	TPUTopologyAnnotation = "cloud.google.com/gke-tpu-topology"
 	TPUAcceleratorLabel   = "cloud.google.com/gke-tpu-accelerator"

@@ -23,6 +23,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+type MMIGHealthStatus string
+
 var SliceStates = []MMIGHealthStatus{
 	MMIGHealthStatusActivating, MMIGHealthStatusActive, MMIGHealthStatusActiveDegraded,
 	MMIGHealthStatusDeactivating, MMIGHealthStatusFailed, MMIGHealthStatusIncomplete,

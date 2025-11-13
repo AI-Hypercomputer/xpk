@@ -4,13 +4,10 @@ $ xpk workload delete --project=golden-project --zone=us-central1-a --cluster=go
 [XPK] Working on golden-project and us-central1-a
 [XPK] Task: `Find cluster region or zone` is implemented by the following command not running since it is a dry run. 
 gcloud container clusters list --project=golden-project --filter=name=golden-cluster --format="value(location)"
-[XPK] Try 1: get-credentials-dns-endpoint to cluster golden-cluster
 [XPK] Task: `get-credentials-dns-endpoint to cluster golden-cluster` is implemented by the following command not running since it is a dry run. 
 gcloud container clusters get-credentials golden-cluster --location=us-central1 --dns-endpoint --project=golden-project && kubectl config view && kubectl config set-context --current --namespace=default
-[XPK] Testing credentials with kubectl...
-[XPK] Task: `kubectl get pods` is implemented by the following command not running since it is a dry run. 
+[XPK] Task: `Test kubectl credentials` is implemented by the following command not running since it is a dry run. 
 kubectl get pods
-[XPK] Credentials test succeeded.
 [XPK] Finished get-credentials and kubectl setup.
 [XPK] Task: `Check if PathwaysJob is installed on golden-cluster` is implemented by the following command not running since it is a dry run. 
 kubectl get pods -n pathways-job-system --no-headers -o custom-columns=NAME:.metadata.name

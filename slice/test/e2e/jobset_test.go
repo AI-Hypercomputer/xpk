@@ -1116,7 +1116,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 				gomega.Eventually(func(g gomega.Gomega) {
 					g.Expect(k8sClient.Get(ctx, sliceKey2, createdSlice2)).To(gomega.Succeed())
 					meta.SetStatusCondition(&createdSlice2.Status.Conditions, metav1.Condition{
-						Type:    string(slice.SliceStateConditionType),
+						Type:    slice.SliceStateConditionType,
 						Status:  metav1.ConditionTrue,
 						Reason:  string(core.MMIGHealthStatusActive),
 						Message: "Test",

@@ -743,7 +743,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 					g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
 					meta.SetStatusCondition(&createdSlice.Status.Conditions,
 						metav1.Condition{
-							Type:    string(slice.SliceStateConditionType),
+							Type:    slice.SliceStateConditionType,
 							Status:  metav1.ConditionFalse,
 							Reason:  string(core.MMIGHealthStatusFailed),
 							Message: "Slice has an error"})

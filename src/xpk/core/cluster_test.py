@@ -41,6 +41,24 @@ def command_args(mocker: MockerFixture):
   return mocker.Mock(cluster="cluster", project="project", zone="zone")
 
 
+def test_get_cluster_credentials_returns_1_when_retrieval_command_fails(
+    commands_tester: CommandsTester, command_args
+):
+  commands_tester.set_result_for_command(
+      (1, ""), "gcloud container clusters get-credentials"
+  )
+  assert get_cluster_credentials(command_args) == 1
+
+
+def test_get_cluster_credentials_returns_0_when_retrieval_succeeds(
+    commands_tester: CommandsTester, command_args
+):
+  commands_tester.set_result_for_command(
+      (0, ""), "gcloud container clusters get-credentials"
+  )
+  assert get_cluster_credentials(command_args) == 0
+
+
 def test_get_cluster_credentials_does_not_retry_with_dns_when_retrieval_succeeds(
     commands_tester: CommandsTester, command_args
 ):

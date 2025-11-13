@@ -740,12 +740,25 @@ def get_cluster_credentials(args) -> int:
   """
   location = get_cluster_location(args.project, args.cluster, args.zone)
 
-  _get_credentials(args.project, args.cluster, location, dns_endpoint=True)
+  return_code = _get_credentials(
+      project=args.project,
+      cluster=args.cluster,
+      location=location,
+      dns_endpoint=True,
+  )
+  if return_code != 0:
+    return return_code
 
-  xpk_print('Testing credentials with kubectl...')
   if not _are_credentials_valid():
     xpk_print('Detected error. Retrying without --dns-endpoint flag...')
-    _get_credentials(args.project, args.cluster, location, dns_endpoint=False)
+    return_code = _get_credentials(
+        project=args.project,
+        cluster=args.cluster,
+        location=location,
+        dns_endpoint=False,
+    )
+    if return_code != 0:
+      return return_code
 
   xpk_print('Finished get-credentials and kubectl setup.')
   return 0
@@ -753,7 +766,7 @@ def get_cluster_credentials(args) -> int:
 
 def _get_credentials(
     project: str, cluster: str, location: str, dns_endpoint: bool
-):
+) -> int:
   dns_endpoint_arg = '--dns-endpoint' if dns_endpoint else ''
   command = (
       'gcloud container clusters get-credentials'
@@ -762,15 +775,12 @@ def _get_credentials(
       ' set-context --current --namespace=default'
   )
   task = f'get-credentials-dns-endpoint to cluster {cluster}'
-  return_code = run_command_with_updates(command, task, verbose=False)
-  if return_code != 0:
-    xpk_print(f'{task} returned ERROR {return_code}')
-    xpk_exit(return_code)
+  return run_command_with_updates(command, task, verbose=False)
 
 
 def _are_credentials_valid() -> bool:
   kubectl_command = 'kubectl get pods'
-  kubectl_return_code, _ = run_command_for_value(
+  kubectl_return_code = run_command_with_updates(
       kubectl_command, 'kubectl get pods'
   )
   return kubectl_return_code == 0

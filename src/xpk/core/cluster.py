@@ -781,6 +781,6 @@ def _get_credentials(
 def _are_credentials_valid() -> bool:
   kubectl_command = 'kubectl get pods'
   kubectl_return_code = run_command_with_updates(
-      kubectl_command, 'kubectl get pods'
+      kubectl_command, 'Test kubectl credentials'
   )
   return kubectl_return_code == 0

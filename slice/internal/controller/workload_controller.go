@@ -256,7 +256,7 @@ func (r *WorkloadReconciler) cleanupSlices(ctx context.Context, wl *kueue.Worklo
 		return false, err
 	}
 
-	deleted, errored, other := r.groupSlices(slices)
+	deleted, toDelete, other := r.groupSlices(slices)
 
 	if len(deleted) == len(slices) {
 		log.V(3).Info("All slices already deleted; finishing cleanup")

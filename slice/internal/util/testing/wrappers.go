@@ -344,7 +344,7 @@ func (s *SliceWrapper) Failed() *SliceWrapper {
 
 func (s *SliceWrapper) Stale() *SliceWrapper {
 	cond := metav1.Condition{
-		Type:               string(v1alpha1.SliceStateConditionType),
+		Type:               v1alpha1.SliceStateConditionType,
 		Status:             metav1.ConditionFalse,
 		LastTransitionTime: metav1.NewTime(time.Now().Add(-3 * time.Minute)),
 		Reason:             string(core.MMIGHealthStatusActivating),

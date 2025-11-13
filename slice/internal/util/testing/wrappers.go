@@ -332,7 +332,7 @@ func (s *SliceWrapper) Degraded() *SliceWrapper {
 
 func (s *SliceWrapper) Failed() *SliceWrapper {
 	cond := metav1.Condition{
-		Type:               string(v1alpha1.SliceStateConditionType),
+		Type:               v1alpha1.SliceStateConditionType,
 		Status:             metav1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
 		Reason:             string(core.MMIGHealthStatusFailed),

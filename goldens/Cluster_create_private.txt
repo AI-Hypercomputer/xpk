@@ -18,13 +18,10 @@ gcloud container clusters describe golden-cluster-private --project=golden-proje
 [XPK] Task: `Fetching the list of authorized network from cluster describe.` is implemented by the following command not running since it is a dry run. 
 gcloud container clusters describe golden-cluster-private --project=golden-project --location=us-central1 --format="value(masterAuthorizedNetworksConfig.cidrBlocks[].cidrBlock)"
 [XPK] Current machine's IP adrress is already authorized.
-[XPK] Try 1: get-credentials-dns-endpoint to cluster golden-cluster-private
 [XPK] Task: `get-credentials-dns-endpoint to cluster golden-cluster-private` is implemented by the following command not running since it is a dry run. 
 gcloud container clusters get-credentials golden-cluster-private --location=us-central1 --dns-endpoint --project=golden-project && kubectl config view && kubectl config set-context --current --namespace=default
-[XPK] Testing credentials with kubectl...
-[XPK] Task: `kubectl get pods` is implemented by the following command not running since it is a dry run. 
+[XPK] Task: `Test kubectl credentials` is implemented by the following command not running since it is a dry run. 
 kubectl get pods
-[XPK] Credentials test succeeded.
 [XPK] Finished get-credentials and kubectl setup.
 [XPK] Task: 'Checking CoreDNS deployment existence' in progress for namespace: kube-system
 [XPK] Task: `Check CoreDNS deployment in kube-system` is implemented by the following command not running since it is a dry run. 

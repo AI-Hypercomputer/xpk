@@ -20,7 +20,6 @@ gcloud container clusters describe golden-cluster-private --project=golden-proje
 [XPK] Current machine's IP adrress is already authorized.
 [XPK] Task: `get-credentials-dns-endpoint to cluster golden-cluster-private` is implemented by the following command not running since it is a dry run. 
 gcloud container clusters get-credentials golden-cluster-private --location=us-central1 --dns-endpoint --project=golden-project && kubectl config view && kubectl config set-context --current --namespace=default
-[XPK] Testing credentials with kubectl...
 [XPK] Task: `kubectl get pods` is implemented by the following command not running since it is a dry run. 
 kubectl get pods
 [XPK] Finished get-credentials and kubectl setup.

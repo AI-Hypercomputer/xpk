@@ -30,12 +30,9 @@ import (
 )
 
 const (
-	// OwnerReferenceUID is an index key for owner references.
-	OwnerReferenceUID = "metadata.ownerReferences.uid"
-	// WorkloadNamespaceIndex is an index key for the workload namespace annotation.
+	OwnerReferenceUID      = "metadata.ownerReferences.uid"
 	WorkloadNamespaceIndex = "workload.namespace"
-	// WorkloadNameIndex is an index key for the workload name annotation.
-	WorkloadNameIndex = "workload.name"
+	WorkloadNameIndex      = "workload.name"
 )
 
 func indexOwnerReferenceUID(obj client.Object) []string {

@@ -627,7 +627,7 @@ func prepareAdmissionCheckStatus(ac *kueue.AdmissionCheckState, slices []v1alpha
 	if len(slicesByState[core.SliceStateFailed]) > 0 {
 		var errMessages []string
 		for _, slice := range slicesByState[core.SliceStateFailed] {
-			cond := meta.FindStatusCondition(slice.Status.Conditions, string(v1alpha1.SliceStateConditionType))
+			cond := meta.FindStatusCondition(slice.Status.Conditions, v1alpha1.SliceStateConditionType)
 			errMessages = append(errMessages, cond.Message)
 		}
 		ac.Message += ". Errors: " + strings.Join(errMessages, "; ")

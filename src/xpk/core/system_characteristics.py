@@ -153,7 +153,9 @@ def get_tpu_system_characteristics_map(
         chips_per_vm=chips_per_vm,
         accelerator_type=AcceleratorType.TPU,
         device_type=f'{prefix}-{num_tensorcores}',
-        requires_workload_policy=requires_workload_policy,
+        requires_workload_policy=requires_workload_policy
+        if vms_per_slice > 1
+        else False,
         supports_sub_slicing=supports_sub_slicing,
     )
     system_characteristics_map[f'{prefix}-{topology}'] = system

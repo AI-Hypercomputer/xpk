@@ -258,11 +258,7 @@ def run_gke_node_pool_create_command(
         return 1
 
   placement_args = ''
-  if (
-      system.vms_per_slice > 1
-      and system.requires_workload_policy
-      and is_topology_valid(system.topology)
-  ):
+  if system.requires_workload_policy and is_topology_valid(system.topology):
     placement_policy = (
         f'{system.device_type}-{system.topology}-placement-policy'
     )

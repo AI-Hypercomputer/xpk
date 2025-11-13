@@ -530,7 +530,6 @@ func (r *WorkloadReconciler) createSlice(ctx context.Context, wl *kueue.Workload
 	// Since Slice is a cluster-scoped object and Workload is namespaced,
 	// we cannot set a controller owner reference. The Workload's namespace and name
 	// are stored as annotations on the Slice for lookup.
-	// The garbage collection of Slices will be handled manually during Workload finalization.
 	parseTopologyAssignmentIntoNodeSelector(slice, psa.TopologyAssignment, nodes)
 
 	ps := podset.FindPodSetByName(wl.Spec.PodSets, psa.Name)

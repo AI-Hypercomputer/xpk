@@ -49,7 +49,7 @@ func SliceName(workloadName string, podSetName kueue.PodSetReference) string {
 }
 
 func IsStale(slice *v1alpha1.Slice) bool {
-	cond := meta.FindStatusCondition(slice.Status.Conditions, string(v1alpha1.SliceStateConditionType))
+	cond := meta.FindStatusCondition(slice.Status.Conditions, v1alpha1.SliceStateConditionType)
 	return cond != nil && cond.Status == metav1.ConditionFalse && time.Since(cond.LastTransitionTime.Time) >= activationTimeout
 }
 

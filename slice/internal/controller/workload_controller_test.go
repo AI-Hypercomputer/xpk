@@ -137,11 +137,11 @@ func TestWorkloadReconciler(t *testing.T) {
 		Type("tpu-v7x").
 		Topology("4x4x12").
 		ControllerReference(workloadGVK, baseWorkloadName, baseWorkloadName).
-		PartitionIDs("subblock1")
+		PartitionIds("subblock1")
 	baseSlice2Wrapper := baseSlice1Wrapper.Clone().Name(core.SliceName(baseWorkloadName, "ps2")).
 		Type("tpu-v7x").
 		Topology("4x4x12").
-		PartitionIDs("subblock2")
+		PartitionIds("subblock2")
 
 	worker1Node := utiltesting.MakeNode("worker1").Label("cloud.google.com/gke-tpu-slice-4x4x4-id", "subblock1")
 	worker2Node := utiltesting.MakeNode("worker2").Label("cloud.google.com/gke-tpu-slice-4x4x4-id", "subblock2")

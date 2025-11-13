@@ -496,18 +496,18 @@ func shouldCreateSliceForPodSetAssignment(wl *kueue.Workload, psa kueue.PodSetAs
 	return false
 }
 
-func parseTopologyAssignmentIntoPartitionIDs(slice *v1alpha1.Slice, topologyAssignment *kueue.TopologyAssignment, nodes map[string]corev1.Node) {
-	subBlockIDs := sets.New[string]()
+func parseTopologyAssignmentIntoPartitionIds(slice *v1alpha1.Slice, topologyAssignment *kueue.TopologyAssignment, nodes map[string]corev1.Node) {
+	subBlockIds := sets.New[string]()
 	// we already validated that all assignments have a valid level,
 	// in validateRelevantWorkload.
 	hostnameLevelIndex := topology.HostnameLevelIndex(topologyAssignment)
 	for _, domain := range topologyAssignment.Domains {
 		nodeName := domain.Values[hostnameLevelIndex]
-		subBlockIDs.Insert(topology.GetTPUSubBlockLabelValue(nodes, nodeName))
+		subBlockIds.Insert(topology.GetTPUSubBlockLabelValue(nodes, nodeName))
 	}
-	partitionIDs := subBlockIDs.UnsortedList()
-	slices.Sort(partitionIDs)
-	slice.Spec.PartitionIDs = partitionIDs
+	partitionIds := subBlockIds.UnsortedList()
+	slices.Sort(partitionIds)
+	slice.Spec.PartitionIds = partitionIds
 }
 
 func (r *WorkloadReconciler) createSlice(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, psa *kueue.PodSetAssignment, nodes map[string]corev1.Node) (*v1alpha1.Slice, error) {
@@ -518,7 +518,7 @@ func (r *WorkloadReconciler) createSlice(ctx context.Context, wl *kueue.Workload
 	if err := controllerutil.SetControllerReference(wl, slice, r.client.Scheme()); err != nil {
 		return nil, err
 	}
-	parseTopologyAssignmentIntoPartitionIDs(slice, psa.TopologyAssignment, nodes)
+	parseTopologyAssignmentIntoPartitionIds(slice, psa.TopologyAssignment, nodes)
 
 	ps := podset.FindPodSetByName(wl.Spec.PodSets, psa.Name)
 	slice.Spec.Type = v1alpha1.Type(core.GetTPUAccelerator(ps.Template))

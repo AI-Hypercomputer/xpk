@@ -289,8 +289,8 @@ func (s *SliceWrapper) ControllerReference(gvk schema.GroupVersionKind, name, ui
 	return s
 }
 
-func (s *SliceWrapper) PartitionIDs(ids ...string) *SliceWrapper {
-	s.Spec.PartitionIDs = ids
+func (s *SliceWrapper) PartitionIds(ids ...string) *SliceWrapper {
+	s.Spec.PartitionIds = ids
 	return s
 }
 

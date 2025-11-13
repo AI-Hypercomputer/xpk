@@ -21,8 +21,8 @@ spec:
     - jsonPath: .spec.topology
       name: Topology
       type: string
-    - jsonPath: .status.conditions[0].type
-      name: Status
+    - jsonPath: .status.conditions[?(@.type=="Ready")].reason
+      name: State
       type: string
     - jsonPath: .metadata.creationTimestamp
       name: Age
@@ -54,18 +54,26 @@ spec:
             properties:
               partitionIds:
                 description: |-
-                  Partition Ids denotes the set of partitions to use to form a slice
-                  For slices that span multiple partitions, it will be a list of 4x4x4 Ids
-                  For sub-partition topology, it will be a single entry corresponding to the ID with the partition Ids
+                  PartitionIds denotes the set of partitions to use to form a slice
+                  For slices that span multiple partitions, it will be a list of 4x4x4 IDs
+                  For sub-partition topology, it will be a single entry corresponding to the ID of the partition
                 items:
                   type: string
+                minItems: 1
                 type: array
               topology:
-                description: Topology represents the network topology of the slice.
+                description: |-
+                  Topology represents the network topology of the slice.
+                  It defines the physical arrangement of TPU chips in a 2D or 3D mesg.
+                  The topology must be specified in `<X>x<Y>` or `<X>x<Y>x<Z>` format.
+                pattern: ^\d+x\d+(x\d+)?$
                 type: string
               type:
-                description: AcceleratorType specifies the type of accelerator used
-                  in this slice.
+                description: Type specifies the type of accelerator used in this slice,
+                  e.g., "v6e", "tpu-v7x".
+                enum:
+                - v6e
+                - tpu-v7x
                 type: string
             required:
             - partitionIds

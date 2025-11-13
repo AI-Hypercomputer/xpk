@@ -42,10 +42,12 @@ type SliceSpec struct {
 	// +kubebuilder:validation:Pattern=^\d+x\d+(x\d+)?$
 	Topology string `json:"topology"`
 
-	// Partition Ids denotes the set of partitions to use to form a slice
-	// For slices that span multiple partitions, it will be a list of 4x4x4 Ids
-	// For sub-partition topology, it will be a single entry corresponding to the ID with the partition Ids
-	PartitionIDs []string `json:"partitionIds"`
+	// PartitionIds denotes the set of partitions to use to form a slice
+	// For slices that span multiple partitions, it will be a list of 4x4x4 IDs
+	// For sub-partition topology, it will be a single entry corresponding to the ID of the partition
+	// +kubebuilder:validation:Immutable
+	// +kubebuilder:validation:MinItems=1
+	PartitionIds []string `json:"partitionIds"`
 }
 
 // SliceStatus defines the observed state of Slice.
@@ -55,10 +57,10 @@ type SliceStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
 	// Populated to match the physical topology of block the Super-Slice is running on
-	BlockID string `json:"blockId,omitempty"`
+	BlockId string `json:"blockId,omitempty"`
 
 	// Populated to list of physical topology of sub-block the Super-Slice is running on
-	SubBlockIDs []string `json:"subBlockIds,omitempty"`
+	SubBlockIds []string `json:"subBlockIds,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -90,5 +92,9 @@ func init() {
 }
 
 const (
+	// Represent the underlying hardware readiness status
 	SliceStateConditionType = "Ready"
+	// Represent whether the user/scheduler should take action on the slice
+	// The slice is in an error state that can't not automatically recover
+	SliceCreationFailedConditionType = "SliceCreationFailed"
 )

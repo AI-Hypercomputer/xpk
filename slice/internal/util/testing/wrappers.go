@@ -275,7 +275,7 @@ func (s *SliceWrapper) Name(name string) *SliceWrapper {
 }
 
 func (s *SliceWrapper) Type(acceleratorType string) *SliceWrapper {
-	s.Spec.Type = v1alpha1.Type(Type)
+	s.Spec.Type = v1alpha1.Type(acceleratorType)
 	return s
 }
 

@@ -58,7 +58,7 @@ func GetSliceState(slice v1alpha1.Slice) SliceState {
 	if IsError(&slice) {
 		return SliceStateFailed
 	}
-	condReady := meta.FindStatusCondition(slice.Status.Conditions, string(v1alpha1.SliceStateConditionType))
+	condReady := meta.FindStatusCondition(slice.Status.Conditions, v1alpha1.SliceStateConditionType)
 	if condReady != nil && condReady.Status == metav1.ConditionTrue {
 		if condReady.Reason == string(MMIGHealthStatusActive) {
 			return SliceStateActive

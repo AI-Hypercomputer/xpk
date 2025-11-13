@@ -505,9 +505,7 @@ func parseTopologyAssignmentIntoPartitionIds(slice *v1alpha1.Slice, topologyAssi
 		nodeName := domain.Values[hostnameLevelIndex]
 		subBlockIds.Insert(topology.GetTPUSubBlockLabelValue(nodes, nodeName))
 	}
-	partitionIds := subBlockIds.UnsortedList()
-	slices.Sort(partitionIds)
-	slice.Spec.PartitionIds = partitionIds
+	slice.Spec.PartitionIds = sets.List(subBlockIds)
 }
 
 func (r *WorkloadReconciler) createSlice(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, psa *kueue.PodSetAssignment, nodes map[string]corev1.Node) (*v1alpha1.Slice, error) {

@@ -263,13 +263,14 @@ func (r *WorkloadReconciler) cleanupSlices(ctx context.Context, wl *kueue.Worklo
 		return true, nil
 	}
 
-	if len(other)+len(errored) > 0 {
+	if len(other)+len(toDelete) > 0 {
 		terminated, err := r.ownerPodsFinished(ctx, wl)
 		if err != nil || !terminated {
 			return false, err
 		}
 	}
-	toDelete := append(errored, other...)
+	// after pods are terminated we should cleanup all the slices (including active ones)
+	toDelete = append(toDelete, other...)
 	log.V(3).Info("Deleting Slices", "slices", klog.KObjSlice(toDelete))
 	err = r.deleteSlices(ctx, toDelete)
 	if err != nil {
@@ -292,7 +293,7 @@ func (r *WorkloadReconciler) findWorkloadSlices(ctx context.Context, wl *kueue.W
 }
 
 // groupSlices categorizes a list of Slice objects into three groups based on their state.
-// It separates slices into deleted (marked for deletion), ones that should be deleted
+// It separates slices into deleted (marked for deletion), ones that should be delete
 // (errored and stale) and other (active) slices.
 //
 // Parameters:

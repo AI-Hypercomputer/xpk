@@ -720,7 +720,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 					meta.SetStatusCondition(
 						&createdSlice.Status.Conditions,
 						metav1.Condition{
-							Type:   string(slice.SliceStateConditionType),
+							Type:   slice.SliceStateConditionType,
 							Status: metav1.ConditionTrue,
 							Reason: string(core.MMIGHealthStatusActive)})
 					g.Expect(k8sClient.Status().Update(ctx, createdSlice)).To(gomega.Succeed())

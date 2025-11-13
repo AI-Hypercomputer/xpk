@@ -12,7 +12,7 @@ spec:
     listKind: SliceList
     plural: slices
     singular: slice
-  scope: Namespaced
+  scope: Cluster
   versions:
   - additionalPrinterColumns:
     - jsonPath: .spec.type

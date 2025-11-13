@@ -27,3 +27,8 @@ const (
 
 	AcceleratorTpu7x = "tpu-v7x"
 )
+
+const (
+	OwnerWorkloadNamespaceAnnotation = "slice.accelerator.gke.io/owner-workload-namespace"
+	OwnerWorkloadNameAnnotation      = "slice.accelerator.gke.io/owner-workload-name"
+)

@@ -33,8 +33,11 @@ func SliceKeyFromWorkload(wl *kueue.Workload, podSetName kueue.PodSetReference) 
 func SliceWithMetadata(wl *kueue.Workload, podSetName kueue.PodSetReference) *v1alpha1.Slice {
 	return &v1alpha1.Slice{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      SliceName(wl.Name, podSetName),
-			Namespace: wl.Namespace,
+			Name: SliceName(wl.Name, podSetName),
+			Annotations: map[string]string{
+				OwnerWorkloadNamespaceAnnotation: wl.Namespace,
+				OwnerWorkloadNameAnnotation:      wl.Name,
+			},
 		},
 	}
 }

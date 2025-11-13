@@ -597,37 +597,27 @@ func (r *WorkloadReconciler) syncAdmissionCheckStatus(ctx context.Context, wl *k
 	return nil
 }
 
-func groupSlicesByState(slices []v1alpha1.Slice) (map[core.MMIGHealthStatus][]v1alpha1.Slice, []v1alpha1.Slice) {
-	slicesByState := make(map[core.MMIGHealthStatus][]v1alpha1.Slice)
-	var noState []v1alpha1.Slice
+func groupSlicesByState(slices []v1alpha1.Slice) map[core.SliceState][]v1alpha1.Slice {
+	slicesByState := make(map[core.SliceState][]v1alpha1.Slice)
 	for _, slice := range slices {
-		cond := meta.FindStatusCondition(slice.Status.Conditions, string(v1alpha1.SliceStateConditionType))
-		if cond == nil {
-			noState = append(noState, slice)
-			continue
-		}
-		slicesByState[core.MMIGHealthStatus(cond.Reason)] = append(slicesByState[core.MMIGHealthStatus(cond.Reason)], slice)
+		slicesByState[core.GetSliceState(slice)] = append(slicesByState[core.GetSliceState(slice)], slice)
 	}
-	return slicesByState, noState
+	return slicesByState
 }
 
 func prepareAdmissionCheckStatus(ac *kueue.AdmissionCheckState, slices []v1alpha1.Slice) {
-	slicesByState, noState := groupSlicesByState(slices)
+	slicesByState := groupSlicesByState(slices)
 
 	switch {
-	case len(slices) == len(slicesByState[core.MMIGHealthStatusActiveDegraded])+len(slicesByState[core.MMIGHealthStatusActive]):
+	case len(slices) == len(slicesByState[core.SliceStateActive])+len(slicesByState[core.SliceStateActiveDegraded]):
 		ac.State = kueue.CheckStateReady
-	case len(slicesByState[core.MMIGHealthStatusFailed]) > 0:
+	case len(slicesByState[core.SliceStateFailed]) > 0:
 		ac.State = kueue.CheckStateRetry
-	case len(slicesByState[core.MMIGHealthStatusDeactivating])+len(slicesByState[core.MMIGHealthStatusIncomplete])+len(slicesByState[core.MMIGHealthStatusUnknown]) > 0:
-		ac.State = kueue.CheckStateRejected
+	case len(slicesByState[core.SliceStateCreated])+len(slicesByState[core.SliceStateActivating]) > 0:
+		ac.State = kueue.CheckStatePending
 	}
 
 	var stateMessages []string
-	if len(noState) > 0 {
-		stateMessages = append(stateMessages, fmt.Sprintf("%d CREATED", len(noState)))
-	}
-
 	for _, state := range core.SliceStates {
 		if count := len(slicesByState[state]); count > 0 {
 			stateMessages = append(stateMessages, fmt.Sprintf("%d %s", count, state))
@@ -636,9 +626,9 @@ func prepareAdmissionCheckStatus(ac *kueue.AdmissionCheckState, slices []v1alpha
 
 	ac.Message = fmt.Sprintf("Slices are in states: %s", strings.Join(stateMessages, ", "))
 
-	if len(slicesByState[core.MMIGHealthStatusFailed]) > 0 {
+	if len(slicesByState[core.SliceStateFailed]) > 0 {
 		var errMessages []string
-		for _, slice := range slicesByState[core.MMIGHealthStatusFailed] {
+		for _, slice := range slicesByState[core.SliceStateFailed] {
 			cond := meta.FindStatusCondition(slice.Status.Conditions, string(v1alpha1.SliceStateConditionType))
 			errMessages = append(errMessages, cond.Message)
 		}

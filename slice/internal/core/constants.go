@@ -27,6 +27,14 @@ const (
 )
 
 const (
+	SliceStateCreated        SliceState = "CREATED"
+	SliceStateActivating     SliceState = "ACTIVATING"
+	SliceStateActive         SliceState = "ACTIVE"
+	SliceStateActiveDegraded SliceState = "ACTIVE_DEGRADED"
+	SliceStateFailed         SliceState = "FAILED"
+)
+
+const (
 	// MMIGHealthStatusIncomplete indicates the MMIG is incomplete.
 	MMIGHealthStatusIncomplete MMIGHealthStatus = "INCOMPLETE"
 	// MMIGHealthStatusActivating indicates the MMIG is activating.

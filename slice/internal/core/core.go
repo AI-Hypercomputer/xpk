@@ -21,14 +21,15 @@ import (
 	"tpu-slice-controller/api/v1alpha1"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type MMIGHealthStatus string
+type SliceState string
 
-var SliceStates = []MMIGHealthStatus{
-	MMIGHealthStatusActivating, MMIGHealthStatusActive, MMIGHealthStatusActiveDegraded,
-	MMIGHealthStatusDeactivating, MMIGHealthStatusFailed, MMIGHealthStatusIncomplete,
-	MMIGHealthStatusUnknown,
+var SliceStates = []SliceState{
+	SliceStateCreated, SliceStateActivating, SliceStateActive, SliceStateActiveDegraded, SliceStateFailed,
 }
 
 func IsValidTPUTopology(tpuTopology string) bool {
@@ -51,4 +52,23 @@ func GetTPUTopology(spec corev1.PodTemplateSpec) string {
 
 func GetTPUAccelerator(spec corev1.PodTemplateSpec) string {
 	return spec.Spec.NodeSelector[TPUAcceleratorLabel]
+}
+
+func GetSliceState(slice v1alpha1.Slice) SliceState {
+	if IsError(&slice) {
+		return SliceStateFailed
+	}
+	condReady := meta.FindStatusCondition(slice.Status.Conditions, string(v1alpha1.SliceStateConditionType))
+	if condReady != nil && condReady.Status == metav1.ConditionTrue {
+		if condReady.Reason == string(MMIGHealthStatusActive) {
+			return SliceStateActive
+		}
+		if condReady.Reason == string(MMIGHealthStatusActiveDegraded) {
+			return SliceStateActiveDegraded
+		}
+	}
+	if condReady == nil {
+		return SliceStateCreated
+	}
+	return SliceStateActivating
 }

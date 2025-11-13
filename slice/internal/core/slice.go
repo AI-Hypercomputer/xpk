@@ -54,7 +54,7 @@ func IsStale(slice *v1alpha1.Slice) bool {
 }
 
 func IsError(slice *v1alpha1.Slice) bool {
-	condReady := meta.FindStatusCondition(slice.Status.Conditions, string(v1alpha1.SliceStateConditionType))
+	condReady := meta.FindStatusCondition(slice.Status.Conditions, v1alpha1.SliceStateConditionType)
 	condFailed := meta.FindStatusCondition(slice.Status.Conditions, v1alpha1.SliceCreationFailedConditionType)
 	runtimeError := condReady != nil && condReady.Status == metav1.ConditionFalse && condReady.Reason == string(MMIGHealthStatusFailed)
 	creationError := condFailed != nil && condFailed.Status == metav1.ConditionTrue

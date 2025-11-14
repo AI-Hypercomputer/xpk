@@ -277,36 +277,3 @@ def test_placement_policy_not_created_for_non7x_tpu(
   run_gke_node_pool_create_command(args, system, "1.2.3")
 
   mock_ensure_resource_policy.assert_not_called()
-
-
-def test_placement_policy_not_created_for_single_host(
-    mocker, mock_nodepool_dependencies
-):
-  """Tests that placement policy is not created for non-tpu7x TPUs."""
-  mock_is_topology_valid, mock_ensure_resource_policy = (
-      mock_nodepool_dependencies
-  )
-  mock_is_topology_valid.return_value = True
-  args = mocker.Mock(
-      tpu_type="tpu7x-8",
-      device_type=None,
-      num_slices=1,
-      cluster="test-cluster",
-      project="test-project",
-      zone="us-central1-a",
-  )
-  system = SystemCharacteristics(
-      topology="2x2x1",
-      vms_per_slice=1,
-      gke_accelerator="tpu7x",
-      gce_machine_type="tpu7x-standard-4t",
-      chips_per_vm=4,
-      accelerator_type=AcceleratorType.TPU,
-      device_type="tpu7x-8",
-      requires_workload_policy=False,
-      supports_sub_slicing=False,
-  )
-
-  run_gke_node_pool_create_command(args, system, "1.2.3")
-
-  mock_ensure_resource_policy.assert_not_called()

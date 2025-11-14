@@ -145,7 +145,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 								"cloud.google.com/gke-tpu-topology": tc.tpuTopology,
 							},
 							NodeSelector: map[string]string{
-								"cloud.google.com/gke-tpu-accelerator": "tpu-v7x",
+								"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
 							},
 						},
 					).
@@ -223,7 +223,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						g.Expect(createdSlice.Spec.PartitionIds).To(gomega.HaveLen(len(tc.wantPartitionIds)))
 						g.Expect(createdSlice.Spec.PartitionIds).To(gomega.BeComparableTo(tc.wantPartitionIds))
 						g.Expect(createdSlice.Spec.Topology).To(gomega.Equal(tc.tpuTopology))
-						g.Expect(createdSlice.Spec.Type).To(gomega.Equal(slice.Type("tpu-v7x")))
+						g.Expect(createdSlice.Spec.Type).To(gomega.Equal(slice.TypeTpu7x))
 					}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 				})
 
@@ -453,7 +453,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 							"cloud.google.com/gke-tpu-topology": "4x4x4",
 						},
 						NodeSelector: map[string]string{
-							"cloud.google.com/gke-tpu-accelerator": "tpu-v7x",
+							"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
 						},
 						TerminationGracePeriodSeconds: 60,
 						LifecyclePreStopSleepSeconds:  60,
@@ -557,7 +557,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 							"cloud.google.com/gke-tpu-topology": "4x4x4",
 						},
 						NodeSelector: map[string]string{
-							"cloud.google.com/gke-tpu-accelerator": "tpu-v7x",
+							"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
 						},
 					},
 				).
@@ -686,7 +686,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 							"cloud.google.com/gke-tpu-topology": "4x4x4",
 						},
 						NodeSelector: map[string]string{
-							"cloud.google.com/gke-tpu-accelerator": "tpu-v7x",
+							"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
 						},
 					},
 				).
@@ -809,7 +809,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 							"cloud.google.com/gke-tpu-topology": "4x4x4",
 						},
 						NodeSelector: map[string]string{
-							"cloud.google.com/gke-tpu-accelerator": "tpu-v7x",
+							"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
 						},
 					},
 				).
@@ -905,7 +905,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 							"cloud.google.com/gke-tpu-topology": "4x4x4",
 						},
 						NodeSelector: map[string]string{
-							"cloud.google.com/gke-tpu-accelerator": "tpu-v7x",
+							"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
 						},
 					},
 					testingjobsjobset.ReplicatedJobRequirements{
@@ -919,7 +919,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 							"cloud.google.com/gke-tpu-topology": "4x4x4",
 						},
 						NodeSelector: map[string]string{
-							"cloud.google.com/gke-tpu-accelerator": "tpu-v7x",
+							"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
 						},
 					},
 				).

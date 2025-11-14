@@ -77,7 +77,7 @@ jobs:
             - name: Delete the workload on the cluster
               run: xpk workload delete --workload $WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
             - name: Create test script to execute in batch
-              run: echo -e '#!/bin/bash \n#SBATCH --unknown-flag=value\n echo "Hello world from a test script!"' > batch.sh
+              run: echo -e '#!/bin/bash \n#SBATCH --unknown-flag=value\n echo "Hello world from a test script!"\n sleep 10' > batch.sh
             - name: Run a batch job on the cluster
               run: xpk batch --cluster $TPU_CLUSTER_NAME --zone=us-central2-b batch.sh --ignore-unknown-flags --array 1-5 --nodes 2 --ntasks 3
             - name: List out the jobs on the cluster

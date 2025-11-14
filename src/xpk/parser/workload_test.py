@@ -74,9 +74,9 @@ def test_workload_create_sub_slicing_topology_can_be_set():
       "--workload",
       "test",
       "--tpu-type",
-      "tpu7x-2",
+      "tpu7x-8",
       "--sub-slicing-topology",
-      "2x2",
+      "2x4",
   ])
 
-  assert args.sub_slicing_topology is "2x2"
+  assert args.sub_slicing_topology is "2x4"

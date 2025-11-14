@@ -32,7 +32,7 @@ from ..core.docker_container import (
     get_main_container_docker_image,
     get_user_workload_container,
 )
-from ..core.kueue_manager import has_sub_slicing_enabled, get_installed_kueue_version, SUB_SLICING_TOPOLOGIES, LOCAL_QUEUE_NAME
+from ..core.kueue_manager import has_sub_slicing_enabled, get_installed_kueue_version, LOCAL_QUEUE_NAME
 from ..core.docker_resources import get_volumes, parse_env_config
 from ..core.gcloud_context import add_zone_and_project
 from ..core.monitoring import get_gke_outlier_dashboard
@@ -78,6 +78,7 @@ from ..core.storage import (
     get_storages_to_mount,
 )
 from ..core.system_characteristics import (
+    SUB_SLICING_TOPOLOGIES,
     AcceleratorType,
     get_system_characteristics,
     compute_vms_per_slice,

@@ -44,3 +44,7 @@ def is_topology_contained(contained: str, container: str) -> bool:
       contained <= container
       for contained, container in zip(contained_parsed, container_parsed)
   )
+
+
+def get_slice_topology_level(topology: str) -> str:
+  return f"cloud.google.com/gke-tpu-slice-{topology}-id"

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from .system_characteristics import get_tpu_system_characteristics_map, SystemCharacteristics, AcceleratorType
+from .system_characteristics import get_tpu_system_characteristics_map, generate_tpu_topologies, SystemCharacteristics, AcceleratorType
 
 
 def test_get_tpu_system_characteristics_map_returns_correct_values_for_1x1_topology():
@@ -25,7 +25,7 @@ def test_get_tpu_system_characteristics_map_returns_correct_values_for_1x1_topol
       machine_type="test",
       supported_topologies=["1x1"],
       supports_sub_slicing=False,
-      requires_workload_policy=True,
+      tpu_type_requires_workload_policy=False,
   )
 
   expected_system_characteristics = SystemCharacteristics(
@@ -37,7 +37,7 @@ def test_get_tpu_system_characteristics_map_returns_correct_values_for_1x1_topol
       accelerator_type=AcceleratorType.TPU,
       device_type="test-1",
       supports_sub_slicing=False,
-      requires_workload_policy=True,
+      requires_workload_policy=False,
   )
   assert result == {
       "test-1": expected_system_characteristics,
@@ -53,7 +53,7 @@ def test_get_tpu_system_characteristics_map_returns_correct_values_for_2x2_topol
       machine_type="test",
       supported_topologies=["2x2"],
       supports_sub_slicing=False,
-      requires_workload_policy=True,
+      tpu_type_requires_workload_policy=True,
   )
 
   expected_system_characteristics = SystemCharacteristics(
@@ -65,9 +65,69 @@ def test_get_tpu_system_characteristics_map_returns_correct_values_for_2x2_topol
       accelerator_type=AcceleratorType.TPU,
       device_type="test-8",
       supports_sub_slicing=False,
-      requires_workload_policy=True,
+      requires_workload_policy=False,
   )
   assert result == {
       "test-8": expected_system_characteristics,
       "test-2x2": expected_system_characteristics,
   }
+
+
+def test_get_tpu_system_characteristics_map_returns_correct_values_for_2x2x2_topology():
+  result = get_tpu_system_characteristics_map(
+      prefix="test",
+      tensorcores_per_chip=2,
+      gke_accelerator="test",
+      machine_type="test",
+      supported_topologies=["2x2x2"],
+      supports_sub_slicing=False,
+      tpu_type_requires_workload_policy=True,
+  )
+
+  expected_system_characteristics = SystemCharacteristics(
+      topology="2x2x2",
+      vms_per_slice=2,
+      gke_accelerator="test",
+      gce_machine_type="test",
+      chips_per_vm=4,
+      accelerator_type=AcceleratorType.TPU,
+      device_type="test-16",
+      supports_sub_slicing=False,
+      requires_workload_policy=True,
+  )
+  assert result == {
+      "test-16": expected_system_characteristics,
+      "test-2x2x2": expected_system_characteristics,
+  }
+
+
+def test_generate_tpu_topologies_returns_correct_number_of_values_for_TPU_platforms():
+  v4 = generate_tpu_topologies(max_cubes=64, enforce_nondecreasing=False)
+  v5p = generate_tpu_topologies(max_cubes=140)
+  tpu7x = generate_tpu_topologies(max_cubes=144)
+
+  assert len(v4) == 800
+  assert len(v5p) == 414
+  assert len(tpu7x) == 432
+
+
+def test_generate_tpu_topologies_respects_constraints():
+  ordered_6_cubes = generate_tpu_topologies(
+      max_cubes=6, enforce_nondecreasing=True
+  )
+  non_ordered_6_cubes = generate_tpu_topologies(
+      max_cubes=6, enforce_nondecreasing=False
+  )
+
+  assert "8x4x4" not in ordered_6_cubes
+  assert "8x4x4" in non_ordered_6_cubes
+  assert "4x8x12" in ordered_6_cubes  # exactly 6 cubes
+  assert "4x8x12" in non_ordered_6_cubes  # exactly 6 cubes
+  assert "4x8x16" not in ordered_6_cubes  # too many cubes (8)
+  assert "4x8x16" not in non_ordered_6_cubes  # too many cubes (8)
+
+
+def test_generate_tpu_topologies_contains_sub_cube_slices():
+  one_cube = generate_tpu_topologies(max_cubes=1)
+
+  assert one_cube == ["2x2x1", "2x2x2", "2x2x4", "2x4x4", "4x4x4"]

@@ -24,6 +24,31 @@ const (
 
 	TPUSliceHealthNodeSelectorKey   = "cloud.google.com/gke-tpu-slice-4x4x4-health"
 	TPUSliceHealthNodeSelectorValue = "true"
+)
 
-	AcceleratorTpu7x = "tpu-v7x"
+const (
+	SliceStateCreated        SliceState = "CREATED"
+	SliceStateActivating     SliceState = "ACTIVATING"
+	SliceStateActive         SliceState = "ACTIVE"
+	SliceStateActiveDegraded SliceState = "ACTIVE_DEGRADED"
+	SliceStateFailed         SliceState = "FAILED"
+	SliceStateDeleted        SliceState = "DELETED"
+	SliceStateStale          SliceState = "STALE"
+)
+
+const (
+	// MMIGHealthStatusIncomplete indicates the MMIG is incomplete.
+	MMIGHealthStatusIncomplete MMIGHealthStatus = "INCOMPLETE"
+	// MMIGHealthStatusActivating indicates the MMIG is activating.
+	MMIGHealthStatusActivating MMIGHealthStatus = "ACTIVATING"
+	// MMIGHealthStatusActive indicates the MMIG is active.
+	MMIGHealthStatusActive MMIGHealthStatus = "ACTIVE"
+	// MMIGHealthStatusActiveDegraded indicates the MMIG is active but degraded.
+	MMIGHealthStatusActiveDegraded MMIGHealthStatus = "ACTIVE_DEGRADED"
+	// MMIGHealthStatusDeactivating indicates the MMIG is deactivating.
+	MMIGHealthStatusDeactivating MMIGHealthStatus = "DEACTIVATING"
+	// MMIGHealthStatusFailed indicates the MMIG has failed.
+	MMIGHealthStatusFailed MMIGHealthStatus = "FAILED"
+	// MMIGHealthStatusUnknown indicates the MMIG health is unknown.
+	MMIGHealthStatusUnknown MMIGHealthStatus = "UNKNOWN"
 )

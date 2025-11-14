@@ -16,6 +16,7 @@ package core
 
 import (
 	"fmt"
+	"time"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,6 +24,10 @@ import (
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
 
 	"tpu-slice-controller/api/v1alpha1"
+)
+
+const (
+	activationTimeout = 3 * time.Minute
 )
 
 func SliceKeyFromWorkload(wl *kueue.Workload, podSetName kueue.PodSetReference) client.ObjectKey {
@@ -43,10 +48,15 @@ func SliceName(workloadName string, podSetName kueue.PodSetReference) string {
 	return fmt.Sprintf("%s-%s", workloadName, podSetName)
 }
 
-func Deformed(slice *v1alpha1.Slice) bool {
-	return meta.IsStatusConditionTrue(slice.Status.Conditions, string(v1alpha1.Deformed))
+func isStale(slice *v1alpha1.Slice) bool {
+	cond := meta.FindStatusCondition(slice.Status.Conditions, v1alpha1.SliceStateConditionType)
+	return cond != nil && cond.Status == metav1.ConditionFalse && time.Since(cond.LastTransitionTime.Time) >= activationTimeout
 }
 
-func IsError(slice *v1alpha1.Slice) bool {
-	return meta.IsStatusConditionTrue(slice.Status.Conditions, string(v1alpha1.Error))
+func isError(slice *v1alpha1.Slice) bool {
+	condReady := meta.FindStatusCondition(slice.Status.Conditions, v1alpha1.SliceStateConditionType)
+	condFailed := meta.FindStatusCondition(slice.Status.Conditions, v1alpha1.SliceCreationFailedConditionType)
+	runtimeError := condReady != nil && condReady.Status == metav1.ConditionFalse && condReady.Reason == string(MMIGHealthStatusFailed)
+	creationError := condFailed != nil && condFailed.Status == metav1.ConditionTrue
+	return runtimeError || creationError
 }

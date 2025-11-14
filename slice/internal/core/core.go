@@ -20,12 +20,18 @@ import (
 	"regexp"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"tpu-slice-controller/api/v1alpha1"
 )
 
-var SliceStates = []v1alpha1.SliceConditionType{
-	v1alpha1.Error, v1alpha1.Deformed, v1alpha1.Forming, v1alpha1.Degraded, v1alpha1.Ready,
+type MMIGHealthStatus string
+type SliceState string
+
+var SliceStates = []SliceState{
+	SliceStateCreated, SliceStateActivating, SliceStateActive, SliceStateActiveDegraded,
+	SliceStateFailed, SliceStateDeleted, SliceStateStale,
 }
 
 func IsValidTPUTopology(tpuTopology string) bool {
@@ -34,7 +40,7 @@ func IsValidTPUTopology(tpuTopology string) bool {
 }
 
 func IsValidTPUAccelerator(tpuAccelerator string) bool {
-	return tpuAccelerator == AcceleratorTpu7x
+	return tpuAccelerator == string(v1alpha1.TypeTpu7x)
 }
 
 func IsRelevantPodTemplateSpec(spec corev1.PodTemplateSpec) bool {
@@ -48,4 +54,29 @@ func GetTPUTopology(spec corev1.PodTemplateSpec) string {
 
 func GetTPUAccelerator(spec corev1.PodTemplateSpec) string {
 	return spec.Spec.NodeSelector[TPUAcceleratorLabel]
+}
+
+func GetSliceState(slice v1alpha1.Slice) SliceState {
+	if !slice.DeletionTimestamp.IsZero() {
+		return SliceStateDeleted
+	}
+	if isError(&slice) {
+		return SliceStateFailed
+	}
+	if isStale(&slice) {
+		return SliceStateStale
+	}
+	condReady := meta.FindStatusCondition(slice.Status.Conditions, v1alpha1.SliceStateConditionType)
+	if condReady != nil && condReady.Status == metav1.ConditionTrue {
+		if condReady.Reason == string(MMIGHealthStatusActive) {
+			return SliceStateActive
+		}
+		if condReady.Reason == string(MMIGHealthStatusActiveDegraded) {
+			return SliceStateActiveDegraded
+		}
+	}
+	if condReady == nil {
+		return SliceStateCreated
+	}
+	return SliceStateActivating
 }

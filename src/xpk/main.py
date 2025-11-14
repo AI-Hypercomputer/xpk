@@ -37,8 +37,7 @@ import sys
 
 from .parser.core import set_parser
 from .core.updates import print_xpk_hello
-from .core.telemetry import MetricsCollector, send_clearcut_payload
-from .utils.feature_flags import FeatureFlags
+from .core.telemetry import MetricsCollector, send_clearcut_payload, should_send_telemetry
 from .utils.console import xpk_print, exit_code_to_int
 from .utils.execution_context import set_context
 ################### Compatibility Check ###################
@@ -89,7 +88,7 @@ def main() -> None:
     MetricsCollector.log_complete(-1)
     raise
   finally:
-    if FeatureFlags.TELEMETRY_ENABLED:
+    if should_send_telemetry():
       send_clearcut_payload(MetricsCollector.flush())
 
 

@@ -90,7 +90,7 @@ def _schedule_clearcut_background_flush(
 
 
 def _clearcut_flush(file_path: str) -> None:
-  with open(file_path, "r") as file:
+  with open(file_path, mode="r", encoding="utf-8") as file:
     kwargs = json.load(file)
     requests.request(**kwargs)
     os.remove(file_path)

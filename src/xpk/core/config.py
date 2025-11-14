@@ -31,6 +31,7 @@ CFG_BUCKET_KEY = 'cluster-state-gcs-bucket'
 CLUSTER_NAME_KEY = 'cluster-name'
 PROJECT_KEY = 'project-id'
 CLIENT_ID_KEY = 'client-id'
+SEND_TELEMETRY_KEY = 'send-telemetry'
 ZONE_KEY = 'zone'
 KJOB_BATCH_IMAGE = 'batch-image'
 KJOB_BATCH_WORKING_DIRECTORY = 'batch-working-directory'
@@ -47,6 +48,7 @@ DEFAULT_KEYS = [
     CLUSTER_NAME_KEY,
     PROJECT_KEY,
     CLIENT_ID_KEY,
+    SEND_TELEMETRY_KEY,
     ZONE_KEY,
     GKE_ENDPOINT_KEY,
     DEPENDENCIES_KEY,

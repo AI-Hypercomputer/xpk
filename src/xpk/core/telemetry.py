@@ -27,9 +27,17 @@ import requests
 from enum import Enum
 from typing import Any
 from dataclasses import dataclass
-from .config import xpk_config, CLIENT_ID_KEY, __version__ as xpk_version
+from .config import xpk_config, CLIENT_ID_KEY, SEND_TELEMETRY_KEY, __version__ as xpk_version
 from ..utils.execution_context import is_dry_run
 from ..utils.user_agent import get_user_agent
+from ..utils.feature_flags import FeatureFlags
+
+
+def should_send_telemetry():
+  return (
+      FeatureFlags.TELEMETRY_ENABLED
+      and xpk_config.get(SEND_TELEMETRY_KEY) != "false"
+  )
 
 
 def send_clearcut_payload(data: str, wait_to_complete: bool = False) -> None:

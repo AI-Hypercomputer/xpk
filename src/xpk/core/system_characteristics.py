@@ -18,6 +18,8 @@ from dataclasses import dataclass
 from ..utils.topology import get_topology_product
 from enum import Enum
 
+SUB_SLICING_TOPOLOGIES = ['2x4', '4x4', '4x8', '8x8', '8x16', '16x16']
+
 
 class AcceleratorType(Enum):
   TPU = 1
@@ -458,16 +460,18 @@ UserFacingNameToSystemCharacteristics = {
         tensorcores_per_chip=1,
         gke_accelerator='tpu-v6e-slice',
         machine_type='ct6e-standard-4t',
-        supports_sub_slicing=True,
+        supports_sub_slicing=False,
         supported_topologies=[
             '2x2',
-            '2x4',
-            '4x4',
-            '4x8',
-            '8x8',
-            '8x16',
-            '16x16',
         ],
+    ),
+    **get_tpu_system_characteristics_map(
+        prefix='v6e',
+        tensorcores_per_chip=1,
+        gke_accelerator='tpu-v6e-slice',
+        machine_type='ct6e-standard-4t',
+        supports_sub_slicing=True,
+        supported_topologies=SUB_SLICING_TOPOLOGIES,
     ),
     **get_tpu_system_characteristics_map(
         prefix='v5p',

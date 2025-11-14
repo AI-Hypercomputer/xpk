@@ -18,14 +18,12 @@ from .scheduling import create_sub_slicing_annotations
 
 
 def test_create_sub_slicing_annotations_returns_valid_annotations():
-  subslicing_topology = '2x2'
-
-  result = create_sub_slicing_annotations(subslicing_topology)
+  result = create_sub_slicing_annotations(sub_slicing_topology='2x4')
 
   assert result == [
       (
           'kueue.x-k8s.io/podset-required-topology:'
-          ' "google.com/gke-tpu-slice-2x2-id"'
+          ' "cloud.google.com/gke-tpu-slice-2x4-id"'
       ),
-      'cloud.google.com/gke-tpu-slice-topology: 2x2',
+      'cloud.google.com/gke-tpu-slice-topology: 2x4',
   ]

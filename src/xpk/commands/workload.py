@@ -63,6 +63,8 @@ from ..core.scheduling import (
     get_cpu_affinity,
     get_gpu_scheduler,
     create_sub_slicing_annotations,
+    create_placement_policy_label,
+    is_placement_policy_supported,
 )
 from ..core.storage import (
     GCE_PD_TYPE,
@@ -144,6 +146,7 @@ spec:
               nodeSelector:
                 {accelerator_label}
                 {machine_label}
+                {placement_policy_label}
                 {autoprovisioning_args}
               priorityClassName: {args.priority}
               hostNetwork: true
@@ -193,6 +196,8 @@ spec:
               {gpu_scheduler}
               priorityClassName: {args.priority}
               restartPolicy: Never
+              nodeSelector:
+                {placement_policy_label}
               imagePullSecrets:
               - name: {args.docker_image_pull_secret}
               hostNetwork: true
@@ -238,6 +243,8 @@ spec:
             spec:
               priorityClassName: {args.priority}
               restartPolicy: Never
+              nodeSelector:
+                {placement_policy_label}
               imagePullSecrets:
               - name: {args.docker_image_pull_secret}
               dnsPolicy: ClusterFirstWithHostNet
@@ -273,6 +280,7 @@ PW_WORKLOAD_CREATE_YAML = """
         terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
         priorityClassName: {args.priority}
         nodeSelector:
+          {placement_policy_label}
           {autoprovisioning_args}
       pathwaysDir: {args.pathways_gcs_location} #This bucket needs to be created in advance.
       controller:
@@ -518,6 +526,11 @@ def workload_create(args) -> None:
           failure_policy_rules=failure_policy_rules,
           pod_failure_policy=pod_failure_policy,
           annotations=annotations,
+          placement_policy_label=(
+              create_placement_policy_label(system)
+              if is_placement_policy_supported(system)
+              else ''
+          ),
       )
 
       sub_networks = get_cluster_subnetworks()
@@ -542,6 +555,11 @@ def workload_create(args) -> None:
           service_account=service_account,
           failure_policy_rules=failure_policy_rules,
           pod_failure_policy=pod_failure_policy,
+          placement_policy_label=(
+              create_placement_policy_label(system)
+              if is_placement_policy_supported(system)
+              else ''
+          ),
       )
 
   elif args.use_pathways and ensure_pathways_workload_prerequisites(
@@ -559,6 +577,11 @@ def workload_create(args) -> None:
         user_workload=get_user_workload_for_pathways(args, system),
         local_queue_name=LOCAL_QUEUE_NAME,
         autoprovisioning_args=autoprovisioning_args,
+        placement_policy_label=(
+            create_placement_policy_label(system)
+            if is_placement_policy_supported(system)
+            else ''
+        ),
     )
   else:
     container, debugging_dashboard_id = get_user_workload_container(
@@ -585,6 +608,11 @@ def workload_create(args) -> None:
             else ('\n' + (' ' * 16)).join(
                 create_sub_slicing_annotations(args.sub_slicing_topology)
             )
+        ),
+        placement_policy_label=(
+            create_placement_policy_label(system)
+            if is_placement_policy_supported(system)
+            else ''
         ),
         machine_label=create_machine_label(system.accelerator_type, system),
         local_queue_name=LOCAL_QUEUE_NAME,

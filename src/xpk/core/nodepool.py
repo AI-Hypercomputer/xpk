@@ -16,7 +16,7 @@ limitations under the License.
 
 from typing import List
 from ..utils.console import ask_for_user_consent, xpk_print
-from ..utils.topology import is_topology_valid
+from .scheduling import get_placement_policy_name, is_placement_policy_supported
 from .capacity import (
     AUTOPROVISIONING_CONFIG_VALUE,
     H100_MEGA_DEVICE_TYPE,
@@ -258,10 +258,8 @@ def run_gke_node_pool_create_command(
         return 1
 
   placement_args = ''
-  if system.requires_workload_policy and is_topology_valid(system.topology):
-    placement_policy = (
-        f'{system.device_type}-{system.topology}-placement-policy'
-    )
+  if is_placement_policy_supported(system):
+    placement_policy = get_placement_policy_name(system)
     ensure_resource_policy_exists(placement_policy, args, system.topology)
     placement_args = f' --placement-policy={placement_policy}'
 

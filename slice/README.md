@@ -117,29 +117,6 @@ is manually re-applied afterwards.
 
 More information can be found via the [Kubebuilder Documentation](https://book.kubebuilder.io/introduction.html)
 
-## Running e2e tests using custom build
-```shell
-make kind-image-build test-e2e
-```
-
-## Attaching e2e tests to an existing kind cluster
-You can use the following approach to start up a kind cluster and then run e2e tests from commandline or VSCode,
-attaching them to the existing cluster. For example, suppose you want to test some of the multikueue-e2e tests.
-
-Run `make kind-image-build test-e2e E2E_RUN_ONLY_ENV=true` and wait for the `Do you want to cleanup? [Y/n] ` to appear.
-
-The cluster is ready, and now you can run tests from another terminal:
-```shell
-./bin/ginkgo -focus "JobSet (when )?Creating a JobSet it should create Slice based on created Workload with TPU topology 4x4x4, TPU topology 4 and parallelism 16" -v ./test/e2e/...
-```
-or from VSCode.
-
-## Quick rebuild Kueue in e2e tests
-If the `E2E_RUN_ONLY_ENV` variable is set, you can rebuild **only the Kueue image** without needing to rebuild the entire cluster.
-```shell
-make kind-image-build test-e2e E2E_RUN_ONLY_ENV=true E2E_RUN_ONLY_SLICE=true
-```
-
 ## License
 
 Copyright The Kubernetes Authors.

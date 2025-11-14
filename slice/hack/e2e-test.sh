@@ -44,34 +44,21 @@ function startup {
     fi
 }
 
-if [[ "${E2E_RUN_ONLY_SLICE}" != 'true' ]]; then
-  trap cleanup EXIT
-  startup
-  prepare_docker_images
-fi
-
+trap cleanup EXIT
+startup
+prepare_docker_images
 kind_load "$KIND_CLUSTER_NAME" ""
 
-if [[ "${E2E_RUN_ONLY_SLICE}" != 'true' ]]; then
-  # We need to wait for Kueue to become available;
-  # otherwise, we encounter the error: "no endpoints available for service 'kueue-webhook-service'"
-  echo "Waiting for Kueue to become available..."
-  kubectl wait deploy/kueue-controller-manager -nkueue-system --for=condition=available --timeout=5m
-fi
+# We need to wait for Kueue to become available;
+# otherwise, we encounter the error: "no endpoints available for service 'kueue-webhook-service'"
+echo "Waiting for Kueue to become available..."
+kubectl wait deploy/kueue-controller-manager -nkueue-system --for=condition=available --timeout=5m
 
 cluster_slice_deploy ""
 
-if [ "$E2E_RUN_ONLY_ENV" = "true" ]; then
-  if [[ "${E2E_RUN_ONLY_SLICE}" != 'true' ]]; then
-    read -rp "Do you want to cleanup? [Y/n] " reply
-    if [[ "$reply" =~ ^[nN]$ ]]; then
-      trap - EXIT
-      echo "Skipping cleanup for kind cluster."
-      echo -e "\nKind cluster cleanup:\n  kind delete cluster --name $KIND_CLUSTER_NAME"
-    fi
-  fi
-  exit 0
+if [ "$E2E_RUN_ONLY_ENV" == 'true' ]; then
+  read -rp "Press Enter to cleanup."
+else
+  # shellcheck disable=SC2086
+  $GINKGO $GINKGO_ARGS --junit-report=junit.xml --json-report=e2e.json --output-dir="$ARTIFACTS" -v ./test/e2e/...
 fi
-
-# shellcheck disable=SC2086
-$GINKGO $GINKGO_ARGS --junit-report=junit.xml --json-report=e2e.json --output-dir="$ARTIFACTS" -v ./test/e2e/...

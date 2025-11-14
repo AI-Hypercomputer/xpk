@@ -172,7 +172,7 @@ def test_placement_policy_created_for_gpu_with_valid_topology(
   )
   system = SystemCharacteristics(
       topology="N/A",
-      vms_per_slice=1,
+      vms_per_slice=2,
       gke_accelerator="nvidia-h100-80gb",
       gce_machine_type="a3-highgpu-8g",
       chips_per_vm=8,
@@ -202,7 +202,7 @@ def test_placement_policy_not_created_for_gpu_with_invalid_topology(
   )
   system = SystemCharacteristics(
       topology="N/A",
-      vms_per_slice=1,
+      vms_per_slice=2,
       gke_accelerator="nvidia-h100-80gb",
       gce_machine_type="a3-highgpu-8g",
       chips_per_vm=8,
@@ -234,7 +234,7 @@ def test_placement_policy_created_for_tpu7x_with_valid_topology(
   )
   system = SystemCharacteristics(
       topology="2x2x1",
-      vms_per_slice=1,
+      vms_per_slice=2,
       gke_accelerator="tpu7x",
       gce_machine_type="tpu7x-standard-4t",
       chips_per_vm=4,
@@ -260,7 +260,7 @@ def test_placement_policy_not_created_for_non7x_tpu(
   args = mocker.Mock(
       tpu_type="v6e",
       device_type=None,
-      num_slices=1,
+      num_slices=2,
       cluster="test-cluster",
       project="test-project",
       zone="us-central1-a",

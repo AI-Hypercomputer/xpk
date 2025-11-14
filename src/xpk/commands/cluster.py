@@ -38,6 +38,8 @@ from ..core.cluster import (
 from ..core.cluster_private import authorize_private_cluster_access_if_necessary
 from ..core.commands import run_command_for_value, run_command_with_updates
 from ..core.config import VERTEX_TENSORBOARD_FEATURE_FLAG
+from ..core.telemetry import MetricsCollector, MetricsEventMetadataKey
+from ..core.capacity import get_capacity_type
 from ..core.gcloud_context import (
     add_zone_and_project,
     get_gke_control_plane_version,
@@ -74,6 +76,7 @@ from ..core.workload import get_workload_list
 from ..utils.console import ask_for_user_consent, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
 from ..utils.execution_context import is_dry_run, is_quiet
+from ..utils.feature_flags import FeatureFlags
 from ..utils.validation import validate_dependencies_list, SystemDependency, should_validate_dependencies
 from . import cluster_gcluster
 from .common import set_cluster_command, validate_sub_slicing_system
@@ -262,6 +265,8 @@ def cluster_create(args) -> None:
 
   xpk_print(f'Starting cluster create for cluster {args.cluster}:', flush=True)
   add_zone_and_project(args)
+
+  _log_cluster_create_telemetry(args)
 
   if system.device_type in cluster_gcluster.supported_device_types:
     xpk_print(
@@ -1319,3 +1324,18 @@ def prepare_gpus(system: SystemCharacteristics):
     err_code = disable_mglru_on_cluster()
     if err_code > 0:
       xpk_exit(err_code)
+
+
+def _log_cluster_create_telemetry(args) -> None:
+  if FeatureFlags.TELEMETRY_ENABLED:
+    capacity_type, _ = get_capacity_type(args)
+    MetricsCollector.log_custom(
+        name='cluster_create',
+        metadata={
+            MetricsEventMetadataKey.ZONE: args.zone,
+            MetricsEventMetadataKey.SYSTEM_CHARACTERISTICS: (
+                args.tpu_type if args.tpu_type else args.device_type
+            ),
+            MetricsEventMetadataKey.PROVISIONING_MODE: capacity_type.value,
+        },
+    )

@@ -16,9 +16,10 @@ limitations under the License.
 
 import pytest
 import json
-from .config import xpk_config, CLIENT_ID_KEY
-from .telemetry import MetricsCollector, MetricsEventMetadataKey
+from .config import xpk_config, CLIENT_ID_KEY, SEND_TELEMETRY_KEY
+from .telemetry import MetricsCollector, MetricsEventMetadataKey, should_send_telemetry
 from ..utils.execution_context import set_dry_run
+from ..utils.feature_flags import FeatureFlags
 from pytest_mock import MockerFixture
 
 
@@ -33,6 +34,23 @@ def setup_mocks(mocker: MockerFixture):
   xpk_config.set(CLIENT_ID_KEY, 'client_id')
   yield
   xpk_config.set(CLIENT_ID_KEY, None)
+
+
+@pytest.mark.parametrize(
+    argnames='feature_flag,config_value,expected',
+    argvalues=[
+        (True, 'true', True),
+        (False, 'true', False),
+        (True, None, True),
+        (True, 'false', False),
+    ],
+)
+def test_should_send_telemetry_returns_correct_value(
+    feature_flag: bool, config_value: str, expected: bool
+):
+  xpk_config.set(SEND_TELEMETRY_KEY, config_value)
+  FeatureFlags.TELEMETRY_ENABLED = feature_flag
+  assert should_send_telemetry() is expected
 
 
 def test_metrics_collector_generates_client_id_if_not_present():

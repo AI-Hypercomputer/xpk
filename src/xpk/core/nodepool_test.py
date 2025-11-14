@@ -303,7 +303,7 @@ def test_placement_policy_not_created_for_single_host(
       chips_per_vm=4,
       accelerator_type=AcceleratorType.TPU,
       device_type="tpu7x-8",
-      requires_workload_policy=True,
+      requires_workload_policy=False,
       supports_sub_slicing=False,
   )
 

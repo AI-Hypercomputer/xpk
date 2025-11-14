@@ -25,7 +25,7 @@ def test_get_tpu_system_characteristics_map_returns_correct_values_for_1x1_topol
       machine_type="test",
       supported_topologies=["1x1"],
       supports_sub_slicing=False,
-      requires_workload_policy=True,
+      tpu_type_requires_workload_policy=False,
   )
 
   expected_system_characteristics = SystemCharacteristics(
@@ -37,7 +37,7 @@ def test_get_tpu_system_characteristics_map_returns_correct_values_for_1x1_topol
       accelerator_type=AcceleratorType.TPU,
       device_type="test-1",
       supports_sub_slicing=False,
-      requires_workload_policy=True,
+      requires_workload_policy=False,
   )
   assert result == {
       "test-1": expected_system_characteristics,
@@ -53,7 +53,7 @@ def test_get_tpu_system_characteristics_map_returns_correct_values_for_2x2_topol
       machine_type="test",
       supported_topologies=["2x2"],
       supports_sub_slicing=False,
-      requires_workload_policy=True,
+      tpu_type_requires_workload_policy=True,
   )
 
   expected_system_characteristics = SystemCharacteristics(
@@ -65,9 +65,37 @@ def test_get_tpu_system_characteristics_map_returns_correct_values_for_2x2_topol
       accelerator_type=AcceleratorType.TPU,
       device_type="test-8",
       supports_sub_slicing=False,
-      requires_workload_policy=True,
+      requires_workload_policy=False,
   )
   assert result == {
       "test-8": expected_system_characteristics,
       "test-2x2": expected_system_characteristics,
+  }
+
+
+def test_get_tpu_system_characteristics_map_returns_correct_values_for_2x2x2_topology():
+  result = get_tpu_system_characteristics_map(
+      prefix="test",
+      tensorcores_per_chip=2,
+      gke_accelerator="test",
+      machine_type="test",
+      supported_topologies=["2x2x2"],
+      supports_sub_slicing=False,
+      tpu_type_requires_workload_policy=True,
+  )
+
+  expected_system_characteristics = SystemCharacteristics(
+      topology="2x2x2",
+      vms_per_slice=2,
+      gke_accelerator="test",
+      gce_machine_type="test",
+      chips_per_vm=4,
+      accelerator_type=AcceleratorType.TPU,
+      device_type="test-16",
+      supports_sub_slicing=False,
+      requires_workload_policy=True,
+  )
+  assert result == {
+      "test-16": expected_system_characteristics,
+      "test-2x2x2": expected_system_characteristics,
   }

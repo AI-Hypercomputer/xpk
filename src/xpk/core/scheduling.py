@@ -15,6 +15,7 @@ limitations under the License.
 """
 
 from ..utils.console import xpk_print
+from ..utils.topology import is_topology_valid
 from ..utils.execution_context import is_dry_run
 from .capacity import AUTOPROVISIONING_CONFIG_MAXIMUM_KEY, AUTOPROVISIONING_CONFIG_VALUE
 from .resources import CLUSTER_RESOURCES_CONFIGMAP, get_cluster_configmap
@@ -303,3 +304,16 @@ def create_sub_slicing_annotations(sub_slicing_topology: str) -> list[str]:
       ),
       f'cloud.google.com/gke-tpu-slice-topology: {sub_slicing_topology}',
   ]
+
+
+def create_placement_policy_label(system: SystemCharacteristics) -> str:
+  name = get_placement_policy_name(system)
+  return f'cloud.google.com/placement-policy-name: {name}'
+
+
+def get_placement_policy_name(system: SystemCharacteristics) -> str:
+  return f'{system.device_type}-{system.topology}-placement-policy'
+
+
+def is_placement_policy_supported(system: SystemCharacteristics) -> bool:
+  return system.requires_workload_policy and is_topology_valid(system.topology)

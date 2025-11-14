@@ -17,24 +17,35 @@ limitations under the License.
 import platform
 import uuid
 import json
+import os
 import time
 import sys
 import importlib
 import subprocess
 import tempfile
+import requests
 from enum import Enum
 from typing import Any
 from dataclasses import dataclass
-from .config import xpk_config, CLIENT_ID_KEY, __version__ as xpk_version
+from .config import xpk_config, CLIENT_ID_KEY, SEND_TELEMETRY_KEY, __version__ as xpk_version
 from ..utils.execution_context import is_dry_run
 from ..utils.user_agent import get_user_agent
+from ..utils.feature_flags import FeatureFlags
+
+
+def should_send_telemetry():
+  return (
+      FeatureFlags.TELEMETRY_ENABLED
+      and xpk_config.get(SEND_TELEMETRY_KEY) != "false"
+  )
 
 
 def send_clearcut_payload(data: str, wait_to_complete: bool = False) -> None:
   """Sends payload to clearcut endpoint."""
   try:
     file_path = _store_payload_in_temp_file(data)
-    _flush_temp_file_to_clearcut(file_path, wait_to_complete)
+    if not _schedule_clearcut_background_flush(file_path, wait_to_complete):
+      _clearcut_flush(file_path)
   except Exception:  # pylint: disable=broad-exception-caught
     pass
 
@@ -56,10 +67,22 @@ def _store_payload_in_temp_file(data: str) -> str:
     return file.name
 
 
-def _flush_temp_file_to_clearcut(
+def _schedule_clearcut_background_flush(
     file_path: str, wait_to_complete: bool
-) -> None:
+) -> bool:
+  """Schedules clearcut background flush.
+
+  Args:
+    file_path: path to the temporary file where the events are stored.
+    wait_to_complete: whenever to wait for the background script completion.
+
+  Returns:
+    True if successful and False otherwise
+  """
   with importlib.resources.path("xpk", "telemetry_uploader.py") as path:
+    if not os.path.exists(path):
+      return False
+
     kwargs: dict[str, Any] = {}
     if sys.platform == "win32":
       kwargs["creationflags"] = (
@@ -80,17 +103,14 @@ def _flush_temp_file_to_clearcut(
     )
     if wait_to_complete:
       process.wait()
+    return True
 
 
-def ensure_client_id() -> str:
-  """Generates Client ID and stores in configuration if not already present."""
-  current_client_id = xpk_config.get(CLIENT_ID_KEY)
-  if current_client_id is not None:
-    return current_client_id
-
-  new_client_id = str(uuid.uuid4())
-  xpk_config.set(CLIENT_ID_KEY, new_client_id)
-  return new_client_id
+def _clearcut_flush(file_path: str) -> None:
+  with open(file_path, mode="r", encoding="utf-8") as file:
+    kwargs = json.load(file)
+    requests.request(**kwargs)
+    os.remove(file_path)
 
 
 class MetricsEventMetadataKey(Enum):
@@ -102,6 +122,8 @@ class MetricsEventMetadataKey(Enum):
   PROVISIONING_MODE = "XPK_PROVISIONING_MODE"
   COMMAND = "XPK_COMMAND"
   EXIT_CODE = "XPK_EXIT_CODE"
+  RUNNING_AS_PIP = "XPK_RUNNING_AS_PIP"
+  RUNNING_FROM_SOURCE = "XPK_RUNNING_FROM_SOURCE"
 
 
 @dataclass
@@ -199,6 +221,10 @@ def _get_base_event_metadata() -> dict[MetricsEventMetadataKey, str]:
       MetricsEventMetadataKey.SESSION_ID: _get_session_id(),
       MetricsEventMetadataKey.DRY_RUN: str(is_dry_run()).lower(),
       MetricsEventMetadataKey.PYTHON_VERSION: platform.python_version(),
+      MetricsEventMetadataKey.RUNNING_AS_PIP: str(_is_running_as_pip()).lower(),
+      MetricsEventMetadataKey.RUNNING_FROM_SOURCE: str(
+          _is_running_from_source()
+      ).lower(),
   }
 
 
@@ -206,9 +232,32 @@ def _get_base_concord_event() -> dict[str, str]:
   return {
       "release_version": xpk_version,
       "console_type": "XPK",
-      "client_install_id": ensure_client_id(),
+      "client_install_id": _ensure_client_id(),
   }
+
+
+def _is_running_as_pip() -> bool:
+  return os.path.basename(sys.argv[0]) == "xpk"
+
+
+def _is_running_from_source() -> bool:
+  current_path = os.path.abspath(os.path.realpath(__file__))
+  return (
+      "site-packages" not in current_path
+      and "dist-packages" not in current_path
+  )
 
 
 def _get_session_id() -> str:
   return str(uuid.uuid4())
+
+
+def _ensure_client_id() -> str:
+  """Generates Client ID and stores in configuration if not already present."""
+  current_client_id = xpk_config.get(CLIENT_ID_KEY)
+  if current_client_id is not None:
+    return current_client_id
+
+  new_client_id = str(uuid.uuid4())
+  xpk_config.set(CLIENT_ID_KEY, new_client_id)
+  return new_client_id

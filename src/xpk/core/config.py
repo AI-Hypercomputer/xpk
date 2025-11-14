@@ -84,7 +84,7 @@ class XpkConfig:
     with open(self._config, encoding='utf-8', mode='w') as stream:
       yaml.dump(config_yaml, stream)
 
-  def set(self, key: str, value: str) -> None:
+  def set(self, key: str, value: str | None) -> None:
     if key not in self._allowed_keys:
       xpk_print(f'Key {key} is not an allowed xpk config key.')
       return

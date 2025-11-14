@@ -111,6 +111,10 @@ function cluster_slice_deploy {
     local build_output
     build_output=$($KUSTOMIZE build "${ROOT_DIR}/config/dev")
     build_output="${build_output//$DEFAULT_SLICE_NAMESPACE/$SLICE_NAMESPACE}"
+    # Add rollout-timestamp annotation to the Deployment's pod template
+    local timestamp
+    timestamp=$(date +%s) # Unix timestamp for uniqueness
+    build_output=$(yq eval "select(.kind == \"Deployment\").spec.template.metadata.annotations += {\"kubectl.kubernetes.io/timestamp\": \"$timestamp\"}" - <<< "$build_output")
     echo "$build_output" | kubectl apply --kubeconfig="$1" --server-side -f -
 
     (cd "${ROOT_DIR}/config/manager" && $KUSTOMIZE edit set image controller="$initial_image")

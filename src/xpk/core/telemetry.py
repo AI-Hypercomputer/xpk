@@ -61,7 +61,16 @@ def _store_payload_in_temp_file(data: str) -> str:
 
 def _schedule_clearcut_background_flush(
     file_path: str, wait_to_complete: bool
-) -> None:
+) -> bool:
+  """Schedules clearcut background flush.
+
+  Args:
+    file_path: path to the temporary file where the events are stored.
+    wait_to_complete: whenever to wait for the background script completion.
+
+  Returns:
+    True if successful and False otherwise
+  """
   with importlib.resources.path("xpk", "telemetry_uploader.py") as path:
     if not os.path.exists(path):
       return False

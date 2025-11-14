@@ -52,3 +52,8 @@ const (
 	// MMIGHealthStatusUnknown indicates the MMIG health is unknown.
 	MMIGHealthStatusUnknown MMIGHealthStatus = "UNKNOWN"
 )
+
+const (
+	OwnerWorkloadNamespaceAnnotation = "slice.accelerator.gke.io/owner-workload-namespace"
+	OwnerWorkloadNameAnnotation      = "slice.accelerator.gke.io/owner-workload-name"
+)

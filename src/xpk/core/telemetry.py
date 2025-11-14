@@ -105,17 +105,6 @@ def _clearcut_flush(file_path: str) -> None:
     os.remove(file_path)
 
 
-def ensure_client_id() -> str:
-  """Generates Client ID and stores in configuration if not already present."""
-  current_client_id = xpk_config.get(CLIENT_ID_KEY)
-  if current_client_id is not None:
-    return current_client_id
-
-  new_client_id = str(uuid.uuid4())
-  xpk_config.set(CLIENT_ID_KEY, new_client_id)
-  return new_client_id
-
-
 class MetricsEventMetadataKey(Enum):
   SESSION_ID = "XPK_SESSION_ID"
   DRY_RUN = "XPK_DRY_RUN"
@@ -125,6 +114,8 @@ class MetricsEventMetadataKey(Enum):
   PROVISIONING_MODE = "XPK_PROVISIONING_MODE"
   COMMAND = "XPK_COMMAND"
   EXIT_CODE = "XPK_EXIT_CODE"
+  RUNNING_AS_PIP = "XPK_RUNNING_AS_PIP"
+  RUNNING_FROM_SOURCE = "XPK_RUNNING_FROM_SOURCE"
 
 
 @dataclass
@@ -222,6 +213,10 @@ def _get_base_event_metadata() -> dict[MetricsEventMetadataKey, str]:
       MetricsEventMetadataKey.SESSION_ID: _get_session_id(),
       MetricsEventMetadataKey.DRY_RUN: str(is_dry_run()).lower(),
       MetricsEventMetadataKey.PYTHON_VERSION: platform.python_version(),
+      MetricsEventMetadataKey.RUNNING_AS_PIP: str(_is_running_as_pip()).lower(),
+      MetricsEventMetadataKey.RUNNING_FROM_SOURCE: str(
+          _is_running_from_source()
+      ).lower(),
   }
 
 
@@ -229,9 +224,32 @@ def _get_base_concord_event() -> dict[str, str]:
   return {
       "release_version": xpk_version,
       "console_type": "XPK",
-      "client_install_id": ensure_client_id(),
+      "client_install_id": _ensure_client_id(),
   }
+
+
+def _is_running_as_pip() -> bool:
+  return os.path.basename(sys.argv[0]) == "xpk"
+
+
+def _is_running_from_source() -> bool:
+  current_path = os.path.abspath(os.path.realpath(__file__))
+  return (
+      "site-packages" not in current_path
+      and "dist-packages" not in current_path
+  )
 
 
 def _get_session_id() -> str:
   return str(uuid.uuid4())
+
+
+def _ensure_client_id() -> str:
+  """Generates Client ID and stores in configuration if not already present."""
+  current_client_id = xpk_config.get(CLIENT_ID_KEY)
+  if current_client_id is not None:
+    return current_client_id
+
+  new_client_id = str(uuid.uuid4())
+  xpk_config.set(CLIENT_ID_KEY, new_client_id)
+  return new_client_id

@@ -76,7 +76,6 @@ from ..core.workload import get_workload_list
 from ..utils.console import ask_for_user_consent, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
 from ..utils.execution_context import is_dry_run, is_quiet
-from ..utils.feature_flags import FeatureFlags
 from ..utils.validation import validate_dependencies_list, SystemDependency, should_validate_dependencies
 from . import cluster_gcluster
 from .common import set_cluster_command, validate_sub_slicing_system

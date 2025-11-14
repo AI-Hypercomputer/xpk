@@ -18,11 +18,12 @@ package core
 
 import (
 	"regexp"
-	"tpu-slice-controller/api/v1alpha1"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"tpu-slice-controller/api/v1alpha1"
 )
 
 type MMIGHealthStatus string

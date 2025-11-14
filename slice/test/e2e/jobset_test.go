@@ -1295,9 +1295,12 @@ var _ = ginkgo.Describe("JobSet", func() {
 				gomega.Eventually(func(g gomega.Gomega) {
 					g.Expect(k8sClient.Get(ctx, sliceKey1, createdSlice1)).To(gomega.Succeed())
 					slice1UID = createdSlice1.GetUID()
-					g.Expect(createdSlice1.Spec.Topology).To(gomega.Equal(tpuTopology))
-					g.Expect(createdSlice1.Spec.Type).To(gomega.Equal("tpu-v7x"))
-					meta.SetStatusCondition(&createdSlice1.Status.Conditions, metav1.Condition{Type: string(slice.Ready), Status: metav1.ConditionTrue, Reason: "TestReady", Message: "Slice is ready"})
+					meta.SetStatusCondition(&createdSlice1.Status.Conditions, metav1.Condition{
+						Type:    slice.SliceStateConditionType,
+						Status:  metav1.ConditionTrue,
+						Reason:  string(core.MMIGHealthStatusActive),
+						Message: "Slice is ready",
+					})
 					g.Expect(k8sClient.Status().Update(ctx, createdSlice1)).To(gomega.Succeed())
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
@@ -1306,9 +1309,12 @@ var _ = ginkgo.Describe("JobSet", func() {
 				gomega.Eventually(func(g gomega.Gomega) {
 					g.Expect(k8sClient.Get(ctx, sliceKey2, createdSlice2)).To(gomega.Succeed())
 					g.Expect(createdSlice2.GetUID()).ShouldNot(gomega.Equal(slice1UID))
-					g.Expect(createdSlice2.Spec.Topology).To(gomega.Equal(tpuTopology))
-					g.Expect(createdSlice2.Spec.Type).To(gomega.Equal("tpu-v7x"))
-					meta.SetStatusCondition(&createdSlice2.Status.Conditions, metav1.Condition{Type: string(slice.Ready), Status: metav1.ConditionTrue, Reason: "TestReady", Message: "Slice is ready"})
+					meta.SetStatusCondition(&createdSlice2.Status.Conditions, metav1.Condition{
+						Type:    slice.SliceStateConditionType,
+						Status:  metav1.ConditionTrue,
+						Reason:  string(core.MMIGHealthStatusActive),
+						Message: "Slice is ready",
+					})
 					g.Expect(k8sClient.Status().Update(ctx, createdSlice2)).To(gomega.Succeed())
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
@@ -1320,7 +1326,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 					g.Expect(createdWorkload1.Status.AdmissionChecks).Should(gomega.BeComparableTo([]kueue.AdmissionCheckState{{
 						Name:    kueue.AdmissionCheckReference(ac.Name),
 						State:   kueue.CheckStateReady,
-						Message: `Slices are in states: 1 Ready`,
+						Message: `Slices are in states: 1 ACTIVE`,
 					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates")))
 				}, utils.LongTimeout, utils.Timeout).Should(gomega.Succeed())
 			})
@@ -1332,7 +1338,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 					g.Expect(createdWorkload2.Status.AdmissionChecks).Should(gomega.BeComparableTo([]kueue.AdmissionCheckState{{
 						Name:    kueue.AdmissionCheckReference(ac.Name),
 						State:   kueue.CheckStateReady,
-						Message: `Slices are in states: 1 Ready`,
+						Message: `Slices are in states: 1 ACTIVE`,
 					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates")))
 				}, utils.LongTimeout, utils.Timeout).Should(gomega.Succeed())
 			})

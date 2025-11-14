@@ -48,12 +48,12 @@ func SliceName(workloadName string, podSetName kueue.PodSetReference) string {
 	return fmt.Sprintf("%s-%s", workloadName, podSetName)
 }
 
-func IsStale(slice *v1alpha1.Slice) bool {
+func isStale(slice *v1alpha1.Slice) bool {
 	cond := meta.FindStatusCondition(slice.Status.Conditions, v1alpha1.SliceStateConditionType)
 	return cond != nil && cond.Status == metav1.ConditionFalse && time.Since(cond.LastTransitionTime.Time) >= activationTimeout
 }
 
-func IsError(slice *v1alpha1.Slice) bool {
+func isError(slice *v1alpha1.Slice) bool {
 	condReady := meta.FindStatusCondition(slice.Status.Conditions, v1alpha1.SliceStateConditionType)
 	condFailed := meta.FindStatusCondition(slice.Status.Conditions, v1alpha1.SliceCreationFailedConditionType)
 	runtimeError := condReady != nil && condReady.Status == metav1.ConditionFalse && condReady.Reason == string(MMIGHealthStatusFailed)

@@ -306,10 +306,10 @@ func (r *WorkloadReconciler) findWorkloadSlices(ctx context.Context, wl *kueue.W
 func (r *WorkloadReconciler) groupSlices(slices []v1alpha1.Slice) ([]v1alpha1.Slice, []v1alpha1.Slice, []v1alpha1.Slice) {
 	var deleted, toDelete, other []v1alpha1.Slice
 	for _, slice := range slices {
-		switch {
-		case !slice.DeletionTimestamp.IsZero():
+		switch core.GetSliceState(slice) {
+		case core.SliceStateDeleted:
 			deleted = append(deleted, slice)
-		case core.IsError(&slice) || core.IsStale(&slice):
+		case core.SliceStateFailed, core.SliceStateStale:
 			toDelete = append(toDelete, slice)
 		default:
 			other = append(other, slice)

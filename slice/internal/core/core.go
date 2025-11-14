@@ -29,7 +29,8 @@ type MMIGHealthStatus string
 type SliceState string
 
 var SliceStates = []SliceState{
-	SliceStateCreated, SliceStateActivating, SliceStateActive, SliceStateActiveDegraded, SliceStateFailed,
+	SliceStateCreated, SliceStateActivating, SliceStateActive, SliceStateActiveDegraded,
+	SliceStateFailed, SliceStateDeleted, SliceStateStale,
 }
 
 func IsValidTPUTopology(tpuTopology string) bool {
@@ -55,8 +56,14 @@ func GetTPUAccelerator(spec corev1.PodTemplateSpec) string {
 }
 
 func GetSliceState(slice v1alpha1.Slice) SliceState {
-	if IsError(&slice) {
+	if !slice.DeletionTimestamp.IsZero() {
+		return SliceStateDeleted
+	}
+	if isError(&slice) {
 		return SliceStateFailed
+	}
+	if isStale(&slice) {
+		return SliceStateStale
 	}
 	condReady := meta.FindStatusCondition(slice.Status.Conditions, v1alpha1.SliceStateConditionType)
 	if condReady != nil && condReady.Status == metav1.ConditionTrue {

@@ -32,6 +32,8 @@ const (
 	SliceStateActive         SliceState = "ACTIVE"
 	SliceStateActiveDegraded SliceState = "ACTIVE_DEGRADED"
 	SliceStateFailed         SliceState = "FAILED"
+	SliceStateDeleted        SliceState = "DELETED"
+	SliceStateStale          SliceState = "STALE"
 )
 
 const (

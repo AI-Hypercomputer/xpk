@@ -19,10 +19,11 @@ import json
 from .config import xpk_config, CLIENT_ID_KEY
 from .telemetry import MetricsCollector, MetricsEventMetadataKey
 from ..utils.execution_context import set_dry_run
+from pytest_mock import MockerFixture
 
 
 @pytest.fixture(autouse=True)
-def setup_mocks(mocker):
+def setup_mocks(mocker: MockerFixture):
   mocker.patch('xpk.core.telemetry._get_session_id', return_value='321231')
   mocker.patch('time.time', return_value=0)
   mocker.patch('platform.python_version', return_value='99.99.99')
@@ -141,7 +142,9 @@ def test_metrics_collector_does_not_flush_event_twice():
 @pytest.mark.parametrize(
     argnames='dry_run,expected', argvalues=[(False, 'false'), (True, 'true')]
 )
-def test_metrics_collector_logs_correct_dry_run_value(dry_run, expected):
+def test_metrics_collector_logs_correct_dry_run_value(
+    dry_run: bool, expected: str
+):
   set_dry_run(dry_run)
   MetricsCollector.log_start(command='test')
   payload = MetricsCollector.flush()
@@ -156,7 +159,7 @@ def test_metrics_collector_logs_correct_dry_run_value(dry_run, expected):
     ],
 )
 def test_metrics_collectors_logs_correct_running_as_pip_value(
-    basename, expected, mocker
+    basename: str, expected: str, mocker: MockerFixture
 ):
   mocker.patch('os.path.basename', return_value=basename)
   MetricsCollector.log_start(command='test')
@@ -173,7 +176,7 @@ def test_metrics_collectors_logs_correct_running_as_pip_value(
     ],
 )
 def test_metrics_collectors_logs_correct_running_from_source_value(
-    abspath, expected, mocker
+    abspath: str, expected: str, mocker: MockerFixture
 ):
   mocker.patch('os.path.abspath', return_value=abspath)
   MetricsCollector.log_start(command='test')

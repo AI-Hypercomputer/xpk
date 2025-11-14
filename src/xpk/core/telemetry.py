@@ -17,11 +17,13 @@ limitations under the License.
 import platform
 import uuid
 import json
+import os
 import time
 import sys
 import importlib
 import subprocess
 import tempfile
+import requests
 from enum import Enum
 from typing import Any
 from dataclasses import dataclass
@@ -34,7 +36,8 @@ def send_clearcut_payload(data: str, wait_to_complete: bool = False) -> None:
   """Sends payload to clearcut endpoint."""
   try:
     file_path = _store_payload_in_temp_file(data)
-    _flush_temp_file_to_clearcut(file_path, wait_to_complete)
+    if not _schedule_clearcut_background_flush(file_path, wait_to_complete):
+      _clearcut_flush(file_path)
   except Exception:  # pylint: disable=broad-exception-caught
     pass
 
@@ -56,10 +59,22 @@ def _store_payload_in_temp_file(data: str) -> str:
     return file.name
 
 
-def _flush_temp_file_to_clearcut(
+def _schedule_clearcut_background_flush(
     file_path: str, wait_to_complete: bool
-) -> None:
+) -> bool:
+  """Schedules clearcut background flush.
+
+  Args:
+    file_path: path to the temporary file where the events are stored.
+    wait_to_complete: whenever to wait for the background script completion.
+
+  Returns:
+    True if successful and False otherwise
+  """
   with importlib.resources.path("xpk", "telemetry_uploader.py") as path:
+    if not os.path.exists(path):
+      return False
+
     kwargs: dict[str, Any] = {}
     if sys.platform == "win32":
       kwargs["creationflags"] = (
@@ -80,6 +95,14 @@ def _flush_temp_file_to_clearcut(
     )
     if wait_to_complete:
       process.wait()
+    return True
+
+
+def _clearcut_flush(file_path: str) -> None:
+  with open(file_path, mode="r", encoding="utf-8") as file:
+    kwargs = json.load(file)
+    requests.request(**kwargs)
+    os.remove(file_path)
 
 
 def ensure_client_id() -> str:

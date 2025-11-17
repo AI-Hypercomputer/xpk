@@ -166,9 +166,11 @@ def get_tpu_system_characteristics_map(
     supported_topologies: list[str],
     supports_sub_slicing: bool,
     tpu_type_requires_workload_policy: bool = False,
-    default_topologies: set[str] = set(),
+    default_topologies: set[str] | None = None,
 ) -> dict[str, SystemCharacteristics]:
   system_characteristics_map = {}
+  if default_topologies is None:
+    default_topologies = set()
   for topology in supported_topologies:
     chips_per_vm = compute_chips_per_vm(topology)
     vms_per_slice = compute_vms_per_slice(topology)

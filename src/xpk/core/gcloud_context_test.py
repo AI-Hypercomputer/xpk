@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 from .gcloud_context import (
     get_cluster_location,
     get_gke_control_plane_version,
@@ -117,7 +117,7 @@ def test_get_gke_server_config_success(mocker):
           (0, "1.2.3;1.2.4;1.3.0"),
       ],
   )
-  args = mocker.Mock(project="p", zone="z")
+  args = mocker.Mock(project="test-project", zone="us-central1")
 
   return_code, config = get_gke_server_config(args, ReleaseChannel.STABLE)
 
@@ -133,7 +133,7 @@ def test_get_gke_server_config_fails_on_default_version_command(mocker):
       "xpk.core.gcloud_context.run_command_for_value",
       return_value=(1, "error"),
   )
-  args = mocker.Mock(project="p", zone="z")
+  args = mocker.Mock(project="test-project", zone="us-central1")
 
   return_code, config = get_gke_server_config(args, ReleaseChannel.STABLE)
 
@@ -146,7 +146,7 @@ def test_get_gke_server_config_fails_on_valid_versions_command(mocker):
       "xpk.core.gcloud_context.run_command_for_value",
       side_effect=[(0, "1.2.3"), (1, "error")],
   )
-  args = mocker.Mock(project="p", zone="z")
+  args = mocker.Mock(project="test-project", zone="us-central1")
 
   return_code, config = get_gke_server_config(args, ReleaseChannel.STABLE)
 

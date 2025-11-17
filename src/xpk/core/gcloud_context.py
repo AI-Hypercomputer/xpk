@@ -179,7 +179,7 @@ def get_gke_server_config(
 
   return 0, GkeServerConfig(
       default_gke_version=command_outputs[0].strip(),
-      valid_versions=set(command_outputs[1].split(';')),
+      valid_versions=set([s.strip() for s in command_outputs[1].split(';')]),
   )
 
 

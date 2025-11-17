@@ -188,7 +188,7 @@ class BlueprintGenerator:
           [{
               "name": "no-minor-or-node-upgrades-indefinite",
               "start_time": "2024-12-01T00:00:00Z",
-              "end_time": "2199-12-22T00:00:00Z",
+              "end_time": "2026-01-16T00:00:00Z",
               "exclusion_scope": "NO_MINOR_OR_NODE_UPGRADES",
           }],
       )
@@ -560,7 +560,7 @@ class BlueprintGenerator:
           [{
               "name": "no-minor-or-node-upgrades-indefinite",
               "start_time": "2024-12-01T00:00:00Z",
-              "end_time": "2199-12-22T00:00:00Z",
+              "end_time": "2026-01-16T00:00:00Z",
               "exclusion_scope": "NO_MINOR_OR_NODE_UPGRADES",
           }],
       )
@@ -840,7 +840,7 @@ class BlueprintGenerator:
           [{
               "name": "no-minor-or-node-upgrades-indefinite",
               "start_time": "2024-12-01T00:00:00Z",
-              "end_time": "2199-12-22T00:00:00Z",
+              "end_time": "2026-01-16T00:00:00Z",
               "exclusion_scope": "NO_MINOR_OR_NODE_UPGRADES",
           }],
       )

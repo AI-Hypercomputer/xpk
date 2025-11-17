@@ -77,14 +77,14 @@ jobs:
             - name: Delete the workload on the cluster
               run: xpk workload delete --workload $WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
             - name: Create test script to execute in batch
-              run: echo -e '#!/bin/bash \n#SBATCH --unknown-flag=value\n echo "Hello world from a test script!"\n sleep 10' > batch.sh
+              run: echo -e '#!/bin/bash \n#SBATCH --unknown-flag=value\n echo "Hello world from a test script!"' > batch.sh
             - name: Run a batch job on the cluster
               run: xpk batch --cluster $TPU_CLUSTER_NAME --zone=us-central2-b batch.sh --ignore-unknown-flags --array 1-5 --nodes 2 --ntasks 3
             - name: List out the jobs on the cluster
               run: xpk job ls --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep 'xpk-def-app-profile-slurm-'
             - name: Get created job name
               run: |
-                  JOB_NAME=$(xpk job ls --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep 'xpk-def-app-profile-slurm-' | head -1 | awk '{print $1}')
+                  JOB_NAME=$(xpk job ls --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep 'xpk-def-app-profile-slurm-' | grep 'multislice-queue' | head -1 | awk '{print $1}')
                   echo "JOB_NAME=${JOB_NAME}" >> $GITHUB_ENV
             - name: Check job spec
               run: |
@@ -136,13 +136,13 @@ jobs:
               if: always()
               run: xpk cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --force
             - name: Create a DWS flex queued xpk cluster
-              run: xpk cluster create --cluster ${DWS_FLEX_CLUSTER_NAME} --tpu-type=v5litepod-8  --num-slices=1 --zone=us-west4-a --default-pool-cpu-num-nodes=2 --flex --custom-cluster-arguments="${CLUSTER_NETWORK_ARGUMENTS_DWS}"
+              run: xpk cluster create --cluster ${DWS_FLEX_CLUSTER_NAME} --tpu-type=v5p-8  --num-slices=1 --zone=us-east5-a --default-pool-cpu-num-nodes=2 --flex --custom-cluster-arguments="${CLUSTER_NETWORK_ARGUMENTS_DWS}"
             - name: Run dws flex queued TPU workload
-              run: xpk workload create --workload xpktest-build-${{ github.run_attempt }}-dws --cluster ${DWS_FLEX_CLUSTER_NAME} --zone=us-west4-a --tpu-type=v5litepod-8  --flex --command "echo foo" --num-slices=1
+              run: xpk workload create --workload xpktest-build-${{ github.run_attempt }}-dws --cluster ${DWS_FLEX_CLUSTER_NAME} --zone=us-east5-a --tpu-type=v5p-8  --flex --command "echo foo" --num-slices=1
             - name: Wait for workload completion and confirm it succeeded
-              run: xpk workload list --cluster ${DWS_FLEX_CLUSTER_NAME} --zone=us-west4-a --wait-for-job-completion xpktest-build-${{ github.run_attempt }}-dws --timeout 1000
+              run: xpk workload list --cluster ${DWS_FLEX_CLUSTER_NAME} --zone=us-east5-a --wait-for-job-completion xpktest-build-${{ github.run_attempt }}-dws --timeout 1000
             - name: Delete the DWS flex queued cluster
-              run: xpk cluster delete --cluster ${DWS_FLEX_CLUSTER_NAME} --zone=us-west4-a --force
+              run: xpk cluster delete --cluster ${DWS_FLEX_CLUSTER_NAME} --zone=us-east5-a --force
             - name: Upload cluster nodepool creation log
               if: always()
               uses: actions/upload-artifact@v4

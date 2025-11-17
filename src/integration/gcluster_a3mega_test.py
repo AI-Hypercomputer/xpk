@@ -18,6 +18,7 @@ from xpk.commands.cluster_gcluster import get_unique_name
 from xpk.core.docker_manager import DockerManager
 from xpk.core.gcluster_manager import GclusterManager
 from xpk.core.blueprint.blueprint_generator import BlueprintGenerator
+from xpk.utils.versions import ReleaseChannel
 import pytest
 import os
 import shutil
@@ -28,6 +29,8 @@ region = os.getenv("REGION")
 zone = os.getenv("ZONE")
 auth_cidr = os.getenv("AUTH_CIDR")
 cluster_name = os.getenv("A3_MEGA_TEST_CLUSTER_NAME")
+release_channel = os.getenv("RELEASE_CHANNEL")
+cluster_version = os.getenv("CLUSTER_VERSION")
 
 uploads_dir = "uploads"
 
@@ -87,6 +90,8 @@ def test_create_a3_mega_deployment_files(setup_tests):
   assert auth_cidr is not None
   assert ctk_gcloud_cfg is not None
   assert cluster_name is not None
+  assert release_channel is not None
+  assert cluster_version is not None
   docker_path, bp_path = setup_tests[0], setup_tests[1]
 
   blueprint_name = f"{cluster_name}-a3-mega-xpk"
@@ -107,6 +112,8 @@ def test_create_a3_mega_deployment_files(setup_tests):
       auth_cidr=auth_cidr,
       zone=zone,
       system_node_pool_min_node_count=3,
+      release_channel=ReleaseChannel(release_channel),
+      cluster_version=cluster_version,
   )
   blueprint_test_path = os.path.join(bp_path, prefix, f"{blueprint_name}.yaml")
   blueprint_deps_test_path = os.path.join(bp_path, prefix, blueprint_name)
@@ -164,6 +171,8 @@ def create_test_a3_mega_deployment(docker_path: str, bp_path: str):
   assert auth_cidr is not None
   assert ctk_gcloud_cfg is not None
   assert cluster_name is not None
+  assert release_channel is not None
+  assert cluster_version is not None
 
   blueprint_name = f"{cluster_name}-a3-mega-xpk"
   prefix = "prefix"
@@ -183,6 +192,8 @@ def create_test_a3_mega_deployment(docker_path: str, bp_path: str):
       auth_cidr=auth_cidr,
       zone=zone,
       system_node_pool_min_node_count=3,
+      release_channel=ReleaseChannel(release_channel),
+      cluster_version=cluster_version,
   )
 
   gcluster_manager = GclusterManager(

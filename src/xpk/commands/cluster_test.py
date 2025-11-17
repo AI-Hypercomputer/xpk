@@ -343,7 +343,8 @@ def test_run_gke_cluster_create_command_with_gke_version_has_no_autoupgrade_flag
   mocks.commands_tester.assert_command_run(
       'clusters create', '--release-channel=REGULAR', ' --no-enable-autoupgrade'
   )
-  
+
+
 def test_run_gke_cluster_create_command_with_gpu_system_has_no_enable_autoupgrade(
     mocks: _Mocks,
 ):

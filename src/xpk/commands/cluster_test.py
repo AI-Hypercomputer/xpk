@@ -87,6 +87,7 @@ def construct_args(**kwargs: Any) -> Namespace:
       memory_limit='100Gi',
       cpu_limit=100,
       cluster_cpu_machine_type='',
+      sub_slicing=False,
   )
   args_dict.update(kwargs)
   return Namespace(**args_dict)

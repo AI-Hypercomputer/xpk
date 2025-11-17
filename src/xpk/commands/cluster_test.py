@@ -196,7 +196,7 @@ TPU_TEST_SYSTEM: SystemCharacteristics = UserFacingNameToSystemCharacteristics[
 def test_validate_cluster_create_args_for_correct_args_pass(
     mocks: _Mocks,
 ):
-  args = Namespace()
+  args = construct_args()
 
   _validate_cluster_create_args(args, GPU_TEST_SYSTEM)
 

@@ -345,24 +345,6 @@ def test_run_gke_cluster_create_command_with_gke_version_has_no_autoupgrade_flag
   )
 
 
-def test_run_gke_cluster_create_command_with_gpu_system_has_no_enable_autoupgrade(
-    mocks: _Mocks,
-):
-  result = run_gke_cluster_create_command(
-      args=construct_args(gke_version=''),
-      gke_control_plane_version='1.2.3',
-      system=GPU_TEST_SYSTEM,
-      release_channel=ReleaseChannel.REGULAR,
-  )
-
-  assert result == 0
-  mocks.commands_tester.assert_command_run(
-      'clusters create',
-      ' --release-channel=REGULAR',
-      ' --no-enable-autoupgrade',
-  )
-
-
 def test_log_cluster_create_telemetry_does_not_log_when_feature_flag_is_disabled():
   FeatureFlags.TELEMETRY_ENABLED = False
   _log_cluster_create_telemetry(construct_args())

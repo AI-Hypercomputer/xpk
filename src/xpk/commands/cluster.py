@@ -39,6 +39,8 @@ from ..core.cluster import (
 from ..core.cluster_private import authorize_private_cluster_access_if_necessary
 from ..core.commands import run_command_for_value, run_command_with_updates
 from ..core.config import VERTEX_TENSORBOARD_FEATURE_FLAG
+from ..core.telemetry import MetricsCollector, MetricsEventMetadataKey
+from ..core.capacity import get_capacity_type
 from ..core.gcloud_context import (
     add_zone_and_project,
     get_gke_control_plane_version,
@@ -72,9 +74,9 @@ from ..core.system_characteristics import (
 )
 from ..core.vertex import create_vertex_tensorboard
 from ..core.workload import get_workload_list
-from ..utils.console import get_user_input, xpk_exit, xpk_print
+from ..utils.console import ask_for_user_consent, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
-from ..utils.execution_context import is_dry_run
+from ..utils.execution_context import is_dry_run, is_quiet
 from ..utils.validation import validate_dependencies_list, SystemDependency, should_validate_dependencies
 from . import cluster_gcluster
 from .common import set_cluster_command, validate_sub_slicing_system
@@ -267,6 +269,8 @@ def cluster_create(args) -> None:
   release_channel = (
       ReleaseChannel.REGULAR if args.gke_version else ReleaseChannel.RAPID
   )
+  
+  _log_cluster_create_telemetry(args)
 
   return_code, gke_server_config = get_gke_server_config(
       args, release_channel=release_channel
@@ -1070,7 +1074,7 @@ def run_gke_cluster_delete_command(args) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
-  if not args.force:
+  if not is_quiet():
     xpk_print('Get the name of the workloads in the cluster.')
     args.filter_by_status = 'EVERYTHING'
     return_code, return_value = get_workload_list(args)
@@ -1081,10 +1085,9 @@ def run_gke_cluster_delete_command(args) -> int:
     # Ignore Column Names line.
     if len(return_value) > 1:
       workloads = [x.split(' ')[0] for x in return_value.splitlines()][1:]
-      if workloads and not get_user_input(
+      if workloads and not ask_for_user_consent(
           f'Planning to delete {len(workloads)} workloads in the cluster'
-          f' {args.cluster} including {workloads}. \nDo you wish to delete: y'
-          ' (yes) / n (no):\n'
+          f' {args.cluster} including {workloads}. \nDo you wish to delete?'
       ):
         xpk_print('Skipping delete command.')
         return 0
@@ -1175,7 +1178,7 @@ def run_gke_cluster_create_command(
       f' --release-channel={release_channel.value}'
   )
 
-  if args.gke_version or system.accelerator_type == AcceleratorType.GPU:
+  if args.gke_version:
     command += ' --no-enable-autoupgrade'
 
   enable_ip_alias = False
@@ -1303,7 +1306,7 @@ def _install_kueue(
   else:
     # Determine total chips based on user specified topology.
     total_chips = get_total_chips_requested_from_args(args, system)
-  kueue_manager = KueueManager()
+  kueue_manager = KueueManager(args.project, args.zone)
   return kueue_manager.install_or_upgrade(
       KueueConfig(
           system,
@@ -1317,7 +1320,7 @@ def _install_kueue(
           configure_sub_slicing=(
               FeatureFlags.SUB_SLICING_ENABLED and args.sub_slicing
           ),
-      ),
+      )
   )
 
 
@@ -1338,3 +1341,18 @@ def prepare_gpus(system: SystemCharacteristics):
     err_code = disable_mglru_on_cluster()
     if err_code > 0:
       xpk_exit(err_code)
+
+
+def _log_cluster_create_telemetry(args) -> None:
+  if FeatureFlags.TELEMETRY_ENABLED:
+    capacity_type, _ = get_capacity_type(args)
+    MetricsCollector.log_custom(
+        name='cluster_create',
+        metadata={
+            MetricsEventMetadataKey.ZONE: args.zone,
+            MetricsEventMetadataKey.SYSTEM_CHARACTERISTICS: (
+                args.tpu_type if args.tpu_type else args.device_type
+            ),
+            MetricsEventMetadataKey.PROVISIONING_MODE: capacity_type.value,
+        },
+    )

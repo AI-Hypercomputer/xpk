@@ -62,6 +62,13 @@ def set_installed_kueue_version(
 
 
 @pytest.fixture(autouse=True)
+def mock_ask_for_user_consent(mocker: MockerFixture) -> MagicMock:
+  return mocker.patch(
+      "xpk.core.kueue_manager.ask_for_user_consent", return_value=True
+  )
+
+
+@pytest.fixture(autouse=True)
 def mock_commands(mocker: MockerFixture) -> CommandsTester:
   return CommandsTester(
       mocker,
@@ -78,7 +85,7 @@ def mock_commands(mocker: MockerFixture) -> CommandsTester:
 @pytest.fixture(autouse=True)
 @patch("jinja2.Environment", return_value=MagicMock())
 def kueue_manager(mock_env: MagicMock) -> KueueManager:
-  return KueueManager()
+  return KueueManager("test-project", "test-zone")
 
 
 def test_install_or_upgrade_when_newer_version_already_installed(
@@ -102,7 +109,7 @@ def test_install_or_upgrade_when_outdated(
   result = kueue_manager.install_or_upgrade(KUEUE_CONFIG)
 
   assert result == 0
-  mock_commands.assert_command_run("kubectl apply", "v0.12.2/manifests.yaml")
+  mock_commands.assert_command_run("kubectl apply", "v0.14.3/manifests.yaml")
   mock_commands.assert_command_run("kubectl apply -f", "/tmp/")
 
 
@@ -115,8 +122,82 @@ def test_install_or_upgrade_when_not_installed(
   result = kueue_manager.install_or_upgrade(KUEUE_CONFIG)
 
   assert result == 0
-  mock_commands.assert_command_run("kubectl apply", "v0.12.2/manifests.yaml")
+  mock_commands.assert_command_run("kubectl apply", "v0.14.3/manifests.yaml")
   mock_commands.assert_command_run("kubectl apply -f", "/tmp/")
+
+
+def test_upgrade_when_no_breaking_changes_between_versions_no_preparation_needed(
+    mock_commands: CommandsTester,
+    kueue_manager: KueueManager,
+    mock_ask_for_user_consent: MagicMock,
+):
+  set_installed_kueue_version(mock_commands, Version("0.14.0"))
+
+  kueue_manager.install_or_upgrade(KUEUE_CONFIG)
+
+  mock_ask_for_user_consent.assert_not_called()
+
+
+def test_upgrade_with_breaking_changes_between_versions_runs_preparation(
+    mock_commands: CommandsTester,
+    kueue_manager: KueueManager,
+    mock_ask_for_user_consent: MagicMock,
+):
+  set_installed_kueue_version(mock_commands, Version("0.11.0"))
+  fake_crds = (
+      "customresourcedefinition.apiextensions.k8s.io/kueue-crd-1.kueue.x-k8s.io\n"
+      "customresourcedefinition.apiextensions.k8s.io/kueue-crd-2.kueue.x-k8s.io"
+  )
+  mock_commands.set_result_for_command(
+      (0, fake_crds), "kubectl get crd -o name"
+  )
+  mock_ask_for_user_consent.return_value = True
+
+  result = kueue_manager.install_or_upgrade(KUEUE_CONFIG)
+
+  assert result == 0
+  mock_ask_for_user_consent.assert_called_once()
+  assert (
+      "CHANGELOG/CHANGELOG-0.14.md"
+      in mock_ask_for_user_consent.mock_calls[0].args[0]
+  )
+  mock_commands.assert_command_run(
+      "kubectl delete kueue-crd-1.kueue.x-k8s.io --all"
+  )
+  mock_commands.assert_command_run(
+      "kubectl delete kueue-crd-2.kueue.x-k8s.io --all"
+  )
+  mock_commands.assert_command_run(
+      "kubectl delete crd kueue-crd-1.kueue.x-k8s.io"
+  )
+  mock_commands.assert_command_run(
+      "kubectl delete crd kueue-crd-2.kueue.x-k8s.io"
+  )
+  mock_commands.assert_command_run(
+      "kubectl delete deployment kueue-controller-manager"
+  )
+
+
+def test_upgrade_with_breaking_changes_between_versions_does_not_run_preparation_without_consent(
+    mock_commands: CommandsTester,
+    kueue_manager: KueueManager,
+    mock_ask_for_user_consent: MagicMock,
+):
+  set_installed_kueue_version(mock_commands, Version("0.11.0"))
+  mock_commands.set_result_for_command(
+      (
+          0,
+          "customresourcedefinition.apiextensions.k8s.io/kueue-crd-1.kueue.x-k8s.io",
+      ),
+      "kubectl get crd -o name",
+  )
+  mock_ask_for_user_consent.return_value = False
+
+  result = kueue_manager.install_or_upgrade(KUEUE_CONFIG)
+
+  assert result == 1
+  # Assert there was no command run for the Kueue crd:
+  mock_commands.assert_command_not_run("kueue-crd-1.kueue.x-k8s.io")
 
 
 def test_installation_with_tolerations(
@@ -199,6 +280,10 @@ def test_configure_generates_correct_manifest_for_tpu(
 ):
   """Test that __configure generates the correct manifest content for TPUs."""
   set_installed_kueue_version(mock_commands, None)
+  mock_commands.set_result_for_command(
+      (0, "100 102400"), "gcloud compute machine-types describe"
+  )
+
   tpu_kueue_config = dataclasses.replace(
       KUEUE_CONFIG, system=TPU_SYSTEM, num_slices=2
   )
@@ -237,6 +322,39 @@ def test_configure_generates_correct_manifest_for_tpu(
       resource_flavor["spec"]["nodeLabels"]["cloud.google.com/gke-tpu-topology"]
       == "2x2x1"
   )
+
+
+@patch("xpk.core.kueue_manager.write_tmp_file")
+def test_install_autocorrects_resource_limits(
+    write_tmp_file_mock: MagicMock,
+    mock_commands: CommandsTester,
+    kueue_manager: KueueManager,
+):
+  """Test that installation auto-corrects the specified resource limits."""
+  set_installed_kueue_version(mock_commands, None)
+  # set 50 vCPU, 200Gi memory
+  mock_commands.set_result_for_command(
+      (0, "50 204800"), "gcloud compute machine-types describe"
+  )
+
+  kueue_config = dataclasses.replace(
+      KUEUE_CONFIG, cpu_limit=100, memory_limit="100Gi"
+  )
+
+  kueue_manager.install_or_upgrade(kueue_config)
+
+  rendered_manifest: str = write_tmp_file_mock.call_args[0][0]
+  manifest_docs = list(yaml.safe_load_all(rendered_manifest))
+  cluster_queue = _first(
+      doc for doc in manifest_docs if doc["kind"] == "ClusterQueue"
+  )
+  resources = cluster_queue["spec"]["resourceGroups"][0]["flavors"][0][
+      "resources"
+  ]
+  cpu_resource = _first(r for r in resources if r["name"] == "cpu")
+  memory_resource = _first(r for r in resources if r["name"] == "memory")
+  assert cpu_resource["nominalQuota"] == 50
+  assert memory_resource["nominalQuota"] == "204800Mi"
 
 
 @patch("xpk.core.kueue_manager.write_tmp_file")

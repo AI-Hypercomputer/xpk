@@ -27,15 +27,14 @@ from ..core.cluster import (
     setup_k8s_env,
 )
 from ..core.commands import run_command_with_updates, run_commands
-from ..core.kueue_manager import KueueManager, has_sub_slicing_enabled, SUB_SLICING_TOPOLOGIES
 from ..core.config import (VERTEX_TENSORBOARD_FEATURE_FLAG, XPK_CURRENT_VERSION)
 from ..core.docker_container import (
     get_main_container_docker_image,
     get_user_workload_container,
 )
+from ..core.kueue_manager import has_sub_slicing_enabled, get_installed_kueue_version, SUB_SLICING_TOPOLOGIES, LOCAL_QUEUE_NAME
 from ..core.docker_resources import get_volumes, parse_env_config
 from ..core.gcloud_context import add_zone_and_project
-from ..core.kueue_manager import LOCAL_QUEUE_NAME
 from ..core.monitoring import get_gke_outlier_dashboard
 from ..core.nap import (
     get_autoprovisioning_node_selector_args,
@@ -64,6 +63,8 @@ from ..core.scheduling import (
     get_cpu_affinity,
     get_gpu_scheduler,
     create_sub_slicing_annotations,
+    create_placement_policy_label,
+    is_placement_policy_supported,
 )
 from ..core.storage import (
     GCE_PD_TYPE,
@@ -95,7 +96,7 @@ from ..core.workload_decorators import (
     tcpx_decorator,
     tcpxo_decorator,
 )
-from ..utils.console import get_user_input, xpk_exit, xpk_print
+from ..utils.console import ask_for_user_consent, xpk_exit, xpk_print
 from packaging.version import Version
 from ..utils.file import write_tmp_file
 from ..utils.execution_context import is_dry_run
@@ -144,6 +145,7 @@ spec:
               nodeSelector:
                 {accelerator_label}
                 {machine_label}
+                {placement_policy_label}
                 {autoprovisioning_args}
               priorityClassName: {args.priority}
               hostNetwork: true
@@ -193,6 +195,8 @@ spec:
               {gpu_scheduler}
               priorityClassName: {args.priority}
               restartPolicy: Never
+              nodeSelector:
+                {placement_policy_label}
               imagePullSecrets:
               - name: {args.docker_image_pull_secret}
               hostNetwork: true
@@ -238,6 +242,8 @@ spec:
             spec:
               priorityClassName: {args.priority}
               restartPolicy: Never
+              nodeSelector:
+                {placement_policy_label}
               imagePullSecrets:
               - name: {args.docker_image_pull_secret}
               dnsPolicy: ClusterFirstWithHostNet
@@ -273,6 +279,7 @@ PW_WORKLOAD_CREATE_YAML = """
         terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
         priorityClassName: {args.priority}
         nodeSelector:
+          {placement_policy_label}
           {autoprovisioning_args}
       pathwaysDir: {args.pathways_gcs_location} #This bucket needs to be created in advance.
       controller:
@@ -518,6 +525,11 @@ def workload_create(args) -> None:
           failure_policy_rules=failure_policy_rules,
           pod_failure_policy=pod_failure_policy,
           annotations=annotations,
+          placement_policy_label=(
+              create_placement_policy_label(system)
+              if is_placement_policy_supported(system)
+              else ''
+          ),
       )
 
       sub_networks = get_cluster_subnetworks()
@@ -542,6 +554,11 @@ def workload_create(args) -> None:
           service_account=service_account,
           failure_policy_rules=failure_policy_rules,
           pod_failure_policy=pod_failure_policy,
+          placement_policy_label=(
+              create_placement_policy_label(system)
+              if is_placement_policy_supported(system)
+              else ''
+          ),
       )
 
   elif args.use_pathways and ensure_pathways_workload_prerequisites(
@@ -559,6 +576,11 @@ def workload_create(args) -> None:
         user_workload=get_user_workload_for_pathways(args, system),
         local_queue_name=LOCAL_QUEUE_NAME,
         autoprovisioning_args=autoprovisioning_args,
+        placement_policy_label=(
+            create_placement_policy_label(system)
+            if is_placement_policy_supported(system)
+            else ''
+        ),
     )
   else:
     container, debugging_dashboard_id = get_user_workload_container(
@@ -585,6 +607,11 @@ def workload_create(args) -> None:
             else ('\n' + (' ' * 16)).join(
                 create_sub_slicing_annotations(args.sub_slicing_topology)
             )
+        ),
+        placement_policy_label=(
+            create_placement_policy_label(system)
+            if is_placement_policy_supported(system)
+            else ''
         ),
         machine_label=create_machine_label(system.accelerator_type, system),
         local_queue_name=LOCAL_QUEUE_NAME,
@@ -696,8 +723,7 @@ def _validate_sub_slicing_availability():
     )
     xpk_exit(1)
 
-  kueue_manager = KueueManager()
-  return_code, current_version = kueue_manager.get_installed_kueue_version()
+  return_code, current_version = get_installed_kueue_version()
   if return_code != 0:
     xpk_print(
         'Error: Unable to validate sub-slicing support on a given cluster.'
@@ -783,11 +809,10 @@ def workload_delete(args) -> None:
       xpk_exit(return_code)
     # Skip the header
     workloads = [x.split(' ')[0] for x in return_value.splitlines()][1:]
-    if workloads and not args.force:
-      will_delete = get_user_input(
+    if workloads:
+      will_delete = ask_for_user_consent(
           f'Planning to delete {len(workloads)} workloads in the cluster'
-          f' {args.cluster} including {workloads}. \nDo you wish to delete: y'
-          ' (yes) / n (no):\n'
+          f' {args.cluster} including {workloads}. \nDo you wish to delete?'
       )
   else:
     workloads = [args.workload]

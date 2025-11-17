@@ -1,4 +1,4 @@
-$ python3 xpk.py cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --device-type=gb200-4 --reservation=golden-reservation --dry-run
+$ xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --device-type=gb200-4 --reservation=golden-reservation --dry-run
 [XPK] Starting xpk v0.14.3
 [XPK] Starting cluster create for cluster golden-cluster:
 [XPK] Working on golden-project and us-central1-a
@@ -16,13 +16,10 @@ gcloud container clusters list --project=golden-project --filter=name=golden-clu
 gcloud container clusters describe golden-cluster --project=golden-project --location=us-central1 --format="value(privateClusterConfig.enablePrivateNodes)"
 [XPK] Private Nodes is not enabled on the cluster.
 [XPK] Cluster is public and no need to authorize networks.
-[XPK] Try 1: get-credentials-dns-endpoint to cluster golden-cluster
 [XPK] Task: `get-credentials-dns-endpoint to cluster golden-cluster` is implemented by the following command not running since it is a dry run. 
 gcloud container clusters get-credentials golden-cluster --location=us-central1 --dns-endpoint --project=golden-project && kubectl config view && kubectl config set-context --current --namespace=default
-[XPK] Testing credentials with kubectl...
-[XPK] Task: `kubectl get pods` is implemented by the following command not running since it is a dry run. 
+[XPK] Task: `Test kubectl credentials` is implemented by the following command not running since it is a dry run. 
 kubectl get pods
-[XPK] Credentials test succeeded.
 [XPK] Finished get-credentials and kubectl setup.
 [XPK] Task: 'Checking CoreDNS deployment existence' in progress for namespace: kube-system
 [XPK] Task: `Check CoreDNS deployment in kube-system` is implemented by the following command not running since it is a dry run. 
@@ -78,10 +75,10 @@ kubectl apply --server-side -f https://github.com/google/pathways-job/releases/d
 [XPK] Enabling Kueue on the cluster
 [XPK] Task: `Get kueue version on server` is implemented by the following command not running since it is a dry run. 
 kubectl get deployment kueue-controller-manager -n kueue-system -o jsonpath='{.spec.template.spec.containers[0].image}'
-[XPK] Installing Kueue version v0.12.2...
+[XPK] Installing Kueue version v0.14.3...
 [XPK] Try 1: Install Kueue
 [XPK] Task: `Install Kueue` is implemented by the following command not running since it is a dry run. 
-kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-sigs/kueue/releases/download/v0.12.2/manifests.yaml
+kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-sigs/kueue/releases/download/v0.14.3/manifests.yaml
 [XPK] Task: `Wait for Kueue to be available` is implemented by the following command not running since it is a dry run. 
 kubectl wait deploy/kueue-controller-manager -n kueue-system --for=condition=available --timeout=10m
 [XPK] Applying following Kueue resources:

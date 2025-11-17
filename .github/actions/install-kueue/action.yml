@@ -19,7 +19,7 @@ inputs:
   version:
     description: "The version to install"
     required: false
-    default: "0.14.2"
+    default: "0.14.3"
 
 runs:
   using: composite

@@ -152,7 +152,7 @@ def __install_kueue(args) -> int:
   else:
     # Determine total chips based on user specified topology.
     total_chips = get_total_chips_requested_from_args(args, system)
-  kueue_manager = KueueManager()
+  kueue_manager = KueueManager(args.project, args.zone)
 
   tolerations = [{
       'key': 'components.gke.io/gke-managed-components',
@@ -160,7 +160,6 @@ def __install_kueue(args) -> int:
       'value': 'true',
       'effect': 'NoSchedule',
   }]
-
   kueue_manager.install_or_upgrade(
       KueueConfig(
           system,

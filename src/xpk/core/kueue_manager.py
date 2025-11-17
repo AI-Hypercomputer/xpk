@@ -20,8 +20,10 @@ from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
 import json
 from jinja2 import Environment, FileSystemLoader
+
 from ..utils.execution_context import is_dry_run
 from ..utils.kueue import is_queued_cluster
+from kubernetes.utils import parse_quantity
 
 from .capacity import B200_DEVICE_TYPE, H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE
 from .scheduling import (
@@ -38,10 +40,12 @@ from ..core.commands import (
     run_command_with_updates_retry,
 )
 from ..utils.file import write_tmp_file
-from ..utils.console import xpk_print, xpk_exit
+from ..utils.console import xpk_print, xpk_exit, ask_for_user_consent
 from ..utils.templates import TEMPLATE_PATH, get_templates_absolute_path
 from packaging.version import Version
 
+KUEUE_VERSION = Version("v0.14.3")
+LATEST_BREAKING_VERSION = Version("v0.14.0")
 WAIT_FOR_KUEUE_TIMEOUT = "10m"
 CLUSTER_QUEUE_NAME = "cluster-queue"
 LOCAL_QUEUE_NAME = "multislice-queue"
@@ -52,11 +56,10 @@ KUEUE_CONTROLLER_MANAGER_JINJA_FILE = "kueue_controller_manager.yaml.j2"
 KUEUE_SUB_SLICING_TOPOLOGY_JINJA_FILE = "kueue_sub_slicing_topology.yaml.j2"
 MEMORY_SIZE_PER_VM = 1.2
 MIN_MEMORY_LIMIT_SIZE = 4096
-KUEUE_VERSION = Version("v0.12.2")
 SUB_SLICING_TOPOLOGIES = ["2x2", "2x4", "4x4", "4x8", "8x8", "8x16", "16x16"]
 
 
-@dataclass
+@dataclass(frozen=True)
 class KueueConfig:
   system: SystemCharacteristics
   total_chips: int
@@ -69,7 +72,7 @@ class KueueConfig:
   num_slices: int = 1
 
 
-@dataclass
+@dataclass(frozen=True)
 class _NameAndYaml:
   name: str
   yaml: str
@@ -80,9 +83,13 @@ class KueueManager:
 
   def __init__(
       self,
+      project: str,
+      zone: str,
       kueue_version: Version = KUEUE_VERSION,
       template_path=TEMPLATE_PATH,
   ):
+    self.project = project
+    self.zone = zone
     self.kueue_version = kueue_version
 
     self.template_env = Environment(
@@ -103,10 +110,10 @@ class KueueManager:
     Args:
         tolerations: An optional list of tolerations to apply to the kueue-controller-manager.
     """
-    return_code, installed_version = self.get_installed_kueue_version()
+    return_code, installed_version = get_installed_kueue_version()
 
-    if return_code == 0:
-      if installed_version and installed_version > self.kueue_version:
+    if return_code == 0 and installed_version:
+      if installed_version > self.kueue_version:
         xpk_print(
             f"Cluster has a newer Kueue version, {installed_version}. Skipping"
             " installation."
@@ -114,6 +121,10 @@ class KueueManager:
         return 0
       else:
         xpk_print(f"Upgrading Kueue to version v{self.kueue_version}...")
+        assert installed_version
+        prepare_code = self.__prepare_for_upgrade(installed_version)
+        if prepare_code != 0:
+          return prepare_code
     else:
       xpk_print(f"Installing Kueue version v{self.kueue_version}...")
 
@@ -122,24 +133,6 @@ class KueueManager:
       return install_return_code
 
     return self.__configure(kueue_config)
-
-  def get_installed_kueue_version(self) -> tuple[int, Version | None]:
-    command = (
-        "kubectl get deployment kueue-controller-manager -n kueue-system -o"
-        " jsonpath='{.spec.template.spec.containers[0].image}'"
-    )
-    task = "Get kueue version on server"
-    return_code, val = run_command_for_value(
-        command,
-        task,
-        dry_run_return_val="",
-    )
-    if return_code != 0:
-      return return_code, None
-    version_tag = val.split(":")
-    if len(version_tag) == 1:
-      return 1, None
-    return return_code, Version(version_tag[-1])
 
   def __install(
       self,
@@ -161,6 +154,60 @@ class KueueManager:
         return return_code
 
     return self.__wait_for_kueue_available()
+
+  def __prepare_for_upgrade(self, installed_version: Version) -> int:
+    if installed_version >= LATEST_BREAKING_VERSION:
+      return 0
+
+    xpk_print(
+        f"Currently installed Kueue version v{installed_version} is"
+        f" incompatible with the newer v{self.kueue_version}."
+    )
+
+    changelog_link = f"https://github.com/kubernetes-sigs/kueue/blob/main/CHANGELOG/CHANGELOG-{self.kueue_version.major}.{self.kueue_version.minor}.md"
+    agreed = ask_for_user_consent(
+        "Do you want to allow XPK to update Kueue automatically? This will"
+        " delete all existing Kueue resources and create new ones. If you"
+        " decline, you will need to upgrade the Kueue manually (see"
+        f" {changelog_link} for help)."
+    )
+    if not agreed:
+      return 1
+
+    return self.__delete_all_kueue_resources()
+
+  def __delete_all_kueue_resources(self) -> int:
+    return_code, kueue_crds_string = run_command_for_value(
+        "kubectl get crd -o name | grep .kueue.x-k8s.io", "Get Kueue CRDs"
+    )
+    if return_code != 0:
+      return return_code
+
+    kueue_crds = [
+        line.strip().removeprefix(
+            "customresourcedefinition.apiextensions.k8s.io/"
+        )
+        for line in kueue_crds_string.strip().split("\n")
+    ]
+
+    for crd in kueue_crds:
+      return_code = run_command_with_updates(
+          f"kubectl delete {crd} --all", f"Delete all resources of type {crd}"
+      )
+      if return_code != 0:
+        return return_code
+
+    for crd in kueue_crds:
+      return_code = run_command_with_updates(
+          f"kubectl delete crd {crd}", f"Delete CRD {crd}"
+      )
+      if return_code != 0:
+        return return_code
+
+    return run_command_with_updates(
+        "kubectl delete deployment kueue-controller-manager -n kueue-system",
+        "Delete Kueue Controller Manager deployment",
+    )
 
   def __install_kueue_crs(self) -> int:
     manifest_url = f"https://github.com/kubernetes-sigs/kueue/releases/download/v{self.kueue_version}/manifests.yaml"
@@ -229,6 +276,7 @@ class KueueManager:
     topology_name = (
         topology_name_and_yaml.name if topology_name_and_yaml else None
     )
+    cpu_limit, memory_limit = self.__autocorrect_resource_limits(kueue_config)
 
     # The manager builds the context internally based on its opinionated logic
     context = self.__build_template_context(
@@ -238,8 +286,8 @@ class KueueManager:
         autoprovisioning=kueue_config.autoprovisioning_enabled,
         flex=kueue_config.flex,
         num_slices=kueue_config.num_slices,
-        cpu_limit=kueue_config.cpu_limit,
-        memory_limit=kueue_config.memory_limit,
+        cpu_limit=cpu_limit,
+        memory_limit=memory_limit,
         topology_name=topology_name,
     )
 
@@ -423,6 +471,63 @@ class KueueManager:
       xpk_print(f"{task} returned ERROR {return_code}")
     return return_code
 
+  def __autocorrect_resource_limits(
+      self, kueue_config: KueueConfig
+  ) -> tuple[int, str]:
+    """Verify specified CPU and memory limits against machine type."""
+
+    cpu_limit = kueue_config.cpu_limit
+    memory_limit_str = kueue_config.memory_limit
+    if not cpu_limit and not memory_limit_str:
+      return cpu_limit, memory_limit_str
+
+    # Get CPU and memory capacity from machine type
+    command = (
+        "gcloud compute machine-types describe"
+        f" {kueue_config.system.gce_machine_type} "
+        f" --project={self.project} --zone={self.zone}"
+        " --format='value(guestCpus,memoryMb)'"
+    )
+    return_code, out = run_command_for_value(
+        command,
+        "Get vCPU and memory capacity for machine type",
+        dry_run_return_val="10 10",
+    )
+    if return_code != 0:
+      xpk_print(
+          "Unable to verify vCPU and memory capacity for machine type."
+          " XPK will proceed with using user-defined  limits."
+      )
+      return cpu_limit, memory_limit_str
+
+    cpu_capacity_str, memory_capacity_MB_str = out.split()
+    if cpu_limit:
+      cpu_limit = _autocorrect_cpu_limit(cpu_limit, int(cpu_capacity_str))
+    if memory_limit_str:
+      memory_limit_str = _autocorrect_memory_limit(
+          memory_limit_str, memory_capacity_MB_str
+      )
+    return cpu_limit, memory_limit_str
+
+
+def get_installed_kueue_version() -> tuple[int, Version | None]:
+  command = (
+      "kubectl get deployment kueue-controller-manager -n kueue-system -o"
+      " jsonpath='{.spec.template.spec.containers[0].image}'"
+  )
+  task = "Get kueue version on server"
+  return_code, val = run_command_for_value(
+      command,
+      task,
+      dry_run_return_val="",
+  )
+  if return_code != 0:
+    return return_code, None
+  version_tag = val.split(":")
+  if len(version_tag) == 1:
+    return 1, None
+  return return_code, Version(version_tag[-1])
+
 
 def has_sub_slicing_enabled() -> tuple[int, bool | None]:
   return_code, value = run_command_for_value(
@@ -433,3 +538,39 @@ def has_sub_slicing_enabled() -> tuple[int, bool | None]:
     return return_code, None
 
   return return_code, SUB_SLICE_TOPOLOGY_NAME in value
+
+
+def _autocorrect_cpu_limit(cpu_limit: int, cpu_capacity: int) -> int:
+  if cpu_limit > cpu_capacity:
+    xpk_print(
+        "The CPU limit is above the available capacity."
+        f" We will set CPU limit to {cpu_capacity}."
+    )
+  elif cpu_limit < cpu_capacity:
+    xpk_print(
+        "The CPU limit is below the available capacity, which would lead"
+        f" to underutilization. We will set CPU limit to {cpu_capacity}."
+    )
+  return cpu_capacity
+
+
+def _autocorrect_memory_limit(
+    memory_limit_str: str, memory_capacity_MB_str: str
+) -> str:
+  memory_limit_bytes = parse_quantity(memory_limit_str)
+  memory_capacity_bytes = int(memory_capacity_MB_str) << 20
+  if memory_limit_bytes == memory_capacity_bytes:
+    return memory_limit_str
+  memory_limit_str = memory_capacity_MB_str + "Mi"
+  if memory_limit_bytes > memory_capacity_bytes:
+    xpk_print(
+        "The memory limit is above the available capacity. We will set"
+        f" memory limit to {memory_limit_str}."
+    )
+  else:
+    xpk_print(
+        "The memory limit is below the available capacity, which would"
+        " lead to underutilization. We will set the memory limit to"
+        f" {memory_limit_str}."
+    )
+  return memory_limit_str

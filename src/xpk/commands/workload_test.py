@@ -107,7 +107,7 @@ def test_validate_sub_slicing_availability_exits_when_kueue_version_cannot_be_de
       return_value=(0, True),
   )
   mocker.patch(
-      'xpk.commands.workload.KueueManager.get_installed_kueue_version',
+      'xpk.commands.workload.get_installed_kueue_version',
       return_value=(1, None),
   )
   with pytest.raises(SystemExit):
@@ -124,7 +124,7 @@ def test_validate_sub_slicing_availability_exits_when_kueue_version_does_not_mee
       return_value=(0, True),
   )
   mocker.patch(
-      'xpk.commands.workload.KueueManager.get_installed_kueue_version',
+      'xpk.commands.workload.get_installed_kueue_version',
       return_value=(0, Version('0.0.0')),
   )
   with pytest.raises(SystemExit):
@@ -141,7 +141,7 @@ def test_validate_sub_slicing_availability_does_nothing_when_cluster_is_correctl
       return_value=(0, True),
   )
   mocker.patch(
-      'xpk.commands.workload.KueueManager.get_installed_kueue_version',
+      'xpk.commands.workload.get_installed_kueue_version',
       return_value=(0, Version('0.13.0')),
   )
   _validate_sub_slicing_availability()

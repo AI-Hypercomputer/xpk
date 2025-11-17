@@ -131,6 +131,33 @@ def get_system_characteristics_by_device_type(
     return None, 1
 
 
+def generate_tpu_topologies(
+    max_cubes: int, enforce_nondecreasing: bool = True
+) -> list[str]:
+  """Generates a list of unique TPU topologies formatted as strings "AxBxC".
+
+  The list will contain all triplets (A, B, C) such that:
+    - A, B and C are integers in range 4..256 (including 4 and 256)
+    - A, B and C are divisible by 4
+    - (A/4) * (B/4) * (C/4) <= max_cubes
+    - if enforce_nondecreasing: A <= B <= C
+  Additionally, the list will also contain the following triplets:
+    2x2x1, 2x2x2, 2x2x4, 2x4x4
+
+  Args:
+    max_cubes: maximum number of cubes supported by a TPU platform
+    enforce_nondecreasing: whether to enforce A <= B <= C or not
+  """
+  topologies = ['2x2x1', '2x2x2', '2x2x4', '2x4x4']
+  MAX = 256
+  for x in range(4, MAX + 1, 4):
+    for y in range(x if enforce_nondecreasing else 4, MAX + 1, 4):
+      for z in range(y if enforce_nondecreasing else 4, MAX + 1, 4):
+        if (x // 4) * (y // 4) * (z // 4) <= max_cubes:
+          topologies.append(f'{x}x{y}x{z}')
+  return topologies
+
+
 def get_tpu_system_characteristics_map(
     prefix: str,
     tensorcores_per_chip: int,
@@ -138,13 +165,17 @@ def get_tpu_system_characteristics_map(
     machine_type: str,
     supported_topologies: list[str],
     supports_sub_slicing: bool,
-    requires_workload_policy: bool = False,
+    tpu_type_requires_workload_policy: bool = False,
+    default_topologies: set[str] | None = None,
 ) -> dict[str, SystemCharacteristics]:
   system_characteristics_map = {}
+  if default_topologies is None:
+    default_topologies = set()
   for topology in supported_topologies:
     chips_per_vm = compute_chips_per_vm(topology)
     vms_per_slice = compute_vms_per_slice(topology)
     num_tensorcores = compute_num_tensorcores(tensorcores_per_chip, topology)
+    device_type = f'{prefix}-{num_tensorcores}'
     system = SystemCharacteristics(
         topology=topology,
         vms_per_slice=vms_per_slice,
@@ -152,12 +183,17 @@ def get_tpu_system_characteristics_map(
         gce_machine_type=machine_type,
         chips_per_vm=chips_per_vm,
         accelerator_type=AcceleratorType.TPU,
-        device_type=f'{prefix}-{num_tensorcores}',
-        requires_workload_policy=requires_workload_policy,
+        device_type=device_type,
+        requires_workload_policy=tpu_type_requires_workload_policy
+        and vms_per_slice > 1,
         supports_sub_slicing=supports_sub_slicing,
     )
     system_characteristics_map[f'{prefix}-{topology}'] = system
-    system_characteristics_map[f'{prefix}-{num_tensorcores}'] = system
+    if (
+        topology in default_topologies
+        or device_type not in system_characteristics_map
+    ):
+      system_characteristics_map[device_type] = system
 
   return system_characteristics_map
 
@@ -334,7 +370,7 @@ UserFacingNameToSystemCharacteristics = {
         gke_accelerator='tpu7x',
         machine_type='tpu7x-standard-1t',
         supported_topologies=['1x1x1'],
-        requires_workload_policy=True,
+        tpu_type_requires_workload_policy=True,
         supports_sub_slicing=False,
     ),
     **get_tpu_system_characteristics_map(
@@ -342,9 +378,10 @@ UserFacingNameToSystemCharacteristics = {
         tensorcores_per_chip=2,
         gke_accelerator='tpu7x',
         machine_type='tpu7x-standard-4t',
-        requires_workload_policy=True,
+        tpu_type_requires_workload_policy=True,
         supports_sub_slicing=False,
-        supported_topologies=[
+        supported_topologies=generate_tpu_topologies(max_cubes=144),
+        default_topologies=set([
             '12x12x12',
             '12x12x16',
             '12x12x20',
@@ -443,7 +480,7 @@ UserFacingNameToSystemCharacteristics = {
             '8x8x76',
             '8x8x8',
             '8x8x92',
-        ],
+        ]),
     ),
     **get_tpu_system_characteristics_map(
         prefix='v6e',
@@ -475,7 +512,8 @@ UserFacingNameToSystemCharacteristics = {
         gke_accelerator='tpu-v5p-slice',
         machine_type='ct5p-hightpu-4t',
         supports_sub_slicing=False,
-        supported_topologies=[
+        supported_topologies=generate_tpu_topologies(max_cubes=140),
+        default_topologies=set([
             '2x2x1',
             '2x2x2',
             '2x2x4',
@@ -572,7 +610,7 @@ UserFacingNameToSystemCharacteristics = {
             '16x16x24',
             '12x24x24',
             '16x20x28',
-        ],
+        ]),
     ),
     **get_tpu_system_characteristics_map(
         prefix='v5litepod',
@@ -588,7 +626,10 @@ UserFacingNameToSystemCharacteristics = {
         gke_accelerator='tpu-v4-podslice',
         machine_type='ct4p-hightpu-4t',
         supports_sub_slicing=False,
-        supported_topologies=[
+        supported_topologies=generate_tpu_topologies(
+            max_cubes=64, enforce_nondecreasing=False
+        ),
+        default_topologies=set([
             '2x2x1',
             '2x2x2',
             '2x2x4',
@@ -600,7 +641,7 @@ UserFacingNameToSystemCharacteristics = {
             '8x8x12',
             '8x8x16',
             '8x16x16',
-        ],
+        ]),
     ),
     # CPU system characteristics.
     # Note that chips_per_vm is actually the number of vCPUs in that CPU.

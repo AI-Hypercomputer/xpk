@@ -30,6 +30,8 @@ CONFIGS_KEY = 'configs'
 CFG_BUCKET_KEY = 'cluster-state-gcs-bucket'
 CLUSTER_NAME_KEY = 'cluster-name'
 PROJECT_KEY = 'project-id'
+CLIENT_ID_KEY = 'client-id'
+SEND_TELEMETRY_KEY = 'send-telemetry'
 ZONE_KEY = 'zone'
 KJOB_BATCH_IMAGE = 'batch-image'
 KJOB_BATCH_WORKING_DIRECTORY = 'batch-working-directory'
@@ -45,6 +47,8 @@ DEFAULT_KEYS = [
     CFG_BUCKET_KEY,
     CLUSTER_NAME_KEY,
     PROJECT_KEY,
+    CLIENT_ID_KEY,
+    SEND_TELEMETRY_KEY,
     ZONE_KEY,
     GKE_ENDPOINT_KEY,
     DEPENDENCIES_KEY,
@@ -82,7 +86,7 @@ class XpkConfig:
     with open(self._config, encoding='utf-8', mode='w') as stream:
       yaml.dump(config_yaml, stream)
 
-  def set(self, key: str, value: str) -> None:
+  def set(self, key: str, value: str | None) -> None:
     if key not in self._allowed_keys:
       xpk_print(f'Key {key} is not an allowed xpk config key.')
       return
@@ -114,3 +118,6 @@ class XpkConfig:
       return None
     val: dict[str, str] = config_yaml[CONFIGS_KEY]
     return val
+
+
+xpk_config = XpkConfig()

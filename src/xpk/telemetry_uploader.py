@@ -14,21 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import sys
 import os
+import requests
+import json
 
+file_path = sys.argv[1]
+if os.path.exists(file_path):
+  with open(file_path, mode="r", encoding="utf-8") as file:
+    kwargs = json.load(file)
+    response = requests.request(**kwargs)
+    print(f"Telemetry upload finished with {response.status_code} status code")
 
-def _get_boolean_flag(flag: str, default: bool) -> bool:
-  experiment_value = os.getenv(flag, "").lower()
-  if experiment_value in ["true", "false"]:
-    return experiment_value == "true"
-
-  xpk_tester = os.getenv("XPK_TESTER", "").lower() == "true"
-  return xpk_tester or default
-
-
-class _FeatureFlags:
-  SUB_SLICING_ENABLED = _get_boolean_flag("SUB_SLICING_ENABLED", default=False)
-  TELEMETRY_ENABLED = _get_boolean_flag("TELEMETRY_ENABLED", default=False)
-
-
-FeatureFlags = _FeatureFlags()
+  os.remove(file_path)

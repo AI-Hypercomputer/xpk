@@ -1,7 +1,7 @@
 KUEUE_REPO=https://github.com/kubernetes-sigs/kueue.git
 
 KUBECTL_VERSION := $(shell curl -L -s https://dl.k8s.io/release/stable.txt)
-KUEUE_VERSION=v0.12.2
+KUEUE_VERSION=v0.14.3
 KJOB_VERSION=v0.1.0
 
 OS := $(shell uname -s | tr A-Z a-z)
@@ -36,14 +36,14 @@ install-pytest:
 
 .PHONY: run-unittests
 run-unittests:
-	pytest  -vv src/xpk/
+	XPK_TESTER=false pytest  -vv src/xpk/
 
 run-integrationtests:
-	pytest src/integration/
+	XPK_TESTER=false pytest src/integration/
 
 .PHONY: goldens
 goldens:
-	./golden_buddy.sh update goldens.yaml goldens
+	XPK_TESTER=false ./golden_buddy.sh update goldens.yaml goldens
 
 .PHONY: mkdir-bin
 mkdir-bin:

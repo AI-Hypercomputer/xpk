@@ -14,21 +14,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import os
+import platform
+from ..core.config import __version__ as xpk_version
 
 
-def _get_boolean_flag(flag: str, default: bool) -> bool:
-  experiment_value = os.getenv(flag, "").lower()
-  if experiment_value in ["true", "false"]:
-    return experiment_value == "true"
-
-  xpk_tester = os.getenv("XPK_TESTER", "").lower() == "true"
-  return xpk_tester or default
+def get_user_agent() -> str:
+  return f'XPK/{xpk_version} ({_get_user_agent_platform()})'
 
 
-class _FeatureFlags:
-  SUB_SLICING_ENABLED = _get_boolean_flag("SUB_SLICING_ENABLED", default=False)
-  TELEMETRY_ENABLED = _get_boolean_flag("TELEMETRY_ENABLED", default=False)
-
-
-FeatureFlags = _FeatureFlags()
+def _get_user_agent_platform() -> str:
+  system = platform.system().lower()
+  if system == 'windows':
+    return f'Windows NT {platform.version()}'
+  elif system == 'linux':
+    return f'Linux; {platform.machine()}'
+  elif system == 'darwin':
+    version, _, arch = platform.mac_ver()
+    return f'Macintosh; {arch} Mac OS X {version}'
+  else:
+    return ''

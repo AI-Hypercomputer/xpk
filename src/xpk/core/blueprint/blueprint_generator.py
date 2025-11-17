@@ -1055,6 +1055,7 @@ class BlueprintGenerator:
   def get_dws_flex_start(self) -> dict:
     return {
         "enable_flex_start": True,
+        "enable_queued_provisioning": True,
         "autoscaling_total_min_nodes": 0,
         "auto_repair": False,
         "auto_upgrade": False,

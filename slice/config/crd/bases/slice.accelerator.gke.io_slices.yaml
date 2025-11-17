@@ -70,10 +70,10 @@ spec:
                 type: string
               type:
                 description: Type specifies the type of accelerator used in this slice,
-                  e.g., "v6e", "tpu-v7x".
+                  e.g., "v6e", "tpu7x".
                 enum:
                 - v6e
-                - tpu-v7x
+                - tpu7x
                 type: string
             required:
             - partitionIds

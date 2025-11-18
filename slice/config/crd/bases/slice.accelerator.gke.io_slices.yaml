@@ -83,10 +83,6 @@ spec:
           status:
             description: SliceStatus defines the observed state of Slice.
             properties:
-              blockId:
-                description: Populated to match the physical topology of block the
-                  Super-Slice is running on
-                type: string
               conditions:
                 description: Conditions store the status conditions of the Slice
                 items:
@@ -143,12 +139,6 @@ spec:
                   - status
                   - type
                   type: object
-                type: array
-              subBlockIds:
-                description: Populated to list of physical topology of sub-block the
-                  Super-Slice is running on
-                items:
-                  type: string
                 type: array
             type: object
         type: object

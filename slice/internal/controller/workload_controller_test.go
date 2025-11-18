@@ -133,14 +133,15 @@ func TestWorkloadReconciler(t *testing.T) {
 	baseWorkloadWrapper := utiltesting.MakeWorkload(baseWorkloadName, corev1.NamespaceDefault).
 		UID(baseWorkloadName).
 		AdmissionCheck(buildAdmissionCheckState(kueue.CheckStatePending, ""))
-	baseSlice1Wrapper := utiltesting.MakeSliceWrapper(core.SliceName(baseWorkloadName, "ps1"), corev1.NamespaceDefault).
+	baseSlice1Wrapper := utiltesting.MakeSliceWrapper(core.SliceName(corev1.NamespaceDefault, baseWorkloadName, "ps1")).
 		Type("tpu-v7x").
 		Topology("4x4x12").
-		ControllerReference(workloadGVK, baseWorkloadName, baseWorkloadName).
+		OwnerWorkloadAnnotations(corev1.NamespaceDefault, baseWorkloadName).
 		PartitionIds("subblock1")
-	baseSlice2Wrapper := baseSlice1Wrapper.Clone().Name(core.SliceName(baseWorkloadName, "ps2")).
+	baseSlice2Wrapper := baseSlice1Wrapper.Clone().Name(core.SliceName(corev1.NamespaceDefault, baseWorkloadName, "ps2")).
 		Type("tpu-v7x").
 		Topology("4x4x12").
+		OwnerWorkloadAnnotations(corev1.NamespaceDefault, baseWorkloadName).
 		PartitionIds("subblock2")
 
 	worker1Node := utiltesting.MakeNode("worker1").Label("cloud.google.com/gke-tpu-slice-4x4x4-id", "subblock1")
@@ -738,7 +739,7 @@ func TestWorkloadReconciler(t *testing.T) {
 			},
 			wantEvents: []utiltesting.EventRecord{
 				buildEventRecord(corev1.EventTypeNormal, SlicesCreatedEventType,
-					`The Slices "default/workload-ps1", "default/workload-ps2" have been created`),
+					`The Slices default-workload-ps1, default-workload-ps2 have been created`),
 			},
 		},
 		"should create Slices only for relevant PodSets (invalid pod template)": {
@@ -790,7 +791,7 @@ func TestWorkloadReconciler(t *testing.T) {
 			},
 			wantEvents: []utiltesting.EventRecord{
 				buildEventRecord(corev1.EventTypeNormal, SlicesCreatedEventType,
-					`The Slices "default/workload-ps1" have been created`),
+					`The Slices default-workload-ps1 have been created`),
 			},
 		},
 		"should create Slices only for relevant PodSets (invalid assignment)": {
@@ -838,7 +839,7 @@ func TestWorkloadReconciler(t *testing.T) {
 			},
 			wantEvents: []utiltesting.EventRecord{
 				buildEventRecord(corev1.EventTypeNormal, SlicesCreatedEventType,
-					`The Slices "default/workload-ps1" have been created`),
+					`The Slices default-workload-ps1 have been created`),
 			},
 		},
 		"should create missed Slices": {
@@ -870,7 +871,7 @@ func TestWorkloadReconciler(t *testing.T) {
 			},
 			wantEvents: []utiltesting.EventRecord{
 				buildEventRecord(corev1.EventTypeNormal, SlicesCreatedEventType,
-					`The Slices "default/workload-ps2" have been created`),
+					`The Slices default-workload-ps2 have been created`),
 			},
 		},
 		"parse TAS Assignment to populate PartitionIDs in Slice": {
@@ -901,7 +902,7 @@ func TestWorkloadReconciler(t *testing.T) {
 			},
 			wantEvents: []utiltesting.EventRecord{
 				buildEventRecord(corev1.EventTypeNormal, SlicesCreatedEventType,
-					`The Slices "default/workload-ps1", "default/workload-ps2" have been created`),
+					`The Slices default-workload-ps1, default-workload-ps2 have been created`),
 			},
 		},
 		"parse TAS Assignment to populate NodeSelector in Slice (hostname)": {
@@ -966,7 +967,7 @@ func TestWorkloadReconciler(t *testing.T) {
 			},
 			wantEvents: []utiltesting.EventRecord{
 				buildEventRecord(corev1.EventTypeNormal, SlicesCreatedEventType,
-					`The Slices "default/workload-ps1", "default/workload-ps2" have been created`),
+					`The Slices default-workload-ps1, default-workload-ps2 have been created`),
 			},
 		},
 		"error on Slice creation": {
@@ -994,13 +995,13 @@ func TestWorkloadReconciler(t *testing.T) {
 					ReserveQuota(baseAdmission, now).
 					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Finalizers(SliceControllerName).
-					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStatePending, `Error creating Slice "default/workload-ps1": test error`)).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStatePending, `Error creating Slice "default-workload-ps1": test error`)).
 					Obj(),
 			},
 			wantErr: errTest,
 			wantEvents: []utiltesting.EventRecord{
 				buildEventRecord(corev1.EventTypeWarning, FailedCreateSliceEventType,
-					`Error creating Slice "default/workload-ps1": test error`),
+					`Error creating Slice "default-workload-ps1": test error`),
 			},
 		},
 		"should update the Workload's AdmissionCheckState": {
@@ -1357,8 +1358,8 @@ func TestSliceHandlerHandleEvent(t *testing.T) {
 			obj: utiltesting.MakeWorkload(baseWlName, corev1.NamespaceDefault).Obj(),
 		},
 		"has a workload that should be handled": {
-			obj: utiltesting.MakeSliceWrapper(baseSliceName, corev1.NamespaceDefault).
-				ControllerReference(workloadGVK, baseWlName, baseWlName).
+			obj: utiltesting.MakeSliceWrapper(baseSliceName).
+				OwnerWorkloadAnnotations(corev1.NamespaceDefault, baseWlName).
 				Obj(),
 			want: []requestDuration{
 				{

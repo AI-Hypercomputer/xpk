@@ -465,7 +465,7 @@ func (r *WorkloadReconciler) syncSlices(
 			continue
 		}
 
-		sliceName := core.SliceName(wl.Name, psa.Name)
+		sliceName := core.SliceName(wl.Namespace, wl.Name, psa.Name)
 
 		if _, exist := slicesByName[sliceName]; exist {
 			// Slice already exists, nothing to do.
@@ -523,7 +523,7 @@ func (r *WorkloadReconciler) createSlice(ctx context.Context, wl *kueue.Workload
 	slice.Spec.Topology = core.GetTPUTopology(ps.Template)
 
 	if err := r.client.Create(ctx, slice); err != nil {
-		msg := fmt.Sprintf("Error creating Slice %q: %v", client.ObjectKeyFromObject(slice), err)
+		msg := fmt.Sprintf("Error creating Slice %q: %v", slice.Name, err)
 		log.Error(err, msg)
 		r.record.Event(wl, corev1.EventTypeWarning, FailedCreateSliceEventType, api.TruncateEventMessage(msg))
 		ac.State = kueue.CheckStatePending
@@ -548,7 +548,7 @@ func (r *WorkloadReconciler) updateWorkloadAdmissionCheckStatus(ctx context.Cont
 func buildCreationEventMessage(slices []v1alpha1.Slice) string {
 	sliceNames := make([]string, len(slices))
 	for index, slice := range slices {
-		sliceNames[index] = fmt.Sprintf("%q", client.ObjectKeyFromObject(&slice))
+		sliceNames[index] = slice.Name
 	}
 	sort.Strings(sliceNames)
 	return fmt.Sprintf("The Slices %s have been created", strings.Join(sliceNames, ", "))

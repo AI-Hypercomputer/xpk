@@ -250,12 +250,11 @@ type SliceWrapper struct {
 	v1alpha1.Slice
 }
 
-func MakeSliceWrapper(name, namespace string) *SliceWrapper {
+func MakeSliceWrapper(name string) *SliceWrapper {
 	return &SliceWrapper{
 		v1alpha1.Slice{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      name,
-				Namespace: namespace,
+				Name: name,
 			},
 		},
 	}
@@ -286,6 +285,15 @@ func (s *SliceWrapper) Topology(topology string) *SliceWrapper {
 
 func (s *SliceWrapper) ControllerReference(gvk schema.GroupVersionKind, name, uid string) *SliceWrapper {
 	AppendOwnerReference(&s.Slice, gvk, name, uid, ptr.To(true), ptr.To(true))
+	return s
+}
+
+func (s *SliceWrapper) OwnerWorkloadAnnotations(ns, name string) *SliceWrapper {
+	if s.Annotations == nil {
+		s.Annotations = make(map[string]string)
+	}
+	s.Annotations["slice.accelerator.gke.io/owner-workload-name"] = name
+	s.Annotations["slice.accelerator.gke.io/owner-workload-namespace"] = ns
 	return s
 }
 

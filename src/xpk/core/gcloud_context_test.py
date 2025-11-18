@@ -190,10 +190,11 @@ def test_get_gke_control_plane_version_fails_for_invalid_user_version(
 
   assert return_code == 1
   assert version is None
+  assert "Planned GKE Version: 1.2.5" in xpk_print.mock_calls[0].args[0]
   assert (
-      "Planned GKE Version: 1.2.5\n Valid Versions:\n{'1.2.3',"
-      " '1.2.4'}\nRecommended / Default GKE Version: 1.2.3"
-  ) in xpk_print.mock_calls[0].args[0]
+      "Recommended / Default GKE Version: 1.2.3"
+      in xpk_print.mock_calls[0].args[0]
+  )
   assert (
       "Error: Planned GKE Version 1.2.5 is not valid."
       in xpk_print.mock_calls[1].args[0]

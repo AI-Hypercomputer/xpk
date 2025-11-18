@@ -548,7 +548,7 @@ func (r *WorkloadReconciler) updateWorkloadAdmissionCheckStatus(ctx context.Cont
 func buildCreationEventMessage(slices []v1alpha1.Slice) string {
 	sliceNames := make([]string, len(slices))
 	for index, slice := range slices {
-		sliceNames[index] = slice.Name
+		sliceNames[index] = fmt.Sprintf("%q", slice.Name)
 	}
 	sort.Strings(sliceNames)
 	return fmt.Sprintf("The Slices %s have been created", strings.Join(sliceNames, ", "))

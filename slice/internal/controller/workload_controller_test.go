@@ -738,7 +738,7 @@ func TestWorkloadReconciler(t *testing.T) {
 			},
 			wantEvents: []utiltesting.EventRecord{
 				buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, SlicesCreatedEventType,
-					`The Slices default-workload-ps1, default-workload-ps2 have been created`),
+					`The Slices "default-workload-ps1", "default-workload-ps2" have been created`),
 			},
 		},
 		"should create Slices only for relevant PodSets (invalid pod template)": {
@@ -790,7 +790,7 @@ func TestWorkloadReconciler(t *testing.T) {
 			},
 			wantEvents: []utiltesting.EventRecord{
 				buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, SlicesCreatedEventType,
-					`The Slices default-workload-ps1 have been created`),
+					`The Slices "default-workload-ps1" have been created`),
 			},
 		},
 		"should create Slices only for relevant PodSets (invalid assignment)": {
@@ -838,7 +838,7 @@ func TestWorkloadReconciler(t *testing.T) {
 			},
 			wantEvents: []utiltesting.EventRecord{
 				buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, SlicesCreatedEventType,
-					`The Slices default-workload-ps1 have been created`),
+					`The Slices "default-workload-ps1" have been created`),
 			},
 		},
 		"should create missed Slices": {
@@ -870,7 +870,7 @@ func TestWorkloadReconciler(t *testing.T) {
 			},
 			wantEvents: []utiltesting.EventRecord{
 				buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, SlicesCreatedEventType,
-					`The Slices default-workload-ps2 have been created`),
+					`The Slices "default-workload-ps2" have been created`),
 			},
 		},
 		"parse TAS Assignment to populate PartitionIDs in Slice": {
@@ -901,7 +901,7 @@ func TestWorkloadReconciler(t *testing.T) {
 			},
 			wantEvents: []utiltesting.EventRecord{
 				buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, SlicesCreatedEventType,
-					`The Slices default-workload-ps1, default-workload-ps2 have been created`),
+					`The Slices "default-workload-ps1", "default-workload-ps2" have been created`),
 			},
 		},
 		"parse TAS Assignment to populate NodeSelector in Slice (hostname)": {
@@ -966,7 +966,7 @@ func TestWorkloadReconciler(t *testing.T) {
 			},
 			wantEvents: []utiltesting.EventRecord{
 				buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, SlicesCreatedEventType,
-					`The Slices default-workload-ps1, default-workload-ps2 have been created`),
+					`The Slices "default-workload-ps1", "default-workload-ps2" have been created`),
 			},
 		},
 		"error on Slice creation": {
@@ -1363,7 +1363,7 @@ func TestWorkloadReconciler(t *testing.T) {
 			},
 			wantEvents: []utiltesting.EventRecord{
 				buildEventRecord("namespace2", corev1.EventTypeNormal, SlicesCreatedEventType,
-					`The Slices namespace2-workload-ps1, namespace2-workload-ps2 have been created`),
+					`The Slices "namespace2-workload-ps1", "namespace2-workload-ps2" have been created`),
 			},
 		},
 	}

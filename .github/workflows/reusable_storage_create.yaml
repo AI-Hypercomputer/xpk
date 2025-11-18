@@ -124,7 +124,8 @@ jobs:
       run: xpk batch --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} batch-read.sh | tee batch-read.log
     - name: Get job name
       run: |
-        READ_JOB_NAME=$(cat batch-read.log | grep 'xpk-def-app-profile-slurm-' | grep 'multislice-queue' | awk -F': ' '{print $2}')
+        cat batch-read.log | grep 'xpk-def-app-profile-slurm-'
+        READ_JOB_NAME=$(cat batch-read.log | grep 'xpk-def-app-profile-slurm-' | awk -F': ' '{print $2}')
         echo "READ_JOB_NAME=${READ_JOB_NAME}" >> $GITHUB_ENV
     - name: Wait for the batch-read job to finish
       run: kubectl wait job.batch/$READ_JOB_NAME --for=condition=Complete --timeout=1m

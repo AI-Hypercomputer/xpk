@@ -282,8 +282,10 @@ func (r *WorkloadReconciler) cleanupSlices(ctx context.Context, wl *kueue.Worklo
 func (r *WorkloadReconciler) findWorkloadSlices(ctx context.Context, wl *kueue.Workload) ([]v1alpha1.Slice, error) {
 	slices := &v1alpha1.SliceList{}
 	opts := []client.ListOption{
-		client.InNamespace(wl.Namespace),
-		client.MatchingFields{OwnerReferenceUID: string(wl.UID)},
+		client.MatchingFields{
+			WorkloadNamespaceIndex: wl.Namespace,
+			WorkloadNameIndex:      wl.Name,
+		},
 	}
 	if err := r.client.List(ctx, slices, opts...); err != nil {
 		return nil, err
@@ -463,7 +465,7 @@ func (r *WorkloadReconciler) syncSlices(
 			continue
 		}
 
-		sliceName := core.SliceName(wl.Name, psa.Name)
+		sliceName := core.SliceName(wl.Namespace, wl.Name, psa.Name)
 
 		if _, exist := slicesByName[sliceName]; exist {
 			// Slice already exists, nothing to do.
@@ -511,10 +513,9 @@ func (r *WorkloadReconciler) createSlice(ctx context.Context, wl *kueue.Workload
 	slice := core.SliceWithMetadata(wl, psa.Name)
 	log := ctrl.LoggerFrom(ctx).WithValues("slice", klog.KObj(slice))
 	log.V(3).Info("Creating Slice")
-
-	if err := controllerutil.SetControllerReference(wl, slice, r.client.Scheme()); err != nil {
-		return nil, err
-	}
+	// Since Slice is a cluster-scoped object and Workload is namespaced,
+	// we cannot set a controller owner reference. The Workload's namespace and name
+	// are stored as annotations on the Slice for lookup.
 	parseTopologyAssignmentIntoPartitionIds(slice, psa.TopologyAssignment, nodes)
 
 	ps := podset.FindPodSetByName(wl.Spec.PodSets, psa.Name)
@@ -522,7 +523,7 @@ func (r *WorkloadReconciler) createSlice(ctx context.Context, wl *kueue.Workload
 	slice.Spec.Topology = core.GetTPUTopology(ps.Template)
 
 	if err := r.client.Create(ctx, slice); err != nil {
-		msg := fmt.Sprintf("Error creating Slice %q: %v", client.ObjectKeyFromObject(slice), err)
+		msg := fmt.Sprintf("Error creating Slice %q: %v", slice.Name, err)
 		log.Error(err, msg)
 		r.record.Event(wl, corev1.EventTypeWarning, FailedCreateSliceEventType, api.TruncateEventMessage(msg))
 		ac.State = kueue.CheckStatePending
@@ -547,7 +548,7 @@ func (r *WorkloadReconciler) updateWorkloadAdmissionCheckStatus(ctx context.Cont
 func buildCreationEventMessage(slices []v1alpha1.Slice) string {
 	sliceNames := make([]string, len(slices))
 	for index, slice := range slices {
-		sliceNames[index] = fmt.Sprintf("%q", client.ObjectKeyFromObject(&slice))
+		sliceNames[index] = fmt.Sprintf("%q", slice.Name)
 	}
 	sort.Strings(sliceNames)
 	return fmt.Sprintf("The Slices %s have been created", strings.Join(sliceNames, ", "))
@@ -672,18 +673,20 @@ func (h *sliceHandler) handleEvent(ctx context.Context, obj client.Object, q wor
 
 	log := ctrl.LoggerFrom(ctx)
 
-	owner := metav1.GetControllerOf(slice)
-	if owner == nil {
-		log.V(3).Info("Owner not found")
+	workloadNamespace, nsFound := slice.Annotations[core.OwnerWorkloadNamespaceAnnotation]
+	workloadName, nameFound := slice.Annotations[core.OwnerWorkloadNameAnnotation]
+
+	if !nsFound || !nameFound {
+		log.V(3).Info("Slice is missing workload owner annotations, skipping event handling", "slice", klog.KObj(slice))
 		return
 	}
 
-	log.V(3).Info("Handle Slice event", "workload", klog.KRef(slice.Namespace, slice.Name))
+	log.V(3).Info("Handle Slice event", "workload", klog.KRef(workloadNamespace, workloadName))
 
 	req := reconcile.Request{
 		NamespacedName: types.NamespacedName{
-			Name:      owner.Name,
-			Namespace: slice.Namespace,
+			Name:      workloadName,
+			Namespace: workloadNamespace,
 		},
 	}
 

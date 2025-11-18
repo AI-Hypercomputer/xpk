@@ -57,6 +57,9 @@ class _ClusterCreateMocks:
   get_cluster_location: MagicMock
   install_kjob: MagicMock
   xpk_exit: MagicMock
+  update_jobset_resources_if_necessary: MagicMock
+  _install_kueue: MagicMock
+  set_pathways_job_on_cluster: MagicMock
 
 
 @pytest.fixture
@@ -179,6 +182,16 @@ def cluster_create_mocks(mocker) -> _ClusterCreateMocks:
           'xpk.commands.cluster.install_kjob', return_value=0
       ),
       xpk_exit=mocker.patch('xpk.commands.cluster.xpk_exit'),
+      update_jobset_resources_if_necessary=mocker.patch(
+          'xpk.commands.cluster.update_jobset_resources_if_necessary',
+          return_value=0,
+      ),
+      _install_kueue=mocker.patch(
+          'xpk.commands.cluster._install_kueue', return_value=0
+      ),
+      set_pathways_job_on_cluster=mocker.patch(
+          'xpk.commands.cluster.set_pathways_job_on_cluster', return_value=0
+      ),
   )
 
 
@@ -455,7 +468,6 @@ def test_cluster_create_calls_run_command_with_correct_channel_and_version(
   Verifies that cluster_create calls run_gke_cluster_create_command with the correct
   release channel and GKE version based on whether a version is provided.
   """
-  # Configure the mock that depends on the test's parameters
   cluster_create_mocks.get_gke_control_plane_version.return_value = (
       0,
       expected_version,
@@ -464,7 +476,6 @@ def test_cluster_create_calls_run_command_with_correct_channel_and_version(
   args = construct_args(gke_version=gke_version_arg)
   cluster_create(args)
 
-  # Assert the command parts that would be passed to run_command_with_updates
   expected_command_parts = [
       'clusters create',
       f'--cluster-version={expected_version}',

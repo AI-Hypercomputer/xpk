@@ -59,9 +59,8 @@ var (
 )
 
 var (
-	jobSetGVK   = jobset.SchemeGroupVersion.WithKind("JobSet")
-	jobGVK      = batchv1.SchemeGroupVersion.WithKind("Job")
-	workloadGVK = kueue.SchemeGroupVersion.WithKind("Workload")
+	jobSetGVK = jobset.SchemeGroupVersion.WithKind("JobSet")
+	jobGVK    = batchv1.SchemeGroupVersion.WithKind("Job")
 )
 
 func TestWorkloadReconciler(t *testing.T) {
@@ -85,9 +84,9 @@ func TestWorkloadReconciler(t *testing.T) {
 		}
 	}
 
-	buildEventRecord := func(eventType, reason, message string) utiltesting.EventRecord {
+	buildEventRecord := func(namespace, eventType, reason, message string) utiltesting.EventRecord {
 		return utiltesting.EventRecord{
-			Key:       client.ObjectKey{Namespace: corev1.NamespaceDefault, Name: baseWorkloadName},
+			Key:       client.ObjectKey{Namespace: namespace, Name: baseWorkloadName},
 			EventType: eventType,
 			Reason:    reason,
 			Message:   message,
@@ -738,7 +737,7 @@ func TestWorkloadReconciler(t *testing.T) {
 				*baseSlice2Wrapper.DeepCopy(),
 			},
 			wantEvents: []utiltesting.EventRecord{
-				buildEventRecord(corev1.EventTypeNormal, SlicesCreatedEventType,
+				buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, SlicesCreatedEventType,
 					`The Slices default-workload-ps1, default-workload-ps2 have been created`),
 			},
 		},
@@ -790,7 +789,7 @@ func TestWorkloadReconciler(t *testing.T) {
 				*baseSlice1Wrapper.DeepCopy(),
 			},
 			wantEvents: []utiltesting.EventRecord{
-				buildEventRecord(corev1.EventTypeNormal, SlicesCreatedEventType,
+				buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, SlicesCreatedEventType,
 					`The Slices default-workload-ps1 have been created`),
 			},
 		},
@@ -838,7 +837,7 @@ func TestWorkloadReconciler(t *testing.T) {
 				*baseSlice1Wrapper.DeepCopy(),
 			},
 			wantEvents: []utiltesting.EventRecord{
-				buildEventRecord(corev1.EventTypeNormal, SlicesCreatedEventType,
+				buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, SlicesCreatedEventType,
 					`The Slices default-workload-ps1 have been created`),
 			},
 		},
@@ -870,7 +869,7 @@ func TestWorkloadReconciler(t *testing.T) {
 				*baseSlice2Wrapper.DeepCopy(),
 			},
 			wantEvents: []utiltesting.EventRecord{
-				buildEventRecord(corev1.EventTypeNormal, SlicesCreatedEventType,
+				buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, SlicesCreatedEventType,
 					`The Slices default-workload-ps2 have been created`),
 			},
 		},
@@ -901,7 +900,7 @@ func TestWorkloadReconciler(t *testing.T) {
 				*baseSlice2Wrapper.DeepCopy(),
 			},
 			wantEvents: []utiltesting.EventRecord{
-				buildEventRecord(corev1.EventTypeNormal, SlicesCreatedEventType,
+				buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, SlicesCreatedEventType,
 					`The Slices default-workload-ps1, default-workload-ps2 have been created`),
 			},
 		},
@@ -966,7 +965,7 @@ func TestWorkloadReconciler(t *testing.T) {
 				*baseSlice2Wrapper.DeepCopy(),
 			},
 			wantEvents: []utiltesting.EventRecord{
-				buildEventRecord(corev1.EventTypeNormal, SlicesCreatedEventType,
+				buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, SlicesCreatedEventType,
 					`The Slices default-workload-ps1, default-workload-ps2 have been created`),
 			},
 		},
@@ -1000,7 +999,7 @@ func TestWorkloadReconciler(t *testing.T) {
 			},
 			wantErr: errTest,
 			wantEvents: []utiltesting.EventRecord{
-				buildEventRecord(corev1.EventTypeWarning, FailedCreateSliceEventType,
+				buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeWarning, FailedCreateSliceEventType,
 					`Error creating Slice "default-workload-ps1": test error`),
 			},
 		},
@@ -1149,7 +1148,7 @@ func TestWorkloadReconciler(t *testing.T) {
 				*baseSlice2Wrapper.Clone().Active().Obj(),
 			},
 			wantEvents: []utiltesting.EventRecord{
-				buildEventRecord(corev1.EventTypeNormal, AdmissionCheckUpdatedEventType,
+				buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, AdmissionCheckUpdatedEventType,
 					fmt.Sprintf(`Admission check %q updated state from "Pending" to "Ready"`, baseACName)),
 			},
 		},
@@ -1181,7 +1180,7 @@ func TestWorkloadReconciler(t *testing.T) {
 				*baseSlice1Wrapper.Clone().Active().Obj(),
 				*baseSlice2Wrapper.Clone().Degraded().Obj()},
 			wantEvents: []utiltesting.EventRecord{
-				buildEventRecord(corev1.EventTypeNormal, AdmissionCheckUpdatedEventType,
+				buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, AdmissionCheckUpdatedEventType,
 					fmt.Sprintf(`Admission check %q updated state from "Pending" to "Ready"`, baseACName)),
 			},
 		},
@@ -1213,7 +1212,7 @@ func TestWorkloadReconciler(t *testing.T) {
 				*baseSlice1Wrapper.Clone().Active().Obj(),
 			},
 			wantEvents: []utiltesting.EventRecord{
-				buildEventRecord(corev1.EventTypeNormal, AdmissionCheckUpdatedEventType,
+				buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, AdmissionCheckUpdatedEventType,
 					fmt.Sprintf(`Admission check %q updated state from "Pending" to "Retry"`, baseACName)),
 			},
 		},
@@ -1275,8 +1274,96 @@ func TestWorkloadReconciler(t *testing.T) {
 				*baseSlice2Wrapper.Clone().Active().Obj(),
 			},
 			wantEvents: []utiltesting.EventRecord{
-				buildEventRecord(corev1.EventTypeNormal, AdmissionCheckUpdatedEventType,
+				buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, AdmissionCheckUpdatedEventType,
 					fmt.Sprintf(`Admission check %q updated state from "Pending" to "Ready"`, baseACName)),
+			},
+		},
+		"should create a slice for another workload with the same name but in a different namespace": {
+			request: types.NamespacedName{Name: baseWorkloadName, Namespace: "namespace2"},
+			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				worker2Node.DeepCopy(),
+				baseAdmissionCheckWrapper.DeepCopy(),
+				utiltesting.MakeWorkload(baseWorkloadName, "namespace1").
+					UID(baseWorkloadName+"-ns1").
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStateReady, `Slices are in states: 2 ACTIVE`)).
+					Obj(),
+				utiltesting.MakeSliceWrapper(core.SliceName("namespace1", baseWorkloadName, "ps1")).
+					Type(slice.TypeTpu7x).
+					Topology("4x4x12").
+					OwnerWorkloadAnnotations("namespace1", baseWorkloadName).
+					PartitionIds("subblock1").
+					Active().
+					Obj(),
+				utiltesting.MakeSliceWrapper(core.SliceName("namespace1", baseWorkloadName, "ps2")).
+					Type(slice.TypeTpu7x).
+					Topology("4x4x12").
+					OwnerWorkloadAnnotations("namespace1", baseWorkloadName).
+					PartitionIds("subblock2").
+					Active().
+					Obj(),
+				utiltesting.MakeWorkload(baseWorkloadName, "namespace2").
+					UID(baseWorkloadName+"-ns2").
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStatePending, "")).
+					Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*utiltesting.MakeWorkload(baseWorkloadName, "namespace1").
+					UID(baseWorkloadName+"-ns1").
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStateReady, `Slices are in states: 2 ACTIVE`)).
+					Obj(),
+				*utiltesting.MakeWorkload(baseWorkloadName, "namespace2").
+					UID(baseWorkloadName+"-ns2").
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStatePending, `Slices are in states: 2 CREATED`)).
+					Obj(),
+			},
+			wantSlices: []slice.Slice{
+				*utiltesting.MakeSliceWrapper(core.SliceName("namespace1", baseWorkloadName, "ps1")).
+					Type(slice.TypeTpu7x).
+					Topology("4x4x12").
+					OwnerWorkloadAnnotations("namespace1", baseWorkloadName).
+					PartitionIds("subblock1").
+					Active().
+					Obj(),
+				*utiltesting.MakeSliceWrapper(core.SliceName("namespace1", baseWorkloadName, "ps2")).
+					Type(slice.TypeTpu7x).
+					Topology("4x4x12").
+					OwnerWorkloadAnnotations("namespace1", baseWorkloadName).
+					PartitionIds("subblock2").
+					Active().
+					Obj(),
+				*utiltesting.MakeSliceWrapper(core.SliceName("namespace2", baseWorkloadName, "ps1")).
+					Type(slice.TypeTpu7x).
+					Topology("4x4x12").
+					OwnerWorkloadAnnotations("namespace2", baseWorkloadName).
+					PartitionIds("subblock1").
+					Obj(),
+				*utiltesting.MakeSliceWrapper(core.SliceName("namespace2", baseWorkloadName, "ps2")).
+					Type(slice.TypeTpu7x).
+					Topology("4x4x12").
+					OwnerWorkloadAnnotations("namespace2", baseWorkloadName).
+					PartitionIds("subblock2").
+					Obj(),
+			},
+			wantEvents: []utiltesting.EventRecord{
+				buildEventRecord("namespace2", corev1.EventTypeNormal, SlicesCreatedEventType,
+					`The Slices namespace2-workload-ps1, namespace2-workload-ps2 have been created`),
 			},
 		},
 	}

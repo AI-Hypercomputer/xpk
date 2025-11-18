@@ -125,7 +125,7 @@ jobs:
     - name: Get job name
       run: |
         cat batch-read.log | grep 'xpk-def-app-profile-slurm-'
-        READ_JOB_NAME=$(cat batch-read.log | grep 'xpk-def-app-profile-slurm-' | awk -F': ' '{print $2}')
+        READ_JOB_NAME=$(grep 'Job name: xpk-def-app-profile-slurm-' batch-read.log | awk -F': ' '{print $2}')
         echo "READ_JOB_NAME=${READ_JOB_NAME}" >> $GITHUB_ENV
     - name: Wait for the batch-read job to finish
       run: kubectl wait job.batch/$READ_JOB_NAME --for=condition=Complete --timeout=1m

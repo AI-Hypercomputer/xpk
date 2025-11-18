@@ -61,7 +61,7 @@ gcloud compute resource-policies describe golden-cluster-placement-policy --proj
 [XPK] Default Chips quota is minimum: 0, maximum: 4.
 [XPK] Chips quota is minimum: 0, maximum: 4. XPK will autoprovision 4 chips based on incoming workload requests, keeping at least 0 available at all times, and maximum of 4. If the difference (4 chips) is small, rescaling will not work well.
 [XPK] Task: `Update cluster with autoprovisioning enabled` is implemented by the following command not running since it is a dry run. 
-gcloud container clusters update golden-cluster --project=golden-project --location=us-central1 --enable-autoprovisioning --autoprovisioning-config-file 6062bfee91f21efca86f2c3261129f06b1896ad9b68d2ecdba9589bea9e15ddf
+gcloud container clusters update golden-cluster --project=golden-project --location=us-central1 --enable-autoprovisioning --autoprovisioning-scopes=https://www.googleapis.com/auth/cloud-platform --autoprovisioning-config-file 6062bfee91f21efca86f2c3261129f06b1896ad9b68d2ecdba9589bea9e15ddf
 [XPK] Task: `Update cluster with autoscaling-profile` is implemented by the following command not running since it is a dry run. 
 gcloud container clusters update golden-cluster --project=golden-project --location=us-central1 --autoscaling-profile=optimize-utilization
 [XPK] Task: `Get All Node Pools` is implemented by the following command not running since it is a dry run. 

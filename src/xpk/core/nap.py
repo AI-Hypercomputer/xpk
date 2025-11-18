@@ -44,7 +44,7 @@ management:
   autoRepair: true
   autoUpgrade: true
 scopes:
-  - "https://www.googleapis.com/auth/devstorage.read_write"
+  - "https://www.googleapis.com/auth/cloud-platform"
 autoprovisioningLocations:
   {zones}
 {resource_limits}
@@ -56,6 +56,7 @@ resourceLimits:
 - resourceType: 'memory'
   {memory_limits}
 {custom_resource_type}
+diskSizeGb: 50
 """
 AUTOPROVISIONING_CUSTOM_RESOURCE_TYPE = """
 - resourceType: {resource_type}

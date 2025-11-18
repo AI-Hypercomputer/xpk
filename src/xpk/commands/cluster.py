@@ -266,11 +266,11 @@ def cluster_create(args) -> None:
   xpk_print(f'Starting cluster create for cluster {args.cluster}:', flush=True)
   add_zone_and_project(args)
 
+  _log_cluster_create_telemetry(args)
+
   release_channel = (
       ReleaseChannel.REGULAR if args.gke_version else ReleaseChannel.RAPID
   )
-
-  _log_cluster_create_telemetry(args)
 
   return_code, gke_server_config = get_gke_server_config(
       args, release_channel=release_channel

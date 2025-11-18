@@ -61,7 +61,7 @@ def test_generate_a3_mega_blueprint():
       reservation="test-reservation",
       capacity_type=CapacityType.RESERVATION,
       system_node_pool_min_node_count=5,
-      release_channel=ReleaseChannel.REGULAR,
+      release_channel=ReleaseChannel.RAPID,
       cluster_version="1.2.3",
   )
 

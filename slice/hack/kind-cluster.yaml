@@ -24,28 +24,28 @@ nodes:
   - role: worker
     labels:
       cloud.google.com/gke-node-group: tas-group
-      cloud.google.com/gke-tpu-accelerator: tpu-v7x
+      cloud.google.com/gke-tpu-accelerator: tpu7x
       cloud.google.com/gce-topology-block: b1
       cloud.google.com/gke-tpu-slice-4x4x4-id: sb1
       cloud.google.com/gke-tpu-slice-4x4x4-health: true
   - role: worker
     labels:
       cloud.google.com/gke-node-group: tas-group
-      cloud.google.com/gke-tpu-accelerator: tpu-v7x
+      cloud.google.com/gke-tpu-accelerator: tpu7x
       cloud.google.com/gce-topology-block: b2
       cloud.google.com/gke-tpu-slice-4x4x4-id: sb2
       cloud.google.com/gke-tpu-slice-4x4x4-health: true
   - role: worker
     labels:
       cloud.google.com/gke-node-group: tas-group
-      cloud.google.com/gke-tpu-accelerator: tpu-v7x
+      cloud.google.com/gke-tpu-accelerator: tpu7x
       cloud.google.com/gce-topology-block: b2
       cloud.google.com/gke-tpu-slice-4x4x4-id: sb3
       cloud.google.com/gke-tpu-slice-4x4x4-health: true
   - role: worker
     labels:
       cloud.google.com/gke-node-group: tas-group
-      cloud.google.com/gke-tpu-accelerator: tpu-v7x
+      cloud.google.com/gke-tpu-accelerator: tpu7x
       cloud.google.com/gce-topology-block: b2
       cloud.google.com/gke-tpu-slice-4x4x4-id: sb4
       cloud.google.com/gke-tpu-slice-4x4x4-health: true

@@ -25,14 +25,14 @@ type Type string
 
 const (
 	TypeV6e   Type = "v6e"
-	TypeTpu7x Type = "tpu-v7x"
+	TypeTpu7x Type = "tpu7x"
 )
 
 // SliceSpec defines the desired state of Slice.
 type SliceSpec struct {
-	// Type specifies the type of accelerator used in this slice, e.g., "v6e", "tpu-v7x".
+	// Type specifies the type of accelerator used in this slice, e.g., "v6e", "tpu7x".
 	// +kubebuilder:validation:Immutable
-	// +kubebuilder:validation:Enum=v6e;tpu-v7x
+	// +kubebuilder:validation:Enum=v6e;tpu7x
 	Type Type `json:"type"`
 
 	// Topology represents the network topology of the slice.

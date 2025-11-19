@@ -151,11 +151,7 @@ def set_cluster_create_parser(cluster_create_parser: ArgumentParser):
       ),
   )
   if FeatureFlags.SUB_SLICING_ENABLED:
-    cluster_create_optional_arguments.add_argument(
-        '--sub-slicing',
-        action='store_true',
-        help='Whether to set up cluster to support sub-slicing',
-    )
+    add_cluster_create_sub_slicing_arguments(cluster_create_optional_arguments)
 
   autoprovisioning_arguments = cluster_create_parser.add_argument_group(
       'Autoprovisioning Arguments',
@@ -232,6 +228,10 @@ def set_cluster_create_pathways_parser(
   add_shared_cluster_create_optional_arguments(
       cluster_create_pathways_optional_arguments
   )
+  if FeatureFlags.SUB_SLICING_ENABLED:
+    add_cluster_create_sub_slicing_arguments(
+        cluster_create_pathways_optional_arguments
+    )
 
   autoprovisioning_arguments = (
       cluster_create_pathways_parser.add_argument_group(
@@ -365,7 +365,9 @@ def set_cluster_create_ray_parser(cluster_create_ray_parser: ArgumentParser):
   )
   add_resource_limits(cluster_create_resource_limits)
 
-  cluster_create_ray_parser.set_defaults(func=cluster_create_ray_cluster)
+  cluster_create_ray_parser.set_defaults(
+      func=cluster_create_ray_cluster, sub_slicing=False
+  )
 
 
 def set_cluster_delete_parser(cluster_delete_parser: ArgumentParser):
@@ -963,4 +965,14 @@ def add_resource_limits(parser_or_group: ParserOrArgumentGroup):
       type=int,
       default=None,
       help='The CPU limit for the Kueue controller manager.',
+  )
+
+
+def add_cluster_create_sub_slicing_arguments(
+    parser_or_group: ParserOrArgumentGroup,
+):
+  parser_or_group.add_argument(
+      '--sub-slicing',
+      action='store_true',
+      help='Whether to set up cluster to support sub-slicing',
   )

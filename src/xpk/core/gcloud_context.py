@@ -19,6 +19,7 @@ import sys
 from dataclasses import dataclass
 
 from ..utils.console import xpk_print, xpk_exit
+from ..utils.versions import ReleaseChannel
 from .commands import run_command_for_value
 from functools import lru_cache
 
@@ -117,15 +118,18 @@ def get_cluster_location(project: str, name: str, zone: str) -> str:
 class GkeServerConfig:
   """Stores the valid gke versions based on gcloud recommendations."""
 
-  default_rapid_gke_version: str
+  default_gke_version: str
   valid_versions: set[str]
 
 
-def get_gke_server_config(args) -> tuple[int, GkeServerConfig | None]:
+def get_gke_server_config(
+    args, release_channel: ReleaseChannel
+) -> tuple[int, GkeServerConfig | None]:
   """Determine the GKE versions supported by gcloud currently.
 
   Args:
     args: user provided arguments for running the command.
+    release_channel: the release channel to use.
 
   Returns:
     Tuple of
@@ -136,22 +140,24 @@ def get_gke_server_config(args) -> tuple[int, GkeServerConfig | None]:
       'gcloud container get-server-config'
       f' --project={args.project} --region={zone_to_region(args.zone)}'
   )
-  default_rapid_gke_version_cmd = (
+  default_gke_version_cmd = (
       base_command
-      + ' --flatten="channels" --filter="channels.channel=RAPID"'
+      + ' --flatten="channels"'
+      f' --filter="channels.channel={release_channel.value}"'
       ' --format="value(channels.defaultVersion)"'
   )
   valid_versions_cmd = (
       base_command
-      + ' --flatten="channels" --filter="channels.channel=RAPID"'
+      + ' --flatten="channels"'
+      f' --filter="channels.channel={release_channel.value}"'
       ' --format="value(channels.validVersions)"'
   )
   base_command_description = 'Determine server supported GKE versions for '
 
   server_config_commands_and_descriptions = [
       (
-          default_rapid_gke_version_cmd,
-          base_command_description + 'default rapid gke version',
+          default_gke_version_cmd,
+          base_command_description + 'default gke version',
       ),
       (
           valid_versions_cmd,
@@ -172,8 +178,8 @@ def get_gke_server_config(args) -> tuple[int, GkeServerConfig | None]:
     command_outputs.append(cmd_output)
 
   return 0, GkeServerConfig(
-      default_rapid_gke_version=command_outputs[0].strip(),
-      valid_versions=set(command_outputs[1].split(';')),
+      default_gke_version=command_outputs[0].strip(),
+      valid_versions=set([s.strip() for s in command_outputs[1].split(';')]),
   )
 
 
@@ -196,7 +202,7 @@ def get_gke_control_plane_version(
   if args.gke_version is not None:
     master_gke_version = args.gke_version
   else:
-    master_gke_version = gke_server_config.default_rapid_gke_version
+    master_gke_version = gke_server_config.default_gke_version
 
   is_valid_version = master_gke_version in gke_server_config.valid_versions
 
@@ -204,7 +210,7 @@ def get_gke_control_plane_version(
     xpk_print(
         f'Planned GKE Version: {master_gke_version}\n Valid Versions:'
         f'\n{gke_server_config.valid_versions}\nRecommended / Default GKE'
-        f' Version: {gke_server_config.default_rapid_gke_version}'
+        f' Version: {gke_server_config.default_gke_version}'
     )
     xpk_print(
         f'Error: Planned GKE Version {master_gke_version} is not valid.'
@@ -213,7 +219,7 @@ def get_gke_control_plane_version(
     xpk_print(
         'Please select a gke version from the above list using --gke-version=x'
         ' argument or rely on the default gke version:'
-        f' {gke_server_config.default_rapid_gke_version}'
+        f' {gke_server_config.default_gke_version}'
     )
     return 1, None
 

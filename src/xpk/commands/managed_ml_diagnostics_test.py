@@ -51,14 +51,13 @@ def mocks(mocker) -> _Mocks:
       commands_tester=CommandsTester(
           mocker,
           run_command_with_updates_path=(
-              'xpk.commands.managed_ml_diagnostics.run_command_with_updates'
+              'xpk.commands.cluster.run_command_with_updates'
           ),
           run_command_for_value_path=(
-              'xpk.commands.managed_ml_diagnostics.run_command_for_value'
+              'xpk.commands.cluster.run_command_for_value'
           ),
       ),
   )
-
 
 def construct_args(**kwargs: Any) -> Namespace:
   args_dict = dict(
@@ -67,13 +66,12 @@ def construct_args(**kwargs: Any) -> Namespace:
   args_dict.update(kwargs)
   return Namespace(**args_dict)
 
-
 def test_install_mldiagnostics_prerequisites_commands_executed(
     mocks: _Mocks,
     mocker,
 ):
-
   mocks.commands_tester.set_result_for_command(
+      (0, ''),
       'kubectl',
       'rollout',
       'status',
@@ -81,6 +79,7 @@ def test_install_mldiagnostics_prerequisites_commands_executed(
   )
 
   mocks.commands_tester.set_result_for_command(
+      (0, ''),
       'kubectl',
       'rollout',
       'status',
@@ -88,6 +87,7 @@ def test_install_mldiagnostics_prerequisites_commands_executed(
   )
 
   mocks.commands_tester.set_result_for_command(
+      (0, ''),
       'kubectl',
       'apply',
       '-f',
@@ -95,6 +95,7 @@ def test_install_mldiagnostics_prerequisites_commands_executed(
   )
 
   mocks.commands_tester.set_result_for_command(
+      (0, ''),
       'gcloud',
       'artifacts',
       'generic',
@@ -102,6 +103,7 @@ def test_install_mldiagnostics_prerequisites_commands_executed(
   )
 
   mocks.commands_tester.set_result_for_command(
+      (0, ''),
       'kubectl',
       'create',
       'namespace',
@@ -109,6 +111,7 @@ def test_install_mldiagnostics_prerequisites_commands_executed(
   )
 
   mocks.commands_tester.set_result_for_command(
+      (0, ''),
       'kubectl',
       'apply',
       '-f',
@@ -117,6 +120,7 @@ def test_install_mldiagnostics_prerequisites_commands_executed(
   )
 
   mocks.commands_tester.set_result_for_command(
+      (0, ''),
       'kubectl',
       'label',
       'namespace',

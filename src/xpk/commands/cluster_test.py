@@ -124,7 +124,7 @@ def construct_args(**kwargs: Any) -> Namespace:
       cluster_cpu_machine_type='',
       create_vertex_tensorboard=False,
       enable_autoprovisioning=False,
-      managed_ml_diagnostics=False,
+      managed_mldiagnostics=False,
   )
   args_dict.update(kwargs)
   return Namespace(**args_dict)

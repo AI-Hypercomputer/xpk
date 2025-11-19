@@ -693,6 +693,11 @@ def add_shared_cluster_create_optional_arguments(
       ),
   )
   parser_or_group.add_argument(
+      '--managed-mldiagnostics',
+      action='store_true',
+      help='Enables the installation of required ML Diagnostics components.',
+  )
+  parser_or_group.add_argument(
       '--cluster-cpu-machine-type',
       type=str,
       default='',

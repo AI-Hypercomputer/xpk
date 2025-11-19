@@ -84,7 +84,7 @@ from jinja2 import Environment, FileSystemLoader
 from ..utils.templates import get_templates_absolute_path
 import shutil
 import os
-from . import managed_ml_diagnostics
+from .managed_ml_diagnostics import install_mldiagnostics_prerequisites
 
 CLUSTER_PREHEAT_JINJA_FILE = 'cluster_preheat.yaml.j2'
 
@@ -424,8 +424,8 @@ def cluster_create(args) -> None:
       f' https://console.cloud.google.com/kubernetes/clusters/details/{get_cluster_location(args.project, args.cluster, args.zone)}/{args.cluster}/details?project={args.project}'
   )
 
-  if args.managed_ml_diagnostics:
-    return_code = managed_ml_diagnostics.install_mldiagnostics_prerequisites()
+  if args.managed_mldiagnostics:
+    return_code = install_mldiagnostics_prerequisites()
     if return_code != 0:
       xpk_print('Installation of MLDiagnostics failed.')
       xpk_exit(return_code)

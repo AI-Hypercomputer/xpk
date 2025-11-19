@@ -24,9 +24,16 @@ _KUEUE_DEPLOYMENT_NAME = 'kueue-controller-manager'
 _KUEUE_NAMESPACE_NAME = 'kueue-system'
 _CERT_WEBHOOK_DEPLOYMENT_NAME = 'cert-manager-webhook'
 _CERT_WEBHOOK_NAMESPACE_NAME = 'cert-manager'
+_WEBHOOK_PACKAGE = 'mldiagnostics-injection-webhook'
+_WEBHOOK_VERSION = Version('v0.5.0')
+_WEBHOOK_FILENAME = f'{_WEBHOOK_PACKAGE}-v{_WEBHOOK_VERSION}.yaml'
+_OPERATOR_PACKAGE = 'mldiagnostics-connection-operator'
+_OPERATOR_VERSION = Version('v0.5.0')
+_OPERATOR_FILENAME = f'{_OPERATOR_PACKAGE}-v{_OPERATOR_VERSION}.yaml'
+_CERT_MANAGER_VERSION = Version('v1.13.0')
 
 
-def _install_cert_manager(version: Version = Version('v1.13.0')) -> int:
+def _install_cert_manager(version: Version = _CERT_MANAGER_VERSION) -> int:
   """
   Apply the cert-manager manifest.
 
@@ -111,12 +118,10 @@ def _install_mldiagnostics_yaml(artifact_filename: str) -> int:
 
   command = f'kubectl apply -f {full_artifact_path} -n gke-mldiagnostics'
 
-  return_code = run_command_with_updates(
+  return run_command_with_updates(
       command,
       f'Install {full_artifact_path}...',
   )
-
-  return return_code
 
 
 def _label_default_namespace_mldiagnostics() -> int:
@@ -129,12 +134,10 @@ def _label_default_namespace_mldiagnostics() -> int:
 
   command = 'kubectl label namespace default managed-mldiagnostics-gke=true'
 
-  return_code = run_command_with_updates(
+  return run_command_with_updates(
       command,
       'Label default namespace with managed-mldiagnostics-gke=true',
   )
-
-  return return_code
 
 
 def install_mldiagnostics_prerequisites() -> int:
@@ -166,12 +169,8 @@ def install_mldiagnostics_prerequisites() -> int:
     xpk_print('The cert-manager-webhook installation failed.')
     return 1
 
-  webhook_package = 'mldiagnostics-injection-webhook'
-  webhook_version = Version('v0.5.0')
-  webhook_filename = f'{webhook_package}-v{webhook_version}.yaml'
-
   return_code = _download_mldiagnostics_yaml(
-      package_name=webhook_package, version=webhook_version
+      package_name=_WEBHOOK_PACKAGE, version=_WEBHOOK_VERSION
   )
   if return_code != 0:
     return return_code
@@ -180,7 +179,7 @@ def install_mldiagnostics_prerequisites() -> int:
   if return_code != 0:
     return return_code
 
-  return_code = _install_mldiagnostics_yaml(artifact_filename=webhook_filename)
+  return_code = _install_mldiagnostics_yaml(artifact_filename=_WEBHOOK_FILENAME)
   if return_code != 0:
     return return_code
 
@@ -188,17 +187,15 @@ def install_mldiagnostics_prerequisites() -> int:
   if return_code != 0:
     return return_code
 
-  operator_package = 'mldiagnostics-connection-operator'
-  operator_version = Version('v0.5.0')
-  operator_filename = f'{operator_package}-v{operator_version}.yaml'
-
   return_code = _download_mldiagnostics_yaml(
-      package_name=operator_package, version=operator_version
+      package_name=_OPERATOR_PACKAGE, version=_OPERATOR_VERSION
   )
   if return_code != 0:
     return return_code
 
-  return_code = _install_mldiagnostics_yaml(artifact_filename=operator_filename)
+  return_code = _install_mldiagnostics_yaml(
+      artifact_filename=_OPERATOR_FILENAME
+  )
   if return_code != 0:
     return return_code
 

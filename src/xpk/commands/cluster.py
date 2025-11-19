@@ -1175,7 +1175,7 @@ def run_gke_cluster_create_command(
       ' --enable-dns-access'
       ' --autoscaling-profile=optimize-utilization'
       ' --labels=gke_product_type=xpk'
-      f' --release-channel={release_channel.value}'
+      f' --release-channel={release_channel.value.lower()}'
   )
 
   if args.gke_version:

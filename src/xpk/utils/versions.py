@@ -25,7 +25,7 @@ class ReleaseChannel(enum.Enum):
   """
 
   RELEASE_CHANNEL_UNSPECIFIED = "RELEASE_CHANNEL_UNSPECIFIED"
-  RAPID = "rapid"
-  REGULAR = "regular"
-  STABLE = "stable"
-  EXTENDED = "extended"
+  RAPID = "RAPID"
+  REGULAR = "REGULAR"
+  STABLE = "STABLE"
+  EXTENDED = "EXTENDED"

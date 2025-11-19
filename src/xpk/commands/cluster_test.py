@@ -338,7 +338,7 @@ def test_run_gke_cluster_create_command_without_gke_version_does_not_have_no_aut
       'clusters create', ' --no-enable-autoupgrade'
   )
   mocks.commands_tester.assert_command_run(
-      'clusters create', ' --release-channel=RAPID'
+      'clusters create', ' --release-channel=rapid'
   )
 
 
@@ -354,7 +354,7 @@ def test_run_gke_cluster_create_command_with_gke_version_has_no_autoupgrade_flag
 
   assert result == 0
   mocks.commands_tester.assert_command_run(
-      'clusters create', '--release-channel=REGULAR', ' --no-enable-autoupgrade'
+      'clusters create', '--release-channel=regular', ' --no-enable-autoupgrade'
   )
 
 
@@ -479,7 +479,7 @@ def test_cluster_create_calls_run_command_with_correct_channel_and_version(
   expected_command_parts = [
       'clusters create',
       f'--cluster-version={expected_version}',
-      f'--release-channel={expected_channel.value}',
+      f'--release-channel={expected_channel.value.lower()}',
   ]
 
   mocks.commands_tester.assert_command_run(*expected_command_parts)

@@ -52,6 +52,23 @@ kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="Conf
 [XPK] Pretending all the jobs succeeded
 [XPK] Create or delete node pool request complete.
 [XPK] Creating ConfigMap for cluster
+[XPK] Temp yaml (0604d72ef175c94fc796d8f02cff009b4241e85d444d22d414a56a47764d7bbb) content: 
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: golden-cluster-resources-configmap
+data:
+  tpu7x-8: "1"
+
+[XPK] Temp yaml (51bf42f3a2eb3734b89e650bc26bead709461fa30865893815a078a04f7d7444) content: 
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: golden-cluster-metadata-configmap
+data:
+  xpk_version: v0.14.3
+  capacity_type: SPOT
+
 [XPK] Breaking up a total of 2 commands into 1 batches
 [XPK] Pretending all the jobs succeeded
 [XPK] Enabling the jobset API on our cluster, to be deprecated when Jobset is globally available
@@ -60,6 +77,88 @@ kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="Conf
 kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-sigs/jobset/releases/download/v0.8.0/manifests.yaml
 [XPK] Task: `Count total nodes` is implemented by the following command not running since it is a dry run. 
 kubectl get node --no-headers | wc -l
+[XPK] Temp yaml (1b31e624e490f9c8c4ef4e369f08d3fa467990af5a261e4405bd045265d70e95) content: 
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: manager
+    app.kubernetes.io/created-by: jobset
+    app.kubernetes.io/instance: controller-manager
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: deployment
+    app.kubernetes.io/part-of: jobset
+    control-plane: controller-manager
+  name: jobset-controller-manager
+  namespace: jobset-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      control-plane: controller-manager
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: manager
+      labels:
+        control-plane: controller-manager
+    spec:
+      containers:
+      - args:
+        - --config=/controller_manager_config.yaml
+        - --zap-log-level=2
+        command:
+        - /manager
+        image: registry.k8s.io/jobset/jobset:v0.8.0
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        name: manager
+        ports:
+        - containerPort: 9443
+          name: webhook-server
+          protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          limits:
+            memory: 4096Mi
+          requests:
+            cpu: 1000m
+            memory: 128Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        - mountPath: /controller_manager_config.yaml
+          name: manager-config
+          subPath: controller_manager_config.yaml
+        - mountPath: /tmp/k8s-webhook-server/serving-certs
+          name: cert
+          readOnly: true
+      securityContext:
+        runAsNonRoot: true
+      serviceAccountName: jobset-controller-manager
+      terminationGracePeriodSeconds: 10
+      volumes:
+      - configMap:
+          name: jobset-manager-config
+        name: manager-config
+      - name: cert
+        secret:
+          defaultMode: 420
+          secretName: jobset-webhook-server-cert
+
 [XPK] Try 1: Updating jobset Controller Manager resources
 [XPK] Task: `Updating jobset Controller Manager resources` is implemented by the following command not running since it is a dry run. 
 kubectl apply -f 1b31e624e490f9c8c4ef4e369f08d3fa467990af5a261e4405bd045265d70e95
@@ -79,7 +178,8 @@ kubectl wait deploy/kueue-controller-manager -n kueue-system --for=condition=ava
 gcloud compute machine-types describe tpu7x-standard-4t  --project=golden-project --zone=us-central1-a --format='value(guestCpus,memoryMb)'
 [XPK] The CPU limit is above the available capacity. We will set CPU limit to 10.
 [XPK] The memory limit is above the available capacity. We will set memory limit to 10Mi.
-[XPK] Applying following Kueue resources:
+[XPK] Temp yaml (1ea1a0b1a0ec540d8320ef2a8378363e692a8439192a8f50c4b77fe545dd0a4c) content: 
+
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: ResourceFlavor
 metadata:
@@ -189,10 +289,79 @@ kubectl kjob printcrds | kubectl apply --server-side -f -
 [XPK] Creating kjob CRDs succeeded
 [XPK] Task: `GKE Cluster Get ConfigMap` is implemented by the following command not running since it is a dry run. 
 kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="ConfigData:data" --no-headers=true
+[XPK] Temp yaml (4abb796ed6e7c9d7256a51f13124efd989fc12ee83839bed432fcf7d64f68e61) content: 
+
+  apiVersion: kjobctl.x-k8s.io/v1alpha1
+  kind: JobTemplate
+  metadata:
+    name: xpk-def-batch
+    namespace: default
+  template:
+    spec:
+      parallelism: 1
+      completions: 1
+      completionMode: Indexed
+      template:
+        spec:
+          dnsPolicy: ClusterFirstWithHostNet
+          tolerations:
+            - operator: "Exists"
+              key: nvidia.com/gpu
+          containers:
+            - name: xpk-batch-container
+              image: ubuntu:22.04
+              workingDir: /
+              
+          
+          priorityClassName: medium
+          restartPolicy: OnFailure
+          serviceAccountName: 
+
 [XPK] Task: `Creating JobTemplate` is implemented by the following command not running since it is a dry run. 
 kubectl apply -f 4abb796ed6e7c9d7256a51f13124efd989fc12ee83839bed432fcf7d64f68e61
+[XPK] Temp yaml (a63aa3c4593c38ad90671fd8b067d1886f6313ad558379b364b51791aa50f4e8) content: 
+
+apiVersion: v1
+kind: PodTemplate
+metadata:
+  name: xpk-def-pod
+  namespace: default
+template:
+  spec:
+    tolerations:
+      - effect: NoSchedule
+        key: components.gke.io/gke-managed-components
+        operator: Equal
+        value: "true"
+    containers:
+      - name: xpk-interactive-container
+        image: busybox:1.28
+        command: [/bin/sh]
+        workingDir: /
+    initContainers:
+      - name: init
+        image: busybox:1.28
+        command: ['/bin/mkdir', '-p', '/']
+    serviceAccountName: 
+
 [XPK] Task: `Creating PodTemplate` is implemented by the following command not running since it is a dry run. 
 kubectl apply -f a63aa3c4593c38ad90671fd8b067d1886f6313ad558379b364b51791aa50f4e8
+[XPK] Temp yaml (1d13ddebae3c90a05ba26b312df088982dd0df0edc4f4013b88384e476c20486) content: 
+
+apiVersion: kjobctl.x-k8s.io/v1alpha1
+kind: ApplicationProfile
+metadata:
+  name: xpk-def-app-profile
+  namespace: default
+spec:
+  supportedModes:
+    - name: Slurm
+      template: xpk-def-batch
+      requiredFlags: []
+    - name: Interactive
+      template: xpk-def-pod
+  volumeBundles: []
+
 [XPK] Task: `Creating AppProfile` is implemented by the following command not running since it is a dry run. 
 kubectl apply -f 1d13ddebae3c90a05ba26b312df088982dd0df0edc4f4013b88384e476c20486
 [XPK] GKE commands done! Resources are created.

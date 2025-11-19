@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 import argparse
-from xpk.parser.cluster import set_cluster_create_parser
+from xpk.parser.cluster import set_cluster_create_parser, set_cluster_create_pathways_parser, set_cluster_create_ray_parser
 import pytest
 from ..utils.feature_flags import FeatureFlags
 
@@ -64,3 +64,42 @@ def test_cluster_create_sub_slicing_can_be_set():
   )
 
   assert args.sub_slicing is True
+
+
+def test_cluster_create_pathways_sub_slicing_is_hidden_with_flag_off():
+  FeatureFlags.SUB_SLICING_ENABLED = False
+  parser = argparse.ArgumentParser()
+
+  set_cluster_create_pathways_parser(parser)
+  help_str = parser.format_help()
+
+  assert "--sub-slicing" not in help_str
+
+
+def test_cluster_create_pathways_sub_slicing_can_be_set():
+  parser = argparse.ArgumentParser()
+
+  set_cluster_create_pathways_parser(parser)
+  args = parser.parse_args(
+      ["--cluster", "test-cluster", "--tpu-type", "tpu7x-2", "--sub-slicing"]
+  )
+
+  assert args.sub_slicing is True
+
+
+def test_cluster_create_ray_sub_slicing_is_hidden_but_set_to_false():
+  parser = argparse.ArgumentParser()
+
+  set_cluster_create_ray_parser(parser)
+  args = parser.parse_args([
+      "--cluster",
+      "test-cluster",
+      "--tpu-type",
+      "tpu7x-2",
+      "--ray-version",
+      "19.32.0",
+  ])
+  help_str = parser.format_help()
+
+  assert args.sub_slicing is False
+  assert "--sub-slicing" not in help_str

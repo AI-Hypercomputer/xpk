@@ -101,6 +101,21 @@ def test_get_tpu_system_characteristics_map_returns_correct_values_for_2x2x2_top
   }
 
 
+def test_get_tpu_system_characteristics_map_prefers_default_topologies():
+  result = get_tpu_system_characteristics_map(
+      prefix="test",
+      tensorcores_per_chip=2,
+      gke_accelerator="test",
+      machine_type="test",
+      supported_topologies=["4x4x4", "4x4x32", "4x8x16", "8x8x8"],
+      supports_sub_slicing=False,
+      default_topologies=set(["4x8x16"]),
+  )
+
+  assert result["test-128"].topology == "4x4x4"
+  assert result["test-1024"].topology == "4x8x16"
+
+
 def test_generate_tpu_topologies_returns_correct_number_of_values_for_TPU_platforms():
   v4 = generate_tpu_topologies(max_cubes=64, enforce_nondecreasing=False)
   v5p = generate_tpu_topologies(max_cubes=140)

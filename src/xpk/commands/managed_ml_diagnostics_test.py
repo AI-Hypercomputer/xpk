@@ -62,31 +62,6 @@ def mocks(mocker) -> _Mocks:
 
 def construct_args(**kwargs: Any) -> Namespace:
   args_dict = dict(
-      project='project',
-      zone='us-central1-a',
-      reservation='',
-      default_pool_cpu_machine_type='test-machine-type',
-      cluster='test-cluster',
-      default_pool_cpu_num_nodes='100',
-      sub_slicing=False,
-      gke_version='',
-      private=False,
-      authorized_networks=None,
-      enable_pathways=False,
-      enable_ray_cluster=False,
-      enable_workload_identity=False,
-      enable_gcsfuse_csi_driver=False,
-      enable_gcpfilestore_csi_driver=False,
-      enable_parallelstore_csi_driver=False,
-      enable_pd_csi_driver=False,
-      enable_lustre_csi_driver=False,
-      custom_cluster_arguments='',
-      num_slices=1,
-      num_nodes=1,
-      flex=False,
-      memory_limit='100Gi',
-      cpu_limit=100,
-      cluster_cpu_machine_type='',
       managed_mldiagnostics=False,
   )
   args_dict.update(kwargs)
@@ -99,7 +74,6 @@ def test_install_mldiagnostics_prerequisites_commands_executed(
 ):
 
   mocks.commands_tester.set_result_for_command(
-      (0, ''),
       'kubectl',
       'rollout',
       'status',
@@ -107,7 +81,6 @@ def test_install_mldiagnostics_prerequisites_commands_executed(
   )
 
   mocks.commands_tester.set_result_for_command(
-      (0, ''),
       'kubectl',
       'rollout',
       'status',
@@ -115,7 +88,6 @@ def test_install_mldiagnostics_prerequisites_commands_executed(
   )
 
   mocks.commands_tester.set_result_for_command(
-      (0, ''),
       'kubectl',
       'apply',
       '-f',
@@ -123,7 +95,6 @@ def test_install_mldiagnostics_prerequisites_commands_executed(
   )
 
   mocks.commands_tester.set_result_for_command(
-      (0, ''),
       'gcloud',
       'artifacts',
       'generic',
@@ -131,7 +102,6 @@ def test_install_mldiagnostics_prerequisites_commands_executed(
   )
 
   mocks.commands_tester.set_result_for_command(
-      (0, ''),
       'kubectl',
       'create',
       'namespace',
@@ -139,7 +109,6 @@ def test_install_mldiagnostics_prerequisites_commands_executed(
   )
 
   mocks.commands_tester.set_result_for_command(
-      (0, ''),
       'kubectl',
       'apply',
       '-f',
@@ -148,7 +117,6 @@ def test_install_mldiagnostics_prerequisites_commands_executed(
   )
 
   mocks.commands_tester.set_result_for_command(
-      (0, ''),
       'kubectl',
       'label',
       'namespace',

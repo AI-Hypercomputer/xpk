@@ -14,11 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import time
 from packaging.version import Version
 from ..core.commands import run_command_for_value, run_command_with_updates
-from ..utils.console import xpk_exit, xpk_print
+from ..utils.console import xpk_print
 import os
+import tempfile
+
+_KUEUE_DEPLOYMENT_NAME = 'kueue-controller-manager'
+_KUEUE_NAMESPACE_NAME = 'kueue-system'
+_CERT_WEBHOOK_DEPLOYMENT_NAME = 'cert-manager-webhook'
+_CERT_WEBHOOK_NAMESPACE_NAME = 'cert-manager'
 
 
 def _install_cert_manager(version: Version = Version('v1.13.0')) -> int:
@@ -39,9 +44,6 @@ def _install_cert_manager(version: Version = Version('v1.13.0')) -> int:
       command, f'Applying cert-manager {version} manifest...'
   )
 
-  if return_code != 0:
-    xpk_exit(return_code)
-
   return return_code
 
 
@@ -53,11 +55,10 @@ def _download_mldiagnostics_yaml(package_name: str, version: Version) -> int:
     0 if successful and 1 otherwise.
   """
 
-  version_with_v = f'v{version}'
   command = (
       'gcloud artifacts generic download'
       ' --repository=mldiagnostics-webhook-and-operator-yaml --location=us'
-      f' --package={package_name} --version={version_with_v} --destination=/tmp/'
+      f' --package={package_name} --version=v{version} --destination=/tmp/'
       ' --project=ai-on-gke'
   )
 
@@ -106,7 +107,7 @@ def _install_mldiagnostics_yaml(artifact_filename: str) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
-  full_artifact_path = os.path.join('/tmp', artifact_filename)
+  full_artifact_path = os.path.join(tempfile.gettempdir(), artifact_filename)
 
   command = f'kubectl apply -f {full_artifact_path} -n gke-mldiagnostics'
 
@@ -144,17 +145,12 @@ def install_mldiagnostics_prerequisites() -> int:
     0 if successful and 1 otherwise.
   """
 
-  kueue_deployment_name = 'kueue-controller-manager'
-  kueue_namespace_name = 'kueue-system'
-  cert_webhook_deployment_name = 'cert-manager-webhook'
-  cert_webhook_namespace_name = 'cert-manager'
-
   if not _wait_for_deployment_ready(
-      deployment_name=kueue_deployment_name, namespace=kueue_namespace_name
+      deployment_name=_KUEUE_DEPLOYMENT_NAME, namespace=_KUEUE_NAMESPACE_NAME
   ):
     xpk_print(
-        f'Application {kueue_deployment_name} failed to become ready within the'
-        ' timeout.'
+        f'Application {_KUEUE_DEPLOYMENT_NAME} failed to become ready within'
+        ' the timeout.'
     )
     return 1
 
@@ -163,19 +159,19 @@ def install_mldiagnostics_prerequisites() -> int:
     return return_code
 
   cert_webhook_ready = _wait_for_deployment_ready(
-      deployment_name=cert_webhook_deployment_name,
-      namespace=cert_webhook_namespace_name,
+      deployment_name=_CERT_WEBHOOK_DEPLOYMENT_NAME,
+      namespace=_CERT_WEBHOOK_NAMESPACE_NAME,
   )
   if not cert_webhook_ready:
     xpk_print('The cert-manager-webhook installation failed.')
     return 1
 
   webhook_package = 'mldiagnostics-injection-webhook'
-  webhook_version = 'v0.5.0'
-  webhook_filename = f'{webhook_package}-{webhook_version}.yaml'
+  webhook_version = Version('v0.5.0')
+  webhook_filename = f'{webhook_package}-v{webhook_version}.yaml'
 
   return_code = _download_mldiagnostics_yaml(
-      package_name=webhook_package, version=Version(webhook_version)
+      package_name=webhook_package, version=webhook_version
   )
   if return_code != 0:
     return return_code
@@ -193,11 +189,11 @@ def install_mldiagnostics_prerequisites() -> int:
     return return_code
 
   operator_package = 'mldiagnostics-connection-operator'
-  operator_version = 'v0.5.0'
-  operator_filename = f'{operator_package}-{operator_version}.yaml'
+  operator_version = Version('v0.5.0')
+  operator_filename = f'{operator_package}-v{operator_version}.yaml'
 
   return_code = _download_mldiagnostics_yaml(
-      package_name=operator_package, version=Version(webhook_version)
+      package_name=operator_package, version=operator_version
   )
   if return_code != 0:
     return return_code
@@ -242,5 +238,15 @@ def _wait_for_deployment_ready(
     return False
 
   # When the status changes to 'running,' it might need about 10 seconds to fully stabilize.
-  time.sleep(30)
+  stabilization_seconds = 30
+  stabilization_command = f'sleep {stabilization_seconds}'
+  stabilization_code = run_command_with_updates(
+      stabilization_command,
+      f'Deployment {deployment_name} is ready. Waiting {stabilization_seconds}'
+      ' seconds for full stabilization',
+      verbose=True,
+  )
+  if stabilization_code != 0:
+    return False
+
   return True

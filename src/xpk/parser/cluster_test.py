@@ -104,6 +104,7 @@ def test_cluster_create_ray_sub_slicing_is_hidden_but_set_to_false():
   assert args.sub_slicing is False
   assert "--sub-slicing" not in help_str
 
+
 def test_cluster_create_managed_mldiagnostics():
   parser = argparse.ArgumentParser()
 

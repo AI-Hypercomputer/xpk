@@ -22,7 +22,7 @@ import yaml
 from unittest.mock import MagicMock, patch
 
 from xpk.core.kueue_manager import KueueConfig, KueueManager, has_sub_slicing_enabled
-from xpk.core.system_characteristics import AcceleratorType, SystemCharacteristics
+from xpk.core.system_characteristics import AcceleratorType, SystemCharacteristics, UserFacingNameToSystemCharacteristics
 from xpk.core.testing.commands_tester import CommandsTester
 from packaging.version import Version
 
@@ -435,6 +435,7 @@ def test_configure_generates_correct_manifest_with_sub_slicing(
   kueue_config = dataclasses.replace(
       KUEUE_CONFIG,
       configure_sub_slicing=True,
+      system=UserFacingNameToSystemCharacteristics["v6e-8x8"],
   )
 
   kueue_manager.install_or_upgrade(kueue_config)
@@ -447,6 +448,15 @@ def test_configure_generates_correct_manifest_with_sub_slicing(
   assert resource_flavor["spec"]["topologyName"] == "sub-slice-topology"
   topology = _first(doc for doc in manifest_docs if doc["kind"] == "Topology")
   assert topology["metadata"]["name"] == "sub-slice-topology"
+  expected_levels = [
+      "cloud.google.com/gke-tpu-slice-8x8-id",
+      "cloud.google.com/gke-tpu-slice-4x8-id",
+      "cloud.google.com/gke-tpu-slice-4x4-id",
+      "cloud.google.com/gke-tpu-slice-2x4-id",
+      "kubernetes.io/hostname",
+  ]
+  actual_levels = [level["nodeLabel"] for level in topology["spec"]["levels"]]
+  assert actual_levels == expected_levels
 
 
 @patch("xpk.core.kueue_manager.write_tmp_file")

@@ -21,16 +21,17 @@ from typing import Optional, List, Dict, Any
 import json
 from jinja2 import Environment, FileSystemLoader
 
+from ..utils.topology import get_slice_topology_level, get_topology_product, is_topology_contained
 from ..utils.execution_context import is_dry_run
 from ..utils.kueue import is_queued_cluster
 from kubernetes.utils import parse_quantity
-
 from .capacity import B200_DEVICE_TYPE, H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE
 from .scheduling import (
     create_accelerator_label,
     create_machine_label,
 )
 from .system_characteristics import (
+    SUB_SLICING_TOPOLOGIES,
     AcceleratorTypeToAcceleratorCharacteristics,
     SystemCharacteristics,
 )
@@ -56,7 +57,6 @@ KUEUE_CONTROLLER_MANAGER_JINJA_FILE = "kueue_controller_manager.yaml.j2"
 KUEUE_SUB_SLICING_TOPOLOGY_JINJA_FILE = "kueue_sub_slicing_topology.yaml.j2"
 MEMORY_SIZE_PER_VM = 1.2
 MIN_MEMORY_LIMIT_SIZE = 4096
-SUB_SLICING_TOPOLOGIES = ["2x2", "2x4", "4x4", "4x8", "8x8", "8x16", "16x16"]
 
 
 @dataclass(frozen=True)
@@ -413,12 +413,25 @@ class KueueManager:
           ).render(),
       )
     elif configure_sub_slicing:
+      sorted_topologies = sorted(
+          SUB_SLICING_TOPOLOGIES, key=get_topology_product, reverse=True
+      )
+      levels = [
+          get_slice_topology_level(topology)
+          for topology in sorted_topologies
+          if is_topology_contained(
+              contained=topology, container=system.topology
+          )
+      ]
+      levels.append("kubernetes.io/hostname")
+
       return _NameAndYaml(
           name=SUB_SLICE_TOPOLOGY_NAME,
           yaml=self.template_env.get_template(
               KUEUE_SUB_SLICING_TOPOLOGY_JINJA_FILE
           ).render({
               "sub_slice_topology_name": SUB_SLICE_TOPOLOGY_NAME,
+              "levels": levels,
           }),
       )
     else:

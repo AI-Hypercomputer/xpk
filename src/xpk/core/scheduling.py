@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from ..utils.topology import get_slice_topology_level
 from ..utils.console import xpk_print
 from ..utils.topology import is_topology_valid
 from ..utils.execution_context import is_dry_run
@@ -300,7 +301,7 @@ def create_sub_slicing_annotations(sub_slicing_topology: str) -> list[str]:
   return [
       (
           'kueue.x-k8s.io/podset-required-topology:'
-          f' "google.com/gke-tpu-slice-{sub_slicing_topology}-id"'
+          f' "{get_slice_topology_level(sub_slicing_topology)}"'
       ),
       f'cloud.google.com/gke-tpu-slice-topology: {sub_slicing_topology}',
   ]

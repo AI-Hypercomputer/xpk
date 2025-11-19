@@ -492,6 +492,12 @@ def workload_create(args) -> None:
                 operator: NotIn
                 values: [{restart_on_exit_codes}]"""
 
+  placement_policy_label = (
+      create_placement_policy_label(system)
+      if is_placement_policy_supported(system)
+      else ''
+  )
+
   # Create the workload file based on accelerator type or workload type.
   if system.accelerator_type == AcceleratorType.GPU:
     container, debugging_dashboard_id = get_user_workload_container(
@@ -525,11 +531,7 @@ def workload_create(args) -> None:
           failure_policy_rules=failure_policy_rules,
           pod_failure_policy=pod_failure_policy,
           annotations=annotations,
-          placement_policy_label=(
-              create_placement_policy_label(system)
-              if is_placement_policy_supported(system)
-              else ''
-          ),
+          placement_policy_label=placement_policy_label,
       )
 
       sub_networks = get_cluster_subnetworks()
@@ -554,11 +556,7 @@ def workload_create(args) -> None:
           service_account=service_account,
           failure_policy_rules=failure_policy_rules,
           pod_failure_policy=pod_failure_policy,
-          placement_policy_label=(
-              create_placement_policy_label(system)
-              if is_placement_policy_supported(system)
-              else ''
-          ),
+          placement_policy_label=placement_policy_label,
       )
 
   elif args.use_pathways and ensure_pathways_workload_prerequisites(
@@ -576,11 +574,7 @@ def workload_create(args) -> None:
         user_workload=get_user_workload_for_pathways(args, system),
         local_queue_name=LOCAL_QUEUE_NAME,
         autoprovisioning_args=autoprovisioning_args,
-        placement_policy_label=(
-            create_placement_policy_label(system)
-            if is_placement_policy_supported(system)
-            else ''
-        ),
+        placement_policy_label=placement_policy_label,
     )
   else:
     container, debugging_dashboard_id = get_user_workload_container(
@@ -608,11 +602,7 @@ def workload_create(args) -> None:
                 create_sub_slicing_annotations(args.sub_slicing_topology)
             )
         ),
-        placement_policy_label=(
-            create_placement_policy_label(system)
-            if is_placement_policy_supported(system)
-            else ''
-        ),
+        placement_policy_label=placement_policy_label,
         machine_label=create_machine_label(system.accelerator_type, system),
         local_queue_name=LOCAL_QUEUE_NAME,
         autoprovisioning_args=autoprovisioning_args,

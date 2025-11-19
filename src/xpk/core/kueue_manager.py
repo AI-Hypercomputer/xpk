@@ -523,7 +523,9 @@ class KueueManager:
     return cpu_limit, memory_limit_str
 
 
-def get_installed_kueue_version() -> tuple[int, Version | None]:
+def get_installed_kueue_version(
+    dry_run_version: Version | None = None,
+) -> tuple[int, Version | None]:
   command = (
       "kubectl get deployment kueue-controller-manager -n kueue-system -o"
       " jsonpath='{.spec.template.spec.containers[0].image}'"
@@ -532,7 +534,7 @@ def get_installed_kueue_version() -> tuple[int, Version | None]:
   return_code, val = run_command_for_value(
       command,
       task,
-      dry_run_return_val="",
+      dry_run_return_val=f"image:{dry_run_version}" if dry_run_version else "",
   )
   if return_code != 0:
     return return_code, None
@@ -544,7 +546,9 @@ def get_installed_kueue_version() -> tuple[int, Version | None]:
 
 def has_sub_slicing_enabled() -> tuple[int, bool | None]:
   return_code, value = run_command_for_value(
-      command="kubectl get topology", task="Get defined topologies"
+      command="kubectl get topology",
+      task="Get defined topologies",
+      dry_run_return_val=SUB_SLICE_TOPOLOGY_NAME,
   )
 
   if return_code != 0:

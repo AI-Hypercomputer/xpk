@@ -15,6 +15,8 @@ goldens:
     command: xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-8 --reservation=projects/reservation-project/reservations/golden-reservation --dry-run
   "Cluster create with gb200-4":
     command: xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --device-type=gb200-4 --reservation=golden-reservation --dry-run
+  "Cluster create sub-slicing":
+    command: SUB_SLICING_ENABLED=true xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=v6e-4x4 --reservation=golden-reservation --sub-slicing --dry-run
   "Cluster create private":
     command: xpk cluster create-pathways --project=golden-project --zone=us-central1-a --cluster=golden-cluster-private --private --tpu-type=v5p-8  --num-slices=1 --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=4 --reservation=golden-reservation --dry-run
   "Cluster delete":
@@ -25,6 +27,8 @@ goldens:
     command: xpk workload create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --command "bash hello" --tpu-type=v5p-8 --num-slices=1 --script-dir=/tmp --dry-run
   "Workload create pathways":
     command: xpk workload create-pathways --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --command "bash hello" --tpu-type=v5p-8 --num-slices=1 --script-dir=/tmp --dry-run
+  "Workload create sub-slicing":
+    command: SUB_SLICING_ENABLED=true xpk workload create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --command "bash hello" --tpu-type=v6e-4x4 --sub-slicing-topology=2x4 --dry-run
   "Workload delete":
     command: xpk workload delete --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --dry-run
   "Workload list":

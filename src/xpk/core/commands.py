@@ -195,16 +195,12 @@ def run_command_with_updates(command, task, verbose=True) -> int:
         return_code = child.poll()
         if return_code is None:
           xpk_print(f'Waiting for `{task}`, for {i} seconds...', end='\r')
-          time.sleep(1)
-          i += 1
+          time.sleep(10)
+          i += 10
         else:
           xpk_print(f'Task: `{task}` terminated with code `{return_code}`')
           return return_code
   else:
-    xpk_print(
-        f'Task: `{task}` is implemented by `{command}`, hiding output unless'
-        ' there is an error.'
-    )
     try:
       subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError as e:
@@ -276,11 +272,6 @@ def run_command_for_value(
           out_str, err_str = str(out_bytes, 'UTF-8'), str(err_bytes, 'UTF-8')
           return return_code, f'{out_str}\n{err_str}'
   else:
-    if not quiet:
-      xpk_print(
-          f'Task: `{task}` is implemented by `{command}`, hiding output unless'
-          ' there is an error.'
-      )
     try:
       output = subprocess.check_output(
           command,

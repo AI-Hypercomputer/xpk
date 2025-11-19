@@ -63,6 +63,12 @@ AUTOPROVISIONING_CUSTOM_RESOURCE_TYPE = """
   maximum: {maximum}
 """
 
+# We cannot specify quotes in the url otherwise it breaks control plane
+# parsing logic.
+CLOUD_PLATFORM_AUTH_SCOPE_STRIPPED_URL = (
+    'https://www.googleapis.com/auth/cloud-platform'
+)
+
 
 def enable_autoprovisioning_on_cluster(
     args, system: SystemCharacteristics | None
@@ -99,7 +105,7 @@ def enable_autoprovisioning_on_cluster(
   command = (
       'gcloud container clusters update'
       f' {args.cluster} --project={args.project} --location={get_cluster_location(args.project, args.cluster, args.zone)} --enable-autoprovisioning'
-      ' --autoprovisioning-config-file'
+      f' --autoprovisioning-scopes={CLOUD_PLATFORM_AUTH_SCOPE_STRIPPED_URL} --autoprovisioning-config-file'
       f' {autoprovisioning_config.config_filename}'
   )
   task = 'Update cluster with autoprovisioning enabled'

@@ -19,13 +19,23 @@ from typing import Callable, Optional
 
 from ..core.workload_decorators import rdma_decorator, tcpxo_decorator, tcpx_decorator
 from ..utils.topology import get_topology_product
+from enum import Enum
+
+SUB_SLICING_TOPOLOGIES = ['2x4', '4x4', '4x8', '8x8', '8x16', '16x16']
 
 INSTALLER_NCCL_TCPX = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpx/nccl-tcpx-installer.yaml'
 INSTALLER_NCCL_TCPXO = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpxo/nccl-tcpxo-installer.yaml'
 INSTALLER_NCCL_RDMA = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-rdma/nccl-rdma-installer.yaml'
 INSTALLER_NCCL_RDMA_A4X = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-rdma/nccl-rdma-installer-a4x.yaml'
 
-AcceleratorType = {'TPU': 1, 'GPU': 2, 'CPU': 3}
+
+class AcceleratorType(Enum):
+  TPU = 1
+  GPU = 2
+  CPU = 3
+
+  def __repr__(self):
+    return self._name_
 
 
 @dataclass
@@ -36,17 +46,17 @@ class AcceleratorCharacteristics:
 
 
 AcceleratorTypeToAcceleratorCharacteristics = {
-    AcceleratorType['TPU']: AcceleratorCharacteristics(
+    AcceleratorType.TPU: AcceleratorCharacteristics(
         resource_type='google.com/tpu',
         accelerator_label='cloud.google.com/gke-tpu-accelerator',
         machine_label='cloud.google.com/gke-tpu-topology',
     ),
-    AcceleratorType['GPU']: AcceleratorCharacteristics(
+    AcceleratorType.GPU: AcceleratorCharacteristics(
         resource_type='nvidia.com/gpu',
         accelerator_label='cloud.google.com/gke-accelerator',
         machine_label='cloud.google.com/gce-machine-type',
     ),
-    AcceleratorType['CPU']: AcceleratorCharacteristics(
+    AcceleratorType.CPU: AcceleratorCharacteristics(
         resource_type='cpu',
         accelerator_label='',
         machine_label='cloud.google.com/gke-nodepool',
@@ -96,14 +106,14 @@ class SystemCharacteristics:
   gke_accelerator: str
   gce_machine_type: str
   chips_per_vm: int
-  accelerator_type: int  # TODO: use enums
+  accelerator_type: AcceleratorType
   device_type: str
   supports_sub_slicing: bool
   requires_workload_policy: bool = False
   gpu_config: Optional[GpuConfig] = None
 
   def __post_init__(self):
-    if self.accelerator_type == AcceleratorType['GPU']:
+    if self.accelerator_type == AcceleratorType.GPU:
       self.requires_workload_policy = True
 
       if self.gpu_config is None:
@@ -155,6 +165,33 @@ def get_system_characteristics_by_device_type(
     return None, 1
 
 
+def generate_tpu_topologies(
+    max_cubes: int, enforce_nondecreasing: bool = True
+) -> list[str]:
+  """Generates a list of unique TPU topologies formatted as strings "AxBxC".
+
+  The list will contain all triplets (A, B, C) such that:
+    - A, B and C are integers in range 4..256 (including 4 and 256)
+    - A, B and C are divisible by 4
+    - (A/4) * (B/4) * (C/4) <= max_cubes
+    - if enforce_nondecreasing: A <= B <= C
+  Additionally, the list will also contain the following triplets:
+    2x2x1, 2x2x2, 2x2x4, 2x4x4
+
+  Args:
+    max_cubes: maximum number of cubes supported by a TPU platform
+    enforce_nondecreasing: whether to enforce A <= B <= C or not
+  """
+  topologies = ['2x2x1', '2x2x2', '2x2x4', '2x4x4']
+  MAX = 256
+  for x in range(4, MAX + 1, 4):
+    for y in range(x if enforce_nondecreasing else 4, MAX + 1, 4):
+      for z in range(y if enforce_nondecreasing else 4, MAX + 1, 4):
+        if (x // 4) * (y // 4) * (z // 4) <= max_cubes:
+          topologies.append(f'{x}x{y}x{z}')
+  return topologies
+
+
 def get_tpu_system_characteristics_map(
     prefix: str,
     tensorcores_per_chip: int,
@@ -162,26 +199,35 @@ def get_tpu_system_characteristics_map(
     machine_type: str,
     supported_topologies: list[str],
     supports_sub_slicing: bool,
-    requires_workload_policy: bool = False,
+    tpu_type_requires_workload_policy: bool = False,
+    default_topologies: set[str] | None = None,
 ) -> dict[str, SystemCharacteristics]:
   system_characteristics_map = {}
+  if default_topologies is None:
+    default_topologies = set()
   for topology in supported_topologies:
     chips_per_vm = compute_chips_per_vm(topology)
     vms_per_slice = compute_vms_per_slice(topology)
     num_tensorcores = compute_num_tensorcores(tensorcores_per_chip, topology)
+    device_type = f'{prefix}-{num_tensorcores}'
     system = SystemCharacteristics(
         topology=topology,
         vms_per_slice=vms_per_slice,
         gke_accelerator=gke_accelerator,
         gce_machine_type=machine_type,
         chips_per_vm=chips_per_vm,
-        accelerator_type=AcceleratorType['TPU'],
-        device_type=f'{prefix}-{num_tensorcores}',
-        requires_workload_policy=requires_workload_policy,
+        accelerator_type=AcceleratorType.TPU,
+        device_type=device_type,
+        requires_workload_policy=tpu_type_requires_workload_policy
+        and vms_per_slice > 1,
         supports_sub_slicing=supports_sub_slicing,
     )
     system_characteristics_map[f'{prefix}-{topology}'] = system
-    system_characteristics_map[f'{prefix}-{num_tensorcores}'] = system
+    if (
+        topology in default_topologies
+        or device_type not in system_characteristics_map
+    ):
+      system_characteristics_map[device_type] = system
 
   return system_characteristics_map
 
@@ -214,7 +260,7 @@ UserFacingNameToSystemCharacteristics = {
         gke_accelerator='nvidia-l4',
         gce_machine_type='g2-standard-12',
         chips_per_vm=1,
-        accelerator_type=AcceleratorType['GPU'],
+        accelerator_type=AcceleratorType.GPU,
         device_type='l4-1',
         supports_sub_slicing=False,
         gpu_config=GpuConfig(requires_topology=False),
@@ -225,7 +271,7 @@ UserFacingNameToSystemCharacteristics = {
         gke_accelerator='nvidia-l4',
         gce_machine_type='g2-standard-24',
         chips_per_vm=2,
-        accelerator_type=AcceleratorType['GPU'],
+        accelerator_type=AcceleratorType.GPU,
         device_type='l4-2',
         supports_sub_slicing=False,
         gpu_config=GpuConfig(requires_topology=False),
@@ -236,7 +282,7 @@ UserFacingNameToSystemCharacteristics = {
         gke_accelerator='nvidia-l4',
         gce_machine_type='g2-standard-48',
         chips_per_vm=4,
-        accelerator_type=AcceleratorType['GPU'],
+        accelerator_type=AcceleratorType.GPU,
         device_type='l4-4',
         supports_sub_slicing=False,
         gpu_config=GpuConfig(requires_topology=False),
@@ -247,7 +293,7 @@ UserFacingNameToSystemCharacteristics = {
         gke_accelerator='nvidia-l4',
         gce_machine_type='g2-standard-96',
         chips_per_vm=8,
-        accelerator_type=AcceleratorType['GPU'],
+        accelerator_type=AcceleratorType.GPU,
         device_type='l4-8',
         supports_sub_slicing=False,
         gpu_config=GpuConfig(requires_topology=False),
@@ -259,7 +305,7 @@ UserFacingNameToSystemCharacteristics = {
         gke_accelerator='nvidia-tesla-a100',
         gce_machine_type='a2-highgpu-1g',
         chips_per_vm=1,
-        accelerator_type=AcceleratorType['GPU'],
+        accelerator_type=AcceleratorType.GPU,
         device_type='a100-40gb-1',
         supports_sub_slicing=False,
         gpu_config=GpuConfig(requires_topology=False),
@@ -270,7 +316,7 @@ UserFacingNameToSystemCharacteristics = {
         gke_accelerator='nvidia-tesla-a100',
         gce_machine_type='a2-highgpu-2g',
         chips_per_vm=2,
-        accelerator_type=AcceleratorType['GPU'],
+        accelerator_type=AcceleratorType.GPU,
         device_type='a100-40gb-2',
         supports_sub_slicing=False,
         gpu_config=GpuConfig(requires_topology=False),
@@ -281,7 +327,7 @@ UserFacingNameToSystemCharacteristics = {
         gke_accelerator='nvidia-tesla-a100',
         gce_machine_type='a2-highgpu-4g',
         chips_per_vm=4,
-        accelerator_type=AcceleratorType['GPU'],
+        accelerator_type=AcceleratorType.GPU,
         device_type='a100-40gb-4',
         supports_sub_slicing=False,
         gpu_config=GpuConfig(requires_topology=False),
@@ -292,7 +338,7 @@ UserFacingNameToSystemCharacteristics = {
         gke_accelerator='nvidia-tesla-a100',
         gce_machine_type='a2-highgpu-8g',
         chips_per_vm=8,
-        accelerator_type=AcceleratorType['GPU'],
+        accelerator_type=AcceleratorType.GPU,
         device_type='a100-40gb-8',
         supports_sub_slicing=False,
         gpu_config=GpuConfig(requires_topology=False),
@@ -303,7 +349,7 @@ UserFacingNameToSystemCharacteristics = {
         gke_accelerator='nvidia-gb200',
         gce_machine_type='a4x-highgpu-4g',
         chips_per_vm=4,
-        accelerator_type=AcceleratorType['GPU'],
+        accelerator_type=AcceleratorType.GPU,
         device_type='gb200-4',
         supports_sub_slicing=False,
         gpu_config=GpuConfig(
@@ -318,7 +364,7 @@ UserFacingNameToSystemCharacteristics = {
         gke_accelerator='nvidia-gb200',
         gce_machine_type='a4x-highgpu-4g-nolssd',
         chips_per_vm=4,
-        accelerator_type=AcceleratorType['GPU'],
+        accelerator_type=AcceleratorType.GPU,
         device_type='gb200-4',
         supports_sub_slicing=False,
         gpu_config=GpuConfig(
@@ -333,7 +379,7 @@ UserFacingNameToSystemCharacteristics = {
         gke_accelerator='nvidia-b200',
         gce_machine_type='a4-highgpu-8g',
         chips_per_vm=8,
-        accelerator_type=AcceleratorType['GPU'],
+        accelerator_type=AcceleratorType.GPU,
         device_type='b200-8',
         supports_sub_slicing=False,
         gpu_config=GpuConfig(
@@ -348,7 +394,7 @@ UserFacingNameToSystemCharacteristics = {
         gke_accelerator='nvidia-h200-141gb',
         gce_machine_type='a3-ultragpu-8g',
         chips_per_vm=8,
-        accelerator_type=AcceleratorType['GPU'],
+        accelerator_type=AcceleratorType.GPU,
         device_type='h200-141gb-8',
         supports_sub_slicing=False,
         gpu_config=GpuConfig(
@@ -364,7 +410,7 @@ UserFacingNameToSystemCharacteristics = {
         gke_accelerator='nvidia-h100-80gb',
         gce_machine_type='a3-highgpu-8g',
         chips_per_vm=8,
-        accelerator_type=AcceleratorType['GPU'],
+        accelerator_type=AcceleratorType.GPU,
         device_type='h100-80gb-8',
         supports_sub_slicing=False,
         gpu_config=GpuConfig(
@@ -380,7 +426,7 @@ UserFacingNameToSystemCharacteristics = {
         gke_accelerator='nvidia-h100-mega-80gb',
         gce_machine_type='a3-megagpu-8g',
         chips_per_vm=8,
-        accelerator_type=AcceleratorType['GPU'],
+        accelerator_type=AcceleratorType.GPU,
         device_type='h100-mega-80gb-8',
         supports_sub_slicing=False,
         gpu_config=GpuConfig(
@@ -396,7 +442,7 @@ UserFacingNameToSystemCharacteristics = {
         gke_accelerator='tpu7x',
         machine_type='tpu7x-standard-1t',
         supported_topologies=['1x1x1'],
-        requires_workload_policy=True,
+        tpu_type_requires_workload_policy=True,
         supports_sub_slicing=False,
     ),
     **get_tpu_system_characteristics_map(
@@ -404,9 +450,10 @@ UserFacingNameToSystemCharacteristics = {
         tensorcores_per_chip=2,
         gke_accelerator='tpu7x',
         machine_type='tpu7x-standard-4t',
-        requires_workload_policy=True,
+        tpu_type_requires_workload_policy=True,
         supports_sub_slicing=False,
-        supported_topologies=[
+        supported_topologies=generate_tpu_topologies(max_cubes=144),
+        default_topologies=set([
             '12x12x12',
             '12x12x16',
             '12x12x20',
@@ -505,7 +552,7 @@ UserFacingNameToSystemCharacteristics = {
             '8x8x76',
             '8x8x8',
             '8x8x92',
-        ],
+        ]),
     ),
     **get_tpu_system_characteristics_map(
         prefix='v6e',
@@ -520,16 +567,18 @@ UserFacingNameToSystemCharacteristics = {
         tensorcores_per_chip=1,
         gke_accelerator='tpu-v6e-slice',
         machine_type='ct6e-standard-4t',
-        supports_sub_slicing=True,
+        supports_sub_slicing=False,
         supported_topologies=[
             '2x2',
-            '2x4',
-            '4x4',
-            '4x8',
-            '8x8',
-            '8x16',
-            '16x16',
         ],
+    ),
+    **get_tpu_system_characteristics_map(
+        prefix='v6e',
+        tensorcores_per_chip=1,
+        gke_accelerator='tpu-v6e-slice',
+        machine_type='ct6e-standard-4t',
+        supports_sub_slicing=True,
+        supported_topologies=SUB_SLICING_TOPOLOGIES,
     ),
     **get_tpu_system_characteristics_map(
         prefix='v5p',
@@ -537,7 +586,8 @@ UserFacingNameToSystemCharacteristics = {
         gke_accelerator='tpu-v5p-slice',
         machine_type='ct5p-hightpu-4t',
         supports_sub_slicing=False,
-        supported_topologies=[
+        supported_topologies=generate_tpu_topologies(max_cubes=140),
+        default_topologies=set([
             '2x2x1',
             '2x2x2',
             '2x2x4',
@@ -634,7 +684,7 @@ UserFacingNameToSystemCharacteristics = {
             '16x16x24',
             '12x24x24',
             '16x20x28',
-        ],
+        ]),
     ),
     **get_tpu_system_characteristics_map(
         prefix='v5litepod',
@@ -650,7 +700,10 @@ UserFacingNameToSystemCharacteristics = {
         gke_accelerator='tpu-v4-podslice',
         machine_type='ct4p-hightpu-4t',
         supports_sub_slicing=False,
-        supported_topologies=[
+        supported_topologies=generate_tpu_topologies(
+            max_cubes=64, enforce_nondecreasing=False
+        ),
+        default_topologies=set([
             '2x2x1',
             '2x2x2',
             '2x2x4',
@@ -662,7 +715,7 @@ UserFacingNameToSystemCharacteristics = {
             '8x8x12',
             '8x8x16',
             '8x16x16',
-        ],
+        ]),
     ),
     # CPU system characteristics.
     # Note that chips_per_vm is actually the number of vCPUs in that CPU.
@@ -674,7 +727,7 @@ UserFacingNameToSystemCharacteristics = {
         gke_accelerator='N/A',
         gce_machine_type='m1-megamem-96',
         chips_per_vm=96,
-        accelerator_type=AcceleratorType['CPU'],
+        accelerator_type=AcceleratorType.CPU,
         device_type='m1-megamem-96-1',
         supports_sub_slicing=False,
     ),
@@ -685,7 +738,7 @@ UserFacingNameToSystemCharacteristics = {
         gke_accelerator='N/A',
         gce_machine_type='n2-standard-64',
         chips_per_vm=64,
-        accelerator_type=AcceleratorType['CPU'],
+        accelerator_type=AcceleratorType.CPU,
         device_type='n2-standard-64-1',
         supports_sub_slicing=False,
     ),
@@ -695,7 +748,7 @@ UserFacingNameToSystemCharacteristics = {
         gke_accelerator='N/A',
         gce_machine_type='n2-standard-32',
         chips_per_vm=32,
-        accelerator_type=AcceleratorType['CPU'],
+        accelerator_type=AcceleratorType.CPU,
         device_type='n2-standard-32-1',
         supports_sub_slicing=False,
     ),
@@ -705,7 +758,7 @@ UserFacingNameToSystemCharacteristics = {
         gke_accelerator='N/A',
         gce_machine_type='n2-standard-32',
         chips_per_vm=32,
-        accelerator_type=AcceleratorType['CPU'],
+        accelerator_type=AcceleratorType.CPU,
         device_type='n2-standard-32-2',
         supports_sub_slicing=False,
     ),
@@ -715,7 +768,7 @@ UserFacingNameToSystemCharacteristics = {
         gke_accelerator='N/A',
         gce_machine_type='n2-standard-32',
         chips_per_vm=32,
-        accelerator_type=AcceleratorType['CPU'],
+        accelerator_type=AcceleratorType.CPU,
         device_type='n2-standard-32-4',
         supports_sub_slicing=False,
     ),
@@ -725,7 +778,7 @@ UserFacingNameToSystemCharacteristics = {
         gke_accelerator='N/A',
         gce_machine_type='n2-standard-32',
         chips_per_vm=32,
-        accelerator_type=AcceleratorType['CPU'],
+        accelerator_type=AcceleratorType.CPU,
         device_type='n2-standard-32-8',
         supports_sub_slicing=False,
     ),
@@ -735,7 +788,7 @@ UserFacingNameToSystemCharacteristics = {
         gke_accelerator='N/A',
         gce_machine_type='n2-standard-32',
         chips_per_vm=32,
-        accelerator_type=AcceleratorType['CPU'],
+        accelerator_type=AcceleratorType.CPU,
         device_type='n2-standard-32-16',
         supports_sub_slicing=False,
     ),
@@ -745,7 +798,7 @@ UserFacingNameToSystemCharacteristics = {
         gke_accelerator='N/A',
         gce_machine_type='n2-standard-32',
         chips_per_vm=32,
-        accelerator_type=AcceleratorType['CPU'],
+        accelerator_type=AcceleratorType.CPU,
         device_type='n2-standard-32-32',
         supports_sub_slicing=False,
     ),
@@ -755,7 +808,7 @@ UserFacingNameToSystemCharacteristics = {
         gke_accelerator='N/A',
         gce_machine_type='n2-standard-32',
         chips_per_vm=32,
-        accelerator_type=AcceleratorType['CPU'],
+        accelerator_type=AcceleratorType.CPU,
         device_type='n2-standard-32-64',
         supports_sub_slicing=False,
     ),
@@ -765,7 +818,7 @@ UserFacingNameToSystemCharacteristics = {
         gke_accelerator='N/A',
         gce_machine_type='n2-standard-32',
         chips_per_vm=32,
-        accelerator_type=AcceleratorType['CPU'],
+        accelerator_type=AcceleratorType.CPU,
         device_type='n2-standard-32-128',
         supports_sub_slicing=False,
     ),
@@ -775,7 +828,7 @@ UserFacingNameToSystemCharacteristics = {
         gke_accelerator='N/A',
         gce_machine_type='n2-standard-32',
         chips_per_vm=32,
-        accelerator_type=AcceleratorType['CPU'],
+        accelerator_type=AcceleratorType.CPU,
         device_type='n2-standard-32-256',
         supports_sub_slicing=False,
     ),
@@ -785,7 +838,7 @@ UserFacingNameToSystemCharacteristics = {
         gke_accelerator='N/A',
         gce_machine_type='n2-standard-32',
         chips_per_vm=32,
-        accelerator_type=AcceleratorType['CPU'],
+        accelerator_type=AcceleratorType.CPU,
         device_type='n2-standard-32-512',
         supports_sub_slicing=False,
     ),
@@ -795,7 +848,7 @@ UserFacingNameToSystemCharacteristics = {
         gke_accelerator='N/A',
         gce_machine_type='n2-standard-32',
         chips_per_vm=32,
-        accelerator_type=AcceleratorType['CPU'],
+        accelerator_type=AcceleratorType.CPU,
         device_type='n2-standard-32-1024',
         supports_sub_slicing=False,
     ),
@@ -805,10 +858,23 @@ UserFacingNameToSystemCharacteristics = {
         gke_accelerator='N/A',
         gce_machine_type='n2-standard-32',
         chips_per_vm=32,
-        accelerator_type=AcceleratorType['CPU'],
+        accelerator_type=AcceleratorType.CPU,
         device_type='n2-standard-32-2048',
         supports_sub_slicing=False,
     ),
 }
 """ If you modify UserFacingNameToSystemCharacteristics you should also modify
 the corresponding Map in MaxText/accelerator_to_spec_map.py """
+
+
+def get_system_characteristics_keys_by_accelerator_type(
+    accelerators: list[AcceleratorType] | None = None,
+) -> list[str]:
+  """Returns UserFacingNameToSystemCharacteristics keys for given AcceleratorTypes."""
+  if accelerators is None:
+    accelerators = list(AcceleratorType)
+  return [
+      key
+      for key, value in UserFacingNameToSystemCharacteristics.items()
+      if value.accelerator_type in accelerators
+  ]

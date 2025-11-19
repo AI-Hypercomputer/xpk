@@ -15,41 +15,13 @@
 name: Build Tests
 
 on:
-  workflow_dispatch:
-    inputs:
-      tpu-type:
-        description: 'TPU Type'
-        required: true
-        default: 'v4-8'
-        type: choice
-        options:
-          - v4-8
-  pull_request: # By default this runs for types assigned, opened and synchronize.
+  pull_request:
+
+permissions:
+  contents: read
 
 jobs:
-  set-variables:
-    runs-on: [ubuntu-22.04]
-    concurrency:
-      group: set-variables-${{ github.event.number}}
-      cancel-in-progress: true
-    outputs:
-      run-id: ${{steps.set-run-id.outputs.run-id}}
-    steps:
-    - name: set run-id
-      id: set-run-id
-      run: |
-        if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-          RUN_ID="dispatch"
-        elif [ "${{ github.ref }}" == "refs/heads/main" ]; then
-          RUN_ID="main"
-        elif [ "${{ github.ref }}" == "refs/heads/develop" ]; then
-          RUN_ID="develop"
-        else
-          RUN_ID="${{ github.event.number }}"
-        fi
-        echo run-id=$RUN_ID >> $GITHUB_OUTPUT
   install-dependencies:
-    needs: [set-variables]
     runs-on: ubuntu-22.04
     strategy:
       matrix:
@@ -87,23 +59,11 @@ jobs:
           ${{env.pythonLocation}}
         key: xpk-deps-${{ matrix.python-version }}-${{github.run_id}}-${{github.run_attempt}}
   linter:
-    needs: [install-dependencies, set-variables]
-    concurrency: # We support one build or nightly test to run at a time currently.
-      group: linter-${{needs.set-variables.outputs.run-id}}
-      cancel-in-progress: true
+    needs: [install-dependencies]
     uses: ./.github/workflows/reusable_lint_and_format.yml
-    with:
-      run-id: '${{needs.set-variables.outputs.run-id}}'
   verify-goldens:
-    needs: [install-dependencies, set-variables]
+    needs: [install-dependencies]
     uses: ./.github/workflows/reusable_goldens.yaml
-    with:
-      run-id: '${{needs.set-variables.outputs.run-id}}'
   run-unit-tests:
-    needs: [install-dependencies, set-variables]
+    needs: [install-dependencies]
     uses: ./.github/workflows/reusable_unit_tests.yaml
-    with:
-      run-id: ${{needs.set-variables.outputs.run-id}}
-    concurrency: # We support one build or nightly test to run at a time currently.
-      group: unit-tests-${{needs.set-variables.outputs.run-id}}
-      cancel-in-progress: true

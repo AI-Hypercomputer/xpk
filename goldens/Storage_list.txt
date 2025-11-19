@@ -1,5 +1,5 @@
-$ python3 xpk.py storage list --project=golden-project --zone=us-central1-a --cluster=golden-cluster --dry-run
-[XPK] Starting xpk
+$ xpk storage list --project=golden-project --zone=us-central1-a --cluster=golden-cluster --dry-run
+[XPK] Starting xpk v0.14.3
 NAME    TYPE    AUTO MOUNT    MOUNT POINT    READONLY    MANIFEST
 ------  ------  ------------  -------------  ----------  ----------
 [XPK] XPK Done.

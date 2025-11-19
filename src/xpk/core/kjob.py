@@ -38,7 +38,7 @@ from .config import (
     KJOB_SHELL_IMAGE,
     KJOB_SHELL_INTERACTIVE_COMMAND,
     KJOB_SHELL_WORKING_DIRECTORY,
-    XpkConfig,
+    xpk_config,
 )
 from .network import get_cluster_subnetworks
 from .system_characteristics import AcceleratorType, SystemCharacteristics
@@ -234,8 +234,7 @@ def get_pod_template_interactive_command() -> str:
   Returns:
     str - PodTemplate's interactive command
   """
-  config = XpkConfig()
-  pod_command = config.get(KJOB_SHELL_INTERACTIVE_COMMAND)
+  pod_command = xpk_config.get(KJOB_SHELL_INTERACTIVE_COMMAND)
   if pod_command is None or len(pod_command) == 0:
     pod_command = PodTemplateDefaults.INTERACTIVE_COMMAND.value
 
@@ -290,24 +289,21 @@ def create_job_template_instance(
   Returns:
     exit_code > 0 if creating JobTemplate fails, 0 otherwise
   """
-  config = XpkConfig()
-  job_image = config.get(KJOB_BATCH_IMAGE)
+  job_image = xpk_config.get(KJOB_BATCH_IMAGE)
   if job_image is None or len(job_image) == 0:
     job_image = JobTemplateDefaults.IMAGE.value
-  working_directory = config.get(KJOB_BATCH_WORKING_DIRECTORY)
+  working_directory = xpk_config.get(KJOB_BATCH_WORKING_DIRECTORY)
   if working_directory is None or len(working_directory) == 0:
     working_directory = JobTemplateDefaults.WORKING_DIRECTORY.value
   resources = (
       job_resources_template.format(gpu_per_node=system.chips_per_vm)
-      if system is not None
-      and system.accelerator_type == AcceleratorType["GPU"]
+      if system is not None and system.accelerator_type == AcceleratorType.GPU
       else ""
   )
 
   node_selector = (
       job_node_selector_template.format(gpu_name=system.gke_accelerator)
-      if system is not None
-      and system.accelerator_type == AcceleratorType["GPU"]
+      if system is not None and system.accelerator_type == AcceleratorType.GPU
       else ""
   )
   yml_string = job_template_yaml.format(
@@ -322,7 +318,7 @@ def create_job_template_instance(
       priority=args.priority if hasattr(args, "priority") else "medium",
       service_account=service_account,
   )
-  if system is not None and system.accelerator_type == AcceleratorType["GPU"]:
+  if system is not None and system.accelerator_type == AcceleratorType.GPU:
     yml_string = decorate_job_template_with_gpu(yml_string, system)
 
   return run_kubectl_apply(
@@ -337,11 +333,10 @@ def create_pod_template_instance(service_account: str) -> int:
   Returns:
     exit_code > 0 if creating PodTemplate fails, 0 otherwise
   """
-  config = XpkConfig()
-  pod_image = config.get(KJOB_SHELL_IMAGE)
+  pod_image = xpk_config.get(KJOB_SHELL_IMAGE)
   if pod_image is None or len(pod_image) == 0:
     pod_image = PodTemplateDefaults.IMAGE.value
-  working_directory = config.get(KJOB_SHELL_WORKING_DIRECTORY)
+  working_directory = xpk_config.get(KJOB_SHELL_WORKING_DIRECTORY)
   if working_directory is None or len(working_directory) == 0:
     working_directory = PodTemplateDefaults.WORKING_DIRECTORY.value
 

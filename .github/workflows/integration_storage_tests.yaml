@@ -16,35 +16,66 @@ name: Storage Tests
 
 on:
   workflow_call:
-    inputs:
-      cluster-name:
-        type: string
-        required: true
-      tpu-type:
-        description: 'TPU Type'
-        required: false
-        default: 'v4-8'
-        type: string
-      zone:
-        type: string
-        required: true
-      run-id:
-        required: true
-        type: string
+
+permissions:
+  contents: read
+
+env:
+  CLUSTER_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}} --subnetwork=${{secrets.SUBNETWORK_NAME}}"
 
 jobs:
+  create-cluster:
+    runs-on: [ubuntu-22.04]
+    concurrency: # We support one build or nightly test to run at a time currently.
+      group: storage-tests
+      cancel-in-progress: true
+    steps:
+    - uses: actions/download-artifact@v4
+      with:
+        name: custom-scripts
+    - name: Setup environment
+      uses: ./.github/actions/setup-test-env
+      with:
+        credentials_json: "${{ secrets.GCP_SA_KEY }}"
+    - name: Check xpk installation
+      run: xpk version
+    - name: Create cluster
+      run: xpk cluster create --cluster xpk-storage-tests --tpu-type=v4-8  --num-slices=1 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=2 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --enable-gcpfilestore-csi-driver --enable-gcsfuse-csi-driver --custom-cluster-arguments="${CLUSTER_ARGUMENTS}"
+
+  delete-cluster:
+    runs-on: [ubuntu-22.04]
+    needs: [filestore-delete-tests, fuse-detach-tests]
+    concurrency: # We support one build or nightly test to run at a time currently.
+      group: storage-tests
+      cancel-in-progress: true
+    if: always()
+    steps:
+    - uses: actions/download-artifact@v4
+      with:
+        name: custom-scripts
+    - name: Setup environment
+      uses: ./.github/actions/setup-test-env
+      with:
+        credentials_json: "${{ secrets.GCP_SA_KEY }}"
+    - name: Check xpk installation
+      run: xpk version
+    - name: Delete cluster
+      if: always()
+      run: xpk cluster delete --cluster xpk-storage-tests --zone=us-central2-b --force
+
   fuse-attach-tests:
+    needs: [create-cluster]
     uses: ./.github/workflows/reusable_storage_create.yaml
     concurrency: # We support one build or nightly test to run at a time currently.
-      group: fuse-tests-${{inputs.run-id}}
+      group: fuse-tests
       cancel-in-progress: true
     with:
-      cluster-name: ${{inputs.cluster-name}}
-      tpu-type: ${{inputs.tpu-type}}
-      zone: ${{inputs.zone}}
+      cluster-name: xpk-storage-tests
+      tpu-type: v4-8
+      zone: us-central2-b
       storage-type: 'gcsfuse'
       storage-command: 'attach'
-      storage-name: fuse-test-${{inputs.run-id}}
+      storage-name: fuse-test
     secrets:
       GCP_SA_KEY: ${{secrets.GCP_SA_KEY}}
       BUCKET_NAME: ${{secrets.BUCKET_NAME}}
@@ -54,13 +85,13 @@ jobs:
     needs: [fuse-attach-tests]
     uses: ./.github/workflows/reusable_storage_delete.yaml
     concurrency: # We support one build or nightly test to run at a time currently.
-      group: fuse-tests-${{inputs.run-id}}
+      group: fuse-tests
     with:
-      cluster-name: ${{inputs.cluster-name}}
-      zone: ${{inputs.zone}}
+      cluster-name: xpk-storage-tests
+      zone: us-central2-b
       storage-type: 'gcsfuse'
       storage-command: 'detach'
-      storage-name: fuse-test-${{inputs.run-id}}
+      storage-name: fuse-test
     secrets:
       GCP_SA_KEY: ${{secrets.GCP_SA_KEY}}
 
@@ -68,15 +99,15 @@ jobs:
     needs: [fuse-attach-tests]
     uses: ./.github/workflows/reusable_storage_create.yaml
     concurrency: # We support one build or nightly test to run at a time currently.
-      group: filestore-tests-${{inputs.run-id}}
+      group: filestore-tests
       cancel-in-progress: true
     with:
-      cluster-name: ${{inputs.cluster-name}}
-      tpu-type: ${{inputs.tpu-type}}
-      zone: ${{inputs.zone}}
+      cluster-name: xpk-storage-tests
+      tpu-type: v4-8
+      zone: us-central2-b
       storage-type: 'gcpfilestore'
       storage-command: 'create'
-      storage-name: gcpfilestore-test-${{inputs.run-id}}
+      storage-name: gcpfilestore-test
     secrets:
       GCP_SA_KEY: ${{secrets.GCP_SA_KEY}}
       BUCKET_NAME: ${{secrets.BUCKET_NAME}}
@@ -85,13 +116,13 @@ jobs:
     needs: [filestore-create-tests]
     uses: ./.github/workflows/reusable_storage_delete.yaml
     concurrency: # We support one build or nightly test to run at a time currently.
-      group: filestore-tests-${{inputs.run-id}}
+      group: filestore-tests
     with:
-      cluster-name: ${{inputs.cluster-name}}
-      zone: ${{inputs.zone}}
+      cluster-name: xpk-storage-tests
+      zone: us-central2-b
       storage-type: 'gcpfilestore'
       storage-command: 'detach'
-      storage-name: 'gcpfilestore-test-${{inputs.run-id}}'
+      storage-name: gcpfilestore-test
     secrets:
       GCP_SA_KEY: ${{secrets.GCP_SA_KEY}}
 
@@ -99,15 +130,15 @@ jobs:
     needs: [filestore-detach-tests]
     uses: ./.github/workflows/reusable_storage_create.yaml
     concurrency: # We support one build or nightly test to run at a time currently.
-      group: filestore-tests-${{inputs.run-id}}
+      group: filestore-tests
       cancel-in-progress: true
     with:
-      cluster-name: ${{inputs.cluster-name}}
-      tpu-type: ${{inputs.tpu-type}}
-      zone: ${{inputs.zone}}
+      cluster-name: xpk-storage-tests
+      tpu-type: v4-8
+      zone: us-central2-b
       storage-type: 'gcpfilestore'
       storage-command: 'attach'
-      storage-name: gcpfilestore-test-${{inputs.run-id}}
+      storage-name: gcpfilestore-test
     secrets:
       GCP_SA_KEY: ${{secrets.GCP_SA_KEY}}
       BUCKET_NAME: ${{secrets.BUCKET_NAME}}
@@ -117,13 +148,13 @@ jobs:
     needs: [filestore-create-tests, filestore-attach-tests]
     uses: ./.github/workflows/reusable_storage_delete.yaml
     concurrency: # We support one build or nightly test to run at a time currently.
-      group: filestore-tests-${{inputs.run-id}}
+      group: filestore-tests
     with:
-      cluster-name: ${{inputs.cluster-name}}
-      zone: ${{inputs.zone}}
+      cluster-name: xpk-storage-tests
+      zone: us-central2-b
       storage-type: 'gcpfilestore'
       storage-command: 'delete'
-      storage-name: gcpfilestore-test-${{inputs.run-id}}
+      storage-name: gcpfilestore-test
     secrets:
       GCP_SA_KEY: ${{secrets.GCP_SA_KEY}}
 

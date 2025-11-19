@@ -1,28 +1,25 @@
-$ python3 xpk.py cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --device-type=gb200-4 --reservation=golden-reservation --dry-run
-[XPK] Starting xpk
+$ xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --device-type=gb200-4 --reservation=golden-reservation --dry-run
+[XPK] Starting xpk v0.14.3
 [XPK] Starting cluster create for cluster golden-cluster:
 [XPK] Working on golden-project and us-central1-a
-[XPK] Task: `Determine server supported GKE versions for default rapid gke version` is implemented by the following command not running since it is a dry run. 
+[XPK] Task: `Determine server supported GKE versions for default gke version` is implemented by the following command not running since it is a dry run. 
 gcloud container get-server-config --project=golden-project --region=us-central1 --flatten="channels" --filter="channels.channel=RAPID" --format="value(channels.defaultVersion)"
 [XPK] Task: `Determine server supported GKE versions for valid versions` is implemented by the following command not running since it is a dry run. 
 gcloud container get-server-config --project=golden-project --region=us-central1 --flatten="channels" --filter="channels.channel=RAPID" --format="value(channels.validVersions)"
 [XPK] Task: `Find if Cluster Exists` is implemented by the following command not running since it is a dry run. 
 gcloud container clusters list --project=golden-project --filter=location~"us-central1.*" --format="csv[no-heading](name)"
 [XPK] Task: `GKE Cluster Create` is implemented by the following command not running since it is a dry run. 
-gcloud beta container clusters create golden-cluster --project=golden-project --region=us-central1 --node-locations=us-central1-a --cluster-version=0 --machine-type=e2-standard-16 --enable-autoscaling --total-min-nodes 1 --total-max-nodes 1000 --num-nodes 6   --enable-dns-access --autoscaling-profile=optimize-utilization --labels=gke_product_type=xpk --enable-dataplane-v2 --enable-multi-networking --no-enable-autoupgrade --enable-ip-alias
+gcloud beta container clusters create golden-cluster --project=golden-project --region=us-central1 --node-locations=us-central1-a --cluster-version=0 --machine-type=e2-standard-16 --enable-autoscaling --total-min-nodes 1 --total-max-nodes 1000 --num-nodes 6 --enable-dns-access --autoscaling-profile=optimize-utilization --labels=gke_product_type=xpk --release-channel=rapid --enable-dataplane-v2 --enable-multi-networking --enable-ip-alias
 [XPK] Task: `Find cluster region or zone` is implemented by the following command not running since it is a dry run. 
 gcloud container clusters list --project=golden-project --filter=name=golden-cluster --format="value(location)"
 [XPK] Task: `Check if Private Nodes is enabled in cluster.` is implemented by the following command not running since it is a dry run. 
 gcloud container clusters describe golden-cluster --project=golden-project --location=us-central1 --format="value(privateClusterConfig.enablePrivateNodes)"
 [XPK] Private Nodes is not enabled on the cluster.
 [XPK] Cluster is public and no need to authorize networks.
-[XPK] Try 1: get-credentials-dns-endpoint to cluster golden-cluster
 [XPK] Task: `get-credentials-dns-endpoint to cluster golden-cluster` is implemented by the following command not running since it is a dry run. 
 gcloud container clusters get-credentials golden-cluster --location=us-central1 --dns-endpoint --project=golden-project && kubectl config view && kubectl config set-context --current --namespace=default
-[XPK] Testing credentials with kubectl...
-[XPK] Task: `kubectl get pods` is implemented by the following command not running since it is a dry run. 
+[XPK] Task: `Test kubectl credentials` is implemented by the following command not running since it is a dry run. 
 kubectl get pods
-[XPK] Credentials test succeeded.
 [XPK] Finished get-credentials and kubectl setup.
 [XPK] Task: 'Checking CoreDNS deployment existence' in progress for namespace: kube-system
 [XPK] Task: `Check CoreDNS deployment in kube-system` is implemented by the following command not running since it is a dry run. 
@@ -40,21 +37,21 @@ kubectl wait deployment/coredns --for=condition=Available=true --namespace=kube-
 [XPK] Task: `Determine current gke master version` is implemented by the following command not running since it is a dry run. 
 gcloud beta container clusters describe golden-cluster --location us-central1 --project golden-project --format="value(currentMasterVersion)"
 [XPK] Creating 1 node pool or pools of gb200-4
-We assume that the underlying system is: SystemCharacteristics(topology='1x72', vms_per_slice=1, gke_accelerator='nvidia-gb200', gce_machine_type='a4x-highgpu-4g', chips_per_vm=4, accelerator_type=2, device_type='gb200-4', supports_sub_slicing=False, requires_workload_policy=True)
+We assume that the underlying system is: SystemCharacteristics(topology='1x72', vms_per_slice=1, gke_accelerator='nvidia-gb200', gce_machine_type='a4x-highgpu-4g', chips_per_vm=4, accelerator_type=GPU, device_type='gb200-4', supports_sub_slicing=False, requires_workload_policy=True)
 [XPK] Task: `Get All Node Pools` is implemented by the following command not running since it is a dry run. 
 gcloud beta container node-pools list --cluster golden-cluster --project=golden-project --location=us-central1 --format="csv[no-heading](name)"
 [XPK] Task: `Describe reservation` is implemented by the following command not running since it is a dry run. 
 gcloud beta compute reservations describe golden-reservation --project=golden-project --zone=us-central1-a
 [XPK] Creating 1 node pool with 2 nodes of gb200-4
-Underlyingly, we assume that means: SystemCharacteristics(topology='1x72', vms_per_slice=1, gke_accelerator='nvidia-gb200', gce_machine_type='a4x-highgpu-4g', chips_per_vm=4, accelerator_type=2, device_type='gb200-4', supports_sub_slicing=False, requires_workload_policy=True)
+Underlyingly, we assume that means: SystemCharacteristics(topology='1x72', vms_per_slice=1, gke_accelerator='nvidia-gb200', gce_machine_type='a4x-highgpu-4g', chips_per_vm=4, accelerator_type=GPU, device_type='gb200-4', supports_sub_slicing=False, requires_workload_policy=True)
 [XPK] Task: `Get Node Pool Zone` is implemented by the following command not running since it is a dry run. 
 gcloud beta container node-pools describe 0 --cluster golden-cluster --project=golden-project --location=us-central1 --format="value(locations)"
 [XPK] Task: `GKE Cluster Get ConfigMap` is implemented by the following command not running since it is a dry run. 
 kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="ConfigData:data" --no-headers=true
 [XPK] Existing node pool names  ['0']
 [XPK] Task: `Retrieve resource policy` is implemented by the following command not running since it is a dry run. 
-gcloud compute resource-policies describe golden-cluster-placement-policy --project=golden-project --region=us-central1
-[XPK] To complete NodepoolCreate-golden-cluster-np-0 we are executing gcloud beta container node-pools create golden-cluster-np-0 --location=us-central1 --cluster=golden-cluster --project=golden-project --node-locations=us-central1-a --machine-type=a4x-highgpu-4g --host-maintenance-interval=AS_NEEDED --reservation-affinity=specific --reservation=golden-reservation --placement-policy=golden-cluster-placement-policy --enable-gvnic --num-nodes=2 --accelerator type=nvidia-gb200,count=4,gpu-driver-version=latest --no-enable-autoupgrade --scopes="https://www.googleapis.com/auth/cloud-platform" 
+gcloud compute resource-policies describe gb200-4-1x72-placement-policy --project=golden-project --region=us-central1
+[XPK] To complete NodepoolCreate-golden-cluster-np-0 we are executing gcloud beta container node-pools create golden-cluster-np-0 --location=us-central1 --cluster=golden-cluster --project=golden-project --node-locations=us-central1-a --machine-type=a4x-highgpu-4g --host-maintenance-interval=AS_NEEDED --reservation-affinity=specific --reservation=golden-reservation --placement-policy=gb200-4-1x72-placement-policy --enable-gvnic --num-nodes=2 --accelerator type=nvidia-gb200,count=4,gpu-driver-version=latest --no-enable-autoupgrade --scopes="https://www.googleapis.com/auth/cloud-platform" 
 [XPK] Breaking up a total of 1 commands into 1 batches
 [XPK] Pretending all the jobs succeeded
 [XPK] Create or delete node pool request complete.
@@ -78,12 +75,12 @@ kubectl apply --server-side -f https://github.com/google/pathways-job/releases/d
 [XPK] Enabling Kueue on the cluster
 [XPK] Task: `Get kueue version on server` is implemented by the following command not running since it is a dry run. 
 kubectl get deployment kueue-controller-manager -n kueue-system -o jsonpath='{.spec.template.spec.containers[0].image}'
-[XPK] Installing Kueue version v0.12.2...
+[XPK] Installing Kueue version v0.14.3...
 [XPK] Try 1: Install Kueue
 [XPK] Task: `Install Kueue` is implemented by the following command not running since it is a dry run. 
-kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-sigs/kueue/releases/download/v0.12.2/manifests.yaml
+kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-sigs/kueue/releases/download/v0.14.3/manifests.yaml
 [XPK] Task: `Wait for Kueue to be available` is implemented by the following command not running since it is a dry run. 
-kubectl wait deploy/kueue-controller-manager -nkueue-system --for=condition=available --timeout=10m
+kubectl wait deploy/kueue-controller-manager -n kueue-system --for=condition=available --timeout=10m
 [XPK] Applying following Kueue resources:
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: ResourceFlavor

@@ -18,11 +18,17 @@ import os
 
 
 def _get_boolean_flag(flag: str, default: bool) -> bool:
-  return os.getenv(flag, str(default)).lower() == "true"
+  experiment_value = os.getenv(flag, "").lower()
+  if experiment_value in ["true", "false"]:
+    return experiment_value == "true"
+
+  xpk_tester = os.getenv("XPK_TESTER", "").lower() == "true"
+  return xpk_tester or default
 
 
 class _FeatureFlags:
   SUB_SLICING_ENABLED = _get_boolean_flag("SUB_SLICING_ENABLED", default=False)
+  TELEMETRY_ENABLED = _get_boolean_flag("TELEMETRY_ENABLED", default=False)
 
 
 FeatureFlags = _FeatureFlags()

@@ -91,7 +91,7 @@ def ensure_pathways_workload_prerequisites(args, system) -> bool:
     xpk_exit(1)
 
   # Ensure device type is TPUs - currently Pathways supports TPUs only.
-  if system.accelerator_type != AcceleratorType['TPU']:
+  if system.accelerator_type != AcceleratorType.TPU:
     xpk_print('Currently, Pathways workloads can only be run on TPUs.')
     xpk_exit(1)
 

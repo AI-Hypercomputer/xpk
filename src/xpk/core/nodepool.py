@@ -15,8 +15,8 @@ limitations under the License.
 """
 
 from typing import List
-from ..utils.console import get_user_input, xpk_print
-from ..utils.topology import get_topology_product, is_topology_valid
+from ..utils.console import ask_for_user_consent, xpk_print
+from .scheduling import get_placement_policy_name, is_placement_policy_supported
 from .capacity import (
     AUTOPROVISIONING_CONFIG_VALUE,
     H100_MEGA_DEVICE_TYPE,
@@ -80,7 +80,7 @@ def run_gke_node_pool_create_command(
     if return_code > 0:
       xpk_print('Listing all reservations failed!')
     return_code = 1
-  if system.accelerator_type == AcceleratorType['TPU']:
+  if system.accelerator_type == AcceleratorType.TPU:
     max_nodes = system.vms_per_slice
   else:
     max_nodes = 1000
@@ -92,16 +92,14 @@ def run_gke_node_pool_create_command(
     return return_code
 
   desired_node_pool_count = (
-      1
-      if system.accelerator_type == AcceleratorType['GPU']
-      else args.num_slices
+      1 if system.accelerator_type == AcceleratorType.GPU else args.num_slices
   )
   message = (
       (
           f'Creating 1 node pool with {args.num_nodes} nodes of'
           f' {system.device_type}\nUnderlyingly, we assume that means: {system}'
       )
-      if system.accelerator_type == AcceleratorType['GPU']
+      if system.accelerator_type == AcceleratorType.GPU
       else (
           f'Creating {args.num_slices} node pool or pools of'
           f' {system.device_type}\nUnderlyingly, we assume that means: {system}'
@@ -112,6 +110,7 @@ def run_gke_node_pool_create_command(
       existing_node_pool_names, args.cluster, desired_node_pool_count
   )
 
+  node_pools_to_delete = []
   node_pools_to_remain = []
   delete_commands = []
   delete_task_names = []
@@ -188,14 +187,10 @@ def run_gke_node_pool_create_command(
   # when cluster is getting updated from 'x' device_type/gke_accelerator to 'y' device_type/gke_accelerator.
   # In that case, '{args.cluster}-np-i' nodepool will be re-created for 'y' device_type/gke_accelerator.
   if delete_commands:
-    will_delete = True
-    if node_pools_to_delete and not args.force:
-      will_delete = get_user_input(
-          f'Planning to delete {len(node_pools_to_delete)} node pools including'
-          f' {node_pools_to_delete}. \nDo you wish to delete: y (yes) / n'
-          ' (no):\n'
-      )
-    if not will_delete:
+    if node_pools_to_delete and not ask_for_user_consent(
+        f'Planning to delete {len(node_pools_to_delete)} node pools including'
+        f' {node_pools_to_delete}. \nDo you wish to delete?'
+    ):
       xpk_print(
           'You have requested to not delete the existing nodepools in the'
           ' cluster. There will be no change to the cluster.'
@@ -217,18 +212,15 @@ def run_gke_node_pool_create_command(
 
   # Enable Workload Identity on existing Nodepools
   if update_WI_commands:
-    will_update_WI = True
-    if node_pools_to_update_WI and not args.force:
-      will_update_WI = get_user_input(
-          'Planning to enable Workload Identity Federation on'
-          f' {len(node_pools_to_update_WI)} existing node pools including'
-          f' {node_pools_to_update_WI}.This immediately enables Workload'
-          ' Identity Federation for GKE for any workloads running in the node'
-          ' pool. Also, xpk does not support disabling Workload Identity on'
-          ' clusters that have it enabled already \nDo you wish to update: y'
-          ' (yes) / n (no):\n'
-      )
-    if not will_update_WI:
+    will_update_WI = not node_pools_to_update_WI or ask_for_user_consent(
+        'Planning to enable Workload Identity Federation on'
+        f' {len(node_pools_to_update_WI)} existing node pools including'
+        f' {node_pools_to_update_WI}. This immediately enables Workload'
+        ' Identity Federation for GKE for any workloads running in the node'
+        ' pool. Also, xpk does not support disabling Workload Identity on'
+        ' clusters that have it enabled already \nDo you wish to update?'
+    )
+    if will_update_WI:
       for i, command in enumerate(update_WI_commands):
         xpk_print(
             f'To complete {update_WI_task_names[i]} we are executing {command}'
@@ -266,8 +258,8 @@ def run_gke_node_pool_create_command(
         return 1
 
   placement_args = ''
-  if system.requires_workload_policy and is_topology_valid(system.topology):
-    placement_policy = f'{args.cluster}-placement-policy'
+  if is_placement_policy_supported(system):
+    placement_policy = get_placement_policy_name(system)
     ensure_resource_policy_exists(placement_policy, args, system.topology)
     placement_args = f' --placement-policy={placement_policy}'
 
@@ -288,18 +280,18 @@ def run_gke_node_pool_create_command(
         f'{placement_args}'
         ' --enable-gvnic'
     )
-    if system.accelerator_type == AcceleratorType['TPU']:
+    if system.accelerator_type == AcceleratorType.TPU:
       command += f' --node-version={gke_node_pool_version}'
-      topology_product = get_topology_product(system.topology)
       if capacity_type == CapacityType.FLEX_START:
         command += ' --num-nodes=0'
-      elif topology_product > 1:
+      else:
         command += f' --num-nodes={system.vms_per_slice}'
       command += (
           f' --scopes=storage-full,gke-default,{CLOUD_PLATFORM_AUTH_SCOPE_URL}'
       )
 
-      if topology_product > 1:
+      # --tpu-topology should not be set for single-host node pools
+      if system.vms_per_slice > 1:
         # --placement-type=COMPACT enables group placement policy which
         # is mutually exclusive with workload policy, --tpu-topology should
         # also not be passed when workload policy is used
@@ -308,7 +300,7 @@ def run_gke_node_pool_create_command(
           command += f' --tpu-topology={system.topology}'
         command += ' --max-pods-per-node 15'
         command += f' {args.custom_tpu_nodepool_arguments}'
-    elif system.accelerator_type == AcceleratorType['GPU']:
+    elif system.accelerator_type == AcceleratorType.GPU:
       subnet_prefix = (
           f'{args.cluster}-{get_cluster_location(args.project, args.cluster, args.zone)}'
       )
@@ -328,7 +320,7 @@ def run_gke_node_pool_create_command(
               f' network={args.cluster}-net-{i},subnetwork={subnet_prefix}-sub-{i}'
           )
         command += ' --max-pods-per-node=32'
-    elif system.accelerator_type == AcceleratorType['CPU']:
+    elif system.accelerator_type == AcceleratorType.CPU:
       if capacity_type == CapacityType.FLEX_START:
         command += ' --num-nodes=0'
       else:

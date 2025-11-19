@@ -8,7 +8,7 @@ This section should describe how to prepare volumes and add external files execu
 
 To run xpk batch script run:
 ```bash
-python3 xpk.py batch --cluster my-cluster job.sh
+xpk batch --cluster my-cluster job.sh
 ```
 
 To view results run:

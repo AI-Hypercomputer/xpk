@@ -145,22 +145,24 @@ def mock_nodepool_dependencies(mocker):
       "xpk.core.nodepool.get_cluster_location", return_value="us-central1"
   )
   mocker.patch("xpk.core.nodepool.run_commands", return_value=0)
-  mocker.patch("xpk.core.nodepool.get_user_input", return_value=True)
-  mock_is_topology_valid = mocker.patch("xpk.core.nodepool.is_topology_valid")
+  mocker.patch("xpk.core.nodepool.ask_for_user_consent", return_value=True)
+  mock_is_placement_policy_supported = mocker.patch(
+      "xpk.core.nodepool.is_placement_policy_supported"
+  )
   mock_ensure_resource_policy = mocker.patch(
       "xpk.core.nodepool.ensure_resource_policy_exists"
   )
-  return mock_is_topology_valid, mock_ensure_resource_policy
+  return mock_is_placement_policy_supported, mock_ensure_resource_policy
 
 
 def test_placement_policy_created_for_gpu_with_valid_topology(
     mocker, mock_nodepool_dependencies
 ):
   """Tests that placement policy is created for GPUs with a valid topology."""
-  mock_is_topology_valid, mock_ensure_resource_policy = (
+  mock_is_placement_policy_supported, mock_ensure_resource_policy = (
       mock_nodepool_dependencies
   )
-  mock_is_topology_valid.return_value = True
+  mock_is_placement_policy_supported.return_value = True
   args = mocker.Mock(
       tpu_type=None,
       device_type="h100-80gb-8",
@@ -170,11 +172,11 @@ def test_placement_policy_created_for_gpu_with_valid_topology(
   )
   system = SystemCharacteristics(
       topology="N/A",
-      vms_per_slice=1,
+      vms_per_slice=2,
       gke_accelerator="nvidia-h100-80gb",
       gce_machine_type="a3-highgpu-8g",
       chips_per_vm=8,
-      accelerator_type=AcceleratorType["GPU"],
+      accelerator_type=AcceleratorType.GPU,
       device_type="h100-80gb-8",
       supports_sub_slicing=False,
   )
@@ -188,10 +190,10 @@ def test_placement_policy_not_created_for_gpu_with_invalid_topology(
     mocker, mock_nodepool_dependencies
 ):
   """Tests that placement policy is not created for GPUs with an invalid topology."""
-  mock_is_topology_valid, mock_ensure_resource_policy = (
+  mock_is_placement_policy_supported, mock_ensure_resource_policy = (
       mock_nodepool_dependencies
   )
-  mock_is_topology_valid.return_value = False
+  mock_is_placement_policy_supported.return_value = False
   args = mocker.Mock(
       tpu_type=None,
       device_type="h100-80gb-8",
@@ -200,11 +202,11 @@ def test_placement_policy_not_created_for_gpu_with_invalid_topology(
   )
   system = SystemCharacteristics(
       topology="N/A",
-      vms_per_slice=1,
+      vms_per_slice=2,
       gke_accelerator="nvidia-h100-80gb",
       gce_machine_type="a3-highgpu-8g",
       chips_per_vm=8,
-      accelerator_type=AcceleratorType["GPU"],
+      accelerator_type=AcceleratorType.GPU,
       device_type="h100-80gb-8",
       supports_sub_slicing=False,
   )
@@ -218,10 +220,10 @@ def test_placement_policy_created_for_tpu7x_with_valid_topology(
     mocker, mock_nodepool_dependencies
 ):
   """Tests that placement policy is created for tpu7x with a valid topology."""
-  mock_is_topology_valid, mock_ensure_resource_policy = (
+  mock_is_placement_policy_supported, mock_ensure_resource_policy = (
       mock_nodepool_dependencies
   )
-  mock_is_topology_valid.return_value = True
+  mock_is_placement_policy_supported.return_value = True
   args = mocker.Mock(
       tpu_type="tpu7x-8",
       device_type=None,
@@ -232,11 +234,11 @@ def test_placement_policy_created_for_tpu7x_with_valid_topology(
   )
   system = SystemCharacteristics(
       topology="2x2x1",
-      vms_per_slice=1,
+      vms_per_slice=2,
       gke_accelerator="tpu7x",
       gce_machine_type="tpu7x-standard-4t",
       chips_per_vm=4,
-      accelerator_type=AcceleratorType["TPU"],
+      accelerator_type=AcceleratorType.TPU,
       device_type="tpu7x-8",
       requires_workload_policy=True,
       supports_sub_slicing=False,
@@ -251,14 +253,14 @@ def test_placement_policy_not_created_for_non7x_tpu(
     mocker, mock_nodepool_dependencies
 ):
   """Tests that placement policy is not created for non-tpu7x TPUs."""
-  mock_is_topology_valid, mock_ensure_resource_policy = (
+  mock_is_placement_policy_supported, mock_ensure_resource_policy = (
       mock_nodepool_dependencies
   )
-  mock_is_topology_valid.return_value = True
+  mock_is_placement_policy_supported.return_value = False
   args = mocker.Mock(
       tpu_type="v6e",
       device_type=None,
-      num_slices=1,
+      num_slices=2,
       cluster="test-cluster",
       project="test-project",
       zone="us-central1-a",
@@ -269,7 +271,7 @@ def test_placement_policy_not_created_for_non7x_tpu(
       gke_accelerator="v6e",
       gce_machine_type="tpu-v6e-slice",
       chips_per_vm=4,
-      accelerator_type=AcceleratorType["TPU"],
+      accelerator_type=AcceleratorType.TPU,
       device_type="v6e-4",
       supports_sub_slicing=True,
   )

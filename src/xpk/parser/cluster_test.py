@@ -49,7 +49,7 @@ def test_cluster_create_sub_slicing_is_false_by_default():
 
   set_cluster_create_parser(parser)
   args = parser.parse_args(
-      ["--cluster", "test-cluster", "--tpu-type", "test-tpu"]
+      ["--cluster", "test-cluster", "--tpu-type", "tpu7x-2"]
   )
 
   assert args.sub_slicing is False
@@ -60,7 +60,7 @@ def test_cluster_create_sub_slicing_can_be_set():
 
   set_cluster_create_parser(parser)
   args = parser.parse_args(
-      ["--cluster", "test-cluster", "--tpu-type", "test-tpu", "--sub-slicing"]
+      ["--cluster", "test-cluster", "--tpu-type", "tpu7x-2", "--sub-slicing"]
   )
 
   assert args.sub_slicing is True
@@ -76,47 +76,18 @@ def test_cluster_create_pathways_sub_slicing_is_hidden_with_flag_off():
   assert "--sub-slicing" not in help_str
 
 
-def test_cluster_create_pathways_sub_slicing_is_shown_with_flag_on():
-  parser = argparse.ArgumentParser()
-
-  set_cluster_create_pathways_parser(parser)
-  help_str = parser.format_help()
-
-  assert "--sub-slicing" in help_str
-
-
-def test_cluster_create_pathways_sub_slicing_is_false_by_default():
-  parser = argparse.ArgumentParser()
-
-  set_cluster_create_pathways_parser(parser)
-  args = parser.parse_args(
-      ["--cluster", "test-cluster", "--tpu-type", "test-tpu"]
-  )
-
-  assert args.sub_slicing is False
-
-
 def test_cluster_create_pathways_sub_slicing_can_be_set():
   parser = argparse.ArgumentParser()
 
   set_cluster_create_pathways_parser(parser)
   args = parser.parse_args(
-      ["--cluster", "test-cluster", "--tpu-type", "test-tpu", "--sub-slicing"]
+      ["--cluster", "test-cluster", "--tpu-type", "tpu7x-2", "--sub-slicing"]
   )
 
   assert args.sub_slicing is True
 
 
-def test_cluster_create_ray_sub_slicing_is_hidden():
-  parser = argparse.ArgumentParser()
-
-  set_cluster_create_ray_parser(parser)
-  help_str = parser.format_help()
-
-  assert "--sub-slicing" not in help_str
-
-
-def test_cluster_create_ray_sub_slicing_is_false():
+def test_cluster_create_ray_sub_slicing_is_hidden_but_set_to_false():
   parser = argparse.ArgumentParser()
 
   set_cluster_create_ray_parser(parser)
@@ -124,9 +95,11 @@ def test_cluster_create_ray_sub_slicing_is_false():
       "--cluster",
       "test-cluster",
       "--tpu-type",
-      "test-tpu",
+      "tpu7x-2",
       "--ray-version",
-      "1.0.0",
+      "19.32.0",
   ])
+  help_str = parser.format_help()
 
   assert args.sub_slicing is False
+  assert "--sub-slicing" not in help_str

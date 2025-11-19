@@ -34,6 +34,10 @@ on:
     secrets:
       GCP_SA_KEY:
         required: true
+  
+permissions:
+  contents: read
+
 jobs:
   storage-delete:
     name: "${{inputs.storage-type}}-${{inputs.storage-command}}"
@@ -45,48 +49,24 @@ jobs:
           echo "Error: storage-command must be 'detach' or 'delete'"
           exit 1
         fi
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v5
+    - uses: actions/download-artifact@v4
       with:
-        python-version: '3.10'
-    - uses: 'google-github-actions/auth@v2'
+        name: custom-scripts
+    - name: Setup environment
+      uses: ./.github/actions/setup-test-env
       with:
-        credentials_json: '${{ secrets.GCP_SA_KEY }}'
-    - uses: google-github-actions/setup-gcloud@v2
-      with:
-        version: '>= 363.0.0'
-        install_components: 'beta,gke-gcloud-auth-plugin'
-    - name: Install kubectl
-      run: gcloud components install kubectl
-    - name: Verify gcp setup
-      run: gcloud info
-    - name: Set Google Cloud CLI properties to a unused zone to verify --zone arg is passed properly in commands.
-      run: |
-        gcloud config set compute/zone us-east4-a
-        gcloud config get compute/zone
-    - name: Prepare directories
-      run: mkdir -p ~/.cache/pip
-    - name: Restore cached dependencies
-      uses: actions/cache@v4
-      with:
-        path: |
-            /usr/local/bin/kubectl-kueue
-            /usr/local/bin/kubectl-kjob
-            ~/.cache/pip
-            ${{env.pythonLocation}}
-        key: xpk-deps-3.10-${{github.run_id}}-${{github.run_attempt}}
-        restore-keys: xpk-deps-3.10-
-    - name: Verify xpk installation
-      run: xpk --help
+        credentials_json: "${{ secrets.GCP_SA_KEY }}"
+    - name: Check xpk installation
+      run: xpk version
     - name: Detach storage volumes
       if: always()
-      run: python3 xpk.py storage detach ${{inputs.storage-name}} --cluster=${{inputs.cluster-name}} --zone=${{inputs.zone}}
+      run: xpk storage detach ${{inputs.storage-name}} --cluster=${{inputs.cluster-name}} --zone=${{inputs.zone}}
     - name: Verify VolumeBundle deleted
       run: |
         ! kubectl get volumebundle | grep ${{inputs.storage-name}}
     - name: Delete GCP Filestore Storage instance
       if: always() && inputs.storage-command == 'delete'
-      run: python3 xpk.py storage delete ${{inputs.storage-name}} --cluster=${{inputs.cluster-name}} --zone=${{inputs.zone}}
+      run: xpk storage delete ${{inputs.storage-name}} --cluster=${{inputs.cluster-name}} --zone=${{inputs.zone}}
     - name: Verify deletion of GCP Filestore Storage instance
       if: inputs.storage-command == 'delete'
       run: |

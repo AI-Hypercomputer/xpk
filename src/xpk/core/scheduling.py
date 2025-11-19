@@ -14,7 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from ..utils.topology import get_slice_topology_level
 from ..utils.console import xpk_print
+from ..utils.topology import is_topology_valid
 from ..utils.execution_context import is_dry_run
 from .capacity import AUTOPROVISIONING_CONFIG_MAXIMUM_KEY, AUTOPROVISIONING_CONFIG_VALUE
 from .resources import CLUSTER_RESOURCES_CONFIGMAP, get_cluster_configmap
@@ -97,7 +99,7 @@ def check_if_workload_can_schedule(args, system: SystemCharacteristics) -> bool:
   else:
     # Check if the size of the workload will fit in the cluster.
     max_vm_in_cluster = int(cluster_config_map[device_type])
-    if system.accelerator_type == AcceleratorType['GPU']:
+    if system.accelerator_type == AcceleratorType.GPU:
       vm_required_by_workload = args.num_nodes
     else:
       vm_required_by_workload = args.num_slices * system.vms_per_slice
@@ -125,7 +127,7 @@ def get_total_chips_requested_from_args(
   Returns:
     num of chips for the current request.
   """
-  if system.accelerator_type == AcceleratorType['GPU']:
+  if system.accelerator_type == AcceleratorType.GPU:
     num_chips = system.vms_per_slice * system.chips_per_vm * args.num_nodes
   else:
     num_chips = system.vms_per_slice * system.chips_per_vm * args.num_slices
@@ -152,7 +154,7 @@ def get_cpu_affinity(accelerator_type) -> str:
                         values:
                         - default-pool
 """
-  if accelerator_type == AcceleratorType['CPU']:
+  if accelerator_type == AcceleratorType.CPU:
     return yaml
   return ''
 
@@ -225,7 +227,7 @@ def create_accelerator_label(accelerator_type, system) -> str:
   Returns:
     The accelerator label.
   """
-  if accelerator_type == AcceleratorType['CPU']:
+  if accelerator_type == AcceleratorType.CPU:
     return ''
   return (
       f'{AcceleratorTypeToAcceleratorCharacteristics[accelerator_type].accelerator_label}:'
@@ -243,7 +245,7 @@ def create_tpu_machine_type(accelerator_type, system) -> str:
   Returns:
     The accelerator label.
   """
-  if accelerator_type == AcceleratorType['TPU']:
+  if accelerator_type == AcceleratorType.TPU:
     return f'{system.gce_machine_type}'
   return ''
 
@@ -261,10 +263,7 @@ def create_machine_label(
   Returns:
     The machine label.
   """
-  if (
-      accelerator_type == AcceleratorType['TPU']
-      and not autoprovisioning_enabled
-  ):
+  if accelerator_type == AcceleratorType.TPU and not autoprovisioning_enabled:
     return (
         f'{AcceleratorTypeToAcceleratorCharacteristics[accelerator_type].machine_label}:'
         f' {system.topology}'
@@ -285,10 +284,7 @@ def create_tpu_topology(
   Returns:
     The machine label.
   """
-  if (
-      accelerator_type == AcceleratorType['TPU']
-      and not autoprovisioning_enabled
-  ):
+  if accelerator_type == AcceleratorType.TPU and not autoprovisioning_enabled:
     return f'{system.topology}'
   return ''
 
@@ -305,7 +301,20 @@ def create_sub_slicing_annotations(sub_slicing_topology: str) -> list[str]:
   return [
       (
           'kueue.x-k8s.io/podset-required-topology:'
-          f' "google.com/gke-tpu-slice-{sub_slicing_topology}-id"'
+          f' "{get_slice_topology_level(sub_slicing_topology)}"'
       ),
       f'cloud.google.com/gke-tpu-slice-topology: {sub_slicing_topology}',
   ]
+
+
+def create_placement_policy_label(system: SystemCharacteristics) -> str:
+  name = get_placement_policy_name(system)
+  return f'cloud.google.com/placement-policy-name: {name}'
+
+
+def get_placement_policy_name(system: SystemCharacteristics) -> str:
+  return f'{system.device_type}-{system.topology}-placement-policy'
+
+
+def is_placement_policy_supported(system: SystemCharacteristics) -> bool:
+  return system.requires_workload_policy and is_topology_valid(system.topology)

@@ -32,11 +32,14 @@ Next Steps:
 """
 
 import argparse
+import argcomplete
 import sys
 
 from .parser.core import set_parser
-from .utils.console import xpk_print
-from .utils.execution_context import set_dry_run
+from .core.updates import print_xpk_hello
+from .core.telemetry import MetricsCollector, send_clearcut_payload, should_send_telemetry
+from .utils.console import xpk_print, exit_code_to_int
+from .utils.execution_context import set_context
 ################### Compatibility Check ###################
 # Check that the user runs the below version or greater.
 
@@ -58,17 +61,35 @@ if (
 
 
 def main() -> None:
-  # Create top level parser for xpk command.
-  parser = argparse.ArgumentParser(description='xpk command', prog='xpk')
-  set_parser(parser=parser)
+  try:
+    # Create top level parser for xpk command.
+    parser = argparse.ArgumentParser(description='xpk command', prog='xpk')
+    set_parser(parser=parser)
+    argcomplete.autocomplete(parser)
 
-  xpk_print('Starting xpk', flush=True)
-  main_args = parser.parse_args()
-  main_args.enable_ray_cluster = False
-  dry_run = 'dry_run' in main_args and main_args.dry_run
-  set_dry_run(dry_run)
-  main_args.func(main_args)
-  xpk_print('XPK Done.', flush=True)
+    main_args = parser.parse_args()
+    main_args.enable_ray_cluster = False
+    set_context(
+        dry_run_value='dry_run' in main_args and main_args.dry_run,
+        quiet_value=(
+            ('quiet' in main_args and main_args.quiet)
+            or ('force' in main_args and main_args.force)
+        ),
+    )
+    MetricsCollector.log_start(main_args.xpk_subcommands)
+    print_xpk_hello()
+    main_args.func(main_args)
+    xpk_print('XPK Done.', flush=True)
+    MetricsCollector.log_complete(0)
+  except SystemExit as e:
+    MetricsCollector.log_complete(exit_code_to_int(e.code))
+    raise
+  except:
+    MetricsCollector.log_complete(-1)
+    raise
+  finally:
+    if should_send_telemetry():
+      send_clearcut_payload(MetricsCollector.flush())
 
 
 if __name__ == '__main__':

@@ -19,9 +19,12 @@ import shutil
 from typing import Optional
 
 from ruamel import yaml
+from packaging.version import parse
 
 from ...utils.console import xpk_exit, xpk_print
+from ...utils.versions import ReleaseChannel
 from ...utils.file import ensure_directory_exists
+
 
 from ..capacity import (
     H100_DEVICE_TYPE,
@@ -84,6 +87,8 @@ class BlueprintGenerator:
       region: str,
       zone: str,
       auth_cidr: str,
+      cluster_version: str,
+      release_channel: ReleaseChannel,
       prefix: str = "",
       num_nodes: int = 2,
       pods_ip_cidr_range: str = "10.4.0.0/14",
@@ -142,11 +147,17 @@ class BlueprintGenerator:
         },
     )
 
+    sanitized_version = cluster_version.replace("-", "+", 1)
+    version = parse(sanitized_version)
+    version_prefix = f"{version.major}.{version.minor}"
     gke_cluster = DeploymentModule(
         id="gke_cluster",
         source="modules/scheduler/gke-cluster",
         use=[primary_vpc_name, gpu_subnets_name],
         settings={
+            "release_channel": release_channel.value,
+            "version_prefix": version_prefix,
+            "min_master_version": cluster_version,
             "prefix_with_deployment_name": False,
             "name_suffix": cluster_name,
             "enable_private_endpoint": False,
@@ -171,6 +182,16 @@ class BlueprintGenerator:
         },
         outputs=["instructions"],
     )
+    if release_channel != ReleaseChannel.RAPID:
+      gke_cluster.set_setting(
+          "maintenance_exclusions",
+          [{
+              "name": "no-minor-or-node-upgrades-indefinite",
+              "start_time": "2024-12-01T00:00:00Z",
+              "end_time": "2026-01-16T00:00:00Z",
+              "exclusion_scope": "NO_MINOR_OR_NODE_UPGRADES",
+          }],
+      )
 
     group_placement_0 = DeploymentModule(
         id="group_placement_0",
@@ -211,9 +232,12 @@ class BlueprintGenerator:
         outputs=["instructions"],
     )
     if capacity_type == CapacityType.FLEX_START:
-      a3_megagpu_pool_0.settings.update(self.get_dws_flex_start())
+      a3_megagpu_pool_0.update_settings(self.get_dws_flex_start())
     else:
-      a3_megagpu_pool_0.settings.update({"static_node_count": num_nodes})
+      a3_megagpu_pool_0.update_settings({"static_node_count": num_nodes})
+
+    if release_channel == ReleaseChannel.RAPID:
+      a3_megagpu_pool_0.set_setting("auto_upgrade", True)
 
     set_placement_policy = capacity_type != CapacityType.SPOT
     workload = DeploymentModule(
@@ -252,8 +276,8 @@ class BlueprintGenerator:
 
     print(reservation_placement_policy)
     if reservation_placement_policy is not None:
-      a3_megagpu_pool_0.settings["placement_policy"] = (
-          reservation_placement_policy
+      a3_megagpu_pool_0.set_setting(
+          "placement_policy", reservation_placement_policy
       )
 
     primary_group = DeploymentGroup(
@@ -268,7 +292,7 @@ class BlueprintGenerator:
         ],
     )
     if set_placement_policy and reservation_placement_policy is None:
-      a3_megagpu_pool_0.use.append(group_placement_0.id)
+      a3_megagpu_pool_0.append_use(group_placement_0.id)
       primary_group.modules.append(group_placement_0)
     a3_mega_blueprint = Blueprint(
         terraform_backend_defaults=self._getblock_terraform_backend(
@@ -391,6 +415,8 @@ class BlueprintGenerator:
       zone: str,
       auth_cidr: str,
       system_node_pool_machine_type: str,
+      cluster_version: str,
+      release_channel: ReleaseChannel,
       reservation: Optional[str | None] = None,
       gcs_bucket: Optional[str | None] = None,
       num_nodes: int = 2,
@@ -480,28 +506,19 @@ class BlueprintGenerator:
             },
         },
     )
+
+    sanitized_version = cluster_version.replace("-", "+", 1)
+    version = parse(sanitized_version)
+    version_prefix = f"{version.major}.{version.minor}"
     cluster_id = f"{cluster_name}-a3-ultragpu-cluster"
     a3_ultra_cluster = DeploymentModule(
         id=cluster_id,
         source="modules/scheduler/gke-cluster",
         use=[net_0_id],
         settings={
-            "release_channel": (
-                "UNSPECIFIED"
-                if capacity_type == CapacityType.FLEX_START
-                else "RAPID"
-            ),
-            "version_prefix": "1.32.",
-            "maintenance_exclusions": (
-                []
-                if capacity_type == CapacityType.FLEX_START
-                else [{
-                    "name": "no-minor-or-node-upgrades-indefinite",
-                    "start_time": "2024-12-01T00:00:00Z",
-                    "end_time": "2025-12-22T00:00:00Z",
-                    "exclusion_scope": "NO_MINOR_OR_NODE_UPGRADES",
-                }]
-            ),
+            "release_channel": release_channel.value,
+            "version_prefix": version_prefix,
+            "min_cluster_version": cluster_version,
             "prefix_with_deployment_name": False,
             "name_suffix": cluster_name,
             "system_node_pool_machine_type": system_node_pool_machine_type,
@@ -537,6 +554,17 @@ class BlueprintGenerator:
         },
         outputs=["instructions"],
     )
+    if release_channel != ReleaseChannel.RAPID:
+      a3_ultra_cluster.set_setting(
+          "maintenance_exclusions",
+          [{
+              "name": "no-minor-or-node-upgrades-indefinite",
+              "start_time": "2024-12-01T00:00:00Z",
+              "end_time": "2026-01-16T00:00:00Z",
+              "exclusion_scope": "NO_MINOR_OR_NODE_UPGRADES",
+          }],
+      )
+
     system, _ = get_system_characteristics_by_device_type(a3ultra_device_type)
     if system is None:
       xpk_print(
@@ -580,9 +608,12 @@ class BlueprintGenerator:
         outputs=["instructions"],
     )
     if capacity_type == CapacityType.FLEX_START:
-      gpu_pool.settings.update(self.get_dws_flex_start())
+      gpu_pool.update_settings(self.get_dws_flex_start())
     else:
-      gpu_pool.settings.update({"static_node_count": num_nodes})
+      gpu_pool.update_settings({"static_node_count": num_nodes})
+
+    if release_channel == ReleaseChannel.RAPID:
+      gpu_pool.set_setting("auto_upgrade", True)
 
     workload_manager_install_id = "workload-manager-install"
     workload_manager_install = DeploymentModule(
@@ -674,6 +705,8 @@ class BlueprintGenerator:
       zone: str,
       auth_cidr: str,
       system_node_pool_machine_type: str,
+      cluster_version: str,
+      release_channel: ReleaseChannel,
       reservation: Optional[str | None] = None,
       gcs_bucket: Optional[str | None] = None,
       num_nodes: int = 2,
@@ -761,12 +794,19 @@ class BlueprintGenerator:
             },
         },
     )
+
+    sanitized_version = cluster_version.replace("-", "+", 1)
+    version = parse(sanitized_version)
+    version_prefix = f"{version.major}.{version.minor}"
     cluster_id = f"{cluster_name}-a4-cluster"
     a4_cluster = DeploymentModule(
         id=cluster_id,
         source="modules/scheduler/gke-cluster",
         use=[net_0_id],
         settings={
+            "release_channel": release_channel.value,
+            "version_prefix": version_prefix,
+            "min_cluster_version": cluster_version,
             "system_node_pool_machine_type": system_node_pool_machine_type,
             "system_node_pool_node_count": {
                 "total_min_nodes": system_node_pool_min_node_count,
@@ -791,25 +831,20 @@ class BlueprintGenerator:
                 " alias_ip_range=[]}],"
                 f" {cluster_name}-rdma-net.subnetwork_interfaces_gke))"
             ),
-            "version_prefix": "1.32.",
-            "release_channel": (
-                "UNSPECIFIED"
-                if capacity_type == CapacityType.FLEX_START
-                else "RAPID"
-            ),
-            "maintenance_exclusions": (
-                []
-                if capacity_type == CapacityType.FLEX_START
-                else [{
-                    "name": "no-minor-or-node-upgrades-indefinite",
-                    "start_time": "2024-12-01T00:00:00Z",
-                    "end_time": "2025-12-22T00:00:00Z",
-                    "exclusion_scope": "NO_MINOR_OR_NODE_UPGRADES",
-                }]
-            ),
         },
         outputs=["instructions"],
     )
+    if release_channel != ReleaseChannel.RAPID:
+      a4_cluster.set_setting(
+          "maintenance_exclusions",
+          [{
+              "name": "no-minor-or-node-upgrades-indefinite",
+              "start_time": "2024-12-01T00:00:00Z",
+              "end_time": "2026-01-16T00:00:00Z",
+              "exclusion_scope": "NO_MINOR_OR_NODE_UPGRADES",
+          }],
+      )
+
     system, _ = get_system_characteristics_by_device_type(a4_device_type)
     if system is None:
       xpk_print(
@@ -855,9 +890,12 @@ class BlueprintGenerator:
         outputs=["instructions"],
     )
     if capacity_type == CapacityType.FLEX_START:
-      gpu_pool.settings.update(self.get_dws_flex_start())
+      gpu_pool.update_settings(self.get_dws_flex_start())
     else:
-      gpu_pool.settings.update({"static_node_count": num_nodes})
+      gpu_pool.update_settings({"static_node_count": num_nodes})
+
+    if release_channel == ReleaseChannel.RAPID:
+      gpu_pool.set_setting("auto_upgrade", True)
 
     workload_manager_install_id = "workload-manager-install"
     workload_manager_install = DeploymentModule(
@@ -956,7 +994,7 @@ class BlueprintGenerator:
     )
 
   def _getblock_terraform_backend(
-      self, gcs_bucket: str, cluster_name: str, prefix: str = ""
+      self, gcs_bucket: str | None, cluster_name: str, prefix: str = ""
   ) -> dict | None:
     if gcs_bucket is None:
       return None
@@ -986,7 +1024,7 @@ class BlueprintGenerator:
       yaml_parser.dump(xpk_blueprint, blueprint_file)
     return blueprint_path
 
-  def _get_blueprint_path(self, blueprint_name, prefix: str = ""):
+  def _get_blueprint_path(self, blueprint_name, prefix: str = "") -> str:
     blueprint_path = os.path.join(
         self._get_storage_path(prefix), f"{blueprint_name}.yaml"
     )
@@ -1019,7 +1057,6 @@ class BlueprintGenerator:
         "enable_flex_start": True,
         "enable_queued_provisioning": True,
         "autoscaling_total_min_nodes": 0,
-        "release_channel": "UNSPECIFIED",
         "auto_repair": False,
         "auto_upgrade": False,
     }

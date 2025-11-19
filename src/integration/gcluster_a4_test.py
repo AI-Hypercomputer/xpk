@@ -24,6 +24,7 @@ from xpk.core.blueprint.blueprint_generator import BlueprintGenerator
 from xpk.core.capacity import CapacityType
 from xpk.core.docker_manager import DockerManager
 from xpk.core.gcluster_manager import GclusterManager
+from xpk.utils.versions import ReleaseChannel
 
 ctk_gcloud_cfg = os.getenv("GCLOUD_CFG_PATH")
 project_id = os.getenv("PROJECT_ID")
@@ -31,6 +32,8 @@ region = os.getenv("REGION")
 zone = os.getenv("ZONE")
 auth_cidr = os.getenv("AUTH_CIDR")
 cluster_name = os.getenv("A4_TEST_CLUSTER_NAME")
+release_channel = os.getenv("RELEASE_CHANNEL")
+cluster_version = os.getenv("CLUSTER_VERSION")
 
 
 @pytest.fixture(name="setup_tests")
@@ -60,6 +63,8 @@ def test_create_a4_deployment_files(setup_tests):
   assert auth_cidr is not None
   assert ctk_gcloud_cfg is not None
   assert cluster_name is not None
+  assert release_channel is not None
+  assert cluster_version is not None
   docker_path, bp_path = setup_tests[0], setup_tests[1]
   blueprint_name = f"{cluster_name}-a4-xpk"
 
@@ -80,6 +85,8 @@ def test_create_a4_deployment_files(setup_tests):
       num_nodes=1,
       system_node_pool_machine_type="e2-standard-16",
       prefix=prefix,
+      release_channel=ReleaseChannel(release_channel),
+      cluster_version=cluster_version,
   )
   blueprint_test_path = os.path.join(bp_path, prefix, f"{blueprint_name}.yaml")
   blueprint_deps_test_path = os.path.join(bp_path, blueprint_name)
@@ -125,6 +132,8 @@ def test_create_a4_deployment(setup_tests):
   assert auth_cidr is not None
   assert ctk_gcloud_cfg is not None
   assert cluster_name is not None
+  assert release_channel is not None
+  assert cluster_version is not None
   docker_path, bp_path = setup_tests[0], setup_tests[1]
   blueprint_name = f"{cluster_name}-a4-xpk"
 
@@ -144,6 +153,8 @@ def test_create_a4_deployment(setup_tests):
       capacity_type=CapacityType.SPOT,
       num_nodes=1,
       system_node_pool_machine_type="e2-standard-16",
+      release_channel=ReleaseChannel(release_channel),
+      cluster_version=cluster_version,
   )
   blueprint_test_path = os.path.join(bp_path, f"{blueprint_name}.yaml")
   blueprint_deps_test_path = os.path.join(bp_path, blueprint_name)

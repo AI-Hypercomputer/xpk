@@ -94,12 +94,12 @@ def cluster_create(args) -> None:
       'N/A',
       'N/A',
       1,
-      AcceleratorType['CPU'],
+      AcceleratorType.CPU,
       'kind',
       supports_sub_slicing=False,
   )
 
-  kueue_manager = KueueManager()
+  kueue_manager = KueueManager(project='', zone='')
   kueue_manager.install_or_upgrade(
       KueueConfig(
           system,

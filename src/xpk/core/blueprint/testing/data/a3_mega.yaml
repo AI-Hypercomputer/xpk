@@ -53,6 +53,9 @@ deployment_groups:
     source: modules/scheduler/gke-cluster
     use: [network1, gpunets]
     settings:
+      release_channel: RAPID
+      version_prefix: '1.2'
+      min_master_version: 1.2.3
       prefix_with_deployment_name: false
       name_suffix: bar
       enable_private_endpoint: false

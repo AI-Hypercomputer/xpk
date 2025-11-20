@@ -531,7 +531,11 @@ def get_installed_kueue_version(
   return_code, val = run_command_for_value(
       command,
       task,
-      dry_run_return_val=f"image:{dry_run_version}" if dry_run_version else "",
+      dry_run_return_val=(
+          f"registry.k8s.io/kueue/kueue:v{dry_run_version}"
+          if dry_run_version
+          else ""
+      ),
   )
   if return_code != 0:
     return return_code, None

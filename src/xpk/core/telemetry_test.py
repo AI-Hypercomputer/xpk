@@ -79,7 +79,7 @@ def test_metrics_collector_logs_start_event_correctly():
       ],
       'event_name': 'start',
       'event_type': 'commands',
-      'release_version': 'v0.14.4',
+      'release_version': 'v0.15.0',
   }
 
 
@@ -109,7 +109,7 @@ def test_metrics_collector_logs_complete_event_correctly():
       ],
       'event_name': 'complete',
       'event_type': 'commands',
-      'release_version': 'v0.14.4',
+      'release_version': 'v0.15.0',
   }
 
 
@@ -132,7 +132,7 @@ def test_metrics_collector_logs_custom_event_correctly():
       ],
       'event_name': 'test',
       'event_type': 'custom',
-      'release_version': 'v0.14.4',
+      'release_version': 'v0.15.0',
   }
 
 

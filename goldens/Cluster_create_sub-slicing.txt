@@ -1,5 +1,5 @@
 $ SUB_SLICING_ENABLED=true xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=v6e-4x4 --reservation=golden-reservation --sub-slicing --dry-run
-[XPK] Starting xpk v0.14.3
+[XPK] Starting xpk v0.14.4
 [XPK] Task: `Get reservation deployment type` is implemented by the following command not running since it is a dry run. 
 gcloud beta compute reservations describe golden-reservation --project=golden-project --zone=us-central1-a --format="value(deploymentType)"
 [XPK] Starting cluster create for cluster golden-cluster:
@@ -66,13 +66,13 @@ metadata:
 data:
   v6e-16: "4"
 
-[XPK] Temp file (03abe143f4fc53e4cd8a023dec1bfbe6c92dcad72f5a0a230df6d54fb9fe002b) content: 
+[XPK] Temp file (3a9ed146a0957d51547a8bba2910b8c171c3edf6bc28bd8a5d65eff2cb98c7b5) content: 
 kind: ConfigMap
 apiVersion: v1
 metadata:
   name: golden-cluster-metadata-configmap
 data:
-  xpk_version: v0.14.3
+  xpk_version: v0.14.4
   capacity_type: RESERVATION
   reservation_id: golden-reservation
 

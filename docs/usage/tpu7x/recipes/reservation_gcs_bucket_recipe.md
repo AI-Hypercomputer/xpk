@@ -27,17 +27,17 @@
     ```shell
     export PROJECT_ID=<project_id> # Your GCP project name
     export ZONE=<zone> # Example: us-central1-c
-    export CLUSTER_NAME=<cluster_name> # Target cluster nameGKE
+    export CLUSTER_NAME=<cluster_name> # Your cluster name
     export ACCELERATOR_TYPE=<tpu_type> # Example:tpu7x-4x4x8, For a list of supported topologies, see [Supported configurations](/tpu/docs/tpu7x#configurations)
     export RESERVATION_NAME=<reservation_name> # Your TPU reservation name if within the same project. For shared project use "projects/<project_number>/reservations/<reservation_name>"
     ```
 
-1. Follow the instructions in the [Configure MTU](/tpu/docs/v6e-training#configure_mtu) section to optimize your network configuration.
+1. Follow the instructions in the [Configure MTU](https://docs.cloud.google.com/tpu/docs/v6e-training#configure_mtu) section to optimize your network configuration.
 
 1. Populate the `${CLUSTER_ARGUMENTS}` variable, which you'll use in the `xpk cluster create` command:
 
     ```shell
-    export CLUSTER_ARGUMENTS="--network=${NETWORK_NAME} --subnetwork=${SUBNET_NAME}
+    export CLUSTER_ARGUMENTS="--network=${NETWORK_NAME} --subnetwork=${SUBNET_NAME}"
     ```
 
 1. Create your {{gke_name_short}} cluster with TPU7x node pools using the `xpk cluster create` command:

@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 from dataclasses import dataclass
-from typing import Callable, Optional
+from typing import Callable, Literal, Optional
 
 from ..core.workload_decorators import rdma_decorator, tcpxo_decorator, tcpx_decorator
 from ..utils.topology import get_topology_product
@@ -27,6 +27,15 @@ INSTALLER_NCCL_TCPX = 'https://raw.githubusercontent.com/GoogleCloudPlatform/con
 INSTALLER_NCCL_TCPXO = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpxo/nccl-tcpxo-installer.yaml'
 INSTALLER_NCCL_RDMA = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-rdma/nccl-rdma-installer.yaml'
 INSTALLER_NCCL_RDMA_A4X = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-rdma/nccl-rdma-installer-a4x.yaml'
+
+
+class DockerPlatform(str, Enum):
+  AMD = 'linux/amd64'
+  ARM = 'linux/arm64'
+
+
+AMD_PLATFORM = DockerPlatform.AMD
+ARM_PLATFORM = DockerPlatform.ARM
 
 
 class AcceleratorType(Enum):
@@ -69,8 +78,12 @@ class GpuConfig:
   """Contains GPU-specific configuration and requirements."""
 
   requires_topology: bool
+  gpu_direct_name: Literal['fastrak', 'rdma', 'tcpx', 'tcpxo'] = 'fastrak'
   kjob_decorator_fn: Optional[Callable[[dict], dict]] = None
   nccl_installer: Optional[str] = None
+  jobset_decorator_fn: (
+      Optional[Callable[[str, list[str]], str]] | Optional[Callable[[str], str]]
+  ) = None
 
 
 @dataclass
@@ -109,6 +122,7 @@ class SystemCharacteristics:
   accelerator_type: AcceleratorType
   device_type: str
   supports_sub_slicing: bool
+  docker_platform: DockerPlatform
   requires_workload_policy: bool = False
   gpu_config: Optional[GpuConfig] = None
 
@@ -199,6 +213,7 @@ def get_tpu_system_characteristics_map(
     machine_type: str,
     supported_topologies: list[str],
     supports_sub_slicing: bool,
+    docker_platform: DockerPlatform,
     tpu_type_requires_workload_policy: bool = False,
     default_topologies: set[str] | None = None,
 ) -> dict[str, SystemCharacteristics]:
@@ -221,6 +236,7 @@ def get_tpu_system_characteristics_map(
         requires_workload_policy=tpu_type_requires_workload_policy
         and vms_per_slice > 1,
         supports_sub_slicing=supports_sub_slicing,
+        docker_platform=docker_platform,
     )
     system_characteristics_map[f'{prefix}-{topology}'] = system
     if (
@@ -264,6 +280,7 @@ UserFacingNameToSystemCharacteristics = {
         device_type='l4-1',
         supports_sub_slicing=False,
         gpu_config=GpuConfig(requires_topology=False),
+        docker_platform=AMD_PLATFORM,
     ),
     'l4-2': SystemCharacteristics(
         topology='N/A',
@@ -275,6 +292,7 @@ UserFacingNameToSystemCharacteristics = {
         device_type='l4-2',
         supports_sub_slicing=False,
         gpu_config=GpuConfig(requires_topology=False),
+        docker_platform=AMD_PLATFORM,
     ),
     'l4-4': SystemCharacteristics(
         topology='N/A',
@@ -286,6 +304,7 @@ UserFacingNameToSystemCharacteristics = {
         device_type='l4-4',
         supports_sub_slicing=False,
         gpu_config=GpuConfig(requires_topology=False),
+        docker_platform=AMD_PLATFORM,
     ),
     'l4-8': SystemCharacteristics(
         topology='N/A',
@@ -297,6 +316,7 @@ UserFacingNameToSystemCharacteristics = {
         device_type='l4-8',
         supports_sub_slicing=False,
         gpu_config=GpuConfig(requires_topology=False),
+        docker_platform=AMD_PLATFORM,
     ),
     # A100-40gb-$CHIPSc
     'a100-40gb-1': SystemCharacteristics(
@@ -309,6 +329,7 @@ UserFacingNameToSystemCharacteristics = {
         device_type='a100-40gb-1',
         supports_sub_slicing=False,
         gpu_config=GpuConfig(requires_topology=False),
+        docker_platform=AMD_PLATFORM,
     ),
     'a100-40gb-2': SystemCharacteristics(
         topology='N/A',
@@ -320,6 +341,7 @@ UserFacingNameToSystemCharacteristics = {
         device_type='a100-40gb-2',
         supports_sub_slicing=False,
         gpu_config=GpuConfig(requires_topology=False),
+        docker_platform=AMD_PLATFORM,
     ),
     'a100-40gb-4': SystemCharacteristics(
         topology='N/A',
@@ -331,6 +353,7 @@ UserFacingNameToSystemCharacteristics = {
         device_type='a100-40gb-4',
         supports_sub_slicing=False,
         gpu_config=GpuConfig(requires_topology=False),
+        docker_platform=AMD_PLATFORM,
     ),
     'a100-40gb-8': SystemCharacteristics(
         topology='N/A',
@@ -342,6 +365,7 @@ UserFacingNameToSystemCharacteristics = {
         device_type='a100-40gb-8',
         supports_sub_slicing=False,
         gpu_config=GpuConfig(requires_topology=False),
+        docker_platform=AMD_PLATFORM,
     ),
     'gb200-4': SystemCharacteristics(
         topology='1x72',
@@ -356,7 +380,10 @@ UserFacingNameToSystemCharacteristics = {
             requires_topology=True,
             nccl_installer=INSTALLER_NCCL_RDMA_A4X,
             kjob_decorator_fn=rdma_decorator.decorate_kjob_template,
+            jobset_decorator_fn=rdma_decorator.decorate_jobset,
+            gpu_direct_name='rdma',
         ),
+        docker_platform=ARM_PLATFORM,
     ),
     'gb200-4-nolssd': SystemCharacteristics(
         topology='1x72',
@@ -371,7 +398,10 @@ UserFacingNameToSystemCharacteristics = {
             requires_topology=True,
             nccl_installer=INSTALLER_NCCL_RDMA_A4X,
             kjob_decorator_fn=rdma_decorator.decorate_kjob_template,
+            jobset_decorator_fn=rdma_decorator.decorate_jobset,
+            gpu_direct_name='rdma',
         ),
+        docker_platform=ARM_PLATFORM,
     ),
     'b200-8': SystemCharacteristics(
         topology='N/A',
@@ -386,7 +416,10 @@ UserFacingNameToSystemCharacteristics = {
             requires_topology=True,
             nccl_installer=INSTALLER_NCCL_RDMA,
             kjob_decorator_fn=rdma_decorator.decorate_kjob_template,
+            jobset_decorator_fn=rdma_decorator.decorate_jobset,
+            gpu_direct_name='rdma',
         ),
+        docker_platform=AMD_PLATFORM,
     ),
     'h200-141gb-8': SystemCharacteristics(
         topology='N/A',
@@ -401,7 +434,10 @@ UserFacingNameToSystemCharacteristics = {
             requires_topology=True,
             nccl_installer=INSTALLER_NCCL_RDMA,
             kjob_decorator_fn=rdma_decorator.decorate_kjob_template,
+            jobset_decorator_fn=rdma_decorator.decorate_jobset,
+            gpu_direct_name='rdma',
         ),
+        docker_platform=AMD_PLATFORM,
     ),
     # H100-80gb-$CHIPS
     'h100-80gb-8': SystemCharacteristics(
@@ -417,7 +453,10 @@ UserFacingNameToSystemCharacteristics = {
             requires_topology=True,
             nccl_installer=INSTALLER_NCCL_TCPX,
             kjob_decorator_fn=tcpx_decorator.decorate_kjob_template,
+            jobset_decorator_fn=tcpx_decorator.decorate_jobset,
+            gpu_direct_name='tcpx',
         ),
+        docker_platform=AMD_PLATFORM,
     ),
     # H100-mega-80gb-$CHIPS
     'h100-mega-80gb-8': SystemCharacteristics(
@@ -433,7 +472,10 @@ UserFacingNameToSystemCharacteristics = {
             requires_topology=True,
             nccl_installer=INSTALLER_NCCL_TCPXO,
             kjob_decorator_fn=tcpxo_decorator.decorate_kjob_template,
+            jobset_decorator_fn=tcpxo_decorator.decorate_jobset,
+            gpu_direct_name='tcpxo',
         ),
+        docker_platform=AMD_PLATFORM,
     ),
     # TPU system characteristics
     **get_tpu_system_characteristics_map(
@@ -444,6 +486,7 @@ UserFacingNameToSystemCharacteristics = {
         supported_topologies=['1x1x1'],
         tpu_type_requires_workload_policy=True,
         supports_sub_slicing=False,
+        docker_platform=AMD_PLATFORM,
     ),
     **get_tpu_system_characteristics_map(
         prefix='tpu7x',
@@ -452,6 +495,7 @@ UserFacingNameToSystemCharacteristics = {
         machine_type='tpu7x-standard-4t',
         tpu_type_requires_workload_policy=True,
         supports_sub_slicing=False,
+        docker_platform=AMD_PLATFORM,
         supported_topologies=generate_tpu_topologies(max_cubes=144),
         default_topologies=set([
             '12x12x12',
@@ -561,6 +605,7 @@ UserFacingNameToSystemCharacteristics = {
         machine_type='ct6e-standard-1t',
         supports_sub_slicing=False,
         supported_topologies=['1x1'],
+        docker_platform=AMD_PLATFORM,
     ),
     **get_tpu_system_characteristics_map(
         prefix='v6e',
@@ -571,6 +616,7 @@ UserFacingNameToSystemCharacteristics = {
         supported_topologies=[
             '2x2',
         ],
+        docker_platform=AMD_PLATFORM,
     ),
     **get_tpu_system_characteristics_map(
         prefix='v6e',
@@ -579,6 +625,7 @@ UserFacingNameToSystemCharacteristics = {
         machine_type='ct6e-standard-4t',
         supports_sub_slicing=True,
         supported_topologies=SUB_SLICING_TOPOLOGIES,
+        docker_platform=AMD_PLATFORM,
     ),
     **get_tpu_system_characteristics_map(
         prefix='v5p',
@@ -586,6 +633,7 @@ UserFacingNameToSystemCharacteristics = {
         gke_accelerator='tpu-v5p-slice',
         machine_type='ct5p-hightpu-4t',
         supports_sub_slicing=False,
+        docker_platform=AMD_PLATFORM,
         supported_topologies=generate_tpu_topologies(max_cubes=140),
         default_topologies=set([
             '2x2x1',
@@ -691,6 +739,7 @@ UserFacingNameToSystemCharacteristics = {
         tensorcores_per_chip=1,
         gke_accelerator='tpu-v5-lite-podslice',
         machine_type='ct5lp-hightpu-4t',
+        docker_platform=AMD_PLATFORM,
         supports_sub_slicing=False,
         supported_topologies=['2x4', '4x4', '4x8', '8x8', '8x16', '16x16'],
     ),
@@ -699,6 +748,7 @@ UserFacingNameToSystemCharacteristics = {
         tensorcores_per_chip=2,
         gke_accelerator='tpu-v4-podslice',
         machine_type='ct4p-hightpu-4t',
+        docker_platform=AMD_PLATFORM,
         supports_sub_slicing=False,
         supported_topologies=generate_tpu_topologies(
             max_cubes=64, enforce_nondecreasing=False
@@ -730,6 +780,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.CPU,
         device_type='m1-megamem-96-1',
         supports_sub_slicing=False,
+        docker_platform=AMD_PLATFORM,
     ),
     # n2-standard-#vCPUs-#VMs
     'n2-standard-64-1': SystemCharacteristics(
@@ -741,6 +792,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.CPU,
         device_type='n2-standard-64-1',
         supports_sub_slicing=False,
+        docker_platform=AMD_PLATFORM,
     ),
     'n2-standard-32-1': SystemCharacteristics(
         topology='N/A',
@@ -751,6 +803,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.CPU,
         device_type='n2-standard-32-1',
         supports_sub_slicing=False,
+        docker_platform=AMD_PLATFORM,
     ),
     'n2-standard-32-2': SystemCharacteristics(
         topology='N/A',
@@ -761,6 +814,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.CPU,
         device_type='n2-standard-32-2',
         supports_sub_slicing=False,
+        docker_platform=AMD_PLATFORM,
     ),
     'n2-standard-32-4': SystemCharacteristics(
         topology='N/A',
@@ -771,6 +825,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.CPU,
         device_type='n2-standard-32-4',
         supports_sub_slicing=False,
+        docker_platform=AMD_PLATFORM,
     ),
     'n2-standard-32-8': SystemCharacteristics(
         topology='N/A',
@@ -781,6 +836,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.CPU,
         device_type='n2-standard-32-8',
         supports_sub_slicing=False,
+        docker_platform=AMD_PLATFORM,
     ),
     'n2-standard-32-16': SystemCharacteristics(
         topology='N/A',
@@ -791,6 +847,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.CPU,
         device_type='n2-standard-32-16',
         supports_sub_slicing=False,
+        docker_platform=AMD_PLATFORM,
     ),
     'n2-standard-32-32': SystemCharacteristics(
         topology='N/A',
@@ -801,6 +858,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.CPU,
         device_type='n2-standard-32-32',
         supports_sub_slicing=False,
+        docker_platform=AMD_PLATFORM,
     ),
     'n2-standard-32-64': SystemCharacteristics(
         topology='N/A',
@@ -811,6 +869,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.CPU,
         device_type='n2-standard-32-64',
         supports_sub_slicing=False,
+        docker_platform=AMD_PLATFORM,
     ),
     'n2-standard-32-128': SystemCharacteristics(
         topology='N/A',
@@ -821,6 +880,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.CPU,
         device_type='n2-standard-32-128',
         supports_sub_slicing=False,
+        docker_platform=AMD_PLATFORM,
     ),
     'n2-standard-32-256': SystemCharacteristics(
         topology='N/A',
@@ -831,6 +891,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.CPU,
         device_type='n2-standard-32-256',
         supports_sub_slicing=False,
+        docker_platform=AMD_PLATFORM,
     ),
     'n2-standard-32-512': SystemCharacteristics(
         topology='N/A',
@@ -841,6 +902,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.CPU,
         device_type='n2-standard-32-512',
         supports_sub_slicing=False,
+        docker_platform=AMD_PLATFORM,
     ),
     'n2-standard-32-1024': SystemCharacteristics(
         topology='N/A',
@@ -851,6 +913,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.CPU,
         device_type='n2-standard-32-1024',
         supports_sub_slicing=False,
+        docker_platform=AMD_PLATFORM,
     ),
     'n2-standard-32-2048': SystemCharacteristics(
         topology='N/A',
@@ -861,6 +924,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.CPU,
         device_type='n2-standard-32-2048',
         supports_sub_slicing=False,
+        docker_platform=AMD_PLATFORM,
     ),
 }
 """ If you modify UserFacingNameToSystemCharacteristics you should also modify

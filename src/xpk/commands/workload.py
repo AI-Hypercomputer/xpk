@@ -14,11 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import inspect
+
 from ..core.blueprint.blueprint_generator import (
     a3high_device_type,
-    a3mega_device_type,
-    a3ultra_device_type,
-    a4_device_type,
+    a4x_device_types,
 )
 from ..core.cluster import (
     XPK_SA,
@@ -92,10 +92,7 @@ from ..core.workload import (
     get_cluster_location,
 )
 from ..core.workload_decorators import (
-    rdma_decorator,
     storage_decorator,
-    tcpx_decorator,
-    tcpxo_decorator,
 )
 from ..utils.console import ask_for_user_consent, xpk_exit, xpk_print
 from packaging.version import Version
@@ -106,6 +103,8 @@ from . import cluster_gcluster
 from .common import is_TAS_possible, validate_sub_slicing_system
 from ..utils.topology import is_topology_contained
 from ..utils.feature_flags import FeatureFlags
+from jinja2 import Environment, FileSystemLoader
+from ..utils.templates import get_templates_absolute_path
 
 WORKLOAD_CREATE_YAML = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
@@ -293,6 +292,7 @@ PW_WORKLOAD_CREATE_YAML = """
 """
 
 SUB_SLICING_MINIMUM_KUEUE_VERSION = Version('0.13.0')
+ARM_GPU_WORKLOAD_CREATE_JINJA_FILE = 'arm_gpu_workload_crate.yaml.j2'
 
 
 def workload_create_pathways(args) -> None:
@@ -518,28 +518,58 @@ def workload_create(args) -> None:
     if (
         system.device_type in cluster_gcluster.supported_device_types
         or system.device_type == a3high_device_type
+        or system.device_type in a4x_device_types
     ):
-      yml_string = A3_GPU_WORKLOAD_CREATE_YAML.format(
-          args=args,
-          container=container,
-          service_account=XPK_SA,
-          failure_policy_rules=failure_policy_rules,
-          pod_failure_policy=pod_failure_policy,
-          annotations=annotations,
-          placement_policy_label=(
-              create_placement_policy_label(system)
-              if is_placement_policy_supported(system)
-              else ''
-          ),
-      )
+      if system.device_type in a4x_device_types:
+        template_env = Environment(
+            loader=FileSystemLoader(searchpath=get_templates_absolute_path())
+        )
+        workload_create_yaml = template_env.get_template(
+            ARM_GPU_WORKLOAD_CREATE_JINJA_FILE
+        )
+        yml_string = workload_create_yaml.render(
+            workload=args.workload,
+            num_nodes=args.num_nodes,
+            ttl_seconds_after_finished=args.ttl_seconds_after_finished,
+            max_restarts=args.max_restarts,
+            priority=args.priority,
+            termination_grace_period_seconds=args.termination_grace_period_seconds,
+            docker_image_pull_secret=args.docker_image_pull_secret,
+            container=container,
+            service_account=XPK_SA,
+            failure_policy_rules=failure_policy_rules,
+            pod_failure_policy=pod_failure_policy,
+            annotations=annotations,
+            placement_policy_label=(
+                create_placement_policy_label(system)
+                if is_placement_policy_supported(system)
+                else ''
+            ),
+        )
+      else:
+        yml_string = A3_GPU_WORKLOAD_CREATE_YAML.format(
+            args=args,
+            container=container,
+            service_account=XPK_SA,
+            failure_policy_rules=failure_policy_rules,
+            pod_failure_policy=pod_failure_policy,
+            annotations=annotations,
+            placement_policy_label=(
+                create_placement_policy_label(system)
+                if is_placement_policy_supported(system)
+                else ''
+            ),
+        )
 
       sub_networks = get_cluster_subnetworks()
-      if args.device_type == a3high_device_type:
-        yml_string = tcpx_decorator.decorate_jobset(yml_string)
-      elif args.device_type == a3mega_device_type:
-        yml_string = tcpxo_decorator.decorate_jobset(yml_string, sub_networks)
-      elif args.device_type in [a3ultra_device_type, a4_device_type]:
-        yml_string = rdma_decorator.decorate_jobset(yml_string, sub_networks)
+
+      if system.gpu_config and callable(system.gpu_config.jobset_decorator_fn):
+        decorator_fn = system.gpu_config.jobset_decorator_fn
+        sig = inspect.signature(decorator_fn)
+        if len(sig.parameters) == 2:
+          yml_string = decorator_fn(yml_string, sub_networks)  # type: ignore[call-arg]
+        else:
+          yml_string = decorator_fn(yml_string)  # type: ignore[call-arg]
 
       if all_storages:
         yml_string = storage_decorator.decorate_jobset(yml_string, all_storages)

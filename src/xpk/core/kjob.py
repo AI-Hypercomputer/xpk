@@ -25,7 +25,6 @@ from kubernetes.client.rest import ApiException
 from ..utils import templates
 from ..utils.execution_context import is_dry_run
 from ..utils.console import xpk_exit, xpk_print
-from .capacity import H100_DEVICE_TYPE, H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE
 from .cluster import DEFAULT_NAMESPACE, XPK_SA, setup_k8s_env
 from .commands import (
     run_command_for_value,
@@ -52,7 +51,6 @@ from .storage import (
 )
 from .workload_decorators import (
     rdma_decorator,
-    tcpx_decorator,
     tcpxo_decorator,
 )
 from .workload_decorators.tcpxo_decorator import get_tcpxo_deamon_entry

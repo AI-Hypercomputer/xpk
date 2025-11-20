@@ -15,9 +15,9 @@ limitations under the License.
 """
 
 import argparse
-from xpk.parser.cluster import set_cluster_create_parser, set_cluster_create_pathways_parser, set_cluster_create_ray_parser
 import pytest
 from ..utils.feature_flags import FeatureFlags
+from xpk.parser.cluster import set_cluster_create_parser, set_cluster_create_pathways_parser, set_cluster_create_ray_parser
 
 
 @pytest.fixture(autouse=True)

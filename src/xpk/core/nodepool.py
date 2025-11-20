@@ -311,7 +311,7 @@ def run_gke_node_pool_create_command(
       command += (
           ' --accelerator'
           f' type={system.gke_accelerator},count={str(system.chips_per_vm)},gpu-driver-version=latest'
-          f' --no-enable-autoupgrade --scopes={CLOUD_PLATFORM_AUTH_SCOPE_URL}'
+          f' --scopes={CLOUD_PLATFORM_AUTH_SCOPE_URL}'
       )
       if device_type == H100_MEGA_DEVICE_TYPE:
         for i in range(1, 9):

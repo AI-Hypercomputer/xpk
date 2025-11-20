@@ -66,7 +66,7 @@ metadata:
 data:
   gb200-4: "2"
 
-[XPK] Temp file (3a9ed146a0957d51547a8bba2910b8c171c3edf6bc28bd8a5d65eff2cb98c7b5) content: 
+[XPK] Temp file (8c9b219bd16f12ab6c830266c7d63c5594f1c7edd7563e427766ac61009128e5) content: 
 kind: ConfigMap
 apiVersion: v1
 metadata:

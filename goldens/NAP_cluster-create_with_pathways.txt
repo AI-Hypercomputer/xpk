@@ -102,7 +102,7 @@ data:
   minimum_chips: "0"
   maximum_chips: "4"
 
-[XPK] Temp file (347891af112f934c09758320f0823117f3be4f2b914bfdcecdffb8b16cd9d4e9) content: 
+[XPK] Temp file (d3d865e6e02cf401780b3f270026845c6ddcbcab6b7e289fcaca01002fcc7d59) content: 
 kind: ConfigMap
 apiVersion: v1
 metadata:

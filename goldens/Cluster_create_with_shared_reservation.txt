@@ -64,7 +64,7 @@ metadata:
 data:
   tpu7x-8: "1"
 
-[XPK] Temp file (abb7cc3b2efa93a0fd09d40061e276753f2615d25c2ca6db272083a9e761255a) content: 
+[XPK] Temp file (49ab8deff56a353bf92d4374467c99ab65880ff8932b0bf2f9c10788354a112c) content: 
 kind: ConfigMap
 apiVersion: v1
 metadata:

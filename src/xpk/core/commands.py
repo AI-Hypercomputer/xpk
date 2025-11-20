@@ -201,10 +201,7 @@ def run_command_with_updates(command, task, verbose=True) -> int:
           xpk_print(f'Task: `{task}` terminated with code `{return_code}`')
           return return_code
   else:
-    xpk_print(
-        f'Task: `{task}` is implemented by `{command}`, hiding output unless'
-        ' there is an error.'
-    )
+    xpk_print(f'Task: `{task}` is implemented by `{command}`')
     try:
       subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError as e:
@@ -277,10 +274,7 @@ def run_command_for_value(
           return return_code, f'{out_str}\n{err_str}'
   else:
     if not quiet:
-      xpk_print(
-          f'Task: `{task}` is implemented by `{command}`, hiding output unless'
-          ' there is an error.'
-      )
+      xpk_print(f'Task: `{task}` is implemented by `{command}`')
     try:
       output = subprocess.check_output(
           command,

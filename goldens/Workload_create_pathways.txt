@@ -17,7 +17,7 @@ kubectl get pods -n pathways-job-system --no-headers -o custom-columns=NAME:.met
 gcloud container clusters list --project=golden-project --filter=name=golden-cluster --format="value(location)"
 [XPK] Task: `Get All Node Pools` is implemented by the following command not running since it is a dry run. 
 gcloud beta container node-pools list --cluster golden-cluster --project=golden-project --location=us-central1 --format="csv[no-heading](name)"
-[XPK] Temp yaml (4b6736a12db8ea0f78ce793fd0d4ee0c94c652303f1dc0fecad085ea0993f688) content: 
+[XPK] Temp file (4b6736a12db8ea0f78ce793fd0d4ee0c94c652303f1dc0fecad085ea0993f688) content: 
 FROM python:3.10
 
   # Set the working directory in the container
@@ -36,7 +36,7 @@ docker buildx build --platform=linux/amd64 -f 4b6736a12db8ea0f78ce793fd0d4ee0c94
 docker tag dry-run-runner gcr.io/golden-project/dry-run-runner:prefix-current
 [XPK] Task: `Upload Docker Image` is implemented by the following command not running since it is a dry run. 
 docker push gcr.io/golden-project/dry-run-runner:prefix-current
-[XPK] Temp yaml (6fb0f350cf4e0dccc71f77392d12db3de6371d5148519657046613794358bfce) content: 
+[XPK] Temp file (6fb0f350cf4e0dccc71f77392d12db3de6371d5148519657046613794358bfce) content: 
 
     apiVersion: pathways-job.pathways.domain/v1
     kind: PathwaysJob

@@ -53,7 +53,7 @@ def write_tmp_file(payload: str) -> str:
   """
   if is_dry_run():
     name = _hash_filename(payload)
-    xpk_print(f'Temp yaml ({name}) content: \n{payload}')
+    xpk_print(f'Temp file ({name}) content: \n{payload}')
     return name
 
   with tempfile.NamedTemporaryFile(delete=False) as tmp:

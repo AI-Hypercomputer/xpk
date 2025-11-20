@@ -66,6 +66,14 @@ all zones.
         --num-slices=4 --flex
     ```
 
+*   Cluster Create with CPU and/or memory quota:
+    ```shell
+    xpk cluster create \
+    --cluster xpk-test --tpu-type=v5litepod-16 \
+    --cpu-limit=112 --memory-limit=192Gi \
+    --on-demand
+    ```
+
 * Cluster Create for Pathways:
 Pathways compatible cluster can be created using `cluster create-pathways`.
     ```shell

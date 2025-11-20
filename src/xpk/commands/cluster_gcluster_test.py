@@ -21,6 +21,7 @@ import pytest
 from xpk.commands.cluster_gcluster import cluster_create
 from xpk.core.kueue_manager import KueueConfig
 from xpk.core.system_characteristics import AcceleratorType, SystemCharacteristics
+from xpk.utils.versions import ReleaseChannel
 
 
 @pytest.fixture
@@ -103,7 +104,11 @@ def test_install_kueue_standard(
   )
   mock_get_total_chips.return_value = 16
 
-  cluster_create(mock_args)
+  cluster_create(
+      mock_args,
+      release_channel=ReleaseChannel.RAPID,
+      gke_control_plane_version="1.2.3",
+  )
 
   mock_cluster_create_deps["xpk_exit"].assert_called_with(0)
   mock_kueue_manager = mock_cluster_create_deps["KueueManager"]
@@ -153,7 +158,11 @@ def test_install_kueue_with_autoprovisioning(
   mock_autoprovisioning_config.maximum_chips = 128
   mock_enable_autoprovisioning.return_value = (mock_autoprovisioning_config, 0)
 
-  cluster_create(mock_args)
+  cluster_create(
+      mock_args,
+      release_channel=ReleaseChannel.RAPID,
+      gke_control_plane_version="1.2.3",
+  )
 
   mock_cluster_create_deps["xpk_exit"].assert_called_with(0)
   mock_enable_autoprovisioning.assert_called_once_with(mock_args, mock_system)

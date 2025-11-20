@@ -15,7 +15,20 @@ limitations under the License.
 """
 
 import pytest
-from .gcloud_context import get_cluster_location, zone_to_region
+from unittest.mock import MagicMock
+from .gcloud_context import (
+    get_cluster_location,
+    get_gke_control_plane_version,
+    get_gke_server_config,
+    GkeServerConfig,
+    zone_to_region,
+)
+from ..utils.versions import ReleaseChannel
+
+
+@pytest.fixture(autouse=True)
+def xpk_print(mocker):
+  return mocker.patch("xpk.core.gcloud_context.xpk_print")
 
 
 def test_zone_to_region_raises_when_zone_is_invalid():
@@ -94,3 +107,100 @@ def test_get_cluster_location_invokes_command_for_different_input_args(mocker):
   get_cluster_location(project="project6", name="name6", zone="us-central1-a")
 
   assert mock.call_count == 2
+
+
+def test_get_gke_server_config_success(mocker):
+  mock_run_command = mocker.patch(
+      "xpk.core.gcloud_context.run_command_for_value",
+      side_effect=[
+          (0, "1.2.3"),
+          (0, "1.2.3;1.2.4;1.3.0"),
+      ],
+  )
+  args = mocker.Mock(project="test-project", zone="us-central1")
+
+  return_code, config = get_gke_server_config(args, ReleaseChannel.STABLE)
+
+  assert return_code == 0
+  assert isinstance(config, GkeServerConfig)
+  assert config.default_gke_version == "1.2.3"
+  assert config.valid_versions == {"1.2.3", "1.2.4", "1.3.0"}
+  assert mock_run_command.call_count == 2
+
+
+def test_get_gke_server_config_fails_on_default_version_command(mocker):
+  mocker.patch(
+      "xpk.core.gcloud_context.run_command_for_value",
+      return_value=(1, "error"),
+  )
+  args = mocker.Mock(project="test-project", zone="us-central1")
+
+  return_code, config = get_gke_server_config(args, ReleaseChannel.STABLE)
+
+  assert return_code == 1
+  assert config is None
+
+
+def test_get_gke_server_config_fails_on_valid_versions_command(mocker):
+  mocker.patch(
+      "xpk.core.gcloud_context.run_command_for_value",
+      side_effect=[(0, "1.2.3"), (1, "error")],
+  )
+  args = mocker.Mock(project="test-project", zone="us-central1")
+
+  return_code, config = get_gke_server_config(args, ReleaseChannel.STABLE)
+
+  assert return_code == 1
+  assert config is None
+
+
+def test_get_gke_control_plane_version_uses_default_when_not_specified(mocker):
+  args = mocker.Mock(gke_version=None)
+  gke_server_config = GkeServerConfig(
+      default_gke_version="1.2.3", valid_versions={"1.2.3", "1.2.4"}
+  )
+
+  return_code, version = get_gke_control_plane_version(args, gke_server_config)
+
+  assert return_code == 0
+  assert version == "1.2.3"
+
+
+def test_get_gke_control_plane_version_uses_user_version_when_valid(mocker):
+  args = mocker.Mock(gke_version="1.2.4")
+  gke_server_config = GkeServerConfig(
+      default_gke_version="1.2.3", valid_versions={"1.2.3", "1.2.4"}
+  )
+
+  return_code, version = get_gke_control_plane_version(args, gke_server_config)
+
+  assert return_code == 0
+  assert version == "1.2.4"
+
+
+def test_get_gke_control_plane_version_fails_for_invalid_user_version(
+    mocker, xpk_print: MagicMock
+):
+  args = mocker.Mock(gke_version="1.2.5")
+  gke_server_config = GkeServerConfig(
+      default_gke_version="1.2.3", valid_versions={"1.2.3", "1.2.4"}
+  )
+
+  return_code, version = get_gke_control_plane_version(args, gke_server_config)
+
+  assert return_code == 1
+  assert version is None
+  assert "Planned GKE Version: 1.2.5" in xpk_print.mock_calls[0].args[0]
+  assert (
+      "Recommended / Default GKE Version: 1.2.3"
+      in xpk_print.mock_calls[0].args[0]
+  )
+  assert (
+      "Error: Planned GKE Version 1.2.5 is not valid."
+      in xpk_print.mock_calls[1].args[0]
+  )
+  assert (
+      "Please select a gke version from the above list using --gke-version=x"
+      " argument or rely on the default gke version: 1.2.3"
+      in xpk_print.mock_calls[2].args[0]
+  )

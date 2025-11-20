@@ -22,6 +22,7 @@ import ruamel.yaml
 from xpk.core.blueprint.blueprint_definitions import Blueprint
 from xpk.core.blueprint.blueprint_generator import BlueprintGenerator
 from xpk.core.capacity import CapacityType
+from xpk.utils.versions import ReleaseChannel
 
 yaml = ruamel.yaml.YAML()
 
@@ -60,6 +61,8 @@ def test_generate_a3_mega_blueprint():
       reservation="test-reservation",
       capacity_type=CapacityType.RESERVATION,
       system_node_pool_min_node_count=5,
+      release_channel=ReleaseChannel.RAPID,
+      cluster_version="1.2.3",
   )
 
   assert bp.blueprint_file.endswith("/prefix/xpk-gke-a3-megagpu.yaml")
@@ -99,6 +102,8 @@ def test_generate_a3_mega_spot_blueprint():
       auth_cidr="10.0.0.0/32",
       capacity_type=CapacityType.SPOT,
       system_node_pool_min_node_count=5,
+      release_channel=ReleaseChannel.RAPID,
+      cluster_version="1.2.3",
   )
 
   assert bp.blueprint_file.endswith("/prefix/xpk-gke-a3-megagpu.yaml")
@@ -135,6 +140,8 @@ def test_generate_a3_ultra_blueprint():
       capacity_type=CapacityType.RESERVATION,
       gcs_bucket="test-bucket",
       prefix="testdir",
+      release_channel=ReleaseChannel.RAPID,
+      cluster_version="1.2.3",
   )
   with open(a3_ultra_yaml_test_path, encoding="utf-8") as stream:
     ctk_yaml = yaml.load(stream)
@@ -180,6 +187,8 @@ def test_generate_a4_blueprint():
       capacity_type=CapacityType.RESERVATION,
       gcs_bucket="test-bucket",
       prefix="testdir",
+      release_channel=ReleaseChannel.RAPID,
+      cluster_version="1.2.3",
   )
   with open(a4_yaml_test_path, encoding="utf-8") as stream:
     ctk_yaml = yaml.load(stream)

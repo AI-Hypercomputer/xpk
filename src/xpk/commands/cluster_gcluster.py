@@ -17,6 +17,7 @@ limitations under the License.
 import os
 
 from ..utils.feature_flags import FeatureFlags
+from ..utils.versions import ReleaseChannel
 from ..utils.execution_context import is_dry_run
 from ..core.kueue_manager import KueueConfig, KueueManager
 from ..core.nap import enable_autoprovisioning_on_cluster
@@ -51,11 +52,15 @@ gcluster_working_dir = os.path.abspath('xpkclusters/gcluster-out')
 gcloud_cfg_path = os.path.expanduser('~/.config/gcloud')
 
 
-def cluster_create(args) -> None:
+def cluster_create(
+    args, gke_control_plane_version: str, release_channel: ReleaseChannel
+) -> None:
   """Function around cluster creation using Cluster toolkit.
 
   Args:
     args: user provided arguments for running the command.
+    gke_control_plane_version: the GKE version used for the new cluster.
+    release_channel:t the release channel used for the new cluster.
 
   Returns:
     0 if successful and 1 otherwise.
@@ -79,7 +84,13 @@ def cluster_create(args) -> None:
     )
   gcm = prepare_gcluster_manager(remote_state_client)
 
-  bp = generate_blueprint(blueprint_name=unique_name, args=args, prefix=prefix)
+  bp = generate_blueprint(
+      blueprint_name=unique_name,
+      args=args,
+      prefix=prefix,
+      gke_control_plane_version=gke_control_plane_version,
+      release_channel=release_channel,
+  )
 
   # staging: sending the blueprint file(s) to gcluster's working directory
   if is_dry_run():
@@ -286,7 +297,11 @@ def validate_state_gcs_bucket(args):
 
 
 def generate_blueprint(
-    blueprint_name, args, prefix=None
+    blueprint_name,
+    args,
+    gke_control_plane_version: str,
+    release_channel: ReleaseChannel,
+    prefix=None,
 ) -> BlueprintGeneratorOutput:
   capacity_type, return_code = get_capacity_type(args)
   if return_code != 0:
@@ -341,6 +356,8 @@ def generate_blueprint(
           system_node_pool_machine_type=args.default_pool_cpu_machine_type,
           system_node_pool_min_node_count=args.default_pool_cpu_num_nodes,
           gcs_bucket=args.cluster_state_gcs_bucket,
+          cluster_version=gke_control_plane_version,
+          release_channel=release_channel,
       )
     if args.device_type == a3ultra_device_type:
       num_nodes = args.num_nodes if not args.num_nodes is None else 2
@@ -359,6 +376,8 @@ def generate_blueprint(
           system_node_pool_machine_type=args.default_pool_cpu_machine_type,
           system_node_pool_min_node_count=args.default_pool_cpu_num_nodes,
           gcs_bucket=args.cluster_state_gcs_bucket,
+          cluster_version=gke_control_plane_version,
+          release_channel=release_channel,
       )
     if args.device_type == a4_device_type:
       num_nodes = args.num_nodes if not args.num_nodes is None else 2
@@ -375,6 +394,8 @@ def generate_blueprint(
           capacity_type=capacity_type,
           system_node_pool_machine_type=args.default_pool_cpu_machine_type,
           system_node_pool_min_node_count=args.default_pool_cpu_num_nodes,
+          cluster_version=gke_control_plane_version,
+          release_channel=release_channel,
       )
   xpk_print('Device type is not supported.')
   xpk_exit(1)

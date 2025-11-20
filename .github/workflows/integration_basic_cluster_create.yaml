@@ -84,7 +84,7 @@ jobs:
               run: xpk job ls --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep 'xpk-def-app-profile-slurm-'
             - name: Get created job name
               run: |
-                  JOB_NAME=$(xpk job ls --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep 'xpk-def-app-profile-slurm-' | head -1 | awk '{print $1}')
+                  JOB_NAME=$(xpk job ls --cluster $TPU_CLUSTER_NAME --zone=us-central2-b | grep 'xpk-def-app-profile-slurm-' | grep 'multislice-queue' | head -1 | awk '{print $1}')
                   echo "JOB_NAME=${JOB_NAME}" >> $GITHUB_ENV
             - name: Check job spec
               run: |

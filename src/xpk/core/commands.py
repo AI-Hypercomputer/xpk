@@ -195,8 +195,8 @@ def run_command_with_updates(command, task, verbose=True) -> int:
         return_code = child.poll()
         if return_code is None:
           xpk_print(f'Waiting for `{task}`, for {i} seconds...', end='\r')
-          time.sleep(1)
-          i += 1
+          time.sleep(10)
+          i += 10
         else:
           xpk_print(f'Task: `{task}` terminated with code `{return_code}`')
           return return_code

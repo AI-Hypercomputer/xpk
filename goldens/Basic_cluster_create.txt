@@ -52,7 +52,7 @@ kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="Conf
 [XPK] Pretending all the jobs succeeded
 [XPK] Create or delete node pool request complete.
 [XPK] Creating ConfigMap for cluster
-[XPK] Temp yaml (0604d72ef175c94fc796d8f02cff009b4241e85d444d22d414a56a47764d7bbb) content: 
+[XPK] Temp file (0604d72ef175c94fc796d8f02cff009b4241e85d444d22d414a56a47764d7bbb) content: 
 kind: ConfigMap
 apiVersion: v1
 metadata:
@@ -60,7 +60,7 @@ metadata:
 data:
   tpu7x-8: "1"
 
-[XPK] Temp yaml (51bf42f3a2eb3734b89e650bc26bead709461fa30865893815a078a04f7d7444) content: 
+[XPK] Temp file (51bf42f3a2eb3734b89e650bc26bead709461fa30865893815a078a04f7d7444) content: 
 kind: ConfigMap
 apiVersion: v1
 metadata:
@@ -77,7 +77,7 @@ data:
 kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-sigs/jobset/releases/download/v0.8.0/manifests.yaml
 [XPK] Task: `Count total nodes` is implemented by the following command not running since it is a dry run. 
 kubectl get node --no-headers | wc -l
-[XPK] Temp yaml (1b31e624e490f9c8c4ef4e369f08d3fa467990af5a261e4405bd045265d70e95) content: 
+[XPK] Temp file (1b31e624e490f9c8c4ef4e369f08d3fa467990af5a261e4405bd045265d70e95) content: 
 
 apiVersion: apps/v1
 kind: Deployment
@@ -174,7 +174,7 @@ kubectl get deployment kueue-controller-manager -n kueue-system -o jsonpath='{.s
 kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-sigs/kueue/releases/download/v0.14.3/manifests.yaml
 [XPK] Task: `Wait for Kueue to be available` is implemented by the following command not running since it is a dry run. 
 kubectl wait deploy/kueue-controller-manager -n kueue-system --for=condition=available --timeout=10m
-[XPK] Temp yaml (ce52d2868b681f478f3f12e5696b1609e68b442a32f7f82603ba7064b825cf4f) content: 
+[XPK] Temp file (ce52d2868b681f478f3f12e5696b1609e68b442a32f7f82603ba7064b825cf4f) content: 
 
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: ResourceFlavor
@@ -285,7 +285,7 @@ kubectl kjob printcrds | kubectl apply --server-side -f -
 [XPK] Creating kjob CRDs succeeded
 [XPK] Task: `GKE Cluster Get ConfigMap` is implemented by the following command not running since it is a dry run. 
 kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="ConfigData:data" --no-headers=true
-[XPK] Temp yaml (4abb796ed6e7c9d7256a51f13124efd989fc12ee83839bed432fcf7d64f68e61) content: 
+[XPK] Temp file (4abb796ed6e7c9d7256a51f13124efd989fc12ee83839bed432fcf7d64f68e61) content: 
 
   apiVersion: kjobctl.x-k8s.io/v1alpha1
   kind: JobTemplate
@@ -315,7 +315,7 @@ kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="Conf
 
 [XPK] Task: `Creating JobTemplate` is implemented by the following command not running since it is a dry run. 
 kubectl apply -f 4abb796ed6e7c9d7256a51f13124efd989fc12ee83839bed432fcf7d64f68e61
-[XPK] Temp yaml (a63aa3c4593c38ad90671fd8b067d1886f6313ad558379b364b51791aa50f4e8) content: 
+[XPK] Temp file (a63aa3c4593c38ad90671fd8b067d1886f6313ad558379b364b51791aa50f4e8) content: 
 
 apiVersion: v1
 kind: PodTemplate
@@ -342,7 +342,7 @@ template:
 
 [XPK] Task: `Creating PodTemplate` is implemented by the following command not running since it is a dry run. 
 kubectl apply -f a63aa3c4593c38ad90671fd8b067d1886f6313ad558379b364b51791aa50f4e8
-[XPK] Temp yaml (1d13ddebae3c90a05ba26b312df088982dd0df0edc4f4013b88384e476c20486) content: 
+[XPK] Temp file (1d13ddebae3c90a05ba26b312df088982dd0df0edc4f4013b88384e476c20486) content: 
 
 apiVersion: kjobctl.x-k8s.io/v1alpha1
 kind: ApplicationProfile

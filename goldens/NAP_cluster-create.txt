@@ -54,7 +54,7 @@ kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="Conf
 [XPK] Enabling Autoprovisioning
 [XPK] Default Chips quota is minimum: 0, maximum: 4.
 [XPK] Chips quota is minimum: 0, maximum: 4. XPK will autoprovision 4 chips based on incoming workload requests, keeping at least 0 available at all times, and maximum of 4. If the difference (4 chips) is small, rescaling will not work well.
-[XPK] Temp yaml (6062bfee91f21efca86f2c3261129f06b1896ad9b68d2ecdba9589bea9e15ddf) content: 
+[XPK] Temp file (6062bfee91f21efca86f2c3261129f06b1896ad9b68d2ecdba9589bea9e15ddf) content: 
 
 management:
   autoRepair: true
@@ -91,7 +91,7 @@ gcloud beta container node-pools list --cluster golden-cluster --project=golden-
 [XPK] Breaking up a total of 0 commands into 0 batches
 [XPK] Pretending all the jobs succeeded
 [XPK] Creating ConfigMap for cluster
-[XPK] Temp yaml (bdf76c6250b016c93566ca5b6d43bcdb2fcc36830987ecceb29d8e314a0dc4e5) content: 
+[XPK] Temp file (bdf76c6250b016c93566ca5b6d43bcdb2fcc36830987ecceb29d8e314a0dc4e5) content: 
 kind: ConfigMap
 apiVersion: v1
 metadata:
@@ -101,7 +101,7 @@ data:
   minimum_chips: "0"
   maximum_chips: "4"
 
-[XPK] Temp yaml (90318545b36cafe80f15c3973d9db1c802a9b0f08f3c4ac766a48f1f668ecf80) content: 
+[XPK] Temp file (90318545b36cafe80f15c3973d9db1c802a9b0f08f3c4ac766a48f1f668ecf80) content: 
 kind: ConfigMap
 apiVersion: v1
 metadata:
@@ -118,7 +118,7 @@ data:
 kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-sigs/jobset/releases/download/v0.8.0/manifests.yaml
 [XPK] Task: `Count total nodes` is implemented by the following command not running since it is a dry run. 
 kubectl get node --no-headers | wc -l
-[XPK] Temp yaml (1b31e624e490f9c8c4ef4e369f08d3fa467990af5a261e4405bd045265d70e95) content: 
+[XPK] Temp file (1b31e624e490f9c8c4ef4e369f08d3fa467990af5a261e4405bd045265d70e95) content: 
 
 apiVersion: apps/v1
 kind: Deployment
@@ -215,7 +215,7 @@ kubectl get deployment kueue-controller-manager -n kueue-system -o jsonpath='{.s
 kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-sigs/kueue/releases/download/v0.14.3/manifests.yaml
 [XPK] Task: `Wait for Kueue to be available` is implemented by the following command not running since it is a dry run. 
 kubectl wait deploy/kueue-controller-manager -n kueue-system --for=condition=available --timeout=10m
-[XPK] Temp yaml (40a7aac5b047c750ee98477984af3d46acd60d164d852eccd1b47a21c4155f2d) content: 
+[XPK] Temp file (40a7aac5b047c750ee98477984af3d46acd60d164d852eccd1b47a21c4155f2d) content: 
 
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: ResourceFlavor
@@ -326,7 +326,7 @@ kubectl kjob printcrds | kubectl apply --server-side -f -
 [XPK] Creating kjob CRDs succeeded
 [XPK] Task: `GKE Cluster Get ConfigMap` is implemented by the following command not running since it is a dry run. 
 kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="ConfigData:data" --no-headers=true
-[XPK] Temp yaml (4abb796ed6e7c9d7256a51f13124efd989fc12ee83839bed432fcf7d64f68e61) content: 
+[XPK] Temp file (4abb796ed6e7c9d7256a51f13124efd989fc12ee83839bed432fcf7d64f68e61) content: 
 
   apiVersion: kjobctl.x-k8s.io/v1alpha1
   kind: JobTemplate
@@ -356,7 +356,7 @@ kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="Conf
 
 [XPK] Task: `Creating JobTemplate` is implemented by the following command not running since it is a dry run. 
 kubectl apply -f 4abb796ed6e7c9d7256a51f13124efd989fc12ee83839bed432fcf7d64f68e61
-[XPK] Temp yaml (a63aa3c4593c38ad90671fd8b067d1886f6313ad558379b364b51791aa50f4e8) content: 
+[XPK] Temp file (a63aa3c4593c38ad90671fd8b067d1886f6313ad558379b364b51791aa50f4e8) content: 
 
 apiVersion: v1
 kind: PodTemplate
@@ -383,7 +383,7 @@ template:
 
 [XPK] Task: `Creating PodTemplate` is implemented by the following command not running since it is a dry run. 
 kubectl apply -f a63aa3c4593c38ad90671fd8b067d1886f6313ad558379b364b51791aa50f4e8
-[XPK] Temp yaml (1d13ddebae3c90a05ba26b312df088982dd0df0edc4f4013b88384e476c20486) content: 
+[XPK] Temp file (1d13ddebae3c90a05ba26b312df088982dd0df0edc4f4013b88384e476c20486) content: 
 
 apiVersion: kjobctl.x-k8s.io/v1alpha1
 kind: ApplicationProfile

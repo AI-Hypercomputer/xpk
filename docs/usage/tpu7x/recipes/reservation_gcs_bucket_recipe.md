@@ -111,11 +111,11 @@ Before you start, complete the following steps:
 
 1. Create a GCS bucket by running the commands below:
 
-  ```shell
-  export BASE_OUTPUT_DIR="gs://<your_gcs_bucket>" # Output directory for model training
-  gcloud storage buckets create ${BASE_OUTPUT_DIR} --project=${PROJECT_ID} --location=US \
-      --default-storage-class=STANDARD --uniform-bucket-level-access
-  ```
+    ```shell
+    export BASE_OUTPUT_DIR="gs://<your_gcs_bucket>" # Output directory for model training
+    gcloud storage buckets create ${BASE_OUTPUT_DIR} --project=${PROJECT_ID} --location=US \
+        --default-storage-class=STANDARD --uniform-bucket-level-access
+    ```
 
 1. Run a MaxText workload on the cluster.
 

@@ -14,25 +14,44 @@
  limitations under the License.
  -->
 
-# Reservation and GCS bucket recipe
+# Run training workload with Ironwood and regular/gSC/DWS Calendar reservations using GCS Bucket storage
 
-## Cluster Create with reservation
+## Create a cluster with regular/gSC/DWS Calendar reservation
+
+Use the following instructions if you have access to regular reservations or gSupercomputer (gSC) reservation or DWS Calendar reservation.
+
+### Create a single-NIC, single slice cluster
 
 1. Set the following environment variables:
 
-    > **NOTE1:** For single-host provisioning use an ACCELARATOR_TYPE with any topology that results to 8 or less chips, e.g. tpu7x-2x2x1 or tpu7x-8. For multi-host provisioning use an ACCELARATOR_TYPE with any topology that results to more than 8 chips, e.g. tpu7x-2x2x2 or tpu7x-16.
+    > **NOTE:** For multi-host provisioning use an ACCELERATOR_TYPE with any topology that results to more than 8 chips, e.g. `tpu7x-2x2x2` or `tpu7x-16`. For single-host provisioning use an ACCELERATOR_TYPE with any topology that results to 8 or less chips, e.g. `tpu7x-2x2x1` or `tpu7x-8`.
 
-    > **NOTE2:** The reservation can be of any type e.g. DWS Calendar reservation, gSC reservation or non-gSC reservation.
+    > **NOTE:** The reservation can be of any type e.g. DWS Calendar reservation, gSC reservation or non-gSC reservation.
 
     ```shell
     export PROJECT_ID=<project_id> # Your GCP project name
     export ZONE=<zone> # Example: us-central1-c
     export CLUSTER_NAME=<cluster_name> # Your cluster name
-    export ACCELERATOR_TYPE=<tpu_type> # Example:tpu7x-4x4x8, For a list of supported topologies, see [Supported configurations](/tpu/docs/tpu7x#configurations)
+    # For a list of supported topologies, see: https://docs.cloud.google.com/tpu/docs/tpu/docs/tpu7x#configurations
+    export ACCELERATOR_TYPE=<tpu_type> # Example:tpu7x-2x2x2
     export RESERVATION_NAME=<reservation_name> # Your TPU reservation name if within the same project. For shared project use "projects/<project_number>/reservations/<reservation_name>"
     ```
 
-1. Follow the instructions in the [Configure MTU](https://docs.cloud.google.com/tpu/docs/v6e-training#configure_mtu) section to optimize your network configuration.
+1. Set up your network configuration.
+
+    ```shell
+    export NETWORK_NAME=<network_name> # Your network name
+    export SUBNET_NAME=<subnet_name> # Your subnet name
+    export NETWORK_FW_NAME=${NETWORK_NAME}-privatefirewall # Your firewall name
+    export IP_RANGE=<ip_range> # Your IP range in CIDR notation, e.g. 10.0.0.0/24
+    export REGION=${ZONE%-*}
+    gcloud compute networks create ${NETWORK_NAME} --mtu=8896 --project=${PROJECT_ID} \
+        --subnet-mode=custom --bgp-routing-mode=regional
+    gcloud compute networks subnets create ${SUBNET_NAME} --project=${PROJECT_ID} \
+        --network=${NETWORK_NAME} --region=${REGION} --range=${IP_RANGE}
+    gcloud compute firewall-rules create ${NETWORK_FW_NAME} --network=${NETWORK_NAME} \
+        --allow tcp,icmp,udp --project=${PROJECT_ID}
+    ```
 
 1. Populate the `${CLUSTER_ARGUMENTS}` variable, which you'll use in the `xpk cluster create` command:
 
@@ -40,7 +59,7 @@
     export CLUSTER_ARGUMENTS="--network=${NETWORK_NAME} --subnetwork=${SUBNET_NAME}"
     ```
 
-1. Create your {{gke_name_short}} cluster with TPU7x node pools using the `xpk cluster create` command:
+1. Create your GKE cluster with TPU7x node pools using the `xpk cluster create` command:
 
     ```shell
     xpk cluster create \
@@ -64,15 +83,52 @@
 1. Add a maintenance exclusion to prevent upgrades for the cluster:
 
     ```shell
-    export EXCLUSION_START_TIME=<exclusion_start_time> # Your selected start time for the maintenance exclusion in `YYYY-MM-DDTHH:MM:SSZ` format, e.g. "2025-11-24T00:00:00Z"
-    export EXCLUSION_END_TIME=<exclusion_end_time> # Your selected end time for the maintenance exclusion in `YYYY-MM-DDTHH:MM:SSZ` format, e.g. "2025-12-24T00:00:00Z"
+    # Your selected start time for the maintenance exclusion in
+    # `YYYY-MM-DDTHH:MM:SSZ` format, e.g. "2025-11-24T00:00:00Z"
+    export EXCLUSION_START_TIME=<exclusion_start_time>
+    # Your selected end time for the maintenance exclusion in
+    # `YYYY-MM-DDTHH:MM:SSZ` format, e.g. "2025-12-24T00:00:00Z"
+    export EXCLUSION_END_TIME=<exclusion_end_time>
     ```
 
     ```shell
     gcloud container clusters update ${CLUSTER_NAME} \
-        --zone=${ZONE} \
+        --region=${REGION} \
+        --project=${PROJECT_ID} \
         --add-maintenance-exclusion-name="no-upgrade-next-month" \
         --add-maintenance-exclusion-start="${EXCLUSION_START_TIME}" \
         --add-maintenance-exclusion-end="${EXCLUSION_END_TIME}" \
         --add-maintenance-exclusion-scope="no_upgrades"
+    ```
+
+1. Create a GCS bucket by running the commands below:
+
+  ```shell
+  export BASE_OUTPUT_DIR="gs://<your_gcs_bucket>" # Output directory for model training
+  gcloud storage buckets create ${BASE_OUTPUT_DIR} --project=${PROJECT_ID} --location=US \
+      --default-storage-class=STANDARD --uniform-bucket-level-access
+  ```
+
+1. Run a MaxText workload on the cluster.
+
+    ```shell
+    export MAXTEXT_COMMAND="JAX_PLATFORMS=tpu,cpu \
+      ENABLE_PJRT_COMPATIBILITY=true \
+      python3 src/MaxText/train.py src/MaxText/configs/base.yml \
+          base_output_directory=$BASE_OUTPUT_DIR \
+          dataset_type=synthetic \
+          per_device_batch_size=2 \
+          enable_checkpointing=false \
+          gcs_metrics=true \
+          run_name=maxtext_xpk \
+          steps=30"
+
+    xpk workload create \
+        --cluster ${CLUSTER_NAME} \
+        --docker-image us-central1-docker.pkg.dev/sikoram-project/xpk-repo/xpk-maxtext:v1 \
+        --workload maxtext-1b-$(date +%H%M) \
+        --tpu-type=${ACCELERATOR_TYPE} \
+        --zone ${ZONE} \
+        --project ${PROJECT_ID} \
+        --command "${MAXTEXT_COMMAND}"
     ```

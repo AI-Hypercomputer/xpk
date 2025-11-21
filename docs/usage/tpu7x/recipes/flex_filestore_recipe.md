@@ -14,22 +14,43 @@
  limitations under the License.
  -->
 
-# Flex and Filestore recipe
+# Run training workload with Ironwood with flex-start using Filestore storage
 
-## Cluster Create with flex provisioning
+## Create a cluster with flex-start provisioning
+
+### Create a single-NIC, single slice cluster
+
+Currently flex start provisioning for Ironwood works only in single slice and multi-host or multi-slice and single host setups. More options will be added soon
 
 1. Set the following environment variables:
 
-    > **NOTE:** For single-host provisioning use an ACCELARATOR_TYPE with any topology that results to 8 or less chips, e.g. tpu7x-2x2x1 or tpu7x-8. For multi-host provisioning use an ACCELARATOR_TYPE with any topology that results to more than 8 chips, e.g. tpu7x-2x2x2 or tpu7x-16.
+    > **NOTE:** For multi-host provisioning use an ACCELERATOR_TYPE with any topology that results to more than 8 chips, e.g. `tpu7x-2x2x2` or `tpu7x-16`. For single-host provisioning use an ACCELERATOR_TYPE with any topology that results to 8 or less chips, e.g. `tpu7x-2x2x1` or `tpu7x-8`.
+
+    > **NOTE:** Single-host provisioning is not supported for single-slice. If you want to create a single-host cluster, you need to set `--num-slices` to 2 or higher on the `xpk cluster create` command.
 
     ```shell
     export PROJECT_ID=<project_id> # Your GCP project name
     export ZONE=<zone> # Example: us-central1-c
     export CLUSTER_NAME=<cluster_name> # Your cluster name
-    export ACCELERATOR_TYPE=<tpu_type> # Example:tpu7x-4x4x8, For a list of supported topologies, see [Supported configurations](/tpu/docs/tpu7x#configurations)
+    # For a list of supported topologies, see: https://docs.cloud.google.com/tpu/docs/tpu/docs/tpu7x#configurations
+    export ACCELERATOR_TYPE=<tpu_type> # Example:tpu7x-2x2x2
     ```
 
-1. Follow the instructions in the [Configure MTU](https://docs.cloud.google.com/tpu/docs/v6e-training#configure_mtu) section to optimize your network configuration.
+1. Set up your network configuration.
+
+    ```shell
+    export NETWORK_NAME=<network_name> # Your network name
+    export SUBNET_NAME=<subnet_name> # Your subnet name
+    export NETWORK_FW_NAME=${NETWORK_NAME}-privatefirewall # Your firewall name
+    export IP_RANGE=<ip_range> # Your IP range in CIDR notation, e.g. 10.0.0.0/24
+    export REGION=${ZONE%-*}
+    gcloud compute networks create ${NETWORK_NAME} --mtu=8896 --project=${PROJECT_ID} \
+        --subnet-mode=custom --bgp-routing-mode=regional
+    gcloud compute networks subnets create ${SUBNET_NAME} --project=${PROJECT_ID} \
+        --network=${NETWORK_NAME} --region=${REGION} --range=${IP_RANGE}
+    gcloud compute firewall-rules create ${NETWORK_FW_NAME} --network=${NETWORK_NAME} \
+        --allow tcp,icmp,udp --project=${PROJECT_ID}
+    ```
 
 1. Populate the `${CLUSTER_ARGUMENTS}` variable, which you'll use in the `xpk cluster create` command:
 
@@ -37,7 +58,7 @@
     export CLUSTER_ARGUMENTS="--network=${NETWORK_NAME} --subnetwork=${SUBNET_NAME}"
     ```
 
-1. Create your {{gke_name_short}} cluster with TPU7x node pools using the `xpk cluster create` command:
+1. Create your GKE cluster with TPU7x node pools using the `xpk cluster create` command:
 
     ```shell
     xpk cluster create \
@@ -61,15 +82,63 @@
 1. Add a maintenance exclusion to prevent upgrades for the cluster:
 
     ```shell
-    export EXCLUSION_START_TIME=<exclusion_start_time> # Your selected start time for the maintenance exclusion in `YYYY-MM-DDTHH:MM:SSZ` format, e.g. "2025-11-24T00:00:00Z"
-    export EXCLUSION_END_TIME=<exclusion_end_time> # Your selected end time for the maintenance exclusion in `YYYY-MM-DDTHH:MM:SSZ` format, e.g. "2025-12-24T00:00:00Z"
+    # Your selected start time for the maintenance exclusion in
+    # `YYYY-MM-DDTHH:MM:SSZ` format, e.g. "2025-11-24T00:00:00Z"
+    export EXCLUSION_START_TIME=<exclusion_start_time>
+    # Your selected end time for the maintenance exclusion in
+    # `YYYY-MM-DDTHH:MM:SSZ` format, e.g. "2025-12-24T00:00:00Z"
+    export EXCLUSION_END_TIME=<exclusion_end_time>
     ```
 
     ```shell
     gcloud container clusters update ${CLUSTER_NAME} \
-        --zone=${ZONE} \
+        --region=${REGION} \
+        --project=${PROJECT_ID} \
         --add-maintenance-exclusion-name="no-upgrade-next-month" \
         --add-maintenance-exclusion-start="${EXCLUSION_START_TIME}" \
         --add-maintenance-exclusion-end="${EXCLUSION_END_TIME}" \
         --add-maintenance-exclusion-scope="no_upgrades"
+    ```
+
+1. Create a Filestore storage by running the commands below:
+
+    ```shell
+    export STORAGE_NAME=<storage_name> # Your storage name
+    xpk storage create ${STORAGE_NAME} --type=gcpfilestore \
+      --auto-mount=false --mount-point=/data-fs --readonly=false \
+      --size=1024 --tier=BASIC_HDD --vol=default \
+      --project=${PROJECT_ID} --cluster=${CLUSTER_NAME} --zone=${ZONE}
+    ```
+
+1. Attach the Filestore storage to your cluster by running the commands below:
+
+    ```shell
+    export BASE_OUTPUT_DIR="/data-fs"
+    xpk storage attach ${STORAGE_NAME} --cluster=${CLUSTER_NAME} --zone=${ZONE} \
+      --project=${PROJECT_ID} --type=gcpfilestore   --auto-mount=true \
+      --vol=default --mount-point=/data-fs --readonly=false
+    ```
+
+1. Run a MaxText workload on the cluster.
+
+    ```shell
+    export MAXTEXT_COMMAND="JAX_PLATFORMS=tpu,cpu \
+      ENABLE_PJRT_COMPATIBILITY=true \
+      python3 src/MaxText/train.py src/MaxText/configs/base.yml \
+          base_output_directory=$BASE_OUTPUT_DIR \
+          dataset_type=synthetic \
+          per_device_batch_size=2 \
+          enable_checkpointing=false \
+          gcs_metrics=true \
+          run_name=maxtext_xpk \
+          steps=30"
+
+    xpk workload create \
+        --cluster ${CLUSTER_NAME} \
+        --docker-image us-central1-docker.pkg.dev/sikoram-project/xpk-repo/xpk-maxtext:v1 \
+        --workload maxtext-1b-$(date +%H%M) \
+        --tpu-type=${ACCELERATOR_TYPE} \
+        --zone ${ZONE} \
+        --project ${PROJECT_ID} \
+        --command "${MAXTEXT_COMMAND}"
     ```

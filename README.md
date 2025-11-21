@@ -37,7 +37,7 @@ overnight while resources tend to be underutilized.
 XPK supports a variety of hardware accelerators.
 | Accelerator | Type | Recipes |
 | :--- | :--- | :--- |
-| **Ironwood** | tpu7x | [Run training workload with Ironwood and regular/gSC/DWS Calendar reservations using GCS Bucket storage]((./docs/usage/tpu7x/recipes/reservation_gcs_bucket_recipe.md))<br>[Run training workload with Ironwood with flex-start using Filestore storage](./docs/usage/tpu7x/recipes/flex_filestore_recipe.md)<br>[Run training workload with Ironwood and flex-start using Lustre storage](./docs/usage/tpu7x/recipes/flex_lustre_recipe.md) |
+| **Ironwood** | tpu7x | [Run training workload with Ironwood and regular/gSC/DWS Calendar reservations using GCS Bucket storage](./docs/usage/tpu7x/recipes/reservation_gcs_bucket_recipe.md)<br>[Run training workload with Ironwood with flex-start using Filestore storage](./docs/usage/tpu7x/recipes/flex_filestore_recipe.md)<br>[Run training workload with Ironwood and flex-start using Lustre storage](./docs/usage/tpu7x/recipes/flex_lustre_recipe.md) |
 | **Trillium** | v6e | [Create Cluster](./docs/usage/clusters.md)<br>[Create Workload](./docs/usage/workloads.md) |
 | **TPU v5p** | v5p | [Create Cluster](./docs/usage/clusters.md)<br>[Create Workload](./docs/usage/workloads.md) |
 | **TPU v5e** | v5e | [Create Cluster](./docs/usage/clusters.md)<br>[Create Workload](./docs/usage/workloads.md) |

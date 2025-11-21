@@ -150,6 +150,7 @@ def set_cluster_create_parser(cluster_create_parser: ArgumentParser):
           ' enable cluster to accept Pathways workloads.'
       ),
   )
+
   if FeatureFlags.SUB_SLICING_ENABLED:
     add_cluster_create_sub_slicing_arguments(cluster_create_optional_arguments)
 
@@ -690,6 +691,11 @@ def add_shared_cluster_create_optional_arguments(
           'Set the machine type within the default cpu node pool. For'
           ' regional clusters, all zones must support the machine type.'
       ),
+  )
+  parser_or_group.add_argument(
+      '--managed-mldiagnostics',
+      action='store_true',
+      help='Enables the installation of required ML Diagnostics components.',
   )
   parser_or_group.add_argument(
       '--cluster-cpu-machine-type',

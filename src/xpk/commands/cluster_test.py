@@ -84,6 +84,9 @@ def mocks(mocker) -> _Mocks:
           run_command_with_updates_path=(
               'xpk.commands.cluster.run_command_with_updates'
           ),
+          run_command_for_value_path=(
+              'xpk.commands.cluster.run_command_for_value'
+          ),
       ),
   )
 
@@ -121,6 +124,7 @@ def construct_args(**kwargs: Any) -> Namespace:
       cluster_cpu_machine_type='',
       create_vertex_tensorboard=False,
       enable_autoprovisioning=False,
+      managed_mldiagnostics=False,
   )
   args_dict.update(kwargs)
   return Namespace(**args_dict)

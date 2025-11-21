@@ -35,20 +35,20 @@ achieve better use of finite hardware resources. And automated tests can run
 overnight while resources tend to be underutilized.
 
 XPK supports a variety of hardware accelerators.
-| Accelerator | Type                       | Create Cluster                                                                                                | Create Workload                                                                                                 |
-|-------------|----------------------------|---------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------|
-| TPU         | Ironwood (tpu7x) **[NEW]** | [docs](./docs/usage/tpu7x/clusters.md)                                                                              | [docs](./docs/usage/tpu7x/workloads.md)                                                                               |
-| TPU         | Trillium (v6e)             | [docs](./docs/usage/clusters.md)                                                                              | [docs](./docs/usage/workloads.md)                                                                               |
-| TPU         | v5p                        | [docs](./docs/usage/clusters.md)                                                                              | [docs](./docs/usage/workloads.md)                                                                               |
-| TPU         | v5e                        | [docs](./docs/usage/clusters.md)                                                                              | [docs](./docs/usage/workloads.md)                                                                               |
-| TPU         | v4                         | [docs](./docs/usage/clusters.md)                                                                              | [docs](./docs/usage/workloads.md)                                                                               |
-| GPU         | A100                       | [docs](./docs/usage/gpu.md)                                                                                   | [docs](./docs/usage/workloads.md)                                                                               |
-| GPU         | A3-Highgpu (h100)          | [docs](./docs/usage/gpu.md)                                                                                   | [docs](./docs/usage/workloads.md)                                                                               |
-| GPU         | A3-Mega (h100-mega)        | [docs](./docs/usage/clusters.md#provisioning-a3-ultra-a3-mega-and-a4-clusters-gpu-machines)                   | [docs](./docs/usage/workloads.md#workloads-for-a3-ultra-a3-mega-and-a4-clusters-gpu-machines)                   |
-| GPU         | A3-Ultra (h200)            | [docs](./docs/usage/clusters.md#provisioning-a3-ultra-a3-mega-and-a4-clusters-gpu-machines)                   | [docs](./docs/usage/workloads.md#workloads-for-a3-ultra-a3-mega-and-a4-clusters-gpu-machines)                   |
-| GPU         | A4 (b200)                  | [docs](./docs/usage/clusters.md#provisioning-a3-ultra-a3-mega-and-a4-clusters-gpu-machines)                   | [docs](./docs/usage/workloads.md#workloads-for-a3-ultra-a3-mega-and-a4-clusters-gpu-machines)                   |
-| GPU         | A4X (gb200)                | [docs](./docs/usage/gpu.md)                                                                                   | [docs](./docs/usage/workloads.md)                                                                               |
-| CPU         | n2-standard-32             | [docs](./docs/usage/cpu.md)                                                                                   | [docs](./docs/usage/workloads.md)                                                                               |
+| Accelerator | Type | Recipes |
+| :--- | :--- | :--- |
+| **Ironwood** | tpu7x | [Run training workload with Ironwood and regular/gSC/DWS Calendar reservations using GCS Bucket storage](./docs/usage/tpu7x/recipes/reservation_gcs_bucket_recipe.md)<br>[Run training workload with Ironwood with flex-start using Filestore storage](./docs/usage/tpu7x/recipes/flex_filestore_recipe.md)<br>[Run training workload with Ironwood and flex-start using Lustre storage](./docs/usage/tpu7x/recipes/flex_lustre_recipe.md) |
+| **Trillium** | v6e | [Create Cluster](./docs/usage/clusters.md)<br>[Create Workload](./docs/usage/workloads.md) |
+| **TPU v5p** | v5p | [Create Cluster](./docs/usage/clusters.md)<br>[Create Workload](./docs/usage/workloads.md) |
+| **TPU v5e** | v5e | [Create Cluster](./docs/usage/clusters.md)<br>[Create Workload](./docs/usage/workloads.md) |
+| **TPU v4** | v4 | [Create Cluster](./docs/usage/clusters.md)<br>[Create Workload](./docs/usage/workloads.md) |
+| **GPU A4X** | gb200 | [Create Cluster](./docs/usage/gpu.md)<br>[Create Workload](./docs/usage/workloads.md) |
+| **GPU A4** | b200 | [Create Cluster](./docs/usage/clusters.md#provisioning-a3-ultra-a3-mega-and-a4-clusters-gpu-machines)<br>[Create Workload](./docs/usage/workloads.md#workloads-for-a3-ultra-a3-mega-and-a4-clusters-gpu-machines) |
+| **GPU A3 Ultra** | h200 | [Create Cluster](./docs/usage/clusters.md#provisioning-a3-ultra-a3-mega-and-a4-clusters-gpu-machines)<br>[Create Workload](./docs/usage/workloads.md#workloads-for-a3-ultra-a3-mega-and-a4-clusters-gpu-machines) |
+| **GPU A3 Mega** | h100-mega | [Create Cluster](./docs/usage/clusters.md#provisioning-a3-ultra-a3-mega-and-a4-clusters-gpu-machines)<br>[Create Workload](./docs/usage/workloads.md#workloads-for-a3-ultra-a3-mega-and-a4-clusters-gpu-machines) |
+| **GPU A3 High** | h100 | [Create Cluster](./docs/usage/gpu.md)<br>[Create Workload](./docs/usage/workloads.md) |
+| **GPU A100** | A100 | [Create Cluster](./docs/usage/gpu.md)<br>[Create Workload](./docs/usage/workloads.md) |
+| **CPU** | n2-standard-32 | [Create Cluster](./docs/usage/cpu.md)<br>[Create Workload](./docs/usage/workloads.md) |
 
 XPK also supports the following [Google Cloud Storage solutions](./docs/usage/storage.md):
 

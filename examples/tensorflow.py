@@ -73,11 +73,11 @@ for epoch in range(1, EPOCHS + 1):
     bar = get_progress_bar(step, STEPS_PER_EPOCH)
 
     output = (
-        f"\r{step}/{STEPS_PER_EPOCH} "  # Step Counter
-        f"[{bar}] - "  # Progress Bar
-        f"{time_str} - "  # Timing
-        f"loss: {step_loss:.4f} - "  # Loss
-        f"accuracy: {step_acc:.4f}"  # Accuracy
+        f"\r{step}/{STEPS_PER_EPOCH} "
+        f"[{bar}] - "
+        f"{time_str} - "
+        f"loss: {step_loss:.4f} - "
+        f"accuracy: {step_acc:.4f}"
     )
 
     sys.stdout.write(output)

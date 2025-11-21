@@ -22,7 +22,6 @@ import json
 from jinja2 import Environment, FileSystemLoader
 
 from ..utils.topology import get_slice_topology_level, get_topology_product, is_topology_contained
-from ..utils.execution_context import is_dry_run
 from ..utils.kueue import is_queued_cluster
 from kubernetes.utils import parse_quantity
 from .capacity import B200_DEVICE_TYPE, H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE
@@ -439,8 +438,6 @@ class KueueManager:
 
   def __apply_manifest(self, manifest: str) -> int:
     task = "Applying Kueue Custom Resources"
-    if is_dry_run():
-      xpk_print(f"Applying following Kueue resources:{manifest}")
     tmp_file = write_tmp_file(manifest)
     command = f"kubectl apply -f {tmp_file}"
     return run_command_with_updates(command, task)
@@ -523,7 +520,9 @@ class KueueManager:
     return cpu_limit, memory_limit_str
 
 
-def get_installed_kueue_version() -> tuple[int, Version | None]:
+def get_installed_kueue_version(
+    dry_run_version: Version | None = None,
+) -> tuple[int, Version | None]:
   command = (
       "kubectl get deployment kueue-controller-manager -n kueue-system -o"
       " jsonpath='{.spec.template.spec.containers[0].image}'"
@@ -532,7 +531,11 @@ def get_installed_kueue_version() -> tuple[int, Version | None]:
   return_code, val = run_command_for_value(
       command,
       task,
-      dry_run_return_val="",
+      dry_run_return_val=(
+          f"registry.k8s.io/kueue/kueue:v{dry_run_version}"
+          if dry_run_version
+          else ""
+      ),
   )
   if return_code != 0:
     return return_code, None
@@ -544,7 +547,9 @@ def get_installed_kueue_version() -> tuple[int, Version | None]:
 
 def has_sub_slicing_enabled() -> tuple[int, bool | None]:
   return_code, value = run_command_for_value(
-      command="kubectl get topology", task="Get defined topologies"
+      command="kubectl get topology",
+      task="Get defined topologies",
+      dry_run_return_val=SUB_SLICE_TOPOLOGY_NAME,
   )
 
   if return_code != 0:

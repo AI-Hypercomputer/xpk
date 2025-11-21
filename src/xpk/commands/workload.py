@@ -724,8 +724,10 @@ def _validate_sub_slicing_availability():
     )
     xpk_exit(1)
 
-  return_code, current_version = get_installed_kueue_version()
-  if return_code != 0:
+  return_code, current_version = get_installed_kueue_version(
+      dry_run_version=Version('0.13')
+  )
+  if return_code != 0 or not current_version:
     xpk_print(
         'Error: Unable to validate sub-slicing support on a given cluster.'
     )

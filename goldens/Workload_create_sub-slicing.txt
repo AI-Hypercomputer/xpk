@@ -1,7 +1,11 @@
-$ xpk workload create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --command "bash hello" --tpu-type=v5p-8 --num-slices=1 --script-dir=/tmp --dry-run
+$ SUB_SLICING_ENABLED=true xpk workload create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --command "bash hello" --tpu-type=v6e-4x4 --sub-slicing-topology=2x4 --script-dir=/tmp --dry-run
 [XPK] Starting xpk v0.15.0
 [XPK] Task: `Check if Workload Already Exists` is implemented by the following command not running since it is a dry run. 
 kubectl get workloads -o=custom-columns='Jobset:.metadata.ownerReferences[0].name'
+[XPK] Task: `Get defined topologies` is implemented by the following command not running since it is a dry run. 
+kubectl get topology
+[XPK] Task: `Get kueue version on server` is implemented by the following command not running since it is a dry run. 
+kubectl get deployment kueue-controller-manager -n kueue-system -o jsonpath='{.spec.template.spec.containers[0].image}'
 [XPK] Task: `GKE Cluster Get ConfigMap` is implemented by the following command not running since it is a dry run. 
 kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="ConfigData:data" --no-headers=true
 [XPK] Starting workload create
@@ -34,7 +38,7 @@ docker buildx build --platform=linux/amd64 -f 4b6736a12db8ea0f78ce793fd0d4ee0c94
 docker tag dry-run-runner gcr.io/golden-project/dry-run-runner:prefix-current
 [XPK] Task: `Upload Docker Image` is implemented by the following command not running since it is a dry run. 
 docker push gcr.io/golden-project/dry-run-runner:prefix-current
-[XPK] Temp file (e21c8ebdc21d15a852187058c096898c486d3b1066e67dcfb67e5052a1d0a7fa) content: 
+[XPK] Temp file (1fd31adc18f9b13689304d4254726dbbab4ac259cbdfe368bb4edd2bbd270f16) content: 
 apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
 metadata:
@@ -57,8 +61,8 @@ spec:
       replicas: 1
       template:
         spec:
-          parallelism: 1    # Equal to the number of VMs per slice (or sub-slice).
-          completions: 1    # Same as the above.
+          parallelism: 2    # Equal to the number of VMs per slice (or sub-slice).
+          completions: 2    # Same as the above.
           backoffLimit: 0   # When any pod fails, the job is failed
           
           podFailurePolicy:
@@ -74,7 +78,8 @@ spec:
                 xpk.google.com/workload: golden-workload
               annotations:
                 
-                
+                kueue.x-k8s.io/podset-required-topology: "cloud.google.com/gke-tpu-slice-2x4-id"
+                cloud.google.com/gke-tpu-slice-topology: 2x4
             spec:
               schedulerName: default-scheduler
               imagePullSecrets:
@@ -82,8 +87,8 @@ spec:
               restartPolicy: Never
               
               nodeSelector:
-                cloud.google.com/gke-tpu-accelerator: tpu-v5p-slice
-                cloud.google.com/gke-tpu-topology: 2x2x1
+                cloud.google.com/gke-tpu-accelerator: tpu-v6e-slice
+                cloud.google.com/gke-tpu-topology: 4x4
                 
                 
               priorityClassName: medium
@@ -143,7 +148,7 @@ spec:
               
 
 [XPK] Task: `Creating Workload` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f e21c8ebdc21d15a852187058c096898c486d3b1066e67dcfb67e5052a1d0a7fa
+kubectl apply -f 1fd31adc18f9b13689304d4254726dbbab4ac259cbdfe368bb4edd2bbd270f16
 [XPK] Task: `GKE Dashboard List` is implemented by the following command not running since it is a dry run. 
 gcloud monitoring dashboards list --project=golden-project --filter="displayName:'GKE - TPU Monitoring Dashboard'" --format="value(name)" --verbosity=error
 [XPK] Check statistics and outlier mode of GKE metrics here: https://console.cloud.google.com/monitoring/dashboards/builder/0?project=golden-project&f.rlabel.cluster_name.ClusterName=golden-cluster. To view the metric data for your workload, select golden-workload from the JobName filter on the dashboard.

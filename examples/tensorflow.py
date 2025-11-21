@@ -14,23 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-r"""xpk (Accelerated Processing Kit).
-
-Next Steps:
-- Cluster describe is broken by Cacheimage since that counts as a workload.
-- Cluster describe: count by jobset.
-- If any instance goes down, bring down the whole job.
-- How to more gracefully handle job failures, distinguishing between software
-  and infra?
-- Look into --docker-name and --docker-image.
-  Shouldn't one string be adequate to express what we want?
-- Apply learnings from about private, region, coredns, etc:
-- Enable special preheater
-- Make Argparse logic this a function?
-  - Obvious logic that starts in main instead of here in code but args will
-    not be a universal argument.
-"""
-
 import time
 import random
 import sys

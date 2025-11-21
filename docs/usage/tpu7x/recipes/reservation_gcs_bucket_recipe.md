@@ -20,6 +20,14 @@
 
 Use the following instructions if you have access to regular reservations or gSupercomputer (gSC) reservation or DWS Calendar reservation.
 
+### Before you begin
+
+Before you start, complete the following steps:
+
+* Ensure you have a Google Cloud project with billing enabled.
+* Get access to TPU7x. For more information, contact your account team.
+* Ensure the account you're using with XPK has the roles listed in the [XPK GitHub repository](https://github.com/AI-Hypercomputer/xpk/blob/main/docs/permissions.md).
+
 ### Create a single-NIC, single slice cluster
 
 1. Set the following environment variables:

@@ -18,6 +18,14 @@
 
 ## Create a cluster with flex-start provisioning
 
+### Before you begin
+
+Before you start, complete the following steps:
+
+* Ensure you have a Google Cloud project with billing enabled.
+* Get access to TPU7x. For more information, contact your account team.
+* Ensure the account you're using with XPK has the roles listed in the [XPK GitHub repository](https://github.com/AI-Hypercomputer/xpk/blob/main/docs/permissions.md).
+
 ### Create a single-NIC, single slice cluster
 
 Currently flex start provisioning for Ironwood works only in single slice and multi-host or multi-slice and single host setups. More options will be added soon

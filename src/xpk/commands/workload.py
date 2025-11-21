@@ -54,6 +54,7 @@ from ..core.pathways import (
 )
 from ..core.resources import get_cluster_capacity_type, get_cluster_system_characteristics, SystemCharacteristics
 from ..core.resources import CLUSTER_METADATA_CONFIGMAP, get_cluster_configmap
+from ..core.nodepool import ensure_resource_policy_exists
 from ..core.scheduling import (
     check_if_workload_can_schedule,
     create_accelerator_label,
@@ -64,6 +65,7 @@ from ..core.scheduling import (
     get_gpu_scheduler,
     create_sub_slicing_annotations,
     create_placement_policy_label,
+    get_placement_policy_name,
     is_placement_policy_supported,
 )
 from ..core.storage import (
@@ -492,6 +494,14 @@ def workload_create(args) -> None:
                 containerName: {get_main_container_docker_image(args, system)}
                 operator: NotIn
                 values: [{restart_on_exit_codes}]"""
+
+  if is_placement_policy_supported(system):
+    ensure_resource_policy_exists(
+        resource_policy_name=get_placement_policy_name(system),
+        project=args.project,
+        zone=args.zone,
+        topology=system.topology,
+    )
 
   placement_policy_label = (
       create_placement_policy_label(system)

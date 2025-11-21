@@ -231,26 +231,21 @@ Currently flex start provisioning for Ironwood works only in single slice and mu
       --manifest='./lustre-manifest-attach.yaml'
     ```
 
-1. Run a MaxText workload on the cluster.
+1. Download mock tensorflow training script
 
     ```shell
-    export MAXTEXT_COMMAND="JAX_PLATFORMS=tpu,cpu \
-      ENABLE_PJRT_COMPATIBILITY=true \
-      python3 src/MaxText/train.py src/MaxText/configs/base.yml \
-          base_output_directory=$BASE_OUTPUT_DIR \
-          dataset_type=synthetic \
-          per_device_batch_size=2 \
-          enable_checkpointing=false \
-          gcs_metrics=true \
-          run_name=maxtext_xpk \
-          steps=30"
+    curl -o tensorflow.py https://raw.githubusercontent.com/AI-Hypercomputer/xpk/refs/heads/main/examples/tensorflow.py
+    ```
 
+
+1. Run a mock tensorflow training workload on the cluster.
+
+    ```shell
     xpk workload create \
         --cluster ${CLUSTER_NAME} \
-        --docker-image us-central1-docker.pkg.dev/sikoram-project/xpk-repo/xpk-maxtext:v1 \
-        --workload maxtext-1b-$(date +%H%M) \
+        --workload tf-dummy-$(date +%H%M) \
         --tpu-type=${ACCELERATOR_TYPE} \
-        --zone ${ZONE} \
+        --zone ${LOCATION} \
         --project ${PROJECT_ID} \
-        --command "${MAXTEXT_COMMAND}"
+        --command "python3 tensorflow.py"
     ```

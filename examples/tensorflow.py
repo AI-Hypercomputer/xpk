@@ -1,78 +1,89 @@
+"""
+Copyright 2025 Google LLC
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+     https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+"""
+
+r"""xpk (Accelerated Processing Kit).
+
+Next Steps:
+- Cluster describe is broken by Cacheimage since that counts as a workload.
+- Cluster describe: count by jobset.
+- If any instance goes down, bring down the whole job.
+- How to more gracefully handle job failures, distinguishing between software
+  and infra?
+- Look into --docker-name and --docker-image.
+  Shouldn't one string be adequate to express what we want?
+- Apply learnings from about private, region, coredns, etc:
+- Enable special preheater
+- Make Argparse logic this a function?
+  - Obvious logic that starts in main instead of here in code but args will
+    not be a universal argument.
+"""
+
 import time
 import random
 import sys
 import math
 
-# --- Hyperparameters ---
 EPOCHS = 10
-STEPS_PER_EPOCH = 40  # How many "batches" per epoch
-initial_loss = 2.3    # Typical starting loss for classification
-min_loss = 0.15       # The floor (irreducible error)
+STEPS_PER_EPOCH = 40
+initial_loss = 2.3
+min_loss = 0.15
 
 def get_progress_bar(current, total, width=30):
-    """Creates the Keras-style [==========>.....] bar"""
-    progress = current / total
-    arrow_len = int(width * progress)
-    # The arrow is '=' characters with a '>' at the tip, padded by dots or spaces
-    bar = '=' * arrow_len + '>' + '.' * (width - arrow_len - 1)
-    return bar
+  """Creates the Keras-style [==========>.....] bar"""
+  progress = current / total
+  arrow_len = int(width * progress)
+  return "=" * arrow_len + ">" + "." * (width - arrow_len - 1)
 
 print("Train on 60000 samples, validate on 10000 samples")
 
-# Global tracking for realistic curves
 current_loss = initial_loss
-current_acc = 0.10 # Start with random guess accuracy (10%)
+current_acc = 0.10
 
 for epoch in range(1, EPOCHS + 1):
-    print(f"Epoch {epoch}/{EPOCHS}")
-    
-    # Reset batch metrics for the new epoch
-    epoch_start_time = time.time()
-    
-    for step in range(1, STEPS_PER_EPOCH + 1):
-        # 1. Simulate Calculation Time (simulating a GPU crunching numbers)
-        time.sleep(random.uniform(0.02, 0.05))
-        
-        # 2. Update Metrics (Realistic Drift)
-        # Loss decays exponentially over time
-        decay = math.exp(-0.05 * ((epoch-1) * STEPS_PER_EPOCH + step))
-        target_loss = (initial_loss - min_loss) * decay + min_loss
-        
-        # Add noise (jitter) that gets smaller as loss gets smaller
-        noise = random.uniform(-0.1, 0.1) * target_loss
-        step_loss = max(0, target_loss + noise)
-        
-        # Accuracy is roughly inversely proportional to loss
-        # As loss drops to 0, accuracy climbs to 1.0 (100%)
-        step_acc = 1.0 - (step_loss / (initial_loss + 0.5))
-        step_acc = max(0, min(0.99, step_acc + random.uniform(-0.02, 0.02)))
+  print(f"Epoch {epoch}/{EPOCHS}")
 
-        # 3. Calculate Step Timing
-        step_duration = (time.time() - epoch_start_time) / step
-        if step_duration < 1:
-            time_str = f"{int(step_duration * 1000)}ms/step"
-        else:
-            time_str = f"{step_duration:.1f}s/step"
+  epoch_start_time = time.time()
 
-        # 4. Construct the Output String
-        # \r returns the cursor to the start of the line (magic for overwriting)
-        bar = get_progress_bar(step, STEPS_PER_EPOCH)
-        
-        output = (
-            f"\r{step}/{STEPS_PER_EPOCH} "           # Step Counter
-            f"[{bar}] - "                            # Progress Bar
-            f"{time_str} - "                         # Timing
-            f"loss: {step_loss:.4f} - "              # Loss
-            f"accuracy: {step_acc:.4f}"              # Accuracy
-        )
-        
-        # Write to stdout and flush buffer immediately to show update
-        sys.stdout.write(output)
-        sys.stdout.flush()
+  for step in range(1, STEPS_PER_EPOCH + 1):
+    time.sleep(random.uniform(0.02, 0.05))
+    decay = math.exp(-0.05 * ((epoch - 1) * STEPS_PER_EPOCH + step))
+    target_loss = (initial_loss - min_loss) * decay + min_loss
+    noise = random.uniform(-0.1, 0.1) * target_loss
+    step_loss = max(0, target_loss + noise)
+    step_acc = 1.0 - (step_loss / (initial_loss + 0.5))
+    step_acc = max(0, min(0.99, step_acc + random.uniform(-0.02, 0.02)))
+    step_duration = (time.time() - epoch_start_time) / step
+    if step_duration < 1:
+      time_str = f"{int(step_duration * 1000)}ms/step"
+    else:
+      time_str = f"{step_duration:.1f}s/step"
+    bar = get_progress_bar(step, STEPS_PER_EPOCH)
 
-    # 5. End of Epoch: Add Validation Metrics
-    # Validation is usually slightly worse than training (higher loss, lower acc)
-    val_loss = step_loss * random.uniform(1.0, 1.2)
-    val_acc = step_acc * random.uniform(0.9, 0.98)
-    
-    print(f" - val_loss: {val_loss:.4f} - val_accuracy: {val_acc:.4f}")
+    output = (
+        f"\r{step}/{STEPS_PER_EPOCH} "  # Step Counter
+        f"[{bar}] - "  # Progress Bar
+        f"{time_str} - "  # Timing
+        f"loss: {step_loss:.4f} - "  # Loss
+        f"accuracy: {step_acc:.4f}"  # Accuracy
+    )
+
+    sys.stdout.write(output)
+    sys.stdout.flush()
+
+  val_loss = step_loss * random.uniform(1.0, 1.2)
+  val_acc = step_acc * random.uniform(0.9, 0.98)
+
+  print(f" - val_loss: {val_loss:.4f} - val_accuracy: {val_acc:.4f}")

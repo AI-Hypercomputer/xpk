@@ -260,7 +260,12 @@ def run_gke_node_pool_create_command(
   placement_args = ''
   if is_placement_policy_supported(system):
     placement_policy = get_placement_policy_name(system)
-    ensure_resource_policy_exists(placement_policy, args, system.topology)
+    ensure_resource_policy_exists(
+        resource_policy_name=placement_policy,
+        project=args.project,
+        zone=args.zone,
+        topology=system.topology,
+    )
     placement_args = f' --placement-policy={placement_policy}'
 
   create_commands = []
@@ -587,14 +592,14 @@ def get_desired_node_pool_names(
 
 
 def ensure_resource_policy_exists(
-    resource_policy_name: str, args, topology: str
+    resource_policy_name: str, project: str, zone: str, topology: str
 ) -> None:
   return_code, _ = run_command_for_value(
       (
           'gcloud compute resource-policies describe'
           f' {resource_policy_name} '
-          f'--project={args.project} '
-          f'--region={zone_to_region(args.zone)}'
+          f'--project={project} '
+          f'--region={zone_to_region(zone)}'
       ),
       'Retrieve resource policy',
   )
@@ -605,7 +610,7 @@ def ensure_resource_policy_exists(
   return_code, _ = run_command_for_value(
       (
           'gcloud compute resource-policies create workload-policy'
-          f' {resource_policy_name} --project={args.project} --region={zone_to_region(args.zone)} --type=HIGH_THROUGHPUT'
+          f' {resource_policy_name} --project={project} --region={zone_to_region(zone)} --type=HIGH_THROUGHPUT'
           f' --accelerator-topology={topology}'
       ),
       'Create resource policy',

@@ -41,11 +41,13 @@ STEPS_PER_EPOCH = 40
 initial_loss = 2.3
 min_loss = 0.15
 
-def get_progress_bar(current, total, width=30):
+
+def get_progress_bar(current: int, total: int, width: int = 30):
   """Creates the Keras-style [==========>.....] bar"""
   progress = current / total
   arrow_len = int(width * progress)
   return "=" * arrow_len + ">" + "." * (width - arrow_len - 1)
+
 
 print("Train on 60000 samples, validate on 10000 samples")
 

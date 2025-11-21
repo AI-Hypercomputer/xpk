@@ -910,11 +910,6 @@ def add_shared_cluster_create_capacity_arguments(
           ' types.'
       ),
   )
-  parser_or_group.add_argument(
-      '--managed-ml-diagnostics',
-      action='store_true',
-      help='Enables the installation of required ML Diagnostics components.',
-  )
 
 
 def add_shared_cluster_create_mtc_arguments(

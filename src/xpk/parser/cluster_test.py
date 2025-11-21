@@ -114,7 +114,7 @@ def test_cluster_create_managed_mldiagnostics():
       "test-cluster",
       "--tpu-type",
       "v5p-8",
-      "--managed-ml-diagnostics",
+      "--managed-mldiagnostics",
   ])
 
-  assert args.managed_ml_diagnostics is True
+  assert args.managed_mldiagnostics is True

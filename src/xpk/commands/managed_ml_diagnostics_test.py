@@ -14,9 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from argparse import Namespace
 from dataclasses import dataclass
-from typing import Any
 from unittest.mock import MagicMock
 import pytest
 from xpk.commands.managed_ml_diagnostics import install_mldiagnostics_prerequisites
@@ -50,77 +48,19 @@ def mocks(mocker) -> _Mocks:
       commands_print_mock=commands_print_mock,
       commands_tester=CommandsTester(
           mocker,
-        #   run_command_with_updates_path=(
-        #       'xpk.commands.managed_ml_diagnostics.run_command_with_updates'
-        #   ),
-        #   run_command_for_value_path=(
-        #       'xpk.commands.managed_ml_diagnostics.run_command_for_value'
-        #   ),
+          run_command_with_updates_path=(
+              'xpk.commands.managed_ml_diagnostics.run_command_with_updates'
+          ),
+          run_command_for_value_path=(
+              'xpk.commands.managed_ml_diagnostics.run_command_for_value'
+          ),
       ),
   )
 
+
 def test_install_mldiagnostics_prerequisites_commands_executed(
     mocks: _Mocks,
-    mocker,
 ):
-
-  mocks.commands_tester.set_result_for_command(
-      (0, ''),
-      'kubectl',
-      'rollout',
-      'status',
-      'deployment/kueue-controller-manager',
-  )
-
-  mocks.commands_tester.set_result_for_command(
-      (0, ''),
-      'kubectl',
-      'rollout',
-      'status',
-      'deployment/cert-manager-webhook',
-  )
-
-  mocks.commands_tester.set_result_for_command(
-      (0, ''),
-      'kubectl',
-      'apply',
-      '-f',
-      'https://github.com/cert-manager/cert-manager/releases/',
-  )
-
-  mocks.commands_tester.set_result_for_command(
-      (0, ''),
-      'gcloud',
-      'artifacts',
-      'generic',
-      'download',
-  )
-
-  mocks.commands_tester.set_result_for_command(
-      (0, ''),
-      'kubectl',
-      'create',
-      'namespace',
-      'gke-mldiagnostics',
-  )
-
-  mocks.commands_tester.set_result_for_command(
-      (0, ''),
-      'kubectl',
-      'apply',
-      '-f',
-      '-n',
-      'gke-mldiagnostics',
-  )
-
-  mocks.commands_tester.set_result_for_command(
-      (0, ''),
-      'kubectl',
-      'label',
-      'namespace',
-      'default',
-      'managed-mldiagnostics-gke=true',
-  )
 
   install_mldiagnostics_prerequisites()
 

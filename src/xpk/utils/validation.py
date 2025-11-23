@@ -72,8 +72,8 @@ class SystemDependency(Enum):
 
 
 def should_validate_dependencies(args):
-  skip_validation = 'skip_validation' in args and args.skip_validation
-  dry_run = 'dry_run' in args and args.dry_run
+  skip_validation = hasattr(args, 'skip_validation') and args.skip_validation
+  dry_run = hasattr(args, 'dry_run') and args.dry_run
   return not skip_validation and not dry_run
 
 

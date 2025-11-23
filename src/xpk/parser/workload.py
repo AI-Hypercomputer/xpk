@@ -613,6 +613,16 @@ def add_shared_workload_create_optional_arguments(args_parsers):
         ),
     )
     custom_parser.add_argument(
+        '--output-manifest-file',
+        type=str,
+        default=None,
+        help=(
+            'If you want to see the generated manifest, provide a file path'
+            ' here. This will write the manifest to the file. If used with'
+            ' --dry-run, it will skip the actual deployment and cluster checks.'
+        ),
+    )
+    custom_parser.add_argument(
         '--num-slices',
         type=int,
         default=1,

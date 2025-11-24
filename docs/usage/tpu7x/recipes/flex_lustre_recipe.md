@@ -22,6 +22,7 @@
 
 Before you start, complete the following steps:
 
+* Make sure that you have XPK and its prerequisites installed by following instructions found [here](/docs/installation.md).
 * Ensure you have a Google Cloud project with billing enabled.
 * Get access to TPU7x. For more information, contact your account team.
 * Ensure the account you're using with XPK has the roles listed in the [XPK GitHub repository](https://github.com/AI-Hypercomputer/xpk/blob/main/docs/permissions.md).
@@ -108,6 +109,34 @@ Currently flex start provisioning for Ironwood works only in single slice and mu
         --add-maintenance-exclusion-end="${EXCLUSION_END_TIME}" \
         --add-maintenance-exclusion-scope="no_upgrades"
     ```
+
+### Run a workload
+
+<details>
+<summary><strong>Option A: Fake tensorflow training</strong></summary>
+
+1. Download a fake training training script
+
+    ```shell
+    curl -o fake_training.py https://raw.githubusercontent.com/AI-Hypercomputer/xpk/refs/heads/main/examples/fake_training.py
+    ```
+
+1. Run a mock training workload on the cluster.
+
+    ```shell
+    xpk workload create \
+        --cluster ${CLUSTER_NAME} \
+        --workload tf-mock-$(date +%H%M) \
+        --tpu-type=${ACCELERATOR_TYPE} \
+        --zone ${ZONE} \
+        --project ${PROJECT_ID} \
+        --command "python3 fake_training.py"
+    ```
+
+</details>
+
+<details>
+<summary><strong>Option B: Training with MaxText</strong></summary>
 
 1. Set up the networking needed for a Lustre storage by running the commands below:
 
@@ -231,26 +260,43 @@ Currently flex start provisioning for Ironwood works only in single slice and mu
       --manifest='./lustre-manifest-attach.yaml'
     ```
 
-1. Download a fake training training script
+1. Build or upload the MaxText Docker image.
+    Note: MaxText supports **Python 3.12 only**. Build your virtual environment with
+    3.12 to install the correct dependencies.
+
+    You can either build a Docker image locally using scripts provided by
+    [MaxText](https://github.com/AI-Hypercomputer/maxtext) or use a prebuilt image.
+    The following commands copy your local directory into the container:
 
     ```shell
-    curl -o fake_training.py https://raw.githubusercontent.com/AI-Hypercomputer/xpk/refs/heads/main/examples/fake_training.py
+    # Make sure you're running on a virtual environment with python3.12. If nothing is printed, you have the correct version.
+    [[ "$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")' 2>/dev/null)" == "3.12" ]] || { >&2 echo "Error: Python version must be 3.12."; false; }
     ```
-
-
-1. Run a mock training workload on the cluster.
 
     ```shell
-    xpk workload create \
-        --cluster ${CLUSTER_NAME} \
-        --workload tf-mock-$(date +%H%M) \
-        --tpu-type=${ACCELERATOR_TYPE} \
-        --zone ${ZONE} \
-        --project ${PROJECT_ID} \
-        --command "python3 fake_training.py"
+    # Clone MaxText
+    git clone https://github.com/AI-Hypercomputer/maxtext.git
+    cd maxtext
+    git checkout maxtext-tutorial-v1.0.0
     ```
 
-1. (Optional) Run a MaxText workload on the cluster.
+    ```shell
+    # Custom Jax and LibTPU wheels
+    pip download libtpu==0.0.28.dev20251104+nightly -f "https://storage.googleapis.com/jax-releases/libtpu_releases.html"
+    pip download --pre jax==0.8.1.dev20251104 jaxlib==0.8.1.dev20251104 --index https://us-python.pkg.dev/ml-oss-artifacts-published/jax/simple/
+    ```
+
+    ```shell
+    # Build the Docker image
+    bash docker_build_dependency_image.sh MODE=custom_wheels
+    ```
+
+    After the successful execution of the commands, you should see an image named
+    `maxtext_base_image` created locally. You can use your local image directly in
+    the xpk workload command.
+
+1. Run a MaxText workload on the cluster.
+
     ```shell
     export MAXTEXT_COMMAND="JAX_PLATFORMS=tpu,cpu \
       ENABLE_PJRT_COMPATIBILITY=true \
@@ -259,6 +305,7 @@ Currently flex start provisioning for Ironwood works only in single slice and mu
           dataset_type=synthetic \
           per_device_batch_size=2 \
           enable_checkpointing=false \
+          gcs_metrics=true \
           run_name=maxtext_xpk \
           steps=30"
 
@@ -271,3 +318,5 @@ Currently flex start provisioning for Ironwood works only in single slice and mu
         --project ${PROJECT_ID} \
         --command "${MAXTEXT_COMMAND}"
     ```
+
+</details>

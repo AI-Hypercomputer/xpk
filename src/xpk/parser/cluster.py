@@ -188,7 +188,9 @@ def set_cluster_create_pathways_parser(
   add_shared_cluster_create_required_arguments(
       cluster_create_pathways_required_arguments
   )
-  add_tpu_type_argument(cluster_create_pathways_required_arguments)
+  add_tpu_type_argument(
+      cluster_create_pathways_required_arguments, required=True
+  )
 
   ### Optional arguments specific to "cluster create-pathways"
   cluster_create_pathways_optional_arguments = (

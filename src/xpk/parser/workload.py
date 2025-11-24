@@ -267,7 +267,9 @@ def set_workload_create_pathways_parser(
       )
   )
   ### "workload create-pathways" Required arguments, specific to Pathways
-  add_tpu_type_argument(workload_create_pathways_parser_required_arguments)
+  add_tpu_type_argument(
+      workload_create_pathways_parser_required_arguments, required=True
+  )
 
   ### "workload create-pathways" Optional arguments, specific to Pathways
   workload_create_pathways_parser_optional_arguments.add_argument(

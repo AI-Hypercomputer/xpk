@@ -29,6 +29,7 @@ class ParserOrArgumentGroup(Protocol):
 
 
 class ManyChoicesAction(Action):
+  """An action class to output better error message for arguments with large lists of choices."""
 
   def __init__(self, *args, large_choice_list, **kwargs):
     self.large_list_of_choices = large_choice_list
@@ -52,7 +53,7 @@ def add_many_choices_argument(
     flag_name,
     choices: list[str],
     metavar: str,
-    help: str,
+    help_msg: str,
     required: bool = False,
 ) -> None:
   parserOrGroup.add_argument(
@@ -61,7 +62,7 @@ def add_many_choices_argument(
       large_choice_list=choices,
       type=str,
       metavar=metavar,
-      help=help,
+      help=help_msg,
       required=required,
       default=None,
   ).completer = ChoicesCompleter(choices)
@@ -341,7 +342,7 @@ def add_tpu_type_argument(
           [AcceleratorType.TPU]
       ),
       metavar='TPU_TYPE',
-      help='The tpu type to use, v5litepod-16, etc.',
+      help_msg='The tpu type to use, v5litepod-16, etc.',
       required=required,
   )
 
@@ -355,7 +356,7 @@ def add_device_type_argument(
       '--device-type',
       choices=get_system_characteristics_keys_by_accelerator_type(),
       metavar='DEVICE_TYPE',
-      help=(
+      help_msg=(
           'The device type to use (can be tpu or gpu or cpu), v5litepod-16,'
           ' h100-80gb-8, n2-standard-32-4 etc.'
       ),

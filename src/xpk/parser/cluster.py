@@ -27,7 +27,6 @@ from ..commands.cluster import (
     cluster_list,
 )
 from ..core.config import xpk_config
-from ..core.system_characteristics import get_system_characteristics_keys_by_accelerator_type, AcceleratorType
 from ..core.config import CFG_BUCKET_KEY
 from ..core.vertex import DEFAULT_VERTEX_TENSORBOARD_NAME
 from .common import add_shared_arguments, ParserOrArgumentGroup, add_tpu_type_argument, add_tpu_and_device_type_arguments

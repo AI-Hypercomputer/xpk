@@ -25,7 +25,7 @@ from ..core.docker_image import DEFAULT_DOCKER_IMAGE, DEFAULT_SCRIPT_DIR
 from .common import add_shared_arguments, add_tpu_type_argument, add_tpu_and_device_type_arguments
 from .validators import directory_path_type, name_type
 from ..utils.feature_flags import FeatureFlags
-from ..core.system_characteristics import get_system_characteristics_keys_by_accelerator_type, AcceleratorType, SUB_SLICING_TOPOLOGIES
+from ..core.system_characteristics import SUB_SLICING_TOPOLOGIES
 
 
 def set_workload_parsers(workload_parser: ArgumentParser):

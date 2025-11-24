@@ -131,7 +131,7 @@ Before you start, complete the following steps:
         --cluster ${CLUSTER_NAME} \
         --workload tf-mock-$(date +%H%M) \
         --tpu-type=${ACCELERATOR_TYPE} \
-        --zone ${LOCATION} \
+        --zone ${ZONE} \
         --project ${PROJECT_ID} \
         --command "python3 tensorflow.py"
     ```

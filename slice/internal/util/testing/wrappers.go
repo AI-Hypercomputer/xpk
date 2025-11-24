@@ -292,8 +292,8 @@ func (s *SliceWrapper) OwnerWorkloadAnnotations(ns, name string) *SliceWrapper {
 	if s.Annotations == nil {
 		s.Annotations = make(map[string]string)
 	}
-	s.Annotations["slice.accelerator.gke.io/owner-workload-name"] = name
-	s.Annotations["slice.accelerator.gke.io/owner-workload-namespace"] = ns
+	s.Annotations[core.OwnerWorkloadNameAnnotation] = name
+	s.Annotations[core.OwnerWorkloadNamespaceAnnotation] = ns
 	return s
 }
 

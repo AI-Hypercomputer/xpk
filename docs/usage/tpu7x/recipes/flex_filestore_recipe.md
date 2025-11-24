@@ -139,7 +139,7 @@ Currently flex start provisioning for Ironwood works only in single slice and mu
     ```shell
     xpk workload create \
         --cluster ${CLUSTER_NAME} \
-        --workload tf-dummy-$(date +%H%M) \
+        --workload tf-mock-$(date +%H%M) \
         --tpu-type=${ACCELERATOR_TYPE} \
         --zone ${LOCATION} \
         --project ${PROJECT_ID} \

@@ -129,7 +129,7 @@ Before you start, complete the following steps:
     ```shell
     xpk workload create \
         --cluster ${CLUSTER_NAME} \
-        --workload tf-dummy-$(date +%H%M) \
+        --workload tf-mock-$(date +%H%M) \
         --tpu-type=${ACCELERATOR_TYPE} \
         --zone ${LOCATION} \
         --project ${PROJECT_ID} \

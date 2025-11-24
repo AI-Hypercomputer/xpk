@@ -55,16 +55,11 @@ type SliceStatus struct {
 	// Conditions store the status conditions of the Slice
 	// +operator-sdk:csv:customresourcedefinitions:type=status
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
-
-	// Populated to match the physical topology of block the Super-Slice is running on
-	BlockId string `json:"blockId,omitempty"`
-
-	// Populated to list of physical topology of sub-block the Super-Slice is running on
-	SubBlockIds []string `json:"subBlockIds,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:resource:scope=Cluster
 // +kubebuilder:printcolumn:name="Type",type=string,JSONPath=`.spec.type`
 // +kubebuilder:printcolumn:name="Topology",type=string,JSONPath=`.spec.topology`
 // +kubebuilder:printcolumn:name="State",type=string,JSONPath=`.status.conditions[?(@.type=="Ready")].reason`

@@ -38,14 +38,17 @@ func SliceKeyFromWorkload(wl *kueue.Workload, podSetName kueue.PodSetReference) 
 func SliceWithMetadata(wl *kueue.Workload, podSetName kueue.PodSetReference) *v1alpha1.Slice {
 	return &v1alpha1.Slice{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      SliceName(wl.Name, podSetName),
-			Namespace: wl.Namespace,
+			Name: SliceName(wl.Namespace, wl.Name, podSetName),
+			Annotations: map[string]string{
+				OwnerWorkloadNamespaceAnnotation: wl.Namespace,
+				OwnerWorkloadNameAnnotation:      wl.Name,
+			},
 		},
 	}
 }
 
-func SliceName(workloadName string, podSetName kueue.PodSetReference) string {
-	return fmt.Sprintf("%s-%s", workloadName, podSetName)
+func SliceName(ns string, workloadName string, podSetName kueue.PodSetReference) string {
+	return fmt.Sprintf("%s-%s-%s", ns, workloadName, podSetName)
 }
 
 func isStale(slice *v1alpha1.Slice) bool {

@@ -18,7 +18,7 @@ from ..core.cluster import get_cluster_credentials
 from ..core.commands import run_command_for_value
 from ..core.gcloud_context import add_zone_and_project, get_cluster_location
 from ..core.kueue_manager import CLUSTER_QUEUE_NAME, LOCAL_QUEUE_NAME
-from ..core.resources import CLUSTER_METADATA_CONFIGMAP, CLUSTER_RESOURCES_CONFIGMAP
+from ..core.resources import ConfigMapType, get_config_map_name
 from ..utils.console import xpk_exit, xpk_print
 from ..utils.file import append_tmp_file, write_tmp_file
 from ..utils.validation import validate_dependencies_list, SystemDependency, should_validate_dependencies
@@ -162,14 +162,16 @@ def inspector(args) -> None:
       (
           (
               'kubectl get configmap'
-              f' {args.cluster}-{CLUSTER_METADATA_CONFIGMAP} -o yaml'
+              f' {get_config_map_name(args.cluster, ConfigMapType.METADATA)} -o'
+              ' yaml'
           ),
           'GKE: Cluster Metadata ConfigMap Details',
       ),
       (
           (
               'kubectl get configmap'
-              f' {args.cluster}-{CLUSTER_RESOURCES_CONFIGMAP} -o yaml'
+              f' {get_config_map_name(args.cluster, ConfigMapType.RESOURCES)} -o'
+              ' yaml'
           ),
           'GKE: Cluster Resources ConfigMap Details',
       ),

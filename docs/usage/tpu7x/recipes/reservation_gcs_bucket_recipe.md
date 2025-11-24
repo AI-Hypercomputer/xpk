@@ -117,14 +117,14 @@ Before you start, complete the following steps:
         --default-storage-class=STANDARD --uniform-bucket-level-access
     ```
 
-1. Download mock tensorflow training script
+1. Download a fake training training script
 
     ```shell
     curl -o fake_training.py https://raw.githubusercontent.com/AI-Hypercomputer/xpk/refs/heads/main/examples/fake_training.py
     ```
 
 
-1. Run a mock tensorflow training workload on the cluster.
+1. Run a mock training workload on the cluster.
 
     ```shell
     xpk workload create \

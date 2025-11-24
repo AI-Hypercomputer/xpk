@@ -113,7 +113,7 @@ Before you start, complete the following steps:
 ### Run a workload
 
 <details>
-<summary><strong>Option A: Fake tensorflow training</strong></summary>
+<summary><strong>Option A: Mock training workload</strong></summary>
 
 1. Download a fake training training script
 

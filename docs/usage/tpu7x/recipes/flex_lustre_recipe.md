@@ -113,7 +113,7 @@ Currently flex start provisioning for Ironwood works only in single slice and mu
 ### Run a workload
 
 <details>
-<summary><strong>Option A: Fake tensorflow training</strong></summary>
+<summary><strong>Option A: Mock training workload</strong></summary>
 
 1. Download a fake training training script
 
@@ -305,7 +305,6 @@ Currently flex start provisioning for Ironwood works only in single slice and mu
           dataset_type=synthetic \
           per_device_batch_size=2 \
           enable_checkpointing=false \
-          gcs_metrics=true \
           run_name=maxtext_xpk \
           steps=30"
 

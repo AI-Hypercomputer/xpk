@@ -20,10 +20,10 @@ const (
 	TPUTopologyAnnotation = "cloud.google.com/gke-tpu-topology"
 	TPUAcceleratorLabel   = "cloud.google.com/gke-tpu-accelerator"
 	TPUBlockLabel         = "cloud.google.com/gce-topology-block"
-	TPUSubBlockLabel      = "cloud.google.com/gke-tpu-slice-4x4x4-id"
+	TPUSubBlockLabel      = "cloud.google.com/gke-tpu-partition-id-4x4x4"
 
-	TPUSliceHealthNodeSelectorKey   = "cloud.google.com/gke-tpu-slice-4x4x4-health"
-	TPUSliceHealthNodeSelectorValue = "true"
+	TPUSliceHealthNodeSelectorKey   = "cloud.google.com/gke-tpu-partition-4x4x4-state"
+	TPUSliceHealthNodeSelectorValue = "HEALTHY"
 )
 
 const (

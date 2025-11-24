@@ -24,6 +24,7 @@ import (
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
 
 	slice "tpu-slice-controller/api/v1alpha1"
+	"tpu-slice-controller/internal/core"
 	testingjobjobset "tpu-slice-controller/internal/util/testingjobs/jobset"
 	"tpu-slice-controller/test/utils"
 )
@@ -130,12 +131,12 @@ func TestDefault(t *testing.T) {
 					PodAnnotations: map[string]string{
 						"cloud.google.com/gke-tpu-topology":             "4x4x12",
 						"kueue.x-k8s.io/podset-required-topology":       "cloud.google.com/gce-topology-block",
-						"kueue.x-k8s.io/podset-slice-required-topology": "cloud.google.com/gke-tpu-slice-4x4x4-id",
+						"kueue.x-k8s.io/podset-slice-required-topology": core.TPUSubBlockLabel,
 						"kueue.x-k8s.io/podset-slice-size":              "4",
 					},
 					NodeSelector: map[string]string{
-						"cloud.google.com/gke-tpu-accelerator":        string(slice.TypeTpu7x),
-						"cloud.google.com/gke-tpu-slice-4x4x4-health": "true",
+						"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
+						core.TPUSliceHealthNodeSelectorKey:     core.TPUSliceHealthNodeSelectorValue,
 					},
 				}).
 				Obj(),

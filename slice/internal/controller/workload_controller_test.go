@@ -53,6 +53,7 @@ var (
 		cmpopts.EquateEmpty(),
 		cmpopts.IgnoreFields(metav1.ObjectMeta{}, "ResourceVersion"),
 		cmpopts.IgnoreFields(metav1.Condition{}, "LastTransitionTime"),
+		cmpopts.IgnoreFields(metav1.ObjectMeta{}, "CreationTimestamp"),
 		cmpopts.EquateApproxTime(time.Second),
 	}
 	errTest = errors.New("test error")

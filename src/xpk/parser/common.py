@@ -16,12 +16,55 @@ limitations under the License.
 
 import argparse
 from typing import Protocol, Any
+from ..core.system_characteristics import get_system_characteristics_keys_by_accelerator_type, AcceleratorType
+import difflib
+from argcomplete import ChoicesCompleter
+from argparse import Action, ArgumentError
 
 
 class ParserOrArgumentGroup(Protocol):
 
   def add_argument(self, *args, **kwargs) -> Any:
     ...
+
+
+class ManyChoicesAction(Action):
+
+  def __init__(self, *args, large_choice_list, **kwargs):
+    self.large_list_of_choices = large_choice_list
+    super().__init__(*args, **kwargs)
+
+  def __call__(self, parser, namespace, value, option_string=None):
+    if value not in self.large_list_of_choices:
+      close_matches = difflib.get_close_matches(
+          value, self.large_list_of_choices, n=5, cutoff=0
+      )
+      msg = (
+          f"invalid choice: '{value}' (closest matches:"
+          f" {', '.join(close_matches)})"
+      )
+      raise ArgumentError(self, msg)
+    setattr(namespace, self.dest, value)
+
+
+def add_many_choices_argument(
+    parserOrGroup: ParserOrArgumentGroup,
+    flag_name,
+    choices: list[str],
+    metavar: str,
+    help: str,
+    required: bool = False,
+) -> None:
+  parserOrGroup.add_argument(
+      flag_name,
+      action=ManyChoicesAction,
+      large_choice_list=choices,
+      type=str,
+      metavar=metavar,
+      help=help,
+      required=required,
+      default=None,
+  ).completer = ChoicesCompleter(choices)
 
 
 def add_shared_arguments(
@@ -285,3 +328,43 @@ def add_slurm_arguments(custom_parser_or_group: ParserOrArgumentGroup):
           ' `very-high`. Defaults to `medium`.'
       ),
   )
+
+
+def add_tpu_type_argument(
+    custom_parser_or_group: ParserOrArgumentGroup,
+    required: bool = False,
+) -> None:
+  add_many_choices_argument(
+      custom_parser_or_group,
+      '--tpu-type',
+      choices=get_system_characteristics_keys_by_accelerator_type(
+          [AcceleratorType.TPU]
+      ),
+      metavar='TPU_TYPE',
+      help='The tpu type to use, v5litepod-16, etc.',
+      required=required,
+  )
+
+
+def add_device_type_argument(
+    custom_parser_or_group: ParserOrArgumentGroup,
+    required: bool = False,
+) -> None:
+  add_many_choices_argument(
+      custom_parser_or_group,
+      '--device-type',
+      choices=get_system_characteristics_keys_by_accelerator_type(),
+      metavar='DEVICE_TYPE',
+      help=(
+          'The device type to use (can be tpu or gpu or cpu), v5litepod-16,'
+          ' h100-80gb-8, n2-standard-32-4 etc.'
+      ),
+      required=required,
+  )
+
+
+def add_tpu_and_device_type_arguments(
+    custom_parser_or_group: ParserOrArgumentGroup,
+) -> None:
+  add_tpu_type_argument(custom_parser_or_group)
+  add_device_type_argument(custom_parser_or_group)

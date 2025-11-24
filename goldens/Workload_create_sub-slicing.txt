@@ -13,7 +13,7 @@ kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="Conf
 kubectl get configmap golden-cluster-metadata-configmap -o=custom-columns="ConfigData:data" --no-headers=true
 [XPK] Task: `GKE Cluster Get ConfigMap` is implemented by the following command not running since it is a dry run. 
 kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="ConfigData:data" --no-headers=true
-[XPK] gke_accelerator type not found in config map: golden-cluster-resources-configmap. Autoprovisioning is not enabled.
+[XPK] gke_accelerator type not found in config map. Autoprovisioning is not enabled.
 [XPK] No gcsfuse Storages to add detected
 [XPK] No gcp filestore instances to add detected.
 [XPK] No gcp parallelstore instances to add detected.

@@ -33,6 +33,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/util/workqueue"
 	testingclock "k8s.io/utils/clock/testing"
+	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
@@ -155,6 +156,7 @@ func TestWorkloadReconciler(t *testing.T) {
 		wantSlices             []slice.Slice
 		wantErr                error
 		wantEvents             []utiltesting.EventRecord
+		wantResult             controllerruntime.Result
 	}{
 		"should skip reconciliation because the Workload was not found": {
 			request:       types.NamespacedName{Name: "other-workload", Namespace: corev1.NamespaceDefault},
@@ -328,6 +330,7 @@ func TestWorkloadReconciler(t *testing.T) {
 				*baseSlice1Wrapper.Clone().Degraded().Obj(),
 				*baseSlice2Wrapper.Clone().Degraded().Obj(),
 			},
+			wantResult: reconcile.Result{RequeueAfter: cleanupRetryAfter},
 		},
 		"should delete the finalizer because the Pod Status Succeeded": {
 			request: baseRequest,
@@ -408,6 +411,7 @@ func TestWorkloadReconciler(t *testing.T) {
 				*baseSlice1Wrapper.DeepCopy(),
 				*baseSlice2Wrapper.DeepCopy(),
 			},
+			wantResult: reconcile.Result{RequeueAfter: cleanupRetryAfter},
 		},
 		"shouldn't delete the finalizer because one of the Pods still running": {
 			request: baseRequest,
@@ -439,6 +443,7 @@ func TestWorkloadReconciler(t *testing.T) {
 				*baseSlice1Wrapper.DeepCopy(),
 				*baseSlice2Wrapper.DeepCopy(),
 			},
+			wantResult: reconcile.Result{RequeueAfter: initializationRetryAfter},
 		},
 		"shouldn't add finalizer because invalid TPU topology annotation": {
 			request: baseRequest,
@@ -873,6 +878,7 @@ func TestWorkloadReconciler(t *testing.T) {
 				buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, SlicesCreatedEventType,
 					`The Slices "default-workload-ps2" have been created`),
 			},
+			wantResult: reconcile.Result{RequeueAfter: initializationRetryAfter},
 		},
 		"parse TAS Assignment to populate PartitionIDs in Slice": {
 			request: baseRequest,
@@ -1032,6 +1038,7 @@ func TestWorkloadReconciler(t *testing.T) {
 				*baseSlice1Wrapper.DeepCopy(),
 				*baseSlice2Wrapper.DeepCopy(),
 			},
+			wantResult: reconcile.Result{RequeueAfter: initializationRetryAfter},
 		},
 		"should update the Workload's AdmissionCheckState when one Slice is in the Activating state": {
 			request: baseRequest,
@@ -1061,6 +1068,7 @@ func TestWorkloadReconciler(t *testing.T) {
 				*baseSlice1Wrapper.Clone().Activating().Obj(),
 				*baseSlice2Wrapper.DeepCopy(),
 			},
+			wantResult: reconcile.Result{RequeueAfter: initializationRetryAfter},
 		},
 		"should update the Workload's AdmissionCheckState when all Slices are in the Activating state": {
 			request: baseRequest,
@@ -1090,6 +1098,7 @@ func TestWorkloadReconciler(t *testing.T) {
 				*baseSlice1Wrapper.Clone().Activating().Obj(),
 				*baseSlice2Wrapper.Clone().Activating().Obj(),
 			},
+			wantResult: reconcile.Result{RequeueAfter: initializationRetryAfter},
 		},
 		"should update the Workload's AdmissionCheckState when one Slice is in the Ready state": {
 			request: baseRequest,
@@ -1119,6 +1128,7 @@ func TestWorkloadReconciler(t *testing.T) {
 				*baseSlice1Wrapper.Clone().Active().Obj(),
 				*baseSlice2Wrapper.Clone().Activating().Obj(),
 			},
+			wantResult: reconcile.Result{RequeueAfter: initializationRetryAfter},
 		},
 		"should update the Workload's AdmissionCheckState when all Slices are in the Ready state": {
 			request: baseRequest,
@@ -1397,7 +1407,10 @@ func TestWorkloadReconciler(t *testing.T) {
 			reconciler := NewWorkloadReconciler(kClient, recorder)
 			reconciler.clock = testingclock.NewFakeClock(now)
 
-			_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: tc.request})
+			gotResult, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: tc.request})
+			if diff := cmp.Diff(tc.wantResult, gotResult); diff != "" {
+				t.Errorf("Reconcile result after reconcile (-want,+got):\n%s", diff)
+			}
 			if diff := cmp.Diff(tc.wantErr, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("Error after reconcile (-want,+got):\n%s", diff)
 			}

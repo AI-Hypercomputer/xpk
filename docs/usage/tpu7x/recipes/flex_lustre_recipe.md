@@ -259,9 +259,9 @@ Currently flex start provisioning for Ironwood works only in single slice and mu
           dataset_type=synthetic \
           per_device_batch_size=2 \
           enable_checkpointing=false \
-          gcs_metrics=true \
           run_name=maxtext_xpk \
           steps=30"
+
     xpk workload create \
         --cluster ${CLUSTER_NAME} \
         --docker-image us-central1-docker.pkg.dev/sikoram-project/xpk-repo/xpk-maxtext:v1 \

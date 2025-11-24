@@ -145,3 +145,25 @@ Currently flex start provisioning for Ironwood works only in single slice and mu
         --project ${PROJECT_ID} \
         --command "python3 tensorflow.py"
     ```
+
+1. (Optional) Run a MaxText workload on the cluster.
+    ```shell
+    export MAXTEXT_COMMAND="JAX_PLATFORMS=tpu,cpu \
+      ENABLE_PJRT_COMPATIBILITY=true \
+      python3 src/MaxText/train.py src/MaxText/configs/base.yml \
+          base_output_directory=$BASE_OUTPUT_DIR \
+          dataset_type=synthetic \
+          per_device_batch_size=2 \
+          enable_checkpointing=false \
+          gcs_metrics=true \
+          run_name=maxtext_xpk \
+          steps=30"
+    xpk workload create \
+        --cluster ${CLUSTER_NAME} \
+        --docker-image us-central1-docker.pkg.dev/sikoram-project/xpk-repo/xpk-maxtext:v1 \
+        --workload maxtext-1b-$(date +%H%M) \
+        --tpu-type=${ACCELERATOR_TYPE} \
+        --zone ${ZONE} \
+        --project ${PROJECT_ID} \
+        --command "${MAXTEXT_COMMAND}"
+    ```

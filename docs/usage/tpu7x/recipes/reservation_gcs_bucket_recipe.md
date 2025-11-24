@@ -168,6 +168,7 @@ Before you start, complete the following steps:
 
     ```shell
     # Custom Jax and LibTPU wheels
+    pip install flax==0.12.0
     pip download libtpu==0.0.28.dev20251104+nightly -f "https://storage.googleapis.com/jax-releases/libtpu_releases.html"
     pip download --pre jax==0.8.1.dev20251104 jaxlib==0.8.1.dev20251104 --index https://us-python.pkg.dev/ml-oss-artifacts-published/jax/simple/
     ```

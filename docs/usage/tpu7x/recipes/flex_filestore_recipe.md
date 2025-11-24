@@ -207,7 +207,7 @@ Currently flex start provisioning for Ironwood works only in single slice and mu
 
     xpk workload create \
         --cluster ${CLUSTER_NAME} \
-        --docker-image us-central1-docker.pkg.dev/sikoram-project/xpk-repo/xpk-maxtext:v1 \
+        --base-docker-image maxtext_base_image \
         --workload maxtext-1b-$(date +%H%M) \
         --tpu-type=${ACCELERATOR_TYPE} \
         --zone ${ZONE} \

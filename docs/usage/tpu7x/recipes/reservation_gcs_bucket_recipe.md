@@ -120,7 +120,7 @@ Before you start, complete the following steps:
 1. Download mock tensorflow training script
 
     ```shell
-    curl -o tensorflow.py https://raw.githubusercontent.com/AI-Hypercomputer/xpk/refs/heads/main/examples/tensorflow.py
+    curl -o fake_training.py https://raw.githubusercontent.com/AI-Hypercomputer/xpk/refs/heads/main/examples/fake_training.py
     ```
 
 
@@ -133,7 +133,7 @@ Before you start, complete the following steps:
         --tpu-type=${ACCELERATOR_TYPE} \
         --zone ${ZONE} \
         --project ${PROJECT_ID} \
-        --command "python3 tensorflow.py"
+        --command "python3 fake_training.py"
     ```
 
 1. (Optional) Run a MaxText workload on the cluster.

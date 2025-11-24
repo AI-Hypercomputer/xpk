@@ -117,8 +117,26 @@ Before you start, complete the following steps:
         --default-storage-class=STANDARD --uniform-bucket-level-access
     ```
 
-1. Run a MaxText workload on the cluster.
+1. Download a fake training training script
 
+    ```shell
+    curl -o fake_training.py https://raw.githubusercontent.com/AI-Hypercomputer/xpk/refs/heads/main/examples/fake_training.py
+    ```
+
+
+1. Run a mock training workload on the cluster.
+
+    ```shell
+    xpk workload create \
+        --cluster ${CLUSTER_NAME} \
+        --workload tf-mock-$(date +%H%M) \
+        --tpu-type=${ACCELERATOR_TYPE} \
+        --zone ${ZONE} \
+        --project ${PROJECT_ID} \
+        --command "python3 fake_training.py"
+    ```
+
+1. (Optional) Run a MaxText workload on the cluster.
     ```shell
     export MAXTEXT_COMMAND="JAX_PLATFORMS=tpu,cpu \
       ENABLE_PJRT_COMPATIBILITY=true \

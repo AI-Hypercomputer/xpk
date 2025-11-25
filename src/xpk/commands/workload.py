@@ -52,7 +52,7 @@ from ..core.pathways import (
     get_user_workload_for_pathways,
     try_to_delete_pathwaysjob_first,
 )
-from ..core.resources import get_cluster_capacity_type, get_cluster_system_characteristics, SystemCharacteristics, get_cluster_system_characteristics_from_config_map
+from ..core.resources import get_cluster_capacity_type, SystemCharacteristics, get_cluster_system_characteristics_from_config_map
 from ..core.resources import ConfigMapType, get_cluster_configmap
 from ..core.nodepool import ensure_resource_policy_exists
 from ..core.scheduling import (
@@ -632,6 +632,14 @@ def workload_create(args) -> None:
         failure_policy_rules=failure_policy_rules,
         pod_failure_policy=pod_failure_policy,
     )
+  if args.output_manifest_file:
+    with open(args.output_manifest_file, 'w', encoding='utf-8') as f:
+      f.write(yml_string)
+    xpk_print(
+        f'Workload {args.workload} manifest written to'
+        f' {args.output_manifest_file}'
+    )
+
   tmp = write_tmp_file(yml_string)
   command = f'kubectl apply -f {str(tmp)}'
   return_code = run_command_with_updates(command, 'Creating Workload')

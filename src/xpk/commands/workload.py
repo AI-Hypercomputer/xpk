@@ -631,7 +631,7 @@ def workload_create(args) -> None:
         pod_failure_policy=pod_failure_policy,
     )
   if args.output_manifest_file:
-    with open(args.output_manifest_file, 'w') as f:
+    with open(args.output_manifest_file, 'w', encoding='utf-8') as f:
       f.write(yml_string)
     xpk_print(
         f'Workload {args.workload} manifest written to'

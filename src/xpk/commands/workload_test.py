@@ -190,7 +190,7 @@ def test_workload_create_dry_run_with_output_file(mocker):
   with pytest.raises(SystemExit):
     workload_create(args)
 
-  mock_open.assert_called_once_with('manifest.yaml', 'w')
+  mock_open.assert_called_once_with('manifest.yaml', 'w', encoding='utf-8')
   written_content = mock_open.return_value.write.call_args[0][0]
   assert 'test-workload' in written_content
   assert 'cloud.google.com/gke-tpu-topology: 8x8' in written_content

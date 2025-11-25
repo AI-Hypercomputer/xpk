@@ -163,6 +163,7 @@ def test_validate_sub_slicing_topology_fails_for_unsupported_system(
       in common_xpk_print.mock_calls[0].args[0]
   )
 
+
 def test_workload_create_dry_run_with_output_file(mocker):
   args = MagicMock()
   args.workload = 'test-workload'
@@ -194,4 +195,3 @@ def test_workload_create_dry_run_with_output_file(mocker):
   written_content = mock_open.return_value.write.call_args[0][0]
   assert 'test-workload' in written_content
   assert 'cloud.google.com/gke-tpu-topology: 8x8' in written_content
-

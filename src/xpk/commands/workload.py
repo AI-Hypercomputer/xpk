@@ -53,7 +53,7 @@ from ..core.pathways import (
     try_to_delete_pathwaysjob_first,
 )
 from ..core.resources import get_cluster_capacity_type, get_cluster_system_characteristics, SystemCharacteristics
-from ..core.resources import CLUSTER_METADATA_CONFIGMAP, get_cluster_configmap
+from ..core.resources import ConfigMapType, get_cluster_configmap
 from ..core.nodepool import ensure_resource_policy_exists
 from ..core.scheduling import (
     check_if_workload_can_schedule,
@@ -360,12 +360,13 @@ def workload_create(args) -> None:
 
   xpk_print('Starting workload create', flush=True)
 
-  metadata_configmap_name = f'{args.cluster}-{CLUSTER_METADATA_CONFIGMAP}'
-  cluster_config_map = get_cluster_configmap(metadata_configmap_name)
+  cluster_config_map = get_cluster_configmap(
+      args.cluster, ConfigMapType.METADATA
+  )
   cluster_xpk_version = None
   if cluster_config_map is None:
     xpk_print(
-        f'Warning: Unable to find ConfigMap: {metadata_configmap_name} for the'
+        'Warning: Unable to find ConfigMap for the'
         ' cluster. We recommend to upgrade your cluster by running `xpk'
         ' cluster create`.'
     )

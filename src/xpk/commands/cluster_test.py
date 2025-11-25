@@ -362,6 +362,48 @@ def test_run_gke_cluster_create_command_with_gke_version_has_no_autoupgrade_flag
   )
 
 
+def test_run_gke_cluster_create_command_with_lustre_runs_correct_command(
+    mocks: _Mocks,
+):
+  result = run_gke_cluster_create_command(
+      args=construct_args(
+          enable_lustre_csi_driver=True, enable_legacy_lustre_port=False
+      ),
+      gke_control_plane_version='1.2.3',
+      system=TPU_TEST_SYSTEM,
+      release_channel=ReleaseChannel.REGULAR,
+  )
+
+  assert result == 0
+  commands = mocks.commands_tester.get_matching_commands('clusters create')
+  assert len(commands) == 1
+  command = commands[0]
+  assert (
+      '--addons=LustreCsiDriver' in command
+      and '--enable-legacy-lustre-port' not in command
+  )
+
+
+def test_run_gke_cluster_create_command_with_lustre_legacy_port_adds_correct_flag(
+    mocks: _Mocks,
+):
+  result = run_gke_cluster_create_command(
+      args=construct_args(
+          enable_lustre_csi_driver=True, enable_legacy_lustre_port=True
+      ),
+      gke_control_plane_version='1.2.3',
+      system=TPU_TEST_SYSTEM,
+      release_channel=ReleaseChannel.REGULAR,
+  )
+
+  assert result == 0
+  mocks.commands_tester.assert_command_run(
+      'clusters create',
+      '--enable-legacy-lustre-port',
+      '--addons=LustreCsiDriver',
+  )
+
+
 def test_log_cluster_create_telemetry_does_not_log_when_feature_flag_is_disabled():
   FeatureFlags.TELEMETRY_ENABLED = False
   _log_cluster_create_telemetry(construct_args())

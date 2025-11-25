@@ -196,7 +196,6 @@ Currently flex start provisioning for Ironwood works only in single slice and mu
       --location=${LOCATION} \
       --network=projects/${PROJECT_ID}/global/networks/${NETWORK_NAME} \
       --project=${PROJECT_ID} \
-      --gke-support-enabled
     ```
 
 1. Get Lustre properties. Note the mountPoint property.

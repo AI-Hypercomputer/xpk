@@ -104,6 +104,16 @@ def add_storage_attach_parser(
       help='If true workloads can only read from storage',
   )
 
+  lustre_args = storage_attach_parser.add_argument_group(
+      'Lustre arguments',
+      'Arguments used when --type=lustre',
+  )
+  lustre_args.add_argument(
+      '--enable-legacy-lustre-port',
+      action='store_true',
+      help='Enable legacy port for Lustre CSI driver on the cluster.',
+  )
+
   gcsfuse_args = storage_attach_parser.add_argument_group(
       'FUSE arguments',
       'Arguments used when --type=gcsfuse',

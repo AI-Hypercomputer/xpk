@@ -48,9 +48,11 @@ def setup_mocks(mocker: MockerFixture):
 def test_should_send_telemetry_returns_correct_value(
     feature_flag: bool, config_value: str, expected: bool
 ):
+  value = xpk_config.get(SEND_TELEMETRY_KEY)
   xpk_config.set(SEND_TELEMETRY_KEY, config_value)
   FeatureFlags.TELEMETRY_ENABLED = feature_flag
   assert should_send_telemetry() is expected
+  xpk_config.set(SEND_TELEMETRY_KEY, value)
 
 
 def test_metrics_collector_generates_client_id_if_not_present():

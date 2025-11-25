@@ -1,5 +1,5 @@
 $ xpk cluster create-pathways --project=golden-project --zone=us-central1-a --cluster=golden-cluster-private --private --tpu-type=v5p-8  --num-slices=1 --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=4 --reservation=golden-reservation --dry-run
-[XPK] Starting xpk v0.15.0
+[XPK] Starting xpk v0.0.0
 [XPK] Starting cluster create for cluster golden-cluster-private:
 [XPK] Working on golden-project and us-central1-a
 [XPK] Task: `Determine server supported GKE versions for default gke version` is implemented by the following command not running since it is a dry run. 
@@ -67,13 +67,13 @@ metadata:
 data:
   v5p-8: "1"
 
-[XPK] Temp file (f7400d858f6ceafd19fd07eac58b11edce8dccc8c0001e89ade7a075548d0367) content: 
+[XPK] Temp file (127e822c10cd9fc414206179ebee189c0e2ad1c18a154e5a55b956586a98d375) content: 
 kind: ConfigMap
 apiVersion: v1
 metadata:
   name: golden-cluster-private-metadata-configmap
 data:
-  xpk_version: v0.15.0
+  xpk_version: 0.0.0
   capacity_type: RESERVATION
   reservation_id: golden-reservation
 

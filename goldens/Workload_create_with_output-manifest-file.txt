@@ -1,4 +1,4 @@
-$ xpk workload create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --command "bash hello" --tpu-type=v5p-8 --num-slices=1 --script-dir=/tmp --dry-run --output-manifest-file=manifest.yaml
+$ xpk workload create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --command "bash hello" --tpu-type=v5p-8 --num-slices=1 --script-dir=/tmp --dry-run --output-manifest-file=/var/tmp/manifest.yaml
 [XPK] Starting xpk v0.15.0
 [XPK] Task: `Check if Workload Already Exists` is implemented by the following command not running since it is a dry run. 
 kubectl get workloads -o=custom-columns='Jobset:.metadata.ownerReferences[0].name'
@@ -34,7 +34,7 @@ docker buildx build --platform=linux/amd64 -f 4b6736a12db8ea0f78ce793fd0d4ee0c94
 docker tag dry-run-runner gcr.io/golden-project/dry-run-runner:prefix-current
 [XPK] Task: `Upload Docker Image` is implemented by the following command not running since it is a dry run. 
 docker push gcr.io/golden-project/dry-run-runner:prefix-current
-[XPK] Workload golden-workload manifest written to manifest.yaml
+[XPK] Workload golden-workload manifest written to /var/tmp/manifest.yaml
 [XPK] Temp file (e21c8ebdc21d15a852187058c096898c486d3b1066e67dcfb67e5052a1d0a7fa) content: 
 apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet

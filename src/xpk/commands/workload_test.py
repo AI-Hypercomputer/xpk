@@ -18,7 +18,7 @@ import dataclasses
 from unittest.mock import MagicMock, patch
 import pytest
 from ..core.system_characteristics import SystemCharacteristics, AcceleratorType
-from .workload import _validate_sub_slicing_topology, _validate_sub_slicing_availability
+from .workload import _validate_sub_slicing_topology, _validate_sub_slicing_availability, workload_create
 from packaging.version import Version
 
 
@@ -172,24 +172,20 @@ def test_workload_create_dry_run_with_output_file(mocker):
   args.project = 'test-project'
   args.cluster = 'test-cluster'
   args.zone = 'test-zone'
+  args.sub_slicing_topology = None
 
   # Mock dependencies to avoid external calls and simulate state
+  mocker.patch('xpk.utils.execution_context.dry_run', True)
   mocks = {
-      'is_dry_run': True,
       'get_system_characteristics': (SYSTEM_CHARACTERISTICS, 0),
-      'get_cluster_configmap': None,
-      'get_volumes': [],
       'get_user_workload_container': ('container_yaml', None),
       'write_tmp_file': 'tmp_file',
-      'get_cluster_location': '0',
       'parse_env_config': None,
   }
   for name, return_value in mocks.items():
     mocker.patch(f'xpk.commands.workload.{name}', return_value=return_value)
 
   mock_open = mocker.patch('builtins.open', mocker.mock_open())
-
-  from xpk.commands.workload import workload_create
 
   with pytest.raises(SystemExit):
     workload_create(args)

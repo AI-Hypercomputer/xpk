@@ -30,9 +30,13 @@ from .capacity import (
 from .commands import run_command_for_value, run_commands
 from .config import XPK_CURRENT_VERSION
 from .system_characteristics import AcceleratorType, get_system_characteristics_by_device_type, SystemCharacteristics
+from enum import Enum
 
-CLUSTER_RESOURCES_CONFIGMAP = 'resources-configmap'
-CLUSTER_METADATA_CONFIGMAP = 'metadata-configmap'
+
+class ConfigMapType(Enum):
+  RESOURCES = 'resources-configmap'
+  METADATA = 'metadata-configmap'
+
 
 CLUSTER_CONFIGMAP_YAML = """kind: ConfigMap
 apiVersion: v1
@@ -50,7 +54,15 @@ class AutoprovisioningConfig:
   maximum_chips: int
 
 
-def get_cluster_configmap(configmap_name) -> dict[str, str] | None:
+def get_config_map_name(
+    cluster_name: str, config_map_type: ConfigMapType
+) -> str:
+  return f'{cluster_name}-{config_map_type.value}'
+
+
+def get_cluster_configmap(
+    cluster_name: str, config_map_type: ConfigMapType
+) -> dict[str, str] | None:
   """Run the Get GKE Cluster ConfigMap request.
 
   Args:
@@ -59,9 +71,11 @@ def get_cluster_configmap(configmap_name) -> dict[str, str] | None:
   Returns:
     key:value pairs stored in cluster ConfigMap.
   """
+  config_map_name = get_config_map_name(cluster_name, config_map_type)
   command = (
       'kubectl get configmap'
-      f' {configmap_name} -o=custom-columns="ConfigData:data" --no-headers=true'
+      f' {config_map_name} -o=custom-columns="ConfigData:data"'
+      ' --no-headers=true'
   )
 
   return_code, return_value = run_command_for_value(
@@ -91,7 +105,7 @@ def get_cluster_configmap(configmap_name) -> dict[str, str] | None:
 
 def create_cluster_configmaps(
     args,
-    system,
+    system: SystemCharacteristics,
     tensorboard_config: dict,
     autoprovisioning_config: AutoprovisioningConfig | None,
 ) -> int:
@@ -127,9 +141,11 @@ def create_cluster_configmaps(
     resources_data = (
         f'{device_type}: "{int(args.num_slices) * system.vms_per_slice}"'
     )
-  resources_configmap_name = f'{args.cluster}-{CLUSTER_RESOURCES_CONFIGMAP}'
+  resources_configmap_name = get_config_map_name(
+      args.cluster, ConfigMapType.RESOURCES
+  )
   resources_yml = CLUSTER_CONFIGMAP_YAML.format(
-      args=args, name=resources_configmap_name, data=resources_data
+      name=resources_configmap_name, data=resources_data
   )
   configmap_yml[resources_configmap_name] = resources_yml
 
@@ -148,15 +164,17 @@ def create_cluster_configmaps(
   # Reservation ID if applicable.
   if capacity_type == CapacityType.RESERVATION:
     metadata += f'\n  {RESERVATION_CONFIG_KEY}: {args.reservation}'
-  metadata_configmap_name = f'{args.cluster}-{CLUSTER_METADATA_CONFIGMAP}'
+  metadata_configmap_name = get_config_map_name(
+      args.cluster, ConfigMapType.METADATA
+  )
   metadata_yml = CLUSTER_CONFIGMAP_YAML.format(
-      args=args, name=metadata_configmap_name, data=metadata
+      name=metadata_configmap_name, data=metadata
   )
   configmap_yml[metadata_configmap_name] = metadata_yml
-  return create_or_update_cluster_configmap(configmap_yml)
+  return _create_or_update_cluster_configmap(configmap_yml)
 
 
-def create_or_update_cluster_configmap(configmap_yml: dict) -> int:
+def _create_or_update_cluster_configmap(configmap_yml: dict[str, str]) -> int:
   """
   Args:
     configmap_yml: dict containing ConfigMap name and yml string.
@@ -187,7 +205,18 @@ def create_or_update_cluster_configmap(configmap_yml: dict) -> int:
   return 0
 
 
-def check_cluster_resources(args, system) -> tuple[bool, bool]:
+def update_cluster_configmap(
+    cluster_name: str, config_map_type: ConfigMapType, data: str
+) -> int:
+  config_map_name = get_config_map_name(cluster_name, config_map_type)
+  yaml = CLUSTER_CONFIGMAP_YAML.format(name=config_map_name, data=data)
+  config_map_dict = {config_map_name: yaml}
+  return _create_or_update_cluster_configmap(config_map_dict)
+
+
+def check_cluster_resources(
+    args, system: SystemCharacteristics
+) -> tuple[bool, bool]:
   """Check if cluster has resources of a specified device_type/gke_accelerator.
   This check will be skipped if <args.cluster>-<_CLUSTER_RESOURCES_CONFIGMAP> ConfigMap doesn't exist for the cluster.
 
@@ -200,8 +229,9 @@ def check_cluster_resources(args, system) -> tuple[bool, bool]:
     True if resources in the cluster should be checked, False otherwise.
     True if device_type/gke_accelerator exists in the cluster, False otherwise.
   """
-  resources_configmap_name = f'{args.cluster}-{CLUSTER_RESOURCES_CONFIGMAP}'
-  resources_config_map = get_cluster_configmap(resources_configmap_name)
+  resources_config_map = get_cluster_configmap(
+      args.cluster, ConfigMapType.RESOURCES
+  )
   if resources_config_map is None:
     xpk_print(
         f'No ConfigMap exist for cluster with the name {resources_config_map}.'
@@ -223,13 +253,14 @@ def get_cluster_system_characteristics(args) -> SystemCharacteristics | None:
   Returns:
     returns system characteristics
   """
-  resources_configmap_name = f'{args.cluster}-{CLUSTER_RESOURCES_CONFIGMAP}'
-  cluster_config_map = get_cluster_configmap(resources_configmap_name)
+  resources_config_map = get_cluster_configmap(
+      args.cluster, ConfigMapType.RESOURCES
+  )
 
-  if cluster_config_map is None:
+  if resources_config_map is None:
     return None
 
-  for key in cluster_config_map:
+  for key in resources_config_map:
     system, result_code = get_system_characteristics_by_device_type(key)
     if result_code == 0:
       return system
@@ -245,13 +276,14 @@ def get_cluster_capacity_type(args) -> CapacityType | None:
   Returns:
     returns system characteristics
   """
-  metadata_configmap_name = f'{args.cluster}-{CLUSTER_METADATA_CONFIGMAP}'
-  cluster_config_map = get_cluster_configmap(metadata_configmap_name)
+  metadata_configmap_name = get_cluster_configmap(
+      args.cluster, ConfigMapType.METADATA
+  )
 
-  if cluster_config_map is None:
+  if metadata_configmap_name is None:
     return None
 
-  capacityValue = cluster_config_map.get('capacity_type')
+  capacityValue = metadata_configmap_name.get('capacity_type')
   if capacityValue is not None:
     return CapacityType[capacityValue.upper()]
 

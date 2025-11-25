@@ -64,13 +64,13 @@ metadata:
 data:
   tpu7x-8: "1"
 
-[XPK] Temp file (7e7f0e5d55e7c0f2389833aa30ec1a32128066d0fae38d3867ba61c749e07b15) content: 
+[XPK] Temp file (1e07554ba48dc90eb0b6b215d8604e02dc0152f8662dd1de87472db102e7d2bf) content: 
 kind: ConfigMap
 apiVersion: v1
 metadata:
   name: golden-cluster-metadata-configmap
 data:
-  xpk_version: 0.0.0
+  xpk_version: v0.0.0
   capacity_type: RESERVATION
   reservation_id: projects/reservation-project/reservations/golden-reservation
 

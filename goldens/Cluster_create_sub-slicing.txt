@@ -66,13 +66,13 @@ metadata:
 data:
   v6e-16: "4"
 
-[XPK] Temp file (2e06741c3b709e3a12b3f6e3f89bc4ddb95243f11f51eb009a22750f88de8063) content: 
+[XPK] Temp file (a3dd06b296e1eb6792c99ad309e6eb714888c53e8b8fb8adc3beb8f250ef163c) content: 
 kind: ConfigMap
 apiVersion: v1
 metadata:
   name: golden-cluster-metadata-configmap
 data:
-  xpk_version: 0.0.0
+  xpk_version: v0.0.0
   capacity_type: RESERVATION
   reservation_id: golden-reservation
 

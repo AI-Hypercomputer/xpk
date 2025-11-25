@@ -14,7 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from xpk.core.config import XpkConfig, CFG_BUCKET_KEY, CLUSTER_NAME_KEY, PROJECT_KEY, ZONE_KEY
+from xpk.core.config import XpkConfig, CFG_BUCKET_KEY, CLUSTER_NAME_KEY, PROJECT_KEY, ZONE_KEY, _get_version
+from unittest.mock import patch
+from importlib.metadata import PackageNotFoundError
 
 import os
 import pytest
@@ -29,6 +31,42 @@ def _():
   yield
   if os.path.exists(config_tmp_path):
     os.remove(config_tmp_path)
+
+
+@patch('os.getenv', return_value='10.0.0')
+def test_get_version_returns_overriden_value_when_it_is_overriden(_):
+  assert _get_version() == '10.0.0'
+
+
+@patch('xpk.core.config.setuptools_get_version', return_value='10.0.0')
+def test_get_version_returns_value_from_setuptools_scm_when_there_is_no_override(
+    _,
+):
+  assert _get_version() == '10.0.0'
+
+
+@patch(
+    'xpk.core.config.setuptools_get_version',
+    side_effect=LookupError('unable to find git version'),
+)
+@patch('xpk.core.config.version', return_value='10.0.0')
+def test_get_version_returns_value_from_pip_when_there_is_no_setuptools_could_be_resolved(
+    *_,
+):
+  assert _get_version() == '10.0.0'
+
+
+@patch(
+    'xpk.core.config.setuptools_get_version',
+    side_effect=LookupError('unable to find git version'),
+)
+@patch(
+    'xpk.core.config.version',
+    side_effect=PackageNotFoundError('unable to locate package'),
+)
+def test_get_version_returns_none_when_no_version_could_be_resolved(*_):
+  with pytest.raises(LookupError):
+    _get_version()
 
 
 def test_config(_):

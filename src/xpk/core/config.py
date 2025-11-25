@@ -39,7 +39,7 @@ def _get_version() -> str:
   except PackageNotFoundError:
     pass
 
-  return 'unknown'
+  raise LookupError('unable to determine version number')
 
 
 __version__ = _get_version()

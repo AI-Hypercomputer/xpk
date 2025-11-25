@@ -42,3 +42,4 @@ jobs:
       run: ./golden_buddy.sh verify goldens.yaml goldens
       env:
         UPDATE_GOLDEN_COMMAND: make goldens
+        XPK_VERSION_OVERRIDE: 0.0.0

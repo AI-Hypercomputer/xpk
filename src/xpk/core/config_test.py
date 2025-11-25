@@ -38,13 +38,15 @@ def test_get_version_returns_overriden_value_when_it_is_overriden(_):
   assert _get_version() == '10.0.0'
 
 
+@patch('os.getenv', return_value='')
 @patch('xpk.core.config.setuptools_get_version', return_value='10.0.0')
 def test_get_version_returns_value_from_setuptools_scm_when_there_is_no_override(
-    _,
+    *_,
 ):
   assert _get_version() == '10.0.0'
 
 
+@patch('os.getenv', return_value='')
 @patch(
     'xpk.core.config.setuptools_get_version',
     side_effect=LookupError('unable to find git version'),
@@ -56,6 +58,7 @@ def test_get_version_returns_value_from_pip_when_there_is_no_setuptools_could_be
   assert _get_version() == '10.0.0'
 
 
+@patch('os.getenv', return_value='')
 @patch(
     'xpk.core.config.setuptools_get_version',
     side_effect=LookupError('unable to find git version'),

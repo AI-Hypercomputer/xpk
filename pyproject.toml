@@ -34,6 +34,7 @@ dependencies = [
   "cloud-accelerator-diagnostics==0.1.1",
   "tabulate==0.9.0",
   "ruamel.yaml==0.18.10",
+  "setuptools-scm>=8",
   "pyyaml==6.0.2",
   "docker==7.1.0",
   "kubernetes==31.0.0",
@@ -50,7 +51,7 @@ dependencies = [
 "Bug Tracker" = "https://github.com/google/xpk/issues"
 
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=61.0", "setuptools-scm[simple]>=8"]
 build-backend = "setuptools.build_meta"
 
 [project.scripts]
@@ -71,9 +72,6 @@ dev = [
     "types-docker ~= 7.1.0.0",
     "pylint-per-file-ignores == 1.4.0",
 ]
-
-[tool.setuptools.dynamic]
-version = {attr = "xpk.core.config.__version__"}
 
 [tool.setuptools]
 package-dir = {"" = "src"}

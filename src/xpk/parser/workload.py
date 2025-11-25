@@ -670,14 +670,6 @@ def add_shared_workload_create_optional_arguments(args_parsers):
             ' the workload.'
         ),
     )
-    if FeatureFlags.SUB_SLICING_ENABLED:
-      custom_parser.add_argument(
-          '--sub-slicing-topology',
-          type=str,
-          help='Sub-slicing topology to use.',
-          required=False,
-          choices=SUB_SLICING_TOPOLOGIES,
-      )
 
 
 def add_shared_workload_create_env_arguments(args_parsers):

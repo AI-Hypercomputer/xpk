@@ -1,13 +1,14 @@
-$ SUB_SLICING_ENABLED=true xpk workload create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --command "bash hello" --tpu-type=v6e-4x4 --sub-slicing-topology=2x4 --script-dir=/tmp --dry-run
+$ SUB_SLICING_ENABLED=true DRY_RUN_RESOURCES_CONFIG_MAP="map[v6e-16:8]" xpk workload create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --command "bash hello" --tpu-type=v6e-2x4 --script-dir=/tmp --dry-run
 [XPK] Starting xpk v0.15.0
 [XPK] Task: `Check if Workload Already Exists` is implemented by the following command not running since it is a dry run. 
 kubectl get workloads -o=custom-columns='Jobset:.metadata.ownerReferences[0].name'
+[XPK] Task: `GKE Cluster Get ConfigMap` is implemented by the following command not running since it is a dry run. 
+kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="ConfigData:data" --no-headers=true
+[XPK] GKE Accelerator Type Check: golden-workload is requesting tpu-v6e-slice but cluster only contains dict_keys(['v6e-16']). 
 [XPK] Task: `Get defined topologies` is implemented by the following command not running since it is a dry run. 
 kubectl get topology
 [XPK] Task: `Get kueue version on server` is implemented by the following command not running since it is a dry run. 
 kubectl get deployment kueue-controller-manager -n kueue-system -o jsonpath='{.spec.template.spec.containers[0].image}'
-[XPK] Task: `GKE Cluster Get ConfigMap` is implemented by the following command not running since it is a dry run. 
-kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="ConfigData:data" --no-headers=true
 [XPK] Starting workload create
 [XPK] Task: `GKE Cluster Get ConfigMap` is implemented by the following command not running since it is a dry run. 
 kubectl get configmap golden-cluster-metadata-configmap -o=custom-columns="ConfigData:data" --no-headers=true
@@ -19,6 +20,7 @@ kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="Conf
 [XPK] No gcp parallelstore instances to add detected.
 [XPK] No gce persistent disk instances to add detected.
 [XPK] No managed lustre instances to add detected.
+[XPK] Workload will be scheduled using the Sub-slicing feature.
 [XPK] Temp file (4b6736a12db8ea0f78ce793fd0d4ee0c94c652303f1dc0fecad085ea0993f688) content: 
 FROM python:3.10
 

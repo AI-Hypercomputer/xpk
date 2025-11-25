@@ -987,7 +987,7 @@ def update_coredns() -> int:
 
   # 6. Scale up coredns and verify readiness
   scale_up_coredns(replicas=15)
-  verify_coredns_readiness(timeout=120)
+  verify_coredns_readiness()
 
   xpk_print('The CoreDNS setup process has been completed.')
 

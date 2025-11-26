@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from .system_characteristics import create_accelerator_label, create_machine_label
 from ..utils.topology import get_slice_topology_level
 from ..utils.console import xpk_print
 from ..utils.topology import is_topology_valid
@@ -22,7 +23,6 @@ from .capacity import AUTOPROVISIONING_CONFIG_MAXIMUM_KEY, AUTOPROVISIONING_CONF
 from .resources import ConfigMapType, get_cluster_configmap
 from .system_characteristics import (
     AcceleratorType,
-    AcceleratorTypeToAcceleratorCharacteristics,
     SystemCharacteristics,
 )
 
@@ -133,7 +133,7 @@ def get_total_chips_requested_from_args(
   return int(num_chips)
 
 
-def get_cpu_affinity(accelerator_type) -> str:
+def get_cpu_affinity(accelerator_type: AcceleratorType) -> str:
   """Generate affinity rules for CPU nodepools, so that workload pods are
   not scheduled on the default pool machines.
   Args:
@@ -197,10 +197,8 @@ def get_gpu_scheduler(
               """
     gpu_scheduler = gpu_scheduler_yaml.format(
         scheduler_name=args.scheduler,
-        accelerator_label=create_accelerator_label(
-            system.accelerator_type, system
-        ),
-        machine_label=create_machine_label(system.accelerator_type, system),
+        accelerator_label=create_accelerator_label(system),
+        machine_label=create_machine_label(system),
         node_pool_name=f'{args.cluster}-np-0',
         autoprovisioning_args=autoprovisioning_args,
     )
@@ -215,74 +213,14 @@ def get_gpu_scheduler(
   return gpu_scheduler, return_code
 
 
-def create_accelerator_label(accelerator_type, system) -> str:
-  """Generates accelerator label.
-
-  Args:
-    accelerator_type: type of accelerator.
-    system: system characteristics.
-
-  Returns:
-    The accelerator label.
-  """
-  if accelerator_type == AcceleratorType.CPU:
-    return ''
-  return (
-      f'{AcceleratorTypeToAcceleratorCharacteristics[accelerator_type].accelerator_label}:'
-      f' {system.gke_accelerator}'
-  )
-
-
-def create_tpu_machine_type(accelerator_type, system) -> str:
-  """Generates TPU machine type..
-
-  Args:
-    accelerator_type: type of accelerator.
-    system: system characteristics.
-
-  Returns:
-    The accelerator label.
-  """
-  if accelerator_type == AcceleratorType.TPU:
+def create_tpu_machine_type(system: SystemCharacteristics) -> str:
+  if system.accelerator_type == AcceleratorType.TPU:
     return f'{system.gce_machine_type}'
   return ''
 
 
-def create_machine_label(
-    accelerator_type, system, autoprovisioning_enabled: bool = False
-) -> str:
-  """Generates machine label.
-
-  Args:
-    accelerator_type: type of accelerator.
-    system: system characteristics.
-    autoprovisioning_enabled: describes autoprovisioning enablement.
-
-  Returns:
-    The machine label.
-  """
-  if accelerator_type == AcceleratorType.TPU and not autoprovisioning_enabled:
-    return (
-        f'{AcceleratorTypeToAcceleratorCharacteristics[accelerator_type].machine_label}:'
-        f' {system.topology}'
-    )
-  return ''
-
-
-def create_tpu_topology(
-    accelerator_type, system, autoprovisioning_enabled: bool = False
-) -> str:
-  """Generates TPU topology.
-
-  Args:
-    accelerator_type: type of accelerator.
-    system: system characteristics.
-    autoprovisioning_enabled: describes autoprovisioning enablement.
-
-  Returns:
-    The machine label.
-  """
-  if accelerator_type == AcceleratorType.TPU and not autoprovisioning_enabled:
+def create_tpu_topology(system: SystemCharacteristics) -> str:
+  if system.accelerator_type == AcceleratorType.TPU:
     return f'{system.topology}'
   return ''
 

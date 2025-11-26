@@ -17,7 +17,7 @@ limitations under the License.
 import os
 
 import ruamel.yaml
-
+from abc import ABC
 from ..utils import file
 from ..utils.console import xpk_print
 from setuptools_scm import get_version as setuptools_get_version
@@ -83,8 +83,25 @@ VERTEX_TENSORBOARD_FEATURE_FLAG = XPK_CURRENT_VERSION >= '0.4.0'
 yaml = ruamel.yaml.YAML()
 
 
-class XpkConfig:
-  """XpkConfig is a class for setting and getting values from .yaml config file."""
+class Config(ABC):
+  """Stores and manipulates XPK configuration."""
+
+  def set(self, key: str, value: str | None) -> None:
+    """Sets the config value"""
+    pass
+
+  def get(self, key: str) -> str | None:
+    """Reads the config value"""
+    pass
+
+  def get_all(
+      self,
+  ) -> dict[str, str] | None:
+    pass
+
+
+class FileSystemConfig(Config):
+  """XPK Configuration manipulation class leveraging the file system."""
 
   def __init__(self, custom_config_file: str = XPK_CONFIG_FILE) -> None:
     self._config = custom_config_file
@@ -139,4 +156,39 @@ class XpkConfig:
     return val
 
 
-xpk_config = XpkConfig()
+class InMemoryXpkConfig(Config):
+  """XPK Configuration manipulation class in memory."""
+
+  def __init__(self) -> None:
+    self._config: dict[str, str] = {}
+    self._allowed_keys = DEFAULT_KEYS
+
+  def set(self, key: str, value: str | None) -> None:
+    if key not in self._allowed_keys:
+      return
+    if value is None:
+      self._config.pop(key, None)
+    else:
+      self._config[key] = value
+
+  def get(self, key: str) -> str | None:
+    if key not in self._allowed_keys:
+      return None
+    return self._config.get(key)
+
+  def get_all(
+      self,
+  ) -> dict[str, str] | None:
+    return None if len(self._config) <= 0 else self._config
+
+
+_xpk_config = FileSystemConfig()
+
+
+def set_config(config: Config):
+  global _xpk_config
+  _xpk_config = config
+
+
+def get_config() -> Config:
+  return _xpk_config

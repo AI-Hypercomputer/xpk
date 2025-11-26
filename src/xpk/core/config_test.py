@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from xpk.core.config import XpkConfig, CFG_BUCKET_KEY, CLUSTER_NAME_KEY, PROJECT_KEY, ZONE_KEY, _get_version
+from xpk.core.config import FileSystemConfig, InMemoryXpkConfig, CFG_BUCKET_KEY, CLUSTER_NAME_KEY, PROJECT_KEY, ZONE_KEY, _get_version
 from unittest.mock import patch
 from importlib.metadata import PackageNotFoundError
 
@@ -72,15 +72,21 @@ def test_get_version_returns_none_when_no_version_could_be_resolved(*_):
     _get_version()
 
 
-def test_config(_):
-  cfg = XpkConfig(config_tmp_path)
+@pytest.mark.parametrize(
+    argnames='cfg',
+    argvalues=[(FileSystemConfig(config_tmp_path)), (InMemoryXpkConfig())],
+)
+def test_config(_, cfg):
   cfg.set('project-id', 'foo')
   project_id = cfg.get('project-id')
   assert project_id == 'foo'
 
 
-def test_config_get_all(_):
-  cfg = XpkConfig(config_tmp_path)
+@pytest.mark.parametrize(
+    argnames='cfg',
+    argvalues=[(FileSystemConfig(config_tmp_path)), (InMemoryXpkConfig())],
+)
+def test_config_get_all(_, cfg):
   cfg.set(PROJECT_KEY, 'foo')
   cfg.set(CLUSTER_NAME_KEY, 'bar')
   cfg.set(ZONE_KEY, 'europe-west1-a')
@@ -93,20 +99,29 @@ def test_config_get_all(_):
   assert cfg_all[CFG_BUCKET_KEY] == 'cfg-bucket'
 
 
-def test_config_get_empty(_):
-  cfg = XpkConfig(config_tmp_path)
+@pytest.mark.parametrize(
+    argnames='cfg',
+    argvalues=[(FileSystemConfig(config_tmp_path)), (InMemoryXpkConfig())],
+)
+def test_config_get_empty(_, cfg):
   val = cfg.get(PROJECT_KEY)
   assert val is None
 
 
-def test_config_get_all_empty(_):
-  cfg = XpkConfig(config_tmp_path)
+@pytest.mark.parametrize(
+    argnames='cfg',
+    argvalues=[(FileSystemConfig(config_tmp_path)), (InMemoryXpkConfig())],
+)
+def test_config_get_all_empty(_, cfg):
   val = cfg.get_all()
   assert not val
 
 
-def test_config_set_incorrect(_):
-  cfg = XpkConfig(config_tmp_path)
+@pytest.mark.parametrize(
+    argnames='cfg',
+    argvalues=[(FileSystemConfig(config_tmp_path)), (InMemoryXpkConfig())],
+)
+def test_config_set_incorrect(cfg, _):
   cfg.set('foo', 'bar')
   cfg_all = cfg.get_all()
   assert not cfg_all

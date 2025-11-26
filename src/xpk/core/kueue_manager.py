@@ -327,9 +327,7 @@ class KueueManager:
       node_labels_dict[key] = value.strip()
 
     if not autoprovisioning:
-      machine_label = create_machine_label(
-          system.accelerator_type, system
-      )
+      machine_label = create_machine_label(system.accelerator_type, system)
       if machine_label:
         key, value = machine_label.split(":", 1)
         node_labels_dict[key] = value.strip()

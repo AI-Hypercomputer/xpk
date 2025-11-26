@@ -557,18 +557,18 @@ def workload_create(args) -> None:
             failure_policy_rules=failure_policy_rules,
             pod_failure_policy=pod_failure_policy,
             annotations=annotations,
-            placement_policy_label=placement_policy_label
+            placement_policy_label=placement_policy_label,
         )
       else:
         yml_string = A3_GPU_WORKLOAD_CREATE_YAML.format(
-          args=args,
-          container=container,
-          service_account=XPK_SA,
-          failure_policy_rules=failure_policy_rules,
-          pod_failure_policy=pod_failure_policy,
-          annotations=annotations,
-          placement_policy_label=placement_policy_label,
-      )
+            args=args,
+            container=container,
+            service_account=XPK_SA,
+            failure_policy_rules=failure_policy_rules,
+            pod_failure_policy=pod_failure_policy,
+            annotations=annotations,
+            placement_policy_label=placement_policy_label,
+        )
 
       sub_networks = get_cluster_subnetworks()
 

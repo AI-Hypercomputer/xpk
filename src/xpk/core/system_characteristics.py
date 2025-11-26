@@ -15,6 +15,7 @@ limitations under the License.
 """
 
 from dataclasses import dataclass
+import dataclasses
 from typing import Callable, Literal, Optional
 
 from ..core.workload_decorators import rdma_decorator, tcpxo_decorator, tcpx_decorator
@@ -84,6 +85,17 @@ class GpuConfig:
   jobset_decorator_fn: (
       Optional[Callable[[str, list[str]], str]] | Optional[Callable[[str], str]]
   ) = None
+
+  def __repr__(self) -> str:
+    """Returns a string representation of the GpuConfig, omitting memory addresses for functions."""
+    parts = []
+    for f in dataclasses.fields(self):
+      value = getattr(self, f.name)
+      if f.name in ('kjob_decorator_fn', 'jobset_decorator_fn') and value:
+        parts.append(f'{f.name}=<function {value.__name__}>')
+      else:
+        parts.append(f'{f.name}={repr(value)}')
+    return f"GpuConfig({', '.join(parts)})"
 
 
 @dataclass

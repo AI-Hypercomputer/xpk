@@ -31,7 +31,6 @@ def setup_mocks(mocker: MockerFixture):
   mocker.patch('os.path.basename', return_value='xpk.py')
   mocker.patch('os.path.abspath', return_value='/home/xpk_user')
   set_dry_run(False)
-  set_config(InMemoryXpkConfig())
   get_config().set(CLIENT_ID_KEY, 'client_id')
   yield
   get_config().set(CLIENT_ID_KEY, None)

@@ -185,7 +185,7 @@ class InMemoryXpkConfig(Config):
     return None if len(self._config) <= 0 else self._config
 
 
-_xpk_config: Config = FileSystemConfig()
+_xpk_config: Config = InMemoryXpkConfig()
 
 
 def set_config(config: Config):

@@ -57,8 +57,6 @@ from ..core.resources import ConfigMapType, get_cluster_configmap
 from ..core.nodepool import ensure_resource_policy_exists
 from ..core.scheduling import (
     check_if_workload_can_schedule,
-    create_accelerator_label,
-    create_machine_label,
     create_tpu_machine_type,
     create_tpu_topology,
     get_cpu_affinity,
@@ -82,6 +80,8 @@ from ..core.storage import (
 from ..core.system_characteristics import (
     SUB_SLICING_TOPOLOGIES,
     AcceleratorType,
+    create_accelerator_label,
+    create_machine_label,
     get_system_characteristics,
     compute_vms_per_slice,
 )

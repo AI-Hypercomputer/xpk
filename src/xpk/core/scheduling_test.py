@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 from .scheduling import create_sub_slicing_annotations, create_placement_policy_label, get_placement_policy_name, is_placement_policy_supported
-from .system_characteristics import SystemCharacteristics, AcceleratorType
+from .system_characteristics import SystemCharacteristics, AcceleratorType, DockerPlatform
 
 
 def test_create_sub_slicing_annotations_returns_valid_annotations():
@@ -41,6 +41,7 @@ def test_create_placement_policy_label_returns_valid_label():
       device_type='tpu7x',
       accelerator_type=AcceleratorType.TPU,
       supports_sub_slicing=False,
+      docker_platform=DockerPlatform.ARM,
   )
   label = create_placement_policy_label(system_characteristics)
   assert (
@@ -60,6 +61,7 @@ def test_get_placement_policy_name_returns_valid_name():
       device_type='tpu7x',
       accelerator_type=AcceleratorType.TPU,
       supports_sub_slicing=False,
+      docker_platform=DockerPlatform.ARM,
   )
   name = get_placement_policy_name(system_characteristics)
   assert name == 'tpu7x-1x1x1-placement-policy'
@@ -76,6 +78,7 @@ def test_is_placement_policy_supported_returns_true_for_system_characteristics_s
       device_type='tpu7x',
       accelerator_type=AcceleratorType.TPU,
       supports_sub_slicing=False,
+      docker_platform=DockerPlatform.ARM,
   )
   assert is_placement_policy_supported(system_characteristics) is True
 
@@ -91,6 +94,7 @@ def test_is_placement_policy_supported_returns_false_for_system_characteristics_
       device_type='tpu7x',
       accelerator_type=AcceleratorType.TPU,
       supports_sub_slicing=False,
+      docker_platform=DockerPlatform.ARM,
   )
   assert is_placement_policy_supported(system_characteristics) is False
 
@@ -106,5 +110,6 @@ def test_is_placement_policy_supported_returns_false_for_system_characteristics_
       device_type='tpu7x',
       accelerator_type=AcceleratorType.TPU,
       supports_sub_slicing=False,
+      docker_platform=DockerPlatform.ARM,
   )
   assert is_placement_policy_supported(system_characteristics) is False

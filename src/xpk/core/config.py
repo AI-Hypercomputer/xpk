@@ -17,7 +17,7 @@ limitations under the License.
 import os
 
 import ruamel.yaml
-from abc import ABC
+from abc import ABC, abstractmethod
 from ..utils import file
 from ..utils.console import xpk_print
 from setuptools_scm import get_version as setuptools_get_version
@@ -86,14 +86,17 @@ yaml = ruamel.yaml.YAML()
 class Config(ABC):
   """Stores and manipulates XPK configuration."""
 
+  @abstractmethod
   def set(self, key: str, value: str | None) -> None:
     """Sets the config value"""
     pass
 
+  @abstractmethod
   def get(self, key: str) -> str | None:
     """Reads the config value"""
     pass
 
+  @abstractmethod
   def get_all(
       self,
   ) -> dict[str, str] | None:

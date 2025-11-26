@@ -27,7 +27,7 @@ import requests
 from enum import Enum
 from typing import Any
 from dataclasses import dataclass
-from .config import xpk_config, CLIENT_ID_KEY, SEND_TELEMETRY_KEY, __version__ as xpk_version
+from .config import get_config, CLIENT_ID_KEY, SEND_TELEMETRY_KEY, __version__ as xpk_version
 from ..utils.execution_context import is_dry_run
 from ..utils.user_agent import get_user_agent
 from ..utils.feature_flags import FeatureFlags
@@ -36,7 +36,7 @@ from ..utils.feature_flags import FeatureFlags
 def should_send_telemetry():
   return (
       FeatureFlags.TELEMETRY_ENABLED
-      and xpk_config.get(SEND_TELEMETRY_KEY) != "false"
+      and get_config().get(SEND_TELEMETRY_KEY) != "false"
   )
 
 
@@ -254,10 +254,10 @@ def _get_session_id() -> str:
 
 def _ensure_client_id() -> str:
   """Generates Client ID and stores in configuration if not already present."""
-  current_client_id = xpk_config.get(CLIENT_ID_KEY)
+  current_client_id = get_config().get(CLIENT_ID_KEY)
   if current_client_id is not None:
     return current_client_id
 
   new_client_id = str(uuid.uuid4())
-  xpk_config.set(CLIENT_ID_KEY, new_client_id)
+  get_config().set(CLIENT_ID_KEY, new_client_id)
   return new_client_id

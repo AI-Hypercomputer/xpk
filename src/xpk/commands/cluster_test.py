@@ -138,6 +138,7 @@ def construct_args(**kwargs: Any) -> Namespace:
       termination_grace_period_seconds=0,
       docker_image_pull_secret='',
       managed_mldiagnostics=False,
+      output_manifest_file='',
   )
   args_dict.update(kwargs)
   return Namespace(**args_dict)

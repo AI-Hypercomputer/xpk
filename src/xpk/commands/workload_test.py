@@ -61,6 +61,7 @@ class _WorkloadCreateMocks:
   get_cluster_location: MagicMock
   xpk_exit: MagicMock
   run_command_with_updates: MagicMock
+  ensure_resource_policy_exists: MagicMock
 
 
 @pytest.fixture
@@ -126,6 +127,9 @@ def workload_create_mocks(mocker) -> _WorkloadCreateMocks:
       xpk_exit=mocker.patch('xpk.commands.workload.xpk_exit'),
       run_command_with_updates=mocker.patch(
           'xpk.commands.workload.run_command_with_updates', return_value=0
+      ),
+      ensure_resource_policy_exists=mocker.patch(
+          'xpk.commands.workload.ensure_resource_policy_exists'
       ),
   )
 
@@ -252,3 +256,78 @@ def test_validate_sub_slicing_topology_fails_for_unsupported_system(
       'l4-1 does not support Sub-slicing.'
       in common_xpk_print.mock_calls[0].args[0]
   )
+
+
+def test_workload_create_for_a4x_has_arm_toleration(
+    workload_create_mocks: _WorkloadCreateMocks,
+):
+  """Tests that the generated YAML for an A4X workload has arm64 toleration."""
+  # Copy and overwrite the decorator with a no-op lambda.
+  gb200_system_chars = UserFacingNameToSystemCharacteristics['gb200-4']
+  gb200_system_chars_no_decorator = dataclasses.replace(
+      gb200_system_chars,
+      gpu_config=GpuConfig(
+          requires_topology=False, jobset_decorator_fn=lambda yml, *_: yml
+      ),
+  )
+  # Patch the function that returns the system characteristics
+  # to return our modified object.
+  with patch(
+      'xpk.commands.workload.get_system_characteristics',
+      return_value=(gb200_system_chars_no_decorator, 0),
+  ):
+    args = construct_args(
+        device_type='gb200-4',
+        workload='test-workload',
+        command='echo hello',
+        num_nodes=1,
+        restart_on_exit_codes=None,
+    )
+    workload_create(args)
+
+  assert workload_create_mocks.write_tmp_file.called
+  yaml_content = workload_create_mocks.write_tmp_file.call_args[0][0]
+  jobset = yaml.safe_load(yaml_content)
+
+  tolerations = jobset['spec']['replicatedJobs'][0]['template']['spec'][
+      'template'
+  ]['spec']['tolerations']
+  assert {
+      'key': 'kubernetes.io/arch',
+      'operator': 'Equal',
+      'value': 'arm64',
+      'effect': 'NoSchedule',
+  } in tolerations
+
+
+def test_workload_create_dry_run_with_output_file(mocker):
+  args = MagicMock()
+  args.workload = 'test-workload'
+  args.output_manifest_file = 'manifest.yaml'
+  args.use_pathways = False
+  args.use_vertex_tensorboard = False
+  args.project = 'test-project'
+  args.cluster = 'test-cluster'
+  args.zone = 'test-zone'
+  args.sub_slicing_topology = None
+
+  # Mock dependencies to avoid external calls and simulate state
+  mocker.patch('xpk.utils.execution_context.dry_run', True)
+  mocks = {
+      'get_system_characteristics': (SYSTEM_CHARACTERISTICS, 0),
+      'get_user_workload_container': ('container_yaml', None),
+      'write_tmp_file': 'tmp_file',
+      'parse_env_config': None,
+  }
+  for name, return_value in mocks.items():
+    mocker.patch(f'xpk.commands.workload.{name}', return_value=return_value)
+
+  mock_open = mocker.patch('builtins.open', mocker.mock_open())
+
+  with pytest.raises(SystemExit):
+    workload_create(args)
+
+  mock_open.assert_called_once_with('manifest.yaml', 'w', encoding='utf-8')
+  written_content = mock_open.return_value.write.call_args[0][0]
+  assert 'test-workload' in written_content
+  assert 'cloud.google.com/gke-tpu-topology: 8x8' in written_content

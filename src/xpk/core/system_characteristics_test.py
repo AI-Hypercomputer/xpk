@@ -14,7 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from .system_characteristics import get_tpu_system_characteristics_map, generate_tpu_topologies, SystemCharacteristics, AcceleratorType
+import pytest
+from .system_characteristics import (
+    get_tpu_system_characteristics_map,
+    generate_tpu_topologies,
+    DockerPlatform,
+    SystemCharacteristics,
+    AcceleratorType,
+    GpuConfig,
+)
 
 
 def test_get_tpu_system_characteristics_map_returns_correct_values_for_1x1_topology():
@@ -25,6 +33,7 @@ def test_get_tpu_system_characteristics_map_returns_correct_values_for_1x1_topol
       machine_type="test",
       supported_topologies=["1x1"],
       supports_sub_slicing=False,
+      docker_platform=DockerPlatform.AMD,
       tpu_type_requires_workload_policy=False,
   )
 
@@ -37,6 +46,7 @@ def test_get_tpu_system_characteristics_map_returns_correct_values_for_1x1_topol
       accelerator_type=AcceleratorType.TPU,
       device_type="test-1",
       supports_sub_slicing=False,
+      docker_platform=DockerPlatform.AMD,
       requires_workload_policy=False,
   )
   assert result == {
@@ -53,6 +63,7 @@ def test_get_tpu_system_characteristics_map_returns_correct_values_for_2x2_topol
       machine_type="test",
       supported_topologies=["2x2"],
       supports_sub_slicing=False,
+      docker_platform=DockerPlatform.AMD,
       tpu_type_requires_workload_policy=True,
   )
 
@@ -65,6 +76,7 @@ def test_get_tpu_system_characteristics_map_returns_correct_values_for_2x2_topol
       accelerator_type=AcceleratorType.TPU,
       device_type="test-8",
       supports_sub_slicing=False,
+      docker_platform=DockerPlatform.AMD,
       requires_workload_policy=False,
   )
   assert result == {
@@ -81,6 +93,7 @@ def test_get_tpu_system_characteristics_map_returns_correct_values_for_2x2x2_top
       machine_type="test",
       supported_topologies=["2x2x2"],
       supports_sub_slicing=False,
+      docker_platform=DockerPlatform.AMD,
       tpu_type_requires_workload_policy=True,
   )
 
@@ -93,6 +106,7 @@ def test_get_tpu_system_characteristics_map_returns_correct_values_for_2x2x2_top
       accelerator_type=AcceleratorType.TPU,
       device_type="test-16",
       supports_sub_slicing=False,
+      docker_platform=DockerPlatform.AMD,
       requires_workload_policy=True,
   )
   assert result == {
@@ -109,6 +123,7 @@ def test_get_tpu_system_characteristics_map_prefers_default_topologies():
       machine_type="test",
       supported_topologies=["4x4x4", "4x4x32", "4x8x16", "8x8x8"],
       supports_sub_slicing=False,
+      docker_platform=DockerPlatform.AMD,
       default_topologies=set(["4x8x16"]),
   )
 
@@ -146,3 +161,36 @@ def test_generate_tpu_topologies_contains_sub_cube_slices():
   one_cube = generate_tpu_topologies(max_cubes=1)
 
   assert one_cube == ["2x2x1", "2x2x2", "2x2x4", "2x4x4", "4x4x4"]
+
+
+def test_system_characteristics_post_init_sets_workload_policy_for_gpu():
+  """Tests that __post_init__ correctly sets requires_workload_policy for GPUs."""
+  gpu_system = SystemCharacteristics(
+      topology="N/A",
+      vms_per_slice=1,
+      gke_accelerator="nvidia-l4",
+      gce_machine_type="g2-standard-12",
+      chips_per_vm=1,
+      accelerator_type=AcceleratorType.GPU,
+      device_type="l4-1",
+      supports_sub_slicing=False,
+      docker_platform=DockerPlatform.AMD,
+      gpu_config=GpuConfig(requires_topology=False),
+  )
+  assert gpu_system.requires_workload_policy is True
+
+
+def test_system_characteristics_post_init_throws_for_gpu_without_config():
+  """Tests that __post_init__ raises ValueError for GPU without gpu_config."""
+  with pytest.raises(ValueError, match="'gpu_config' was not provided"):
+    SystemCharacteristics(
+        topology="N/A",
+        vms_per_slice=1,
+        gke_accelerator="nvidia-l4",
+        gce_machine_type="g2-standard-12",
+        chips_per_vm=1,
+        accelerator_type=AcceleratorType.GPU,
+        device_type="l4-1",
+        supports_sub_slicing=False,
+        docker_platform=DockerPlatform.AMD,
+    )

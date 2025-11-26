@@ -62,6 +62,7 @@ class _WorkloadCreateMocks:
   xpk_exit: MagicMock
   run_command_with_updates: MagicMock
   ensure_resource_policy_exists: MagicMock
+  get_cluster_subnetworks: MagicMock
 
 
 @pytest.fixture
@@ -130,6 +131,9 @@ def workload_create_mocks(mocker) -> _WorkloadCreateMocks:
       ),
       ensure_resource_policy_exists=mocker.patch(
           'xpk.commands.workload.ensure_resource_policy_exists'
+      ),
+      get_cluster_subnetworks=mocker.patch(
+          'xpk.commands.workload.get_cluster_subnetworks', return_value=[]
       ),
   )
 

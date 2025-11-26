@@ -22,10 +22,10 @@ from ..commands.workload import (
     workload_list,
 )
 from ..core.docker_image import DEFAULT_DOCKER_IMAGE, DEFAULT_SCRIPT_DIR
-from .common import add_shared_arguments
+from .common import add_shared_arguments, add_tpu_type_argument, add_tpu_and_device_type_arguments
 from .validators import directory_path_type, name_type
 from ..utils.feature_flags import FeatureFlags
-from ..core.system_characteristics import get_system_characteristics_keys_by_accelerator_type, AcceleratorType, SUB_SLICING_TOPOLOGIES
+from ..core.system_characteristics import SUB_SLICING_TOPOLOGIES
 
 
 def set_workload_parsers(workload_parser: ArgumentParser):
@@ -119,27 +119,7 @@ def set_workload_create_parser(workload_create_parser: ArgumentParser):
           required=True
       )
   )
-  workload_device_group.add_argument(
-      '--tpu-type',
-      type=str,
-      default=None,
-      help='The tpu type to use, v5litepod-16, etc.',
-      metavar='TPU_TYPE',
-      choices=get_system_characteristics_keys_by_accelerator_type(
-          [AcceleratorType.TPU]
-      ),
-  )
-  workload_device_group.add_argument(
-      '--device-type',
-      type=str,
-      default=None,
-      help=(
-          'The device type to use (can be tpu or gpu or cpu), v5litepod-16,'
-          ' h100-80gb-8, n2-standard-32-4 etc.'
-      ),
-      metavar='DEVICE_TYPE',
-      choices=get_system_characteristics_keys_by_accelerator_type(),
-  )
+  add_tpu_and_device_type_arguments(workload_device_group)
 
   workload_create_parser_optional_arguments.add_argument(
       '--storage',
@@ -287,15 +267,8 @@ def set_workload_create_pathways_parser(
       )
   )
   ### "workload create-pathways" Required arguments, specific to Pathways
-  workload_create_pathways_parser_required_arguments.add_argument(
-      '--tpu-type',
-      type=str,
-      default=None,
-      help='The tpu type to use, v5litepod-16, etc.',
-      metavar='TPU_TYPE',
-      choices=get_system_characteristics_keys_by_accelerator_type(
-          [AcceleratorType.TPU]
-      ),
+  add_tpu_type_argument(
+      workload_create_pathways_parser_required_arguments, required=True
   )
 
   ### "workload create-pathways" Optional arguments, specific to Pathways
@@ -610,6 +583,16 @@ def add_shared_workload_create_optional_arguments(args_parsers):
         help=(
             'The name of the docker-image to use, default and typically'
             ' `jax-tpu`.'
+        ),
+    )
+    custom_parser.add_argument(
+        '--output-manifest-file',
+        type=str,
+        default=None,
+        help=(
+            'If you want to see the generated manifest, provide a file path'
+            ' here. This will write the manifest to the file. If used with'
+            ' --dry-run, it will skip the actual deployment and cluster checks.'
         ),
     )
     custom_parser.add_argument(

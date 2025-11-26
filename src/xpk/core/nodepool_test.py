@@ -96,7 +96,12 @@ def test_ensure_resource_policy_exists_with_existing_policy_retrieves_existing_p
   mock = mocker.patch(
       "xpk.core.nodepool.run_command_for_value", return_value=(0, "")
   )
-  ensure_resource_policy_exists("resource-policy", args, "2x2x1")
+  ensure_resource_policy_exists(
+      resource_policy_name="resource-policy",
+      project="test-project",
+      zone="us-central1-a",
+      topology="2x2x1",
+  )
   mock.assert_called_once()
 
 
@@ -108,7 +113,12 @@ def test_ensure_resource_policy_exists_without_existing_policy_creates_policy(
   mock = mocker.patch(
       "xpk.core.nodepool.run_command_for_value", side_effect=[(1, ""), (0, "")]
   )
-  ensure_resource_policy_exists("resource-policy", args, "2x2x1")
+  ensure_resource_policy_exists(
+      resource_policy_name="resource-policy",
+      project="test-project",
+      zone="us-central1-a",
+      topology="2x2x1",
+  )
   assert mock.call_count == 2
   assert mock.call_args_list[0].args[1] == "Retrieve resource policy"
 
@@ -125,7 +135,12 @@ def test_ensure_resource_policy_exits_without_existing_policy_throws_when_creati
         "xpk.core.nodepool.run_command_for_value",
         side_effect=[(1, ""), (1, "")],
     )
-    ensure_resource_policy_exists("resource-policy", args, "2x2x1")
+    ensure_resource_policy_exists(
+        resource_policy_name="resource-policy",
+        project="test-project",
+        zone="us-central1-a",
+        topology="2x2x1",
+    )
 
 
 @pytest.fixture

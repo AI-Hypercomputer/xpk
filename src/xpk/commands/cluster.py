@@ -226,7 +226,7 @@ def _validate_pathways_machine(args):
         'Error: Invalid --pathways-gce-machine-type. Specify machine type that'
         ' has at least 100GB of memory and at least 49 CPUs.'
     )
-    xpk_print(f'Available machine types: {', '.join(result)}')
+    xpk_print(f'Available machine types: {", ".join(result)}')
     xpk_exit(1)
 
 

@@ -20,9 +20,29 @@ import ruamel.yaml
 
 from ..utils import file
 from ..utils.console import xpk_print
+from setuptools_scm import get_version as setuptools_get_version
+from importlib.metadata import version, PackageNotFoundError
 
-# This is the version for XPK PyPI package
-__version__ = 'v0.15.0'
+
+def _get_version() -> str:
+  xpk_version_override = os.getenv('XPK_VERSION_OVERRIDE', '')
+  if xpk_version_override != '':
+    return xpk_version_override
+
+  try:
+    return setuptools_get_version()
+  except LookupError:
+    pass
+
+  try:
+    return version('xpk')
+  except PackageNotFoundError:
+    pass
+
+  raise LookupError('unable to determine version number')
+
+
+__version__ = _get_version()
 XPK_CURRENT_VERSION = __version__
 XPK_CONFIG_FILE = os.path.expanduser('~/.config/xpk/config.yaml')
 
@@ -41,7 +61,6 @@ KJOB_SHELL_WORKING_DIRECTORY = 'shell-working-directory'
 CONFIGS_KEY = 'configs'
 GKE_ENDPOINT_KEY = 'gke-endpoint'
 DEPENDENCIES_KEY = 'deps-verified-version'
-XPK_CONFIG_FILE = os.path.expanduser('~/.config/xpk/config.yaml')
 
 DEFAULT_KEYS = [
     CFG_BUCKET_KEY,

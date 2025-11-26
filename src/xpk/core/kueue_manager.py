@@ -33,8 +33,6 @@ from .system_characteristics import (
     AcceleratorType,
     AcceleratorTypeToAcceleratorCharacteristics,
     SystemCharacteristics,
-    create_accelerator_label,
-    create_machine_label,
 )
 from ..core.commands import (
     run_command_for_value,

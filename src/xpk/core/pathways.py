@@ -333,3 +333,16 @@ def try_to_delete_pathwaysjob_first(args, workloads) -> bool:
     xpk_print(f'Delete Workload request returned ERROR {return_code}')
     return False
   return True
+
+
+def get_pathways_machine_types(zone: str) -> tuple[int, list[str]]:
+  command = (
+      'gcloud compute machine-types list --filter "guestCpus >= 49 AND memoryMb'
+      f' >= 102400 AND zone = \'{zone}\'" --format="value(name)"'
+  )
+  return_code, result = run_command_for_value(
+      command=command, task='Retrieve available pathways machine types'
+  )
+  if return_code != 0:
+    return return_code, []
+  return 0, result.strip().splitlines()

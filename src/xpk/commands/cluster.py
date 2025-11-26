@@ -18,6 +18,7 @@ from tabulate import tabulate
 
 from ..utils.feature_flags import FeatureFlags
 from ..utils.versions import ReleaseChannel
+from ..core.pathways import get_pathways_machine_types
 from ..core.capacity import H100_DEVICE_TYPE, get_reservation_deployment_type
 from ..core.cluster import (
     get_all_clusters_programmatic,
@@ -210,6 +211,23 @@ def _validate_cluster_create_args(args, system: SystemCharacteristics):
   if FeatureFlags.SUB_SLICING_ENABLED and args.sub_slicing:
     validate_sub_slicing_system(system)
     _validate_sub_slicing_reservation(args)
+  if args.enable_pathways:
+    _validate_pathways_machine(args)
+
+
+def _validate_pathways_machine(args):
+  return_code, result = get_pathways_machine_types(args.zone)
+  if return_code != 0:
+    xpk_print('Error: Unable to retrieve available pathways machine types')
+    xpk_exit(1)
+
+  if args.pathways_gce_machine_type not in result:
+    xpk_print(
+        'Error: Invalid --pathways-gce-machine-type. Specify machine type that'
+        ' has at least 100GB of memory and at least 49 CPUs.'
+    )
+    xpk_print(f'Available machine types: {', '.join(result)}')
+    xpk_exit(1)
 
 
 def _validate_sub_slicing_reservation(args):

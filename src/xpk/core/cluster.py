@@ -309,10 +309,11 @@ def update_cluster_with_lustre_driver_if_necessary(args) -> int:
   Returns:
     0 if successful and error code otherwise.
   """
-  if is_driver_enabled_on_cluster(
-      args, driver='lustreCsiDriver'
-  ) and is_driver_enabled_on_cluster(
-      args, driver='lustreCsiDriver', config_key='enableLegacyLustrePort'
+  if is_driver_enabled_on_cluster(args, driver='lustreCsiDriver') and (
+      not args.enable_legacy_lustre_port
+      or is_driver_enabled_on_cluster(
+          args, driver='lustreCsiDriver', config_key='enableLegacyLustrePort'
+      )
   ):
     return 0
   cluster_update_return_code = update_gke_cluster_with_lustre_driver_enabled(
@@ -621,9 +622,13 @@ def update_gke_cluster_with_lustre_driver_enabled(args) -> int:
   """
   command = (
       'gcloud container clusters update'
-      f' {args.cluster} --project={args.project} --location={get_cluster_location(args.project, args.cluster, args.zone)} --enable-legacy-lustre-port'
+      f' {args.cluster} --project={args.project} --location={get_cluster_location(args.project, args.cluster, args.zone)}'
       ' --quiet'
   )
+  if args.enable_legacy_lustre_port:
+    command += ' --enable-legacy-lustre-port'
+  else:
+    command += ' --update-addons=LustreCsiDriver=ENABLED'
   xpk_print(
       'Updating GKE cluster to enable Lustre CSI driver, may take a while!'
   )

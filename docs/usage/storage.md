@@ -136,7 +136,12 @@ Parameters:
 
 A Managed Lustre adaptor lets you mount and access [Google Cloud Managed Lustre instances](https://cloud.google.com/managed-lustre) as local file systems, so workloads can read and write files in your volumes using standard file system semantics.
 
-To use the GCP Managed Lustre with XPK you need to create [an instance](https://cloud.google.com/managed-lustre/docs/create-instance). Please make sure you enable GKE support when creating the instance (gcloud ex. `--gke-support-enabled`).
+To use the GCP Managed Lustre with XPK you need to create [an instance](https://cloud.google.com/managed-lustre/docs/create-instance).
+
+> **Important Note:** 
+> Starting from GKE version 1.33.2-gke.4780000, it is no longer necessary to enable GKE support when creating the instance
+> (gcloud ex. `--gke-support-enabled`). For more information, check the latest
+> [documentation](https://docs.cloud.google.com/managed-lustre/docs/lustre-csi-driver-new-volume#lustre_communication_ports).
 
 Once it's ready you can use `xpk storage attach` with `--type=lustre` command to attach a Managed Lustre instance to your cluster. Currently, attaching a Managed Lustre instance is supported only by providing a manifest file.
 
@@ -147,6 +152,12 @@ xpk storage attach test-lustre-storage --type=lustre \
   --auto-mount=true \
   --manifest='./examples/storage/lustre-manifest-attach.yaml'
 ```
+
+> **Important Note:** 
+> If you are trying to attach to the Lustre instance created with the `--gke-support-enabled` flag, or if your cluster
+> is running GKE version earlier than 1.33.2-gke.4780000, you need to add the `--enable-legacy-lustre-port` flag to make
+> sure legacy port will be used to connect to the instance. For more information, check the latest
+> [documentation](https://docs.cloud.google.com/managed-lustre/docs/lustre-csi-driver-new-volume#lustre_communication_ports).
 
 Parameters:
 

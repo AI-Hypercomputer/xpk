@@ -179,7 +179,7 @@ def get_total_chips_requested_from_args(
   return int(num_chips)
 
 
-def get_cpu_affinity(accelerator_type) -> str:
+def get_cpu_affinity(accelerator_type: AcceleratorType) -> str:
   """Generate affinity rules for CPU nodepools, so that workload pods are
   not scheduled on the default pool machines.
   Args:

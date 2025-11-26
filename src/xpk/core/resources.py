@@ -256,12 +256,13 @@ def check_cluster_resources(
 
 
 def get_cluster_system_characteristics(args) -> SystemCharacteristics | None:
-  """Get systemCharcteristics based on the cluster resources configMap
+  """Get SystemCharcteristics based on the cluster resources configMap.
+
   Args:
     args: user provided arguments for running the command.
 
   Returns:
-    returns system characteristics
+    returns system characteristics, or None if not found.
   """
   resources_config_map = get_cluster_configmap(
       args.cluster, ConfigMapType.RESOURCES
@@ -274,6 +275,12 @@ def get_cluster_system_characteristics(args) -> SystemCharacteristics | None:
 def get_cluster_system_characteristics_from_config_map(
     resources_config_map: dict[str, str] | None,
 ) -> SystemCharacteristics | None:
+  """Get SystemCharcteristics based on the cluster resources configMap.
+
+  Returns:
+    returns system characteristics, or None if not found.
+  """
+
   if resources_config_map is None:
     return None
 
@@ -286,12 +293,13 @@ def get_cluster_system_characteristics_from_config_map(
 
 
 def get_cluster_capacity_type(args) -> CapacityType | None:
-  """Get systemCharcteristics based on the cluster resources configMap
+  """Get CapacityType based on the cluster metadata configMap.
+
   Args:
     args: user provided arguments for running the command.
 
   Returns:
-    returns system characteristics
+    returns CapacityType, or None if not found.
   """
   metadata_configmap_name = get_cluster_configmap(
       args.cluster, ConfigMapType.METADATA

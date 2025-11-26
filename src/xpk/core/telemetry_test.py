@@ -16,7 +16,7 @@ limitations under the License.
 
 import pytest
 import json
-from .config import get_config, set_config, CLIENT_ID_KEY, SEND_TELEMETRY_KEY, InMemoryXpkConfig
+from .config import get_config, CLIENT_ID_KEY, SEND_TELEMETRY_KEY
 from .telemetry import MetricsCollector, MetricsEventMetadataKey, should_send_telemetry
 from ..utils.execution_context import set_dry_run
 from ..utils.feature_flags import FeatureFlags

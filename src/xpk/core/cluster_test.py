@@ -16,7 +16,7 @@ limitations under the License.
 
 import pytest
 from .testing.commands_tester import CommandsTester
-from .cluster import get_cluster_credentials
+from .cluster import get_cluster_credentials, update_gke_cluster_with_lustre_driver_enabled, update_cluster_with_lustre_driver_if_necessary
 from pytest_mock import MockerFixture
 
 
@@ -93,3 +93,78 @@ def test_get_cluster_credentials_retries_without_dns_when_dns_retrieval_fails(
       if "dns-endpoint" not in c
   ]
   assert len(non_dns_endpoint_commands) == 1
+
+
+def test_update_cluster_with_lustre_driver_if_necessary_with_default_port_runs_correct_checks(
+    commands_tester: CommandsTester, command_args
+):
+  commands_tester.set_result_for_command(
+      (0, "True"),
+      "gcloud container clusters describe",
+  )
+  command_args.enable_legacy_lustre_port = None
+  update_cluster_with_lustre_driver_if_necessary(command_args)
+
+  executed_commands = commands_tester.get_matching_commands()
+  assert executed_commands == [
+      "gcloud container clusters describe cluster --project=project"
+      " --location=us-central1"
+      ' --format="value(addonsConfig.lustreCsiDriverConfig.enabled)"'
+  ]
+
+
+def test_update_cluster_with_lustre_driver_if_necessary_with_legacy_port_runs_correct_checks(
+    commands_tester: CommandsTester, command_args
+):
+  commands_tester.set_result_for_command(
+      (0, "True"),
+      "gcloud container clusters describe",
+  )
+  command_args.enable_legacy_lustre_port = True
+  update_cluster_with_lustre_driver_if_necessary(command_args)
+
+  executed_commands = commands_tester.get_matching_commands()
+  assert executed_commands == [
+      (
+          "gcloud container clusters describe cluster --project=project"
+          " --location=us-central1"
+          ' --format="value(addonsConfig.lustreCsiDriverConfig.enabled)"'
+      ),
+      (
+          "gcloud container clusters describe cluster --project=project"
+          " --location=us-central1"
+          ' --format="value(addonsConfig.lustreCsiDriverConfig.enableLegacyLustrePort)"'
+      ),
+  ]
+
+
+def test_update_gke_cluster_with_lustre_driver_enabled_default_port(
+    commands_tester: CommandsTester, command_args
+):
+  commands_tester.set_result_for_command(
+      (0, ""), "gcloud container clusters update"
+  )
+  command_args.enable_legacy_lustre_port = None
+  update_gke_cluster_with_lustre_driver_enabled(command_args)
+
+  executed_commands = commands_tester.get_matching_commands()
+  assert executed_commands == [
+      "gcloud container clusters update cluster --project=project"
+      " --location=us-central1 --quiet --update-addons=LustreCsiDriver=ENABLED"
+  ]
+
+
+def test_update_gke_cluster_with_lustre_driver_enabled_legacy_port(
+    commands_tester: CommandsTester, command_args
+):
+  commands_tester.set_result_for_command(
+      (0, ""), "gcloud container clusters update"
+  )
+  command_args.enable_legacy_lustre_port = True
+  update_gke_cluster_with_lustre_driver_enabled(command_args)
+
+  executed_commands = commands_tester.get_matching_commands()
+  assert executed_commands == [
+      "gcloud container clusters update cluster --project=project"
+      " --location=us-central1 --quiet --enable-legacy-lustre-port"
+  ]

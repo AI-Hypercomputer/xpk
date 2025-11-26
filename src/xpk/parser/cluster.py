@@ -748,6 +748,11 @@ def add_driver_arguments(parser_or_group: ParserOrArgumentGroup):
       action='store_true',
       help='Enable Lustre CSI driver on the cluster.',
   )
+  parser_or_group.add_argument(
+      '--enable-legacy-lustre-port',
+      action='store_true',
+      help='Enable legacy port for Lustre CSI driver on the cluster.',
+  )
 
 
 def add_shared_cluster_create_tensorboard_arguments(

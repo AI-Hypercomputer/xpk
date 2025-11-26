@@ -22,7 +22,7 @@ import yaml
 from unittest.mock import MagicMock, patch
 
 from xpk.core.kueue_manager import KueueConfig, KueueManager, has_sub_slicing_enabled
-from xpk.core.system_characteristics import DockerPlatform, AcceleratorType, SystemCharacteristics, UserFacingNameToSystemCharacteristics
+from xpk.core.system_characteristics import GpuConfig, DockerPlatform, AcceleratorType, SystemCharacteristics, UserFacingNameToSystemCharacteristics
 from xpk.core.testing.commands_tester import CommandsTester
 from packaging.version import Version
 
@@ -407,6 +407,7 @@ def test_configure_generates_correct_manifest_with_gke_default_topology(
           device_type="h100-mega-80gb-8",
           supports_sub_slicing=False,
           docker_platform=DockerPlatform.ARM,
+          gpu_config=GpuConfig(requires_topology=True),
       ),
   )
 
@@ -501,6 +502,29 @@ def test_configure_generates_correct_manifest_with_pathways(
   assert pathways_rg["flavors"][0]["name"] == "cpu-user"
   assert pathways_rg["flavors"][0]["resources"][0]["nominalQuota"] == 480
   assert pathways_rg["flavors"][0]["resources"][1]["nominalQuota"] == "2000G"
+
+
+@patch("xpk.core.kueue_manager.write_tmp_file")
+def test_configure_generates_correct_manifest_for_a4x(
+    write_tmp_file_mock: MagicMock,
+    mock_commands: CommandsTester,
+    kueue_manager: KueueManager,
+):
+  """Test that __configure generates correct manifest for a4x GPUs."""
+  set_installed_kueue_version(mock_commands, None)
+  kueue_config = dataclasses.replace(
+      KUEUE_CONFIG,
+      system=UserFacingNameToSystemCharacteristics["gb200-4"],
+  )
+
+  kueue_manager.install_or_upgrade(kueue_config)
+
+  rendered_manifest: str = write_tmp_file_mock.call_args[0][0]
+  manifest_docs = list(yaml.safe_load_all(rendered_manifest))
+
+  # Check that the gke-default topology is present for a4x.
+  topology = _first(doc for doc in manifest_docs if doc["kind"] == "Topology")
+  assert topology["metadata"]["name"] == "gke-default"
 
 
 def test_has_sub_slicing_enabled_returns_exit_code_when_command_fails(

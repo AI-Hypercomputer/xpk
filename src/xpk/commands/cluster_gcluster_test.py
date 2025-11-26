@@ -20,7 +20,7 @@ import pytest
 
 from xpk.commands.cluster_gcluster import cluster_create
 from xpk.core.kueue_manager import KueueConfig
-from xpk.core.system_characteristics import AcceleratorType, SystemCharacteristics, DockerPlatform
+from xpk.core.system_characteristics import AcceleratorType, SystemCharacteristics, DockerPlatform, GpuConfig
 from xpk.utils.versions import ReleaseChannel
 
 
@@ -98,6 +98,7 @@ def test_install_kueue_standard(
       device_type="h100-mega-80gb-8",
       supports_sub_slicing=False,
       docker_platform=DockerPlatform.ARM,
+      gpu_config=GpuConfig(requires_topology=True),
   )
   mock_cluster_create_deps["get_system_characteristics"].return_value = (
       mock_system,
@@ -150,6 +151,7 @@ def test_install_kueue_with_autoprovisioning(
       device_type="h100-mega-80gb-8",
       supports_sub_slicing=False,
       docker_platform=DockerPlatform.ARM,
+      gpu_config=GpuConfig(requires_topology=True),
   )
   mock_cluster_create_deps["get_system_characteristics"].return_value = (
       mock_system,

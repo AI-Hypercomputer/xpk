@@ -20,7 +20,7 @@ from xpk.core.nodepool import (
     get_desired_node_pool_names,
     run_gke_node_pool_create_command,
 )
-from xpk.core.system_characteristics import AcceleratorType, SystemCharacteristics, DockerPlatform
+from xpk.core.system_characteristics import AcceleratorType, SystemCharacteristics, DockerPlatform, GpuConfig
 
 CLUSTER_NAME = "running-cucumber"
 
@@ -195,6 +195,7 @@ def test_placement_policy_created_for_gpu_with_valid_topology(
       device_type="h100-80gb-8",
       supports_sub_slicing=False,
       docker_platform=DockerPlatform.ARM,
+      gpu_config=GpuConfig(requires_topology=True),
   )
 
   run_gke_node_pool_create_command(args, system, "1.2.3")
@@ -226,6 +227,7 @@ def test_placement_policy_not_created_for_gpu_with_invalid_topology(
       device_type="h100-80gb-8",
       supports_sub_slicing=False,
       docker_platform=DockerPlatform.ARM,
+      gpu_config=GpuConfig(requires_topology=True),
   )
 
   run_gke_node_pool_create_command(args, system, "1.2.3")

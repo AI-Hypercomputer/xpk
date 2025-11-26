@@ -341,7 +341,9 @@ def get_pathways_machine_types(zone: str) -> tuple[int, list[str]]:
       f' >= 102400 AND zone = \'{zone}\'" --format="value(name)"'
   )
   return_code, result = run_command_for_value(
-      command=command, task='Retrieve available pathways machine types'
+      command=command,
+      task='Retrieve available pathways machine types',
+      dry_run_return_val='n2-standard-64',
   )
   if return_code != 0:
     return return_code, []

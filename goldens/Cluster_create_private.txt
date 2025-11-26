@@ -1,5 +1,7 @@
 $ xpk cluster create-pathways --project=golden-project --zone=us-central1-a --cluster=golden-cluster-private --private --tpu-type=v5p-8  --num-slices=1 --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=4 --reservation=golden-reservation --dry-run
 [XPK] Starting xpk v0.0.0
+[XPK] Task: `Retrieve available pathways machine types` is implemented by the following command not running since it is a dry run. 
+gcloud compute machine-types list --filter "guestCpus >= 49 AND memoryMb >= 102400 AND zone = 'us-central1-a'" --format="value(name)"
 [XPK] Starting cluster create for cluster golden-cluster-private:
 [XPK] Working on golden-project and us-central1-a
 [XPK] Task: `Determine server supported GKE versions for default gke version` is implemented by the following command not running since it is a dry run. 

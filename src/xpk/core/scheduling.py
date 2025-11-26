@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from dataclasses import dataclass
+from enum import Enum
 
 from .kueue_manager import get_installed_kueue_version, has_sub_slicing_enabled
 from ..utils.feature_flags import FeatureFlags
@@ -35,9 +35,10 @@ from packaging.version import Version
 _SUB_SLICING_MINIMUM_KUEUE_VERSION = Version('0.13.0')
 
 
-@dataclass(frozen=True)
-class _WorkloadScheduling:
-  use_sub_slicing: bool
+class WorkloadScheduling(Enum):
+  UNAVAILABLE = 0
+  AVAILABLE = 1
+  SUB_SLICING_AVAILABLE = 2
 
 
 def check_if_workload_can_schedule(
@@ -45,20 +46,20 @@ def check_if_workload_can_schedule(
     workload_system: SystemCharacteristics,
     cluster_system: SystemCharacteristics | None,
     resources_config_map: dict[str, str] | None,
-) -> _WorkloadScheduling | None:
+) -> WorkloadScheduling:
   """Check if workload can schedule based on the cluster resources (tpu_type and maximum VM in cluster).
 
   Returns:
-    returns None when the workload cannot be scheduled, or WorkloadScheduling instance describing scheduling options.
+    returns WorkloadScheduling describing scheduling option.
   """
+  # Skip validation for dry_run without cluster_system set (most of the dry runs).
+  if is_dry_run() and not cluster_system:
+    return WorkloadScheduling.AVAILABLE
+
   # Prevents workload creation failure for existing clusters with no ConfigMap
   if resources_config_map is None:
     xpk_print('No Resources ConfigMap exist for cluster.')
-    return _WorkloadScheduling(use_sub_slicing=False)
-
-  # Perform validation for dry_run with cluster_system set.
-  if is_dry_run() and not cluster_system:
-    return _WorkloadScheduling(use_sub_slicing=False)
+    return WorkloadScheduling.AVAILABLE
 
   # Check for gke accelerator type:
   missing_gke_accelerator_type = False
@@ -88,8 +89,8 @@ def check_if_workload_can_schedule(
           '  Resize the cluster to support more chips with'
           ' `xpk cluster create --autoprovisioning-max-chips=X ...`'
       )
-      return None
-    return _WorkloadScheduling(use_sub_slicing=False)
+      return WorkloadScheduling.UNAVAILABLE
+    return WorkloadScheduling.AVAILABLE
 
   # Check for device type
   missing_device_type = False
@@ -98,7 +99,7 @@ def check_if_workload_can_schedule(
     if _check_sub_slicing_availability(
         workload_system=workload_system, cluster_system=cluster_system
     ):
-      return _WorkloadScheduling(use_sub_slicing=True)
+      return WorkloadScheduling.SUB_SLICING_AVAILABLE
 
     xpk_print(
         f'Device Type Check: {args.workload} is requesting {device_type} but '
@@ -111,7 +112,7 @@ def check_if_workload_can_schedule(
         'Both Device Type and GKE Accelerator Type checks failed.'
         f' XPK will not create the workload {args.workload}.'
     )
-    return None
+    return WorkloadScheduling.UNAVAILABLE
   else:
     # Check if the size of the workload will fit in the cluster.
     max_vm_in_cluster = int(resources_config_map[device_type])
@@ -126,9 +127,9 @@ def check_if_workload_can_schedule(
           f' cluster only contains {max_vm_in_cluster} VMs of {device_type}.'
           ' XPK will not create this workload.'
       )
-      return None
+      return WorkloadScheduling.UNAVAILABLE
 
-  return _WorkloadScheduling(use_sub_slicing=False)
+  return WorkloadScheduling.AVAILABLE
 
 
 def _check_sub_slicing_availability(

@@ -32,7 +32,7 @@ from ..core.docker_container import (
     get_main_container_docker_image,
     get_user_workload_container,
 )
-from ..core.kueue_manager import has_sub_slicing_enabled, get_installed_kueue_version, LOCAL_QUEUE_NAME
+from ..core.kueue_manager import LOCAL_QUEUE_NAME
 from ..core.docker_resources import get_volumes, parse_env_config
 from ..core.gcloud_context import add_zone_and_project
 from ..core.monitoring import get_gke_outlier_dashboard
@@ -52,10 +52,11 @@ from ..core.pathways import (
     get_user_workload_for_pathways,
     try_to_delete_pathwaysjob_first,
 )
-from ..core.resources import get_cluster_capacity_type, SystemCharacteristics, get_cluster_system_characteristics_from_config_map
+from ..core.resources import get_cluster_capacity_type, get_cluster_system_characteristics_from_config_map
 from ..core.resources import ConfigMapType, get_cluster_configmap
 from ..core.nodepool import ensure_resource_policy_exists
 from ..core.scheduling import (
+    WorkloadScheduling,
     check_if_workload_can_schedule,
     create_tpu_machine_type,
     create_tpu_topology,
@@ -78,12 +79,10 @@ from ..core.storage import (
     get_storages_to_mount,
 )
 from ..core.system_characteristics import (
-    SUB_SLICING_TOPOLOGIES,
     AcceleratorType,
     create_accelerator_label,
     create_machine_label,
     get_system_characteristics,
-    compute_vms_per_slice,
 )
 from ..core.vertex import create_vertex_experiment
 from ..core.workload import (
@@ -100,14 +99,11 @@ from ..core.workload_decorators import (
     tcpxo_decorator,
 )
 from ..utils.console import ask_for_user_consent, xpk_exit, xpk_print
-from packaging.version import Version
 from ..utils.file import write_tmp_file
 from ..utils.execution_context import is_dry_run
 from ..utils.validation import validate_dependencies_list, SystemDependency, should_validate_dependencies
 from . import cluster_gcluster
-from .common import is_TAS_possible, validate_sub_slicing_system
-from ..utils.topology import is_topology_contained
-from ..utils.feature_flags import FeatureFlags
+from .common import is_TAS_possible
 
 WORKLOAD_CREATE_YAML = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
@@ -361,7 +357,7 @@ def workload_create(args) -> None:
       cluster_system=cluster_system,
       resources_config_map=resources_config_map,
   )
-  if not workload_scheduling:
+  if workload_scheduling == WorkloadScheduling.UNAVAILABLE:
     xpk_exit(1)
 
   xpk_print('Starting workload create', flush=True)
@@ -593,7 +589,10 @@ def workload_create(args) -> None:
         placement_policy_label=placement_policy_label,
     )
   else:
-    if workload_scheduling.use_sub_slicing:
+    use_sub_slicing = (
+        workload_scheduling == WorkloadScheduling.SUB_SLICING_AVAILABLE
+    )
+    if use_sub_slicing:
       xpk_print('Workload will be scheduled using the Sub-slicing feature.')
 
     container, debugging_dashboard_id = get_user_workload_container(
@@ -609,13 +608,13 @@ def workload_create(args) -> None:
             ('\n' + (' ' * 16)).join(
                 create_sub_slicing_annotations(workload_system.topology)
             )
-            if workload_scheduling.use_sub_slicing
+            if use_sub_slicing
             else ''
         ),
         placement_policy_label=placement_policy_label,
         machine_label=(
             create_machine_label(cluster_system)
-            if workload_scheduling.use_sub_slicing and cluster_system
+            if use_sub_slicing and cluster_system
             else create_machine_label(workload_system)
         ),
         local_queue_name=LOCAL_QUEUE_NAME,

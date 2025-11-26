@@ -1,5 +1,5 @@
 $ xpk workload create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --command "bash hello" --tpu-type=v5p-8 --num-slices=1 --script-dir=/tmp --dry-run
-[XPK] Starting xpk v0.14.3
+[XPK] Starting xpk v0.15.0
 [XPK] Task: `Check if Workload Already Exists` is implemented by the following command not running since it is a dry run. 
 kubectl get workloads -o=custom-columns='Jobset:.metadata.ownerReferences[0].name'
 [XPK] Task: `GKE Cluster Get ConfigMap` is implemented by the following command not running since it is a dry run. 
@@ -9,12 +9,23 @@ kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="Conf
 kubectl get configmap golden-cluster-metadata-configmap -o=custom-columns="ConfigData:data" --no-headers=true
 [XPK] Task: `GKE Cluster Get ConfigMap` is implemented by the following command not running since it is a dry run. 
 kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="ConfigData:data" --no-headers=true
-[XPK] gke_accelerator type not found in config map: golden-cluster-resources-configmap. Autoprovisioning is not enabled.
+[XPK] gke_accelerator type not found in config map. Autoprovisioning is not enabled.
 [XPK] No gcsfuse Storages to add detected
 [XPK] No gcp filestore instances to add detected.
 [XPK] No gcp parallelstore instances to add detected.
 [XPK] No gce persistent disk instances to add detected.
 [XPK] No managed lustre instances to add detected.
+[XPK] Temp file (4b6736a12db8ea0f78ce793fd0d4ee0c94c652303f1dc0fecad085ea0993f688) content: 
+FROM python:3.10
+
+  # Set the working directory in the container
+  WORKDIR /app
+
+  # Copy all files from local workspace into docker container
+  COPY . .
+
+  WORKDIR /app
+  
 [XPK] Building /tmp into docker image.
 [XPK] Task: `Building script_dir into docker image` is implemented by the following command not running since it is a dry run. 
 docker buildx build --platform=linux/amd64 -f 4b6736a12db8ea0f78ce793fd0d4ee0c94c652303f1dc0fecad085ea0993f688 -t dry-run-runner /tmp
@@ -23,6 +34,114 @@ docker buildx build --platform=linux/amd64 -f 4b6736a12db8ea0f78ce793fd0d4ee0c94
 docker tag dry-run-runner gcr.io/golden-project/dry-run-runner:prefix-current
 [XPK] Task: `Upload Docker Image` is implemented by the following command not running since it is a dry run. 
 docker push gcr.io/golden-project/dry-run-runner:prefix-current
+[XPK] Temp file (e21c8ebdc21d15a852187058c096898c486d3b1066e67dcfb67e5052a1d0a7fa) content: 
+apiVersion: jobset.x-k8s.io/v1alpha2
+kind: JobSet
+metadata:
+  name: golden-workload
+  labels:
+    kueue.x-k8s.io/queue-name: multislice-queue  # Name of the LocalQueue
+    xpk.google.com/workload: golden-workload
+  annotations:
+    alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool # 1:1 job replica to node pool assignment
+spec:
+  ttlSecondsAfterFinished: 43200
+  failurePolicy:
+    rules:
+      - action: FailJobSet
+        onJobFailureReasons:
+        - PodFailurePolicy
+    maxRestarts: 0
+  replicatedJobs:
+    - name: slice-job
+      replicas: 1
+      template:
+        spec:
+          parallelism: 1    # Equal to the number of VMs per slice (or sub-slice).
+          completions: 1    # Same as the above.
+          backoffLimit: 0   # When any pod fails, the job is failed
+          
+          podFailurePolicy:
+            rules:
+            - action: FailJob
+              onExitCodes:
+                containerName: jax-tpu
+                operator: NotIn
+                values: [42,127,128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,160,161,162,163,164,165,166,167,168,169,170,171,172,173,174,175,176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191,192,193,194,195,196,197,198,199,200,201,202,203,204,205,206,207,208,209,210,211,212,213,214,215,216,217,218,219,220,221,222,223,224,225,226,227,228,229,230,231,232,233,234,235,236,237,238,239,240,241,242,243,244,245,246,247,248,249,250,251,252,253,254,255]
+          template:
+            metadata:
+              labels:
+                xpk.google.com/workload: golden-workload
+              annotations:
+                
+                
+            spec:
+              schedulerName: default-scheduler
+              imagePullSecrets:
+              - name: None
+              restartPolicy: Never
+              
+              nodeSelector:
+                cloud.google.com/gke-tpu-accelerator: tpu-v5p-slice
+                cloud.google.com/gke-tpu-topology: 2x2x1
+                
+                
+              priorityClassName: medium
+              hostNetwork: true
+              dnsPolicy: ClusterFirstWithHostNet
+              terminationGracePeriodSeconds: 30
+              containers:
+              - name: jax-tpu
+                image: gcr.io/golden-project/dry-run-runner:prefix-current
+                
+                env: 
+                ports:
+                - containerPort: 8471
+                - containerPort: 8080
+                
+                securityContext:
+                  privileged: true
+                command:
+                - bash
+                - -c
+                - |
+                  echo XPK Start: $(date);
+                  _sigterm() (kill -SIGTERM $! 2>/dev/null;);
+                  trap _sigterm SIGTERM;
+                  
+                  (bash hello) & PID=$!;
+                  while kill -0 $PID 2>/dev/null;
+                      do sleep 5;
+                  done;
+                  wait $PID;
+                  EXIT_CODE=$?;
+                  
+                  echo XPK End: $(date);
+                  echo EXIT_CODE=$EXIT_CODE;
+                  
+                  
+                  exit $EXIT_CODE
+                resources:
+                  limits:
+                    google.com/tpu: 4
+
+                volumeMounts:
+                - mountPath: /dev/shm
+                  name: dshm-2
+                
+
+              serviceAccountName: 
+              tolerations:
+              
+              - operator: "Exists"
+                key: google.com/tpu
+        
+              volumes:
+              - emptyDir:
+                  medium: Memory
+                name: dshm-2
+              
+
 [XPK] Task: `Creating Workload` is implemented by the following command not running since it is a dry run. 
 kubectl apply -f e21c8ebdc21d15a852187058c096898c486d3b1066e67dcfb67e5052a1d0a7fa
 [XPK] Task: `GKE Dashboard List` is implemented by the following command not running since it is a dry run. 

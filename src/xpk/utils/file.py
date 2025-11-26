@@ -18,6 +18,7 @@ import tempfile
 import os
 import hashlib
 from .execution_context import is_dry_run
+from .console import xpk_print
 
 
 def make_tmp_files(per_command_name: list[str]) -> list[str]:
@@ -51,7 +52,9 @@ def write_tmp_file(payload: str) -> str:
     A file object that was written to.
   """
   if is_dry_run():
-    return _hash_filename(payload)
+    name = _hash_filename(payload)
+    xpk_print(f'Temp file ({name}) content: \n{payload}')
+    return name
 
   with tempfile.NamedTemporaryFile(delete=False) as tmp:
     with open(file=tmp.name, mode='w', encoding='utf=8') as f:

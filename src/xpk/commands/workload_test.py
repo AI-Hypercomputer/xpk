@@ -18,7 +18,7 @@ import dataclasses
 from unittest.mock import MagicMock, patch
 import pytest
 from ..core.system_characteristics import SystemCharacteristics, AcceleratorType
-from .workload import _validate_sub_slicing_topology, _validate_sub_slicing_availability
+from .workload import _validate_sub_slicing_topology, _validate_sub_slicing_availability, workload_create
 from packaging.version import Version
 
 
@@ -162,3 +162,36 @@ def test_validate_sub_slicing_topology_fails_for_unsupported_system(
       'l4-1 does not support Sub-slicing.'
       in common_xpk_print.mock_calls[0].args[0]
   )
+
+
+def test_workload_create_dry_run_with_output_file(mocker):
+  args = MagicMock()
+  args.workload = 'test-workload'
+  args.output_manifest_file = 'manifest.yaml'
+  args.use_pathways = False
+  args.use_vertex_tensorboard = False
+  args.project = 'test-project'
+  args.cluster = 'test-cluster'
+  args.zone = 'test-zone'
+  args.sub_slicing_topology = None
+
+  # Mock dependencies to avoid external calls and simulate state
+  mocker.patch('xpk.utils.execution_context.dry_run', True)
+  mocks = {
+      'get_system_characteristics': (SYSTEM_CHARACTERISTICS, 0),
+      'get_user_workload_container': ('container_yaml', None),
+      'write_tmp_file': 'tmp_file',
+      'parse_env_config': None,
+  }
+  for name, return_value in mocks.items():
+    mocker.patch(f'xpk.commands.workload.{name}', return_value=return_value)
+
+  mock_open = mocker.patch('builtins.open', mocker.mock_open())
+
+  with pytest.raises(SystemExit):
+    workload_create(args)
+
+  mock_open.assert_called_once_with('manifest.yaml', 'w', encoding='utf-8')
+  written_content = mock_open.return_value.write.call_args[0][0]
+  assert 'test-workload' in written_content
+  assert 'cloud.google.com/gke-tpu-topology: 8x8' in written_content

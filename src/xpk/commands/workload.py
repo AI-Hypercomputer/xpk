@@ -53,7 +53,8 @@ from ..core.pathways import (
     try_to_delete_pathwaysjob_first,
 )
 from ..core.resources import get_cluster_capacity_type, get_cluster_system_characteristics, SystemCharacteristics
-from ..core.resources import CLUSTER_METADATA_CONFIGMAP, get_cluster_configmap
+from ..core.resources import ConfigMapType, get_cluster_configmap
+from ..core.nodepool import ensure_resource_policy_exists
 from ..core.scheduling import (
     check_if_workload_can_schedule,
     create_accelerator_label,
@@ -64,6 +65,7 @@ from ..core.scheduling import (
     get_gpu_scheduler,
     create_sub_slicing_annotations,
     create_placement_policy_label,
+    get_placement_policy_name,
     is_placement_policy_supported,
 )
 from ..core.storage import (
@@ -358,12 +360,13 @@ def workload_create(args) -> None:
 
   xpk_print('Starting workload create', flush=True)
 
-  metadata_configmap_name = f'{args.cluster}-{CLUSTER_METADATA_CONFIGMAP}'
-  cluster_config_map = get_cluster_configmap(metadata_configmap_name)
+  cluster_config_map = get_cluster_configmap(
+      args.cluster, ConfigMapType.METADATA
+  )
   cluster_xpk_version = None
   if cluster_config_map is None:
     xpk_print(
-        f'Warning: Unable to find ConfigMap: {metadata_configmap_name} for the'
+        'Warning: Unable to find ConfigMap for the'
         ' cluster. We recommend to upgrade your cluster by running `xpk'
         ' cluster create`.'
     )
@@ -493,6 +496,20 @@ def workload_create(args) -> None:
                 operator: NotIn
                 values: [{restart_on_exit_codes}]"""
 
+  if is_placement_policy_supported(system):
+    ensure_resource_policy_exists(
+        resource_policy_name=get_placement_policy_name(system),
+        project=args.project,
+        zone=args.zone,
+        topology=system.topology,
+    )
+
+  placement_policy_label = (
+      create_placement_policy_label(system)
+      if is_placement_policy_supported(system)
+      else ''
+  )
+
   # Create the workload file based on accelerator type or workload type.
   if system.accelerator_type == AcceleratorType.GPU:
     container, debugging_dashboard_id = get_user_workload_container(
@@ -540,26 +557,18 @@ def workload_create(args) -> None:
             failure_policy_rules=failure_policy_rules,
             pod_failure_policy=pod_failure_policy,
             annotations=annotations,
-            placement_policy_label=(
-                create_placement_policy_label(system)
-                if is_placement_policy_supported(system)
-                else ''
-            ),
+            placement_policy_label=placement_policy_label
         )
       else:
         yml_string = A3_GPU_WORKLOAD_CREATE_YAML.format(
-            args=args,
-            container=container,
-            service_account=XPK_SA,
-            failure_policy_rules=failure_policy_rules,
-            pod_failure_policy=pod_failure_policy,
-            annotations=annotations,
-            placement_policy_label=(
-                create_placement_policy_label(system)
-                if is_placement_policy_supported(system)
-                else ''
-            ),
-        )
+          args=args,
+          container=container,
+          service_account=XPK_SA,
+          failure_policy_rules=failure_policy_rules,
+          pod_failure_policy=pod_failure_policy,
+          annotations=annotations,
+          placement_policy_label=placement_policy_label,
+      )
 
       sub_networks = get_cluster_subnetworks()
 
@@ -585,11 +594,7 @@ def workload_create(args) -> None:
           service_account=service_account,
           failure_policy_rules=failure_policy_rules,
           pod_failure_policy=pod_failure_policy,
-          placement_policy_label=(
-              create_placement_policy_label(system)
-              if is_placement_policy_supported(system)
-              else ''
-          ),
+          placement_policy_label=placement_policy_label,
       )
 
   elif args.use_pathways and ensure_pathways_workload_prerequisites(
@@ -607,11 +612,7 @@ def workload_create(args) -> None:
         user_workload=get_user_workload_for_pathways(args, system),
         local_queue_name=LOCAL_QUEUE_NAME,
         autoprovisioning_args=autoprovisioning_args,
-        placement_policy_label=(
-            create_placement_policy_label(system)
-            if is_placement_policy_supported(system)
-            else ''
-        ),
+        placement_policy_label=placement_policy_label,
     )
   else:
     container, debugging_dashboard_id = get_user_workload_container(
@@ -639,11 +640,7 @@ def workload_create(args) -> None:
                 create_sub_slicing_annotations(args.sub_slicing_topology)
             )
         ),
-        placement_policy_label=(
-            create_placement_policy_label(system)
-            if is_placement_policy_supported(system)
-            else ''
-        ),
+        placement_policy_label=placement_policy_label,
         machine_label=create_machine_label(system.accelerator_type, system),
         local_queue_name=LOCAL_QUEUE_NAME,
         autoprovisioning_args=autoprovisioning_args,
@@ -659,6 +656,14 @@ def workload_create(args) -> None:
         failure_policy_rules=failure_policy_rules,
         pod_failure_policy=pod_failure_policy,
     )
+  if args.output_manifest_file:
+    with open(args.output_manifest_file, 'w', encoding='utf-8') as f:
+      f.write(yml_string)
+    xpk_print(
+        f'Workload {args.workload} manifest written to'
+        f' {args.output_manifest_file}'
+    )
+
   tmp = write_tmp_file(yml_string)
   command = f'kubectl apply -f {str(tmp)}'
   return_code = run_command_with_updates(command, 'Creating Workload')
@@ -754,8 +759,10 @@ def _validate_sub_slicing_availability():
     )
     xpk_exit(1)
 
-  return_code, current_version = get_installed_kueue_version()
-  if return_code != 0:
+  return_code, current_version = get_installed_kueue_version(
+      dry_run_version=Version('0.13')
+  )
+  if return_code != 0 or not current_version:
     xpk_print(
         'Error: Unable to validate sub-slicing support on a given cluster.'
     )

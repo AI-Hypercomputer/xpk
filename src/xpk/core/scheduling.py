@@ -19,7 +19,7 @@ from ..utils.console import xpk_print
 from ..utils.topology import is_topology_valid
 from ..utils.execution_context import is_dry_run
 from .capacity import AUTOPROVISIONING_CONFIG_MAXIMUM_KEY, AUTOPROVISIONING_CONFIG_VALUE
-from .resources import CLUSTER_RESOURCES_CONFIGMAP, get_cluster_configmap
+from .resources import ConfigMapType, get_cluster_configmap
 from .system_characteristics import (
     AcceleratorType,
     AcceleratorTypeToAcceleratorCharacteristics,
@@ -37,15 +37,13 @@ def check_if_workload_can_schedule(args, system: SystemCharacteristics) -> bool:
   Returns:
     returns true if workload can schedule, otherwise returns false.
   """
-  resources_configmap_name = f'{args.cluster}-{CLUSTER_RESOURCES_CONFIGMAP}'
-  cluster_config_map = get_cluster_configmap(resources_configmap_name)
+  cluster_config_map = get_cluster_configmap(
+      args.cluster, ConfigMapType.RESOURCES
+  )
 
   # Prevents workload creation failure for existing clusters with no ConfigMap
   if cluster_config_map is None:
-    xpk_print(
-        'No ConfigMap exist for cluster with the name'
-        f' {resources_configmap_name}.'
-    )
+    xpk_print('No Resources ConfigMap exist for cluster.')
     return True
 
   if is_dry_run():

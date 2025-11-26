@@ -83,6 +83,7 @@ from jinja2 import Environment, FileSystemLoader
 from ..utils.templates import get_templates_absolute_path
 import shutil
 import os
+from .managed_ml_diagnostics import install_mldiagnostics_prerequisites
 
 CLUSTER_PREHEAT_JINJA_FILE = 'cluster_preheat.yaml.j2'
 
@@ -421,6 +422,13 @@ def cluster_create(args) -> None:
       # pylint: disable=line-too-long
       f' https://console.cloud.google.com/kubernetes/clusters/details/{get_cluster_location(args.project, args.cluster, args.zone)}/{args.cluster}/details?project={args.project}'
   )
+
+  if args.managed_mldiagnostics:
+    return_code = install_mldiagnostics_prerequisites()
+    if return_code != 0:
+      xpk_print('Installation of MLDiagnostics failed.')
+      xpk_exit(return_code)
+
   xpk_exit(0)
 
 
@@ -978,7 +986,7 @@ def update_coredns() -> int:
 
   # 6. Scale up coredns and verify readiness
   scale_up_coredns(replicas=15)
-  verify_coredns_readiness(timeout=120)
+  verify_coredns_readiness()
 
   xpk_print('The CoreDNS setup process has been completed.')
 
@@ -1219,7 +1227,8 @@ def run_gke_cluster_create_command(
 
   if args.enable_lustre_csi_driver:
     addons.append('LustreCsiDriver')
-    command += ' --enable-legacy-lustre-port'
+    if args.enable_legacy_lustre_port:
+      command += ' --enable-legacy-lustre-port'
 
   if hasattr(args, 'enable_mtc') and args.enable_mtc:
     addons.append('HighScaleCheckpointing')

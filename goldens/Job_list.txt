@@ -1,5 +1,5 @@
 $ xpk job ls --project=golden-project --zone=us-central1-a --cluster=golden-cluster --dry-run
-[XPK] Starting xpk v0.14.3
+[XPK] Starting xpk v0.15.0
 [XPK] Working on golden-project and us-central1-a
 [XPK] Task: `Find cluster region or zone` is implemented by the following command not running since it is a dry run. 
 gcloud container clusters list --project=golden-project --filter=name=golden-cluster --format="value(location)"

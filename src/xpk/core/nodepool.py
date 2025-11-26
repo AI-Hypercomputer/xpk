@@ -28,10 +28,9 @@ from .capacity import (
 from .commands import run_command_for_value, run_commands
 from .gcloud_context import GkeServerConfig, get_cluster_location, zone_to_region
 from .resources import (
-    CLUSTER_CONFIGMAP_YAML,
-    CLUSTER_RESOURCES_CONFIGMAP,
+    ConfigMapType,
     check_cluster_resources,
-    create_or_update_cluster_configmap,
+    update_cluster_configmap,
 )
 from .system_characteristics import AcceleratorType
 
@@ -247,20 +246,23 @@ def run_gke_node_pool_create_command(
         )
       else:
         resources_data = f'{device_type}: "0"'
-      resources_configmap_name = f'{args.cluster}-{CLUSTER_RESOURCES_CONFIGMAP}'
-      resources_yml = CLUSTER_CONFIGMAP_YAML.format(
-          args=args, name=resources_configmap_name, data=resources_data
+      return_code = update_cluster_configmap(
+          cluster_name=args.cluster,
+          config_map_type=ConfigMapType.RESOURCES,
+          data=resources_data,
       )
-      configmap_yml = {}
-      configmap_yml[resources_configmap_name] = resources_yml
-      return_code = create_or_update_cluster_configmap(configmap_yml)
       if return_code != 0:
         return 1
 
   placement_args = ''
   if is_placement_policy_supported(system):
     placement_policy = get_placement_policy_name(system)
-    ensure_resource_policy_exists(placement_policy, args, system.topology)
+    ensure_resource_policy_exists(
+        resource_policy_name=placement_policy,
+        project=args.project,
+        zone=args.zone,
+        topology=system.topology,
+    )
     placement_args = f' --placement-policy={placement_policy}'
 
   create_commands = []
@@ -587,14 +589,14 @@ def get_desired_node_pool_names(
 
 
 def ensure_resource_policy_exists(
-    resource_policy_name: str, args, topology: str
+    resource_policy_name: str, project: str, zone: str, topology: str
 ) -> None:
   return_code, _ = run_command_for_value(
       (
           'gcloud compute resource-policies describe'
           f' {resource_policy_name} '
-          f'--project={args.project} '
-          f'--region={zone_to_region(args.zone)}'
+          f'--project={project} '
+          f'--region={zone_to_region(zone)}'
       ),
       'Retrieve resource policy',
   )
@@ -605,7 +607,7 @@ def ensure_resource_policy_exists(
   return_code, _ = run_command_for_value(
       (
           'gcloud compute resource-policies create workload-policy'
-          f' {resource_policy_name} --project={args.project} --region={zone_to_region(args.zone)} --type=HIGH_THROUGHPUT'
+          f' {resource_policy_name} --project={project} --region={zone_to_region(zone)} --type=HIGH_THROUGHPUT'
           f' --accelerator-topology={topology}'
       ),
       'Create resource policy',

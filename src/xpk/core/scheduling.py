@@ -197,10 +197,8 @@ def get_gpu_scheduler(
               """
     gpu_scheduler = gpu_scheduler_yaml.format(
         scheduler_name=args.scheduler,
-        accelerator_label=create_accelerator_label(
-            system.accelerator_type, system
-        ),
-        machine_label=create_machine_label(system.accelerator_type, system),
+        accelerator_label=create_accelerator_label(system),
+        machine_label=create_machine_label(system),
         node_pool_name=f'{args.cluster}-np-0',
         autoprovisioning_args=autoprovisioning_args,
     )
@@ -215,37 +213,14 @@ def get_gpu_scheduler(
   return gpu_scheduler, return_code
 
 
-def create_tpu_machine_type(
-    accelerator_type: AcceleratorType, system: SystemCharacteristics
-) -> str:
-  """Generates TPU machine type..
-
-  Args:
-    accelerator_type: type of accelerator.
-    system: system characteristics.
-
-  Returns:
-    The accelerator label.
-  """
-  if accelerator_type == AcceleratorType.TPU:
+def create_tpu_machine_type(system: SystemCharacteristics) -> str:
+  if system.accelerator_type == AcceleratorType.TPU:
     return f'{system.gce_machine_type}'
   return ''
 
 
-def create_tpu_topology(
-    accelerator_type: AcceleratorType, system: SystemCharacteristics
-) -> str:
-  """Generates TPU topology.
-
-  Args:
-    accelerator_type: type of accelerator.
-    system: system characteristics.
-    autoprovisioning_enabled: describes autoprovisioning enablement.
-
-  Returns:
-    The machine label.
-  """
-  if accelerator_type == AcceleratorType.TPU:
+def create_tpu_topology(system: SystemCharacteristics) -> str:
+  if system.accelerator_type == AcceleratorType.TPU:
     return f'{system.topology}'
   return ''
 

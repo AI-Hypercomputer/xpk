@@ -319,15 +319,13 @@ class KueueManager:
     main_flavor_name = f"{num_slices}x{device_type_str}"
 
     node_labels_dict = {}
-    accelerator_label = create_accelerator_label(
-        system.accelerator_type, system
-    )
+    accelerator_label = create_accelerator_label(system)
     if accelerator_label:
       key, value = accelerator_label.split(":", 1)
       node_labels_dict[key] = value.strip()
 
     if not autoprovisioning:
-      machine_label = create_machine_label(system.accelerator_type, system)
+      machine_label = create_machine_label(system)
       if machine_label:
         key, value = machine_label.split(":", 1)
         node_labels_dict[key] = value.strip()

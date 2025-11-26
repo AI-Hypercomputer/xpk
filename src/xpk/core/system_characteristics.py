@@ -810,23 +810,19 @@ def get_system_characteristics_keys_by_accelerator_type(
   ]
 
 
-def create_accelerator_label(
-    accelerator_type: AcceleratorType, system: SystemCharacteristics
-) -> str:
-  if accelerator_type == AcceleratorType.CPU:
+def create_accelerator_label(system: SystemCharacteristics) -> str:
+  if system.accelerator_type == AcceleratorType.CPU:
     return ''
   return (
-      f'{AcceleratorTypeToAcceleratorCharacteristics[accelerator_type].accelerator_label}:'
+      f'{AcceleratorTypeToAcceleratorCharacteristics[system.accelerator_type].accelerator_label}:'
       f' {system.gke_accelerator}'
   )
 
 
-def create_machine_label(
-    accelerator_type: AcceleratorType, system: SystemCharacteristics
-) -> str:
-  if accelerator_type == AcceleratorType.TPU:
+def create_machine_label(system: SystemCharacteristics) -> str:
+  if system.accelerator_type == AcceleratorType.TPU:
     return (
-        f'{AcceleratorTypeToAcceleratorCharacteristics[accelerator_type].machine_label}:'
+        f'{AcceleratorTypeToAcceleratorCharacteristics[system.accelerator_type].machine_label}:'
         f' {system.topology}'
     )
   return ''

@@ -57,8 +57,6 @@ from ..core.resources import ConfigMapType, get_cluster_configmap
 from ..core.nodepool import ensure_resource_policy_exists
 from ..core.scheduling import (
     check_if_workload_can_schedule,
-    create_accelerator_label,
-    create_machine_label,
     create_tpu_machine_type,
     create_tpu_topology,
     get_cpu_affinity,
@@ -82,6 +80,8 @@ from ..core.storage import (
 from ..core.system_characteristics import (
     SUB_SLICING_TOPOLOGIES,
     AcceleratorType,
+    create_accelerator_label,
+    create_machine_label,
     get_system_characteristics,
     compute_vms_per_slice,
 )
@@ -603,8 +603,8 @@ def workload_create(args) -> None:
     yml_string = PW_WORKLOAD_CREATE_YAML.format(
         args=args,
         system=system,
-        topology=create_tpu_topology(system.accelerator_type, system),
-        machine_type=create_tpu_machine_type(system.accelerator_type, system),
+        topology=create_tpu_topology(system),
+        machine_type=create_tpu_machine_type(system),
         custom_pathways_proxy_server=append_custom_pathways_proxy_server(args),
         custom_pathways_server=append_custom_pathways_server(args),
         custom_pathways_worker=append_custom_pathways_worker(args),
@@ -629,9 +629,7 @@ def workload_create(args) -> None:
             else system.vms_per_slice
         ),
         affinity=get_cpu_affinity(system.accelerator_type),
-        accelerator_label=create_accelerator_label(
-            system.accelerator_type, system
-        ),
+        accelerator_label=create_accelerator_label(system),
         sub_slicing_annotations=(
             ''
             if not FeatureFlags.SUB_SLICING_ENABLED
@@ -641,7 +639,7 @@ def workload_create(args) -> None:
             )
         ),
         placement_policy_label=placement_policy_label,
-        machine_label=create_machine_label(system.accelerator_type, system),
+        machine_label=create_machine_label(system),
         local_queue_name=LOCAL_QUEUE_NAME,
         autoprovisioning_args=autoprovisioning_args,
         volumes=get_volumes(args, system),

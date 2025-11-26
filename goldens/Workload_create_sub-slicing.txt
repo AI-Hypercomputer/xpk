@@ -1,5 +1,5 @@
 $ SUB_SLICING_ENABLED=true xpk workload create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --command "bash hello" --tpu-type=v6e-4x4 --sub-slicing-topology=2x4 --script-dir=/tmp --dry-run
-[XPK] Starting xpk v0.15.0
+[XPK] Starting xpk v0.0.0
 [XPK] Task: `Check if Workload Already Exists` is implemented by the following command not running since it is a dry run. 
 kubectl get workloads -o=custom-columns='Jobset:.metadata.ownerReferences[0].name'
 [XPK] Task: `Get defined topologies` is implemented by the following command not running since it is a dry run. 

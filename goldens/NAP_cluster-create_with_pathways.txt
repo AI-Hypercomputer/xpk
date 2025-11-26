@@ -1,5 +1,5 @@
 $ xpk cluster create-pathways --project=golden-project --zone=us-central1-a --enable-autoprovisioning --cluster=golden-cluster --tpu-type=tpu7x-8 --on-demand --dry-run
-[XPK] Starting xpk v0.15.0
+[XPK] Starting xpk v0.0.0
 [XPK] Starting cluster create for cluster golden-cluster:
 [XPK] Working on golden-project and us-central1-a
 [XPK] Task: `Determine server supported GKE versions for default gke version` is implemented by the following command not running since it is a dry run. 
@@ -102,13 +102,13 @@ data:
   minimum_chips: "0"
   maximum_chips: "4"
 
-[XPK] Temp file (d3d865e6e02cf401780b3f270026845c6ddcbcab6b7e289fcaca01002fcc7d59) content: 
+[XPK] Temp file (4bf36a48d9e19d6c9141aa3e17e71674e93f4bef175160182fc3a270e7aaf4fb) content: 
 kind: ConfigMap
 apiVersion: v1
 metadata:
   name: golden-cluster-metadata-configmap
 data:
-  xpk_version: v0.15.0
+  xpk_version: v0.0.0
   capacity_type: ON_DEMAND
 
 [XPK] Breaking up a total of 2 commands into 1 batches

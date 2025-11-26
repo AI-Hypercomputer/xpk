@@ -1,5 +1,5 @@
 $ xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --device-type=gb200-4 --reservation=golden-reservation --dry-run
-[XPK] Starting xpk v0.15.0
+[XPK] Starting xpk v0.0.0
 [XPK] Starting cluster create for cluster golden-cluster:
 [XPK] Working on golden-project and us-central1-a
 [XPK] Task: `Determine server supported GKE versions for default gke version` is implemented by the following command not running since it is a dry run. 
@@ -66,13 +66,13 @@ metadata:
 data:
   gb200-4: "2"
 
-[XPK] Temp file (8c9b219bd16f12ab6c830266c7d63c5594f1c7edd7563e427766ac61009128e5) content: 
+[XPK] Temp file (a3dd06b296e1eb6792c99ad309e6eb714888c53e8b8fb8adc3beb8f250ef163c) content: 
 kind: ConfigMap
 apiVersion: v1
 metadata:
   name: golden-cluster-metadata-configmap
 data:
-  xpk_version: v0.15.0
+  xpk_version: v0.0.0
   capacity_type: RESERVATION
   reservation_id: golden-reservation
 

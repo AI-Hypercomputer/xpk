@@ -86,7 +86,7 @@ If you need to modify the source code or use the latest unreleased features:
 
 ```shell
 # 1. Clone the XPK repository
-git clone https://github.com/google/xpk.git
+git clone https://github.com/AI-Hypercomputer/xpk.git
 cd xpk
 
 # 2. Install dependencies and build

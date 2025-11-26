@@ -22,7 +22,7 @@ import yaml
 from unittest.mock import MagicMock, patch
 
 from xpk.core.kueue_manager import KueueConfig, KueueManager, has_sub_slicing_enabled
-from xpk.core.system_characteristics import AcceleratorType, SystemCharacteristics, UserFacingNameToSystemCharacteristics
+from xpk.core.system_characteristics import DockerPlatform, AcceleratorType, SystemCharacteristics, UserFacingNameToSystemCharacteristics
 from xpk.core.testing.commands_tester import CommandsTester
 from packaging.version import Version
 
@@ -35,6 +35,7 @@ TPU_SYSTEM: SystemCharacteristics = SystemCharacteristics(
     accelerator_type=AcceleratorType.TPU,
     device_type="v5p-8",
     supports_sub_slicing=False,
+    docker_platform=DockerPlatform.ARM,
 )
 
 KUEUE_CONFIG: KueueConfig = KueueConfig(
@@ -405,6 +406,7 @@ def test_configure_generates_correct_manifest_with_gke_default_topology(
           accelerator_type=AcceleratorType.GPU,
           device_type="h100-mega-80gb-8",
           supports_sub_slicing=False,
+          docker_platform=DockerPlatform.ARM,
       ),
   )
 

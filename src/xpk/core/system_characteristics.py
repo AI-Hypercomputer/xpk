@@ -81,10 +81,25 @@ class GpuConfig:
   requires_topology: bool
   gpu_direct_name: Literal['fastrak', 'rdma', 'tcpx', 'tcpxo'] = 'fastrak'
   kjob_decorator_fn: Optional[Callable[[dict], dict]] = None
+  """A function to decorate the kjob template for GPU-specific configurations.
+
+  Args:
+    job_manifest (dict): The kjob manifest as a dictionary.
+
+  Returns:
+    dict: The modified kjob manifest as a dictionary.
+  """
   nccl_installer: Optional[str] = None
-  jobset_decorator_fn: (
-      Optional[Callable[[str, list[str]], str]] | Optional[Callable[[str], str]]
-  ) = None
+  jobset_decorator_fn: Optional[Callable[[str, list[str]], str]] = None
+  """A function to decorate the jobset for GPU-specific configurations.
+
+  Args:
+    jobset_manifest_str (str): The JobSet manifest as a YAML string.
+    sub_networks (list[str], optional): A list of sub-network names, used by some decorators.
+
+  Returns:
+    str: The modified JobSet manifest as a YAML string.
+  """
 
   def __repr__(self) -> str:
     """Returns a string representation of the GpuConfig, omitting memory addresses for functions."""

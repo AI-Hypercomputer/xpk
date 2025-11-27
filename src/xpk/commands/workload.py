@@ -14,8 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import inspect
-
 from ..core.blueprint.blueprint_generator import (
     a3high_device_type,
     a4x_device_types,
@@ -574,11 +572,7 @@ def workload_create(args) -> None:
 
       if system.gpu_config and callable(system.gpu_config.jobset_decorator_fn):
         decorator_fn = system.gpu_config.jobset_decorator_fn
-        sig = inspect.signature(decorator_fn)
-        if len(sig.parameters) == 2:
-          yml_string = decorator_fn(yml_string, sub_networks)  # type: ignore[call-arg]
-        else:
-          yml_string = decorator_fn(yml_string)  # type: ignore[call-arg]
+        yml_string = decorator_fn(yml_string, sub_networks)
 
       if all_storages:
         yml_string = storage_decorator.decorate_jobset(yml_string, all_storages)

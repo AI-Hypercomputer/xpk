@@ -24,15 +24,13 @@ from jinja2 import Environment, FileSystemLoader
 from ..utils.topology import get_slice_topology_level, get_topology_product, is_topology_contained
 from ..utils.kueue import is_queued_cluster
 from kubernetes.utils import parse_quantity
-from .scheduling import (
-    create_accelerator_label,
-    create_machine_label,
-)
 from .system_characteristics import (
     SUB_SLICING_TOPOLOGIES,
     AcceleratorType,
     AcceleratorTypeToAcceleratorCharacteristics,
     SystemCharacteristics,
+    create_accelerator_label,
+    create_machine_label,
 )
 from ..core.commands import (
     run_command_for_value,

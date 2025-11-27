@@ -254,7 +254,8 @@ func MakeSliceWrapper(name string) *SliceWrapper {
 	return &SliceWrapper{
 		v1alpha1.Slice{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: name,
+				Name:              name,
+				CreationTimestamp: metav1.NewTime(time.Now()),
 			},
 		},
 	}

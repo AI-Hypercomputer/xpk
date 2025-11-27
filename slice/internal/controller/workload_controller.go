@@ -62,8 +62,9 @@ const (
 )
 
 const (
-	updatesBatchPeriod = time.Second
-	cleanupRetryAfter  = 5 * time.Second
+	updatesBatchPeriod       = time.Second
+	cleanupRetryAfter        = 5 * time.Second
+	initializationRetryAfter = 5 * time.Second
 )
 
 var (
@@ -161,7 +162,7 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, err
 	}
 
-	deleted, toDelete, _ := r.groupSlices(slices)
+	deleted, toDelete, initializing, _ := r.groupSlices(slices)
 	if len(deleted) > 0 {
 		log.V(3).Info(
 			"Waiting for deleted Slices to be cleaned up; skipping reconciliation for now",
@@ -189,6 +190,13 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		if err != nil {
 			return ctrl.Result{}, err
 		}
+	}
+	if len(initializing) > 0 {
+		log.V(3).Info(
+			"Waiting for Slices to be initialized",
+			"slices", klog.KObjSlice(initializing),
+		)
+		return ctrl.Result{RequeueAfter: initializationRetryAfter}, nil
 	}
 	return ctrl.Result{}, nil
 }
@@ -255,21 +263,22 @@ func (r *WorkloadReconciler) cleanupSlices(ctx context.Context, wl *kueue.Worklo
 		return false, err
 	}
 
-	deleted, toDelete, other := r.groupSlices(slices)
+	deleted, toDelete, initializing, other := r.groupSlices(slices)
 
 	if len(deleted) == len(slices) {
 		log.V(3).Info("All slices already deleted; finishing cleanup")
 		return true, nil
 	}
 
-	if len(other)+len(toDelete) > 0 {
+	if len(other)+len(toDelete)+len(initializing) > 0 {
 		terminated, err := r.ownerPodsFinished(ctx, wl)
 		if err != nil || !terminated {
 			return false, err
 		}
 	}
-	// after pods are terminated we should cleanup all the slices (including active ones)
+	// after pods are terminated we should cleanup all the slices (including active and initializing ones)
 	toDelete = append(toDelete, other...)
+	toDelete = append(toDelete, initializing...)
 	log.V(3).Info("Deleting Slices", "slices", klog.KObjSlice(toDelete))
 	err = r.deleteSlices(ctx, toDelete)
 	if err != nil {
@@ -293,9 +302,9 @@ func (r *WorkloadReconciler) findWorkloadSlices(ctx context.Context, wl *kueue.W
 	return slices.Items, nil
 }
 
-// groupSlices categorizes a list of Slice objects into three groups based on their state.
+// groupSlices categorizes a list of Slice objects into four groups based on their state.
 // It separates slices into deleted (marked for deletion), ones that should be delete
-// (errored and stale) and other (active) slices.
+// (errored and stale), ones that are initializning, and other (active) slices.
 //
 // Parameters:
 //
@@ -304,20 +313,22 @@ func (r *WorkloadReconciler) findWorkloadSlices(ctx context.Context, wl *kueue.W
 // Returns:
 //   - A slice containing deleted Slice objects (with non-zero DeletionTimestamp).
 //   - A slice containing Slice objects that should be deleted (errored and stale slices).
-//   - A slice containing other Slice objects (active/initializing slices).
-func (r *WorkloadReconciler) groupSlices(slices []v1alpha1.Slice) ([]v1alpha1.Slice, []v1alpha1.Slice, []v1alpha1.Slice) {
-	var deleted, toDelete, other []v1alpha1.Slice
+//   - A slice sontaining initializing Slices objects (activating and slices without ready state yet)
+//   - A slice containing other Slice objects (active slices).
+func (r *WorkloadReconciler) groupSlices(slices []v1alpha1.Slice) (deleted []v1alpha1.Slice, toDelete []v1alpha1.Slice, initializing []v1alpha1.Slice, other []v1alpha1.Slice) {
 	for _, slice := range slices {
 		switch core.GetSliceState(slice) {
 		case core.SliceStateDeleted:
 			deleted = append(deleted, slice)
 		case core.SliceStateFailed, core.SliceStateStale:
 			toDelete = append(toDelete, slice)
+		case core.SliceStateCreated, core.SliceStateActivating:
+			initializing = append(initializing, slice)
 		default:
 			other = append(other, slice)
 		}
 	}
-	return deleted, toDelete, other
+	return deleted, toDelete, initializing, other
 }
 
 func (r *WorkloadReconciler) deleteSlices(ctx context.Context, slices []v1alpha1.Slice) error {

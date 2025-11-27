@@ -52,28 +52,18 @@ def check_if_workload_can_schedule(
   Returns:
     returns WorkloadScheduling describing scheduling option.
   """
-  # Skip validation for dry_run without cluster_system set (most of the dry runs).
   if is_dry_run() and not cluster_system:
+    xpk_print('Skipping workload scheduling validation in dry run.')
     return WorkloadScheduling.AVAILABLE
 
-  # Prevents workload creation failure for existing clusters with no ConfigMap
   if resources_config_map is None:
-    xpk_print('No Resources ConfigMap exist for cluster.')
+    xpk_print(
+        "Skipping workload scheduling validation, because there's no Resources"
+        ' ConfigMap in the cluster.'
+    )
     return WorkloadScheduling.AVAILABLE
 
-  # Check for gke accelerator type:
-  missing_gke_accelerator_type = False
-  if not resources_config_map.get(workload_system.gke_accelerator):
-    xpk_print(
-        f'GKE Accelerator Type Check: {args.workload} is requesting'
-        f' {workload_system.gke_accelerator} but cluster only contains'
-        f' {resources_config_map.keys()}. '
-    )
-    missing_gke_accelerator_type = True
-  elif (
-      resources_config_map[workload_system.gke_accelerator]
-      == AUTOPROVISIONING_CONFIG_VALUE
-  ):
+  if _is_cluster_set_up_for_nap(workload_system, resources_config_map):
     # Run total chip check when in autoprovisioning mode.
     max_chips_in_cluster = int(
         resources_config_map[AUTOPROVISIONING_CONFIG_MAXIMUM_KEY]
@@ -92,55 +82,50 @@ def check_if_workload_can_schedule(
       return WorkloadScheduling.UNAVAILABLE
     return WorkloadScheduling.AVAILABLE
 
-  # Check for device type
-  missing_device_type = False
-  workload_device_type = workload_system.device_type
-  if workload_device_type not in resources_config_map:
-    if _check_sub_slicing_availability(
-        workload_system=workload_system, cluster_system=cluster_system
+  if workload_system.device_type in resources_config_map:
+    if _check_workload_size_fits(
+        args,
+        workload_system,
+        max_vm_in_cluster=int(
+            resources_config_map[workload_system.device_type]
+        ),
     ):
-      assert cluster_system
-      if _check_workload_size_fits(
-          args,
-          workload_system,
-          workload_device_type,
-          max_vm_in_cluster=int(
-              resources_config_map[cluster_system.device_type]
-          ),
-      ):
-        return WorkloadScheduling.SUB_SLICING_AVAILABLE
-      else:
-        return WorkloadScheduling.UNAVAILABLE
+      return WorkloadScheduling.AVAILABLE
+    else:
+      return WorkloadScheduling.UNAVAILABLE
 
-    xpk_print(
-        f'Device Type Check: {args.workload} is requesting'
-        f' {workload_device_type} but cluster only contains'
-        f' {resources_config_map.keys()}. '
-    )
-    missing_device_type = True
-
-  if missing_device_type and missing_gke_accelerator_type:
-    xpk_print(
-        'Both Device Type and GKE Accelerator Type checks failed.'
-        f' XPK will not create the workload {args.workload}.'
-    )
-    return WorkloadScheduling.UNAVAILABLE
-
-  if not _check_workload_size_fits(
-      args,
-      workload_system,
-      workload_device_type,
-      max_vm_in_cluster=int(resources_config_map[workload_device_type]),
+  if _check_sub_slicing_availability(
+      workload_system=workload_system, cluster_system=cluster_system
   ):
-    return WorkloadScheduling.UNAVAILABLE
+    assert cluster_system
+    if _check_workload_size_fits(
+        args,
+        workload_system,
+        max_vm_in_cluster=int(resources_config_map[cluster_system.device_type]),
+    ):
+      return WorkloadScheduling.SUB_SLICING_AVAILABLE
+    else:
+      return WorkloadScheduling.UNAVAILABLE
 
-  return WorkloadScheduling.AVAILABLE
+  xpk_print(
+      'Workload scheduling validation failed. XPK will not create the workload'
+      f' {args.workload}.'
+  )
+  return WorkloadScheduling.UNAVAILABLE
+
+
+def _is_cluster_set_up_for_nap(
+    workload_system: SystemCharacteristics, resources_config_map: dict[str, str]
+) -> bool:
+  return (
+      resources_config_map.get(workload_system.gke_accelerator, None)
+      == AUTOPROVISIONING_CONFIG_VALUE
+  )
 
 
 def _check_workload_size_fits(
     args,
     workload_system: SystemCharacteristics,
-    workload_device_type: str,
     max_vm_in_cluster: int,
 ) -> bool:
   if workload_system.accelerator_type == AcceleratorType.GPU:
@@ -151,9 +136,10 @@ def _check_workload_size_fits(
   if vm_required_by_workload > max_vm_in_cluster:
     xpk_print(
         f'{args.workload} is requesting {args.num_slices} slice/slices of'
-        f' {workload_device_type}, which is {vm_required_by_workload} VMs, but'
-        f' the cluster only contains {max_vm_in_cluster} VMs of'
-        f' {workload_device_type}. XPK will not create this workload.'
+        f' {workload_system.device_type}, which is'
+        f' {vm_required_by_workload} VMs, but the cluster only contains'
+        f' {max_vm_in_cluster} VMs of {workload_system.device_type}. XPK will'
+        ' not create this workload.'
     )
     return False
   return True

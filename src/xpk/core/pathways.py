@@ -345,8 +345,8 @@ def get_pathways_machine_types(
   min_memory_mb = 233 * 1024
   command = (
       'gcloud compute machine-types list --filter "guestCpus >= 49 AND memoryMb'
-      f' >= {min_memory_mb} AND zone = \'{zone}\'" --format="value(name)" '
-      f'--project={project}'
+      f' >= {min_memory_mb} AND zone = \'{zone}\'" --format="value(name)"'
+      f' --project={project}'
   )
   return_code, result = run_command_for_value(
       command=command,

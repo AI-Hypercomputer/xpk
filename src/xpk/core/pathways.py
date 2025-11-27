@@ -335,7 +335,9 @@ def try_to_delete_pathwaysjob_first(args, workloads) -> bool:
   return True
 
 
-def get_pathways_machine_types(zone: str) -> tuple[int, list[str]]:
+def get_pathways_machine_types(
+    project: str, zone: str
+) -> tuple[int, list[str]]:
   # Identify machine types with sufficient allocatable capacity to
   # schedule the Pathways pod. This filter ensures the selected node
   # is large enough to handle the control plane workload plus GKE
@@ -344,6 +346,7 @@ def get_pathways_machine_types(zone: str) -> tuple[int, list[str]]:
   command = (
       'gcloud compute machine-types list --filter "guestCpus >= 49 AND memoryMb'
       f' >= {min_memory_mb} AND zone = \'{zone}\'" --format="value(name)"'
+      f'--project={project}'
   )
   return_code, result = run_command_for_value(
       command=command,

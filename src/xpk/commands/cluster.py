@@ -216,7 +216,9 @@ def _validate_cluster_create_args(args, system: SystemCharacteristics):
 
 
 def _validate_pathways_machine(args):
-  return_code, result = get_pathways_machine_types(args.zone)
+  return_code, result = get_pathways_machine_types(
+      project=args.project, zone=args.zone
+  )
   if return_code != 0:
     xpk_print('Error: Unable to retrieve available pathways machine types')
     xpk_exit(1)
@@ -279,11 +281,10 @@ def cluster_create(args) -> None:
     xpk_print('Fetching system characteristics failed!')
     xpk_exit(return_code)
 
-  _validate_cluster_create_args(args, system)
-
   xpk_print(f'Starting cluster create for cluster {args.cluster}:', flush=True)
   add_zone_and_project(args)
 
+  _validate_cluster_create_args(args, system)
   _log_cluster_create_telemetry(args)
 
   release_channel = (

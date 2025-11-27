@@ -37,7 +37,9 @@ def test_get_pathways_machine_types_when_command_fails_returns_failed_exit_code(
   commands_tester.set_result_for_command(
       (1, ""), "gcloud compute machine-types list"
   )
-  return_code, machine_types = get_pathways_machine_types("us-central1-a")
+  return_code, machine_types = get_pathways_machine_types(
+      project="gke-project", zone="us-central1-a"
+  )
   assert return_code == 1
   assert machine_types == []
 
@@ -48,6 +50,8 @@ def test_get_pathways_machine_types_when_command_suceeds_returns_machine_types(
   commands_tester.set_result_for_command(
       (0, "abc\ncba"), "gcloud compute machine-types list"
   )
-  return_code, machine_types = get_pathways_machine_types("us-central1-a")
+  return_code, machine_types = get_pathways_machine_types(
+      project="gke-project", zone="us-central1-a"
+  )
   assert return_code == 0
   assert machine_types == ["abc", "cba"]

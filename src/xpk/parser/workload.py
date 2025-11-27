@@ -24,8 +24,6 @@ from ..commands.workload import (
 from ..core.docker_image import DEFAULT_DOCKER_IMAGE, DEFAULT_SCRIPT_DIR
 from .common import add_shared_arguments, add_tpu_type_argument, add_tpu_and_device_type_arguments
 from .validators import directory_path_type, name_type
-from ..utils.feature_flags import FeatureFlags
-from ..core.system_characteristics import SUB_SLICING_TOPOLOGIES
 
 
 def set_workload_parsers(workload_parser: ArgumentParser):
@@ -653,14 +651,6 @@ def add_shared_workload_create_optional_arguments(args_parsers):
             ' the workload.'
         ),
     )
-    if FeatureFlags.SUB_SLICING_ENABLED:
-      custom_parser.add_argument(
-          '--sub-slicing-topology',
-          type=str,
-          help='Sub-slicing topology to use.',
-          required=False,
-          choices=SUB_SLICING_TOPOLOGIES,
-      )
 
 
 def add_shared_workload_create_env_arguments(args_parsers):

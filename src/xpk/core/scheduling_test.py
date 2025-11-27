@@ -14,8 +14,32 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from .scheduling import create_sub_slicing_annotations, create_placement_policy_label, get_placement_policy_name, is_placement_policy_supported
-from .system_characteristics import SystemCharacteristics, AcceleratorType, DockerPlatform
+from argparse import Namespace
+from dataclasses import dataclass
+import dataclasses
+import pytest
+from pytest_mock import MockerFixture
+from xpk.core.capacity import AUTOPROVISIONING_CONFIG_MAXIMUM_KEY, AUTOPROVISIONING_CONFIG_VALUE
+from xpk.core.testing.commands_tester import CommandsTester
+from xpk.utils.feature_flags import FeatureFlags
+from .scheduling import WorkloadScheduling, check_if_workload_can_schedule, create_sub_slicing_annotations, create_placement_policy_label, get_placement_policy_name, is_placement_policy_supported
+from .system_characteristics import SystemCharacteristics, AcceleratorType, DockerPlatform, get_system_characteristics_by_device_type
+
+
+def _get_system_characteristics_or_die(
+    device_type: str,
+) -> SystemCharacteristics:
+  system = get_system_characteristics_by_device_type(device_type)[0]
+  assert system
+  return system
+
+
+@pytest.fixture(autouse=True)
+def commands_tester(mocker: MockerFixture) -> CommandsTester:
+  return CommandsTester(
+      mocker=mocker,
+      run_command_for_value_path='xpk.core.kueue_manager.run_command_for_value',
+  )
 
 
 def test_create_sub_slicing_annotations_returns_valid_annotations():
@@ -113,3 +137,187 @@ def test_is_placement_policy_supported_returns_false_for_system_characteristics_
       docker_platform=DockerPlatform.ARM,
   )
   assert is_placement_policy_supported(system_characteristics) is False
+
+
+@dataclass(frozen=True)
+class SchedulingTestCase:
+  workload_system: SystemCharacteristics
+  num_slices: int = 1
+  cluster_system: SystemCharacteristics | None = None
+  resources_config_map: dict[str, str] | None = None
+  sub_slicing_feature_enabled: bool = False
+  kueue_version: str | None = None
+  sub_slicing_topology_set: bool = False
+
+
+SUB_SLICING_CASE = SchedulingTestCase(
+    workload_system=_get_system_characteristics_or_die('v6e-8'),
+    cluster_system=_get_system_characteristics_or_die('v6e-16'),
+    resources_config_map={'v6e-16': '8'},
+    sub_slicing_feature_enabled=True,
+    kueue_version='0.13.0',
+    sub_slicing_topology_set=True,
+    num_slices=1,
+)
+
+NAP_CASE = SchedulingTestCase(
+    workload_system=_get_system_characteristics_or_die('v6e-8'),
+    cluster_system=None,
+    resources_config_map={
+        'tpu-v6e-slice': AUTOPROVISIONING_CONFIG_VALUE,
+        AUTOPROVISIONING_CONFIG_MAXIMUM_KEY: '10',
+    },
+)
+
+
+@pytest.mark.parametrize(
+    'title, case, expected',
+    [
+        (
+            'No resources config map',
+            SchedulingTestCase(
+                workload_system=_get_system_characteristics_or_die('v6e-8'),
+                resources_config_map=None,
+            ),
+            WorkloadScheduling.AVAILABLE,
+        ),
+        (
+            'Cluster system matches and workload fits',
+            SchedulingTestCase(
+                workload_system=_get_system_characteristics_or_die('v6e-8'),
+                resources_config_map={'v6e-8': '8'},
+                num_slices=2,
+            ),
+            WorkloadScheduling.AVAILABLE,
+        ),
+        (
+            'Cluster system does not match',
+            SchedulingTestCase(
+                workload_system=_get_system_characteristics_or_die('v6e-8'),
+                resources_config_map={'tpu7x-32': '16'},
+            ),
+            WorkloadScheduling.UNAVAILABLE,
+        ),
+        (
+            'Workload does not fit',
+            SchedulingTestCase(
+                workload_system=_get_system_characteristics_or_die('v6e-8'),
+                resources_config_map={'v6e-8': '8'},
+                num_slices=100,
+            ),
+            WorkloadScheduling.UNAVAILABLE,
+        ),
+        (
+            'Correct NAP',
+            NAP_CASE,
+            WorkloadScheduling.AVAILABLE,
+        ),
+        (
+            'NAP, too big workload',
+            dataclasses.replace(NAP_CASE, num_slices=100),
+            WorkloadScheduling.UNAVAILABLE,
+        ),
+        (
+            'Correct Sub-slicing',
+            SUB_SLICING_CASE,
+            WorkloadScheduling.SUB_SLICING_AVAILABLE,
+        ),
+        (
+            'Sub-slicing, but disabled flag',
+            dataclasses.replace(
+                SUB_SLICING_CASE, sub_slicing_feature_enabled=False
+            ),
+            WorkloadScheduling.UNAVAILABLE,
+        ),
+        (
+            'Sub-slicing, but low Kueue version',
+            dataclasses.replace(SUB_SLICING_CASE, kueue_version='0.12.0'),
+            WorkloadScheduling.UNAVAILABLE,
+        ),
+        (
+            'Sub-slicing, but no sub-slicing-topology',
+            dataclasses.replace(
+                SUB_SLICING_CASE, sub_slicing_topology_set=False
+            ),
+            WorkloadScheduling.UNAVAILABLE,
+        ),
+        (
+            'Sub-slicing, but workload too big',
+            dataclasses.replace(SUB_SLICING_CASE, num_slices=100),
+            WorkloadScheduling.UNAVAILABLE,
+        ),
+        (
+            'Sub-slicing, but cluster system is incorrect',
+            dataclasses.replace(
+                SUB_SLICING_CASE,
+                cluster_system=_get_system_characteristics_or_die('tpu7x-16'),
+            ),
+            WorkloadScheduling.UNAVAILABLE,
+        ),
+        (
+            'Sub-slicing, but workload system is incorrect',
+            dataclasses.replace(
+                SUB_SLICING_CASE,
+                workload_system=_get_system_characteristics_or_die('tpu7x-8'),
+            ),
+            WorkloadScheduling.UNAVAILABLE,
+        ),
+        (
+            'Sub-slicing, but workload topology is incorrect',
+            dataclasses.replace(
+                SUB_SLICING_CASE,
+                workload_system=_get_system_characteristics_or_die('v6e-2x2'),
+            ),
+            WorkloadScheduling.UNAVAILABLE,
+        ),
+        (
+            (
+                'Sub-slicing should be ignored when a given device is already'
+                ' present in the cluster'
+            ),
+            dataclasses.replace(
+                SUB_SLICING_CASE,
+                workload_system=_get_system_characteristics_or_die('v6e-8'),
+                cluster_system=_get_system_characteristics_or_die('v6e-8'),
+                resources_config_map={'v6e-8': '4'},
+            ),
+            WorkloadScheduling.AVAILABLE,
+        ),
+    ],
+)
+def test_check_if_workload_can_schedule(
+    commands_tester: CommandsTester,
+    title: str,
+    case: SchedulingTestCase,
+    expected: WorkloadScheduling,
+):
+  FeatureFlags.SUB_SLICING_ENABLED = case.sub_slicing_feature_enabled
+  commands_tester.set_result_for_command(
+      (
+          0,
+          f'registry.k8s.io/kueue/kueue:v{case.kueue_version}'
+          if case.kueue_version
+          else '',
+      ),
+      'kubectl get deployment',
+      'image',
+  )
+  commands_tester.set_result_for_command(
+      (0, 'sub-slice-topology' if case.sub_slicing_topology_set else ''),
+      'kubectl get topology',
+  )
+  args = Namespace(
+      cluster='test-cluster',
+      workload='test-workload',
+      num_slices=case.num_slices,
+  )
+
+  assert (
+      check_if_workload_can_schedule(
+          args,
+          workload_system=case.workload_system,
+          cluster_system=case.cluster_system,
+          resources_config_map=case.resources_config_map,
+      )
+      == expected
+  )

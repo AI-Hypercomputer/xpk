@@ -18,9 +18,10 @@ import dataclasses
 from unittest.mock import MagicMock, patch
 import yaml
 import pytest
+
+from ..core.scheduling import WorkloadScheduling
 from ..core.system_characteristics import DockerPlatform, SystemCharacteristics, AcceleratorType, UserFacingNameToSystemCharacteristics, GpuConfig
-from .workload import _validate_sub_slicing_topology, _validate_sub_slicing_availability, workload_create
-from packaging.version import Version
+from .workload import workload_create
 from .cluster_test import construct_args
 
 
@@ -54,10 +55,8 @@ class _WorkloadCreateMocks:
   setup_k8s_service_accounts: MagicMock
   validate_dependencies_list: MagicMock
   write_tmp_file: MagicMock
-  validate_sub_slicing_availability: MagicMock
   get_cluster_capacity_type: MagicMock
   is_TAS_possible: MagicMock
-  validate_sub_slicing_topology: MagicMock
   get_cluster_location: MagicMock
   xpk_exit: MagicMock
   run_command_with_updates: MagicMock
@@ -98,7 +97,7 @@ def workload_create_mocks(mocker) -> _WorkloadCreateMocks:
       ),
       check_if_workload_can_schedule=mocker.patch(
           'xpk.commands.workload.check_if_workload_can_schedule',
-          return_value=True,
+          return_value=WorkloadScheduling.AVAILABLE,
       ),
       setup_k8s_env=mocker.patch('xpk.commands.workload.setup_k8s_env'),
       setup_k8s_service_accounts=mocker.patch(
@@ -108,18 +107,12 @@ def workload_create_mocks(mocker) -> _WorkloadCreateMocks:
           'xpk.commands.workload.validate_dependencies_list'
       ),
       write_tmp_file=mocker.patch('xpk.commands.workload.write_tmp_file'),
-      validate_sub_slicing_availability=mocker.patch(
-          'xpk.commands.workload._validate_sub_slicing_availability'
-      ),
       get_cluster_capacity_type=mocker.patch(
           'xpk.commands.workload.get_cluster_capacity_type',
           return_value='on-demand',
       ),
       is_TAS_possible=mocker.patch(
           'xpk.commands.workload.is_TAS_possible', return_value=False
-      ),
-      validate_sub_slicing_topology=mocker.patch(
-          'xpk.commands.workload._validate_sub_slicing_topology'
       ),
       get_cluster_location=mocker.patch(
           'xpk.commands.workload.get_cluster_location',
@@ -135,130 +128,6 @@ def workload_create_mocks(mocker) -> _WorkloadCreateMocks:
       get_cluster_subnetworks=mocker.patch(
           'xpk.commands.workload.get_cluster_subnetworks', return_value=[]
       ),
-  )
-
-
-def test_validate_sub_slicing_topology_exits_for_unsupported_topology(
-    xpk_print: MagicMock,
-):
-  with pytest.raises(SystemExit):
-    _validate_sub_slicing_topology(SYSTEM_CHARACTERISTICS, '2x1')
-
-  assert (
-      'shape is invalid. It has to be one of' in xpk_print.mock_calls[0].args[0]
-  )
-
-
-def test_validate_sub_slicing_topology_exits_for_too_large_topology(
-    xpk_print: MagicMock,
-):
-  with pytest.raises(SystemExit):
-    _validate_sub_slicing_topology(SYSTEM_CHARACTERISTICS, '16x16')
-
-  assert (
-      'shape is too large. The shape cannot be'
-      in xpk_print.mock_calls[0].args[0]
-  )
-
-
-def test_validate_sub_slicing_topology_does_nothing_for_supported_topology():
-  _validate_sub_slicing_topology(SYSTEM_CHARACTERISTICS, '4x4')
-
-
-def test_validate_sub_slicing_availability_exits_when_getting_topologies_fails(
-    xpk_print: MagicMock, mocker
-):
-  mocker.patch(
-      'xpk.commands.workload.has_sub_slicing_enabled',
-      return_value=(1, None),
-  )
-  with pytest.raises(SystemExit):
-    _validate_sub_slicing_availability()
-
-  assert (
-      'Unable to validate sub-slicing support'
-      in xpk_print.mock_calls[0].args[0]
-  )
-
-
-def test_validate_sub_slicing_availability_exits_when_subslicing_topology_is_not_defined(
-    xpk_print: MagicMock, mocker
-):
-  mocker.patch(
-      'xpk.commands.workload.has_sub_slicing_enabled',
-      return_value=(0, False),
-  )
-  with pytest.raises(SystemExit):
-    _validate_sub_slicing_availability()
-
-  assert (
-      'Cluster has not been not set up for Sub-slicing.'
-      in xpk_print.mock_calls[0].args[0]
-  )
-
-
-def test_validate_sub_slicing_availability_exits_when_kueue_version_cannot_be_determined(
-    xpk_print: MagicMock, mocker
-):
-  mocker.patch(
-      'xpk.commands.workload.has_sub_slicing_enabled',
-      return_value=(0, True),
-  )
-  mocker.patch(
-      'xpk.commands.workload.get_installed_kueue_version',
-      return_value=(1, None),
-  )
-  with pytest.raises(SystemExit):
-    _validate_sub_slicing_availability()
-
-  assert 'Unable to validate sub-slicing' in xpk_print.mock_calls[0].args[0]
-
-
-def test_validate_sub_slicing_availability_exits_when_kueue_version_does_not_meet_minimum_requirements(
-    xpk_print: MagicMock, mocker
-):
-  mocker.patch(
-      'xpk.commands.workload.has_sub_slicing_enabled',
-      return_value=(0, True),
-  )
-  mocker.patch(
-      'xpk.commands.workload.get_installed_kueue_version',
-      return_value=(0, Version('0.0.0')),
-  )
-  with pytest.raises(SystemExit):
-    _validate_sub_slicing_availability()
-
-  assert 'The minimal required version is' in xpk_print.mock_calls[0].args[0]
-
-
-def test_validate_sub_slicing_availability_does_nothing_when_cluster_is_correctly_configured_for_subslicing(
-    mocker,
-):
-  mocker.patch(
-      'xpk.commands.workload.has_sub_slicing_enabled',
-      return_value=(0, True),
-  )
-  mocker.patch(
-      'xpk.commands.workload.get_installed_kueue_version',
-      return_value=(0, Version('0.13.0')),
-  )
-  _validate_sub_slicing_availability()
-
-
-@patch('xpk.commands.common.xpk_print')
-def test_validate_sub_slicing_topology_fails_for_unsupported_system(
-    common_xpk_print: MagicMock,
-):
-  unsupported_system = dataclasses.replace(
-      SYSTEM_CHARACTERISTICS, supports_sub_slicing=False
-  )
-
-  with pytest.raises(SystemExit):
-    _validate_sub_slicing_topology(unsupported_system, '4x4')
-
-  assert (
-      'l4-1 does not support Sub-slicing.'
-      in common_xpk_print.mock_calls[0].args[0]
   )
 
 

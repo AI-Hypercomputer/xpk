@@ -15,6 +15,7 @@ limitations under the License.
 """
 
 from dataclasses import dataclass
+import os
 
 from ..utils.console import xpk_print
 from ..utils.file import write_tmp_file
@@ -81,7 +82,7 @@ def get_cluster_configmap(
   return_code, return_value = run_command_for_value(
       command,
       'GKE Cluster Get ConfigMap',
-      dry_run_return_val='map[]',
+      dry_run_return_val=_get_dry_run_config_map_value(config_map_type),
   )
   if return_code != 0:
     xpk_print(f'GKE Cluster Get ConfigMap request returned ERROR {return_code}')
@@ -101,6 +102,15 @@ def get_cluster_configmap(
         continue
       config_map[parts[0]] = parts[1]
   return config_map
+
+
+def _get_dry_run_config_map_value(config_map_type: ConfigMapType) -> str:
+  default_value = 'map[]'
+
+  if config_map_type == ConfigMapType.RESOURCES:
+    return os.getenv('DRY_RUN_RESOURCES_CONFIG_MAP', default_value)
+
+  return default_value
 
 
 def create_cluster_configmaps(
@@ -246,16 +256,30 @@ def check_cluster_resources(
 
 
 def get_cluster_system_characteristics(args) -> SystemCharacteristics | None:
-  """Get systemCharcteristics based on the cluster resources configMap
+  """Get SystemCharcteristics based on the cluster resources configMap.
+
   Args:
     args: user provided arguments for running the command.
 
   Returns:
-    returns system characteristics
+    returns system characteristics, or None if not found.
   """
   resources_config_map = get_cluster_configmap(
       args.cluster, ConfigMapType.RESOURCES
   )
+  return get_cluster_system_characteristics_from_config_map(
+      resources_config_map
+  )
+
+
+def get_cluster_system_characteristics_from_config_map(
+    resources_config_map: dict[str, str] | None,
+) -> SystemCharacteristics | None:
+  """Get SystemCharcteristics based on the cluster resources configMap.
+
+  Returns:
+    returns system characteristics, or None if not found.
+  """
 
   if resources_config_map is None:
     return None
@@ -269,12 +293,13 @@ def get_cluster_system_characteristics(args) -> SystemCharacteristics | None:
 
 
 def get_cluster_capacity_type(args) -> CapacityType | None:
-  """Get systemCharcteristics based on the cluster resources configMap
+  """Get CapacityType based on the cluster metadata configMap.
+
   Args:
     args: user provided arguments for running the command.
 
   Returns:
-    returns system characteristics
+    returns CapacityType, or None if not found.
   """
   metadata_configmap_name = get_cluster_configmap(
       args.cluster, ConfigMapType.METADATA

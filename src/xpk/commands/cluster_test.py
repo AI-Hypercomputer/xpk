@@ -124,7 +124,21 @@ def construct_args(**kwargs: Any) -> Namespace:
       cluster_cpu_machine_type='',
       create_vertex_tensorboard=False,
       enable_autoprovisioning=False,
+      sub_slicing_topology='2x2x2',
+      use_vertex_tensorboard=False,
+      env_file='',
+      env=None,
+      use_pathways=False,
+      debug_dump_gcs=False,
+      storage='',
+      restart_on_exit_codes=None,
+      ttl_seconds_after_finished=0,
+      max_restarts=1,
+      priority=0,
+      termination_grace_period_seconds=0,
+      docker_image_pull_secret='',
       managed_mldiagnostics=False,
+      output_manifest_file='',
   )
   args_dict.update(kwargs)
   return Namespace(**args_dict)

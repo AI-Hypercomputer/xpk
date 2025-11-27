@@ -182,7 +182,9 @@ def get_user_workload_container(args, system: SystemCharacteristics):
       debugging_dashboard_id: id of the GKE dashboard
   """
 
-  setup_docker_image_code, docker_image = setup_docker_image(args)
+  setup_docker_image_code, docker_image = setup_docker_image(
+      args, system.docker_platform
+  )
   if setup_docker_image_code != 0:
     xpk_exit(setup_docker_image_code)
 

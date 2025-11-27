@@ -1,0 +1,46 @@
+apiVersion: jobset.x-k8s.io/v1alpha2
+kind: JobSet
+metadata:
+  name: {{ workload }}
+  labels:
+    kueue.x-k8s.io/queue-name: multislice-queue  # Name of the LocalQueue
+    xpk.google.com/workload: {{ workload }}
+spec:
+  ttlSecondsAfterFinished: {{ ttl_seconds_after_finished }}
+  failurePolicy:
+    {{ failure_policy_rules }}
+    maxRestarts: {{ max_restarts }}
+  replicatedJobs:
+    - name: slice-job
+      replicas: 1
+      template:
+        spec:
+          parallelism: {{ num_nodes }}
+          completions: {{ num_nodes }}
+          backoffLimit: 0   # When any pod fails, the job is failed
+          {{ pod_failure_policy }}
+          template:
+            metadata:
+              labels:
+                xpk.google.com/workload: {{ workload }}
+              annotations:
+                {{ annotations }}
+            spec:
+              priorityClassName: {{ priority }}
+              restartPolicy: Never
+              nodeSelector:
+                {{ placement_policy_label }}
+              imagePullSecrets:
+              - name: {{ docker_image_pull_secret }}
+              dnsPolicy: ClusterFirstWithHostNet
+              terminationGracePeriodSeconds: {{ termination_grace_period_seconds }}
+              serviceAccountName: {{ service_account }}
+              tolerations:
+              - operator: "Exists"
+                key: nvidia.com/gpu
+              - key: "kubernetes.io/arch"
+                operator: "Equal"
+                value: "arm64"
+                effect: "NoSchedule"
+              containers:
+              {{ container }}

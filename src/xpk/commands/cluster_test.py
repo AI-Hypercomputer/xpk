@@ -35,6 +35,7 @@ class _Mocks:
   common_print_mock: MagicMock
   commands_print_mock: MagicMock
   commands_get_reservation_deployment_type: MagicMock
+  commands_get_pathways_machine_types: MagicMock
   commands_tester: CommandsTester
 
 
@@ -75,10 +76,15 @@ def mocks(mocker) -> _Mocks:
       'xpk.commands.cluster.get_reservation_deployment_type',
       return_value='DENSE',
   )
+  commands_get_pathways_machine_types = mocker.patch(
+      'xpk.commands.cluster.get_pathways_machine_types',
+      return_value=(0, []),
+  )
   return _Mocks(
       common_print_mock=common_print_mock,
       commands_get_reservation_deployment_type=commands_get_reservation_deployment_type,
       commands_print_mock=commands_print_mock,
+      commands_get_pathways_machine_types=commands_get_pathways_machine_types,
       commands_tester=CommandsTester(
           mocker,
           run_command_with_updates_path=(
@@ -107,6 +113,7 @@ def construct_args(**kwargs: Any) -> Namespace:
       gke_version='',
       private=False,
       authorized_networks=None,
+      pathways_gce_machine_type='n2-standard-64',
       enable_pathways=False,
       enable_ray_cluster=False,
       enable_workload_identity=False,
@@ -304,6 +311,64 @@ def test_validate_cluster_create_args_for_invalid_reservation(
       'Refer to the documentation for more information on creating Cluster'
       in mocks.commands_print_mock.call_args[0][0]
   )
+
+
+def test_validate_cluster_create_args_for_enable_pathways_set_to_false(
+    mocks: _Mocks,
+):
+  args = construct_args(enable_pathways=False)
+  mocks.commands_get_pathways_machine_types.return_value = (1, [])
+
+  _validate_cluster_create_args(args, TPU_TEST_SYSTEM)
+
+  assert mocks.commands_print_mock.call_count == 0
+
+
+def test_validate_cluster_create_args_for_errored_pathways_machine_types_retrieval(
+    mocks: _Mocks,
+):
+  args = construct_args(enable_pathways=True)
+  mocks.commands_get_pathways_machine_types.return_value = (1, [])
+
+  with pytest.raises(SystemExit):
+    _validate_cluster_create_args(args, TPU_TEST_SYSTEM)
+
+  assert mocks.commands_print_mock.call_count == 1
+  assert 'Unable to retrieve' in mocks.commands_print_mock.call_args[0][0]
+
+
+def test_validate_cluster_create_args_for_invalid_pathways_machine_type(
+    mocks: _Mocks,
+):
+  args = construct_args(
+      enable_pathways=True, pathways_gce_machine_type='n2-standard-32'
+  )
+  mocks.commands_get_pathways_machine_types.return_value = (
+      0,
+      ['n2-standard-64'],
+  )
+
+  with pytest.raises(SystemExit):
+    _validate_cluster_create_args(args, TPU_TEST_SYSTEM)
+
+  assert mocks.commands_print_mock.call_count == 2
+  assert 'Available machine types' in mocks.commands_print_mock.call_args[0][0]
+
+
+def test_validate_cluster_create_args_for_valid_pathways_machine_type(
+    mocks: _Mocks,
+):
+  args = construct_args(
+      enable_pathways=True, pathways_gce_machine_type='n2-standard-32'
+  )
+  mocks.commands_get_pathways_machine_types.return_value = (
+      0,
+      ['n2-standard-32'],
+  )
+
+  _validate_cluster_create_args(args, TPU_TEST_SYSTEM)
+
+  assert mocks.commands_print_mock.call_count == 0
 
 
 @patch('xpk.commands.cluster.KueueManager.install_or_upgrade')

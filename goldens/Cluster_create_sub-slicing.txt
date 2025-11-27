@@ -1,9 +1,9 @@
 $ SUB_SLICING_ENABLED=true xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=v6e-4x4 --reservation=golden-reservation --sub-slicing --dry-run
 [XPK] Starting xpk v0.0.0
-[XPK] Task: `Get reservation deployment type` is implemented by the following command not running since it is a dry run. 
-gcloud beta compute reservations describe golden-reservation --project=golden-project --zone=us-central1-a --format="value(deploymentType)"
 [XPK] Starting cluster create for cluster golden-cluster:
 [XPK] Working on golden-project and us-central1-a
+[XPK] Task: `Get reservation deployment type` is implemented by the following command not running since it is a dry run. 
+gcloud beta compute reservations describe golden-reservation --project=golden-project --zone=us-central1-a --format="value(deploymentType)"
 [XPK] Task: `Determine server supported GKE versions for default gke version` is implemented by the following command not running since it is a dry run. 
 gcloud container get-server-config --project=golden-project --region=us-central1 --flatten="channels" --filter="channels.channel=RAPID" --format="value(channels.defaultVersion)"
 [XPK] Task: `Determine server supported GKE versions for valid versions` is implemented by the following command not running since it is a dry run. 

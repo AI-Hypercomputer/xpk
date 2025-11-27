@@ -18,7 +18,7 @@ from tabulate import tabulate
 
 from ..utils.feature_flags import FeatureFlags
 from ..utils.versions import ReleaseChannel
-from ..core.capacity import H100_DEVICE_TYPE, H200_DEVICE_TYPE, B200_DEVICE_TYPE, get_reservation_deployment_type
+from ..core.capacity import H100_DEVICE_TYPE, get_reservation_deployment_type
 from ..core.cluster import (
     get_all_clusters_programmatic,
     get_cluster_credentials,
@@ -27,7 +27,6 @@ from ..core.cluster import (
     set_jobset_on_cluster,
     set_pathways_job_on_cluster,
     setup_k8s_env,
-    disable_mglru_on_cluster,
     count_nodes_on_cluster,
     update_cluster_with_gcpfilestore_driver_if_necessary,
     update_cluster_with_gcsfuse_driver_if_necessary,
@@ -1344,12 +1343,6 @@ def prepare_gpus(system: SystemCharacteristics):
     install_nri_code = install_nri_on_cluster()
     if install_nri_code != 0:
       xpk_exit(install_nri_code)
-
-  if system.device_type in [H200_DEVICE_TYPE, B200_DEVICE_TYPE]:
-    xpk_print('Disabling MGLRU')
-    err_code = disable_mglru_on_cluster()
-    if err_code > 0:
-      xpk_exit(err_code)
 
 
 def _log_cluster_create_telemetry(args) -> None:

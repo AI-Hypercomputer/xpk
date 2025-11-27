@@ -39,12 +39,16 @@ def decorate_job(job_manifest: dict) -> dict:
   return job_manifest
 
 
-def decorate_jobset(jobset_manifest_str: str) -> str:
+def decorate_jobset(  # pylint: disable=dangerous-default-value
+    jobset_manifest_str: str,
+    sub_networks: list[str] = [],  # pylint: disable=unused-argument
+) -> str:
   """
   Decorates a JobSet manifest with the necessary components for tcpxo-daemon.
 
   Args:
     jobset_manifest_str: The JobSet manifest as a YAML string.
+    sub_networks: This parameter is accepted for interface consistency but is not used.
 
   Returns:
     The modified JobSet manifest as a YAML string.

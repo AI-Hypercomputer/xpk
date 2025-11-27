@@ -16,7 +16,6 @@ limitations under the License.
 
 import os
 import re
-from .capacity import H100_DEVICE_TYPE, H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE
 from .cluster import setup_k8s_env
 from .storage import GCS_FUSE_TYPE, GCP_FILESTORE_TYPE, PARALLELSTORE_TYPE, GCE_PD_TYPE, LUSTRE_TYPE, Storage, get_storages_to_mount
 from .system_characteristics import AcceleratorType, SystemCharacteristics
@@ -109,14 +108,6 @@ def get_gpu_env(args, system) -> str:
                     value: "{args.command}"
                   {custom_envs}"""
 
-  gpu_direct_name = 'fastrak'
-  if args.device_type == H100_DEVICE_TYPE:
-    gpu_direct_name = 'tcpx'
-  elif args.device_type == H100_MEGA_DEVICE_TYPE:
-    gpu_direct_name = 'tcpxo'
-  elif args.device_type == H200_DEVICE_TYPE:
-    gpu_direct_name = 'rdma'
-
   gpu_env_dic = {
       'JAX_COORDINATOR_PORT': '6002',
       'JAX_COORDINATOR_ADDRESS': (
@@ -129,7 +120,7 @@ def get_gpu_env(args, system) -> str:
   return gpu_env_yaml.format(
       args=args,
       chips_per_vm=system.chips_per_vm,
-      gpu_direct_name=gpu_direct_name,
+      gpu_direct_name=system.gpu_config.gpu_direct_name,
       custom_envs=format_env_dict(args.env, system),
   )
 

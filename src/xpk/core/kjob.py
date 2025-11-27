@@ -25,7 +25,6 @@ from kubernetes.client.rest import ApiException
 from ..utils import templates
 from ..utils.execution_context import is_dry_run
 from ..utils.console import xpk_exit, xpk_print
-from .capacity import H100_DEVICE_TYPE, H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE
 from .cluster import DEFAULT_NAMESPACE, XPK_SA, setup_k8s_env
 from .commands import (
     run_command_for_value,
@@ -52,7 +51,6 @@ from .storage import (
 )
 from .workload_decorators import (
     rdma_decorator,
-    tcpx_decorator,
     tcpxo_decorator,
 )
 from .workload_decorators.tcpxo_decorator import get_tcpxo_deamon_entry
@@ -260,14 +258,17 @@ def create_app_profile_instance(volume_bundles: list[str]) -> int:
   )
 
 
-def decorate_job_template_with_gpu(yml_string: str, gpu_type: str) -> str:
+def decorate_job_template_with_gpu(
+    yml_string: str, system: SystemCharacteristics
+) -> str:
   job_spec = yaml.safe_load(yml_string)["template"]
-  if gpu_type == H100_DEVICE_TYPE:
-    job_spec = tcpx_decorator.decorate_kjob_template(job_spec)
-  if gpu_type == H100_MEGA_DEVICE_TYPE:
-    job_spec = tcpxo_decorator.decorate_kjob_template(job_spec)
-  if gpu_type == H200_DEVICE_TYPE:
-    job_spec = rdma_decorator.decorate_kjob_template(job_spec)
+  kjob_decorator = (
+      system.gpu_config.kjob_decorator_fn
+      if system.gpu_config and system.gpu_config.kjob_decorator_fn
+      else None
+  )
+  if kjob_decorator:
+    job_spec = kjob_decorator(job_spec)
   job_template_dict = yaml.safe_load(yml_string)
   job_template_dict["template"] = job_spec
   yaml_result: str = yaml.dump(job_template_dict, sort_keys=False)
@@ -316,7 +317,7 @@ def create_job_template_instance(
       service_account=service_account,
   )
   if system is not None and system.accelerator_type == AcceleratorType.GPU:
-    yml_string = decorate_job_template_with_gpu(yml_string, system.device_type)
+    yml_string = decorate_job_template_with_gpu(yml_string, system)
 
   return run_kubectl_apply(
       yml_string,

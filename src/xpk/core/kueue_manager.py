@@ -24,9 +24,9 @@ from jinja2 import Environment, FileSystemLoader
 from ..utils.topology import get_slice_topology_level, get_topology_product, is_topology_contained
 from ..utils.kueue import is_queued_cluster
 from kubernetes.utils import parse_quantity
-from .capacity import B200_DEVICE_TYPE, H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE
 from .system_characteristics import (
     SUB_SLICING_TOPOLOGIES,
+    AcceleratorType,
     AcceleratorTypeToAcceleratorCharacteristics,
     SystemCharacteristics,
     create_accelerator_label,
@@ -395,11 +395,10 @@ class KueueManager:
   def __get_topology_name_and_yaml(
       self, system: SystemCharacteristics, configure_sub_slicing: bool
   ) -> _NameAndYaml | None:
-    if system.device_type in [
-        H100_MEGA_DEVICE_TYPE,
-        H200_DEVICE_TYPE,
-        B200_DEVICE_TYPE,
-    ]:
+    if (
+        system.accelerator_type == AcceleratorType["GPU"]
+        and system.gpu_requires_topology
+    ):
       return _NameAndYaml(
           name="gke-default",
           yaml=self.template_env.get_template(

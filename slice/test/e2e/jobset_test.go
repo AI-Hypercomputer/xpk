@@ -125,7 +125,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						node := &corev1.Node{}
 						gomega.Eventually(func(g gomega.Gomega) {
 							g.Expect(k8sClient.Get(ctx, client.ObjectKey{Name: unhealthyNode}, node)).To(gomega.Succeed())
-							node.Labels[core.TPUSliceHealthNodeSelectorKey] = core.TPUSliceHealthNodeSelectorValue
+							node.Labels[core.TPUSliceHealthNodeSelectorKey] = core.TPUSliceHealthNodeSelectorHealthy
 							g.Expect(k8sClient.Update(ctx, node)).To(gomega.Succeed())
 						}, util.Timeout, util.Interval).Should(gomega.Succeed())
 					}
@@ -172,7 +172,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 								Should(gomega.Equal(fmt.Sprint(tc.wantSliceSize)))
 
 							// node health
-							g.Expect(replicatedJob.Template.Spec.Template.Spec.NodeSelector[core.TPUSliceHealthNodeSelectorKey]).Should(gomega.Equal(core.TPUSliceHealthNodeSelectorValue))
+							g.Expect(replicatedJob.Template.Spec.Template.Spec.NodeSelector[core.TPUSliceHealthNodeSelectorKey]).Should(gomega.Equal(core.TPUSliceHealthNodeSelectorHealthy))
 						}
 					}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 				})

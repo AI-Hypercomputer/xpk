@@ -52,9 +52,13 @@ func SliceName(ns string, workloadName string, podSetName kueue.PodSetReference)
 }
 
 func isStale(slice *v1alpha1.Slice) bool {
+	var staleUnready, staleWithoutState bool
 	cond := meta.FindStatusCondition(slice.Status.Conditions, v1alpha1.SliceStateConditionType)
-	staleUnready := cond != nil && cond.Status == metav1.ConditionFalse && !cond.LastTransitionTime.IsZero() && time.Since(cond.LastTransitionTime.Time) >= activationTimeout
-	staleWithoutState := cond == nil && !slice.CreationTimestamp.IsZero() && time.Since(slice.CreationTimestamp.Time) >= activationTimeout
+	if cond == nil {
+		staleWithoutState = !slice.CreationTimestamp.IsZero() && time.Since(slice.CreationTimestamp.Time) >= activationTimeout
+	} else {
+		staleUnready = cond.Status == metav1.ConditionFalse && !cond.LastTransitionTime.IsZero() && time.Since(cond.LastTransitionTime.Time) >= activationTimeout
+	}
 	return staleUnready || staleWithoutState
 }
 

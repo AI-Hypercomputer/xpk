@@ -315,8 +315,7 @@ func (r *WorkloadReconciler) findWorkloadSlices(ctx context.Context, wl *kueue.W
 //   - A slice containing Slice objects that should be deleted (errored and stale slices).
 //   - A slice sontaining initializing Slices objects (activating and slices without ready state yet)
 //   - A slice containing other Slice objects (active slices).
-func (r *WorkloadReconciler) groupSlices(slices []v1alpha1.Slice) ([]v1alpha1.Slice, []v1alpha1.Slice, []v1alpha1.Slice, []v1alpha1.Slice) {
-	var deleted, toDelete, initializing, other []v1alpha1.Slice
+func (r *WorkloadReconciler) groupSlices(slices []v1alpha1.Slice) (deleted []v1alpha1.Slice, toDelete []v1alpha1.Slice, initializing []v1alpha1.Slice, other []v1alpha1.Slice) {
 	for _, slice := range slices {
 		switch core.GetSliceState(slice) {
 		case core.SliceStateDeleted:

@@ -94,16 +94,28 @@ def check_if_workload_can_schedule(
 
   # Check for device type
   missing_device_type = False
-  device_type = workload_system.device_type
-  if device_type not in resources_config_map:
+  workload_device_type = workload_system.device_type
+  if workload_device_type not in resources_config_map:
     if _check_sub_slicing_availability(
         workload_system=workload_system, cluster_system=cluster_system
     ):
-      return WorkloadScheduling.SUB_SLICING_AVAILABLE
+      assert cluster_system
+      if _check_workload_size_fits(
+          args,
+          workload_system,
+          workload_device_type,
+          max_vm_in_cluster=int(
+              resources_config_map[cluster_system.device_type]
+          ),
+      ):
+        return WorkloadScheduling.SUB_SLICING_AVAILABLE
+      else:
+        return WorkloadScheduling.UNAVAILABLE
 
     xpk_print(
-        f'Device Type Check: {args.workload} is requesting {device_type} but '
-        f'cluster only contains {resources_config_map.keys()}. '
+        f'Device Type Check: {args.workload} is requesting'
+        f' {workload_device_type} but cluster only contains'
+        f' {resources_config_map.keys()}. '
     )
     missing_device_type = True
 
@@ -113,23 +125,38 @@ def check_if_workload_can_schedule(
         f' XPK will not create the workload {args.workload}.'
     )
     return WorkloadScheduling.UNAVAILABLE
-  else:
-    # Check if the size of the workload will fit in the cluster.
-    max_vm_in_cluster = int(resources_config_map[device_type])
-    if workload_system.accelerator_type == AcceleratorType.GPU:
-      vm_required_by_workload = args.num_nodes
-    else:
-      vm_required_by_workload = args.num_slices * workload_system.vms_per_slice
-    if vm_required_by_workload > max_vm_in_cluster:
-      xpk_print(
-          f'{args.workload} is requesting {args.num_slices} slice/slices of'
-          f' {device_type}, which is {vm_required_by_workload} VMs, but the'
-          f' cluster only contains {max_vm_in_cluster} VMs of {device_type}.'
-          ' XPK will not create this workload.'
-      )
-      return WorkloadScheduling.UNAVAILABLE
+
+  if not _check_workload_size_fits(
+      args,
+      workload_system,
+      workload_device_type,
+      max_vm_in_cluster=int(resources_config_map[workload_device_type]),
+  ):
+    return WorkloadScheduling.UNAVAILABLE
 
   return WorkloadScheduling.AVAILABLE
+
+
+def _check_workload_size_fits(
+    args,
+    workload_system: SystemCharacteristics,
+    workload_device_type: str,
+    max_vm_in_cluster: int,
+) -> bool:
+  if workload_system.accelerator_type == AcceleratorType.GPU:
+    vm_required_by_workload = args.num_nodes
+  else:
+    vm_required_by_workload = args.num_slices * workload_system.vms_per_slice
+
+  if vm_required_by_workload > max_vm_in_cluster:
+    xpk_print(
+        f'{args.workload} is requesting {args.num_slices} slice/slices of'
+        f' {workload_device_type}, which is {vm_required_by_workload} VMs, but'
+        f' the cluster only contains {max_vm_in_cluster} VMs of'
+        f' {workload_device_type}. XPK will not create this workload.'
+    )
+    return False
+  return True
 
 
 def _check_sub_slicing_availability(

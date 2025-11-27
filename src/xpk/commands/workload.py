@@ -99,8 +99,6 @@ from ..utils.execution_context import is_dry_run
 from ..utils.validation import validate_dependencies_list, SystemDependency, should_validate_dependencies
 from . import cluster_gcluster
 from .common import is_TAS_possible
-from ..utils.topology import is_topology_contained
-from ..utils.feature_flags import FeatureFlags
 from jinja2 import Environment, FileSystemLoader
 from ..utils.templates import get_templates_absolute_path
 

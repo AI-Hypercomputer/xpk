@@ -28,10 +28,9 @@ from .capacity import (
 from .commands import run_command_for_value, run_commands
 from .gcloud_context import GkeServerConfig, get_cluster_location, zone_to_region
 from .resources import (
-    CLUSTER_CONFIGMAP_YAML,
-    CLUSTER_RESOURCES_CONFIGMAP,
+    ConfigMapType,
     check_cluster_resources,
-    create_or_update_cluster_configmap,
+    update_cluster_configmap,
 )
 from .system_characteristics import AcceleratorType
 
@@ -247,13 +246,11 @@ def run_gke_node_pool_create_command(
         )
       else:
         resources_data = f'{device_type}: "0"'
-      resources_configmap_name = f'{args.cluster}-{CLUSTER_RESOURCES_CONFIGMAP}'
-      resources_yml = CLUSTER_CONFIGMAP_YAML.format(
-          args=args, name=resources_configmap_name, data=resources_data
+      return_code = update_cluster_configmap(
+          cluster_name=args.cluster,
+          config_map_type=ConfigMapType.RESOURCES,
+          data=resources_data,
       )
-      configmap_yml = {}
-      configmap_yml[resources_configmap_name] = resources_yml
-      return_code = create_or_update_cluster_configmap(configmap_yml)
       if return_code != 0:
         return 1
 
@@ -316,7 +313,7 @@ def run_gke_node_pool_create_command(
       command += (
           ' --accelerator'
           f' type={system.gke_accelerator},count={str(system.chips_per_vm)},gpu-driver-version=latest'
-          f' --no-enable-autoupgrade --scopes={CLOUD_PLATFORM_AUTH_SCOPE_URL}'
+          f' --scopes={CLOUD_PLATFORM_AUTH_SCOPE_URL}'
       )
       if device_type == H100_MEGA_DEVICE_TYPE:
         for i in range(1, 9):

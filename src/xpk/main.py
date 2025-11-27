@@ -37,6 +37,7 @@ import sys
 
 from .parser.core import set_parser
 from .core.updates import print_xpk_hello
+from .core.config import set_config, FileSystemConfig
 from .core.telemetry import MetricsCollector, send_clearcut_payload, should_send_telemetry
 from .utils.console import xpk_print, exit_code_to_int
 from .utils.execution_context import set_context
@@ -69,6 +70,7 @@ def main() -> None:
 
     main_args = parser.parse_args()
     main_args.enable_ray_cluster = False
+    set_config(FileSystemConfig())
     set_context(
         dry_run_value='dry_run' in main_args and main_args.dry_run,
         quiet_value=(

@@ -30,6 +30,7 @@ from ..core.storage import install_storage_crd
 from ..core.system_characteristics import (
     SystemCharacteristics,
     AcceleratorType,
+    DockerPlatform,
 )
 from ..utils.console import (xpk_exit, xpk_print)
 from ..utils.validation import validate_dependencies_list, SystemDependency, should_validate_dependencies
@@ -97,6 +98,7 @@ def cluster_create(args) -> None:
       AcceleratorType.CPU,
       'kind',
       supports_sub_slicing=False,
+      docker_platform=DockerPlatform.ARM,
   )
 
   kueue_manager = KueueManager(project='', zone='')

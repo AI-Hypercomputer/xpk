@@ -22,7 +22,7 @@ from kubernetes import config
 from kubernetes.client.exceptions import ApiException
 
 from ..utils.console import xpk_exit, xpk_print
-from .capacity import B200_DEVICE_TYPE, H100_DEVICE_TYPE, H200_DEVICE_TYPE
+from .capacity import H200_DEVICE_TYPE
 from .commands import (
     run_command_for_value,
     run_command_with_updates,
@@ -34,16 +34,11 @@ from .gcloud_context import (
     zone_to_region,
 )
 from .resources import get_cluster_system_characteristics
-from .system_characteristics import SystemCharacteristics
+from .system_characteristics import INSTALLER_NCCL_TCPXO, SystemCharacteristics
 
 JOBSET_VERSION = 'v0.8.0'
 PATHWAYS_JOB_VERSION = 'v0.1.4'
-INSTALLER_NCCL_TCPX = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpx/nccl-tcpx-installer.yaml'
-INSTALLER_NCCL_TCPXO = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpxo/nccl-tcpxo-installer.yaml'
-INSTALLER_NCCL_RDMA = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-rdma/nccl-rdma-installer.yaml'
-CONFIG_NCCL_TCPX = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-tcpx/nccl-config.yaml'
 NRI_DEVICE_INJECTOR = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/nri_device_injector/nri-device-injector.yaml'
-MGLRU_DISABLE = 'https://raw.githubusercontent.com/GoogleCloudPlatform/cluster-toolkit/refs/heads/main/examples/gke-a3-ultragpu/mglru-disable.yaml'
 
 DEFAULT_NAMESPACE = 'default'
 XPK_SA = 'xpk-sa'
@@ -118,12 +113,12 @@ def install_nccl_on_cluster(system: SystemCharacteristics) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
-  if system.device_type == H100_DEVICE_TYPE:
-    command = f'kubectl apply -f {INSTALLER_NCCL_TCPX}'
-  elif system.device_type in [H200_DEVICE_TYPE, B200_DEVICE_TYPE]:
-    command = f'kubectl apply -f {INSTALLER_NCCL_RDMA}'
-  else:
-    command = f'kubectl apply -f {INSTALLER_NCCL_TCPXO}'
+  nccl_installer = (
+      system.gpu_config.nccl_installer
+      if system.gpu_config and system.gpu_config.nccl_installer
+      else INSTALLER_NCCL_TCPXO
+  )
+  command = f'kubectl apply -f {nccl_installer}'
 
   return_code = run_command_with_updates(
       command, 'Install NCCL Plugin On Cluster'
@@ -133,35 +128,6 @@ def install_nccl_on_cluster(system: SystemCharacteristics) -> int:
     xpk_print(
         f'Install NCCL Plugin On Cluster request returned ERROR {return_code}'
     )
-    return 1
-
-  if system.device_type == H100_DEVICE_TYPE:
-    command = f'kubectl apply -f {CONFIG_NCCL_TCPX}'
-
-    return_code = run_command_with_updates(
-        command, 'Install NCCL Config On Cluster'
-    )
-
-    if return_code != 0:
-      xpk_print(
-          f'Install NCCL Config On Cluster request returned ERROR {return_code}'
-      )
-      return 1
-
-  return 0
-
-
-def disable_mglru_on_cluster() -> int:
-  """Disable MGLRU on the cluster.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  command = f'kubectl apply -f {MGLRU_DISABLE}'
-  return_code = run_command_with_updates(command, 'Disable MGLRU On Cluster')
-
-  if return_code != 0:
-    xpk_print('Disablig MGLRU On Cluster request returned ERROR')
     return 1
 
   return 0
@@ -309,10 +275,11 @@ def update_cluster_with_lustre_driver_if_necessary(args) -> int:
   Returns:
     0 if successful and error code otherwise.
   """
-  if is_driver_enabled_on_cluster(
-      args, driver='lustreCsiDriver'
-  ) and is_driver_enabled_on_cluster(
-      args, driver='lustreCsiDriver', config_key='enableLegacyLustrePort'
+  if is_driver_enabled_on_cluster(args, driver='lustreCsiDriver') and (
+      not args.enable_legacy_lustre_port
+      or is_driver_enabled_on_cluster(
+          args, driver='lustreCsiDriver', config_key='enableLegacyLustrePort'
+      )
   ):
     return 0
   cluster_update_return_code = update_gke_cluster_with_lustre_driver_enabled(
@@ -621,9 +588,13 @@ def update_gke_cluster_with_lustre_driver_enabled(args) -> int:
   """
   command = (
       'gcloud container clusters update'
-      f' {args.cluster} --project={args.project} --location={get_cluster_location(args.project, args.cluster, args.zone)} --enable-legacy-lustre-port'
+      f' {args.cluster} --project={args.project} --location={get_cluster_location(args.project, args.cluster, args.zone)}'
       ' --quiet'
   )
+  if args.enable_legacy_lustre_port:
+    command += ' --enable-legacy-lustre-port'
+  else:
+    command += ' --update-addons=LustreCsiDriver=ENABLED'
   xpk_print(
       'Updating GKE cluster to enable Lustre CSI driver, may take a while!'
   )

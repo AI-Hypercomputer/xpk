@@ -14,61 +14,63 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from enum import Enum
+
+from .kueue_manager import get_installed_kueue_version, has_sub_slicing_enabled
+from ..utils.feature_flags import FeatureFlags
 from ..utils.topology import get_slice_topology_level
 from ..utils.console import xpk_print
 from ..utils.topology import is_topology_valid
 from ..utils.execution_context import is_dry_run
 from .capacity import AUTOPROVISIONING_CONFIG_MAXIMUM_KEY, AUTOPROVISIONING_CONFIG_VALUE
-from .resources import CLUSTER_RESOURCES_CONFIGMAP, get_cluster_configmap
 from .system_characteristics import (
+    SUB_SLICING_TOPOLOGIES,
     AcceleratorType,
-    AcceleratorTypeToAcceleratorCharacteristics,
     SystemCharacteristics,
+    create_accelerator_label,
+    create_machine_label,
 )
+from packaging.version import Version
+
+_SUB_SLICING_MINIMUM_KUEUE_VERSION = Version('0.13.0')
 
 
-def check_if_workload_can_schedule(args, system: SystemCharacteristics) -> bool:
+class WorkloadScheduling(Enum):
+  UNAVAILABLE = 0
+  AVAILABLE = 1
+  SUB_SLICING_AVAILABLE = 2
+
+
+def check_if_workload_can_schedule(
+    args,
+    workload_system: SystemCharacteristics,
+    cluster_system: SystemCharacteristics | None,
+    resources_config_map: dict[str, str] | None,
+) -> WorkloadScheduling:
   """Check if workload can schedule based on the cluster resources (tpu_type and maximum VM in cluster).
 
-  Args:
-    args: user provided arguments for running the command.
-    system: system characteristics
-
   Returns:
-    returns true if workload can schedule, otherwise returns false.
+    returns WorkloadScheduling describing scheduling option.
   """
-  resources_configmap_name = f'{args.cluster}-{CLUSTER_RESOURCES_CONFIGMAP}'
-  cluster_config_map = get_cluster_configmap(resources_configmap_name)
+  if is_dry_run() and not cluster_system:
+    xpk_print('Skipping workload scheduling validation in dry run.')
+    return WorkloadScheduling.AVAILABLE
 
-  # Prevents workload creation failure for existing clusters with no ConfigMap
-  if cluster_config_map is None:
+  if resources_config_map is None:
     xpk_print(
-        'No ConfigMap exist for cluster with the name'
-        f' {resources_configmap_name}.'
+        "Skipping workload scheduling validation, because there's no Resources"
+        ' ConfigMap in the cluster.'
     )
-    return True
+    return WorkloadScheduling.AVAILABLE
 
-  if is_dry_run():
-    return True
-
-  # Check for gke accelerator type:
-  missing_gke_accelerator_type = False
-  if not cluster_config_map.get(system.gke_accelerator):
-    xpk_print(
-        f'GKE Accelerator Type Check: {args.workload} is requesting'
-        f' {system.gke_accelerator} but cluster only contains'
-        f' {cluster_config_map.keys()}. '
-    )
-    missing_gke_accelerator_type = True
-  elif (
-      cluster_config_map[system.gke_accelerator]
-      == AUTOPROVISIONING_CONFIG_VALUE
-  ):
+  if _is_cluster_set_up_for_nap(workload_system, resources_config_map):
     # Run total chip check when in autoprovisioning mode.
     max_chips_in_cluster = int(
-        cluster_config_map[AUTOPROVISIONING_CONFIG_MAXIMUM_KEY]
+        resources_config_map[AUTOPROVISIONING_CONFIG_MAXIMUM_KEY]
     )
-    num_chips_in_workload = get_total_chips_requested_from_args(args, system)
+    num_chips_in_workload = get_total_chips_requested_from_args(
+        args, workload_system
+    )
 
     if num_chips_in_workload > max_chips_in_cluster:
       xpk_print(
@@ -77,42 +79,98 @@ def check_if_workload_can_schedule(args, system: SystemCharacteristics) -> bool:
           '  Resize the cluster to support more chips with'
           ' `xpk cluster create --autoprovisioning-max-chips=X ...`'
       )
-      return False
-    return True
+      return WorkloadScheduling.UNAVAILABLE
+    return WorkloadScheduling.AVAILABLE
 
-  # Check for device type
-  missing_device_type = False
-  device_type = system.device_type
-  if device_type not in cluster_config_map:
-    xpk_print(
-        f'Device Type Check: {args.workload} is requesting {device_type} but '
-        f'cluster only contains {cluster_config_map.keys()}. '
-    )
-    missing_device_type = True
+  if workload_system.device_type in resources_config_map:
+    if _check_workload_size_fits(
+        args,
+        workload_system,
+        max_vm_in_cluster=int(
+            resources_config_map[workload_system.device_type]
+        ),
+    ):
+      return WorkloadScheduling.AVAILABLE
+    else:
+      return WorkloadScheduling.UNAVAILABLE
 
-  if missing_device_type and missing_gke_accelerator_type:
+  if _check_sub_slicing_availability(
+      workload_system=workload_system, cluster_system=cluster_system
+  ):
+    assert cluster_system
+    if _check_workload_size_fits(
+        args,
+        workload_system,
+        max_vm_in_cluster=int(resources_config_map[cluster_system.device_type]),
+    ):
+      return WorkloadScheduling.SUB_SLICING_AVAILABLE
+    else:
+      return WorkloadScheduling.UNAVAILABLE
+
+  xpk_print(
+      'Workload scheduling validation failed. XPK will not create the workload'
+      f' {args.workload}.'
+  )
+  return WorkloadScheduling.UNAVAILABLE
+
+
+def _is_cluster_set_up_for_nap(
+    workload_system: SystemCharacteristics, resources_config_map: dict[str, str]
+) -> bool:
+  return (
+      resources_config_map.get(workload_system.gke_accelerator, None)
+      == AUTOPROVISIONING_CONFIG_VALUE
+  )
+
+
+def _check_workload_size_fits(
+    args,
+    workload_system: SystemCharacteristics,
+    max_vm_in_cluster: int,
+) -> bool:
+  if workload_system.accelerator_type == AcceleratorType.GPU:
+    vm_required_by_workload = args.num_nodes
+  else:
+    vm_required_by_workload = args.num_slices * workload_system.vms_per_slice
+
+  if vm_required_by_workload > max_vm_in_cluster:
     xpk_print(
-        'Both Device Type and GKE Accelerator Type checks failed.'
-        f' XPK will not create the workload {args.workload}.'
+        f'{args.workload} is requesting {args.num_slices} slice/slices of'
+        f' {workload_system.device_type}, which is'
+        f' {vm_required_by_workload} VMs, but the cluster only contains'
+        f' {max_vm_in_cluster} VMs of {workload_system.device_type}. XPK will'
+        ' not create this workload.'
     )
     return False
-  else:
-    # Check if the size of the workload will fit in the cluster.
-    max_vm_in_cluster = int(cluster_config_map[device_type])
-    if system.accelerator_type == AcceleratorType.GPU:
-      vm_required_by_workload = args.num_nodes
-    else:
-      vm_required_by_workload = args.num_slices * system.vms_per_slice
-    if vm_required_by_workload > max_vm_in_cluster:
-      xpk_print(
-          f'{args.workload} is requesting {args.num_slices} slice/slices of'
-          f' {device_type}, which is {vm_required_by_workload} VMs, but the'
-          f' cluster only contains {max_vm_in_cluster} VMs of {device_type}.'
-          ' XPK will not create this workload.'
-      )
-      return False
-
   return True
+
+
+def _check_sub_slicing_availability(
+    workload_system: SystemCharacteristics,
+    cluster_system: SystemCharacteristics | None,
+) -> bool:
+  if (
+      (not FeatureFlags.SUB_SLICING_ENABLED)
+      or (not cluster_system)
+      or (workload_system.gke_accelerator != cluster_system.gke_accelerator)
+      or (not cluster_system.supports_sub_slicing)
+      or (workload_system.topology not in SUB_SLICING_TOPOLOGIES)
+  ):
+    return False
+
+  return_code, sub_slicing_enabled = has_sub_slicing_enabled()
+  if return_code != 0 or not sub_slicing_enabled:
+    return False
+
+  return_code, current_version = get_installed_kueue_version(
+      dry_run_version=Version('0.13')
+  )
+
+  return (
+      return_code == 0
+      and current_version is not None
+      and current_version >= _SUB_SLICING_MINIMUM_KUEUE_VERSION
+  )
 
 
 def get_total_chips_requested_from_args(
@@ -135,7 +193,7 @@ def get_total_chips_requested_from_args(
   return int(num_chips)
 
 
-def get_cpu_affinity(accelerator_type) -> str:
+def get_cpu_affinity(accelerator_type: AcceleratorType) -> str:
   """Generate affinity rules for CPU nodepools, so that workload pods are
   not scheduled on the default pool machines.
   Args:
@@ -199,10 +257,8 @@ def get_gpu_scheduler(
               """
     gpu_scheduler = gpu_scheduler_yaml.format(
         scheduler_name=args.scheduler,
-        accelerator_label=create_accelerator_label(
-            system.accelerator_type, system
-        ),
-        machine_label=create_machine_label(system.accelerator_type, system),
+        accelerator_label=create_accelerator_label(system),
+        machine_label=create_machine_label(system),
         node_pool_name=f'{args.cluster}-np-0',
         autoprovisioning_args=autoprovisioning_args,
     )
@@ -217,74 +273,14 @@ def get_gpu_scheduler(
   return gpu_scheduler, return_code
 
 
-def create_accelerator_label(accelerator_type, system) -> str:
-  """Generates accelerator label.
-
-  Args:
-    accelerator_type: type of accelerator.
-    system: system characteristics.
-
-  Returns:
-    The accelerator label.
-  """
-  if accelerator_type == AcceleratorType.CPU:
-    return ''
-  return (
-      f'{AcceleratorTypeToAcceleratorCharacteristics[accelerator_type].accelerator_label}:'
-      f' {system.gke_accelerator}'
-  )
-
-
-def create_tpu_machine_type(accelerator_type, system) -> str:
-  """Generates TPU machine type..
-
-  Args:
-    accelerator_type: type of accelerator.
-    system: system characteristics.
-
-  Returns:
-    The accelerator label.
-  """
-  if accelerator_type == AcceleratorType.TPU:
+def create_tpu_machine_type(system: SystemCharacteristics) -> str:
+  if system.accelerator_type == AcceleratorType.TPU:
     return f'{system.gce_machine_type}'
   return ''
 
 
-def create_machine_label(
-    accelerator_type, system, autoprovisioning_enabled: bool = False
-) -> str:
-  """Generates machine label.
-
-  Args:
-    accelerator_type: type of accelerator.
-    system: system characteristics.
-    autoprovisioning_enabled: describes autoprovisioning enablement.
-
-  Returns:
-    The machine label.
-  """
-  if accelerator_type == AcceleratorType.TPU and not autoprovisioning_enabled:
-    return (
-        f'{AcceleratorTypeToAcceleratorCharacteristics[accelerator_type].machine_label}:'
-        f' {system.topology}'
-    )
-  return ''
-
-
-def create_tpu_topology(
-    accelerator_type, system, autoprovisioning_enabled: bool = False
-) -> str:
-  """Generates TPU topology.
-
-  Args:
-    accelerator_type: type of accelerator.
-    system: system characteristics.
-    autoprovisioning_enabled: describes autoprovisioning enablement.
-
-  Returns:
-    The machine label.
-  """
-  if accelerator_type == AcceleratorType.TPU and not autoprovisioning_enabled:
+def create_tpu_topology(system: SystemCharacteristics) -> str:
+  if system.accelerator_type == AcceleratorType.TPU:
     return f'{system.topology}'
   return ''
 

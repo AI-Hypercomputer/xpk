@@ -16,7 +16,7 @@ limitations under the License.
 
 import pytest
 import json
-from .config import xpk_config, CLIENT_ID_KEY, SEND_TELEMETRY_KEY
+from .config import get_config, CLIENT_ID_KEY, SEND_TELEMETRY_KEY
 from .telemetry import MetricsCollector, MetricsEventMetadataKey, should_send_telemetry
 from ..utils.execution_context import set_dry_run
 from ..utils.feature_flags import FeatureFlags
@@ -31,9 +31,9 @@ def setup_mocks(mocker: MockerFixture):
   mocker.patch('os.path.basename', return_value='xpk.py')
   mocker.patch('os.path.abspath', return_value='/home/xpk_user')
   set_dry_run(False)
-  xpk_config.set(CLIENT_ID_KEY, 'client_id')
+  get_config().set(CLIENT_ID_KEY, 'client_id')
   yield
-  xpk_config.set(CLIENT_ID_KEY, None)
+  get_config().set(CLIENT_ID_KEY, None)
 
 
 @pytest.mark.parametrize(
@@ -48,13 +48,13 @@ def setup_mocks(mocker: MockerFixture):
 def test_should_send_telemetry_returns_correct_value(
     feature_flag: bool, config_value: str, expected: bool
 ):
-  xpk_config.set(SEND_TELEMETRY_KEY, config_value)
+  get_config().set(SEND_TELEMETRY_KEY, config_value)
   FeatureFlags.TELEMETRY_ENABLED = feature_flag
   assert should_send_telemetry() is expected
 
 
 def test_metrics_collector_generates_client_id_if_not_present():
-  xpk_config.set(CLIENT_ID_KEY, None)
+  get_config().set(CLIENT_ID_KEY, None)
   MetricsCollector.log_start(command='test')
   payload = json.loads(MetricsCollector.flush())
   extension_json = json.loads(payload['log_event'][0]['source_extension_json'])
@@ -79,12 +79,12 @@ def test_metrics_collector_logs_start_event_correctly():
       ],
       'event_name': 'start',
       'event_type': 'commands',
-      'release_version': 'v0.15.0',
+      'release_version': 'v0.0.0',
   }
 
 
 def test_metrics_collector_generates_client_id_when_not_present():
-  xpk_config.set(CLIENT_ID_KEY, None)
+  get_config().set(CLIENT_ID_KEY, None)
   MetricsCollector.log_start(command='test')
   payload = json.loads(MetricsCollector.flush())
   extension_json = json.loads(payload['log_event'][0]['source_extension_json'])
@@ -109,7 +109,7 @@ def test_metrics_collector_logs_complete_event_correctly():
       ],
       'event_name': 'complete',
       'event_type': 'commands',
-      'release_version': 'v0.15.0',
+      'release_version': 'v0.0.0',
   }
 
 
@@ -132,7 +132,7 @@ def test_metrics_collector_logs_custom_event_correctly():
       ],
       'event_name': 'test',
       'event_type': 'custom',
-      'release_version': 'v0.15.0',
+      'release_version': 'v0.0.0',
   }
 
 

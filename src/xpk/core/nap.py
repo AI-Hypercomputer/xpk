@@ -30,9 +30,8 @@ from .commands import run_command_with_updates, run_commands
 from .gcloud_context import get_cluster_location
 from .nodepool import get_all_nodepools_programmatic
 from .resources import (
-    CLUSTER_METADATA_CONFIGMAP,
-    CLUSTER_RESOURCES_CONFIGMAP,
     AutoprovisioningConfig,
+    ConfigMapType,
     get_cluster_configmap,
 )
 from .scheduling import get_total_chips_requested_from_args
@@ -266,14 +265,12 @@ def is_autoprovisioning_enabled(
     int of 0 if successful and 1 otherwise.
   """
 
-  resources_configmap_name = f'{args.cluster}-{CLUSTER_RESOURCES_CONFIGMAP}'
-  cluster_config_map = get_cluster_configmap(resources_configmap_name)
+  cluster_config_map = get_cluster_configmap(
+      args.cluster, ConfigMapType.RESOURCES
+  )
 
   if cluster_config_map is None:
-    xpk_print(
-        f'Unable to find config map: {resources_configmap_name}.'
-        ' Autoprovisioning is not enabled.'
-    )
+    xpk_print('Unable to find config map. Autoprovisioning is not enabled.')
     return False, 0
 
   return_code, autoprovisioning_value = get_value_from_map(
@@ -281,8 +278,8 @@ def is_autoprovisioning_enabled(
   )
   if return_code != 0:
     xpk_print(
-        'gke_accelerator type not found in config map:'
-        f' {resources_configmap_name}. Autoprovisioning is not enabled.'
+        'gke_accelerator type not found in config map. Autoprovisioning is not'
+        ' enabled.'
     )
     return False, 0
 
@@ -319,8 +316,9 @@ def get_autoprovisioning_node_selector_args(args) -> tuple[str, int]:
 
   if capacity_type_str == CapacityType.UNKNOWN.name:
     # Use default settings from cluster creation.
-    metadata_configmap_name = f'{args.cluster}-{CLUSTER_METADATA_CONFIGMAP}'
-    cluster_config_map = get_cluster_configmap(metadata_configmap_name)
+    cluster_config_map = get_cluster_configmap(
+        args.cluster, ConfigMapType.METADATA
+    )
 
     # Error out if the metadata config map doesn't exist, and is attempting to use
     # autoprovisioning.
@@ -363,8 +361,9 @@ def get_autoprovisioning_node_selector_args(args) -> tuple[str, int]:
 
 
 def get_cluster_provisioner(args) -> str:
-  metadata_configmap_name = f'{args.cluster}-{CLUSTER_METADATA_CONFIGMAP}'
-  cluster_config_map = get_cluster_configmap(metadata_configmap_name)
+  cluster_config_map = get_cluster_configmap(
+      args.cluster, ConfigMapType.METADATA
+  )
   cluster_provisioner = 'gcloud'
   if not cluster_config_map is None:
     provisioner = cluster_config_map.get('provisioner')

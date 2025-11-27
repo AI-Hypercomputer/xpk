@@ -336,9 +336,10 @@ def try_to_delete_pathwaysjob_first(args, workloads) -> bool:
 
 
 def get_pathways_machine_types(zone: str) -> tuple[int, list[str]]:
+  min_memory_mb = 233 * 1024
   command = (
       'gcloud compute machine-types list --filter "guestCpus >= 49 AND memoryMb'
-      f' >= 102400 AND zone = \'{zone}\'" --format="value(name)"'
+      f' >= {min_memory_mb} AND zone = \'{zone}\'" --format="value(name)"'
   )
   return_code, result = run_command_for_value(
       command=command,

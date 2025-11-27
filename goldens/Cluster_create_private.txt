@@ -2,6 +2,8 @@ $ xpk cluster create-pathways --project=golden-project --zone=us-central1-a --cl
 [XPK] Starting xpk v0.0.0
 [XPK] Starting cluster create for cluster golden-cluster-private:
 [XPK] Working on golden-project and us-central1-a
+[XPK] Task: `Retrieve available pathways machine types` is implemented by the following command not running since it is a dry run. 
+gcloud compute machine-types list --filter "guestCpus >= 49 AND memoryMb >= 238592 AND zone = 'us-central1-a'" --format="value(name)" --project=golden-project
 [XPK] Task: `Determine server supported GKE versions for default gke version` is implemented by the following command not running since it is a dry run. 
 gcloud container get-server-config --project=golden-project --region=us-central1 --flatten="channels" --filter="channels.channel=RAPID" --format="value(channels.defaultVersion)"
 [XPK] Task: `Determine server supported GKE versions for valid versions` is implemented by the following command not running since it is a dry run. 

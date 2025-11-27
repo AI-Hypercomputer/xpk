@@ -333,3 +333,26 @@ def try_to_delete_pathwaysjob_first(args, workloads) -> bool:
     xpk_print(f'Delete Workload request returned ERROR {return_code}')
     return False
   return True
+
+
+def get_pathways_machine_types(
+    project: str, zone: str
+) -> tuple[int, list[str]]:
+  # Identify machine types with sufficient allocatable capacity to
+  # schedule the Pathways pod. This filter ensures the selected node
+  # is large enough to handle the control plane workload plus GKE
+  # system overhead.
+  min_memory_mb = 233 * 1024
+  command = (
+      'gcloud compute machine-types list --filter "guestCpus >= 49 AND memoryMb'
+      f' >= {min_memory_mb} AND zone = \'{zone}\'" --format="value(name)"'
+      f' --project={project}'
+  )
+  return_code, result = run_command_for_value(
+      command=command,
+      task='Retrieve available pathways machine types',
+      dry_run_return_val='n2-standard-64',
+  )
+  if return_code != 0:
+    return return_code, []
+  return 0, result.strip().splitlines()

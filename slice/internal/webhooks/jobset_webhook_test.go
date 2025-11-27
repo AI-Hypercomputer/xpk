@@ -136,7 +136,7 @@ func TestDefault(t *testing.T) {
 					},
 					NodeSelector: map[string]string{
 						"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
-						core.TPUSliceHealthNodeSelectorKey:     core.TPUSliceHealthNodeSelectorValue,
+						core.TPUSliceHealthNodeSelectorKey:     core.TPUSliceHealthNodeSelectorHealthy,
 					},
 				}).
 				Obj(),

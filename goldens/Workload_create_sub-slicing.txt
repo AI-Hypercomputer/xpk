@@ -4,7 +4,6 @@ $ SUB_SLICING_ENABLED=true DRY_RUN_RESOURCES_CONFIG_MAP="map[v6e-16:8]" xpk work
 kubectl get workloads -o=custom-columns='Jobset:.metadata.ownerReferences[0].name'
 [XPK] Task: `GKE Cluster Get ConfigMap` is implemented by the following command not running since it is a dry run. 
 kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="ConfigData:data" --no-headers=true
-[XPK] GKE Accelerator Type Check: golden-workload is requesting tpu-v6e-slice but cluster only contains dict_keys(['v6e-16']). 
 [XPK] Task: `Get defined topologies` is implemented by the following command not running since it is a dry run. 
 kubectl get topology
 [XPK] Task: `Get kueue version on server` is implemented by the following command not running since it is a dry run. 

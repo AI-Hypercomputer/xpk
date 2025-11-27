@@ -99,7 +99,7 @@ func annotateReplicatedJobWithSliceHealth(rj *v1alpha2.ReplicatedJob) {
 	if rj.Template.Spec.Template.Spec.NodeSelector == nil {
 		rj.Template.Spec.Template.Spec.NodeSelector = make(map[string]string)
 	}
-	rj.Template.Spec.Template.Spec.NodeSelector[core.TPUSliceHealthNodeSelectorKey] = core.TPUSliceHealthNodeSelectorValue
+	rj.Template.Spec.Template.Spec.NodeSelector[core.TPUSliceHealthNodeSelectorKey] = core.TPUSliceHealthNodeSelectorHealthy
 }
 
 func (r *JobSetWebhook) podSetSliceSize(tpuTopology string, parallelism int32) (string, error) {

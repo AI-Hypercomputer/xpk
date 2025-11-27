@@ -143,8 +143,8 @@ func TestWorkloadReconciler(t *testing.T) {
 		OwnerWorkloadAnnotations(corev1.NamespaceDefault, baseWorkloadName).
 		PartitionIds("subblock2")
 
-	worker1Node := utiltesting.MakeNode("worker1").Label("cloud.google.com/gke-tpu-slice-4x4x4-id", "subblock1")
-	worker2Node := utiltesting.MakeNode("worker2").Label("cloud.google.com/gke-tpu-slice-4x4x4-id", "subblock2")
+	worker1Node := utiltesting.MakeNode("worker1").Label(core.TPUSubBlockLabel, "subblock1")
+	worker2Node := utiltesting.MakeNode("worker2").Label(core.TPUSubBlockLabel, "subblock2")
 
 	testCases := map[string]struct {
 		interceptorFuncsCreate func(ctx context.Context, client client.WithWatch, obj client.Object, opts ...client.CreateOption) error
@@ -600,7 +600,7 @@ func TestWorkloadReconciler(t *testing.T) {
 					ReserveQuota(&kueue.Admission{
 						PodSetAssignments: []kueue.PodSetAssignment{
 							utiltesting.MakePodSetAssignment("ps1").
-								TopologyAssignment([]string{"cloud.google.com/gce-topology-block", "cloud.google.com/gke-tpu-slice-4x4x4-id"}, []kueue.TopologyDomainAssignment{
+								TopologyAssignment([]string{"cloud.google.com/gce-topology-block", core.TPUSubBlockLabel}, []kueue.TopologyDomainAssignment{
 									{
 										Values: []string{"worker1"},
 										Count:  2,
@@ -617,7 +617,7 @@ func TestWorkloadReconciler(t *testing.T) {
 					ReserveQuota(&kueue.Admission{
 						PodSetAssignments: []kueue.PodSetAssignment{
 							utiltesting.MakePodSetAssignment("ps1").
-								TopologyAssignment([]string{"cloud.google.com/gce-topology-block", "cloud.google.com/gke-tpu-slice-4x4x4-id"}, []kueue.TopologyDomainAssignment{
+								TopologyAssignment([]string{"cloud.google.com/gce-topology-block", core.TPUSubBlockLabel}, []kueue.TopologyDomainAssignment{
 									{
 										Values: []string{"worker1"},
 										Count:  2,
@@ -648,7 +648,7 @@ func TestWorkloadReconciler(t *testing.T) {
 					Obj(),
 			},
 		},
-		"shouldn’t add finalizer because the worker2 node lacks the cloud.google.com/gke-tpu-slice-4x4x4-id label": {
+		"shouldn’t add finalizer because the worker2 node lacks the cloud.google.com/gke-tpu-partition-id-4x4x4 label": {
 			request: baseRequest,
 			objs: []client.Object{
 				worker1Node.DeepCopy(),

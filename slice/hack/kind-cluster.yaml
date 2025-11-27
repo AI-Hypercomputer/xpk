@@ -26,29 +26,29 @@ nodes:
       cloud.google.com/gke-node-group: tas-group
       cloud.google.com/gke-tpu-accelerator: tpu7x
       cloud.google.com/gce-topology-block: b1
-      cloud.google.com/gke-tpu-slice-4x4x4-id: sb1
-      cloud.google.com/gke-tpu-slice-4x4x4-health: true
+      cloud.google.com/gke-tpu-partition-id-4x4x4: sb1
+      cloud.google.com/gke-tpu-partition-4x4x4-state: HEALTHY
   - role: worker
     labels:
       cloud.google.com/gke-node-group: tas-group
       cloud.google.com/gke-tpu-accelerator: tpu7x
       cloud.google.com/gce-topology-block: b2
-      cloud.google.com/gke-tpu-slice-4x4x4-id: sb2
-      cloud.google.com/gke-tpu-slice-4x4x4-health: true
+      cloud.google.com/gke-tpu-partition-id-4x4x4: sb2
+      cloud.google.com/gke-tpu-partition-4x4x4-state: HEALTHY
   - role: worker
     labels:
       cloud.google.com/gke-node-group: tas-group
       cloud.google.com/gke-tpu-accelerator: tpu7x
       cloud.google.com/gce-topology-block: b2
-      cloud.google.com/gke-tpu-slice-4x4x4-id: sb3
-      cloud.google.com/gke-tpu-slice-4x4x4-health: true
+      cloud.google.com/gke-tpu-partition-id-4x4x4: sb3
+      cloud.google.com/gke-tpu-partition-4x4x4-state: HEALTHY
   - role: worker
     labels:
       cloud.google.com/gke-node-group: tas-group
       cloud.google.com/gke-tpu-accelerator: tpu7x
       cloud.google.com/gce-topology-block: b2
-      cloud.google.com/gke-tpu-slice-4x4x4-id: sb4
-      cloud.google.com/gke-tpu-slice-4x4x4-health: true
+      cloud.google.com/gke-tpu-partition-id-4x4x4: sb4
+      cloud.google.com/gke-tpu-partition-4x4x4-state: HEALTHY
 kubeadmConfigPatches:
   - |
     kind: JoinConfiguration

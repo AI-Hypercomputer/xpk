@@ -64,7 +64,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 		utils.MustCreate(ctx, k8sClient, ns)
 
 		topology = testing.MakeTopology("topology").
-			Levels("cloud.google.com/gce-topology-block", "cloud.google.com/gke-tpu-slice-4x4x4-id", "kubernetes.io/hostname").
+			Levels("cloud.google.com/gce-topology-block", core.TPUSubBlockLabel, "kubernetes.io/hostname").
 			Obj()
 		utils.MustCreate(ctx, k8sClient, topology)
 
@@ -115,7 +115,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 					node := &corev1.Node{}
 					gomega.Eventually(func(g gomega.Gomega) {
 						g.Expect(k8sClient.Get(ctx, client.ObjectKey{Name: unhealthyNode}, node)).To(gomega.Succeed())
-						delete(node.Labels, "cloud.google.com/gke-tpu-slice-4x4x4-health")
+						delete(node.Labels, core.TPUSliceHealthNodeSelectorKey)
 						g.Expect(k8sClient.Update(ctx, node)).To(gomega.Succeed())
 					}, util.Timeout, util.Interval).Should(gomega.Succeed())
 				}
@@ -125,7 +125,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						node := &corev1.Node{}
 						gomega.Eventually(func(g gomega.Gomega) {
 							g.Expect(k8sClient.Get(ctx, client.ObjectKey{Name: unhealthyNode}, node)).To(gomega.Succeed())
-							node.Labels["cloud.google.com/gke-tpu-slice-4x4x4-health"] = "true"
+							node.Labels[core.TPUSliceHealthNodeSelectorKey] = core.TPUSliceHealthNodeSelectorHealthy
 							g.Expect(k8sClient.Update(ctx, node)).To(gomega.Succeed())
 						}, util.Timeout, util.Interval).Should(gomega.Succeed())
 					}
@@ -167,12 +167,12 @@ var _ = ginkgo.Describe("JobSet", func() {
 							g.Expect(annotations["kueue.x-k8s.io/podset-required-topology"]).
 								Should(gomega.Equal("cloud.google.com/gce-topology-block"))
 							g.Expect(annotations["kueue.x-k8s.io/podset-slice-required-topology"]).
-								Should(gomega.Equal("cloud.google.com/gke-tpu-slice-4x4x4-id"))
+								Should(gomega.Equal(core.TPUSubBlockLabel))
 							g.Expect(annotations["kueue.x-k8s.io/podset-slice-size"]).
 								Should(gomega.Equal(fmt.Sprint(tc.wantSliceSize)))
 
 							// node health
-							g.Expect(replicatedJob.Template.Spec.Template.Spec.NodeSelector["cloud.google.com/gke-tpu-slice-4x4x4-health"]).Should(gomega.Equal("true"))
+							g.Expect(replicatedJob.Template.Spec.Template.Spec.NodeSelector[core.TPUSliceHealthNodeSelectorKey]).Should(gomega.Equal(core.TPUSliceHealthNodeSelectorHealthy))
 						}
 					}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 				})
@@ -189,7 +189,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						g.Expect(createdWorkload.Spec.PodSets).To(gomega.HaveLen(1))
 						g.Expect(createdWorkload.Spec.PodSets[0].TopologyRequest).To(gomega.BeComparableTo(&kueue.PodSetTopologyRequest{
 							Required:                    ptr.To("cloud.google.com/gce-topology-block"),
-							PodSetSliceRequiredTopology: ptr.To("cloud.google.com/gke-tpu-slice-4x4x4-id"),
+							PodSetSliceRequiredTopology: ptr.To(core.TPUSubBlockLabel),
 							SubGroupCount:               ptr.To(tc.replicas),
 							PodSetSliceSize:             ptr.To(tc.wantSliceSize),
 						}, ignorePodSetTopologyRequestFields))
@@ -941,7 +941,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						g.Expect(annotations["kueue.x-k8s.io/podset-required-topology"]).
 							Should(gomega.Equal("cloud.google.com/gce-topology-block"))
 						g.Expect(annotations["kueue.x-k8s.io/podset-slice-required-topology"]).
-							Should(gomega.Equal("cloud.google.com/gke-tpu-slice-4x4x4-id"))
+							Should(gomega.Equal(core.TPUSubBlockLabel))
 						g.Expect(annotations["kueue.x-k8s.io/podset-slice-size"]).
 							Should(gomega.Equal(strconv.Itoa(16)))
 					}
@@ -960,13 +960,13 @@ var _ = ginkgo.Describe("JobSet", func() {
 					g.Expect(createdWorkload.Spec.PodSets).To(gomega.HaveLen(2))
 					g.Expect(createdWorkload.Spec.PodSets[0].TopologyRequest).To(gomega.BeComparableTo(&kueue.PodSetTopologyRequest{
 						Required:                    ptr.To("cloud.google.com/gce-topology-block"),
-						PodSetSliceRequiredTopology: ptr.To("cloud.google.com/gke-tpu-slice-4x4x4-id"),
+						PodSetSliceRequiredTopology: ptr.To(core.TPUSubBlockLabel),
 						SubGroupCount:               ptr.To[int32](1),
 						PodSetSliceSize:             ptr.To[int32](16),
 					}, ignorePodSetTopologyRequestFields))
 					g.Expect(createdWorkload.Spec.PodSets[1].TopologyRequest).To(gomega.BeComparableTo(&kueue.PodSetTopologyRequest{
 						Required:                    ptr.To("cloud.google.com/gce-topology-block"),
-						PodSetSliceRequiredTopology: ptr.To("cloud.google.com/gke-tpu-slice-4x4x4-id"),
+						PodSetSliceRequiredTopology: ptr.To(core.TPUSubBlockLabel),
 						SubGroupCount:               ptr.To[int32](1),
 						PodSetSliceSize:             ptr.To[int32](16),
 					}, ignorePodSetTopologyRequestFields))

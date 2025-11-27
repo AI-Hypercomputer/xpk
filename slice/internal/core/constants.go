@@ -23,7 +23,7 @@ const (
 	TPUSubBlockLabel      = "cloud.google.com/gke-tpu-partition-id-4x4x4"
 
 	TPUSliceHealthNodeSelectorKey   = "cloud.google.com/gke-tpu-partition-4x4x4-state"
-	TPUSliceHealthNodeSelectorValue = "HEALTHY"
+	TPUSliceHealthNodeSelectorHealthy = "HEALTHY"
 )
 
 const (

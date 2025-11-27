@@ -242,6 +242,30 @@ NAP_CASE = SchedulingTestCase(
             WorkloadScheduling.UNAVAILABLE,
         ),
         (
+            'Sub-slicing, but cluster system is incorrect',
+            dataclasses.replace(
+                SUB_SLICING_CASE,
+                cluster_system=_get_system_characteristics_or_die('tpu7x-16'),
+            ),
+            WorkloadScheduling.UNAVAILABLE,
+        ),
+        (
+            'Sub-slicing, but workload system is incorrect',
+            dataclasses.replace(
+                SUB_SLICING_CASE,
+                workload_system=_get_system_characteristics_or_die('tpu7x-8'),
+            ),
+            WorkloadScheduling.UNAVAILABLE,
+        ),
+        (
+            'Sub-slicing, but workload topology is incorrect',
+            dataclasses.replace(
+                SUB_SLICING_CASE,
+                workload_system=_get_system_characteristics_or_die('v6e-2x2'),
+            ),
+            WorkloadScheduling.UNAVAILABLE,
+        ),
+        (
             (
                 'Sub-slicing should be ignored when a given device is already'
                 ' present in the cluster'

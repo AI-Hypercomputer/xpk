@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package v1beta1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -64,7 +64,7 @@ type SliceStatus struct {
 // +kubebuilder:printcolumn:name="Topology",type=string,JSONPath=`.spec.topology`
 // +kubebuilder:printcolumn:name="State",type=string,JSONPath=`.status.conditions[?(@.type=="Ready")].reason`
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
-// +kubebuilder:deprecatedversion
+// +kubebuilder:storageversion
 // Slice is the Schema for the slices API.
 type Slice struct {
 	metav1.TypeMeta   `json:",inline"`

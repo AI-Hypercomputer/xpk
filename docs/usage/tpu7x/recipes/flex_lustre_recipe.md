@@ -136,7 +136,7 @@ Currently flex start provisioning for Ironwood works only in single slice and mu
 </details>
 
 <details>
-<summary><strong>Option B: Training with MaxText</strong></summary>
+<summary><strong>Option B: Training a generic model with MaxText</strong></summary>
 
 1. Set up the networking needed for a Lustre storage by running the commands below:
 
@@ -317,5 +317,244 @@ Currently flex start provisioning for Ironwood works only in single slice and mu
         --project ${PROJECT_ID} \
         --command "${MAXTEXT_COMMAND}"
     ```
+
+</details>
+
+
+<details>
+<summary><strong>Option C: Training a Llama3.1 model with MaxText</strong></summary>
+
+ > **NOTE:** For Llama3.1-70b it is recommended that you use at least a 4x4x4 topology (i.e. 64 chips). If the cluster you created uses less chips, recreate the cluster with a larger topology before running the steps below.
+
+ 1. Set up the networking needed for a Lustre storage by running the commands below:
+
+    ```shell
+    export IP_RANGE_NAME=<ip_range_name> # Your IP range name
+    export FIREWALL_RULE_NAME=<fw_rule_name> # Your firewall rule name
+
+    # a. enable service networking
+    gcloud services enable servicenetworking.googleapis.com \
+      --project=${PROJECT_ID}
+
+    # b. Create an IP address range
+    gcloud compute addresses create ${IP_RANGE_NAME} \
+      --global \
+      --purpose=VPC_PEERING \
+      --prefix-length=20 \
+      --description="Managed Lustre VPC Peering" \
+      --network=${NETWORK_NAME} \
+      --project=${PROJECT_ID}
+
+    # c. Get the CIDR range of the IP address range
+    CIDR_RANGE=$(
+      gcloud compute addresses describe ${IP_RANGE_NAME} \
+          --global  \
+          --format="value[separator=/](address, prefixLength)" \
+          --project=${PROJECT_ID}
+    )
+
+    # d. Create a firewall rule to allow TCP traffic from the IP address range
+    gcloud compute firewall-rules create ${FIREWALL_RULE_NAME} \
+        --allow=tcp:988,tcp:6988 \
+        --network=${NETWORK_NAME} \
+        --source-ranges=${CIDR_RANGE} \
+        --project=${PROJECT_ID}
+
+    # e. Connect the peering (required IAM role: compute.networkAdmin or servicenetworking.networksAdmin role)
+    gcloud services vpc-peerings connect \
+        --network=${NETWORK_NAME} \
+        --project=${PROJECT_ID} \
+        --ranges=${IP_RANGE_NAME} \
+        --service=servicenetworking.googleapis.com
+    ```
+
+1. Create the Lustre storage by running the commands below:
+
+    ```shell
+    export STORAGE_NAME=<storage_name> # Your storage name
+    export STORAGE_THROUGHPUT=1000
+    export STORAGE_CAPACITY=18000
+    export STORAGE_FS=lfs
+    export LOCATION=${ZONE}
+
+    gcloud lustre instances create ${STORAGE_NAME} \
+      --per-unit-storage-throughput=${STORAGE_THROUGHPUT} \
+      --capacity-gib=${STORAGE_CAPACITY} \
+      --filesystem=${STORAGE_FS} \
+      --location=${LOCATION} \
+      --network=projects/${PROJECT_ID}/global/networks/${NETWORK_NAME} \
+      --project=${PROJECT_ID}
+    ```
+
+1. Get Lustre properties. Note the mountPoint property.
+
+    ```shell
+    gcloud lustre instances describe konradkaim-lustre --location=us-central1-c
+    ```
+
+1. Prepare the Lustre manifest file, use the IP address part of the mountPoint from the command above.
+
+    ```shell
+    export VOLUME_IP=<volume_ip> # Should be equal to the mount point value from the previous command
+    export VOLUME_HANDLE="${PROJECT_ID}/${ZONE}/${STORAGE_NAME}" # Your volume handle
+
+    echo "apiVersion: v1
+          kind: PersistentVolume
+          metadata:
+            name: xpk-lustre-pv
+          spec:
+            storageClassName: ""
+            capacity:
+              storage: 18000Gi
+            accessModes:
+              - ReadWriteMany
+            persistentVolumeReclaimPolicy: Retain
+            volumeMode: Filesystem
+            claimRef:
+              namespace: default
+              name: xpk-lustre-pvc
+            csi:
+              driver: lustre.csi.storage.gke.io
+              volumeHandle: ${VOLUME_HANDLE}
+              volumeAttributes:
+                ip: ${VOLUME_IP}
+                filesystem: lfs
+          ---
+            kind: PersistentVolumeClaim
+            apiVersion: v1
+            metadata:
+              name: xpk-lustre-pvc
+            spec:
+              accessModes:
+                - ReadWriteMany
+              storageClassName: ""
+              volumeName: xpk-lustre-pv
+              resources:
+                requests:
+                  storage: 18000Gi" > lustre-manifest-attach.yaml
+    ```
+
+1. Attach the Lustre storage to your cluster by running the commands below:
+
+    ```shell
+    export BASE_OUTPUT_DIR="/lustre-data"
+    xpk storage attach ${STORAGE_NAME} \
+      --cluster=${CLUSTER_NAME} --project=${PROJECT_ID} --zone=${LOCATION} \
+      --type=lustre \
+      --mount-point=$BASE_OUTPUT_DIR \
+      --readonly=false \
+      --auto-mount=true \
+      --manifest='./lustre-manifest-attach.yaml'
+    ```
+
+1. Build the Docker Image
+
+    ```shell
+    export CONTAINER_REGISTRY=<registry_name> # Initialize with your registry e.g. gcr.io
+    export CLOUD_IMAGE_NAME="llama-maxtext-runner"
+    export WORKLOAD_IMAGE="${CONTAINER_REGISTRY}/${PROJECT_ID}/${CLOUD_IMAGE_NAME}"
+    ```
+
+    ```shell
+    # Make sure you're running on a Virtual Environment with python 3.12
+    if [[ "$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")' 2>/dev/null)" == "3.12" ]]; then { echo You have the correct Python version 3.12; } else { >&2 echo Error: Python version must be 3.12; } fi
+    ```
+
+    ```shell
+    # Clone MaxText Repository and Checkout Recipe Branch
+    git clone https://github.com/AI-Hypercomputer/maxtext.git
+    cd maxtext
+    git checkout maxtext-tutorial-v1.3.0
+    ```
+
+    ```shell
+    # Custom Jax and LibTPU wheels
+    pip download libtpu==0.0.31.dev20251119+nightly -f"https://storage.googleapis.com/jax-releases/libtpu_releases.html"
+    pip download --pre jax==0.8.1 jaxlib==0.8.1 --index https://us-python.pkg.dev/ml-oss-artifacts-published/jax/simple/
+    ```
+
+    ```shell
+    # Build and upload the docker image
+    bash dependencies/scripts/docker_build_dependency_image.sh MODE=custom_wheels
+    bash dependencies/scripts/docker_upload_runner.sh CLOUD_IMAGE_NAME=${CLOUD_IMAGE_NAME}
+    ```
+
+1. Run the Llama 3.1 MaxText workload on the cluster.
+
+    ```shell
+    export WORKLOAD_NAME="$(printf "%.26s" "llama3-1-70b-8192-fp8-4x4x4")-$(date +%Y%m%d-%H%M)"
+    export XLA_FLAGS=" \
+      --xla_tpu_scoped_vmem_limit_kib=65536 \
+      --xla_tpu_bf16_emission_mode=NATIVE_EMISSION \
+      --xla_tpu_enable_sparse_core_reduce_scatter_v2=true \
+      --xla_tpu_enable_sparse_core_collective_offload_all_gather=true \
+      --xla_tpu_enable_sparse_core_collective_offload_2d_all_gather=true \
+      --xla_tpu_enable_all_gather_offload_tracing=true \
+      --xla_tpu_use_tc_device_shape_on_sc=True \
+      --xla_sc_disable_megacore_partitioning=True \
+      --xla_tpu_enable_async_collective_fusion_fuse_all_gather=false \
+      --xla_enable_async_all_gather=true \
+      --xla_tpu_prefer_async_allgather_to_allreduce=true \
+      --xla_tpu_enable_sparse_core_collective_offload_all_reduce=true \
+      --xla_tpu_enable_sparse_core_collective_offload_reduce_scatter=true \
+      --xla_tpu_enable_sparse_core_collective_offload_3d_all_gather=true \
+      --xla_tpu_use_single_sparse_core_for_all_gather_offload=true "
+
+    export MAXTEXT_ARGS="\
+      model_name=llama3.1-70b \
+      skip_jax_distributed_system=True \
+      dtype=bfloat16 \
+      per_device_batch_size=2 \
+      profile_periodically_period=10000 \
+      async_checkpointing=False \
+      enable_checkpointing=False \
+      use_iota_embed=True \
+      remat_policy=custom \
+      decoder_layer_input=device \
+      context=device \
+      query_proj=device \
+      key_proj=device \
+      value_proj=device \
+      ici_fsdp_parallelism=-1 \
+      dataset_type=synthetic \
+      opt_type=adamw \
+      mu_dtype=bfloat16 \
+      sa_block_q=2048 \
+      sa_block_kv=1024 \
+      sa_block_kv_compute=512 \
+      sa_block_q_dkv=2048 \
+      sa_block_kv_dkv=2048 \
+      sa_block_kv_dkv_compute=256 \
+      sa_q_layout=SEQ_MINOR \
+      sa_k_layout=SEQ_MINOR \
+      sa_v_layout=HEAD_DIM_MINOR \
+      sa_use_fused_bwd_kernel=True \
+      use_tokamax_splash=True \
+      max_target_length=8192 \
+      profiler=xplane \
+      skip_first_n_steps_for_profiler=5 \
+      profiler_steps=2 \
+      attention=flash \
+      quantization=fp8_full \
+      use_qwix_quantization=True \
+      steps=30 \
+      base_output_directory=${BASE_OUTPUT_DIR} \
+      run_name=${WORKLOAD_NAME}"
+
+    xpk workload create \
+      --cluster=${CLUSTER_NAME} \
+      --project=${PROJECT_ID} \
+      --zone=${ZONE} \
+      --priority=very-high \
+      --max-restarts=0 \
+      --device-type=${ACCELERATOR_TYPE} \
+      --num-slices=1 \
+      --docker-image="${WORKLOAD_IMAGE}" \
+      --enable-debug-logs \
+      --workload="${WORKLOAD_NAME}" \
+      --command="set -e && export ENABLE_PATHWAYS_PERSISTENCE='1' && \
+    export LIBTPU_INIT_ARGS='${XLA_FLAGS}' && \
+    export JAX_PLATFORMS='tpu,cpu' && export ENABLE_PJRT_COMPATIBILITY='true' && \
+    python3 -m MaxText.train MaxText/configs/base.yml ${MAXTEXT_ARGS}"
 
 </details>

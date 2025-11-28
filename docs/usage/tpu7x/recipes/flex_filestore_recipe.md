@@ -135,7 +135,7 @@ Currently flex start provisioning for Ironwood works only in single slice and mu
 </details>
 
 <details>
-<summary><strong>Option B: Training with MaxText</strong></summary>
+<summary><strong>Option B: Training a generic model with MaxText</strong></summary>
 
 1. Create a Filestore storage by running the commands below:
 
@@ -215,5 +215,142 @@ Currently flex start provisioning for Ironwood works only in single slice and mu
         --project ${PROJECT_ID} \
         --command "${MAXTEXT_COMMAND}"
     ```
+
+</details>
+
+
+<details>
+<summary><strong>Option C: Training a Llama3.1 model with MaxText</strong></summary>
+
+ > **NOTE:** For Llama3.1-70b it is recommended that you use at least a 4x4x4 topology (i.e. 64 chips). If the cluster you created uses less chips, recreate the cluster with a larger topology before running the steps below.
+
+ 1. Create a Filestore storage by running the commands below:
+
+    ```shell
+    export STORAGE_NAME=<storage_name> # Your storage name
+    xpk storage create ${STORAGE_NAME} --type=gcpfilestore \
+      --auto-mount=false --mount-point=/data-fs --readonly=false \
+      --size=1024 --tier=BASIC_HDD --vol=default \
+      --project=${PROJECT_ID} --cluster=${CLUSTER_NAME} --zone=${ZONE}
+    ```
+
+1. Attach the Filestore storage to your cluster by running the commands below:
+
+    ```shell
+    export BASE_OUTPUT_DIR="/data-fs"
+    xpk storage attach ${STORAGE_NAME} --cluster=${CLUSTER_NAME} --zone=${ZONE} \
+      --project=${PROJECT_ID} --type=gcpfilestore   --auto-mount=true \
+      --vol=default --mount-point=/data-fs --readonly=false
+    ```
+
+1. Build the Docker Image
+
+    ```shell
+    export CONTAINER_REGISTRY=<registry_name> # Initialize with your registry e.g. gcr.io
+    export CLOUD_IMAGE_NAME="llama-maxtext-runner"
+    export WORKLOAD_IMAGE="${CONTAINER_REGISTRY}/${PROJECT_ID}/${CLOUD_IMAGE_NAME}"
+    ```
+
+    ```shell
+    # Make sure you're running on a Virtual Environment with python 3.12
+    if [[ "$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")' 2>/dev/null)" == "3.12" ]]; then { echo You have the correct Python version 3.12; } else { >&2 echo Error: Python version must be 3.12; } fi
+    ```
+
+    ```shell
+    # Clone MaxText Repository and Checkout Recipe Branch
+    git clone https://github.com/AI-Hypercomputer/maxtext.git
+    cd maxtext
+    git checkout maxtext-tutorial-v1.3.0
+    ```
+
+    ```shell
+    # Custom Jax and LibTPU wheels
+    pip download libtpu==0.0.31.dev20251119+nightly -f"https://storage.googleapis.com/jax-releases/libtpu_releases.html"
+    pip download --pre jax==0.8.1 jaxlib==0.8.1 --index https://us-python.pkg.dev/ml-oss-artifacts-published/jax/simple/
+    ```
+
+    ```shell
+    # Build and upload the docker image
+    bash dependencies/scripts/docker_build_dependency_image.sh MODE=custom_wheels
+    bash dependencies/scripts/docker_upload_runner.sh CLOUD_IMAGE_NAME=${CLOUD_IMAGE_NAME}
+    ```
+
+1. Run the Llama 3.1 MaxText workload on the cluster.
+
+    ```shell
+    export WORKLOAD_NAME="$(printf "%.26s" "llama3-1-70b-8192-fp8-4x4x4")-$(date +%Y%m%d-%H%M)"
+    export XLA_FLAGS=" \
+      --xla_tpu_scoped_vmem_limit_kib=65536 \
+      --xla_tpu_bf16_emission_mode=NATIVE_EMISSION \
+      --xla_tpu_enable_sparse_core_reduce_scatter_v2=true \
+      --xla_tpu_enable_sparse_core_collective_offload_all_gather=true \
+      --xla_tpu_enable_sparse_core_collective_offload_2d_all_gather=true \
+      --xla_tpu_enable_all_gather_offload_tracing=true \
+      --xla_tpu_use_tc_device_shape_on_sc=True \
+      --xla_sc_disable_megacore_partitioning=True \
+      --xla_tpu_enable_async_collective_fusion_fuse_all_gather=false \
+      --xla_enable_async_all_gather=true \
+      --xla_tpu_prefer_async_allgather_to_allreduce=true \
+      --xla_tpu_enable_sparse_core_collective_offload_all_reduce=true \
+      --xla_tpu_enable_sparse_core_collective_offload_reduce_scatter=true \
+      --xla_tpu_enable_sparse_core_collective_offload_3d_all_gather=true \
+      --xla_tpu_use_single_sparse_core_for_all_gather_offload=true "
+
+    export MAXTEXT_ARGS="\
+      model_name=llama3.1-70b \
+      skip_jax_distributed_system=True \
+      dtype=bfloat16 \
+      per_device_batch_size=2 \
+      profile_periodically_period=10000 \
+      async_checkpointing=False \
+      enable_checkpointing=False \
+      use_iota_embed=True \
+      remat_policy=custom \
+      decoder_layer_input=device \
+      context=device \
+      query_proj=device \
+      key_proj=device \
+      value_proj=device \
+      ici_fsdp_parallelism=-1 \
+      dataset_type=synthetic \
+      opt_type=adamw \
+      mu_dtype=bfloat16 \
+      sa_block_q=2048 \
+      sa_block_kv=1024 \
+      sa_block_kv_compute=512 \
+      sa_block_q_dkv=2048 \
+      sa_block_kv_dkv=2048 \
+      sa_block_kv_dkv_compute=256 \
+      sa_q_layout=SEQ_MINOR \
+      sa_k_layout=SEQ_MINOR \
+      sa_v_layout=HEAD_DIM_MINOR \
+      sa_use_fused_bwd_kernel=True \
+      use_tokamax_splash=True \
+      max_target_length=8192 \
+      profiler=xplane \
+      skip_first_n_steps_for_profiler=5 \
+      profiler_steps=2 \
+      attention=flash \
+      quantization=fp8_full \
+      use_qwix_quantization=True \
+      steps=30 \
+      base_output_directory=${BASE_OUTPUT_DIR} \
+      run_name=${WORKLOAD_NAME}"
+
+    xpk workload create \
+      --cluster=${CLUSTER_NAME} \
+      --project=${PROJECT_ID} \
+      --zone=${ZONE} \
+      --priority=very-high \
+      --max-restarts=0 \
+      --device-type=${ACCELERATOR_TYPE} \
+      --num-slices=1 \
+      --docker-image="${WORKLOAD_IMAGE}" \
+      --enable-debug-logs \
+      --workload="${WORKLOAD_NAME}" \
+      --command="set -e && export ENABLE_PATHWAYS_PERSISTENCE='1' && \
+    export LIBTPU_INIT_ARGS='${XLA_FLAGS}' && \
+    export JAX_PLATFORMS='tpu,cpu' && export ENABLE_PJRT_COMPATIBILITY='true' && \
+    python3 -m MaxText.train MaxText/configs/base.yml ${MAXTEXT_ARGS}"
 
 </details>

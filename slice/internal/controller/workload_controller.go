@@ -46,7 +46,7 @@ import (
 	"sigs.k8s.io/kueue/pkg/util/podset"
 	"sigs.k8s.io/kueue/pkg/workload"
 
-	"tpu-slice-controller/api/v1alpha1"
+	"tpu-slice-controller/api/v1beta1"
 	"tpu-slice-controller/internal/core"
 	"tpu-slice-controller/internal/topology"
 	"tpu-slice-controller/internal/util/api"
@@ -288,8 +288,8 @@ func (r *WorkloadReconciler) cleanupSlices(ctx context.Context, wl *kueue.Worklo
 	return true, nil
 }
 
-func (r *WorkloadReconciler) findWorkloadSlices(ctx context.Context, wl *kueue.Workload) ([]v1alpha1.Slice, error) {
-	slices := &v1alpha1.SliceList{}
+func (r *WorkloadReconciler) findWorkloadSlices(ctx context.Context, wl *kueue.Workload) ([]v1beta1.Slice, error) {
+	slices := &v1beta1.SliceList{}
 	opts := []client.ListOption{
 		client.MatchingFields{
 			WorkloadNamespaceIndex: wl.Namespace,
@@ -308,14 +308,14 @@ func (r *WorkloadReconciler) findWorkloadSlices(ctx context.Context, wl *kueue.W
 //
 // Parameters:
 //
-//	slices - A slice of v1alpha1.Slice objects to be categorized.
+//	slices - A slice of v1beta1.Slice objects to be categorized.
 //
 // Returns:
 //   - A slice containing deleted Slice objects (with non-zero DeletionTimestamp).
 //   - A slice containing Slice objects that should be deleted (errored and stale slices).
 //   - A slice sontaining initializing Slices objects (activating and slices without ready state yet)
 //   - A slice containing other Slice objects (active slices).
-func (r *WorkloadReconciler) groupSlices(slices []v1alpha1.Slice) (deleted []v1alpha1.Slice, toDelete []v1alpha1.Slice, initializing []v1alpha1.Slice, other []v1alpha1.Slice) {
+func (r *WorkloadReconciler) groupSlices(slices []v1beta1.Slice) (deleted []v1beta1.Slice, toDelete []v1beta1.Slice, initializing []v1beta1.Slice, other []v1beta1.Slice) {
 	for _, slice := range slices {
 		switch core.GetSliceState(slice) {
 		case core.SliceStateDeleted:
@@ -331,7 +331,7 @@ func (r *WorkloadReconciler) groupSlices(slices []v1alpha1.Slice) (deleted []v1a
 	return deleted, toDelete, initializing, other
 }
 
-func (r *WorkloadReconciler) deleteSlices(ctx context.Context, slices []v1alpha1.Slice) error {
+func (r *WorkloadReconciler) deleteSlices(ctx context.Context, slices []v1beta1.Slice) error {
 	log := ctrl.LoggerFrom(ctx)
 	for _, slice := range slices {
 		log = log.WithValues("slice", klog.KObj(&slice))
@@ -462,15 +462,15 @@ func (r *WorkloadReconciler) syncSlices(
 	ctx context.Context,
 	wl *kueue.Workload,
 	ac *kueue.AdmissionCheckState,
-	slices *[]v1alpha1.Slice,
+	slices *[]v1beta1.Slice,
 	nodes map[string]corev1.Node,
 ) error {
-	slicesByName := make(map[string]*v1alpha1.Slice, len(*slices))
+	slicesByName := make(map[string]*v1beta1.Slice, len(*slices))
 	for _, slice := range *slices {
 		slicesByName[slice.Name] = &slice
 	}
 
-	createdSlices := make([]v1alpha1.Slice, 0, len(wl.Status.Admission.PodSetAssignments))
+	createdSlices := make([]v1beta1.Slice, 0, len(wl.Status.Admission.PodSetAssignments))
 	for _, psa := range wl.Status.Admission.PodSetAssignments {
 		if !shouldCreateSliceForPodSetAssignment(wl, psa, nodes) {
 			continue
@@ -508,7 +508,7 @@ func shouldCreateSliceForPodSetAssignment(wl *kueue.Workload, psa kueue.PodSetAs
 	return false
 }
 
-func parseTopologyAssignmentIntoPartitionIds(slice *v1alpha1.Slice, topologyAssignment *kueue.TopologyAssignment, nodes map[string]corev1.Node) {
+func parseTopologyAssignmentIntoPartitionIds(slice *v1beta1.Slice, topologyAssignment *kueue.TopologyAssignment, nodes map[string]corev1.Node) {
 	subBlockIds := sets.New[string]()
 	// we already validated that all assignments have a valid level,
 	// in validateRelevantWorkload.
@@ -520,7 +520,7 @@ func parseTopologyAssignmentIntoPartitionIds(slice *v1alpha1.Slice, topologyAssi
 	slice.Spec.PartitionIds = sets.List(subBlockIds)
 }
 
-func (r *WorkloadReconciler) createSlice(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, psa *kueue.PodSetAssignment, nodes map[string]corev1.Node) (*v1alpha1.Slice, error) {
+func (r *WorkloadReconciler) createSlice(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, psa *kueue.PodSetAssignment, nodes map[string]corev1.Node) (*v1beta1.Slice, error) {
 	slice := core.SliceWithMetadata(wl, psa.Name)
 	log := ctrl.LoggerFrom(ctx).WithValues("slice", klog.KObj(slice))
 	log.V(3).Info("Creating Slice")
@@ -530,7 +530,7 @@ func (r *WorkloadReconciler) createSlice(ctx context.Context, wl *kueue.Workload
 	parseTopologyAssignmentIntoPartitionIds(slice, psa.TopologyAssignment, nodes)
 
 	ps := podset.FindPodSetByName(wl.Spec.PodSets, psa.Name)
-	slice.Spec.Type = v1alpha1.Type(core.GetTPUAccelerator(ps.Template))
+	slice.Spec.Type = v1beta1.Type(core.GetTPUAccelerator(ps.Template))
 	slice.Spec.Topology = core.GetTPUTopology(ps.Template)
 
 	if err := r.client.Create(ctx, slice); err != nil {
@@ -556,7 +556,7 @@ func (r *WorkloadReconciler) updateWorkloadAdmissionCheckStatus(ctx context.Cont
 	return err
 }
 
-func buildCreationEventMessage(slices []v1alpha1.Slice) string {
+func buildCreationEventMessage(slices []v1beta1.Slice) string {
 	sliceNames := make([]string, len(slices))
 	for index, slice := range slices {
 		sliceNames[index] = fmt.Sprintf("%q", slice.Name)
@@ -566,7 +566,7 @@ func buildCreationEventMessage(slices []v1alpha1.Slice) string {
 }
 
 // syncAdmissionCheckStatus syncs the admission check status with the state of the Slices.
-func (r *WorkloadReconciler) syncAdmissionCheckStatus(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, slices []v1alpha1.Slice) error {
+func (r *WorkloadReconciler) syncAdmissionCheckStatus(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, slices []v1beta1.Slice) error {
 	originalState := ac.State
 	originalMessage := ac.Message
 
@@ -592,7 +592,7 @@ func (r *WorkloadReconciler) syncAdmissionCheckStatus(ctx context.Context, wl *k
 	if ac.Message != originalMessage {
 		// Logging error messages if exists
 		for _, slice := range slices {
-			cond := meta.FindStatusCondition(slice.Status.Conditions, v1alpha1.SliceStateConditionType)
+			cond := meta.FindStatusCondition(slice.Status.Conditions, v1beta1.SliceStateConditionType)
 			if cond != nil && cond.Status == metav1.ConditionFalse && cond.Reason == string(core.MMIGHealthStatusFailed) {
 				log.V(2).Info(
 					"WARNING: The Slice is not operational due to an error",
@@ -606,15 +606,15 @@ func (r *WorkloadReconciler) syncAdmissionCheckStatus(ctx context.Context, wl *k
 	return nil
 }
 
-func groupSlicesByState(slices []v1alpha1.Slice) map[core.SliceState][]v1alpha1.Slice {
-	slicesByState := make(map[core.SliceState][]v1alpha1.Slice)
+func groupSlicesByState(slices []v1beta1.Slice) map[core.SliceState][]v1beta1.Slice {
+	slicesByState := make(map[core.SliceState][]v1beta1.Slice)
 	for _, slice := range slices {
 		slicesByState[core.GetSliceState(slice)] = append(slicesByState[core.GetSliceState(slice)], slice)
 	}
 	return slicesByState
 }
 
-func prepareAdmissionCheckStatus(ac *kueue.AdmissionCheckState, slices []v1alpha1.Slice) {
+func prepareAdmissionCheckStatus(ac *kueue.AdmissionCheckState, slices []v1beta1.Slice) {
 	slicesByState := groupSlicesByState(slices)
 
 	switch {
@@ -638,7 +638,7 @@ func prepareAdmissionCheckStatus(ac *kueue.AdmissionCheckState, slices []v1alpha
 	if len(slicesByState[core.SliceStateFailed]) > 0 {
 		var errMessages []string
 		for _, slice := range slicesByState[core.SliceStateFailed] {
-			cond := meta.FindStatusCondition(slice.Status.Conditions, v1alpha1.SliceStateConditionType)
+			cond := meta.FindStatusCondition(slice.Status.Conditions, v1beta1.SliceStateConditionType)
 			errMessages = append(errMessages, cond.Message)
 		}
 		ac.Message += ". Errors: " + strings.Join(errMessages, "; ")
@@ -650,7 +650,7 @@ func (r *WorkloadReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&kueue.Workload{}).
 		Named("workload_controller").
-		Watches(&v1alpha1.Slice{}, &sliceHandler{client: r.client}).
+		Watches(&v1beta1.Slice{}, &sliceHandler{client: r.client}).
 		Complete(r)
 }
 
@@ -676,7 +676,7 @@ func (h *sliceHandler) Update(ctx context.Context, e event.UpdateEvent, q workqu
 }
 
 func (h *sliceHandler) handleEvent(ctx context.Context, obj client.Object, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
-	slice, isSlice := obj.(*v1alpha1.Slice)
+	slice, isSlice := obj.(*v1beta1.Slice)
 	// Only Slice should be handled.
 	if !isSlice {
 		return

@@ -36,7 +36,7 @@ import (
 	kueuealpha "sigs.k8s.io/kueue/apis/kueue/v1alpha1"
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
 
-	slice "tpu-slice-controller/api/v1alpha1"
+	slice "tpu-slice-controller/api/v1beta1"
 )
 
 const (

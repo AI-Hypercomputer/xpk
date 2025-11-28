@@ -38,7 +38,7 @@ import (
 	kueuealpha "sigs.k8s.io/kueue/apis/kueue/v1alpha1"
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
 
-	"tpu-slice-controller/api/v1alpha1"
+	"tpu-slice-controller/api/v1beta1"
 	"tpu-slice-controller/internal/controller"
 	"tpu-slice-controller/internal/util/cert"
 	"tpu-slice-controller/internal/webhooks"
@@ -55,7 +55,7 @@ var (
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(v1alpha1.AddToScheme(scheme))
+	utilruntime.Must(v1beta1.AddToScheme(scheme))
 	utilruntime.Must(kueue.AddToScheme(scheme))
 	utilruntime.Must(kueuealpha.AddToScheme(scheme))
 	utilruntime.Must(jobset.AddToScheme(scheme))

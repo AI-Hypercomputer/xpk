@@ -42,7 +42,7 @@ import (
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
 
-	slice "tpu-slice-controller/api/v1alpha1"
+	slice "tpu-slice-controller/api/v1beta1"
 	"tpu-slice-controller/internal/core"
 	utiltesting "tpu-slice-controller/internal/util/testing"
 	utiltestingjobsjobset "tpu-slice-controller/internal/util/testingjobs/jobset"

@@ -32,7 +32,7 @@ import (
 	kueuealpha "sigs.k8s.io/kueue/apis/kueue/v1alpha1"
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
 
-	"tpu-slice-controller/api/v1alpha1"
+	"tpu-slice-controller/api/v1beta1"
 	"tpu-slice-controller/internal/core"
 )
 
@@ -247,12 +247,12 @@ func (w *PodSetAssignmentWrapper) Name(name string) *PodSetAssignmentWrapper {
 
 // SliceWrapper wraps a Slice.
 type SliceWrapper struct {
-	v1alpha1.Slice
+	v1beta1.Slice
 }
 
 func MakeSliceWrapper(name string) *SliceWrapper {
 	return &SliceWrapper{
-		v1alpha1.Slice{
+		v1beta1.Slice{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:              name,
 				CreationTimestamp: metav1.NewTime(time.Now()),
@@ -265,7 +265,7 @@ func (s *SliceWrapper) Clone() *SliceWrapper {
 	return &SliceWrapper{Slice: *s.DeepCopy()}
 }
 
-func (s *SliceWrapper) Obj() *v1alpha1.Slice {
+func (s *SliceWrapper) Obj() *v1beta1.Slice {
 	return &s.Slice
 }
 
@@ -274,8 +274,8 @@ func (s *SliceWrapper) Name(name string) *SliceWrapper {
 	return s
 }
 
-func (s *SliceWrapper) Type(acceleratorType v1alpha1.Type) *SliceWrapper {
-	s.Spec.Type = v1alpha1.Type(acceleratorType)
+func (s *SliceWrapper) Type(acceleratorType v1beta1.Type) *SliceWrapper {
+	s.Spec.Type = v1beta1.Type(acceleratorType)
 	return s
 }
 
@@ -305,7 +305,7 @@ func (s *SliceWrapper) PartitionIds(ids ...string) *SliceWrapper {
 
 func (s *SliceWrapper) Active() *SliceWrapper {
 	cond := metav1.Condition{
-		Type:               v1alpha1.SliceStateConditionType,
+		Type:               v1beta1.SliceStateConditionType,
 		Status:             metav1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
 		Reason:             string(core.MMIGHealthStatusActive),
@@ -317,7 +317,7 @@ func (s *SliceWrapper) Active() *SliceWrapper {
 
 func (s *SliceWrapper) Activating() *SliceWrapper {
 	cond := metav1.Condition{
-		Type:               v1alpha1.SliceStateConditionType,
+		Type:               v1beta1.SliceStateConditionType,
 		Status:             metav1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
 		Reason:             string(core.MMIGHealthStatusActivating),
@@ -329,7 +329,7 @@ func (s *SliceWrapper) Activating() *SliceWrapper {
 
 func (s *SliceWrapper) Degraded() *SliceWrapper {
 	cond := metav1.Condition{
-		Type:               v1alpha1.SliceStateConditionType,
+		Type:               v1beta1.SliceStateConditionType,
 		Status:             metav1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
 		Reason:             string(core.MMIGHealthStatusActiveDegraded),
@@ -341,7 +341,7 @@ func (s *SliceWrapper) Degraded() *SliceWrapper {
 
 func (s *SliceWrapper) Failed() *SliceWrapper {
 	cond := metav1.Condition{
-		Type:               v1alpha1.SliceStateConditionType,
+		Type:               v1beta1.SliceStateConditionType,
 		Status:             metav1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
 		Reason:             string(core.MMIGHealthStatusFailed),
@@ -353,7 +353,7 @@ func (s *SliceWrapper) Failed() *SliceWrapper {
 
 func (s *SliceWrapper) Stale() *SliceWrapper {
 	cond := metav1.Condition{
-		Type:               v1alpha1.SliceStateConditionType,
+		Type:               v1beta1.SliceStateConditionType,
 		Status:             metav1.ConditionFalse,
 		LastTransitionTime: metav1.NewTime(time.Now().Add(-3 * time.Minute)),
 		Reason:             string(core.MMIGHealthStatusActivating),

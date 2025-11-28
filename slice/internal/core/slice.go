@@ -23,7 +23,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
 
-	"tpu-slice-controller/api/v1alpha1"
+	"tpu-slice-controller/api/v1beta1"
 )
 
 const (
@@ -35,8 +35,8 @@ func SliceKeyFromWorkload(wl *kueue.Workload, podSetName kueue.PodSetReference) 
 	return client.ObjectKeyFromObject(slice)
 }
 
-func SliceWithMetadata(wl *kueue.Workload, podSetName kueue.PodSetReference) *v1alpha1.Slice {
-	return &v1alpha1.Slice{
+func SliceWithMetadata(wl *kueue.Workload, podSetName kueue.PodSetReference) *v1beta1.Slice {
+	return &v1beta1.Slice{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: SliceName(wl.Namespace, wl.Name, podSetName),
 			Annotations: map[string]string{
@@ -51,9 +51,9 @@ func SliceName(ns string, workloadName string, podSetName kueue.PodSetReference)
 	return fmt.Sprintf("%s-%s-%s", ns, workloadName, podSetName)
 }
 
-func isStale(slice *v1alpha1.Slice) bool {
+func isStale(slice *v1beta1.Slice) bool {
 	var staleUnready, staleWithoutState bool
-	cond := meta.FindStatusCondition(slice.Status.Conditions, v1alpha1.SliceStateConditionType)
+	cond := meta.FindStatusCondition(slice.Status.Conditions, v1beta1.SliceStateConditionType)
 	if cond == nil {
 		staleWithoutState = !slice.CreationTimestamp.IsZero() && time.Since(slice.CreationTimestamp.Time) >= activationTimeout
 	} else {
@@ -62,9 +62,9 @@ func isStale(slice *v1alpha1.Slice) bool {
 	return staleUnready || staleWithoutState
 }
 
-func isError(slice *v1alpha1.Slice) bool {
-	condReady := meta.FindStatusCondition(slice.Status.Conditions, v1alpha1.SliceStateConditionType)
-	condFailed := meta.FindStatusCondition(slice.Status.Conditions, v1alpha1.SliceCreationFailedConditionType)
+func isError(slice *v1beta1.Slice) bool {
+	condReady := meta.FindStatusCondition(slice.Status.Conditions, v1beta1.SliceStateConditionType)
+	condFailed := meta.FindStatusCondition(slice.Status.Conditions, v1beta1.SliceCreationFailedConditionType)
 	runtimeError := condReady != nil && condReady.Status == metav1.ConditionFalse && condReady.Reason == string(MMIGHealthStatusFailed)
 	creationError := condFailed != nil && condFailed.Status == metav1.ConditionTrue
 	return runtimeError || creationError

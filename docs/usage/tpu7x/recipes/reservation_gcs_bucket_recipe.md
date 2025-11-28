@@ -136,7 +136,7 @@ Before you start, complete the following steps:
 </details>
 
 <details>
-<summary><strong>Option B: Training with MaxText</strong></summary>
+<summary><strong>Option B: Training a generic model with MaxText</strong></summary>
 
 1. Create a GCS bucket by running the commands below:
 

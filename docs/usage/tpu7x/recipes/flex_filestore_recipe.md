@@ -135,7 +135,7 @@ Currently flex start provisioning for Ironwood works only in single slice and mu
 </details>
 
 <details>
-<summary><strong>Option B: Training with MaxText</strong></summary>
+<summary><strong>Option B: Training a generic model with MaxText</strong></summary>
 
 1. Create a Filestore storage by running the commands below:
 

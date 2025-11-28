@@ -31,6 +31,8 @@ from ..capacity import (
     B200_DEVICE_TYPE,
     H100_MEGA_DEVICE_TYPE,
     H200_DEVICE_TYPE,
+    GB200_DEVICE_TYPE,
+    GB200_DEVICE_TYPE_NOLSSD,
     CapacityType,
 )
 from ..system_characteristics import get_system_characteristics_by_device_type
@@ -42,6 +44,7 @@ a3high_device_type = H100_DEVICE_TYPE
 a3mega_device_type = H100_MEGA_DEVICE_TYPE
 a3ultra_device_type = H200_DEVICE_TYPE
 a4_device_type = B200_DEVICE_TYPE
+a4x_device_types = (GB200_DEVICE_TYPE, GB200_DEVICE_TYPE_NOLSSD)
 supported_device_types = {
     a3mega_device_type,
     a3ultra_device_type,

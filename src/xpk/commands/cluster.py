@@ -18,7 +18,8 @@ from tabulate import tabulate
 
 from ..utils.feature_flags import FeatureFlags
 from ..utils.versions import ReleaseChannel
-from ..core.capacity import H100_DEVICE_TYPE, H200_DEVICE_TYPE, B200_DEVICE_TYPE, get_reservation_deployment_type
+from ..core.pathways import get_pathways_machine_types
+from ..core.capacity import H100_DEVICE_TYPE, get_reservation_deployment_type
 from ..core.cluster import (
     get_all_clusters_programmatic,
     get_cluster_credentials,
@@ -27,7 +28,6 @@ from ..core.cluster import (
     set_jobset_on_cluster,
     set_pathways_job_on_cluster,
     setup_k8s_env,
-    disable_mglru_on_cluster,
     count_nodes_on_cluster,
     update_cluster_with_gcpfilestore_driver_if_necessary,
     update_cluster_with_gcsfuse_driver_if_necessary,
@@ -211,6 +211,25 @@ def _validate_cluster_create_args(args, system: SystemCharacteristics):
   if FeatureFlags.SUB_SLICING_ENABLED and args.sub_slicing:
     validate_sub_slicing_system(system)
     _validate_sub_slicing_reservation(args)
+  if args.enable_pathways:
+    _validate_pathways_machine(args)
+
+
+def _validate_pathways_machine(args):
+  return_code, result = get_pathways_machine_types(
+      project=args.project, zone=args.zone
+  )
+  if return_code != 0:
+    xpk_print('Error: Unable to retrieve available pathways machine types')
+    xpk_exit(1)
+
+  if args.pathways_gce_machine_type not in result:
+    xpk_print(
+        'Error: Invalid --pathways-gce-machine-type. Specify machine type that'
+        ' has at least 100GB of memory and at least 49 CPUs.'
+    )
+    xpk_print(f'Available machine types: {", ".join(result)}')
+    xpk_exit(1)
 
 
 def _validate_sub_slicing_reservation(args):
@@ -262,11 +281,10 @@ def cluster_create(args) -> None:
     xpk_print('Fetching system characteristics failed!')
     xpk_exit(return_code)
 
-  _validate_cluster_create_args(args, system)
-
   xpk_print(f'Starting cluster create for cluster {args.cluster}:', flush=True)
   add_zone_and_project(args)
 
+  _validate_cluster_create_args(args, system)
   _log_cluster_create_telemetry(args)
 
   release_channel = (
@@ -987,7 +1005,7 @@ def update_coredns() -> int:
 
   # 6. Scale up coredns and verify readiness
   scale_up_coredns(replicas=15)
-  verify_coredns_readiness(timeout=120)
+  verify_coredns_readiness()
 
   xpk_print('The CoreDNS setup process has been completed.')
 
@@ -1228,7 +1246,8 @@ def run_gke_cluster_create_command(
 
   if args.enable_lustre_csi_driver:
     addons.append('LustreCsiDriver')
-    command += ' --enable-legacy-lustre-port'
+    if args.enable_legacy_lustre_port:
+      command += ' --enable-legacy-lustre-port'
 
   if hasattr(args, 'enable_mtc') and args.enable_mtc:
     addons.append('HighScaleCheckpointing')
@@ -1343,12 +1362,6 @@ def prepare_gpus(system: SystemCharacteristics):
     install_nri_code = install_nri_on_cluster()
     if install_nri_code != 0:
       xpk_exit(install_nri_code)
-
-  if system.device_type in [H200_DEVICE_TYPE, B200_DEVICE_TYPE]:
-    xpk_print('Disabling MGLRU')
-    err_code = disable_mglru_on_cluster()
-    if err_code > 0:
-      xpk_exit(err_code)
 
 
 def _log_cluster_create_telemetry(args) -> None:

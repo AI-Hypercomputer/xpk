@@ -19,6 +19,7 @@ import os
 import random
 import string
 
+from .system_characteristics import DockerPlatform
 from ..utils.console import xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
 from ..utils.execution_context import is_dry_run
@@ -26,7 +27,6 @@ from .commands import run_command_with_updates
 
 DEFAULT_DOCKER_IMAGE = 'python:3.10'
 DEFAULT_SCRIPT_DIR = os.getcwd()
-PLATFORM = 'linux/amd64'
 
 
 def validate_docker_image(docker_image, args) -> int:
@@ -63,7 +63,9 @@ def validate_docker_image(docker_image, args) -> int:
     return 0
 
 
-def build_docker_image_from_base_image(args, verbose=True) -> tuple[int, str]:
+def build_docker_image_from_base_image(
+    args, docker_platform: DockerPlatform, verbose=True
+) -> tuple[int, str]:
   """Adds script dir to the base docker image and uploads the image.
 
   Args:
@@ -97,8 +99,8 @@ def build_docker_image_from_base_image(args, verbose=True) -> tuple[int, str]:
   )
   tmp = write_tmp_file(docker_file)
   docker_build_command = (
-      f'docker buildx build --platform={PLATFORM} -f {str(tmp)} -t'
-      f' {docker_name} {args.script_dir}'
+      f'docker buildx build --platform={docker_platform.value} -f'
+      f' {str(tmp)} -t {docker_name} {args.script_dir}'
   )
   xpk_print(f'Building {args.script_dir} into docker image.')
   return_code = run_command_with_updates(
@@ -158,7 +160,9 @@ def build_docker_image_from_base_image(args, verbose=True) -> tuple[int, str]:
   return return_code, cloud_docker_image
 
 
-def setup_docker_image(args) -> tuple[int, str]:
+def setup_docker_image(
+    args, docker_platform: DockerPlatform
+) -> tuple[int, str]:
   """Does steps to verify docker args, check image, and build image (if asked).
 
   Args:
@@ -177,7 +181,7 @@ def setup_docker_image(args) -> tuple[int, str]:
     if validate_docker_image_code != 0:
       xpk_exit(validate_docker_image_code)
     build_docker_image_code, docker_image = build_docker_image_from_base_image(
-        args
+        args, docker_platform
     )
     if build_docker_image_code != 0:
       xpk_exit(build_docker_image_code)

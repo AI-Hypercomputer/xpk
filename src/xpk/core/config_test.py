@@ -14,7 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from xpk.core.config import XpkConfig, CFG_BUCKET_KEY, CLUSTER_NAME_KEY, PROJECT_KEY, ZONE_KEY
+from xpk.core.config import FileSystemConfig, InMemoryXpkConfig, CFG_BUCKET_KEY, CLUSTER_NAME_KEY, PROJECT_KEY, ZONE_KEY, _get_version
+from unittest.mock import patch
+from importlib.metadata import PackageNotFoundError
 
 import os
 import pytest
@@ -31,15 +33,60 @@ def _():
     os.remove(config_tmp_path)
 
 
-def test_config(_):
-  cfg = XpkConfig(config_tmp_path)
+@patch('os.getenv', return_value='10.0.0')
+def test_get_version_returns_overriden_value_when_it_is_overriden(_):
+  assert _get_version() == '10.0.0'
+
+
+@patch('os.getenv', return_value='')
+@patch('xpk.core.config.setuptools_get_version', return_value='10.0.0')
+def test_get_version_returns_value_from_setuptools_scm_when_there_is_no_override(
+    *_,
+):
+  assert _get_version() == '10.0.0'
+
+
+@patch('os.getenv', return_value='')
+@patch(
+    'xpk.core.config.setuptools_get_version',
+    side_effect=LookupError('unable to find git version'),
+)
+@patch('xpk.core.config.version', return_value='10.0.0')
+def test_get_version_returns_value_from_pip_when_there_is_no_setuptools_could_be_resolved(
+    *_,
+):
+  assert _get_version() == '10.0.0'
+
+
+@patch('os.getenv', return_value='')
+@patch(
+    'xpk.core.config.setuptools_get_version',
+    side_effect=LookupError('unable to find git version'),
+)
+@patch(
+    'xpk.core.config.version',
+    side_effect=PackageNotFoundError('unable to locate package'),
+)
+def test_get_version_returns_none_when_no_version_could_be_resolved(*_):
+  with pytest.raises(LookupError):
+    _get_version()
+
+
+@pytest.mark.parametrize(
+    argnames='cfg',
+    argvalues=[(FileSystemConfig(config_tmp_path)), (InMemoryXpkConfig())],
+)
+def test_config(_, cfg):
   cfg.set('project-id', 'foo')
   project_id = cfg.get('project-id')
   assert project_id == 'foo'
 
 
-def test_config_get_all(_):
-  cfg = XpkConfig(config_tmp_path)
+@pytest.mark.parametrize(
+    argnames='cfg',
+    argvalues=[(FileSystemConfig(config_tmp_path)), (InMemoryXpkConfig())],
+)
+def test_config_get_all(_, cfg):
   cfg.set(PROJECT_KEY, 'foo')
   cfg.set(CLUSTER_NAME_KEY, 'bar')
   cfg.set(ZONE_KEY, 'europe-west1-a')
@@ -52,20 +99,29 @@ def test_config_get_all(_):
   assert cfg_all[CFG_BUCKET_KEY] == 'cfg-bucket'
 
 
-def test_config_get_empty(_):
-  cfg = XpkConfig(config_tmp_path)
+@pytest.mark.parametrize(
+    argnames='cfg',
+    argvalues=[(FileSystemConfig(config_tmp_path)), (InMemoryXpkConfig())],
+)
+def test_config_get_empty(_, cfg):
   val = cfg.get(PROJECT_KEY)
   assert val is None
 
 
-def test_config_get_all_empty(_):
-  cfg = XpkConfig(config_tmp_path)
+@pytest.mark.parametrize(
+    argnames='cfg',
+    argvalues=[(FileSystemConfig(config_tmp_path)), (InMemoryXpkConfig())],
+)
+def test_config_get_all_empty(_, cfg):
   val = cfg.get_all()
   assert not val
 
 
-def test_config_set_incorrect(_):
-  cfg = XpkConfig(config_tmp_path)
+@pytest.mark.parametrize(
+    argnames='cfg',
+    argvalues=[(FileSystemConfig(config_tmp_path)), (InMemoryXpkConfig())],
+)
+def test_config_set_incorrect(cfg, _):
   cfg.set('foo', 'bar')
   cfg_all = cfg.get_all()
   assert not cfg_all

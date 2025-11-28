@@ -118,3 +118,29 @@ def test_cluster_create_managed_mldiagnostics():
   ])
 
   assert args.managed_mldiagnostics is True
+
+
+def test_cluster_create_enable_lustre_legacy_port_is_false_by_default():
+  parser = argparse.ArgumentParser()
+
+  set_cluster_create_parser(parser)
+  args = parser.parse_args(
+      ["--cluster", "test-cluster", "--tpu-type", "tpu7x-2"]
+  )
+
+  assert args.enable_legacy_lustre_port is False
+
+
+def test_cluster_create_enable_lustre_legacy_port_can_be_set():
+  parser = argparse.ArgumentParser()
+
+  set_cluster_create_parser(parser)
+  args = parser.parse_args([
+      "--cluster",
+      "test-cluster",
+      "--tpu-type",
+      "tpu7x-2",
+      "--enable-legacy-lustre-port",
+  ])
+
+  assert args.enable_legacy_lustre_port is True

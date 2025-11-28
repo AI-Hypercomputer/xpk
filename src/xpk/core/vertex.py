@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 from ..utils.console import xpk_print
-from .resources import CLUSTER_METADATA_CONFIGMAP, get_cluster_configmap
+from .resources import ConfigMapType, get_cluster_configmap
 
 DEFAULT_VERTEX_TENSORBOARD_NAME = 'tb-instance'
 
@@ -65,8 +65,9 @@ def create_vertex_experiment(args) -> dict | None:
       tensorboard,
   )
 
-  metadata_configmap_name = f'{args.cluster}-{CLUSTER_METADATA_CONFIGMAP}'
-  cluster_config_map = get_cluster_configmap(metadata_configmap_name)
+  cluster_config_map = get_cluster_configmap(
+      args.cluster, ConfigMapType.METADATA
+  )
 
   if cluster_config_map is None or 'tensorboard_name' not in cluster_config_map:
     xpk_print(

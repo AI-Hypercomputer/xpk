@@ -24,15 +24,13 @@ from jinja2 import Environment, FileSystemLoader
 from ..utils.topology import get_slice_topology_level, get_topology_product, is_topology_contained
 from ..utils.kueue import is_queued_cluster
 from kubernetes.utils import parse_quantity
-from .capacity import B200_DEVICE_TYPE, H100_MEGA_DEVICE_TYPE, H200_DEVICE_TYPE
-from .scheduling import (
-    create_accelerator_label,
-    create_machine_label,
-)
 from .system_characteristics import (
     SUB_SLICING_TOPOLOGIES,
+    AcceleratorType,
     AcceleratorTypeToAcceleratorCharacteristics,
     SystemCharacteristics,
+    create_accelerator_label,
+    create_machine_label,
 )
 from ..core.commands import (
     run_command_for_value,
@@ -321,19 +319,16 @@ class KueueManager:
     main_flavor_name = f"{num_slices}x{device_type_str}"
 
     node_labels_dict = {}
-    accelerator_label = create_accelerator_label(
-        system.accelerator_type, system
-    )
+    accelerator_label = create_accelerator_label(system)
     if accelerator_label:
       key, value = accelerator_label.split(":", 1)
       node_labels_dict[key] = value.strip()
 
-    machine_label = create_machine_label(
-        system.accelerator_type, system, autoprovisioning
-    )
-    if machine_label:
-      key, value = machine_label.split(":", 1)
-      node_labels_dict[key] = value.strip()
+    if not autoprovisioning:
+      machine_label = create_machine_label(system)
+      if machine_label:
+        key, value = machine_label.split(":", 1)
+        node_labels_dict[key] = value.strip()
 
     topology_label = f"topologyName: {topology_name}" if topology_name else ""
 
@@ -400,11 +395,10 @@ class KueueManager:
   def __get_topology_name_and_yaml(
       self, system: SystemCharacteristics, configure_sub_slicing: bool
   ) -> _NameAndYaml | None:
-    if system.device_type in [
-        H100_MEGA_DEVICE_TYPE,
-        H200_DEVICE_TYPE,
-        B200_DEVICE_TYPE,
-    ]:
+    if (
+        system.accelerator_type == AcceleratorType["GPU"]
+        and system.gpu_requires_topology
+    ):
       return _NameAndYaml(
           name="gke-default",
           yaml=self.template_env.get_template(

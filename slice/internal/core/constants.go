@@ -20,7 +20,7 @@ const (
 	TPUTopologyAnnotation = "cloud.google.com/gke-tpu-topology"
 	TPUAcceleratorLabel   = "cloud.google.com/gke-tpu-accelerator"
 	TPUBlockLabel         = "cloud.google.com/gce-topology-block"
-	TPUSubBlockLabel      = "cloud.google.com/gke-tpu-partition-id-4x4x4"
+	TPUSubBlockLabel      = "cloud.google.com/gke-tpu-partition-4x4x4-id"
 
 	TPUSliceHealthNodeSelectorKey   = "cloud.google.com/gke-tpu-partition-4x4x4-state"
 	TPUSliceHealthNodeSelectorHealthy = "HEALTHY"
@@ -54,6 +54,6 @@ const (
 )
 
 const (
-	OwnerWorkloadNamespaceAnnotation = "slice.accelerator.gke.io/owner-workload-namespace"
-	OwnerWorkloadNameAnnotation      = "slice.accelerator.gke.io/owner-workload-name"
+	OwnerWorkloadNamespaceAnnotation = "accelerator.gke.io/owner-workload-namespace"
+	OwnerWorkloadNameAnnotation      = "accelerator.gke.io/owner-workload-name"
 )

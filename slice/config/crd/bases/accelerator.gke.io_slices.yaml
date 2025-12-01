@@ -4,9 +4,9 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.18.0
-  name: slices.slice.accelerator.gke.io
+  name: slices.accelerator.gke.io
 spec:
-  group: slice.accelerator.gke.io
+  group: accelerator.gke.io
   names:
     kind: Slice
     listKind: SliceList

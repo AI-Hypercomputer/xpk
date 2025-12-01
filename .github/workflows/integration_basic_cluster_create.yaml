@@ -166,5 +166,5 @@ jobs:
               if: always()
               uses: actions/upload-artifact@v4
               with:
-                  name: empty-private-cluster-nodepool-log-${{github.run_id}}
+                  name: empty-dws-cluster-nodepool-log-${{github.run_id}}
                   path: /tmp/NodepoolCreate-$DWS_FLEX_CLUSTER_NAME-np-*

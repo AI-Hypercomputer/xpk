@@ -54,6 +54,6 @@ const (
 )
 
 const (
-	OwnerWorkloadNamespaceAnnotation = "slice.accelerator.gke.io/owner-workload-namespace"
-	OwnerWorkloadNameAnnotation      = "slice.accelerator.gke.io/owner-workload-name"
+	OwnerWorkloadNamespaceAnnotation = "accelerator.gke.io/owner-workload-namespace"
+	OwnerWorkloadNameAnnotation      = "accelerator.gke.io/owner-workload-name"
 )

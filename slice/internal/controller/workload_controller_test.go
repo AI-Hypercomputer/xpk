@@ -654,7 +654,7 @@ func TestWorkloadReconciler(t *testing.T) {
 					Obj(),
 			},
 		},
-		"shouldn’t add finalizer because the worker2 node lacks the cloud.google.com/gke-tpu-partition-id-4x4x4 label": {
+		"shouldn’t add finalizer because the worker2 node lacks the cloud.google.com/gke-tpu-partition-4x4x4-id label": {
 			request: baseRequest,
 			objs: []client.Object{
 				worker1Node.DeepCopy(),

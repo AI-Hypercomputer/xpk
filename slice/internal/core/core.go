@@ -23,7 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"tpu-slice-controller/api/v1alpha1"
+	"tpu-slice-controller/api/v1beta1"
 )
 
 type MMIGHealthStatus string
@@ -40,7 +40,7 @@ func IsValidTPUTopology(tpuTopology string) bool {
 }
 
 func IsValidTPUAccelerator(tpuAccelerator string) bool {
-	return tpuAccelerator == string(v1alpha1.TypeTpu7x)
+	return tpuAccelerator == string(v1beta1.TypeTpu7x)
 }
 
 func IsRelevantPodTemplateSpec(spec corev1.PodTemplateSpec) bool {
@@ -56,7 +56,7 @@ func GetTPUAccelerator(spec corev1.PodTemplateSpec) string {
 	return spec.Spec.NodeSelector[TPUAcceleratorLabel]
 }
 
-func GetSliceState(slice v1alpha1.Slice) SliceState {
+func GetSliceState(slice v1beta1.Slice) SliceState {
 	if !slice.DeletionTimestamp.IsZero() {
 		return SliceStateDeleted
 	}
@@ -66,7 +66,7 @@ func GetSliceState(slice v1alpha1.Slice) SliceState {
 	if isStale(&slice) {
 		return SliceStateStale
 	}
-	condReady := meta.FindStatusCondition(slice.Status.Conditions, v1alpha1.SliceStateConditionType)
+	condReady := meta.FindStatusCondition(slice.Status.Conditions, v1beta1.SliceStateConditionType)
 	if condReady != nil && condReady.Status == metav1.ConditionTrue {
 		if condReady.Reason == string(MMIGHealthStatusActive) {
 			return SliceStateActive

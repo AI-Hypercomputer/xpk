@@ -37,7 +37,7 @@ import (
 	"sigs.k8s.io/kueue/pkg/workload"
 	"sigs.k8s.io/kueue/test/util"
 
-	slice "tpu-slice-controller/api/v1alpha1"
+	slice "tpu-slice-controller/api/v1beta1"
 	"tpu-slice-controller/internal/controller"
 	"tpu-slice-controller/internal/core"
 	"tpu-slice-controller/internal/util/testing"

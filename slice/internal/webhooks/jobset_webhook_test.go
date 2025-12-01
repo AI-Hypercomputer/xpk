@@ -23,7 +23,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
 
-	slice "tpu-slice-controller/api/v1alpha1"
+	slice "tpu-slice-controller/api/v1beta1"
 	"tpu-slice-controller/internal/core"
 	testingjobjobset "tpu-slice-controller/internal/util/testingjobs/jobset"
 	"tpu-slice-controller/test/utils"

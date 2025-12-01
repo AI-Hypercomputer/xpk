@@ -19,13 +19,20 @@ import subprocess
 import sys
 import time
 
+from typing import Callable
 from ..utils.objects import chunks
 from ..utils.file import make_tmp_files, write_tmp_file
 from ..utils.console import xpk_print
 from ..utils.execution_context import is_dry_run
 
 
-def run_commands(commands, jobname, per_command_name, batch=10):
+def run_commands(
+    commands: list[str],
+    jobname: str,
+    per_command_name: list[str],
+    batch: int = 10,
+    error_handler: Callable[[str, str, str], None] | None = None,
+):
   """Run commands in groups of `batch`.
 
   Args:
@@ -57,6 +64,7 @@ def run_commands(commands, jobname, per_command_name, batch=10):
         jobname,
         per_command_name_batches[i],
         temporary_files_batches[i],
+        error_handler,
     )
     max_return_code = max(max_return_code, batch_max_return_code)
     if max_return_code > 0:
@@ -64,7 +72,13 @@ def run_commands(commands, jobname, per_command_name, batch=10):
   return max_return_code
 
 
-def run_command_batch(commands, jobname, per_command_name, output_logs):
+def run_command_batch(
+    commands: list[str],
+    jobname: str,
+    per_command_name: list[str],
+    output_logs: list[str],
+    error_handler: Callable[[str, str, str], None] | None = None,
+):
   """Runs commands in parallel.
 
   Args:
@@ -118,6 +132,12 @@ def run_command_batch(commands, jobname, per_command_name, output_logs):
       )
       for child in children:
         child.terminate()
+      if error_handler:
+        error_handler(
+            commands[failing_index],
+            per_command_name[failing_index],
+            output_logs[failing_index],
+        )
       break
 
     if completed == total:

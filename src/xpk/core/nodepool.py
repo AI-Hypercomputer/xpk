@@ -362,6 +362,7 @@ def run_gke_node_pool_create_command(
       create_commands,
       'Create Nodepools',
       create_task_names,
+      error_handler=handle_nodepool_creation_error,
   )
   if max_return_code != 0:
     xpk_print(f'Create Nodepools returned ERROR {max_return_code}')
@@ -369,6 +370,34 @@ def run_gke_node_pool_create_command(
 
   xpk_print('Create or delete node pool request complete.')
   return 0
+
+
+def handle_nodepool_creation_error(
+    command: str, task_name: str, logfile: str
+) -> None:
+  """Check nodepool creation log for errors that we want to surface to the user.
+
+  Args:
+    command: command that failed (not used)
+    task_name: name of the task that failed (not used)
+    logfile: path to the command output log file
+  """
+  try:
+    with open(logfile, 'r', encoding='utf-8') as f:
+      contents = f.read()
+    error_marker = 'finished with error:'
+    error = contents[contents.index(error_marker) + len(error_marker) :].strip()
+    # the longest error we're expecting to see is 256 characters + np name
+    max_error_display_length = 400
+    xpk_print(f'Nodepool creation error: {error[:max_error_display_length]}')
+    if (
+        error.find('lack of capacity') != -1
+        or error.find('Requested resource is exhausted') != -1
+    ):
+      xpk_print('NOTE: this error might be caused by a stockout')
+  except (FileNotFoundError, IOError, ValueError):
+    # silently ignore any log parsing errors
+    pass
 
 
 def get_node_pools_to_delete(

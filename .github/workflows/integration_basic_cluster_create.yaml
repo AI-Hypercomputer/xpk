@@ -149,22 +149,22 @@ jobs:
               uses: actions/upload-artifact@v4
               with:
                   name: cluster-nodepool-log-${{github.run_id}}
-                  path: /tmp/NodepoolCreate-$TPU_CLUSTER_NAME-np-*
+                  path: /tmp/NodepoolCreate-${{ env.TPU_CLUSTER_NAME }}-np-*
             - name: Upload empty cluster nodepool creation log
               if: always()
               uses: actions/upload-artifact@v4
               with:
                   name: empty-cluster-nodepool-log-${{github.run_id}}
-                  path: /tmp/NodepoolCreate-$EMPTY_CLUSTER_NAME-np-*
+                  path: /tmp/NodepoolCreate-${{ env.EMPTY_CLUSTER_NAME}}-np-*
             - name: Upload private cluster nodepool creation log
               if: always()
               uses: actions/upload-artifact@v4
               with:
                   name: empty-private-cluster-nodepool-log-${{github.run_id}}
-                  path: /tmp/NodepoolCreate-$PRIVATE_CLUSTER_NAME-np-*
+                  path: /tmp/NodepoolCreate-${{ env.PRIVATE_CLUSTER_NAME }}-np-*
             - name: Upload DWS cluster nodepool creation log
               if: always()
               uses: actions/upload-artifact@v4
               with:
                   name: empty-dws-cluster-nodepool-log-${{github.run_id}}
-                  path: /tmp/NodepoolCreate-$DWS_FLEX_CLUSTER_NAME-np-*
+                  path: /tmp/NodepoolCreate-${{ env.DWS_FLEX_CLUSTER_NAME }}-np-*

@@ -162,3 +162,9 @@ jobs:
               with:
                   name: empty-private-cluster-nodepool-log-${{github.run_id}}
                   path: /tmp/NodepoolCreate-$PRIVATE_CLUSTER_NAME-np-*
+            - name: Upload DWS cluster nodepool creation log
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: empty-dws-cluster-nodepool-log-${{github.run_id}}
+                  path: /tmp/NodepoolCreate-$DWS_FLEX_CLUSTER_NAME-np-*

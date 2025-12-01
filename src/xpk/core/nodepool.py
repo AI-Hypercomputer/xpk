@@ -373,7 +373,7 @@ def run_gke_node_pool_create_command(
 
 
 def handle_nodepool_creation_error(
-    command: str, task_name: str, logfile: str
+    unused_command: str, unused_task_name: str, logfile: str
 ) -> None:
   """Check nodepool creation log for errors that we want to surface to the user.
 

@@ -28,7 +28,7 @@ jobs:
     create_empty_cluster:
       runs-on: [ubuntu-22.04]
       concurrency: # We support one build test to run at a time currently.
-          group: nightly-test-cluster-group
+          group: nightly-test-cluster-group-empty
           cancel-in-progress: false
       env:
           EMPTY_CLUSTER_NAME: nightly-xpk-zero-nodepools
@@ -56,7 +56,7 @@ jobs:
     create_private_cluster:
       runs-on: [ubuntu-22.04]
       concurrency: # We support one build test to run at a time currently.
-          group: nightly-test-cluster-group
+          group: nightly-test-cluster-group-private
           cancel-in-progress: false
       env:
           PRIVATE_CLUSTER_NAME: nightly-xpk-private-2-v4-8-nodepools
@@ -86,7 +86,7 @@ jobs:
     dws_flex_cluster:
       runs-on: [ubuntu-22.04]
       concurrency: # We support one build test to run at a time currently.
-          group: nightly-test-cluster-group
+          group: nightly-test-cluster-group-flex
           cancel-in-progress: false
       env:
           DWS_FLEX_CLUSTER_NAME: xpk-dws-nightly-test-2-v4-8
@@ -119,7 +119,7 @@ jobs:
     cluster-create-and-delete:
         runs-on: [ubuntu-22.04]
         concurrency: # We support one build test to run at a time currently.
-            group: nightly-test-cluster-group
+            group: nightly-test-cluster-group-tpu
             cancel-in-progress: false
         env:
             TPU_CLUSTER_NAME: nightly-xpk-2-v5p-8-nodepools

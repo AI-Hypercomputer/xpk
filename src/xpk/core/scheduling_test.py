@@ -65,6 +65,7 @@ def test_create_placement_policy_label_returns_valid_label():
       device_type='tpu7x',
       accelerator_type=AcceleratorType.TPU,
       supports_sub_slicing=False,
+      supports_super_slicing=False,
       docker_platform=DockerPlatform.ARM,
   )
   label = create_placement_policy_label(system_characteristics)
@@ -85,6 +86,7 @@ def test_get_placement_policy_name_returns_valid_name():
       device_type='tpu7x',
       accelerator_type=AcceleratorType.TPU,
       supports_sub_slicing=False,
+      supports_super_slicing=False,
       docker_platform=DockerPlatform.ARM,
   )
   name = get_placement_policy_name(system_characteristics)
@@ -102,6 +104,7 @@ def test_is_placement_policy_supported_returns_true_for_system_characteristics_s
       device_type='tpu7x',
       accelerator_type=AcceleratorType.TPU,
       supports_sub_slicing=False,
+      supports_super_slicing=False,
       docker_platform=DockerPlatform.ARM,
   )
   assert is_placement_policy_supported(system_characteristics) is True
@@ -118,6 +121,7 @@ def test_is_placement_policy_supported_returns_false_for_system_characteristics_
       device_type='tpu7x',
       accelerator_type=AcceleratorType.TPU,
       supports_sub_slicing=False,
+      supports_super_slicing=False,
       docker_platform=DockerPlatform.ARM,
   )
   assert is_placement_policy_supported(system_characteristics) is False
@@ -134,6 +138,7 @@ def test_is_placement_policy_supported_returns_false_for_system_characteristics_
       device_type='tpu7x',
       accelerator_type=AcceleratorType.TPU,
       supports_sub_slicing=False,
+      supports_super_slicing=False,
       docker_platform=DockerPlatform.ARM,
   )
   assert is_placement_policy_supported(system_characteristics) is False

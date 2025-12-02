@@ -34,6 +34,7 @@ SYSTEM_CHARACTERISTICS = SystemCharacteristics(
     accelerator_type=AcceleratorType.TPU,
     device_type='l4-1',
     supports_sub_slicing=True,
+    supports_super_slicing=False,
     requires_workload_policy=False,
     docker_platform=DockerPlatform.AMD,
 )

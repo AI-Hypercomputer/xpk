@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import itertools
 import pytest
 import json
 from .config import get_config, CLIENT_ID_KEY, SEND_TELEMETRY_KEY
@@ -26,7 +27,7 @@ from pytest_mock import MockerFixture
 @pytest.fixture(autouse=True)
 def setup_mocks(mocker: MockerFixture):
   mocker.patch('xpk.core.telemetry._get_session_id', return_value='321231')
-  mocker.patch('time.time', return_value=0)
+  mocker.patch('time.time', side_effect=itertools.count())
   mocker.patch('platform.python_version', return_value='99.99.99')
   mocker.patch('os.path.basename', return_value='xpk.py')
   mocker.patch('os.path.abspath', return_value='/home/xpk_user')
@@ -139,6 +140,19 @@ def test_metrics_collector_logs_custom_event_correctly():
   }
 
 
+def test_metrics_collector_computest_latency_correctly():
+  MetricsCollector.log_start(command='test')
+  MetricsCollector.log_complete(exit_code=0)
+  payload = json.loads(MetricsCollector.flush())
+  extension_json = json.loads(payload['log_event'][1]['source_extension_json'])
+  latency = (
+      el['value']
+      for el in extension_json['event_metadata']
+      if el['key'] == 'XPK_LATENCY_SECONDS'
+  )
+  assert next(latency, None) == '1'
+
+
 def test_metrics_collector_logs_correct_envelope():
   MetricsCollector.log_start(command='test')
   MetricsCollector.log_custom(
@@ -148,7 +162,7 @@ def test_metrics_collector_logs_correct_envelope():
   payload = json.loads(MetricsCollector.flush())
   assert payload['client_info'] == {'client_type': 'XPK'}
   assert payload['log_source_name'] == 'CONCORD'
-  assert payload['request_time_ms'] == 0
+  assert payload['request_time_ms'] == 3000
   assert len(payload['log_event']) == 3
 
 

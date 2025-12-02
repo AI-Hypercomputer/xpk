@@ -35,6 +35,7 @@ TPU_SYSTEM: SystemCharacteristics = SystemCharacteristics(
     accelerator_type=AcceleratorType.TPU,
     device_type="v5p-8",
     supports_sub_slicing=False,
+    supports_super_slicing=False,
     docker_platform=DockerPlatform.ARM,
 )
 
@@ -406,6 +407,7 @@ def test_configure_generates_correct_manifest_with_gke_default_topology(
           accelerator_type=AcceleratorType.GPU,
           device_type="h100-mega-80gb-8",
           supports_sub_slicing=False,
+          supports_super_slicing=False,
           docker_platform=DockerPlatform.ARM,
           gpu_config=GpuConfig(requires_topology=True),
       ),

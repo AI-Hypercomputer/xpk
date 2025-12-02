@@ -821,11 +821,14 @@ def workload_delete(args) -> None:
     if len(workloads) == 1:
       return_code = run_command_with_updates(commands[0], 'Delete Workload')
     else:
-      return_code = run_commands(
+      maybe_failure = run_commands(
           commands,
           'Delete Workload',
           task_names,
           batch=100,
+      )
+      return_code = (
+          maybe_failure.return_code if maybe_failure is not None else 0
       )
 
     if return_code != 0:

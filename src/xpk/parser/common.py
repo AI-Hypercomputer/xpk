@@ -380,8 +380,8 @@ def extract_command_path(parser: argparse.ArgumentParser, args):
     subparser_action = next(
         (
             action
-            for action in current_parser._actions
-            if isinstance(action, argparse._SubParsersAction)
+            for action in current_parser._actions  # pylint: disable=protected-access
+            if isinstance(action, argparse._SubParsersAction)  # pylint: disable=protected-access
         ),
         None,
     )

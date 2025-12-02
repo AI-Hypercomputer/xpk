@@ -194,6 +194,7 @@ def test_placement_policy_created_for_gpu_with_valid_topology(
       accelerator_type=AcceleratorType.GPU,
       device_type="h100-80gb-8",
       supports_sub_slicing=False,
+      supports_super_slicing=False,
       docker_platform=DockerPlatform.ARM,
       gpu_config=GpuConfig(requires_topology=True),
   )
@@ -226,6 +227,7 @@ def test_placement_policy_not_created_for_gpu_with_invalid_topology(
       accelerator_type=AcceleratorType.GPU,
       device_type="h100-80gb-8",
       supports_sub_slicing=False,
+      supports_super_slicing=False,
       docker_platform=DockerPlatform.ARM,
       gpu_config=GpuConfig(requires_topology=True),
   )
@@ -261,6 +263,7 @@ def test_placement_policy_created_for_tpu7x_with_valid_topology(
       device_type="tpu7x-8",
       requires_workload_policy=True,
       supports_sub_slicing=False,
+      supports_super_slicing=False,
       docker_platform=DockerPlatform.ARM,
   )
 
@@ -294,6 +297,7 @@ def test_placement_policy_not_created_for_non7x_tpu(
       accelerator_type=AcceleratorType.TPU,
       device_type="v6e-4",
       supports_sub_slicing=True,
+      supports_super_slicing=False,
       docker_platform=DockerPlatform.ARM,
   )
 

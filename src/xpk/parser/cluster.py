@@ -132,6 +132,10 @@ def set_cluster_create_parser(cluster_create_parser: ArgumentParser):
 
   if FeatureFlags.SUB_SLICING_ENABLED:
     add_cluster_create_sub_slicing_arguments(cluster_create_optional_arguments)
+  if FeatureFlags.SUPER_SLICING_ENABLED:
+    add_cluster_create_super_slicing_arguments(
+        cluster_create_optional_arguments
+    )
 
   autoprovisioning_arguments = cluster_create_parser.add_argument_group(
       'Autoprovisioning Arguments',
@@ -203,6 +207,10 @@ def set_cluster_create_pathways_parser(
   )
   if FeatureFlags.SUB_SLICING_ENABLED:
     add_cluster_create_sub_slicing_arguments(
+        cluster_create_pathways_optional_arguments
+    )
+  if FeatureFlags.SUPER_SLICING_ENABLED:
+    add_cluster_create_super_slicing_arguments(
         cluster_create_pathways_optional_arguments
     )
 
@@ -909,4 +917,14 @@ def add_cluster_create_sub_slicing_arguments(
       '--sub-slicing',
       action='store_true',
       help='Whether to set up cluster to support sub-slicing',
+  )
+
+
+def add_cluster_create_super_slicing_arguments(
+    parser_or_group: ParserOrArgumentGroup,
+):
+  parser_or_group.add_argument(
+      '--super-slicing',
+      action='store_true',
+      help='Whether to set up cluster to support super-slicing',
   )

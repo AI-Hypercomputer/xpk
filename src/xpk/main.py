@@ -36,6 +36,7 @@ import argcomplete
 import sys
 
 from .parser.core import set_parser
+from .parser.common import extract_command_path
 from .core.updates import print_xpk_hello
 from .core.config import set_config, FileSystemConfig
 from .core.telemetry import MetricsCollector, send_clearcut_payload, should_send_telemetry
@@ -78,7 +79,7 @@ def main() -> None:
             or ('force' in main_args and main_args.force)
         ),
     )
-    MetricsCollector.log_start(main_args.xpk_subcommands)
+    MetricsCollector.log_start(command=extract_command_path(parser, main_args))
     print_xpk_hello()
     main_args.func(main_args)
     xpk_print('XPK Done.', flush=True)

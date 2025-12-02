@@ -200,13 +200,13 @@ def run_gke_node_pool_create_command(
       xpk_print(
           f'To complete {delete_task_names[i]} we are executing {command}'
       )
-    failed_command = run_commands(
+    maybe_failure = run_commands(
         delete_commands,
         'Delete Nodepools',
         delete_task_names,
     )
-    if failed_command is not None:
-      xpk_print(f'Delete Nodepools returned ERROR {failed_command.return_code}')
+    if maybe_failure is not None:
+      xpk_print(f'Delete Nodepools returned ERROR {maybe_failure.return_code}')
       return 1
 
   # Enable Workload Identity on existing Nodepools
@@ -224,15 +224,15 @@ def run_gke_node_pool_create_command(
         xpk_print(
             f'To complete {update_WI_task_names[i]} we are executing {command}'
         )
-      failed_command = run_commands(
+      maybe_failure = run_commands(
           update_WI_commands,
           'Enable Workload Identity on existing Nodepools',
           update_WI_task_names,
       )
-      if failed_command is not None:
+      if maybe_failure is not None:
         xpk_print(
             'Enable Workload Identity on existing Nodepools returned ERROR'
-            f' {failed_command.return_code}'
+            f' {maybe_failure.return_code}'
         )
         return 1
 
@@ -358,25 +358,25 @@ def run_gke_node_pool_create_command(
 
   for i, command in enumerate(create_commands):
     xpk_print(f'To complete {create_task_names[i]} we are executing {command}')
-  failed_command = run_commands(
+  maybe_failure = run_commands(
       create_commands,
       'Create Nodepools',
       create_task_names,
   )
-  if failed_command is not None:
-    display_nodepool_creation_error(failed_command)
+  if maybe_failure is not None:
+    display_nodepool_creation_error(maybe_failure)
     return 1
 
   xpk_print('Create or delete node pool request complete.')
   return 0
 
 
-def display_nodepool_creation_error(failed_command: FailedCommand) -> None:
+def display_nodepool_creation_error(maybe_failure: FailedCommand) -> None:
   """Display nodepool creation errors to the user."""
 
-  xpk_print(f'Create Nodepools returned ERROR {failed_command.return_code}')
+  xpk_print(f'Create Nodepools returned ERROR {maybe_failure.return_code}')
   try:
-    with open(failed_command.logfile, 'r', encoding='utf-8') as f:
+    with open(maybe_failure.logfile, 'r', encoding='utf-8') as f:
       contents = f.read()
     error_marker = 'finished with error:'
     error = contents[contents.index(error_marker) + len(error_marker) :].strip()

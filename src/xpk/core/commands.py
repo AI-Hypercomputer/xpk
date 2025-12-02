@@ -67,14 +67,14 @@ def run_commands(
 
   for i, _ in enumerate(commands_batched):
     xpk_print(f'Dispatching batch {i}/{len(commands_batched)}')
-    failed_command = run_command_batch(
+    maybe_failure = run_command_batch(
         commands_batched[i],
         jobname,
         per_command_name_batches[i],
         temporary_files_batches[i],
     )
-    if failed_command is not None:
-      return failed_command
+    if maybe_failure is not None:
+      return maybe_failure
   return None
 
 
@@ -106,7 +106,7 @@ def run_command_batch(
         subprocess.Popen(command, stdout=file, stderr=file, shell=True)
     )
 
-  failed_command: FailedCommand | None = None
+  maybe_failure: FailedCommand | None = None
   while True:
     returncodes = [child.poll() for child in children]
     max_returncode = max([0] + [r for r in returncodes if r is not None])
@@ -139,7 +139,7 @@ def run_command_batch(
       )
       for child in children:
         child.terminate()
-      failed_command = FailedCommand(
+      maybe_failure = FailedCommand(
           return_code=returncodes[failing_index] or 0,
           name=per_command_name[failing_index],
           command=commands[failing_index],
@@ -155,7 +155,7 @@ def run_command_batch(
   for file in files:
     file.close()
 
-  return failed_command
+  return maybe_failure
 
 
 def run_command_with_updates_retry(

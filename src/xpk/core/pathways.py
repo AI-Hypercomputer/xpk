@@ -325,10 +325,10 @@ def try_to_delete_pathwaysjob_first(args, workloads) -> bool:
   if len(workloads) == 1:
     return_code = run_command_with_updates(commands[0], 'Delete Workload')
   else:
-    failed_command = run_commands(
+    maybe_failure = run_commands(
         commands, 'Delete Workload', task_names, batch=100
     )
-    return_code = 0 if failed_command is None else failed_command.return_code
+    return_code = 0 if maybe_failure is None else maybe_failure.return_code
 
   if return_code != 0:
     xpk_print(f'Delete Workload request returned ERROR {return_code}')

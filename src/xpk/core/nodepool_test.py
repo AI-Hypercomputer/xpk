@@ -26,7 +26,7 @@ from xpk.core.commands import FailedCommand
 
 
 CLUSTER_NAME = "running-cucumber"
-FAILED_COMMAND = FailedCommand(
+maybe_failure = FailedCommand(
     return_code=1,
     name="create-nodepool",
     command="test-command",
@@ -348,7 +348,7 @@ def test_display_nodepool_creation_error_handles_error_messages(
   ...
   ] finished with error: """ + error_message + "\n"
   mocker.patch("builtins.open", mocker.mock_open(read_data=log_contents))
-  display_nodepool_creation_error(FAILED_COMMAND)
+  display_nodepool_creation_error(maybe_failure)
 
   assert mock_xpk_print.call_count == 3 if is_stockout else 2
   assert (
@@ -376,7 +376,7 @@ def test_display_nodepool_creation_ignores_logs_without_errors(
   ...
   ] succeeded!"""
   mocker.patch("builtins.open", mocker.mock_open(read_data=log_contents))
-  display_nodepool_creation_error(FAILED_COMMAND)
+  display_nodepool_creation_error(maybe_failure)
 
   assert mock_xpk_print.call_count == 1
   assert (

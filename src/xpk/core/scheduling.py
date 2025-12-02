@@ -16,7 +16,7 @@ limitations under the License.
 
 from enum import Enum
 
-from .kueue_manager import get_installed_kueue_version, has_sub_slicing_enabled
+from .kueue_manager import get_installed_kueue_version, has_sub_slicing_enabled, has_super_slicing_enabled
 from ..utils.feature_flags import FeatureFlags
 from ..utils.topology import get_slice_topology_level
 from ..utils.console import xpk_print
@@ -33,12 +33,14 @@ from .system_characteristics import (
 from packaging.version import Version
 
 _SUB_SLICING_MINIMUM_KUEUE_VERSION = Version('0.13.0')
+_SUPER_SLICING_MINIMUM_KUEUE_VERSION = Version('0.14.0')
 
 
 class WorkloadScheduling(Enum):
   UNAVAILABLE = 0
   AVAILABLE = 1
   SUB_SLICING_AVAILABLE = 2
+  SUPER_SLICING_AVAILABLE = 3
 
 
 def check_if_workload_can_schedule(
@@ -107,6 +109,19 @@ def check_if_workload_can_schedule(
     else:
       return WorkloadScheduling.UNAVAILABLE
 
+  if _check_super_slicing_availability(
+      workload_system=workload_system, cluster_system=cluster_system
+  ):
+    assert cluster_system
+    if _check_workload_size_fits(
+        args,
+        workload_system,
+        max_vm_in_cluster=int(resources_config_map[cluster_system.device_type]),
+    ):
+      return WorkloadScheduling.SUPER_SLICING_AVAILABLE
+    else:
+      return WorkloadScheduling.UNAVAILABLE
+
   xpk_print(
       'Workload scheduling validation failed. XPK will not create the workload'
       f' {args.workload}.'
@@ -163,13 +178,41 @@ def _check_sub_slicing_availability(
     return False
 
   return_code, current_version = get_installed_kueue_version(
-      dry_run_version=Version('0.13')
+      dry_run_version=_SUB_SLICING_MINIMUM_KUEUE_VERSION
   )
 
   return (
       return_code == 0
       and current_version is not None
       and current_version >= _SUB_SLICING_MINIMUM_KUEUE_VERSION
+  )
+
+
+def _check_super_slicing_availability(
+    workload_system: SystemCharacteristics,
+    cluster_system: SystemCharacteristics | None,
+) -> bool:
+  # TODO: b/465447813 - Add super-slicing workload topology validation.
+  if (
+      (not FeatureFlags.SUPER_SLICING_ENABLED)
+      or (not cluster_system)
+      or (workload_system.gke_accelerator != cluster_system.gke_accelerator)
+      or (not cluster_system.supports_super_slicing)
+  ):
+    return False
+
+  return_code, sub_slicing_enabled = has_super_slicing_enabled()
+  if return_code != 0 or not sub_slicing_enabled:
+    return False
+
+  return_code, current_version = get_installed_kueue_version(
+      dry_run_version=_SUPER_SLICING_MINIMUM_KUEUE_VERSION
+  )
+
+  return (
+      return_code == 0
+      and current_version is not None
+      and current_version >= _SUPER_SLICING_MINIMUM_KUEUE_VERSION
   )
 
 

@@ -21,7 +21,7 @@ from pytest_mock import MockerFixture
 import yaml
 from unittest.mock import MagicMock, patch
 
-from xpk.core.kueue_manager import KueueConfig, KueueManager, has_sub_slicing_enabled
+from xpk.core.kueue_manager import KueueConfig, KueueManager, has_sub_slicing_enabled, has_super_slicing_enabled
 from xpk.core.system_characteristics import GpuConfig, DockerPlatform, AcceleratorType, SystemCharacteristics, UserFacingNameToSystemCharacteristics
 from xpk.core.testing.commands_tester import CommandsTester
 from packaging.version import Version
@@ -551,7 +551,7 @@ def test_has_sub_slicing_enabled_returns_false_when_sub_slicing_topology_is_not_
   assert result is False
 
 
-def test_has_sub_slicing_enabled_returns_true_when_sub_slicing_topology_is_not_present(
+def test_has_sub_slicing_enabled_returns_true_when_sub_slicing_topology_is_present(
     mock_commands: CommandsTester,
 ):
   mock_commands.set_result_for_command(
@@ -559,6 +559,41 @@ def test_has_sub_slicing_enabled_returns_true_when_sub_slicing_topology_is_not_p
   )
 
   return_code, result = has_sub_slicing_enabled()
+
+  assert return_code == 0
+  assert result is True
+
+
+def test_has_super_slicing_enabled_returns_exit_code_when_command_fails(
+    mock_commands: CommandsTester,
+):
+  mock_commands.set_result_for_command((1, ""), "kubectl get topology")
+
+  return_code, result = has_super_slicing_enabled()
+
+  assert return_code == 1
+  assert result is None
+
+
+def test_has_super_slicing_enabled_returns_false_when_super_slicing_topology_is_not_present(
+    mock_commands: CommandsTester,
+):
+  mock_commands.set_result_for_command((0, ""), "kubectl get topology")
+
+  return_code, result = has_super_slicing_enabled()
+
+  assert return_code == 0
+  assert result is False
+
+
+def test_has_super_slicing_enabled_returns_true_when_super_slicing_topology_is_present(
+    mock_commands: CommandsTester,
+):
+  mock_commands.set_result_for_command(
+      (0, "super-slice-topology"), "kubectl get topology"
+  )
+
+  return_code, result = has_super_slicing_enabled()
 
   assert return_code == 0
   assert result is True

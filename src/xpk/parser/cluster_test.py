@@ -144,3 +144,47 @@ def test_cluster_create_enable_lustre_legacy_port_can_be_set():
   ])
 
   assert args.enable_legacy_lustre_port is True
+
+
+def test_cluster_create_super_slicing_is_hidden_with_flag_off():
+  FeatureFlags.SUPER_SLICING_ENABLED = False
+  parser = argparse.ArgumentParser()
+
+  set_cluster_create_parser(parser)
+  help_str = parser.format_help()
+
+  assert "--super-slicing" not in help_str
+
+
+def test_cluster_create_super_slicing_is_shown_with_flag_on():
+  FeatureFlags.SUPER_SLICING_ENABLED = True
+  parser = argparse.ArgumentParser()
+
+  set_cluster_create_parser(parser)
+  help_str = parser.format_help()
+
+  assert "--super-slicing" in help_str
+
+
+def test_cluster_create_super_slicing_is_false_by_default():
+  FeatureFlags.SUPER_SLICING_ENABLED = True
+  parser = argparse.ArgumentParser()
+
+  set_cluster_create_parser(parser)
+  args = parser.parse_args(
+      ["--cluster", "test-cluster", "--tpu-type", "tpu7x-2"]
+  )
+
+  assert args.super_slicing is False
+
+
+def test_cluster_create_super_slicing_can_be_set():
+  FeatureFlags.SUPER_SLICING_ENABLED = True
+  parser = argparse.ArgumentParser()
+
+  set_cluster_create_parser(parser)
+  args = parser.parse_args(
+      ["--cluster", "test-cluster", "--tpu-type", "tpu7x-2", "--super-slicing"],
+  )
+
+  assert args.super_slicing is True

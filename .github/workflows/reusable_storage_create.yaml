@@ -19,9 +19,9 @@ on:
         type: string
         required: true
       device-type:
-        description: 'TPU Type'
+        description: 'Device Type'
         required: false
-        default: 'v4-8'
+        default: 'n2-standard-64-1'
         type: string
       zone:
         type: string

@@ -40,7 +40,7 @@ jobs:
     - name: Check xpk installation
       run: xpk version
     - name: Create cluster
-      run: xpk cluster create --cluster xpk-storage-tests --tpu-type=v4-8  --num-slices=1 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=2 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --enable-gcpfilestore-csi-driver --enable-gcsfuse-csi-driver --custom-cluster-arguments="${CLUSTER_ARGUMENTS}"
+      run: xpk cluster create --cluster xpk-storage-tests --device-type=n2-standard-64-1  --num-slices=1 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=2 --on-demand --enable-gcpfilestore-csi-driver --enable-gcsfuse-csi-driver --custom-cluster-arguments="${CLUSTER_ARGUMENTS}"
 
   delete-cluster:
     runs-on: [ubuntu-22.04]

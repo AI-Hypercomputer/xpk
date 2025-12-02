@@ -43,7 +43,7 @@ jobs:
           - name: Check xpk installation
             run: xpk version
           - name: Create an XPK Cluster with zero node pools
-            run: xpk cluster create --cluster $EMPTY_CLUSTER_NAME --tpu-type=v4-8  --num-slices=0 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments='${{ secrets.CLUSTER_ARGUMENTS }}'
+            run: xpk cluster create --cluster $EMPTY_CLUSTER_NAME --device-type=n2-standard-64-1 --num-slices=0 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --on-demand --custom-cluster-arguments='${{ secrets.CLUSTER_ARGUMENTS }}'
           - name: Delete the cluster created
             run: xpk cluster delete --cluster $EMPTY_CLUSTER_NAME --zone=us-central2-b --force
             if: always()
@@ -71,7 +71,7 @@ jobs:
           - name: Check xpk installation
             run: xpk version
           - name: Create a Private XPK Cluster with zero node pools
-            run: xpk cluster create --cluster $PRIVATE_CLUSTER_NAME --private --tpu-type=v4-8  --num-slices=0 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments='${CLUSTER_NETWORK_ARGUMENTS}'
+            run: xpk cluster create --cluster $PRIVATE_CLUSTER_NAME --private --device-type=n2-standard-64-1  --num-slices=0 --zone=us-central2-b --default-pool-cpu-machine-type=n1-standard-16 --on-demand --custom-cluster-arguments='${CLUSTER_NETWORK_ARGUMENTS}'
           - name: Verify the created cluster is private
             run: gcloud container clusters describe $PRIVATE_CLUSTER_NAME --region=us-central2 --format="value(privateClusterConfig.enablePrivateNodes)" | grep 'True' || (echo 'The created cluster is not private.' && exit 1)
           - name: Delete the cluster created

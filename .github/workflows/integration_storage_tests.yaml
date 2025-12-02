@@ -71,7 +71,7 @@ jobs:
       cancel-in-progress: true
     with:
       cluster-name: xpk-storage-tests
-      tpu-type: v4-8
+      device-type: n2-standard-64-1
       zone: us-central2-b
       storage-type: 'gcsfuse'
       storage-command: 'attach'
@@ -103,7 +103,7 @@ jobs:
       cancel-in-progress: true
     with:
       cluster-name: xpk-storage-tests
-      tpu-type: v4-8
+      device-type: n2-standard-64-1
       zone: us-central2-b
       storage-type: 'gcpfilestore'
       storage-command: 'create'
@@ -134,7 +134,7 @@ jobs:
       cancel-in-progress: true
     with:
       cluster-name: xpk-storage-tests
-      tpu-type: v4-8
+      device-type: n2-standard-64-1
       zone: us-central2-b
       storage-type: 'gcpfilestore'
       storage-command: 'attach'

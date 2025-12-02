@@ -176,3 +176,15 @@ def test_cluster_create_super_slicing_is_false_by_default():
   )
 
   assert args.super_slicing is False
+
+
+def test_cluster_create_super_slicing_can_be_set():
+  FeatureFlags.SUPER_SLICING_ENABLED = True
+  parser = argparse.ArgumentParser()
+
+  set_cluster_create_parser(parser)
+  args = parser.parse_args(
+      ["--cluster", "test-cluster", "--tpu-type", "tpu7x-2", "--super-slicing"],
+  )
+
+  assert args.super_slicing is True

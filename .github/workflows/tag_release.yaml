@@ -41,6 +41,8 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
       - name: Create Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -49,6 +51,13 @@ jobs:
     name: Publish Python distribution to PyPI
     needs: [approval]
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    environment:
+      # We should configure trusted publishing as specified here: 
+      # https://packaging.python.org/en/latest/guides/publishing-package-distribution-releases-using-github-actions-ci-cd-workflows/#configuring-trusted-publishing
+      name: pypi
+      url: https://pypi.org/p/xpk  # Replace <package-name> with your PyPI project name
     steps:
     - name: Download all the dists
       uses: actions/download-artifact@v4

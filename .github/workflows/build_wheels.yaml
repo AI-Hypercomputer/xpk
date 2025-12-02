@@ -12,6 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License
 
+# Note: Name of this file needs to be build_wheels.yaml as this is the value that has been specified in pypi
+# If you want to change the name of this file, please update pypi publisher:
+# https://docs.pypi.org/trusted-publishers/adding-a-publisher/
+
 name: PyPi releases
 
 permissions:
@@ -20,8 +24,7 @@ permissions:
 on:
   push:
     tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+'
-
+      - "v[0-9]+.[0-9]+.[0-9]+"
 
 jobs:
   build_wheel:
@@ -41,6 +44,8 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
       - name: Create Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -49,11 +54,18 @@ jobs:
     name: Publish Python distribution to PyPI
     needs: [approval]
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    environment:
+      # We should configure trusted publishing as specified here:
+      # https://packaging.python.org/en/latest/guides/publishing-package-distribution-releases-using-github-actions-ci-cd-workflows/#configuring-trusted-publishing
+      name: pypi
+      url: https://pypi.org/p/xpk # Replace <package-name> with your PyPI project name
     steps:
-    - name: Download all the dists
-      uses: actions/download-artifact@v4
-      with:
-        name: python-package-distributions
-        path: dist/
-    - name: Publish distribution to PyPI
-      uses: pypa/gh-action-pypi-publish@release/v1
+      - name: Download all the dists
+        uses: actions/download-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+      - name: Publish distribution to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

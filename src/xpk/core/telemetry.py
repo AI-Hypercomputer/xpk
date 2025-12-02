@@ -124,6 +124,7 @@ class MetricsEventMetadataKey(Enum):
   EXIT_CODE = "XPK_EXIT_CODE"
   RUNNING_AS_PIP = "XPK_RUNNING_AS_PIP"
   RUNNING_FROM_SOURCE = "XPK_RUNNING_FROM_SOURCE"
+  LATENCY_SECONDS = "XPK_LATENCY_SECONDS"
 
 
 @dataclass
@@ -190,10 +191,14 @@ def _generate_payload(events: list[_MetricsEvent]) -> str:
   base_concord_event = _get_base_concord_event()
   base_event_metadata = _get_base_event_metadata()
   serialized_events = []
+  first_time = events[0].time if len(events) > 0 else 0
   for event in events:
     metadata = {
         **base_event_metadata,
         **event.metadata,
+        MetricsEventMetadataKey.LATENCY_SECONDS: str(
+            int(event.time - first_time)
+        ),
     }
     serialized_events.append({
         "event_time_ms": int(event.time * 1000),

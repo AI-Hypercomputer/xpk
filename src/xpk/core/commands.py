@@ -19,11 +19,19 @@ import subprocess
 import sys
 import time
 
-from typing import Callable
+from dataclasses import dataclass
 from ..utils.objects import chunks
 from ..utils.file import make_tmp_files, write_tmp_file
 from ..utils.console import xpk_print
 from ..utils.execution_context import is_dry_run
+
+
+@dataclass
+class FailedCommand:
+  return_code: int
+  name: str
+  command: str
+  logfile: str
 
 
 def run_commands(
@@ -31,8 +39,7 @@ def run_commands(
     jobname: str,
     per_command_name: list[str],
     batch: int = 10,
-    error_handler: Callable[[str, str, str], None] | None = None,
-):
+) -> FailedCommand | None:
   """Run commands in groups of `batch`.
 
   Args:
@@ -42,8 +49,10 @@ def run_commands(
     batch: number of commands to run in parallel.
 
   Returns:
-    0 if successful and 1 otherwise.
+    None if all commands were successful, FailedCommand instance containing
+    details of a single failing command otherwise
   """
+
   temporary_files_batches = chunks(make_tmp_files(per_command_name), batch)
   commands_batched = chunks(commands, batch)
   per_command_name_batches = chunks(per_command_name, batch)
@@ -54,22 +63,19 @@ def run_commands(
   )
   if is_dry_run():
     xpk_print('Pretending all the jobs succeeded')
-    return 0
+    return None
 
-  max_return_code = 0
   for i, _ in enumerate(commands_batched):
     xpk_print(f'Dispatching batch {i}/{len(commands_batched)}')
-    batch_max_return_code, _ = run_command_batch(
+    failed_command = run_command_batch(
         commands_batched[i],
         jobname,
         per_command_name_batches[i],
         temporary_files_batches[i],
-        error_handler,
     )
-    max_return_code = max(max_return_code, batch_max_return_code)
-    if max_return_code > 0:
-      return max_return_code
-  return max_return_code
+    if failed_command is not None:
+      return failed_command
+  return None
 
 
 def run_command_batch(
@@ -77,8 +83,7 @@ def run_command_batch(
     jobname: str,
     per_command_name: list[str],
     output_logs: list[str],
-    error_handler: Callable[[str, str, str], None] | None = None,
-):
+) -> FailedCommand | None:
   """Runs commands in parallel.
 
   Args:
@@ -88,7 +93,8 @@ def run_command_batch(
     output_logs: list of n log paths, each command will output to each log.
 
   Returns:
-    The max return code and a list of all the return codes.
+    None if all commands were successful, FailedCommand instance containing
+    details of a single failing command otherwise
   """
 
   files = [open(f, 'w', encoding='utf-8') for f in output_logs]
@@ -100,6 +106,7 @@ def run_command_batch(
         subprocess.Popen(command, stdout=file, stderr=file, shell=True)
     )
 
+  failed_command: FailedCommand | None = None
   while True:
     returncodes = [child.poll() for child in children]
     max_returncode = max([0] + [r for r in returncodes if r is not None])
@@ -132,12 +139,12 @@ def run_command_batch(
       )
       for child in children:
         child.terminate()
-      if error_handler:
-        error_handler(
-            commands[failing_index],
-            per_command_name[failing_index],
-            output_logs[failing_index],
-        )
+      failed_command = FailedCommand(
+          return_code=returncodes[failing_index] or 0,
+          name=per_command_name[failing_index],
+          command=commands[failing_index],
+          logfile=output_logs[failing_index],
+      )
       break
 
     if completed == total:
@@ -148,7 +155,7 @@ def run_command_batch(
   for file in files:
     file.close()
 
-  return max_returncode, returncodes
+  return failed_command
 
 
 def run_command_with_updates_retry(

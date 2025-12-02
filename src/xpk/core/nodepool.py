@@ -25,7 +25,7 @@ from .capacity import (
     get_capacity_type,
     print_reservations,
 )
-from .commands import run_command_for_value, run_commands
+from .commands import run_command_for_value, run_commands, FailedCommand
 from .gcloud_context import GkeServerConfig, get_cluster_location, zone_to_region
 from .resources import (
     ConfigMapType,
@@ -200,13 +200,13 @@ def run_gke_node_pool_create_command(
       xpk_print(
           f'To complete {delete_task_names[i]} we are executing {command}'
       )
-    max_return_code = run_commands(
+    failed_command = run_commands(
         delete_commands,
         'Delete Nodepools',
         delete_task_names,
     )
-    if max_return_code != 0:
-      xpk_print(f'Delete Nodepools returned ERROR {max_return_code}')
+    if failed_command is not None:
+      xpk_print(f'Delete Nodepools returned ERROR {failed_command.return_code}')
       return 1
 
   # Enable Workload Identity on existing Nodepools
@@ -224,15 +224,15 @@ def run_gke_node_pool_create_command(
         xpk_print(
             f'To complete {update_WI_task_names[i]} we are executing {command}'
         )
-      max_return_code = run_commands(
+      failed_command = run_commands(
           update_WI_commands,
           'Enable Workload Identity on existing Nodepools',
           update_WI_task_names,
       )
-      if max_return_code != 0:
+      if failed_command is not None:
         xpk_print(
             'Enable Workload Identity on existing Nodepools returned ERROR'
-            f' {max_return_code}'
+            f' {failed_command.return_code}'
         )
         return 1
 
@@ -358,32 +358,25 @@ def run_gke_node_pool_create_command(
 
   for i, command in enumerate(create_commands):
     xpk_print(f'To complete {create_task_names[i]} we are executing {command}')
-  max_return_code = run_commands(
+  failed_command = run_commands(
       create_commands,
       'Create Nodepools',
       create_task_names,
-      error_handler=handle_nodepool_creation_error,
   )
-  if max_return_code != 0:
-    xpk_print(f'Create Nodepools returned ERROR {max_return_code}')
+  if failed_command is not None:
+    display_nodepool_creation_error(failed_command)
     return 1
 
   xpk_print('Create or delete node pool request complete.')
   return 0
 
 
-def handle_nodepool_creation_error(
-    unused_command: str, unused_task_name: str, logfile: str
-) -> None:
-  """Check nodepool creation log for errors that we want to surface to the user.
+def display_nodepool_creation_error(failed_command: FailedCommand) -> None:
+  """Display nodepool creation errors to the user."""
 
-  Args:
-    command: command that failed (not used)
-    task_name: name of the task that failed (not used)
-    logfile: path to the command output log file
-  """
+  xpk_print(f'Create Nodepools returned ERROR {failed_command.return_code}')
   try:
-    with open(logfile, 'r', encoding='utf-8') as f:
+    with open(failed_command.logfile, 'r', encoding='utf-8') as f:
       contents = f.read()
     error_marker = 'finished with error:'
     error = contents[contents.index(error_marker) + len(error_marker) :].strip()

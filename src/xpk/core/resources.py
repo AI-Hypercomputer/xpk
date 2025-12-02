@@ -201,15 +201,15 @@ def _create_or_update_cluster_configmap(configmap_yml: dict[str, str]) -> int:
     task_name = f'ConfigMap CreateOrUpdate-{configmap_name}'
     task_names.append(task_name)
 
-  return_code = run_commands(
+  failed_command = run_commands(
       commands,
       'GKE Cluster CreateOrUpdate ConfigMap(s)',
       task_names,
   )
-  if return_code != 0:
+  if failed_command is not None:
     xpk_print(
         'GKE Cluster Create/Update ConfigMap(s) request returned ERROR'
-        f' {return_code}'
+        f' {failed_command.return_code}'
     )
     return 1
   return 0

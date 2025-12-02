@@ -16,14 +16,22 @@ limitations under the License.
 
 import pytest
 from xpk.core.nodepool import (
+    display_nodepool_creation_error,
     ensure_resource_policy_exists,
     get_desired_node_pool_names,
-    handle_nodepool_creation_error,
     run_gke_node_pool_create_command,
 )
 from xpk.core.system_characteristics import AcceleratorType, SystemCharacteristics, DockerPlatform, GpuConfig
+from xpk.core.commands import FailedCommand
+
 
 CLUSTER_NAME = "running-cucumber"
+FAILED_COMMAND = FailedCommand(
+    return_code=1,
+    name="create-nodepool",
+    command="test-command",
+    logfile="logfile_path",
+)
 
 
 def node_pool_name(number: int) -> str:
@@ -165,7 +173,7 @@ def mock_nodepool_dependencies(mocker):
   mocker.patch(
       "xpk.core.nodepool.get_cluster_location", return_value="us-central1"
   )
-  mocker.patch("xpk.core.nodepool.run_commands", return_value=0)
+  mocker.patch("xpk.core.nodepool.run_commands", return_value=None)
   mocker.patch("xpk.core.nodepool.ask_for_user_consent", return_value=True)
   mock_is_placement_policy_supported = mocker.patch(
       "xpk.core.nodepool.is_placement_policy_supported"
@@ -331,39 +339,47 @@ def test_placement_policy_not_created_for_non7x_tpu(
         ("Generic error message", False),
     ],
 )
-def test_handle_nodepool_creation_error_handles_error_messages(
+def test_display_nodepool_creation_error_handles_error_messages(
     mocker, mock_xpk_print, error_message, is_stockout
 ):
-  """Tests that handle_nodepool_creation_error surfaces errors and detects stockouts."""
+  """Tests that display_nodepool_creation_error surfaces errors and detects stockouts."""
 
   log_contents = """Operation [
   ...
   ] finished with error: """ + error_message + "\n"
   mocker.patch("builtins.open", mocker.mock_open(read_data=log_contents))
-  handle_nodepool_creation_error("test-command", "test-task-name", "logfile")
+  display_nodepool_creation_error(FAILED_COMMAND)
 
-  assert mock_xpk_print.call_count == 2 if is_stockout else 1
+  assert mock_xpk_print.call_count == 3 if is_stockout else 2
   assert (
       mock_xpk_print.call_args_list[0].args[0]
+      == "Create Nodepools returned ERROR 1"
+  )
+  assert (
+      mock_xpk_print.call_args_list[1].args[0]
       == "Nodepool creation error: " + error_message
   )
   assert (
       not is_stockout
-      or mock_xpk_print.call_args_list[1].args[0]
+      or mock_xpk_print.call_args_list[2].args[0]
       == "NOTE: this error might be caused by a stockout"
   )
 
 
-def test_handle_nodepool_creation_ignores_logs_without_errors(
+def test_display_nodepool_creation_ignores_logs_without_errors(
     mocker,
     mock_xpk_print,
 ):
-  """Tests that handle_nodepool_creation_error ignores log files with no errors."""
+  """Tests that display_nodepool_creation_error ignores log files with no errors."""
 
   log_contents = """Operation [
   ...
   ] succeeded!"""
   mocker.patch("builtins.open", mocker.mock_open(read_data=log_contents))
-  handle_nodepool_creation_error("test-command", "test-task-name", "logfile")
+  display_nodepool_creation_error(FAILED_COMMAND)
 
-  assert mock_xpk_print.call_count == 0
+  assert mock_xpk_print.call_count == 1
+  assert (
+      mock_xpk_print.call_args_list[0].args[0]
+      == "Create Nodepools returned ERROR 1"
+  )

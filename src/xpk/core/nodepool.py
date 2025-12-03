@@ -607,7 +607,7 @@ def get_desired_node_pool_names(
   while len(result) < desired_node_pool_count:
     result.add(f'{cluster_name}-np-{i}')
     i += 1
-  return list(result)
+  return list(sorted(result))
 
 
 def ensure_resource_policy_exists(

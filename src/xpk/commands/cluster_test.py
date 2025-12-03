@@ -614,7 +614,7 @@ def test_cluster_create_calls_run_command_with_correct_channel_and_version(
   mocks.commands_tester.assert_command_run(*expected_command_parts)
 
 
-def test_run_gke_cluster_create_command_with_super_slicing_enables_slice_operator(
+def test_run_gke_cluster_create_command_with_super_slicing_enables_slice_controller(
     mocks: _Mocks,
 ):
   FeatureFlags.SUPER_SLICING_ENABLED = True
@@ -627,5 +627,5 @@ def test_run_gke_cluster_create_command_with_super_slicing_enables_slice_operato
 
   assert result == 0
   mocks.commands_tester.assert_command_run(
-      'clusters create', '--enable-slice-operator'
+      'clusters create', '--enable-slice-controller'
   )

@@ -1257,7 +1257,7 @@ def run_gke_cluster_create_command(
     command += f' --addons={addons_str}'
 
   if FeatureFlags.SUPER_SLICING_ENABLED and args.super_slicing:
-    command += ' --enable-slice-operator'
+    command += ' --enable-slice-controller'
 
   if args.custom_cluster_arguments:
     command += f' {args.custom_cluster_arguments}'

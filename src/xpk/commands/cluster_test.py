@@ -617,6 +617,7 @@ def test_cluster_create_calls_run_command_with_correct_channel_and_version(
 def test_run_gke_cluster_create_command_with_super_slicing_enables_slice_operator(
     mocks: _Mocks,
 ):
+  FeatureFlags.SUPER_SLICING_ENABLED = True
   result = run_gke_cluster_create_command(
       args=construct_args(gke_version='1.2.3', super_slicing=True),
       gke_control_plane_version='1.2.3',

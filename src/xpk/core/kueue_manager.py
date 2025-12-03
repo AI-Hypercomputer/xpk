@@ -380,17 +380,11 @@ class KueueManager:
           }],
       })
 
-    admission_checks_names = []
+    admission_checks = []
     if system.supports_super_slicing:
-      admission_checks_names.append("ss-kueue-operator")
+      admission_checks.append("ss-kueue-operator")
     if flex and is_queued_cluster(num_slices, system.accelerator_type):
-      admission_checks_names.append("dws-prov")
-    admission_checks_formatted = ""
-    if len(admission_checks_names) > 0:
-      admission_checks_formatted = "\n".join(
-          ["admissionChecks:"]
-          + [f"- {name}" for name in admission_checks_names]
-      )
+      admission_checks.append("dws-prov")
 
     return {
         "flavors": flavors,
@@ -399,7 +393,7 @@ class KueueManager:
         "managed_resource": managed_resource,
         "cluster_queue_name": CLUSTER_QUEUE_NAME,
         "local_queue_name": LOCAL_QUEUE_NAME,
-        "admission_checks": admission_checks_formatted,
+        "admission_checks": admission_checks,
     }
 
   def __get_topology_name_and_yaml(

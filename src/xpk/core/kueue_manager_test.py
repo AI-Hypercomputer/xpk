@@ -371,6 +371,7 @@ def test_configure_generates_manifest_with_admission_checks_for_flex_single_slic
       KUEUE_CONFIG,
       num_slices=1,
       flex=True,
+      system=UserFacingNameToSystemCharacteristics["l4-1"],
   )
 
   kueue_manager.install_or_upgrade(kueue_config)
@@ -383,7 +384,7 @@ def test_configure_generates_manifest_with_admission_checks_for_flex_single_slic
   )
   assert (
       cluster_queue["spec"]["resourceGroups"][0]["flavors"][0]["name"]
-      == "1xv5p-8"
+      == "1xl4-1"
   )
   assert cluster_queue["spec"]["admissionChecks"][0] == "dws-prov"
 

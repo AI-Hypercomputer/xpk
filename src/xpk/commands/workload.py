@@ -132,6 +132,7 @@ spec:
               annotations:
                 {storage_annotations}
                 {sub_slicing_annotations}
+                {annotations_machine_label}
             spec:
               schedulerName: {args.scheduler}
               imagePullSecrets:
@@ -140,7 +141,7 @@ spec:
               {affinity}
               nodeSelector:
                 {accelerator_label}
-                {machine_label}
+                {node_selector_machine_label}
                 {placement_policy_label}
                 {autoprovisioning_args}
               priorityClassName: {args.priority}
@@ -497,6 +498,10 @@ def workload_create(args) -> None:
                 operator: NotIn
                 values: [{restart_on_exit_codes}]"""
 
+  use_super_slicing = (
+      workload_scheduling == WorkloadScheduling.SUPER_SLICING_AVAILABLE
+  )
+
   if is_placement_policy_supported(workload_system):
     ensure_resource_policy_exists(
         resource_policy_name=get_placement_policy_name(workload_system),
@@ -504,10 +509,10 @@ def workload_create(args) -> None:
         zone=args.zone,
         topology=workload_system.topology,
     )
-
   placement_policy_label = (
       create_placement_policy_label(workload_system)
       if is_placement_policy_supported(workload_system)
+      and not use_super_slicing
       else ''
   )
 
@@ -617,10 +622,21 @@ def workload_create(args) -> None:
     )
     if use_sub_slicing:
       xpk_print('Workload will be scheduled using the Sub-slicing feature.')
+    if use_super_slicing:
+      xpk_print('Workload will be scheduled using the Super-slicing feature.')
 
     container, debugging_dashboard_id = get_user_workload_container(
         args, workload_system
     )
+
+    machine_label = (
+        create_machine_label(cluster_system)
+        if use_sub_slicing and cluster_system
+        else create_machine_label(workload_system)
+    )
+    node_selector_machine_label = machine_label if not use_super_slicing else ''
+    annotations_machine_label = machine_label if use_super_slicing else ''
+
     yml_string = WORKLOAD_CREATE_YAML.format(
         args=args,
         container=container,
@@ -635,11 +651,8 @@ def workload_create(args) -> None:
             else ''
         ),
         placement_policy_label=placement_policy_label,
-        machine_label=(
-            create_machine_label(cluster_system)
-            if use_sub_slicing and cluster_system
-            else create_machine_label(workload_system)
-        ),
+        node_selector_machine_label=node_selector_machine_label,
+        annotations_machine_label=annotations_machine_label,
         local_queue_name=LOCAL_QUEUE_NAME,
         autoprovisioning_args=autoprovisioning_args,
         volumes=get_volumes(args, workload_system),

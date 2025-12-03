@@ -1,0 +1,103 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License
+
+name: Release branch versioning
+
+on:
+    push:
+        branches:
+            - "release-*"
+    workflow_dispatch:
+
+permissions:
+    contents: write
+    actions: write
+
+jobs:
+    validate_branch:
+        name: Validate Branch Pattern
+        runs-on: ubuntu-latest
+        steps:
+            - name: Check ref
+              run: |
+                # When workflow is dispatched through workflow_dispatch, it could be launched on any branch or tag.
+                # We want to make sure it is launched with the branch that matches the syntax.
+                if [[ "${{ github.ref_type }}" != "branch" ]]; then
+                  echo "::error::This workflow must be run on a Branch, not a Tag."
+                  exit 1
+                fi
+
+                if [[ ! "${{ github.ref_name }}" =~ ^release- ]]; then
+                  echo "::error::Invalid Branch: Manual runs are only allowed on branches matching 'release-*'. Current branch: ${{ github.ref_name }}"
+                  exit 1
+                fi
+
+    bump_version:
+        needs: [validate_branch]
+        runs-on: ubuntu-latest
+        outputs:
+          tag: ${{ steps.bump.outputs.tag }}
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+              with:
+                  token: ${{ secrets.GITHUB_TOKEN }}
+                  fetch-depth: 0
+
+            - name: Calculate Next Version
+              id: bump
+              run: |
+                  EXISTING_TAG=$(git tag --points-at HEAD | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1)
+
+                  if [ -n "$EXISTING_TAG" ]; then
+                    echo "Commit is already tagged with: $EXISTING_TAG"
+                    exit 1
+                  fi
+
+                  BRANCH_NAME="${{ github.ref_name }}"
+                  BASE_VERSION=${BRANCH_NAME#release-}
+
+                  echo "Base Version derived from branch: $BASE_VERSION"
+
+                  LATEST_TAG=$(git tag -l "v$BASE_VERSION.*" | sort -V | tail -n1)
+
+                  if [ -z "$LATEST_TAG" ]; then
+                    echo "No tags found for this release branch. Starting at patch .0"
+                    NEW_TAG="v$BASE_VERSION.0"
+                  else
+                    echo "Found existing latest tag: $LATEST_TAG"
+                    
+                    VERSION=${LATEST_TAG#v}
+                    
+                    IFS='.' read -r -a parts <<< "$VERSION"
+                    patch=${parts[2]}
+                    
+                    new_patch=$((patch + 1))
+                    NEW_TAG="v$BASE_VERSION.$new_patch"
+                  fi
+
+                  echo "Next Tag: $NEW_TAG"
+                  echo "tag=$NEW_TAG" >> $GITHUB_OUTPUT
+
+            - name: Push Tag
+              run: |
+                  NEW_TAG=${{ steps.bump.outputs.tag }}
+
+                  echo "Pushing tag $NEW_TAG..."
+                  git tag "$NEW_TAG"
+                  git push origin "$NEW_TAG"
+            - name: Run build
+              env:
+                GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: gh workflow run build_wheels.yaml --ref ${{ steps.bump.outputs.tag }}

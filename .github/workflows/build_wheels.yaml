@@ -25,9 +25,29 @@ on:
   push:
     tags:
       - "v[0-9]+.[0-9]+.[0-9]+"
+  workflow_dispatch:
 
 jobs:
+  validate_tag:
+    name: Validate Tag Pattern
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check ref
+        run: |
+          # When workflow is dispatched through workflow_dispatch, it could be launched on branches instead of tags.
+          # We want to make sure it is launched with the tag that additionally is a valid version tag.
+          if [[ "${{ github.ref_type }}" != "tag" ]]; then
+            echo "::error::This workflow must be run on a Tag, not a Branch."
+            exit 1
+          fi
+
+          if [[ ! "${{ github.ref_name }}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Tag '${{ github.ref_name }}' does not match the required pattern v[0-9]+.[0-9]+.[0-9]+"
+            exit 1
+          fi
+
   build_wheel:
+    needs: [validate_tag]
     uses: ./.github/workflows/reusable_build_wheel.yaml
   approval:
     name: Wait for approval

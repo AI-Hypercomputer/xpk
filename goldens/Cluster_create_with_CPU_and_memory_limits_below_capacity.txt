@@ -178,7 +178,7 @@ kubectl wait deploy/kueue-controller-manager -n kueue-system --for=condition=ava
 gcloud compute machine-types describe tpu7x-standard-4t  --project=golden-project --zone=us-central1-a --format='value(guestCpus,memoryMb)'
 [XPK] The CPU limit is below the available capacity, which would lead to underutilization. We will set CPU limit to 10.
 [XPK] The memory limit is below the available capacity, which would lead to underutilization. We will set the memory limit to 10Mi.
-[XPK] Temp file (1ea1a0b1a0ec540d8320ef2a8378363e692a8439192a8f50c4b77fe545dd0a4c) content: 
+[XPK] Temp file (4c00a068789dfce5178b7974c61ef69b5e2cf32b147b82a7c720e291b597dfb3) content: 
 
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: ResourceFlavor
@@ -199,6 +199,13 @@ spec:
     apiGroup: kueue.x-k8s.io
     kind: ProvisioningRequestConfig
     name: dws-config
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: AdmissionCheck
+metadata:
+  name: ss-kueue-operator
+spec:
+  controllerName: accelerator.gke.io/slice
 ---
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: ProvisioningRequestConfig
@@ -273,7 +280,7 @@ value: 1000
 globalDefault: false
 description: "Very High"
 [XPK] Task: `Applying Kueue Custom Resources` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f 1ea1a0b1a0ec540d8320ef2a8378363e692a8439192a8f50c4b77fe545dd0a4c
+kubectl apply -f 4c00a068789dfce5178b7974c61ef69b5e2cf32b147b82a7c720e291b597dfb3
 [XPK] Task: `Count total nodes` is implemented by the following command not running since it is a dry run. 
 kubectl get node --no-headers | wc -l
 [XPK] Try 1: Updating Kueue Controller Manager resources

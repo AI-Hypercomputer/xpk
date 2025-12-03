@@ -1000,7 +1000,7 @@ def create_accelerator_label(system: SystemCharacteristics) -> str:
 def create_machine_label(system: SystemCharacteristics) -> str:
   if system.accelerator_type == AcceleratorType.TPU:
     return (
-        f'{AcceleratorTypeToAcceleratorCharacteristics[system.accelerator_type].machine_label}:'
+        f'{AcceleratorTypeToAcceleratorCharacteristics[AcceleratorType.TPU].machine_label}:'
         f' {system.topology}'
     )
   return ''

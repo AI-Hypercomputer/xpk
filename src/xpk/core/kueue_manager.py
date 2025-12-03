@@ -375,7 +375,7 @@ class KueueManager:
           }],
       })
 
-    if flex and is_queued_cluster(num_slices):
+    if flex and is_queued_cluster(num_slices, system.accelerator_type):
       admission_checks = textwrap.dedent("""
         admissionChecks:
         - dws-prov

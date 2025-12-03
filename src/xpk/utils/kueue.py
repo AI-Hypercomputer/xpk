@@ -14,7 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from ..core.system_characteristics import AcceleratorType
 
-def is_queued_cluster(num_slices: int) -> bool:
+
+def is_queued_cluster(
+    num_slices: int, accelerator_type: AcceleratorType
+) -> bool:
   """Determines if admission checks should be enabled and cluster queued."""
-  return num_slices <= 1
+  return num_slices <= 1 and accelerator_type == AcceleratorType.GPU

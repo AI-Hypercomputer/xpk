@@ -16,6 +16,7 @@ limitations under the License.
 
 import enum
 
+from .system_characteristics import AcceleratorType
 from ..utils.console import xpk_print, xpk_exit
 from ..utils.kueue import is_queued_cluster
 from .commands import run_command_with_updates, run_command_for_value
@@ -205,7 +206,10 @@ def verify_reservation_exists(args) -> int:
 
 
 def get_capacity_arguments_from_capacity_type(
-    args, capacity_type: CapacityType, max_nodes: int
+    args,
+    capacity_type: CapacityType,
+    max_nodes: int,
+    accelerator_type: AcceleratorType,
 ) -> tuple[str, int]:
   """Determine the Nodepool creation capacity arguments needed.
 
@@ -231,7 +235,7 @@ def get_capacity_arguments_from_capacity_type(
           ' --location-policy=ANY --reservation-affinity=none'
           f' --no-enable-autorepair --max-nodes={max_nodes}'
       )
-      if is_queued_cluster(args.num_slices):
+      if is_queued_cluster(args.num_slices, accelerator_type):
         capacity_args += ' --enable-queued-provisioning'
     case CapacityType.RESERVATION:
       capacity_args = (

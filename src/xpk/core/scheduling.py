@@ -342,13 +342,18 @@ def create_sub_slicing_annotations(sub_slicing_topology: str) -> list[str]:
   ]
 
 
-def create_placement_policy_label(system: SystemCharacteristics) -> str:
-  name = get_placement_policy_name(system)
+def create_placement_policy_label(
+    system: SystemCharacteristics, super_slicing: bool
+) -> str:
+  name = get_placement_policy_name(system, super_slicing)
   return f'cloud.google.com/placement-policy-name: {name}'
 
 
-def get_placement_policy_name(system: SystemCharacteristics) -> str:
-  return f'{system.device_type}-{system.topology}-placement-policy'
+def get_placement_policy_name(
+    system: SystemCharacteristics, super_slicing: bool
+) -> str:
+  super_slicing_part = '-ss' if super_slicing else ''
+  return f'{system.device_type}-{system.topology}{super_slicing_part}-placement-policy'
 
 
 def is_placement_policy_supported(system: SystemCharacteristics) -> bool:

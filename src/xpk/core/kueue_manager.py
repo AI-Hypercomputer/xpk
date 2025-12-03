@@ -15,14 +15,12 @@ limitations under the License.
 """
 
 import math
-import textwrap
 from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
 import json
 from jinja2 import Environment, FileSystemLoader
 
 from ..utils.topology import get_slice_topology_level, get_topology_product, is_topology_contained
-from ..utils.kueue import is_queued_cluster
 from kubernetes.utils import parse_quantity
 from .system_characteristics import (
     SUB_SLICING_TOPOLOGIES,
@@ -374,14 +372,6 @@ class KueueManager:
           }],
       })
 
-    if flex and is_queued_cluster(num_slices):
-      admission_checks = textwrap.dedent("""
-        admissionChecks:
-        - dws-prov
-      """)
-    else:
-      admission_checks = ""
-
     return {
         "flavors": flavors,
         "resource_groups": resource_groups,
@@ -389,7 +379,6 @@ class KueueManager:
         "managed_resource": managed_resource,
         "cluster_queue_name": CLUSTER_QUEUE_NAME,
         "local_queue_name": LOCAL_QUEUE_NAME,
-        "admission_checks": admission_checks,
     }
 
   def __get_topology_name_and_yaml(

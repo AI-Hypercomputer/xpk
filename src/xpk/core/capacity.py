@@ -17,7 +17,6 @@ limitations under the License.
 import enum
 
 from ..utils.console import xpk_print, xpk_exit
-from ..utils.kueue import is_queued_cluster
 from .commands import run_command_with_updates, run_command_for_value
 
 AUTOPROVISIONING_CONFIG_VALUE = 'AUTOPROVISION'
@@ -231,8 +230,6 @@ def get_capacity_arguments_from_capacity_type(
           ' --location-policy=ANY --reservation-affinity=none'
           f' --no-enable-autorepair --max-nodes={max_nodes}'
       )
-      if is_queued_cluster(args.num_slices):
-        capacity_args += ' --enable-queued-provisioning'
     case CapacityType.RESERVATION:
       capacity_args = (
           f'--reservation-affinity=specific --reservation={args.reservation}'

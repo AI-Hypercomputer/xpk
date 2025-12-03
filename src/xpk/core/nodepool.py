@@ -84,7 +84,7 @@ def run_gke_node_pool_create_command(
   else:
     max_nodes = 1000
   capacity_args, return_code = get_capacity_arguments_from_capacity_type(
-      args, capacity_type, max_nodes
+      args, capacity_type, max_nodes, system.accelerator_type
   )
   if return_code > 0:
     xpk_print('Parsing capacity arguments failed!')

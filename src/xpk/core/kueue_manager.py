@@ -48,6 +48,7 @@ WAIT_FOR_KUEUE_TIMEOUT = "10m"
 CLUSTER_QUEUE_NAME = "cluster-queue"
 LOCAL_QUEUE_NAME = "multislice-queue"
 SUB_SLICE_TOPOLOGY_NAME = "sub-slice-topology"
+SUPER_SLICE_TOPOLOGY_NAME = "super-slice-topology"
 KUEUE_CONFIG_JINJA_FILE = "kueue_config.yaml.j2"
 KUEUE_GKE_DEFAULT_TOPOLOGY_JINJA_FILE = "kueue_gke_default_topology.yaml.j2"
 KUEUE_CONTROLLER_MANAGER_JINJA_FILE = "kueue_controller_manager.yaml.j2"
@@ -550,6 +551,19 @@ def has_sub_slicing_enabled() -> tuple[int, bool | None]:
     return return_code, None
 
   return return_code, SUB_SLICE_TOPOLOGY_NAME in value
+
+
+def has_super_slicing_enabled() -> tuple[int, bool | None]:
+  return_code, value = run_command_for_value(
+      command="kubectl get topology",
+      task="Get defined topologies",
+      dry_run_return_val=SUPER_SLICE_TOPOLOGY_NAME,
+  )
+
+  if return_code != 0:
+    return return_code, None
+
+  return return_code, SUPER_SLICE_TOPOLOGY_NAME in value
 
 
 def _autocorrect_cpu_limit(cpu_limit: int, cpu_capacity: int) -> int:

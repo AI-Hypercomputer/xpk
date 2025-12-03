@@ -19,8 +19,6 @@ kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="Conf
 [XPK] No gcp parallelstore instances to add detected.
 [XPK] No gce persistent disk instances to add detected.
 [XPK] No managed lustre instances to add detected.
-[XPK] Task: `Retrieve resource policy` is implemented by the following command not running since it is a dry run. 
-gcloud compute resource-policies describe tpu7x-640-4x4x20-placement-policy --project=golden-project --region=us-central1
 [XPK] Workload will be scheduled using the Super-slicing feature.
 [XPK] Temp file (4b6736a12db8ea0f78ce793fd0d4ee0c94c652303f1dc0fecad085ea0993f688) content: 
 FROM python:3.10

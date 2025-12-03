@@ -15,6 +15,8 @@ limitations under the License.
 """
 
 from typing import List
+
+from ..utils.feature_flags import FeatureFlags
 from ..utils.console import ask_for_user_consent, xpk_print
 from .scheduling import get_placement_policy_name, is_placement_policy_supported
 from .capacity import (
@@ -32,7 +34,7 @@ from .resources import (
     check_cluster_resources,
     update_cluster_configmap,
 )
-from .system_characteristics import AcceleratorType
+from .system_characteristics import AcceleratorType, SystemCharacteristics
 
 
 CLOUD_PLATFORM_AUTH_SCOPE_URL = (
@@ -43,7 +45,7 @@ OLDER_PATHWAYS_CPU_NP_TO_DELETE = ['cpu-rm-np', 'cpu-proxy-np', 'cpu-user-np']
 
 
 def run_gke_node_pool_create_command(
-    args, system, gke_node_pool_version
+    args, system: SystemCharacteristics, gke_node_pool_version: str
 ) -> int:
   """Run the Create GKE Node Pool request.
 
@@ -256,12 +258,17 @@ def run_gke_node_pool_create_command(
 
   placement_args = ''
   if is_placement_policy_supported(system):
-    placement_policy = get_placement_policy_name(system)
+    super_slicing = FeatureFlags.SUPER_SLICING_ENABLED and args.super_slicing
+    placement_policy = get_placement_policy_name(
+        system,
+        super_slicing,
+    )
     ensure_resource_policy_exists(
         resource_policy_name=placement_policy,
         project=args.project,
         zone=args.zone,
         topology=system.topology,
+        super_slicing=super_slicing,
     )
     placement_args = f' --placement-policy={placement_policy}'
 
@@ -611,14 +618,18 @@ def get_desired_node_pool_names(
 
 
 def ensure_resource_policy_exists(
-    resource_policy_name: str, project: str, zone: str, topology: str
+    resource_policy_name: str,
+    project: str,
+    zone: str,
+    topology: str,
+    super_slicing: bool,
 ) -> None:
   return_code, _ = run_command_for_value(
       (
           'gcloud compute resource-policies describe'
-          f' {resource_policy_name} '
-          f'--project={project} '
-          f'--region={zone_to_region(zone)}'
+          f' {resource_policy_name}'
+          f' --project={project}'
+          f' --region={zone_to_region(zone)}'
       ),
       'Retrieve resource policy',
   )
@@ -626,11 +637,15 @@ def ensure_resource_policy_exists(
   if return_code == 0:
     return
 
+  # TODO: b/465696970 - Verify the flag below before launching SUPER_SLICING:
+  accelerator_topology_mode = (
+      ' --accelerator-topology-mode=PROVISION_ONLY' if super_slicing else ''
+  )
   return_code, _ = run_command_for_value(
       (
           'gcloud compute resource-policies create workload-policy'
           f' {resource_policy_name} --project={project} --region={zone_to_region(zone)} --type=HIGH_THROUGHPUT'
-          f' --accelerator-topology={topology}'
+          f' --accelerator-topology={topology}{accelerator_topology_mode}'
       ),
       'Create resource policy',
   )

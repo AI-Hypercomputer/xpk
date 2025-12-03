@@ -178,7 +178,7 @@ kubectl wait deploy/kueue-controller-manager -n kueue-system --for=condition=ava
 gcloud compute machine-types describe tpu7x-standard-4t  --project=golden-project --zone=us-central1-a --format='value(guestCpus,memoryMb)'
 [XPK] The CPU limit is below the available capacity, which would lead to underutilization. We will set CPU limit to 10.
 [XPK] The memory limit is below the available capacity, which would lead to underutilization. We will set the memory limit to 10Mi.
-[XPK] Temp file (fcf7f6a62b0eefc7678a1f6aa24655af63b3cea8fcdffec5de69542e432aaf9c) content: 
+[XPK] Temp file (1ea1a0b1a0ec540d8320ef2a8378363e692a8439192a8f50c4b77fe545dd0a4c) content: 
 
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: ResourceFlavor
@@ -190,6 +190,30 @@ spec:
 ---
 
 apiVersion: kueue.x-k8s.io/v1beta1
+kind: AdmissionCheck
+metadata:
+  name: dws-prov
+spec:
+  controllerName: kueue.x-k8s.io/provisioning-request
+  parameters:
+    apiGroup: kueue.x-k8s.io
+    kind: ProvisioningRequestConfig
+    name: dws-config
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ProvisioningRequestConfig
+metadata:
+  name: dws-config
+spec:
+  provisioningClassName: queued-provisioning.gke.io
+  podSetUpdates:
+    nodeSelector:
+    - key: autoscaling.gke.io/provisioning-request
+      valueFromProvisioningClassDetail: ResizeRequestName
+  managedResources:
+  - google.com/tpu
+---
+apiVersion: kueue.x-k8s.io/v1beta1
 kind: ClusterQueue
 metadata:
   name: "cluster-queue"
@@ -199,6 +223,7 @@ spec:
     withinClusterQueue: LowerPriority
   namespaceSelector: {} # match all.
   resourceGroups: [{'coveredResources': ['google.com/tpu', 'cpu', 'memory'], 'flavors': [{'name': '1xtpu7x-8', 'resources': [{'name': 'google.com/tpu', 'nominalQuota': 4}, {'name': 'cpu', 'nominalQuota': 10}, {'name': 'memory', 'nominalQuota': '10Mi'}]}]}]
+  
 ---
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: LocalQueue
@@ -248,7 +273,7 @@ value: 1000
 globalDefault: false
 description: "Very High"
 [XPK] Task: `Applying Kueue Custom Resources` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f fcf7f6a62b0eefc7678a1f6aa24655af63b3cea8fcdffec5de69542e432aaf9c
+kubectl apply -f 1ea1a0b1a0ec540d8320ef2a8378363e692a8439192a8f50c4b77fe545dd0a4c
 [XPK] Task: `Count total nodes` is implemented by the following command not running since it is a dry run. 
 kubectl get node --no-headers | wc -l
 [XPK] Try 1: Updating Kueue Controller Manager resources

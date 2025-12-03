@@ -96,10 +96,9 @@ def check_if_workload_can_schedule(
     else:
       return WorkloadScheduling.UNAVAILABLE
 
-  if _check_sub_slicing_availability(
+  if cluster_system and _check_sub_slicing_availability(
       workload_system=workload_system, cluster_system=cluster_system
   ):
-    assert cluster_system
     if _check_workload_size_fits(
         args,
         workload_system,
@@ -109,10 +108,9 @@ def check_if_workload_can_schedule(
     else:
       return WorkloadScheduling.UNAVAILABLE
 
-  if _check_super_slicing_availability(
+  if cluster_system and _check_super_slicing_availability(
       workload_system=workload_system, cluster_system=cluster_system
   ):
-    assert cluster_system
     if _check_workload_size_fits(
         args,
         workload_system,
@@ -162,11 +160,10 @@ def _check_workload_size_fits(
 
 def _check_sub_slicing_availability(
     workload_system: SystemCharacteristics,
-    cluster_system: SystemCharacteristics | None,
+    cluster_system: SystemCharacteristics,
 ) -> bool:
   if (
       (not FeatureFlags.SUB_SLICING_ENABLED)
-      or (not cluster_system)
       or (workload_system.gke_accelerator != cluster_system.gke_accelerator)
       or (not cluster_system.supports_sub_slicing)
       or (workload_system.topology not in SUB_SLICING_TOPOLOGIES)
@@ -190,12 +187,11 @@ def _check_sub_slicing_availability(
 
 def _check_super_slicing_availability(
     workload_system: SystemCharacteristics,
-    cluster_system: SystemCharacteristics | None,
+    cluster_system: SystemCharacteristics,
 ) -> bool:
   # TODO: b/465447813 - Add super-slicing workload topology validation.
   if (
       (not FeatureFlags.SUPER_SLICING_ENABLED)
-      or (not cluster_system)
       or (workload_system.gke_accelerator != cluster_system.gke_accelerator)
       or (not cluster_system.supports_super_slicing)
   ):

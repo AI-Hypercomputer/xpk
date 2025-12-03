@@ -15,6 +15,8 @@ limitations under the License.
 """
 
 from typing import List
+
+from ..utils.feature_flags import FeatureFlags
 from ..utils.console import ask_for_user_consent, xpk_print
 from .scheduling import get_placement_policy_name, is_placement_policy_supported
 from .capacity import (
@@ -256,7 +258,7 @@ def run_gke_node_pool_create_command(
 
   placement_args = ''
   if is_placement_policy_supported(system):
-    super_slicing = hasattr(args, 'super_slicing') and args.super_slicing
+    super_slicing = FeatureFlags.SUPER_SLICING_ENABLED and args.super_slicing
     placement_policy = get_placement_policy_name(
         system,
         super_slicing,

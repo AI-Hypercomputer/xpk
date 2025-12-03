@@ -15,7 +15,6 @@ limitations under the License.
 """
 
 import math
-import textwrap
 from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
 import json
@@ -53,6 +52,7 @@ KUEUE_CONFIG_JINJA_FILE = "kueue_config.yaml.j2"
 KUEUE_GKE_DEFAULT_TOPOLOGY_JINJA_FILE = "kueue_gke_default_topology.yaml.j2"
 KUEUE_CONTROLLER_MANAGER_JINJA_FILE = "kueue_controller_manager.yaml.j2"
 KUEUE_SUB_SLICING_TOPOLOGY_JINJA_FILE = "kueue_sub_slicing_topology.yaml.j2"
+KUEUE_SUPER_SLICING_TOPOLOGY_JINJA_FILE = "kueue_super_slicing_topology.yaml.j2"
 MEMORY_SIZE_PER_VM = 1.2
 MIN_MEMORY_LIMIT_SIZE = 4096
 
@@ -64,6 +64,7 @@ class KueueConfig:
   cpu_limit: int
   memory_limit: str
   configure_sub_slicing: bool
+  configure_super_slicing: bool
   is_pathways_cluster: bool = False
   autoprovisioning_enabled: bool = False
   flex: bool = False
@@ -269,7 +270,9 @@ class KueueManager:
     template = self.template_env.get_template(KUEUE_CONFIG_JINJA_FILE)
 
     topology_name_and_yaml = self.__get_topology_name_and_yaml(
-        kueue_config.system, kueue_config.configure_sub_slicing
+        kueue_config.system,
+        kueue_config.configure_sub_slicing,
+        kueue_config.configure_super_slicing,
     )
     topology_name = (
         topology_name_and_yaml.name if topology_name_and_yaml else None
@@ -325,7 +328,9 @@ class KueueManager:
       key, value = accelerator_label.split(":", 1)
       node_labels_dict[key] = value.strip()
 
-    if not autoprovisioning:
+    if system.supports_super_slicing:
+      node_labels_dict["cloud.google.com/gke-tpu-slice-4x4x4-health"] = "true"
+    elif not autoprovisioning:
       machine_label = create_machine_label(system)
       if machine_label:
         key, value = machine_label.split(":", 1)
@@ -375,13 +380,11 @@ class KueueManager:
           }],
       })
 
+    admission_checks = []
+    if system.supports_super_slicing:
+      admission_checks.append("ss-kueue-operator")
     if flex and is_queued_cluster(num_slices, system.accelerator_type):
-      admission_checks = textwrap.dedent("""
-        admissionChecks:
-        - dws-prov
-      """)
-    else:
-      admission_checks = ""
+      admission_checks.append("dws-prov")
 
     return {
         "flavors": flavors,
@@ -394,7 +397,10 @@ class KueueManager:
     }
 
   def __get_topology_name_and_yaml(
-      self, system: SystemCharacteristics, configure_sub_slicing: bool
+      self,
+      system: SystemCharacteristics,
+      configure_sub_slicing: bool,
+      configure_super_slicing: bool,
   ) -> _NameAndYaml | None:
     if (
         system.accelerator_type == AcceleratorType["GPU"]
@@ -426,6 +432,15 @@ class KueueManager:
           ).render({
               "sub_slice_topology_name": SUB_SLICE_TOPOLOGY_NAME,
               "levels": levels,
+          }),
+      )
+    elif configure_super_slicing:
+      return _NameAndYaml(
+          name=SUPER_SLICE_TOPOLOGY_NAME,
+          yaml=self.template_env.get_template(
+              KUEUE_SUPER_SLICING_TOPOLOGY_JINJA_FILE
+          ).render({
+              "super_slice_topology_name": SUPER_SLICE_TOPOLOGY_NAME,
           }),
       )
     else:

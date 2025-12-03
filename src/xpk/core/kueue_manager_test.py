@@ -45,6 +45,7 @@ KUEUE_CONFIG: KueueConfig = KueueConfig(
     cpu_limit=100,
     memory_limit="100Gi",
     configure_sub_slicing=False,
+    configure_super_slicing=False,
 )
 
 
@@ -463,6 +464,47 @@ def test_configure_generates_correct_manifest_with_sub_slicing(
   ]
   actual_levels = [level["nodeLabel"] for level in topology["spec"]["levels"]]
   assert actual_levels == expected_levels
+
+
+@patch("xpk.core.kueue_manager.write_tmp_file")
+def test_configure_generates_correct_manifest_with_super_slicing(
+    write_tmp_file_mock: MagicMock,
+    mock_commands: CommandsTester,
+    kueue_manager: KueueManager,
+):
+  """Test that __configure generates correct manifest with super-slicing topology."""
+  set_installed_kueue_version(mock_commands, None)
+  kueue_config = dataclasses.replace(
+      KUEUE_CONFIG,
+      configure_super_slicing=True,
+      system=UserFacingNameToSystemCharacteristics["tpu7x-4x4x4"],
+  )
+
+  kueue_manager.install_or_upgrade(kueue_config)
+
+  rendered_manifest: str = write_tmp_file_mock.call_args[0][0]
+  manifest_docs = list(yaml.safe_load_all(rendered_manifest))
+  resource_flavor = _first(
+      doc for doc in manifest_docs if doc["kind"] == "ResourceFlavor"
+  )
+  assert resource_flavor["spec"]["topologyName"] == "super-slice-topology"
+  assert resource_flavor["spec"]["nodeLabels"] == {
+      "cloud.google.com/gke-tpu-accelerator": "tpu7x",
+      "cloud.google.com/gke-tpu-slice-4x4x4-health": "true",
+  }
+  topology = _first(doc for doc in manifest_docs if doc["kind"] == "Topology")
+  assert topology["metadata"]["name"] == "super-slice-topology"
+  expected_levels = [
+      "cloud.google.com/gce-topology-block",
+      "cloud.google.com/gke-tpu-slice-4x4x4-id",
+      "kubernetes.io/hostname",
+  ]
+  actual_levels = [level["nodeLabel"] for level in topology["spec"]["levels"]]
+  assert actual_levels == expected_levels
+  cluster_queue = _first(
+      doc for doc in manifest_docs if doc["kind"] == "ClusterQueue"
+  )
+  assert cluster_queue["spec"]["admissionChecks"][0] == "ss-kueue-operator"
 
 
 @patch("xpk.core.kueue_manager.write_tmp_file")

@@ -181,7 +181,7 @@ kubectl get deployment kueue-controller-manager -n kueue-system -o jsonpath='{.s
 kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-sigs/kueue/releases/download/v0.14.3/manifests.yaml
 [XPK] Task: `Wait for Kueue to be available` is implemented by the following command not running since it is a dry run. 
 kubectl wait deploy/kueue-controller-manager -n kueue-system --for=condition=available --timeout=10m
-[XPK] Temp file (a0d2462ec7c09d84da7cdb8898994e52adb015493f3681ff9cd161cd879e16b2) content: 
+[XPK] Temp file (8587988b183080918cb4b61fcfdfd788a815f2a74b2113361450d9bf11b61314) content: 
 
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: ResourceFlavor
@@ -204,6 +204,13 @@ spec:
     apiGroup: kueue.x-k8s.io
     kind: ProvisioningRequestConfig
     name: dws-config
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: AdmissionCheck
+metadata:
+  name: ss-kueue-operator
+spec:
+  controllerName: accelerator.gke.io/slice
 ---
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: ProvisioningRequestConfig
@@ -292,7 +299,7 @@ spec:
   - nodeLabel: "kubernetes.io/hostname"
   
 [XPK] Task: `Applying Kueue Custom Resources` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f a0d2462ec7c09d84da7cdb8898994e52adb015493f3681ff9cd161cd879e16b2
+kubectl apply -f 8587988b183080918cb4b61fcfdfd788a815f2a74b2113361450d9bf11b61314
 [XPK] Task: `Count total nodes` is implemented by the following command not running since it is a dry run. 
 kubectl get node --no-headers | wc -l
 [XPK] Try 1: Updating Kueue Controller Manager resources

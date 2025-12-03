@@ -110,6 +110,7 @@ def construct_args(**kwargs: Any) -> Namespace:
       cluster='test-cluster',
       default_pool_cpu_num_nodes='100',
       sub_slicing=False,
+      super_slicing=False,
       gke_version='',
       private=False,
       authorized_networks=None,
@@ -225,6 +226,9 @@ GPU_TEST_SYSTEM: SystemCharacteristics = UserFacingNameToSystemCharacteristics[
 ]
 SUB_SLICING_SYSTEM: SystemCharacteristics = (
     UserFacingNameToSystemCharacteristics['v6e-4x4']
+)
+SUPER_SLICING_SYSTEM: SystemCharacteristics = (
+    UserFacingNameToSystemCharacteristics['tpu7x-4x4x4']
 )
 TPU_TEST_SYSTEM: SystemCharacteristics = UserFacingNameToSystemCharacteristics[
     'v6e-4x4'
@@ -608,3 +612,19 @@ def test_cluster_create_calls_run_command_with_correct_channel_and_version(
   ]
 
   mocks.commands_tester.assert_command_run(*expected_command_parts)
+
+
+def test_run_gke_cluster_create_command_with_super_slicing_enables_slice_operator(
+    mocks: _Mocks,
+):
+  result = run_gke_cluster_create_command(
+      args=construct_args(gke_version='1.2.3', super_slicing=True),
+      gke_control_plane_version='1.2.3',
+      system=SUPER_SLICING_SYSTEM,
+      release_channel=ReleaseChannel.REGULAR,
+  )
+
+  assert result == 0
+  mocks.commands_tester.assert_command_run(
+      'clusters create', '--enable-slice-operator'
+  )

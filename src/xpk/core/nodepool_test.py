@@ -23,6 +23,7 @@ from xpk.core.nodepool import (
 )
 from xpk.core.system_characteristics import AcceleratorType, SystemCharacteristics, DockerPlatform, GpuConfig
 from xpk.core.commands import FailedCommand
+from xpk.core.testing.commands_tester import CommandsTester
 
 
 CLUSTER_NAME = "running-cucumber"
@@ -97,58 +98,99 @@ def test_compute_desired_node_pool_names_with_unknown_node_pools():
   assert set(result) == set(expected_result)
 
 
-def test_ensure_resource_policy_exists_with_existing_policy_retrieves_existing_policy(
-    mocker,
-):
-  args = mocker.Mock(project="test-project", zone="us-central1-a")
-  mocker.patch("xpk.core.nodepool.get_cluster_location", return_value=args.zone)
-  mock = mocker.patch(
-      "xpk.core.nodepool.run_command_for_value", return_value=(0, "")
+@pytest.fixture
+def commands_tester(mocker):
+  return CommandsTester(
+      mocker,
+      run_command_for_value_path="xpk.core.nodepool.run_command_for_value",
   )
+
+
+def test_ensure_resource_policy_exists_with_existing_policy_retrieves_existing_policy(
+    commands_tester: CommandsTester,
+):
   ensure_resource_policy_exists(
       resource_policy_name="resource-policy",
       project="test-project",
       zone="us-central1-a",
       topology="2x2x1",
+      super_slicing=False,
   )
-  mock.assert_called_once()
+
+  assert len(commands_tester.commands_history) == 1
+  commands_tester.assert_command_run(
+      "gcloud compute resource-policies describe resource-policy",
+      "--project=test-project",
+      "--region=us-central1",
+  )
 
 
 def test_ensure_resource_policy_exists_without_existing_policy_creates_policy(
-    mocker,
+    commands_tester: CommandsTester,
 ):
-  args = mocker.Mock(project="test-project", zone="us-central1-a")
-  mocker.patch("xpk.core.nodepool.get_cluster_location", return_value=args.zone)
-  mock = mocker.patch(
-      "xpk.core.nodepool.run_command_for_value", side_effect=[(1, ""), (0, "")]
+  commands_tester.set_result_for_command(
+      (1, ""), "gcloud compute resource-policies describe"
   )
+
   ensure_resource_policy_exists(
       resource_policy_name="resource-policy",
       project="test-project",
       zone="us-central1-a",
       topology="2x2x1",
+      super_slicing=False,
   )
-  assert mock.call_count == 2
-  assert mock.call_args_list[0].args[1] == "Retrieve resource policy"
+
+  assert len(commands_tester.commands_history) == 2
+  commands_tester.assert_command_run(
+      "gcloud compute resource-policies describe"
+  )
+  commands_tester.assert_command_run(
+      "gcloud compute resource-policies create workload-policy resource-policy",
+      "--project=test-project",
+      "--region=us-central1",
+      "--accelerator-topology=2x2x1",
+  )
+  commands_tester.assert_command_not_run(
+      "gcloud compute resource-policies create workload-policy",
+      "--accelerator-topology-mode",
+  )
+
+
+def test_ensure_resource_policy_exists_without_existing_policy_creates_policy_for_super_slicing(
+    commands_tester: CommandsTester,
+):
+  commands_tester.set_result_for_command(
+      (1, ""), "gcloud compute resource-policies describe"
+  )
+
+  ensure_resource_policy_exists(
+      resource_policy_name="ss-resource-policy",
+      project="test-project",
+      zone="us-central1-a",
+      topology="2x2x1",
+      super_slicing=True,
+  )
+
+  commands_tester.assert_command_run(
+      "gcloud compute resource-policies create workload-policy",
+      "--accelerator-topology-mode",
+  )
 
 
 def test_ensure_resource_policy_exits_without_existing_policy_throws_when_creation_fails(
-    mocker,
+    commands_tester: CommandsTester,
 ):
   with pytest.raises(RuntimeError):
-    args = mocker.Mock(project="test-project", zone="us-central1-a")
-    mocker.patch(
-        "xpk.core.nodepool.get_cluster_location", return_value=args.zone
+    commands_tester.set_result_for_command(
+        (1, ""), "gcloud compute resource-policies"
     )
-    mocker.patch(
-        "xpk.core.nodepool.run_command_for_value",
-        side_effect=[(1, ""), (1, "")],
-    )
+
     ensure_resource_policy_exists(
         resource_policy_name="resource-policy",
         project="test-project",
         zone="us-central1-a",
         topology="2x2x1",
+        super_slicing=False,
     )
 
 

@@ -374,6 +374,7 @@ def cluster_create(args) -> None:
   )
   if return_code != 0:
     xpk_exit(return_code)
+  assert gke_node_pool_version
 
   run_gke_node_pool_create_command_code = run_gke_node_pool_create_command(
       args, system, gke_node_pool_version

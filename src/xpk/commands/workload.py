@@ -498,23 +498,24 @@ def workload_create(args) -> None:
                 operator: NotIn
                 values: [{restart_on_exit_codes}]"""
 
-  use_super_slicing = (
-      workload_scheduling == WorkloadScheduling.SUPER_SLICING_AVAILABLE
-  )
-
-  if is_placement_policy_supported(workload_system):
+  placement_policy_label = ''
+  if (
+      # Don't bother with placement for sub/super-slicing workloads:
+      workload_scheduling == WorkloadScheduling.AVAILABLE
+      and is_placement_policy_supported(workload_system)
+  ):
     ensure_resource_policy_exists(
-        resource_policy_name=get_placement_policy_name(workload_system),
+        resource_policy_name=get_placement_policy_name(
+            workload_system, super_slicing=False
+        ),
         project=args.project,
         zone=args.zone,
         topology=workload_system.topology,
+        super_slicing=False,
     )
-  placement_policy_label = (
-      create_placement_policy_label(workload_system)
-      if is_placement_policy_supported(workload_system)
-      and not use_super_slicing
-      else ''
-  )
+    placement_policy_label = create_placement_policy_label(
+        workload_system, super_slicing=False
+    )
 
   # Create the workload file based on accelerator type or workload type.
   if workload_system.accelerator_type == AcceleratorType.GPU:
@@ -619,6 +620,9 @@ def workload_create(args) -> None:
   else:
     use_sub_slicing = (
         workload_scheduling == WorkloadScheduling.SUB_SLICING_AVAILABLE
+    )
+    use_super_slicing = (
+        workload_scheduling == WorkloadScheduling.SUPER_SLICING_AVAILABLE
     )
     if use_sub_slicing:
       xpk_print('Workload will be scheduled using the Sub-slicing feature.')

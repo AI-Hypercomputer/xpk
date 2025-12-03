@@ -68,7 +68,9 @@ def test_create_placement_policy_label_returns_valid_label():
       supports_super_slicing=False,
       docker_platform=DockerPlatform.ARM,
   )
-  label = create_placement_policy_label(system_characteristics)
+  label = create_placement_policy_label(
+      system_characteristics, super_slicing=False
+  )
   assert (
       label
       == 'cloud.google.com/placement-policy-name: tpu7x-1x1x1-placement-policy'
@@ -89,8 +91,26 @@ def test_get_placement_policy_name_returns_valid_name():
       supports_super_slicing=False,
       docker_platform=DockerPlatform.ARM,
   )
-  name = get_placement_policy_name(system_characteristics)
+  name = get_placement_policy_name(system_characteristics, super_slicing=False)
   assert name == 'tpu7x-1x1x1-placement-policy'
+
+
+def test_get_placement_policy_name_super_slicing_returns_valid_name():
+  system_characteristics = SystemCharacteristics(
+      chips_per_vm=1,
+      gce_machine_type='tpu7x-standard-1t',
+      gke_accelerator='tpu7x',
+      requires_workload_policy=False,
+      topology='1x1x1',
+      vms_per_slice=1,
+      device_type='tpu7x',
+      accelerator_type=AcceleratorType.TPU,
+      supports_sub_slicing=False,
+      supports_super_slicing=False,
+      docker_platform=DockerPlatform.ARM,
+  )
+  name = get_placement_policy_name(system_characteristics, super_slicing=True)
+  assert name == 'tpu7x-1x1x1-ss-placement-policy'
 
 
 def test_is_placement_policy_supported_returns_true_for_system_characteristics_supporting_workload_policy_and_having_valid_topology():

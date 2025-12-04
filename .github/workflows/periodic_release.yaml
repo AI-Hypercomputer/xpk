@@ -1,0 +1,89 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License
+
+name: Periodic Release
+
+on:
+  schedule:
+    - cron: "30 10 * * 1" # At 10:30 on Monday.
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  create-release-branch:
+    environment:
+      name: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Compute Next Version and Push Branch
+        id: compute_branch_name
+        run: |
+          LATEST_BRANCH=$(git branch -r | grep -oE 'origin/release-[0-9]+\.[0-9]+' | sort -V | tail -n 1)
+
+          if [ -z "$LATEST_BRANCH" ]; then
+            echo "No existing release branches found. Cannot determine next version automatically."
+            exit 1
+          fi
+
+          echo "Latest release branch found: $LATEST_BRANCH"
+
+          COMMIT_COUNT=$(git rev-list --count "$LATEST_BRANCH"..HEAD)
+
+          echo "Commits since last release: $COMMIT_COUNT"
+
+          if [ "$COMMIT_COUNT" -eq 0 ]; then
+            echo "No new changes detected compared to $LATEST_BRANCH."
+            echo "Skipping release branch creation."
+            echo "skipped=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          VERSION_STR=$(echo "$LATEST_BRANCH" | sed 's/origin\/release-//')
+          CURRENT_MAJOR=$(echo "$VERSION_STR" | cut -d. -f1)
+          CURRENT_MINOR=$(echo "$VERSION_STR" | cut -d. -f2)
+
+          echo "Scanning commits between $LATEST_BRANCH and HEAD for 'BREAKING' keyword..."
+
+          if git log "$LATEST_BRANCH"..HEAD --pretty=format:"%s" | grep -q "BREAKING"; then
+            NEW_MAJOR=$((CURRENT_MAJOR + 1))
+            NEW_MINOR=0
+            echo "BREAKING detected. Bumping Major version."
+          else
+            NEW_MAJOR=$CURRENT_MAJOR
+            NEW_MINOR=$((CURRENT_MINOR + 1))
+            echo "No breaking changes detected. Bumping Minor version."
+          fi
+
+          NEW_BRANCH_NAME="release-$NEW_MAJOR.$NEW_MINOR"
+          echo "New release branch calculated: $NEW_BRANCH_NAME"
+          echo "new_branch_name=$NEW_BRANCH_NAME" >> $GITHUB_OUTPUT
+          echo "skipped=false" >> $GITHUB_OUTPUT
+
+          git checkout -b "$NEW_BRANCH_NAME"
+          git push origin "$NEW_BRANCH_NAME"
+
+          echo "Successfully pushed $NEW_BRANCH_NAME"
+      - name: Run release branch versioning
+        if: steps.compute_branch_name.outputs.skipped != 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run release_branch_versioning.yaml --ref ${{ steps.compute_branch_name.outputs.new_branch_name }}

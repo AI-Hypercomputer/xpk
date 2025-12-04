@@ -244,8 +244,8 @@ def _validate_super_slicing_reservation(args):
   reservation = parse_reservation(args.reservation, args.project)
   if reservation.block_name is None:
     xpk_print(
-        f'Error: Validation failed: Super-slicing cluster creation'
-        f' requires a block or sub-block reservation.'
+        'Error: Validation failed: Super-slicing cluster creation'
+        ' requires a block or sub-block reservation.'
     )
     xpk_exit(1)
 

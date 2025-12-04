@@ -185,7 +185,7 @@ kubectl get deployment kueue-controller-manager -n kueue-system -o jsonpath='{.s
 kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-sigs/kueue/releases/download/v0.14.3/manifests.yaml
 [XPK] Task: `Wait for Kueue to be available` is implemented by the following command not running since it is a dry run. 
 kubectl wait deploy/kueue-controller-manager -n kueue-system --for=condition=available --timeout=10m
-[XPK] Temp file (fdb8050321588615125cbc4da735af2ad0447079f3c47849e34bfb965a3a5934) content: 
+[XPK] Temp file (7c1d0a437c3037940eae6c0d8c76bb8329ef489bf46b56a0737216bcb6fa89ce) content: 
 
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: ResourceFlavor
@@ -193,21 +193,7 @@ metadata:
   name: "5xtpu7x-128"
 spec:
   nodeLabels: {"cloud.google.com/gke-tpu-accelerator": "tpu7x", "cloud.google.com/gke-tpu-partition-4x4x4-state": "HEALTHY"}
-  
   topologyName: super-slice-topology
-  
----
-
-apiVersion: kueue.x-k8s.io/v1beta1
-kind: AdmissionCheck
-metadata:
-  name: dws-prov
-spec:
-  controllerName: kueue.x-k8s.io/provisioning-request
-  parameters:
-    apiGroup: kueue.x-k8s.io
-    kind: ProvisioningRequestConfig
-    name: dws-config
 ---
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: AdmissionCheck
@@ -300,7 +286,7 @@ spec:
   - nodeLabel: cloud.google.com/gke-tpu-partition-4x4x4-id
   - nodeLabel: kubernetes.io/hostname
 [XPK] Task: `Applying Kueue Custom Resources` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f fdb8050321588615125cbc4da735af2ad0447079f3c47849e34bfb965a3a5934
+kubectl apply -f 7c1d0a437c3037940eae6c0d8c76bb8329ef489bf46b56a0737216bcb6fa89ce
 [XPK] Task: `Count total nodes` is implemented by the following command not running since it is a dry run. 
 kubectl get node --no-headers | wc -l
 [XPK] Try 1: Updating Kueue Controller Manager resources

@@ -490,13 +490,13 @@ def test_configure_generates_correct_manifest_with_super_slicing(
   assert resource_flavor["spec"]["topologyName"] == "super-slice-topology"
   assert resource_flavor["spec"]["nodeLabels"] == {
       "cloud.google.com/gke-tpu-accelerator": "tpu7x",
-      "cloud.google.com/gke-tpu-slice-4x4x4-health": "true",
+      "cloud.google.com/gke-tpu-partition-4x4x4-state": "HEALTHY",
   }
   topology = _first(doc for doc in manifest_docs if doc["kind"] == "Topology")
   assert topology["metadata"]["name"] == "super-slice-topology"
   expected_levels = [
       "cloud.google.com/gce-topology-block",
-      "cloud.google.com/gke-tpu-slice-4x4x4-id",
+      "cloud.google.com/gke-tpu-partition-4x4x4-id",
       "kubernetes.io/hostname",
   ]
   actual_levels = [level["nodeLabel"] for level in topology["spec"]["levels"]]

@@ -185,14 +185,15 @@ kubectl get deployment kueue-controller-manager -n kueue-system -o jsonpath='{.s
 kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-sigs/kueue/releases/download/v0.14.3/manifests.yaml
 [XPK] Task: `Wait for Kueue to be available` is implemented by the following command not running since it is a dry run. 
 kubectl wait deploy/kueue-controller-manager -n kueue-system --for=condition=available --timeout=10m
-[XPK] Temp file (e22cb677d07a320d07fb67b3f2d971b74541158f826af9c79760b08c4500c2f9) content: 
+[XPK] Temp file (fdb8050321588615125cbc4da735af2ad0447079f3c47849e34bfb965a3a5934) content: 
 
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: ResourceFlavor
 metadata:
   name: "5xtpu7x-128"
 spec:
-  nodeLabels: {"cloud.google.com/gke-tpu-accelerator": "tpu7x", "cloud.google.com/gke-tpu-slice-4x4x4-health": "true"}
+  nodeLabels: {"cloud.google.com/gke-tpu-accelerator": "tpu7x", "cloud.google.com/gke-tpu-partition-4x4x4-state": "HEALTHY"}
+  
   topologyName: super-slice-topology
 ---
 apiVersion: kueue.x-k8s.io/v1beta1
@@ -283,10 +284,10 @@ metadata:
 spec:
   levels:
   - nodeLabel: cloud.google.com/gce-topology-block
-  - nodeLabel: cloud.google.com/gke-tpu-slice-4x4x4-id
+  - nodeLabel: cloud.google.com/gke-tpu-partition-4x4x4-id
   - nodeLabel: kubernetes.io/hostname
 [XPK] Task: `Applying Kueue Custom Resources` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f e22cb677d07a320d07fb67b3f2d971b74541158f826af9c79760b08c4500c2f9
+kubectl apply -f fdb8050321588615125cbc4da735af2ad0447079f3c47849e34bfb965a3a5934
 [XPK] Task: `Count total nodes` is implemented by the following command not running since it is a dry run. 
 kubectl get node --no-headers | wc -l
 [XPK] Try 1: Updating Kueue Controller Manager resources

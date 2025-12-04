@@ -329,7 +329,9 @@ class KueueManager:
       node_labels_dict[key] = value.strip()
 
     if system.supports_super_slicing:
-      node_labels_dict["cloud.google.com/gke-tpu-slice-4x4x4-health"] = "true"
+      node_labels_dict["cloud.google.com/gke-tpu-partition-4x4x4-state"] = (
+          "HEALTHY"
+      )
     elif not autoprovisioning:
       machine_label = create_machine_label(system)
       if machine_label:

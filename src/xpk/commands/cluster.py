@@ -19,7 +19,7 @@ from tabulate import tabulate
 from ..utils.feature_flags import FeatureFlags
 from ..utils.versions import ReleaseChannel
 from ..core.pathways import get_pathways_machine_types
-from ..core.capacity import H100_DEVICE_TYPE, get_reservation_deployment_type
+from ..core.capacity import H100_DEVICE_TYPE, get_reservation_deployment_type, parse_reservation
 from ..core.cluster import (
     get_all_clusters_programmatic,
     get_cluster_credentials,
@@ -79,7 +79,7 @@ from ..utils.file import write_tmp_file
 from ..utils.execution_context import is_dry_run, is_quiet
 from ..utils.validation import validate_dependencies_list, SystemDependency, should_validate_dependencies
 from . import cluster_gcluster
-from .common import set_cluster_command, validate_sub_slicing_system
+from .common import set_cluster_command, validate_sub_slicing_system, validate_super_slicing_system
 from jinja2 import Environment, FileSystemLoader
 from ..utils.templates import get_templates_absolute_path
 import shutil
@@ -211,6 +211,9 @@ def _validate_cluster_create_args(args, system: SystemCharacteristics):
   if FeatureFlags.SUB_SLICING_ENABLED and args.sub_slicing:
     validate_sub_slicing_system(system)
     _validate_sub_slicing_reservation(args)
+  if FeatureFlags.SUPER_SLICING_ENABLED and args.super_slicing:
+    validate_super_slicing_system(system)
+    _validate_super_slicing_reservation(args)
   if args.enable_pathways:
     _validate_pathways_machine(args)
 
@@ -233,15 +236,30 @@ def _validate_pathways_machine(args):
 
 
 def _validate_sub_slicing_reservation(args):
+  _validate_gsc_reservation(args, 'Sub-slicing')
+
+
+def _validate_super_slicing_reservation(args):
+  _validate_gsc_reservation(args, 'Super-slicing')
+  reservation = parse_reservation(args.reservation, args.project)
+  if reservation.block_name == None:
+    xpk_print(
+        f'Error: Validation failed: Super-slicing cluster creation'
+        f' requires a block or sub-block reservation.'
+    )
+    xpk_exit(1)
+
+
+def _validate_gsc_reservation(args, creation_description: str):
   if args.reservation is None:
     xpk_print(
-        'Error: Validation failed: Sub-slicing cluster creation requires'
-        ' Cluster Director reservation to be specified.'
+        f'Error: Validation failed: {creation_description} cluster creation'
+        ' requires Cluster Director reservation to be specified.'
     )
     xpk_exit(1)
 
   deployment_type = get_reservation_deployment_type(
-      reservation=args.reservation, project=args.project, zone=args.zone
+      reservation_path=args.reservation, project=args.project, zone=args.zone
   )
   if deployment_type != 'DENSE':
     xpk_print(

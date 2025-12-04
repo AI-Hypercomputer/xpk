@@ -1257,6 +1257,9 @@ def run_gke_cluster_create_command(
     addons_str = ','.join(addons)
     command += f' --addons={addons_str}'
 
+  if FeatureFlags.SUPER_SLICING_ENABLED and args.super_slicing:
+    command += ' --enable-slice-controller'
+
   if args.custom_cluster_arguments:
     command += f' {args.custom_cluster_arguments}'
 
@@ -1347,6 +1350,9 @@ def _install_kueue(
           is_pathways_cluster=args.enable_pathways,
           configure_sub_slicing=(
               FeatureFlags.SUB_SLICING_ENABLED and args.sub_slicing
+          ),
+          configure_super_slicing=(
+              FeatureFlags.SUPER_SLICING_ENABLED and args.super_slicing
           ),
       )
   )

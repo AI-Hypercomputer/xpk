@@ -22,6 +22,13 @@ spec:
     name: dws-config
 ---
 apiVersion: kueue.x-k8s.io/v1beta1
+kind: AdmissionCheck
+metadata:
+  name: ss-kueue-operator
+spec:
+  controllerName: accelerator.gke.io/slice
+---
+apiVersion: kueue.x-k8s.io/v1beta1
 kind: ProvisioningRequestConfig
 metadata:
   name: dws-config
@@ -44,7 +51,12 @@ spec:
     withinClusterQueue: LowerPriority
   namespaceSelector: {} # match all.
   resourceGroups: {{ resource_groups }}
-  {{ admission_checks | indent(2) }}
+  {% if admission_checks -%}
+  admissionChecks:
+  {%- for check in admission_checks %}
+  - {{ check }}
+  {%- endfor %}
+  {%- endif %}
 ---
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: LocalQueue

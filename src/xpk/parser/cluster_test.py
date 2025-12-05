@@ -188,3 +188,76 @@ def test_cluster_create_super_slicing_can_be_set():
   )
 
   assert args.super_slicing is True
+
+
+def test_cluster_create_num_cubes_is_hidden_with_flag_off():
+  FeatureFlags.SUPER_SLICING_ENABLED = False
+  parser = argparse.ArgumentParser()
+
+  set_cluster_create_parser(parser)
+  help_str = parser.format_help()
+
+  assert "--num-cubes" not in help_str
+
+
+def test_cluster_create_num_cubes_is_shown_with_flag_on():
+  FeatureFlags.SUPER_SLICING_ENABLED = True
+  parser = argparse.ArgumentParser()
+
+  set_cluster_create_parser(parser)
+  help_str = parser.format_help()
+
+  assert "--num-cubes" in help_str
+
+
+def test_cluster_create_num_cubes_can_be_set():
+  FeatureFlags.SUPER_SLICING_ENABLED = True
+  parser = argparse.ArgumentParser()
+
+  set_cluster_create_parser(parser)
+  args = parser.parse_args(
+      [
+          "--cluster",
+          "test-cluster",
+          "--tpu-type",
+          "tpu7x-2",
+          "--num-cubes",
+          "5",
+      ],
+  )
+
+  assert args.num_cubes == 5
+
+
+def test_cluster_create_num_slices_defaults_to_1_if_no_superslicing_feature():
+  FeatureFlags.SUPER_SLICING_ENABLED = False
+  parser = argparse.ArgumentParser()
+
+  set_cluster_create_parser(parser)
+  args = parser.parse_args(
+      [
+          "--cluster",
+          "test-cluster",
+          "--tpu-type",
+          "tpu7x-2",
+      ],
+  )
+
+  assert args.num_slices == 1
+
+
+def test_cluster_create_num_slices_has_no_default_if_superslicing_feature():
+  FeatureFlags.SUPER_SLICING_ENABLED = True
+  parser = argparse.ArgumentParser()
+
+  set_cluster_create_parser(parser)
+  args = parser.parse_args(
+      [
+          "--cluster",
+          "test-cluster",
+          "--tpu-type",
+          "tpu7x-2",
+      ],
+  )
+
+  assert args.num_slices is None

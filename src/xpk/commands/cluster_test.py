@@ -638,12 +638,16 @@ def test_validate_cluster_create_args_for_correct_super_slicing_args_pass(
   args = construct_args(
       super_slicing=True,
       reservation='test-reservation/reservationBlocks/block',
+      num_cubes=None,
+      num_slices=None,
   )
 
   _validate_cluster_create_args(args, SUPER_SLICING_SYSTEM)
   args = construct_args(
       super_slicing=True,
       reservation='test-reservation/reservationBlocks/block/reservationSubBlocks/subblock',
+      num_cubes=None,
+      num_slices=None,
   )
   _validate_cluster_create_args(
       args, UserFacingNameToSystemCharacteristics['tpu7x-128']
@@ -659,6 +663,8 @@ def test_validate_cluster_create_args_for_super_slicing_system_not_supported_thr
   args = construct_args(
       super_slicing=True,
       reservation='test-reservation/reservationBlocks/block',
+      num_cubes=None,
+      num_slices=None,
   )
 
   with pytest.raises(SystemExit):
@@ -680,6 +686,8 @@ def test_validate_cluster_create_args_for_super_slicing_missing_reservation(
   args = construct_args(
       super_slicing=True,
       reservation=None,
+      num_cubes=None,
+      num_slices=None,
   )
 
   with pytest.raises(SystemExit):
@@ -699,6 +707,8 @@ def test_validate_cluster_create_args_for_super_slicing_reservation_no_blocks(
   args = construct_args(
       super_slicing=True,
       reservation='reservation',
+      num_cubes=None,
+      num_slices=None,
   )
 
   with pytest.raises(SystemExit):
@@ -718,6 +728,8 @@ def test_validate_cluster_create_args_for_super_slicing_sparse_deployment_type_r
   args = construct_args(
       super_slicing=True,
       reservation='test-reservation/reservationBlocks/block',
+      num_cubes=None,
+      num_slices=None,
   )
   mocks.commands_get_reservation_deployment_type.return_value = 'SPARSE'
 
@@ -729,3 +741,73 @@ def test_validate_cluster_create_args_for_super_slicing_sparse_deployment_type_r
       'Refer to the documentation for more information on creating Cluster'
       in mocks.commands_print_mock.call_args[0][0]
   )
+
+
+def test_validate_cluster_create_args_forbids_num_cubes_without_superslicing(
+    mocks: _Mocks,
+):
+  FeatureFlags.SUPER_SLICING_ENABLED = True  # enable the feature
+  args = construct_args(
+      super_slicing=False,  # but disable the flag
+      reservation='test-reservation/reservationBlocks/block',
+      num_cubes=1,
+      num_slices=None,
+  )
+
+  with pytest.raises(SystemExit):
+    _validate_cluster_create_args(args, SUPER_SLICING_SYSTEM)
+
+  assert mocks.commands_print_mock.call_count == 1
+  assert (
+      '--num-cubes can only be used with --super-slicing'
+      in mocks.commands_print_mock.call_args[0][0]
+  )
+
+
+def test_validate_cluster_create_args_forbids_num_cubes_different_from_num_slices(
+    mocks: _Mocks,
+):
+  FeatureFlags.SUPER_SLICING_ENABLED = True
+  args = construct_args(
+      super_slicing=True,
+      reservation='test-reservation/reservationBlocks/block',
+      num_cubes=1,
+      num_slices=2,
+  )
+
+  with pytest.raises(SystemExit):
+    _validate_cluster_create_args(args, SUPER_SLICING_SYSTEM)
+
+  assert mocks.commands_print_mock.call_count == 1
+  assert (
+      '--num-cubes must not be different from --num-slices'
+      in mocks.commands_print_mock.call_args[0][0]
+  )
+
+
+@pytest.mark.parametrize(
+    'num_cubes, num_slices, expected',
+    [
+        (None, None, 1),
+        (3, None, 3),
+        (None, 3, 3),
+        (3, 3, 3),
+    ],
+)
+def test_validate_cluster_create_args_sets_correct_num_slices(
+    mocks: _Mocks,
+    num_cubes: int | None,
+    num_slices: int | None,
+    expected: int,
+):
+  FeatureFlags.SUPER_SLICING_ENABLED = True
+  args = construct_args(
+      super_slicing=True,
+      reservation='test-reservation/reservationBlocks/block',
+      num_cubes=num_cubes,
+      num_slices=num_slices,
+  )
+
+  _validate_cluster_create_args(args, SUPER_SLICING_SYSTEM)
+
+  assert args.num_slices == expected

@@ -86,7 +86,7 @@ If you need to modify the source code or use the latest unreleased features:
 
 ```shell
 # 1. Clone the XPK repository
-git clone [https://github.com/google/xpk.git](https://github.com/google/xpk.git)
+git clone https://github.com/AI-Hypercomputer/xpk.git
 cd xpk
 
 # 2. Install dependencies and build
@@ -95,6 +95,8 @@ make install
 # 3. Update your PATH
 export PATH=$PATH:$PWD/bin
 ```
+
+*Note: Installing from source is recommended only for contributors and advanced users. Most users should install via PIP for the best stability.*
 
 **Persisting the PATH configuration:**
 To use `xpk` in future terminal sessions without re-running the export command, add the binary path to your shell configuration:

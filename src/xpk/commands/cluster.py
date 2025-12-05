@@ -211,9 +211,11 @@ def _validate_cluster_create_args(args, system: SystemCharacteristics):
   if FeatureFlags.SUB_SLICING_ENABLED and args.sub_slicing:
     validate_sub_slicing_system(system)
     _validate_sub_slicing_reservation(args)
-  if FeatureFlags.SUPER_SLICING_ENABLED and args.super_slicing:
-    validate_super_slicing_system(system)
-    _validate_super_slicing_reservation(args)
+  if FeatureFlags.SUPER_SLICING_ENABLED:
+    _validate_num_slices_and_set_default(args)
+    if args.super_slicing:
+      validate_super_slicing_system(system)
+      _validate_super_slicing_reservation(args)
   if args.enable_pathways:
     _validate_pathways_machine(args)
 
@@ -279,6 +281,22 @@ def _validate_gsc_reservation(args, creation_description: str):
         ' https://cloud.google.com/cluster-director/docs/reserve-capacity'
     )
     xpk_exit(1)
+
+
+def _validate_num_slices_and_set_default(args):
+  if args.num_cubes is not None and not args.super_slicing:
+    xpk_print('--num-cubes can only be used with --super-slicing')
+    xpk_exit(1)
+
+  if (
+      args.num_cubes is not None
+      and args.num_slices is not None
+      and args.num_cubes != args.num_slices
+  ):
+    xpk_print('--num-cubes must not be different from --num-slices')
+    xpk_exit(1)
+
+  args.num_slices = args.num_slices or args.num_cubes or 1
 
 
 def cluster_create(args) -> None:

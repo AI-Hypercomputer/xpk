@@ -46,12 +46,3 @@ def get_latest_xpk_version() -> tuple[int, Version | None]:
 def print_xpk_hello() -> None:
   current_version = Version(__version__)
   xpk_print(f"Starting xpk v{current_version}", flush=True)
-  return_code, latest_version = get_latest_xpk_version()
-  if return_code != 0 or latest_version is None:
-    return
-  if current_version < latest_version:
-    xpk_print(
-        f"XPK version v{current_version} is outdated. Please consider upgrading"
-        f" to v{latest_version}",
-        flush=True,
-    )

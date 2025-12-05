@@ -68,13 +68,3 @@ def test_print_xpk_hello_does_not_print_update_when_xpk_is_up_to_date(
   get_latest_xpk_version.return_value = (0, Version(__version__))
   print_xpk_hello()
   xpk_print.assert_called_once()
-
-
-@patch('xpk.core.updates.xpk_print')
-@patch('xpk.core.updates.get_latest_xpk_version')
-def test_print_xpk_hello_prints_update_when_xpk_is_outdated(
-    get_latest_xpk_version: MagicMock, xpk_print: MagicMock
-):
-  get_latest_xpk_version.return_value = (0, Version('99.99.99'))
-  print_xpk_hello()
-  assert xpk_print.call_count == 2

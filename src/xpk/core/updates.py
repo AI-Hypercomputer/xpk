@@ -28,7 +28,7 @@ def get_latest_xpk_version() -> tuple[int, Version | None]:
     return 0, Version(__version__)
 
   return_code, result = run_command_for_value(
-      command="pip index versions xpk --json",
+      command="pip index versions xpk --json --no-input",
       task="Retrieve latest XPK version",
       quiet=True,
   )
@@ -46,3 +46,12 @@ def get_latest_xpk_version() -> tuple[int, Version | None]:
 def print_xpk_hello() -> None:
   current_version = Version(__version__)
   xpk_print(f"Starting xpk v{current_version}", flush=True)
+  return_code, latest_version = get_latest_xpk_version()
+  if return_code != 0 or latest_version is None:
+    return
+  if current_version < latest_version:
+    xpk_print(
+        f"XPK version v{current_version} is outdated. Please consider upgrading"
+        f" to v{latest_version}",
+        flush=True,
+    )

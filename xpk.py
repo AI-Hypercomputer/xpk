@@ -36,30 +36,25 @@ Next Steps:
 from src.xpk.main import main
 
 print("""
-  _   _   _   _   _   _   _
- | | | | | | | | | | | | | |
- | | | | | | | | | | | | | |
- | | | | | | | | | | | | | |
- | | | | | | | | | | | | | |
- |_| |_| |_| |_| |_| |_| |_|
+   _   _   _   _   _   _   _
+  | | | | | | | | | | | | | |
+  | | | | | | | | | | | | | |
+  | | | | | | | | | | | | | |
+  | | | | | | | | | | | | | |
+  |_| |_| |_| |_| |_| |_| |_|
 
- (_) (_) (_) (_) (_) (_) (_)
+  (_) (_) (_) (_) (_) (_) (_)
+
+  WARNING: Launching via python3 xpk.py is deprecated and will be removed in future versions.
+  Please switch to the installed CLI:
+  * Development: Run make install (editable install)
+  * Production: Run pip install xpk (official release)
+  New Usage: xpk <command>
+
+  Read more at: https://github.com/AI-Hypercomputer/xpk/blob/main/docs/installation.md#3-install-xpk
+
+
 """)
-print(
-    "WARNING: Launching via python3 xpk.py is deprecated and will be removed in"
-    " future versions."
-)
-print("Please switch to the installed CLI:")
-print("* Development: Run make install (editable install)")
-print("* Production: Run pip install xpk (official release)")
-print("New Usage: xpk <command>")
-print()
-print(
-    "Read more at:"
-    " https://github.com/AI-Hypercomputer/xpk/blob/main/docs/installation.md#3-install-xpk"
-)
-for i in range(5):
-  print()
 
 if __name__ == "__main__":
   main()

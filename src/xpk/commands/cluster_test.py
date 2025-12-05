@@ -629,3 +629,103 @@ def test_run_gke_cluster_create_command_with_super_slicing_enables_slice_control
   mocks.commands_tester.assert_command_run(
       'clusters create', '--enable-slice-controller'
   )
+
+
+def test_validate_cluster_create_args_for_correct_super_slicing_args_pass(
+    mocks: _Mocks,
+):
+  FeatureFlags.SUPER_SLICING_ENABLED = True
+  args = construct_args(
+      super_slicing=True,
+      reservation='test-reservation/reservationBlocks/block',
+  )
+
+  _validate_cluster_create_args(args, SUPER_SLICING_SYSTEM)
+  args = construct_args(
+      super_slicing=True,
+      reservation='test-reservation/reservationBlocks/block/reservationSubBlocks/subblock',
+  )
+  _validate_cluster_create_args(
+      args, UserFacingNameToSystemCharacteristics['tpu7x-128']
+  )
+
+  assert mocks.common_print_mock.call_count == 0
+
+
+def test_validate_cluster_create_args_for_super_slicing_system_not_supported_throws(
+    mocks: _Mocks,
+):
+  FeatureFlags.SUPER_SLICING_ENABLED = True
+  args = construct_args(
+      super_slicing=True,
+      reservation='test-reservation/reservationBlocks/block',
+  )
+
+  with pytest.raises(SystemExit):
+    _validate_cluster_create_args(
+        args, UserFacingNameToSystemCharacteristics['tpu7x-4x4x8']
+    )
+
+  assert mocks.common_print_mock.call_count == 1
+  assert (
+      mocks.common_print_mock.call_args[0][0]
+      == 'Error: tpu7x-256 does not support Super-slicing.'
+  )
+
+
+def test_validate_cluster_create_args_for_super_slicing_missing_reservation(
+    mocks: _Mocks,
+):
+  FeatureFlags.SUPER_SLICING_ENABLED = True
+  args = construct_args(
+      super_slicing=True,
+      reservation=None,
+  )
+
+  with pytest.raises(SystemExit):
+    _validate_cluster_create_args(args, SUPER_SLICING_SYSTEM)
+
+  assert mocks.commands_print_mock.call_count == 1
+  assert (
+      'Validation failed: Super-slicing cluster creation requires'
+      in mocks.commands_print_mock.call_args[0][0]
+  )
+
+
+def test_validate_cluster_create_args_for_super_slicing_reservation_no_blocks(
+    mocks: _Mocks,
+):
+  FeatureFlags.SUPER_SLICING_ENABLED = True
+  args = construct_args(
+      super_slicing=True,
+      reservation='reservation',
+  )
+
+  with pytest.raises(SystemExit):
+    _validate_cluster_create_args(args, SUPER_SLICING_SYSTEM)
+
+  assert mocks.commands_print_mock.call_count == 1
+  assert (
+      'requires a block or sub-block reservation'
+      in mocks.commands_print_mock.call_args[0][0]
+  )
+
+
+def test_validate_cluster_create_args_for_super_slicing_sparse_deployment_type_reservation(
+    mocks: _Mocks,
+):
+  FeatureFlags.SUPER_SLICING_ENABLED = True
+  args = construct_args(
+      super_slicing=True,
+      reservation='test-reservation/reservationBlocks/block',
+  )
+  mocks.commands_get_reservation_deployment_type.return_value = 'SPARSE'
+
+  with pytest.raises(SystemExit):
+    _validate_cluster_create_args(args, SUPER_SLICING_SYSTEM)
+
+  assert mocks.commands_print_mock.call_count == 5
+  assert (
+      'Refer to the documentation for more information on creating Cluster'
+      in mocks.commands_print_mock.call_args[0][0]
+  )

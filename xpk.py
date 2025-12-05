@@ -35,5 +35,31 @@ Next Steps:
 
 from src.xpk.main import main
 
+print("""
+  _   _   _   _   _   _   _
+ | | | | | | | | | | | | | |
+ | | | | | | | | | | | | | |
+ | | | | | | | | | | | | | |
+ | | | | | | | | | | | | | |
+ |_| |_| |_| |_| |_| |_| |_|
+
+ (_) (_) (_) (_) (_) (_) (_)
+""")
+print(
+    "WARNING: Launching via python3 xpk.py is deprecated and will be removed in"
+    " future versions."
+)
+print("Please switch to the installed CLI:")
+print("* Development: Run make install (editable install)")
+print("* Production: Run pip install xpk (official release)")
+print("New Usage: xpk <command>")
+print()
+print(
+    "Read more at:"
+    " https://github.com/AI-Hypercomputer/xpk/blob/main/docs/installation.md#3-install-xpk"
+)
+for i in range(5):
+  print()
+
 if __name__ == '__main__':
   main()

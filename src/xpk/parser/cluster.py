@@ -937,8 +937,8 @@ def add_cluster_create_super_slicing_arguments(
       # default value is set during validation because it needs to be compared
       # against --num-slices
       help=(
-          'The number of cubes to run the job on, defaults to 1. Can only be'
-          ' used with --super-slicing.'
+          'Total number of cubes to create within a cluster, defaults to 1. Can'
+          ' only be used with --super-slicing.'
       ),
       required=False,
   )

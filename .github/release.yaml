@@ -17,9 +17,11 @@
 
 changelog:
   categories:
+  - title: Breaking Changes
+    labels: [release-breaking]
   - title: New Features
     labels: [release-features]
-  - title: Improvments
-    labels: [release-improvments]
+  - title: Improvements
+    labels: [release-improvements]
   - title: Bug fixes
     labels: [release-bugfix]

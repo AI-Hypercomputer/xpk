@@ -35,5 +35,26 @@ Next Steps:
 
 from src.xpk.main import main
 
-if __name__ == '__main__':
+print("""
+   _   _   _   _   _   _   _
+  | | | | | | | | | | | | | |
+  | | | | | | | | | | | | | |
+  | | | | | | | | | | | | | |
+  | | | | | | | | | | | | | |
+  |_| |_| |_| |_| |_| |_| |_|
+
+  (_) (_) (_) (_) (_) (_) (_)
+
+  WARNING: Launching via python3 xpk.py is deprecated and will be removed in future versions.
+  Please switch to the installed CLI:
+  * Development: Run make install (editable install)
+  * Production: Run pip install xpk (official release)
+  New Usage: xpk <command>
+
+  Read more at: https://github.com/AI-Hypercomputer/xpk/blob/main/docs/installation.md#3-install-xpk
+
+
+""")
+
+if __name__ == "__main__":
   main()

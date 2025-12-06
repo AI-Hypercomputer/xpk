@@ -147,6 +147,7 @@ def construct_args(**kwargs: Any) -> Namespace:
       docker_image_pull_secret='',
       managed_mldiagnostics=False,
       output_manifest_file='',
+      multi_container=False,
   )
   args_dict.update(kwargs)
   return Namespace(**args_dict)

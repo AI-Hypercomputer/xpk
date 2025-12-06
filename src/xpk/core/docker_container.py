@@ -112,6 +112,67 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
         'touch /shared-volume/stacktrace_signal; '
     )
 
+  if not args.use_pathways and args.multi_container:
+    containers = []
+    for i in range(2):
+      container_yaml = """
+              - name: {docker_name}
+                image: {docker_image}
+                {image_pull_policy}
+                env: {env}
+                securityContext:
+                  privileged: true
+                command:
+                - bash
+                - -c
+                - |
+                  echo XPK Start: $(date);
+                  _sigterm() (kill -SIGTERM $! 2>/dev/null;);
+                  trap _sigterm SIGTERM;
+                  {gsutil_test_command}
+                  ({command}) & PID=$!;
+                  while kill -0 $PID 2>/dev/null;
+                      do sleep 5;
+                  done;
+                  wait $PID;
+                  EXIT_CODE=$?;
+                  {xpk_internal_commands}
+                  echo XPK End: $(date);
+                  echo EXIT_CODE=$EXIT_CODE;
+                  {tpu_stacktrace_terminate_command}
+                  {gpu_workload_terminate_command}
+                  exit $EXIT_CODE
+                resources:
+                  limits:
+                    {resources}
+"""
+      volume_mounts = get_volume_mounts(args, system)
+      if volume_mounts != '':
+        container_yaml += """
+                volumeMounts:
+                {volume_mounts}
+"""
+      containers.append(
+          container_yaml.format(
+              args=args,
+              system=system,
+              image_pull_policy=add_image_pull_policy_for_pw_or_gpu(
+                  args, system
+              ),
+              env=get_env_container(args, system),
+              docker_name=f'jax-tpu-{i+1}',
+              docker_image=docker_image,
+              gsutil_test_command=gsutil_test_command,
+              command=command,
+              tpu_stacktrace_terminate_command=tpu_stacktrace_terminate_command,
+              gpu_workload_terminate_command=gpu_workload_terminate_command,
+              xpk_internal_commands=xpk_internal_commands,
+              resources=f'{resource_type}: {int(system.chips_per_vm / 2)}',
+              volume_mounts=volume_mounts,
+          )
+      )
+    return ''.join(containers)
+
   yaml = """- name: {docker_name}
                 image: {docker_image}
                 {image_pull_policy}

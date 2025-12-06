@@ -132,6 +132,11 @@ def set_workload_create_parser(workload_create_parser: ArgumentParser):
       help='The number of nodes to use, default=1.',
   )
   workload_create_parser_optional_arguments.add_argument(
+      '--multi-container',
+      action='store_true',
+      help='Enable multi-container workload.',
+  )
+  workload_create_parser_optional_arguments.add_argument(
       '--scheduler',
       type=str,
       default='default-scheduler',

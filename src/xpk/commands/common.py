@@ -73,3 +73,9 @@ def validate_sub_slicing_system(system: SystemCharacteristics):
   if not system.supports_sub_slicing:
     xpk_print(f'Error: {system.device_type} does not support Sub-slicing.')
     xpk_exit(1)
+
+
+def validate_super_slicing_system(system: SystemCharacteristics):
+  if not system.supports_super_slicing:
+    xpk_print(f'Error: {system.device_type} does not support Super-slicing.')
+    xpk_exit(1)

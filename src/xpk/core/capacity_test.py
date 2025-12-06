@@ -16,7 +16,7 @@ limitations under the License.
 
 import pytest
 from unittest.mock import MagicMock, patch
-from .capacity import get_reservation_deployment_type, get_reservation_project_and_name
+from .capacity import get_reservation_deployment_type, parse_reservation, Reservation
 
 
 @patch('xpk.core.capacity.xpk_print')
@@ -28,7 +28,7 @@ def test_get_reservation_deployment_type_exits_with_command_fails(
   )
   with pytest.raises(SystemExit):
     get_reservation_deployment_type(
-        reservation='reservation', zone='zone', project='project'
+        reservation_path='reservation', zone='zone', project='project'
     )
 
   assert (
@@ -45,37 +45,91 @@ def test_get_reservation_deployment_type_returns_deployment_type_when_command_su
       return_value=(0, 'DENSE'),
   )
   result = get_reservation_deployment_type(
-      reservation='reservation', zone='zone', project='project'
+      reservation_path='reservation', zone='zone', project='project'
   )
   assert result == 'DENSE'
 
 
-def test_get_reservation_project_and_name_parses_local_reservation():
-  project, name = get_reservation_project_and_name(
-      'test-reservation', 'cluster-project'
-  )
+@pytest.mark.parametrize(
+    argnames='reservation_path,expected_reservation',
+    argvalues=[
+        (
+            'reservation',
+            Reservation(project='cluster-project', name='reservation'),
+        ),
+        (
+            'reservation/reservationBlocks/block',
+            Reservation(
+                project='cluster-project',
+                name='reservation',
+                block_name='block',
+            ),
+        ),
+        (
+            'reservation/reservationBlocks/block/reservationSubBlocks/subblock',
+            Reservation(
+                project='cluster-project',
+                name='reservation',
+                block_name='block',
+                sub_block_name='subblock',
+            ),
+        ),
+        (
+            'projects/p/reservations/reservation',
+            Reservation(project='p', name='reservation'),
+        ),
+        (
+            'projects/p/reservations/reservation/reservationBlocks/block',
+            Reservation(
+                project='p',
+                name='reservation',
+                block_name='block',
+            ),
+        ),
+        (
+            'projects/p/reservations/reservation/reservationBlocks/block/reservationSubBlocks/subblock',
+            Reservation(
+                project='p',
+                name='reservation',
+                block_name='block',
+                sub_block_name='subblock',
+            ),
+        ),
+    ],
+)
+def test_parse_reservation_parses_valid_reservations(
+    reservation_path: str,
+    expected_reservation: Reservation,
+):
+  actual_reservation = parse_reservation(reservation_path, 'cluster-project')
 
-  assert project == 'cluster-project'
-  assert name == 'test-reservation'
+  assert actual_reservation == expected_reservation
 
 
-def test_get_reservation_project_and_name_parses_shared_reservation():
-  project, name = get_reservation_project_and_name(
-      'projects/reservation-project/reservations/test-reservation',
-      'cluster-project',
-  )
-
-  assert project == 'reservation-project'
-  assert name == 'test-reservation'
-
-
+@pytest.mark.parametrize(
+    argnames='reservation_path',
+    argvalues=[
+        '',
+        '/name',
+        'name/',
+        'name/reservationBlocks/',
+        'name/reservationBlocks/block/reservationSubBlocks/',
+        'name/reservationBlocks/block/reservationSubBlocks/subblock/extra',
+        'name/reservationBlock/block/reservationSubBlocks/subblock',
+        'name/reservationBlocks/block/reservationSubBlock/subblock',
+        'reservations/name',
+        'project/p/reservations/name',
+        'projects/p/reservation/name',
+        'projects/p/reservations',
+        'projects/p/reservations/name/reservationBlocks/block/reservationSubBlocks/subblock/extra',
+        'projects/p/reservations/name/reservationBlocks//reservationSubBlocks/subblock',
+    ],
+)
 @patch('xpk.core.capacity.xpk_print')
-def test_get_reservation_project_and_name_fails_for_invalid_reservation(
-    xpk_print: MagicMock, mocker
+def test_parse_reservation_fails_on_invalid_reservations(
+    xpk_print: MagicMock, reservation_path: str
 ):
   with pytest.raises(SystemExit):
-    get_reservation_project_and_name(
-        'invalid/reservation',
-        'cluster-project',
-    )
+    parse_reservation(reservation_path, 'cluster-project')
+
   assert 'Unable to parse reservation' in xpk_print.mock_calls[0].args[0]

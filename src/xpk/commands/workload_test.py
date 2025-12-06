@@ -205,3 +205,40 @@ def test_workload_create_dry_run_with_output_file(mocker):
   written_content = mock_open.return_value.write.call_args[0][0]
   assert 'test-workload' in written_content
   assert 'cloud.google.com/gke-tpu-topology: 8x8' in written_content
+
+
+def test_workload_create_multi_container_pod_failure_policy(
+    workload_create_mocks: _WorkloadCreateMocks,
+):
+  """Tests that pod failure policy is correctly generated for multi-container workloads."""
+  with patch(
+      'xpk.commands.workload.get_system_characteristics',
+      return_value=(SYSTEM_CHARACTERISTICS, 0),
+  ), patch(
+      'xpk.commands.workload.get_main_container_docker_image',
+      return_value='main-container',
+  ):
+    args = construct_args(
+        workload='test-workload',
+        command='echo hello',
+        multi_container=True,
+        restart_on_exit_codes=None,
+    )
+    workload_create(args)
+
+  assert workload_create_mocks.write_tmp_file.called
+  yaml_content = workload_create_mocks.write_tmp_file.call_args[0][0]
+  jobset = yaml.safe_load(yaml_content)
+
+  pod_failure_policy_rules = jobset['spec']['replicatedJobs'][0]['template'][
+      'spec'
+  ]['podFailurePolicy']['rules']
+  assert len(pod_failure_policy_rules) == 2
+  assert (
+      pod_failure_policy_rules[0]['onExitCodes']['containerName']
+      == 'main-container-1'
+  )
+  assert (
+      pod_failure_policy_rules[1]['onExitCodes']['containerName']
+      == 'main-container-2'
+  )

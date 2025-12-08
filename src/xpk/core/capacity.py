@@ -15,10 +15,12 @@ limitations under the License.
 """
 
 import enum
+from dataclasses import dataclass
 
+from .commands import run_command_with_updates, run_command_for_value
+from .system_characteristics import AcceleratorType
 from ..utils.console import xpk_print, xpk_exit
 from ..utils.kueue import is_queued_cluster
-from .commands import run_command_with_updates, run_command_for_value
 
 AUTOPROVISIONING_CONFIG_VALUE = 'AUTOPROVISION'
 AUTOPROVISIONING_CONFIG_MINIMUM_KEY = 'minimum_chips'
@@ -40,6 +42,14 @@ class CapacityType(enum.Enum):
   SPOT = 'spot'
   UNKNOWN = 'unknown'
   FLEX_START = 'flex_start'
+
+
+@dataclass
+class Reservation:
+  project: str
+  name: str
+  block_name: str | None = None
+  sub_block_name: str | None = None
 
 
 def print_reservations(args) -> int:
@@ -107,7 +117,7 @@ def get_capacity_type(args) -> tuple[CapacityType, int]:
 
 
 def get_reservation_maintenance_interval(
-    reservation: str, zone: str, project: str
+    reservation_path: str, zone: str, project: str
 ) -> str:
   """Get reservation maintenance interval.
 
@@ -117,12 +127,10 @@ def get_reservation_maintenance_interval(
   Returns:
     0 if successful and 1 otherwise.
   """
-  reservation_project, reservation_name = get_reservation_project_and_name(
-      reservation, project
-  )
+  reservation = parse_reservation(reservation_path, project)
   command = (
-      f'gcloud beta compute reservations describe {reservation_name}'
-      f' --project={reservation_project} --zone={zone} --format="value(specificReservation.instanceProperties.maintenanceInterval)"'
+      f'gcloud beta compute reservations describe {reservation.name}'
+      f' --project={reservation.project} --zone={zone} --format="value(specificReservation.instanceProperties.maintenanceInterval)"'
   )
   return_code, output = run_command_for_value(
       command, 'Get reservation maintenance interval'
@@ -134,7 +142,7 @@ def get_reservation_maintenance_interval(
 
 
 def get_reservation_placement_policy(
-    reservation: str, zone: str, project: str
+    reservation_path: str, zone: str, project: str
 ) -> str:
   """Get reservation placement policy.
 
@@ -144,12 +152,10 @@ def get_reservation_placement_policy(
   Returns:
     0 if successful and 1 otherwise.
   """
-  reservation_project, reservation_name = get_reservation_project_and_name(
-      reservation, project
-  )
+  reservation = parse_reservation(reservation_path, project)
   command = (
-      f'gcloud beta compute reservations describe {reservation_name}'
-      f' --project={reservation_project} --zone={zone} --format="value(resourcePolicies.policy)"'
+      f'gcloud beta compute reservations describe {reservation.name}'
+      f' --project={reservation.project} --zone={zone} --format="value(resourcePolicies.policy)"'
   )
   return_code, output = run_command_for_value(
       command, 'Get reservation placement policy'
@@ -161,15 +167,13 @@ def get_reservation_placement_policy(
 
 
 def get_reservation_deployment_type(
-    reservation: str, zone: str, project: str
+    reservation_path: str, zone: str, project: str
 ) -> str:
   """Get reservation deployment type."""
-  reservation_project, reservation_name = get_reservation_project_and_name(
-      reservation, project
-  )
+  reservation = parse_reservation(reservation_path, project)
   command = (
-      f'gcloud beta compute reservations describe {reservation_name}'
-      f' --project={reservation_project} --zone={zone} --format="value(deploymentType)"'
+      f'gcloud beta compute reservations describe {reservation.name}'
+      f' --project={reservation.project} --zone={zone} --format="value(deploymentType)"'
   )
   return_code, output = run_command_for_value(
       command, 'Get reservation deployment type', dry_run_return_val='DENSE'
@@ -189,12 +193,10 @@ def verify_reservation_exists(args) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
-  reservation_project, reservation_name = get_reservation_project_and_name(
-      args.reservation, args.project
-  )
+  reservation = parse_reservation(args.reservation, args.project)
   command = (
-      f'gcloud beta compute reservations describe {reservation_name}'
-      f' --project={reservation_project} --zone={args.zone}'
+      f'gcloud beta compute reservations describe {reservation.name}'
+      f' --project={reservation.project} --zone={args.zone}'
   )
   return_code = run_command_with_updates(command, 'Describe reservation')
   if return_code != 0:
@@ -205,7 +207,10 @@ def verify_reservation_exists(args) -> int:
 
 
 def get_capacity_arguments_from_capacity_type(
-    args, capacity_type: CapacityType, max_nodes: int
+    args,
+    capacity_type: CapacityType,
+    max_nodes: int,
+    accelerator_type: AcceleratorType,
 ) -> tuple[str, int]:
   """Determine the Nodepool creation capacity arguments needed.
 
@@ -231,7 +236,7 @@ def get_capacity_arguments_from_capacity_type(
           ' --location-policy=ANY --reservation-affinity=none'
           f' --no-enable-autorepair --max-nodes={max_nodes}'
       )
-      if is_queued_cluster(args.num_slices):
+      if is_queued_cluster(args.num_slices, accelerator_type):
         capacity_args += ' --enable-queued-provisioning'
     case CapacityType.RESERVATION:
       capacity_args = (
@@ -280,27 +285,59 @@ def get_capacity_node_selectors_from_capacity_type(
   return node_selector, return_code
 
 
-def get_reservation_project_and_name(
-    reservation_name_or_path: str, cluster_project: str
-) -> tuple[str, str]:
-  """Get the reservation project and name.
+def parse_reservation(
+    reservation_path: str, cluster_project: str
+) -> Reservation:
+  """Parses the reservation details from the reservation path.
+      Also supports reservation blocks and sub-blocks.
+      Assumes cluster project if project is not contained in the path.
 
-  Args:
-    reservation_name_or_path: either reservation name or reservation path in format
-      projects/RESERVATION_PROJECT_ID/reservations/RESERVATION_NAME
-    cluster_project: the cluster project
+      Args:
+        reservation_path: path to the reservation, reservation block or sub-block in format:
+  `[projects/RESERVATION_PROJECT_ID/reservations/]RESERVATION_NAME[/reservationBlocks/BLOCK_NAME[/reservationSubBlocks/SUB_BLOCK_NAME]]`
+        cluster_project: the cluster project
 
-  Returns:
-    Tuple with reservation project and reservation name.
+      Returns:
+        Reservation instance containing reservation details.
   """
-  if '/' not in reservation_name_or_path:
-    return cluster_project, reservation_name_or_path
-  reservation_parts = reservation_name_or_path.split('/')
-  if (
-      len(reservation_parts) != 4
-      or reservation_parts[0] != 'projects'
-      or reservation_parts[2] != 'reservations'
-  ):
-    xpk_print('Unable to parse reservation: ', reservation_name_or_path)
+  reservation = _try_parse_reservation(reservation_path, cluster_project)
+  if reservation is None:
+    xpk_print('Unable to parse reservation: ', reservation_path)
     xpk_exit(1)
-  return reservation_parts[1], reservation_parts[3]
+  return reservation
+
+
+def _try_parse_reservation(
+    reservation_path: str, cluster_project: str
+) -> Reservation | None:
+  # assume trivial case, path contains just the reservation name
+  reservation = Reservation(
+      project=cluster_project,
+      name=reservation_path,
+      block_name=None,
+      sub_block_name=None,
+  )
+  parts = reservation_path.split('/')
+  if min(map(len, parts)) == 0:  # all parts must be non-empty
+    return None
+  if len(parts) == 1:
+    return reservation  # trivial case
+
+  if parts[0] == 'projects':
+    reservation.project = parts[1]
+    if len(parts) < 4 or parts[2] != 'reservations':
+      return None
+    parts = parts[3:]  # remove projects/PROJECT/reservations/ prefix
+
+  if len(parts) not in (1, 3, 5):
+    return None
+  reservation.name = parts[0]
+  if len(parts) >= 3:
+    if parts[1] != 'reservationBlocks':
+      return None
+    reservation.block_name = parts[2]
+    if len(parts) >= 5:
+      if parts[3] != 'reservationSubBlocks':
+        return None
+      reservation.sub_block_name = parts[4]
+  return reservation

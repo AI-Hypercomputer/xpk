@@ -1,0 +1,133 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License
+
+name: Periodic Release
+
+on:
+  schedule:
+    - cron: "30 10 * * 1" # At 10:30 on Monday.
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  validate-ref:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check ref
+        run: |
+          if [[ "${{ github.ref_type }}" != "branch" ]]; then
+            echo "::error::This workflow must be run on a Branch, not a Tag."
+            exit 1
+          fi
+
+          if [[ "${{ github.ref_name }}" != "main" ]]; then
+            echo "::error::This workflow must be run on a main branch."
+            exit 1
+          fi
+
+  compute-release-branch:
+    needs: [validate-ref]
+    runs-on: ubuntu-latest
+    outputs:
+      skip_push: ${{ steps.compute_branch_name.outputs.skip_push }}
+      new_branch_name: ${{ steps.compute_branch_name.outputs.new_branch_name }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Compute Next Version
+        id: compute_branch_name
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          LATEST_BRANCH=$(git branch -r | grep -oE 'origin/release-[0-9]+\.[0-9]+' | sort -V | tail -n 1)
+
+          if [ -z "$LATEST_BRANCH" ]; then
+            echo "No existing release branches found. Cannot determine next version automatically."
+            exit 1
+          fi
+
+          echo "Latest release branch found: $LATEST_BRANCH"
+
+          COMMIT_COUNT=$(git rev-list --count "$LATEST_BRANCH"..HEAD)
+
+          echo "Commits since last release: $COMMIT_COUNT"
+
+          if [ "$COMMIT_COUNT" -eq 0 ]; then
+            echo "No new changes detected compared to $LATEST_BRANCH."
+            echo "Skipping release branch creation."
+            echo "skip_push=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          VERSION_STR=$(echo "$LATEST_BRANCH" | sed 's/origin\/release-//')
+          CURRENT_MAJOR=$(echo "$VERSION_STR" | cut -d. -f1)
+          CURRENT_MINOR=$(echo "$VERSION_STR" | cut -d. -f2)
+
+          echo "Retrieving pull request labels between $LATEST_BRANCH and HEAD..."
+          LABELS=$(git log $LATEST_BRANCH..HEAD --pretty=format:"%s" \
+            | grep -oE "#[0-9]+" \
+            | tr -d "#" \
+            | xargs -I {} gh pr view {} --json labels --jq '.labels[].name' \
+            | sort \
+            | uniq)
+
+          echo "Pull request labels:"
+          echo "$LABELS"
+
+          if echo "$LABELS" | grep -q "release-breaking"; then
+            NEW_MAJOR=$((CURRENT_MAJOR + 1))
+            NEW_MINOR=0
+            echo "BREAKING detected. Bumping Major version."
+          else
+            NEW_MAJOR=$CURRENT_MAJOR
+            NEW_MINOR=$((CURRENT_MINOR + 1))
+            echo "No breaking changes detected. Bumping Minor version."
+          fi
+
+          NEW_BRANCH_NAME="release-$NEW_MAJOR.$NEW_MINOR"
+          echo "New release branch calculated: $NEW_BRANCH_NAME"
+          echo "new_branch_name=$NEW_BRANCH_NAME" >> $GITHUB_OUTPUT
+          echo "skip_push=false" >> $GITHUB_OUTPUT
+
+  create-release-branch:
+    needs: [compute-release-branch]
+    environment:
+      name: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        if: needs.compute-release-branch.outputs.skip_push != 'true'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Push the branch
+        if: needs.compute-release-branch.outputs.skip_push != 'true'
+        run: |
+          NEW_BRANCH_NAME="${{needs.compute-release-branch.outputs.new_branch_name}}"
+          git checkout -b "$NEW_BRANCH_NAME"
+          git push origin "$NEW_BRANCH_NAME"
+
+          echo "Successfully pushed $NEW_BRANCH_NAME"
+      - name: Run release branch versioning
+        if: needs.compute-release-branch.outputs.skip_push != 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run release_branch_versioning.yaml --ref ${{needs.compute-release-branch.outputs.new_branch_name}}

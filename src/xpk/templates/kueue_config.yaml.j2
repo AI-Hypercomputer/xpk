@@ -1,15 +1,16 @@
-{% for flavor in flavors %}
+{%- for flavor in flavors %}
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: ResourceFlavor
 metadata:
   name: "{{ flavor.name }}"
 spec:
   nodeLabels: {{ flavor.nodeLabels | tojson }}
-  {% if flavor.topologyLabel %}
+  {%- if flavor.topologyLabel %}
   {{ flavor.topologyLabel }}
-  {% endif %}
+  {%- endif %}
 ---
-{% endfor %}
+{%- endfor %}
+{%- if 'dws-prov' in admission_checks %}
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: AdmissionCheck
 metadata:
@@ -21,6 +22,16 @@ spec:
     kind: ProvisioningRequestConfig
     name: dws-config
 ---
+{%- endif %}
+{%- if 'ss-kueue-operator' in admission_checks %}
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: AdmissionCheck
+metadata:
+  name: ss-kueue-operator
+spec:
+  controllerName: accelerator.gke.io/slice
+---
+{%- endif %}
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: ProvisioningRequestConfig
 metadata:
@@ -44,7 +55,12 @@ spec:
     withinClusterQueue: LowerPriority
   namespaceSelector: {} # match all.
   resourceGroups: {{ resource_groups }}
-  {{ admission_checks | indent(2) }}
+  {%- if admission_checks %}
+  admissionChecks:
+  {%- for check in admission_checks %}
+  - {{ check }}
+  {%- endfor %}
+  {%- endif %}
 ---
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: LocalQueue

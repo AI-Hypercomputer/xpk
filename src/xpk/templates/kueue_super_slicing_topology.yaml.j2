@@ -1,0 +1,9 @@
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: Topology
+metadata:
+  name: {{ super_slice_topology_name }}
+spec:
+  levels:
+  - nodeLabel: cloud.google.com/gce-topology-block
+  - nodeLabel: cloud.google.com/gke-tpu-partition-4x4x4-id
+  - nodeLabel: kubernetes.io/hostname

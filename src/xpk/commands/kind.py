@@ -98,6 +98,7 @@ def cluster_create(args) -> None:
       AcceleratorType.CPU,
       'kind',
       supports_sub_slicing=False,
+      supports_super_slicing=False,
       docker_platform=DockerPlatform.ARM,
   )
 
@@ -113,6 +114,7 @@ def cluster_create(args) -> None:
           is_pathways_cluster=False,
           flex=False,
           configure_sub_slicing=False,
+          configure_super_slicing=False,
       ),
   )
 

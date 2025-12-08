@@ -132,6 +132,7 @@ spec:
               annotations:
                 {storage_annotations}
                 {sub_slicing_annotations}
+                {annotations_machine_label}
             spec:
               schedulerName: {args.scheduler}
               imagePullSecrets:
@@ -140,7 +141,7 @@ spec:
               {affinity}
               nodeSelector:
                 {accelerator_label}
-                {machine_label}
+                {node_selector_machine_label}
                 {placement_policy_label}
                 {autoprovisioning_args}
               priorityClassName: {args.priority}
@@ -497,19 +498,24 @@ def workload_create(args) -> None:
                 operator: NotIn
                 values: [{restart_on_exit_codes}]"""
 
-  if is_placement_policy_supported(workload_system):
+  placement_policy_label = ''
+  if (
+      # Don't bother with placement for sub/super-slicing workloads:
+      workload_scheduling == WorkloadScheduling.AVAILABLE
+      and is_placement_policy_supported(workload_system)
+  ):
     ensure_resource_policy_exists(
-        resource_policy_name=get_placement_policy_name(workload_system),
+        resource_policy_name=get_placement_policy_name(
+            workload_system, super_slicing=False
+        ),
         project=args.project,
         zone=args.zone,
         topology=workload_system.topology,
+        super_slicing=False,
     )
-
-  placement_policy_label = (
-      create_placement_policy_label(workload_system)
-      if is_placement_policy_supported(workload_system)
-      else ''
-  )
+    placement_policy_label = create_placement_policy_label(
+        workload_system, super_slicing=False
+    )
 
   # TODO(b/466943057): Add ANP label for NAP (if not possible, use CCC)
 
@@ -617,12 +623,26 @@ def workload_create(args) -> None:
     use_sub_slicing = (
         workload_scheduling == WorkloadScheduling.SUB_SLICING_AVAILABLE
     )
+    use_super_slicing = (
+        workload_scheduling == WorkloadScheduling.SUPER_SLICING_AVAILABLE
+    )
     if use_sub_slicing:
       xpk_print('Workload will be scheduled using the Sub-slicing feature.')
+    if use_super_slicing:
+      xpk_print('Workload will be scheduled using the Super-slicing feature.')
 
     container, debugging_dashboard_id = get_user_workload_container(
         args, workload_system
     )
+
+    machine_label = (
+        create_machine_label(cluster_system)
+        if use_sub_slicing and cluster_system
+        else create_machine_label(workload_system)
+    )
+    node_selector_machine_label = machine_label if not use_super_slicing else ''
+    annotations_machine_label = machine_label if use_super_slicing else ''
+
     yml_string = WORKLOAD_CREATE_YAML.format(
         args=args,
         container=container,
@@ -637,11 +657,8 @@ def workload_create(args) -> None:
             else ''
         ),
         placement_policy_label=placement_policy_label,
-        machine_label=(
-            create_machine_label(cluster_system)
-            if use_sub_slicing and cluster_system
-            else create_machine_label(workload_system)
-        ),
+        node_selector_machine_label=node_selector_machine_label,
+        annotations_machine_label=annotations_machine_label,
         local_queue_name=LOCAL_QUEUE_NAME,
         autoprovisioning_args=autoprovisioning_args,
         volumes=get_volumes(args, workload_system),
@@ -823,11 +840,14 @@ def workload_delete(args) -> None:
     if len(workloads) == 1:
       return_code = run_command_with_updates(commands[0], 'Delete Workload')
     else:
-      return_code = run_commands(
+      maybe_failure = run_commands(
           commands,
           'Delete Workload',
           task_names,
           batch=100,
+      )
+      return_code = (
+          maybe_failure.return_code if maybe_failure is not None else 0
       )
 
     if return_code != 0:

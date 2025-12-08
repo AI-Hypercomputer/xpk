@@ -137,6 +137,7 @@ class SystemCharacteristics:
     device_type: A user-facing name for the specific hardware configuration
       (e.g., 'l4-1', 'h100-80gb-8').
     supports_sub_slicing: Whether the Sub-slicing feature is supported.
+    supports_super_slicing: Whether the Super-slicing feature is supported.
     requires_workload_policy: A boolean indicating if a GCE resource
       workload policy is required. This is automatically set to True for GPUs.
   """
@@ -149,6 +150,7 @@ class SystemCharacteristics:
   accelerator_type: AcceleratorType
   device_type: str
   supports_sub_slicing: bool
+  supports_super_slicing: bool
   docker_platform: DockerPlatform
   requires_workload_policy: bool = False
   gpu_config: Optional[GpuConfig] = None
@@ -239,14 +241,16 @@ def get_tpu_system_characteristics_map(
     gke_accelerator: str,
     machine_type: str,
     supported_topologies: list[str],
-    supports_sub_slicing: bool,
     docker_platform: DockerPlatform,
     tpu_type_requires_workload_policy: bool = False,
     default_topologies: set[str] | None = None,
+    sub_slicing_topologies: set[str] | None = None,
+    super_slicing_topologies: set[str] | None = None,
 ) -> dict[str, SystemCharacteristics]:
   system_characteristics_map = {}
-  if default_topologies is None:
-    default_topologies = set()
+  default_topologies = default_topologies or set()
+  sub_slicing_topologies = sub_slicing_topologies or set()
+  super_slicing_topologies = super_slicing_topologies or set()
   for topology in supported_topologies:
     chips_per_vm = compute_chips_per_vm(topology)
     vms_per_slice = compute_vms_per_slice(topology)
@@ -262,7 +266,8 @@ def get_tpu_system_characteristics_map(
         device_type=device_type,
         requires_workload_policy=tpu_type_requires_workload_policy
         and vms_per_slice > 1,
-        supports_sub_slicing=supports_sub_slicing,
+        supports_sub_slicing=topology in sub_slicing_topologies,
+        supports_super_slicing=topology in super_slicing_topologies,
         docker_platform=docker_platform,
     )
     system_characteristics_map[f'{prefix}-{topology}'] = system
@@ -306,6 +311,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.GPU,
         device_type='l4-1',
         supports_sub_slicing=False,
+        supports_super_slicing=False,
         gpu_config=GpuConfig(requires_topology=False),
         docker_platform=AMD_PLATFORM,
     ),
@@ -318,6 +324,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.GPU,
         device_type='l4-2',
         supports_sub_slicing=False,
+        supports_super_slicing=False,
         gpu_config=GpuConfig(requires_topology=False),
         docker_platform=AMD_PLATFORM,
     ),
@@ -330,6 +337,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.GPU,
         device_type='l4-4',
         supports_sub_slicing=False,
+        supports_super_slicing=False,
         gpu_config=GpuConfig(requires_topology=False),
         docker_platform=AMD_PLATFORM,
     ),
@@ -342,6 +350,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.GPU,
         device_type='l4-8',
         supports_sub_slicing=False,
+        supports_super_slicing=False,
         gpu_config=GpuConfig(requires_topology=False),
         docker_platform=AMD_PLATFORM,
     ),
@@ -355,6 +364,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.GPU,
         device_type='a100-40gb-1',
         supports_sub_slicing=False,
+        supports_super_slicing=False,
         gpu_config=GpuConfig(requires_topology=False),
         docker_platform=AMD_PLATFORM,
     ),
@@ -367,6 +377,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.GPU,
         device_type='a100-40gb-2',
         supports_sub_slicing=False,
+        supports_super_slicing=False,
         gpu_config=GpuConfig(requires_topology=False),
         docker_platform=AMD_PLATFORM,
     ),
@@ -379,6 +390,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.GPU,
         device_type='a100-40gb-4',
         supports_sub_slicing=False,
+        supports_super_slicing=False,
         gpu_config=GpuConfig(requires_topology=False),
         docker_platform=AMD_PLATFORM,
     ),
@@ -391,6 +403,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.GPU,
         device_type='a100-40gb-8',
         supports_sub_slicing=False,
+        supports_super_slicing=False,
         gpu_config=GpuConfig(requires_topology=False),
         docker_platform=AMD_PLATFORM,
     ),
@@ -403,6 +416,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.GPU,
         device_type='gb200-4',
         supports_sub_slicing=False,
+        supports_super_slicing=False,
         gpu_config=GpuConfig(
             requires_topology=True,
             nccl_installer=INSTALLER_NCCL_RDMA_A4X,
@@ -421,6 +435,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.GPU,
         device_type='gb200-4',
         supports_sub_slicing=False,
+        supports_super_slicing=False,
         gpu_config=GpuConfig(
             requires_topology=True,
             nccl_installer=INSTALLER_NCCL_RDMA_A4X,
@@ -439,6 +454,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.GPU,
         device_type='b200-8',
         supports_sub_slicing=False,
+        supports_super_slicing=False,
         gpu_config=GpuConfig(
             requires_topology=True,
             nccl_installer=INSTALLER_NCCL_RDMA,
@@ -457,6 +473,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.GPU,
         device_type='h200-141gb-8',
         supports_sub_slicing=False,
+        supports_super_slicing=False,
         gpu_config=GpuConfig(
             requires_topology=True,
             nccl_installer=INSTALLER_NCCL_RDMA,
@@ -476,6 +493,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.GPU,
         device_type='h100-80gb-8',
         supports_sub_slicing=False,
+        supports_super_slicing=False,
         gpu_config=GpuConfig(
             requires_topology=True,
             nccl_installer=INSTALLER_NCCL_TCPX,
@@ -495,6 +513,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.GPU,
         device_type='h100-mega-80gb-8',
         supports_sub_slicing=False,
+        supports_super_slicing=False,
         gpu_config=GpuConfig(
             requires_topology=True,
             nccl_installer=INSTALLER_NCCL_TCPXO,
@@ -512,7 +531,6 @@ UserFacingNameToSystemCharacteristics = {
         machine_type='tpu7x-standard-1t',
         supported_topologies=['1x1x1'],
         tpu_type_requires_workload_policy=True,
-        supports_sub_slicing=False,
         docker_platform=AMD_PLATFORM,
     ),
     **get_tpu_system_characteristics_map(
@@ -521,9 +539,9 @@ UserFacingNameToSystemCharacteristics = {
         gke_accelerator='tpu7x',
         machine_type='tpu7x-standard-4t',
         tpu_type_requires_workload_policy=True,
-        supports_sub_slicing=False,
         docker_platform=AMD_PLATFORM,
         supported_topologies=generate_tpu_topologies(max_cubes=144),
+        super_slicing_topologies=set(['4x4x4']),
         default_topologies=set([
             '12x12x12',
             '12x12x16',
@@ -630,7 +648,6 @@ UserFacingNameToSystemCharacteristics = {
         tensorcores_per_chip=1,
         gke_accelerator='tpu-v6e-slice',
         machine_type='ct6e-standard-1t',
-        supports_sub_slicing=False,
         supported_topologies=['1x1'],
         docker_platform=AMD_PLATFORM,
     ),
@@ -639,19 +656,8 @@ UserFacingNameToSystemCharacteristics = {
         tensorcores_per_chip=1,
         gke_accelerator='tpu-v6e-slice',
         machine_type='ct6e-standard-4t',
-        supports_sub_slicing=False,
-        supported_topologies=[
-            '2x2',
-        ],
-        docker_platform=AMD_PLATFORM,
-    ),
-    **get_tpu_system_characteristics_map(
-        prefix='v6e',
-        tensorcores_per_chip=1,
-        gke_accelerator='tpu-v6e-slice',
-        machine_type='ct6e-standard-4t',
-        supports_sub_slicing=True,
-        supported_topologies=SUB_SLICING_TOPOLOGIES,
+        supported_topologies=['2x2'] + SUB_SLICING_TOPOLOGIES,
+        sub_slicing_topologies=set(SUB_SLICING_TOPOLOGIES),
         docker_platform=AMD_PLATFORM,
     ),
     **get_tpu_system_characteristics_map(
@@ -659,7 +665,6 @@ UserFacingNameToSystemCharacteristics = {
         tensorcores_per_chip=2,
         gke_accelerator='tpu-v5p-slice',
         machine_type='ct5p-hightpu-4t',
-        supports_sub_slicing=False,
         docker_platform=AMD_PLATFORM,
         supported_topologies=generate_tpu_topologies(max_cubes=140),
         default_topologies=set([
@@ -767,7 +772,6 @@ UserFacingNameToSystemCharacteristics = {
         gke_accelerator='tpu-v5-lite-podslice',
         machine_type='ct5lp-hightpu-4t',
         docker_platform=AMD_PLATFORM,
-        supports_sub_slicing=False,
         supported_topologies=['2x4', '4x4', '4x8', '8x8', '8x16', '16x16'],
     ),
     **get_tpu_system_characteristics_map(
@@ -776,7 +780,6 @@ UserFacingNameToSystemCharacteristics = {
         gke_accelerator='tpu-v4-podslice',
         machine_type='ct4p-hightpu-4t',
         docker_platform=AMD_PLATFORM,
-        supports_sub_slicing=False,
         supported_topologies=generate_tpu_topologies(
             max_cubes=64, enforce_nondecreasing=False
         ),
@@ -807,6 +810,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.CPU,
         device_type='m1-megamem-96-1',
         supports_sub_slicing=False,
+        supports_super_slicing=False,
         docker_platform=AMD_PLATFORM,
     ),
     # n2-standard-#vCPUs-#VMs
@@ -819,6 +823,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.CPU,
         device_type='n2-standard-64-1',
         supports_sub_slicing=False,
+        supports_super_slicing=False,
         docker_platform=AMD_PLATFORM,
     ),
     'n2-standard-32-1': SystemCharacteristics(
@@ -830,6 +835,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.CPU,
         device_type='n2-standard-32-1',
         supports_sub_slicing=False,
+        supports_super_slicing=False,
         docker_platform=AMD_PLATFORM,
     ),
     'n2-standard-32-2': SystemCharacteristics(
@@ -841,6 +847,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.CPU,
         device_type='n2-standard-32-2',
         supports_sub_slicing=False,
+        supports_super_slicing=False,
         docker_platform=AMD_PLATFORM,
     ),
     'n2-standard-32-4': SystemCharacteristics(
@@ -852,6 +859,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.CPU,
         device_type='n2-standard-32-4',
         supports_sub_slicing=False,
+        supports_super_slicing=False,
         docker_platform=AMD_PLATFORM,
     ),
     'n2-standard-32-8': SystemCharacteristics(
@@ -863,6 +871,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.CPU,
         device_type='n2-standard-32-8',
         supports_sub_slicing=False,
+        supports_super_slicing=False,
         docker_platform=AMD_PLATFORM,
     ),
     'n2-standard-32-16': SystemCharacteristics(
@@ -874,6 +883,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.CPU,
         device_type='n2-standard-32-16',
         supports_sub_slicing=False,
+        supports_super_slicing=False,
         docker_platform=AMD_PLATFORM,
     ),
     'n2-standard-32-32': SystemCharacteristics(
@@ -885,6 +895,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.CPU,
         device_type='n2-standard-32-32',
         supports_sub_slicing=False,
+        supports_super_slicing=False,
         docker_platform=AMD_PLATFORM,
     ),
     'n2-standard-32-64': SystemCharacteristics(
@@ -896,6 +907,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.CPU,
         device_type='n2-standard-32-64',
         supports_sub_slicing=False,
+        supports_super_slicing=False,
         docker_platform=AMD_PLATFORM,
     ),
     'n2-standard-32-128': SystemCharacteristics(
@@ -907,6 +919,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.CPU,
         device_type='n2-standard-32-128',
         supports_sub_slicing=False,
+        supports_super_slicing=False,
         docker_platform=AMD_PLATFORM,
     ),
     'n2-standard-32-256': SystemCharacteristics(
@@ -918,6 +931,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.CPU,
         device_type='n2-standard-32-256',
         supports_sub_slicing=False,
+        supports_super_slicing=False,
         docker_platform=AMD_PLATFORM,
     ),
     'n2-standard-32-512': SystemCharacteristics(
@@ -929,6 +943,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.CPU,
         device_type='n2-standard-32-512',
         supports_sub_slicing=False,
+        supports_super_slicing=False,
         docker_platform=AMD_PLATFORM,
     ),
     'n2-standard-32-1024': SystemCharacteristics(
@@ -940,6 +955,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.CPU,
         device_type='n2-standard-32-1024',
         supports_sub_slicing=False,
+        supports_super_slicing=False,
         docker_platform=AMD_PLATFORM,
     ),
     'n2-standard-32-2048': SystemCharacteristics(
@@ -951,6 +967,7 @@ UserFacingNameToSystemCharacteristics = {
         accelerator_type=AcceleratorType.CPU,
         device_type='n2-standard-32-2048',
         supports_sub_slicing=False,
+        supports_super_slicing=False,
         docker_platform=AMD_PLATFORM,
     ),
 }
@@ -983,7 +1000,7 @@ def create_accelerator_label(system: SystemCharacteristics) -> str:
 def create_machine_label(system: SystemCharacteristics) -> str:
   if system.accelerator_type == AcceleratorType.TPU:
     return (
-        f'{AcceleratorTypeToAcceleratorCharacteristics[system.accelerator_type].machine_label}:'
+        f'{AcceleratorTypeToAcceleratorCharacteristics[AcceleratorType.TPU].machine_label}:'
         f' {system.topology}'
     )
   return ''

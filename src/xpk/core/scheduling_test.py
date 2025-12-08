@@ -65,9 +65,12 @@ def test_create_placement_policy_label_returns_valid_label():
       device_type='tpu7x',
       accelerator_type=AcceleratorType.TPU,
       supports_sub_slicing=False,
+      supports_super_slicing=False,
       docker_platform=DockerPlatform.ARM,
   )
-  label = create_placement_policy_label(system_characteristics)
+  label = create_placement_policy_label(
+      system_characteristics, super_slicing=False
+  )
   assert (
       label
       == 'cloud.google.com/placement-policy-name: tpu7x-1x1x1-placement-policy'
@@ -85,10 +88,29 @@ def test_get_placement_policy_name_returns_valid_name():
       device_type='tpu7x',
       accelerator_type=AcceleratorType.TPU,
       supports_sub_slicing=False,
+      supports_super_slicing=False,
       docker_platform=DockerPlatform.ARM,
   )
-  name = get_placement_policy_name(system_characteristics)
+  name = get_placement_policy_name(system_characteristics, super_slicing=False)
   assert name == 'tpu7x-1x1x1-placement-policy'
+
+
+def test_get_placement_policy_name_super_slicing_returns_valid_name():
+  system_characteristics = SystemCharacteristics(
+      chips_per_vm=1,
+      gce_machine_type='tpu7x-standard-1t',
+      gke_accelerator='tpu7x',
+      requires_workload_policy=False,
+      topology='1x1x1',
+      vms_per_slice=1,
+      device_type='tpu7x',
+      accelerator_type=AcceleratorType.TPU,
+      supports_sub_slicing=False,
+      supports_super_slicing=False,
+      docker_platform=DockerPlatform.ARM,
+  )
+  name = get_placement_policy_name(system_characteristics, super_slicing=True)
+  assert name == 'tpu7x-1x1x1-ss-placement-policy'
 
 
 def test_is_placement_policy_supported_returns_true_for_system_characteristics_supporting_workload_policy_and_having_valid_topology():
@@ -102,6 +124,7 @@ def test_is_placement_policy_supported_returns_true_for_system_characteristics_s
       device_type='tpu7x',
       accelerator_type=AcceleratorType.TPU,
       supports_sub_slicing=False,
+      supports_super_slicing=False,
       docker_platform=DockerPlatform.ARM,
   )
   assert is_placement_policy_supported(system_characteristics) is True
@@ -118,6 +141,7 @@ def test_is_placement_policy_supported_returns_false_for_system_characteristics_
       device_type='tpu7x',
       accelerator_type=AcceleratorType.TPU,
       supports_sub_slicing=False,
+      supports_super_slicing=False,
       docker_platform=DockerPlatform.ARM,
   )
   assert is_placement_policy_supported(system_characteristics) is False
@@ -134,6 +158,7 @@ def test_is_placement_policy_supported_returns_false_for_system_characteristics_
       device_type='tpu7x',
       accelerator_type=AcceleratorType.TPU,
       supports_sub_slicing=False,
+      supports_super_slicing=False,
       docker_platform=DockerPlatform.ARM,
   )
   assert is_placement_policy_supported(system_characteristics) is False
@@ -145,20 +170,12 @@ class SchedulingTestCase:
   num_slices: int = 1
   cluster_system: SystemCharacteristics | None = None
   resources_config_map: dict[str, str] | None = None
-  sub_slicing_feature_enabled: bool = False
   kueue_version: str | None = None
+  sub_slicing_feature_enabled: bool = False
   sub_slicing_topology_set: bool = False
+  super_slicing_feature_enabled: bool = False
+  super_slicing_topology_set: bool = False
 
-
-SUB_SLICING_CASE = SchedulingTestCase(
-    workload_system=_get_system_characteristics_or_die('v6e-8'),
-    cluster_system=_get_system_characteristics_or_die('v6e-16'),
-    resources_config_map={'v6e-16': '8'},
-    sub_slicing_feature_enabled=True,
-    kueue_version='0.13.0',
-    sub_slicing_topology_set=True,
-    num_slices=1,
-)
 
 NAP_CASE = SchedulingTestCase(
     workload_system=_get_system_characteristics_or_die('v6e-8'),
@@ -167,6 +184,28 @@ NAP_CASE = SchedulingTestCase(
         'tpu-v6e-slice': AUTOPROVISIONING_CONFIG_VALUE,
         AUTOPROVISIONING_CONFIG_MAXIMUM_KEY: '10',
     },
+)
+
+SUB_SLICING_CASE = SchedulingTestCase(
+    workload_system=_get_system_characteristics_or_die('v6e-8'),
+    cluster_system=_get_system_characteristics_or_die('v6e-16'),
+    # 2 slices:
+    resources_config_map={'v6e-16': str(8 // 4 * 2)},
+    kueue_version='0.13.0',
+    sub_slicing_feature_enabled=True,
+    sub_slicing_topology_set=True,
+    num_slices=1,
+)
+
+SUPER_SLICING_CASE = SchedulingTestCase(
+    workload_system=_get_system_characteristics_or_die('tpu7x-4x4x16'),
+    cluster_system=_get_system_characteristics_or_die('tpu7x-4x4x4'),
+    # 5 4x4x4 cubes:
+    resources_config_map={'tpu7x-128': str(64 // 4 * 5)},
+    kueue_version='0.14.0',
+    super_slicing_feature_enabled=True,
+    super_slicing_topology_set=True,
+    num_slices=1,
 )
 
 
@@ -283,6 +322,66 @@ NAP_CASE = SchedulingTestCase(
             ),
             WorkloadScheduling.AVAILABLE,
         ),
+        (
+            'Correct Super-slicing',
+            SUPER_SLICING_CASE,
+            WorkloadScheduling.SUPER_SLICING_AVAILABLE,
+        ),
+        (
+            'Super-slicing, but disabled flag',
+            dataclasses.replace(
+                SUPER_SLICING_CASE, super_slicing_feature_enabled=False
+            ),
+            WorkloadScheduling.UNAVAILABLE,
+        ),
+        (
+            'Super-slicing, but low Kueue version',
+            dataclasses.replace(SUPER_SLICING_CASE, kueue_version='0.13.0'),
+            WorkloadScheduling.UNAVAILABLE,
+        ),
+        (
+            'Super-slicing, but no super-slicing-topology',
+            dataclasses.replace(
+                SUPER_SLICING_CASE, super_slicing_topology_set=False
+            ),
+            WorkloadScheduling.UNAVAILABLE,
+        ),
+        (
+            'Super-slicing, but workload too big',
+            dataclasses.replace(SUPER_SLICING_CASE, num_slices=100),
+            WorkloadScheduling.UNAVAILABLE,
+        ),
+        (
+            'Super-slicing, but cluster system is incorrect',
+            dataclasses.replace(
+                SUPER_SLICING_CASE,
+                cluster_system=_get_system_characteristics_or_die(
+                    'tpu7x-4x4x8'
+                ),
+            ),
+            WorkloadScheduling.UNAVAILABLE,
+        ),
+        (
+            'Super-slicing, but workload system is incorrect',
+            dataclasses.replace(
+                SUPER_SLICING_CASE,
+                workload_system=_get_system_characteristics_or_die('v6e-8'),
+            ),
+            WorkloadScheduling.UNAVAILABLE,
+        ),
+        (
+            (
+                'Super-slicing should be ignored when a given device is already'
+                ' present in the cluster'
+            ),
+            dataclasses.replace(
+                SUPER_SLICING_CASE,
+                workload_system=_get_system_characteristics_or_die('tpu7x-64'),
+                cluster_system=_get_system_characteristics_or_die('tpu7x-64'),
+                resources_config_map={'tpu7x-64': '16'},
+            ),
+            WorkloadScheduling.AVAILABLE,
+        ),
     ],
 )
 def test_check_if_workload_can_schedule(
@@ -292,6 +391,7 @@ def test_check_if_workload_can_schedule(
     expected: WorkloadScheduling,
 ):
   FeatureFlags.SUB_SLICING_ENABLED = case.sub_slicing_feature_enabled
+  FeatureFlags.SUPER_SLICING_ENABLED = case.super_slicing_feature_enabled
   commands_tester.set_result_for_command(
       (
           0,
@@ -302,8 +402,13 @@ def test_check_if_workload_can_schedule(
       'kubectl get deployment',
       'image',
   )
+  topology_response = ''
+  if case.sub_slicing_topology_set:
+    topology_response = 'sub-slice-topology'
+  elif case.super_slicing_topology_set:
+    topology_response = 'super-slice-topology'
   commands_tester.set_result_for_command(
-      (0, 'sub-slice-topology' if case.sub_slicing_topology_set else ''),
+      (0, topology_response),
       'kubectl get topology',
   )
   args = Namespace(

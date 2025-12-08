@@ -147,17 +147,18 @@ def enable_autoprovisioning_on_cluster(
 
   for i, command in enumerate(commands):
     xpk_print(f'To complete {task_names[i]} we are executing {command}')
-  max_return_code = run_commands(
+  maybe_failure = run_commands(
       commands,
       'Update node pools with autoprovisioning support',
       task_names,
   )
-  if max_return_code != 0:
+  if maybe_failure is not None:
     xpk_print(
         'Update node pools with autoprovisioning support returned ERROR:'
-        f' {max_return_code}'
+        f' {maybe_failure.return_code}'
     )
-    return None, max_return_code
+    return None, maybe_failure.return_code
+
   return autoprovisioning_config, return_code
 
 

@@ -16,13 +16,23 @@ limitations under the License.
 
 import pytest
 from xpk.core.nodepool import (
+    display_nodepool_creation_error,
     ensure_resource_policy_exists,
     get_desired_node_pool_names,
     run_gke_node_pool_create_command,
 )
 from xpk.core.system_characteristics import AcceleratorType, SystemCharacteristics, DockerPlatform, GpuConfig
+from xpk.core.commands import FailedCommand
+from xpk.core.testing.commands_tester import CommandsTester
+
 
 CLUSTER_NAME = "running-cucumber"
+maybe_failure = FailedCommand(
+    return_code=1,
+    name="create-nodepool",
+    command="test-command",
+    logfile="logfile_path",
+)
 
 
 def node_pool_name(number: int) -> str:
@@ -88,59 +98,105 @@ def test_compute_desired_node_pool_names_with_unknown_node_pools():
   assert set(result) == set(expected_result)
 
 
-def test_ensure_resource_policy_exists_with_existing_policy_retrieves_existing_policy(
-    mocker,
-):
-  args = mocker.Mock(project="test-project", zone="us-central1-a")
-  mocker.patch("xpk.core.nodepool.get_cluster_location", return_value=args.zone)
-  mock = mocker.patch(
-      "xpk.core.nodepool.run_command_for_value", return_value=(0, "")
+@pytest.fixture
+def commands_tester(mocker):
+  return CommandsTester(
+      mocker,
+      run_command_for_value_path="xpk.core.nodepool.run_command_for_value",
   )
+
+
+def test_ensure_resource_policy_exists_with_existing_policy_retrieves_existing_policy(
+    commands_tester: CommandsTester,
+):
   ensure_resource_policy_exists(
       resource_policy_name="resource-policy",
       project="test-project",
       zone="us-central1-a",
       topology="2x2x1",
+      super_slicing=False,
   )
-  mock.assert_called_once()
+
+  assert len(commands_tester.commands_history) == 1
+  commands_tester.assert_command_run(
+      "gcloud compute resource-policies describe resource-policy",
+      "--project=test-project",
+      "--region=us-central1",
+  )
 
 
 def test_ensure_resource_policy_exists_without_existing_policy_creates_policy(
-    mocker,
+    commands_tester: CommandsTester,
 ):
-  args = mocker.Mock(project="test-project", zone="us-central1-a")
-  mocker.patch("xpk.core.nodepool.get_cluster_location", return_value=args.zone)
-  mock = mocker.patch(
-      "xpk.core.nodepool.run_command_for_value", side_effect=[(1, ""), (0, "")]
+  commands_tester.set_result_for_command(
+      (1, ""), "gcloud compute resource-policies describe"
   )
+
   ensure_resource_policy_exists(
       resource_policy_name="resource-policy",
       project="test-project",
       zone="us-central1-a",
       topology="2x2x1",
+      super_slicing=False,
   )
-  assert mock.call_count == 2
-  assert mock.call_args_list[0].args[1] == "Retrieve resource policy"
+
+  assert len(commands_tester.commands_history) == 2
+  commands_tester.assert_command_run(
+      "gcloud compute resource-policies describe"
+  )
+  commands_tester.assert_command_run(
+      "gcloud compute resource-policies create workload-policy resource-policy",
+      "--project=test-project",
+      "--region=us-central1",
+      "--accelerator-topology=2x2x1",
+  )
+  commands_tester.assert_command_not_run(
+      "gcloud compute resource-policies create workload-policy",
+      "--accelerator-topology-mode",
+  )
+
+
+def test_ensure_resource_policy_exists_without_existing_policy_creates_policy_for_super_slicing(
+    commands_tester: CommandsTester,
+):
+  commands_tester.set_result_for_command(
+      (1, ""), "gcloud compute resource-policies describe"
+  )
+
+  ensure_resource_policy_exists(
+      resource_policy_name="ss-resource-policy",
+      project="test-project",
+      zone="us-central1-a",
+      topology="2x2x1",
+      super_slicing=True,
+  )
+
+  commands_tester.assert_command_run(
+      "gcloud compute resource-policies create workload-policy",
+      "--accelerator-topology-mode",
+  )
 
 
 def test_ensure_resource_policy_exits_without_existing_policy_throws_when_creation_fails(
-    mocker,
+    commands_tester: CommandsTester,
 ):
   with pytest.raises(RuntimeError):
-    args = mocker.Mock(project="test-project", zone="us-central1-a")
-    mocker.patch(
-        "xpk.core.nodepool.get_cluster_location", return_value=args.zone
+    commands_tester.set_result_for_command(
+        (1, ""), "gcloud compute resource-policies"
     )
-    mocker.patch(
-        "xpk.core.nodepool.run_command_for_value",
-        side_effect=[(1, ""), (1, "")],
-    )
+
     ensure_resource_policy_exists(
         resource_policy_name="resource-policy",
         project="test-project",
         zone="us-central1-a",
         topology="2x2x1",
+        super_slicing=False,
     )
+
+
+@pytest.fixture
+def mock_xpk_print(mocker):
+  return mocker.patch("xpk.core.nodepool.xpk_print")
 
 
 @pytest.fixture
@@ -159,7 +215,7 @@ def mock_nodepool_dependencies(mocker):
   mocker.patch(
       "xpk.core.nodepool.get_cluster_location", return_value="us-central1"
   )
-  mocker.patch("xpk.core.nodepool.run_commands", return_value=0)
+  mocker.patch("xpk.core.nodepool.run_commands", return_value=None)
   mocker.patch("xpk.core.nodepool.ask_for_user_consent", return_value=True)
   mock_is_placement_policy_supported = mocker.patch(
       "xpk.core.nodepool.is_placement_policy_supported"
@@ -194,6 +250,7 @@ def test_placement_policy_created_for_gpu_with_valid_topology(
       accelerator_type=AcceleratorType.GPU,
       device_type="h100-80gb-8",
       supports_sub_slicing=False,
+      supports_super_slicing=False,
       docker_platform=DockerPlatform.ARM,
       gpu_config=GpuConfig(requires_topology=True),
   )
@@ -226,6 +283,7 @@ def test_placement_policy_not_created_for_gpu_with_invalid_topology(
       accelerator_type=AcceleratorType.GPU,
       device_type="h100-80gb-8",
       supports_sub_slicing=False,
+      supports_super_slicing=False,
       docker_platform=DockerPlatform.ARM,
       gpu_config=GpuConfig(requires_topology=True),
   )
@@ -261,6 +319,7 @@ def test_placement_policy_created_for_tpu7x_with_valid_topology(
       device_type="tpu7x-8",
       requires_workload_policy=True,
       supports_sub_slicing=False,
+      supports_super_slicing=False,
       docker_platform=DockerPlatform.ARM,
   )
 
@@ -294,9 +353,79 @@ def test_placement_policy_not_created_for_non7x_tpu(
       accelerator_type=AcceleratorType.TPU,
       device_type="v6e-4",
       supports_sub_slicing=True,
+      supports_super_slicing=False,
       docker_platform=DockerPlatform.ARM,
   )
 
   run_gke_node_pool_create_command(args, system, "1.2.3")
 
   mock_ensure_resource_policy.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    argnames="error_message,is_stockout",
+    argvalues=[
+        (
+            (
+                "Requested resource is exhausted: Zone 'us-central1-c' is not"
+                " available. Please try another zone."
+            ),
+            True,
+        ),
+        (
+            (
+                "TPU: the nodes (in pool test-pool) cannot be created now due"
+                " to lack of capacity in your reservation. They will be created"
+                " asynchronously once capacity is available. You can either"
+                " wait for the nodes to be up, or delete the node pool and try"
+                " re-creating it again later"
+            ),
+            True,
+        ),
+        ("Generic error message", False),
+    ],
+)
+def test_display_nodepool_creation_error_handles_error_messages(
+    mocker, mock_xpk_print, error_message, is_stockout
+):
+  """Tests that display_nodepool_creation_error surfaces errors and detects stockouts."""
+
+  log_contents = """Operation [
+  ...
+  ] finished with error: """ + error_message + "\n"
+  mocker.patch("builtins.open", mocker.mock_open(read_data=log_contents))
+  display_nodepool_creation_error(maybe_failure)
+
+  assert mock_xpk_print.call_count == 3 if is_stockout else 2
+  assert (
+      mock_xpk_print.call_args_list[0].args[0]
+      == "Create Nodepools returned ERROR 1"
+  )
+  assert (
+      mock_xpk_print.call_args_list[1].args[0]
+      == "Nodepool creation error: " + error_message
+  )
+  assert (
+      not is_stockout
+      or mock_xpk_print.call_args_list[2].args[0]
+      == "NOTE: this error might be caused by a stockout"
+  )
+
+
+def test_display_nodepool_creation_ignores_logs_without_errors(
+    mocker,
+    mock_xpk_print,
+):
+  """Tests that display_nodepool_creation_error ignores log files with no errors."""
+
+  log_contents = """Operation [
+  ...
+  ] succeeded!"""
+  mocker.patch("builtins.open", mocker.mock_open(read_data=log_contents))
+  display_nodepool_creation_error(maybe_failure)
+
+  assert mock_xpk_print.call_count == 1
+  assert (
+      mock_xpk_print.call_args_list[0].args[0]
+      == "Create Nodepools returned ERROR 1"
+  )

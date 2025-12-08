@@ -19,7 +19,7 @@ from tabulate import tabulate
 from ..utils.feature_flags import FeatureFlags
 from ..utils.versions import ReleaseChannel
 from ..core.pathways import get_pathways_machine_types
-from ..core.capacity import H100_DEVICE_TYPE, get_reservation_deployment_type
+from ..core.capacity import H100_DEVICE_TYPE, get_reservation_deployment_type, parse_reservation
 from ..core.cluster import (
     get_all_clusters_programmatic,
     get_cluster_credentials,
@@ -79,7 +79,7 @@ from ..utils.file import write_tmp_file
 from ..utils.execution_context import is_dry_run, is_quiet
 from ..utils.validation import validate_dependencies_list, SystemDependency, should_validate_dependencies
 from . import cluster_gcluster
-from .common import set_cluster_command, validate_sub_slicing_system
+from .common import set_cluster_command, validate_sub_slicing_system, validate_super_slicing_system
 from jinja2 import Environment, FileSystemLoader
 from ..utils.templates import get_templates_absolute_path
 import shutil
@@ -211,6 +211,11 @@ def _validate_cluster_create_args(args, system: SystemCharacteristics):
   if FeatureFlags.SUB_SLICING_ENABLED and args.sub_slicing:
     validate_sub_slicing_system(system)
     _validate_sub_slicing_reservation(args)
+  if FeatureFlags.SUPER_SLICING_ENABLED:
+    _validate_num_slices_and_set_default(args)
+    if args.super_slicing:
+      validate_super_slicing_system(system)
+      _validate_super_slicing_reservation(args)
   if args.enable_pathways:
     _validate_pathways_machine(args)
 
@@ -233,15 +238,30 @@ def _validate_pathways_machine(args):
 
 
 def _validate_sub_slicing_reservation(args):
+  _validate_gsc_reservation(args, 'Sub-slicing')
+
+
+def _validate_super_slicing_reservation(args):
+  _validate_gsc_reservation(args, 'Super-slicing')
+  reservation = parse_reservation(args.reservation, args.project)
+  if reservation.block_name is None:
+    xpk_print(
+        'Error: Validation failed: Super-slicing cluster creation'
+        ' requires a block or sub-block reservation.'
+    )
+    xpk_exit(1)
+
+
+def _validate_gsc_reservation(args, creation_description: str):
   if args.reservation is None:
     xpk_print(
-        'Error: Validation failed: Sub-slicing cluster creation requires'
-        ' Cluster Director reservation to be specified.'
+        f'Error: Validation failed: {creation_description} cluster creation'
+        ' requires Cluster Director reservation to be specified.'
     )
     xpk_exit(1)
 
   deployment_type = get_reservation_deployment_type(
-      reservation=args.reservation, project=args.project, zone=args.zone
+      reservation_path=args.reservation, project=args.project, zone=args.zone
   )
   if deployment_type != 'DENSE':
     xpk_print(
@@ -261,6 +281,22 @@ def _validate_sub_slicing_reservation(args):
         ' https://cloud.google.com/cluster-director/docs/reserve-capacity'
     )
     xpk_exit(1)
+
+
+def _validate_num_slices_and_set_default(args):
+  if args.num_cubes is not None and not args.super_slicing:
+    xpk_print('--num-cubes can only be used with --super-slicing')
+    xpk_exit(1)
+
+  if (
+      args.num_cubes is not None
+      and args.num_slices is not None
+      and args.num_cubes != args.num_slices
+  ):
+    xpk_print('--num-cubes must not be different from --num-slices')
+    xpk_exit(1)
+
+  args.num_slices = args.num_slices or args.num_cubes or 1
 
 
 def cluster_create(args) -> None:
@@ -374,6 +410,7 @@ def cluster_create(args) -> None:
   )
   if return_code != 0:
     xpk_exit(return_code)
+  assert gke_node_pool_version
 
   run_gke_node_pool_create_command_code = run_gke_node_pool_create_command(
       args, system, gke_node_pool_version
@@ -1247,6 +1284,9 @@ def run_gke_cluster_create_command(
     addons_str = ','.join(addons)
     command += f' --addons={addons_str}'
 
+  if FeatureFlags.SUPER_SLICING_ENABLED and args.super_slicing:
+    command += ' --enable-slice-controller'
+
   if args.custom_cluster_arguments:
     command += f' {args.custom_cluster_arguments}'
 
@@ -1337,6 +1377,9 @@ def _install_kueue(
           is_pathways_cluster=args.enable_pathways,
           configure_sub_slicing=(
               FeatureFlags.SUB_SLICING_ENABLED and args.sub_slicing
+          ),
+          configure_super_slicing=(
+              FeatureFlags.SUPER_SLICING_ENABLED and args.super_slicing
           ),
       )
   )

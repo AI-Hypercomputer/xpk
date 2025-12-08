@@ -37,13 +37,13 @@ kubectl wait deployment/coredns --for=condition=Available=true --namespace=kube-
 [XPK] Task: `Determine current gke master version` is implemented by the following command not running since it is a dry run. 
 gcloud beta container clusters describe golden-cluster --location us-central1 --project golden-project --format="value(currentMasterVersion)"
 [XPK] Creating 1 node pool or pools of gb200-4
-We assume that the underlying system is: SystemCharacteristics(topology='1x72', vms_per_slice=1, gke_accelerator='nvidia-gb200', gce_machine_type='a4x-highgpu-4g', chips_per_vm=4, accelerator_type=GPU, device_type='gb200-4', supports_sub_slicing=False, docker_platform=<DockerPlatform.ARM: 'linux/arm64'>, requires_workload_policy=True, gpu_config=GpuConfig(requires_topology=True, gpu_direct_name='rdma', kjob_decorator_fn=<function decorate_kjob_template>, nccl_installer='https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-rdma/nccl-rdma-installer-a4x.yaml', jobset_decorator_fn=<function decorate_jobset>))
+We assume that the underlying system is: SystemCharacteristics(topology='1x72', vms_per_slice=1, gke_accelerator='nvidia-gb200', gce_machine_type='a4x-highgpu-4g', chips_per_vm=4, accelerator_type=GPU, device_type='gb200-4', supports_sub_slicing=False, supports_super_slicing=False, docker_platform=<DockerPlatform.ARM: 'linux/arm64'>, requires_workload_policy=True, gpu_config=GpuConfig(requires_topology=True, gpu_direct_name='rdma', kjob_decorator_fn=<function decorate_kjob_template>, nccl_installer='https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-rdma/nccl-rdma-installer-a4x.yaml', jobset_decorator_fn=<function decorate_jobset>))
 [XPK] Task: `Get All Node Pools` is implemented by the following command not running since it is a dry run. 
 gcloud beta container node-pools list --cluster golden-cluster --project=golden-project --location=us-central1 --format="csv[no-heading](name)"
 [XPK] Task: `Describe reservation` is implemented by the following command not running since it is a dry run. 
 gcloud beta compute reservations describe golden-reservation --project=golden-project --zone=us-central1-a
 [XPK] Creating 1 node pool with 2 nodes of gb200-4
-Underlyingly, we assume that means: SystemCharacteristics(topology='1x72', vms_per_slice=1, gke_accelerator='nvidia-gb200', gce_machine_type='a4x-highgpu-4g', chips_per_vm=4, accelerator_type=GPU, device_type='gb200-4', supports_sub_slicing=False, docker_platform=<DockerPlatform.ARM: 'linux/arm64'>, requires_workload_policy=True, gpu_config=GpuConfig(requires_topology=True, gpu_direct_name='rdma', kjob_decorator_fn=<function decorate_kjob_template>, nccl_installer='https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-rdma/nccl-rdma-installer-a4x.yaml', jobset_decorator_fn=<function decorate_jobset>))
+Underlyingly, we assume that means: SystemCharacteristics(topology='1x72', vms_per_slice=1, gke_accelerator='nvidia-gb200', gce_machine_type='a4x-highgpu-4g', chips_per_vm=4, accelerator_type=GPU, device_type='gb200-4', supports_sub_slicing=False, supports_super_slicing=False, docker_platform=<DockerPlatform.ARM: 'linux/arm64'>, requires_workload_policy=True, gpu_config=GpuConfig(requires_topology=True, gpu_direct_name='rdma', kjob_decorator_fn=<function decorate_kjob_template>, nccl_installer='https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-rdma/nccl-rdma-installer-a4x.yaml', jobset_decorator_fn=<function decorate_jobset>))
 [XPK] Task: `Get Node Pool Zone` is implemented by the following command not running since it is a dry run. 
 gcloud beta container node-pools describe 0 --cluster golden-cluster --project=golden-project --location=us-central1 --format="value(locations)"
 [XPK] Task: `GKE Cluster Get ConfigMap` is implemented by the following command not running since it is a dry run. 
@@ -181,7 +181,7 @@ kubectl get deployment kueue-controller-manager -n kueue-system -o jsonpath='{.s
 kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-sigs/kueue/releases/download/v0.14.3/manifests.yaml
 [XPK] Task: `Wait for Kueue to be available` is implemented by the following command not running since it is a dry run. 
 kubectl wait deploy/kueue-controller-manager -n kueue-system --for=condition=available --timeout=10m
-[XPK] Temp file (06e62c84a5538ff851a62caf9ed3a462b758eb57927c94a3c60b6a5c3e13c350) content: 
+[XPK] Temp file (c177e643775bb8e3462648245162a984934b0e09a13b0e3bfb62adf8585442b0) content: 
 
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: ResourceFlavor
@@ -189,21 +189,7 @@ metadata:
   name: "1xgb200-4"
 spec:
   nodeLabels: {"cloud.google.com/gke-accelerator": "nvidia-gb200"}
-  
   topologyName: gke-default
-  
----
-
-apiVersion: kueue.x-k8s.io/v1beta1
-kind: AdmissionCheck
-metadata:
-  name: dws-prov
-spec:
-  controllerName: kueue.x-k8s.io/provisioning-request
-  parameters:
-    apiGroup: kueue.x-k8s.io
-    kind: ProvisioningRequestConfig
-    name: dws-config
 ---
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: ProvisioningRequestConfig
@@ -228,7 +214,6 @@ spec:
     withinClusterQueue: LowerPriority
   namespaceSelector: {} # match all.
   resourceGroups: [{'coveredResources': ['nvidia.com/gpu'], 'flavors': [{'name': '1xgb200-4', 'resources': [{'name': 'nvidia.com/gpu', 'nominalQuota': 8}]}]}]
-  
 ---
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: LocalQueue
@@ -289,7 +274,7 @@ spec:
   - nodeLabel: "cloud.google.com/gce-topology-host"
   - nodeLabel: "kubernetes.io/hostname"
 [XPK] Task: `Applying Kueue Custom Resources` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f 06e62c84a5538ff851a62caf9ed3a462b758eb57927c94a3c60b6a5c3e13c350
+kubectl apply -f c177e643775bb8e3462648245162a984934b0e09a13b0e3bfb62adf8585442b0
 [XPK] Task: `Count total nodes` is implemented by the following command not running since it is a dry run. 
 kubectl get node --no-headers | wc -l
 [XPK] Try 1: Updating Kueue Controller Manager resources

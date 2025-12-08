@@ -369,3 +369,35 @@ def add_tpu_and_device_type_arguments(
 ) -> None:
   add_tpu_type_argument(custom_parser_or_group)
   add_device_type_argument(custom_parser_or_group)
+
+
+def extract_command_path(parser: argparse.ArgumentParser, args):
+  """
+  Reconstructs the command path (e.g. 'cluster create').
+  """
+
+  def _get_path_segments(current_parser):
+    subparser_action = next(
+        (
+            action
+            for action in current_parser._actions  # pylint: disable=protected-access
+            if isinstance(action, argparse._SubParsersAction)  # pylint: disable=protected-access
+        ),
+        None,
+    )
+
+    if subparser_action is None:
+      return []
+
+    chosen_command = getattr(args, subparser_action.dest, None)
+
+    if chosen_command is None:
+      return []
+
+    if chosen_command in subparser_action.choices:
+      next_parser = subparser_action.choices[chosen_command]
+      return [chosen_command] + _get_path_segments(next_parser)
+
+    return [chosen_command]
+
+  return ' '.join(_get_path_segments(parser))

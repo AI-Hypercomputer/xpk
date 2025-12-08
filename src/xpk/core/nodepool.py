@@ -15,6 +15,8 @@ limitations under the License.
 """
 
 from typing import List
+
+from ..utils.feature_flags import FeatureFlags
 from ..utils.console import ask_for_user_consent, xpk_print
 from .scheduling import get_placement_policy_name, is_placement_policy_supported
 from .capacity import (
@@ -25,14 +27,14 @@ from .capacity import (
     get_capacity_type,
     print_reservations,
 )
-from .commands import run_command_for_value, run_commands
+from .commands import run_command_for_value, run_commands, FailedCommand
 from .gcloud_context import GkeServerConfig, get_cluster_location, zone_to_region
 from .resources import (
     ConfigMapType,
     check_cluster_resources,
     update_cluster_configmap,
 )
-from .system_characteristics import AcceleratorType
+from .system_characteristics import AcceleratorType, SystemCharacteristics
 
 
 CLOUD_PLATFORM_AUTH_SCOPE_URL = (
@@ -43,7 +45,7 @@ OLDER_PATHWAYS_CPU_NP_TO_DELETE = ['cpu-rm-np', 'cpu-proxy-np', 'cpu-user-np']
 
 
 def run_gke_node_pool_create_command(
-    args, system, gke_node_pool_version
+    args, system: SystemCharacteristics, gke_node_pool_version: str
 ) -> int:
   """Run the Create GKE Node Pool request.
 
@@ -84,7 +86,7 @@ def run_gke_node_pool_create_command(
   else:
     max_nodes = 1000
   capacity_args, return_code = get_capacity_arguments_from_capacity_type(
-      args, capacity_type, max_nodes
+      args, capacity_type, max_nodes, system.accelerator_type
   )
   if return_code > 0:
     xpk_print('Parsing capacity arguments failed!')
@@ -200,13 +202,13 @@ def run_gke_node_pool_create_command(
       xpk_print(
           f'To complete {delete_task_names[i]} we are executing {command}'
       )
-    max_return_code = run_commands(
+    maybe_failure = run_commands(
         delete_commands,
         'Delete Nodepools',
         delete_task_names,
     )
-    if max_return_code != 0:
-      xpk_print(f'Delete Nodepools returned ERROR {max_return_code}')
+    if maybe_failure is not None:
+      xpk_print(f'Delete Nodepools returned ERROR {maybe_failure.return_code}')
       return 1
 
   # Enable Workload Identity on existing Nodepools
@@ -224,15 +226,15 @@ def run_gke_node_pool_create_command(
         xpk_print(
             f'To complete {update_WI_task_names[i]} we are executing {command}'
         )
-      max_return_code = run_commands(
+      maybe_failure = run_commands(
           update_WI_commands,
           'Enable Workload Identity on existing Nodepools',
           update_WI_task_names,
       )
-      if max_return_code != 0:
+      if maybe_failure is not None:
         xpk_print(
             'Enable Workload Identity on existing Nodepools returned ERROR'
-            f' {max_return_code}'
+            f' {maybe_failure.return_code}'
         )
         return 1
 
@@ -256,12 +258,17 @@ def run_gke_node_pool_create_command(
 
   placement_args = ''
   if is_placement_policy_supported(system):
-    placement_policy = get_placement_policy_name(system)
+    super_slicing = FeatureFlags.SUPER_SLICING_ENABLED and args.super_slicing
+    placement_policy = get_placement_policy_name(
+        system,
+        super_slicing,
+    )
     ensure_resource_policy_exists(
         resource_policy_name=placement_policy,
         project=args.project,
         zone=args.zone,
         topology=system.topology,
+        super_slicing=super_slicing,
     )
     placement_args = f' --placement-policy={placement_policy}'
 
@@ -360,17 +367,39 @@ def run_gke_node_pool_create_command(
 
   for i, command in enumerate(create_commands):
     xpk_print(f'To complete {create_task_names[i]} we are executing {command}')
-  max_return_code = run_commands(
+  maybe_failure = run_commands(
       create_commands,
       'Create Nodepools',
       create_task_names,
   )
-  if max_return_code != 0:
-    xpk_print(f'Create Nodepools returned ERROR {max_return_code}')
+  if maybe_failure is not None:
+    display_nodepool_creation_error(maybe_failure)
     return 1
 
   xpk_print('Create or delete node pool request complete.')
   return 0
+
+
+def display_nodepool_creation_error(maybe_failure: FailedCommand) -> None:
+  """Display nodepool creation errors to the user."""
+
+  xpk_print(f'Create Nodepools returned ERROR {maybe_failure.return_code}')
+  try:
+    with open(maybe_failure.logfile, 'r', encoding='utf-8') as f:
+      contents = f.read()
+    error_marker = 'finished with error:'
+    error = contents[contents.index(error_marker) + len(error_marker) :].strip()
+    # the longest error we're expecting to see is 256 characters + np name
+    max_error_display_length = 400
+    xpk_print(f'Nodepool creation error: {error[:max_error_display_length]}')
+    if (
+        error.find('lack of capacity') != -1
+        or error.find('Requested resource is exhausted') != -1
+    ):
+      xpk_print('NOTE: this error might be caused by a stockout')
+  except (FileNotFoundError, IOError, ValueError):
+    # silently ignore any log parsing errors
+    pass
 
 
 def get_node_pools_to_delete(
@@ -587,18 +616,22 @@ def get_desired_node_pool_names(
   while len(result) < desired_node_pool_count:
     result.add(f'{cluster_name}-np-{i}')
     i += 1
-  return list(result)
+  return list(sorted(result))
 
 
 def ensure_resource_policy_exists(
-    resource_policy_name: str, project: str, zone: str, topology: str
+    resource_policy_name: str,
+    project: str,
+    zone: str,
+    topology: str,
+    super_slicing: bool,
 ) -> None:
   return_code, _ = run_command_for_value(
       (
           'gcloud compute resource-policies describe'
-          f' {resource_policy_name} '
-          f'--project={project} '
-          f'--region={zone_to_region(zone)}'
+          f' {resource_policy_name}'
+          f' --project={project}'
+          f' --region={zone_to_region(zone)}'
       ),
       'Retrieve resource policy',
   )
@@ -606,11 +639,15 @@ def ensure_resource_policy_exists(
   if return_code == 0:
     return
 
+  # TODO: b/465696970 - Verify the flag below before launching SUPER_SLICING:
+  accelerator_topology_mode = (
+      ' --accelerator-topology-mode=PROVISION_ONLY' if super_slicing else ''
+  )
   return_code, _ = run_command_for_value(
       (
           'gcloud compute resource-policies create workload-policy'
           f' {resource_policy_name} --project={project} --region={zone_to_region(zone)} --type=HIGH_THROUGHPUT'
-          f' --accelerator-topology={topology}'
+          f' --accelerator-topology={topology}{accelerator_topology_mode}'
       ),
       'Create resource policy',
   )

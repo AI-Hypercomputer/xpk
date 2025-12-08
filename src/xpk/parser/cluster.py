@@ -132,6 +132,10 @@ def set_cluster_create_parser(cluster_create_parser: ArgumentParser):
 
   if FeatureFlags.SUB_SLICING_ENABLED:
     add_cluster_create_sub_slicing_arguments(cluster_create_optional_arguments)
+  if FeatureFlags.SUPER_SLICING_ENABLED:
+    add_cluster_create_super_slicing_arguments(
+        cluster_create_optional_arguments
+    )
 
   autoprovisioning_arguments = cluster_create_parser.add_argument_group(
       'Autoprovisioning Arguments',
@@ -203,6 +207,10 @@ def set_cluster_create_pathways_parser(
   )
   if FeatureFlags.SUB_SLICING_ENABLED:
     add_cluster_create_sub_slicing_arguments(
+        cluster_create_pathways_optional_arguments
+    )
+  if FeatureFlags.SUPER_SLICING_ENABLED:
+    add_cluster_create_super_slicing_arguments(
         cluster_create_pathways_optional_arguments
     )
 
@@ -330,7 +338,7 @@ def set_cluster_create_ray_parser(cluster_create_ray_parser: ArgumentParser):
   add_resource_limits(cluster_create_resource_limits)
 
   cluster_create_ray_parser.set_defaults(
-      func=cluster_create_ray_cluster, sub_slicing=False
+      func=cluster_create_ray_cluster, sub_slicing=False, super_slicing=False
   )
 
 
@@ -596,7 +604,10 @@ def add_shared_cluster_create_optional_arguments(
   parser_or_group.add_argument(
       '--num-slices',
       type=int,
-      default=1,
+      # removing default in case of super slicing because
+      # --num-slices must be equal to --num-cubes if both are set
+      # it will default to 1 during validation
+      default=1 if not FeatureFlags.SUPER_SLICING_ENABLED else None,
       help='The number of slices to run the job on, defaults to 1.',
       required=False,
   )
@@ -909,4 +920,25 @@ def add_cluster_create_sub_slicing_arguments(
       '--sub-slicing',
       action='store_true',
       help='Whether to set up cluster to support sub-slicing',
+  )
+
+
+def add_cluster_create_super_slicing_arguments(
+    parser_or_group: ParserOrArgumentGroup,
+):
+  parser_or_group.add_argument(
+      '--super-slicing',
+      action='store_true',
+      help='Whether to set up cluster to support super-slicing',
+  )
+  parser_or_group.add_argument(
+      '--num-cubes',
+      type=int,
+      # default value is set during validation because it needs to be compared
+      # against --num-slices
+      help=(
+          'Total number of cubes to create within a cluster, defaults to 1. Can'
+          ' only be used with --super-slicing.'
+      ),
+      required=False,
   )

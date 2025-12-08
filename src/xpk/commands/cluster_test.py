@@ -110,6 +110,7 @@ def construct_args(**kwargs: Any) -> Namespace:
       cluster='test-cluster',
       default_pool_cpu_num_nodes='100',
       sub_slicing=False,
+      super_slicing=False,
       gke_version='',
       private=False,
       authorized_networks=None,
@@ -225,6 +226,9 @@ GPU_TEST_SYSTEM: SystemCharacteristics = UserFacingNameToSystemCharacteristics[
 ]
 SUB_SLICING_SYSTEM: SystemCharacteristics = (
     UserFacingNameToSystemCharacteristics['v6e-4x4']
+)
+SUPER_SLICING_SYSTEM: SystemCharacteristics = (
+    UserFacingNameToSystemCharacteristics['tpu7x-4x4x4']
 )
 TPU_TEST_SYSTEM: SystemCharacteristics = UserFacingNameToSystemCharacteristics[
     'v6e-4x4'
@@ -608,3 +612,202 @@ def test_cluster_create_calls_run_command_with_correct_channel_and_version(
   ]
 
   mocks.commands_tester.assert_command_run(*expected_command_parts)
+
+
+def test_run_gke_cluster_create_command_with_super_slicing_enables_slice_controller(
+    mocks: _Mocks,
+):
+  FeatureFlags.SUPER_SLICING_ENABLED = True
+  result = run_gke_cluster_create_command(
+      args=construct_args(gke_version='1.2.3', super_slicing=True),
+      gke_control_plane_version='1.2.3',
+      system=SUPER_SLICING_SYSTEM,
+      release_channel=ReleaseChannel.REGULAR,
+  )
+
+  assert result == 0
+  mocks.commands_tester.assert_command_run(
+      'clusters create', '--enable-slice-controller'
+  )
+
+
+def test_validate_cluster_create_args_for_correct_super_slicing_args_pass(
+    mocks: _Mocks,
+):
+  FeatureFlags.SUPER_SLICING_ENABLED = True
+  args = construct_args(
+      super_slicing=True,
+      reservation='test-reservation/reservationBlocks/block',
+      num_cubes=None,
+      num_slices=None,
+  )
+
+  _validate_cluster_create_args(args, SUPER_SLICING_SYSTEM)
+  args = construct_args(
+      super_slicing=True,
+      reservation='test-reservation/reservationBlocks/block/reservationSubBlocks/subblock',
+      num_cubes=None,
+      num_slices=None,
+  )
+  _validate_cluster_create_args(
+      args, UserFacingNameToSystemCharacteristics['tpu7x-128']
+  )
+
+  assert mocks.common_print_mock.call_count == 0
+
+
+def test_validate_cluster_create_args_for_super_slicing_system_not_supported_throws(
+    mocks: _Mocks,
+):
+  FeatureFlags.SUPER_SLICING_ENABLED = True
+  args = construct_args(
+      super_slicing=True,
+      reservation='test-reservation/reservationBlocks/block',
+      num_cubes=None,
+      num_slices=None,
+  )
+
+  with pytest.raises(SystemExit):
+    _validate_cluster_create_args(
+        args, UserFacingNameToSystemCharacteristics['tpu7x-4x4x8']
+    )
+
+  assert mocks.common_print_mock.call_count == 1
+  assert (
+      mocks.common_print_mock.call_args[0][0]
+      == 'Error: tpu7x-256 does not support Super-slicing.'
+  )
+
+
+def test_validate_cluster_create_args_for_super_slicing_missing_reservation(
+    mocks: _Mocks,
+):
+  FeatureFlags.SUPER_SLICING_ENABLED = True
+  args = construct_args(
+      super_slicing=True,
+      reservation=None,
+      num_cubes=None,
+      num_slices=None,
+  )
+
+  with pytest.raises(SystemExit):
+    _validate_cluster_create_args(args, SUPER_SLICING_SYSTEM)
+
+  assert mocks.commands_print_mock.call_count == 1
+  assert (
+      'Validation failed: Super-slicing cluster creation requires'
+      in mocks.commands_print_mock.call_args[0][0]
+  )
+
+
+def test_validate_cluster_create_args_for_super_slicing_reservation_no_blocks(
+    mocks: _Mocks,
+):
+  FeatureFlags.SUPER_SLICING_ENABLED = True
+  args = construct_args(
+      super_slicing=True,
+      reservation='reservation',
+      num_cubes=None,
+      num_slices=None,
+  )
+
+  with pytest.raises(SystemExit):
+    _validate_cluster_create_args(args, SUPER_SLICING_SYSTEM)
+
+  assert mocks.commands_print_mock.call_count == 1
+  assert (
+      'requires a block or sub-block reservation'
+      in mocks.commands_print_mock.call_args[0][0]
+  )
+
+
+def test_validate_cluster_create_args_for_super_slicing_sparse_deployment_type_reservation(
+    mocks: _Mocks,
+):
+  FeatureFlags.SUPER_SLICING_ENABLED = True
+  args = construct_args(
+      super_slicing=True,
+      reservation='test-reservation/reservationBlocks/block',
+      num_cubes=None,
+      num_slices=None,
+  )
+  mocks.commands_get_reservation_deployment_type.return_value = 'SPARSE'
+
+  with pytest.raises(SystemExit):
+    _validate_cluster_create_args(args, SUPER_SLICING_SYSTEM)
+
+  assert mocks.commands_print_mock.call_count == 5
+  assert (
+      'Refer to the documentation for more information on creating Cluster'
+      in mocks.commands_print_mock.call_args[0][0]
+  )
+
+
+def test_validate_cluster_create_args_forbids_num_cubes_without_superslicing(
+    mocks: _Mocks,
+):
+  FeatureFlags.SUPER_SLICING_ENABLED = True  # enable the feature
+  args = construct_args(
+      super_slicing=False,  # but disable the flag
+      reservation='test-reservation/reservationBlocks/block',
+      num_cubes=1,
+      num_slices=None,
+  )
+
+  with pytest.raises(SystemExit):
+    _validate_cluster_create_args(args, SUPER_SLICING_SYSTEM)
+
+  assert mocks.commands_print_mock.call_count == 1
+  assert (
+      '--num-cubes can only be used with --super-slicing'
+      in mocks.commands_print_mock.call_args[0][0]
+  )
+
+
+def test_validate_cluster_create_args_forbids_num_cubes_different_from_num_slices(
+    mocks: _Mocks,
+):
+  FeatureFlags.SUPER_SLICING_ENABLED = True
+  args = construct_args(
+      super_slicing=True,
+      reservation='test-reservation/reservationBlocks/block',
+      num_cubes=1,
+      num_slices=2,
+  )
+
+  with pytest.raises(SystemExit):
+    _validate_cluster_create_args(args, SUPER_SLICING_SYSTEM)
+
+  assert mocks.commands_print_mock.call_count == 1
+  assert (
+      '--num-cubes must not be different from --num-slices'
+      in mocks.commands_print_mock.call_args[0][0]
+  )
+
+
+@pytest.mark.parametrize(
+    'num_cubes, num_slices, expected',
+    [
+        (None, None, 1),
+        (3, None, 3),
+        (None, 3, 3),
+        (3, 3, 3),
+    ],
+)
+def test_validate_cluster_create_args_sets_correct_num_slices(
+    mocks: _Mocks,
+    num_cubes: int | None,
+    num_slices: int | None,
+    expected: int,
+):
+  FeatureFlags.SUPER_SLICING_ENABLED = True
+  args = construct_args(
+      super_slicing=True,
+      reservation='test-reservation/reservationBlocks/block',
+      num_cubes=num_cubes,
+      num_slices=num_slices,
+  )
+
+  _validate_cluster_create_args(args, SUPER_SLICING_SYSTEM)
+
+  assert args.num_slices == expected

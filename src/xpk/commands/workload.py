@@ -511,6 +511,8 @@ def workload_create(args) -> None:
       else ''
   )
 
+  # TODO(b/466943057): Add ANP label for NAP (if not possible, use CCC)
+
   # Create the workload file based on accelerator type or workload type.
   if workload_system.accelerator_type == AcceleratorType.GPU:
     container, debugging_dashboard_id = get_user_workload_container(

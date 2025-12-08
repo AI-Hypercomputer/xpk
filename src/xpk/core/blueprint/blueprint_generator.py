@@ -522,7 +522,7 @@ class BlueprintGenerator:
         settings={
             "release_channel": release_channel.value,
             "version_prefix": version_prefix,
-            "min_cluster_version": cluster_version,
+            "min_master_version": cluster_version,
             "prefix_with_deployment_name": False,
             "name_suffix": cluster_name,
             "system_node_pool_machine_type": system_node_pool_machine_type,
@@ -810,7 +810,7 @@ class BlueprintGenerator:
         settings={
             "release_channel": release_channel.value,
             "version_prefix": version_prefix,
-            "min_cluster_version": cluster_version,
+            "min_master_version": cluster_version,
             "system_node_pool_machine_type": system_node_pool_machine_type,
             "system_node_pool_node_count": {
                 "total_min_nodes": system_node_pool_min_node_count,

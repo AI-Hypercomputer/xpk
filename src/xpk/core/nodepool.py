@@ -286,11 +286,15 @@ def run_gke_node_pool_create_command(
         f' --machine-type={system.gce_machine_type}'
         f' --host-maintenance-interval={args.host_maintenance_interval}'
         f' {capacity_args}'
-        ' --accelerator-network-profile=auto'
-        ' --node-labels=cloud.google.com/gke-networking-dra-driver=true'
         f'{placement_args}'
         ' --enable-gvnic'
     )
+
+    if system.supports_accelerator_network_profile:
+      command += (
+          ' --accelerator-network-profile=auto'
+          ' --node-labels=cloud.google.com/gke-networking-dra-driver=true'
+      )
     if system.accelerator_type == AcceleratorType.TPU:
       command += f' --node-version={gke_node_pool_version}'
       if capacity_type == CapacityType.FLEX_START:

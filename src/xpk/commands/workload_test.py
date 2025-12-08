@@ -36,6 +36,7 @@ SYSTEM_CHARACTERISTICS = SystemCharacteristics(
     supports_sub_slicing=True,
     supports_super_slicing=False,
     requires_workload_policy=False,
+    supports_accelerator_network_profile=False,
     docker_platform=DockerPlatform.AMD,
 )
 

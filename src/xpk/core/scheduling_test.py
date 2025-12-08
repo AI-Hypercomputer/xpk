@@ -66,6 +66,7 @@ def test_create_placement_policy_label_returns_valid_label():
       accelerator_type=AcceleratorType.TPU,
       supports_sub_slicing=False,
       supports_super_slicing=False,
+      supports_accelerator_network_profile=False,
       docker_platform=DockerPlatform.ARM,
   )
   label = create_placement_policy_label(
@@ -89,6 +90,7 @@ def test_get_placement_policy_name_returns_valid_name():
       accelerator_type=AcceleratorType.TPU,
       supports_sub_slicing=False,
       supports_super_slicing=False,
+      supports_accelerator_network_profile=False,
       docker_platform=DockerPlatform.ARM,
   )
   name = get_placement_policy_name(system_characteristics, super_slicing=False)
@@ -107,6 +109,7 @@ def test_get_placement_policy_name_super_slicing_returns_valid_name():
       accelerator_type=AcceleratorType.TPU,
       supports_sub_slicing=False,
       supports_super_slicing=False,
+      supports_accelerator_network_profile=False,
       docker_platform=DockerPlatform.ARM,
   )
   name = get_placement_policy_name(system_characteristics, super_slicing=True)
@@ -125,6 +128,7 @@ def test_is_placement_policy_supported_returns_true_for_system_characteristics_s
       accelerator_type=AcceleratorType.TPU,
       supports_sub_slicing=False,
       supports_super_slicing=False,
+      supports_accelerator_network_profile=False,
       docker_platform=DockerPlatform.ARM,
   )
   assert is_placement_policy_supported(system_characteristics) is True
@@ -142,6 +146,7 @@ def test_is_placement_policy_supported_returns_false_for_system_characteristics_
       accelerator_type=AcceleratorType.TPU,
       supports_sub_slicing=False,
       supports_super_slicing=False,
+      supports_accelerator_network_profile=False,
       docker_platform=DockerPlatform.ARM,
   )
   assert is_placement_policy_supported(system_characteristics) is False
@@ -159,6 +164,7 @@ def test_is_placement_policy_supported_returns_false_for_system_characteristics_
       accelerator_type=AcceleratorType.TPU,
       supports_sub_slicing=False,
       supports_super_slicing=False,
+      supports_accelerator_network_profile=False,
       docker_platform=DockerPlatform.ARM,
   )
   assert is_placement_policy_supported(system_characteristics) is False

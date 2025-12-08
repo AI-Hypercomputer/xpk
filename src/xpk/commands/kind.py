@@ -99,6 +99,7 @@ def cluster_create(args) -> None:
       'kind',
       supports_sub_slicing=False,
       supports_super_slicing=False,
+      supports_accelerator_network_profile=False,
       docker_platform=DockerPlatform.ARM,
   )
 

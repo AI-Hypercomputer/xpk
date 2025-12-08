@@ -98,6 +98,7 @@ def test_install_kueue_standard(
       device_type="h100-mega-80gb-8",
       supports_sub_slicing=False,
       supports_super_slicing=False,
+      supports_accelerator_network_profile=True,
       docker_platform=DockerPlatform.ARM,
       gpu_config=GpuConfig(requires_topology=True),
   )
@@ -152,6 +153,7 @@ def test_install_kueue_with_autoprovisioning(
       device_type="h100-mega-80gb-8",
       supports_sub_slicing=False,
       supports_super_slicing=False,
+      supports_accelerator_network_profile=True,
       docker_platform=DockerPlatform.ARM,
       gpu_config=GpuConfig(requires_topology=True),
   )

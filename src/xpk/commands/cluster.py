@@ -1239,28 +1239,19 @@ def run_gke_cluster_create_command(
       ' --autoscaling-profile=optimize-utilization'
       ' --labels=gke_product_type=xpk'
       f' --release-channel={release_channel.value.lower()}'
+      ' --enable-ip-alias'
+      ' --enable-dataplane-v2'
+      ' --enable-multi-networking'
   )
 
   if args.gke_version:
     command += ' --no-enable-autoupgrade'
 
-  enable_ip_alias = False
-
   if args.private or args.authorized_networks is not None:
-    enable_ip_alias = True
     command += ' --enable-master-authorized-networks --enable-private-nodes'
 
-  if system.accelerator_type == AcceleratorType.GPU:
-    enable_ip_alias = True
-    command += ' --enable-dataplane-v2 --enable-multi-networking'
-  else:
+  if system.accelerator_type != AcceleratorType.GPU:
     command += ' --location-policy=BALANCED --scopes=storage-full,gke-default'
-
-    if args.enable_pathways:
-      enable_ip_alias = True
-
-  if enable_ip_alias:
-    command += ' --enable-ip-alias'
 
   if args.enable_ray_cluster:
     command += ' --addons RayOperator'

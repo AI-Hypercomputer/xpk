@@ -24,6 +24,7 @@ from packaging.version import parse
 from ...utils.console import xpk_exit, xpk_print
 from ...utils.versions import ReleaseChannel
 from ...utils.file import ensure_directory_exists
+from ...utils.templates import get_templates_absolute_path
 
 
 from ..capacity import (
@@ -51,9 +52,9 @@ supported_device_types = {
     a4_device_type,
 }
 blueprint_dependencies_dir = {
-    a3mega_device_type: "src/xpk/blueprints/a3mega",
-    a3ultra_device_type: "src/xpk/blueprints/a3ultra",
-    a4_device_type: "src/xpk/blueprints/a4",
+    a3mega_device_type: get_templates_absolute_path("blueprints/a3mega"),
+    a3ultra_device_type: get_templates_absolute_path("blueprints/a3ultra"),
+    a4_device_type: get_templates_absolute_path("blueprints/a4"),
 }
 
 cluster_toolkit_url = "github.com/GoogleCloudPlatform/cluster-toolkit"

@@ -39,19 +39,19 @@ kubectl wait deployment/coredns --for=condition=Available=true --namespace=kube-
 [XPK] Task: `Determine current gke master version` is implemented by the following command not running since it is a dry run. 
 gcloud beta container clusters describe golden-cluster --location us-central1 --project golden-project --format="value(currentMasterVersion)"
 [XPK] Creating 1 node pool or pools of v6e-4x4
-We assume that the underlying system is: SystemCharacteristics(topology='4x4', vms_per_slice=4, gke_accelerator='tpu-v6e-slice', gce_machine_type='ct6e-standard-4t', chips_per_vm=4, accelerator_type=TPU, device_type='v6e-16', supports_sub_slicing=True, supports_super_slicing=False, docker_platform=<DockerPlatform.AMD: 'linux/amd64'>, requires_workload_policy=False, gpu_config=None)
+We assume that the underlying system is: SystemCharacteristics(topology='4x4', vms_per_slice=4, gke_accelerator='tpu-v6e-slice', gce_machine_type='ct6e-standard-4t', chips_per_vm=4, accelerator_type=TPU, device_type='v6e-16', supports_sub_slicing=True, supports_super_slicing=False, supports_accelerator_network_profile=True, docker_platform=<DockerPlatform.AMD: 'linux/amd64'>, requires_workload_policy=False, gpu_config=None)
 [XPK] Task: `Get All Node Pools` is implemented by the following command not running since it is a dry run. 
 gcloud beta container node-pools list --cluster golden-cluster --project=golden-project --location=us-central1 --format="csv[no-heading](name)"
 [XPK] Task: `Describe reservation` is implemented by the following command not running since it is a dry run. 
 gcloud beta compute reservations describe golden-reservation --project=golden-project --zone=us-central1-a
 [XPK] Creating 1 node pool or pools of v6e-16
-Underlyingly, we assume that means: SystemCharacteristics(topology='4x4', vms_per_slice=4, gke_accelerator='tpu-v6e-slice', gce_machine_type='ct6e-standard-4t', chips_per_vm=4, accelerator_type=TPU, device_type='v6e-16', supports_sub_slicing=True, supports_super_slicing=False, docker_platform=<DockerPlatform.AMD: 'linux/amd64'>, requires_workload_policy=False, gpu_config=None)
+Underlyingly, we assume that means: SystemCharacteristics(topology='4x4', vms_per_slice=4, gke_accelerator='tpu-v6e-slice', gce_machine_type='ct6e-standard-4t', chips_per_vm=4, accelerator_type=TPU, device_type='v6e-16', supports_sub_slicing=True, supports_super_slicing=False, supports_accelerator_network_profile=True, docker_platform=<DockerPlatform.AMD: 'linux/amd64'>, requires_workload_policy=False, gpu_config=None)
 [XPK] Task: `Get Node Pool Zone` is implemented by the following command not running since it is a dry run. 
 gcloud beta container node-pools describe 0 --cluster golden-cluster --project=golden-project --location=us-central1 --format="value(locations)"
 [XPK] Task: `GKE Cluster Get ConfigMap` is implemented by the following command not running since it is a dry run. 
 kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="ConfigData:data" --no-headers=true
 [XPK] Existing node pool names  ['0']
-[XPK] To complete NodepoolCreate-golden-cluster-np-0 we are executing gcloud beta container node-pools create golden-cluster-np-0 --location=us-central1 --cluster=golden-cluster --project=golden-project --node-locations=us-central1-a --machine-type=ct6e-standard-4t --host-maintenance-interval=AS_NEEDED --reservation-affinity=specific --reservation=golden-reservation --accelerator-network-profile=auto --node-labels=cloud.google.com/gke-networking-dra-driver=true --enable-gvnic --node-version=0 --num-nodes=4 --scopes=storage-full,gke-default,"https://www.googleapis.com/auth/cloud-platform" --placement-type=COMPACT --tpu-topology=4x4 --max-pods-per-node 15  
+[XPK] To complete NodepoolCreate-golden-cluster-np-0 we are executing gcloud beta container node-pools create golden-cluster-np-0 --location=us-central1 --cluster=golden-cluster --project=golden-project --node-locations=us-central1-a --machine-type=ct6e-standard-4t --host-maintenance-interval=AS_NEEDED --reservation-affinity=specific --reservation=golden-reservation --enable-gvnic --accelerator-network-profile=auto --node-labels=cloud.google.com/gke-networking-dra-driver=true --node-version=0 --num-nodes=4 --scopes=storage-full,gke-default,"https://www.googleapis.com/auth/cloud-platform" --placement-type=COMPACT --tpu-topology=4x4 --max-pods-per-node 15  
 [XPK] Breaking up a total of 1 commands into 1 batches
 [XPK] Pretending all the jobs succeeded
 [XPK] Create or delete node pool request complete.

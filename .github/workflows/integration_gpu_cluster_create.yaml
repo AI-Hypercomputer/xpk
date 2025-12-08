@@ -12,47 +12,51 @@
 # See the License for the specific language governing permissions and
 # limitations under the License
 
-name: Nightly Tests
+name: Basic GPU cluster create
 
 on:
-  workflow_dispatch:
-  schedule: # Schedule the job run at 12AM PST daily.
-    - cron: "0 8 * * *"
+    workflow_call:
 
 permissions:
   contents: read
 
 jobs:
-  build_kjob:
-    uses: ./.github/workflows/reusable_build_kjob.yaml
-  build_wheel:
-    uses: ./.github/workflows/reusable_build_wheel.yaml
-  build_actions:
-    uses: ./.github/workflows/reusable_build_scripts.yaml
-  basic_cluster_create:
-    needs: [build_kjob, build_actions, build_wheel]
-    uses: ./.github/workflows/integration_basic_cluster_create.yaml
-    secrets: inherit
-
-  gpu_cluster_create:
-    needs: [build_kjob, build_actions, build_wheel]
-    uses: ./.github/workflows/integration_gpu_cluster_create.yaml
-    secrets: inherit
-
-  pathways_cluster_create:
-    needs: [build_kjob, build_actions, build_wheel]
-    uses: ./.github/workflows/integration_pathways_cluster_create.yaml
-    secrets: inherit
-
-  ray_cluster_create:
-    needs: [build_kjob, build_actions, build_wheel]
-    uses: ./.github/workflows/integration_ray_cluster_create.yaml
-    secrets: inherit
-  legacy_integration:
-    needs: [build_kjob, build_actions, build_wheel]
-    uses: ./.github/workflows/integration_legacy_tests.yaml
-    secrets: inherit
-  storage-tests:
-    needs: [build_kjob, build_actions, build_wheel]
-    uses: ./.github/workflows/integration_storage_tests.yaml
-    secrets: inherit
+    gpu-cluster-create-and-delete:
+        runs-on: [ubuntu-22.04]
+        concurrency:
+            group: nightly-test-cluster-group-gpu
+            cancel-in-progress: false
+        env:
+            GPU_CLUSTER_NAME: nightly-xpk-1-b200-spot-gpu
+            WORKLOAD_NAME: xpktest-gpu-nightly-${{ github.run_attempt }}
+        steps:
+            - uses: actions/download-artifact@v4
+              with:
+                  name: custom-scripts
+            - name: Setup environment
+              uses: ./.github/actions/setup-test-env
+              with:
+                  credentials_json: "${{ secrets.GCP_SA_KEY }}"
+            - name: Check xpk installation
+              run: xpk version
+            - name: Create an XPK Cluster with 1 x b200 GPU
+              run: xpk cluster create --cluster $GPU_CLUSTER_NAME --device-type=b200-8 --zone=europe-west4-b --default-pool-cpu-machine-type=n1-standard-16 --spot
+            - name: Authenticate Docker
+              run: gcloud auth configure-docker --quiet
+            - name: Run a base-docker-image workload
+              run: xpk workload create --cluster $GPU_CLUSTER_NAME --workload $WORKLOAD_NAME --docker-image='nvidia/cuda:12.1.0-base-ubuntu22.04' --command "nvidia-smi" --zone=europe-west4-b
+            - name: List out the workloads on the cluster
+              run: xpk workload list --cluster $GPU_CLUSTER_NAME --zone=europe-west4-b
+            - name: Wait for workload completion and confirm it succeeded
+              run: xpk workload list --cluster $GPU_CLUSTER_NAME --zone=europe-west4-b --wait-for-job-completion $WORKLOAD_NAME --timeout 600
+            - name: Delete the workload on the cluster
+              run: xpk workload delete --workload $WORKLOAD_NAME --cluster $GPU_CLUSTER_NAME --zone=europe-west4-b
+            - name: Delete the cluster created
+              if: always()
+              run: xpk cluster delete --cluster $GPU_CLUSTER_NAME --zone=europe-west4-b --force
+            - name: Upload cluster nodepool creation log
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: gpu-cluster-nodepool-log-${{github.run_id}}
+                  path: /tmp/NodepoolCreate-${{ env.GPU_CLUSTER_NAME }}-np-*

@@ -489,12 +489,20 @@ def workload_create(args) -> None:
         - PodFailurePolicy"""
     restart_on_exit_codes_list = get_restart_exit_codes(args)
     restart_on_exit_codes = ','.join(map(str, restart_on_exit_codes_list))
-    pod_failure_policy = f"""
+
+    pod_failure_policy = """
           podFailurePolicy:
             rules:
+          """
+    docker_image = get_main_container_docker_image(args, workload_system)
+    for i in range(workload_system.parallel_containers):
+      docker_image_sufix = (
+          f'-{i + 1}' if workload_system.parallel_containers > 1 else ''
+      )
+      pod_failure_policy += f"""
             - action: FailJob
               onExitCodes:
-                containerName: {get_main_container_docker_image(args, workload_system)}
+                containerName: {docker_image}{docker_image_sufix}
                 operator: NotIn
                 values: [{restart_on_exit_codes}]"""
 

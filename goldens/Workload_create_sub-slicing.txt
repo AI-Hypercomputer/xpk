@@ -39,7 +39,7 @@ docker buildx build --platform=linux/amd64 -f 4b6736a12db8ea0f78ce793fd0d4ee0c94
 docker tag dry-run-runner gcr.io/golden-project/dry-run-runner:prefix-current
 [XPK] Task: `Upload Docker Image` is implemented by the following command not running since it is a dry run. 
 docker push gcr.io/golden-project/dry-run-runner:prefix-current
-[XPK] Temp file (816caa6f0023876e99f55515fda46cdbb648ff2c609f9d2af7c2354079d0e582) content: 
+[XPK] Temp file (8bca9f6c310db07ea9ab2461d54b0362f2bf60f95217c6be275f43d08ea37a4e) content: 
 apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
 metadata:
@@ -68,6 +68,7 @@ spec:
           
           podFailurePolicy:
             rules:
+          
             - action: FailJob
               onExitCodes:
                 containerName: jax-tpu
@@ -98,14 +99,11 @@ spec:
               dnsPolicy: ClusterFirstWithHostNet
               terminationGracePeriodSeconds: 30
               containers:
+              
               - name: jax-tpu
                 image: gcr.io/golden-project/dry-run-runner:prefix-current
                 
                 env: 
-                ports:
-                - containerPort: 8471
-                - containerPort: 8080
-                
                 securityContext:
                   privileged: true
                 command:
@@ -150,7 +148,7 @@ spec:
               
 
 [XPK] Task: `Creating Workload` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f 816caa6f0023876e99f55515fda46cdbb648ff2c609f9d2af7c2354079d0e582
+kubectl apply -f 8bca9f6c310db07ea9ab2461d54b0362f2bf60f95217c6be275f43d08ea37a4e
 [XPK] Task: `GKE Dashboard List` is implemented by the following command not running since it is a dry run. 
 gcloud monitoring dashboards list --project=golden-project --filter="displayName:'GKE - TPU Monitoring Dashboard'" --format="value(name)" --verbosity=error
 [XPK] Check statistics and outlier mode of GKE metrics here: https://console.cloud.google.com/monitoring/dashboards/builder/0?project=golden-project&f.rlabel.cluster_name.ClusterName=golden-cluster. To view the metric data for your workload, select golden-workload from the JobName filter on the dashboard.

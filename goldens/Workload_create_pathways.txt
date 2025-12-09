@@ -37,7 +37,7 @@ docker buildx build --platform=linux/amd64 -f 4b6736a12db8ea0f78ce793fd0d4ee0c94
 docker tag dry-run-runner gcr.io/golden-project/dry-run-runner:prefix-current
 [XPK] Task: `Upload Docker Image` is implemented by the following command not running since it is a dry run. 
 docker push gcr.io/golden-project/dry-run-runner:prefix-current
-[XPK] Temp file (6fb0f350cf4e0dccc71f77392d12db3de6371d5148519657046613794358bfce) content: 
+[XPK] Temp file (321584e701d68faa848df77a0e87ecbec8ce31e2b2aeb0d1e3ddb7027acc5021) content: 
 
     apiVersion: pathways-job.pathways.domain/v1
     kind: PathwaysJob
@@ -74,13 +74,11 @@ docker push gcr.io/golden-project/dry-run-runner:prefix-current
           metadata:
           spec:
             containers:
+              
               - name: jax-tpu
                 image: gcr.io/golden-project/dry-run-runner:prefix-current
                 imagePullPolicy: Always
                 env: 
-                ports:
-                
-                
                 securityContext:
                   privileged: true
                 command:
@@ -126,7 +124,7 @@ docker push gcr.io/golden-project/dry-run-runner:prefix-current
     
 
 [XPK] Task: `Creating Workload` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f 6fb0f350cf4e0dccc71f77392d12db3de6371d5148519657046613794358bfce
+kubectl apply -f 321584e701d68faa848df77a0e87ecbec8ce31e2b2aeb0d1e3ddb7027acc5021
 [XPK] Task: `GKE Dashboard List` is implemented by the following command not running since it is a dry run. 
 gcloud monitoring dashboards list --project=golden-project --filter="displayName:'GKE - TPU Monitoring Dashboard'" --format="value(name)" --verbosity=error
 [XPK] Check statistics and outlier mode of GKE metrics here: https://console.cloud.google.com/monitoring/dashboards/builder/0?project=golden-project&f.rlabel.cluster_name.ClusterName=golden-cluster. To view the metric data for your workload, select golden-workload from the JobName filter on the dashboard.

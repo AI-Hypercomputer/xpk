@@ -53,7 +53,10 @@ def get_main_container_resources(
     offset_vCPUs = int(system.chips_per_vm) * 0.95
     return f'{resource_type}: {offset_vCPUs}'
 
-  return f'{resource_type}: {system.chips_per_vm}'
+  return (
+      f'{resource_type}:'
+      f' {int(system.chips_per_vm / system.parallel_containers)}'
+  )
 
 
 def get_env_container(args, system: SystemCharacteristics) -> str:

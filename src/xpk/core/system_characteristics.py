@@ -140,6 +140,8 @@ class SystemCharacteristics:
     supports_super_slicing: Whether the Super-slicing feature is supported.
     requires_workload_policy: A boolean indicating if a GCE resource
       workload policy is required. This is automatically set to True for GPUs.
+    parallel_containers: The number of containers running on a single VM.
+
   """
 
   topology: str
@@ -155,6 +157,7 @@ class SystemCharacteristics:
   docker_platform: DockerPlatform
   requires_workload_policy: bool = False
   gpu_config: Optional[GpuConfig] = None
+  parallel_containers: int = 1
 
   def __post_init__(self):
     if self.accelerator_type == AcceleratorType.GPU:
@@ -248,6 +251,7 @@ def get_tpu_system_characteristics_map(
     default_topologies: set[str] | None = None,
     sub_slicing_topologies: set[str] | None = None,
     super_slicing_topologies: set[str] | None = None,
+    parallel_containers: int = 1,
 ) -> dict[str, SystemCharacteristics]:
   system_characteristics_map = {}
   default_topologies = default_topologies or set()
@@ -272,6 +276,7 @@ def get_tpu_system_characteristics_map(
         supports_super_slicing=topology in super_slicing_topologies,
         supports_accelerator_network_profile=supports_accelerator_network_profile,
         docker_platform=docker_platform,
+        parallel_containers=parallel_containers,
     )
     system_characteristics_map[f'{prefix}-{topology}'] = system
     if (
@@ -559,6 +564,7 @@ UserFacingNameToSystemCharacteristics = {
         tpu_type_requires_workload_policy=True,
         supports_accelerator_network_profile=False,
         docker_platform=AMD_PLATFORM,
+        parallel_containers=2,
         supported_topologies=generate_tpu_topologies(max_cubes=144),
         super_slicing_topologies=set(['4x4x4']),
         default_topologies=set([

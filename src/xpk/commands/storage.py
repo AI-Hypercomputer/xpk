@@ -23,7 +23,6 @@ from kubernetes.client.rest import ApiException
 
 from ..core import gcsfuse
 from ..core.cluster import (
-    DEFAULT_NAMESPACE,
     add_zone_and_project,
     get_cluster_network,
     setup_k8s_env,

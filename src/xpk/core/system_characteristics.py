@@ -80,15 +80,6 @@ class GpuConfig:
 
   requires_topology: bool
   gpu_direct_name: Literal['fastrak', 'rdma', 'tcpx', 'tcpxo'] = 'fastrak'
-  kjob_decorator_fn: Optional[Callable[[dict], dict]] = None
-  """A function to decorate the kjob template for GPU-specific configurations.
-
-  Args:
-    job_manifest (dict): The kjob manifest as a dictionary.
-
-  Returns:
-    dict: The modified kjob manifest as a dictionary.
-  """
   nccl_installer: Optional[str] = None
   jobset_decorator_fn: Optional[Callable[[str, list[str]], str]] = None
   """A function to decorate the jobset for GPU-specific configurations.
@@ -106,7 +97,7 @@ class GpuConfig:
     parts = []
     for f in dataclasses.fields(self):
       value = getattr(self, f.name)
-      if f.name in ('kjob_decorator_fn', 'jobset_decorator_fn') and value:
+      if f.name in ('jobset_decorator_fn') and value:
         parts.append(f'{f.name}=<function {value.__name__}>')
       else:
         parts.append(f'{f.name}={repr(value)}')
@@ -420,7 +411,6 @@ UserFacingNameToSystemCharacteristics = {
         gpu_config=GpuConfig(
             requires_topology=True,
             nccl_installer=INSTALLER_NCCL_RDMA_A4X,
-            kjob_decorator_fn=rdma_decorator.decorate_kjob_template,
             jobset_decorator_fn=rdma_decorator.decorate_jobset,
             gpu_direct_name='rdma',
         ),
@@ -439,7 +429,6 @@ UserFacingNameToSystemCharacteristics = {
         gpu_config=GpuConfig(
             requires_topology=True,
             nccl_installer=INSTALLER_NCCL_RDMA_A4X,
-            kjob_decorator_fn=rdma_decorator.decorate_kjob_template,
             jobset_decorator_fn=rdma_decorator.decorate_jobset,
             gpu_direct_name='rdma',
         ),
@@ -458,7 +447,6 @@ UserFacingNameToSystemCharacteristics = {
         gpu_config=GpuConfig(
             requires_topology=True,
             nccl_installer=INSTALLER_NCCL_RDMA,
-            kjob_decorator_fn=rdma_decorator.decorate_kjob_template,
             jobset_decorator_fn=rdma_decorator.decorate_jobset,
             gpu_direct_name='rdma',
         ),
@@ -477,7 +465,6 @@ UserFacingNameToSystemCharacteristics = {
         gpu_config=GpuConfig(
             requires_topology=True,
             nccl_installer=INSTALLER_NCCL_RDMA,
-            kjob_decorator_fn=rdma_decorator.decorate_kjob_template,
             jobset_decorator_fn=rdma_decorator.decorate_jobset,
             gpu_direct_name='rdma',
         ),
@@ -497,7 +484,6 @@ UserFacingNameToSystemCharacteristics = {
         gpu_config=GpuConfig(
             requires_topology=True,
             nccl_installer=INSTALLER_NCCL_TCPX,
-            kjob_decorator_fn=tcpx_decorator.decorate_kjob_template,
             jobset_decorator_fn=tcpx_decorator.decorate_jobset,
             gpu_direct_name='tcpx',
         ),
@@ -517,7 +503,6 @@ UserFacingNameToSystemCharacteristics = {
         gpu_config=GpuConfig(
             requires_topology=True,
             nccl_installer=INSTALLER_NCCL_TCPXO,
-            kjob_decorator_fn=tcpxo_decorator.decorate_kjob_template,
             jobset_decorator_fn=tcpxo_decorator.decorate_jobset,
             gpu_direct_name='tcpxo',
         ),

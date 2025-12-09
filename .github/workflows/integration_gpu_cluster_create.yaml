@@ -75,20 +75,20 @@ jobs:
                 echo "Testing API Access..."
                 gcloud services list --project=cloud-tpu-multipod-dev --limit=1
             - name: Create an XPK Cluster with 1 x b200 GPU
-              run: xpk cluster create --cluster $GPU_CLUSTER_NAME --device-type=b200-8 --zone=europe-west4-b --default-pool-cpu-machine-type=n1-standard-16 --spot
+              run: xpk cluster create --cluster $GPU_CLUSTER_NAME --device-type=b200-8 --zone=asia-northeast1-b --default-pool-cpu-machine-type=n1-standard-16 --spot
             - name: Authenticate Docker
               run: gcloud auth configure-docker --quiet
             - name: Run a base-docker-image workload
-              run: xpk workload create --cluster $GPU_CLUSTER_NAME --workload $WORKLOAD_NAME --docker-image='nvidia/cuda:12.1.0-base-ubuntu22.04' --command "nvidia-smi" --zone=europe-west4-b
+              run: xpk workload create --cluster $GPU_CLUSTER_NAME --workload $WORKLOAD_NAME --docker-image='nvidia/cuda:12.1.0-base-ubuntu22.04' --command "nvidia-smi" --zone=asia-northeast1-b
             - name: List out the workloads on the cluster
-              run: xpk workload list --cluster $GPU_CLUSTER_NAME --zone=europe-west4-b
+              run: xpk workload list --cluster $GPU_CLUSTER_NAME --zone=asia-northeast1-b
             - name: Wait for workload completion and confirm it succeeded
-              run: xpk workload list --cluster $GPU_CLUSTER_NAME --zone=europe-west4-b --wait-for-job-completion $WORKLOAD_NAME --timeout 600
+              run: xpk workload list --cluster $GPU_CLUSTER_NAME --zone=asia-northeast1-b --wait-for-job-completion $WORKLOAD_NAME --timeout 600
             - name: Delete the workload on the cluster
-              run: xpk workload delete --workload $WORKLOAD_NAME --cluster $GPU_CLUSTER_NAME --zone=europe-west4-b
+              run: xpk workload delete --workload $WORKLOAD_NAME --cluster $GPU_CLUSTER_NAME --zone=asia-northeast1-b
             - name: Delete the cluster created
               if: always()
-              run: xpk cluster delete --cluster $GPU_CLUSTER_NAME --zone=europe-west4-b --force
+              run: xpk cluster delete --cluster $GPU_CLUSTER_NAME --zone=asia-northeast1-b --force
             - name: Upload cluster nodepool creation log
               if: always()
               uses: actions/upload-artifact@v4

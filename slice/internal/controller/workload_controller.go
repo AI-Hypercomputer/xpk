@@ -177,7 +177,7 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	if len(active) == len(slices) && len(slices) > 0 {
-		log.V(1).Info("Annotating owner before unsuspending")
+		log.V(3).Info("Annotating owner before unsuspending")
 		err := r.annotateOwnerBeforeUnsuspend(ctx, wl)
 		if err != nil {
 			return ctrl.Result{}, err
@@ -322,7 +322,7 @@ func (r *WorkloadReconciler) findWorkloadSlices(ctx context.Context, wl *kueue.W
 //   - A slice containing deleted Slice objects (with non-zero DeletionTimestamp).
 //   - A slice containing Slice objects that should be deleted (errored and stale slices).
 //   - A slice sontaining initializing Slices objects (activating and slices without ready state yet)
-//   - A slice containing active slices Slice objects (ACTIVE and ACTIVE_DEGRADED).
+//   - A slice containing active slices Slice objects (in states ACTIVE and ACTIVE_DEGRADED).
 func (r *WorkloadReconciler) groupSlices(slices []v1beta1.Slice) (deleted []v1beta1.Slice, toDelete []v1beta1.Slice, initializing []v1beta1.Slice, active []v1beta1.Slice) {
 	for _, slice := range slices {
 		switch core.GetSliceState(slice) {
@@ -437,7 +437,7 @@ func (r *WorkloadReconciler) annotateJobSetBeforeUnsuspend(ctx context.Context, 
 	for i := range jobSet.Spec.ReplicatedJobs {
 		rj := &jobSet.Spec.ReplicatedJobs[i]
 		topology := rj.Template.Spec.Template.Annotations[core.TPUTopologyAnnotation]
-		log.V(1).Info("Copying topology annotation as nodeSelector", "topology", topology)
+		log.V(5).Info("Copying topology annotation as nodeSelector", "topology", topology)
 		if rj.Template.Spec.Template.Spec.NodeSelector == nil {
 			rj.Template.Spec.Template.Spec.NodeSelector = make(map[string]string)
 		}

@@ -39,14 +39,16 @@ jobs:
                   credentials_json: "${{ secrets.GCP_SA_KEY }}"
             - name: Check xpk installation
               run: xpk version
-            - name: Set up ADC for XPK Docker
+            - name: 'Setup Service Account Key for XPK'
               run: |
-                # 1. Create the gcloud config directory if it doesn't exist
+                # Create the directory XPK mounts
                 mkdir -p $HOME/.config/gcloud
 
-                # 2. Copy the credentials pointed to by the env var to the default ADC location
-                # This ensures the file exists inside the directory XPK mounts to Docker
-                cp "$GOOGLE_APPLICATION_CREDENTIALS" $HOME/.config/gcloud/application_default_credentials.json
+                # specific file XPK/gcluster looks for
+                echo '${{ secrets.GCP_SA_KEY }}' > $HOME/.config/gcloud/application_default_credentials.json
+
+                # Also set this env var for the host machine just in case other steps need it
+                echo "GOOGLE_APPLICATION_CREDENTIALS=$HOME/.config/gcloud/application_default_credentials.json" >> $GITHUB_ENV
             - name: Create an XPK Cluster with 1 x b200 GPU
               run: xpk cluster create --cluster $GPU_CLUSTER_NAME --device-type=b200-8 --zone=europe-west4-b --default-pool-cpu-machine-type=n1-standard-16 --spot
             - name: Authenticate Docker

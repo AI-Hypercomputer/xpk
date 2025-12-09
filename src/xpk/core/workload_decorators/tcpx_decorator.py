@@ -22,14 +22,6 @@ from ...utils.yaml import literal_string
 tcpx = 'v2.0.11'
 
 
-def decorate_kjob_template(job_manifest: dict) -> dict:
-  add_volumes(job_manifest)
-  add_tolerations(job_manifest)
-  add_tcpx_daemon_container(job_manifest)
-  update_gpu_containers(job_manifest)
-  return job_manifest
-
-
 def decorate_job(job_manifest: dict) -> dict:
   add_annotations(job_manifest)
   add_volumes(job_manifest)

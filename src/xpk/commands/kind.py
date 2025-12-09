@@ -20,11 +20,6 @@ from ..core.commands import (
     run_command_with_updates,
 )
 from ..core.cluster import set_jobset_on_cluster, setup_k8s_env
-from ..core.kjob import (
-    verify_kjob_installed,
-    prepare_kjob,
-    apply_kjob_crds,
-)
 from ..core.scheduling import get_total_chips_requested_from_args
 from ..core.storage import install_storage_crd
 from ..core.system_characteristics import (
@@ -48,7 +43,6 @@ def cluster_create(args) -> None:
   if should_validate_dependencies(args):
     validate_dependencies_list([
         SystemDependency.KUBECTL,
-        SystemDependency.KJOB,
         SystemDependency.GCLOUD,
     ])
   xpk_print(f'Starting cluster create for cluster {args.cluster}:', flush=True)
@@ -68,21 +62,6 @@ def cluster_create(args) -> None:
   set_jobset_on_cluster_code = set_jobset_on_cluster(args)
   if set_jobset_on_cluster_code != 0:
     xpk_exit(set_jobset_on_cluster_code)
-
-  xpk_print('Verifying kjob installation')
-  err_code = verify_kjob_installed()
-  if err_code > 0:
-    xpk_exit(err_code)
-
-  xpk_print('Applying kjob CDRs')
-  err_code = apply_kjob_crds()
-  if err_code > 0:
-    xpk_exit(err_code)
-
-  args.kind_cluster = True
-  err_code = prepare_kjob(args)
-  if err_code > 0:
-    xpk_exit(err_code)
 
   k8s_client = setup_k8s_env(args)
   install_storage_crd(k8s_client)

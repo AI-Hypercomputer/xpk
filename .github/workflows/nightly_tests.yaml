@@ -16,8 +16,8 @@ name: Nightly Tests
 
 on:
   workflow_dispatch:
-  schedule: # Schedule the job run at 12AM PST daily.
-    - cron: "0 8 * * *"
+  schedule: # Schedule the job run at 6AM UTC daily.
+    - cron: "0 6 * * *"
 
 permissions:
   contents: read

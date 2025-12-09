@@ -55,6 +55,25 @@ jobs:
 
                 # 4. Set Env Var for the host (GitHub Runner)
                 echo "GOOGLE_APPLICATION_CREDENTIALS=$HOME/.config/gcloud/application_default_credentials.json" >> $GITHUB_ENV
+            - name: Debug Permissions
+              run: |
+                echo "Using Service Account Key:"
+                echo $GOOGLE_APPLICATION_CREDENTIALS
+
+                # Activate the account on the runner to test it
+                gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS
+
+                # Print the current identity
+                echo "Authenticated as:"
+                gcloud config get-value account
+
+                # TEST 1: Can we see the project? (If this fails -> IAM Role 'Browser' or 'Viewer' missing)
+                echo "Testing Project Access..."
+                gcloud projects describe cloud-tpu-multipod-dev --format="value(lifecycleState)"
+
+                # TEST 2: Can we check Service Usage? (If this fails -> 'Service Usage Consumer' missing)
+                echo "Testing API Access..."
+                gcloud services list --project=cloud-tpu-multipod-dev --limit=1
             - name: Create an XPK Cluster with 1 x b200 GPU
               run: xpk cluster create --cluster $GPU_CLUSTER_NAME --device-type=b200-8 --zone=europe-west4-b --default-pool-cpu-machine-type=n1-standard-16 --spot
             - name: Authenticate Docker

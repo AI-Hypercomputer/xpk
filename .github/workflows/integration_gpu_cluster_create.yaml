@@ -27,7 +27,7 @@ jobs:
             group: nightly-test-cluster-group-gpu
             cancel-in-progress: false
         env:
-            GPU_CLUSTER_NAME: nightly-xpk-1-b200-spot-gpu
+            GPU_CLUSTER_NAME: nightly-xpk-b200
             WORKLOAD_NAME: xpktest-gpu-nightly-${{ github.run_attempt }}
         steps:
             - uses: actions/download-artifact@v4

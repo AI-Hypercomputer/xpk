@@ -27,6 +27,9 @@ import (
 	"github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -37,6 +40,7 @@ import (
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
 
 	slice "tpu-slice-controller/api/v1beta1"
+	"tpu-slice-controller/internal/core"
 )
 
 const (
@@ -111,4 +115,37 @@ func waitForOperatorAvailability(ctx context.Context, k8sClient client.Client, k
 		return nil
 	}, StartUpTimeout, Interval).Should(gomega.Succeed())
 	ginkgo.GinkgoLogr.Info("Deployment is available in the cluster", "deployment", key, "waitingTime", time.Since(waitForAvailableStart))
+}
+
+func AnnotateNodesWithTopology(ctx context.Context, k8sClient client.Client, topology string) {
+	nodes := &corev1.NodeList{}
+	gomega.Expect(k8sClient.List(ctx, nodes)).To(gomega.Succeed())
+	for _, node := range nodes.Items {
+		gomega.Eventually(func(g gomega.Gomega) {
+			n := &corev1.Node{}
+			g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(&node), n)).To(gomega.Succeed())
+			if n.Labels == nil {
+				n.Labels = make(map[string]string)
+			}
+			n.Labels[core.TPUTopologyAnnotation] = topology
+			err := k8sClient.Update(ctx, n)
+			// Can be ignored, if something else updated the node in the meantime.
+			g.Expect(apierrors.IsConflict(err)).To(gomega.BeFalse())
+		}, Timeout, Interval).Should(gomega.Succeed())
+	}
+}
+
+func SetSliceReady(ctx context.Context, k8sClient client.Client, sliceKey client.ObjectKey, topology string) {
+	createdSlice := &slice.Slice{}
+	gomega.Eventually(func(g gomega.Gomega) {
+		g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
+		meta.SetStatusCondition(&createdSlice.Status.Conditions, metav1.Condition{
+			Type:    slice.SliceStateConditionType,
+			Status:  metav1.ConditionTrue,
+			Reason:  string(core.MMIGHealthStatusActive),
+			Message: "Test",
+		})
+		g.Expect(k8sClient.Status().Update(ctx, createdSlice)).To(gomega.Succeed())
+	}, Timeout, Interval).Should(gomega.Succeed())
+	AnnotateNodesWithTopology(ctx, k8sClient, topology)
 }

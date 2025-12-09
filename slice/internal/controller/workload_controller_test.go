@@ -1142,6 +1142,7 @@ func TestWorkloadReconciler(t *testing.T) {
 					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Finalizers(SliceControllerName).
 					Obj(),
+				baseJobSetWrapper.DeepCopy(),
 				baseSlice1Wrapper.Clone().Active().Obj(),
 				baseSlice2Wrapper.Clone().Active().Obj(),
 			},
@@ -1175,6 +1176,7 @@ func TestWorkloadReconciler(t *testing.T) {
 					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Finalizers(SliceControllerName).
 					Obj(),
+				baseJobSetWrapper.DeepCopy(),
 				baseSlice1Wrapper.Clone().Active().Obj(),
 				baseSlice2Wrapper.Clone().Degraded().Obj(),
 			},
@@ -1268,6 +1270,7 @@ func TestWorkloadReconciler(t *testing.T) {
 					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Finalizers(SliceControllerName).
 					Obj(),
+				baseJobSetWrapper.DeepCopy(),
 				baseSlice1Wrapper.Clone().Active().Obj(),
 				baseSlice2Wrapper.Clone().Active().Obj(),
 			},

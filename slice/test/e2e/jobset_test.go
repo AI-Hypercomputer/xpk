@@ -265,16 +265,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 				})
 
 				ginkgo.By("Adding Ready condition", func() {
-					gomega.Eventually(func(g gomega.Gomega) {
-						g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
-						meta.SetStatusCondition(&createdSlice.Status.Conditions, metav1.Condition{
-							Type:    slice.SliceStateConditionType,
-							Status:  metav1.ConditionTrue,
-							Reason:  string(core.MMIGHealthStatusActive),
-							Message: "Test",
-						})
-						g.Expect(k8sClient.Status().Update(ctx, createdSlice)).To(gomega.Succeed())
-					}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+					utils.SetSliceReady(ctx, k8sClient, sliceKey, tc.tpuTopology)
 				})
 
 				ginkgo.By("Checking that the Workload is admitted and admission check status is ready", func() {
@@ -489,16 +480,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 			})
 
 			ginkgo.By("Adding Ready condition", func() {
-				gomega.Eventually(func(g gomega.Gomega) {
-					g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
-					meta.SetStatusCondition(&createdSlice.Status.Conditions, metav1.Condition{
-						Type:    slice.SliceStateConditionType,
-						Status:  metav1.ConditionTrue,
-						Reason:  string(core.MMIGHealthStatusActive),
-						Message: "Test",
-					})
-					g.Expect(k8sClient.Status().Update(ctx, createdSlice)).To(gomega.Succeed())
-				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+				utils.SetSliceReady(ctx, k8sClient, sliceKey, "4x4x4")
 			})
 
 			ginkgo.By("Checking that the Workload is admitted", func() {
@@ -635,16 +617,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 			})
 
 			ginkgo.By("Adding ready condition to the new Slice", func() {
-				gomega.Eventually(func(g gomega.Gomega) {
-					g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
-					meta.SetStatusCondition(&createdSlice.Status.Conditions, metav1.Condition{
-						Type:    slice.SliceStateConditionType,
-						Status:  metav1.ConditionTrue,
-						Reason:  string(core.MMIGHealthStatusActive),
-						Message: "Slice is ready",
-					})
-					g.Expect(k8sClient.Status().Update(ctx, createdSlice)).To(gomega.Succeed())
-				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+				utils.SetSliceReady(ctx, k8sClient, sliceKey, "4x4x4")
 			})
 
 			ginkgo.By("Checking that the Admission Check state is ready", func() {
@@ -770,16 +743,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 			})
 
 			ginkgo.By("Adding ready condition to the new Slice", func() {
-				gomega.Eventually(func(g gomega.Gomega) {
-					g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
-					meta.SetStatusCondition(&createdSlice.Status.Conditions, metav1.Condition{
-						Type:    slice.SliceStateConditionType,
-						Status:  metav1.ConditionTrue,
-						Reason:  string(core.MMIGHealthStatusActive),
-						Message: "Slice is ready",
-					})
-					g.Expect(k8sClient.Status().Update(ctx, createdSlice)).To(gomega.Succeed())
-				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+				utils.SetSliceReady(ctx, k8sClient, sliceKey, "4x4x4")
 			})
 
 			ginkgo.By("Checking that the Workload is admitted and the Admission Check state is ready", func() {
@@ -866,16 +830,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 			})
 
 			ginkgo.By("Adding ready condition to the new Slice", func() {
-				gomega.Eventually(func(g gomega.Gomega) {
-					g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
-					meta.SetStatusCondition(&createdSlice.Status.Conditions, metav1.Condition{
-						Type:    slice.SliceStateConditionType,
-						Status:  metav1.ConditionTrue,
-						Reason:  string(core.MMIGHealthStatusActive),
-						Message: "Slice is ready",
-					})
-					g.Expect(k8sClient.Status().Update(ctx, createdSlice)).To(gomega.Succeed())
-				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+				utils.SetSliceReady(ctx, k8sClient, sliceKey, "4x4x4")
 			})
 
 			ginkgo.By("Checking that the Admission Check state is ready", func() {

@@ -94,7 +94,7 @@ func NewWorkloadReconciler(cl client.Client, record record.EventRecorder) *Workl
 // +kubebuilder:rbac:groups=accelerator.gke.io,resources=slices,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=accelerator.gke.io,resources=slices/finalizers,verbs=update
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;watch;update;patch
-// +kubebuilder:rbac:groups=jobset.x-k8s.io,resources=jobsets,verbs=get;list;watch
+// +kubebuilder:rbac:groups=jobset.x-k8s.io,resources=jobsets,verbs=get;list;watch;update
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch
 
 func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -162,7 +162,7 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, err
 	}
 
-	deleted, toDelete, initializing, _ := r.groupSlices(slices)
+	deleted, toDelete, initializing, active := r.groupSlices(slices)
 	if len(deleted) > 0 {
 		log.V(3).Info(
 			"Waiting for deleted Slices to be cleaned up; skipping reconciliation for now",
@@ -174,6 +174,14 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	err = r.syncSlices(ctx, wl, ac, &slices, nodes)
 	if err != nil {
 		return ctrl.Result{}, err
+	}
+
+	if len(active) == len(slices) && len(slices) > 0 {
+		log.V(1).Info("Annotating owner before unsuspending")
+		err := r.annotateOwnerBeforeUnsuspend(ctx, wl)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
 	}
 
 	err = r.syncAdmissionCheckStatus(ctx, wl, ac, slices)
@@ -314,8 +322,8 @@ func (r *WorkloadReconciler) findWorkloadSlices(ctx context.Context, wl *kueue.W
 //   - A slice containing deleted Slice objects (with non-zero DeletionTimestamp).
 //   - A slice containing Slice objects that should be deleted (errored and stale slices).
 //   - A slice sontaining initializing Slices objects (activating and slices without ready state yet)
-//   - A slice containing other Slice objects (active slices).
-func (r *WorkloadReconciler) groupSlices(slices []v1beta1.Slice) (deleted []v1beta1.Slice, toDelete []v1beta1.Slice, initializing []v1beta1.Slice, other []v1beta1.Slice) {
+//   - A slice containing active slices Slice objects (ACTIVE and ACTIVE_DEGRADED).
+func (r *WorkloadReconciler) groupSlices(slices []v1beta1.Slice) (deleted []v1beta1.Slice, toDelete []v1beta1.Slice, initializing []v1beta1.Slice, active []v1beta1.Slice) {
 	for _, slice := range slices {
 		switch core.GetSliceState(slice) {
 		case core.SliceStateDeleted:
@@ -325,10 +333,10 @@ func (r *WorkloadReconciler) groupSlices(slices []v1beta1.Slice) (deleted []v1be
 		case core.SliceStateCreated, core.SliceStateActivating:
 			initializing = append(initializing, slice)
 		default:
-			other = append(other, slice)
+			active = append(active, slice)
 		}
 	}
-	return deleted, toDelete, initializing, other
+	return deleted, toDelete, initializing, active
 }
 
 func (r *WorkloadReconciler) deleteSlices(ctx context.Context, slices []v1beta1.Slice) error {
@@ -406,6 +414,39 @@ func (r *WorkloadReconciler) finalizeWorkload(ctx context.Context, wl *kueue.Wor
 
 	log.V(3).Info("Removed finalizer")
 
+	return nil
+}
+
+func (r *WorkloadReconciler) annotateOwnerBeforeUnsuspend(ctx context.Context, wl *kueue.Workload) error {
+	// For now, we only support JobSets.
+	if isJobSetOwner(wl) {
+		return r.annotateJobSetBeforeUnsuspend(ctx, wl)
+	}
+	return nil
+}
+
+func (r *WorkloadReconciler) annotateJobSetBeforeUnsuspend(ctx context.Context, wl *kueue.Workload) error {
+	owner := metav1.GetControllerOf(wl)
+	log := ctrl.LoggerFrom(ctx).WithValues("jobSet", klog.KRef(wl.Namespace, owner.Name))
+	jobSet := &jobset.JobSet{}
+	jobSetKey := types.NamespacedName{Name: owner.Name, Namespace: wl.Namespace}
+	if err := r.client.Get(ctx, jobSetKey, jobSet); err != nil {
+		log.Error(err, "Failed to get JobSet")
+		return err
+	}
+	for i := range jobSet.Spec.ReplicatedJobs {
+		rj := &jobSet.Spec.ReplicatedJobs[i]
+		topology := rj.Template.Spec.Template.Annotations[core.TPUTopologyAnnotation]
+		log.V(1).Info("Copying topology annotation as nodeSelector", "topology", topology)
+		if rj.Template.Spec.Template.Spec.NodeSelector == nil {
+			rj.Template.Spec.Template.Spec.NodeSelector = make(map[string]string)
+		}
+		rj.Template.Spec.Template.Spec.NodeSelector[core.TPUTopologyAnnotation] = topology
+	}
+	if err := r.client.Update(ctx, jobSet); err != nil {
+		log.Error(err, "Failed to update JobSet")
+		return err
+	}
 	return nil
 }
 

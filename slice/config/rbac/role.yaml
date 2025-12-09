@@ -65,6 +65,7 @@ rules:
   verbs:
   - get
   - list
+  - update
   - watch
 - apiGroups:
   - kueue.x-k8s.io

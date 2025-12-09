@@ -45,11 +45,3 @@ goldens:
     command: xpk workload list --project=golden-project --zone=us-central1-a --cluster=golden-cluster --dry-run
   "Storage list":
     command: xpk storage list --project=golden-project --zone=us-central1-a --cluster=golden-cluster --dry-run
-  "Job cancel":
-    command: xpk job cancel golden-job --project=golden-project --zone=us-central1-a --cluster=golden-cluster --dry-run
-  "Batch":
-    command: xpk batch --project=golden-project --zone=us-central1-a --cluster=golden-cluster --dry-run batch-read.sh
-  "Job list":
-    command: xpk job ls --project=golden-project --zone=us-central1-a --cluster=golden-cluster --dry-run
-  "Job info":
-    command: xpk job info golden-job --project=golden-project --zone=us-central1-a --cluster=golden-cluster --dry-run

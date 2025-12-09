@@ -39,15 +39,21 @@ jobs:
                   credentials_json: "${{ secrets.GCP_SA_KEY }}"
             - name: Check xpk installation
               run: xpk version
-            - name: 'Setup Service Account Key for XPK'
+            - name: 'Setup Service Account for XPK'
               run: |
-                # Create the directory XPK mounts
+                # 1. Clear any existing WIF configurations to avoid conflicts
+                rm -rf $HOME/.config/gcloud
                 mkdir -p $HOME/.config/gcloud
 
-                # specific file XPK/gcluster looks for
+                # 2. Write the Key File
                 echo '${{ secrets.GCP_SA_KEY }}' > $HOME/.config/gcloud/application_default_credentials.json
 
-                # Also set this env var for the host machine just in case other steps need it
+                # 3. CRITICAL STEP: Activate the Service Account
+                # This updates the internal config files to point to the key file.
+                # When Docker mounts the directory, it will now see "Active Account: Service Account"
+                gcloud auth activate-service-account --key-file=$HOME/.config/gcloud/application_default_credentials.json --project=cloud-tpu-multipod-dev
+
+                # 4. Set Env Var for the host (GitHub Runner)
                 echo "GOOGLE_APPLICATION_CREDENTIALS=$HOME/.config/gcloud/application_default_credentials.json" >> $GITHUB_ENV
             - name: Create an XPK Cluster with 1 x b200 GPU
               run: xpk cluster create --cluster $GPU_CLUSTER_NAME --device-type=b200-8 --zone=europe-west4-b --default-pool-cpu-machine-type=n1-standard-16 --spot

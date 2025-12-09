@@ -23,7 +23,6 @@ from kubernetes.client.rest import ApiException
 
 from ..core import gcsfuse
 from ..core.cluster import (
-    DEFAULT_NAMESPACE,
     add_zone_and_project,
     get_cluster_network,
     setup_k8s_env,
@@ -35,12 +34,6 @@ from ..core.cluster import (
     update_cluster_with_workload_identity_if_necessary,
 )
 from ..core.filestore import FilestoreClient, get_storage_class_name
-from ..core.kjob import (
-    KJOB_API_GROUP_NAME,
-    KJOB_API_GROUP_VERSION,
-    KJOB_API_VOLUME_BUNDLE_PLURAL,
-    create_volume_bundle_instance,
-)
 from ..core.storage import (
     GCP_FILESTORE_TYPE,
     GCS_FUSE_TYPE,
@@ -98,9 +91,6 @@ def storage_create(args: Namespace) -> None:
 
     k8s_api_client = setup_k8s_env(args)
     create_storage_crds(k8s_api_client, args, manifest)
-    create_volume_bundle_instance(
-        k8s_api_client, args.name, manifest, args.readonly, args.mount_point
-    )
     # Not required for Filestore. Will be uncommented when adding GCSFuse create
     # return_code = update_cluster_with_workload_identity_if_necessary(args)
     # if return_code > 0:
@@ -214,9 +204,6 @@ def storage_attach(args: Namespace) -> None:
 
   k8s_api_client = setup_k8s_env(args)
   create_storage_crds(k8s_api_client, args, manifest)
-  create_volume_bundle_instance(
-      k8s_api_client, args.name, manifest, args.readonly, args.mount_point
-  )
 
   enable_csi_drivers_if_necessary(args)
 
@@ -331,18 +318,6 @@ def delete_storage_resources(k8s_api_client: ApiClient, storage: Storage):
         get_storage_class_name(storage.name),
         "Storage Class",
     )
-
-  delete_resource(
-      lambda name: api_instance.delete_namespaced_custom_object(
-          namespace=DEFAULT_NAMESPACE,
-          name=name,
-          group=KJOB_API_GROUP_NAME,
-          version=KJOB_API_GROUP_VERSION,
-          plural=KJOB_API_VOLUME_BUNDLE_PLURAL,
-      ),
-      storage.name,
-      "VolumeBundle",
-  )
 
   delete_resource(
       lambda name: api_instance.delete_cluster_custom_object(

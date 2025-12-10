@@ -94,7 +94,7 @@ func NewWorkloadReconciler(cl client.Client, record record.EventRecorder) *Workl
 // +kubebuilder:rbac:groups=accelerator.gke.io,resources=slices,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=accelerator.gke.io,resources=slices/finalizers,verbs=update
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;watch;update;patch
-// +kubebuilder:rbac:groups=jobset.x-k8s.io,resources=jobsets,verbs=get;list;watch
+// +kubebuilder:rbac:groups=jobset.x-k8s.io,resources=jobsets,verbs=get;list;watch;update
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch
 
 func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -162,11 +162,11 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, err
 	}
 
-	deleted, toDelete, initializing, _ := r.groupSlices(slices)
-	if len(deleted) > 0 {
+	grouped := r.groupSlices(slices)
+	if len(grouped.deleted) > 0 {
 		log.V(3).Info(
 			"Waiting for deleted Slices to be cleaned up; skipping reconciliation for now",
-			"deletedSlices", klog.KObjSlice(deleted),
+			"deletedSlices", klog.KObjSlice(grouped.deleted),
 		)
 		return ctrl.Result{}, err
 	}
@@ -176,25 +176,33 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, err
 	}
 
+	if len(grouped.active) == len(slices) && len(slices) > 0 {
+		log.V(3).Info("Annotating owner before unsuspending")
+		err := r.updateOwnerBeforeUnsuspend(ctx, wl)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
 	err = r.syncAdmissionCheckStatus(ctx, wl, ac, slices)
 	if err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if len(toDelete) > 0 {
+	if len(grouped.toDelete) > 0 {
 		log.V(3).Info(
 			"Deleting Slices",
-			"slices", klog.KObjSlice(toDelete),
+			"slices", klog.KObjSlice(grouped.toDelete),
 		)
-		err = r.deleteSlices(ctx, toDelete)
+		err = r.deleteSlices(ctx, grouped.toDelete)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
 	}
-	if len(initializing) > 0 {
+	if len(grouped.initializing) > 0 {
 		log.V(3).Info(
 			"Waiting for Slices to be initialized",
-			"slices", klog.KObjSlice(initializing),
+			"slices", klog.KObjSlice(grouped.initializing),
 		)
 		return ctrl.Result{RequeueAfter: initializationRetryAfter}, nil
 	}
@@ -263,22 +271,22 @@ func (r *WorkloadReconciler) cleanupSlices(ctx context.Context, wl *kueue.Worklo
 		return false, err
 	}
 
-	deleted, toDelete, initializing, other := r.groupSlices(slices)
+	grouped := r.groupSlices(slices)
 
-	if len(deleted) == len(slices) {
+	if len(grouped.deleted) == len(slices) {
 		log.V(3).Info("All slices already deleted; finishing cleanup")
 		return true, nil
 	}
 
-	if len(other)+len(toDelete)+len(initializing) > 0 {
+	if len(grouped.active)+len(grouped.toDelete)+len(grouped.initializing) > 0 {
 		terminated, err := r.ownerPodsFinished(ctx, wl)
 		if err != nil || !terminated {
 			return false, err
 		}
 	}
 	// after pods are terminated we should cleanup all the slices (including active and initializing ones)
-	toDelete = append(toDelete, other...)
-	toDelete = append(toDelete, initializing...)
+	toDelete := append(grouped.toDelete, grouped.active...)
+	toDelete = append(toDelete, grouped.initializing...)
 	log.V(3).Info("Deleting Slices", "slices", klog.KObjSlice(toDelete))
 	err = r.deleteSlices(ctx, toDelete)
 	if err != nil {
@@ -302,6 +310,13 @@ func (r *WorkloadReconciler) findWorkloadSlices(ctx context.Context, wl *kueue.W
 	return slices.Items, nil
 }
 
+type groupedSlices struct {
+	deleted      []v1beta1.Slice
+	toDelete     []v1beta1.Slice
+	initializing []v1beta1.Slice
+	active       []v1beta1.Slice
+}
+
 // groupSlices categorizes a list of Slice objects into four groups based on their state.
 // It separates slices into deleted (marked for deletion), ones that should be delete
 // (errored and stale), ones that are initializning, and other (active) slices.
@@ -311,24 +326,23 @@ func (r *WorkloadReconciler) findWorkloadSlices(ctx context.Context, wl *kueue.W
 //	slices - A slice of v1beta1.Slice objects to be categorized.
 //
 // Returns:
-//   - A slice containing deleted Slice objects (with non-zero DeletionTimestamp).
-//   - A slice containing Slice objects that should be deleted (errored and stale slices).
-//   - A slice sontaining initializing Slices objects (activating and slices without ready state yet)
-//   - A slice containing other Slice objects (active slices).
-func (r *WorkloadReconciler) groupSlices(slices []v1beta1.Slice) (deleted []v1beta1.Slice, toDelete []v1beta1.Slice, initializing []v1beta1.Slice, other []v1beta1.Slice) {
+//
+//	A groupedSlices struct containing categorized slices.
+func (r *WorkloadReconciler) groupSlices(slices []v1beta1.Slice) groupedSlices {
+	gs := groupedSlices{}
 	for _, slice := range slices {
 		switch core.GetSliceState(slice) {
 		case core.SliceStateDeleted:
-			deleted = append(deleted, slice)
+			gs.deleted = append(gs.deleted, slice)
 		case core.SliceStateFailed, core.SliceStateStale:
-			toDelete = append(toDelete, slice)
+			gs.toDelete = append(gs.toDelete, slice)
 		case core.SliceStateCreated, core.SliceStateActivating:
-			initializing = append(initializing, slice)
-		default:
-			other = append(other, slice)
+			gs.initializing = append(gs.initializing, slice)
+		case core.SliceStateActive, core.SliceStateActiveDegraded:
+			gs.active = append(gs.active, slice)
 		}
 	}
-	return deleted, toDelete, initializing, other
+	return gs
 }
 
 func (r *WorkloadReconciler) deleteSlices(ctx context.Context, slices []v1beta1.Slice) error {
@@ -406,6 +420,39 @@ func (r *WorkloadReconciler) finalizeWorkload(ctx context.Context, wl *kueue.Wor
 
 	log.V(3).Info("Removed finalizer")
 
+	return nil
+}
+
+func (r *WorkloadReconciler) updateOwnerBeforeUnsuspend(ctx context.Context, wl *kueue.Workload) error {
+	// For now, we only support JobSets.
+	if isJobSetOwner(wl) {
+		return r.updateJobSetBeforeUnsuspend(ctx, wl)
+	}
+	return nil
+}
+
+func (r *WorkloadReconciler) updateJobSetBeforeUnsuspend(ctx context.Context, wl *kueue.Workload) error {
+	owner := metav1.GetControllerOf(wl)
+	log := ctrl.LoggerFrom(ctx).WithValues("jobSet", klog.KRef(wl.Namespace, owner.Name))
+	jobSet := &jobset.JobSet{}
+	jobSetKey := types.NamespacedName{Name: owner.Name, Namespace: wl.Namespace}
+	if err := r.client.Get(ctx, jobSetKey, jobSet); err != nil {
+		log.Error(err, "Failed to get JobSet")
+		return err
+	}
+	for i := range jobSet.Spec.ReplicatedJobs {
+		rj := &jobSet.Spec.ReplicatedJobs[i]
+		topology := rj.Template.Spec.Template.Annotations[core.TPUTopologyAnnotation]
+		log.V(5).Info("Copying topology annotation as nodeSelector", "topology", topology)
+		if rj.Template.Spec.Template.Spec.NodeSelector == nil {
+			rj.Template.Spec.Template.Spec.NodeSelector = make(map[string]string)
+		}
+		rj.Template.Spec.Template.Spec.NodeSelector[core.TPUTopologyAnnotation] = topology
+	}
+	if err := r.client.Update(ctx, jobSet); err != nil {
+		log.Error(err, "Failed to update JobSet")
+		return err
+	}
 	return nil
 }
 

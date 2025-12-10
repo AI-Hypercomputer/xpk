@@ -66,6 +66,11 @@ func (j *JobSetWrapper) Obj() *jobsetapi.JobSet {
 	return &j.JobSet
 }
 
+// Clone returns a deep copy of the JobSetWrapper.
+func (j *JobSetWrapper) Clone() *JobSetWrapper {
+	return &JobSetWrapper{*j.DeepCopy()}
+}
+
 func (j *JobSetWrapper) UID(uid string) *JobSetWrapper {
 	j.ObjectMeta.UID = types.UID(uid)
 	return j

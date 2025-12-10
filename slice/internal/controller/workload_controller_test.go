@@ -154,6 +154,7 @@ func TestWorkloadReconciler(t *testing.T) {
 		objs                   []client.Object
 		wantWorkloads          []kueue.Workload
 		wantSlices             []slice.Slice
+		wantJobSets            []jobset.JobSet
 		wantErr                error
 		wantEvents             []utiltesting.EventRecord
 		wantResult             controllerruntime.Result
@@ -305,7 +306,7 @@ func TestWorkloadReconciler(t *testing.T) {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
-				baseJobSetWrapper.DeepCopy(),
+				baseJobSetWrapper.Clone().Obj(),
 				basePod1Wrapper.DeepCopy(),
 				baseWorkloadWrapper.Clone().
 					PodSets(basePodSets...).
@@ -330,7 +331,8 @@ func TestWorkloadReconciler(t *testing.T) {
 				*baseSlice1Wrapper.Clone().Degraded().Obj(),
 				*baseSlice2Wrapper.Clone().Degraded().Obj(),
 			},
-			wantResult: reconcile.Result{RequeueAfter: cleanupRetryAfter},
+			wantJobSets: []jobset.JobSet{*baseJobSetWrapper.Clone().Obj()},
+			wantResult:  reconcile.Result{RequeueAfter: cleanupRetryAfter},
 		},
 		"should delete the finalizer because the Pod Status Succeeded": {
 			request: baseRequest,
@@ -355,6 +357,7 @@ func TestWorkloadReconciler(t *testing.T) {
 					Active(false).
 					Obj(),
 			},
+			wantJobSets: []jobset.JobSet{*baseJobSetWrapper.Clone().Obj()},
 		},
 		"should delete the finalizer because the Pod Status PodFailed": {
 			request: baseRequest,
@@ -380,6 +383,7 @@ func TestWorkloadReconciler(t *testing.T) {
 					Active(false).
 					Obj(),
 			},
+			wantJobSets: []jobset.JobSet{*baseJobSetWrapper.Clone().Obj()},
 		},
 		"shouldn't delete the finalizer because Pods still running": {
 			request: baseRequest,
@@ -411,13 +415,14 @@ func TestWorkloadReconciler(t *testing.T) {
 				*baseSlice1Wrapper.DeepCopy(),
 				*baseSlice2Wrapper.DeepCopy(),
 			},
-			wantResult: reconcile.Result{RequeueAfter: cleanupRetryAfter},
+			wantJobSets: []jobset.JobSet{*baseJobSetWrapper.Clone().Obj()},
+			wantResult:  reconcile.Result{RequeueAfter: cleanupRetryAfter},
 		},
 		"shouldn't delete the finalizer because one of the Pods still running": {
 			request: baseRequest,
 			objs: []client.Object{
 				baseAdmissionCheckWrapper.DeepCopy(),
-				baseJobSetWrapper.DeepCopy(),
+				baseJobSetWrapper.Clone().Obj(),
 				basePod1Wrapper.Clone().StatusPhase(corev1.PodSucceeded).Obj(),
 				basePod2Wrapper.DeepCopy(),
 				baseWorkloadWrapper.Clone().
@@ -443,7 +448,8 @@ func TestWorkloadReconciler(t *testing.T) {
 				*baseSlice1Wrapper.DeepCopy(),
 				*baseSlice2Wrapper.DeepCopy(),
 			},
-			wantResult: reconcile.Result{RequeueAfter: initializationRetryAfter},
+			wantJobSets: []jobset.JobSet{*baseJobSetWrapper.Clone().Obj()},
+			wantResult:  reconcile.Result{RequeueAfter: initializationRetryAfter},
 		},
 		"shouldn't add finalizer because invalid TPU topology annotation": {
 			request: baseRequest,
@@ -1142,6 +1148,7 @@ func TestWorkloadReconciler(t *testing.T) {
 					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Finalizers(SliceControllerName).
 					Obj(),
+				baseJobSetWrapper.Clone().Obj(),
 				baseSlice1Wrapper.Clone().Active().Obj(),
 				baseSlice2Wrapper.Clone().Active().Obj(),
 			},
@@ -1158,6 +1165,7 @@ func TestWorkloadReconciler(t *testing.T) {
 				*baseSlice1Wrapper.Clone().Active().Obj(),
 				*baseSlice2Wrapper.Clone().Active().Obj(),
 			},
+			wantJobSets: []jobset.JobSet{*baseJobSetWrapper.Clone().Obj()},
 			wantEvents: []utiltesting.EventRecord{
 				buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, AdmissionCheckUpdatedEventType,
 					fmt.Sprintf(`Admission check %q updated state from "Pending" to "Ready"`, baseACName)),
@@ -1175,6 +1183,7 @@ func TestWorkloadReconciler(t *testing.T) {
 					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Finalizers(SliceControllerName).
 					Obj(),
+				baseJobSetWrapper.Clone().Obj(),
 				baseSlice1Wrapper.Clone().Active().Obj(),
 				baseSlice2Wrapper.Clone().Degraded().Obj(),
 			},
@@ -1190,9 +1199,68 @@ func TestWorkloadReconciler(t *testing.T) {
 			wantSlices: []slice.Slice{
 				*baseSlice1Wrapper.Clone().Active().Obj(),
 				*baseSlice2Wrapper.Clone().Degraded().Obj()},
+			wantJobSets: []jobset.JobSet{*baseJobSetWrapper.Clone().Obj()},
 			wantEvents: []utiltesting.EventRecord{
 				buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, AdmissionCheckUpdatedEventType,
 					fmt.Sprintf(`Admission check %q updated state from "Pending" to "Ready"`, baseACName)),
+			},
+		},
+		"should set nodeSelector at Jobset when all slices are ready": {
+			request: baseRequest,
+			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				worker2Node.DeepCopy(),
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					Obj(),
+				baseJobSetWrapper.Clone().ReplicatedJobs(
+					utiltestingjobsjobset.ReplicatedJobRequirements{
+						Name:           "ps1",
+						PodAnnotations: map[string]string{core.TPUTopologyAnnotation: "4x4x12"},
+					},
+					utiltestingjobsjobset.ReplicatedJobRequirements{
+						Name:           "ps2",
+						PodAnnotations: map[string]string{core.TPUTopologyAnnotation: "4x4x12"},
+					},
+				).Obj(),
+				baseSlice1Wrapper.Clone().Active().Obj(),
+				baseSlice2Wrapper.Clone().Active().Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStateReady, `Slices are in states: 2 ACTIVE`)).
+					Obj(),
+			},
+			wantSlices: []slice.Slice{
+				*baseSlice1Wrapper.Clone().Active().Obj(),
+				*baseSlice2Wrapper.Clone().Active().Obj(),
+			},
+			wantJobSets: []jobset.JobSet{*baseJobSetWrapper.Clone().ReplicatedJobs(
+				utiltestingjobsjobset.ReplicatedJobRequirements{
+					Name: "ps1",
+					PodAnnotations: map[string]string{
+						core.TPUTopologyAnnotation: "4x4x12",
+					},
+					NodeSelector: map[string]string{core.TPUTopologyAnnotation: "4x4x12"},
+				},
+				utiltestingjobsjobset.ReplicatedJobRequirements{
+					Name: "ps2",
+					PodAnnotations: map[string]string{
+						core.TPUTopologyAnnotation: "4x4x12",
+					},
+					NodeSelector: map[string]string{core.TPUTopologyAnnotation: "4x4x12"},
+				},
+			).Obj()},
+			wantEvents: []utiltesting.EventRecord{
+				buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, AdmissionCheckUpdatedEventType, fmt.Sprintf(`Admission check %q updated state from "Pending" to "Ready"`, baseACName)),
 			},
 		},
 		"should update the Workload's AdmissionCheckState when one Slice is in the Failed state": {
@@ -1268,6 +1336,7 @@ func TestWorkloadReconciler(t *testing.T) {
 					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Finalizers(SliceControllerName).
 					Obj(),
+				baseJobSetWrapper.Clone().Obj(),
 				baseSlice1Wrapper.Clone().Active().Obj(),
 				baseSlice2Wrapper.Clone().Active().Obj(),
 			},
@@ -1284,6 +1353,7 @@ func TestWorkloadReconciler(t *testing.T) {
 				*baseSlice1Wrapper.Clone().Active().Obj(),
 				*baseSlice2Wrapper.Clone().Active().Obj(),
 			},
+			wantJobSets: []jobset.JobSet{*baseJobSetWrapper.Clone().Obj()},
 			wantEvents: []utiltesting.EventRecord{
 				buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, AdmissionCheckUpdatedEventType,
 					fmt.Sprintf(`Admission check %q updated state from "Pending" to "Ready"`, baseACName)),
@@ -1422,6 +1492,15 @@ func TestWorkloadReconciler(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.wantWorkloads, workloads.Items, baseCmpOpts); diff != "" {
 				t.Errorf("Workloads after reconcile (-want,+got):\n%s", diff)
+			}
+
+			jobSets := &jobset.JobSetList{}
+			err = kClient.List(ctx, jobSets)
+			if err != nil {
+				t.Errorf("Error listing jobsets: %v", err)
+			}
+			if diff := cmp.Diff(tc.wantJobSets, jobSets.Items, baseCmpOpts); diff != "" {
+				t.Errorf("JobSets after reconcile (-want,+got):\n%s", diff)
 			}
 
 			slices := &slice.SliceList{}

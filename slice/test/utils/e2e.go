@@ -27,7 +27,6 @@ import (
 	"github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -128,9 +127,7 @@ func AnnotateNodesWithTopology(ctx context.Context, k8sClient client.Client, top
 				n.Labels = make(map[string]string)
 			}
 			n.Labels[core.TPUTopologyAnnotation] = topology
-			err := k8sClient.Update(ctx, n)
-			// Can be ignored, if something else updated the node in the meantime.
-			g.Expect(apierrors.IsConflict(err)).To(gomega.BeFalse())
+			g.Expect(k8sClient.Update(ctx, n)).To(gomega.Succeed())
 		}, Timeout, Interval).Should(gomega.Succeed())
 	}
 }

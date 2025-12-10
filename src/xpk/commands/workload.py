@@ -481,6 +481,7 @@ def workload_create(args) -> None:
           podFailurePolicy:
             rules:
             - action: FailJob
+              onPodConditions: []
               onExitCodes:
                 containerName: {get_main_container_docker_image(args, system)}
                 operator: NotIn

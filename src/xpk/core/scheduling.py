@@ -18,7 +18,7 @@ from enum import Enum
 
 from .kueue_manager import get_installed_kueue_version, has_sub_slicing_enabled, has_super_slicing_enabled
 from ..utils.feature_flags import FeatureFlags
-from ..utils.topology import get_slice_topology_level
+from ..utils.topology import get_slice_topology_level, parse_topology
 from ..utils.console import xpk_print
 from ..utils.topology import is_topology_valid
 from ..utils.execution_context import is_dry_run
@@ -115,7 +115,7 @@ def check_if_workload_can_schedule(
         args,
         workload_system,
         max_vm_in_cluster=int(resources_config_map[cluster_system.device_type]),
-    ):
+    ) and _check_super_slicing_topology(workload_system):
       return WorkloadScheduling.SUPER_SLICING_AVAILABLE
     else:
       return WorkloadScheduling.UNAVAILABLE
@@ -189,7 +189,6 @@ def _check_super_slicing_availability(
     workload_system: SystemCharacteristics,
     cluster_system: SystemCharacteristics,
 ) -> bool:
-  # TODO: b/465447813 - Add super-slicing workload topology validation.
   if (
       (not FeatureFlags.SUPER_SLICING_ENABLED)
       or (workload_system.gke_accelerator != cluster_system.gke_accelerator)
@@ -210,6 +209,29 @@ def _check_super_slicing_availability(
       and current_version is not None
       and current_version >= _SUPER_SLICING_MINIMUM_KUEUE_VERSION
   )
+
+
+def _check_super_slicing_topology(
+    workload_system: SystemCharacteristics,
+) -> bool:
+  sizes = parse_topology(workload_system.topology)
+  result = (
+      len(sizes) == 3
+      and all(size % 4 == 0 and size >= 4 for size in sizes)
+      and sizes[0] <= sizes[1] <= sizes[2]
+      and sizes[0] <= 16
+      and sizes[1] <= 24
+      and sizes[2] <= 24
+  )
+
+  if not result:
+    xpk_print(
+        'Error: Invalid super-slicing topology. It must adhere to the format of'
+        ' 4i x 4j x 4k, where i <= j <= k, and i, j, k are integers, with a'
+        ' maximum of 16x24x24.'
+    )
+
+  return result
 
 
 def get_total_chips_requested_from_args(

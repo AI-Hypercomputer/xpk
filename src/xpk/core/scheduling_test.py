@@ -376,6 +376,28 @@ SUPER_SLICING_CASE = SchedulingTestCase(
             WorkloadScheduling.UNAVAILABLE,
         ),
         (
+            'Super-slicing, but workload topology is not divisible by four',
+            dataclasses.replace(
+                SUPER_SLICING_CASE,
+                workload_system=_get_system_characteristics_or_die(
+                    'tpu7x-2x2x1'
+                ),
+            ),
+            WorkloadScheduling.UNAVAILABLE,
+        ),
+        (
+            'Super-slicing, but workload topology is too big for super-slice',
+            dataclasses.replace(
+                SUPER_SLICING_CASE,
+                workload_system=_get_system_characteristics_or_die(
+                    'tpu7x-4x4x32'
+                ),
+                # 10 cubes, to make sure vms fit:
+                resources_config_map={'tpu7x-128': str(64 // 4 * 10)},
+            ),
+            WorkloadScheduling.UNAVAILABLE,
+        ),
+        (
             (
                 'Super-slicing should be ignored when a given device is already'
                 ' present in the cluster'

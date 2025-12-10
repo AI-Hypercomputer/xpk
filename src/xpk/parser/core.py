@@ -24,7 +24,6 @@ from .inspector import set_inspector_parser
 from .storage import set_storage_parser
 from .workload import set_workload_parsers
 from .info import set_info_parser
-from .kind import set_kind_parser
 from .version import set_version_parser
 
 
@@ -49,10 +48,6 @@ def set_parser(parser: argparse.ArgumentParser):
   info_parser = xpk_subcommands.add_parser(
       "info",
       help="Commands around listing kueue clusterqueues and localqueues.",
-  )
-  kind_parser = xpk_subcommands.add_parser(
-      "kind",
-      help="commands around Kind cluster management",
   )
   version_parser = xpk_subcommands.add_parser(
       "version", help="Command to get xpk version"
@@ -79,7 +74,6 @@ def set_parser(parser: argparse.ArgumentParser):
     workload_parser.print_help()
     info_parser.print_help()
     version_parser.print_help()
-    kind_parser.print_help()
     config_parser.print_help()
 
     storage_parser.print_help()
@@ -89,7 +83,6 @@ def set_parser(parser: argparse.ArgumentParser):
   workload_parser.set_defaults(func=default_subcommand_function)
   cluster_parser.set_defaults(func=default_subcommand_function)
   info_parser.set_defaults(func=default_subcommand_function)
-  kind_parser.set_defaults(func=default_subcommand_function)
   storage_parser.set_defaults(func=default_subcommand_function)
   version_parser.set_defaults(func=default_subcommand_function)
   config_parser.set_defaults(func=default_subcommand_function)
@@ -98,7 +91,6 @@ def set_parser(parser: argparse.ArgumentParser):
   set_cluster_parser(cluster_parser=cluster_parser)
   set_inspector_parser(inspector_parser=inspector_parser)
   set_info_parser(info_parser=info_parser)
-  set_kind_parser(kind_parser=kind_parser)
   set_storage_parser(storage_parser=storage_parser)
   set_version_parser(version_parser=version_parser)
   set_config_parsers(config_parser=config_parser)

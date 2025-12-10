@@ -49,7 +49,7 @@ func IsRelevantPodTemplateSpec(spec corev1.PodTemplateSpec) bool {
 }
 
 func GetTPUTopology(spec corev1.PodTemplateSpec) string {
-	return spec.Annotations[TPUTopologyAnnotation]
+	return spec.Annotations[TPUSliceTopologyAnnotation]
 }
 
 func GetTPUAccelerator(spec corev1.PodTemplateSpec) string {

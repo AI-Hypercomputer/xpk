@@ -142,7 +142,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 							Parallelism: tc.parallelism,
 							Completions: tc.parallelism,
 							PodAnnotations: map[string]string{
-								"cloud.google.com/gke-tpu-topology": tc.tpuTopology,
+								core.TPUSliceTopologyAnnotation: tc.tpuTopology,
 							},
 							NodeSelector: map[string]string{
 								"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
@@ -441,7 +441,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Parallelism: 1,
 						Completions: 1,
 						PodAnnotations: map[string]string{
-							"cloud.google.com/gke-tpu-topology": "4x4x4",
+							core.TPUSliceTopologyAnnotation: "4x4x4",
 						},
 						NodeSelector: map[string]string{
 							"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
@@ -536,7 +536,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Parallelism: 1,
 						Completions: 1,
 						PodAnnotations: map[string]string{
-							"cloud.google.com/gke-tpu-topology": "4x4x4",
+							core.TPUSliceTopologyAnnotation: "4x4x4",
 						},
 						NodeSelector: map[string]string{
 							"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
@@ -656,7 +656,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Parallelism: 1,
 						Completions: 1,
 						PodAnnotations: map[string]string{
-							"cloud.google.com/gke-tpu-topology": "4x4x4",
+							core.TPUSliceTopologyAnnotation: "4x4x4",
 						},
 						NodeSelector: map[string]string{
 							"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
@@ -770,7 +770,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Parallelism: 1,
 						Completions: 1,
 						PodAnnotations: map[string]string{
-							"cloud.google.com/gke-tpu-topology": "4x4x4",
+							core.TPUSliceTopologyAnnotation: "4x4x4",
 						},
 						NodeSelector: map[string]string{
 							"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
@@ -857,7 +857,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Parallelism: 16,
 						Completions: 16,
 						PodAnnotations: map[string]string{
-							"cloud.google.com/gke-tpu-topology": "4x4x4",
+							core.TPUSliceTopologyAnnotation: "4x4x4",
 						},
 						NodeSelector: map[string]string{
 							"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
@@ -871,7 +871,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Parallelism: 16,
 						Completions: 16,
 						PodAnnotations: map[string]string{
-							"cloud.google.com/gke-tpu-topology": "4x4x4",
+							core.TPUSliceTopologyAnnotation: "4x4x4",
 						},
 						NodeSelector: map[string]string{
 							"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),

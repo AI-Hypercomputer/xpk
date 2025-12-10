@@ -17,10 +17,11 @@ limitations under the License.
 package core
 
 const (
-	TPUTopologyAnnotation = "cloud.google.com/gke-tpu-topology"
-	TPUAcceleratorLabel   = "cloud.google.com/gke-tpu-accelerator"
-	TPUBlockLabel         = "cloud.google.com/gce-topology-block"
-	TPUSubBlockLabel      = "cloud.google.com/gke-tpu-partition-4x4x4-id"
+	TPUSliceTopologyAnnotation = "cloud.google.com/gke-tpu-slice-topology"
+	TPUTopologyAnnotation      = "cloud.google.com/gke-tpu-topology"
+	TPUAcceleratorLabel        = "cloud.google.com/gke-tpu-accelerator"
+	TPUBlockLabel              = "cloud.google.com/gce-topology-block"
+	TPUSubBlockLabel           = "cloud.google.com/gke-tpu-partition-4x4x4-id"
 
 	TPUSliceHealthNodeSelectorKey     = "cloud.google.com/gke-tpu-partition-4x4x4-state"
 	TPUSliceHealthNodeSelectorHealthy = "HEALTHY"

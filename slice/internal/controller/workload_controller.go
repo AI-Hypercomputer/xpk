@@ -442,7 +442,7 @@ func (r *WorkloadReconciler) updateJobSetBeforeUnsuspend(ctx context.Context, wl
 	}
 	for i := range jobSet.Spec.ReplicatedJobs {
 		rj := &jobSet.Spec.ReplicatedJobs[i]
-		topology := rj.Template.Spec.Template.Annotations[core.TPUTopologyAnnotation]
+		topology := rj.Template.Spec.Template.Annotations[core.TPUSliceTopologyAnnotation]
 		log.V(5).Info("Copying topology annotation as nodeSelector", "topology", topology)
 		if rj.Template.Spec.Template.Spec.NodeSelector == nil {
 			rj.Template.Spec.Template.Spec.NodeSelector = make(map[string]string)

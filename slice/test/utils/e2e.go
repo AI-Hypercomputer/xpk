@@ -116,7 +116,7 @@ func waitForOperatorAvailability(ctx context.Context, k8sClient client.Client, k
 	ginkgo.GinkgoLogr.Info("Deployment is available in the cluster", "deployment", key, "waitingTime", time.Since(waitForAvailableStart))
 }
 
-func AnnotateNodesWithTopology(ctx context.Context, k8sClient client.Client, topology string) {
+func LabelNodesWithTopology(ctx context.Context, k8sClient client.Client, topology string) {
 	nodes := &corev1.NodeList{}
 	gomega.Expect(k8sClient.List(ctx, nodes)).To(gomega.Succeed())
 	for _, node := range nodes.Items {

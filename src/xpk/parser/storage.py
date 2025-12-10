@@ -315,11 +315,6 @@ def add_storage_detach_parser(storage_subcommands_parser: Subcommands) -> None:
   req_args.add_argument('name', type=str)
   add_cluster_arguments(req_args, required=True)
 
-  opt_args = storage_detach_parser.add_argument_group(
-      'Optional Arguments',
-      'Optional arguments for storage delete.',
-  )
-
 
 def add_storage_delete_parser(storage_subcommands_parser: Subcommands) -> None:
   storage_delete_parser: argparse.ArgumentParser = (

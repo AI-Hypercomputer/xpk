@@ -39,7 +39,6 @@ jobs:
       with:
         path: |
           /usr/local/bin/kubectl-kueue
-          /usr/local/bin/kubectl-kjob
           ~/.cache/pip
           ${{env.pythonLocation}}
         key: xpk-deps-${{matrix.python-version}}-${{github.run_id}}-${{github.run_attempt}}

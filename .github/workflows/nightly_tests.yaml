@@ -23,31 +23,29 @@ permissions:
   contents: read
 
 jobs:
-  build_kjob:
-    uses: ./.github/workflows/reusable_build_kjob.yaml
   build_wheel:
     uses: ./.github/workflows/reusable_build_wheel.yaml
   build_actions:
     uses: ./.github/workflows/reusable_build_scripts.yaml
   basic_cluster_create:
-    needs: [build_kjob, build_actions, build_wheel]
+    needs: [build_actions, build_wheel]
     uses: ./.github/workflows/integration_basic_cluster_create.yaml
     secrets: inherit
 
   pathways_cluster_create:
-    needs: [build_kjob, build_actions, build_wheel]
+    needs: [build_actions, build_wheel]
     uses: ./.github/workflows/integration_pathways_cluster_create.yaml
     secrets: inherit
 
   ray_cluster_create:
-    needs: [build_kjob, build_actions, build_wheel]
+    needs: [build_actions, build_wheel]
     uses: ./.github/workflows/integration_ray_cluster_create.yaml
     secrets: inherit
   legacy_integration:
-    needs: [build_kjob, build_actions, build_wheel]
+    needs: [build_actions, build_wheel]
     uses: ./.github/workflows/integration_legacy_tests.yaml
     secrets: inherit
   storage-tests:
-    needs: [build_kjob, build_actions, build_wheel]
+    needs: [build_actions, build_wheel]
     uses: ./.github/workflows/integration_storage_tests.yaml
     secrets: inherit

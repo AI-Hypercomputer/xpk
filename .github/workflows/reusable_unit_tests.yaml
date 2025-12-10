@@ -33,7 +33,6 @@ jobs:
       with:
         path: |
           /usr/local/bin/kubectl-kueue
-          /usr/local/bin/kubectl-kjob
           ~/.cache/pip
           ${{env.pythonLocation}}
         key: xpk-deps-3.10-${{github.run_id}}-${{github.run_attempt}}

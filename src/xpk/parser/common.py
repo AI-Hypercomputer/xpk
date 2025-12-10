@@ -144,23 +144,6 @@ def add_cluster_arguments(
   )
 
 
-def add_kind_cluster_arguments(
-    custom_parser_or_group: ParserOrArgumentGroup,
-) -> None:
-  """Add kind cluster arguments to the parser or argument group.
-
-  Args:
-    custom_parser_or_group: parser or argument group to add shared arguments to.
-  """
-  custom_parser_or_group.add_argument(
-      '--kind-cluster',
-      type=bool,
-      action=argparse.BooleanOptionalAction,
-      default=False,
-      help='Apply command to a local test cluster.',
-  )
-
-
 def add_global_arguments(custom_parser_or_group: ParserOrArgumentGroup):
   """Add global - no cloud dependent -  arguments to the parser.
 

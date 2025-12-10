@@ -391,14 +391,13 @@ def project_id_to_project_number(project_id: str) -> str:
 
 
 def setup_k8s_env(args) -> k8s_client.ApiClient:
-  if not getattr(args, 'kind_cluster', False):
-    add_zone_and_project(args)
-    get_cluster_credentials(args)
-    args.project_number = (
-        project_id_to_project_number(args.project)
-        if not args.dry_run
-        else abs(hash(args.project) % (10**12))  # 12 digit hash
-    )
+  add_zone_and_project(args)
+  get_cluster_credentials(args)
+  args.project_number = (
+      project_id_to_project_number(args.project)
+      if not args.dry_run
+      else abs(hash(args.project) % (10**12))  # 12 digit hash
+  )
 
   config.load_kube_config()
   return k8s_client.ApiClient()

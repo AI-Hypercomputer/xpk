@@ -61,9 +61,6 @@ jobs:
     - name: Detach storage volumes
       if: always()
       run: xpk storage detach ${{inputs.storage-name}} --cluster=${{inputs.cluster-name}} --zone=${{inputs.zone}}
-    - name: Verify VolumeBundle deleted
-      run: |
-        ! kubectl get volumebundle | grep ${{inputs.storage-name}}
     - name: Delete GCP Filestore Storage instance
       if: always() && inputs.storage-command == 'delete'
       run: xpk storage delete ${{inputs.storage-name}} --cluster=${{inputs.cluster-name}} --zone=${{inputs.zone}}

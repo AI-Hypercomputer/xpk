@@ -44,7 +44,6 @@ Depending on your chosen installation method, you may need these additional tool
 | Install Method | Tool | Notes |
 | :--- | :--- | :--- |
 | **Pip** | **kueuectl** | [Installation instructions](https://kueue.sigs.k8s.io/docs/reference/kubectl-kueue/installation/) |
-| **Pip** | **kjob** | [Installation instructions](https://github.com/kubernetes-sigs/kjob/blob/main/docs/installation.md) |
 | **Source** | **git** | Install via your package manager (e.g., `sudo apt-get install git` on Debian/Ubuntu) |
 | **Source** | **make** | Install via your package manager (e.g., `sudo apt-get install make` on Debian/Ubuntu) |
 

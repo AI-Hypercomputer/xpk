@@ -38,7 +38,7 @@ Some XPK cluster configuration might be missing, if workload creation fails with
 
 `[XPK] b'error: the server doesn\'t have a resource type "workloads"\n'`
 
-Mitigate this error by re-running your `xpk.py cluster create ...` command, to refresh the cluster configurations.
+Mitigate this error by re-running your `xpk cluster create ...` command, to refresh the cluster configurations.
 
 ## Permission Issues: `requires one of ["permission_name"] permission(s)`.
 

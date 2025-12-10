@@ -73,10 +73,7 @@ XPK also supports the following [Google Cloud Storage solutions](./docs/usage/st
   * [Storage](./docs/usage/storage.md)
   * [Advanced](./docs/usage/advanced.md)
   * [Inspector](./docs/usage/inspector.md)
-  * [Run](./docs/usage/run.md)
-  * [Job](./docs/usage/job.md)
 * [Troubleshooting](./docs/troubleshooting.md)
-* [Local Testing](./docs/local_testing.md)
 
 # Contributing
 

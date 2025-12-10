@@ -123,10 +123,7 @@ func LabelNodesWithTopology(ctx context.Context, k8sClient client.Client, topolo
 		gomega.Eventually(func(g gomega.Gomega) {
 			n := &corev1.Node{}
 			g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(&node), n)).To(gomega.Succeed())
-			if n.Labels == nil {
-				n.Labels = make(map[string]string)
-			}
-			n.Labels[core.TPUTopologyAnnotation] = topology
+			metav1.SetMetaDataLabel(&n.ObjectMeta, core.TPUTopologyAnnotation, topology)
 			g.Expect(k8sClient.Update(ctx, n)).To(gomega.Succeed())
 		}, Timeout, Interval).Should(gomega.Succeed())
 	}
@@ -144,5 +141,5 @@ func SetSliceReady(ctx context.Context, k8sClient client.Client, sliceKey client
 		})
 		g.Expect(k8sClient.Status().Update(ctx, createdSlice)).To(gomega.Succeed())
 	}, Timeout, Interval).Should(gomega.Succeed())
-	AnnotateNodesWithTopology(ctx, k8sClient, topology)
+	LabelNodesWithTopology(ctx, k8sClient, topology)
 }

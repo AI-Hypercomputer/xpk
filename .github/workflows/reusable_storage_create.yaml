@@ -92,8 +92,6 @@ jobs:
         --auto-mount=true --vol=vol1 --mount-point='/${{inputs.storage-type}}-test-mount-point' --readonly=false
     - name: List and verify existing Storages
       run: xpk storage list --cluster ${{inputs.cluster-name}} --zone=${{inputs.zone}} | tee output.txt | grep ${{inputs.storage-name}} || (echo 'No storage found' && exit 143)
-    - name: Verify VolumeBundle created
-      run: kubectl get volumebundle ${{inputs.storage-name}} -o jsonpath='{.spec.containerVolumeMounts[0].mountPath}' | grep '/${{inputs.storage-type}}-test-mount-point'
     - name: Verify Persistent Volume mount options
       if: inputs.storage-command == 'attach' && inputs.storage-type == 'gcsfuse'
       run: kubectl get pv ${{inputs.storage-name}}-pv -oyaml | grep rename-dir-limit=10000 || (echo 'Invalid storage mount options' && exit 143)

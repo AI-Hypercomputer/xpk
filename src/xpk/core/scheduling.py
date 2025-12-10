@@ -220,9 +220,7 @@ def _check_super_slicing_topology(
       all(size % 4 == 0 and size >= 4 for size in topology)
       and len(topology) == len(_SUPER_SLICING_MAX_TOPOLOGY)
       and topology[0] <= topology[1] <= topology[2]
-      and topology[0] <= _SUPER_SLICING_MAX_TOPOLOGY[0]
-      and topology[1] <= _SUPER_SLICING_MAX_TOPOLOGY[1]
-      and topology[2] <= _SUPER_SLICING_MAX_TOPOLOGY[2]
+      and all(a <= b for a, b in zip(topology, _SUPER_SLICING_MAX_TOPOLOGY))
   )
 
   if not result:

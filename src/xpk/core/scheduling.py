@@ -34,6 +34,7 @@ from packaging.version import Version
 
 _SUB_SLICING_MINIMUM_KUEUE_VERSION = Version('0.13.0')
 _SUPER_SLICING_MINIMUM_KUEUE_VERSION = Version('0.14.0')
+_SUPER_SLICING_MAX_TOPOLOGY = (16, 24, 24)
 
 
 class WorkloadScheduling(Enum):
@@ -216,12 +217,12 @@ def _check_super_slicing_topology(
 ) -> bool:
   sizes = parse_topology(workload_system.topology)
   result = (
-      len(sizes) == 3
-      and all(size % 4 == 0 and size >= 4 for size in sizes)
+      all(size % 4 == 0 and size >= 4 for size in sizes)
+      and len(sizes) == len(_SUPER_SLICING_MAX_TOPOLOGY)
       and sizes[0] <= sizes[1] <= sizes[2]
-      and sizes[0] <= 16
-      and sizes[1] <= 24
-      and sizes[2] <= 24
+      and sizes[0] <= _SUPER_SLICING_MAX_TOPOLOGY[0]
+      and sizes[1] <= _SUPER_SLICING_MAX_TOPOLOGY[1]
+      and sizes[2] <= _SUPER_SLICING_MAX_TOPOLOGY[2]
   )
 
   if not result:

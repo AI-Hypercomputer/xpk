@@ -215,14 +215,14 @@ def _check_super_slicing_availability(
 def _check_super_slicing_topology(
     workload_system: SystemCharacteristics,
 ) -> bool:
-  sizes = parse_topology(workload_system.topology)
+  topology = parse_topology(workload_system.topology)
   result = (
-      all(size % 4 == 0 and size >= 4 for size in sizes)
-      and len(sizes) == len(_SUPER_SLICING_MAX_TOPOLOGY)
-      and sizes[0] <= sizes[1] <= sizes[2]
-      and sizes[0] <= _SUPER_SLICING_MAX_TOPOLOGY[0]
-      and sizes[1] <= _SUPER_SLICING_MAX_TOPOLOGY[1]
-      and sizes[2] <= _SUPER_SLICING_MAX_TOPOLOGY[2]
+      all(size % 4 == 0 and size >= 4 for size in topology)
+      and len(topology) == len(_SUPER_SLICING_MAX_TOPOLOGY)
+      and topology[0] <= topology[1] <= topology[2]
+      and topology[0] <= _SUPER_SLICING_MAX_TOPOLOGY[0]
+      and topology[1] <= _SUPER_SLICING_MAX_TOPOLOGY[1]
+      and topology[2] <= _SUPER_SLICING_MAX_TOPOLOGY[2]
   )
 
   if not result:

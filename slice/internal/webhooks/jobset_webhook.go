@@ -84,7 +84,7 @@ func (r *JobSetWebhook) annotateReplicatedJobWithTopology(rj *v1alpha2.Replicate
 	pods := ptr.Deref(rj.Template.Spec.Parallelism, 1) * rj.Replicas
 
 	size, err := r.podSetSliceSize(
-		rj.Template.Spec.Template.Annotations[core.TPUTopologyAnnotation],
+		rj.Template.Spec.Template.Annotations[core.TPUSliceTopologyAnnotation],
 		pods,
 	)
 	if err != nil {

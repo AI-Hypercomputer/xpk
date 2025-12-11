@@ -45,7 +45,7 @@ func TestDefault(t *testing.T) {
 					Name:        "rj1",
 					Parallelism: 12,
 					PodAnnotations: map[string]string{
-						"cloud.google.com/gke-tpu-topology": "4x4x12",
+						core.TPUSliceTopologyAnnotation: "4x4x12",
 					},
 					NodeSelector: map[string]string{
 						"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
@@ -57,7 +57,7 @@ func TestDefault(t *testing.T) {
 					Name:        "rj1",
 					Parallelism: 12,
 					PodAnnotations: map[string]string{
-						"cloud.google.com/gke-tpu-topology": "4x4x12",
+						core.TPUSliceTopologyAnnotation: "4x4x12",
 					},
 					NodeSelector: map[string]string{
 						"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
@@ -94,7 +94,7 @@ func TestDefault(t *testing.T) {
 					Name:        "rj1",
 					Parallelism: 12,
 					PodAnnotations: map[string]string{
-						"cloud.google.com/gke-tpu-topology": "4x4x12",
+						core.TPUSliceTopologyAnnotation: "4x4x12",
 					},
 				}).
 				Obj(),
@@ -104,7 +104,7 @@ func TestDefault(t *testing.T) {
 					Name:        "rj1",
 					Parallelism: 12,
 					PodAnnotations: map[string]string{
-						"cloud.google.com/gke-tpu-topology": "4x4x12",
+						core.TPUSliceTopologyAnnotation: "4x4x12",
 					},
 				}).
 				Obj(),
@@ -116,7 +116,7 @@ func TestDefault(t *testing.T) {
 					Name:        "rj1",
 					Parallelism: 12,
 					PodAnnotations: map[string]string{
-						"cloud.google.com/gke-tpu-topology": "4x4x12",
+						core.TPUSliceTopologyAnnotation: "4x4x12",
 					},
 					NodeSelector: map[string]string{
 						"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
@@ -129,7 +129,7 @@ func TestDefault(t *testing.T) {
 					Name:        "rj1",
 					Parallelism: 12,
 					PodAnnotations: map[string]string{
-						"cloud.google.com/gke-tpu-topology":             "4x4x12",
+						core.TPUSliceTopologyAnnotation:                 "4x4x12",
 						"kueue.x-k8s.io/podset-required-topology":       "cloud.google.com/gce-topology-block",
 						"kueue.x-k8s.io/podset-slice-required-topology": core.TPUSubBlockLabel,
 						"kueue.x-k8s.io/podset-slice-size":              "4",
@@ -148,7 +148,7 @@ func TestDefault(t *testing.T) {
 					Name:        "rj1",
 					Parallelism: 12,
 					PodAnnotations: map[string]string{
-						"cloud.google.com/gke-tpu-topology": "invalid",
+						core.TPUSliceTopologyAnnotation: "invalid",
 					},
 					NodeSelector: map[string]string{
 						"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
@@ -161,7 +161,7 @@ func TestDefault(t *testing.T) {
 					Name:        "rj1",
 					Parallelism: 12,
 					PodAnnotations: map[string]string{
-						"cloud.google.com/gke-tpu-topology": "invalid",
+						core.TPUSliceTopologyAnnotation: "invalid",
 					},
 					NodeSelector: map[string]string{
 						"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
@@ -176,7 +176,7 @@ func TestDefault(t *testing.T) {
 					Name:        "rj1",
 					Parallelism: 12,
 					PodAnnotations: map[string]string{
-						"cloud.google.com/gke-tpu-topology": "4x4x12",
+						core.TPUSliceTopologyAnnotation: "4x4x12",
 					},
 					NodeSelector: map[string]string{
 						"cloud.google.com/gke-tpu-accelerator": "test",
@@ -189,7 +189,7 @@ func TestDefault(t *testing.T) {
 					Name:        "rj1",
 					Parallelism: 12,
 					PodAnnotations: map[string]string{
-						"cloud.google.com/gke-tpu-topology": "4x4x12",
+						core.TPUSliceTopologyAnnotation: "4x4x12",
 					},
 					NodeSelector: map[string]string{
 						"cloud.google.com/gke-tpu-accelerator": "test",

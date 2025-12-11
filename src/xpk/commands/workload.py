@@ -643,7 +643,11 @@ def workload_create(args) -> None:
         else create_machine_label(workload_system)
     )
     node_selector_machine_label = machine_label if not use_super_slicing else ''
-    tpu_slice_topology_annotation = create_tpu_slice_topology_annotation(workload_system.topology) if use_super_slicing else ''
+    tpu_slice_topology_annotation = (
+        create_tpu_slice_topology_annotation(workload_system.topology)
+        if use_super_slicing
+        else ''
+    )
 
     yml_string = WORKLOAD_CREATE_YAML.format(
         args=args,

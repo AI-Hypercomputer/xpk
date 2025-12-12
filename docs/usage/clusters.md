@@ -254,6 +254,37 @@ xpk cluster create \
 
 will fail the cluster creation process because Vertex AI Tensorboard is not supported in `us-central2`.
 
+### Create Cluster With Google Cloud ML Diagnostics Enabled
+
+Google Cloud ML Diagnostics is an end-to-end managed platform for ML Engineers to optimize and diagnose their AI/ML workloads on Google Cloud. The product allows ML Engineers to collect and visualize all their workload metrics, configs and profiles with one single platform, all within the same UI. The current product offering focuses on workloads running on XLA-based frameworks (JAX, Pytorch XLA, Tensorflow/Keras) on Google Cloud TPUs and GPUs. Current support is for JAX on Google Cloud TPUs only.
+
+To enable this feature, user needs to configure GKE Cluster with the following steps:
+- Install injection-webhook in the cluster
+- Install connection-operator in the cluster
+
+This flag **--managed-mldiagnostics** is passed through XPK to enable ML Diagnostics when creating a cluster,functioning seamlessly in both Pathways and non-Pathways execution environments.
+
+**Example Usage:**
+
+* Cluster Create for Pathways with flag **--managed-mldiagnostics**:
+
+```shell
+xpk cluster create-pathways \
+--cluster xpk-pw-test \
+--num-slices=4 --spot \
+--tpu-type=v5litepod-16 \
+--managed-mldiagnostics
+```
+
+* Cluster Create (provision spot / preemptable capacity) with flag **--managed-mldiagnostics**:
+
+```shell
+xpk cluster create \
+--cluster xpk-test --tpu-type=v5litepod-16 \
+--num-slices=4 --spot \
+--managed-mldiagnostics
+```
+
 ## Cluster Delete
 *   Cluster Delete (deprovision capacity):
 

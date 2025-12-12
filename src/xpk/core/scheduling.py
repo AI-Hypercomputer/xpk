@@ -363,6 +363,10 @@ def create_sub_slicing_annotations(sub_slicing_topology: str) -> list[str]:
   ]
 
 
+def create_tpu_slice_topology_annotation(workload_topology: str) -> str:
+  return f'cloud.google.com/gke-tpu-slice-topology: {workload_topology}'
+
+
 def create_placement_policy_label(
     system: SystemCharacteristics, super_slicing: bool
 ) -> str:

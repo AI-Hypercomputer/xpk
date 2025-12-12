@@ -22,7 +22,7 @@ from pytest_mock import MockerFixture
 from xpk.core.capacity import AUTOPROVISIONING_CONFIG_MAXIMUM_KEY, AUTOPROVISIONING_CONFIG_VALUE
 from xpk.core.testing.commands_tester import CommandsTester
 from xpk.utils.feature_flags import FeatureFlags
-from .scheduling import WorkloadScheduling, check_if_workload_can_schedule, create_sub_slicing_annotations, create_placement_policy_label, get_placement_policy_name, is_placement_policy_supported
+from .scheduling import WorkloadScheduling, check_if_workload_can_schedule, create_sub_slicing_annotations, create_placement_policy_label, create_tpu_slice_topology_annotation, get_placement_policy_name, is_placement_policy_supported
 from .system_characteristics import SystemCharacteristics, AcceleratorType, DockerPlatform, get_system_characteristics_by_device_type
 
 
@@ -453,4 +453,13 @@ def test_check_if_workload_can_schedule(
           resources_config_map=case.resources_config_map,
       )
       == expected
+  )
+
+
+def test_create_tpu_slice_topology_annotation():
+  workload_system = _get_system_characteristics_or_die('tpu7x-4x4x8')
+
+  assert (
+      create_tpu_slice_topology_annotation(workload_system.topology)
+      == 'cloud.google.com/gke-tpu-slice-topology: 4x4x8'
   )

@@ -29,7 +29,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	kueuealpha "sigs.k8s.io/kueue/apis/kueue/v1alpha1"
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
 
 	"tpu-slice-controller/api/v1beta1"
@@ -600,11 +599,11 @@ func (q *LocalQueueWrapper) ClusterQueue(c string) *LocalQueueWrapper {
 }
 
 // TopologyWrapper wraps a Topology.
-type TopologyWrapper struct{ kueuealpha.Topology }
+type TopologyWrapper struct{ kueue.Topology }
 
 // MakeTopology creates a wrapper for a Topology.
 func MakeTopology(name string) *TopologyWrapper {
-	return &TopologyWrapper{kueuealpha.Topology{
+	return &TopologyWrapper{kueue.Topology{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 		},
@@ -613,16 +612,16 @@ func MakeTopology(name string) *TopologyWrapper {
 
 // Levels sets the levels for a Topology.
 func (t *TopologyWrapper) Levels(levels ...string) *TopologyWrapper {
-	t.Spec.Levels = make([]kueuealpha.TopologyLevel, len(levels))
+	t.Spec.Levels = make([]kueue.TopologyLevel, len(levels))
 	for i, level := range levels {
-		t.Spec.Levels[i] = kueuealpha.TopologyLevel{
+		t.Spec.Levels[i] = kueue.TopologyLevel{
 			NodeLabel: level,
 		}
 	}
 	return t
 }
 
-func (t *TopologyWrapper) Obj() *kueuealpha.Topology {
+func (t *TopologyWrapper) Obj() *kueue.Topology {
 	return &t.Topology
 }
 

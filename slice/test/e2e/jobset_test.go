@@ -31,7 +31,6 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
-	kueuealpha "sigs.k8s.io/kueue/apis/kueue/v1alpha1"
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
 	jobsetcontroller "sigs.k8s.io/kueue/pkg/controller/jobs/jobset"
 	"sigs.k8s.io/kueue/pkg/workload"
@@ -51,7 +50,7 @@ var (
 
 var _ = ginkgo.Describe("JobSet", func() {
 	var (
-		topology *kueuealpha.Topology
+		topology *kueue.Topology
 		ns       *corev1.Namespace
 		rf       *kueue.ResourceFlavor
 		ac       *kueue.AdmissionCheck

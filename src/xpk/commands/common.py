@@ -63,9 +63,9 @@ def is_TAS_possible(
     xpk_print('capacity_type data was not found in configmaps.')
     xpk_exit(1)
 
-  return (
-      system_characteristics.device_type != H100_MEGA_DEVICE_TYPE
-      or capacity_type == CapacityType.RESERVATION
+  return system_characteristics.device_type != H100_MEGA_DEVICE_TYPE and (
+      capacity_type == CapacityType.RESERVATION
+      or capacity_type == CapacityType.FLEX_START
   )
 
 

@@ -215,7 +215,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 				})
 
 				createdSlice := &slice.Slice{}
-				sliceKey := core.SliceKeyFromWorkload(createdWorkload, "rj1")
+				sliceKey := core.SliceKeyFromWorkload(createdWorkload, "rj1", 0)
 
 				ginkgo.By("Checking that Slice is created", func() {
 					gomega.Eventually(func(g gomega.Gomega) {
@@ -391,43 +391,149 @@ var _ = ginkgo.Describe("JobSet", func() {
 				},
 				wantPartitionIds: []string{"sb2", "sb3"},
 			}),
-			ginkgo.Entry("TPU topology 4x4x4 split across 2 replicas", testCase{
-				tpuTopology:   "4x4x4",
-				tpuRequests:   "4",
-				parallelism:   8,
-				replicas:      2,
-				wantSliceSize: 16,
-				wantDomains: []kueue.TopologyDomainAssignment{
-					{
-						Values: []string{"kind-worker"},
-						Count:  16,
-					},
-				},
-				wantPartitionIds: []string{"sb1"},
-			}),
-			ginkgo.Entry("TPU topology 4x4x12 split across 3 replicas", testCase{
-				tpuTopology:   "4x4x12",
-				tpuRequests:   "4",
-				parallelism:   16,
-				replicas:      3,
-				wantSliceSize: 16,
-				wantDomains: []kueue.TopologyDomainAssignment{
-					{
-						Values: []string{"kind-worker2"},
-						Count:  16,
-					},
-					{
-						Values: []string{"kind-worker3"},
-						Count:  16,
-					},
-					{
-						Values: []string{"kind-worker4"},
-						Count:  16,
-					},
-				},
-				wantPartitionIds: []string{"sb2", "sb3", "sb4"},
-			}),
 		)
+
+		ginkgo.Describe("it should create multiple Slices for multiple replicas", func() {
+			type testCase struct {
+				tpuTopology      string
+				parallelism      int32
+				replicas         int32
+				wantSliceSize    int32
+				tpuRequests      string
+				wantDomains      []kueue.TopologyDomainAssignment
+				wantPartitionIds [][]string
+			}
+			ginkgo.DescribeTable("with", func(tc testCase) {
+				jobSet := testingjobsjobset.MakeJobSet("jobset", ns.Name).
+					Queue(lq.Name).
+					ReplicatedJobs(
+						testingjobsjobset.ReplicatedJobRequirements{
+							Name:        "rj1",
+							Image:       utils.E2eTestAgnHostImage,
+							Args:        utils.BehaviorWaitForDeletion,
+							Replicas:    tc.replicas,
+							Parallelism: tc.parallelism,
+							Completions: tc.parallelism,
+							PodAnnotations: map[string]string{
+								core.TPUSliceTopologyAnnotation: tc.tpuTopology,
+							},
+							NodeSelector: map[string]string{
+								"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
+							},
+						},
+					).
+					RequestAndLimit("rj1", extraResource, tc.tpuRequests).
+					Obj()
+
+				ginkgo.By("Creating a JobSet", func() {
+					utils.MustCreate(ctx, k8sClient, jobSet)
+				})
+
+				createdWorkload := &kueue.Workload{}
+				wlKey := types.NamespacedName{
+					Name:      jobsetcontroller.GetWorkloadNameForJobSet(jobSet.Name, jobSet.UID),
+					Namespace: ns.Name,
+				}
+				createdSlices := make([]*slice.Slice, tc.replicas)
+
+				ginkgo.By("Waiting for Admission of the Workload", func() {
+					gomega.Eventually(func(g gomega.Gomega) {
+						g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
+						g.Expect(createdWorkload.Status.Admission).ShouldNot(gomega.BeNil())
+					}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+				})
+
+				for i := int32(0); i < tc.replicas; i++ {
+					createdSlice := &slice.Slice{}
+					sliceKey := core.SliceKeyFromWorkload(createdWorkload, "rj1", i)
+
+					ginkgo.By(fmt.Sprintf("Checking that Slice %d is created", i), func() {
+						gomega.Eventually(func(g gomega.Gomega) {
+							g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
+							g.Expect(createdSlice.Spec.PartitionIds).To(gomega.HaveLen(len(tc.wantPartitionIds[i])))
+							g.Expect(createdSlice.Spec.PartitionIds).To(gomega.BeComparableTo(tc.wantPartitionIds[i]))
+							g.Expect(createdSlice.Spec.Topology).To(gomega.Equal(tc.tpuTopology))
+							g.Expect(createdSlice.Spec.Type).To(gomega.Equal(slice.TypeTpu7x))
+							createdSlices[i] = createdSlice
+						}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+					})
+				}
+
+				for i := int32(0); i < tc.replicas; i++ {
+					sliceKey := core.SliceKeyFromWorkload(createdWorkload, "rj1", i)
+					ginkgo.By(fmt.Sprintf("Adding Ready condition for slice %d", i), func() {
+						utils.SetSliceReady(ctx, k8sClient, sliceKey, tc.tpuTopology)
+					})
+				}
+
+				ginkgo.By("Checking that the Workload is admitted and admission check status is ready", func() {
+					gomega.Eventually(func(g gomega.Gomega) {
+						g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
+						g.Expect(workload.IsAdmitted(createdWorkload)).Should(gomega.BeTrue())
+						g.Expect(createdWorkload.Status.AdmissionChecks).Should(gomega.BeComparableTo([]kueue.AdmissionCheckState{{
+							Name:    kueue.AdmissionCheckReference(ac.Name),
+							State:   kueue.CheckStateReady,
+							Message: fmt.Sprintf("Slices are in states: %d ACTIVE", tc.replicas),
+						}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates")))
+					}, utils.LongTimeout, utils.Timeout).Should(gomega.Succeed())
+				})
+
+				ginkgo.By("Deleting JobSet", func() {
+					utils.ExpectObjectToBeDeleted(ctx, k8sClient, jobSet, true)
+				})
+
+				for i := int32(0); i < tc.replicas; i++ {
+					ginkgo.By(fmt.Sprintf("Checking that Slice %d is deleted", i), func() {
+						utils.ExpectObjectToBeDeleted(ctx, k8sClient, createdSlices[i], false)
+					})
+				}
+
+				ginkgo.By("Checking that Workload is deleted", func() {
+					utils.ExpectObjectToBeDeleted(ctx, k8sClient, createdWorkload, false)
+				})
+			},
+				ginkgo.Entry("TPU topology 4x4x4 split across 2 replicas", testCase{
+					tpuTopology:   "4x4x4",
+					tpuRequests:   "4",
+					parallelism:   16,
+					replicas:      2,
+					wantSliceSize: 16,
+					wantDomains: []kueue.TopologyDomainAssignment{
+						{
+							Values: []string{"kind-worker"},
+							Count:  16,
+						},
+						{
+							Values: []string{"kind-worker2"},
+							Count:  16,
+						},
+					},
+					wantPartitionIds: [][]string{{"sb2"}, {"sb3"}},
+				}),
+				ginkgo.Entry("TPU topology 4x4x4 split across 3 replicas", testCase{
+					tpuTopology:   "4x4x4",
+					tpuRequests:   "4",
+					parallelism:   16,
+					replicas:      3,
+					wantSliceSize: 16,
+					wantDomains: []kueue.TopologyDomainAssignment{
+						{
+							Values: []string{"kind-worker2"},
+							Count:  16,
+						},
+						{
+							Values: []string{"kind-worker3"},
+							Count:  16,
+						},
+						{
+							Values: []string{"kind-worker4"},
+							Count:  16,
+						},
+					},
+					wantPartitionIds: [][]string{{"sb2"}, {"sb3"}, {"sb4"}},
+				}),
+			)
+		})
 
 		ginkgo.It("should delete the Workload finalizer after all Pods have gracefully terminated", func() {
 			jobSet := testingjobsjobset.MakeJobSet("jobset", ns.Name).
@@ -471,7 +577,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 			})
 
 			createdSlice := &slice.Slice{}
-			sliceKey := core.SliceKeyFromWorkload(createdWorkload, "rj1")
+			sliceKey := core.SliceKeyFromWorkload(createdWorkload, "rj1", 0)
 
 			ginkgo.By("Checking that Slice is created", func() {
 				gomega.Eventually(func(g gomega.Gomega) {
@@ -564,7 +670,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 			})
 
 			createdSlice := &slice.Slice{}
-			sliceKey := core.SliceKeyFromWorkload(createdWorkload, "rj1")
+			sliceKey := core.SliceKeyFromWorkload(createdWorkload, "rj1", 0)
 
 			var oldSliceUID types.UID
 			ginkgo.By("Checking that Slice is created", func() {
@@ -684,7 +790,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 			})
 
 			createdSlice := &slice.Slice{}
-			sliceKey := core.SliceKeyFromWorkload(createdWorkload, "rj1")
+			sliceKey := core.SliceKeyFromWorkload(createdWorkload, "rj1", 0)
 			var oldSliceUID types.UID
 			ginkgo.By("Checking that Slice is created and making it ready", func() {
 				gomega.Eventually(func(g gomega.Gomega) {
@@ -798,7 +904,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 			})
 
 			createdSlice := &slice.Slice{}
-			sliceKey := core.SliceKeyFromWorkload(createdWorkload, "rj1")
+			sliceKey := core.SliceKeyFromWorkload(createdWorkload, "rj1", 0)
 
 			var oldSliceUID types.UID
 			ginkgo.By("Checking that Slice is created", func() {
@@ -959,7 +1065,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 			})
 
 			createdSlice1 := &slice.Slice{}
-			sliceKey1 := core.SliceKeyFromWorkload(createdWorkload, "rj1")
+			sliceKey1 := core.SliceKeyFromWorkload(createdWorkload, "rj1", 0)
 
 			ginkgo.By("Checking that Slice 1 is created", func() {
 				gomega.Eventually(func(g gomega.Gomega) {
@@ -970,7 +1076,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 			})
 
 			createdSlice2 := &slice.Slice{}
-			sliceKey2 := core.SliceKeyFromWorkload(createdWorkload, "rj2")
+			sliceKey2 := core.SliceKeyFromWorkload(createdWorkload, "rj2", 0)
 
 			ginkgo.By("Checking that Slice 2 is created", func() {
 				gomega.Eventually(func(g gomega.Gomega) {

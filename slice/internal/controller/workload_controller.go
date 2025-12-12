@@ -517,30 +517,30 @@ func (r *WorkloadReconciler) syncSlices(
 		slicesByName[slice.Name] = &slice
 	}
 
-	createdSlices := make([]v1beta1.Slice, 0, len(wl.Status.Admission.PodSetAssignments))
+	allCreatedSlices := make([]v1beta1.Slice, 0, len(wl.Status.Admission.PodSetAssignments))
 	for _, psa := range wl.Status.Admission.PodSetAssignments {
-		if !shouldCreateSliceForPodSetAssignment(wl, psa, nodes) {
+		if !shouldCreateSlicesForPodSetAssignment(wl, psa, nodes) {
 			continue
 		}
-
-		sliceName := core.SliceName(wl.Namespace, wl.Name, psa.Name)
-
-		if _, exist := slicesByName[sliceName]; exist {
-			// Slice already exists, nothing to do.
+		ps := podset.FindPodSetByName(wl.Spec.PodSets, psa.Name)
+		if ps.TopologyRequest == nil || ps.TopologyRequest.SubGroupCount == nil {
 			continue
 		}
+		numberOfSlices := *ps.TopologyRequest.SubGroupCount
 
-		createdSlice, err := r.createSlice(ctx, wl, ac, &psa, nodes)
+		createdSlices, err := r.createSlices(ctx, wl, ac, &psa, nodes, slicesByName, numberOfSlices)
 		if err != nil {
 			return err
 		}
 
-		*slices = append(*slices, *createdSlice)
-		createdSlices = append(createdSlices, *createdSlice)
+		for _, s := range createdSlices {
+			*slices = append(*slices, *s)
+			allCreatedSlices = append(allCreatedSlices, *s)
+		}
 	}
 
-	if len(createdSlices) > 0 {
-		msg := buildCreationEventMessage(createdSlices)
+	if len(allCreatedSlices) > 0 {
+		msg := buildCreationEventMessage(allCreatedSlices)
 		ctrl.LoggerFrom(ctx).V(3).Info(msg)
 		r.record.Event(wl, corev1.EventTypeNormal, SlicesCreatedEventType, api.TruncateEventMessage(msg))
 	}
@@ -548,14 +548,14 @@ func (r *WorkloadReconciler) syncSlices(
 	return nil
 }
 
-func shouldCreateSliceForPodSetAssignment(wl *kueue.Workload, psa kueue.PodSetAssignment, nodes map[string]corev1.Node) bool {
+func shouldCreateSlicesForPodSetAssignment(wl *kueue.Workload, psa kueue.PodSetAssignment, nodes map[string]corev1.Node) bool {
 	if podSet := podset.FindPodSetByName(wl.Spec.PodSets, psa.Name); podSet != nil {
 		return core.IsRelevantPodTemplateSpec(podSet.Template) && topology.IsAssignmentValid(psa, nodes)
 	}
 	return false
 }
 
-func parseTopologyAssignmentIntoPartitionIds(slice *v1beta1.Slice, topologyAssignment *kueue.TopologyAssignment, nodes map[string]corev1.Node) {
+func parseTopologyAssignment(topologyAssignment *kueue.TopologyAssignment, nodes map[string]corev1.Node) []string {
 	subBlockIds := sets.New[string]()
 	// we already validated that all assignments have a valid level,
 	// in validateRelevantWorkload.
@@ -564,33 +564,46 @@ func parseTopologyAssignmentIntoPartitionIds(slice *v1beta1.Slice, topologyAssig
 		nodeName := domain.Values[hostnameLevelIndex]
 		subBlockIds.Insert(topology.GetTPUSubBlockLabelValue(nodes, nodeName))
 	}
-	slice.Spec.PartitionIds = sets.List(subBlockIds)
+	return sets.List(subBlockIds)
 }
 
-func (r *WorkloadReconciler) createSlice(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, psa *kueue.PodSetAssignment, nodes map[string]corev1.Node) (*v1beta1.Slice, error) {
-	slice := core.SliceWithMetadata(wl, psa.Name)
-	log := ctrl.LoggerFrom(ctx).WithValues("slice", klog.KObj(slice))
-	log.V(3).Info("Creating Slice")
-	// Since Slice is a cluster-scoped object and Workload is namespaced,
-	// we cannot set a controller owner reference. The Workload's namespace and name
-	// are stored as annotations on the Slice for lookup.
-	parseTopologyAssignmentIntoPartitionIds(slice, psa.TopologyAssignment, nodes)
-
+func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, psa *kueue.PodSetAssignment, nodes map[string]corev1.Node, slicesByName map[string]*v1beta1.Slice, numberOfSlices int32) ([]*v1beta1.Slice, error) {
+	partitionIDs := parseTopologyAssignment(psa.TopologyAssignment, nodes)
 	ps := podset.FindPodSetByName(wl.Spec.PodSets, psa.Name)
-	slice.Spec.Type = v1beta1.Type(core.GetTPUAccelerator(ps.Template))
-	slice.Spec.Topology = core.GetTPUTopology(ps.Template)
+	createdSlices := []*v1beta1.Slice{}
+	for i := int32(0); i < numberOfSlices; i++ {
+		if _, exist := slicesByName[core.SliceName(wl.Namespace, wl.Name, psa.Name, i)]; exist {
+			// Slice already exists, nothing to do.
+			continue
+		}
+		slice := core.SliceWithMetadata(wl, psa.Name, i)
+		log := ctrl.LoggerFrom(ctx).WithValues("slice", klog.KObj(slice))
+		log.V(3).Info("Creating Slice")
+		// Since Slice is a cluster-scoped object and Workload is namespaced,
+		// we cannot set a controller owner reference. The Workload's namespace and name
+		// are stored as annotations on the Slice for lookup.
 
-	if err := r.client.Create(ctx, slice); err != nil {
-		msg := fmt.Sprintf("Error creating Slice %q: %v", slice.Name, err)
-		log.Error(err, msg)
-		r.record.Event(wl, corev1.EventTypeWarning, FailedCreateSliceEventType, api.TruncateEventMessage(msg))
-		ac.State = kueue.CheckStatePending
-		ac.Message = api.TruncateConditionMessage(msg)
-		patchErr := r.updateWorkloadAdmissionCheckStatus(ctx, wl, ac)
-		return nil, errors.Join(err, patchErr)
+		slice.Spec.Type = v1beta1.Type(core.GetTPUAccelerator(ps.Template))
+		start := i * int32(len(partitionIDs)/int(numberOfSlices))
+		end := start + int32(len(partitionIDs)/int(numberOfSlices))
+		if len(partitionIDs) > 0 {
+			slice.Spec.PartitionIds = partitionIDs[start:end]
+		}
+
+		slice.Spec.Topology = core.GetTPUTopology(ps.Template)
+
+		if err := r.client.Create(ctx, slice); err != nil {
+			msg := fmt.Sprintf("Error creating Slice %q: %v", slice.Name, err)
+			log.Error(err, msg)
+			r.record.Event(wl, corev1.EventTypeWarning, FailedCreateSliceEventType, api.TruncateEventMessage(msg))
+			ac.State = kueue.CheckStatePending
+			ac.Message = api.TruncateConditionMessage(msg)
+			patchErr := r.updateWorkloadAdmissionCheckStatus(ctx, wl, ac)
+			return createdSlices, errors.Join(err, patchErr)
+		}
+		createdSlices = append(createdSlices, slice)
 	}
-
-	return slice, nil
+	return createdSlices, nil
 }
 
 func (r *WorkloadReconciler) updateWorkloadAdmissionCheckStatus(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState) error {

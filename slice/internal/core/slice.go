@@ -30,15 +30,15 @@ const (
 	activationTimeout = 3 * time.Minute
 )
 
-func SliceKeyFromWorkload(wl *kueue.Workload, podSetName kueue.PodSetReference) client.ObjectKey {
-	slice := SliceWithMetadata(wl, podSetName)
+func SliceKeyFromWorkload(wl *kueue.Workload, podSetName kueue.PodSetReference, sliceIndex int32) client.ObjectKey {
+	slice := SliceWithMetadata(wl, podSetName, sliceIndex)
 	return client.ObjectKeyFromObject(slice)
 }
 
-func SliceWithMetadata(wl *kueue.Workload, podSetName kueue.PodSetReference) *v1beta1.Slice {
+func SliceWithMetadata(wl *kueue.Workload, podSetName kueue.PodSetReference, sliceIndex int32) *v1beta1.Slice {
 	return &v1beta1.Slice{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: SliceName(wl.Namespace, wl.Name, podSetName),
+			Name: SliceName(wl.Namespace, wl.Name, podSetName, sliceIndex),
 			Annotations: map[string]string{
 				OwnerWorkloadNamespaceAnnotation: wl.Namespace,
 				OwnerWorkloadNameAnnotation:      wl.Name,
@@ -47,8 +47,8 @@ func SliceWithMetadata(wl *kueue.Workload, podSetName kueue.PodSetReference) *v1
 	}
 }
 
-func SliceName(ns string, workloadName string, podSetName kueue.PodSetReference) string {
-	return fmt.Sprintf("%s-%s-%s", ns, workloadName, podSetName)
+func SliceName(ns string, workloadName string, podSetName kueue.PodSetReference, sliceIndex int32) string {
+	return fmt.Sprintf("%s-%s-%s-%d", ns, workloadName, podSetName, sliceIndex)
 }
 
 func isStale(slice *v1beta1.Slice) bool {

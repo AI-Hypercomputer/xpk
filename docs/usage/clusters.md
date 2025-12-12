@@ -258,11 +258,9 @@ will fail the cluster creation process because Vertex AI Tensorboard is not supp
 
 Google Cloud ML Diagnostics is an end-to-end managed platform for ML Engineers to optimize and diagnose their AI/ML workloads on Google Cloud. The product allows ML Engineers to collect and visualize all their workload metrics, configs and profiles with one single platform, all within the same UI. The current product offering focuses on workloads running on XLA-based frameworks (JAX, Pytorch XLA, Tensorflow/Keras) on Google Cloud TPUs and GPUs. Current support is for JAX on Google Cloud TPUs only.
 
-To enable this feature, user needs to configure GKE Cluster with the following steps:
-- Install injection-webhook in the cluster
-- Install connection-operator in the cluster
+Enabling ML Diagnostics is streamlined and simplified through XPK cluster creation commands.
 
-This flag **--managed-mldiagnostics** is passed through XPK to enable ML Diagnostics when creating a cluster,functioning seamlessly in both Pathways and non-Pathways execution environments.
+By adding the **--managed-mldiagnostics** flag during the execution of either **xpk cluster create** or **xpk cluster create-pathways**, the ML Diagnostics functionality is enabled. This flag ensures the necessary supporting components (such as the injection-webhook and connection-operator) are automatically configured, allowing the feature to function seamlessly in both Pathways and non-Pathways execution environments.
 
 **Example Usage:**
 

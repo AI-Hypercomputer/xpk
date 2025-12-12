@@ -502,7 +502,7 @@ func (r *WorkloadReconciler) sliceAC(ctx context.Context, wl *kueue.Workload) (*
 			"selected", relevantChecks[0],
 		)
 	}
-	return workload.FindAdmissionCheck(wl.Status.AdmissionChecks, relevantChecks[0]), nil
+	return admissioncheck.FindAdmissionCheck(wl.Status.AdmissionChecks, relevantChecks[0]), nil
 }
 
 func (r *WorkloadReconciler) syncSlices(
@@ -594,9 +594,17 @@ func (r *WorkloadReconciler) createSlice(ctx context.Context, wl *kueue.Workload
 }
 
 func (r *WorkloadReconciler) updateWorkloadAdmissionCheckStatus(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState) error {
-	wlPatch := workload.BaseSSAWorkload(wl, true)
-	workload.SetAdmissionCheckState(&wlPatch.Status.AdmissionChecks, *ac, r.clock)
-	err := r.client.Status().Patch(ctx, wlPatch, client.Apply, client.FieldOwner(SliceControllerName), client.ForceOwnership)
+	// Fetch the latest Workload to ensure we're updating the most recent version.
+	currentWl := &kueue.Workload{}
+	if err := r.client.Get(ctx, client.ObjectKeyFromObject(wl), currentWl); err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil // Workload might have been deleted
+		}
+		ctrl.LoggerFrom(ctx).Error(err, "Failed to get latest Workload for status update")
+		return err
+	}
+	workload.SetAdmissionCheckState(&currentWl.Status.AdmissionChecks, *ac, r.clock)
+	err := r.client.Status().Update(ctx, currentWl)
 	if err != nil && !apierrors.IsNotFound(err) {
 		ctrl.LoggerFrom(ctx).Error(err, "Failed to patch the Workload's admission status")
 	}

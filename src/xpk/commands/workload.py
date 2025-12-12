@@ -530,10 +530,7 @@ def workload_create(args) -> None:
     capacity_type = get_cluster_capacity_type(args)
 
     annotations = (
-        (
-            'kueue.x-k8s.io/podset-preferred-topology:'
-            ' "cloud.google.com/gce-topology-host"'
-        )
+        'kueue.x-k8s.io/podset-preferred-topology: "kubernetes.io/hostname"'
         if is_TAS_possible(cluster_system, capacity_type)
         else ''
     )

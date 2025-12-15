@@ -19,6 +19,7 @@ import os
 import ruamel.yaml
 from abc import ABC, abstractmethod
 from ..utils import file
+from ..utils.execution_context import is_dry_run
 from ..utils.console import xpk_print
 from setuptools_scm import get_version as setuptools_get_version
 from importlib.metadata import version, PackageNotFoundError
@@ -96,8 +97,7 @@ class FileSystemConfig(Config):
     self._allowed_keys = DEFAULT_KEYS
 
   def _open_configs(self) -> dict | None:
-    dir_path = '/'.join(self._config.split('/')[:-1])
-    file.ensure_directory_exists(dir_path)
+    file.ensure_directory_exists(os.path.dirname(self._config))
 
     if not os.path.exists(self._config):
       return None
@@ -107,6 +107,9 @@ class FileSystemConfig(Config):
       return config_yaml
 
   def _save_configs(self, config_yaml: dict) -> None:
+    if is_dry_run():
+      return None
+
     with open(self._config, encoding='utf-8', mode='w') as stream:
       yaml.dump(config_yaml, stream)
 

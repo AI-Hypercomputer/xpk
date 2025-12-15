@@ -136,6 +136,12 @@ def get_gke_server_config(
     int: 0 if successful and 1 otherwise.
     GkeServerConfig: stores valid gke version to use in node pool and cluster.
   """
+  if args.skip_validation and args.gke_version:
+    return 0, GkeServerConfig(
+      default_gke_version=args.gke_version,
+      valid_versions=set([args.gke_version]),
+    )
+
   base_command = (
       'gcloud container get-server-config'
       f' --project={args.project} --region={zone_to_region(args.zone)}'

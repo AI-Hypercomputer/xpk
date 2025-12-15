@@ -66,7 +66,7 @@ def run_commands(
     return None
 
   for i, _ in enumerate(commands_batched):
-    xpk_print(f'Dispatching batch {i}/{len(commands_batched)}')
+    xpk_print(f'Dispatching batch {i+1}/{len(commands_batched)}')
     maybe_failure = run_command_batch(
         commands_batched[i],
         jobname,

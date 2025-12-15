@@ -84,6 +84,17 @@ def add_shared_arguments(
       required=required,
   )
   custom_parser_or_group.add_argument(
+      '--project-number',
+      type=str,
+      default=None,
+      help=(
+          'GCE project number. If provided, skips the Cloud Resource Manager'
+          ' API call to translate project ID to project number. Useful when'
+          ' the API is not enabled or you lack permissions.'
+      ),
+      required=False,
+  )
+  custom_parser_or_group.add_argument(
       '--zone',
       type=str,
       default=None,

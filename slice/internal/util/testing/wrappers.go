@@ -170,13 +170,13 @@ func (w *WorkloadWrapper) ControllerReference(gvk schema.GroupVersionKind, name,
 
 type PodSetWrapper struct{ kueue.PodSet }
 
-func MakePodSet(name kueue.PodSetReference, count int, replicas int) *PodSetWrapper {
+func MakePodSet(name kueue.PodSetReference, count int, replicas *int32) *PodSetWrapper {
 	return &PodSetWrapper{
 		kueue.PodSet{
 			Name:  name,
 			Count: int32(count),
 			TopologyRequest: &kueue.PodSetTopologyRequest{
-				SubGroupCount: ptr.To(int32(replicas)),
+				SubGroupCount: replicas,
 			},
 		},
 	}

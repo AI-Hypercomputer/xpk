@@ -34,6 +34,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/clock"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -512,9 +513,9 @@ func (r *WorkloadReconciler) syncSlices(
 	slices *[]v1beta1.Slice,
 	nodes map[string]corev1.Node,
 ) error {
-	slicesByName := make(map[string]*v1beta1.Slice, len(*slices))
+	existingSlicesByName := make(map[string]*v1beta1.Slice, len(*slices))
 	for _, slice := range *slices {
-		slicesByName[slice.Name] = &slice
+		existingSlicesByName[slice.Name] = &slice
 	}
 
 	allCreatedSlices := make([]v1beta1.Slice, 0, len(wl.Status.Admission.PodSetAssignments))
@@ -523,12 +524,12 @@ func (r *WorkloadReconciler) syncSlices(
 			continue
 		}
 		ps := podset.FindPodSetByName(wl.Spec.PodSets, psa.Name)
-		if ps.TopologyRequest == nil || ps.TopologyRequest.SubGroupCount == nil {
+		if ps.TopologyRequest == nil {
 			continue
 		}
-		numberOfSlices := *ps.TopologyRequest.SubGroupCount
+		desiredNumberOfSlices := ptr.Deref(ps.TopologyRequest.SubGroupCount, 1)
 
-		createdSlices, err := r.createSlices(ctx, wl, ac, &psa, nodes, slicesByName, numberOfSlices)
+		createdSlices, err := r.createSlices(ctx, wl, ac, &psa, nodes, existingSlicesByName, desiredNumberOfSlices)
 		if err != nil {
 			return err
 		}
@@ -556,23 +557,28 @@ func shouldCreateSlicesForPodSetAssignment(wl *kueue.Workload, psa kueue.PodSetA
 }
 
 func parseTopologyAssignment(topologyAssignment *kueue.TopologyAssignment, nodes map[string]corev1.Node) []string {
-	subBlockIds := sets.New[string]()
+	var subBlockIds []string
+	seenSubBlockIds := sets.New[string]()
 	// we already validated that all assignments have a valid level,
 	// in validateRelevantWorkload.
 	hostnameLevelIndex := topology.HostnameLevelIndex(topologyAssignment)
 	for _, domain := range topologyAssignment.Domains {
 		nodeName := domain.Values[hostnameLevelIndex]
-		subBlockIds.Insert(topology.GetTPUSubBlockLabelValue(nodes, nodeName))
+		if subBlockId := topology.GetTPUSubBlockLabelValue(nodes, nodeName); !seenSubBlockIds.Has(subBlockId) {
+			subBlockIds = append(subBlockIds, subBlockId)
+			seenSubBlockIds.Insert(subBlockId)
+		}
 	}
-	return sets.List(subBlockIds)
+	return subBlockIds
 }
 
-func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, psa *kueue.PodSetAssignment, nodes map[string]corev1.Node, slicesByName map[string]*v1beta1.Slice, numberOfSlices int32) ([]*v1beta1.Slice, error) {
+func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, psa *kueue.PodSetAssignment, nodes map[string]corev1.Node, existingSlicesByName map[string]*v1beta1.Slice, desiredNumberOfSlices int32) ([]*v1beta1.Slice, error) {
 	partitionIDs := parseTopologyAssignment(psa.TopologyAssignment, nodes)
 	ps := podset.FindPodSetByName(wl.Spec.PodSets, psa.Name)
+	chunkSize := int32(len(partitionIDs) / int(desiredNumberOfSlices))
 	createdSlices := []*v1beta1.Slice{}
-	for i := int32(0); i < numberOfSlices; i++ {
-		if _, exist := slicesByName[core.SliceName(wl.Namespace, wl.Name, psa.Name, i)]; exist {
+	for i := int32(0); i < desiredNumberOfSlices; i++ {
+		if _, exist := existingSlicesByName[core.SliceName(wl.Namespace, wl.Name, psa.Name, i)]; exist {
 			// Slice already exists, nothing to do.
 			continue
 		}
@@ -584,8 +590,8 @@ func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workloa
 		// are stored as annotations on the Slice for lookup.
 
 		slice.Spec.Type = v1beta1.Type(core.GetTPUAccelerator(ps.Template))
-		start := i * int32(len(partitionIDs)/int(numberOfSlices))
-		end := start + int32(len(partitionIDs)/int(numberOfSlices))
+		start := i * chunkSize
+		end := start + chunkSize
 		if len(partitionIDs) > 0 {
 			slice.Spec.PartitionIds = partitionIDs[start:end]
 		}

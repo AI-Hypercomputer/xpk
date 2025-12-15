@@ -33,6 +33,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/util/workqueue"
 	testingclock "k8s.io/utils/clock/testing"
+	"k8s.io/utils/ptr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -97,13 +98,12 @@ func TestWorkloadReconciler(t *testing.T) {
 
 	baseRequest := types.NamespacedName{Name: baseWorkloadName, Namespace: corev1.NamespaceDefault}
 	baseJobSetWrapper := utiltestingjobsjobset.MakeJobSet(baseJobSetName, corev1.NamespaceDefault)
-	// jobset with 2 replicas
 	basePod1Wrapper := utiltestingjobspod.MakePod(basePod1Name, corev1.NamespaceDefault).
 		OwnerReference(baseJobSetName, jobSetGVK).
 		Label(jobset.JobSetNameKey, baseJobSetName)
 	basePod2Wrapper := basePod1Wrapper.Clone().Name(basePod2Name)
 	baseAdmissionCheckWrapper := utiltesting.MakeAdmissionCheck(baseACName).ControllerName(SliceControllerName)
-	basePodSet1Wrapper := *utiltesting.MakePodSet("ps1", 2, 1).
+	basePodSet1Wrapper := *utiltesting.MakePodSet("ps1", 2, ptr.To(int32(1))).
 		Annotation(core.TPUSliceTopologyAnnotation, "4x4x12").
 		NodeSelector("cloud.google.com/gke-tpu-accelerator", string(slice.TypeTpu7x))
 	basePodSet2Wrapper := basePodSet1Wrapper.Clone().Name("ps2")
@@ -459,7 +459,7 @@ func TestWorkloadReconciler(t *testing.T) {
 				baseWorkloadWrapper.Clone().
 					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					PodSets(
-						*utiltesting.MakePodSet("ps", 2, 1).
+						*utiltesting.MakePodSet("ps", 2, ptr.To(int32(1))).
 							Annotation(core.TPUSliceTopologyAnnotation, "4x4").
 							NodeSelector("cloud.google.com/gke-tpu-accelerator", string(slice.TypeTpu7x)).
 							Obj(),
@@ -483,7 +483,7 @@ func TestWorkloadReconciler(t *testing.T) {
 				*baseWorkloadWrapper.Clone().
 					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					PodSets(
-						*utiltesting.MakePodSet("ps", 2, 1).
+						*utiltesting.MakePodSet("ps", 2, ptr.To(int32(1))).
 							Annotation(core.TPUSliceTopologyAnnotation, "4x4").
 							NodeSelector("cloud.google.com/gke-tpu-accelerator", string(slice.TypeTpu7x)).
 							Obj(),
@@ -511,7 +511,7 @@ func TestWorkloadReconciler(t *testing.T) {
 				baseWorkloadWrapper.Clone().
 					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					PodSets(
-						*utiltesting.MakePodSet("ps", 2, 1).
+						*utiltesting.MakePodSet("ps", 2, ptr.To(int32(1))).
 							Annotation(core.TPUSliceTopologyAnnotation, "4x4x12").
 							NodeSelector("cloud.google.com/gke-tpu-accelerator", "invalid").
 							Obj(),
@@ -535,7 +535,7 @@ func TestWorkloadReconciler(t *testing.T) {
 				*baseWorkloadWrapper.Clone().
 					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					PodSets(
-						*utiltesting.MakePodSet("ps", 2, 1).
+						*utiltesting.MakePodSet("ps", 2, ptr.To(int32(1))).
 							Annotation(core.TPUSliceTopologyAnnotation, "4x4x12").
 							NodeSelector("cloud.google.com/gke-tpu-accelerator", "invalid").
 							Obj(),
@@ -762,7 +762,7 @@ func TestWorkloadReconciler(t *testing.T) {
 				baseAdmissionCheckWrapper.DeepCopy(),
 				baseWorkloadWrapper.Clone().
 					PodSets(
-						*utiltesting.MakePodSet("ps1", 2, 2).
+						*utiltesting.MakePodSet("ps1", 2, ptr.To(int32(2))).
 							Annotation(core.TPUSliceTopologyAnnotation, "4x4x12").
 							NodeSelector("cloud.google.com/gke-tpu-accelerator", string(slice.TypeTpu7x)).
 							Obj(),
@@ -789,7 +789,7 @@ func TestWorkloadReconciler(t *testing.T) {
 			wantWorkloads: []kueue.Workload{
 				*baseWorkloadWrapper.Clone().
 					PodSets(
-						*utiltesting.MakePodSet("ps1", 2, 2).
+						*utiltesting.MakePodSet("ps1", 2, ptr.To(int32(2))).
 							Annotation(core.TPUSliceTopologyAnnotation, "4x4x12").
 							NodeSelector("cloud.google.com/gke-tpu-accelerator", string(slice.TypeTpu7x)).
 							Obj(),
@@ -837,11 +837,11 @@ func TestWorkloadReconciler(t *testing.T) {
 					Finalizers(SliceControllerName).
 					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					PodSets(
-						*utiltesting.MakePodSet("ps1", 2, 1).
+						*utiltesting.MakePodSet("ps1", 2, ptr.To(int32(1))).
 							Annotation(core.TPUSliceTopologyAnnotation, "4x4x12").
 							NodeSelector("cloud.google.com/gke-tpu-accelerator", string(slice.TypeTpu7x)).
 							Obj(),
-						*utiltesting.MakePodSet("ps2", 2, 1).
+						*utiltesting.MakePodSet("ps2", 2, ptr.To(int32(1))).
 							Annotation(core.TPUSliceTopologyAnnotation, "4x4x12").
 							NodeSelector("cloud.google.com/gke-tpu-accelerator", "tpu-v8x").
 							Obj(),
@@ -856,11 +856,11 @@ func TestWorkloadReconciler(t *testing.T) {
 					Finalizers(SliceControllerName).
 					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					PodSets(
-						*utiltesting.MakePodSet("ps1", 2, 1).
+						*utiltesting.MakePodSet("ps1", 2, ptr.To(int32(1))).
 							Annotation(core.TPUSliceTopologyAnnotation, "4x4x12").
 							NodeSelector("cloud.google.com/gke-tpu-accelerator", string(slice.TypeTpu7x)).
 							Obj(),
-						*utiltesting.MakePodSet("ps2", 2, 1).
+						*utiltesting.MakePodSet("ps2", 2, ptr.To(int32(1))).
 							Annotation(core.TPUSliceTopologyAnnotation, "4x4x12").
 							NodeSelector("cloud.google.com/gke-tpu-accelerator", "tpu-v8x").
 							Obj(),
@@ -1520,9 +1520,6 @@ func TestWorkloadReconciler(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		if name != "should create multiple Slices for 2 replicas" {
-			continue
-		}
 		t.Run(name, func(t *testing.T) {
 			scheme := runtime.NewScheme()
 			utilruntime.Must(corev1.AddToScheme(scheme))

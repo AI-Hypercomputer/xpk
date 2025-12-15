@@ -55,6 +55,10 @@ const (
 )
 
 const (
+	SliceCreationFailed = "SliceCreationFailed"
+)
+
+const (
 	OwnerWorkloadNamespaceAnnotation = "accelerator.gke.io/owner-workload-namespace"
 	OwnerWorkloadNameAnnotation      = "accelerator.gke.io/owner-workload-name"
 )

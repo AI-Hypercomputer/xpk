@@ -523,7 +523,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 			})
 		})
 
-		ginkgo.It("should recover after Slice is in error state", func() {
+		ginkgo.It("should recover after Slice creation failed", func() {
 			jobSet := testingjobsjobset.MakeJobSet("jobset", ns.Name).
 				Queue(lq.Name).
 				ReplicatedJobs(
@@ -590,8 +590,8 @@ var _ = ginkgo.Describe("JobSet", func() {
 					meta.SetStatusCondition(&createdSlice.Status.Conditions, metav1.Condition{
 						Type:    slice.SliceStateConditionType,
 						Status:  metav1.ConditionFalse,
-						Reason:  string(core.MMIGHealthStatusFailed),
-						Message: "Slice has an error",
+						Reason:  string(core.SliceCreationFailed),
+						Message: "Slice creation failed",
 					})
 					g.Expect(k8sClient.Status().Update(ctx, createdSlice)).To(gomega.Succeed())
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())

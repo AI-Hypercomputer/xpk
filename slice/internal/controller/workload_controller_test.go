@@ -148,6 +148,7 @@ func TestWorkloadReconciler(t *testing.T) {
 
 	worker1Node := utiltesting.MakeNode("worker1").Label(core.TPUSubBlockLabel, "subblock1")
 	worker2Node := utiltesting.MakeNode("worker2").Label(core.TPUSubBlockLabel, "subblock2")
+	worker3Node := utiltesting.MakeNode("worker3").Label(core.TPUSubBlockLabel, "subblock3")
 
 	testCases := map[string]struct {
 		interceptorFuncsCreate func(ctx context.Context, client client.WithWatch, obj client.Object, opts ...client.CreateOption) error
@@ -822,6 +823,78 @@ func TestWorkloadReconciler(t *testing.T) {
 				buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, SlicesCreatedEventType,
 					`The Slices "default-workload-ps1-0", "default-workload-ps1-1" have been created`),
 			},
+		},
+		"should create multiple Slices for multiple replicated jobs with different replica counts": {
+			request: baseRequest,
+			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				worker2Node.DeepCopy(),
+				worker3Node.DeepCopy(),
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapper.Clone().
+					PodSets(
+						*utiltesting.MakePodSet("rj1", 16, ptr.To(int32(2))).
+							Annotation(core.TPUSliceTopologyAnnotation, "4x4x4").
+							NodeSelector("cloud.google.com/gke-tpu-accelerator", string(slice.TypeTpu7x)).
+							Obj(),
+						*utiltesting.MakePodSet("rj2", 16, ptr.To(int32(1))).
+							Annotation(core.TPUSliceTopologyAnnotation, "4x4x4").
+							NodeSelector("cloud.google.com/gke-tpu-accelerator", string(slice.TypeTpu7x)).
+							Obj(),
+					).
+					ReserveQuota(&kueue.Admission{
+						PodSetAssignments: []kueue.PodSetAssignment{
+							utiltesting.MakePodSetAssignment("rj1").
+								TopologyAssignment(baseLevels, []kueue.TopologyDomainAssignment{
+									{Values: []string{"worker2"}, Count: 16},
+									{Values: []string{"worker3"}, Count: 16},
+								}).Obj(),
+							utiltesting.MakePodSetAssignment("rj2").
+								TopologyAssignment(baseLevels, []kueue.TopologyDomainAssignment{
+									{Values: []string{"worker1"}, Count: 16},
+								}).Obj(),
+						},
+					}, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapper.Clone().
+					PodSets(
+						*utiltesting.MakePodSet("rj1", 16, ptr.To(int32(2))).
+							Annotation(core.TPUSliceTopologyAnnotation, "4x4x4").
+							NodeSelector("cloud.google.com/gke-tpu-accelerator", string(slice.TypeTpu7x)).
+							Obj(),
+						*utiltesting.MakePodSet("rj2", 16, ptr.To(int32(1))).
+							Annotation(core.TPUSliceTopologyAnnotation, "4x4x4").
+							NodeSelector("cloud.google.com/gke-tpu-accelerator", string(slice.TypeTpu7x)).
+							Obj(),
+					).
+					ReserveQuota(&kueue.Admission{
+						PodSetAssignments: []kueue.PodSetAssignment{
+							utiltesting.MakePodSetAssignment("rj1").
+								TopologyAssignment(baseLevels, []kueue.TopologyDomainAssignment{
+									{Values: []string{"worker2"}, Count: 16},
+									{Values: []string{"worker3"}, Count: 16},
+								}).Obj(),
+							utiltesting.MakePodSetAssignment("rj2").
+								TopologyAssignment(baseLevels, []kueue.TopologyDomainAssignment{
+									{Values: []string{"worker1"}, Count: 16},
+								}).Obj(),
+						},
+					}, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStatePending, `Slices are in states: 3 CREATED`)).
+					Obj(),
+			},
+			wantSlices: []slice.Slice{
+				*utiltesting.MakeSliceWrapper(core.SliceName(corev1.NamespaceDefault, baseWorkloadName, "rj1", 0)).Type(slice.TypeTpu7x).Topology("4x4x4").OwnerWorkloadAnnotations(corev1.NamespaceDefault, baseWorkloadName).PartitionIds("subblock2").Obj(),
+				*utiltesting.MakeSliceWrapper(core.SliceName(corev1.NamespaceDefault, baseWorkloadName, "rj1", 1)).Type(slice.TypeTpu7x).Topology("4x4x4").OwnerWorkloadAnnotations(corev1.NamespaceDefault, baseWorkloadName).PartitionIds("subblock3").Obj(),
+				*utiltesting.MakeSliceWrapper(core.SliceName(corev1.NamespaceDefault, baseWorkloadName, "rj2", 0)).Type(slice.TypeTpu7x).Topology("4x4x4").OwnerWorkloadAnnotations(corev1.NamespaceDefault, baseWorkloadName).PartitionIds("subblock1").Obj(),
+			},
+			wantEvents: []utiltesting.EventRecord{buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, SlicesCreatedEventType, `The Slices "default-workload-rj1-0", "default-workload-rj1-1", "default-workload-rj2-0" have been created`)},
 		},
 
 		"should create Slices only for relevant PodSets (invalid pod template)": {

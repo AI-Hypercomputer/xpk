@@ -950,6 +950,165 @@ var _ = ginkgo.Describe("JobSet", func() {
 			})
 		})
 
+		ginkgo.It("should create multiple Slices for multiple replicated jobs with different replica counts", func() {
+			jobSet := testingjobsjobset.MakeJobSet("jobset", ns.Name).
+				Queue(lq.Name).
+				ReplicatedJobs(
+					testingjobsjobset.ReplicatedJobRequirements{
+						Name:        "rj1",
+						Image:       utils.E2eTestAgnHostImage,
+						Args:        utils.BehaviorWaitForDeletion,
+						Replicas:    2,
+						Parallelism: 16,
+						Completions: 16,
+						PodAnnotations: map[string]string{
+							core.TPUSliceTopologyAnnotation: "4x4x4",
+						},
+						NodeSelector: map[string]string{
+							"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
+						},
+					},
+					testingjobsjobset.ReplicatedJobRequirements{
+						Name:        "rj2",
+						Image:       utils.E2eTestAgnHostImage,
+						Args:        utils.BehaviorWaitForDeletion,
+						Replicas:    1,
+						Parallelism: 16,
+						Completions: 16,
+						PodAnnotations: map[string]string{
+							core.TPUSliceTopologyAnnotation: "4x4x4",
+						},
+						NodeSelector: map[string]string{
+							"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
+						},
+					},
+				).
+				RequestAndLimit("rj1", extraResource, "4").
+				RequestAndLimit("rj2", extraResource, "4").
+				Obj()
+
+			ginkgo.By("Creating a JobSet", func() {
+				utils.MustCreate(ctx, k8sClient, jobSet)
+			})
+
+			createdWorkload := &kueue.Workload{}
+			wlKey := types.NamespacedName{
+				Name:      jobsetcontroller.GetWorkloadNameForJobSet(jobSet.Name, jobSet.UID),
+				Namespace: ns.Name,
+			}
+
+			ginkgo.By("Waiting for Admission of the Workload", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
+					g.Expect(createdWorkload.Status.Admission).ShouldNot(gomega.BeNil())
+				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Verifying TopologyAssignment", func() {
+				gomega.Expect(createdWorkload.Status.Admission).ShouldNot(gomega.BeNil())
+				gomega.Expect(createdWorkload.Status.Admission.PodSetAssignments).Should(gomega.HaveLen(2))
+				gomega.Expect(createdWorkload.Status.Admission.PodSetAssignments[0].TopologyAssignment).Should(gomega.BeComparableTo(
+					&kueue.TopologyAssignment{
+						Levels: []string{"kubernetes.io/hostname"},
+						Domains: []kueue.TopologyDomainAssignment{
+							{
+								Values: []string{"kind-worker2"},
+								Count:  16,
+							},
+							{
+								Values: []string{"kind-worker3"},
+								Count:  16,
+							},
+						},
+					},
+				))
+				gomega.Expect(createdWorkload.Status.Admission.PodSetAssignments[1].TopologyAssignment).Should(gomega.BeComparableTo(
+					&kueue.TopologyAssignment{
+						Levels: []string{"kubernetes.io/hostname"},
+						Domains: []kueue.TopologyDomainAssignment{{
+							Values: []string{"kind-worker"},
+							Count:  16,
+						}},
+					},
+				))
+			})
+
+			createdSlice1 := &slice.Slice{}
+			sliceKey1 := core.SliceKeyFromWorkload(createdWorkload, "rj1", 0)
+			createdSlice2 := &slice.Slice{}
+			sliceKey2 := core.SliceKeyFromWorkload(createdWorkload, "rj1", 1)
+			createdSlice3 := &slice.Slice{}
+			sliceKey3 := core.SliceKeyFromWorkload(createdWorkload, "rj2", 0)
+
+			ginkgo.By("Checking that all 3 Slices are created", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, sliceKey1, createdSlice1)).To(gomega.Succeed())
+					g.Expect(createdSlice1.Spec.PartitionIds).To(gomega.BeComparableTo([]string{"sb2"}))
+
+					g.Expect(k8sClient.Get(ctx, sliceKey2, createdSlice2)).To(gomega.Succeed())
+					g.Expect(createdSlice2.Spec.PartitionIds).To(gomega.BeComparableTo([]string{"sb3"}))
+
+					g.Expect(k8sClient.Get(ctx, sliceKey3, createdSlice3)).To(gomega.Succeed())
+					g.Expect(createdSlice3.Spec.PartitionIds).To(gomega.BeComparableTo([]string{"sb1"}))
+				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Checking that the Workload is waiting for admission", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
+					g.Expect(workload.IsAdmitted(createdWorkload)).Should(gomega.BeFalse())
+					g.Expect(createdWorkload.Status.AdmissionChecks).Should(gomega.BeComparableTo([]kueue.AdmissionCheckState{{
+						Name:    kueue.AdmissionCheckReference(ac.Name),
+						State:   kueue.CheckStatePending,
+						Message: `Slices are in states: 3 CREATED`,
+					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates")))
+				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Adding Active condition for all Slices", func() {
+				utils.SetSliceReady(ctx, k8sClient, sliceKey1, "4x4x4")
+				utils.SetSliceReady(ctx, k8sClient, sliceKey2, "4x4x4")
+				utils.SetSliceReady(ctx, k8sClient, sliceKey3, "4x4x4")
+			})
+
+			ginkgo.By("Checking that the Workload is admitted and admission check status is ready", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
+					g.Expect(workload.IsAdmitted(createdWorkload)).Should(gomega.BeTrue())
+					g.Expect(createdWorkload.Status.AdmissionChecks).Should(gomega.BeComparableTo([]kueue.AdmissionCheckState{{
+						Name:    kueue.AdmissionCheckReference(ac.Name),
+						State:   kueue.CheckStateReady,
+						Message: `Slices are in states: 3 ACTIVE`,
+					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates")))
+				}, utils.LongTimeout, utils.Timeout).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Checking that all pods are running", func() {
+				pods := &corev1.PodList{}
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.List(ctx, pods, client.InNamespace(ns.Name))).To(gomega.Succeed())
+					g.Expect(pods.Items).Should(gomega.HaveLen(48))
+					for _, pod := range pods.Items {
+						g.Expect(pod.Status.Phase).To(gomega.Equal(corev1.PodRunning))
+					}
+				}, util.LongTimeout, util.Interval).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Deleting JobSet", func() {
+				utils.ExpectObjectToBeDeleted(ctx, k8sClient, jobSet, true)
+			})
+
+			ginkgo.By("Checking that Slices are deleted", func() {
+				utils.ExpectObjectToBeDeleted(ctx, k8sClient, createdSlice1, false)
+				utils.ExpectObjectToBeDeleted(ctx, k8sClient, createdSlice2, false)
+				utils.ExpectObjectToBeDeleted(ctx, k8sClient, createdSlice3, false)
+			})
+
+			ginkgo.By("Checking that Workload is deleted", func() {
+				utils.ExpectObjectToBeDeleted(ctx, k8sClient, createdWorkload, false)
+			})
+		})
+
 		ginkgo.It("should create multiple Slices", func() {
 			jobSet := testingjobsjobset.MakeJobSet("jobset", ns.Name).
 				Queue(lq.Name).

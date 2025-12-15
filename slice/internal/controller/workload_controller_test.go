@@ -1527,7 +1527,7 @@ func TestWorkloadReconciler(t *testing.T) {
 			utilruntime.Must(kueue.AddToScheme(scheme))
 			utilruntime.Must(slice.AddToScheme(scheme))
 
-			interceptorFuncs := interceptor.Funcs{SubResourcePatch: utiltesting.TreatSSAAsStrategicMerge}
+			interceptorFuncs := interceptor.Funcs{SubResourcePatch: treatSSAAsStrategicMerge}
 			if tc.interceptorFuncsCreate != nil {
 				interceptorFuncs.Create = tc.interceptorFuncsCreate
 			}
@@ -1673,4 +1673,17 @@ func (f *fakePriorityQueue) AddWithOpts(priorityqueue.AddOpts, ...reconcile.Requ
 
 func (f *fakePriorityQueue) GetWithPriority() (item reconcile.Request, priority int, shutdown bool) {
 	panic("GetWithPriority is not expected to be called")
+}
+
+func treatSSAAsStrategicMerge(ctx context.Context, c client.Client, subResourceName string, obj client.Object, patch client.Patch, opts ...client.SubResourcePatchOption) error {
+	if patch.Type() != types.ApplyPatchType {
+		return utiltesting.TreatSSAAsStrategicMerge(ctx, c, subResourceName, obj, patch, opts...)
+	}
+	newOpts := make([]client.SubResourcePatchOption, 0, len(opts))
+	for _, opt := range opts {
+		if opt != client.ForceOwnership {
+			newOpts = append(newOpts, opt)
+		}
+	}
+	return utiltesting.TreatSSAAsStrategicMerge(ctx, c, subResourceName, obj, patch, newOpts...)
 }

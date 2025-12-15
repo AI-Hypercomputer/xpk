@@ -503,7 +503,7 @@ func (r *WorkloadReconciler) sliceAC(ctx context.Context, wl *kueue.Workload) (*
 			"selected", relevantChecks[0],
 		)
 	}
-	return workload.FindAdmissionCheck(wl.Status.AdmissionChecks, relevantChecks[0]), nil
+	return admissioncheck.FindAdmissionCheck(wl.Status.AdmissionChecks, relevantChecks[0]), nil
 }
 
 func (r *WorkloadReconciler) syncSlices(

@@ -81,7 +81,7 @@ func (r *JobSetWebhook) annotateReplicatedJobWithTopology(rj *v1alpha2.Replicate
 	rj.Template.Spec.Template.Annotations[kueue.PodSetRequiredTopologyAnnotation] = core.TPUBlockLabel
 	rj.Template.Spec.Template.Annotations[kueue.PodSetSliceRequiredTopologyAnnotation] = core.TPUSubBlockLabel
 
-	pods := ptr.Deref(rj.Template.Spec.Parallelism, 1) * rj.Replicas
+	pods := ptr.Deref(rj.Template.Spec.Parallelism, 1)
 
 	size, err := r.podSetSliceSize(
 		rj.Template.Spec.Template.Annotations[core.TPUSliceTopologyAnnotation],

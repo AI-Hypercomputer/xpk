@@ -178,7 +178,6 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 	if len(newSlices) > 0 {
 		slices = append(slices, newSlices...)
-		// Re-group the slices to include the newly created ones.
 		grouped = r.groupSlices(slices)
 	}
 

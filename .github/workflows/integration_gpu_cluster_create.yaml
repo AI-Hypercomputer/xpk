@@ -75,11 +75,11 @@ jobs:
                 echo "Testing API Access..."
                 gcloud services list --project=cloud-tpu-multipod-dev --limit=1
             - name: Create an XPK Cluster with 1 x b200 GPU
-              run: xpk cluster create --cluster $GPU_CLUSTER_NAME --device-type=b200-8 --zone=asia-northeast1-b --default-pool-cpu-machine-type=n1-standard-16 --spot
+              run: xpk cluster create --cluster $GPU_CLUSTER_NAME --device-type=h100-mega-80gb-8 --zone=asia-northeast1-b --default-pool-cpu-machine-type=n1-standard-16 --spot
             - name: Authenticate Docker
               run: gcloud auth configure-docker --quiet
             - name: Run a base-docker-image workload
-              run: xpk workload create --cluster $GPU_CLUSTER_NAME --workload $WORKLOAD_NAME --docker-image='nvidia/cuda:12.1.0-base-ubuntu22.04' --command "nvidia-smi" --zone=asia-northeast1-b --device-type=b200-8
+              run: xpk workload create --cluster $GPU_CLUSTER_NAME --workload $WORKLOAD_NAME --docker-image='nvidia/cuda:12.1.0-base-ubuntu22.04' --command "nvidia-smi" --zone=asia-northeast1-b --device-type=h100-mega-80gb-8
             - name: List out the workloads on the cluster
               run: xpk workload list --cluster $GPU_CLUSTER_NAME --zone=asia-northeast1-b
             - name: Wait for workload completion and confirm it succeeded

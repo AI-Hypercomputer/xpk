@@ -531,7 +531,9 @@ def workload_create(args) -> None:
 
     annotations = (
         'kueue.x-k8s.io/podset-preferred-topology: "kubernetes.io/hostname"'
-        if is_TAS_possible(cluster_system, capacity_type)
+        if is_TAS_possible(
+            cluster_system, capacity_type, args.cluster, args.zone, args.project
+        )
         else ''
     )
 

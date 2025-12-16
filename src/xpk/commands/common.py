@@ -14,8 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..core.commands import run_command_with_updates_retry
-from ..core.capacity import H100_MEGA_DEVICE_TYPE, CapacityType
+from ..core.commands import run_command_with_updates_retry, run_command_for_value
+from ..core.capacity import H100_DEVICE_TYPE, H100_MEGA_DEVICE_TYPE, CapacityType
 from ..core.gcloud_context import get_cluster_location
 from ..utils.console import xpk_print, xpk_exit
 from ..utils.execution_context import is_dry_run
@@ -49,6 +49,9 @@ def set_cluster_command(args) -> int:
 def is_TAS_possible(
     system_characteristics: SystemCharacteristics | None,
     capacity_type: CapacityType | None,
+    cluster_name: str,
+    zone: str,
+    project: str,
 ) -> bool:
   """Check cluster's machine_type and capacity type to determine if Kueue TAS is possible"""
 
@@ -63,10 +66,36 @@ def is_TAS_possible(
     xpk_print('capacity_type data was not found in configmaps.')
     xpk_exit(1)
 
-  return system_characteristics.device_type != H100_MEGA_DEVICE_TYPE and (
-      capacity_type == CapacityType.RESERVATION
-      or capacity_type == CapacityType.FLEX_START
+  # For A3-High and A3-Mega TAS is supported only for Flex and Reservation
+  if (
+      system_characteristics.device_type == H100_DEVICE_TYPE
+      or system_characteristics.device_type == H100_MEGA_DEVICE_TYPE
+  ) and (
+      capacity_type != CapacityType.FLEX_START
+      and capacity_type != CapacityType.RESERVATION
+  ):
+    return False
+
+  # For A3-Ultra or newer, all capacity types support TAS as long as COMPACT placement is used
+  command = (
+      'gcloud container node-pools list'
+      f' --cluster {cluster_name}'
+      f' --location={zone}'
+      f' --project={project}'
+      ' --filter="placementPolicy.type=COMPACT"'
+      ' --format="value(name)'
   )
+  return_code, compact_placement_nps = run_command_for_value(
+      command=command,
+      task=(
+          'Check if there is a COMPACT placement policy nodepool in this'
+          ' cluster'
+      ),
+  )
+  if return_code != 0:
+    xpk_print('Node pool retrieval failed, assuming TAS is not possible')
+    return False
+  return compact_placement_nps.splitlines() != []
 
 
 def validate_sub_slicing_system(system: SystemCharacteristics):

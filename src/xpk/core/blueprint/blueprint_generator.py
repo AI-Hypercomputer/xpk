@@ -897,6 +897,7 @@ class BlueprintGenerator:
       gpu_pool.update_settings(self.get_dws_flex_start())
     else:
       gpu_pool.update_settings({"static_node_count": num_nodes})
+      gpu_pool.update_settings({"placement_policy": {"type": "COMPACT"}})
 
     if release_channel == ReleaseChannel.RAPID:
       gpu_pool.set_setting("auto_upgrade", True)

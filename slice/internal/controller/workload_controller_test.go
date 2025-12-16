@@ -755,6 +755,7 @@ func TestWorkloadReconciler(t *testing.T) {
 				buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, SlicesCreatedEventType,
 					`The Slices "default-workload-ps1-0", "default-workload-ps2-0" have been created`),
 			},
+			wantResult: reconcile.Result{RequeueAfter: initializationRetryAfter},
 		},
 		"should create multiple Slices for 2 replicas": {
 			request: baseRequest,
@@ -824,6 +825,7 @@ func TestWorkloadReconciler(t *testing.T) {
 				buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, SlicesCreatedEventType,
 					`The Slices "default-workload-ps1-0", "default-workload-ps1-1" have been created`),
 			},
+			wantResult: reconcile.Result{RequeueAfter: initializationRetryAfter},
 		},
 		"should create multiple Slices for multiple replicated jobs with different replica counts": {
 			request: baseRequest,
@@ -896,6 +898,7 @@ func TestWorkloadReconciler(t *testing.T) {
 				*utiltesting.MakeSliceWrapper(core.SliceName(corev1.NamespaceDefault, baseWorkloadName, "rj2", 0)).Type(slice.TypeTpu7x).Topology("4x4x4").OwnerWorkloadAnnotations(corev1.NamespaceDefault, baseWorkloadName).PartitionIds("subblock1").Obj(),
 			},
 			wantEvents: []utiltesting.EventRecord{buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, SlicesCreatedEventType, `The Slices "default-workload-rj1-0", "default-workload-rj1-1", "default-workload-rj2-0" have been created`)},
+			wantResult: reconcile.Result{RequeueAfter: initializationRetryAfter},
 		},
 		"should create multiple Slices for multiple replicated jobs with multiple replicas each": {
 			request: baseRequest,
@@ -972,6 +975,7 @@ func TestWorkloadReconciler(t *testing.T) {
 				*utiltesting.MakeSliceWrapper(core.SliceName(corev1.NamespaceDefault, baseWorkloadName, "rj2", 1)).Type(slice.TypeTpu7x).Topology("4x4x4").OwnerWorkloadAnnotations(corev1.NamespaceDefault, baseWorkloadName).PartitionIds("subblock4").Obj(),
 			},
 			wantEvents: []utiltesting.EventRecord{buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, SlicesCreatedEventType, `The Slices "default-workload-rj1-0", "default-workload-rj1-1", "default-workload-rj2-0", "default-workload-rj2-1" have been created`)},
+			wantResult: reconcile.Result{RequeueAfter: initializationRetryAfter},
 		},
 		"should create Slices only for relevant PodSets (invalid pod template)": {
 			request: baseRequest,
@@ -1024,6 +1028,7 @@ func TestWorkloadReconciler(t *testing.T) {
 				buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, SlicesCreatedEventType,
 					`The Slices "default-workload-ps1-0" have been created`),
 			},
+			wantResult: reconcile.Result{RequeueAfter: initializationRetryAfter},
 		},
 		"should create Slices only for relevant PodSets (invalid assignment)": {
 			request: baseRequest,
@@ -1072,6 +1077,7 @@ func TestWorkloadReconciler(t *testing.T) {
 				buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, SlicesCreatedEventType,
 					`The Slices "default-workload-ps1-0" have been created`),
 			},
+			wantResult: reconcile.Result{RequeueAfter: initializationRetryAfter},
 		},
 		"should create missed Slices": {
 			request: baseRequest,
@@ -1136,6 +1142,7 @@ func TestWorkloadReconciler(t *testing.T) {
 				buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, SlicesCreatedEventType,
 					`The Slices "default-workload-ps1-0", "default-workload-ps2-0" have been created`),
 			},
+			wantResult: reconcile.Result{RequeueAfter: initializationRetryAfter},
 		},
 		"parse TAS Assignment to populate NodeSelector in Slice (hostname)": {
 			request: baseRequest,
@@ -1201,6 +1208,7 @@ func TestWorkloadReconciler(t *testing.T) {
 				buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, SlicesCreatedEventType,
 					`The Slices "default-workload-ps1-0", "default-workload-ps2-0" have been created`),
 			},
+			wantResult: reconcile.Result{RequeueAfter: initializationRetryAfter},
 		},
 		"error on Slice creation": {
 			interceptorFuncsCreate: func(ctx context.Context, client client.WithWatch, obj client.Object, opts ...client.CreateOption) error {
@@ -1666,6 +1674,7 @@ func TestWorkloadReconciler(t *testing.T) {
 				buildEventRecord("namespace2", corev1.EventTypeNormal, SlicesCreatedEventType,
 					`The Slices "namespace2-workload-ps1-0", "namespace2-workload-ps2-0" have been created`),
 			},
+			wantResult: reconcile.Result{RequeueAfter: initializationRetryAfter},
 		},
 	}
 	for name, tc := range testCases {

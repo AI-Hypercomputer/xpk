@@ -8,10 +8,6 @@ spec:
   {%- if flavor.topologyLabel %}
   {{ flavor.topologyLabel }}
   {%- endif %}
-  nodeTaints:
-  - effect: NoSchedule
-    key: nvidia.com/gpu
-    value: present
 ---
 {%- endfor %}
 {%- if 'dws-prov' in admission_checks %}

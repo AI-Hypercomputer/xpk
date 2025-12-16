@@ -239,6 +239,9 @@ class BlueprintGenerator:
       a3_megagpu_pool_0.update_settings(self.get_dws_flex_start())
     else:
       a3_megagpu_pool_0.update_settings({"static_node_count": num_nodes})
+      a3_megagpu_pool_0.update_settings(
+          {"placement_policy": {"type": "COMPACT"}}
+      )
 
     if release_channel == ReleaseChannel.RAPID:
       a3_megagpu_pool_0.set_setting("auto_upgrade", True)
@@ -615,6 +618,7 @@ class BlueprintGenerator:
       gpu_pool.update_settings(self.get_dws_flex_start())
     else:
       gpu_pool.update_settings({"static_node_count": num_nodes})
+      gpu_pool.update_settings({"placement_policy": {"type": "COMPACT"}})
 
     if release_channel == ReleaseChannel.RAPID:
       gpu_pool.set_setting("auto_upgrade", True)

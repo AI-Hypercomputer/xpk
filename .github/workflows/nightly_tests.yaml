@@ -31,6 +31,7 @@ jobs:
     needs: [build_actions, build_wheel]
     uses: ./.github/workflows/integration_basic_cluster_create.yaml
     secrets: inherit
+
   pathways_cluster_create:
     needs: [build_actions, build_wheel]
     uses: ./.github/workflows/integration_pathways_cluster_create.yaml

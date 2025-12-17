@@ -46,7 +46,7 @@ def set_cluster_command(args) -> int:
   return return_code
 
 
-def is_TAS_possible(
+def is_GPU_TAS_possible(
     system_characteristics: SystemCharacteristics | None,
     capacity_type: CapacityType | None,
     cluster_name: str,

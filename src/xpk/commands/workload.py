@@ -99,7 +99,7 @@ from ..utils.file import write_tmp_file
 from ..utils.execution_context import is_dry_run
 from ..utils.validation import validate_dependencies_list, SystemDependency, should_validate_dependencies
 from . import cluster_gcluster
-from .common import is_TAS_possible
+from .common import is_GPU_TAS_possible
 from jinja2 import Environment, FileSystemLoader
 from ..utils.templates import get_templates_absolute_path
 
@@ -535,7 +535,7 @@ def workload_create(args) -> None:
 
     annotations = (
         'kueue.x-k8s.io/podset-preferred-topology: "kubernetes.io/hostname"'
-        if is_TAS_possible(
+        if is_GPU_TAS_possible(
             cluster_system, capacity_type, args.cluster, args.zone, args.project
         )
         else ''

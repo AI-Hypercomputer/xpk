@@ -76,6 +76,10 @@ def is_TAS_possible(
   ):
     return False
 
+  # COMPACT placement and Flex don't work together, Flex is enough to support TAS for A3-High or newer
+  if capacity_type == CapacityType.FLEX_START:
+    return True
+
   # For A3-Ultra or newer, all capacity types support TAS as long as COMPACT placement is used
   command = (
       'gcloud container node-pools list'

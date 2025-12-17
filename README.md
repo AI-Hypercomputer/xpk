@@ -73,10 +73,21 @@ XPK also supports the following [Google Cloud Storage solutions](./docs/usage/st
   * [Storage](./docs/usage/storage.md)
   * [Advanced](./docs/usage/advanced.md)
   * [Inspector](./docs/usage/inspector.md)
-  * [Run](./docs/usage/run.md)
-  * [Job](./docs/usage/job.md)
 * [Troubleshooting](./docs/troubleshooting.md)
-* [Local Testing](./docs/local_testing.md)
+
+# Privacy notice
+
+To help improve XPK, feature usage statistics are collected and sent to Google. You can opt-out at any time by executing
+the following shell command:
+
+```shell
+xpk config set send-telemetry <true/false>
+```
+
+XPK telemetry overall is handled in accordance with the [Google Privacy Policy](https://policies.google.com/privacy). When
+you use XPK to interact with or utilize GCP Services, your information is handled in accordance with the
+[Google Cloud Privacy Notice](https://cloud.google.com/terms/cloud-privacy-notice).
+
 
 # Contributing
 

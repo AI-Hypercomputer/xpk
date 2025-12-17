@@ -391,14 +391,15 @@ def project_id_to_project_number(project_id: str) -> str:
 
 
 def setup_k8s_env(args) -> k8s_client.ApiClient:
-  if not getattr(args, 'kind_cluster', False):
-    add_zone_and_project(args)
-    get_cluster_credentials(args)
-    args.project_number = (
-        project_id_to_project_number(args.project)
-        if not args.dry_run
-        else abs(hash(args.project) % (10**12))  # 12 digit hash
-    )
+  add_zone_and_project(args)
+  get_cluster_credentials(args)
+  # Use provided project number if available, otherwise fetch via API
+  if getattr(args, 'project_number', None):
+    xpk_print(f'Using provided project number: {args.project_number}')
+  elif args.dry_run:
+    args.project_number = abs(hash(args.project) % (10**12))  # 12 digit hash
+  else:
+    args.project_number = project_id_to_project_number(args.project)
 
   config.load_kube_config()
   return k8s_client.ApiClient()
@@ -717,8 +718,10 @@ def get_cluster_credentials(args) -> int:
       location=location,
       dns_endpoint=True,
   )
+  if return_code != 0:
+    return return_code
 
-  if return_code != 0 or not _are_credentials_valid():
+  if not _are_credentials_valid():
     xpk_print('Detected error. Retrying without --dns-endpoint flag...')
     return_code = _get_credentials(
         project=args.project,

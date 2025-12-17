@@ -46,8 +46,6 @@ def mock_cluster_create_deps(request):
   """Mocks dependencies for cluster_create."""
   with (
       patch("xpk.commands.cluster_gcluster.xpk_exit") as mock_exit,
-      patch("xpk.commands.cluster_gcluster.prepare_kjob") as mock_prep_kjob,
-      patch("xpk.commands.cluster_gcluster.apply_kjob_crds") as mock_apply_kjob,
       patch(
           "xpk.commands.cluster_gcluster.get_cluster_credentials"
       ) as mock_get_creds,
@@ -68,8 +66,6 @@ def mock_cluster_create_deps(request):
   ):
     yield {
         "xpk_exit": mock_exit,
-        "prepare_kjob": mock_prep_kjob,
-        "apply_kjob_crds": mock_apply_kjob,
         "get_cluster_credentials": mock_get_creds,
         "generate_blueprint": mock_gen_bp,
         "prepare_gcluster_manager": mock_prep_gcm,
@@ -85,9 +81,6 @@ def test_install_kueue_standard(
     mock_get_total_chips, mock_args, mock_cluster_create_deps
 ):
   """Tests __install_kueue for a standard installation."""
-  mock_cluster_create_deps["prepare_kjob"].return_value = 0
-  mock_cluster_create_deps["apply_kjob_crds"].return_value = 0
-
   mock_system = SystemCharacteristics(
       topology="N/A",
       vms_per_slice=1,
@@ -98,6 +91,7 @@ def test_install_kueue_standard(
       device_type="h100-mega-80gb-8",
       supports_sub_slicing=False,
       supports_super_slicing=False,
+      supports_accelerator_network_profile=True,
       docker_platform=DockerPlatform.ARM,
       gpu_config=GpuConfig(requires_topology=True),
   )
@@ -138,9 +132,6 @@ def test_install_kueue_with_autoprovisioning(
     mock_enable_autoprovisioning, mock_args, mock_cluster_create_deps
 ):
   """Tests __install_kueue with autoprovisioning enabled."""
-  mock_cluster_create_deps["prepare_kjob"].return_value = 0
-  mock_cluster_create_deps["apply_kjob_crds"].return_value = 0
-
   mock_args.enable_autoprovisioning = True
   mock_system = SystemCharacteristics(
       topology="N/A",
@@ -152,6 +143,7 @@ def test_install_kueue_with_autoprovisioning(
       device_type="h100-mega-80gb-8",
       supports_sub_slicing=False,
       supports_super_slicing=False,
+      supports_accelerator_network_profile=True,
       docker_platform=DockerPlatform.ARM,
       gpu_config=GpuConfig(requires_topology=True),
   )

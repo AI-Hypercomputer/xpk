@@ -38,7 +38,6 @@ from ..core.commands import run_command_for_value
 from ..core.docker_manager import DockerManager
 from ..core.gcloud_context import zone_to_region
 from ..core.gcluster_manager import GclusterManager
-from ..core.kjob import apply_kjob_crds, prepare_kjob
 from ..core.remote_state.fuse_remote_state import FuseStateClient
 from ..core.remote_state.remote_state_client import RemoteStateClient
 from ..utils.console import xpk_exit, xpk_print
@@ -112,18 +111,7 @@ def cluster_create(
   get_cluster_credentials(args)
 
   err_code = __install_kueue(args)
-  if err_code > 0:
-    xpk_exit(err_code)
-
-  err_code = apply_kjob_crds()
-  if err_code > 0:
-    xpk_exit(err_code)
-
-  err_code = prepare_kjob(args)
-  if err_code > 0:
-    xpk_exit(err_code)
-
-  xpk_exit(0)
+  xpk_exit(err_code)
 
 
 def __install_kueue(args) -> int:

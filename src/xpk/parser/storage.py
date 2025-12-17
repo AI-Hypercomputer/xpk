@@ -25,7 +25,6 @@ from ..commands.storage import (
 )
 from .common import (
     add_cluster_arguments,
-    add_kind_cluster_arguments,
     add_shared_arguments,
 )
 from typing import Protocol, Any
@@ -185,7 +184,6 @@ def add_storage_attach_parser(
       help='Comma-separated list of mountOptions for PersistentVolume',
       default='implicit-dirs',
   )
-  add_kind_cluster_arguments(opt_args)
 
 
 def add_storage_create_parser(storage_subcommands_parser: Subcommands) -> None:
@@ -284,8 +282,6 @@ def add_storage_create_parser(storage_subcommands_parser: Subcommands) -> None:
       default='',
   )
 
-  add_kind_cluster_arguments(opt_args)
-
 
 def add_storage_list_parser(storage_subcommands_parser: Subcommands) -> None:
   storage_list_parser: argparse.ArgumentParser = (
@@ -319,12 +315,6 @@ def add_storage_detach_parser(storage_subcommands_parser: Subcommands) -> None:
   req_args.add_argument('name', type=str)
   add_cluster_arguments(req_args, required=True)
 
-  opt_args = storage_detach_parser.add_argument_group(
-      'Optional Arguments',
-      'Optional arguments for storage delete.',
-  )
-  add_kind_cluster_arguments(opt_args)
-
 
 def add_storage_delete_parser(storage_subcommands_parser: Subcommands) -> None:
   storage_delete_parser: argparse.ArgumentParser = (
@@ -352,4 +342,3 @@ def add_storage_delete_parser(storage_subcommands_parser: Subcommands) -> None:
       action='store_true',
       help='Force filestore instance deletion even if it has attached storages',
   )
-  add_kind_cluster_arguments(opt_args)

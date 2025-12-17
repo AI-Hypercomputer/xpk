@@ -57,6 +57,7 @@ from ..core.scheduling import (
     WorkloadScheduling,
     check_if_workload_can_schedule,
     create_tpu_machine_type,
+    create_tpu_slice_topology_annotation,
     create_tpu_topology,
     get_cpu_affinity,
     get_gpu_scheduler,
@@ -132,7 +133,7 @@ spec:
               annotations:
                 {storage_annotations}
                 {sub_slicing_annotations}
-                {annotations_machine_label}
+                {tpu_slice_topology_annotation}
             spec:
               schedulerName: {args.scheduler}
               imagePullSecrets:
@@ -493,6 +494,7 @@ def workload_create(args) -> None:
           podFailurePolicy:
             rules:
             - action: FailJob
+              onPodConditions: []
               onExitCodes:
                 containerName: {get_main_container_docker_image(args, workload_system)}
                 operator: NotIn
@@ -516,6 +518,8 @@ def workload_create(args) -> None:
     placement_policy_label = create_placement_policy_label(
         workload_system, super_slicing=False
     )
+
+  # TODO(b/466943057): Add ANP label for NAP (if not possible, use CCC)
 
   # Create the workload file based on accelerator type or workload type.
   if workload_system.accelerator_type == AcceleratorType.GPU:
@@ -638,7 +642,11 @@ def workload_create(args) -> None:
         else create_machine_label(workload_system)
     )
     node_selector_machine_label = machine_label if not use_super_slicing else ''
-    annotations_machine_label = machine_label if use_super_slicing else ''
+    tpu_slice_topology_annotation = (
+        create_tpu_slice_topology_annotation(workload_system.topology)
+        if use_super_slicing
+        else ''
+    )
 
     yml_string = WORKLOAD_CREATE_YAML.format(
         args=args,
@@ -655,7 +663,7 @@ def workload_create(args) -> None:
         ),
         placement_policy_label=placement_policy_label,
         node_selector_machine_label=node_selector_machine_label,
-        annotations_machine_label=annotations_machine_label,
+        tpu_slice_topology_annotation=tpu_slice_topology_annotation,
         local_queue_name=LOCAL_QUEUE_NAME,
         autoprovisioning_args=autoprovisioning_args,
         volumes=get_volumes(args, workload_system),

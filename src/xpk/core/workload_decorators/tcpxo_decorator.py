@@ -22,22 +22,6 @@ from ...utils.yaml import literal_string
 rxdm = 'v1.0.12'
 
 
-def decorate_kjob_template(job_manifest: dict) -> dict:
-  spec = (
-      job_manifest.setdefault('spec', {})
-      .setdefault('template', {})
-      .setdefault('spec', {})
-  )
-  spec.setdefault('tolerations', [])
-  spec.setdefault('volumes', [])
-
-  add_volumes(job_manifest)
-  add_tolerations(job_manifest)
-  add_tcpxo_daemon_container(job_manifest)
-  update_gpu_containers(job_manifest)
-  return job_manifest
-
-
 def decorate_job(job_manifest: dict, sub_networks: list[str]) -> dict:
   job_manifest.setdefault('spec', {}).setdefault('template', {}).setdefault(
       'metadata', {}

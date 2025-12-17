@@ -37,7 +37,9 @@ class CommonCommandsTest(unittest.TestCase):
   ):
     """Test is_GPU_TAS_possible returns True in dry_run mode."""
     mock_is_dry_run.return_value = True
-    self.assertTrue(is_GPU_TAS_possible(None, None, "cluster", "zone", "project"))
+    self.assertTrue(
+        is_GPU_TAS_possible(None, None, "cluster", "zone", "project")
+    )
     mock_is_dry_run.assert_called_once()
     mock_xpk_print.assert_not_called()
     mock_xpk_exit.assert_not_called()

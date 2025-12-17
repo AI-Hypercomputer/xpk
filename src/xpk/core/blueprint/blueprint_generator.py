@@ -24,6 +24,7 @@ from packaging.version import parse
 from ...utils.console import xpk_exit, xpk_print
 from ...utils.versions import ReleaseChannel
 from ...utils.file import ensure_directory_exists
+from ...utils.templates import get_templates_absolute_path
 
 
 from ..capacity import (
@@ -51,9 +52,9 @@ supported_device_types = {
     a4_device_type,
 }
 blueprint_dependencies_dir = {
-    a3mega_device_type: "src/xpk/blueprints/a3mega",
-    a3ultra_device_type: "src/xpk/blueprints/a3ultra",
-    a4_device_type: "src/xpk/blueprints/a4",
+    a3mega_device_type: get_templates_absolute_path("blueprints/a3mega"),
+    a3ultra_device_type: get_templates_absolute_path("blueprints/a3ultra"),
+    a4_device_type: get_templates_absolute_path("blueprints/a4"),
 }
 
 cluster_toolkit_url = "github.com/GoogleCloudPlatform/cluster-toolkit"
@@ -239,10 +240,18 @@ class BlueprintGenerator:
     else:
       a3_megagpu_pool_0.update_settings({"static_node_count": num_nodes})
 
+    if capacity_type not in (CapacityType.SPOT, CapacityType.FLEX_START):
+      a3_megagpu_pool_0.update_settings(
+          {"placement_policy": {"type": "COMPACT"}}
+      )
+
     if release_channel == ReleaseChannel.RAPID:
       a3_megagpu_pool_0.set_setting("auto_upgrade", True)
 
-    set_placement_policy = capacity_type != CapacityType.SPOT
+    set_placement_policy = capacity_type not in (
+        CapacityType.SPOT,
+        CapacityType.FLEX_START,
+    )
     workload = DeploymentModule(
         id="workload_component_install",
         source="modules/management/kubectl-apply",
@@ -521,7 +530,7 @@ class BlueprintGenerator:
         settings={
             "release_channel": release_channel.value,
             "version_prefix": version_prefix,
-            "min_cluster_version": cluster_version,
+            "min_master_version": cluster_version,
             "prefix_with_deployment_name": False,
             "name_suffix": cluster_name,
             "system_node_pool_machine_type": system_node_pool_machine_type,
@@ -614,6 +623,7 @@ class BlueprintGenerator:
       gpu_pool.update_settings(self.get_dws_flex_start())
     else:
       gpu_pool.update_settings({"static_node_count": num_nodes})
+      gpu_pool.update_settings({"placement_policy": {"type": "COMPACT"}})
 
     if release_channel == ReleaseChannel.RAPID:
       gpu_pool.set_setting("auto_upgrade", True)
@@ -809,7 +819,7 @@ class BlueprintGenerator:
         settings={
             "release_channel": release_channel.value,
             "version_prefix": version_prefix,
-            "min_cluster_version": cluster_version,
+            "min_master_version": cluster_version,
             "system_node_pool_machine_type": system_node_pool_machine_type,
             "system_node_pool_node_count": {
                 "total_min_nodes": system_node_pool_min_node_count,
@@ -896,6 +906,7 @@ class BlueprintGenerator:
       gpu_pool.update_settings(self.get_dws_flex_start())
     else:
       gpu_pool.update_settings({"static_node_count": num_nodes})
+      gpu_pool.update_settings({"placement_policy": {"type": "COMPACT"}})
 
     if release_channel == ReleaseChannel.RAPID:
       gpu_pool.set_setting("auto_upgrade", True)

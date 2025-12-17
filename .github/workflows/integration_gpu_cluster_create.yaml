@@ -48,7 +48,7 @@ jobs:
                 # 2. Write the Key File
                 echo '${{ secrets.GCP_SA_KEY }}' > $HOME/.config/gcloud/application_default_credentials.json
 
-                # 3. CRITICAL STEP: Activate the Service Account
+                # 3. Activate the Service Account
                 # This updates the internal config files to point to the key file.
                 # When Docker mounts the directory, it will now see "Active Account: Service Account"
                 gcloud auth activate-service-account --key-file=$HOME/.config/gcloud/application_default_credentials.json --project=cloud-tpu-multipod-dev
@@ -66,14 +66,6 @@ jobs:
                 # Print the current identity
                 echo "Authenticated as:"
                 gcloud config get-value account
-
-                # TEST 1: Can we see the project? (If this fails -> IAM Role 'Browser' or 'Viewer' missing)
-                echo "Testing Project Access..."
-                gcloud projects describe cloud-tpu-multipod-dev --format="value(lifecycleState)"
-
-                # TEST 2: Can we check Service Usage? (If this fails -> 'Service Usage Consumer' missing)
-                echo "Testing API Access..."
-                gcloud services list --project=cloud-tpu-multipod-dev --limit=1
             - name: Create an XPK Cluster with 1 x b200 GPU
               run: xpk cluster create --cluster $GPU_CLUSTER_NAME --device-type=b200-8 --zone=asia-northeast1-b --default-pool-cpu-machine-type=n1-standard-16 --spot
             - name: Authenticate Docker

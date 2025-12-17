@@ -175,6 +175,7 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		)
 		return ctrl.Result{}, err
 	}
+
 	// Create any missing Slices based on the Workload's PodSet assignments.
 	err = r.syncSlices(ctx, wl, ac, &slices, nodes)
 	if err != nil {

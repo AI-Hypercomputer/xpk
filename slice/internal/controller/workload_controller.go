@@ -204,7 +204,6 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 			return ctrl.Result{}, err
 		}
 	}
-
 	if len(grouped.initializing) > 0 {
 		log.V(3).Info(
 			"Waiting for Slices to be initialized",

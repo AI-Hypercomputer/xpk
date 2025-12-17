@@ -213,7 +213,7 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	// If there are Slices that are still being created or activated, requeue Reconcile.
-	// This is to deleted and re-create slices that get stuck during initialization.
+	// This is to delete and re-create slices that get stuck during initialization.
 	if len(grouped.initializing) > 0 {
 		log.V(3).Info(
 			"Waiting for Slices to be initialized",

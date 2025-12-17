@@ -239,6 +239,8 @@ class BlueprintGenerator:
       a3_megagpu_pool_0.update_settings(self.get_dws_flex_start())
     else:
       a3_megagpu_pool_0.update_settings({"static_node_count": num_nodes})
+
+    if capacity_type not in (CapacityType.SPOT, CapacityType.FLEX_START):
       a3_megagpu_pool_0.update_settings(
           {"placement_policy": {"type": "COMPACT"}}
       )
@@ -246,7 +248,10 @@ class BlueprintGenerator:
     if release_channel == ReleaseChannel.RAPID:
       a3_megagpu_pool_0.set_setting("auto_upgrade", True)
 
-    set_placement_policy = capacity_type != CapacityType.SPOT
+    set_placement_policy = capacity_type not in (
+        CapacityType.SPOT,
+        CapacityType.FLEX_START,
+    )
     workload = DeploymentModule(
         id="workload_component_install",
         source="modules/management/kubectl-apply",

@@ -1,12 +1,7 @@
-KUEUE_REPO=https://github.com/kubernetes-sigs/kueue.git
-
-KUBECTL_VERSION := $(shell curl -L -s https://dl.k8s.io/release/stable.txt)
-KUEUE_VERSION=v0.14.3
-
 OS := $(shell uname -s | tr A-Z a-z)
 PLATFORM := $(shell uname -m | sed -e 's/aarch64/arm64/' | sed -e 's/x86_64/amd64/')
 
-KUBECTL_URL = "https://dl.k8s.io/release/$(KUBECTL_VERSION)/bin/$(OS)/$(PLATFORM)/kubectl"
+KUEUE_VERSION=v0.14.3
 KUEUECTL_URL = "https://github.com/kubernetes-sigs/kueue/releases/download/$(KUEUE_VERSION)/kubectl-kueue-$(OS)-$(PLATFORM)"
 
 PROJECT_DIR := $(realpath $(shell dirname $(firstword $(MAKEFILE_LIST))))

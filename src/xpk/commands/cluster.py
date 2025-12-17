@@ -49,7 +49,6 @@ from ..core.gcloud_context import (
     zone_to_region,
 )
 from ..core.jobset import update_jobset_resources_if_necessary
-from ..core.kjob import apply_kjob_crds, prepare_kjob, verify_kjob_installed
 from ..core.kueue_manager import (KueueConfig, KueueManager)
 from ..core.nap import enable_autoprovisioning_on_cluster
 from ..core.network import (
@@ -98,7 +97,6 @@ def cluster_adapt(args) -> None:
   if should_validate_dependencies(args):
     validate_dependencies_list([
         SystemDependency.KUBECTL,
-        SystemDependency.KJOB,
         SystemDependency.GCLOUD,
     ])
   args.enable_pathways = False
@@ -188,7 +186,6 @@ def cluster_adapt(args) -> None:
   if install_kueue_code != 0:
     xpk_exit(install_kueue_code)
 
-  install_kjob(args)
   if system.accelerator_type == AcceleratorType.GPU:
     prepare_gpus(system)
 
@@ -308,7 +305,6 @@ def cluster_create(args) -> None:
   if should_validate_dependencies(args):
     validate_dependencies_list([
         SystemDependency.KUBECTL,
-        SystemDependency.KJOB,
         SystemDependency.GCLOUD,
     ])
 
@@ -454,8 +450,6 @@ def cluster_create(args) -> None:
   install_kueue_code = _install_kueue(args, system, autoprovisioning_config)
   if install_kueue_code != 0:
     xpk_exit(install_kueue_code)
-
-  install_kjob(args)
 
   if system.accelerator_type == AcceleratorType.GPU:
     prepare_gpus(system)
@@ -1239,28 +1233,19 @@ def run_gke_cluster_create_command(
       ' --autoscaling-profile=optimize-utilization'
       ' --labels=gke_product_type=xpk'
       f' --release-channel={release_channel.value.lower()}'
+      ' --enable-ip-alias'
+      ' --enable-dataplane-v2'
+      ' --enable-multi-networking'
   )
 
   if args.gke_version:
     command += ' --no-enable-autoupgrade'
 
-  enable_ip_alias = False
-
   if args.private or args.authorized_networks is not None:
-    enable_ip_alias = True
     command += ' --enable-master-authorized-networks --enable-private-nodes'
 
-  if system.accelerator_type == AcceleratorType.GPU:
-    enable_ip_alias = True
-    command += ' --enable-dataplane-v2 --enable-multi-networking'
-  else:
+  if system.accelerator_type != AcceleratorType.GPU:
     command += ' --location-policy=BALANCED --scopes=storage-full,gke-default'
-
-    if args.enable_pathways:
-      enable_ip_alias = True
-
-  if enable_ip_alias:
-    command += ' --enable-ip-alias'
 
   if args.enable_ray_cluster:
     command += ' --addons RayOperator'
@@ -1341,22 +1326,6 @@ def install_storage_csis(args):
     )
     if update_cluster_command_code != 0:
       xpk_exit(update_cluster_command_code)
-
-
-def install_kjob(args):
-  xpk_print('Verifying kjob installation')
-  err_code = verify_kjob_installed()
-  if err_code > 0:
-    xpk_exit(err_code)
-
-  xpk_print('Applying kjob CDRs')
-  err_code = apply_kjob_crds()
-  if err_code > 0:
-    xpk_exit(err_code)
-
-  err_code = prepare_kjob(args)
-  if err_code > 0:
-    xpk_exit(err_code)
 
 
 def _install_kueue(

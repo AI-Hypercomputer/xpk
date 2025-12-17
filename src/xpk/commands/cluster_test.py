@@ -56,7 +56,6 @@ class _ClusterCreateMocks:
   create_cluster_configmaps: MagicMock
   set_jobset_on_cluster: MagicMock
   get_cluster_location: MagicMock
-  install_kjob: MagicMock
   xpk_exit: MagicMock
   update_jobset_resources_if_necessary: MagicMock
   _install_kueue: MagicMock
@@ -203,9 +202,6 @@ def cluster_create_mocks(mocker) -> _ClusterCreateMocks:
       get_cluster_location=mocker.patch(
           'xpk.commands.cluster.get_cluster_location',
           return_value='us-central1',
-      ),
-      install_kjob=mocker.patch(
-          'xpk.commands.cluster.install_kjob', return_value=0
       ),
       xpk_exit=mocker.patch('xpk.commands.cluster.xpk_exit'),
       update_jobset_resources_if_necessary=mocker.patch(

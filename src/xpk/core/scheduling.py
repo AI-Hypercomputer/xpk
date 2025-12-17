@@ -18,7 +18,7 @@ from enum import Enum
 
 from .kueue_manager import get_installed_kueue_version, has_sub_slicing_enabled, has_super_slicing_enabled
 from ..utils.feature_flags import FeatureFlags
-from ..utils.topology import get_slice_topology_level
+from ..utils.topology import get_slice_topology_level, parse_topology
 from ..utils.console import xpk_print
 from ..utils.topology import is_topology_valid
 from ..utils.execution_context import is_dry_run
@@ -34,6 +34,7 @@ from packaging.version import Version
 
 _SUB_SLICING_MINIMUM_KUEUE_VERSION = Version('0.13.0')
 _SUPER_SLICING_MINIMUM_KUEUE_VERSION = Version('0.14.0')
+_SUPER_SLICING_MAX_TOPOLOGY = (16, 24, 24)
 
 
 class WorkloadScheduling(Enum):
@@ -115,7 +116,7 @@ def check_if_workload_can_schedule(
         args,
         workload_system,
         max_vm_in_cluster=int(resources_config_map[cluster_system.device_type]),
-    ):
+    ) and _check_super_slicing_topology(workload_system):
       return WorkloadScheduling.SUPER_SLICING_AVAILABLE
     else:
       return WorkloadScheduling.UNAVAILABLE
@@ -189,7 +190,6 @@ def _check_super_slicing_availability(
     workload_system: SystemCharacteristics,
     cluster_system: SystemCharacteristics,
 ) -> bool:
-  # TODO: b/465447813 - Add super-slicing workload topology validation.
   if (
       (not FeatureFlags.SUPER_SLICING_ENABLED)
       or (workload_system.gke_accelerator != cluster_system.gke_accelerator)
@@ -210,6 +210,27 @@ def _check_super_slicing_availability(
       and current_version is not None
       and current_version >= _SUPER_SLICING_MINIMUM_KUEUE_VERSION
   )
+
+
+def _check_super_slicing_topology(
+    workload_system: SystemCharacteristics,
+) -> bool:
+  topology = parse_topology(workload_system.topology)
+  result = (
+      all(size % 4 == 0 and size >= 4 for size in topology)
+      and len(topology) == len(_SUPER_SLICING_MAX_TOPOLOGY)
+      and topology[0] <= topology[1] <= topology[2]
+      and all(a <= b for a, b in zip(topology, _SUPER_SLICING_MAX_TOPOLOGY))
+  )
+
+  if not result:
+    xpk_print(
+        'Error: Invalid super-slicing topology. It must adhere to the format of'
+        ' 4i x 4j x 4k, where i <= j <= k, and i, j, k are integers, with a'
+        ' maximum of 16x24x24.'
+    )
+
+  return result
 
 
 def get_total_chips_requested_from_args(
@@ -340,6 +361,10 @@ def create_sub_slicing_annotations(sub_slicing_topology: str) -> list[str]:
       ),
       f'cloud.google.com/gke-tpu-slice-topology: {sub_slicing_topology}',
   ]
+
+
+def create_tpu_slice_topology_annotation(workload_topology: str) -> str:
+  return f'cloud.google.com/gke-tpu-slice-topology: {workload_topology}'
 
 
 def create_placement_policy_label(

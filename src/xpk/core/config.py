@@ -19,6 +19,7 @@ import os
 import ruamel.yaml
 from abc import ABC, abstractmethod
 from ..utils import file
+from ..utils.execution_context import is_dry_run
 from ..utils.console import xpk_print
 from setuptools_scm import get_version as setuptools_get_version
 from importlib.metadata import version, PackageNotFoundError
@@ -53,14 +54,6 @@ PROJECT_KEY = 'project-id'
 CLIENT_ID_KEY = 'client-id'
 SEND_TELEMETRY_KEY = 'send-telemetry'
 ZONE_KEY = 'zone'
-KJOB_BATCH_IMAGE = 'batch-image'
-KJOB_BATCH_WORKING_DIRECTORY = 'batch-working-directory'
-KJOB_SHELL_IMAGE = 'shell-image'
-KJOB_SHELL_INTERACTIVE_COMMAND = 'shell-interactive-command'
-KJOB_SHELL_WORKING_DIRECTORY = 'shell-working-directory'
-CONFIGS_KEY = 'configs'
-GKE_ENDPOINT_KEY = 'gke-endpoint'
-DEPENDENCIES_KEY = 'deps-verified-version'
 
 DEFAULT_KEYS = [
     CFG_BUCKET_KEY,
@@ -69,13 +62,6 @@ DEFAULT_KEYS = [
     CLIENT_ID_KEY,
     SEND_TELEMETRY_KEY,
     ZONE_KEY,
-    GKE_ENDPOINT_KEY,
-    DEPENDENCIES_KEY,
-    KJOB_BATCH_IMAGE,
-    KJOB_BATCH_WORKING_DIRECTORY,
-    KJOB_SHELL_IMAGE,
-    KJOB_SHELL_INTERACTIVE_COMMAND,
-    KJOB_SHELL_WORKING_DIRECTORY,
 ]
 VERTEX_TENSORBOARD_FEATURE_FLAG = XPK_CURRENT_VERSION >= '0.4.0'
 
@@ -111,8 +97,7 @@ class FileSystemConfig(Config):
     self._allowed_keys = DEFAULT_KEYS
 
   def _open_configs(self) -> dict | None:
-    dir_path = '/'.join(self._config.split('/')[:-1])
-    file.ensure_directory_exists(dir_path)
+    file.ensure_directory_exists(os.path.dirname(self._config))
 
     if not os.path.exists(self._config):
       return None
@@ -122,6 +107,9 @@ class FileSystemConfig(Config):
       return config_yaml
 
   def _save_configs(self, config_yaml: dict) -> None:
+    if is_dry_run():
+      return None
+
     with open(self._config, encoding='utf-8', mode='w') as stream:
       yaml.dump(config_yaml, stream)
 

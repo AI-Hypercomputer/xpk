@@ -37,14 +37,6 @@ class SystemDependency(Enum):
           ' to install xpk prerequisites.'
       ),
   )
-  KJOB = _SystemDependency(
-      command='kubectl kjob --help',
-      message=(
-          '`kjobctl` not installed. Please follow'
-          ' https://github.com/AI-Hypercomputer/xpk?tab=readme-ov-file#prerequisites'
-          ' to install xpk prerequisites.'
-      ),
-  )
   GCLOUD = _SystemDependency(
       command='gcloud version',
       message=(

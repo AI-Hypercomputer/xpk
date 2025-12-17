@@ -36,8 +36,8 @@ jobs:
       with:
         mode: minimum
         count: 1
-        labels: "release-improvements, release-bugfix, release-features"
-        message: "This PR is being prevented from merging because it is not labeled.  Please add a label to this PR.  Accepted labels: release-improvements, release-bugfix, release-features"
+        labels: "release-improvements, release-bugfix, release-features, release-breaking"
+        message: "This PR is being prevented from merging because it is not labeled.  Please add a label to this PR.  Accepted labels: release-improvements, release-bugfix, release-features, release-breaking"
     - id: do-not-merge
       uses: mheap/github-action-required-labels@v5
       with:

@@ -47,24 +47,6 @@ spec:
                 image: my-sidecar-image
 """
 
-# Minimal kjob template for testing
-BASE_KJOB_TEMPLATE = {
-    "spec": {
-        "template": {
-            "spec": {
-                "containers": [
-                    {
-                        "name": "main-gpu-container",
-                        "image": "my-gpu-image",
-                        "resources": {"limits": {"nvidia.com/gpu": 8}},
-                    },
-                    {"name": "sidecar-container", "image": "my-sidecar-image"},
-                ]
-            }
-        }
-    }
-}
-
 # Minimal job manifest for testing
 BASE_JOB_MANIFEST = {
     "spec": {
@@ -205,63 +187,3 @@ def test_decorate_job():
   assert "devices.gke.io/container.tcpx-daemon" in annotations
   assert "networking.gke.io/default-interface" in annotations
   assert "networking.gke.io/interfaces" in annotations
-
-
-def test_decorate_kjob_template():
-  """Tests decorate_kjob_template."""
-  kjob_template = copy.deepcopy(BASE_KJOB_TEMPLATE)
-
-  decorated_manifest = tcpx_decorator.decorate_kjob_template(kjob_template)
-
-  pod_template_spec = decorated_manifest["spec"]["template"]["spec"]
-
-  # Check annotations are NOT added
-  assert "annotations" not in decorated_manifest["spec"]["template"].get(
-      "metadata", {}
-  )
-
-  # Check tolerations
-  tolerations = pod_template_spec["tolerations"]
-  assert {
-      "key": "user-workload",
-      "operator": "Equal",
-      "value": "true",
-      "effect": "NoSchedule",
-  } in tolerations
-
-  # Check volumes
-  volumes = pod_template_spec["volumes"]
-  volume_names = {v["name"] for v in volumes}
-  assert "libraries" in volume_names
-  assert "sys" in volume_names
-  assert "proc-sys" in volume_names
-  assert "tcpx-socket" in volume_names
-  assert "dshm" in volume_names
-
-  # Check init container
-  init_containers = pod_template_spec["initContainers"]
-  assert len(init_containers) == 1
-  tcpx_daemon = init_containers[0]
-  assert tcpx_daemon["name"] == "tcpx-daemon"
-  assert tcpx_daemon["image"].endswith(f":{tcpx_decorator.tcpx}")
-
-  # Check GPU container update
-  gpu_container = pod_template_spec["containers"][0]
-  assert gpu_container["name"] == "main-gpu-container"
-
-  # Check env
-  env_vars = {e["name"]: e["value"] for e in gpu_container["env"]}
-  assert env_vars["LD_LIBRARY_PATH"] == "/usr/local/nvidia/lib64"
-
-  # Check volume mounts
-  volume_mounts = {
-      vm["name"]: vm["mountPath"] for vm in gpu_container["volumeMounts"]
-  }
-  assert volume_mounts["tcpx-socket"] == "/tmp"
-  assert volume_mounts["libraries"] == "/usr/local/nvidia/lib64"
-  assert volume_mounts["dshm"] == "/dev/shm"
-
-  # Check non-GPU container is not updated
-  sidecar_container = pod_template_spec["containers"][1]
-  assert "env" not in sidecar_container
-  assert "volumeMounts" not in sidecar_container

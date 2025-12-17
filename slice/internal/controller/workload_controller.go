@@ -108,6 +108,8 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	log := ctrl.LoggerFrom(ctx)
 	log.V(3).Info("Reconcile Workload")
 
+	// If the workload has been deleted, evicted, has finished, or is no longer active,
+	// finalize the Workload by removing its slices and then the finalizer.
 	if finalize, reason := shouldFinalize(wl); finalize {
 		if controllerutil.ContainsFinalizer(wl, SliceControllerName) {
 			log.V(3).Info(fmt.Sprintf("Cleaning up the Slices and finalizing the Workload because %s", reason))
@@ -146,6 +148,8 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	log = log.WithValues("admissionCheck", ac.Name)
 	ctrl.LoggerInto(ctx, log)
 
+	// Finalizer is needed because we need to cleanup Slice objects
+	// before the workload is deleted.
 	if controllerutil.AddFinalizer(wl, SliceControllerName) {
 		if err = r.client.Update(ctx, wl); err != nil {
 			if !apierrors.IsNotFound(err) {
@@ -172,6 +176,7 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, err
 	}
 
+	// Create any missing Slices based on the Workload's PodSet assignments.
 	newSlices, err := r.syncSlices(ctx, wl, ac, slices, nodes)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -181,6 +186,10 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		grouped = r.groupSlices(slices)
 	}
 
+	// If all Slices are active, update the owner. For JobSet add the
+	// "cloud.google.com/gke-tpu-topology" node selector to ensure proper initialization
+	// of TPU backend. This selector cannot be added earlier because nodes get such labels
+	// only after Slice is Active.
 	if len(grouped.active) == len(slices) && len(slices) > 0 {
 		log.V(3).Info("Annotating owner before unsuspending")
 		err := r.updateOwnerBeforeUnsuspend(ctx, wl)
@@ -189,11 +198,13 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		}
 	}
 
+	// Update the Workload's AdmissionCheck status based on the current state of the Slices.
 	err = r.syncAdmissionCheckStatus(ctx, wl, ac, slices)
 	if err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
+	// Delete any Slices that are in a failed or stale state.
 	if len(grouped.toDelete) > 0 {
 		log.V(3).Info(
 			"Deleting Slices",
@@ -204,6 +215,9 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 			return ctrl.Result{}, err
 		}
 	}
+
+	// If there are Slices that are still being created or activated, requeue Reconcile.
+	// This is to deleted and re-create slices that get stuck during initialization.
 	if len(grouped.initializing) > 0 {
 		log.V(3).Info(
 			"Waiting for Slices to be initialized",
@@ -535,7 +549,7 @@ func (r *WorkloadReconciler) syncSlices(
 
 		createdSlices, err := r.createSlices(ctx, wl, ac, &psa, nodes, existingSlicesByName, desiredNumberOfSlices)
 		if err != nil {
-			return allCreatedSlices, err
+			return nil, err
 		}
 		allCreatedSlices = append(allCreatedSlices, createdSlices...)
 	}

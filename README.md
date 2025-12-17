@@ -75,6 +75,18 @@ XPK also supports the following [Google Cloud Storage solutions](./docs/usage/st
   - [Inspector](./docs/usage/inspector.md)
 - [Troubleshooting](./docs/troubleshooting.md)
 
+# Dependencies
+
+| Dependency                                                                                                   | When used                   |
+| ------------------------------------------------------------------------------------------------------------ | --------------------------- |
+| [Google Cloud SDK (gcloud)](https://cloud.google.com/sdk/docs/install)                                       | _always_                    |
+| [kubectl](https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl#install_kubectl) | _always_                    |
+| [ClusterToolkit](https://github.com/GoogleCloudPlatform/cluster-toolkit)                                     | Provisioning GPU clusters   |
+| [Kueue](https://github.com/kubernetes-sigs/kueue)                                                            | Scheduling workloads        |
+| [JobSet](https://github.com/kubernetes-sigs/jobset)                                                          | Workload creation           |
+| [Docker](https://docs.docker.com/engine/install/)                                                            | Building workload container |
+| [PathwaysJob](https://github.com/google/pathways-job)                                                        | Running Pathways workloads  |
+
 # Privacy notice
 
 To help improve XPK, feature usage statistics are collected and sent to Google. You can opt-out at any time by executing

@@ -217,7 +217,7 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	// If there are Slices that are still being created or activated, requeue Reconcile.
-	// This is to deleted and re-create slices that get stuck during initialization.
+	// This is to delete and re-create slices that get stuck during initialization.
 	if len(grouped.initializing) > 0 {
 		log.V(3).Info(
 			"Waiting for Slices to be initialized",
@@ -338,7 +338,7 @@ type groupedSlices struct {
 
 // groupSlices categorizes a list of Slice objects into four groups based on their state.
 // It separates slices into deleted (marked for deletion), ones that should be delete
-// (errored and stale), ones that are initializning, and other (active) slices.
+// (errored and stale), ones that are initializing, and other (active) slices.
 //
 // Parameters:
 //

@@ -452,7 +452,7 @@ func TestWorkloadReconciler(t *testing.T) {
 				*baseSlice2Wrapper.DeepCopy(),
 			},
 			wantJobSets: []jobset.JobSet{*baseJobSetWrapper.Clone().Obj()},
-			wantResult:  reconcile.Result{RequeueAfter: initializationRetryAfter},
+			wantResult:  reconcile.Result{RequeueAfter: cleanupRetryAfter},
 		},
 		"shouldn't add finalizer because invalid TPU topology annotation": {
 			request: baseRequest,

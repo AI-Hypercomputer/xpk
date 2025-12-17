@@ -718,8 +718,10 @@ def get_cluster_credentials(args) -> int:
       location=location,
       dns_endpoint=True,
   )
+  if return_code != 0:
+    return return_code
 
-  if return_code != 0 or not _are_credentials_valid():
+  if not _are_credentials_valid():
     xpk_print('Detected error. Retrying without --dns-endpoint flag...')
     return_code = _get_credentials(
         project=args.project,

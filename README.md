@@ -52,28 +52,28 @@ XPK supports a variety of hardware accelerators.
 
 XPK also supports the following [Google Cloud Storage solutions](./docs/usage/storage.md):
 
-| Storage Type                               | Documentation                                                                            |
-|--------------------------------------------|------------------------------------------------------------------------------------------|
-| Cloud Storage FUSE                         | [docs](./docs/usage/storage.md#fuse)                                                     |
-| Filestore                                  | [docs](./docs/usage/storage.md#filestore)                                                |
-| Parallelstore                              | [docs](./docs/usage/storage.md#parallelstore)                                            |
-| Block storage (Persistent Disk, Hyperdisk) | [docs](./docs/usage/storage.md#block-storage-persistent-disk-hyperdisk)                  |
+| Storage Type                               | Documentation                                                           |
+| ------------------------------------------ | ----------------------------------------------------------------------- |
+| Cloud Storage FUSE                         | [docs](./docs/usage/storage.md#fuse)                                    |
+| Filestore                                  | [docs](./docs/usage/storage.md#filestore)                               |
+| Parallelstore                              | [docs](./docs/usage/storage.md#parallelstore)                           |
+| Block storage (Persistent Disk, Hyperdisk) | [docs](./docs/usage/storage.md#block-storage-persistent-disk-hyperdisk) |
 
 # Documentation
 
-* [Permissions](./docs/permissions.md)
-* [Installation](./docs/installation.md)
-* Usage:
-  * [Clusters](./docs/usage/clusters.md)
-    * [GPU](./docs/usage/gpu.md)
-    * [CPU](./docs/usage/cpu.md)
-    * [Autoprovisioning](./docs/usage/autoprovisioning.md)
-  * [Workloads](./docs/usage/workloads.md)
-    * [Docker](./docs/usage/docker.md)
-  * [Storage](./docs/usage/storage.md)
-  * [Advanced](./docs/usage/advanced.md)
-  * [Inspector](./docs/usage/inspector.md)
-* [Troubleshooting](./docs/troubleshooting.md)
+- [Permissions](./docs/permissions.md)
+- [Installation](./docs/installation.md)
+- Usage:
+  - [Clusters](./docs/usage/clusters.md)
+    - [GPU](./docs/usage/gpu.md)
+    - [CPU](./docs/usage/cpu.md)
+    - [Autoprovisioning](./docs/usage/autoprovisioning.md)
+  - [Workloads](./docs/usage/workloads.md)
+    - [Docker](./docs/usage/docker.md)
+  - [Storage](./docs/usage/storage.md)
+  - [Advanced](./docs/usage/advanced.md)
+  - [Inspector](./docs/usage/inspector.md)
+- [Troubleshooting](./docs/troubleshooting.md)
 
 # Privacy notice
 
@@ -88,10 +88,13 @@ XPK telemetry overall is handled in accordance with the [Google Privacy Policy](
 you use XPK to interact with or utilize GCP Services, your information is handled in accordance with the
 [Google Cloud Privacy Notice](https://cloud.google.com/terms/cloud-privacy-notice).
 
-
 # Contributing
 
 Please read [`contributing.md`](./docs/contributing.md) for details on our code of conduct, and the process for submitting pull requests to us.
+
+# Get involved
+
+We'd love to hear from you! If you have questions or want to discuss ideas, join us on [GitHub Discussions](https://github.com/AI-Hypercomputer/xpk/discussions). Found a bug or have a feature request? Please let us know on [GitHub Issues](https://github.com/AI-Hypercomputer/xpk/issues).
 
 # License
 

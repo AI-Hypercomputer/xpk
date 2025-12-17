@@ -35,8 +35,6 @@ Currently flex start provisioning for Ironwood works only in single slice and mu
 
     > **NOTE:** For multi-host provisioning use an ACCELERATOR_TYPE with any topology that results to more than 8 chips, e.g. `tpu7x-2x2x2` or `tpu7x-16`. For single-host provisioning use an ACCELERATOR_TYPE with any topology that results to 8 or less chips, e.g. `tpu7x-2x2x1` or `tpu7x-8`.
 
-    > **NOTE:** Single-host provisioning is not supported for single-slice. If you want to create a single-host cluster, you need to set `--num-slices` to 2 or higher on the `xpk cluster create` command.
-
     ```shell
     export PROJECT_ID=<project_id> # Your GCP project name
     export ZONE=<zone> # Example: us-central1-c

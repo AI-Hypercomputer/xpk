@@ -97,7 +97,7 @@ deployment_groups:
     settings:
       release_channel: RAPID
       version_prefix: '1.2'
-      min_cluster_version: 1.2.3
+      min_master_version: 1.2.3
       prefix_with_deployment_name: false
       name_suffix: gke-a3-ultra
       system_node_pool_machine_type: "e2-standard-16"
@@ -142,6 +142,8 @@ deployment_groups:
         specific_reservations:
         - name: test-reservation
       static_node_count: 2
+      placement_policy:
+        type: COMPACT
     outputs: [instructions]
 
   - !DeploymentModule

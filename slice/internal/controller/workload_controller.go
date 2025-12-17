@@ -177,9 +177,13 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	// Create any missing Slices based on the Workload's PodSet assignments.
-	err = r.syncSlices(ctx, wl, ac, &slices, nodes)
+	newSlices, err := r.syncSlices(ctx, wl, ac, slices, nodes)
 	if err != nil {
 		return ctrl.Result{}, err
+	}
+	if len(newSlices) > 0 {
+		slices = append(slices, newSlices...)
+		grouped = r.groupSlices(slices)
 	}
 
 	// If all Slices are active, update the owner. For JobSet add the
@@ -334,7 +338,7 @@ type groupedSlices struct {
 
 // groupSlices categorizes a list of Slice objects into four groups based on their state.
 // It separates slices into deleted (marked for deletion), ones that should be delete
-// (errored and stale), ones that are initializning, and other (active) slices.
+// (errored and stale), ones that are initializing, and other (active) slices.
 //
 // Parameters:
 //
@@ -524,11 +528,11 @@ func (r *WorkloadReconciler) syncSlices(
 	ctx context.Context,
 	wl *kueue.Workload,
 	ac *kueue.AdmissionCheckState,
-	slices *[]v1beta1.Slice,
+	slices []v1beta1.Slice,
 	nodes map[string]corev1.Node,
-) error {
-	existingSlicesByName := make(map[string]*v1beta1.Slice, len(*slices))
-	for _, slice := range *slices {
+) ([]v1beta1.Slice, error) {
+	existingSlicesByName := make(map[string]*v1beta1.Slice, len(slices))
+	for _, slice := range slices {
 		existingSlicesByName[slice.Name] = &slice
 	}
 
@@ -545,13 +549,9 @@ func (r *WorkloadReconciler) syncSlices(
 
 		createdSlices, err := r.createSlices(ctx, wl, ac, &psa, nodes, existingSlicesByName, desiredNumberOfSlices)
 		if err != nil {
-			return err
+			return nil, err
 		}
-
-		for _, s := range createdSlices {
-			*slices = append(*slices, *s)
-			allCreatedSlices = append(allCreatedSlices, *s)
-		}
+		allCreatedSlices = append(allCreatedSlices, createdSlices...)
 	}
 
 	if len(allCreatedSlices) > 0 {
@@ -560,7 +560,7 @@ func (r *WorkloadReconciler) syncSlices(
 		r.record.Event(wl, corev1.EventTypeNormal, SlicesCreatedEventType, api.TruncateEventMessage(msg))
 	}
 
-	return nil
+	return allCreatedSlices, nil
 }
 
 func shouldCreateSlicesForPodSetAssignment(wl *kueue.Workload, psa kueue.PodSetAssignment, nodes map[string]corev1.Node) bool {
@@ -586,11 +586,11 @@ func parseTopologyAssignment(topologyAssignment *kueue.TopologyAssignment, nodes
 	return subBlockIds
 }
 
-func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, psa *kueue.PodSetAssignment, nodes map[string]corev1.Node, existingSlicesByName map[string]*v1beta1.Slice, desiredNumberOfSlices int32) ([]*v1beta1.Slice, error) {
+func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, psa *kueue.PodSetAssignment, nodes map[string]corev1.Node, existingSlicesByName map[string]*v1beta1.Slice, desiredNumberOfSlices int32) ([]v1beta1.Slice, error) {
 	partitionIDs := parseTopologyAssignment(psa.TopologyAssignment, nodes)
 	ps := podset.FindPodSetByName(wl.Spec.PodSets, psa.Name)
 	chunkSize := int32(len(partitionIDs) / int(desiredNumberOfSlices))
-	createdSlices := []*v1beta1.Slice{}
+	createdSlices := []v1beta1.Slice{}
 	for i := int32(0); i < desiredNumberOfSlices; i++ {
 		if _, exist := existingSlicesByName[core.SliceName(wl.Namespace, wl.Name, psa.Name, i)]; exist {
 			// Slice already exists, nothing to do.
@@ -619,9 +619,9 @@ func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workloa
 			ac.State = kueue.CheckStatePending
 			ac.Message = api.TruncateConditionMessage(msg)
 			patchErr := r.updateWorkloadAdmissionCheckStatus(ctx, wl, ac)
-			return createdSlices, errors.Join(err, patchErr)
+			return nil, errors.Join(err, patchErr)
 		}
-		createdSlices = append(createdSlices, slice)
+		createdSlices = append(createdSlices, *slice)
 	}
 	return createdSlices, nil
 }

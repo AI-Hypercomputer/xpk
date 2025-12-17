@@ -58,7 +58,7 @@ class _WorkloadCreateMocks:
   validate_dependencies_list: MagicMock
   write_tmp_file: MagicMock
   get_cluster_capacity_type: MagicMock
-  is_TAS_possible: MagicMock
+  is_GPU_TAS_possible: MagicMock
   get_cluster_location: MagicMock
   xpk_exit: MagicMock
   run_command_with_updates: MagicMock
@@ -113,8 +113,8 @@ def workload_create_mocks(mocker) -> _WorkloadCreateMocks:
           'xpk.commands.workload.get_cluster_capacity_type',
           return_value='on-demand',
       ),
-      is_TAS_possible=mocker.patch(
-          'xpk.commands.workload.is_TAS_possible', return_value=False
+      is_GPU_TAS_possible=mocker.patch(
+          'xpk.commands.workload.is_GPU_TAS_possible', return_value=False
       ),
       get_cluster_location=mocker.patch(
           'xpk.commands.workload.get_cluster_location',

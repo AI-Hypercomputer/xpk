@@ -16,8 +16,8 @@ name: Nightly Tests
 
 on:
   workflow_dispatch:
-  schedule: # Schedule the job run at 12AM PST daily.
-    - cron: "0 8 * * *"
+  schedule: # Schedule the job run at 6AM UTC daily.
+    - cron: "0 6 * * *"
 
 permissions:
   contents: read
@@ -30,6 +30,11 @@ jobs:
   basic_cluster_create:
     needs: [build_actions, build_wheel]
     uses: ./.github/workflows/integration_basic_cluster_create.yaml
+    secrets: inherit
+
+  gpu_cluster_create:
+    needs: [build_actions, build_wheel]
+    uses: ./.github/workflows/integration_gpu_cluster_create.yaml
     secrets: inherit
 
   pathways_cluster_create:

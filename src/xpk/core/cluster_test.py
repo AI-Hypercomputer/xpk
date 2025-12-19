@@ -41,11 +41,15 @@ def command_args(mocker: MockerFixture):
   return mocker.Mock(cluster="cluster", project="project", zone="zone")
 
 
-def test_get_cluster_credentials_returns_1_when_retrieval_command_fails(
+def test_get_cluster_credentials_retries_when_first_call_fails(
     commands_tester: CommandsTester, command_args
 ):
   commands_tester.set_result_for_command(
-      (1, ""), "gcloud container clusters get-credentials"
+      (1, ""), "gcloud container clusters get-credentials", " --dns-endpoint"
+  )
+  commands_tester.set_result_for_command(
+      (1, ""),
+      "gcloud container clusters get-credentials",
   )
   assert get_cluster_credentials(command_args) == 1
 
@@ -85,6 +89,29 @@ def test_get_cluster_credentials_retries_without_dns_when_dns_retrieval_fails(
   )
   commands_tester.set_result_for_command((1, ""), "kubectl get pods")
   get_cluster_credentials(command_args)
+  non_dns_endpoint_commands = [
+      c
+      for c in commands_tester.get_matching_commands(
+          "gcloud container clusters get-credentials"
+      )
+      if "dns-endpoint" not in c
+  ]
+  assert len(non_dns_endpoint_commands) == 1
+
+
+def test_get_cluster_credentials_retries_without_dns_when_dns_retrieval_returns_error(
+    commands_tester: CommandsTester, command_args
+):
+  commands_tester.set_result_for_command(
+      (1, ""), "gcloud container clusters get-credentials", "--dns-endpoint"
+  )
+  commands_tester.set_result_for_command(
+      (0, ""),
+      "gcloud container clusters get-credentials",
+  )
+
+  assert get_cluster_credentials(command_args) == 0
+
   non_dns_endpoint_commands = [
       c
       for c in commands_tester.get_matching_commands(

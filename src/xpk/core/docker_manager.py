@@ -16,7 +16,7 @@ limitations under the License.
 
 from abc import ABC, abstractmethod
 import docker
-from docker.errorrs import ContainerError, APIError, ImageNotFound, BuildError
+from docker.errors import ContainerError, APIError, ImageNotFound, BuildError
 from ..utils.console import xpk_print, xpk_exit
 from ..utils.file import ensure_directory_exists
 from ..utils.objects import hash_string
@@ -126,8 +126,8 @@ class DockerManager(CommandRunner):
     Returns:
       - None
     Raises:
-      - docker.errorrs.BuildError – If there is an errorr during the build.
-      - docker.errorrs.APIError – If the server returns any other errorr.
+      - docker.errors.BuildError – If there is an error during the build.
+      - docker.errors.APIError – If the server returns any other error.
       - TypeError - otherwise
 
     """
@@ -151,9 +151,9 @@ class DockerManager(CommandRunner):
     Returns:
       - bytes
     Raises:
-      - docker.errorrs.ContainerError,
-      - docker.errorrs.ImageNotFound,
-      - docker.errorrs.APIError
+      - docker.errors.ContainerError,
+      - docker.errors.ImageNotFound,
+      - docker.errors.APIError
     """
     xpk_print(f"Running command: {cmd} ...")
     xpk_print(
@@ -291,7 +291,7 @@ class DockerManager(CommandRunner):
           buildargs={"CLUSTER_TOOLKIT_REF": ctk_build_ref},
       )
     except BuildError as e:
-      xpk_print(f"errorr while building image {self.img_name}: {e.msg}")
+      xpk_print(f"error while building image {self.img_name}: {e.msg}")
       xpk_exit(dockerBuildErrorCode)
     except APIError as e:
       xpk_print(f"error while building image {self.img_name}: {e.explanation}")

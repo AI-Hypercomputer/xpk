@@ -76,7 +76,7 @@ def get_nominal_quotas(cqs: str) -> dict[str, dict[str, str]]:
   try:
     cq_list = json.loads(cqs)['items']
   except ValueError:
-    xpk_print('Incorrect respone from list clusterqueue')
+    xpk_print('Incorrect response from list clusterqueue')
     xpk_print(cqs)
     xpk_exit(1)
 
@@ -98,7 +98,7 @@ def print_formatted_cqs(cqs: str, nominalQuotas) -> None:
   try:
     cq_list = json.loads(cqs)['items']
   except ValueError:
-    xpk_print('Incorrect respone from list clusterqueue')
+    xpk_print('Incorrect response from list clusterqueue')
     xpk_print(cqs)
     xpk_exit(1)
 
@@ -114,7 +114,7 @@ def print_formatted_lqs(lqs: str, nominalQuotas) -> None:
   try:
     lq_list = json.loads(lqs)['items']
   except ValueError:
-    xpk_print('Incorrect respone from list localqueue')
+    xpk_print('Incorrect response from list localqueue')
     xpk_print(lqs)
     xpk_exit(1)
 

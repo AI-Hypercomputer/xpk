@@ -51,7 +51,7 @@ def ask_for_user_consent(
     question: str, default_option: Literal["Y", "N"] = "N"
 ) -> bool:
   """Prompts user with the given question, asking for a yes/no answer and returns a relevant boolean.
-  Important: immediatelly returns `True` in quiet mode!
+  Important: immediately returns `True` in quiet mode!
 
   Example prompt for `question='Continue?'`: `[XPK] Continue? (y/N): `.
 

@@ -56,7 +56,7 @@ class FuseStateClient(RemoteStateClient):
 
   def upload_state(self) -> None:
     xpk_print(
-        f'Uploading dependecies from directory {self.state_dir} to bucket:'
+        f'Uploading dependencies from directory {self.state_dir} to bucket:'
         f' {self.bucket}. Path within bucket is: {self._get_bucket_path()}'
     )
     upload_directory_to_gcs(

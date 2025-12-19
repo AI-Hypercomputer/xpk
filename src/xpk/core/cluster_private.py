@@ -61,7 +61,7 @@ def authorize_private_cluster_access_if_necessary(args) -> int:
   if new_authorized_networks_needed or not is_current_machine_in_network:
     return update_cluster_new_authorized_networks(args, authorized_networks)
 
-  xpk_print("Current machine's IP adrress is already authorized.")
+  xpk_print("Current machine's IP address is already authorized.")
   return 0
 
 
@@ -84,7 +84,7 @@ def add_current_machine_to_networks_if_needed(
       is_current_machine_in_any_network(authorized_networks)
   )
   if is_current_machine_in_network_return_code != 0:
-    xpk_print("Error on checking current machine's IP adrress.")
+    xpk_print("Error on checking current machine's IP address.")
     return is_current_machine_in_network_return_code, False, authorized_networks
 
   if not is_current_machine_in_network:
@@ -148,7 +148,7 @@ def is_cluster_private(args) -> bool:
 
 
 def get_cluster_authorized_networks(args) -> list[str]:
-  """Retreives the networks list that are authorized to have access to Control Plane.
+  """Retrieves the networks list that are authorized to have access to Control Plane.
   Args:
     args: user provided arguments for running the command.
 

@@ -64,7 +64,7 @@ common_cluster_labels = {"gke_product_type": "xpk"}
 
 class BlueprintGeneratorOutput:
   """BlueprintGeneratorOutput is a class containing fields with output blueprint file path and path to blueprint dependencies.
-  Atributes:
+  Attributes:
   - blueprint_file (str) : path to generated blueprint file.
   - blueprint_dependencies (str) : path to directory containing blueprint dependencies.
   """
@@ -76,7 +76,7 @@ class BlueprintGeneratorOutput:
 
 class BlueprintGenerator:
   """BlueprintGenerator is a class for generating blueprints
-  Atributes:
+  Attributes:
   - storage_path (str) - path to directory where generated files and directories will be stored.
   """
 

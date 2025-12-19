@@ -51,7 +51,7 @@ all zones.
     --num-slices=4 --on-demand
     ```
 
-*   Cluster Create (provision spot / preemptable capacity):
+*   Cluster Create (provision spot / preemptible capacity):
 
     ```shell
     xpk cluster create \
@@ -274,7 +274,7 @@ xpk cluster create-pathways \
 --managed-mldiagnostics
 ```
 
-* Cluster Create (provision spot / preemptable capacity) with flag **--managed-mldiagnostics**:
+* Cluster Create (provision spot / preemptible capacity) with flag **--managed-mldiagnostics**:
 
 ```shell
 xpk cluster create \

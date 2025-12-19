@@ -51,7 +51,7 @@ all zones.
     --num-slices=4 --on-demand
     ```
 
-*   Cluster Create (provision spot / preemptable capacity):
+*   Cluster Create (provision spot / preemptible capacity):
 
     ```shell
     xpk cluster create \

@@ -127,7 +127,7 @@ def add_storage_attach_parser(
       type=str,
       help=(
           '(optional) Name of the bucket. If not set, then the "name" parameter'
-          ' is infered as a bucket name.'
+          ' is inferred as a bucket name.'
       ),
   )
   gcsfuse_args.add_argument(
@@ -165,7 +165,7 @@ def add_storage_attach_parser(
       type=str,
       help=(
           '(optional) Name of the filestore instance. If not set, then the'
-          ' "name" parameter is infered as an instance name.'
+          ' "name" parameter is inferred as an instance name.'
       ),
   )
 
@@ -238,7 +238,7 @@ def add_storage_create_parser(storage_subcommands_parser: Subcommands) -> None:
       type=str,
       help=(
           '(optional) Name of the filestore instance. If not set, then the'
-          ' "name" parameter is infered as an instance name.'
+          ' "name" parameter is inferred as an instance name.'
       ),
   )
   opt_args.add_argument(

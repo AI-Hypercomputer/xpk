@@ -158,7 +158,7 @@ def install_nri_on_cluster() -> int:
 
 
 def get_cluster_nodes_info() -> list[dict]:
-  """Get list of cluster's nodes descrition in yaml format
+  """Get list of cluster's nodes description in yaml format
 
   Returns:
     List of nodes info yaml objects.
@@ -718,10 +718,8 @@ def get_cluster_credentials(args) -> int:
       location=location,
       dns_endpoint=True,
   )
-  if return_code != 0:
-    return return_code
 
-  if not _are_credentials_valid():
+  if return_code != 0 or not _are_credentials_valid():
     xpk_print('Detected error. Retrying without --dns-endpoint flag...')
     return_code = _get_credentials(
         project=args.project,

@@ -44,7 +44,7 @@ class CommandRunner(ABC):
 
   @abstractmethod
   def initialize(self) -> None:
-    """initialize is a method that should implement all steps neccessary to run command.
+    """initialize is a method that should implement all steps necessary to run command.
 
     Returns:
         None
@@ -95,7 +95,7 @@ class DockerManager(CommandRunner):
     - gcloud_cfg_path (str) : path to directory containing gcloud configuration
     - working_dir (str) : path to directory in which gcluster deployment directory will be saved
     - client (DockerClient) : docker client
-    - nocache (bool) : wheter to use docker cache when building image
+    - nocache (bool) : whether to use docker cache when building image
     - img_name (str) : name of docker image to create
     - container_name (str) : name of the container that will be created from img_name
     - rm_container_after (bool) : if set to True, docker container in which command is executed will be removed after each execution.
@@ -294,12 +294,12 @@ class DockerManager(CommandRunner):
       xpk_print(f"error while building image {self.img_name}: {e.msg}")
       xpk_exit(dockerBuildErrorCode)
     except APIError as e:
-      xpk_print(f"erro while building image {self.img_name}: {e.explanation}")
+      xpk_print(f"error while building image {self.img_name}: {e.explanation}")
       xpk_exit(dockerBuildErrorCode)
     except TypeError as e:
       xpk_print(f"TypeError while building image {self.img_name}: {e.args}")
       xpk_exit(dockerBuildErrorCode)
-    xpk_print("Docker image build succesfully.")
+    xpk_print("Docker image build successfully.")
     os.remove(self.dockerfile_path)
     tmp_dockerfile_dir = "/".join(self.dockerfile_path.split("/")[:-1])
     os.rmdir(tmp_dockerfile_dir)

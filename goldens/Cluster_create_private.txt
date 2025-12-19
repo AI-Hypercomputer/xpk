@@ -21,7 +21,7 @@ gcloud container clusters describe golden-cluster-private --project=golden-proje
 [XPK] Private Nodes is not enabled on the cluster.
 [XPK] Task: `Fetching the list of authorized network from cluster describe.` is implemented by the following command not running since it is a dry run. 
 gcloud container clusters describe golden-cluster-private --project=golden-project --location=us-central1 --format="value(masterAuthorizedNetworksConfig.cidrBlocks[].cidrBlock)"
-[XPK] Current machine's IP adrress is already authorized.
+[XPK] Current machine's IP address is already authorized.
 [XPK] Task: `get-credentials-dns-endpoint to cluster golden-cluster-private` is implemented by the following command not running since it is a dry run. 
 gcloud container clusters get-credentials golden-cluster-private --location=us-central1 --dns-endpoint --project=golden-project && kubectl config view && kubectl config set-context --current --namespace=default
 [XPK] Task: `Test kubectl credentials` is implemented by the following command not running since it is a dry run. 

@@ -158,7 +158,7 @@ def install_nri_on_cluster() -> int:
 
 
 def get_cluster_nodes_info() -> list[dict]:
-  """Get list of cluster's nodes descrition in yaml format
+  """Get list of cluster's nodes description in yaml format
 
   Returns:
     List of nodes info yaml objects.

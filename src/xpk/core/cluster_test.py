@@ -41,7 +41,7 @@ def command_args(mocker: MockerFixture):
   return mocker.Mock(cluster="cluster", project="project", zone="zone")
 
 
-def test_get_cluster_credentials_retries_when_first_call_fails(
+def test_get_cluster_credentials_returns_1_when_retrieval_commands_fail(
     commands_tester: CommandsTester, command_args
 ):
   commands_tester.set_result_for_command(

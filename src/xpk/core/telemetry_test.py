@@ -31,6 +31,7 @@ def setup_mocks(mocker: MockerFixture):
   mocker.patch('platform.python_version', return_value='99.99.99')
   mocker.patch('os.path.basename', return_value='xpk.py')
   mocker.patch('os.path.abspath', return_value='/home/xpk_user')
+  mocker.patch('xpk.core.telemetry.is_tester', return_value=False)
   set_dry_run(False)
   get_config().set(CLIENT_ID_KEY, 'client_id')
   yield
@@ -76,6 +77,7 @@ def test_metrics_collector_logs_start_event_correctly():
           {'key': 'XPK_PYTHON_VERSION', 'value': '99.99.99'},
           {'key': 'XPK_RUNNING_AS_PIP', 'value': 'false'},
           {'key': 'XPK_RUNNING_FROM_SOURCE', 'value': 'true'},
+          {'key': 'XPK_TESTER', 'value': 'false'},
           {'key': 'XPK_COMMAND', 'value': 'test'},
           {'key': 'XPK_LATENCY_SECONDS', 'value': '0'},
       ],
@@ -107,6 +109,7 @@ def test_metrics_collector_logs_complete_event_correctly():
           {'key': 'XPK_PYTHON_VERSION', 'value': '99.99.99'},
           {'key': 'XPK_RUNNING_AS_PIP', 'value': 'false'},
           {'key': 'XPK_RUNNING_FROM_SOURCE', 'value': 'true'},
+          {'key': 'XPK_TESTER', 'value': 'false'},
           {'key': 'XPK_EXIT_CODE', 'value': '2'},
           {'key': 'XPK_LATENCY_SECONDS', 'value': '0'},
       ],
@@ -131,6 +134,7 @@ def test_metrics_collector_logs_custom_event_correctly():
           {'key': 'XPK_PYTHON_VERSION', 'value': '99.99.99'},
           {'key': 'XPK_RUNNING_AS_PIP', 'value': 'false'},
           {'key': 'XPK_RUNNING_FROM_SOURCE', 'value': 'true'},
+          {'key': 'XPK_TESTER', 'value': 'false'},
           {'key': 'XPK_PROVISIONING_MODE', 'value': 'flex'},
           {'key': 'XPK_LATENCY_SECONDS', 'value': '0'},
       ],
@@ -217,6 +221,22 @@ def test_metrics_collectors_logs_correct_running_from_source_value(
   MetricsCollector.log_start(command='test')
   payload = MetricsCollector.flush()
   assert _get_metadata_value(payload, 'XPK_RUNNING_FROM_SOURCE') == expected
+
+
+@pytest.mark.parametrize(
+    argnames='tester,expected',
+    argvalues=[
+        (True, 'true'),
+        (False, 'false'),
+    ],
+)
+def test_metrics_collectors_logs_correct_tester_value(
+    tester: bool, expected: str, mocker: MockerFixture
+):
+  mocker.patch('xpk.core.telemetry.is_tester', return_value=tester)
+  MetricsCollector.log_start(command='test')
+  payload = MetricsCollector.flush()
+  assert _get_metadata_value(payload, 'XPK_TESTER') == expected
 
 
 def _get_metadata_value(payload_str: str, key: str) -> str | None:

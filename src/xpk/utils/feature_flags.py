@@ -17,13 +17,17 @@ limitations under the License.
 import os
 
 
+def is_tester() -> bool:
+  """Returns true if user is a tester."""
+  return os.getenv("XPK_TESTER", "").lower() == "true"
+
+
 def _get_boolean_flag(flag: str, default: bool) -> bool:
   experiment_value = os.getenv(flag, "").lower()
   if experiment_value in ["true", "false"]:
     return experiment_value == "true"
 
-  xpk_tester = os.getenv("XPK_TESTER", "").lower() == "true"
-  return xpk_tester or default
+  return is_tester() or default
 
 
 class _FeatureFlags:

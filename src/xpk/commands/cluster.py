@@ -370,9 +370,9 @@ def cluster_create(args) -> None:
 
   get_cluster_credentials(args)
 
-  update_coredns_command_code = update_coredns_if_necessary()
-  if update_coredns_command_code != 0:
-    xpk_exit(update_coredns_command_code)
+  # update_coredns_command_code = update_coredns_if_necessary()
+  # if update_coredns_command_code != 0:
+  #   xpk_exit(update_coredns_command_code)
 
   if not is_dry_run():
     k8s_client = setup_k8s_env(args)

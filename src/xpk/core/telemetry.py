@@ -30,7 +30,7 @@ from dataclasses import dataclass
 from .config import get_config, CLIENT_ID_KEY, SEND_TELEMETRY_KEY, __version__ as xpk_version
 from ..utils.execution_context import is_dry_run
 from ..utils.user_agent import get_user_agent
-from ..utils.feature_flags import FeatureFlags
+from ..utils.feature_flags import FeatureFlags, is_tester
 
 
 def should_send_telemetry():
@@ -125,6 +125,7 @@ class MetricsEventMetadataKey(Enum):
   RUNNING_AS_PIP = "XPK_RUNNING_AS_PIP"
   RUNNING_FROM_SOURCE = "XPK_RUNNING_FROM_SOURCE"
   LATENCY_SECONDS = "XPK_LATENCY_SECONDS"
+  TESTER = "XPK_TESTER"
 
 
 @dataclass
@@ -230,6 +231,7 @@ def _get_base_event_metadata() -> dict[MetricsEventMetadataKey, str]:
       MetricsEventMetadataKey.RUNNING_FROM_SOURCE: str(
           _is_running_from_source()
       ).lower(),
+      MetricsEventMetadataKey.TESTER: str(is_tester()).lower(),
   }
 
 

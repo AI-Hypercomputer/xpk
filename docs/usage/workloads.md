@@ -16,7 +16,7 @@
  
 ## Workload Create
 
-_Note: `xpk workload create` works only on clusters created through XPK. See [docs](./clusters.md) on how to create cluster via XPK._
+_Note: `xpk workload create` works only on clusters created through XPK. See [docs](./clusters.md) on how to create a cluster via XPK._
 
 *   Workload Create (submit training job):
 

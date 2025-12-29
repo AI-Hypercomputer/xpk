@@ -27,6 +27,8 @@ goldens:
     command: xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-8 --enable-lustre-csi-driver --spot --dry-run
   "Cluster create with Managed Lustre driver and legacy port":
     command: xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-8 --enable-lustre-csi-driver --enable-legacy-lustre-port --spot --dry-run
+  "Basic cluster adapt":
+    command: xpk cluster adapt --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-8 --dry-run
   "Cluster delete":
     command: xpk cluster delete --project=golden-project --zone=us-central1-a --cluster=golden-cluster --dry-run
   "Cluster delete force":

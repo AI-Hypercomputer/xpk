@@ -15,8 +15,8 @@ limitations under the License.
 """
 
 import argparse
-from xpk.parser.cluster import set_cluster_create_parser, set_cluster_create_pathways_parser, set_cluster_create_ray_parser
 import pytest
+from xpk.parser.cluster import set_cluster_create_parser, set_cluster_create_pathways_parser, set_cluster_create_ray_parser, set_cluster_adapt_parser
 from ..utils.feature_flags import FeatureFlags
 
 
@@ -261,3 +261,61 @@ def test_cluster_create_num_slices_has_no_default_if_superslicing_feature():
   )
 
   assert args.num_slices is None
+
+
+def test_cluster_adapt_sub_slicing_is_hidden_with_flag_off():
+  FeatureFlags.SUB_SLICING_ENABLED = False
+  parser = argparse.ArgumentParser()
+
+  set_cluster_adapt_parser(parser)
+  help_str = parser.format_help()
+
+  assert "--sub-slicing" not in help_str
+
+
+def test_cluster_adapt_sub_slicing_is_shown_with_flag_on():
+  FeatureFlags.SUB_SLICING_ENABLED = True
+  parser = argparse.ArgumentParser()
+
+  set_cluster_adapt_parser(parser)
+  help_str = parser.format_help()
+
+  assert "--sub-slicing" in help_str
+
+
+def test_cluster_adapt_super_slicing_is_hidden_with_flag_off():
+  FeatureFlags.SUPER_SLICING_ENABLED = False
+  parser = argparse.ArgumentParser()
+
+  set_cluster_adapt_parser(parser)
+  help_str = parser.format_help()
+
+  assert "--super-slicing" not in help_str
+
+
+def test_cluster_adapt_super_slicing_is_shown_with_flag_on():
+  FeatureFlags.SUPER_SLICING_ENABLED = True
+  parser = argparse.ArgumentParser()
+
+  set_cluster_adapt_parser(parser)
+  help_str = parser.format_help()
+
+  assert "--super-slicing" in help_str
+
+
+def test_cluster_adapt_memory_limit_is_shown():
+  parser = argparse.ArgumentParser()
+
+  set_cluster_adapt_parser(parser)
+  help_str = parser.format_help()
+
+  assert "--memory-limit" in help_str
+
+
+def test_cluster_adapt_cpu_limit_is_shown():
+  parser = argparse.ArgumentParser()
+
+  set_cluster_adapt_parser(parser)
+  help_str = parser.format_help()
+
+  assert "--cpu-limit" in help_str

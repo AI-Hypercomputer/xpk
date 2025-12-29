@@ -503,6 +503,13 @@ def set_cluster_adapt_parser(cluster_adapt_parser: ArgumentParser):
   )
   add_driver_arguments(cluster_adapt_optional_arguments)
   add_shared_arguments(cluster_adapt_optional_arguments)
+  add_resource_limits(cluster_adapt_optional_arguments)
+
+  if FeatureFlags.SUB_SLICING_ENABLED:
+    add_cluster_create_sub_slicing_arguments(cluster_adapt_optional_arguments)
+
+  if FeatureFlags.SUPER_SLICING_ENABLED:
+    add_cluster_create_super_slicing_arguments(cluster_adapt_optional_arguments)
 
   cluster_adapt_capacity_arguments = cluster_adapt_parser.add_argument_group(
       'Capacity Arguments', 'Arguments related to capacity for cluster create.'

@@ -115,6 +115,7 @@ def _clearcut_flush(file_path: str) -> None:
 
 class MetricsEventMetadataKey(Enum):
   """Represents available metadata keys."""
+
   SESSION_ID = "XPK_SESSION_ID"
   DRY_RUN = "XPK_DRY_RUN"
   PYTHON_VERSION = "XPK_PYTHON_VERSION"

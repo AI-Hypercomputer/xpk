@@ -128,6 +128,7 @@ class MetricsEventMetadataKey(Enum):
   RUNNING_FROM_SOURCE = "XPK_RUNNING_FROM_SOURCE"
   LATENCY_SECONDS = "XPK_LATENCY_SECONDS"
   TESTER = "XPK_TESTER"
+  RUNNING_IN_GITHUB_ACTIONS = "XPK_RUNNING_IN_GITHUB_ACTIONS"
 
 
 @dataclass
@@ -234,6 +235,9 @@ def _get_base_event_metadata() -> dict[MetricsEventMetadataKey, str]:
           _is_running_from_source()
       ).lower(),
       MetricsEventMetadataKey.TESTER: str(is_tester()).lower(),
+      MetricsEventMetadataKey.RUNNING_IN_GITHUB_ACTIONS: str(
+          _is_running_in_github_actions()
+      ).lower(),
   }
 
 
@@ -243,6 +247,10 @@ def _get_base_concord_event() -> dict[str, str]:
       "console_type": "XPK",
       "client_install_id": _ensure_client_id(),
   }
+
+
+def _is_running_in_github_actions() -> bool:
+  return os.getenv("GITHUB_ACTIONS") == "true"
 
 
 def _is_running_as_pip() -> bool:

@@ -30,6 +30,7 @@ def setup_mocks(mocker: MockerFixture):
   mocker.patch('time.time', side_effect=itertools.count())
   mocker.patch('platform.python_version', return_value='99.99.99')
   mocker.patch('os.path.basename', return_value='xpk.py')
+  mocker.patch('os.getenv', return_value='false')
   mocker.patch('os.path.abspath', return_value='/home/xpk_user')
   mocker.patch('xpk.core.telemetry.is_tester', return_value=False)
   set_dry_run(False)
@@ -78,6 +79,7 @@ def test_metrics_collector_logs_start_event_correctly():
           {'key': 'XPK_RUNNING_AS_PIP', 'value': 'false'},
           {'key': 'XPK_RUNNING_FROM_SOURCE', 'value': 'true'},
           {'key': 'XPK_TESTER', 'value': 'false'},
+          {'key': 'XPK_RUNNING_IN_GITHUB_ACTIONS', 'value': 'false'},
           {'key': 'XPK_COMMAND', 'value': 'test'},
           {'key': 'XPK_LATENCY_SECONDS', 'value': '0'},
       ],
@@ -110,6 +112,7 @@ def test_metrics_collector_logs_complete_event_correctly():
           {'key': 'XPK_RUNNING_AS_PIP', 'value': 'false'},
           {'key': 'XPK_RUNNING_FROM_SOURCE', 'value': 'true'},
           {'key': 'XPK_TESTER', 'value': 'false'},
+          {'key': 'XPK_RUNNING_IN_GITHUB_ACTIONS', 'value': 'false'},
           {'key': 'XPK_EXIT_CODE', 'value': '2'},
           {'key': 'XPK_LATENCY_SECONDS', 'value': '0'},
       ],
@@ -135,6 +138,7 @@ def test_metrics_collector_logs_custom_event_correctly():
           {'key': 'XPK_RUNNING_AS_PIP', 'value': 'false'},
           {'key': 'XPK_RUNNING_FROM_SOURCE', 'value': 'true'},
           {'key': 'XPK_TESTER', 'value': 'false'},
+          {'key': 'XPK_RUNNING_IN_GITHUB_ACTIONS', 'value': 'false'},
           {'key': 'XPK_PROVISIONING_MODE', 'value': 'flex'},
           {'key': 'XPK_LATENCY_SECONDS', 'value': '0'},
       ],
@@ -237,6 +241,25 @@ def test_metrics_collectors_logs_correct_tester_value(
   MetricsCollector.log_start(command='test')
   payload = MetricsCollector.flush()
   assert _get_metadata_value(payload, 'XPK_TESTER') == expected
+
+
+@pytest.mark.parametrize(
+    argnames='github_actions,expected',
+    argvalues=[
+        ('true', 'true'),
+        ('false', 'false'),
+        ('', 'false'),
+    ],
+)
+def test_metrics_collectors_logs_correct_tester_value(
+    github_actions: str, expected: str, mocker: MockerFixture
+):
+  mocker.patch('os.getenv', return_value=github_actions)
+  MetricsCollector.log_start(command='test')
+  payload = MetricsCollector.flush()
+  assert (
+      _get_metadata_value(payload, 'XPK_RUNNING_IN_GITHUB_ACTIONS') == expected
+  )
 
 
 def _get_metadata_value(payload_str: str, key: str) -> str | None:

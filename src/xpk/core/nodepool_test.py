@@ -145,7 +145,8 @@ def test_ensure_resource_policy_exists_without_existing_policy_creates_policy(
       "gcloud beta compute resource-policies describe"
   )
   commands_tester.assert_command_run(
-      "gcloud beta compute resource-policies create workload-policy resource-policy",
+      "gcloud beta compute resource-policies create workload-policy"
+      " resource-policy",
       "--project=test-project",
       "--region=us-central1",
       "--accelerator-topology=2x2x1",

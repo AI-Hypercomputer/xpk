@@ -632,7 +632,7 @@ def ensure_resource_policy_exists(
 ) -> None:
   return_code, _ = run_command_for_value(
       (
-          'gcloud compute resource-policies describe'
+          'gcloud beta compute resource-policies describe'
           f' {resource_policy_name}'
           f' --project={project}'
           f' --region={zone_to_region(zone)}'
@@ -643,13 +643,12 @@ def ensure_resource_policy_exists(
   if return_code == 0:
     return
 
-  # TODO: b/465696970 - Verify the flag below before launching SUPER_SLICING:
   accelerator_topology_mode = (
       ' --accelerator-topology-mode=PROVISION_ONLY' if super_slicing else ''
   )
   return_code, _ = run_command_for_value(
       (
-          'gcloud compute resource-policies create workload-policy'
+          'gcloud beta compute resource-policies create workload-policy'
           f' {resource_policy_name} --project={project} --region={zone_to_region(zone)} --type=HIGH_THROUGHPUT'
           f' --accelerator-topology={topology}{accelerator_topology_mode}'
       ),

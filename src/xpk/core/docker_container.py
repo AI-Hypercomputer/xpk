@@ -17,9 +17,7 @@ limitations under the License.
 from ..utils.console import xpk_exit, xpk_print
 from .docker_image import setup_docker_image
 from .docker_resources import (
-    add_container_ports,
     add_image_pull_policy_for_pw_or_gpu,
-    add_jax_coordinator_port,
     get_env_container,
     get_main_container_resources,
     get_volume_mounts,
@@ -112,13 +110,12 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
         'touch /shared-volume/stacktrace_signal; '
     )
 
-  yaml = """- name: {docker_name}
+  containers = []
+  container_yaml = """
+              - name: {docker_name}
                 image: {docker_image}
                 {image_pull_policy}
                 env: {env}
-                ports:
-                {container_ports}
-                {jax_coordinator_port}
                 securityContext:
                   privileged: true
                 command:
@@ -145,29 +142,39 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
                   limits:
                     {resources}
 """
+  docker_name = get_main_container_docker_image(args, system)
   volume_mounts = get_volume_mounts(args, system)
   if volume_mounts != '':
-    yaml += """
+    container_yaml += """
                 volumeMounts:
                 {volume_mounts}
 """
-  return yaml.format(
-      args=args,
-      system=system,
-      image_pull_policy=add_image_pull_policy_for_pw_or_gpu(args, system),
-      env=get_env_container(args, system),
-      container_ports=add_container_ports(args, system),
-      jax_coordinator_port=add_jax_coordinator_port(system),
-      docker_name=get_main_container_docker_image(args, system),
-      docker_image=docker_image,
-      gsutil_test_command=gsutil_test_command,
-      command=command,
-      tpu_stacktrace_terminate_command=tpu_stacktrace_terminate_command,
-      gpu_workload_terminate_command=gpu_workload_terminate_command,
-      xpk_internal_commands=xpk_internal_commands,
-      resources=get_main_container_resources(args, system, resource_type),
-      volume_mounts=volume_mounts,
-  )
+  # pathways job running on 2 parallel containers is not verified yet
+  if args.use_pathways:
+    system.parallel_containers = 1
+
+  env = get_env_container(args, system)
+  image_pull_policy = add_image_pull_policy_for_pw_or_gpu(args, system)
+  for i in range(system.parallel_containers):
+    docker_name_sufix = f'-{i + 1}' if system.parallel_containers > 1 else ''
+    containers.append(
+        container_yaml.format(
+            args=args,
+            system=system,
+            image_pull_policy=image_pull_policy,
+            env=env,
+            docker_name=f'{docker_name}{docker_name_sufix}',
+            docker_image=docker_image,
+            gsutil_test_command=gsutil_test_command,
+            command=command,
+            tpu_stacktrace_terminate_command=tpu_stacktrace_terminate_command,
+            gpu_workload_terminate_command=gpu_workload_terminate_command,
+            xpk_internal_commands=xpk_internal_commands,
+            resources=get_main_container_resources(args, system, resource_type),
+            volume_mounts=volume_mounts,
+        )
+    )
+  return ''.join(containers)
 
 
 def get_user_workload_container(args, system: SystemCharacteristics):

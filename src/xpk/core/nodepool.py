@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from itertools import cycle
 from typing import List
 
 from ..utils.feature_flags import FeatureFlags
@@ -88,6 +89,7 @@ def run_gke_node_pool_create_command(
   capacity_args, return_code = get_capacity_arguments_from_capacity_type(
       args, capacity_type, max_nodes, system.accelerator_type
   )
+  capacity_args = cycle(capacity_args)
   if return_code > 0:
     xpk_print('Parsing capacity arguments failed!')
     return return_code
@@ -285,7 +287,7 @@ def run_gke_node_pool_create_command(
         f' --project={args.project} --node-locations={args.zone}'
         f' --machine-type={system.gce_machine_type}'
         f' --host-maintenance-interval={args.host_maintenance_interval}'
-        f' {capacity_args}'
+        f' {next(capacity_args)}'
         f'{placement_args}'
         ' --enable-gvnic'
     )

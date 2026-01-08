@@ -16,6 +16,7 @@ limitations under the License.
 
 import enum
 from dataclasses import dataclass
+from typing import Iterable
 
 from .commands import run_command_with_updates, run_command_for_value
 from .system_characteristics import AcceleratorType
@@ -90,7 +91,7 @@ def get_capacity_type(args) -> tuple[CapacityType, int]:
     capacity_type = CapacityType.ON_DEMAND
     num_types += 1
   if args.reservation:
-    return_code = verify_reservation_exists(args)
+    return_code = 0 if args.skip_validation else verify_reservation_exists(args)
     if return_code > 0:
       return capacity_type, return_code
     capacity_type = CapacityType.RESERVATION
@@ -211,7 +212,7 @@ def get_capacity_arguments_from_capacity_type(
     capacity_type: CapacityType,
     max_nodes: int,
     accelerator_type: AcceleratorType,
-) -> tuple[str, int]:
+) -> tuple[list[str], int]:
   """Determine the Nodepool creation capacity arguments needed.
 
   Args:
@@ -222,26 +223,27 @@ def get_capacity_arguments_from_capacity_type(
     Tuple with string with the capacity argument to use and
     int of 0 if successful and 1 otherwise.
   """
-  capacity_args = ''
+  capacity_args: list[str] = ['']
   return_code = 0
 
   match capacity_type:
     case CapacityType.ON_DEMAND:
-      capacity_args = ''
+      capacity_args = ['']
     case CapacityType.SPOT:
-      capacity_args = '--spot'
+      capacity_args = ['--spot']
     case CapacityType.FLEX_START:
-      capacity_args = (
+      capacity_args = [(
           ' --flex-start --enable-autoscaling'
           ' --location-policy=ANY --reservation-affinity=none'
           f' --no-enable-autorepair --max-nodes={max_nodes}'
-      )
+      )]
       if is_queued_cluster(args.num_slices, accelerator_type):
-        capacity_args += ' --enable-queued-provisioning'
+        capacity_args[0] += ' --enable-queued-provisioning'
     case CapacityType.RESERVATION:
-      capacity_args = (
-          f'--reservation-affinity=specific --reservation={args.reservation}'
-      )
+      capacity_args = [
+          f'--reservation-affinity=specific --reservation={reservation}'
+          for reservation in args.reservation.split(',')
+      ]
     case _:
       xpk_print(
           f'Unknown capacity type: {capacity_type}. Unable to determine'

@@ -316,7 +316,8 @@ def cluster_create(args) -> None:
   xpk_print(f'Starting cluster create for cluster {args.cluster}:', flush=True)
   add_zone_and_project(args)
 
-  _validate_cluster_create_args(args, system)
+  if not args.skip_validation:
+    _validate_cluster_create_args(args, system)
   _log_cluster_create_telemetry(args)
 
   release_channel = (
@@ -1222,8 +1223,8 @@ def run_gke_cluster_create_command(
   command = (
       'gcloud beta container clusters create'
       f' {args.cluster} --project={args.project}'
-      # f' --region={zone_to_region(args.zone)}'
-      f' --zone={args.zone}'
+      f' --region={zone_to_region(args.zone)}'
+      # f' --zone={args.zone}'
       f' --node-locations={args.zone}'
       f' --cluster-version={gke_control_plane_version}'
       f' --machine-type={machine_type}'

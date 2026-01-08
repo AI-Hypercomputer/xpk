@@ -233,7 +233,9 @@ def _get_base_event_metadata() -> dict[MetricsEventMetadataKey, str]:
       MetricsEventMetadataKey.RUNNING_FROM_SOURCE: str(
           _is_running_from_source()
       ).lower(),
-      MetricsEventMetadataKey.TESTER: str(is_tester()).lower(),
+      MetricsEventMetadataKey.TESTER: str(
+          is_tester() or _is_trash_execution()
+      ).lower(),
   }
 
 
@@ -243,6 +245,10 @@ def _get_base_concord_event() -> dict[str, str]:
       "console_type": "XPK",
       "client_install_id": _ensure_client_id(),
   }
+
+
+def _is_trash_execution() -> bool:
+  return os.getenv("TELEMETRY_TRASH_EXECUTION") == "true"
 
 
 def _is_running_as_pip() -> bool:

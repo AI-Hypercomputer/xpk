@@ -30,6 +30,7 @@ def setup_mocks(mocker: MockerFixture):
   mocker.patch('time.time', side_effect=itertools.count())
   mocker.patch('platform.python_version', return_value='99.99.99')
   mocker.patch('os.path.basename', return_value='xpk.py')
+  mocker.patch('os.getenv', return_value='false')
   mocker.patch('os.path.abspath', return_value='/home/xpk_user')
   mocker.patch('xpk.core.telemetry.is_tester', return_value=False)
   set_dry_run(False)
@@ -230,10 +231,28 @@ def test_metrics_collectors_logs_correct_running_from_source_value(
         (False, 'false'),
     ],
 )
-def test_metrics_collectors_logs_correct_tester_value(
+def test_metrics_collectors_logs_correct_tester_value_for_is_tester_variable(
     tester: bool, expected: str, mocker: MockerFixture
 ):
   mocker.patch('xpk.core.telemetry.is_tester', return_value=tester)
+  MetricsCollector.log_start(command='test')
+  payload = MetricsCollector.flush()
+  assert _get_metadata_value(payload, 'XPK_TESTER') == expected
+
+
+@pytest.mark.parametrize(
+    argnames='trash_execution,expected',
+    argvalues=[
+        ('true', 'true'),
+        ('false', 'false'),
+        ('', 'false'),
+        (None, 'false'),
+    ],
+)
+def test_metrics_collectors_logs_correct_tester_value_for_trash_variable(
+    trash_execution: str, expected: str, mocker: MockerFixture
+):
+  mocker.patch('os.getenv', return_value=trash_execution)
   MetricsCollector.log_start(command='test')
   payload = MetricsCollector.flush()
   assert _get_metadata_value(payload, 'XPK_TESTER') == expected

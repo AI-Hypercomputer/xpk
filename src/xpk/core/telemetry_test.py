@@ -231,7 +231,7 @@ def test_metrics_collectors_logs_correct_running_from_source_value(
         (False, 'false'),
     ],
 )
-def test_metrics_collectors_logs_correct_tester_value(
+def test_metrics_collectors_logs_correct_tester_value_for_is_tester_variable(
     tester: bool, expected: str, mocker: MockerFixture
 ):
   mocker.patch('xpk.core.telemetry.is_tester', return_value=tester)
@@ -248,7 +248,7 @@ def test_metrics_collectors_logs_correct_tester_value(
         ('', 'false'),
     ],
 )
-def test_metrics_collectors_logs_correct_tester_value(
+def test_metrics_collectors_logs_correct_tester_value_for_trash_variable(
     github_actions: str, expected: str, mocker: MockerFixture
 ):
   mocker.patch('os.getenv', return_value=github_actions)

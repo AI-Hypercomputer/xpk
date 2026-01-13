@@ -87,7 +87,7 @@ def is_GPU_TAS_possible(
       f' --location={zone}'
       f' --project={project}'
       ' --filter="placementPolicy.type=COMPACT"'
-      ' --format="value(name)'
+      ' --format="value(name)"'
   )
   return_code, compact_placement_nps = run_command_for_value(
       command=command,

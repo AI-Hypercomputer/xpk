@@ -153,6 +153,7 @@ func TestWorkloadReconciler(t *testing.T) {
 
 	testCases := map[string]struct {
 		interceptorFuncsCreate func(ctx context.Context, client client.WithWatch, obj client.Object, opts ...client.CreateOption) error
+		interceptorFuncsUpdate func(ctx context.Context, client client.WithWatch, obj client.Object, opts ...client.UpdateOption) error
 		request                types.NamespacedName
 		objs                   []client.Object
 		wantWorkloads          []kueue.Workload
@@ -1334,6 +1335,70 @@ func TestWorkloadReconciler(t *testing.T) {
 			},
 			wantResult: reconcile.Result{RequeueAfter: initializationRetryAfter},
 		},
+		"should patch JobSet instead of updating to avoid immutable field error": {
+			interceptorFuncsUpdate: func(ctx context.Context, client client.WithWatch, obj client.Object, opts ...client.UpdateOption) error {
+				if _, ok := obj.(*jobset.JobSet); ok {
+					return errors.New("spec.failurePolicy: Invalid value: Value is immutable")
+				}
+				return client.Update(ctx, obj, opts...)
+			},
+			request: baseRequest,
+			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				worker2Node.DeepCopy(),
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					Obj(),
+				baseJobSetWrapper.Clone().ReplicatedJobs(
+					utiltestingjobsjobset.ReplicatedJobRequirements{
+						Name:           "ps1",
+						PodAnnotations: map[string]string{core.TPUSliceTopologyAnnotation: "4x4x12"},
+					},
+					utiltestingjobsjobset.ReplicatedJobRequirements{
+						Name:           "ps2",
+						PodAnnotations: map[string]string{core.TPUSliceTopologyAnnotation: "4x4x12"},
+					},
+				).FailurePolicy(&jobset.FailurePolicy{MaxRestarts: 0}).Obj(),
+				baseSlice1Wrapper.Clone().Active().Obj(),
+				baseSlice2Wrapper.Clone().Active().Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStateReady, `Slices are in states: 2 ACTIVE`)).
+					Obj(),
+			},
+			wantSlices: []slice.Slice{
+				*baseSlice1Wrapper.Clone().Active().Obj(),
+				*baseSlice2Wrapper.Clone().Active().Obj(),
+			},
+			wantJobSets: []jobset.JobSet{*baseJobSetWrapper.Clone().ReplicatedJobs(
+				utiltestingjobsjobset.ReplicatedJobRequirements{
+					Name: "ps1",
+					PodAnnotations: map[string]string{
+						core.TPUSliceTopologyAnnotation: "4x4x12",
+					},
+					NodeSelector: map[string]string{core.TPUTopologyAnnotation: "4x4x12"},
+				},
+				utiltestingjobsjobset.ReplicatedJobRequirements{
+					Name: "ps2",
+					PodAnnotations: map[string]string{
+						core.TPUSliceTopologyAnnotation: "4x4x12",
+					},
+					NodeSelector: map[string]string{core.TPUTopologyAnnotation: "4x4x12"},
+				},
+			).FailurePolicy(&jobset.FailurePolicy{MaxRestarts: 0}).Obj()},
+			wantEvents: []utiltesting.EventRecord{
+				buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, AdmissionCheckUpdatedEventType, fmt.Sprintf(`Admission check %q updated state from "Pending" to "Ready"`, baseACName)),
+			},
+		},
 		"should update the Workload's AdmissionCheckState when one Slice is in the Ready state": {
 			request: baseRequest,
 			objs: []client.Object{
@@ -1688,6 +1753,9 @@ func TestWorkloadReconciler(t *testing.T) {
 			interceptorFuncs := interceptor.Funcs{SubResourcePatch: treatSSAAsStrategicMerge}
 			if tc.interceptorFuncsCreate != nil {
 				interceptorFuncs.Create = tc.interceptorFuncsCreate
+			}
+			if tc.interceptorFuncsUpdate != nil {
+				interceptorFuncs.Update = tc.interceptorFuncsUpdate
 			}
 
 			ctx, _ := utiltesting.ContextWithLog(t)

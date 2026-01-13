@@ -160,3 +160,9 @@ func (j *JobSetWrapper) Limit(replicatedJobName string, r corev1.ResourceName, v
 func (j *JobSetWrapper) RequestAndLimit(replicatedJobName string, r corev1.ResourceName, v string) *JobSetWrapper {
 	return j.Request(replicatedJobName, r, v).Limit(replicatedJobName, r, v)
 }
+
+// FailurePolicy sets the failure policy of the JobSet.
+func (j *JobSetWrapper) FailurePolicy(policy *jobsetapi.FailurePolicy) *JobSetWrapper {
+	j.Spec.FailurePolicy = policy
+	return j
+}

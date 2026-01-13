@@ -459,6 +459,8 @@ func (r *WorkloadReconciler) updateJobSetBeforeUnsuspend(ctx context.Context, wl
 		log.Error(err, "Failed to get JobSet")
 		return err
 	}
+	patchBase := client.MergeFrom(jobSet.DeepCopy())
+
 	for i := range jobSet.Spec.ReplicatedJobs {
 		rj := &jobSet.Spec.ReplicatedJobs[i]
 		topology := rj.Template.Spec.Template.Annotations[core.TPUSliceTopologyAnnotation]
@@ -468,7 +470,7 @@ func (r *WorkloadReconciler) updateJobSetBeforeUnsuspend(ctx context.Context, wl
 		}
 		rj.Template.Spec.Template.Spec.NodeSelector[core.TPUTopologyAnnotation] = topology
 	}
-	if err := r.client.Update(ctx, jobSet); err != nil {
+	if err := r.client.Patch(ctx, jobSet, patchBase); err != nil {
 		log.Error(err, "Failed to update JobSet")
 		return err
 	}

@@ -26,9 +26,6 @@ import (
 	"tpu-slice-controller/api/v1beta1"
 )
 
-const (
-	activationTimeout = 3 * time.Minute
-)
 
 func SliceKeyFromWorkload(wl *kueue.Workload, podSetName kueue.PodSetReference, sliceIndex int32) client.ObjectKey {
 	slice := SliceWithMetadata(wl, podSetName, sliceIndex)
@@ -51,13 +48,13 @@ func SliceName(ns string, workloadName string, podSetName kueue.PodSetReference,
 	return fmt.Sprintf("%s-%s-%s-%d", ns, workloadName, podSetName, sliceIndex)
 }
 
-func isStale(slice *v1beta1.Slice) bool {
+func isStale(slice *v1beta1.Slice, timeout time.Duration) bool {
 	var staleUnready, staleWithoutState bool
 	cond := meta.FindStatusCondition(slice.Status.Conditions, v1beta1.SliceStateConditionType)
 	if cond == nil {
-		staleWithoutState = !slice.CreationTimestamp.IsZero() && time.Since(slice.CreationTimestamp.Time) >= activationTimeout
+		staleWithoutState = !slice.CreationTimestamp.IsZero() && time.Since(slice.CreationTimestamp.Time) >= timeout
 	} else {
-		staleUnready = cond.Status == metav1.ConditionFalse && !cond.LastTransitionTime.IsZero() && time.Since(cond.LastTransitionTime.Time) >= activationTimeout
+		staleUnready = cond.Status == metav1.ConditionFalse && !cond.LastTransitionTime.IsZero() && time.Since(cond.LastTransitionTime.Time) >= timeout
 	}
 	return staleUnready || staleWithoutState
 }

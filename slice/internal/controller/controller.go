@@ -17,6 +17,8 @@ limitations under the License.
 package controller
 
 import (
+	"time"
+
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -24,8 +26,12 @@ const (
 	SliceWorkloadControllerName = "slice-workload-controller"
 )
 
-func SetupControllers(mgr ctrl.Manager) (string, error) {
-	wlRec := NewWorkloadReconciler(mgr.GetClient(), mgr.GetEventRecorderFor(SliceWorkloadControllerName))
+type Options struct {
+	ActivationTimeout time.Duration
+}
+
+func SetupControllers(mgr ctrl.Manager, opts Options) (string, error) {
+	wlRec := NewWorkloadReconciler(mgr.GetClient(), mgr.GetEventRecorderFor(SliceWorkloadControllerName), opts.ActivationTimeout)
 	if err := wlRec.SetupWithManager(mgr); err != nil {
 		return "Workload", err
 	}

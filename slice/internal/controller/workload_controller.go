@@ -471,7 +471,7 @@ func (r *WorkloadReconciler) updateJobSetBeforeUnsuspend(ctx context.Context, wl
 		rj.Template.Spec.Template.Spec.NodeSelector[core.TPUTopologyAnnotation] = topology
 	}
 	if err := r.client.Patch(ctx, jobSet, patchBase); err != nil {
-		log.Error(err, "Failed to update JobSet")
+		log.Error(err, "Failed to patch JobSet")
 		return err
 	}
 	return nil

@@ -26,7 +26,6 @@ import (
 	"tpu-slice-controller/api/v1beta1"
 )
 
-
 func SliceKeyFromWorkload(wl *kueue.Workload, podSetName kueue.PodSetReference, sliceIndex int32) client.ObjectKey {
 	slice := SliceWithMetadata(wl, podSetName, sliceIndex)
 	return client.ObjectKeyFromObject(slice)

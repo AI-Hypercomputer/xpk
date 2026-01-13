@@ -375,11 +375,6 @@ func (s *SliceWrapper) DeletionTimestamp(t time.Time) *SliceWrapper {
 	return s
 }
 
-func (s *SliceWrapper) Condition(cond metav1.Condition) *SliceWrapper {
-	apimeta.SetStatusCondition(&s.Status.Conditions, cond)
-	return s
-}
-
 func AppendOwnerReference(obj client.Object, gvk schema.GroupVersionKind, name, uid string, controller, blockDeletion *bool) {
 	obj.SetOwnerReferences(append(obj.GetOwnerReferences(), metav1.OwnerReference{
 		APIVersion:         gvk.GroupVersion().String(),

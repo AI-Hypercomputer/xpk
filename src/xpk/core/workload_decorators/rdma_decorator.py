@@ -84,6 +84,12 @@ def add_volumes(job_manifest):
   volumes.append(
       {'name': 'gib', 'hostPath': {'path': '/home/kubernetes/bin/gib'}}
   )
+  volumes.append({
+      'name': 'dshm',
+      'emptyDir': {
+          'medium': 'Memory',
+      },
+  })
 
 
 def add_tolerations(job_manifest):
@@ -110,4 +116,7 @@ def update_gpu_containers(job_manifest):
       )
       container['volumeMounts'].append(
           {'name': 'gib', 'mountPath': '/usr/local/gib'}
+      )
+      container['volumeMounts'].append(
+          {'name': 'dshm', 'mountPath': '/dev/shm'}
       )

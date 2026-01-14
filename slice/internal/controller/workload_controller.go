@@ -24,7 +24,6 @@ import (
 	"strings"
 	"time"
 
-	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -460,13 +459,13 @@ func (r *WorkloadReconciler) updateJobSetBeforeUnsuspend(ctx context.Context, wl
 		log.Error(err, "Failed to get JobSet")
 		return err
 	}
-	patchJobSet := baseSSAJobSet(jobSet)
+	patchJobSet := core.BaseSSAJobSet(jobSet)
 
 	for i := range jobSet.Spec.ReplicatedJobs {
 		rj := &jobSet.Spec.ReplicatedJobs[i]
 		topology := rj.Template.Spec.Template.Annotations[core.TPUSliceTopologyAnnotation]
 		log.V(5).Info("Copying topology annotation as nodeSelector", "topology", topology)
-		replicaJob := baseSSAReplicatedJob(rj.Name)
+		replicaJob := core.BaseSSAReplicatedJob(rj.Name)
 		replicaJob.Template.Spec.Template.Spec.NodeSelector[core.TPUTopologyAnnotation] = topology
 		patchJobSet.Spec.ReplicatedJobs[i] = replicaJob
 	}
@@ -475,38 +474,6 @@ func (r *WorkloadReconciler) updateJobSetBeforeUnsuspend(ctx context.Context, wl
 		return err
 	}
 	return nil
-}
-
-func baseSSAJobSet(js *jobset.JobSet) *jobset.JobSet {
-	return &jobset.JobSet{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: jobset.SchemeGroupVersion.String(),
-			Kind:       "JobSet",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      js.Name,
-			Namespace: js.Namespace,
-			UID:       js.UID,
-		},
-		Spec: jobset.JobSetSpec{
-			ReplicatedJobs: make([]jobset.ReplicatedJob, len(js.Spec.ReplicatedJobs)),
-		},
-	}
-}
-
-func baseSSAReplicatedJob(name string) jobset.ReplicatedJob {
-	return jobset.ReplicatedJob{
-		Name: name,
-		Template: batchv1.JobTemplateSpec{
-			Spec: batchv1.JobSpec{
-				Template: corev1.PodTemplateSpec{
-					Spec: corev1.PodSpec{
-						NodeSelector: make(map[string]string),
-					},
-				},
-			},
-		},
-	}
 }
 
 func validateRelevantWorkload(wl *kueue.Workload, nodes map[string]corev1.Node) error {

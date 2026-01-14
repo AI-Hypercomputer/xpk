@@ -23,7 +23,7 @@ from ..utils.console import xpk_exit, xpk_print
 from ..utils.file import append_tmp_file, write_tmp_file
 from ..utils.validation import validate_dependencies_list, SystemDependency, should_validate_dependencies
 from .workload import get_workload_list
-from ..core.kueue_manager import has_sub_slicing_enabled
+from ..core.kueue_manager import has_sub_slicing_enabled, has_super_slicing_enabled
 
 
 _SPACER = '========================================================'
@@ -89,10 +89,38 @@ def inspector_run_sub_slicing_helper(args, file: str):
   if return_code != 0:
     xpk_exit(return_code)
   if result:
-    output = f'Sub-slicing topology set up.\n{_SPACER}'
+    output = f'Sub-slicing topology set up.\n{_SPACER}\n'
     append_tmp_file(output, file)
     if args.print_to_terminal:
       xpk_print(output)
+
+
+def inspector_run_slice_controller_helper(args, file: str):
+  return_code, result = has_super_slicing_enabled()
+  if return_code != 0:
+    xpk_exit(return_code)
+
+  if not result:
+    return
+
+  output = f'Super-slicing topology set up.\n{_SPACER}\n'
+  append_tmp_file(output, file)
+  if args.print_to_terminal:
+    xpk_print(output)
+
+  command = (
+      'kubectl describe deployment slice-controller-controller-manager -n'
+      ' slice-controller-system'
+  )
+  command_description = 'Slice Controller Deployment Details'
+  inspector_run_command_helper(args, command, command_description, file)
+
+  command = (
+      'kubectl logs deployment slice-controller-controller-manager -n'
+      ' slice-controller-system --tail=100 --prefix=True'
+  )
+  command_description = 'Slice Controller Logs'
+  inspector_run_command_helper(args, command, command_description, file)
 
 
 def inspector_output_link_helper(args, link, link_description, file) -> int:
@@ -257,6 +285,9 @@ def inspector(args) -> None:
           f' {description} return code: {return_code}'
       )
 
+  inspector_run_sub_slicing_helper(args, inspector_file)
+  inspector_run_slice_controller_helper(args, inspector_file)
+
   # Workload list views:
   filter_by_statuses = ['EVERYTHING', 'QUEUED', 'RUNNING']
   for filter_by_status in filter_by_statuses:
@@ -320,8 +351,6 @@ def inspector(args) -> None:
           f'inspector failed in command: {command} description:'
           f' {command_description} return code: {return_code}'
       )
-
-  inspector_run_sub_slicing_helper(args, inspector_file)
 
   # Cloud Console Links:
   workload_links = []

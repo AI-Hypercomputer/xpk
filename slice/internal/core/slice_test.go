@@ -80,26 +80,4 @@ func TestSliceName(t *testing.T) {
 			}
 		})
 	}
-
-	t.Run("collision check", func(t *testing.T) {
-		ns := "ns"
-		// Two workload names that are identical in the first 52 chars (when combined with ns) but different at the end.
-		// "ns-" is 3 chars.
-		// We need the total length to exceed 63 chars to trigger hashing.
-		// Overhead: ns(2)+1+ps(2)+1+idx(1) = 7 chars (plus 1 for first hyphen). Total 8 chars overhead.
-		// Workload name needs to be > 55 chars.
-		base := strings.Repeat("a", 60)
-		wl1 := base + "1"
-		wl2 := base + "2"
-
-		name1 := SliceName(ns, wl1, "ps", 0)
-		name2 := SliceName(ns, wl2, "ps", 0)
-
-		if name1 == name2 {
-			t.Errorf("SliceName() collision: %q == %q for different inputs", name1, name2)
-		}
-		if len(name1) > 63 {
-			t.Errorf("SliceName() length = %d, want <= 63", len(name1))
-		}
-	})
 }

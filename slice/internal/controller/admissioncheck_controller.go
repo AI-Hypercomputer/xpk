@@ -62,8 +62,9 @@ func (r *AdmissionCheckReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	if currentCondition.Status != newCondition.Status {
+		patch := client.MergeFrom(ac.DeepCopy())
 		apimeta.SetStatusCondition(&ac.Status.Conditions, newCondition)
-		return reconcile.Result{}, client.IgnoreNotFound(r.client.Status().Update(ctx, ac))
+		return reconcile.Result{}, client.IgnoreNotFound(r.client.Status().Patch(ctx, ac, patch))
 	}
 
 	return reconcile.Result{}, nil

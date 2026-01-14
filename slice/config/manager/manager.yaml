@@ -87,11 +87,11 @@ spec:
         # More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
         resources:
           limits:
-            cpu: 2
-            memory: 4Gi
+            cpu: 500m
+            memory: 128Mi
           requests:
-            cpu: 2
-            memory: 4Gi
+            cpu: 10m
+            memory: 64Mi
         volumeMounts: []
       volumes: []
       serviceAccountName: controller-manager

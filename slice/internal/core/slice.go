@@ -15,6 +15,8 @@
 package core
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -24,6 +26,10 @@ import (
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
 
 	"tpu-slice-controller/api/v1beta1"
+)
+
+const (
+	maxSliceNameLength = 63
 )
 
 func SliceKeyFromWorkload(wl *kueue.Workload, podSetName kueue.PodSetReference, sliceIndex int32) client.ObjectKey {
@@ -44,7 +50,12 @@ func SliceWithMetadata(wl *kueue.Workload, podSetName kueue.PodSetReference, sli
 }
 
 func SliceName(ns string, workloadName string, podSetName kueue.PodSetReference, sliceIndex int32) string {
-	return fmt.Sprintf("%s-%s-%s-%d", ns, workloadName, podSetName, sliceIndex)
+	name := fmt.Sprintf("%s-%s-%s-%d", ns, workloadName, podSetName, sliceIndex)
+	if len(name) <= maxSliceNameLength {
+		return name
+	}
+	hash := sha256.Sum256([]byte(name))
+	return fmt.Sprintf("%s-%s", name[:52], hex.EncodeToString(hash[:])[:10])
 }
 
 func isStale(slice *v1beta1.Slice, timeout time.Duration) bool {

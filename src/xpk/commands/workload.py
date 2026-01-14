@@ -54,6 +54,7 @@ from ..core.resources import get_cluster_capacity_type, get_cluster_system_chara
 from ..core.resources import ConfigMapType, get_cluster_configmap
 from ..core.nodepool import ensure_resource_policy_exists
 from ..core.scheduling import (
+    ONE_TO_ONE_REPLICA_NODE_POOL_ASSIGNMENT_ANNOTATION,
     WorkloadScheduling,
     check_if_workload_can_schedule,
     create_tpu_machine_type,
@@ -111,7 +112,7 @@ metadata:
     kueue.x-k8s.io/queue-name: {local_queue_name}  # Name of the LocalQueue
     xpk.google.com/workload: {args.workload}
   annotations:
-    alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool # 1:1 job replica to node pool assignment
+    {jobset_annotations}
 spec:
   ttlSecondsAfterFinished: {args.ttl_seconds_after_finished}
   failurePolicy:
@@ -655,9 +656,15 @@ def workload_create(args) -> None:
         if use_super_slicing
         else ''
     )
+    jobset_annotations = (
+        ''
+        if use_super_slicing or use_sub_slicing
+        else ONE_TO_ONE_REPLICA_NODE_POOL_ASSIGNMENT_ANNOTATION
+    )
 
     yml_string = WORKLOAD_CREATE_YAML.format(
         args=args,
+        jobset_annotations=jobset_annotations,
         container=container,
         vms_per_slice=workload_system.vms_per_slice,
         affinity=get_cpu_affinity(workload_system.accelerator_type),

@@ -29,7 +29,6 @@ import (
 )
 
 const (
-	activationTimeout  = 3 * time.Minute
 	maxSliceNameLength = 63
 )
 
@@ -59,13 +58,13 @@ func SliceName(ns string, workloadName string, podSetName kueue.PodSetReference,
 	return fmt.Sprintf("%s-%s", name[:52], hex.EncodeToString(hash[:])[:10])
 }
 
-func isStale(slice *v1beta1.Slice) bool {
+func isStale(slice *v1beta1.Slice, timeout time.Duration) bool {
 	var staleUnready, staleWithoutState bool
 	cond := meta.FindStatusCondition(slice.Status.Conditions, v1beta1.SliceStateConditionType)
 	if cond == nil {
-		staleWithoutState = !slice.CreationTimestamp.IsZero() && time.Since(slice.CreationTimestamp.Time) >= activationTimeout
+		staleWithoutState = !slice.CreationTimestamp.IsZero() && time.Since(slice.CreationTimestamp.Time) >= timeout
 	} else {
-		staleUnready = cond.Status == metav1.ConditionFalse && !cond.LastTransitionTime.IsZero() && time.Since(cond.LastTransitionTime.Time) >= activationTimeout
+		staleUnready = cond.Status == metav1.ConditionFalse && !cond.LastTransitionTime.IsZero() && time.Since(cond.LastTransitionTime.Time) >= timeout
 	}
 	return staleUnready || staleWithoutState
 }

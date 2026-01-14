@@ -18,6 +18,7 @@ package core
 
 import (
 	"regexp"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -56,14 +57,14 @@ func GetTPUAccelerator(spec corev1.PodTemplateSpec) string {
 	return spec.Spec.NodeSelector[TPUAcceleratorLabel]
 }
 
-func GetSliceState(slice v1beta1.Slice) SliceState {
+func GetSliceState(slice v1beta1.Slice, timeout time.Duration) SliceState {
 	if !slice.DeletionTimestamp.IsZero() {
 		return SliceStateDeleted
 	}
 	if isError(&slice) {
 		return SliceStateFailed
 	}
-	if isStale(&slice) {
+	if isStale(&slice, timeout) {
 		return SliceStateStale
 	}
 	condReady := meta.FindStatusCondition(slice.Status.Conditions, v1beta1.SliceStateConditionType)

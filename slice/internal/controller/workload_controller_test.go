@@ -1703,7 +1703,7 @@ func TestWorkloadReconciler(t *testing.T) {
 
 			kClient := clientBuilder.Build()
 			recorder := &utiltesting.EventRecorder{}
-			reconciler := NewWorkloadReconciler(kClient, recorder)
+			reconciler := NewWorkloadReconciler(kClient, recorder, 3*time.Minute)
 			reconciler.clock = testingclock.NewFakeClock(now)
 
 			gotResult, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: tc.request})

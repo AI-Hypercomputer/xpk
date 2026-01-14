@@ -460,46 +460,53 @@ func (r *WorkloadReconciler) updateJobSetBeforeUnsuspend(ctx context.Context, wl
 		log.Error(err, "Failed to get JobSet")
 		return err
 	}
-
-	patchJobSet := &jobset.JobSet{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: jobset.SchemeGroupVersion.String(),
-			Kind:       "JobSet",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      jobSet.Name,
-			Namespace: jobSet.Namespace,
-			UID:       jobSet.UID,
-		},
-		Spec: jobset.JobSetSpec{
-			ReplicatedJobs: make([]jobset.ReplicatedJob, len(jobSet.Spec.ReplicatedJobs)),
-		},
-	}
+	patchJobSet := baseSSAJobSet(jobSet)
 
 	for i := range jobSet.Spec.ReplicatedJobs {
 		rj := &jobSet.Spec.ReplicatedJobs[i]
 		topology := rj.Template.Spec.Template.Annotations[core.TPUSliceTopologyAnnotation]
 		log.V(5).Info("Copying topology annotation as nodeSelector", "topology", topology)
-		patchJobSet.Spec.ReplicatedJobs[i] = jobset.ReplicatedJob{
-			Name: rj.Name,
-			Template: batchv1.JobTemplateSpec{
-				Spec: batchv1.JobSpec{
-					Template: corev1.PodTemplateSpec{
-						Spec: corev1.PodSpec{
-							NodeSelector: map[string]string{
-								core.TPUTopologyAnnotation: topology,
-							},
-						},
-					},
-				},
-			},
-		}
+		replicaJob := baseSSAReplicatedJob(rj.Name)
+		replicaJob.Template.Spec.Template.Spec.NodeSelector[core.TPUTopologyAnnotation] = topology
+		patchJobSet.Spec.ReplicatedJobs[i] = replicaJob
 	}
 	if err := r.client.Patch(ctx, patchJobSet, client.Apply, client.FieldOwner(SliceControllerName), client.ForceOwnership); err != nil {
 		log.Error(err, "Failed to patch JobSet")
 		return err
 	}
 	return nil
+}
+
+func baseSSAJobSet(js *jobset.JobSet) *jobset.JobSet {
+	return &jobset.JobSet{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: jobset.SchemeGroupVersion.String(),
+			Kind:       "JobSet",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      js.Name,
+			Namespace: js.Namespace,
+			UID:       js.UID,
+		},
+		Spec: jobset.JobSetSpec{
+			ReplicatedJobs: make([]jobset.ReplicatedJob, len(js.Spec.ReplicatedJobs)),
+		},
+	}
+}
+
+func baseSSAReplicatedJob(name string) jobset.ReplicatedJob {
+	return jobset.ReplicatedJob{
+		Name: name,
+		Template: batchv1.JobTemplateSpec{
+			Spec: batchv1.JobSpec{
+				Template: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						NodeSelector: make(map[string]string),
+					},
+				},
+			},
+		},
+	}
 }
 
 func validateRelevantWorkload(wl *kueue.Workload, nodes map[string]corev1.Node) error {

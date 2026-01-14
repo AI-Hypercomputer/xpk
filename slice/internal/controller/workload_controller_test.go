@@ -153,7 +153,6 @@ func TestWorkloadReconciler(t *testing.T) {
 
 	testCases := map[string]struct {
 		interceptorFuncsCreate func(ctx context.Context, client client.WithWatch, obj client.Object, opts ...client.CreateOption) error
-		interceptorFuncsUpdate func(ctx context.Context, client client.WithWatch, obj client.Object, opts ...client.UpdateOption) error
 		request                types.NamespacedName
 		objs                   []client.Object
 		wantWorkloads          []kueue.Workload
@@ -1692,9 +1691,6 @@ func TestWorkloadReconciler(t *testing.T) {
 			}
 			if tc.interceptorFuncsCreate != nil {
 				interceptorFuncs.Create = tc.interceptorFuncsCreate
-			}
-			if tc.interceptorFuncsUpdate != nil {
-				interceptorFuncs.Update = tc.interceptorFuncsUpdate
 			}
 
 			ctx, _ := utiltesting.ContextWithLog(t)

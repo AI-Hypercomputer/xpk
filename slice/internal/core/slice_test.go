@@ -53,6 +53,13 @@ func TestSliceName(t *testing.T) {
 			sliceIndex:   0,
 			want:         "very-long-namespace-name-very-long-workload-name-tha-209e4f3863",
 		},
+		"long name, different podset": {
+			ns:           "very-long-namespace-name",
+			workloadName: "very-long-workload-name-that-exceeds-the-limit",
+			podSetName:   "another-podset",
+			sliceIndex:   0,
+			want:         "very-long-namespace-name-very-long-workload-name-tha-a06b5d6b9d",
+		},
 		"long name, next index": {
 			ns:           "very-long-namespace-name",
 			workloadName: "very-long-workload-name-that-exceeds-the-limit",

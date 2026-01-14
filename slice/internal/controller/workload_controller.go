@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -459,18 +460,42 @@ func (r *WorkloadReconciler) updateJobSetBeforeUnsuspend(ctx context.Context, wl
 		log.Error(err, "Failed to get JobSet")
 		return err
 	}
-	patchBase := client.MergeFrom(jobSet.DeepCopy())
+
+	patchJobSet := &jobset.JobSet{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: jobset.SchemeGroupVersion.String(),
+			Kind:       "JobSet",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      jobSet.Name,
+			Namespace: jobSet.Namespace,
+			UID:       jobSet.UID,
+		},
+		Spec: jobset.JobSetSpec{
+			ReplicatedJobs: make([]jobset.ReplicatedJob, len(jobSet.Spec.ReplicatedJobs)),
+		},
+	}
 
 	for i := range jobSet.Spec.ReplicatedJobs {
 		rj := &jobSet.Spec.ReplicatedJobs[i]
 		topology := rj.Template.Spec.Template.Annotations[core.TPUSliceTopologyAnnotation]
 		log.V(5).Info("Copying topology annotation as nodeSelector", "topology", topology)
-		if rj.Template.Spec.Template.Spec.NodeSelector == nil {
-			rj.Template.Spec.Template.Spec.NodeSelector = make(map[string]string)
+		patchJobSet.Spec.ReplicatedJobs[i] = jobset.ReplicatedJob{
+			Name: rj.Name,
+			Template: batchv1.JobTemplateSpec{
+				Spec: batchv1.JobSpec{
+					Template: corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							NodeSelector: map[string]string{
+								core.TPUTopologyAnnotation: topology,
+							},
+						},
+					},
+				},
+			},
 		}
-		rj.Template.Spec.Template.Spec.NodeSelector[core.TPUTopologyAnnotation] = topology
 	}
-	if err := r.client.Patch(ctx, jobSet, patchBase); err != nil {
+	if err := r.client.Patch(ctx, patchJobSet, client.Apply, client.FieldOwner(SliceControllerName), client.ForceOwnership); err != nil {
 		log.Error(err, "Failed to patch JobSet")
 		return err
 	}

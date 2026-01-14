@@ -74,18 +74,20 @@ var (
 
 // WorkloadReconciler reconciles a Workload object
 type WorkloadReconciler struct {
-	client client.Client
-	record record.EventRecorder
-	clock  clock.Clock
+	client            client.Client
+	record            record.EventRecorder
+	clock             clock.Clock
+	activationTimeout time.Duration
 }
 
 var _ reconcile.Reconciler = (*WorkloadReconciler)(nil)
 
-func NewWorkloadReconciler(cl client.Client, record record.EventRecorder) *WorkloadReconciler {
+func NewWorkloadReconciler(cl client.Client, record record.EventRecorder, activationTimeout time.Duration) *WorkloadReconciler {
 	return &WorkloadReconciler{
-		client: cl,
-		record: record,
-		clock:  realClock,
+		client:            cl,
+		record:            record,
+		clock:             realClock,
+		activationTimeout: activationTimeout,
 	}
 }
 
@@ -350,7 +352,7 @@ type groupedSlices struct {
 func (r *WorkloadReconciler) groupSlices(slices []v1beta1.Slice) groupedSlices {
 	gs := groupedSlices{}
 	for _, slice := range slices {
-		switch core.GetSliceState(slice) {
+		switch core.GetSliceState(slice, r.activationTimeout) {
 		case core.SliceStateDeleted:
 			gs.deleted = append(gs.deleted, slice)
 		case core.SliceStateFailed, core.SliceStateStale:
@@ -650,7 +652,7 @@ func (r *WorkloadReconciler) syncAdmissionCheckStatus(ctx context.Context, wl *k
 	originalState := ac.State
 	originalMessage := ac.Message
 
-	prepareAdmissionCheckStatus(ac, slices)
+	r.prepareAdmissionCheckStatus(ac, slices)
 
 	// No changes.
 	if originalState == ac.State && ac.Message == originalMessage {
@@ -686,16 +688,16 @@ func (r *WorkloadReconciler) syncAdmissionCheckStatus(ctx context.Context, wl *k
 	return nil
 }
 
-func groupSlicesByState(slices []v1beta1.Slice) map[core.SliceState][]v1beta1.Slice {
+func groupSlicesByState(slices []v1beta1.Slice, activationTimeout time.Duration) map[core.SliceState][]v1beta1.Slice {
 	slicesByState := make(map[core.SliceState][]v1beta1.Slice)
 	for _, slice := range slices {
-		slicesByState[core.GetSliceState(slice)] = append(slicesByState[core.GetSliceState(slice)], slice)
+		slicesByState[core.GetSliceState(slice, activationTimeout)] = append(slicesByState[core.GetSliceState(slice, activationTimeout)], slice)
 	}
 	return slicesByState
 }
 
-func prepareAdmissionCheckStatus(ac *kueue.AdmissionCheckState, slices []v1beta1.Slice) {
-	slicesByState := groupSlicesByState(slices)
+func (r *WorkloadReconciler) prepareAdmissionCheckStatus(ac *kueue.AdmissionCheckState, slices []v1beta1.Slice) {
+	slicesByState := groupSlicesByState(slices, r.activationTimeout)
 
 	switch {
 	case len(slices) == len(slicesByState[core.SliceStateActive])+len(slicesByState[core.SliceStateActiveDegraded]):

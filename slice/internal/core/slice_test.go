@@ -17,8 +17,6 @@ limitations under the License.
 package core
 
 import (
-	"fmt"
-	"strings"
 	"testing"
 
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
@@ -72,18 +70,8 @@ func TestSliceName(t *testing.T) {
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			got := SliceName(tc.ns, tc.workloadName, tc.podSetName, tc.sliceIndex)
-			if len(got) > 63 {
-				t.Errorf("SliceName() length = %d, want <= 63", len(got))
-			}
-			if tc.want != "" {
-				if got != tc.want {
-					t.Errorf("SliceName() = %q, want %q", got, tc.want)
-				}
-			} else {
-				expectedPrefix := fmt.Sprintf("%s-%s-%s-%d", tc.ns, tc.workloadName, tc.podSetName, tc.sliceIndex)[:52]
-				if !strings.HasPrefix(got, expectedPrefix) {
-					t.Errorf("SliceName() prefix = %q, want %q", got[:52], expectedPrefix)
-				}
+			if got != tc.want {
+				t.Errorf("SliceName() = %q, want %q", got, tc.want)
 			}
 		})
 	}

@@ -49,6 +49,7 @@ type ReplicatedJobRequirements struct {
 	Annotations                   map[string]string
 	PodAnnotations                map[string]string
 	NodeSelector                  map[string]string
+	Affinity                      *corev1.Affinity
 	Image                         string
 	Args                          []string
 	TerminationGracePeriodSeconds int64
@@ -87,6 +88,7 @@ func (j *JobSetWrapper) ReplicatedJobs(replicatedJobs ...ReplicatedJobRequiremen
 		jt.Spec.Completions = ptr.To(req.Completions)
 		jt.Spec.Template.Annotations = req.PodAnnotations
 		jt.Spec.Template.Spec.NodeSelector = req.NodeSelector
+		jt.Spec.Template.Spec.Affinity = req.Affinity
 		if len(req.Image) > 0 {
 			jt.Spec.BackoffLimit = ptr.To[int32](0)
 			spec := &jt.Spec.Template.Spec
@@ -107,6 +109,7 @@ func (j *JobSetWrapper) ReplicatedJobs(replicatedJobs ...ReplicatedJobRequiremen
 				},
 			}
 			spec.NodeSelector = req.NodeSelector
+			spec.Affinity = req.Affinity
 		}
 		if req.Replicas == 0 {
 			req.Replicas = 1

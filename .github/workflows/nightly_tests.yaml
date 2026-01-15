@@ -46,10 +46,6 @@ jobs:
     needs: [build_actions, build_wheel]
     uses: ./.github/workflows/integration_ray_cluster_create.yaml
     secrets: inherit
-  legacy_integration:
-    needs: [build_actions, build_wheel]
-    uses: ./.github/workflows/integration_legacy_tests.yaml
-    secrets: inherit
   storage-tests:
     needs: [build_actions, build_wheel]
     uses: ./.github/workflows/integration_storage_tests.yaml

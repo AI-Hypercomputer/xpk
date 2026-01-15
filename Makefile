@@ -29,9 +29,6 @@ install-pytest:
 run-unittests:
 	XPK_TESTER=false XPK_VERSION_OVERRIDE=v0.0.0 pytest  -vv src/xpk/
 
-run-integrationtests:
-	XPK_TESTER=false XPK_VERSION_OVERRIDE=v0.0.0 pytest src/integration/
-
 .PHONY: goldens
 goldens:
 	XPK_TESTER=false XPK_VERSION_OVERRIDE=v0.0.0 ./golden_buddy.sh update goldens.yaml goldens

@@ -97,7 +97,7 @@ func NewWorkloadReconciler(cl client.Client, record record.EventRecorder, activa
 // +kubebuilder:rbac:groups=accelerator.gke.io,resources=slices,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=accelerator.gke.io,resources=slices/finalizers,verbs=update
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;watch;update;patch
-// +kubebuilder:rbac:groups=jobset.x-k8s.io,resources=jobsets,verbs=get;list;watch;update
+// +kubebuilder:rbac:groups=jobset.x-k8s.io,resources=jobsets,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch
 
 func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -461,17 +461,18 @@ func (r *WorkloadReconciler) updateJobSetBeforeUnsuspend(ctx context.Context, wl
 		log.Error(err, "Failed to get JobSet")
 		return err
 	}
+	patchJobSet := core.BaseSSAJobSet(jobSet)
+
 	for i := range jobSet.Spec.ReplicatedJobs {
 		rj := &jobSet.Spec.ReplicatedJobs[i]
 		topology := rj.Template.Spec.Template.Annotations[core.TPUSliceTopologyAnnotation]
 		log.V(5).Info("Copying topology annotation as nodeSelector", "topology", topology)
-		if rj.Template.Spec.Template.Spec.NodeSelector == nil {
-			rj.Template.Spec.Template.Spec.NodeSelector = make(map[string]string)
-		}
-		rj.Template.Spec.Template.Spec.NodeSelector[core.TPUTopologyAnnotation] = topology
+		replicaJob := core.BaseSSAReplicatedJob(rj.Name)
+		replicaJob.Template.Spec.Template.Spec.NodeSelector[core.TPUTopologyAnnotation] = topology
+		patchJobSet.Spec.ReplicatedJobs[i] = replicaJob
 	}
-	if err := r.client.Update(ctx, jobSet); err != nil {
-		log.Error(err, "Failed to update JobSet")
+	if err := r.client.Patch(ctx, patchJobSet, client.Apply, client.FieldOwner(SliceControllerName), client.ForceOwnership); err != nil {
+		log.Error(err, "Failed to patch JobSet")
 		return err
 	}
 	return nil

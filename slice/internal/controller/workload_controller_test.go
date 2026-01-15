@@ -1685,7 +1685,10 @@ func TestWorkloadReconciler(t *testing.T) {
 			utilruntime.Must(kueue.AddToScheme(scheme))
 			utilruntime.Must(slice.AddToScheme(scheme))
 
-			interceptorFuncs := interceptor.Funcs{SubResourcePatch: treatSSAAsStrategicMerge}
+			interceptorFuncs := interceptor.Funcs{
+				SubResourcePatch: treatSSAAsStrategicMerge,
+				Patch:            treatSSAAsStrategicMergePatch,
+			}
 			if tc.interceptorFuncsCreate != nil {
 				interceptorFuncs.Create = tc.interceptorFuncsCreate
 			}
@@ -1844,4 +1847,34 @@ func treatSSAAsStrategicMerge(ctx context.Context, c client.Client, subResourceN
 		}
 	}
 	return utiltesting.TreatSSAAsStrategicMerge(ctx, c, subResourceName, obj, patch, newOpts...)
+}
+
+func treatSSAAsStrategicMergePatch(ctx context.Context, c client.WithWatch, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+	if patchJobSet, ok := obj.(*jobset.JobSet); ok && patch.Type() == types.ApplyPatchType {
+		original := &jobset.JobSet{}
+		if err := c.Get(ctx, client.ObjectKeyFromObject(patchJobSet), original); err != nil {
+			return err
+		}
+		for _, patchRJ := range patchJobSet.Spec.ReplicatedJobs {
+			for i := range original.Spec.ReplicatedJobs {
+				if original.Spec.ReplicatedJobs[i].Name == patchRJ.Name {
+					if original.Spec.ReplicatedJobs[i].Template.Spec.Template.Spec.NodeSelector == nil {
+						original.Spec.ReplicatedJobs[i].Template.Spec.Template.Spec.NodeSelector = make(map[string]string)
+					}
+					for k, v := range patchRJ.Template.Spec.Template.Spec.NodeSelector {
+						original.Spec.ReplicatedJobs[i].Template.Spec.Template.Spec.NodeSelector[k] = v
+					}
+				}
+			}
+		}
+		return c.Update(ctx, original)
+	}
+
+	subOpts := make([]client.SubResourcePatchOption, 0, len(opts))
+	for _, opt := range opts {
+		if subOpt, ok := opt.(client.SubResourcePatchOption); ok {
+			subOpts = append(subOpts, subOpt)
+		}
+	}
+	return treatSSAAsStrategicMerge(ctx, c, "", obj, patch, subOpts...)
 }

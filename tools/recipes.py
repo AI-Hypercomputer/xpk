@@ -175,7 +175,9 @@ def process_file(filepath: str, mode: Mode):
     )
 
   blocks = extract_code_blocks(content)
-  blocks = [block for block in blocks if "#golden" in block.tags or mode == Mode.RUN]
+  blocks = [
+      block for block in blocks if "#golden" in block.tags or mode == Mode.RUN
+  ]
   full_script = build_script(blocks, mode)
   output_script_log = run_script(full_script)
   results, failed = extract_script_outputs(output_script_log)

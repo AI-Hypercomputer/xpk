@@ -114,7 +114,7 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	// finalize the Workload by removing its slices and then the finalizer.
 	if finalize, reason := shouldFinalize(wl); finalize {
 		if controllerutil.ContainsFinalizer(wl, SliceControllerName) {
-			log.V(3).Info(fmt.Sprintf("Cleaning up the Slices and finalizing the Workload because %s", reason))
+			log.V(3).Info("Cleaning up the Slices and finalizing the Workload", "reason", reason)
 			cleanedUp, err := r.cleanupSlices(ctx, wl)
 			if err != nil {
 				return ctrl.Result{}, err
@@ -134,7 +134,7 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	if err = validateRelevantWorkload(wl, nodes); err != nil {
-		log.V(3).Info(fmt.Sprintf("Skipping workload as it %s", err.Error()))
+		log.V(3).Info("Skipping workload", "reason", err.Error())
 		return ctrl.Result{}, nil
 	}
 
@@ -154,7 +154,9 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	// before the workload is deleted.
 	if controllerutil.AddFinalizer(wl, SliceControllerName) {
 		if err = r.client.Update(ctx, wl); err != nil {
-			if !apierrors.IsNotFound(err) {
+			if apierrors.IsConflict(err) {
+				log.Info("Failed to add finalizer", "error", err)
+			} else if !apierrors.IsNotFound(err) {
 				log.Error(err, "Failed to add finalizer")
 			}
 			return ctrl.Result{}, client.IgnoreNotFound(err)
@@ -433,7 +435,9 @@ func (r *WorkloadReconciler) finalizeWorkload(ctx context.Context, wl *kueue.Wor
 
 	controllerutil.RemoveFinalizer(wl, SliceControllerName)
 	if err := r.client.Update(ctx, wl); err != nil {
-		if !apierrors.IsNotFound(err) {
+		if apierrors.IsConflict(err) {
+			log.Info("Failed to remove the finalizer", "error", err)
+		} else if !apierrors.IsNotFound(err) {
 			log.Error(err, "Failed to remove the finalizer")
 		}
 		return err

@@ -149,6 +149,9 @@ var _ = ginkgo.Describe("JobSet", func() {
 						},
 					).
 					RequestAndLimit("rj1", extraResource, tc.tpuRequests).
+					FailurePolicy(&jobset.FailurePolicy{
+						MaxRestarts: 0,
+					}).
 					Obj()
 
 				ginkgo.By("Creating a JobSet", func() {

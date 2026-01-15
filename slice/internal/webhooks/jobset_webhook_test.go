@@ -136,9 +136,8 @@ func TestDefault(t *testing.T) {
 					},
 					NodeSelector: map[string]string{
 						"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
-						core.TPUSliceHealthNodeSelectorKey:     core.TPUSliceHealthNodeSelectorHealthy,
 					},
-				}).
+				}).NodeAffinity("rj1", core.TPUSliceHealthNodeSelectorKey, []string{core.TPUSliceHealthNodeSelectorHealthy, core.TPUSliceHealthNodeSelectorDegraded}).
 				Obj(),
 		},
 		"shouldn't set default values because invalid topology annotation": {
@@ -195,6 +194,72 @@ func TestDefault(t *testing.T) {
 						"cloud.google.com/gke-tpu-accelerator": "test",
 					},
 				}).
+				Obj(),
+		},
+		"should respect existing NodeSelector for health": {
+			jobSet: testingjobjobset.MakeJobSet(baseJobSetName, utils.DefaultNamespace).
+				Queue("queue-name").
+				ReplicatedJobs(testingjobjobset.ReplicatedJobRequirements{
+					Name:        "rj1",
+					Parallelism: 12,
+					PodAnnotations: map[string]string{
+						core.TPUSliceTopologyAnnotation: "4x4x12",
+					},
+					NodeSelector: map[string]string{
+						"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
+						core.TPUSliceHealthNodeSelectorKey:     "HEALTHY",
+					},
+				}).
+				Obj(),
+			wantJobSet: testingjobjobset.MakeJobSet(baseJobSetName, utils.DefaultNamespace).
+				Queue("queue-name").
+				ReplicatedJobs(testingjobjobset.ReplicatedJobRequirements{
+					Name:        "rj1",
+					Parallelism: 12,
+					PodAnnotations: map[string]string{
+						core.TPUSliceTopologyAnnotation:                 "4x4x12",
+						"kueue.x-k8s.io/podset-required-topology":       "cloud.google.com/gce-topology-block",
+						"kueue.x-k8s.io/podset-slice-required-topology": core.TPUSubBlockLabel,
+						"kueue.x-k8s.io/podset-slice-size":              "4",
+					},
+					NodeSelector: map[string]string{
+						"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
+						core.TPUSliceHealthNodeSelectorKey:     "HEALTHY",
+					},
+				}).
+				Obj(),
+		},
+		"should respect existing NodeAffinity for health": {
+			jobSet: testingjobjobset.MakeJobSet(baseJobSetName, utils.DefaultNamespace).
+				Queue("queue-name").
+				ReplicatedJobs(testingjobjobset.ReplicatedJobRequirements{
+					Name:        "rj1",
+					Parallelism: 12,
+					PodAnnotations: map[string]string{
+						core.TPUSliceTopologyAnnotation: "4x4x12",
+					},
+					NodeSelector: map[string]string{
+						"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
+					},
+				}).
+				NodeAffinity("rj1", core.TPUSliceHealthNodeSelectorKey, []string{"HEALTHY"}).
+				Obj(),
+			wantJobSet: testingjobjobset.MakeJobSet(baseJobSetName, utils.DefaultNamespace).
+				Queue("queue-name").
+				ReplicatedJobs(testingjobjobset.ReplicatedJobRequirements{
+					Name:        "rj1",
+					Parallelism: 12,
+					PodAnnotations: map[string]string{
+						core.TPUSliceTopologyAnnotation:                 "4x4x12",
+						"kueue.x-k8s.io/podset-required-topology":       "cloud.google.com/gce-topology-block",
+						"kueue.x-k8s.io/podset-slice-required-topology": core.TPUSubBlockLabel,
+						"kueue.x-k8s.io/podset-slice-size":              "4",
+					},
+					NodeSelector: map[string]string{
+						"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
+					},
+				}).
+				NodeAffinity("rj1", core.TPUSliceHealthNodeSelectorKey, []string{"HEALTHY"}).
 				Obj(),
 		},
 	}

@@ -174,7 +174,21 @@ var _ = ginkgo.Describe("JobSet", func() {
 								Should(gomega.Equal(fmt.Sprint(tc.wantSliceSize)))
 
 							// node health
-							g.Expect(replicatedJob.Template.Spec.Template.Spec.NodeSelector[core.TPUSliceHealthNodeSelectorKey]).Should(gomega.Equal(core.TPUSliceHealthNodeSelectorHealthy))
+							affinity := replicatedJob.Template.Spec.Template.Spec.Affinity
+							g.Expect(affinity).ShouldNot(gomega.BeNil())
+							g.Expect(affinity.NodeAffinity).ShouldNot(gomega.BeNil())
+							g.Expect(affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution).ShouldNot(gomega.BeNil())
+							found := false
+							for _, term := range affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
+								for _, matchExpression := range term.MatchExpressions {
+									if matchExpression.Key == core.TPUSliceHealthNodeSelectorKey {
+										found = true
+										g.Expect(matchExpression.Operator).Should(gomega.Equal(corev1.NodeSelectorOpIn))
+										g.Expect(matchExpression.Values).Should(gomega.ConsistOf(core.TPUSliceHealthNodeSelectorHealthy, core.TPUSliceHealthNodeSelectorDegraded))
+									}
+								}
+							}
+							g.Expect(found).Should(gomega.BeTrue())
 						}
 					}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 				})

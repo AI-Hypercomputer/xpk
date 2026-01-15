@@ -15,6 +15,7 @@ limitations under the License.
 """
 
 from typing import List
+import itertools
 
 from ..utils.feature_flags import FeatureFlags
 from ..utils.console import ask_for_user_consent, xpk_print
@@ -25,6 +26,7 @@ from .capacity import (
     CapacityType,
     get_capacity_arguments_from_capacity_type,
     get_capacity_type,
+    get_reservations_list,
     print_reservations,
 )
 from .commands import run_command_for_value, run_commands, FailedCommand
@@ -85,12 +87,6 @@ def run_gke_node_pool_create_command(
     max_nodes = system.vms_per_slice
   else:
     max_nodes = 1000
-  capacity_args, return_code = get_capacity_arguments_from_capacity_type(
-      args, capacity_type, max_nodes, system.accelerator_type
-  )
-  if return_code > 0:
-    xpk_print('Parsing capacity arguments failed!')
-    return return_code
 
   desired_node_pool_count = (
       1 if system.accelerator_type == AcceleratorType.GPU else args.num_slices
@@ -274,9 +270,29 @@ def run_gke_node_pool_create_command(
 
   create_commands = []
   create_task_names = []
-  for node_pool_name in desired_node_pool_names:
-    if node_pool_name in node_pools_to_remain:
-      continue
+  node_pools_to_create = [np for np in desired_node_pool_names if np not in node_pools_to_remain]
+
+  if capacity_type == CapacityType.RESERVATION:
+    reservations = get_reservations_list(args)
+    if _validate_reservation_count(reservations, len(node_pools_to_create)) != 0:
+        return 1
+    if len(reservations) == 1:
+        reservations_iter = itertools.cycle(reservations)
+    else:
+        reservations_iter = iter(reservations)
+        
+  for node_pool_name in node_pools_to_create:
+    reservation_name = None
+    if capacity_type == CapacityType.RESERVATION:
+      reservation_name = next(reservations_iter)
+
+    capacity_args, return_code = get_capacity_arguments_from_capacity_type(
+        args, capacity_type, max_nodes, system.accelerator_type, reservation_name
+    )
+    if return_code > 0:
+        xpk_print('Parsing capacity arguments failed!')
+        return return_code
+
     command = (
         'gcloud beta container node-pools create'
         f' {node_pool_name}'
@@ -657,3 +673,14 @@ def ensure_resource_policy_exists(
 
   if return_code != 0:
     raise RuntimeError('Unable to create resource policy')
+
+
+def _validate_reservation_count(reservations: List[str], num_node_pools_to_create: int) -> int:
+  """Validate that reservation count matches new nodepool count or is 1."""
+  if len(reservations) > 1 and len(reservations) != num_node_pools_to_create:
+    xpk_print(
+        f'Error: Number of reservations ({len(reservations)}) must match'
+        f' the number of NEW nodepools ({num_node_pools_to_create}) or be 1.'
+    )
+    return 1
+  return 0

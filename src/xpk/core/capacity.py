@@ -90,7 +90,7 @@ def get_capacity_type(args) -> tuple[CapacityType, int]:
     capacity_type = CapacityType.ON_DEMAND
     num_types += 1
   if args.reservation:
-    return_code = verify_reservation_exists(args)
+    return_code = verify_reservations_exist(args)
     if return_code > 0:
       return capacity_type, return_code
     capacity_type = CapacityType.RESERVATION
@@ -184,8 +184,22 @@ def get_reservation_deployment_type(
   return output.strip()
 
 
-def verify_reservation_exists(args) -> int:
-  """Verify the reservation exists.
+def get_reservations_list(args) -> list[str]:
+  """Get the list of reservations from args.
+
+  Args:
+    args: user provided arguments.
+
+  Returns:
+    List of strings of reservations.
+  """
+  if not args.reservation:
+    return []
+  return [r.strip() for r in args.reservation.split(',')]
+
+
+def verify_reservations_exist(args) -> int:
+  """Verify the reservations exist.
 
   Args:
     args: user provided arguments for running the command.
@@ -193,16 +207,17 @@ def verify_reservation_exists(args) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
-  reservation = parse_reservation(args.reservation, args.project)
-  command = (
-      f'gcloud beta compute reservations describe {reservation.name}'
-      f' --project={reservation.project} --zone={args.zone}'
-  )
-  return_code = run_command_with_updates(command, 'Describe reservation')
-  if return_code != 0:
-    xpk_print(f'Describe reservation returned ERROR {return_code}')
-    xpk_print('Please confirm that your reservation name is correct.')
-    return 1
+  for reservation_name in get_reservations_list(args):
+    reservation = parse_reservation(reservation_name, args.project)
+    command = (
+        f'gcloud beta compute reservations describe {reservation.name}'
+        f' --project={reservation.project} --zone={args.zone}'
+    )
+    return_code = run_command_with_updates(command, 'Describe reservation')
+    if return_code != 0:
+      xpk_print(f'Describe reservation returned ERROR {return_code}')
+      xpk_print(f'Please confirm that your reservation name {reservation_name} is correct.')
+      return 1
   return 0
 
 
@@ -211,6 +226,7 @@ def get_capacity_arguments_from_capacity_type(
     capacity_type: CapacityType,
     max_nodes: int,
     accelerator_type: AcceleratorType,
+    reservation_name: str | None,
 ) -> tuple[str, int]:
   """Determine the Nodepool creation capacity arguments needed.
 
@@ -240,7 +256,7 @@ def get_capacity_arguments_from_capacity_type(
         capacity_args += ' --enable-queued-provisioning'
     case CapacityType.RESERVATION:
       capacity_args = (
-          f'--reservation-affinity=specific --reservation={args.reservation}'
+          f'--reservation-affinity=specific --reservation={reservation_name}'
       )
     case _:
       xpk_print(
@@ -252,7 +268,7 @@ def get_capacity_arguments_from_capacity_type(
 
 
 def get_capacity_node_selectors_from_capacity_type(
-    args, capacity_type: str
+    args, capacity_type: str, reservation_name: str | None
 ) -> tuple[str, int]:
   """Determine the node selectors for a workload to run on a specific capacity type.
 
@@ -275,7 +291,7 @@ def get_capacity_node_selectors_from_capacity_type(
     case CapacityType.SPOT.name:
       node_selector = 'cloud.google.com/gke-spot: "true"'
     case CapacityType.RESERVATION.name:
-      node_selector = f'cloud.google.com/reservation-name: {args.reservation}'
+      node_selector = f'cloud.google.com/reservation-name: {reservation_name}'
     case _:
       xpk_print(
           f'Unknown capacity type: {capacity_type}. Unable to determine the'

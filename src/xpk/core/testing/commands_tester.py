@@ -17,6 +17,8 @@ limitations under the License.
 import re
 from pytest_mock import MockerFixture
 
+from ..commands import FailedCommand
+
 
 class CommandsTester:
   """Tester class useful for mocking and asserting command runs."""
@@ -27,6 +29,7 @@ class CommandsTester:
       run_command_for_value_path: str | None = None,
       run_command_with_updates_path: str | None = None,
       run_command_with_updates_retry_path: str | None = None,
+      run_command_batch_path: str | None = None,
   ):
     self.__results: dict[re.Pattern, tuple[int, str]] = {}
     self.commands_history: list[str] = []
@@ -44,6 +47,11 @@ class CommandsTester:
       mocker.patch(
           run_command_with_updates_retry_path,
           wraps=self.__fake_run_command_with_updates_retry,
+      )
+    if run_command_batch_path:
+      mocker.patch(
+          run_command_batch_path,
+          wraps=self.__fake_run_command_batch,
       )
 
   def set_result_for_command(
@@ -110,6 +118,24 @@ class CommandsTester:
       quiet=False,
   ) -> tuple[int, str]:
     return self.__common_fake_run_command(command, (0, dry_run_return_val))
+
+  def __fake_run_command_batch(
+      self,
+      commands: list[str],
+      jobname: str,
+      per_command_name: list[str],
+      output_logs: list[str],
+  ) -> FailedCommand | None:
+    for i, command in enumerate(commands):
+      result = self.__fake_run_command_with_updates(command, (0, ""))
+      if result != 0:
+        return FailedCommand(
+            return_code=result,
+            name=per_command_name[i],
+            command=command,
+            logfile=output_logs[i],
+        )
+    return None
 
   # pylint: enable=unused-argument
 

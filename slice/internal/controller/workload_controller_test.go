@@ -757,6 +757,88 @@ func TestWorkloadReconciler(t *testing.T) {
 			},
 			wantResult: reconcile.Result{RequeueAfter: initializationRetryAfter},
 		},
+		"should create Slices with NodeAffinity": {
+			request: baseRequest,
+			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				worker2Node.DeepCopy(),
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapper.Clone().
+					PodSets(
+						func() kueue.PodSet {
+							ps := utiltesting.MakePodSet("ps1", 2, ptr.To(int32(1))).
+								Annotation(core.TPUSliceTopologyAnnotation, "4x4x12").
+								Obj()
+							ps.Template.Spec.Affinity = &corev1.Affinity{
+								NodeAffinity: &corev1.NodeAffinity{
+									RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+										NodeSelectorTerms: []corev1.NodeSelectorTerm{
+											{
+												MatchExpressions: []corev1.NodeSelectorRequirement{
+													{
+														Key:      core.TPUAcceleratorLabel,
+														Operator: corev1.NodeSelectorOpIn,
+														Values:   []string{string(slice.TypeTpu7x)},
+													},
+												},
+											},
+										},
+									},
+								},
+							}
+							return *ps
+						}(),
+						*basePodSet2Wrapper.DeepCopy(),
+					).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapper.Clone().
+					PodSets(
+						func() kueue.PodSet {
+							ps := utiltesting.MakePodSet("ps1", 2, ptr.To(int32(1))).
+								Annotation(core.TPUSliceTopologyAnnotation, "4x4x12").
+								Obj()
+							ps.Template.Spec.Affinity = &corev1.Affinity{
+								NodeAffinity: &corev1.NodeAffinity{
+									RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+										NodeSelectorTerms: []corev1.NodeSelectorTerm{
+											{
+												MatchExpressions: []corev1.NodeSelectorRequirement{
+													{
+														Key:      core.TPUAcceleratorLabel,
+														Operator: corev1.NodeSelectorOpIn,
+														Values:   []string{string(slice.TypeTpu7x)},
+													},
+												},
+											},
+										},
+									},
+								},
+							}
+							return *ps
+						}(),
+						*basePodSet2Wrapper.DeepCopy(),
+					).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStatePending, `Slices are in states: 2 CREATED`)).
+					Obj(),
+			},
+			wantSlices: []slice.Slice{
+				*baseSlice1Wrapper.DeepCopy(),
+				*baseSlice2Wrapper.DeepCopy(),
+			},
+			wantEvents: []utiltesting.EventRecord{
+				buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, SlicesCreatedEventType,
+					`The Slices "default-workload-ps1-0", "default-workload-ps2-0" have been created`),
+			},
+			wantResult: reconcile.Result{RequeueAfter: initializationRetryAfter},
+		},
 		"should create multiple Slices for 2 replicas": {
 			request: baseRequest,
 			objs: []client.Object{

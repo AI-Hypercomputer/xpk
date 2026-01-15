@@ -107,6 +107,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 			unhealthyNodes   []string
 			wantDomains      []kueue.TopologyDomainAssignment
 			wantPartitionIds []string
+			useNodeAffinity  bool
 		}
 		ginkgo.DescribeTable("it should create Slice based on created Workload with",
 			func(tc testCase) {
@@ -130,6 +131,31 @@ var _ = ginkgo.Describe("JobSet", func() {
 					}
 				})
 
+				nodeSelector := map[string]string{
+					"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
+				}
+				var affinity *corev1.Affinity
+				if tc.useNodeAffinity {
+					nodeSelector = nil
+					affinity = &corev1.Affinity{
+						NodeAffinity: &corev1.NodeAffinity{
+							RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+								NodeSelectorTerms: []corev1.NodeSelectorTerm{
+									{
+										MatchExpressions: []corev1.NodeSelectorRequirement{
+											{
+												Key:      "cloud.google.com/gke-tpu-accelerator",
+												Operator: corev1.NodeSelectorOpIn,
+												Values:   []string{string(slice.TypeTpu7x)},
+											},
+										},
+									},
+								},
+							},
+						},
+					}
+				}
+
 				jobSet := testingjobsjobset.MakeJobSet("jobset", ns.Name).
 					Queue(lq.Name).
 					ReplicatedJobs(
@@ -143,9 +169,8 @@ var _ = ginkgo.Describe("JobSet", func() {
 							PodAnnotations: map[string]string{
 								core.TPUSliceTopologyAnnotation: tc.tpuTopology,
 							},
-							NodeSelector: map[string]string{
-								"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
-							},
+							NodeSelector: nodeSelector,
+							Affinity:     affinity,
 						},
 					).
 					RequestAndLimit("rj1", extraResource, tc.tpuRequests).
@@ -389,6 +414,16 @@ var _ = ginkgo.Describe("JobSet", func() {
 					},
 				},
 				wantPartitionIds: []string{"sb2", "sb3"},
+			}),
+			ginkgo.Entry("TPU topology 4x4x4 with NodeAffinity", testCase{
+				tpuTopology:      "4x4x4",
+				tpuRequests:      "4",
+				parallelism:      16,
+				replicas:         1,
+				wantSliceSize:    16,
+				wantDomains:      []kueue.TopologyDomainAssignment{{Values: []string{"kind-worker"}, Count: 16}},
+				wantPartitionIds: []string{"sb1"},
+				useNodeAffinity:  true,
 			}),
 		)
 

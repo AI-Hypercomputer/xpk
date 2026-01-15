@@ -228,7 +228,7 @@ func TestDefault(t *testing.T) {
 					},
 					NodeSelector: map[string]string{
 						"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
-						core.TPUSliceHealthNodeSelectorKey:     "SOME_CUSTOM_VALUE",
+						core.TPUSliceHealthNodeSelectorKey:     "HEALTHY",
 					},
 				}).
 				Obj(),
@@ -245,7 +245,7 @@ func TestDefault(t *testing.T) {
 					},
 					NodeSelector: map[string]string{
 						"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
-						core.TPUSliceHealthNodeSelectorKey:     "SOME_CUSTOM_VALUE",
+						core.TPUSliceHealthNodeSelectorKey:     "HEALTHY",
 					},
 				}).
 				Obj(),

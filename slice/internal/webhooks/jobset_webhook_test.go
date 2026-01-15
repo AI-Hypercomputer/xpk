@@ -21,6 +21,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	corev1 "k8s.io/api/core/v1"
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
 
 	slice "tpu-slice-controller/api/v1beta1"
@@ -136,7 +137,26 @@ func TestDefault(t *testing.T) {
 					},
 					NodeSelector: map[string]string{
 						"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
-						core.TPUSliceHealthNodeSelectorKey:     core.TPUSliceHealthNodeSelectorHealthy,
+					},
+					Affinity: &corev1.Affinity{
+						NodeAffinity: &corev1.NodeAffinity{
+							RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+								NodeSelectorTerms: []corev1.NodeSelectorTerm{
+									{
+										MatchExpressions: []corev1.NodeSelectorRequirement{
+											{
+												Key:      core.TPUSliceHealthNodeSelectorKey,
+												Operator: corev1.NodeSelectorOpIn,
+												Values: []string{
+													core.TPUSliceHealthNodeSelectorHealthy,
+													core.TPUSliceHealthNodeSelectorDegraded,
+												},
+											},
+										},
+									},
+								},
+							},
+						},
 					},
 				}).
 				Obj(),
@@ -193,6 +213,82 @@ func TestDefault(t *testing.T) {
 					},
 					NodeSelector: map[string]string{
 						"cloud.google.com/gke-tpu-accelerator": "test",
+					},
+				}).
+				Obj(),
+		},
+		"should respect existing NodeSelector for health": {
+			jobSet: testingjobjobset.MakeJobSet(baseJobSetName, utils.DefaultNamespace).
+				Queue("queue-name").
+				ReplicatedJobs(testingjobjobset.ReplicatedJobRequirements{
+					Name:        "rj1",
+					Parallelism: 12,
+					PodAnnotations: map[string]string{
+						core.TPUSliceTopologyAnnotation: "4x4x12",
+					},
+					NodeSelector: map[string]string{
+						"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
+						core.TPUSliceHealthNodeSelectorKey:     "SOME_CUSTOM_VALUE",
+					},
+				}).
+				Obj(),
+			wantJobSet: testingjobjobset.MakeJobSet(baseJobSetName, utils.DefaultNamespace).
+				Queue("queue-name").
+				ReplicatedJobs(testingjobjobset.ReplicatedJobRequirements{
+					Name:        "rj1",
+					Parallelism: 12,
+					PodAnnotations: map[string]string{
+						core.TPUSliceTopologyAnnotation:                 "4x4x12",
+						"kueue.x-k8s.io/podset-required-topology":       "cloud.google.com/gce-topology-block",
+						"kueue.x-k8s.io/podset-slice-required-topology": core.TPUSubBlockLabel,
+						"kueue.x-k8s.io/podset-slice-size":              "4",
+					},
+					NodeSelector: map[string]string{
+						"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
+						core.TPUSliceHealthNodeSelectorKey:     "SOME_CUSTOM_VALUE",
+					},
+				}).
+				Obj(),
+		},
+		"should respect existing NodeAffinity for health": {
+			jobSet: testingjobjobset.MakeJobSet(baseJobSetName, utils.DefaultNamespace).
+				Queue("queue-name").
+				ReplicatedJobs(testingjobjobset.ReplicatedJobRequirements{
+					Name:        "rj1",
+					Parallelism: 12,
+					PodAnnotations: map[string]string{
+						core.TPUSliceTopologyAnnotation: "4x4x12",
+					},
+					NodeSelector: map[string]string{
+						"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
+					},
+					Affinity: &corev1.Affinity{
+						NodeAffinity: &corev1.NodeAffinity{
+							RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+								NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{{Key: core.TPUSliceHealthNodeSelectorKey, Operator: corev1.NodeSelectorOpIn, Values: []string{"HEALTHY"}}}}}},
+						},
+					},
+				}).
+				Obj(),
+			wantJobSet: testingjobjobset.MakeJobSet(baseJobSetName, utils.DefaultNamespace).
+				Queue("queue-name").
+				ReplicatedJobs(testingjobjobset.ReplicatedJobRequirements{
+					Name:        "rj1",
+					Parallelism: 12,
+					PodAnnotations: map[string]string{
+						core.TPUSliceTopologyAnnotation:                 "4x4x12",
+						"kueue.x-k8s.io/podset-required-topology":       "cloud.google.com/gce-topology-block",
+						"kueue.x-k8s.io/podset-slice-required-topology": core.TPUSubBlockLabel,
+						"kueue.x-k8s.io/podset-slice-size":              "4",
+					},
+					NodeSelector: map[string]string{
+						"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
+					},
+					Affinity: &corev1.Affinity{
+						NodeAffinity: &corev1.NodeAffinity{
+							RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+								NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{{Key: core.TPUSliceHealthNodeSelectorKey, Operator: corev1.NodeSelectorOpIn, Values: []string{"HEALTHY"}}}}}},
+						},
 					},
 				}).
 				Obj(),

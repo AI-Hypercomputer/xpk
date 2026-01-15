@@ -6,10 +6,18 @@ Feel free to use it for testing with following commands:
 - `python3 tools/recipes.py golden recipes/comprehensive-demo.md` - verifies modified outputs against this file
 - `python3 tools/recipes.py run recipes/comprehensive-demo.md` - runs recipe's commands
 
-## 1. Environment Persistence
-Variables exported in one block are available in subsequent blocks.
+## 1. Run only cells
+This cell will only get executed during run mode. It will not get golden computed.
 
 ```shell
+echo "Hello world!"
+```
+
+
+## 2. Environment Persistence
+Variables exported in one block are available in subsequent blocks.
+
+```shell #golden
 export DEMO_VAR="Hello from Block 1"
 echo "Set DEMO_VAR"
 ```
@@ -19,7 +27,7 @@ echo "Set DEMO_VAR"
 Set DEMO_VAR
 -->
 
-```shell
+```shell #golden
 echo "Reading DEMO_VAR: $DEMO_VAR"
 ```
 <!--
@@ -27,10 +35,10 @@ $ echo "Reading DEMO_VAR: $DEMO_VAR"
 Reading DEMO_VAR: Hello from Block 1
 -->
 
-## 2. Function Persistence
+## 3. Function Persistence
 XPK is correctly executed in dry-run mode.
 
-```shell
+```shell #golden
 xpk workload list --cluster=foo --project=bar --zone=us-central1-a
 ```
 <!--
@@ -53,10 +61,10 @@ kubectl get workloads --ignore-not-found -o=custom-columns="Jobset Name:.metadat
 [XPK] Exiting XPK cleanly
 -->
 
-## 3. Complex bash expressions work
+## 4. Complex bash expressions work
 We can execute command and assign it to a variable.
 
-```shell
+```shell #golden
 XPK_VERSION=$(xpk version)
 ```
 <!--
@@ -64,7 +72,7 @@ $ XPK_VERSION=$(xpk version)
 -->
 
 Then read it as follows:
-```shell
+```shell #golden
 echo "$XPK_VERSION"
 ```
 <!--

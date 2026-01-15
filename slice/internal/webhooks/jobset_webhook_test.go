@@ -21,7 +21,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	corev1 "k8s.io/api/core/v1"
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
 
 	slice "tpu-slice-controller/api/v1beta1"
@@ -138,27 +137,7 @@ func TestDefault(t *testing.T) {
 					NodeSelector: map[string]string{
 						"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
 					},
-					Affinity: &corev1.Affinity{
-						NodeAffinity: &corev1.NodeAffinity{
-							RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-								NodeSelectorTerms: []corev1.NodeSelectorTerm{
-									{
-										MatchExpressions: []corev1.NodeSelectorRequirement{
-											{
-												Key:      core.TPUSliceHealthNodeSelectorKey,
-												Operator: corev1.NodeSelectorOpIn,
-												Values: []string{
-													core.TPUSliceHealthNodeSelectorHealthy,
-													core.TPUSliceHealthNodeSelectorDegraded,
-												},
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-				}).
+				}).NodeAffinity("rj1", core.TPUSliceHealthNodeSelectorKey, []string{core.TPUSliceHealthNodeSelectorHealthy, core.TPUSliceHealthNodeSelectorDegraded}).
 				Obj(),
 		},
 		"shouldn't set default values because invalid topology annotation": {
@@ -262,13 +241,8 @@ func TestDefault(t *testing.T) {
 					NodeSelector: map[string]string{
 						"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
 					},
-					Affinity: &corev1.Affinity{
-						NodeAffinity: &corev1.NodeAffinity{
-							RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-								NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{{Key: core.TPUSliceHealthNodeSelectorKey, Operator: corev1.NodeSelectorOpIn, Values: []string{"HEALTHY"}}}}}},
-						},
-					},
 				}).
+				NodeAffinity("rj1", core.TPUSliceHealthNodeSelectorKey, []string{"HEALTHY"}).
 				Obj(),
 			wantJobSet: testingjobjobset.MakeJobSet(baseJobSetName, utils.DefaultNamespace).
 				Queue("queue-name").
@@ -284,13 +258,8 @@ func TestDefault(t *testing.T) {
 					NodeSelector: map[string]string{
 						"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
 					},
-					Affinity: &corev1.Affinity{
-						NodeAffinity: &corev1.NodeAffinity{
-							RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-								NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{{Key: core.TPUSliceHealthNodeSelectorKey, Operator: corev1.NodeSelectorOpIn, Values: []string{"HEALTHY"}}}}}},
-						},
-					},
 				}).
+				NodeAffinity("rj1", core.TPUSliceHealthNodeSelectorKey, []string{"HEALTHY"}).
 				Obj(),
 		},
 	}

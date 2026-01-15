@@ -154,7 +154,9 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	// before the workload is deleted.
 	if controllerutil.AddFinalizer(wl, SliceControllerName) {
 		if err = r.client.Update(ctx, wl); err != nil {
-			if !apierrors.IsNotFound(err) {
+			if apierrors.IsConflict(err) {
+				log.Info("Failed to add finalizer", "error", err)
+			} else if !apierrors.IsNotFound(err) {
 				log.Error(err, "Failed to add finalizer")
 			}
 			return ctrl.Result{}, client.IgnoreNotFound(err)

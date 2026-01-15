@@ -21,7 +21,6 @@ import (
 	"strconv"
 	"strings"
 
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -116,30 +115,7 @@ func annotateReplicatedJobWithSliceHealth(rj *v1alpha2.ReplicatedJob) {
 	}
 
 	// 3. If neither of these, we add a NodeAffinity.
-	if rj.Template.Spec.Template.Spec.Affinity == nil {
-		rj.Template.Spec.Template.Spec.Affinity = &corev1.Affinity{}
-	}
-	if rj.Template.Spec.Template.Spec.Affinity.NodeAffinity == nil {
-		rj.Template.Spec.Template.Spec.Affinity.NodeAffinity = &corev1.NodeAffinity{}
-	}
-	if rj.Template.Spec.Template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil {
-		rj.Template.Spec.Template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = &corev1.NodeSelector{}
-	}
-
-	nodeSelector := rj.Template.Spec.Template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution
-	healthRequirement := corev1.NodeSelectorRequirement{
-		Key:      core.TPUSliceHealthNodeSelectorKey,
-		Operator: corev1.NodeSelectorOpIn,
-		Values:   []string{core.TPUSliceHealthNodeSelectorHealthy, core.TPUSliceHealthNodeSelectorDegraded},
-	}
-
-	if len(nodeSelector.NodeSelectorTerms) == 0 {
-		nodeSelector.NodeSelectorTerms = []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{healthRequirement}}}
-	} else {
-		for i := range nodeSelector.NodeSelectorTerms {
-			nodeSelector.NodeSelectorTerms[i].MatchExpressions = append(nodeSelector.NodeSelectorTerms[i].MatchExpressions, healthRequirement)
-		}
-	}
+	core.AddNodeAffinity(rj, core.TPUSliceHealthNodeSelectorKey, []string{core.TPUSliceHealthNodeSelectorHealthy, core.TPUSliceHealthNodeSelectorDegraded})
 }
 
 func (r *JobSetWebhook) podSetSliceSize(tpuTopology string, parallelism int32) (string, error) {

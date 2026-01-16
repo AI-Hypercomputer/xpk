@@ -37,7 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
 	kueuealpha "sigs.k8s.io/kueue/apis/kueue/v1alpha1"
-	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
+	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta2"
 
 	"tpu-slice-controller/api/v1beta1"
 	"tpu-slice-controller/internal/controller"

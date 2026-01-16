@@ -31,8 +31,9 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
-	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
+	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta2"
 	jobsetcontroller "sigs.k8s.io/kueue/pkg/controller/jobs/jobset"
+	"sigs.k8s.io/kueue/pkg/util/tas"
 	"sigs.k8s.io/kueue/pkg/workload"
 	"sigs.k8s.io/kueue/test/util"
 
@@ -77,7 +78,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 		utils.MustCreate(ctx, k8sClient, ac)
 
 		cq = testing.MakeClusterQueue("cq").
-			AdmissionChecks(kueue.AdmissionCheckReference(ac.Name)).
+			AdmissionChecks(ac.Name).
 			ResourceGroup(*testing.MakeFlavorQuotas(rf.Name).
 				Resource(extraResource, "9999").
 				Obj()).
@@ -105,7 +106,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 			wantSliceSize    int32
 			tpuRequests      string
 			unhealthyNodes   []string
-			wantDomains      []kueue.TopologyDomainAssignment
+			wantDomains      []tas.TopologyDomainAssignment
 			wantPartitionIds []string
 		}
 		ginkgo.DescribeTable("it should create Slice based on created Workload with",
@@ -208,14 +209,11 @@ var _ = ginkgo.Describe("JobSet", func() {
 				ginkgo.By("Verifying TopologyAssignment", func() {
 					gomega.Expect(createdWorkload.Status.Admission).ShouldNot(gomega.BeNil())
 					gomega.Expect(createdWorkload.Status.Admission.PodSetAssignments).Should(gomega.HaveLen(1))
-					gomega.Expect(createdWorkload.Status.Admission.PodSetAssignments[0].TopologyAssignment).Should(gomega.BeComparableTo(
-						&kueue.TopologyAssignment{
-							Levels:  []string{"kubernetes.io/hostname"},
-							Domains: tc.wantDomains,
-						},
-					))
-				})
 
+					assignment := tas.InternalFrom(createdWorkload.Status.Admission.PodSetAssignments[0].TopologyAssignment)
+					gomega.Expect(assignment.Levels).Should(gomega.Equal([]string{"kubernetes.io/hostname"}))
+					gomega.Expect(assignment.Domains).Should(gomega.BeComparableTo(tc.wantDomains))
+				})
 				createdSlice := &slice.Slice{}
 				sliceKey := core.SliceKeyFromWorkload(createdWorkload, "rj1", 0)
 
@@ -300,7 +298,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 				parallelism:   16,
 				replicas:      1,
 				wantSliceSize: 16,
-				wantDomains: []kueue.TopologyDomainAssignment{{
+				wantDomains: []tas.TopologyDomainAssignment{{
 					Values: []string{"kind-worker"},
 					Count:  16,
 				}},
@@ -313,7 +311,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 				replicas:       1,
 				unhealthyNodes: []string{"kind-worker"},
 				wantSliceSize:  16,
-				wantDomains: []kueue.TopologyDomainAssignment{{
+				wantDomains: []tas.TopologyDomainAssignment{{
 					Values: []string{"kind-worker2"},
 					Count:  16,
 				}},
@@ -325,7 +323,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 				parallelism:   64,
 				replicas:      1,
 				wantSliceSize: 64,
-				wantDomains: []kueue.TopologyDomainAssignment{{
+				wantDomains: []tas.TopologyDomainAssignment{{
 					Values: []string{"kind-worker"},
 					Count:  64,
 				}},
@@ -337,7 +335,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 				parallelism:   48,
 				replicas:      1,
 				wantSliceSize: 16,
-				wantDomains: []kueue.TopologyDomainAssignment{
+				wantDomains: []tas.TopologyDomainAssignment{
 					{
 						Values: []string{"kind-worker2"},
 						Count:  16,
@@ -359,7 +357,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 				parallelism:   96,
 				replicas:      1,
 				wantSliceSize: 32,
-				wantDomains: []kueue.TopologyDomainAssignment{
+				wantDomains: []tas.TopologyDomainAssignment{
 					{
 						Values: []string{"kind-worker2"},
 						Count:  32,
@@ -381,7 +379,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 				parallelism:   128,
 				replicas:      1,
 				wantSliceSize: 64,
-				wantDomains: []kueue.TopologyDomainAssignment{
+				wantDomains: []tas.TopologyDomainAssignment{
 					{
 						Values: []string{"kind-worker2"},
 						Count:  64,
@@ -402,7 +400,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 				replicas         int32
 				wantSliceSize    int32
 				tpuRequests      string
-				wantDomains      []kueue.TopologyDomainAssignment
+				wantDomains      []tas.TopologyDomainAssignment
 				wantPartitionIds [][]string
 			}
 			ginkgo.DescribeTable("with", func(tc testCase) {
@@ -500,7 +498,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 					parallelism:   16,
 					replicas:      2,
 					wantSliceSize: 16,
-					wantDomains: []kueue.TopologyDomainAssignment{
+					wantDomains: []tas.TopologyDomainAssignment{
 						{
 							Values: []string{"kind-worker"},
 							Count:  16,
@@ -518,7 +516,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 					parallelism:   16,
 					replicas:      3,
 					wantSliceSize: 16,
-					wantDomains: []kueue.TopologyDomainAssignment{
+					wantDomains: []tas.TopologyDomainAssignment{
 						{
 							Values: []string{"kind-worker2"},
 							Count:  16,
@@ -720,7 +718,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Name:    kueue.AdmissionCheckReference(ac.Name),
 						State:   kueue.CheckStatePending,
 						Message: `Slices are in states: 1 CREATED`,
-					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates")))
+					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates", "RetryCount")))
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
 
@@ -735,7 +733,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Name:    kueue.AdmissionCheckReference(ac.Name),
 						State:   kueue.CheckStateReady,
 						Message: `Slices are in states: 1 ACTIVE`,
-					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates")))
+					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates", "RetryCount")))
 				}, utils.LongTimeout, utils.Interval).Should(gomega.Succeed())
 			})
 
@@ -839,7 +837,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Name:    kueue.AdmissionCheckReference(ac.Name),
 						State:   kueue.CheckStatePending,
 						Message: `Slices are in states: 1 CREATED`,
-					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates")))
+					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates", "RetryCount")))
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
 
@@ -861,7 +859,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Name:    kueue.AdmissionCheckReference(ac.Name),
 						State:   kueue.CheckStateReady,
 						Message: `Slices are in states: 1 ACTIVE`,
-					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates")))
+					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates", "RetryCount")))
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
 		})
@@ -948,7 +946,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Name:    kueue.AdmissionCheckReference(ac.Name),
 						State:   kueue.CheckStateReady,
 						Message: `Slices are in states: 1 ACTIVE`,
-					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates")))
+					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates", "RetryCount")))
 				}, utils.LongTimeout, utils.Interval).Should(gomega.Succeed())
 			})
 		})
@@ -1045,24 +1043,20 @@ var _ = ginkgo.Describe("JobSet", func() {
 			ginkgo.By("Verifying TopologyAssignment", func() {
 				gomega.Expect(createdWorkload.Status.Admission).ShouldNot(gomega.BeNil())
 				gomega.Expect(createdWorkload.Status.Admission.PodSetAssignments).Should(gomega.HaveLen(2))
-				gomega.Expect(createdWorkload.Status.Admission.PodSetAssignments[0].TopologyAssignment).Should(gomega.BeComparableTo(
-					&kueue.TopologyAssignment{
-						Levels: []string{"kubernetes.io/hostname"},
-						Domains: []kueue.TopologyDomainAssignment{{
-							Values: []string{"kind-worker"},
-							Count:  16,
-						}},
-					},
-				))
-				gomega.Expect(createdWorkload.Status.Admission.PodSetAssignments[1].TopologyAssignment).Should(gomega.BeComparableTo(
-					&kueue.TopologyAssignment{
-						Levels: []string{"kubernetes.io/hostname"},
-						Domains: []kueue.TopologyDomainAssignment{{
-							Values: []string{"kind-worker2"},
-							Count:  16,
-						}},
-					},
-				))
+
+				assignment1 := tas.InternalFrom(createdWorkload.Status.Admission.PodSetAssignments[0].TopologyAssignment)
+				gomega.Expect(assignment1.Levels).Should(gomega.Equal([]string{"kubernetes.io/hostname"}))
+				gomega.Expect(assignment1.Domains).Should(gomega.BeComparableTo([]tas.TopologyDomainAssignment{{
+					Values: []string{"kind-worker"},
+					Count:  16,
+				}}))
+
+				assignment2 := tas.InternalFrom(createdWorkload.Status.Admission.PodSetAssignments[1].TopologyAssignment)
+				gomega.Expect(assignment2.Levels).Should(gomega.Equal([]string{"kubernetes.io/hostname"}))
+				gomega.Expect(assignment2.Domains).Should(gomega.BeComparableTo([]tas.TopologyDomainAssignment{{
+					Values: []string{"kind-worker2"},
+					Count:  16,
+				}}))
 			})
 
 			createdSlice1 := &slice.Slice{}

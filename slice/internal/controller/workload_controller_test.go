@@ -41,7 +41,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/priorityqueue"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
-	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
+	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta2"
 
 	slice "tpu-slice-controller/api/v1beta1"
 	"tpu-slice-controller/internal/core"
@@ -113,18 +113,16 @@ func TestWorkloadReconciler(t *testing.T) {
 	}
 	baseLevels := []string{"kubernetes.io/hostname"}
 	basePodSetAssignment1Wrapper := utiltesting.MakePodSetAssignment("ps1").
-		TopologyAssignment(baseLevels, []kueue.TopologyDomainAssignment{
-			{
-				Values: []string{"worker1"},
-				Count:  2,
-			},
+		TopologyAssignment(baseLevels, []kueue.TopologyAssignmentSlice{
+			utiltesting.MakeTopologyAssignmentSlice(1, []int32{2}).
+				Value("worker1").
+				Obj(),
 		})
 	basePodSetAssignment2Wrapper := utiltesting.MakePodSetAssignment("ps2").
-		TopologyAssignment(baseLevels, []kueue.TopologyDomainAssignment{
-			{
-				Values: []string{"worker2"},
-				Count:  2,
-			},
+		TopologyAssignment(baseLevels, []kueue.TopologyAssignmentSlice{
+			utiltesting.MakeTopologyAssignmentSlice(1, []int32{2}).
+				Value("worker2").
+				Obj(),
 		})
 	baseAdmission := &kueue.Admission{
 		PodSetAssignments: []kueue.PodSetAssignment{
@@ -470,11 +468,11 @@ func TestWorkloadReconciler(t *testing.T) {
 						&kueue.Admission{
 							PodSetAssignments: []kueue.PodSetAssignment{
 								utiltesting.MakePodSetAssignment("ps1").
-									TopologyAssignment(nil, []kueue.TopologyDomainAssignment{
-										{
-											Values: []string{"domain1", "domain2"},
-											Count:  2,
-										},
+									TopologyAssignment(nil, []kueue.TopologyAssignmentSlice{
+										utiltesting.MakeTopologyAssignmentSlice(1, []int32{2}).
+											Value("domain1").
+											Value("domain2").
+											Obj(),
 									}).Obj(),
 							},
 						}, now,
@@ -494,11 +492,11 @@ func TestWorkloadReconciler(t *testing.T) {
 						&kueue.Admission{
 							PodSetAssignments: []kueue.PodSetAssignment{
 								utiltesting.MakePodSetAssignment("ps1").
-									TopologyAssignment(nil, []kueue.TopologyDomainAssignment{
-										{
-											Values: []string{"domain1", "domain2"},
-											Count:  2,
-										},
+									TopologyAssignment(nil, []kueue.TopologyAssignmentSlice{
+										utiltesting.MakeTopologyAssignmentSlice(1, []int32{2}).
+											Value("domain1").
+											Value("domain2").
+											Obj(),
 									}).Obj(),
 							},
 						}, now,
@@ -522,11 +520,11 @@ func TestWorkloadReconciler(t *testing.T) {
 						&kueue.Admission{
 							PodSetAssignments: []kueue.PodSetAssignment{
 								utiltesting.MakePodSetAssignment("ps1").
-									TopologyAssignment(nil, []kueue.TopologyDomainAssignment{
-										{
-											Values: []string{"domain1", "domain2"},
-											Count:  2,
-										},
+									TopologyAssignment(nil, []kueue.TopologyAssignmentSlice{
+										utiltesting.MakeTopologyAssignmentSlice(1, []int32{2}).
+											Value("domain1").
+											Value("domain2").
+											Obj(),
 									}).Obj(),
 							},
 						}, now,
@@ -546,11 +544,11 @@ func TestWorkloadReconciler(t *testing.T) {
 						&kueue.Admission{
 							PodSetAssignments: []kueue.PodSetAssignment{
 								utiltesting.MakePodSetAssignment("ps1").
-									TopologyAssignment(nil, []kueue.TopologyDomainAssignment{
-										{
-											Values: []string{"domain1", "domain2"},
-											Count:  2,
-										},
+									TopologyAssignment(nil, []kueue.TopologyAssignmentSlice{
+										utiltesting.MakeTopologyAssignmentSlice(1, []int32{2}).
+											Value("domain1").
+											Value("domain2").
+											Obj(),
 									}).Obj(),
 							},
 						}, now,
@@ -615,11 +613,11 @@ func TestWorkloadReconciler(t *testing.T) {
 					ReserveQuota(&kueue.Admission{
 						PodSetAssignments: []kueue.PodSetAssignment{
 							utiltesting.MakePodSetAssignment("ps1").
-								TopologyAssignment([]string{"cloud.google.com/gce-topology-block", core.TPUSubBlockLabel}, []kueue.TopologyDomainAssignment{
-									{
-										Values: []string{"worker1"},
-										Count:  2,
-									},
+								TopologyAssignment([]string{"cloud.google.com/gce-topology-block", core.TPUSubBlockLabel}, []kueue.TopologyAssignmentSlice{
+									utiltesting.MakeTopologyAssignmentSlice(1, []int32{2}).
+										Value("block1").
+										Value("worker1").
+										Obj(),
 								}).Obj(),
 						},
 					}, now).
@@ -632,11 +630,11 @@ func TestWorkloadReconciler(t *testing.T) {
 					ReserveQuota(&kueue.Admission{
 						PodSetAssignments: []kueue.PodSetAssignment{
 							utiltesting.MakePodSetAssignment("ps1").
-								TopologyAssignment([]string{"cloud.google.com/gce-topology-block", core.TPUSubBlockLabel}, []kueue.TopologyDomainAssignment{
-									{
-										Values: []string{"worker1"},
-										Count:  2,
-									},
+								TopologyAssignment([]string{"cloud.google.com/gce-topology-block", core.TPUSubBlockLabel}, []kueue.TopologyAssignmentSlice{
+									utiltesting.MakeTopologyAssignmentSlice(1, []int32{2}).
+										Value("block1").
+										Value("worker1").
+										Obj(),
 								}).Obj(),
 						},
 					}, now).
@@ -773,15 +771,10 @@ func TestWorkloadReconciler(t *testing.T) {
 					ReserveQuota(&kueue.Admission{
 						PodSetAssignments: []kueue.PodSetAssignment{
 							utiltesting.MakePodSetAssignment("ps1").
-								TopologyAssignment(baseLevels, []kueue.TopologyDomainAssignment{
-									{
-										Values: []string{"worker1"},
-										Count:  2,
-									},
-									{
-										Values: []string{"worker2"},
-										Count:  2,
-									},
+								TopologyAssignment(baseLevels, []kueue.TopologyAssignmentSlice{
+									utiltesting.MakeTopologyAssignmentSliceUniversal(2, 2).
+										Value("worker1", "worker2").
+										Obj(),
 								}).Obj(),
 						},
 					}, now).
@@ -800,15 +793,10 @@ func TestWorkloadReconciler(t *testing.T) {
 					ReserveQuota(&kueue.Admission{
 						PodSetAssignments: []kueue.PodSetAssignment{
 							utiltesting.MakePodSetAssignment("ps1").
-								TopologyAssignment(baseLevels, []kueue.TopologyDomainAssignment{
-									{
-										Values: []string{"worker1"},
-										Count:  2,
-									},
-									{
-										Values: []string{"worker2"},
-										Count:  2,
-									},
+								TopologyAssignment(baseLevels, []kueue.TopologyAssignmentSlice{
+									utiltesting.MakeTopologyAssignmentSliceUniversal(2, 2).
+										Value("worker1", "worker2").
+										Obj(),
 								}).Obj(),
 						},
 					}, now).
@@ -848,13 +836,16 @@ func TestWorkloadReconciler(t *testing.T) {
 					ReserveQuota(&kueue.Admission{
 						PodSetAssignments: []kueue.PodSetAssignment{
 							utiltesting.MakePodSetAssignment("rj1").
-								TopologyAssignment(baseLevels, []kueue.TopologyDomainAssignment{
-									{Values: []string{"worker2"}, Count: 16},
-									{Values: []string{"worker3"}, Count: 16},
+								TopologyAssignment(baseLevels, []kueue.TopologyAssignmentSlice{
+									utiltesting.MakeTopologyAssignmentSliceUniversal(2, 16).
+										Value("worker2", "worker3").
+										Obj(),
 								}).Obj(),
 							utiltesting.MakePodSetAssignment("rj2").
-								TopologyAssignment(baseLevels, []kueue.TopologyDomainAssignment{
-									{Values: []string{"worker1"}, Count: 16},
+								TopologyAssignment(baseLevels, []kueue.TopologyAssignmentSlice{
+									utiltesting.MakeTopologyAssignmentSliceUniversal(1, 16).
+										Value("worker1").
+										Obj(),
 								}).Obj(),
 						},
 					}, now).
@@ -877,13 +868,16 @@ func TestWorkloadReconciler(t *testing.T) {
 					ReserveQuota(&kueue.Admission{
 						PodSetAssignments: []kueue.PodSetAssignment{
 							utiltesting.MakePodSetAssignment("rj1").
-								TopologyAssignment(baseLevels, []kueue.TopologyDomainAssignment{
-									{Values: []string{"worker2"}, Count: 16},
-									{Values: []string{"worker3"}, Count: 16},
+								TopologyAssignment(baseLevels, []kueue.TopologyAssignmentSlice{
+									utiltesting.MakeTopologyAssignmentSliceUniversal(2, 16).
+										Value("worker2", "worker3").
+										Obj(),
 								}).Obj(),
 							utiltesting.MakePodSetAssignment("rj2").
-								TopologyAssignment(baseLevels, []kueue.TopologyDomainAssignment{
-									{Values: []string{"worker1"}, Count: 16},
+								TopologyAssignment(baseLevels, []kueue.TopologyAssignmentSlice{
+									utiltesting.MakeTopologyAssignmentSliceUniversal(1, 16).
+										Value("worker1").
+										Obj(),
 								}).Obj(),
 						},
 					}, now).
@@ -922,14 +916,16 @@ func TestWorkloadReconciler(t *testing.T) {
 					ReserveQuota(&kueue.Admission{
 						PodSetAssignments: []kueue.PodSetAssignment{
 							utiltesting.MakePodSetAssignment("rj1").
-								TopologyAssignment(baseLevels, []kueue.TopologyDomainAssignment{
-									{Values: []string{"worker1"}, Count: 16},
-									{Values: []string{"worker2"}, Count: 16},
+								TopologyAssignment(baseLevels, []kueue.TopologyAssignmentSlice{
+									utiltesting.MakeTopologyAssignmentSliceUniversal(2, 16).
+										Value("worker1", "worker2").
+										Obj(),
 								}).Obj(),
 							utiltesting.MakePodSetAssignment("rj2").
-								TopologyAssignment(baseLevels, []kueue.TopologyDomainAssignment{
-									{Values: []string{"worker3"}, Count: 16},
-									{Values: []string{"worker4"}, Count: 16},
+								TopologyAssignment(baseLevels, []kueue.TopologyAssignmentSlice{
+									utiltesting.MakeTopologyAssignmentSliceUniversal(2, 16).
+										Value("worker3", "worker4").
+										Obj(),
 								}).Obj(),
 						},
 					}, now).
@@ -952,14 +948,16 @@ func TestWorkloadReconciler(t *testing.T) {
 					ReserveQuota(&kueue.Admission{
 						PodSetAssignments: []kueue.PodSetAssignment{
 							utiltesting.MakePodSetAssignment("rj1").
-								TopologyAssignment(baseLevels, []kueue.TopologyDomainAssignment{
-									{Values: []string{"worker1"}, Count: 16},
-									{Values: []string{"worker2"}, Count: 16},
+								TopologyAssignment(baseLevels, []kueue.TopologyAssignmentSlice{
+									utiltesting.MakeTopologyAssignmentSliceUniversal(2, 16).
+										Value("worker1", "worker2").
+										Obj(),
 								}).Obj(),
 							utiltesting.MakePodSetAssignment("rj2").
-								TopologyAssignment(baseLevels, []kueue.TopologyDomainAssignment{
-									{Values: []string{"worker3"}, Count: 16},
-									{Values: []string{"worker4"}, Count: 16},
+								TopologyAssignment(baseLevels, []kueue.TopologyAssignmentSlice{
+									utiltesting.MakeTopologyAssignmentSliceUniversal(2, 16).
+										Value("worker3", "worker4").
+										Obj(),
 								}).Obj(),
 						},
 					}, now).
@@ -1155,18 +1153,16 @@ func TestWorkloadReconciler(t *testing.T) {
 					ReserveQuota(&kueue.Admission{
 						PodSetAssignments: []kueue.PodSetAssignment{
 							utiltesting.MakePodSetAssignment("ps1").
-								TopologyAssignment([]string{"kubernetes.io/hostname"}, []kueue.TopologyDomainAssignment{
-									{
-										Values: []string{"worker1"},
-										Count:  2,
-									},
+								TopologyAssignment([]string{"kubernetes.io/hostname"}, []kueue.TopologyAssignmentSlice{
+									utiltesting.MakeTopologyAssignmentSlice(1, []int32{2}).
+										Value("worker1").
+										Obj(),
 								}).Obj(),
 							utiltesting.MakePodSetAssignment("ps2").
-								TopologyAssignment([]string{"kubernetes.io/hostname"}, []kueue.TopologyDomainAssignment{
-									{
-										Values: []string{"worker2"},
-										Count:  2,
-									},
+								TopologyAssignment([]string{"kubernetes.io/hostname"}, []kueue.TopologyAssignmentSlice{
+									utiltesting.MakeTopologyAssignmentSlice(1, []int32{2}).
+										Value("worker2").
+										Obj(),
 								}).Obj(),
 						},
 					}, now).
@@ -1180,18 +1176,16 @@ func TestWorkloadReconciler(t *testing.T) {
 					ReserveQuota(&kueue.Admission{
 						PodSetAssignments: []kueue.PodSetAssignment{
 							utiltesting.MakePodSetAssignment("ps1").
-								TopologyAssignment([]string{"kubernetes.io/hostname"}, []kueue.TopologyDomainAssignment{
-									{
-										Values: []string{"worker1"},
-										Count:  2,
-									},
+								TopologyAssignment([]string{"kubernetes.io/hostname"}, []kueue.TopologyAssignmentSlice{
+									utiltesting.MakeTopologyAssignmentSlice(1, []int32{2}).
+										Value("worker1").
+										Obj(),
 								}).Obj(),
 							utiltesting.MakePodSetAssignment("ps2").
-								TopologyAssignment([]string{"kubernetes.io/hostname"}, []kueue.TopologyDomainAssignment{
-									{
-										Values: []string{"worker2"},
-										Count:  2,
-									},
+								TopologyAssignment([]string{"kubernetes.io/hostname"}, []kueue.TopologyAssignmentSlice{
+									utiltesting.MakeTopologyAssignmentSlice(1, []int32{2}).
+										Value("worker2").
+										Obj(),
 								}).Obj(),
 						},
 					}, now).

@@ -29,7 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
+	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta2"
 
 	"tpu-slice-controller/api/v1beta1"
 	"tpu-slice-controller/internal/core"
@@ -222,15 +222,15 @@ func MakePodSetAssignment(name string) *PodSetAssignmentWrapper {
 	}
 }
 
-func (w *PodSetAssignmentWrapper) TopologyAssignment(levels []string, domains []kueue.TopologyDomainAssignment) *PodSetAssignmentWrapper {
+func (w *PodSetAssignmentWrapper) TopologyAssignment(levels []string, slices []kueue.TopologyAssignmentSlice) *PodSetAssignmentWrapper {
 	if w.PodSetAssignment.TopologyAssignment == nil {
 		w.PodSetAssignment.TopologyAssignment = &kueue.TopologyAssignment{
-			Levels:  make([]string, 0, len(levels)),
-			Domains: make([]kueue.TopologyDomainAssignment, 0, len(domains)),
+			Levels: make([]string, 0, len(levels)),
+			Slices: make([]kueue.TopologyAssignmentSlice, 0, len(slices)),
 		}
 	}
 	w.PodSetAssignment.TopologyAssignment.Levels = append(w.PodSetAssignment.TopologyAssignment.Levels, levels...)
-	w.PodSetAssignment.TopologyAssignment.Domains = append(w.PodSetAssignment.TopologyAssignment.Domains, domains...)
+	w.PodSetAssignment.TopologyAssignment.Slices = append(w.PodSetAssignment.TopologyAssignment.Slices, slices...)
 	return w
 }
 
@@ -245,6 +245,45 @@ func (w *PodSetAssignmentWrapper) Clone() *PodSetAssignmentWrapper {
 func (w *PodSetAssignmentWrapper) Name(name string) *PodSetAssignmentWrapper {
 	w.PodSetAssignment.Name = kueue.PodSetReference(name)
 	return w
+}
+
+type TopologyAssignmentSliceWrapper struct {
+	kueue.TopologyAssignmentSlice
+}
+
+func MakeTopologyAssignmentSlice(domainCount int, podCounts []int32) *TopologyAssignmentSliceWrapper {
+	return &TopologyAssignmentSliceWrapper{
+		kueue.TopologyAssignmentSlice{
+			DomainCount: int32(domainCount),
+			PodCounts: kueue.TopologyAssignmentSlicePodCounts{
+				Individual: podCounts,
+			},
+		},
+	}
+}
+
+func MakeTopologyAssignmentSliceUniversal(domainCount int, podCount int32) *TopologyAssignmentSliceWrapper {
+	return &TopologyAssignmentSliceWrapper{
+		kueue.TopologyAssignmentSlice{
+			DomainCount: int32(domainCount),
+			PodCounts: kueue.TopologyAssignmentSlicePodCounts{
+				Universal: ptr.To(podCount),
+			},
+		},
+	}
+}
+
+func (w *TopologyAssignmentSliceWrapper) Value(roots ...string) *TopologyAssignmentSliceWrapper {
+	w.ValuesPerLevel = append(w.ValuesPerLevel, kueue.TopologyAssignmentSliceLevelValues{
+		Individual: &kueue.TopologyAssignmentSliceLevelIndividualValues{
+			Roots: roots,
+		},
+	})
+	return w
+}
+
+func (w *TopologyAssignmentSliceWrapper) Obj() kueue.TopologyAssignmentSlice {
+	return w.TopologyAssignmentSlice
 }
 
 // SliceWrapper wraps a Slice.
@@ -460,7 +499,7 @@ func MakeClusterQueue(name string) *ClusterQueueWrapper {
 			NamespaceSelector: &metav1.LabelSelector{},
 			QueueingStrategy:  kueue.BestEffortFIFO,
 			FlavorFungibility: &kueue.FlavorFungibility{
-				WhenCanBorrow:  kueue.Borrow,
+				WhenCanBorrow:  kueue.MayStopSearch,
 				WhenCanPreempt: kueue.TryNextFlavor,
 			},
 		},
@@ -503,9 +542,23 @@ func (c *ClusterQueueWrapper) ResourceGroup(flavors ...kueue.FlavorQuotas) *Clus
 	return c
 }
 
-// AdmissionChecks replaces the queue additional checks
-func (c *ClusterQueueWrapper) AdmissionChecks(checks ...kueue.AdmissionCheckReference) *ClusterQueueWrapper {
-	c.Spec.AdmissionChecks = checks
+// AdmissionChecksStrategy replaces the queue additional checks
+func (c *ClusterQueueWrapper) AdmissionChecksStrategy(checks kueue.AdmissionChecksStrategy) *ClusterQueueWrapper {
+	c.Spec.AdmissionChecksStrategy = &checks
+	return c
+}
+
+// AdmissionChecks sets the admission checks for the ClusterQueue
+func (c *ClusterQueueWrapper) AdmissionChecks(checks ...string) *ClusterQueueWrapper {
+	rules := make([]kueue.AdmissionCheckStrategyRule, len(checks))
+	for i, check := range checks {
+		rules[i] = kueue.AdmissionCheckStrategyRule{
+			Name: kueue.AdmissionCheckReference(check),
+		}
+	}
+	c.Spec.AdmissionChecksStrategy = &kueue.AdmissionChecksStrategy{
+		AdmissionChecks: rules,
+	}
 	return c
 }
 

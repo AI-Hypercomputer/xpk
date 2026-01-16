@@ -137,23 +137,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 				var affinity *corev1.Affinity
 				if tc.useNodeAffinity {
 					nodeSelector = nil
-					affinity = &corev1.Affinity{
-						NodeAffinity: &corev1.NodeAffinity{
-							RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-								NodeSelectorTerms: []corev1.NodeSelectorTerm{
-									{
-										MatchExpressions: []corev1.NodeSelectorRequirement{
-											{
-												Key:      "cloud.google.com/gke-tpu-accelerator",
-												Operator: corev1.NodeSelectorOpIn,
-												Values:   []string{string(slice.TypeTpu7x)},
-											},
-										},
-									},
-								},
-							},
-						},
-					}
+					affinity = core.TpuAffinity.DeepCopy()
 				}
 
 				jobSet := testingjobsjobset.MakeJobSet("jobset", ns.Name).

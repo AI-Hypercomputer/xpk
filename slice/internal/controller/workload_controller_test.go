@@ -130,23 +130,7 @@ func TestWorkloadReconciler(t *testing.T) {
 		ps := utiltesting.MakePodSet("ps1", 2, ptr.To(int32(1))).
 			Annotation(core.TPUSliceTopologyAnnotation, "4x4x12").
 			Obj()
-		ps.Template.Spec.Affinity = &corev1.Affinity{
-			NodeAffinity: &corev1.NodeAffinity{
-				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-					NodeSelectorTerms: []corev1.NodeSelectorTerm{
-						{
-							MatchExpressions: []corev1.NodeSelectorRequirement{
-								{
-									Key:      core.TPUAcceleratorLabel,
-									Operator: corev1.NodeSelectorOpIn,
-									Values:   []string{string(slice.TypeTpu7x)},
-								},
-							},
-						},
-					},
-				},
-			},
-		}
+		ps.Template.Spec.Affinity = core.TpuAffinity.DeepCopy()
 		return *ps
 	}()
 	baseAdmission := &kueue.Admission{

@@ -823,7 +823,4 @@ def test_validate_cluster_create_args_for_super_slicing_reservation_mismatch_blo
     _validate_cluster_create_args(args, SUPER_SLICING_SYSTEM)
 
   assert mocks.commands_print_mock.call_count == 1
-  assert (
-      'to be in the same block'
-      in mocks.commands_print_mock.call_args[0][0]
-  )
+  assert 'to be in the same block' in mocks.commands_print_mock.call_args[0][0]

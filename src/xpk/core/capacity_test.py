@@ -17,14 +17,14 @@ limitations under the License.
 import pytest
 from unittest.mock import MagicMock, patch
 from .capacity import (
-  get_reservation_deployment_type,
-  parse_reservation, 
-  Reservation,
-  get_capacity_type,
-  CapacityType, 
-  verify_reservations_exist,
-  get_capacity_arguments_from_capacity_type,
-  get_reservations_list,
+    get_reservation_deployment_type,
+    parse_reservation,
+    Reservation,
+    get_capacity_type,
+    CapacityType,
+    verify_reservations_exist,
+    get_capacity_arguments_from_capacity_type,
+    get_reservations_list,
 )
 from .system_characteristics import AcceleratorType
 
@@ -156,7 +156,7 @@ def test_get_capacity_type_multiple_reservations(mocker):
   mocker.patch('xpk.core.capacity.run_command_with_updates', return_value=0)
 
   capacity_type, return_code = get_capacity_type(args)
-  
+
   assert capacity_type == CapacityType.RESERVATION
   assert return_code == 0
 
@@ -167,31 +167,36 @@ def test_verify_reservations_exist_multiple(mocker):
   args.project = 'test-project'
   args.zone = 'us-central1-a'
 
-  mock_run = mocker.patch('xpk.core.capacity.run_command_with_updates', return_value=0)
-  
+  mock_run = mocker.patch(
+      'xpk.core.capacity.run_command_with_updates', return_value=0
+  )
+
   return_code = verify_reservations_exist(args)
-  
+
   assert return_code == 0
   assert mock_run.call_count == 2
 
 
 def test_get_reservations_list_with_single_reservation(mocker):
-  args = mocker.Mock(reservation="res1")
-  assert get_reservations_list(args) == ["res1"]
+  args = mocker.Mock(reservation='res1')
+  assert get_reservations_list(args) == ['res1']
+
 
 def test_get_reservations_list_with_multiple_reservations(mocker):
-  args = mocker.Mock(reservation="res1,res2")
-  assert get_reservations_list(args) == ["res1", "res2"]
+  args = mocker.Mock(reservation='res1,res2')
+  assert get_reservations_list(args) == ['res1', 'res2']
+
 
 def test_get_reservations_list_with_whitespace(mocker):
-  args = mocker.Mock(reservation="res1, res2 ")
-  assert get_reservations_list(args) == ["res1", "res2"]
+  args = mocker.Mock(reservation='res1, res2 ')
+  assert get_reservations_list(args) == ['res1', 'res2']
+
 
 def test_get_reservations_list_none(mocker):
   args = mocker.Mock(reservation=None)
   assert get_reservations_list(args) == []
 
-def test_get_reservations_list_empty(mocker):
-  args = mocker.Mock(reservation="")
-  assert get_reservations_list(args) == []
 
+def test_get_reservations_list_empty(mocker):
+  args = mocker.Mock(reservation='')
+  assert get_reservations_list(args) == []

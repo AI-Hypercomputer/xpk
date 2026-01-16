@@ -270,28 +270,37 @@ def run_gke_node_pool_create_command(
 
   create_commands = []
   create_task_names = []
-  node_pools_to_create = [np for np in desired_node_pool_names if np not in node_pools_to_remain]
+  node_pools_to_create = [
+      np for np in desired_node_pool_names if np not in node_pools_to_remain
+  ]
 
   if capacity_type == CapacityType.RESERVATION:
     reservations = get_reservations_list(args)
-    if _validate_reservation_count(reservations, len(node_pools_to_create)) != 0:
-        return 1
+    if (
+        _validate_reservation_count(reservations, len(node_pools_to_create))
+        != 0
+    ):
+      return 1
     if len(reservations) == 1:
-        reservations_iter = itertools.cycle(reservations)
+      reservations_iter = itertools.cycle(reservations)
     else:
-        reservations_iter = iter(reservations)
-        
+      reservations_iter = iter(reservations)
+
   for node_pool_name in node_pools_to_create:
     reservation_name = None
     if capacity_type == CapacityType.RESERVATION:
       reservation_name = next(reservations_iter)
 
     capacity_args, return_code = get_capacity_arguments_from_capacity_type(
-        args, capacity_type, max_nodes, system.accelerator_type, reservation_name
+        args,
+        capacity_type,
+        max_nodes,
+        system.accelerator_type,
+        reservation_name,
     )
     if return_code > 0:
-        xpk_print('Parsing capacity arguments failed!')
-        return return_code
+      xpk_print('Parsing capacity arguments failed!')
+      return return_code
 
     command = (
         'gcloud beta container node-pools create'
@@ -675,7 +684,9 @@ def ensure_resource_policy_exists(
     raise RuntimeError('Unable to create resource policy')
 
 
-def _validate_reservation_count(reservations: List[str], num_node_pools_to_create: int) -> int:
+def _validate_reservation_count(
+    reservations: List[str], num_node_pools_to_create: int
+) -> int:
   """Validate that reservation count matches new nodepool count or is 1."""
   if len(reservations) > 1 and len(reservations) != num_node_pools_to_create:
     xpk_print(

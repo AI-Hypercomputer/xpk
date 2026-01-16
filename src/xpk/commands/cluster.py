@@ -251,17 +251,17 @@ def _validate_super_slicing_reservation(args):
   for reservation_string in reservations:
     reservation = parse_reservation(reservation_string, args.project)
     if reservation.block_name is None:
-        xpk_print(
-            'Error: Validation failed: Super-slicing cluster creation'
-            ' requires a block or sub-block reservation.'
-        )
-        xpk_exit(1)
+      xpk_print(
+          'Error: Validation failed: Super-slicing cluster creation'
+          ' requires a block or sub-block reservation.'
+      )
+      xpk_exit(1)
     if reservation.block_name != block_name:
-        xpk_print(
-            'Error: Validation failed: Super-slicing cluster creation'
-            ' requires all reservations to be in the same block.'
-        )
-        xpk_exit(1)
+      xpk_print(
+          'Error: Validation failed: Super-slicing cluster creation'
+          ' requires all reservations to be in the same block.'
+      )
+      xpk_exit(1)
 
 
 def _validate_gsc_reservation(args, creation_description: str):
@@ -277,23 +277,24 @@ def _validate_gsc_reservation(args, creation_description: str):
         reservation_path=reservation, project=args.project, zone=args.zone
     )
     if deployment_type != 'DENSE':
-        xpk_print(
-            'Error: Validation failed: The specified reservation'
-            f' "{reservation}" is not a Cluster Director reservation.'
-        )
-        xpk_print(
-            'Please provide a reservation created for Cluster Director to proceed.'
-        )
-        xpk_print('To list valid Cluster Director reservations, run:')
-        xpk_print(
-            '  gcloud compute reservations list --filter="deploymentType=DENSE"'
-        )
-        xpk_print(
-            'Refer to the documentation for more information on creating Cluster'
-            ' Director reservations:'
-            ' https://cloud.google.com/cluster-director/docs/reserve-capacity'
-        )
-        xpk_exit(1)
+      xpk_print(
+          'Error: Validation failed: The specified reservation'
+          f' "{reservation}" is not a Cluster Director reservation.'
+      )
+      xpk_print(
+          'Please provide a reservation created for Cluster Director to'
+          ' proceed.'
+      )
+      xpk_print('To list valid Cluster Director reservations, run:')
+      xpk_print(
+          '  gcloud compute reservations list --filter="deploymentType=DENSE"'
+      )
+      xpk_print(
+          'Refer to the documentation for more information on creating Cluster'
+          ' Director reservations:'
+          ' https://cloud.google.com/cluster-director/docs/reserve-capacity'
+      )
+      xpk_exit(1)
 
 
 def _validate_num_slices_and_set_default(args):

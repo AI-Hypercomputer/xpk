@@ -216,7 +216,10 @@ def verify_reservations_exist(args) -> int:
     return_code = run_command_with_updates(command, 'Describe reservation')
     if return_code != 0:
       xpk_print(f'Describe reservation returned ERROR {return_code}')
-      xpk_print(f'Please confirm that your reservation name {reservation_name} is correct.')
+      xpk_print(
+          f'Please confirm that your reservation name {reservation_name} is'
+          ' correct.'
+      )
       return 1
   return 0
 

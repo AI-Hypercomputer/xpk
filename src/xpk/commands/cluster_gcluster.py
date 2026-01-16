@@ -308,7 +308,10 @@ def generate_blueprint(
 
   reservations = get_reservations_list(args)
   if len(reservations) > 1:
-    xpk_print('Error: Cluster Toolkit based clusters only support a single reservation.')
+    xpk_print(
+        'Error: Cluster Toolkit based clusters only support a single'
+        ' reservation.'
+    )
     xpk_exit(1)
   reservation = reservations[0] if len(reservations) > 0 else None
 
@@ -322,9 +325,7 @@ def generate_blueprint(
           else 'PERIODIC'
       )
       placement_policy_name = (
-          get_reservation_placement_policy(
-              reservation, args.zone, args.project
-          )
+          get_reservation_placement_policy(reservation, args.zone, args.project)
           if reservation is not None
           else None
       )

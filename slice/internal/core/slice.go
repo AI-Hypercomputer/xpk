@@ -55,7 +55,7 @@ func SliceName(ns string, workloadName string, podSetName kueue.PodSetReference,
 		return name
 	}
 	hash := sha256.Sum256([]byte(name))
-	return fmt.Sprintf("%s-%s", name[:52], hex.EncodeToString(hash[:])[:10])
+	return fmt.Sprintf("%s-%s", name[:48], hex.EncodeToString(hash[:])[:5])
 }
 
 func isStale(slice *v1beta1.Slice, timeout time.Duration) bool {

@@ -126,6 +126,29 @@ func TestWorkloadReconciler(t *testing.T) {
 				Count:  2,
 			},
 		})
+	basePodSetWithAffinity := func() kueue.PodSet {
+		ps := utiltesting.MakePodSet("ps1", 2, ptr.To(int32(1))).
+			Annotation(core.TPUSliceTopologyAnnotation, "4x4x12").
+			Obj()
+		ps.Template.Spec.Affinity = &corev1.Affinity{
+			NodeAffinity: &corev1.NodeAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+					NodeSelectorTerms: []corev1.NodeSelectorTerm{
+						{
+							MatchExpressions: []corev1.NodeSelectorRequirement{
+								{
+									Key:      core.TPUAcceleratorLabel,
+									Operator: corev1.NodeSelectorOpIn,
+									Values:   []string{string(slice.TypeTpu7x)},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		return *ps
+	}()
 	baseAdmission := &kueue.Admission{
 		PodSetAssignments: []kueue.PodSetAssignment{
 			basePodSetAssignment1Wrapper.Obj(),
@@ -765,29 +788,7 @@ func TestWorkloadReconciler(t *testing.T) {
 				baseAdmissionCheckWrapper.DeepCopy(),
 				baseWorkloadWrapper.Clone().
 					PodSets(
-						func() kueue.PodSet {
-							ps := utiltesting.MakePodSet("ps1", 2, ptr.To(int32(1))).
-								Annotation(core.TPUSliceTopologyAnnotation, "4x4x12").
-								Obj()
-							ps.Template.Spec.Affinity = &corev1.Affinity{
-								NodeAffinity: &corev1.NodeAffinity{
-									RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-										NodeSelectorTerms: []corev1.NodeSelectorTerm{
-											{
-												MatchExpressions: []corev1.NodeSelectorRequirement{
-													{
-														Key:      core.TPUAcceleratorLabel,
-														Operator: corev1.NodeSelectorOpIn,
-														Values:   []string{string(slice.TypeTpu7x)},
-													},
-												},
-											},
-										},
-									},
-								},
-							}
-							return *ps
-						}(),
+						basePodSetWithAffinity,
 						*basePodSet2Wrapper.DeepCopy(),
 					).
 					ReserveQuota(baseAdmission, now).
@@ -798,29 +799,7 @@ func TestWorkloadReconciler(t *testing.T) {
 			wantWorkloads: []kueue.Workload{
 				*baseWorkloadWrapper.Clone().
 					PodSets(
-						func() kueue.PodSet {
-							ps := utiltesting.MakePodSet("ps1", 2, ptr.To(int32(1))).
-								Annotation(core.TPUSliceTopologyAnnotation, "4x4x12").
-								Obj()
-							ps.Template.Spec.Affinity = &corev1.Affinity{
-								NodeAffinity: &corev1.NodeAffinity{
-									RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-										NodeSelectorTerms: []corev1.NodeSelectorTerm{
-											{
-												MatchExpressions: []corev1.NodeSelectorRequirement{
-													{
-														Key:      core.TPUAcceleratorLabel,
-														Operator: corev1.NodeSelectorOpIn,
-														Values:   []string{string(slice.TypeTpu7x)},
-													},
-												},
-											},
-										},
-									},
-								},
-							}
-							return *ps
-						}(),
+						basePodSetWithAffinity,
 						*basePodSet2Wrapper.DeepCopy(),
 					).
 					ReserveQuota(baseAdmission, now).

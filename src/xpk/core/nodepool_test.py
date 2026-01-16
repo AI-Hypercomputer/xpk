@@ -25,7 +25,6 @@ from xpk.core.nodepool import (
 from xpk.core.system_characteristics import AcceleratorType, SystemCharacteristics, DockerPlatform, GpuConfig
 from xpk.core.commands import FailedCommand
 from xpk.core.testing.commands_tester import CommandsTester
-from xpk.core.capacity import CapacityType
 
 
 CLUSTER_NAME = "running-cucumber"

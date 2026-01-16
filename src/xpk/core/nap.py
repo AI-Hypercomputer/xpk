@@ -22,7 +22,6 @@ from .capacity import (
     CAPACITY_TYPE_CONFIG_KEY,
     RESERVATION_CONFIG_KEY,
     CapacityType,
-    CapacityType,
     get_capacity_node_selectors_from_capacity_type,
     get_capacity_type,
     get_reservations_list,
@@ -363,7 +362,7 @@ def get_autoprovisioning_node_selector_args(args) -> tuple[str, int]:
 
   node_selector_args, return_code = (
       get_capacity_node_selectors_from_capacity_type(
-          args, capacity_type_str, reservation_name
+          capacity_type_str, reservation_name
       )
   )
   if return_code != 0:

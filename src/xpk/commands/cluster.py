@@ -19,7 +19,6 @@ from tabulate import tabulate
 from ..utils.feature_flags import FeatureFlags
 from ..utils.versions import ReleaseChannel
 from ..core.pathways import get_pathways_machine_types
-from ..core.capacity import H100_DEVICE_TYPE, get_reservation_deployment_type, parse_reservation
 from ..core.cluster import (
     get_all_clusters_programmatic,
     get_cluster_credentials,
@@ -41,6 +40,7 @@ from ..core.commands import run_command_for_value, run_command_with_updates
 from ..core.config import VERTEX_TENSORBOARD_FEATURE_FLAG
 from ..core.telemetry import MetricsCollector, MetricsEventMetadataKey
 from ..core.capacity import (
+    H100_DEVICE_TYPE,
     get_capacity_type,
     get_reservations_list,
     get_reservation_deployment_type,

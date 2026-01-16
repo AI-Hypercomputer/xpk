@@ -23,10 +23,8 @@ from .capacity import (
     get_capacity_type,
     CapacityType,
     verify_reservations_exist,
-    get_capacity_arguments_from_capacity_type,
     get_reservations_list,
 )
-from .system_characteristics import AcceleratorType
 
 
 @patch('xpk.core.capacity.xpk_print')

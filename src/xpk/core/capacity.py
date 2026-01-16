@@ -271,13 +271,14 @@ def get_capacity_arguments_from_capacity_type(
 
 
 def get_capacity_node_selectors_from_capacity_type(
-    args, capacity_type: str, reservation_name: str | None
+    capacity_type: str, reservation_name: str | None
 ) -> tuple[str, int]:
   """Determine the node selectors for a workload to run on a specific capacity type.
 
   Args:
-    args: user provided arguments for running the command.
     capacity_type: The type of capacity the user configured.
+    reservation_name: The name of the reservation to use. Set to None if not
+      using reservations.
 
   Returns:
     Tuple with string with the node selectors to use and

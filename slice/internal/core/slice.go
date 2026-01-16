@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	maxSliceNameLength = 63
+	maxSliceNameLength = 54
 )
 
 func SliceKeyFromWorkload(wl *kueue.Workload, podSetName kueue.PodSetReference, sliceIndex int32) client.ObjectKey {

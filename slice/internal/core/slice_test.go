@@ -37,12 +37,12 @@ func TestSliceName(t *testing.T) {
 			sliceIndex:   0,
 			want:         "default-wl-main-0",
 		},
-		"exact limit (63 chars)": {
+		"exact limit (54 chars)": {
 			ns:           "ns",
-			workloadName: "1234567890123456789012345678901234567890123456789012345",
+			workloadName: "1234567890123456789012345678901234567890123456",
 			podSetName:   "ps",
 			sliceIndex:   0,
-			want:         "ns-1234567890123456789012345678901234567890123456789012345-ps-0",
+			want:         "ns-1234567890123456789012345678901234567890123456-ps-0",
 		},
 		"long name": {
 			ns:           "very-long-namespace-name",

@@ -304,7 +304,7 @@ def generate_blueprint(
   if args.cluster_state_gcs_bucket is not None:
     validate_state_gcs_bucket(args)
 
-  num_nodes = args.num_nodes if not args.num_nodes is None else 2
+  num_nodes = 2 if args.num_nodes is None else args.num_nodes
 
   reservations = get_reservations_list(args)
   if len(reservations) > 1:

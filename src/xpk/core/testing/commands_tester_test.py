@@ -67,7 +67,7 @@ def test_run_command_batch_default_result(
       output_logs=["log1", "log2"],
   )
 
-  assert result == None
+  assert result is None
   mock_commands.assert_command_run("foo bar", times=2)
   mock_commands.assert_command_run("cmd1")
   mock_commands.assert_command_run("cmd2")

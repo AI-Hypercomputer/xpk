@@ -16,6 +16,7 @@ limitations under the License.
 
 from typing import List
 from itertools import cycle
+from typing import Iterator
 
 from ..utils.feature_flags import FeatureFlags
 from ..utils.console import ask_for_user_consent, xpk_print
@@ -282,10 +283,9 @@ def run_gke_node_pool_create_command(
         != 0
     ):
       return 1
-    if len(reservations) == 1:
-      reservations_iter = cycle(reservations)
-    else:
-      reservations_iter = iter(reservations)
+    reservations_iter = (
+        cycle(reservations) if len(reservations) == 1 else iter(reservations)
+    )
 
   for node_pool_name in node_pools_to_create:
     capacity_args, return_code = get_capacity_arguments_from_capacity_type(

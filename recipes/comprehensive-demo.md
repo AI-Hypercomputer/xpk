@@ -7,7 +7,7 @@ Feel free to use it for testing with following commands:
 - `python3 tools/recipes.py run recipes/comprehensive-demo.md` - runs recipe's commands
 
 ## 1. Run only cells
-This cell will only get executed during run mode. It will not get golden computed.
+This cell will only get executed during run mode (as it doesn't have #golden tag). It will not get golden computed.
 
 ```shell
 echo "Hello world!"

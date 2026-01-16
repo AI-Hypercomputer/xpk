@@ -23,6 +23,7 @@ from ..core.scheduling import WorkloadScheduling
 from ..core.system_characteristics import DockerPlatform, SystemCharacteristics, AcceleratorType, UserFacingNameToSystemCharacteristics, GpuConfig
 from .workload import workload_create
 from .cluster_test import construct_args
+from ..core.docker_container import get_user_workload_container as real_get_user_workload_container
 
 
 SYSTEM_CHARACTERISTICS = SystemCharacteristics(
@@ -206,3 +207,69 @@ def test_workload_create_dry_run_with_output_file(mocker):
   written_content = mock_open.return_value.write.call_args[0][0]
   assert 'test-workload' in written_content
   assert 'cloud.google.com/gke-tpu-topology: 8x8' in written_content
+
+
+def test_workload_create_multi_container_for_tpu7x(
+    workload_create_mocks: _WorkloadCreateMocks,
+    mocker,
+):
+  """Tests that the generated YAML for a multi-container workload has correct pod failure policy and container structure."""
+
+  # Enable dry_run to prevent external calls like get_storages_to_mount -> gcloud
+  mocker.patch('xpk.utils.execution_context.dry_run', True)
+
+  # Mock dependencies required by get_user_workload_container -> get_main_container
+  mocker.patch(
+      'xpk.core.docker_container.setup_docker_image',
+      return_value=(0, 'dummy-image'),
+  )
+  mocker.patch(
+      'xpk.core.docker_container.get_gke_debugging_dashboard', return_value=None
+  )
+
+  # Use the real get_user_workload_container to test integration
+  workload_create_mocks.get_user_workload_container.side_effect = (
+      real_get_user_workload_container
+  )
+
+  args = construct_args(
+      workload='test-workload',
+      command='echo hello',
+      num_nodes=1,
+      tpu_type='tpu7x-2x2x2',
+      restart_on_exit_codes=None,
+      docker_name='test-docker',
+      deploy_stacktrace_sidecar=False,
+      enable_debug_logs=False,
+      scheduler='default-scheduler',
+  )
+  workload_create(args)
+
+  assert workload_create_mocks.write_tmp_file.called
+  yaml_content = workload_create_mocks.write_tmp_file.call_args[0][0]
+  jobset = yaml.safe_load(yaml_content)
+
+  # Verify Pod Failure Policy
+  pod_failure_rules = jobset['spec']['replicatedJobs'][0]['template']['spec'][
+      'podFailurePolicy'
+  ]['rules']
+  # Should have 2 rules for multi_container
+  assert len(pod_failure_rules) == 2
+  assert pod_failure_rules[0]['onExitCodes']['containerName'].endswith('-1')
+  assert pod_failure_rules[1]['onExitCodes']['containerName'].endswith('-2')
+
+  # Verify Containers
+  # Navigate to the containers list in the YAML
+  containers = jobset['spec']['replicatedJobs'][0]['template']['spec'][
+      'template'
+  ]['spec']['containers']
+
+  assert len(containers) == 2
+  assert containers[0]['name'].endswith('-1')
+  assert containers[1]['name'].endswith('-2')
+  assert containers[0]['image'] == 'dummy-image'
+  assert containers[1]['image'] == 'dummy-image'
+
+  # Check if resources are split correctly (4 chips / 2 containers = 2 chips)
+  assert containers[0]['resources']['limits']['google.com/tpu'] == 2
+  assert containers[1]['resources']['limits']['google.com/tpu'] == 2

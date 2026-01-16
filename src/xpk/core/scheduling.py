@@ -35,6 +35,9 @@ from packaging.version import Version
 _SUB_SLICING_MINIMUM_KUEUE_VERSION = Version('0.13.0')
 _SUPER_SLICING_MINIMUM_KUEUE_VERSION = Version('0.14.0')
 _SUPER_SLICING_MAX_TOPOLOGY = (16, 24, 24)
+ONE_TO_ONE_REPLICA_NODE_POOL_ASSIGNMENT_ANNOTATION = (
+    'alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool'
+)
 
 
 class WorkloadScheduling(Enum):

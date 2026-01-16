@@ -35,7 +35,7 @@ docker buildx build --platform=linux/amd64 -f 4b6736a12db8ea0f78ce793fd0d4ee0c94
 docker tag dry-run-runner gcr.io/golden-project/dry-run-runner:prefix-current
 [XPK] Task: `Upload Docker Image` is implemented by the following command not running since it is a dry run. 
 docker push gcr.io/golden-project/dry-run-runner:prefix-current
-[XPK] Temp file (9c33f52b12eab63cfb9ce1aba6ff74f4642cb9e40e2a0ad9517d189ee41f09a5) content: 
+[XPK] Temp file (39eda1549f4c0d68a4f11e6cbd89ba655d49d2faeef6898a140f476e6e70ae0e) content: 
 apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
 metadata:
@@ -44,7 +44,7 @@ metadata:
     kueue.x-k8s.io/queue-name: multislice-queue  # Name of the LocalQueue
     xpk.google.com/workload: golden-workload
   annotations:
-    alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool # 1:1 job replica to node pool assignment
+    alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool
 spec:
   ttlSecondsAfterFinished: 43200
   failurePolicy:
@@ -64,6 +64,7 @@ spec:
           
           podFailurePolicy:
             rules:
+          
             - action: FailJob
               onPodConditions: []
               onExitCodes:
@@ -94,14 +95,11 @@ spec:
               dnsPolicy: ClusterFirstWithHostNet
               terminationGracePeriodSeconds: 30
               containers:
+              
               - name: jax-tpu
                 image: gcr.io/golden-project/dry-run-runner:prefix-current
                 
                 env: 
-                ports:
-                - containerPort: 8471
-                - containerPort: 8080
-                
                 securityContext:
                   privileged: true
                 command:
@@ -146,7 +144,7 @@ spec:
               
 
 [XPK] Task: `Creating Workload` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f 9c33f52b12eab63cfb9ce1aba6ff74f4642cb9e40e2a0ad9517d189ee41f09a5
+kubectl apply -f 39eda1549f4c0d68a4f11e6cbd89ba655d49d2faeef6898a140f476e6e70ae0e
 [XPK] Task: `GKE Dashboard List` is implemented by the following command not running since it is a dry run. 
 gcloud monitoring dashboards list --project=golden-project --filter="displayName:'GKE - TPU Monitoring Dashboard'" --format="value(name)" --verbosity=error
 [XPK] Check statistics and outlier mode of GKE metrics here: https://console.cloud.google.com/monitoring/dashboards/builder/0?project=golden-project&f.rlabel.cluster_name.ClusterName=golden-cluster. To view the metric data for your workload, select golden-workload from the JobName filter on the dashboard.

@@ -96,10 +96,26 @@ func (r *JobSetWebhook) annotateReplicatedJobWithTopology(rj *v1alpha2.Replicate
 }
 
 func annotateReplicatedJobWithSliceHealth(rj *v1alpha2.ReplicatedJob) {
-	if rj.Template.Spec.Template.Spec.NodeSelector == nil {
-		rj.Template.Spec.Template.Spec.NodeSelector = make(map[string]string)
+	// 1. If there is NodeSelector with TPUSliceHealthNodeSelectorKey, we do nothing.
+	if _, ok := rj.Template.Spec.Template.Spec.NodeSelector[core.TPUSliceHealthNodeSelectorKey]; ok {
+		return
 	}
-	rj.Template.Spec.Template.Spec.NodeSelector[core.TPUSliceHealthNodeSelectorKey] = core.TPUSliceHealthNodeSelectorHealthy
+
+	// 2. If there is NodeAffinity with TPUSliceHealthNodeSelectorKey, we do nothing.
+	if rj.Template.Spec.Template.Spec.Affinity != nil &&
+		rj.Template.Spec.Template.Spec.Affinity.NodeAffinity != nil &&
+		rj.Template.Spec.Template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
+		for _, term := range rj.Template.Spec.Template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
+			for _, req := range term.MatchExpressions {
+				if req.Key == core.TPUSliceHealthNodeSelectorKey {
+					return
+				}
+			}
+		}
+	}
+
+	// 3. If neither of these, we add a NodeAffinity.
+	core.AddNodeAffinity(rj, core.TPUSliceHealthNodeSelectorKey, []string{core.TPUSliceHealthNodeSelectorHealthy, core.TPUSliceHealthNodeSelectorDegraded})
 }
 
 func (r *JobSetWebhook) podSetSliceSize(tpuTopology string, parallelism int32) (string, error) {

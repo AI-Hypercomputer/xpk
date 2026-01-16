@@ -17,6 +17,8 @@ limitations under the License.
 package jobset
 
 import (
+	"tpu-slice-controller/internal/core"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/types"
@@ -162,6 +164,16 @@ func (j *JobSetWrapper) Limit(replicatedJobName string, r corev1.ResourceName, v
 // RequestAndLimit adds a resource request and limit to the first container of the target replicatedJob.
 func (j *JobSetWrapper) RequestAndLimit(replicatedJobName string, r corev1.ResourceName, v string) *JobSetWrapper {
 	return j.Request(replicatedJobName, r, v).Limit(replicatedJobName, r, v)
+}
+
+// NodeAffinity adds a node affinity to the target replicatedJob.
+func (j *JobSetWrapper) NodeAffinity(replicatedJobName, key string, values []string) *JobSetWrapper {
+	for i, replicatedJob := range j.Spec.ReplicatedJobs {
+		if replicatedJob.Name == replicatedJobName {
+			core.AddNodeAffinity(&j.Spec.ReplicatedJobs[i], key, values)
+		}
+	}
+	return j
 }
 
 // FailurePolicy sets the failure policy of the JobSet.

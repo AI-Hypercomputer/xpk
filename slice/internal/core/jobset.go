@@ -54,3 +54,30 @@ func BaseSSAReplicatedJob(name string) jobset.ReplicatedJob {
 		},
 	}
 }
+
+func AddNodeAffinity(rj *jobset.ReplicatedJob, key string, values []string) {
+	if rj.Template.Spec.Template.Spec.Affinity == nil {
+		rj.Template.Spec.Template.Spec.Affinity = &corev1.Affinity{}
+	}
+	if rj.Template.Spec.Template.Spec.Affinity.NodeAffinity == nil {
+		rj.Template.Spec.Template.Spec.Affinity.NodeAffinity = &corev1.NodeAffinity{}
+	}
+	if rj.Template.Spec.Template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil {
+		rj.Template.Spec.Template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = &corev1.NodeSelector{}
+	}
+
+	nodeSelector := rj.Template.Spec.Template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution
+	requirement := corev1.NodeSelectorRequirement{
+		Key:      key,
+		Operator: corev1.NodeSelectorOpIn,
+		Values:   values,
+	}
+
+	if len(nodeSelector.NodeSelectorTerms) == 0 {
+		nodeSelector.NodeSelectorTerms = []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{requirement}}}
+	} else {
+		for i := range nodeSelector.NodeSelectorTerms {
+			nodeSelector.NodeSelectorTerms[i].MatchExpressions = append(nodeSelector.NodeSelectorTerms[i].MatchExpressions, requirement)
+		}
+	}
+}

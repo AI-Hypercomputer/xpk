@@ -19,7 +19,6 @@ from tabulate import tabulate
 from ..utils.feature_flags import FeatureFlags
 from ..utils.versions import ReleaseChannel
 from ..core.pathways import get_pathways_machine_types
-from ..core.capacity import H100_DEVICE_TYPE, get_reservation_deployment_type, parse_reservation
 from ..core.cluster import (
     get_all_clusters_programmatic,
     get_cluster_credentials,
@@ -40,7 +39,13 @@ from ..core.cluster_private import authorize_private_cluster_access_if_necessary
 from ..core.commands import run_command_for_value, run_command_with_updates
 from ..core.config import VERTEX_TENSORBOARD_FEATURE_FLAG
 from ..core.telemetry import MetricsCollector, MetricsEventMetadataKey
-from ..core.capacity import get_capacity_type
+from ..core.capacity import (
+    H100_DEVICE_TYPE,
+    get_capacity_type,
+    get_reservations_list,
+    get_reservation_deployment_type,
+    parse_reservation,
+)
 from ..core.gcloud_context import (
     add_zone_and_project,
     get_gke_control_plane_version,
@@ -240,13 +245,23 @@ def _validate_sub_slicing_reservation(args):
 
 def _validate_super_slicing_reservation(args):
   _validate_gsc_reservation(args, 'Super-slicing')
-  reservation = parse_reservation(args.reservation, args.project)
-  if reservation.block_name is None:
-    xpk_print(
-        'Error: Validation failed: Super-slicing cluster creation'
-        ' requires a block or sub-block reservation.'
-    )
-    xpk_exit(1)
+  reservations = get_reservations_list(args)
+  block_name = parse_reservation(reservations[0], args.project).block_name
+
+  for reservation_string in reservations:
+    reservation = parse_reservation(reservation_string, args.project)
+    if reservation.block_name is None:
+      xpk_print(
+          'Error: Validation failed: Super-slicing cluster creation'
+          ' requires a block or sub-block reservation.'
+      )
+      xpk_exit(1)
+    if reservation.block_name != block_name:
+      xpk_print(
+          'Error: Validation failed: Super-slicing cluster creation'
+          ' requires all reservations to be in the same block.'
+      )
+      xpk_exit(1)
 
 
 def _validate_gsc_reservation(args, creation_description: str):
@@ -257,27 +272,29 @@ def _validate_gsc_reservation(args, creation_description: str):
     )
     xpk_exit(1)
 
-  deployment_type = get_reservation_deployment_type(
-      reservation_path=args.reservation, project=args.project, zone=args.zone
-  )
-  if deployment_type != 'DENSE':
-    xpk_print(
-        'Error: Validation failed: The specified reservation'
-        f' "{args.reservation}" is not a Cluster Director reservation.'
+  for reservation in get_reservations_list(args):
+    deployment_type = get_reservation_deployment_type(
+        reservation_path=reservation, project=args.project, zone=args.zone
     )
-    xpk_print(
-        'Please provide a reservation created for Cluster Director to proceed.'
-    )
-    xpk_print('To list valid Cluster Director reservations, run:')
-    xpk_print(
-        '  gcloud compute reservations list --filter="deploymentType=DENSE"'
-    )
-    xpk_print(
-        'Refer to the documentation for more information on creating Cluster'
-        ' Director reservations:'
-        ' https://cloud.google.com/cluster-director/docs/reserve-capacity'
-    )
-    xpk_exit(1)
+    if deployment_type != 'DENSE':
+      xpk_print(
+          'Error: Validation failed: The specified reservation'
+          f' "{reservation}" is not a Cluster Director reservation.'
+      )
+      xpk_print(
+          'Please provide a reservation created for Cluster Director to'
+          ' proceed.'
+      )
+      xpk_print('To list valid Cluster Director reservations, run:')
+      xpk_print(
+          '  gcloud compute reservations list --filter="deploymentType=DENSE"'
+      )
+      xpk_print(
+          'Refer to the documentation for more information on creating Cluster'
+          ' Director reservations:'
+          ' https://cloud.google.com/cluster-director/docs/reserve-capacity'
+      )
+      xpk_exit(1)
 
 
 def _validate_num_slices_and_set_default(args):

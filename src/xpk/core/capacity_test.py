@@ -16,7 +16,15 @@ limitations under the License.
 
 import pytest
 from unittest.mock import MagicMock, patch
-from .capacity import get_reservation_deployment_type, parse_reservation, Reservation
+from .capacity import (
+    get_reservation_deployment_type,
+    parse_reservation,
+    Reservation,
+    get_capacity_type,
+    CapacityType,
+    verify_reservations_exist,
+    get_reservations_list,
+)
 
 
 @patch('xpk.core.capacity.xpk_print')
@@ -133,3 +141,60 @@ def test_parse_reservation_fails_on_invalid_reservations(
     parse_reservation(reservation_path, 'cluster-project')
 
   assert 'Unable to parse reservation' in xpk_print.mock_calls[0].args[0]
+
+
+def test_get_capacity_type_multiple_reservations(mocker):
+  args = MagicMock()
+  args.on_demand = False
+  args.spot = False
+  args.flex = False
+  args.reservation = 'res1,res2'
+  args.project = 'test-project'
+  args.zone = 'us-central1-a'
+  mocker.patch('xpk.core.capacity.run_command_with_updates', return_value=0)
+
+  capacity_type, return_code = get_capacity_type(args)
+
+  assert capacity_type == CapacityType.RESERVATION
+  assert return_code == 0
+
+
+def test_verify_reservations_exist_multiple(mocker):
+  args = MagicMock()
+  args.reservation = 'res1,res2'
+  args.project = 'test-project'
+  args.zone = 'us-central1-a'
+
+  mock_run = mocker.patch(
+      'xpk.core.capacity.run_command_with_updates', return_value=0
+  )
+
+  return_code = verify_reservations_exist(args)
+
+  assert return_code == 0
+  assert mock_run.call_count == 2
+
+
+def test_get_reservations_list_with_single_reservation(mocker):
+  args = mocker.Mock(reservation='res1')
+  assert get_reservations_list(args) == ['res1']
+
+
+def test_get_reservations_list_with_multiple_reservations(mocker):
+  args = mocker.Mock(reservation='res1,res2')
+  assert get_reservations_list(args) == ['res1', 'res2']
+
+
+def test_get_reservations_list_with_whitespace(mocker):
+  args = mocker.Mock(reservation='res1, res2 ')
+  assert get_reservations_list(args) == ['res1', 'res2']
+
+
+def test_get_reservations_list_none(mocker):
+  args = mocker.Mock(reservation=None)
+  assert get_reservations_list(args) == []
+
+
+def test_get_reservations_list_empty(mocker):
+  args = mocker.Mock(reservation='')
+  assert get_reservations_list(args) == []

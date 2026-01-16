@@ -24,7 +24,8 @@ from .capacity import (
     CapacityType,
     get_capacity_node_selectors_from_capacity_type,
     get_capacity_type,
-    verify_reservation_exists,
+    get_reservations_list,
+    verify_reservations_exist,
 )
 from .commands import run_command_with_updates, run_commands
 from .gcloud_context import get_cluster_location
@@ -345,14 +346,24 @@ def get_autoprovisioning_node_selector_args(args) -> tuple[str, int]:
       )
       if return_code != 0:
         return node_selector_args, return_code
-      return_code = verify_reservation_exists(args)
+      return_code = verify_reservations_exist(args)
       if return_code > 0:
         xpk_print('Unable to verify reservation name saved in config map.')
         return node_selector_args, return_code
 
   # Check if reservation id is valid. Shared function with cluster creation.
+  reservation_name = None
+  if capacity_type_str == CapacityType.RESERVATION.name:
+    reservations = get_reservations_list(args)
+    if len(reservations) > 1:
+      xpk_print('Error: NAP based clusters only support a single reservation.')
+      return node_selector_args, 1
+    reservation_name = reservations[0] if len(reservations) > 0 else None
+
   node_selector_args, return_code = (
-      get_capacity_node_selectors_from_capacity_type(args, capacity_type_str)
+      get_capacity_node_selectors_from_capacity_type(
+          capacity_type_str, reservation_name
+      )
   )
   if return_code != 0:
     xpk_print('Unable to get node selectors from capacity type.')

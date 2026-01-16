@@ -44,13 +44,14 @@ var dnsName = fmt.Sprintf("%s.%s.svc", serviceName, secretNamespace)
 // CertsManager creates certs for webhooks.
 func CertsManager(mgr ctrl.Manager, setupFinish chan struct{}) error {
 	return cert.AddRotator(mgr, &cert.CertRotator{
-		SecretKey:      types.NamespacedName{Namespace: secretNamespace, Name: secretName},
-		CertDir:        certDir,
-		CAName:         caName,
-		CAOrganization: caOrg,
-		DNSName:        dnsName,
-		IsReady:        setupFinish,
-		Webhooks:       []cert.WebhookInfo{{Type: cert.Mutating, Name: mutatingWebhookConfName}},
+		SecretKey:            types.NamespacedName{Namespace: secretNamespace, Name: secretName},
+		CertDir:              certDir,
+		CAName:               caName,
+		CAOrganization:       caOrg,
+		DNSName:              dnsName,
+		IsReady:              setupFinish,
+		Webhooks:             []cert.WebhookInfo{{Type: cert.Mutating, Name: mutatingWebhookConfName}},
+		EnableReadinessCheck: true,
 	})
 }
 

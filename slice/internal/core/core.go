@@ -57,18 +57,23 @@ func GetTPUAccelerator(spec corev1.PodTemplateSpec) string {
 	if val, ok := spec.Spec.NodeSelector[TPUAcceleratorLabel]; ok {
 		return val
 	}
-	if spec.Spec.Affinity != nil && spec.Spec.Affinity.NodeAffinity != nil && spec.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
-		for _, term := range spec.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
+	if val, ok := getTPUAcceleratorFromAffinity(spec.Spec.Affinity); ok {
+		return val
+	}
+	return ""
+}
+
+func getTPUAcceleratorFromAffinity(affinity *corev1.Affinity) (string, bool) {
+	if affinity != nil && affinity.NodeAffinity != nil && affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
+		for _, term := range affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
 			for _, matchExpression := range term.MatchExpressions {
-				if matchExpression.Key == TPUAcceleratorLabel && matchExpression.Operator == corev1.NodeSelectorOpIn {
-					if len(matchExpression.Values) > 0 {
-						return matchExpression.Values[0]
-					}
+				if matchExpression.Key == TPUAcceleratorLabel && matchExpression.Operator == corev1.NodeSelectorOpIn && len(matchExpression.Values) == 1 {
+					return matchExpression.Values[0], true
 				}
 			}
 		}
 	}
-	return ""
+	return "", false
 }
 
 func GetSliceState(slice v1beta1.Slice, timeout time.Duration) SliceState {

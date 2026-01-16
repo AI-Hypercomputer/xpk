@@ -432,7 +432,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 				},
 				wantPartitionIds: []string{"sb2", "sb3"},
 			}),
-			ginkgo.Entry("TPU topology 4x4x4 with NodeAffinity", testCase{
+			ginkgo.Entry("TPU topology 4x4x4 with accelerator in NodeAffinity", testCase{
 				tpuTopology:      "4x4x4",
 				tpuRequests:      "4",
 				parallelism:      16,

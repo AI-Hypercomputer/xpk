@@ -127,7 +127,7 @@ class CommandsTester:
       output_logs: list[str],
   ) -> FailedCommand | None:
     for i, command in enumerate(commands):
-      result = self.__fake_run_command_with_updates(command, (0, ""))
+      result = self.__common_fake_run_command(command, (0, ""))[0]
       if result != 0:
         return FailedCommand(
             return_code=result,

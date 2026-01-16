@@ -17,7 +17,7 @@ limitations under the License.
 import pytest
 from pytest_mock import MockerFixture
 
-from xpk.core.commands import run_command_for_value, run_command_with_updates_retry
+from xpk.core.commands import run_command_for_value, run_command_with_updates_retry, run_command_batch
 from xpk.core.testing.commands_tester import CommandsTester
 
 
@@ -30,6 +30,9 @@ def mock_commands(mocker: MockerFixture) -> CommandsTester:
       ),
       run_command_with_updates_retry_path=(
           "xpk.core.testing.commands_tester_test.run_command_with_updates_retry"
+      ),
+      run_command_batch_path=(
+          "xpk.core.testing.commands_tester_test.run_command_batch"
       ),
   )
 
@@ -52,6 +55,22 @@ def test_run_command_with_updates_retry_default_result(
 
   assert result == 0
   mock_commands.assert_command_run("cmd", "bar")
+
+
+def test_run_command_batch_default_result(
+    mock_commands: CommandsTester,
+):
+  result = run_command_batch(
+      commands=["cmd1 foo bar", "cmd2 foo bar"],
+      jobname="Test command",
+      per_command_name=["cmd1", "cmd2"],
+      output_logs=["log1", "log2"],
+  )
+
+  assert result == None
+  mock_commands.assert_command_run("foo bar", times=2)
+  mock_commands.assert_command_run("cmd1")
+  mock_commands.assert_command_run("cmd2")
 
 
 def test_set_result_for_command(mock_commands: CommandsTester):

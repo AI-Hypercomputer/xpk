@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 from typing import List
-import itertools
+from itertools import cycle
 
 from ..utils.feature_flags import FeatureFlags
 from ..utils.console import ask_for_user_consent, xpk_print
@@ -274,6 +274,7 @@ def run_gke_node_pool_create_command(
       np for np in desired_node_pool_names if np not in node_pools_to_remain
   ]
 
+  reservations_iter: Iterator[str] | None = None
   if capacity_type == CapacityType.RESERVATION:
     reservations = get_reservations_list(args)
     if (
@@ -282,21 +283,17 @@ def run_gke_node_pool_create_command(
     ):
       return 1
     if len(reservations) == 1:
-      reservations_iter = itertools.cycle(reservations)
+      reservations_iter = cycle(reservations)
     else:
       reservations_iter = iter(reservations)
 
   for node_pool_name in node_pools_to_create:
-    reservation_name = None
-    if capacity_type == CapacityType.RESERVATION:
-      reservation_name = next(reservations_iter)
-
     capacity_args, return_code = get_capacity_arguments_from_capacity_type(
         args,
         capacity_type,
         max_nodes,
         system.accelerator_type,
-        reservation_name,
+        reservation_name=next(reservations_iter) if reservations_iter else None,
     )
     if return_code > 0:
       xpk_print('Parsing capacity arguments failed!')

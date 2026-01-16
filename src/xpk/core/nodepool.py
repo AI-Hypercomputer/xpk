@@ -14,9 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import List
+from typing import Iterator, List
 from itertools import cycle
-from typing import Iterator
 
 from ..utils.feature_flags import FeatureFlags
 from ..utils.console import ask_for_user_consent, xpk_print

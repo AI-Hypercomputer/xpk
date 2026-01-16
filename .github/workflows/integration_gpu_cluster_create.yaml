@@ -36,7 +36,7 @@ jobs:
             - name: Setup environment
               uses: ./.github/actions/setup-test-env
               with:
-                  credentials_json: "${{ secrets.GCP_SA_KEY }}"
+                  credentials_json: "${{ secrets.GCP_SA_KEY_INT_TESTS_2 }}"
             - name: Check xpk installation
               run: xpk version
             - name: 'Setup Service Account for XPK'
@@ -46,12 +46,12 @@ jobs:
                 mkdir -p $HOME/.config/gcloud
 
                 # 2. Write the Key File
-                echo '${{ secrets.GCP_SA_KEY }}' > $HOME/.config/gcloud/application_default_credentials.json
+                echo '${{ secrets.GCP_SA_KEY_INT_TESTS_2 }}' > $HOME/.config/gcloud/application_default_credentials.json
 
                 # 3. Activate the Service Account
                 # This updates the internal config files to point to the key file.
                 # When Docker mounts the directory, it will now see "Active Account: Service Account"
-                gcloud auth activate-service-account --key-file=$HOME/.config/gcloud/application_default_credentials.json --project=cloud-tpu-multipod-dev
+                gcloud auth activate-service-account --key-file=$HOME/.config/gcloud/application_default_credentials.json --project=xpk-integration-tests-2
 
                 # 4. Set Env Var for the host (GitHub Runner)
                 echo "GOOGLE_APPLICATION_CREDENTIALS=$HOME/.config/gcloud/application_default_credentials.json" >> $GITHUB_ENV

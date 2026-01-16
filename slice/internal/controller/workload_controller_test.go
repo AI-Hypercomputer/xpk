@@ -757,7 +757,7 @@ func TestWorkloadReconciler(t *testing.T) {
 			},
 			wantResult: reconcile.Result{RequeueAfter: initializationRetryAfter},
 		},
-		"should create Slices with NodeAffinity": {
+		"should create Slices if accelerator is defined in NodeAffinity": {
 			request: baseRequest,
 			objs: []client.Object{
 				worker1Node.DeepCopy(),

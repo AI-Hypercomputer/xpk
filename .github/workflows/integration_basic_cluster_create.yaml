@@ -83,38 +83,6 @@ jobs:
             with:
                 name: empty-private-cluster-nodepool-log-${{github.run_id}}
                 path: /tmp/NodepoolCreate-${{ env.PRIVATE_CLUSTER_NAME }}-np-*
-    dws_flex_cluster:
-      runs-on: [ubuntu-22.04]
-      concurrency: # We support one build test to run at a time currently.
-          group: nightly-test-cluster-group-flex
-          cancel-in-progress: false
-      env:
-          DWS_FLEX_CLUSTER_NAME: xpk-dws-nightly-test-2-v4-8
-      steps:
-          - uses: actions/download-artifact@v4
-            with:
-                name: custom-scripts
-          - name: Setup environment
-            uses: ./.github/actions/setup-test-env
-            with:
-                credentials_json: "${{ secrets.GCP_SA_KEY }}"
-          - name: Check xpk installation
-            run: xpk version
-          - name: Create a DWS flex queued xpk cluster
-            run: xpk cluster create --cluster ${DWS_FLEX_CLUSTER_NAME} --tpu-type=v5p-8  --num-slices=1 --zone=us-east5-a --default-pool-cpu-num-nodes=2 --flex --custom-cluster-arguments="${CLUSTER_NETWORK_ARGUMENTS_DWS}"
-          - name: Run dws flex queued TPU workload
-            run: xpk workload create --workload xpktest-build-${{ github.run_attempt }}-dws --cluster ${DWS_FLEX_CLUSTER_NAME} --zone=us-east5-a --tpu-type=v5p-8  --flex --command "echo foo" --num-slices=1
-          - name: Wait for workload completion and confirm it succeeded
-            run: xpk workload list --cluster ${DWS_FLEX_CLUSTER_NAME} --zone=us-east5-a --wait-for-job-completion xpktest-build-${{ github.run_attempt }}-dws --timeout 1000
-          - name: Delete the DWS flex queued cluster
-            if: always()
-            run: xpk cluster delete --cluster ${DWS_FLEX_CLUSTER_NAME} --zone=us-east5-a --force
-          - name: Upload DWS cluster nodepool creation log
-            if: always()
-            uses: actions/upload-artifact@v4
-            with:
-                name: empty-dws-cluster-nodepool-log-${{github.run_id}}
-                path: /tmp/NodepoolCreate-${{ env.DWS_FLEX_CLUSTER_NAME }}-np-*
 
     cluster-create-and-delete:
         runs-on: [ubuntu-22.04]

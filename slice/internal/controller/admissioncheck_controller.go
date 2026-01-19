@@ -19,6 +19,8 @@ package controller
 import (
 	"context"
 
+	"tpu-slice-controller/internal/core"
+
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
@@ -62,8 +64,9 @@ func (r *AdmissionCheckReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	if currentCondition.Status != newCondition.Status {
-		apimeta.SetStatusCondition(&ac.Status.Conditions, newCondition)
-		return reconcile.Result{}, client.IgnoreNotFound(r.client.Status().Update(ctx, ac))
+		acPatch := core.BaseSSAAdmissionCheck(ac)
+		apimeta.SetStatusCondition(&acPatch.Status.Conditions, newCondition)
+		return reconcile.Result{}, client.IgnoreNotFound(r.client.Status().Patch(ctx, acPatch, client.Apply, client.FieldOwner(SliceControllerName), client.ForceOwnership))
 	}
 
 	return reconcile.Result{}, nil

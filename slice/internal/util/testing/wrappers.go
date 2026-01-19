@@ -251,26 +251,25 @@ type TopologyAssignmentSliceWrapper struct {
 	kueue.TopologyAssignmentSlice
 }
 
-func MakeTopologyAssignmentSlice(domainCount int, podCounts []int32) *TopologyAssignmentSliceWrapper {
+func makeTopologyAssignmentSlice(domainCount int, podCounts kueue.TopologyAssignmentSlicePodCounts) *TopologyAssignmentSliceWrapper {
 	return &TopologyAssignmentSliceWrapper{
 		kueue.TopologyAssignmentSlice{
 			DomainCount: int32(domainCount),
-			PodCounts: kueue.TopologyAssignmentSlicePodCounts{
-				Individual: podCounts,
-			},
+			PodCounts:   podCounts,
 		},
 	}
 }
 
+func MakeTopologyAssignmentSlice(domainCount int, podCounts []int32) *TopologyAssignmentSliceWrapper {
+	return makeTopologyAssignmentSlice(domainCount, kueue.TopologyAssignmentSlicePodCounts{
+		Individual: podCounts,
+	})
+}
+
 func MakeTopologyAssignmentSliceUniversal(domainCount int, podCount int32) *TopologyAssignmentSliceWrapper {
-	return &TopologyAssignmentSliceWrapper{
-		kueue.TopologyAssignmentSlice{
-			DomainCount: int32(domainCount),
-			PodCounts: kueue.TopologyAssignmentSlicePodCounts{
-				Universal: ptr.To(podCount),
-			},
-		},
-	}
+	return makeTopologyAssignmentSlice(domainCount, kueue.TopologyAssignmentSlicePodCounts{
+		Universal: ptr.To(podCount),
+	})
 }
 
 func (w *TopologyAssignmentSliceWrapper) Value(roots ...string) *TopologyAssignmentSliceWrapper {

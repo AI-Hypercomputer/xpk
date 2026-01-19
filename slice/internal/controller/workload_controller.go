@@ -97,7 +97,7 @@ func NewWorkloadReconciler(cl client.Client, record record.EventRecorder, activa
 // +kubebuilder:rbac:groups=accelerator.gke.io,resources=slices,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=accelerator.gke.io,resources=slices/finalizers,verbs=update
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;watch;update;patch
-// +kubebuilder:rbac:groups=jobset.x-k8s.io,resources=jobsets,verbs=get;list;watch;update
+// +kubebuilder:rbac:groups=jobset.x-k8s.io,resources=jobsets,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch
 
 func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -114,7 +114,7 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	// finalize the Workload by removing its slices and then the finalizer.
 	if finalize, reason := shouldFinalize(wl); finalize {
 		if controllerutil.ContainsFinalizer(wl, SliceControllerName) {
-			log.V(3).Info(fmt.Sprintf("Cleaning up the Slices and finalizing the Workload because %s", reason))
+			log.V(3).Info("Cleaning up the Slices and finalizing the Workload", "reason", reason)
 			cleanedUp, err := r.cleanupSlices(ctx, wl)
 			if err != nil {
 				return ctrl.Result{}, err
@@ -134,7 +134,7 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	if err = validateRelevantWorkload(wl, nodes); err != nil {
-		log.V(3).Info(fmt.Sprintf("Skipping workload as it %s", err.Error()))
+		log.V(3).Info("Skipping workload", "reason", err.Error())
 		return ctrl.Result{}, nil
 	}
 
@@ -154,7 +154,9 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	// before the workload is deleted.
 	if controllerutil.AddFinalizer(wl, SliceControllerName) {
 		if err = r.client.Update(ctx, wl); err != nil {
-			if !apierrors.IsNotFound(err) {
+			if apierrors.IsConflict(err) {
+				log.Info("Failed to add finalizer", "error", err)
+			} else if !apierrors.IsNotFound(err) {
 				log.Error(err, "Failed to add finalizer")
 			}
 			return ctrl.Result{}, client.IgnoreNotFound(err)
@@ -433,7 +435,9 @@ func (r *WorkloadReconciler) finalizeWorkload(ctx context.Context, wl *kueue.Wor
 
 	controllerutil.RemoveFinalizer(wl, SliceControllerName)
 	if err := r.client.Update(ctx, wl); err != nil {
-		if !apierrors.IsNotFound(err) {
+		if apierrors.IsConflict(err) {
+			log.Info("Failed to remove the finalizer", "error", err)
+		} else if !apierrors.IsNotFound(err) {
 			log.Error(err, "Failed to remove the finalizer")
 		}
 		return err
@@ -461,17 +465,18 @@ func (r *WorkloadReconciler) updateJobSetBeforeUnsuspend(ctx context.Context, wl
 		log.Error(err, "Failed to get JobSet")
 		return err
 	}
+	patchJobSet := core.BaseSSAJobSet(jobSet)
+
 	for i := range jobSet.Spec.ReplicatedJobs {
 		rj := &jobSet.Spec.ReplicatedJobs[i]
 		topology := rj.Template.Spec.Template.Annotations[core.TPUSliceTopologyAnnotation]
 		log.V(5).Info("Copying topology annotation as nodeSelector", "topology", topology)
-		if rj.Template.Spec.Template.Spec.NodeSelector == nil {
-			rj.Template.Spec.Template.Spec.NodeSelector = make(map[string]string)
-		}
-		rj.Template.Spec.Template.Spec.NodeSelector[core.TPUTopologyAnnotation] = topology
+		replicaJob := core.BaseSSAReplicatedJob(rj.Name)
+		replicaJob.Template.Spec.Template.Spec.NodeSelector[core.TPUTopologyAnnotation] = topology
+		patchJobSet.Spec.ReplicatedJobs[i] = replicaJob
 	}
-	if err := r.client.Update(ctx, jobSet); err != nil {
-		log.Error(err, "Failed to update JobSet")
+	if err := r.client.Patch(ctx, patchJobSet, client.Apply, client.FieldOwner(SliceControllerName), client.ForceOwnership); err != nil {
+		log.Error(err, "Failed to patch JobSet")
 		return err
 	}
 	return nil

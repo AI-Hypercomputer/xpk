@@ -126,6 +126,13 @@ func TestWorkloadReconciler(t *testing.T) {
 				Count:  2,
 			},
 		})
+	basePodSetWithAffinity := func() kueue.PodSet {
+		ps := utiltesting.MakePodSet("ps1", 2, ptr.To(int32(1))).
+			Annotation(core.TPUSliceTopologyAnnotation, "4x4x12").
+			Obj()
+		ps.Template.Spec.Affinity = core.TpuAffinity.DeepCopy()
+		return *ps
+	}()
 	baseAdmission := &kueue.Admission{
 		PodSetAssignments: []kueue.PodSetAssignment{
 			basePodSetAssignment1Wrapper.Obj(),
@@ -741,6 +748,44 @@ func TestWorkloadReconciler(t *testing.T) {
 			wantWorkloads: []kueue.Workload{
 				*baseWorkloadWrapper.Clone().
 					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStatePending, `Slices are in states: 2 CREATED`)).
+					Obj(),
+			},
+			wantSlices: []slice.Slice{
+				*baseSlice1Wrapper.DeepCopy(),
+				*baseSlice2Wrapper.DeepCopy(),
+			},
+			wantEvents: []utiltesting.EventRecord{
+				buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, SlicesCreatedEventType,
+					`The Slices "default-workload-ps1-0", "default-workload-ps2-0" have been created`),
+			},
+			wantResult: reconcile.Result{RequeueAfter: initializationRetryAfter},
+		},
+		"should create Slices if accelerator is defined in NodeAffinity": {
+			request: baseRequest,
+			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				worker2Node.DeepCopy(),
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapper.Clone().
+					PodSets(
+						basePodSetWithAffinity,
+						*basePodSet2Wrapper.DeepCopy(),
+					).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapper.Clone().
+					PodSets(
+						basePodSetWithAffinity,
+						*basePodSet2Wrapper.DeepCopy(),
+					).
 					ReserveQuota(baseAdmission, now).
 					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Finalizers(SliceControllerName).
@@ -1685,7 +1730,10 @@ func TestWorkloadReconciler(t *testing.T) {
 			utilruntime.Must(kueue.AddToScheme(scheme))
 			utilruntime.Must(slice.AddToScheme(scheme))
 
-			interceptorFuncs := interceptor.Funcs{SubResourcePatch: treatSSAAsStrategicMerge}
+			interceptorFuncs := interceptor.Funcs{
+				SubResourcePatch: treatSSAAsStrategicMerge,
+				Patch:            treatSSAAsStrategicMergePatch,
+			}
 			if tc.interceptorFuncsCreate != nil {
 				interceptorFuncs.Create = tc.interceptorFuncsCreate
 			}
@@ -1844,4 +1892,34 @@ func treatSSAAsStrategicMerge(ctx context.Context, c client.Client, subResourceN
 		}
 	}
 	return utiltesting.TreatSSAAsStrategicMerge(ctx, c, subResourceName, obj, patch, newOpts...)
+}
+
+func treatSSAAsStrategicMergePatch(ctx context.Context, c client.WithWatch, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+	if patchJobSet, ok := obj.(*jobset.JobSet); ok && patch.Type() == types.ApplyPatchType {
+		original := &jobset.JobSet{}
+		if err := c.Get(ctx, client.ObjectKeyFromObject(patchJobSet), original); err != nil {
+			return err
+		}
+		for _, patchRJ := range patchJobSet.Spec.ReplicatedJobs {
+			for i := range original.Spec.ReplicatedJobs {
+				if original.Spec.ReplicatedJobs[i].Name == patchRJ.Name {
+					if original.Spec.ReplicatedJobs[i].Template.Spec.Template.Spec.NodeSelector == nil {
+						original.Spec.ReplicatedJobs[i].Template.Spec.Template.Spec.NodeSelector = make(map[string]string)
+					}
+					for k, v := range patchRJ.Template.Spec.Template.Spec.NodeSelector {
+						original.Spec.ReplicatedJobs[i].Template.Spec.Template.Spec.NodeSelector[k] = v
+					}
+				}
+			}
+		}
+		return c.Update(ctx, original)
+	}
+
+	subOpts := make([]client.SubResourcePatchOption, 0, len(opts))
+	for _, opt := range opts {
+		if subOpt, ok := opt.(client.SubResourcePatchOption); ok {
+			subOpts = append(subOpts, subOpt)
+		}
+	}
+	return treatSSAAsStrategicMerge(ctx, c, "", obj, patch, subOpts...)
 }

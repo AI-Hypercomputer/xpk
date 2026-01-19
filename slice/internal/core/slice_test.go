@@ -37,33 +37,33 @@ func TestSliceName(t *testing.T) {
 			sliceIndex:   0,
 			want:         "default-wl-main-0",
 		},
-		"exact limit (63 chars)": {
+		"exact limit (54 chars)": {
 			ns:           "ns",
-			workloadName: "1234567890123456789012345678901234567890123456789012345",
+			workloadName: "1234567890123456789012345678901234567890123456",
 			podSetName:   "ps",
 			sliceIndex:   0,
-			want:         "ns-1234567890123456789012345678901234567890123456789012345-ps-0",
+			want:         "ns-1234567890123456789012345678901234567890123456-ps-0",
 		},
 		"long name": {
 			ns:           "very-long-namespace-name",
 			workloadName: "very-long-workload-name-that-exceeds-the-limit",
 			podSetName:   "podset",
 			sliceIndex:   0,
-			want:         "very-long-namespace-name-very-long-workload-name-tha-209e4f3863",
+			want:         "very-long-namespace-name-very-long-workload-name-209e4",
 		},
 		"long name, different podset": {
 			ns:           "very-long-namespace-name",
 			workloadName: "very-long-workload-name-that-exceeds-the-limit",
 			podSetName:   "another-podset",
 			sliceIndex:   0,
-			want:         "very-long-namespace-name-very-long-workload-name-tha-a06b5d6b9d",
+			want:         "very-long-namespace-name-very-long-workload-name-a06b5",
 		},
 		"long name, next index": {
 			ns:           "very-long-namespace-name",
 			workloadName: "very-long-workload-name-that-exceeds-the-limit",
 			podSetName:   "podset",
 			sliceIndex:   1,
-			want:         "very-long-namespace-name-very-long-workload-name-tha-365229f91c",
+			want:         "very-long-namespace-name-very-long-workload-name-36522",
 		},
 	}
 

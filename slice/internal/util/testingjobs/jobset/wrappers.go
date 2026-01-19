@@ -17,6 +17,8 @@ limitations under the License.
 package jobset
 
 import (
+	"tpu-slice-controller/internal/core"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/types"
@@ -49,6 +51,7 @@ type ReplicatedJobRequirements struct {
 	Annotations                   map[string]string
 	PodAnnotations                map[string]string
 	NodeSelector                  map[string]string
+	Affinity                      *corev1.Affinity
 	Image                         string
 	Args                          []string
 	TerminationGracePeriodSeconds int64
@@ -87,6 +90,7 @@ func (j *JobSetWrapper) ReplicatedJobs(replicatedJobs ...ReplicatedJobRequiremen
 		jt.Spec.Completions = ptr.To(req.Completions)
 		jt.Spec.Template.Annotations = req.PodAnnotations
 		jt.Spec.Template.Spec.NodeSelector = req.NodeSelector
+		jt.Spec.Template.Spec.Affinity = req.Affinity
 		if len(req.Image) > 0 {
 			jt.Spec.BackoffLimit = ptr.To[int32](0)
 			spec := &jt.Spec.Template.Spec
@@ -107,6 +111,7 @@ func (j *JobSetWrapper) ReplicatedJobs(replicatedJobs ...ReplicatedJobRequiremen
 				},
 			}
 			spec.NodeSelector = req.NodeSelector
+			spec.Affinity = req.Affinity
 		}
 		if req.Replicas == 0 {
 			req.Replicas = 1
@@ -159,4 +164,20 @@ func (j *JobSetWrapper) Limit(replicatedJobName string, r corev1.ResourceName, v
 // RequestAndLimit adds a resource request and limit to the first container of the target replicatedJob.
 func (j *JobSetWrapper) RequestAndLimit(replicatedJobName string, r corev1.ResourceName, v string) *JobSetWrapper {
 	return j.Request(replicatedJobName, r, v).Limit(replicatedJobName, r, v)
+}
+
+// NodeAffinity adds a node affinity to the target replicatedJob.
+func (j *JobSetWrapper) NodeAffinity(replicatedJobName, key string, values []string) *JobSetWrapper {
+	for i, replicatedJob := range j.Spec.ReplicatedJobs {
+		if replicatedJob.Name == replicatedJobName {
+			core.AddNodeAffinity(&j.Spec.ReplicatedJobs[i], key, values)
+		}
+	}
+	return j
+}
+
+// FailurePolicy sets the failure policy of the JobSet.
+func (j *JobSetWrapper) FailurePolicy(policy *jobsetapi.FailurePolicy) *JobSetWrapper {
+	j.Spec.FailurePolicy = policy
+	return j
 }

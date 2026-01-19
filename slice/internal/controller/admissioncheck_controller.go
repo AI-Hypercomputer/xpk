@@ -61,12 +61,11 @@ func (r *AdmissionCheckReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		Reason:             "Active",
 		Message:            "The admission check is active",
 		ObservedGeneration: ac.Generation,
-		LastTransitionTime: metav1.Now(),
 	}
 
 	if currentCondition.Status != newCondition.Status {
 		acPatch := core.BaseSSAAdmissionCheck(ac)
-		acPatch.Status.Conditions = []metav1.Condition{newCondition}
+		apimeta.SetStatusCondition(&acPatch.Status.Conditions, newCondition)
 		return reconcile.Result{}, client.IgnoreNotFound(r.client.Status().Patch(ctx, acPatch, client.Apply, client.FieldOwner(SliceControllerName), client.ForceOwnership))
 	}
 

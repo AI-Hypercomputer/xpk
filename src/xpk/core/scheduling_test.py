@@ -208,7 +208,7 @@ SUPER_SLICING_CASE = SchedulingTestCase(
     cluster_system=_get_system_characteristics_or_die('tpu7x-4x4x4'),
     # 5 4x4x4 cubes:
     resources_config_map={'tpu7x-128': str(64 // 4 * 5)},
-    kueue_version='0.14.0',
+    kueue_version='0.15.2',
     super_slicing_feature_enabled=True,
     super_slicing_topology_set=True,
     num_slices=1,

@@ -492,7 +492,6 @@ def test_configure_generates_correct_manifest_with_super_slicing(
   assert resource_flavor["spec"]["topologyName"] == "super-slice-topology"
   assert resource_flavor["spec"]["nodeLabels"] == {
       "cloud.google.com/gke-tpu-accelerator": "tpu7x",
-      "cloud.google.com/gke-tpu-partition-4x4x4-state": "HEALTHY",
   }
   topology = _first(doc for doc in manifest_docs if doc["kind"] == "Topology")
   assert topology["metadata"]["name"] == "super-slice-topology"

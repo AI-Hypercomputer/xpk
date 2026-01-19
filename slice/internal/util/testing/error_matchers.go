@@ -67,7 +67,7 @@ func BeError(errorType ErrorType) types.GomegaMatcher {
 func (matcher *errorMatcher) Match(actual any) (success bool, err error) {
 	err, ok := actual.(error)
 	if !ok {
-		return false, fmt.Errorf("Error matcher expects an error.  Got:\n%s", format.Object(actual, 1))
+		return false, fmt.Errorf("error matcher expects an error.  Got:\n%s", format.Object(actual, 1))
 	}
 
 	return err != nil && matcher.errorType.IsError(err), nil

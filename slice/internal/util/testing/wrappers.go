@@ -315,7 +315,7 @@ func (s *SliceWrapper) Name(name string) *SliceWrapper {
 }
 
 func (s *SliceWrapper) Type(acceleratorType v1beta1.Type) *SliceWrapper {
-	s.Spec.Type = v1beta1.Type(acceleratorType)
+	s.Spec.Type = acceleratorType
 	return s
 }
 
@@ -338,7 +338,7 @@ func (s *SliceWrapper) OwnerWorkloadAnnotations(ns, name string) *SliceWrapper {
 	return s
 }
 
-func (s *SliceWrapper) PartitionIds(ids ...string) *SliceWrapper {
+func (s *SliceWrapper) PartitionIDs(ids ...string) *SliceWrapper {
 	s.Spec.PartitionIds = ids
 	return s
 }

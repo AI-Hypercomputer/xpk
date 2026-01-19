@@ -17,8 +17,6 @@ limitations under the License.
 package jobset
 
 import (
-	"tpu-slice-controller/internal/core"
-
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/types"
@@ -26,6 +24,8 @@ import (
 	jobsetapi "sigs.k8s.io/jobset/api/jobset/v1alpha2"
 	jobsetutil "sigs.k8s.io/jobset/pkg/util/testing"
 	"sigs.k8s.io/kueue/pkg/controller/constants"
+
+	"tpu-slice-controller/internal/core"
 )
 
 // JobSetWrapper wraps a JobSet.

@@ -579,19 +579,19 @@ func shouldCreateSlicesForPodSetAssignment(wl *kueue.Workload, psa kueue.PodSetA
 }
 
 func parseTopologyAssignment(topologyAssignment *kueue.TopologyAssignment, nodes map[string]corev1.Node) []string {
-	var subBlockIds []string
-	seenSubBlockIds := sets.New[string]()
+	var subBlockIDs []string
+	seenSubBlockIDs := sets.New[string]()
 	// we already validated that all assignments have a valid level,
 	// in validateRelevantWorkload.
 	hostnameLevelIndex := topology.HostnameLevelIndex(topologyAssignment)
 	for domain := range tas.InternalSeqFrom(topologyAssignment) {
 		nodeName := domain.Values[hostnameLevelIndex]
-		if subBlockId := topology.GetTPUSubBlockLabelValue(nodes, nodeName); !seenSubBlockIds.Has(subBlockId) {
-			subBlockIds = append(subBlockIds, subBlockId)
-			seenSubBlockIds.Insert(subBlockId)
+		if subBlockID := topology.GetTPUSubBlockLabelValue(nodes, nodeName); !seenSubBlockIDs.Has(subBlockID) {
+			subBlockIDs = append(subBlockIDs, subBlockID)
+			seenSubBlockIDs.Insert(subBlockID)
 		}
 	}
-	return subBlockIds
+	return subBlockIDs
 }
 
 func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, psa *kueue.PodSetAssignment, nodes map[string]corev1.Node, existingSlicesByName map[string]*v1beta1.Slice, desiredNumberOfSlices int32) ([]v1beta1.Slice, error) {

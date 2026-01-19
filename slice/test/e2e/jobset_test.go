@@ -420,7 +420,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 				parallelism:      16,
 				replicas:         1,
 				wantSliceSize:    16,
-				wantDomains:      []kueue.TopologyDomainAssignment{{Values: []string{"kind-worker"}, Count: 16}},
+				wantDomains:      []tas.TopologyDomainAssignment{{Values: []string{"kind-worker"}, Count: 16}},
 				wantPartitionIds: []string{"sb1"},
 				useNodeAffinity:  true,
 			}),

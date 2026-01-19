@@ -52,11 +52,15 @@ func IsAssignmentValid(psa kueue.PodSetAssignment, nodes map[string]corev1.Node)
 		return false
 	}
 
+	hostnameIdx := HostnameLevelIndex(psa.TopologyAssignment)
+	if hostnameIdx == -1 {
+		return false
+	}
+
 	for domain := range tas.InternalSeqFrom(psa.TopologyAssignment) {
-		for _, nodeName := range domain.Values {
-			if GetTPUSubBlockLabelValue(nodes, nodeName) == "" {
-				return false
-			}
+		nodeName := domain.Values[hostnameIdx]
+		if GetTPUSubBlockLabelValue(nodes, nodeName) == "" {
+			return false
 		}
 	}
 	return true

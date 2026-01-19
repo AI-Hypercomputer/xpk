@@ -87,6 +87,7 @@ linters:
           - fatcontext
         path: ^test/*
     paths:
+      - api
       - bin
       - third_party$
       - builtin$

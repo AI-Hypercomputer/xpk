@@ -52,13 +52,13 @@ func IsAssignmentValid(psa kueue.PodSetAssignment, nodes map[string]corev1.Node)
 		return false
 	}
 
-	hostnameIdx := HostnameLevelIndex(psa.TopologyAssignment)
-	if hostnameIdx == -1 {
+	hostnameLevelIndex := HostnameLevelIndex(psa.TopologyAssignment)
+	if hostnameLevelIndex == -1 {
 		return false
 	}
 
 	for domain := range tas.InternalSeqFrom(psa.TopologyAssignment) {
-		nodeName := domain.Values[hostnameIdx]
+		nodeName := domain.Values[hostnameLevelIndex]
 		if GetTPUSubBlockLabelValue(nodes, nodeName) == "" {
 			return false
 		}

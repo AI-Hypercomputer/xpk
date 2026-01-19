@@ -338,7 +338,10 @@ def set_cluster_create_ray_parser(cluster_create_ray_parser: ArgumentParser):
   add_resource_limits(cluster_create_resource_limits)
 
   cluster_create_ray_parser.set_defaults(
-      func=cluster_create_ray_cluster, sub_slicing=False, super_slicing=False
+      func=cluster_create_ray_cluster,
+      sub_slicing=False,
+      super_slicing=False,
+      num_cubes=None,
   )
 
 

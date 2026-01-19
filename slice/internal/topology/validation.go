@@ -16,7 +16,8 @@ package topology
 
 import (
 	corev1 "k8s.io/api/core/v1"
-	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
+	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta2"
+	"sigs.k8s.io/kueue/pkg/util/tas"
 
 	"tpu-slice-controller/internal/core"
 )
@@ -56,7 +57,7 @@ func IsAssignmentValid(psa kueue.PodSetAssignment, nodes map[string]corev1.Node)
 		return false
 	}
 
-	for _, domain := range psa.TopologyAssignment.Domains {
+	for domain := range tas.InternalSeqFrom(psa.TopologyAssignment) {
 		nodeName := domain.Values[hostnameLevelIndex]
 		if GetTPUSubBlockLabelValue(nodes, nodeName) == "" {
 			return false

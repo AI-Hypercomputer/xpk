@@ -19,7 +19,7 @@ package core
 import (
 	"testing"
 
-	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
+	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta2"
 )
 
 func TestSliceName(t *testing.T) {

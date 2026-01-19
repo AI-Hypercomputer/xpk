@@ -19,8 +19,6 @@ package controller
 import (
 	"context"
 
-	"tpu-slice-controller/internal/core"
-
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
@@ -28,6 +26,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta2"
+
+	"tpu-slice-controller/internal/core"
 )
 
 type AdmissionCheckReconciler struct {

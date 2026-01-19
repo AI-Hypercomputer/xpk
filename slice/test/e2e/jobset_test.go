@@ -107,7 +107,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 			tpuRequests      string
 			unhealthyNodes   []string
 			wantDomains      []tas.TopologyDomainAssignment
-			wantPartitionIds []string
+			wantPartitionIDs []string
 			useNodeAffinity  bool
 		}
 		ginkgo.DescribeTable("it should create Slice based on created Workload with",
@@ -243,8 +243,8 @@ var _ = ginkgo.Describe("JobSet", func() {
 				ginkgo.By("Checking that Slice is created", func() {
 					gomega.Eventually(func(g gomega.Gomega) {
 						g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
-						g.Expect(createdSlice.Spec.PartitionIds).To(gomega.HaveLen(len(tc.wantPartitionIds)))
-						g.Expect(createdSlice.Spec.PartitionIds).To(gomega.BeComparableTo(tc.wantPartitionIds))
+						g.Expect(createdSlice.Spec.PartitionIds).To(gomega.HaveLen(len(tc.wantPartitionIDs)))
+						g.Expect(createdSlice.Spec.PartitionIds).To(gomega.BeComparableTo(tc.wantPartitionIDs))
 						g.Expect(createdSlice.Spec.Topology).To(gomega.Equal(tc.tpuTopology))
 						g.Expect(createdSlice.Spec.Type).To(gomega.Equal(slice.TypeTpu7x))
 					}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
@@ -325,7 +325,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 					Values: []string{"kind-worker"},
 					Count:  16,
 				}},
-				wantPartitionIds: []string{"sb1"},
+				wantPartitionIDs: []string{"sb1"},
 			}),
 			ginkgo.Entry("TPU topology 4x4x4, TPU topology 4 and parallelism 16 (missed kind-worker node)", testCase{
 				tpuTopology:    "4x4x4",
@@ -338,7 +338,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 					Values: []string{"kind-worker2"},
 					Count:  16,
 				}},
-				wantPartitionIds: []string{"sb2"},
+				wantPartitionIDs: []string{"sb2"},
 			}),
 			ginkgo.Entry("TPU topology, TPU topology 1 4x4x4 and parallelism 16", testCase{
 				tpuTopology:   "4x4x4",
@@ -350,7 +350,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 					Values: []string{"kind-worker"},
 					Count:  64,
 				}},
-				wantPartitionIds: []string{"sb1"},
+				wantPartitionIDs: []string{"sb1"},
 			}),
 			ginkgo.Entry("TPU topology 4x4x12 and parallelism 48", testCase{
 				tpuTopology:   "4x4x12",
@@ -372,7 +372,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Count:  16,
 					},
 				},
-				wantPartitionIds: []string{"sb2", "sb3", "sb4"},
+				wantPartitionIDs: []string{"sb2", "sb3", "sb4"},
 			}),
 			ginkgo.Entry("TPU topology 4x4x12 and parallelism 96", testCase{
 				tpuTopology:   "4x4x12",
@@ -394,7 +394,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Count:  32,
 					},
 				},
-				wantPartitionIds: []string{"sb2", "sb3", "sb4"},
+				wantPartitionIDs: []string{"sb2", "sb3", "sb4"},
 			}),
 			ginkgo.Entry("TPU topology 4x4x8 and parallelism 128", testCase{
 				tpuTopology:   "4x4x8",
@@ -412,7 +412,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Count:  64,
 					},
 				},
-				wantPartitionIds: []string{"sb2", "sb3"},
+				wantPartitionIDs: []string{"sb2", "sb3"},
 			}),
 			ginkgo.Entry("TPU topology 4x4x4 with accelerator in NodeAffinity", testCase{
 				tpuTopology:      "4x4x4",
@@ -421,7 +421,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 				replicas:         1,
 				wantSliceSize:    16,
 				wantDomains:      []tas.TopologyDomainAssignment{{Values: []string{"kind-worker"}, Count: 16}},
-				wantPartitionIds: []string{"sb1"},
+				wantPartitionIDs: []string{"sb1"},
 				useNodeAffinity:  true,
 			}),
 		)
@@ -434,7 +434,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 				wantSliceSize    int32
 				tpuRequests      string
 				wantDomains      []tas.TopologyDomainAssignment
-				wantPartitionIds [][]string
+				wantPartitionIDs [][]string
 			}
 			ginkgo.DescribeTable("with", func(tc testCase) {
 				jobSet := testingjobsjobset.MakeJobSet("jobset", ns.Name).
@@ -483,8 +483,8 @@ var _ = ginkgo.Describe("JobSet", func() {
 					ginkgo.By(fmt.Sprintf("Checking that Slice %d is created", i), func() {
 						gomega.Eventually(func(g gomega.Gomega) {
 							g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
-							g.Expect(createdSlice.Spec.PartitionIds).To(gomega.HaveLen(len(tc.wantPartitionIds[i])))
-							g.Expect(createdSlice.Spec.PartitionIds).To(gomega.BeComparableTo(tc.wantPartitionIds[i]))
+							g.Expect(createdSlice.Spec.PartitionIds).To(gomega.HaveLen(len(tc.wantPartitionIDs[i])))
+							g.Expect(createdSlice.Spec.PartitionIds).To(gomega.BeComparableTo(tc.wantPartitionIDs[i]))
 							g.Expect(createdSlice.Spec.Topology).To(gomega.Equal(tc.tpuTopology))
 							g.Expect(createdSlice.Spec.Type).To(gomega.Equal(slice.TypeTpu7x))
 							createdSlices[i] = createdSlice
@@ -541,7 +541,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 							Count:  16,
 						},
 					},
-					wantPartitionIds: [][]string{{"sb2"}, {"sb3"}},
+					wantPartitionIDs: [][]string{{"sb2"}, {"sb3"}},
 				}),
 				ginkgo.Entry("TPU topology 4x4x4 split across 3 replicas", testCase{
 					tpuTopology:   "4x4x4",
@@ -563,7 +563,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 							Count:  16,
 						},
 					},
-					wantPartitionIds: [][]string{{"sb2"}, {"sb3"}, {"sb4"}},
+					wantPartitionIDs: [][]string{{"sb2"}, {"sb3"}, {"sb4"}},
 				}),
 			)
 		})

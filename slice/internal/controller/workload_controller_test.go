@@ -144,12 +144,12 @@ func TestWorkloadReconciler(t *testing.T) {
 		Type(slice.TypeTpu7x).
 		Topology("4x4x12").
 		OwnerWorkloadAnnotations(corev1.NamespaceDefault, baseWorkloadName).
-		PartitionIds("subblock1")
+		PartitionIDs("subblock1")
 	baseSlice2Wrapper := baseSlice1Wrapper.Clone().Name(core.SliceName(corev1.NamespaceDefault, baseWorkloadName, "ps2", 0)).
 		Type(slice.TypeTpu7x).
 		Topology("4x4x12").
 		OwnerWorkloadAnnotations(corev1.NamespaceDefault, baseWorkloadName).
-		PartitionIds("subblock2")
+		PartitionIDs("subblock2")
 
 	worker1Node := utiltesting.MakeNode("worker1").Label(core.TPUSubBlockLabel, "subblock1")
 	worker2Node := utiltesting.MakeNode("worker2").Label(core.TPUSubBlockLabel, "subblock2")
@@ -851,8 +851,8 @@ func TestWorkloadReconciler(t *testing.T) {
 					Obj(),
 			},
 			wantSlices: []slice.Slice{
-				*baseSlice1Wrapper.Clone().PartitionIds("subblock1").Obj(),
-				*baseSlice1Wrapper.Clone().Name(core.SliceName(corev1.NamespaceDefault, baseWorkloadName, "ps1", 1)).PartitionIds("subblock2").Obj(),
+				*baseSlice1Wrapper.Clone().PartitionIDs("subblock1").Obj(),
+				*baseSlice1Wrapper.Clone().Name(core.SliceName(corev1.NamespaceDefault, baseWorkloadName, "ps1", 1)).PartitionIDs("subblock2").Obj(),
 			},
 			wantEvents: []utiltesting.EventRecord{
 				buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, SlicesCreatedEventType,
@@ -932,9 +932,9 @@ func TestWorkloadReconciler(t *testing.T) {
 					Obj(),
 			},
 			wantSlices: []slice.Slice{
-				*utiltesting.MakeSliceWrapper(core.SliceName(corev1.NamespaceDefault, baseWorkloadName, "rj1", 0)).Type(slice.TypeTpu7x).Topology("4x4x4").OwnerWorkloadAnnotations(corev1.NamespaceDefault, baseWorkloadName).PartitionIds("subblock2").Obj(),
-				*utiltesting.MakeSliceWrapper(core.SliceName(corev1.NamespaceDefault, baseWorkloadName, "rj1", 1)).Type(slice.TypeTpu7x).Topology("4x4x4").OwnerWorkloadAnnotations(corev1.NamespaceDefault, baseWorkloadName).PartitionIds("subblock3").Obj(),
-				*utiltesting.MakeSliceWrapper(core.SliceName(corev1.NamespaceDefault, baseWorkloadName, "rj2", 0)).Type(slice.TypeTpu7x).Topology("4x4x4").OwnerWorkloadAnnotations(corev1.NamespaceDefault, baseWorkloadName).PartitionIds("subblock1").Obj(),
+				*utiltesting.MakeSliceWrapper(core.SliceName(corev1.NamespaceDefault, baseWorkloadName, "rj1", 0)).Type(slice.TypeTpu7x).Topology("4x4x4").OwnerWorkloadAnnotations(corev1.NamespaceDefault, baseWorkloadName).PartitionIDs("subblock2").Obj(),
+				*utiltesting.MakeSliceWrapper(core.SliceName(corev1.NamespaceDefault, baseWorkloadName, "rj1", 1)).Type(slice.TypeTpu7x).Topology("4x4x4").OwnerWorkloadAnnotations(corev1.NamespaceDefault, baseWorkloadName).PartitionIDs("subblock3").Obj(),
+				*utiltesting.MakeSliceWrapper(core.SliceName(corev1.NamespaceDefault, baseWorkloadName, "rj2", 0)).Type(slice.TypeTpu7x).Topology("4x4x4").OwnerWorkloadAnnotations(corev1.NamespaceDefault, baseWorkloadName).PartitionIDs("subblock1").Obj(),
 			},
 			wantEvents: []utiltesting.EventRecord{buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, SlicesCreatedEventType, `The Slices "default-workload-rj1-0", "default-workload-rj1-1", "default-workload-rj2-0" have been created`)},
 			wantResult: reconcile.Result{RequeueAfter: initializationRetryAfter},
@@ -1012,10 +1012,10 @@ func TestWorkloadReconciler(t *testing.T) {
 					Obj(),
 			},
 			wantSlices: []slice.Slice{
-				*utiltesting.MakeSliceWrapper(core.SliceName(corev1.NamespaceDefault, baseWorkloadName, "rj1", 0)).Type(slice.TypeTpu7x).Topology("4x4x4").OwnerWorkloadAnnotations(corev1.NamespaceDefault, baseWorkloadName).PartitionIds("subblock1").Obj(),
-				*utiltesting.MakeSliceWrapper(core.SliceName(corev1.NamespaceDefault, baseWorkloadName, "rj1", 1)).Type(slice.TypeTpu7x).Topology("4x4x4").OwnerWorkloadAnnotations(corev1.NamespaceDefault, baseWorkloadName).PartitionIds("subblock2").Obj(),
-				*utiltesting.MakeSliceWrapper(core.SliceName(corev1.NamespaceDefault, baseWorkloadName, "rj2", 0)).Type(slice.TypeTpu7x).Topology("4x4x4").OwnerWorkloadAnnotations(corev1.NamespaceDefault, baseWorkloadName).PartitionIds("subblock3").Obj(),
-				*utiltesting.MakeSliceWrapper(core.SliceName(corev1.NamespaceDefault, baseWorkloadName, "rj2", 1)).Type(slice.TypeTpu7x).Topology("4x4x4").OwnerWorkloadAnnotations(corev1.NamespaceDefault, baseWorkloadName).PartitionIds("subblock4").Obj(),
+				*utiltesting.MakeSliceWrapper(core.SliceName(corev1.NamespaceDefault, baseWorkloadName, "rj1", 0)).Type(slice.TypeTpu7x).Topology("4x4x4").OwnerWorkloadAnnotations(corev1.NamespaceDefault, baseWorkloadName).PartitionIDs("subblock1").Obj(),
+				*utiltesting.MakeSliceWrapper(core.SliceName(corev1.NamespaceDefault, baseWorkloadName, "rj1", 1)).Type(slice.TypeTpu7x).Topology("4x4x4").OwnerWorkloadAnnotations(corev1.NamespaceDefault, baseWorkloadName).PartitionIDs("subblock2").Obj(),
+				*utiltesting.MakeSliceWrapper(core.SliceName(corev1.NamespaceDefault, baseWorkloadName, "rj2", 0)).Type(slice.TypeTpu7x).Topology("4x4x4").OwnerWorkloadAnnotations(corev1.NamespaceDefault, baseWorkloadName).PartitionIDs("subblock3").Obj(),
+				*utiltesting.MakeSliceWrapper(core.SliceName(corev1.NamespaceDefault, baseWorkloadName, "rj2", 1)).Type(slice.TypeTpu7x).Topology("4x4x4").OwnerWorkloadAnnotations(corev1.NamespaceDefault, baseWorkloadName).PartitionIDs("subblock4").Obj(),
 			},
 			wantEvents: []utiltesting.EventRecord{buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, SlicesCreatedEventType, `The Slices "default-workload-rj1-0", "default-workload-rj1-1", "default-workload-rj2-0", "default-workload-rj2-1" have been created`)},
 			wantResult: reconcile.Result{RequeueAfter: initializationRetryAfter},
@@ -1644,14 +1644,14 @@ func TestWorkloadReconciler(t *testing.T) {
 					Type(slice.TypeTpu7x).
 					Topology("4x4x12").
 					OwnerWorkloadAnnotations("namespace1", baseWorkloadName).
-					PartitionIds("subblock1").
+					PartitionIDs("subblock1").
 					Active().
 					Obj(),
 				utiltesting.MakeSliceWrapper(core.SliceName("namespace1", baseWorkloadName, "ps2", 0)).
 					Type(slice.TypeTpu7x).
 					Topology("4x4x12").
 					OwnerWorkloadAnnotations("namespace1", baseWorkloadName).
-					PartitionIds("subblock2").
+					PartitionIDs("subblock2").
 					Active().
 					Obj(),
 				utiltesting.MakeWorkload(baseWorkloadName, "namespace2").
@@ -1686,27 +1686,27 @@ func TestWorkloadReconciler(t *testing.T) {
 					Type(slice.TypeTpu7x).
 					Topology("4x4x12").
 					OwnerWorkloadAnnotations("namespace1", baseWorkloadName).
-					PartitionIds("subblock1").
+					PartitionIDs("subblock1").
 					Active().
 					Obj(),
 				*utiltesting.MakeSliceWrapper(core.SliceName("namespace1", baseWorkloadName, "ps2", 0)).
 					Type(slice.TypeTpu7x).
 					Topology("4x4x12").
 					OwnerWorkloadAnnotations("namespace1", baseWorkloadName).
-					PartitionIds("subblock2").
+					PartitionIDs("subblock2").
 					Active().
 					Obj(),
 				*utiltesting.MakeSliceWrapper(core.SliceName("namespace2", baseWorkloadName, "ps1", 0)).
 					Type(slice.TypeTpu7x).
 					Topology("4x4x12").
 					OwnerWorkloadAnnotations("namespace2", baseWorkloadName).
-					PartitionIds("subblock1").
+					PartitionIDs("subblock1").
 					Obj(),
 				*utiltesting.MakeSliceWrapper(core.SliceName("namespace2", baseWorkloadName, "ps2", 0)).
 					Type(slice.TypeTpu7x).
 					Topology("4x4x12").
 					OwnerWorkloadAnnotations("namespace2", baseWorkloadName).
-					PartitionIds("subblock2").
+					PartitionIDs("subblock2").
 					Obj(),
 			},
 			wantEvents: []utiltesting.EventRecord{

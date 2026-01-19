@@ -107,7 +107,7 @@ func main() {
 	// - https://github.com/advisories/GHSA-qppj-fm5r-hxr3
 	// - https://github.com/advisories/GHSA-4374-p667-p6c8
 	disableHTTP2 := func(c *tls.Config) {
-		setupLog.Info("disabling http/2")
+		setupLog.Info("Disabling http/2")
 		c.NextProtos = []string{"http/1.1"}
 	}
 
@@ -180,7 +180,7 @@ func main() {
 			filepath.Join(metricsCertPath, metricsCertKey),
 		)
 		if err != nil {
-			setupLog.Error(err, "to initialize metrics certificate watcher", "error", err)
+			setupLog.Error(err, "Unable to initialize metrics certificate watcher")
 			os.Exit(1)
 		}
 
@@ -209,20 +209,20 @@ func main() {
 		// LeaderElectionReleaseOnCancel: true,
 	})
 	if err != nil {
-		setupLog.Error(err, "unable to start manager")
+		setupLog.Error(err, "Unable to start manager")
 		os.Exit(1)
 	}
 
 	certsReady := make(chan struct{})
 	if err = cert.CertsManager(mgr, certsReady); err != nil {
-		setupLog.Error(err, "unable to setup cert rotation")
+		setupLog.Error(err, "Unable to setup cert rotation")
 		os.Exit(1)
 	}
 
 	if metricsCertWatcher != nil {
 		setupLog.Info("Adding metrics certificate watcher to manager")
 		if err := mgr.Add(metricsCertWatcher); err != nil {
-			setupLog.Error(err, "unable to add metrics certificate watcher to manager")
+			setupLog.Error(err, "Unable to add metrics certificate watcher to manager")
 			os.Exit(1)
 		}
 	}
@@ -230,14 +230,14 @@ func main() {
 	if webhookCertWatcher != nil {
 		setupLog.Info("Adding webhook certificate watcher to manager")
 		if err := mgr.Add(webhookCertWatcher); err != nil {
-			setupLog.Error(err, "unable to add webhook certificate watcher to manager")
+			setupLog.Error(err, "Unable to add webhook certificate watcher to manager")
 			os.Exit(1)
 		}
 	}
 
 	ctx := ctrl.SetupSignalHandler()
 	if err := controller.SetupIndexer(ctx, mgr.GetFieldIndexer()); err != nil {
-		setupLog.Error(err, "unable to setup indexes")
+		setupLog.Error(err, "Unable to setup indexes")
 		os.Exit(1)
 	}
 
@@ -245,9 +245,9 @@ func main() {
 
 	setupProbeEndpoints(mgr, certsReady)
 
-	setupLog.Info("starting manager")
+	setupLog.Info("Starting manager")
 	if err := mgr.Start(ctx); err != nil {
-		setupLog.Error(err, "problem running manager")
+		setupLog.Error(err, "Problem running manager")
 		os.Exit(1)
 	}
 }
@@ -259,12 +259,12 @@ func setupControllers(mgr ctrl.Manager, certsReady chan struct{}, activationTime
 
 	// Register the webhook
 	if err := webhooks.SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "JobSet")
+		setupLog.Error(err, "Unable to create webhook", "webhook", "JobSet")
 		os.Exit(1)
 	}
 
 	if failedCtrl, err := controller.SetupControllers(mgr, controller.Options{ActivationTimeout: activationTimeout}); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", failedCtrl)
+		setupLog.Error(err, "Unable to create controller", "controller", failedCtrl)
 		os.Exit(1)
 	}
 
@@ -273,7 +273,7 @@ func setupControllers(mgr ctrl.Manager, certsReady chan struct{}, activationTime
 
 func setupProbeEndpoints(mgr ctrl.Manager, certsReady <-chan struct{}) {
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
-		setupLog.Error(err, "unable to set up health check")
+		setupLog.Error(err, "Unable to set up health check")
 		os.Exit(1)
 	}
 
@@ -292,7 +292,7 @@ func setupProbeEndpoints(mgr ctrl.Manager, certsReady <-chan struct{}) {
 			return errors.New("certificates are not ready")
 		}
 	}); err != nil {
-		setupLog.Error(err, "unable to set up ready check")
+		setupLog.Error(err, "Unable to set up ready check")
 		os.Exit(1)
 	}
 }

@@ -54,7 +54,26 @@ func GetTPUTopology(spec corev1.PodTemplateSpec) string {
 }
 
 func GetTPUAccelerator(spec corev1.PodTemplateSpec) string {
-	return spec.Spec.NodeSelector[TPUAcceleratorLabel]
+	if val, ok := spec.Spec.NodeSelector[TPUAcceleratorLabel]; ok {
+		return val
+	}
+	if val, ok := getTPUAcceleratorFromAffinity(spec.Spec.Affinity); ok {
+		return val
+	}
+	return ""
+}
+
+func getTPUAcceleratorFromAffinity(affinity *corev1.Affinity) (string, bool) {
+	if affinity != nil && affinity.NodeAffinity != nil && affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
+		for _, term := range affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
+			for _, matchExpression := range term.MatchExpressions {
+				if matchExpression.Key == TPUAcceleratorLabel && matchExpression.Operator == corev1.NodeSelectorOpIn && len(matchExpression.Values) == 1 {
+					return matchExpression.Values[0], true
+				}
+			}
+		}
+	}
+	return "", false
 }
 
 func GetSliceState(slice v1beta1.Slice, timeout time.Duration) SliceState {

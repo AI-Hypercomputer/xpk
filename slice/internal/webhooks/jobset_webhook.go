@@ -18,6 +18,7 @@ package webhooks
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -96,25 +97,65 @@ func (r *JobSetWebhook) annotateReplicatedJobWithTopology(rj *v1alpha2.Replicate
 }
 
 func annotateReplicatedJobWithSliceHealth(rj *v1alpha2.ReplicatedJob) {
-	if rj.Template.Spec.Template.Spec.NodeSelector == nil {
-		rj.Template.Spec.Template.Spec.NodeSelector = make(map[string]string)
+	// 1. If there is NodeSelector with TPUSliceHealthNodeSelectorKey, we do nothing.
+	if _, ok := rj.Template.Spec.Template.Spec.NodeSelector[core.TPUSliceHealthNodeSelectorKey]; ok {
+		return
 	}
-	rj.Template.Spec.Template.Spec.NodeSelector[core.TPUSliceHealthNodeSelectorKey] = core.TPUSliceHealthNodeSelectorHealthy
+
+	// 2. If there is NodeAffinity with TPUSliceHealthNodeSelectorKey, we do nothing.
+	if rj.Template.Spec.Template.Spec.Affinity != nil &&
+		rj.Template.Spec.Template.Spec.Affinity.NodeAffinity != nil &&
+		rj.Template.Spec.Template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
+		for _, term := range rj.Template.Spec.Template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
+			for _, req := range term.MatchExpressions {
+				if req.Key == core.TPUSliceHealthNodeSelectorKey {
+					return
+				}
+			}
+		}
+	}
+
+	// 3. If neither of these, we add a NodeAffinity.
+	core.AddNodeAffinity(rj, core.TPUSliceHealthNodeSelectorKey, []string{core.TPUSliceHealthNodeSelectorHealthy, core.TPUSliceHealthNodeSelectorDegraded})
 }
 
 func (r *JobSetWebhook) podSetSliceSize(tpuTopology string, parallelism int32) (string, error) {
-	dimensions := strings.Split(tpuTopology, "x")
-	totalChips := int64(1)
-
-	for _, dim := range dimensions {
-		parsedDim, err := strconv.ParseInt(dim, 10, 8)
-		if err != nil {
-			return "", err
-		}
-		totalChips *= parsedDim
+	dims, err := parseTopology(tpuTopology)
+	if err != nil {
+		return "", err
 	}
 
+	totalChips := dims[0] * dims[1] * dims[2]
 	subBlockCount := totalChips / 64
 
 	return strconv.FormatInt(int64(parallelism)/subBlockCount, 10), nil
+}
+
+func parseTopology(tpuTopology string) ([]int64, error) {
+	dimensions := strings.Split(tpuTopology, "x")
+	if len(dimensions) != 3 {
+		return nil, fmt.Errorf("invalid topology format: %s, expected 3 dimensions", tpuTopology)
+	}
+
+	dims := make([]int64, 3)
+
+	for i, dim := range dimensions {
+		parsedDim, err := strconv.ParseInt(dim, 10, 32)
+		if err != nil {
+			return nil, err
+		}
+		dims[i] = parsedDim
+	}
+
+	if dims[0]%4 != 0 || dims[1]%4 != 0 || dims[2]%4 != 0 {
+		return nil, fmt.Errorf("topology dimensions must be divisible by 4: %s", tpuTopology)
+	}
+	if dims[0] > dims[1] || dims[1] > dims[2] {
+		return nil, fmt.Errorf("topology dimensions must be in non-decreasing order: %s", tpuTopology)
+	}
+	if dims[0] > 16 || dims[1] > 24 || dims[2] > 24 {
+		return nil, fmt.Errorf("topology dimensions exceed maximum 16x24x24: %s", tpuTopology)
+	}
+
+	return dims, nil
 }

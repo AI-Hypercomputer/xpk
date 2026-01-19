@@ -108,6 +108,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 			unhealthyNodes   []string
 			wantDomains      []tas.TopologyDomainAssignment
 			wantPartitionIds []string
+			useNodeAffinity  bool
 		}
 		ginkgo.DescribeTable("it should create Slice based on created Workload with",
 			func(tc testCase) {
@@ -131,6 +132,15 @@ var _ = ginkgo.Describe("JobSet", func() {
 					}
 				})
 
+				nodeSelector := map[string]string{
+					"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
+				}
+				var affinity *corev1.Affinity
+				if tc.useNodeAffinity {
+					nodeSelector = nil
+					affinity = core.TpuAffinity.DeepCopy()
+				}
+
 				jobSet := testingjobsjobset.MakeJobSet("jobset", ns.Name).
 					Queue(lq.Name).
 					ReplicatedJobs(
@@ -144,9 +154,8 @@ var _ = ginkgo.Describe("JobSet", func() {
 							PodAnnotations: map[string]string{
 								core.TPUSliceTopologyAnnotation: tc.tpuTopology,
 							},
-							NodeSelector: map[string]string{
-								"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
-							},
+							NodeSelector: nodeSelector,
+							Affinity:     affinity,
 						},
 					).
 					RequestAndLimit("rj1", extraResource, tc.tpuRequests).
@@ -175,7 +184,21 @@ var _ = ginkgo.Describe("JobSet", func() {
 								Should(gomega.Equal(fmt.Sprint(tc.wantSliceSize)))
 
 							// node health
-							g.Expect(replicatedJob.Template.Spec.Template.Spec.NodeSelector[core.TPUSliceHealthNodeSelectorKey]).Should(gomega.Equal(core.TPUSliceHealthNodeSelectorHealthy))
+							affinity := replicatedJob.Template.Spec.Template.Spec.Affinity
+							g.Expect(affinity).ShouldNot(gomega.BeNil())
+							g.Expect(affinity.NodeAffinity).ShouldNot(gomega.BeNil())
+							g.Expect(affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution).ShouldNot(gomega.BeNil())
+							found := false
+							for _, term := range affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
+								for _, matchExpression := range term.MatchExpressions {
+									if matchExpression.Key == core.TPUSliceHealthNodeSelectorKey {
+										found = true
+										g.Expect(matchExpression.Operator).Should(gomega.Equal(corev1.NodeSelectorOpIn))
+										g.Expect(matchExpression.Values).Should(gomega.ConsistOf(core.TPUSliceHealthNodeSelectorHealthy, core.TPUSliceHealthNodeSelectorDegraded))
+									}
+								}
+							}
+							g.Expect(found).Should(gomega.BeTrue())
 						}
 					}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 				})
@@ -390,6 +413,16 @@ var _ = ginkgo.Describe("JobSet", func() {
 					},
 				},
 				wantPartitionIds: []string{"sb2", "sb3"},
+			}),
+			ginkgo.Entry("TPU topology 4x4x4 with accelerator in NodeAffinity", testCase{
+				tpuTopology:      "4x4x4",
+				tpuRequests:      "4",
+				parallelism:      16,
+				replicas:         1,
+				wantSliceSize:    16,
+				wantDomains:      []kueue.TopologyDomainAssignment{{Values: []string{"kind-worker"}, Count: 16}},
+				wantPartitionIds: []string{"sb1"},
+				useNodeAffinity:  true,
 			}),
 		)
 

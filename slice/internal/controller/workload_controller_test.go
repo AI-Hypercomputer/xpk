@@ -124,6 +124,13 @@ func TestWorkloadReconciler(t *testing.T) {
 				Value("worker2").
 				Obj(),
 		})
+	basePodSetWithAffinity := func() kueue.PodSet {
+		ps := utiltesting.MakePodSet("ps1", 2, ptr.To(int32(1))).
+			Annotation(core.TPUSliceTopologyAnnotation, "4x4x12").
+			Obj()
+		ps.Template.Spec.Affinity = core.TpuAffinity.DeepCopy()
+		return *ps
+	}()
 	baseAdmission := &kueue.Admission{
 		PodSetAssignments: []kueue.PodSetAssignment{
 			basePodSetAssignment1Wrapper.Obj(),
@@ -739,6 +746,44 @@ func TestWorkloadReconciler(t *testing.T) {
 			wantWorkloads: []kueue.Workload{
 				*baseWorkloadWrapper.Clone().
 					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStatePending, `Slices are in states: 2 CREATED`)).
+					Obj(),
+			},
+			wantSlices: []slice.Slice{
+				*baseSlice1Wrapper.DeepCopy(),
+				*baseSlice2Wrapper.DeepCopy(),
+			},
+			wantEvents: []utiltesting.EventRecord{
+				buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, SlicesCreatedEventType,
+					`The Slices "default-workload-ps1-0", "default-workload-ps2-0" have been created`),
+			},
+			wantResult: reconcile.Result{RequeueAfter: initializationRetryAfter},
+		},
+		"should create Slices if accelerator is defined in NodeAffinity": {
+			request: baseRequest,
+			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				worker2Node.DeepCopy(),
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapper.Clone().
+					PodSets(
+						basePodSetWithAffinity,
+						*basePodSet2Wrapper.DeepCopy(),
+					).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapper.Clone().
+					PodSets(
+						basePodSetWithAffinity,
+						*basePodSet2Wrapper.DeepCopy(),
+					).
 					ReserveQuota(baseAdmission, now).
 					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Finalizers(SliceControllerName).

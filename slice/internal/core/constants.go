@@ -16,6 +16,12 @@ limitations under the License.
 
 package core
 
+import (
+	corev1 "k8s.io/api/core/v1"
+
+	"tpu-slice-controller/api/v1beta1"
+)
+
 const (
 	TPUSliceTopologyAnnotation = "cloud.google.com/gke-tpu-slice-topology"
 	TPUTopologyAnnotation      = "cloud.google.com/gke-tpu-topology"
@@ -23,8 +29,9 @@ const (
 	TPUBlockLabel              = "cloud.google.com/gce-topology-block"
 	TPUSubBlockLabel           = "cloud.google.com/gke-tpu-partition-4x4x4-id"
 
-	TPUSliceHealthNodeSelectorKey     = "cloud.google.com/gke-tpu-partition-4x4x4-state"
-	TPUSliceHealthNodeSelectorHealthy = "HEALTHY"
+	TPUSliceHealthNodeSelectorKey      = "cloud.google.com/gke-tpu-partition-4x4x4-state"
+	TPUSliceHealthNodeSelectorHealthy  = "HEALTHY"
+	TPUSliceHealthNodeSelectorDegraded = "DEGRADED"
 )
 
 const (
@@ -61,4 +68,24 @@ const (
 const (
 	OwnerWorkloadNamespaceAnnotation = "accelerator.gke.io/owner-workload-namespace"
 	OwnerWorkloadNameAnnotation      = "accelerator.gke.io/owner-workload-name"
+)
+
+var (
+	TpuAffinity = &corev1.Affinity{
+		NodeAffinity: &corev1.NodeAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+				NodeSelectorTerms: []corev1.NodeSelectorTerm{
+					{
+						MatchExpressions: []corev1.NodeSelectorRequirement{
+							{
+								Key:      TPUAcceleratorLabel,
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{string(v1beta1.TypeTpu7x)},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
 )

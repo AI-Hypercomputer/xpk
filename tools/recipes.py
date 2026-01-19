@@ -55,19 +55,21 @@ class Color(str, Enum):
 @dataclasses.dataclass
 class CodeBlock:
   command: str
-  expected_output: str | None
   start: int
   end: int
+  tags: set[str] = dataclasses.field(default_factory=set)
 
 
 def extract_code_blocks(content: str) -> list[CodeBlock]:
-  regex = re.compile(r"```shell\n(.*?)```\n(?:<!--\n(.*?)-->\n?)?", re.DOTALL)
+  regex = re.compile(
+      r"```shell([^\n]*)\n(.*?)```\n(?:<!--\n.*?-->\n?)?", re.DOTALL
+  )
   return [
       CodeBlock(
-          command=m.group(1).strip(),
-          expected_output=m.group(2),
+          command=m.group(2).strip(),
           start=m.start(),
           end=m.end(),
+          tags=set(m.group(1).strip().split()),
       )
       for m in regex.finditer(content)
   ]
@@ -136,13 +138,8 @@ def extract_script_outputs(output: str) -> tuple[list[str], bool]:
 
 
 def format_block(block: CodeBlock, output: str) -> str:
-  """
-  Formats a code block with the given output.
-  """
-  new_block = f"```shell\n{block.command}\n```\n"
-  if output:
-    new_block += f"<!--\n{output}\n-->\n"
-  return new_block
+  tags_str = " " + " ".join(sorted(block.tags)) if block.tags else ""
+  return f"```shell{tags_str}\n{block.command}\n```\n<!--\n{output}\n-->\n"
 
 
 def reconstruct_content(
@@ -164,13 +161,6 @@ def process_file(filepath: str, mode: Mode):
   with open(filepath, mode="r", encoding="utf-8") as f:
     content = f.read()
 
-  blocks = extract_code_blocks(content)
-  if not blocks:
-    print(f"{Color.YELLOW}No shell blocks found in {filepath}{Color.NC}")
-    return
-
-  full_script = build_script(blocks, mode)
-
   if mode == Mode.UPDATE:
     print(
         f"{Color.YELLOW}Updating: {filepath}...{Color.NC} ", end="", flush=True
@@ -184,6 +174,11 @@ def process_file(filepath: str, mode: Mode):
         f"{Color.YELLOW}Verifying: {filepath}...{Color.NC} ", end="", flush=True
     )
 
+  blocks = extract_code_blocks(content)
+  blocks = [
+      block for block in blocks if "#golden" in block.tags or mode == Mode.RUN
+  ]
+  full_script = build_script(blocks, mode)
   output_script_log = run_script(full_script)
   results, failed = extract_script_outputs(output_script_log)
 

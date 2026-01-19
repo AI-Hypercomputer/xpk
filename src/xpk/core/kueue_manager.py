@@ -290,6 +290,7 @@ class KueueManager:
         cpu_limit=cpu_limit,
         memory_limit=memory_limit,
         topology_name=topology_name,
+        configure_super_slicing=kueue_config.configure_super_slicing,
     )
 
     config_yaml = template.render(context)
@@ -316,6 +317,7 @@ class KueueManager:
       cpu_limit: int,
       memory_limit: str,
       topology_name: str | None,
+      configure_super_slicing: bool,
   ) -> Dict[str, Any]:
     """Prepares the context for the Jinja2 template."""
     # Main accelerator flavor
@@ -328,7 +330,7 @@ class KueueManager:
       key, value = accelerator_label.split(":", 1)
       node_labels_dict[key] = value.strip()
 
-    if system.supports_super_slicing:
+    if configure_super_slicing:
       node_labels_dict["cloud.google.com/gke-tpu-partition-4x4x4-state"] = (
           "HEALTHY"
       )
@@ -383,7 +385,7 @@ class KueueManager:
       })
 
     admission_checks = []
-    if system.supports_super_slicing:
+    if configure_super_slicing:
       admission_checks.append("ss-kueue-operator")
     if flex and is_queued_cluster(num_slices, system.accelerator_type):
       admission_checks.append("dws-prov")

@@ -113,7 +113,7 @@ def test_install_or_upgrade_when_outdated(
   result = kueue_manager.install_or_upgrade(KUEUE_CONFIG)
 
   assert result == 0
-  mock_commands.assert_command_run("kubectl apply", "v0.14.3/manifests.yaml")
+  mock_commands.assert_command_run("kubectl apply", "v0.15.2/manifests.yaml")
   mock_commands.assert_command_run("kubectl apply -f", "/tmp/")
 
 
@@ -126,7 +126,7 @@ def test_install_or_upgrade_when_not_installed(
   result = kueue_manager.install_or_upgrade(KUEUE_CONFIG)
 
   assert result == 0
-  mock_commands.assert_command_run("kubectl apply", "v0.14.3/manifests.yaml")
+  mock_commands.assert_command_run("kubectl apply", "v0.15.2/manifests.yaml")
   mock_commands.assert_command_run("kubectl apply -f", "/tmp/")
 
 
@@ -135,7 +135,7 @@ def test_upgrade_when_no_breaking_changes_between_versions_no_preparation_needed
     kueue_manager: KueueManager,
     mock_ask_for_user_consent: MagicMock,
 ):
-  set_installed_kueue_version(mock_commands, Version("0.14.0"))
+  set_installed_kueue_version(mock_commands, Version("0.15.0"))
 
   kueue_manager.install_or_upgrade(KUEUE_CONFIG)
 
@@ -162,7 +162,7 @@ def test_upgrade_with_breaking_changes_between_versions_runs_preparation(
   assert result == 0
   mock_ask_for_user_consent.assert_called_once()
   assert (
-      "CHANGELOG/CHANGELOG-0.14.md"
+      "CHANGELOG/CHANGELOG-0.15.md"
       in mock_ask_for_user_consent.mock_calls[0].args[0]
   )
   mock_commands.assert_command_run(
@@ -492,7 +492,6 @@ def test_configure_generates_correct_manifest_with_super_slicing(
   assert resource_flavor["spec"]["topologyName"] == "super-slice-topology"
   assert resource_flavor["spec"]["nodeLabels"] == {
       "cloud.google.com/gke-tpu-accelerator": "tpu7x",
-      "cloud.google.com/gke-tpu-partition-4x4x4-state": "HEALTHY",
   }
   topology = _first(doc for doc in manifest_docs if doc["kind"] == "Topology")
   assert topology["metadata"]["name"] == "super-slice-topology"

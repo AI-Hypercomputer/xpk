@@ -41,8 +41,8 @@ from ..utils.console import xpk_print, xpk_exit, ask_for_user_consent
 from ..utils.templates import TEMPLATE_PATH, get_templates_absolute_path
 from packaging.version import Version
 
-KUEUE_VERSION = Version("v0.14.3")
-LATEST_BREAKING_VERSION = Version("v0.14.0")
+KUEUE_VERSION = Version("v0.15.2")
+LATEST_BREAKING_VERSION = Version("v0.15.0")
 WAIT_FOR_KUEUE_TIMEOUT = "10m"
 CLUSTER_QUEUE_NAME = "cluster-queue"
 LOCAL_QUEUE_NAME = "multislice-queue"
@@ -330,11 +330,7 @@ class KueueManager:
       key, value = accelerator_label.split(":", 1)
       node_labels_dict[key] = value.strip()
 
-    if configure_super_slicing:
-      node_labels_dict["cloud.google.com/gke-tpu-partition-4x4x4-state"] = (
-          "HEALTHY"
-      )
-    elif not autoprovisioning:
+    if not autoprovisioning and not configure_super_slicing:
       machine_label = create_machine_label(system)
       if machine_label:
         key, value = machine_label.split(":", 1)

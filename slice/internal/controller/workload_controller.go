@@ -42,9 +42,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
-	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
+	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta2"
 	"sigs.k8s.io/kueue/pkg/util/admissioncheck"
 	"sigs.k8s.io/kueue/pkg/util/podset"
+	"sigs.k8s.io/kueue/pkg/util/tas"
 	"sigs.k8s.io/kueue/pkg/workload"
 
 	"tpu-slice-controller/api/v1beta1"
@@ -583,7 +584,7 @@ func parseTopologyAssignment(topologyAssignment *kueue.TopologyAssignment, nodes
 	// we already validated that all assignments have a valid level,
 	// in validateRelevantWorkload.
 	hostnameLevelIndex := topology.HostnameLevelIndex(topologyAssignment)
-	for _, domain := range topologyAssignment.Domains {
+	for domain := range tas.InternalSeqFrom(topologyAssignment) {
 		nodeName := domain.Values[hostnameLevelIndex]
 		if subBlockId := topology.GetTPUSubBlockLabelValue(nodes, nodeName); !seenSubBlockIds.Has(subBlockId) {
 			subBlockIds = append(subBlockIds, subBlockId)

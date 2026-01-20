@@ -44,7 +44,6 @@ from ..core.capacity import (
     get_capacity_type,
     get_reservations_list,
     get_reservation_deployment_type,
-    parse_reservation,
 )
 from ..core.gcloud_context import (
     add_zone_and_project,

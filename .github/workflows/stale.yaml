@@ -12,11 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License
 
-
-name: 'Close stale issues and PRs'
+name: "Close stale issues and PRs"
 on:
   schedule:
-    - cron: '30 1 * * *'
+    - cron: "30 1 * * *"
 
 jobs:
   stale:
@@ -24,7 +23,8 @@ jobs:
     steps:
       - uses: actions/stale@5f858e3efba33a5ca4407a664cc011ad407f2008 # v10.1.0
         with:
-          stale-pr-message: 'This pull request is stale because it has been open 30 days with no activity. Remove stale label or comment or this will be closed in 7 days.'
+          days-before-issue-stale: -1
+          stale-pr-message: "This pull request is stale because it has been open 30 days with no activity. Remove stale label or comment or this will be closed in 7 days."
           days-before-pr-stale: 30
           days-before-pr-close: 7
           operations-per-run: 100

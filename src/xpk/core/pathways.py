@@ -245,17 +245,11 @@ def append_custom_colocated_python_sidecar(args) -> str:
 
 
 def get_user_workload_for_pathways(
-    args,
-    system: SystemCharacteristics,
+    args, system: SystemCharacteristics, parallel_containers: int
 ) -> str:
   """
   Create a user workload container for Pathways.
   Don't create one for Pathways headless mode.
-
-  Args:
-    args: user provided args.
-    system: system characteristics.
-
 
   Returns:
     str:
@@ -280,7 +274,9 @@ def get_user_workload_for_pathways(
   if args.headless:
     return ''
   else:
-    container, _ = get_user_workload_container(args, system)
+    container, _ = get_user_workload_container(
+        args, system, parallel_containers
+    )
     return user_workload_yaml.format(
         args=args,
         container=container,

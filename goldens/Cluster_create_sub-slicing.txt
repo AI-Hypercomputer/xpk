@@ -185,7 +185,7 @@ kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-s
 kubectl wait deploy/kueue-controller-manager -n kueue-system --for=condition=available --timeout=10m
 [XPK] Temp file (2f2b4591858b4bc50348c575cd2cc048c79d1e4ffb67e0a6d6e1eafad21c5002) content: 
 
-apiVersion: kueue.x-k8s.io/v1beta1
+apiVersion: kueue.x-k8s.io/v1beta2
 kind: ResourceFlavor
 metadata:
   name: "1xv6e-16"
@@ -193,7 +193,7 @@ spec:
   nodeLabels: {"cloud.google.com/gke-tpu-accelerator": "tpu-v6e-slice", "cloud.google.com/gke-tpu-topology": "4x4"}
   topologyName: sub-slice-topology
 ---
-apiVersion: kueue.x-k8s.io/v1beta1
+apiVersion: kueue.x-k8s.io/v1beta2
 kind: ProvisioningRequestConfig
 metadata:
   name: dws-config
@@ -206,7 +206,7 @@ spec:
   managedResources:
   - google.com/tpu
 ---
-apiVersion: kueue.x-k8s.io/v1beta1
+apiVersion: kueue.x-k8s.io/v1beta2
 kind: ClusterQueue
 metadata:
   name: "cluster-queue"
@@ -217,7 +217,7 @@ spec:
   namespaceSelector: {} # match all.
   resourceGroups: [{'coveredResources': ['google.com/tpu'], 'flavors': [{'name': '1xv6e-16', 'resources': [{'name': 'google.com/tpu', 'nominalQuota': 16}]}]}]
 ---
-apiVersion: kueue.x-k8s.io/v1beta1
+apiVersion: kueue.x-k8s.io/v1beta2
 kind: LocalQueue
 metadata:
   namespace: default
@@ -265,7 +265,7 @@ value: 1000
 globalDefault: false
 description: "Very High"
 ---
-apiVersion: kueue.x-k8s.io/v1beta1
+apiVersion: kueue.x-k8s.io/v1beta2
 kind: Topology
 metadata:
   name: sub-slice-topology

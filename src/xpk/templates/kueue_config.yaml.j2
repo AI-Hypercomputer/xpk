@@ -1,5 +1,5 @@
 {%- for flavor in flavors %}
-apiVersion: kueue.x-k8s.io/v1beta1
+apiVersion: kueue.x-k8s.io/v1beta2
 kind: ResourceFlavor
 metadata:
   name: "{{ flavor.name }}"
@@ -11,7 +11,7 @@ spec:
 ---
 {%- endfor %}
 {%- if 'dws-prov' in admission_checks %}
-apiVersion: kueue.x-k8s.io/v1beta1
+apiVersion: kueue.x-k8s.io/v1beta2
 kind: AdmissionCheck
 metadata:
   name: dws-prov
@@ -24,7 +24,7 @@ spec:
 ---
 {%- endif %}
 {%- if 'ss-kueue-operator' in admission_checks %}
-apiVersion: kueue.x-k8s.io/v1beta1
+apiVersion: kueue.x-k8s.io/v1beta2
 kind: AdmissionCheck
 metadata:
   name: ss-kueue-operator
@@ -32,7 +32,7 @@ spec:
   controllerName: accelerator.gke.io/slice
 ---
 {%- endif %}
-apiVersion: kueue.x-k8s.io/v1beta1
+apiVersion: kueue.x-k8s.io/v1beta2
 kind: ProvisioningRequestConfig
 metadata:
   name: dws-config
@@ -45,7 +45,7 @@ spec:
   managedResources:
   - {{ managed_resource }}
 ---
-apiVersion: kueue.x-k8s.io/v1beta1
+apiVersion: kueue.x-k8s.io/v1beta2
 kind: ClusterQueue
 metadata:
   name: "{{ cluster_queue_name }}"
@@ -62,7 +62,7 @@ spec:
   {%- endfor %}
   {%- endif %}
 ---
-apiVersion: kueue.x-k8s.io/v1beta1
+apiVersion: kueue.x-k8s.io/v1beta2
 kind: LocalQueue
 metadata:
   namespace: default

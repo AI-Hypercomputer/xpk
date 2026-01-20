@@ -25,7 +25,7 @@ from .system_characteristics import AcceleratorType, SystemCharacteristics
 
 def add_pw_resource_flavors(args):
   """Add resource flavors required for Pathways enabled clusters."""
-  resource_flavor_yaml = """apiVersion: kueue.x-k8s.io/v1beta1
+  resource_flavor_yaml = """apiVersion: kueue.x-k8s.io/v1beta2
 kind: ResourceFlavor
 metadata:
   name: cpu-user

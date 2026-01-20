@@ -203,7 +203,7 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		log.V(3).Info("Annotating owner before unsuspending")
 		err := r.updateOwnerBeforeUnsuspend(ctx, wl)
 		if err != nil {
-			return ctrl.Result{}, err
+			return ctrl.Result{}, client.IgnoreNotFound(err)
 		}
 	}
 

@@ -1,5 +1,5 @@
 # Workload create super-slicing
-Recipe for Workload create super-slicing
+Submits a workload utilizing TPU super-slicing for large-scale distributed training.
 
 # Running the command
 ```shell #golden

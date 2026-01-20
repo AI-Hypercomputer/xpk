@@ -1,5 +1,5 @@
 # Cluster create for single-host nodepool
-Recipe for Cluster create for single-host nodepool
+Creates a GKE cluster configured with a single-host TPU node pool.
 
 # Running the command
 ```shell #golden

@@ -1,5 +1,5 @@
 # Workload create with output-manifest-file
-Recipe for Workload create with output-manifest-file
+Submits a workload and saves the generated Kubernetes manifest to a specified output file.
 
 # Running the command
 ```shell #golden

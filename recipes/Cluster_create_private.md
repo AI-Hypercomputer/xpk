@@ -1,5 +1,5 @@
 # Cluster create private
-Recipe for Cluster create private
+Creates a private GKE cluster with Pathways support and private node configuration.
 
 # Running the command
 ```shell #golden

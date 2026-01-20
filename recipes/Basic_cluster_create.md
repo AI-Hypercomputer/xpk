@@ -1,5 +1,5 @@
 # Basic cluster create
-Recipe for Basic cluster create
+Creates a basic GKE cluster with Spot TPU resources and necessary XPK components.
 
 # Running the command
 ```shell #golden

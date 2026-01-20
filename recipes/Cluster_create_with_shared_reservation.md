@@ -1,5 +1,5 @@
 # Cluster create with shared reservation
-Recipe for Cluster create with shared reservation
+Creates a GKE cluster using a shared capacity reservation from another project.
 
 # Running the command
 ```shell #golden

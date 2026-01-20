@@ -1,5 +1,5 @@
 # Basic cluster adapt
-Recipe for Basic cluster adapt
+Adapts an existing GKE cluster for XPK by installing Jobset, Kueue, and other dependencies.
 
 # Running the command
 ```shell #golden

@@ -1,5 +1,5 @@
 # Cluster create with Managed Lustre driver and legacy port
-Recipe for Cluster create with Managed Lustre driver and legacy port
+Creates a GKE cluster with Managed Lustre CSI driver and legacy port support enabled.
 
 # Running the command
 ```shell #golden

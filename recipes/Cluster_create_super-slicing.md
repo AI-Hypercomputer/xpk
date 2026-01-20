@@ -1,5 +1,5 @@
 # Cluster create super-slicing
-Recipe for Cluster create super-slicing
+Creates a GKE cluster with TPU super-slicing enabled for multi-slice training.
 
 # Running the command
 ```shell #golden

@@ -1,5 +1,5 @@
 # Cluster create for multi-host nodepool
-Recipe for Cluster create for multi-host nodepool
+Creates a GKE cluster configured with a multi-host TPU node pool.
 
 # Running the command
 ```shell #golden

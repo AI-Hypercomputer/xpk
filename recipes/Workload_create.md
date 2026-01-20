@@ -1,5 +1,5 @@
 # Workload create
-Recipe for Workload create
+Submits a basic workload to the cluster using standard TPU resources.
 
 # Running the command
 ```shell #golden

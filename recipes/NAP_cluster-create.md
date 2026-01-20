@@ -1,5 +1,5 @@
 # NAP cluster-create
-Recipe for NAP cluster-create
+Creates a GKE cluster with Node Auto-provisioning (NAP) enabled for dynamic scaling.
 
 # Running the command
 ```shell #golden

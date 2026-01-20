@@ -1,5 +1,5 @@
 # NAP cluster-create with pathways
-Recipe for NAP cluster-create with pathways
+Creates a GKE cluster with Pathways and Node Auto-provisioning (NAP) enabled.
 
 # Running the command
 ```shell #golden

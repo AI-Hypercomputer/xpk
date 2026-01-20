@@ -1,5 +1,5 @@
 # Storage list
-Recipe for Storage list
+Lists storage resources associated with the XPK cluster.
 
 # Running the command
 ```shell #golden

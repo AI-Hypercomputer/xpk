@@ -1,5 +1,5 @@
 # Workload list
-Recipe for Workload list
+Lists all workloads currently present in the cluster.
 
 # Running the command
 ```shell #golden

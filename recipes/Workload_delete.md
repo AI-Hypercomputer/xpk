@@ -1,5 +1,5 @@
 # Workload delete
-Recipe for Workload delete
+Deletes a specified workload from the cluster.
 
 # Running the command
 ```shell #golden

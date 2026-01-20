@@ -1,5 +1,5 @@
 # Cluster create with Managed Lustre driver
-Recipe for Cluster create with Managed Lustre driver
+Creates a GKE cluster with Managed Lustre CSI driver enabled for high-performance storage.
 
 # Running the command
 ```shell #golden

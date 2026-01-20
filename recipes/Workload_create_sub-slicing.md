@@ -1,5 +1,5 @@
 # Workload create sub-slicing
-Recipe for Workload create sub-slicing
+Submits a workload utilizing TPU sub-slicing for fractional resource usage.
 
 # Running the command
 ```shell #golden

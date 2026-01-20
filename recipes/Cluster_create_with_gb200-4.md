@@ -1,5 +1,5 @@
 # Cluster create with gb200-4
-Recipe for Cluster create with gb200-4
+Creates a GKE cluster with Nvidia GB200 GPU resources.
 
 # Running the command
 ```shell #golden

@@ -1,5 +1,5 @@
 # Cluster create RayCluster
-Recipe for Cluster create RayCluster
+Creates a GKE cluster optimized for Ray workloads, installing KubeRay component.
 
 # Running the command
 ```shell #golden

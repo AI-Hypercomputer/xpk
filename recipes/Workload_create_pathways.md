@@ -1,5 +1,5 @@
 # Workload create pathways
-Recipe for Workload create pathways
+Submits a Pathways-enabled workload to the cluster.
 
 # Running the command
 ```shell #golden

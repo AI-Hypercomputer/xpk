@@ -1,5 +1,5 @@
 # Cluster create with CPU and memory limits above capacity
-Recipe for Cluster create with CPU and memory limits above capacity
+Demonstrates cluster creation with custom CPU and memory limits set above default capacity.
 
 # Running the command
 ```shell #golden

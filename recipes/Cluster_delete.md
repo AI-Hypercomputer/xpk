@@ -1,5 +1,5 @@
 # Cluster delete
-Recipe for Cluster delete
+Deletes a GKE cluster and cleans up associated resources.
 
 # Running the command
 ```shell #golden

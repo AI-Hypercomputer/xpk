@@ -1,5 +1,5 @@
 # Cluster create sub-slicing
-Recipe for Cluster create sub-slicing
+Creates a GKE cluster with TPU sub-slicing enabled for fractional chip usage.
 
 # Running the command
 ```shell #golden

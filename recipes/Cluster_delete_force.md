@@ -1,5 +1,5 @@
 # Cluster delete force
-Recipe for Cluster delete force
+Forcefully deletes a GKE cluster and its associated resources.
 
 # Running the command
 ```shell #golden

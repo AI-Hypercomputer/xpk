@@ -124,6 +124,10 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 				return ctrl.Result{RequeueAfter: cleanupRetryAfter}, nil
 			}
 			err = r.finalizeWorkload(ctx, wl)
+			if apierrors.IsConflict(err) {
+				log.Info("Failed to remove the finalizer", "error", err)
+				return ctrl.Result{RequeueAfter: 5 * time.Millisecond}, nil
+			}
 			return ctrl.Result{}, client.IgnoreNotFound(err)
 		}
 		return ctrl.Result{}, nil
@@ -436,12 +440,7 @@ func (r *WorkloadReconciler) finalizeWorkload(ctx context.Context, wl *kueue.Wor
 
 	controllerutil.RemoveFinalizer(wl, SliceControllerName)
 	if err := r.client.Update(ctx, wl); err != nil {
-		if apierrors.IsConflict(err) {
-			log.Info("Failed to remove the finalizer", "error", err)
-		} else if !apierrors.IsNotFound(err) {
-			log.Error(err, "Failed to remove the finalizer")
-		}
-		return err
+		return fmt.Errorf("failed to remove finalizer: %w", err)
 	}
 
 	log.V(3).Info("Removed finalizer")

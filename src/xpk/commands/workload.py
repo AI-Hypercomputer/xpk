@@ -481,6 +481,16 @@ def workload_create(args) -> None:
         + lustre_storages
     )
 
+  use_sub_slicing = (
+      workload_scheduling == WorkloadScheduling.SUB_SLICING_AVAILABLE
+  )
+  use_super_slicing = (
+      workload_scheduling == WorkloadScheduling.SUPER_SLICING_AVAILABLE
+  )
+  parallel_containers = workload_system.parallel_containers
+  if args.use_pathways or use_super_slicing:
+    parallel_containers = 1
+
   # Currently failure policy rules are supported for Pathways workloads. b/408465881
   failure_policy_rules = ''
   pod_failure_policy = ''
@@ -497,10 +507,8 @@ def workload_create(args) -> None:
             rules:
           """
     docker_image = get_main_container_docker_image(args, workload_system)
-    for i in range(workload_system.parallel_containers):
-      docker_image_sufix = (
-          f'-{i + 1}' if workload_system.parallel_containers > 1 else ''
-      )
+    for i in range(parallel_containers):
+      docker_image_sufix = f'-{i + 1}' if parallel_containers > 1 else ''
       pod_failure_policy += f"""
             - action: FailJob
               onPodConditions: []
@@ -533,7 +541,7 @@ def workload_create(args) -> None:
   # Create the workload file based on accelerator type or workload type.
   if workload_system.accelerator_type == AcceleratorType.GPU:
     container, debugging_dashboard_id = get_user_workload_container(
-        args, workload_system
+        args, workload_system, parallel_containers=parallel_containers
     )
     gpu_scheduler, return_code = get_gpu_scheduler(
         args, workload_system, autoprovisioning_args
@@ -624,25 +632,21 @@ def workload_create(args) -> None:
         custom_pathways_server=append_custom_pathways_server(args),
         custom_pathways_worker=append_custom_pathways_worker(args),
         colocated_python_sidecar=append_custom_colocated_python_sidecar(args),
-        user_workload=get_user_workload_for_pathways(args, workload_system),
+        user_workload=get_user_workload_for_pathways(
+            args, workload_system, parallel_containers
+        ),
         local_queue_name=LOCAL_QUEUE_NAME,
         autoprovisioning_args=autoprovisioning_args,
         placement_policy_label=placement_policy_label,
     )
   else:
-    use_sub_slicing = (
-        workload_scheduling == WorkloadScheduling.SUB_SLICING_AVAILABLE
-    )
-    use_super_slicing = (
-        workload_scheduling == WorkloadScheduling.SUPER_SLICING_AVAILABLE
-    )
     if use_sub_slicing:
       xpk_print('Workload will be scheduled using the Sub-slicing feature.')
     if use_super_slicing:
       xpk_print('Workload will be scheduled using the Super-slicing feature.')
 
     container, debugging_dashboard_id = get_user_workload_container(
-        args, workload_system
+        args, workload_system, parallel_containers
     )
 
     machine_label = (

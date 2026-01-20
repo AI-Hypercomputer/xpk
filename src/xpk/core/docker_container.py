@@ -30,12 +30,18 @@ from .system_characteristics import (
 )
 
 
-def get_main_and_sidecar_container(args, system, docker_image) -> str:
+def get_main_and_sidecar_container(
+    args,
+    system: SystemCharacteristics,
+    docker_image: str,
+    parallel_containers: int,
+) -> str:
   """Generate yaml for main and sidecar container.
   Args:
     args: user provided arguments for running the command.
     system: system characteristics
     docker_image: docker image
+    parallel_containers: number of containers to run per VM.
 
   Returns:
     str:
@@ -44,7 +50,9 @@ def get_main_and_sidecar_container(args, system, docker_image) -> str:
   resource_type = AcceleratorTypeToAcceleratorCharacteristics[
       system.accelerator_type
   ].resource_type
-  main_container = get_main_container(args, system, docker_image, resource_type)
+  main_container = get_main_container(
+      args, system, docker_image, resource_type, parallel_containers
+  )
   yaml = """- name: stacktrace-explorer
                 image: busybox:1.28
                 args: [/bin/sh, -c, "check_signal() (while [ ! -f /shared-volume/stacktrace_signal ]; do sleep 1; done; pid=$(pidof 'tail'); kill $pid;); check_signal & while [ ! -d /tmp/debugging ]; do sleep 60; done; while [ ! -e /tmp/debugging/* ]; do sleep 60; done; tail -n+1 -f /tmp/debugging/*; exit 0;"]
@@ -59,13 +67,20 @@ def get_main_and_sidecar_container(args, system, docker_image) -> str:
   return yaml.format(main_container=main_container)
 
 
-def get_main_container(args, system, docker_image, resource_type) -> str:
+def get_main_container(
+    args,
+    system: SystemCharacteristics,
+    docker_image: str,
+    resource_type,
+    parallel_containers: int,
+) -> str:
   """Generate yaml for main container including the xpk command.
   Args:
     args: user provided arguments for running the command.
     system: system characteristics
     docker_image: docker image
     resource_type: The label to describe the resource type for TPUs/GPUs/CPUs.
+    parallel_containers: number of containers to run per VM.
 
   Returns:
     str:
@@ -149,14 +164,10 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
                 volumeMounts:
                 {volume_mounts}
 """
-  # pathways job running on 2 parallel containers is not verified yet
-  if args.use_pathways:
-    system.parallel_containers = 1
-
   env = get_env_container(args, system)
   image_pull_policy = add_image_pull_policy_for_pw_or_gpu(args, system)
-  for i in range(system.parallel_containers):
-    docker_name_sufix = f'-{i + 1}' if system.parallel_containers > 1 else ''
+  for i in range(parallel_containers):
+    docker_name_sufix = f'-{i + 1}' if parallel_containers > 1 else ''
     containers.append(
         container_yaml.format(
             args=args,
@@ -177,12 +188,15 @@ def get_main_container(args, system, docker_image, resource_type) -> str:
   return ''.join(containers)
 
 
-def get_user_workload_container(args, system: SystemCharacteristics):
+def get_user_workload_container(
+    args, system: SystemCharacteristics, parallel_containers: int
+):
   """Deploy user workload container
 
   Args:
       args: user provided args.
       system: system characteristics.
+      parallel_containers: number of containers to run per VM.
 
   Returns:
       container: main container
@@ -209,11 +223,15 @@ def get_user_workload_container(args, system: SystemCharacteristics):
         'Sidecar container to display stack traces for TPU workloads will also'
         ' be deployed.'
     )
-    container = get_main_and_sidecar_container(args, system, docker_image)
+    container = get_main_and_sidecar_container(
+        args, system, docker_image, parallel_containers
+    )
     # Get GKE debugging dashboard only when sidecar container is deployed for TPU workloads
     debugging_dashboard_id = get_gke_debugging_dashboard(args)
   else:
-    container = get_main_container(args, system, docker_image, resource_type)
+    container = get_main_container(
+        args, system, docker_image, resource_type, parallel_containers
+    )
   return container, debugging_dashboard_id
 
 

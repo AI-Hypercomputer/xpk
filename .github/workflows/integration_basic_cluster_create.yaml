@@ -31,7 +31,7 @@ jobs:
           group: nightly-test-cluster-group-empty
           cancel-in-progress: false
       env:
-          EMPTY_CLUSTER_NAME: nightly-xpk-zero-nodepools
+          EMPTY_CLUSTER_NAME: nightly-xpk-zero
       steps:
           - uses: actions/download-artifact@v4
             with:
@@ -59,7 +59,7 @@ jobs:
           group: nightly-test-cluster-group-private
           cancel-in-progress: false
       env:
-          PRIVATE_CLUSTER_NAME: nightly-xpk-private-2-v4-8-nodepools
+          PRIVATE_CLUSTER_NAME: nightly-xpk-private-2-v4-8
       steps:
           - uses: actions/download-artifact@v4
             with:
@@ -90,7 +90,7 @@ jobs:
             group: nightly-test-cluster-group-tpu
             cancel-in-progress: false
         env:
-            TPU_CLUSTER_NAME: nightly-xpk-2-v5p-8-nodepools
+            TPU_CLUSTER_NAME: nightly-xpk-2-v5p-8
             WORKLOAD_NAME: xpktest-nightly-${{ github.run_attempt }}
         steps:
             - uses: actions/download-artifact@v4

@@ -38,7 +38,7 @@ jobs:
         key: xpk-deps-3.10-${{github.run_id}}-${{github.run_attempt}}
         restore-keys: xpk-deps-3.10-
     - name: Verify goldens
-      run: ./golden_buddy.sh verify goldens.yaml goldens
+      run: python3 tools/recipes.py golden recipes/*.md
       env:
         UPDATE_GOLDEN_COMMAND: make goldens
         XPK_VERSION_OVERRIDE: v0.0.0

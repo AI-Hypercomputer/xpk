@@ -1,9 +1,15 @@
-$ xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-8 --reservation=projects/reservation-project/reservations/golden-reservation --dry-run
+# Cluster create with Managed Lustre driver and legacy port
+Creates a GKE cluster with Managed Lustre CSI driver and legacy port support enabled.
+
+# Running the command
+```shell #golden
+xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-8 --enable-lustre-csi-driver --enable-legacy-lustre-port --spot
+```
+<!--
+$ xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-8 --enable-lustre-csi-driver --enable-legacy-lustre-port --spot
 [XPK] Starting xpk v0.0.0
 [XPK] Starting cluster create for cluster golden-cluster:
 [XPK] Working on golden-project and us-central1-a
-[XPK] Task: `Describe reservation` is implemented by the following command not running since it is a dry run. 
-gcloud beta compute reservations describe golden-reservation --project=reservation-project --zone=us-central1-a
 [XPK] Task: `Determine server supported GKE versions for default gke version` is implemented by the following command not running since it is a dry run. 
 gcloud container get-server-config --project=golden-project --region=us-central1 --flatten="channels" --filter="channels.channel=RAPID" --format="value(channels.defaultVersion)"
 [XPK] Task: `Determine server supported GKE versions for valid versions` is implemented by the following command not running since it is a dry run. 
@@ -11,7 +17,7 @@ gcloud container get-server-config --project=golden-project --region=us-central1
 [XPK] Task: `Find if Cluster Exists` is implemented by the following command not running since it is a dry run. 
 gcloud container clusters list --project=golden-project --filter=location~"us-central1.*" --format="csv[no-heading](name)"
 [XPK] Task: `GKE Cluster Create` is implemented by the following command not running since it is a dry run. 
-gcloud beta container clusters create golden-cluster --project=golden-project --region=us-central1 --node-locations=us-central1-a --cluster-version=0 --machine-type=e2-standard-16 --enable-autoscaling --total-min-nodes 1 --total-max-nodes 1000 --num-nodes 6 --enable-dns-access --autoscaling-profile=optimize-utilization --labels=gke_product_type=xpk --release-channel=rapid --enable-ip-alias --enable-dataplane-v2 --enable-multi-networking --location-policy=BALANCED --scopes=storage-full,gke-default
+gcloud beta container clusters create golden-cluster --project=golden-project --region=us-central1 --node-locations=us-central1-a --cluster-version=0 --machine-type=e2-standard-16 --enable-autoscaling --total-min-nodes 1 --total-max-nodes 1000 --num-nodes 6 --enable-dns-access --autoscaling-profile=optimize-utilization --labels=gke_product_type=xpk --release-channel=rapid --enable-ip-alias --enable-dataplane-v2 --enable-multi-networking --location-policy=BALANCED --scopes=storage-full,gke-default --enable-legacy-lustre-port --addons=LustreCsiDriver
 [XPK] Task: `Find cluster region or zone` is implemented by the following command not running since it is a dry run. 
 gcloud container clusters list --project=golden-project --filter=name=golden-cluster --format="value(location)"
 [XPK] Task: `Check if Private Nodes is enabled in cluster.` is implemented by the following command not running since it is a dry run. 
@@ -36,14 +42,17 @@ kubectl wait deployment/coredns --for=condition=Available=true --namespace=kube-
 [XPK] CoreDNS has successfully started and passed verification.
 [XPK] CoreDNS deployment 'coredns' found in namespace 'kube-system'.
 [XPK] Skipping CoreDNS deployment since it already exists.
+[XPK] Task: `Checks if lustreCsiDriver driver's enabled is enabled in cluster describe.` is implemented by the following command not running since it is a dry run. 
+gcloud container clusters describe golden-cluster --project=golden-project --location=us-central1 --format="value(addonsConfig.lustreCsiDriverConfig.enabled)"
+[XPK] Updating GKE cluster to enable Lustre CSI driver, may take a while!
+[XPK] Task: `GKE Cluster Update to enable Lustre CSI driver` is implemented by the following command not running since it is a dry run. 
+gcloud container clusters update golden-cluster --project=golden-project --location=us-central1 --quiet --enable-legacy-lustre-port
 [XPK] Task: `Determine current gke master version` is implemented by the following command not running since it is a dry run. 
 gcloud beta container clusters describe golden-cluster --location us-central1 --project golden-project --format="value(currentMasterVersion)"
 [XPK] Creating 1 node pool or pools of tpu7x-8
 We assume that the underlying system is: SystemCharacteristics(topology='2x2x1', vms_per_slice=1, gke_accelerator='tpu7x', gce_machine_type='tpu7x-standard-4t', chips_per_vm=4, accelerator_type=TPU, device_type='tpu7x-8', supports_sub_slicing=False, supports_super_slicing=False, supports_accelerator_network_profile=False, docker_platform=<DockerPlatform.AMD: 'linux/amd64'>, requires_workload_policy=False, gpu_config=None, parallel_containers=2)
 [XPK] Task: `Get All Node Pools` is implemented by the following command not running since it is a dry run. 
 gcloud beta container node-pools list --cluster golden-cluster --project=golden-project --location=us-central1 --format="csv[no-heading](name)"
-[XPK] Task: `Describe reservation` is implemented by the following command not running since it is a dry run. 
-gcloud beta compute reservations describe golden-reservation --project=reservation-project --zone=us-central1-a
 [XPK] Creating 1 node pool or pools of tpu7x-8
 Underlyingly, we assume that means: SystemCharacteristics(topology='2x2x1', vms_per_slice=1, gke_accelerator='tpu7x', gce_machine_type='tpu7x-standard-4t', chips_per_vm=4, accelerator_type=TPU, device_type='tpu7x-8', supports_sub_slicing=False, supports_super_slicing=False, supports_accelerator_network_profile=False, docker_platform=<DockerPlatform.AMD: 'linux/amd64'>, requires_workload_policy=False, gpu_config=None, parallel_containers=2)
 [XPK] Task: `Get Node Pool Zone` is implemented by the following command not running since it is a dry run. 
@@ -51,13 +60,11 @@ gcloud beta container node-pools describe 0 --cluster golden-cluster --project=g
 [XPK] Task: `GKE Cluster Get ConfigMap` is implemented by the following command not running since it is a dry run. 
 kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="ConfigData:data" --no-headers=true
 [XPK] Existing node pool names  ['0']
-[XPK] To complete NodepoolCreate-golden-cluster-np-0 we are executing gcloud beta container node-pools create golden-cluster-np-0 --location=us-central1 --cluster=golden-cluster --project=golden-project --node-locations=us-central1-a --machine-type=tpu7x-standard-4t --host-maintenance-interval=AS_NEEDED --reservation-affinity=specific --reservation=projects/reservation-project/reservations/golden-reservation --enable-gvnic --node-version=0 --num-nodes=1 --scopes=storage-full,gke-default,"https://www.googleapis.com/auth/cloud-platform" 
+[XPK] To complete NodepoolCreate-golden-cluster-np-0 we are executing gcloud beta container node-pools create golden-cluster-np-0 --location=us-central1 --cluster=golden-cluster --project=golden-project --node-locations=us-central1-a --machine-type=tpu7x-standard-4t --host-maintenance-interval=AS_NEEDED --spot --enable-gvnic --node-version=0 --num-nodes=1 --scopes=storage-full,gke-default,"https://www.googleapis.com/auth/cloud-platform" 
 [XPK] Breaking up a total of 1 commands into 1 batches
 [XPK] Pretending all the jobs succeeded
 [XPK] Create or delete node pool request complete.
 [XPK] Creating ConfigMap for cluster
-[XPK] Task: `Describe reservation` is implemented by the following command not running since it is a dry run. 
-gcloud beta compute reservations describe golden-reservation --project=reservation-project --zone=us-central1-a
 [XPK] Temp file (0604d72ef175c94fc796d8f02cff009b4241e85d444d22d414a56a47764d7bbb) content: 
 kind: ConfigMap
 apiVersion: v1
@@ -66,15 +73,14 @@ metadata:
 data:
   tpu7x-8: "1"
 
-[XPK] Temp file (1e07554ba48dc90eb0b6b215d8604e02dc0152f8662dd1de87472db102e7d2bf) content: 
+[XPK] Temp file (c7780918e7a1e57b41944f4873efa5e4114a0b59cec19aecd76950f42c98c442) content: 
 kind: ConfigMap
 apiVersion: v1
 metadata:
   name: golden-cluster-metadata-configmap
 data:
   xpk_version: v0.0.0
-  capacity_type: RESERVATION
-  reservation_id: projects/reservation-project/reservations/golden-reservation
+  capacity_type: SPOT
 
 [XPK] Breaking up a total of 2 commands into 1 batches
 [XPK] Pretending all the jobs succeeded
@@ -271,3 +277,4 @@ kubectl patch deployment kueue-controller-manager -n kueue-system --type='strate
 [XPK] GKE commands done! Resources are created.
 [XPK] See your GKE Cluster here: https://console.cloud.google.com/kubernetes/clusters/details/us-central1/golden-cluster/details?project=golden-project
 [XPK] Exiting XPK cleanly
+-->

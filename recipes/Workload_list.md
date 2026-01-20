@@ -1,4 +1,12 @@
-$ xpk workload list --project=golden-project --zone=us-central1-a --cluster=golden-cluster --dry-run
+# Workload list
+Lists all workloads currently present in the cluster.
+
+# Running the command
+```shell #golden
+xpk workload list --project=golden-project --zone=us-central1-a --cluster=golden-cluster
+```
+<!--
+$ xpk workload list --project=golden-project --zone=us-central1-a --cluster=golden-cluster
 [XPK] Starting xpk v0.0.0
 [XPK] Starting workload list
 [XPK] Working on golden-project and us-central1-a
@@ -15,3 +23,4 @@ kubectl get workloads --ignore-not-found -o=custom-columns="Jobset Name:.metadat
 0
 [XPK] See your workloads in Cloud Console: https://console.cloud.google.com/kubernetes/aiml/deployments/jobs?project=golden-project
 [XPK] Exiting XPK cleanly
+-->

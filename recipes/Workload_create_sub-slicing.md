@@ -1,4 +1,12 @@
-$ SUB_SLICING_ENABLED=true DRY_RUN_RESOURCES_CONFIG_MAP="map[v6e-16:8]" xpk workload create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --command "bash hello" --tpu-type=v6e-2x4 --script-dir=/tmp --dry-run
+# Workload create sub-slicing
+Submits a workload utilizing TPU sub-slicing for fractional resource usage.
+
+# Running the command
+```shell #golden
+SUB_SLICING_ENABLED=true DRY_RUN_RESOURCES_CONFIG_MAP="map[v6e-16:8]" xpk workload create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --command "bash hello" --tpu-type=v6e-2x4 --script-dir=/tmp
+```
+<!--
+$ SUB_SLICING_ENABLED=true DRY_RUN_RESOURCES_CONFIG_MAP="map[v6e-16:8]" xpk workload create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --command "bash hello" --tpu-type=v6e-2x4 --script-dir=/tmp
 [XPK] Starting xpk v0.0.0
 [XPK] Task: `Check if Workload Already Exists` is implemented by the following command not running since it is a dry run. 
 kubectl get workloads -o=custom-columns='Jobset:.metadata.ownerReferences[0].name'
@@ -158,3 +166,4 @@ gcloud container clusters list --project=golden-project --filter=name=golden-clu
 [XPK] Follow your workload here: https://console.cloud.google.com/kubernetes/service/us-central1/golden-cluster/default/golden-workload/details?project=golden-project
 [XPK] Follow your worker 0, slice 0 logs here: Adjust the pod name ([prefix]-slice-job-[slice_number]-[worker_number]) after clicking the url if you want other worker logs. https://console.cloud.google.com/logs/query;query=resource.type%3D%22k8s_container%22%0Aresource.labels.project_id%3D%22golden-project%22%0Aresource.labels.location%3D%22us-central1%22%0Aresource.labels.cluster_name%3D%22golden-cluster%22%0Aresource.labels.namespace_name%3D%22default%22%0Aresource.labels.pod_name:%22golden-workload-slice-job-0-0-%22%20severity%3E%3DDEFAULT;storageScope=project;duration=P1D?e=13802955&mods=allow_workbench_image_override&project=golden-project
 [XPK] Exiting XPK cleanly
+-->

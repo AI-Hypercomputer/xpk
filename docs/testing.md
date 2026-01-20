@@ -47,36 +47,57 @@ A crucial aspect of effective unit testing is isolation. A unit test should only
 
 A good, state-of-the-art sample of [code](https://github.com/AI-Hypercomputer/xpk/blob/0434cf6a023069522f90d5846c6d980b68382b66/src/xpk/core/nodepool.py#L614) that has been correctly covered with unit tests can be found [here](https://github.com/AI-Hypercomputer/xpk/blob/8464ce26cd0fd24c681e346b2c915ad918724e53/src/xpk/core/nodepool_test.py#L26). This provided example serves as a practical guide and "source of truth" for developers, demonstrating best practices in unit test structure like naming. Another sample, leveraging mocks could be found [here](https://github.com/AI-Hypercomputer/xpk/blob/8464ce26cd0fd24c681e346b2c915ad918724e53/src/xpk/core/nodepool_test.py#L86).
 
-## Golden Test
+## Golden Recipes
 
-Golden tests encompass a broad scope within XPK, effectively covering the entire execution of a command from a user's perspective. Their primary objective is to highlight the blast radius of a change by making developers aware of all user journeys that might be affected by the change. These tests are executed on feature branches and serve as the main tool for raising awareness, enabling developers to thoroughly double-check changes across various scenarios and understand their potential impact.
+Golden recipes encompass a broad scope within XPK, effectively covering entire user journeys. Their primary objective is to orchestrate multiple commands to achieve a high-level goal, simulating a real user interacting with the system. They also serve as regression tests by asserting on the output of each step, ensuring that the user experience remains consistent. These tests are executed on feature branches and serve as the main tool for raising awareness, enabling developers to thoroughly double-check changes across various complex scenarios and understand their potential impact.
 
 ### Naming Conventions
 
-Each Golden test name should refer to a potential use case or persona utilizing the system, explicitly including the command that is executed. This approach ensures that the test names clearly communicate the real-world scenarios and user interactions they validate, focusing on the actions taken. A good Golden test name should typically convey:
+Each Golden recipe file in the `recipes` directory corresponds to a specific use case or persona utilizing the system. The filename should clearly indicate the scenario, for example `NAP_cluster-create_with_pathways.md` or `Cluster_create_with_Managed_Lustre_driver.md`.
 
-* **Command name that is executed:** cluster create, cluster create-pathways, or workload list.
-* **Use case it is covering:** nap cluster creation, tpu cluster creation, workload status listing
+### Developer guide to Golden Recipes
 
-For example, a good golden test name could be: "NAP cluster-create with pathways".
+All golden recipes are located in the `recipes` directory. Each recipe is a Markdown file that describes the user journey and contains the sequence of commands to be executed.
 
-### Developer guide to Golden Tests
-All golden tests are registered in the `goldens.yaml` file in the root directory. Their reference output is stored in text files located in goldens directory in the root directory.
+A sample structure of a recipe file is:
 
-A sample structure of `goldens.yaml` file is defined as:
+```markdown
+# Recipe Title
 
-```yaml
-goldens:
-  "NAP cluster-create with pathways":
-    command: xpk cluster create-pathways --enable-autoprovisioning
-    description: "" # optional description allowing to better understand use-case
+Description of the recipe.
+
+## Step 1: Create Cluster
+\`\`\`shell #golden
+xpk cluster create ...
+\`\`\`
+<!--
+Expected output block
+-->
+
+## Step 2: Submit Workload
+\`\`\`shell #golden
+xpk workload create ...
+\`\`\`
+<!--
+Expected output block
+-->
 ```
 
-Goldens after change in the code, or registering a new one can be re-generated using `make goldens` command.
+Recipe files are self-contained, storing both the commands and their expected golden outputs in comment blocks. The recipe executor runs these commands in order, maintaining state between them (e.g. environment variables).
 
 ### Underlying execution mechanisms
 
-These tests are executed through the GoldenBuddy testing script located in the `golden_buddy.sh` file of the repository. The framework executes all registered commands in `dry_run` mode, then compares diffs between them with the reference output located in goldens directory.
+These tests are executed through the `tools/recipes.py` script. The framework executes the sequence of commands in `dry_run` mode (by injecting a mock `xpk` function) and compares the output of each step with the expected output stored in the recipe file.
+
+**Usage:**
+
+*   **Regenerate Goldens:** `make goldens`
+    *   This is the primary command for developers. It executes all recipes in `update` mode, regenerating the golden outputs. Run this after making changes to the code or adding new recipes.
+
+*   **Advanced:** *(These commands are primarily used by CI/CD pipelines or for debugging specific scenarios.)*
+    *   **Verification:** `python3 tools/recipes.py golden <file or files>` (Verifies outputs match without updating)
+    *   **Integration Run:** `python3 tools/recipes.py run <file or files>` (Executes commands for real)
+    *   **Selective Update:** `python3 tools/recipes.py update <file or files>` (Updates a specific recipe)
 
 ## Integration Test
 Integration tests sit at the apex of the testing pyramid, being the most expensive and slowest to execute. This is primarily because they rely on actual Google Cloud Platform (GCP) infrastructure, which introduces potential flakiness due to external factors and makes it challenging to write given capacity constraints. Consequently, these tests should be reserved for ultimate verification before release, ensuring all of XPK's components function seamlessly together within a real GCP environment. They are not run on feature branches; instead, they are executed on the mainline (`main`) branch nightly after code merges, and right before a release to validate a new XPK release candidate. This strategic placement ensures a final, comprehensive check of the entire system's functionality in its production-like setting.

@@ -1,9 +1,17 @@
-$ xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --device-type=gb200-4 --reservation=golden-reservation --dry-run
+# NAP cluster-create with pathways
+Creates a GKE cluster with Pathways and Node Auto-provisioning (NAP) enabled.
+
+# Running the command
+```shell #golden
+xpk cluster create-pathways --project=golden-project --zone=us-central1-a --enable-autoprovisioning --cluster=golden-cluster --tpu-type=tpu7x-8 --on-demand
+```
+<!--
+$ xpk cluster create-pathways --project=golden-project --zone=us-central1-a --enable-autoprovisioning --cluster=golden-cluster --tpu-type=tpu7x-8 --on-demand
 [XPK] Starting xpk v0.0.0
 [XPK] Starting cluster create for cluster golden-cluster:
 [XPK] Working on golden-project and us-central1-a
-[XPK] Task: `Describe reservation` is implemented by the following command not running since it is a dry run. 
-gcloud beta compute reservations describe golden-reservation --project=golden-project --zone=us-central1-a
+[XPK] Task: `Retrieve available pathways machine types` is implemented by the following command not running since it is a dry run. 
+gcloud compute machine-types list --filter "guestCpus >= 49 AND memoryMb >= 238592 AND zone = 'us-central1-a'" --format="value(name)" --project=golden-project
 [XPK] Task: `Determine server supported GKE versions for default gke version` is implemented by the following command not running since it is a dry run. 
 gcloud container get-server-config --project=golden-project --region=us-central1 --flatten="channels" --filter="channels.channel=RAPID" --format="value(channels.defaultVersion)"
 [XPK] Task: `Determine server supported GKE versions for valid versions` is implemented by the following command not running since it is a dry run. 
@@ -11,7 +19,7 @@ gcloud container get-server-config --project=golden-project --region=us-central1
 [XPK] Task: `Find if Cluster Exists` is implemented by the following command not running since it is a dry run. 
 gcloud container clusters list --project=golden-project --filter=location~"us-central1.*" --format="csv[no-heading](name)"
 [XPK] Task: `GKE Cluster Create` is implemented by the following command not running since it is a dry run. 
-gcloud beta container clusters create golden-cluster --project=golden-project --region=us-central1 --node-locations=us-central1-a --cluster-version=0 --machine-type=e2-standard-16 --enable-autoscaling --total-min-nodes 1 --total-max-nodes 1000 --num-nodes 6 --enable-dns-access --autoscaling-profile=optimize-utilization --labels=gke_product_type=xpk --release-channel=rapid --enable-ip-alias --enable-dataplane-v2 --enable-multi-networking
+gcloud beta container clusters create golden-cluster --project=golden-project --region=us-central1 --node-locations=us-central1-a --cluster-version=0 --machine-type=e2-standard-16 --enable-autoscaling --total-min-nodes 1 --total-max-nodes 1000 --num-nodes 6 --enable-dns-access --autoscaling-profile=optimize-utilization --labels=gke_product_type=xpk --release-channel=rapid --enable-ip-alias --enable-dataplane-v2 --enable-multi-networking --location-policy=BALANCED --scopes=storage-full,gke-default
 [XPK] Task: `Find cluster region or zone` is implemented by the following command not running since it is a dry run. 
 gcloud container clusters list --project=golden-project --filter=name=golden-cluster --format="value(location)"
 [XPK] Task: `Check if Private Nodes is enabled in cluster.` is implemented by the following command not running since it is a dry run. 
@@ -38,45 +46,80 @@ kubectl wait deployment/coredns --for=condition=Available=true --namespace=kube-
 [XPK] Skipping CoreDNS deployment since it already exists.
 [XPK] Task: `Determine current gke master version` is implemented by the following command not running since it is a dry run. 
 gcloud beta container clusters describe golden-cluster --location us-central1 --project golden-project --format="value(currentMasterVersion)"
-[XPK] Creating 1 node pool or pools of gb200-4
-We assume that the underlying system is: SystemCharacteristics(topology='1x72', vms_per_slice=1, gke_accelerator='nvidia-gb200', gce_machine_type='a4x-highgpu-4g', chips_per_vm=4, accelerator_type=GPU, device_type='gb200-4', supports_sub_slicing=False, supports_super_slicing=False, supports_accelerator_network_profile=True, docker_platform=<DockerPlatform.ARM: 'linux/arm64'>, requires_workload_policy=True, gpu_config=GpuConfig(requires_topology=True, gpu_direct_name='rdma', nccl_installer='https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-rdma/nccl-rdma-installer-a4x.yaml', jobset_decorator_fn=<function decorate_jobset>), parallel_containers=1)
+[XPK] Creating 1 node pool or pools of tpu7x-8
+We assume that the underlying system is: SystemCharacteristics(topology='2x2x1', vms_per_slice=1, gke_accelerator='tpu7x', gce_machine_type='tpu7x-standard-4t', chips_per_vm=4, accelerator_type=TPU, device_type='tpu7x-8', supports_sub_slicing=False, supports_super_slicing=False, supports_accelerator_network_profile=False, docker_platform=<DockerPlatform.AMD: 'linux/amd64'>, requires_workload_policy=False, gpu_config=None, parallel_containers=2)
 [XPK] Task: `Get All Node Pools` is implemented by the following command not running since it is a dry run. 
 gcloud beta container node-pools list --cluster golden-cluster --project=golden-project --location=us-central1 --format="csv[no-heading](name)"
-[XPK] Task: `Describe reservation` is implemented by the following command not running since it is a dry run. 
-gcloud beta compute reservations describe golden-reservation --project=golden-project --zone=us-central1-a
-[XPK] Creating 1 node pool with 2 nodes of gb200-4
-Underlyingly, we assume that means: SystemCharacteristics(topology='1x72', vms_per_slice=1, gke_accelerator='nvidia-gb200', gce_machine_type='a4x-highgpu-4g', chips_per_vm=4, accelerator_type=GPU, device_type='gb200-4', supports_sub_slicing=False, supports_super_slicing=False, supports_accelerator_network_profile=True, docker_platform=<DockerPlatform.ARM: 'linux/arm64'>, requires_workload_policy=True, gpu_config=GpuConfig(requires_topology=True, gpu_direct_name='rdma', nccl_installer='https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-rdma/nccl-rdma-installer-a4x.yaml', jobset_decorator_fn=<function decorate_jobset>), parallel_containers=1)
+[XPK] Creating 1 node pool or pools of tpu7x-8
+Underlyingly, we assume that means: SystemCharacteristics(topology='2x2x1', vms_per_slice=1, gke_accelerator='tpu7x', gce_machine_type='tpu7x-standard-4t', chips_per_vm=4, accelerator_type=TPU, device_type='tpu7x-8', supports_sub_slicing=False, supports_super_slicing=False, supports_accelerator_network_profile=False, docker_platform=<DockerPlatform.AMD: 'linux/amd64'>, requires_workload_policy=False, gpu_config=None, parallel_containers=2)
 [XPK] Task: `Get Node Pool Zone` is implemented by the following command not running since it is a dry run. 
 gcloud beta container node-pools describe 0 --cluster golden-cluster --project=golden-project --location=us-central1 --format="value(locations)"
 [XPK] Task: `GKE Cluster Get ConfigMap` is implemented by the following command not running since it is a dry run. 
 kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="ConfigData:data" --no-headers=true
 [XPK] Existing node pool names  ['0']
-[XPK] Task: `Retrieve resource policy` is implemented by the following command not running since it is a dry run. 
-gcloud beta compute resource-policies describe gb200-4-1x72-placement-policy --project=golden-project --region=us-central1
-[XPK] To complete NodepoolCreate-golden-cluster-np-0 we are executing gcloud beta container node-pools create golden-cluster-np-0 --location=us-central1 --cluster=golden-cluster --project=golden-project --node-locations=us-central1-a --machine-type=a4x-highgpu-4g --host-maintenance-interval=AS_NEEDED --reservation-affinity=specific --reservation=golden-reservation --placement-policy=gb200-4-1x72-placement-policy --enable-gvnic --accelerator-network-profile=auto --node-labels=cloud.google.com/gke-networking-dra-driver=true --num-nodes=2 --accelerator type=nvidia-gb200,count=4,gpu-driver-version=latest --scopes="https://www.googleapis.com/auth/cloud-platform" 
-[XPK] Breaking up a total of 1 commands into 1 batches
+[XPK] To complete NodepoolCreate-golden-cluster-np-0 we are executing gcloud beta container node-pools create golden-cluster-np-0 --location=us-central1 --cluster=golden-cluster --project=golden-project --node-locations=us-central1-a --machine-type=tpu7x-standard-4t --host-maintenance-interval=AS_NEEDED  --enable-gvnic --node-version=0 --num-nodes=1 --scopes=storage-full,gke-default,"https://www.googleapis.com/auth/cloud-platform" 
+[XPK] To complete NodepoolCreate-cpu-np we are executing gcloud beta container node-pools create cpu-np --node-version=0 --cluster=golden-cluster --project=golden-project --node-locations=us-central1-a --location=us-central1 --num-nodes=1 --machine-type=n2-standard-64 --scopes=storage-full,gke-default,"https://www.googleapis.com/auth/cloud-platform" --enable-autoscaling --min-nodes=1 --max-nodes=20
+[XPK] Breaking up a total of 2 commands into 1 batches
 [XPK] Pretending all the jobs succeeded
 [XPK] Create or delete node pool request complete.
+[XPK] Enabling Autoprovisioning
+[XPK] Default Chips quota is minimum: 0, maximum: 4.
+[XPK] Chips quota is minimum: 0, maximum: 4. XPK will autoprovision 4 chips based on incoming workload requests, keeping at least 0 available at all times, and maximum of 4. If the difference (4 chips) is small, rescaling will not work well.
+[XPK] Temp file (6062bfee91f21efca86f2c3261129f06b1896ad9b68d2ecdba9589bea9e15ddf) content: 
+
+management:
+  autoRepair: true
+  autoUpgrade: true
+scopes:
+  - "https://www.googleapis.com/auth/devstorage.read_write"
+autoprovisioningLocations:
+  - us-central1-a
+
+resourceLimits:
+- resourceType: 'cpu'
+  
+  minimum: 1
+  maximum: 1000000
+  
+- resourceType: 'memory'
+  
+  minimum: 1
+  maximum: 10000000
+  
+
+- resourceType: tpu7x
+  minimum: 0
+  maximum: 4
+
+
+
+[XPK] Task: `Update cluster with autoprovisioning enabled` is implemented by the following command not running since it is a dry run. 
+gcloud container clusters update golden-cluster --project=golden-project --location=us-central1 --enable-autoprovisioning --autoprovisioning-config-file 6062bfee91f21efca86f2c3261129f06b1896ad9b68d2ecdba9589bea9e15ddf
+[XPK] Task: `Update cluster with autoscaling-profile` is implemented by the following command not running since it is a dry run. 
+gcloud container clusters update golden-cluster --project=golden-project --location=us-central1 --autoscaling-profile=optimize-utilization
+[XPK] Task: `Get All Node Pools` is implemented by the following command not running since it is a dry run. 
+gcloud beta container node-pools list --cluster golden-cluster --project=golden-project --location=us-central1 --format="csv[no-heading](name)"
+[XPK] Breaking up a total of 0 commands into 0 batches
+[XPK] Pretending all the jobs succeeded
 [XPK] Creating ConfigMap for cluster
-[XPK] Task: `Describe reservation` is implemented by the following command not running since it is a dry run. 
-gcloud beta compute reservations describe golden-reservation --project=golden-project --zone=us-central1-a
-[XPK] Temp file (9476f7fa10da99ed4e0797d6d660cda076b5d6dfcd366a9e2560681f82697e99) content: 
+[XPK] Temp file (bdf76c6250b016c93566ca5b6d43bcdb2fcc36830987ecceb29d8e314a0dc4e5) content: 
 kind: ConfigMap
 apiVersion: v1
 metadata:
   name: golden-cluster-resources-configmap
 data:
-  gb200-4: "2"
+  tpu7x: AUTOPROVISION
+  minimum_chips: "0"
+  maximum_chips: "4"
 
-[XPK] Temp file (a3dd06b296e1eb6792c99ad309e6eb714888c53e8b8fb8adc3beb8f250ef163c) content: 
+[XPK] Temp file (4bf36a48d9e19d6c9141aa3e17e71674e93f4bef175160182fc3a270e7aaf4fb) content: 
 kind: ConfigMap
 apiVersion: v1
 metadata:
   name: golden-cluster-metadata-configmap
 data:
   xpk_version: v0.0.0
-  capacity_type: RESERVATION
-  reservation_id: golden-reservation
+  capacity_type: ON_DEMAND
 
 [XPK] Breaking up a total of 2 commands into 1 batches
 [XPK] Pretending all the jobs succeeded
@@ -183,15 +226,21 @@ kubectl get deployment kueue-controller-manager -n kueue-system -o jsonpath='{.s
 kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-sigs/kueue/releases/download/v0.15.2/manifests.yaml
 [XPK] Task: `Wait for Kueue to be available` is implemented by the following command not running since it is a dry run. 
 kubectl wait deploy/kueue-controller-manager -n kueue-system --for=condition=available --timeout=10m
-[XPK] Temp file (c177e643775bb8e3462648245162a984934b0e09a13b0e3bfb62adf8585442b0) content: 
+[XPK] Temp file (fc46093b5c0d291fe7c53c15aebd624b485d767cabf99a73500e95952c70b6f6) content: 
 
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: ResourceFlavor
 metadata:
-  name: "1xgb200-4"
+  name: "1xtpu7x-8"
 spec:
-  nodeLabels: {"cloud.google.com/gke-accelerator": "nvidia-gb200"}
-  topologyName: gke-default
+  nodeLabels: {"cloud.google.com/gke-tpu-accelerator": "tpu7x"}
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ResourceFlavor
+metadata:
+  name: "cpu-user"
+spec:
+  nodeLabels: {"cloud.google.com/gke-nodepool": "cpu-np"}
 ---
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: ProvisioningRequestConfig
@@ -204,7 +253,7 @@ spec:
     - key: autoscaling.gke.io/provisioning-request
       valueFromProvisioningClassDetail: ResizeRequestName
   managedResources:
-  - nvidia.com/gpu
+  - google.com/tpu
 ---
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: ClusterQueue
@@ -215,7 +264,7 @@ spec:
     reclaimWithinCohort: Never # Don't preempt other queues in the cohort.
     withinClusterQueue: LowerPriority
   namespaceSelector: {} # match all.
-  resourceGroups: [{'coveredResources': ['nvidia.com/gpu'], 'flavors': [{'name': '1xgb200-4', 'resources': [{'name': 'nvidia.com/gpu', 'nominalQuota': 8}]}]}]
+  resourceGroups: [{'coveredResources': ['google.com/tpu'], 'flavors': [{'name': '1xtpu7x-8', 'resources': [{'name': 'google.com/tpu', 'nominalQuota': 4}]}]}, {'coveredResources': ['cpu', 'memory'], 'flavors': [{'name': 'cpu-user', 'resources': [{'name': 'cpu', 'nominalQuota': 480}, {'name': 'memory', 'nominalQuota': '2000G'}]}]}]
 ---
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: LocalQueue
@@ -264,27 +313,14 @@ metadata:
 value: 1000
 globalDefault: false
 description: "Very High"
----
-apiVersion: kueue.x-k8s.io/v1beta1
-kind: Topology
-metadata:
-  name: "gke-default"
-spec:
-  levels:
-  - nodeLabel: "cloud.google.com/gce-topology-block"
-  - nodeLabel: "cloud.google.com/gce-topology-subblock"
-  - nodeLabel: "cloud.google.com/gce-topology-host"
-  - nodeLabel: "kubernetes.io/hostname"
 [XPK] Task: `Applying Kueue Custom Resources` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f c177e643775bb8e3462648245162a984934b0e09a13b0e3bfb62adf8585442b0
+kubectl apply -f fc46093b5c0d291fe7c53c15aebd624b485d767cabf99a73500e95952c70b6f6
 [XPK] Task: `Count total nodes` is implemented by the following command not running since it is a dry run. 
 kubectl get node --no-headers | wc -l
 [XPK] Try 1: Updating Kueue Controller Manager resources
 [XPK] Task: `Updating Kueue Controller Manager resources` is implemented by the following command not running since it is a dry run. 
 kubectl patch deployment kueue-controller-manager -n kueue-system --type='strategic' --patch='{"spec": {"template": {"spec": {"containers": [{"name": "manager", "resources": {"limits": {"memory": "4096Mi"}}}]}}}}'
-[XPK] Installing NCCL Plugin for cluster
-[XPK] Task: `Install NCCL Plugin On Cluster` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/gpudirect-rdma/nccl-rdma-installer-a4x.yaml
 [XPK] GKE commands done! Resources are created.
 [XPK] See your GKE Cluster here: https://console.cloud.google.com/kubernetes/clusters/details/us-central1/golden-cluster/details?project=golden-project
 [XPK] Exiting XPK cleanly
+-->

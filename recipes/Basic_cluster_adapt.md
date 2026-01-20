@@ -1,4 +1,12 @@
-$ xpk cluster adapt --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-8 --dry-run
+# Basic cluster adapt
+Adapts an existing GKE cluster for XPK by installing Jobset, Kueue, and other dependencies.
+
+# Running the command
+```shell #golden
+xpk cluster adapt --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-8
+```
+<!--
+$ xpk cluster adapt --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-8
 [XPK] Starting xpk v0.0.0
 [XPK] Starting cluster adaptation for cluster golden-cluster:
 [XPK] Working on golden-project and us-central1-a
@@ -132,3 +140,4 @@ kubectl patch deployment kueue-controller-manager -n kueue-system --type='strate
 [XPK] GKE commands done! Resources are created.
 [XPK] See your GKE Cluster here: https://console.cloud.google.com/kubernetes/clusters/details/us-central1/golden-cluster/details?project=golden-project
 [XPK] Exiting XPK cleanly
+-->

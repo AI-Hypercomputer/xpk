@@ -1,10 +1,21 @@
-$ xpk workload create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --command "bash hello" --tpu-type=v5p-8 --num-slices=1 --script-dir=/tmp --dry-run
+# Workload create super-slicing
+Submits a workload utilizing TPU super-slicing for large-scale distributed training.
+
+# Running the command
+```shell #golden
+SUPER_SLICING_ENABLED=true DRY_RUN_RESOURCES_CONFIG_MAP="map[tpu7x-128:80]" xpk workload create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --command "bash hello" --tpu-type=tpu7x-4x4x20 --script-dir=/tmp
+```
+<!--
+$ SUPER_SLICING_ENABLED=true DRY_RUN_RESOURCES_CONFIG_MAP="map[tpu7x-128:80]" xpk workload create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --command "bash hello" --tpu-type=tpu7x-4x4x20 --script-dir=/tmp
 [XPK] Starting xpk v0.0.0
 [XPK] Task: `Check if Workload Already Exists` is implemented by the following command not running since it is a dry run. 
 kubectl get workloads -o=custom-columns='Jobset:.metadata.ownerReferences[0].name'
 [XPK] Task: `GKE Cluster Get ConfigMap` is implemented by the following command not running since it is a dry run. 
 kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="ConfigData:data" --no-headers=true
-[XPK] Skipping workload scheduling validation in dry run.
+[XPK] Task: `Get defined topologies` is implemented by the following command not running since it is a dry run. 
+kubectl get topology
+[XPK] Task: `Get kueue version on server` is implemented by the following command not running since it is a dry run. 
+kubectl get deployment kueue-controller-manager -n kueue-system -o jsonpath='{.spec.template.spec.containers[0].image}'
 [XPK] Starting workload create
 [XPK] Task: `GKE Cluster Get ConfigMap` is implemented by the following command not running since it is a dry run. 
 kubectl get configmap golden-cluster-metadata-configmap -o=custom-columns="ConfigData:data" --no-headers=true
@@ -16,6 +27,7 @@ kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="Conf
 [XPK] No gcp parallelstore instances to add detected.
 [XPK] No gce persistent disk instances to add detected.
 [XPK] No managed lustre instances to add detected.
+[XPK] Workload will be scheduled using the Super-slicing feature.
 [XPK] Temp file (4b6736a12db8ea0f78ce793fd0d4ee0c94c652303f1dc0fecad085ea0993f688) content: 
 FROM python:3.10
 
@@ -35,7 +47,7 @@ docker buildx build --platform=linux/amd64 -f 4b6736a12db8ea0f78ce793fd0d4ee0c94
 docker tag dry-run-runner gcr.io/golden-project/dry-run-runner:prefix-current
 [XPK] Task: `Upload Docker Image` is implemented by the following command not running since it is a dry run. 
 docker push gcr.io/golden-project/dry-run-runner:prefix-current
-[XPK] Temp file (39eda1549f4c0d68a4f11e6cbd89ba655d49d2faeef6898a140f476e6e70ae0e) content: 
+[XPK] Temp file (608e1382aabe2b0335855e5e99876a2e67de954453ebfa4cf12eb82c966f85da) content: 
 apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
 metadata:
@@ -44,7 +56,7 @@ metadata:
     kueue.x-k8s.io/queue-name: multislice-queue  # Name of the LocalQueue
     xpk.google.com/workload: golden-workload
   annotations:
-    alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool
+    
 spec:
   ttlSecondsAfterFinished: 43200
   failurePolicy:
@@ -58,8 +70,8 @@ spec:
       replicas: 1
       template:
         spec:
-          parallelism: 1    # Equal to the number of VMs per slice (or sub-slice).
-          completions: 1    # Same as the above.
+          parallelism: 80    # Equal to the number of VMs per slice (or sub-slice).
+          completions: 80    # Same as the above.
           backoffLimit: 0   # When any pod fails, the job is failed
           
           podFailurePolicy:
@@ -68,7 +80,13 @@ spec:
             - action: FailJob
               onPodConditions: []
               onExitCodes:
-                containerName: jax-tpu
+                containerName: jax-tpu-1
+                operator: NotIn
+                values: [42,127,128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,160,161,162,163,164,165,166,167,168,169,170,171,172,173,174,175,176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191,192,193,194,195,196,197,198,199,200,201,202,203,204,205,206,207,208,209,210,211,212,213,214,215,216,217,218,219,220,221,222,223,224,225,226,227,228,229,230,231,232,233,234,235,236,237,238,239,240,241,242,243,244,245,246,247,248,249,250,251,252,253,254,255]
+            - action: FailJob
+              onPodConditions: []
+              onExitCodes:
+                containerName: jax-tpu-2
                 operator: NotIn
                 values: [42,127,128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,160,161,162,163,164,165,166,167,168,169,170,171,172,173,174,175,176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191,192,193,194,195,196,197,198,199,200,201,202,203,204,205,206,207,208,209,210,211,212,213,214,215,216,217,218,219,220,221,222,223,224,225,226,227,228,229,230,231,232,233,234,235,236,237,238,239,240,241,242,243,244,245,246,247,248,249,250,251,252,253,254,255]
           template:
@@ -78,7 +96,7 @@ spec:
               annotations:
                 
                 
-                
+                cloud.google.com/gke-tpu-slice-topology: 4x4x20
             spec:
               schedulerName: default-scheduler
               imagePullSecrets:
@@ -86,8 +104,8 @@ spec:
               restartPolicy: Never
               
               nodeSelector:
-                cloud.google.com/gke-tpu-accelerator: tpu-v5p-slice
-                cloud.google.com/gke-tpu-topology: 2x2x1
+                cloud.google.com/gke-tpu-accelerator: tpu7x
+                
                 
                 
               priorityClassName: medium
@@ -96,7 +114,7 @@ spec:
               terminationGracePeriodSeconds: 30
               containers:
               
-              - name: jax-tpu
+              - name: jax-tpu-1
                 image: gcr.io/golden-project/dry-run-runner:prefix-current
                 
                 env: 
@@ -124,7 +142,42 @@ spec:
                   exit $EXIT_CODE
                 resources:
                   limits:
-                    google.com/tpu: 4
+                    google.com/tpu: 2
+
+                volumeMounts:
+                - mountPath: /dev/shm
+                  name: dshm-2
+                
+
+              - name: jax-tpu-2
+                image: gcr.io/golden-project/dry-run-runner:prefix-current
+                
+                env: 
+                securityContext:
+                  privileged: true
+                command:
+                - bash
+                - -c
+                - |
+                  echo XPK Start: $(date);
+                  _sigterm() (kill -SIGTERM $! 2>/dev/null;);
+                  trap _sigterm SIGTERM;
+                  
+                  (bash hello) & PID=$!;
+                  while kill -0 $PID 2>/dev/null;
+                      do sleep 5;
+                  done;
+                  wait $PID;
+                  EXIT_CODE=$?;
+                  
+                  echo XPK End: $(date);
+                  echo EXIT_CODE=$EXIT_CODE;
+                  
+                  
+                  exit $EXIT_CODE
+                resources:
+                  limits:
+                    google.com/tpu: 2
 
                 volumeMounts:
                 - mountPath: /dev/shm
@@ -144,7 +197,7 @@ spec:
               
 
 [XPK] Task: `Creating Workload` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f 39eda1549f4c0d68a4f11e6cbd89ba655d49d2faeef6898a140f476e6e70ae0e
+kubectl apply -f 608e1382aabe2b0335855e5e99876a2e67de954453ebfa4cf12eb82c966f85da
 [XPK] Task: `GKE Dashboard List` is implemented by the following command not running since it is a dry run. 
 gcloud monitoring dashboards list --project=golden-project --filter="displayName:'GKE - TPU Monitoring Dashboard'" --format="value(name)" --verbosity=error
 [XPK] Check statistics and outlier mode of GKE metrics here: https://console.cloud.google.com/monitoring/dashboards/builder/0?project=golden-project&f.rlabel.cluster_name.ClusterName=golden-cluster. To view the metric data for your workload, select golden-workload from the JobName filter on the dashboard.
@@ -153,3 +206,4 @@ gcloud container clusters list --project=golden-project --filter=name=golden-clu
 [XPK] Follow your workload here: https://console.cloud.google.com/kubernetes/service/us-central1/golden-cluster/default/golden-workload/details?project=golden-project
 [XPK] Follow your worker 0, slice 0 logs here: Adjust the pod name ([prefix]-slice-job-[slice_number]-[worker_number]) after clicking the url if you want other worker logs. https://console.cloud.google.com/logs/query;query=resource.type%3D%22k8s_container%22%0Aresource.labels.project_id%3D%22golden-project%22%0Aresource.labels.location%3D%22us-central1%22%0Aresource.labels.cluster_name%3D%22golden-cluster%22%0Aresource.labels.namespace_name%3D%22default%22%0Aresource.labels.pod_name:%22golden-workload-slice-job-0-0-%22%20severity%3E%3DDEFAULT;storageScope=project;duration=P1D?e=13802955&mods=allow_workbench_image_override&project=golden-project
 [XPK] Exiting XPK cleanly
+-->

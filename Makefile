@@ -31,7 +31,7 @@ run-unittests:
 
 .PHONY: goldens
 goldens:
-	XPK_TESTER=false XPK_VERSION_OVERRIDE=v0.0.0 ./golden_buddy.sh update goldens.yaml goldens
+	XPK_TESTER=false XPK_VERSION_OVERRIDE=v0.0.0 python3 tools/recipes.py update recipes/*.md
 
 .PHONY: mkdir-bin
 mkdir-bin:

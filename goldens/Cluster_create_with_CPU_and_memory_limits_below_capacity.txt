@@ -180,14 +180,14 @@ gcloud compute machine-types describe tpu7x-standard-4t  --project=golden-projec
 [XPK] The memory limit is below the available capacity, which would lead to underutilization. We will set the memory limit to 10Mi.
 [XPK] Temp file (1ce6c42efe0834ff0519978ad09539c725a5d6f22267c5f1b41b6e458668e45f) content: 
 
-apiVersion: kueue.x-k8s.io/v1beta1
+apiVersion: kueue.x-k8s.io/v1beta2
 kind: ResourceFlavor
 metadata:
   name: "1xtpu7x-8"
 spec:
   nodeLabels: {"cloud.google.com/gke-tpu-accelerator": "tpu7x", "cloud.google.com/gke-tpu-topology": "2x2x1"}
 ---
-apiVersion: kueue.x-k8s.io/v1beta1
+apiVersion: kueue.x-k8s.io/v1beta2
 kind: ProvisioningRequestConfig
 metadata:
   name: dws-config
@@ -200,7 +200,7 @@ spec:
   managedResources:
   - google.com/tpu
 ---
-apiVersion: kueue.x-k8s.io/v1beta1
+apiVersion: kueue.x-k8s.io/v1beta2
 kind: ClusterQueue
 metadata:
   name: "cluster-queue"
@@ -211,7 +211,7 @@ spec:
   namespaceSelector: {} # match all.
   resourceGroups: [{'coveredResources': ['google.com/tpu', 'cpu', 'memory'], 'flavors': [{'name': '1xtpu7x-8', 'resources': [{'name': 'google.com/tpu', 'nominalQuota': 4}, {'name': 'cpu', 'nominalQuota': 10}, {'name': 'memory', 'nominalQuota': '10Mi'}]}]}]
 ---
-apiVersion: kueue.x-k8s.io/v1beta1
+apiVersion: kueue.x-k8s.io/v1beta2
 kind: LocalQueue
 metadata:
   namespace: default

@@ -185,7 +185,7 @@ kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-s
 kubectl wait deploy/kueue-controller-manager -n kueue-system --for=condition=available --timeout=10m
 [XPK] Temp file (c177e643775bb8e3462648245162a984934b0e09a13b0e3bfb62adf8585442b0) content: 
 
-apiVersion: kueue.x-k8s.io/v1beta1
+apiVersion: kueue.x-k8s.io/v1beta2
 kind: ResourceFlavor
 metadata:
   name: "1xgb200-4"
@@ -193,7 +193,7 @@ spec:
   nodeLabels: {"cloud.google.com/gke-accelerator": "nvidia-gb200"}
   topologyName: gke-default
 ---
-apiVersion: kueue.x-k8s.io/v1beta1
+apiVersion: kueue.x-k8s.io/v1beta2
 kind: ProvisioningRequestConfig
 metadata:
   name: dws-config
@@ -206,7 +206,7 @@ spec:
   managedResources:
   - nvidia.com/gpu
 ---
-apiVersion: kueue.x-k8s.io/v1beta1
+apiVersion: kueue.x-k8s.io/v1beta2
 kind: ClusterQueue
 metadata:
   name: "cluster-queue"
@@ -217,7 +217,7 @@ spec:
   namespaceSelector: {} # match all.
   resourceGroups: [{'coveredResources': ['nvidia.com/gpu'], 'flavors': [{'name': '1xgb200-4', 'resources': [{'name': 'nvidia.com/gpu', 'nominalQuota': 8}]}]}]
 ---
-apiVersion: kueue.x-k8s.io/v1beta1
+apiVersion: kueue.x-k8s.io/v1beta2
 kind: LocalQueue
 metadata:
   namespace: default
@@ -265,7 +265,7 @@ value: 1000
 globalDefault: false
 description: "Very High"
 ---
-apiVersion: kueue.x-k8s.io/v1beta1
+apiVersion: kueue.x-k8s.io/v1beta2
 kind: Topology
 metadata:
   name: "gke-default"

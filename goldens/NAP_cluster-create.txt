@@ -217,14 +217,14 @@ kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-s
 kubectl wait deploy/kueue-controller-manager -n kueue-system --for=condition=available --timeout=10m
 [XPK] Temp file (ff0e8bb58b2038c4b29f1bce1aabe9f02ac0757ae2e80ad3657f704542371839) content: 
 
-apiVersion: kueue.x-k8s.io/v1beta1
+apiVersion: kueue.x-k8s.io/v1beta2
 kind: ResourceFlavor
 metadata:
   name: "1xtpu7x-8"
 spec:
   nodeLabels: {"cloud.google.com/gke-tpu-accelerator": "tpu7x"}
 ---
-apiVersion: kueue.x-k8s.io/v1beta1
+apiVersion: kueue.x-k8s.io/v1beta2
 kind: ProvisioningRequestConfig
 metadata:
   name: dws-config
@@ -237,7 +237,7 @@ spec:
   managedResources:
   - google.com/tpu
 ---
-apiVersion: kueue.x-k8s.io/v1beta1
+apiVersion: kueue.x-k8s.io/v1beta2
 kind: ClusterQueue
 metadata:
   name: "cluster-queue"
@@ -248,7 +248,7 @@ spec:
   namespaceSelector: {} # match all.
   resourceGroups: [{'coveredResources': ['google.com/tpu'], 'flavors': [{'name': '1xtpu7x-8', 'resources': [{'name': 'google.com/tpu', 'nominalQuota': 4}]}]}]
 ---
-apiVersion: kueue.x-k8s.io/v1beta1
+apiVersion: kueue.x-k8s.io/v1beta2
 kind: LocalQueue
 metadata:
   namespace: default

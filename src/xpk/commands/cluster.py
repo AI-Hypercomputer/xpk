@@ -245,23 +245,6 @@ def _validate_sub_slicing_reservation(args):
 
 def _validate_super_slicing_reservation(args):
   _validate_gsc_reservation(args, 'Super-slicing')
-  reservations = get_reservations_list(args)
-  block_name = parse_reservation(reservations[0], args.project).block_name
-
-  for reservation_string in reservations:
-    reservation = parse_reservation(reservation_string, args.project)
-    if reservation.block_name is None:
-      xpk_print(
-          'Error: Validation failed: Super-slicing cluster creation'
-          ' requires a block or sub-block reservation.'
-      )
-      xpk_exit(1)
-    if reservation.block_name != block_name:
-      xpk_print(
-          'Error: Validation failed: Super-slicing cluster creation'
-          ' requires all reservations to be in the same block.'
-      )
-      xpk_exit(1)
 
 
 def _validate_gsc_reservation(args, creation_description: str):

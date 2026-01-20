@@ -3,10 +3,10 @@ Creates a GKE cluster configured with a single-host TPU node pool.
 
 # Running the command
 ```shell #golden
-xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=v4-8 --spot --num-slices=1 --dry-run
+xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=v4-8 --spot --num-slices=1
 ```
 <!--
-$ xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=v4-8 --spot --num-slices=1 --dry-run
+$ xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=v4-8 --spot --num-slices=1
 [XPK] Starting xpk v0.0.0
 [XPK] Starting cluster create for cluster golden-cluster:
 [XPK] Working on golden-project and us-central1-a

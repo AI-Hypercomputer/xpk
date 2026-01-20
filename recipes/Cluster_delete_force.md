@@ -3,10 +3,10 @@ Forcefully deletes a GKE cluster and its associated resources.
 
 # Running the command
 ```shell #golden
-xpk cluster delete --project=golden-project --zone=us-central1-a --cluster=golden-cluster --force --dry-run
+xpk cluster delete --project=golden-project --zone=us-central1-a --cluster=golden-cluster --force
 ```
 <!--
-$ xpk cluster delete --project=golden-project --zone=us-central1-a --cluster=golden-cluster --force --dry-run
+$ xpk cluster delete --project=golden-project --zone=us-central1-a --cluster=golden-cluster --force
 [XPK] Starting xpk v0.0.0
 [XPK] Starting cluster delete for cluster: golden-cluster
 [XPK] Working on golden-project and us-central1-a

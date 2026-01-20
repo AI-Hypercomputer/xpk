@@ -3,10 +3,10 @@ Lists all workloads currently present in the cluster.
 
 # Running the command
 ```shell #golden
-xpk workload list --project=golden-project --zone=us-central1-a --cluster=golden-cluster --dry-run
+xpk workload list --project=golden-project --zone=us-central1-a --cluster=golden-cluster
 ```
 <!--
-$ xpk workload list --project=golden-project --zone=us-central1-a --cluster=golden-cluster --dry-run
+$ xpk workload list --project=golden-project --zone=us-central1-a --cluster=golden-cluster
 [XPK] Starting xpk v0.0.0
 [XPK] Starting workload list
 [XPK] Working on golden-project and us-central1-a

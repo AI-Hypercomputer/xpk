@@ -3,10 +3,10 @@ Creates a GKE cluster with Managed Lustre CSI driver enabled for high-performanc
 
 # Running the command
 ```shell #golden
-xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-8 --enable-lustre-csi-driver --spot --dry-run
+xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-8 --enable-lustre-csi-driver --spot
 ```
 <!--
-$ xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-8 --enable-lustre-csi-driver --spot --dry-run
+$ xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-8 --enable-lustre-csi-driver --spot
 [XPK] Starting xpk v0.0.0
 [XPK] Starting cluster create for cluster golden-cluster:
 [XPK] Working on golden-project and us-central1-a

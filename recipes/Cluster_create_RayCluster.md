@@ -3,10 +3,10 @@ Creates a GKE cluster optimized for Ray workloads, installing KubeRay component.
 
 # Running the command
 ```shell #golden
-xpk cluster create-ray --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-8 --ray-version=2.39.0  --reservation=golden-reservation --dry-run
+xpk cluster create-ray --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-8 --ray-version=2.39.0  --reservation=golden-reservation
 ```
 <!--
-$ xpk cluster create-ray --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-8 --ray-version=2.39.0  --reservation=golden-reservation --dry-run
+$ xpk cluster create-ray --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-8 --ray-version=2.39.0  --reservation=golden-reservation
 [XPK] Starting xpk v0.0.0
 [XPK] Starting cluster create for cluster golden-cluster:
 [XPK] Working on golden-project and us-central1-a

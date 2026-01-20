@@ -3,10 +3,10 @@ Adapts an existing GKE cluster for XPK by installing Jobset, Kueue, and other de
 
 # Running the command
 ```shell #golden
-xpk cluster adapt --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-8 --dry-run
+xpk cluster adapt --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-8
 ```
 <!--
-$ xpk cluster adapt --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-8 --dry-run
+$ xpk cluster adapt --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-8
 [XPK] Starting xpk v0.0.0
 [XPK] Starting cluster adaptation for cluster golden-cluster:
 [XPK] Working on golden-project and us-central1-a

@@ -3,10 +3,10 @@ Deletes a GKE cluster and cleans up associated resources.
 
 # Running the command
 ```shell #golden
-xpk cluster delete --project=golden-project --zone=us-central1-a --cluster=golden-cluster --dry-run
+xpk cluster delete --project=golden-project --zone=us-central1-a --cluster=golden-cluster
 ```
 <!--
-$ xpk cluster delete --project=golden-project --zone=us-central1-a --cluster=golden-cluster --dry-run
+$ xpk cluster delete --project=golden-project --zone=us-central1-a --cluster=golden-cluster
 [XPK] Starting xpk v0.0.0
 [XPK] Starting cluster delete for cluster: golden-cluster
 [XPK] Working on golden-project and us-central1-a

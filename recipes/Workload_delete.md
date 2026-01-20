@@ -3,10 +3,10 @@ Deletes a specified workload from the cluster.
 
 # Running the command
 ```shell #golden
-xpk workload delete --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --dry-run
+xpk workload delete --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload
 ```
 <!--
-$ xpk workload delete --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --dry-run
+$ xpk workload delete --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload
 [XPK] Starting xpk v0.0.0
 [XPK] Starting Workload delete
 [XPK] Working on golden-project and us-central1-a

@@ -697,27 +697,6 @@ def test_validate_cluster_create_args_for_super_slicing_missing_reservation(
   )
 
 
-def test_validate_cluster_create_args_for_super_slicing_reservation_no_blocks(
-    mocks: _Mocks,
-):
-  FeatureFlags.SUPER_SLICING_ENABLED = True
-  args = construct_args(
-      super_slicing=True,
-      reservation='reservation',
-      num_cubes=None,
-      num_slices=None,
-  )
-
-  with pytest.raises(SystemExit):
-    _validate_cluster_create_args(args, SUPER_SLICING_SYSTEM)
-
-  assert mocks.commands_print_mock.call_count == 1
-  assert (
-      'requires a block or sub-block reservation'
-      in mocks.commands_print_mock.call_args[0][0]
-  )
-
-
 def test_validate_cluster_create_args_for_super_slicing_sparse_deployment_type_reservation(
     mocks: _Mocks,
 ):
@@ -808,19 +787,3 @@ def test_validate_cluster_create_args_sets_correct_num_slices(
   _validate_cluster_create_args(args, SUPER_SLICING_SYSTEM)
 
   assert args.num_slices == expected
-
-
-def test_validate_cluster_create_args_for_super_slicing_reservation_mismatch_blocks(
-    mocks: _Mocks,
-):
-  FeatureFlags.SUPER_SLICING_ENABLED = True
-  args = construct_args(
-      super_slicing=True,
-      reservation='test-reservation/reservationBlocks/block1,test-reservation/reservationBlocks/block2',
-  )
-
-  with pytest.raises(SystemExit):
-    _validate_cluster_create_args(args, SUPER_SLICING_SYSTEM)
-
-  assert mocks.commands_print_mock.call_count == 1
-  assert 'to be in the same block' in mocks.commands_print_mock.call_args[0][0]

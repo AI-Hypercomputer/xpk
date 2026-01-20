@@ -157,7 +157,7 @@ def reconstruct_content(
   return "".join(new_content_chunks)
 
 
-def process_file(filepath: str, mode: Mode):
+def process_file(filepath: str, mode: Mode) -> bool:
   with open(filepath, mode="r", encoding="utf-8") as f:
     content = f.read()
 
@@ -188,7 +188,7 @@ def process_file(filepath: str, mode: Mode):
     else:
       print(f"{Color.GREEN}DONE{Color.NC}")
     print("\n".join(results))
-    return
+    return not failed
 
   new_content = reconstruct_content(content, blocks, results)
 
@@ -196,6 +196,7 @@ def process_file(filepath: str, mode: Mode):
     with open(filepath, mode="w", encoding="utf-8") as f:
       f.write(new_content)
     print(f"{Color.GREEN}DONE{Color.NC}")
+    return True
 
   elif mode == Mode.GOLDEN:
     if content != new_content:
@@ -209,6 +210,7 @@ def process_file(filepath: str, mode: Mode):
       print("\n".join(diff))
     else:
       print(f"{Color.GREEN}OK{Color.NC}")
+    return content == new_content
 
 
 def main():
@@ -225,8 +227,8 @@ def main():
 
   files = sys.argv[2:]
 
-  for f in files:
-    process_file(f, mode)
+  if not all([process_file(f, mode) for f in files]):
+    sys.exit(1)
 
 
 if __name__ == "__main__":

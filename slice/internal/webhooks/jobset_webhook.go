@@ -146,7 +146,9 @@ func parseTopology(tpuTopology string) ([]int64, error) {
 		}
 		dims[i] = parsedDim
 	}
-
+	if dims[0] == 0 || dims[1] == 0 || dims[2] == 0 {
+		return nil, fmt.Errorf("topology dimensions cannot be zero: %s", tpuTopology)
+	}
 	if dims[0]%4 != 0 || dims[1]%4 != 0 || dims[2]%4 != 0 {
 		return nil, fmt.Errorf("topology dimensions must be divisible by 4: %s", tpuTopology)
 	}

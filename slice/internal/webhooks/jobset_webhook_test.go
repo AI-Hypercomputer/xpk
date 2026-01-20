@@ -327,6 +327,18 @@ func TestParseTopology(t *testing.T) {
 			topology: "20x24x24",
 			wantErr:  true,
 		},
+		"zero dimension": {
+			topology: "0x4x4",
+			wantErr:  true,
+		},
+		"unparseable": {
+			topology: "4x4x4x",
+			wantErr:  true,
+		},
+		"incomplete": {
+			topology: "4x4x",
+			wantErr:  true,
+		},
 	}
 
 	for name, tc := range testCases {

@@ -1,9 +1,15 @@
-$ xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-8 --reservation=projects/reservation-project/reservations/golden-reservation --dry-run
+# Cluster create with CPU and memory limits below capacity
+Recipe for Cluster create with CPU and memory limits below capacity
+
+# Running the command
+```shell #golden
+xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-8 --spot --cpu-limit=1 --memory-limit=1Mi --dry-run
+```
+<!--
+$ xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-8 --spot --cpu-limit=1 --memory-limit=1Mi --dry-run
 [XPK] Starting xpk v0.0.0
 [XPK] Starting cluster create for cluster golden-cluster:
 [XPK] Working on golden-project and us-central1-a
-[XPK] Task: `Describe reservation` is implemented by the following command not running since it is a dry run. 
-gcloud beta compute reservations describe golden-reservation --project=reservation-project --zone=us-central1-a
 [XPK] Task: `Determine server supported GKE versions for default gke version` is implemented by the following command not running since it is a dry run. 
 gcloud container get-server-config --project=golden-project --region=us-central1 --flatten="channels" --filter="channels.channel=RAPID" --format="value(channels.defaultVersion)"
 [XPK] Task: `Determine server supported GKE versions for valid versions` is implemented by the following command not running since it is a dry run. 
@@ -42,8 +48,6 @@ gcloud beta container clusters describe golden-cluster --location us-central1 --
 We assume that the underlying system is: SystemCharacteristics(topology='2x2x1', vms_per_slice=1, gke_accelerator='tpu7x', gce_machine_type='tpu7x-standard-4t', chips_per_vm=4, accelerator_type=TPU, device_type='tpu7x-8', supports_sub_slicing=False, supports_super_slicing=False, supports_accelerator_network_profile=False, docker_platform=<DockerPlatform.AMD: 'linux/amd64'>, requires_workload_policy=False, gpu_config=None, parallel_containers=2)
 [XPK] Task: `Get All Node Pools` is implemented by the following command not running since it is a dry run. 
 gcloud beta container node-pools list --cluster golden-cluster --project=golden-project --location=us-central1 --format="csv[no-heading](name)"
-[XPK] Task: `Describe reservation` is implemented by the following command not running since it is a dry run. 
-gcloud beta compute reservations describe golden-reservation --project=reservation-project --zone=us-central1-a
 [XPK] Creating 1 node pool or pools of tpu7x-8
 Underlyingly, we assume that means: SystemCharacteristics(topology='2x2x1', vms_per_slice=1, gke_accelerator='tpu7x', gce_machine_type='tpu7x-standard-4t', chips_per_vm=4, accelerator_type=TPU, device_type='tpu7x-8', supports_sub_slicing=False, supports_super_slicing=False, supports_accelerator_network_profile=False, docker_platform=<DockerPlatform.AMD: 'linux/amd64'>, requires_workload_policy=False, gpu_config=None, parallel_containers=2)
 [XPK] Task: `Get Node Pool Zone` is implemented by the following command not running since it is a dry run. 
@@ -51,13 +55,11 @@ gcloud beta container node-pools describe 0 --cluster golden-cluster --project=g
 [XPK] Task: `GKE Cluster Get ConfigMap` is implemented by the following command not running since it is a dry run. 
 kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="ConfigData:data" --no-headers=true
 [XPK] Existing node pool names  ['0']
-[XPK] To complete NodepoolCreate-golden-cluster-np-0 we are executing gcloud beta container node-pools create golden-cluster-np-0 --location=us-central1 --cluster=golden-cluster --project=golden-project --node-locations=us-central1-a --machine-type=tpu7x-standard-4t --host-maintenance-interval=AS_NEEDED --reservation-affinity=specific --reservation=projects/reservation-project/reservations/golden-reservation --enable-gvnic --node-version=0 --num-nodes=1 --scopes=storage-full,gke-default,"https://www.googleapis.com/auth/cloud-platform" 
+[XPK] To complete NodepoolCreate-golden-cluster-np-0 we are executing gcloud beta container node-pools create golden-cluster-np-0 --location=us-central1 --cluster=golden-cluster --project=golden-project --node-locations=us-central1-a --machine-type=tpu7x-standard-4t --host-maintenance-interval=AS_NEEDED --spot --enable-gvnic --node-version=0 --num-nodes=1 --scopes=storage-full,gke-default,"https://www.googleapis.com/auth/cloud-platform" 
 [XPK] Breaking up a total of 1 commands into 1 batches
 [XPK] Pretending all the jobs succeeded
 [XPK] Create or delete node pool request complete.
 [XPK] Creating ConfigMap for cluster
-[XPK] Task: `Describe reservation` is implemented by the following command not running since it is a dry run. 
-gcloud beta compute reservations describe golden-reservation --project=reservation-project --zone=us-central1-a
 [XPK] Temp file (0604d72ef175c94fc796d8f02cff009b4241e85d444d22d414a56a47764d7bbb) content: 
 kind: ConfigMap
 apiVersion: v1
@@ -66,15 +68,14 @@ metadata:
 data:
   tpu7x-8: "1"
 
-[XPK] Temp file (1e07554ba48dc90eb0b6b215d8604e02dc0152f8662dd1de87472db102e7d2bf) content: 
+[XPK] Temp file (c7780918e7a1e57b41944f4873efa5e4114a0b59cec19aecd76950f42c98c442) content: 
 kind: ConfigMap
 apiVersion: v1
 metadata:
   name: golden-cluster-metadata-configmap
 data:
   xpk_version: v0.0.0
-  capacity_type: RESERVATION
-  reservation_id: projects/reservation-project/reservations/golden-reservation
+  capacity_type: SPOT
 
 [XPK] Breaking up a total of 2 commands into 1 batches
 [XPK] Pretending all the jobs succeeded
@@ -181,7 +182,11 @@ kubectl get deployment kueue-controller-manager -n kueue-system -o jsonpath='{.s
 kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-sigs/kueue/releases/download/v0.15.2/manifests.yaml
 [XPK] Task: `Wait for Kueue to be available` is implemented by the following command not running since it is a dry run. 
 kubectl wait deploy/kueue-controller-manager -n kueue-system --for=condition=available --timeout=10m
-[XPK] Temp file (6083d72fc3ba2ac7d243c1269dd67717abd4086bf64e397e3a1737de415dd133) content: 
+[XPK] Task: `Get vCPU and memory capacity for machine type` is implemented by the following command not running since it is a dry run. 
+gcloud compute machine-types describe tpu7x-standard-4t  --project=golden-project --zone=us-central1-a --format='value(guestCpus,memoryMb)'
+[XPK] The CPU limit is below the available capacity, which would lead to underutilization. We will set CPU limit to 10.
+[XPK] The memory limit is below the available capacity, which would lead to underutilization. We will set the memory limit to 10Mi.
+[XPK] Temp file (1ce6c42efe0834ff0519978ad09539c725a5d6f22267c5f1b41b6e458668e45f) content: 
 
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: ResourceFlavor
@@ -212,7 +217,7 @@ spec:
     reclaimWithinCohort: Never # Don't preempt other queues in the cohort.
     withinClusterQueue: LowerPriority
   namespaceSelector: {} # match all.
-  resourceGroups: [{'coveredResources': ['google.com/tpu'], 'flavors': [{'name': '1xtpu7x-8', 'resources': [{'name': 'google.com/tpu', 'nominalQuota': 4}]}]}]
+  resourceGroups: [{'coveredResources': ['google.com/tpu', 'cpu', 'memory'], 'flavors': [{'name': '1xtpu7x-8', 'resources': [{'name': 'google.com/tpu', 'nominalQuota': 4}, {'name': 'cpu', 'nominalQuota': 10}, {'name': 'memory', 'nominalQuota': '10Mi'}]}]}]
 ---
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: LocalQueue
@@ -262,7 +267,7 @@ value: 1000
 globalDefault: false
 description: "Very High"
 [XPK] Task: `Applying Kueue Custom Resources` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f 6083d72fc3ba2ac7d243c1269dd67717abd4086bf64e397e3a1737de415dd133
+kubectl apply -f 1ce6c42efe0834ff0519978ad09539c725a5d6f22267c5f1b41b6e458668e45f
 [XPK] Task: `Count total nodes` is implemented by the following command not running since it is a dry run. 
 kubectl get node --no-headers | wc -l
 [XPK] Try 1: Updating Kueue Controller Manager resources
@@ -271,3 +276,4 @@ kubectl patch deployment kueue-controller-manager -n kueue-system --type='strate
 [XPK] GKE commands done! Resources are created.
 [XPK] See your GKE Cluster here: https://console.cloud.google.com/kubernetes/clusters/details/us-central1/golden-cluster/details?project=golden-project
 [XPK] Exiting XPK cleanly
+-->

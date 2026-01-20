@@ -1,13 +1,18 @@
-$ SUB_SLICING_ENABLED=true DRY_RUN_RESOURCES_CONFIG_MAP="map[v6e-16:8]" xpk workload create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --command "bash hello" --tpu-type=v6e-2x4 --script-dir=/tmp --dry-run
+# Workload create
+Recipe for Workload create
+
+# Running the command
+```shell #golden
+xpk workload create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --command "bash hello" --tpu-type=v5p-8 --num-slices=1 --script-dir=/tmp --dry-run
+```
+<!--
+$ xpk workload create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --command "bash hello" --tpu-type=v5p-8 --num-slices=1 --script-dir=/tmp --dry-run
 [XPK] Starting xpk v0.0.0
 [XPK] Task: `Check if Workload Already Exists` is implemented by the following command not running since it is a dry run. 
 kubectl get workloads -o=custom-columns='Jobset:.metadata.ownerReferences[0].name'
 [XPK] Task: `GKE Cluster Get ConfigMap` is implemented by the following command not running since it is a dry run. 
 kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="ConfigData:data" --no-headers=true
-[XPK] Task: `Get defined topologies` is implemented by the following command not running since it is a dry run. 
-kubectl get topology
-[XPK] Task: `Get kueue version on server` is implemented by the following command not running since it is a dry run. 
-kubectl get deployment kueue-controller-manager -n kueue-system -o jsonpath='{.spec.template.spec.containers[0].image}'
+[XPK] Skipping workload scheduling validation in dry run.
 [XPK] Starting workload create
 [XPK] Task: `GKE Cluster Get ConfigMap` is implemented by the following command not running since it is a dry run. 
 kubectl get configmap golden-cluster-metadata-configmap -o=custom-columns="ConfigData:data" --no-headers=true
@@ -19,7 +24,6 @@ kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="Conf
 [XPK] No gcp parallelstore instances to add detected.
 [XPK] No gce persistent disk instances to add detected.
 [XPK] No managed lustre instances to add detected.
-[XPK] Workload will be scheduled using the Sub-slicing feature.
 [XPK] Temp file (4b6736a12db8ea0f78ce793fd0d4ee0c94c652303f1dc0fecad085ea0993f688) content: 
 FROM python:3.10
 
@@ -39,7 +43,7 @@ docker buildx build --platform=linux/amd64 -f 4b6736a12db8ea0f78ce793fd0d4ee0c94
 docker tag dry-run-runner gcr.io/golden-project/dry-run-runner:prefix-current
 [XPK] Task: `Upload Docker Image` is implemented by the following command not running since it is a dry run. 
 docker push gcr.io/golden-project/dry-run-runner:prefix-current
-[XPK] Temp file (2018fe16498f36301979a10667302a0aff6beb09956705b64ff396373af777ba) content: 
+[XPK] Temp file (39eda1549f4c0d68a4f11e6cbd89ba655d49d2faeef6898a140f476e6e70ae0e) content: 
 apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
 metadata:
@@ -48,7 +52,7 @@ metadata:
     kueue.x-k8s.io/queue-name: multislice-queue  # Name of the LocalQueue
     xpk.google.com/workload: golden-workload
   annotations:
-    
+    alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool
 spec:
   ttlSecondsAfterFinished: 43200
   failurePolicy:
@@ -62,8 +66,8 @@ spec:
       replicas: 1
       template:
         spec:
-          parallelism: 2    # Equal to the number of VMs per slice (or sub-slice).
-          completions: 2    # Same as the above.
+          parallelism: 1    # Equal to the number of VMs per slice (or sub-slice).
+          completions: 1    # Same as the above.
           backoffLimit: 0   # When any pod fails, the job is failed
           
           podFailurePolicy:
@@ -81,8 +85,7 @@ spec:
                 xpk.google.com/workload: golden-workload
               annotations:
                 
-                kueue.x-k8s.io/podset-required-topology: "cloud.google.com/gke-tpu-slice-2x4-id"
-                cloud.google.com/gke-tpu-slice-topology: 2x4
+                
                 
             spec:
               schedulerName: default-scheduler
@@ -91,8 +94,8 @@ spec:
               restartPolicy: Never
               
               nodeSelector:
-                cloud.google.com/gke-tpu-accelerator: tpu-v6e-slice
-                cloud.google.com/gke-tpu-topology: 4x4
+                cloud.google.com/gke-tpu-accelerator: tpu-v5p-slice
+                cloud.google.com/gke-tpu-topology: 2x2x1
                 
                 
               priorityClassName: medium
@@ -149,7 +152,7 @@ spec:
               
 
 [XPK] Task: `Creating Workload` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f 2018fe16498f36301979a10667302a0aff6beb09956705b64ff396373af777ba
+kubectl apply -f 39eda1549f4c0d68a4f11e6cbd89ba655d49d2faeef6898a140f476e6e70ae0e
 [XPK] Task: `GKE Dashboard List` is implemented by the following command not running since it is a dry run. 
 gcloud monitoring dashboards list --project=golden-project --filter="displayName:'GKE - TPU Monitoring Dashboard'" --format="value(name)" --verbosity=error
 [XPK] Check statistics and outlier mode of GKE metrics here: https://console.cloud.google.com/monitoring/dashboards/builder/0?project=golden-project&f.rlabel.cluster_name.ClusterName=golden-cluster. To view the metric data for your workload, select golden-workload from the JobName filter on the dashboard.
@@ -158,3 +161,4 @@ gcloud container clusters list --project=golden-project --filter=name=golden-clu
 [XPK] Follow your workload here: https://console.cloud.google.com/kubernetes/service/us-central1/golden-cluster/default/golden-workload/details?project=golden-project
 [XPK] Follow your worker 0, slice 0 logs here: Adjust the pod name ([prefix]-slice-job-[slice_number]-[worker_number]) after clicking the url if you want other worker logs. https://console.cloud.google.com/logs/query;query=resource.type%3D%22k8s_container%22%0Aresource.labels.project_id%3D%22golden-project%22%0Aresource.labels.location%3D%22us-central1%22%0Aresource.labels.cluster_name%3D%22golden-cluster%22%0Aresource.labels.namespace_name%3D%22default%22%0Aresource.labels.pod_name:%22golden-workload-slice-job-0-0-%22%20severity%3E%3DDEFAULT;storageScope=project;duration=P1D?e=13802955&mods=allow_workbench_image_override&project=golden-project
 [XPK] Exiting XPK cleanly
+-->

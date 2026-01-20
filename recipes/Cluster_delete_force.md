@@ -1,4 +1,12 @@
-$ xpk cluster delete --project=golden-project --zone=us-central1-a --cluster=golden-cluster --dry-run
+# Cluster delete force
+Recipe for Cluster delete force
+
+# Running the command
+```shell #golden
+xpk cluster delete --project=golden-project --zone=us-central1-a --cluster=golden-cluster --force --dry-run
+```
+<!--
+$ xpk cluster delete --project=golden-project --zone=us-central1-a --cluster=golden-cluster --force --dry-run
 [XPK] Starting xpk v0.0.0
 [XPK] Starting cluster delete for cluster: golden-cluster
 [XPK] Working on golden-project and us-central1-a
@@ -7,9 +15,6 @@ gcloud container clusters list --project=golden-project --filter=name=golden-clu
 [XPK] Try 1: get-credentials to cluster golden-cluster
 [XPK] Task: `get-credentials to cluster golden-cluster` is implemented by the following command not running since it is a dry run. 
 gcloud container clusters get-credentials golden-cluster --location=us-central1 --dns-endpoint --project=golden-project && kubectl config view && kubectl config set-context --current --namespace=default
-[XPK] Get the name of the workloads in the cluster.
-[XPK] Task: `List Jobs with filter-by-status=EVERYTHING` is implemented by the following command not running since it is a dry run. 
-kubectl get workloads --ignore-not-found -o=custom-columns="Jobset Name:.metadata.ownerReferences[0].name,Created Time:.metadata.creationTimestamp,Priority:.spec.priorityClassName,TPU VMs Needed:.spec.podSets[0].count,TPU VMs Running/Ran:.status.admission.podSetAssignments[-1].count,TPU VMs Done:.status.reclaimablePods[0].count,Status:.status.conditions[-1].type,Status Message:.status.conditions[-1].message,Status Time:.status.conditions[-1].lastTransitionTime"  
 [XPK] Task: `Cluster Delete` is implemented by the following command not running since it is a dry run. 
 gcloud beta container clusters delete golden-cluster --project=golden-project --location=us-central1 --quiet
 [XPK] Task: `Get All Subnets` is implemented by the following command not running since it is a dry run. 
@@ -17,3 +22,4 @@ gcloud compute networks subnets list --filter=name~"golden-cluster-us-central1-s
 [XPK] GKE commands done! Cluster golden-cluster deleted.
 
 [XPK] Exiting XPK cleanly
+-->

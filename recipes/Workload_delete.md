@@ -1,3 +1,11 @@
+# Workload delete
+Recipe for Workload delete
+
+# Running the command
+```shell #golden
+xpk workload delete --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --dry-run
+```
+<!--
 $ xpk workload delete --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --dry-run
 [XPK] Starting xpk v0.0.0
 [XPK] Starting Workload delete
@@ -15,3 +23,4 @@ kubectl get pods -n pathways-job-system --no-headers -o custom-columns=NAME:.met
 [XPK] Task: `Delete Workload` is implemented by the following command not running since it is a dry run. 
 kubectl delete pathwaysjob golden-workload -n default
 [XPK] Exiting XPK cleanly
+-->

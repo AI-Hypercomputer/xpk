@@ -1,3 +1,11 @@
+# Workload create pathways
+Recipe for Workload create pathways
+
+# Running the command
+```shell #golden
+xpk workload create-pathways --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --command "bash hello" --tpu-type=v5p-8 --num-slices=1 --script-dir=/tmp --dry-run
+```
+<!--
 $ xpk workload create-pathways --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --command "bash hello" --tpu-type=v5p-8 --num-slices=1 --script-dir=/tmp --dry-run
 [XPK] Starting xpk v0.0.0
 [XPK] Task: `Check if Workload Already Exists` is implemented by the following command not running since it is a dry run. 
@@ -130,3 +138,4 @@ gcloud monitoring dashboards list --project=golden-project --filter="displayName
 [XPK] Check statistics and outlier mode of GKE metrics here: https://console.cloud.google.com/monitoring/dashboards/builder/0?project=golden-project&f.rlabel.cluster_name.ClusterName=golden-cluster. To view the metric data for your workload, select golden-workload from the JobName filter on the dashboard.
 [XPK] Follow your Pathways workload and other resources here : https://console.cloud.google.com/logs/query;query=resource.type%3D"k8s_container"%0Aresource.labels.project_id%3D"golden-project"%0Aresource.labels.location%3D"us-central1"%0Aresource.labels.cluster_name%3D"golden-cluster"%0Aresource.labels.pod_name:"golden-workload-"%0Aseverity>%3DDEFAULT
 [XPK] Exiting XPK cleanly
+-->

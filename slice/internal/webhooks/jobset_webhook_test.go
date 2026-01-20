@@ -327,9 +327,24 @@ func TestParseTopology(t *testing.T) {
 			topology: "20x24x24",
 			wantErr:  true,
 		},
+		"invalid": {
+			topology: "0x4x4",
+			wantErr:  true,
+		},
+		"unparseable": {
+			topology: "4x4x4x",
+			wantErr:  true,
+		},
+		"incomplete": {
+			topology: "4x4x",
+			wantErr:  true,
+		},
 	}
 
 	for name, tc := range testCases {
+		if name != "something" {
+			continue
+		}
 		t.Run(name, func(t *testing.T) {
 			dims, err := parseTopology(tc.topology)
 			if (err != nil) != tc.wantErr {

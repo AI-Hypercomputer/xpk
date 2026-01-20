@@ -398,15 +398,23 @@ SUPER_SLICING_CASE = SchedulingTestCase(
             WorkloadScheduling.UNAVAILABLE,
         ),
         (
-            (
-                'Super-slicing should be ignored when a given device is already'
-                ' present in the cluster'
-            ),
+            'Super-slicing, but one cube',
             dataclasses.replace(
                 SUPER_SLICING_CASE,
-                workload_system=_get_system_characteristics_or_die('tpu7x-64'),
-                cluster_system=_get_system_characteristics_or_die('tpu7x-64'),
-                resources_config_map={'tpu7x-64': '16'},
+                workload_system=_get_system_characteristics_or_die('tpu7x-128'),
+                cluster_system=_get_system_characteristics_or_die('tpu7x-128'),
+                resources_config_map={'tpu7x-128': '16'},
+            ),
+            WorkloadScheduling.SUPER_SLICING_AVAILABLE,
+        ),
+        (
+            'Super-slicing, but one cube and no super-slicing-topology',
+            dataclasses.replace(
+                SUPER_SLICING_CASE,
+                workload_system=_get_system_characteristics_or_die('tpu7x-128'),
+                cluster_system=_get_system_characteristics_or_die('tpu7x-128'),
+                resources_config_map={'tpu7x-128': '16'},
+                super_slicing_topology_set=False,
             ),
             WorkloadScheduling.AVAILABLE,
         ),

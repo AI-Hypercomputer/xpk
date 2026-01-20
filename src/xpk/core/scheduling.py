@@ -88,6 +88,18 @@ def check_if_workload_can_schedule(
       return WorkloadScheduling.UNAVAILABLE
     return WorkloadScheduling.AVAILABLE
 
+  if cluster_system and _check_super_slicing_availability(
+      workload_system=workload_system, cluster_system=cluster_system
+  ):
+    if _check_workload_size_fits(
+        args,
+        workload_system,
+        max_vm_in_cluster=int(resources_config_map[cluster_system.device_type]),
+    ) and _check_super_slicing_topology(workload_system):
+      return WorkloadScheduling.SUPER_SLICING_AVAILABLE
+    else:
+      return WorkloadScheduling.UNAVAILABLE
+
   if workload_system.device_type in resources_config_map:
     if _check_workload_size_fits(
         args,
@@ -109,18 +121,6 @@ def check_if_workload_can_schedule(
         max_vm_in_cluster=int(resources_config_map[cluster_system.device_type]),
     ):
       return WorkloadScheduling.SUB_SLICING_AVAILABLE
-    else:
-      return WorkloadScheduling.UNAVAILABLE
-
-  if cluster_system and _check_super_slicing_availability(
-      workload_system=workload_system, cluster_system=cluster_system
-  ):
-    if _check_workload_size_fits(
-        args,
-        workload_system,
-        max_vm_in_cluster=int(resources_config_map[cluster_system.device_type]),
-    ) and _check_super_slicing_topology(workload_system):
-      return WorkloadScheduling.SUPER_SLICING_AVAILABLE
     else:
       return WorkloadScheduling.UNAVAILABLE
 

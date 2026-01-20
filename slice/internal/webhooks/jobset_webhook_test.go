@@ -327,7 +327,7 @@ func TestParseTopology(t *testing.T) {
 			topology: "20x24x24",
 			wantErr:  true,
 		},
-		"invalid": {
+		"zero dimension": {
 			topology: "0x4x4",
 			wantErr:  true,
 		},

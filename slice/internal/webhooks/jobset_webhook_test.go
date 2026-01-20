@@ -342,9 +342,6 @@ func TestParseTopology(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		if name != "something" {
-			continue
-		}
 		t.Run(name, func(t *testing.T) {
 			dims, err := parseTopology(tc.topology)
 			if (err != nil) != tc.wantErr {

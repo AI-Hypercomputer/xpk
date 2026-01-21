@@ -608,8 +608,8 @@ def update_gke_cluster_with_lustre_driver_enabled(args) -> int:
     return 1
 
   xpk_print(
-      f'Recreating existing nodes (if any) to complete the Lustre CSI driver'
-      f' installation.'
+      'Recreating existing nodes (if any) to complete the Lustre CSI driver'
+      ' installation.'
   )
   return_code = recreate_nodes_in_existing_node_pools(args)
   if return_code != 0:

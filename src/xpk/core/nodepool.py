@@ -712,6 +712,7 @@ def recreate_nodes_in_existing_node_pools(args) -> int:
         f' --project={args.project}'
         f' --node-pool={node_pool_name}'
         f' --location={get_cluster_location(args.project, args.cluster, args.zone)}'
+        ' --quiet'
     )
   for i, command in enumerate(commands):
     xpk_print(f'To complete {task_names[i]} we are executing {command}')

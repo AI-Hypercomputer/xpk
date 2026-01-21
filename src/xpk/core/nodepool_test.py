@@ -601,6 +601,7 @@ def test_recreate_nodes_in_existing_node_pools_upgrades_existing_nodepools(
       "--project=test-project",
       "--node-pool=nodepool1",
       "--location=us-central1",
+      "--quiet",
   )
   commands_tester.assert_command_run(
       "gcloud",
@@ -608,6 +609,7 @@ def test_recreate_nodes_in_existing_node_pools_upgrades_existing_nodepools(
       "--project=test-project",
       "--node-pool=nodepool2",
       "--location=us-central1",
+      "--quiet",
   )
 
 
@@ -660,6 +662,7 @@ def test_recreate_nodes_in_existing_node_pools_returns_error_code_if_upgrade_fai
       "--project=test-project",
       "--node-pool=nodepool1",
       "--location=us-central1",
+      "--quiet",
   )
   commands_tester.assert_command_not_run(
       "gcloud",
@@ -667,4 +670,5 @@ def test_recreate_nodes_in_existing_node_pools_returns_error_code_if_upgrade_fai
       "--project=test-project",
       "--node-pool=nodepool2",
       "--location=us-central1",
+      "--quiet",
   )

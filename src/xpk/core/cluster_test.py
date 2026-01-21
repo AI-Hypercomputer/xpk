@@ -166,10 +166,13 @@ def test_update_cluster_with_lustre_driver_if_necessary_with_legacy_port_runs_co
 
 
 def test_update_gke_cluster_with_lustre_driver_enabled_default_port(
-    commands_tester: CommandsTester, command_args
+    commands_tester: CommandsTester, command_args, mocker: MockerFixture
 ):
   commands_tester.set_result_for_command(
       (0, ""), "gcloud container clusters update"
+  )
+  mocker.patch(
+      "xpk.core.cluster.recreate_nodes_in_existing_node_pools", return_value=0
   )
   command_args.enable_legacy_lustre_port = None
   update_gke_cluster_with_lustre_driver_enabled(command_args)
@@ -181,11 +184,29 @@ def test_update_gke_cluster_with_lustre_driver_enabled_default_port(
   ]
 
 
-def test_update_gke_cluster_with_lustre_driver_enabled_legacy_port(
-    commands_tester: CommandsTester, command_args
+def test_update_gke_cluster_with_lustre_driver_enabled_fails_if_node_recreation_failed(
+    commands_tester: CommandsTester, command_args, mocker: MockerFixture
 ):
   commands_tester.set_result_for_command(
       (0, ""), "gcloud container clusters update"
+  )
+  mocker.patch(
+      "xpk.core.cluster.recreate_nodes_in_existing_node_pools", return_value=123
+  )
+  command_args.enable_legacy_lustre_port = None
+  return_code = update_gke_cluster_with_lustre_driver_enabled(command_args)
+
+  assert return_code != 0
+
+
+def test_update_gke_cluster_with_lustre_driver_enabled_legacy_port(
+    commands_tester: CommandsTester, command_args, mocker: MockerFixture
+):
+  commands_tester.set_result_for_command(
+      (0, ""), "gcloud container clusters update"
+  )
+  mocker.patch(
+      "xpk.core.cluster.recreate_nodes_in_existing_node_pools", return_value=0
   )
   command_args.enable_legacy_lustre_port = True
   update_gke_cluster_with_lustre_driver_enabled(command_args)

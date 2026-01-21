@@ -47,6 +47,12 @@ gcloud container clusters describe golden-cluster --project=golden-project --loc
 [XPK] Updating GKE cluster to enable Lustre CSI driver, may take a while!
 [XPK] Task: `GKE Cluster Update to enable Lustre CSI driver` is implemented by the following command not running since it is a dry run. 
 gcloud container clusters update golden-cluster --project=golden-project --location=us-central1 --quiet --enable-legacy-lustre-port
+[XPK] Recreating existing nodes (if any) to complete the Lustre CSI driver installation.
+[XPK] Task: `Get All Node Pools` is implemented by the following command not running since it is a dry run. 
+gcloud beta container node-pools list --cluster golden-cluster --project=golden-project --location=us-central1 --format="csv[no-heading](name)"
+[XPK] To complete NodesRecreate-0 we are executing gcloud container clusters upgrade golden-cluster --project=golden-project --node-pool=0 --location=us-central1 --quiet
+[XPK] Breaking up a total of 1 commands into 1 batches
+[XPK] Pretending all the jobs succeeded
 [XPK] Task: `Determine current gke master version` is implemented by the following command not running since it is a dry run. 
 gcloud beta container clusters describe golden-cluster --location us-central1 --project golden-project --format="value(currentMasterVersion)"
 [XPK] Creating 1 node pool or pools of tpu7x-8

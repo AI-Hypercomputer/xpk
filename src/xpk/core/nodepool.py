@@ -703,17 +703,20 @@ def recreate_nodes_in_existing_node_pools(args) -> int:
     xpk_print('Listing all node pools failed!')
     return return_code
 
-  commands = []
-  task_names = []
-  for node_pool_name in existing_node_pool_names:
-    task_names.append(f'NodesRecreate-{node_pool_name}')
-    commands.append(
-        f'gcloud container clusters upgrade {args.cluster}'
-        f' --project={args.project}'
-        f' --node-pool={node_pool_name}'
-        f' --location={get_cluster_location(args.project, args.cluster, args.zone)}'
-        ' --quiet'
-    )
+  commands = [
+      (
+          f'gcloud container clusters upgrade {args.cluster}'
+          f' --project={args.project}'
+          f' --node-pool={node_pool_name}'
+          f' --location={get_cluster_location(args.project, args.cluster, args.zone)}'
+          ' --quiet'
+      )
+      for node_pool_name in existing_node_pool_names
+  ]
+  task_names = [
+      f'NodesRecreate-{node_pool_name}'
+      for node_pool_name in existing_node_pool_names
+  ]
   for i, command in enumerate(commands):
     xpk_print(f'To complete {task_names[i]} we are executing {command}')
   maybe_failure = run_commands(

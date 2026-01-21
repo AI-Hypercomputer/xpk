@@ -20,6 +20,7 @@ from xpk.core.nodepool import (
     ensure_resource_policy_exists,
     get_desired_node_pool_names,
     run_gke_node_pool_create_command,
+    recreate_nodes_in_existing_node_pools,
     _validate_reservation_count,
 )
 from xpk.core.system_characteristics import AcceleratorType, SystemCharacteristics, DockerPlatform, GpuConfig
@@ -567,4 +568,103 @@ def test_run_gke_node_pool_create_command_partial_reservations(
   )
   commands_tester.assert_command_run(
       "gcloud", "node-pools create", "test-cluster-np-2", "--reservation=res2"
+  )
+
+
+def test_recreate_nodes_in_existing_node_pools_upgrades_existing_nodepools(
+    mocker,
+    commands_tester: CommandsTester,
+):
+  mocker.patch(
+      "xpk.core.nodepool.get_all_nodepools_programmatic",
+      return_value=(["nodepool1", "nodepool2"], 0),
+  )
+  mocker.patch(
+      "xpk.core.nodepool.get_cluster_location", return_value="us-central1"
+  )
+  args = mocker.Mock(
+      cluster="test-cluster",
+      project="test-project",
+      zone="us-central1-a",
+  )
+
+  commands_tester.set_result_for_command(
+      (0, ""), "gcloud container clusters upgrade"
+  )
+
+  result = recreate_nodes_in_existing_node_pools(args)
+
+  assert result == 0
+  commands_tester.assert_command_run(
+      "gcloud",
+      "container clusters upgrade test-cluster",
+      "--project=test-project",
+      "--node-pool=nodepool1",
+      "--location=us-central1",
+  )
+  commands_tester.assert_command_run(
+      "gcloud",
+      "container clusters upgrade test-cluster",
+      "--project=test-project",
+      "--node-pool=nodepool2",
+      "--location=us-central1",
+  )
+
+
+def test_recreate_nodes_in_existing_node_pools_returns_error_code_if_listing_fails(
+    mocker,
+    commands_tester: CommandsTester,
+):
+  mocker.patch(
+      "xpk.core.nodepool.get_all_nodepools_programmatic",
+      return_value=([], 123),
+  )
+  args = mocker.Mock(
+      cluster="test-cluster",
+      project="test-project",
+      zone="us-central1-a",
+  )
+
+  result = recreate_nodes_in_existing_node_pools(args)
+
+  assert result == 123
+
+
+def test_recreate_nodes_in_existing_node_pools_returns_error_code_if_upgrade_fails(
+    mocker,
+    commands_tester: CommandsTester,
+):
+  mocker.patch(
+      "xpk.core.nodepool.get_all_nodepools_programmatic",
+      return_value=(["nodepool1", "nodepool2"], 0),
+  )
+  mocker.patch(
+      "xpk.core.nodepool.get_cluster_location", return_value="us-central1"
+  )
+  args = mocker.Mock(
+      cluster="test-cluster",
+      project="test-project",
+      zone="us-central1-a",
+  )
+
+  commands_tester.set_result_for_command(
+      (123, ""), "gcloud container clusters upgrade"
+  )
+
+  result = recreate_nodes_in_existing_node_pools(args)
+
+  assert result == 123
+  commands_tester.assert_command_run(
+      "gcloud",
+      "container clusters upgrade test-cluster",
+      "--project=test-project",
+      "--node-pool=nodepool1",
+      "--location=us-central1",
+  )
+  commands_tester.assert_command_not_run(
+      "gcloud",
+      "container clusters upgrade test-cluster",
+      "--project=test-project",
+      "--node-pool=nodepool2",
+      "--location=us-central1",
   )

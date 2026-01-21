@@ -691,3 +691,33 @@ def _validate_reservation_count(
     )
     return 1
   return 0
+
+
+def recreate_nodes_in_existing_node_pools(args) -> int:
+  """Triggers a manual upgrade of nodepools to the same version to force recreation
+  of nodes.
+  """
+
+  existing_node_pool_names, return_code = get_all_nodepools_programmatic(args)
+  if return_code > 0:
+    xpk_print('Listing all node pools failed!')
+    return return_code
+
+  commands = []
+  task_names = []
+  for node_pool_name in existing_node_pool_names:
+    task_names.append(f'NodesRecreate-{node_pool_name}')
+    commands.append(
+        f'gcloud container clusters upgrade {args.cluster}'
+        f' --project={args.project}'
+        f' --node-pool={node_pool_name}'
+        f' --location={get_cluster_location(args.project, args.cluster, args.zone)}'
+    )
+  for i, command in enumerate(commands):
+    xpk_print(f'To complete {task_names[i]} we are executing {command}')
+  maybe_failure = run_commands(
+      commands,
+      'Recreate nodes in nodepools',
+      task_names,
+  )
+  return maybe_failure.return_code if maybe_failure is not None else 0

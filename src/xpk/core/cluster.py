@@ -33,6 +33,7 @@ from .gcloud_context import (
     get_cluster_location,
     zone_to_region,
 )
+from .nodepool import recreate_nodes_in_existing_node_pools
 from .resources import get_cluster_system_characteristics
 from .system_characteristics import INSTALLER_NCCL_TCPXO, SystemCharacteristics
 
@@ -604,6 +605,19 @@ def update_gke_cluster_with_lustre_driver_enabled(args) -> int:
   )
   if return_code != 0:
     xpk_print(f'GKE Cluster Update request returned ERROR {return_code}')
+    return 1
+
+  xpk_print(
+      f'Recreating existing nodes (if any) to complete the Lustre CSI driver'
+      f' installation.'
+  )
+  return_code = recreate_nodes_in_existing_node_pools(args)
+  if return_code != 0:
+    xpk_print(
+        f'Node recreation failed with ERROR {return_code}. You must recreate'
+        ' the nodes manually in order to access Lustre storage from your'
+        ' workloads.'
+    )
     return 1
   return 0
 

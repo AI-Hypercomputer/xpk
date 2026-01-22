@@ -21,6 +21,7 @@ from pytest_mock import MockerFixture
 import yaml
 from unittest.mock import MagicMock, patch
 
+from xpk.core.kubectl_common import PatchResources
 from xpk.core.kueue_manager import KueueConfig, KueueManager, has_sub_slicing_enabled, has_super_slicing_enabled
 from xpk.core.system_characteristics import GpuConfig, DockerPlatform, AcceleratorType, SystemCharacteristics, UserFacingNameToSystemCharacteristics
 from xpk.core.testing.commands_tester import CommandsTester
@@ -83,6 +84,14 @@ def mock_commands(mocker: MockerFixture) -> CommandsTester:
       run_command_with_updates_retry_path=(
           "xpk.core.kueue_manager.run_command_with_updates_retry"
       ),
+  )
+
+
+@pytest.fixture(autouse=True)
+def mock_patch_controller_manager_resources(mocker: MockerFixture) -> MagicMock:
+  return mocker.patch(
+      "xpk.core.kueue_manager.patch_controller_manager_resources",
+      return_value=0,
   )
 
 
@@ -239,7 +248,9 @@ def test_installation_without_tolerations(
 
 
 def test_resource_update_for_small_cluster(
-    mock_commands: CommandsTester, kueue_manager: KueueManager
+    mock_commands: CommandsTester,
+    kueue_manager: KueueManager,
+    mock_patch_controller_manager_resources: MagicMock,
 ):
   """Test resource update logic for a small cluster."""
   set_installed_kueue_version(mock_commands, None)
@@ -248,17 +259,21 @@ def test_resource_update_for_small_cluster(
   result = kueue_manager.install_or_upgrade(KUEUE_CONFIG)
 
   assert result == 0
+
   # 100 * 1.2 = 120, which is less than 4096. So it should be 4096.
-  mock_commands.assert_command_run(
-      "kubectl patch deployment kueue-controller-manager -n kueue-system"
-      ' --type=\'strategic\' --patch=\'{"spec": {"template": {"spec":'
-      ' {"containers": [{"name": "manager", "resources": {"limits":'
-      ' {"memory": "4096Mi"}}}]}}}}\'',
+  mock_patch_controller_manager_resources.assert_called_with(
+      name="kueue-controller-manager",
+      namespace="kueue-system",
+      patch_resources=PatchResources(
+          memory_limit="4096Mi",
+      ),
   )
 
 
 def test_resource_update_for_large_cluster(
-    mock_commands: CommandsTester, kueue_manager: KueueManager
+    mock_commands: CommandsTester,
+    kueue_manager: KueueManager,
+    mock_patch_controller_manager_resources: MagicMock,
 ):
   """Test resource update logic for a large cluster."""
   set_installed_kueue_version(mock_commands, None)
@@ -268,11 +283,36 @@ def test_resource_update_for_large_cluster(
 
   assert result == 0
   # 5000 * 1.2 = 6000, which is > 4096.
-  mock_commands.assert_command_run(
-      "kubectl patch deployment kueue-controller-manager -n kueue-system"
-      ' --type=\'strategic\' --patch=\'{"spec": {"template": {"spec":'
-      ' {"containers": [{"name": "manager", "resources": {"limits":'
-      ' {"memory": "6000Mi"}}}]}}}}\'',
+  mock_patch_controller_manager_resources.assert_called_with(
+      name="kueue-controller-manager",
+      namespace="kueue-system",
+      patch_resources=PatchResources(
+          memory_limit="6000Mi",
+      ),
+  )
+
+
+def test_resource_update_for_super_slicing_cluster(
+    mock_commands: CommandsTester,
+    kueue_manager: KueueManager,
+    mock_patch_controller_manager_resources: MagicMock,
+):
+  set_installed_kueue_version(mock_commands, None)
+  kueue_config = dataclasses.replace(KUEUE_CONFIG, configure_super_slicing=True)
+
+  result = kueue_manager.install_or_upgrade(kueue_config)
+
+  assert result == 0
+  mock_patch_controller_manager_resources.assert_called_with(
+      name="kueue-controller-manager",
+      namespace="kueue-system",
+      replicas=3,
+      patch_resources=PatchResources(
+          cpu_request=16,
+          cpu_limit=16,
+          memory_request="64Gi",
+          memory_limit="64Gi",
+      ),
   )
 
 

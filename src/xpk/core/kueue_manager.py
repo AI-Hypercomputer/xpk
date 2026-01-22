@@ -20,6 +20,7 @@ from typing import Optional, List, Dict, Any
 import json
 from jinja2 import Environment, FileSystemLoader
 
+from .kubectl_common import PatchResources, patch_controller_manager_resources
 from ..utils.topology import get_slice_topology_level, get_topology_product, is_topology_contained
 from ..utils.kueue import is_queued_cluster
 from kubernetes.utils import parse_quantity
@@ -304,7 +305,9 @@ class KueueManager:
     if return_code != 0:
       return return_code
 
-    return self.__update_kueue_resources_if_necessary()
+    return self.__update_kueue_resources_if_necessary(
+        configure_super_slicing=kueue_config.configure_super_slicing
+    )
 
   def __build_template_context(
       self,
@@ -452,8 +455,23 @@ class KueueManager:
     command = f"kubectl apply -f {tmp_file}"
     return run_command_with_updates(command, task)
 
-  def __update_kueue_resources_if_necessary(self) -> int:
+  def __update_kueue_resources_if_necessary(
+      self, configure_super_slicing: bool
+  ) -> int:
     """Patch memory size limit if necessary."""
+    if configure_super_slicing:
+      return patch_controller_manager_resources(
+          name="kueue-controller-manager",
+          namespace="kueue-system",
+          replicas=3,
+          patch_resources=PatchResources(
+              cpu_request=16,
+              cpu_limit=16,
+              memory_request="64Gi",
+              memory_limit="64Gi",
+          ),
+      )
+
     # Get total number of nodes
     cmd_total_node_num = "kubectl get node --no-headers | wc -l"
     return_code, out = run_command_for_value(
@@ -465,31 +483,13 @@ class KueueManager:
     new_memory_limit = (
         f"{max(math.ceil(int(out) * MEMORY_SIZE_PER_VM), MIN_MEMORY_LIMIT_SIZE)}Mi"
     )
-    patch = {
-        "spec": {
-            "template": {
-                "spec": {
-                    "containers": [{
-                        "name": "manager",
-                        "resources": {"limits": {"memory": new_memory_limit}},
-                    }]
-                }
-            }
-        }
-    }
-    patch_str = json.dumps(patch)
-    patch_command = (
-        "kubectl patch deployment kueue-controller-manager -n kueue-system"
-        f" --type='strategic' --patch='{patch_str}'"
+    return patch_controller_manager_resources(
+        name="kueue-controller-manager",
+        namespace="kueue-system",
+        patch_resources=PatchResources(
+            memory_limit=new_memory_limit,
+        ),
     )
-    task = "Updating Kueue Controller Manager resources"
-    return_code = run_command_with_updates_retry(
-        patch_command,
-        task,
-    )
-    if return_code != 0:
-      xpk_print(f"{task} returned ERROR {return_code}")
-    return return_code
 
   def __autocorrect_resource_limits(
       self, kueue_config: KueueConfig

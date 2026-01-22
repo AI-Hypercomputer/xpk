@@ -1564,7 +1564,8 @@ func TestWorkloadReconciler(t *testing.T) {
 						PodAnnotations: map[string]string{core.TPUSliceTopologyAnnotation: "4x4x12"},
 					},
 					utiltestingjobsjobset.ReplicatedJobRequirements{
-						Name: "cpu-job",
+						Name:         "cpu-job",
+						NodeSelector: map[string]string{"instance-type": "high-mem"},
 					},
 				).Obj(),
 				utiltesting.MakeSliceWrapper(core.SliceName(corev1.NamespaceDefault, baseWorkloadName, "tpu-job", 0)).
@@ -1619,7 +1620,8 @@ func TestWorkloadReconciler(t *testing.T) {
 					NodeSelector: map[string]string{core.TPUTopologyAnnotation: "4x4x12"},
 				},
 				utiltestingjobsjobset.ReplicatedJobRequirements{
-					Name: "cpu-job",
+					Name:         "cpu-job",
+					NodeSelector: map[string]string{"instance-type": "high-mem"},
 				},
 			).Obj()},
 			wantEvents: []utiltesting.EventRecord{

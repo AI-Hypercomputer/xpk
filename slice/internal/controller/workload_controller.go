@@ -473,7 +473,7 @@ func (r *WorkloadReconciler) updateJobSetBeforeUnsuspend(ctx context.Context, wl
 		topology := rj.Template.Spec.Template.Annotations[core.TPUSliceTopologyAnnotation]
 		replicaJob := core.BaseSSAReplicatedJob(rj.Name)
 		if topology != "" {
-			log.V(5).Info("Copying topology annotation as nodeSelector", "topology", topology)
+			log.V(5).Info("Copying topology annotation as nodeSelector", "topology", topology, "replicatedJobName", rj.Name)
 			replicaJob.Template.Spec.Template.Spec.NodeSelector[core.TPUTopologyAnnotation] = topology
 		}
 		patchJobSet.Spec.ReplicatedJobs[i] = replicaJob

@@ -125,7 +125,7 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 			}
 			err = r.finalizeWorkload(ctx, wl)
 			if apierrors.IsConflict(err) {
-				log.Info("Failed to remove the finalizer", "error", err)
+				log.V(3).Info("Failed to remove the finalizer", "error", err)
 				return ctrl.Result{RequeueAfter: 5 * time.Millisecond}, nil
 			}
 			return ctrl.Result{}, client.IgnoreNotFound(err)

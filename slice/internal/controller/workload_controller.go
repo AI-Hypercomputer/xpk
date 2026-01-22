@@ -467,19 +467,16 @@ func (r *WorkloadReconciler) updateJobSetBeforeUnsuspend(ctx context.Context, wl
 		return err
 	}
 	patchJobSet := core.BaseSSAJobSet(jobSet)
-
-	var patchedRJs []jobset.ReplicatedJob
 	for i := range jobSet.Spec.ReplicatedJobs {
 		rj := &jobSet.Spec.ReplicatedJobs[i]
-		replicaJob := core.BaseSSAReplicatedJob(rj.Name)
 		topology := rj.Template.Spec.Template.Annotations[core.TPUSliceTopologyAnnotation]
+		replicaJob := core.BaseSSAReplicatedJob(rj.Name)
 		if topology != "" {
 			log.V(5).Info("Copying topology annotation as nodeSelector", "topology", topology)
 			replicaJob.Template.Spec.Template.Spec.NodeSelector[core.TPUTopologyAnnotation] = topology
 		}
-		patchedRJs = append(patchedRJs, replicaJob)
+		patchJobSet.Spec.ReplicatedJobs[i] = replicaJob
 	}
-	patchJobSet.Spec.ReplicatedJobs = patchedRJs
 
 	if err := r.client.Patch(ctx, patchJobSet, client.Apply, client.FieldOwner(SliceControllerName), client.ForceOwnership); err != nil {
 		log.Error(err, "Failed to patch JobSet")

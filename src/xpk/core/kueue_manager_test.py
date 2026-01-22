@@ -21,6 +21,7 @@ from pytest_mock import MockerFixture
 import yaml
 from unittest.mock import MagicMock, patch
 
+from xpk.core.kubectl_common import PatchResources
 from xpk.core.kueue_manager import KueueConfig, KueueManager, has_sub_slicing_enabled, has_super_slicing_enabled
 from xpk.core.system_characteristics import GpuConfig, DockerPlatform, AcceleratorType, SystemCharacteristics, UserFacingNameToSystemCharacteristics
 from xpk.core.testing.commands_tester import CommandsTester
@@ -263,7 +264,9 @@ def test_resource_update_for_small_cluster(
   mock_patch_controller_manager_resources.assert_called_with(
       name="kueue-controller-manager",
       namespace="kueue-system",
-      memory_limit="4096Mi",
+      patch_resources=PatchResources(
+          memory_limit="4096Mi",
+      ),
   )
 
 
@@ -283,7 +286,9 @@ def test_resource_update_for_large_cluster(
   mock_patch_controller_manager_resources.assert_called_with(
       name="kueue-controller-manager",
       namespace="kueue-system",
-      memory_limit="6000Mi",
+      patch_resources=PatchResources(
+          memory_limit="6000Mi",
+      ),
   )
 
 
@@ -302,10 +307,12 @@ def test_resource_update_for_super_slicing_cluster(
       name="kueue-controller-manager",
       namespace="kueue-system",
       replicas=3,
-      cpu_request=16,
-      cpu_limit=16,
-      memory_request="64Gi",
-      memory_limit="64Gi",
+      patch_resources=PatchResources(
+          cpu_request=16,
+          cpu_limit=16,
+          memory_request="64Gi",
+          memory_limit="64Gi",
+      ),
   )
 
 

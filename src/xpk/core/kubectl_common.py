@@ -15,27 +15,31 @@ limitations under the License.
 """
 
 from collections import defaultdict
+from dataclasses import dataclass
 import json
 from typing import Any
 
 from .commands import run_command_with_updates_retry
 
 
+@dataclass(frozen=True)
+class PatchResources:
+  cpu_request: int | None = None
+  cpu_limit: int | None = None
+  memory_request: str | None = None
+  memory_limit: str | None = None
+
+
+_EMPTY_PATCH_RESOURCES = PatchResources()
+
+
 def patch_controller_manager_resources(
     name: str,
     namespace: str,
     replicas: int | None = None,
-    cpu_request: int | None = None,
-    cpu_limit: int | None = None,
-    memory_request: str | None = None,
-    memory_limit: str | None = None,
+    patch_resources: PatchResources | None = None,
 ) -> int:
-  if all(
-      map(
-          lambda arg: arg is None,
-          [replicas, cpu_request, cpu_limit, memory_request, memory_limit],
-      )
-  ):
+  if replicas is None and patch_resources is None:
     return 0
 
   patch: dict[str, Any] = {"spec": {}}
@@ -43,21 +47,16 @@ def patch_controller_manager_resources(
   if replicas is not None:
     patch["spec"]["replicas"] = str(replicas)
 
-  if (
-      cpu_request is not None
-      or cpu_limit is not None
-      or memory_request is not None
-      or memory_limit is not None
-  ):
+  if patch_resources and patch_resources != _EMPTY_PATCH_RESOURCES:
     resources: dict[str, dict[str, str]] = defaultdict(dict)
-    if cpu_request is not None:
-      resources["requests"]["cpu"] = str(cpu_request)
-    if cpu_limit is not None:
-      resources["limits"]["cpu"] = str(cpu_limit)
-    if memory_request is not None:
-      resources["requests"]["memory"] = memory_request
-    if memory_limit is not None:
-      resources["limits"]["memory"] = memory_limit
+    if patch_resources.cpu_request is not None:
+      resources["requests"]["cpu"] = str(patch_resources.cpu_request)
+    if patch_resources.cpu_limit is not None:
+      resources["limits"]["cpu"] = str(patch_resources.cpu_limit)
+    if patch_resources.memory_request is not None:
+      resources["requests"]["memory"] = patch_resources.memory_request
+    if patch_resources.memory_limit is not None:
+      resources["limits"]["memory"] = patch_resources.memory_limit
     patch["spec"]["template"] = {
         "spec": {
             "containers": [{

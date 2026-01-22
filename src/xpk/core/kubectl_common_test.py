@@ -16,7 +16,7 @@ limitations under the License.
 
 import json
 import pytest
-from xpk.core.kubectl_common import patch_controller_manager_resources
+from xpk.core.kubectl_common import PatchResources, patch_controller_manager_resources
 from xpk.core.testing.commands_tester import CommandsTester
 
 
@@ -37,10 +37,12 @@ def test_patch_controller_manager_resources_full(
       name="name",
       namespace="namespace",
       replicas=7,
-      cpu_request=1,
-      cpu_limit=2,
-      memory_request="10Gi",
-      memory_limit="20Gi",
+      patch_resources=PatchResources(
+          cpu_request=1,
+          cpu_limit=2,
+          memory_request="10Gi",
+          memory_limit="20Gi",
+      ),
   )
 
   assert result == 0
@@ -94,8 +96,10 @@ def test_patch_controller_manager_resources_only_requests(
   result = patch_controller_manager_resources(
       name="name",
       namespace="namespace",
-      cpu_request=1,
-      memory_request="10Gi",
+      patch_resources=PatchResources(
+          cpu_request=1,
+          memory_request="10Gi",
+      ),
   )
 
   assert result == 0
@@ -127,8 +131,10 @@ def test_patch_controller_manager_resources_only_limits(
   result = patch_controller_manager_resources(
       name="name",
       namespace="namespace",
-      cpu_limit=2,
-      memory_limit="20Gi",
+      patch_resources=PatchResources(
+          cpu_limit=2,
+          memory_limit="20Gi",
+      ),
   )
 
   assert result == 0

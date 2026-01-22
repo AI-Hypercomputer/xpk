@@ -21,7 +21,7 @@ from kubernetes import client as k8s_client
 from kubernetes import config
 from kubernetes.client.exceptions import ApiException
 
-from .kubectl_common import patch_controller_manager_resources
+from .kubectl_common import PatchResources, patch_controller_manager_resources
 from ..utils.feature_flags import FeatureFlags
 from ..utils.console import xpk_exit, xpk_print
 from .capacity import H200_DEVICE_TYPE
@@ -80,10 +80,12 @@ def set_jobset_on_cluster(args) -> int:
     return patch_controller_manager_resources(
         name='jobset-controller-manager',
         namespace='jobset-system',
-        cpu_request=4,
-        cpu_limit=4,
-        memory_request='16Gi',
-        memory_limit='16Gi',
+        patch_resources=PatchResources(
+            cpu_request=4,
+            cpu_limit=4,
+            memory_request='16Gi',
+            memory_limit='16Gi',
+        ),
     )
 
   return 0

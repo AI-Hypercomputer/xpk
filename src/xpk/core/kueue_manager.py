@@ -20,7 +20,7 @@ from typing import Optional, List, Dict, Any
 import json
 from jinja2 import Environment, FileSystemLoader
 
-from .kubectl_common import patch_controller_manager_resources
+from .kubectl_common import PatchResources, patch_controller_manager_resources
 from ..utils.topology import get_slice_topology_level, get_topology_product, is_topology_contained
 from ..utils.kueue import is_queued_cluster
 from kubernetes.utils import parse_quantity
@@ -464,10 +464,12 @@ class KueueManager:
           name="kueue-controller-manager",
           namespace="kueue-system",
           replicas=3,
-          cpu_request=16,
-          cpu_limit=16,
-          memory_request="64Gi",
-          memory_limit="64Gi",
+          patch_resources=PatchResources(
+              cpu_request=16,
+              cpu_limit=16,
+              memory_request="64Gi",
+              memory_limit="64Gi",
+          ),
       )
 
     # Get total number of nodes
@@ -484,7 +486,9 @@ class KueueManager:
     return patch_controller_manager_resources(
         name="kueue-controller-manager",
         namespace="kueue-system",
-        memory_limit=new_memory_limit,
+        patch_resources=PatchResources(
+            memory_limit=new_memory_limit,
+        ),
     )
 
   def __autocorrect_resource_limits(

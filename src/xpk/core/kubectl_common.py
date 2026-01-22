@@ -16,6 +16,7 @@ limitations under the License.
 
 from collections import defaultdict
 import json
+from typing import Any
 
 from .commands import run_command_with_updates_retry
 
@@ -37,7 +38,7 @@ def patch_controller_manager_resources(
   ):
     return 0
 
-  patch = {"spec": {}}
+  patch: dict[str, Any] = {"spec": {}}
 
   if replicas is not None:
     patch["spec"]["replicas"] = str(replicas)
@@ -48,7 +49,7 @@ def patch_controller_manager_resources(
       or memory_request is not None
       or memory_limit is not None
   ):
-    resources = defaultdict(dict)
+    resources: dict[str, dict[str, str]] = defaultdict(dict)
     if cpu_request is not None:
       resources["requests"]["cpu"] = str(cpu_request)
     if cpu_limit is not None:

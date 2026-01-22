@@ -307,8 +307,8 @@ description: "Very High"
 kubectl apply -f ff0e8bb58b2038c4b29f1bce1aabe9f02ac0757ae2e80ad3657f704542371839
 [XPK] Task: `Count total nodes` is implemented by the following command not running since it is a dry run. 
 kubectl get node --no-headers | wc -l
-[XPK] Try 1: Updating Kueue Controller Manager resources
-[XPK] Task: `Updating Kueue Controller Manager resources` is implemented by the following command not running since it is a dry run. 
+[XPK] Try 1: Updating Controller Manager resources
+[XPK] Task: `Updating Controller Manager resources` is implemented by the following command not running since it is a dry run. 
 kubectl patch deployment kueue-controller-manager -n kueue-system --type='strategic' --patch='{"spec": {"template": {"spec": {"containers": [{"name": "manager", "resources": {"limits": {"memory": "4096Mi"}}}]}}}}'
 [XPK] GKE commands done! Resources are created.
 [XPK] See your GKE Cluster here: https://console.cloud.google.com/kubernetes/clusters/details/us-central1/golden-cluster/details?project=golden-project

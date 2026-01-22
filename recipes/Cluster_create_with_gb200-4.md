@@ -287,8 +287,8 @@ spec:
 kubectl apply -f c177e643775bb8e3462648245162a984934b0e09a13b0e3bfb62adf8585442b0
 [XPK] Task: `Count total nodes` is implemented by the following command not running since it is a dry run. 
 kubectl get node --no-headers | wc -l
-[XPK] Try 1: Updating Kueue Controller Manager resources
-[XPK] Task: `Updating Kueue Controller Manager resources` is implemented by the following command not running since it is a dry run. 
+[XPK] Try 1: Updating Controller Manager resources
+[XPK] Task: `Updating Controller Manager resources` is implemented by the following command not running since it is a dry run. 
 kubectl patch deployment kueue-controller-manager -n kueue-system --type='strategic' --patch='{"spec": {"template": {"spec": {"containers": [{"name": "manager", "resources": {"limits": {"memory": "4096Mi"}}}]}}}}'
 [XPK] Installing NCCL Plugin for cluster
 [XPK] Task: `Install NCCL Plugin On Cluster` is implemented by the following command not running since it is a dry run. 

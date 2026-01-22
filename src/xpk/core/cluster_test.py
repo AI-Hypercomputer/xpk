@@ -14,10 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from unittest.mock import MagicMock
 import pytest
 from .testing.commands_tester import CommandsTester
-from .cluster import get_cluster_credentials, update_gke_cluster_with_lustre_driver_enabled, update_cluster_with_lustre_driver_if_necessary
+from .cluster import get_cluster_credentials, update_gke_cluster_with_lustre_driver_enabled, update_cluster_with_lustre_driver_if_necessary, set_jobset_on_cluster
 from pytest_mock import MockerFixture
+from ..utils.feature_flags import FeatureFlags
 
 
 @pytest.fixture(autouse=True)
@@ -26,6 +28,9 @@ def commands_tester(mocker: MockerFixture) -> CommandsTester:
       mocker=mocker,
       run_command_for_value_path="xpk.core.cluster.run_command_for_value",
       run_command_with_updates_path="xpk.core.cluster.run_command_with_updates",
+      run_command_with_updates_retry_path=(
+          "xpk.core.cluster.run_command_with_updates_retry"
+      ),
   )
 
 
@@ -38,7 +43,17 @@ def mock_location(mocker: MockerFixture):
 
 @pytest.fixture(autouse=True)
 def command_args(mocker: MockerFixture):
-  return mocker.Mock(cluster="cluster", project="project", zone="zone")
+  return mocker.Mock(
+      cluster="cluster", project="project", zone="zone", super_slicing=False
+  )
+
+
+@pytest.fixture(autouse=True)
+def mock_patch_controller_manager_resources(mocker: MockerFixture) -> MagicMock:
+  return mocker.patch(
+      "xpk.core.cluster.patch_controller_manager_resources",
+      return_value=0,
+  )
 
 
 def test_get_cluster_credentials_returns_1_when_retrieval_commands_fail(
@@ -195,3 +210,24 @@ def test_update_gke_cluster_with_lustre_driver_enabled_legacy_port(
       "gcloud container clusters update cluster --project=project"
       " --location=us-central1 --quiet --enable-legacy-lustre-port"
   ]
+
+
+def test_set_jobset_on_cluster_not_setting_resources_by_default(
+    mock_patch_controller_manager_resources: MagicMock, command_args
+):
+  result = set_jobset_on_cluster(command_args)
+
+  assert result == 0
+  mock_patch_controller_manager_resources.assert_not_called()
+
+
+def test_set_jobset_on_cluster_super_slicing_resources(
+    mock_patch_controller_manager_resources: MagicMock, command_args
+):
+  FeatureFlags.SUPER_SLICING_ENABLED = True
+  command_args.super_slicing = True
+
+  result = set_jobset_on_cluster(command_args)
+
+  assert result == 0
+  mock_patch_controller_manager_resources.assert_called()

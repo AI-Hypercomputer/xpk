@@ -1530,6 +1530,102 @@ func TestWorkloadReconciler(t *testing.T) {
 				buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, AdmissionCheckUpdatedEventType, fmt.Sprintf(`Admission check %q updated state from "Pending" to "Ready"`, baseACName)),
 			},
 		},
+		"should set nodeSelector at Jobset only for TPU jobs when all slices are ready": {
+			request: baseRequest,
+			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapper.Clone().
+					PodSets(
+						*utiltesting.MakePodSet("tpu-job", 2, ptr.To(int32(1))).
+							Annotation(core.TPUSliceTopologyAnnotation, "4x4x12").
+							NodeSelector("cloud.google.com/gke-tpu-accelerator", string(slice.TypeTpu7x)).
+							Obj(),
+						*utiltesting.MakePodSet("cpu-job", 2, ptr.To(int32(1))).
+							Obj(),
+					).
+					ReserveQuota(&kueue.Admission{
+						PodSetAssignments: []kueue.PodSetAssignment{
+							utiltesting.MakePodSetAssignment("tpu-job").
+								TopologyAssignment(baseLevels, []kueue.TopologyAssignmentSlice{
+									utiltesting.MakeTopologyAssignmentSlice(1, []int32{2}).
+										Value("worker1").
+										Obj(),
+								}).Obj(),
+							utiltesting.MakePodSetAssignment("cpu-job").Obj(),
+						},
+					}, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					Obj(),
+				baseJobSetWrapper.Clone().ReplicatedJobs(
+					utiltestingjobsjobset.ReplicatedJobRequirements{
+						Name:           "tpu-job",
+						PodAnnotations: map[string]string{core.TPUSliceTopologyAnnotation: "4x4x12"},
+					},
+					utiltestingjobsjobset.ReplicatedJobRequirements{
+						Name: "cpu-job",
+					},
+				).Obj(),
+				utiltesting.MakeSliceWrapper(core.SliceName(corev1.NamespaceDefault, baseWorkloadName, "tpu-job", 0)).
+					Type(slice.TypeTpu7x).
+					Topology("4x4x12").
+					OwnerWorkloadAnnotations(corev1.NamespaceDefault, baseWorkloadName).
+					PartitionIDs("subblock1").
+					Active().
+					Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapper.Clone().
+					PodSets(
+						*utiltesting.MakePodSet("tpu-job", 2, ptr.To(int32(1))).
+							Annotation(core.TPUSliceTopologyAnnotation, "4x4x12").
+							NodeSelector("cloud.google.com/gke-tpu-accelerator", string(slice.TypeTpu7x)).
+							Obj(),
+						*utiltesting.MakePodSet("cpu-job", 2, ptr.To(int32(1))).
+							Obj(),
+					).
+					ReserveQuota(&kueue.Admission{
+						PodSetAssignments: []kueue.PodSetAssignment{
+							utiltesting.MakePodSetAssignment("tpu-job").
+								TopologyAssignment(baseLevels, []kueue.TopologyAssignmentSlice{
+									utiltesting.MakeTopologyAssignmentSlice(1, []int32{2}).
+										Value("worker1").
+										Obj(),
+								}).Obj(),
+							utiltesting.MakePodSetAssignment("cpu-job").Obj(),
+						},
+					}, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStateReady, `Slices are in states: 1 ACTIVE`)).
+					Obj(),
+			},
+			wantSlices: []slice.Slice{
+				*utiltesting.MakeSliceWrapper(core.SliceName(corev1.NamespaceDefault, baseWorkloadName, "tpu-job", 0)).
+					Type(slice.TypeTpu7x).
+					Topology("4x4x12").
+					OwnerWorkloadAnnotations(corev1.NamespaceDefault, baseWorkloadName).
+					PartitionIDs("subblock1").
+					Active().
+					Obj(),
+			},
+			wantJobSets: []jobset.JobSet{*baseJobSetWrapper.Clone().ReplicatedJobs(
+				utiltestingjobsjobset.ReplicatedJobRequirements{
+					Name: "tpu-job",
+					PodAnnotations: map[string]string{
+						core.TPUSliceTopologyAnnotation: "4x4x12",
+					},
+					NodeSelector: map[string]string{core.TPUTopologyAnnotation: "4x4x12"},
+				},
+				utiltestingjobsjobset.ReplicatedJobRequirements{
+					Name: "cpu-job",
+				},
+			).Obj()},
+			wantEvents: []utiltesting.EventRecord{
+				buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, AdmissionCheckUpdatedEventType, fmt.Sprintf(`Admission check %q updated state from "Pending" to "Ready"`, baseACName)),
+			},
+		},
 		"should update the Workload's AdmissionCheckState when one Slice is in the Failed state": {
 			request: baseRequest,
 			objs: []client.Object{

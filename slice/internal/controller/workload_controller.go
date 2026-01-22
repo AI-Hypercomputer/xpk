@@ -467,6 +467,7 @@ func (r *WorkloadReconciler) updateJobSetBeforeUnsuspend(ctx context.Context, wl
 		return err
 	}
 	patchJobSet := core.BaseSSAJobSet(jobSet)
+
 	for i := range jobSet.Spec.ReplicatedJobs {
 		rj := &jobSet.Spec.ReplicatedJobs[i]
 		topology := rj.Template.Spec.Template.Annotations[core.TPUSliceTopologyAnnotation]
@@ -477,7 +478,6 @@ func (r *WorkloadReconciler) updateJobSetBeforeUnsuspend(ctx context.Context, wl
 		}
 		patchJobSet.Spec.ReplicatedJobs[i] = replicaJob
 	}
-
 	if err := r.client.Patch(ctx, patchJobSet, client.Apply, client.FieldOwner(SliceControllerName), client.ForceOwnership); err != nil {
 		log.Error(err, "Failed to patch JobSet")
 		return err

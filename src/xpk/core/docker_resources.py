@@ -23,7 +23,7 @@ from ..utils.execution_context import is_dry_run
 
 
 def get_main_container_resources(
-    args, system: SystemCharacteristics, resource_type
+    args, system: SystemCharacteristics, resource_type: str, parallel_containers: int
 ) -> str:
   """Resources for the main container.
   Args:
@@ -55,7 +55,7 @@ def get_main_container_resources(
 
   return (
       f'{resource_type}:'
-      f' {int(system.chips_per_vm / system.parallel_containers)}'
+      f' {int(system.chips_per_vm / parallel_containers)}'
   )
 
 

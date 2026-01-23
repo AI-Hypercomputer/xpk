@@ -181,7 +181,9 @@ def get_main_container(
             tpu_stacktrace_terminate_command=tpu_stacktrace_terminate_command,
             gpu_workload_terminate_command=gpu_workload_terminate_command,
             xpk_internal_commands=xpk_internal_commands,
-            resources=get_main_container_resources(args, system, resource_type),
+            resources=get_main_container_resources(
+                args, system, resource_type, parallel_containers
+            ),
             volume_mounts=volume_mounts,
         )
     )

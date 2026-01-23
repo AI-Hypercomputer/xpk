@@ -739,19 +739,6 @@ var _ = ginkgo.Describe("JobSet", func() {
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
 
-			ginkgo.By("Setting Slice state to error", func() {
-				gomega.Eventually(func(g gomega.Gomega) {
-					g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
-					meta.SetStatusCondition(&createdSlice.Status.Conditions, metav1.Condition{
-						Type:    slice.SliceStateConditionType,
-						Status:  metav1.ConditionFalse,
-						Reason:  string(core.SliceCreationFailed),
-						Message: "Slice creation failed",
-					})
-					g.Expect(k8sClient.Status().Update(ctx, createdSlice)).To(gomega.Succeed())
-				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
-			})
-
 			ginkgo.By(fmt.Sprintf("Setting the old cube %s to unhealthy", oldCube), func() {
 				var nodeName string
 				gomega.Eventually(func(g gomega.Gomega) {
@@ -769,7 +756,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 				gomega.Eventually(func(g gomega.Gomega) {
 					node := &corev1.Node{}
 					g.Expect(k8sClient.Get(ctx, client.ObjectKey{Name: nodeName}, node)).To(gomega.Succeed())
-					delete(node.Labels, core.TPUSliceHealthNodeSelectorKey)
+					node.Labels[core.TPUSliceHealthNodeSelectorKey] = "UNHEALTHY"
 					g.Expect(k8sClient.Update(ctx, node)).To(gomega.Succeed())
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 
@@ -781,6 +768,19 @@ var _ = ginkgo.Describe("JobSet", func() {
 						g.Expect(k8sClient.Update(ctx, node)).To(gomega.Succeed())
 					}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 				}, nodeName)
+			})
+
+			ginkgo.By("Setting Slice state to error", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
+					meta.SetStatusCondition(&createdSlice.Status.Conditions, metav1.Condition{
+						Type:    slice.SliceStateConditionType,
+						Status:  metav1.ConditionFalse,
+						Reason:  string(core.SliceCreationFailed),
+						Message: "Slice creation failed",
+					})
+					g.Expect(k8sClient.Status().Update(ctx, createdSlice)).To(gomega.Succeed())
+				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
 
 			ginkgo.By("Verifying new TopologyAssignment", func() {
@@ -826,6 +826,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						State:   kueue.CheckStateReady,
 						Message: `Slices are in states: 1 ACTIVE`,
 					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates", "RetryCount")))
+					g.Expect(createdWorkload.Status.SchedulingStats.Evictions).Should(gomega.HaveLen(1))
 				}, utils.LongTimeout, utils.Interval).Should(gomega.Succeed())
 			})
 

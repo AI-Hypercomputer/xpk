@@ -1559,13 +1559,13 @@ func TestWorkloadReconciler(t *testing.T) {
 					Finalizers(SliceControllerName).
 					Obj(),
 				baseJobSetWrapper.Clone().ReplicatedJobs(
-					utiltestingjobsjobset.ReplicatedJobRequirements{
+					utiltestingjobsjobset.ReplicatedJobRequirements{ // this job uses TPUs, so it should get nodeSelector from the controller
 						Name:           "tpu-job",
 						PodAnnotations: map[string]string{core.TPUSliceTopologyAnnotation: "4x4x12"},
 					},
-					utiltestingjobsjobset.ReplicatedJobRequirements{
+					utiltestingjobsjobset.ReplicatedJobRequirements{ // this job does not use TPUs, so it should not get nodeSelector from the controller
 						Name:         "cpu-job",
-						NodeSelector: map[string]string{"instance-type": "high-mem"},
+						NodeSelector: map[string]string{"instance-type": "high-mem"}, // this is an extra node selector that should be preserved
 					},
 				).Obj(),
 				utiltesting.MakeSliceWrapper(core.SliceName(corev1.NamespaceDefault, baseWorkloadName, "tpu-job", 0)).
@@ -1617,11 +1617,11 @@ func TestWorkloadReconciler(t *testing.T) {
 					PodAnnotations: map[string]string{
 						core.TPUSliceTopologyAnnotation: "4x4x12",
 					},
-					NodeSelector: map[string]string{core.TPUTopologyAnnotation: "4x4x12"},
+					NodeSelector: map[string]string{core.TPUTopologyAnnotation: "4x4x12"}, // this should be set by the controller
 				},
 				utiltestingjobsjobset.ReplicatedJobRequirements{
 					Name:         "cpu-job",
-					NodeSelector: map[string]string{"instance-type": "high-mem"},
+					NodeSelector: map[string]string{"instance-type": "high-mem"}, // this is a node selector that should be preserved
 				},
 			).Obj()},
 			wantEvents: []utiltesting.EventRecord{

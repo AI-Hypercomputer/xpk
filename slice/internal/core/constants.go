@@ -28,6 +28,8 @@ const (
 	TPUAcceleratorLabel        = "cloud.google.com/gke-tpu-accelerator"
 	TPUBlockLabel              = "cloud.google.com/gce-topology-block"
 	TPUSubBlockLabel           = "cloud.google.com/gke-tpu-partition-4x4x4-id"
+	TPUResourceName            = "google.com/tpu"
+	TPUsPerCube                = 64
 
 	TPUSliceHealthNodeSelectorKey      = "cloud.google.com/gke-tpu-partition-4x4x4-state"
 	TPUSliceHealthNodeSelectorHealthy  = "HEALTHY"

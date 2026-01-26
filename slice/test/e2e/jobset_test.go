@@ -80,7 +80,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 		cq = testing.MakeClusterQueue("cq").
 			AdmissionChecks(ac.Name).
 			ResourceGroup(*testing.MakeFlavorQuotas(rf.Name).
-				Resource(extraResource, "9999").
+				Resource(core.TPUResourceName, "9999").
 				Obj()).
 			Obj()
 		utils.MustCreate(ctx, k8sClient, cq)
@@ -158,7 +158,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 							Affinity:     affinity,
 						},
 					).
-					RequestAndLimit("rj1", extraResource, tc.tpuRequests).
+					RequestAndLimit("rj1", core.TPUResourceName, tc.tpuRequests).
 					FailurePolicy(&jobset.FailurePolicy{
 						MaxRestarts: 0,
 					}).
@@ -455,7 +455,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 							},
 						},
 					).
-					RequestAndLimit("rj1", extraResource, tc.tpuRequests).
+					RequestAndLimit("rj1", core.TPUResourceName, tc.tpuRequests).
 					Obj()
 
 				ginkgo.By("Creating a JobSet", func() {
@@ -589,7 +589,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						LifecyclePreStopSleepSeconds:  60,
 					},
 				).
-				RequestAndLimit("rj1", extraResource, "1").
+				RequestAndLimit("rj1", core.TPUResourceName, "1").
 				Obj()
 
 			ginkgo.By("Creating a JobSet", func() {
@@ -682,7 +682,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						},
 					},
 				).
-				RequestAndLimit("rj1", extraResource, "1").
+				RequestAndLimit("rj1", core.TPUResourceName, "1").
 				Obj()
 
 			ginkgo.By("Creating a JobSet", func() {
@@ -862,7 +862,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						},
 					},
 				).
-				RequestAndLimit("rj1", extraResource, "1").
+				RequestAndLimit("rj1", core.TPUResourceName, "1").
 				Obj()
 
 			ginkgo.By("Creating a JobSet", func() {
@@ -976,7 +976,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						},
 					},
 				).
-				RequestAndLimit("rj1", extraResource, "1").
+				RequestAndLimit("rj1", core.TPUResourceName, "1").
 				Obj()
 
 			ginkgo.By("Creating a JobSet", func() {
@@ -1076,8 +1076,8 @@ var _ = ginkgo.Describe("JobSet", func() {
 						},
 					},
 				).
-				RequestAndLimit("rj1", extraResource, "4").
-				RequestAndLimit("rj2", extraResource, "4").
+				RequestAndLimit("rj1", core.TPUResourceName, "4").
+				RequestAndLimit("rj2", core.TPUResourceName, "4").
 				Obj()
 
 			ginkgo.By("Creating a JobSet", func() {

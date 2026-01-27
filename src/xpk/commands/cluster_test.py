@@ -22,7 +22,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from xpk.core.telemetry import MetricsCollector
-from xpk.commands.cluster import _install_kueue, _validate_cluster_create_args, run_gke_cluster_create_command, cluster_create, _log_cluster_create_telemetry
+from xpk.commands.cluster import _install_kueue, _validate_cluster_create_args, _get_coredns_replica_count, run_gke_cluster_create_command, cluster_create, _log_cluster_create_telemetry
 from xpk.core.capacity import CapacityType
 from xpk.core.system_characteristics import SystemCharacteristics, UserFacingNameToSystemCharacteristics
 from xpk.core.testing.commands_tester import CommandsTester
@@ -787,3 +787,18 @@ def test_validate_cluster_create_args_sets_correct_num_slices(
   _validate_cluster_create_args(args, SUPER_SLICING_SYSTEM)
 
   assert args.num_slices == expected
+
+
+def test_get_coredns_replica_count_lower_limit_is_number_of_nodes():
+  args = construct_args(
+      default_pool_cpu_num_nodes=7,
+  )
+
+  assert _get_coredns_replica_count(args) == 7
+
+
+def test_get_coredns_replica_count_upper_limit_is_15():
+  args = construct_args(
+      default_pool_cpu_num_nodes=20,
+  )
+  assert _get_coredns_replica_count(args) == 15

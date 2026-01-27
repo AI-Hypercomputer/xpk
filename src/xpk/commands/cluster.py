@@ -369,7 +369,7 @@ def cluster_create(args) -> None:
 
   get_cluster_credentials(args)
 
-  update_coredns_command_code = update_coredns_if_necessary()
+  update_coredns_command_code = update_coredns_if_necessary(args)
   if update_coredns_command_code != 0:
     xpk_exit(update_coredns_command_code)
 
@@ -927,7 +927,7 @@ def scale_down_deployment(deployment_name: str, namespace: str = 'kube-system'):
   xpk_print(f'{deployment_name} has been scaled down.')
 
 
-def scale_up_coredns(replicas: int = 15, namespace: str = 'kube-system'):
+def scale_up_coredns(replicas: int, namespace: str = 'kube-system'):
   """Scales up the CoreDNS deployment to a specified number of replicas."""
   command_coredns_scale = (
       f'kubectl scale deployment coredns --replicas={replicas} -n {namespace}'
@@ -1008,7 +1008,14 @@ def cleanup_coredns_repo(coredns_repo_full_path: str):
     xpk_print(f'Error deleting directory {coredns_repo_full_path}: {e}')
 
 
-def update_coredns() -> int:
+def _get_coredns_replica_count(args) -> int:
+  # XPK large scale guide recommends 15 coreDNS replicas for clusters with 5000 VMs.
+  # Otherwise, limit the replica count to the desired number of default pool nodes.
+  default_pool_node_count: int = args.default_pool_cpu_num_nodes
+  return min(15, default_pool_node_count)
+
+
+def update_coredns(args) -> int:
   """Updates and deploys CoreDNS within a cluster.
 
   Returns:
@@ -1018,6 +1025,8 @@ def update_coredns() -> int:
   coredns_repo_dir_name = 'deployment'
   coredns_repo_full_path = os.path.join(coredns_repo_dir, coredns_repo_dir_name)
   coredns_k8s_path = os.path.join(coredns_repo_full_path, 'kubernetes')
+  coredns_replica_count = _get_coredns_replica_count(args)
+
   # 1. Install jq
   install_jq()
 
@@ -1034,7 +1043,7 @@ def update_coredns() -> int:
   scale_down_deployment('kube-dns')
 
   # 6. Scale up coredns and verify readiness
-  scale_up_coredns(replicas=15)
+  scale_up_coredns(coredns_replica_count)
   verify_coredns_readiness()
 
   xpk_print('The CoreDNS setup process has been completed.')
@@ -1074,7 +1083,7 @@ def coredns_deployment_exists(namespace: str = 'kube-system') -> bool:
     return False
 
 
-def update_coredns_if_necessary() -> int:
+def update_coredns_if_necessary(args) -> int:
   """Updates and deploys CoreDNS within the cluster if it's not already present.
 
   This function checks for the existence of the CoreDNS deployment.
@@ -1089,7 +1098,7 @@ def update_coredns_if_necessary() -> int:
     return 0
   else:
     xpk_print('CoreDNS deployment not found. Proceeding with CoreDNS setup.')
-    return update_coredns()
+    return update_coredns(args)
 
 
 def create_cluster_if_necessary(

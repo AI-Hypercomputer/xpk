@@ -577,8 +577,8 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Image:       utils.E2eTestAgnHostImage,
 						Args:        utils.BehaviorWaitForDeletion,
 						Replicas:    1,
-						Parallelism: 1,
-						Completions: 1,
+						Parallelism: 16,
+						Completions: 16,
 						PodAnnotations: map[string]string{
 							core.TPUSliceTopologyAnnotation: "4x4x4",
 						},
@@ -589,7 +589,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						LifecyclePreStopSleepSeconds:  60,
 					},
 				).
-				RequestAndLimit("rj1", core.TPUResourceName, "1").
+				RequestAndLimit("rj1", core.TPUResourceName, "4").
 				Obj()
 
 			ginkgo.By("Creating a JobSet", func() {
@@ -633,7 +633,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 				pods := &corev1.PodList{}
 				gomega.Eventually(func(g gomega.Gomega) {
 					g.Expect(k8sClient.List(ctx, pods, client.InNamespace(ns.Name))).To(gomega.Succeed())
-					g.Expect(pods.Items).Should(gomega.HaveLen(1))
+					g.Expect(pods.Items).Should(gomega.HaveLen(16))
 					for _, pod := range pods.Items {
 						g.Expect(pod.Status.Phase).To(gomega.Equal(corev1.PodRunning))
 					}
@@ -672,8 +672,8 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Image:       utils.E2eTestAgnHostImage,
 						Args:        utils.BehaviorWaitForDeletion,
 						Replicas:    1,
-						Parallelism: 1,
-						Completions: 1,
+						Parallelism: 16,
+						Completions: 16,
 						PodAnnotations: map[string]string{
 							core.TPUSliceTopologyAnnotation: "4x4x4",
 						},
@@ -682,7 +682,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						},
 					},
 				).
-				RequestAndLimit("rj1", core.TPUResourceName, "1").
+				RequestAndLimit("rj1", core.TPUResourceName, "4").
 				Obj()
 
 			ginkgo.By("Creating a JobSet", func() {
@@ -852,8 +852,8 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Image:       utils.E2eTestAgnHostImage,
 						Args:        utils.BehaviorWaitForDeletion,
 						Replicas:    1,
-						Parallelism: 1,
-						Completions: 1,
+						Parallelism: 16,
+						Completions: 16,
 						PodAnnotations: map[string]string{
 							core.TPUSliceTopologyAnnotation: "4x4x4",
 						},
@@ -862,7 +862,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						},
 					},
 				).
-				RequestAndLimit("rj1", core.TPUResourceName, "1").
+				RequestAndLimit("rj1", core.TPUResourceName, "4").
 				Obj()
 
 			ginkgo.By("Creating a JobSet", func() {
@@ -966,8 +966,8 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Image:       utils.E2eTestAgnHostImage,
 						Args:        utils.BehaviorWaitForDeletion,
 						Replicas:    1,
-						Parallelism: 1,
-						Completions: 1,
+						Parallelism: 16,
+						Completions: 16,
 						PodAnnotations: map[string]string{
 							core.TPUSliceTopologyAnnotation: "4x4x4",
 						},
@@ -976,7 +976,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						},
 					},
 				).
-				RequestAndLimit("rj1", core.TPUResourceName, "1").
+				RequestAndLimit("rj1", core.TPUResourceName, "4").
 				Obj()
 
 			ginkgo.By("Creating a JobSet", func() {

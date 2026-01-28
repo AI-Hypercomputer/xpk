@@ -15,11 +15,11 @@ install-dev: check-python check-gcloud mkdir-bin install-kueuectl pip-install pi
 
 .PHONY: pip-install-dev
 pip-install-dev:
-	pip install -e ".[dev]"
+	pip install --no-build-isolation -e ".[dev]"
 
 .PHONY: pip-install
 pip-install:
-	pip install -e .
+	pip install --no-build-isolation -e .
 
 .PHONY: install-pytest
 install-pytest:

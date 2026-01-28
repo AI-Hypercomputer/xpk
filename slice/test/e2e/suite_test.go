@@ -29,12 +29,12 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"tpu-slice-controller/internal/core"
 	utilclient "tpu-slice-controller/internal/util/client"
 	"tpu-slice-controller/test/utils"
 )
 
 const (
-	extraResource  = "cloud.google.com/tpu"
 	nodeGroupLabel = "cloud.google.com/gke-node-group"
 	nodeGroup      = "tas-group"
 )
@@ -82,8 +82,8 @@ var _ = ginkgo.BeforeSuite(func() {
 			node := &corev1.Node{}
 			g.Expect(k8sClient.Get(ctx, client.ObjectKey{Name: n.Name}, node)).To(gomega.Succeed())
 			err := utilclient.PatchStatus(ctx, k8sClient, node, func() (bool, error) {
-				node.Status.Capacity[extraResource] = resource.MustParse("64")
-				node.Status.Allocatable[extraResource] = resource.MustParse("64")
+				node.Status.Capacity[core.TPUResourceName] = resource.MustParse("64")
+				node.Status.Allocatable[core.TPUResourceName] = resource.MustParse("64")
 				return true, nil
 			})
 			g.Expect(err).NotTo(gomega.HaveOccurred())

@@ -83,7 +83,7 @@ func (j *JobSetWrapper) UID(uid string) *JobSetWrapper {
 func (j *JobSetWrapper) ReplicatedJobs(replicatedJobs ...ReplicatedJobRequirements) *JobSetWrapper {
 	j.Spec.ReplicatedJobs = make([]jobsetapi.ReplicatedJob, len(replicatedJobs))
 	for index, req := range replicatedJobs {
-		jt := jobsetutil.MakeJobTemplate("", "").PodSpec(TestPodSpec).Obj()
+		jt := jobsetutil.MakeJobTemplate("", "").PodSpec(*TestPodSpec.DeepCopy()).Obj()
 		jt.Labels = req.Labels
 		jt.Annotations = req.Annotations
 		jt.Spec.Parallelism = ptr.To(req.Parallelism)

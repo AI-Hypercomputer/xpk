@@ -91,17 +91,17 @@ func (r *JobSetWebhook) annotateReplicatedJobWithTopology(rj *v1alpha2.Replicate
 	if err != nil {
 		return err
 	}
-	tpuRequestedPerPod := r.getTPURequestedPerPod(rj)
-	tpuRequestedPerCube := tpuRequestedPerPod * sliceSize
-	if tpuRequestedPerCube != core.TPUsPerCube {
-		return fmt.Errorf("invalid replicated job %q: configuration results in %d TPUs requested per cube, but must be exactly %d TPUs (full utilization)", rj.Name, tpuRequestedPerCube, core.TPUsPerCube)
+	tpusRequestedPerPod := r.getTPUsRequestedPerPod(rj)
+	tpusRequestedPerCube := tpusRequestedPerPod * sliceSize
+	if tpusRequestedPerCube != core.TPUsPerCube {
+		return fmt.Errorf("invalid replicated job %q: configuration results in %d TPUs requested per cube, but must be exactly %d TPUs (full utilization)", rj.Name, tpusRequestedPerCube, core.TPUsPerCube)
 	}
 
 	rj.Template.Spec.Template.Annotations[kueue.PodSetSliceSizeAnnotation] = strconv.FormatInt(sliceSize, 10)
 	return nil
 }
 
-func (r *JobSetWebhook) getTPURequestedPerPod(rj *v1alpha2.ReplicatedJob) int64 {
+func (r *JobSetWebhook) getTPUsRequestedPerPod(rj *v1alpha2.ReplicatedJob) int64 {
 	var totalTPUs int64
 	for _, container := range rj.Template.Spec.Template.Spec.Containers {
 		if tpuQuantity, ok := container.Resources.Limits[core.TPUResourceName]; ok {

@@ -51,7 +51,7 @@ def test_patch_controller_manager_resources_full(
   )
   expected_patch_dict = {
       "spec": {
-          "replicas": "7",
+          "replicas": 7,
           "template": {
               "spec": {
                   "containers": [{
@@ -82,7 +82,7 @@ def test_patch_controller_manager_resources_only_replicas(
   assert result == 0
   expected_patch_dict = {
       "spec": {
-          "replicas": "7",
+          "replicas": 7,
       }
   }
   commands_tester.assert_command_run(

@@ -45,7 +45,7 @@ def patch_controller_manager_resources(
   patch: dict[str, Any] = {"spec": {}}
 
   if replicas is not None:
-    patch["spec"]["replicas"] = str(replicas)
+    patch["spec"]["replicas"] = replicas
 
   if patch_resources and patch_resources != _EMPTY_PATCH_RESOURCES:
     resources: dict[str, dict[str, str]] = defaultdict(dict)

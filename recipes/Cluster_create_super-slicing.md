@@ -304,7 +304,7 @@ spec:
 kubectl apply -f 6df31e8df3d8970d7ed3bf3aa948ae7cea9487c15ed6cfb1577ca6c948cf5525
 [XPK] Try 1: Updating Controller Manager resources
 [XPK] Task: `Updating Controller Manager resources` is implemented by the following command not running since it is a dry run. 
-kubectl patch deployment kueue-controller-manager -n kueue-system --type='strategic' --patch='{"spec": {"replicas": "3", "template": {"spec": {"containers": [{"name": "manager", "resources": {"requests": {"cpu": "16", "memory": "64Gi"}, "limits": {"cpu": "16", "memory": "64Gi"}}}]}}}}'
+kubectl patch deployment kueue-controller-manager -n kueue-system --type='strategic' --patch='{"spec": {"replicas": 3, "template": {"spec": {"containers": [{"name": "manager", "resources": {"requests": {"cpu": "16", "memory": "64Gi"}, "limits": {"cpu": "16", "memory": "64Gi"}}}]}}}}'
 [XPK] GKE commands done! Resources are created.
 [XPK] See your GKE Cluster here: https://console.cloud.google.com/kubernetes/clusters/details/us-central1/golden-cluster/details?project=golden-project
 [XPK] Exiting XPK cleanly

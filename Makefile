@@ -6,6 +6,7 @@ KUEUECTL_URL = "https://github.com/kubernetes-sigs/kueue/releases/download/$(KUE
 
 PROJECT_DIR := $(realpath $(shell dirname $(firstword $(MAKEFILE_LIST))))
 BIN_PATH=$(PROJECT_DIR)/bin
+PIP_OPTS ?=
 
 .PHONY: install
 install: check-python check-gcloud install-gcloud-auth-plugin install-kueuectl pip-install
@@ -15,11 +16,11 @@ install-dev: check-python check-gcloud mkdir-bin install-kueuectl pip-install pi
 
 .PHONY: pip-install-dev
 pip-install-dev:
-	pip install --no-build-isolation -e ".[dev]"
+	pip install $(PIP_OPTS) -e ".[dev]"
 
 .PHONY: pip-install
 pip-install:
-	pip install --no-build-isolation -e .
+	pip install $(PIP_OPTS) -e .
 
 .PHONY: install-pytest
 install-pytest:

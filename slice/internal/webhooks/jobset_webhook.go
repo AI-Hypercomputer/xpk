@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"strings"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
@@ -79,18 +78,21 @@ func (r *JobSetWebhook) annotateReplicatedJobWithTopology(rj *v1alpha2.Replicate
 		rj.Template.Spec.Template.Annotations = make(map[string]string)
 	}
 
+	tpuTopology := rj.Template.Spec.Template.Annotations[core.TPUSliceTopologyAnnotation]
+	dims, sliceType, err := core.ParseTopology(tpuTopology)
+	if err != nil {
+		return err
+	}
+	if sliceType == core.TopologyTypeSubslice {
+		rj.Template.Spec.Template.Annotations[kueue.PodSetRequiredTopologyAnnotation] = fmt.Sprintf("cloud.google.com/gke-tpu-partition-%s-id", tpuTopology)
+		return nil
+	}
 	rj.Template.Spec.Template.Annotations[kueue.PodSetRequiredTopologyAnnotation] = core.TPUBlockLabel
 	rj.Template.Spec.Template.Annotations[kueue.PodSetSliceRequiredTopologyAnnotation] = core.TPUSubBlockLabel
 
 	pods := ptr.Deref(rj.Template.Spec.Parallelism, 1)
 
-	size, err := r.podSetSliceSize(
-		rj.Template.Spec.Template.Annotations[core.TPUSliceTopologyAnnotation],
-		pods,
-	)
-	if err != nil {
-		return err
-	}
+	size := r.podSetSliceSize(dims, pods)
 	rj.Template.Spec.Template.Annotations[kueue.PodSetSliceSizeAnnotation] = size
 
 	return nil
@@ -119,45 +121,9 @@ func annotateReplicatedJobWithSliceHealth(rj *v1alpha2.ReplicatedJob) {
 	core.AddNodeAffinity(rj, core.TPUSliceHealthNodeSelectorKey, []string{core.TPUSliceHealthNodeSelectorHealthy, core.TPUSliceHealthNodeSelectorDegraded})
 }
 
-func (r *JobSetWebhook) podSetSliceSize(tpuTopology string, parallelism int32) (string, error) {
-	dims, err := parseTopology(tpuTopology)
-	if err != nil {
-		return "", err
-	}
-
+func (r *JobSetWebhook) podSetSliceSize(dims []int64, parallelism int32) string {
 	totalChips := dims[0] * dims[1] * dims[2]
 	subBlockCount := totalChips / 64
 
-	return strconv.FormatInt(int64(parallelism)/subBlockCount, 10), nil
-}
-
-func parseTopology(tpuTopology string) ([]int64, error) {
-	dimensions := strings.Split(tpuTopology, "x")
-	if len(dimensions) != 3 {
-		return nil, fmt.Errorf("invalid topology format: %s, expected 3 dimensions", tpuTopology)
-	}
-
-	dims := make([]int64, 3)
-
-	for i, dim := range dimensions {
-		parsedDim, err := strconv.ParseInt(dim, 10, 32)
-		if err != nil {
-			return nil, err
-		}
-		dims[i] = parsedDim
-	}
-	if dims[0] == 0 || dims[1] == 0 || dims[2] == 0 {
-		return nil, fmt.Errorf("topology dimensions cannot be zero: %s", tpuTopology)
-	}
-	if dims[0]%4 != 0 || dims[1]%4 != 0 || dims[2]%4 != 0 {
-		return nil, fmt.Errorf("topology dimensions must be divisible by 4: %s", tpuTopology)
-	}
-	if dims[0] > dims[1] || dims[1] > dims[2] {
-		return nil, fmt.Errorf("topology dimensions must be in non-decreasing order: %s", tpuTopology)
-	}
-	if dims[0] > 16 || dims[1] > 24 || dims[2] > 24 {
-		return nil, fmt.Errorf("topology dimensions exceed maximum 16x24x24: %s", tpuTopology)
-	}
-
-	return dims, nil
+	return strconv.FormatInt(int64(parallelism)/subBlockCount, 10)
 }

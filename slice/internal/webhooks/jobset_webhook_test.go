@@ -140,6 +140,64 @@ func TestDefault(t *testing.T) {
 				}).NodeAffinity("rj1", core.TPUSliceHealthNodeSelectorKey, []string{core.TPUSliceHealthNodeSelectorHealthy, core.TPUSliceHealthNodeSelectorDegraded}).
 				Obj(),
 		},
+		"should set default values for subslice 2x2x1": {
+			jobSet: testingjobjobset.MakeJobSet(baseJobSetName, utils.DefaultNamespace).
+				Queue("queue-name").
+				ReplicatedJobs(testingjobjobset.ReplicatedJobRequirements{
+					Name:        "rj1",
+					Parallelism: 4,
+					PodAnnotations: map[string]string{
+						core.TPUSliceTopologyAnnotation: "2x2x1",
+					},
+					NodeSelector: map[string]string{
+						"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
+					},
+				}).
+				Obj(),
+			wantJobSet: testingjobjobset.MakeJobSet(baseJobSetName, utils.DefaultNamespace).
+				Queue("queue-name").
+				ReplicatedJobs(testingjobjobset.ReplicatedJobRequirements{
+					Name:        "rj1",
+					Parallelism: 4,
+					PodAnnotations: map[string]string{
+						core.TPUSliceTopologyAnnotation:           "2x2x1",
+						"kueue.x-k8s.io/podset-required-topology": "cloud.google.com/gke-tpu-partition-2x2x1-id",
+					},
+					NodeSelector: map[string]string{
+						"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
+					},
+				}).NodeAffinity("rj1", core.TPUSliceHealthNodeSelectorKey, []string{core.TPUSliceHealthNodeSelectorHealthy, core.TPUSliceHealthNodeSelectorDegraded}).
+				Obj(),
+		},
+		"should set default values for subslice 2x4x4": {
+			jobSet: testingjobjobset.MakeJobSet(baseJobSetName, utils.DefaultNamespace).
+				Queue("queue-name").
+				ReplicatedJobs(testingjobjobset.ReplicatedJobRequirements{
+					Name:        "rj1",
+					Parallelism: 4,
+					PodAnnotations: map[string]string{
+						core.TPUSliceTopologyAnnotation: "2x4x4",
+					},
+					NodeSelector: map[string]string{
+						"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
+					},
+				}).
+				Obj(),
+			wantJobSet: testingjobjobset.MakeJobSet(baseJobSetName, utils.DefaultNamespace).
+				Queue("queue-name").
+				ReplicatedJobs(testingjobjobset.ReplicatedJobRequirements{
+					Name:        "rj1",
+					Parallelism: 4,
+					PodAnnotations: map[string]string{
+						core.TPUSliceTopologyAnnotation:           "2x4x4",
+						"kueue.x-k8s.io/podset-required-topology": "cloud.google.com/gke-tpu-partition-2x4x4-id",
+					},
+					NodeSelector: map[string]string{
+						"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
+					},
+				}).NodeAffinity("rj1", core.TPUSliceHealthNodeSelectorKey, []string{core.TPUSliceHealthNodeSelectorHealthy, core.TPUSliceHealthNodeSelectorDegraded}).
+				Obj(),
+		},
 		"shouldn't set default values because invalid topology annotation": {
 			jobSet: testingjobjobset.MakeJobSet(baseJobSetName, utils.DefaultNamespace).
 				Queue("queue-name").
@@ -276,81 +334,6 @@ func TestDefault(t *testing.T) {
 			if tc.wantJobSet != nil {
 				if diff := cmp.Diff(tc.wantJobSet, tc.jobSet); diff != "" {
 					t.Errorf("Default() mismatch (-want,+got):\n%s", diff)
-				}
-			}
-		})
-	}
-}
-
-func TestParseTopology(t *testing.T) {
-	testCases := map[string]struct {
-		topology string
-		wantDims []int64
-		wantErr  bool
-	}{
-		"valid 4x4x4": {
-			topology: "4x4x4",
-			wantDims: []int64{4, 4, 4},
-			wantErr:  false,
-		},
-		"valid 4x4x8": {
-			topology: "4x4x8",
-			wantDims: []int64{4, 4, 8},
-			wantErr:  false,
-		},
-		"valid max 16x24x24": {
-			topology: "16x24x24",
-			wantDims: []int64{16, 24, 24},
-			wantErr:  false,
-		},
-		"invalid format (2 dims)": {
-			topology: "4x4",
-			wantErr:  true,
-		},
-		"invalid format (4 dims)": {
-			topology: "4x4x4x4",
-			wantErr:  true,
-		},
-		"invalid format (non-int)": {
-			topology: "4x4xa",
-			wantErr:  true,
-		},
-		"not divisible by 4": {
-			topology: "3x4x4",
-			wantErr:  true,
-		},
-		"not non-decreasing": {
-			topology: "8x4x4",
-			wantErr:  true,
-		},
-		"exceeds max": {
-			topology: "20x24x24",
-			wantErr:  true,
-		},
-		"zero dimension": {
-			topology: "0x4x4",
-			wantErr:  true,
-		},
-		"unparseable": {
-			topology: "4x4x4x",
-			wantErr:  true,
-		},
-		"incomplete": {
-			topology: "4x4x",
-			wantErr:  true,
-		},
-	}
-
-	for name, tc := range testCases {
-		t.Run(name, func(t *testing.T) {
-			dims, err := parseTopology(tc.topology)
-			if (err != nil) != tc.wantErr {
-				t.Errorf("parseTopology() error = %v, wantErr %v", err, tc.wantErr)
-				return
-			}
-			if !tc.wantErr {
-				if diff := cmp.Diff(tc.wantDims, dims); diff != "" {
-					t.Errorf("parseTopology() mismatch (-want +got):\n%s", diff)
 				}
 			}
 		})

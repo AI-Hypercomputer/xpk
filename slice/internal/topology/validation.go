@@ -72,3 +72,10 @@ func GetTPUSubBlockLabelValue(nodes map[string]corev1.Node, nodeName string) str
 	}
 	return ""
 }
+
+func GetCubeHealth(nodes map[string]corev1.Node, nodeName string) string {
+	if node, ok := nodes[nodeName]; ok {
+		return node.Labels[core.TPUSliceHealthNodeSelectorKey]
+	}
+	return ""
+}

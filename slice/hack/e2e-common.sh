@@ -111,7 +111,6 @@ function cluster_slice_deploy {
     local build_output
     build_output=$($KUSTOMIZE build "${ROOT_DIR}/config/dev")
     build_output="${build_output//$DEFAULT_SLICE_NAMESPACE/$SLICE_NAMESPACE}"
-    #build_output=$(echo "$build_output" | $YQ eval 'select(.kind == "Deployment").spec.template.spec.containers[0].args += "--retry-delay-after-slice-failure=1s"' -)
     echo "$build_output" | kubectl apply --kubeconfig="$1" --server-side -f -
 
     (cd "${ROOT_DIR}/config/manager" && $KUSTOMIZE edit set image controller="$initial_image")

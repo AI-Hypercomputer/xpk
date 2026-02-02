@@ -79,16 +79,18 @@ type WorkloadReconciler struct {
 	record            record.EventRecorder
 	clock             clock.Clock
 	activationTimeout time.Duration
+	retryDelay        time.Duration
 }
 
 var _ reconcile.Reconciler = (*WorkloadReconciler)(nil)
 
-func NewWorkloadReconciler(cl client.Client, record record.EventRecorder, activationTimeout time.Duration) *WorkloadReconciler {
+func NewWorkloadReconciler(cl client.Client, record record.EventRecorder, activationTimeout time.Duration, retryDelay time.Duration) *WorkloadReconciler {
 	return &WorkloadReconciler{
 		client:            cl,
 		record:            record,
 		clock:             realClock,
 		activationTimeout: activationTimeout,
+		retryDelay:        retryDelay,
 	}
 }
 
@@ -578,7 +580,7 @@ func shouldCreateSlicesForPodSetAssignment(wl *kueue.Workload, psa kueue.PodSetA
 	return false
 }
 
-func parseTopologyAssignment(topologyAssignment *kueue.TopologyAssignment, nodes map[string]corev1.Node) ([]string, error) {
+func parseTopologyAssignment(topologyAssignment *kueue.TopologyAssignment, nodes map[string]corev1.Node) []string {
 	var subBlockIDs []string
 	seenSubBlockIDs := sets.New[string]()
 	// we already validated that all assignments have a valid level,
@@ -586,27 +588,16 @@ func parseTopologyAssignment(topologyAssignment *kueue.TopologyAssignment, nodes
 	hostnameLevelIndex := topology.HostnameLevelIndex(topologyAssignment)
 	for domain := range tas.InternalSeqFrom(topologyAssignment) {
 		nodeName := domain.Values[hostnameLevelIndex]
-		if topology.GetCubeHealth(nodes, nodeName) == "UNHEALTHY" {
-			return []string{}, errors.New("topology assignment contains unhealthy cubes")
-		}
 		if subBlockID := topology.GetTPUSubBlockLabelValue(nodes, nodeName); !seenSubBlockIDs.Has(subBlockID) {
 			subBlockIDs = append(subBlockIDs, subBlockID)
 			seenSubBlockIDs.Insert(subBlockID)
 		}
 	}
-	return subBlockIDs, nil
+	return subBlockIDs
 }
 
 func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, psa *kueue.PodSetAssignment, nodes map[string]corev1.Node, existingSlicesByName map[string]*v1beta1.Slice, desiredNumberOfSlices int32) ([]v1beta1.Slice, error) {
-	partitionIDs, err := parseTopologyAssignment(psa.TopologyAssignment, nodes)
-	if err != nil {
-		ac.State = kueue.CheckStateRetry
-		ac.Message = err.Error()
-		if err := r.updateWorkloadAdmissionCheckStatus(ctx, wl, ac); err != nil {
-			return nil, err
-		}
-		return nil, err
-	}
+	partitionIDs := parseTopologyAssignment(psa.TopologyAssignment, nodes)
 	ps := podset.FindPodSetByName(wl.Spec.PodSets, psa.Name)
 	chunkSize := int32(len(partitionIDs) / int(desiredNumberOfSlices))
 	createdSlices := []v1beta1.Slice{}
@@ -721,7 +712,7 @@ func (r *WorkloadReconciler) prepareAdmissionCheckStatus(ac *kueue.AdmissionChec
 		ac.State = kueue.CheckStateReady
 	case len(slicesByState[core.SliceStateFailed]) > 0:
 		ac.State = kueue.CheckStateRetry
-		ac.RequeueAfterSeconds = ptr.To(int32(5))
+		ac.RequeueAfterSeconds = ptr.To(int32(r.retryDelay.Seconds()))
 	case len(slicesByState[core.SliceStateCreated])+len(slicesByState[core.SliceStateActivating]) > 0:
 		ac.State = kueue.CheckStatePending
 	}

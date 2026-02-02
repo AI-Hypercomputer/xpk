@@ -29,10 +29,9 @@ const (
 	TPUBlockLabel              = "cloud.google.com/gce-topology-block"
 	TPUSubBlockLabel           = "cloud.google.com/gke-tpu-partition-4x4x4-id"
 
-	TPUSliceHealthNodeSelectorKey       = "cloud.google.com/gke-tpu-partition-4x4x4-state"
-	TPUSliceHealthNodeSelectorHealthy   = "HEALTHY"
-	TPUSliceHealthNodeSelectorDegraded  = "DEGRADED"
-	TPUSliceHealthNodeSelectorUnhealthy = "UNHEALTHY"
+	TPUSliceHealthNodeSelectorKey      = "cloud.google.com/gke-tpu-partition-4x4x4-state"
+	TPUSliceHealthNodeSelectorHealthy  = "HEALTHY"
+	TPUSliceHealthNodeSelectorDegraded = "DEGRADED"
 )
 
 const (

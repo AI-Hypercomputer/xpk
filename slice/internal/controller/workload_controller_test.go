@@ -1659,7 +1659,8 @@ func TestWorkloadReconciler(t *testing.T) {
 					ReserveQuota(baseAdmission, now).
 					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Finalizers(SliceControllerName).
-					AdmissionCheck(buildAdmissionCheckStateWithRequeue(kueue.CheckStateRetry, `Slices are in states: 1 ACTIVE, 1 FAILED. Errors: Error by test`, ptr.To(int32(5)))).
+					AdmissionCheck(buildAdmissionCheckStateWithRequeue(kueue.CheckStateRetry,
+						`Slices are in states: 1 ACTIVE, 1 FAILED. Errors: Error by test`, ptr.To(int32(10)))).
 					Obj(),
 			},
 			wantSlices: []slice.Slice{
@@ -1853,7 +1854,7 @@ func TestWorkloadReconciler(t *testing.T) {
 
 			kClient := clientBuilder.Build()
 			recorder := &utiltesting.EventRecorder{}
-			reconciler := NewWorkloadReconciler(kClient, recorder, 3*time.Minute)
+			reconciler := NewWorkloadReconciler(kClient, recorder, 3*time.Minute, 10*time.Second)
 			reconciler.clock = testingclock.NewFakeClock(now)
 
 			gotResult, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: tc.request})

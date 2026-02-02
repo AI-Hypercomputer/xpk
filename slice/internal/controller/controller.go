@@ -28,10 +28,12 @@ const (
 
 type Options struct {
 	ActivationTimeout time.Duration
+	RetryDelay        time.Duration
 }
 
 func SetupControllers(mgr ctrl.Manager, opts Options) (string, error) {
-	wlRec := NewWorkloadReconciler(mgr.GetClient(), mgr.GetEventRecorderFor(SliceWorkloadControllerName), opts.ActivationTimeout)
+	wlRec := NewWorkloadReconciler(mgr.GetClient(), mgr.GetEventRecorderFor(SliceWorkloadControllerName),
+		opts.ActivationTimeout, opts.RetryDelay)
 	if err := wlRec.SetupWithManager(mgr); err != nil {
 		return "Workload", err
 	}

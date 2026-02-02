@@ -774,11 +774,10 @@ var _ = ginkgo.Describe("JobSet", func() {
 				gomega.Eventually(func(g gomega.Gomega) {
 					g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
 					meta.SetStatusCondition(&createdSlice.Status.Conditions, metav1.Condition{
-						Type:               slice.SliceStateConditionType,
-						Status:             metav1.ConditionFalse,
-						Reason:             string(core.SliceCreationFailed),
-						Message:            "Slice creation failed",
-						LastTransitionTime: metav1.NewTime(time.Now()),
+						Type:    slice.SliceStateConditionType,
+						Status:  metav1.ConditionFalse,
+						Reason:  string(core.SliceCreationFailed),
+						Message: "Slice creation failed",
 					})
 					g.Expect(k8sClient.Status().Update(ctx, createdSlice)).To(gomega.Succeed())
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
@@ -793,7 +792,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 					g.Expect(newAssignment).ShouldNot(gomega.BeNil())
 					newDomains := tas.InternalFrom(newAssignment).Domains
 					g.Expect(newDomains).ShouldNot(gomega.BeComparableTo(oldDomains))
-				}, utils.LongTimeout, utils.Interval).Should(gomega.Succeed())
+				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
 
 			ginkgo.By("Checking that a new Slice is created without the unhealthy cube", func() {

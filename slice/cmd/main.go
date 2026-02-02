@@ -68,7 +68,7 @@ func main() {
 	var metricsAddr string
 	var metricsCertPath, metricsCertName, metricsCertKey string
 	var activationTimeout time.Duration
-	var retryDelay time.Duration
+	var retryDelayOnSliceFailure time.Duration
 	var webhookCertPath, webhookCertName, webhookCertKey string
 	var enableLeaderElection bool
 	var probeAddr string
@@ -79,7 +79,7 @@ func main() {
 		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.DurationVar(&activationTimeout, "activation-timeout", 3*time.Minute, "The timeout for slice activation.")
-	flag.DurationVar(&retryDelay, "retry-delay-after-slice-failure", 5*time.Second, "Delay before recreating failed slices.")
+	flag.DurationVar(&retryDelayOnSliceFailure, "retry-delay-on-slice-failure", 5*time.Second, "Delay before recreating failed slices.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
@@ -243,7 +243,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	go setupControllers(mgr, certsReady, activationTimeout, retryDelay)
+	go setupControllers(mgr, certsReady, activationTimeout, retryDelayOnSliceFailure)
 
 	setupProbeEndpoints(mgr, certsReady)
 
@@ -266,7 +266,7 @@ func setupControllers(mgr ctrl.Manager, certsReady chan struct{}, activationTime
 	}
 
 	if failedCtrl, err := controller.SetupControllers(mgr, controller.Options{
-		ActivationTimeout: activationTimeout, RetryDelay: retryDelay}); err != nil {
+		ActivationTimeout: activationTimeout, RetryDelayOnSliceFailure: retryDelay}); err != nil {
 		setupLog.Error(err, "Unable to create controller", "controller", failedCtrl)
 		os.Exit(1)
 	}

@@ -75,20 +75,22 @@ var (
 
 // WorkloadReconciler reconciles a Workload object
 type WorkloadReconciler struct {
-	client            client.Client
-	record            record.EventRecorder
-	clock             clock.Clock
-	activationTimeout time.Duration
+	client                   client.Client
+	record                   record.EventRecorder
+	clock                    clock.Clock
+	activationTimeout        time.Duration
+	retryDelayOnSliceFailure time.Duration
 }
 
 var _ reconcile.Reconciler = (*WorkloadReconciler)(nil)
 
-func NewWorkloadReconciler(cl client.Client, record record.EventRecorder, activationTimeout time.Duration) *WorkloadReconciler {
+func NewWorkloadReconciler(cl client.Client, record record.EventRecorder, activationTimeout time.Duration, retryDelayOnSliceFailure time.Duration) *WorkloadReconciler {
 	return &WorkloadReconciler{
-		client:            cl,
-		record:            record,
-		clock:             realClock,
-		activationTimeout: activationTimeout,
+		client:                   cl,
+		record:                   record,
+		clock:                    realClock,
+		activationTimeout:        activationTimeout,
+		retryDelayOnSliceFailure: retryDelayOnSliceFailure,
 	}
 }
 
@@ -710,6 +712,7 @@ func (r *WorkloadReconciler) prepareAdmissionCheckStatus(ac *kueue.AdmissionChec
 		ac.State = kueue.CheckStateReady
 	case len(slicesByState[core.SliceStateFailed]) > 0:
 		ac.State = kueue.CheckStateRetry
+		ac.RequeueAfterSeconds = ptr.To(int32(r.retryDelayOnSliceFailure.Round(time.Second).Seconds()))
 	case len(slicesByState[core.SliceStateCreated])+len(slicesByState[core.SliceStateActivating]) > 0:
 		ac.State = kueue.CheckStatePending
 	}

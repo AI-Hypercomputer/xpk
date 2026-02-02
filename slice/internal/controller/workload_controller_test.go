@@ -87,6 +87,16 @@ func TestWorkloadReconciler(t *testing.T) {
 		}
 	}
 
+	buildAdmissionCheckStateWithRequeue := func(state kueue.CheckState, message string, requeueAfterSeconds *int32) kueue.AdmissionCheckState {
+		return kueue.AdmissionCheckState{
+			Name:                baseACName,
+			State:               state,
+			LastTransitionTime:  metav1.NewTime(now),
+			Message:             message,
+			RequeueAfterSeconds: requeueAfterSeconds,
+		}
+	}
+
 	buildEventRecord := func(namespace, eventType, reason, message string) utiltesting.EventRecord {
 		return utiltesting.EventRecord{
 			Key:       client.ObjectKey{Namespace: namespace, Name: baseWorkloadName},
@@ -1649,7 +1659,8 @@ func TestWorkloadReconciler(t *testing.T) {
 					ReserveQuota(baseAdmission, now).
 					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Finalizers(SliceControllerName).
-					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStateRetry, `Slices are in states: 1 ACTIVE, 1 FAILED. Errors: Error by test`)).
+					AdmissionCheck(buildAdmissionCheckStateWithRequeue(kueue.CheckStateRetry,
+						`Slices are in states: 1 ACTIVE, 1 FAILED. Errors: Error by test`, ptr.To(int32(10)))).
 					Obj(),
 			},
 			wantSlices: []slice.Slice{
@@ -1843,7 +1854,7 @@ func TestWorkloadReconciler(t *testing.T) {
 
 			kClient := clientBuilder.Build()
 			recorder := &utiltesting.EventRecorder{}
-			reconciler := NewWorkloadReconciler(kClient, recorder, 3*time.Minute)
+			reconciler := NewWorkloadReconciler(kClient, recorder, 3*time.Minute, 10*time.Second)
 			reconciler.clock = testingclock.NewFakeClock(now)
 
 			gotResult, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: tc.request})

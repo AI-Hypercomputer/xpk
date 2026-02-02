@@ -32,18 +32,24 @@ func HostnameLevelIndex(topologyAssignment *kueue.TopologyAssignment) int {
 	return -1
 }
 
-func ParseTopologyAssignment(topologyAssignment *kueue.TopologyAssignment, nodes map[string]corev1.Node) []string {
-	var subBlockIDs []string
-	seenSubBlockIDs := sets.New[string]()
+type ParsedAssignment struct {
+	PartitionIDs []string
+}
+
+func ParseAssignment(topologyAssignment *kueue.TopologyAssignment, nodes map[string]corev1.Node) ParsedAssignment {
+	parsedAssignment := ParsedAssignment{
+		PartitionIDs: make([]string, 0),
+	}
+	seenPartitionIDs := sets.New[string]()
 	// we already validated that all assignments have a valid level,
 	// in validateRelevantWorkload.
 	hostnameLevelIndex := HostnameLevelIndex(topologyAssignment)
 	for domain := range tas.InternalSeqFrom(topologyAssignment) {
 		nodeName := domain.Values[hostnameLevelIndex]
-		if subBlockID := GetTPUSubBlockLabelValue(nodes, nodeName); !seenSubBlockIDs.Has(subBlockID) {
-			subBlockIDs = append(subBlockIDs, subBlockID)
-			seenSubBlockIDs.Insert(subBlockID)
+		if partitionID := getTPUPartitionIDValue(nodes, nodeName); !seenPartitionIDs.Has(partitionID) {
+			parsedAssignment.PartitionIDs = append(parsedAssignment.PartitionIDs, partitionID)
+			seenPartitionIDs.Insert(partitionID)
 		}
 	}
-	return subBlockIDs
+	return parsedAssignment
 }

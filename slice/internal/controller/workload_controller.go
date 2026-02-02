@@ -567,11 +567,11 @@ func shouldCreateSlicesForPodSetAssignment(wl *kueue.Workload, psa kueue.PodSetA
 }
 
 func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, psa *kueue.PodSetAssignment, nodes map[string]corev1.Node, existingSlicesByName map[string]*v1beta1.Slice, desiredNumberOfSlices int32) ([]v1beta1.Slice, error) {
-	partitionIDs := topology.ParseTopologyAssignment(psa.TopologyAssignment, nodes)
+	parsedAssignment := topology.ParseAssignment(psa.TopologyAssignment, nodes)
 	ps := podset.FindPodSetByName(wl.Spec.PodSets, psa.Name)
-	chunkSize := int32(len(partitionIDs) / int(desiredNumberOfSlices))
+	chunkSize := int32(len(parsedAssignment.PartitionIDs) / int(desiredNumberOfSlices))
 	createdSlices := []v1beta1.Slice{}
-	for i := int32(0); i < desiredNumberOfSlices; i++ {
+	for i := range desiredNumberOfSlices {
 		if _, exist := existingSlicesByName[core.SliceName(wl.Namespace, wl.Name, psa.Name, i)]; exist {
 			// Slice already exists, nothing to do.
 			continue
@@ -586,8 +586,8 @@ func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workloa
 		slice.Spec.Type = v1beta1.Type(core.GetTPUAccelerator(ps.Template))
 		start := i * chunkSize
 		end := start + chunkSize
-		if len(partitionIDs) > 0 {
-			slice.Spec.PartitionIds = partitionIDs[start:end]
+		if len(parsedAssignment.PartitionIDs) > 0 {
+			slice.Spec.PartitionIds = parsedAssignment.PartitionIDs[start:end]
 		}
 
 		slice.Spec.Topology = core.GetTPUTopology(ps.Template)

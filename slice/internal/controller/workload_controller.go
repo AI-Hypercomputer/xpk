@@ -499,7 +499,7 @@ func validateRelevantWorkload(wl *kueue.Workload, nodes map[string]corev1.Node) 
 	if !topology.AnyAssignment(wl.Status.Admission) {
 		return errors.New("has no topology assignment")
 	}
-	if !topology.AllAssignmentsValid(wl.Status.Admission, nodes) {
+	if !topology.AllAssignmentsValid(wl, nodes) {
 		return errors.New("has invalid topology assignments")
 	}
 	return nil
@@ -573,32 +573,32 @@ func (r *WorkloadReconciler) syncSlices(
 
 func shouldCreateSlicesForPodSetAssignment(wl *kueue.Workload, psa kueue.PodSetAssignment, nodes map[string]corev1.Node) bool {
 	if podSet := podset.FindPodSetByName(wl.Spec.PodSets, psa.Name); podSet != nil {
-		return core.IsRelevantPodTemplateSpec(podSet.Template) && topology.IsAssignmentValid(psa, nodes)
+		label := core.GetPartitionIdLabel(nodes, podSet.Template)
+		return core.IsRelevantPodTemplateSpec(podSet.Template) && topology.IsAssignmentValid(psa, nodes, label)
 	}
 	return false
 }
 
-func parseTopologyAssignment(topologyAssignment *kueue.TopologyAssignment, nodes map[string]corev1.Node) []string {
-	var subBlockIDs []string
-	seenSubBlockIDs := sets.New[string]()
+func parseTopologyAssignment(topologyAssignment *kueue.TopologyAssignment, nodes map[string]corev1.Node, labelKey string) []string {
+	var partitionIDs []string
+	seePartitionIDs := sets.New[string]()
 	// we already validated that all assignments have a valid level,
 	// in validateRelevantWorkload.
 	hostnameLevelIndex := topology.HostnameLevelIndex(topologyAssignment)
 	for domain := range tas.InternalSeqFrom(topologyAssignment) {
 		nodeName := domain.Values[hostnameLevelIndex]
-		if subBlockID := topology.GetTPUSubBlockLabelValue(nodes, nodeName); !seenSubBlockIDs.Has(subBlockID) {
-			subBlockIDs = append(subBlockIDs, subBlockID)
-			seenSubBlockIDs.Insert(subBlockID)
+		if partitionID := topology.GetNodeLabelValue(nodes, nodeName, labelKey); !seePartitionIDs.Has(partitionID) {
+			partitionIDs = append(partitionIDs, partitionID)
+			seePartitionIDs.Insert(partitionID)
 		}
 	}
-	return subBlockIDs
+	return partitionIDs
 }
 
 func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, psa *kueue.PodSetAssignment, nodes map[string]corev1.Node, existingSlicesByName map[string]*v1beta1.Slice, desiredNumberOfSlices int32) ([]v1beta1.Slice, error) {
-	partitionIDs := parseTopologyAssignment(psa.TopologyAssignment, nodes)
 	ps := podset.FindPodSetByName(wl.Spec.PodSets, psa.Name)
-	//ps
-
+	label := core.GetPartitionIdLabel(nodes, ps.Template)
+	partitionIDs := parseTopologyAssignment(psa.TopologyAssignment, nodes, label)
 	chunkSize := int32(len(partitionIDs) / int(desiredNumberOfSlices))
 	createdSlices := []v1beta1.Slice{}
 	for i := int32(0); i < desiredNumberOfSlices; i++ {

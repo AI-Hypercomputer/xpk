@@ -150,3 +150,18 @@ func ParseTopology(tpuTopology string) ([]int64, TopologyType, error) {
 
 	return dims, TopologyTypeSuperslice, nil
 }
+
+func GetPartitionIdLabel(nodes map[string]corev1.Node, spec corev1.PodTemplateSpec) string {
+	topology := GetTPUTopology(spec)
+	_, topologyType, err := ParseTopology(topology)
+	if err != nil {
+		return ""
+	}
+	switch topologyType {
+	case TopologyTypeSuperslice:
+		return TPUSubBlockLabel
+	case TopologyTypeSubslice:
+		return fmt.Sprintf("cloud.google.com/gke-tpu-partition-%s-id", topology)
+	}
+	return ""
+}

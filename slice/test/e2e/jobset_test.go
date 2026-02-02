@@ -807,11 +807,10 @@ var _ = ginkgo.Describe("JobSet", func() {
 				gomega.Eventually(func(g gomega.Gomega) {
 					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
 					g.Expect(createdWorkload.Status.AdmissionChecks).Should(gomega.BeComparableTo([]kueue.AdmissionCheckState{{
-						Name:                kueue.AdmissionCheckReference(ac.Name),
-						State:               kueue.CheckStatePending,
-						Message:             `Slices are in states: 1 CREATED`,
-						RequeueAfterSeconds: ptr.To(int32(1)),
-					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates", "RetryCount")))
+						Name:    kueue.AdmissionCheckReference(ac.Name),
+						State:   kueue.CheckStatePending,
+						Message: `Slices are in states: 1 CREATED`,
+					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates", "RetryCount", "RequeueAfterSeconds")))
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
 
@@ -928,11 +927,10 @@ var _ = ginkgo.Describe("JobSet", func() {
 				gomega.Eventually(func(g gomega.Gomega) {
 					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
 					g.Expect(createdWorkload.Status.AdmissionChecks).Should(gomega.BeComparableTo([]kueue.AdmissionCheckState{{
-						Name:                kueue.AdmissionCheckReference(ac.Name),
-						State:               kueue.CheckStatePending,
-						Message:             `Slices are in states: 1 CREATED`,
-						RequeueAfterSeconds: ptr.To(int32(1)),
-					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates", "RetryCount")))
+						Name:    kueue.AdmissionCheckReference(ac.Name),
+						State:   kueue.CheckStatePending,
+						Message: `Slices are in states: 1 CREATED`,
+					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates", "RetryCount", "RequeueAfterSeconds")))
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
 

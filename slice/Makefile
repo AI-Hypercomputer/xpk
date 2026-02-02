@@ -113,16 +113,32 @@ test: manifests generate fmt vet setup-envtest ## Run tests.
 # - CERT_MANAGER_INSTALL_SKIP=true
 KIND_CLUSTER ?= slice-controller-test-e2e
 
-.PHONY: test-e2e
-test-e2e: kustomize yq dep-crds kind ginkgo run-test-e2e-$(E2E_KIND_VERSION:kindest/node:v%=%)
+.PHONY: test-e2e-superslice
+test-e2e-superslice: kustomize yq dep-crds kind ginkgo run-test-e2e-superslice-$(E2E_KIND_VERSION:kindest/node:v%=%)
 
-run-test-e2e-%: K8S_VERSION = $(@:run-test-e2e-%=%)
-run-test-e2e-%:
+run-test-e2e-superslice-%: K8S_VERSION = $(@:run-test-e2e-superslice-%=%)
+run-test-e2e-superslice-%:
 	@echo Running e2e for k8s ${K8S_VERSION}
 	E2E_KIND_VERSION="kindest/node:v$(K8S_VERSION)" KIND_CLUSTER_NAME=$(KIND_CLUSTER_NAME) CREATE_KIND_CLUSTER=$(CREATE_KIND_CLUSTER) \
 		EXTERNAL_CRDS_DIR=$(EXTERNAL_CRDS_DIR) ARTIFACTS="$(ARTIFACTS)/$@" IMAGE_TAG=$(IMAGE_TAG) GINKGO_ARGS="$(GINKGO_ARGS)" \
 		KUEUE_IMAGE=$(KUEUE_IMAGE) JOBSET_IMAGE=$(JOBSET_IMAGE) \
 		TEST_LOG_LEVEL=$(TEST_LOG_LEVEL) E2E_RUN_ONLY_ENV=$(E2E_RUN_ONLY_ENV) \
+		KIND_CLUSTER_FILE="kind-cluster.yaml" \
+		E2E_TARGET_FOLDER="superslice" \
+		./hack/e2e-test.sh
+
+.PHONY: test-e2e-subslice
+test-e2e-subslice: kustomize yq dep-crds kind ginkgo run-test-e2e-subslice-$(E2E_KIND_VERSION:kindest/node:v%=%)
+
+run-test-e2e-subslice-%: K8S_VERSION = $(@:run-test-e2e-subslice-%=%)
+run-test-e2e-subslice-%:
+	@echo Running e2e for k8s ${K8S_VERSION}
+	E2E_KIND_VERSION="kindest/node:v$(K8S_VERSION)" KIND_CLUSTER_NAME=$(KIND_CLUSTER_NAME) CREATE_KIND_CLUSTER=$(CREATE_KIND_CLUSTER) \
+		EXTERNAL_CRDS_DIR=$(EXTERNAL_CRDS_DIR) ARTIFACTS="$(ARTIFACTS)/$@" IMAGE_TAG=$(IMAGE_TAG) GINKGO_ARGS="$(GINKGO_ARGS)" \
+		KUEUE_IMAGE=$(KUEUE_IMAGE) JOBSET_IMAGE=$(JOBSET_IMAGE) \
+		TEST_LOG_LEVEL=$(TEST_LOG_LEVEL) E2E_RUN_ONLY_ENV=$(E2E_RUN_ONLY_ENV) \
+		KIND_CLUSTER_FILE="kind-cluster-subslice.yaml" \
+		E2E_TARGET_FOLDER="subslice" \
 		./hack/e2e-test.sh
 
 .PHONY: lint

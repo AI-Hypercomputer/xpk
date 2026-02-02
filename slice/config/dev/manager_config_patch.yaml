@@ -7,4 +7,4 @@
   value: --zap-log-level=3
 - op: add
   path: /spec/template/spec/containers/0/args/0
-  value: --retry-delay-on-slice-failure=1s
+  value: --retry-delay-on-slice-failure=0s

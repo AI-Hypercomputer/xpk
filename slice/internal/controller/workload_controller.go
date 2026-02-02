@@ -712,7 +712,7 @@ func (r *WorkloadReconciler) prepareAdmissionCheckStatus(ac *kueue.AdmissionChec
 		ac.State = kueue.CheckStateReady
 	case len(slicesByState[core.SliceStateFailed]) > 0:
 		ac.State = kueue.CheckStateRetry
-		ac.RequeueAfterSeconds = ptr.To(int32(r.retryDelayOnSliceFailure.Seconds()))
+		ac.RequeueAfterSeconds = ptr.To(int32(r.retryDelayOnSliceFailure.Round(time.Second).Seconds()))
 	case len(slicesByState[core.SliceStateCreated])+len(slicesByState[core.SliceStateActivating]) > 0:
 		ac.State = kueue.CheckStatePending
 	}

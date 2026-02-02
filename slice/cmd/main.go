@@ -79,7 +79,8 @@ func main() {
 		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.DurationVar(&activationTimeout, "activation-timeout", 3*time.Minute, "The timeout for slice activation.")
-	flag.DurationVar(&retryDelayOnSliceFailure, "retry-delay-on-slice-failure", 5*time.Second, "Delay before recreating failed slices.")
+	flag.DurationVar(&retryDelayOnSliceFailure, "retry-delay-on-slice-failure", 10*time.Second,
+		"Delay before recreating failed slices. It is rounded to the nearest multiple of a second.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")

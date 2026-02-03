@@ -731,6 +731,7 @@ func (r *WorkloadReconciler) prepareAdmissionCheckStatus(ac *kueue.AdmissionChec
 		}
 		ac.Message += ". Errors: " + strings.Join(errMessages, "; ")
 	}
+	ac.Message = api.TruncateConditionMessage(ac.Message)
 }
 
 // SetupWithManager sets up the controller with the Manager.

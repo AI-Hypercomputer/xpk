@@ -83,14 +83,16 @@ func (r *JobSetWebhook) annotateReplicatedJobWithTopology(rj *v1alpha2.Replicate
 	if err != nil {
 		return err
 	}
+	pods := ptr.Deref(rj.Template.Spec.Parallelism, 1)
+
 	if sliceType == core.TopologyTypeSubslice {
-		rj.Template.Spec.Template.Annotations[kueue.PodSetRequiredTopologyAnnotation] = fmt.Sprintf("cloud.google.com/gke-tpu-partition-%s-id", tpuTopology)
+		rj.Template.Spec.Template.Annotations[kueue.PodSetRequiredTopologyAnnotation] = core.TPUBlockLabel
+		rj.Template.Spec.Template.Annotations[kueue.PodSetSliceRequiredTopologyAnnotation] = fmt.Sprintf("cloud.google.com/gke-tpu-partition-%s-id", tpuTopology)
+		rj.Template.Spec.Template.Annotations[kueue.PodSetSliceSizeAnnotation] = strconv.FormatInt(int64(pods), 10)
 		return nil
 	}
 	rj.Template.Spec.Template.Annotations[kueue.PodSetRequiredTopologyAnnotation] = core.TPUBlockLabel
 	rj.Template.Spec.Template.Annotations[kueue.PodSetSliceRequiredTopologyAnnotation] = core.TPUSubBlockLabel
-
-	pods := ptr.Deref(rj.Template.Spec.Parallelism, 1)
 
 	size := r.podSetSliceSize(dims, pods)
 	rj.Template.Spec.Template.Annotations[kueue.PodSetSliceSizeAnnotation] = size

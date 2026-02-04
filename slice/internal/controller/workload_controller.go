@@ -45,13 +45,13 @@ import (
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta2"
 	"sigs.k8s.io/kueue/pkg/util/admissioncheck"
 	"sigs.k8s.io/kueue/pkg/util/podset"
-	"sigs.k8s.io/kueue/pkg/util/tas"
 	"sigs.k8s.io/kueue/pkg/workload"
 
 	"tpu-slice-controller/api/v1beta1"
 	"tpu-slice-controller/internal/core"
 	"tpu-slice-controller/internal/topology"
 	"tpu-slice-controller/internal/util/api"
+	"tpu-slice-controller/internal/util/node"
 	utilpod "tpu-slice-controller/internal/util/pod"
 )
 
@@ -135,7 +135,7 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, nil
 	}
 
-	nodes, err := r.getNodes(ctx)
+	nodes, err := node.GetNodes(ctx, r.client)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -265,19 +265,6 @@ func shouldFinalize(wl *kueue.Workload) (bool, string) {
 	}
 
 	return false, ""
-}
-
-func (r *WorkloadReconciler) getNodes(ctx context.Context) (map[string]corev1.Node, error) {
-	nodes := &corev1.NodeList{}
-	err := r.client.List(ctx, nodes)
-	if err != nil {
-		return nil, err
-	}
-	mapNodes := make(map[string]corev1.Node, len(nodes.Items))
-	for _, node := range nodes.Items {
-		mapNodes[node.Name] = node
-	}
-	return mapNodes, nil
 }
 
 func hasSupportedOwner(wl *kueue.Workload) bool {
@@ -580,33 +567,17 @@ func shouldCreateSlicesForPodSetAssignment(wl *kueue.Workload, psa kueue.PodSetA
 	return false
 }
 
-func parseTopologyAssignment(topologyAssignment *kueue.TopologyAssignment, nodes map[string]corev1.Node) []string {
-	var subBlockIDs []string
-	seenSubBlockIDs := sets.New[string]()
-	// we already validated that all assignments have a valid level,
-	// in validateRelevantWorkload.
-	hostnameLevelIndex := topology.HostnameLevelIndex(topologyAssignment)
-	for domain := range tas.InternalSeqFrom(topologyAssignment) {
-		nodeName := domain.Values[hostnameLevelIndex]
-		if subBlockID := topology.GetTPUSubBlockLabelValue(nodes, nodeName); !seenSubBlockIDs.Has(subBlockID) {
-			subBlockIDs = append(subBlockIDs, subBlockID)
-			seenSubBlockIDs.Insert(subBlockID)
-		}
-	}
-	return subBlockIDs
-}
-
 func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, psa *kueue.PodSetAssignment, nodes map[string]corev1.Node, existingSlicesByName map[string]*v1beta1.Slice, desiredNumberOfSlices int32) ([]v1beta1.Slice, error) {
-	partitionIDs := parseTopologyAssignment(psa.TopologyAssignment, nodes)
+	parsedAssignment := topology.ParseAssignment(psa.TopologyAssignment, nodes)
 	ps := podset.FindPodSetByName(wl.Spec.PodSets, psa.Name)
-	chunkSize := int32(len(partitionIDs) / int(desiredNumberOfSlices))
+	chunkSize := int32(len(parsedAssignment.PartitionIDs) / int(desiredNumberOfSlices))
 	createdSlices := []v1beta1.Slice{}
 	usedPartitionIDs := sets.New[string]()
 	for _, s := range existingSlicesByName {
 		usedPartitionIDs.Insert(s.Spec.PartitionIds...)
 	}
 
-	for i := int32(0); i < desiredNumberOfSlices; i++ {
+	for i := range desiredNumberOfSlices {
 		if _, exist := existingSlicesByName[core.SliceName(wl.Namespace, wl.Name, psa.Name, i)]; exist {
 			continue
 		}
@@ -614,8 +585,8 @@ func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workloa
 		start := i * chunkSize
 		end := start + chunkSize
 		var slicePartitionIDs []string
-		if len(partitionIDs) > 0 {
-			slicePartitionIDs = partitionIDs[start:end]
+		if len(parsedAssignment.PartitionIDs) > 0 {
+			slicePartitionIDs = parsedAssignment.PartitionIDs[start:end]
 		}
 		for _, id := range slicePartitionIDs {
 			if usedPartitionIDs.Has(id) {
@@ -631,7 +602,7 @@ func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workloa
 		}
 	}
 
-	for i := int32(0); i < desiredNumberOfSlices; i++ {
+	for i := range desiredNumberOfSlices {
 		if _, exist := existingSlicesByName[core.SliceName(wl.Namespace, wl.Name, psa.Name, i)]; exist {
 			// Slice already exists, nothing to do.
 			continue
@@ -647,8 +618,8 @@ func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workloa
 		slice.Spec.Type = v1beta1.Type(core.GetTPUAccelerator(ps.Template))
 		start := i * chunkSize
 		end := start + chunkSize
-		if len(partitionIDs) > 0 {
-			slice.Spec.PartitionIds = partitionIDs[start:end]
+		if len(parsedAssignment.PartitionIDs) > 0 {
+			slice.Spec.PartitionIds = parsedAssignment.PartitionIDs[start:end]
 		}
 
 		slice.Spec.Topology = core.GetTPUTopology(ps.Template)

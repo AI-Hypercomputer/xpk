@@ -16,7 +16,9 @@ package topology
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta2"
+	"sigs.k8s.io/kueue/pkg/util/tas"
 )
 
 // HostnameLevelIndex returns the index of the hostname level in the topology
@@ -28,4 +30,26 @@ func HostnameLevelIndex(topologyAssignment *kueue.TopologyAssignment) int {
 		}
 	}
 	return -1
+}
+
+type ParsedAssignment struct {
+	PartitionIDs []string
+}
+
+func ParseAssignment(topologyAssignment *kueue.TopologyAssignment, nodes map[string]corev1.Node) ParsedAssignment {
+	parsedAssignment := ParsedAssignment{
+		PartitionIDs: make([]string, 0),
+	}
+	seenPartitionIDs := sets.New[string]()
+	// we already validated that all assignments have a valid level,
+	// in validateRelevantWorkload.
+	hostnameLevelIndex := HostnameLevelIndex(topologyAssignment)
+	for domain := range tas.InternalSeqFrom(topologyAssignment) {
+		nodeName := domain.Values[hostnameLevelIndex]
+		if partitionID := getTPUPartitionIDValue(nodes, nodeName); !seenPartitionIDs.Has(partitionID) {
+			parsedAssignment.PartitionIDs = append(parsedAssignment.PartitionIDs, partitionID)
+			seenPartitionIDs.Insert(partitionID)
+		}
+	}
+	return parsedAssignment
 }

@@ -265,8 +265,8 @@ def enable_flags_usage_tracking(
           setattr(namespace, dest_attr, set())
 
         if self.option_strings:
-          option_string = max(self.option_strings, key=len)
-          getattr(namespace, dest_attr).add(option_string)
+          canonical_option_string = max(self.option_strings, key=len)
+          getattr(namespace, dest_attr).add(canonical_option_string)
 
         previous_flags = getattr(namespace, dest_attr, set()).copy()
 

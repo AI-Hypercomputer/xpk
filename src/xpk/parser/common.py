@@ -256,6 +256,7 @@ def enable_flags_usage_tracking(
 
   def get_instrumented_class(original_class):
     class InstrumentedAction(original_class):
+      """Instrumented action to record flag usage."""
 
       def __call__(self, parser, namespace, values, option_string=None):
         if not hasattr(namespace, dest_attr):
@@ -274,14 +275,14 @@ def enable_flags_usage_tracking(
     InstrumentedAction.__name__ = f'Instrumented{original_class.__name__}'
     return InstrumentedAction
 
-  for action in parser._actions:
-    if isinstance(action, (argparse._HelpAction, argparse._VersionAction)):
+  for action in parser._actions: # pylint: disable=protected-access
+    if isinstance(action, (argparse._HelpAction, argparse._VersionAction)): # pylint: disable=protected-access
       continue
 
     if not action.__class__.__name__.startswith('Instrumented'):
       action.__class__ = get_instrumented_class(action.__class__)
 
-    if isinstance(action, argparse._SubParsersAction):
+    if isinstance(action, argparse._SubParsersAction): # pylint: disable=protected-access
       for sub_parser in action.choices.values():
         enable_flags_usage_tracking(sub_parser, dest_attr)
 
@@ -294,6 +295,6 @@ def retrieve_flags(
   and returns them as a sorted, space-separated string.
   Example: {'--verbose', '-n'} -> "n verbose"
   """
-  supplied = getattr(args, '_supplied_flags', set())
+  supplied = getattr(args, dest_attr, set())
   normalized = (flag.lstrip('-') for flag in supplied)
   return ' '.join(sorted(normalized))

@@ -21,6 +21,8 @@ import difflib
 from argcomplete import ChoicesCompleter
 from argparse import Action, ArgumentError
 
+_DEFAULT_DEST_ATTR_NAME = "_supplied_flags"
+
 
 class ParserOrArgumentGroup(Protocol):
 
@@ -247,7 +249,7 @@ def extract_command_path(parser: argparse.ArgumentParser, args):
 
 
 def enable_flags_usage_tracking(
-    parser: argparse.ArgumentParser, dest_attr: str = '_supplied_flags'
+    parser: argparse.ArgumentParser, dest_attr: str = _DEFAULT_DEST_ATTR_NAME
 ):
   """
   Dynamically modifies the parser's actions to record when they are used.
@@ -288,7 +290,7 @@ def enable_flags_usage_tracking(
 
 
 def retrieve_flags(
-    args: argparse.Namespace, dest_attr: str = '_supplied_flags'
+    args: argparse.Namespace, dest_attr: str = _DEFAULT_DEST_ATTR_NAME
 ) -> str:
   """
   Retrieves the list of used flags, strips leading dashes,

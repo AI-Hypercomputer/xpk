@@ -106,6 +106,10 @@ func TestWorkloadReconciler(t *testing.T) {
 		}
 	}
 
+	equateErrors := cmp.Comparer(func(x, y error) bool {
+		return errors.Is(x, y) || errors.Is(y, x) || x.Error() == y.Error()
+	})
+
 	baseRequest := types.NamespacedName{Name: baseWorkloadName, Namespace: corev1.NamespaceDefault}
 	baseJobSetWrapper := utiltestingjobsjobset.MakeJobSet(baseJobSetName, corev1.NamespaceDefault)
 	basePod1Wrapper := utiltestingjobspod.MakePod(basePod1Name, corev1.NamespaceDefault).
@@ -877,7 +881,11 @@ func TestWorkloadReconciler(t *testing.T) {
 				baseAdmissionCheckWrapper.DeepCopy(),
 				baseWorkloadWrapper.Clone().
 					PodSets(
-						*utiltesting.MakePodSet("ps1", 2, ptr.To(int32(2))).
+						*utiltesting.MakePodSet("ps1", 2, ptr.To(int32(1))).
+							Annotation(core.TPUSliceTopologyAnnotation, "4x4x12").
+							NodeSelector("cloud.google.com/gke-tpu-accelerator", string(slice.TypeTpu7x)).
+							Obj(),
+						*utiltesting.MakePodSet("ps2", 2, ptr.To(int32(1))).
 							Annotation(core.TPUSliceTopologyAnnotation, "4x4x12").
 							NodeSelector("cloud.google.com/gke-tpu-accelerator", string(slice.TypeTpu7x)).
 							Obj(),
@@ -886,8 +894,14 @@ func TestWorkloadReconciler(t *testing.T) {
 						PodSetAssignments: []kueue.PodSetAssignment{
 							utiltesting.MakePodSetAssignment("ps1").
 								TopologyAssignment(baseLevels, []kueue.TopologyAssignmentSlice{
-									utiltesting.MakeTopologyAssignmentSliceUniversal(2, 2).
-										Value("worker1", "worker1").
+									utiltesting.MakeTopologyAssignmentSliceUniversal(1, 2).
+										Value("worker1").
+										Obj(),
+								}).Obj(),
+							utiltesting.MakePodSetAssignment("ps2").
+								TopologyAssignment(baseLevels, []kueue.TopologyAssignmentSlice{
+									utiltesting.MakeTopologyAssignmentSliceUniversal(1, 2).
+										Value("worker1").
 										Obj(),
 								}).Obj(),
 						},
@@ -900,7 +914,11 @@ func TestWorkloadReconciler(t *testing.T) {
 			wantWorkloads: []kueue.Workload{
 				*baseWorkloadWrapper.Clone().
 					PodSets(
-						*utiltesting.MakePodSet("ps1", 2, ptr.To(int32(2))).
+						*utiltesting.MakePodSet("ps1", 2, ptr.To(int32(1))).
+							Annotation(core.TPUSliceTopologyAnnotation, "4x4x12").
+							NodeSelector("cloud.google.com/gke-tpu-accelerator", string(slice.TypeTpu7x)).
+							Obj(),
+						*utiltesting.MakePodSet("ps2", 2, ptr.To(int32(1))).
 							Annotation(core.TPUSliceTopologyAnnotation, "4x4x12").
 							NodeSelector("cloud.google.com/gke-tpu-accelerator", string(slice.TypeTpu7x)).
 							Obj(),
@@ -909,8 +927,14 @@ func TestWorkloadReconciler(t *testing.T) {
 						PodSetAssignments: []kueue.PodSetAssignment{
 							utiltesting.MakePodSetAssignment("ps1").
 								TopologyAssignment(baseLevels, []kueue.TopologyAssignmentSlice{
-									utiltesting.MakeTopologyAssignmentSliceUniversal(2, 2).
-										Value("worker1", "worker1").
+									utiltesting.MakeTopologyAssignmentSliceUniversal(1, 2).
+										Value("worker1").
+										Obj(),
+								}).Obj(),
+							utiltesting.MakePodSetAssignment("ps2").
+								TopologyAssignment(baseLevels, []kueue.TopologyAssignmentSlice{
+									utiltesting.MakeTopologyAssignmentSliceUniversal(1, 2).
+										Value("worker1").
 										Obj(),
 								}).Obj(),
 						},
@@ -1916,7 +1940,7 @@ func TestWorkloadReconciler(t *testing.T) {
 			if diff := cmp.Diff(tc.wantResult, gotResult); diff != "" {
 				t.Errorf("Reconcile result after reconcile (-want,+got):\n%s", diff)
 			}
-			if diff := cmp.Diff(tc.wantErr, err, cmpopts.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.wantErr, err, equateErrors); diff != "" {
 				t.Errorf("Error after reconcile (-want,+got):\n%s", diff)
 			}
 

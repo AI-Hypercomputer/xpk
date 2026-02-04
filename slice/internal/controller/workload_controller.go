@@ -601,11 +601,17 @@ func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workloa
 	ps := podset.FindPodSetByName(wl.Spec.PodSets, psa.Name)
 	chunkSize := int32(len(partitionIDs) / int(desiredNumberOfSlices))
 	createdSlices := []v1beta1.Slice{}
+	usedPartitionIDs := sets.New[string]()
+	for _, s := range existingSlicesByName {
+		usedPartitionIDs.Insert(s.Spec.PartitionIds...)
+	}
+
 	for i := int32(0); i < desiredNumberOfSlices; i++ {
 		if _, exist := existingSlicesByName[core.SliceName(wl.Namespace, wl.Name, psa.Name, i)]; exist {
 			// Slice already exists, nothing to do.
 			continue
 		}
+
 		slice := core.SliceWithMetadata(wl, psa.Name, i)
 		log := ctrl.LoggerFrom(ctx).WithValues("slice", klog.KObj(slice))
 		log.V(3).Info("Creating Slice")
@@ -618,6 +624,16 @@ func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workloa
 		end := start + chunkSize
 		if len(partitionIDs) > 0 {
 			slice.Spec.PartitionIds = partitionIDs[start:end]
+		}
+
+		for _, id := range slice.Spec.PartitionIds {
+			if usedPartitionIDs.Has(id) {
+				msg := fmt.Sprintf("Partition ID %q is already used by an existing Slice", id)
+				ac.State = kueue.CheckStateRetry
+				ac.Message = api.TruncateConditionMessage(msg)
+				patchErr := r.updateWorkloadAdmissionCheckStatus(ctx, wl, ac)
+				return nil, errors.Join(errors.New(msg), patchErr)
+			}
 		}
 
 		slice.Spec.Topology = core.GetTPUTopology(ps.Template)

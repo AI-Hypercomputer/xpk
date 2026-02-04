@@ -870,6 +870,61 @@ func TestWorkloadReconciler(t *testing.T) {
 			},
 			wantResult: reconcile.Result{RequeueAfter: initializationRetryAfter},
 		},
+		"should fail to create Slice if Partition ID is already in use": {
+			request: baseRequest,
+			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapper.Clone().
+					PodSets(
+						*utiltesting.MakePodSet("ps1", 2, ptr.To(int32(2))).
+							Annotation(core.TPUSliceTopologyAnnotation, "4x4x12").
+							NodeSelector("cloud.google.com/gke-tpu-accelerator", string(slice.TypeTpu7x)).
+							Obj(),
+					).
+					ReserveQuota(&kueue.Admission{
+						PodSetAssignments: []kueue.PodSetAssignment{
+							utiltesting.MakePodSetAssignment("ps1").
+								TopologyAssignment(baseLevels, []kueue.TopologyAssignmentSlice{
+									utiltesting.MakeTopologyAssignmentSliceUniversal(2, 2).
+										Value("worker1", "worker1").
+										Obj(),
+								}).Obj(),
+						},
+					}, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					Obj(),
+				baseSlice1Wrapper.Clone().PartitionIDs("subblock1").Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapper.Clone().
+					PodSets(
+						*utiltesting.MakePodSet("ps1", 2, ptr.To(int32(2))).
+							Annotation(core.TPUSliceTopologyAnnotation, "4x4x12").
+							NodeSelector("cloud.google.com/gke-tpu-accelerator", string(slice.TypeTpu7x)).
+							Obj(),
+					).
+					ReserveQuota(&kueue.Admission{
+						PodSetAssignments: []kueue.PodSetAssignment{
+							utiltesting.MakePodSetAssignment("ps1").
+								TopologyAssignment(baseLevels, []kueue.TopologyAssignmentSlice{
+									utiltesting.MakeTopologyAssignmentSliceUniversal(2, 2).
+										Value("worker1", "worker1").
+										Obj(),
+								}).Obj(),
+						},
+					}, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStateRetry, `Partition ID "subblock1" is already used by an existing Slice`)).
+					Obj(),
+			},
+			wantSlices: []slice.Slice{
+				*baseSlice1Wrapper.Clone().PartitionIDs("subblock1").Obj(),
+			},
+			wantErr: errors.New(`Partition ID "subblock1" is already used by an existing Slice`),
+		},
 		"should create multiple Slices for multiple replicated jobs with different replica counts": {
 			request: baseRequest,
 			objs: []client.Object{

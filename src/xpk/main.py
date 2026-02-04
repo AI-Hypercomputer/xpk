@@ -36,7 +36,7 @@ import argcomplete
 import sys
 
 from .parser.core import set_parser
-from .parser.common import extract_command_path
+from .parser.common import extract_command_path, enable_flags_usage_tracking, retrieve_flags
 from .core.updates import print_xpk_hello
 from .core.config import set_config, FileSystemConfig
 from .core.telemetry import MetricsCollector, send_clearcut_payload, should_send_telemetry
@@ -67,6 +67,7 @@ def main() -> None:
     # Create top level parser for xpk command.
     parser = argparse.ArgumentParser(description='xpk command', prog='xpk')
     set_parser(parser=parser)
+    enable_flags_usage_tracking(parser)
     argcomplete.autocomplete(parser)
 
     main_args = parser.parse_args()
@@ -79,7 +80,10 @@ def main() -> None:
             or ('force' in main_args and main_args.force)
         ),
     )
-    MetricsCollector.log_start(command=extract_command_path(parser, main_args))
+    MetricsCollector.log_start(
+        command=extract_command_path(parser, main_args),
+        flags=retrieve_flags(main_args),
+    )
     print_xpk_hello()
     main_args.func(main_args)
     xpk_print('XPK Done.', flush=True)

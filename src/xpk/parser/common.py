@@ -21,7 +21,7 @@ import difflib
 from argcomplete import ChoicesCompleter
 from argparse import Action, ArgumentError
 
-_DEFAULT_DEST_ATTR_NAME = "_supplied_flags"
+_DEFAULT_DEST_ATTR_NAME = '_supplied_flags'
 
 
 class ParserOrArgumentGroup(Protocol):
@@ -277,14 +277,14 @@ def enable_flags_usage_tracking(
     InstrumentedAction.__name__ = f'Instrumented{original_class.__name__}'
     return InstrumentedAction
 
-  for action in parser._actions: # pylint: disable=protected-access
-    if isinstance(action, (argparse._HelpAction, argparse._VersionAction)): # pylint: disable=protected-access
+  for action in parser._actions:  # pylint: disable=protected-access
+    if isinstance(action, (argparse._HelpAction, argparse._VersionAction)):  # pylint: disable=protected-access
       continue
 
     if not action.__class__.__name__.startswith('Instrumented'):
       action.__class__ = get_instrumented_class(action.__class__)
 
-    if isinstance(action, argparse._SubParsersAction): # pylint: disable=protected-access
+    if isinstance(action, argparse._SubParsersAction):  # pylint: disable=protected-access
       for sub_parser in action.choices.values():
         enable_flags_usage_tracking(sub_parser, dest_attr)
 

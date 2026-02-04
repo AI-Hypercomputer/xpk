@@ -58,7 +58,7 @@ def test_should_send_telemetry_returns_correct_value(
 
 def test_metrics_collector_generates_client_id_if_not_present():
   get_config().set(CLIENT_ID_KEY, None)
-  MetricsCollector.log_start(command='test')
+  MetricsCollector.log_start(command='test', flags='bar')
   payload = json.loads(MetricsCollector.flush())
   extension_json = json.loads(payload['log_event'][0]['source_extension_json'])
   assert extension_json['client_install_id'] is not None
@@ -66,7 +66,7 @@ def test_metrics_collector_generates_client_id_if_not_present():
 
 
 def test_metrics_collector_logs_start_event_correctly():
-  MetricsCollector.log_start(command='test')
+  MetricsCollector.log_start(command='test', flags='bar')
   payload = json.loads(MetricsCollector.flush())
   extension_json = json.loads(payload['log_event'][0]['source_extension_json'])
   assert extension_json == {
@@ -80,6 +80,7 @@ def test_metrics_collector_logs_start_event_correctly():
           {'key': 'XPK_RUNNING_FROM_SOURCE', 'value': 'true'},
           {'key': 'XPK_TESTER', 'value': 'false'},
           {'key': 'XPK_COMMAND', 'value': 'test'},
+          {'key': 'XPK_FLAGS', 'value': 'bar'},
           {'key': 'XPK_LATENCY_SECONDS', 'value': '0'},
       ],
       'event_name': 'start',
@@ -90,7 +91,7 @@ def test_metrics_collector_logs_start_event_correctly():
 
 def test_metrics_collector_generates_client_id_when_not_present():
   get_config().set(CLIENT_ID_KEY, None)
-  MetricsCollector.log_start(command='test')
+  MetricsCollector.log_start(command='test', flags='bar')
   payload = json.loads(MetricsCollector.flush())
   extension_json = json.loads(payload['log_event'][0]['source_extension_json'])
   assert extension_json['client_install_id'] is not None
@@ -146,7 +147,7 @@ def test_metrics_collector_logs_custom_event_correctly():
 
 
 def test_metrics_collector_computest_latency_correctly():
-  MetricsCollector.log_start(command='test')
+  MetricsCollector.log_start(command='test', flags='bar')
   MetricsCollector.log_complete(exit_code=0)
   payload = json.loads(MetricsCollector.flush())
   extension_json = json.loads(payload['log_event'][1]['source_extension_json'])
@@ -159,7 +160,7 @@ def test_metrics_collector_computest_latency_correctly():
 
 
 def test_metrics_collector_logs_correct_envelope():
-  MetricsCollector.log_start(command='test')
+  MetricsCollector.log_start(command='test', flags='bar')
   MetricsCollector.log_custom(
       name='test', metadata={MetricsEventMetadataKey.PROVISIONING_MODE: 'flex'}
   )
@@ -172,9 +173,9 @@ def test_metrics_collector_logs_correct_envelope():
 
 
 def test_metrics_collector_does_not_flush_event_twice():
-  MetricsCollector.log_start(command='test')
+  MetricsCollector.log_start(command='test', flags='bar')
   MetricsCollector.flush()
-  MetricsCollector.log_start(command='version')
+  MetricsCollector.log_start(command='version', flags='bar')
   payload = json.loads(MetricsCollector.flush())
   assert len(payload['log_event']) == 1
 
@@ -186,7 +187,7 @@ def test_metrics_collector_logs_correct_dry_run_value(
     dry_run: bool, expected: str
 ):
   set_dry_run(dry_run)
-  MetricsCollector.log_start(command='test')
+  MetricsCollector.log_start(command='test', flags='bar')
   payload = MetricsCollector.flush()
   assert _get_metadata_value(payload, 'XPK_DRY_RUN') == expected
 
@@ -202,7 +203,7 @@ def test_metrics_collectors_logs_correct_running_as_pip_value(
     basename: str, expected: str, mocker: MockerFixture
 ):
   mocker.patch('os.path.basename', return_value=basename)
-  MetricsCollector.log_start(command='test')
+  MetricsCollector.log_start(command='test', flags='bar')
   payload = MetricsCollector.flush()
   assert _get_metadata_value(payload, 'XPK_RUNNING_AS_PIP') == expected
 
@@ -219,7 +220,7 @@ def test_metrics_collectors_logs_correct_running_from_source_value(
     abspath: str, expected: str, mocker: MockerFixture
 ):
   mocker.patch('os.path.abspath', return_value=abspath)
-  MetricsCollector.log_start(command='test')
+  MetricsCollector.log_start(command='test', flags='bar')
   payload = MetricsCollector.flush()
   assert _get_metadata_value(payload, 'XPK_RUNNING_FROM_SOURCE') == expected
 
@@ -235,7 +236,7 @@ def test_metrics_collectors_logs_correct_tester_value_for_is_tester_variable(
     tester: bool, expected: str, mocker: MockerFixture
 ):
   mocker.patch('xpk.core.telemetry.is_tester', return_value=tester)
-  MetricsCollector.log_start(command='test')
+  MetricsCollector.log_start(command='test', flags='bar')
   payload = MetricsCollector.flush()
   assert _get_metadata_value(payload, 'XPK_TESTER') == expected
 
@@ -253,7 +254,7 @@ def test_metrics_collectors_logs_correct_tester_value_for_trash_variable(
     trash_execution: str, expected: str, mocker: MockerFixture
 ):
   mocker.patch('os.getenv', return_value=trash_execution)
-  MetricsCollector.log_start(command='test')
+  MetricsCollector.log_start(command='test', flags='bar')
   payload = MetricsCollector.flush()
   assert _get_metadata_value(payload, 'XPK_TESTER') == expected
 

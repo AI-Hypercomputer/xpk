@@ -746,10 +746,10 @@ def _prepare_reservation_iterator(
     return None, 1
 
   # Create an iterator that yields one ReservationLink per available count
-  expanded_list = [
+  reservations_to_use = [
       res
       for cap in available_capacity
       for res in [cap.reservation] * cap.available_count
   ]
 
-  return iter(expanded_list), 0
+  return iter(reservations_to_use), 0

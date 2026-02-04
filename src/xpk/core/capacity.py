@@ -401,14 +401,14 @@ def assess_available_slices(
   Returns:
     List of capacity reservations with available slices.
   """
-  expanded_reservations = []
+  reservation_capacities = []
   for reservation in reservations:
-    expanded_reservations.extend(
+    reservation_capacities.extend(
         _assess_available_slices_for_reservation(
             reservation, enable_super_slicing
         )
     )
-  return expanded_reservations
+  return reservation_capacities
 
 
 def _assess_available_slices_for_reservation(

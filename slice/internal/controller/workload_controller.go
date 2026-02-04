@@ -631,7 +631,10 @@ func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workloa
 			ac.State = kueue.CheckStatePending
 			ac.Message = api.TruncateConditionMessage(msg)
 			patchErr := r.updateWorkloadAdmissionCheckStatus(ctx, wl, ac)
-			return nil, errors.Join(err, patchErr)
+			if patchErr != nil {
+				return nil, errors.Join(err, patchErr)
+			}
+			return nil, err
 		}
 		createdSlices = append(createdSlices, *slice)
 	}

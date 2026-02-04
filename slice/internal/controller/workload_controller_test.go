@@ -107,6 +107,9 @@ func TestWorkloadReconciler(t *testing.T) {
 	}
 
 	equateErrors := cmp.Comparer(func(x, y error) bool {
+		if x == nil || y == nil {
+			return x == nil && y == nil
+		}
 		return errors.Is(x, y) || errors.Is(y, x) || x.Error() == y.Error()
 	})
 

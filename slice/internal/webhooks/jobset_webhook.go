@@ -131,7 +131,7 @@ func annotateReplicatedJobWithSliceHealth(rj *v1alpha2.ReplicatedJob) {
 	}
 
 	// 3. If neither of these, we add a NodeAffinity.
-	core.AddNodeAffinity(rj, core.TPUSliceHealthNodeSelectorKey, []string{core.TPUSliceHealthNodeSelectorHealthy, core.TPUSliceHealthNodeSelectorDegraded})
+	core.AddNodeAffinity(rj, core.TPUSliceHealthNodeSelectorKey, []string{core.TPUSliceHealthNodeSelectorHealthy})
 }
 
 func (r *JobSetWebhook) podSetSliceSize(tpuTopology string, parallelism int32) (int64, error) {

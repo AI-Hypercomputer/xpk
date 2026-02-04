@@ -194,7 +194,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 									if matchExpression.Key == core.TPUSliceHealthNodeSelectorKey {
 										found = true
 										g.Expect(matchExpression.Operator).Should(gomega.Equal(corev1.NodeSelectorOpIn))
-										g.Expect(matchExpression.Values).Should(gomega.ConsistOf(core.TPUSliceHealthNodeSelectorHealthy, core.TPUSliceHealthNodeSelectorDegraded))
+										g.Expect(matchExpression.Values).Should(gomega.ConsistOf(core.TPUSliceHealthNodeSelectorHealthy))
 									}
 								}
 							}
@@ -810,7 +810,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Name:    kueue.AdmissionCheckReference(ac.Name),
 						State:   kueue.CheckStatePending,
 						Message: `Slices are in states: 1 CREATED`,
-					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates", "RetryCount")))
+					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates", "RetryCount", "RequeueAfterSeconds")))
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
 
@@ -825,7 +825,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Name:    kueue.AdmissionCheckReference(ac.Name),
 						State:   kueue.CheckStateReady,
 						Message: `Slices are in states: 1 ACTIVE`,
-					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates", "RetryCount")))
+					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates", "RetryCount", "RequeueAfterSeconds")))
 					g.Expect(createdWorkload.Status.SchedulingStats.Evictions).Should(gomega.HaveLen(1))
 				}, utils.LongTimeout, utils.Interval).Should(gomega.Succeed())
 			})
@@ -930,7 +930,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Name:    kueue.AdmissionCheckReference(ac.Name),
 						State:   kueue.CheckStatePending,
 						Message: `Slices are in states: 1 CREATED`,
-					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates", "RetryCount")))
+					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates", "RetryCount", "RequeueAfterSeconds")))
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
 
@@ -952,7 +952,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Name:    kueue.AdmissionCheckReference(ac.Name),
 						State:   kueue.CheckStateReady,
 						Message: `Slices are in states: 1 ACTIVE`,
-					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates", "RetryCount")))
+					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates", "RetryCount", "RequeueAfterSeconds")))
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
 		})

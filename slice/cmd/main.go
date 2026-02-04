@@ -68,6 +68,7 @@ func main() {
 	var metricsAddr string
 	var metricsCertPath, metricsCertName, metricsCertKey string
 	var activationTimeout time.Duration
+	var retryDelayOnSliceFailure time.Duration
 	var webhookCertPath, webhookCertName, webhookCertKey string
 	var enableLeaderElection bool
 	var probeAddr string
@@ -78,6 +79,8 @@ func main() {
 		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.DurationVar(&activationTimeout, "activation-timeout", 3*time.Minute, "The timeout for slice activation.")
+	flag.DurationVar(&retryDelayOnSliceFailure, "retry-delay-on-slice-failure", 10*time.Second,
+		"Delay before recreating failed slices. It is rounded to the nearest multiple of a second.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
@@ -241,7 +244,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	go setupControllers(mgr, certsReady, activationTimeout)
+	go setupControllers(mgr, certsReady, activationTimeout, retryDelayOnSliceFailure)
 
 	setupProbeEndpoints(mgr, certsReady)
 
@@ -252,7 +255,7 @@ func main() {
 	}
 }
 
-func setupControllers(mgr ctrl.Manager, certsReady chan struct{}, activationTimeout time.Duration) {
+func setupControllers(mgr ctrl.Manager, certsReady chan struct{}, activationTimeout time.Duration, retryDelay time.Duration) {
 	// The controllers won't work until the webhooks are operating, and the webhook won't work until the
 	// certs are all in place.
 	cert.WaitForCertsReady(setupLog, certsReady)
@@ -263,7 +266,8 @@ func setupControllers(mgr ctrl.Manager, certsReady chan struct{}, activationTime
 		os.Exit(1)
 	}
 
-	if failedCtrl, err := controller.SetupControllers(mgr, controller.Options{ActivationTimeout: activationTimeout}); err != nil {
+	if failedCtrl, err := controller.SetupControllers(mgr, controller.Options{
+		ActivationTimeout: activationTimeout, RetryDelayOnSliceFailure: retryDelay}); err != nil {
 		setupLog.Error(err, "Unable to create controller", "controller", failedCtrl)
 		os.Exit(1)
 	}

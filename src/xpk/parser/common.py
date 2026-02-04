@@ -297,6 +297,6 @@ def retrieve_flags(
   and returns them as a sorted, space-separated string.
   Example: {'--verbose', '-n'} -> "n verbose"
   """
-  supplied = getattr(args, dest_attr, set())
+  supplied: set[str] = getattr(args, dest_attr, set())
   normalized = (flag.lstrip('-') for flag in supplied)
   return ' '.join(sorted(normalized))

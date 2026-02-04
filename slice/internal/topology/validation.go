@@ -59,14 +59,14 @@ func IsAssignmentValid(psa kueue.PodSetAssignment, nodes map[string]corev1.Node)
 
 	for domain := range tas.InternalSeqFrom(psa.TopologyAssignment) {
 		nodeName := domain.Values[hostnameLevelIndex]
-		if GetTPUSubBlockLabelValue(nodes, nodeName) == "" {
+		if getTPUPartitionIDValue(nodes, nodeName) == "" {
 			return false
 		}
 	}
 	return true
 }
 
-func GetTPUSubBlockLabelValue(nodes map[string]corev1.Node, nodeName string) string {
+func getTPUPartitionIDValue(nodes map[string]corev1.Node, nodeName string) string {
 	if node, ok := nodes[nodeName]; ok {
 		return node.Labels[core.TPUSubBlockLabel]
 	}

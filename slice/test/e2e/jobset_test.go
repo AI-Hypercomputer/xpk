@@ -80,7 +80,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 		cq = testing.MakeClusterQueue("cq").
 			AdmissionChecks(ac.Name).
 			ResourceGroup(*testing.MakeFlavorQuotas(rf.Name).
-				Resource(extraResource, "9999").
+				Resource(core.TPUResourceName, "9999").
 				Obj()).
 			Obj()
 		utils.MustCreate(ctx, k8sClient, cq)
@@ -158,7 +158,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 							Affinity:     affinity,
 						},
 					).
-					RequestAndLimit("rj1", extraResource, tc.tpuRequests).
+					RequestAndLimit("rj1", core.TPUResourceName, tc.tpuRequests).
 					FailurePolicy(&jobset.FailurePolicy{
 						MaxRestarts: 0,
 					}).
@@ -455,7 +455,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 							},
 						},
 					).
-					RequestAndLimit("rj1", extraResource, tc.tpuRequests).
+					RequestAndLimit("rj1", core.TPUResourceName, tc.tpuRequests).
 					Obj()
 
 				ginkgo.By("Creating a JobSet", func() {
@@ -577,8 +577,8 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Image:       utils.E2eTestAgnHostImage,
 						Args:        utils.BehaviorWaitForDeletion,
 						Replicas:    1,
-						Parallelism: 1,
-						Completions: 1,
+						Parallelism: 16,
+						Completions: 16,
 						PodAnnotations: map[string]string{
 							core.TPUSliceTopologyAnnotation: "4x4x4",
 						},
@@ -589,7 +589,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						LifecyclePreStopSleepSeconds:  60,
 					},
 				).
-				RequestAndLimit("rj1", extraResource, "1").
+				RequestAndLimit("rj1", core.TPUResourceName, "4").
 				Obj()
 
 			ginkgo.By("Creating a JobSet", func() {
@@ -633,7 +633,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 				pods := &corev1.PodList{}
 				gomega.Eventually(func(g gomega.Gomega) {
 					g.Expect(k8sClient.List(ctx, pods, client.InNamespace(ns.Name))).To(gomega.Succeed())
-					g.Expect(pods.Items).Should(gomega.HaveLen(1))
+					g.Expect(pods.Items).Should(gomega.HaveLen(16))
 					for _, pod := range pods.Items {
 						g.Expect(pod.Status.Phase).To(gomega.Equal(corev1.PodRunning))
 					}
@@ -672,8 +672,8 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Image:       utils.E2eTestAgnHostImage,
 						Args:        utils.BehaviorWaitForDeletion,
 						Replicas:    1,
-						Parallelism: 1,
-						Completions: 1,
+						Parallelism: 16,
+						Completions: 16,
 						PodAnnotations: map[string]string{
 							core.TPUSliceTopologyAnnotation: "4x4x4",
 						},
@@ -682,7 +682,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						},
 					},
 				).
-				RequestAndLimit("rj1", extraResource, "1").
+				RequestAndLimit("rj1", core.TPUResourceName, "4").
 				Obj()
 
 			ginkgo.By("Creating a JobSet", func() {
@@ -852,8 +852,8 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Image:       utils.E2eTestAgnHostImage,
 						Args:        utils.BehaviorWaitForDeletion,
 						Replicas:    1,
-						Parallelism: 1,
-						Completions: 1,
+						Parallelism: 16,
+						Completions: 16,
 						PodAnnotations: map[string]string{
 							core.TPUSliceTopologyAnnotation: "4x4x4",
 						},
@@ -862,7 +862,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						},
 					},
 				).
-				RequestAndLimit("rj1", extraResource, "1").
+				RequestAndLimit("rj1", core.TPUResourceName, "4").
 				Obj()
 
 			ginkgo.By("Creating a JobSet", func() {
@@ -966,8 +966,8 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Image:       utils.E2eTestAgnHostImage,
 						Args:        utils.BehaviorWaitForDeletion,
 						Replicas:    1,
-						Parallelism: 1,
-						Completions: 1,
+						Parallelism: 16,
+						Completions: 16,
 						PodAnnotations: map[string]string{
 							core.TPUSliceTopologyAnnotation: "4x4x4",
 						},
@@ -976,7 +976,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						},
 					},
 				).
-				RequestAndLimit("rj1", extraResource, "1").
+				RequestAndLimit("rj1", core.TPUResourceName, "4").
 				Obj()
 
 			ginkgo.By("Creating a JobSet", func() {
@@ -1076,8 +1076,8 @@ var _ = ginkgo.Describe("JobSet", func() {
 						},
 					},
 				).
-				RequestAndLimit("rj1", extraResource, "4").
-				RequestAndLimit("rj2", extraResource, "4").
+				RequestAndLimit("rj1", core.TPUResourceName, "4").
+				RequestAndLimit("rj2", core.TPUResourceName, "4").
 				Obj()
 
 			ginkgo.By("Creating a JobSet", func() {

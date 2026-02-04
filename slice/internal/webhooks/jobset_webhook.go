@@ -84,16 +84,31 @@ func (r *JobSetWebhook) annotateReplicatedJobWithTopology(rj *v1alpha2.Replicate
 
 	pods := ptr.Deref(rj.Template.Spec.Parallelism, 1)
 
-	size, err := r.podSetSliceSize(
+	sliceSize, err := r.podSetSliceSize(
 		rj.Template.Spec.Template.Annotations[core.TPUSliceTopologyAnnotation],
 		pods,
 	)
 	if err != nil {
 		return err
 	}
-	rj.Template.Spec.Template.Annotations[kueue.PodSetSliceSizeAnnotation] = size
+	tpusRequestedPerPod := r.getTPUsRequestedPerPod(rj)
+	tpusRequestedPerCube := tpusRequestedPerPod * sliceSize
+	if tpusRequestedPerCube != core.TPUsPerCube {
+		return fmt.Errorf("invalid replicated job %q: configuration results in %d TPUs requested per cube, but must be exactly %d TPUs (full utilization)", rj.Name, tpusRequestedPerCube, core.TPUsPerCube)
+	}
 
+	rj.Template.Spec.Template.Annotations[kueue.PodSetSliceSizeAnnotation] = strconv.FormatInt(sliceSize, 10)
 	return nil
+}
+
+func (r *JobSetWebhook) getTPUsRequestedPerPod(rj *v1alpha2.ReplicatedJob) int64 {
+	var totalTPUs int64
+	for _, container := range rj.Template.Spec.Template.Spec.Containers {
+		if tpuQuantity, ok := container.Resources.Limits[core.TPUResourceName]; ok {
+			totalTPUs += tpuQuantity.Value()
+		}
+	}
+	return totalTPUs
 }
 
 func annotateReplicatedJobWithSliceHealth(rj *v1alpha2.ReplicatedJob) {
@@ -119,16 +134,16 @@ func annotateReplicatedJobWithSliceHealth(rj *v1alpha2.ReplicatedJob) {
 	core.AddNodeAffinity(rj, core.TPUSliceHealthNodeSelectorKey, []string{core.TPUSliceHealthNodeSelectorHealthy})
 }
 
-func (r *JobSetWebhook) podSetSliceSize(tpuTopology string, parallelism int32) (string, error) {
+func (r *JobSetWebhook) podSetSliceSize(tpuTopology string, parallelism int32) (int64, error) {
 	dims, err := parseTopology(tpuTopology)
 	if err != nil {
-		return "", err
+		return 0, err
 	}
 
 	totalChips := dims[0] * dims[1] * dims[2]
 	subBlockCount := totalChips / 64
 
-	return strconv.FormatInt(int64(parallelism)/subBlockCount, 10), nil
+	return int64(parallelism) / subBlockCount, nil
 }
 
 func parseTopology(tpuTopology string) ([]int64, error) {

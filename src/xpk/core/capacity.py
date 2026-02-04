@@ -63,7 +63,7 @@ class SubBlockReservationLink(BlockReservationLink):
 
 
 @dataclass(frozen=True)
-class CapacityReservation:
+class ReservationCapacity:
   reservation: ReservationLink
   available_count: int
 
@@ -329,7 +329,7 @@ def parse_reservation(
   """Parses the reservation details from the reservation path.
 
   Args:
-    reservation_path: path in format `[projects/P/reservations/]R[/reservationBlocks/B[/reservationSubBlocks/S]]`
+    reservation_path: path in format `[projects/RESERVATION_PROJECT_ID/reservations/]RESERVATION_NAME[/reservationBlocks/BLOCK_NAME[/reservationSubBlocks/SUB_BLOCK_NAME]]`
     cluster_project: the default cluster project
     zone: the reservation zone
 
@@ -390,11 +390,13 @@ def to_reservation_path(reservation: ReservationLink) -> str:
 
 def assess_available_slices(
     reservations: list[ReservationLink],
-) -> list[CapacityReservation]:
+    enable_super_slicing: bool,
+) -> list[ReservationCapacity]:
   """Assess the available slices in the reservations.
 
   Args:
     reservations: list of reservations to assess.
+    enable_super_slicing: whether to check for super-slicing blocks.
 
   Returns:
     List of capacity reservations with available slices.
@@ -402,25 +404,29 @@ def assess_available_slices(
   expanded_reservations = []
   for reservation in reservations:
     expanded_reservations.extend(
-        _assess_available_slices_for_reservation(reservation)
+        _assess_available_slices_for_reservation(
+            reservation, enable_super_slicing
+        )
     )
   return expanded_reservations
 
 
 def _assess_available_slices_for_reservation(
     reservation: ReservationLink,
-) -> list[CapacityReservation]:
+    enable_super_slicing: bool,
+) -> list[ReservationCapacity]:
   """Assess the available slices for a single reservation.
 
   Args:
     reservation: reservation to assess.
+    enable_super_slicing: whether to check for super-slicing blocks.
 
   Returns:
     List of available reservations (targeting sub-blocks if applicable).
   """
   if isinstance(reservation, SubBlockReservationLink):
     return (
-        [CapacityReservation(reservation, 1)]
+        [ReservationCapacity(reservation, 1)]
         if _is_sub_block_healthy_and_unused(reservation)
         else []
     )
@@ -428,20 +434,18 @@ def _assess_available_slices_for_reservation(
   if isinstance(reservation, BlockReservationLink):
     return _get_healthy_and_unused_sub_blocks_in_block(reservation)
 
-  # Check count first
+  # If super-slicing is enabled, check for blocks first
+  if enable_super_slicing:
+    blocks = _get_blocks_in_reservation(reservation)
+    if blocks:
+      slices = []
+      for block in blocks:
+        slices.extend(_get_healthy_and_unused_sub_blocks_in_block(block))
+      return slices
+
+  # Otherwise (or if no blocks found), use reservation count
   count = _get_reservation_count(reservation)
-  if count > 0:
-    return [CapacityReservation(reservation, count)]
-
-  # If no count, check for blocks
-  blocks = _get_blocks_in_reservation(reservation)
-  if blocks:
-    slices = []
-    for block in blocks:
-      slices.extend(_get_healthy_and_unused_sub_blocks_in_block(block))
-    return slices
-
-  return []
+  return [ReservationCapacity(reservation, count)] if count > 0 else []
 
 
 def _is_sub_block_healthy_and_unused(
@@ -490,7 +494,7 @@ def _get_dry_run_sub_blocks(reservation: BlockReservationLink) -> str:
 
 def _get_healthy_and_unused_sub_blocks_in_block(
     reservation: BlockReservationLink,
-) -> list[CapacityReservation]:
+) -> list[ReservationCapacity]:
   """Get healthy and unused sub-blocks in a block."""
   command = (
       f'gcloud beta compute reservations sub-blocks list {reservation.name} '
@@ -509,7 +513,7 @@ def _get_healthy_and_unused_sub_blocks_in_block(
     return []
 
   return [
-      CapacityReservation(
+      ReservationCapacity(
           SubBlockReservationLink(
               project=reservation.project,
               name=reservation.name,
@@ -576,12 +580,10 @@ def _get_reservation_count(reservation: ReservationLink) -> int:
       '--format="csv[no-heading](specificReservation.count,specificReservation.inUseCount,status)"'
   )
 
-  dry_run_val = '0,0,READY' if _get_dry_run_blocks(reservation) else '1,0,READY'
-
   return_code, output = run_command_for_value(
       command,
       f'Get reservation count for {reservation.name}',
-      dry_run_return_val=dry_run_val,
+      dry_run_return_val='1,0,READY',
   )
   if return_code != 0:
     return 0

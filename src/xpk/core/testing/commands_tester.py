@@ -26,33 +26,57 @@ class CommandsTester:
   def __init__(
       self,
       mocker: MockerFixture,
-      run_command_for_value_path: str | None = None,
-      run_command_with_updates_path: str | None = None,
-      run_command_with_updates_retry_path: str | None = None,
-      run_command_batch_path: str | None = None,
+      run_command_for_value_path: str | list[str] | None = None,
+      run_command_with_updates_path: str | list[str] | None = None,
+      run_command_with_updates_retry_path: str | list[str] | None = None,
+      run_command_batch_path: str | list[str] | None = None,
   ):
     self.__results: dict[re.Pattern, tuple[int, str]] = {}
     self.commands_history: list[str] = []
     if run_command_for_value_path:
-      mocker.patch(
-          run_command_for_value_path,
-          wraps=self.__fake_run_command_for_value,
+      paths = (
+          [run_command_for_value_path]
+          if isinstance(run_command_for_value_path, str)
+          else run_command_for_value_path
       )
+      for path in paths:
+        mocker.patch(
+            path,
+            wraps=self.__fake_run_command_for_value,
+        )
     if run_command_with_updates_path:
-      mocker.patch(
-          run_command_with_updates_path,
-          wraps=self.__fake_run_command_with_updates,
+      paths = (
+          [run_command_with_updates_path]
+          if isinstance(run_command_with_updates_path, str)
+          else run_command_with_updates_path
       )
+      for path in paths:
+        mocker.patch(
+            path,
+            wraps=self.__fake_run_command_with_updates,
+        )
     if run_command_with_updates_retry_path:
-      mocker.patch(
-          run_command_with_updates_retry_path,
-          wraps=self.__fake_run_command_with_updates_retry,
+      paths = (
+          [run_command_with_updates_retry_path]
+          if isinstance(run_command_with_updates_retry_path, str)
+          else run_command_with_updates_retry_path
       )
+      for path in paths:
+        mocker.patch(
+            path,
+            wraps=self.__fake_run_command_with_updates_retry,
+        )
     if run_command_batch_path:
-      mocker.patch(
-          run_command_batch_path,
-          wraps=self.__fake_run_command_batch,
+      paths = (
+          [run_command_batch_path]
+          if isinstance(run_command_batch_path, str)
+          else run_command_batch_path
       )
+      for path in paths:
+        mocker.patch(
+            path,
+            wraps=self.__fake_run_command_batch,
+        )
 
   def set_result_for_command(
       self, result: tuple[int, str], *command_parts: str

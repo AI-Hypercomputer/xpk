@@ -66,6 +66,9 @@ def run_gke_node_pool_create_command(
     0 if successful and 1 otherwise.
   """
   device_type = args.tpu_type if args.tpu_type else args.device_type
+  super_slicing = FeatureFlags.SUPER_SLICING_ENABLED and getattr(
+      args, 'super_slicing', False
+  )
   xpk_print(
       f'Creating {args.num_slices} node pool or pools of {device_type}\n'
       f'We assume that the underlying system is: {system}'
@@ -260,7 +263,6 @@ def run_gke_node_pool_create_command(
 
   placement_args = ''
   if is_placement_policy_supported(system):
-    super_slicing = FeatureFlags.SUPER_SLICING_ENABLED and args.super_slicing
     placement_policy = get_placement_policy_name(
         system,
         super_slicing,
@@ -283,7 +285,9 @@ def run_gke_node_pool_create_command(
   if capacity_type == CapacityType.RESERVATION:
     reservations = get_reservations_list(args)
     reservations_iter, return_code = _prepare_reservation_iterator(
-        reservations, len(node_pools_to_create)
+        reservations,
+        len(node_pools_to_create),
+        enable_super_slicing=super_slicing,
     )
     if return_code > 0:
       return return_code
@@ -722,10 +726,14 @@ def recreate_nodes_in_existing_node_pools(args) -> int:
 
 
 def _prepare_reservation_iterator(
-    reservations: List[ReservationLink], num_new_node_pools: int
+    reservations: List[ReservationLink],
+    num_new_node_pools: int,
+    enable_super_slicing: bool,
 ) -> tuple[Iterator[ReservationLink] | None, int]:
   """Prepares the reservation iterator based on capacity type and super-slicing."""
-  available_capacity = assess_available_slices(reservations)
+  available_capacity = assess_available_slices(
+      reservations, enable_super_slicing=enable_super_slicing
+  )
   total_available = sum(cap.available_count for cap in available_capacity)
 
   if total_available < num_new_node_pools:

@@ -28,7 +28,7 @@ from .capacity import (
     ReservationLink,
     BlockReservationLink,
     SubBlockReservationLink,
-    CapacityReservation,
+    ReservationCapacity,
     get_capacity_node_selectors_from_capacity_type,
 )
 from xpk.core.testing.commands_tester import CommandsTester
@@ -276,13 +276,15 @@ def test_assess_available_slices_sub_block(mocker):
       block_name='block',
       sub_block_name='sub-block',
   )
-  assert assess_available_slices([res]) == [CapacityReservation(res, 1)]
+  assert assess_available_slices([res], enable_super_slicing=False) == [
+      ReservationCapacity(res, 1)
+  ]
 
   # Mock unhealthy
   commands_tester.set_result_for_command(
       (0, ''), 'gcloud beta compute reservations sub-blocks list'
   )
-  assert assess_available_slices([res]) == []
+  assert assess_available_slices([res], enable_super_slicing=False) == []
 
 
 def test_assess_available_slices_block(mocker):
@@ -300,14 +302,14 @@ def test_assess_available_slices_block(mocker):
       zone='us-central1-a',
       block_name='block',
   )
-  slices = assess_available_slices([res])
+  slices = assess_available_slices([res], enable_super_slicing=False)
   assert len(slices) == 2
-  assert isinstance(slices[0], CapacityReservation)
+  assert isinstance(slices[0], ReservationCapacity)
   assert isinstance(slices[0].reservation, SubBlockReservationLink)
   assert slices[0].reservation.sub_block_name == 'sub1'
   assert slices[0].reservation.zone == 'us-central1-a'
   assert slices[0].available_count == 1
-  assert isinstance(slices[1], CapacityReservation)
+  assert isinstance(slices[1], ReservationCapacity)
   assert isinstance(slices[1].reservation, SubBlockReservationLink)
   assert slices[1].reservation.sub_block_name == 'sub2'
   assert slices[1].reservation.zone == 'us-central1-a'
@@ -317,7 +319,7 @@ def test_assess_available_slices_block(mocker):
   commands_tester.set_result_for_command(
       (0, ''), 'gcloud beta compute reservations sub-blocks list'
   )
-  assert assess_available_slices([res]) == []
+  assert assess_available_slices([res], enable_super_slicing=False) == []
 
 
 def test_assess_available_slices_link_with_blocks(mocker):
@@ -340,9 +342,9 @@ def test_assess_available_slices_link_with_blocks(mocker):
   res = ReservationLink(
       project='project', name='reservation', zone='us-central1-a'
   )
-  slices = assess_available_slices([res])
+  slices = assess_available_slices([res], enable_super_slicing=True)
   assert len(slices) == 1
-  assert isinstance(slices[0], CapacityReservation)
+  assert isinstance(slices[0], ReservationCapacity)
   assert isinstance(slices[0].reservation, SubBlockReservationLink)
   assert slices[0].reservation.block_name == 'block1'
   assert slices[0].reservation.sub_block_name == 'sub1'
@@ -367,9 +369,9 @@ def test_assess_available_slices_link_without_blocks(mocker):
   res = ReservationLink(
       project='project', name='reservation', zone='us-central1-a'
   )
-  slices = assess_available_slices([res])
+  slices = assess_available_slices([res], enable_super_slicing=False)
   assert len(slices) == 1
-  assert isinstance(slices[0], CapacityReservation)
+  assert isinstance(slices[0], ReservationCapacity)
   assert isinstance(slices[0].reservation, ReservationLink)
   assert not isinstance(slices[0].reservation, BlockReservationLink)
   assert slices[0].reservation.name == 'reservation'

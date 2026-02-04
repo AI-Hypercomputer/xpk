@@ -28,6 +28,12 @@ from .capacity import (
     get_capacity_type,
     get_reservations_list,
     print_reservations,
+    assess_available_slices,
+    parse_reservation,
+    to_reservation_path,
+    ReservationLink,
+    BlockReservationLink,
+    SubBlockReservationLink,
 )
 from .commands import run_command_for_value, run_commands, FailedCommand
 from .gcloud_context import GkeServerConfig, get_cluster_location, zone_to_region
@@ -273,26 +279,27 @@ def run_gke_node_pool_create_command(
   node_pools_to_create = [
       np for np in desired_node_pool_names if np not in node_pools_to_remain
   ]
-
-  reservations_iter: Iterator[str] | None = None
+  reservations_iter = None
   if capacity_type == CapacityType.RESERVATION:
     reservations = get_reservations_list(args)
-    if (
-        _validate_reservation_count(reservations, len(node_pools_to_create))
-        != 0
-    ):
-      return 1
-    reservations_iter = (
-        cycle(reservations) if len(reservations) == 1 else iter(reservations)
+    reservations_iter, return_code = _prepare_reservation_iterator(
+        reservations, len(node_pools_to_create)
     )
+    if return_code > 0:
+      return return_code
 
   for node_pool_name in node_pools_to_create:
+    reservation_arg = None
+    if reservations_iter:
+      next_res = next(reservations_iter)
+      reservation_arg = to_reservation_path(next_res)
+
     capacity_args, return_code = get_capacity_arguments_from_capacity_type(
         args,
         capacity_type,
         max_nodes,
         system.accelerator_type,
-        reservation_name=next(reservations_iter) if reservations_iter else None,
+        reservation_name=reservation_arg,
     )
     if return_code > 0:
       xpk_print('Parsing capacity arguments failed!')
@@ -680,19 +687,6 @@ def ensure_resource_policy_exists(
     raise RuntimeError('Unable to create resource policy')
 
 
-def _validate_reservation_count(
-    reservations: List[str], num_node_pools_to_create: int
-) -> int:
-  """Validate that reservation count matches new nodepool count or is 1."""
-  if len(reservations) > 1 and len(reservations) != num_node_pools_to_create:
-    xpk_print(
-        f'Error: Number of reservations ({len(reservations)}) must match'
-        f' the number of NEW nodepools ({num_node_pools_to_create}) or be 1.'
-    )
-    return 1
-  return 0
-
-
 def recreate_nodes_in_existing_node_pools(args) -> int:
   """Triggers a manual upgrade of nodepools to the same version to force recreation
   of nodes.
@@ -725,3 +719,29 @@ def recreate_nodes_in_existing_node_pools(args) -> int:
       task_names,
   )
   return maybe_failure.return_code if maybe_failure is not None else 0
+
+
+def _prepare_reservation_iterator(
+    reservations: List[ReservationLink], num_new_node_pools: int
+) -> tuple[Iterator[ReservationLink] | None, int]:
+  """Prepares the reservation iterator based on capacity type and super-slicing."""
+  available_capacity = assess_available_slices(reservations)
+  total_available = sum(cap.available_count for cap in available_capacity)
+
+  if total_available < num_new_node_pools:
+    xpk_print(
+        'Error: Not enough available reservation capacity. Needed'
+        f' {num_new_node_pools} slices/sub-blocks, but only found'
+        f' {total_available} healthy and unused in the provided'
+        ' reservations.'
+    )
+    return None, 1
+
+  # Create an iterator that yields one ReservationLink per available count
+  expanded_list = [
+      res
+      for cap in available_capacity
+      for res in [cap.reservation] * cap.available_count
+  ]
+
+  return iter(expanded_list), 0

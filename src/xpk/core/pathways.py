@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import urllib
 from ..core.commands import run_command_for_value, run_command_with_updates, run_commands
 from ..core.docker_container import get_user_workload_container
 from ..core.gcloud_context import get_cluster_location
@@ -135,16 +136,17 @@ def check_if_pathways_job_is_installed(args) -> bool:
 
 def get_pathways_unified_query_link(args) -> str:
   """Get the unified query link for the pathways workload."""
-  query_params = (
-      'resource.type%3D"k8s_container"%0A'
-      f'resource.labels.project_id%3D"{args.project}"%0A'
-      f'resource.labels.location%3D"{get_cluster_location(args.project, args.cluster, args.zone)}"%0A'
-      f'resource.labels.cluster_name%3D"{args.cluster}"%0A'
-      f'resource.labels.pod_name:"{args.workload}-"%0A'
-      'severity>%3DDEFAULT'
+  log_filter = (
+      'resource.type="k8s_container"\n'
+      f'resource.labels.project_id="{args.project}"\n'
+      f'resource.labels.location="{get_cluster_location(args.project, args.cluster, args.zone)}"\n'
+      f'resource.labels.cluster_name="{args.cluster}"\n'
+      f'resource.labels.pod_name:"{args.workload}-"\n'
+      'severity>=DEFAULT'
   )
+  encoded_filter = urllib.parse.quote(log_filter, safe='')
 
-  return f'https://console.cloud.google.com/logs/query;query={query_params}'
+  return f'https://console.cloud.google.com/logs/query;query={encoded_filter}'
 
 
 def append_custom_pathways_flags(custom_args, prev_indentation=8) -> str:

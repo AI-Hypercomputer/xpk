@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import urllib
 from ..core.blueprint.blueprint_generator import (
     a3high_device_type,
     a4x_device_types,
@@ -773,13 +774,26 @@ def workload_create(args) -> None:
         f' https://console.cloud.google.com/kubernetes/service/{get_cluster_location(args.project, args.cluster, args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
     )
     duration_of_logs = 'P1D'  # Past 1 Day
+    log_filter = (
+        'resource.type="k8s_container"\n'
+        f'resource.labels.project_id="{args.project}"\n'
+        f'resource.labels.location="{get_cluster_location(args.project, args.cluster, args.zone)}"\n'
+        f'resource.labels.cluster_name="{args.cluster}"\n'
+        'resource.labels.namespace_name="default"\n'
+        f'resource.labels.pod_name:"{args.workload}-slice-job-0-0-"\n'
+        'severity>=DEFAULT'
+    )
+    encoded_filter = urllib.parse.quote(log_filter, safe='')
     xpk_print(
         'Follow your worker 0, slice 0 logs here:'
         ' Adjust the pod name'
         ' ([prefix]-slice-job-[slice_number]-[worker_number])'
         ' after clicking the url if you want other worker logs.'
-        # pylint: disable=line-too-long
-        f' https://console.cloud.google.com/logs/query;query=resource.type%3D%22k8s_container%22%0Aresource.labels.project_id%3D%22{args.project}%22%0Aresource.labels.location%3D%22{get_cluster_location(args.project, args.cluster, args.zone)}%22%0Aresource.labels.cluster_name%3D%22{args.cluster}%22%0Aresource.labels.namespace_name%3D%22default%22%0Aresource.labels.pod_name:%22{args.workload}-slice-job-0-0-%22%20severity%3E%3DDEFAULT;storageScope=project;duration={duration_of_logs}?e=13802955&mods=allow_workbench_image_override&project={args.project}'
+        ' https://console.cloud.google.com/logs/query;'
+        f'query={encoded_filter};'
+        'storageScope=project;'
+        f'duration={duration_of_logs}?'
+        f'project={args.project}'
     )
 
   xpk_exit(0)

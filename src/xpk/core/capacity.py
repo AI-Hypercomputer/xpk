@@ -16,6 +16,7 @@ limitations under the License.
 
 import enum
 import os
+from typing import Sequence
 from dataclasses import dataclass
 
 from .commands import run_command_with_updates, run_command_for_value
@@ -391,7 +392,7 @@ def to_reservation_path(reservation: ReservationLink) -> str:
 
 
 def assess_available_slices(
-    reservations: list[ReservationLink],
+    reservations: Sequence[ReservationLink],
     enable_super_slicing: bool,
 ) -> list[ReservationCapacity]:
   """Assess the available slices in the reservations.

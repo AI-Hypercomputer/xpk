@@ -487,12 +487,12 @@ def test_run_gke_node_pool_create_command_multiple_reservations(
 
   # Mock capacity for reservation1
   commands_tester.set_result_for_command(
-      (0, "1,0,READY"),
+      (0, "2,0,READY"),
       "gcloud beta compute reservations describe reservation1",
   )
   # Mock capacity for reservation2
   commands_tester.set_result_for_command(
-      (0, "1,0,READY"),
+      (0, "2,0,READY"),
       "gcloud beta compute reservations describe reservation2",
   )
 
@@ -568,12 +568,12 @@ def test_run_gke_node_pool_create_command_partial_reservations(
 
   # Mock capacity for reservation1
   commands_tester.set_result_for_command(
-      (0, "1,0,READY"),
+      (0, "2,0,READY"),
       "gcloud beta compute reservations describe reservation1",
   )
   # Mock capacity for reservation2
   commands_tester.set_result_for_command(
-      (0, "1,0,READY"),
+      (0, "2,0,READY"),
       "gcloud beta compute reservations describe reservation2",
   )
 
@@ -758,7 +758,7 @@ def test_run_gke_node_pool_create_command_super_slicing_exhaustion(
   )
   # 3. List sub-blocks for block1 -> returns sub-block1, sub-block2
   commands_tester.set_result_for_command(
-      (0, "sub-block1\nsub-block2"),
+      (0, "sub-block1,2,0\nsub-block2,2,0"),
       "gcloud beta compute reservations sub-blocks list",
   )
 

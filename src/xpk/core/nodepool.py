@@ -288,6 +288,9 @@ def run_gke_node_pool_create_command(
         reservations,
         len(node_pools_to_create),
         enable_super_slicing=super_slicing,
+        required_hosts=max_nodes
+        if system.accelerator_type == AcceleratorType.TPU
+        else args.num_nodes,
     )
     if return_code > 0:
       return return_code
@@ -729,10 +732,13 @@ def _prepare_reservation_iterator(
     reservations: List[ReservationLink],
     num_new_node_pools: int,
     enable_super_slicing: bool,
+    required_hosts: int,
 ) -> tuple[Iterator[ReservationLink] | None, int]:
   """Prepares the reservation iterator based on capacity type and super-slicing."""
   available_capacity = assess_available_slices(
-      reservations, enable_super_slicing=enable_super_slicing
+      reservations,
+      enable_super_slicing=enable_super_slicing,
+      required_hosts=required_hosts,
   )
   total_available = sum(cap.available_count for cap in available_capacity)
 
@@ -740,7 +746,7 @@ def _prepare_reservation_iterator(
     xpk_print(
         'Error: Not enough available reservation capacity. Needed'
         f' {num_new_node_pools} slices/sub-blocks, but only found'
-        f' {total_available} healthy and unused in the provided'
+        f' {total_available} healthy and fitting in the provided'
         ' reservations.'
     )
     return None, 1

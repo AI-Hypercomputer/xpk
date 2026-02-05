@@ -394,12 +394,14 @@ def to_reservation_path(reservation: ReservationLink) -> str:
 def assess_available_slices(
     reservations: Sequence[ReservationLink],
     enable_super_slicing: bool,
+    required_hosts: int,
 ) -> list[ReservationCapacity]:
   """Assess the available slices in the reservations.
 
   Args:
     reservations: list of reservations to assess.
     enable_super_slicing: whether to check for super-slicing blocks.
+    required_hosts: number of hosts required per slice.
 
   Returns:
     List of capacity reservations with available slices.
@@ -408,7 +410,7 @@ def assess_available_slices(
   for reservation in reservations:
     reservation_capacities.extend(
         _assess_available_slices_for_reservation(
-            reservation, enable_super_slicing
+            reservation, enable_super_slicing, required_hosts
         )
     )
   return reservation_capacities
@@ -417,62 +419,87 @@ def assess_available_slices(
 def _assess_available_slices_for_reservation(
     reservation: ReservationLink,
     enable_super_slicing: bool,
+    required_hosts: int,
 ) -> list[ReservationCapacity]:
   """Assess the available slices for a single reservation.
 
   Args:
     reservation: reservation to assess.
     enable_super_slicing: whether to check for super-slicing blocks.
+    required_hosts: number of hosts required per slice.
 
   Returns:
     List of available reservations (targeting sub-blocks if applicable).
   """
   if isinstance(reservation, SubBlockReservationLink):
-    if _is_sub_block_healthy_and_unused(reservation):
+    if _is_sub_block_healthy_and_fitting(reservation, required_hosts):
       return [ReservationCapacity(reservation, 1)]
     else:
       xpk_print(
           f'WARNING: Sub-block {reservation.sub_block_name} is either'
-          ' unhealthy or in use. Skipping.'
+          ' unhealthy or not fitting. Skipping.'
       )
       return []
 
   if isinstance(reservation, BlockReservationLink):
-    return _get_healthy_and_unused_sub_blocks_in_block(reservation)
+    return _get_healthy_and_fitting_sub_blocks_in_block(
+        reservation, required_hosts
+    )
 
   # If super-slicing is enabled, check for blocks first
   if enable_super_slicing:
     blocks = _get_blocks_in_reservation(reservation)
     if blocks:
-      return assess_available_slices(blocks, enable_super_slicing)
+      return assess_available_slices(
+          blocks, enable_super_slicing, required_hosts
+      )
 
   # Otherwise (or if no blocks found), use reservation count
-  count = _get_reservation_count(reservation)
+  count = _get_reservation_count(reservation, required_hosts)
   return [ReservationCapacity(reservation, count)] if count > 0 else []
 
 
-def _is_sub_block_healthy_and_unused(
+def _is_sub_block_healthy_and_fitting(
     reservation: SubBlockReservationLink,
+    required_hosts: int,
 ) -> bool:
-  """Check if a sub-block is healthy and unused."""
+  """Check if a sub-block is healthy and has sufficient capacity."""
   command = (
       'gcloud beta compute reservations sub-blocks list'
       f' {reservation.name} --block-name={reservation.block_name} --project={reservation.project} --zone={reservation.zone} --filter="name={reservation.sub_block_name} AND'
-      ' inUseCount=0 AND healthInfo.healthStatus=HEALTHY"'
-      ' --format="value(name)"'
+      ' healthInfo.healthStatus=HEALTHY"'
+      ' --format="csv[no-heading](count,inUseCount)"'
   )
   return_code, output = run_command_for_value(
       command,
       f'Check sub-block {reservation.sub_block_name} health',
-      dry_run_return_val=reservation.sub_block_name,
+      dry_run_return_val=_get_dry_run_value(
+          'DRY_RUN_SUB_BLOCK_CAPACITY', reservation
+      ),
   )
-  return return_code == 0 and bool(output.strip())
+  if return_code != 0:
+    return False
+
+  if not output.strip():
+    return False
+
+  try:
+    parts = [p.strip() for p in output.strip().split(',')]
+    if len(parts) >= 2:
+      count = int(parts[0])
+      in_use_count = int(parts[1])
+    else:
+      count = required_hosts
+      in_use_count = 0
+    return (count - in_use_count) >= required_hosts
+  except (ValueError, IndexError):
+    return False
 
 
-def _get_dry_run_list(
+def _get_dry_run_value(
     env_var_name: str, reservation: ReservationLink, default: str = ''
 ) -> str:
-  """Get a newline-separated list from an environment variable for dry runs."""
+  """Get a value from an environment variable for dry runs."""
   env_val = os.getenv(env_var_name)
   if not env_val:
     return default
@@ -483,57 +510,89 @@ def _get_dry_run_list(
       continue
     key, val = item.split('=', 1)
     if key.strip() == res_path:
-      return val.replace(',', '\n')
+      # For CSV/multiline data, we might use ':' as a line separator in env vars
+      return val.strip().replace(':', '\n')
 
   return default
 
 
 def _get_dry_run_sub_blocks(reservation: BlockReservationLink) -> str:
   """Get dry run sub-blocks based on environment variable."""
-  return _get_dry_run_list(
-      'DRY_RUN_RESERVATION_SUB_BLOCKS', reservation, default='sub1\nsub2'
+  return _get_dry_run_value(
+      'DRY_RUN_RESERVATION_SUB_BLOCKS',
+      reservation,
+      default='',
   )
 
 
-def _get_healthy_and_unused_sub_blocks_in_block(
+def _get_healthy_and_fitting_sub_blocks_in_block(
     reservation: BlockReservationLink,
+    required_hosts: int,
 ) -> list[ReservationCapacity]:
-  """Get healthy and unused sub-blocks in a block."""
+  """Get healthy and fitting sub-blocks in a block."""
   command = (
       f'gcloud beta compute reservations sub-blocks list {reservation.name} '
       f'--block-name={reservation.block_name} '
       f'--project={reservation.project} '
       f'--zone={reservation.zone} '
-      '--filter="inUseCount=0 AND healthInfo.healthStatus=HEALTHY" '
-      '--format="value(name)"'
+      '--filter="healthInfo.healthStatus=HEALTHY" '
+      '--format="csv[no-heading](name,count,inUseCount)"'
   )
   return_code, output = run_command_for_value(
       command,
-      f'Count healthy unused sub-blocks in {reservation.block_name}',
+      f'Count healthy fitting sub-blocks in {reservation.block_name}',
       dry_run_return_val=_get_dry_run_sub_blocks(reservation),
   )
   if return_code != 0:
     return []
 
-  return [
-      ReservationCapacity(
-          SubBlockReservationLink(
-              project=reservation.project,
-              name=reservation.name,
-              zone=reservation.zone,
-              block_name=reservation.block_name,
-              sub_block_name=name,
-          ),
-          1,
-      )
-      for name in output.strip().splitlines()
-      if name
-  ]
+  available_capacities = []
+  lines = output.strip().splitlines()
+  # Handle old dry-run format where sub-blocks are comma-separated on one line
+  if len(lines) == 1 and ',' in lines[0]:
+    parts = [p.strip() for p in lines[0].split(',')]
+    # If it doesn't look like CSV (name, count, inUseCount), treat as list of names
+    if not (len(parts) >= 3 and parts[1].isdigit()):
+      lines = parts
+
+  for line in lines:
+    if not line:
+      continue
+    try:
+      # Parse the CSV output
+      parts = [p.strip() for p in line.split(',')]
+      name = parts[0]
+      if len(parts) >= 3 and parts[1].isdigit():
+        count = int(parts[1])
+        in_use_count = int(parts[2])
+      else:
+        # Fallback for old dry-run formats or simpler inputs
+        count = required_hosts
+        in_use_count = 0
+
+      available_slots = (count - in_use_count) // required_hosts
+      if available_slots > 0:
+        available_capacities.append(
+            ReservationCapacity(
+                SubBlockReservationLink(
+                    project=reservation.project,
+                    name=reservation.name,
+                    zone=reservation.zone,
+                    block_name=reservation.block_name,
+                    sub_block_name=name,
+                ),
+                available_slots,
+            )
+        )
+    except (ValueError, IndexError):
+      continue
+
+  return available_capacities
 
 
 def _get_dry_run_blocks(reservation: ReservationLink) -> str:
   """Get dry run blocks based on environment variable."""
-  return _get_dry_run_list('DRY_RUN_RESERVATION_BLOCKS', reservation)
+  return _get_dry_run_value('DRY_RUN_RESERVATION_BLOCKS', reservation)
 
 
 def _get_blocks_in_reservation(
@@ -570,11 +629,14 @@ def _get_blocks_in_reservation(
   ]
 
 
-def _get_reservation_count(reservation: ReservationLink) -> int:
+def _get_reservation_count(
+    reservation: ReservationLink, required_hosts: int
+) -> int:
   """Get capacity count of a reservation.
 
   Args:
     reservation: reservation to get count for.
+    required_hosts: number of hosts required per slice.
 
   Returns:
     Number of available slots in the reservation.
@@ -589,15 +651,28 @@ def _get_reservation_count(reservation: ReservationLink) -> int:
   return_code, output = run_command_for_value(
       command,
       f'Get reservation count for {reservation.name}',
-      dry_run_return_val='1,0,READY',
+      dry_run_return_val=_get_dry_run_value(
+          'DRY_RUN_RESERVATION_CAPACITY', reservation
+      ),
   )
   if return_code != 0:
     return 0
 
   try:
-    count_str, in_use_str, status = output.strip().split(',')
+    parts = [p.strip() for p in output.strip().split(',')]
+    if len(parts) >= 3:
+      count_str = parts[0]
+      in_use_str = parts[1]
+      status = parts[2]
+    else:
+      # Fallback for simpler dry-run inputs
+      count_str = '10000'
+      in_use_str = '0'
+      status = 'READY'
+
     if status == 'READY':
-      return max(0, int(count_str) - int(in_use_str))
+      available_hosts = max(0, int(count_str) - int(in_use_str))
+      return available_hosts // required_hosts
   except (ValueError, IndexError):
     pass
   return 0

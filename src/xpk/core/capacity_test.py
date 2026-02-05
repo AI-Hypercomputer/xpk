@@ -267,7 +267,7 @@ def test_assess_available_slices_sub_block(mocker):
   )
   # Mock run_command_for_value to return non-empty string (healthy)
   commands_tester.set_result_for_command(
-      (0, 'sub-block'), 'gcloud beta compute reservations sub-blocks list'
+      (0, '1,0'), 'gcloud beta compute reservations sub-blocks list'
   )
   res = SubBlockReservationLink(
       project='project',
@@ -276,15 +276,20 @@ def test_assess_available_slices_sub_block(mocker):
       block_name='block',
       sub_block_name='sub-block',
   )
-  assert assess_available_slices([res], enable_super_slicing=False) == [
-      ReservationCapacity(res, 1)
-  ]
+  assert assess_available_slices(
+      [res], enable_super_slicing=False, required_hosts=1
+  ) == [ReservationCapacity(res, 1)]
 
   # Mock unhealthy
   commands_tester.set_result_for_command(
       (0, ''), 'gcloud beta compute reservations sub-blocks list'
   )
-  assert assess_available_slices([res], enable_super_slicing=False) == []
+  assert (
+      assess_available_slices(
+          [res], enable_super_slicing=False, required_hosts=1
+      )
+      == []
+  )
 
 
 def test_assess_available_slices_block(mocker):
@@ -294,7 +299,8 @@ def test_assess_available_slices_block(mocker):
   )
   # Mock 2 healthy sub-blocks
   commands_tester.set_result_for_command(
-      (0, 'sub1\nsub2'), 'gcloud beta compute reservations sub-blocks list'
+      (0, 'sub1,1,0\nsub2,1,0'),
+      'gcloud beta compute reservations sub-blocks list',
   )
   res = BlockReservationLink(
       project='project',
@@ -302,7 +308,9 @@ def test_assess_available_slices_block(mocker):
       zone='us-central1-a',
       block_name='block',
   )
-  slices = assess_available_slices([res], enable_super_slicing=False)
+  slices = assess_available_slices(
+      [res], enable_super_slicing=False, required_hosts=1
+  )
   assert len(slices) == 2
   assert isinstance(slices[0], ReservationCapacity)
   assert isinstance(slices[0].reservation, SubBlockReservationLink)
@@ -319,7 +327,12 @@ def test_assess_available_slices_block(mocker):
   commands_tester.set_result_for_command(
       (0, ''), 'gcloud beta compute reservations sub-blocks list'
   )
-  assert assess_available_slices([res], enable_super_slicing=False) == []
+  assert (
+      assess_available_slices(
+          [res], enable_super_slicing=False, required_hosts=1
+      )
+      == []
+  )
 
 
 def test_assess_available_slices_link_with_blocks(mocker):
@@ -336,13 +349,15 @@ def test_assess_available_slices_link_with_blocks(mocker):
       (0, 'block1'), 'gcloud beta compute reservations blocks list'
   )
   commands_tester.set_result_for_command(
-      (0, 'sub1'), 'gcloud beta compute reservations sub-blocks list'
+      (0, 'sub1,1,0'), 'gcloud beta compute reservations sub-blocks list'
   )
 
   res = ReservationLink(
       project='project', name='reservation', zone='us-central1-a'
   )
-  slices = assess_available_slices([res], enable_super_slicing=True)
+  slices = assess_available_slices(
+      [res], enable_super_slicing=True, required_hosts=1
+  )
   assert len(slices) == 1
   assert isinstance(slices[0], ReservationCapacity)
   assert isinstance(slices[0].reservation, SubBlockReservationLink)
@@ -369,7 +384,9 @@ def test_assess_available_slices_link_without_blocks(mocker):
   res = ReservationLink(
       project='project', name='reservation', zone='us-central1-a'
   )
-  slices = assess_available_slices([res], enable_super_slicing=False)
+  slices = assess_available_slices(
+      [res], enable_super_slicing=False, required_hosts=1
+  )
   assert len(slices) == 1
   assert isinstance(slices[0], ReservationCapacity)
   assert isinstance(slices[0].reservation, ReservationLink)
@@ -377,6 +394,43 @@ def test_assess_available_slices_link_without_blocks(mocker):
   assert slices[0].reservation.name == 'reservation'
   assert slices[0].reservation.zone == 'us-central1-a'
   assert slices[0].available_count == 2
+
+
+def test_assess_available_slices_host_filtering(mocker):
+  commands_tester = CommandsTester(
+      mocker,
+      run_command_for_value_path='xpk.core.capacity.run_command_for_value',
+  )
+  # Mock a sub-block that has 16 hosts but we need 32
+  commands_tester.set_result_for_command(
+      (0, 'sub-block,16,0'), 'gcloud beta compute reservations sub-blocks list'
+  )
+  res = SubBlockReservationLink(
+      project='project',
+      name='reservation',
+      zone='us-central1-a',
+      block_name='block',
+      sub_block_name='sub-block',
+  )
+  # Should be empty because available 16 < required 32
+  assert (
+      assess_available_slices(
+          [res], enable_super_slicing=False, required_hosts=32
+      )
+      == []
+  )
+
+  # Mock a reservation that has 48 hosts, and we need 16 per slice.
+  # Should return 3 available slices.
+  commands_tester.set_result_for_command(
+      (0, '48,0,READY'), 'gcloud beta compute reservations describe'
+  )
+  res_link = ReservationLink(project='p', name='r', zone='z')
+  slices = assess_available_slices(
+      [res_link], enable_super_slicing=False, required_hosts=16
+  )
+  assert len(slices) == 1
+  assert slices[0].available_count == 3
 
 
 def test_get_capacity_node_selectors_from_capacity_type():

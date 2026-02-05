@@ -28,6 +28,11 @@ from .capacity import (
     get_capacity_type,
     get_reservations_list,
     print_reservations,
+    parse_reservation,
+    to_reservation_path,
+    ReservationLink,
+    BlockReservationLink,
+    SubBlockReservationLink,
 )
 from .commands import run_command_for_value, run_commands, FailedCommand
 from .gcloud_context import GkeServerConfig, get_cluster_location, zone_to_region
@@ -60,6 +65,7 @@ def run_gke_node_pool_create_command(
     0 if successful and 1 otherwise.
   """
   device_type = args.tpu_type if args.tpu_type else args.device_type
+  super_slicing = FeatureFlags.SUPER_SLICING_ENABLED and args.super_slicing
   xpk_print(
       f'Creating {args.num_slices} node pool or pools of {device_type}\n'
       f'We assume that the underlying system is: {system}'
@@ -254,7 +260,6 @@ def run_gke_node_pool_create_command(
 
   placement_args = ''
   if is_placement_policy_supported(system):
-    super_slicing = FeatureFlags.SUPER_SLICING_ENABLED and args.super_slicing
     placement_policy = get_placement_policy_name(
         system,
         super_slicing,
@@ -273,8 +278,7 @@ def run_gke_node_pool_create_command(
   node_pools_to_create = [
       np for np in desired_node_pool_names if np not in node_pools_to_remain
   ]
-
-  reservations_iter: Iterator[str] | None = None
+  reservations_iter: Iterator[ReservationLink] | None = None
   if capacity_type == CapacityType.RESERVATION:
     reservations = get_reservations_list(args)
     if (
@@ -292,7 +296,9 @@ def run_gke_node_pool_create_command(
         capacity_type,
         max_nodes,
         system.accelerator_type,
-        reservation_name=next(reservations_iter) if reservations_iter else None,
+        reservation_name=to_reservation_path(next(reservations_iter))
+        if reservations_iter
+        else None,
     )
     if return_code > 0:
       xpk_print('Parsing capacity arguments failed!')
@@ -680,19 +686,6 @@ def ensure_resource_policy_exists(
     raise RuntimeError('Unable to create resource policy')
 
 
-def _validate_reservation_count(
-    reservations: List[str], num_node_pools_to_create: int
-) -> int:
-  """Validate that reservation count matches new nodepool count or is 1."""
-  if len(reservations) > 1 and len(reservations) != num_node_pools_to_create:
-    xpk_print(
-        f'Error: Number of reservations ({len(reservations)}) must match'
-        f' the number of NEW nodepools ({num_node_pools_to_create}) or be 1.'
-    )
-    return 1
-  return 0
-
-
 def recreate_nodes_in_existing_node_pools(args) -> int:
   """Triggers a manual upgrade of nodepools to the same version to force recreation
   of nodes.
@@ -725,3 +718,16 @@ def recreate_nodes_in_existing_node_pools(args) -> int:
       task_names,
   )
   return maybe_failure.return_code if maybe_failure is not None else 0
+
+
+def _validate_reservation_count(
+    reservations: List[ReservationLink], num_node_pools_to_create: int
+) -> int:
+  """Validate that reservation count matches new nodepool count or is 1."""
+  if len(reservations) > 1 and len(reservations) != num_node_pools_to_create:
+    xpk_print(
+        f'Error: Number of reservations ({len(reservations)}) must match'
+        f' the number of NEW nodepools ({num_node_pools_to_create}) or be 1.'
+    )
+    return 1
+  return 0

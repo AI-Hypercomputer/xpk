@@ -138,6 +138,13 @@ def add_shared_arguments(
       help='Disables prompting before unintended destructive actions.',
       required=required,
   )
+  custom_parser_or_group.add_argument(
+      '--sandbox-kubeconfig',
+      action=argparse.BooleanOptionalAction,
+      default=False,
+      help='Whether to sandbox k8s config. (Experimental)',
+      required=required,
+  )
 
 
 def add_cluster_arguments(

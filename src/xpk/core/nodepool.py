@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 from typing import Iterator, List
-from itertools import cycle
+from itertools import chain, repeat
 
 from ..utils.feature_flags import FeatureFlags
 from ..utils.console import ask_for_user_consent, xpk_print
@@ -746,10 +746,8 @@ def _prepare_reservation_iterator(
     return None, 1
 
   # Create an iterator that yields one ReservationLink per available count
-  reservations_to_use = [
-      res
-      for cap in available_capacity
-      for res in [cap.reservation] * cap.available_count
-  ]
+  reservations_iter = chain.from_iterable(
+      repeat(cap.reservation, cap.available_count) for cap in available_capacity
+  )
 
-  return iter(reservations_to_use), 0
+  return reservations_iter, 0

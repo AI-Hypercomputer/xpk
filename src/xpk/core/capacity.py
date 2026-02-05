@@ -438,10 +438,7 @@ def _assess_available_slices_for_reservation(
   if enable_super_slicing:
     blocks = _get_blocks_in_reservation(reservation)
     if blocks:
-      slices = []
-      for block in blocks:
-        slices.extend(_get_healthy_and_unused_sub_blocks_in_block(block))
-      return slices
+      return assess_available_slices(blocks, enable_super_slicing)
 
   # Otherwise (or if no blocks found), use reservation count
   count = _get_reservation_count(reservation)
@@ -538,8 +535,7 @@ def _get_blocks_in_reservation(
 ) -> list[BlockReservationLink]:
   """Get blocks in a reservation."""
   command = (
-      'gcloud beta compute reservations blocks list'
-      f' --reservation={reservation.name} '
+      f'gcloud beta compute reservations blocks list {reservation.name} '
       f'--project={reservation.project} '
       f'--zone={reservation.zone} '
       '--format="value(name)"'
@@ -550,7 +546,8 @@ def _get_blocks_in_reservation(
       dry_run_return_val=_get_dry_run_blocks(reservation),
   )
   if return_code != 0:
-    return []
+    xpk_print(f'Get blocks in reservation {reservation.name} failed with {return_code}')
+    xpk_exit(return_code)
 
   return [
       BlockReservationLink(

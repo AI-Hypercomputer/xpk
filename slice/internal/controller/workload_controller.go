@@ -595,11 +595,11 @@ func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workloa
 	}
 
 	if conflictingIDs := r.findConflictingPartitionIDs(ctx, existingSlicesByName, slicesToCreate); len(conflictingIDs) > 0 {
-		msg := fmt.Sprintf("Partition IDs %q are already used by existing Slices", conflictingIDs)
 		log := ctrl.LoggerFrom(ctx)
 		log.V(3).Info("Partition ID collisions detected, not creating slices, evicting workload")
 		ac.State = kueue.CheckStateRetry
 		ac.RequeueAfterSeconds = ptr.To(int32(10))
+		msg := fmt.Sprintf("Partition IDs %q are already used by existing Slices", conflictingIDs)
 		ac.Message = api.TruncateConditionMessage(msg)
 		patchErr := r.updateWorkloadAdmissionCheckStatus(ctx, wl, ac)
 		if patchErr != nil {

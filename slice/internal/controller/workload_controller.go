@@ -571,14 +571,14 @@ func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workloa
 	ps := podset.FindPodSetByName(wl.Spec.PodSets, psa.Name)
 	chunkSize := int32(len(parsedAssignment.PartitionIDs) / int(desiredNumberOfSlices))
 	createdSlices := []v1beta1.Slice{}
+	slicesToCreate := []*v1beta1.Slice{}
+
 	for i := range desiredNumberOfSlices {
 		if _, exist := existingSlicesByName[core.SliceName(wl.Namespace, wl.Name, psa.Name, i)]; exist {
 			// Slice already exists, nothing to do.
 			continue
 		}
 		slice := core.SliceWithMetadata(wl, psa.Name, i)
-		log := ctrl.LoggerFrom(ctx).WithValues("slice", klog.KObj(slice))
-		log.V(3).Info("Creating Slice")
 		// Since Slice is a cluster-scoped object and Workload is namespaced,
 		// we cannot set a controller owner reference. The Workload's namespace and name
 		// are stored as annotations on the Slice for lookup.
@@ -591,6 +591,26 @@ func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workloa
 		}
 
 		slice.Spec.Topology = core.GetTPUTopology(ps.Template)
+		slicesToCreate = append(slicesToCreate, slice)
+	}
+
+	if conflictingIDs := r.findConflictingPartitionIDs(ctx, existingSlicesByName, slicesToCreate); len(conflictingIDs) > 0 {
+		log := ctrl.LoggerFrom(ctx)
+		log.V(3).Info("Partition ID collisions detected, not creating slices, evicting workload")
+		ac.State = kueue.CheckStateRetry
+		ac.RequeueAfterSeconds = ptr.To(int32(10))
+		msg := fmt.Sprintf("Partition IDs %q are already used by existing Slices", conflictingIDs)
+		ac.Message = api.TruncateConditionMessage(msg)
+		patchErr := r.updateWorkloadAdmissionCheckStatus(ctx, wl, ac)
+		if patchErr != nil {
+			return nil, errors.Join(errors.New(msg), patchErr)
+		}
+		return nil, errors.New(msg)
+	}
+
+	for _, slice := range slicesToCreate {
+		log := ctrl.LoggerFrom(ctx).WithValues("slice", klog.KObj(slice))
+		log.V(3).Info("Creating Slice")
 
 		if err := r.client.Create(ctx, slice); err != nil {
 			msg := fmt.Sprintf("Error creating Slice %q: %v", slice.Name, err)
@@ -599,11 +619,39 @@ func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workloa
 			ac.State = kueue.CheckStatePending
 			ac.Message = api.TruncateConditionMessage(msg)
 			patchErr := r.updateWorkloadAdmissionCheckStatus(ctx, wl, ac)
-			return nil, errors.Join(err, patchErr)
+			if patchErr != nil {
+				return nil, errors.Join(err, patchErr)
+			}
+			return nil, err
 		}
 		createdSlices = append(createdSlices, *slice)
 	}
 	return createdSlices, nil
+}
+
+func (r *WorkloadReconciler) findConflictingPartitionIDs(
+	ctx context.Context,
+	existingSlicesByName map[string]*v1beta1.Slice,
+	slicesToCreate []*v1beta1.Slice,
+) []string {
+	log := ctrl.LoggerFrom(ctx)
+	usedPartitionIDs := make(map[string]*v1beta1.Slice)
+	for _, s := range existingSlicesByName {
+		for _, id := range s.Spec.PartitionIds {
+			usedPartitionIDs[id] = s
+		}
+	}
+
+	var conflictingIDs []string
+	for _, slice := range slicesToCreate {
+		for _, id := range slice.Spec.PartitionIds {
+			if oldSlice, ok := usedPartitionIDs[id]; ok {
+				log.V(3).Info("Partition ID collision detected", "partitionID", id, "oldSlice", oldSlice.Name, "newSlice", slice.Name)
+				conflictingIDs = append(conflictingIDs, id)
+			}
+		}
+	}
+	return conflictingIDs
 }
 
 func (r *WorkloadReconciler) updateWorkloadAdmissionCheckStatus(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState) error {

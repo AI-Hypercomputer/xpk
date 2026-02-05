@@ -870,6 +870,82 @@ func TestWorkloadReconciler(t *testing.T) {
 			},
 			wantResult: reconcile.Result{RequeueAfter: initializationRetryAfter},
 		},
+		"should fail to create Slice if Partition ID is already in use": {
+			request: baseRequest,
+			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapper.Clone().
+					PodSets(
+						*utiltesting.MakePodSet("ps1", 2, ptr.To(int32(1))).
+							Annotation(core.TPUSliceTopologyAnnotation, "4x4x12").
+							NodeSelector("cloud.google.com/gke-tpu-accelerator", string(slice.TypeTpu7x)).
+							Obj(),
+						*utiltesting.MakePodSet("ps2", 2, ptr.To(int32(1))).
+							Annotation(core.TPUSliceTopologyAnnotation, "4x4x12").
+							NodeSelector("cloud.google.com/gke-tpu-accelerator", string(slice.TypeTpu7x)).
+							Obj(),
+					).
+					ReserveQuota(&kueue.Admission{
+						PodSetAssignments: []kueue.PodSetAssignment{
+							utiltesting.MakePodSetAssignment("ps1").
+								TopologyAssignment(baseLevels, []kueue.TopologyAssignmentSlice{
+									utiltesting.MakeTopologyAssignmentSliceUniversal(1, 2).
+										Value("worker1").
+										Obj(),
+								}).Obj(),
+							utiltesting.MakePodSetAssignment("ps2").
+								TopologyAssignment(baseLevels, []kueue.TopologyAssignmentSlice{
+									utiltesting.MakeTopologyAssignmentSliceUniversal(1, 2).
+										Value("worker1").
+										Obj(),
+								}).Obj(),
+						},
+					}, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					Obj(),
+				baseSlice1Wrapper.Clone().PartitionIDs("subblock1").Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapper.Clone().
+					PodSets(
+						*utiltesting.MakePodSet("ps1", 2, ptr.To(int32(1))).
+							Annotation(core.TPUSliceTopologyAnnotation, "4x4x12").
+							NodeSelector("cloud.google.com/gke-tpu-accelerator", string(slice.TypeTpu7x)).
+							Obj(),
+						*utiltesting.MakePodSet("ps2", 2, ptr.To(int32(1))).
+							Annotation(core.TPUSliceTopologyAnnotation, "4x4x12").
+							NodeSelector("cloud.google.com/gke-tpu-accelerator", string(slice.TypeTpu7x)).
+							Obj(),
+					).
+					ReserveQuota(&kueue.Admission{
+						PodSetAssignments: []kueue.PodSetAssignment{
+							utiltesting.MakePodSetAssignment("ps1").
+								TopologyAssignment(baseLevels, []kueue.TopologyAssignmentSlice{
+									utiltesting.MakeTopologyAssignmentSliceUniversal(1, 2).
+										Value("worker1").
+										Obj(),
+								}).Obj(),
+							utiltesting.MakePodSetAssignment("ps2").
+								TopologyAssignment(baseLevels, []kueue.TopologyAssignmentSlice{
+									utiltesting.MakeTopologyAssignmentSliceUniversal(1, 2).
+										Value("worker1").
+										Obj(),
+								}).Obj(),
+						},
+					}, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckStateWithRequeue(kueue.CheckStateRetry,
+						`Partition IDs ["subblock1"] are already used by existing Slices`, ptr.To(int32(10)))).
+					Obj(),
+			},
+			wantSlices: []slice.Slice{
+				*baseSlice1Wrapper.Clone().PartitionIDs("subblock1").Obj(),
+			},
+			wantErr: errors.New(`Partition IDs ["subblock1"] are already used by existing Slices`),
+		},
 		"should create multiple Slices for multiple replicated jobs with different replica counts": {
 			request: baseRequest,
 			objs: []client.Object{
@@ -1861,7 +1937,7 @@ func TestWorkloadReconciler(t *testing.T) {
 			if diff := cmp.Diff(tc.wantResult, gotResult); diff != "" {
 				t.Errorf("Reconcile result after reconcile (-want,+got):\n%s", diff)
 			}
-			if diff := cmp.Diff(tc.wantErr, err, cmpopts.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.wantErr, err, utiltesting.EquateErrors); diff != "" {
 				t.Errorf("Error after reconcile (-want,+got):\n%s", diff)
 			}
 

@@ -229,7 +229,9 @@ def verify_reservations_exist(args) -> int:
         f'gcloud beta compute reservations describe {reservation.name}'
         f' --project={reservation.project} --zone={reservation.zone}'
     )
-    return_code = run_command_with_updates(command, 'Describe reservation')
+    return_code = run_command_with_updates(
+        command, 'Describe reservation', verbose=False
+    )
     if return_code != 0:
       xpk_print(f'Describe reservation returned ERROR {return_code}')
       xpk_print(
@@ -425,11 +427,14 @@ def _assess_available_slices_for_reservation(
     List of available reservations (targeting sub-blocks if applicable).
   """
   if isinstance(reservation, SubBlockReservationLink):
-    return (
-        [ReservationCapacity(reservation, 1)]
-        if _is_sub_block_healthy_and_unused(reservation)
-        else []
-    )
+    if _is_sub_block_healthy_and_unused(reservation):
+      return [ReservationCapacity(reservation, 1)]
+    else:
+      xpk_print(
+          f'WARNING: Sub-block {reservation.sub_block_name} is either'
+          ' unhealthy or in use. Skipping.'
+      )
+      return []
 
   if isinstance(reservation, BlockReservationLink):
     return _get_healthy_and_unused_sub_blocks_in_block(reservation)
@@ -546,7 +551,10 @@ def _get_blocks_in_reservation(
       dry_run_return_val=_get_dry_run_blocks(reservation),
   )
   if return_code != 0:
-    xpk_print(f'Get blocks in reservation {reservation.name} failed with {return_code}')
+    xpk_print(
+        f'Get blocks in reservation {reservation.name} failed with'
+        f' {return_code}'
+    )
     xpk_exit(return_code)
 
   return [

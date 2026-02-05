@@ -590,6 +590,7 @@ func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workloa
 		if len(parsedAssignment.PartitionIDs) > 0 {
 			slice.Spec.PartitionIds = parsedAssignment.PartitionIDs[start:end]
 		}
+
 		slice.Spec.Topology = core.GetTPUTopology(ps.Template)
 		slicesToCreate = append(slicesToCreate, slice)
 	}

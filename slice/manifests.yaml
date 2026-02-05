@@ -596,7 +596,7 @@ spec:
         - --health-probe-bind-address=:8081
         command:
         - /manager
-        image: pajakd/slice:v0.8.0-147-g1277f6a
+        image: tpuongke/kueue-slice-controller:v0.8.0-149-gf548c1d
         livenessProbe:
           httpGet:
             path: /healthz

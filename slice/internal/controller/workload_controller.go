@@ -579,14 +579,14 @@ func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workloa
 			// Slice already exists, nothing to do.
 			continue
 		}
-		start := i * chunkSize
-		end := start + chunkSize
 		slice := core.SliceWithMetadata(wl, psa.Name, i)
-
 		// Since Slice is a cluster-scoped object and Workload is namespaced,
 		// we cannot set a controller owner reference. The Workload's namespace and name
 		// are stored as annotations on the Slice for lookup.
+
 		slice.Spec.Type = v1beta1.Type(core.GetTPUAccelerator(ps.Template))
+		start := i * chunkSize
+		end := start + chunkSize
 		if len(parsedAssignment.PartitionIDs) > 0 {
 			slice.Spec.PartitionIds = parsedAssignment.PartitionIDs[start:end]
 		}

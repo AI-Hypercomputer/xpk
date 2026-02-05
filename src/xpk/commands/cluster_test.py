@@ -47,19 +47,10 @@ class _ClusterCreateMocks:
   get_gke_server_config: MagicMock
   get_gke_control_plane_version: MagicMock
   get_system_characteristics: MagicMock
-  authorize_private_cluster_access_if_necessary: MagicMock
-  update_coredns_if_necessary: MagicMock
-  get_cluster_credentials: MagicMock
-  setup_k8s_env: MagicMock
   get_gke_node_pool_version: MagicMock
-  run_gke_node_pool_create_command: MagicMock
-  create_cluster_configmaps: MagicMock
-  set_jobset_on_cluster: MagicMock
+  setup_k8s_env: MagicMock
   get_cluster_location: MagicMock
   xpk_exit: MagicMock
-  update_jobset_resources_if_necessary: MagicMock
-  _install_kueue: MagicMock
-  set_pathways_job_on_cluster: MagicMock
   _log_cluster_create_telemetry: MagicMock
 
 
@@ -168,46 +159,16 @@ def cluster_create_mocks(mocker) -> _ClusterCreateMocks:
           'xpk.commands.cluster.get_system_characteristics',
           return_value=(TPU_TEST_SYSTEM, 0),
       ),
-      authorize_private_cluster_access_if_necessary=mocker.patch(
-          'xpk.commands.cluster.authorize_private_cluster_access_if_necessary',
-          return_value=0,
-      ),
-      update_coredns_if_necessary=mocker.patch(
-          'xpk.commands.cluster.update_coredns_if_necessary', return_value=0
-      ),
-      get_cluster_credentials=mocker.patch(
-          'xpk.commands.cluster.get_cluster_credentials', return_value=0
-      ),
-      setup_k8s_env=mocker.patch('xpk.commands.cluster.setup_k8s_env'),
       get_gke_node_pool_version=mocker.patch(
           'xpk.commands.cluster.get_gke_node_pool_version',
           return_value=(0, '1.2.3'),
       ),
-      run_gke_node_pool_create_command=mocker.patch(
-          'xpk.commands.cluster.run_gke_node_pool_create_command',
-          return_value=0,
-      ),
-      create_cluster_configmaps=mocker.patch(
-          'xpk.commands.cluster.create_cluster_configmaps', return_value=0
-      ),
-      set_jobset_on_cluster=mocker.patch(
-          'xpk.commands.cluster.set_jobset_on_cluster', return_value=0
-      ),
+      setup_k8s_env=mocker.patch('xpk.commands.cluster.setup_k8s_env'),
       get_cluster_location=mocker.patch(
           'xpk.commands.cluster.get_cluster_location',
           return_value='us-central1',
       ),
       xpk_exit=mocker.patch('xpk.commands.cluster.xpk_exit'),
-      update_jobset_resources_if_necessary=mocker.patch(
-          'xpk.commands.cluster.update_jobset_resources_if_necessary',
-          return_value=0,
-      ),
-      _install_kueue=mocker.patch(
-          'xpk.commands.cluster._install_kueue', return_value=0
-      ),
-      set_pathways_job_on_cluster=mocker.patch(
-          'xpk.commands.cluster.set_pathways_job_on_cluster', return_value=0
-      ),
       _log_cluster_create_telemetry=mocker.patch(
           'xpk.commands.cluster._log_cluster_create_telemetry'
       ),

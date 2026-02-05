@@ -60,17 +60,7 @@ class _ClusterCreateMocks:
   update_jobset_resources_if_necessary: MagicMock
   _install_kueue: MagicMock
   set_pathways_job_on_cluster: MagicMock
-  validate_dependencies_list: MagicMock
-  add_zone_and_project: MagicMock
   _log_cluster_create_telemetry: MagicMock
-  install_storage_csis: MagicMock
-  install_storage_crd: MagicMock
-  update_cluster_with_workload_identity_if_necessary: MagicMock
-  enable_autoprovisioning_on_cluster: MagicMock
-  prepare_gpus: MagicMock
-  install_ray_cluster: MagicMock
-  install_mtc_on_cluster: MagicMock
-  install_mldiagnostics_prerequisites: MagicMock
 
 
 @pytest.fixture
@@ -97,12 +87,17 @@ def mocks(mocker) -> _Mocks:
       commands_get_pathways_machine_types=commands_get_pathways_machine_types,
       commands_tester=CommandsTester(
           mocker,
-          run_command_with_updates_path=(
-              'xpk.commands.cluster.run_command_with_updates'
-          ),
-          run_command_for_value_path=(
-              'xpk.commands.cluster.run_command_for_value'
-          ),
+          run_command_with_updates_path=[
+              'xpk.commands.cluster.run_command_with_updates',
+              'xpk.core.cluster.run_command_with_updates',
+          ],
+          run_command_for_value_path=[
+              'xpk.commands.cluster.run_command_for_value',
+              'xpk.utils.validation.run_command_for_value',
+              'xpk.core.gcloud_context.run_command_for_value',
+              'xpk.core.cluster.run_command_for_value',
+              'xpk.core.nodepool.run_command_for_value',
+          ],
       ),
   )
 
@@ -226,39 +221,8 @@ def cluster_create_mocks(mocker) -> _ClusterCreateMocks:
       set_pathways_job_on_cluster=mocker.patch(
           'xpk.commands.cluster.set_pathways_job_on_cluster', return_value=0
       ),
-      validate_dependencies_list=mocker.patch(
-          'xpk.commands.cluster.validate_dependencies_list'
-      ),
-      add_zone_and_project=mocker.patch(
-          'xpk.commands.cluster.add_zone_and_project'
-      ),
       _log_cluster_create_telemetry=mocker.patch(
           'xpk.commands.cluster._log_cluster_create_telemetry'
-      ),
-      install_storage_csis=mocker.patch(
-          'xpk.commands.cluster.install_storage_csis'
-      ),
-      install_storage_crd=mocker.patch(
-          'xpk.commands.cluster.install_storage_crd'
-      ),
-      update_cluster_with_workload_identity_if_necessary=mocker.patch(
-          'xpk.commands.cluster.update_cluster_with_workload_identity_if_necessary',
-          return_code=0,
-      ),
-      enable_autoprovisioning_on_cluster=mocker.patch(
-          'xpk.commands.cluster.enable_autoprovisioning_on_cluster',
-          return_value=(None, 0),
-      ),
-      prepare_gpus=mocker.patch('xpk.commands.cluster.prepare_gpus'),
-      install_ray_cluster=mocker.patch(
-          'xpk.commands.cluster.install_ray_cluster', return_value=0
-      ),
-      install_mtc_on_cluster=mocker.patch(
-          'xpk.commands.cluster.install_mtc_on_cluster', return_value=0
-      ),
-      install_mldiagnostics_prerequisites=mocker.patch(
-          'xpk.commands.cluster.install_mldiagnostics_prerequisites',
-          return_value=0,
       ),
   )
 

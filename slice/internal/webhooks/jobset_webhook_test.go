@@ -25,6 +25,7 @@ import (
 
 	slice "tpu-slice-controller/api/v1beta1"
 	"tpu-slice-controller/internal/core"
+	utiltesting "tpu-slice-controller/internal/util/testing"
 	testingjobjobset "tpu-slice-controller/internal/util/testingjobs/jobset"
 	"tpu-slice-controller/test/utils"
 )
@@ -310,12 +311,7 @@ func TestDefault(t *testing.T) {
 			webhook := &JobSetWebhook{}
 
 			gotErr := webhook.Default(ctx, tc.jobSet)
-			if diff := cmp.Diff(tc.wantErr, gotErr, cmp.Comparer(func(x, y error) bool {
-				if x == nil || y == nil {
-					return x == nil && y == nil
-				}
-				return x.Error() == y.Error()
-			})); diff != "" {
+			if diff := cmp.Diff(tc.wantErr, gotErr, utiltesting.EquateErrors); diff != "" {
 				t.Errorf("Default() error mismatch (-want +got):\n%s", diff)
 			}
 			if tc.wantJobSet != nil {

@@ -106,13 +106,6 @@ func TestWorkloadReconciler(t *testing.T) {
 		}
 	}
 
-	equateErrors := cmp.Comparer(func(x, y error) bool {
-		if x == nil || y == nil {
-			return x == nil && y == nil
-		}
-		return errors.Is(x, y) || errors.Is(y, x) || x.Error() == y.Error()
-	})
-
 	baseRequest := types.NamespacedName{Name: baseWorkloadName, Namespace: corev1.NamespaceDefault}
 	baseJobSetWrapper := utiltestingjobsjobset.MakeJobSet(baseJobSetName, corev1.NamespaceDefault)
 	basePod1Wrapper := utiltestingjobspod.MakePod(basePod1Name, corev1.NamespaceDefault).
@@ -944,13 +937,14 @@ func TestWorkloadReconciler(t *testing.T) {
 					}, now).
 					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Finalizers(SliceControllerName).
-					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStateRetry, `Partition ID "subblock1" is already used by an existing Slice`)).
+					AdmissionCheck(buildAdmissionCheckStateWithRequeue(kueue.CheckStateRetry,
+						`Partition IDs ["subblock1"] are already used by existing Slices`, ptr.To(int32(10)))).
 					Obj(),
 			},
 			wantSlices: []slice.Slice{
 				*baseSlice1Wrapper.Clone().PartitionIDs("subblock1").Obj(),
 			},
-			wantErr: errors.New(`Partition ID "subblock1" is already used by an existing Slice`),
+			wantErr: errors.New(`Partition IDs ["subblock1"] are already used by existing Slices`),
 		},
 		"should create multiple Slices for multiple replicated jobs with different replica counts": {
 			request: baseRequest,
@@ -1943,7 +1937,7 @@ func TestWorkloadReconciler(t *testing.T) {
 			if diff := cmp.Diff(tc.wantResult, gotResult); diff != "" {
 				t.Errorf("Reconcile result after reconcile (-want,+got):\n%s", diff)
 			}
-			if diff := cmp.Diff(tc.wantErr, err, equateErrors); diff != "" {
+			if diff := cmp.Diff(tc.wantErr, err, utiltesting.EquateErrors); diff != "" {
 				t.Errorf("Error after reconcile (-want,+got):\n%s", diff)
 			}
 

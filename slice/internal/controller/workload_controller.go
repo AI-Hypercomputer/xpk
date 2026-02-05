@@ -29,7 +29,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
@@ -595,9 +594,12 @@ func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workloa
 		slicesToCreate = append(slicesToCreate, slice)
 	}
 
-	if conflictingID, found := r.findConflictingPartitionID(existingSlicesByName, slicesToCreate); found {
-		msg := fmt.Sprintf("Partition ID %q is already used by an existing Slice", conflictingID)
+	if conflictingIDs := r.findConflictingPartitionIDs(ctx, existingSlicesByName, slicesToCreate); len(conflictingIDs) > 0 {
+		msg := fmt.Sprintf("Partition IDs %q are already used by existing Slices", conflictingIDs)
+		log := ctrl.LoggerFrom(ctx)
+		log.V(3).Info("Partition ID collisions detected, not creating slices, evicting workload")
 		ac.State = kueue.CheckStateRetry
+		ac.RequeueAfterSeconds = ptr.To(int32(10))
 		ac.Message = api.TruncateConditionMessage(msg)
 		patchErr := r.updateWorkloadAdmissionCheckStatus(ctx, wl, ac)
 		if patchErr != nil {
@@ -627,23 +629,29 @@ func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workloa
 	return createdSlices, nil
 }
 
-func (r *WorkloadReconciler) findConflictingPartitionID(
+func (r *WorkloadReconciler) findConflictingPartitionIDs(
+	ctx context.Context,
 	existingSlicesByName map[string]*v1beta1.Slice,
 	slicesToCreate []*v1beta1.Slice,
-) (string, bool) {
-	usedPartitionIDs := sets.New[string]()
+) []string {
+	log := ctrl.LoggerFrom(ctx)
+	usedPartitionIDs := make(map[string]*v1beta1.Slice)
 	for _, s := range existingSlicesByName {
-		usedPartitionIDs.Insert(s.Spec.PartitionIds...)
+		for _, id := range s.Spec.PartitionIds {
+			usedPartitionIDs[id] = s
+		}
 	}
 
+	var conflictingIDs []string
 	for _, slice := range slicesToCreate {
 		for _, id := range slice.Spec.PartitionIds {
-			if usedPartitionIDs.Has(id) {
-				return id, true
+			if oldSlice, ok := usedPartitionIDs[id]; ok {
+				log.V(3).Info("Partition ID collision detected", "partitionID", id, "oldSlice", oldSlice.Name, "newSlice", slice.Name)
+				conflictingIDs = append(conflictingIDs, id)
 			}
 		}
 	}
-	return "", false
+	return conflictingIDs
 }
 
 func (r *WorkloadReconciler) updateWorkloadAdmissionCheckStatus(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState) error {

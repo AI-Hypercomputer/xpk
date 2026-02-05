@@ -61,6 +61,8 @@ gcloud beta container node-pools describe 0 --cluster golden-cluster --project=g
 [XPK] Task: `GKE Cluster Get ConfigMap` is implemented by the following command not running since it is a dry run. 
 kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="ConfigData:data" --no-headers=true
 [XPK] Existing node pool names  ['0']
+[XPK] Task: `Get reservation count for golden-reservation` is implemented by the following command not running since it is a dry run. 
+gcloud beta compute reservations describe golden-reservation --project=golden-project --zone=us-central1-a --format="csv[no-heading](specificReservation.count,specificReservation.inUseCount,status)"
 [XPK] To complete NodepoolCreate-golden-cluster-np-0 we are executing gcloud beta container node-pools create golden-cluster-np-0 --location=us-central1 --cluster=golden-cluster --project=golden-project --node-locations=us-central1-a --machine-type=ct6e-standard-4t --host-maintenance-interval=AS_NEEDED --reservation-affinity=specific --reservation=golden-reservation --enable-gvnic --accelerator-network-profile=auto --node-labels=cloud.google.com/gke-networking-dra-driver=true --node-version=0 --num-nodes=4 --scopes=storage-full,gke-default,"https://www.googleapis.com/auth/cloud-platform" --placement-type=COMPACT --tpu-topology=4x4 --max-pods-per-node 15  
 [XPK] Breaking up a total of 1 commands into 1 batches
 [XPK] Pretending all the jobs succeeded

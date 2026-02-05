@@ -24,14 +24,7 @@ from ..utils.feature_flags import FeatureFlags
 
 @pytest.fixture(autouse=True)
 def commands_tester(mocker: MockerFixture) -> CommandsTester:
-  return CommandsTester(
-      mocker=mocker,
-      run_command_for_value_path="xpk.core.cluster.run_command_for_value",
-      run_command_with_updates_path="xpk.core.cluster.run_command_with_updates",
-      run_command_with_updates_retry_path=(
-          "xpk.core.cluster.run_command_with_updates_retry"
-      ),
-  )
+  return CommandsTester(mocker)
 
 
 @pytest.fixture(autouse=True)

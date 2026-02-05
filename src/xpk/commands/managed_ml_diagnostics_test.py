@@ -46,15 +46,7 @@ def mocks(mocker) -> _Mocks:
       common_print_mock=common_print_mock,
       commands_get_reservation_deployment_type=commands_get_reservation_deployment_type,
       commands_print_mock=commands_print_mock,
-      commands_tester=CommandsTester(
-          mocker,
-          run_command_with_updates_path=(
-              'xpk.commands.managed_ml_diagnostics.run_command_with_updates'
-          ),
-          run_command_for_value_path=(
-              'xpk.commands.managed_ml_diagnostics.run_command_for_value'
-          ),
-      ),
+      commands_tester=CommandsTester(mocker),
   )
 
 

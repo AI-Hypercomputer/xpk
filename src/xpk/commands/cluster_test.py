@@ -85,20 +85,7 @@ def mocks(mocker) -> _Mocks:
       commands_get_reservation_deployment_type=commands_get_reservation_deployment_type,
       commands_print_mock=commands_print_mock,
       commands_get_pathways_machine_types=commands_get_pathways_machine_types,
-      commands_tester=CommandsTester(
-          mocker,
-          run_command_with_updates_path=[
-              'xpk.commands.cluster.run_command_with_updates',
-              'xpk.core.cluster.run_command_with_updates',
-          ],
-          run_command_for_value_path=[
-              'xpk.commands.cluster.run_command_for_value',
-              'xpk.utils.validation.run_command_for_value',
-              'xpk.core.gcloud_context.run_command_for_value',
-              'xpk.core.cluster.run_command_for_value',
-              'xpk.core.nodepool.run_command_for_value',
-          ],
-      ),
+      commands_tester=CommandsTester(mocker),
   )
 
 

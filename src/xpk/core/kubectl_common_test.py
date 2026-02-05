@@ -22,12 +22,7 @@ from xpk.core.testing.commands_tester import CommandsTester
 
 @pytest.fixture
 def commands_tester(mocker):
-  return CommandsTester(
-      mocker,
-      run_command_with_updates_retry_path=(
-          "xpk.core.kubectl_common.run_command_with_updates_retry"
-      ),
-  )
+  return CommandsTester(mocker)
 
 
 def test_patch_controller_manager_resources_full(

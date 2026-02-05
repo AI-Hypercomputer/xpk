@@ -22,13 +22,7 @@ from .pathways import get_pathways_machine_types
 
 @pytest.fixture(autouse=True)
 def commands_tester(mocker: MagicMock):
-  return CommandsTester(
-      mocker,
-      run_command_with_updates_path=(
-          "xpk.core.pathways.run_command_with_updates"
-      ),
-      run_command_for_value_path="xpk.core.pathways.run_command_for_value",
-  )
+  return CommandsTester(mocker)
 
 
 def test_get_pathways_machine_types_when_command_fails_returns_failed_exit_code(

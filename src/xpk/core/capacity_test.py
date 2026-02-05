@@ -261,10 +261,7 @@ def test_to_reservation_path():
 
 
 def test_assess_available_slices_sub_block(mocker):
-  commands_tester = CommandsTester(
-      mocker,
-      run_command_for_value_path='xpk.core.capacity.run_command_for_value',
-  )
+  commands_tester = CommandsTester(mocker)
   # Mock run_command_for_value to return non-empty string (healthy)
   commands_tester.set_result_for_command(
       (0, '1,0'), 'gcloud beta compute reservations sub-blocks list'
@@ -293,10 +290,7 @@ def test_assess_available_slices_sub_block(mocker):
 
 
 def test_assess_available_slices_block(mocker):
-  commands_tester = CommandsTester(
-      mocker,
-      run_command_for_value_path='xpk.core.capacity.run_command_for_value',
-  )
+  commands_tester = CommandsTester(mocker)
   # Mock 2 healthy sub-blocks
   commands_tester.set_result_for_command(
       (0, 'sub1,1,0\nsub2,1,0'),
@@ -336,10 +330,7 @@ def test_assess_available_slices_block(mocker):
 
 
 def test_assess_available_slices_link_with_blocks(mocker):
-  commands_tester = CommandsTester(
-      mocker,
-      run_command_for_value_path='xpk.core.capacity.run_command_for_value',
-  )
+  commands_tester = CommandsTester(mocker)
   # Mock getting count returning 0 to force block check
   commands_tester.set_result_for_command(
       (0, '0,0,READY'), 'gcloud beta compute reservations describe'
@@ -368,10 +359,7 @@ def test_assess_available_slices_link_with_blocks(mocker):
 
 
 def test_assess_available_slices_link_without_blocks(mocker):
-  commands_tester = CommandsTester(
-      mocker,
-      run_command_for_value_path='xpk.core.capacity.run_command_for_value',
-  )
+  commands_tester = CommandsTester(mocker)
   # Mock getting blocks returning empty (fails or no blocks)
   commands_tester.set_result_for_command(
       (1, ''), 'gcloud beta compute reservations blocks list'
@@ -397,10 +385,7 @@ def test_assess_available_slices_link_without_blocks(mocker):
 
 
 def test_assess_available_slices_host_filtering(mocker):
-  commands_tester = CommandsTester(
-      mocker,
-      run_command_for_value_path='xpk.core.capacity.run_command_for_value',
-  )
+  commands_tester = CommandsTester(mocker)
   # Mock a sub-block that has 16 hosts but we need 32
   commands_tester.set_result_for_command(
       (0, 'sub-block,16,0'), 'gcloud beta compute reservations sub-blocks list'

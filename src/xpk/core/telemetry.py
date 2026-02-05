@@ -128,6 +128,7 @@ class MetricsEventMetadataKey(Enum):
   RUNNING_FROM_SOURCE = "XPK_RUNNING_FROM_SOURCE"
   LATENCY_SECONDS = "XPK_LATENCY_SECONDS"
   TESTER = "XPK_TESTER"
+  FLAGS = "XPK_FLAGS"
 
 
 @dataclass
@@ -143,14 +144,17 @@ class _MetricsCollector:
 
   _events: list[_MetricsEvent] = []
 
-  def log_start(self, command: str) -> None:
+  def log_start(self, command: str, flags: str) -> None:
     """Logs start event."""
     self._events.append(
         _MetricsEvent(
             time=time.time(),
             type="commands",
             name="start",
-            metadata={MetricsEventMetadataKey.COMMAND: command},
+            metadata={
+                MetricsEventMetadataKey.COMMAND: command,
+                MetricsEventMetadataKey.FLAGS: flags,
+            },
         )
     )
 

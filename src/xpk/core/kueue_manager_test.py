@@ -75,16 +75,7 @@ def mock_ask_for_user_consent(mocker: MockerFixture) -> MagicMock:
 
 @pytest.fixture(autouse=True)
 def mock_commands(mocker: MockerFixture) -> CommandsTester:
-  return CommandsTester(
-      mocker,
-      run_command_for_value_path="xpk.core.kueue_manager.run_command_for_value",
-      run_command_with_updates_path=(
-          "xpk.core.kueue_manager.run_command_with_updates"
-      ),
-      run_command_with_updates_retry_path=(
-          "xpk.core.kueue_manager.run_command_with_updates_retry"
-      ),
-  )
+  return CommandsTester(mocker)
 
 
 @pytest.fixture(autouse=True)

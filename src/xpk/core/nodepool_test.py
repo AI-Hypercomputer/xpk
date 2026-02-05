@@ -102,11 +102,7 @@ def test_compute_desired_node_pool_names_with_unknown_node_pools():
 
 @pytest.fixture
 def commands_tester(mocker):
-  return CommandsTester(
-      mocker,
-      run_command_for_value_path="xpk.core.nodepool.run_command_for_value",
-      run_command_batch_path="xpk.core.commands.run_command_batch",
-  )
+  return CommandsTester(mocker)
 
 
 def test_ensure_resource_policy_exists_with_existing_policy_retrieves_existing_policy(

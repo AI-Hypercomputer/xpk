@@ -36,10 +36,7 @@ def _get_system_characteristics_or_die(
 
 @pytest.fixture(autouse=True)
 def commands_tester(mocker: MockerFixture) -> CommandsTester:
-  return CommandsTester(
-      mocker=mocker,
-      run_command_for_value_path='xpk.core.kueue_manager.run_command_for_value',
-  )
+  return CommandsTester(mocker)
 
 
 def test_create_sub_slicing_annotations_returns_valid_annotations():

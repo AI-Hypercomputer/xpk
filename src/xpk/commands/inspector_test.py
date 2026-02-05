@@ -29,10 +29,7 @@ def args():
 
 @pytest.fixture
 def commands_tester(mocker):
-  return CommandsTester(
-      mocker,
-      run_command_for_value_path="xpk.commands.inspector.run_command_for_value",
-  )
+  return CommandsTester(mocker)
 
 
 @pytest.fixture

@@ -15,6 +15,7 @@ limitations under the License.
 """
 
 import re
+import sys
 from pytest_mock import MockerFixture
 
 from ..commands import FailedCommand
@@ -26,33 +27,29 @@ class CommandsTester:
   def __init__(
       self,
       mocker: MockerFixture,
-      run_command_for_value_path: str | None = None,
-      run_command_with_updates_path: str | None = None,
-      run_command_with_updates_retry_path: str | None = None,
-      run_command_batch_path: str | None = None,
   ):
     self.__results: dict[re.Pattern, tuple[int, str]] = {}
     self.commands_history: list[str] = []
-    if run_command_for_value_path:
-      mocker.patch(
-          run_command_for_value_path,
-          wraps=self.__fake_run_command_for_value,
-      )
-    if run_command_with_updates_path:
-      mocker.patch(
-          run_command_with_updates_path,
-          wraps=self.__fake_run_command_with_updates,
-      )
-    if run_command_with_updates_retry_path:
-      mocker.patch(
-          run_command_with_updates_retry_path,
-          wraps=self.__fake_run_command_with_updates_retry,
-      )
-    if run_command_batch_path:
-      mocker.patch(
-          run_command_batch_path,
-          wraps=self.__fake_run_command_batch,
-      )
+
+    self.__fake_functions = {
+        "run_command_for_value": self.__fake_run_command_for_value,
+        "run_command_with_updates": self.__fake_run_command_with_updates,
+        "run_command_with_updates_retry": (
+            self.__fake_run_command_with_updates_retry
+        ),
+        "run_command_batch": self.__fake_run_command_batch,
+        "run_command_with_full_controls": (
+            self.__fake_run_command_with_full_controls
+        ),
+    }
+
+    # Auto-patching: find all xpk modules and patch the command functions if they exist.
+
+    for module_name, module in list(sys.modules.items()):
+      if module_name.startswith("xpk") or module_name.startswith("src.xpk"):
+        for func_name, fake_func in self.__fake_functions.items():
+          if hasattr(module, func_name):
+            mocker.patch.object(module, func_name, wraps=fake_func)
 
   def set_result_for_command(
       self, result: tuple[int, str], *command_parts: str
@@ -136,6 +133,14 @@ class CommandsTester:
             logfile=output_logs[i],
         )
     return None
+
+  def __fake_run_command_with_full_controls(
+      self,
+      command: str,
+      task: str,
+      instructions: str | None = None,
+  ) -> int:
+    return self.__common_fake_run_command(command, (0, ""))[0]
 
   # pylint: enable=unused-argument
 

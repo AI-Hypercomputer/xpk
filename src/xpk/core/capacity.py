@@ -485,12 +485,8 @@ def _is_sub_block_healthy_and_fitting(
 
   try:
     parts = [p.strip() for p in output.strip().split(',')]
-    if len(parts) >= 2:
-      count = int(parts[0])
-      in_use_count = int(parts[1])
-    else:
-      count = required_hosts
-      in_use_count = 0
+    count = int(parts[0])
+    in_use_count = int(parts[1])
     return (count - in_use_count) >= required_hosts
   except (ValueError, IndexError):
     return False
@@ -562,13 +558,8 @@ def _get_healthy_and_fitting_sub_blocks_in_block(
       # Parse the CSV output
       parts = [p.strip() for p in line.split(',')]
       name = parts[0]
-      if len(parts) >= 3 and parts[1].isdigit():
-        count = int(parts[1])
-        in_use_count = int(parts[2])
-      else:
-        # Fallback for old dry-run formats or simpler inputs
-        count = required_hosts
-        in_use_count = 0
+      count = int(parts[1])
+      in_use_count = int(parts[2])
 
       available_slots = (count - in_use_count) // required_hosts
       if available_slots > 0:
@@ -660,15 +651,9 @@ def _get_reservation_count(
 
   try:
     parts = [p.strip() for p in output.strip().split(',')]
-    if len(parts) >= 3:
-      count_str = parts[0]
-      in_use_str = parts[1]
-      status = parts[2]
-    else:
-      # Fallback for simpler dry-run inputs
-      count_str = '10000'
-      in_use_str = '0'
-      status = 'READY'
+    count_str = parts[0]
+    in_use_str = parts[1]
+    status = parts[2]
 
     if status == 'READY':
       available_hosts = max(0, int(count_str) - int(in_use_str))

@@ -15,6 +15,7 @@ limitations under the License.
 """
 
 import re
+import sys
 from pytest_mock import MockerFixture
 
 from ..commands import FailedCommand
@@ -43,7 +44,6 @@ class CommandsTester:
     }
 
     # Auto-patching: find all xpk modules and patch the command functions if they exist.
-    import sys
 
     for module_name, module in list(sys.modules.items()):
       if module_name.startswith("xpk") or module_name.startswith("src.xpk"):

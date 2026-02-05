@@ -66,9 +66,7 @@ def run_gke_node_pool_create_command(
     0 if successful and 1 otherwise.
   """
   device_type = args.tpu_type if args.tpu_type else args.device_type
-  super_slicing = FeatureFlags.SUPER_SLICING_ENABLED and getattr(
-      args, 'super_slicing', False
-  )
+  super_slicing = FeatureFlags.SUPER_SLICING_ENABLED and args.super_slicing
   xpk_print(
       f'Creating {args.num_slices} node pool or pools of {device_type}\n'
       f'We assume that the underlying system is: {system}'
@@ -281,7 +279,7 @@ def run_gke_node_pool_create_command(
   node_pools_to_create = [
       np for np in desired_node_pool_names if np not in node_pools_to_remain
   ]
-  reservations_iter = None
+  reservations_iter: Iterator[ReservationLink] | None = None
   if capacity_type == CapacityType.RESERVATION:
     reservations = get_reservations_list(args)
     reservations_iter, return_code = _prepare_reservation_iterator(
@@ -296,17 +294,14 @@ def run_gke_node_pool_create_command(
       return return_code
 
   for node_pool_name in node_pools_to_create:
-    reservation_arg = None
-    if reservations_iter:
-      next_res = next(reservations_iter)
-      reservation_arg = to_reservation_path(next_res)
-
     capacity_args, return_code = get_capacity_arguments_from_capacity_type(
         args,
         capacity_type,
         max_nodes,
         system.accelerator_type,
-        reservation_name=reservation_arg,
+        reservation_name=to_reservation_path(next(reservations_iter))
+        if reservations_iter
+        else None,
     )
     if return_code > 0:
       xpk_print('Parsing capacity arguments failed!')

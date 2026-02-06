@@ -734,7 +734,7 @@ def _prepare_reservation_iterator(
       enable_super_slicing=enable_super_slicing,
       required_hosts=required_hosts,
   )
-  total_available = sum(cap.available_count for cap in available_capacity)
+  total_available = sum(cap.available_slices for cap in available_capacity)
 
   if total_available < num_new_node_pools:
     xpk_print(
@@ -747,7 +747,8 @@ def _prepare_reservation_iterator(
 
   # Create an iterator that yields one ReservationLink per available count
   reservations_iter = chain.from_iterable(
-      repeat(cap.reservation, cap.available_count) for cap in available_capacity
+      repeat(cap.reservation, cap.available_slices)
+      for cap in available_capacity
   )
 
   return reservations_iter, 0

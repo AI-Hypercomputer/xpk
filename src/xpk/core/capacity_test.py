@@ -351,12 +351,12 @@ def test_assess_available_slices_block(mocker):
   assert isinstance(slices[0].reservation, SubBlockReservationLink)
   assert slices[0].reservation.sub_block_name == 'sub1'
   assert slices[0].reservation.zone == 'us-central1-a'
-  assert slices[0].available_count == 1
+  assert slices[0].available_slices == 1
   assert isinstance(slices[1], ReservationCapacity)
   assert isinstance(slices[1].reservation, SubBlockReservationLink)
   assert slices[1].reservation.sub_block_name == 'sub2'
   assert slices[1].reservation.zone == 'us-central1-a'
-  assert slices[1].available_count == 1
+  assert slices[1].available_slices == 1
 
   # Mock 0 healthy
   commands_tester.set_result_for_command(
@@ -393,7 +393,7 @@ def test_assess_available_slices_link_with_blocks(mocker):
   assert slices[0].reservation.block_name == 'block1'
   assert slices[0].reservation.sub_block_name == 'sub1'
   assert slices[0].reservation.zone == 'us-central1-a'
-  assert slices[0].available_count == 1
+  assert slices[0].available_slices == 1
 
 
 def test_assess_available_slices_link_without_blocks(mocker):
@@ -419,7 +419,7 @@ def test_assess_available_slices_link_without_blocks(mocker):
   assert not isinstance(slices[0].reservation, BlockReservationLink)
   assert slices[0].reservation.name == 'reservation'
   assert slices[0].reservation.zone == 'us-central1-a'
-  assert slices[0].available_count == 2
+  assert slices[0].available_slices == 2
 
 
 def test_assess_available_slices_host_filtering(mocker):
@@ -450,7 +450,7 @@ def test_assess_available_slices_host_filtering(mocker):
       [res_link], enable_super_slicing=False, required_hosts=16
   )
   assert len(slices) == 1
-  assert slices[0].available_count == 3
+  assert slices[0].available_slices == 3
 
 
 def test_get_capacity_node_selectors_from_capacity_type():
@@ -517,9 +517,12 @@ def test_assess_available_slices_block_old_format(mocker):
   # Mock DRY_RUN_RESERVATION_SUB_BLOCKS env var
   res_path = 'reservation/reservationBlocks/block'
   mocker.patch.dict(
-      os.environ, {
-          'DRY_RUN_RESERVATION_SUB_BLOCKS': f'{res_path}=sub0,sub1,sub2,sub3,sub4'
-      }
+      os.environ,
+      {
+          'DRY_RUN_RESERVATION_SUB_BLOCKS': (
+              f'{res_path}=sub0,sub1,sub2,sub3,sub4'
+          )
+      },
   )
 
   res = BlockReservationLink(
@@ -537,6 +540,12 @@ def test_assess_available_slices_block_old_format(mocker):
   # We WANT it to return 5 slices
   assert len(slices) == 5
   assert all(isinstance(s.reservation, SubBlockReservationLink) for s in slices)
-  assert [s.reservation.sub_block_name for s in slices] == ['sub0', 'sub1', 'sub2', 'sub3', 'sub4']
+  assert [s.reservation.sub_block_name for s in slices] == [
+      'sub0',
+      'sub1',
+      'sub2',
+      'sub3',
+      'sub4',
+  ]
 
   set_dry_run(False)

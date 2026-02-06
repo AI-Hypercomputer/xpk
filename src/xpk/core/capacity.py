@@ -66,7 +66,7 @@ class SubBlockReservationLink(BlockReservationLink):
 @dataclass(frozen=True)
 class ReservationCapacity:
   reservation: ReservationLink
-  available_count: int
+  available_slices: int
 
 
 def print_reservations(args) -> int:

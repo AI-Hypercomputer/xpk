@@ -24,6 +24,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -779,14 +781,24 @@ func (h *sliceHandler) Create(context.Context, event.CreateEvent, workqueue.Type
 }
 
 func (h *sliceHandler) Delete(ctx context.Context, e event.DeleteEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
-	h.handleEvent(ctx, e.Object, q, "delete")
+	if slice, ok := e.Object.(*v1beta1.Slice); ok {
+		ctrl.LoggerFrom(ctx).V(3).Info("Slice deleted", "slice", slice.Name)
+	}
+	h.handleEvent(ctx, e.Object, q)
 }
 
 func (h *sliceHandler) Update(ctx context.Context, e event.UpdateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
-	h.handleEvent(ctx, e.ObjectNew, q, "update")
+	if oldSlice, ok := e.ObjectOld.(*v1beta1.Slice); ok {
+		if newSlice, ok := e.ObjectNew.(*v1beta1.Slice); ok {
+			if diff := cmp.Diff(oldSlice, newSlice, cmpopts.IgnoreFields(metav1.ObjectMeta{}, "ResourceVersion", "ManagedFields")); diff != "" {
+				ctrl.LoggerFrom(ctx).V(3).Info("Slice updated", "diff", diff)
+			}
+		}
+	}
+	h.handleEvent(ctx, e.ObjectNew, q)
 }
 
-func (h *sliceHandler) handleEvent(ctx context.Context, obj client.Object, q workqueue.TypedRateLimitingInterface[reconcile.Request], eventType string) {
+func (h *sliceHandler) handleEvent(ctx context.Context, obj client.Object, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	slice, isSlice := obj.(*v1beta1.Slice)
 	// Only Slice should be handled.
 	if !isSlice {
@@ -803,7 +815,7 @@ func (h *sliceHandler) handleEvent(ctx context.Context, obj client.Object, q wor
 		return
 	}
 
-	log.V(3).Info("Handle Slice event", "workload", klog.KRef(workloadNamespace, workloadName), "eventType", eventType)
+	log.V(3).Info("Handle Slice event", "workload", klog.KRef(workloadNamespace, workloadName))
 
 	req := reconcile.Request{
 		NamespacedName: types.NamespacedName{

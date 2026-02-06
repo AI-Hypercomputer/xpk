@@ -2035,7 +2035,7 @@ func TestSliceHandlerHandleEvent(t *testing.T) {
 				},
 			}
 
-			testSliceHandler.handleEvent(ctx, tc.obj, testFakePriorityQueue, "update")
+			testSliceHandler.handleEvent(ctx, tc.obj, testFakePriorityQueue)
 			if diff := cmp.Diff(tc.want, gotRequestDurations); diff != "" {
 				t.Errorf("Result after handleEvent (-want,+got):\n%s", diff)
 			}

@@ -501,16 +501,14 @@ def _is_sub_block_healthy_and_fitting(
   if return_code != 0:
     return False, return_code
 
-  if not output.strip():
-    return False, 0
-
   try:
     parts = [p.strip() for p in output.strip().split(',')]
     count = int(parts[0])
     in_use_count = int(parts[1])
     return (count - in_use_count) >= required_hosts, 0
   except (ValueError, IndexError):
-    return False, 0
+    xpk_print(f'Error: Unrecognized output format: "{output}".')
+    return False, 1
 
 
 def _get_dry_run_value(
@@ -608,11 +606,6 @@ def _get_healthy_and_fitting_sub_blocks_in_block(
   return available_capacities, 0
 
 
-def _get_dry_run_blocks(reservation: ReservationLink) -> str:
-  """Get dry run blocks based on environment variable."""
-  return _get_dry_run_value('DRY_RUN_RESERVATION_BLOCKS', reservation)
-
-
 def _get_blocks_in_reservation(
     reservation: ReservationLink,
 ) -> tuple[list[BlockReservationLink], int]:
@@ -626,7 +619,7 @@ def _get_blocks_in_reservation(
   return_code, output = run_command_for_value(
       command,
       f'Get blocks in reservation {reservation.name}',
-      dry_run_return_val=_get_dry_run_blocks(reservation),
+      dry_run_return_val='',
   )
   if return_code != 0:
     xpk_print(
@@ -669,9 +662,7 @@ def _get_reservation_count(
   return_code, output = run_command_for_value(
       command,
       f'Get reservation count for {reservation.name}',
-      dry_run_return_val=_get_dry_run_value(
-          'DRY_RUN_RESERVATION_CAPACITY', reservation, default='16,0,READY'
-      ),
+      dry_run_return_val='16,0,READY',
   )
   if return_code != 0:
     return 0, return_code

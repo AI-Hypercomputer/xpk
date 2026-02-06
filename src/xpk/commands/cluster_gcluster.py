@@ -347,7 +347,7 @@ def generate_blueprint(
           num_nodes=num_nodes,
           reservation_maintenance_interval=maintenance_interval,
           reservation_placement_policy=placement_policy,
-          reservation=to_reservation_path(reservation)
+          reservation=to_reservation_path(reservation, args.project)
           if reservation is not None
           else None,
           capacity_type=capacity_type,
@@ -367,7 +367,7 @@ def generate_blueprint(
           zone=args.zone,
           auth_cidr=all_IPs_cidr,
           num_nodes=num_nodes,
-          reservation=to_reservation_path(reservation)
+          reservation=to_reservation_path(reservation, args.project)
           if reservation is not None
           else None,
           enable_filestore_csi_driver=args.enable_gcpfilestore_csi_driver,
@@ -388,7 +388,7 @@ def generate_blueprint(
           zone=args.zone,
           auth_cidr=all_IPs_cidr,
           num_nodes=num_nodes,
-          reservation=to_reservation_path(reservation)
+          reservation=to_reservation_path(reservation, args.project)
           if reservation is not None
           else None,
           capacity_type=capacity_type,

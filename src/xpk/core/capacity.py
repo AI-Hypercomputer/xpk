@@ -15,8 +15,6 @@ limitations under the License.
 """
 
 import enum
-import os
-from typing import Sequence
 from dataclasses import dataclass
 
 from .commands import run_command_with_updates, run_command_for_value
@@ -284,7 +282,9 @@ def get_capacity_arguments_from_capacity_type(
 
 
 def get_capacity_node_selectors_from_capacity_type(
-    capacity_type: str, reservation: ReservationLink | None
+    capacity_type: str,
+    reservation: ReservationLink | None,
+    cluster_project: str,
 ) -> tuple[str, int]:
   """Determine the node selectors for a workload to run on a specific capacity type.
 
@@ -292,6 +292,7 @@ def get_capacity_node_selectors_from_capacity_type(
     capacity_type: The type of capacity the user configured.
     reservation: The reservation to use. Set to None if not
       using reservations.
+    cluster_project: The project of the cluster.
 
   Returns:
     Tuple with string with the node selectors to use and
@@ -309,7 +310,7 @@ def get_capacity_node_selectors_from_capacity_type(
       node_selector = 'cloud.google.com/gke-spot: "true"'
     case CapacityType.RESERVATION.name:
       assert reservation is not None
-      reservation_name = to_reservation_path(reservation)
+      reservation_name = to_reservation_path(reservation, cluster_project)
       node_selector = f'cloud.google.com/reservation-name: {reservation_name}'
     case _:
       xpk_print(
@@ -352,7 +353,7 @@ def _try_parse_reservation(
     if len(parts) < 4 or parts[2] != 'reservations':
       return None
     project = parts[1]
-    parts = parts[3:]
+    parts = parts[3:]  # remove projects/PROJECT/reservations/ prefix
 
   match len(parts):
     case 1:
@@ -375,9 +376,15 @@ def _try_parse_reservation(
       return None
 
 
-def to_reservation_path(reservation: ReservationLink) -> str:
+def to_reservation_path(
+    reservation: ReservationLink, cluster_project: str
+) -> str:
   """Convert reservation to path string."""
-  path = reservation.name
+  if reservation.project == cluster_project:
+    path = reservation.name
+  else:
+    path = f'projects/{reservation.project}/reservations/{reservation.name}'
+
   if isinstance(reservation, BlockReservationLink):
     path += f'/reservationBlocks/{reservation.block_name}'
     if isinstance(reservation, SubBlockReservationLink):

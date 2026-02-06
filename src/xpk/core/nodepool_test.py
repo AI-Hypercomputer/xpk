@@ -15,7 +15,6 @@ limitations under the License.
 """
 
 import pytest
-from unittest.mock import MagicMock, patch
 from xpk.core.nodepool import (
     display_nodepool_creation_error,
     ensure_resource_policy_exists,
@@ -440,8 +439,8 @@ def test_display_nodepool_creation_ignores_logs_without_errors(
 def test_validate_reservation_count_mismatch(mock_xpk_print):
   result = _validate_reservation_count(
       [
-          ReservationLink(project='p', name='res1', zone='z'),
-          ReservationLink(project='p', name='res2', zone='z'),
+          ReservationLink(project="p", name="res1", zone="z"),
+          ReservationLink(project="p", name="res2", zone="z"),
       ],
       num_node_pools_to_create=3,
   )
@@ -477,7 +476,6 @@ def test_run_gke_node_pool_create_command_multiple_reservations(
       enable_gcsfuse_csi_driver=False,
       host_maintenance_interval="AS_NEEDED",
       custom_nodepool_arguments="",
-      super_slicing=False,
   )
   system = SystemCharacteristics(
       topology="2x2x1",
@@ -535,7 +533,6 @@ def test_run_gke_node_pool_create_command_partial_reservations(
       enable_gcsfuse_csi_driver=False,
       host_maintenance_interval="AS_NEEDED",
       custom_nodepool_arguments="",
-      super_slicing=False,
   )
   system = SystemCharacteristics(
       topology="2x2x1",
@@ -575,10 +572,9 @@ def test_run_gke_node_pool_create_command_partial_reservations(
   )
 
 
-@patch("xpk.core.nodepool.run_commands")
 def test_recreate_nodes_in_existing_node_pools_upgrades_existing_nodepools(
-    mock_run_commands,
     mocker,
+    commands_tester: CommandsTester,
 ):
   mocker.patch(
       "xpk.core.nodepool.get_all_nodepools_programmatic",
@@ -594,11 +590,22 @@ def test_recreate_nodes_in_existing_node_pools_upgrades_existing_nodepools(
   )
   recreate_nodes_in_existing_node_pools(args)
 
-  assert mock_run_commands.call_count == 1
-  assert len(mock_run_commands.call_args.args[0]) == 2
-  assert "upgrade test-cluster" in mock_run_commands.call_args.args[0][0]
-  assert "--node-pool=nodepool1" in mock_run_commands.call_args.args[0][0]
-  assert "--node-pool=nodepool2" in mock_run_commands.call_args.args[0][1]
+  commands_tester.assert_command_run(
+      "gcloud",
+      "container clusters upgrade test-cluster",
+      "--project=test-project",
+      "--node-pool=nodepool1",
+      "--location=us-central1",
+      "--quiet",
+  )
+  commands_tester.assert_command_run(
+      "gcloud",
+      "container clusters upgrade test-cluster",
+      "--project=test-project",
+      "--node-pool=nodepool2",
+      "--location=us-central1",
+      "--quiet",
+  )
 
 
 def test_recreate_nodes_in_existing_node_pools_returns_error_code_if_listing_fails(

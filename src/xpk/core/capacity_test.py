@@ -39,7 +39,9 @@ def test_get_reservation_deployment_type_exits_with_command_fails(
   )
   with pytest.raises(SystemExit):
     get_reservation_deployment_type(
-        reservation=ReservationLink(project='p', name='r', zone='z')
+        reservation=ReservationLink(
+            project='project', name='reservation', zone='zone'
+        )
     )
 
   assert (
@@ -56,7 +58,9 @@ def test_get_reservation_deployment_type_returns_deployment_type_when_command_su
       return_value=(0, 'DENSE'),
   )
   result = get_reservation_deployment_type(
-      reservation=ReservationLink(project='p', name='r', zone='z')
+      reservation=ReservationLink(
+          project='project', name='reservation', zone='zone'
+      )
   )
   assert result == 'DENSE'
 
@@ -66,7 +70,9 @@ def test_get_reservation_deployment_type_returns_deployment_type_when_command_su
     argvalues=[
         (
             'reservation',
-            ReservationLink(project='cluster-project', name='reservation', zone='zone'),
+            ReservationLink(
+                project='cluster-project', name='reservation', zone='zone'
+            ),
         ),
         (
             'reservation/reservationBlocks/block',
@@ -88,22 +94,22 @@ def test_get_reservation_deployment_type_returns_deployment_type_when_command_su
             ),
         ),
         (
-            'projects/p/reservations/reservation',
-            ReservationLink(project='p', name='reservation', zone='zone'),
+            'projects/project/reservations/reservation',
+            ReservationLink(project='project', name='reservation', zone='zone'),
         ),
         (
-            'projects/p/reservations/reservation/reservationBlocks/block',
+            'projects/project/reservations/reservation/reservationBlocks/block',
             BlockReservationLink(
-                project='p',
+                project='project',
                 name='reservation',
                 zone='zone',
                 block_name='block',
             ),
         ),
         (
-            'projects/p/reservations/reservation/reservationBlocks/block/reservationSubBlocks/subblock',
+            'projects/project/reservations/reservation/reservationBlocks/block/reservationSubBlocks/subblock',
             SubBlockReservationLink(
-                project='p',
+                project='project',
                 name='reservation',
                 zone='zone',
                 block_name='block',
@@ -116,22 +122,40 @@ def test_parse_reservation_parses_valid_reservations(
     reservation_path: str,
     expected_reservation: ReservationLink,
 ):
-  actual_reservation = parse_reservation(reservation_path, 'cluster-project', 'zone')
+  actual_reservation = parse_reservation(
+      reservation_path, 'cluster-project', 'zone'
+  )
 
   assert actual_reservation == expected_reservation
 
 
 def test_to_reservation_path():
-  res = ReservationLink(project='p', name='r', zone='z')
-  assert to_reservation_path(res) == 'r'
+  res = ReservationLink(project='project', name='reservation', zone='zone')
+  assert to_reservation_path(res, 'project') == 'reservation'
+  assert (
+      to_reservation_path(res, 'other-project')
+      == 'projects/project/reservations/reservation'
+  )
 
-  res_block = BlockReservationLink(project='p', name='r', zone='z', block_name='b')
-  assert to_reservation_path(res_block) == 'r/reservationBlocks/b'
+  res_block = BlockReservationLink(
+      project='project', name='reservation', zone='zone', block_name='block'
+  )
+  assert (
+      to_reservation_path(res_block, 'other-project')
+      == 'projects/project/reservations/reservation/reservationBlocks/block'
+  )
 
   res_sub = SubBlockReservationLink(
-      project='p', name='r', zone='z', block_name='b', sub_block_name='s'
+      project='project',
+      name='reservation',
+      zone='zone',
+      block_name='block',
+      sub_block_name='subblock',
   )
-  assert to_reservation_path(res_sub) == 'r/reservationBlocks/b/reservationSubBlocks/s'
+  assert (
+      to_reservation_path(res_sub, 'other-project')
+      == 'projects/project/reservations/reservation/reservationBlocks/block/reservationSubBlocks/subblock'
+  )
 
 
 @pytest.mark.parametrize(
@@ -146,11 +170,11 @@ def test_to_reservation_path():
         'name/reservationBlock/block/reservationSubBlocks/subblock',
         'name/reservationBlocks/block/reservationSubBlock/subblock',
         'reservations/name',
-        'project/p/reservations/name',
-        'projects/p/reservation/name',
-        'projects/p/reservations',
-        'projects/p/reservations/name/reservationBlocks/block/reservationSubBlocks/subblock/extra',
-        'projects/p/reservations/name/reservationBlocks//reservationSubBlocks/subblock',
+        'project/project/reservations/name',
+        'projects/project/reservation/name',
+        'projects/project/reservations',
+        'projects/project/reservations/name/reservationBlocks/block/reservationSubBlocks/subblock/extra',
+        'projects/project/reservations/name/reservationBlocks//reservationSubBlocks/subblock',
     ],
 )
 @patch('xpk.core.capacity.xpk_print')

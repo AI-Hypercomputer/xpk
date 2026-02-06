@@ -29,7 +29,6 @@ from .capacity import (
     get_reservations_list,
     print_reservations,
     assess_available_slices,
-    parse_reservation,
     to_reservation_path,
     ReservationLink,
 )

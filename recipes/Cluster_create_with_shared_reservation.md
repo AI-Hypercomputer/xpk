@@ -61,7 +61,7 @@ kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="Conf
 [XPK] Existing node pool names  ['0']
 [XPK] Task: `Get reservation count for golden-reservation` is implemented by the following command not running since it is a dry run. 
 gcloud beta compute reservations describe golden-reservation --project=reservation-project --zone=us-central1-a --format="csv[no-heading](specificReservation.count,specificReservation.inUseCount,status)"
-[XPK] To complete NodepoolCreate-golden-cluster-np-0 we are executing gcloud beta container node-pools create golden-cluster-np-0 --location=us-central1 --cluster=golden-cluster --project=golden-project --node-locations=us-central1-a --machine-type=tpu7x-standard-4t --host-maintenance-interval=AS_NEEDED --reservation-affinity=specific --reservation=golden-reservation --enable-gvnic --node-version=0 --num-nodes=1 --scopes=storage-full,gke-default,"https://www.googleapis.com/auth/cloud-platform" 
+[XPK] To complete NodepoolCreate-golden-cluster-np-0 we are executing gcloud beta container node-pools create golden-cluster-np-0 --location=us-central1 --cluster=golden-cluster --project=golden-project --node-locations=us-central1-a --machine-type=tpu7x-standard-4t --host-maintenance-interval=AS_NEEDED --reservation-affinity=specific --reservation=projects/reservation-project/reservations/golden-reservation --enable-gvnic --node-version=0 --num-nodes=1 --scopes=storage-full,gke-default,"https://www.googleapis.com/auth/cloud-platform" 
 [XPK] Breaking up a total of 1 commands into 1 batches
 [XPK] Pretending all the jobs succeeded
 [XPK] Create or delete node pool request complete.

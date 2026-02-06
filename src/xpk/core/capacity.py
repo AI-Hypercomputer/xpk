@@ -17,7 +17,7 @@ limitations under the License.
 import enum
 import os
 from dataclasses import dataclass
-from typing import Iterator, List, Sequence
+from typing import Sequence
 
 from .commands import run_command_with_updates, run_command_for_value
 from .system_characteristics import AcceleratorType
@@ -483,7 +483,7 @@ def _is_sub_block_healthy_and_fitting(
       command,
       f'Check sub-block {reservation.sub_block_name} health',
       dry_run_return_val=_get_dry_run_value(
-          'DRY_RUN_SUB_BLOCK_CAPACITY', reservation
+          'DRY_RUN_SUB_BLOCK_CAPACITY', reservation, default='1000,0'
       ),
   )
   if return_code != 0:
@@ -566,9 +566,15 @@ def _get_healthy_and_fitting_sub_blocks_in_block(
     try:
       # Parse the CSV output
       parts = [p.strip() for p in line.split(',')]
-      name = parts[0]
-      count = int(parts[1])
-      in_use_count = int(parts[2])
+      if len(parts) >= 3 and parts[1].isdigit():
+        name = parts[0]
+        count = int(parts[1])
+        in_use_count = int(parts[2])
+      else:
+        # Legacy format: just a list of names
+        name = parts[0]
+        count = required_hosts
+        in_use_count = 0
 
       available_slots = (count - in_use_count) // required_hosts
       if available_slots > 0:
@@ -652,7 +658,7 @@ def _get_reservation_count(
       command,
       f'Get reservation count for {reservation.name}',
       dry_run_return_val=_get_dry_run_value(
-          'DRY_RUN_RESERVATION_CAPACITY', reservation
+          'DRY_RUN_RESERVATION_CAPACITY', reservation, default='1000,0,READY'
       ),
   )
   if return_code != 0:

@@ -325,11 +325,8 @@ def test_assess_available_slices_sub_block(mocker):
   commands_tester.set_result_for_command(
       (0, ''), 'gcloud beta compute reservations sub-blocks list'
   )
-  assert (
-      assess_available_slices(
-          [res], enable_super_slicing=False, required_hosts=1
-      )
-      == []
+  assert not assess_available_slices(
+      [res], enable_super_slicing=False, required_hosts=1
   )
 
 
@@ -365,11 +362,8 @@ def test_assess_available_slices_block(mocker):
   commands_tester.set_result_for_command(
       (0, ''), 'gcloud beta compute reservations sub-blocks list'
   )
-  assert (
-      assess_available_slices(
-          [res], enable_super_slicing=False, required_hosts=1
-      )
-      == []
+  assert not assess_available_slices(
+      [res], enable_super_slicing=False, required_hosts=1
   )
 
 
@@ -442,11 +436,8 @@ def test_assess_available_slices_host_filtering(mocker):
       sub_block_name='sub-block',
   )
   # Should be empty because available 16 < required 32
-  assert (
-      assess_available_slices(
-          [res], enable_super_slicing=False, required_hosts=32
-      )
-      == []
+  assert not assess_available_slices(
+      [res], enable_super_slicing=False, required_hosts=32
   )
 
   # Mock a reservation that has 48 hosts, and we need 16 per slice.
@@ -513,3 +504,39 @@ def test_get_capacity_node_selectors_from_capacity_type():
       'UNKNOWN_TYPE', None, 'project'
   )
   assert return_code == 1
+
+
+def test_assess_available_slices_block_old_format(mocker):
+  """Reproduce the failure with old dry-run format (comma-separated names)."""
+  from ..utils.execution_context import set_dry_run
+  import os
+
+  set_dry_run(True)
+  commands_tester = CommandsTester(mocker)
+
+  # Mock DRY_RUN_RESERVATION_SUB_BLOCKS env var
+  res_path = 'reservation/reservationBlocks/block'
+  mocker.patch.dict(
+      os.environ, {
+          'DRY_RUN_RESERVATION_SUB_BLOCKS': f'{res_path}=sub0,sub1,sub2,sub3,sub4'
+      }
+  )
+
+  res = BlockReservationLink(
+      project='project',
+      name='reservation',
+      zone='us-central1-a',
+      block_name='block',
+  )
+
+  # This is expected to FAIL currently (return 0 slices)
+  slices = assess_available_slices(
+      [res], enable_super_slicing=False, required_hosts=1
+  )
+
+  # We WANT it to return 5 slices
+  assert len(slices) == 5
+  assert all(isinstance(s.reservation, SubBlockReservationLink) for s in slices)
+  assert [s.reservation.sub_block_name for s in slices] == ['sub0', 'sub1', 'sub2', 'sub3', 'sub4']
+
+  set_dry_run(False)

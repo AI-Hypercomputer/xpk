@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -782,7 +781,7 @@ func (h *sliceHandler) Create(context.Context, event.CreateEvent, workqueue.Type
 
 func (h *sliceHandler) Delete(ctx context.Context, e event.DeleteEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	if slice, ok := e.Object.(*v1beta1.Slice); ok {
-		ctrl.LoggerFrom(ctx).V(3).Info("Slice deleted", "slice", slice.Name)
+		ctrl.LoggerFrom(ctx).V(2).Info("Slice deleted", "slice", slice.Name)
 	}
 	h.handleEvent(ctx, e.Object, q)
 }
@@ -790,8 +789,10 @@ func (h *sliceHandler) Delete(ctx context.Context, e event.DeleteEvent, q workqu
 func (h *sliceHandler) Update(ctx context.Context, e event.UpdateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	if oldSlice, ok := e.ObjectOld.(*v1beta1.Slice); ok {
 		if newSlice, ok := e.ObjectNew.(*v1beta1.Slice); ok {
-			if diff := cmp.Diff(oldSlice, newSlice, cmpopts.IgnoreFields(metav1.ObjectMeta{}, "ResourceVersion", "ManagedFields")); diff != "" {
-				ctrl.LoggerFrom(ctx).V(3).Info("Slice updated", "diff", diff)
+			condOld := meta.FindStatusCondition(oldSlice.Status.Conditions, v1beta1.SliceStateConditionType)
+			condNew := meta.FindStatusCondition(newSlice.Status.Conditions, v1beta1.SliceStateConditionType)
+			if diff := cmp.Diff(condOld, condNew); diff != "" {
+				ctrl.LoggerFrom(ctx).V(2).Info("Slice state updated", "diff", diff)
 			}
 		}
 	}

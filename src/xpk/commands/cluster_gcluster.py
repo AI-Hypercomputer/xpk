@@ -347,9 +347,11 @@ def generate_blueprint(
           num_nodes=num_nodes,
           reservation_maintenance_interval=maintenance_interval,
           reservation_placement_policy=placement_policy,
-          reservation=to_reservation_path(reservation, args.project)
-          if reservation is not None
-          else None,
+          reservation=(
+              to_reservation_path(reservation, args.project)
+              if reservation is not None
+              else None
+          ),
           capacity_type=capacity_type,
           system_node_pool_machine_type=args.default_pool_cpu_machine_type,
           system_node_pool_min_node_count=args.default_pool_cpu_num_nodes,
@@ -367,9 +369,11 @@ def generate_blueprint(
           zone=args.zone,
           auth_cidr=all_IPs_cidr,
           num_nodes=num_nodes,
-          reservation=to_reservation_path(reservation, args.project)
-          if reservation is not None
-          else None,
+          reservation=(
+              to_reservation_path(reservation, args.project)
+              if reservation is not None
+              else None
+          ),
           enable_filestore_csi_driver=args.enable_gcpfilestore_csi_driver,
           capacity_type=capacity_type,
           system_node_pool_machine_type=args.default_pool_cpu_machine_type,
@@ -388,9 +392,11 @@ def generate_blueprint(
           zone=args.zone,
           auth_cidr=all_IPs_cidr,
           num_nodes=num_nodes,
-          reservation=to_reservation_path(reservation, args.project)
-          if reservation is not None
-          else None,
+          reservation=(
+              to_reservation_path(reservation, args.project)
+              if reservation is not None
+              else None
+          ),
           capacity_type=capacity_type,
           system_node_pool_machine_type=args.default_pool_cpu_machine_type,
           system_node_pool_min_node_count=args.default_pool_cpu_num_nodes,

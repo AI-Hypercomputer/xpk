@@ -28,6 +28,8 @@ from .capacity import (
     get_capacity_type,
     get_reservations_list,
     print_reservations,
+    to_reservation_path,
+    ReservationLink,
 )
 from .commands import run_command_for_value, run_commands, FailedCommand
 from .gcloud_context import GkeServerConfig, get_cluster_location, zone_to_region
@@ -273,8 +275,7 @@ def run_gke_node_pool_create_command(
   node_pools_to_create = [
       np for np in desired_node_pool_names if np not in node_pools_to_remain
   ]
-
-  reservations_iter: Iterator[str] | None = None
+  reservations_iter: Iterator[ReservationLink] | None = None
   if capacity_type == CapacityType.RESERVATION:
     reservations = get_reservations_list(args)
     if (
@@ -292,7 +293,11 @@ def run_gke_node_pool_create_command(
         capacity_type,
         max_nodes,
         system.accelerator_type,
-        reservation_name=next(reservations_iter) if reservations_iter else None,
+        reservation_name=to_reservation_path(
+            next(reservations_iter), args.project
+        )
+        if reservations_iter
+        else None,
     )
     if return_code > 0:
       xpk_print('Parsing capacity arguments failed!')
@@ -681,7 +686,7 @@ def ensure_resource_policy_exists(
 
 
 def _validate_reservation_count(
-    reservations: List[str], num_node_pools_to_create: int
+    reservations: List[ReservationLink], num_node_pools_to_create: int
 ) -> int:
   """Validate that reservation count matches new nodepool count or is 1."""
   if len(reservations) > 1 and len(reservations) != num_node_pools_to_create:

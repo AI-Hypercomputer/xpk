@@ -255,13 +255,11 @@ def _validate_gsc_reservation(args, creation_description: str):
     xpk_exit(1)
 
   for reservation in get_reservations_list(args):
-    deployment_type = get_reservation_deployment_type(
-        reservation_path=reservation, project=args.project, zone=args.zone
-    )
+    deployment_type = get_reservation_deployment_type(reservation=reservation)
     if deployment_type != 'DENSE':
       xpk_print(
           'Error: Validation failed: The specified reservation'
-          f' "{reservation}" is not a Cluster Director reservation.'
+          f' "{reservation.name}" is not a Cluster Director reservation.'
       )
       xpk_print(
           'Please provide a reservation created for Cluster Director to'

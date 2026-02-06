@@ -136,6 +136,6 @@ kubectl apply -f 321584e701d68faa848df77a0e87ecbec8ce31e2b2aeb0d1e3ddb7027acc502
 [XPK] Task: `GKE Dashboard List` is implemented by the following command not running since it is a dry run. 
 gcloud monitoring dashboards list --project=golden-project --filter="displayName:'GKE - TPU Monitoring Dashboard'" --format="value(name)" --verbosity=error
 [XPK] Check statistics and outlier mode of GKE metrics here: https://console.cloud.google.com/monitoring/dashboards/builder/0?project=golden-project&f.rlabel.cluster_name.ClusterName=golden-cluster. To view the metric data for your workload, select golden-workload from the JobName filter on the dashboard.
-[XPK] Follow your Pathways workload and other resources here : https://console.cloud.google.com/logs/query;query=resource.type%3D"k8s_container"%0Aresource.labels.project_id%3D"golden-project"%0Aresource.labels.location%3D"us-central1"%0Aresource.labels.cluster_name%3D"golden-cluster"%0Aresource.labels.pod_name:"golden-workload-"%0Aseverity>%3DDEFAULT
+[XPK] Follow your Pathways workload and other resources here : https://console.cloud.google.com/logs/query;query=resource.type%3D%22k8s_container%22%0Aresource.labels.project_id%3D%22golden-project%22%0Aresource.labels.location%3D%22us-central1%22%0Aresource.labels.cluster_name%3D%22golden-cluster%22%0Aresource.labels.pod_name%3A%22golden-workload-%22%0Aseverity%3E%3DDEFAULT
 [XPK] Exiting XPK cleanly
 -->

@@ -618,9 +618,9 @@ func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workloa
 			msg := fmt.Sprintf("Error creating Slice %q: %v", slice.Name, err)
 			log.Error(err, msg)
 			r.record.Event(wl, corev1.EventTypeWarning, FailedCreateSliceEventType, api.TruncateEventMessage(msg))
+			log.V(2).Info(fmt.Sprintf("Admission check %q updated state from %q to %q", ac.Name, ac.State, kueue.CheckStatePending), "reason", msg)
 			ac.State = kueue.CheckStatePending
 			ac.Message = api.TruncateConditionMessage(msg)
-			log.V(2).Info("Updating AdmissionCheck state", "state", ac.State, "reason", msg)
 			patchErr := r.updateWorkloadAdmissionCheckStatus(ctx, wl, ac)
 			if patchErr != nil {
 				return nil, errors.Join(err, patchErr)

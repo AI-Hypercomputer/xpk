@@ -457,6 +457,7 @@ def test_run_gke_node_pool_create_command_multiple_reservations(
       enable_gcsfuse_csi_driver=False,
       host_maintenance_interval="AS_NEEDED",
       custom_nodepool_arguments="",
+      super_slicing=False,
   )
   system = SystemCharacteristics(
       topology="2x2x1",
@@ -531,6 +532,7 @@ def test_run_gke_node_pool_create_command_partial_reservations(
       enable_gcsfuse_csi_driver=False,
       host_maintenance_interval="AS_NEEDED",
       custom_nodepool_arguments="",
+      super_slicing=False,
   )
   system = SystemCharacteristics(
       topology="2x2x1",

@@ -409,7 +409,7 @@ def assess_available_slices(
 
   Args:
     reservations: list of reservations to assess.
-    enable_super_slicing: whether to check for super-slicing blocks.
+    enable_super_slicing: if `True`, then the passed `ReservationLink` or `BlockReservationLink` will be flattened to adequate sub-blocks.
     required_hosts: number of hosts required per slice.
 
   Returns:
@@ -434,7 +434,7 @@ def _assess_available_slices_for_reservation(
 
   Args:
     reservation: reservation to assess.
-    enable_super_slicing: whether to check for super-slicing blocks.
+    enable_super_slicing: if `True`, then the passed `ReservationLink` or `BlockReservationLink` will be flattened to adequate sub-blocks.
     required_hosts: number of hosts required per slice.
 
   Returns:
@@ -455,7 +455,6 @@ def _assess_available_slices_for_reservation(
         reservation, required_hosts
     )
 
-  # If super-slicing is enabled, check for blocks first
   if enable_super_slicing:
     blocks = _get_blocks_in_reservation(reservation)
     if blocks:
@@ -463,7 +462,12 @@ def _assess_available_slices_for_reservation(
           blocks, enable_super_slicing, required_hosts
       )
 
-  # Otherwise (or if no blocks found), use reservation count
+    xpk_print(
+        'WARNING: Super-slicing is enabled, but no blocks found in'
+        f' reservation {reservation.name}. Skipping.'
+    )
+    return []
+
   count = _get_reservation_count(reservation, required_hosts)
   return [ReservationCapacity(reservation, count)] if count > 0 else []
 
@@ -482,9 +486,7 @@ def _is_sub_block_healthy_and_fitting(
   return_code, output = run_command_for_value(
       command,
       f'Check sub-block {reservation.sub_block_name} health',
-      dry_run_return_val=_get_dry_run_value(
-          'DRY_RUN_SUB_BLOCK_CAPACITY', reservation, default='1000,0'
-      ),
+      dry_run_return_val='16,0',
   )
   if return_code != 0:
     return False
@@ -658,7 +660,7 @@ def _get_reservation_count(
       command,
       f'Get reservation count for {reservation.name}',
       dry_run_return_val=_get_dry_run_value(
-          'DRY_RUN_RESERVATION_CAPACITY', reservation, default='1000,0,READY'
+          'DRY_RUN_RESERVATION_CAPACITY', reservation, default='16,0,READY'
       ),
   )
   if return_code != 0:

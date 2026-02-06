@@ -14,6 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import contextlib
+import os
+import tempfile
+from typing import Iterator
+
 from kubernetes.client.exceptions import ApiException
 from kubernetes.dynamic import DynamicClient
 
@@ -58,3 +63,36 @@ def apply_kubectl_manifest(client, manifest) -> int:
         xpk_print(f'Error applying {kind}: {e}')
         status_code = 1
   return status_code
+
+
+@contextlib.contextmanager
+def _set_env(key: str, value: str) -> Iterator[None]:
+  environ = os.environ
+
+  backup = environ.get(key)
+  environ[key] = value
+  try:
+    yield
+  finally:
+    if backup is None:
+      del environ[key]
+    else:
+      environ[key] = backup
+
+
+@contextlib.contextmanager
+def sandbox_kubeconfig() -> Iterator[None]:
+  """Context manager to use a temporary k8s config file.
+
+  This ensures that xpk operations do not interfere with the user's default
+  k8s config file by limiting all operation into a temporary file for the
+  duration of the context.
+
+  We use KUBECONFIG environment so it's process wide and not thread safe.
+  """
+
+  with (
+      tempfile.TemporaryDirectory(prefix='xpk-kube-') as dir_name,
+      _set_env('KUBECONFIG', os.path.join(dir_name, 'config')),
+  ):
+    yield

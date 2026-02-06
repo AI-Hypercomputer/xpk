@@ -404,7 +404,7 @@ def assess_available_slices(
     reservations: Sequence[ReservationLink],
     enable_super_slicing: bool,
     required_hosts: int,
-) -> list[ReservationCapacity]:
+) -> tuple[list[ReservationCapacity], int]:
   """Assess the available slices in the reservations.
 
   Args:
@@ -417,19 +417,20 @@ def assess_available_slices(
   """
   reservation_capacities = []
   for reservation in reservations:
-    reservation_capacities.extend(
-        _assess_available_slices_for_reservation(
-            reservation, enable_super_slicing, required_hosts
-        )
+    capacities, return_code = _assess_available_slices_for_reservation(
+        reservation, enable_super_slicing, required_hosts
     )
-  return reservation_capacities
+    if return_code != 0:
+      return [], return_code
+    reservation_capacities.extend(capacities)
+  return reservation_capacities, 0
 
 
 def _assess_available_slices_for_reservation(
     reservation: ReservationLink,
     enable_super_slicing: bool,
     required_hosts: int,
-) -> list[ReservationCapacity]:
+) -> tuple[list[ReservationCapacity], int]:
   """Assess the available slices for a single reservation.
 
   Args:
@@ -441,14 +442,19 @@ def _assess_available_slices_for_reservation(
     List of available reservations (targeting sub-blocks if applicable).
   """
   if isinstance(reservation, SubBlockReservationLink):
-    if _is_sub_block_healthy_and_fitting(reservation, required_hosts):
-      return [ReservationCapacity(reservation, 1)]
+    is_healthy, return_code = _is_sub_block_healthy_and_fitting(
+        reservation, required_hosts
+    )
+    if return_code != 0:
+      return [], return_code
+    if is_healthy:
+      return [ReservationCapacity(reservation, 1)], 0
     else:
       xpk_print(
           f'WARNING: Sub-block {reservation.sub_block_name} is either'
           ' unhealthy or not fitting. Skipping.'
       )
-      return []
+      return [], 0
 
   if isinstance(reservation, BlockReservationLink):
     return _get_healthy_and_fitting_sub_blocks_in_block(
@@ -456,7 +462,9 @@ def _assess_available_slices_for_reservation(
     )
 
   if enable_super_slicing:
-    blocks = _get_blocks_in_reservation(reservation)
+    blocks, return_code = _get_blocks_in_reservation(reservation)
+    if return_code != 0:
+      return [], return_code
     if blocks:
       return assess_available_slices(
           blocks, enable_super_slicing, required_hosts
@@ -466,16 +474,18 @@ def _assess_available_slices_for_reservation(
         'WARNING: Super-slicing is enabled, but no blocks found in'
         f' reservation {reservation.name}. Skipping.'
     )
-    return []
+    return [], 0
 
-  count = _get_reservation_count(reservation, required_hosts)
-  return [ReservationCapacity(reservation, count)] if count > 0 else []
+  count, return_code = _get_reservation_count(reservation, required_hosts)
+  if return_code != 0:
+    return [], return_code
+  return ([ReservationCapacity(reservation, count)] if count > 0 else []), 0
 
 
 def _is_sub_block_healthy_and_fitting(
     reservation: SubBlockReservationLink,
     required_hosts: int,
-) -> bool:
+) -> tuple[bool, int]:
   """Check if a sub-block is healthy and has sufficient capacity."""
   command = (
       'gcloud beta compute reservations sub-blocks list'
@@ -489,18 +499,18 @@ def _is_sub_block_healthy_and_fitting(
       dry_run_return_val='16,0',
   )
   if return_code != 0:
-    return False
+    return False, return_code
 
   if not output.strip():
-    return False
+    return False, 0
 
   try:
     parts = [p.strip() for p in output.strip().split(',')]
     count = int(parts[0])
     in_use_count = int(parts[1])
-    return (count - in_use_count) >= required_hosts
+    return (count - in_use_count) >= required_hosts, 0
   except (ValueError, IndexError):
-    return False
+    return False, 0
 
 
 def _get_dry_run_value(
@@ -535,7 +545,7 @@ def _get_dry_run_sub_blocks(reservation: BlockReservationLink) -> str:
 def _get_healthy_and_fitting_sub_blocks_in_block(
     reservation: BlockReservationLink,
     required_hosts: int,
-) -> list[ReservationCapacity]:
+) -> tuple[list[ReservationCapacity], int]:
   """Get healthy and fitting sub-blocks in a block."""
   command = (
       f'gcloud beta compute reservations sub-blocks list {reservation.name} '
@@ -551,7 +561,7 @@ def _get_healthy_and_fitting_sub_blocks_in_block(
       dry_run_return_val=_get_dry_run_sub_blocks(reservation),
   )
   if return_code != 0:
-    return []
+    return [], return_code
 
   available_capacities = []
   lines = output.strip().splitlines()
@@ -595,7 +605,7 @@ def _get_healthy_and_fitting_sub_blocks_in_block(
     except (ValueError, IndexError):
       continue
 
-  return available_capacities
+  return available_capacities, 0
 
 
 def _get_dry_run_blocks(reservation: ReservationLink) -> str:
@@ -605,7 +615,7 @@ def _get_dry_run_blocks(reservation: ReservationLink) -> str:
 
 def _get_blocks_in_reservation(
     reservation: ReservationLink,
-) -> list[BlockReservationLink]:
+) -> tuple[list[BlockReservationLink], int]:
   """Get blocks in a reservation."""
   command = (
       f'gcloud beta compute reservations blocks list {reservation.name} '
@@ -623,7 +633,7 @@ def _get_blocks_in_reservation(
         f'Get blocks in reservation {reservation.name} failed with'
         f' {return_code}'
     )
-    xpk_exit(return_code)
+    return [], return_code
 
   return [
       BlockReservationLink(
@@ -634,12 +644,12 @@ def _get_blocks_in_reservation(
       )
       for name in output.strip().splitlines()
       if name
-  ]
+  ], 0
 
 
 def _get_reservation_count(
     reservation: ReservationLink, required_hosts: int
-) -> int:
+) -> tuple[int, int]:
   """Get capacity count of a reservation.
 
   Args:
@@ -664,7 +674,7 @@ def _get_reservation_count(
       ),
   )
   if return_code != 0:
-    return 0
+    return 0, return_code
 
   try:
     parts = [p.strip() for p in output.strip().split(',')]
@@ -674,7 +684,7 @@ def _get_reservation_count(
 
     if status == 'READY':
       available_hosts = max(0, int(count_str) - int(in_use_str))
-      return available_hosts // required_hosts
+      return available_hosts // required_hosts, 0
   except (ValueError, IndexError):
     pass
-  return 0
+  return 0, 0

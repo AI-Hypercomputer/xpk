@@ -729,11 +729,15 @@ def _prepare_reservation_iterator(
     required_hosts: int,
 ) -> tuple[Iterator[ReservationLink] | None, int]:
   """Prepares the reservation iterator based on capacity type and super-slicing."""
-  available_capacity = assess_available_slices(
+  available_capacity, return_code = assess_available_slices(
       reservations,
       enable_super_slicing=enable_super_slicing,
       required_hosts=required_hosts,
   )
+
+  if return_code > 0:
+    return None, return_code
+
   total_available = sum(cap.available_slices for cap in available_capacity)
 
   if total_available < num_new_node_pools:

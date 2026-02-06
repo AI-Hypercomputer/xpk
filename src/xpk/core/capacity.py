@@ -15,7 +15,9 @@ limitations under the License.
 """
 
 import enum
+import os
 from dataclasses import dataclass
+from typing import Sequence
 
 from .commands import run_command_with_updates, run_command_for_value
 from .system_characteristics import AcceleratorType
@@ -59,6 +61,12 @@ class BlockReservationLink(ReservationLink):
 @dataclass(frozen=True)
 class SubBlockReservationLink(BlockReservationLink):
   sub_block_name: str
+
+
+@dataclass(frozen=True)
+class ReservationCapacity:
+  reservation: ReservationLink
+  available_slices: int
 
 
 def print_reservations(args) -> int:
@@ -390,3 +398,293 @@ def to_reservation_path(
     if isinstance(reservation, SubBlockReservationLink):
       path += f'/reservationSubBlocks/{reservation.sub_block_name}'
   return path
+
+
+def assess_available_slices(
+    reservations: Sequence[ReservationLink],
+    enable_super_slicing: bool,
+    required_hosts: int,
+) -> tuple[list[ReservationCapacity], int]:
+  """Assess the available slices in the reservations.
+
+  Args:
+    reservations: list of reservations to assess.
+    enable_super_slicing: if `True`, then the passed `ReservationLink` or `BlockReservationLink` will be flattened to adequate sub-blocks.
+    required_hosts: number of hosts required per slice.
+
+  Returns:
+    List of capacity reservations with available slices.
+  """
+  reservation_capacities = []
+  for reservation in reservations:
+    capacities, return_code = _assess_available_slices_for_reservation(
+        reservation, enable_super_slicing, required_hosts
+    )
+    if return_code != 0:
+      return [], return_code
+    reservation_capacities.extend(capacities)
+  return reservation_capacities, 0
+
+
+def _assess_available_slices_for_reservation(
+    reservation: ReservationLink,
+    enable_super_slicing: bool,
+    required_hosts: int,
+) -> tuple[list[ReservationCapacity], int]:
+  """Assess the available slices for a single reservation.
+
+  Args:
+    reservation: reservation to assess.
+    enable_super_slicing: if `True`, then the passed `ReservationLink` or `BlockReservationLink` will be flattened to adequate sub-blocks.
+    required_hosts: number of hosts required per slice.
+
+  Returns:
+    List of available reservations (targeting sub-blocks if applicable).
+  """
+  if isinstance(reservation, SubBlockReservationLink):
+    is_healthy, return_code = _is_sub_block_healthy_and_fitting(
+        reservation, required_hosts
+    )
+    if return_code != 0:
+      return [], return_code
+    if is_healthy:
+      return [ReservationCapacity(reservation, 1)], 0
+    else:
+      xpk_print(
+          f'WARNING: Sub-block {reservation.sub_block_name} is either'
+          ' unhealthy or not fitting. Skipping.'
+      )
+      return [], 0
+
+  if isinstance(reservation, BlockReservationLink):
+    return _get_healthy_and_fitting_sub_blocks_in_block(
+        reservation, required_hosts
+    )
+
+  if enable_super_slicing:
+    blocks, return_code = _get_blocks_in_reservation(reservation)
+    if return_code != 0:
+      return [], return_code
+    if blocks:
+      return assess_available_slices(
+          blocks, enable_super_slicing, required_hosts
+      )
+
+    xpk_print(
+        'WARNING: Super-slicing is enabled, but no blocks found in'
+        f' reservation {reservation.name}. Skipping.'
+    )
+    return [], 0
+
+  count, return_code = _get_reservation_count(reservation, required_hosts)
+  if return_code != 0:
+    return [], return_code
+  return ([ReservationCapacity(reservation, count)] if count > 0 else []), 0
+
+
+def _is_sub_block_healthy_and_fitting(
+    reservation: SubBlockReservationLink,
+    required_hosts: int,
+) -> tuple[bool, int]:
+  """Check if a sub-block is healthy and has sufficient capacity."""
+  command = (
+      'gcloud beta compute reservations sub-blocks list'
+      f' {reservation.name} --block-name={reservation.block_name} --project={reservation.project} --zone={reservation.zone} --filter="name={reservation.sub_block_name} AND'
+      ' healthInfo.healthStatus=HEALTHY"'
+      ' --format="csv[no-heading](count,inUseCount)"'
+  )
+  return_code, output = run_command_for_value(
+      command,
+      f'Check sub-block {reservation.sub_block_name} health',
+      dry_run_return_val='16,0',
+  )
+  if return_code != 0:
+    return False, return_code
+
+  if not output.strip():
+    return False, 0
+
+  try:
+    parts = [p.strip() for p in output.strip().split(',')]
+    count = int(parts[0])
+    in_use_count = int(parts[1])
+    return (count - in_use_count) >= required_hosts, 0
+  except (ValueError, IndexError):
+    return False, 0
+
+
+def _get_dry_run_value(
+    env_var_name: str, reservation: ReservationLink, default: str = ''
+) -> str:
+  """Get a value from an environment variable for dry runs."""
+  env_val = os.getenv(env_var_name)
+  if not env_val:
+    return default
+
+  res_path = to_reservation_path(reservation, reservation.project)
+  for item in env_val.split(';'):
+    if '=' not in item:
+      continue
+    key, val = item.split('=', 1)
+    if key.strip() == res_path:
+      # For CSV/multiline data, we might use ':' as a line separator in env vars
+      return val.strip().replace(':', '\n')
+
+  return default
+
+
+def _get_dry_run_sub_blocks(reservation: BlockReservationLink) -> str:
+  """Get dry run sub-blocks based on environment variable."""
+  return _get_dry_run_value(
+      'DRY_RUN_RESERVATION_SUB_BLOCKS',
+      reservation,
+      default='',
+  )
+
+
+def _get_healthy_and_fitting_sub_blocks_in_block(
+    reservation: BlockReservationLink,
+    required_hosts: int,
+) -> tuple[list[ReservationCapacity], int]:
+  """Get healthy and fitting sub-blocks in a block."""
+  command = (
+      f'gcloud beta compute reservations sub-blocks list {reservation.name} '
+      f'--block-name={reservation.block_name} '
+      f'--project={reservation.project} '
+      f'--zone={reservation.zone} '
+      '--filter="healthInfo.healthStatus=HEALTHY" '
+      '--format="csv[no-heading](name,count,inUseCount)"'
+  )
+  return_code, output = run_command_for_value(
+      command,
+      f'Count healthy fitting sub-blocks in {reservation.block_name}',
+      dry_run_return_val=_get_dry_run_sub_blocks(reservation),
+  )
+  if return_code != 0:
+    return [], return_code
+
+  available_capacities = []
+  lines = output.strip().splitlines()
+  # Handle old dry-run format where sub-blocks are comma-separated on one line
+  if len(lines) == 1 and ',' in lines[0]:
+    parts = [p.strip() for p in lines[0].split(',')]
+    # If it doesn't look like CSV (name, count, inUseCount), treat as list of names
+    if not (len(parts) >= 3 and parts[1].isdigit()):
+      lines = parts
+
+  for line in lines:
+    if not line:
+      continue
+    try:
+      # Parse the CSV output
+      parts = [p.strip() for p in line.split(',')]
+      if len(parts) >= 3 and parts[1].isdigit():
+        name = parts[0]
+        count = int(parts[1])
+        in_use_count = int(parts[2])
+      else:
+        # Legacy format: just a list of names
+        name = parts[0]
+        count = required_hosts
+        in_use_count = 0
+
+      available_slots = (count - in_use_count) // required_hosts
+      if available_slots > 0:
+        available_capacities.append(
+            ReservationCapacity(
+                SubBlockReservationLink(
+                    project=reservation.project,
+                    name=reservation.name,
+                    zone=reservation.zone,
+                    block_name=reservation.block_name,
+                    sub_block_name=name,
+                ),
+                available_slots,
+            )
+        )
+    except (ValueError, IndexError):
+      continue
+
+  return available_capacities, 0
+
+
+def _get_dry_run_blocks(reservation: ReservationLink) -> str:
+  """Get dry run blocks based on environment variable."""
+  return _get_dry_run_value('DRY_RUN_RESERVATION_BLOCKS', reservation)
+
+
+def _get_blocks_in_reservation(
+    reservation: ReservationLink,
+) -> tuple[list[BlockReservationLink], int]:
+  """Get blocks in a reservation."""
+  command = (
+      f'gcloud beta compute reservations blocks list {reservation.name} '
+      f'--project={reservation.project} '
+      f'--zone={reservation.zone} '
+      '--format="value(name)"'
+  )
+  return_code, output = run_command_for_value(
+      command,
+      f'Get blocks in reservation {reservation.name}',
+      dry_run_return_val=_get_dry_run_blocks(reservation),
+  )
+  if return_code != 0:
+    xpk_print(
+        f'Get blocks in reservation {reservation.name} failed with'
+        f' {return_code}'
+    )
+    return [], return_code
+
+  return [
+      BlockReservationLink(
+          project=reservation.project,
+          name=reservation.name,
+          zone=reservation.zone,
+          block_name=name,
+      )
+      for name in output.strip().splitlines()
+      if name
+  ], 0
+
+
+def _get_reservation_count(
+    reservation: ReservationLink, required_hosts: int
+) -> tuple[int, int]:
+  """Get capacity count of a reservation.
+
+  Args:
+    reservation: reservation to get count for.
+    required_hosts: number of hosts required per slice.
+
+  Returns:
+    Number of available slots in the reservation.
+  """
+  command = (
+      f'gcloud beta compute reservations describe {reservation.name} '
+      f'--project={reservation.project} '
+      f'--zone={reservation.zone} '
+      '--format="csv[no-heading](specificReservation.count,specificReservation.inUseCount,status)"'
+  )
+
+  return_code, output = run_command_for_value(
+      command,
+      f'Get reservation count for {reservation.name}',
+      dry_run_return_val=_get_dry_run_value(
+          'DRY_RUN_RESERVATION_CAPACITY', reservation, default='16,0,READY'
+      ),
+  )
+  if return_code != 0:
+    return 0, return_code
+
+  try:
+    parts = [p.strip() for p in output.strip().split(',')]
+    count_str = parts[0]
+    in_use_str = parts[1]
+    status = parts[2]
+
+    if status == 'READY':
+      available_hosts = max(0, int(count_str) - int(in_use_str))
+      return available_hosts // required_hosts, 0
+  except (ValueError, IndexError):
+    pass
+  return 0, 0

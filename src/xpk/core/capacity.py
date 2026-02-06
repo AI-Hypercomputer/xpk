@@ -501,12 +501,17 @@ def _is_sub_block_healthy_and_fitting(
   if return_code != 0:
     return False, return_code
 
+  rows = _parse_csv_output(output, ['count', 'inUseCount'])
+  if not rows:
+    # If no output, it means the sub-block is not healthy/fitting.
+    return False, 0
+
   try:
-    parts = [p.strip() for p in output.strip().split(',')]
-    count = int(parts[0])
-    in_use_count = int(parts[1])
+    row = rows[0]
+    count = int(row['count'])
+    in_use_count = int(row['inUseCount'])
     return (count - in_use_count) >= required_hosts, 0
-  except (ValueError, IndexError):
+  except ValueError:
     xpk_print(f'Error: Unrecognized output format: "{output}".')
     return False, 1
 
@@ -538,6 +543,31 @@ def _get_dry_run_sub_blocks(reservation: BlockReservationLink) -> str:
       reservation,
       default='',
   )
+
+
+def _parse_csv_output(
+    output: str, expected_fields: Sequence[str]
+) -> list[dict[str, str]]:
+  """Parses CSV output into a list of dictionaries.
+
+  Args:
+    output: The CSV output string from a command.
+    expected_fields: List of field names corresponding to the CSV columns.
+
+  Returns:
+    A list of dictionaries, where each dictionary represents a row and maps
+    field names to their values. Empty lines are skipped. Rows that don't
+    match the number of expected fields are ignored.
+  """
+  results = []
+  for line in output.strip().splitlines():
+    line = line.strip()
+    if not line:
+      continue
+    parts = [p.strip() for p in line.split(',')]
+    if len(parts) == len(expected_fields):
+      results.append(dict(zip(expected_fields, parts)))
+  return results
 
 
 def _get_healthy_and_fitting_sub_blocks_in_block(
@@ -573,35 +603,33 @@ def _get_healthy_and_fitting_sub_blocks_in_block(
   for line in lines:
     if not line:
       continue
-    try:
-      # Parse the CSV output
-      parts = [p.strip() for p in line.split(',')]
-      if len(parts) >= 3 and parts[1].isdigit():
-        name = parts[0]
-        count = int(parts[1])
-        in_use_count = int(parts[2])
-      else:
-        # Legacy format: just a list of names
-        name = parts[0]
-        count = required_hosts
-        in_use_count = 0
 
-      available_slots = (count - in_use_count) // required_hosts
-      if available_slots > 0:
-        available_capacities.append(
-            ReservationCapacity(
-                SubBlockReservationLink(
-                    project=reservation.project,
-                    name=reservation.name,
-                    zone=reservation.zone,
-                    block_name=reservation.block_name,
-                    sub_block_name=name,
-                ),
-                available_slots,
-            )
-        )
-    except (ValueError, IndexError):
-      continue
+    rows = _parse_csv_output(line, ['name', 'count', 'inUseCount'])
+    if rows and rows[0]['count'].isdigit():
+      row = rows[0]
+      name = row['name']
+      count = int(row['count'])
+      in_use_count = int(row['inUseCount'])
+    else:
+      # Legacy format: just a list of names
+      name = line.strip().split(',')[0]
+      count = required_hosts
+      in_use_count = 0
+
+    available_slots = (count - in_use_count) // required_hosts
+    if available_slots > 0:
+      available_capacities.append(
+          ReservationCapacity(
+              SubBlockReservationLink(
+                  project=reservation.project,
+                  name=reservation.name,
+                  zone=reservation.zone,
+                  block_name=reservation.block_name,
+                  sub_block_name=name,
+              ),
+              available_slots,
+          )
+      )
 
   return available_capacities, 0
 
@@ -667,15 +695,15 @@ def _get_reservation_count(
   if return_code != 0:
     return 0, return_code
 
-  try:
-    parts = [p.strip() for p in output.strip().split(',')]
-    count_str = parts[0]
-    in_use_str = parts[1]
-    status = parts[2]
+  rows = _parse_csv_output(output, ['count', 'in_use_count', 'status'])
+  if not rows:
+    return 0, 0
 
-    if status == 'READY':
-      available_hosts = max(0, int(count_str) - int(in_use_str))
+  try:
+    row = rows[0]
+    if row['status'] == 'READY':
+      available_hosts = max(0, int(row['count']) - int(row['in_use_count']))
       return available_hosts // required_hosts, 0
-  except (ValueError, IndexError):
+  except ValueError:
     pass
   return 0, 0

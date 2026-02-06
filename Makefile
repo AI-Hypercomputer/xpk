@@ -72,7 +72,7 @@ install-pylint:
 	pip install pylint
 
 .PHONY: verify
-verify: install-lint pylint pyink mypy
+verify: pylint pyink mypy
 
 .PHONY: pylint
 pylint:

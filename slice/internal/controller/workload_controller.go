@@ -779,14 +779,14 @@ func (h *sliceHandler) Create(context.Context, event.CreateEvent, workqueue.Type
 }
 
 func (h *sliceHandler) Delete(ctx context.Context, e event.DeleteEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
-	h.handleEvent(ctx, e.Object, q)
+	h.handleEvent(ctx, e.Object, q, "delete")
 }
 
 func (h *sliceHandler) Update(ctx context.Context, e event.UpdateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
-	h.handleEvent(ctx, e.ObjectNew, q)
+	h.handleEvent(ctx, e.ObjectNew, q, "update")
 }
 
-func (h *sliceHandler) handleEvent(ctx context.Context, obj client.Object, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
+func (h *sliceHandler) handleEvent(ctx context.Context, obj client.Object, q workqueue.TypedRateLimitingInterface[reconcile.Request], eventType string) {
 	slice, isSlice := obj.(*v1beta1.Slice)
 	// Only Slice should be handled.
 	if !isSlice {
@@ -803,7 +803,7 @@ func (h *sliceHandler) handleEvent(ctx context.Context, obj client.Object, q wor
 		return
 	}
 
-	log.V(3).Info("Handle Slice event", "workload", klog.KRef(workloadNamespace, workloadName))
+	log.V(3).Info("Handle Slice event", "workload", klog.KRef(workloadNamespace, workloadName), "eventType", eventType)
 
 	req := reconcile.Request{
 		NamespacedName: types.NamespacedName{

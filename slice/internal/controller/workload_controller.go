@@ -218,7 +218,7 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	// Delete any Slices that are in a failed or stale state.
 	if len(grouped.toDelete) > 0 {
-		log.V(3).Info(
+		log.V(2).Info(
 			"Deleting Slices",
 			"slices", klog.KObjSlice(grouped.toDelete),
 		)
@@ -620,7 +620,7 @@ func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workloa
 			r.record.Event(wl, corev1.EventTypeWarning, FailedCreateSliceEventType, api.TruncateEventMessage(msg))
 			ac.State = kueue.CheckStatePending
 			ac.Message = api.TruncateConditionMessage(msg)
-			log.V(3).Info("Updating AdmissionCheck state", "state", ac.State, "reason", msg)
+			log.V(2).Info("Updating AdmissionCheck state", "state", ac.State, "reason", msg)
 			patchErr := r.updateWorkloadAdmissionCheckStatus(ctx, wl, ac)
 			if patchErr != nil {
 				return nil, errors.Join(err, patchErr)
@@ -696,7 +696,7 @@ func (r *WorkloadReconciler) syncAdmissionCheckStatus(ctx context.Context, wl *k
 
 	if originalState != ac.State {
 		message := fmt.Sprintf("Admission check %q updated state from %q to %q", ac.Name, originalState, ac.State)
-		log.V(3).Info(message)
+		log.V(2).Info(message)
 		r.record.Event(wl, corev1.EventTypeNormal, AdmissionCheckUpdatedEventType, message)
 	}
 

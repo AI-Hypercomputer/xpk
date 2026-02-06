@@ -129,7 +129,7 @@ def test_parse_reservation_parses_valid_reservations(
   assert actual_reservation == expected_reservation
 
 
-def test_to_reservation_path():
+def test_to_reservation_path_for_reservation():
   res = ReservationLink(project='project', name='reservation', zone='zone')
   assert to_reservation_path(res, 'project') == 'reservation'
   assert (
@@ -137,20 +137,32 @@ def test_to_reservation_path():
       == 'projects/project/reservations/reservation'
   )
 
+
+def test_to_reservation_path_for_block_reservation():
   res_block = BlockReservationLink(
       project='project', name='reservation', zone='zone', block_name='block'
+  )
+  assert (
+      to_reservation_path(res_block, 'project')
+      == 'reservation/reservationBlocks/block'
   )
   assert (
       to_reservation_path(res_block, 'other-project')
       == 'projects/project/reservations/reservation/reservationBlocks/block'
   )
 
+
+def test_to_reservation_path_for_sub_block_reservation():
   res_sub = SubBlockReservationLink(
       project='project',
       name='reservation',
       zone='zone',
       block_name='block',
       sub_block_name='subblock',
+  )
+  assert (
+      to_reservation_path(res_sub, 'project')
+      == 'reservation/reservationBlocks/block/reservationSubBlocks/subblock'
   )
   assert (
       to_reservation_path(res_sub, 'other-project')

@@ -588,8 +588,13 @@ def test_recreate_nodes_in_existing_node_pools_upgrades_existing_nodepools(
       project="test-project",
       zone="us-central1-a",
   )
-  recreate_nodes_in_existing_node_pools(args)
+  commands_tester.set_result_for_command(
+      (0, ""), "gcloud container clusters upgrade"
+  )
 
+  result = recreate_nodes_in_existing_node_pools(args)
+
+  assert result == 0
   commands_tester.assert_command_run(
       "gcloud",
       "container clusters upgrade test-cluster",

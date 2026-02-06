@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -216,7 +217,7 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	// Delete any Slices that are in a failed or stale state.
 	if len(grouped.toDelete) > 0 {
-		log.V(3).Info(
+		log.V(2).Info(
 			"Deleting Slices",
 			"slices", klog.KObjSlice(grouped.toDelete),
 		)
@@ -613,12 +614,13 @@ func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workloa
 
 	for _, slice := range slicesToCreate {
 		log := ctrl.LoggerFrom(ctx).WithValues("slice", klog.KObj(slice))
-		log.V(3).Info("Creating Slice")
+		log.V(2).Info("Creating Slice")
 
 		if err := r.client.Create(ctx, slice); err != nil {
 			msg := fmt.Sprintf("Error creating Slice %q: %v", slice.Name, err)
 			log.Error(err, msg)
 			r.record.Event(wl, corev1.EventTypeWarning, FailedCreateSliceEventType, api.TruncateEventMessage(msg))
+			log.V(2).Info(fmt.Sprintf("Admission check %q updated state from %q to %q", ac.Name, ac.State, kueue.CheckStatePending), "reason", msg)
 			ac.State = kueue.CheckStatePending
 			ac.Message = api.TruncateConditionMessage(msg)
 			patchErr := r.updateWorkloadAdmissionCheckStatus(ctx, wl, ac)
@@ -696,7 +698,7 @@ func (r *WorkloadReconciler) syncAdmissionCheckStatus(ctx context.Context, wl *k
 
 	if originalState != ac.State {
 		message := fmt.Sprintf("Admission check %q updated state from %q to %q", ac.Name, originalState, ac.State)
-		log.V(3).Info(message)
+		log.V(2).Info(message)
 		r.record.Event(wl, corev1.EventTypeNormal, AdmissionCheckUpdatedEventType, message)
 	}
 
@@ -781,10 +783,22 @@ func (h *sliceHandler) Create(context.Context, event.CreateEvent, workqueue.Type
 }
 
 func (h *sliceHandler) Delete(ctx context.Context, e event.DeleteEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
+	if slice, ok := e.Object.(*v1beta1.Slice); ok {
+		ctrl.LoggerFrom(ctx).V(2).Info("Slice deleted", "slice", slice.Name)
+	}
 	h.handleEvent(ctx, e.Object, q)
 }
 
 func (h *sliceHandler) Update(ctx context.Context, e event.UpdateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
+	if oldSlice, ok := e.ObjectOld.(*v1beta1.Slice); ok {
+		if newSlice, ok := e.ObjectNew.(*v1beta1.Slice); ok {
+			condOld := meta.FindStatusCondition(oldSlice.Status.Conditions, v1beta1.SliceStateConditionType)
+			condNew := meta.FindStatusCondition(newSlice.Status.Conditions, v1beta1.SliceStateConditionType)
+			if diff := cmp.Diff(condOld, condNew); diff != "" {
+				ctrl.LoggerFrom(ctx).V(2).Info("Slice state updated", "diff", diff)
+			}
+		}
+	}
 	h.handleEvent(ctx, e.ObjectNew, q)
 }
 

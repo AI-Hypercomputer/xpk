@@ -610,7 +610,7 @@ func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workloa
 
 	for _, slice := range slicesToCreate {
 		log := ctrl.LoggerFrom(ctx).WithValues("slice", klog.KObj(slice))
-		log.V(3).Info("Creating Slice")
+		log.V(2).Info("Creating Slice")
 
 		if err := r.client.Create(ctx, slice); err != nil {
 			msg := fmt.Sprintf("Error creating Slice %q: %v", slice.Name, err)
@@ -618,6 +618,7 @@ func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workloa
 			r.record.Event(wl, corev1.EventTypeWarning, FailedCreateSliceEventType, api.TruncateEventMessage(msg))
 			ac.State = kueue.CheckStatePending
 			ac.Message = api.TruncateConditionMessage(msg)
+			log.V(3).Info("Updating AdmissionCheck state", "state", ac.State, "reason", msg)
 			patchErr := r.updateWorkloadAdmissionCheckStatus(ctx, wl, ac)
 			if patchErr != nil {
 				return nil, errors.Join(err, patchErr)

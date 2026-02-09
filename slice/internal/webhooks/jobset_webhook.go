@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"strings"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
@@ -31,6 +30,7 @@ import (
 	kueueconstants "sigs.k8s.io/kueue/pkg/controller/constants"
 
 	"tpu-slice-controller/internal/core"
+	"tpu-slice-controller/internal/topology"
 )
 
 // JobSetWebhook is the schema for your resource (ensure this matches your resource definition).
@@ -135,7 +135,7 @@ func annotateReplicatedJobWithSliceHealth(rj *v1alpha2.ReplicatedJob) {
 }
 
 func (r *JobSetWebhook) podSetSliceSize(tpuTopology string, parallelism int32) (int64, error) {
-	dims, err := parseTopology(tpuTopology)
+	dims, err := topology.ParseTopology(tpuTopology)
 	if err != nil {
 		return 0, err
 	}
@@ -144,35 +144,4 @@ func (r *JobSetWebhook) podSetSliceSize(tpuTopology string, parallelism int32) (
 	subBlockCount := totalChips / 64
 
 	return int64(parallelism) / subBlockCount, nil
-}
-
-func parseTopology(tpuTopology string) ([]int64, error) {
-	dimensions := strings.Split(tpuTopology, "x")
-	if len(dimensions) != 3 {
-		return nil, fmt.Errorf("invalid topology format: %s, expected 3 dimensions", tpuTopology)
-	}
-
-	dims := make([]int64, 3)
-
-	for i, dim := range dimensions {
-		parsedDim, err := strconv.ParseInt(dim, 10, 32)
-		if err != nil {
-			return nil, err
-		}
-		dims[i] = parsedDim
-	}
-	if dims[0] == 0 || dims[1] == 0 || dims[2] == 0 {
-		return nil, fmt.Errorf("topology dimensions cannot be zero: %s", tpuTopology)
-	}
-	if dims[0]%4 != 0 || dims[1]%4 != 0 || dims[2]%4 != 0 {
-		return nil, fmt.Errorf("topology dimensions must be divisible by 4: %s", tpuTopology)
-	}
-	if dims[0] > dims[1] || dims[1] > dims[2] {
-		return nil, fmt.Errorf("topology dimensions must be in non-decreasing order: %s", tpuTopology)
-	}
-	if dims[0] > 16 || dims[1] > 24 || dims[2] > 24 {
-		return nil, fmt.Errorf("topology dimensions exceed maximum 16x24x24: %s", tpuTopology)
-	}
-
-	return dims, nil
 }

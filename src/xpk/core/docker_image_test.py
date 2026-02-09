@@ -20,17 +20,17 @@ from .docker_image import build_docker_image_from_base_image
 from .testing.commands_tester import CommandsTester
 from .system_characteristics import DockerPlatform
 from ..utils.feature_flags import FeatureFlags
-from ..utils.execution_context import set_dry_run
+from ..utils.execution_context import is_dry_run
+
+
+@pytest.fixture(autouse=True)
+def setup_mocks(mocker: MockerFixture):
+  mocker.patch("xpk.core.docker_image.is_dry_run", return_value=True)
 
 
 @pytest.fixture(autouse=True)
 def commands_tester(mocker: MockerFixture) -> CommandsTester:
   return CommandsTester(mocker)
-
-
-@pytest.fixture(autouse=True)
-def setup_mocks():
-  set_dry_run(True)
 
 
 @pytest.fixture(autouse=True)

@@ -32,7 +32,7 @@ from ..core.blueprint.blueprint_generator import (
     a4_device_type,
     supported_device_types,
 )
-from ..core.capacity import get_capacity_type, get_reservations_list
+from ..core.capacity import get_capacity_type, get_reservations_list, to_reservation_path
 from ..core.cluster import get_cluster_credentials
 from ..core.commands import run_command_for_value
 from ..core.docker_manager import DockerManager
@@ -318,14 +318,12 @@ def generate_blueprint(
   if args.device_type in supported_device_types:
     if args.device_type == a3mega_device_type:
       maintenance_interval = (
-          get_reservation_maintenance_interval(
-              reservation, args.zone, args.project
-          )
+          get_reservation_maintenance_interval(reservation)
           if reservation is not None
           else 'PERIODIC'
       )
       placement_policy_name = (
-          get_reservation_placement_policy(reservation, args.zone, args.project)
+          get_reservation_placement_policy(reservation)
           if reservation is not None
           else None
       )
@@ -349,7 +347,11 @@ def generate_blueprint(
           num_nodes=num_nodes,
           reservation_maintenance_interval=maintenance_interval,
           reservation_placement_policy=placement_policy,
-          reservation=reservation,
+          reservation=(
+              to_reservation_path(reservation, args.project)
+              if reservation is not None
+              else None
+          ),
           capacity_type=capacity_type,
           system_node_pool_machine_type=args.default_pool_cpu_machine_type,
           system_node_pool_min_node_count=args.default_pool_cpu_num_nodes,
@@ -367,7 +369,11 @@ def generate_blueprint(
           zone=args.zone,
           auth_cidr=all_IPs_cidr,
           num_nodes=num_nodes,
-          reservation=reservation,
+          reservation=(
+              to_reservation_path(reservation, args.project)
+              if reservation is not None
+              else None
+          ),
           enable_filestore_csi_driver=args.enable_gcpfilestore_csi_driver,
           capacity_type=capacity_type,
           system_node_pool_machine_type=args.default_pool_cpu_machine_type,
@@ -386,7 +392,11 @@ def generate_blueprint(
           zone=args.zone,
           auth_cidr=all_IPs_cidr,
           num_nodes=num_nodes,
-          reservation=reservation,
+          reservation=(
+              to_reservation_path(reservation, args.project)
+              if reservation is not None
+              else None
+          ),
           capacity_type=capacity_type,
           system_node_pool_machine_type=args.default_pool_cpu_machine_type,
           system_node_pool_min_node_count=args.default_pool_cpu_num_nodes,

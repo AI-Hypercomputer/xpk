@@ -352,17 +352,17 @@ def get_autoprovisioning_node_selector_args(args) -> tuple[str, int]:
         return node_selector_args, return_code
 
   # Check if reservation id is valid. Shared function with cluster creation.
-  reservation_name = None
+  reservation = None
   if capacity_type_str == CapacityType.RESERVATION.name:
     reservations = get_reservations_list(args)
     if len(reservations) > 1:
       xpk_print('Error: NAP based clusters only support a single reservation.')
       return node_selector_args, 1
-    reservation_name = reservations[0] if len(reservations) > 0 else None
+    reservation = reservations[0] if len(reservations) > 0 else None
 
   node_selector_args, return_code = (
       get_capacity_node_selectors_from_capacity_type(
-          capacity_type_str, reservation_name
+          capacity_type_str, reservation, args.project
       )
   )
   if return_code != 0:

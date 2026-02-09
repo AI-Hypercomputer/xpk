@@ -26,6 +26,7 @@ from xpk.core.nodepool import (
 from xpk.core.system_characteristics import AcceleratorType, SystemCharacteristics, DockerPlatform, GpuConfig
 from xpk.core.commands import FailedCommand
 from xpk.core.testing.commands_tester import CommandsTester
+from xpk.core.capacity import ReservationLink
 
 
 CLUSTER_NAME = "running-cucumber"
@@ -102,11 +103,7 @@ def test_compute_desired_node_pool_names_with_unknown_node_pools():
 
 @pytest.fixture
 def commands_tester(mocker):
-  return CommandsTester(
-      mocker,
-      run_command_for_value_path="xpk.core.nodepool.run_command_for_value",
-      run_command_batch_path="xpk.core.commands.run_command_batch",
-  )
+  return CommandsTester(mocker)
 
 
 def test_ensure_resource_policy_exists_with_existing_policy_retrieves_existing_policy(
@@ -441,7 +438,11 @@ def test_display_nodepool_creation_ignores_logs_without_errors(
 
 def test_validate_reservation_count_mismatch(mock_xpk_print):
   result = _validate_reservation_count(
-      ["res1", "res2"], num_node_pools_to_create=3
+      [
+          ReservationLink(project="p", name="res1", zone="z"),
+          ReservationLink(project="p", name="res2", zone="z"),
+      ],
+      num_node_pools_to_create=3,
   )
 
   assert result == 1
@@ -587,7 +588,6 @@ def test_recreate_nodes_in_existing_node_pools_upgrades_existing_nodepools(
       project="test-project",
       zone="us-central1-a",
   )
-
   commands_tester.set_result_for_command(
       (0, ""), "gcloud container clusters upgrade"
   )

@@ -19,11 +19,14 @@ from unittest.mock import MagicMock, patch
 from .capacity import (
     get_reservation_deployment_type,
     parse_reservation,
-    Reservation,
+    ReservationLink,
+    BlockReservationLink,
+    SubBlockReservationLink,
     get_capacity_type,
     CapacityType,
     verify_reservations_exist,
     get_reservations_list,
+    to_reservation_path,
 )
 
 
@@ -36,7 +39,9 @@ def test_get_reservation_deployment_type_exits_with_command_fails(
   )
   with pytest.raises(SystemExit):
     get_reservation_deployment_type(
-        reservation_path='reservation', zone='zone', project='project'
+        reservation=ReservationLink(
+            project='project', name='reservation', zone='zone'
+        )
     )
 
   assert (
@@ -53,7 +58,9 @@ def test_get_reservation_deployment_type_returns_deployment_type_when_command_su
       return_value=(0, 'DENSE'),
   )
   result = get_reservation_deployment_type(
-      reservation_path='reservation', zone='zone', project='project'
+      reservation=ReservationLink(
+          project='project', name='reservation', zone='zone'
+      )
   )
   assert result == 'DENSE'
 
@@ -63,42 +70,48 @@ def test_get_reservation_deployment_type_returns_deployment_type_when_command_su
     argvalues=[
         (
             'reservation',
-            Reservation(project='cluster-project', name='reservation'),
+            ReservationLink(
+                project='cluster-project', name='reservation', zone='zone'
+            ),
         ),
         (
             'reservation/reservationBlocks/block',
-            Reservation(
+            BlockReservationLink(
                 project='cluster-project',
                 name='reservation',
+                zone='zone',
                 block_name='block',
             ),
         ),
         (
             'reservation/reservationBlocks/block/reservationSubBlocks/subblock',
-            Reservation(
+            SubBlockReservationLink(
                 project='cluster-project',
                 name='reservation',
+                zone='zone',
                 block_name='block',
                 sub_block_name='subblock',
             ),
         ),
         (
-            'projects/p/reservations/reservation',
-            Reservation(project='p', name='reservation'),
+            'projects/project/reservations/reservation',
+            ReservationLink(project='project', name='reservation', zone='zone'),
         ),
         (
-            'projects/p/reservations/reservation/reservationBlocks/block',
-            Reservation(
-                project='p',
+            'projects/project/reservations/reservation/reservationBlocks/block',
+            BlockReservationLink(
+                project='project',
                 name='reservation',
+                zone='zone',
                 block_name='block',
             ),
         ),
         (
-            'projects/p/reservations/reservation/reservationBlocks/block/reservationSubBlocks/subblock',
-            Reservation(
-                project='p',
+            'projects/project/reservations/reservation/reservationBlocks/block/reservationSubBlocks/subblock',
+            SubBlockReservationLink(
+                project='project',
                 name='reservation',
+                zone='zone',
                 block_name='block',
                 sub_block_name='subblock',
             ),
@@ -107,11 +120,54 @@ def test_get_reservation_deployment_type_returns_deployment_type_when_command_su
 )
 def test_parse_reservation_parses_valid_reservations(
     reservation_path: str,
-    expected_reservation: Reservation,
+    expected_reservation: ReservationLink,
 ):
-  actual_reservation = parse_reservation(reservation_path, 'cluster-project')
+  actual_reservation = parse_reservation(
+      reservation_path, 'cluster-project', 'zone'
+  )
 
   assert actual_reservation == expected_reservation
+
+
+def test_to_reservation_path_for_reservation():
+  res = ReservationLink(project='project', name='reservation', zone='zone')
+  assert to_reservation_path(res, 'project') == 'reservation'
+  assert (
+      to_reservation_path(res, 'other-project')
+      == 'projects/project/reservations/reservation'
+  )
+
+
+def test_to_reservation_path_for_block_reservation():
+  res_block = BlockReservationLink(
+      project='project', name='reservation', zone='zone', block_name='block'
+  )
+  assert (
+      to_reservation_path(res_block, 'project')
+      == 'reservation/reservationBlocks/block'
+  )
+  assert (
+      to_reservation_path(res_block, 'other-project')
+      == 'projects/project/reservations/reservation/reservationBlocks/block'
+  )
+
+
+def test_to_reservation_path_for_sub_block_reservation():
+  res_sub = SubBlockReservationLink(
+      project='project',
+      name='reservation',
+      zone='zone',
+      block_name='block',
+      sub_block_name='subblock',
+  )
+  assert (
+      to_reservation_path(res_sub, 'project')
+      == 'reservation/reservationBlocks/block/reservationSubBlocks/subblock'
+  )
+  assert (
+      to_reservation_path(res_sub, 'other-project')
+      == 'projects/project/reservations/reservation/reservationBlocks/block/reservationSubBlocks/subblock'
+  )
 
 
 @pytest.mark.parametrize(
@@ -126,11 +182,11 @@ def test_parse_reservation_parses_valid_reservations(
         'name/reservationBlock/block/reservationSubBlocks/subblock',
         'name/reservationBlocks/block/reservationSubBlock/subblock',
         'reservations/name',
-        'project/p/reservations/name',
-        'projects/p/reservation/name',
-        'projects/p/reservations',
-        'projects/p/reservations/name/reservationBlocks/block/reservationSubBlocks/subblock/extra',
-        'projects/p/reservations/name/reservationBlocks//reservationSubBlocks/subblock',
+        'project/project/reservations/name',
+        'projects/project/reservation/name',
+        'projects/project/reservations',
+        'projects/project/reservations/name/reservationBlocks/block/reservationSubBlocks/subblock/extra',
+        'projects/project/reservations/name/reservationBlocks//reservationSubBlocks/subblock',
     ],
 )
 @patch('xpk.core.capacity.xpk_print')
@@ -138,56 +194,54 @@ def test_parse_reservation_fails_on_invalid_reservations(
     xpk_print: MagicMock, reservation_path: str
 ):
   with pytest.raises(SystemExit):
-    parse_reservation(reservation_path, 'cluster-project')
+    parse_reservation(reservation_path, 'cluster-project', 'zone')
 
   assert 'Unable to parse reservation' in xpk_print.mock_calls[0].args[0]
 
 
 def test_get_capacity_type_multiple_reservations(mocker):
-  args = MagicMock()
-  args.on_demand = False
-  args.spot = False
-  args.flex = False
-  args.reservation = 'res1,res2'
-  args.project = 'test-project'
-  args.zone = 'us-central1-a'
-  mocker.patch('xpk.core.capacity.run_command_with_updates', return_value=0)
-
+  mocker.patch('xpk.core.capacity.verify_reservations_exist', return_value=0)
+  args = mocker.Mock(
+      on_demand=False,
+      reservation='res1,res2',
+      spot=False,
+      flex=False,
+      project='project',
+      zone='zone',
+  )
   capacity_type, return_code = get_capacity_type(args)
-
   assert capacity_type == CapacityType.RESERVATION
   assert return_code == 0
 
 
-def test_verify_reservations_exist_multiple(mocker):
-  args = MagicMock()
-  args.reservation = 'res1,res2'
-  args.project = 'test-project'
-  args.zone = 'us-central1-a'
-
-  mock_run = mocker.patch(
-      'xpk.core.capacity.run_command_with_updates', return_value=0
-  )
-
-  return_code = verify_reservations_exist(args)
-
-  assert return_code == 0
+@patch('xpk.core.capacity.run_command_with_updates', return_value=0)
+def test_verify_reservations_exist_multiple(mock_run, mocker):
+  args = mocker.Mock(reservation='res1,res2', project='project', zone='zone')
+  assert verify_reservations_exist(args) == 0
   assert mock_run.call_count == 2
 
 
 def test_get_reservations_list_with_single_reservation(mocker):
-  args = mocker.Mock(reservation='res1')
-  assert get_reservations_list(args) == ['res1']
+  args = mocker.Mock(reservation='res1', project='project', zone='zone')
+  assert get_reservations_list(args) == [
+      ReservationLink(project='project', name='res1', zone='zone')
+  ]
 
 
 def test_get_reservations_list_with_multiple_reservations(mocker):
-  args = mocker.Mock(reservation='res1,res2')
-  assert get_reservations_list(args) == ['res1', 'res2']
+  args = mocker.Mock(reservation='res1,res2', project='project', zone='zone')
+  assert get_reservations_list(args) == [
+      ReservationLink(project='project', name='res1', zone='zone'),
+      ReservationLink(project='project', name='res2', zone='zone'),
+  ]
 
 
 def test_get_reservations_list_with_whitespace(mocker):
-  args = mocker.Mock(reservation='res1, res2 ')
-  assert get_reservations_list(args) == ['res1', 'res2']
+  args = mocker.Mock(reservation='res1, res2 ', project='project', zone='zone')
+  assert get_reservations_list(args) == [
+      ReservationLink(project='project', name='res1', zone='zone'),
+      ReservationLink(project='project', name='res2', zone='zone'),
+  ]
 
 
 def test_get_reservations_list_none(mocker):

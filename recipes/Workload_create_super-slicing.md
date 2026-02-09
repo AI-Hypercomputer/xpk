@@ -3,10 +3,10 @@ Submits a workload utilizing TPU super-slicing for large-scale distributed train
 
 # Running the command
 ```shell #golden
-SUPER_SLICING_ENABLED=true DRY_RUN_RESOURCES_CONFIG_MAP="map[tpu7x-128:80]" xpk workload create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --command "bash hello" --tpu-type=tpu7x-4x4x20 --script-dir=/tmp
+DRY_RUN_RESOURCES_CONFIG_MAP="map[tpu7x-128:80]" xpk workload create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --command "bash hello" --tpu-type=tpu7x-4x4x20 --script-dir=/tmp
 ```
 <!--
-$ SUPER_SLICING_ENABLED=true DRY_RUN_RESOURCES_CONFIG_MAP="map[tpu7x-128:80]" xpk workload create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --command "bash hello" --tpu-type=tpu7x-4x4x20 --script-dir=/tmp
+$ DRY_RUN_RESOURCES_CONFIG_MAP="map[tpu7x-128:80]" xpk workload create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --command "bash hello" --tpu-type=tpu7x-4x4x20 --script-dir=/tmp
 [XPK] Starting xpk v0.0.0
 [XPK] Task: `Check if Workload Already Exists` is implemented by the following command not running since it is a dry run. 
 kubectl get workloads -o=custom-columns='Jobset:.metadata.ownerReferences[0].name'

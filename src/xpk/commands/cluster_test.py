@@ -571,7 +571,7 @@ def test_cluster_create_calls_run_command_with_correct_channel_and_version(
 def test_run_gke_cluster_create_command_with_super_slicing_enables_slice_controller(
     mocks: _Mocks,
 ):
-  FeatureFlags.SUPER_SLICING_ENABLED = True
+
   result = run_gke_cluster_create_command(
       args=construct_args(gke_version='1.2.3', super_slicing=True),
       gke_control_plane_version='1.2.3',
@@ -588,7 +588,7 @@ def test_run_gke_cluster_create_command_with_super_slicing_enables_slice_control
 def test_validate_cluster_create_args_for_correct_super_slicing_args_pass(
     mocks: _Mocks,
 ):
-  FeatureFlags.SUPER_SLICING_ENABLED = True
+
   args = construct_args(
       super_slicing=True,
       reservation='test-reservation/reservationBlocks/block',
@@ -613,7 +613,7 @@ def test_validate_cluster_create_args_for_correct_super_slicing_args_pass(
 def test_validate_cluster_create_args_for_super_slicing_system_not_supported_throws(
     mocks: _Mocks,
 ):
-  FeatureFlags.SUPER_SLICING_ENABLED = True
+
   args = construct_args(
       super_slicing=True,
       reservation='test-reservation/reservationBlocks/block',
@@ -636,7 +636,7 @@ def test_validate_cluster_create_args_for_super_slicing_system_not_supported_thr
 def test_validate_cluster_create_args_for_super_slicing_missing_reservation(
     mocks: _Mocks,
 ):
-  FeatureFlags.SUPER_SLICING_ENABLED = True
+
   args = construct_args(
       super_slicing=True,
       reservation=None,
@@ -657,7 +657,7 @@ def test_validate_cluster_create_args_for_super_slicing_missing_reservation(
 def test_validate_cluster_create_args_for_super_slicing_sparse_deployment_type_reservation(
     mocks: _Mocks,
 ):
-  FeatureFlags.SUPER_SLICING_ENABLED = True
+
   args = construct_args(
       super_slicing=True,
       reservation='test-reservation/reservationBlocks/block',
@@ -679,9 +679,8 @@ def test_validate_cluster_create_args_for_super_slicing_sparse_deployment_type_r
 def test_validate_cluster_create_args_forbids_num_cubes_without_superslicing(
     mocks: _Mocks,
 ):
-  FeatureFlags.SUPER_SLICING_ENABLED = True  # enable the feature
   args = construct_args(
-      super_slicing=False,  # but disable the flag
+      super_slicing=False,
       reservation='test-reservation/reservationBlocks/block',
       num_cubes=1,
       num_slices=None,
@@ -700,7 +699,7 @@ def test_validate_cluster_create_args_forbids_num_cubes_without_superslicing(
 def test_validate_cluster_create_args_forbids_num_cubes_different_from_num_slices(
     mocks: _Mocks,
 ):
-  FeatureFlags.SUPER_SLICING_ENABLED = True
+
   args = construct_args(
       super_slicing=True,
       reservation='test-reservation/reservationBlocks/block',
@@ -733,7 +732,7 @@ def test_validate_cluster_create_args_sets_correct_num_slices(
     num_slices: int | None,
     expected: int,
 ):
-  FeatureFlags.SUPER_SLICING_ENABLED = True
+
   args = construct_args(
       super_slicing=True,
       reservation='test-reservation/reservationBlocks/block',

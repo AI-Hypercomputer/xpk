@@ -176,7 +176,6 @@ class SchedulingTestCase:
   kueue_version: str | None = None
   sub_slicing_feature_enabled: bool = False
   sub_slicing_topology_set: bool = False
-  super_slicing_feature_enabled: bool = False
   super_slicing_topology_set: bool = False
 
 
@@ -206,7 +205,6 @@ SUPER_SLICING_CASE = SchedulingTestCase(
     # 5 4x4x4 cubes:
     resources_config_map={'tpu7x-128': str(64 // 4 * 5)},
     kueue_version='0.15.2',
-    super_slicing_feature_enabled=True,
     super_slicing_topology_set=True,
     num_slices=1,
 )
@@ -331,13 +329,6 @@ SUPER_SLICING_CASE = SchedulingTestCase(
             WorkloadScheduling.SUPER_SLICING_AVAILABLE,
         ),
         (
-            'Super-slicing, but disabled flag',
-            dataclasses.replace(
-                SUPER_SLICING_CASE, super_slicing_feature_enabled=False
-            ),
-            WorkloadScheduling.UNAVAILABLE,
-        ),
-        (
             'Super-slicing, but low Kueue version',
             dataclasses.replace(SUPER_SLICING_CASE, kueue_version='0.13.0'),
             WorkloadScheduling.UNAVAILABLE,
@@ -424,7 +415,6 @@ def test_check_if_workload_can_schedule(
     expected: WorkloadScheduling,
 ):
   FeatureFlags.SUB_SLICING_ENABLED = case.sub_slicing_feature_enabled
-  FeatureFlags.SUPER_SLICING_ENABLED = case.super_slicing_feature_enabled
   commands_tester.set_result_for_command(
       (
           0,

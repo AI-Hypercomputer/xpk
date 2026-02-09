@@ -132,10 +132,7 @@ def set_cluster_create_parser(cluster_create_parser: ArgumentParser):
 
   if FeatureFlags.SUB_SLICING_ENABLED:
     add_cluster_create_sub_slicing_arguments(cluster_create_optional_arguments)
-  if FeatureFlags.SUPER_SLICING_ENABLED:
-    add_cluster_create_super_slicing_arguments(
-        cluster_create_optional_arguments
-    )
+  add_cluster_create_super_slicing_arguments(cluster_create_optional_arguments)
 
   autoprovisioning_arguments = cluster_create_parser.add_argument_group(
       'Autoprovisioning Arguments',
@@ -209,10 +206,9 @@ def set_cluster_create_pathways_parser(
     add_cluster_create_sub_slicing_arguments(
         cluster_create_pathways_optional_arguments
     )
-  if FeatureFlags.SUPER_SLICING_ENABLED:
-    add_cluster_create_super_slicing_arguments(
-        cluster_create_pathways_optional_arguments
-    )
+  add_cluster_create_super_slicing_arguments(
+      cluster_create_pathways_optional_arguments
+  )
 
   autoprovisioning_arguments = (
       cluster_create_pathways_parser.add_argument_group(
@@ -511,8 +507,7 @@ def set_cluster_adapt_parser(cluster_adapt_parser: ArgumentParser):
   if FeatureFlags.SUB_SLICING_ENABLED:
     add_cluster_create_sub_slicing_arguments(cluster_adapt_optional_arguments)
 
-  if FeatureFlags.SUPER_SLICING_ENABLED:
-    add_cluster_create_super_slicing_arguments(cluster_adapt_optional_arguments)
+  add_cluster_create_super_slicing_arguments(cluster_adapt_optional_arguments)
 
   cluster_adapt_capacity_arguments = cluster_adapt_parser.add_argument_group(
       'Capacity Arguments', 'Arguments related to capacity for cluster create.'
@@ -617,7 +612,7 @@ def add_shared_cluster_create_optional_arguments(
       # removing default in case of super slicing because
       # --num-slices must be equal to --num-cubes if both are set
       # it will default to 1 during validation
-      default=1 if not FeatureFlags.SUPER_SLICING_ENABLED else None,
+      default=None,
       help='The number of slices to run the job on, defaults to 1.',
       required=False,
   )

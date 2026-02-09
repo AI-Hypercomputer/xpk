@@ -456,12 +456,13 @@ def _assess_available_slices_for_reservation(
       )
       return [], 0
 
-  if isinstance(reservation, BlockReservationLink):
-    return _get_healthy_and_fitting_sub_blocks_in_block(
-        reservation, required_hosts
-    )
-
   if force_sub_block_targeting:
+    if isinstance(reservation, BlockReservationLink):
+      return _get_healthy_and_fitting_sub_blocks_in_block(
+          reservation, required_hosts
+      )
+
+    # reservation instanceof ReservationLink (not Block/SubBlock):
     blocks, return_code = _get_blocks_in_reservation(reservation)
     if return_code != 0:
       return [], return_code
@@ -667,6 +668,6 @@ def _get_reservation_count(
     if row['status'] == 'READY':
       available_hosts = max(0, int(row['count']) - int(row['inUseCount']))
       return available_hosts // required_hosts, 0
-  except ValueError:
+  except (ValueError, IndexError):
     pass
   return 0, 0

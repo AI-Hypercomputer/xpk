@@ -204,14 +204,15 @@ def test_parse_reservation_fails_on_invalid_reservations(
 
 
 def test_get_capacity_type_multiple_reservations(mocker):
-  args = MagicMock()
-  args.on_demand = False
-  args.spot = False
-  args.flex = False
-  args.reservation = 'res1,res2'
-  args.project = 'test-project'
-  args.zone = 'us-central1-a'
-  mocker.patch('xpk.core.capacity.run_command_with_updates', return_value=0)
+  mocker.patch('xpk.core.capacity.verify_reservations_exist', return_value=0)
+  args = mocker.Mock(
+      on_demand=False,
+      reservation='res1,res2',
+      spot=False,
+      flex=False,
+      project='project',
+      zone='zone',
+  )
 
   capacity_type, return_code = get_capacity_type(args)
 
@@ -219,48 +220,34 @@ def test_get_capacity_type_multiple_reservations(mocker):
   assert return_code == 0
 
 
-def test_verify_reservations_exist_multiple(mocker):
-  args = MagicMock()
-  args.reservation = 'res1,res2'
-  args.project = 'test-project'
-  args.zone = 'us-central1-a'
+@patch('xpk.core.capacity.run_command_with_updates', return_value=0)
+def test_verify_reservations_exist_multiple(mock_run, mocker):
+  args = mocker.Mock(reservation='res1,res2', project='project', zone='zone')
 
-  mock_run = mocker.patch(
-      'xpk.core.capacity.run_command_with_updates', return_value=0
-  )
-
-  return_code = verify_reservations_exist(args)
-
-  assert return_code == 0
+  assert verify_reservations_exist(args) == 0
   assert mock_run.call_count == 2
 
 
 def test_get_reservations_list_with_single_reservation(mocker):
-  args = mocker.Mock(
-      reservation='res1', project='project', zone='us-central1-a'
-  )
+  args = mocker.Mock(reservation='res1', project='project', zone='zone')
   assert get_reservations_list(args) == [
-      ReservationLink(project='project', name='res1', zone='us-central1-a')
+      ReservationLink(project='project', name='res1', zone='zone')
   ]
 
 
 def test_get_reservations_list_with_multiple_reservations(mocker):
-  args = mocker.Mock(
-      reservation='res1,res2', project='project', zone='us-central1-a'
-  )
+  args = mocker.Mock(reservation='res1,res2', project='project', zone='zone')
   assert get_reservations_list(args) == [
-      ReservationLink(project='project', name='res1', zone='us-central1-a'),
-      ReservationLink(project='project', name='res2', zone='us-central1-a'),
+      ReservationLink(project='project', name='res1', zone='zone'),
+      ReservationLink(project='project', name='res2', zone='zone'),
   ]
 
 
 def test_get_reservations_list_with_whitespace(mocker):
-  args = mocker.Mock(
-      reservation='res1, res2 ', project='project', zone='us-central1-a'
-  )
+  args = mocker.Mock(reservation='res1, res2 ', project='project', zone='zone')
   assert get_reservations_list(args) == [
-      ReservationLink(project='project', name='res1', zone='us-central1-a'),
-      ReservationLink(project='project', name='res2', zone='us-central1-a'),
+      ReservationLink(project='project', name='res1', zone='zone'),
+      ReservationLink(project='project', name='res2', zone='zone'),
   ]
 
 
@@ -278,7 +265,7 @@ def test_to_reservation_path():
   res = SubBlockReservationLink(
       project='project',
       name='reservation',
-      zone='us-central1-a',
+      zone='zone',
       block_name='block',
       sub_block_name='sub-block',
   )
@@ -290,7 +277,7 @@ def test_to_reservation_path():
   res_block = BlockReservationLink(
       project='project',
       name='reservation',
-      zone='us-central1-a',
+      zone='zone',
       block_name='block',
   )
   assert (
@@ -299,7 +286,7 @@ def test_to_reservation_path():
   )
 
   res_simple = ReservationLink(
-      project='project', name='reservation', zone='us-central1-a'
+      project='project', name='reservation', zone='zone'
   )
   assert to_reservation_path(res_simple, 'project') == 'reservation'
 
@@ -314,7 +301,7 @@ def test_assess_available_slices_sub_block(mocker):
   res = SubBlockReservationLink(
       project='project',
       name='reservation',
-      zone='us-central1-a',
+      zone='zone',
       block_name='block',
       sub_block_name='sub-block',
   )
@@ -345,23 +332,23 @@ def test_assess_available_slices_block(mocker):
   res = BlockReservationLink(
       project='project',
       name='reservation',
-      zone='us-central1-a',
+      zone='zone',
       block_name='block',
   )
   slices, return_code = assess_available_slices(
-      [res], force_sub_block_targeting=False, required_hosts=1
+      [res], force_sub_block_targeting=True, required_hosts=1
   )
   assert return_code == 0
   assert len(slices) == 2
   assert isinstance(slices[0], ReservationCapacity)
   assert isinstance(slices[0].reservation, SubBlockReservationLink)
   assert slices[0].reservation.sub_block_name == 'sub1'
-  assert slices[0].reservation.zone == 'us-central1-a'
+  assert slices[0].reservation.zone == 'zone'
   assert slices[0].available_slices == 1
   assert isinstance(slices[1], ReservationCapacity)
   assert isinstance(slices[1].reservation, SubBlockReservationLink)
   assert slices[1].reservation.sub_block_name == 'sub2'
-  assert slices[1].reservation.zone == 'us-central1-a'
+  assert slices[1].reservation.zone == 'zone'
   assert slices[1].available_slices == 1
 
   # Mock 0 healthy
@@ -379,7 +366,7 @@ def test_assess_available_slices_link_with_blocks(mocker):
   commands_tester = CommandsTester(mocker)
   # Mock getting count returning 0 to force block check
   commands_tester.set_result_for_command(
-      (0, 'count,in_use_count,status\n0,0,READY'),
+      (0, 'count,inUseCount,status\n0,0,READY'),
       'gcloud beta compute reservations describe',
   )
   # Mock getting blocks returning check-able blocks
@@ -391,9 +378,7 @@ def test_assess_available_slices_link_with_blocks(mocker):
       'gcloud beta compute reservations sub-blocks list',
   )
 
-  res = ReservationLink(
-      project='project', name='reservation', zone='us-central1-a'
-  )
+  res = ReservationLink(project='project', name='reservation', zone='zone')
   slices, return_code = assess_available_slices(
       [res], force_sub_block_targeting=True, required_hosts=1
   )
@@ -403,7 +388,7 @@ def test_assess_available_slices_link_with_blocks(mocker):
   assert isinstance(slices[0].reservation, SubBlockReservationLink)
   assert slices[0].reservation.block_name == 'block1'
   assert slices[0].reservation.sub_block_name == 'sub1'
-  assert slices[0].reservation.zone == 'us-central1-a'
+  assert slices[0].reservation.zone == 'zone'
   assert slices[0].available_slices == 1
 
 
@@ -415,13 +400,11 @@ def test_assess_available_slices_link_without_blocks(mocker):
   )
   # Mock getting count
   commands_tester.set_result_for_command(
-      (0, 'count,in_use_count,status\n2,0,READY'),
+      (0, 'count,inUseCount,status\n2,0,READY'),
       'gcloud beta compute reservations describe',
   )
 
-  res = ReservationLink(
-      project='project', name='reservation', zone='us-central1-a'
-  )
+  res = ReservationLink(project='project', name='reservation', zone='zone')
   slices, return_code = assess_available_slices(
       [res], force_sub_block_targeting=False, required_hosts=1
   )
@@ -431,7 +414,7 @@ def test_assess_available_slices_link_without_blocks(mocker):
   assert isinstance(slices[0].reservation, ReservationLink)
   assert not isinstance(slices[0].reservation, BlockReservationLink)
   assert slices[0].reservation.name == 'reservation'
-  assert slices[0].reservation.zone == 'us-central1-a'
+  assert slices[0].reservation.zone == 'zone'
   assert slices[0].available_slices == 2
 
 
@@ -445,7 +428,7 @@ def test_assess_available_slices_host_filtering(mocker):
   res = SubBlockReservationLink(
       project='project',
       name='reservation',
-      zone='us-central1-a',
+      zone='zone',
       block_name='block',
       sub_block_name='sub-block',
   )
@@ -459,7 +442,7 @@ def test_assess_available_slices_host_filtering(mocker):
   # Mock a reservation that has 48 hosts, and we need 16 per slice.
   # Should return 3 available slices.
   commands_tester.set_result_for_command(
-      (0, 'count,in_use_count,status\n48,0,READY'),
+      (0, 'count,inUseCount,status\n48,0,READY'),
       'gcloud beta compute reservations describe',
   )
   res_link = ReservationLink(project='p', name='r', zone='z')
@@ -473,9 +456,7 @@ def test_assess_available_slices_host_filtering(mocker):
 
 def test_get_capacity_node_selectors_from_capacity_type():
   # Test with ReservationLink
-  res = ReservationLink(
-      project='project', name='reservation', zone='us-central1-a'
-  )
+  res = ReservationLink(project='project', name='reservation', zone='zone')
   node_selector, return_code = get_capacity_node_selectors_from_capacity_type(
       CapacityType.RESERVATION.name, res, 'project'
   )
@@ -486,7 +467,7 @@ def test_get_capacity_node_selectors_from_capacity_type():
   res_block = BlockReservationLink(
       project='project',
       name='reservation',
-      zone='us-central1-a',
+      zone='zone',
       block_name='block',
   )
   node_selector, return_code = get_capacity_node_selectors_from_capacity_type(
@@ -531,7 +512,7 @@ def test_assess_available_slices_failures(mocker):
   res_sub = SubBlockReservationLink(
       project='project',
       name='reservation',
-      zone='us-central1-a',
+      zone='zone',
       block_name='block',
       sub_block_name='sub-block',
   )
@@ -548,7 +529,7 @@ def test_assess_available_slices_failures(mocker):
   res_block = BlockReservationLink(
       project='project',
       name='reservation',
-      zone='us-central1-a',
+      zone='zone',
       block_name='block',
   )
   commands_tester.set_result_for_command(
@@ -561,9 +542,7 @@ def test_assess_available_slices_failures(mocker):
   assert return_code == 1
 
   # 3. Failure in _get_blocks_in_reservation
-  res = ReservationLink(
-      project='project', name='reservation', zone='us-central1-a'
-  )
+  res = ReservationLink(project='project', name='reservation', zone='zone')
   commands_tester.set_result_for_command(
       (1, ''), 'gcloud beta compute reservations blocks list'
   )

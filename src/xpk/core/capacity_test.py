@@ -308,7 +308,8 @@ def test_assess_available_slices_sub_block(mocker):
   commands_tester = CommandsTester(mocker)
   # Mock run_command_for_value to return non-empty string (healthy)
   commands_tester.set_result_for_command(
-      (0, '1,0'), 'gcloud beta compute reservations sub-blocks list'
+      (0, 'count,inUseCount\n1,0'),
+      'gcloud beta compute reservations sub-blocks list',
   )
   res = SubBlockReservationLink(
       project='project',
@@ -338,7 +339,7 @@ def test_assess_available_slices_block(mocker):
   commands_tester = CommandsTester(mocker)
   # Mock 2 healthy sub-blocks
   commands_tester.set_result_for_command(
-      (0, 'sub1,1,0\nsub2,1,0'),
+      (0, 'name,count,inUseCount\nsub1,1,0\nsub2,1,0'),
       'gcloud beta compute reservations sub-blocks list',
   )
   res = BlockReservationLink(
@@ -378,14 +379,16 @@ def test_assess_available_slices_link_with_blocks(mocker):
   commands_tester = CommandsTester(mocker)
   # Mock getting count returning 0 to force block check
   commands_tester.set_result_for_command(
-      (0, '0,0,READY'), 'gcloud beta compute reservations describe'
+      (0, 'count,in_use_count,status\n0,0,READY'),
+      'gcloud beta compute reservations describe',
   )
   # Mock getting blocks returning check-able blocks
   commands_tester.set_result_for_command(
       (0, 'block1'), 'gcloud beta compute reservations blocks list'
   )
   commands_tester.set_result_for_command(
-      (0, 'sub1,1,0'), 'gcloud beta compute reservations sub-blocks list'
+      (0, 'name,count,inUseCount\nsub1,1,0'),
+      'gcloud beta compute reservations sub-blocks list',
   )
 
   res = ReservationLink(
@@ -412,7 +415,8 @@ def test_assess_available_slices_link_without_blocks(mocker):
   )
   # Mock getting count
   commands_tester.set_result_for_command(
-      (0, '2,0,READY'), 'gcloud beta compute reservations describe'
+      (0, 'count,in_use_count,status\n2,0,READY'),
+      'gcloud beta compute reservations describe',
   )
 
   res = ReservationLink(
@@ -435,7 +439,8 @@ def test_assess_available_slices_host_filtering(mocker):
   commands_tester = CommandsTester(mocker)
   # Mock a sub-block that has 16 hosts but we need 32
   commands_tester.set_result_for_command(
-      (0, 'sub-block,16,0'), 'gcloud beta compute reservations sub-blocks list'
+      (0, 'count,inUseCount\n16,0'),
+      'gcloud beta compute reservations sub-blocks list',
   )
   res = SubBlockReservationLink(
       project='project',
@@ -454,7 +459,8 @@ def test_assess_available_slices_host_filtering(mocker):
   # Mock a reservation that has 48 hosts, and we need 16 per slice.
   # Should return 3 available slices.
   commands_tester.set_result_for_command(
-      (0, '48,0,READY'), 'gcloud beta compute reservations describe'
+      (0, 'count,in_use_count,status\n48,0,READY'),
+      'gcloud beta compute reservations describe',
   )
   res_link = ReservationLink(project='p', name='r', zone='z')
   slices, return_code = assess_available_slices(

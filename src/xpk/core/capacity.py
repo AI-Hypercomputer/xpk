@@ -490,18 +490,17 @@ def _get_available_slices_in_sub_block(
   command = (
       'gcloud beta compute reservations sub-blocks list'
       f' {reservation.name} --block-name={reservation.block_name} --project={reservation.project} --zone={reservation.zone} --filter="name={reservation.sub_block_name} AND'
-      ' healthInfo.healthStatus=HEALTHY"'
-      ' --format="csv[no-heading](count,inUseCount)"'
+      ' healthInfo.healthStatus=HEALTHY" --format="csv(count,inUseCount)"'
   )
   return_code, output = run_command_for_value(
       command,
       f'Check sub-block {reservation.sub_block_name} health',
-      dry_run_return_val='16,0',
+      dry_run_return_val='count,inUseCount\n16,0',
   )
   if return_code != 0:
     return 0, return_code
 
-  rows = _parse_csv_output(output, ['count', 'inUseCount'])
+  rows = _parse_csv_output(output)
   if not rows:
     # If no output, it means the sub-block is not healthy/fitting.
     return 0, 0
@@ -527,28 +526,30 @@ def _get_dry_run_sub_blocks() -> str:
   )
 
 
-def _parse_csv_output(
-    output: str, expected_fields: Sequence[str]
-) -> list[dict[str, str]]:
-  """Parses CSV output into a list of dictionaries.
+def _parse_csv_output(output: str) -> list[dict[str, str]]:
+  """Parses CSV output into a list of dictionaries, using the first line as headers.
 
   Args:
     output: The CSV output string from a command.
-    expected_fields: List of field names corresponding to the CSV columns.
 
   Returns:
     A list of dictionaries, where each dictionary represents a row and maps
-    field names to their values. Empty lines are skipped. Rows that don't
-    match the number of expected fields are ignored.
+    header names to their values. Empty lines are skipped. Rows that don't
+    match the number of headers are ignored.
   """
+  lines = output.strip().splitlines()
+  if not lines:
+    return []
+
+  headers = [h.strip() for h in lines[0].split(',')]
   results = []
-  for line in output.strip().splitlines():
+  for line in lines[1:]:
     line = line.strip()
     if not line:
       continue
     parts = [p.strip() for p in line.split(',')]
-    if len(parts) == len(expected_fields):
-      results.append(dict(zip(expected_fields, parts)))
+    if len(parts) == len(headers):
+      results.append(dict(zip(headers, parts)))
   return results
 
 
@@ -563,7 +564,7 @@ def _get_healthy_and_fitting_sub_blocks_in_block(
       f'--project={reservation.project} '
       f'--zone={reservation.zone} '
       '--filter="healthInfo.healthStatus=HEALTHY" '
-      '--format="csv[no-heading](name,count,inUseCount)"'
+      '--format="csv(name,count,inUseCount)"'
   )
   return_code, output = run_command_for_value(
       command,
@@ -574,27 +575,26 @@ def _get_healthy_and_fitting_sub_blocks_in_block(
     return [], return_code
 
   available_capacities: list[ReservationCapacity] = []
-  rows = _parse_csv_output(output, ['name', 'count', 'inUseCount'])
+  rows = _parse_csv_output(output)
   for row in rows:
-    if row['count'].isdigit():
-      sub_block_name = row['name']
-      count = int(row['count'])
-      in_use_count = int(row['inUseCount'])
+    sub_block_name = row['name']
+    count = int(row['count'])
+    in_use_count = int(row['inUseCount'])
 
-      available_slots = (count - in_use_count) // required_hosts
-      if available_slots > 0:
-        available_capacities.append(
-            ReservationCapacity(
-                SubBlockReservationLink(
-                    project=reservation.project,
-                    name=reservation.name,
-                    zone=reservation.zone,
-                    block_name=reservation.block_name,
-                    sub_block_name=sub_block_name,
-                ),
-                available_slots,
-            )
-        )
+    available_slots = (count - in_use_count) // required_hosts
+    if available_slots > 0:
+      available_capacities.append(
+          ReservationCapacity(
+              SubBlockReservationLink(
+                  project=reservation.project,
+                  name=reservation.name,
+                  zone=reservation.zone,
+                  block_name=reservation.block_name,
+                  sub_block_name=sub_block_name,
+              ),
+              available_slots,
+          )
+      )
 
   return available_capacities, 0
 
@@ -649,25 +649,23 @@ def _get_reservation_count(
       f'gcloud beta compute reservations describe {reservation.name} '
       f'--project={reservation.project} '
       f'--zone={reservation.zone} '
-      '--format="csv[no-heading](specificReservation.count,specificReservation.inUseCount,status)"'
+      '--format="csv(specificReservation.count:label=count,specificReservation.inUseCount:label=inUseCount,status)"'
   )
 
   return_code, output = run_command_for_value(
       command,
       f'Get reservation count for {reservation.name}',
-      dry_run_return_val='16,0,READY',
+      dry_run_return_val='count,inUseCount,status\n16,0,READY',
   )
   if return_code != 0:
     return 0, return_code
 
-  rows = _parse_csv_output(output, ['count', 'in_use_count', 'status'])
-  if not rows:
-    return 0, 0
+  rows = _parse_csv_output(output)
 
   try:
     row = rows[0]
     if row['status'] == 'READY':
-      available_hosts = max(0, int(row['count']) - int(row['in_use_count']))
+      available_hosts = max(0, int(row['count']) - int(row['inUseCount']))
       return available_hosts // required_hosts, 0
   except ValueError:
     pass

@@ -83,7 +83,7 @@ func TestParseTopology(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			dims, err := ParseTopology(tc.topology)
+			dims, err := ParseTopologyV7(tc.topology)
 			if (err != nil) != tc.wantErr {
 				t.Errorf("parseTopology() error = %v, wantErr %v", err, tc.wantErr)
 				return

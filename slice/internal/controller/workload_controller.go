@@ -671,7 +671,10 @@ func (r *WorkloadReconciler) validatePartitionCount(
 	log := ctrl.LoggerFrom(ctx)
 	var incorrectSlices []string
 	for _, slice := range slicesToCreate {
-		dims, _ := topology.ParseTopology(slice.Spec.Topology)
+		dims, err := topology.ParseTopologyV7(slice.Spec.Topology)
+		if err != nil {
+			return err
+		}
 		numberOfCubesFromTopology := dims[0] * dims[1] * dims[2] / core.TPUsPerCube
 		if int(numberOfCubesFromTopology) != len(slice.Spec.PartitionIds) {
 			incorrectSlices = append(incorrectSlices, slice.Name)

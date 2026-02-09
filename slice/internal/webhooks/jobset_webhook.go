@@ -135,7 +135,7 @@ func annotateReplicatedJobWithSliceHealth(rj *v1alpha2.ReplicatedJob) {
 }
 
 func (r *JobSetWebhook) podSetSliceSize(tpuTopology string, parallelism int32) (int64, error) {
-	dims, err := topology.ParseTopology(tpuTopology)
+	dims, err := topology.ParseTopologyV7(tpuTopology)
 	if err != nil {
 		return 0, err
 	}

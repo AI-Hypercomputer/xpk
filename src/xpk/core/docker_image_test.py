@@ -20,7 +20,6 @@ from .docker_image import build_docker_image_from_base_image
 from .testing.commands_tester import CommandsTester
 from .system_characteristics import DockerPlatform
 from ..utils.feature_flags import FeatureFlags
-from ..utils.execution_context import is_dry_run
 
 
 @pytest.fixture(autouse=True)

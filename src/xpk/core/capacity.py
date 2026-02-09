@@ -442,13 +442,13 @@ def _assess_available_slices_for_reservation(
     List of available reservations (targeting sub-blocks if applicable).
   """
   if isinstance(reservation, SubBlockReservationLink):
-    is_healthy, return_code = _is_sub_block_healthy_and_fitting(
+    available_slices, return_code = _get_available_slices_in_sub_block(
         reservation, required_hosts
     )
     if return_code != 0:
       return [], return_code
-    if is_healthy:
-      return [ReservationCapacity(reservation, 1)], 0
+    if available_slices > 0:
+      return [ReservationCapacity(reservation, available_slices)], 0
     else:
       xpk_print(
           f'WARNING: Sub-block {reservation.sub_block_name} is either'
@@ -482,11 +482,11 @@ def _assess_available_slices_for_reservation(
   return ([ReservationCapacity(reservation, count)] if count > 0 else []), 0
 
 
-def _is_sub_block_healthy_and_fitting(
+def _get_available_slices_in_sub_block(
     reservation: SubBlockReservationLink,
     required_hosts: int,
-) -> tuple[bool, int]:
-  """Check if a sub-block is healthy and has sufficient capacity."""
+) -> tuple[int, int]:
+  """Check if a sub-block is healthy and return available slices."""
   command = (
       'gcloud beta compute reservations sub-blocks list'
       f' {reservation.name} --block-name={reservation.block_name} --project={reservation.project} --zone={reservation.zone} --filter="name={reservation.sub_block_name} AND'
@@ -499,21 +499,22 @@ def _is_sub_block_healthy_and_fitting(
       dry_run_return_val='16,0',
   )
   if return_code != 0:
-    return False, return_code
+    return 0, return_code
 
   rows = _parse_csv_output(output, ['count', 'inUseCount'])
   if not rows:
     # If no output, it means the sub-block is not healthy/fitting.
-    return False, 0
+    return 0, 0
 
   try:
     row = rows[0]
     count = int(row['count'])
     in_use_count = int(row['inUseCount'])
-    return (count - in_use_count) >= required_hosts, 0
+    available_slices = (count - in_use_count) // required_hosts
+    return available_slices, 0
   except ValueError:
     xpk_print(f'Error: Unrecognized output format: "{output}".')
-    return False, 1
+    return 0, 1
 
 
 def _get_dry_run_value(

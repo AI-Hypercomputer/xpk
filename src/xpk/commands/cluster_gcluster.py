@@ -161,9 +161,7 @@ def __install_kueue(args) -> int:
           configure_sub_slicing=(
               FeatureFlags.SUB_SLICING_ENABLED and args.sub_slicing
           ),
-          configure_super_slicing=(
-              FeatureFlags.SUPER_SLICING_ENABLED and args.super_slicing
-          ),
+          configure_super_slicing=args.super_slicing,
       ),
       tolerations=tolerations,
   )

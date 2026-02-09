@@ -238,7 +238,6 @@ def test_set_jobset_on_cluster_not_setting_resources_by_default(
 def test_set_jobset_on_cluster_super_slicing_resources(
     mock_patch_controller_manager_resources: MagicMock, command_args
 ):
-  FeatureFlags.SUPER_SLICING_ENABLED = True
   command_args.super_slicing = True
 
   result = set_jobset_on_cluster(command_args)

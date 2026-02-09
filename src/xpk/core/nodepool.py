@@ -256,7 +256,7 @@ def run_gke_node_pool_create_command(
 
   placement_args = ''
   if is_placement_policy_supported(system):
-    super_slicing = FeatureFlags.SUPER_SLICING_ENABLED and args.super_slicing
+    super_slicing = args.super_slicing
     placement_policy = get_placement_policy_name(
         system,
         super_slicing,

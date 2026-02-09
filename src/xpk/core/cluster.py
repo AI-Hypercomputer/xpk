@@ -77,7 +77,7 @@ def set_jobset_on_cluster(args) -> int:
     )
     return return_code
 
-  if FeatureFlags.SUPER_SLICING_ENABLED and args.super_slicing:
+  if args.super_slicing:
     return patch_controller_manager_resources(
         name='jobset-controller-manager',
         namespace='jobset-system',

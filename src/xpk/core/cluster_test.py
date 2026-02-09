@@ -19,7 +19,6 @@ import pytest
 from .testing.commands_tester import CommandsTester
 from .cluster import get_cluster_credentials, update_gke_cluster_with_lustre_driver_enabled, update_cluster_with_lustre_driver_if_necessary, set_jobset_on_cluster
 from pytest_mock import MockerFixture
-from ..utils.feature_flags import FeatureFlags
 
 
 @pytest.fixture(autouse=True)

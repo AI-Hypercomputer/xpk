@@ -22,7 +22,6 @@ from kubernetes import config
 from kubernetes.client.exceptions import ApiException
 
 from .kubectl_common import PatchResources, patch_controller_manager_resources
-from ..utils.feature_flags import FeatureFlags
 from ..utils.console import xpk_exit, xpk_print
 from .capacity import H200_DEVICE_TYPE
 from .commands import (

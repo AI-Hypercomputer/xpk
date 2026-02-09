@@ -146,9 +146,6 @@ def test_cluster_create_enable_lustre_legacy_port_can_be_set():
   assert args.enable_legacy_lustre_port is True
 
 
-
-
-
 def test_cluster_create_super_slicing_is_shown():
   parser = argparse.ArgumentParser()
 
@@ -180,9 +177,6 @@ def test_cluster_create_super_slicing_can_be_set():
   assert args.super_slicing is True
 
 
-
-
-
 def test_cluster_create_num_cubes_is_shown():
   parser = argparse.ArgumentParser()
 
@@ -208,9 +202,6 @@ def test_cluster_create_num_cubes_can_be_set():
   )
 
   assert args.num_cubes == 5
-
-
-
 
 
 def test_cluster_create_num_slices_has_no_default():
@@ -247,9 +238,6 @@ def test_cluster_adapt_sub_slicing_is_shown_with_flag_on():
   help_str = parser.format_help()
 
   assert "--sub-slicing" in help_str
-
-
-
 
 
 def test_cluster_adapt_super_slicing_is_shown():

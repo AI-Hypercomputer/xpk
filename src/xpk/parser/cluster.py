@@ -132,9 +132,7 @@ def set_cluster_create_parser(cluster_create_parser: ArgumentParser):
 
   if FeatureFlags.SUB_SLICING_ENABLED:
     add_cluster_create_sub_slicing_arguments(cluster_create_optional_arguments)
-  add_cluster_create_super_slicing_arguments(
-      cluster_create_optional_arguments
-  )
+  add_cluster_create_super_slicing_arguments(cluster_create_optional_arguments)
 
   autoprovisioning_arguments = cluster_create_parser.add_argument_group(
       'Autoprovisioning Arguments',

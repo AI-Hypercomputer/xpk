@@ -193,9 +193,8 @@ def _check_super_slicing_availability(
     workload_system: SystemCharacteristics,
     cluster_system: SystemCharacteristics,
 ) -> bool:
-  if (
-      (workload_system.gke_accelerator != cluster_system.gke_accelerator)
-      or (not cluster_system.supports_super_slicing)
+  if (workload_system.gke_accelerator != cluster_system.gke_accelerator) or (
+      not cluster_system.supports_super_slicing
   ):
     return False
 

@@ -17,7 +17,6 @@ limitations under the License.
 from typing import Iterator, List
 from itertools import cycle
 
-from ..utils.feature_flags import FeatureFlags
 from ..utils.console import ask_for_user_consent, xpk_print
 from .scheduling import get_placement_policy_name, is_placement_policy_supported
 from .capacity import (

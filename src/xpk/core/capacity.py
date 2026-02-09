@@ -402,14 +402,14 @@ def to_reservation_path(
 
 def assess_available_slices(
     reservations: Sequence[ReservationLink],
-    enable_super_slicing: bool,
+    force_sub_block_targeting: bool,
     required_hosts: int,
 ) -> tuple[list[ReservationCapacity], int]:
   """Assess the available slices in the reservations.
 
   Args:
     reservations: list of reservations to assess.
-    enable_super_slicing: if `True`, then the passed `ReservationLink` or `BlockReservationLink` will be flattened to adequate sub-blocks.
+    force_sub_block_targeting: if `True`, then the passed `ReservationLink` or `BlockReservationLink` will be flattened to adequate sub-blocks.
     required_hosts: number of hosts required per slice.
 
   Returns:
@@ -418,7 +418,7 @@ def assess_available_slices(
   reservation_capacities = []
   for reservation in reservations:
     capacities, return_code = _assess_available_slices_for_reservation(
-        reservation, enable_super_slicing, required_hosts
+        reservation, force_sub_block_targeting, required_hosts
     )
     if return_code != 0:
       return [], return_code
@@ -428,14 +428,14 @@ def assess_available_slices(
 
 def _assess_available_slices_for_reservation(
     reservation: ReservationLink,
-    enable_super_slicing: bool,
+    force_sub_block_targeting: bool,
     required_hosts: int,
 ) -> tuple[list[ReservationCapacity], int]:
   """Assess the available slices for a single reservation.
 
   Args:
     reservation: reservation to assess.
-    enable_super_slicing: if `True`, then the passed `ReservationLink` or `BlockReservationLink` will be flattened to adequate sub-blocks.
+    force_sub_block_targeting: if `True`, then the passed `ReservationLink` or `BlockReservationLink` will be flattened to adequate sub-blocks.
     required_hosts: number of hosts required per slice.
 
   Returns:
@@ -461,13 +461,13 @@ def _assess_available_slices_for_reservation(
         reservation, required_hosts
     )
 
-  if enable_super_slicing:
+  if force_sub_block_targeting:
     blocks, return_code = _get_blocks_in_reservation(reservation)
     if return_code != 0:
       return [], return_code
     if blocks:
       return assess_available_slices(
-          blocks, enable_super_slicing, required_hosts
+          blocks, force_sub_block_targeting, required_hosts
       )
 
     xpk_print(

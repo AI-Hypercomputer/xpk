@@ -282,7 +282,7 @@ def run_gke_node_pool_create_command(
     reservations_iter, return_code = _prepare_reservation_iterator(
         reservations,
         len(node_pools_to_create),
-        enable_super_slicing=super_slicing,
+        force_sub_block_targeting=super_slicing,
         required_hosts=max_nodes
         if system.accelerator_type == AcceleratorType.TPU
         else args.num_nodes,
@@ -725,13 +725,13 @@ def recreate_nodes_in_existing_node_pools(args) -> int:
 def _prepare_reservation_iterator(
     reservations: List[ReservationLink],
     num_new_node_pools: int,
-    enable_super_slicing: bool,
+    force_sub_block_targeting: bool,
     required_hosts: int,
 ) -> tuple[Iterator[ReservationLink] | None, int]:
   """Prepares the reservation iterator based on capacity type and super-slicing."""
   available_capacity, return_code = assess_available_slices(
       reservations,
-      enable_super_slicing=enable_super_slicing,
+      force_sub_block_targeting=force_sub_block_targeting,
       required_hosts=required_hosts,
   )
 

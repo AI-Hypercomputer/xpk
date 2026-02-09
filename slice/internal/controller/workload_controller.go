@@ -599,8 +599,8 @@ func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workloa
 	}
 
 	if err := errors.Join(
-		r.findConflictingPartitionIDs(ctx, existingSlicesByName, slicesToCreate),
-		r.verifyTheNumberOfPartitions(ctx, slicesToCreate)); err != nil {
+		r.validatePartitionConflicts(ctx, existingSlicesByName, slicesToCreate),
+		r.validatePartitionCount(ctx, slicesToCreate)); err != nil {
 		log := ctrl.LoggerFrom(ctx)
 		log.V(3).Info("Slice validation failed, not creating Slices, evicting the workload", "error", err)
 		ac.State = kueue.CheckStateRetry
@@ -636,7 +636,7 @@ func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workloa
 	return createdSlices, nil
 }
 
-func (r *WorkloadReconciler) findConflictingPartitionIDs(
+func (r *WorkloadReconciler) validatePartitionConflicts(
 	ctx context.Context,
 	existingSlicesByName map[string]*v1beta1.Slice,
 	slicesToCreate []*v1beta1.Slice,
@@ -664,7 +664,7 @@ func (r *WorkloadReconciler) findConflictingPartitionIDs(
 	return nil
 }
 
-func (r *WorkloadReconciler) verifyTheNumberOfPartitions(
+func (r *WorkloadReconciler) validatePartitionCount(
 	ctx context.Context,
 	slicesToCreate []*v1beta1.Slice,
 ) error {

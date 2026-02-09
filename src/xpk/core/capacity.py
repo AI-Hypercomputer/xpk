@@ -517,32 +517,13 @@ def _get_available_slices_in_sub_block(
     return 0, 1
 
 
-def _get_dry_run_value(
-    env_var_name: str, reservation: ReservationLink, default: str = ''
-) -> str:
-  """Get a value from an environment variable for dry runs."""
-  env_val = os.getenv(env_var_name)
-  if not env_val:
-    return default
-
-  res_path = to_reservation_path(reservation, reservation.project)
-  for item in env_val.split(';'):
-    if '=' not in item:
-      continue
-    key, val = item.split('=', 1)
-    if key.strip() == res_path:
-      # For CSV/multiline data, we might use ':' as a line separator in env vars
-      return val.strip().replace(':', '\n')
-
-  return default
-
-
-def _get_dry_run_sub_blocks(reservation: BlockReservationLink) -> str:
+def _get_dry_run_sub_blocks() -> str:
   """Get dry run sub-blocks based on environment variable."""
-  return _get_dry_run_value(
-      'DRY_RUN_RESERVATION_SUB_BLOCKS',
-      reservation,
-      default='',
+  # For CSV/multiline data, we might use ':' as a line separator in env vars
+  return (
+      os.getenv('DRY_RUN_RESERVATION_SUB_BLOCKS', 'sub0,16,0')
+      .strip()
+      .replace(':', '\n')
   )
 
 
@@ -587,50 +568,33 @@ def _get_healthy_and_fitting_sub_blocks_in_block(
   return_code, output = run_command_for_value(
       command,
       f'Count healthy fitting sub-blocks in {reservation.block_name}',
-      dry_run_return_val=_get_dry_run_sub_blocks(reservation),
+      dry_run_return_val=_get_dry_run_sub_blocks(),
   )
   if return_code != 0:
     return [], return_code
 
-  available_capacities = []
-  lines = output.strip().splitlines()
-  # Handle old dry-run format where sub-blocks are comma-separated on one line
-  if len(lines) == 1 and ',' in lines[0]:
-    parts = [p.strip() for p in lines[0].split(',')]
-    # If it doesn't look like CSV (name, count, inUseCount), treat as list of names
-    if not (len(parts) >= 3 and parts[1].isdigit()):
-      lines = parts
-
-  for line in lines:
-    if not line:
-      continue
-
-    rows = _parse_csv_output(line, ['name', 'count', 'inUseCount'])
-    if rows and rows[0]['count'].isdigit():
-      row = rows[0]
-      name = row['name']
+  available_capacities: list[ReservationCapacity] = []
+  rows = _parse_csv_output(output, ['name', 'count', 'inUseCount'])
+  for row in rows:
+    if row['count'].isdigit():
+      sub_block_name = row['name']
       count = int(row['count'])
       in_use_count = int(row['inUseCount'])
-    else:
-      # Legacy format: just a list of names
-      name = line.strip().split(',')[0]
-      count = required_hosts
-      in_use_count = 0
 
-    available_slots = (count - in_use_count) // required_hosts
-    if available_slots > 0:
-      available_capacities.append(
-          ReservationCapacity(
-              SubBlockReservationLink(
-                  project=reservation.project,
-                  name=reservation.name,
-                  zone=reservation.zone,
-                  block_name=reservation.block_name,
-                  sub_block_name=name,
-              ),
-              available_slots,
-          )
-      )
+      available_slots = (count - in_use_count) // required_hosts
+      if available_slots > 0:
+        available_capacities.append(
+            ReservationCapacity(
+                SubBlockReservationLink(
+                    project=reservation.project,
+                    name=reservation.name,
+                    zone=reservation.zone,
+                    block_name=reservation.block_name,
+                    sub_block_name=sub_block_name,
+                ),
+                available_slots,
+            )
+        )
 
   return available_capacities, 0
 
@@ -648,7 +612,7 @@ def _get_blocks_in_reservation(
   return_code, output = run_command_for_value(
       command,
       f'Get blocks in reservation {reservation.name}',
-      dry_run_return_val='',
+      dry_run_return_val='block0',
   )
   if return_code != 0:
     xpk_print(

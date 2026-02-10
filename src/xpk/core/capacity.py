@@ -423,6 +423,10 @@ def assess_available_slices(
     if return_code != 0:
       return [], return_code
     reservation_capacities.extend(capacities)
+
+  # Deduplicate reservation_capacities, preserving order:
+  reservation_capacities = list(dict.fromkeys(reservation_capacities))
+
   return reservation_capacities, 0
 
 

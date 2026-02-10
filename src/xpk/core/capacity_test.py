@@ -678,3 +678,48 @@ def test_assess_available_slices_mixed_reservations_with_subblock_targeting(
           available_slices=1,
       ),
   ]
+
+
+def test_assess_available_slices_deduplicates(commands_tester: CommandsTester):
+  block_res = BlockReservationLink(
+      project='project', name='res1', zone='zone', block_name='block1'
+  )
+  sub_block_name = 'sub1'
+  commands_tester.set_result_for_command(
+      (0, f'name,count,inUseCount\n{sub_block_name},1,0'),
+      'gcloud beta compute reservations sub-blocks list res1',
+      '--block-name=block1',
+  )
+  sub_res = SubBlockReservationLink(
+      project='project',
+      name='res1',
+      zone='zone',
+      block_name='block1',
+      sub_block_name=sub_block_name,
+  )
+  commands_tester.set_result_for_command(
+      (0, 'count,inUseCount\n1,0'),
+      'gcloud beta compute reservations sub-blocks list res1',
+      '--block-name=block1',
+      f'--filter="name={sub_block_name}',
+  )
+
+  slices, return_code = assess_available_slices(
+      [block_res, sub_res],
+      force_sub_block_targeting=True,
+      required_hosts=1,
+  )
+
+  assert return_code == 0
+  assert slices == [
+      ReservationCapacity(
+          SubBlockReservationLink(
+              project='project',
+              name='res1',
+              zone='zone',
+              block_name='block1',
+              sub_block_name='sub1',
+          ),
+          available_slices=1,
+      )
+  ]

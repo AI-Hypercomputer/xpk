@@ -33,6 +33,7 @@ Next Steps:
 
 import argparse
 import argcomplete
+import contextlib
 import sys
 
 from .parser.core import set_parser
@@ -42,6 +43,7 @@ from .core.config import set_config, FileSystemConfig
 from .core.telemetry import MetricsCollector, send_clearcut_payload, should_send_telemetry
 from .utils.console import xpk_print, exit_code_to_int
 from .utils.execution_context import set_context
+from .utils.kubectl import sandbox_kubeconfig
 ################### Compatibility Check ###################
 # Check that the user runs the below version or greater.
 
@@ -85,7 +87,10 @@ def main() -> None:
         flags=retrieve_flags(main_args),
     )
     print_xpk_hello()
-    main_args.func(main_args)
+    is_sandbox = main_args.sandbox_kubeconfig
+    opt_sandbox = sandbox_kubeconfig if is_sandbox else contextlib.nullcontext
+    with opt_sandbox():
+      main_args.func(main_args)
     xpk_print('XPK Done.', flush=True)
     MetricsCollector.log_complete(0)
   except SystemExit as e:

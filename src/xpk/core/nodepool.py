@@ -17,7 +17,6 @@ limitations under the License.
 from typing import Iterator, List
 from itertools import chain, repeat
 
-from ..utils.feature_flags import FeatureFlags
 from ..utils.console import ask_for_user_consent, xpk_print
 from .scheduling import get_placement_policy_name, is_placement_policy_supported
 from .capacity import (
@@ -256,7 +255,7 @@ def run_gke_node_pool_create_command(
         return 1
 
   placement_args = ''
-  super_slicing = FeatureFlags.SUPER_SLICING_ENABLED and args.super_slicing
+  super_slicing = args.super_slicing
   if is_placement_policy_supported(system):
     placement_policy = get_placement_policy_name(
         system,

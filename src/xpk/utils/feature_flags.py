@@ -33,8 +33,8 @@ def _get_boolean_flag(flag: str, default: bool) -> bool:
 class _FeatureFlags:
   SUB_SLICING_ENABLED = _get_boolean_flag("SUB_SLICING_ENABLED", default=False)
   TELEMETRY_ENABLED = _get_boolean_flag("TELEMETRY_ENABLED", default=True)
-  SUPER_SLICING_ENABLED = _get_boolean_flag(
-      "SUPER_SLICING_ENABLED", default=True
+  CRANE_WORKLOADS_ENABLED = _get_boolean_flag(
+      "CRANE_WORKLOADS_ENABLED", default=False
   )
 
 

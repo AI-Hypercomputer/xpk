@@ -712,9 +712,6 @@ def test_run_gke_node_pool_create_command_super_slicing_exhaustion(
       "xpk.core.nodepool.get_cluster_location", return_value="us-central1"
   )
   mocker.patch("xpk.core.capacity.verify_reservations_exist", return_value=0)
-  mocker.patch(
-      "xpk.utils.feature_flags.FeatureFlags.SUPER_SLICING_ENABLED", True
-  )
 
   args = mocker.Mock(
       num_slices=2,
@@ -802,9 +799,6 @@ def test_run_gke_node_pool_create_command_super_slicing_insufficient_capacity(
       "xpk.core.nodepool.get_cluster_location", return_value="us-central1"
   )
   mocker.patch("xpk.core.capacity.verify_reservations_exist", return_value=0)
-  mocker.patch(
-      "xpk.utils.feature_flags.FeatureFlags.SUPER_SLICING_ENABLED", True
-  )
 
   args = mocker.Mock(
       num_slices=2,  # Need 2

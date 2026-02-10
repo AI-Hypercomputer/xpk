@@ -18,9 +18,11 @@ import datetime
 import os
 import random
 import string
+import tarfile
 
 from .system_characteristics import DockerPlatform
 from ..utils.console import xpk_exit, xpk_print
+from ..utils.feature_flags import FeatureFlags
 from ..utils.file import write_tmp_file
 from ..utils.execution_context import is_dry_run
 from .commands import run_command_with_updates
@@ -83,6 +85,87 @@ def build_docker_image_from_base_image(
   )
   docker_name = f'{docker_image_prefix}-runner'
 
+  # Pick a randomly generated `tag_length` character docker tag.
+  tag_length = 4
+  tag_random_prefix = (
+      'prefix'
+      if is_dry_run()
+      else ''.join(random.choices(string.ascii_lowercase, k=tag_length))
+  )
+  tag_datetime = (
+      'current'
+      if is_dry_run()
+      else datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
+  )
+  tag_name = f'{tag_random_prefix}-{tag_datetime}'
+  cloud_docker_image = f'gcr.io/{args.project}/{docker_name}:{tag_name}'
+  return (
+      _build_image_with_crane(
+          args,
+          docker_platform,
+          cloud_docker_image,
+          verbose=verbose,
+      )
+      if FeatureFlags.CRANE_WORKLOADS_ENABLED
+      else _build_image_with_docker(
+          args,
+          docker_platform,
+          docker_name,
+          cloud_docker_image,
+          verbose=verbose,
+      )
+  )
+
+
+def _build_image_with_crane(
+    args,
+    platform: DockerPlatform,
+    container_image: str,
+    verbose=True,
+) -> tuple[int, str]:
+
+  image_archive_path = write_tmp_file(payload='')
+  xpk_print(
+      f'Adding {args.script_dir} to container image archive'
+      f' {image_archive_path}'
+  )
+  if not is_dry_run():
+
+    def reset_ownership(tarinfo):
+      tarinfo.uid = tarinfo.gid = 0
+      tarinfo.uname = tarinfo.gname = 'root'
+      return tarinfo
+
+    with tarfile.open(image_archive_path, 'w') as tar:
+      tar.add(args.script_dir, arcname='app', filter=reset_ownership)
+
+  crane_command = (
+      f'crane mutate {args.base_docker_image} --append {image_archive_path}'
+      f' --platform {platform.value}   --tag {container_image}'
+      ' --workdir /app'
+  )
+
+  return_code = run_command_with_updates(
+      crane_command, 'Upload Container Image', verbose=verbose
+  )
+
+  xpk_print(f'Deleting container image archive {image_archive_path}')
+  if not is_dry_run():
+    os.remove(image_archive_path)
+
+  if return_code != 0:
+    xpk_print('Failed to upload container image.')
+    xpk_exit(1)
+  return return_code, container_image
+
+
+def _build_image_with_docker(
+    args,
+    docker_platform: DockerPlatform,
+    docker_name: str,
+    cloud_docker_image: str,
+    verbose=True,
+) -> tuple[int, str]:
   script_dir_dockerfile = """FROM {base_docker_image}
 
   # Set the working directory in the container
@@ -116,20 +199,6 @@ def build_docker_image_from_base_image(
     )
     xpk_exit(1)
 
-  # Pick a randomly generated `tag_length` character docker tag.
-  tag_length = 4
-  tag_random_prefix = (
-      'prefix'
-      if is_dry_run()
-      else ''.join(random.choices(string.ascii_lowercase, k=tag_length))
-  )
-  tag_datetime = (
-      'current'
-      if is_dry_run()
-      else datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
-  )
-  tag_name = f'{tag_random_prefix}-{tag_datetime}'
-  cloud_docker_image = f'gcr.io/{args.project}/{docker_name}:{tag_name}'
   xpk_print(f'Adding Docker Image: {cloud_docker_image} to {args.project}')
 
   # Tag the docker image.
@@ -139,7 +208,7 @@ def build_docker_image_from_base_image(
   )
   if return_code != 0:
     xpk_print(
-        f'Failed to tag docker image with tag: {tag_name}.'
+        f'Failed to tag docker image with: {cloud_docker_image}.'
         f' You should be able to navigate to the URL {cloud_docker_image} in'
         f' {args.project}.'
     )

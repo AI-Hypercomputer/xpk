@@ -5,10 +5,10 @@ Creates a GKE cluster with TPU super-slicing enabled for multi-slice training.
 # Running the command
 
 ```shell #golden
-SUPER_SLICING_ENABLED=true DRY_RUN_RESERVATION_SUB_BLOCKS="name,count,inUseCount:sub0,16,0:sub1,16,0:sub2,16,15:sub3,16,0" xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-4x4x4 --reservation=golden-reservation/reservationBlocks/block --super-slicing --num-cubes=3
+DRY_RUN_RESERVATION_SUB_BLOCKS="name,count,inUseCount:sub0,16,0:sub1,16,0:sub2,16,15:sub3,16,0" xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-4x4x4 --reservation=golden-reservation/reservationBlocks/block --super-slicing --num-cubes=3
 ```
 <!--
-$ SUPER_SLICING_ENABLED=true DRY_RUN_RESERVATION_SUB_BLOCKS="name,count,inUseCount:sub0,16,0:sub1,16,0:sub2,16,15:sub3,16,0" xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-4x4x4 --reservation=golden-reservation/reservationBlocks/block --super-slicing --num-cubes=3
+$ DRY_RUN_RESERVATION_SUB_BLOCKS="name,count,inUseCount:sub0,16,0:sub1,16,0:sub2,16,15:sub3,16,0" xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-4x4x4 --reservation=golden-reservation/reservationBlocks/block --super-slicing --num-cubes=3
 [XPK] Starting xpk v0.0.0
 [XPK] Starting cluster create for cluster golden-cluster:
 [XPK] Working on golden-project and us-central1-a

@@ -22,7 +22,6 @@ from kubernetes import config
 from kubernetes.client.exceptions import ApiException
 
 from .kubectl_common import PatchResources, patch_controller_manager_resources
-from ..utils.feature_flags import FeatureFlags
 from ..utils.console import xpk_exit, xpk_print
 from .capacity import H200_DEVICE_TYPE
 from .commands import (
@@ -77,7 +76,7 @@ def set_jobset_on_cluster(args) -> int:
     )
     return return_code
 
-  if FeatureFlags.SUPER_SLICING_ENABLED and args.super_slicing:
+  if args.super_slicing:
     return patch_controller_manager_resources(
         name='jobset-controller-manager',
         namespace='jobset-system',

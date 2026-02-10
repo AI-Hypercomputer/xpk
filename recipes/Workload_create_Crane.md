@@ -1,21 +1,18 @@
-# Workload create super-slicing
-Submits a workload utilizing TPU super-slicing for large-scale distributed training.
+# Workload create
+Submits a basic workload to the cluster using Crane to build the container image.
 
 # Running the command
 ```shell #golden
-DRY_RUN_RESOURCES_CONFIG_MAP="map[tpu7x-128:80]" xpk workload create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --command "bash hello" --tpu-type=tpu7x-4x4x20 --script-dir=/tmp
+CRANE_WORKLOADS_ENABLED=True xpk workload create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --command "bash hello" --tpu-type=v5p-8 --num-slices=1 --script-dir=/tmp
 ```
 <!--
-$ DRY_RUN_RESOURCES_CONFIG_MAP="map[tpu7x-128:80]" xpk workload create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --command "bash hello" --tpu-type=tpu7x-4x4x20 --script-dir=/tmp
+$ CRANE_WORKLOADS_ENABLED=True xpk workload create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --command "bash hello" --tpu-type=v5p-8 --num-slices=1 --script-dir=/tmp
 [XPK] Starting xpk v0.0.0
 [XPK] Task: `Check if Workload Already Exists` is implemented by the following command not running since it is a dry run. 
 kubectl get workloads -o=custom-columns='Jobset:.metadata.ownerReferences[0].name'
 [XPK] Task: `GKE Cluster Get ConfigMap` is implemented by the following command not running since it is a dry run. 
 kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="ConfigData:data" --no-headers=true
-[XPK] Task: `Get defined topologies` is implemented by the following command not running since it is a dry run. 
-kubectl get topology
-[XPK] Task: `Get kueue version on server` is implemented by the following command not running since it is a dry run. 
-kubectl get deployment kueue-controller-manager -n kueue-system -o jsonpath='{.spec.template.spec.containers[0].image}'
+[XPK] Skipping workload scheduling validation in dry run.
 [XPK] Starting workload create
 [XPK] Task: `GKE Cluster Get ConfigMap` is implemented by the following command not running since it is a dry run. 
 kubectl get configmap golden-cluster-metadata-configmap -o=custom-columns="ConfigData:data" --no-headers=true
@@ -27,27 +24,13 @@ kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="Conf
 [XPK] No gcp parallelstore instances to add detected.
 [XPK] No gce persistent disk instances to add detected.
 [XPK] No managed lustre instances to add detected.
-[XPK] Workload will be scheduled using the Super-slicing feature.
-[XPK] Temp file (4b6736a12db8ea0f78ce793fd0d4ee0c94c652303f1dc0fecad085ea0993f688) content: 
-FROM python:3.10
+[XPK] Temp file (e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855) content: 
 
-  # Set the working directory in the container
-  WORKDIR /app
-
-  # Copy all files from local workspace into docker container
-  COPY . .
-
-  WORKDIR /app
-  
-[XPK] Building /tmp into docker image.
-[XPK] Task: `Building script_dir into docker image` is implemented by the following command not running since it is a dry run. 
-docker buildx build --platform=linux/amd64 -f 4b6736a12db8ea0f78ce793fd0d4ee0c94c652303f1dc0fecad085ea0993f688 -t dry-run-runner /tmp
-[XPK] Adding Docker Image: gcr.io/golden-project/dry-run-runner:prefix-current to golden-project
-[XPK] Task: `Tag Docker Image` is implemented by the following command not running since it is a dry run. 
-docker tag dry-run-runner gcr.io/golden-project/dry-run-runner:prefix-current
-[XPK] Task: `Upload Docker Image` is implemented by the following command not running since it is a dry run. 
-docker push gcr.io/golden-project/dry-run-runner:prefix-current
-[XPK] Temp file (2c5ab381c0d643f8512a07d296d411413080ec652c15e8c676fd58435de5a327) content: 
+[XPK] Adding /tmp to container image archive e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+[XPK] Task: `Upload Container Image` is implemented by the following command not running since it is a dry run. 
+crane mutate python:3.10 --append e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 --platform linux/amd64   --tag gcr.io/golden-project/dry-run-runner:prefix-current --workdir /app
+[XPK] Deleting container image archive e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+[XPK] Temp file (39eda1549f4c0d68a4f11e6cbd89ba655d49d2faeef6898a140f476e6e70ae0e) content: 
 apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
 metadata:
@@ -56,7 +39,7 @@ metadata:
     kueue.x-k8s.io/queue-name: multislice-queue  # Name of the LocalQueue
     xpk.google.com/workload: golden-workload
   annotations:
-    
+    alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool
 spec:
   ttlSecondsAfterFinished: 43200
   failurePolicy:
@@ -70,8 +53,8 @@ spec:
       replicas: 1
       template:
         spec:
-          parallelism: 80    # Equal to the number of VMs per slice (or sub-slice).
-          completions: 80    # Same as the above.
+          parallelism: 1    # Equal to the number of VMs per slice (or sub-slice).
+          completions: 1    # Same as the above.
           backoffLimit: 0   # When any pod fails, the job is failed
           
           podFailurePolicy:
@@ -90,7 +73,7 @@ spec:
               annotations:
                 
                 
-                cloud.google.com/gke-tpu-slice-topology: 4x4x20
+                
             spec:
               schedulerName: default-scheduler
               imagePullSecrets:
@@ -98,8 +81,8 @@ spec:
               restartPolicy: Never
               
               nodeSelector:
-                cloud.google.com/gke-tpu-accelerator: tpu7x
-                
+                cloud.google.com/gke-tpu-accelerator: tpu-v5p-slice
+                cloud.google.com/gke-tpu-topology: 2x2x1
                 
                 
               priorityClassName: medium
@@ -156,7 +139,7 @@ spec:
               
 
 [XPK] Task: `Creating Workload` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f 2c5ab381c0d643f8512a07d296d411413080ec652c15e8c676fd58435de5a327
+kubectl apply -f 39eda1549f4c0d68a4f11e6cbd89ba655d49d2faeef6898a140f476e6e70ae0e
 [XPK] Task: `GKE Dashboard List` is implemented by the following command not running since it is a dry run. 
 gcloud monitoring dashboards list --project=golden-project --filter="displayName:'GKE - TPU Monitoring Dashboard'" --format="value(name)" --verbosity=error
 [XPK] Check statistics and outlier mode of GKE metrics here: https://console.cloud.google.com/monitoring/dashboards/builder/0?project=golden-project&f.rlabel.cluster_name.ClusterName=golden-cluster. To view the metric data for your workload, select golden-workload from the JobName filter on the dashboard.

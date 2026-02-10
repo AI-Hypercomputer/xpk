@@ -285,6 +285,81 @@ kubectl delete rayclusters -n ray --all
 kubectl get nodes -l cloud.google.com/gke-nodepool=default-pool -o jsonpath='{.items[0].metadata.name}'
 [XPK] Task: `Fetching available CPU on node` is implemented by the following command not running since it is a dry run. 
 kubectl get node 0 -o jsonpath='{.status.allocatable.cpu}'
-[XPK] Could not find a regex match for allocatable cpu on TPU node 0
-[XPK] XPK failed, error code 1
+[XPK] Task: `Fetching available memory on node` is implemented by the following command not running since it is a dry run. 
+kubectl get node 0 -o jsonpath='{.status.allocatable.memory}'
+[XPK] Task: `Getting nodes with label cloud.google.com/gke-tpu-accelerator=tpu7x` is implemented by the following command not running since it is a dry run. 
+kubectl get nodes -l cloud.google.com/gke-tpu-accelerator=tpu7x -o jsonpath='{.items[0].metadata.name}'
+[XPK] Task: `Fetching available CPU on node` is implemented by the following command not running since it is a dry run. 
+kubectl get node 0 -o jsonpath='{.status.allocatable.cpu}'
+[XPK] Task: `Fetching available memory on node` is implemented by the following command not running since it is a dry run. 
+kubectl get node 0 -o jsonpath='{.status.allocatable.memory}'
+[XPK] Temp file (c4e95adb4d8b3d29e005959639d7427ef31798035b34a209f96098c542f31407) content: 
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ray
+---
+apiVersion: ray.io/v1
+kind: RayCluster
+metadata:
+  name: raycluster
+  namespace: ray
+spec:
+  rayVersion: '2.39.0'
+  headGroupSpec:
+    rayStartParams: {}
+    #pod template
+    template:
+      spec:
+        containers:
+        - name: ray-head
+          image: rayproject/ray:2.39.0
+          resources:
+            limits:
+              cpu: 500m
+              memory: 500Mi
+            requests:
+              cpu: 500m
+              memory: 500Mi
+          ports:
+          - containerPort: 6379
+            name: gcs-server
+          - containerPort: 8265 # Ray dashboard
+            name: dashboard
+          - containerPort: 10001
+            name: client
+          - containerPort: 8081
+            name: multislice
+  workerGroupSpecs:
+    - replicas: 1 # TODO: Set min and max replicas
+      numOfHosts: 1
+      minReplicas: 1
+      maxReplicas: 1
+      groupName: workergroup0
+      rayStartParams:
+        block: 'true'
+      template:
+        spec:
+          containers:
+            - name: ray-worker
+              image: rayproject/ray:2.39.0
+              resources:
+                limits:
+                  cpu: 900m
+                  google.com/tpu: 4
+                  memory: 900Mi
+                requests:
+                  cpu: 900m
+                  google.com/tpu: 4
+                  memory: 900Mi
+          nodeSelector:
+            cloud.google.com/gke-tpu-accelerator: tpu7x
+            cloud.google.com/gke-tpu-topology: 2x2x1
+
+[XPK] Try 1: Applying RayCluster
+[XPK] Task: `Applying RayCluster` is implemented by the following command not running since it is a dry run. 
+kubectl apply -f c4e95adb4d8b3d29e005959639d7427ef31798035b34a209f96098c542f31407
+[XPK] GKE commands done! Resources are created.
+[XPK] See your GKE Cluster here: https://console.cloud.google.com/kubernetes/clusters/details/us-central1/golden-cluster/details?project=golden-project
+[XPK] Exiting XPK cleanly
 -->

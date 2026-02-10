@@ -495,12 +495,12 @@ def _get_available_slices_in_sub_block(
   command = (
       'gcloud beta compute reservations sub-blocks list'
       f' {reservation.name} --block-name={reservation.block_name} --project={reservation.project} --zone={reservation.zone} --filter="name={reservation.sub_block_name} AND'
-      ' healthInfo.healthStatus=HEALTHY" --format="csv(count,inUseCount)"'
+      ' healthInfo.healthStatus=HEALTHY" --format="csv(count,in_use_count)"'
   )
   return_code, output = run_command_for_value(
       command,
       f'Check sub-block {reservation.sub_block_name} health',
-      dry_run_return_val='count,inUseCount\n16,0',
+      dry_run_return_val='count,in_use_count\n16,0',
   )
   if return_code != 0:
     return 0, return_code
@@ -513,7 +513,7 @@ def _get_available_slices_in_sub_block(
   try:
     row = rows[0]
     count = int(row['count'])
-    in_use_count = int(row['inUseCount'])
+    in_use_count = int(row['in_use_count'])
     available_slices = (count - in_use_count) // required_hosts
     return available_slices, 0
   except ValueError:
@@ -569,7 +569,7 @@ def _get_healthy_and_fitting_sub_blocks_in_block(
       f'--project={reservation.project} '
       f'--zone={reservation.zone} '
       '--filter="healthInfo.healthStatus=HEALTHY" '
-      '--format="csv(name,count,inUseCount)"'
+      '--format="csv(name,count,in_use_count)"'
   )
   return_code, output = run_command_for_value(
       command,
@@ -584,7 +584,7 @@ def _get_healthy_and_fitting_sub_blocks_in_block(
   for row in rows:
     sub_block_name = row['name']
     count = int(row['count'])
-    in_use_count = int(row['inUseCount'])
+    in_use_count = int(row['in_use_count'])
 
     available_slots = (count - in_use_count) // required_hosts
     if available_slots > 0:
@@ -654,13 +654,13 @@ def _get_reservation_count(
       f'gcloud beta compute reservations describe {reservation.name} '
       f'--project={reservation.project} '
       f'--zone={reservation.zone} '
-      '--format="csv(specificReservation.count:label=count,specificReservation.inUseCount:label=inUseCount,status)"'
+      '--format="csv(specificReservation.count:label=count,specificReservation.inUseCount:label=in_use_count,status)"'
   )
 
   return_code, output = run_command_for_value(
       command,
       f'Get reservation count for {reservation.name}',
-      dry_run_return_val='count,inUseCount,status\n16,0,READY',
+      dry_run_return_val='count,in_use_count,status\n16,0,READY',
   )
   if return_code != 0:
     return 0, return_code
@@ -670,7 +670,7 @@ def _get_reservation_count(
   try:
     row = rows[0]
     if row['status'] == 'READY':
-      available_hosts = max(0, int(row['count']) - int(row['inUseCount']))
+      available_hosts = max(0, int(row['count']) - int(row['in_use_count']))
       return available_hosts // required_hosts, 0
   except (ValueError, IndexError):
     pass

@@ -479,7 +479,7 @@ def test_run_gke_node_pool_create_command_multiple_reservations(
   commands_tester.set_result_for_command(
       (
           0,
-          "count,inUseCount,status\n2,0,READY",
+          "count,in_use_count,status\n2,0,READY",
       ),
       "gcloud beta compute reservations describe",
   )
@@ -556,7 +556,7 @@ def test_run_gke_node_pool_create_command_partial_reservations(
   commands_tester.set_result_for_command(
       (
           0,
-          "count,inUseCount,status\n2,0,READY",
+          "count,in_use_count,status\n2,0,READY",
       ),
       "gcloud beta compute reservations describe",
   )
@@ -727,7 +727,7 @@ def test_run_gke_node_pool_create_command_super_slicing_exhaustion(
   commands_tester.set_result_for_command(
       (
           0,
-          "name,count,inUseCount\nsub-block1,2,0\nsub-block2,2,0",
+          "name,count,in_use_count\nsub-block1,2,0\nsub-block2,2,0",
       ),
       "gcloud beta compute reservations sub-blocks list",
   )
@@ -800,7 +800,7 @@ def test_run_gke_node_pool_create_command_super_slicing_insufficient_capacity(
   commands_tester.set_result_for_command(
       (
           0,
-          "name,count,inUseCount\nsub-block1,2,0",
+          "name,count,in_use_count\nsub-block1,2,0",
       ),
       "gcloud beta compute reservations sub-blocks list",
   )

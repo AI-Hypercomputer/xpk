@@ -303,7 +303,7 @@ def test_assess_available_slices_sub_block_healthy(
     commands_tester: CommandsTester,
 ):
   commands_tester.set_result_for_command(
-      (0, 'count,inUseCount\n1,0'),
+      (0, 'count,in_use_count\n1,0'),
       'gcloud beta compute reservations sub-blocks list',
   )
   res = SubBlockReservationLink(
@@ -346,7 +346,7 @@ def test_assess_available_slices_sub_block_unhealthy(
 def test_assess_available_slices_block_healthy(commands_tester: CommandsTester):
   # Mock 2 healthy sub-blocks
   commands_tester.set_result_for_command(
-      (0, 'name,count,inUseCount\nsub1,1,0\nsub2,1,0'),
+      (0, 'name,count,in_use_count\nsub1,1,0\nsub2,1,0'),
       'gcloud beta compute reservations sub-blocks list',
   )
   res = BlockReservationLink(
@@ -413,7 +413,7 @@ def test_assess_available_slices_link_with_blocks(
       (0, 'block1'), 'gcloud beta compute reservations blocks list'
   )
   commands_tester.set_result_for_command(
-      (0, 'name,count,inUseCount\nsub1,1,0'),
+      (0, 'name,count,in_use_count\nsub1,1,0'),
       'gcloud beta compute reservations sub-blocks list',
       '--block-name=block1',
   )
@@ -446,7 +446,7 @@ def test_assess_available_slices_link_without_blocks(
   )
   # Mock getting count
   commands_tester.set_result_for_command(
-      (0, 'count,inUseCount,status\n2,0,READY'),
+      (0, 'count,in_use_count,status\n2,0,READY'),
       'gcloud beta compute reservations describe',
   )
 
@@ -471,7 +471,7 @@ def test_assess_available_slices_link_without_blocks_sub_block_targeting(
   )
   # Mock getting count
   commands_tester.set_result_for_command(
-      (0, 'count,inUseCount,status\n2,0,READY'),
+      (0, 'count,in_use_count,status\n2,0,READY'),
       'gcloud beta compute reservations describe',
   )
 
@@ -488,7 +488,7 @@ def test_assess_available_slices_host_filtering_insufficient_hosts(
 ):
   # Mock a sub-block that has 14 free hosts but we need 16
   commands_tester.set_result_for_command(
-      (0, 'count,inUseCount\n16,2'),
+      (0, 'count,in_use_count\n16,2'),
       'gcloud beta compute reservations sub-blocks list',
   )
   res = SubBlockReservationLink(
@@ -512,7 +512,7 @@ def test_assess_available_slices_host_filtering_sufficient_hosts(
 ):
   # Mock a reservation that has 46 free hosts, and we need 16 per slice.
   commands_tester.set_result_for_command(
-      (0, 'count,inUseCount,status\n48,2,READY'),
+      (0, 'count,in_use_count,status\n48,2,READY'),
       'gcloud beta compute reservations describe',
   )
   res_link = ReservationLink(project='p', name='r', zone='z')
@@ -612,7 +612,7 @@ def test_assess_available_slices_mixed_reservations_with_subblock_targeting(
       project='project', name='res1', zone='zone', block_name='block1'
   )
   commands_tester.set_result_for_command(
-      (0, 'name,count,inUseCount\nsub1,1,0\nsub2,1,0'),
+      (0, 'name,count,in_use_count\nsub1,1,0\nsub2,1,0'),
       'gcloud beta compute reservations sub-blocks list res1',
       '--block-name=block1',
   )
@@ -626,7 +626,7 @@ def test_assess_available_slices_mixed_reservations_with_subblock_targeting(
       sub_block_name='sub3',
   )
   commands_tester.set_result_for_command(
-      (0, 'count,inUseCount\n1,0'),
+      (0, 'count,in_use_count\n1,0'),
       'gcloud beta compute reservations sub-blocks list res2',
       '--filter="name=sub3 AND healthInfo.healthStatus=HEALTHY"',
   )
@@ -686,7 +686,7 @@ def test_assess_available_slices_deduplicates(commands_tester: CommandsTester):
   )
   sub_block_name = 'sub1'
   commands_tester.set_result_for_command(
-      (0, f'name,count,inUseCount\n{sub_block_name},1,0'),
+      (0, f'name,count,in_use_count\n{sub_block_name},1,0'),
       'gcloud beta compute reservations sub-blocks list res1',
       '--block-name=block1',
   )
@@ -698,7 +698,7 @@ def test_assess_available_slices_deduplicates(commands_tester: CommandsTester):
       sub_block_name=sub_block_name,
   )
   commands_tester.set_result_for_command(
-      (0, 'count,inUseCount\n1,0'),
+      (0, 'count,in_use_count\n1,0'),
       'gcloud beta compute reservations sub-blocks list res1',
       '--block-name=block1',
       f'--filter="name={sub_block_name}',

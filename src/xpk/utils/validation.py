@@ -23,44 +23,16 @@ from dataclasses import dataclass
 @dataclass
 class _SystemDependency:
   command: str
-  message: str
 
 
 class SystemDependency(Enum):
   """Represents required system dependencies."""
 
-  KUBECTL = _SystemDependency(
-      command='kubectl --help',
-      message=(
-          '`kubectl` not installed. Please follow'
-          ' https://github.com/AI-Hypercomputer/xpk?tab=readme-ov-file#prerequisites'
-          ' to install xpk prerequisites.'
-      ),
-  )
-  GCLOUD = _SystemDependency(
-      command='gcloud version',
-      message=(
-          '`gcloud not installed. Please follow'
-          ' https://github.com/AI-Hypercomputer/xpk?tab=readme-ov-file#prerequisites'
-          ' to install xpk prerequisites.'
-      ),
-  )
-  DOCKER = _SystemDependency(
-      command='docker version',
-      message=(
-          '`docker` not installed. Please follow'
-          ' https://github.com/AI-Hypercomputer/xpk?tab=readme-ov-file#prerequisites'
-          ' to install xpk prerequisites.'
-      ),
-  )
-  KUEUECTL = _SystemDependency(
-      command='kubectl kueue --help',
-      message=(
-          '`kueuectl` not installed. Please follow'
-          ' https://github.com/AI-Hypercomputer/xpk?tab=readme-ov-file#prerequisites'
-          ' to install xpk prerequisites.'
-      ),
-  )
+  KUBECTL = _SystemDependency(command='kubectl --help')
+  GCLOUD = _SystemDependency(command='gcloud version')
+  DOCKER = _SystemDependency(command='docker version')
+  KUEUECTL = _SystemDependency(command='kubectl kueue --help')
+  CRANE = _SystemDependency(command='crane --help')
 
 
 def should_validate_dependencies(args):
@@ -77,9 +49,12 @@ def validate_dependencies_list(dependencies: list[SystemDependency]):
 
 def _validate_dependency(dependency: SystemDependency) -> None:
   """Validates system dependency and returns none or exits with error."""
-  name, value = dependency.name, dependency.value
-  cmd, message = value.command, value.message
+  name, cmd = dependency.name, dependency.value.command
   code, _ = run_command_for_value(cmd, f'Validate {name} installation.')
   if code != 0:
-    xpk_print(message)
+    xpk_print(
+        f'`{name.lower()}` not installed. Please follow  '
+        ' https://github.com/AI-Hypercomputer/xpk/blob/main/docs/installation.md#1-prerequisites'
+        ' to install xpk prerequisites.'
+    )
     xpk_exit(code)

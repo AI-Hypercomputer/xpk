@@ -83,11 +83,16 @@ def build_script(blocks: list[CodeBlock], mode: Mode) -> str:
         xpk() {
             command xpk "$@" --dry-run
         }
+        xpk_no_dry_run() {
+            command xpk "$@"
+        }
         export -f xpk
         """)
 
   for block in blocks:
     safe_command = block.command.replace("'", "'\\''")
+    if "#golden-no-dry-run" in block.tags and safe_command.startswith("xpk"):
+      safe_command = "xpk_no_dry_run " + safe_command[3:]
 
     script_parts.append("echo 'XPK_RECIPE_EXECUTOR_BLOCK_START'")
     script_parts.append(f"echo '$ {safe_command}'")

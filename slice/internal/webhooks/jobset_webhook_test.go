@@ -364,10 +364,6 @@ func TestParseTopology(t *testing.T) {
 			topology: "8x4x4",
 			wantErr:  true,
 		},
-		"exceeds max": {
-			topology: "20x24x24",
-			wantErr:  true,
-		},
 		"zero dimension": {
 			topology: "0x4x4",
 			wantErr:  true,

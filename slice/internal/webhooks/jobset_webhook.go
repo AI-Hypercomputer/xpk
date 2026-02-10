@@ -170,9 +170,6 @@ func parseTopology(tpuTopology string) ([]int64, error) {
 	if dims[0] > dims[1] || dims[1] > dims[2] {
 		return nil, fmt.Errorf("topology dimensions must be in non-decreasing order: %s", tpuTopology)
 	}
-	if dims[0] > 16 || dims[1] > 24 || dims[2] > 24 {
-		return nil, fmt.Errorf("topology dimensions exceed maximum 16x24x24: %s", tpuTopology)
-	}
 
 	return dims, nil
 }

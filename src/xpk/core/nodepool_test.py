@@ -479,12 +479,18 @@ def test_run_gke_node_pool_create_command_multiple_reservations(
 
   # Mock capacity for reservation1
   commands_tester.set_result_for_command(
-      (0, "2,0,READY"),
+      (
+          0,
+          "count,inUseCount,status\n2,0,READY",
+      ),
       "gcloud beta compute reservations describe reservation1",
   )
   # Mock capacity for reservation2
   commands_tester.set_result_for_command(
-      (0, "2,0,READY"),
+      (
+          0,
+          "count,inUseCount,status\n2,0,READY",
+      ),
       "gcloud beta compute reservations describe reservation2",
   )
 
@@ -560,12 +566,18 @@ def test_run_gke_node_pool_create_command_partial_reservations(
 
   # Mock capacity for reservation1
   commands_tester.set_result_for_command(
-      (0, "2,0,READY"),
+      (
+          0,
+          "count,inUseCount,status\n2,0,READY",
+      ),
       "gcloud beta compute reservations describe reservation1",
   )
   # Mock capacity for reservation2
   commands_tester.set_result_for_command(
-      (0, "2,0,READY"),
+      (
+          0,
+          "count,inUseCount,status\n2,0,READY",
+      ),
       "gcloud beta compute reservations describe reservation2",
   )
 
@@ -743,13 +755,19 @@ def test_run_gke_node_pool_create_command_super_slicing_exhaustion(
   # Mock super-slicing capacity discovery for reservation1
   # 1. Describe parent -> returns 0 (force block check)
   commands_tester.set_result_for_command(
-      (0, "0,0,READY"),
+      (
+          0,
+          "count,inUseCount,status\n0,0,READY",
+      ),
       "describe",
       "reservation1",
   )
   # 2. List sub-blocks for block1 -> returns sub-block1, sub-block2
   commands_tester.set_result_for_command(
-      (0, "sub-block1,2,0\nsub-block2,2,0"),
+      (
+          0,
+          "name,count,inUseCount\nsub-block1,2,0\nsub-block2,2,0",
+      ),
       "gcloud beta compute reservations sub-blocks list",
   )
   # 3. List blocks -> returns block1
@@ -827,7 +845,10 @@ def test_run_gke_node_pool_create_command_super_slicing_insufficient_capacity(
   # Mock super-slicing capacity discovery for reservation1 -> Only 1 available
   # 1. Describe parent -> returns 0
   commands_tester.set_result_for_command(
-      (0, "0,0,READY"),
+      (
+          0,
+          "count,inUseCount,status\n0,0,READY",
+      ),
       "gcloud beta compute reservations describe reservation1",
   )
   # 2. List blocks -> returns block1
@@ -836,7 +857,11 @@ def test_run_gke_node_pool_create_command_super_slicing_insufficient_capacity(
   )
   # 3. List sub-blocks for block1 -> returns ONLY sub-block1
   commands_tester.set_result_for_command(
-      (0, "sub-block1"), "gcloud beta compute reservations sub-blocks list"
+      (
+          0,
+          "name,count,inUseCount\nsub-block1,2,0",
+      ),
+      "gcloud beta compute reservations sub-blocks list",
   )
 
   result = run_gke_node_pool_create_command(args, system, "1.2.3")

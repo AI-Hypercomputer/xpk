@@ -476,22 +476,12 @@ def test_run_gke_node_pool_create_command_multiple_reservations(
   commands_tester.set_result_for_command(
       (0, ""), "gcloud beta container node-pools list"
   )
-
-  # Mock capacity for reservation1
   commands_tester.set_result_for_command(
       (
           0,
           "count,inUseCount,status\n2,0,READY",
       ),
-      "gcloud beta compute reservations describe reservation1",
-  )
-  # Mock capacity for reservation2
-  commands_tester.set_result_for_command(
-      (
-          0,
-          "count,inUseCount,status\n2,0,READY",
-      ),
-      "gcloud beta compute reservations describe reservation2",
+      "gcloud beta compute reservations describe",
   )
 
   result = run_gke_node_pool_create_command(args, system, "1.2.3")
@@ -563,22 +553,12 @@ def test_run_gke_node_pool_create_command_partial_reservations(
       "node-pools describe",
       '--format="value(locations)"',
   )
-
-  # Mock capacity for reservation1
   commands_tester.set_result_for_command(
       (
           0,
           "count,inUseCount,status\n2,0,READY",
       ),
-      "gcloud beta compute reservations describe reservation1",
-  )
-  # Mock capacity for reservation2
-  commands_tester.set_result_for_command(
-      (
-          0,
-          "count,inUseCount,status\n2,0,READY",
-      ),
-      "gcloud beta compute reservations describe reservation2",
+      "gcloud beta compute reservations describe",
   )
 
   result = run_gke_node_pool_create_command(args, system, "1.2.3")
@@ -712,96 +692,8 @@ def test_run_gke_node_pool_create_command_super_slicing_exhaustion(
       "xpk.core.nodepool.get_cluster_location", return_value="us-central1"
   )
   mocker.patch("xpk.core.capacity.verify_reservations_exist", return_value=0)
-
   args = mocker.Mock(
       num_slices=2,
-      reservation="reservation1",  # User provided just the reservation name
-      tpu_type="v4-8",
-      device_type=None,
-      cluster="test-cluster",
-      project="test-project",
-      zone="us-central1-a",
-      on_demand=False,
-      spot=False,
-      flex=False,
-      enable_workload_identity=False,
-      enable_gcsfuse_csi_driver=False,
-      host_maintenance_interval="AS_NEEDED",
-      custom_nodepool_arguments="",
-      super_slicing=True,
-      num_nodes=2,
-  )
-  system = SystemCharacteristics(
-      topology="2x2x1",
-      vms_per_slice=2,
-      gke_accelerator="tpu-v4",
-      gce_machine_type="ct4p-hightpu-4t",
-      chips_per_vm=4,
-      accelerator_type=AcceleratorType.TPU,
-      device_type="v4-8",
-      requires_workload_policy=False,
-      supports_sub_slicing=False,
-      supports_super_slicing=False,
-      supports_accelerator_network_profile=True,
-      docker_platform=DockerPlatform.AMD,
-  )
-  commands_tester.set_result_for_command(
-      (0, ""), "gcloud beta container node-pools list"
-  )
-
-  # Mock super-slicing capacity discovery for reservation1
-  # 1. Describe parent -> returns 0 (force block check)
-  commands_tester.set_result_for_command(
-      (
-          0,
-          "count,inUseCount,status\n0,0,READY",
-      ),
-      "describe",
-      "reservation1",
-  )
-  # 2. List sub-blocks for block1 -> returns sub-block1, sub-block2
-  commands_tester.set_result_for_command(
-      (
-          0,
-          "name,count,inUseCount\nsub-block1,2,0\nsub-block2,2,0",
-      ),
-      "gcloud beta compute reservations sub-blocks list",
-  )
-  # 3. List blocks -> returns block1
-  commands_tester.set_result_for_command(
-      (0, "block1"), "gcloud beta compute reservations blocks list"
-  )
-
-  result = run_gke_node_pool_create_command(args, system, "1.2.3")
-
-  assert result == 0
-  # Verify we called create with specific sub-block paths
-  commands_tester.assert_command_run(
-      "gcloud",
-      "node-pools create",
-      "test-cluster-np-0",
-      "--reservation=reservation1/reservationBlocks/block1/reservationSubBlocks/sub-block1",
-  )
-  commands_tester.assert_command_run(
-      "gcloud",
-      "node-pools create",
-      "test-cluster-np-1",
-      "--reservation=reservation1/reservationBlocks/block1/reservationSubBlocks/sub-block2",
-  )
-
-
-def test_run_gke_node_pool_create_command_super_slicing_insufficient_capacity(
-    mocker,
-    commands_tester: CommandsTester,
-    mock_xpk_print,
-):
-  mocker.patch(
-      "xpk.core.nodepool.get_cluster_location", return_value="us-central1"
-  )
-  mocker.patch("xpk.core.capacity.verify_reservations_exist", return_value=0)
-
-  args = mocker.Mock(
-      num_slices=2,  # Need 2
       reservation="reservation1",
       tpu_type="v4-8",
       device_type=None,
@@ -833,23 +725,78 @@ def test_run_gke_node_pool_create_command_super_slicing_insufficient_capacity(
       docker_platform=DockerPlatform.AMD,
   )
   commands_tester.set_result_for_command(
-      (0, ""), "gcloud beta container node-pools list"
-  )
-
-  # Mock super-slicing capacity discovery for reservation1 -> Only 1 available
-  # 1. Describe parent -> returns 0
-  commands_tester.set_result_for_command(
       (
           0,
-          "count,inUseCount,status\n0,0,READY",
+          "name,count,inUseCount\nsub-block1,2,0\nsub-block2,2,0",
       ),
-      "gcloud beta compute reservations describe reservation1",
+      "gcloud beta compute reservations sub-blocks list",
   )
-  # 2. List blocks -> returns block1
   commands_tester.set_result_for_command(
       (0, "block1"), "gcloud beta compute reservations blocks list"
   )
-  # 3. List sub-blocks for block1 -> returns ONLY sub-block1
+
+  result = run_gke_node_pool_create_command(args, system, "1.2.3")
+
+  assert result == 0
+  commands_tester.assert_command_run(
+      "gcloud",
+      "node-pools create",
+      "test-cluster-np-0",
+      "--reservation=reservation1/reservationBlocks/block1/reservationSubBlocks/sub-block1",
+  )
+  commands_tester.assert_command_run(
+      "gcloud",
+      "node-pools create",
+      "test-cluster-np-1",
+      "--reservation=reservation1/reservationBlocks/block1/reservationSubBlocks/sub-block2",
+  )
+
+
+def test_run_gke_node_pool_create_command_super_slicing_insufficient_capacity(
+    mocker,
+    commands_tester: CommandsTester,
+    mock_xpk_print,
+):
+  """Requested 2 slices with vms_per_slice=2, but there's only 1 slice available."""
+  mocker.patch(
+      "xpk.core.nodepool.get_cluster_location", return_value="us-central1"
+  )
+  mocker.patch("xpk.core.capacity.verify_reservations_exist", return_value=0)
+  args = mocker.Mock(
+      num_slices=2,
+      reservation="reservation1/reservationBlocks/block1",
+      tpu_type="v4-8",
+      device_type=None,
+      cluster="test-cluster",
+      project="test-project",
+      zone="us-central1-a",
+      on_demand=False,
+      spot=False,
+      flex=False,
+      enable_workload_identity=False,
+      enable_gcsfuse_csi_driver=False,
+      host_maintenance_interval="AS_NEEDED",
+      custom_nodepool_arguments="",
+      super_slicing=True,
+      num_nodes=2,
+  )
+  system = SystemCharacteristics(
+      topology="2x2x1",
+      vms_per_slice=2,
+      gke_accelerator="tpu-v4",
+      gce_machine_type="ct4p-hightpu-4t",
+      chips_per_vm=4,
+      accelerator_type=AcceleratorType.TPU,
+      device_type="v4-8",
+      requires_workload_policy=False,
+      supports_sub_slicing=False,
+      supports_super_slicing=False,
+      supports_accelerator_network_profile=True,
+      docker_platform=DockerPlatform.AMD,
+  )
+  commands_tester.set_result_for_command(
+      (0, "block1"), "gcloud beta compute reservations blocks list"
+  )
   commands_tester.set_result_for_command(
       (
           0,
@@ -862,7 +809,6 @@ def test_run_gke_node_pool_create_command_super_slicing_insufficient_capacity(
 
   assert result == 1
   assert mock_xpk_print.call_count >= 1
-  # Verify error message
   assert (
       "Not enough available reservation capacity"
       in mock_xpk_print.call_args_list[-1].args[0]

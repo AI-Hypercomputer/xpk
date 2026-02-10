@@ -255,7 +255,7 @@ def run_gke_node_pool_create_command(
         return 1
 
   placement_args = ''
-  super_slicing = args.super_slicing
+  super_slicing: bool = args.super_slicing
   if is_placement_policy_supported(system):
     placement_policy = get_placement_policy_name(
         system,
@@ -279,12 +279,14 @@ def run_gke_node_pool_create_command(
   if capacity_type == CapacityType.RESERVATION:
     reservations = get_reservations_list(args)
     reservations_iter, return_code = _prepare_reservation_iterator(
-        reservations,
-        len(node_pools_to_create),
+        reservations=reservations,
+        num_new_node_pools=len(node_pools_to_create),
         force_sub_block_targeting=super_slicing,
-        required_hosts=max_nodes
-        if system.accelerator_type == AcceleratorType.TPU
-        else args.num_nodes,
+        required_hosts=(
+            max_nodes
+            if system.accelerator_type == AcceleratorType.TPU
+            else args.num_nodes
+        ),
     )
     if return_code > 0:
       return return_code
@@ -727,7 +729,6 @@ def _prepare_reservation_iterator(
     force_sub_block_targeting: bool,
     required_hosts: int,
 ) -> tuple[Iterator[ReservationLink] | None, int]:
-  """Prepares the reservation iterator based on capacity type and super-slicing."""
   available_capacity, return_code = assess_available_slices(
       reservations,
       force_sub_block_targeting=force_sub_block_targeting,
@@ -742,13 +743,12 @@ def _prepare_reservation_iterator(
   if total_available < num_new_node_pools:
     xpk_print(
         'Error: Not enough available reservation capacity. Needed'
-        f' {num_new_node_pools} slices/sub-blocks, but only found'
+        f' {num_new_node_pools} slices, but only found'
         f' {total_available} healthy and fitting in the provided'
         ' reservations.'
     )
     return None, 1
 
-  # Create an iterator that yields one ReservationLink per available count
   reservations_iter = chain.from_iterable(
       repeat(cap.reservation, cap.available_slices)
       for cap in available_capacity

@@ -409,18 +409,13 @@ def test_assess_available_slices_block_unhealthy(
 def test_assess_available_slices_link_with_blocks(
     commands_tester: CommandsTester,
 ):
-  # Mock getting count returning 0 to force block check
-  commands_tester.set_result_for_command(
-      (0, 'count,inUseCount,status\n0,0,READY'),
-      'gcloud beta compute reservations describe',
-  )
-  # Mock getting blocks returning check-able blocks
   commands_tester.set_result_for_command(
       (0, 'block1'), 'gcloud beta compute reservations blocks list'
   )
   commands_tester.set_result_for_command(
       (0, 'name,count,inUseCount\nsub1,1,0'),
       'gcloud beta compute reservations sub-blocks list',
+      '--block-name=block1',
   )
 
   res = ReservationLink(project='project', name='reservation', zone='zone')
@@ -446,9 +441,8 @@ def test_assess_available_slices_link_with_blocks(
 def test_assess_available_slices_link_without_blocks(
     commands_tester: CommandsTester,
 ):
-  # Mock getting blocks returning empty (fails or no blocks)
   commands_tester.set_result_for_command(
-      (1, ''), 'gcloud beta compute reservations blocks list'
+      (0, ''), 'gcloud beta compute reservations blocks list'
   )
   # Mock getting count
   commands_tester.set_result_for_command(
@@ -469,12 +463,32 @@ def test_assess_available_slices_link_without_blocks(
   ]
 
 
+def test_assess_available_slices_link_without_blocks_sub_block_targeting(
+    commands_tester: CommandsTester,
+):
+  commands_tester.set_result_for_command(
+      (0, ''), 'gcloud beta compute reservations blocks list'
+  )
+  # Mock getting count
+  commands_tester.set_result_for_command(
+      (0, 'count,inUseCount,status\n2,0,READY'),
+      'gcloud beta compute reservations describe',
+  )
+
+  res = ReservationLink(project='project', name='reservation', zone='zone')
+  slices, return_code = assess_available_slices(
+      [res], force_sub_block_targeting=True, required_hosts=1
+  )
+  assert return_code == 0
+  assert not slices
+
+
 def test_assess_available_slices_host_filtering_insufficient_hosts(
     commands_tester: CommandsTester,
 ):
-  # Mock a sub-block that has 16 hosts but we need 32
+  # Mock a sub-block that has 14 free hosts but we need 16
   commands_tester.set_result_for_command(
-      (0, 'count,inUseCount\n16,0'),
+      (0, 'count,inUseCount\n16,2'),
       'gcloud beta compute reservations sub-blocks list',
   )
   res = SubBlockReservationLink(
@@ -484,10 +498,11 @@ def test_assess_available_slices_host_filtering_insufficient_hosts(
       block_name='block',
       sub_block_name='sub-block',
   )
-  # Should be empty because available 16 < required 32
+
   slices, return_code = assess_available_slices(
-      [res], force_sub_block_targeting=False, required_hosts=32
+      [res], force_sub_block_targeting=False, required_hosts=16
   )
+
   assert not slices
   assert return_code == 0
 
@@ -495,20 +510,21 @@ def test_assess_available_slices_host_filtering_insufficient_hosts(
 def test_assess_available_slices_host_filtering_sufficient_hosts(
     commands_tester: CommandsTester,
 ):
-  # Mock a reservation that has 48 hosts, and we need 16 per slice.
-  # Should return 3 available slices.
+  # Mock a reservation that has 46 free hosts, and we need 16 per slice.
   commands_tester.set_result_for_command(
-      (0, 'count,inUseCount,status\n48,0,READY'),
+      (0, 'count,inUseCount,status\n48,2,READY'),
       'gcloud beta compute reservations describe',
   )
   res_link = ReservationLink(project='p', name='r', zone='z')
+
   slices, return_code = assess_available_slices(
       [res_link], force_sub_block_targeting=False, required_hosts=16
   )
+
   assert return_code == 0
   assert slices == [
       ReservationCapacity(
-          ReservationLink(project='p', name='r', zone='z'), available_slices=3
+          ReservationLink(project='p', name='r', zone='z'), available_slices=2
       )
   ]
 
@@ -516,7 +532,6 @@ def test_assess_available_slices_host_filtering_sufficient_hosts(
 def test_assess_available_slices_failures_sub_block_check(
     commands_tester: CommandsTester,
 ):
-  # 1. Failure in _is_sub_block_healthy_and_fitting
   res_sub = SubBlockReservationLink(
       project='project',
       name='reservation',
@@ -527,9 +542,11 @@ def test_assess_available_slices_failures_sub_block_check(
   commands_tester.set_result_for_command(
       (1, ''), 'gcloud beta compute reservations sub-blocks list'
   )
+
   slices, return_code = assess_available_slices(
       [res_sub], force_sub_block_targeting=False, required_hosts=1
   )
+
   assert not slices
   assert return_code == 1
 
@@ -537,7 +554,6 @@ def test_assess_available_slices_failures_sub_block_check(
 def test_assess_available_slices_failures_block_sub_blocks_check(
     commands_tester: CommandsTester,
 ):
-  # 2. Failure in _get_healthy_and_fitting_sub_blocks_in_block
   res_block = BlockReservationLink(
       project='project',
       name='reservation',
@@ -547,9 +563,11 @@ def test_assess_available_slices_failures_block_sub_blocks_check(
   commands_tester.set_result_for_command(
       (1, ''), 'gcloud beta compute reservations sub-blocks list'
   )
+
   slices, return_code = assess_available_slices(
       [res_block], force_sub_block_targeting=True, required_hosts=1
   )
+
   assert not slices
   assert return_code == 1
 
@@ -557,14 +575,15 @@ def test_assess_available_slices_failures_block_sub_blocks_check(
 def test_assess_available_slices_failures_reservation_blocks_check(
     commands_tester: CommandsTester,
 ):
-  # 3. Failure in _get_blocks_in_reservation
   res = ReservationLink(project='project', name='reservation', zone='zone')
   commands_tester.set_result_for_command(
       (1, ''), 'gcloud beta compute reservations blocks list'
   )
+
   slices, return_code = assess_available_slices(
       [res], force_sub_block_targeting=True, required_hosts=1
   )
+
   assert not slices
   assert return_code == 1
 
@@ -572,13 +591,90 @@ def test_assess_available_slices_failures_reservation_blocks_check(
 def test_assess_available_slices_failures_reservation_count_check(
     commands_tester: CommandsTester,
 ):
-  # 4. Failure in _get_reservation_count
   res = ReservationLink(project='project', name='reservation', zone='zone')
   commands_tester.set_result_for_command(
       (1, ''), 'gcloud beta compute reservations describe'
   )
+
   slices, return_code = assess_available_slices(
       [res], force_sub_block_targeting=False, required_hosts=1
   )
+
   assert not slices
   assert return_code == 1
+
+
+def test_assess_available_slices_mixed_reservations_with_subblock_targeting(
+    commands_tester: CommandsTester,
+):
+  # Mock block reservation with 2 healthy sub-blocks
+  block_res = BlockReservationLink(
+      project='project', name='res1', zone='zone', block_name='block1'
+  )
+  commands_tester.set_result_for_command(
+      (0, 'name,count,inUseCount\nsub1,1,0\nsub2,1,0'),
+      'gcloud beta compute reservations sub-blocks list res1',
+      '--block-name=block1',
+  )
+
+  # Mock healthy sub-block reservation
+  sub_res_healthy = SubBlockReservationLink(
+      project='project',
+      name='res2',
+      zone='zone',
+      block_name='block2',
+      sub_block_name='sub3',
+  )
+  commands_tester.set_result_for_command(
+      (0, 'count,inUseCount\n1,0'),
+      'gcloud beta compute reservations sub-blocks list res2',
+      '--filter="name=sub3 AND healthInfo.healthStatus=HEALTHY"',
+  )
+
+  # Mock unhealthy sub-block reservation
+  sub_res_unhealthy = SubBlockReservationLink(
+      project='project',
+      name='res3',
+      zone='zone',
+      block_name='block3',
+      sub_block_name='sub4',
+  )
+  commands_tester.set_result_for_command(
+      (0, ''),
+      'gcloud beta compute reservations sub-blocks list res3',
+      '--filter="name=sub4 AND healthInfo.healthStatus=HEALTHY"',
+  )
+
+  slices, return_code = assess_available_slices(
+      [block_res, sub_res_healthy, sub_res_unhealthy],
+      force_sub_block_targeting=True,
+      required_hosts=1,
+  )
+
+  assert return_code == 0
+  assert slices == [
+      ReservationCapacity(
+          SubBlockReservationLink(
+              project='project',
+              name='res1',
+              zone='zone',
+              block_name='block1',
+              sub_block_name='sub1',
+          ),
+          available_slices=1,
+      ),
+      ReservationCapacity(
+          SubBlockReservationLink(
+              project='project',
+              name='res1',
+              zone='zone',
+              block_name='block1',
+              sub_block_name='sub2',
+          ),
+          available_slices=1,
+      ),
+      ReservationCapacity(
+          sub_res_healthy,
+          available_slices=1,
+      ),
+  ]

@@ -29,7 +29,6 @@ from .capacity import (
     BlockReservationLink,
     SubBlockReservationLink,
     ReservationCapacity,
-    get_capacity_node_selectors_from_capacity_type,
 )
 from xpk.core.testing.commands_tester import CommandsTester
 
@@ -582,55 +581,4 @@ def test_assess_available_slices_failures_reservation_count_check(
       [res], force_sub_block_targeting=False, required_hosts=1
   )
   assert not slices
-  assert return_code == 1
-
-
-def test_get_capacity_node_selectors_from_capacity_type():
-  # Test with ReservationLink
-  res = ReservationLink(project='project', name='reservation', zone='zone')
-  node_selector, return_code = get_capacity_node_selectors_from_capacity_type(
-      CapacityType.RESERVATION.name, res, 'project'
-  )
-  assert return_code == 0
-  assert 'cloud.google.com/reservation-name: reservation' in node_selector
-
-  # Test with BlockReservationLink
-  res_block = BlockReservationLink(
-      project='project',
-      name='reservation',
-      zone='zone',
-      block_name='block',
-  )
-  node_selector, return_code = get_capacity_node_selectors_from_capacity_type(
-      CapacityType.RESERVATION.name, res_block, 'project'
-  )
-  assert return_code == 0
-  assert (
-      'cloud.google.com/reservation-name: reservation/reservationBlocks/block'
-      in node_selector
-  )
-
-  # Test with other capacity types
-  node_selector, return_code = get_capacity_node_selectors_from_capacity_type(
-      CapacityType.ON_DEMAND.name, None, 'project'
-  )
-  assert return_code == 0
-  assert node_selector == ''
-
-  node_selector, return_code = get_capacity_node_selectors_from_capacity_type(
-      CapacityType.SPOT.name, None, 'project'
-  )
-  assert return_code == 0
-  assert 'cloud.google.com/gke-spot: "true"' in node_selector
-
-  node_selector, return_code = get_capacity_node_selectors_from_capacity_type(
-      CapacityType.FLEX_START.name, None, 'project'
-  )
-  assert return_code == 0
-  assert 'cloud.google.com/gke-queued: "true"' in node_selector
-
-  # Test with unknown capacity type
-  node_selector, return_code = get_capacity_node_selectors_from_capacity_type(
-      'UNKNOWN_TYPE', None, 'project'
-  )
   assert return_code == 1

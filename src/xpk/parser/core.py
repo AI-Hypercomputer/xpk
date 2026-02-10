@@ -56,6 +56,17 @@ def set_parser(parser: argparse.ArgumentParser):
   config_parser = xpk_subcommands.add_parser(
       "config", help="Commands to set and retrieve values from xpk config."
   )
+  parser.add_argument(
+      "--dry-run",
+      type=bool,
+      action=argparse.BooleanOptionalAction,
+      default=False,
+      help=(
+          "If given `--dry-run`, xpk will print the commands it wants to run"
+          " but not run them. This is perfect in cases where xpk might"
+          " branch based on the output of commands"
+      ),
+  )
 
   def default_subcommand_function(
       _args,

@@ -2,19 +2,25 @@
 Run XPK witout arguments to output the current version and the usage instructions.
 
 # Running the command
-```shell #golden-no-dry-run
+```shell #golden
 xpk
 ```
 <!--
-$ xpk_no_dry_run
+$ xpk
 [XPK] Starting xpk v0.0.0
 [XPK] Welcome to XPK! See below for overall commands:
-usage: xpk [-h] {workload,storage,cluster,inspector,info,version,config} ...
+usage: xpk [-h] [--dry-run | --no-dry-run]
+           {workload,storage,cluster,inspector,info,version,config} ...
 
 xpk command
 
 options:
   -h, --help            show this help message and exit
+  --dry-run, --no-dry-run
+                        If given `--dry-run`, xpk will print the commands it
+                        wants to run but not run them. This is perfect in
+                        cases where xpk might branch based on the output of
+                        commands
 
 xpk subcommands:
   {workload,storage,cluster,inspector,info,version,config}
@@ -94,7 +100,7 @@ Optional Arguments:
                         is allowed in a command.
   --dry-run, --no-dry-run
                         If given `--dry-run`, xpk will print the commands it
-                        wants to run but not run them. This is imperfect in
+                        wants to run but not run them. This is perfect in
                         cases where xpk might branch based on the output of
                         commands
   --skip-validation, --no-skip-validation
@@ -123,7 +129,7 @@ options:
                         is allowed in a command.
   --dry-run, --no-dry-run
                         If given `--dry-run`, xpk will print the commands it
-                        wants to run but not run them. This is imperfect in
+                        wants to run but not run them. This is perfect in
                         cases where xpk might branch based on the output of
                         commands
   --skip-validation, --no-skip-validation
@@ -153,7 +159,7 @@ options:
                         is allowed in a command.
   --dry-run, --no-dry-run
                         If given `--dry-run`, xpk will print the commands it
-                        wants to run but not run them. This is imperfect in
+                        wants to run but not run them. This is perfect in
                         cases where xpk might branch based on the output of
                         commands
   --skip-validation, --no-skip-validation

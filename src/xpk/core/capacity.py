@@ -16,6 +16,7 @@ limitations under the License.
 
 import enum
 import os
+import json
 from dataclasses import dataclass
 from typing import Sequence
 
@@ -654,24 +655,67 @@ def _get_reservation_count(
       f'gcloud beta compute reservations describe {reservation.name} '
       f'--project={reservation.project} '
       f'--zone={reservation.zone} '
-      '--format="csv(specificReservation.count:label=count,specificReservation.inUseCount:label=in_use_count,status)"'
+      '--format="json(specificReservation,aggregateReservation,status)"'
   )
 
   return_code, output = run_command_for_value(
       command,
       f'Get reservation count for {reservation.name}',
-      dry_run_return_val='count,in_use_count,status\n16,0,READY',
+      dry_run_return_val=(
+          '{"specificReservation": {"count": 16, "inUseCount": 0},'
+          ' "status": "READY"}'
+      ),
   )
   if return_code != 0:
     return 0, return_code
 
-  rows = _parse_csv_output(output)
+  try:
+    data = json.loads(output)
+  except json.JSONDecodeError:
+    xpk_print(f'Error: Unrecognized output format: "{output}".')
+    return 0, 1
+
+  if data.get('status') != 'READY':
+    return 0, 0
 
   try:
-    row = rows[0]
-    if row['status'] == 'READY':
-      available_hosts = max(0, int(row['count']) - int(row['in_use_count']))
-      return available_hosts // required_hosts, 0
-  except (ValueError, IndexError):
-    pass
-  return 0, 0
+    count = 0
+    in_use_count = 0
+
+    specific_reservation = data.get('specificReservation')
+    aggregate_reservation = data.get('aggregateReservation')
+
+    if specific_reservation:
+      count = int(specific_reservation.get('count', 0))
+      in_use_count = int(specific_reservation.get('inUseCount', 0))
+    elif aggregate_reservation:
+      reserved_resources = aggregate_reservation.get('reservedResources', [])
+      # Assuming reservedResources contains only relevant accelerators for the reservation,
+      # or we pick the first one as the primary type if multiple exist (unlikely for single reservation).
+      # TODO: We could somehow map the requested machine type to the accelerator type, also filtering for a given project and location.
+      target_accelerator_type: str | None = None
+      for resource in reserved_resources:
+        accelerator = resource.get('accelerator')
+        if not accelerator:
+          continue
+
+        if not target_accelerator_type:
+          target_accelerator_type = accelerator.get('acceleratorType')
+        if accelerator.get('acceleratorType') == target_accelerator_type:
+          count += int(accelerator.get('acceleratorCount', 0))
+
+      if target_accelerator_type:
+        in_use_resources = aggregate_reservation.get('inUseResources', [])
+        accelerators = map(lambda r: r.get('accelerator'), in_use_resources)
+        in_use_count = sum(
+            accelerator.get('acceleratorCount', 0)
+            for accelerator in accelerators
+            if accelerator
+            and accelerator.get('acceleratorType') == target_accelerator_type
+        )
+
+    available_hosts = max(0, count - in_use_count)
+    return available_hosts // required_hosts, 0
+  except (ValueError, IndexError, AttributeError) as e:
+    xpk_print(f'Error processing reservation data: {e}. Output: "{output}".')
+    return 0, 1

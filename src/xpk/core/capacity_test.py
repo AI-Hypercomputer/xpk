@@ -446,7 +446,13 @@ def test_assess_available_slices_link_without_blocks(
   )
   # Mock getting count
   commands_tester.set_result_for_command(
-      (0, 'count,in_use_count,status\n2,0,READY'),
+      (
+          0,
+          (
+              '{"specificReservation": {"count": 2, "inUseCount": 0}, "status":'
+              ' "READY"}'
+          ),
+      ),
       'gcloud beta compute reservations describe',
   )
 
@@ -471,7 +477,13 @@ def test_assess_available_slices_link_without_blocks_sub_block_targeting(
   )
   # Mock getting count
   commands_tester.set_result_for_command(
-      (0, 'count,in_use_count,status\n2,0,READY'),
+      (
+          0,
+          (
+              '{"specificReservation": {"count": 2, "inUseCount": 0}, "status":'
+              ' "READY"}'
+          ),
+      ),
       'gcloud beta compute reservations describe',
   )
 
@@ -512,7 +524,13 @@ def test_assess_available_slices_host_filtering_sufficient_hosts(
 ):
   # Mock a reservation that has 46 free hosts, and we need 16 per slice.
   commands_tester.set_result_for_command(
-      (0, 'count,in_use_count,status\n48,2,READY'),
+      (
+          0,
+          (
+              '{"specificReservation": {"count": 48, "inUseCount": 2},'
+              ' "status": "READY"}'
+          ),
+      ),
       'gcloud beta compute reservations describe',
   )
   res_link = ReservationLink(project='p', name='r', zone='z')
@@ -525,6 +543,57 @@ def test_assess_available_slices_host_filtering_sufficient_hosts(
   assert slices == [
       ReservationCapacity(
           ReservationLink(project='p', name='r', zone='z'), available_slices=2
+      )
+  ]
+
+
+def test_assess_available_slices_aggregate_reservation(
+    commands_tester: CommandsTester,
+):
+  json_output = """
+  {
+      "aggregateReservation": {
+          "reservedResources": [
+              {
+                  "accelerator": {
+                      "acceleratorType": "accelerator-1",
+                      "acceleratorCount": 100
+                  }
+              }
+          ],
+          "inUseResources": [
+              {
+                  "accelerator": {
+                      "acceleratorType": "accelerator-1",
+                      "acceleratorCount": 20
+                  }
+              },
+              {
+                  "accelerator": {
+                      "acceleratorType": "accelerator-2",
+                      "acceleratorCount": 50
+                  }
+              }
+          ]
+      },
+      "status": "READY"
+  }
+  """
+  commands_tester.set_result_for_command(
+      (0, json_output),
+      'gcloud beta compute reservations describe',
+  )
+  res = ReservationLink(project='project', name='reservation', zone='zone')
+
+  slices, return_code = assess_available_slices(
+      [res], force_sub_block_targeting=False, required_hosts=1
+  )
+
+  assert return_code == 0
+  assert slices == [
+      ReservationCapacity(
+          ReservationLink(project='project', name='reservation', zone='zone'),
+          available_slices=80,
       )
   ]
 

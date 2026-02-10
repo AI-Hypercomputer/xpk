@@ -5,10 +5,10 @@ Creates a GKE cluster with TPU super-slicing enabled for multi-slice training.
 # Running the command
 
 ```shell #golden
-DRY_RUN_RESERVATION_SUB_BLOCKS="name,count,inUseCount:sub0,16,0:sub1,16,0:sub2,16,15:sub3,16,0" xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-4x4x4 --reservation=golden-reservation/reservationBlocks/block --super-slicing --num-cubes=3
+DRY_RUN_RESERVATION_SUB_BLOCKS="name,count,in_use_count:sub0,16,0:sub1,16,0:sub2,16,15:sub3,16,0" xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-4x4x4 --reservation=golden-reservation/reservationBlocks/block --super-slicing --num-cubes=3
 ```
 <!--
-$ DRY_RUN_RESERVATION_SUB_BLOCKS="name,count,inUseCount:sub0,16,0:sub1,16,0:sub2,16,15:sub3,16,0" xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-4x4x4 --reservation=golden-reservation/reservationBlocks/block --super-slicing --num-cubes=3
+$ DRY_RUN_RESERVATION_SUB_BLOCKS="name,count,in_use_count:sub0,16,0:sub1,16,0:sub2,16,15:sub3,16,0" xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-4x4x4 --reservation=golden-reservation/reservationBlocks/block --super-slicing --num-cubes=3
 [XPK] Starting xpk v0.0.0
 [XPK] Starting cluster create for cluster golden-cluster:
 [XPK] Working on golden-project and us-central1-a
@@ -67,51 +67,247 @@ kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="Conf
 gcloud beta compute resource-policies describe tpu7x-128-4x4x4-ss-placement-policy --project=golden-project --region=us-central1
 [XPK] Task: `Count healthy fitting sub-blocks in block` is implemented by the following command not running since it is a dry run. 
 gcloud beta compute reservations sub-blocks list golden-reservation --block-name=block --project=golden-project --zone=us-central1-a --filter="healthInfo.healthStatus=HEALTHY" --format="csv(name,count,in_use_count)"
-Traceback (most recent call last):
-  File "/usr/local/google/home/dominikrabij/xpk-fork/bin/xpk", line 7, in <module>
-    sys.exit(main())
-             ~~~~^^
-  File "/usr/local/google/home/dominikrabij/xpk-fork/src/xpk/main.py", line 93, in main
-    main_args.func(main_args)
-    ~~~~~~~~~~~~~~^^^^^^^^^^^
-  File "/usr/local/google/home/dominikrabij/xpk-fork/src/xpk/commands/cluster.py", line 407, in cluster_create
-    run_gke_node_pool_create_command_code = run_gke_node_pool_create_command(
-        args, system, gke_node_pool_version
-    )
-  File "/usr/local/google/home/dominikrabij/xpk-fork/src/xpk/core/nodepool.py", line 281, in run_gke_node_pool_create_command
-    reservations_iter, return_code = _prepare_reservation_iterator(
-                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
-        reservations=reservations,
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^
-    ...<6 lines>...
-        ),
-        ^^
-    )
-    ^
-  File "/usr/local/google/home/dominikrabij/xpk-fork/src/xpk/core/nodepool.py", line 732, in _prepare_reservation_iterator
-    available_capacity, return_code = assess_available_slices(
-                                      ~~~~~~~~~~~~~~~~~~~~~~~^
-        reservations,
-        ^^^^^^^^^^^^^
-        force_sub_block_targeting=force_sub_block_targeting,
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-        required_hosts=required_hosts,
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "/usr/local/google/home/dominikrabij/xpk-fork/src/xpk/core/capacity.py", line 420, in assess_available_slices
-    capacities, return_code = _assess_available_slices_for_reservation(
-                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
-        reservation, force_sub_block_targeting, required_hosts
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "/usr/local/google/home/dominikrabij/xpk-fork/src/xpk/core/capacity.py", line 465, in _assess_available_slices_for_reservation
-    return _get_healthy_and_fitting_sub_blocks_in_block(
-        reservation, required_hosts
-    )
-  File "/usr/local/google/home/dominikrabij/xpk-fork/src/xpk/core/capacity.py", line 587, in _get_healthy_and_fitting_sub_blocks_in_block
-    in_use_count = int(row['in_use_count'])
-                       ~~~^^^^^^^^^^^^^^^^
-KeyError: 'in_use_count'
+[XPK] To complete NodepoolCreate-golden-cluster-np-0 we are executing gcloud beta container node-pools create golden-cluster-np-0 --location=us-central1 --cluster=golden-cluster --project=golden-project --node-locations=us-central1-a --machine-type=tpu7x-standard-4t --host-maintenance-interval=AS_NEEDED --reservation-affinity=specific --reservation=golden-reservation/reservationBlocks/block/reservationSubBlocks/sub0 --placement-policy=tpu7x-128-4x4x4-ss-placement-policy --enable-gvnic --node-version=0 --num-nodes=16 --scopes=storage-full,gke-default,"https://www.googleapis.com/auth/cloud-platform" --max-pods-per-node 15  
+[XPK] To complete NodepoolCreate-golden-cluster-np-1 we are executing gcloud beta container node-pools create golden-cluster-np-1 --location=us-central1 --cluster=golden-cluster --project=golden-project --node-locations=us-central1-a --machine-type=tpu7x-standard-4t --host-maintenance-interval=AS_NEEDED --reservation-affinity=specific --reservation=golden-reservation/reservationBlocks/block/reservationSubBlocks/sub1 --placement-policy=tpu7x-128-4x4x4-ss-placement-policy --enable-gvnic --node-version=0 --num-nodes=16 --scopes=storage-full,gke-default,"https://www.googleapis.com/auth/cloud-platform" --max-pods-per-node 15  
+[XPK] To complete NodepoolCreate-golden-cluster-np-2 we are executing gcloud beta container node-pools create golden-cluster-np-2 --location=us-central1 --cluster=golden-cluster --project=golden-project --node-locations=us-central1-a --machine-type=tpu7x-standard-4t --host-maintenance-interval=AS_NEEDED --reservation-affinity=specific --reservation=golden-reservation/reservationBlocks/block/reservationSubBlocks/sub3 --placement-policy=tpu7x-128-4x4x4-ss-placement-policy --enable-gvnic --node-version=0 --num-nodes=16 --scopes=storage-full,gke-default,"https://www.googleapis.com/auth/cloud-platform" --max-pods-per-node 15  
+[XPK] Breaking up a total of 3 commands into 1 batches
+[XPK] Pretending all the jobs succeeded
+[XPK] Create or delete node pool request complete.
+[XPK] Creating ConfigMap for cluster
+[XPK] Task: `Describe reservation` is implemented by the following command not running since it is a dry run. 
+gcloud beta compute reservations describe golden-reservation --project=golden-project --zone=us-central1-a
+[XPK] Temp file (92ab8eba56c8168041408f03de0995c86cd9bf277397f4db955aef042b0b26cd) content: 
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: golden-cluster-resources-configmap
+data:
+  tpu7x-128: "48"
+
+[XPK] Temp file (d6354673799dbf5d6ac92c682900bc8185116e90580c3dff5355cb69dc2b2a7e) content: 
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: golden-cluster-metadata-configmap
+data:
+  xpk_version: v0.0.0
+  capacity_type: RESERVATION
+  reservation_id: golden-reservation/reservationBlocks/block
+
+[XPK] Breaking up a total of 2 commands into 1 batches
+[XPK] Pretending all the jobs succeeded
+[XPK] Enabling the jobset API on our cluster, to be deprecated when Jobset is globally available
+[XPK] Try 1: Install Jobset on golden-cluster
+[XPK] Task: `Install Jobset on golden-cluster` is implemented by the following command not running since it is a dry run. 
+kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-sigs/jobset/releases/download/v0.8.0/manifests.yaml
+[XPK] Try 1: Updating Controller Manager resources
+[XPK] Task: `Updating Controller Manager resources` is implemented by the following command not running since it is a dry run. 
+kubectl patch deployment jobset-controller-manager -n jobset-system --type='strategic' --patch='{"spec": {"template": {"spec": {"containers": [{"name": "manager", "resources": {"requests": {"cpu": "4", "memory": "16Gi"}, "limits": {"cpu": "4", "memory": "16Gi"}}}]}}}}'
+[XPK] Task: `Count total nodes` is implemented by the following command not running since it is a dry run. 
+kubectl get node --no-headers | wc -l
+[XPK] Temp file (1b31e624e490f9c8c4ef4e369f08d3fa467990af5a261e4405bd045265d70e95) content: 
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: manager
+    app.kubernetes.io/created-by: jobset
+    app.kubernetes.io/instance: controller-manager
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: deployment
+    app.kubernetes.io/part-of: jobset
+    control-plane: controller-manager
+  name: jobset-controller-manager
+  namespace: jobset-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      control-plane: controller-manager
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: manager
+      labels:
+        control-plane: controller-manager
+    spec:
+      containers:
+      - args:
+        - --config=/controller_manager_config.yaml
+        - --zap-log-level=2
+        command:
+        - /manager
+        image: registry.k8s.io/jobset/jobset:v0.8.0
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        name: manager
+        ports:
+        - containerPort: 9443
+          name: webhook-server
+          protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          limits:
+            memory: 4096Mi
+          requests:
+            cpu: 1000m
+            memory: 128Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        - mountPath: /controller_manager_config.yaml
+          name: manager-config
+          subPath: controller_manager_config.yaml
+        - mountPath: /tmp/k8s-webhook-server/serving-certs
+          name: cert
+          readOnly: true
+      securityContext:
+        runAsNonRoot: true
+      serviceAccountName: jobset-controller-manager
+      terminationGracePeriodSeconds: 10
+      volumes:
+      - configMap:
+          name: jobset-manager-config
+        name: manager-config
+      - name: cert
+        secret:
+          defaultMode: 420
+          secretName: jobset-webhook-server-cert
+
+[XPK] Try 1: Updating jobset Controller Manager resources
+[XPK] Task: `Updating jobset Controller Manager resources` is implemented by the following command not running since it is a dry run. 
+kubectl apply -f 1b31e624e490f9c8c4ef4e369f08d3fa467990af5a261e4405bd045265d70e95
+[XPK] Try 1: Install PathwaysJob on golden-cluster
+[XPK] Task: `Install PathwaysJob on golden-cluster` is implemented by the following command not running since it is a dry run. 
+kubectl apply --server-side -f https://github.com/google/pathways-job/releases/download/v0.1.4/install.yaml
+[XPK] Enabling Kueue on the cluster
+[XPK] Task: `Get kueue version on server` is implemented by the following command not running since it is a dry run. 
+kubectl get deployment kueue-controller-manager -n kueue-system -o jsonpath='{.spec.template.spec.containers[0].image}'
+[XPK] Installing Kueue version v0.15.2...
+[XPK] Try 1: Install Kueue
+[XPK] Task: `Install Kueue` is implemented by the following command not running since it is a dry run. 
+kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-sigs/kueue/releases/download/v0.15.2/manifests.yaml
+[XPK] Task: `Wait for Kueue to be available` is implemented by the following command not running since it is a dry run. 
+kubectl wait deploy/kueue-controller-manager -n kueue-system --for=condition=available --timeout=10m
+[XPK] Temp file (20ee412fd0eeeaf2c32856f66404b54a7a638654ffbf9afb7d8f50780311ed10) content: 
+
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ResourceFlavor
+metadata:
+  name: "3xtpu7x-128"
+spec:
+  nodeLabels: {"cloud.google.com/gke-tpu-accelerator": "tpu7x"}
+  topologyName: super-slice-topology
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: AdmissionCheck
+metadata:
+  name: ss-kueue-operator
+spec:
+  controllerName: accelerator.gke.io/slice
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ProvisioningRequestConfig
+metadata:
+  name: dws-config
+spec:
+  provisioningClassName: queued-provisioning.gke.io
+  podSetUpdates:
+    nodeSelector:
+    - key: autoscaling.gke.io/provisioning-request
+      valueFromProvisioningClassDetail: ResizeRequestName
+  managedResources:
+  - google.com/tpu
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ClusterQueue
+metadata:
+  name: "cluster-queue"
+spec:
+  preemption:
+    reclaimWithinCohort: Never # Don't preempt other queues in the cohort.
+    withinClusterQueue: LowerPriority
+  namespaceSelector: {} # match all.
+  resourceGroups: [{'coveredResources': ['google.com/tpu'], 'flavors': [{'name': '3xtpu7x-128', 'resources': [{'name': 'google.com/tpu', 'nominalQuota': 192}]}]}]
+  admissionChecks:
+  - ss-kueue-operator
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: LocalQueue
+metadata:
+  namespace: default
+  name: multislice-queue
+spec:
+  clusterQueue: cluster-queue
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: very-low
+value: 100
+globalDefault: false
+description: "Very Low"
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: low
+value: 250
+globalDefault: false
+description: "Low"
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: medium
+value: 500
+globalDefault: false
+description: "Medium"
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: high
+value: 750
+globalDefault: false
+description: "High"
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: very-high
+value: 1000
+globalDefault: false
+description: "Very High"
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: Topology
+metadata:
+  name: super-slice-topology
+spec:
+  levels:
+  - nodeLabel: cloud.google.com/gce-topology-block
+  - nodeLabel: cloud.google.com/gke-tpu-partition-4x4x4-id
+  - nodeLabel: kubernetes.io/hostname
+[XPK] Task: `Applying Kueue Custom Resources` is implemented by the following command not running since it is a dry run. 
+kubectl apply -f 20ee412fd0eeeaf2c32856f66404b54a7a638654ffbf9afb7d8f50780311ed10
+[XPK] Try 1: Updating Controller Manager resources
+[XPK] Task: `Updating Controller Manager resources` is implemented by the following command not running since it is a dry run. 
+kubectl patch deployment kueue-controller-manager -n kueue-system --type='strategic' --patch='{"spec": {"replicas": 3, "template": {"spec": {"containers": [{"name": "manager", "resources": {"requests": {"cpu": "16", "memory": "64Gi"}, "limits": {"cpu": "16", "memory": "64Gi"}}}]}}}}'
+[XPK] GKE commands done! Resources are created.
+[XPK] See your GKE Cluster here: https://console.cloud.google.com/kubernetes/clusters/details/us-central1/golden-cluster/details?project=golden-project
+[XPK] Exiting XPK cleanly
 -->

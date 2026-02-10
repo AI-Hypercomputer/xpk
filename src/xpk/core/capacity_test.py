@@ -585,7 +585,7 @@ def test_assess_available_slices_failures_reservation_count_check(
   assert return_code == 1
 
 
-def test_get_capacity_node_selectors_reservation():
+def test_get_capacity_node_selectors_from_capacity_type():
   # Test with ReservationLink
   res = ReservationLink(project='project', name='reservation', zone='zone')
   node_selector, return_code = get_capacity_node_selectors_from_capacity_type(
@@ -594,8 +594,6 @@ def test_get_capacity_node_selectors_reservation():
   assert return_code == 0
   assert 'cloud.google.com/reservation-name: reservation' in node_selector
 
-
-def test_get_capacity_node_selectors_block_reservation():
   # Test with BlockReservationLink
   res_block = BlockReservationLink(
       project='project',
@@ -612,8 +610,6 @@ def test_get_capacity_node_selectors_block_reservation():
       in node_selector
   )
 
-
-def test_get_capacity_node_selectors_on_demand():
   # Test with other capacity types
   node_selector, return_code = get_capacity_node_selectors_from_capacity_type(
       CapacityType.ON_DEMAND.name, None, 'project'
@@ -621,26 +617,20 @@ def test_get_capacity_node_selectors_on_demand():
   assert return_code == 0
   assert node_selector == ''
 
-
-def test_get_capacity_node_selectors_spot():
   node_selector, return_code = get_capacity_node_selectors_from_capacity_type(
       CapacityType.SPOT.name, None, 'project'
   )
   assert return_code == 0
   assert 'cloud.google.com/gke-spot: "true"' in node_selector
 
-
-def test_get_capacity_node_selectors_flex_start():
   node_selector, return_code = get_capacity_node_selectors_from_capacity_type(
       CapacityType.FLEX_START.name, None, 'project'
   )
   assert return_code == 0
   assert 'cloud.google.com/gke-queued: "true"' in node_selector
 
-
-def test_get_capacity_node_selectors_unknown():
   # Test with unknown capacity type
-  _, return_code = get_capacity_node_selectors_from_capacity_type(
+  node_selector, return_code = get_capacity_node_selectors_from_capacity_type(
       'UNKNOWN_TYPE', None, 'project'
   )
   assert return_code == 1

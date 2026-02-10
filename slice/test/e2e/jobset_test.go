@@ -30,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta2"
 	jobsetcontroller "sigs.k8s.io/kueue/pkg/controller/jobs/jobset"
@@ -1300,7 +1301,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 			})
 		})
 
-		ginkgo.It("should recreate Slice if it is deleted while Workload is running", func() {
+		ginkgo.It("should evict Workload if Slice is deleted manually while Workload is running", func() {
 			jobSet := testingjobsjobset.MakeJobSet("jobset", ns.Name).
 				Queue(lq.Name).
 				ReplicatedJobs(
@@ -1366,8 +1367,33 @@ var _ = ginkgo.Describe("JobSet", func() {
 				}, utils.LongTimeout, utils.Timeout).Should(gomega.Succeed())
 			})
 
-			ginkgo.By("Deleting the Slice", func() {
+			ginkgo.By("Gracefully deleting the Slice", func() {
+				// In practice the slices have the finalizer, and when they are deleted manually
+				// they are not gone immediately.
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
+					if controllerutil.AddFinalizer(createdSlice, "accelerator.gke.io/slice-finalizer") {
+						g.Expect(k8sClient.Update(ctx, createdSlice)).To(gomega.Succeed())
+					}
+				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 				gomega.Expect(k8sClient.Delete(ctx, createdSlice)).To(gomega.Succeed())
+			})
+
+			ginkgo.By("Checking that the Workload has been evicted", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
+					g.Expect(createdWorkload.Status.SchedulingStats).ShouldNot(gomega.BeNil())
+					g.Expect(createdWorkload.Status.SchedulingStats.Evictions).Should(gomega.HaveLen(1))
+				}, utils.LongTimeout, utils.Timeout).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Cleaning up finalizer", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
+					if controllerutil.RemoveFinalizer(createdSlice, "accelerator.gke.io/slice-finalizer") {
+						g.Expect(k8sClient.Update(ctx, createdSlice)).To(gomega.Succeed())
+					}
+				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
 
 			ginkgo.By("Checking that a new Slice is created", func() {
@@ -1384,7 +1410,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Name:    kueue.AdmissionCheckReference(ac.Name),
 						State:   kueue.CheckStatePending,
 						Message: `Slices are in states: 1 CREATED`,
-					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates")))
+					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates", "RetryCount", "RequeueAfterSeconds")))
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
 
@@ -1400,7 +1426,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Name:    kueue.AdmissionCheckReference(ac.Name),
 						State:   kueue.CheckStateReady,
 						Message: `Slices are in states: 1 ACTIVE`,
-					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates")))
+					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates", "RetryCount", "RequeueAfterSeconds")))
 				}, utils.LongTimeout, utils.Timeout).Should(gomega.Succeed())
 			})
 

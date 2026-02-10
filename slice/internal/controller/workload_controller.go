@@ -180,11 +180,18 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	grouped := r.groupSlices(slices)
 	if len(grouped.deleted) > 0 {
+		if slice := r.unexpectedlyDeletedSlice(grouped.deleted); slice != nil {
+			log.V(3).Info("Slice deleted unexpectedly, evicting workload", "slice", slice.Name)
+			if err := r.evictWorkload(ctx, wl, ac, fmt.Sprintf("Slice %s was deleted unexpectedly", slice.Name)); err != nil {
+				return ctrl.Result{}, err
+			}
+			return ctrl.Result{}, nil
+		}
 		log.V(3).Info(
 			"Waiting for deleted Slices to be cleaned up; skipping reconciliation for now",
 			"deletedSlices", klog.KObjSlice(grouped.deleted),
 		)
-		return ctrl.Result{}, err
+		return ctrl.Result{}, nil
 	}
 
 	// Create any missing Slices based on the Workload's PodSet assignments.
@@ -325,6 +332,18 @@ func (r *WorkloadReconciler) findWorkloadSlices(ctx context.Context, wl *kueue.W
 		return nil, err
 	}
 	return slices.Items, nil
+}
+
+func (r *WorkloadReconciler) unexpectedlyDeletedSlice(slices []v1beta1.Slice) *v1beta1.Slice {
+	for _, slice := range slices {
+		sliceCopy := slice.DeepCopy()
+		sliceCopy.DeletionTimestamp = nil
+		state := core.GetSliceState(*sliceCopy, r.activationTimeout)
+		if state != core.SliceStateFailed && state != core.SliceStateStale {
+			return &slice
+		}
+	}
+	return nil
 }
 
 type groupedSlices struct {
@@ -601,12 +620,8 @@ func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workloa
 	if conflictingIDs := r.findConflictingPartitionIDs(ctx, existingSlicesByName, slicesToCreate); len(conflictingIDs) > 0 {
 		log := ctrl.LoggerFrom(ctx)
 		log.V(3).Info("Partition ID collisions detected, not creating slices, evicting workload")
-		ac.State = kueue.CheckStateRetry
-		ac.RequeueAfterSeconds = ptr.To(int32(10))
 		msg := fmt.Sprintf("Partition IDs %q are already used by existing Slices", conflictingIDs)
-		ac.Message = api.TruncateConditionMessage(msg)
-		patchErr := r.updateWorkloadAdmissionCheckStatus(ctx, wl, ac)
-		if patchErr != nil {
+		if patchErr := r.evictWorkload(ctx, wl, ac, msg); patchErr != nil {
 			return nil, errors.Join(errors.New(msg), patchErr)
 		}
 		return nil, errors.New(msg)
@@ -657,6 +672,13 @@ func (r *WorkloadReconciler) findConflictingPartitionIDs(
 		}
 	}
 	return conflictingIDs
+}
+
+func (r *WorkloadReconciler) evictWorkload(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, message string) error {
+	ac.State = kueue.CheckStateRetry
+	ac.RequeueAfterSeconds = ptr.To(int32(10))
+	ac.Message = api.TruncateConditionMessage(message)
+	return r.updateWorkloadAdmissionCheckStatus(ctx, wl, ac)
 }
 
 func (r *WorkloadReconciler) updateWorkloadAdmissionCheckStatus(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState) error {

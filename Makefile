@@ -1,8 +1,11 @@
 OS := $(shell uname -s | tr A-Z a-z)
+ARCH := $(shell uname -m)
 PLATFORM := $(shell uname -m | sed -e 's/aarch64/arm64/' | sed -e 's/x86_64/amd64/')
 
 KUEUE_VERSION=v0.15.2
+GO_CONTAINERREGISTRY_VERSION=v0.20.7
 KUEUECTL_URL = "https://github.com/kubernetes-sigs/kueue/releases/download/$(KUEUE_VERSION)/kubectl-kueue-$(OS)-$(PLATFORM)"
+GO_CONTAINERREGISTRY_URL = "https://github.com/google/go-containerregistry/releases/download/$(GO_CONTAINERREGISTRY_VERSION)/go-containerregistry_$(OS)_$(ARCH).tar.gz"
 
 PROJECT_DIR := $(realpath $(shell dirname $(firstword $(MAKEFILE_LIST))))
 BIN_PATH=$(PROJECT_DIR)/bin
@@ -42,6 +45,13 @@ mkdir-bin:
 install-kueuectl: mkdir-bin
 	curl -Lo $(BIN_PATH)/kubectl-kueue $(KUEUECTL_URL);
 	chmod +x $(BIN_PATH)/kubectl-kueue;
+
+.PHONY: install-crane
+install-crane: mkdir-bin
+	curl -Lo go-containerregistry.tar.gz $(GO_CONTAINERREGISTRY_URL);
+	tar -zxvf go-containerregistry.tar.gz -C $(BIN_PATH)/ crane
+	rm go-containerregistry.tar.gz
+	chmod +x $(BIN_PATH)/crane;
 
 .PHONY: install-gcloud-auth-plugin
 install-gcloud-auth-plugin:

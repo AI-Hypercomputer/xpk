@@ -114,7 +114,7 @@ def add_shared_arguments(
       default=False,
       help=(
           'If given `--dry-run`, xpk will print the commands it wants to run'
-          ' but not run them. This is imperfect in cases where xpk might'
+          ' but not run them. This is perfect in cases where xpk might'
           ' branch based on the output of commands'
       ),
       required=required,

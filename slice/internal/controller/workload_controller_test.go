@@ -1775,6 +1775,35 @@ func TestWorkloadReconciler(t *testing.T) {
 				*baseSlice1Wrapper.Clone().Active().Obj(),
 			},
 		},
+		"should evict workload if slice is missing unexpectedly": {
+			request: baseRequest,
+			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				worker2Node.DeepCopy(),
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStateReady, `Slices are in states: 2 ACTIVE`)).
+					Obj(),
+				baseSlice2Wrapper.Clone().Active().Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckStateWithRequeue(kueue.CheckStateRetry,
+						"Slice was deleted unexpectedly", ptr.To(int32(10)))).
+					Obj(),
+			},
+			wantSlices: []slice.Slice{
+				*baseSlice2Wrapper.Clone().Active().Obj(),
+			},
+		},
 		"should evict workload if slice is deleted unexpectedly": {
 			request: baseRequest,
 			objs: []client.Object{
@@ -1798,7 +1827,7 @@ func TestWorkloadReconciler(t *testing.T) {
 					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Finalizers(SliceControllerName).
 					AdmissionCheck(buildAdmissionCheckStateWithRequeue(kueue.CheckStateRetry,
-						fmt.Sprintf("Slice %s was deleted unexpectedly", baseSlice1Wrapper.Obj().Name), ptr.To(int32(10)))).
+						"Slice was deleted unexpectedly", ptr.To(int32(10)))).
 					Obj(),
 			},
 			wantSlices: []slice.Slice{

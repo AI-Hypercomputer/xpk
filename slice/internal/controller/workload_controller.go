@@ -179,14 +179,14 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	grouped := r.groupSlices(slices)
+
+	if ac.State == kueue.CheckStateReady && (len(grouped.deleted) > 0 || len(slices) != totalDesiredSlices(wl, nodes)) {
+		log.V(3).Info("Slice deleted unexpectedly, evicting workload")
+		err := r.evictWorkload(ctx, wl, ac, "Slice was deleted unexpectedly")
+		return ctrl.Result{}, err
+	}
+
 	if len(grouped.deleted) > 0 {
-		if slice := r.unexpectedlyDeletedSlice(grouped.deleted); slice != nil {
-			log.V(3).Info("Slice deleted unexpectedly, evicting workload", "slice", slice.Name)
-			if err := r.evictWorkload(ctx, wl, ac, fmt.Sprintf("Slice %s was deleted unexpectedly", slice.Name)); err != nil {
-				return ctrl.Result{}, err
-			}
-			return ctrl.Result{}, nil
-		}
 		log.V(3).Info(
 			"Waiting for deleted Slices to be cleaned up; skipping reconciliation for now",
 			"deletedSlices", klog.KObjSlice(grouped.deleted),
@@ -587,6 +587,24 @@ func shouldCreateSlicesForPodSetAssignment(wl *kueue.Workload, psa kueue.PodSetA
 		return core.IsRelevantPodTemplateSpec(podSet.Template) && topology.IsAssignmentValid(psa, nodes)
 	}
 	return false
+}
+
+func totalDesiredSlices(wl *kueue.Workload, nodes map[string]corev1.Node) int {
+	if wl.Status.Admission == nil {
+		return 0
+	}
+	count := 0
+	for _, psa := range wl.Status.Admission.PodSetAssignments {
+		if !shouldCreateSlicesForPodSetAssignment(wl, psa, nodes) {
+			continue
+		}
+		ps := podset.FindPodSetByName(wl.Spec.PodSets, psa.Name)
+		if ps.TopologyRequest == nil {
+			continue
+		}
+		count += int(ptr.Deref(ps.TopologyRequest.SubGroupCount, 1))
+	}
+	return count
 }
 
 func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, psa *kueue.PodSetAssignment, nodes map[string]corev1.Node, existingSlicesByName map[string]*v1beta1.Slice, desiredNumberOfSlices int32) ([]v1beta1.Slice, error) {

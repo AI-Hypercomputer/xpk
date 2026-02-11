@@ -1300,7 +1300,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 			})
 		})
 
-		ginkgo.It("should recreate Slice if it is deleted while Workload is running", func() {
+		ginkgo.It("should evict Workload if Slice is deleted manually while Workload is running", func() {
 			jobSet := testingjobsjobset.MakeJobSet("jobset", ns.Name).
 				Queue(lq.Name).
 				ReplicatedJobs(
@@ -1370,6 +1370,14 @@ var _ = ginkgo.Describe("JobSet", func() {
 				gomega.Expect(k8sClient.Delete(ctx, createdSlice)).To(gomega.Succeed())
 			})
 
+			ginkgo.By("Checking that the Workload has been evicted", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
+					g.Expect(createdWorkload.Status.SchedulingStats).ShouldNot(gomega.BeNil())
+					g.Expect(createdWorkload.Status.SchedulingStats.Evictions).Should(gomega.HaveLen(1))
+				}, utils.LongTimeout, utils.Timeout).Should(gomega.Succeed())
+			})
+
 			ginkgo.By("Checking that a new Slice is created", func() {
 				gomega.Eventually(func(g gomega.Gomega) {
 					g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
@@ -1384,7 +1392,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Name:    kueue.AdmissionCheckReference(ac.Name),
 						State:   kueue.CheckStatePending,
 						Message: `Slices are in states: 1 CREATED`,
-					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates")))
+					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates", "RetryCount", "RequeueAfterSeconds")))
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
 
@@ -1400,7 +1408,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Name:    kueue.AdmissionCheckReference(ac.Name),
 						State:   kueue.CheckStateReady,
 						Message: `Slices are in states: 1 ACTIVE`,
-					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates")))
+					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates", "RetryCount", "RequeueAfterSeconds")))
 				}, utils.LongTimeout, utils.Timeout).Should(gomega.Succeed())
 			})
 

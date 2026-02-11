@@ -29,6 +29,13 @@ from .capacity import (
     BlockReservationLink,
     SubBlockReservationLink,
     ReservationCapacity,
+    _parse_reservation,
+    _parse_reservation_sub_block,
+    _SpecificReservation,
+    _AcceleratorResource,
+    _AggregateReservation,
+    _ReservationSubBlock,
+    _Reservation,
 )
 from xpk.core.testing.commands_tester import CommandsTester
 
@@ -303,7 +310,7 @@ def test_assess_available_slices_sub_block_healthy(
     commands_tester: CommandsTester,
 ):
   commands_tester.set_result_for_command(
-      (0, 'count,in_use_count\n1,0'),
+      (0, '[{"count": 1, "inUseCount": 0}]'),
       'gcloud beta compute reservations sub-blocks list',
   )
   res = SubBlockReservationLink(
@@ -326,7 +333,7 @@ def test_assess_available_slices_sub_block_unhealthy(
     commands_tester: CommandsTester,
 ):
   commands_tester.set_result_for_command(
-      (0, ''), 'gcloud beta compute reservations sub-blocks list'
+      (0, '[]'), 'gcloud beta compute reservations sub-blocks list'
   )
   res = SubBlockReservationLink(
       project='project',
@@ -346,7 +353,13 @@ def test_assess_available_slices_sub_block_unhealthy(
 def test_assess_available_slices_block_healthy(commands_tester: CommandsTester):
   # Mock 2 healthy sub-blocks
   commands_tester.set_result_for_command(
-      (0, 'name,count,in_use_count\nsub1,1,0\nsub2,1,0'),
+      (
+          0,
+          (
+              '[{"name": "sub1", "count": 1, "inUseCount": 0}, {"name":'
+              ' "sub2", "count": 1, "inUseCount": 0}]'
+          ),
+      ),
       'gcloud beta compute reservations sub-blocks list',
   )
   res = BlockReservationLink(
@@ -389,7 +402,7 @@ def test_assess_available_slices_block_unhealthy(
     commands_tester: CommandsTester,
 ):
   commands_tester.set_result_for_command(
-      (0, ''), 'gcloud beta compute reservations sub-blocks list'
+      (0, '[]'), 'gcloud beta compute reservations sub-blocks list'
   )
   res = BlockReservationLink(
       project='project',
@@ -413,7 +426,7 @@ def test_assess_available_slices_link_with_blocks(
       (0, 'block1'), 'gcloud beta compute reservations blocks list'
   )
   commands_tester.set_result_for_command(
-      (0, 'name,count,in_use_count\nsub1,1,0'),
+      (0, '[{"name": "sub1", "count": 1, "inUseCount": 0}]'),
       'gcloud beta compute reservations sub-blocks list',
       '--block-name=block1',
   )
@@ -500,7 +513,7 @@ def test_assess_available_slices_host_filtering_insufficient_hosts(
 ):
   # Mock a sub-block that has 14 free hosts but we need 16
   commands_tester.set_result_for_command(
-      (0, 'count,in_use_count\n16,2'),
+      (0, '[{"count": 16, "inUseCount": 2}]'),
       'gcloud beta compute reservations sub-blocks list',
   )
   res = SubBlockReservationLink(
@@ -681,7 +694,13 @@ def test_assess_available_slices_mixed_reservations_with_subblock_targeting(
       project='project', name='res1', zone='zone', block_name='block1'
   )
   commands_tester.set_result_for_command(
-      (0, 'name,count,in_use_count\nsub1,1,0\nsub2,1,0'),
+      (
+          0,
+          (
+              '[{"name": "sub1", "count": 1, "inUseCount": 0}, {"name":'
+              ' "sub2", "count": 1, "inUseCount": 0}]'
+          ),
+      ),
       'gcloud beta compute reservations sub-blocks list res1',
       '--block-name=block1',
   )
@@ -695,7 +714,7 @@ def test_assess_available_slices_mixed_reservations_with_subblock_targeting(
       sub_block_name='sub3',
   )
   commands_tester.set_result_for_command(
-      (0, 'count,in_use_count\n1,0'),
+      (0, '[{"count": 1, "inUseCount": 0}]'),
       'gcloud beta compute reservations sub-blocks list res2',
       '--filter="name=sub3 AND healthInfo.healthStatus=HEALTHY"',
   )
@@ -709,7 +728,7 @@ def test_assess_available_slices_mixed_reservations_with_subblock_targeting(
       sub_block_name='sub4',
   )
   commands_tester.set_result_for_command(
-      (0, ''),
+      (0, '[]'),
       'gcloud beta compute reservations sub-blocks list res3',
       '--filter="name=sub4 AND healthInfo.healthStatus=HEALTHY"',
   )
@@ -755,7 +774,7 @@ def test_assess_available_slices_deduplicates(commands_tester: CommandsTester):
   )
   sub_block_name = 'sub1'
   commands_tester.set_result_for_command(
-      (0, f'name,count,in_use_count\n{sub_block_name},1,0'),
+      (0, f'[{{"name": "{sub_block_name}", "count": 1, "inUseCount": 0}}]'),
       'gcloud beta compute reservations sub-blocks list res1',
       '--block-name=block1',
   )
@@ -767,7 +786,7 @@ def test_assess_available_slices_deduplicates(commands_tester: CommandsTester):
       sub_block_name=sub_block_name,
   )
   commands_tester.set_result_for_command(
-      (0, 'count,in_use_count\n1,0'),
+      (0, '[{"count": 1, "inUseCount": 0}]'),
       'gcloud beta compute reservations sub-blocks list res1',
       '--block-name=block1',
       f'--filter="name={sub_block_name}',
@@ -792,3 +811,45 @@ def test_assess_available_slices_deduplicates(commands_tester: CommandsTester):
           available_slices=1,
       )
   ]
+
+
+def test_parse_specific_reservation():
+    data = {"specificReservation": {"count": "10", "inUseCount": "2"}, "status": "READY"}
+    res = _parse_reservation("res1", data)
+    assert res.name == "res1"
+    assert res.specificReservation == _SpecificReservation(count=10, inUseCount=2)
+    assert res.aggregateReservation is None
+
+def test_parse_specific_reservation_defaults():
+    data = {"specificReservation": {}, "status": "READY"}
+    res = _parse_reservation("res1", data)
+    assert res.specificReservation == _SpecificReservation(count=0, inUseCount=0)
+
+def test_parse_aggregate_reservation():
+    data = {
+        "aggregateReservation": {
+            "reservedResources": [{"accelerator": {"acceleratorCount": 100, "acceleratorType": "tpu"}}],
+            "inUseResources": [{"accelerator": {"acceleratorCount": 20, "acceleratorType": "tpu"}}]
+        },
+        "status": "READY"
+    }
+    res = _parse_reservation("res1", data)
+    assert res.aggregateReservation is not None
+    assert len(res.aggregateReservation.reservedResources) == 1
+    assert res.aggregateReservation.reservedResources[0] == _AcceleratorResource(acceleratorCount=100, acceleratorType="tpu")
+    assert len(res.aggregateReservation.inUseResources) == 1
+    assert res.aggregateReservation.inUseResources[0] == _AcceleratorResource(acceleratorCount=20, acceleratorType="tpu")
+
+def test_parse_reservation_sub_block():
+    data = {"name": "sub1", "count": 10, "inUseCount": 2}
+    res = _parse_reservation_sub_block(data)
+    assert res.name == "sub1"
+    assert res.count == 10
+    assert res.in_use_count == 2
+
+def test_parse_reservation_sub_block_defaults():
+    data = {}
+    res = _parse_reservation_sub_block(data)
+    assert res.name == ""
+    assert res.count == 0
+    assert res.in_use_count == 0

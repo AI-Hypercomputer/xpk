@@ -18,7 +18,7 @@ import enum
 import os
 import json
 from dataclasses import dataclass
-from typing import Sequence
+from typing import Sequence, Any
 
 from .commands import run_command_with_updates, run_command_for_value
 from .system_characteristics import AcceleratorType
@@ -68,6 +68,98 @@ class SubBlockReservationLink(BlockReservationLink):
 class ReservationCapacity:
   reservation: ReservationLink
   available_slices: int
+
+
+
+# TODO: add machineType
+@dataclass(frozen=True)
+class _SpecificReservation:
+  count: int
+  inUseCount: int
+
+
+@dataclass(frozen=True)
+class _AcceleratorResource:
+  acceleratorCount: int
+  acceleratorType: str
+
+
+@dataclass(frozen=True)
+class _AggregateReservation:
+  reservedResources: list[_AcceleratorResource]
+  inUseResources: list[_AcceleratorResource]
+
+
+@dataclass(frozen=True)
+class _ReservationSubBlock:
+  name: str
+  count: int
+  in_use_count: int
+
+
+@dataclass(frozen=True)
+class _Reservation:
+  name: str
+  specificReservation: _SpecificReservation | None
+  aggregateReservation: _AggregateReservation | None
+
+
+def _parse_specific_reservation(data: dict[str, Any]) -> _SpecificReservation:
+  return _SpecificReservation(
+      count=int(data.get('count', 0)),
+      inUseCount=int(data.get('inUseCount', 0)),
+  )
+
+
+def _parse_accelerator_resource(data: dict[str, Any]) -> _AcceleratorResource:
+  return _AcceleratorResource(
+      acceleratorCount=int(data.get('acceleratorCount', 0)),
+      acceleratorType=str(data.get('acceleratorType', '')),
+  )
+
+
+def _parse_aggregate_reservation(data: dict[str, Any]) -> _AggregateReservation:
+  reserved_resources = [
+      _parse_accelerator_resource(r['accelerator'])
+      for r in data.get('reservedResources', [])
+      if 'accelerator' in r
+  ]
+  in_use_resources = [
+      _parse_accelerator_resource(r['accelerator'])
+      for r in data.get('inUseResources', [])
+      if 'accelerator' in r
+  ]
+  return _AggregateReservation(
+      reservedResources=reserved_resources, inUseResources=in_use_resources
+  )
+
+
+def _parse_reservation(name: str, data: dict[str, Any]) -> _Reservation:
+  specific_reservation = None
+  if 'specificReservation' in data:
+    specific_reservation = _parse_specific_reservation(
+        data['specificReservation']
+    )
+
+  aggregate_reservation = None
+  if 'aggregateReservation' in data:
+    aggregate_reservation = _parse_aggregate_reservation(
+        data['aggregateReservation']
+    )
+
+  return _Reservation(
+      name=name,
+      specificReservation=specific_reservation,
+      aggregateReservation=aggregate_reservation,
+  )
+
+
+def _parse_reservation_sub_block(data: dict[str, Any]) -> _ReservationSubBlock:
+  return _ReservationSubBlock(
+      name=str(data.get('name', '')),
+      count=int(data.get('count', 0)),
+      in_use_count=int(data.get('inUseCount', '0')),
+  )
 
 
 def print_reservations(args) -> int:
@@ -430,7 +522,6 @@ def assess_available_slices(
 
   return reservation_capacities, 0
 
-
 def _assess_available_slices_for_reservation(
     reservation: ReservationLink,
     force_sub_block_targeting: bool,
@@ -496,67 +587,38 @@ def _get_available_slices_in_sub_block(
   command = (
       'gcloud beta compute reservations sub-blocks list'
       f' {reservation.name} --block-name={reservation.block_name} --project={reservation.project} --zone={reservation.zone} --filter="name={reservation.sub_block_name} AND'
-      ' healthInfo.healthStatus=HEALTHY" --format="csv(count,in_use_count)"'
+      ' healthInfo.healthStatus=HEALTHY"'
+      ' --format="json(name,count,inUseCount)"'
   )
+
   return_code, output = run_command_for_value(
       command,
       f'Check sub-block {reservation.sub_block_name} health',
-      dry_run_return_val='count,in_use_count\n16,0',
+      dry_run_return_val='[{"name": "sub0", "count": 16, "inUseCount": 0}]',
   )
-  if return_code != 0:
+
+  if return_code != 0 or not output.strip():
     return 0, return_code
 
-  rows = _parse_csv_output(output)
-  if not rows:
-    # If no output, it means the sub-block is not healthy/fitting.
-    return 0, 0
-
   try:
-    row = rows[0]
-    count = int(row['count'])
-    in_use_count = int(row['in_use_count'])
-    available_slices = (count - in_use_count) // required_hosts
+    data = json.loads(output)
+    if not data:
+      return 0, 0
+    sub_block = _parse_reservation_sub_block(data[0])
+    available_slices = (
+        sub_block.count - sub_block.in_use_count
+    ) // required_hosts
     return available_slices, 0
-  except ValueError:
-    xpk_print(f'Error: Unrecognized output format: "{output}".')
+  except (ValueError, IndexError, AttributeError, json.JSONDecodeError) as e:
+    xpk_print(f'Error processing sub-block data: {e}. Data: "{output}".')
     return 0, 1
 
 
 def _get_dry_run_sub_blocks() -> str:
   """Get dry run sub-blocks based on environment variable."""
-  # For CSV/multiline data, we might use ':' as a line separator in env vars
-  return (
-      os.getenv('DRY_RUN_RESERVATION_SUB_BLOCKS', 'sub0,16,0')
-      .strip()
-      .replace(':', '\n')
-  )
-
-
-def _parse_csv_output(output: str) -> list[dict[str, str]]:
-  """Parses CSV output into a list of dictionaries, using the first line as headers.
-
-  Args:
-    output: The CSV output string from a command.
-
-  Returns:
-    A list of dictionaries, where each dictionary represents a row and maps
-    header names to their values. Empty lines are skipped. Rows that don't
-    match the number of headers are ignored.
-  """
-  lines = output.strip().splitlines()
-  if not lines:
-    return []
-
-  headers = [h.strip() for h in lines[0].split(',')]
-  results = []
-  for line in lines[1:]:
-    line = line.strip()
-    if not line:
-      continue
-    parts = [p.strip() for p in line.split(',')]
-    if len(parts) == len(headers):
-      results.append(dict(zip(headers, parts)))
-  return results
+  # Return a JSON string representing a list of sub-blocks
+  default_json = '[{"name": "sub0", "count": 16, "inUseCount": 0}]'
+  return os.getenv('DRY_RUN_RESERVATION_SUB_BLOCKS', default_json)
 
 
 def _get_healthy_and_fitting_sub_blocks_in_block(
@@ -570,38 +632,41 @@ def _get_healthy_and_fitting_sub_blocks_in_block(
       f'--project={reservation.project} '
       f'--zone={reservation.zone} '
       '--filter="healthInfo.healthStatus=HEALTHY" '
-      '--format="csv(name,count,in_use_count)"'
+      '--format="json(name,count,inUseCount)"'
   )
+
   return_code, output = run_command_for_value(
       command,
       f'Count healthy fitting sub-blocks in {reservation.block_name}',
       dry_run_return_val=_get_dry_run_sub_blocks(),
   )
-  if return_code != 0:
+
+  if return_code != 0 or not output.strip():
     return [], return_code
 
-  available_capacities: list[ReservationCapacity] = []
-  rows = _parse_csv_output(output)
-  for row in rows:
-    sub_block_name = row['name']
-    count = int(row['count'])
-    in_use_count = int(row['in_use_count'])
+  try:
+    data = json.loads(output)
+    if not data:
+      return [], 0
+    sub_block_reservations = [_parse_reservation_sub_block(row) for row in data]
+  except (ValueError, IndexError, AttributeError, json.JSONDecodeError) as e:
+    xpk_print(f'Error processing sub-block row: {e}. Row: "{output}".')
+    return [], 1
 
-    available_slots = (count - in_use_count) // required_hosts
-    if available_slots > 0:
-      available_capacities.append(
-          ReservationCapacity(
-              SubBlockReservationLink(
-                  project=reservation.project,
-                  name=reservation.name,
-                  zone=reservation.zone,
-                  block_name=reservation.block_name,
-                  sub_block_name=sub_block_name,
-              ),
-              available_slots,
-          )
+  available_capacities: list[ReservationCapacity] = [
+      ReservationCapacity(
+          SubBlockReservationLink(
+              project=reservation.project,
+              name=reservation.name,
+              zone=reservation.zone,
+              block_name=reservation.block_name,
+              sub_block_name=sub_block.name,
+          ),
+          available_slices=(sub_block.count - sub_block.in_use_count)
+          // required_hosts,
       )
-
+      for sub_block in sub_block_reservations
+  ]
   return available_capacities, 0
 
 
@@ -640,82 +705,66 @@ def _get_blocks_in_reservation(
 
 
 def _get_reservation_count(
-    reservation: ReservationLink, required_hosts: int
+    link: ReservationLink, required_hosts: int
 ) -> tuple[int, int]:
   """Get capacity count of a reservation.
 
   Args:
-    reservation: reservation to get count for.
+    link: reservation to get count for.
     required_hosts: number of hosts required per slice.
 
   Returns:
     Number of available slots in the reservation.
   """
   command = (
-      f'gcloud beta compute reservations describe {reservation.name} '
-      f'--project={reservation.project} '
-      f'--zone={reservation.zone} '
+      f'gcloud beta compute reservations describe {link.name} '
+      f'--project={link.project} '
+      f'--zone={link.zone} '
       '--format="json(specificReservation,aggregateReservation,status)"'
   )
 
   return_code, output = run_command_for_value(
       command,
-      f'Get reservation count for {reservation.name}',
+      f'Get reservation count for {link.name}',
       dry_run_return_val=(
           '{"specificReservation": {"count": 16, "inUseCount": 0},'
           ' "status": "READY"}'
       ),
   )
-  if return_code != 0:
+  if return_code != 0 or not output.strip():
     return 0, return_code
 
   try:
     data = json.loads(output)
-  except json.JSONDecodeError:
-    xpk_print(f'Error: Unrecognized output format: "{output}".')
-    return 0, 1
-
-  if data.get('status') != 'READY':
-    return 0, 0
-
-  try:
-    count = 0
-    in_use_count = 0
-
-    specific_reservation = data.get('specificReservation')
-    aggregate_reservation = data.get('aggregateReservation')
-
-    if specific_reservation:
-      count = int(specific_reservation.get('count', 0))
-      in_use_count = int(specific_reservation.get('inUseCount', 0))
-    elif aggregate_reservation:
-      reserved_resources = aggregate_reservation.get('reservedResources', [])
-      # Assuming reservedResources contains only relevant accelerators for the reservation,
-      # or we pick the first one as the primary type if multiple exist (unlikely for single reservation).
-      # TODO: We could somehow map the requested machine type to the accelerator type, also filtering for a given project and location.
-      target_accelerator_type: str | None = None
-      for resource in reserved_resources:
-        accelerator = resource.get('accelerator')
-        if not accelerator:
-          continue
-
-        if not target_accelerator_type:
-          target_accelerator_type = accelerator.get('acceleratorType')
-        if accelerator.get('acceleratorType') == target_accelerator_type:
-          count += int(accelerator.get('acceleratorCount', 0))
-
-      if target_accelerator_type:
-        in_use_resources = aggregate_reservation.get('inUseResources', [])
-        accelerators = map(lambda r: r.get('accelerator'), in_use_resources)
-        in_use_count = sum(
-            accelerator.get('acceleratorCount', 0)
-            for accelerator in accelerators
-            if accelerator
-            and accelerator.get('acceleratorType') == target_accelerator_type
-        )
-
-    available_hosts = max(0, count - in_use_count)
-    return available_hosts // required_hosts, 0
-  except (ValueError, IndexError, AttributeError) as e:
+    if not data or data.get('status') != 'READY':
+      return 0, 0
+  except (ValueError, IndexError, AttributeError, json.JSONDecodeError) as e:
     xpk_print(f'Error processing reservation data: {e}. Output: "{output}".')
     return 0, 1
+
+  reservation = _parse_reservation(link.name, data)
+  count = 0
+  in_use_count = 0
+
+  if reservation.specificReservation:
+    count = int(reservation.specificReservation.count)
+    in_use_count = int(reservation.specificReservation.inUseCount)
+  elif reservation.aggregateReservation:
+    reserved_resources = reservation.aggregateReservation.reservedResources
+    target_accelerator_type: str | None = None
+    for resource in reserved_resources:
+      if not target_accelerator_type:
+        target_accelerator_type = resource.acceleratorType
+      if resource.acceleratorType == target_accelerator_type:
+        count += resource.acceleratorCount
+
+    if target_accelerator_type:
+      in_use_resources = reservation.aggregateReservation.inUseResources
+      in_use_count = sum(
+          r.acceleratorCount
+          for r in in_use_resources
+          if r.acceleratorType == target_accelerator_type
+      )
+
+  available_hosts = max(0, count - in_use_count)
+  return available_hosts // required_hosts, 0

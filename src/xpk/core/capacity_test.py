@@ -33,9 +33,6 @@ from .capacity import (
     _parse_reservation_sub_block,
     _SpecificReservation,
     _AcceleratorResource,
-    _AggregateReservation,
-    _ReservationSubBlock,
-    _Reservation,
 )
 from xpk.core.testing.commands_tester import CommandsTester
 
@@ -814,42 +811,63 @@ def test_assess_available_slices_deduplicates(commands_tester: CommandsTester):
 
 
 def test_parse_specific_reservation():
-    data = {"specificReservation": {"count": "10", "inUseCount": "2"}, "status": "READY"}
-    res = _parse_reservation("res1", data)
-    assert res.name == "res1"
-    assert res.specificReservation == _SpecificReservation(count=10, inUseCount=2)
-    assert res.aggregateReservation is None
+  data = {
+      'specificReservation': {'count': '10', 'inUseCount': '2'},
+      'status': 'READY',
+  }
+  res = _parse_reservation('res1', data)
+  assert res.name == 'res1'
+  assert res.specificReservation == _SpecificReservation(count=10, inUseCount=2)
+  assert res.aggregateReservation is None
+
 
 def test_parse_specific_reservation_defaults():
-    data = {"specificReservation": {}, "status": "READY"}
-    res = _parse_reservation("res1", data)
-    assert res.specificReservation == _SpecificReservation(count=0, inUseCount=0)
+  data = {'specificReservation': {}, 'status': 'READY'}
+  res = _parse_reservation('res1', data)
+  assert res.specificReservation == _SpecificReservation(count=0, inUseCount=0)
+
 
 def test_parse_aggregate_reservation():
-    data = {
-        "aggregateReservation": {
-            "reservedResources": [{"accelerator": {"acceleratorCount": 100, "acceleratorType": "tpu"}}],
-            "inUseResources": [{"accelerator": {"acceleratorCount": 20, "acceleratorType": "tpu"}}]
-        },
-        "status": "READY"
-    }
-    res = _parse_reservation("res1", data)
-    assert res.aggregateReservation is not None
-    assert len(res.aggregateReservation.reservedResources) == 1
-    assert res.aggregateReservation.reservedResources[0] == _AcceleratorResource(acceleratorCount=100, acceleratorType="tpu")
-    assert len(res.aggregateReservation.inUseResources) == 1
-    assert res.aggregateReservation.inUseResources[0] == _AcceleratorResource(acceleratorCount=20, acceleratorType="tpu")
+  data = {
+      'aggregateReservation': {
+          'reservedResources': [{
+              'accelerator': {
+                  'acceleratorCount': 100,
+                  'acceleratorType': 'tpu',
+              }
+          }],
+          'inUseResources': [{
+              'accelerator': {
+                  'acceleratorCount': 20,
+                  'acceleratorType': 'tpu',
+              }
+          }],
+      },
+      'status': 'READY',
+  }
+  res = _parse_reservation('res1', data)
+  assert res.aggregateReservation is not None
+  assert len(res.aggregateReservation.reservedResources) == 1
+  assert res.aggregateReservation.reservedResources[0] == _AcceleratorResource(
+      acceleratorCount=100, acceleratorType='tpu'
+  )
+  assert len(res.aggregateReservation.inUseResources) == 1
+  assert res.aggregateReservation.inUseResources[0] == _AcceleratorResource(
+      acceleratorCount=20, acceleratorType='tpu'
+  )
+
 
 def test_parse_reservation_sub_block():
-    data = {"name": "sub1", "count": 10, "inUseCount": 2}
-    res = _parse_reservation_sub_block(data)
-    assert res.name == "sub1"
-    assert res.count == 10
-    assert res.in_use_count == 2
+  data = {'name': 'sub1', 'count': 10, 'inUseCount': 2}
+  res = _parse_reservation_sub_block(data)
+  assert res.name == 'sub1'
+  assert res.count == 10
+  assert res.in_use_count == 2
+
 
 def test_parse_reservation_sub_block_defaults():
-    data = {}
-    res = _parse_reservation_sub_block(data)
-    assert res.name == ""
-    assert res.count == 0
-    assert res.in_use_count == 0
+  data = {}
+  res = _parse_reservation_sub_block(data)
+  assert res.name == ''
+  assert res.count == 0
+  assert res.in_use_count == 0

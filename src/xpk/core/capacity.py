@@ -70,7 +70,6 @@ class ReservationCapacity:
   available_slices: int
 
 
-
 # TODO: add machineType
 @dataclass(frozen=True)
 class _SpecificReservation:
@@ -522,6 +521,13 @@ def assess_available_slices(
 
   return reservation_capacities, 0
 
+
+def _get_dry_run_sub_blocks() -> str:
+  """Get dry run sub-blocks based on environment variable."""
+  default_json = '[{"name": "sub0", "count": 16, "inUseCount": 0}]'
+  return os.getenv('DRY_RUN_RESERVATION_SUB_BLOCKS', default_json)
+
+
 def _assess_available_slices_for_reservation(
     reservation: ReservationLink,
     force_sub_block_targeting: bool,
@@ -579,66 +585,39 @@ def _assess_available_slices_for_reservation(
   return ([ReservationCapacity(reservation, count)] if count > 0 else []), 0
 
 
-def _get_available_slices_in_sub_block(
-    reservation: SubBlockReservationLink,
-    required_hosts: int,
-) -> tuple[int, int]:
-  """Check if a sub-block is healthy and return available slices."""
-  command = (
-      'gcloud beta compute reservations sub-blocks list'
-      f' {reservation.name} --block-name={reservation.block_name} --project={reservation.project} --zone={reservation.zone} --filter="name={reservation.sub_block_name} AND'
-      ' healthInfo.healthStatus=HEALTHY"'
-      ' --format="json(name,count,inUseCount)"'
-  )
+def _list_healthy_sub_blocks(
+    reservation: BlockReservationLink | SubBlockReservationLink,
+) -> tuple[list[_ReservationSubBlock], int]:
+  """List healthy sub-blocks for a reservation block or sub-block.
 
-  return_code, output = run_command_for_value(
-      command,
-      f'Check sub-block {reservation.sub_block_name} health',
-      dry_run_return_val='[{"name": "sub0", "count": 16, "inUseCount": 0}]',
-  )
+  Args:
+    reservation: The reservation link (must be Block or SubBlock).
 
-  if return_code != 0 or not output.strip():
-    return 0, return_code
+  Returns:
+    A tuple containing a list of healthy sub-blocks and the return code.
+  """
+  filter_arg = 'healthInfo.healthStatus=HEALTHY'
+  task_name = f'Count healthy fitting sub-blocks in {reservation.block_name}'
+  dry_run_return_val = _get_dry_run_sub_blocks()
 
-  try:
-    data = json.loads(output)
-    if not data:
-      return 0, 0
-    sub_block = _parse_reservation_sub_block(data[0])
-    available_slices = (
-        sub_block.count - sub_block.in_use_count
-    ) // required_hosts
-    return available_slices, 0
-  except (ValueError, IndexError, AttributeError, json.JSONDecodeError) as e:
-    xpk_print(f'Error processing sub-block data: {e}. Data: "{output}".')
-    return 0, 1
+  if isinstance(reservation, SubBlockReservationLink):
+    filter_arg = f'name={reservation.sub_block_name} AND {filter_arg}'
+    task_name = f'Check sub-block {reservation.sub_block_name} health'
+    dry_run_return_val = '[{"name": "sub0", "count": 16, "inUseCount": 0}]'
 
-
-def _get_dry_run_sub_blocks() -> str:
-  """Get dry run sub-blocks based on environment variable."""
-  # Return a JSON string representing a list of sub-blocks
-  default_json = '[{"name": "sub0", "count": 16, "inUseCount": 0}]'
-  return os.getenv('DRY_RUN_RESERVATION_SUB_BLOCKS', default_json)
-
-
-def _get_healthy_and_fitting_sub_blocks_in_block(
-    reservation: BlockReservationLink,
-    required_hosts: int,
-) -> tuple[list[ReservationCapacity], int]:
-  """Get healthy and fitting sub-blocks in a block."""
   command = (
       f'gcloud beta compute reservations sub-blocks list {reservation.name} '
       f'--block-name={reservation.block_name} '
       f'--project={reservation.project} '
       f'--zone={reservation.zone} '
-      '--filter="healthInfo.healthStatus=HEALTHY" '
+      f'--filter="{filter_arg}" '
       '--format="json(name,count,inUseCount)"'
   )
 
   return_code, output = run_command_for_value(
       command,
-      f'Count healthy fitting sub-blocks in {reservation.block_name}',
-      dry_run_return_val=_get_dry_run_sub_blocks(),
+      task_name,
+      dry_run_return_val=dry_run_return_val,
   )
 
   if return_code != 0 or not output.strip():
@@ -648,10 +627,39 @@ def _get_healthy_and_fitting_sub_blocks_in_block(
     data = json.loads(output)
     if not data:
       return [], 0
-    sub_block_reservations = [_parse_reservation_sub_block(row) for row in data]
+    return [_parse_reservation_sub_block(row) for row in data], 0
   except (ValueError, IndexError, AttributeError, json.JSONDecodeError) as e:
-    xpk_print(f'Error processing sub-block row: {e}. Row: "{output}".')
+    xpk_print(f'Error processing sub-block data: {e}. Output: "{output}".')
     return [], 1
+
+
+def _get_available_slices_in_sub_block(
+    reservation: SubBlockReservationLink,
+    required_hosts: int,
+) -> tuple[int, int]:
+  """Check if a sub-block is healthy and return available slices."""
+  sub_blocks, return_code = _list_healthy_sub_blocks(reservation)
+
+  if return_code != 0 or not sub_blocks:
+    return 0, return_code
+
+  assert len(sub_blocks) == 1
+  sub_block = sub_blocks[0]
+  available_slices = (
+      sub_block.count - sub_block.in_use_count
+  ) // required_hosts
+  return available_slices, 0
+
+
+def _get_healthy_and_fitting_sub_blocks_in_block(
+    reservation: BlockReservationLink,
+    required_hosts: int,
+) -> tuple[list[ReservationCapacity], int]:
+  """Get healthy and fitting sub-blocks in a block."""
+  sub_blocks, return_code = _list_healthy_sub_blocks(reservation)
+
+  if return_code != 0:
+    return [], return_code
 
   available_capacities: list[ReservationCapacity] = [
       ReservationCapacity(
@@ -665,7 +673,7 @@ def _get_healthy_and_fitting_sub_blocks_in_block(
           available_slices=(sub_block.count - sub_block.in_use_count)
           // required_hosts,
       )
-      for sub_block in sub_block_reservations
+      for sub_block in sub_blocks
   ]
   return available_capacities, 0
 

@@ -477,12 +477,15 @@ def test_run_gke_node_pool_create_command_multiple_reservations(
       (0, ""), "gcloud beta container node-pools list"
   )
   commands_tester.set_result_for_command(
-            (
-                0,
-                '{"specificReservation": {"count": 2, "inUseCount": 0}, "status": "READY"}',
-            ),
-            "gcloud beta compute reservations describe",
-        )
+      (
+          0,
+          (
+              '{"specificReservation": {"count": 2, "inUseCount": 0}, "status":'
+              ' "READY"}'
+          ),
+      ),
+      "gcloud beta compute reservations describe",
+  )
   result = run_gke_node_pool_create_command(args, system, "1.2.3")
 
   assert result == 0
@@ -553,12 +556,15 @@ def test_run_gke_node_pool_create_command_partial_reservations(
       '--format="value(locations)"',
   )
   commands_tester.set_result_for_command(
-            (
-                0,
-                '{"specificReservation": {"count": 2, "inUseCount": 0}, "status": "READY"}',
-            ),
-            "gcloud beta compute reservations describe",
-        )
+      (
+          0,
+          (
+              '{"specificReservation": {"count": 2, "inUseCount": 0}, "status":'
+              ' "READY"}'
+          ),
+      ),
+      "gcloud beta compute reservations describe",
+  )
   result = run_gke_node_pool_create_command(args, system, "1.2.3")
 
   assert result == 0
@@ -723,12 +729,15 @@ def test_run_gke_node_pool_create_command_super_slicing_exhaustion(
       docker_platform=DockerPlatform.AMD,
   )
   commands_tester.set_result_for_command(
-            (
-                0,
-                '[{"name": "sub-block1", "count": 2, "inUseCount": 0}, {"name": "sub-block2", "count": 2, "inUseCount": 0}]',
-            ),
-            "gcloud beta compute reservations sub-blocks list",
-        )
+      (
+          0,
+          (
+              '[{"name": "sub-block1", "count": 2, "inUseCount": 0}, {"name":'
+              ' "sub-block2", "count": 2, "inUseCount": 0}]'
+          ),
+      ),
+      "gcloud beta compute reservations sub-blocks list",
+  )
   commands_tester.set_result_for_command(
       (0, "block1"), "gcloud beta compute reservations blocks list"
   )
@@ -796,12 +805,12 @@ def test_run_gke_node_pool_create_command_super_slicing_insufficient_capacity(
       (0, "block1"), "gcloud beta compute reservations blocks list"
   )
   commands_tester.set_result_for_command(
-            (
-                0,
-                '[{"name": "sub-block1", "count": 2, "inUseCount": 0}]',
-            ),
-            "gcloud beta compute reservations sub-blocks list",
-        )
+      (
+          0,
+          '[{"name": "sub-block1", "count": 2, "inUseCount": 0}]',
+      ),
+      "gcloud beta compute reservations sub-blocks list",
+  )
   result = run_gke_node_pool_create_command(args, system, "1.2.3")
 
   assert result == 1

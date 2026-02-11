@@ -597,7 +597,7 @@ spec:
         - --zap-log-level=3
         command:
         - /manager
-        image: tpuongke/kueue-slice-controller:v0.8.0-152-g2e6b6e9
+        image: tpuongke/kueue-slice-controller:v0.8.0-156-g3225138
         livenessProbe:
           httpGet:
             path: /healthz

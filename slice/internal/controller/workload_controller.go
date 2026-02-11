@@ -179,12 +179,19 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	grouped := r.groupSlices(slices)
+
+	if ac.State == kueue.CheckStateReady && (len(grouped.deleted) > 0 || len(slices) != totalDesiredSlices(wl, nodes)) {
+		log.V(3).Info("Slice has been deleted, evicting workload")
+		err := r.evictWorkload(ctx, wl, ac, "Slice has been deleted")
+		return ctrl.Result{}, err
+	}
+
 	if len(grouped.deleted) > 0 {
 		log.V(3).Info(
 			"Waiting for deleted Slices to be cleaned up; skipping reconciliation for now",
 			"deletedSlices", klog.KObjSlice(grouped.deleted),
 		)
-		return ctrl.Result{}, err
+		return ctrl.Result{}, nil
 	}
 
 	// Create any missing Slices based on the Workload's PodSet assignments.
@@ -570,6 +577,24 @@ func shouldCreateSlicesForPodSetAssignment(wl *kueue.Workload, psa kueue.PodSetA
 	return false
 }
 
+func totalDesiredSlices(wl *kueue.Workload, nodes map[string]corev1.Node) int {
+	if wl.Status.Admission == nil {
+		return 0
+	}
+	count := 0
+	for _, psa := range wl.Status.Admission.PodSetAssignments {
+		if !shouldCreateSlicesForPodSetAssignment(wl, psa, nodes) {
+			continue
+		}
+		ps := podset.FindPodSetByName(wl.Spec.PodSets, psa.Name)
+		if ps.TopologyRequest == nil {
+			continue
+		}
+		count += int(ptr.Deref(ps.TopologyRequest.SubGroupCount, 1))
+	}
+	return count
+}
+
 func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, psa *kueue.PodSetAssignment, nodes map[string]corev1.Node, existingSlicesByName map[string]*v1beta1.Slice, desiredNumberOfSlices int32) ([]v1beta1.Slice, error) {
 	parsedAssignment := topology.ParseAssignment(psa.TopologyAssignment, nodes)
 	ps := podset.FindPodSetByName(wl.Spec.PodSets, psa.Name)
@@ -601,12 +626,8 @@ func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workloa
 	if conflictingIDs := r.findConflictingPartitionIDs(ctx, existingSlicesByName, slicesToCreate); len(conflictingIDs) > 0 {
 		log := ctrl.LoggerFrom(ctx)
 		log.V(3).Info("Partition ID collisions detected, not creating slices, evicting workload")
-		ac.State = kueue.CheckStateRetry
-		ac.RequeueAfterSeconds = ptr.To(int32(10))
 		msg := fmt.Sprintf("Partition IDs %q are already used by existing Slices", conflictingIDs)
-		ac.Message = api.TruncateConditionMessage(msg)
-		patchErr := r.updateWorkloadAdmissionCheckStatus(ctx, wl, ac)
-		if patchErr != nil {
+		if patchErr := r.evictWorkload(ctx, wl, ac, msg); patchErr != nil {
 			return nil, errors.Join(errors.New(msg), patchErr)
 		}
 		return nil, errors.New(msg)
@@ -657,6 +678,13 @@ func (r *WorkloadReconciler) findConflictingPartitionIDs(
 		}
 	}
 	return conflictingIDs
+}
+
+func (r *WorkloadReconciler) evictWorkload(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, message string) error {
+	ac.State = kueue.CheckStateRetry
+	ac.RequeueAfterSeconds = ptr.To(int32(10))
+	ac.Message = api.TruncateConditionMessage(message)
+	return r.updateWorkloadAdmissionCheckStatus(ctx, wl, ac)
 }
 
 func (r *WorkloadReconciler) updateWorkloadAdmissionCheckStatus(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState) error {

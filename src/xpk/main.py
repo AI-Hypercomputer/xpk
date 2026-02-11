@@ -87,10 +87,7 @@ def main() -> None:
         flags=retrieve_flags(main_args),
     )
     print_xpk_hello()
-    is_sandbox = (
-        hasattr(main_args, 'sandbox_kubeconfig')
-        and main_args.sandbox_kubeconfig
-    )
+    is_sandbox = main_args.sandbox_kubeconfig
     opt_sandbox = sandbox_kubeconfig if is_sandbox else contextlib.nullcontext
     with opt_sandbox():
       main_args.func(main_args)

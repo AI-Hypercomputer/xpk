@@ -334,18 +334,6 @@ func (r *WorkloadReconciler) findWorkloadSlices(ctx context.Context, wl *kueue.W
 	return slices.Items, nil
 }
 
-func (r *WorkloadReconciler) unexpectedlyDeletedSlice(slices []v1beta1.Slice) *v1beta1.Slice {
-	for _, slice := range slices {
-		sliceCopy := slice.DeepCopy()
-		sliceCopy.DeletionTimestamp = nil
-		state := core.GetSliceState(*sliceCopy, r.activationTimeout)
-		if state != core.SliceStateFailed && state != core.SliceStateStale {
-			return &slice
-		}
-	}
-	return nil
-}
-
 type groupedSlices struct {
 	deleted      []v1beta1.Slice
 	toDelete     []v1beta1.Slice

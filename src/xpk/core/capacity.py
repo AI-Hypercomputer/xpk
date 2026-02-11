@@ -21,7 +21,8 @@ from dataclasses import dataclass
 from typing import Sequence, Any
 
 from .commands import run_command_with_updates, run_command_for_value
-from .system_characteristics import AcceleratorType
+from .system_characteristics import AcceleratorType, SystemCharacteristics
+from .gcloud_context import project_id_to_project_number
 from ..utils.console import xpk_print, xpk_exit
 from ..utils.kueue import is_queued_cluster
 
@@ -496,6 +497,7 @@ def assess_available_slices(
     reservations: Sequence[ReservationLink],
     force_sub_block_targeting: bool,
     required_hosts: int,
+    system: SystemCharacteristics,
 ) -> tuple[list[ReservationCapacity], int]:
   """Assess the available slices in the reservations.
 
@@ -503,6 +505,7 @@ def assess_available_slices(
     reservations: list of reservations to assess.
     force_sub_block_targeting: if `True`, then the passed `ReservationLink` or `BlockReservationLink` will be flattened to adequate sub-blocks.
     required_hosts: number of hosts required per slice.
+    system: The system characteristics of the accelerator type.
 
   Returns:
     List of capacity reservations with available slices.
@@ -510,7 +513,7 @@ def assess_available_slices(
   reservation_capacities = []
   for reservation in reservations:
     capacities, return_code = _assess_available_slices_for_reservation(
-        reservation, force_sub_block_targeting, required_hosts
+        reservation, force_sub_block_targeting, required_hosts, system
     )
     if return_code != 0:
       return [], return_code
@@ -532,6 +535,7 @@ def _assess_available_slices_for_reservation(
     reservation: ReservationLink,
     force_sub_block_targeting: bool,
     required_hosts: int,
+    system: SystemCharacteristics,
 ) -> tuple[list[ReservationCapacity], int]:
   """Assess the available slices for a single reservation.
 
@@ -539,6 +543,7 @@ def _assess_available_slices_for_reservation(
     reservation: reservation to assess.
     force_sub_block_targeting: if `True`, then the passed `ReservationLink` or `BlockReservationLink` will be flattened to adequate sub-blocks.
     required_hosts: number of hosts required per slice.
+    system: The system characteristics of the accelerator type.
 
   Returns:
     List of available reservations (targeting sub-blocks if applicable).
@@ -570,7 +575,7 @@ def _assess_available_slices_for_reservation(
       return [], return_code
     if blocks:
       return assess_available_slices(
-          blocks, force_sub_block_targeting, required_hosts
+          blocks, force_sub_block_targeting, required_hosts, system
       )
 
     xpk_print(
@@ -579,7 +584,9 @@ def _assess_available_slices_for_reservation(
     )
     return [], 0
 
-  count, return_code = _get_reservation_count(reservation, required_hosts)
+  count, return_code = _get_reservation_count(
+      reservation, required_hosts, system
+  )
   if return_code != 0:
     return [], return_code
   return ([ReservationCapacity(reservation, count)] if count > 0 else []), 0
@@ -712,14 +719,31 @@ def _get_blocks_in_reservation(
   ], 0
 
 
+def _calculate_target_accelerator_type(
+    link: ReservationLink, system: SystemCharacteristics
+) -> str:
+  reservation_accelerator_type = system.reservation_accelerator_type
+  assert reservation_accelerator_type
+
+  if system.accelerator_type == AcceleratorType.TPU:
+    project_number = project_id_to_project_number(link.project)
+    return (
+        f'projects/{project_number}/zones/{link.zone}/acceleratorTypes/'
+        f'{reservation_accelerator_type}'
+    )
+  else:
+    return reservation_accelerator_type
+
+
 def _get_reservation_count(
-    link: ReservationLink, required_hosts: int
+    link: ReservationLink, required_hosts: int, system: SystemCharacteristics
 ) -> tuple[int, int]:
   """Get capacity count of a reservation.
 
   Args:
     link: reservation to get count for.
     required_hosts: number of hosts required per slice.
+    system: The system characteristics of the accelerator type.
 
   Returns:
     Number of available slots in the reservation.
@@ -759,20 +783,25 @@ def _get_reservation_count(
     in_use_count = int(reservation.specificReservation.inUseCount)
   elif reservation.aggregateReservation:
     reserved_resources = reservation.aggregateReservation.reservedResources
-    target_accelerator_type: str | None = None
-    for resource in reserved_resources:
-      if not target_accelerator_type:
-        target_accelerator_type = resource.acceleratorType
-      if resource.acceleratorType == target_accelerator_type:
-        count += resource.acceleratorCount
+    target_accelerator_type = _calculate_target_accelerator_type(link, system)
+    count = next(
+        (
+            r.acceleratorCount
+            for r in reserved_resources
+            if r.acceleratorType == target_accelerator_type
+        ),
+        0,
+    )
 
-    if target_accelerator_type:
-      in_use_resources = reservation.aggregateReservation.inUseResources
-      in_use_count = sum(
-          r.acceleratorCount
-          for r in in_use_resources
-          if r.acceleratorType == target_accelerator_type
-      )
+    in_use_resources = reservation.aggregateReservation.inUseResources
+    in_use_count = next(
+        (
+            r.acceleratorCount
+            for r in in_use_resources
+            if r.acceleratorType == target_accelerator_type
+        ),
+        0,
+    )
 
   available_hosts = max(0, count - in_use_count)
   return available_hosts // required_hosts, 0

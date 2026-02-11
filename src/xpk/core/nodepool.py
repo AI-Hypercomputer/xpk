@@ -287,6 +287,7 @@ def run_gke_node_pool_create_command(
             if system.accelerator_type == AcceleratorType.TPU
             else args.num_nodes
         ),
+        system=system,
     )
     if return_code > 0:
       return return_code
@@ -728,11 +729,13 @@ def _prepare_reservation_iterator(
     num_new_node_pools: int,
     force_sub_block_targeting: bool,
     required_hosts: int,
+    system: SystemCharacteristics,
 ) -> tuple[Iterator[ReservationLink] | None, int]:
   available_capacity, return_code = assess_available_slices(
       reservations,
       force_sub_block_targeting=force_sub_block_targeting,
       required_hosts=required_hosts,
+      system=system,
   )
 
   if return_code > 0:

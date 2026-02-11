@@ -35,11 +35,29 @@ from .capacity import (
     _AcceleratorResource,
 )
 from xpk.core.testing.commands_tester import CommandsTester
+from .system_characteristics import SystemCharacteristics, AcceleratorType, DockerPlatform
 
 
 @pytest.fixture
 def commands_tester(mocker):
   return CommandsTester(mocker)
+
+
+@pytest.fixture
+def test_system():
+  return SystemCharacteristics(
+      topology='2x2x1',
+      vms_per_slice=1,
+      gke_accelerator='test-accel',
+      gce_machine_type='test-machine',
+      chips_per_vm=1,
+      accelerator_type=AcceleratorType.TPU,
+      device_type='test-device',
+      supports_sub_slicing=False,
+      supports_super_slicing=False,
+      supports_accelerator_network_profile=False,
+      docker_platform=DockerPlatform.AMD,
+  )
 
 
 @patch('xpk.core.capacity.xpk_print')
@@ -305,6 +323,7 @@ def test_to_reservation_path_reservation():
 
 def test_assess_available_slices_sub_block_healthy(
     commands_tester: CommandsTester,
+    test_system: SystemCharacteristics,
 ):
   commands_tester.set_result_for_command(
       (0, '[{"count": 1, "inUseCount": 0}]'),
@@ -319,7 +338,10 @@ def test_assess_available_slices_sub_block_healthy(
   )
 
   slices, return_code = assess_available_slices(
-      [res], force_sub_block_targeting=False, required_hosts=1
+      [res],
+      force_sub_block_targeting=False,
+      required_hosts=1,
+      system=test_system,
   )
 
   assert slices == [ReservationCapacity(res, 1)]
@@ -328,6 +350,7 @@ def test_assess_available_slices_sub_block_healthy(
 
 def test_assess_available_slices_sub_block_unhealthy(
     commands_tester: CommandsTester,
+    test_system: SystemCharacteristics,
 ):
   commands_tester.set_result_for_command(
       (0, '[]'), 'gcloud beta compute reservations sub-blocks list'
@@ -340,14 +363,19 @@ def test_assess_available_slices_sub_block_unhealthy(
       sub_block_name='sub-block',
   )
   slices, return_code = assess_available_slices(
-      [res], force_sub_block_targeting=False, required_hosts=1
+      [res],
+      force_sub_block_targeting=False,
+      required_hosts=1,
+      system=test_system,
   )
 
   assert not slices
   assert return_code == 0
 
 
-def test_assess_available_slices_block_healthy(commands_tester: CommandsTester):
+def test_assess_available_slices_block_healthy(
+    commands_tester: CommandsTester, test_system: SystemCharacteristics
+):
   # Mock 2 healthy sub-blocks
   commands_tester.set_result_for_command(
       (
@@ -367,7 +395,10 @@ def test_assess_available_slices_block_healthy(commands_tester: CommandsTester):
   )
 
   slices, return_code = assess_available_slices(
-      [res], force_sub_block_targeting=True, required_hosts=1
+      [res],
+      force_sub_block_targeting=True,
+      required_hosts=1,
+      system=test_system,
   )
 
   assert return_code == 0
@@ -397,6 +428,7 @@ def test_assess_available_slices_block_healthy(commands_tester: CommandsTester):
 
 def test_assess_available_slices_block_unhealthy(
     commands_tester: CommandsTester,
+    test_system: SystemCharacteristics,
 ):
   commands_tester.set_result_for_command(
       (0, '[]'), 'gcloud beta compute reservations sub-blocks list'
@@ -409,7 +441,10 @@ def test_assess_available_slices_block_unhealthy(
   )
 
   slices, return_code = assess_available_slices(
-      [res], force_sub_block_targeting=True, required_hosts=1
+      [res],
+      force_sub_block_targeting=True,
+      required_hosts=1,
+      system=test_system,
   )
 
   assert not slices
@@ -418,6 +453,7 @@ def test_assess_available_slices_block_unhealthy(
 
 def test_assess_available_slices_link_with_blocks(
     commands_tester: CommandsTester,
+    test_system: SystemCharacteristics,
 ):
   commands_tester.set_result_for_command(
       (0, 'block1'), 'gcloud beta compute reservations blocks list'
@@ -430,7 +466,10 @@ def test_assess_available_slices_link_with_blocks(
 
   res = ReservationLink(project='project', name='reservation', zone='zone')
   slices, return_code = assess_available_slices(
-      [res], force_sub_block_targeting=True, required_hosts=1
+      [res],
+      force_sub_block_targeting=True,
+      required_hosts=1,
+      system=test_system,
   )
 
   assert return_code == 0
@@ -450,6 +489,7 @@ def test_assess_available_slices_link_with_blocks(
 
 def test_assess_available_slices_link_without_blocks(
     commands_tester: CommandsTester,
+    test_system: SystemCharacteristics,
 ):
   commands_tester.set_result_for_command(
       (0, ''), 'gcloud beta compute reservations blocks list'
@@ -468,7 +508,10 @@ def test_assess_available_slices_link_without_blocks(
 
   res = ReservationLink(project='project', name='reservation', zone='zone')
   slices, return_code = assess_available_slices(
-      [res], force_sub_block_targeting=False, required_hosts=1
+      [res],
+      force_sub_block_targeting=False,
+      required_hosts=1,
+      system=test_system,
   )
   assert return_code == 0
   assert slices == [
@@ -481,6 +524,7 @@ def test_assess_available_slices_link_without_blocks(
 
 def test_assess_available_slices_link_without_blocks_sub_block_targeting(
     commands_tester: CommandsTester,
+    test_system: SystemCharacteristics,
 ):
   commands_tester.set_result_for_command(
       (0, ''), 'gcloud beta compute reservations blocks list'
@@ -499,7 +543,10 @@ def test_assess_available_slices_link_without_blocks_sub_block_targeting(
 
   res = ReservationLink(project='project', name='reservation', zone='zone')
   slices, return_code = assess_available_slices(
-      [res], force_sub_block_targeting=True, required_hosts=1
+      [res],
+      force_sub_block_targeting=True,
+      required_hosts=1,
+      system=test_system,
   )
   assert return_code == 0
   assert not slices
@@ -507,6 +554,7 @@ def test_assess_available_slices_link_without_blocks_sub_block_targeting(
 
 def test_assess_available_slices_host_filtering_insufficient_hosts(
     commands_tester: CommandsTester,
+    test_system: SystemCharacteristics,
 ):
   # Mock a sub-block that has 14 free hosts but we need 16
   commands_tester.set_result_for_command(
@@ -522,7 +570,10 @@ def test_assess_available_slices_host_filtering_insufficient_hosts(
   )
 
   slices, return_code = assess_available_slices(
-      [res], force_sub_block_targeting=False, required_hosts=16
+      [res],
+      force_sub_block_targeting=False,
+      required_hosts=16,
+      system=test_system,
   )
 
   assert not slices
@@ -531,6 +582,7 @@ def test_assess_available_slices_host_filtering_insufficient_hosts(
 
 def test_assess_available_slices_host_filtering_sufficient_hosts(
     commands_tester: CommandsTester,
+    test_system: SystemCharacteristics,
 ):
   # Mock a reservation that has 46 free hosts, and we need 16 per slice.
   commands_tester.set_result_for_command(
@@ -546,7 +598,10 @@ def test_assess_available_slices_host_filtering_sufficient_hosts(
   res_link = ReservationLink(project='p', name='r', zone='z')
 
   slices, return_code = assess_available_slices(
-      [res_link], force_sub_block_targeting=False, required_hosts=16
+      [res_link],
+      force_sub_block_targeting=False,
+      required_hosts=16,
+      system=test_system,
   )
 
   assert return_code == 0
@@ -557,37 +612,48 @@ def test_assess_available_slices_host_filtering_sufficient_hosts(
   ]
 
 
+@patch('xpk.core.capacity.project_id_to_project_number', return_value='12345')
 def test_assess_available_slices_aggregate_reservation(
+    mock_project_id,
     commands_tester: CommandsTester,
+    test_system: SystemCharacteristics,
 ):
-  json_output = """
-  {
-      "aggregateReservation": {
+  # For TPU, target type includes project number and zone
+  target_type = f'projects/12345/zones/zone/acceleratorTypes/{test_system.reservation_accelerator_type}'
+  json_output = f"""
+  {{
+      "aggregateReservation": {{
           "reservedResources": [
-              {
-                  "accelerator": {
-                      "acceleratorType": "accelerator-1",
+              {{
+                  "accelerator": {{
+                      "acceleratorType": "{target_type}",
                       "acceleratorCount": 100
-                  }
-              }
+                  }}
+              }},
+              {{
+                  "accelerator": {{
+                      "acceleratorType": "wrong-type",
+                      "acceleratorCount": 100
+                  }}
+              }}
           ],
           "inUseResources": [
-              {
-                  "accelerator": {
-                      "acceleratorType": "accelerator-1",
+              {{
+                  "accelerator": {{
+                      "acceleratorType": "{target_type}",
                       "acceleratorCount": 20
-                  }
-              },
-              {
-                  "accelerator": {
+                  }}
+              }},
+              {{
+                  "accelerator": {{
                       "acceleratorType": "accelerator-2",
                       "acceleratorCount": 50
-                  }
-              }
+                  }}
+              }}
           ]
-      },
+      }},
       "status": "READY"
-  }
+  }}
   """
   commands_tester.set_result_for_command(
       (0, json_output),
@@ -596,7 +662,10 @@ def test_assess_available_slices_aggregate_reservation(
   res = ReservationLink(project='project', name='reservation', zone='zone')
 
   slices, return_code = assess_available_slices(
-      [res], force_sub_block_targeting=False, required_hosts=1
+      [res],
+      force_sub_block_targeting=False,
+      required_hosts=1,
+      system=test_system,
   )
 
   assert return_code == 0
@@ -610,6 +679,7 @@ def test_assess_available_slices_aggregate_reservation(
 
 def test_assess_available_slices_failures_sub_block_check(
     commands_tester: CommandsTester,
+    test_system: SystemCharacteristics,
 ):
   res_sub = SubBlockReservationLink(
       project='project',
@@ -623,7 +693,10 @@ def test_assess_available_slices_failures_sub_block_check(
   )
 
   slices, return_code = assess_available_slices(
-      [res_sub], force_sub_block_targeting=False, required_hosts=1
+      [res_sub],
+      force_sub_block_targeting=False,
+      required_hosts=1,
+      system=test_system,
   )
 
   assert not slices
@@ -632,6 +705,7 @@ def test_assess_available_slices_failures_sub_block_check(
 
 def test_assess_available_slices_failures_block_sub_blocks_check(
     commands_tester: CommandsTester,
+    test_system: SystemCharacteristics,
 ):
   res_block = BlockReservationLink(
       project='project',
@@ -644,7 +718,10 @@ def test_assess_available_slices_failures_block_sub_blocks_check(
   )
 
   slices, return_code = assess_available_slices(
-      [res_block], force_sub_block_targeting=True, required_hosts=1
+      [res_block],
+      force_sub_block_targeting=True,
+      required_hosts=1,
+      system=test_system,
   )
 
   assert not slices
@@ -653,6 +730,7 @@ def test_assess_available_slices_failures_block_sub_blocks_check(
 
 def test_assess_available_slices_failures_reservation_blocks_check(
     commands_tester: CommandsTester,
+    test_system: SystemCharacteristics,
 ):
   res = ReservationLink(project='project', name='reservation', zone='zone')
   commands_tester.set_result_for_command(
@@ -660,7 +738,10 @@ def test_assess_available_slices_failures_reservation_blocks_check(
   )
 
   slices, return_code = assess_available_slices(
-      [res], force_sub_block_targeting=True, required_hosts=1
+      [res],
+      force_sub_block_targeting=True,
+      required_hosts=1,
+      system=test_system,
   )
 
   assert not slices
@@ -669,6 +750,7 @@ def test_assess_available_slices_failures_reservation_blocks_check(
 
 def test_assess_available_slices_failures_reservation_count_check(
     commands_tester: CommandsTester,
+    test_system: SystemCharacteristics,
 ):
   res = ReservationLink(project='project', name='reservation', zone='zone')
   commands_tester.set_result_for_command(
@@ -676,7 +758,10 @@ def test_assess_available_slices_failures_reservation_count_check(
   )
 
   slices, return_code = assess_available_slices(
-      [res], force_sub_block_targeting=False, required_hosts=1
+      [res],
+      force_sub_block_targeting=False,
+      required_hosts=1,
+      system=test_system,
   )
 
   assert not slices
@@ -685,6 +770,7 @@ def test_assess_available_slices_failures_reservation_count_check(
 
 def test_assess_available_slices_mixed_reservations_with_subblock_targeting(
     commands_tester: CommandsTester,
+    test_system: SystemCharacteristics,
 ):
   # Mock block reservation with 2 healthy sub-blocks
   block_res = BlockReservationLink(
@@ -734,6 +820,7 @@ def test_assess_available_slices_mixed_reservations_with_subblock_targeting(
       [block_res, sub_res_healthy, sub_res_unhealthy],
       force_sub_block_targeting=True,
       required_hosts=1,
+      system=test_system,
   )
 
   assert return_code == 0
@@ -765,7 +852,9 @@ def test_assess_available_slices_mixed_reservations_with_subblock_targeting(
   ]
 
 
-def test_assess_available_slices_deduplicates(commands_tester: CommandsTester):
+def test_assess_available_slices_deduplicates(
+    commands_tester: CommandsTester, test_system: SystemCharacteristics
+):
   block_res = BlockReservationLink(
       project='project', name='res1', zone='zone', block_name='block1'
   )
@@ -793,6 +882,7 @@ def test_assess_available_slices_deduplicates(commands_tester: CommandsTester):
       [block_res, sub_res],
       force_sub_block_targeting=True,
       required_hosts=1,
+      system=test_system,
   )
 
   assert return_code == 0

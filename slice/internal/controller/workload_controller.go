@@ -335,10 +335,10 @@ func (r *WorkloadReconciler) findWorkloadSlices(ctx context.Context, wl *kueue.W
 }
 
 type groupedSlices struct {
-	deleted      []v1beta1.Slice
-	toDelete     []v1beta1.Slice
-	initializing []v1beta1.Slice
-	active       []v1beta1.Slice
+	deleted      []*v1beta1.Slice
+	toDelete     []*v1beta1.Slice
+	initializing []*v1beta1.Slice
+	active       []*v1beta1.Slice
 }
 
 // groupSlices categorizes a list of Slice objects into four groups based on their state.
@@ -354,8 +354,9 @@ type groupedSlices struct {
 //	A groupedSlices struct containing categorized slices.
 func (r *WorkloadReconciler) groupSlices(slices []v1beta1.Slice) groupedSlices {
 	gs := groupedSlices{}
-	for _, slice := range slices {
-		switch core.GetSliceState(slice, r.activationTimeout) {
+	for i := range slices {
+		slice := &slices[i]
+		switch core.GetSliceState(*slice, r.activationTimeout) {
 		case core.SliceStateDeleted:
 			gs.deleted = append(gs.deleted, slice)
 		case core.SliceStateFailed, core.SliceStateStale:
@@ -369,12 +370,12 @@ func (r *WorkloadReconciler) groupSlices(slices []v1beta1.Slice) groupedSlices {
 	return gs
 }
 
-func (r *WorkloadReconciler) deleteSlices(ctx context.Context, slices []v1beta1.Slice) error {
+func (r *WorkloadReconciler) deleteSlices(ctx context.Context, slices []*v1beta1.Slice) error {
 	log := ctrl.LoggerFrom(ctx)
 	for _, slice := range slices {
-		log = log.WithValues("slice", klog.KObj(&slice))
+		log = log.WithValues("slice", klog.KObj(slice))
 		log.V(3).Info("Deleting the Slice")
-		err := r.client.Delete(ctx, &slice)
+		err := r.client.Delete(ctx, slice)
 		if client.IgnoreNotFound(err) != nil {
 			log.Error(err, "Failed to delete the Slice")
 			return err

@@ -181,7 +181,7 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	grouped := r.groupSlices(slices)
 
 	if ac.State == kueue.CheckStateReady && (len(grouped.deleted) > 0 || len(slices) != totalDesiredSlices(wl, nodes)) {
-		log.V(3).Info("Slice deleted unexpectedly, evicting workload")
+		log.V(3).Info("Slice has been deleted, evicting workload")
 		err := r.evictWorkload(ctx, wl, ac, "Slice was deleted unexpectedly")
 		return ctrl.Result{}, err
 	}

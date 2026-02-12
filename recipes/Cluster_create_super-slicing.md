@@ -65,6 +65,8 @@ kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="Conf
 [XPK] Existing node pool names  ['0']
 [XPK] Task: `Retrieve resource policy` is implemented by the following command not running since it is a dry run. 
 gcloud beta compute resource-policies describe tpu7x-128-4x4x4-ss-placement-policy --project=golden-project --region=us-central1
+[XPK] Task: `Get reservation golden-reservation` is implemented by the following command not running since it is a dry run. 
+gcloud beta compute reservations describe golden-reservation --project=golden-project --zone=us-central1-a --format="json(specificReservation,aggregateReservation,status)"
 [XPK] Task: `Count healthy fitting sub-blocks in block` is implemented by the following command not running since it is a dry run. 
 gcloud beta compute reservations sub-blocks list golden-reservation --block-name=block --project=golden-project --zone=us-central1-a --filter="healthInfo.healthStatus=HEALTHY" --format="json(name,count,inUseCount)"
 [XPK] To complete NodepoolCreate-golden-cluster-np-0 we are executing gcloud beta container node-pools create golden-cluster-np-0 --location=us-central1 --cluster=golden-cluster --project=golden-project --node-locations=us-central1-a --machine-type=tpu7x-standard-4t --host-maintenance-interval=AS_NEEDED --reservation-affinity=specific --reservation=golden-reservation/reservationBlocks/block/reservationSubBlocks/sub0 --placement-policy=tpu7x-128-4x4x4-ss-placement-policy --enable-gvnic --node-version=0 --num-nodes=16 --scopes=storage-full,gke-default,"https://www.googleapis.com/auth/cloud-platform" --max-pods-per-node 15  

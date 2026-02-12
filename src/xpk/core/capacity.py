@@ -17,6 +17,7 @@ limitations under the License.
 import enum
 import os
 import json
+import functools
 from dataclasses import dataclass, field
 from typing import Sequence, Any
 
@@ -25,6 +26,7 @@ from .system_characteristics import AcceleratorType, SystemCharacteristics
 from .gcloud_context import project_id_to_project_number
 from ..utils.console import xpk_print, xpk_exit
 from ..utils.kueue import is_queued_cluster
+from ..utils.execution_context import is_dry_run
 
 AUTOPROVISIONING_CONFIG_VALUE = 'AUTOPROVISION'
 AUTOPROVISIONING_CONFIG_MINIMUM_KEY = 'minimum_chips'
@@ -170,6 +172,52 @@ def _parse_reservation_sub_block(data: dict[str, Any]) -> _ReservationSubBlock:
       count=int(data.get('count', 0)),
       in_use_count=int(data.get('inUseCount', '0')),
   )
+
+
+@functools.lru_cache(maxsize=None)
+def _get_reservation_cached(
+    project: str, zone: str, name: str
+) -> _Reservation | None:
+  """Fetches reservation details using gcloud and returns _Reservation object.
+
+  Args:
+    project: Project ID.
+    zone: Zone.
+    name: Reservation name.
+
+  Returns:
+    _Reservation object or None on failure.
+  """
+  command = (
+      f'gcloud beta compute reservations describe {name} '
+      f'--project={project} --zone={zone} '
+      '--format="json(specificReservation,aggregateReservation,status)"'
+  )
+  # Basic dry run value to avoid crashes if dry run is enabled globally
+  dry_run_json = json.dumps({
+      'specificReservation': {
+          'count': 100,
+          'inUseCount': 0,
+          'instanceProperties': {},
+      },
+      'status': 'READY',
+  })
+
+  return_code, output = run_command_for_value(
+      command, f'Get reservation {name}', dry_run_return_val=dry_run_json
+  )
+
+  if return_code != 0 or not output.strip():
+    return None
+
+  try:
+    data = json.loads(output)
+    if not data or data.get('status') != 'READY':
+      return None
+    return _parse_reservation(name, data)
+  except (ValueError, IndexError, AttributeError, json.JSONDecodeError) as e:
+    xpk_print(f'Error processing reservation data: {e}. Output: "{output}".')
+    return None
 
 
 def print_reservations(args) -> int:
@@ -526,7 +574,7 @@ def assess_available_slices(
         reservation, force_sub_block_targeting, required_hosts, system
     )
     if return_code != 0:
-      return [], return_code
+      return [], 0
     reservation_capacities.extend(capacities)
 
   # Deduplicate reservation_capacities, preserving order:
@@ -558,12 +606,26 @@ def _assess_available_slices_for_reservation(
   Returns:
     List of available reservations (targeting sub-blocks if applicable).
   """
+  # Identify the parent reservation (project, zone, name)
+  parent_reservation = _get_reservation_cached(
+      project=reservation.project,
+      zone=reservation.zone,
+      name=reservation.name,
+  )
+
+  if not parent_reservation:
+    xpk_print(f"WARNING: Failed to fetch reservation '{reservation.name}'.")
+    return [], 0
+
+  if not _verify_reservation_configuration(parent_reservation, system):
+    return [], 0
+
   if isinstance(reservation, SubBlockReservationLink):
     available_slices, return_code = _get_available_slices_in_sub_block(
         reservation, required_hosts
     )
     if return_code != 0:
-      return [], return_code
+      return [], 0
     if available_slices > 0:
       return [ReservationCapacity(reservation, available_slices)], 0
     else:
@@ -582,7 +644,7 @@ def _assess_available_slices_for_reservation(
     # reservation instanceof ReservationLink (not Block/SubBlock):
     blocks, return_code = _get_blocks_in_reservation(reservation)
     if return_code != 0:
-      return [], return_code
+      return [], 0
     if blocks:
       return assess_available_slices(
           blocks, force_sub_block_targeting, required_hosts, system
@@ -595,7 +657,7 @@ def _assess_available_slices_for_reservation(
     return [], 0
 
   count, return_code = _get_reservation_count(
-      reservation, required_hosts, system
+      parent_reservation, required_hosts, system, reservation
   )
   if return_code != 0:
     return [], return_code
@@ -745,95 +807,68 @@ def _calculate_target_accelerator_type(
     return reservation_accelerator_type
 
 
+def _verify_reservation_configuration(
+    reservation: _Reservation, system: SystemCharacteristics
+) -> bool:
+  """Checks if the reservation matches the system requirements.
+
+  Args:
+    reservation: The reservation object.
+    system: The system characteristics.
+
+  Returns:
+    True if valid, False otherwise. Prints error message on failure.
+  """
+  if not reservation.specificReservation:
+    return True
+
+  if is_dry_run() and not reservation.specificReservation.machine_type:
+    return True
+
+  if system.accelerator_type == AcceleratorType.TPU:
+    if reservation.specificReservation.machine_type != system.gce_machine_type:
+      xpk_print(
+          f"ERROR: Reservation '{reservation.name}' has machine type"
+          f" '{reservation.specificReservation.machine_type}', but requested"
+          f" system requires '{system.gce_machine_type}'."
+      )
+      return False
+  elif system.accelerator_type == AcceleratorType.GPU:
+    target_accel = system.reservation_accelerator_type
+    has_matching_accelerator = any(
+        acc.acceleratorType == target_accel
+        for acc in reservation.specificReservation.guest_accelerators
+    )
+    if not has_matching_accelerator:
+      xpk_print(
+          f"ERROR: Reservation '{reservation.name}' does not have a matching"
+          f" guest accelerator for '{target_accel}'."
+      )
+      return False
+  return True
+
+
 def _get_reservation_count(
-    link: ReservationLink, required_hosts: int, system: SystemCharacteristics
+    reservation: _Reservation,
+    required_hosts: int,
+    system: SystemCharacteristics,
+    link: ReservationLink,
 ) -> tuple[int, int]:
   """Get capacity count of a reservation.
 
   Args:
-    link: reservation to get count for.
+    reservation: The reservation object.
     required_hosts: number of hosts required per slice.
     system: The system characteristics of the accelerator type.
+    link: The reservation link (for logging/identification).
 
   Returns:
     Number of available slots in the reservation.
   """
-  command = (
-      f'gcloud beta compute reservations describe {link.name} '
-      f'--project={link.project} '
-      f'--zone={link.zone} '
-      '--format="json(specificReservation,aggregateReservation,status)"'
-  )
-
-  dry_run_machine_type = ''
-  dry_run_guest_accelerators = []
-
-  if system.accelerator_type == AcceleratorType.TPU:
-    dry_run_machine_type = system.gce_machine_type
-  elif system.accelerator_type == AcceleratorType.GPU:
-    assert system.reservation_accelerator_type
-    dry_run_guest_accelerators = [{
-        'acceleratorType': system.reservation_accelerator_type,
-        'acceleratorCount': 1,
-    }]
-
-  dry_run_json = json.dumps({
-      'specificReservation': {
-          'count': 1000,
-          'inUseCount': 0,
-          'instanceProperties': {
-              'machineType': dry_run_machine_type,
-              'guestAccelerators': dry_run_guest_accelerators,
-          },
-      },
-      'status': 'READY',
-  })
-
-  return_code, output = run_command_for_value(
-      command,
-      f'Get reservation count for {link.name}',
-      dry_run_return_val=dry_run_json,
-  )
-  if return_code != 0 or not output.strip():
-    return 0, return_code
-
-  try:
-    data = json.loads(output)
-    if not data or data.get('status') != 'READY':
-      return 0, 0
-  except (ValueError, IndexError, AttributeError, json.JSONDecodeError) as e:
-    xpk_print(f'Error processing reservation data: {e}. Output: "{output}".')
-    return 0, 1
-
-  reservation = _parse_reservation(link.name, data)
   count = 0
   in_use_count = 0
 
   if reservation.specificReservation:
-    if system.accelerator_type == AcceleratorType.TPU:
-      if (
-          reservation.specificReservation.machine_type
-          != system.gce_machine_type
-      ):
-        xpk_print(
-            f"ERROR: Reservation '{link.name}' has machine type"
-            f" '{reservation.specificReservation.machine_type}', but requested"
-            f" system requires '{system.gce_machine_type}'."
-        )
-        return 0, 1
-    elif system.accelerator_type == AcceleratorType.GPU:
-      target_accel = system.reservation_accelerator_type
-      has_matching_accelerator = any(
-          acc.acceleratorType == target_accel
-          for acc in reservation.specificReservation.guest_accelerators
-      )
-      if not has_matching_accelerator:
-        xpk_print(
-            f"ERROR: Reservation '{link.name}' does not have a matching guest"
-            f" accelerator for '{target_accel}'."
-        )
-        return 0, 1
-
     count = int(reservation.specificReservation.count)
     in_use_count = int(reservation.specificReservation.inUseCount)
   elif reservation.aggregateReservation:

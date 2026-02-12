@@ -303,6 +303,18 @@ var _ = ginkgo.Describe("JobSet", func() {
 					}, utils.LongTimeout, utils.Timeout).Should(gomega.Succeed())
 				})
 
+				ginkgo.By("Checking that all pods are running", func() {
+					pods := &corev1.PodList{}
+					gomega.Eventually(func(g gomega.Gomega) {
+						g.Expect(k8sClient.List(ctx, pods, client.InNamespace(ns.Name))).To(gomega.Succeed())
+						g.Expect(pods.Items).Should(gomega.HaveLen(int(tc.parallelism)))
+						for _, pod := range pods.Items {
+							g.Expect(pod.Status.Phase).To(gomega.Equal(corev1.PodRunning))
+							g.Expect(pod.Spec.NodeSelector).To(gomega.HaveKeyWithValue(core.TPUTopologyAnnotation, tc.tpuTopology))
+						}
+					}, utils.LongTimeout, utils.Interval).Should(gomega.Succeed())
+				})
+
 				ginkgo.By("Deleting JobSet", func() {
 					utils.ExpectObjectToBeDeleted(ctx, k8sClient, jobSet, true)
 				})
@@ -636,6 +648,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 					g.Expect(pods.Items).Should(gomega.HaveLen(16))
 					for _, pod := range pods.Items {
 						g.Expect(pod.Status.Phase).To(gomega.Equal(corev1.PodRunning))
+						g.Expect(pod.Spec.NodeSelector).To(gomega.HaveKeyWithValue(core.TPUTopologyAnnotation, "4x4x4"))
 					}
 				}, util.LongTimeout, util.Interval).Should(gomega.Succeed())
 			})

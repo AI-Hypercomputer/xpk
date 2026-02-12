@@ -35,7 +35,7 @@ from .capacity import (
     _AcceleratorResource,
 )
 from xpk.core.testing.commands_tester import CommandsTester
-from .system_characteristics import SystemCharacteristics, AcceleratorType, DockerPlatform
+from .system_characteristics import SystemCharacteristics, AcceleratorType, DockerPlatform, GpuConfig
 
 
 @pytest.fixture
@@ -499,8 +499,9 @@ def test_assess_available_slices_link_without_blocks(
       (
           0,
           (
-              '{"specificReservation": {"count": 2, "inUseCount": 0}, "status":'
-              ' "READY"}'
+              '{"specificReservation": {"count": 2, "inUseCount": 0,'
+              ' "instanceProperties": {"machineType": "test-machine"}},'
+              ' "status": "READY"}'
           ),
       ),
       'gcloud beta compute reservations describe',
@@ -534,8 +535,9 @@ def test_assess_available_slices_link_without_blocks_sub_block_targeting(
       (
           0,
           (
-              '{"specificReservation": {"count": 2, "inUseCount": 0}, "status":'
-              ' "READY"}'
+              '{"specificReservation": {"count": 2, "inUseCount": 0,'
+              ' "instanceProperties": {"machineType": "test-machine"}},'
+              ' "status": "READY"}'
           ),
       ),
       'gcloud beta compute reservations describe',
@@ -589,7 +591,8 @@ def test_assess_available_slices_host_filtering_sufficient_hosts(
       (
           0,
           (
-              '{"specificReservation": {"count": 48, "inUseCount": 2},'
+              '{"specificReservation": {"count": 48, "inUseCount": 2,'
+              ' "instanceProperties": {"machineType": "test-machine"}},'
               ' "status": "READY"}'
           ),
       ),
@@ -902,19 +905,40 @@ def test_assess_available_slices_deduplicates(
 
 def test_parse_specific_reservation():
   data = {
-      'specificReservation': {'count': '10', 'inUseCount': '2'},
+      'specificReservation': {
+          'count': '10',
+          'inUseCount': '2',
+          'instanceProperties': {
+              'machineType': 'test-machine',
+              'guestAccelerators': [{
+                  'acceleratorCount': 1,
+                  'acceleratorType': 'nvidia-test',
+              }],
+          },
+      },
       'status': 'READY',
   }
   res = _parse_reservation('res1', data)
   assert res.name == 'res1'
-  assert res.specificReservation == _SpecificReservation(count=10, inUseCount=2)
+  assert res.specificReservation == _SpecificReservation(
+      count=10,
+      inUseCount=2,
+      machine_type='test-machine',
+      guest_accelerators=[
+          _AcceleratorResource(
+              acceleratorCount=1, acceleratorType='nvidia-test'
+          )
+      ],
+  )
   assert res.aggregateReservation is None
 
 
 def test_parse_specific_reservation_defaults():
   data = {'specificReservation': {}, 'status': 'READY'}
   res = _parse_reservation('res1', data)
-  assert res.specificReservation == _SpecificReservation(count=0, inUseCount=0)
+  assert res.specificReservation == _SpecificReservation(
+      count=0, inUseCount=0, machine_type='', guest_accelerators=[]
+  )
 
 
 def test_parse_aggregate_reservation():
@@ -961,3 +985,112 @@ def test_parse_reservation_sub_block_defaults():
   assert res.name == ''
   assert res.count == 0
   assert res.in_use_count == 0
+
+
+def test_get_reservation_count_validates_tpu_machine_type(
+    commands_tester: CommandsTester, test_system: SystemCharacteristics
+):
+  # Success case: matches
+  commands_tester.set_result_for_command(
+      (
+          0,
+          (
+              '{"specificReservation": {"count": 10, "inUseCount": 2,'
+              ' "instanceProperties": {"machineType": "test-machine"}},'
+              ' "status": "READY"}'
+          ),
+      ),
+      'gcloud beta compute reservations describe',
+  )
+  res_link = ReservationLink(project='p', name='r', zone='z')
+  count, return_code = assess_available_slices(
+      [res_link],
+      force_sub_block_targeting=False,
+      required_hosts=1,
+      system=test_system,
+  )
+  assert return_code == 0
+  assert count[0].available_slices == 8
+
+  # Failure case: mismatch
+  commands_tester.set_result_for_command(
+      (
+          0,
+          (
+              '{"specificReservation": {"count": 10, "inUseCount": 2,'
+              ' "instanceProperties": {"machineType": "wrong-machine"}},'
+              ' "status": "READY"}'
+          ),
+      ),
+      'gcloud beta compute reservations describe',
+  )
+  count, return_code = assess_available_slices(
+      [res_link],
+      force_sub_block_targeting=False,
+      required_hosts=1,
+      system=test_system,
+  )
+  assert return_code == 1
+  assert not count
+
+
+def test_get_reservation_count_validates_gpu_accelerator_type(
+    commands_tester: CommandsTester,
+):
+  gpu_system = SystemCharacteristics(
+      topology='N/A',
+      vms_per_slice=1,
+      gke_accelerator='nvidia-test',
+      gce_machine_type='g2-standard-12',
+      chips_per_vm=1,
+      accelerator_type=AcceleratorType.GPU,
+      device_type='test-gpu',
+      supports_sub_slicing=False,
+      supports_super_slicing=False,
+      supports_accelerator_network_profile=False,
+      docker_platform=DockerPlatform.AMD,
+      gpu_config=GpuConfig(requires_topology=False),
+  )
+
+  # Success case: matches
+  commands_tester.set_result_for_command(
+      (
+          0,
+          (
+              '{"specificReservation": {"count": 10, "inUseCount": 2,'
+              ' "instanceProperties": {"guestAccelerators":'
+              ' [{"acceleratorType": "nvidia-test"}]}}, "status": "READY"}'
+          ),
+      ),
+      'gcloud beta compute reservations describe',
+  )
+  res_link = ReservationLink(project='p', name='r', zone='z')
+  count, return_code = assess_available_slices(
+      [res_link],
+      force_sub_block_targeting=False,
+      required_hosts=1,
+      system=gpu_system,
+  )
+  assert return_code == 0
+  assert count[0].available_slices == 8
+
+  # Failure case: mismatch
+  commands_tester.set_result_for_command(
+      (
+          0,
+          (
+              '{"specificReservation": {"count": 10, "inUseCount": 2,'
+              ' "instanceProperties": {"guestAccelerators":'
+              ' [{"acceleratorType": "nvidia-wrong"}]}}, "status": "READY"}'
+          ),
+      ),
+      'gcloud beta compute reservations describe',
+  )
+  count, return_code = assess_available_slices(
+      [res_link],
+      force_sub_block_targeting=False,
+      required_hosts=1,
+      system=gpu_system,
+  )
+  assert return_code == 1
+  assert not count

@@ -17,7 +17,7 @@ limitations under the License.
 import enum
 import os
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Sequence, Any
 
 from .commands import run_command_with_updates, run_command_for_value
@@ -71,17 +71,18 @@ class ReservationCapacity:
   available_slices: int
 
 
-# TODO: add machineType
-@dataclass(frozen=True)
-class _SpecificReservation:
-  count: int
-  inUseCount: int
-
-
 @dataclass(frozen=True)
 class _AcceleratorResource:
   acceleratorCount: int
   acceleratorType: str
+
+
+@dataclass(frozen=True)
+class _SpecificReservation:
+  count: int
+  inUseCount: int
+  machine_type: str
+  guest_accelerators: list[_AcceleratorResource] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -105,9 +106,18 @@ class _Reservation:
 
 
 def _parse_specific_reservation(data: dict[str, Any]) -> _SpecificReservation:
+  instance_properties = data.get('instanceProperties', {})
+  machine_type = instance_properties.get('machineType', '')
+  guest_accelerators_data = instance_properties.get('guestAccelerators', [])
+  guest_accelerators = [
+      _parse_accelerator_resource(acc) for acc in guest_accelerators_data
+  ]
+
   return _SpecificReservation(
       count=int(data.get('count', 0)),
       inUseCount=int(data.get('inUseCount', 0)),
+      machine_type=machine_type,
+      guest_accelerators=guest_accelerators,
   )
 
 
@@ -755,13 +765,34 @@ def _get_reservation_count(
       '--format="json(specificReservation,aggregateReservation,status)"'
   )
 
+  dry_run_machine_type = ''
+  dry_run_guest_accelerators = []
+
+  if system.accelerator_type == AcceleratorType.TPU:
+    dry_run_machine_type = system.gce_machine_type
+  elif system.accelerator_type == AcceleratorType.GPU:
+    assert system.reservation_accelerator_type
+    dry_run_guest_accelerators = [{
+        'acceleratorType': system.reservation_accelerator_type,
+        'acceleratorCount': 1,
+    }]
+
+  dry_run_json = json.dumps({
+      'specificReservation': {
+          'count': 1000,
+          'inUseCount': 0,
+          'instanceProperties': {
+              'machineType': dry_run_machine_type,
+              'guestAccelerators': dry_run_guest_accelerators,
+          },
+      },
+      'status': 'READY',
+  })
+
   return_code, output = run_command_for_value(
       command,
       f'Get reservation count for {link.name}',
-      dry_run_return_val=(
-          '{"specificReservation": {"count": 16, "inUseCount": 0},'
-          ' "status": "READY"}'
-      ),
+      dry_run_return_val=dry_run_json,
   )
   if return_code != 0 or not output.strip():
     return 0, return_code
@@ -779,6 +810,30 @@ def _get_reservation_count(
   in_use_count = 0
 
   if reservation.specificReservation:
+    if system.accelerator_type == AcceleratorType.TPU:
+      if (
+          reservation.specificReservation.machine_type
+          != system.gce_machine_type
+      ):
+        xpk_print(
+            f"ERROR: Reservation '{link.name}' has machine type"
+            f" '{reservation.specificReservation.machine_type}', but requested"
+            f" system requires '{system.gce_machine_type}'."
+        )
+        return 0, 1
+    elif system.accelerator_type == AcceleratorType.GPU:
+      target_accel = system.reservation_accelerator_type
+      has_matching_accelerator = any(
+          acc.acceleratorType == target_accel
+          for acc in reservation.specificReservation.guest_accelerators
+      )
+      if not has_matching_accelerator:
+        xpk_print(
+            f"ERROR: Reservation '{link.name}' does not have a matching guest"
+            f" accelerator for '{target_accel}'."
+        )
+        return 0, 1
+
     count = int(reservation.specificReservation.count)
     in_use_count = int(reservation.specificReservation.inUseCount)
   elif reservation.aggregateReservation:

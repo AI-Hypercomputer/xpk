@@ -480,8 +480,9 @@ def test_run_gke_node_pool_create_command_multiple_reservations(
       (
           0,
           (
-              '{"specificReservation": {"count": 2, "inUseCount": 0}, "status":'
-              ' "READY"}'
+              '{"specificReservation": {"count": 2, "inUseCount": 0,'
+              ' "instanceProperties": {"machineType": "ct4p-hightpu-4t"}},'
+              ' "status": "READY"}'
           ),
       ),
       "gcloud beta compute reservations describe",
@@ -559,8 +560,9 @@ def test_run_gke_node_pool_create_command_partial_reservations(
       (
           0,
           (
-              '{"specificReservation": {"count": 2, "inUseCount": 0}, "status":'
-              ' "READY"}'
+              '{"specificReservation": {"count": 2, "inUseCount": 0,'
+              ' "instanceProperties": {"machineType": "ct4p-hightpu-4t"}},'
+              ' "status": "READY"}'
           ),
       ),
       "gcloud beta compute reservations describe",

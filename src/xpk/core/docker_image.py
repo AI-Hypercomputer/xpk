@@ -20,6 +20,7 @@ import random
 import string
 import tarfile
 
+from docker.utils import build
 from .system_characteristics import DockerPlatform
 from ..utils.console import xpk_exit, xpk_print
 from ..utils.feature_flags import FeatureFlags
@@ -117,6 +118,43 @@ def build_docker_image_from_base_image(
   )
 
 
+def _build_image_archive(script_dir: str) -> str:
+  image_archive_path = write_tmp_file(payload='')
+  xpk_print(
+      f'Adding {script_dir} to container image archive {image_archive_path}'
+  )
+  if is_dry_run():
+    return image_archive_path
+
+  ignore_patterns = []
+  ignore_path = os.path.join(script_dir, '.dockerignore')
+  if os.path.exists(ignore_path):
+    with open(ignore_path, 'r', encoding='utf=8') as ignore_file:
+      ignore_patterns = [
+          line.strip()
+          for line in ignore_file
+          if not line.isspace() and not line.startswith('#')
+      ]
+
+  paths_to_add = build.exclude_paths(script_dir, ignore_patterns)
+
+  with tarfile.open(image_archive_path, 'w') as tar:
+    for path in sorted(paths_to_add):
+      full_path = os.path.join(script_dir, path)
+      archive_name = os.path.join('app', path)
+      info = tar.gettarinfo(full_path, arcname=archive_name)
+      info.uid = info.gid = 0
+      info.uname = info.gname = 'root'
+
+      if os.path.isfile(full_path):
+        with open(full_path, 'rb') as f:
+          tar.addfile(info, f)
+      else:
+        # Directories and special files (symlinks, etc.)
+        tar.addfile(info, None)
+    return image_archive_path
+
+
 def _build_image_with_crane(
     args,
     platform: DockerPlatform,
@@ -124,24 +162,11 @@ def _build_image_with_crane(
     verbose=True,
 ) -> tuple[int, str]:
 
-  image_archive_path = write_tmp_file(payload='')
-  xpk_print(
-      f'Adding {args.script_dir} to container image archive'
-      f' {image_archive_path}'
-  )
-  if not is_dry_run():
-
-    def reset_ownership(tarinfo):
-      tarinfo.uid = tarinfo.gid = 0
-      tarinfo.uname = tarinfo.gname = 'root'
-      return tarinfo
-
-    with tarfile.open(image_archive_path, 'w') as tar:
-      tar.add(args.script_dir, arcname='app', filter=reset_ownership)
+  image_archive_path = _build_image_archive(args.script_dir)
 
   crane_command = (
       f'crane mutate {args.base_docker_image} --append {image_archive_path}'
-      f' --platform {platform.value}   --tag {container_image}'
+      f' --platform {platform.value} --tag {container_image}'
       ' --workdir /app'
   )
 

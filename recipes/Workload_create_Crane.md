@@ -28,7 +28,7 @@ kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="Conf
 
 [XPK] Adding /tmp to container image archive e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
 [XPK] Task: `Upload Container Image` is implemented by the following command not running since it is a dry run. 
-crane mutate python:3.10 --append e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 --platform linux/amd64   --tag gcr.io/golden-project/dry-run-runner:prefix-current --workdir /app
+crane mutate python:3.10 --append e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 --platform linux/amd64 --tag gcr.io/golden-project/dry-run-runner:prefix-current --workdir /app
 [XPK] Deleting container image archive e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
 [XPK] Temp file (39eda1549f4c0d68a4f11e6cbd89ba655d49d2faeef6898a140f476e6e70ae0e) content: 
 apiVersion: jobset.x-k8s.io/v1alpha2

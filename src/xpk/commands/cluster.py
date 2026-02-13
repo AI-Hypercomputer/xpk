@@ -254,7 +254,7 @@ def _validate_gsc_reservation(args, creation_description: str):
     xpk_exit(1)
 
   for reservation in get_reservations_list(args):
-    deployment_type = get_reservation_deployment_type(reservation=reservation)
+    deployment_type = get_reservation_deployment_type(reservation)
     if deployment_type != 'DENSE':
       xpk_print(
           'Error: Validation failed: The specified reservation'

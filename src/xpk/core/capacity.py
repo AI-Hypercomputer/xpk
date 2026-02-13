@@ -161,19 +161,21 @@ def _parse_reservation(name: str, data: dict[str, Any]) -> _Reservation:
 
 
 @functools.lru_cache(maxsize=None)
-def _fetch_reservation_from_gcloud(
-    project: str, zone: str, name: str
+def _get_reservation_cached(
+    reservation: ReservationLink,
 ) -> _Reservation | None:
   """Fetches reservation details using gcloud and returns _Reservation object.
 
   Args:
-    project: Project ID.
-    zone: Zone.
-    name: Reservation name.
+    reservation: ReservationLink object.
 
   Returns:
     _Reservation object or None on failure.
   """
+  project = reservation.project
+  zone = reservation.zone
+  name = reservation.name
+
   command = (
       f'gcloud beta compute reservations describe {name} '
       f'--project={project} --zone={zone} '
@@ -207,25 +209,6 @@ def _fetch_reservation_from_gcloud(
   except (ValueError, IndexError, AttributeError, json.JSONDecodeError) as e:
     xpk_print(f'Error processing reservation data: {e}. Output: "{output}".')
     return None
-
-
-def _get_reservation_cached(
-    reservation: ReservationLink,
-) -> _Reservation | None:
-  """Fetches reservation details using gcloud and returns _Reservation object.
-
-  Args:
-    reservation: ReservationLink object.
-
-  Returns:
-    _Reservation object or None on failure.
-  """
-  return _fetch_reservation_from_gcloud(
-      project=reservation.project, zone=reservation.zone, name=reservation.name
-  )
-
-
-_get_reservation_cached.cache_clear = _fetch_reservation_from_gcloud.cache_clear  # type: ignore
 
 
 def print_reservations(args) -> int:
@@ -293,58 +276,63 @@ def get_capacity_type(args) -> tuple[CapacityType, int]:
 
 
 def get_reservation_maintenance_interval(
-    reservation: ReservationLink,
+    reservation_link: ReservationLink,
 ) -> str:
   """Get reservation maintenance interval.
 
   Args:
-    reservation: reservation object.
+    reservation_link: reservation object.
 
   Returns:
     Maintenance interval as a string.
   """
-  reservation_obj = _get_reservation_cached(reservation)
-  if not reservation_obj or not reservation_obj.specific_reservation:
+  reservation = _get_reservation_cached(reservation_link)
+  if not reservation or not reservation.specific_reservation:
     xpk_print(
-        f'Get reservation maintenance interval failed for {reservation.name}'
+        'Get reservation maintenance interval failed for'
+        f' {reservation_link.name}'
     )
     xpk_exit(1)
 
-  return reservation_obj.specific_reservation.maintenance_interval
+  return reservation.specific_reservation.maintenance_interval
 
 
-def get_reservation_placement_policy(reservation: ReservationLink) -> str:
+def get_reservation_placement_policy(reservation_link: ReservationLink) -> str:
   """Get reservation placement policy.
 
   Args:
-    reservation: reservation object.
+    reservation_link: reservation object.
 
   Returns:
     Placement policy as a string.
   """
-  reservation_obj = _get_reservation_cached(reservation)
-  if not reservation_obj:
-    xpk_print(f'Get reservation placement policy failed for {reservation.name}')
+  reservation = _get_reservation_cached(reservation_link)
+  if not reservation:
+    xpk_print(
+        f'Get reservation placement policy failed for {reservation_link.name}'
+    )
     xpk_exit(1)
 
-  return reservation_obj.resource_policy
+  return reservation.resource_policy
 
 
-def get_reservation_deployment_type(reservation: ReservationLink) -> str:
+def get_reservation_deployment_type(reservation_link: ReservationLink) -> str:
   """Get reservation deployment type.
 
   Args:
-    reservation: reservation object.
+    reservation_link: reservation object.
 
   Returns:
     Deployment type as a string.
   """
-  reservation_obj = _get_reservation_cached(reservation)
-  if not reservation_obj:
-    xpk_print(f'Get reservation deployment type failed for {reservation.name}')
+  reservation = _get_reservation_cached(reservation_link)
+  if not reservation:
+    xpk_print(
+        f'Get reservation deployment type failed for {reservation_link.name}'
+    )
     xpk_exit(1)
 
-  return reservation_obj.deployment_type
+  return reservation.deployment_type
 
 
 def get_reservations_list(args) -> list[ReservationLink]:

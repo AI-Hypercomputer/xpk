@@ -783,7 +783,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 				}, nodeName)
 			})
 
-			ginkgo.By("Setting Slice state to error", func() {
+			ginkgo.By("Setting Slice state to failed", func() {
 				gomega.Eventually(func(g gomega.Gomega) {
 					g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
 					meta.SetStatusCondition(&createdSlice.Status.Conditions, metav1.Condition{
@@ -856,7 +856,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 			})
 		})
 
-		ginkgo.It("should recover after a ready Slice changes to error state", func() {
+		ginkgo.It("should recover after a ready Slice changes to failed state", func() {
 			jobSet := testingjobsjobset.MakeJobSet("jobset", ns.Name).
 				Queue(lq.Name).
 				ReplicatedJobs(
@@ -952,7 +952,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 				})
 			})
 
-			ginkgo.By("Changing Slice condition to error", func() {
+			ginkgo.By("Changing Slice condition to failed", func() {
 				gomega.Eventually(func(g gomega.Gomega) {
 					g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
 					meta.SetStatusCondition(&createdSlice.Status.Conditions,

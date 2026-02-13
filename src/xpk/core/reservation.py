@@ -14,9 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import functools
 import json
 from dataclasses import dataclass, field
+from functools import lru_cache
 from typing import Any
 
 from .commands import run_command_with_updates, run_command_for_value
@@ -138,7 +138,7 @@ def _parse_reservation(name: str, data: dict[str, Any]) -> _Reservation:
   )
 
 
-@functools.lru_cache(maxsize=None)
+@lru_cache()
 def _get_reservation_cached(
     reservation: ReservationLink,
 ) -> _Reservation | None:

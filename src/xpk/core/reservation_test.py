@@ -30,11 +30,11 @@ from .reservation import (
     SubBlockReservationLink,
     to_reservation_path,
     _parse_reservation,
-    _SpecificReservation,
-    _AggregateReservation,
-    _AcceleratorResource,
-    _Reservation,
-    _get_reservation_cached,
+    SpecificReservation,
+    AggregateReservation,
+    AcceleratorResource,
+    Reservation,
+    get_reservation_cached,
 )
 
 
@@ -45,12 +45,12 @@ def commands_tester(mocker):
 
 @pytest.fixture(autouse=True)
 def clear_capacity_cache():
-  _get_reservation_cached.cache_clear()
+  get_reservation_cached.cache_clear()
   yield
-  _get_reservation_cached.cache_clear()
+  get_reservation_cached.cache_clear()
 
 
-@patch('xpk.core.reservation._get_reservation_cached')
+@patch('xpk.core.reservation.get_reservation_cached')
 @patch('xpk.core.reservation.xpk_print')
 def test_get_reservation_deployment_type_exits_on_failure(
     mock_print, mock_get_cached
@@ -63,9 +63,9 @@ def test_get_reservation_deployment_type_exits_on_failure(
   mock_print.assert_called()
 
 
-@patch('xpk.core.reservation._get_reservation_cached')
+@patch('xpk.core.reservation.get_reservation_cached')
 def test_get_reservation_deployment_type(mock_get_cached):
-  mock_res = MagicMock(spec=_Reservation)
+  mock_res = MagicMock(spec=Reservation)
   mock_res.deployment_type = 'DENSE'
   mock_get_cached.return_value = mock_res
 
@@ -210,9 +210,9 @@ def test_parse_reservation_fails_on_invalid_reservations(
   assert 'Unable to parse reservation' in xpk_print.mock_calls[0].args[0]
 
 
-@patch('xpk.core.reservation._get_reservation_cached')
+@patch('xpk.core.reservation.get_reservation_cached')
 def test_verify_reservations_exist_success(mock_get_cached, mocker):
-  mock_get_cached.return_value = MagicMock(spec=_Reservation)
+  mock_get_cached.return_value = MagicMock(spec=Reservation)
   args = mocker.Mock(reservation='r1,r2', project='project', zone='zone')
 
   result = verify_reservations_exist(args)
@@ -227,7 +227,7 @@ def test_verify_reservations_exist_success(mock_get_cached, mocker):
   )
 
 
-@patch('xpk.core.reservation._get_reservation_cached')
+@patch('xpk.core.reservation.get_reservation_cached')
 def test_verify_reservations_exist_failure(mock_get_cached, mocker):
   mock_get_cached.side_effect = [
       MagicMock(),
@@ -274,9 +274,9 @@ def test_get_reservations_list_empty(mocker):
   assert get_reservations_list(args) == []
 
 
-@patch('xpk.core.reservation._get_reservation_cached')
+@patch('xpk.core.reservation.get_reservation_cached')
 def test_get_reservation_placement_policy(mock_get_cached):
-  mock_res = MagicMock(spec=_Reservation)
+  mock_res = MagicMock(spec=Reservation)
   mock_res.resource_policy = 'compact'
   mock_get_cached.return_value = mock_res
 
@@ -287,10 +287,10 @@ def test_get_reservation_placement_policy(mock_get_cached):
   assert result == 'compact'
 
 
-@patch('xpk.core.reservation._get_reservation_cached')
+@patch('xpk.core.reservation.get_reservation_cached')
 def test_get_reservation_maintenance_interval(mock_get_cached):
-  mock_res = MagicMock(spec=_Reservation)
-  mock_res.specific_reservation = MagicMock(spec=_SpecificReservation)
+  mock_res = MagicMock(spec=Reservation)
+  mock_res.specific_reservation = MagicMock(spec=SpecificReservation)
   mock_res.specific_reservation.maintenance_interval = 'PERIODIC'
   mock_get_cached.return_value = mock_res
 
@@ -310,7 +310,7 @@ def test_parse_reservation_without_specific_or_aggregate():
 
   reservation = _parse_reservation('res1', data)
 
-  assert reservation == _Reservation(
+  assert reservation == Reservation(
       name='res1',
       aggregate_reservation=None,
       specific_reservation=None,
@@ -337,15 +337,15 @@ def test_parse_specific_reservation():
 
   reservation = _parse_reservation('res1', data)
 
-  assert reservation == _Reservation(
+  assert reservation == Reservation(
       name='res1',
       aggregate_reservation=None,
-      specific_reservation=_SpecificReservation(
+      specific_reservation=SpecificReservation(
           count=10,
           in_use_count=2,
           machine_type='test-machine',
           guest_accelerators=[
-              _AcceleratorResource(
+              AcceleratorResource(
                   accelerator_count=1, accelerator_type='nvidia-test'
               )
           ],
@@ -374,17 +374,15 @@ def test_parse_aggregate_reservation():
 
   reservation = _parse_reservation('res1', data)
 
-  assert reservation == _Reservation(
+  assert reservation == Reservation(
       name='res1',
       specific_reservation=None,
-      aggregate_reservation=_AggregateReservation(
+      aggregate_reservation=AggregateReservation(
           reserved_resources=[
-              _AcceleratorResource(
-                  accelerator_count=100, accelerator_type='tpu'
-              )
+              AcceleratorResource(accelerator_count=100, accelerator_type='tpu')
           ],
           in_use_resources=[
-              _AcceleratorResource(accelerator_count=20, accelerator_type='tpu')
+              AcceleratorResource(accelerator_count=20, accelerator_type='tpu')
           ],
       ),
   )
@@ -396,19 +394,19 @@ def test_get_reservation_cached_caching(commands_tester: CommandsTester):
   )
 
   # First call
-  _get_reservation_cached(ReservationLink('project', 'res1', 'zone'))
+  get_reservation_cached(ReservationLink('project', 'res1', 'zone'))
   commands_tester.assert_command_run(
       'reservations', 'describe', 'res1', times=1
   )
 
   # Second call with same args
-  _get_reservation_cached(ReservationLink('project', 'res1', 'zone'))
+  get_reservation_cached(ReservationLink('project', 'res1', 'zone'))
   commands_tester.assert_command_run(
       'reservations', 'describe', 'res1', times=1
   )
 
   # Third call with different args
-  _get_reservation_cached(ReservationLink('project', 'res2', 'zone'))
+  get_reservation_cached(ReservationLink('project', 'res2', 'zone'))
   commands_tester.assert_command_run(
       'reservations', 'describe', 'res2', times=1
   )
@@ -425,7 +423,7 @@ def test_get_reservation_cached_calls_correct_command(
       project='my-project', name='my-res', zone='my-zone'
   )
 
-  _get_reservation_cached(reservation)
+  get_reservation_cached(reservation)
 
   commands_tester.assert_command_run(
       'gcloud beta compute reservations describe my-res',
@@ -442,7 +440,7 @@ def test_get_reservation_cached_returns_none_if_not_ready(
   )
   reservation = ReservationLink(project='project', name='res', zone='zone')
 
-  result = _get_reservation_cached(reservation)
+  result = get_reservation_cached(reservation)
 
   assert result is None
 
@@ -455,7 +453,7 @@ def test_get_reservation_cached_returns_none_on_command_failure(
   )
   reservation = ReservationLink(project='project', name='res', zone='zone')
 
-  result = _get_reservation_cached(reservation)
+  result = get_reservation_cached(reservation)
 
   assert result is None
 
@@ -469,7 +467,7 @@ def test_get_reservation_cached_returns_none_on_invalid_json(
   mock_print = mocker.patch('xpk.core.reservation.xpk_print')
   reservation = ReservationLink(project='project', name='res', zone='zone')
 
-  result = _get_reservation_cached(reservation)
+  result = get_reservation_cached(reservation)
 
   assert result is None
   mock_print.assert_called()

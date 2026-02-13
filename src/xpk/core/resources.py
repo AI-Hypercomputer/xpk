@@ -24,10 +24,10 @@ from .capacity import (
     AUTOPROVISIONING_CONFIG_MINIMUM_KEY,
     AUTOPROVISIONING_CONFIG_VALUE,
     CAPACITY_TYPE_CONFIG_KEY,
-    RESERVATION_CONFIG_KEY,
     CapacityType,
     get_capacity_type,
 )
+from .reservation import RESERVATION_CONFIG_KEY
 from .commands import run_command_for_value, run_commands
 from .config import XPK_CURRENT_VERSION
 from .system_characteristics import AcceleratorType, get_system_characteristics_by_device_type, SystemCharacteristics

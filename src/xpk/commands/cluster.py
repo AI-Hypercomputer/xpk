@@ -42,6 +42,8 @@ from ..core.telemetry import MetricsCollector, MetricsEventMetadataKey
 from ..core.capacity import (
     H100_DEVICE_TYPE,
     get_capacity_type,
+)
+from ..core.reservation import (
     get_reservations_list,
     get_reservation_deployment_type,
 )

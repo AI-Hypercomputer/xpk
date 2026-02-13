@@ -30,6 +30,7 @@ from .reservation import (
     to_reservation_path,
     _parse_reservation,
     _SpecificReservation,
+    _AggregateReservation,
     _AcceleratorResource,
     _Reservation,
     _get_reservation_cached,
@@ -309,26 +310,22 @@ def test_parse_specific_reservation():
       },
       'status': 'READY',
   }
-  res = _parse_reservation('res1', data)
-  assert res.name == 'res1'
-  assert res.specific_reservation == _SpecificReservation(
-      count=10,
-      in_use_count=2,
-      machine_type='test-machine',
-      guest_accelerators=[
-          _AcceleratorResource(
-              accelerator_count=1, accelerator_type='nvidia-test'
-          )
-      ],
-  )
-  assert res.aggregate_reservation is None
 
+  reservation = _parse_reservation('res1', data)
 
-def test_parse_specific_reservation_defaults():
-  data = {'specificReservation': {}, 'status': 'READY'}
-  res = _parse_reservation('res1', data)
-  assert res.specific_reservation == _SpecificReservation(
-      count=0, in_use_count=0, machine_type='', guest_accelerators=[]
+  assert reservation == _Reservation(
+      name='res1',
+      aggregate_reservation=None,
+      specific_reservation=_SpecificReservation(
+          count=10,
+          in_use_count=2,
+          machine_type='test-machine',
+          guest_accelerators=[
+              _AcceleratorResource(
+                  accelerator_count=1, accelerator_type='nvidia-test'
+              )
+          ],
+      ),
   )
 
 
@@ -350,15 +347,22 @@ def test_parse_aggregate_reservation():
       },
       'status': 'READY',
   }
-  res = _parse_reservation('res1', data)
-  assert res.aggregate_reservation is not None
-  assert len(res.aggregate_reservation.reserved_resources) == 1
-  assert res.aggregate_reservation.reserved_resources[
-      0
-  ] == _AcceleratorResource(accelerator_count=100, accelerator_type='tpu')
-  assert len(res.aggregate_reservation.in_use_resources) == 1
-  assert res.aggregate_reservation.in_use_resources[0] == _AcceleratorResource(
-      accelerator_count=20, accelerator_type='tpu'
+
+  reservation = _parse_reservation('res1', data)
+
+  assert reservation == _Reservation(
+      name='res1',
+      specific_reservation=None,
+      aggregate_reservation=_AggregateReservation(
+          reserved_resources=[
+              _AcceleratorResource(
+                  accelerator_count=100, accelerator_type='tpu'
+              )
+          ],
+          in_use_resources=[
+              _AcceleratorResource(accelerator_count=20, accelerator_type='tpu')
+          ],
+      ),
   )
 
 
@@ -381,44 +385,19 @@ def test_get_reservation_cached_caching(mocker):
   assert mock_run_command.call_count == 2
 
 
-def test_parse_reservation_with_new_fields():
+def test_parse_reservation_without_specific_or_aggregate():
   data = {
-      'specificReservation': {
-          'count': '10',
-          'inUseCount': '2',
-          'instanceProperties': {
-              'machineType': 'test-machine',
-              'maintenanceInterval': 'PERIODIC',
-          },
-      },
       'deploymentType': 'DENSE',
       'resourcePolicies': {'policy': 'compact-policy'},
       'status': 'READY',
   }
 
-  res = _parse_reservation('res1', data)
+  reservation = _parse_reservation('res1', data)
 
-  assert res.name == 'res1'
-  assert res.deployment_type == 'DENSE'
-  assert res.resource_policy == 'compact-policy'
-  assert res.specific_reservation.maintenance_interval == 'PERIODIC'
-
-
-def test_parse_reservation_defaults_new_fields():
-  data = {
-      'specificReservation': {
-          'count': '10',
-          'inUseCount': '2',
-          'instanceProperties': {
-              'machineType': 'test-machine',
-          },
-      },
-      'status': 'READY',
-  }
-
-  res = _parse_reservation('res1', data)
-
-  assert res.name == 'res1'
-  assert res.deployment_type == ''
-  assert res.resource_policy == ''
-  assert res.specific_reservation.maintenance_interval == ''
+  assert reservation == _Reservation(
+      name='res1',
+      aggregate_reservation=None,
+      specific_reservation=None,
+      deployment_type='DENSE',
+      resource_policy='compact-policy',
+  )

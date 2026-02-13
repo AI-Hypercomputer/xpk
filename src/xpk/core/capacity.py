@@ -66,14 +66,14 @@ class SubBlockReservationLink(BlockReservationLink):
 
 @dataclass(frozen=True)
 class _AcceleratorResource:
-  acceleratorCount: int
-  acceleratorType: str
+  accelerator_count: int
+  accelerator_type: str
 
 
 @dataclass(frozen=True)
 class _SpecificReservation:
   count: int
-  inUseCount: int
+  in_use_count: int
   machine_type: str
   guest_accelerators: list[_AcceleratorResource] = field(default_factory=list)
   maintenance_interval: str = ''
@@ -81,15 +81,15 @@ class _SpecificReservation:
 
 @dataclass(frozen=True)
 class _AggregateReservation:
-  reservedResources: list[_AcceleratorResource]
-  inUseResources: list[_AcceleratorResource]
+  reserved_resources: list[_AcceleratorResource]
+  in_use_resources: list[_AcceleratorResource]
 
 
 @dataclass(frozen=True)
 class _Reservation:
   name: str
-  specificReservation: _SpecificReservation | None
-  aggregateReservation: _AggregateReservation | None
+  specific_reservation: _SpecificReservation | None
+  aggregate_reservation: _AggregateReservation | None
   deployment_type: str = ''
   resource_policy: str = ''
 
@@ -105,7 +105,7 @@ def _parse_specific_reservation(data: dict[str, Any]) -> _SpecificReservation:
 
   return _SpecificReservation(
       count=int(data.get('count', 0)),
-      inUseCount=int(data.get('inUseCount', 0)),
+      in_use_count=int(data.get('inUseCount', 0)),
       machine_type=machine_type,
       guest_accelerators=guest_accelerators,
       maintenance_interval=maintenance_interval,
@@ -114,8 +114,8 @@ def _parse_specific_reservation(data: dict[str, Any]) -> _SpecificReservation:
 
 def _parse_accelerator_resource(data: dict[str, Any]) -> _AcceleratorResource:
   return _AcceleratorResource(
-      acceleratorCount=int(data.get('acceleratorCount', 0)),
-      acceleratorType=str(data.get('acceleratorType', '')),
+      accelerator_count=int(data.get('acceleratorCount', 0)),
+      accelerator_type=str(data.get('acceleratorType', '')),
   )
 
 
@@ -131,7 +131,7 @@ def _parse_aggregate_reservation(data: dict[str, Any]) -> _AggregateReservation:
       if 'accelerator' in r
   ]
   return _AggregateReservation(
-      reservedResources=reserved_resources, inUseResources=in_use_resources
+      reserved_resources=reserved_resources, in_use_resources=in_use_resources
   )
 
 
@@ -153,8 +153,8 @@ def _parse_reservation(name: str, data: dict[str, Any]) -> _Reservation:
 
   return _Reservation(
       name=name,
-      specificReservation=specific_reservation,
-      aggregateReservation=aggregate_reservation,
+      specific_reservation=specific_reservation,
+      aggregate_reservation=aggregate_reservation,
       deployment_type=deployment_type,
       resource_policy=resource_policy,
   )
@@ -304,13 +304,13 @@ def get_reservation_maintenance_interval(
     Maintenance interval as a string.
   """
   reservation_obj = _get_reservation_cached(reservation)
-  if not reservation_obj or not reservation_obj.specificReservation:
+  if not reservation_obj or not reservation_obj.specific_reservation:
     xpk_print(
         f'Get reservation maintenance interval failed for {reservation.name}'
     )
     xpk_exit(1)
 
-  return reservation_obj.specificReservation.maintenance_interval
+  return reservation_obj.specific_reservation.maintenance_interval
 
 
 def get_reservation_placement_policy(reservation: ReservationLink) -> str:

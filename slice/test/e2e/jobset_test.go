@@ -303,6 +303,18 @@ var _ = ginkgo.Describe("JobSet", func() {
 					}, utils.LongTimeout, utils.Timeout).Should(gomega.Succeed())
 				})
 
+				ginkgo.By("Checking that all pods are running", func() {
+					pods := &corev1.PodList{}
+					gomega.Eventually(func(g gomega.Gomega) {
+						g.Expect(k8sClient.List(ctx, pods, client.InNamespace(ns.Name))).To(gomega.Succeed())
+						g.Expect(pods.Items).Should(gomega.HaveLen(int(tc.parallelism)))
+						for _, pod := range pods.Items {
+							g.Expect(pod.Status.Phase).To(gomega.Equal(corev1.PodRunning))
+							g.Expect(pod.Spec.NodeSelector).To(gomega.HaveKeyWithValue(core.TPUTopologyAnnotation, tc.tpuTopology))
+						}
+					}, utils.LongTimeout, utils.Interval).Should(gomega.Succeed())
+				})
+
 				ginkgo.By("Deleting JobSet", func() {
 					utils.ExpectObjectToBeDeleted(ctx, k8sClient, jobSet, true)
 				})
@@ -636,6 +648,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 					g.Expect(pods.Items).Should(gomega.HaveLen(16))
 					for _, pod := range pods.Items {
 						g.Expect(pod.Status.Phase).To(gomega.Equal(corev1.PodRunning))
+						g.Expect(pod.Spec.NodeSelector).To(gomega.HaveKeyWithValue(core.TPUTopologyAnnotation, "4x4x4"))
 					}
 				}, util.LongTimeout, util.Interval).Should(gomega.Succeed())
 			})
@@ -770,7 +783,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 				}, nodeName)
 			})
 
-			ginkgo.By("Setting Slice state to error", func() {
+			ginkgo.By("Setting Slice state to failed", func() {
 				gomega.Eventually(func(g gomega.Gomega) {
 					g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
 					meta.SetStatusCondition(&createdSlice.Status.Conditions, metav1.Condition{
@@ -843,7 +856,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 			})
 		})
 
-		ginkgo.It("should recover after a ready Slice changes to error state", func() {
+		ginkgo.It("should recover after a ready Slice changes to failed state", func() {
 			jobSet := testingjobsjobset.MakeJobSet("jobset", ns.Name).
 				Queue(lq.Name).
 				ReplicatedJobs(
@@ -885,6 +898,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 			createdSlice := &slice.Slice{}
 			sliceKey := core.SliceKeyFromWorkload(createdWorkload, "rj1", 0)
 			var oldSliceUID types.UID
+			var oldPartitionID string
 			ginkgo.By("Checking that Slice is created and making it ready", func() {
 				gomega.Eventually(func(g gomega.Gomega) {
 					g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
@@ -910,7 +924,35 @@ var _ = ginkgo.Describe("JobSet", func() {
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
 
-			ginkgo.By("Changing Slice condition to error", func() {
+			ginkgo.By("Marking nodes as unhealthy", func() {
+				gomega.Expect(createdSlice.Spec.PartitionIds).NotTo(gomega.BeEmpty())
+				oldPartitionID = createdSlice.Spec.PartitionIds[0]
+				nodes := &corev1.NodeList{}
+				gomega.Expect(k8sClient.List(ctx, nodes, client.MatchingLabels{core.TPUSubBlockLabel: oldPartitionID})).To(gomega.Succeed())
+				for _, node := range nodes.Items {
+					gomega.Eventually(func(g gomega.Gomega) {
+						n := &corev1.Node{}
+						g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(&node), n)).To(gomega.Succeed())
+						n.Labels[core.TPUSliceHealthNodeSelectorKey] = "UNHEALTHY"
+						g.Expect(k8sClient.Update(ctx, n)).To(gomega.Succeed())
+					}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+				}
+
+				ginkgo.DeferCleanup(func() {
+					nodes := &corev1.NodeList{}
+					gomega.Expect(k8sClient.List(ctx, nodes, client.MatchingLabels{core.TPUSubBlockLabel: oldPartitionID})).To(gomega.Succeed())
+					for _, node := range nodes.Items {
+						gomega.Eventually(func(g gomega.Gomega) {
+							n := &corev1.Node{}
+							g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(&node), n)).To(gomega.Succeed())
+							n.Labels[core.TPUSliceHealthNodeSelectorKey] = core.TPUSliceHealthNodeSelectorHealthy
+							g.Expect(k8sClient.Update(ctx, n)).To(gomega.Succeed())
+						}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+					}
+				})
+			})
+
+			ginkgo.By("Changing Slice condition to failed", func() {
 				gomega.Eventually(func(g gomega.Gomega) {
 					g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
 					meta.SetStatusCondition(&createdSlice.Status.Conditions,
@@ -934,10 +976,11 @@ var _ = ginkgo.Describe("JobSet", func() {
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
 
-			ginkgo.By("Checking that a new Slice is created", func() {
+			ginkgo.By("Checking that a new Slice is created using a different partition ID", func() {
 				gomega.Eventually(func(g gomega.Gomega) {
 					g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
 					g.Expect(createdSlice.GetUID()).ShouldNot(gomega.Equal(oldSliceUID))
+					g.Expect(createdSlice.Spec.PartitionIds).ShouldNot(gomega.ContainElement(oldPartitionID))
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
 
@@ -953,7 +996,20 @@ var _ = ginkgo.Describe("JobSet", func() {
 						State:   kueue.CheckStateReady,
 						Message: `Slices are in states: 1 ACTIVE`,
 					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates", "RetryCount", "RequeueAfterSeconds")))
+					g.Expect(createdWorkload.Status.SchedulingStats).ShouldNot(gomega.BeNil())
+					g.Expect(createdWorkload.Status.SchedulingStats.Evictions).Should(gomega.HaveLen(1))
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+			})
+			ginkgo.By("Checking that all pods are running with topology node selector", func() {
+				pods := &corev1.PodList{}
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.List(ctx, pods, client.InNamespace(ns.Name))).To(gomega.Succeed())
+					g.Expect(pods.Items).Should(gomega.HaveLen(int(16)))
+					for _, pod := range pods.Items {
+						g.Expect(pod.Status.Phase).To(gomega.Equal(corev1.PodRunning))
+						g.Expect(pod.Spec.NodeSelector).To(gomega.HaveKeyWithValue(core.TPUTopologyAnnotation, "4x4x4"))
+					}
+				}, utils.LongTimeout, utils.Interval).Should(gomega.Succeed())
 			})
 		})
 

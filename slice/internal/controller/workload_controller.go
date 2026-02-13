@@ -707,7 +707,7 @@ func (r *WorkloadReconciler) prepareAdmissionCheckStatus(wl *kueue.Workload, ac 
 	switch {
 	case len(slices) == len(slicesByState[core.SliceStateActive])+len(slicesByState[core.SliceStateActiveDegraded]):
 		ac.State = kueue.CheckStateReady
-		podSetUpdates := []kueue.PodSetUpdate{}
+		var podSetUpdates []kueue.PodSetUpdate
 		for _, ps := range wl.Spec.PodSets {
 			if topology := core.GetTPUTopology(ps.Template); topology != "" {
 				podSetUpdates = append(podSetUpdates, kueue.PodSetUpdate{

@@ -140,7 +140,7 @@ var _ = ginkgo.Describe("Manager", ginkgo.Ordered, func() {
 			_, err := utils.Run(cmd)
 			gomega.Expect(err).NotTo(gomega.HaveOccurred(), "Failed to create ClusterRoleBinding")
 
-			ginkgo.By("validating that the metrics service is available")
+			ginkgo.By("validating that the ć√metrics service is available")
 			cmd = exec.Command("kubectl", "get", "service", metricsServiceName, "-n", namespace)
 			_, err = utils.Run(cmd)
 			gomega.Expect(err).NotTo(gomega.HaveOccurred(), "Metrics service should exist")

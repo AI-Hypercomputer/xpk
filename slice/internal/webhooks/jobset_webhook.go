@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"strings"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
@@ -31,6 +30,7 @@ import (
 	kueueconstants "sigs.k8s.io/kueue/pkg/controller/constants"
 
 	"tpu-slice-controller/internal/core"
+	"tpu-slice-controller/internal/topology"
 )
 
 // JobSetWebhook is the schema for your resource (ensure this matches your resource definition).
@@ -79,18 +79,23 @@ func (r *JobSetWebhook) annotateReplicatedJobWithTopology(rj *v1alpha2.Replicate
 		rj.Template.Spec.Template.Annotations = make(map[string]string)
 	}
 
-	rj.Template.Spec.Template.Annotations[kueue.PodSetRequiredTopologyAnnotation] = core.TPUBlockLabel
-	rj.Template.Spec.Template.Annotations[kueue.PodSetSliceRequiredTopologyAnnotation] = core.TPUSubBlockLabel
-
-	pods := ptr.Deref(rj.Template.Spec.Parallelism, 1)
-
-	sliceSize, err := r.podSetSliceSize(
-		rj.Template.Spec.Template.Annotations[core.TPUSliceTopologyAnnotation],
-		pods,
-	)
+	tpuTopology := rj.Template.Spec.Template.Annotations[core.TPUSliceTopologyAnnotation]
+	dims, sliceType, err := topology.ParseTopology(tpuTopology)
 	if err != nil {
 		return err
 	}
+	pods := ptr.Deref(rj.Template.Spec.Parallelism, 1)
+
+	if sliceType == topology.TopologyTypeSubslice {
+		rj.Template.Spec.Template.Annotations[kueue.PodSetRequiredTopologyAnnotation] = core.TPUBlockLabel
+		rj.Template.Spec.Template.Annotations[kueue.PodSetSliceRequiredTopologyAnnotation] = core.SubsliceLevelLabel(tpuTopology)
+		rj.Template.Spec.Template.Annotations[kueue.PodSetSliceSizeAnnotation] = strconv.FormatInt(int64(pods), 10)
+		return nil
+	}
+	rj.Template.Spec.Template.Annotations[kueue.PodSetRequiredTopologyAnnotation] = core.TPUBlockLabel
+	rj.Template.Spec.Template.Annotations[kueue.PodSetSliceRequiredTopologyAnnotation] = core.TPUSubBlockLabel
+
+	sliceSize := r.podSetSliceSize(dims, pods)
 	tpusRequestedPerPod := r.getTPUsRequestedPerPod(rj)
 	tpusRequestedPerCube := tpusRequestedPerPod * sliceSize
 	if tpusRequestedPerCube != core.TPUsPerCube {
@@ -134,42 +139,9 @@ func annotateReplicatedJobWithSliceHealth(rj *v1alpha2.ReplicatedJob) {
 	core.AddNodeAffinity(rj, core.TPUSliceHealthNodeSelectorKey, []string{core.TPUSliceHealthNodeSelectorHealthy})
 }
 
-func (r *JobSetWebhook) podSetSliceSize(tpuTopology string, parallelism int32) (int64, error) {
-	dims, err := parseTopology(tpuTopology)
-	if err != nil {
-		return 0, err
-	}
-
+func (r *JobSetWebhook) podSetSliceSize(dims []int64, parallelism int32) int64 {
 	totalChips := dims[0] * dims[1] * dims[2]
 	subBlockCount := totalChips / 64
 
-	return int64(parallelism) / subBlockCount, nil
-}
-
-func parseTopology(tpuTopology string) ([]int64, error) {
-	dimensions := strings.Split(tpuTopology, "x")
-	if len(dimensions) != 3 {
-		return nil, fmt.Errorf("invalid topology format: %s, expected 3 dimensions", tpuTopology)
-	}
-
-	dims := make([]int64, 3)
-
-	for i, dim := range dimensions {
-		parsedDim, err := strconv.ParseInt(dim, 10, 32)
-		if err != nil {
-			return nil, err
-		}
-		dims[i] = parsedDim
-	}
-	if dims[0] == 0 || dims[1] == 0 || dims[2] == 0 {
-		return nil, fmt.Errorf("topology dimensions cannot be zero: %s", tpuTopology)
-	}
-	if dims[0]%4 != 0 || dims[1]%4 != 0 || dims[2]%4 != 0 {
-		return nil, fmt.Errorf("topology dimensions must be divisible by 4: %s", tpuTopology)
-	}
-	if dims[0] > dims[1] || dims[1] > dims[2] {
-		return nil, fmt.Errorf("topology dimensions must be in non-decreasing order: %s", tpuTopology)
-	}
-
-	return dims, nil
+	return int64(parallelism) / subBlockCount
 }

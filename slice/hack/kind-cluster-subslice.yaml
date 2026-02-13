@@ -1,0 +1,73 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+    kubeadmConfigPatches:
+      - |
+        kind: ClusterConfiguration
+        apiVersion: kubeadm.k8s.io/v1beta3
+        scheduler:
+          extraArgs:
+            v: "3"
+        controllerManager:
+          extraArgs:
+            v: "3"
+        apiServer:
+          extraArgs:
+            enable-aggregator-routing: "true"
+            v: "3"
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            v: "3"
+  - role: worker # 1
+    labels:
+      cloud.google.com/gke-node-group: tas-group
+      cloud.google.com/gke-tpu-accelerator: tpu7x
+      cloud.google.com/gke-tpu-partition-4x4x4-state: HEALTHY
+      cloud.google.com/gce-topology-block: a1
+      cloud.google.com/gke-tpu-partition-4x4x4-id: b1
+      cloud.google.com/gke-tpu-partition-2x4x4-id: c1
+      cloud.google.com/gke-tpu-partition-2x2x4-id: d1
+      cloud.google.com/gke-tpu-partition-2x2x2-id: e1
+      cloud.google.com/gke-tpu-partition-2x2x1-id: f1
+  - role: worker # 2
+    labels:
+      cloud.google.com/gke-node-group: tas-group
+      cloud.google.com/gke-tpu-accelerator: tpu7x
+      cloud.google.com/gke-tpu-partition-4x4x4-state: HEALTHY
+      cloud.google.com/gce-topology-block: a1
+      cloud.google.com/gke-tpu-partition-4x4x4-id: b1
+      cloud.google.com/gke-tpu-partition-2x4x4-id: c1
+      cloud.google.com/gke-tpu-partition-2x2x4-id: d1
+      cloud.google.com/gke-tpu-partition-2x2x2-id: e1
+      cloud.google.com/gke-tpu-partition-2x2x1-id: f2
+  - role: worker # 3
+    labels:
+      cloud.google.com/gke-node-group: tas-group
+      cloud.google.com/gke-tpu-accelerator: tpu7x
+      cloud.google.com/gke-tpu-partition-4x4x4-state: HEALTHY
+      cloud.google.com/gce-topology-block: a1
+      cloud.google.com/gke-tpu-partition-4x4x4-id: b1
+      cloud.google.com/gke-tpu-partition-2x4x4-id: c1
+      cloud.google.com/gke-tpu-partition-2x2x4-id: d1
+      cloud.google.com/gke-tpu-partition-2x2x2-id: e2
+      cloud.google.com/gke-tpu-partition-2x2x1-id: f3
+  - role: worker # 4
+    labels:
+      cloud.google.com/gke-node-group: tas-group
+      cloud.google.com/gke-tpu-accelerator: tpu7x
+      cloud.google.com/gke-tpu-partition-4x4x4-state: HEALTHY
+      cloud.google.com/gce-topology-block: a1
+      cloud.google.com/gke-tpu-partition-4x4x4-id: b1
+      cloud.google.com/gke-tpu-partition-2x4x4-id: c1
+      cloud.google.com/gke-tpu-partition-2x2x4-id: d1
+      cloud.google.com/gke-tpu-partition-2x2x2-id: e2
+      cloud.google.com/gke-tpu-partition-2x2x1-id: f4
+kubeadmConfigPatches:
+  - |
+    kind: JoinConfiguration
+    nodeRegistration:
+      kubeletExtraArgs:
+        v: "3"

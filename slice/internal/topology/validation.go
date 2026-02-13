@@ -17,6 +17,7 @@ package topology
 import (
 	corev1 "k8s.io/api/core/v1"
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta2"
+	"sigs.k8s.io/kueue/pkg/util/podset"
 	"sigs.k8s.io/kueue/pkg/util/tas"
 
 	"tpu-slice-controller/internal/core"
@@ -35,19 +36,26 @@ func AnyAssignment(admission *kueue.Admission) bool {
 
 // AllAssignmentsValid ensures each PodSetAssignment which has a TopologyAssignment
 // defined the TPUSubBlock topology level.
-func AllAssignmentsValid(admission *kueue.Admission, nodes map[string]corev1.Node) bool {
-	for _, psa := range admission.PodSetAssignments {
+func AllAssignmentsValid(wl *kueue.Workload, nodes map[string]corev1.Node) bool {
+	for _, psa := range wl.Status.Admission.PodSetAssignments {
 		if psa.TopologyAssignment == nil {
 			continue
 		}
-		if !IsAssignmentValid(psa, nodes) {
+		ps := podset.FindPodSetByName(wl.Spec.PodSets, psa.Name)
+		if ps == nil {
+			continue
+		}
+		if !core.IsRelevantPodTemplateSpec(ps.Template) {
+			continue
+		}
+		if !IsAssignmentValid(psa, nodes, GetPartitionIDLabel(nodes, ps.Template)) {
 			return false
 		}
 	}
 	return true
 }
 
-func IsAssignmentValid(psa kueue.PodSetAssignment, nodes map[string]corev1.Node) bool {
+func IsAssignmentValid(psa kueue.PodSetAssignment, nodes map[string]corev1.Node, labelKey string) bool {
 	if psa.TopologyAssignment == nil {
 		return false
 	}
@@ -59,16 +67,16 @@ func IsAssignmentValid(psa kueue.PodSetAssignment, nodes map[string]corev1.Node)
 
 	for domain := range tas.InternalSeqFrom(psa.TopologyAssignment) {
 		nodeName := domain.Values[hostnameLevelIndex]
-		if getTPUPartitionIDValue(nodes, nodeName) == "" {
+		if getTPUPartitionIDValue(nodes, nodeName, labelKey) == "" {
 			return false
 		}
 	}
 	return true
 }
 
-func getTPUPartitionIDValue(nodes map[string]corev1.Node, nodeName string) string {
+func getTPUPartitionIDValue(nodes map[string]corev1.Node, nodeName string, labelKey string) string {
 	if node, ok := nodes[nodeName]; ok {
-		return node.Labels[core.TPUSubBlockLabel]
+		return node.Labels[labelKey]
 	}
 	return ""
 }

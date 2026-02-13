@@ -498,7 +498,7 @@ func validateRelevantWorkload(wl *kueue.Workload, nodes map[string]corev1.Node) 
 	if !topology.AnyAssignment(wl.Status.Admission) {
 		return errors.New("has no topology assignment")
 	}
-	if !topology.AllAssignmentsValid(wl.Status.Admission, nodes) {
+	if !topology.AllAssignmentsValid(wl, nodes) {
 		return errors.New("has invalid topology assignments")
 	}
 	return nil
@@ -569,8 +569,9 @@ func (r *WorkloadReconciler) syncSlices(
 
 func shouldCreateSlicesForPodSetAssignment(wl *kueue.Workload, psa kueue.PodSetAssignment, nodes map[string]corev1.Node) bool {
 	if podSet := podset.FindPodSetByName(wl.Spec.PodSets, psa.Name); podSet != nil {
+		label := topology.GetPartitionIDLabel(nodes, podSet.Template)
 		return core.IsRelevantPodTemplateSpec(podSet.Template) &&
-			topology.IsAssignmentValid(psa, nodes) &&
+			topology.IsAssignmentValid(psa, nodes, label) &&
 			podSet.TopologyRequest != nil
 	}
 	return false
@@ -592,8 +593,9 @@ func totalDesiredSlices(wl *kueue.Workload, nodes map[string]corev1.Node) int {
 }
 
 func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, psa *kueue.PodSetAssignment, nodes map[string]corev1.Node, existingSlicesByName map[string]*v1beta1.Slice, desiredNumberOfSlices int32) ([]v1beta1.Slice, error) {
-	parsedAssignment := topology.ParseAssignment(psa.TopologyAssignment, nodes)
 	ps := podset.FindPodSetByName(wl.Spec.PodSets, psa.Name)
+	label := topology.GetPartitionIDLabel(nodes, ps.Template)
+	parsedAssignment := topology.ParseAssignment(psa.TopologyAssignment, nodes, label)
 	chunkSize := int32(len(parsedAssignment.PartitionIDs) / int(desiredNumberOfSlices))
 	createdSlices := []v1beta1.Slice{}
 	slicesToCreate := []*v1beta1.Slice{}

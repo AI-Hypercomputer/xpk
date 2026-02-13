@@ -17,6 +17,7 @@ limitations under the License.
 package core
 
 import (
+	"fmt"
 	"regexp"
 	"time"
 
@@ -35,7 +36,7 @@ var SliceStates = []SliceState{
 	SliceStateFailed, SliceStateDeleted, SliceStateStale,
 }
 
-func IsValidTPUTopology(tpuTopology string) bool {
+func IsRelevantTPUTopology(tpuTopology string) bool {
 	validTopology, _ := regexp.MatchString("[0-9]+x[0-9]+x[0-9]+", tpuTopology)
 	return validTopology
 }
@@ -45,7 +46,7 @@ func IsValidTPUAccelerator(tpuAccelerator string) bool {
 }
 
 func IsRelevantPodTemplateSpec(spec corev1.PodTemplateSpec) bool {
-	return IsValidTPUTopology(GetTPUTopology(spec)) &&
+	return IsRelevantTPUTopology(GetTPUTopology(spec)) &&
 		IsValidTPUAccelerator(GetTPUAccelerator(spec))
 }
 
@@ -61,6 +62,10 @@ func GetTPUAccelerator(spec corev1.PodTemplateSpec) string {
 		return val
 	}
 	return ""
+}
+
+func SubsliceLevelLabel(topology string) string {
+	return fmt.Sprintf("cloud.google.com/gke-tpu-partition-%s-id", topology)
 }
 
 func getTPUAcceleratorFromAffinity(affinity *corev1.Affinity) (string, bool) {

@@ -288,7 +288,7 @@ def test_get_reservation_placement_policy(mock_get_cached):
 
 
 @patch('xpk.core.reservation._get_reservation_cached')
-def test_get_reservation_maintenance_interval_uses_cached(mock_get_cached):
+def test_get_reservation_maintenance_interval(mock_get_cached):
   mock_res = MagicMock(spec=_Reservation)
   mock_res.specific_reservation = MagicMock(spec=_SpecificReservation)
   mock_res.specific_reservation.maintenance_interval = 'PERIODIC'

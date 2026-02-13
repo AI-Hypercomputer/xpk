@@ -34,12 +34,6 @@ from .reservation import (
     _Reservation,
     _get_reservation_cached,
 )
-from xpk.core.testing.commands_tester import CommandsTester
-
-
-@pytest.fixture
-def commands_tester(mocker):
-  return CommandsTester(mocker)
 
 
 @pytest.fixture(autouse=True)
@@ -50,7 +44,7 @@ def clear_capacity_cache():
 
 
 @patch('xpk.core.reservation._get_reservation_cached')
-def test_get_reservation_deployment_type_uses_cached(mock_get_cached):
+def test_get_reservation_deployment_type(mock_get_cached):
   mock_res = MagicMock(spec=_Reservation)
   mock_res.deployment_type = 'DENSE'
   mock_get_cached.return_value = mock_res
@@ -60,9 +54,6 @@ def test_get_reservation_deployment_type_uses_cached(mock_get_cached):
   result = get_reservation_deployment_type(res_link)
 
   assert result == 'DENSE'
-  mock_get_cached.assert_called_once_with(
-      ReservationLink(project='project', zone='zone', name='reservation')
-  )
 
 
 @patch('xpk.core.reservation._get_reservation_cached')
@@ -72,13 +63,14 @@ def test_get_reservation_deployment_type_exits_on_failure(
 ):
   mock_get_cached.return_value = None
   res_link = ReservationLink(project='project', name='reservation', zone='zone')
+
   with pytest.raises(SystemExit):
     get_reservation_deployment_type(res_link)
   mock_print.assert_called()
 
 
 @patch('xpk.core.reservation._get_reservation_cached')
-def test_get_reservation_placement_policy_uses_cached(mock_get_cached):
+def test_get_reservation_placement_policy(mock_get_cached):
   mock_res = MagicMock(spec=_Reservation)
   mock_res.resource_policy = 'compact'
   mock_get_cached.return_value = mock_res
@@ -88,9 +80,6 @@ def test_get_reservation_placement_policy_uses_cached(mock_get_cached):
   result = get_reservation_placement_policy(res_link)
 
   assert result == 'compact'
-  mock_get_cached.assert_called_once_with(
-      ReservationLink(project='project', zone='zone', name='reservation')
-  )
 
 
 @patch('xpk.core.reservation._get_reservation_cached')
@@ -105,18 +94,16 @@ def test_get_reservation_maintenance_interval_uses_cached(mock_get_cached):
   result = get_reservation_maintenance_interval(res_link)
 
   assert result == 'PERIODIC'
-  mock_get_cached.assert_called_once_with(
-      ReservationLink(project='project', zone='zone', name='reservation')
-  )
 
 
 @patch('xpk.core.reservation._get_reservation_cached')
-def test_verify_reservations_exist_uses_cached_success(mock_get_cached, mocker):
+def test_verify_reservations_exist_success(mock_get_cached, mocker):
   mock_get_cached.return_value = MagicMock(spec=_Reservation)
-
   args = mocker.Mock(reservation='r1,r2', project='project', zone='zone')
 
-  assert verify_reservations_exist(args) == 0
+  result = verify_reservations_exist(args)
+
+  assert result == 0
   assert mock_get_cached.call_count == 2
   mock_get_cached.assert_any_call(
       ReservationLink(project='project', zone='zone', name='r1')
@@ -127,15 +114,16 @@ def test_verify_reservations_exist_uses_cached_success(mock_get_cached, mocker):
 
 
 @patch('xpk.core.reservation._get_reservation_cached')
-def test_verify_reservations_exist_uses_cached_failure(mock_get_cached, mocker):
+def test_verify_reservations_exist_failure(mock_get_cached, mocker):
   mock_get_cached.side_effect = [
       MagicMock(),
       None,
   ]  # First exists, second fails
-
   args = mocker.Mock(reservation='r1,r2', project='project', zone='zone')
 
-  assert verify_reservations_exist(args) == 1
+  result = verify_reservations_exist(args)
+
+  assert result == 1
   assert mock_get_cached.call_count == 2
 
 

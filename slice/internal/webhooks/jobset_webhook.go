@@ -30,6 +30,7 @@ import (
 	kueueconstants "sigs.k8s.io/kueue/pkg/controller/constants"
 
 	"tpu-slice-controller/internal/core"
+	"tpu-slice-controller/internal/topology"
 )
 
 // JobSetWebhook is the schema for your resource (ensure this matches your resource definition).
@@ -79,15 +80,15 @@ func (r *JobSetWebhook) annotateReplicatedJobWithTopology(rj *v1alpha2.Replicate
 	}
 
 	tpuTopology := rj.Template.Spec.Template.Annotations[core.TPUSliceTopologyAnnotation]
-	dims, sliceType, err := core.ParseTopology(tpuTopology)
+	dims, sliceType, err := topology.ParseTopology(tpuTopology)
 	if err != nil {
 		return err
 	}
 	pods := ptr.Deref(rj.Template.Spec.Parallelism, 1)
 
-	if sliceType == core.TopologyTypeSubslice {
+	if sliceType == topology.TopologyTypeSubslice {
 		rj.Template.Spec.Template.Annotations[kueue.PodSetRequiredTopologyAnnotation] = core.TPUBlockLabel
-		rj.Template.Spec.Template.Annotations[kueue.PodSetSliceRequiredTopologyAnnotation] = fmt.Sprintf("cloud.google.com/gke-tpu-partition-%s-id", tpuTopology)
+		rj.Template.Spec.Template.Annotations[kueue.PodSetSliceRequiredTopologyAnnotation] = core.SubsliceLevelLabel(tpuTopology)
 		rj.Template.Spec.Template.Annotations[kueue.PodSetSliceSizeAnnotation] = strconv.FormatInt(int64(pods), 10)
 		return nil
 	}

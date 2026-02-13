@@ -569,7 +569,7 @@ func (r *WorkloadReconciler) syncSlices(
 
 func shouldCreateSlicesForPodSetAssignment(wl *kueue.Workload, psa kueue.PodSetAssignment, nodes map[string]corev1.Node) bool {
 	if podSet := podset.FindPodSetByName(wl.Spec.PodSets, psa.Name); podSet != nil {
-		label := core.GetPartitionIdLabel(nodes, podSet.Template)
+		label := topology.GetPartitionIdLabel(nodes, podSet.Template)
 		return core.IsRelevantPodTemplateSpec(podSet.Template) &&
 			topology.IsAssignmentValid(psa, nodes, label) &&
 			podSet.TopologyRequest != nil
@@ -592,25 +592,9 @@ func totalDesiredSlices(wl *kueue.Workload, nodes map[string]corev1.Node) int {
 	return count
 }
 
-/*func parseTopologyAssignment(topologyAssignment *kueue.TopologyAssignment, nodes map[string]corev1.Node, labelKey string) []string {
-	var partitionIDs []string
-	seenPartitionIDs := sets.New[string]()
-	// we already validated that all assignments have a valid level,
-	// in validateRelevantWorkload.
-	hostnameLevelIndex := topology.HostnameLevelIndex(topologyAssignment)
-	for domain := range tas.InternalSeqFrom(topologyAssignment) {
-		nodeName := domain.Values[hostnameLevelIndex]
-		if partitionID := topology.GetTPUSubBlockLabelValue(nodes, nodeName, labelKey); !seenPartitionIDs.Has(partitionID) {
-			partitionIDs = append(partitionID, partitionID)
-			seenPartitionIDs.Insert(partitionID)
-		}
-	}
-	return partitionIDs
-}*/
-
 func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, psa *kueue.PodSetAssignment, nodes map[string]corev1.Node, existingSlicesByName map[string]*v1beta1.Slice, desiredNumberOfSlices int32) ([]v1beta1.Slice, error) {
 	ps := podset.FindPodSetByName(wl.Spec.PodSets, psa.Name)
-	label := core.GetPartitionIdLabel(nodes, ps.Template)
+	label := topology.GetPartitionIdLabel(nodes, ps.Template)
 	parsedAssignment := topology.ParseAssignment(psa.TopologyAssignment, nodes, label)
 	chunkSize := int32(len(parsedAssignment.PartitionIDs) / int(desiredNumberOfSlices))
 	createdSlices := []v1beta1.Slice{}

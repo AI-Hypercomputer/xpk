@@ -20,12 +20,10 @@ from ..utils.objects import get_value_from_map
 from .capacity import (
     AUTOPROVISIONING_CONFIG_VALUE,
     CAPACITY_TYPE_CONFIG_KEY,
+    RESERVATION_CONFIG_KEY,
     CapacityType,
     get_capacity_node_selectors_from_capacity_type,
     get_capacity_type,
-)
-from .reservation import (
-    RESERVATION_CONFIG_KEY,
     get_reservations_list,
     verify_reservations_exist,
 )

@@ -85,6 +85,7 @@ class _SpecificReservation:
   inUseCount: int
   machine_type: str
   guest_accelerators: list[_AcceleratorResource] = field(default_factory=list)
+  maintenance_interval: str = ''
 
 
 @dataclass(frozen=True)
@@ -105,6 +106,8 @@ class _Reservation:
   name: str
   specificReservation: _SpecificReservation | None
   aggregateReservation: _AggregateReservation | None
+  deployment_type: str = ''
+  resource_policy: str = ''
 
 
 def _parse_specific_reservation(data: dict[str, Any]) -> _SpecificReservation:
@@ -114,12 +117,14 @@ def _parse_specific_reservation(data: dict[str, Any]) -> _SpecificReservation:
   guest_accelerators = [
       _parse_accelerator_resource(acc) for acc in guest_accelerators_data
   ]
+  maintenance_interval = instance_properties.get('maintenanceInterval', '')
 
   return _SpecificReservation(
       count=int(data.get('count', 0)),
       inUseCount=int(data.get('inUseCount', 0)),
       machine_type=machine_type,
       guest_accelerators=guest_accelerators,
+      maintenance_interval=maintenance_interval,
   )
 
 
@@ -159,10 +164,15 @@ def _parse_reservation(name: str, data: dict[str, Any]) -> _Reservation:
         data['aggregateReservation']
     )
 
+  deployment_type = data.get('deploymentType', '')
+  resource_policy = data.get('resourcePolicies', {}).get('policy', '')
+
   return _Reservation(
       name=name,
       specificReservation=specific_reservation,
       aggregateReservation=aggregate_reservation,
+      deployment_type=deployment_type,
+      resource_policy=resource_policy,
   )
 
 
@@ -175,7 +185,7 @@ def _parse_reservation_sub_block(data: dict[str, Any]) -> _ReservationSubBlock:
 
 
 @functools.lru_cache(maxsize=None)
-def _get_reservation_cached(
+def _fetch_reservation_from_gcloud(
     project: str, zone: str, name: str
 ) -> _Reservation | None:
   """Fetches reservation details using gcloud and returns _Reservation object.
@@ -191,7 +201,7 @@ def _get_reservation_cached(
   command = (
       f'gcloud beta compute reservations describe {name} '
       f'--project={project} --zone={zone} '
-      '--format="json(specificReservation,aggregateReservation,status)"'
+      '--format="json(specificReservation,aggregateReservation,status,deploymentType,resourcePolicies)"'
   )
   # Basic dry run value to avoid crashes if dry run is enabled globally
   dry_run_json = json.dumps({
@@ -201,10 +211,13 @@ def _get_reservation_cached(
           'instanceProperties': {},
       },
       'status': 'READY',
+      'deploymentType': 'DENSE',
   })
 
   return_code, output = run_command_for_value(
-      command, f'Get reservation {name}', dry_run_return_val=dry_run_json
+      command,
+      f'Get reservation {name}',
+      dry_run_return_val=dry_run_json,
   )
 
   if return_code != 0 or not output.strip():
@@ -218,6 +231,25 @@ def _get_reservation_cached(
   except (ValueError, IndexError, AttributeError, json.JSONDecodeError) as e:
     xpk_print(f'Error processing reservation data: {e}. Output: "{output}".')
     return None
+
+
+def _get_reservation_cached(
+    reservation: ReservationLink,
+) -> _Reservation | None:
+  """Fetches reservation details using gcloud and returns _Reservation object.
+
+  Args:
+    reservation: ReservationLink object.
+
+  Returns:
+    _Reservation object or None on failure.
+  """
+  return _fetch_reservation_from_gcloud(
+      project=reservation.project, zone=reservation.zone, name=reservation.name
+  )
+
+
+_get_reservation_cached.cache_clear = _fetch_reservation_from_gcloud.cache_clear
 
 
 def print_reservations(args) -> int:
@@ -284,70 +316,64 @@ def get_capacity_type(args) -> tuple[CapacityType, int]:
   return capacity_type, return_code
 
 
-def get_reservation_maintenance_interval(reservation: ReservationLink) -> str:
+def get_reservation_maintenance_interval(
+    reservation_link: ReservationLink,
+) -> str:
   """Get reservation maintenance interval.
 
   Args:
-    reservation: reservation object.
+    reservation_link: reservation object.
 
   Returns:
     Maintenance interval as a string.
   """
-  command = (
-      f'gcloud beta compute reservations describe {reservation.name}'
-      f' --project={reservation.project} --zone={reservation.zone} --format="value(specificReservation.instanceProperties.maintenanceInterval)"'
-  )
-  return_code, output = run_command_for_value(
-      command, 'Get reservation maintenance interval'
-  )
-  if return_code != 0:
-    xpk_print(f'Get reservation maintenance interval ERROR {return_code}')
+  reservation = _get_reservation_cached(reservation_link)
+  if not reservation or not reservation.specificReservation:
+    xpk_print(
+        'Get reservation maintenance interval failed for'
+        f' {reservation_link.name}'
+    )
     xpk_exit(1)
-  return output.strip()
+
+  return reservation.specificReservation.maintenance_interval
 
 
-def get_reservation_placement_policy(reservation: ReservationLink) -> str:
+def get_reservation_placement_policy(reservation_link: ReservationLink) -> str:
   """Get reservation placement policy.
 
   Args:
-    reservation: reservation object.
+    reservation_link: reservation object.
 
   Returns:
     Placement policy as a string.
   """
-  command = (
-      f'gcloud beta compute reservations describe {reservation.name}'
-      f' --project={reservation.project} --zone={reservation.zone} --format="value(resourcePolicies.policy)"'
-  )
-  return_code, output = run_command_for_value(
-      command, 'Get reservation placement policy'
-  )
-  if return_code != 0:
-    xpk_print(f'Get reservation placement policy ERROR {return_code}')
+  reservation = _get_reservation_cached(reservation_link)
+  if not reservation:
+    xpk_print(
+        f'Get reservation placement policy failed for {reservation_link.name}'
+    )
     xpk_exit(1)
-  return output.strip()
+
+  return reservation.resource_policy
 
 
-def get_reservation_deployment_type(reservation: ReservationLink) -> str:
+def get_reservation_deployment_type(reservation_link: ReservationLink) -> str:
   """Get reservation deployment type.
 
   Args:
-    reservation: reservation object.
+    reservation_link: reservation object.
 
   Returns:
     Deployment type as a string.
   """
-  command = (
-      f'gcloud beta compute reservations describe {reservation.name}'
-      f' --project={reservation.project} --zone={reservation.zone} --format="value(deploymentType)"'
-  )
-  return_code, output = run_command_for_value(
-      command, 'Get reservation deployment type', dry_run_return_val='DENSE'
-  )
-  if return_code != 0:
-    xpk_print(f'Get reservation deployment type ERROR {return_code}')
+  reservation = _get_reservation_cached(reservation_link)
+  if not reservation:
+    xpk_print(
+        f'Get reservation deployment type failed for {reservation_link.name}'
+    )
     xpk_exit(1)
-  return output.strip()
+
+  return reservation.deployment_type
 
 
 def get_reservations_list(args) -> list[ReservationLink]:
@@ -376,19 +402,13 @@ def verify_reservations_exist(args) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
-  for reservation in get_reservations_list(args):
-    command = (
-        f'gcloud beta compute reservations describe {reservation.name}'
-        f' --project={reservation.project} --zone={reservation.zone}'
-    )
-    return_code = run_command_with_updates(
-        command, 'Describe reservation', verbose=False
-    )
-    if return_code != 0:
-      xpk_print(f'Describe reservation returned ERROR {return_code}')
+  for reservation_link in get_reservations_list(args):
+    reservation = _get_reservation_cached(reservation_link)
+    if not reservation:
+      xpk_print(f'Describe reservation {reservation_link.name} failed')
       xpk_print(
-          f'Please confirm that your reservation name {reservation.name} is'
-          ' correct.'
+          'Please confirm that your reservation name'
+          f' {reservation_link.name} is correct.'
       )
       return 1
   return 0
@@ -606,12 +626,7 @@ def _assess_available_slices_for_reservation(
   Returns:
     List of available reservations (targeting sub-blocks if applicable).
   """
-  # Identify the parent reservation (project, zone, name)
-  parent_reservation = _get_reservation_cached(
-      project=reservation.project,
-      zone=reservation.zone,
-      name=reservation.name,
-  )
+  parent_reservation = _get_reservation_cached(reservation)
 
   if not parent_reservation:
     xpk_print(f"WARNING: Failed to fetch reservation '{reservation.name}'.")

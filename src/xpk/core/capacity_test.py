@@ -23,6 +23,8 @@ sys.modules['google.cloud.resourcemanager_v3'] = MagicMock()
 
 from .capacity import (
     get_reservation_deployment_type,
+    get_reservation_placement_policy,
+    get_reservation_maintenance_interval,
     parse_reservation,
     get_capacity_type,
     CapacityType,
@@ -75,39 +77,82 @@ def test_system():
   )
 
 
-@patch('xpk.core.capacity.xpk_print')
-def test_get_reservation_deployment_type_exits_with_command_fails(
-    xpk_print: MagicMock, mocker
-):
-  mocker.patch(
-      target='xpk.core.capacity.run_command_for_value', return_value=(1, '')
-  )
-  with pytest.raises(SystemExit):
-    get_reservation_deployment_type(
-        reservation=ReservationLink(
-            project='project', name='reservation', zone='zone'
-        ),
-    )
+@patch('xpk.core.capacity._get_reservation_cached')
+def test_get_reservation_deployment_type_uses_cached(mock_get_cached):
+  mock_res = MagicMock(spec=_Reservation)
+  mock_res.deployment_type = 'DENSE'
+  mock_get_cached.return_value = mock_res
 
-  assert (
-      'Get reservation deployment type ERROR 1'
-      in xpk_print.mock_calls[0].args[0]
-  )
+  res_link = ReservationLink(project='p', name='r', zone='z')
 
+  result = get_reservation_deployment_type(res_link)
 
-def test_get_reservation_deployment_type_returns_deployment_type_when_command_succeeds(
-    mocker,
-):
-  mocker.patch(
-      target='xpk.core.capacity.run_command_for_value',
-      return_value=(0, 'DENSE'),
-  )
-  result = get_reservation_deployment_type(
-      reservation=ReservationLink(
-          project='project', name='reservation', zone='zone'
-      ),
-  )
   assert result == 'DENSE'
+  mock_get_cached.assert_called_once_with(
+      ReservationLink(project='p', zone='z', name='r')
+  )
+
+
+@patch('xpk.core.capacity._get_reservation_cached')
+def test_get_reservation_placement_policy_uses_cached(mock_get_cached):
+  mock_res = MagicMock(spec=_Reservation)
+  mock_res.resource_policy = 'compact'
+  mock_get_cached.return_value = mock_res
+
+  res_link = ReservationLink(project='p', name='r', zone='z')
+
+  result = get_reservation_placement_policy(res_link)
+
+  assert result == 'compact'
+  mock_get_cached.assert_called_once_with(
+      ReservationLink(project='p', zone='z', name='r')
+  )
+
+
+@patch('xpk.core.capacity._get_reservation_cached')
+def test_get_reservation_maintenance_interval_uses_cached(mock_get_cached):
+  mock_res = MagicMock(spec=_Reservation)
+  mock_res.specificReservation = MagicMock(spec=_SpecificReservation)
+  mock_res.specificReservation.maintenance_interval = 'PERIODIC'
+  mock_get_cached.return_value = mock_res
+
+  res_link = ReservationLink(project='p', name='r', zone='z')
+
+  result = get_reservation_maintenance_interval(res_link)
+
+  assert result == 'PERIODIC'
+  mock_get_cached.assert_called_once_with(
+      ReservationLink(project='p', zone='z', name='r')
+  )
+
+
+@patch('xpk.core.capacity._get_reservation_cached')
+def test_verify_reservations_exist_uses_cached_success(mock_get_cached, mocker):
+  mock_get_cached.return_value = MagicMock(spec=_Reservation)
+
+  args = mocker.Mock(reservation='r1,r2', project='p', zone='z')
+
+  assert verify_reservations_exist(args) == 0
+  assert mock_get_cached.call_count == 2
+  mock_get_cached.assert_any_call(
+      ReservationLink(project='p', zone='z', name='r1')
+  )
+  mock_get_cached.assert_any_call(
+      ReservationLink(project='p', zone='z', name='r2')
+  )
+
+
+@patch('xpk.core.capacity._get_reservation_cached')
+def test_verify_reservations_exist_uses_cached_failure(mock_get_cached, mocker):
+  mock_get_cached.side_effect = [
+      MagicMock(),
+      None,
+  ]  # First exists, second fails
+
+  args = mocker.Mock(reservation='r1,r2', project='p', zone='z')
+
+  assert verify_reservations_exist(args) == 1
+  assert mock_get_cached.call_count == 2
 
 
 @pytest.mark.parametrize(
@@ -259,14 +304,6 @@ def test_get_capacity_type_multiple_reservations(mocker):
 
   assert capacity_type == CapacityType.RESERVATION
   assert return_code == 0
-
-
-@patch('xpk.core.capacity.run_command_with_updates', return_value=0)
-def test_verify_reservations_exist_multiple(mock_run, mocker):
-  args = mocker.Mock(reservation='res1,res2', project='project', zone='zone')
-
-  assert verify_reservations_exist(args) == 0
-  assert mock_run.call_count == 2
 
 
 def test_get_reservations_list_with_single_reservation(mocker):
@@ -1344,15 +1381,15 @@ def test_get_reservation_cached_caching(mocker):
   )
 
   # First call
-  _get_reservation_cached('project', 'zone', 'res1')
+  _get_reservation_cached(ReservationLink('project', 'res1', 'zone'))
   assert mock_run_command.call_count == 1
 
   # Second call with same args
-  _get_reservation_cached('project', 'zone', 'res1')
+  _get_reservation_cached(ReservationLink('project', 'res1', 'zone'))
   assert mock_run_command.call_count == 1  # Should still be 1
 
   # Third call with different args
-  _get_reservation_cached('project', 'zone', 'res2')
+  _get_reservation_cached(ReservationLink('project', 'res2', 'zone'))
   assert mock_run_command.call_count == 2
 
 
@@ -1390,3 +1427,46 @@ def test_assess_available_slices_filters_invalid_block_reservation(
   # Should return empty because validation failed
   assert not slices
   assert return_code == 0
+
+
+def test_parse_reservation_with_new_fields():
+  data = {
+      'specificReservation': {
+          'count': '10',
+          'inUseCount': '2',
+          'instanceProperties': {
+              'machineType': 'test-machine',
+              'maintenanceInterval': 'PERIODIC',
+          },
+      },
+      'deploymentType': 'DENSE',
+      'resourcePolicies': {'policy': 'compact-policy'},
+      'status': 'READY',
+  }
+
+  res = _parse_reservation('res1', data)
+
+  assert res.name == 'res1'
+  assert res.deployment_type == 'DENSE'
+  assert res.resource_policy == 'compact-policy'
+  assert res.specificReservation.maintenance_interval == 'PERIODIC'
+
+
+def test_parse_reservation_defaults_new_fields():
+  data = {
+      'specificReservation': {
+          'count': '10',
+          'inUseCount': '2',
+          'instanceProperties': {
+              'machineType': 'test-machine',
+          },
+      },
+      'status': 'READY',
+  }
+
+  res = _parse_reservation('res1', data)
+
+  assert res.name == 'res1'
+  assert res.deployment_type == ''
+  assert res.resource_policy == ''
+  assert res.specificReservation.maintenance_interval == ''

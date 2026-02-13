@@ -328,7 +328,7 @@ def generate_blueprint(
       placement_policy = (
           {
               'type': 'COMPACT',
-              'name': placement_policy_name.rsplit('/', maxsplit=1)[-1],
+              'name': placement_policy_name.split('/')[-1],
           }
           if placement_policy_name is not None
           and len(placement_policy_name) > 0

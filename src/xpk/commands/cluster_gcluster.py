@@ -32,7 +32,13 @@ from ..core.blueprint.blueprint_generator import (
     a4_device_type,
     supported_device_types,
 )
-from ..core.capacity import get_capacity_type, get_reservations_list, to_reservation_path
+from ..core.capacity import get_capacity_type
+from ..core.reservation import (
+    get_reservation_maintenance_interval,
+    get_reservation_placement_policy,
+    get_reservations_list,
+    to_reservation_path,
+)
 from ..core.cluster import get_cluster_credentials
 from ..core.commands import run_command_for_value
 from ..core.docker_manager import DockerManager
@@ -44,7 +50,6 @@ from ..utils.console import xpk_exit, xpk_print
 from ..utils.file import ensure_directory_exists
 from ..utils.network import all_IPs_cidr
 from ..utils.objects import hash_string
-from ..core.capacity import get_reservation_maintenance_interval, get_reservation_placement_policy
 
 blueprints_path = os.path.abspath('xpkclusters/blueprints')
 gcluster_working_dir = os.path.abspath('xpkclusters/gcluster-out')

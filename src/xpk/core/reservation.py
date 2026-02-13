@@ -150,16 +150,11 @@ def _get_reservation_cached(
   Returns:
     _Reservation object or None on failure.
   """
-  project = reservation.project
-  zone = reservation.zone
-  name = reservation.name
-
   command = (
-      f'gcloud beta compute reservations describe {name} '
-      f'--project={project} --zone={zone} '
+      f'gcloud beta compute reservations describe {reservation.name} '
+      f'--project={reservation.project} --zone={reservation.zone} '
       '--format="json(specificReservation,aggregateReservation,status,deploymentType,resourcePolicies)"'
   )
-  # Basic dry run value to avoid crashes if dry run is enabled globally
   dry_run_json = json.dumps({
       'specificReservation': {
           'count': 100,
@@ -172,7 +167,7 @@ def _get_reservation_cached(
 
   return_code, output = run_command_for_value(
       command,
-      f'Get reservation {name}',
+      f'Get reservation {reservation.name}',
       dry_run_return_val=dry_run_json,
   )
 
@@ -183,7 +178,7 @@ def _get_reservation_cached(
     data = json.loads(output)
     if not data or data.get('status') != 'READY':
       return None
-    return _parse_reservation(name, data)
+    return _parse_reservation(reservation.name, data)
   except (ValueError, IndexError, AttributeError, json.JSONDecodeError) as e:
     xpk_print(f'Error processing reservation data: {e}. Output: "{output}".')
     return None

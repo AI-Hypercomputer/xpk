@@ -15,15 +15,18 @@ limitations under the License.
 """
 
 import enum
+import os
 import json
 import functools
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Sequence, Any
 
 from .commands import run_command_with_updates, run_command_for_value
-from .system_characteristics import AcceleratorType
+from .system_characteristics import AcceleratorType, SystemCharacteristics
+from .gcloud_context import project_id_to_project_number
 from ..utils.console import xpk_print, xpk_exit
 from ..utils.kueue import is_queued_cluster
+from ..utils.execution_context import is_dry_run
 
 AUTOPROVISIONING_CONFIG_VALUE = 'AUTOPROVISION'
 AUTOPROVISIONING_CONFIG_MINIMUM_KEY = 'minimum_chips'
@@ -65,6 +68,12 @@ class SubBlockReservationLink(BlockReservationLink):
 
 
 @dataclass(frozen=True)
+class ReservationCapacity:
+  reservation: ReservationLink
+  available_slices: int
+
+
+@dataclass(frozen=True)
 class _AcceleratorResource:
   acceleratorCount: int
   acceleratorType: str
@@ -83,6 +92,13 @@ class _SpecificReservation:
 class _AggregateReservation:
   reservedResources: list[_AcceleratorResource]
   inUseResources: list[_AcceleratorResource]
+
+
+@dataclass(frozen=True)
+class _ReservationSubBlock:
+  name: str
+  count: int
+  in_use_count: int
 
 
 @dataclass(frozen=True)
@@ -160,6 +176,14 @@ def _parse_reservation(name: str, data: dict[str, Any]) -> _Reservation:
   )
 
 
+def _parse_reservation_sub_block(data: dict[str, Any]) -> _ReservationSubBlock:
+  return _ReservationSubBlock(
+      name=str(data.get('name', '')),
+      count=int(data.get('count', 0)),
+      in_use_count=int(data.get('inUseCount', '0')),
+  )
+
+
 @functools.lru_cache(maxsize=None)
 def _fetch_reservation_from_gcloud(
     project: str, zone: str, name: str
@@ -225,7 +249,7 @@ def _get_reservation_cached(
   )
 
 
-_get_reservation_cached.cache_clear = _fetch_reservation_from_gcloud.cache_clear  # type: ignore
+_get_reservation_cached.cache_clear = _fetch_reservation_from_gcloud.cache_clear
 
 
 def print_reservations(args) -> int:
@@ -293,58 +317,63 @@ def get_capacity_type(args) -> tuple[CapacityType, int]:
 
 
 def get_reservation_maintenance_interval(
-    reservation: ReservationLink,
+    reservation_link: ReservationLink,
 ) -> str:
   """Get reservation maintenance interval.
 
   Args:
-    reservation: reservation object.
+    reservation_link: reservation object.
 
   Returns:
     Maintenance interval as a string.
   """
-  reservation_obj = _get_reservation_cached(reservation)
-  if not reservation_obj or not reservation_obj.specificReservation:
+  reservation = _get_reservation_cached(reservation_link)
+  if not reservation or not reservation.specificReservation:
     xpk_print(
-        f'Get reservation maintenance interval failed for {reservation.name}'
+        'Get reservation maintenance interval failed for'
+        f' {reservation_link.name}'
     )
     xpk_exit(1)
 
-  return reservation_obj.specificReservation.maintenance_interval
+  return reservation.specificReservation.maintenance_interval
 
 
-def get_reservation_placement_policy(reservation: ReservationLink) -> str:
+def get_reservation_placement_policy(reservation_link: ReservationLink) -> str:
   """Get reservation placement policy.
 
   Args:
-    reservation: reservation object.
+    reservation_link: reservation object.
 
   Returns:
     Placement policy as a string.
   """
-  reservation_obj = _get_reservation_cached(reservation)
-  if not reservation_obj:
-    xpk_print(f'Get reservation placement policy failed for {reservation.name}')
+  reservation = _get_reservation_cached(reservation_link)
+  if not reservation:
+    xpk_print(
+        f'Get reservation placement policy failed for {reservation_link.name}'
+    )
     xpk_exit(1)
 
-  return reservation_obj.resource_policy
+  return reservation.resource_policy
 
 
-def get_reservation_deployment_type(reservation: ReservationLink) -> str:
+def get_reservation_deployment_type(reservation_link: ReservationLink) -> str:
   """Get reservation deployment type.
 
   Args:
-    reservation: reservation object.
+    reservation_link: reservation object.
 
   Returns:
     Deployment type as a string.
   """
-  reservation_obj = _get_reservation_cached(reservation)
-  if not reservation_obj:
-    xpk_print(f'Get reservation deployment type failed for {reservation.name}')
+  reservation = _get_reservation_cached(reservation_link)
+  if not reservation:
+    xpk_print(
+        f'Get reservation deployment type failed for {reservation_link.name}'
+    )
     xpk_exit(1)
 
-  return reservation_obj.deployment_type
+  return reservation.deployment_type
 
 
 def get_reservations_list(args) -> list[ReservationLink]:
@@ -540,3 +569,344 @@ def to_reservation_path(
     if isinstance(reservation, SubBlockReservationLink):
       path += f'/reservationSubBlocks/{reservation.sub_block_name}'
   return path
+
+
+def assess_available_slices(
+    reservations: Sequence[ReservationLink],
+    force_sub_block_targeting: bool,
+    required_hosts: int,
+    system: SystemCharacteristics,
+) -> tuple[list[ReservationCapacity], int]:
+  """Assess the available slices in the reservations.
+
+  Args:
+    reservations: list of reservations to assess.
+    force_sub_block_targeting: if `True`, then the passed `ReservationLink` or `BlockReservationLink` will be flattened to adequate sub-blocks.
+    required_hosts: number of hosts required per slice.
+    system: The system characteristics of the accelerator type.
+
+  Returns:
+    List of capacity reservations with available slices.
+  """
+  reservation_capacities = []
+  for reservation in reservations:
+    capacities, return_code = _assess_available_slices_for_reservation(
+        reservation, force_sub_block_targeting, required_hosts, system
+    )
+    if return_code != 0:
+      return [], 0
+    reservation_capacities.extend(capacities)
+
+  # Deduplicate reservation_capacities, preserving order:
+  reservation_capacities = list(dict.fromkeys(reservation_capacities))
+
+  return reservation_capacities, 0
+
+
+def _get_dry_run_sub_blocks() -> str:
+  """Get dry run sub-blocks based on environment variable."""
+  default_json = '[{"name": "sub0", "count": 16, "inUseCount": 0}]'
+  return os.getenv('DRY_RUN_RESERVATION_SUB_BLOCKS', default_json)
+
+
+def _assess_available_slices_for_reservation(
+    reservation: ReservationLink,
+    force_sub_block_targeting: bool,
+    required_hosts: int,
+    system: SystemCharacteristics,
+) -> tuple[list[ReservationCapacity], int]:
+  """Assess the available slices for a single reservation.
+
+  Args:
+    reservation: reservation to assess.
+    force_sub_block_targeting: if `True`, then the passed `ReservationLink` or `BlockReservationLink` will be flattened to adequate sub-blocks.
+    required_hosts: number of hosts required per slice.
+    system: The system characteristics of the accelerator type.
+
+  Returns:
+    List of available reservations (targeting sub-blocks if applicable).
+  """
+  parent_reservation = _get_reservation_cached(reservation)
+
+  if not parent_reservation:
+    xpk_print(f"WARNING: Failed to fetch reservation '{reservation.name}'.")
+    return [], 0
+
+  if not _verify_reservation_configuration(parent_reservation, system):
+    return [], 0
+
+  if isinstance(reservation, SubBlockReservationLink):
+    available_slices, return_code = _get_available_slices_in_sub_block(
+        reservation, required_hosts
+    )
+    if return_code != 0:
+      return [], 0
+    if available_slices > 0:
+      return [ReservationCapacity(reservation, available_slices)], 0
+    else:
+      xpk_print(
+          f'WARNING: Sub-block {reservation.sub_block_name} is either'
+          ' unhealthy or not fitting. Skipping.'
+      )
+      return [], 0
+
+  if force_sub_block_targeting:
+    if isinstance(reservation, BlockReservationLink):
+      return _get_healthy_and_fitting_sub_blocks_in_block(
+          reservation, required_hosts
+      )
+
+    # reservation instanceof ReservationLink (not Block/SubBlock):
+    blocks, return_code = _get_blocks_in_reservation(reservation)
+    if return_code != 0:
+      return [], 0
+    if blocks:
+      return assess_available_slices(
+          blocks, force_sub_block_targeting, required_hosts, system
+      )
+
+    xpk_print(
+        'WARNING: Super-slicing is enabled, but no blocks found in'
+        f' reservation {reservation.name}. Skipping.'
+    )
+    return [], 0
+
+  count, return_code = _get_reservation_count(
+      parent_reservation, required_hosts, system, reservation
+  )
+  if return_code != 0:
+    return [], return_code
+  return ([ReservationCapacity(reservation, count)] if count > 0 else []), 0
+
+
+def _list_healthy_sub_blocks(
+    reservation: BlockReservationLink | SubBlockReservationLink,
+) -> tuple[list[_ReservationSubBlock], int]:
+  """List healthy sub-blocks for a reservation block or sub-block.
+
+  Args:
+    reservation: The reservation link (must be Block or SubBlock).
+
+  Returns:
+    A tuple containing a list of healthy sub-blocks and the return code.
+  """
+  filter_arg = 'healthInfo.healthStatus=HEALTHY'
+  task_name = f'Count healthy fitting sub-blocks in {reservation.block_name}'
+  dry_run_return_val = _get_dry_run_sub_blocks()
+
+  if isinstance(reservation, SubBlockReservationLink):
+    filter_arg = f'name={reservation.sub_block_name} AND {filter_arg}'
+    task_name = f'Check sub-block {reservation.sub_block_name} health'
+    dry_run_return_val = '[{"name": "sub0", "count": 16, "inUseCount": 0}]'
+
+  command = (
+      f'gcloud beta compute reservations sub-blocks list {reservation.name} '
+      f'--block-name={reservation.block_name} '
+      f'--project={reservation.project} '
+      f'--zone={reservation.zone} '
+      f'--filter="{filter_arg}" '
+      '--format="json(name,count,inUseCount)"'
+  )
+
+  return_code, output = run_command_for_value(
+      command,
+      task_name,
+      dry_run_return_val=dry_run_return_val,
+  )
+
+  if return_code != 0 or not output.strip():
+    return [], return_code
+
+  try:
+    data = json.loads(output)
+    if not data:
+      return [], 0
+    return [_parse_reservation_sub_block(row) for row in data], 0
+  except (ValueError, IndexError, AttributeError, json.JSONDecodeError) as e:
+    xpk_print(f'Error processing sub-block data: {e}. Output: "{output}".')
+    return [], 1
+
+
+def _get_available_slices_in_sub_block(
+    reservation: SubBlockReservationLink,
+    required_hosts: int,
+) -> tuple[int, int]:
+  """Check if a sub-block is healthy and return available slices."""
+  sub_blocks, return_code = _list_healthy_sub_blocks(reservation)
+
+  if return_code != 0 or not sub_blocks:
+    return 0, return_code
+
+  assert len(sub_blocks) == 1
+  sub_block = sub_blocks[0]
+  available_slices = (
+      sub_block.count - sub_block.in_use_count
+  ) // required_hosts
+  return available_slices, 0
+
+
+def _get_healthy_and_fitting_sub_blocks_in_block(
+    reservation: BlockReservationLink,
+    required_hosts: int,
+) -> tuple[list[ReservationCapacity], int]:
+  """Get healthy and fitting sub-blocks in a block."""
+  sub_blocks, return_code = _list_healthy_sub_blocks(reservation)
+
+  if return_code != 0:
+    return [], return_code
+
+  available_capacities: list[ReservationCapacity] = [
+      ReservationCapacity(
+          SubBlockReservationLink(
+              project=reservation.project,
+              name=reservation.name,
+              zone=reservation.zone,
+              block_name=reservation.block_name,
+              sub_block_name=sub_block.name,
+          ),
+          available_slices=(sub_block.count - sub_block.in_use_count)
+          // required_hosts,
+      )
+      for sub_block in sub_blocks
+  ]
+  return available_capacities, 0
+
+
+def _get_blocks_in_reservation(
+    reservation: ReservationLink,
+) -> tuple[list[BlockReservationLink], int]:
+  """Get blocks in a reservation."""
+  command = (
+      f'gcloud beta compute reservations blocks list {reservation.name} '
+      f'--project={reservation.project} '
+      f'--zone={reservation.zone} '
+      '--format="value(name)"'
+  )
+  return_code, output = run_command_for_value(
+      command,
+      f'Get blocks in reservation {reservation.name}',
+      dry_run_return_val='block0',
+  )
+  if return_code != 0:
+    xpk_print(
+        f'Get blocks in reservation {reservation.name} failed with'
+        f' {return_code}'
+    )
+    return [], return_code
+
+  return [
+      BlockReservationLink(
+          project=reservation.project,
+          name=reservation.name,
+          zone=reservation.zone,
+          block_name=name,
+      )
+      for name in output.strip().splitlines()
+      if name
+  ], 0
+
+
+def _calculate_target_accelerator_type(
+    link: ReservationLink, system: SystemCharacteristics
+) -> str:
+  reservation_accelerator_type = system.reservation_accelerator_type
+  assert reservation_accelerator_type
+
+  if system.accelerator_type == AcceleratorType.TPU:
+    project_number = project_id_to_project_number(link.project)
+    return (
+        f'projects/{project_number}/zones/{link.zone}/acceleratorTypes/'
+        f'{reservation_accelerator_type}'
+    )
+  else:
+    return reservation_accelerator_type
+
+
+def _verify_reservation_configuration(
+    reservation: _Reservation, system: SystemCharacteristics
+) -> bool:
+  """Checks if the reservation matches the system requirements.
+
+  Args:
+    reservation: The reservation object.
+    system: The system characteristics.
+
+  Returns:
+    True if valid, False otherwise. Prints error message on failure.
+  """
+  if not reservation.specificReservation:
+    return True
+
+  if is_dry_run() and not reservation.specificReservation.machine_type:
+    return True
+
+  if system.accelerator_type == AcceleratorType.TPU:
+    if reservation.specificReservation.machine_type != system.gce_machine_type:
+      xpk_print(
+          f"ERROR: Reservation '{reservation.name}' has machine type"
+          f" '{reservation.specificReservation.machine_type}', but requested"
+          f" system requires '{system.gce_machine_type}'."
+      )
+      return False
+  elif system.accelerator_type == AcceleratorType.GPU:
+    target_accel = system.reservation_accelerator_type
+    has_matching_accelerator = any(
+        acc.acceleratorType == target_accel
+        for acc in reservation.specificReservation.guest_accelerators
+    )
+    if not has_matching_accelerator:
+      xpk_print(
+          f"ERROR: Reservation '{reservation.name}' does not have a matching"
+          f" guest accelerator for '{target_accel}'."
+      )
+      return False
+  return True
+
+
+def _get_reservation_count(
+    reservation: _Reservation,
+    required_hosts: int,
+    system: SystemCharacteristics,
+    link: ReservationLink,
+) -> tuple[int, int]:
+  """Get capacity count of a reservation.
+
+  Args:
+    reservation: The reservation object.
+    required_hosts: number of hosts required per slice.
+    system: The system characteristics of the accelerator type.
+    link: The reservation link (for logging/identification).
+
+  Returns:
+    Number of available slots in the reservation.
+  """
+  count = 0
+  in_use_count = 0
+
+  if reservation.specificReservation:
+    count = int(reservation.specificReservation.count)
+    in_use_count = int(reservation.specificReservation.inUseCount)
+  elif reservation.aggregateReservation:
+    reserved_resources = reservation.aggregateReservation.reservedResources
+    target_accelerator_type = _calculate_target_accelerator_type(link, system)
+    count = next(
+        (
+            r.acceleratorCount
+            for r in reserved_resources
+            if r.acceleratorType == target_accelerator_type
+        ),
+        0,
+    )
+
+    in_use_resources = reservation.aggregateReservation.inUseResources
+    in_use_count = next(
+        (
+            r.acceleratorCount
+            for r in in_use_resources
+            if r.acceleratorType == target_accelerator_type
+        ),
+        0,
+    )
+
+  available_hosts = max(0, count - in_use_count)
+  return available_hosts // required_hosts, 0

@@ -17,6 +17,7 @@ limitations under the License.
 import pytest
 from unittest.mock import MagicMock, patch
 
+from .testing.commands_tester import CommandsTester
 from .reservation import (
     get_reservation_deployment_type,
     get_reservation_placement_policy,
@@ -35,6 +36,11 @@ from .reservation import (
     _Reservation,
     _get_reservation_cached,
 )
+
+
+@pytest.fixture(autouse=True)
+def commands_tester(mocker):
+  return CommandsTester(mocker)
 
 
 @pytest.fixture(autouse=True)
@@ -295,6 +301,24 @@ def test_get_reservation_maintenance_interval_uses_cached(mock_get_cached):
   assert result == 'PERIODIC'
 
 
+def test_parse_reservation_without_specific_or_aggregate():
+  data = {
+      'deploymentType': 'DENSE',
+      'resourcePolicies': {'policy': 'compact-policy'},
+      'status': 'READY',
+  }
+
+  reservation = _parse_reservation('res1', data)
+
+  assert reservation == _Reservation(
+      name='res1',
+      aggregate_reservation=None,
+      specific_reservation=None,
+      deployment_type='DENSE',
+      resource_policy='compact-policy',
+  )
+
+
 def test_parse_specific_reservation():
   data = {
       'specificReservation': {
@@ -366,38 +390,86 @@ def test_parse_aggregate_reservation():
   )
 
 
-def test_get_reservation_cached_caching(mocker):
-  mock_run_command = mocker.patch(
-      'xpk.core.reservation.run_command_for_value',
-      return_value=(0, '{"name": "res", "status": "READY"}'),
+def test_get_reservation_cached_caching(commands_tester: CommandsTester):
+  commands_tester.set_result_for_command(
+      (0, '{"name": "res", "status": "READY"}'), 'reservations', 'describe'
   )
 
   # First call
   _get_reservation_cached(ReservationLink('project', 'res1', 'zone'))
-  assert mock_run_command.call_count == 1
+  commands_tester.assert_command_run(
+      'reservations', 'describe', 'res1', times=1
+  )
 
   # Second call with same args
   _get_reservation_cached(ReservationLink('project', 'res1', 'zone'))
-  assert mock_run_command.call_count == 1  # Should still be 1
+  commands_tester.assert_command_run(
+      'reservations', 'describe', 'res1', times=1
+  )
 
   # Third call with different args
   _get_reservation_cached(ReservationLink('project', 'res2', 'zone'))
-  assert mock_run_command.call_count == 2
-
-
-def test_parse_reservation_without_specific_or_aggregate():
-  data = {
-      'deploymentType': 'DENSE',
-      'resourcePolicies': {'policy': 'compact-policy'},
-      'status': 'READY',
-  }
-
-  reservation = _parse_reservation('res1', data)
-
-  assert reservation == _Reservation(
-      name='res1',
-      aggregate_reservation=None,
-      specific_reservation=None,
-      deployment_type='DENSE',
-      resource_policy='compact-policy',
+  commands_tester.assert_command_run(
+      'reservations', 'describe', 'res2', times=1
   )
+
+
+def test_get_reservation_cached_calls_correct_command(
+    commands_tester: CommandsTester,
+):
+  commands_tester.set_result_for_command(
+      (0, '{"name": "res", "status": "READY"}'),
+      'reservations describe my-res',
+  )
+  reservation = ReservationLink(
+      project='my-project', name='my-res', zone='my-zone'
+  )
+
+  _get_reservation_cached(reservation)
+
+  commands_tester.assert_command_run(
+      'gcloud beta compute reservations describe my-res',
+      '--project=my-project --zone=my-zone',
+  )
+
+
+def test_get_reservation_cached_returns_none_if_not_ready(
+    commands_tester: CommandsTester,
+):
+  commands_tester.set_result_for_command(
+      (0, '{"name": "res", "status": "CREATING"}'),
+      'reservations describe res',
+  )
+  reservation = ReservationLink(project='project', name='res', zone='zone')
+
+  result = _get_reservation_cached(reservation)
+
+  assert result is None
+
+
+def test_get_reservation_cached_returns_none_on_command_failure(
+    commands_tester: CommandsTester,
+):
+  commands_tester.set_result_for_command(
+      (1, 'Error message'), 'reservations', 'describe', 'res'
+  )
+  reservation = ReservationLink(project='project', name='res', zone='zone')
+
+  result = _get_reservation_cached(reservation)
+
+  assert result is None
+
+
+def test_get_reservation_cached_returns_none_on_invalid_json(
+    commands_tester, mocker
+):
+  commands_tester.set_result_for_command(
+      (0, 'invalid json'), 'reservations', 'describe', 'res'
+  )
+  mock_print = mocker.patch('xpk.core.reservation.xpk_print')
+  reservation = ReservationLink(project='project', name='res', zone='zone')
+
+  result = _get_reservation_cached(reservation)
+
+  assert result is None
+  mock_print.assert_called()

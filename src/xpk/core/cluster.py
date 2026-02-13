@@ -15,8 +15,6 @@ limitations under the License.
 """
 
 import yaml
-from google.api_core.exceptions import PermissionDenied
-from google.cloud import resourcemanager_v3
 from kubernetes import client as k8s_client
 from kubernetes import config
 from kubernetes.client.exceptions import ApiException
@@ -33,6 +31,7 @@ from .gcloud_context import (
     add_zone_and_project,
     get_cluster_location,
     zone_to_region,
+    project_id_to_project_number,
 )
 from .nodepool import recreate_nodes_in_existing_node_pools
 from .resources import get_cluster_system_characteristics
@@ -387,23 +386,6 @@ def get_all_clusters_programmatic(args) -> tuple[list[str], int]:
     return [], return_code
 
   return raw_cluster_output.splitlines(), 0
-
-
-def project_id_to_project_number(project_id: str) -> str:
-  client = resourcemanager_v3.ProjectsClient()
-  request = resourcemanager_v3.GetProjectRequest()
-  request.name = f'projects/{project_id}'
-  try:
-    response = client.get_project(request=request)
-  except PermissionDenied as e:
-    xpk_print(
-        f"Couldn't translate project id: {project_id} to project number."
-        f' Error: {e}'
-    )
-    xpk_exit(1)
-  parts = response.name.split('/', 1)
-  xpk_print(f'Project number for project: {project_id} is {parts[1]}')
-  return str(parts[1])
 
 
 def setup_k8s_env(args) -> k8s_client.ApiClient:

@@ -238,3 +238,52 @@ def test_system_characteristics_post_init_throws_for_gpu_without_config():
         supports_accelerator_network_profile=False,
         docker_platform=DockerPlatform.AMD,
     )
+
+
+def test_reservation_accelerator_type_derived_correctly():
+  """Tests that reservation_accelerator_type is correctly derived."""
+  tpu_system = SystemCharacteristics(
+      topology="2x2x1",
+      vms_per_slice=1,
+      gke_accelerator="tpu-v5p-slice",
+      gce_machine_type="ct5p-hightpu-4t",
+      chips_per_vm=4,
+      accelerator_type=AcceleratorType.TPU,
+      device_type="v5p-8",
+      supports_sub_slicing=False,
+      supports_super_slicing=False,
+      supports_accelerator_network_profile=False,
+      docker_platform=DockerPlatform.AMD,
+  )
+  assert tpu_system.reservation_accelerator_type == "ct5p"
+
+  gpu_system = SystemCharacteristics(
+      topology="N/A",
+      vms_per_slice=1,
+      gke_accelerator="nvidia-l4",
+      gce_machine_type="g2-standard-12",
+      chips_per_vm=1,
+      accelerator_type=AcceleratorType.GPU,
+      device_type="l4-1",
+      supports_sub_slicing=False,
+      supports_super_slicing=False,
+      supports_accelerator_network_profile=False,
+      docker_platform=DockerPlatform.AMD,
+      gpu_config=GpuConfig(requires_topology=False),
+  )
+  assert gpu_system.reservation_accelerator_type == "nvidia-l4"
+
+  cpu_system = SystemCharacteristics(
+      topology="N/A",
+      vms_per_slice=1,
+      gke_accelerator="N/A",
+      gce_machine_type="n2-standard-32",
+      chips_per_vm=32,
+      accelerator_type=AcceleratorType.CPU,
+      device_type="n2-standard-32-1",
+      supports_sub_slicing=False,
+      supports_super_slicing=False,
+      supports_accelerator_network_profile=False,
+      docker_platform=DockerPlatform.AMD,
+  )
+  assert cpu_system.reservation_accelerator_type is None

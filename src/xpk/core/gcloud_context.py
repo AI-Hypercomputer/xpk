@@ -18,6 +18,9 @@ import subprocess
 import sys
 from dataclasses import dataclass
 
+from google.api_core.exceptions import PermissionDenied
+from google.cloud import resourcemanager_v3
+
 from ..utils.console import xpk_print, xpk_exit
 from ..utils.versions import ReleaseChannel
 from .commands import run_command_for_value
@@ -208,8 +211,8 @@ def get_gke_control_plane_version(
 
   if not is_valid_version:
     xpk_print(
-        f'Planned GKE Version: {master_gke_version}\n Valid Versions:'
-        f'\n{gke_server_config.valid_versions}\nRecommended / Default GKE'
+        f'Planned GKE Version: {master_gke_version}\\n Valid Versions:'
+        f'\\n{gke_server_config.valid_versions}\\nRecommended / Default GKE'
         f' Version: {gke_server_config.default_gke_version}'
     )
     xpk_print(
@@ -224,3 +227,21 @@ def get_gke_control_plane_version(
     return 1, None
 
   return 0, master_gke_version
+
+
+@lru_cache()
+def project_id_to_project_number(project_id: str) -> str:
+  client = resourcemanager_v3.ProjectsClient()
+  request = resourcemanager_v3.GetProjectRequest()
+  request.name = f'projects/{project_id}'
+  try:
+    response = client.get_project(request=request)
+  except PermissionDenied as e:
+    xpk_print(
+        f"Couldn't translate project id: {project_id} to project number."
+        f' Error: {e}'
+    )
+    xpk_exit(1)
+  parts = response.name.split('/', 1)
+  xpk_print(f'Project number for project: {project_id} is {parts[1]}')
+  return str(parts[1])

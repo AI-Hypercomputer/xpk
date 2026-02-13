@@ -10,10 +10,8 @@ $ SUB_SLICING_ENABLED=true xpk cluster create --project=golden-project --zone=us
 [XPK] Starting xpk v0.0.0
 [XPK] Starting cluster create for cluster golden-cluster:
 [XPK] Working on golden-project and us-central1-a
-[XPK] Task: `Get reservation deployment type` is implemented by the following command not running since it is a dry run. 
-gcloud beta compute reservations describe golden-reservation --project=golden-project --zone=us-central1-a --format="value(deploymentType)"
-[XPK] Task: `Describe reservation` is implemented by the following command not running since it is a dry run. 
-gcloud beta compute reservations describe golden-reservation --project=golden-project --zone=us-central1-a
+[XPK] Task: `Get reservation golden-reservation` is implemented by the following command not running since it is a dry run. 
+gcloud beta compute reservations describe golden-reservation --project=golden-project --zone=us-central1-a --format="json(specificReservation,aggregateReservation,status,deploymentType,resourcePolicies)"
 [XPK] Task: `Determine server supported GKE versions for default gke version` is implemented by the following command not running since it is a dry run. 
 gcloud container get-server-config --project=golden-project --region=us-central1 --flatten="channels" --filter="channels.channel=RAPID" --format="value(channels.defaultVersion)"
 [XPK] Task: `Determine server supported GKE versions for valid versions` is implemented by the following command not running since it is a dry run. 
@@ -52,8 +50,6 @@ gcloud beta container clusters describe golden-cluster --location us-central1 --
 We assume that the underlying system is: SystemCharacteristics(topology='4x4', vms_per_slice=4, gke_accelerator='tpu-v6e-slice', gce_machine_type='ct6e-standard-4t', chips_per_vm=4, accelerator_type=TPU, device_type='v6e-16', supports_sub_slicing=True, supports_super_slicing=False, supports_accelerator_network_profile=True, docker_platform=<DockerPlatform.AMD: 'linux/amd64'>, requires_workload_policy=False, gpu_config=None, parallel_containers=1)
 [XPK] Task: `Get All Node Pools` is implemented by the following command not running since it is a dry run. 
 gcloud beta container node-pools list --cluster golden-cluster --project=golden-project --location=us-central1 --format="csv[no-heading](name)"
-[XPK] Task: `Describe reservation` is implemented by the following command not running since it is a dry run. 
-gcloud beta compute reservations describe golden-reservation --project=golden-project --zone=us-central1-a
 [XPK] Creating 1 node pool or pools of v6e-16
 Underlyingly, we assume that means: SystemCharacteristics(topology='4x4', vms_per_slice=4, gke_accelerator='tpu-v6e-slice', gce_machine_type='ct6e-standard-4t', chips_per_vm=4, accelerator_type=TPU, device_type='v6e-16', supports_sub_slicing=True, supports_super_slicing=False, supports_accelerator_network_profile=True, docker_platform=<DockerPlatform.AMD: 'linux/amd64'>, requires_workload_policy=False, gpu_config=None, parallel_containers=1)
 [XPK] Task: `Get Node Pool Zone` is implemented by the following command not running since it is a dry run. 
@@ -66,8 +62,6 @@ kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="Conf
 [XPK] Pretending all the jobs succeeded
 [XPK] Create or delete node pool request complete.
 [XPK] Creating ConfigMap for cluster
-[XPK] Task: `Describe reservation` is implemented by the following command not running since it is a dry run. 
-gcloud beta compute reservations describe golden-reservation --project=golden-project --zone=us-central1-a
 [XPK] Temp file (8d0f4b1e96d79a5d572cbb1a403ac3285b6a9390b6092b86a76bf66705e35d44) content: 
 kind: ConfigMap
 apiVersion: v1

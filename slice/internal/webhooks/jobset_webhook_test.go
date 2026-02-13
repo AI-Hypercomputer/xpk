@@ -17,14 +17,15 @@ limitations under the License.
 package webhooks
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
 
 	slice "tpu-slice-controller/api/v1beta1"
 	"tpu-slice-controller/internal/core"
+	utiltesting "tpu-slice-controller/internal/util/testing"
 	testingjobjobset "tpu-slice-controller/internal/util/testingjobs/jobset"
 	"tpu-slice-controller/test/utils"
 )
@@ -114,7 +115,7 @@ func TestDefault(t *testing.T) {
 				Queue("queue-name").
 				ReplicatedJobs(testingjobjobset.ReplicatedJobRequirements{
 					Name:        "rj1",
-					Parallelism: 12,
+					Parallelism: 48,
 					PodAnnotations: map[string]string{
 						core.TPUSliceTopologyAnnotation: "4x4x12",
 					},
@@ -122,22 +123,24 @@ func TestDefault(t *testing.T) {
 						"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
 					},
 				}).
+				RequestAndLimit("rj1", core.TPUResourceName, "4").
 				Obj(),
 			wantJobSet: testingjobjobset.MakeJobSet(baseJobSetName, utils.DefaultNamespace).
 				Queue("queue-name").
 				ReplicatedJobs(testingjobjobset.ReplicatedJobRequirements{
 					Name:        "rj1",
-					Parallelism: 12,
+					Parallelism: 48,
 					PodAnnotations: map[string]string{
 						core.TPUSliceTopologyAnnotation:                 "4x4x12",
 						"kueue.x-k8s.io/podset-required-topology":       "cloud.google.com/gce-topology-block",
 						"kueue.x-k8s.io/podset-slice-required-topology": core.TPUSubBlockLabel,
-						"kueue.x-k8s.io/podset-slice-size":              "4",
+						"kueue.x-k8s.io/podset-slice-size":              "16",
 					},
 					NodeSelector: map[string]string{
 						"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
 					},
-				}).NodeAffinity("rj1", core.TPUSliceHealthNodeSelectorKey, []string{core.TPUSliceHealthNodeSelectorHealthy, core.TPUSliceHealthNodeSelectorDegraded}).
+				}).NodeAffinity("rj1", core.TPUSliceHealthNodeSelectorKey, []string{core.TPUSliceHealthNodeSelectorHealthy}).
+				RequestAndLimit("rj1", core.TPUResourceName, "4").
 				Obj(),
 		},
 		"should set default values for subslice 2x2x1": {
@@ -160,13 +163,15 @@ func TestDefault(t *testing.T) {
 					Name:        "rj1",
 					Parallelism: 4,
 					PodAnnotations: map[string]string{
-						core.TPUSliceTopologyAnnotation:           "2x2x1",
-						"kueue.x-k8s.io/podset-required-topology": "cloud.google.com/gke-tpu-partition-2x2x1-id",
+						core.TPUSliceTopologyAnnotation:                 "2x2x1",
+						"kueue.x-k8s.io/podset-slice-size":              "4",
+						"kueue.x-k8s.io/podset-required-topology":       core.TPUBlockLabel,
+						"kueue.x-k8s.io/podset-slice-required-topology": "cloud.google.com/gke-tpu-partition-2x2x1-id",
 					},
 					NodeSelector: map[string]string{
 						"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
 					},
-				}).NodeAffinity("rj1", core.TPUSliceHealthNodeSelectorKey, []string{core.TPUSliceHealthNodeSelectorHealthy, core.TPUSliceHealthNodeSelectorDegraded}).
+				}).NodeAffinity("rj1", core.TPUSliceHealthNodeSelectorKey, []string{core.TPUSliceHealthNodeSelectorHealthy}).
 				Obj(),
 		},
 		"should set default values for subslice 2x4x4": {
@@ -189,13 +194,15 @@ func TestDefault(t *testing.T) {
 					Name:        "rj1",
 					Parallelism: 4,
 					PodAnnotations: map[string]string{
-						core.TPUSliceTopologyAnnotation:           "2x4x4",
-						"kueue.x-k8s.io/podset-required-topology": "cloud.google.com/gke-tpu-partition-2x4x4-id",
+						core.TPUSliceTopologyAnnotation:                 "2x4x4",
+						"kueue.x-k8s.io/podset-slice-size":              "4",
+						"kueue.x-k8s.io/podset-required-topology":       core.TPUBlockLabel,
+						"kueue.x-k8s.io/podset-slice-required-topology": "cloud.google.com/gke-tpu-partition-2x4x4-id",
 					},
 					NodeSelector: map[string]string{
 						"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
 					},
-				}).NodeAffinity("rj1", core.TPUSliceHealthNodeSelectorKey, []string{core.TPUSliceHealthNodeSelectorHealthy, core.TPUSliceHealthNodeSelectorDegraded}).
+				}).NodeAffinity("rj1", core.TPUSliceHealthNodeSelectorKey, []string{core.TPUSliceHealthNodeSelectorHealthy}).
 				Obj(),
 		},
 		"shouldn't set default values because invalid topology annotation": {
@@ -259,7 +266,7 @@ func TestDefault(t *testing.T) {
 				Queue("queue-name").
 				ReplicatedJobs(testingjobjobset.ReplicatedJobRequirements{
 					Name:        "rj1",
-					Parallelism: 12,
+					Parallelism: 48,
 					PodAnnotations: map[string]string{
 						core.TPUSliceTopologyAnnotation: "4x4x12",
 					},
@@ -268,23 +275,25 @@ func TestDefault(t *testing.T) {
 						core.TPUSliceHealthNodeSelectorKey:     "HEALTHY",
 					},
 				}).
+				RequestAndLimit("rj1", core.TPUResourceName, "4").
 				Obj(),
 			wantJobSet: testingjobjobset.MakeJobSet(baseJobSetName, utils.DefaultNamespace).
 				Queue("queue-name").
 				ReplicatedJobs(testingjobjobset.ReplicatedJobRequirements{
 					Name:        "rj1",
-					Parallelism: 12,
+					Parallelism: 48,
 					PodAnnotations: map[string]string{
 						core.TPUSliceTopologyAnnotation:                 "4x4x12",
 						"kueue.x-k8s.io/podset-required-topology":       "cloud.google.com/gce-topology-block",
 						"kueue.x-k8s.io/podset-slice-required-topology": core.TPUSubBlockLabel,
-						"kueue.x-k8s.io/podset-slice-size":              "4",
+						"kueue.x-k8s.io/podset-slice-size":              "16",
 					},
 					NodeSelector: map[string]string{
 						"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
 						core.TPUSliceHealthNodeSelectorKey:     "HEALTHY",
 					},
 				}).
+				RequestAndLimit("rj1", core.TPUResourceName, "4").
 				Obj(),
 		},
 		"should respect existing NodeAffinity for health": {
@@ -292,7 +301,7 @@ func TestDefault(t *testing.T) {
 				Queue("queue-name").
 				ReplicatedJobs(testingjobjobset.ReplicatedJobRequirements{
 					Name:        "rj1",
-					Parallelism: 12,
+					Parallelism: 48,
 					PodAnnotations: map[string]string{
 						core.TPUSliceTopologyAnnotation: "4x4x12",
 					},
@@ -301,24 +310,60 @@ func TestDefault(t *testing.T) {
 					},
 				}).
 				NodeAffinity("rj1", core.TPUSliceHealthNodeSelectorKey, []string{"HEALTHY"}).
+				RequestAndLimit("rj1", core.TPUResourceName, "4").
 				Obj(),
 			wantJobSet: testingjobjobset.MakeJobSet(baseJobSetName, utils.DefaultNamespace).
 				Queue("queue-name").
 				ReplicatedJobs(testingjobjobset.ReplicatedJobRequirements{
 					Name:        "rj1",
-					Parallelism: 12,
+					Parallelism: 48,
 					PodAnnotations: map[string]string{
 						core.TPUSliceTopologyAnnotation:                 "4x4x12",
 						"kueue.x-k8s.io/podset-required-topology":       "cloud.google.com/gce-topology-block",
 						"kueue.x-k8s.io/podset-slice-required-topology": core.TPUSubBlockLabel,
-						"kueue.x-k8s.io/podset-slice-size":              "4",
+						"kueue.x-k8s.io/podset-slice-size":              "16",
 					},
 					NodeSelector: map[string]string{
 						"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
 					},
 				}).
 				NodeAffinity("rj1", core.TPUSliceHealthNodeSelectorKey, []string{"HEALTHY"}).
+				RequestAndLimit("rj1", core.TPUResourceName, "4").
 				Obj(),
+		},
+		"should reject incorrectly configured replicated job not utilizing entire cube; single cube": {
+			jobSet: testingjobjobset.MakeJobSet(baseJobSetName, utils.DefaultNamespace).
+				Queue("queue-name").
+				ReplicatedJobs(testingjobjobset.ReplicatedJobRequirements{
+					Name:        "rj1",
+					Parallelism: 16,
+					PodAnnotations: map[string]string{
+						core.TPUSliceTopologyAnnotation: "4x4x4",
+					},
+					NodeSelector: map[string]string{
+						"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
+					},
+				}).
+				RequestAndLimit("rj1", core.TPUResourceName, "1").
+				Obj(),
+			wantErr: errors.New("invalid replicated job \"rj1\": configuration results in 16 TPUs requested per cube, but must be exactly 64 TPUs (full utilization)"),
+		},
+		"should reject incorrectly configured replicated job not utilizing entire cube; multiple cubes": {
+			jobSet: testingjobjobset.MakeJobSet(baseJobSetName, utils.DefaultNamespace).
+				Queue("queue-name").
+				ReplicatedJobs(testingjobjobset.ReplicatedJobRequirements{
+					Name:        "rj1",
+					Parallelism: 16,
+					PodAnnotations: map[string]string{
+						core.TPUSliceTopologyAnnotation: "4x4x8",
+					},
+					NodeSelector: map[string]string{
+						"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
+					},
+				}).
+				RequestAndLimit("rj1", core.TPUResourceName, "4").
+				Obj(),
+			wantErr: errors.New("invalid replicated job \"rj1\": configuration results in 32 TPUs requested per cube, but must be exactly 64 TPUs (full utilization)"),
 		},
 	}
 
@@ -328,7 +373,7 @@ func TestDefault(t *testing.T) {
 			webhook := &JobSetWebhook{}
 
 			gotErr := webhook.Default(ctx, tc.jobSet)
-			if diff := cmp.Diff(tc.wantErr, gotErr, cmpopts.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.wantErr, gotErr, utiltesting.EquateErrors); diff != "" {
 				t.Errorf("Default() error mismatch (-want +got):\n%s", diff)
 			}
 			if tc.wantJobSet != nil {

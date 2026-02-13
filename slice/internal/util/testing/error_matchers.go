@@ -17,8 +17,10 @@ limitations under the License.
 package testing
 
 import (
+	"errors"
 	"fmt"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/onsi/gomega/format"
 	"github.com/onsi/gomega/types"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -80,3 +82,10 @@ func (matcher *errorMatcher) FailureMessage(actual any) (message string) {
 func (matcher *errorMatcher) NegatedFailureMessage(any) (message string) {
 	return fmt.Sprintf("Expected not to be %s", matcher.errorType.String())
 }
+
+var EquateErrors = cmp.Comparer(func(x, y error) bool {
+	if x == nil || y == nil {
+		return x == nil && y == nil
+	}
+	return errors.Is(x, y) || errors.Is(y, x) || x.Error() == y.Error()
+})

@@ -94,10 +94,25 @@ func (r *JobSetWebhook) annotateReplicatedJobWithTopology(rj *v1alpha2.Replicate
 	rj.Template.Spec.Template.Annotations[kueue.PodSetRequiredTopologyAnnotation] = core.TPUBlockLabel
 	rj.Template.Spec.Template.Annotations[kueue.PodSetSliceRequiredTopologyAnnotation] = core.TPUSubBlockLabel
 
-	size := r.podSetSliceSize(dims, pods)
-	rj.Template.Spec.Template.Annotations[kueue.PodSetSliceSizeAnnotation] = size
+	sliceSize := r.podSetSliceSize(dims, pods)
+	tpusRequestedPerPod := r.getTPUsRequestedPerPod(rj)
+	tpusRequestedPerCube := tpusRequestedPerPod * sliceSize
+	if tpusRequestedPerCube != core.TPUsPerCube {
+		return fmt.Errorf("invalid replicated job %q: configuration results in %d TPUs requested per cube, but must be exactly %d TPUs (full utilization)", rj.Name, tpusRequestedPerCube, core.TPUsPerCube)
+	}
 
+	rj.Template.Spec.Template.Annotations[kueue.PodSetSliceSizeAnnotation] = strconv.FormatInt(sliceSize, 10)
 	return nil
+}
+
+func (r *JobSetWebhook) getTPUsRequestedPerPod(rj *v1alpha2.ReplicatedJob) int64 {
+	var totalTPUs int64
+	for _, container := range rj.Template.Spec.Template.Spec.Containers {
+		if tpuQuantity, ok := container.Resources.Limits[core.TPUResourceName]; ok {
+			totalTPUs += tpuQuantity.Value()
+		}
+	}
+	return totalTPUs
 }
 
 func annotateReplicatedJobWithSliceHealth(rj *v1alpha2.ReplicatedJob) {
@@ -120,12 +135,12 @@ func annotateReplicatedJobWithSliceHealth(rj *v1alpha2.ReplicatedJob) {
 	}
 
 	// 3. If neither of these, we add a NodeAffinity.
-	core.AddNodeAffinity(rj, core.TPUSliceHealthNodeSelectorKey, []string{core.TPUSliceHealthNodeSelectorHealthy, core.TPUSliceHealthNodeSelectorDegraded})
+	core.AddNodeAffinity(rj, core.TPUSliceHealthNodeSelectorKey, []string{core.TPUSliceHealthNodeSelectorHealthy})
 }
 
-func (r *JobSetWebhook) podSetSliceSize(dims []int64, parallelism int32) string {
+func (r *JobSetWebhook) podSetSliceSize(dims []int64, parallelism int32) int64 {
 	totalChips := dims[0] * dims[1] * dims[2]
 	subBlockCount := totalChips / 64
 
-	return strconv.FormatInt(int64(parallelism)/subBlockCount, 10)
+	return int64(parallelism) / subBlockCount
 }

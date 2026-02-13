@@ -87,6 +87,16 @@ func TestWorkloadReconciler(t *testing.T) {
 		}
 	}
 
+	buildAdmissionCheckStateWithRequeue := func(state kueue.CheckState, message string, requeueAfterSeconds *int32) kueue.AdmissionCheckState {
+		return kueue.AdmissionCheckState{
+			Name:                baseACName,
+			State:               state,
+			LastTransitionTime:  metav1.NewTime(now),
+			Message:             message,
+			RequeueAfterSeconds: requeueAfterSeconds,
+		}
+	}
+
 	buildEventRecord := func(namespace, eventType, reason, message string) utiltesting.EventRecord {
 		return utiltesting.EventRecord{
 			Key:       client.ObjectKey{Namespace: namespace, Name: baseWorkloadName},
@@ -859,6 +869,82 @@ func TestWorkloadReconciler(t *testing.T) {
 					`The Slices "default-workload-ps1-0", "default-workload-ps1-1" have been created`),
 			},
 			wantResult: reconcile.Result{RequeueAfter: initializationRetryAfter},
+		},
+		"should fail to create Slice if Partition ID is already in use": {
+			request: baseRequest,
+			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapper.Clone().
+					PodSets(
+						*utiltesting.MakePodSet("ps1", 2, ptr.To(int32(1))).
+							Annotation(core.TPUSliceTopologyAnnotation, "4x4x12").
+							NodeSelector("cloud.google.com/gke-tpu-accelerator", string(slice.TypeTpu7x)).
+							Obj(),
+						*utiltesting.MakePodSet("ps2", 2, ptr.To(int32(1))).
+							Annotation(core.TPUSliceTopologyAnnotation, "4x4x12").
+							NodeSelector("cloud.google.com/gke-tpu-accelerator", string(slice.TypeTpu7x)).
+							Obj(),
+					).
+					ReserveQuota(&kueue.Admission{
+						PodSetAssignments: []kueue.PodSetAssignment{
+							utiltesting.MakePodSetAssignment("ps1").
+								TopologyAssignment(baseLevels, []kueue.TopologyAssignmentSlice{
+									utiltesting.MakeTopologyAssignmentSliceUniversal(1, 2).
+										Value("worker1").
+										Obj(),
+								}).Obj(),
+							utiltesting.MakePodSetAssignment("ps2").
+								TopologyAssignment(baseLevels, []kueue.TopologyAssignmentSlice{
+									utiltesting.MakeTopologyAssignmentSliceUniversal(1, 2).
+										Value("worker1").
+										Obj(),
+								}).Obj(),
+						},
+					}, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					Obj(),
+				baseSlice1Wrapper.Clone().PartitionIDs("subblock1").Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapper.Clone().
+					PodSets(
+						*utiltesting.MakePodSet("ps1", 2, ptr.To(int32(1))).
+							Annotation(core.TPUSliceTopologyAnnotation, "4x4x12").
+							NodeSelector("cloud.google.com/gke-tpu-accelerator", string(slice.TypeTpu7x)).
+							Obj(),
+						*utiltesting.MakePodSet("ps2", 2, ptr.To(int32(1))).
+							Annotation(core.TPUSliceTopologyAnnotation, "4x4x12").
+							NodeSelector("cloud.google.com/gke-tpu-accelerator", string(slice.TypeTpu7x)).
+							Obj(),
+					).
+					ReserveQuota(&kueue.Admission{
+						PodSetAssignments: []kueue.PodSetAssignment{
+							utiltesting.MakePodSetAssignment("ps1").
+								TopologyAssignment(baseLevels, []kueue.TopologyAssignmentSlice{
+									utiltesting.MakeTopologyAssignmentSliceUniversal(1, 2).
+										Value("worker1").
+										Obj(),
+								}).Obj(),
+							utiltesting.MakePodSetAssignment("ps2").
+								TopologyAssignment(baseLevels, []kueue.TopologyAssignmentSlice{
+									utiltesting.MakeTopologyAssignmentSliceUniversal(1, 2).
+										Value("worker1").
+										Obj(),
+								}).Obj(),
+						},
+					}, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckStateWithRequeue(kueue.CheckStateRetry,
+						`Partition IDs ["subblock1"] are already used by existing Slices`, ptr.To(int32(10)))).
+					Obj(),
+			},
+			wantSlices: []slice.Slice{
+				*baseSlice1Wrapper.Clone().PartitionIDs("subblock1").Obj(),
+			},
+			wantErr: errors.New(`Partition IDs ["subblock1"] are already used by existing Slices`),
 		},
 		"should create multiple Slices for multiple replicated jobs with different replica counts": {
 			request: baseRequest,
@@ -1759,7 +1845,8 @@ func TestWorkloadReconciler(t *testing.T) {
 					ReserveQuota(baseAdmission, now).
 					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Finalizers(SliceControllerName).
-					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStateRetry, `Slices are in states: 1 ACTIVE, 1 FAILED. Errors: Error by test`)).
+					AdmissionCheck(buildAdmissionCheckStateWithRequeue(kueue.CheckStateRetry,
+						`Slices are in states: 1 ACTIVE, 1 FAILED. Errors: Error by test`, ptr.To(int32(10)))).
 					Obj(),
 			},
 			wantSlices: []slice.Slice{
@@ -1796,6 +1883,66 @@ func TestWorkloadReconciler(t *testing.T) {
 			},
 			wantSlices: []slice.Slice{
 				*baseSlice1Wrapper.Clone().Active().Obj(),
+			},
+		},
+		"should evict workload if slice is missing unexpectedly": {
+			request: baseRequest,
+			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				worker2Node.DeepCopy(),
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStateReady, `Slices are in states: 2 ACTIVE`)).
+					Obj(),
+				baseSlice2Wrapper.Clone().Active().Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckStateWithRequeue(kueue.CheckStateRetry,
+						"Slice has been deleted", ptr.To(int32(10)))).
+					Obj(),
+			},
+			wantSlices: []slice.Slice{
+				*baseSlice2Wrapper.Clone().Active().Obj(),
+			},
+		},
+		"should evict workload if slice is deleted unexpectedly": {
+			request: baseRequest,
+			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				worker2Node.DeepCopy(),
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStateReady, `Slices are in states: 2 ACTIVE`)).
+					Obj(),
+				baseSlice1Wrapper.Clone().Active().DeletionTimestamp(now).Finalizers("accelerator.gke.io/slice-finalizer").Obj(),
+				baseSlice2Wrapper.Clone().Active().Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckStateWithRequeue(kueue.CheckStateRetry,
+						"Slice has been deleted", ptr.To(int32(10)))).
+					Obj(),
+			},
+			wantSlices: []slice.Slice{
+				*baseSlice1Wrapper.Clone().Active().DeletionTimestamp(now).Finalizers("accelerator.gke.io/slice-finalizer").Obj(),
+				*baseSlice2Wrapper.Clone().Active().Obj(),
 			},
 		},
 		"should use the first AdmissionCheck if more than one is found": {
@@ -1953,14 +2100,14 @@ func TestWorkloadReconciler(t *testing.T) {
 
 			kClient := clientBuilder.Build()
 			recorder := &utiltesting.EventRecorder{}
-			reconciler := NewWorkloadReconciler(kClient, recorder, 3*time.Minute)
+			reconciler := NewWorkloadReconciler(kClient, recorder, 3*time.Minute, 10*time.Second)
 			reconciler.clock = testingclock.NewFakeClock(now)
 
 			gotResult, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: tc.request})
 			if diff := cmp.Diff(tc.wantResult, gotResult); diff != "" {
 				t.Errorf("Reconcile result after reconcile (-want,+got):\n%s", diff)
 			}
-			if diff := cmp.Diff(tc.wantErr, err, cmpopts.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.wantErr, err, utiltesting.EquateErrors); diff != "" {
 				t.Errorf("Error after reconcile (-want,+got):\n%s", diff)
 			}
 

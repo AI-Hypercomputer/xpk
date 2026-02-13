@@ -67,14 +67,14 @@ func IsAssignmentValid(psa kueue.PodSetAssignment, nodes map[string]corev1.Node,
 
 	for domain := range tas.InternalSeqFrom(psa.TopologyAssignment) {
 		nodeName := domain.Values[hostnameLevelIndex]
-		if GetNodeLabelValue(nodes, nodeName, labelKey) == "" {
+		if getTPUPartitionIDValue(nodes, nodeName, labelKey) == "" {
 			return false
 		}
 	}
 	return true
 }
 
-func GetNodeLabelValue(nodes map[string]corev1.Node, nodeName string, labelKey string) string {
+func getTPUPartitionIDValue(nodes map[string]corev1.Node, nodeName string, labelKey string) string {
 	if node, ok := nodes[nodeName]; ok {
 		return node.Labels[labelKey]
 	}

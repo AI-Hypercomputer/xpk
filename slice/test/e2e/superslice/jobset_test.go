@@ -80,7 +80,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 		cq = testing.MakeClusterQueue("cq").
 			AdmissionChecks(ac.Name).
 			ResourceGroup(*testing.MakeFlavorQuotas(rf.Name).
-				Resource(extraResource, "9999").
+				Resource(core.TPUResourceName, "9999").
 				Obj()).
 			Obj()
 		utils.MustCreate(ctx, k8sClient, cq)
@@ -158,7 +158,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 							Affinity:     affinity,
 						},
 					).
-					RequestAndLimit("rj1", extraResource, tc.tpuRequests).
+					RequestAndLimit("rj1", core.TPUResourceName, tc.tpuRequests).
 					FailurePolicy(&jobset.FailurePolicy{
 						MaxRestarts: 0,
 					}).
@@ -194,7 +194,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 									if matchExpression.Key == core.TPUSliceHealthNodeSelectorKey {
 										found = true
 										g.Expect(matchExpression.Operator).Should(gomega.Equal(corev1.NodeSelectorOpIn))
-										g.Expect(matchExpression.Values).Should(gomega.ConsistOf(core.TPUSliceHealthNodeSelectorHealthy, core.TPUSliceHealthNodeSelectorDegraded))
+										g.Expect(matchExpression.Values).Should(gomega.ConsistOf(core.TPUSliceHealthNodeSelectorHealthy))
 									}
 								}
 							}
@@ -455,7 +455,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 							},
 						},
 					).
-					RequestAndLimit("rj1", extraResource, tc.tpuRequests).
+					RequestAndLimit("rj1", core.TPUResourceName, tc.tpuRequests).
 					Obj()
 
 				ginkgo.By("Creating a JobSet", func() {
@@ -577,8 +577,8 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Image:       utils.E2eTestAgnHostImage,
 						Args:        utils.BehaviorWaitForDeletion,
 						Replicas:    1,
-						Parallelism: 1,
-						Completions: 1,
+						Parallelism: 16,
+						Completions: 16,
 						PodAnnotations: map[string]string{
 							core.TPUSliceTopologyAnnotation: "4x4x4",
 						},
@@ -589,7 +589,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						LifecyclePreStopSleepSeconds:  60,
 					},
 				).
-				RequestAndLimit("rj1", extraResource, "1").
+				RequestAndLimit("rj1", core.TPUResourceName, "4").
 				Obj()
 
 			ginkgo.By("Creating a JobSet", func() {
@@ -633,7 +633,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 				pods := &corev1.PodList{}
 				gomega.Eventually(func(g gomega.Gomega) {
 					g.Expect(k8sClient.List(ctx, pods, client.InNamespace(ns.Name))).To(gomega.Succeed())
-					g.Expect(pods.Items).Should(gomega.HaveLen(1))
+					g.Expect(pods.Items).Should(gomega.HaveLen(16))
 					for _, pod := range pods.Items {
 						g.Expect(pod.Status.Phase).To(gomega.Equal(corev1.PodRunning))
 					}
@@ -672,8 +672,8 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Image:       utils.E2eTestAgnHostImage,
 						Args:        utils.BehaviorWaitForDeletion,
 						Replicas:    1,
-						Parallelism: 1,
-						Completions: 1,
+						Parallelism: 16,
+						Completions: 16,
 						PodAnnotations: map[string]string{
 							core.TPUSliceTopologyAnnotation: "4x4x4",
 						},
@@ -682,7 +682,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						},
 					},
 				).
-				RequestAndLimit("rj1", extraResource, "1").
+				RequestAndLimit("rj1", core.TPUResourceName, "4").
 				Obj()
 
 			ginkgo.By("Creating a JobSet", func() {
@@ -810,7 +810,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Name:    kueue.AdmissionCheckReference(ac.Name),
 						State:   kueue.CheckStatePending,
 						Message: `Slices are in states: 1 CREATED`,
-					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates", "RetryCount")))
+					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates", "RetryCount", "RequeueAfterSeconds")))
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
 
@@ -825,7 +825,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Name:    kueue.AdmissionCheckReference(ac.Name),
 						State:   kueue.CheckStateReady,
 						Message: `Slices are in states: 1 ACTIVE`,
-					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates", "RetryCount")))
+					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates", "RetryCount", "RequeueAfterSeconds")))
 					g.Expect(createdWorkload.Status.SchedulingStats.Evictions).Should(gomega.HaveLen(1))
 				}, utils.LongTimeout, utils.Interval).Should(gomega.Succeed())
 			})
@@ -852,8 +852,8 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Image:       utils.E2eTestAgnHostImage,
 						Args:        utils.BehaviorWaitForDeletion,
 						Replicas:    1,
-						Parallelism: 1,
-						Completions: 1,
+						Parallelism: 16,
+						Completions: 16,
 						PodAnnotations: map[string]string{
 							core.TPUSliceTopologyAnnotation: "4x4x4",
 						},
@@ -862,7 +862,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						},
 					},
 				).
-				RequestAndLimit("rj1", extraResource, "1").
+				RequestAndLimit("rj1", core.TPUResourceName, "4").
 				Obj()
 
 			ginkgo.By("Creating a JobSet", func() {
@@ -930,7 +930,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Name:    kueue.AdmissionCheckReference(ac.Name),
 						State:   kueue.CheckStatePending,
 						Message: `Slices are in states: 1 CREATED`,
-					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates", "RetryCount")))
+					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates", "RetryCount", "RequeueAfterSeconds")))
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
 
@@ -952,7 +952,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Name:    kueue.AdmissionCheckReference(ac.Name),
 						State:   kueue.CheckStateReady,
 						Message: `Slices are in states: 1 ACTIVE`,
-					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates", "RetryCount")))
+					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates", "RetryCount", "RequeueAfterSeconds")))
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
 		})
@@ -966,8 +966,8 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Image:       utils.E2eTestAgnHostImage,
 						Args:        utils.BehaviorWaitForDeletion,
 						Replicas:    1,
-						Parallelism: 1,
-						Completions: 1,
+						Parallelism: 16,
+						Completions: 16,
 						PodAnnotations: map[string]string{
 							core.TPUSliceTopologyAnnotation: "4x4x4",
 						},
@@ -976,7 +976,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						},
 					},
 				).
-				RequestAndLimit("rj1", extraResource, "1").
+				RequestAndLimit("rj1", core.TPUResourceName, "4").
 				Obj()
 
 			ginkgo.By("Creating a JobSet", func() {
@@ -1076,8 +1076,8 @@ var _ = ginkgo.Describe("JobSet", func() {
 						},
 					},
 				).
-				RequestAndLimit("rj1", extraResource, "4").
-				RequestAndLimit("rj2", extraResource, "4").
+				RequestAndLimit("rj1", core.TPUResourceName, "4").
+				RequestAndLimit("rj2", core.TPUResourceName, "4").
 				Obj()
 
 			ginkgo.By("Creating a JobSet", func() {
@@ -1293,6 +1293,131 @@ var _ = ginkgo.Describe("JobSet", func() {
 			ginkgo.By("Checking that Slices are deleted", func() {
 				utils.ExpectObjectToBeDeleted(ctx, k8sClient, createdSlice1, false)
 				utils.ExpectObjectToBeDeleted(ctx, k8sClient, createdSlice2, false)
+			})
+
+			ginkgo.By("Checking that Workload is deleted", func() {
+				utils.ExpectObjectToBeDeleted(ctx, k8sClient, createdWorkload, false)
+			})
+		})
+
+		ginkgo.It("should evict Workload if Slice is deleted manually while Workload is running", func() {
+			jobSet := testingjobsjobset.MakeJobSet("jobset", ns.Name).
+				Queue(lq.Name).
+				ReplicatedJobs(
+					testingjobsjobset.ReplicatedJobRequirements{
+						Name:        "rj1",
+						Image:       utils.E2eTestAgnHostImage,
+						Args:        utils.BehaviorWaitForDeletion,
+						Replicas:    1,
+						Parallelism: 16,
+						Completions: 16,
+						PodAnnotations: map[string]string{
+							core.TPUSliceTopologyAnnotation: "4x4x4",
+						},
+						NodeSelector: map[string]string{
+							"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
+						},
+					},
+				).
+				RequestAndLimit("rj1", core.TPUResourceName, "4").
+				Obj()
+
+			ginkgo.By("Creating a JobSet", func() {
+				utils.MustCreate(ctx, k8sClient, jobSet)
+			})
+
+			createdWorkload := &kueue.Workload{}
+			wlKey := types.NamespacedName{
+				Name:      jobsetcontroller.GetWorkloadNameForJobSet(jobSet.Name, jobSet.UID),
+				Namespace: ns.Name,
+			}
+
+			ginkgo.By("Waiting for Admission of the Workload", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
+					g.Expect(createdWorkload.Status.Admission).ShouldNot(gomega.BeNil())
+				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+			})
+
+			createdSlice := &slice.Slice{}
+			sliceKey := core.SliceKeyFromWorkload(createdWorkload, "rj1", 0)
+			var oldSliceUID types.UID
+
+			ginkgo.By("Checking that Slice is created", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
+					oldSliceUID = createdSlice.GetUID()
+				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Adding Ready condition", func() {
+				utils.SetSliceReady(ctx, k8sClient, sliceKey, "4x4x4")
+			})
+
+			ginkgo.By("Checking that the Workload is admitted", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
+					g.Expect(workload.IsAdmitted(createdWorkload)).Should(gomega.BeTrue())
+					g.Expect(createdWorkload.Status.AdmissionChecks).Should(gomega.BeComparableTo([]kueue.AdmissionCheckState{{
+						Name:    kueue.AdmissionCheckReference(ac.Name),
+						State:   kueue.CheckStateReady,
+						Message: `Slices are in states: 1 ACTIVE`,
+					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates")))
+				}, utils.LongTimeout, utils.Timeout).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Deleting the Slice", func() {
+				gomega.Expect(k8sClient.Delete(ctx, createdSlice)).To(gomega.Succeed())
+			})
+
+			ginkgo.By("Checking that the Workload has been evicted", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
+					g.Expect(createdWorkload.Status.SchedulingStats).ShouldNot(gomega.BeNil())
+					g.Expect(createdWorkload.Status.SchedulingStats.Evictions).Should(gomega.HaveLen(1))
+				}, utils.LongTimeout, utils.Timeout).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Checking that a new Slice is created", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
+					g.Expect(createdSlice.GetUID()).ShouldNot(gomega.Equal(oldSliceUID))
+				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Checking that the Admission Check state is pending", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
+					g.Expect(createdWorkload.Status.AdmissionChecks).Should(gomega.BeComparableTo([]kueue.AdmissionCheckState{{
+						Name:    kueue.AdmissionCheckReference(ac.Name),
+						State:   kueue.CheckStatePending,
+						Message: `Slices are in states: 1 CREATED`,
+					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates", "RetryCount", "RequeueAfterSeconds")))
+				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Adding Ready condition to the new Slice", func() {
+				utils.SetSliceReady(ctx, k8sClient, sliceKey, "4x4x4")
+			})
+
+			ginkgo.By("Checking that the Workload is admitted again", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
+					g.Expect(workload.IsAdmitted(createdWorkload)).Should(gomega.BeTrue())
+					g.Expect(createdWorkload.Status.AdmissionChecks).Should(gomega.BeComparableTo([]kueue.AdmissionCheckState{{
+						Name:    kueue.AdmissionCheckReference(ac.Name),
+						State:   kueue.CheckStateReady,
+						Message: `Slices are in states: 1 ACTIVE`,
+					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates", "RetryCount", "RequeueAfterSeconds")))
+				}, utils.LongTimeout, utils.Timeout).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Deleting JobSet", func() {
+				utils.ExpectObjectToBeDeleted(ctx, k8sClient, jobSet, true)
+			})
+
+			ginkgo.By("Checking that Slice is deleted", func() {
+				utils.ExpectObjectToBeDeleted(ctx, k8sClient, createdSlice, false)
 			})
 
 			ginkgo.By("Checking that Workload is deleted", func() {

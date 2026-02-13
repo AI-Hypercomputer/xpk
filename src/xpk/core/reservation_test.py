@@ -44,19 +44,6 @@ def clear_capacity_cache():
 
 
 @patch('xpk.core.reservation._get_reservation_cached')
-def test_get_reservation_deployment_type(mock_get_cached):
-  mock_res = MagicMock(spec=_Reservation)
-  mock_res.deployment_type = 'DENSE'
-  mock_get_cached.return_value = mock_res
-
-  res_link = ReservationLink(project='project', name='reservation', zone='zone')
-
-  result = get_reservation_deployment_type(res_link)
-
-  assert result == 'DENSE'
-
-
-@patch('xpk.core.reservation._get_reservation_cached')
 @patch('xpk.core.reservation.xpk_print')
 def test_get_reservation_deployment_type_exits_on_failure(
     mock_print, mock_get_cached
@@ -70,61 +57,16 @@ def test_get_reservation_deployment_type_exits_on_failure(
 
 
 @patch('xpk.core.reservation._get_reservation_cached')
-def test_get_reservation_placement_policy(mock_get_cached):
+def test_get_reservation_deployment_type(mock_get_cached):
   mock_res = MagicMock(spec=_Reservation)
-  mock_res.resource_policy = 'compact'
+  mock_res.deployment_type = 'DENSE'
   mock_get_cached.return_value = mock_res
 
   res_link = ReservationLink(project='project', name='reservation', zone='zone')
 
-  result = get_reservation_placement_policy(res_link)
+  result = get_reservation_deployment_type(res_link)
 
-  assert result == 'compact'
-
-
-@patch('xpk.core.reservation._get_reservation_cached')
-def test_get_reservation_maintenance_interval_uses_cached(mock_get_cached):
-  mock_res = MagicMock(spec=_Reservation)
-  mock_res.specific_reservation = MagicMock(spec=_SpecificReservation)
-  mock_res.specific_reservation.maintenance_interval = 'PERIODIC'
-  mock_get_cached.return_value = mock_res
-
-  res_link = ReservationLink(project='project', name='reservation', zone='zone')
-
-  result = get_reservation_maintenance_interval(res_link)
-
-  assert result == 'PERIODIC'
-
-
-@patch('xpk.core.reservation._get_reservation_cached')
-def test_verify_reservations_exist_success(mock_get_cached, mocker):
-  mock_get_cached.return_value = MagicMock(spec=_Reservation)
-  args = mocker.Mock(reservation='r1,r2', project='project', zone='zone')
-
-  result = verify_reservations_exist(args)
-
-  assert result == 0
-  assert mock_get_cached.call_count == 2
-  mock_get_cached.assert_any_call(
-      ReservationLink(project='project', zone='zone', name='r1')
-  )
-  mock_get_cached.assert_any_call(
-      ReservationLink(project='project', zone='zone', name='r2')
-  )
-
-
-@patch('xpk.core.reservation._get_reservation_cached')
-def test_verify_reservations_exist_failure(mock_get_cached, mocker):
-  mock_get_cached.side_effect = [
-      MagicMock(),
-      None,
-  ]  # First exists, second fails
-  args = mocker.Mock(reservation='r1,r2', project='project', zone='zone')
-
-  result = verify_reservations_exist(args)
-
-  assert result == 1
-  assert mock_get_cached.call_count == 2
+  assert result == 'DENSE'
 
 
 @pytest.mark.parametrize(
@@ -191,6 +133,47 @@ def test_parse_reservation_parses_valid_reservations(
   assert actual_reservation == expected_reservation
 
 
+def test_to_reservation_path_for_reservation():
+  res = ReservationLink(project='project', name='reservation', zone='zone')
+  assert to_reservation_path(res, 'project') == 'reservation'
+  assert (
+      to_reservation_path(res, 'other-project')
+      == 'projects/project/reservations/reservation'
+  )
+
+
+def test_to_reservation_path_for_block_reservation():
+  res_block = BlockReservationLink(
+      project='project', name='reservation', zone='zone', block_name='block'
+  )
+  assert (
+      to_reservation_path(res_block, 'project')
+      == 'reservation/reservationBlocks/block'
+  )
+  assert (
+      to_reservation_path(res_block, 'other-project')
+      == 'projects/project/reservations/reservation/reservationBlocks/block'
+  )
+
+
+def test_to_reservation_path_for_sub_block_reservation():
+  res_sub = SubBlockReservationLink(
+      project='project',
+      name='reservation',
+      zone='zone',
+      block_name='block',
+      sub_block_name='subblock',
+  )
+  assert (
+      to_reservation_path(res_sub, 'project')
+      == 'reservation/reservationBlocks/block/reservationSubBlocks/subblock'
+  )
+  assert (
+      to_reservation_path(res_sub, 'other-project')
+      == 'projects/project/reservations/reservation/reservationBlocks/block/reservationSubBlocks/subblock'
+  )
+
+
 @pytest.mark.parametrize(
     argnames='reservation_path',
     argvalues=[
@@ -218,6 +201,37 @@ def test_parse_reservation_fails_on_invalid_reservations(
     parse_reservation(reservation_path, 'cluster-project', 'zone')
 
   assert 'Unable to parse reservation' in xpk_print.mock_calls[0].args[0]
+
+
+@patch('xpk.core.reservation._get_reservation_cached')
+def test_verify_reservations_exist_success(mock_get_cached, mocker):
+  mock_get_cached.return_value = MagicMock(spec=_Reservation)
+  args = mocker.Mock(reservation='r1,r2', project='project', zone='zone')
+
+  result = verify_reservations_exist(args)
+
+  assert result == 0
+  assert mock_get_cached.call_count == 2
+  mock_get_cached.assert_any_call(
+      ReservationLink(project='project', zone='zone', name='r1')
+  )
+  mock_get_cached.assert_any_call(
+      ReservationLink(project='project', zone='zone', name='r2')
+  )
+
+
+@patch('xpk.core.reservation._get_reservation_cached')
+def test_verify_reservations_exist_failure(mock_get_cached, mocker):
+  mock_get_cached.side_effect = [
+      MagicMock(),
+      None,
+  ]  # First exists, second fails
+  args = mocker.Mock(reservation='r1,r2', project='project', zone='zone')
+
+  result = verify_reservations_exist(args)
+
+  assert result == 1
+  assert mock_get_cached.call_count == 2
 
 
 def test_get_reservations_list_with_single_reservation(mocker):
@@ -251,6 +265,33 @@ def test_get_reservations_list_none(mocker):
 def test_get_reservations_list_empty(mocker):
   args = mocker.Mock(reservation='')
   assert get_reservations_list(args) == []
+
+
+@patch('xpk.core.reservation._get_reservation_cached')
+def test_get_reservation_placement_policy(mock_get_cached):
+  mock_res = MagicMock(spec=_Reservation)
+  mock_res.resource_policy = 'compact'
+  mock_get_cached.return_value = mock_res
+
+  res_link = ReservationLink(project='project', name='reservation', zone='zone')
+
+  result = get_reservation_placement_policy(res_link)
+
+  assert result == 'compact'
+
+
+@patch('xpk.core.reservation._get_reservation_cached')
+def test_get_reservation_maintenance_interval_uses_cached(mock_get_cached):
+  mock_res = MagicMock(spec=_Reservation)
+  mock_res.specific_reservation = MagicMock(spec=_SpecificReservation)
+  mock_res.specific_reservation.maintenance_interval = 'PERIODIC'
+  mock_get_cached.return_value = mock_res
+
+  res_link = ReservationLink(project='project', name='reservation', zone='zone')
+
+  result = get_reservation_maintenance_interval(res_link)
+
+  assert result == 'PERIODIC'
 
 
 def test_parse_specific_reservation():
@@ -381,44 +422,3 @@ def test_parse_reservation_defaults_new_fields():
   assert res.deployment_type == ''
   assert res.resource_policy == ''
   assert res.specific_reservation.maintenance_interval == ''
-
-
-def test_to_reservation_path_for_reservation():
-  res = ReservationLink(project='project', name='reservation', zone='zone')
-  assert to_reservation_path(res, 'project') == 'reservation'
-  assert (
-      to_reservation_path(res, 'other-project')
-      == 'projects/project/reservations/reservation'
-  )
-
-
-def test_to_reservation_path_for_block_reservation():
-  res_block = BlockReservationLink(
-      project='project', name='reservation', zone='zone', block_name='block'
-  )
-  assert (
-      to_reservation_path(res_block, 'project')
-      == 'reservation/reservationBlocks/block'
-  )
-  assert (
-      to_reservation_path(res_block, 'other-project')
-      == 'projects/project/reservations/reservation/reservationBlocks/block'
-  )
-
-
-def test_to_reservation_path_for_sub_block_reservation():
-  res_sub = SubBlockReservationLink(
-      project='project',
-      name='reservation',
-      zone='zone',
-      block_name='block',
-      sub_block_name='subblock',
-  )
-  assert (
-      to_reservation_path(res_sub, 'project')
-      == 'reservation/reservationBlocks/block/reservationSubBlocks/subblock'
-  )
-  assert (
-      to_reservation_path(res_sub, 'other-project')
-      == 'projects/project/reservations/reservation/reservationBlocks/block/reservationSubBlocks/subblock'
-  )

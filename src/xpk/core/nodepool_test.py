@@ -743,6 +743,17 @@ def test_run_gke_node_pool_create_command_super_slicing_exhaustion(
   commands_tester.set_result_for_command(
       (0, "block1"), "gcloud beta compute reservations blocks list"
   )
+  commands_tester.set_result_for_command(
+      (
+          0,
+          (
+              '{"specificReservation": {"count": 100, "inUseCount": 0,'
+              ' "instanceProperties": {"machineType": "ct4p-hightpu-4t"}},'
+              ' "status": "READY"}'
+          ),
+      ),
+      "gcloud beta compute reservations describe",
+  )
 
   result = run_gke_node_pool_create_command(args, system, "1.2.3")
 

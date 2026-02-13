@@ -42,6 +42,8 @@ from ..core.telemetry import MetricsCollector, MetricsEventMetadataKey
 from ..core.capacity import (
     H100_DEVICE_TYPE,
     get_capacity_type,
+)
+from ..core.reservation import (
     get_reservations_list,
     get_reservation_deployment_type,
 )
@@ -254,9 +256,7 @@ def _validate_gsc_reservation(args, creation_description: str):
     xpk_exit(1)
 
   for reservation in get_reservations_list(args):
-    deployment_type = get_reservation_deployment_type(
-        reservation_link=reservation
-    )
+    deployment_type = get_reservation_deployment_type(reservation)
     if deployment_type != 'DENSE':
       xpk_print(
           'Error: Validation failed: The specified reservation'

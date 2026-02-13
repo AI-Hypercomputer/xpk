@@ -30,6 +30,8 @@ def test_get_capacity_type_multiple_reservations(mocker):
       project='project',
       zone='zone',
   )
+
   capacity_type, return_code = get_capacity_type(args)
+
   assert capacity_type == CapacityType.RESERVATION
   assert return_code == 0

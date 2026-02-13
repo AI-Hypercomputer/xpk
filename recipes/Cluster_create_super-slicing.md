@@ -1,9 +1,7 @@
 # Cluster create super-slicing
-
 Creates a GKE cluster with TPU super-slicing enabled for multi-slice training.
 
 # Running the command
-
 ```shell #golden
 DRY_RUN_RESERVATION_SUB_BLOCKS='[{"name": "sub0", "count": 16, "inUseCount": 0}, {"name": "sub1", "count": 16, "inUseCount": 0}, {"name": "sub2", "count": 16, "inUseCount": 15}, {"name": "sub3", "count": 16, "inUseCount": 0}]' xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-4x4x4 --reservation=golden-reservation/reservationBlocks/block --super-slicing --num-cubes=3
 ```

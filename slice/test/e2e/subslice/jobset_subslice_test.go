@@ -89,9 +89,9 @@ var _ = ginkgo.Describe("Subslicing", func() {
 	})
 
 	type testCase struct {
-		topology           string
-		parallelism        int32
-		possiblePartitions []string
+		topology        string
+		parallelism     int32
+		wantPartitionID string
 	}
 
 	ginkgo.DescribeTable("should create Slice for", func(tc testCase) {
@@ -136,11 +136,11 @@ var _ = ginkgo.Describe("Subslicing", func() {
 		createdSlice := &slice.Slice{}
 		sliceKey := core.SliceKeyFromWorkload(createdWorkload, "rj1", 0)
 
-		ginkgo.By("Checking that Slice is created with correct partition", func() {
+		ginkgo.By("Checking that SubSlice is created with correct partition id", func() {
 			gomega.Eventually(func(g gomega.Gomega) {
 				g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
 				g.Expect(createdSlice.Spec.PartitionIds).To(gomega.HaveLen(1))
-				g.Expect(tc.possiblePartitions).To(gomega.ContainElement(createdSlice.Spec.PartitionIds[0]))
+				g.Expect(createdSlice.Spec.PartitionIds[0]).To(gomega.Equal(tc.wantPartitionID))
 				g.Expect(createdSlice.Spec.Topology).To(gomega.Equal(tc.topology))
 			}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 		})
@@ -169,24 +169,24 @@ var _ = ginkgo.Describe("Subslicing", func() {
 		})
 	},
 		ginkgo.Entry("2x2x1 topology", testCase{
-			topology:           "2x2x1",
-			parallelism:        4,
-			possiblePartitions: []string{"f1", "f2", "f3", "f4"},
+			topology:        "2x2x1",
+			parallelism:     1,
+			wantPartitionID: "f1",
 		}),
 		ginkgo.Entry("2x2x2 topology", testCase{
-			topology:           "2x2x2",
-			parallelism:        8,
-			possiblePartitions: []string{"e1", "e2"},
+			topology:        "2x2x2",
+			parallelism:     2,
+			wantPartitionID: "e1",
 		}),
 		ginkgo.Entry("2x2x4 topology", testCase{
-			topology:           "2x2x4",
-			parallelism:        16,
-			possiblePartitions: []string{"d1"},
+			topology:        "2x2x4",
+			parallelism:     4,
+			wantPartitionID: "d1",
 		}),
 		ginkgo.Entry("2x4x4 topology", testCase{
-			topology:           "2x4x4",
-			parallelism:        16,
-			possiblePartitions: []string{"c1"},
+			topology:        "2x4x4",
+			parallelism:     8,
+			wantPartitionID: "c1",
 		}),
 	)
 
@@ -235,11 +235,12 @@ var _ = ginkgo.Describe("Subslicing", func() {
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
 
+			var assignedPartitions []string
 			for i := int32(0); i < replicas; i++ {
 				createdSlice := &slice.Slice{}
 				sliceKey := core.SliceKeyFromWorkload(createdWorkload, "rj1", i)
 
-				ginkgo.By("Checking that Slice is created with correct partition", func() {
+				ginkgo.By("Checking that SubSlice is created with correct partition", func() {
 					gomega.Eventually(func(g gomega.Gomega) {
 						g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
 						g.Expect(createdSlice.Spec.PartitionIds).To(gomega.HaveLen(1))
@@ -247,11 +248,16 @@ var _ = ginkgo.Describe("Subslicing", func() {
 						g.Expect(createdSlice.Spec.Topology).To(gomega.Equal(topology))
 					}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 				})
+				assignedPartitions = append(assignedPartitions, createdSlice.Spec.PartitionIds[0])
 
 				ginkgo.By("Adding Ready condition", func() {
 					utils.SetSliceReady(ctx, k8sClient, sliceKey, topology)
 				})
 			}
+			ginkgo.By("Checking that replicas got different partitions", func() {
+				gomega.Expect(assignedPartitions).To(gomega.HaveLen(int(replicas)))
+				gomega.Expect(assignedPartitions[0]).ToNot(gomega.Equal(assignedPartitions[1]))
+			})
 
 			ginkgo.By("Checking that the Workload is admitted", func() {
 				gomega.Eventually(func(g gomega.Gomega) {
@@ -321,6 +327,7 @@ var _ = ginkgo.Describe("Subslicing", func() {
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
 
+			var assignedPartitions []string
 			for _, rjName := range []string{"rj1", "rj2"} {
 				createdSlice := &slice.Slice{}
 				sliceKey := core.SliceKeyFromWorkload(createdWorkload, kueue.PodSetReference(rjName), 0)
@@ -333,11 +340,16 @@ var _ = ginkgo.Describe("Subslicing", func() {
 						g.Expect(createdSlice.Spec.Topology).To(gomega.Equal(topology))
 					}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 				})
+				assignedPartitions = append(assignedPartitions, createdSlice.Spec.PartitionIds[0])
 
 				ginkgo.By("Adding Ready condition for "+rjName, func() {
 					utils.SetSliceReady(ctx, k8sClient, sliceKey, topology)
 				})
 			}
+			ginkgo.By("Checking that replicated jobs got different partitions", func() {
+				gomega.Expect(assignedPartitions).To(gomega.HaveLen(2))
+				gomega.Expect(assignedPartitions[0]).ToNot(gomega.Equal(assignedPartitions[1]))
+			})
 
 			ginkgo.By("Checking that the Workload is admitted", func() {
 				gomega.Eventually(func(g gomega.Gomega) {

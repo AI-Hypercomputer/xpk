@@ -55,13 +55,13 @@ def test_get_reservation_deployment_type_uses_cached(mock_get_cached):
   mock_res.deployment_type = 'DENSE'
   mock_get_cached.return_value = mock_res
 
-  res_link = ReservationLink(project='p', name='r', zone='z')
+  res_link = ReservationLink(project='project', name='reservation', zone='zone')
 
   result = get_reservation_deployment_type(res_link)
 
   assert result == 'DENSE'
   mock_get_cached.assert_called_once_with(
-      ReservationLink(project='p', zone='z', name='r')
+      ReservationLink(project='project', zone='zone', name='reservation')
   )
 
 
@@ -71,7 +71,7 @@ def test_get_reservation_deployment_type_exits_on_failure(
     mock_print, mock_get_cached
 ):
   mock_get_cached.return_value = None
-  res_link = ReservationLink(project='p', name='r', zone='z')
+  res_link = ReservationLink(project='project', name='reservation', zone='zone')
   with pytest.raises(SystemExit):
     get_reservation_deployment_type(res_link)
   mock_print.assert_called()
@@ -83,13 +83,13 @@ def test_get_reservation_placement_policy_uses_cached(mock_get_cached):
   mock_res.resource_policy = 'compact'
   mock_get_cached.return_value = mock_res
 
-  res_link = ReservationLink(project='p', name='r', zone='z')
+  res_link = ReservationLink(project='project', name='reservation', zone='zone')
 
   result = get_reservation_placement_policy(res_link)
 
   assert result == 'compact'
   mock_get_cached.assert_called_once_with(
-      ReservationLink(project='p', zone='z', name='r')
+      ReservationLink(project='project', zone='zone', name='reservation')
   )
 
 
@@ -100,13 +100,13 @@ def test_get_reservation_maintenance_interval_uses_cached(mock_get_cached):
   mock_res.specific_reservation.maintenance_interval = 'PERIODIC'
   mock_get_cached.return_value = mock_res
 
-  res_link = ReservationLink(project='p', name='r', zone='z')
+  res_link = ReservationLink(project='project', name='reservation', zone='zone')
 
   result = get_reservation_maintenance_interval(res_link)
 
   assert result == 'PERIODIC'
   mock_get_cached.assert_called_once_with(
-      ReservationLink(project='p', zone='z', name='r')
+      ReservationLink(project='project', zone='zone', name='reservation')
   )
 
 
@@ -114,15 +114,15 @@ def test_get_reservation_maintenance_interval_uses_cached(mock_get_cached):
 def test_verify_reservations_exist_uses_cached_success(mock_get_cached, mocker):
   mock_get_cached.return_value = MagicMock(spec=_Reservation)
 
-  args = mocker.Mock(reservation='r1,r2', project='p', zone='z')
+  args = mocker.Mock(reservation='r1,r2', project='project', zone='zone')
 
   assert verify_reservations_exist(args) == 0
   assert mock_get_cached.call_count == 2
   mock_get_cached.assert_any_call(
-      ReservationLink(project='p', zone='z', name='r1')
+      ReservationLink(project='project', zone='zone', name='r1')
   )
   mock_get_cached.assert_any_call(
-      ReservationLink(project='p', zone='z', name='r2')
+      ReservationLink(project='project', zone='zone', name='r2')
   )
 
 
@@ -133,7 +133,7 @@ def test_verify_reservations_exist_uses_cached_failure(mock_get_cached, mocker):
       None,
   ]  # First exists, second fails
 
-  args = mocker.Mock(reservation='r1,r2', project='p', zone='z')
+  args = mocker.Mock(reservation='r1,r2', project='project', zone='zone')
 
   assert verify_reservations_exist(args) == 1
   assert mock_get_cached.call_count == 2

@@ -18,12 +18,13 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"tpu-slice-controller/internal/core"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta2"
 	"sigs.k8s.io/kueue/pkg/util/tas"
+
+	"tpu-slice-controller/internal/core"
 )
 
 // HostnameLevelIndex returns the index of the hostname level in the topology
@@ -103,7 +104,7 @@ func ParseTopology(tpuTopology string) ([]int64, TopologyType, error) {
 	return dims, TopologyTypeSuperslice, nil
 }
 
-func GetPartitionIdLabel(nodes map[string]corev1.Node, spec corev1.PodTemplateSpec) string {
+func GetPartitionIDLabel(nodes map[string]corev1.Node, spec corev1.PodTemplateSpec) string {
 	topology := core.GetTPUTopology(spec)
 	_, topologyType, err := ParseTopology(topology)
 	if err != nil {

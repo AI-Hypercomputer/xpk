@@ -48,7 +48,7 @@ func AllAssignmentsValid(wl *kueue.Workload, nodes map[string]corev1.Node) bool 
 		if !core.IsRelevantPodTemplateSpec(ps.Template) {
 			continue
 		}
-		if !IsAssignmentValid(psa, nodes, GetPartitionIdLabel(nodes, ps.Template)) {
+		if !IsAssignmentValid(psa, nodes, GetPartitionIDLabel(nodes, ps.Template)) {
 			return false
 		}
 	}

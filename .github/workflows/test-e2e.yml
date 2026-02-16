@@ -21,6 +21,18 @@ jobs:
       - name: Verify kind installation
         run: kind version
 
+      - name: Disable containerd image store
+        run: |
+          sudo bash -c 'cat > /etc/docker/daemon.json << EOF
+          {
+            "features": {
+              "containerd-snapshotter": false
+            }
+          }
+          EOF'
+          sudo systemctl restart docker
+          docker info -f '{{ .DriverStatus }}'
+
       - name: Running Test e2e
         run: |
           cd ./slice

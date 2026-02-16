@@ -68,6 +68,10 @@ func SubsliceLevelLabel(topology string) string {
 	return fmt.Sprintf("cloud.google.com/gke-tpu-partition-%s-id", topology)
 }
 
+func SubsliceHealthLabel(topology string) string {
+	return fmt.Sprintf("cloud.google.com/gke-tpu-partition-%s-state", topology)
+}
+
 func getTPUAcceleratorFromAffinity(affinity *corev1.Affinity) (string, bool) {
 	if affinity != nil && affinity.NodeAffinity != nil && affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
 		for _, term := range affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {

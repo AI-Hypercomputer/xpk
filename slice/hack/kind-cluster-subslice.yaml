@@ -26,6 +26,10 @@ nodes:
       cloud.google.com/gke-node-group: tas-group
       cloud.google.com/gke-tpu-accelerator: tpu7x
       cloud.google.com/gke-tpu-partition-4x4x4-state: HEALTHY
+      cloud.google.com/gke-tpu-partition-2x4x4-state: HEALTHY
+      cloud.google.com/gke-tpu-partition-2x2x4-state: HEALTHY
+      cloud.google.com/gke-tpu-partition-2x2x2-state: HEALTHY
+      cloud.google.com/gke-tpu-partition-2x2x1-state: HEALTHY
       cloud.google.com/gce-topology-block: a1
       cloud.google.com/gke-tpu-partition-4x4x4-id: b1
       cloud.google.com/gke-tpu-partition-2x4x4-id: c1
@@ -37,6 +41,10 @@ nodes:
       cloud.google.com/gke-node-group: tas-group
       cloud.google.com/gke-tpu-accelerator: tpu7x
       cloud.google.com/gke-tpu-partition-4x4x4-state: HEALTHY
+      cloud.google.com/gke-tpu-partition-2x4x4-state: HEALTHY
+      cloud.google.com/gke-tpu-partition-2x2x4-state: HEALTHY
+      cloud.google.com/gke-tpu-partition-2x2x2-state: HEALTHY
+      cloud.google.com/gke-tpu-partition-2x2x1-state: HEALTHY
       cloud.google.com/gce-topology-block: a1
       cloud.google.com/gke-tpu-partition-4x4x4-id: b1
       cloud.google.com/gke-tpu-partition-2x4x4-id: c1
@@ -48,6 +56,10 @@ nodes:
       cloud.google.com/gke-node-group: tas-group
       cloud.google.com/gke-tpu-accelerator: tpu7x
       cloud.google.com/gke-tpu-partition-4x4x4-state: HEALTHY
+      cloud.google.com/gke-tpu-partition-2x4x4-state: HEALTHY
+      cloud.google.com/gke-tpu-partition-2x2x4-state: HEALTHY
+      cloud.google.com/gke-tpu-partition-2x2x2-state: HEALTHY
+      cloud.google.com/gke-tpu-partition-2x2x1-state: HEALTHY
       cloud.google.com/gce-topology-block: a1
       cloud.google.com/gke-tpu-partition-4x4x4-id: b1
       cloud.google.com/gke-tpu-partition-2x4x4-id: c1
@@ -59,6 +71,10 @@ nodes:
       cloud.google.com/gke-node-group: tas-group
       cloud.google.com/gke-tpu-accelerator: tpu7x
       cloud.google.com/gke-tpu-partition-4x4x4-state: HEALTHY
+      cloud.google.com/gke-tpu-partition-2x4x4-state: HEALTHY
+      cloud.google.com/gke-tpu-partition-2x2x4-state: HEALTHY
+      cloud.google.com/gke-tpu-partition-2x2x2-state: HEALTHY
+      cloud.google.com/gke-tpu-partition-2x2x1-state: HEALTHY
       cloud.google.com/gce-topology-block: a1
       cloud.google.com/gke-tpu-partition-4x4x4-id: b1
       cloud.google.com/gke-tpu-partition-2x4x4-id: c1

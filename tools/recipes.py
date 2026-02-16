@@ -201,6 +201,10 @@ def process_file(filepath: str, mode: Mode) -> tuple[bool, str]:
   elif mode == Mode.GOLDEN:
     if content != new_content:
       log(f"{Color.RED}FAIL{Color.NC}")
+      log(
+          f"{Color.RED}Goldens do not match. If the changes are expected, run"
+          f" 'make goldens' to update them.{Color.NC}"
+      )
       diff = difflib.unified_diff(
           content.splitlines(),
           new_content.splitlines(),

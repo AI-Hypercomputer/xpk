@@ -28,6 +28,7 @@ Usage:
   python3 tools/recipes.py <mode> <recipe_files>
 """
 
+import concurrent.futures
 import difflib
 import re
 import subprocess
@@ -157,22 +158,21 @@ def reconstruct_content(
   return "".join(new_content_chunks)
 
 
-def process_file(filepath: str, mode: Mode) -> bool:
+def process_file(filepath: str, mode: Mode) -> tuple[bool, str]:
+  output_log = []
+
+  def log(msg="", end="\n"):
+    output_log.append(f"{msg}{end}")
+
   with open(filepath, mode="r", encoding="utf-8") as f:
     content = f.read()
 
   if mode == Mode.UPDATE:
-    print(
-        f"{Color.YELLOW}Updating: {filepath}...{Color.NC} ", end="", flush=True
-    )
+    log(f"{Color.YELLOW}Updating: {filepath}...{Color.NC} ", end="")
   elif mode == Mode.RUN:
-    print(
-        f"{Color.YELLOW}Running: {filepath}...{Color.NC} ", end="", flush=True
-    )
+    log(f"{Color.YELLOW}Running: {filepath}...{Color.NC} ", end="")
   elif mode == Mode.GOLDEN:
-    print(
-        f"{Color.YELLOW}Verifying: {filepath}...{Color.NC} ", end="", flush=True
-    )
+    log(f"{Color.YELLOW}Verifying: {filepath}...{Color.NC} ", end="")
 
   blocks = extract_code_blocks(content)
   blocks = [
@@ -184,33 +184,34 @@ def process_file(filepath: str, mode: Mode) -> bool:
 
   if mode == Mode.RUN:
     if failed:
-      print(f"{Color.RED}FAIL{Color.NC}")
+      log(f"{Color.RED}FAIL{Color.NC}")
     else:
-      print(f"{Color.GREEN}DONE{Color.NC}")
-    print("\n".join(results))
-    return not failed
+      log(f"{Color.GREEN}DONE{Color.NC}")
+    log("\n".join(results))
+    return not failed, "".join(output_log)
 
   new_content = reconstruct_content(content, blocks, results)
 
   if mode == Mode.UPDATE:
     with open(filepath, mode="w", encoding="utf-8") as f:
       f.write(new_content)
-    print(f"{Color.GREEN}DONE{Color.NC}")
-    return True
+    log(f"{Color.GREEN}DONE{Color.NC}")
+    return True, "".join(output_log)
 
   elif mode == Mode.GOLDEN:
     if content != new_content:
-      print(f"{Color.RED}FAIL{Color.NC}")
+      log(f"{Color.RED}FAIL{Color.NC}")
       diff = difflib.unified_diff(
           content.splitlines(),
           new_content.splitlines(),
           fromfile="Expected",
           tofile="Actual",
       )
-      print("\n".join(diff))
+      log("\n".join(diff))
+      return False, "".join(output_log)
     else:
-      print(f"{Color.GREEN}OK{Color.NC}")
-    return content == new_content
+      log(f"{Color.GREEN}OK{Color.NC}")
+    return True, "".join(output_log)
 
 
 def main():
@@ -227,7 +228,23 @@ def main():
 
   files = sys.argv[2:]
 
-  if not all([process_file(f, mode) for f in files]):
+  # Process files in parallel
+  with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+    future_to_file = {executor.submit(process_file, f, mode): f for f in files}
+
+    all_passed = True
+    for future in concurrent.futures.as_completed(future_to_file):
+      file = future_to_file[future]
+      try:
+        success, output = future.result()
+        print(output, end="")
+        if not success:
+          all_passed = False
+      except Exception as exc:  # pylint: disable=broad-exception-caught
+        print(f"{file} generated an exception: {exc}")
+        all_passed = False
+
+  if not all_passed:
     sys.exit(1)
 
 

@@ -549,9 +549,6 @@ func (r *WorkloadReconciler) syncSlices(
 			continue
 		}
 		ps := podset.FindPodSetByName(wl.Spec.PodSets, psa.Name)
-		if ps.TopologyRequest == nil {
-			continue
-		}
 		desiredNumberOfSlices := ptr.Deref(ps.TopologyRequest.SubGroupCount, 1)
 
 		createdSlices, err := r.createSlices(ctx, wl, ac, &psa, nodes, existingSlicesByName, desiredNumberOfSlices)
@@ -572,7 +569,9 @@ func (r *WorkloadReconciler) syncSlices(
 
 func shouldCreateSlicesForPodSetAssignment(wl *kueue.Workload, psa kueue.PodSetAssignment, nodes map[string]corev1.Node) bool {
 	if podSet := podset.FindPodSetByName(wl.Spec.PodSets, psa.Name); podSet != nil {
-		return core.IsRelevantPodTemplateSpec(podSet.Template) && topology.IsAssignmentValid(psa, nodes)
+		return core.IsRelevantPodTemplateSpec(podSet.Template) &&
+			topology.IsAssignmentValid(psa, nodes) &&
+			podSet.TopologyRequest != nil
 	}
 	return false
 }
@@ -587,9 +586,6 @@ func totalDesiredSlices(wl *kueue.Workload, nodes map[string]corev1.Node) int {
 			continue
 		}
 		ps := podset.FindPodSetByName(wl.Spec.PodSets, psa.Name)
-		if ps.TopologyRequest == nil {
-			continue
-		}
 		count += int(ptr.Deref(ps.TopologyRequest.SubGroupCount, 1))
 	}
 	return count

@@ -1849,7 +1849,7 @@ func TestWorkloadReconciler(t *testing.T) {
 					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Finalizers(SliceControllerName).
 					AdmissionCheck(buildAdmissionCheckStateWithRequeue(kueue.CheckStateRetry,
-						"Slice was deleted unexpectedly", ptr.To(int32(10)))).
+						"Slice has been deleted", ptr.To(int32(10)))).
 					Obj(),
 			},
 			wantSlices: []slice.Slice{
@@ -1879,7 +1879,7 @@ func TestWorkloadReconciler(t *testing.T) {
 					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Finalizers(SliceControllerName).
 					AdmissionCheck(buildAdmissionCheckStateWithRequeue(kueue.CheckStateRetry,
-						"Slice was deleted unexpectedly", ptr.To(int32(10)))).
+						"Slice has been deleted", ptr.To(int32(10)))).
 					Obj(),
 			},
 			wantSlices: []slice.Slice{

@@ -39,7 +39,7 @@ goldens:
 
 .PHONY: verify-goldens
 verify-goldens:
-	XPK_TESTER=false XPK_VERSION_OVERRIDE=v0.0.0 python3 tools/recipes.py golden recipes/*.md
+	XPK_TESTER=false XPK_VERSION_OVERRIDE=v0.0.0 UPDATE_GOLDEN_COMMAND="make goldens" python3 tools/recipes.py golden recipes/*.md
 
 .PHONY: mkdir-bin
 mkdir-bin:

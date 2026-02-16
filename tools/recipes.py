@@ -30,6 +30,7 @@ Usage:
 
 import concurrent.futures
 import difflib
+import os
 import re
 import subprocess
 import sys
@@ -246,10 +247,13 @@ def main():
 
   if not all_passed:
     if mode == Mode.GOLDEN:
-      print(
-          f"{Color.RED}Goldens do not match. If the changes are expected, run"
-          f" 'make goldens' to update them.{Color.NC}"
-      )
+      print(f"{Color.RED}Goldens do not match.{Color.NC}")
+      update_command = os.environ.get("UPDATE_GOLDEN_COMMAND")
+      if update_command:
+        print(
+            f"{Color.RED}If the changes are expected, run '{update_command}' to"
+            f" update them.{Color.NC}"
+        )
     sys.exit(1)
 
 

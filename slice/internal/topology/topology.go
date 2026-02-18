@@ -15,6 +15,10 @@
 package topology
 
 import (
+	"fmt"
+	"strconv"
+	"strings"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta2"
@@ -52,4 +56,32 @@ func ParseAssignment(topologyAssignment *kueue.TopologyAssignment, nodes map[str
 		}
 	}
 	return parsedAssignment
+}
+
+func ParseTopologyV7(tpuTopology string) ([]int64, error) {
+	dimensions := strings.Split(tpuTopology, "x")
+	if len(dimensions) != 3 {
+		return nil, fmt.Errorf("invalid topology format: %s, expected 3 dimensions", tpuTopology)
+	}
+
+	dims := make([]int64, 3)
+
+	for i, dim := range dimensions {
+		parsedDim, err := strconv.ParseInt(dim, 10, 32)
+		if err != nil {
+			return nil, err
+		}
+		dims[i] = parsedDim
+	}
+	if dims[0] == 0 || dims[1] == 0 || dims[2] == 0 {
+		return nil, fmt.Errorf("topology dimensions cannot be zero: %s", tpuTopology)
+	}
+	if dims[0]%4 != 0 || dims[1]%4 != 0 || dims[2]%4 != 0 {
+		return nil, fmt.Errorf("topology dimensions must be divisible by 4: %s", tpuTopology)
+	}
+	if dims[0] > dims[1] || dims[1] > dims[2] {
+		return nil, fmt.Errorf("topology dimensions must be in non-decreasing order: %s", tpuTopology)
+	}
+
+	return dims, nil
 }

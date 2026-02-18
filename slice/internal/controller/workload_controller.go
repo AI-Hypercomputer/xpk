@@ -570,10 +570,12 @@ func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workloa
 		slicesToCreate = append(slicesToCreate, slice)
 	}
 
-	if conflictingIDs := r.findConflictingPartitionIDs(ctx, existingSlicesByName, slicesToCreate); len(conflictingIDs) > 0 {
+	if err := errors.Join(
+		r.validatePartitionConflicts(ctx, existingSlicesByName, slicesToCreate),
+		r.validatePartitionCount(ctx, slicesToCreate)); err != nil {
 		log := ctrl.LoggerFrom(ctx)
-		log.V(3).Info("Partition ID collisions detected, not creating slices, evicting workload")
-		msg := fmt.Sprintf("Partition IDs %q are already used by existing Slices", conflictingIDs)
+		log.V(3).Info("Slice validation failed, not creating Slices, evicting the workload", "error", err)
+		msg := err.Error()
 		if patchErr := r.evictWorkload(ctx, wl, ac, msg); patchErr != nil {
 			return nil, errors.Join(errors.New(msg), patchErr)
 		}
@@ -602,11 +604,11 @@ func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workloa
 	return createdSlices, nil
 }
 
-func (r *WorkloadReconciler) findConflictingPartitionIDs(
+func (r *WorkloadReconciler) validatePartitionConflicts(
 	ctx context.Context,
 	existingSlicesByName map[string]*v1beta1.Slice,
 	slicesToCreate []*v1beta1.Slice,
-) []string {
+) error {
 	log := ctrl.LoggerFrom(ctx)
 	usedPartitionIDs := make(map[string]*v1beta1.Slice)
 	for _, s := range existingSlicesByName {
@@ -624,7 +626,38 @@ func (r *WorkloadReconciler) findConflictingPartitionIDs(
 			}
 		}
 	}
-	return conflictingIDs
+	if len(conflictingIDs) > 0 {
+		return fmt.Errorf("partition IDs %q are already used by existing Slices", conflictingIDs)
+	}
+	return nil
+}
+
+func (r *WorkloadReconciler) validatePartitionCount(
+	ctx context.Context,
+	slicesToCreate []*v1beta1.Slice,
+) error {
+	log := ctrl.LoggerFrom(ctx)
+	var incorrectSlices []string
+	for _, slice := range slicesToCreate {
+		dims, err := topology.ParseTopologyV7(slice.Spec.Topology)
+		if err != nil {
+			return err
+		}
+		numberOfCubesFromTopology := dims[0] * dims[1] * dims[2] / core.TPUsPerCube
+		if int(numberOfCubesFromTopology) != len(slice.Spec.PartitionIds) {
+			incorrectSlices = append(incorrectSlices, slice.Name)
+			log.V(3).Info("The number of partition IDs in topology assignment does not match the topology",
+				"slice", slice.Name,
+				"topology", slice.Spec.Topology,
+				"expectedPartitions", numberOfCubesFromTopology,
+				"actualPartitions", len(slice.Spec.PartitionIds),
+			)
+		}
+	}
+	if len(incorrectSlices) > 0 {
+		return fmt.Errorf("incorrect number of partitions for slices: %v", incorrectSlices)
+	}
+	return nil
 }
 
 func (r *WorkloadReconciler) evictWorkload(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, message string) error {

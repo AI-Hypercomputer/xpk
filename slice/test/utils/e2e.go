@@ -116,17 +116,25 @@ func waitForOperatorAvailability(ctx context.Context, k8sClient client.Client, k
 	ginkgo.GinkgoLogr.Info("Deployment is available in the cluster", "deployment", key, "waitingTime", time.Since(waitForAvailableStart))
 }
 
-func LabelNodesWithTopology(ctx context.Context, k8sClient client.Client, topology string) {
-	nodes := &corev1.NodeList{}
-	gomega.Expect(k8sClient.List(ctx, nodes)).To(gomega.Succeed())
-	for _, node := range nodes.Items {
+func LabelNodesWithTopology(ctx context.Context, k8sClient client.Client, topology string, nodeNames []string) {
+	for _, nodeName := range nodeNames {
 		gomega.Eventually(func(g gomega.Gomega) {
 			n := &corev1.Node{}
-			g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(&node), n)).To(gomega.Succeed())
+			g.Expect(k8sClient.Get(ctx, client.ObjectKey{Name: nodeName}, n)).To(gomega.Succeed())
 			metav1.SetMetaDataLabel(&n.ObjectMeta, core.TPUTopologyAnnotation, topology)
 			g.Expect(k8sClient.Update(ctx, n)).To(gomega.Succeed())
 		}, Timeout, Interval).Should(gomega.Succeed())
 	}
+	ginkgo.DeferCleanup(func(ctx context.Context, k8sClient client.Client, nodeNames []string) {
+		for _, nodeName := range nodeNames {
+			gomega.Eventually(func(g gomega.Gomega) {
+				n := &corev1.Node{}
+				g.Expect(k8sClient.Get(ctx, client.ObjectKey{Name: nodeName}, n)).To(gomega.Succeed())
+				delete(n.Labels, core.TPUTopologyAnnotation)
+				g.Expect(k8sClient.Update(ctx, n)).To(gomega.Succeed())
+			}, Timeout, Interval).Should(gomega.Succeed())
+		}
+	}, k8sClient, nodeNames)
 }
 
 func SetSliceReady(ctx context.Context, k8sClient client.Client, sliceKey client.ObjectKey, topology string) {
@@ -141,5 +149,18 @@ func SetSliceReady(ctx context.Context, k8sClient client.Client, sliceKey client
 		})
 		g.Expect(k8sClient.Status().Update(ctx, createdSlice)).To(gomega.Succeed())
 	}, Timeout, Interval).Should(gomega.Succeed())
-	LabelNodesWithTopology(ctx, k8sClient, topology)
+
+	nodes := &corev1.NodeList{}
+	gomega.Expect(k8sClient.List(ctx, nodes)).To(gomega.Succeed())
+	partitionSet := make(map[string]bool)
+	for _, pid := range createdSlice.Spec.PartitionIds {
+		partitionSet[pid] = true
+	}
+	var nodeNames []string
+	for _, node := range nodes.Items {
+		if partitionSet[node.Labels[core.TPUSubBlockLabel]] {
+			nodeNames = append(nodeNames, node.Name)
+		}
+	}
+	LabelNodesWithTopology(ctx, k8sClient, topology, nodeNames)
 }

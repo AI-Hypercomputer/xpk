@@ -65,7 +65,7 @@ func (r *JobSetWebhook) Default(ctx context.Context, obj runtime.Object) error {
 		}
 		log.V(5).Info("Annotating ReplicatedJob")
 		tpuTopology := rj.Template.Spec.Template.Annotations[core.TPUSliceTopologyAnnotation]
-		dims, sliceType, err := topology.ParseTopology(tpuTopology)
+		dims, sliceType, err := topology.ParseTopologyV7(tpuTopology)
 		if err != nil {
 			return err
 		}

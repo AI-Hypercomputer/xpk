@@ -204,18 +204,6 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		grouped = r.groupSlices(slices)
 	}
 
-	// If all Slices are active, update the owner. For JobSet add the
-	// "cloud.google.com/gke-tpu-topology" node selector to ensure proper initialization
-	// of TPU backend. This selector cannot be added earlier because nodes get such labels
-	// only after Slice is Active.
-	if len(grouped.active) == len(slices) && len(slices) > 0 {
-		log.V(3).Info("Annotating owner before unsuspending")
-		err := r.updateOwnerBeforeUnsuspend(ctx, wl)
-		if err != nil {
-			return ctrl.Result{}, client.IgnoreNotFound(err)
-		}
-	}
-
 	// Update the Workload's AdmissionCheck status based on the current state of the Slices.
 	err = r.syncAdmissionCheckStatus(ctx, wl, ac, slices)
 	if err != nil {
@@ -335,10 +323,10 @@ func (r *WorkloadReconciler) findWorkloadSlices(ctx context.Context, wl *kueue.W
 }
 
 type groupedSlices struct {
-	deleted      []v1beta1.Slice
-	toDelete     []v1beta1.Slice
-	initializing []v1beta1.Slice
-	active       []v1beta1.Slice
+	deleted      []*v1beta1.Slice
+	toDelete     []*v1beta1.Slice
+	initializing []*v1beta1.Slice
+	active       []*v1beta1.Slice
 }
 
 // groupSlices categorizes a list of Slice objects into four groups based on their state.
@@ -354,8 +342,9 @@ type groupedSlices struct {
 //	A groupedSlices struct containing categorized slices.
 func (r *WorkloadReconciler) groupSlices(slices []v1beta1.Slice) groupedSlices {
 	gs := groupedSlices{}
-	for _, slice := range slices {
-		switch core.GetSliceState(slice, r.activationTimeout) {
+	for i := range slices {
+		slice := &slices[i]
+		switch core.GetSliceState(*slice, r.activationTimeout) {
 		case core.SliceStateDeleted:
 			gs.deleted = append(gs.deleted, slice)
 		case core.SliceStateFailed, core.SliceStateStale:
@@ -369,12 +358,12 @@ func (r *WorkloadReconciler) groupSlices(slices []v1beta1.Slice) groupedSlices {
 	return gs
 }
 
-func (r *WorkloadReconciler) deleteSlices(ctx context.Context, slices []v1beta1.Slice) error {
+func (r *WorkloadReconciler) deleteSlices(ctx context.Context, slices []*v1beta1.Slice) error {
 	log := ctrl.LoggerFrom(ctx)
 	for _, slice := range slices {
-		log = log.WithValues("slice", klog.KObj(&slice))
+		log = log.WithValues("slice", klog.KObj(slice))
 		log.V(3).Info("Deleting the Slice")
-		err := r.client.Delete(ctx, &slice)
+		err := r.client.Delete(ctx, slice)
 		if client.IgnoreNotFound(err) != nil {
 			log.Error(err, "Failed to delete the Slice")
 			return err
@@ -441,44 +430,6 @@ func (r *WorkloadReconciler) finalizeWorkload(ctx context.Context, wl *kueue.Wor
 
 	log.V(3).Info("Removed finalizer")
 
-	return nil
-}
-
-func (r *WorkloadReconciler) updateOwnerBeforeUnsuspend(ctx context.Context, wl *kueue.Workload) error {
-	// For now, we only support JobSets.
-	if isJobSetOwner(wl) {
-		return r.updateJobSetBeforeUnsuspend(ctx, wl)
-	}
-	return nil
-}
-
-func (r *WorkloadReconciler) updateJobSetBeforeUnsuspend(ctx context.Context, wl *kueue.Workload) error {
-	owner := metav1.GetControllerOf(wl)
-	log := ctrl.LoggerFrom(ctx).WithValues("jobSet", klog.KRef(wl.Namespace, owner.Name))
-	jobSet := &jobset.JobSet{}
-	jobSetKey := types.NamespacedName{Name: owner.Name, Namespace: wl.Namespace}
-	if err := r.client.Get(ctx, jobSetKey, jobSet); err != nil {
-		log.Error(err, "Failed to get JobSet")
-		return err
-	}
-	patchJobSet := core.BaseSSAJobSet(jobSet)
-	for i := range jobSet.Spec.ReplicatedJobs {
-		rj := &jobSet.Spec.ReplicatedJobs[i]
-		if rj.Template.Spec.Template.Spec.NodeSelector[core.TPUTopologyAnnotation] != "" {
-			// the NodeSelector with topology annotation has already been copied, nothing to do
-			return nil
-		}
-		replicaJob := core.BaseSSAReplicatedJob(rj.Name)
-		if topology := rj.Template.Spec.Template.Annotations[core.TPUSliceTopologyAnnotation]; topology != "" {
-			log.V(5).Info("Copying topology annotation as nodeSelector", "topology", topology, "replicatedJobName", rj.Name)
-			replicaJob.Template.Spec.Template.Spec.NodeSelector[core.TPUTopologyAnnotation] = topology
-		}
-		patchJobSet.Spec.ReplicatedJobs[i] = replicaJob
-	}
-	if err := r.client.Patch(ctx, patchJobSet, client.Apply, client.FieldOwner(SliceControllerName), client.ForceOwnership); err != nil {
-		log.Error(err, "Failed to patch JobSet")
-		return err
-	}
 	return nil
 }
 
@@ -621,10 +572,12 @@ func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workloa
 		slicesToCreate = append(slicesToCreate, slice)
 	}
 
-	if conflictingIDs := r.findConflictingPartitionIDs(ctx, existingSlicesByName, slicesToCreate); len(conflictingIDs) > 0 {
+	if err := errors.Join(
+		r.validatePartitionConflicts(ctx, existingSlicesByName, slicesToCreate),
+		r.validatePartitionCount(ctx, slicesToCreate)); err != nil {
 		log := ctrl.LoggerFrom(ctx)
-		log.V(3).Info("Partition ID collisions detected, not creating slices, evicting workload")
-		msg := fmt.Sprintf("Partition IDs %q are already used by existing Slices", conflictingIDs)
+		log.V(3).Info("Slice validation failed, not creating Slices, evicting the workload", "error", err)
+		msg := err.Error()
 		if patchErr := r.evictWorkload(ctx, wl, ac, msg); patchErr != nil {
 			return nil, errors.Join(errors.New(msg), patchErr)
 		}
@@ -653,11 +606,11 @@ func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workloa
 	return createdSlices, nil
 }
 
-func (r *WorkloadReconciler) findConflictingPartitionIDs(
+func (r *WorkloadReconciler) validatePartitionConflicts(
 	ctx context.Context,
 	existingSlicesByName map[string]*v1beta1.Slice,
 	slicesToCreate []*v1beta1.Slice,
-) []string {
+) error {
 	log := ctrl.LoggerFrom(ctx)
 	usedPartitionIDs := make(map[string]*v1beta1.Slice)
 	for _, s := range existingSlicesByName {
@@ -675,7 +628,38 @@ func (r *WorkloadReconciler) findConflictingPartitionIDs(
 			}
 		}
 	}
-	return conflictingIDs
+	if len(conflictingIDs) > 0 {
+		return fmt.Errorf("partition IDs %q are already used by existing Slices", conflictingIDs)
+	}
+	return nil
+}
+
+func (r *WorkloadReconciler) validatePartitionCount(
+	ctx context.Context,
+	slicesToCreate []*v1beta1.Slice,
+) error {
+	log := ctrl.LoggerFrom(ctx)
+	var incorrectSlices []string
+	for _, slice := range slicesToCreate {
+		dims, err := topology.ParseTopologyV7(slice.Spec.Topology)
+		if err != nil {
+			return err
+		}
+		numberOfCubesFromTopology := dims[0] * dims[1] * dims[2] / core.TPUsPerCube
+		if int(numberOfCubesFromTopology) != len(slice.Spec.PartitionIds) {
+			incorrectSlices = append(incorrectSlices, slice.Name)
+			log.V(3).Info("The number of partition IDs in topology assignment does not match the topology",
+				"slice", slice.Name,
+				"topology", slice.Spec.Topology,
+				"expectedPartitions", numberOfCubesFromTopology,
+				"actualPartitions", len(slice.Spec.PartitionIds),
+			)
+		}
+	}
+	if len(incorrectSlices) > 0 {
+		return fmt.Errorf("incorrect number of partitions for slices: %v", incorrectSlices)
+	}
+	return nil
 }
 
 func (r *WorkloadReconciler) evictWorkload(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, message string) error {
@@ -709,7 +693,7 @@ func (r *WorkloadReconciler) syncAdmissionCheckStatus(ctx context.Context, wl *k
 	originalState := ac.State
 	originalMessage := ac.Message
 
-	r.prepareAdmissionCheckStatus(ac, slices)
+	r.prepareAdmissionCheckStatus(wl, ac, slices)
 
 	// No changes.
 	if originalState == ac.State && ac.Message == originalMessage {
@@ -753,12 +737,24 @@ func groupSlicesByState(slices []v1beta1.Slice, activationTimeout time.Duration)
 	return slicesByState
 }
 
-func (r *WorkloadReconciler) prepareAdmissionCheckStatus(ac *kueue.AdmissionCheckState, slices []v1beta1.Slice) {
+func (r *WorkloadReconciler) prepareAdmissionCheckStatus(wl *kueue.Workload, ac *kueue.AdmissionCheckState, slices []v1beta1.Slice) {
 	slicesByState := groupSlicesByState(slices, r.activationTimeout)
 
 	switch {
 	case len(slices) == len(slicesByState[core.SliceStateActive])+len(slicesByState[core.SliceStateActiveDegraded]):
 		ac.State = kueue.CheckStateReady
+		var podSetUpdates []kueue.PodSetUpdate
+		for _, ps := range wl.Spec.PodSets {
+			if topology := core.GetTPUTopology(ps.Template); topology != "" {
+				podSetUpdates = append(podSetUpdates, kueue.PodSetUpdate{
+					Name: ps.Name,
+					NodeSelector: map[string]string{
+						core.TPUTopologyAnnotation: topology,
+					},
+				})
+			}
+		}
+		ac.PodSetUpdates = podSetUpdates
 	case len(slicesByState[core.SliceStateFailed]) > 0:
 		ac.State = kueue.CheckStateRetry
 		ac.RequeueAfterSeconds = ptr.To(int32(r.retryDelayOnSliceFailure.Round(time.Second).Seconds()))

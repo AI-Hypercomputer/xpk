@@ -68,7 +68,7 @@ const (
 	TopologyTypeSubslice
 )
 
-func ParseTopology(tpuTopology string) ([]int64, TopologyType, error) {
+func ParseTopologyV7(tpuTopology string) ([]int64, TopologyType, error) {
 	dimensions := strings.Split(tpuTopology, "x")
 	if len(dimensions) != 3 {
 		return nil, TopologyTypeInvalid, fmt.Errorf("invalid topology format: %s, expected 3 dimensions", tpuTopology)

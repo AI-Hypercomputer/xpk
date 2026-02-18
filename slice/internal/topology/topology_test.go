@@ -41,9 +41,15 @@ func TestParseTopology(t *testing.T) {
 			wantType: TopologyTypeSuperslice,
 			wantErr:  false,
 		},
-		"valid max 16x24x24": {
+		"valid 16x24x24": {
 			topology: "16x24x24",
 			wantDims: []int64{16, 24, 24},
+			wantType: TopologyTypeSuperslice,
+			wantErr:  false,
+		},
+		"valid 4x8x32": {
+			topology: "4x8x32",
+			wantDims: []int64{4, 8, 32},
 			wantType: TopologyTypeSuperslice,
 			wantErr:  false,
 		},
@@ -73,59 +79,51 @@ func TestParseTopology(t *testing.T) {
 		},
 		"invalid format (2 dims)": {
 			topology: "4x4",
-			wantType: TopologyTypeInvalid,
 			wantErr:  true,
 		},
 		"invalid format (4 dims)": {
 			topology: "4x4x4x4",
-			wantType: TopologyTypeInvalid,
 			wantErr:  true,
 		},
 		"invalid format (non-int)": {
 			topology: "4x4xa",
-			wantType: TopologyTypeInvalid,
 			wantErr:  true,
 		},
 		"not divisible by 4": {
 			topology: "3x4x4",
-			wantType: TopologyTypeInvalid,
 			wantErr:  true,
 		},
 		"not non-decreasing": {
 			topology: "8x4x4",
-			wantType: TopologyTypeInvalid,
 			wantErr:  true,
 		},
 		"zero dimension": {
 			topology: "0x4x4",
-			wantType: TopologyTypeInvalid,
 			wantErr:  true,
 		},
 		"unparseable": {
 			topology: "4x4x4x",
-			wantType: TopologyTypeInvalid,
 			wantErr:  true,
 		},
 		"incomplete": {
 			topology: "4x4x",
-			wantType: TopologyTypeInvalid,
 			wantErr:  true,
 		},
 	}
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			dims, topoType, err := ParseTopology(tc.topology)
+			dims, gotType, err := ParseTopologyV7(tc.topology)
 			if (err != nil) != tc.wantErr {
 				t.Errorf("parseTopology() error = %v, wantErr %v", err, tc.wantErr)
 				return
 			}
+			if tc.wantType != gotType {
+				t.Errorf("parseTopology() gotType = %v, wantType %v", gotType, tc.wantType)
+			}
 			if !tc.wantErr {
 				if diff := cmp.Diff(tc.wantDims, dims); diff != "" {
 					t.Errorf("parseTopology() mismatch (-want +got):\n%s", diff)
-				}
-				if topoType != tc.wantType {
-					t.Errorf("parseTopology() type = %v, want %v", topoType, tc.wantType)
 				}
 			}
 		})

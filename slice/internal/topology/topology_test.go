@@ -38,9 +38,14 @@ func TestParseTopology(t *testing.T) {
 			wantDims: []int64{4, 4, 8},
 			wantErr:  false,
 		},
-		"valid max 16x24x24": {
+		"valid 16x24x24": {
 			topology: "16x24x24",
 			wantDims: []int64{16, 24, 24},
+			wantErr:  false,
+		},
+		"valid 4x8x32": {
+			topology: "4x8x32",
+			wantDims: []int64{4, 8, 32},
 			wantErr:  false,
 		},
 		"invalid format (2 dims)": {

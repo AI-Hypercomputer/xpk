@@ -106,7 +106,7 @@ func ParseTopologyV7(tpuTopology string) ([]int64, TopologyType, error) {
 
 func GetPartitionIDLabel(nodes map[string]corev1.Node, spec corev1.PodTemplateSpec) string {
 	topology := core.GetTPUTopology(spec)
-	_, topologyType, err := ParseTopology(topology)
+	_, topologyType, err := ParseTopologyV7(topology)
 	if err != nil {
 		return ""
 	}

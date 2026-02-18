@@ -641,7 +641,7 @@ func (r *WorkloadReconciler) validatePartitionCount(
 	log := ctrl.LoggerFrom(ctx)
 	var incorrectSlices []string
 	for _, slice := range slicesToCreate {
-		dims, err := topology.ParseTopologyV7(slice.Spec.Topology)
+		dims, _, err := topology.ParseTopologyV7(slice.Spec.Topology)
 		if err != nil {
 			return err
 		}

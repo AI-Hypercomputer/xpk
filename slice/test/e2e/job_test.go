@@ -234,6 +234,10 @@ var _ = ginkgo.Describe("Job", func() {
 				utils.ExpectObjectToBeDeleted(ctx, k8sClient, createdSlice, false)
 			})
 
+			ginkgo.By("Checking that all Pods are deleted", func() {
+				utils.ExpectAllPodsInNamespaceDeleted(ctx, k8sClient, ns)
+			})
+
 			ginkgo.By("Checking that Workload is deleted", func() {
 				utils.ExpectObjectToBeDeleted(ctx, k8sClient, createdWorkload, false)
 			})

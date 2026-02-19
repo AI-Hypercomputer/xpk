@@ -657,6 +657,7 @@ func (r *WorkloadReconciler) validatePartitionCount(
 			log.V(3).Info("The number of partition IDs in topology assignment does not match the topology",
 				"slice", slice.Name,
 				"topology", slice.Spec.Topology,
+				"topologyType", topologyType,
 				"expectedPartitions", int(desiredNumberOfPartitions),
 				"actualPartitions", len(slice.Spec.PartitionIds),
 			)

@@ -60,12 +60,12 @@ func ParseAssignment(topologyAssignment *kueue.TopologyAssignment, nodes map[str
 	return parsedAssignment
 }
 
-type TopologyType int
+type TopologyType string
 
 const (
-	TopologyTypeInvalid TopologyType = iota
-	TopologyTypeSuperslice
-	TopologyTypeSubslice
+	TopologyTypeInvalid    TopologyType = "Invalid"
+	TopologyTypeSuperslice TopologyType = "Superslice"
+	TopologyTypeSubslice   TopologyType = "Subslice"
 )
 
 func ParseTopologyV7(tpuTopology string) ([]int64, TopologyType, error) {

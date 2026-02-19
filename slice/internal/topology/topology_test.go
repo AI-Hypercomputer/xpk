@@ -79,34 +79,42 @@ func TestParseTopology(t *testing.T) {
 		},
 		"invalid format (2 dims)": {
 			topology: "4x4",
+			wantType: TopologyTypeInvalid,
 			wantErr:  true,
 		},
 		"invalid format (4 dims)": {
 			topology: "4x4x4x4",
+			wantType: TopologyTypeInvalid,
 			wantErr:  true,
 		},
 		"invalid format (non-int)": {
 			topology: "4x4xa",
+			wantType: TopologyTypeInvalid,
 			wantErr:  true,
 		},
 		"not divisible by 4": {
 			topology: "3x4x4",
+			wantType: TopologyTypeInvalid,
 			wantErr:  true,
 		},
 		"not non-decreasing": {
 			topology: "8x4x4",
+			wantType: TopologyTypeInvalid,
 			wantErr:  true,
 		},
 		"zero dimension": {
 			topology: "0x4x4",
+			wantType: TopologyTypeInvalid,
 			wantErr:  true,
 		},
 		"unparseable": {
 			topology: "4x4x4x",
+			wantType: TopologyTypeInvalid,
 			wantErr:  true,
 		},
 		"incomplete": {
 			topology: "4x4x",
+			wantType: TopologyTypeInvalid,
 			wantErr:  true,
 		},
 	}

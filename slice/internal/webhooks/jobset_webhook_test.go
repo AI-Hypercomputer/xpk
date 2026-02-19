@@ -171,7 +171,7 @@ func TestDefault(t *testing.T) {
 					NodeSelector: map[string]string{
 						"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
 					},
-				}).NodeAffinity("rj1", core.TPUSliceHealthNodeSelectorKey, []string{core.TPUSliceHealthNodeSelectorHealthy}).
+				}).NodeAffinity("rj1", core.SubsliceHealthLabel("2x2x1"), []string{core.TPUSliceHealthNodeSelectorHealthy}).
 				Obj(),
 		},
 		"should set default values for subslice 2x4x4": {
@@ -202,7 +202,7 @@ func TestDefault(t *testing.T) {
 					NodeSelector: map[string]string{
 						"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
 					},
-				}).NodeAffinity("rj1", core.TPUSliceHealthNodeSelectorKey, []string{core.TPUSliceHealthNodeSelectorHealthy}).
+				}).NodeAffinity("rj1", core.SubsliceHealthLabel("2x4x4"), []string{core.TPUSliceHealthNodeSelectorHealthy}).
 				Obj(),
 		},
 		"shouldn't set default values because invalid topology annotation": {

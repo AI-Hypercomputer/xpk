@@ -641,20 +641,27 @@ func (r *WorkloadReconciler) validatePartitionCount(
 	log := ctrl.LoggerFrom(ctx)
 	var incorrectSlices []string
 	for _, slice := range slicesToCreate {
-		dims, _, err := topology.ParseTopologyV7(slice.Spec.Topology)
+		dims, topologyType, err := topology.ParseTopologyV7(slice.Spec.Topology)
 		if err != nil {
 			return err
 		}
-		numberOfCubesFromTopology := dims[0] * dims[1] * dims[2] / core.TPUsPerCube
-		if int(numberOfCubesFromTopology) != len(slice.Spec.PartitionIds) {
+		var desiredNumberOfPartitions int64
+		switch topologyType {
+		case topology.TopologyTypeSuperslice:
+			desiredNumberOfPartitions = dims[0] * dims[1] * dims[2] / core.TPUsPerCube
+		case topology.TopologyTypeSubslice:
+			desiredNumberOfPartitions = 1
+		}
+		if len(slice.Spec.PartitionIds) != int(desiredNumberOfPartitions) {
 			incorrectSlices = append(incorrectSlices, slice.Name)
 			log.V(3).Info("The number of partition IDs in topology assignment does not match the topology",
 				"slice", slice.Name,
 				"topology", slice.Spec.Topology,
-				"expectedPartitions", numberOfCubesFromTopology,
+				"expectedPartitions", int(desiredNumberOfPartitions),
 				"actualPartitions", len(slice.Spec.PartitionIds),
 			)
 		}
+
 	}
 	if len(incorrectSlices) > 0 {
 		return fmt.Errorf("incorrect number of partitions for slices: %v", incorrectSlices)

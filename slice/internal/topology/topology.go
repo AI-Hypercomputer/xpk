@@ -85,3 +85,15 @@ func ParseTopologyV7(tpuTopology string) ([]int64, error) {
 
 	return dims, nil
 }
+
+func CalculateSliceSize(tpuTopology string, parallelism int32) (int64, error) {
+	dims, err := ParseTopologyV7(tpuTopology)
+	if err != nil {
+		return 0, err
+	}
+
+	totalChips := dims[0] * dims[1] * dims[2]
+	subBlockCount := totalChips / 64
+
+	return int64(parallelism) / subBlockCount, nil
+}

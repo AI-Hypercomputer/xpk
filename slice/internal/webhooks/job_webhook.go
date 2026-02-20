@@ -26,6 +26,7 @@ import (
 	kueueconstants "sigs.k8s.io/kueue/pkg/controller/constants"
 
 	"tpu-slice-controller/internal/core"
+	"tpu-slice-controller/internal/topology"
 )
 
 type JobWebhook struct{}
@@ -56,8 +57,13 @@ func (r *JobWebhook) Default(ctx context.Context, obj runtime.Object) error {
 		return nil
 	}
 	log.V(5).Info("Annotating Job")
-	annotatePodTemplateSpecWithSliceHealth(&job.Spec.Template)
-	err := annotatePodTemplateSpecWithTopology(&job.Spec.Template, job.Spec.Parallelism, job.Name, "job")
+	tpuTopology := job.Spec.Template.Annotations[core.TPUSliceTopologyAnnotation]
+	dims, sliceType, err := topology.ParseTopologyV7(tpuTopology)
+	if err != nil {
+		return err
+	}
+	annotatePodTemplateSpecWithSliceHealth(&job.Spec.Template, tpuTopology, sliceType)
+	err = annotatePodTemplateSpecWithTopology(&job.Spec.Template, tpuTopology, sliceType, dims, job.Spec.Parallelism, job.Name, "job")
 	if err != nil {
 		return err
 	}

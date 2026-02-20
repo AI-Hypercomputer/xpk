@@ -18,6 +18,7 @@ package webhooks
 
 import (
 	"context"
+	"fmt"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -66,10 +67,11 @@ func (r *JobSetWebhook) Default(ctx context.Context, obj runtime.Object) error {
 			return err
 		}
 		annotatePodTemplateSpecWithSliceHealth(&rj.Template.Spec.Template, tpuTopology, sliceType)
-		err = annotatePodTemplateSpecWithTopology(&rj.Template.Spec.Template, rj.Template.Spec.Parallelism, rj.Name, "replicated job", tpuTopology, sliceType, dims)
+		err = annotatePodTemplateSpecWithTopology(&rj.Template.Spec.Template, tpuTopology, sliceType, dims, rj.Template.Spec.Parallelism)
 		if err != nil {
-			return err
+			return fmt.Errorf("invalid jobset %q: %w", jobSet.Name, err)
 		}
+
 	}
 
 	return nil

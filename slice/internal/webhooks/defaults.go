@@ -38,19 +38,26 @@ func getTPUsRequestedPerPod(spec corev1.PodSpec) int64 {
 	return totalTPUs
 }
 
-func annotatePodTemplateSpecWithSliceHealth(template *corev1.PodTemplateSpec) {
-	// 1. If there is NodeSelector with TPUSliceHealthNodeSelectorKey, we do nothing.
-	if _, ok := template.Spec.NodeSelector[core.TPUSliceHealthNodeSelectorKey]; ok {
+func annotatePodTemplateSpecWithSliceHealth(template *corev1.PodTemplateSpec, tpuTopology string, sliceType topology.TopologyType) {
+	var healthLabel string
+	if sliceType == topology.TopologyTypeSubslice {
+		healthLabel = core.SubsliceHealthLabel(tpuTopology)
+	} else {
+		healthLabel = core.TPUSliceHealthNodeSelectorKey
+	}
+
+	// 1. If there is NodeSelector with healthLabel, we do nothing.
+	if _, ok := template.Spec.NodeSelector[healthLabel]; ok {
 		return
 	}
 
-	// 2. If there is NodeAffinity with TPUSliceHealthNodeSelectorKey, we do nothing.
+	// 2. If there is NodeAffinity with healthLabel, we do nothing.
 	if template.Spec.Affinity != nil &&
 		template.Spec.Affinity.NodeAffinity != nil &&
 		template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
 		for _, term := range template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
 			for _, req := range term.MatchExpressions {
-				if req.Key == core.TPUSliceHealthNodeSelectorKey {
+				if req.Key == healthLabel {
 					return
 				}
 			}
@@ -58,30 +65,32 @@ func annotatePodTemplateSpecWithSliceHealth(template *corev1.PodTemplateSpec) {
 	}
 
 	// 3. If neither of these, we add a NodeAffinity.
-	core.AddNodeAffinity(template, core.TPUSliceHealthNodeSelectorKey, []string{core.TPUSliceHealthNodeSelectorHealthy})
+	core.AddNodeAffinity(template, healthLabel, []string{core.TPUSliceHealthNodeSelectorHealthy})
 }
 
-func annotatePodTemplateSpecWithTopology(template *corev1.PodTemplateSpec, parallelism *int32, resourceName string, resourceKind string) error {
+func annotatePodTemplateSpecWithTopology(template *corev1.PodTemplateSpec, tpuTopology string, sliceType topology.TopologyType,
+	dims []int64, parallelism *int32) error {
 	if template.Annotations == nil {
 		template.Annotations = make(map[string]string)
 	}
 
+	pods := ptr.Deref(parallelism, 1)
+
+	if sliceType == topology.TopologyTypeSubslice {
+		template.Annotations[kueue.PodSetRequiredTopologyAnnotation] = core.TPUBlockLabel
+		template.Annotations[kueue.PodSetSliceRequiredTopologyAnnotation] = core.SubsliceLevelLabel(tpuTopology)
+		template.Annotations[kueue.PodSetSliceSizeAnnotation] = strconv.FormatInt(int64(pods), 10)
+		return nil
+	}
 	template.Annotations[kueue.PodSetRequiredTopologyAnnotation] = core.TPUBlockLabel
 	template.Annotations[kueue.PodSetSliceRequiredTopologyAnnotation] = core.TPUSubBlockLabel
 
-	pods := ptr.Deref(parallelism, 1)
+	sliceSize := topology.CalculateSliceSize(dims, pods)
 
-	sliceSize, err := topology.CalculateSliceSize(
-		template.Annotations[core.TPUSliceTopologyAnnotation],
-		pods,
-	)
-	if err != nil {
-		return err
-	}
 	tpusRequestedPerPod := getTPUsRequestedPerPod(template.Spec)
 	tpusRequestedPerCube := tpusRequestedPerPod * sliceSize
 	if tpusRequestedPerCube != core.TPUsPerCube {
-		return fmt.Errorf("invalid %s %q: configuration results in %d TPUs requested per cube, but must be exactly %d TPUs (full utilization)", resourceKind, resourceName, tpusRequestedPerCube, core.TPUsPerCube)
+		return fmt.Errorf("configuration results in %d TPUs requested per cube, but must be exactly %d TPUs (full utilization)", tpusRequestedPerCube, core.TPUsPerCube)
 	}
 
 	template.Annotations[kueue.PodSetSliceSizeAnnotation] = strconv.FormatInt(sliceSize, 10)

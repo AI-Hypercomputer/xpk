@@ -118,14 +118,9 @@ func GetPartitionIDLabel(nodes map[string]corev1.Node, spec corev1.PodTemplateSp
 	return ""
 }
 
-func CalculateSliceSize(tpuTopology string, parallelism int32) (int64, error) {
-	dims, err := ParseTopologyV7(tpuTopology)
-	if err != nil {
-		return 0, err
-	}
-
+func CalculateSliceSize(dims []int64, parallelism int32) int64 {
 	totalChips := dims[0] * dims[1] * dims[2]
 	subBlockCount := totalChips / 64
 
-	return int64(parallelism) / subBlockCount, nil
+	return int64(parallelism) / subBlockCount
 }

@@ -18,19 +18,14 @@ package webhooks
 
 import (
 	"context"
-	"fmt"
-	"strconv"
 
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/jobset/api/jobset/v1alpha2"
-	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
 	kueueconstants "sigs.k8s.io/kueue/pkg/controller/constants"
 
 	"tpu-slice-controller/internal/core"
-	"tpu-slice-controller/internal/topology"
 )
 
 // JobSetWebhook is the schema for your resource (ensure this matches your resource definition).
@@ -64,84 +59,12 @@ func (r *JobSetWebhook) Default(ctx context.Context, obj runtime.Object) error {
 			continue
 		}
 		log.V(5).Info("Annotating ReplicatedJob")
-		annotateReplicatedJobWithSliceHealth(rj)
-		err := r.annotateReplicatedJobWithTopology(rj)
+		annotatePodTemplateSpecWithSliceHealth(&rj.Template.Spec.Template)
+		err := annotatePodTemplateSpecWithTopology(&rj.Template.Spec.Template, rj.Template.Spec.Parallelism, rj.Name, "replicated job")
 		if err != nil {
 			return err
 		}
 	}
 
 	return nil
-}
-
-func (r *JobSetWebhook) annotateReplicatedJobWithTopology(rj *v1alpha2.ReplicatedJob) error {
-	if rj.Template.Spec.Template.Annotations == nil {
-		rj.Template.Spec.Template.Annotations = make(map[string]string)
-	}
-
-	rj.Template.Spec.Template.Annotations[kueue.PodSetRequiredTopologyAnnotation] = core.TPUBlockLabel
-	rj.Template.Spec.Template.Annotations[kueue.PodSetSliceRequiredTopologyAnnotation] = core.TPUSubBlockLabel
-
-	pods := ptr.Deref(rj.Template.Spec.Parallelism, 1)
-
-	sliceSize, err := r.podSetSliceSize(
-		rj.Template.Spec.Template.Annotations[core.TPUSliceTopologyAnnotation],
-		pods,
-	)
-	if err != nil {
-		return err
-	}
-	tpusRequestedPerPod := r.getTPUsRequestedPerPod(rj)
-	tpusRequestedPerCube := tpusRequestedPerPod * sliceSize
-	if tpusRequestedPerCube != core.TPUsPerCube {
-		return fmt.Errorf("invalid replicated job %q: configuration results in %d TPUs requested per cube, but must be exactly %d TPUs (full utilization)", rj.Name, tpusRequestedPerCube, core.TPUsPerCube)
-	}
-
-	rj.Template.Spec.Template.Annotations[kueue.PodSetSliceSizeAnnotation] = strconv.FormatInt(sliceSize, 10)
-	return nil
-}
-
-func (r *JobSetWebhook) getTPUsRequestedPerPod(rj *v1alpha2.ReplicatedJob) int64 {
-	var totalTPUs int64
-	for _, container := range rj.Template.Spec.Template.Spec.Containers {
-		if tpuQuantity, ok := container.Resources.Limits[core.TPUResourceName]; ok {
-			totalTPUs += tpuQuantity.Value()
-		}
-	}
-	return totalTPUs
-}
-
-func annotateReplicatedJobWithSliceHealth(rj *v1alpha2.ReplicatedJob) {
-	// 1. If there is NodeSelector with TPUSliceHealthNodeSelectorKey, we do nothing.
-	if _, ok := rj.Template.Spec.Template.Spec.NodeSelector[core.TPUSliceHealthNodeSelectorKey]; ok {
-		return
-	}
-
-	// 2. If there is NodeAffinity with TPUSliceHealthNodeSelectorKey, we do nothing.
-	if rj.Template.Spec.Template.Spec.Affinity != nil &&
-		rj.Template.Spec.Template.Spec.Affinity.NodeAffinity != nil &&
-		rj.Template.Spec.Template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
-		for _, term := range rj.Template.Spec.Template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
-			for _, req := range term.MatchExpressions {
-				if req.Key == core.TPUSliceHealthNodeSelectorKey {
-					return
-				}
-			}
-		}
-	}
-
-	// 3. If neither of these, we add a NodeAffinity.
-	core.AddNodeAffinity(rj, core.TPUSliceHealthNodeSelectorKey, []string{core.TPUSliceHealthNodeSelectorHealthy})
-}
-
-func (r *JobSetWebhook) podSetSliceSize(tpuTopology string, parallelism int32) (int64, error) {
-	dims, err := topology.ParseTopologyV7(tpuTopology)
-	if err != nil {
-		return 0, err
-	}
-
-	totalChips := dims[0] * dims[1] * dims[2]
-	subBlockCount := totalChips / 64
-
-	return int64(parallelism) / subBlockCount, nil
 }

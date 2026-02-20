@@ -170,7 +170,7 @@ func (j *JobSetWrapper) RequestAndLimit(replicatedJobName string, r corev1.Resou
 func (j *JobSetWrapper) NodeAffinity(replicatedJobName, key string, values []string) *JobSetWrapper {
 	for i, replicatedJob := range j.Spec.ReplicatedJobs {
 		if replicatedJob.Name == replicatedJobName {
-			core.AddNodeAffinity(&j.Spec.ReplicatedJobs[i], key, values)
+			core.AddNodeAffinity(&j.Spec.ReplicatedJobs[i].Template.Spec.Template, key, values)
 		}
 	}
 	return j

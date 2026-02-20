@@ -227,7 +227,7 @@ var _ = ginkgo.Describe("Job", func() {
 			})
 
 			ginkgo.By("Deleting Job", func() {
-				utils.DeleteAllJobsInNamespace(ctx, k8sClient, ns)
+				gomega.Expect(utils.DeleteAllJobsInNamespace(ctx, k8sClient, ns)).Should(gomega.Succeed())
 			})
 
 			ginkgo.By("Checking that Slice is deleted", func() {

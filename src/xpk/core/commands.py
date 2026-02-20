@@ -38,7 +38,7 @@ def run_commands(
     commands: list[str],
     jobname: str,
     per_command_name: list[str],
-    batch: int = 10,
+    batch: int = 100,
 ) -> FailedCommand | None:
   """Run commands in groups of `batch`.
 

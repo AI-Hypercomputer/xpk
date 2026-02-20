@@ -18,6 +18,7 @@ package webhooks
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -346,7 +347,7 @@ func TestDefault(t *testing.T) {
 				}).
 				RequestAndLimit("rj1", core.TPUResourceName, "1").
 				Obj(),
-			wantErr: errors.New("invalid replicated job \"rj1\": configuration results in 16 TPUs requested per cube, but must be exactly 64 TPUs (full utilization)"),
+			wantErr: fmt.Errorf("invalid jobset %q: %w", baseJobSetName, errors.New("configuration results in 16 TPUs requested per cube, but must be exactly 64 TPUs (full utilization)")),
 		},
 		"should reject incorrectly configured replicated job not utilizing entire cube; multiple cubes": {
 			jobSet: testingjobjobset.MakeJobSet(baseJobSetName, utils.DefaultNamespace).
@@ -363,7 +364,7 @@ func TestDefault(t *testing.T) {
 				}).
 				RequestAndLimit("rj1", core.TPUResourceName, "4").
 				Obj(),
-			wantErr: errors.New("invalid replicated job \"rj1\": configuration results in 32 TPUs requested per cube, but must be exactly 64 TPUs (full utilization)"),
+			wantErr: fmt.Errorf("invalid jobset %q: %w", baseJobSetName, errors.New("configuration results in 32 TPUs requested per cube, but must be exactly 64 TPUs (full utilization)")),
 		},
 	}
 

@@ -68,8 +68,7 @@ func annotatePodTemplateSpecWithSliceHealth(template *corev1.PodTemplateSpec, tp
 	core.AddNodeAffinity(template, healthLabel, []string{core.TPUSliceHealthNodeSelectorHealthy})
 }
 
-func annotatePodTemplateSpecWithTopology(template *corev1.PodTemplateSpec, tpuTopology string, sliceType topology.TopologyType,
-	dims []int64, parallelism *int32) error {
+func annotatePodTemplateSpecWithTopology(template *corev1.PodTemplateSpec, tpuTopology string, sliceType topology.TopologyType, dims []int64, parallelism *int32) error {
 	if template.Annotations == nil {
 		template.Annotations = make(map[string]string)
 	}

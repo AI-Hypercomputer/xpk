@@ -18,6 +18,7 @@ package webhooks
 
 import (
 	"context"
+	"fmt"
 
 	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -63,9 +64,9 @@ func (r *JobWebhook) Default(ctx context.Context, obj runtime.Object) error {
 		return err
 	}
 	annotatePodTemplateSpecWithSliceHealth(&job.Spec.Template, tpuTopology, sliceType)
-	err = annotatePodTemplateSpecWithTopology(&job.Spec.Template, tpuTopology, sliceType, dims, job.Spec.Parallelism, job.Name, "job")
+	err = annotatePodTemplateSpecWithTopology(&job.Spec.Template, tpuTopology, sliceType, dims, job.Spec.Parallelism)
 	if err != nil {
-		return err
+		return fmt.Errorf("invalid job %q: %w", job.Name, err)
 	}
 
 	return nil

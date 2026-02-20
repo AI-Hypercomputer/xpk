@@ -18,6 +18,7 @@ package webhooks
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -225,7 +226,7 @@ func TestJobDefault(t *testing.T) {
 				NodeSelector("cloud.google.com/gke-tpu-accelerator", string(slice.TypeTpu7x)).
 				Request(core.TPUResourceName, "1").
 				Obj(),
-			wantErr: errors.New("invalid job \"job\": configuration results in 16 TPUs requested per cube, but must be exactly 64 TPUs (full utilization)"),
+			wantErr: fmt.Errorf("invalid job %q: %w", baseJobName, errors.New("configuration results in 16 TPUs requested per cube, but must be exactly 64 TPUs (full utilization)")),
 		},
 	}
 

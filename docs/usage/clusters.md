@@ -341,6 +341,34 @@ Currently, the below flags/arguments are supported for A3 Mega, A3 Ultra and A4 
   * `--on-demand` (A3 Mega only)
   * `--flex`
 
+## Provisioning Super-slicing clusters
+To create a cluster with Super-slicing support (e.g. for Trillium), use the `--super-slicing` flag. You also need to specify the number of cubes using `--num-cubes` (alias for `--num-slices`).
+
+**Prerequisites:**
+*   Have valid Cluster Director reservations for the TPU resources.
+
+**Example Usage:**
+
+```shell
+NUM_CUBES=4
+# Comma-separated Cluster Director reservations, all kinds are allowed (reservation, block reservation, sub-block reservation):
+RESERVATIONS="res1/reservationBlocks/res1-block1/reservationSubBlocks/res1-block1-subBlock1,res1/reservationBlocks/res1-block1,res2"
+
+xpk cluster create \
+  --cluster xpk-test \
+  --super-slicing \
+  --tpu-type=tpu7x-4x4x4 \
+  --reservation=$RESERVATIONS \
+  --num-cubes=$NUM_CUBES
+```
+
+**Post-creation Step:**
+After creating the cluster, you must install the Kueue Slice Controller:
+
+```shell
+kubectl apply -f https://raw.githubusercontent.com/AI-Hypercomputer/xpk/refs/heads/slice-main/slice/manifests.yaml
+```
+
 ## Running XPK on existing clusters
 
 In order to run XPK commands on a cluster it needs to be set up correctly. This is done automatically when creating a cluster using `xpk cluster create`. For clusters created differently (e.g.: with 'gcloud' or a Cluster Toolkit blueprint) there is a dedicated command: `xpk cluster adapt`. This command installs required config maps, kueue, jobset, CSI drivers etc.

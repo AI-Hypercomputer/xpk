@@ -211,7 +211,7 @@ type objAsPtr[T any] interface {
 
 func DeleteObject[PtrT objAsPtr[T], T any](ctx context.Context, c client.Client, o PtrT) error {
 	if o != nil {
-		if err := c.Delete(ctx, o, client.PropagationPolicy(metav1.DeletePropagationBackground)); err != nil && !apierrors.IsNotFound(err) {
+		if err := c.Delete(ctx, o); err != nil && !apierrors.IsNotFound(err) {
 			return err
 		}
 	}

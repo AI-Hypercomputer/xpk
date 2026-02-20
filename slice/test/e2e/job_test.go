@@ -227,7 +227,7 @@ var _ = ginkgo.Describe("Job", func() {
 			})
 
 			ginkgo.By("Deleting Job", func() {
-				utils.ExpectObjectToBeDeleted(ctx, k8sClient, job, true)
+				utils.DeleteAllJobsInNamespace(ctx, k8sClient, ns)
 			})
 
 			ginkgo.By("Checking that Slice is deleted", func() {

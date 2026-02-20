@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -101,6 +102,7 @@ func NewWorkloadReconciler(cl client.Client, record record.EventRecorder, activa
 // +kubebuilder:rbac:groups=accelerator.gke.io,resources=slices/finalizers,verbs=update
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;watch;update;patch
 // +kubebuilder:rbac:groups=jobset.x-k8s.io,resources=jobsets,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch
 
 func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -263,13 +265,19 @@ func shouldFinalize(wl *kueue.Workload) (bool, string) {
 }
 
 func hasSupportedOwner(wl *kueue.Workload) bool {
-	// For now, we only support JobSets.
-	return isJobSetOwner(wl)
+	return isJobSetOwner(wl) || isJobOwner(wl)
 }
 
 func isJobSetOwner(wl *kueue.Workload) bool {
 	if owner := metav1.GetControllerOf(wl); owner != nil {
 		return owner.APIVersion == jobset.SchemeGroupVersion.String() && owner.Kind == "JobSet"
+	}
+	return false
+}
+
+func isJobOwner(wl *kueue.Workload) bool {
+	if owner := metav1.GetControllerOf(wl); owner != nil {
+		return owner.APIVersion == batchv1.SchemeGroupVersion.String() && owner.Kind == "Job"
 	}
 	return false
 }
@@ -373,9 +381,11 @@ func (r *WorkloadReconciler) deleteSlices(ctx context.Context, slices []*v1beta1
 }
 
 func (r *WorkloadReconciler) ownerPodsFinished(ctx context.Context, wl *kueue.Workload) (bool, error) {
-	// For now, we only support JobSets.
 	if isJobSetOwner(wl) {
 		return r.jobSetPodsFinished(ctx, wl)
+	}
+	if isJobOwner(wl) {
+		return r.jobPodsFinished(ctx, wl)
 	}
 	// Finalize Workloads that have no owner or have unsupported owner types.
 	return true, nil
@@ -416,6 +426,45 @@ func (r *WorkloadReconciler) jobSetPodsFinished(ctx context.Context, wl *kueue.W
 	}
 
 	log.V(3).Info("All Pods in the JobSet have finished")
+
+	return true, nil
+}
+
+func (r *WorkloadReconciler) jobPodsFinished(ctx context.Context, wl *kueue.Workload) (bool, error) {
+	owner := metav1.GetControllerOf(wl)
+	log := ctrl.LoggerFrom(ctx).WithValues("job", klog.KRef(wl.Namespace, owner.Name))
+	job := &batchv1.Job{}
+	jobKey := types.NamespacedName{Name: owner.Name, Namespace: wl.Namespace}
+	if err := r.client.Get(ctx, jobKey, job); err != nil {
+		if apierrors.IsNotFound(err) {
+			log.V(3).Info("Job already deleted")
+			// That means the Job has already been deleted, along with all associated Pods
+			// we should delete Slice and cleanup Workload.
+			return true, nil
+		} else {
+			log.Error(err, "Failed to get Job")
+			return false, err
+		}
+	}
+
+	pods := &corev1.PodList{}
+	opts := []client.ListOption{
+		client.InNamespace(wl.Namespace),
+		client.MatchingLabels{"batch.kubernetes.io/job-name": owner.Name},
+	}
+	if err := r.client.List(ctx, pods, opts...); err != nil {
+		log.Error(err, "Failed to get Pods")
+		return false, err
+	}
+
+	for _, pod := range pods.Items {
+		if !utilpod.IsTerminated(&pod) {
+			log.V(3).Info("Pods are still running – skipping finalization for now")
+			return false, nil
+		}
+	}
+
+	log.V(3).Info("All Pods in the Job have finished")
 
 	return true, nil
 }

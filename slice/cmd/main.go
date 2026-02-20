@@ -260,9 +260,13 @@ func setupControllers(mgr ctrl.Manager, certsReady chan struct{}, activationTime
 	// certs are all in place.
 	cert.WaitForCertsReady(setupLog, certsReady)
 
-	// Register the webhook
+	// Register the webhooks
 	if err := webhooks.SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "Unable to create webhook", "webhook", "JobSet")
+		os.Exit(1)
+	}
+	if err := webhooks.SetupJobWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "Unable to create webhook", "webhook", "Job")
 		os.Exit(1)
 	}
 

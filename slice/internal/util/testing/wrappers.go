@@ -40,6 +40,33 @@ type JobTemplateWrapper struct {
 	batchv1.JobTemplateSpec
 }
 
+// JobWrapper wraps a Job.
+type JobWrapper struct {
+	batchv1.Job
+}
+
+// MakeJob creates a wrapper for a Job.
+func MakeJob(name, ns string) *JobWrapper {
+	return &JobWrapper{
+		batchv1.Job{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: ns,
+			},
+		},
+	}
+}
+
+func (w *JobWrapper) Obj() *batchv1.Job {
+	return &w.Job
+}
+
+func (w *JobWrapper) Clone() *JobWrapper {
+	return &JobWrapper{
+		Job: *w.DeepCopy(),
+	}
+}
+
 // MakeJobTemplate creates a wrapper for a JobTemplateSpec.
 func MakeJobTemplate(name, ns string) *JobTemplateWrapper {
 	return &JobTemplateWrapper{

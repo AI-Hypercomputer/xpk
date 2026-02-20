@@ -55,18 +55,18 @@ func BaseSSAReplicatedJob(name string) jobset.ReplicatedJob {
 	}
 }
 
-func AddNodeAffinity(rj *jobset.ReplicatedJob, key string, values []string) {
-	if rj.Template.Spec.Template.Spec.Affinity == nil {
-		rj.Template.Spec.Template.Spec.Affinity = &corev1.Affinity{}
+func AddNodeAffinity(template *corev1.PodTemplateSpec, key string, values []string) {
+	if template.Spec.Affinity == nil {
+		template.Spec.Affinity = &corev1.Affinity{}
 	}
-	if rj.Template.Spec.Template.Spec.Affinity.NodeAffinity == nil {
-		rj.Template.Spec.Template.Spec.Affinity.NodeAffinity = &corev1.NodeAffinity{}
+	if template.Spec.Affinity.NodeAffinity == nil {
+		template.Spec.Affinity.NodeAffinity = &corev1.NodeAffinity{}
 	}
-	if rj.Template.Spec.Template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil {
-		rj.Template.Spec.Template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = &corev1.NodeSelector{}
+	if template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil {
+		template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = &corev1.NodeSelector{}
 	}
 
-	nodeSelector := rj.Template.Spec.Template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution
+	nodeSelector := template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution
 	requirement := corev1.NodeSelectorRequirement{
 		Key:      key,
 		Operator: corev1.NodeSelectorOpIn,

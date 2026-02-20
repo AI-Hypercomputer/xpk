@@ -18,15 +18,11 @@ package webhooks
 
 import (
 	"context"
-	"fmt"
-	"strconv"
 
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/jobset/api/jobset/v1alpha2"
-	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
 	kueueconstants "sigs.k8s.io/kueue/pkg/controller/constants"
 
 	"tpu-slice-controller/internal/core"
@@ -69,86 +65,12 @@ func (r *JobSetWebhook) Default(ctx context.Context, obj runtime.Object) error {
 		if err != nil {
 			return err
 		}
-		annotateReplicatedJobWithSliceHealth(rj, tpuTopology, sliceType)
-		err = r.annotateReplicatedJobWithTopology(rj, tpuTopology, sliceType, dims)
+		annotatePodTemplateSpecWithSliceHealth(&rj.Template.Spec.Template, tpuTopology, sliceType)
+		err = annotatePodTemplateSpecWithTopology(&rj.Template.Spec.Template, rj.Template.Spec.Parallelism, rj.Name, "replicated job", tpuTopology, sliceType, dims)
 		if err != nil {
 			return err
 		}
 	}
 
 	return nil
-}
-
-func (r *JobSetWebhook) annotateReplicatedJobWithTopology(rj *v1alpha2.ReplicatedJob, tpuTopology string, sliceType topology.TopologyType, dims []int64) error {
-	if rj.Template.Spec.Template.Annotations == nil {
-		rj.Template.Spec.Template.Annotations = make(map[string]string)
-	}
-
-	pods := ptr.Deref(rj.Template.Spec.Parallelism, 1)
-
-	if sliceType == topology.TopologyTypeSubslice {
-		rj.Template.Spec.Template.Annotations[kueue.PodSetRequiredTopologyAnnotation] = core.TPUBlockLabel
-		rj.Template.Spec.Template.Annotations[kueue.PodSetSliceRequiredTopologyAnnotation] = core.SubsliceLevelLabel(tpuTopology)
-		rj.Template.Spec.Template.Annotations[kueue.PodSetSliceSizeAnnotation] = strconv.FormatInt(int64(pods), 10)
-		return nil
-	}
-	rj.Template.Spec.Template.Annotations[kueue.PodSetRequiredTopologyAnnotation] = core.TPUBlockLabel
-	rj.Template.Spec.Template.Annotations[kueue.PodSetSliceRequiredTopologyAnnotation] = core.TPUSubBlockLabel
-
-	sliceSize := r.podSetSliceSize(dims, pods)
-	tpusRequestedPerPod := r.getTPUsRequestedPerPod(rj)
-	tpusRequestedPerCube := tpusRequestedPerPod * sliceSize
-	if tpusRequestedPerCube != core.TPUsPerCube {
-		return fmt.Errorf("invalid replicated job %q: configuration results in %d TPUs requested per cube, but must be exactly %d TPUs (full utilization)", rj.Name, tpusRequestedPerCube, core.TPUsPerCube)
-	}
-
-	rj.Template.Spec.Template.Annotations[kueue.PodSetSliceSizeAnnotation] = strconv.FormatInt(sliceSize, 10)
-	return nil
-}
-
-func (r *JobSetWebhook) getTPUsRequestedPerPod(rj *v1alpha2.ReplicatedJob) int64 {
-	var totalTPUs int64
-	for _, container := range rj.Template.Spec.Template.Spec.Containers {
-		if tpuQuantity, ok := container.Resources.Limits[core.TPUResourceName]; ok {
-			totalTPUs += tpuQuantity.Value()
-		}
-	}
-	return totalTPUs
-}
-
-func annotateReplicatedJobWithSliceHealth(rj *v1alpha2.ReplicatedJob, tpuTopology string, sliceType topology.TopologyType) {
-	var healthLabel string
-	if sliceType == topology.TopologyTypeSubslice {
-		healthLabel = core.SubsliceHealthLabel(tpuTopology)
-	} else {
-		healthLabel = core.TPUSliceHealthNodeSelectorKey
-	}
-
-	// 1. If there is NodeSelector with TPUSliceHealthNodeSelectorKey, we do nothing.
-	if _, ok := rj.Template.Spec.Template.Spec.NodeSelector[healthLabel]; ok {
-		return
-	}
-
-	// 2. If there is NodeAffinity with TPUSliceHealthNodeSelectorKey, we do nothing.
-	if rj.Template.Spec.Template.Spec.Affinity != nil &&
-		rj.Template.Spec.Template.Spec.Affinity.NodeAffinity != nil &&
-		rj.Template.Spec.Template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
-		for _, term := range rj.Template.Spec.Template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
-			for _, req := range term.MatchExpressions {
-				if req.Key == healthLabel {
-					return
-				}
-			}
-		}
-	}
-
-	// 3. If neither of these, we add a NodeAffinity.
-	core.AddNodeAffinity(rj, healthLabel, []string{core.TPUSliceHealthNodeSelectorHealthy})
-}
-
-func (r *JobSetWebhook) podSetSliceSize(dims []int64, parallelism int32) int64 {
-	totalChips := dims[0] * dims[1] * dims[2]
-	subBlockCount := totalChips / 64
-
-	return int64(parallelism) / subBlockCount
 }

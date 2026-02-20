@@ -62,8 +62,9 @@ var (
 )
 
 var (
-	jobSetGVK = jobset.SchemeGroupVersion.WithKind("JobSet")
-	jobGVK    = batchv1.SchemeGroupVersion.WithKind("Job")
+	jobSetGVK      = jobset.SchemeGroupVersion.WithKind("JobSet")
+	jobGVK         = batchv1.SchemeGroupVersion.WithKind("Job")
+	unsupportedGVK = batchv1.SchemeGroupVersion.WithKind("CronJob")
 )
 
 func TestWorkloadReconciler(t *testing.T) {
@@ -316,7 +317,7 @@ func TestWorkloadReconciler(t *testing.T) {
 				baseWorkloadWrapper.Clone().
 					PodSets(basePodSets...).
 					ReserveQuota(baseAdmission, now).
-					ControllerReference(jobGVK, baseJobName, baseJobName).
+					ControllerReference(unsupportedGVK, baseJobName, baseJobName).
 					Finalizers(SliceControllerName).
 					Obj(),
 				baseSlice1Wrapper.DeepCopy(),
@@ -326,7 +327,7 @@ func TestWorkloadReconciler(t *testing.T) {
 				*baseWorkloadWrapper.Clone().
 					PodSets(basePodSets...).
 					ReserveQuota(baseAdmission, now).
-					ControllerReference(jobGVK, baseJobName, baseJobName).
+					ControllerReference(unsupportedGVK, baseJobName, baseJobName).
 					Obj(),
 			},
 		},
@@ -2009,6 +2010,55 @@ func TestWorkloadReconciler(t *testing.T) {
 			},
 			wantResult: reconcile.Result{RequeueAfter: initializationRetryAfter},
 		},
+		"should add finalizer for Job owner": {
+			request: baseRequest,
+			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				worker2Node.DeepCopy(),
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobGVK, baseJobName, baseJobName).
+					Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobGVK, baseJobName, baseJobName).
+					Finalizers(SliceControllerName).
+					Obj(),
+			},
+		},
+		"should delete the finalizer because the Job Pod Status Succeeded": {
+			request: baseRequest,
+			objs: []client.Object{
+				utiltesting.MakeJob(baseJobName, corev1.NamespaceDefault).Obj(),
+				utiltestingjobspod.MakePod(basePod1Name, corev1.NamespaceDefault).
+					OwnerReference(baseJobName, jobGVK).
+					Label("batch.kubernetes.io/job-name", baseJobName).
+					StatusPhase(corev1.PodSucceeded).
+					Obj(),
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobGVK, baseJobName, baseJobName).
+					Active(false).
+					Finalizers(SliceControllerName).
+					Obj(),
+				baseSlice1Wrapper.DeepCopy(),
+				baseSlice2Wrapper.DeepCopy(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobGVK, baseJobName, baseJobName).
+					Active(false).
+					Obj(),
+			},
+		},
 	}
 	for name, tc := range testCases {
 		if name != "should create Slices for subslicing (2x2x1)" {
@@ -2017,6 +2067,7 @@ func TestWorkloadReconciler(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			scheme := runtime.NewScheme()
 			utilruntime.Must(corev1.AddToScheme(scheme))
+			utilruntime.Must(batchv1.AddToScheme(scheme))
 			utilruntime.Must(jobset.AddToScheme(scheme))
 			utilruntime.Must(kueue.AddToScheme(scheme))
 			utilruntime.Must(slice.AddToScheme(scheme))

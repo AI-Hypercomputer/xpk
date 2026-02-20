@@ -19,6 +19,7 @@ clientConnection:
   burst: 100
 integrations:
   frameworks:
+  - "batch/job"
   - "jobset.x-k8s.io/jobset"
 featureGates:
   TopologyAwareScheduling: true

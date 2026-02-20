@@ -63,7 +63,6 @@ func ParseAssignment(topologyAssignment *kueue.TopologyAssignment, nodes map[str
 type TopologyType string
 
 const (
-	TopologyTypeInvalid    TopologyType = "Invalid"
 	TopologyTypeSuperslice TopologyType = "Superslice"
 	TopologyTypeSubslice   TopologyType = "Subslice"
 )
@@ -71,7 +70,7 @@ const (
 func ParseTopologyV7(tpuTopology string) ([]int64, TopologyType, error) {
 	dimensions := strings.Split(tpuTopology, "x")
 	if len(dimensions) != 3 {
-		return nil, TopologyTypeInvalid, fmt.Errorf("invalid topology format: %s, expected 3 dimensions", tpuTopology)
+		return nil, "", fmt.Errorf("invalid topology format: %s, expected 3 dimensions", tpuTopology)
 	}
 
 	dims := make([]int64, 3)
@@ -79,7 +78,7 @@ func ParseTopologyV7(tpuTopology string) ([]int64, TopologyType, error) {
 	for i, dim := range dimensions {
 		parsedDim, err := strconv.ParseInt(dim, 10, 32)
 		if err != nil {
-			return nil, TopologyTypeInvalid, err
+			return nil, "", err
 		}
 		dims[i] = parsedDim
 	}
@@ -92,13 +91,13 @@ func ParseTopologyV7(tpuTopology string) ([]int64, TopologyType, error) {
 	}
 
 	if dims[0] == 0 || dims[1] == 0 || dims[2] == 0 {
-		return nil, TopologyTypeInvalid, fmt.Errorf("topology dimensions cannot be zero: %s", tpuTopology)
+		return nil, "", fmt.Errorf("topology dimensions cannot be zero: %s", tpuTopology)
 	}
 	if dims[0]%4 != 0 || dims[1]%4 != 0 || dims[2]%4 != 0 {
-		return nil, TopologyTypeInvalid, fmt.Errorf("topology dimensions must be divisible by 4: %s", tpuTopology)
+		return nil, "", fmt.Errorf("topology dimensions must be divisible by 4: %s", tpuTopology)
 	}
 	if dims[0] > dims[1] || dims[1] > dims[2] {
-		return nil, TopologyTypeInvalid, fmt.Errorf("topology dimensions must be in non-decreasing order: %s", tpuTopology)
+		return nil, "", fmt.Errorf("topology dimensions must be in non-decreasing order: %s", tpuTopology)
 	}
 
 	return dims, TopologyTypeSuperslice, nil

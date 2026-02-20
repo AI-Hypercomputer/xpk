@@ -402,6 +402,7 @@ def run_gke_node_pool_create_command(
       create_commands,
       'Create Nodepools',
       create_task_names,
+      batch=100,
   )
   if maybe_failure is not None:
     display_nodepool_creation_error(maybe_failure)

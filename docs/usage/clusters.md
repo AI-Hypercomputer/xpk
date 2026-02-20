@@ -342,10 +342,10 @@ Currently, the below flags/arguments are supported for A3 Mega, A3 Ultra and A4 
   * `--flex`
 
 ## Provisioning Super-slicing clusters
-To create a cluster with Super-slicing support (e.g. for Trillium), use the `--super-slicing` flag. You also need to specify the number of cubes using `--num-cubes` (alias for `--num-slices`).
+To create a cluster with Super-slicing support, use the `--super-slicing` flag. You also need to specify the number of cubes using `--num-cubes` (alias for `--num-slices`).
 
 **Prerequisites:**
-*   Have valid Cluster Director reservations for the TPU resources.
+*   Have valid Cluster Director reservations for the TPU resources supporting Super-slicing.
 
 **Example Usage:**
 

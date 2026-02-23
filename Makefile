@@ -35,11 +35,11 @@ run-unittests:
 
 .PHONY: goldens
 goldens:
-	XPK_TESTER=false XPK_VERSION_OVERRIDE=v0.0.0 python3 tools/recipes.py update recipes/*.md
+	XPK_TESTER=false XPK_VERSION_OVERRIDE=v0.0.0 TELEMETRY_TRASH_EXECUTION=true python3 tools/recipes.py update recipes/*.md
 
 .PHONY: verify-goldens
 verify-goldens:
-	XPK_TESTER=false XPK_VERSION_OVERRIDE=v0.0.0 UPDATE_GOLDEN_COMMAND="make goldens" python3 tools/recipes.py golden recipes/*.md
+	XPK_TESTER=false XPK_VERSION_OVERRIDE=v0.0.0 TELEMETRY_TRASH_EXECUTION=true UPDATE_GOLDEN_COMMAND="make goldens" python3 tools/recipes.py golden recipes/*.md
 
 .PHONY: mkdir-bin
 mkdir-bin:

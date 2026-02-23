@@ -31,7 +31,7 @@ def _get_version() -> str:
     return xpk_version_override
 
   try:
-    return setuptools_get_version()
+    return setuptools_get_version(relative_to=__file__)
   except LookupError:
     pass
 

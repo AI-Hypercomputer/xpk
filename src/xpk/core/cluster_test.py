@@ -19,7 +19,6 @@ import pytest
 from .testing.commands_tester import CommandsTester
 from .cluster import get_cluster_credentials, update_gke_cluster_with_lustre_driver_enabled, update_cluster_with_lustre_driver_if_necessary, set_jobset_on_cluster
 from pytest_mock import MockerFixture
-from ..utils.feature_flags import FeatureFlags
 
 
 @pytest.fixture(autouse=True)
@@ -238,7 +237,6 @@ def test_set_jobset_on_cluster_not_setting_resources_by_default(
 def test_set_jobset_on_cluster_super_slicing_resources(
     mock_patch_controller_manager_resources: MagicMock, command_args
 ):
-  FeatureFlags.SUPER_SLICING_ENABLED = True
   command_args.super_slicing = True
 
   result = set_jobset_on_cluster(command_args)

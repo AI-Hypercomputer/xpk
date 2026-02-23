@@ -37,6 +37,10 @@ Ensure the following tools are installed and configured before proceeding.
 * **Docker**: [Install from here](https://docs.docker.com/engine/install/).
     * *Linux users:* [Configure sudoless docker](https://docs.docker.com/engine/install/linux-postinstall/).
     * Run `gcloud auth configure-docker` to enable image uploads to the registry.
+* **Crane** (optional, experimental): [Install from here](https://github.com/google/go-containerregistry/tree/main/cmd/crane#installation).
+    * *Check:* `crane --help`
+    * This is an experimental replacement for Docker, to use run `CRANE_WORKLOADS_ENABLED=True xpk workload create <arguments>`
+
 
 ### Method-Specific Requirements
 Depending on your chosen installation method, you may need these additional tools:

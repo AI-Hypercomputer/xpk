@@ -99,6 +99,7 @@ from ..core.workload_decorators import (
 from ..utils.console import ask_for_user_consent, xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
 from ..utils.execution_context import is_dry_run
+from ..utils.feature_flags import FeatureFlags
 from ..utils.validation import validate_dependencies_list, SystemDependency, should_validate_dependencies
 from . import cluster_gcluster
 from .common import is_GPU_TAS_possible
@@ -327,7 +328,9 @@ def workload_create(args) -> None:
     validate_dependencies_list([
         SystemDependency.KUBECTL,
         SystemDependency.GCLOUD,
-        SystemDependency.DOCKER,
+        SystemDependency.DOCKER
+        if not FeatureFlags.CRANE_WORKLOADS_ENABLED
+        else SystemDependency.CRANE,
     ])
   k8s_api_client = None
   if not is_dry_run():

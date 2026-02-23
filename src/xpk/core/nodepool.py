@@ -17,7 +17,6 @@ limitations under the License.
 from typing import Iterator, List
 from itertools import cycle
 
-from ..utils.feature_flags import FeatureFlags
 from ..utils.console import ask_for_user_consent, xpk_print
 from .scheduling import get_placement_policy_name, is_placement_policy_supported
 from .capacity import (
@@ -26,6 +25,8 @@ from .capacity import (
     CapacityType,
     get_capacity_arguments_from_capacity_type,
     get_capacity_type,
+)
+from .reservation import (
     get_reservations_list,
     print_reservations,
     to_reservation_path,
@@ -256,7 +257,7 @@ def run_gke_node_pool_create_command(
 
   placement_args = ''
   if is_placement_policy_supported(system):
-    super_slicing = FeatureFlags.SUPER_SLICING_ENABLED and args.super_slicing
+    super_slicing = args.super_slicing
     placement_policy = get_placement_policy_name(
         system,
         super_slicing,
@@ -401,6 +402,7 @@ def run_gke_node_pool_create_command(
       create_commands,
       'Create Nodepools',
       create_task_names,
+      batch=100,
   )
   if maybe_failure is not None:
     display_nodepool_creation_error(maybe_failure)

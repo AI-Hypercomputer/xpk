@@ -114,7 +114,7 @@ def add_shared_arguments(
       default=False,
       help=(
           'If given `--dry-run`, xpk will print the commands it wants to run'
-          ' but not run them. This is imperfect in cases where xpk might'
+          ' but not run them. This is perfect in cases where xpk might'
           ' branch based on the output of commands'
       ),
       required=required,
@@ -136,6 +136,13 @@ def add_shared_arguments(
       action=argparse.BooleanOptionalAction,
       default=False,
       help='Disables prompting before unintended destructive actions.',
+      required=required,
+  )
+  custom_parser_or_group.add_argument(
+      '--sandbox-kubeconfig',
+      action=argparse.BooleanOptionalAction,
+      default=False,
+      help='Whether to sandbox k8s config. (Experimental)',
       required=required,
   )
 

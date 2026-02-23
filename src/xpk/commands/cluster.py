@@ -42,6 +42,8 @@ from ..core.telemetry import MetricsCollector, MetricsEventMetadataKey
 from ..core.capacity import (
     H100_DEVICE_TYPE,
     get_capacity_type,
+)
+from ..core.reservation import (
     get_reservations_list,
     get_reservation_deployment_type,
 )
@@ -212,11 +214,10 @@ def _validate_cluster_create_args(args, system: SystemCharacteristics):
   if FeatureFlags.SUB_SLICING_ENABLED and args.sub_slicing:
     validate_sub_slicing_system(system)
     _validate_sub_slicing_reservation(args)
-  if FeatureFlags.SUPER_SLICING_ENABLED:
-    _validate_num_slices_and_set_default(args)
-    if args.super_slicing:
-      validate_super_slicing_system(system)
-      _validate_super_slicing_reservation(args)
+  _validate_num_slices_and_set_default(args)
+  if args.super_slicing:
+    validate_super_slicing_system(system)
+    _validate_super_slicing_reservation(args)
   if args.enable_pathways:
     _validate_pathways_machine(args)
 
@@ -255,7 +256,7 @@ def _validate_gsc_reservation(args, creation_description: str):
     xpk_exit(1)
 
   for reservation in get_reservations_list(args):
-    deployment_type = get_reservation_deployment_type(reservation=reservation)
+    deployment_type = get_reservation_deployment_type(reservation)
     if deployment_type != 'DENSE':
       xpk_print(
           'Error: Validation failed: The specified reservation'
@@ -1284,7 +1285,7 @@ def run_gke_cluster_create_command(
     addons_str = ','.join(addons)
     command += f' --addons={addons_str}'
 
-  if FeatureFlags.SUPER_SLICING_ENABLED and args.super_slicing:
+  if args.super_slicing:
     command += ' --enable-slice-controller'
 
   if args.custom_cluster_arguments:
@@ -1362,9 +1363,7 @@ def _install_kueue(
           configure_sub_slicing=(
               FeatureFlags.SUB_SLICING_ENABLED and args.sub_slicing
           ),
-          configure_super_slicing=(
-              FeatureFlags.SUPER_SLICING_ENABLED and args.super_slicing
-          ),
+          configure_super_slicing=args.super_slicing,
       )
   )
 

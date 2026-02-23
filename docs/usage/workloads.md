@@ -111,6 +111,24 @@ xpk workload create \
 
 In order to run NCCL test on A3 machines check out [this guide](../../examples/nccl/nccl.md).
 
+### Workloads for Super-slicing Clusters
+
+To schedule a workload on a Super-slicing cluster, specify the TPU type with the desired slice configuration (e.g., `tpu7x-4x4x12`).
+
+**Example Usage:**
+
+```shell
+WORKLOAD_SLICE=4x4x12
+
+xpk workload create \
+  --workload=$WORKLOAD_NAME \
+  --cluster=$CLUSTER_NAME \
+  --project="$PROJECT_ID" \
+  --zone="$ZONE" \
+  --tpu-type="tpu7x-${WORKLOAD_SLICE}" \
+  --command="python3 fake_training.py"
+```
+
 ### Workload Priority and Preemption
 * Set the priority level of your workload with `--priority=LEVEL`
 

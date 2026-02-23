@@ -1,5 +1,6 @@
 # editor and IDE paraphernalia
 .idea/
+.vscode
 
 *__pycache__*
 tmp/
@@ -139,4 +140,13 @@ dmypy.json
 **/.DS_Store
 
 # XPK/Cluster Toolkit working directory
-xpkclusters/*
+xpkclusters
+
+# XPK documentation
+docs
+examples
+recipes
+
+# git
+.git
+.github

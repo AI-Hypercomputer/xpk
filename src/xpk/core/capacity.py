@@ -265,23 +265,15 @@ def _assess_available_slices_for_reservation(
   Returns:
     List of available reservations (targeting sub-blocks if applicable).
   """
-  if isinstance(reservation, SubBlockReservationLink):
-    available_slices, return_code = _get_available_slices_in_sub_block(
+  if (
+      isinstance(reservation, SubBlockReservationLink)
+      or force_sub_block_targeting
+      and isinstance(reservation, BlockReservationLink)
+  ):
+    return _assess_healthy_and_fitting_sub_blocks_in_block(
         reservation, vms_per_slice
     )
-    if return_code != 0:
-      return [], 1
-    if available_slices > 0:
-      return [ReservationCapacity(reservation, available_slices)], 0
-    else:
-      return [], 0
-
-  if force_sub_block_targeting:
-    if isinstance(reservation, BlockReservationLink):
-      return _get_healthy_and_fitting_sub_blocks_in_block(
-          reservation, vms_per_slice
-      )
-
+  elif force_sub_block_targeting:
     # reservation instanceof ReservationLink (not Block/SubBlock):
     blocks, return_code = get_blocks_in_reservation(reservation)
     if return_code != 0:
@@ -309,29 +301,11 @@ def _assess_available_slices_for_reservation(
   ), 0
 
 
-def _get_available_slices_in_sub_block(
-    reservation: SubBlockReservationLink,
-    required_hosts: int,
-) -> tuple[int, int]:
-  """Check if a sub-block is healthy and return available slices."""
-  sub_blocks, return_code = list_healthy_sub_blocks(reservation)
-
-  if return_code != 0 or not sub_blocks:
-    return 0, return_code
-
-  assert len(sub_blocks) == 1
-  sub_block = sub_blocks[0]
-  available_slices = (
-      sub_block.count - sub_block.in_use_count
-  ) // required_hosts
-  return available_slices, 0
-
-
-def _get_healthy_and_fitting_sub_blocks_in_block(
-    reservation: BlockReservationLink,
+def _assess_healthy_and_fitting_sub_blocks_in_block(
+    reservation: BlockReservationLink | SubBlockReservationLink,
     required_hosts: int,
 ) -> tuple[list[ReservationCapacity], int]:
-  """Get healthy and fitting sub-block capacities in a block."""
+  """Get healthy and fitting sub-block capacities in a block. Also works for sub-block links."""
   sub_blocks, return_code = list_healthy_sub_blocks(reservation)
 
   if return_code != 0:
@@ -340,8 +314,9 @@ def _get_healthy_and_fitting_sub_blocks_in_block(
   available_capacities: list[ReservationCapacity] = [
       ReservationCapacity(
           sub_block.link,
-          available_slices=(sub_block.count - sub_block.in_use_count)
-          // required_hosts,
+          available_slices=(
+              (sub_block.count - sub_block.in_use_count) // required_hosts
+          ),
       )
       for sub_block in sub_blocks
   ]

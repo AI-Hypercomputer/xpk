@@ -36,7 +36,7 @@ var SliceStates = []SliceState{
 	SliceStateFailed, SliceStateDeleted, SliceStateStale,
 }
 
-func IsRelevantTPUTopology(tpuTopology string) bool {
+func IsValidTPUTopology(tpuTopology string) bool {
 	validTopology, _ := regexp.MatchString("[0-9]+x[0-9]+x[0-9]+", tpuTopology)
 	return validTopology
 }
@@ -46,7 +46,7 @@ func IsValidTPUAccelerator(tpuAccelerator string) bool {
 }
 
 func IsRelevantPodTemplateSpec(spec corev1.PodTemplateSpec) bool {
-	return IsRelevantTPUTopology(GetTPUTopology(spec)) &&
+	return IsValidTPUTopology(GetTPUTopology(spec)) &&
 		IsValidTPUAccelerator(GetTPUAccelerator(spec))
 }
 

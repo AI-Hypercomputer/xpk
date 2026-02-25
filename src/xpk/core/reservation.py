@@ -15,11 +15,13 @@ limitations under the License.
 """
 
 import json
+import os
 from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import Any
 
 from .commands import run_command_with_updates, run_command_for_value
+from .system_characteristics import AcceleratorType, SystemCharacteristics
 from ..utils.console import xpk_print, xpk_exit
 
 RESERVATION_CONFIG_KEY = 'reservation_id'
@@ -43,36 +45,43 @@ class SubBlockReservationLink(BlockReservationLink):
 
 
 @dataclass(frozen=True)
-class _AcceleratorResource:
+class AcceleratorResource:
   accelerator_count: int
   accelerator_type: str
 
 
 @dataclass(frozen=True)
-class _SpecificReservation:
+class SpecificReservation:
   count: int
   in_use_count: int
   machine_type: str
-  guest_accelerators: list[_AcceleratorResource] = field(default_factory=list)
+  guest_accelerators: list[AcceleratorResource] = field(default_factory=list)
   maintenance_interval: str = ''
 
 
 @dataclass(frozen=True)
-class _AggregateReservation:
-  reserved_resources: list[_AcceleratorResource]
-  in_use_resources: list[_AcceleratorResource]
+class AggregateReservation:
+  reserved_resources: list[AcceleratorResource]
+  in_use_resources: list[AcceleratorResource]
 
 
 @dataclass(frozen=True)
-class _Reservation:
-  name: str
-  specific_reservation: _SpecificReservation | None
-  aggregate_reservation: _AggregateReservation | None
+class Reservation:
+  link: ReservationLink
+  specific_reservation: SpecificReservation | None
+  aggregate_reservation: AggregateReservation | None
   deployment_type: str = ''
   resource_policy: str = ''
 
 
-def _parse_specific_reservation(data: dict[str, Any]) -> _SpecificReservation:
+@dataclass(frozen=True)
+class ReservationSubBlock:
+  link: SubBlockReservationLink
+  count: int
+  in_use_count: int
+
+
+def _parse_specific_reservation(data: dict[str, Any]) -> SpecificReservation:
   instance_properties = data.get('instanceProperties', {})
   machine_type = instance_properties.get('machineType', '')
   guest_accelerators_data = instance_properties.get('guestAccelerators', [])
@@ -81,7 +90,7 @@ def _parse_specific_reservation(data: dict[str, Any]) -> _SpecificReservation:
   ]
   maintenance_interval = instance_properties.get('maintenanceInterval', '')
 
-  return _SpecificReservation(
+  return SpecificReservation(
       count=int(data.get('count', 0)),
       in_use_count=int(data.get('inUseCount', 0)),
       machine_type=machine_type,
@@ -90,14 +99,14 @@ def _parse_specific_reservation(data: dict[str, Any]) -> _SpecificReservation:
   )
 
 
-def _parse_accelerator_resource(data: dict[str, Any]) -> _AcceleratorResource:
-  return _AcceleratorResource(
+def _parse_accelerator_resource(data: dict[str, Any]) -> AcceleratorResource:
+  return AcceleratorResource(
       accelerator_count=int(data.get('acceleratorCount', 0)),
       accelerator_type=str(data.get('acceleratorType', '')),
   )
 
 
-def _parse_aggregate_reservation(data: dict[str, Any]) -> _AggregateReservation:
+def _parse_aggregate_reservation(data: dict[str, Any]) -> AggregateReservation:
   reserved_resources = [
       _parse_accelerator_resource(r['accelerator'])
       for r in data.get('reservedResources', [])
@@ -108,12 +117,14 @@ def _parse_aggregate_reservation(data: dict[str, Any]) -> _AggregateReservation:
       for r in data.get('inUseResources', [])
       if 'accelerator' in r
   ]
-  return _AggregateReservation(
+  return AggregateReservation(
       reserved_resources=reserved_resources, in_use_resources=in_use_resources
   )
 
 
-def _parse_reservation(name: str, data: dict[str, Any]) -> _Reservation:
+def _parse_reservation(
+    link: ReservationLink, data: dict[str, Any]
+) -> Reservation:
   specific_reservation = None
   if 'specificReservation' in data:
     specific_reservation = _parse_specific_reservation(
@@ -129,8 +140,8 @@ def _parse_reservation(name: str, data: dict[str, Any]) -> _Reservation:
   deployment_type = data.get('deploymentType', '')
   resource_policy = data.get('resourcePolicies', {}).get('policy', '')
 
-  return _Reservation(
-      name=name,
+  return Reservation(
+      link=link,
       specific_reservation=specific_reservation,
       aggregate_reservation=aggregate_reservation,
       deployment_type=deployment_type,
@@ -138,17 +149,33 @@ def _parse_reservation(name: str, data: dict[str, Any]) -> _Reservation:
   )
 
 
+def _parse_reservation_sub_block(
+    data: dict[str, Any], parent_link: BlockReservationLink
+) -> ReservationSubBlock:
+  return ReservationSubBlock(
+      link=SubBlockReservationLink(
+          project=parent_link.project,
+          name=parent_link.name,
+          zone=parent_link.zone,
+          block_name=parent_link.block_name,
+          sub_block_name=str(data.get('name', '')),
+      ),
+      count=int(data.get('count', 0)),
+      in_use_count=int(data.get('inUseCount', '0')),
+  )
+
+
 @lru_cache()
 def _get_reservation_cached(
     reservation: ReservationLink,
-) -> _Reservation | None:
-  """Fetches reservation details using gcloud and returns _Reservation object.
+) -> Reservation | None:
+  """Fetches reservation details using gcloud and returns Reservation object.
 
   Args:
     reservation: ReservationLink object.
 
   Returns:
-    _Reservation object or None on failure.
+    Reservation object or None on failure.
   """
   command = (
       f'gcloud beta compute reservations describe {reservation.name} '
@@ -178,10 +205,33 @@ def _get_reservation_cached(
     data = json.loads(output)
     if not data or data.get('status') != 'READY':
       return None
-    return _parse_reservation(reservation.name, data)
+    return _parse_reservation(reservation, data)
   except (ValueError, IndexError, AttributeError, json.JSONDecodeError) as e:
     xpk_print(f'Error processing reservation data: {e}. Output: "{output}".')
     return None
+
+
+def get_reservation(
+    reservation: ReservationLink,
+) -> Reservation | None:
+  """Fetches reservation details using gcloud and returns Reservation object.
+
+  Args:
+    reservation: ReservationLink object.
+
+  Returns:
+    Reservation object or None on failure.
+  """
+  # Create a base ReservationLink to use as the cache key.
+  # This ensures that different blocks/sub-blocks of the same reservation
+  # map to the same cache entry.
+  base_link = ReservationLink(
+      project=reservation.project,
+      name=reservation.name,
+      zone=reservation.zone,
+  )
+
+  return _get_reservation_cached(base_link)
 
 
 def print_reservations(args) -> int:
@@ -214,7 +264,7 @@ def get_reservation_maintenance_interval(
   Returns:
     Maintenance interval as a string.
   """
-  reservation = _get_reservation_cached(reservation_link)
+  reservation = get_reservation(reservation_link)
   if not reservation or not reservation.specific_reservation:
     xpk_print(
         'Get reservation maintenance interval failed for'
@@ -234,7 +284,7 @@ def get_reservation_placement_policy(reservation_link: ReservationLink) -> str:
   Returns:
     Placement policy as a string.
   """
-  reservation = _get_reservation_cached(reservation_link)
+  reservation = get_reservation(reservation_link)
   if not reservation:
     xpk_print(
         f'Get reservation placement policy failed for {reservation_link.name}'
@@ -253,7 +303,7 @@ def get_reservation_deployment_type(reservation_link: ReservationLink) -> str:
   Returns:
     Deployment type as a string.
   """
-  reservation = _get_reservation_cached(reservation_link)
+  reservation = get_reservation(reservation_link)
   if not reservation:
     xpk_print(
         f'Get reservation deployment type failed for {reservation_link.name}'
@@ -290,7 +340,7 @@ def verify_reservations_exist(args) -> int:
     0 if successful and 1 otherwise.
   """
   for reservation_link in get_reservations_list(args):
-    reservation = _get_reservation_cached(reservation_link)
+    reservation = get_reservation(reservation_link)
     if not reservation:
       xpk_print(f'Describe reservation {reservation_link.name} failed')
       xpk_print(
@@ -370,3 +420,109 @@ def to_reservation_path(
     if isinstance(reservation, SubBlockReservationLink):
       path += f'/reservationSubBlocks/{reservation.sub_block_name}'
   return path
+
+
+def get_reservation_accelerator_type(
+    system: SystemCharacteristics,
+) -> str | None:
+  """Get the accelerator type for a given system used in aggregate reservation.
+
+  Args:
+    system: The system characteristics.
+
+  Returns:
+    The reservation accelerator type as a string, or None if not applicable.
+  """
+  if system.accelerator_type == AcceleratorType.TPU:
+    return system.gce_machine_type.split('-')[0]
+  elif system.accelerator_type == AcceleratorType.GPU:
+    return system.gke_accelerator
+  return None
+
+
+def _get_dry_run_sub_blocks() -> str:
+  """Get dry run sub-blocks based on environment variable."""
+  default_json = '[{"name": "sub0", "count": 16, "inUseCount": 0}]'
+  return os.getenv('DRY_RUN_RESERVATION_SUB_BLOCKS', default_json)
+
+
+def list_healthy_sub_blocks(
+    reservation: BlockReservationLink | SubBlockReservationLink,
+) -> tuple[list[ReservationSubBlock], int]:
+  """List healthy sub-blocks for a reservation block or sub-block.
+
+  Args:
+    reservation: The reservation link (must be Block or SubBlock).
+
+  Returns:
+    A tuple containing a list of healthy sub-blocks and the return code.
+  """
+  if isinstance(reservation, SubBlockReservationLink):
+    filter_arg = (
+        f'name={reservation.sub_block_name} AND healthInfo.healthStatus=HEALTHY'
+    )
+    task_name = f'Check sub-block {reservation.sub_block_name} health'
+  else:
+    filter_arg = 'healthInfo.healthStatus=HEALTHY'
+    task_name = f'Count healthy fitting sub-blocks in {reservation.block_name}'
+
+  command = (
+      f'gcloud beta compute reservations sub-blocks list {reservation.name} '
+      f'--block-name={reservation.block_name} '
+      f'--project={reservation.project} '
+      f'--zone={reservation.zone} '
+      f'--filter="{filter_arg}" '
+      '--format="json(name,count,inUseCount)"'
+  )
+
+  return_code, output = run_command_for_value(
+      command,
+      task_name,
+      dry_run_return_val=_get_dry_run_sub_blocks(),
+  )
+
+  if return_code != 0 or not output.strip():
+    return [], return_code
+
+  try:
+    data = json.loads(output)
+    if not data:
+      return [], 0
+    return [_parse_reservation_sub_block(row, reservation) for row in data], 0
+  except (ValueError, IndexError, AttributeError, json.JSONDecodeError) as e:
+    xpk_print(f'Error processing sub-block data: {e}. Output: "{output}".')
+    return [], 1
+
+
+def get_blocks_in_reservation(
+    reservation: ReservationLink,
+) -> tuple[list[BlockReservationLink], int]:
+  """Get blocks in a reservation."""
+  command = (
+      f'gcloud beta compute reservations blocks list {reservation.name} '
+      f'--project={reservation.project} '
+      f'--zone={reservation.zone} '
+      '--format="value(name)"'
+  )
+  return_code, output = run_command_for_value(
+      command,
+      f'Get blocks in reservation {reservation.name}',
+      dry_run_return_val='block0',
+  )
+  if return_code != 0:
+    xpk_print(
+        f'Get blocks in reservation {reservation.name} failed with'
+        f' {return_code}'
+    )
+    return [], return_code
+
+  return [
+      BlockReservationLink(
+          project=reservation.project,
+          name=reservation.name,
+          zone=reservation.zone,
+          block_name=name,
+      )
+      for name in output.strip().splitlines()
+      if name
+  ], 0

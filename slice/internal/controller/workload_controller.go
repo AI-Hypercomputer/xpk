@@ -711,7 +711,6 @@ func (r *WorkloadReconciler) validatePartitionCount(
 				"actualPartitions", len(slice.Spec.PartitionIds),
 			)
 		}
-
 	}
 	if len(incorrectSlices) > 0 {
 		return fmt.Errorf("incorrect number of partitions for slices: %v", incorrectSlices)

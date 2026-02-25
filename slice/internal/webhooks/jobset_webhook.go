@@ -71,7 +71,6 @@ func (r *JobSetWebhook) Default(ctx context.Context, obj runtime.Object) error {
 		if err != nil {
 			return fmt.Errorf("invalid jobset %q: %w", jobSet.Name, err)
 		}
-
 	}
 
 	return nil

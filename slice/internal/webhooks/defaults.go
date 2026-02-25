@@ -58,7 +58,7 @@ func annotatePodTemplateSpecWithSliceHealth(template *corev1.PodTemplateSpec) {
 	}
 
 	// 3. If neither of these, we add a NodeAffinity.
-	core.AddNodeAffinity(template, core.TPUSliceHealthNodeSelectorKey, []string{core.TPUSliceHealthNodeSelectorHealthy})
+	core.AddNodeAffinity(template, core.TPUSliceHealthNodeSelectorKey, corev1.NodeSelectorOpIn, []string{core.TPUSliceHealthNodeSelectorHealthy})
 }
 
 func annotatePodTemplateSpecWithTopology(template *corev1.PodTemplateSpec, parallelism *int32, resourceName string, resourceKind string) error {
@@ -86,4 +86,20 @@ func annotatePodTemplateSpecWithTopology(template *corev1.PodTemplateSpec, paral
 
 	template.Annotations[kueue.PodSetSliceSizeAnnotation] = strconv.FormatInt(sliceSize, 10)
 	return nil
+}
+
+func addNodeInSliceAntiAffinity(template *corev1.PodTemplateSpec) {
+	if template.Spec.Affinity != nil &&
+		template.Spec.Affinity.NodeAffinity != nil &&
+		template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
+		for _, term := range template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
+			for _, req := range term.MatchExpressions {
+				if req.Key == "cloud.google.com/gke-tpu-slice" && req.Operator == corev1.NodeSelectorOpDoesNotExist {
+					return
+				}
+			}
+		}
+	}
+
+	core.AddNodeAffinity(template, "cloud.google.com/gke-tpu-slice", corev1.NodeSelectorOpDoesNotExist, nil)
 }

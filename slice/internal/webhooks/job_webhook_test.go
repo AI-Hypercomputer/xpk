@@ -104,7 +104,7 @@ func (j *JobWrapper) Request(r corev1.ResourceName, v string) *JobWrapper {
 }
 
 func (j *JobWrapper) NodeAffinity(key string, values []string) *JobWrapper {
-	core.AddNodeAffinity(&j.Spec.Template, key, values)
+	core.AddNodeAffinity(&j.Spec.Template, key, corev1.NodeSelectorOpIn, values)
 	return j
 }
 

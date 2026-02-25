@@ -28,12 +28,16 @@ import (
 	"tpu-slice-controller/internal/core"
 )
 
-type JobWebhook struct{}
+type JobWebhook struct {
+	DefaultSliceHealthValues []string
+}
 
-func SetupJobWebhookWithManager(mgr ctrl.Manager) error {
+func SetupJobWebhookWithManager(mgr ctrl.Manager, defaultSliceHealthValues []string) error {
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(&batchv1.Job{}).
-		WithDefaulter(&JobWebhook{}).
+		WithDefaulter(&JobWebhook{
+			DefaultSliceHealthValues: defaultSliceHealthValues,
+		}).
 		Complete()
 }
 
@@ -56,7 +60,7 @@ func (r *JobWebhook) Default(ctx context.Context, obj runtime.Object) error {
 		return nil
 	}
 	log.V(5).Info("Annotating Job")
-	annotatePodTemplateSpecWithSliceHealth(&job.Spec.Template)
+	annotatePodTemplateSpecWithSliceHealth(&job.Spec.Template, r.DefaultSliceHealthValues)
 	err := annotatePodTemplateSpecWithTopology(&job.Spec.Template, job.Spec.Parallelism, job.Name, "job")
 	if err != nil {
 		return err

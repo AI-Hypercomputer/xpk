@@ -29,12 +29,16 @@ import (
 )
 
 // JobSetWebhook is the schema for your resource (ensure this matches your resource definition).
-type JobSetWebhook struct{}
+type JobSetWebhook struct {
+	DefaultSliceHealthValues []string
+}
 
-func SetupWebhookWithManager(mgr ctrl.Manager) error {
+func SetupWebhookWithManager(mgr ctrl.Manager, defaultSliceHealthValues []string) error {
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(&v1alpha2.JobSet{}).
-		WithDefaulter(&JobSetWebhook{}).
+		WithDefaulter(&JobSetWebhook{
+			DefaultSliceHealthValues: defaultSliceHealthValues,
+		}).
 		Complete()
 }
 
@@ -59,7 +63,7 @@ func (r *JobSetWebhook) Default(ctx context.Context, obj runtime.Object) error {
 			continue
 		}
 		log.V(5).Info("Annotating ReplicatedJob")
-		annotatePodTemplateSpecWithSliceHealth(&rj.Template.Spec.Template)
+		annotatePodTemplateSpecWithSliceHealth(&rj.Template.Spec.Template, r.DefaultSliceHealthValues)
 		err := annotatePodTemplateSpecWithTopology(&rj.Template.Spec.Template, rj.Template.Spec.Parallelism, rj.Name, "replicated job")
 		if err != nil {
 			return err

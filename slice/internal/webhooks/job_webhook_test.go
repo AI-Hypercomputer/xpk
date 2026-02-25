@@ -232,7 +232,9 @@ func TestJobDefault(t *testing.T) {
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			ctx := t.Context()
-			webhook := &JobWebhook{}
+			webhook := &JobWebhook{
+				DefaultSliceHealthValues: []string{core.TPUSliceHealthNodeSelectorHealthy},
+			}
 
 			gotErr := webhook.Default(ctx, tc.job)
 			if diff := cmp.Diff(tc.wantErr, gotErr, utiltesting.EquateErrors); diff != "" {

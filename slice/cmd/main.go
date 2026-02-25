@@ -98,7 +98,7 @@ func main() {
 	flag.BoolVar(&enableHTTP2, "enable-http2", false,
 		"If set, HTTP/2 will be enabled for the metrics and webhook servers")
 	flag.StringVar(&sliceHealthNodeAffinityMode, "default-slice-health-node-affinity", "HEALTHY",
-		"Default slice health node affinity. Possible values are HEALTHY or HEALTHY_OR_DEGRADED.")
+		"Default slice health node affinity. Possible values are HEALTHY or HEALTHY_AND_DEGRADED.")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -109,7 +109,7 @@ func main() {
 	switch sliceHealthNodeAffinityMode {
 	case "HEALTHY":
 		sliceHealthValues = []string{core.TPUSliceHealthNodeSelectorHealthy}
-	case "HEALTHY_OR_DEGRADED":
+	case "HEALTHY_AND_DEGRADED":
 		sliceHealthValues = []string{core.TPUSliceHealthNodeSelectorHealthy, core.TPUSliceHealthNodeSelectorDegraded}
 	default:
 		setupLog.Error(errors.New("invalid flag value"), "Invalid value for default-slice-health-node-affinity", "value", sliceHealthNodeAffinityMode)

@@ -17,10 +17,14 @@ limitations under the License.
 package subslicee2e
 
 import (
+	"fmt"
+
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta2"
 	jobsetcontroller "sigs.k8s.io/kueue/pkg/controller/jobs/jobset"
 	"sigs.k8s.io/kueue/pkg/workload"
@@ -118,6 +122,41 @@ var _ = ginkgo.Describe("Subslicing", func() {
 
 		ginkgo.By("Creating a JobSet", func() {
 			utils.MustCreate(ctx, k8sClient, jobSet)
+		})
+
+		createdJobSet := &jobset.JobSet{}
+
+		ginkgo.By("Checking that the JobSet is created with annotations/selectors", func() {
+			gomega.Eventually(func(g gomega.Gomega) {
+				g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(jobSet), createdJobSet)).To(gomega.Succeed())
+				for _, replicatedJob := range createdJobSet.Spec.ReplicatedJobs {
+					// annotations for 2-level TAS.
+					annotations := replicatedJob.Template.Spec.Template.Annotations
+					g.Expect(annotations["kueue.x-k8s.io/podset-required-topology"]).
+						Should(gomega.Equal("cloud.google.com/gce-topology-block"))
+					g.Expect(annotations["kueue.x-k8s.io/podset-slice-required-topology"]).
+						Should(gomega.Equal(core.SubsliceLevelLabel(tc.topology)))
+					g.Expect(annotations["kueue.x-k8s.io/podset-slice-size"]).
+						Should(gomega.Equal(fmt.Sprint(tc.parallelism)))
+
+					// node health
+					affinity := replicatedJob.Template.Spec.Template.Spec.Affinity
+					g.Expect(affinity).ShouldNot(gomega.BeNil())
+					g.Expect(affinity.NodeAffinity).ShouldNot(gomega.BeNil())
+					g.Expect(affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution).ShouldNot(gomega.BeNil())
+					found := false
+					for _, term := range affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
+						for _, matchExpression := range term.MatchExpressions {
+							if matchExpression.Key == core.SubsliceHealthLabel(tc.topology) {
+								found = true
+								g.Expect(matchExpression.Operator).Should(gomega.Equal(corev1.NodeSelectorOpIn))
+								g.Expect(matchExpression.Values).Should(gomega.ConsistOf(core.TPUSliceHealthNodeSelectorHealthy))
+							}
+						}
+					}
+					g.Expect(found).Should(gomega.BeTrue())
+				}
+			}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 		})
 
 		createdWorkload := &kueue.Workload{}

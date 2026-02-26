@@ -117,3 +117,25 @@ def test_get_workload_list_super_slicing(commands_tester: CommandsTester):
   assert parsed_table[2]['TPU VMs Running/Ran'] == '<none>'
   assert parsed_table[2]['TPU VMs Done'] == '0'
   assert parsed_table[2]['Status'] == 'Admitted'
+
+
+def test_get_workload_list_filter_by_job(commands_tester: CommandsTester):
+  mock_output = (
+      'job-test-1~2024-01-01T00:00:00Z~high~32~32~0~Running~All'
+      ' good~2024-01-01T00:01:00Z\njob-test-2~2024-01-02T00:00:00Z~low~4~4~0~Running~All'
+      ' good~2024-01-02T00:01:00Z\nother-job~2024-01-03T00:00:00Z~high~16~~0~Admitted~Waiting~2024-01-03T00:01:00Z'
+  )
+  commands_tester.set_result_for_command(
+      (0, mock_output), 'kubectl', 'get', 'workloads'
+  )
+  args = MagicMock()
+  args.filter_by_status = 'EVERYTHING'
+  args.filter_by_job = 'job-test'
+
+  return_code, return_value = get_workload_list(args)
+
+  assert return_code == 0
+  parsed_table = _parse_workload_table(return_value)
+  assert len(parsed_table) == 2
+  assert parsed_table[0]['Jobset Name'] == 'job-test-1'
+  assert parsed_table[1]['Jobset Name'] == 'job-test-2'

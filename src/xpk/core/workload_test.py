@@ -38,16 +38,23 @@ def test_get_jobsets_list_gcp_link():
 
 
 def test_get_workload_list(commands_tester: CommandsTester):
+  mock_output = (
+      'job-test~2024-01-01T00:00:00Z~high~32~32~0~Running~All'
+      ' good~2024-01-01T00:01:00Z'
+  )
   commands_tester.set_result_for_command(
-      (0, 'Jobset Name...'), 'kubectl', 'get', 'workloads'
+      (0, mock_output), 'kubectl', 'get', 'workloads'
   )
   args = MagicMock()
   args.filter_by_status = 'EVERYTHING'
   args.filter_by_job = None
 
-  get_workload_list(args)
+  return_code, return_value = get_workload_list(args)
 
-  commands_tester.assert_command_run('jsonpath=', '{.spec.podSets[*].count}')
+  assert return_code == 0
+  assert 'job-test' in return_value
+  assert 'Running' in return_value
+  assert '32' in return_value
 
 
 def test_get_workload_list_super_slicing(commands_tester: CommandsTester):

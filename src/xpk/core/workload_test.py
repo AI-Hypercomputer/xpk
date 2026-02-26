@@ -54,10 +54,12 @@ def test_get_jobsets_list_gcp_link():
 
 
 def test_get_workload_list(commands_tester: CommandsTester):
-  mock_output = (
-      'job-test~2024-01-01T00:00:00Z~high~32~32~0~Running~All'
-      ' good~2024-01-01T00:01:00Z'
-  )
+  mock_output = '\n'.join([
+      (
+          'job-test~2024-01-01T00:00:00Z~high~32~32~0~Running~All'
+          ' good~2024-01-01T00:01:00Z'
+      ),
+  ])
   commands_tester.set_result_for_command(
       (0, mock_output), 'kubectl', 'get', 'workloads'
   )
@@ -82,11 +84,17 @@ def test_get_workload_list(commands_tester: CommandsTester):
 
 
 def test_get_workload_list_super_slicing(commands_tester: CommandsTester):
-  mock_output = (
-      'job-super~2024-01-01T00:00:00Z~high~32 32~32 32~0 0~Running~All'
-      ' good~2024-01-01T00:01:00Z\njob-normal~2024-01-02T00:00:00Z~low~4~4~0~Running~All'
-      ' good~2024-01-02T00:01:00Z\njob-pending~2024-01-03T00:00:00Z~high~16~~0~Admitted~Waiting~2024-01-03T00:01:00Z'
-  )
+  mock_output = '\n'.join([
+      (
+          'job-super~2024-01-01T00:00:00Z~high~32 32~32 32~0 0~Running~All'
+          ' good~2024-01-01T00:01:00Z'
+      ),
+      (
+          'job-normal~2024-01-02T00:00:00Z~low~4~4~0~Running~All'
+          ' good~2024-01-02T00:01:00Z'
+      ),
+      'job-pending~2024-01-03T00:00:00Z~high~16~~0~Admitted~Waiting~2024-01-03T00:01:00Z',
+  ])
   commands_tester.set_result_for_command(
       (0, mock_output), 'kubectl', 'get', 'workloads'
   )
@@ -120,11 +128,17 @@ def test_get_workload_list_super_slicing(commands_tester: CommandsTester):
 
 
 def test_get_workload_list_filter_by_job(commands_tester: CommandsTester):
-  mock_output = (
-      'job-test-1~2024-01-01T00:00:00Z~high~32~32~0~Running~All'
-      ' good~2024-01-01T00:01:00Z\njob-test-2~2024-01-02T00:00:00Z~low~4~4~0~Running~All'
-      ' good~2024-01-02T00:01:00Z\nother-job~2024-01-03T00:00:00Z~high~16~~0~Admitted~Waiting~2024-01-03T00:01:00Z'
-  )
+  mock_output = '\n'.join([
+      (
+          'job-test-1~2024-01-01T00:00:00Z~high~32~32~0~Running~All'
+          ' good~2024-01-01T00:01:00Z'
+      ),
+      (
+          'job-test-2~2024-01-02T00:00:00Z~low~4~4~0~Running~All'
+          ' good~2024-01-02T00:01:00Z'
+      ),
+      'other-job~2024-01-03T00:00:00Z~high~16~~0~Admitted~Waiting~2024-01-03T00:01:00Z',
+  ])
   commands_tester.set_result_for_command(
       (0, mock_output), 'kubectl', 'get', 'workloads'
   )
@@ -139,3 +153,59 @@ def test_get_workload_list_filter_by_job(commands_tester: CommandsTester):
   assert len(parsed_table) == 2
   assert parsed_table[0]['Jobset Name'] == 'job-test-1'
   assert parsed_table[1]['Jobset Name'] == 'job-test-2'
+
+
+@pytest.mark.parametrize(
+    'filter_by_status, expected_job_names',
+    [
+        (
+            'EVERYTHING',
+            [
+                'queued-job',
+                'running-job',
+                'success-job',
+                'failed-job',
+                'test-queued-job',
+            ],
+        ),
+        ('QUEUED', ['queued-job', 'test-queued-job']),
+        ('RUNNING', ['running-job']),
+        ('FINISHED', ['success-job', 'failed-job']),
+        ('SUCCESSFUL', ['success-job']),
+        ('FAILED', ['failed-job']),
+    ],
+)
+def test_get_workload_list_filters(
+    commands_tester: CommandsTester,
+    filter_by_status: str,
+    expected_job_names: list[str],
+):
+  mock_output = '\n'.join([
+      'queued-job~2024-01-01T00:00:00Z~high~4~<none>~0~Admitted~Waiting~2024-01-01T00:01:00Z',
+      'running-job~2024-01-01T00:00:00Z~high~4~4~0~Admitted~Running~2024-01-01T00:01:00Z',
+      (
+          'success-job~2024-01-01T00:00:00Z~high~4~4~4~Finished~Job finished'
+          ' successfully~2024-01-01T00:01:00Z'
+      ),
+      (
+          'failed-job~2024-01-01T00:00:00Z~high~4~4~0~Finished~Job failed with'
+          ' error~2024-01-01T00:01:00Z'
+      ),
+      (
+          'test-queued-job~2024-01-01T00:00:00Z~high~4~0~0~QuotaReserved~Waiting'
+          ' for quota~2024-01-01T00:01:00Z'
+      ),
+  ])
+  commands_tester.set_result_for_command(
+      (0, mock_output), 'kubectl', 'get', 'workloads'
+  )
+  args = MagicMock()
+  args.filter_by_status = filter_by_status
+  args.filter_by_job = None
+
+  return_code, return_value = get_workload_list(args)
+
+  assert return_code == 0
+  parsed_table = _parse_workload_table(return_value)
+  actual_job_names = [row['Jobset Name'] for row in parsed_table]
+  assert actual_job_names == expected_job_names

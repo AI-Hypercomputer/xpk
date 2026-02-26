@@ -337,6 +337,14 @@ type groupedSlices struct {
 	active       []*v1beta1.Slice
 }
 
+func (r *WorkloadReconciler) findAllSlices(ctx context.Context) ([]v1beta1.Slice, error) {
+	slices := &v1beta1.SliceList{}
+	if err := r.client.List(ctx, slices); err != nil {
+		return nil, err
+	}
+	return slices.Items, nil
+}
+
 // groupSlices categorizes a list of Slice objects into four groups based on their state.
 // It separates slices into deleted (marked for deletion), ones that should be delete
 // (errored and stale), ones that are initializing, and other (active) slices.
@@ -620,7 +628,7 @@ func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workloa
 	}
 
 	if err := errors.Join(
-		r.validatePartitionConflicts(ctx, existingSlicesByName, slicesToCreate),
+		r.validatePartitionConflicts(ctx, slicesToCreate),
 		r.validatePartitionCount(ctx, slicesToCreate)); err != nil {
 		log := ctrl.LoggerFrom(ctx)
 		log.V(3).Info("Slice validation failed, not creating Slices, evicting the workload", "error", err)
@@ -655,22 +663,27 @@ func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workloa
 
 func (r *WorkloadReconciler) validatePartitionConflicts(
 	ctx context.Context,
-	existingSlicesByName map[string]*v1beta1.Slice,
 	slicesToCreate []*v1beta1.Slice,
 ) error {
 	log := ctrl.LoggerFrom(ctx)
-	usedPartitionIDs := make(map[string]*v1beta1.Slice)
-	for _, s := range existingSlicesByName {
+
+	allSlices, err := r.findAllSlices(ctx)
+	if err != nil {
+		return err
+	}
+
+	usedPartitionIDs := make(map[string]string)
+	for _, s := range allSlices {
 		for _, id := range s.Spec.PartitionIds {
-			usedPartitionIDs[id] = s
+			usedPartitionIDs[id] = s.Name
 		}
 	}
 
 	var conflictingIDs []string
 	for _, slice := range slicesToCreate {
 		for _, id := range slice.Spec.PartitionIds {
-			if oldSlice, ok := usedPartitionIDs[id]; ok {
-				log.V(3).Info("Partition ID collision detected", "partitionID", id, "oldSlice", oldSlice.Name, "newSlice", slice.Name)
+			if oldSliceName, ok := usedPartitionIDs[id]; ok {
+				log.V(3).Info("Partition ID collision detected", "partitionID", id, "oldSlice", oldSliceName, "newSlice", slice.Name)
 				conflictingIDs = append(conflictingIDs, id)
 			}
 		}

@@ -314,7 +314,7 @@ def cluster_create(args) -> None:
   xpk_print(f'Starting cluster create for cluster {args.cluster}:', flush=True)
   add_zone_and_project(args)
 
-  _validate_cluster_create_args(args, system)
+  # _validate_cluster_create_args(args, system)
   _log_cluster_create_telemetry(args)
 
   release_channel = (
@@ -368,9 +368,9 @@ def cluster_create(args) -> None:
 
   get_cluster_credentials(args)
 
-  update_coredns_command_code = update_coredns_if_necessary(args)
-  if update_coredns_command_code != 0:
-    xpk_exit(update_coredns_command_code)
+  # update_coredns_command_code = update_coredns_if_necessary(args)
+  # if update_coredns_command_code != 0:
+  #   xpk_exit(update_coredns_command_code)
 
   if not is_dry_run():
     k8s_client = setup_k8s_env(args)
@@ -1239,7 +1239,7 @@ def run_gke_cluster_create_command(
       ' --enable-dns-access'
       ' --autoscaling-profile=optimize-utilization'
       ' --labels=gke_product_type=xpk'
-      f' --release-channel={release_channel.value.lower()}'
+      #      f' --release-channel={release_channel.value.lower()}'
       ' --enable-ip-alias'
       ' --enable-dataplane-v2'
       ' --enable-multi-networking'

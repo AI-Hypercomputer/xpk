@@ -955,7 +955,7 @@ func TestWorkloadReconciler(t *testing.T) {
 			wantSlices: []slice.Slice{
 				*baseSlice1Wrapper.Clone().PartitionIDs("subblock1").Obj(),
 			},
-			wantErr: errors.New(`partition IDs ["subblock1"] are already used by existing Slices`),
+			wantResult: reconcile.Result{RequeueAfter: initializationRetryAfter},
 		},
 		"should fail to create Slice if topology assignment has too few partitions": {
 			request: baseRequest,
@@ -1007,7 +1007,7 @@ func TestWorkloadReconciler(t *testing.T) {
 						`incorrect number of partitions for slices: [default-workload-ps1-0]`, ptr.To(int32(10)))).
 					Obj(),
 			},
-			wantErr: errors.New(`incorrect number of partitions for slices: [default-workload-ps1-0]`),
+			wantResult: reconcile.Result{RequeueAfter: initializationRetryAfter},
 		},
 		"should create multiple Slices for multiple replicated jobs with different replica counts": {
 			request: baseRequest,

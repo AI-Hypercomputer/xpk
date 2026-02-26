@@ -71,7 +71,8 @@ const (
 )
 
 var (
-	realClock = clock.RealClock{}
+	realClock          = clock.RealClock{}
+	errWorkloadEvicted = errors.New("workload evicted")
 )
 
 // WorkloadReconciler reconciles a Workload object
@@ -199,6 +200,9 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	// Create any missing Slices based on the Workload's PodSet assignments.
 	newSlices, err := r.syncSlices(ctx, wl, ac, slices, nodes)
 	if err != nil {
+		if errors.Is(err, errWorkloadEvicted) {
+			return ctrl.Result{RequeueAfter: initializationRetryAfter}, nil
+		}
 		return ctrl.Result{}, err
 	}
 	if len(newSlices) > 0 {
@@ -631,12 +635,12 @@ func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workloa
 		r.validatePartitionConflicts(ctx, slicesToCreate),
 		r.validatePartitionCount(ctx, slicesToCreate)); err != nil {
 		log := ctrl.LoggerFrom(ctx)
-		log.V(3).Info("Slice validation failed, not creating Slices, evicting the workload", "error", err)
+		log.V(2).Info("Slice validation failed, not creating Slices, evicting the workload", "error", err)
 		msg := err.Error()
 		if patchErr := r.evictWorkload(ctx, wl, ac, msg); patchErr != nil {
-			return nil, errors.Join(errors.New(msg), patchErr)
+			return nil, errors.Join(err, patchErr)
 		}
-		return nil, errors.New(msg)
+		return nil, errWorkloadEvicted
 	}
 
 	for _, slice := range slicesToCreate {
@@ -683,7 +687,7 @@ func (r *WorkloadReconciler) validatePartitionConflicts(
 	for _, slice := range slicesToCreate {
 		for _, id := range slice.Spec.PartitionIds {
 			if oldSliceName, ok := usedPartitionIDs[id]; ok {
-				log.V(3).Info("Partition ID collision detected", "partitionID", id, "oldSlice", oldSliceName, "newSlice", slice.Name)
+				log.V(2).Info("Partition ID collision detected", "partitionID", id, "oldSlice", oldSliceName, "newSlice", slice.Name)
 				conflictingIDs = append(conflictingIDs, id)
 			}
 		}

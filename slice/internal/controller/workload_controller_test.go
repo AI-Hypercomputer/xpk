@@ -949,7 +949,7 @@ func TestWorkloadReconciler(t *testing.T) {
 					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Finalizers(SliceControllerName).
 					AdmissionCheck(buildAdmissionCheckStateWithRequeue(kueue.CheckStateRetry,
-						`partition IDs ["subblock1"] are already used by existing Slices`, ptr.To(int32(10)))).
+						`partition IDs ["subblock1 (used by default-workload-ps1-0)"] are already used by existing Slices`, ptr.To(int32(10)))).
 					Obj(),
 			},
 			wantSlices: []slice.Slice{

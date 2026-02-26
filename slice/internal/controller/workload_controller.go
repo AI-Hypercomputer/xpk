@@ -687,8 +687,8 @@ func (r *WorkloadReconciler) validatePartitionConflicts(
 	for _, slice := range slicesToCreate {
 		for _, id := range slice.Spec.PartitionIds {
 			if oldSliceName, ok := usedPartitionIDs[id]; ok {
-				log.V(2).Info("Partition ID collision detected", "partitionID", id, "oldSlice", oldSliceName, "newSlice", slice.Name)
-				conflictingIDs = append(conflictingIDs, id)
+				log.V(3).Info("Partition ID collision detected", "partitionID", id, "oldSlice", oldSliceName, "newSlice", slice.Name)
+				conflictingIDs = append(conflictingIDs, fmt.Sprintf("%v (used by %v)", id, oldSliceName))
 			}
 		}
 	}

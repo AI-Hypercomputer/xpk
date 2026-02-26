@@ -16,7 +16,7 @@ limitations under the License.
 
 from dataclasses import dataclass
 import re
-from typing import Callable
+from typing import Callable, Optional
 
 from ..utils.console import xpk_exit, xpk_print
 from .commands import run_command_for_value
@@ -70,8 +70,65 @@ WORKLOAD_LIST_COLUMNS = [
 ]
 
 
+def _filter_workload(
+    row_data: dict[str, str],
+    filter_by_status: str,
+    filter_by_job: Optional[str],
+) -> bool:
+  """Filters a workload based on status and job name.
+
+  Args:
+    row_data: The parsed row data.
+    filter_by_status: The status filter to apply.
+    filter_by_job: The job name filter to apply.
+
+  Returns:
+    True if the workload should be included, False otherwise.
+  """
+  status = row_data['Status']
+  message = row_data['Status Message']
+  running_str = row_data['TPU VMs Running/Ran']
+
+  def safe_int(s):
+    try:
+      return int(s)
+    except ValueError:
+      return 0
+
+  include = False
+  if filter_by_status == 'EVERYTHING':
+    include = True
+  elif filter_by_status == 'RUNNING':
+    # Status ~ "Admitted|Evicted" && Running > 0
+    if status in ['Admitted', 'Evicted']:
+      if running_str != '<none>' and safe_int(running_str) > 0:
+        include = True
+  elif filter_by_status == 'QUEUED':
+    # Status ~ "Admitted|Evicted|QuotaReserved" && (Running == <none> || Running == 0)
+    if status in ['Admitted', 'Evicted', 'QuotaReserved']:
+      if running_str == '<none>' or safe_int(running_str) == 0:
+        include = True
+  elif filter_by_status == 'FINISHED':
+    if status == 'Finished':
+      include = True
+  elif filter_by_status == 'FAILED':
+    if status == 'Finished' and 'failed' in message:
+      include = True
+  elif filter_by_status == 'SUCCESSFUL':
+    if status == 'Finished' and 'finished' in message:
+      include = True
+  else:
+    raise RuntimeError(f'Can not find filter type: {filter_by_status}')
+
+  if include and filter_by_job:
+    if filter_by_job not in row_data['Jobset Name']:
+      include = False
+
+  return include
+
+
 def parse_and_format_workload_list(
-    raw_output: str, filter_by_status: str, filter_by_job: str
+    raw_output: str, filter_by_status: str, filter_by_job: Optional[str]
 ) -> str:
   """Parses, filters, and formats the raw workload list output.
 
@@ -91,59 +148,14 @@ def parse_and_format_workload_list(
         # Skip malformed lines or handle error
         continue
 
-      # Map parsed values to headers using the configuration
       row_data = {}
       for i, col in enumerate(WORKLOAD_LIST_COLUMNS):
-        raw_val = parts[i]
-        formatted_val = col.formatter(raw_val)
-        row_data[col.header] = formatted_val
+        row_data[col.header] = col.formatter(parts[i])
 
-      # Filter Logic
-      status = row_data['Status']
-      message = row_data['Status Message']
-      running_str = row_data['TPU VMs Running/Ran']
-
-      def safe_int(s):
-        try:
-          return int(s)
-        except ValueError:
-          return 0
-
-      include = False
-      if filter_by_status == 'EVERYTHING':
-        include = True
-      elif filter_by_status == 'RUNNING':
-        # Status ~ "Admitted|Evicted" && Running > 0
-        if status in ['Admitted', 'Evicted']:
-          if running_str != '<none>' and safe_int(running_str) > 0:
-            include = True
-      elif filter_by_status == 'QUEUED':
-        # Status ~ "Admitted|Evicted|QuotaReserved" && (Running == <none> || Running == 0)
-        if status in ['Admitted', 'Evicted', 'QuotaReserved']:
-          if running_str == '<none>' or safe_int(running_str) == 0:
-            include = True
-      elif filter_by_status == 'FINISHED':
-        if status == 'Finished':
-          include = True
-      elif filter_by_status == 'FAILED':
-        if status == 'Finished' and 'failed' in message:
-          include = True
-      elif filter_by_status == 'SUCCESSFUL':
-        if status == 'Finished' and 'finished' in message:
-          include = True
-      else:
-        raise RuntimeError(f'Can not find filter type: {filter_by_status}')
-
-      if include and filter_by_job:
-        if filter_by_job not in row_data['Jobset Name']:
-          include = False
-
-      if include:
-        # Construct row list in order
+      if _filter_workload(row_data, filter_by_status, filter_by_job):
         row_list = [row_data[col.header] for col in WORKLOAD_LIST_COLUMNS]
         rows.append(row_list)
 
-  # Formatting
   if not rows:
     return ''
 
@@ -175,12 +187,10 @@ def get_workload_list(args) -> tuple[int, str]:
     return_code: 0 if successful and 1 otherwise.
     return_value: workloads in the cluster matching the criteria.
   """
-  # Construct JSONPath string from configuration
-  jsonpath_parts = [col.jsonpath for col in WORKLOAD_LIST_COLUMNS]
-  delimiter = WORKLOAD_LIST_DELIMITER
-  jsonpath_str = (
-      f'{{range .items[*]}}{delimiter.join(jsonpath_parts)}{{"\n"}}{{end}}'
+  row_path = WORKLOAD_LIST_DELIMITER.join(
+      [col.jsonpath for col in WORKLOAD_LIST_COLUMNS]
   )
+  jsonpath_str = f'{{range .items[*]}}{row_path}{{"\n"}}{{end}}'
 
   # Escape newline for shell
   jsonpath_str = jsonpath_str.replace('\n', '\\n')

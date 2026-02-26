@@ -47,7 +47,7 @@ docker buildx build --platform=linux/amd64 -f 4b6736a12db8ea0f78ce793fd0d4ee0c94
 docker tag dry-run-runner gcr.io/golden-project/dry-run-runner:prefix-current
 [XPK] Task: `Upload Docker Image` is implemented by the following command not running since it is a dry run. 
 docker push gcr.io/golden-project/dry-run-runner:prefix-current
-[XPK] Temp file (2c5ab381c0d643f8512a07d296d411413080ec652c15e8c676fd58435de5a327) content: 
+[XPK] Temp file (608e1382aabe2b0335855e5e99876a2e67de954453ebfa4cf12eb82c966f85da) content: 
 apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
 metadata:
@@ -80,7 +80,13 @@ spec:
             - action: FailJob
               onPodConditions: []
               onExitCodes:
-                containerName: jax-tpu
+                containerName: jax-tpu-1
+                operator: NotIn
+                values: [42,127,128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,160,161,162,163,164,165,166,167,168,169,170,171,172,173,174,175,176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191,192,193,194,195,196,197,198,199,200,201,202,203,204,205,206,207,208,209,210,211,212,213,214,215,216,217,218,219,220,221,222,223,224,225,226,227,228,229,230,231,232,233,234,235,236,237,238,239,240,241,242,243,244,245,246,247,248,249,250,251,252,253,254,255]
+            - action: FailJob
+              onPodConditions: []
+              onExitCodes:
+                containerName: jax-tpu-2
                 operator: NotIn
                 values: [42,127,128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,160,161,162,163,164,165,166,167,168,169,170,171,172,173,174,175,176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191,192,193,194,195,196,197,198,199,200,201,202,203,204,205,206,207,208,209,210,211,212,213,214,215,216,217,218,219,220,221,222,223,224,225,226,227,228,229,230,231,232,233,234,235,236,237,238,239,240,241,242,243,244,245,246,247,248,249,250,251,252,253,254,255]
           template:
@@ -108,7 +114,7 @@ spec:
               terminationGracePeriodSeconds: 30
               containers:
               
-              - name: jax-tpu
+              - name: jax-tpu-1
                 image: gcr.io/golden-project/dry-run-runner:prefix-current
                 
                 env: 
@@ -136,7 +142,42 @@ spec:
                   exit $EXIT_CODE
                 resources:
                   limits:
-                    google.com/tpu: 4
+                    google.com/tpu: 2
+
+                volumeMounts:
+                - mountPath: /dev/shm
+                  name: dshm-2
+                
+
+              - name: jax-tpu-2
+                image: gcr.io/golden-project/dry-run-runner:prefix-current
+                
+                env: 
+                securityContext:
+                  privileged: true
+                command:
+                - bash
+                - -c
+                - |
+                  echo XPK Start: $(date);
+                  _sigterm() (kill -SIGTERM $! 2>/dev/null;);
+                  trap _sigterm SIGTERM;
+                  
+                  (bash hello) & PID=$!;
+                  while kill -0 $PID 2>/dev/null;
+                      do sleep 5;
+                  done;
+                  wait $PID;
+                  EXIT_CODE=$?;
+                  
+                  echo XPK End: $(date);
+                  echo EXIT_CODE=$EXIT_CODE;
+                  
+                  
+                  exit $EXIT_CODE
+                resources:
+                  limits:
+                    google.com/tpu: 2
 
                 volumeMounts:
                 - mountPath: /dev/shm
@@ -156,7 +197,7 @@ spec:
               
 
 [XPK] Task: `Creating Workload` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f 2c5ab381c0d643f8512a07d296d411413080ec652c15e8c676fd58435de5a327
+kubectl apply -f 608e1382aabe2b0335855e5e99876a2e67de954453ebfa4cf12eb82c966f85da
 [XPK] Task: `GKE Dashboard List` is implemented by the following command not running since it is a dry run. 
 gcloud monitoring dashboards list --project=golden-project --filter="displayName:'GKE - TPU Monitoring Dashboard'" --format="value(name)" --verbosity=error
 [XPK] Check statistics and outlier mode of GKE metrics here: https://console.cloud.google.com/monitoring/dashboards/builder/0?project=golden-project&f.rlabel.cluster_name.ClusterName=golden-cluster. To view the metric data for your workload, select golden-workload from the JobName filter on the dashboard.

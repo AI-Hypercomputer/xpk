@@ -492,7 +492,7 @@ def workload_create(args) -> None:
       workload_scheduling == WorkloadScheduling.SUPER_SLICING_AVAILABLE
   )
   parallel_containers = workload_system.parallel_containers
-  if args.use_pathways or use_super_slicing:
+  if args.use_pathways:
     parallel_containers = 1
 
   # Currently failure policy rules are supported for Pathways workloads. b/408465881

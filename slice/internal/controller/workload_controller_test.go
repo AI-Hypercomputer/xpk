@@ -1819,11 +1819,11 @@ func TestWorkloadReconciler(t *testing.T) {
 				baseAdmissionCheckWrapper.DeepCopy(),
 				utiltesting.MakeWorkload(baseWorkloadName, "namespace1").
 					UID(baseWorkloadName+"-ns1").
-					PodSets(basePodSets...).
+					PodSets(*basePodSet1Wrapper.DeepCopy()).
 					ReserveQuota(baseAdmission, now).
 					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Finalizers(SliceControllerName).
-					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStateReady, `Slices are in states: 2 ACTIVE`)).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStateReady, `Slices are in states: 1 ACTIVE`)).
 					Obj(),
 				utiltesting.MakeSliceWrapper(core.SliceName("namespace1", baseWorkloadName, "ps1", 0)).
 					Type(slice.TypeTpu7x).
@@ -1832,16 +1832,9 @@ func TestWorkloadReconciler(t *testing.T) {
 					PartitionIDs("subblock1").
 					Active().
 					Obj(),
-				utiltesting.MakeSliceWrapper(core.SliceName("namespace1", baseWorkloadName, "ps2", 0)).
-					Type(slice.TypeTpu7x).
-					Topology("4x4x4").
-					OwnerWorkloadAnnotations("namespace1", baseWorkloadName).
-					PartitionIDs("subblock2").
-					Active().
-					Obj(),
 				utiltesting.MakeWorkload(baseWorkloadName, "namespace2").
 					UID(baseWorkloadName+"-ns2").
-					PodSets(basePodSets...).
+					PodSets(*basePodSet2Wrapper.DeepCopy()).
 					ReserveQuota(baseAdmission, now).
 					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Finalizers(SliceControllerName).
@@ -1851,19 +1844,19 @@ func TestWorkloadReconciler(t *testing.T) {
 			wantWorkloads: []kueue.Workload{
 				*utiltesting.MakeWorkload(baseWorkloadName, "namespace1").
 					UID(baseWorkloadName+"-ns1").
-					PodSets(basePodSets...).
+					PodSets(*basePodSet1Wrapper.DeepCopy()).
 					ReserveQuota(baseAdmission, now).
 					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Finalizers(SliceControllerName).
-					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStateReady, `Slices are in states: 2 ACTIVE`)).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStateReady, `Slices are in states: 1 ACTIVE`)).
 					Obj(),
 				*utiltesting.MakeWorkload(baseWorkloadName, "namespace2").
 					UID(baseWorkloadName+"-ns2").
-					PodSets(basePodSets...).
+					PodSets(*basePodSet2Wrapper.DeepCopy()).
 					ReserveQuota(baseAdmission, now).
 					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Finalizers(SliceControllerName).
-					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStatePending, `Slices are in states: 2 CREATED`)).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStatePending, `Slices are in states: 1 CREATED`)).
 					Obj(),
 			},
 			wantSlices: []slice.Slice{
@@ -1874,19 +1867,6 @@ func TestWorkloadReconciler(t *testing.T) {
 					PartitionIDs("subblock1").
 					Active().
 					Obj(),
-				*utiltesting.MakeSliceWrapper(core.SliceName("namespace1", baseWorkloadName, "ps2", 0)).
-					Type(slice.TypeTpu7x).
-					Topology("4x4x4").
-					OwnerWorkloadAnnotations("namespace1", baseWorkloadName).
-					PartitionIDs("subblock2").
-					Active().
-					Obj(),
-				*utiltesting.MakeSliceWrapper(core.SliceName("namespace2", baseWorkloadName, "ps1", 0)).
-					Type(slice.TypeTpu7x).
-					Topology("4x4x4").
-					OwnerWorkloadAnnotations("namespace2", baseWorkloadName).
-					PartitionIDs("subblock1").
-					Obj(),
 				*utiltesting.MakeSliceWrapper(core.SliceName("namespace2", baseWorkloadName, "ps2", 0)).
 					Type(slice.TypeTpu7x).
 					Topology("4x4x4").
@@ -1896,7 +1876,7 @@ func TestWorkloadReconciler(t *testing.T) {
 			},
 			wantEvents: []utiltesting.EventRecord{
 				buildEventRecord("namespace2", corev1.EventTypeNormal, SlicesCreatedEventType,
-					`The Slices "namespace2-workload-ps1-0", "namespace2-workload-ps2-0" have been created`),
+					`The Slices "namespace2-workload-ps2-0" have been created`),
 			},
 			wantResult: reconcile.Result{RequeueAfter: initializationRetryAfter},
 		},

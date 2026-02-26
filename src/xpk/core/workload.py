@@ -22,17 +22,24 @@ from ..utils.console import xpk_exit, xpk_print
 from .commands import run_command_for_value
 from .gcloud_context import get_cluster_location
 
-WORKLOAD_LIST_DELIMITER = '~'
+_WORKLOAD_LIST_DELIMITER = '~'
+
+
+def _safe_int(s: str) -> int:
+  try:
+    return int(s)
+  except ValueError:
+    return 0
 
 
 @dataclass
-class WorkloadListColumn:
+class _WorkloadListColumn:
   header: str
   jsonpath: str
   formatter: Callable[[str], str] = lambda x: x
 
 
-def sum_counts(value: str) -> str:
+def _sum_counts(value: str) -> str:
   """Sums space-separated numbers in a string. Returns <none> if empty."""
   if not value or not value.strip():
     return '<none>'
@@ -43,31 +50,32 @@ def sum_counts(value: str) -> str:
     return '<none>'
 
 
-WORKLOAD_LIST_COLUMNS = [
-    WorkloadListColumn('Jobset Name', '{.metadata.ownerReferences[0].name}'),
-    WorkloadListColumn('Created Time', '{.metadata.creationTimestamp}'),
-    WorkloadListColumn(
+_WORKLOAD_LIST_COLUMNS = [
+    _WorkloadListColumn('Jobset Name', '{.metadata.ownerReferences[0].name}'),
+    _WorkloadListColumn('Created Time', '{.metadata.creationTimestamp}'),
+    _WorkloadListColumn(
         'Priority', '{.spec.podSets[0].template.spec.priorityClassName}'
     ),
-    WorkloadListColumn(
-        'TPU VMs Needed', '{.spec.podSets[*].count}', sum_counts
+    _WorkloadListColumn(
+        'TPU VMs Needed', '{.spec.podSets[*].count}', _sum_counts
     ),
-    WorkloadListColumn(
+    _WorkloadListColumn(
         'TPU VMs Running/Ran',
         '{.status.admission.podSetAssignments[*].count}',
-        sum_counts,
+        _sum_counts,
     ),
-    WorkloadListColumn(
+    _WorkloadListColumn(
         'TPU VMs Done',
         '{.status.reclaimablePods[*].count}',
-        sum_counts,
+        _sum_counts,
     ),
-    WorkloadListColumn('Status', '{.status.conditions[-1].type}'),
-    WorkloadListColumn('Status Message', '{.status.conditions[-1].message}'),
-    WorkloadListColumn(
+    _WorkloadListColumn('Status', '{.status.conditions[-1].type}'),
+    _WorkloadListColumn('Status Message', '{.status.conditions[-1].message}'),
+    _WorkloadListColumn(
         'Status Time', '{.status.conditions[-1].lastTransitionTime}'
     ),
 ]
+_HEADERS = [col.header for col in _WORKLOAD_LIST_COLUMNS]
 
 
 def _filter_workload(
@@ -85,93 +93,75 @@ def _filter_workload(
   Returns:
     True if the workload should be included, False otherwise.
   """
+  if filter_by_job and filter_by_job not in row_data['Jobset Name']:
+    return False
+
   status = row_data['Status']
   message = row_data['Status Message']
   running_str = row_data['TPU VMs Running/Ran']
 
-  def safe_int(s):
-    try:
-      return int(s)
-    except ValueError:
-      return 0
-
-  include = False
-  if filter_by_status == 'EVERYTHING':
-    include = True
-  elif filter_by_status == 'RUNNING':
-    # Status ~ "Admitted|Evicted" && Running > 0
-    if status in ['Admitted', 'Evicted']:
-      if running_str != '<none>' and safe_int(running_str) > 0:
-        include = True
-  elif filter_by_status == 'QUEUED':
-    # Status ~ "Admitted|Evicted|QuotaReserved" && (Running == <none> || Running == 0)
-    if status in ['Admitted', 'Evicted', 'QuotaReserved']:
-      if running_str == '<none>' or safe_int(running_str) == 0:
-        include = True
-  elif filter_by_status == 'FINISHED':
-    if status == 'Finished':
-      include = True
-  elif filter_by_status == 'FAILED':
-    if status == 'Finished' and 'failed' in message:
-      include = True
-  elif filter_by_status == 'SUCCESSFUL':
-    if status == 'Finished' and 'finished' in message:
-      include = True
-  else:
-    raise RuntimeError(f'Can not find filter type: {filter_by_status}')
-
-  if include and filter_by_job:
-    if filter_by_job not in row_data['Jobset Name']:
-      include = False
-
-  return include
+  match filter_by_status:
+    case 'EVERYTHING':
+      return True
+    case 'RUNNING':
+      return (
+          status in ['Admitted', 'Evicted']
+          and running_str != '<none>'
+          and _safe_int(running_str) > 0
+      )
+    case 'QUEUED':
+      return status in ['Admitted', 'Evicted', 'QuotaReserved'] and (
+          running_str == '<none>' or _safe_int(running_str) == 0
+      )
+    case 'FINISHED':
+      return status == 'Finished'
+    case 'FAILED':
+      return status == 'Finished' and 'failed' in message
+    case 'SUCCESSFUL':
+      return status == 'Finished' and 'finished' in message
+    case _:
+      raise RuntimeError(f'Can not find filter type: {filter_by_status}')
 
 
-def parse_and_format_workload_list(
-    raw_output: str, filter_by_status: str, filter_by_job: Optional[str]
+def _parse_and_format_workload_list(
+    rows: list[list[str]], filter_by_status: str, filter_by_job: Optional[str]
 ) -> str:
   """Parses, filters, and formats the raw workload list output.
 
   Args:
-    raw_output: The raw output from kubectl.
+    rows: The raw output from kubectl parsed into columns.
     filter_by_status: The status filter to apply.
     filter_by_job: The job name filter to apply.
 
   Returns:
     The formatted table string.
   """
-  rows = []
-  if raw_output:
-    for line in raw_output.splitlines():
-      parts = line.split(WORKLOAD_LIST_DELIMITER)
-      if len(parts) != len(WORKLOAD_LIST_COLUMNS):
-        # Skip malformed lines or handle error
-        continue
+  filtered_rows = []
+  for parts in rows:
+    if len(parts) != len(_WORKLOAD_LIST_COLUMNS):
+      xpk_print(f'Warning. Skipping malformed line: {parts}')
+      continue
 
-      row_data = {}
-      for i, col in enumerate(WORKLOAD_LIST_COLUMNS):
-        row_data[col.header] = col.formatter(parts[i])
+    row_data = {}
+    for i, col in enumerate(_WORKLOAD_LIST_COLUMNS):
+      row_data[col.header] = col.formatter(parts[i])
 
-      if _filter_workload(row_data, filter_by_status, filter_by_job):
-        row_list = [row_data[col.header] for col in WORKLOAD_LIST_COLUMNS]
-        rows.append(row_list)
+    if _filter_workload(row_data, filter_by_status, filter_by_job):
+      row_list = [row_data[col.header] for col in _WORKLOAD_LIST_COLUMNS]
+      filtered_rows.append(row_list)
 
-  if not rows:
+  if not filtered_rows:
     return ''
 
-  headers = [col.header for col in WORKLOAD_LIST_COLUMNS]
-
-  # Calculate column widths
-  col_widths = [len(h) for h in headers]
-  for row in rows:
+  col_widths = [len(h) for h in _HEADERS]
+  for row in filtered_rows:
     for i, val in enumerate(row):
       col_widths[i] = max(col_widths[i], len(val))
 
-  # Create format string
   fmt = '   '.join(f'{{:<{w}}}' for w in col_widths)
 
-  output = [fmt.format(*headers)]
-  for row in rows:
+  output = [fmt.format(*_HEADERS)]
+  for row in filtered_rows:
     output.append(fmt.format(*row))
 
   return '\n'.join(output)
@@ -187,13 +177,10 @@ def get_workload_list(args) -> tuple[int, str]:
     return_code: 0 if successful and 1 otherwise.
     return_value: workloads in the cluster matching the criteria.
   """
-  row_path = WORKLOAD_LIST_DELIMITER.join(
-      [col.jsonpath for col in WORKLOAD_LIST_COLUMNS]
+  row_path = _WORKLOAD_LIST_DELIMITER.join(
+      [col.jsonpath for col in _WORKLOAD_LIST_COLUMNS]
   )
-  jsonpath_str = f'{{range .items[*]}}{row_path}{{"\n"}}{{end}}'
-
-  # Escape newline for shell
-  jsonpath_str = jsonpath_str.replace('\n', '\\n')
+  jsonpath_str = f'{{range .items[*]}}{row_path}{{"\\n"}}{{end}}'
 
   command = (
       f"kubectl get workloads --ignore-not-found -o=jsonpath='{jsonpath_str}'"
@@ -203,13 +190,18 @@ def get_workload_list(args) -> tuple[int, str]:
   if hasattr(args, 'filter_by_job') and args.filter_by_job:
     task += f' with filter-by-job={args.filter_by_job}'
 
-  return_code, return_value = run_command_for_value(command, task)
+  return_code, data = run_command_for_value(command, task)
 
   if return_code != 0:
-    return return_code, return_value
+    return return_code, ''
 
-  formatted_output = parse_and_format_workload_list(
-      return_value, args.filter_by_status, getattr(args, 'filter_by_job', None)
+  data_rows = []
+  if data:
+    for line in data.splitlines():
+      data_rows.append(line.split(_WORKLOAD_LIST_DELIMITER))
+
+  formatted_output = _parse_and_format_workload_list(
+      data_rows, args.filter_by_status, getattr(args, 'filter_by_job', None)
   )
 
   return 0, formatted_output
@@ -322,7 +314,7 @@ def wait_for_job_completion(args) -> int:
   return 0
 
 
-GCP_NAME_FILTER_VALUE_REGEX = re.compile(r'[a-z0-9\-]+')
+_GCP_NAME_FILTER_VALUE_REGEX = re.compile(r'[a-z0-9\-]+')
 """Defines correct name prefix value (contains only letters, numbers and dashes) that can be used in GCP filter chips."""
 
 

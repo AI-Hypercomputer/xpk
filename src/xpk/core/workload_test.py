@@ -14,8 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
+import pytest
+from pytest_mock import MockerFixture
+from xpk.core.testing.commands_tester import CommandsTester
 from xpk.core.workload import get_jobsets_list_gcp_link, get_workload_list
+
+
+@pytest.fixture(autouse=True)
+def commands_tester(mocker: MockerFixture) -> CommandsTester:
+  return CommandsTester(mocker)
 
 
 def test_get_jobsets_list_gcp_link():
@@ -29,46 +37,35 @@ def test_get_jobsets_list_gcp_link():
   )
 
 
-@patch('xpk.core.workload.run_command_for_value')
-def test_get_workload_list(mock_run_command):
-  # Setup
-  mock_run_command.return_value = (0, 'Jobset Name...')
+def test_get_workload_list(commands_tester: CommandsTester):
+  commands_tester.set_result_for_command(
+      (0, 'Jobset Name...'), 'kubectl', 'get', 'workloads'
+  )
   args = MagicMock()
   args.filter_by_status = 'EVERYTHING'
   args.filter_by_job = None
 
-  # Execute
   get_workload_list(args)
 
-  # Verify
-  call_args = mock_run_command.call_args
-  command = call_args[0][0]
-
-  # Assert
-  assert 'jsonpath=' in command
-  assert '{.spec.podSets[*].count}' in command
+  commands_tester.assert_command_run('jsonpath=', '{.spec.podSets[*].count}')
 
 
-@patch('xpk.core.workload.run_command_for_value')
-def test_get_workload_list_super_slicing(mock_run_command):
-  # Setup
-  # Mock output with super-slicing (multiple counts) and normal workload
+def test_get_workload_list_super_slicing(commands_tester: CommandsTester):
   mock_output = (
       'job-super~2024-01-01T00:00:00Z~high~32 32~32 32~0 0~Running~All'
       ' good~2024-01-01T00:01:00Z\njob-normal~2024-01-02T00:00:00Z~low~4~4~0~Running~All'
       ' good~2024-01-02T00:01:00Z\njob-pending~2024-01-03T00:00:00Z~high~16~~0~Admitted~Waiting~2024-01-03T00:01:00Z'
   )
-  mock_run_command.return_value = (0, mock_output)
+  commands_tester.set_result_for_command(
+      (0, mock_output), 'kubectl', 'get', 'workloads'
+  )
   args = MagicMock()
   args.filter_by_status = 'EVERYTHING'
   args.filter_by_job = None
 
-  # Execute
   return_code, return_value = get_workload_list(args)
 
-  # Verify
   assert return_code == 0
-  # Check for summed values
   assert 'job-super' in return_value
   assert '64' in return_value  # 32 + 32 Needed
   assert '64' in return_value  # 32 + 32 Running

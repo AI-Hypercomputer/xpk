@@ -123,7 +123,7 @@ def _fetch_workloads(
       f'{col.name}={_WORKLOAD_LIST_COLUMN_MAP[col].jsonpath}'
       for col in _WORKLOAD_LIST_DISPLAY_ORDER
   ])
-  jsonpath_str = f'{{range .items[*]}}{row_path}{{"\n"}}{{end}}'
+  jsonpath_str = f'{{range .items[*]}}{row_path}{{"\\n"}}{{end}}'
 
   command = (
       f"kubectl get workloads --ignore-not-found -o=jsonpath='{jsonpath_str}'"

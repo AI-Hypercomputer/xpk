@@ -39,7 +39,6 @@ webhooks:
     - v1alpha2
     operations:
     - CREATE
-    - UPDATE
     resources:
     - jobsets
   sideEffects: None

@@ -98,7 +98,7 @@ func removeNodeInSliceAntiAffinity(template *corev1.PodTemplateSpec) {
 	for i := range nodeSelector.NodeSelectorTerms {
 		var newExpressions []corev1.NodeSelectorRequirement
 		for _, req := range nodeSelector.NodeSelectorTerms[i].MatchExpressions {
-			if req.Key != core.TPUSliceNodeLabel {
+			if req.Key != core.TPUSliceNodeLabel || req.Operator != corev1.NodeSelectorOpDoesNotExist {
 				newExpressions = append(newExpressions, req)
 			}
 		}

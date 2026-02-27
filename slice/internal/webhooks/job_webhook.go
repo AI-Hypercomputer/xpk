@@ -22,18 +22,22 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
 	kueueconstants "sigs.k8s.io/kueue/pkg/controller/constants"
 
 	"tpu-slice-controller/internal/core"
 )
 
-type JobWebhook struct{}
+type JobWebhook struct {
+	client client.Client
+}
 
 func SetupJobWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(&batchv1.Job{}).
-		WithDefaulter(&JobWebhook{}).
+		WithDefaulter(&JobWebhook{client: mgr.GetClient()}).
 		Complete()
 }
 
@@ -46,15 +50,38 @@ func (r *JobWebhook) Default(ctx context.Context, obj runtime.Object) error {
 	log := ctrl.LoggerFrom(ctx).WithName("job-accelerator-gke-webhook")
 	log.V(5).Info("Defaulting Job")
 
+	if !core.IsRelevantPodTemplateSpec(job.Spec.Template) {
+		log.V(5).Info("Skipping annotating Job due to TPU Annotation or Node Selector misconfigured")
+		return nil
+	}
+
+	isKueueManaged := job.Labels[kueueconstants.QueueLabel] != ""
+	if !isKueueManaged {
+		for _, owner := range job.OwnerReferences {
+			if owner.Kind == "JobSet" && owner.APIVersion == jobset.SchemeGroupVersion.String() {
+				var js jobset.JobSet
+				if err := r.client.Get(ctx, client.ObjectKey{Name: owner.Name, Namespace: job.Namespace}, &js); err != nil {
+					log.Error(err, "Failed to get JobSet owner", "jobset", owner.Name)
+					continue
+				}
+				if js.Labels[kueueconstants.QueueLabel] != "" {
+					isKueueManaged = true
+				}
+				break
+			}
+		}
+	}
+
+	if isKueueManaged {
+		log.V(5).Info("Removing anti-affinity", "job", job.Name)
+		removeNodeInSliceAntiAffinity(&job.Spec.Template)
+	}
+
 	if job.Labels[kueueconstants.QueueLabel] == "" {
 		log.V(5).Info("Skipping due to missing Kueue Label")
 		return nil
 	}
 
-	if !core.IsRelevantPodTemplateSpec(job.Spec.Template) {
-		log.V(5).Info("Skipping annotating Job due to TPU Annotation or Node Selector misconfigured")
-		return nil
-	}
 	log.V(5).Info("Annotating Job")
 	annotatePodTemplateSpecWithSliceHealth(&job.Spec.Template)
 	err := annotatePodTemplateSpecWithTopology(&job.Spec.Template, job.Spec.Parallelism, job.Name, "job")

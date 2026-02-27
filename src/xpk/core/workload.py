@@ -114,6 +114,64 @@ _HEADERS = [
 ]
 
 
+def _fetch_workloads(
+    filter_by_status: str,
+    filter_by_job: Optional[str] = None,
+) -> tuple[int, list[dict[_WorkloadListColumnType, str]]]:
+  """Fetches and parses the raw workload list from the cluster."""
+  row_path = _WORKLOAD_LIST_DELIMITER.join([
+      f'{col.name}={_WORKLOAD_LIST_COLUMN_MAP[col].jsonpath}'
+      for col in _WORKLOAD_LIST_DISPLAY_ORDER
+  ])
+  jsonpath_str = f'{{range .items[*]}}{row_path}{{"\n"}}{{end}}'
+
+  command = (
+      f"kubectl get workloads --ignore-not-found -o=jsonpath='{jsonpath_str}'"
+  )
+
+  task = f'List Jobs with filter-by-status={filter_by_status}'
+  if filter_by_job:
+    task += f' with filter-by-job={filter_by_job}'
+
+  return_code, data = run_command_for_value(
+      command, task, dry_run_return_val=''
+  )
+
+  if return_code != 0:
+    return return_code, []
+
+  data_rows = []
+  if data:
+    for line in data.splitlines():
+      row_dict = {}
+      for kv in line.split(_WORKLOAD_LIST_DELIMITER):
+        if '=' in kv:
+          key_str, val = kv.split('=', 1)
+          try:
+            col_enum = _WorkloadListColumnType[key_str]
+            row_dict[col_enum] = val
+          except KeyError:
+            xpk_print(f'Warning: Unrecognized column key: {key_str}')
+      if row_dict:
+        data_rows.append(row_dict)
+
+  return 0, data_rows
+
+
+def _format_columns(
+    rows: list[dict[_WorkloadListColumnType, str]],
+) -> list[dict[_WorkloadListColumnType, str]]:
+  """Applies formatters to all columns in the raw rows."""
+  formatted_rows = []
+  for row_dict in rows:
+    row_data = {}
+    for col_enum in _WORKLOAD_LIST_DISPLAY_ORDER:
+      col_metadata = _WORKLOAD_LIST_COLUMN_MAP[col_enum]
+      row_data[col_enum] = col_metadata.formatter(row_dict.get(col_enum, ''))
+    formatted_rows.append(row_data)
+  return formatted_rows
+
+
 def _filter_workload(
     row_data: dict[_WorkloadListColumnType, str],
     filter_by_status: str,
@@ -162,36 +220,30 @@ def _filter_workload(
       raise RuntimeError(f'Can not find filter type: {filter_by_status}')
 
 
-def _parse_and_format_workload_list(
+def _filter_workloads(
     rows: list[dict[_WorkloadListColumnType, str]],
     filter_by_status: str,
     filter_by_job: Optional[str],
+) -> list[dict[_WorkloadListColumnType, str]]:
+  """Filters rows based on status and job filters."""
+  return [
+      row
+      for row in rows
+      if _filter_workload(row, filter_by_status, filter_by_job)
+  ]
+
+
+def _render_workloads(
+    rows: list[dict[_WorkloadListColumnType, str]],
 ) -> str:
-  """Parses, filters, and formats the raw workload list output.
-
-  Args:
-    rows: The raw output from kubectl parsed into columns.
-    filter_by_status: The status filter to apply.
-    filter_by_job: The job name filter to apply.
-
-  Returns:
-    The formatted table string.
-  """
-  filtered_rows = []
-  for row_dict in rows:
-    row_data = {}
-    for col_enum in _WORKLOAD_LIST_DISPLAY_ORDER:
-      col_metadata = _WORKLOAD_LIST_COLUMN_MAP[col_enum]
-      row_data[col_enum] = col_metadata.formatter(row_dict.get(col_enum, ''))
-
-    if _filter_workload(row_data, filter_by_status, filter_by_job):
-      row_list = [
-          row_data[col_enum] for col_enum in _WORKLOAD_LIST_DISPLAY_ORDER
-      ]
-      filtered_rows.append(row_list)
-
-  if not filtered_rows:
+  """Formats the filtered rows into a string table."""
+  if not rows:
     return ''
+
+  filtered_rows = []
+  for row_data in rows:
+    row_list = [row_data[col_enum] for col_enum in _WORKLOAD_LIST_DISPLAY_ORDER]
+    filtered_rows.append(row_list)
 
   col_widths = [len(h) for h in _HEADERS]
   for row in filtered_rows:
@@ -217,45 +269,18 @@ def get_workload_list(args) -> tuple[int, str]:
     return_code: 0 if successful and 1 otherwise.
     return_value: workloads in the cluster matching the criteria.
   """
-  row_path = _WORKLOAD_LIST_DELIMITER.join([
-      f'{col.name}={_WORKLOAD_LIST_COLUMN_MAP[col].jsonpath}'
-      for col in _WORKLOAD_LIST_DISPLAY_ORDER
-  ])
-  jsonpath_str = f'{{range .items[*]}}{row_path}{{"\n"}}{{end}}'
-
-  command = (
-      f"kubectl get workloads --ignore-not-found -o=jsonpath='{jsonpath_str}'"
-  )
-
-  task = f'List Jobs with filter-by-status={args.filter_by_status}'
-  if hasattr(args, 'filter_by_job') and args.filter_by_job:
-    task += f' with filter-by-job={args.filter_by_job}'
-
-  return_code, data = run_command_for_value(
-      command, task, dry_run_return_val=''
-  )
-
+  filter_by_job = getattr(args, 'filter_by_job', None)
+  return_code, raw_rows = _fetch_workloads(args.filter_by_status, filter_by_job)
   if return_code != 0:
     return return_code, ''
 
-  data_rows = []
-  if data:
-    for line in data.splitlines():
-      row_dict = {}
-      for kv in line.split(_WORKLOAD_LIST_DELIMITER):
-        if '=' in kv:
-          key_str, val = kv.split('=', 1)
-          try:
-            col_enum = _WorkloadListColumnType[key_str]
-            row_dict[col_enum] = val
-          except KeyError:
-            pass
-      if row_dict:
-        data_rows.append(row_dict)
+  formatted_rows = _format_columns(raw_rows)
 
-  formatted_output = _parse_and_format_workload_list(
-      data_rows, args.filter_by_status, getattr(args, 'filter_by_job', None)
+  filtered_rows = _filter_workloads(
+      formatted_rows, args.filter_by_status, filter_by_job
   )
+
+  formatted_output = _render_workloads(filtered_rows)
 
   return 0, formatted_output
 

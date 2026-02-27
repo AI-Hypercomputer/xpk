@@ -39,10 +39,11 @@ import sys
 from .parser.core import set_parser
 from .parser.common import extract_command_path, enable_flags_usage_tracking, retrieve_flags
 from .core.updates import print_xpk_hello
-from .core.config import set_config, FileSystemConfig
+from .core.config import set_config, get_config, FileSystemConfig, CUSTOM_BINARIES_PATH_KEY
 from .core.telemetry import MetricsCollector, send_clearcut_payload, should_send_telemetry
 from .utils.console import xpk_print, exit_code_to_int
 from .utils.execution_context import set_context
+from .utils.environment import custom_binaries_path_env
 from .utils.kubectl import sandbox_kubeconfig
 ################### Compatibility Check ###################
 # Check that the user runs the below version or greater.
@@ -92,7 +93,10 @@ def main() -> None:
         and main_args.sandbox_kubeconfig
     )
     opt_sandbox = sandbox_kubeconfig if is_sandbox else contextlib.nullcontext
-    with opt_sandbox():
+    with (
+        opt_sandbox(),
+        custom_binaries_path_env(get_config().get(CUSTOM_BINARIES_PATH_KEY)),
+    ):
       main_args.func(main_args)
     xpk_print('XPK Done.', flush=True)
     MetricsCollector.log_complete(0)

@@ -30,11 +30,21 @@ from .reservation import (
     SubBlockReservationLink,
     to_reservation_path,
     _parse_reservation,
-    _SpecificReservation,
-    _AggregateReservation,
-    _AcceleratorResource,
-    _Reservation,
+    _parse_reservation_sub_block,
+    SpecificReservation,
+    AggregateReservation,
+    AcceleratorResource,
+    Reservation,
+    get_reservation,
     _get_reservation_cached,
+    get_reservation_accelerator_type,
+    ReservationSubBlock,
+)
+from .system_characteristics import (
+    SystemCharacteristics,
+    AcceleratorType,
+    GpuConfig,
+    DockerPlatform,
 )
 
 
@@ -50,7 +60,7 @@ def clear_capacity_cache():
   _get_reservation_cached.cache_clear()
 
 
-@patch('xpk.core.reservation._get_reservation_cached')
+@patch('xpk.core.reservation.get_reservation')
 @patch('xpk.core.reservation.xpk_print')
 def test_get_reservation_deployment_type_exits_on_failure(
     mock_print, mock_get_cached
@@ -63,9 +73,9 @@ def test_get_reservation_deployment_type_exits_on_failure(
   mock_print.assert_called()
 
 
-@patch('xpk.core.reservation._get_reservation_cached')
+@patch('xpk.core.reservation.get_reservation')
 def test_get_reservation_deployment_type(mock_get_cached):
-  mock_res = MagicMock(spec=_Reservation)
+  mock_res = MagicMock(spec=Reservation)
   mock_res.deployment_type = 'DENSE'
   mock_get_cached.return_value = mock_res
 
@@ -210,9 +220,9 @@ def test_parse_reservation_fails_on_invalid_reservations(
   assert 'Unable to parse reservation' in xpk_print.mock_calls[0].args[0]
 
 
-@patch('xpk.core.reservation._get_reservation_cached')
+@patch('xpk.core.reservation.get_reservation')
 def test_verify_reservations_exist_success(mock_get_cached, mocker):
-  mock_get_cached.return_value = MagicMock(spec=_Reservation)
+  mock_get_cached.return_value = MagicMock(spec=Reservation)
   args = mocker.Mock(reservation='r1,r2', project='project', zone='zone')
 
   result = verify_reservations_exist(args)
@@ -227,7 +237,7 @@ def test_verify_reservations_exist_success(mock_get_cached, mocker):
   )
 
 
-@patch('xpk.core.reservation._get_reservation_cached')
+@patch('xpk.core.reservation.get_reservation')
 def test_verify_reservations_exist_failure(mock_get_cached, mocker):
   mock_get_cached.side_effect = [
       MagicMock(),
@@ -274,9 +284,9 @@ def test_get_reservations_list_empty(mocker):
   assert get_reservations_list(args) == []
 
 
-@patch('xpk.core.reservation._get_reservation_cached')
+@patch('xpk.core.reservation.get_reservation')
 def test_get_reservation_placement_policy(mock_get_cached):
-  mock_res = MagicMock(spec=_Reservation)
+  mock_res = MagicMock(spec=Reservation)
   mock_res.resource_policy = 'compact'
   mock_get_cached.return_value = mock_res
 
@@ -287,10 +297,10 @@ def test_get_reservation_placement_policy(mock_get_cached):
   assert result == 'compact'
 
 
-@patch('xpk.core.reservation._get_reservation_cached')
+@patch('xpk.core.reservation.get_reservation')
 def test_get_reservation_maintenance_interval(mock_get_cached):
-  mock_res = MagicMock(spec=_Reservation)
-  mock_res.specific_reservation = MagicMock(spec=_SpecificReservation)
+  mock_res = MagicMock(spec=Reservation)
+  mock_res.specific_reservation = MagicMock(spec=SpecificReservation)
   mock_res.specific_reservation.maintenance_interval = 'PERIODIC'
   mock_get_cached.return_value = mock_res
 
@@ -307,11 +317,12 @@ def test_parse_reservation_without_specific_or_aggregate():
       'resourcePolicies': {'policy': 'compact-policy'},
       'status': 'READY',
   }
+  link = ReservationLink(project='project', name='res1', zone='zone')
 
-  reservation = _parse_reservation('res1', data)
+  reservation = _parse_reservation(link, data)
 
-  assert reservation == _Reservation(
-      name='res1',
+  assert reservation == Reservation(
+      link=link,
       aggregate_reservation=None,
       specific_reservation=None,
       deployment_type='DENSE',
@@ -334,18 +345,19 @@ def test_parse_specific_reservation():
       },
       'status': 'READY',
   }
+  link = ReservationLink(project='project', name='res1', zone='zone')
 
-  reservation = _parse_reservation('res1', data)
+  reservation = _parse_reservation(link, data)
 
-  assert reservation == _Reservation(
-      name='res1',
+  assert reservation == Reservation(
+      link=link,
       aggregate_reservation=None,
-      specific_reservation=_SpecificReservation(
+      specific_reservation=SpecificReservation(
           count=10,
           in_use_count=2,
           machine_type='test-machine',
           guest_accelerators=[
-              _AcceleratorResource(
+              AcceleratorResource(
                   accelerator_count=1, accelerator_type='nvidia-test'
               )
           ],
@@ -371,20 +383,19 @@ def test_parse_aggregate_reservation():
       },
       'status': 'READY',
   }
+  link = ReservationLink(project='project', name='res1', zone='zone')
 
-  reservation = _parse_reservation('res1', data)
+  reservation = _parse_reservation(link, data)
 
-  assert reservation == _Reservation(
-      name='res1',
+  assert reservation == Reservation(
+      link=link,
       specific_reservation=None,
-      aggregate_reservation=_AggregateReservation(
+      aggregate_reservation=AggregateReservation(
           reserved_resources=[
-              _AcceleratorResource(
-                  accelerator_count=100, accelerator_type='tpu'
-              )
+              AcceleratorResource(accelerator_count=100, accelerator_type='tpu')
           ],
           in_use_resources=[
-              _AcceleratorResource(accelerator_count=20, accelerator_type='tpu')
+              AcceleratorResource(accelerator_count=20, accelerator_type='tpu')
           ],
       ),
   )
@@ -395,20 +406,38 @@ def test_get_reservation_cached_caching(commands_tester: CommandsTester):
       (0, '{"name": "res", "status": "READY"}'), 'reservations', 'describe'
   )
 
-  # First call
-  _get_reservation_cached(ReservationLink('project', 'res1', 'zone'))
+  # First call with base link
+  get_reservation(ReservationLink('project', 'res1', 'zone'))
   commands_tester.assert_command_run(
       'reservations', 'describe', 'res1', times=1
   )
 
-  # Second call with same args
-  _get_reservation_cached(ReservationLink('project', 'res1', 'zone'))
+  # Second call with Block link (same reservation)
+  get_reservation(
+      BlockReservationLink('project', 'res1', 'zone', block_name='block1')
+  )
+  # Should still be 1 call total
   commands_tester.assert_command_run(
       'reservations', 'describe', 'res1', times=1
   )
 
-  # Third call with different args
-  _get_reservation_cached(ReservationLink('project', 'res2', 'zone'))
+  # Third call with SubBlock link (same reservation)
+  get_reservation(
+      SubBlockReservationLink(
+          'project',
+          'res1',
+          'zone',
+          block_name='block1',
+          sub_block_name='sub1',
+      )
+  )
+  # Should still be 1 call total
+  commands_tester.assert_command_run(
+      'reservations', 'describe', 'res1', times=1
+  )
+
+  # Fourth call with different reservation
+  get_reservation(ReservationLink('project', 'res2', 'zone'))
   commands_tester.assert_command_run(
       'reservations', 'describe', 'res2', times=1
   )
@@ -425,7 +454,7 @@ def test_get_reservation_cached_calls_correct_command(
       project='my-project', name='my-res', zone='my-zone'
   )
 
-  _get_reservation_cached(reservation)
+  get_reservation(reservation)
 
   commands_tester.assert_command_run(
       'gcloud beta compute reservations describe my-res',
@@ -442,7 +471,7 @@ def test_get_reservation_cached_returns_none_if_not_ready(
   )
   reservation = ReservationLink(project='project', name='res', zone='zone')
 
-  result = _get_reservation_cached(reservation)
+  result = get_reservation(reservation)
 
   assert result is None
 
@@ -455,7 +484,7 @@ def test_get_reservation_cached_returns_none_on_command_failure(
   )
   reservation = ReservationLink(project='project', name='res', zone='zone')
 
-  result = _get_reservation_cached(reservation)
+  result = get_reservation(reservation)
 
   assert result is None
 
@@ -469,7 +498,89 @@ def test_get_reservation_cached_returns_none_on_invalid_json(
   mock_print = mocker.patch('xpk.core.reservation.xpk_print')
   reservation = ReservationLink(project='project', name='res', zone='zone')
 
-  result = _get_reservation_cached(reservation)
+  result = get_reservation(reservation)
 
   assert result is None
   mock_print.assert_called()
+
+
+def test_parse_reservation_sub_block():
+  data = {'name': 'sub1', 'count': 10, 'inUseCount': 2}
+  parent_link = BlockReservationLink(
+      project='project', name='res1', zone='zone', block_name='block1'
+  )
+
+  result = _parse_reservation_sub_block(data, parent_link)
+
+  assert result == ReservationSubBlock(
+      link=SubBlockReservationLink(
+          project='project',
+          name='res1',
+          zone='zone',
+          block_name='block1',
+          sub_block_name='sub1',
+      ),
+      count=10,
+      in_use_count=2,
+  )
+
+
+def test_reservation_accelerator_type_derived_correctly_for_tpu():
+  tpu_system = SystemCharacteristics(
+      topology='2x2x1',
+      vms_per_slice=1,
+      gke_accelerator='tpu-v5p-slice',
+      gce_machine_type='ct5p-hightpu-4t',
+      chips_per_vm=4,
+      accelerator_type=AcceleratorType.TPU,
+      device_type='v5p-8',
+      supports_sub_slicing=False,
+      supports_super_slicing=False,
+      supports_accelerator_network_profile=False,
+      docker_platform=DockerPlatform.AMD,
+  )
+
+  reservation_accelerator_type = get_reservation_accelerator_type(tpu_system)
+
+  assert reservation_accelerator_type == 'ct5p'
+
+
+def test_reservation_accelerator_type_derived_correctly_for_gpu():
+  gpu_system = SystemCharacteristics(
+      topology='N/A',
+      vms_per_slice=1,
+      gke_accelerator='nvidia-l4',
+      gce_machine_type='g2-standard-12',
+      chips_per_vm=1,
+      accelerator_type=AcceleratorType.GPU,
+      device_type='l4-1',
+      supports_sub_slicing=False,
+      supports_super_slicing=False,
+      supports_accelerator_network_profile=False,
+      docker_platform=DockerPlatform.AMD,
+      gpu_config=GpuConfig(requires_topology=False),
+  )
+
+  reservation_accelerator_type = get_reservation_accelerator_type(gpu_system)
+
+  assert reservation_accelerator_type == 'nvidia-l4'
+
+
+def test_reservation_accelerator_type_derived_correctly_for_cpu():
+  cpu_system = SystemCharacteristics(
+      topology='N/A',
+      vms_per_slice=1,
+      gke_accelerator='N/A',
+      gce_machine_type='n2-standard-32',
+      chips_per_vm=32,
+      accelerator_type=AcceleratorType.CPU,
+      device_type='n2-standard-32-1',
+      supports_sub_slicing=False,
+      supports_super_slicing=False,
+      supports_accelerator_network_profile=False,
+      docker_platform=DockerPlatform.AMD,
+  )
+
+  reservation_accelerator_type = get_reservation_accelerator_type(cpu_system)
+
+  assert reservation_accelerator_type is None

@@ -36,6 +36,9 @@ class _FeatureFlags:
   CRANE_WORKLOADS_ENABLED = _get_boolean_flag(
       "CRANE_WORKLOADS_ENABLED", default=False
   )
+  RESERVATIONS_VALIDATION_ENABLED = _get_boolean_flag(
+      "RESERVATIONS_VALIDATION_ENABLED", default=True
+  )
 
 
 FeatureFlags = _FeatureFlags()

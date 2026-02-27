@@ -34,7 +34,7 @@ from packaging.version import Version
 
 _SUB_SLICING_MINIMUM_KUEUE_VERSION = Version('0.13.0')
 _SUPER_SLICING_MINIMUM_KUEUE_VERSION = Version('0.15.2')
-_SUPER_SLICING_MAX_TOPOLOGY = (16, 24, 24)
+_SUPER_SLICING_MAX_CUBES = 144
 ONE_TO_ONE_REPLICA_NODE_POOL_ASSIGNMENT_ANNOTATION = (
     'alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool'
 )
@@ -219,16 +219,17 @@ def _check_super_slicing_topology(
   topology = parse_topology(workload_system.topology)
   result = (
       all(size % 4 == 0 and size >= 4 for size in topology)
-      and len(topology) == len(_SUPER_SLICING_MAX_TOPOLOGY)
+      and len(topology) == 3
       and topology[0] <= topology[1] <= topology[2]
-      and all(a <= b for a, b in zip(topology, _SUPER_SLICING_MAX_TOPOLOGY))
+      and (topology[0] // 4) * (topology[1] // 4) * (topology[2] // 4)
+      <= _SUPER_SLICING_MAX_CUBES
   )
 
   if not result:
     xpk_print(
-        'Error: Invalid super-slicing topology. It must adhere to the format of'
-        ' 4i x 4j x 4k, where i <= j <= k, and i, j, k are integers, with a'
-        ' maximum of 16x24x24.'
+        'Error: Invalid super-slicing topology. It must adhere to the'
+        ' format of 4i x 4j x 4k, where i <= j <= k, and i, j, k are'
+        f' integers, and i * j * k <= {_SUPER_SLICING_MAX_CUBES}.'
     )
 
   return result

@@ -56,8 +56,8 @@ def test_get_jobsets_list_gcp_link():
 def test_get_workload_list(commands_tester: CommandsTester):
   mock_output = '\n'.join([
       (
-          'JOBSET_NAME=job-test~CREATED_TIME=2024-01-01T00:00:00Z~PRIORITY=high~TPU_VMS_NEEDED=32~TPU_VMS_RUNNING_RAN=32~TPU_VMS_DONE=0~STATUS=Running~STATUS_MESSAGE=All'
-          ' good~STATUS_TIME=2024-01-01T00:01:00Z'
+          'JOBSET_NAME=job-test\x1fCREATED_TIME=2024-01-01T00:00:00Z\x1fPRIORITY=high\x1fTPU_VMS_NEEDED=32\x1fTPU_VMS_RUNNING_RAN=32\x1fTPU_VMS_DONE=0\x1fSTATUS=Running\x1fSTATUS_MESSAGE=All'
+          ' good\x1fSTATUS_TIME=2024-01-01T00:01:00Z'
       ),
   ])
   commands_tester.set_result_for_command(
@@ -86,16 +86,16 @@ def test_get_workload_list(commands_tester: CommandsTester):
 def test_get_workload_list_super_slicing(commands_tester: CommandsTester):
   mock_output = '\n'.join([
       (
-          'JOBSET_NAME=job-super~CREATED_TIME=2024-01-01T00:00:00Z~PRIORITY=high~TPU_VMS_NEEDED=32'
-          ' 32~TPU_VMS_RUNNING_RAN=32 32~TPU_VMS_DONE=0'
-          ' 0~STATUS=Running~STATUS_MESSAGE=All'
-          ' good~STATUS_TIME=2024-01-01T00:01:00Z'
+          'JOBSET_NAME=job-super\x1fCREATED_TIME=2024-01-01T00:00:00Z\x1fPRIORITY=high\x1fTPU_VMS_NEEDED=32'
+          ' 32\x1fTPU_VMS_RUNNING_RAN=32 32\x1fTPU_VMS_DONE=0'
+          ' 0\x1fSTATUS=Running\x1fSTATUS_MESSAGE=All'
+          ' good\x1fSTATUS_TIME=2024-01-01T00:01:00Z'
       ),
       (
-          'JOBSET_NAME=job-normal~CREATED_TIME=2024-01-02T00:00:00Z~PRIORITY=low~TPU_VMS_NEEDED=4~TPU_VMS_RUNNING_RAN=4~TPU_VMS_DONE=0~STATUS=Running~STATUS_MESSAGE=All'
-          ' good~STATUS_TIME=2024-01-02T00:01:00Z'
+          'JOBSET_NAME=job-normal\x1fCREATED_TIME=2024-01-02T00:00:00Z\x1fPRIORITY=low\x1fTPU_VMS_NEEDED=4\x1fTPU_VMS_RUNNING_RAN=4\x1fTPU_VMS_DONE=0\x1fSTATUS=Running\x1fSTATUS_MESSAGE=All'
+          ' good\x1fSTATUS_TIME=2024-01-02T00:01:00Z'
       ),
-      'JOBSET_NAME=job-pending~CREATED_TIME=2024-01-03T00:00:00Z~PRIORITY=high~TPU_VMS_NEEDED=16~TPU_VMS_RUNNING_RAN=~TPU_VMS_DONE=0~STATUS=Admitted~STATUS_MESSAGE=Waiting~STATUS_TIME=2024-01-03T00:01:00Z',
+      'JOBSET_NAME=job-pending\x1fCREATED_TIME=2024-01-03T00:00:00Z\x1fPRIORITY=high\x1fTPU_VMS_NEEDED=16\x1fTPU_VMS_RUNNING_RAN=\x1fTPU_VMS_DONE=0\x1fSTATUS=Admitted\x1fSTATUS_MESSAGE=Waiting\x1fSTATUS_TIME=2024-01-03T00:01:00Z',
   ])
   commands_tester.set_result_for_command(
       (0, mock_output), 'kubectl', 'get', 'workloads'
@@ -132,14 +132,14 @@ def test_get_workload_list_super_slicing(commands_tester: CommandsTester):
 def test_get_workload_list_filter_by_job(commands_tester: CommandsTester):
   mock_output = '\n'.join([
       (
-          'JOBSET_NAME=job-test-1~CREATED_TIME=2024-01-01T00:00:00Z~PRIORITY=high~TPU_VMS_NEEDED=32~TPU_VMS_RUNNING_RAN=32~TPU_VMS_DONE=0~STATUS=Running~STATUS_MESSAGE=All'
-          ' good~STATUS_TIME=2024-01-01T00:01:00Z'
+          'JOBSET_NAME=job-test-1\x1fCREATED_TIME=2024-01-01T00:00:00Z\x1fPRIORITY=high\x1fTPU_VMS_NEEDED=32\x1fTPU_VMS_RUNNING_RAN=32\x1fTPU_VMS_DONE=0\x1fSTATUS=Running\x1fSTATUS_MESSAGE=All'
+          ' good\x1fSTATUS_TIME=2024-01-01T00:01:00Z'
       ),
       (
-          'JOBSET_NAME=job-test-2~CREATED_TIME=2024-01-02T00:00:00Z~PRIORITY=low~TPU_VMS_NEEDED=4~TPU_VMS_RUNNING_RAN=4~TPU_VMS_DONE=0~STATUS=Running~STATUS_MESSAGE=All'
-          ' good~STATUS_TIME=2024-01-02T00:01:00Z'
+          'JOBSET_NAME=job-test-2\x1fCREATED_TIME=2024-01-02T00:00:00Z\x1fPRIORITY=low\x1fTPU_VMS_NEEDED=4\x1fTPU_VMS_RUNNING_RAN=4\x1fTPU_VMS_DONE=0\x1fSTATUS=Running\x1fSTATUS_MESSAGE=All'
+          ' good\x1fSTATUS_TIME=2024-01-02T00:01:00Z'
       ),
-      'JOBSET_NAME=other-job~CREATED_TIME=2024-01-03T00:00:00Z~PRIORITY=high~TPU_VMS_NEEDED=16~TPU_VMS_RUNNING_RAN=~TPU_VMS_DONE=0~STATUS=Admitted~STATUS_MESSAGE=Waiting~STATUS_TIME=2024-01-03T00:01:00Z',
+      'JOBSET_NAME=other-job\x1fCREATED_TIME=2024-01-03T00:00:00Z\x1fPRIORITY=high\x1fTPU_VMS_NEEDED=16\x1fTPU_VMS_RUNNING_RAN=\x1fTPU_VMS_DONE=0\x1fSTATUS=Admitted\x1fSTATUS_MESSAGE=Waiting\x1fSTATUS_TIME=2024-01-03T00:01:00Z',
   ])
   commands_tester.set_result_for_command(
       (0, mock_output), 'kubectl', 'get', 'workloads'
@@ -183,19 +183,19 @@ def test_get_workload_list_filters(
     expected_job_names: list[str],
 ):
   mock_output = '\n'.join([
-      'JOBSET_NAME=queued-job~CREATED_TIME=2024-01-01T00:00:00Z~PRIORITY=high~TPU_VMS_NEEDED=4~TPU_VMS_RUNNING_RAN=<none>~TPU_VMS_DONE=0~STATUS=Admitted~STATUS_MESSAGE=Waiting~STATUS_TIME=2024-01-01T00:01:00Z',
-      'JOBSET_NAME=running-job~CREATED_TIME=2024-01-01T00:00:00Z~PRIORITY=high~TPU_VMS_NEEDED=4~TPU_VMS_RUNNING_RAN=4~TPU_VMS_DONE=0~STATUS=Admitted~STATUS_MESSAGE=Running~STATUS_TIME=2024-01-01T00:01:00Z',
+      'JOBSET_NAME=queued-job\x1fCREATED_TIME=2024-01-01T00:00:00Z\x1fPRIORITY=high\x1fTPU_VMS_NEEDED=4\x1fTPU_VMS_RUNNING_RAN=<none>\x1fTPU_VMS_DONE=0\x1fSTATUS=Admitted\x1fSTATUS_MESSAGE=Waiting\x1fSTATUS_TIME=2024-01-01T00:01:00Z',
+      'JOBSET_NAME=running-job\x1fCREATED_TIME=2024-01-01T00:00:00Z\x1fPRIORITY=high\x1fTPU_VMS_NEEDED=4\x1fTPU_VMS_RUNNING_RAN=4\x1fTPU_VMS_DONE=0\x1fSTATUS=Admitted\x1fSTATUS_MESSAGE=Running\x1fSTATUS_TIME=2024-01-01T00:01:00Z',
       (
-          'JOBSET_NAME=success-job~CREATED_TIME=2024-01-01T00:00:00Z~PRIORITY=high~TPU_VMS_NEEDED=4~TPU_VMS_RUNNING_RAN=4~TPU_VMS_DONE=4~STATUS=Finished~STATUS_MESSAGE=Job'
-          ' finishedsuccessfully~STATUS_TIME=2024-01-01T00:01:00Z'
+          'JOBSET_NAME=success-job\x1fCREATED_TIME=2024-01-01T00:00:00Z\x1fPRIORITY=high\x1fTPU_VMS_NEEDED=4\x1fTPU_VMS_RUNNING_RAN=4\x1fTPU_VMS_DONE=4\x1fSTATUS=Finished\x1fSTATUS_MESSAGE=Job'
+          ' finishedsuccessfully\x1fSTATUS_TIME=2024-01-01T00:01:00Z'
       ),
       (
-          'JOBSET_NAME=failed-job~CREATED_TIME=2024-01-01T00:00:00Z~PRIORITY=high~TPU_VMS_NEEDED=4~TPU_VMS_RUNNING_RAN=4~TPU_VMS_DONE=0~STATUS=Finished~STATUS_MESSAGE=Job'
-          ' failed witherror~STATUS_TIME=2024-01-01T00:01:00Z'
+          'JOBSET_NAME=failed-job\x1fCREATED_TIME=2024-01-01T00:00:00Z\x1fPRIORITY=high\x1fTPU_VMS_NEEDED=4\x1fTPU_VMS_RUNNING_RAN=4\x1fTPU_VMS_DONE=0\x1fSTATUS=Finished\x1fSTATUS_MESSAGE=Job'
+          ' failed witherror\x1fSTATUS_TIME=2024-01-01T00:01:00Z'
       ),
       (
-          'JOBSET_NAME=test-queued-job~CREATED_TIME=2024-01-01T00:00:00Z~PRIORITY=high~TPU_VMS_NEEDED=4~TPU_VMS_RUNNING_RAN=0~TPU_VMS_DONE=0~STATUS=QuotaReserved~STATUS_MESSAGE=Waitingfor'
-          ' quota~STATUS_TIME=2024-01-01T00:01:00Z'
+          'JOBSET_NAME=test-queued-job\x1fCREATED_TIME=2024-01-01T00:00:00Z\x1fPRIORITY=high\x1fTPU_VMS_NEEDED=4\x1fTPU_VMS_RUNNING_RAN=0\x1fTPU_VMS_DONE=0\x1fSTATUS=QuotaReserved\x1fSTATUS_MESSAGE=Waitingfor'
+          ' quota\x1fSTATUS_TIME=2024-01-01T00:01:00Z'
       ),
   ])
   commands_tester.set_result_for_command(

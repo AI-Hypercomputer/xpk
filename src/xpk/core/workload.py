@@ -23,7 +23,7 @@ from ..utils.console import xpk_exit, xpk_print
 from .commands import run_command_for_value
 from .gcloud_context import get_cluster_location
 
-_WORKLOAD_LIST_DELIMITER = '~'
+_WORKLOAD_LIST_DELIMITER = '\x1f'
 
 
 def _safe_int(s: str) -> int:
@@ -33,11 +33,15 @@ def _safe_int(s: str) -> int:
     return 0
 
 
+def _default_format(val: str) -> str:
+  return val if val else '<none>'
+
+
 @dataclass
 class _WorkloadListColumn:
   header: str
   jsonpath: str
-  formatter: Callable[[str], str] = lambda x: x
+  formatter: Callable[[str], str] = _default_format
 
 
 def _sum_counts(value: str) -> str:

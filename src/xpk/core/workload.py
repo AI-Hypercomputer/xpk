@@ -15,6 +15,7 @@ limitations under the License.
 """
 
 from dataclasses import dataclass
+from enum import Enum, auto
 import re
 from typing import Callable, Optional
 
@@ -50,55 +51,93 @@ def _sum_counts(value: str) -> str:
     return '<none>'
 
 
-_WORKLOAD_LIST_COLUMNS = [
-    _WorkloadListColumn('Jobset Name', '{.metadata.ownerReferences[0].name}'),
-    _WorkloadListColumn('Created Time', '{.metadata.creationTimestamp}'),
-    _WorkloadListColumn(
+class _WorkloadListColumnType(Enum):
+  JOBSET_NAME = auto()
+  CREATED_TIME = auto()
+  PRIORITY = auto()
+  TPU_VMS_NEEDED = auto()
+  TPU_VMS_RUNNING_RAN = auto()
+  TPU_VMS_DONE = auto()
+  STATUS = auto()
+  STATUS_MESSAGE = auto()
+  STATUS_TIME = auto()
+
+
+_WORKLOAD_LIST_COLUMN_MAP: dict[
+    _WorkloadListColumnType, _WorkloadListColumn
+] = {
+    _WorkloadListColumnType.JOBSET_NAME: _WorkloadListColumn(
+        'Jobset Name', '{.metadata.ownerReferences[0].name}'
+    ),
+    _WorkloadListColumnType.CREATED_TIME: _WorkloadListColumn(
+        'Created Time', '{.metadata.creationTimestamp}'
+    ),
+    _WorkloadListColumnType.PRIORITY: _WorkloadListColumn(
         'Priority', '{.spec.podSets[0].template.spec.priorityClassName}'
     ),
-    _WorkloadListColumn(
+    _WorkloadListColumnType.TPU_VMS_NEEDED: _WorkloadListColumn(
         'TPU VMs Needed', '{.spec.podSets[*].count}', _sum_counts
     ),
-    _WorkloadListColumn(
+    _WorkloadListColumnType.TPU_VMS_RUNNING_RAN: _WorkloadListColumn(
         'TPU VMs Running/Ran',
         '{.status.admission.podSetAssignments[*].count}',
         _sum_counts,
     ),
-    _WorkloadListColumn(
-        'TPU VMs Done',
-        '{.status.reclaimablePods[*].count}',
-        _sum_counts,
+    _WorkloadListColumnType.TPU_VMS_DONE: _WorkloadListColumn(
+        'TPU VMs Done', '{.status.reclaimablePods[*].count}', _sum_counts
     ),
-    _WorkloadListColumn('Status', '{.status.conditions[-1].type}'),
-    _WorkloadListColumn('Status Message', '{.status.conditions[-1].message}'),
-    _WorkloadListColumn(
+    _WorkloadListColumnType.STATUS: _WorkloadListColumn(
+        'Status', '{.status.conditions[-1].type}'
+    ),
+    _WorkloadListColumnType.STATUS_MESSAGE: _WorkloadListColumn(
+        'Status Message', '{.status.conditions[-1].message}'
+    ),
+    _WorkloadListColumnType.STATUS_TIME: _WorkloadListColumn(
         'Status Time', '{.status.conditions[-1].lastTransitionTime}'
     ),
+}
+
+_WORKLOAD_LIST_DISPLAY_ORDER = [
+    _WorkloadListColumnType.JOBSET_NAME,
+    _WorkloadListColumnType.CREATED_TIME,
+    _WorkloadListColumnType.PRIORITY,
+    _WorkloadListColumnType.TPU_VMS_NEEDED,
+    _WorkloadListColumnType.TPU_VMS_RUNNING_RAN,
+    _WorkloadListColumnType.TPU_VMS_DONE,
+    _WorkloadListColumnType.STATUS,
+    _WorkloadListColumnType.STATUS_MESSAGE,
+    _WorkloadListColumnType.STATUS_TIME,
 ]
-_HEADERS = [col.header for col in _WORKLOAD_LIST_COLUMNS]
+_HEADERS = [
+    _WORKLOAD_LIST_COLUMN_MAP[col].header
+    for col in _WORKLOAD_LIST_DISPLAY_ORDER
+]
 
 
 def _filter_workload(
-    row_data: dict[str, str],
+    row_data: dict[_WorkloadListColumnType, str],
     filter_by_status: str,
     filter_by_job: Optional[str],
 ) -> bool:
   """Filters a workload based on status and job name.
 
   Args:
-    row_data: The parsed row data (Header -> Displayed value).
+    row_data: The parsed row data keyed by column type.
     filter_by_status: The status filter to apply.
     filter_by_job: The job name filter to apply.
 
   Returns:
     True if the workload should be included, False otherwise.
   """
-  if filter_by_job and filter_by_job not in row_data['Jobset Name']:
+  if (
+      filter_by_job
+      and filter_by_job not in row_data[_WorkloadListColumnType.JOBSET_NAME]
+  ):
     return False
 
-  status = row_data['Status']
-  message = row_data['Status Message']
-  running_str = row_data['TPU VMs Running/Ran']
+  status = row_data[_WorkloadListColumnType.STATUS]
+  message = row_data[_WorkloadListColumnType.STATUS_MESSAGE]
+  running_str = row_data[_WorkloadListColumnType.TPU_VMS_RUNNING_RAN]
 
   match filter_by_status:
     case 'EVERYTHING':
@@ -124,7 +163,9 @@ def _filter_workload(
 
 
 def _parse_and_format_workload_list(
-    rows: list[list[str]], filter_by_status: str, filter_by_job: Optional[str]
+    rows: list[dict[_WorkloadListColumnType, str]],
+    filter_by_status: str,
+    filter_by_job: Optional[str],
 ) -> str:
   """Parses, filters, and formats the raw workload list output.
 
@@ -137,17 +178,16 @@ def _parse_and_format_workload_list(
     The formatted table string.
   """
   filtered_rows = []
-  for parts in rows:
-    if len(parts) != len(_WORKLOAD_LIST_COLUMNS):
-      xpk_print(f'Warning. Skipping malformed line: {parts}')
-      continue
-
+  for row_dict in rows:
     row_data = {}
-    for i, col in enumerate(_WORKLOAD_LIST_COLUMNS):
-      row_data[col.header] = col.formatter(parts[i])
+    for col_enum in _WORKLOAD_LIST_DISPLAY_ORDER:
+      col_metadata = _WORKLOAD_LIST_COLUMN_MAP[col_enum]
+      row_data[col_enum] = col_metadata.formatter(row_dict.get(col_enum, ''))
 
     if _filter_workload(row_data, filter_by_status, filter_by_job):
-      row_list = [row_data[col.header] for col in _WORKLOAD_LIST_COLUMNS]
+      row_list = [
+          row_data[col_enum] for col_enum in _WORKLOAD_LIST_DISPLAY_ORDER
+      ]
       filtered_rows.append(row_list)
 
   if not filtered_rows:
@@ -177,13 +217,14 @@ def get_workload_list(args) -> tuple[int, str]:
     return_code: 0 if successful and 1 otherwise.
     return_value: workloads in the cluster matching the criteria.
   """
-  row_path = _WORKLOAD_LIST_DELIMITER.join(
-      [col.jsonpath for col in _WORKLOAD_LIST_COLUMNS]
-  )
-  jsonpath_str = f'{{range .items[*]}}{row_path}{{"\\n"}}{{end}}'
+  row_path = _WORKLOAD_LIST_DELIMITER.join([
+      f'{col.name}={_WORKLOAD_LIST_COLUMN_MAP[col].jsonpath}'
+      for col in _WORKLOAD_LIST_DISPLAY_ORDER
+  ])
+  jsonpath_str = f'{{range .items[*]}}{row_path}{{"\n"}}{{end}}'
 
   command = (
-      f"kubectl get workloads --ignore-not-found -o=jsonpath='{jsonpath_str}'",
+      f"kubectl get workloads --ignore-not-found -o=jsonpath='{jsonpath_str}'"
   )
 
   task = f'List Jobs with filter-by-status={args.filter_by_status}'
@@ -200,7 +241,17 @@ def get_workload_list(args) -> tuple[int, str]:
   data_rows = []
   if data:
     for line in data.splitlines():
-      data_rows.append(line.split(_WORKLOAD_LIST_DELIMITER))
+      row_dict = {}
+      for kv in line.split(_WORKLOAD_LIST_DELIMITER):
+        if '=' in kv:
+          key_str, val = kv.split('=', 1)
+          try:
+            col_enum = _WorkloadListColumnType[key_str]
+            row_dict[col_enum] = val
+          except KeyError:
+            pass
+      if row_dict:
+        data_rows.append(row_dict)
 
   formatted_output = _parse_and_format_workload_list(
       data_rows, args.filter_by_status, getattr(args, 'filter_by_job', None)

@@ -56,8 +56,8 @@ def test_get_jobsets_list_gcp_link():
 def test_get_workload_list(commands_tester: CommandsTester):
   mock_output = '\n'.join([
       (
-          'job-test~2024-01-01T00:00:00Z~high~32~32~0~Running~All'
-          ' good~2024-01-01T00:01:00Z'
+          'JOBSET_NAME=job-test~CREATED_TIME=2024-01-01T00:00:00Z~PRIORITY=high~TPU_VMS_NEEDED=32~TPU_VMS_RUNNING_RAN=32~TPU_VMS_DONE=0~STATUS=Running~STATUS_MESSAGE=All'
+          ' good~STATUS_TIME=2024-01-01T00:01:00Z'
       ),
   ])
   commands_tester.set_result_for_command(
@@ -86,14 +86,16 @@ def test_get_workload_list(commands_tester: CommandsTester):
 def test_get_workload_list_super_slicing(commands_tester: CommandsTester):
   mock_output = '\n'.join([
       (
-          'job-super~2024-01-01T00:00:00Z~high~32 32~32 32~0 0~Running~All'
-          ' good~2024-01-01T00:01:00Z'
+          'JOBSET_NAME=job-super~CREATED_TIME=2024-01-01T00:00:00Z~PRIORITY=high~TPU_VMS_NEEDED=32'
+          ' 32~TPU_VMS_RUNNING_RAN=32 32~TPU_VMS_DONE=0'
+          ' 0~STATUS=Running~STATUS_MESSAGE=All'
+          ' good~STATUS_TIME=2024-01-01T00:01:00Z'
       ),
       (
-          'job-normal~2024-01-02T00:00:00Z~low~4~4~0~Running~All'
-          ' good~2024-01-02T00:01:00Z'
+          'JOBSET_NAME=job-normal~CREATED_TIME=2024-01-02T00:00:00Z~PRIORITY=low~TPU_VMS_NEEDED=4~TPU_VMS_RUNNING_RAN=4~TPU_VMS_DONE=0~STATUS=Running~STATUS_MESSAGE=All'
+          ' good~STATUS_TIME=2024-01-02T00:01:00Z'
       ),
-      'job-pending~2024-01-03T00:00:00Z~high~16~~0~Admitted~Waiting~2024-01-03T00:01:00Z',
+      'JOBSET_NAME=job-pending~CREATED_TIME=2024-01-03T00:00:00Z~PRIORITY=high~TPU_VMS_NEEDED=16~TPU_VMS_RUNNING_RAN=~TPU_VMS_DONE=0~STATUS=Admitted~STATUS_MESSAGE=Waiting~STATUS_TIME=2024-01-03T00:01:00Z',
   ])
   commands_tester.set_result_for_command(
       (0, mock_output), 'kubectl', 'get', 'workloads'
@@ -130,14 +132,14 @@ def test_get_workload_list_super_slicing(commands_tester: CommandsTester):
 def test_get_workload_list_filter_by_job(commands_tester: CommandsTester):
   mock_output = '\n'.join([
       (
-          'job-test-1~2024-01-01T00:00:00Z~high~32~32~0~Running~All'
-          ' good~2024-01-01T00:01:00Z'
+          'JOBSET_NAME=job-test-1~CREATED_TIME=2024-01-01T00:00:00Z~PRIORITY=high~TPU_VMS_NEEDED=32~TPU_VMS_RUNNING_RAN=32~TPU_VMS_DONE=0~STATUS=Running~STATUS_MESSAGE=All'
+          ' good~STATUS_TIME=2024-01-01T00:01:00Z'
       ),
       (
-          'job-test-2~2024-01-02T00:00:00Z~low~4~4~0~Running~All'
-          ' good~2024-01-02T00:01:00Z'
+          'JOBSET_NAME=job-test-2~CREATED_TIME=2024-01-02T00:00:00Z~PRIORITY=low~TPU_VMS_NEEDED=4~TPU_VMS_RUNNING_RAN=4~TPU_VMS_DONE=0~STATUS=Running~STATUS_MESSAGE=All'
+          ' good~STATUS_TIME=2024-01-02T00:01:00Z'
       ),
-      'other-job~2024-01-03T00:00:00Z~high~16~~0~Admitted~Waiting~2024-01-03T00:01:00Z',
+      'JOBSET_NAME=other-job~CREATED_TIME=2024-01-03T00:00:00Z~PRIORITY=high~TPU_VMS_NEEDED=16~TPU_VMS_RUNNING_RAN=~TPU_VMS_DONE=0~STATUS=Admitted~STATUS_MESSAGE=Waiting~STATUS_TIME=2024-01-03T00:01:00Z',
   ])
   commands_tester.set_result_for_command(
       (0, mock_output), 'kubectl', 'get', 'workloads'
@@ -181,19 +183,19 @@ def test_get_workload_list_filters(
     expected_job_names: list[str],
 ):
   mock_output = '\n'.join([
-      'queued-job~2024-01-01T00:00:00Z~high~4~<none>~0~Admitted~Waiting~2024-01-01T00:01:00Z',
-      'running-job~2024-01-01T00:00:00Z~high~4~4~0~Admitted~Running~2024-01-01T00:01:00Z',
+      'JOBSET_NAME=queued-job~CREATED_TIME=2024-01-01T00:00:00Z~PRIORITY=high~TPU_VMS_NEEDED=4~TPU_VMS_RUNNING_RAN=<none>~TPU_VMS_DONE=0~STATUS=Admitted~STATUS_MESSAGE=Waiting~STATUS_TIME=2024-01-01T00:01:00Z',
+      'JOBSET_NAME=running-job~CREATED_TIME=2024-01-01T00:00:00Z~PRIORITY=high~TPU_VMS_NEEDED=4~TPU_VMS_RUNNING_RAN=4~TPU_VMS_DONE=0~STATUS=Admitted~STATUS_MESSAGE=Running~STATUS_TIME=2024-01-01T00:01:00Z',
       (
-          'success-job~2024-01-01T00:00:00Z~high~4~4~4~Finished~Job finished'
-          ' successfully~2024-01-01T00:01:00Z'
+          'JOBSET_NAME=success-job~CREATED_TIME=2024-01-01T00:00:00Z~PRIORITY=high~TPU_VMS_NEEDED=4~TPU_VMS_RUNNING_RAN=4~TPU_VMS_DONE=4~STATUS=Finished~STATUS_MESSAGE=Job'
+          ' finishedsuccessfully~STATUS_TIME=2024-01-01T00:01:00Z'
       ),
       (
-          'failed-job~2024-01-01T00:00:00Z~high~4~4~0~Finished~Job failed with'
-          ' error~2024-01-01T00:01:00Z'
+          'JOBSET_NAME=failed-job~CREATED_TIME=2024-01-01T00:00:00Z~PRIORITY=high~TPU_VMS_NEEDED=4~TPU_VMS_RUNNING_RAN=4~TPU_VMS_DONE=0~STATUS=Finished~STATUS_MESSAGE=Job'
+          ' failed witherror~STATUS_TIME=2024-01-01T00:01:00Z'
       ),
       (
-          'test-queued-job~2024-01-01T00:00:00Z~high~4~0~0~QuotaReserved~Waiting'
-          ' for quota~2024-01-01T00:01:00Z'
+          'JOBSET_NAME=test-queued-job~CREATED_TIME=2024-01-01T00:00:00Z~PRIORITY=high~TPU_VMS_NEEDED=4~TPU_VMS_RUNNING_RAN=0~TPU_VMS_DONE=0~STATUS=QuotaReserved~STATUS_MESSAGE=Waitingfor'
+          ' quota~STATUS_TIME=2024-01-01T00:01:00Z'
       ),
   ])
   commands_tester.set_result_for_command(

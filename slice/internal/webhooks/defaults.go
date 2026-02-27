@@ -45,16 +45,8 @@ func annotatePodTemplateSpecWithSliceHealth(template *corev1.PodTemplateSpec) {
 	}
 
 	// 2. If there is NodeAffinity with TPUSliceHealthNodeSelectorKey, we do nothing.
-	if template.Spec.Affinity != nil &&
-		template.Spec.Affinity.NodeAffinity != nil &&
-		template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
-		for _, term := range template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
-			for _, req := range term.MatchExpressions {
-				if req.Key == core.TPUSliceHealthNodeSelectorKey {
-					return
-				}
-			}
-		}
+	if core.FindNodeAffinityRequirement(template, core.TPUSliceHealthNodeSelectorKey) != nil {
+		return
 	}
 
 	// 3. If neither of these, we add a NodeAffinity.
@@ -89,17 +81,27 @@ func annotatePodTemplateSpecWithTopology(template *corev1.PodTemplateSpec, paral
 }
 
 func addNodeInSliceAntiAffinity(template *corev1.PodTemplateSpec) {
-	if template.Spec.Affinity != nil &&
-		template.Spec.Affinity.NodeAffinity != nil &&
-		template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
-		for _, term := range template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
-			for _, req := range term.MatchExpressions {
-				if req.Key == "cloud.google.com/gke-tpu-slice" && req.Operator == corev1.NodeSelectorOpDoesNotExist {
-					return
-				}
-			}
-		}
+	if req := core.FindNodeAffinityRequirement(template, core.TPUSliceNodeLabel); req != nil && req.Operator == corev1.NodeSelectorOpDoesNotExist {
+		return
+	}
+	core.AddNodeAffinity(template, core.TPUSliceNodeLabel, corev1.NodeSelectorOpDoesNotExist, nil)
+}
+
+func removeNodeInSliceAntiAffinity(template *corev1.PodTemplateSpec) {
+	if template.Spec.Affinity == nil ||
+		template.Spec.Affinity.NodeAffinity == nil ||
+		template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil {
+		return
 	}
 
-	core.AddNodeAffinity(template, "cloud.google.com/gke-tpu-slice", corev1.NodeSelectorOpDoesNotExist, nil)
+	nodeSelector := template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution
+	for i := range nodeSelector.NodeSelectorTerms {
+		var newExpressions []corev1.NodeSelectorRequirement
+		for _, req := range nodeSelector.NodeSelectorTerms[i].MatchExpressions {
+			if req.Key != core.TPUSliceNodeLabel {
+				newExpressions = append(newExpressions, req)
+			}
+		}
+		nodeSelector.NodeSelectorTerms[i].MatchExpressions = newExpressions
+	}
 }

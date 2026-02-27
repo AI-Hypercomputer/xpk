@@ -219,6 +219,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 							SubGroupCount:               ptr.To(tc.replicas),
 							PodSetSliceSize:             ptr.To(tc.wantSliceSize),
 						}, ignorePodSetTopologyRequestFields))
+						//	utils.ExpectWorkloadHasAntiAffinity(createdWorkload)
 					}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 				})
 
@@ -300,6 +301,10 @@ var _ = ginkgo.Describe("JobSet", func() {
 							State:   kueue.CheckStateReady,
 							Message: `Slices are in states: 1 ACTIVE`,
 						}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates")))
+
+						// check that anti-affinity is removed
+						g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(jobSet), createdJobSet)).To(gomega.Succeed())
+						utils.ExpectJobSetDoesNotHaveAntiAffinity(createdJobSet)
 					}, utils.LongTimeout, utils.Timeout).Should(gomega.Succeed())
 				})
 
@@ -473,11 +478,20 @@ var _ = ginkgo.Describe("JobSet", func() {
 					utils.MustCreate(ctx, k8sClient, jobSet)
 				})
 
+				createdJobSet := &jobset.JobSet{}
+				ginkgo.By("Checking that the JobSet is created with anti-affinity", func() {
+					gomega.Eventually(func(g gomega.Gomega) {
+						g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(jobSet), createdJobSet)).To(gomega.Succeed())
+						utils.ExpectJobSetHasAntiAffinity(createdJobSet)
+					}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+				})
+
 				createdWorkload := &kueue.Workload{}
 				wlKey := types.NamespacedName{
 					Name:      jobsetcontroller.GetWorkloadNameForJobSet(jobSet.Name, jobSet.UID),
 					Namespace: ns.Name,
 				}
+
 				createdSlices := make([]*slice.Slice, tc.replicas)
 
 				ginkgo.By("Waiting for Admission of the Workload", func() {
@@ -519,6 +533,10 @@ var _ = ginkgo.Describe("JobSet", func() {
 							State:   kueue.CheckStateReady,
 							Message: fmt.Sprintf("Slices are in states: %d ACTIVE", tc.replicas),
 						}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates")))
+
+						// check that anti-affinity is removed
+						g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(jobSet), createdJobSet)).To(gomega.Succeed())
+						utils.ExpectJobSetDoesNotHaveAntiAffinity(createdJobSet)
 					}, utils.LongTimeout, utils.Timeout).Should(gomega.Succeed())
 				})
 
@@ -1176,6 +1194,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 						SubGroupCount:               ptr.To[int32](1),
 						PodSetSliceSize:             ptr.To[int32](16),
 					}, ignorePodSetTopologyRequestFields))
+					//		utils.ExpectWorkloadHasAntiAffinity(createdWorkload)
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
 
@@ -1336,6 +1355,10 @@ var _ = ginkgo.Describe("JobSet", func() {
 						State:   kueue.CheckStateReady,
 						Message: `Slices are in states: 2 ACTIVE`,
 					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates")))
+
+					// check that anti-affinity is removed
+					g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(jobSet), createdJobSet)).To(gomega.Succeed())
+					utils.ExpectJobSetDoesNotHaveAntiAffinity(createdJobSet)
 				}, utils.LongTimeout, utils.Timeout).Should(gomega.Succeed())
 			})
 

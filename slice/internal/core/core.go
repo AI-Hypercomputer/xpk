@@ -100,3 +100,19 @@ func GetSliceState(slice v1beta1.Slice, timeout time.Duration) SliceState {
 	}
 	return SliceStateActivating
 }
+
+// FindNodeAffinityRequirement finds a node affinity requirement with the given key.
+func FindNodeAffinityRequirement(template *corev1.PodTemplateSpec, key string) *corev1.NodeSelectorRequirement {
+	if template.Spec.Affinity != nil &&
+		template.Spec.Affinity.NodeAffinity != nil &&
+		template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
+		for _, term := range template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
+			for i, req := range term.MatchExpressions {
+				if req.Key == key {
+					return &term.MatchExpressions[i]
+				}
+			}
+		}
+	}
+	return nil
+}

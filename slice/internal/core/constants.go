@@ -24,6 +24,7 @@ import (
 
 const (
 	TPUSliceTopologyAnnotation = "cloud.google.com/gke-tpu-slice-topology"
+	TPUSliceNodeLabel          = "cloud.google.com/gke-tpu-slice"
 	TPUTopologyAnnotation      = "cloud.google.com/gke-tpu-topology"
 	TPUAcceleratorLabel        = "cloud.google.com/gke-tpu-accelerator"
 	TPUBlockLabel              = "cloud.google.com/gce-topology-block"

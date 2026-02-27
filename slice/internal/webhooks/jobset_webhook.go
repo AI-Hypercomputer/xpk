@@ -20,6 +20,7 @@ import (
 	"context"
 
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/jobset/api/jobset/v1alpha2"
@@ -38,7 +39,8 @@ func SetupWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-// +kubebuilder:webhook:path=/mutate-jobset-x-k8s-io-v1alpha2-jobset,mutating=true,failurePolicy=fail,sideEffects=None,groups=jobset.x-k8s.io,resources=jobsets,verbs=create,versions=v1alpha2,name=mjobset.kb.io,admissionReviewVersions=v1
+// +kubebuilder:webhook:path=/mutate-jobset-x-k8s-io-v1alpha2-jobset,mutating=true,failurePolicy=fail,sideEffects=None,groups=jobset.x-k8s.io,resources=jobsets,verbs=create;update,versions=v1alpha2,name=mjobset.kb.io,admissionReviewVersions=v1
+
 var _ webhook.CustomDefaulter = &JobSetWebhook{}
 
 // Default implements webhook.CustomDefaulter so a webhook will be registered for the type
@@ -64,7 +66,15 @@ func (r *JobSetWebhook) Default(ctx context.Context, obj runtime.Object) error {
 		if err != nil {
 			return err
 		}
+		suspend := ptr.Deref(jobSet.Spec.Suspend, false)
+		log.Info("Processing JobSet anti-affinity", "jobSet", jobSet.Name, "suspend", suspend, "uid", jobSet.UID)
+		if suspend || jobSet.ObjectMeta.UID == "" {
+			log.Info("Adding anti-affinity", "jobSet", jobSet.Name)
+			addNodeInSliceAntiAffinity(&rj.Template.Spec.Template)
+		} else {
+			log.Info("Removing anti-affinity", "jobSet", jobSet.Name)
+			removeNodeInSliceAntiAffinity(&rj.Template.Spec.Template)
+		}
 	}
-
 	return nil
 }

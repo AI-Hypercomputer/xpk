@@ -168,3 +168,21 @@ func SetSliceReady(ctx context.Context, k8sClient client.Client, sliceKey client
 	}
 	LabelNodesWithTopology(ctx, k8sClient, topology, nodeNames)
 }
+
+func ExpectJobSetHasAntiAffinity(js *jobset.JobSet) {
+	ginkgo.GinkgoHelper()
+	for _, replicatedJob := range js.Spec.ReplicatedJobs {
+		req := core.FindNodeAffinityRequirement(&replicatedJob.Template.Spec.Template, core.TPUSliceNodeLabel)
+		gomega.ExpectWithOffset(1, req).ShouldNot(gomega.BeNil(), "replicated job %q should have anti-affinity for key %s", replicatedJob.Name, core.TPUSliceNodeLabel)
+		gomega.ExpectWithOffset(1, req.Operator).Should(gomega.Equal(corev1.NodeSelectorOpDoesNotExist))
+	}
+}
+
+func ExpectJobSetDoesNotHaveAntiAffinity(js *jobset.JobSet) {
+	ginkgo.GinkgoHelper()
+	for _, replicatedJob := range js.Spec.ReplicatedJobs {
+		req := core.FindNodeAffinityRequirement(&replicatedJob.Template.Spec.Template, core.TPUSliceNodeLabel)
+		gomega.ExpectWithOffset(1, req).
+			To(gomega.BeNil(), "replicated job %q should not have anti-affinity for key %s", replicatedJob.Name, core.TPUSliceNodeLabel)
+	}
+}

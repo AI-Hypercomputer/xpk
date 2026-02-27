@@ -167,6 +167,7 @@ func SetSliceReady(ctx context.Context, k8sClient client.Client, sliceKey client
 		}
 	}
 	LabelNodesWithTopology(ctx, k8sClient, topology, nodeNames)
+	LabelNodesWithSlice(ctx, k8sClient, createdSlice.Name, nodeNames)
 }
 
 func ExpectJobSetHasAntiAffinity(js *jobset.JobSet) {
@@ -178,11 +179,32 @@ func ExpectJobSetHasAntiAffinity(js *jobset.JobSet) {
 	}
 }
 
-func ExpectJobSetDoesNotHaveAntiAffinity(js *jobset.JobSet) {
+func LabelNodesWithSlice(ctx context.Context, k8sClient client.Client, sliceName string, nodeNames []string) {
+	for _, nodeName := range nodeNames {
+		gomega.Eventually(func(g gomega.Gomega) {
+			n := &corev1.Node{}
+			g.Expect(k8sClient.Get(ctx, client.ObjectKey{Name: nodeName}, n)).To(gomega.Succeed())
+			metav1.SetMetaDataLabel(&n.ObjectMeta, core.TPUSliceNodeLabel, sliceName)
+			g.Expect(k8sClient.Update(ctx, n)).To(gomega.Succeed())
+		}, Timeout, Interval).Should(gomega.Succeed())
+	}
+	ginkgo.DeferCleanup(func(ctx context.Context, k8sClient client.Client, nodeNames []string) {
+		for _, nodeName := range nodeNames {
+			gomega.Eventually(func(g gomega.Gomega) {
+				n := &corev1.Node{}
+				g.Expect(k8sClient.Get(ctx, client.ObjectKey{Name: nodeName}, n)).To(gomega.Succeed())
+				delete(n.Labels, core.TPUSliceNodeLabel)
+				g.Expect(k8sClient.Update(ctx, n)).To(gomega.Succeed())
+			}, Timeout, Interval).Should(gomega.Succeed())
+		}
+	}, k8sClient, nodeNames)
+}
+
+func ExpectWorkloadHasAntiAffinity(wl *kueue.Workload) {
 	ginkgo.GinkgoHelper()
-	for _, replicatedJob := range js.Spec.ReplicatedJobs {
-		req := core.FindNodeAffinityRequirement(&replicatedJob.Template.Spec.Template, core.TPUSliceNodeLabel)
-		gomega.ExpectWithOffset(1, req).
-			To(gomega.BeNil(), "replicated job %q should not have anti-affinity for key %s", replicatedJob.Name, core.TPUSliceNodeLabel)
+	for _, ps := range wl.Spec.PodSets {
+		req := core.FindNodeAffinityRequirement(&ps.Template, core.TPUSliceNodeLabel)
+		gomega.ExpectWithOffset(1, req).ShouldNot(gomega.BeNil(), "podset %q should have anti-affinity for key %s", ps.Name, core.TPUSliceNodeLabel)
+		gomega.ExpectWithOffset(1, req.Operator).Should(gomega.Equal(corev1.NodeSelectorOpDoesNotExist))
 	}
 }

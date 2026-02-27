@@ -219,7 +219,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 							SubGroupCount:               ptr.To(tc.replicas),
 							PodSetSliceSize:             ptr.To(tc.wantSliceSize),
 						}, ignorePodSetTopologyRequestFields))
-						//	utils.ExpectWorkloadHasAntiAffinity(createdWorkload)
+						utils.ExpectWorkloadHasAntiAffinity(createdWorkload)
 					}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 				})
 
@@ -301,14 +301,10 @@ var _ = ginkgo.Describe("JobSet", func() {
 							State:   kueue.CheckStateReady,
 							Message: `Slices are in states: 1 ACTIVE`,
 						}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates")))
-
-						// check that anti-affinity is removed
-						//g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(jobSet), createdJobSet)).To(gomega.Succeed())
-						//	utils.ExpectJobSetDoesNotHaveAntiAffinity(createdJobSet)
 					}, utils.LongTimeout, utils.Timeout).Should(gomega.Succeed())
 				})
 
-				ginkgo.By("Checking that all pods are created with the topology node selector", func() {
+				ginkgo.By("Checking that all pods are created with the topology node selector and without anti-affinity", func() {
 					pods := &corev1.PodList{}
 					gomega.Eventually(func(g gomega.Gomega) {
 						g.Expect(k8sClient.List(ctx, pods, client.InNamespace(ns.Name))).To(gomega.Succeed())
@@ -535,10 +531,6 @@ var _ = ginkgo.Describe("JobSet", func() {
 							State:   kueue.CheckStateReady,
 							Message: fmt.Sprintf("Slices are in states: %d ACTIVE", tc.replicas),
 						}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates")))
-
-						// check that anti-affinity is removed
-						//	g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(jobSet), createdJobSet)).To(gomega.Succeed())
-						//	utils.ExpectJobSetDoesNotHaveAntiAffinity(createdJobSet)
 					}, utils.LongTimeout, utils.Timeout).Should(gomega.Succeed())
 				})
 
@@ -1018,9 +1010,10 @@ var _ = ginkgo.Describe("JobSet", func() {
 					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates", "RetryCount", "RequeueAfterSeconds")))
 					g.Expect(createdWorkload.Status.SchedulingStats).ShouldNot(gomega.BeNil())
 					g.Expect(createdWorkload.Status.SchedulingStats.Evictions).Should(gomega.HaveLen(1))
+					utils.ExpectWorkloadHasAntiAffinity(createdWorkload)
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
-			ginkgo.By("Checking that all pods are created with topology node selector", func() {
+			ginkgo.By("Checking that all pods are created with topology node selector and without anti-affinity", func() {
 				pods := &corev1.PodList{}
 				gomega.Eventually(func(g gomega.Gomega) {
 					g.Expect(k8sClient.List(ctx, pods, client.InNamespace(ns.Name))).To(gomega.Succeed())
@@ -1200,7 +1193,6 @@ var _ = ginkgo.Describe("JobSet", func() {
 						SubGroupCount:               ptr.To[int32](1),
 						PodSetSliceSize:             ptr.To[int32](16),
 					}, ignorePodSetTopologyRequestFields))
-					//		utils.ExpectWorkloadHasAntiAffinity(createdWorkload)
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
 
@@ -1361,10 +1353,6 @@ var _ = ginkgo.Describe("JobSet", func() {
 						State:   kueue.CheckStateReady,
 						Message: `Slices are in states: 2 ACTIVE`,
 					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates")))
-
-					// check that anti-affinity is removed
-					//g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(jobSet), createdJobSet)).To(gomega.Succeed())
-					//utils.ExpectJobSetDoesNotHaveAntiAffinity(createdJobSet)
 				}, utils.LongTimeout, utils.Timeout).Should(gomega.Succeed())
 			})
 
@@ -1491,6 +1479,133 @@ var _ = ginkgo.Describe("JobSet", func() {
 						State:   kueue.CheckStateReady,
 						Message: `Slices are in states: 1 ACTIVE`,
 					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates", "RetryCount", "RequeueAfterSeconds")))
+				}, utils.LongTimeout, utils.Timeout).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Deleting JobSet", func() {
+				utils.ExpectObjectToBeDeleted(ctx, k8sClient, jobSet, true)
+			})
+
+			ginkgo.By("Checking that Slice is deleted", func() {
+				utils.ExpectObjectToBeDeleted(ctx, k8sClient, createdSlice, false)
+			})
+
+			ginkgo.By("Checking that Workload is deleted", func() {
+				utils.ExpectObjectToBeDeleted(ctx, k8sClient, createdWorkload, false)
+			})
+		})
+
+		ginkgo.It("should only admit the workload if nodes are not used in some other slices", func() {
+			nodes := &corev1.NodeList{}
+			gomega.Expect(k8sClient.List(ctx, nodes, client.HasLabels{core.TPUSubBlockLabel})).To(gomega.Succeed())
+			var partitionIDs []string
+			for _, node := range nodes.Items {
+				partitionIDs = append(partitionIDs, node.Labels[core.TPUSubBlockLabel])
+			}
+			gomega.Expect(partitionIDs).ToNot(gomega.BeEmpty())
+			manualSlice := &slice.Slice{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "manual-slice-blocking",
+				},
+				Spec: slice.SliceSpec{
+					Type:         slice.TypeTpu7x,
+					Topology:     "4x4x4",
+					PartitionIds: partitionIDs,
+				},
+			}
+			utils.MustCreate(ctx, k8sClient, manualSlice)
+			utils.SetSliceReady(ctx, k8sClient, client.ObjectKeyFromObject(manualSlice), manualSlice.Spec.Topology)
+
+			ginkgo.DeferCleanup(func() {
+				utils.ExpectObjectToBeDeleted(ctx, k8sClient, manualSlice, true)
+			})
+			jobSet := testingjobsjobset.MakeJobSet("jobset", ns.Name).
+				Queue(lq.Name).
+				ReplicatedJobs(
+					testingjobsjobset.ReplicatedJobRequirements{
+						Name:        "rj1",
+						Image:       utils.E2eTestAgnHostImage,
+						Args:        utils.BehaviorWaitForDeletion,
+						Replicas:    1,
+						Parallelism: 16,
+						Completions: 16,
+						PodAnnotations: map[string]string{
+							core.TPUSliceTopologyAnnotation: "4x4x4",
+						},
+						NodeSelector: map[string]string{
+							"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
+						},
+					},
+				).
+				RequestAndLimit("rj1", core.TPUResourceName, "4").
+				Obj()
+
+			ginkgo.By("Creating a JobSet", func() {
+				utils.MustCreate(ctx, k8sClient, jobSet)
+			})
+
+			createdWorkload := &kueue.Workload{}
+			wlKey := types.NamespacedName{
+				Name:      jobsetcontroller.GetWorkloadNameForJobSet(jobSet.Name, jobSet.UID),
+				Namespace: ns.Name,
+			}
+
+			ginkgo.By("Check that the Workload is not admissible", func() {
+				gomega.Consistently(func(g gomega.Gomega) {
+					err := k8sClient.Get(ctx, wlKey, createdWorkload)
+					if err != nil {
+						g.Expect(client.IgnoreNotFound(err)).To(gomega.Succeed())
+					} else {
+						g.Expect(createdWorkload.Status.Admission).Should(gomega.BeNil())
+					}
+				}, utils.ConsistentDuration, utils.Interval).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Deleting the manual slice and unlabeling nodes", func() {
+				utils.ExpectObjectToBeDeleted(ctx, k8sClient, manualSlice, true)
+				for _, node := range nodes.Items {
+					gomega.Eventually(func(g gomega.Gomega) {
+						n := &corev1.Node{}
+						g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(&node), n)).To(gomega.Succeed())
+						delete(n.Labels, core.TPUSliceNodeLabel)
+						delete(n.Labels, core.TPUTopologyAnnotation)
+						g.Expect(k8sClient.Update(ctx, n)).To(gomega.Succeed())
+					}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+				}
+			})
+
+			ginkgo.By("Waiting for Admission of the Workload", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
+					g.Expect(createdWorkload.Status.Admission).ShouldNot(gomega.BeNil())
+				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+			})
+
+			createdSlice := &slice.Slice{}
+			sliceKey := core.SliceKeyFromWorkload(createdWorkload, "rj1", 0)
+
+			ginkgo.By("Checking that Slice is created", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
+					g.Expect(createdSlice.Spec.PartitionIds).To(gomega.HaveLen(1))
+					g.Expect(createdSlice.Spec.Topology).To(gomega.Equal("4x4x4"))
+					g.Expect(createdSlice.Spec.Type).To(gomega.Equal(slice.TypeTpu7x))
+				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Adding Ready condition", func() {
+				utils.SetSliceReady(ctx, k8sClient, sliceKey, "4x4x4")
+			})
+
+			ginkgo.By("Checking that the Workload is admitted and admission check status is ready", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
+					g.Expect(workload.IsAdmitted(createdWorkload)).Should(gomega.BeTrue())
+					g.Expect(createdWorkload.Status.AdmissionChecks).Should(gomega.BeComparableTo([]kueue.AdmissionCheckState{{
+						Name:    kueue.AdmissionCheckReference(ac.Name),
+						State:   kueue.CheckStateReady,
+						Message: `Slices are in states: 1 ACTIVE`,
+					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates")))
 				}, utils.LongTimeout, utils.Timeout).Should(gomega.Succeed())
 			})
 

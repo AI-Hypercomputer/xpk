@@ -86,7 +86,7 @@ def _filter_workload(
   """Filters a workload based on status and job name.
 
   Args:
-    row_data: The parsed row data.
+    row_data: The parsed row data (Header -> Displayed value).
     filter_by_status: The status filter to apply.
     filter_by_job: The job name filter to apply.
 
@@ -183,14 +183,16 @@ def get_workload_list(args) -> tuple[int, str]:
   jsonpath_str = f'{{range .items[*]}}{row_path}{{"\\n"}}{{end}}'
 
   command = (
-      f"kubectl get workloads --ignore-not-found -o=jsonpath='{jsonpath_str}'"
+      f"kubectl get workloads --ignore-not-found -o=jsonpath='{jsonpath_str}'",
   )
 
   task = f'List Jobs with filter-by-status={args.filter_by_status}'
   if hasattr(args, 'filter_by_job') and args.filter_by_job:
     task += f' with filter-by-job={args.filter_by_job}'
 
-  return_code, data = run_command_for_value(command, task)
+  return_code, data = run_command_for_value(
+      command, task, dry_run_return_val=''
+  )
 
   if return_code != 0:
     return return_code, ''

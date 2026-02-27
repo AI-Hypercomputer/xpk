@@ -39,6 +39,7 @@ func SetupWebhookWithManager(mgr ctrl.Manager) error {
 }
 
 // +kubebuilder:webhook:path=/mutate-jobset-x-k8s-io-v1alpha2-jobset,mutating=true,failurePolicy=fail,sideEffects=None,groups=jobset.x-k8s.io,resources=jobsets,verbs=create,versions=v1alpha2,name=mjobset.kb.io,admissionReviewVersions=v1
+
 var _ webhook.CustomDefaulter = &JobSetWebhook{}
 
 // Default implements webhook.CustomDefaulter so a webhook will be registered for the type

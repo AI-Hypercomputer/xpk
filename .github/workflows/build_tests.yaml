@@ -68,3 +68,6 @@ jobs:
   run-unit-tests:
     needs: [install-dependencies]
     uses: ./.github/workflows/reusable_unit_tests.yaml
+  run-basic-usage-test:
+    needs: [install-dependencies]
+    uses: ./.github/workflows/basic_usage_test.yaml

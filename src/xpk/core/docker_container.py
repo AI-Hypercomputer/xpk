@@ -91,12 +91,12 @@ def get_main_container(
   gsutil_test_command = ''
   if not args.use_pathways and args.debug_dump_gcs:
     gsutil_test_command = (
-        'which gsutil >/dev/null 2>&1 || { echo >&2 "gsutil'
+        'which gcloud >/dev/null 2>&1 || { echo >&2 "gcloud'
         ' is required but not installed. Aborting"; exit 24;};'
     )
     xpk_internal_commands += (
-        'WORKER_ID=$HOSTNAME;'
-        f'gsutil -m cp -r /tmp/xla_dump/ {args.debug_dump_gcs}/$WORKER_ID;'
+        'WORKER_ID=$HOSTNAME;gcloud storage cp --recursive /tmp/xla_dump/'
+        f' {args.debug_dump_gcs}/$WORKER_ID;'
     )
 
   command = args.command

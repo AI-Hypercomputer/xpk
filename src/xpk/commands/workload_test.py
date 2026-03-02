@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 import dataclasses
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 import yaml
 import pytest
 
@@ -67,7 +67,6 @@ class _WorkloadCreateMocks:
   ensure_resource_policy_exists: MagicMock
   get_cluster_subnetworks: MagicMock
   xpk_print: MagicMock
-  get_system_characteristics: MagicMock
 
 
 @pytest.fixture
@@ -133,11 +132,11 @@ def workload_create_mocks(mocker) -> _WorkloadCreateMocks:
           'xpk.commands.workload.get_cluster_subnetworks', return_value=[]
       ),
       xpk_print=mocker.patch('xpk.commands.workload.xpk_print'),
-      get_system_characteristics=mocker.patch('xpk.commands.workload.get_system_characteristics', return_value=(SYSTEM_CHARACTERISTICS, 0)),
   )
 
 
 def test_workload_create_for_a4x_has_arm_toleration(
+    mocker,
     workload_create_mocks: _WorkloadCreateMocks,
 ):
   """Tests that the generated YAML for an A4X workload has arm64 toleration."""
@@ -151,18 +150,18 @@ def test_workload_create_for_a4x_has_arm_toleration(
   )
   # Patch the function that returns the system characteristics
   # to return our modified object.
-  with patch(
+  mocker.patch(
       'xpk.commands.workload.get_system_characteristics',
       return_value=(gb200_system_chars_no_decorator, 0),
-  ):
-    args = construct_args(
-        device_type='gb200-4',
-        workload='test-workload',
-        command='echo hello',
-        num_nodes=1,
-        restart_on_exit_codes=None,
-    )
-    workload_create(args)
+  )
+  args = construct_args(
+      device_type='gb200-4',
+      workload='test-workload',
+      command='echo hello',
+      num_nodes=1,
+      restart_on_exit_codes=None,
+  )
+  workload_create(args)
 
   assert workload_create_mocks.write_tmp_file.called
   yaml_content = workload_create_mocks.write_tmp_file.call_args[0][0]
@@ -229,6 +228,9 @@ def test_workload_create_multi_container_for_tpu7x(
   mocker.patch(
       'xpk.core.docker_container.get_gke_debugging_dashboard', return_value=None
   )
+
+  system_characteristics = UserFacingNameToSystemCharacteristics['tpu7x-2x2x2']
+  mocker.patch('xpk.commands.workload.get_system_characteristics', return_value=(system_characteristics, 0))
 
   # Use the real get_user_workload_container to test integration
   workload_create_mocks.get_user_workload_container.side_effect = (

@@ -106,6 +106,13 @@ from .common import is_GPU_TAS_possible
 from jinja2 import Environment, FileSystemLoader
 from ..utils.templates import get_templates_absolute_path
 
+_SUPER_SLICING_WORKLOAD_NAME_LIMIT = 28
+"""Maximum safe workload name length to avoid exceeding GCE's 63-character limit.
+
+Kueue/Jobset prefixes and suffixes consume characters: 8 (`default-`), 7 (`jobset-`),
+11 (Kueue hash), and 9 (NAP/GKE hash). Maximum safe length is 63 - 8 - 7 - 11 - 9 = 28.
+"""
+
 WORKLOAD_CREATE_YAML = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
 metadata:
@@ -491,6 +498,19 @@ def workload_create(args) -> None:
   use_super_slicing = (
       workload_scheduling == WorkloadScheduling.SUPER_SLICING_AVAILABLE
   )
+
+  if (
+      use_super_slicing
+      and len(args.workload) > _SUPER_SLICING_WORKLOAD_NAME_LIMIT
+  ):
+    xpk_print(
+        'Error: For super-slicing workloads, the workload name cannot exceed'
+        f' {_SUPER_SLICING_WORKLOAD_NAME_LIMIT} characters due to'
+        ' Kubernetes/GCE resource name limits. The provided name'
+        f' `{args.workload}` is {len(args.workload)} characters.'
+    )
+    xpk_exit(1)
+
   parallel_containers = workload_system.parallel_containers
   if args.use_pathways:
     parallel_containers = 1

@@ -62,10 +62,12 @@ def _download_mldiagnostics_yaml(package_name: str, version: Version) -> int:
     0 if successful and 1 otherwise.
   """
 
+  temp_dir = tempfile.gettempdir()
+
   command = (
       'gcloud artifacts generic download'
       ' --repository=mldiagnostics-webhook-and-operator-yaml --location=us'
-      f' --package={package_name} --version=v{version} --destination=/tmp/'
+      f' --package={package_name} --version=v{version} --destination={temp_dir}'
       ' --project=ai-on-gke'
   )
 

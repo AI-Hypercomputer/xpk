@@ -31,13 +31,16 @@ import (
 )
 
 type JobWebhook struct {
-	client client.Client
+	DefaultSliceHealthValues []string
+	client                   client.Client
 }
 
-func SetupJobWebhookWithManager(mgr ctrl.Manager) error {
+func SetupJobWebhookWithManager(mgr ctrl.Manager, defaultSliceHealthValues []string) error {
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(&batchv1.Job{}).
-		WithDefaulter(&JobWebhook{client: mgr.GetClient()}).
+		WithDefaulter(&JobWebhook{
+			DefaultSliceHealthValues: defaultSliceHealthValues,
+			client:                   mgr.GetClient()}).
 		Complete()
 }
 
@@ -83,7 +86,7 @@ func (r *JobWebhook) Default(ctx context.Context, obj runtime.Object) error {
 	}
 
 	log.V(5).Info("Annotating Job")
-	annotatePodTemplateSpecWithSliceHealth(&job.Spec.Template)
+	annotatePodTemplateSpecWithSliceHealth(&job.Spec.Template, r.DefaultSliceHealthValues)
 	err := annotatePodTemplateSpecWithTopology(&job.Spec.Template, job.Spec.Parallelism, job.Name, "job")
 	if err != nil {
 		return err

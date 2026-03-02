@@ -177,7 +177,8 @@ func TestDefault(t *testing.T) {
 					NodeSelector: map[string]string{
 						"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
 					},
-				}).NodeAffinity("rj1", core.TPUSliceHealthNodeSelectorKey, []string{core.TPUSliceHealthNodeSelectorHealthy, core.TPUSliceHealthNodeSelectorDegraded}).
+				}).NodeAffinity("rj1", core.TPUSliceHealthNodeSelectorKey, corev1.NodeSelectorOpIn, []string{core.TPUSliceHealthNodeSelectorHealthy, core.TPUSliceHealthNodeSelectorDegraded}).
+				NodeAffinity("rj1", core.TPUSliceNodeLabel, corev1.NodeSelectorOpDoesNotExist, nil).
 				RequestAndLimit("rj1", core.TPUResourceName, "4").
 				Obj(),
 		},

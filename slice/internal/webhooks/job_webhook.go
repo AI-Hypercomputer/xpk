@@ -58,20 +58,18 @@ func (r *JobWebhook) Default(ctx context.Context, obj runtime.Object) error {
 		return nil
 	}
 
-	isKueueManaged := job.Labels[kueueconstants.QueueLabel] != ""
-	if !isKueueManaged {
-		for _, owner := range job.OwnerReferences {
-			if owner.Kind == "JobSet" && owner.APIVersion == jobset.SchemeGroupVersion.String() {
-				var js jobset.JobSet
-				if err := r.client.Get(ctx, client.ObjectKey{Name: owner.Name, Namespace: job.Namespace}, &js); err != nil {
-					log.Error(err, "Failed to get JobSet owner", "jobset", owner.Name)
-					continue
-				}
-				if js.Labels[kueueconstants.QueueLabel] != "" {
-					isKueueManaged = true
-				}
-				break
+	var isKueueManaged bool
+	for _, owner := range job.OwnerReferences {
+		if owner.Kind == "JobSet" && owner.APIVersion == jobset.SchemeGroupVersion.String() {
+			var js jobset.JobSet
+			if err := r.client.Get(ctx, client.ObjectKey{Name: owner.Name, Namespace: job.Namespace}, &js); err != nil {
+				log.Error(err, "Failed to get JobSet owner", "jobset", owner.Name)
+				continue
 			}
+			if js.Labels[kueueconstants.QueueLabel] != "" {
+				isKueueManaged = true
+			}
+			break
 		}
 	}
 

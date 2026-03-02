@@ -44,7 +44,7 @@ func SetupJobWebhookWithManager(mgr ctrl.Manager, defaultSliceHealthValues []str
 		Complete()
 }
 
-// +kubebuilder:webhook:path=/mutate-batch-v1-job,mutating=true,failurePolicy=Fail,sideEffects=None,groups=batch,resources=jobs,verbs=create,versions=v1,name=mjob.kb.io,admissionReviewVersions=v1
+// +kubebuilder:webhook:path=/mutate-batch-v1-job,mutating=true,failurePolicy=fail,sideEffects=None,groups=batch,resources=jobs,verbs=create,versions=v1,name=mjob.kb.io,admissionReviewVersions=v1
 
 var _ webhook.CustomDefaulter = &JobWebhook{}
 

@@ -67,6 +67,7 @@ class _WorkloadCreateMocks:
   ensure_resource_policy_exists: MagicMock
   get_cluster_subnetworks: MagicMock
   xpk_print: MagicMock
+  get_system_characteristics: MagicMock
 
 
 @pytest.fixture
@@ -132,6 +133,10 @@ def workload_create_mocks(mocker) -> _WorkloadCreateMocks:
           'xpk.commands.workload.get_cluster_subnetworks', return_value=[]
       ),
       xpk_print=mocker.patch('xpk.commands.workload.xpk_print'),
+      get_system_characteristics=mocker.patch(
+          'xpk.commands.workload.get_system_characteristics',
+          return_value=(SYSTEM_CHARACTERISTICS, 0),
+      ),
   )
 
 
@@ -150,9 +155,9 @@ def test_workload_create_for_a4x_has_arm_toleration(
   )
   # Patch the function that returns the system characteristics
   # to return our modified object.
-  mocker.patch(
-      'xpk.commands.workload.get_system_characteristics',
-      return_value=(gb200_system_chars_no_decorator, 0),
+  workload_create_mocks.get_system_characteristics.return_value = (
+      gb200_system_chars_no_decorator,
+      0,
   )
   args = construct_args(
       device_type='gb200-4',
@@ -230,7 +235,10 @@ def test_workload_create_multi_container_for_tpu7x(
   )
 
   system_characteristics = UserFacingNameToSystemCharacteristics['tpu7x-2x2x2']
-  mocker.patch('xpk.commands.workload.get_system_characteristics', return_value=(system_characteristics, 0))
+  workload_create_mocks.get_system_characteristics.return_value = (
+      system_characteristics,
+      0,
+  )
 
   # Use the real get_user_workload_container to test integration
   workload_create_mocks.get_user_workload_container.side_effect = (
@@ -294,10 +302,6 @@ def test_workload_create_super_slicing_name_too_long(
   )
   args.use_pathways = False
 
-  mocker.patch(
-      'xpk.commands.workload.get_system_characteristics',
-      return_value=(SYSTEM_CHARACTERISTICS, 0),
-  )
   workload_create_mocks.check_if_workload_can_schedule.return_value = (
       WorkloadScheduling.SUPER_SLICING_AVAILABLE
   )

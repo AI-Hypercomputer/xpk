@@ -499,11 +499,15 @@ def workload_create(args) -> None:
       workload_scheduling == WorkloadScheduling.SUPER_SLICING_AVAILABLE
   )
 
-  if use_super_slicing and len(args.workload) > _SUPER_SLICING_WORKLOAD_NAME_LIMIT:
+  if (
+      use_super_slicing
+      and len(args.workload) > _SUPER_SLICING_WORKLOAD_NAME_LIMIT
+  ):
     xpk_print(
         'Error: For super-slicing workloads, the workload name cannot exceed'
-        f' {_SUPER_SLICING_WORKLOAD_NAME_LIMIT} characters due to Kubernetes/GCE resource name limits. The'
-        f' provided name `{args.workload}` is {len(args.workload)} characters.'
+        f' {_SUPER_SLICING_WORKLOAD_NAME_LIMIT} characters due to'
+        ' Kubernetes/GCE resource name limits. The provided name'
+        f' `{args.workload}` is {len(args.workload)} characters.'
     )
     xpk_exit(1)
 

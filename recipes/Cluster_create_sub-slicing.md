@@ -7,7 +7,7 @@ SUB_SLICING_ENABLED=true xpk cluster create --project=golden-project --zone=us-c
 ```
 <!--
 $ SUB_SLICING_ENABLED=true xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=v6e-4x4 --reservation=golden-reservation --sub-slicing
-[XPK] Starting xpk v0.0.0
+[XPK] Starting xpk v1.4.1.dev17+g37c742ded.d20260227
 [XPK] Starting cluster create for cluster golden-cluster:
 [XPK] Working on golden-project and us-central1-a
 [XPK] Task: `Get reservation golden-reservation` is implemented by the following command not running since it is a dry run. 
@@ -70,13 +70,13 @@ metadata:
 data:
   v6e-16: "4"
 
-[XPK] Temp file (a3dd06b296e1eb6792c99ad309e6eb714888c53e8b8fb8adc3beb8f250ef163c) content: 
+[XPK] Temp file (a3c9636b7e13daf57df7d3be70ec07632ff758f612f737d65dc31e09fb3584f0) content: 
 kind: ConfigMap
 apiVersion: v1
 metadata:
   name: golden-cluster-metadata-configmap
 data:
-  xpk_version: v0.0.0
+  xpk_version: 1.4.1.dev17+g37c742ded.d20260227
   capacity_type: RESERVATION
   reservation_id: golden-reservation
 

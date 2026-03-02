@@ -43,7 +43,7 @@ xpk workload list --cluster=foo --project=bar --zone=us-central1-a
 ```
 <!--
 $ xpk workload list --cluster=foo --project=bar --zone=us-central1-a
-[XPK] Starting xpk v0.0.0
+[XPK] Starting xpk v1.4.1.dev17+g37c742ded.d20260227
 [XPK] Starting workload list
 [XPK] Working on bar and us-central1-a
 [XPK] Task: `Find cluster region or zone` is implemented by the following command not running since it is a dry run. 
@@ -54,7 +54,7 @@ gcloud container clusters get-credentials foo --location=us-central1 --dns-endpo
 kubectl get pods
 [XPK] Finished get-credentials and kubectl setup.
 [XPK] Task: `List Jobs with filter-by-status=EVERYTHING` is implemented by the following command not running since it is a dry run. 
-kubectl get workloads --ignore-not-found -o=jsonpath='{range .items[*]}JOBSET_NAME={.metadata.ownerReferences[0].name}CREATED_TIME={.metadata.creationTimestamp}PRIORITY={.spec.podSets[0].template.spec.priorityClassName}TPU_VMS_NEEDED={.spec.podSets[*].count}TPU_VMS_RUNNING_RAN={.status.admission.podSetAssignments[*].count}TPU_VMS_DONE={.status.reclaimablePods[*].count}STATUS={.status.conditions[-1].type}STATUS_MESSAGE={.status.conditions[-1].message}STATUS_TIME={.status.conditions[-1].lastTransitionTime}{"\n"}{end}'
+kubectl get workloads --ignore-not-found -o=jsonpath='{range .items[*]}JOBSET_NAME={.metadata.ownerReferences[0].name}CREATED_TIME={.metadata.creationTimestamp}PRIORITY={.spec.podSets[0].template.spec.priorityClassName}TPU_VMS_NEEDED={.spec.podSets[0].count}TPU_VMS_RUNNING_RAN={.status.admission.podSetAssignments[-1].count}TPU_VMS_DONE={.status.reclaimablePods[0].count}STATUS={.status.conditions[-1].type}STATUS_MESSAGE={.status.conditions[-1].message}STATUS_TIME={.status.conditions[-1].lastTransitionTime}{"\n"}{end}'
 [XPK] Workload List Output:
 
 [XPK] See your workloads in Cloud Console: https://console.cloud.google.com/kubernetes/aiml/deployments/jobs?project=bar
@@ -77,7 +77,7 @@ echo "$XPK_VERSION"
 ```
 <!--
 $ echo "$XPK_VERSION"
-[XPK] Starting xpk v0.0.0
-[XPK] xpk_version: v0.0.0
+[XPK] Starting xpk v1.4.1.dev17+g37c742ded.d20260227
+[XPK] xpk_version: 1.4.1.dev17+g37c742ded.d20260227
 [XPK] XPK Done.
 -->

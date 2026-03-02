@@ -7,7 +7,7 @@ xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golde
 ```
 <!--
 $ xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-8 --reservation=projects/reservation-project/reservations/golden-reservation
-[XPK] Starting xpk v0.0.0
+[XPK] Starting xpk v1.4.1.dev17+g37c742ded.d20260227
 [XPK] Starting cluster create for cluster golden-cluster:
 [XPK] Working on golden-project and us-central1-a
 [XPK] Task: `Get reservation golden-reservation` is implemented by the following command not running since it is a dry run. 
@@ -70,13 +70,13 @@ metadata:
 data:
   tpu7x-8: "1"
 
-[XPK] Temp file (1e07554ba48dc90eb0b6b215d8604e02dc0152f8662dd1de87472db102e7d2bf) content: 
+[XPK] Temp file (1ce75690ab6d9b340058f484a1de43ecec985e49eb5a1d97d50ae52e04e86df7) content: 
 kind: ConfigMap
 apiVersion: v1
 metadata:
   name: golden-cluster-metadata-configmap
 data:
-  xpk_version: v0.0.0
+  xpk_version: 1.4.1.dev17+g37c742ded.d20260227
   capacity_type: RESERVATION
   reservation_id: projects/reservation-project/reservations/golden-reservation
 

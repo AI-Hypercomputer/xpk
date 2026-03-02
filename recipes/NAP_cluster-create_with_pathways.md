@@ -7,7 +7,7 @@ xpk cluster create-pathways --project=golden-project --zone=us-central1-a --enab
 ```
 <!--
 $ xpk cluster create-pathways --project=golden-project --zone=us-central1-a --enable-autoprovisioning --cluster=golden-cluster --tpu-type=tpu7x-8 --on-demand
-[XPK] Starting xpk v0.0.0
+[XPK] Starting xpk v1.4.1.dev17+g37c742ded.d20260227
 [XPK] Starting cluster create for cluster golden-cluster:
 [XPK] Working on golden-project and us-central1-a
 [XPK] Task: `Retrieve available pathways machine types` is implemented by the following command not running since it is a dry run. 
@@ -112,13 +112,13 @@ data:
   minimum_chips: "0"
   maximum_chips: "4"
 
-[XPK] Temp file (4bf36a48d9e19d6c9141aa3e17e71674e93f4bef175160182fc3a270e7aaf4fb) content: 
+[XPK] Temp file (5521fefeffea2dee4737758ea17899df17eb3446f1e8942c741dbcfa9c9314a5) content: 
 kind: ConfigMap
 apiVersion: v1
 metadata:
   name: golden-cluster-metadata-configmap
 data:
-  xpk_version: v0.0.0
+  xpk_version: 1.4.1.dev17+g37c742ded.d20260227
   capacity_type: ON_DEMAND
 
 [XPK] Breaking up a total of 2 commands into 1 batches

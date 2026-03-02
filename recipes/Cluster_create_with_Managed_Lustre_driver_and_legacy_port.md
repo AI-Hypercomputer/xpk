@@ -7,7 +7,7 @@ xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golde
 ```
 <!--
 $ xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-8 --enable-lustre-csi-driver --enable-legacy-lustre-port --spot
-[XPK] Starting xpk v0.0.0
+[XPK] Starting xpk v1.4.1.dev17+g37c742ded.d20260227
 [XPK] Starting cluster create for cluster golden-cluster:
 [XPK] Working on golden-project and us-central1-a
 [XPK] Task: `Determine server supported GKE versions for default gke version` is implemented by the following command not running since it is a dry run. 
@@ -79,13 +79,13 @@ metadata:
 data:
   tpu7x-8: "1"
 
-[XPK] Temp file (c7780918e7a1e57b41944f4873efa5e4114a0b59cec19aecd76950f42c98c442) content: 
+[XPK] Temp file (67cedcf3709c420c83fbd6cb4df5d185f9b3064c4a5d66bb1d56e864f306ca5a) content: 
 kind: ConfigMap
 apiVersion: v1
 metadata:
   name: golden-cluster-metadata-configmap
 data:
-  xpk_version: v0.0.0
+  xpk_version: 1.4.1.dev17+g37c742ded.d20260227
   capacity_type: SPOT
 
 [XPK] Breaking up a total of 2 commands into 1 batches

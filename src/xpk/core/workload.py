@@ -44,17 +44,6 @@ class _WorkloadListColumn:
   formatter: Callable[[str], str] = _default_format
 
 
-def _sum_counts(value: str) -> str:
-  """Sums space-separated numbers in a string. Returns <none> if empty."""
-  if not value or not value.strip():
-    return '<none>'
-  try:
-    total = sum(int(x) for x in value.split())
-    return str(total)
-  except ValueError:
-    return '<none>'
-
-
 class _WorkloadListColumnType(Enum):
   JOBSET_NAME = auto()
   CREATED_TIME = auto()
@@ -80,15 +69,14 @@ _WORKLOAD_LIST_COLUMN_MAP: dict[
         'Priority', '{.spec.podSets[0].template.spec.priorityClassName}'
     ),
     _WorkloadListColumnType.TPU_VMS_NEEDED: _WorkloadListColumn(
-        'TPU VMs Needed', '{.spec.podSets[0].count}', _sum_counts
+        'TPU VMs Needed', '{.spec.podSets[0].count}'
     ),
     _WorkloadListColumnType.TPU_VMS_RUNNING_RAN: _WorkloadListColumn(
         'TPU VMs Running/Ran',
         '{.status.admission.podSetAssignments[-1].count}',
-        _sum_counts,
     ),
     _WorkloadListColumnType.TPU_VMS_DONE: _WorkloadListColumn(
-        'TPU VMs Done', '{.status.reclaimablePods[0].count}', _sum_counts
+        'TPU VMs Done', '{.status.reclaimablePods[0].count}'
     ),
     _WorkloadListColumnType.STATUS: _WorkloadListColumn(
         'Status', '{.status.conditions[-1].type}'

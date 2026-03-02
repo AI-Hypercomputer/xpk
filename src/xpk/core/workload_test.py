@@ -87,8 +87,8 @@ def test_get_workload_list_super_slicing(commands_tester: CommandsTester):
   mock_output = '\n'.join([
       (
           'JOBSET_NAME=job-super\x1fCREATED_TIME=2024-01-01T00:00:00Z\x1fPRIORITY=high\x1fTPU_VMS_NEEDED=32'
-          ' 32\x1fTPU_VMS_RUNNING_RAN=32 32\x1fTPU_VMS_DONE=0'
-          ' 0\x1fSTATUS=Running\x1fSTATUS_MESSAGE=All'
+          '\x1fTPU_VMS_RUNNING_RAN=32\x1fTPU_VMS_DONE=0'
+          '\x1fSTATUS=Running\x1fSTATUS_MESSAGE=All'
           ' good\x1fSTATUS_TIME=2024-01-01T00:01:00Z'
       ),
       (
@@ -111,9 +111,9 @@ def test_get_workload_list_super_slicing(commands_tester: CommandsTester):
   assert len(parsed_table) == 3
 
   assert parsed_table[0]['Jobset Name'] == 'job-super'
-  assert parsed_table[0]['TPU VMs Needed'] == '64'  # 32 + 32 Needed
-  assert parsed_table[0]['TPU VMs Running/Ran'] == '64'  # 32 + 32 Running
-  assert parsed_table[0]['TPU VMs Done'] == '0'  # 0 + 0 Done
+  assert parsed_table[0]['TPU VMs Needed'] == '32'
+  assert parsed_table[0]['TPU VMs Running/Ran'] == '32'
+  assert parsed_table[0]['TPU VMs Done'] == '0'
   assert parsed_table[0]['Status'] == 'Running'
 
   assert parsed_table[1]['Jobset Name'] == 'job-normal'

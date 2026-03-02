@@ -21,6 +21,7 @@ import pytest
 
 from ..core.scheduling import WorkloadScheduling
 from ..core.system_characteristics import DockerPlatform, SystemCharacteristics, AcceleratorType, UserFacingNameToSystemCharacteristics, GpuConfig
+from ..core.testing.commands_tester import CommandsTester
 from .workload import workload_create
 from .cluster_test import construct_args
 from ..core.docker_container import get_user_workload_container as real_get_user_workload_container
@@ -62,9 +63,11 @@ class _WorkloadCreateMocks:
   is_GPU_TAS_possible: MagicMock
   get_cluster_location: MagicMock
   xpk_exit: MagicMock
-  run_command_with_updates: MagicMock
+  commands_tester: CommandsTester
   ensure_resource_policy_exists: MagicMock
   get_cluster_subnetworks: MagicMock
+  xpk_print: MagicMock
+  get_system_characteristics: MagicMock
 
 
 @pytest.fixture
@@ -122,15 +125,15 @@ def workload_create_mocks(mocker) -> _WorkloadCreateMocks:
           return_value='us-central1',
       ),
       xpk_exit=mocker.patch('xpk.commands.workload.xpk_exit'),
-      run_command_with_updates=mocker.patch(
-          'xpk.commands.workload.run_command_with_updates', return_value=0
-      ),
+      commands_tester=CommandsTester(mocker),
       ensure_resource_policy_exists=mocker.patch(
           'xpk.commands.workload.ensure_resource_policy_exists'
       ),
       get_cluster_subnetworks=mocker.patch(
           'xpk.commands.workload.get_cluster_subnetworks', return_value=[]
       ),
+      xpk_print=mocker.patch('xpk.commands.workload.xpk_print'),
+      get_system_characteristics=mocker.patch('xpk.commands.workload.get_system_characteristics', return_value=(SYSTEM_CHARACTERISTICS, 0)),
   )
 
 
@@ -273,3 +276,36 @@ def test_workload_create_multi_container_for_tpu7x(
   # Check if resources are split correctly (4 chips / 2 containers = 2 chips)
   assert containers[0]['resources']['limits']['google.com/tpu'] == 2
   assert containers[1]['resources']['limits']['google.com/tpu'] == 2
+
+
+def test_workload_create_super_slicing_name_too_long(
+    workload_create_mocks: _WorkloadCreateMocks,
+    mocker,
+):
+  """Tests that a workload name longer than 28 characters fails for super-slicing."""
+  args = construct_args(
+      workload='this-name-is-way-too-long-for-super-slicing',
+      command='echo hello',
+      num_slices=2,
+      docker_name='test-docker',
+      deploy_stacktrace_sidecar=False,
+  )
+  args.use_pathways = False
+
+  mocker.patch(
+      'xpk.commands.workload.get_system_characteristics',
+      return_value=(SYSTEM_CHARACTERISTICS, 0),
+  )
+  workload_create_mocks.check_if_workload_can_schedule.return_value = (
+      WorkloadScheduling.SUPER_SLICING_AVAILABLE
+  )
+  workload_create_mocks.xpk_exit.side_effect = SystemExit(1)
+
+  with pytest.raises(SystemExit) as excinfo:
+    workload_create(args)
+
+  assert excinfo.value.code == 1
+  assert any(
+      'the workload name cannot exceed' in call.args[0]
+      for call in workload_create_mocks.xpk_print.call_args_list
+  )

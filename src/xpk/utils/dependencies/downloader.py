@@ -61,7 +61,7 @@ def _format_url(
   )
 
 
-def _download_file(url: str, path: str, name: str) -> bool:
+def _download_file(url: str, path: pathlib.Path, name: str) -> bool:
   """Downloads a file from a URL to a local path."""
   try:
     xpk_print(f"Downloading {url} ...")
@@ -166,8 +166,9 @@ def fetch_dependency(
   url = _format_url(binary_dependency, os_name, arch_name)
 
   with tempfile.TemporaryDirectory() as temp_dir:
+    temp_dir_path = pathlib.Path(temp_dir)
     filename = pathlib.Path(urllib.parse.urlparse(url).path).name
-    download_path = os.path.join(temp_dir, filename)
+    download_path = temp_dir_path / filename
 
     if not _download_file(url, download_path, binary_dependency.binary_name):
       return False
@@ -179,5 +180,5 @@ def fetch_dependency(
 
     final_path = target_dir / binary_dependency.binary_name
     return _process_downloaded_file(
-        binary_dependency, download_path, temp_dir, final_path
+        binary_dependency, download_path, temp_dir_path, final_path
     )

@@ -20,8 +20,8 @@ import urllib.request
 import hashlib
 import pprint
 import subprocess
+import dataclasses
 from pathlib import Path
-from typing import Any
 from itertools import product
 
 _KUBECTL_VERSION: str = "v1.30.0"
@@ -44,28 +44,45 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-_DEPENDENCIES: dict[str, dict[str, str]] = {
-    "kubectl": {
-        "version": _KUBECTL_VERSION,
-        "url_template": (
+
+@dataclasses.dataclass(frozen=True)
+class _DependencyInfo:
+  """Represents a dependency to be fetched and checksummed."""
+
+  name: str
+  version: str
+  url_template: str
+  archive_type: str
+  binary_name: str
+  arch_map: dict[str, str] = dataclasses.field(default_factory=dict)
+
+
+_DEPENDENCIES: list[_DependencyInfo] = [
+    _DependencyInfo(
+        name="kubectl",
+        version=_KUBECTL_VERSION,
+        url_template=(
             "https://dl.k8s.io/release/{version}/bin/{os}/{arch}/kubectl"
         ),
-        "archive_type": "binary",
-        "binary_name": "kubectl",
-    },
-    "kubectl-kueue": {
-        "version": _KUEUE_VERSION,
-        "url_template": "https://github.com/kubernetes-sigs/kueue/releases/download/{version}/kubectl-kueue-{os}-{arch}",
-        "archive_type": "binary",
-        "binary_name": "kubectl-kueue",
-    },
-    "crane": {
-        "version": _CRANE_VERSION,
-        "url_template": "https://github.com/google/go-containerregistry/releases/download/{version}/go-containerregistry_{os_capitalized}_{crane_arch}.tar.gz",
-        "archive_type": "tar.gz",
-        "binary_name": "crane",
-    },
-}
+        archive_type="binary",
+        binary_name="kubectl",
+    ),
+    _DependencyInfo(
+        name="kubectl-kueue",
+        version=_KUEUE_VERSION,
+        url_template="https://github.com/kubernetes-sigs/kueue/releases/download/{version}/kubectl-kueue-{os}-{arch}",
+        archive_type="binary",
+        binary_name="kubectl-kueue",
+    ),
+    _DependencyInfo(
+        name="crane",
+        version=_CRANE_VERSION,
+        url_template="https://github.com/google/go-containerregistry/releases/download/{version}/go-containerregistry_{os_capitalized}_{arch}.tar.gz",
+        archive_type="tar.gz",
+        binary_name="crane",
+        arch_map={"amd64": "x86_64", "arm64": "arm64"},
+    ),
+]
 
 _OS_MAP: dict[str, str] = {"linux": "linux", "darwin": "darwin"}
 _ARCH_MAP: dict[str, str] = {"amd64": "amd64", "arm64": "arm64"}
@@ -89,36 +106,32 @@ def _get_hash(url: str) -> str:
     return sha256.hexdigest()
 
 
-def _get_dep_checksums(dep_info: dict[str, str]) -> dict[str, str]:
+def _get_dep_checksums(dep_info: _DependencyInfo) -> dict[str, str]:
   checksums: dict[str, str] = {}
   for os_val, arch_val in product(_OS_MAP.values(), _ARCH_MAP.values()):
     print(f" Calculating checksum for {os_val}_{arch_val}")
-    url = dep_info["url_template"].format(
-        version=dep_info["version"],
+    mapped_arch = dep_info.arch_map.get(arch_val, arch_val)
+    url = dep_info.url_template.format(
+        version=dep_info.version,
         os=os_val,
-        arch=arch_val,
+        arch=mapped_arch,
         os_capitalized=os_val.capitalize(),
-        crane_arch="x86_64" if arch_val == "amd64" else "arm64",
     )
     checksums[f"{os_val}_{arch_val}"] = _get_hash(url)
   return checksums
 
 
-def _get_checksums() -> dict[str, dict[str, Any]]:
-  checksums: dict[str, dict[str, Any]] = {}
-  for dep_name, dep_info in _DEPENDENCIES.items():
-    print(f"Updating dependency {dep_name}...")
-    checksums[dep_name] = {
-        "version": dep_info["version"],
-        "archive_type": dep_info["archive_type"],
-        "binary_name": dep_info["binary_name"],
-        "url_template": dep_info["url_template"],
-        "checksums": _get_dep_checksums(dep_info),
-    }
-  return checksums
+def _get_checksums() -> list[tuple[_DependencyInfo, dict[str, str]]]:
+  results: list[tuple[_DependencyInfo, dict[str, str]]] = []
+  for dep_info in _DEPENDENCIES:
+    print(f"Updating dependency {dep_info.name}...")
+    results.append((dep_info, _get_dep_checksums(dep_info)))
+  return results
 
 
-def _store_checksums(checksums: dict[str, dict[str, Any]]) -> None:
+def _store_checksums(
+    checksums: list[tuple[_DependencyInfo, dict[str, str]]],
+) -> None:
   _OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
 
   with open(_OUTPUT_FILE, "w", encoding="utf-8") as f:
@@ -139,21 +152,28 @@ def _store_checksums(checksums: dict[str, dict[str, Any]]) -> None:
     f.write("    binary_name: str\n")
     f.write("    checksums: dict[str, str]\n")
     f.write("    url_template: str\n")
-    f.write("    version: str\n\n")
+    f.write("    version: str\n")
+    f.write(
+        "    arch_map: dict[str, str] ="
+        " dataclasses.field(default_factory=dict)\n\n"
+    )
     f.write("class BinaryDependencies(enum.Enum):\n")
     f.write(
         '    """Enum of binary dependencies with their metadata and'
         ' checksums."""\n'
     )
-    for dep_name, dep_data in checksums.items():
-      enum_name = dep_name.upper().replace("-", "_")
+    for dep_info, dep_checksums in checksums:
+      enum_name = dep_info.name.upper().replace("-", "_")
       f.write(f"    {enum_name} = BinaryDependency(\n")
-      f.write(f"        archive_type={repr(dep_data['archive_type'])},\n")
-      f.write(f"        binary_name={repr(dep_data['binary_name'])},\n")
-      checksums_str = pprint.pformat(dep_data["checksums"], indent=12)
+      f.write(f"        archive_type={repr(dep_info.archive_type)},\n")
+      f.write(f"        binary_name={repr(dep_info.binary_name)},\n")
+      checksums_str = pprint.pformat(dep_checksums, indent=12)
       f.write(f"        checksums={checksums_str},\n")
-      f.write(f"        url_template={repr(dep_data['url_template'])},\n")
-      f.write(f"        version={repr(dep_data['version'])},\n")
+      f.write(f"        url_template={repr(dep_info.url_template)},\n")
+      f.write(f"        version={repr(dep_info.version)},\n")
+      if dep_info.arch_map:
+        arch_map_str = pprint.pformat(dep_info.arch_map, indent=12)
+        f.write(f"        arch_map={arch_map_str},\n")
       f.write("    )\n")
   print(f"Checksums written to {_OUTPUT_FILE}")
 

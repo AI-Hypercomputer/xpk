@@ -22,6 +22,7 @@ import pprint
 import subprocess
 from pathlib import Path
 from typing import Any
+from itertools import product
 
 KUBECTL_VERSION: str = "v1.30.0"
 KUEUE_VERSION: str = "v0.15.2"
@@ -88,7 +89,22 @@ def get_hash(url: str) -> str | None:
     return sha256.hexdigest()
 
 
-def generate_checksums() -> None:
+def get_dep_checksums(dep_info: dict[str, str]) -> dict[str, str]:
+  checksums: dict[str, str] = {}
+  for os_val, arch_val in product(OS_MAP.values(), ARCH_MAP.values()):
+    print(f" Calculating checksum for {os_val}_{arch_val}")
+    url = dep_info["url_template"].format(
+        version=dep_info["version"],
+        os=os_val,
+        arch=arch_val,
+        os_capitalized=os_val.capitalize(),
+        crane_arch="x86_64" if arch_val == "amd64" else "arm64",
+    )
+    checksums[f"{os_val}_{arch_val}"] = get_hash(url)
+  return checksums
+
+
+def get_checksums() -> dict[str, dict[str, Any]]:
   checksums: dict[str, dict[str, Any]] = {}
   for dep_name, dep_info in DEPENDENCIES.items():
     print(f"Updating dependency {dep_name}...")
@@ -97,21 +113,12 @@ def generate_checksums() -> None:
         "archive_type": dep_info["archive_type"],
         "binary_name": dep_info["binary_name"],
         "url_template": dep_info["url_template"],
-        "checksums": {},
+        "checksums": get_dep_checksums(dep_info),
     }
-    for os_val in OS_MAP.values():
-      for arch_val in ARCH_MAP.values():
-        print(f" Calculating checksum for {os_val}_{arch_val}")
-        crane_arch = "x86_64" if arch_val == "amd64" else "arm64"
-        url = dep_info["url_template"].format(
-            version=dep_info["version"],
-            os=os_val,
-            arch=arch_val,
-            os_capitalized=os_val.capitalize(),
-            crane_arch=crane_arch,
-        )
-        checksums[dep_name]["checksums"][f"{os_val}_{arch_val}"] = get_hash(url)
+  return checksums
 
+
+def store_checksums(checksums: dict[str, dict[str, Any]]) -> None:
   OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
 
   with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
@@ -126,6 +133,8 @@ def generate_checksums() -> None:
     f.write("\n")
   print(f"Checksums written to {OUTPUT_FILE}")
 
+
+def format_code() -> None:
   try:
     subprocess.run(["pyink", str(OUTPUT_FILE)], check=True)
     print("Formatted with pyink.")
@@ -133,6 +142,12 @@ def generate_checksums() -> None:
     print("pyink not found, skipping formatting.")
   except subprocess.CalledProcessError as e:
     print(f"pyink formatting failed: {e}")
+
+
+def generate_checksums() -> None:
+  checksums = get_checksums()
+  store_checksums(checksums)
+  format_code()
 
 
 if __name__ == "__main__":

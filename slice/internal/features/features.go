@@ -1,0 +1,50 @@
+/*
+Copyright The Kubernetes Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package features
+
+import (
+	"k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/util/version"
+	utilfeature "k8s.io/apiserver/pkg/util/feature"
+	"k8s.io/component-base/featuregate"
+	"k8s.io/component-base/featuregate/testing"
+	featuregatetesting "k8s.io/component-base/featuregate/testing"
+)
+
+const (
+	// Adds AntiAffinity that excludes nodes belonging to existing slices from scheduling.
+	NodesInSlicesAntiAffinity featuregate.Feature = "NodesInSlicesAntiAffinity"
+)
+
+var defaultVersionedFeatureGates = map[featuregate.Feature]featuregate.VersionedSpecs{
+	NodesInSlicesAntiAffinity: {
+		{Version: version.MustParse("0.1"), Default: true, PreRelease: featuregate.Beta},
+	},
+}
+
+func init() {
+	runtime.Must(utilfeature.DefaultMutableFeatureGate.AddVersioned(defaultVersionedFeatureGates))
+}
+
+func SetFeatureGateDuringTest(tb testing.TB, f featuregate.Feature, value bool) {
+	featuregatetesting.SetFeatureGateDuringTest(tb, utilfeature.DefaultFeatureGate, f, value)
+}
+
+// Enabled is helper for `utilfeature.DefaultFeatureGate.Enabled()`
+func Enabled(f featuregate.Feature) bool {
+	return utilfeature.DefaultFeatureGate.Enabled(f)
+}

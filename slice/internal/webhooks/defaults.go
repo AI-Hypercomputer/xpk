@@ -87,14 +87,14 @@ func addNodeInSliceAntiAffinity(template *corev1.PodTemplateSpec) {
 	core.AddNodeAffinity(template, core.TPUSliceNodeLabel, corev1.NodeSelectorOpDoesNotExist, nil)
 }
 
-func removeNodeInSliceAntiAffinity(template *corev1.PodTemplateSpec) {
-	if template.Spec.Affinity == nil ||
-		template.Spec.Affinity.NodeAffinity == nil ||
-		template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil {
+func removeNodeInSliceAntiAffinity(spec *corev1.PodSpec) {
+	if spec.Affinity == nil ||
+		spec.Affinity.NodeAffinity == nil ||
+		spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil {
 		return
 	}
 
-	nodeSelector := template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution
+	nodeSelector := spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution
 	for i := range nodeSelector.NodeSelectorTerms {
 		var newExpressions []corev1.NodeSelectorRequirement
 		for _, req := range nodeSelector.NodeSelectorTerms[i].MatchExpressions {

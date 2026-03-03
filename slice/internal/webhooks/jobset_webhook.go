@@ -26,6 +26,7 @@ import (
 	kueueconstants "sigs.k8s.io/kueue/pkg/controller/constants"
 
 	"tpu-slice-controller/internal/core"
+	"tpu-slice-controller/internal/features"
 )
 
 // JobSetWebhook is the schema for your resource (ensure this matches your resource definition).
@@ -69,8 +70,10 @@ func (r *JobSetWebhook) Default(ctx context.Context, obj runtime.Object) error {
 		if err != nil {
 			return err
 		}
-		log.V(5).Info("Adding JobSet anti-affinity", "jobSet", jobSet.Name)
-		addNodeInSliceAntiAffinity(&rj.Template.Spec.Template)
+		if features.Enabled(features.NodesInSlicesAntiAffinity) {
+			log.V(5).Info("Adding JobSet anti-affinity", "jobSet", jobSet.Name)
+			addNodeInSliceAntiAffinity(&rj.Template.Spec.Template)
+		}
 	}
 	return nil
 }

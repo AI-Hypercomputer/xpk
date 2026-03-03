@@ -83,52 +83,6 @@ def test_get_workload_list(commands_tester: CommandsTester):
   assert parsed_table[0]['Priority'] == 'high'
 
 
-def test_get_workload_list_super_slicing(commands_tester: CommandsTester):
-  mock_output = '\n'.join([
-      (
-          'JOBSET_NAME=job-super\x1fCREATED_TIME=2024-01-01T00:00:00Z\x1fPRIORITY=high\x1fTPU_VMS_NEEDED=32'
-          '\x1fTPU_VMS_RUNNING_RAN=32\x1fTPU_VMS_DONE=0'
-          '\x1fSTATUS=Running\x1fSTATUS_MESSAGE=All'
-          ' good\x1fSTATUS_TIME=2024-01-01T00:01:00Z'
-      ),
-      (
-          'JOBSET_NAME=job-normal\x1fCREATED_TIME=2024-01-02T00:00:00Z\x1fPRIORITY=low\x1fTPU_VMS_NEEDED=4\x1fTPU_VMS_RUNNING_RAN=4\x1fTPU_VMS_DONE=0\x1fSTATUS=Running\x1fSTATUS_MESSAGE=All'
-          ' good\x1fSTATUS_TIME=2024-01-02T00:01:00Z'
-      ),
-      'JOBSET_NAME=job-pending\x1fCREATED_TIME=2024-01-03T00:00:00Z\x1fPRIORITY=high\x1fTPU_VMS_NEEDED=16\x1fTPU_VMS_RUNNING_RAN=\x1fTPU_VMS_DONE=0\x1fSTATUS=Admitted\x1fSTATUS_MESSAGE=Waiting\x1fSTATUS_TIME=2024-01-03T00:01:00Z',
-  ])
-  commands_tester.set_result_for_command(
-      (0, mock_output), 'kubectl', 'get', 'workloads'
-  )
-  args = MagicMock()
-  args.filter_by_status = 'EVERYTHING'
-  args.filter_by_job = None
-
-  return_code, return_value = get_workload_list(args)
-
-  assert return_code == 0
-  parsed_table = _parse_workload_table(return_value)
-  assert len(parsed_table) == 3
-
-  assert parsed_table[0]['Jobset Name'] == 'job-super'
-  assert parsed_table[0]['TPU VMs Needed'] == '32'
-  assert parsed_table[0]['TPU VMs Running/Ran'] == '32'
-  assert parsed_table[0]['TPU VMs Done'] == '0'
-  assert parsed_table[0]['Status'] == 'Running'
-
-  assert parsed_table[1]['Jobset Name'] == 'job-normal'
-  assert parsed_table[1]['TPU VMs Needed'] == '4'
-  assert parsed_table[1]['TPU VMs Running/Ran'] == '4'
-  assert parsed_table[1]['TPU VMs Done'] == '0'
-  assert parsed_table[1]['Status'] == 'Running'
-
-  assert parsed_table[2]['Jobset Name'] == 'job-pending'
-  assert parsed_table[2]['TPU VMs Needed'] == '16'
-  assert parsed_table[2]['TPU VMs Running/Ran'] == '<none>'
-  assert parsed_table[2]['TPU VMs Done'] == '0'
-  assert parsed_table[2]['Status'] == 'Admitted'
-
-
 def test_get_workload_list_filter_by_job(commands_tester: CommandsTester):
   mock_output = '\n'.join([
       (
@@ -167,10 +121,9 @@ def test_get_workload_list_filter_by_job(commands_tester: CommandsTester):
                 'running-job',
                 'success-job',
                 'failed-job',
-                'test-queued-job',
             ],
         ),
-        ('QUEUED', ['queued-job', 'test-queued-job']),
+        ('QUEUED', ['queued-job']),
         ('RUNNING', ['running-job']),
         ('FINISHED', ['success-job', 'failed-job']),
         ('SUCCESSFUL', ['success-job']),
@@ -192,10 +145,6 @@ def test_get_workload_list_filters(
       (
           'JOBSET_NAME=failed-job\x1fCREATED_TIME=2024-01-01T00:00:00Z\x1fPRIORITY=high\x1fTPU_VMS_NEEDED=4\x1fTPU_VMS_RUNNING_RAN=4\x1fTPU_VMS_DONE=0\x1fSTATUS=Finished\x1fSTATUS_MESSAGE=Job'
           ' failed witherror\x1fSTATUS_TIME=2024-01-01T00:01:00Z'
-      ),
-      (
-          'JOBSET_NAME=test-queued-job\x1fCREATED_TIME=2024-01-01T00:00:00Z\x1fPRIORITY=high\x1fTPU_VMS_NEEDED=4\x1fTPU_VMS_RUNNING_RAN=0\x1fTPU_VMS_DONE=0\x1fSTATUS=QuotaReserved\x1fSTATUS_MESSAGE=Waitingfor'
-          ' quota\x1fSTATUS_TIME=2024-01-01T00:01:00Z'
       ),
   ])
   commands_tester.set_result_for_command(

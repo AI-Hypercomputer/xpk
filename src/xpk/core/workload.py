@@ -66,7 +66,7 @@ _WORKLOAD_LIST_COLUMN_MAP: dict[
         'Created Time', '{.metadata.creationTimestamp}'
     ),
     _WorkloadListColumnType.PRIORITY: _WorkloadListColumn(
-        'Priority', '{.spec.podSets[0].template.spec.priorityClassName}'
+        'Priority', '{.spec.priorityClassName}'
     ),
     _WorkloadListColumnType.TPU_VMS_NEEDED: _WorkloadListColumn(
         'TPU VMs Needed', '{.spec.podSets[0].count}'

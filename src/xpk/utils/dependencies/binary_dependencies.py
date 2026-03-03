@@ -21,6 +21,8 @@ import enum
 
 @dataclasses.dataclass(frozen=True)
 class BinaryDependency:
+  """Represents a binary dependency with its metadata and checksums."""
+
   archive_type: str
   binary_name: str
   checksums: dict[str, str]
@@ -29,6 +31,8 @@ class BinaryDependency:
 
 
 class BinaryDependencies(enum.Enum):
+  """Enum of binary dependencies with their metadata and checksums."""
+
   KUBECTL = BinaryDependency(
       archive_type='binary',
       binary_name='kubectl',

@@ -131,12 +131,20 @@ def _store_checksums(checksums: dict[str, dict[str, Any]]) -> None:
     f.write("import enum\n\n")
     f.write("@dataclasses.dataclass(frozen=True)\n")
     f.write("class BinaryDependency:\n")
+    f.write(
+        '    """Represents a binary dependency with its metadata and'
+        ' checksums."""\n'
+    )
     f.write("    archive_type: str\n")
     f.write("    binary_name: str\n")
     f.write("    checksums: dict[str, str]\n")
     f.write("    url_template: str\n")
     f.write("    version: str\n\n")
     f.write("class BinaryDependencies(enum.Enum):\n")
+    f.write(
+        '    """Enum of binary dependencies with their metadata and'
+        ' checksums."""\n'
+    )
     for dep_name, dep_data in checksums.items():
       enum_name = dep_name.upper().replace("-", "_")
       f.write(f"    {enum_name} = BinaryDependency(\n")

@@ -28,8 +28,10 @@ import (
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
 	kueueconstants "sigs.k8s.io/kueue/pkg/controller/constants"
 
+	slice "tpu-slice-controller/api/v1beta1"
 	"tpu-slice-controller/internal/core"
 	utiltesting "tpu-slice-controller/internal/util/testing"
+	testingpod "tpu-slice-controller/internal/util/testingjobs/pod"
 )
 
 func TestPodDefault(t *testing.T) {
@@ -43,6 +45,12 @@ func TestPodDefault(t *testing.T) {
 	_ = corev1.AddToScheme(scheme)
 	_ = jobset.AddToScheme(scheme)
 
+	makeTPUPod := func(name, ns string) *testingpod.PodWrapper {
+		return testingpod.MakePod(name, ns).
+			Annotation(core.TPUSliceTopologyAnnotation, "4x4x4").
+			NodeSelector(core.TPUAcceleratorLabel, string(slice.TypeTpu7x))
+	}
+
 	testCases := map[string]struct {
 		pod     *corev1.Pod
 		jobSet  *jobset.JobSet
@@ -50,133 +58,39 @@ func TestPodDefault(t *testing.T) {
 		wantErr error
 	}{
 		"no jobset label": {
-			pod: &corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      basePodName,
-					Namespace: baseNamespace,
-				},
-			},
-			wantPod: &corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      basePodName,
-					Namespace: baseNamespace,
-				},
-			},
+			pod:     makeTPUPod(basePodName, baseNamespace).Obj(),
+			wantPod: makeTPUPod(basePodName, baseNamespace).Obj(),
 		},
 		"jobset not found": {
-			pod: &corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      basePodName,
-					Namespace: baseNamespace,
-					Labels: map[string]string{
-						jobset.JobSetNameKey: baseJobSetName,
-					},
-				},
-			},
-			wantPod: &corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      basePodName,
-					Namespace: baseNamespace,
-					Labels: map[string]string{
-						jobset.JobSetNameKey: baseJobSetName,
-					},
-				},
-			},
+			pod:     makeTPUPod(basePodName, baseNamespace).Label(jobset.JobSetNameKey, baseJobSetName).Obj(),
+			wantPod: makeTPUPod(basePodName, baseNamespace).Label(jobset.JobSetNameKey, baseJobSetName).Obj(),
 		},
 		"jobset found, no queue label": {
-			pod: &corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      basePodName,
-					Namespace: baseNamespace,
-					Labels: map[string]string{
-						jobset.JobSetNameKey: baseJobSetName,
-					},
-				},
-				Spec: corev1.PodSpec{
-					Affinity: &corev1.Affinity{
-						NodeAffinity: &corev1.NodeAffinity{
-							RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-								NodeSelectorTerms: []corev1.NodeSelectorTerm{
-									{
-										MatchExpressions: []corev1.NodeSelectorRequirement{
-											{
-												Key:      core.TPUSliceNodeLabel,
-												Operator: corev1.NodeSelectorOpDoesNotExist,
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
+			pod: makeTPUPod(basePodName, baseNamespace).Label(jobset.JobSetNameKey, baseJobSetName).NodeSelectorRequirement(corev1.NodeSelectorRequirement{
+				Key:      core.TPUSliceNodeLabel,
+				Operator: corev1.NodeSelectorOpDoesNotExist,
+			}).Obj(),
 			jobSet: &jobset.JobSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      baseJobSetName,
 					Namespace: baseNamespace,
 				},
 			},
-			wantPod: &corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      basePodName,
-					Namespace: baseNamespace,
-					Labels: map[string]string{
-						jobset.JobSetNameKey: baseJobSetName,
-					},
-				},
-				Spec: corev1.PodSpec{
-					Affinity: &corev1.Affinity{
-						NodeAffinity: &corev1.NodeAffinity{
-							RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-								NodeSelectorTerms: []corev1.NodeSelectorTerm{
-									{
-										MatchExpressions: []corev1.NodeSelectorRequirement{
-											{
-												Key:      core.TPUSliceNodeLabel,
-												Operator: corev1.NodeSelectorOpDoesNotExist,
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
+			wantPod: makeTPUPod(basePodName, baseNamespace).Label(jobset.JobSetNameKey, baseJobSetName).NodeSelectorRequirement(corev1.NodeSelectorRequirement{
+				Key:      core.TPUSliceNodeLabel,
+				Operator: corev1.NodeSelectorOpDoesNotExist,
+			}).Obj(),
 		},
 		"jobset found, queue label present, anti-affinity removed": {
-			pod: &corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      basePodName,
-					Namespace: baseNamespace,
-					Labels: map[string]string{
-						jobset.JobSetNameKey: baseJobSetName,
-					},
+			pod: makeTPUPod(basePodName, baseNamespace).Label(jobset.JobSetNameKey, baseJobSetName).NodeSelectorRequirement(corev1.NodeSelectorRequirement{
+				Key:      core.TPUSliceNodeLabel,
+				Operator: corev1.NodeSelectorOpDoesNotExist,
+			}).NodeSelectorRequirement(
+				corev1.NodeSelectorRequirement{
+					Key:      "other-key",
+					Operator: corev1.NodeSelectorOpExists,
 				},
-				Spec: corev1.PodSpec{
-					Affinity: &corev1.Affinity{
-						NodeAffinity: &corev1.NodeAffinity{
-							RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-								NodeSelectorTerms: []corev1.NodeSelectorTerm{
-									{
-										MatchExpressions: []corev1.NodeSelectorRequirement{
-											{
-												Key:      core.TPUSliceNodeLabel,
-												Operator: corev1.NodeSelectorOpDoesNotExist,
-											},
-											{
-												Key:      "other-key",
-												Operator: corev1.NodeSelectorOpExists,
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
+			).Obj(),
 			jobSet: &jobset.JobSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      baseJobSetName,
@@ -186,33 +100,12 @@ func TestPodDefault(t *testing.T) {
 					},
 				},
 			},
-			wantPod: &corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      basePodName,
-					Namespace: baseNamespace,
-					Labels: map[string]string{
-						jobset.JobSetNameKey: baseJobSetName,
-					},
+			wantPod: makeTPUPod(basePodName, baseNamespace).Label(jobset.JobSetNameKey, baseJobSetName).NodeSelectorRequirement(
+				corev1.NodeSelectorRequirement{
+					Key:      "other-key",
+					Operator: corev1.NodeSelectorOpExists,
 				},
-				Spec: corev1.PodSpec{
-					Affinity: &corev1.Affinity{
-						NodeAffinity: &corev1.NodeAffinity{
-							RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-								NodeSelectorTerms: []corev1.NodeSelectorTerm{
-									{
-										MatchExpressions: []corev1.NodeSelectorRequirement{
-											{
-												Key:      "other-key",
-												Operator: corev1.NodeSelectorOpExists,
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
+			).Obj(),
 		},
 	}
 

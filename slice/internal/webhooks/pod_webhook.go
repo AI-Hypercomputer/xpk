@@ -18,6 +18,7 @@ package webhooks
 
 import (
 	"context"
+	"tpu-slice-controller/internal/core"
 	"tpu-slice-controller/internal/features"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -55,43 +56,37 @@ func (r *PodWebhook) Default(ctx context.Context, obj runtime.Object) error {
 		log := ctrl.LoggerFrom(ctx).WithName("pod-accelerator-gke-webhook")
 		log.V(5).Info("Defaulting Pod", "pod", klog.KObj(pod))
 
-		// Skip system namespaces
-		if pod.Namespace == "kube-system" || pod.Namespace == "slice-controller-system" {
-			log.V(5).Info("Skipping system namespace", "namespace", pod.Namespace)
+		// Skip if not TPU v7x superslicing pod
+		if !core.IsRelevantPodTemplateSpec(corev1.PodTemplateSpec{ObjectMeta: pod.ObjectMeta, Spec: pod.Spec}) {
 			return nil
 		}
 
-		if pod.Labels == nil {
-			log.V(5).Info("Pod has no labels, skipping")
-			return nil
+		var isKueueManaged bool
+
+		// Check if the Pod is part of a Kueue-managed JobSet
+		if jobSetName, ok := pod.Labels[jobset.JobSetNameKey]; ok {
+			var js jobset.JobSet
+			if err := r.client.Get(ctx, client.ObjectKey{Name: jobSetName, Namespace: pod.Namespace}, &js); err == nil {
+				if js.Labels[kueueconstants.QueueLabel] != "" {
+					isKueueManaged = true
+				}
+			}
 		}
 
-		jobSetName, ok := pod.Labels[jobset.JobSetNameKey]
-		if !ok {
-			// Fallback: Try to find the JobSet name via the owner Job
+		// Check if the Pod is owned by a Kueue-managed Job
+		if !isKueueManaged {
 			owner := metav1.GetControllerOf(pod)
-			if owner == nil || owner.Kind != "Job" {
-				log.V(5).Info("Pod does not have jobset label and is not owned by a Job, skipping")
-				return nil
-			}
-			var job batchv1.Job
-			if err := r.client.Get(ctx, client.ObjectKey{Name: owner.Name, Namespace: pod.Namespace}, &job); err != nil {
-				log.V(5).Info("Failed to get owner Job, skipping")
-				return nil
-			}
-			jobSetName, ok = job.Labels[jobset.JobSetNameKey]
-			if !ok {
-				log.V(5).Info("Owner Job does not have jobset label, skipping")
-				return nil
+			if owner != nil && owner.Kind == "Job" {
+				var job batchv1.Job
+				if err := r.client.Get(ctx, client.ObjectKey{Name: owner.Name, Namespace: pod.Namespace}, &job); err == nil {
+					if job.Labels[kueueconstants.QueueLabel] != "" {
+						isKueueManaged = true
+					}
+				}
 			}
 		}
 
-		var js jobset.JobSet
-		if err := r.client.Get(ctx, client.ObjectKey{Name: jobSetName, Namespace: pod.Namespace}, &js); err != nil {
-			log.V(5).Info("Failed to get JobSet, skipping anti-affinity removal")
-			return nil
-		}
-		if js.Labels[kueueconstants.QueueLabel] != "" {
+		if isKueueManaged {
 			log.V(5).Info("Removing anti-affinity from pod", "pod", klog.KObj(pod))
 			removeNodeInSliceAntiAffinity(&pod.Spec)
 		}

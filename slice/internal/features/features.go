@@ -21,7 +21,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/version"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/component-base/featuregate"
-	"k8s.io/component-base/featuregate/testing"
 	featuregatetesting "k8s.io/component-base/featuregate/testing"
 )
 
@@ -40,7 +39,7 @@ func init() {
 	runtime.Must(utilfeature.DefaultMutableFeatureGate.AddVersioned(defaultVersionedFeatureGates))
 }
 
-func SetFeatureGateDuringTest(tb testing.TB, f featuregate.Feature, value bool) {
+func SetFeatureGateDuringTest(tb featuregatetesting.TB, f featuregate.Feature, value bool) {
 	featuregatetesting.SetFeatureGateDuringTest(tb, utilfeature.DefaultFeatureGate, f, value)
 }
 

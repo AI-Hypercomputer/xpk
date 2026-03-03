@@ -18,8 +18,6 @@ package webhooks
 
 import (
 	"context"
-	"tpu-slice-controller/internal/core"
-	"tpu-slice-controller/internal/features"
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -31,6 +29,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
 	kueueconstants "sigs.k8s.io/kueue/pkg/controller/constants"
+
+	"tpu-slice-controller/internal/core"
+	"tpu-slice-controller/internal/features"
 )
 
 type PodWebhook struct {

@@ -77,7 +77,7 @@ _OUTPUT_FILE = (
     / "xpk"
     / "utils"
     / "dependencies"
-    / "checksums.py"
+    / "binary_dependencies.py"
 )
 
 

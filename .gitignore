@@ -145,6 +145,7 @@ xpkclusters/*
 
 # gemini-cli settings
 .gemini/
+.multi_agent/
 
 # GitHub App credentials
 gha-creds-*.json

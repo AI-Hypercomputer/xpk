@@ -149,3 +149,4 @@ xpkclusters/*
 
 # GitHub App credentials
 gha-creds-*.json
+.multi_agent/

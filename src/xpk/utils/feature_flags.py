@@ -42,6 +42,7 @@ class _FeatureFlags:
   DEPENDENCY_AUTO_DOWNLOAD = _get_boolean_flag(
       "DEPENDENCY_AUTO_DOWNLOAD", default=False
   )
+  OPTIONAL_NUM_SLICES = _get_boolean_flag("OPTIONAL_NUM_SLICES", default=False)
 
 
 FeatureFlags = _FeatureFlags()

@@ -7,7 +7,7 @@ xpk cluster delete --project=golden-project --zone=us-central1-a --cluster=golde
 ```
 <!--
 $ xpk cluster delete --project=golden-project --zone=us-central1-a --cluster=golden-cluster --force
-[XPK] Starting xpk v1.4.1.dev17+g37c742ded.d20260227
+[XPK] Starting xpk v0.0.0
 [XPK] Starting cluster delete for cluster: golden-cluster
 [XPK] Working on golden-project and us-central1-a
 [XPK] Task: `Find cluster region or zone` is implemented by the following command not running since it is a dry run. 

@@ -7,7 +7,7 @@ xpk cluster create-pathways --project=golden-project --zone=us-central1-a --clus
 ```
 <!--
 $ xpk cluster create-pathways --project=golden-project --zone=us-central1-a --cluster=golden-cluster-private --private --tpu-type=v5p-8  --num-slices=1 --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=4 --reservation=golden-reservation
-[XPK] Starting xpk v1.4.1.dev17+g37c742ded.d20260227
+[XPK] Starting xpk v0.0.0
 [XPK] Starting cluster create for cluster golden-cluster-private:
 [XPK] Working on golden-project and us-central1-a
 [XPK] Task: `Retrieve available pathways machine types` is implemented by the following command not running since it is a dry run. 
@@ -75,13 +75,13 @@ metadata:
 data:
   v5p-8: "1"
 
-[XPK] Temp file (204fcf1f1deb7d1a5788c06980cc7ac2fece518d8378c10101f067625c553cef) content: 
+[XPK] Temp file (3ed3b49b28295daa480b6abe0a3f9d4e575d4512c08907284391df95997a9142) content: 
 kind: ConfigMap
 apiVersion: v1
 metadata:
   name: golden-cluster-private-metadata-configmap
 data:
-  xpk_version: 1.4.1.dev17+g37c742ded.d20260227
+  xpk_version: v0.0.0
   capacity_type: RESERVATION
   reservation_id: golden-reservation
 

@@ -7,7 +7,7 @@ DRY_RUN_RESERVATION_SUB_BLOCKS='[{"name": "sub0", "count": 16, "inUseCount": 0},
 ```
 <!--
 $ DRY_RUN_RESERVATION_SUB_BLOCKS='[{"name": "sub0", "count": 16, "inUseCount": 0}, {"name": "sub1", "count": 16, "inUseCount": 0}, {"name": "sub2", "count": 16, "inUseCount": 15}, {"name": "sub3", "count": 16, "inUseCount": 0}]' xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-4x4x4 --reservation=golden-reservation/reservationBlocks/block --super-slicing --num-cubes=3
-[XPK] Starting xpk v1.4.1.dev17+g37c742ded.d20260227
+[XPK] Starting xpk v0.0.0
 [XPK] Starting cluster create for cluster golden-cluster:
 [XPK] Working on golden-project and us-central1-a
 [XPK] Task: `Get reservation golden-reservation` is implemented by the following command not running since it is a dry run. 
@@ -76,13 +76,13 @@ metadata:
 data:
   tpu7x-128: "48"
 
-[XPK] Temp file (898ea81cfb7bdf6d2777433126d44fa401499f895050d7d3d36ddf36df99f0ef) content: 
+[XPK] Temp file (d6354673799dbf5d6ac92c682900bc8185116e90580c3dff5355cb69dc2b2a7e) content: 
 kind: ConfigMap
 apiVersion: v1
 metadata:
   name: golden-cluster-metadata-configmap
 data:
-  xpk_version: 1.4.1.dev17+g37c742ded.d20260227
+  xpk_version: v0.0.0
   capacity_type: RESERVATION
   reservation_id: golden-reservation/reservationBlocks/block
 

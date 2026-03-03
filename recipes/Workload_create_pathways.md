@@ -7,7 +7,7 @@ xpk workload create-pathways --project=golden-project --zone=us-central1-a --clu
 ```
 <!--
 $ xpk workload create-pathways --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --command "bash hello" --tpu-type=v5p-8 --num-slices=1 --script-dir=/tmp
-[XPK] Starting xpk v1.4.1.dev17+g37c742ded.d20260227
+[XPK] Starting xpk v0.0.0
 [XPK] Task: `Check if Workload Already Exists` is implemented by the following command not running since it is a dry run. 
 kubectl get workloads -o=custom-columns='Jobset:.metadata.ownerReferences[0].name'
 [XPK] Task: `GKE Cluster Get ConfigMap` is implemented by the following command not running since it is a dry run. 
@@ -26,12 +26,25 @@ kubectl get pods -n pathways-job-system --no-headers -o custom-columns=NAME:.met
 gcloud container clusters list --project=golden-project --filter=name=golden-cluster --format="value(location)"
 [XPK] Task: `Get All Node Pools` is implemented by the following command not running since it is a dry run. 
 gcloud beta container node-pools list --cluster golden-cluster --project=golden-project --location=us-central1 --format="csv[no-heading](name)"
-[XPK] Temp file (e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855) content: 
+[XPK] Temp file (4b6736a12db8ea0f78ce793fd0d4ee0c94c652303f1dc0fecad085ea0993f688) content: 
+FROM python:3.10
 
-[XPK] Adding /tmp to container image archive e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
-[XPK] Task: `Upload Container Image` is implemented by the following command not running since it is a dry run. 
-crane mutate python:3.10 --append e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 --platform linux/amd64 --tag gcr.io/golden-project/dry-run-runner:prefix-current --workdir /app
-[XPK] Deleting container image archive e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+  # Set the working directory in the container
+  WORKDIR /app
+
+  # Copy all files from local workspace into docker container
+  COPY . .
+
+  WORKDIR /app
+  
+[XPK] Building /tmp into docker image.
+[XPK] Task: `Building script_dir into docker image` is implemented by the following command not running since it is a dry run. 
+docker buildx build --platform=linux/amd64 -f 4b6736a12db8ea0f78ce793fd0d4ee0c94c652303f1dc0fecad085ea0993f688 -t dry-run-runner /tmp
+[XPK] Adding Docker Image: gcr.io/golden-project/dry-run-runner:prefix-current to golden-project
+[XPK] Task: `Tag Docker Image` is implemented by the following command not running since it is a dry run. 
+docker tag dry-run-runner gcr.io/golden-project/dry-run-runner:prefix-current
+[XPK] Task: `Upload Docker Image` is implemented by the following command not running since it is a dry run. 
+docker push gcr.io/golden-project/dry-run-runner:prefix-current
 [XPK] Temp file (321584e701d68faa848df77a0e87ecbec8ce31e2b2aeb0d1e3ddb7027acc5021) content: 
 
     apiVersion: pathways-job.pathways.domain/v1

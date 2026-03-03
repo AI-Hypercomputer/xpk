@@ -7,7 +7,7 @@ xpk cluster adapt --project=golden-project --zone=us-central1-a --cluster=golden
 ```
 <!--
 $ xpk cluster adapt --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-8
-[XPK] Starting xpk v1.4.1.dev17+g37c742ded.d20260227
+[XPK] Starting xpk v0.0.0
 [XPK] Starting cluster adaptation for cluster golden-cluster:
 [XPK] Working on golden-project and us-central1-a
 [XPK] Task: `Find cluster region or zone` is implemented by the following command not running since it is a dry run. 
@@ -26,13 +26,13 @@ metadata:
 data:
   tpu7x-8: "1"
 
-[XPK] Temp file (b99f5fc4b35ef6dad2144c645a8e332457a5b414201f2a43d46f98643d17f60c) content: 
+[XPK] Temp file (98d12ea0d3ca6d78cd064743373371c479127d21c7c9d01317e5e2d2d8c0b075) content: 
 kind: ConfigMap
 apiVersion: v1
 metadata:
   name: golden-cluster-metadata-configmap
 data:
-  xpk_version: 1.4.1.dev17+g37c742ded.d20260227
+  xpk_version: v0.0.0
   capacity_type: UNKNOWN
 
 [XPK] Breaking up a total of 2 commands into 1 batches

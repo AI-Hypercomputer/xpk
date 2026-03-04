@@ -46,7 +46,7 @@ func annotatePodTemplateSpecWithSliceHealth(template *corev1.PodTemplateSpec, tp
 		healthLabel = core.TPUSliceHealthNodeSelectorKey
 	}
 
-	// 1. If there is NodeSelector with TPUSliceHealthNodeSelectorKey, we do nothing.
+	// 1. If there is NodeSelector with healthLabel, we do nothing.
 	if _, ok := template.Spec.NodeSelector[healthLabel]; ok {
 		return
 	}

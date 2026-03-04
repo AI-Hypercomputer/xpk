@@ -71,6 +71,7 @@ def test_ensure_dependency_already_exists(
   version_dir.mkdir(parents=True)
   binary_path = version_dir / dep.binary_name
   binary_path.touch()
+  binary_path.chmod(0o755)
 
   mock_fetch = mocker.patch('xpk.utils.dependencies.manager.fetch_dependency')
 
@@ -78,6 +79,37 @@ def test_ensure_dependency_already_exists(
 
   assert result is True
   mock_fetch.assert_not_called()
+
+
+def test_ensure_dependency_exists_but_not_executable(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mocker: MockerFixture,
+) -> None:
+  monkeypatch.setenv('XPK_CACHE_HOME', str(tmp_path))
+
+  dep = BinaryDependencies.KUBECTL.value
+
+  # Setup the file system so the dependency appears as already downloaded
+  # but NOT executable
+  version_dir = tmp_path / 'xpk' / 'bin' / f'{dep.binary_name}-{dep.version}'
+  version_dir.mkdir(parents=True)
+  binary_path = version_dir / dep.binary_name
+  binary_path.touch()
+  binary_path.chmod(0o644)
+
+  mock_fetch = mocker.patch('xpk.utils.dependencies.manager.fetch_dependency')
+  mock_fetch.return_value = True
+
+  result = manager.ensure_dependency(dep)
+
+  assert result is True
+  expected_version_dir = (
+      tmp_path / 'xpk' / 'bin' / f'{dep.binary_name}-{dep.version}'
+  )
+  mock_fetch.assert_called_once_with(
+      binary_dependency=dep, target_dir=expected_version_dir
+  )
 
 
 def test_ensure_dependency_needs_download(

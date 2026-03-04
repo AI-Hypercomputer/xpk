@@ -43,7 +43,7 @@ def ensure_dependency(dependency: BinaryDependency) -> bool:
   version_dir = cache_bin / _filename(dependency)
   binary_path = version_dir / dependency.binary_name
 
-  if binary_path.exists():
+  if binary_path.exists() and os.access(binary_path, os.X_OK):
     return True
 
   return fetch_dependency(

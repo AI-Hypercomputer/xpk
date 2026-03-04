@@ -31,16 +31,21 @@ import (
 )
 
 // JobSetWebhook is the schema for your resource (ensure this matches your resource definition).
-type JobSetWebhook struct{}
+type JobSetWebhook struct {
+	DefaultSliceHealthValues []string
+}
 
-func SetupWebhookWithManager(mgr ctrl.Manager) error {
+func SetupWebhookWithManager(mgr ctrl.Manager, defaultSliceHealthValues []string) error {
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(&v1alpha2.JobSet{}).
-		WithDefaulter(&JobSetWebhook{}).
+		WithDefaulter(&JobSetWebhook{
+			DefaultSliceHealthValues: defaultSliceHealthValues,
+		}).
 		Complete()
 }
 
 // +kubebuilder:webhook:path=/mutate-jobset-x-k8s-io-v1alpha2-jobset,mutating=true,failurePolicy=fail,sideEffects=None,groups=jobset.x-k8s.io,resources=jobsets,verbs=create,versions=v1alpha2,name=mjobset.kb.io,admissionReviewVersions=v1
+
 var _ webhook.CustomDefaulter = &JobSetWebhook{}
 
 // Default implements webhook.CustomDefaulter so a webhook will be registered for the type
@@ -66,7 +71,7 @@ func (r *JobSetWebhook) Default(ctx context.Context, obj runtime.Object) error {
 		if err != nil {
 			return err
 		}
-		annotatePodTemplateSpecWithSliceHealth(&rj.Template.Spec.Template, tpuTopology, sliceType)
+		annotatePodTemplateSpecWithSliceHealth(&rj.Template.Spec.Template, tpuTopology, sliceType, r.DefaultSliceHealthValues)
 		err = annotatePodTemplateSpecWithTopology(&rj.Template.Spec.Template, tpuTopology, sliceType, dims, rj.Template.Spec.Parallelism)
 		if err != nil {
 			return fmt.Errorf("invalid jobset %q: %w", jobSet.Name, err)

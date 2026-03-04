@@ -30,12 +30,16 @@ import (
 	"tpu-slice-controller/internal/topology"
 )
 
-type JobWebhook struct{}
+type JobWebhook struct {
+	DefaultSliceHealthValues []string
+}
 
-func SetupJobWebhookWithManager(mgr ctrl.Manager) error {
+func SetupJobWebhookWithManager(mgr ctrl.Manager, defaultSliceHealthValues []string) error {
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(&batchv1.Job{}).
-		WithDefaulter(&JobWebhook{}).
+		WithDefaulter(&JobWebhook{
+			DefaultSliceHealthValues: defaultSliceHealthValues,
+		}).
 		Complete()
 }
 
@@ -63,7 +67,7 @@ func (r *JobWebhook) Default(ctx context.Context, obj runtime.Object) error {
 	if err != nil {
 		return err
 	}
-	annotatePodTemplateSpecWithSliceHealth(&job.Spec.Template, tpuTopology, sliceType)
+	annotatePodTemplateSpecWithSliceHealth(&job.Spec.Template, tpuTopology, sliceType, r.DefaultSliceHealthValues)
 	err = annotatePodTemplateSpecWithTopology(&job.Spec.Template, tpuTopology, sliceType, dims, job.Spec.Parallelism)
 	if err != nil {
 		return fmt.Errorf("invalid job %q: %w", job.Name, err)

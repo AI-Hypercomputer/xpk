@@ -38,7 +38,7 @@ func getTPUsRequestedPerPod(spec corev1.PodSpec) int64 {
 	return totalTPUs
 }
 
-func annotatePodTemplateSpecWithSliceHealth(template *corev1.PodTemplateSpec, tpuTopology string, sliceType topology.TopologyType) {
+func annotatePodTemplateSpecWithSliceHealth(template *corev1.PodTemplateSpec, tpuTopology string, sliceType topology.TopologyType, defaultSliceHealthValues []string) {
 	var healthLabel string
 	if sliceType == topology.TopologyTypeSubslice {
 		healthLabel = core.SubsliceHealthLabel(tpuTopology)
@@ -46,8 +46,8 @@ func annotatePodTemplateSpecWithSliceHealth(template *corev1.PodTemplateSpec, tp
 		healthLabel = core.TPUSliceHealthNodeSelectorKey
 	}
 
-	// 1. If there is NodeSelector with healthLabel, we do nothing.
-	if _, ok := template.Spec.NodeSelector[healthLabel]; ok {
+	// 1. If there is NodeSelector with TPUSliceHealthNodeSelectorKey, we do nothing.
+	if _, ok := template.Spec.NodeSelector[core.TPUSliceHealthNodeSelectorKey]; ok {
 		return
 	}
 
@@ -65,7 +65,7 @@ func annotatePodTemplateSpecWithSliceHealth(template *corev1.PodTemplateSpec, tp
 	}
 
 	// 3. If neither of these, we add a NodeAffinity.
-	core.AddNodeAffinity(template, healthLabel, []string{core.TPUSliceHealthNodeSelectorHealthy})
+	core.AddNodeAffinity(template, healthLabel, defaultSliceHealthValues)
 }
 
 func annotatePodTemplateSpecWithTopology(template *corev1.PodTemplateSpec, tpuTopology string, sliceType topology.TopologyType, dims []int64, parallelism *int32) error {

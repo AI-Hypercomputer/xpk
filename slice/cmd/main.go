@@ -41,6 +41,7 @@ import (
 
 	"tpu-slice-controller/api/v1beta1"
 	"tpu-slice-controller/internal/controller"
+	"tpu-slice-controller/internal/core"
 	"tpu-slice-controller/internal/util/cert"
 	"tpu-slice-controller/internal/webhooks"
 
@@ -74,6 +75,7 @@ func main() {
 	var probeAddr string
 	var secureMetrics bool
 	var enableHTTP2 bool
+	var sliceHealthNodeAffinityMode string
 	var tlsOpts []func(*tls.Config)
 	flag.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
 		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
@@ -95,11 +97,24 @@ func main() {
 	flag.StringVar(&metricsCertKey, "metrics-cert-key", "tls.key", "The name of the metrics server key file.")
 	flag.BoolVar(&enableHTTP2, "enable-http2", false,
 		"If set, HTTP/2 will be enabled for the metrics and webhook servers")
+	flag.StringVar(&sliceHealthNodeAffinityMode, "default-slice-health-node-affinity", "HEALTHY",
+		"Default slice health node affinity. Possible values are HEALTHY or HEALTHY_AND_DEGRADED.")
 	opts := zap.Options{
 		Development: true,
 	}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
+
+	var sliceHealthValues []string
+	switch sliceHealthNodeAffinityMode {
+	case "HEALTHY":
+		sliceHealthValues = []string{core.TPUSliceHealthNodeSelectorHealthy}
+	case "HEALTHY_AND_DEGRADED":
+		sliceHealthValues = []string{core.TPUSliceHealthNodeSelectorHealthy, core.TPUSliceHealthNodeSelectorDegraded}
+	default:
+		setupLog.Error(errors.New("invalid flag value"), "Invalid value for default-slice-health-node-affinity", "value", sliceHealthNodeAffinityMode)
+		os.Exit(1)
+	}
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
@@ -244,7 +259,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	go setupControllers(mgr, certsReady, activationTimeout, retryDelayOnSliceFailure)
+	go setupControllers(mgr, certsReady, activationTimeout, retryDelayOnSliceFailure, sliceHealthValues)
 
 	setupProbeEndpoints(mgr, certsReady)
 
@@ -255,17 +270,17 @@ func main() {
 	}
 }
 
-func setupControllers(mgr ctrl.Manager, certsReady chan struct{}, activationTimeout time.Duration, retryDelay time.Duration) {
+func setupControllers(mgr ctrl.Manager, certsReady chan struct{}, activationTimeout time.Duration, retryDelay time.Duration, sliceHealthValues []string) {
 	// The controllers won't work until the webhooks are operating, and the webhook won't work until the
 	// certs are all in place.
 	cert.WaitForCertsReady(setupLog, certsReady)
 
 	// Register the webhooks
-	if err := webhooks.SetupWebhookWithManager(mgr); err != nil {
+	if err := webhooks.SetupWebhookWithManager(mgr, sliceHealthValues); err != nil {
 		setupLog.Error(err, "Unable to create webhook", "webhook", "JobSet")
 		os.Exit(1)
 	}
-	if err := webhooks.SetupJobWebhookWithManager(mgr); err != nil {
+	if err := webhooks.SetupJobWebhookWithManager(mgr, sliceHealthValues); err != nil {
 		setupLog.Error(err, "Unable to create webhook", "webhook", "Job")
 		os.Exit(1)
 	}

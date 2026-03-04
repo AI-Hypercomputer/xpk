@@ -26,20 +26,21 @@ def _get_cache_bin_dir() -> Path:
   return Path(cache_dir) / "xpk" / "bin"
 
 
+def _filename(dependency: BinaryDependency) -> str:
+  return f"{dependency.binary_name}-{dependency.version}"
+
+
 def get_dependencies_path() -> list[str]:
   """Returns a list of directories to prepend to PATH."""
   cache_bin = _get_cache_bin_dir()
-  return [
-      str(cache_bin / f"{dep.name}-{dep.value.version}")
-      for dep in BinaryDependencies
-  ]
+  return [str(cache_bin / _filename(dep.value)) for dep in BinaryDependencies]
 
 
 def ensure_dependency(dependency: BinaryDependency) -> bool:
   """Ensures dependency is downloaded."""
   cache_bin = _get_cache_bin_dir()
 
-  version_dir = cache_bin / f"{dependency.binary_name}-{dependency.version}"
+  version_dir = cache_bin / _filename(dependency)
   binary_path = version_dir / dependency.binary_name
 
   if binary_path.exists():

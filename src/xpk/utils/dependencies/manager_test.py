@@ -33,7 +33,7 @@ def test_get_dependencies_path_default_cache_dir(
           / '.cache'
           / 'xpk'
           / 'bin'
-          / f'{dep.name}-{dep.value.version}'
+          / f'{dep.value.binary_name}-{dep.value.version}'
       )
       for dep in BinaryDependencies
   ]
@@ -50,7 +50,7 @@ def test_get_dependencies_path_custom_cache_dir(
           pathlib.Path('/custom/cache')
           / 'xpk'
           / 'bin'
-          / f'{dep.name}-{dep.value.version}'
+          / f'{dep.value.binary_name}-{dep.value.version}'
       )
       for dep in BinaryDependencies
   ]

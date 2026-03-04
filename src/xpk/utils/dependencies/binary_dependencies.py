@@ -28,6 +28,7 @@ class BinaryDependency:
   checksums: dict[str, str]
   url_template: str
   version: str
+  arch_map: dict[str, str] = dataclasses.field(default_factory=dict)
 
 
 class BinaryDependencies(enum.Enum):
@@ -92,6 +93,7 @@ class BinaryDependencies(enum.Enum):
               'b04ee6e4904d9219c76383f5b73521a63f69ecc93c0b1840846eebfd071a6355'
           ),
       },
-      url_template='https://github.com/google/go-containerregistry/releases/download/{version}/go-containerregistry_{os_capitalized}_{crane_arch}.tar.gz',
+      url_template='https://github.com/google/go-containerregistry/releases/download/{version}/go-containerregistry_{os_capitalized}_{arch}.tar.gz',
       version='v0.20.7',
+      arch_map={'amd64': 'x86_64', 'arm64': 'arm64'},
   )

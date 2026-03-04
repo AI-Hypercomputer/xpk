@@ -831,3 +831,185 @@ def test_get_coredns_replica_count_upper_limit_is_15():
       default_pool_cpu_num_nodes=20,
   )
   assert _get_coredns_replica_count(args) == 15
+
+
+def test_validate_cluster_create_args_optional_num_nodes_gpu(
+    mocks: _Mocks,
+):
+  FeatureFlags.OPTIONAL_NUM_SLICES = True
+  available_capacity = [
+      ReservationCapacity(
+          reservation=ReservationLink(project='p', zone='z', name='r'),
+          available_slices=8,
+      )
+  ]
+
+  args = construct_args(
+      reservation='test-reservation',
+      num_slices=None,
+      num_cubes=None,
+      num_nodes=None,
+  )
+
+  _validate_cluster_create_args(args, GPU_TEST_SYSTEM, available_capacity)
+
+  assert args.num_nodes == 2
+  assert args.num_slices == 8
+
+
+def test_validate_cluster_create_args_explicit_num_nodes_gpu(
+    mocks: _Mocks,
+):
+  FeatureFlags.OPTIONAL_NUM_SLICES = True
+  available_capacity = [
+      ReservationCapacity(
+          reservation=ReservationLink(project='p', zone='z', name='r'),
+          available_slices=4,
+      )
+  ]
+
+  args = construct_args(
+      reservation='test-reservation',
+      num_slices=None,
+      num_cubes=None,
+      num_nodes=2,
+  )
+
+  _validate_cluster_create_args(args, GPU_TEST_SYSTEM, available_capacity)
+
+  assert args.num_nodes == 2
+  assert args.num_slices == 4
+
+
+def test_cluster_create_optional_num_nodes_gpu_without_explicit_arg(
+    mocker,
+    mocks: _Mocks,
+):
+  FeatureFlags.OPTIONAL_NUM_SLICES = True
+  args = construct_args(
+      device_type='a3-highgpu-8g',
+      reservation='test-reservation',
+      num_slices=None,
+      num_cubes=None,
+      num_nodes=None,
+  )
+  mocker.patch(
+      'xpk.commands.cluster.get_capacity_type',
+      return_value=(CapacityType.RESERVATION, 0),
+  )
+  mocker.patch(
+      'xpk.commands.cluster.get_reservations_list',
+      return_value=['test-reservation'],
+  )
+
+  def mock_assess_available_slices(*args, **kwargs):
+    vms_per_slice = kwargs.get('vms_per_slice', 1)
+    available_slices = 12 // vms_per_slice
+    return [
+        ReservationCapacity(
+            reservation=ReservationLink(project='p', zone='z', name='r'),
+            available_slices=available_slices,
+        )
+    ], 0
+
+  mocker.patch(
+      'xpk.commands.cluster.assess_available_slices',
+      side_effect=mock_assess_available_slices,
+  )
+  mocker.patch('xpk.commands.cluster._validate_cluster_create_args')
+  mocker.patch('xpk.commands.cluster._log_cluster_create_telemetry')
+  mocker.patch(
+      'xpk.commands.cluster.get_gke_server_config',
+      return_value=(0, 'gke-server-config'),
+  )
+  mocker.patch(
+      'xpk.commands.cluster.get_gke_control_plane_version',
+      return_value=(0, '1.2.3'),
+  )
+  mocker.patch('xpk.commands.cluster._install_kueue', return_value=0)
+  mocker.patch('xpk.commands.cluster.create_cluster_configmaps', return_value=0)
+  mocker.patch(
+      'xpk.commands.cluster.run_gke_cluster_create_command', return_value=0
+  )
+  mocker.patch(
+      'xpk.commands.cluster.get_system_characteristics',
+      return_value=(GPU_TEST_SYSTEM, 0),
+  )
+  mocker.patch(
+      'xpk.commands.cluster.run_gke_node_pool_create_command', return_value=0
+  )
+  mocker.patch('xpk.commands.cluster.xpk_exit')
+
+  try:
+    cluster_create(args)
+  except SystemExit:
+    pass
+
+  assert args.num_nodes == 12
+
+
+def test_cluster_create_optional_num_nodes_gpu_with_explicit_arg(
+    mocker,
+    mocks: _Mocks,
+):
+  FeatureFlags.OPTIONAL_NUM_SLICES = True
+  args = construct_args(
+      device_type='a3-highgpu-8g',
+      reservation='test-reservation',
+      num_slices=None,
+      num_cubes=None,
+      num_nodes=3,
+  )
+  mocker.patch(
+      'xpk.commands.cluster.get_capacity_type',
+      return_value=(CapacityType.RESERVATION, 0),
+  )
+  mocker.patch(
+      'xpk.commands.cluster.get_reservations_list',
+      return_value=['test-reservation'],
+  )
+
+  def mock_assess_available_slices(*args, **kwargs):
+    vms_per_slice = kwargs.get('vms_per_slice', 1)
+    available_slices = 12 // vms_per_slice
+    return [
+        ReservationCapacity(
+            reservation=ReservationLink(project='p', zone='z', name='r'),
+            available_slices=available_slices,
+        )
+    ], 0
+
+  mocker.patch(
+      'xpk.commands.cluster.assess_available_slices',
+      side_effect=mock_assess_available_slices,
+  )
+  mocker.patch('xpk.commands.cluster._validate_cluster_create_args')
+  mocker.patch('xpk.commands.cluster._log_cluster_create_telemetry')
+  mocker.patch(
+      'xpk.commands.cluster.get_gke_server_config',
+      return_value=(0, 'gke-server-config'),
+  )
+  mocker.patch(
+      'xpk.commands.cluster.get_gke_control_plane_version',
+      return_value=(0, '1.2.3'),
+  )
+  mocker.patch('xpk.commands.cluster._install_kueue', return_value=0)
+  mocker.patch('xpk.commands.cluster.create_cluster_configmaps', return_value=0)
+  mocker.patch(
+      'xpk.commands.cluster.run_gke_cluster_create_command', return_value=0
+  )
+  mocker.patch(
+      'xpk.commands.cluster.get_system_characteristics',
+      return_value=(GPU_TEST_SYSTEM, 0),
+  )
+  mocker.patch(
+      'xpk.commands.cluster.run_gke_node_pool_create_command', return_value=0
+  )
+  mocker.patch('xpk.commands.cluster.xpk_exit')
+
+  try:
+    cluster_create(args)
+  except SystemExit:
+    pass
+
+  assert args.num_nodes == 3

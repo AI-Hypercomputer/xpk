@@ -115,7 +115,7 @@ def _fetch_workloads(
       f'{col.name}={_WORKLOAD_LIST_COLUMN_MAP[col].jsonpath}'
       for col in _WORKLOAD_LIST_DISPLAY_ORDER
   ])
-  jsonpath_str = f'{{range .items[*]}}{row_path}{{"\\n"}}{{end}}'
+  jsonpath_str = f'{{range .items[*]}}{row_path}{{"\\x1e"}}{{end}}'
 
   command = (
       f"kubectl get workloads --ignore-not-found -o=jsonpath='{jsonpath_str}'"
@@ -134,11 +134,14 @@ def _fetch_workloads(
 
   data_rows = []
   if data:
-    for line in data.splitlines():
+    for line in data.split('\x1e'):
+      if not line:
+        continue
       row_dict = {}
       for kv in line.split(_WORKLOAD_LIST_DELIMITER):
         if '=' in kv:
           key_str, val = kv.split('=', 1)
+          val = val.replace('\n', ' ')
           try:
             col_enum = _WorkloadListColumnType[key_str]
             row_dict[col_enum] = val
@@ -205,9 +208,9 @@ def _filter_workload(
     case 'FINISHED':
       return status == 'Finished'
     case 'FAILED':
-      return status == 'Finished' and 'failed' in message
+      return status == 'Finished' and 'failed' in message.lower()
     case 'SUCCESSFUL':
-      return status == 'Finished' and 'finished' in message
+      return status == 'Finished' and 'finished' in message.lower()
     case _:
       raise RuntimeError(f'Can not find filter type: {filter_by_status}')
 
@@ -229,9 +232,6 @@ def _render_workloads(
     rows: list[dict[_WorkloadListColumnType, str]],
 ) -> str:
   """Formats the filtered rows into a string table."""
-  if not rows:
-    return ''
-
   filtered_rows = []
   for row_data in rows:
     row_list = [row_data[col_enum] for col_enum in _WORKLOAD_LIST_DISPLAY_ORDER]

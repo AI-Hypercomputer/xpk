@@ -54,7 +54,7 @@ def test_get_jobsets_list_gcp_link():
 
 
 def test_get_workload_list(commands_tester: CommandsTester):
-  mock_output = '\n'.join([
+  mock_output = '\x1e'.join([
       (
           'JOBSET_NAME=job-test\x1fCREATED_TIME=2024-01-01T00:00:00Z\x1fPRIORITY=high\x1fTPU_VMS_NEEDED=32\x1fTPU_VMS_RUNNING_RAN=32\x1fTPU_VMS_DONE=0\x1fSTATUS=Running\x1fSTATUS_MESSAGE=All'
           ' good\x1fSTATUS_TIME=2024-01-01T00:01:00Z'
@@ -84,7 +84,7 @@ def test_get_workload_list(commands_tester: CommandsTester):
 
 
 def test_get_workload_list_filter_by_job(commands_tester: CommandsTester):
-  mock_output = '\n'.join([
+  mock_output = '\x1e'.join([
       (
           'JOBSET_NAME=job-test-1\x1fCREATED_TIME=2024-01-01T00:00:00Z\x1fPRIORITY=high\x1fTPU_VMS_NEEDED=32\x1fTPU_VMS_RUNNING_RAN=32\x1fTPU_VMS_DONE=0\x1fSTATUS=Running\x1fSTATUS_MESSAGE=All'
           ' good\x1fSTATUS_TIME=2024-01-01T00:01:00Z'
@@ -135,7 +135,7 @@ def test_get_workload_list_filters(
     filter_by_status: str,
     expected_job_names: list[str],
 ):
-  mock_output = '\n'.join([
+  mock_output = '\x1e'.join([
       'JOBSET_NAME=queued-job\x1fCREATED_TIME=2024-01-01T00:00:00Z\x1fPRIORITY=high\x1fTPU_VMS_NEEDED=4\x1fTPU_VMS_RUNNING_RAN=<none>\x1fTPU_VMS_DONE=0\x1fSTATUS=Admitted\x1fSTATUS_MESSAGE=Waiting\x1fSTATUS_TIME=2024-01-01T00:01:00Z',
       'JOBSET_NAME=running-job\x1fCREATED_TIME=2024-01-01T00:00:00Z\x1fPRIORITY=high\x1fTPU_VMS_NEEDED=4\x1fTPU_VMS_RUNNING_RAN=4\x1fTPU_VMS_DONE=0\x1fSTATUS=Admitted\x1fSTATUS_MESSAGE=Running\x1fSTATUS_TIME=2024-01-01T00:01:00Z',
       (

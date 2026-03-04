@@ -24,6 +24,7 @@ from .commands import run_command_for_value
 from .gcloud_context import get_cluster_location
 
 _WORKLOAD_LIST_DELIMITER = '\x1f'
+_WORKLOAD_LIST_ROW_DELIMITER = '\x1e'
 
 
 def _safe_int(s: str) -> int:
@@ -115,7 +116,10 @@ def _fetch_workloads(
       f'{col.name}={_WORKLOAD_LIST_COLUMN_MAP[col].jsonpath}'
       for col in _WORKLOAD_LIST_DISPLAY_ORDER
   ])
-  jsonpath_str = f'{{range .items[*]}}{row_path}{{"\\x1e"}}{{end}}'
+  jsonpath_str = (
+      '{range'
+      f' .items[*]}}{row_path}{{"{_WORKLOAD_LIST_ROW_DELIMITER}"}}{{end}}'
+  )
 
   command = (
       f"kubectl get workloads --ignore-not-found -o=jsonpath='{jsonpath_str}'"
@@ -134,7 +138,7 @@ def _fetch_workloads(
 
   data_rows = []
   if data:
-    for line in data.split('\x1e'):
+    for line in data.split(_WORKLOAD_LIST_ROW_DELIMITER):
       if not line:
         continue
       row_dict = {}
@@ -233,9 +237,14 @@ def _render_workloads(
 ) -> str:
   """Formats the filtered rows into a string table."""
   filtered_rows = []
-  for row_data in rows:
-    row_list = [row_data[col_enum] for col_enum in _WORKLOAD_LIST_DISPLAY_ORDER]
-    filtered_rows.append(row_list)
+  if not rows:
+    filtered_rows.append(['<empty>'] + [''] * (len(_HEADERS) - 1))
+  else:
+    for row_data in rows:
+      row_list = [
+          row_data[col_enum] for col_enum in _WORKLOAD_LIST_DISPLAY_ORDER
+      ]
+      filtered_rows.append(row_list)
 
   col_widths = [len(h) for h in _HEADERS]
   for row in filtered_rows:

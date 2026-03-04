@@ -50,7 +50,7 @@ webhooks:
       namespace: system
       path: /mutate--v1-pod
   failurePolicy: Fail
-  name: mpod.kb.io
+  name: mpod.accelerator.gke.io
   rules:
   - apiGroups:
     - ""

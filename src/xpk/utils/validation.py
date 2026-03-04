@@ -33,7 +33,7 @@ class SystemDependency(Enum):
   """Represents required system dependencies."""
 
   KUBECTL = _SystemDependency(
-      command='kubectl version', binary_dependency=BinaryDependencies.KUBECTL
+      command='kubectl --help', binary_dependency=BinaryDependencies.KUBECTL
   )
   GCLOUD = _SystemDependency(command='gcloud version')
   DOCKER = _SystemDependency(command='docker version')

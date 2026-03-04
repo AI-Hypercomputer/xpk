@@ -88,9 +88,7 @@ func addNodeInSliceAntiAffinity(template *corev1.PodTemplateSpec) {
 }
 
 func removeNodeInSliceAntiAffinity(spec *corev1.PodSpec) {
-	if spec.Affinity == nil ||
-		spec.Affinity.NodeAffinity == nil ||
-		spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil {
+	if !core.HasAnyNodeAffinityRequirement(spec) {
 		return
 	}
 

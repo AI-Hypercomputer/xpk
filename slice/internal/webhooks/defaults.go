@@ -47,7 +47,7 @@ func annotatePodTemplateSpecWithSliceHealth(template *corev1.PodTemplateSpec, tp
 	}
 
 	// 1. If there is NodeSelector with TPUSliceHealthNodeSelectorKey, we do nothing.
-	if _, ok := template.Spec.NodeSelector[core.TPUSliceHealthNodeSelectorKey]; ok {
+	if _, ok := template.Spec.NodeSelector[healthLabel]; ok {
 		return
 	}
 
@@ -72,26 +72,22 @@ func annotatePodTemplateSpecWithTopology(template *corev1.PodTemplateSpec, tpuTo
 	if template.Annotations == nil {
 		template.Annotations = make(map[string]string)
 	}
-
+	var sliceSize int64
+	var requiredTopology string
 	pods := ptr.Deref(parallelism, 1)
-
 	if sliceType == topology.TopologyTypeSubslice {
-		template.Annotations[kueue.PodSetRequiredTopologyAnnotation] = core.TPUBlockLabel
-		template.Annotations[kueue.PodSetSliceRequiredTopologyAnnotation] = core.SubsliceLevelLabel(tpuTopology)
-		template.Annotations[kueue.PodSetSliceSizeAnnotation] = strconv.FormatInt(int64(pods), 10)
-		return nil
+		sliceSize = int64(pods)
+		requiredTopology = core.SubsliceLevelLabel(tpuTopology)
+	} else {
+		sliceSize = topology.CalculateSliceSize(dims, pods)
+		requiredTopology = core.TPUSubBlockLabel
+		tpusRequestedPerPod := getTPUsRequestedPerPod(template.Spec)
+		if tpusRequestedPerPod*sliceSize != core.TPUsPerCube {
+			return fmt.Errorf("configuration results in %d TPUs requested per cube, but must be exactly %d TPUs (full utilization)", tpusRequestedPerPod*sliceSize, core.TPUsPerCube)
+		}
 	}
 	template.Annotations[kueue.PodSetRequiredTopologyAnnotation] = core.TPUBlockLabel
-	template.Annotations[kueue.PodSetSliceRequiredTopologyAnnotation] = core.TPUSubBlockLabel
-
-	sliceSize := topology.CalculateSliceSize(dims, pods)
-
-	tpusRequestedPerPod := getTPUsRequestedPerPod(template.Spec)
-	tpusRequestedPerCube := tpusRequestedPerPod * sliceSize
-	if tpusRequestedPerCube != core.TPUsPerCube {
-		return fmt.Errorf("configuration results in %d TPUs requested per cube, but must be exactly %d TPUs (full utilization)", tpusRequestedPerCube, core.TPUsPerCube)
-	}
-
+	template.Annotations[kueue.PodSetSliceRequiredTopologyAnnotation] = requiredTopology
 	template.Annotations[kueue.PodSetSliceSizeAnnotation] = strconv.FormatInt(sliceSize, 10)
 	return nil
 }

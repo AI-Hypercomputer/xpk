@@ -172,17 +172,22 @@ def append_custom_pathways_proxy_server(args) -> str:
   """
   yaml = """"""
   if args.proxy_server_image or args.custom_pathways_proxy_server_args:
-    yaml = """- componentType: proxy_server"""
-  indentation = (
-      ' ' * 8
-  )  # Currently 8, based on the YAML, may need to update in the future.
-  if args.proxy_server_image:
-    yaml += '\n' + indentation + 'image: ' + args.proxy_server_image
-  if args.custom_pathways_proxy_server_args:
-    yaml += '\n' + indentation + 'customFlags: '
-    yaml += append_custom_pathways_flags(
-        args.custom_pathways_proxy_server_args, len(indentation)
+    yaml = """- name: proxy
+      replicas: 1
+      template:
+        spec:
+          containers:
+          - name: proxy"""
+    indentation = (
+        ' ' * 10
     )
+    if args.proxy_server_image:
+      yaml += '\n' + indentation + 'image: ' + args.proxy_server_image
+    if args.custom_pathways_proxy_server_args:
+      yaml += '\n' + indentation + 'args: '
+      yaml += append_custom_pathways_flags(
+          args.custom_pathways_proxy_server_args, len(indentation)
+      )
   return yaml
 
 
@@ -194,17 +199,22 @@ def append_custom_pathways_server(args) -> str:
   """
   yaml = """"""
   if args.server_image or args.custom_pathways_server_args:
-    yaml = """- componentType: pathways_server"""
-  indentation = (
-      ' ' * 8
-  )  # Currently 8, based on the YAML, may need to update in the future.
-  if args.server_image:
-    yaml += '\n' + indentation + 'image: ' + args.server_image
-  if args.custom_pathways_server_args:
-    yaml += '\n' + indentation + 'customFlags: '
-    yaml += append_custom_pathways_flags(
-        args.custom_pathways_server_args, len(indentation)
+    yaml = """- name: server
+      replicas: 1
+      template:
+        spec:
+          containers:
+          - name: server"""
+    indentation = (
+        ' ' * 10
     )
+    if args.server_image:
+      yaml += '\n' + indentation + 'image: ' + args.server_image
+    if args.custom_pathways_server_args:
+      yaml += '\n' + indentation + 'args: '
+      yaml += append_custom_pathways_flags(
+          args.custom_pathways_server_args, len(indentation)
+      )
   return yaml
 
 
@@ -216,17 +226,22 @@ def append_custom_pathways_worker(args) -> str:
   """
   yaml = """"""
   if args.server_image or args.custom_pathways_worker_args:
-    yaml = """- componentType: worker"""
-  indentation = (
-      ' ' * 8
-  )  # Currently 8, based on the YAML, may need to update in the future.
-  if args.server_image:
-    yaml += '\n' + indentation + 'image: ' + args.server_image
-  if args.custom_pathways_worker_args:
-    yaml += '\n' + indentation + 'customFlags: '
-    yaml += append_custom_pathways_flags(
-        args.custom_pathways_worker_args, len(indentation)
+    yaml = """- name: worker-custom
+      replicas: 1
+      template:
+        spec:
+          containers:
+          - name: worker"""
+    indentation = (
+        ' ' * 10
     )
+    if args.server_image:
+      yaml += '\n' + indentation + 'image: ' + args.server_image
+    if args.custom_pathways_worker_args:
+      yaml += '\n' + indentation + 'args: '
+      yaml += append_custom_pathways_flags(
+          args.custom_pathways_worker_args, len(indentation)
+      )
   return yaml
 
 
@@ -238,10 +253,15 @@ def append_custom_colocated_python_sidecar(args) -> str:
   """
   yaml = """"""
   if args.colocated_python_sidecar_image:
-    yaml = """- componentType: colocated_python_sidecar"""
+    yaml = """- name: sidecar
+      replicas: 1
+      template:
+        spec:
+          containers:
+          - name: sidecar"""
     indentation = (
-        ' ' * 8
-    )  # Currently 8, based on the YAML, may need to update in the future.
+        ' ' * 10
+    )
     yaml += '\n' + indentation + 'image: ' + args.colocated_python_sidecar_image
   return yaml
 
@@ -250,28 +270,29 @@ def get_user_workload_for_pathways(
     args, system: SystemCharacteristics, parallel_containers: int
 ) -> str:
   """
-  Create a user workload container for Pathways.
+  Create a user workload container for Pathways as a replicatedJob.
   Don't create one for Pathways headless mode.
 
   Returns:
     str:
-      Pathways server port as a YAML string
+      Pathways user workload as a JobSet replicatedJob YAML string
   """
-  user_workload_yaml = """
-          metadata:
-          spec:
-            containers:
-              {container}
-            nodeSelector:
-              cloud.google.com/gke-nodepool: cpu-np
-            hostNetwork: true
-            dnsPolicy: ClusterFirstWithHostNet
-            restartPolicy: Never
-            volumes:
-            - hostPath:
-                path: /tmp
-                type: DirectoryOrCreate
-              name: shared-tmp
+  user_workload_yaml = """- name: main
+      replicas: 1
+      template:
+        spec:
+          containers:
+            {container}
+          nodeSelector:
+            cloud.google.com/gke-nodepool: cpu-np
+          hostNetwork: true
+          dnsPolicy: ClusterFirstWithHostNet
+          restartPolicy: Never
+          volumes:
+          - hostPath:
+              path: /tmp
+              type: DirectoryOrCreate
+            name: shared-tmp
     """
   if args.headless:
     return ''

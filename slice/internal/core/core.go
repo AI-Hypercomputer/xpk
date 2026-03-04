@@ -17,6 +17,7 @@ limitations under the License.
 package core
 
 import (
+	"fmt"
 	"regexp"
 	"time"
 
@@ -61,6 +62,14 @@ func GetTPUAccelerator(spec corev1.PodTemplateSpec) string {
 		return val
 	}
 	return ""
+}
+
+func SubsliceLevelLabel(topology string) string {
+	return fmt.Sprintf("cloud.google.com/gke-tpu-partition-%s-id", topology)
+}
+
+func SubsliceHealthLabel(topology string) string {
+	return fmt.Sprintf("cloud.google.com/gke-tpu-partition-%s-state", topology)
 }
 
 func getTPUAcceleratorFromAffinity(affinity *corev1.Affinity) (string, bool) {

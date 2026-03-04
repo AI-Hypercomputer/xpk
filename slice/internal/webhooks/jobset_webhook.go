@@ -18,6 +18,7 @@ package webhooks
 
 import (
 	"context"
+	"fmt"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -26,6 +27,7 @@ import (
 	kueueconstants "sigs.k8s.io/kueue/pkg/controller/constants"
 
 	"tpu-slice-controller/internal/core"
+	"tpu-slice-controller/internal/topology"
 )
 
 // JobSetWebhook is the schema for your resource (ensure this matches your resource definition).
@@ -64,10 +66,15 @@ func (r *JobSetWebhook) Default(ctx context.Context, obj runtime.Object) error {
 			continue
 		}
 		log.V(5).Info("Annotating ReplicatedJob")
-		annotatePodTemplateSpecWithSliceHealth(&rj.Template.Spec.Template, r.DefaultSliceHealthValues)
-		err := annotatePodTemplateSpecWithTopology(&rj.Template.Spec.Template, rj.Template.Spec.Parallelism, rj.Name, "replicated job")
+		tpuTopology := rj.Template.Spec.Template.Annotations[core.TPUSliceTopologyAnnotation]
+		dims, sliceType, err := topology.ParseTopologyV7(tpuTopology)
 		if err != nil {
 			return err
+		}
+		annotatePodTemplateSpecWithSliceHealth(&rj.Template.Spec.Template, tpuTopology, sliceType, r.DefaultSliceHealthValues)
+		err = annotatePodTemplateSpecWithTopology(&rj.Template.Spec.Template, tpuTopology, sliceType, dims, rj.Template.Spec.Parallelism)
+		if err != nil {
+			return fmt.Errorf("invalid jobset %q: %w", jobSet.Name, err)
 		}
 	}
 

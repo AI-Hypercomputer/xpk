@@ -812,6 +812,9 @@ func (r *WorkloadReconciler) prepareAdmissionCheckStatus(wl *kueue.Workload, ac 
 			if topology := core.GetTPUTopology(ps.Template); topology != "" {
 				podSetUpdates = append(podSetUpdates, kueue.PodSetUpdate{
 					Name: ps.Name,
+					Labels: map[string]string{
+						core.PodWebhookLabelKey: "true",
+					},
 					NodeSelector: map[string]string{
 						core.TPUTopologyAnnotation: topology,
 					},

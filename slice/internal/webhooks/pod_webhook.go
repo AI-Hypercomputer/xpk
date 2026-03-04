@@ -30,11 +30,8 @@ import (
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
 	kueueconstants "sigs.k8s.io/kueue/pkg/controller/constants"
 
-	"tpu-slice-controller/internal/core"
 	"tpu-slice-controller/internal/features"
 )
-
-var excludedNamespaces = []string{"kube-system", "kueue-system", "slice-controller-system"}
 
 type PodWebhook struct {
 	client client.Client
@@ -49,7 +46,7 @@ func SetupPodWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-// +kubebuilder:webhook:path=/mutate--v1-pod,mutating=true,failurePolicy=fail,sideEffects=None,groups="",resources=pods,verbs=create,versions=v1,name=mpod.kb.io,admissionReviewVersions=v1
+// +kubebuilder:webhook:path=/mutate--v1-pod,mutating=true,failurePolicy=fail,sideEffects=None,groups="",resources=pods,verbs=create,versions=v1,name=mpod.kb.io,admissionReviewVersions=v1,objectSelector="cloud.google.com/gke-tpu-slice-pod=true"
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch
 // +kubebuilder:rbac:groups=jobset.x-k8s.io,resources=jobsets,verbs=get;list;watch
 
@@ -60,19 +57,6 @@ func (r *PodWebhook) Default(ctx context.Context, obj runtime.Object) error {
 		pod := obj.(*corev1.Pod)
 		log := ctrl.LoggerFrom(ctx).WithName("pod-accelerator-gke-webhook")
 		log.V(5).Info("Defaulting Pod", "pod", klog.KObj(pod))
-
-		// Skip if in excluded namespaces
-		for _, ns := range excludedNamespaces {
-			if pod.Namespace == ns {
-				return nil
-			}
-		}
-
-		// Skip if not TPU v7x superslicing pod
-		if !core.IsRelevantPodTemplateSpec(corev1.PodTemplateSpec{ObjectMeta: pod.ObjectMeta, Spec: pod.Spec}) {
-			return nil
-		}
-
 		var isKueueManaged bool
 
 		// Check if the Pod is part of a Kueue-managed JobSet

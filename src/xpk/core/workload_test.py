@@ -61,8 +61,10 @@ def _create_mock_workload_json(data: _MockWorkloadData):
           'ownerReferences': [{'name': data.jobset_name}],
       },
       'spec': {
-          'priorityClassName': data.priority,
-          'podSets': [{'count': data.needed}],
+          'podSets': [{
+              'count': data.needed,
+              'template': {'spec': {'priorityClassName': data.priority}},
+          }]
       },
       'status': {
           'admission': {'podSetAssignments': [{'count': data.running}]},

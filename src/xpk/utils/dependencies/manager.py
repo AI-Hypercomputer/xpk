@@ -23,7 +23,7 @@ from xpk.utils.dependencies.downloader import fetch_dependency
 
 def _get_cache_bin_dir() -> Path:
   cache_dir = os.environ.get("XPK_CACHE_HOME", Path.home() / ".cache")
-  return Path(cache_dir) / "xpk" / "bin"
+  return Path(cache_dir).expanduser() / "xpk" / "bin"
 
 
 def _filename(dependency: BinaryDependency) -> str:

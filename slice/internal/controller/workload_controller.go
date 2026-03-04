@@ -50,6 +50,7 @@ import (
 
 	"tpu-slice-controller/api/v1beta1"
 	"tpu-slice-controller/internal/core"
+	"tpu-slice-controller/internal/features"
 	"tpu-slice-controller/internal/topology"
 	"tpu-slice-controller/internal/util/api"
 	"tpu-slice-controller/internal/util/node"
@@ -810,11 +811,13 @@ func (r *WorkloadReconciler) prepareAdmissionCheckStatus(wl *kueue.Workload, ac 
 		var podSetUpdates []kueue.PodSetUpdate
 		for _, ps := range wl.Spec.PodSets {
 			if topology := core.GetTPUTopology(ps.Template); topology != "" {
+				labels := make(map[string]string)
+				if features.Enabled(features.NodesInSlicesAntiAffinity) {
+					labels[core.PodWebhookLabelKey] = "true"
+				}
 				podSetUpdates = append(podSetUpdates, kueue.PodSetUpdate{
-					Name: ps.Name,
-					Labels: map[string]string{
-						core.PodWebhookLabelKey: "true",
-					},
+					Name:   ps.Name,
+					Labels: labels,
 					NodeSelector: map[string]string{
 						core.TPUTopologyAnnotation: topology,
 					},

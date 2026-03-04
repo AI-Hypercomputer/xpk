@@ -98,7 +98,7 @@ def _extract_archive(
 ) -> bool:
   """Extracts an archive to the specified directory."""
   try:
-    shutil.unpack_archive(archive_path, extract_dir)
+    shutil.unpack_archive(archive_path, extract_dir, filter="data")
     return True
   except (shutil.ReadError, OSError, ValueError) as e:
     xpk_print(f"Error extracting archive for {name}: {e}")

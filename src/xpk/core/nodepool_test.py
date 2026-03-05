@@ -1091,7 +1091,9 @@ def test_run_gke_node_pool_create_command_ignore_errors_returns_0(
   result = run_gke_node_pool_create_command(args, system, "1.2.3")
 
   assert result == 0
-  mock_xpk_print.assert_any_call('Ignoring nodepool creation errors and continuing as requested.')
+  mock_xpk_print.assert_any_call(
+      "Ignoring nodepool creation errors and continuing as requested."
+  )
 
 
 def test_run_gke_node_pool_create_command_no_ignore_errors_returns_1(

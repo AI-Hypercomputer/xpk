@@ -734,7 +734,10 @@ def add_shared_cluster_create_optional_arguments(
   parser_or_group.add_argument(
       '--ignore-nodepool-creation-errors',
       action='store_true',
-      help='Ignore errors during node pool creation and continue with cluster creation.',
+      help=(
+          'Ignore errors during node pool creation and continue with cluster'
+          ' creation.'
+      ),
   )
   add_driver_arguments(parser_or_group)
 

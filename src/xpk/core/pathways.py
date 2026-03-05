@@ -191,10 +191,12 @@ def append_custom_pathways_proxy_server(args) -> str:
                       fieldPath: metadata.labels['jobset.sigs.k8s.io/coordinator']
                 ports:
                 - containerPort: 29000
+                  protocol: TCP
                 resources:
                   limits:
                     cpu: "16"
-                    memory: 100G"""
+                    memory: 100G
+                restartPolicy: Always"""
   return yaml
 
 
@@ -212,7 +214,8 @@ def append_custom_pathways_server(args) -> str:
                 - --server_port=29001
                 - --gcs_scratch_location={args.pathways_gcs_location}
                 - --node_type=resource_manager
-                - --instance_count={args.num_slices}"""
+                - --instance_count={args.num_slices}
+                - --instance_type={args.tpu_type}"""
   indentation = ' ' * 16
   if args.custom_pathways_server_args:
     yaml += append_custom_pathways_flags(
@@ -236,11 +239,14 @@ def append_custom_pathways_server(args) -> str:
                   value: "true"
                 ports:
                 - containerPort: 29001
+                  protocol: TCP
                 - containerPort: 29002
+                  protocol: TCP
                 resources:
                   limits:
                     cpu: "8"
-                    memory: 32G"""
+                    memory: 32G
+                restartPolicy: Always"""
   return yaml
 
 
@@ -250,9 +256,7 @@ def append_custom_pathways_worker(args) -> str:
   Returns:
       yaml (string): yaml with custom pathways server appended.
   """
-  image = getattr(args, 'worker_image', None)
-  if not image:
-      image = getattr(args, 'server_image', "us-docker.pkg.dev/cloud-tpu-v2-images/pathways/server:latest")
+  image = getattr(args, 'worker_image', None) or getattr(args, 'server_image', None) or "us-docker.pkg.dev/cloud-tpu-v2-images/pathways/server:latest"
 
   yaml = f"""              - name: pathways-worker
                 image: {image}
@@ -302,9 +306,13 @@ def append_custom_pathways_worker(args) -> str:
                       fieldPath: metadata.labels['jobset.sigs.k8s.io/coordinator']
                 ports:
                 - containerPort: 29005
+                  protocol: TCP
                 - containerPort: 29006
+                  protocol: TCP
                 - containerPort: 8471
+                  protocol: TCP
                 - containerPort: 8080
+                  protocol: TCP
                 resources:
                   limits:
                     google.com/tpu: "0"
@@ -344,6 +352,30 @@ def get_user_workload_for_pathways(
     container, _ = get_user_workload_container(
         args, system, parallel_containers
     )
+    
+    env_injection = """env:
+                - name: PATHWAYS_HEAD
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.labels['jobset.sigs.k8s.io/coordinator']
+                - name: JAX_PLATFORMS
+                  value: proxy
+                - name: XCLOUD_ENVIRONMENT
+                  value: GCP
+                - name: JAX_BACKEND_TARGET
+                  value: grpc://$(PATHWAYS_HEAD):29000"""
+    
+    # If the user provided env vars, they are formatted with indentation. We append to them.
+    if 'env: \n' in container:
+      container = container.replace('env: \n', env_injection + '\n')
+    elif 'env:\n' in container:
+      container = container.replace('env:\n', env_injection + '\n')
+    else:
+      # If there's an existing env array, append to the end of it, or just replace `env:` with the env_injection + the rest.
+      # Because env_injection starts with `env:`, we can replace `env:` with `env_injection` + the rest but we need to remove `env:` from injection.
+      env_injection_no_header = env_injection.replace('env:\n', '\n')
+      container = container.replace('env:', 'env:' + env_injection_no_header)
+      
     # The container yaml snippet is already properly indented as `- name: ...`.
     # It returns a string starting with "              - name:".
     return container

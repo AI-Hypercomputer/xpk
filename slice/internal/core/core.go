@@ -108,7 +108,12 @@ func HasAnyNodeAffinityRequirement(spec *corev1.PodSpec) bool {
 		len(spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms) == 0 {
 		return false
 	}
-	return true
+	for _, term := range spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
+		if len(term.MatchExpressions) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // FindNodeAffinityRequirement finds a node affinity requirement with the given key.

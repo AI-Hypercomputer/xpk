@@ -264,39 +264,59 @@ spec:
               {container}
 """
 # The indentation of PW_WORKLOAD_CREATE_YAML is intentional to allow reusing the user workload container YAML.
-PW_WORKLOAD_CREATE_YAML = """
-    apiVersion: pathways-job.pathways.domain/v1
-    kind: PathwaysJob
-    metadata:
-      name: {args.workload}
-      labels:
-        kueue.x-k8s.io/queue-name: {local_queue_name}  # Name of the LocalQueue
-        xpk.google.com/workload: {args.workload}
-    spec:
-      maxRestarts: {args.max_restarts}
-      customComponents:
-      {custom_pathways_proxy_server}
-      {custom_pathways_server}
-      {custom_pathways_worker}
-      {colocated_python_sidecar}
-      workers:
-      - type: {machine_type}
-        topology: {topology}
-        numSlices: {args.num_slices}
-        maxSliceRestarts: {args.max_slice_restarts}
-        terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
-        priorityClassName: {args.priority}
-        nodeSelector:
-          {placement_policy_label}
-          {autoprovisioning_args}
-      pathwaysDir: {args.pathways_gcs_location} #This bucket needs to be created in advance.
-      controller:
-        # #Pod template for training, default mode.
-        deploymentMode: default
-        mainContainerName: {args.docker_name}
-        elasticSlices: {args.elastic_slices}
+PW_WORKLOAD_CREATE_YAML = """apiVersion: jobset.x-k8s.io/v1alpha2
+kind: JobSet
+metadata:
+  name: {args.workload}
+  labels:
+    kueue.x-k8s.io/queue-name: {local_queue_name}  # Name of the LocalQueue
+    xpk.google.com/workload: {args.workload}
+spec:
+  failurePolicy:
+    maxRestarts: {args.max_restarts}
+  replicatedJobs:
+  - name: pathways-head
+    replicas: 1
+    template:
+      spec:
+        parallelism: 1
+        completions: 1
+        backoffLimit: 0
         template:
-      {user_workload}
+          spec:
+            hostNetwork: true
+            dnsPolicy: ClusterFirstWithHostNet
+            nodeSelector:
+              cloud.google.com/gke-nodepool: cpu-np
+              {autoprovisioning_args}
+            containers:
+{custom_pathways_proxy_server}
+{custom_pathways_server}
+{colocated_python_sidecar}
+{user_workload}
+  - name: worker
+    replicas: {args.num_slices}
+    template:
+      spec:
+        parallelism: {vms_per_slice}
+        completions: {vms_per_slice}
+        backoffLimit: {args.max_slice_restarts}
+        template:
+          metadata:
+            labels:
+              xpk.google.com/workload: {args.workload}
+          spec:
+            hostNetwork: true
+            dnsPolicy: ClusterFirstWithHostNet
+            terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
+            priorityClassName: {args.priority}
+            nodeSelector:
+              {accelerator_label}
+              {node_selector_machine_label}
+              {placement_policy_label}
+              {autoprovisioning_args}
+            containers:
+{custom_pathways_worker}
 """
 
 ARM_GPU_WORKLOAD_CREATE_JINJA_FILE = 'arm_gpu_workload_crate.yaml.j2'
@@ -662,10 +682,12 @@ def workload_create(args) -> None:
         local_queue_name=LOCAL_QUEUE_NAME,
         autoprovisioning_args=autoprovisioning_args,
         placement_policy_label=placement_policy_label,
+        vms_per_slice=workload_system.vms_per_slice,
+        accelerator_label=create_accelerator_label(workload_system),
+        node_selector_machine_label=create_machine_label(workload_system),
     )
   else:
-    if use_sub_slicing:
-      xpk_print('Workload will be scheduled using the Sub-slicing feature.')
+    if use_sub_slicing:      xpk_print('Workload will be scheduled using the Sub-slicing feature.')
     if use_super_slicing:
       xpk_print('Workload will be scheduled using the Super-slicing feature.')
 

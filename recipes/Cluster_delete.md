@@ -18,27 +18,11 @@ gcloud container clusters get-credentials golden-cluster --location=us-central1 
 [XPK] Get the name of the workloads in the cluster.
 [XPK] Task: `List Jobs with filter-by-status=EVERYTHING` is implemented by the following command not running since it is a dry run. 
 kubectl get workloads --ignore-not-found -o=jsonpath='{range .items[*]}JOBSET_NAME={.metadata.ownerReferences[0].name}CREATED_TIME={.metadata.creationTimestamp}PRIORITY={.spec.priorityClassName}TPU_VMS_NEEDED={.spec.podSets[0].count}TPU_VMS_RUNNING_RAN={.status.admission.podSetAssignments[-1].count}TPU_VMS_DONE={.status.reclaimablePods[0].count}STATUS={.status.conditions[-1].type}STATUS_MESSAGE={.status.conditions[-1].message}STATUS_TIME={.status.conditions[-1].lastTransitionTime}{""}{end}'
-[XPK] Planning to delete 1 workloads in the cluster golden-cluster including ['<empty>']. 
-Do you wish to delete? (y/N): Traceback (most recent call last):
-  File "/usr/local/google/home/dominikrabij/xpk-fork/bin/xpk", line 7, in <module>
-    sys.exit(main())
-             ~~~~^^
-  File "/usr/local/google/home/dominikrabij/xpk-fork2/src/xpk/main.py", line 100, in main
-    main_args.func(main_args)
-    ~~~~~~~~~~~~~~^^^^^^^^^^^
-  File "/usr/local/google/home/dominikrabij/xpk-fork2/src/xpk/commands/cluster.py", line 506, in cluster_delete
-    run_gke_cluster_delete_command_code = run_gke_cluster_delete_command(args)
-  File "/usr/local/google/home/dominikrabij/xpk-fork2/src/xpk/commands/cluster.py", line 1152, in run_gke_cluster_delete_command
-    if workloads and not ask_for_user_consent(
-                         ~~~~~~~~~~~~~~~~~~~~^
-        f'Planning to delete {len(workloads)} workloads in the cluster'
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-        f' {args.cluster} including {workloads}. \nDo you wish to delete?'
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    ):
-    ^
-  File "/usr/local/google/home/dominikrabij/xpk-fork2/src/xpk/utils/console.py", line 69, in ask_for_user_consent
-    user_input = input(prompt) or default_option
-                 ~~~~~^^^^^^^^
-EOFError: EOF when reading a line
+[XPK] Task: `Cluster Delete` is implemented by the following command not running since it is a dry run. 
+gcloud beta container clusters delete golden-cluster --project=golden-project --location=us-central1 --quiet
+[XPK] Task: `Get All Subnets` is implemented by the following command not running since it is a dry run. 
+gcloud compute networks subnets list --filter=name~"golden-cluster-us-central1-sub-*" --project=golden-project
+[XPK] GKE commands done! Cluster golden-cluster deleted.
+
+[XPK] Exiting XPK cleanly
 -->

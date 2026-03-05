@@ -21,7 +21,6 @@ kubectl get pods
 kubectl get workloads --ignore-not-found -o=jsonpath='{range .items[*]}JOBSET_NAME={.metadata.ownerReferences[0].name}CREATED_TIME={.metadata.creationTimestamp}PRIORITY={.spec.priorityClassName}TPU_VMS_NEEDED={.spec.podSets[0].count}TPU_VMS_RUNNING_RAN={.status.admission.podSetAssignments[-1].count}TPU_VMS_DONE={.status.reclaimablePods[0].count}STATUS={.status.conditions[-1].type}STATUS_MESSAGE={.status.conditions[-1].message}STATUS_TIME={.status.conditions[-1].lastTransitionTime}{""}{end}'
 [XPK] Workload List Output:
 Jobset Name   Created Time   Priority   TPU VMs Needed   TPU VMs Running/Ran   TPU VMs Done   Status   Status Message   Status Time
-<empty>                                                                                                                            
 [XPK] See your workloads in Cloud Console: https://console.cloud.google.com/kubernetes/aiml/deployments/jobs?project=golden-project
 [XPK] Exiting XPK cleanly
 -->

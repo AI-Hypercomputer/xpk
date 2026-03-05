@@ -170,7 +170,7 @@ def append_custom_pathways_proxy_server(args) -> str:
   Returns:
       yaml (string): yaml with custom proxy server appended.
   """
-  image = args.proxy_server_image if args.proxy_server_image else "us-docker.pkg.dev/cloud-tpu-v2-images/pathways/proxy_server:latest"
+  image = args.proxy_server_image if getattr(args, 'proxy_server_image', None) else "us-docker.pkg.dev/cloud-tpu-v2-images/pathways/proxy_server:latest"
   yaml = f"""              - name: pathways-proxy
                 image: {image}
                 imagePullPolicy: Always
@@ -204,7 +204,7 @@ def append_custom_pathways_server(args) -> str:
   Returns:
       yaml (string): yaml with custom pathways server appended.
   """
-  image = args.server_image if args.server_image else "us-docker.pkg.dev/cloud-tpu-v2-images/pathways/server:latest"
+  image = args.server_image if getattr(args, 'server_image', None) else "us-docker.pkg.dev/cloud-tpu-v2-images/pathways/server:latest"
   yaml = f"""              - name: pathways-rm
                 image: {image}
                 imagePullPolicy: Always
@@ -250,7 +250,10 @@ def append_custom_pathways_worker(args) -> str:
   Returns:
       yaml (string): yaml with custom pathways server appended.
   """
-  image = args.worker_image if args.worker_image else "us-docker.pkg.dev/cloud-tpu-v2-images/pathways/server:latest"
+  image = getattr(args, 'worker_image', None)
+  if not image:
+      image = getattr(args, 'server_image', "us-docker.pkg.dev/cloud-tpu-v2-images/pathways/server:latest")
+
   yaml = f"""              - name: pathways-worker
                 image: {image}
                 imagePullPolicy: Always

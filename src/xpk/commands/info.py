@@ -37,7 +37,7 @@ def info(args: Namespace) -> None:
     None
   """
   if should_validate_dependencies(args):
-    validate_dependencies_list([
+    validate_dependencies_list(args, [
         SystemDependency.KUBECTL,
         SystemDependency.GCLOUD,
         SystemDependency.KUEUECTL,

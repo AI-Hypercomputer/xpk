@@ -145,6 +145,13 @@ def add_shared_arguments(
       help='Whether to sandbox k8s config. (Experimental)',
       required=required,
   )
+  custom_parser_or_group.add_argument(
+      '--dependency-auto-download',
+      action=argparse.BooleanOptionalAction,
+      default=True,
+      help='Whether to auto download missing dependencies.',
+      required=required,
+  )
 
 
 def add_cluster_arguments(

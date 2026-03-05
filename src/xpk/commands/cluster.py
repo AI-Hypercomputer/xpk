@@ -101,7 +101,7 @@ def cluster_adapt(args) -> None:
     args: user provided arguments for running the command.
   """
   if should_validate_dependencies(args):
-    validate_dependencies_list([
+    validate_dependencies_list(args, [
         SystemDependency.KUBECTL,
         SystemDependency.GCLOUD,
     ])
@@ -301,7 +301,7 @@ def cluster_create(args) -> None:
     args: user provided arguments for running the command.
   """
   if should_validate_dependencies(args):
-    validate_dependencies_list([
+    validate_dependencies_list(args, [
         SystemDependency.KUBECTL,
         SystemDependency.GCLOUD,
     ])
@@ -490,7 +490,7 @@ def cluster_delete(args) -> None:
     0 if successful and 1 otherwise.
   """
   if should_validate_dependencies(args):
-    validate_dependencies_list([SystemDependency.GCLOUD])
+    validate_dependencies_list(args, [SystemDependency.GCLOUD])
   xpk_print(f'Starting cluster delete for cluster: {args.cluster}', flush=True)
   add_zone_and_project(args)
 
@@ -521,8 +521,7 @@ def cluster_cacheimage(args) -> None:
     0 if successful and 1 otherwise.
   """
   if should_validate_dependencies(args):
-    validate_dependencies_list(
-        [SystemDependency.KUBECTL, SystemDependency.GCLOUD]
+    validate_dependencies_list(args, [SystemDependency.KUBECTL, SystemDependency.GCLOUD]
     )
   xpk_print(
       f'Starting cluster cacheimage for cluster: {args.cluster}', flush=True
@@ -577,8 +576,7 @@ def cluster_describe(args) -> None:
     0 if successful and 1 otherwise.
   """
   if should_validate_dependencies(args):
-    validate_dependencies_list(
-        [SystemDependency.KUBECTL, SystemDependency.GCLOUD]
+    validate_dependencies_list(args, [SystemDependency.KUBECTL, SystemDependency.GCLOUD]
     )
   xpk_print(f'Starting nodepool list for cluster: {args.cluster}', flush=True)
   add_zone_and_project(args)
@@ -810,7 +808,7 @@ def cluster_list(args) -> None:
     0 if successful and 1 otherwise.
   """
   if should_validate_dependencies(args):
-    validate_dependencies_list([SystemDependency.GCLOUD])
+    validate_dependencies_list(args, [SystemDependency.GCLOUD])
   add_zone_and_project(args)
   xpk_print(f'For project {args.project} and zone {args.zone}:', flush=True)
   if run_gke_clusters_list_command(args):

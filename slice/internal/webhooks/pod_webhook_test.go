@@ -80,6 +80,13 @@ func TestPodDefault(t *testing.T) {
 				},
 			).Obj(),
 		},
+		"anti-affinity only is removed completely": {
+			pod: makeTPUPod(basePodName, baseNamespace).NodeSelectorRequirement(corev1.NodeSelectorRequirement{
+				Key:      core.TPUSliceNodeLabel,
+				Operator: corev1.NodeSelectorOpDoesNotExist,
+			}).Obj(),
+			wantPod: makeTPUPod(basePodName, baseNamespace).Obj(),
+		},
 	}
 
 	for name, tc := range testCases {

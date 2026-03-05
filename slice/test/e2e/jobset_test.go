@@ -1530,7 +1530,8 @@ var _ = ginkgo.Describe("JobSet", func() {
 							core.TPUSliceTopologyAnnotation: "4x4x4",
 						},
 						NodeSelector: map[string]string{
-							"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
+							core.TPUAcceleratorLabel:           string(slice.TypeTpu7x),
+							core.TPUSliceHealthNodeSelectorKey: core.TPUSliceHealthNodeSelectorHealthy,
 						},
 					},
 				).
@@ -1604,6 +1605,19 @@ var _ = ginkgo.Describe("JobSet", func() {
 						Message: `Slices are in states: 1 ACTIVE`,
 					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates")))
 				}, utils.LongTimeout, utils.Timeout).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Checking that all pods are running with topology node selector and without anti-affinity", func() {
+				pods := &corev1.PodList{}
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.List(ctx, pods, client.InNamespace(ns.Name))).To(gomega.Succeed())
+					g.Expect(pods.Items).Should(gomega.HaveLen(int(16)))
+					for _, pod := range pods.Items {
+						g.Expect(pod.Spec.NodeSelector).To(gomega.HaveKeyWithValue(core.TPUTopologyAnnotation, "4x4x4"))
+						g.Expect(pod.Spec.Affinity).To(gomega.BeNil())
+						g.Expect(pod.Status.Phase).To(gomega.Equal(corev1.PodRunning))
+					}
+				}, utils.LongTimeout, utils.Interval).Should(gomega.Succeed())
 			})
 
 			ginkgo.By("Deleting JobSet", func() {

@@ -93,13 +93,33 @@ func removeNodeInSliceAntiAffinity(spec *corev1.PodSpec) {
 	}
 
 	nodeSelector := spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution
-	for i := range nodeSelector.NodeSelectorTerms {
+	var nonEmptyTerms []corev1.NodeSelectorTerm
+	for _, term := range nodeSelector.NodeSelectorTerms {
 		var newExpressions []corev1.NodeSelectorRequirement
-		for _, req := range nodeSelector.NodeSelectorTerms[i].MatchExpressions {
-			if req.Key != core.TPUSliceNodeLabel || req.Operator != corev1.NodeSelectorOpDoesNotExist {
-				newExpressions = append(newExpressions, req)
+		for _, req := range term.MatchExpressions {
+			if req.Key == core.TPUSliceNodeLabel && req.Operator == corev1.NodeSelectorOpDoesNotExist {
+				continue
 			}
+			newExpressions = append(newExpressions, req)
 		}
-		nodeSelector.NodeSelectorTerms[i].MatchExpressions = newExpressions
+
+		if len(newExpressions) > 0 || len(term.MatchFields) > 0 {
+			term.MatchExpressions = newExpressions
+			nonEmptyTerms = append(nonEmptyTerms, term)
+		}
+	}
+
+	if len(nonEmptyTerms) == 0 {
+		spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = nil
+	} else {
+		spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms = nonEmptyTerms
+	}
+
+	if spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil && len(spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution) == 0 {
+		spec.Affinity.NodeAffinity = nil
+	}
+
+	if spec.Affinity.NodeAffinity == nil && spec.Affinity.PodAffinity == nil && spec.Affinity.PodAntiAffinity == nil {
+		spec.Affinity = nil
 	}
 }

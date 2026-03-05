@@ -302,8 +302,7 @@ def _validate_num_slices_and_set_default(
     xpk_exit(1)
 
   if (
-      FeatureFlags.OPTIONAL_NUM_SLICES
-      and args.num_slices is None
+      args.num_slices is None
       and args.num_cubes is None
       and args.reservation
       and available_capacity is not None
@@ -318,32 +317,15 @@ def _validate_num_slices_and_set_default(
 
   args.num_slices = args.num_slices or args.num_cubes or 1
   args.num_nodes = (
-      getattr(args, 'num_nodes', 2)
-      if getattr(args, 'num_nodes', None) is not None
-      else 2
+      2 if getattr(args, 'num_nodes', None) is None else args.num_nodes
   )
 
 
-def cluster_create(args) -> None:
-  """Function around cluster creation.
-
-  Args:
-    args: user provided arguments for running the command.
-  """
-  if should_validate_dependencies(args):
-    validate_dependencies_list([
-        SystemDependency.KUBECTL,
-        SystemDependency.GCLOUD,
-    ])
-
-  system, return_code = get_system_characteristics(args)
-  if return_code > 0 or system is None:
-    xpk_print('Fetching system characteristics failed!')
-    xpk_exit(return_code)
-
-  xpk_print(f'Starting cluster create for cluster {args.cluster}:', flush=True)
-  add_zone_and_project(args)
-
+def _determine_available_capacity(
+    args,
+    system: SystemCharacteristics,
+) -> list[ReservationCapacity] | None:
+  """Determines available capacity and optionally updates args.num_nodes."""
   capacity_type, return_code = get_capacity_type(args)
   if return_code != 0:
     xpk_exit(return_code)
@@ -351,9 +333,7 @@ def cluster_create(args) -> None:
   available_capacity = None
   if capacity_type == CapacityType.RESERVATION and args.reservation:
     if FeatureFlags.RESERVATIONS_VALIDATION_ENABLED or (
-        FeatureFlags.OPTIONAL_NUM_SLICES
-        and args.num_slices is None
-        and args.num_cubes is None
+        args.num_slices is None and args.num_cubes is None
     ):
       xpk_print(
           'Assessing reservation capacity to determine number of slices...'
@@ -379,20 +359,56 @@ def cluster_create(args) -> None:
           xpk_print(f'Automatically setting --num-nodes to {total_vms}')
           args.num_nodes = total_vms
 
-      vms_per_pool = (
-          getattr(args, 'num_nodes', None) or 2
-          if system.accelerator_type == AcceleratorType.GPU
-          else system.vms_per_slice
-      )
-      available_capacity, return_code = assess_available_slices(
-          reservations,
-          force_sub_block_targeting=args.super_slicing,
-          system=system,
-          vms_per_slice=vms_per_pool,
-      )
-      if return_code != 0:
-        xpk_print('Error assessing available slices.')
-        xpk_exit(return_code)
+          available_capacity = []
+          for cap in temp_capacity:
+            slices = cap.available_slices // total_vms
+            if slices > 0:
+              available_capacity.append(
+                  ReservationCapacity(cap.reservation, slices)
+              )
+        else:
+          available_capacity = []
+
+      else:
+        vms_per_pool = (
+            (2 if getattr(args, 'num_nodes', None) is None else args.num_nodes)
+            if system.accelerator_type == AcceleratorType.GPU
+            else system.vms_per_slice
+        )
+        available_capacity, return_code = assess_available_slices(
+            reservations,
+            force_sub_block_targeting=args.super_slicing,
+            system=system,
+            vms_per_slice=vms_per_pool,
+        )
+        if return_code != 0:
+          xpk_print('Error assessing available slices.')
+          xpk_exit(return_code)
+
+  return available_capacity
+
+
+def cluster_create(args) -> None:
+  """Function around cluster creation.
+
+  Args:
+    args: user provided arguments for running the command.
+  """
+  if should_validate_dependencies(args):
+    validate_dependencies_list([
+        SystemDependency.KUBECTL,
+        SystemDependency.GCLOUD,
+    ])
+
+  system, return_code = get_system_characteristics(args)
+  if return_code > 0 or system is None:
+    xpk_print('Fetching system characteristics failed!')
+    xpk_exit(return_code)
+
+  xpk_print(f'Starting cluster create for cluster {args.cluster}:', flush=True)
+  add_zone_and_project(args)
+
+  available_capacity = _determine_available_capacity(args, system)
 
   _validate_cluster_create_args(args, system, available_capacity)
   _log_cluster_create_telemetry(args)

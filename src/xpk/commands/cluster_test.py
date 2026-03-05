@@ -755,7 +755,6 @@ def test_validate_cluster_create_args_sets_correct_num_slices(
 def test_validate_cluster_create_args_optional_num_slices(
     mocks: _Mocks,
 ):
-  FeatureFlags.OPTIONAL_NUM_SLICES = True
   available_capacity = [
       ReservationCapacity(
           reservation=ReservationLink(project='p', zone='z', name='r'),
@@ -782,7 +781,6 @@ def test_validate_cluster_create_args_optional_num_slices(
 def test_validate_cluster_create_args_optional_num_slices_super_slicing(
     mocks: _Mocks,
 ):
-  FeatureFlags.OPTIONAL_NUM_SLICES = True
   available_capacity = [
       ReservationCapacity(
           reservation=ReservationLink(project='p', zone='z', name='r'),
@@ -803,21 +801,6 @@ def test_validate_cluster_create_args_optional_num_slices_super_slicing(
   assert args.num_cubes == 8
 
 
-def test_validate_cluster_create_args_optional_num_slices_disabled(
-    mocks: _Mocks,
-):
-  FeatureFlags.OPTIONAL_NUM_SLICES = False
-  args = construct_args(
-      reservation='test-reservation',
-      num_slices=None,
-      num_cubes=None,
-  )
-
-  _validate_cluster_create_args(args, TPU_TEST_SYSTEM, None)
-
-  assert args.num_slices == 1
-
-
 def test_get_coredns_replica_count_lower_limit_is_number_of_nodes():
   args = construct_args(
       default_pool_cpu_num_nodes=7,
@@ -836,7 +819,6 @@ def test_get_coredns_replica_count_upper_limit_is_15():
 def test_validate_cluster_create_args_optional_num_nodes_gpu(
     mocks: _Mocks,
 ):
-  FeatureFlags.OPTIONAL_NUM_SLICES = True
   available_capacity = [
       ReservationCapacity(
           reservation=ReservationLink(project='p', zone='z', name='r'),
@@ -860,7 +842,6 @@ def test_validate_cluster_create_args_optional_num_nodes_gpu(
 def test_validate_cluster_create_args_explicit_num_nodes_gpu(
     mocks: _Mocks,
 ):
-  FeatureFlags.OPTIONAL_NUM_SLICES = True
   available_capacity = [
       ReservationCapacity(
           reservation=ReservationLink(project='p', zone='z', name='r'),
@@ -885,7 +866,6 @@ def test_cluster_create_optional_num_nodes_gpu_without_explicit_arg(
     mocker,
     mocks: _Mocks,
 ):
-  FeatureFlags.OPTIONAL_NUM_SLICES = True
   args = construct_args(
       device_type='a3-highgpu-8g',
       reservation='test-reservation',
@@ -952,7 +932,6 @@ def test_cluster_create_optional_num_nodes_gpu_with_explicit_arg(
     mocker,
     mocks: _Mocks,
 ):
-  FeatureFlags.OPTIONAL_NUM_SLICES = True
   args = construct_args(
       device_type='a3-highgpu-8g',
       reservation='test-reservation',

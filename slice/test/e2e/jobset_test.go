@@ -170,7 +170,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 
 				createdJobSet := &jobset.JobSet{}
 
-				ginkgo.By("Checking that the JobSet is created with annotations/selectors", func() {
+				ginkgo.By("Checking that the JobSet is created with annotations, selectors and affinities", func() {
 					gomega.Eventually(func(g gomega.Gomega) {
 						g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(jobSet), createdJobSet)).To(gomega.Succeed())
 						for _, replicatedJob := range createdJobSet.Spec.ReplicatedJobs {
@@ -199,6 +199,7 @@ var _ = ginkgo.Describe("JobSet", func() {
 								}
 							}
 							g.Expect(found).Should(gomega.BeTrue())
+							utils.ExpectJobSetHasAntiAffinity(createdJobSet)
 						}
 					}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 				})
@@ -480,7 +481,6 @@ var _ = ginkgo.Describe("JobSet", func() {
 				ginkgo.By("Checking that the JobSet is created with anti-affinity", func() {
 					gomega.Eventually(func(g gomega.Gomega) {
 						g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(jobSet), createdJobSet)).To(gomega.Succeed())
-						utils.ExpectJobSetHasAntiAffinity(createdJobSet)
 					}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 				})
 
@@ -1516,9 +1516,6 @@ var _ = ginkgo.Describe("JobSet", func() {
 			utils.MustCreate(ctx, k8sClient, manualSlice)
 			utils.SetSliceReady(ctx, k8sClient, client.ObjectKeyFromObject(manualSlice), manualSlice.Spec.Topology)
 
-			ginkgo.DeferCleanup(func() {
-				utils.ExpectObjectToBeDeleted(ctx, k8sClient, manualSlice, true)
-			})
 			jobSet := testingjobsjobset.MakeJobSet("jobset", ns.Name).
 				Queue(lq.Name).
 				ReplicatedJobs(

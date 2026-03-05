@@ -279,32 +279,46 @@ spec:
     replicas: 1
     template:
       spec:
-        parallelism: 1
-        completions: 1
         backoffLimit: 0
+        completionMode: Indexed
+        completions: 1
+        parallelism: 1
         template:
+          metadata:
+            annotations:
+              alpha.jobset.sigs.k8s.io/exclusive-topology: kubernetes.io/hostname
           spec:
             hostNetwork: true
             dnsPolicy: ClusterFirstWithHostNet
             nodeSelector:
               cloud.google.com/gke-nodepool: cpu-np
               {autoprovisioning_args}
-            containers:
+            initContainers:
 {custom_pathways_proxy_server}
 {custom_pathways_server}
 {colocated_python_sidecar}
+            containers:
 {user_workload}
+            restartPolicy: Never
+            volumes:
+            - hostPath:
+                path: /tmp
+                type: DirectoryOrCreate
+              name: shared-tmp
   - name: worker
     replicas: {args.num_slices}
     template:
       spec:
-        parallelism: {vms_per_slice}
-        completions: {vms_per_slice}
         backoffLimit: {args.max_slice_restarts}
+        completionMode: Indexed
+        completions: {vms_per_slice}
+        parallelism: {vms_per_slice}
         template:
           metadata:
             labels:
               xpk.google.com/workload: {args.workload}
+            annotations:
+              alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool
           spec:
             hostNetwork: true
             dnsPolicy: ClusterFirstWithHostNet
@@ -317,6 +331,19 @@ spec:
               {autoprovisioning_args}
             containers:
 {custom_pathways_worker}
+            restartPolicy: OnFailure
+            volumes:
+            - hostPath:
+                path: /tmp
+                type: DirectoryOrCreate
+              name: shared-tmp
+  startupPolicy:
+    startupPolicyOrder: InOrder
+  successPolicy:
+    operator: All
+    targetReplicatedJobs:
+    - pathways-head
+  suspend: false
 """
 
 ARM_GPU_WORKLOAD_CREATE_JINJA_FILE = 'arm_gpu_workload_crate.yaml.j2'

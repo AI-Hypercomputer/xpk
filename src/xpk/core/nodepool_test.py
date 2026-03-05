@@ -1027,3 +1027,131 @@ def test_run_gke_node_pool_create_command_validation_disabled_single_reservation
   commands_tester.assert_command_run(
       "gcloud", "node-pools create", "--tpu-topology=2x2x1", times=2
   )
+
+
+def test_run_gke_node_pool_create_command_ignore_errors_returns_0(
+    mocker,
+    commands_tester: CommandsTester,
+    mock_xpk_print,
+):
+  """Tests that nodepool creation errors are ignored when the flag is set."""
+  mocker.patch(
+      "xpk.core.nodepool.get_cluster_location", return_value="us-central1"
+  )
+  mocker.patch("xpk.core.capacity.verify_reservations_exist", return_value=0)
+  mocker.patch(
+      "xpk.core.nodepool.get_capacity_type", return_value=("on-demand", 0)
+  )
+  mocker.patch(
+      "xpk.core.nodepool.get_capacity_arguments_from_capacity_type",
+      return_value=("--on-demand", 0),
+  )
+  mocker.patch(
+      "xpk.core.nodepool.run_commands",
+      return_value=maybe_failure,
+  )
+  mocker.patch("xpk.core.nodepool.display_nodepool_creation_error")
+  args = mocker.Mock(
+      num_slices=1,
+      reservation=None,
+      tpu_type="v4-8",
+      device_type=None,
+      cluster="test-cluster",
+      project="test-project",
+      zone="us-central1-a",
+      on_demand=False,
+      spot=False,
+      flex=False,
+      enable_workload_identity=False,
+      enable_gcsfuse_csi_driver=False,
+      host_maintenance_interval="AS_NEEDED",
+      custom_nodepool_arguments="",
+      super_slicing=False,
+      num_nodes=1,
+      ignore_nodepool_creation_errors=True,
+  )
+  system = SystemCharacteristics(
+      topology="2x2x1",
+      vms_per_slice=2,
+      gke_accelerator="tpu-v4",
+      gce_machine_type="ct4p-hightpu-4t",
+      chips_per_vm=4,
+      accelerator_type=AcceleratorType.TPU,
+      device_type="v4-8",
+      requires_workload_policy=False,
+      supports_sub_slicing=False,
+      supports_super_slicing=False,
+      supports_accelerator_network_profile=True,
+      docker_platform=DockerPlatform.AMD,
+  )
+  commands_tester.set_result_for_command(
+      (0, ""), "gcloud beta container node-pools list"
+  )
+
+  result = run_gke_node_pool_create_command(args, system, "1.2.3")
+
+  assert result == 0
+  mock_xpk_print.assert_any_call('Ignoring nodepool creation errors and continuing as requested.')
+
+
+def test_run_gke_node_pool_create_command_no_ignore_errors_returns_1(
+    mocker,
+    commands_tester: CommandsTester,
+):
+  """Tests that nodepool creation errors return 1 when the flag is not set."""
+  mocker.patch(
+      "xpk.core.nodepool.get_cluster_location", return_value="us-central1"
+  )
+  mocker.patch("xpk.core.capacity.verify_reservations_exist", return_value=0)
+  mocker.patch(
+      "xpk.core.nodepool.get_capacity_type", return_value=("on-demand", 0)
+  )
+  mocker.patch(
+      "xpk.core.nodepool.get_capacity_arguments_from_capacity_type",
+      return_value=("--on-demand", 0),
+  )
+  mocker.patch(
+      "xpk.core.nodepool.run_commands",
+      return_value=maybe_failure,
+  )
+  mocker.patch("xpk.core.nodepool.display_nodepool_creation_error")
+  args = mocker.Mock(
+      num_slices=1,
+      reservation=None,
+      tpu_type="v4-8",
+      device_type=None,
+      cluster="test-cluster",
+      project="test-project",
+      zone="us-central1-a",
+      on_demand=False,
+      spot=False,
+      flex=False,
+      enable_workload_identity=False,
+      enable_gcsfuse_csi_driver=False,
+      host_maintenance_interval="AS_NEEDED",
+      custom_nodepool_arguments="",
+      super_slicing=False,
+      num_nodes=1,
+      ignore_nodepool_creation_errors=False,
+  )
+  system = SystemCharacteristics(
+      topology="2x2x1",
+      vms_per_slice=2,
+      gke_accelerator="tpu-v4",
+      gce_machine_type="ct4p-hightpu-4t",
+      chips_per_vm=4,
+      accelerator_type=AcceleratorType.TPU,
+      device_type="v4-8",
+      requires_workload_policy=False,
+      supports_sub_slicing=False,
+      supports_super_slicing=False,
+      supports_accelerator_network_profile=True,
+      docker_platform=DockerPlatform.AMD,
+  )
+  commands_tester.set_result_for_command(
+      (0, ""), "gcloud beta container node-pools list"
+  )
+
+  result = run_gke_node_pool_create_command(args, system, "1.2.3")
+
+  assert result == 1

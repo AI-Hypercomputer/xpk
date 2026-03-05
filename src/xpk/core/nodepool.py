@@ -424,7 +424,9 @@ def run_gke_node_pool_create_command(
   )
   if maybe_failure is not None:
     display_nodepool_creation_error(maybe_failure)
-    return 1
+    if not getattr(args, 'ignore_nodepool_creation_errors', False):
+      return 1
+    xpk_print('Ignoring nodepool creation errors and continuing as requested.')
 
   xpk_print('Create or delete node pool request complete.')
   return 0

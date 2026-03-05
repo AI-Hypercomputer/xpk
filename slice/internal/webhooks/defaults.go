@@ -18,6 +18,7 @@ package webhooks
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 
 	corev1 "k8s.io/api/core/v1"
@@ -93,26 +94,19 @@ func removeNodeInSliceAntiAffinity(spec *corev1.PodSpec) {
 	}
 
 	nodeSelector := spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution
-	var nonEmptyTerms []corev1.NodeSelectorTerm
-	for _, term := range nodeSelector.NodeSelectorTerms {
-		var newExpressions []corev1.NodeSelectorRequirement
-		for _, req := range term.MatchExpressions {
-			if req.Key == core.TPUSliceNodeLabel && req.Operator == corev1.NodeSelectorOpDoesNotExist {
-				continue
-			}
-			newExpressions = append(newExpressions, req)
-		}
-
-		if len(newExpressions) > 0 || len(term.MatchFields) > 0 {
-			term.MatchExpressions = newExpressions
-			nonEmptyTerms = append(nonEmptyTerms, term)
+	var nonEmptyTerms bool
+	for i := range nodeSelector.NodeSelectorTerms {
+		term := &nodeSelector.NodeSelectorTerms[i]
+		term.MatchExpressions = slices.DeleteFunc(term.MatchExpressions, func(req corev1.NodeSelectorRequirement) bool {
+			return req.Key == core.TPUSliceNodeLabel && req.Operator == corev1.NodeSelectorOpDoesNotExist
+		})
+		if len(term.MatchExpressions) > 0 || len(term.MatchFields) > 0 {
+			nonEmptyTerms = true
 		}
 	}
 
-	if len(nonEmptyTerms) == 0 {
+	if !nonEmptyTerms {
 		spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = nil
-	} else {
-		spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms = nonEmptyTerms
 	}
 
 	if spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil && len(spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution) == 0 {

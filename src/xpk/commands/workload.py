@@ -314,7 +314,7 @@ spec:
     replicas: {args.num_slices}
     template:
       spec:
-        backoffLimit: {args.max_slice_restarts}
+        backoffLimit: {args.max_slice_restarts * 4}
         completionMode: Indexed
         completions: {vms_per_slice}
         parallelism: {vms_per_slice}

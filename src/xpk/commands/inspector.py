@@ -157,7 +157,8 @@ def inspector(args) -> None:
   # 2. List what is next in Queue.
   # 3. Split inspector into different subcommands to parse info easier.
   if should_validate_dependencies(args):
-    validate_dependencies_list(args, [SystemDependency.KUBECTL, SystemDependency.GCLOUD]
+    validate_dependencies_list(
+        args, [SystemDependency.KUBECTL, SystemDependency.GCLOUD]
     )
   final_return_code = 0
   xpk_print(args)

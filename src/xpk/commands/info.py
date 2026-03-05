@@ -37,11 +37,14 @@ def info(args: Namespace) -> None:
     None
   """
   if should_validate_dependencies(args):
-    validate_dependencies_list(args, [
-        SystemDependency.KUBECTL,
-        SystemDependency.GCLOUD,
-        SystemDependency.KUEUECTL,
-    ])
+    validate_dependencies_list(
+        args,
+        [
+            SystemDependency.KUBECTL,
+            SystemDependency.GCLOUD,
+            SystemDependency.KUEUECTL,
+        ],
+    )
   add_zone_and_project(args)
   get_cluster_credentials(args)
 

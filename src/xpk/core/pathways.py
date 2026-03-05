@@ -200,7 +200,20 @@ def append_custom_pathways_proxy_server(args) -> str:
   return yaml
 
 
-def append_custom_pathways_server(args) -> str:
+def get_pathways_instance_type(system: SystemCharacteristics) -> str:
+  """Returns the instance type formatted for Pathways (e.g. 'tpuv6e:2x2' for v6e-4)."""
+  if not system.gke_accelerator.startswith('tpu-'):
+    return system.gce_machine_type
+
+  parts = system.gke_accelerator.split('-')
+  if len(parts) >= 2:
+    family = parts[1]  # e.g. 'v6e'
+    return f"tpu{family}:{system.topology}"
+
+  return system.gce_machine_type
+
+
+def append_custom_pathways_server(args, system: SystemCharacteristics) -> str:
   """Append custom Pathways server component using a YAML with proper indentation.
 
   Returns:
@@ -215,7 +228,7 @@ def append_custom_pathways_server(args) -> str:
                 - --gcs_scratch_location={args.pathways_gcs_location}
                 - --node_type=resource_manager
                 - --instance_count={args.num_slices}
-                - --instance_type={args.tpu_type}"""
+                - --instance_type={get_pathways_instance_type(system)}"""
   indentation = ' ' * 16
   if args.custom_pathways_server_args:
     yaml += append_custom_pathways_flags(

@@ -272,8 +272,13 @@ metadata:
     kueue.x-k8s.io/queue-name: {local_queue_name}  # Name of the LocalQueue
     xpk.google.com/workload: {args.workload}
 spec:
+  coordinator:
+    replicatedJob: pathways-head
+  network:
+    enableDNSHostnames: true
+    publishNotReadyAddresses: true
   failurePolicy:
-    maxRestarts: {args.max_restarts}
+    restartStrategy: Recreate
   replicatedJobs:
   - name: pathways-head
     replicas: 1
@@ -703,7 +708,7 @@ def workload_create(args) -> None:
         topology=create_tpu_topology(workload_system),
         machine_type=create_tpu_machine_type(workload_system),
         custom_pathways_proxy_server=append_custom_pathways_proxy_server(args),
-        custom_pathways_server=append_custom_pathways_server(args),
+        custom_pathways_server=append_custom_pathways_server(args, workload_system),
         custom_pathways_worker=append_custom_pathways_worker(args),
         colocated_python_sidecar=append_custom_colocated_python_sidecar(args),
         user_workload=get_user_workload_for_pathways(

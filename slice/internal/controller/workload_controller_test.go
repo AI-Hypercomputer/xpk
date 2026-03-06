@@ -1579,10 +1579,12 @@ func TestWorkloadReconciler(t *testing.T) {
 						[]kueue.PodSetUpdate{
 							{
 								Name:         "ps1",
+								Labels:       map[string]string{core.PodWebhookLabelKey: "true"},
 								NodeSelector: map[string]string{"cloud.google.com/gke-tpu-topology": "4x4x4"},
 							},
 							{
 								Name:         "ps2",
+								Labels:       map[string]string{core.PodWebhookLabelKey: "true"},
 								NodeSelector: map[string]string{"cloud.google.com/gke-tpu-topology": "4x4x4"},
 							},
 						})).
@@ -1625,10 +1627,12 @@ func TestWorkloadReconciler(t *testing.T) {
 						[]kueue.PodSetUpdate{
 							{
 								Name:         "ps1",
+								Labels:       map[string]string{core.PodWebhookLabelKey: "true"},
 								NodeSelector: map[string]string{"cloud.google.com/gke-tpu-topology": "4x4x4"},
 							},
 							{
 								Name:         "ps2",
+								Labels:       map[string]string{core.PodWebhookLabelKey: "true"},
 								NodeSelector: map[string]string{"cloud.google.com/gke-tpu-topology": "4x4x4"},
 							},
 						})).
@@ -1792,10 +1796,12 @@ func TestWorkloadReconciler(t *testing.T) {
 						[]kueue.PodSetUpdate{
 							{
 								Name:         "ps1",
+								Labels:       map[string]string{core.PodWebhookLabelKey: "true"},
 								NodeSelector: map[string]string{"cloud.google.com/gke-tpu-topology": "4x4x4"},
 							},
 							{
 								Name:         "ps2",
+								Labels:       map[string]string{core.PodWebhookLabelKey: "true"},
 								NodeSelector: map[string]string{"cloud.google.com/gke-tpu-topology": "4x4x4"},
 							},
 						})).

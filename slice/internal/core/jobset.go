@@ -55,7 +55,7 @@ func BaseSSAReplicatedJob(name string) jobset.ReplicatedJob {
 	}
 }
 
-func AddNodeAffinity(template *corev1.PodTemplateSpec, key string, values []string) {
+func AddNodeAffinity(template *corev1.PodTemplateSpec, key string, operator corev1.NodeSelectorOperator, values []string) {
 	if template.Spec.Affinity == nil {
 		template.Spec.Affinity = &corev1.Affinity{}
 	}
@@ -69,7 +69,7 @@ func AddNodeAffinity(template *corev1.PodTemplateSpec, key string, values []stri
 	nodeSelector := template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution
 	requirement := corev1.NodeSelectorRequirement{
 		Key:      key,
-		Operator: corev1.NodeSelectorOpIn,
+		Operator: operator,
 		Values:   values,
 	}
 

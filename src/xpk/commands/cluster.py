@@ -311,9 +311,6 @@ def _validate_num_slices_and_set_default(
     if total_available > 0:
       xpk_print(f'Automatically setting --num-slices to {total_available}')
       args.num_slices = total_available
-      if args.super_slicing:
-        xpk_print(f'Automatically setting --num-cubes to {total_available}')
-        args.num_cubes = total_available
 
   args.num_slices = args.num_slices or args.num_cubes or 1
   args.num_nodes = (

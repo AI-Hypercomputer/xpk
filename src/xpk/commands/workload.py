@@ -708,7 +708,9 @@ def workload_create(args) -> None:
         custom_pathways_server=append_custom_pathways_server(
             args, workload_system
         ),
-        custom_pathways_worker=append_custom_pathways_worker(args),
+        custom_pathways_worker=append_custom_pathways_worker(
+            args, workload_system
+        ),
         colocated_python_sidecar=append_custom_colocated_python_sidecar(args),
         user_workload=get_user_workload_for_pathways(
             args, workload_system, parallel_containers

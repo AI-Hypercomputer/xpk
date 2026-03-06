@@ -377,9 +377,11 @@ def get_user_workload_for_pathways(
                   value: grpc://$(PATHWAYS_HEAD):29000"""
 
     # Inject the Pathways environment variables into the container's env list.
-    # The regex matches 'env:' followed by any optional trailing whitespace, then a newline.
-    if re.search(r'env:[ \t]*\n', container):
-      container = re.sub(r'env:[ \t]*\n', env_injection + '\n', container)
+    # The `get_main_container` template hardcodes `env: {env}` on a single line.
+    # We replace `env:` with our injected block, and if `{env}` originally contained
+    # user variables, they simply append sequentially after our injected block.
+    env_injection_no_header = env_injection.replace('env:\n', '\n')
+    container = container.replace('env:', 'env:' + env_injection_no_header)
       
     # The container yaml snippet is already properly indented as `- name: ...`.
     # It returns a string starting with "              - name:".

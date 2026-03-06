@@ -17,7 +17,7 @@ gcloud container clusters list --project=golden-project --filter=name=golden-clu
 gcloud container clusters get-credentials golden-cluster --location=us-central1 --dns-endpoint --project=golden-project && kubectl config view && kubectl config set-context --current --namespace=default
 [XPK] Get the name of the workloads in the cluster.
 [XPK] Task: `List Jobs with filter-by-status=EVERYTHING` is implemented by the following command not running since it is a dry run. 
-kubectl get workloads --ignore-not-found -o=jsonpath='{range .items[*]}JOBSET_NAME={.metadata.ownerReferences[0].name}CREATED_TIME={.metadata.creationTimestamp}PRIORITY={.spec.priorityClassName}TPU_VMS_NEEDED={.spec.podSets[0].count}TPU_VMS_RUNNING_RAN={.status.admission.podSetAssignments[-1].count}TPU_VMS_DONE={.status.reclaimablePods[0].count}STATUS={.status.conditions[-1].type}STATUS_MESSAGE={.status.conditions[-1].message}STATUS_TIME={.status.conditions[-1].lastTransitionTime}{""}{end}'
+kubectl get workloads --ignore-not-found -o=json
 [XPK] Task: `Cluster Delete` is implemented by the following command not running since it is a dry run. 
 gcloud beta container clusters delete golden-cluster --project=golden-project --location=us-central1 --quiet
 [XPK] Task: `Get All Subnets` is implemented by the following command not running since it is a dry run. 

@@ -54,7 +54,7 @@ gcloud container clusters get-credentials foo --location=us-central1 --dns-endpo
 kubectl get pods
 [XPK] Finished get-credentials and kubectl setup.
 [XPK] Task: `List Jobs with filter-by-status=EVERYTHING` is implemented by the following command not running since it is a dry run. 
-kubectl get workloads --ignore-not-found -o=jsonpath='{range .items[*]}JOBSET_NAME={.metadata.ownerReferences[0].name}CREATED_TIME={.metadata.creationTimestamp}PRIORITY={.spec.priorityClassName}TPU_VMS_NEEDED={.spec.podSets[0].count}TPU_VMS_RUNNING_RAN={.status.admission.podSetAssignments[-1].count}TPU_VMS_DONE={.status.reclaimablePods[0].count}STATUS={.status.conditions[-1].type}STATUS_MESSAGE={.status.conditions[-1].message}STATUS_TIME={.status.conditions[-1].lastTransitionTime}{""}{end}'
+kubectl get workloads --ignore-not-found -o=json
 [XPK] Workload List Output:
 Jobset Name   Created Time   Priority   TPU VMs Needed   TPU VMs Running/Ran   TPU VMs Done   Status   Status Message   Status Time
 [XPK] See your workloads in Cloud Console: https://console.cloud.google.com/kubernetes/aiml/deployments/jobs?project=bar

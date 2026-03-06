@@ -437,8 +437,6 @@ def cluster_create(args) -> None:
   if update_jobset_resources_code != 0:
     xpk_exit(update_jobset_resources_code)
 
-
-
   install_kueue_code = _install_kueue(args, system, autoprovisioning_config)
   if install_kueue_code != 0:
     xpk_exit(install_kueue_code)

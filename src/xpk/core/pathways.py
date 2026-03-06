@@ -171,7 +171,11 @@ def append_custom_pathways_proxy_server(args) -> str:
   Returns:
       yaml (string): yaml with custom proxy server appended.
   """
-  image = args.proxy_server_image if getattr(args, 'proxy_server_image', None) else "us-docker.pkg.dev/cloud-tpu-v2-images/pathways/proxy_server:latest"
+  image = (
+      args.proxy_server_image
+      if getattr(args, 'proxy_server_image', None)
+      else 'us-docker.pkg.dev/cloud-tpu-v2-images/pathways/proxy_server:latest'
+  )
   yaml = f"""              - name: pathways-proxy
                 image: {image}
                 imagePullPolicy: Always
@@ -208,7 +212,7 @@ def get_pathways_instance_type(system: SystemCharacteristics) -> str:
   parts = system.gke_accelerator.split('-')
   if len(parts) >= 2:
     family = parts[1]  # e.g. 'v6e'
-    return f"tpu{family}:{system.topology}"
+    return f'tpu{family}:{system.topology}'
 
   return system.gce_machine_type
 
@@ -219,7 +223,11 @@ def append_custom_pathways_server(args, system: SystemCharacteristics) -> str:
   Returns:
       yaml (string): yaml with custom pathways server appended.
   """
-  image = args.server_image if getattr(args, 'server_image', None) else "us-docker.pkg.dev/cloud-tpu-v2-images/pathways/server:latest"
+  image = (
+      args.server_image
+      if getattr(args, 'server_image', None)
+      else 'us-docker.pkg.dev/cloud-tpu-v2-images/pathways/server:latest'
+  )
   yaml = f"""              - name: pathways-rm
                 image: {image}
                 imagePullPolicy: Always
@@ -268,7 +276,11 @@ def append_custom_pathways_worker(args) -> str:
   Returns:
       yaml (string): yaml with custom pathways server appended.
   """
-  image = getattr(args, 'worker_image', None) or getattr(args, 'server_image', None) or "us-docker.pkg.dev/cloud-tpu-v2-images/pathways/server:latest"
+  image = (
+      getattr(args, 'worker_image', None)
+      or getattr(args, 'server_image', None)
+      or 'us-docker.pkg.dev/cloud-tpu-v2-images/pathways/server:latest'
+  )
 
   yaml = f"""              - name: pathways-worker
                 image: {image}
@@ -363,7 +375,7 @@ def get_user_workload_for_pathways(
     container, _ = get_user_workload_container(
         args, system, parallel_containers
     )
-    
+
     env_injection = """
                 - name: PATHWAYS_HEAD
                   valueFrom:
@@ -381,9 +393,7 @@ def get_user_workload_for_pathways(
     # We replace `env:` with `env:` + our injected block, and if `{env}` originally
     # contained user variables, they simply append sequentially after our injected block.
     container = container.replace('env:', 'env:' + env_injection)
-      
-    # The container yaml snippet is already properly indented as `- name: ...`.
-    # It returns a string starting with "              - name:".
+
     return container
 
 

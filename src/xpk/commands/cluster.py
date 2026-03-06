@@ -25,7 +25,6 @@ from ..core.cluster import (
     install_nccl_on_cluster,
     install_nri_on_cluster,
     set_jobset_on_cluster,
-    set_pathways_job_on_cluster,
     setup_k8s_env,
     count_nodes_on_cluster,
     update_cluster_with_gcpfilestore_driver_if_necessary,
@@ -184,9 +183,6 @@ def cluster_adapt(args) -> None:
     xpk_exit(set_jobset_on_cluster_code)
 
   # TODO: Uncomment when cluster_adapt will support TPU cluters
-  # set_pathways_job_on_cluster_code = set_pathways_job_on_cluster(args)
-  # if set_pathways_job_on_cluster_code != 0:
-  #   xpk_exit(set_pathways_job_on_cluster_code)
 
   install_kueue_code = _install_kueue(args, system, autoprovisioning_config)
   if install_kueue_code != 0:
@@ -441,9 +437,7 @@ def cluster_create(args) -> None:
   if update_jobset_resources_code != 0:
     xpk_exit(update_jobset_resources_code)
 
-  set_pathways_job_on_cluster_code = set_pathways_job_on_cluster(args)
-  if set_pathways_job_on_cluster_code != 0:
-    xpk_exit(set_pathways_job_on_cluster_code)
+
 
   install_kueue_code = _install_kueue(args, system, autoprovisioning_config)
   if install_kueue_code != 0:

@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import re
 import urllib
 from ..core.commands import run_command_for_value, run_command_with_updates, run_commands
 from ..core.docker_container import get_user_workload_container

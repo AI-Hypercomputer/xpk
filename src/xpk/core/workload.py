@@ -14,35 +14,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import json
 from dataclasses import dataclass
-from enum import Enum, auto
+from enum import Enum
 import re
-from typing import Callable, Optional
+from typing import Any, Optional, Callable, Union
 
 from ..utils.console import xpk_exit, xpk_print
 from .commands import run_command_for_value
 from .gcloud_context import get_cluster_location
 
-_WORKLOAD_LIST_COLUMN_DELIMITER = '\x1f'
-_WORKLOAD_LIST_ROW_DELIMITER = '\x1e'
 
-
-def _safe_int(s: str) -> int:
+def _safe_int(val: Any) -> int:
   try:
-    return int(s)
-  except ValueError:
+    return int(val)
+  except (ValueError, TypeError):
     return 0
-
-
-def _default_format(val: str) -> str:
-  return val if val else '<none>'
-
-
-@dataclass
-class _WorkloadListColumn:
-  header: str
-  jsonpath: str
-  formatter: Callable[[str], str] = _default_format
 
 
 class _WorkloadStatus(Enum):
@@ -50,6 +37,7 @@ class _WorkloadStatus(Enum):
   EVICTED = 'Evicted'
   QUOTA_RESERVED = 'QuotaReserved'
   FINISHED = 'Finished'
+  UNKNOWN = 'Unknown'
 
 
 class _StatusFilter(Enum):
@@ -61,85 +49,109 @@ class _StatusFilter(Enum):
   SUCCESSFUL = 'SUCCESSFUL'
 
 
-class _WorkloadListColumnType(Enum):
-  JOBSET_NAME = auto()
-  CREATED_TIME = auto()
-  PRIORITY = auto()
-  TPU_VMS_NEEDED = auto()
-  TPU_VMS_RUNNING_RAN = auto()
-  TPU_VMS_DONE = auto()
-  STATUS = auto()
-  STATUS_MESSAGE = auto()
-  STATUS_TIME = auto()
+@dataclass
+class _WorkloadListRow:
+  """A row in the workload list table."""
+
+  jobset_name: Optional[str]
+  created_time: Optional[str]
+  priority: Optional[str]
+  tpu_vms_needed: Optional[int]
+  tpu_vms_running_ran: Optional[int]
+  tpu_vms_done: Optional[int]
+  status: Optional[_WorkloadStatus]
+  status_message: Optional[str]
+  status_time: Optional[str]
 
 
-_WORKLOAD_LIST_COLUMN_MAP: dict[
-    _WorkloadListColumnType, _WorkloadListColumn
-] = {
-    _WorkloadListColumnType.JOBSET_NAME: _WorkloadListColumn(
-        'Jobset Name', '{.metadata.ownerReferences[0].name}'
-    ),
-    _WorkloadListColumnType.CREATED_TIME: _WorkloadListColumn(
-        'Created Time', '{.metadata.creationTimestamp}'
-    ),
-    _WorkloadListColumnType.PRIORITY: _WorkloadListColumn(
-        'Priority', '{.spec.priorityClassName}'
-    ),
-    _WorkloadListColumnType.TPU_VMS_NEEDED: _WorkloadListColumn(
-        'TPU VMs Needed', '{.spec.podSets[0].count}'
-    ),
-    _WorkloadListColumnType.TPU_VMS_RUNNING_RAN: _WorkloadListColumn(
-        'TPU VMs Running/Ran',
-        '{.status.admission.podSetAssignments[-1].count}',
-    ),
-    _WorkloadListColumnType.TPU_VMS_DONE: _WorkloadListColumn(
-        'TPU VMs Done', '{.status.reclaimablePods[0].count}'
-    ),
-    _WorkloadListColumnType.STATUS: _WorkloadListColumn(
-        'Status', '{.status.conditions[-1].type}'
-    ),
-    _WorkloadListColumnType.STATUS_MESSAGE: _WorkloadListColumn(
-        'Status Message', '{.status.conditions[-1].message}'
-    ),
-    _WorkloadListColumnType.STATUS_TIME: _WorkloadListColumn(
-        'Status Time', '{.status.conditions[-1].lastTransitionTime}'
-    ),
-}
+@dataclass
+class _WorkloadListColumn:
+  header: str
+  getter: Callable[
+      [_WorkloadListRow], Optional[Union[str, int, _WorkloadStatus]]
+  ]
 
-_WORKLOAD_LIST_DISPLAY_ORDER = [
-    _WorkloadListColumnType.JOBSET_NAME,
-    _WorkloadListColumnType.CREATED_TIME,
-    _WorkloadListColumnType.PRIORITY,
-    _WorkloadListColumnType.TPU_VMS_NEEDED,
-    _WorkloadListColumnType.TPU_VMS_RUNNING_RAN,
-    _WorkloadListColumnType.TPU_VMS_DONE,
-    _WorkloadListColumnType.STATUS,
-    _WorkloadListColumnType.STATUS_MESSAGE,
-    _WorkloadListColumnType.STATUS_TIME,
+
+_WORKLOAD_COLUMNS: list[_WorkloadListColumn] = [
+    _WorkloadListColumn('Jobset Name', lambda row: row.jobset_name),
+    _WorkloadListColumn('Created Time', lambda row: row.created_time),
+    _WorkloadListColumn('Priority', lambda row: row.priority),
+    _WorkloadListColumn('TPU VMs Needed', lambda row: row.tpu_vms_needed),
+    _WorkloadListColumn(
+        'TPU VMs Running/Ran', lambda row: row.tpu_vms_running_ran
+    ),
+    _WorkloadListColumn('TPU VMs Done', lambda row: row.tpu_vms_done),
+    _WorkloadListColumn('Status', lambda row: row.status),
+    _WorkloadListColumn('Status Message', lambda row: row.status_message),
+    _WorkloadListColumn('Status Time', lambda row: row.status_time),
 ]
-_HEADERS = [
-    _WORKLOAD_LIST_COLUMN_MAP[col].header
-    for col in _WORKLOAD_LIST_DISPLAY_ORDER
-]
+
+
+def _parse_workload_status(
+    status_str: Optional[str],
+) -> Optional[_WorkloadStatus]:
+  if not status_str:
+    return None
+  try:
+    return _WorkloadStatus(status_str)
+  except ValueError:
+    return _WorkloadStatus.UNKNOWN
+
+
+def _parse_workload_item(item: dict[str, Any]) -> _WorkloadListRow:
+  owner_refs = item.get('metadata', {}).get('ownerReferences') or [{}]
+  jobset_name = owner_refs[0].get('name', '') or None
+
+  created_time = item.get('metadata', {}).get('creationTimestamp', '') or None
+  priority = item.get('spec', {}).get('priorityClassName', '') or None
+
+  pod_sets = item.get('spec', {}).get('podSets') or []
+  tpu_vms_needed = (
+      sum(_safe_int(ps.get('count')) for ps in pod_sets) if pod_sets else None
+  )
+
+  pod_set_assignments = (
+      item.get('status', {}).get('admission', {}).get('podSetAssignments') or []
+  )
+  tpu_vms_running_ran = (
+      sum(_safe_int(psa.get('count')) for psa in pod_set_assignments)
+      if pod_set_assignments
+      else None
+  )
+
+  reclaimable_pods = item.get('status', {}).get('reclaimablePods') or []
+  tpu_vms_done = (
+      sum(_safe_int(rp.get('count')) for rp in reclaimable_pods)
+      if reclaimable_pods
+      else None
+  )
+
+  conditions = item.get('status', {}).get('conditions') or [{}]
+  status_str = conditions[-1].get('type', '')
+  status = _parse_workload_status(status_str)
+
+  status_message = conditions[-1].get('message', '') or None
+  status_time = conditions[-1].get('lastTransitionTime', '') or None
+
+  return _WorkloadListRow(
+      jobset_name=jobset_name,
+      created_time=created_time,
+      priority=priority,
+      tpu_vms_needed=tpu_vms_needed,
+      tpu_vms_running_ran=tpu_vms_running_ran,
+      tpu_vms_done=tpu_vms_done,
+      status=status,
+      status_message=status_message,
+      status_time=status_time,
+  )
 
 
 def _fetch_workloads(
     filter_by_status: _StatusFilter,
     filter_by_job: Optional[str] = None,
-) -> tuple[int, list[dict[_WorkloadListColumnType, str]]]:
+) -> tuple[int, list[_WorkloadListRow]]:
   """Fetches and parses the raw workload list from the cluster."""
-  row_path = _WORKLOAD_LIST_COLUMN_DELIMITER.join([
-      f'{col.name}={_WORKLOAD_LIST_COLUMN_MAP[col].jsonpath}'
-      for col in _WORKLOAD_LIST_DISPLAY_ORDER
-  ])
-  jsonpath_str = (
-      '{range'
-      f' .items[*]}}{row_path}{{"{_WORKLOAD_LIST_ROW_DELIMITER}"}}{{end}}'
-  )
-
-  command = (
-      f"kubectl get workloads --ignore-not-found -o=jsonpath='{jsonpath_str}'"
-  )
+  command = 'kubectl get workloads --ignore-not-found -o=json'
 
   task = f'List Jobs with filter-by-status={filter_by_status.value}'
   if filter_by_job:
@@ -152,43 +164,24 @@ def _fetch_workloads(
   if return_code != 0:
     return return_code, []
 
+  if not data:
+    return 0, []
+
+  try:
+    parsed_data = json.loads(data)
+  except json.JSONDecodeError:
+    xpk_print('Error: Failed to parse JSON output from kubectl.')
+    return 1, []
+
   data_rows = []
-  if data:
-    for line in data.split(_WORKLOAD_LIST_ROW_DELIMITER):
-      if not line:
-        continue
-      row_dict = {}
-      for kv in line.split(_WORKLOAD_LIST_COLUMN_DELIMITER):
-        if '=' in kv:
-          key_str, val = kv.split('=', 1)
-          val = val.replace('\n', ' ')
-          try:
-            col_enum = _WorkloadListColumnType[key_str]
-            row_dict[col_enum] = val
-          except KeyError:
-            xpk_print(f'Warning: Unrecognized column key: {key_str}')
-      if row_dict:
-        data_rows.append(row_dict)
+  for item in parsed_data.get('items', []):
+    data_rows.append(_parse_workload_item(item))
 
   return 0, data_rows
 
 
-def _format_columns(
-    rows: list[dict[_WorkloadListColumnType, str]],
-) -> list[dict[_WorkloadListColumnType, str]]:
-  """Applies formatters to all columns in the raw rows."""
-  formatted_rows = []
-  for row_dict in rows:
-    row_data = {}
-    for col_enum in _WORKLOAD_LIST_DISPLAY_ORDER:
-      col_metadata = _WORKLOAD_LIST_COLUMN_MAP[col_enum]
-      row_data[col_enum] = col_metadata.formatter(row_dict.get(col_enum, ''))
-    formatted_rows.append(row_data)
-  return formatted_rows
-
-
 def _filter_workload(
-    row_data: dict[_WorkloadListColumnType, str],
+    row_data: _WorkloadListRow,
     filter_by_status: _StatusFilter,
     filter_by_job: Optional[str],
 ) -> bool:
@@ -202,56 +195,48 @@ def _filter_workload(
   Returns:
     True if the workload should be included, False otherwise.
   """
-  if (
-      filter_by_job
-      and filter_by_job not in row_data[_WorkloadListColumnType.JOBSET_NAME]
-  ):
+  if filter_by_job and filter_by_job not in (row_data.jobset_name or ''):
     return False
 
-  status = row_data[_WorkloadListColumnType.STATUS]
-  message = row_data[_WorkloadListColumnType.STATUS_MESSAGE]
-  running_str = row_data[_WorkloadListColumnType.TPU_VMS_RUNNING_RAN]
+  status = row_data.status
+  message = row_data.status_message or ''
+  running_count = row_data.tpu_vms_running_ran or 0
 
   match filter_by_status:
     case _StatusFilter.EVERYTHING:
       return True
     case _StatusFilter.RUNNING:
       return (
-          status
-          in [_WorkloadStatus.ADMITTED.value, _WorkloadStatus.EVICTED.value]
-          and _safe_int(running_str) > 0
+          status in [_WorkloadStatus.ADMITTED, _WorkloadStatus.EVICTED]
+          and running_count > 0
       )
     case _StatusFilter.QUEUED:
       return (
           status
           in [
-              _WorkloadStatus.ADMITTED.value,
-              _WorkloadStatus.EVICTED.value,
-              _WorkloadStatus.QUOTA_RESERVED.value,
+              _WorkloadStatus.ADMITTED,
+              _WorkloadStatus.EVICTED,
+              _WorkloadStatus.QUOTA_RESERVED,
           ]
-          and _safe_int(running_str) == 0
+          and running_count == 0
       )
     case _StatusFilter.FINISHED:
-      return status == _WorkloadStatus.FINISHED.value
+      return status == _WorkloadStatus.FINISHED
     case _StatusFilter.FAILED:
-      return (
-          status == _WorkloadStatus.FINISHED.value
-          and 'failed' in message.lower()
-      )
+      return status == _WorkloadStatus.FINISHED and 'failed' in message.lower()
     case _StatusFilter.SUCCESSFUL:
       return (
-          status == _WorkloadStatus.FINISHED.value
-          and 'finished' in message.lower()
+          status == _WorkloadStatus.FINISHED and 'finished' in message.lower()
       )
     case _:
       raise RuntimeError(f'Can not find filter type: {filter_by_status}')
 
 
 def _filter_workloads(
-    rows: list[dict[_WorkloadListColumnType, str]],
+    rows: list[_WorkloadListRow],
     filter_by_status: _StatusFilter,
     filter_by_job: Optional[str],
-) -> list[dict[_WorkloadListColumnType, str]]:
+) -> list[_WorkloadListRow]:
   """Filters rows based on status and job filters."""
   return [
       row
@@ -261,26 +246,47 @@ def _filter_workloads(
 
 
 def _render_workloads(
-    rows: list[dict[_WorkloadListColumnType, str]],
+    rows: list[_WorkloadListRow],
 ) -> str:
   """Formats the filtered rows into a string table."""
+  headers = [col.header for col in _WORKLOAD_COLUMNS]
+
+  def format_val(val) -> str:
+    if val is None:
+      return '<none>'
+    if isinstance(val, Enum):
+      return str(val.value)
+    return str(val)
+
   filtered_rows = []
   for row_data in rows:
-    row_list = [row_data[col_enum] for col_enum in _WORKLOAD_LIST_DISPLAY_ORDER]
-    filtered_rows.append(row_list)
+    filtered_rows.append(
+        [format_val(col.getter(row_data)) for col in _WORKLOAD_COLUMNS]
+    )
 
-  col_widths = [len(h) for h in _HEADERS]
+  col_widths = [len(h) for h in headers]
   for row in filtered_rows:
     for i, val in enumerate(row):
       col_widths[i] = max(col_widths[i], len(val))
 
   fmt = '   '.join(f'{{:<{w}}}' for w in col_widths)
 
-  output = [fmt.format(*_HEADERS)]
+  output = [fmt.format(*headers)]
   for row in filtered_rows:
     output.append(fmt.format(*row))
 
   return '\n'.join(output)
+
+
+def _get_status_filter(filter_by_status: str) -> _StatusFilter:
+  try:
+    return _StatusFilter(filter_by_status.upper())
+  except ValueError:
+    xpk_print(
+        f'Warning: Unrecognized status filter {filter_by_status},'
+        ' defaulting to EVERYTHING.'
+    )
+    return _StatusFilter.EVERYTHING
 
 
 def get_workload_list(args) -> tuple[int, str]:
@@ -294,24 +300,13 @@ def get_workload_list(args) -> tuple[int, str]:
     return_value: workloads in the cluster matching the criteria.
   """
   filter_by_job = getattr(args, 'filter_by_job', None)
-  try:
-    filter_by_status = _StatusFilter(args.filter_by_status.upper())
-  except ValueError:
-    filter_by_status = _StatusFilter.EVERYTHING
-    xpk_print(
-        f'Warning: Unrecognized status filter {args.filter_by_status},'
-        ' defaulting to EVERYTHING.'
-    )
+  filter_by_status = _get_status_filter(args.filter_by_status)
 
   return_code, raw_rows = _fetch_workloads(filter_by_status, filter_by_job)
   if return_code != 0:
     return return_code, ''
 
-  formatted_rows = _format_columns(raw_rows)
-
-  filtered_rows = _filter_workloads(
-      formatted_rows, filter_by_status, filter_by_job
-  )
+  filtered_rows = _filter_workloads(raw_rows, filter_by_status, filter_by_job)
 
   formatted_output = _render_workloads(filtered_rows)
 

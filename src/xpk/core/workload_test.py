@@ -17,9 +17,13 @@ limitations under the License.
 from unittest.mock import MagicMock
 import pytest
 import re
+import json
 from pytest_mock import MockerFixture
 from xpk.core.testing.commands_tester import CommandsTester
-from xpk.core.workload import _WORKLOAD_LIST_ROW_DELIMITER, get_jobsets_list_gcp_link, get_workload_list
+from xpk.core.workload import get_jobsets_list_gcp_link, get_workload_list
+
+
+from dataclasses import dataclass
 
 
 def _parse_workload_table(table_str: str) -> list[dict[str, str]]:
@@ -35,6 +39,41 @@ def _parse_workload_table(table_str: str) -> list[dict[str, str]]:
     row_dict = dict(zip(headers, row_values))
     result.append(row_dict)
   return result
+
+
+@dataclass
+class _MockWorkloadData:
+  jobset_name: str
+  created_time: str
+  priority: str
+  needed: int | str
+  running: int | str
+  done: int | str
+  status: str
+  message: str
+  status_time: str
+
+
+def _create_mock_workload_json(data: _MockWorkloadData):
+  return {
+      'metadata': {
+          'creationTimestamp': data.created_time,
+          'ownerReferences': [{'name': data.jobset_name}],
+      },
+      'spec': {
+          'priorityClassName': data.priority,
+          'podSets': [{'count': data.needed}],
+      },
+      'status': {
+          'admission': {'podSetAssignments': [{'count': data.running}]},
+          'reclaimablePods': [{'count': data.done}],
+          'conditions': [{
+              'type': data.status,
+              'message': data.message,
+              'lastTransitionTime': data.status_time,
+          }],
+      },
+  }
 
 
 @pytest.fixture(autouse=True)
@@ -54,12 +93,23 @@ def test_get_jobsets_list_gcp_link():
 
 
 def test_get_workload_list(commands_tester: CommandsTester):
-  mock_output = _WORKLOAD_LIST_ROW_DELIMITER.join([
-      (
-          'JOBSET_NAME=job-test\x1fCREATED_TIME=2024-01-01T00:00:00Z\x1fPRIORITY=high\x1fTPU_VMS_NEEDED=32\x1fTPU_VMS_RUNNING_RAN=32\x1fTPU_VMS_DONE=0\x1fSTATUS=Running\x1fSTATUS_MESSAGE=All'
-          ' good\x1fSTATUS_TIME=2024-01-01T00:01:00Z'
-      ),
-  ])
+  mock_output = json.dumps({
+      'items': [
+          _create_mock_workload_json(
+              _MockWorkloadData(
+                  jobset_name='job-test',
+                  created_time='2024-01-01T00:00:00Z',
+                  priority='high',
+                  needed=32,
+                  running=32,
+                  done=0,
+                  status='Running',
+                  message='All good',
+                  status_time='2024-01-01T00:01:00Z',
+              )
+          )
+      ]
+  })
   commands_tester.set_result_for_command(
       (0, mock_output), 'kubectl', 'get', 'workloads'
   )
@@ -73,7 +123,7 @@ def test_get_workload_list(commands_tester: CommandsTester):
   parsed_table = _parse_workload_table(return_value)
   assert len(parsed_table) == 1
   assert parsed_table[0]['Jobset Name'] == 'job-test'
-  assert parsed_table[0]['Status'] == 'Running'
+  assert parsed_table[0]['Status'] == 'Unknown'
   assert parsed_table[0]['TPU VMs Needed'] == '32'
   assert parsed_table[0]['TPU VMs Running/Ran'] == '32'
   assert parsed_table[0]['TPU VMs Done'] == '0'
@@ -84,17 +134,49 @@ def test_get_workload_list(commands_tester: CommandsTester):
 
 
 def test_get_workload_list_filter_by_job(commands_tester: CommandsTester):
-  mock_output = _WORKLOAD_LIST_ROW_DELIMITER.join([
-      (
-          'JOBSET_NAME=job-test-1\x1fCREATED_TIME=2024-01-01T00:00:00Z\x1fPRIORITY=high\x1fTPU_VMS_NEEDED=32\x1fTPU_VMS_RUNNING_RAN=32\x1fTPU_VMS_DONE=0\x1fSTATUS=Running\x1fSTATUS_MESSAGE=All'
-          ' good\x1fSTATUS_TIME=2024-01-01T00:01:00Z'
-      ),
-      (
-          'JOBSET_NAME=job-test-2\x1fCREATED_TIME=2024-01-02T00:00:00Z\x1fPRIORITY=low\x1fTPU_VMS_NEEDED=4\x1fTPU_VMS_RUNNING_RAN=4\x1fTPU_VMS_DONE=0\x1fSTATUS=Running\x1fSTATUS_MESSAGE=All'
-          ' good\x1fSTATUS_TIME=2024-01-02T00:01:00Z'
-      ),
-      'JOBSET_NAME=other-job\x1fCREATED_TIME=2024-01-03T00:00:00Z\x1fPRIORITY=high\x1fTPU_VMS_NEEDED=16\x1fTPU_VMS_RUNNING_RAN=\x1fTPU_VMS_DONE=0\x1fSTATUS=Admitted\x1fSTATUS_MESSAGE=Waiting\x1fSTATUS_TIME=2024-01-03T00:01:00Z',
-  ])
+  mock_output = json.dumps({
+      'items': [
+          _create_mock_workload_json(
+              _MockWorkloadData(
+                  jobset_name='job-test-1',
+                  created_time='2024-01-01T00:00:00Z',
+                  priority='high',
+                  needed=32,
+                  running=32,
+                  done=0,
+                  status='Running',
+                  message='All good',
+                  status_time='2024-01-01T00:01:00Z',
+              )
+          ),
+          _create_mock_workload_json(
+              _MockWorkloadData(
+                  jobset_name='job-test-2',
+                  created_time='2024-01-02T00:00:00Z',
+                  priority='low',
+                  needed=4,
+                  running=4,
+                  done=0,
+                  status='Running',
+                  message='All good',
+                  status_time='2024-01-02T00:01:00Z',
+              )
+          ),
+          _create_mock_workload_json(
+              _MockWorkloadData(
+                  jobset_name='other-job',
+                  created_time='2024-01-03T00:00:00Z',
+                  priority='high',
+                  needed=16,
+                  running='',
+                  done=0,
+                  status='Admitted',
+                  message='Waiting',
+                  status_time='2024-01-03T00:01:00Z',
+              )
+          ),
+      ]
+  })
   commands_tester.set_result_for_command(
       (0, mock_output), 'kubectl', 'get', 'workloads'
   )
@@ -135,18 +217,62 @@ def test_get_workload_list_filters(
     filter_by_status: str,
     expected_job_names: list[str],
 ):
-  mock_output = _WORKLOAD_LIST_ROW_DELIMITER.join([
-      'JOBSET_NAME=queued-job\x1fCREATED_TIME=2024-01-01T00:00:00Z\x1fPRIORITY=high\x1fTPU_VMS_NEEDED=4\x1fTPU_VMS_RUNNING_RAN=<none>\x1fTPU_VMS_DONE=0\x1fSTATUS=Admitted\x1fSTATUS_MESSAGE=Waiting\x1fSTATUS_TIME=2024-01-01T00:01:00Z',
-      'JOBSET_NAME=running-job\x1fCREATED_TIME=2024-01-01T00:00:00Z\x1fPRIORITY=high\x1fTPU_VMS_NEEDED=4\x1fTPU_VMS_RUNNING_RAN=4\x1fTPU_VMS_DONE=0\x1fSTATUS=Admitted\x1fSTATUS_MESSAGE=Running\x1fSTATUS_TIME=2024-01-01T00:01:00Z',
-      (
-          'JOBSET_NAME=success-job\x1fCREATED_TIME=2024-01-01T00:00:00Z\x1fPRIORITY=high\x1fTPU_VMS_NEEDED=4\x1fTPU_VMS_RUNNING_RAN=4\x1fTPU_VMS_DONE=4\x1fSTATUS=Finished\x1fSTATUS_MESSAGE=Job'
-          ' finishedsuccessfully\x1fSTATUS_TIME=2024-01-01T00:01:00Z'
-      ),
-      (
-          'JOBSET_NAME=failed-job\x1fCREATED_TIME=2024-01-01T00:00:00Z\x1fPRIORITY=high\x1fTPU_VMS_NEEDED=4\x1fTPU_VMS_RUNNING_RAN=4\x1fTPU_VMS_DONE=0\x1fSTATUS=Finished\x1fSTATUS_MESSAGE=Job'
-          ' failed witherror\x1fSTATUS_TIME=2024-01-01T00:01:00Z'
-      ),
-  ])
+  mock_output = json.dumps({
+      'items': [
+          _create_mock_workload_json(
+              _MockWorkloadData(
+                  jobset_name='queued-job',
+                  created_time='2024-01-01T00:00:00Z',
+                  priority='high',
+                  needed=4,
+                  running='',
+                  done=0,
+                  status='Admitted',
+                  message='Waiting',
+                  status_time='2024-01-01T00:01:00Z',
+              )
+          ),
+          _create_mock_workload_json(
+              _MockWorkloadData(
+                  jobset_name='running-job',
+                  created_time='2024-01-01T00:00:00Z',
+                  priority='high',
+                  needed=4,
+                  running=4,
+                  done=0,
+                  status='Admitted',
+                  message='Running',
+                  status_time='2024-01-01T00:01:00Z',
+              )
+          ),
+          _create_mock_workload_json(
+              _MockWorkloadData(
+                  jobset_name='success-job',
+                  created_time='2024-01-01T00:00:00Z',
+                  priority='high',
+                  needed=4,
+                  running=4,
+                  done=4,
+                  status='Finished',
+                  message='Job finishedsuccessfully',
+                  status_time='2024-01-01T00:01:00Z',
+              )
+          ),
+          _create_mock_workload_json(
+              _MockWorkloadData(
+                  jobset_name='failed-job',
+                  created_time='2024-01-01T00:00:00Z',
+                  priority='high',
+                  needed=4,
+                  running=4,
+                  done=0,
+                  status='Finished',
+                  message='Job failed witherror',
+                  status_time='2024-01-01T00:01:00Z',
+              )
+          ),
+      ]
+  })
   commands_tester.set_result_for_command(
       (0, mock_output), 'kubectl', 'get', 'workloads'
   )

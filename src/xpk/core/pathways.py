@@ -374,15 +374,13 @@ def get_user_workload_for_pathways(
                   value: GCP
                 - name: JAX_BACKEND_TARGET
                   value: grpc://$(PATHWAYS_HEAD):29000"""
-    
-    # If the user provided env vars, they are formatted with indentation. We append to them.
-    if 'env: \n' in container:
-      container = container.replace('env: \n', env_injection + '\n')
-    elif 'env:\n' in container:
-      container = container.replace('env:\n', env_injection + '\n')
+
+    import re
+    # Inject the Pathways environment variables into the container's env list.
+    # The regex matches 'env:' followed by any optional trailing whitespace, then a newline.
+    if re.search(r'env:[ \t]*\n', container):
+      container = re.sub(r'env:[ \t]*\n', env_injection + '\n', container)
     else:
-      # If there's an existing env array, append to the end of it, or just replace `env:` with the env_injection + the rest.
-      # Because env_injection starts with `env:`, we can replace `env:` with `env_injection` + the rest but we need to remove `env:` from injection.
       env_injection_no_header = env_injection.replace('env:\n', '\n')
       container = container.replace('env:', 'env:' + env_injection_no_header)
       

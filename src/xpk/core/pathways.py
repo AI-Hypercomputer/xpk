@@ -266,7 +266,7 @@ def append_custom_pathways_server(args, system: SystemCharacteristics) -> str:
   return yaml
 
 
-def append_custom_pathways_worker(args) -> str:
+def append_custom_pathways_worker(args, system: SystemCharacteristics) -> str:
   """Append custom Pathways worker component using a YAML with proper indentation.
 
   Returns:
@@ -289,7 +289,7 @@ def append_custom_pathways_worker(args) -> str:
     yaml += append_custom_pathways_flags(
         args.custom_pathways_worker_args, base_indentation=16
     )
-  yaml += """
+  yaml += f"""
                 env:
                 - name: TPU_MIN_LOG_LEVEL
                   value: "0"
@@ -334,7 +334,7 @@ def append_custom_pathways_worker(args) -> str:
                   protocol: TCP
                 resources:
                   limits:
-                    google.com/tpu: "0"
+                    google.com/tpu: "{int(system.chips_per_vm)}"
                 volumeMounts:
                 - mountPath: /tmp
                   name: shared-tmp"""

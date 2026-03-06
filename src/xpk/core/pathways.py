@@ -364,7 +364,7 @@ def get_user_workload_for_pathways(
         args, system, parallel_containers
     )
     
-    env_injection = """env:
+    env_injection = """
                 - name: PATHWAYS_HEAD
                   valueFrom:
                     fieldRef:
@@ -378,10 +378,9 @@ def get_user_workload_for_pathways(
 
     # Inject the Pathways environment variables into the container's env list.
     # The `get_main_container` template hardcodes `env: {env}` on a single line.
-    # We replace `env:` with our injected block, and if `{env}` originally contained
-    # user variables, they simply append sequentially after our injected block.
-    env_injection_no_header = env_injection.replace('env:\n', '\n')
-    container = container.replace('env:', 'env:' + env_injection_no_header)
+    # We replace `env:` with `env:` + our injected block, and if `{env}` originally
+    # contained user variables, they simply append sequentially after our injected block.
+    container = container.replace('env:', 'env:' + env_injection)
       
     # The container yaml snippet is already properly indented as `- name: ...`.
     # It returns a string starting with "              - name:".

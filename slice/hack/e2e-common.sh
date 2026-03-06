@@ -108,6 +108,9 @@ function cluster_slice_deploy {
     initial_image=$($YQ '.images[] | select(.name == "controller") | [.newName, .newTag] | join(":")' config/manager/kustomization.yaml)
     (cd config/manager && $KUSTOMIZE edit set image controller="$IMAGE_TAG")
 
+    # Install Slice CRDs explicitly
+    $KUSTOMIZE build "${ROOT_DIR}/config/crd" | kubectl apply --kubeconfig="$1" --server-side -f -
+
     local build_output
     build_output=$($KUSTOMIZE build "${ROOT_DIR}/config/dev")
     build_output="${build_output//$DEFAULT_SLICE_NAMESPACE/$SLICE_NAMESPACE}"

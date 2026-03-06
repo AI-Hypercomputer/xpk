@@ -15,6 +15,7 @@ limitations under the License.
 """
 
 import pytest
+from xpk.core.reservation import get_reservations_list
 from xpk.core.nodepool import (
     display_nodepool_creation_error,
     ensure_resource_policy_exists,
@@ -23,6 +24,7 @@ from xpk.core.nodepool import (
     recreate_nodes_in_existing_node_pools,
 )
 from xpk.core.system_characteristics import AcceleratorType, SystemCharacteristics, DockerPlatform, GpuConfig
+from xpk.core.capacity import assess_available_slices
 from xpk.core.commands import FailedCommand
 from xpk.core.testing.commands_tester import CommandsTester
 from xpk.core.testing.mock_reservation import (
@@ -488,7 +490,15 @@ def test_run_gke_node_pool_create_command_multiple_reservations(
           count=2, in_use_count=0, machine_type="ct4p-hightpu-4t"
       ),
   )
-  result = run_gke_node_pool_create_command(args, system, "1.2.3")
+  available_capacity, _ = assess_available_slices(
+      get_reservations_list(args),
+      args.super_slicing,
+      system,
+      system.vms_per_slice,
+  )
+  result = run_gke_node_pool_create_command(
+      args, system, "1.2.3", available_capacity=available_capacity
+  )
 
   assert result == 0
   commands_tester.assert_command_run(
@@ -563,7 +573,15 @@ def test_run_gke_node_pool_create_command_partial_reservations(
           count=2, in_use_count=0, machine_type="ct4p-hightpu-4t"
       ),
   )
-  result = run_gke_node_pool_create_command(args, system, "1.2.3")
+  available_capacity, _ = assess_available_slices(
+      get_reservations_list(args),
+      args.super_slicing,
+      system,
+      system.vms_per_slice,
+  )
+  result = run_gke_node_pool_create_command(
+      args, system, "1.2.3", available_capacity=available_capacity
+  )
 
   assert result == 0
   commands_tester.assert_command_run(
@@ -741,7 +759,15 @@ def test_run_gke_node_pool_create_command_super_slicing_exhaustion(
           )
       ],
   )
-  result = run_gke_node_pool_create_command(args, system, "1.2.3")
+  available_capacity, _ = assess_available_slices(
+      get_reservations_list(args),
+      args.super_slicing,
+      system,
+      system.vms_per_slice,
+  )
+  result = run_gke_node_pool_create_command(
+      args, system, "1.2.3", available_capacity=available_capacity
+  )
 
   assert result == 0
   commands_tester.assert_command_run(
@@ -814,7 +840,15 @@ def test_run_gke_node_pool_create_command_super_slicing_insufficient_capacity(
           )
       ],
   )
-  result = run_gke_node_pool_create_command(args, system, "1.2.3")
+  available_capacity, _ = assess_available_slices(
+      get_reservations_list(args),
+      args.super_slicing,
+      system,
+      system.vms_per_slice,
+  )
+  result = run_gke_node_pool_create_command(
+      args, system, "1.2.3", available_capacity=available_capacity
+  )
 
   assert result == 1
   assert mock_xpk_print.call_count >= 1

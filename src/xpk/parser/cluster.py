@@ -117,7 +117,7 @@ def set_cluster_create_parser(cluster_create_parser: ArgumentParser):
   cluster_create_optional_arguments.add_argument(
       '--num-nodes',
       type=int,
-      default=2,
+      default=None,
       help='The number of nodes for a cluster, defaults to 2.',
       required=False,
   )

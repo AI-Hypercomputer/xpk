@@ -599,7 +599,6 @@ def add_shared_workload_create_optional_arguments(args_parsers):
         default=1,
         help='The number of slices to use, default=1.',
     )
-
     custom_parser.add_argument(
         '--priority',
         type=str,

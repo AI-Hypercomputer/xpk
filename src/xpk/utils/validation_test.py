@@ -56,7 +56,7 @@ def test_validate_dependencies_list_returns_nothing_for_successful_validation(
   mocker.patch(
       'xpk.utils.validation.run_command_for_value', return_value=(0, '')
   )
-  validate_dependencies_list([SystemDependency.DOCKER])
+  validate_dependencies_list(Args(), [SystemDependency.DOCKER])
 
 
 def test_validate_dependencies_list_exits_with_error_for_failed_validation(
@@ -66,7 +66,7 @@ def test_validate_dependencies_list_exits_with_error_for_failed_validation(
       'xpk.utils.validation.run_command_for_value', return_value=(1, '')
   )
   with pytest.raises(SystemExit):
-    validate_dependencies_list([SystemDependency.DOCKER])
+    validate_dependencies_list(Args(), [SystemDependency.DOCKER])
 
 
 def test_validate_dependencies_list_downloads_dependency_if_feature_flag_enabled(
@@ -78,7 +78,7 @@ def test_validate_dependencies_list_downloads_dependency_if_feature_flag_enabled
   mock_ensure = mocker.patch('xpk.utils.validation.ensure_dependency')
   FeatureFlags.DEPENDENCY_AUTO_DOWNLOAD = True
 
-  validate_dependencies_list([SystemDependency.KUBECTL])
+  validate_dependencies_list(Args(), [SystemDependency.KUBECTL])
 
   mock_ensure.assert_called_once_with(
       SystemDependency.KUBECTL.value.binary_dependency.value
@@ -94,7 +94,7 @@ def test_validate_dependencies_list_skips_download_if_feature_flag_disabled(
   mock_ensure = mocker.patch('xpk.utils.validation.ensure_dependency')
   FeatureFlags.DEPENDENCY_AUTO_DOWNLOAD = False
 
-  validate_dependencies_list([SystemDependency.KUBECTL])
+  validate_dependencies_list(Args(), [SystemDependency.KUBECTL])
 
   mock_ensure.assert_not_called()
 
@@ -108,6 +108,40 @@ def test_validate_dependencies_list_skips_download_if_no_binary_dependency(
   mock_ensure = mocker.patch('xpk.utils.validation.ensure_dependency')
   FeatureFlags.DEPENDENCY_AUTO_DOWNLOAD = True
 
-  validate_dependencies_list([SystemDependency.DOCKER])
+  validate_dependencies_list(Args(), [SystemDependency.DOCKER])
 
   mock_ensure.assert_not_called()
+
+
+def test_validate_dependencies_list_skips_download_if_args_flag_disabled(
+    mocker,
+):
+  mocker.patch(
+      'xpk.utils.validation.run_command_for_value', return_value=(0, '')
+  )
+  mock_ensure = mocker.patch('xpk.utils.validation.ensure_dependency')
+  FeatureFlags.DEPENDENCY_AUTO_DOWNLOAD = True
+  args = Args()
+  args.dependency_auto_download = False
+
+  validate_dependencies_list(args, [SystemDependency.KUBECTL])
+
+  mock_ensure.assert_not_called()
+
+
+def test_validate_dependencies_list_downloads_dependency_if_args_flag_enabled(
+    mocker,
+):
+  mocker.patch(
+      'xpk.utils.validation.run_command_for_value', return_value=(0, '')
+  )
+  mock_ensure = mocker.patch('xpk.utils.validation.ensure_dependency')
+  FeatureFlags.DEPENDENCY_AUTO_DOWNLOAD = True
+  args = Args()
+  args.dependency_auto_download = True
+
+  validate_dependencies_list(args, [SystemDependency.KUBECTL])
+
+  mock_ensure.assert_called_once_with(
+      SystemDependency.KUBECTL.value.binary_dependency.value
+  )

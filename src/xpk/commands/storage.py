@@ -58,7 +58,7 @@ from ..utils.validation import validate_dependencies_list, SystemDependency, sho
 def storage_create(args: Namespace) -> None:
   if should_validate_dependencies(args):
     validate_dependencies_list(
-        [SystemDependency.KUBECTL, SystemDependency.GCLOUD]
+        args, [SystemDependency.KUBECTL, SystemDependency.GCLOUD]
     )
   add_zone_and_project(args)
   if args.type == GCP_FILESTORE_TYPE:
@@ -104,7 +104,7 @@ def storage_create(args: Namespace) -> None:
 def storage_delete(args: Namespace) -> None:
   if should_validate_dependencies(args):
     validate_dependencies_list(
-        [SystemDependency.KUBECTL, SystemDependency.GCLOUD]
+        args, [SystemDependency.KUBECTL, SystemDependency.GCLOUD]
     )
   add_zone_and_project(args)
   k8s_api_client = setup_k8s_env(args)
@@ -140,7 +140,7 @@ def storage_delete(args: Namespace) -> None:
 def storage_attach(args: Namespace) -> None:
   if should_validate_dependencies(args):
     validate_dependencies_list(
-        [SystemDependency.KUBECTL, SystemDependency.GCLOUD]
+        args, [SystemDependency.KUBECTL, SystemDependency.GCLOUD]
     )
   add_zone_and_project(args)
   manifest: list[dict] = [{}]
@@ -244,7 +244,7 @@ def enable_csi_drivers_if_necessary(args: Namespace) -> None:
 def storage_list(args: Namespace) -> None:
   if should_validate_dependencies(args):
     validate_dependencies_list(
-        [SystemDependency.KUBECTL, SystemDependency.GCLOUD]
+        args, [SystemDependency.KUBECTL, SystemDependency.GCLOUD]
     )
   storages = []
   if not is_dry_run():
@@ -256,7 +256,7 @@ def storage_list(args: Namespace) -> None:
 def storage_detach(args: Namespace) -> None:
   if should_validate_dependencies(args):
     validate_dependencies_list(
-        [SystemDependency.KUBECTL, SystemDependency.GCLOUD]
+        args, [SystemDependency.KUBECTL, SystemDependency.GCLOUD]
     )
   k8s_api_client = setup_k8s_env(args)
   storage = get_storage(k8s_api_client, args.name)

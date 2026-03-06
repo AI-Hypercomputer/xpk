@@ -332,13 +332,16 @@ def workload_create(args) -> None:
     0 if successful and 1 otherwise.
   """
   if should_validate_dependencies(args):
-    validate_dependencies_list([
-        SystemDependency.KUBECTL,
-        SystemDependency.GCLOUD,
-        SystemDependency.DOCKER
-        if not FeatureFlags.CRANE_WORKLOADS_ENABLED
-        else SystemDependency.CRANE,
-    ])
+    validate_dependencies_list(
+        args,
+        [
+            SystemDependency.KUBECTL,
+            SystemDependency.GCLOUD,
+            SystemDependency.DOCKER
+            if not FeatureFlags.CRANE_WORKLOADS_ENABLED
+            else SystemDependency.CRANE,
+        ],
+    )
   k8s_api_client = None
   if not is_dry_run():
     k8s_api_client = setup_k8s_env(args)
@@ -851,7 +854,7 @@ def workload_delete(args) -> None:
   """
   if should_validate_dependencies(args):
     validate_dependencies_list(
-        [SystemDependency.KUBECTL, SystemDependency.GCLOUD]
+        args, [SystemDependency.KUBECTL, SystemDependency.GCLOUD]
     )
   xpk_print('Starting Workload delete', flush=True)
   add_zone_and_project(args)
@@ -928,7 +931,7 @@ def workload_list(args) -> None:
   """
   if should_validate_dependencies(args):
     validate_dependencies_list(
-        [SystemDependency.KUBECTL, SystemDependency.GCLOUD]
+        args, [SystemDependency.KUBECTL, SystemDependency.GCLOUD]
     )
   xpk_print('Starting workload list', flush=True)
   add_zone_and_project(args)

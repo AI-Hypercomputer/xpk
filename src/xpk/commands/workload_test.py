@@ -394,3 +394,15 @@ def test_workload_create_pathways_jobset_yaml(mocker):
     assert 'name: worker' in written_content
     assert '- name: pathways-worker' in written_content
     assert f'replicas: {args.num_slices}' in written_content  # worker replicas
+    
+    # Assert newly migrated JobSet specifics
+    assert 'coordinator:' in written_content
+    assert 'replicatedJob: pathways-head' in written_content
+    assert 'network:' in written_content
+    assert 'enableDNSHostnames: true' in written_content
+    assert 'restartStrategy: Recreate' in written_content
+    assert 'completionMode: Indexed' in written_content
+    assert 'startupPolicyOrder: InOrder' in written_content
+    assert 'operator: All' in written_content
+    assert f'backoffLimit: {args.max_slice_restarts * 4}' in written_content
+

@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import re
 import urllib
 from ..core.commands import run_command_for_value, run_command_with_updates, run_commands
 from ..core.docker_container import get_user_workload_container
@@ -375,7 +376,6 @@ def get_user_workload_for_pathways(
                 - name: JAX_BACKEND_TARGET
                   value: grpc://$(PATHWAYS_HEAD):29000"""
 
-    import re
     # Inject the Pathways environment variables into the container's env list.
     # The regex matches 'env:' followed by any optional trailing whitespace, then a newline.
     if re.search(r'env:[ \t]*\n', container):

@@ -314,7 +314,7 @@ spec:
     replicas: {args.num_slices}
     template:
       spec:
-        backoffLimit: {args.max_slice_restarts * 4}
+        backoffLimit: {worker_backoff_limit}
         completionMode: Indexed
         completions: {vms_per_slice}
         parallelism: {vms_per_slice}
@@ -716,6 +716,7 @@ def workload_create(args) -> None:
         user_workload=get_user_workload_for_pathways(
             args, workload_system, parallel_containers
         ),
+        worker_backoff_limit=args.max_slice_restarts * 4,
         local_queue_name=LOCAL_QUEUE_NAME,
         autoprovisioning_args=autoprovisioning_args,
         placement_policy_label=placement_policy_label,

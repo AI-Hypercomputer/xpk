@@ -15,7 +15,8 @@ limitations under the License.
 """
 
 import argparse
-from .common import extract_command_path, enable_flags_usage_tracking, retrieve_flags
+from unittest.mock import patch
+from .common import extract_command_path, enable_flags_usage_tracking, retrieve_flags, add_shared_arguments, FeatureFlags
 from .core import set_parser
 
 
@@ -62,3 +63,19 @@ def test_extract_two_level_nested_command_with_flags():
       ['cluster', 'list', '--project=abc', '--zone=us-central1-a']
   )
   assert extract_command_path(parser, args) == 'cluster list'
+
+
+def test_add_shared_arguments_dependency_auto_download_enabled():
+  parser = argparse.ArgumentParser()
+  FeatureFlags.DEPENDENCY_AUTO_DOWNLOAD = True
+  add_shared_arguments(parser)
+
+  assert '--dependency-auto-download' in parser.format_help()
+
+
+def test_add_shared_arguments_dependency_auto_download_disabled():
+  parser = argparse.ArgumentParser()
+  FeatureFlags.DEPENDENCY_AUTO_DOWNLOAD = False
+  add_shared_arguments(parser)
+
+  assert '--dependency-auto-download' not in parser.format_help()

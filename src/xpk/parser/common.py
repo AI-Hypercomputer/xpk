@@ -17,6 +17,7 @@ limitations under the License.
 import argparse
 from typing import Protocol, Any
 from ..core.system_characteristics import get_system_characteristics_keys_by_accelerator_type, AcceleratorType
+from ..utils.feature_flags import FeatureFlags
 import difflib
 from argcomplete import ChoicesCompleter
 from argparse import Action, ArgumentError
@@ -145,13 +146,14 @@ def add_shared_arguments(
       help='Whether to sandbox k8s config. (Experimental)',
       required=required,
   )
-  custom_parser_or_group.add_argument(
-      '--dependency-auto-download',
-      action=argparse.BooleanOptionalAction,
-      default=True,
-      help='Whether to auto download missing dependencies.',
-      required=required,
-  )
+  if FeatureFlags.DEPENDENCY_AUTO_DOWNLOAD:
+    custom_parser_or_group.add_argument(
+        '--dependency-auto-download',
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help='Whether to auto download missing dependencies.',
+        required=required,
+    )
 
 
 def add_cluster_arguments(

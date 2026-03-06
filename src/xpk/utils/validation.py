@@ -55,10 +55,7 @@ def should_validate_dependencies(args):
 def validate_dependencies_list(args, dependencies: list[SystemDependency]):
   """Validates a list of system dependencies and returns none or exits with error."""
   for dependency in dependencies:
-    auto_download = (
-        not hasattr(args, 'dependency_auto_download')
-        or args.dependency_auto_download
-    )
+    auto_download = getattr(args, 'dependency_auto_download', True)
     if (
         FeatureFlags.DEPENDENCY_AUTO_DOWNLOAD
         and auto_download

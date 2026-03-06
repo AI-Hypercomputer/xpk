@@ -380,9 +380,6 @@ def get_user_workload_for_pathways(
     # The regex matches 'env:' followed by any optional trailing whitespace, then a newline.
     if re.search(r'env:[ \t]*\n', container):
       container = re.sub(r'env:[ \t]*\n', env_injection + '\n', container)
-    else:
-      env_injection_no_header = env_injection.replace('env:\n', '\n')
-      container = container.replace('env:', 'env:' + env_injection_no_header)
       
     # The container yaml snippet is already properly indented as `- name: ...`.
     # It returns a string starting with "              - name:".

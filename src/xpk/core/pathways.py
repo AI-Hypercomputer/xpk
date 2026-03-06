@@ -65,10 +65,6 @@ def ensure_pathways_workload_prerequisites(args, system) -> bool:
   Returns:
     True once conditions satisfy and variables are set. Exits otherwise.
   """
-  # Ensure that PathwaysJob is installed and available on the cluster.
-  if not check_if_pathways_job_is_installed(args):
-    xpk_exit(1)
-
   # Ensure command is provided if not using Pathways in headless mode
   if args.command is None and not args.headless:
     xpk_print(

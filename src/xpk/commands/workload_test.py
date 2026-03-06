@@ -385,12 +385,12 @@ def test_workload_create_pathways_jobset_yaml(mocker):
     
     assert 'apiVersion: jobset.x-k8s.io/v1alpha2' in written_content
     assert 'kind: JobSet' in written_content
-    assert 'name: test-pw-workload' in written_content
+    assert f'name: {args.workload}' in written_content
     assert 'name: pathways-head' in written_content
     assert '- name: pathways-proxy' in written_content
     assert '- name: pathways-rm' in written_content
     assert '- name: colocated-python-sidecar' in written_content
-    assert '- name: test-docker' in written_content
+    assert f'- name: {args.docker_name}' in written_content
     assert 'name: worker' in written_content
     assert '- name: pathways-worker' in written_content
-    assert 'replicas: 2' in written_content  # worker replicas
+    assert f'replicas: {args.num_slices}' in written_content  # worker replicas

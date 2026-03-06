@@ -708,7 +708,9 @@ def workload_create(args) -> None:
         topology=create_tpu_topology(workload_system),
         machine_type=create_tpu_machine_type(workload_system),
         custom_pathways_proxy_server=append_custom_pathways_proxy_server(args),
-        custom_pathways_server=append_custom_pathways_server(args, workload_system),
+        custom_pathways_server=append_custom_pathways_server(
+            args, workload_system
+        ),
         custom_pathways_worker=append_custom_pathways_worker(args),
         colocated_python_sidecar=append_custom_colocated_python_sidecar(args),
         user_workload=get_user_workload_for_pathways(
@@ -722,7 +724,8 @@ def workload_create(args) -> None:
         node_selector_machine_label=create_machine_label(workload_system),
     )
   else:
-    if use_sub_slicing:      xpk_print('Workload will be scheduled using the Sub-slicing feature.')
+    if use_sub_slicing:
+      xpk_print('Workload will be scheduled using the Sub-slicing feature.')
     if use_super_slicing:
       xpk_print('Workload will be scheduled using the Super-slicing feature.')
 

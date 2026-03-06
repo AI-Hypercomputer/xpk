@@ -15,7 +15,6 @@ limitations under the License.
 """
 
 import argparse
-from unittest.mock import patch
 from .common import extract_command_path, enable_flags_usage_tracking, retrieve_flags, add_shared_arguments, FeatureFlags
 from .core import set_parser
 

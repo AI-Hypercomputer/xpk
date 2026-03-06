@@ -149,14 +149,14 @@ def get_pathways_unified_query_link(args) -> str:
   return f'https://console.cloud.google.com/logs/query;query={encoded_filter}'
 
 
-def append_custom_pathways_flags(custom_args, prev_indentation=8) -> str:
+def append_custom_pathways_flags(custom_args, base_indentation=16) -> str:
   """Append custom Pathways args to Pathways components using a YAML with proper indentation.
 
   Returns:
     yaml (string): yaml with additional args appended.
   """
   yaml = """"""
-  indentation = ' ' * (prev_indentation + 2)
+  indentation = ' ' * base_indentation
   if custom_args:
     custom_args = custom_args.split(' ')
     for arg in custom_args:
@@ -178,10 +178,9 @@ def append_custom_pathways_proxy_server(args) -> str:
                 - --server_port=29000
                 - --resource_manager_address=$(PATHWAYS_HEAD):29001
                 - --gcs_scratch_location={args.pathways_gcs_location}"""
-  indentation = ' ' * 16
   if args.custom_pathways_proxy_server_args:
     yaml += append_custom_pathways_flags(
-        args.custom_pathways_proxy_server_args, len(indentation) - 2
+        args.custom_pathways_proxy_server_args, base_indentation=16
     )
   yaml += """
                 env:
@@ -229,10 +228,9 @@ def append_custom_pathways_server(args, system: SystemCharacteristics) -> str:
                 - --node_type=resource_manager
                 - --instance_count={args.num_slices}
                 - --instance_type={get_pathways_instance_type(system)}"""
-  indentation = ' ' * 16
   if args.custom_pathways_server_args:
     yaml += append_custom_pathways_flags(
-        args.custom_pathways_server_args, len(indentation) - 2
+        args.custom_pathways_server_args, base_indentation=16
     )
   yaml += """
                 env:
@@ -278,10 +276,9 @@ def append_custom_pathways_worker(args) -> str:
                 - --server_port=29005
                 - --resource_manager_address=$(PATHWAYS_HEAD):29001
                 - --gcs_scratch_location={args.pathways_gcs_location}"""
-  indentation = ' ' * 16
   if args.custom_pathways_worker_args:
     yaml += append_custom_pathways_flags(
-        args.custom_pathways_worker_args, len(indentation) - 2
+        args.custom_pathways_worker_args, base_indentation=16
     )
   yaml += """
                 env:

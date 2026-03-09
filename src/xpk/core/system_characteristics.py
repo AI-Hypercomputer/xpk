@@ -244,7 +244,8 @@ def get_tpu_system_characteristics_map(
     sub_slicing_topologies: set[str] | None = None,
     super_slicing_topologies: set[str] | None = None,
     parallel_containers: int = 1,
-    pathways_tpu_version: str | None = None,
+    *,
+    pathways_tpu_version: str,
 ) -> dict[str, SystemCharacteristics]:
   system_characteristics_map = {}
   default_topologies = default_topologies or set()
@@ -591,6 +592,7 @@ UserFacingNameToSystemCharacteristics = {
         parallel_containers=2,
         supported_topologies=generate_tpu_topologies(max_cubes=144),
         super_slicing_topologies=set(['4x4x4']),
+        pathways_tpu_version='tpu7x',
         default_topologies=set([
             '12x12x12',
             '12x12x16',

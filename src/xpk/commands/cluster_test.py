@@ -1,3 +1,5 @@
+import unittest.mock
+import unittest
 """
 Copyright 2025 Google LLC
 
@@ -22,7 +24,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from xpk.core.telemetry import MetricsCollector
-from xpk.commands.cluster import _install_kueue, _validate_cluster_create_args, _get_coredns_replica_count, run_gke_cluster_create_command, cluster_create, _log_cluster_create_telemetry
+from xpk.commands.cluster import _install_kueue, _validate_cluster_create_args, _set_cluster_topology_defaults, _get_coredns_replica_count, run_gke_cluster_create_command, cluster_create, _log_cluster_create_telemetry
 from xpk.core.capacity import CapacityType, ReservationCapacity
 from xpk.core.reservation import ReservationLink
 from xpk.core.system_characteristics import SystemCharacteristics, UserFacingNameToSystemCharacteristics
@@ -201,7 +203,7 @@ def test_validate_cluster_create_args_for_correct_args_pass(
 ):
   args = construct_args()
 
-  _validate_cluster_create_args(args, GPU_TEST_SYSTEM, None)
+  _validate_cluster_create_args(args, GPU_TEST_SYSTEM)
 
   assert mocks.common_print_mock.call_count == 0
 
@@ -215,7 +217,7 @@ def test_validate_cluster_create_args_for_correct_sub_slicing_args_pass(
       reservation='test-reservation',
   )
 
-  _validate_cluster_create_args(args, SUB_SLICING_SYSTEM, None)
+  _validate_cluster_create_args(args, SUB_SLICING_SYSTEM)
 
   assert mocks.common_print_mock.call_count == 0
 
@@ -230,7 +232,7 @@ def test_validate_cluster_create_args_for_not_supported_system_throws(
   )
 
   with pytest.raises(SystemExit):
-    _validate_cluster_create_args(args, GPU_TEST_SYSTEM, None)
+    _validate_cluster_create_args(args, GPU_TEST_SYSTEM)
 
   assert mocks.common_print_mock.call_count == 1
   assert (
@@ -249,7 +251,7 @@ def test_validate_cluster_create_args_for_missing_reservation(
   )
 
   with pytest.raises(SystemExit):
-    _validate_cluster_create_args(args, SUB_SLICING_SYSTEM, None)
+    _validate_cluster_create_args(args, SUB_SLICING_SYSTEM)
 
   assert mocks.commands_print_mock.call_count == 1
   assert (
@@ -269,7 +271,7 @@ def test_validate_cluster_create_args_for_invalid_reservation(
   mocks.commands_get_reservation_deployment_type.return_value = 'SPARSE'
 
   with pytest.raises(SystemExit):
-    _validate_cluster_create_args(args, SUB_SLICING_SYSTEM, None)
+    _validate_cluster_create_args(args, SUB_SLICING_SYSTEM)
 
   assert mocks.commands_print_mock.call_count == 5
   assert (
@@ -284,7 +286,7 @@ def test_validate_cluster_create_args_for_enable_pathways_set_to_false(
   args = construct_args(enable_pathways=False)
   mocks.commands_get_pathways_machine_types.return_value = (1, [])
 
-  _validate_cluster_create_args(args, TPU_TEST_SYSTEM, None)
+  _validate_cluster_create_args(args, TPU_TEST_SYSTEM)
 
   assert mocks.commands_print_mock.call_count == 0
 
@@ -296,7 +298,7 @@ def test_validate_cluster_create_args_for_errored_pathways_machine_types_retriev
   mocks.commands_get_pathways_machine_types.return_value = (1, [])
 
   with pytest.raises(SystemExit):
-    _validate_cluster_create_args(args, TPU_TEST_SYSTEM, None)
+    _validate_cluster_create_args(args, TPU_TEST_SYSTEM)
 
   assert mocks.commands_print_mock.call_count == 1
   assert 'Unable to retrieve' in mocks.commands_print_mock.call_args[0][0]
@@ -314,7 +316,7 @@ def test_validate_cluster_create_args_for_invalid_pathways_machine_type(
   )
 
   with pytest.raises(SystemExit):
-    _validate_cluster_create_args(args, TPU_TEST_SYSTEM, None)
+    _validate_cluster_create_args(args, TPU_TEST_SYSTEM)
 
   assert mocks.commands_print_mock.call_count == 2
   assert 'Available machine types' in mocks.commands_print_mock.call_args[0][0]
@@ -331,7 +333,7 @@ def test_validate_cluster_create_args_for_valid_pathways_machine_type(
       ['n2-standard-32'],
   )
 
-  _validate_cluster_create_args(args, TPU_TEST_SYSTEM, None)
+  _validate_cluster_create_args(args, TPU_TEST_SYSTEM)
 
   assert mocks.commands_print_mock.call_count == 0
 
@@ -603,7 +605,11 @@ def test_validate_cluster_create_args_for_correct_super_slicing_args_pass(
       num_slices=None,
   )
 
-  _validate_cluster_create_args(args, SUPER_SLICING_SYSTEM, None)
+  with unittest.mock.patch('xpk.commands.cluster._determine_available_capacity', return_value=None):
+
+      _set_cluster_topology_defaults(args, SUPER_SLICING_SYSTEM)
+
+  _validate_cluster_create_args(args, SUPER_SLICING_SYSTEM)
   args = construct_args(
       super_slicing=True,
       reservation='test-reservation/reservationBlocks/block/reservationSubBlocks/subblock',
@@ -611,7 +617,7 @@ def test_validate_cluster_create_args_for_correct_super_slicing_args_pass(
       num_slices=None,
   )
   _validate_cluster_create_args(
-      args, UserFacingNameToSystemCharacteristics['tpu7x-128'], None
+      args, UserFacingNameToSystemCharacteristics['tpu7x-128']
   )
 
   assert mocks.common_print_mock.call_count == 0
@@ -630,8 +636,8 @@ def test_validate_cluster_create_args_for_super_slicing_system_not_supported_thr
 
   with pytest.raises(SystemExit):
     _validate_cluster_create_args(
-        args, UserFacingNameToSystemCharacteristics['tpu7x-4x4x8'], None
-    )
+      args, UserFacingNameToSystemCharacteristics['tpu7x-4x4x8']
+  )
 
   assert mocks.common_print_mock.call_count == 1
   assert (
@@ -652,7 +658,9 @@ def test_validate_cluster_create_args_for_super_slicing_missing_reservation(
   )
 
   with pytest.raises(SystemExit):
-    _validate_cluster_create_args(args, SUPER_SLICING_SYSTEM, None)
+    with unittest.mock.patch('xpk.commands.cluster._determine_available_capacity', return_value=None):
+        _set_cluster_topology_defaults(args, SUPER_SLICING_SYSTEM)
+    _validate_cluster_create_args(args, SUPER_SLICING_SYSTEM)
 
   assert mocks.commands_print_mock.call_count == 1
   assert (
@@ -674,7 +682,9 @@ def test_validate_cluster_create_args_for_super_slicing_sparse_deployment_type_r
   mocks.commands_get_reservation_deployment_type.return_value = 'SPARSE'
 
   with pytest.raises(SystemExit):
-    _validate_cluster_create_args(args, SUPER_SLICING_SYSTEM, None)
+    with unittest.mock.patch('xpk.commands.cluster._determine_available_capacity', return_value=None):
+        _set_cluster_topology_defaults(args, SUPER_SLICING_SYSTEM)
+    _validate_cluster_create_args(args, SUPER_SLICING_SYSTEM)
 
   assert mocks.commands_print_mock.call_count == 5
   assert (
@@ -694,7 +704,9 @@ def test_validate_cluster_create_args_forbids_num_cubes_without_superslicing(
   )
 
   with pytest.raises(SystemExit):
-    _validate_cluster_create_args(args, SUPER_SLICING_SYSTEM, None)
+    with unittest.mock.patch('xpk.commands.cluster._determine_available_capacity', return_value=None):
+        _set_cluster_topology_defaults(args, SUPER_SLICING_SYSTEM)
+    _validate_cluster_create_args(args, SUPER_SLICING_SYSTEM)
 
   assert mocks.commands_print_mock.call_count == 1
   assert (
@@ -715,7 +727,9 @@ def test_validate_cluster_create_args_forbids_num_cubes_different_from_num_slice
   )
 
   with pytest.raises(SystemExit):
-    _validate_cluster_create_args(args, SUPER_SLICING_SYSTEM, None)
+    with unittest.mock.patch('xpk.commands.cluster._determine_available_capacity', return_value=None):
+        _set_cluster_topology_defaults(args, SUPER_SLICING_SYSTEM)
+    _validate_cluster_create_args(args, SUPER_SLICING_SYSTEM)
 
   assert mocks.commands_print_mock.call_count == 1
   assert (
@@ -747,7 +761,11 @@ def test_validate_cluster_create_args_sets_correct_num_slices(
       num_slices=num_slices,
   )
 
-  _validate_cluster_create_args(args, SUPER_SLICING_SYSTEM, None)
+  with unittest.mock.patch('xpk.commands.cluster._determine_available_capacity', return_value=None):
+
+      _set_cluster_topology_defaults(args, SUPER_SLICING_SYSTEM)
+
+  _validate_cluster_create_args(args, SUPER_SLICING_SYSTEM)
 
   assert args.num_slices == expected
 
@@ -768,7 +786,9 @@ def test_validate_cluster_create_args_optional_num_slices(
       num_cubes=None,
   )
 
-  _validate_cluster_create_args(args, TPU_TEST_SYSTEM, available_capacity)
+  with unittest.mock.patch('xpk.commands.cluster._determine_available_capacity', return_value=available_capacity):
+
+      _set_cluster_topology_defaults(args, TPU_TEST_SYSTEM)
 
   assert args.num_slices == 4
   assert mocks.commands_print_mock.call_count == 1
@@ -795,7 +815,9 @@ def test_validate_cluster_create_args_optional_num_slices_super_slicing(
       num_cubes=None,
   )
 
-  _validate_cluster_create_args(args, SUPER_SLICING_SYSTEM, available_capacity)
+  with unittest.mock.patch('xpk.commands.cluster._determine_available_capacity', return_value=available_capacity):
+
+      _set_cluster_topology_defaults(args, SUPER_SLICING_SYSTEM)
 
   assert args.num_slices == 8
   assert args.num_cubes == 8
@@ -833,7 +855,9 @@ def test_validate_cluster_create_args_optional_num_nodes_gpu(
       num_nodes=None,
   )
 
-  _validate_cluster_create_args(args, GPU_TEST_SYSTEM, available_capacity)
+  with unittest.mock.patch('xpk.commands.cluster._determine_available_capacity', return_value=available_capacity):
+
+      _set_cluster_topology_defaults(args, GPU_TEST_SYSTEM)
 
   assert args.num_nodes == 2
   assert args.num_slices == 8
@@ -856,7 +880,9 @@ def test_validate_cluster_create_args_explicit_num_nodes_gpu(
       num_nodes=2,
   )
 
-  _validate_cluster_create_args(args, GPU_TEST_SYSTEM, available_capacity)
+  with unittest.mock.patch('xpk.commands.cluster._determine_available_capacity', return_value=available_capacity):
+
+      _set_cluster_topology_defaults(args, GPU_TEST_SYSTEM)
 
   assert args.num_nodes == 2
   assert args.num_slices == 4

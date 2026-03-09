@@ -216,12 +216,10 @@ def cluster_adapt(args) -> None:
 def _validate_cluster_create_args(
     args,
     system: SystemCharacteristics,
-    available_capacity: list[ReservationCapacity] | None,
 ):
   if FeatureFlags.SUB_SLICING_ENABLED and args.sub_slicing:
     validate_sub_slicing_system(system)
     _validate_sub_slicing_reservation(args)
-  _validate_num_slices_and_set_default(args, available_capacity)
   if args.super_slicing:
     validate_super_slicing_system(system)
     _validate_super_slicing_reservation(args)
@@ -285,10 +283,10 @@ def _validate_gsc_reservation(args, creation_description: str):
       xpk_exit(1)
 
 
-def _validate_num_slices_and_set_default(
+def _set_cluster_topology_defaults(
     args,
-    available_capacity: list[ReservationCapacity] | None,
-):
+    system: SystemCharacteristics,
+) -> list[ReservationCapacity] | None:
   if args.num_cubes is not None and not args.super_slicing:
     xpk_print('--num-cubes can only be used with --super-slicing')
     xpk_exit(1)
@@ -300,6 +298,28 @@ def _validate_num_slices_and_set_default(
   ):
     xpk_print('--num-cubes must not be different from --num-slices')
     xpk_exit(1)
+
+  if system.accelerator_type == AcceleratorType.GPU and getattr(args, 'num_nodes', None) is None:
+    capacity_type, return_code = get_capacity_type(args)
+    if return_code == 0 and capacity_type == CapacityType.RESERVATION and args.reservation:
+      reservations = get_reservations_list(args)
+      temp_capacity, return_code = assess_available_slices(
+          reservations,
+          force_sub_block_targeting=args.super_slicing,
+          system=system,
+          vms_per_slice=1,
+      )
+      if return_code == 0:
+        total_vms = sum(cap.available_slices for cap in temp_capacity)
+        if total_vms > 0:
+          xpk_print(f'Automatically setting --num-nodes to {total_vms}')
+          args.num_nodes = total_vms
+
+  args.num_nodes = (
+      2 if getattr(args, 'num_nodes', None) is None else args.num_nodes
+  )
+
+  available_capacity = _determine_available_capacity(args, system)
 
   if (
       args.num_slices is None
@@ -313,74 +333,50 @@ def _validate_num_slices_and_set_default(
       args.num_slices = total_available
 
   args.num_slices = args.num_slices or args.num_cubes or 1
-  args.num_nodes = (
-      2 if getattr(args, 'num_nodes', None) is None else args.num_nodes
-  )
+  if args.super_slicing:
+    args.num_cubes = args.num_slices
+
+  return available_capacity
 
 
 def _determine_available_capacity(
     args,
     system: SystemCharacteristics,
 ) -> list[ReservationCapacity] | None:
-  """Determines available capacity and optionally updates args.num_nodes."""
+  """Determines available capacity."""
   capacity_type, return_code = get_capacity_type(args)
   if return_code != 0:
     xpk_exit(return_code)
 
-  available_capacity = None
-  if capacity_type == CapacityType.RESERVATION and args.reservation:
-    if FeatureFlags.RESERVATIONS_VALIDATION_ENABLED or (
-        args.num_slices is None and args.num_cubes is None
-    ):
-      xpk_print(
-          'Assessing reservation capacity to determine number of slices...'
+  if not (capacity_type == CapacityType.RESERVATION and args.reservation):
+    return None
+
+  if not (
+      FeatureFlags.RESERVATIONS_VALIDATION_ENABLED or (
+          args.num_slices is None and args.num_cubes is None
       )
-      reservations = get_reservations_list(args)
+  ):
+    return None
 
-      if (
-          system.accelerator_type == AcceleratorType.GPU
-          and getattr(args, 'num_nodes', None) is None
-      ):
-        temp_capacity, return_code = assess_available_slices(
-            reservations,
-            force_sub_block_targeting=args.super_slicing,
-            system=system,
-            vms_per_slice=1,
-        )
-        if return_code != 0:
-          xpk_print('Error assessing available VMs for GPU reservation.')
-          xpk_exit(return_code)
+  xpk_print(
+      'Assessing reservation capacity to determine number of slices...'
+  )
+  reservations = get_reservations_list(args)
 
-        total_vms = sum(cap.available_slices for cap in temp_capacity)
-        if total_vms > 0:
-          xpk_print(f'Automatically setting --num-nodes to {total_vms}')
-          args.num_nodes = total_vms
-
-          available_capacity = []
-          for cap in temp_capacity:
-            slices = cap.available_slices // total_vms
-            if slices > 0:
-              available_capacity.append(
-                  ReservationCapacity(cap.reservation, slices)
-              )
-        else:
-          available_capacity = []
-
-      else:
-        vms_per_pool = (
-            (2 if getattr(args, 'num_nodes', None) is None else args.num_nodes)
-            if system.accelerator_type == AcceleratorType.GPU
-            else system.vms_per_slice
-        )
-        available_capacity, return_code = assess_available_slices(
-            reservations,
-            force_sub_block_targeting=args.super_slicing,
-            system=system,
-            vms_per_slice=vms_per_pool,
-        )
-        if return_code != 0:
-          xpk_print('Error assessing available slices.')
-          xpk_exit(return_code)
+  vms_per_pool = (
+      args.num_nodes
+      if system.accelerator_type == AcceleratorType.GPU
+      else system.vms_per_slice
+  )
+  available_capacity, return_code = assess_available_slices(
+      reservations,
+      force_sub_block_targeting=args.super_slicing,
+      system=system,
+      vms_per_slice=vms_per_pool,
+  )
+  if return_code != 0:
+    xpk_print('Error assessing available slices.')
+    xpk_exit(return_code)
 
   return available_capacity
 
@@ -405,9 +401,9 @@ def cluster_create(args) -> None:
   xpk_print(f'Starting cluster create for cluster {args.cluster}:', flush=True)
   add_zone_and_project(args)
 
-  available_capacity = _determine_available_capacity(args, system)
+  available_capacity = _set_cluster_topology_defaults(args, system)
 
-  _validate_cluster_create_args(args, system, available_capacity)
+  _validate_cluster_create_args(args, system)
   _log_cluster_create_telemetry(args)
 
   release_channel = (

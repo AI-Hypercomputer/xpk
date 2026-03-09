@@ -500,6 +500,7 @@ def set_cluster_adapt_parser(cluster_adapt_parser: ArgumentParser):
       help='The number of slices to run the job on, defaults to 1.',
       required=False,
   )
+  add_ignore_nodepool_creation_errors_argument(cluster_adapt_optional_arguments)
   add_driver_arguments(cluster_adapt_optional_arguments)
   add_shared_arguments(cluster_adapt_optional_arguments)
   add_resource_limits(cluster_adapt_optional_arguments)
@@ -731,14 +732,7 @@ def add_shared_cluster_create_optional_arguments(
       action='store_true',
       help='Enable Workload Identity Federation on the cluster and node-pools.',
   )
-  parser_or_group.add_argument(
-      '--ignore-nodepool-creation-errors',
-      action='store_true',
-      help=(
-          'Ignore errors during node pool creation and continue with cluster'
-          ' creation.'
-      ),
-  )
+  add_ignore_nodepool_creation_errors_argument(parser_or_group)
   add_driver_arguments(parser_or_group)
 
 
@@ -954,4 +948,17 @@ def add_cluster_create_super_slicing_arguments(
           ' only be used with --super-slicing.'
       ),
       required=False,
+  )
+
+
+def add_ignore_nodepool_creation_errors_argument(
+    parser_or_group: ParserOrArgumentGroup,
+):
+  parser_or_group.add_argument(
+      '--ignore-nodepool-creation-errors',
+      action='store_true',
+      help=(
+          'Ignore errors during node pool creation and continue with cluster'
+          ' creation.'
+      ),
   )

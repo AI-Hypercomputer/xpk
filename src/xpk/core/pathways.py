@@ -92,11 +92,11 @@ def ensure_pathways_workload_prerequisites(args, system) -> bool:
     xpk_print('Currently, Pathways workloads can only be run on TPUs.')
     xpk_exit(1)
 
+  # Note: The legacy Go controller supported 'colocate_head_with_workers' to run the proxy/RM on TPU nodes.
+  # This feature is deprecated in the new JobSet migration. The pathways-head will run on the CPU node pool.
+
   # Set proxy address to be consumed in helper methods and displayed to user.
   args.pathways_proxy_address = get_proxy_address(args)
-
-  # Set the job which determines the life of other Pathways jobs
-  args.targetReplicatedJob = 'proxy' if args.headless else 'main'
 
   return True
 
@@ -178,6 +178,8 @@ def append_custom_pathways_proxy_server(args) -> str:
                 - --server_port=29000
                 - --resource_manager_address=$(PATHWAYS_HEAD):29001
                 - --gcs_scratch_location={args.pathways_gcs_location}"""
+  if getattr(args, 'elastic_slices', 0) > 0:
+    yaml += f"\n                - --num_elastic_slices={args.elastic_slices}"
   if args.custom_pathways_proxy_server_args:
     yaml += append_custom_pathways_flags(
         args.custom_pathways_proxy_server_args, base_indentation=16
@@ -201,14 +203,18 @@ def append_custom_pathways_proxy_server(args) -> str:
 
 def get_pathways_instance_type(system: SystemCharacteristics) -> str:
   """Returns the instance type formatted for Pathways (e.g. 'tpuv6e:2x2' for v6e-4)."""
-  if not system.gke_accelerator.startswith('tpu-'):
-    return system.gce_machine_type
-
-  parts = system.gke_accelerator.split('-')
-  if len(parts) >= 2:
-    family = parts[1]  # e.g. 'v6e'
-    return f'tpu{family}:{system.topology}'
-
+  machine_type_to_tpu_version = {
+      'tpu7x-standard-4t': 'tpu7x',
+      'ct6e-standard-4t': 'tpuv6e',
+      'ct6e-standard-8t': 'tpuv6e1t',
+      'ct5p-hightpu-4t': 'tpuv5',
+      'ct5lp-hightpu-4t': 'tpuv5e',
+      'ct5lp-hightpu-8t': 'tpuv5e1t',
+  }
+  tpu_version = machine_type_to_tpu_version.get(system.gce_machine_type)
+  if tpu_version:
+    return f'{tpu_version}:{system.topology}'
+  
   return system.gce_machine_type
 
 

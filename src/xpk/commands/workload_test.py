@@ -329,6 +329,7 @@ def test_workload_create_pathways_jobset_yaml(mocker):
   args.use_vertex_tensorboard = False
   args.headless = False
   args.num_slices = 2
+  args.elastic_slices = 0
   args.max_restarts = 1
   args.max_slice_restarts = 1
   args.termination_grace_period_seconds = 30
@@ -428,4 +429,4 @@ def test_workload_create_pathways_jobset_yaml(mocker):
   assert 'completionMode: Indexed' in written_content
   assert 'startupPolicyOrder: InOrder' in written_content
   assert 'operator: All' in written_content
-  assert f'backoffLimit: {args.max_slice_restarts * 4}' in written_content
+  assert f'backoffLimit: {workload_system.vms_per_slice * 4}' in written_content

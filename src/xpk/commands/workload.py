@@ -298,12 +298,7 @@ spec:
             nodeSelector:
               cloud.google.com/gke-nodepool: cpu-np
               {autoprovisioning_args}
-            initContainers:
-{custom_pathways_proxy_server}
-{custom_pathways_server}
-{colocated_python_sidecar}
-            containers:
-{user_workload}
+{pathways_head_containers}
             restartPolicy: Never
             volumes:
             - hostPath:
@@ -343,11 +338,7 @@ spec:
                 type: DirectoryOrCreate
               name: shared-tmp
   startupPolicy:
-    startupPolicyOrder: InOrder
-  successPolicy:
-    operator: All
-    targetReplicatedJobs:
-    - pathways-head
+    startupPolicyOrder: InOrder{success_policy}
   suspend: false
 """
 
@@ -703,22 +694,39 @@ def workload_create(args) -> None:
   elif args.use_pathways and ensure_pathways_workload_prerequisites(
       args, workload_system
   ):
+    if args.headless:
+      pathways_head_containers = f"""            containers:
+{append_custom_pathways_proxy_server(args)}
+{append_custom_pathways_server(args, workload_system)}
+{append_custom_colocated_python_sidecar(args)}"""
+      success_policy = ""
+    else:
+      pathways_head_containers = f"""            initContainers:
+{append_custom_pathways_proxy_server(args)}
+{append_custom_pathways_server(args, workload_system)}
+{append_custom_colocated_python_sidecar(args)}
+            containers:
+{get_user_workload_for_pathways(args, workload_system, parallel_containers)}"""
+      success_policy = """
+  successPolicy:
+    operator: All
+    targetReplicatedJobs:
+    - pathways-head"""
+
+    worker_backoff_limit = (
+        args.max_slice_restarts * workload_system.vms_per_slice
+    ) if getattr(args, 'elastic_slices', 0) > 0 else (workload_system.vms_per_slice * 4)
+
     yml_string = PW_WORKLOAD_CREATE_YAML.format(
         args=args,
         topology=create_tpu_topology(workload_system),
         machine_type=create_tpu_machine_type(workload_system),
-        custom_pathways_proxy_server=append_custom_pathways_proxy_server(args),
-        custom_pathways_server=append_custom_pathways_server(
-            args, workload_system
-        ),
+        pathways_head_containers=pathways_head_containers,
         custom_pathways_worker=append_custom_pathways_worker(
             args, workload_system
         ),
-        colocated_python_sidecar=append_custom_colocated_python_sidecar(args),
-        user_workload=get_user_workload_for_pathways(
-            args, workload_system, parallel_containers
-        ),
-        worker_backoff_limit=args.max_slice_restarts * 4,
+        worker_backoff_limit=worker_backoff_limit,
+        success_policy=success_policy,
         local_queue_name=LOCAL_QUEUE_NAME,
         autoprovisioning_args=autoprovisioning_args,
         placement_policy_label=placement_policy_label,

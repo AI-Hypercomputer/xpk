@@ -40,7 +40,7 @@ class _FeatureFlags:
       "RESERVATIONS_VALIDATION_ENABLED", default=True
   )
   DEPENDENCY_AUTO_DOWNLOAD = _get_boolean_flag(
-      "DEPENDENCY_AUTO_DOWNLOAD", default=False
+      "DEPENDENCY_AUTO_DOWNLOAD", default=True
   )
 
 

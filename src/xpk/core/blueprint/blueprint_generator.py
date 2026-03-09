@@ -303,7 +303,7 @@ class BlueprintGenerator:
             workload_configmap,
         ],
     )
-    if set_placement_policy and reservation_placement_policy is None:
+    if set_placement_policy and reservation_placement_policy is None and not reservation:
       a3_megagpu_pool_0.append_use(group_placement_0.id)
       primary_group.modules.append(group_placement_0)
     a3_mega_blueprint = Blueprint(

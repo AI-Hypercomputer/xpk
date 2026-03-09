@@ -319,7 +319,7 @@ def test_workload_create_super_slicing_name_too_long(
 
 
 def test_workload_create_pathways_jobset_yaml(mocker):
-  set_dry_run(True)
+  mocker.patch('xpk.utils.execution_context.dry_run', True)
   args = MagicMock()
   args.project = 'test-project'
   args.zone = 'us-central1-a'

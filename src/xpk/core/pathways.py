@@ -201,24 +201,6 @@ def append_custom_pathways_proxy_server(args) -> str:
   return yaml
 
 
-def get_pathways_instance_type(system: SystemCharacteristics) -> str:
-  """Returns the instance type formatted for Pathways (e.g. 'tpuv6e:2x2' for v6e-4)."""
-  machine_type_to_tpu_version = {
-      'tpu7x-standard-4t': 'tpu7x',
-      'ct6e-standard-4t': 'tpuv6e',
-      'ct6e-standard-8t': 'tpuv6e1t',
-      'ct5p-hightpu-4t': 'tpuv5',
-      'ct5lp-hightpu-4t': 'tpuv5e',
-      'ct5lp-hightpu-8t': 'tpuv5e1t',
-      'ct4p-hightpu-4t': 'tpuv4',
-  }
-  tpu_version = machine_type_to_tpu_version.get(system.gce_machine_type)
-  if tpu_version:
-    return f'{tpu_version}:{system.topology}'
-  
-  raise RuntimeError(f"Unknown pathways instance type for machine type: {system.gce_machine_type}. Please update the machine_type_to_tpu_version map.")
-
-
 def append_custom_pathways_server(args, system: SystemCharacteristics) -> str:
   """Append custom Pathways server component using a YAML with proper indentation.
 
@@ -230,6 +212,9 @@ def append_custom_pathways_server(args, system: SystemCharacteristics) -> str:
       if getattr(args, 'server_image', None)
       else 'us-docker.pkg.dev/cloud-tpu-v2-images/pathways/server:latest'
   )
+  
+  instance_type = f"{system.pathways_tpu_version}:{system.topology}" if system.pathways_tpu_version else system.gce_machine_type
+  
   yaml = f"""              - name: pathways-rm
                 image: {image}
                 imagePullPolicy: Always
@@ -238,7 +223,7 @@ def append_custom_pathways_server(args, system: SystemCharacteristics) -> str:
                 - --gcs_scratch_location={args.pathways_gcs_location}
                 - --node_type=resource_manager
                 - --instance_count={args.num_slices}
-                - --instance_type={get_pathways_instance_type(system)}"""
+                - --instance_type={instance_type}"""
   if args.custom_pathways_server_args:
     yaml += append_custom_pathways_flags(
         args.custom_pathways_server_args, base_indentation=16

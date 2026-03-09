@@ -149,6 +149,7 @@ class SystemCharacteristics:
   requires_workload_policy: bool = False
   gpu_config: Optional[GpuConfig] = None
   parallel_containers: int = 1
+  pathways_tpu_version: Optional[str] = None
 
   def __post_init__(self):
     if self.accelerator_type == AcceleratorType.GPU:
@@ -243,6 +244,7 @@ def get_tpu_system_characteristics_map(
     sub_slicing_topologies: set[str] | None = None,
     super_slicing_topologies: set[str] | None = None,
     parallel_containers: int = 1,
+    pathways_tpu_version: str | None = None,
 ) -> dict[str, SystemCharacteristics]:
   system_characteristics_map = {}
   default_topologies = default_topologies or set()
@@ -268,6 +270,7 @@ def get_tpu_system_characteristics_map(
         supports_accelerator_network_profile=supports_accelerator_network_profile,
         docker_platform=docker_platform,
         parallel_containers=parallel_containers,
+        pathways_tpu_version=pathways_tpu_version,
     )
     system_characteristics_map[f'{prefix}-{topology}'] = system
     if (
@@ -540,6 +543,7 @@ UserFacingNameToSystemCharacteristics = {
         tpu_type_requires_workload_policy=True,
         supports_accelerator_network_profile=False,
         docker_platform=AMD_PLATFORM,
+        pathways_tpu_version='tpu7',
     ),
     **get_tpu_system_characteristics_map(
         prefix='tpu7',
@@ -563,6 +567,7 @@ UserFacingNameToSystemCharacteristics = {
             '4x4x16',
             '4x8x8',
         ]),
+        pathways_tpu_version='tpu7',
     ),
     **get_tpu_system_characteristics_map(
         prefix='tpu7x',
@@ -573,6 +578,7 @@ UserFacingNameToSystemCharacteristics = {
         tpu_type_requires_workload_policy=True,
         supports_accelerator_network_profile=False,
         docker_platform=AMD_PLATFORM,
+        pathways_tpu_version='tpu7x',
     ),
     **get_tpu_system_characteristics_map(
         prefix='tpu7x',
@@ -694,6 +700,7 @@ UserFacingNameToSystemCharacteristics = {
         supported_topologies=['1x1'],
         docker_platform=AMD_PLATFORM,
         supports_accelerator_network_profile=True,
+        pathways_tpu_version='tpuv6e',
     ),
     **get_tpu_system_characteristics_map(
         prefix='v6e',
@@ -704,6 +711,7 @@ UserFacingNameToSystemCharacteristics = {
         sub_slicing_topologies=set(SUB_SLICING_TOPOLOGIES),
         docker_platform=AMD_PLATFORM,
         supports_accelerator_network_profile=True,
+        pathways_tpu_version='tpuv6e',
     ),
     **get_tpu_system_characteristics_map(
         prefix='v5p',
@@ -713,6 +721,7 @@ UserFacingNameToSystemCharacteristics = {
         docker_platform=AMD_PLATFORM,
         supported_topologies=generate_tpu_topologies(max_cubes=140),
         supports_accelerator_network_profile=False,
+        pathways_tpu_version='tpuv5',
         default_topologies=set([
             '2x2x1',
             '2x2x2',
@@ -820,6 +829,7 @@ UserFacingNameToSystemCharacteristics = {
         docker_platform=AMD_PLATFORM,
         supported_topologies=['2x4', '4x4', '4x8', '8x8', '8x16', '16x16'],
         supports_accelerator_network_profile=False,
+        pathways_tpu_version='tpuv5e',
     ),
     **get_tpu_system_characteristics_map(
         prefix='v4',
@@ -831,6 +841,7 @@ UserFacingNameToSystemCharacteristics = {
             max_cubes=64, enforce_nondecreasing=False
         ),
         supports_accelerator_network_profile=False,
+        pathways_tpu_version='tpuv4',
         default_topologies=set([
             '2x2x1',
             '2x2x2',

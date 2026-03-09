@@ -155,12 +155,12 @@ def enable_autoprovisioning_on_cluster(
       'Update node pools with autoprovisioning support',
       task_names,
   )
-  if maybe_failure is not None:
+  if maybe_failure:
     xpk_print(
         'Update node pools with autoprovisioning support returned ERROR:'
-        f' {maybe_failure.return_code}'
+        f' {maybe_failure[0].return_code}'
     )
-    return None, maybe_failure.return_code
+    return None, maybe_failure[0].return_code
 
   return autoprovisioning_config, return_code
 

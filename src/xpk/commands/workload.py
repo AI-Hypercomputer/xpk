@@ -907,9 +907,7 @@ def workload_delete(args) -> None:
           task_names,
           batch=100,
       )
-      return_code = (
-          maybe_failure.return_code if maybe_failure is not None else 0
-      )
+      return_code = maybe_failure[0].return_code if maybe_failure else 0
 
     if return_code != 0:
       xpk_print(f'Delete Workload request returned ERROR {return_code}')

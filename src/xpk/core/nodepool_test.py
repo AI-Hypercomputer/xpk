@@ -34,12 +34,14 @@ from xpk.core.reservation import SpecificReservation
 
 
 CLUSTER_NAME = "running-cucumber"
-maybe_failure = FailedCommand(
-    return_code=1,
-    name="create-nodepool",
-    command="test-command",
-    logfile="logfile_path",
-)
+maybe_failure = [
+    FailedCommand(
+        return_code=1,
+        name="create-nodepool",
+        command="test-command",
+        logfile="logfile_path",
+    )
+]
 
 
 def node_pool_name(number: int) -> str:
@@ -220,7 +222,7 @@ def mock_nodepool_dependencies(mocker):
   mocker.patch(
       "xpk.core.nodepool.get_cluster_location", return_value="us-central1"
   )
-  mocker.patch("xpk.core.nodepool.run_commands", return_value=None)
+  mocker.patch("xpk.core.nodepool.run_commands", return_value=[])
   mocker.patch("xpk.core.nodepool.ask_for_user_consent", return_value=True)
   mock_is_placement_policy_supported = mocker.patch(
       "xpk.core.nodepool.is_placement_policy_supported"
@@ -403,7 +405,7 @@ def test_display_nodepool_creation_error_handles_error_messages(
   ...
   ] finished with error: """ + error_message + "\n"
   mocker.patch("builtins.open", mocker.mock_open(read_data=log_contents))
-  display_nodepool_creation_error(maybe_failure)
+  display_nodepool_creation_error(maybe_failure[0])
 
   assert mock_xpk_print.call_count == 3 if is_stockout else 2
   assert (
@@ -431,7 +433,7 @@ def test_display_nodepool_creation_ignores_logs_without_errors(
   ...
   ] succeeded!"""
   mocker.patch("builtins.open", mocker.mock_open(read_data=log_contents))
-  display_nodepool_creation_error(maybe_failure)
+  display_nodepool_creation_error(maybe_failure[0])
 
   assert mock_xpk_print.call_count == 1
   assert (
@@ -676,7 +678,7 @@ def test_recreate_nodes_in_existing_node_pools_returns_error_code_if_upgrade_fai
       "--location=us-central1",
       "--quiet",
   )
-  commands_tester.assert_command_not_run(
+  commands_tester.assert_command_run(
       "gcloud",
       "container clusters upgrade test-cluster",
       "--project=test-project",

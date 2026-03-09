@@ -245,6 +245,7 @@ def get_tpu_system_characteristics_map(
     sub_slicing_topologies: set[str] | None = None,
     super_slicing_topologies: set[str] | None = None,
     parallel_containers: int = 1,
+    pathways_tpu_version: str | None = None,
 ) -> dict[str, SystemCharacteristics]:
   system_characteristics_map = {}
   default_topologies = default_topologies or set()

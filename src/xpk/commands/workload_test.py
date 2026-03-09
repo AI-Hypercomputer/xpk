@@ -20,6 +20,7 @@ import yaml
 import pytest
 
 from xpk.utils.execution_context import set_dry_run
+from xpk.utils.execution_context import set_dry_run
 from ..core.scheduling import WorkloadScheduling
 from ..core.system_characteristics import DockerPlatform, SystemCharacteristics, AcceleratorType, UserFacingNameToSystemCharacteristics, GpuConfig
 from ..core.testing.commands_tester import CommandsTester

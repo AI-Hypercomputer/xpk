@@ -56,7 +56,7 @@ jobs:
                 # 4. Set Env Var for the host (GitHub Runner)
                 echo "GOOGLE_APPLICATION_CREDENTIALS=$HOME/.config/gcloud/application_default_credentials.json" >> $GITHUB_ENV
             - name: Create an XPK Cluster with 1 x b200 GPU
-              run: xpk cluster create --cluster $GPU_CLUSTER_NAME --device-type=b200-8 --zone=us-west8-c --default-pool-cpu-machine-type=n1-standard-16 --spot
+              run: xpk cluster create --cluster $GPU_CLUSTER_NAME --device-type=b200-8 --zone=us-west8-c --default-pool-cpu-machine-type=e2-standard-8 --spot
             - name: Authenticate Docker
               run: gcloud auth configure-docker --quiet
             - name: Run a base-docker-image workload

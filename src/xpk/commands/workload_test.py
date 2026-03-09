@@ -359,6 +359,7 @@ def test_workload_create_pathways_jobset_yaml(mocker):
   workload_system.parallel_containers = 1
   workload_system.topology = '4x4'
   workload_system.device_type = 'tpu-v4'
+  workload_system.gce_machine_type = 'ct4p-hightpu-4t'
 
   mocker.patch(
       'xpk.commands.workload.get_system_characteristics',

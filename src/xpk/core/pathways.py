@@ -210,11 +210,13 @@ def get_pathways_instance_type(system: SystemCharacteristics) -> str:
       'ct5p-hightpu-4t': 'tpuv5',
       'ct5lp-hightpu-4t': 'tpuv5e',
       'ct5lp-hightpu-8t': 'tpuv5e1t',
+      'ct4p-hightpu-4t': 'tpuv4',
   }
   tpu_version = machine_type_to_tpu_version.get(system.gce_machine_type)
   if tpu_version:
     return f'{tpu_version}:{system.topology}'
-  return system.gce_machine_type
+  
+  raise RuntimeError(f"Unknown pathways instance type for machine type: {system.gce_machine_type}. Please update the machine_type_to_tpu_version map.")
 
 
 def append_custom_pathways_server(args, system: SystemCharacteristics) -> str:

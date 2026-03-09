@@ -24,9 +24,9 @@ import dataclasses
 from pathlib import Path
 from itertools import product
 
-_KUBECTL_VERSION: str = "v1.30.0"
+_KUBECTL_VERSION: str = "v1.35.2"
 _KUEUE_VERSION: str = "v0.15.2"
-_CRANE_VERSION: str = "v0.20.7"
+_CRANE_VERSION: str = "v0.21.2"
 
 _COPYRIGHT_STRING = """
 Copyright 2026 Google LLC

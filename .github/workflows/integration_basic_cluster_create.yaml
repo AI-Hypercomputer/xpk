@@ -125,11 +125,11 @@ jobs:
             - name: Run a crane workload
               run: CRANE_WORKLOADS_ENABLED=True xpk workload create --cluster $TPU_CLUSTER_NAME --workload $CRANE_WORKLOAD_NAME  --command "bash workload.sh"  --tpu-type=v4-8 --num-slices=2 --zone=us-central2-b
             - name: Run xpk inspector with the workload created above
-              run: xpk inspector --cluster $TPU_CLUSTER_NAME --zone=us-central2-b  --workload $CRANE_WORKLOAD_NAME
+              run: CRANE_WORKLOADS_ENABLED=True xpk inspector --cluster $TPU_CLUSTER_NAME --zone=us-central2-b  --workload $CRANE_WORKLOAD_NAME
             - name: Wait for workload completion and confirm it succeeded
-              run: xpk workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion $CRANE_WORKLOAD_NAME --timeout 600
+              run: CRANE_WORKLOADS_ENABLED=True xpk workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion $CRANE_WORKLOAD_NAME --timeout 600
             - name: Delete the workload on the cluster
-              run: xpk workload delete --workload $CRANE_WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
+              run: CRANE_WORKLOADS_ENABLED=True xpk workload delete --workload $CRANE_WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
 
             - name: Delete the cluster created
               if: always()

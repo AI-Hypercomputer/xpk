@@ -179,7 +179,7 @@ def append_custom_pathways_proxy_server(args) -> str:
                 - --resource_manager_address=$(PATHWAYS_HEAD):29001
                 - --gcs_scratch_location={args.pathways_gcs_location}"""
   if getattr(args, 'elastic_slices', 0) > 0:
-    yaml += f"\n                - --num_elastic_slices={args.elastic_slices}"
+    yaml += f'\n                - --num_elastic_slices={args.elastic_slices}'
   if args.custom_pathways_proxy_server_args:
     yaml += append_custom_pathways_flags(
         args.custom_pathways_proxy_server_args, base_indentation=16
@@ -214,7 +214,6 @@ def get_pathways_instance_type(system: SystemCharacteristics) -> str:
   tpu_version = machine_type_to_tpu_version.get(system.gce_machine_type)
   if tpu_version:
     return f'{tpu_version}:{system.topology}'
-  
   return system.gce_machine_type
 
 

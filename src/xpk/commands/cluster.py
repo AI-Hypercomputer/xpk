@@ -290,8 +290,9 @@ def _set_cluster_topology_defaults(
   if args.num_cubes is not None and not args.super_slicing:
     xpk_print('--num-cubes can only be used with --super-slicing')
     xpk_exit(1)
-
-  if (
+  if args.num_cubes is not None and args.num_slices is None:
+    args.num_slices = args.num_cubes
+  elif (
       args.num_cubes is not None
       and args.num_slices is not None
       and args.num_cubes != args.num_slices
@@ -299,27 +300,51 @@ def _set_cluster_topology_defaults(
     xpk_print('--num-cubes must not be different from --num-slices')
     xpk_exit(1)
 
-  if system.accelerator_type == AcceleratorType.GPU and getattr(args, 'num_nodes', None) is None:
-    capacity_type, return_code = get_capacity_type(args)
-    if return_code == 0 and capacity_type == CapacityType.RESERVATION and args.reservation:
-      reservations = get_reservations_list(args)
-      temp_capacity, return_code = assess_available_slices(
-          reservations,
-          force_sub_block_targeting=args.super_slicing,
-          system=system,
-          vms_per_slice=1,
-      )
-      if return_code == 0:
-        total_vms = sum(cap.available_slices for cap in temp_capacity)
-        if total_vms > 0:
-          xpk_print(f'Automatically setting --num-nodes to {total_vms}')
-          args.num_nodes = total_vms
+  available_capacity = None
+  capacity_type, return_code = get_capacity_type(args)
+  if return_code != 0:
+    xpk_exit(return_code)
 
-  args.num_nodes = (
-      2 if getattr(args, 'num_nodes', None) is None else args.num_nodes
-  )
+  if capacity_type == CapacityType.RESERVATION and args.reservation and FeatureFlags.RESERVATIONS_VALIDATION_ENABLED:
+    xpk_print('Assessing reservation capacity to determine number of slices...')
+    reservations = get_reservations_list(args)
+    
+    vms_per_pool = (
+        getattr(args, 'num_nodes', None)
+        if system.accelerator_type == AcceleratorType.GPU
+        else system.vms_per_slice
+    )
+    if vms_per_pool is None and system.accelerator_type == AcceleratorType.GPU:
+      vms_per_pool = 1
 
-  available_capacity = _determine_available_capacity(args, system)
+    temp_capacity, return_code = assess_available_slices(
+        reservations,
+        force_sub_block_targeting=args.super_slicing,
+        system=system,
+        vms_per_slice=vms_per_pool,
+    )
+    if return_code != 0:
+      xpk_print('Error assessing available slices.')
+      xpk_exit(return_code)
+
+    if system.accelerator_type == AcceleratorType.GPU and getattr(args, 'num_nodes', None) is None:
+      total_vms = sum(cap.available_slices for cap in temp_capacity)
+      if total_vms > 0:
+        xpk_print(f'Automatically setting --num-nodes to {total_vms}')
+        args.num_nodes = total_vms
+        available_capacity = []
+        for cap in temp_capacity:
+          available_capacity.append(ReservationCapacity(
+            reservation=cap.reservation,
+            available_slices=cap.available_slices // args.num_nodes
+          ))
+      else:
+        available_capacity = temp_capacity
+    else:
+      available_capacity = temp_capacity
+
+  if system.accelerator_type == AcceleratorType.GPU:
+    args.num_nodes = 2 if getattr(args, 'num_nodes', None) is None else args.num_nodes
 
   if (
       args.num_slices is None
@@ -335,48 +360,6 @@ def _set_cluster_topology_defaults(
   args.num_slices = args.num_slices or args.num_cubes or 1
   if args.super_slicing:
     args.num_cubes = args.num_slices
-
-  return available_capacity
-
-
-def _determine_available_capacity(
-    args,
-    system: SystemCharacteristics,
-) -> list[ReservationCapacity] | None:
-  """Determines available capacity."""
-  capacity_type, return_code = get_capacity_type(args)
-  if return_code != 0:
-    xpk_exit(return_code)
-
-  if not (capacity_type == CapacityType.RESERVATION and args.reservation):
-    return None
-
-  if not (
-      FeatureFlags.RESERVATIONS_VALIDATION_ENABLED or (
-          args.num_slices is None and args.num_cubes is None
-      )
-  ):
-    return None
-
-  xpk_print(
-      'Assessing reservation capacity to determine number of slices...'
-  )
-  reservations = get_reservations_list(args)
-
-  vms_per_pool = (
-      args.num_nodes
-      if system.accelerator_type == AcceleratorType.GPU
-      else system.vms_per_slice
-  )
-  available_capacity, return_code = assess_available_slices(
-      reservations,
-      force_sub_block_targeting=args.super_slicing,
-      system=system,
-      vms_per_slice=vms_per_pool,
-  )
-  if return_code != 0:
-    xpk_print('Error assessing available slices.')
-    xpk_exit(return_code)
 
   return available_capacity
 

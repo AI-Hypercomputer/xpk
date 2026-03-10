@@ -185,8 +185,6 @@ def cluster_adapt(args) -> None:
   if set_jobset_on_cluster_code != 0:
     xpk_exit(set_jobset_on_cluster_code)
 
-  # TODO: Uncomment when cluster_adapt will support TPU cluters
-
   install_kueue_code = _install_kueue(args, system, autoprovisioning_config)
   if install_kueue_code != 0:
     xpk_exit(install_kueue_code)

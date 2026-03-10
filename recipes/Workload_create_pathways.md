@@ -19,9 +19,6 @@ kubectl get configmap golden-cluster-metadata-configmap -o=custom-columns="Confi
 [XPK] Task: `GKE Cluster Get ConfigMap` is implemented by the following command not running since it is a dry run. 
 kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="ConfigData:data" --no-headers=true
 [XPK] gke_accelerator type not found in config map. Autoprovisioning is not enabled.
-[XPK] Task: `Check if PathwaysJob is installed on golden-cluster` is implemented by the following command not running since it is a dry run. 
-kubectl get pods -n pathways-job-system --no-headers -o custom-columns=NAME:.metadata.name
-[XPK] check_if_pathways_job_is_installed 0 0
 [XPK] Task: `Find cluster region or zone` is implemented by the following command not running since it is a dry run. 
 gcloud container clusters list --project=golden-project --filter=name=golden-cluster --format="value(location)"
 [XPK] Task: `Get All Node Pools` is implemented by the following command not running since it is a dry run. 
@@ -45,48 +42,113 @@ docker buildx build --platform=linux/amd64 -f 4b6736a12db8ea0f78ce793fd0d4ee0c94
 docker tag dry-run-runner gcr.io/golden-project/dry-run-runner:prefix-current
 [XPK] Task: `Upload Docker Image` is implemented by the following command not running since it is a dry run. 
 docker push gcr.io/golden-project/dry-run-runner:prefix-current
-[XPK] Temp file (321584e701d68faa848df77a0e87ecbec8ce31e2b2aeb0d1e3ddb7027acc5021) content: 
-
-    apiVersion: pathways-job.pathways.domain/v1
-    kind: PathwaysJob
-    metadata:
-      name: golden-workload
-      labels:
-        kueue.x-k8s.io/queue-name: multislice-queue  # Name of the LocalQueue
-        xpk.google.com/workload: golden-workload
-    spec:
-      maxRestarts: 0
-      customComponents:
-      
-      
-      
-      
-      workers:
-      - type: ct5p-hightpu-4t
-        topology: 2x2x1
-        numSlices: 1
-        maxSliceRestarts: 1
-        terminationGracePeriodSeconds: 30
-        priorityClassName: medium
-        nodeSelector:
-          
-          
-      pathwaysDir: gs://cloud-pathways-staging/tmp #This bucket needs to be created in advance.
-      controller:
-        # #Pod template for training, default mode.
-        deploymentMode: default
-        mainContainerName: jax-tpu
-        elasticSlices: 0
+[XPK] Temp file (db6773a981cdacdfee9a4ef7d3d0d772237d912e85ce2f24111e38d73b9e6b6f) content: 
+apiVersion: jobset.x-k8s.io/v1alpha2
+kind: JobSet
+metadata:
+  name: golden-workload
+  labels:
+    kueue.x-k8s.io/queue-name: multislice-queue  # Name of the LocalQueue
+    xpk.google.com/workload: golden-workload
+spec:
+  coordinator:
+    replicatedJob: pathways-head
+  network:
+    enableDNSHostnames: true
+    publishNotReadyAddresses: true
+  failurePolicy:
+    restartStrategy: Recreate
+  replicatedJobs:
+  - name: pathways-head
+    replicas: 1
+    template:
+      spec:
+        backoffLimit: 0
+        completionMode: Indexed
+        completions: 1
+        parallelism: 1
         template:
-      
           metadata:
+            annotations:
+              alpha.jobset.sigs.k8s.io/exclusive-topology: kubernetes.io/hostname
           spec:
-            containers:
+            hostNetwork: true
+            dnsPolicy: ClusterFirstWithHostNet
+            nodeSelector:
+              cloud.google.com/gke-nodepool: cpu-np
               
+            initContainers:
+              - name: pathways-proxy
+                image: us-docker.pkg.dev/cloud-tpu-v2-images/pathways/proxy_server:latest
+                imagePullPolicy: Always
+                args:
+                - --server_port=29000
+                - --resource_manager_address=$(PATHWAYS_HEAD):29001
+                - --gcs_scratch_location=gs://cloud-pathways-staging/tmp
+                env:
+                - name: PATHWAYS_HEAD
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.labels['jobset.sigs.k8s.io/coordinator']
+                ports:
+                - containerPort: 29000
+                  protocol: TCP
+                resources:
+                  limits:
+                    cpu: "16"
+                    memory: 100G
+                restartPolicy: Always
+              - name: pathways-rm
+                image: us-docker.pkg.dev/cloud-tpu-v2-images/pathways/server:latest
+                imagePullPolicy: Always
+                args:
+                - --server_port=29001
+                - --gcs_scratch_location=gs://cloud-pathways-staging/tmp
+                - --node_type=resource_manager
+                - --instance_count=1
+                - --instance_type=tpuv5:2x2x1
+                env:
+                - name: REPLICATED_JOB_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.annotations['jobset.sigs.k8s.io/replicatedjob-name']
+                - name: JOBSET_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.annotations['jobset.sigs.k8s.io/jobset-name']
+                - name: HOST_ADDRESS
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.labels['jobset.sigs.k8s.io/coordinator']
+                - name: TPU_SKIP_MDS_QUERY
+                  value: "true"
+                ports:
+                - containerPort: 29001
+                  protocol: TCP
+                - containerPort: 29002
+                  protocol: TCP
+                resources:
+                  limits:
+                    cpu: "8"
+                    memory: 32G
+                restartPolicy: Always
+
+            containers:
+
               - name: jax-tpu
                 image: gcr.io/golden-project/dry-run-runner:prefix-current
                 imagePullPolicy: Always
-                env: 
+                env:
+                - name: PATHWAYS_HEAD
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.labels['jobset.sigs.k8s.io/coordinator']
+                - name: JAX_PLATFORMS
+                  value: proxy
+                - name: XCLOUD_ENVIRONMENT
+                  value: GCP
+                - name: JAX_BACKEND_TARGET
+                  value: grpc://$(PATHWAYS_HEAD):29000 
                 securityContext:
                   privileged: true
                 command:
@@ -119,20 +181,108 @@ docker push gcr.io/golden-project/dry-run-runner:prefix-current
                   name: shared-tmp
                 
 
-            nodeSelector:
-              cloud.google.com/gke-nodepool: cpu-np
-            hostNetwork: true
-            dnsPolicy: ClusterFirstWithHostNet
             restartPolicy: Never
             volumes:
             - hostPath:
                 path: /tmp
                 type: DirectoryOrCreate
               name: shared-tmp
-    
+  - name: worker
+    replicas: 1
+    template:
+      spec:
+        backoffLimit: 4
+        completionMode: Indexed
+        completions: 1
+        parallelism: 1
+        template:
+          metadata:
+            labels:
+              xpk.google.com/workload: golden-workload
+            annotations:
+              alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool
+          spec:
+            hostNetwork: true
+            dnsPolicy: ClusterFirstWithHostNet
+            terminationGracePeriodSeconds: 30
+            priorityClassName: medium
+            nodeSelector:
+              cloud.google.com/gke-tpu-accelerator: tpu-v5p-slice
+              cloud.google.com/gke-tpu-topology: 2x2x1
+              
+              
+            containers:
+              - name: pathways-worker
+               image: us-docker.pkg.dev/cloud-tpu-v2-images/pathways/server:latest
+               imagePullPolicy: Always
+               args:
+               - --server_port=29005
+               - --resource_manager_address=$(PATHWAYS_HEAD):29001
+               - --gcs_scratch_location=gs://cloud-pathways-staging/tmp
+                env:
+                - name: TPU_MIN_LOG_LEVEL
+                  value: "0"
+                - name: TF_CPP_MIN_LOG_LEVEL
+                  value: "0"
+                - name: XCLOUD_ENVIRONMENT
+                  value: GCP
+                - name: MEGASCALE_GRPC_ENABLE_XOR_TRACER
+                  value: "false"
+                - name: MEGASCALE_NUM_SLICES
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.labels['jobset.sigs.k8s.io/replicatedjob-replicas']
+                - name: JOBSET_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.annotations['jobset.sigs.k8s.io/jobset-name']
+                - name: REPLICATED_JOB_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.annotations['jobset.sigs.k8s.io/replicatedjob-name']
+                - name: MEGASCALE_SLICE_ID
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.labels['jobset.sigs.k8s.io/job-index']
+                - name: PATHWAYS_HEAD
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.labels['jobset.sigs.k8s.io/coordinator']
+                - name: MEGASCALE_COORDINATOR_ADDRESS
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.labels['jobset.sigs.k8s.io/coordinator']
+                ports:
+                - containerPort: 29005
+                  protocol: TCP
+                - containerPort: 29006
+                  protocol: TCP
+                - containerPort: 8471
+                  protocol: TCP
+                - containerPort: 8080
+                  protocol: TCP
+                resources:
+                  limits:
+                    google.com/tpu: "4"
+                volumeMounts:
+                - mountPath: /tmp
+                  name: shared-tmp
+            restartPolicy: OnFailure
+            volumes:
+            - hostPath:
+                path: /tmp
+                type: DirectoryOrCreate
+              name: shared-tmp
+  startupPolicy:
+    startupPolicyOrder: InOrder
+  successPolicy:
+    operator: All
+    targetReplicatedJobs:
+    - pathways-head
+  suspend: false
 
 [XPK] Task: `Creating Workload` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f 321584e701d68faa848df77a0e87ecbec8ce31e2b2aeb0d1e3ddb7027acc5021
+kubectl apply -f db6773a981cdacdfee9a4ef7d3d0d772237d912e85ce2f24111e38d73b9e6b6f
 [XPK] Task: `GKE Dashboard List` is implemented by the following command not running since it is a dry run. 
 gcloud monitoring dashboards list --project=golden-project --filter="displayName:'GKE - TPU Monitoring Dashboard'" --format="value(name)" --verbosity=error
 [XPK] Check statistics and outlier mode of GKE metrics here: https://console.cloud.google.com/monitoring/dashboards/builder/0?project=golden-project&f.rlabel.cluster_name.ClusterName=golden-cluster. To view the metric data for your workload, select golden-workload from the JobName filter on the dashboard.

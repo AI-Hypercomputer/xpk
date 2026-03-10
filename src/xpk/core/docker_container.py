@@ -192,7 +192,7 @@ def get_main_container(
 
 def get_user_workload_container(
     args, system: SystemCharacteristics, parallel_containers: int
-) -> tuple[str, str | None]:
+):
   """Deploy user workload container
 
   Args:

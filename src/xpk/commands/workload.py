@@ -339,7 +339,7 @@ spec:
               name: shared-tmp
   startupPolicy:
     startupPolicyOrder: InOrder
-    {success_policy}
+  {success_policy}
   suspend: false
 """
 

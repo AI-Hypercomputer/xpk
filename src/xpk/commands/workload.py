@@ -330,7 +330,7 @@ spec:
               {placement_policy_label}
               {autoprovisioning_args}
             containers:
-{custom_pathways_worker}
+              {custom_pathways_worker}
             restartPolicy: OnFailure
             volumes:
             - hostPath:
@@ -338,7 +338,8 @@ spec:
                 type: DirectoryOrCreate
               name: shared-tmp
   startupPolicy:
-    startupPolicyOrder: InOrder{success_policy}
+    startupPolicyOrder: InOrder
+    {success_policy}
   suspend: false
 """
 
@@ -695,27 +696,28 @@ def workload_create(args) -> None:
       args, workload_system
   ):
     if args.headless:
-      pathways_head_containers = f"""            containers:
+      pathways_head_containers = f"""containers:
 {append_custom_pathways_proxy_server(args)}
 {append_custom_pathways_server(args, workload_system)}
 {append_custom_colocated_python_sidecar(args)}"""
-      success_policy = ""
+      success_policy = ''
     else:
-      pathways_head_containers = f"""            initContainers:
+      pathways_head_containers = f"""initContainers:
 {append_custom_pathways_proxy_server(args)}
 {append_custom_pathways_server(args, workload_system)}
 {append_custom_colocated_python_sidecar(args)}
             containers:
 {get_user_workload_for_pathways(args, workload_system, parallel_containers)}"""
-      success_policy = """
-  successPolicy:
+      success_policy = """successPolicy:
     operator: All
     targetReplicatedJobs:
     - pathways-head"""
 
     worker_backoff_limit = (
-        args.max_slice_restarts * workload_system.vms_per_slice
-    ) if getattr(args, 'elastic_slices', 0) > 0 else (workload_system.vms_per_slice * 4)
+        (args.max_slice_restarts * workload_system.vms_per_slice)
+        if getattr(args, 'elastic_slices', 0) > 0
+        else (workload_system.vms_per_slice * 4)
+    )
 
     yml_string = PW_WORKLOAD_CREATE_YAML.format(
         args=args,

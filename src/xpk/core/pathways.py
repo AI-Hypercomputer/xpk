@@ -212,9 +212,13 @@ def append_custom_pathways_server(args, system: SystemCharacteristics) -> str:
       if getattr(args, 'server_image', None)
       else 'us-docker.pkg.dev/cloud-tpu-v2-images/pathways/server:latest'
   )
-  
-  instance_type = f"{system.pathways_tpu_version}:{system.topology}" if system.pathways_tpu_version else system.gce_machine_type
-  
+
+  instance_type = (
+      f'{system.pathways_tpu_version}:{system.topology}'
+      if system.pathways_tpu_version
+      else system.gce_machine_type
+  )
+
   yaml = f"""              - name: pathways-rm
                 image: {image}
                 imagePullPolicy: Always
@@ -269,13 +273,13 @@ def append_custom_pathways_worker(args, system: SystemCharacteristics) -> str:
       or 'us-docker.pkg.dev/cloud-tpu-v2-images/pathways/server:latest'
   )
 
-  yaml = f"""              - name: pathways-worker
-                image: {image}
-                imagePullPolicy: Always
-                args:
-                - --server_port=29005
-                - --resource_manager_address=$(PATHWAYS_HEAD):29001
-                - --gcs_scratch_location={args.pathways_gcs_location}"""
+  yaml = f"""- name: pathways-worker
+               image: {image}
+               imagePullPolicy: Always
+               args:
+               - --server_port=29005
+               - --resource_manager_address=$(PATHWAYS_HEAD):29001
+               - --gcs_scratch_location={args.pathways_gcs_location}"""
   if args.custom_pathways_worker_args:
     yaml += append_custom_pathways_flags(
         args.custom_pathways_worker_args, base_indentation=16

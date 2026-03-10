@@ -122,8 +122,6 @@ jobs:
             - name: Delete the workload on the cluster
               run: xpk workload delete --workload $WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
 
-            - name: Install Crane
-              uses: ./.github/actions/install-crane            
             - name: Run a crane workload
               run: CRANE_WORKLOADS_ENABLED=True xpk workload create --cluster $TPU_CLUSTER_NAME --workload $CRANE_WORKLOAD_NAME  --command "bash workload.sh"  --tpu-type=v4-8 --num-slices=2 --zone=us-central2-b
             - name: Run xpk inspector with the workload created above

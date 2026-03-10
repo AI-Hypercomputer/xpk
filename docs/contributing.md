@@ -50,7 +50,7 @@ More about how to work with forks can be found [here](https://docs.github.com/en
 **Step 1: System and Virtual Environment Setup**
 
 Follow the **[Installation from Source](./installation.md)** instructions in the main guide. This will ensure you have:
-* Installed all system prerequisites (Python, gcloud, kubectl, etc.).
+* Installed all system prerequisites (Python, gcloud, etc.).
 * Created and activated your **Virtual Environment** (required to avoid "externally managed environment" errors).
 
 **Step 2: Install XPK dev dependencies**

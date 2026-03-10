@@ -43,7 +43,6 @@ runs:
     - name: Authenticate Docker
       run: gcloud auth configure-docker --quiet
       shell: bash
-    - uses: ./.github/actions/install-kueue
     - name: Install XPK
       run: pip install dist/xpk-*.whl
       shell: bash

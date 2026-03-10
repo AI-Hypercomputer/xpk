@@ -39,7 +39,7 @@ def run_commands(
     jobname: str,
     per_command_name: list[str],
     batch: int = 10,
-) -> FailedCommand | None:
+) -> list[FailedCommand]:
   """Run commands in groups of `batch`.
 
   Args:
@@ -49,8 +49,7 @@ def run_commands(
     batch: number of commands to run in parallel.
 
   Returns:
-    None if all commands were successful, FailedCommand instance containing
-    details of a single failing command otherwise
+    A list of FailedCommand instances containing details of all failing commands.
   """
 
   temporary_files_batches = chunks(make_tmp_files(per_command_name), batch)
@@ -63,19 +62,19 @@ def run_commands(
   )
   if is_dry_run():
     xpk_print('Pretending all the jobs succeeded')
-    return None
+    return []
 
+  all_failures = []
   for i, _ in enumerate(commands_batched):
     xpk_print(f'Dispatching batch {i}/{len(commands_batched)}')
-    maybe_failure = run_command_batch(
+    failures = run_command_batch(
         commands_batched[i],
         jobname,
         per_command_name_batches[i],
         temporary_files_batches[i],
     )
-    if maybe_failure is not None:
-      return maybe_failure
-  return None
+    all_failures.extend(failures)
+  return all_failures
 
 
 def run_command_batch(
@@ -83,7 +82,7 @@ def run_command_batch(
     jobname: str,
     per_command_name: list[str],
     output_logs: list[str],
-) -> FailedCommand | None:
+) -> list[FailedCommand]:
   """Runs commands in parallel.
 
   Args:
@@ -93,8 +92,7 @@ def run_command_batch(
     output_logs: list of n log paths, each command will output to each log.
 
   Returns:
-    None if all commands were successful, FailedCommand instance containing
-    details of a single failing command otherwise
+    A list of FailedCommand instances containing details of all failing commands.
   """
 
   files = [open(f, 'w', encoding='utf-8') for f in output_logs]
@@ -106,10 +104,9 @@ def run_command_batch(
         subprocess.Popen(command, stdout=file, stderr=file, shell=True)
     )
 
-  maybe_failure: FailedCommand | None = None
+  failures: list[FailedCommand] = []
   while True:
     returncodes = [child.poll() for child in children]
-    max_returncode = max([0] + [r for r in returncodes if r is not None])
     completed = len([r for r in returncodes if r is not None])
     total = len(returncodes)
     seconds_elapsed = (datetime.datetime.now() - start_time).total_seconds()
@@ -126,36 +123,33 @@ def run_command_batch(
         f'[t={seconds_elapsed:.2f}, {jobname}] Completed'
         f' {completed}/{total}{slow_str}'
     )
-    if max_returncode > 0:
-      failing_index = [
-          i for i, x in enumerate(returncodes) if x is not None and x > 0
-      ][0]
-      xpk_print(
-          f'Terminating all {jobname} processes since at least one failed.'
-      )
+
+    if completed < total:
+      time.sleep(1)
+      continue
+
+    failing_indices = [
+        i for i, x in enumerate(returncodes) if x is not None and x > 0
+    ]
+    for failing_index in failing_indices:
       xpk_print(
           f'Failure is {per_command_name[failing_index]}'
           f' and logfile {output_logs[failing_index]}'
       )
-      for child in children:
-        child.terminate()
-      maybe_failure = FailedCommand(
-          return_code=returncodes[failing_index] or 0,
-          name=per_command_name[failing_index],
-          command=commands[failing_index],
-          logfile=output_logs[failing_index],
+      failures.append(
+          FailedCommand(
+              return_code=returncodes[failing_index] or 0,
+              name=per_command_name[failing_index],
+              command=commands[failing_index],
+              logfile=output_logs[failing_index],
+          )
       )
-      break
-
-    if completed == total:
-      break
-
-    time.sleep(1)
+    break
 
   for file in files:
     file.close()
 
-  return maybe_failure
+  return failures
 
 
 def run_command_with_updates_retry(

@@ -696,13 +696,13 @@ def workload_create(args) -> None:
       args, workload_system
   ):
     if args.headless:
-      pathways_head_containers = f"""containers:
+      pathways_head_containers = f"""            containers:
 {append_custom_pathways_proxy_server(args)}
 {append_custom_pathways_server(args, workload_system)}
 {append_custom_colocated_python_sidecar(args)}"""
       success_policy = ''
     else:
-      pathways_head_containers = f"""initContainers:
+      pathways_head_containers = f"""            initContainers:
 {append_custom_pathways_proxy_server(args)}
 {append_custom_pathways_server(args, workload_system)}
 {append_custom_colocated_python_sidecar(args)}

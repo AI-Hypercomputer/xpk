@@ -20,7 +20,7 @@ import re
 import json
 from pytest_mock import MockerFixture
 from xpk.core.testing.commands_tester import CommandsTester
-from xpk.core.workload import get_jobsets_list_gcp_link, get_workload_list
+from xpk.core.workload import _parse_workload_item, get_jobsets_list_gcp_link, get_workload_list
 
 
 from dataclasses import dataclass
@@ -61,8 +61,10 @@ def _create_mock_workload_json(data: _MockWorkloadData):
           'ownerReferences': [{'name': data.jobset_name}],
       },
       'spec': {
-          'priorityClassName': data.priority,
-          'podSets': [{'count': data.needed}],
+          'podSets': [{
+              'count': data.needed,
+              'template': {'spec': {'priorityClassName': data.priority}},
+          }]
       },
       'status': {
           'admission': {'podSetAssignments': [{'count': data.running}]},
@@ -286,3 +288,40 @@ def test_get_workload_list_filters(
   parsed_table = _parse_workload_table(return_value)
   actual_job_names = [row['Jobset Name'] for row in parsed_table]
   assert actual_job_names == expected_job_names
+
+
+def test_parse_workload_item_priority_from_workload_spec():
+
+  item = {
+      'metadata': {'creationTimestamp': '2024-01-01T00:00:00Z'},
+      'spec': {
+          'priorityClassName': 'workload-high',
+          'podSets': [
+              {'template': {'spec': {'priorityClassName': 'pod-high'}}}
+          ],
+      },
+  }
+  row = _parse_workload_item(item)
+  assert row.priority == 'workload-high'
+
+
+def test_parse_workload_item_priority_from_pod_set_fallback():
+
+  item = {
+      'metadata': {'creationTimestamp': '2024-01-01T00:00:00Z'},
+      'spec': {
+          'podSets': [{'template': {'spec': {'priorityClassName': 'pod-low'}}}]
+      },
+  }
+  row = _parse_workload_item(item)
+  assert row.priority == 'pod-low'
+
+
+def test_parse_workload_item_priority_not_found():
+
+  item = {
+      'metadata': {'creationTimestamp': '2024-01-01T00:00:00Z'},
+      'spec': {'podSets': [{'template': {'spec': {}}}]},
+  }
+  row = _parse_workload_item(item)
+  assert row.priority is None

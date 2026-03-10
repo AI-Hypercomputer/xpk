@@ -23,6 +23,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 	kueueconstants "sigs.k8s.io/kueue/pkg/controller/constants"
+
+	"tpu-slice-controller/internal/core"
 )
 
 // JobWrapper wraps a Job.
@@ -123,5 +125,10 @@ func (j *JobWrapper) Image(img string) *JobWrapper {
 
 func (j *JobWrapper) Args(args ...string) *JobWrapper {
 	j.Spec.Template.Spec.Containers[0].Args = args
+	return j
+}
+
+func (j *JobWrapper) NodeAffinity(key string, values []string) *JobWrapper {
+	core.AddNodeAffinity(&j.Spec.Template, key, corev1.NodeSelectorOpIn, values)
 	return j
 }

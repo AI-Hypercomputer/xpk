@@ -105,8 +105,8 @@ def _parse_workload_item(item: dict[str, Any]) -> _WorkloadListRow:
   created_time = item.get('metadata', {}).get('creationTimestamp', '') or None
 
   pod_sets = item.get('spec', {}).get('podSets') or []
-  priority = None
-  if pod_sets:
+  priority = item.get('spec', {}).get('priorityClassName', '') or None
+  if not priority and pod_sets:
     priority = (
         pod_sets[0]
         .get('template', {})

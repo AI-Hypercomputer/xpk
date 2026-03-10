@@ -38,6 +38,7 @@ from .resources import get_cluster_system_characteristics
 from .system_characteristics import INSTALLER_NCCL_TCPXO, SystemCharacteristics
 
 JOBSET_VERSION = 'v0.8.0'
+PATHWAYS_JOB_VERSION = 'v0.1.4'
 NRI_DEVICE_INJECTOR = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/nri_device_injector/nri-device-injector.yaml'
 
 DEFAULT_NAMESPACE = 'default'
@@ -87,6 +88,35 @@ def set_jobset_on_cluster(args) -> int:
     )
 
   return 0
+
+
+def set_pathways_job_on_cluster(args) -> int:
+  """Add PathwaysJob command on server side and ask user to verify it is created.
+
+  Args:
+    args: user provided arguments for running the command.
+
+  Returns:
+    0 if successful and 1 otherwise.
+  """
+  command = (
+      'kubectl apply --server-side -f'
+      f' https://github.com/google/pathways-job/releases/download/{PATHWAYS_JOB_VERSION}/install.yaml'
+  )
+  task = f'Install PathwaysJob on {args.cluster}'
+  return_code = run_command_with_updates_retry(command, task)
+
+  if return_code != 0:
+    xpk_print(f'{task} returned with ERROR {return_code}.\n')
+    xpk_print(
+        "This LIKELY means you're missing Kubernetes Permissions, you can"
+        ' validate this by checking if the error references permission problems'
+        ' such as `requires one of ["container.*"] permission(s)`. Follow our'
+        ' readme:'
+        ' https://github.com/google/xpk/blob/main/README.md#troubleshooting for'
+        ' instructions on how to fix these permissions.'
+    )
+  return return_code
 
 
 def install_nccl_on_cluster(system: SystemCharacteristics) -> int:

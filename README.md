@@ -86,6 +86,7 @@ XPK also supports the following [Google Cloud Storage solutions](./docs/usage/st
 | [JobSet](https://github.com/kubernetes-sigs/jobset)                                                          | Workload creation           |
 | [Docker](https://docs.docker.com/engine/install/)                                                            | Building workload container |
 | [CoreDNS](https://github.com/coredns/deployment/tree/master/kubernetes)                                      | Cluster set up              |
+| [PathwaysJob](https://github.com/google/pathways-job)                                                        | Running Pathways workloads  |
 
 # Privacy notice
 

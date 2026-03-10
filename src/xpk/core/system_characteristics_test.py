@@ -33,9 +33,8 @@ def test_get_tpu_system_characteristics_map_returns_correct_values_for_1x1_topol
       machine_type="test",
       supported_topologies=["1x1"],
       docker_platform=DockerPlatform.AMD,
-      supports_accelerator_network_profile=False,
-      pathways_tpu_version="test",
       tpu_type_requires_workload_policy=False,
+      supports_accelerator_network_profile=False,
   )
 
   expected_system_characteristics = SystemCharacteristics(
@@ -48,10 +47,9 @@ def test_get_tpu_system_characteristics_map_returns_correct_values_for_1x1_topol
       device_type="test-1",
       supports_sub_slicing=False,
       supports_super_slicing=False,
-      supports_accelerator_network_profile=False,
       docker_platform=DockerPlatform.AMD,
-      pathways_tpu_version="test",
       requires_workload_policy=False,
+      supports_accelerator_network_profile=False,
   )
   assert result == {
       "test-1": expected_system_characteristics,
@@ -66,9 +64,8 @@ def test_get_tpu_system_characteristics_map_returns_correct_values_for_2x2_topol
       gke_accelerator="test",
       machine_type="test",
       supported_topologies=["2x2"],
-      docker_platform=DockerPlatform.AMD,
       supports_accelerator_network_profile=False,
-      pathways_tpu_version="test",
+      docker_platform=DockerPlatform.AMD,
       tpu_type_requires_workload_policy=True,
   )
 
@@ -84,7 +81,6 @@ def test_get_tpu_system_characteristics_map_returns_correct_values_for_2x2_topol
       supports_super_slicing=False,
       supports_accelerator_network_profile=False,
       docker_platform=DockerPlatform.AMD,
-      pathways_tpu_version="test",
       requires_workload_policy=False,
   )
   assert result == {
@@ -101,9 +97,8 @@ def test_get_tpu_system_characteristics_map_returns_correct_values_for_2x2x2_top
       machine_type="test",
       supported_topologies=["2x2x2"],
       docker_platform=DockerPlatform.AMD,
-      supports_accelerator_network_profile=False,
-      pathways_tpu_version="test",
       tpu_type_requires_workload_policy=True,
+      supports_accelerator_network_profile=False,
   )
 
   expected_system_characteristics = SystemCharacteristics(
@@ -118,7 +113,6 @@ def test_get_tpu_system_characteristics_map_returns_correct_values_for_2x2x2_top
       supports_super_slicing=False,
       supports_accelerator_network_profile=False,
       docker_platform=DockerPlatform.AMD,
-      pathways_tpu_version="test",
       requires_workload_policy=True,
   )
   assert result == {
@@ -134,9 +128,8 @@ def test_get_tpu_system_characteristics_map_sets_sub_slicing_support():
       gke_accelerator="test",
       machine_type="test",
       supported_topologies=["4x4x4", "4x4x8", "4x4x16"],
-      docker_platform=DockerPlatform.AMD,
       supports_accelerator_network_profile=False,
-      pathways_tpu_version="test",
+      docker_platform=DockerPlatform.AMD,
       sub_slicing_topologies=set(["4x4x8", "4x4x16"]),
   )
 
@@ -152,9 +145,8 @@ def test_get_tpu_system_characteristics_map_sets_super_slicing_support():
       gke_accelerator="test",
       machine_type="test",
       supported_topologies=["4x4x4", "4x4x8", "4x4x16"],
-      docker_platform=DockerPlatform.AMD,
       supports_accelerator_network_profile=False,
-      pathways_tpu_version="test",
+      docker_platform=DockerPlatform.AMD,
       super_slicing_topologies=set(["4x4x8", "4x4x16"]),
   )
 
@@ -170,9 +162,8 @@ def test_get_tpu_system_characteristics_map_prefers_default_topologies():
       gke_accelerator="test",
       machine_type="test",
       supported_topologies=["4x4x4", "4x4x32", "4x8x16", "8x8x8"],
-      docker_platform=DockerPlatform.AMD,
       supports_accelerator_network_profile=False,
-      pathways_tpu_version="test",
+      docker_platform=DockerPlatform.AMD,
       default_topologies=set(["4x8x16"]),
   )
 

@@ -120,12 +120,12 @@ func waitForOperatorAvailability(ctx context.Context, k8sClient client.Client, k
 	ginkgo.GinkgoLogr.Info("Deployment is available in the cluster", "deployment", key, "waitingTime", time.Since(waitForAvailableStart))
 }
 
-func LabelNodesWithTopology(ctx context.Context, k8sClient client.Client, topology string, nodeNames []string) {
+func LabelNodes(ctx context.Context, k8sClient client.Client, key, value string, nodeNames []string) {
 	for _, nodeName := range nodeNames {
 		gomega.Eventually(func(g gomega.Gomega) {
 			n := &corev1.Node{}
 			g.Expect(k8sClient.Get(ctx, client.ObjectKey{Name: nodeName}, n)).To(gomega.Succeed())
-			metav1.SetMetaDataLabel(&n.ObjectMeta, core.TPUTopologyAnnotation, topology)
+			metav1.SetMetaDataLabel(&n.ObjectMeta, key, value)
 			g.Expect(k8sClient.Update(ctx, n)).To(gomega.Succeed())
 		}, Timeout, Interval).Should(gomega.Succeed())
 	}
@@ -134,7 +134,7 @@ func LabelNodesWithTopology(ctx context.Context, k8sClient client.Client, topolo
 			gomega.Eventually(func(g gomega.Gomega) {
 				n := &corev1.Node{}
 				g.Expect(k8sClient.Get(ctx, client.ObjectKey{Name: nodeName}, n)).To(gomega.Succeed())
-				delete(n.Labels, core.TPUTopologyAnnotation)
+				delete(n.Labels, key)
 				g.Expect(k8sClient.Update(ctx, n)).To(gomega.Succeed())
 			}, Timeout, Interval).Should(gomega.Succeed())
 		}
@@ -166,45 +166,27 @@ func SetSliceReady(ctx context.Context, k8sClient client.Client, sliceKey client
 			nodeNames = append(nodeNames, node.Name)
 		}
 	}
-	LabelNodesWithTopology(ctx, k8sClient, topology, nodeNames)
-	LabelNodesWithSlice(ctx, k8sClient, createdSlice.Name, nodeNames)
+	LabelNodes(ctx, k8sClient, core.TPUTopologyAnnotation, topology, nodeNames)
+	LabelNodes(ctx, k8sClient, core.TPUSliceNodeLabel, createdSlice.Name, nodeNames)
+}
+
+func expectAntiAffinity(template *corev1.PodTemplateSpec, name, kind string) {
+	ginkgo.GinkgoHelper()
+	req := core.FindNodeAffinityRequirement(template, core.TPUSliceNodeLabel)
+	gomega.Expect(req).ShouldNot(gomega.BeNil(), "%s %q should have anti-affinity for key %s", kind, name, core.TPUSliceNodeLabel)
+	gomega.Expect(req.Operator).Should(gomega.Equal(corev1.NodeSelectorOpDoesNotExist))
 }
 
 func ExpectJobSetHasAntiAffinity(js *jobset.JobSet) {
 	ginkgo.GinkgoHelper()
 	for _, replicatedJob := range js.Spec.ReplicatedJobs {
-		req := core.FindNodeAffinityRequirement(&replicatedJob.Template.Spec.Template, core.TPUSliceNodeLabel)
-		gomega.ExpectWithOffset(1, req).ShouldNot(gomega.BeNil(), "replicated job %q should have anti-affinity for key %s", replicatedJob.Name, core.TPUSliceNodeLabel)
-		gomega.ExpectWithOffset(1, req.Operator).Should(gomega.Equal(corev1.NodeSelectorOpDoesNotExist))
+		expectAntiAffinity(&replicatedJob.Template.Spec.Template, replicatedJob.Name, "replicated job")
 	}
-}
-
-func LabelNodesWithSlice(ctx context.Context, k8sClient client.Client, sliceName string, nodeNames []string) {
-	for _, nodeName := range nodeNames {
-		gomega.Eventually(func(g gomega.Gomega) {
-			n := &corev1.Node{}
-			g.Expect(k8sClient.Get(ctx, client.ObjectKey{Name: nodeName}, n)).To(gomega.Succeed())
-			metav1.SetMetaDataLabel(&n.ObjectMeta, core.TPUSliceNodeLabel, sliceName)
-			g.Expect(k8sClient.Update(ctx, n)).To(gomega.Succeed())
-		}, Timeout, Interval).Should(gomega.Succeed())
-	}
-	ginkgo.DeferCleanup(func(ctx context.Context, k8sClient client.Client, nodeNames []string) {
-		for _, nodeName := range nodeNames {
-			gomega.Eventually(func(g gomega.Gomega) {
-				n := &corev1.Node{}
-				g.Expect(k8sClient.Get(ctx, client.ObjectKey{Name: nodeName}, n)).To(gomega.Succeed())
-				delete(n.Labels, core.TPUSliceNodeLabel)
-				g.Expect(k8sClient.Update(ctx, n)).To(gomega.Succeed())
-			}, Timeout, Interval).Should(gomega.Succeed())
-		}
-	}, k8sClient, nodeNames)
 }
 
 func ExpectWorkloadHasAntiAffinity(wl *kueue.Workload) {
 	ginkgo.GinkgoHelper()
 	for _, ps := range wl.Spec.PodSets {
-		req := core.FindNodeAffinityRequirement(&ps.Template, core.TPUSliceNodeLabel)
-		gomega.ExpectWithOffset(1, req).ShouldNot(gomega.BeNil(), "podset %q should have anti-affinity for key %s", ps.Name, core.TPUSliceNodeLabel)
-		gomega.ExpectWithOffset(1, req.Operator).Should(gomega.Equal(corev1.NodeSelectorOpDoesNotExist))
+		expectAntiAffinity(&ps.Template, string(ps.Name), "podset")
 	}
 }

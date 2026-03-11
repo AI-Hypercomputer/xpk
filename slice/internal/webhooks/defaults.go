@@ -18,7 +18,6 @@ package webhooks
 
 import (
 	"fmt"
-	"slices"
 	"strconv"
 
 	corev1 "k8s.io/api/core/v1"
@@ -46,12 +45,20 @@ func annotatePodTemplateSpecWithSliceHealth(template *corev1.PodTemplateSpec, de
 	}
 
 	// 2. If there is NodeAffinity with TPUSliceHealthNodeSelectorKey, we do nothing.
-	if core.FindNodeAffinityRequirement(template, core.TPUSliceHealthNodeSelectorKey) != nil {
-		return
+	if template.Spec.Affinity != nil &&
+		template.Spec.Affinity.NodeAffinity != nil &&
+		template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
+		for _, term := range template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
+			for _, req := range term.MatchExpressions {
+				if req.Key == core.TPUSliceHealthNodeSelectorKey {
+					return
+				}
+			}
+		}
 	}
 
 	// 3. If neither of these, we add a NodeAffinity.
-	core.AddNodeAffinity(template, core.TPUSliceHealthNodeSelectorKey, corev1.NodeSelectorOpIn, defaultSliceHealthValues)
+	core.AddNodeAffinity(template, core.TPUSliceHealthNodeSelectorKey, defaultSliceHealthValues)
 }
 
 func annotatePodTemplateSpecWithTopology(template *corev1.PodTemplateSpec, parallelism *int32, resourceName string, resourceKind string) error {
@@ -79,41 +86,4 @@ func annotatePodTemplateSpecWithTopology(template *corev1.PodTemplateSpec, paral
 
 	template.Annotations[kueue.PodSetSliceSizeAnnotation] = strconv.FormatInt(sliceSize, 10)
 	return nil
-}
-
-func addNodeInSliceAntiAffinity(template *corev1.PodTemplateSpec) {
-	if req := core.FindNodeAffinityRequirement(template, core.TPUSliceNodeLabel); req != nil && req.Operator == corev1.NodeSelectorOpDoesNotExist {
-		return
-	}
-	core.AddNodeAffinity(template, core.TPUSliceNodeLabel, corev1.NodeSelectorOpDoesNotExist, nil)
-}
-
-func removeNodeInSliceAntiAffinity(spec *corev1.PodSpec) {
-	if !core.HasAnyNodeAffinityRequirement(spec) {
-		return
-	}
-
-	nodeSelector := spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution
-	var nonEmptyTerms bool
-	for i := range nodeSelector.NodeSelectorTerms {
-		term := &nodeSelector.NodeSelectorTerms[i]
-		term.MatchExpressions = slices.DeleteFunc(term.MatchExpressions, func(req corev1.NodeSelectorRequirement) bool {
-			return req.Key == core.TPUSliceNodeLabel && req.Operator == corev1.NodeSelectorOpDoesNotExist
-		})
-		if len(term.MatchExpressions) > 0 || len(term.MatchFields) > 0 {
-			nonEmptyTerms = true
-		}
-	}
-
-	if !nonEmptyTerms {
-		spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = nil
-	}
-
-	if spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil && len(spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution) == 0 {
-		spec.Affinity.NodeAffinity = nil
-	}
-
-	if spec.Affinity.NodeAffinity == nil && spec.Affinity.PodAffinity == nil && spec.Affinity.PodAntiAffinity == nil {
-		spec.Affinity = nil
-	}
 }

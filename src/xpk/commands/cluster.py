@@ -34,6 +34,7 @@ from ..core.cluster import (
     update_cluster_with_pd_driver_if_necessary,
     update_cluster_with_lustre_driver_if_necessary,
     update_cluster_with_workload_identity_if_necessary,
+    update_cluster_with_mtc_if_necessary,
 )
 from ..core.cluster_private import authorize_private_cluster_access_if_necessary
 from ..core.commands import run_command_for_value, run_command_with_updates
@@ -143,6 +144,12 @@ def cluster_adapt(args) -> None:
     update_cluster_command_code = (
         update_cluster_with_workload_identity_if_necessary(args)
     )
+    if update_cluster_command_code != 0:
+      xpk_exit(update_cluster_command_code)
+
+  # Enable MTC if not enabled already.
+  if args.enable_mtc:
+    update_cluster_command_code = update_cluster_with_mtc_if_necessary(args)
     if update_cluster_command_code != 0:
       xpk_exit(update_cluster_command_code)
 
@@ -369,6 +376,12 @@ def cluster_create(args) -> None:
     update_cluster_command_code = (
         update_cluster_with_workload_identity_if_necessary(args)
     )
+    if update_cluster_command_code != 0:
+      xpk_exit(update_cluster_command_code)
+
+  # Enable MTC if not enabled already.
+  if hasattr(args, 'enable_mtc') and args.enable_mtc:
+    update_cluster_command_code = update_cluster_with_mtc_if_necessary(args)
     if update_cluster_command_code != 0:
       xpk_exit(update_cluster_command_code)
 

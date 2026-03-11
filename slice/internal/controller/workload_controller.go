@@ -189,9 +189,7 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		if err := r.evictWorkload(ctx, wl, ac, "Slice has been deleted"); err != nil {
 			return ctrl.Result{}, err
 		}
-		if err := r.deleteSlicesForEvictedWorkload(ctx, grouped); err != nil {
-			return ctrl.Result{}, err
-		}
+		return ctrl.Result{}, r.deleteSlicesForEvictedWorkload(ctx, grouped)
 	}
 
 	if len(grouped.deleted) > 0 {
@@ -222,10 +220,7 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	if ac.State == kueue.CheckStateRetry {
-		if err := r.deleteSlicesForEvictedWorkload(ctx, grouped); err != nil {
-			return ctrl.Result{}, err
-		}
-		return ctrl.Result{}, nil
+		return ctrl.Result{}, r.deleteSlicesForEvictedWorkload(ctx, grouped)
 	}
 
 	// Delete any Slices that are in a failed or stale state.

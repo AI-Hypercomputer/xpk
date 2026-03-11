@@ -1756,9 +1756,6 @@ func TestWorkloadReconciler(t *testing.T) {
 						"Slice has been deleted", ptr.To(int32(10)))).
 					Obj(),
 			},
-			wantSlices: []slice.Slice{
-				*baseSlice2Wrapper.Clone().Active().Obj(),
-			},
 		},
 		"should evict workload if slice is deleted unexpectedly": {
 			request: baseRequest,
@@ -1788,7 +1785,6 @@ func TestWorkloadReconciler(t *testing.T) {
 			},
 			wantSlices: []slice.Slice{
 				*baseSlice1Wrapper.Clone().Active().DeletionTimestamp(now).Finalizers("accelerator.gke.io/slice-finalizer").Obj(),
-				*baseSlice2Wrapper.Clone().Active().Obj(),
 			},
 		},
 		"should use the first AdmissionCheck if more than one is found": {

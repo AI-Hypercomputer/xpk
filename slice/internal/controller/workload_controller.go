@@ -400,14 +400,16 @@ func (r *WorkloadReconciler) deleteSlices(ctx context.Context, slices []*v1beta1
 }
 
 func (r *WorkloadReconciler) deleteSlicesForEvictedWorkload(ctx context.Context, grouped groupedSlices) error {
-	log := ctrl.LoggerFrom(ctx)
-	toDelete := append(grouped.active, grouped.initializing...)
-	toDelete = append(toDelete, grouped.toDelete...)
-	if len(toDelete) > 0 {
-		log.V(3).Info("AdmissionCheck is Retry, deleting all Slices")
-		return r.deleteSlices(ctx, toDelete)
+	if len(grouped.active)+len(grouped.initializing)+len(grouped.toDelete) == 0 {
+		return nil
 	}
-	return nil
+	log := ctrl.LoggerFrom(ctx)
+	toDelete := make([]*v1beta1.Slice, 0, len(grouped.active)+len(grouped.initializing)+len(grouped.toDelete))
+	toDelete = append(toDelete, grouped.active...)
+	toDelete = append(toDelete, grouped.initializing...)
+	toDelete = append(toDelete, grouped.toDelete...)
+	log.V(3).Info("AdmissionCheck is Retry, deleting all Slices")
+	return r.deleteSlices(ctx, toDelete)
 }
 
 func (r *WorkloadReconciler) ownerPodsFinished(ctx context.Context, wl *kueue.Workload) (bool, error) {

@@ -14,85 +14,285 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import json
+from dataclasses import dataclass
+from enum import Enum
 import re
+from typing import Any, Optional, Callable, Union
+
 from ..utils.console import xpk_exit, xpk_print
 from .commands import run_command_for_value
 from .gcloud_context import get_cluster_location
 
 
-def workload_list_awk_command(filter_key) -> str:
-  """Function returns the awk command needed from the filter specified.
+def _safe_int(val: Any) -> int:
+  try:
+    return int(val)
+  except (ValueError, TypeError):
+    return 0
+
+
+class _WorkloadStatus(Enum):
+  ADMITTED = 'Admitted'
+  EVICTED = 'Evicted'
+  QUOTA_RESERVED = 'QuotaReserved'
+  FINISHED = 'Finished'
+  UNKNOWN = 'Unknown'
+
+
+class _StatusFilter(Enum):
+  EVERYTHING = 'EVERYTHING'
+  RUNNING = 'RUNNING'
+  QUEUED = 'QUEUED'
+  FINISHED = 'FINISHED'
+  FAILED = 'FAILED'
+  SUCCESSFUL = 'SUCCESSFUL'
+
+
+@dataclass
+class _WorkloadListRow:
+  """A row in the workload list table."""
+
+  jobset_name: Optional[str]
+  created_time: Optional[str]
+  priority: Optional[str]
+  tpu_vms_needed: Optional[int]
+  tpu_vms_running_ran: Optional[int]
+  tpu_vms_done: Optional[int]
+  status: Optional[_WorkloadStatus]
+  status_message: Optional[str]
+  status_time: Optional[str]
+
+
+@dataclass
+class _WorkloadListColumn:
+  header: str
+  getter: Callable[
+      [_WorkloadListRow], Optional[Union[str, int, _WorkloadStatus]]
+  ]
+
+
+_WORKLOAD_COLUMNS: list[_WorkloadListColumn] = [
+    _WorkloadListColumn('Jobset Name', lambda row: row.jobset_name),
+    _WorkloadListColumn('Created Time', lambda row: row.created_time),
+    _WorkloadListColumn('Priority', lambda row: row.priority),
+    _WorkloadListColumn('TPU VMs Needed', lambda row: row.tpu_vms_needed),
+    _WorkloadListColumn(
+        'TPU VMs Running/Ran', lambda row: row.tpu_vms_running_ran
+    ),
+    _WorkloadListColumn('TPU VMs Done', lambda row: row.tpu_vms_done),
+    _WorkloadListColumn('Status', lambda row: row.status),
+    _WorkloadListColumn('Status Message', lambda row: row.status_message),
+    _WorkloadListColumn('Status Time', lambda row: row.status_time),
+]
+
+
+def _parse_workload_status(
+    status_str: Optional[str],
+) -> Optional[_WorkloadStatus]:
+  if not status_str:
+    return None
+  try:
+    return _WorkloadStatus(status_str)
+  except ValueError:
+    return _WorkloadStatus.UNKNOWN
+
+
+def _parse_workload_item(item: dict[str, Any]) -> _WorkloadListRow:
+  owner_refs = item.get('metadata', {}).get('ownerReferences') or [{}]
+  jobset_name = owner_refs[0].get('name', '') or None
+
+  created_time = item.get('metadata', {}).get('creationTimestamp', '') or None
+
+  pod_sets = item.get('spec', {}).get('podSets') or []
+  priority = item.get('spec', {}).get('priorityClassName', '') or None
+  if not priority and pod_sets:
+    priority = (
+        pod_sets[0]
+        .get('template', {})
+        .get('spec', {})
+        .get('priorityClassName', '')
+        or None
+    )
+
+  tpu_vms_needed = (
+      sum(_safe_int(ps.get('count')) for ps in pod_sets) if pod_sets else None
+  )
+
+  admission_status = item.get('status', {}).get('admission', {})
+  pod_set_assignments = admission_status.get('podSetAssignments') or []
+  tpu_vms_running_ran = (
+      sum(_safe_int(psa.get('count')) for psa in pod_set_assignments)
+      if pod_set_assignments
+      else None
+  )
+
+  reclaimable_pods = item.get('status', {}).get('reclaimablePods') or []
+  tpu_vms_done = (
+      sum(_safe_int(rp.get('count')) for rp in reclaimable_pods)
+      if reclaimable_pods
+      else None
+  )
+
+  conditions = item.get('status', {}).get('conditions') or [{}]
+  status_str = conditions[-1].get('type', '')
+  status = _parse_workload_status(status_str)
+
+  status_message = conditions[-1].get('message', '') or None
+  status_time = conditions[-1].get('lastTransitionTime', '') or None
+
+  return _WorkloadListRow(
+      jobset_name=jobset_name,
+      created_time=created_time,
+      priority=priority,
+      tpu_vms_needed=tpu_vms_needed,
+      tpu_vms_running_ran=tpu_vms_running_ran,
+      tpu_vms_done=tpu_vms_done,
+      status=status,
+      status_message=status_message,
+      status_time=status_time,
+  )
+
+
+def _fetch_workloads(
+    filter_by_status: _StatusFilter,
+    filter_by_job: Optional[str] = None,
+) -> tuple[int, list[_WorkloadListRow]]:
+  """Fetches and parses the raw workload list from the cluster."""
+  command = 'kubectl get workloads --ignore-not-found -o=json'
+
+  task = f'List Jobs with filter-by-status={filter_by_status.value}'
+  if filter_by_job:
+    task += f' with filter-by-job={filter_by_job}'
+
+  return_code, data = run_command_for_value(
+      command, task, dry_run_return_val=''
+  )
+
+  if return_code != 0:
+    return return_code, []
+
+  if not data:
+    return 0, []
+
+  try:
+    parsed_data = json.loads(data)
+  except json.JSONDecodeError:
+    xpk_print('Error: Failed to parse JSON output from kubectl.')
+    return 1, []
+
+  data_rows = [
+      _parse_workload_item(item) for item in parsed_data.get('items', [])
+  ]
+
+  return 0, data_rows
+
+
+def _filter_workload(
+    row_data: _WorkloadListRow,
+    filter_by_status: _StatusFilter,
+    filter_by_job: Optional[str],
+) -> bool:
+  """Filters a workload based on status and job name.
 
   Args:
-    filter_key: workload list filter to awk against
+    row_data: The parsed row data keyed by column type.
+    filter_by_status: The status filter to apply.
+    filter_by_job: The job name filter to apply.
 
   Returns:
-    awk command to use in filtering workload list.
+    True if the workload should be included, False otherwise.
   """
+  if filter_by_job and filter_by_job not in (row_data.jobset_name or ''):
+    return False
 
-  return f" | awk -e 'NR == 1 || {filter_key} {{print $0}}'"
+  status = row_data.status
+  message = row_data.status_message or ''
+  running_count = row_data.tpu_vms_running_ran or 0
+
+  match filter_by_status:
+    case _StatusFilter.EVERYTHING:
+      return True
+    case _StatusFilter.RUNNING:
+      return (
+          status in [_WorkloadStatus.ADMITTED, _WorkloadStatus.EVICTED]
+          and running_count > 0
+      )
+    case _StatusFilter.QUEUED:
+      return (
+          status
+          in [
+              _WorkloadStatus.ADMITTED,
+              _WorkloadStatus.EVICTED,
+              _WorkloadStatus.QUOTA_RESERVED,
+          ]
+          and running_count == 0
+      )
+    case _StatusFilter.FINISHED:
+      return status == _WorkloadStatus.FINISHED
+    case _StatusFilter.FAILED:
+      return status == _WorkloadStatus.FINISHED and 'failed' in message.lower()
+    case _StatusFilter.SUCCESSFUL:
+      return (
+          status == _WorkloadStatus.FINISHED and 'finished' in message.lower()
+      )
+    case _:
+      raise RuntimeError(f'Can not find filter type: {filter_by_status}')
 
 
-def determine_workload_list_filter_by_status(args) -> str:
-  """Function to create the filtered view of workload list.
+def _filter_workloads(
+    rows: list[_WorkloadListRow],
+    filter_by_status: _StatusFilter,
+    filter_by_job: Optional[str],
+) -> list[_WorkloadListRow]:
+  """Filters rows based on status and job filters."""
+  return [
+      row
+      for row in rows
+      if _filter_workload(row, filter_by_status, filter_by_job)
+  ]
 
-  Args:
-    args: user provided arguments for running the command.
 
-  Returns:
-    the argument needed to filter by status of jobs in workload list.
-  """
+def _render_workloads(
+    rows: list[_WorkloadListRow],
+) -> str:
+  """Formats the filtered rows into a string table."""
+  headers = [col.header for col in _WORKLOAD_COLUMNS]
 
-  # Argument positions related to columns created by workload list command.
-  status_arg = '$7'
-  running_vms_arg = '$5'
-  status_verbose_arg = '$9'
-  if args.filter_by_status == 'EVERYTHING':
-    return ''
-  elif args.filter_by_status == 'RUNNING':
-    # Running includes the status Admitted or Evicted, and when the number of
-    # vms running is > 0.
-    return workload_list_awk_command(
-        f'({status_arg} ~ "Admitted|Evicted" && {running_vms_arg} ~ /^[0-9]+$/'
-        f' && {running_vms_arg} > 0)'
+  def format_val(val) -> str:
+    if val is None:
+      return '<none>'
+    if isinstance(val, Enum):
+      return str(val.value)
+    return str(val)
+
+  filtered_rows = []
+  for row_data in rows:
+    filtered_rows.append(
+        [format_val(col.getter(row_data)) for col in _WORKLOAD_COLUMNS]
     )
-  elif args.filter_by_status == 'QUEUED':
-    # Queued includes the status Admitted or Evicted, and when the number of
-    # vms running is 0.
-    return workload_list_awk_command(
-        f'({status_arg} ~ "Admitted|Evicted|QuotaReserved" &&'
-        f' ({running_vms_arg} ~ "<none>" || {running_vms_arg} == 0))'
+
+  col_widths = [len(h) for h in headers]
+  for row in filtered_rows:
+    for i, val in enumerate(row):
+      col_widths[i] = max(col_widths[i], len(val))
+
+  fmt = '   '.join(f'{{:<{w}}}' for w in col_widths)
+
+  output = [fmt.format(*headers)] + [fmt.format(*row) for row in filtered_rows]
+
+  return '\n'.join(output)
+
+
+def _get_status_filter(filter_by_status: str) -> _StatusFilter:
+  try:
+    return _StatusFilter(filter_by_status.upper())
+  except ValueError:
+    xpk_print(
+        f'Warning: Unrecognized status filter {filter_by_status},'
+        ' defaulting to EVERYTHING.'
     )
-  elif args.filter_by_status == 'FINISHED':
-    return workload_list_awk_command(f'{status_arg} == "Finished"')
-  elif args.filter_by_status == 'FAILED':
-    # Failed includes the status Finished, and when the verbose reason is failed.
-    return workload_list_awk_command(
-        f'({status_arg} == "Finished" && {status_verbose_arg} ~ "failed")'
-    )
-  elif args.filter_by_status == 'SUCCESSFUL':
-    # Failed includes the status Finished, and when the verbose reason is finished/success.
-    return workload_list_awk_command(
-        f'({status_arg} == "Finished" && {status_verbose_arg} ~ "finished")'
-    )
-  raise RuntimeError(f'Can not find filter type: {args.filter_by_status}')
-
-
-def determine_workload_list_filter_by_job(args) -> str:
-  """Function to filter view of workload list based on job name.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    the argument needed to filter job names from workload list
-  """
-  # Argument positions related to columns created by workload list command.
-  if not hasattr(args, 'filter_by_job') or args.filter_by_job is None:
-    return ''
-  else:
-    job_name_arg = '$1'
-    return workload_list_awk_command(f'{job_name_arg} ~ "{args.filter_by_job}"')
+    return _StatusFilter.EVERYTHING
 
 
 def get_workload_list(args) -> tuple[int, str]:
@@ -105,34 +305,18 @@ def get_workload_list(args) -> tuple[int, str]:
     return_code: 0 if successful and 1 otherwise.
     return_value: workloads in the cluster matching the criteria.
   """
-  columns = {
-      'Jobset Name': '.metadata.ownerReferences[0].name',
-      'Created Time': '.metadata.creationTimestamp',
-      'Priority': '.spec.priorityClassName',
-      'TPU VMs Needed': '.spec.podSets[0].count',
-      'TPU VMs Running/Ran': '.status.admission.podSetAssignments[-1].count',
-      'TPU VMs Done': '.status.reclaimablePods[0].count',
-      'Status': '.status.conditions[-1].type',
-      'Status Message': '.status.conditions[-1].message',
-      'Status Time': '.status.conditions[-1].lastTransitionTime',
-  }
-  s = ','.join([key + ':' + value for key, value in columns.items()])
+  filter_by_job = getattr(args, 'filter_by_job', None)
+  filter_by_status = _get_status_filter(args.filter_by_status)
 
-  workload_list_filter_status_cmd = determine_workload_list_filter_by_status(
-      args
-  )
-  workload_list_filter_job_cmd = determine_workload_list_filter_by_job(args)
-  command = (
-      f'kubectl get workloads --ignore-not-found -o=custom-columns="{s}" '
-      f'{workload_list_filter_status_cmd} {workload_list_filter_job_cmd}'
-  )
+  return_code, raw_rows = _fetch_workloads(filter_by_status, filter_by_job)
+  if return_code != 0:
+    return return_code, ''
 
-  task = f'List Jobs with filter-by-status={args.filter_by_status}'
-  if hasattr(args, 'filter_by_job'):
-    task += f' with filter-by-job={args.filter_by_job}'
+  filtered_rows = _filter_workloads(raw_rows, filter_by_status, filter_by_job)
 
-  return_code, return_value = run_command_for_value(command, task)
-  return return_code, return_value
+  formatted_output = _render_workloads(filtered_rows)
+
+  return 0, formatted_output
 
 
 def check_if_workload_exists(args) -> bool:
@@ -242,7 +426,7 @@ def wait_for_job_completion(args) -> int:
   return 0
 
 
-GCP_NAME_FILTER_VALUE_REGEX = re.compile(r'[a-z0-9\-]+')
+_GCP_NAME_FILTER_VALUE_REGEX = re.compile(r'[a-z0-9\-]+')
 """Defines correct name prefix value (contains only letters, numbers and dashes) that can be used in GCP filter chips."""
 
 

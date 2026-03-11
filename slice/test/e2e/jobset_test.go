@@ -199,7 +199,6 @@ var _ = ginkgo.Describe("JobSet", func() {
 								}
 							}
 							g.Expect(found).Should(gomega.BeTrue())
-							utils.ExpectJobSetHasAntiAffinity(createdJobSet)
 						}
 					}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 				})
@@ -220,7 +219,6 @@ var _ = ginkgo.Describe("JobSet", func() {
 							SubGroupCount:               ptr.To(tc.replicas),
 							PodSetSliceSize:             ptr.To(tc.wantSliceSize),
 						}, ignorePodSetTopologyRequestFields))
-						utils.ExpectWorkloadHasAntiAffinity(createdWorkload)
 					}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 				})
 
@@ -312,8 +310,6 @@ var _ = ginkgo.Describe("JobSet", func() {
 						g.Expect(pods.Items).Should(gomega.HaveLen(int(tc.parallelism)))
 						for _, pod := range pods.Items {
 							g.Expect(pod.Spec.NodeSelector).To(gomega.HaveKeyWithValue(core.TPUTopologyAnnotation, tc.tpuTopology))
-							req := core.FindNodeAffinityRequirement(&corev1.PodTemplateSpec{Spec: pod.Spec}, core.TPUSliceNodeLabel)
-							g.Expect(req).To(gomega.BeNil())
 						}
 					}, utils.LongTimeout, utils.Interval).Should(gomega.Succeed())
 				})
@@ -659,8 +655,6 @@ var _ = ginkgo.Describe("JobSet", func() {
 					g.Expect(pods.Items).Should(gomega.HaveLen(16))
 					for _, pod := range pods.Items {
 						g.Expect(pod.Spec.NodeSelector).To(gomega.HaveKeyWithValue(core.TPUTopologyAnnotation, "4x4x4"))
-						req := core.FindNodeAffinityRequirement(&corev1.PodTemplateSpec{Spec: pod.Spec}, core.TPUSliceNodeLabel)
-						g.Expect(req).To(gomega.BeNil())
 					}
 				}, util.LongTimeout, util.Interval).Should(gomega.Succeed())
 			})
@@ -1010,7 +1004,6 @@ var _ = ginkgo.Describe("JobSet", func() {
 					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates", "RetryCount", "RequeueAfterSeconds")))
 					g.Expect(createdWorkload.Status.SchedulingStats).ShouldNot(gomega.BeNil())
 					g.Expect(createdWorkload.Status.SchedulingStats.Evictions).Should(gomega.HaveLen(1))
-					utils.ExpectWorkloadHasAntiAffinity(createdWorkload)
 				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
 			})
 			ginkgo.By("Checking that all pods are created with topology node selector and without anti-affinity", func() {
@@ -1020,8 +1013,6 @@ var _ = ginkgo.Describe("JobSet", func() {
 					g.Expect(pods.Items).Should(gomega.HaveLen(int(16)))
 					for _, pod := range pods.Items {
 						g.Expect(pod.Spec.NodeSelector).To(gomega.HaveKeyWithValue(core.TPUTopologyAnnotation, "4x4x4"))
-						req := core.FindNodeAffinityRequirement(&corev1.PodTemplateSpec{Spec: pod.Spec}, core.TPUSliceNodeLabel)
-						g.Expect(req).To(gomega.BeNil())
 					}
 				}, utils.LongTimeout, utils.Interval).Should(gomega.Succeed())
 			})

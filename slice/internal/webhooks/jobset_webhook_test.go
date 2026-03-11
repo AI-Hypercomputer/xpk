@@ -143,7 +143,6 @@ func TestDefault(t *testing.T) {
 						"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
 					},
 				}).NodeAffinity("rj1", core.TPUSliceHealthNodeSelectorKey, corev1.NodeSelectorOpIn, []string{core.TPUSliceHealthNodeSelectorHealthy}).
-				NodeAffinity("rj1", core.TPUSliceNodeLabel, corev1.NodeSelectorOpDoesNotExist, nil).
 				RequestAndLimit("rj1", core.TPUResourceName, "4").
 				Obj(),
 		},
@@ -178,7 +177,6 @@ func TestDefault(t *testing.T) {
 						"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
 					},
 				}).NodeAffinity("rj1", core.TPUSliceHealthNodeSelectorKey, corev1.NodeSelectorOpIn, []string{core.TPUSliceHealthNodeSelectorHealthy, core.TPUSliceHealthNodeSelectorDegraded}).
-				NodeAffinity("rj1", core.TPUSliceNodeLabel, corev1.NodeSelectorOpDoesNotExist, nil).
 				RequestAndLimit("rj1", core.TPUResourceName, "4").
 				Obj(),
 		},
@@ -269,7 +267,7 @@ func TestDefault(t *testing.T) {
 						"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
 						core.TPUSliceHealthNodeSelectorKey:     "HEALTHY",
 					},
-				}).NodeAffinity("rj1", core.TPUSliceNodeLabel, corev1.NodeSelectorOpDoesNotExist, nil).
+				}).
 				RequestAndLimit("rj1", core.TPUResourceName, "4").
 				Obj(),
 		},
@@ -305,7 +303,6 @@ func TestDefault(t *testing.T) {
 					},
 				}).
 				NodeAffinity("rj1", core.TPUSliceHealthNodeSelectorKey, corev1.NodeSelectorOpIn, []string{"HEALTHY"}).
-				NodeAffinity("rj1", core.TPUSliceNodeLabel, corev1.NodeSelectorOpDoesNotExist, nil).
 				RequestAndLimit("rj1", core.TPUResourceName, "4").
 				Obj(),
 		},

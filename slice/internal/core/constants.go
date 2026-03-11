@@ -29,7 +29,6 @@ const (
 	TPUAcceleratorLabel        = "cloud.google.com/gke-tpu-accelerator"
 	TPUBlockLabel              = "cloud.google.com/gce-topology-block"
 	TPUSubBlockLabel           = "cloud.google.com/gke-tpu-partition-4x4x4-id"
-	PodWebhookLabelKey         = "cloud.google.com/gke-tpu-slice-pod"
 	TPUResourceName            = "google.com/tpu"
 	TPUsPerCube                = 64
 

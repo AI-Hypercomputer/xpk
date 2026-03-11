@@ -18,22 +18,12 @@ package features
 
 import (
 	"k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/apimachinery/pkg/util/version"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/component-base/featuregate"
 	featuregatetesting "k8s.io/component-base/featuregate/testing"
 )
 
-const (
-	// Adds AntiAffinity that excludes nodes belonging to existing slices from scheduling.
-	NodesInSlicesAntiAffinity featuregate.Feature = "NodesInSlicesAntiAffinity"
-)
-
-var defaultVersionedFeatureGates = map[featuregate.Feature]featuregate.VersionedSpecs{
-	NodesInSlicesAntiAffinity: {
-		{Version: version.MustParse("0.1"), Default: true, PreRelease: featuregate.Beta},
-	},
-}
+var defaultVersionedFeatureGates = map[featuregate.Feature]featuregate.VersionedSpecs{}
 
 func init() {
 	runtime.Must(utilfeature.DefaultMutableFeatureGate.AddVersioned(defaultVersionedFeatureGates))

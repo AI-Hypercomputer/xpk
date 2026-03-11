@@ -18,7 +18,6 @@ package webhooks
 
 import (
 	"fmt"
-	"slices"
 	"strconv"
 
 	corev1 "k8s.io/api/core/v1"
@@ -79,41 +78,4 @@ func annotatePodTemplateSpecWithTopology(template *corev1.PodTemplateSpec, paral
 
 	template.Annotations[kueue.PodSetSliceSizeAnnotation] = strconv.FormatInt(sliceSize, 10)
 	return nil
-}
-
-func addNodeInSliceAntiAffinity(template *corev1.PodTemplateSpec) {
-	if req := core.FindNodeAffinityRequirement(template, core.TPUSliceNodeLabel); req != nil && req.Operator == corev1.NodeSelectorOpDoesNotExist {
-		return
-	}
-	core.AddNodeAffinity(template, core.TPUSliceNodeLabel, corev1.NodeSelectorOpDoesNotExist, nil)
-}
-
-func removeNodeInSliceAntiAffinity(spec *corev1.PodSpec) {
-	if !core.HasAnyNodeAffinityRequirement(spec) {
-		return
-	}
-
-	nodeSelector := spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution
-	var nonEmptyTerms bool
-	for i := range nodeSelector.NodeSelectorTerms {
-		term := &nodeSelector.NodeSelectorTerms[i]
-		term.MatchExpressions = slices.DeleteFunc(term.MatchExpressions, func(req corev1.NodeSelectorRequirement) bool {
-			return req.Key == core.TPUSliceNodeLabel && req.Operator == corev1.NodeSelectorOpDoesNotExist
-		})
-		if len(term.MatchExpressions) > 0 || len(term.MatchFields) > 0 {
-			nonEmptyTerms = true
-		}
-	}
-
-	if !nonEmptyTerms {
-		spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = nil
-	}
-
-	if spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil && len(spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution) == 0 {
-		spec.Affinity.NodeAffinity = nil
-	}
-
-	if spec.Affinity.NodeAffinity == nil && spec.Affinity.PodAffinity == nil && spec.Affinity.PodAntiAffinity == nil {
-		spec.Affinity = nil
-	}
 }

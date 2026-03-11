@@ -294,10 +294,6 @@ func setupControllers(mgr ctrl.Manager, certsReady chan struct{}, activationTime
 		setupLog.Error(err, "Unable to create webhook", "webhook", "Job")
 		os.Exit(1)
 	}
-	if err := webhooks.SetupPodWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "Unable to create webhook", "webhook", "Pod")
-		os.Exit(1)
-	}
 
 	if failedCtrl, err := controller.SetupControllers(mgr, controller.Options{
 		ActivationTimeout: activationTimeout, RetryDelayOnSliceFailure: retryDelay}); err != nil {

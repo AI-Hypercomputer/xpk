@@ -115,20 +115,23 @@ def _parse_workload_item(item: dict[str, Any]) -> _WorkloadListRow:
         or None
     )
 
-  tpu_vms_needed = _safe_int(pod_sets[0].get('count')) if pod_sets else None
-
-  pod_set_assignments = (
-      item.get('status', {}).get('admission', {}).get('podSetAssignments') or []
+  tpu_vms_needed = (
+      sum(_safe_int(ps.get('count')) for ps in pod_sets) if pod_sets else None
   )
+
+  admission_status = item.get('status', {}).get('admission', {})
+  pod_set_assignments = admission_status.get('podSetAssignments') or []
   tpu_vms_running_ran = (
-      _safe_int(pod_set_assignments[0].get('count'))
+      sum(_safe_int(psa.get('count')) for psa in pod_set_assignments)
       if pod_set_assignments
       else None
   )
 
   reclaimable_pods = item.get('status', {}).get('reclaimablePods') or []
   tpu_vms_done = (
-      _safe_int(reclaimable_pods[0].get('count')) if reclaimable_pods else None
+      sum(_safe_int(rp.get('count')) for rp in reclaimable_pods)
+      if reclaimable_pods
+      else None
   )
 
   conditions = item.get('status', {}).get('conditions') or [{}]

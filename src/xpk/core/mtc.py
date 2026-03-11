@@ -16,6 +16,7 @@ limitations under the License.
 
 import requests
 import yaml
+from google.cloud import storage as gcp_storage
 
 from ..core.cluster import JOBSET_VERSION
 from ..core.cluster import setup_k8s_env
@@ -26,6 +27,29 @@ from ..utils.kubectl import apply_kubectl_manifest
 
 
 MTC_CPC_PATH = "/../templates/mtc-cpc.yaml"
+
+
+def add_mtc_bucket_iam_member(args) -> None:
+  """
+  Adds IAM members to the MTC GCS bucket.
+
+  This grants the gke-checkpointing-multitier-node service account
+  the necessary roles/storage.objectUser role.
+  """
+  storage_client = gcp_storage.Client()
+  bucket = storage_client.bucket(args.mtc_gcs_bucket)
+  policy = bucket.get_iam_policy(requested_policy_version=3)
+  role = "roles/storage.objectUser"
+
+  member = (
+      f"principal://iam.googleapis.com/projects/{args.project_number}/"
+      f"locations/global/workloadIdentityPools/{args.project}.svc.id.goog/"
+      "subject/ns/gke-managed-checkpointing/sa/gke-checkpointing-multitier-node"
+  )
+
+  policy.bindings.append({"role": role, "members": {member}})
+  bucket.set_iam_policy(policy)
+  xpk_print(f"Added {member} with role {role} to {args.mtc_gcs_bucket}.")
 
 
 def create_mtc_cpc(
@@ -81,6 +105,10 @@ def install_mtc_on_cluster(args, system) -> int:
     args.mtc_toleration_key = "google.com/tpu"
 
   k8s_api_client = setup_k8s_env(args)
+
+  xpk_print("Setting up MTC bucket IAM permissions")
+  add_mtc_bucket_iam_member(args)
+
   jobset_manifest = update_jobset_manifest()
   if jobset_manifest is None:
     xpk_print(

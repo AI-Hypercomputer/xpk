@@ -167,10 +167,10 @@ func (j *JobSetWrapper) RequestAndLimit(replicatedJobName string, r corev1.Resou
 }
 
 // NodeAffinity adds a node affinity to the target replicatedJob.
-func (j *JobSetWrapper) NodeAffinity(replicatedJobName, key string, operator corev1.NodeSelectorOperator, values []string) *JobSetWrapper {
+func (j *JobSetWrapper) NodeAffinity(replicatedJobName, key string, values []string) *JobSetWrapper {
 	for i, replicatedJob := range j.Spec.ReplicatedJobs {
 		if replicatedJob.Name == replicatedJobName {
-			core.AddNodeAffinity(&j.Spec.ReplicatedJobs[i].Template.Spec.Template, key, operator, values)
+			core.AddNodeAffinity(&j.Spec.ReplicatedJobs[i].Template.Spec.Template, key, values)
 		}
 	}
 	return j

@@ -36,7 +36,8 @@ func SetupJobWebhookWithManager(mgr ctrl.Manager, defaultSliceHealthValues []str
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(&batchv1.Job{}).
 		WithDefaulter(&JobWebhook{
-			DefaultSliceHealthValues: defaultSliceHealthValues}).
+			DefaultSliceHealthValues: defaultSliceHealthValues,
+		}).
 		Complete()
 }
 
@@ -49,16 +50,15 @@ func (r *JobWebhook) Default(ctx context.Context, obj runtime.Object) error {
 	log := ctrl.LoggerFrom(ctx).WithName("job-accelerator-gke-webhook")
 	log.V(5).Info("Defaulting Job")
 
-	if !core.IsRelevantPodTemplateSpec(job.Spec.Template) {
-		log.V(5).Info("Skipping annotating Job due to TPU Annotation or Node Selector misconfigured")
-		return nil
-	}
-
 	if job.Labels[kueueconstants.QueueLabel] == "" {
 		log.V(5).Info("Skipping due to missing Kueue Label")
 		return nil
 	}
 
+	if !core.IsRelevantPodTemplateSpec(job.Spec.Template) {
+		log.V(5).Info("Skipping annotating Job due to TPU Annotation or Node Selector misconfigured")
+		return nil
+	}
 	log.V(5).Info("Annotating Job")
 	annotatePodTemplateSpecWithSliceHealth(&job.Spec.Template, r.DefaultSliceHealthValues)
 	err := annotatePodTemplateSpecWithTopology(&job.Spec.Template, job.Spec.Parallelism, job.Name, "job")

@@ -166,6 +166,7 @@ func SetSliceReady(ctx context.Context, k8sClient client.Client, sliceKey client
 			nodeNames = append(nodeNames, node.Name)
 		}
 	}
+<<<<<<< HEAD
 	LabelNodes(ctx, k8sClient, core.TPUTopologyAnnotation, topology, nodeNames)
 	LabelNodes(ctx, k8sClient, core.TPUSliceNodeLabel, createdSlice.Name, nodeNames)
 }
@@ -189,4 +190,7 @@ func ExpectWorkloadHasAntiAffinity(wl *kueue.Workload) {
 	for _, ps := range wl.Spec.PodSets {
 		expectAntiAffinity(&ps.Template, string(ps.Name), "podset")
 	}
+=======
+	LabelNodesWithTopology(ctx, k8sClient, topology, nodeNames)
+>>>>>>> parent of c8210e7 ([slice] Antiaffinity (#1086))
 }

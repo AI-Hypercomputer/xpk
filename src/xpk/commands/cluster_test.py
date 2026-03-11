@@ -1,3 +1,5 @@
+import unittest.mock
+import unittest
 """
 Copyright 2025 Google LLC
 
@@ -22,8 +24,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from xpk.core.telemetry import MetricsCollector
-from xpk.commands.cluster import _install_kueue, _validate_cluster_create_args, _get_coredns_replica_count, run_gke_cluster_create_command, cluster_create, _log_cluster_create_telemetry
-from xpk.core.capacity import CapacityType
+from xpk.commands.cluster import _install_kueue, _validate_cluster_create_args, _set_cluster_topology_defaults, _get_coredns_replica_count, run_gke_cluster_create_command, cluster_create, _log_cluster_create_telemetry
+from xpk.core.capacity import CapacityType, ReservationCapacity
+from xpk.core.reservation import ReservationLink
 from xpk.core.system_characteristics import SystemCharacteristics, UserFacingNameToSystemCharacteristics
 from xpk.core.testing.commands_tester import CommandsTester
 from xpk.utils.feature_flags import FeatureFlags
@@ -131,6 +134,12 @@ def construct_args(**kwargs: Any) -> Namespace:
       managed_mldiagnostics=False,
       output_manifest_file='',
       num_cubes=None,
+      docker_name='test-docker-image',
+      workload='test-workload',
+      deploy_stacktrace_sidecar=False,
+      enable_debug_logs=False,
+      scheduler='default-scheduler',
+      headless=False,
   )
   args_dict.update(kwargs)
   return Namespace(**args_dict)
@@ -596,6 +605,10 @@ def test_validate_cluster_create_args_for_correct_super_slicing_args_pass(
       num_slices=None,
   )
 
+  with unittest.mock.patch('xpk.commands.cluster.assess_available_slices', return_value=(None, 0)), unittest.mock.patch('xpk.commands.cluster.get_capacity_type', return_value=(CapacityType.RESERVATION, 0)), unittest.mock.patch('xpk.commands.cluster.get_reservations_list', return_value=['r']):
+
+      _set_cluster_topology_defaults(args, SUPER_SLICING_SYSTEM)
+
   _validate_cluster_create_args(args, SUPER_SLICING_SYSTEM)
   args = construct_args(
       super_slicing=True,
@@ -623,8 +636,8 @@ def test_validate_cluster_create_args_for_super_slicing_system_not_supported_thr
 
   with pytest.raises(SystemExit):
     _validate_cluster_create_args(
-        args, UserFacingNameToSystemCharacteristics['tpu7x-4x4x8']
-    )
+      args, UserFacingNameToSystemCharacteristics['tpu7x-4x4x8']
+  )
 
   assert mocks.common_print_mock.call_count == 1
   assert (
@@ -645,6 +658,8 @@ def test_validate_cluster_create_args_for_super_slicing_missing_reservation(
   )
 
   with pytest.raises(SystemExit):
+    with unittest.mock.patch('xpk.commands.cluster.assess_available_slices', return_value=(None, 0)), unittest.mock.patch('xpk.commands.cluster.get_capacity_type', return_value=(CapacityType.RESERVATION, 0)), unittest.mock.patch('xpk.commands.cluster.get_reservations_list', return_value=['r']):
+        _set_cluster_topology_defaults(args, SUPER_SLICING_SYSTEM)
     _validate_cluster_create_args(args, SUPER_SLICING_SYSTEM)
 
   assert mocks.commands_print_mock.call_count == 1
@@ -667,9 +682,11 @@ def test_validate_cluster_create_args_for_super_slicing_sparse_deployment_type_r
   mocks.commands_get_reservation_deployment_type.return_value = 'SPARSE'
 
   with pytest.raises(SystemExit):
+    with unittest.mock.patch('xpk.commands.cluster.assess_available_slices', return_value=(None, 0)), unittest.mock.patch('xpk.commands.cluster.get_capacity_type', return_value=(CapacityType.RESERVATION, 0)), unittest.mock.patch('xpk.commands.cluster.get_reservations_list', return_value=['r']):
+        _set_cluster_topology_defaults(args, SUPER_SLICING_SYSTEM)
     _validate_cluster_create_args(args, SUPER_SLICING_SYSTEM)
 
-  assert mocks.commands_print_mock.call_count == 5
+  assert mocks.commands_print_mock.call_count == 6
   assert (
       'Refer to the documentation for more information on creating Cluster'
       in mocks.commands_print_mock.call_args[0][0]
@@ -687,6 +704,8 @@ def test_validate_cluster_create_args_forbids_num_cubes_without_superslicing(
   )
 
   with pytest.raises(SystemExit):
+    with unittest.mock.patch('xpk.commands.cluster.assess_available_slices', return_value=(None, 0)), unittest.mock.patch('xpk.commands.cluster.get_capacity_type', return_value=(CapacityType.RESERVATION, 0)), unittest.mock.patch('xpk.commands.cluster.get_reservations_list', return_value=['r']):
+        _set_cluster_topology_defaults(args, SUPER_SLICING_SYSTEM)
     _validate_cluster_create_args(args, SUPER_SLICING_SYSTEM)
 
   assert mocks.commands_print_mock.call_count == 1
@@ -708,6 +727,8 @@ def test_validate_cluster_create_args_forbids_num_cubes_different_from_num_slice
   )
 
   with pytest.raises(SystemExit):
+    with unittest.mock.patch('xpk.commands.cluster.assess_available_slices', return_value=(None, 0)), unittest.mock.patch('xpk.commands.cluster.get_capacity_type', return_value=(CapacityType.RESERVATION, 0)), unittest.mock.patch('xpk.commands.cluster.get_reservations_list', return_value=['r']):
+        _set_cluster_topology_defaults(args, SUPER_SLICING_SYSTEM)
     _validate_cluster_create_args(args, SUPER_SLICING_SYSTEM)
 
   assert mocks.commands_print_mock.call_count == 1
@@ -740,9 +761,66 @@ def test_validate_cluster_create_args_sets_correct_num_slices(
       num_slices=num_slices,
   )
 
+  with unittest.mock.patch('xpk.commands.cluster.assess_available_slices', return_value=(None, 0)), unittest.mock.patch('xpk.commands.cluster.get_capacity_type', return_value=(CapacityType.RESERVATION, 0)), unittest.mock.patch('xpk.commands.cluster.get_reservations_list', return_value=['r']):
+
+      _set_cluster_topology_defaults(args, SUPER_SLICING_SYSTEM)
+
   _validate_cluster_create_args(args, SUPER_SLICING_SYSTEM)
 
   assert args.num_slices == expected
+
+
+def test_validate_cluster_create_args_optional_num_slices(
+    mocks: _Mocks,
+):
+  available_capacity = [
+      ReservationCapacity(
+          reservation=ReservationLink(project='p', zone='z', name='r'),
+          available_slices=4,
+      )
+  ]
+
+  args = construct_args(
+      reservation='test-reservation',
+      num_slices=None,
+      num_cubes=None,
+  )
+
+  with unittest.mock.patch('xpk.commands.cluster.assess_available_slices', return_value=(available_capacity, 0)), unittest.mock.patch('xpk.commands.cluster.get_capacity_type', return_value=(CapacityType.RESERVATION, 0)), unittest.mock.patch('xpk.commands.cluster.get_reservations_list', return_value=['r']):
+
+      _set_cluster_topology_defaults(args, TPU_TEST_SYSTEM)
+
+  assert args.num_slices == 4
+  assert mocks.commands_print_mock.call_count == 2
+  assert (
+      'Automatically setting --num-slices to 4'
+      in mocks.commands_print_mock.call_args_list[1][0][0]
+  )
+
+
+def test_validate_cluster_create_args_optional_num_slices_super_slicing(
+    mocks: _Mocks,
+):
+  available_capacity = [
+      ReservationCapacity(
+          reservation=ReservationLink(project='p', zone='z', name='r'),
+          available_slices=8,
+      )
+  ]
+
+  args = construct_args(
+      super_slicing=True,
+      reservation='test-reservation/reservationBlocks/block',
+      num_slices=None,
+      num_cubes=None,
+  )
+
+  with unittest.mock.patch('xpk.commands.cluster.assess_available_slices', return_value=(available_capacity, 0)), unittest.mock.patch('xpk.commands.cluster.get_capacity_type', return_value=(CapacityType.RESERVATION, 0)), unittest.mock.patch('xpk.commands.cluster.get_reservations_list', return_value=['r']):
+
+      _set_cluster_topology_defaults(args, SUPER_SLICING_SYSTEM)
+
+  assert args.num_slices == 8
+  assert args.num_cubes == 8
 
 
 def test_get_coredns_replica_count_lower_limit_is_number_of_nodes():
@@ -758,3 +836,185 @@ def test_get_coredns_replica_count_upper_limit_is_15():
       default_pool_cpu_num_nodes=20,
   )
   assert _get_coredns_replica_count(args) == 15
+
+
+def test_validate_cluster_create_args_optional_num_nodes_gpu(
+    mocks: _Mocks,
+):
+  available_capacity = [
+      ReservationCapacity(
+          reservation=ReservationLink(project='p', zone='z', name='r'),
+          available_slices=8,
+      )
+  ]
+
+  args = construct_args(
+      reservation='test-reservation',
+      num_slices=None,
+      num_cubes=None,
+      num_nodes=None,
+  )
+
+  with unittest.mock.patch('xpk.commands.cluster.assess_available_slices', return_value=(available_capacity, 0)), unittest.mock.patch('xpk.commands.cluster.get_capacity_type', return_value=(CapacityType.RESERVATION, 0)), unittest.mock.patch('xpk.commands.cluster.get_reservations_list', return_value=['r']):
+
+      _set_cluster_topology_defaults(args, GPU_TEST_SYSTEM)
+
+  assert args.num_nodes == 8
+  assert args.num_slices == 1
+
+
+def test_validate_cluster_create_args_explicit_num_nodes_gpu(
+    mocks: _Mocks,
+):
+  available_capacity = [
+      ReservationCapacity(
+          reservation=ReservationLink(project='p', zone='z', name='r'),
+          available_slices=4,
+      )
+  ]
+
+  args = construct_args(
+      reservation='test-reservation',
+      num_slices=None,
+      num_cubes=None,
+      num_nodes=2,
+  )
+
+  with unittest.mock.patch('xpk.commands.cluster.assess_available_slices', return_value=(available_capacity, 0)), unittest.mock.patch('xpk.commands.cluster.get_capacity_type', return_value=(CapacityType.RESERVATION, 0)), unittest.mock.patch('xpk.commands.cluster.get_reservations_list', return_value=['r']):
+
+      _set_cluster_topology_defaults(args, GPU_TEST_SYSTEM)
+
+  assert args.num_nodes == 2
+  assert args.num_slices == 4
+
+
+def test_cluster_create_optional_num_nodes_gpu_without_explicit_arg(
+    mocker,
+    mocks: _Mocks,
+):
+  args = construct_args(
+      device_type='a3-highgpu-8g',
+      reservation='test-reservation',
+      num_slices=None,
+      num_cubes=None,
+      num_nodes=None,
+  )
+  mocker.patch(
+      'xpk.commands.cluster.get_capacity_type',
+      return_value=(CapacityType.RESERVATION, 0),
+  )
+  mocker.patch(
+      'xpk.commands.cluster.get_reservations_list',
+      return_value=['test-reservation'],
+  )
+
+  def mock_assess_available_slices(*args, **kwargs):
+    vms_per_slice = kwargs.get('vms_per_slice', 1)
+    available_slices = 12 // vms_per_slice
+    return [
+        ReservationCapacity(
+            reservation=ReservationLink(project='p', zone='z', name='r'),
+            available_slices=available_slices,
+        )
+    ], 0
+
+  mocker.patch(
+      'xpk.commands.cluster.assess_available_slices',
+      side_effect=mock_assess_available_slices,
+  )
+  mocker.patch('xpk.commands.cluster._validate_cluster_create_args')
+  mocker.patch('xpk.commands.cluster._log_cluster_create_telemetry')
+  mocker.patch(
+      'xpk.commands.cluster.get_gke_server_config',
+      return_value=(0, 'gke-server-config'),
+  )
+  mocker.patch(
+      'xpk.commands.cluster.get_gke_control_plane_version',
+      return_value=(0, '1.2.3'),
+  )
+  mocker.patch('xpk.commands.cluster._install_kueue', return_value=0)
+  mocker.patch('xpk.commands.cluster.create_cluster_configmaps', return_value=0)
+  mocker.patch(
+      'xpk.commands.cluster.run_gke_cluster_create_command', return_value=0
+  )
+  mocker.patch(
+      'xpk.commands.cluster.get_system_characteristics',
+      return_value=(GPU_TEST_SYSTEM, 0),
+  )
+  mocker.patch(
+      'xpk.commands.cluster.run_gke_node_pool_create_command', return_value=0
+  )
+  mocker.patch('xpk.commands.cluster.xpk_exit')
+
+  try:
+    cluster_create(args)
+  except SystemExit:
+    pass
+
+  assert args.num_nodes == 12
+
+
+def test_cluster_create_optional_num_nodes_gpu_with_explicit_arg(
+    mocker,
+    mocks: _Mocks,
+):
+  args = construct_args(
+      device_type='a3-highgpu-8g',
+      reservation='test-reservation',
+      num_slices=None,
+      num_cubes=None,
+      num_nodes=3,
+  )
+  mocker.patch(
+      'xpk.commands.cluster.get_capacity_type',
+      return_value=(CapacityType.RESERVATION, 0),
+  )
+  mocker.patch(
+      'xpk.commands.cluster.get_reservations_list',
+      return_value=['test-reservation'],
+  )
+
+  def mock_assess_available_slices(*args, **kwargs):
+    vms_per_slice = kwargs.get('vms_per_slice', 1)
+    available_slices = 12 // vms_per_slice
+    return [
+        ReservationCapacity(
+            reservation=ReservationLink(project='p', zone='z', name='r'),
+            available_slices=available_slices,
+        )
+    ], 0
+
+  mocker.patch(
+      'xpk.commands.cluster.assess_available_slices',
+      side_effect=mock_assess_available_slices,
+  )
+  mocker.patch('xpk.commands.cluster._validate_cluster_create_args')
+  mocker.patch('xpk.commands.cluster._log_cluster_create_telemetry')
+  mocker.patch(
+      'xpk.commands.cluster.get_gke_server_config',
+      return_value=(0, 'gke-server-config'),
+  )
+  mocker.patch(
+      'xpk.commands.cluster.get_gke_control_plane_version',
+      return_value=(0, '1.2.3'),
+  )
+  mocker.patch('xpk.commands.cluster._install_kueue', return_value=0)
+  mocker.patch('xpk.commands.cluster.create_cluster_configmaps', return_value=0)
+  mocker.patch(
+      'xpk.commands.cluster.run_gke_cluster_create_command', return_value=0
+  )
+  mocker.patch(
+      'xpk.commands.cluster.get_system_characteristics',
+      return_value=(GPU_TEST_SYSTEM, 0),
+  )
+  mocker.patch(
+      'xpk.commands.cluster.run_gke_node_pool_create_command', return_value=0
+  )
+  mocker.patch('xpk.commands.cluster.xpk_exit')
+
+  try:
+    cluster_create(args)
+  except SystemExit:
+    pass
+
+  assert args.num_nodes == 3

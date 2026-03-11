@@ -26,7 +26,7 @@ from .capacity import (
     CapacityType,
     get_capacity_arguments_from_capacity_type,
     get_capacity_type,
-    assess_available_slices,
+    ReservationCapacity,
 )
 from .reservation import (
     get_reservations_list,
@@ -52,7 +52,10 @@ OLDER_PATHWAYS_CPU_NP_TO_DELETE = ['cpu-rm-np', 'cpu-proxy-np', 'cpu-user-np']
 
 
 def run_gke_node_pool_create_command(
-    args, system: SystemCharacteristics, gke_node_pool_version: str
+    args,
+    system: SystemCharacteristics,
+    gke_node_pool_version: str,
+    available_capacity: list[ReservationCapacity] | None = None,
 ) -> int:
   """Run the Create GKE Node Pool request.
 
@@ -60,6 +63,7 @@ def run_gke_node_pool_create_command(
     args: user provided arguments for running the command.
     system: System characteristics based on device type/topology.
     gke_node_pool_version: GKE version to use to create node pools.
+    available_capacity: Optional list of assessed reservation capacities.
 
   Returns:
     0 if successful and 1 otherwise.
@@ -284,17 +288,13 @@ def run_gke_node_pool_create_command(
   if capacity_type == CapacityType.RESERVATION:
     reservations = get_reservations_list(args)
     if FeatureFlags.RESERVATIONS_VALIDATION_ENABLED:
-      vms_per_pool = (
-          args.num_nodes
-          if system.accelerator_type == AcceleratorType.GPU
-          else system.vms_per_slice
+      assert available_capacity is not None, (
+          'available_capacity must be provided when'
+          ' RESERVATIONS_VALIDATION_ENABLED is true.'
       )
       reservations_iter, return_code = _prepare_reservation_iterator(
-          reservations=reservations,
           num_new_node_pools=len(node_pools_to_create),
-          force_sub_block_targeting=super_slicing,
-          system=system,
-          vms_per_pool=vms_per_pool,
+          available_capacity=available_capacity,
       )
       if return_code > 0:
         return return_code
@@ -763,22 +763,9 @@ def recreate_nodes_in_existing_node_pools(args) -> int:
 
 
 def _prepare_reservation_iterator(
-    reservations: List[ReservationLink],
     num_new_node_pools: int,
-    force_sub_block_targeting: bool,
-    system: SystemCharacteristics,
-    vms_per_pool: int,
+    available_capacity: list[ReservationCapacity],
 ) -> tuple[Iterator[ReservationLink] | None, int]:
-  available_capacity, return_code = assess_available_slices(
-      reservations,
-      force_sub_block_targeting=force_sub_block_targeting,
-      system=system,
-      vms_per_slice=vms_per_pool,
-  )
-
-  if return_code > 0:
-    return None, return_code
-
   total_available = sum(cap.available_slices for cap in available_capacity)
 
   if total_available < num_new_node_pools:

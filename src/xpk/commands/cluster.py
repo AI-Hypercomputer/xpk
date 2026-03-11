@@ -42,6 +42,9 @@ from ..core.telemetry import MetricsCollector, MetricsEventMetadataKey
 from ..core.capacity import (
     H100_DEVICE_TYPE,
     get_capacity_type,
+    assess_available_slices,
+    CapacityType,
+    ReservationCapacity,
 )
 from ..core.reservation import (
     get_reservations_list,
@@ -213,11 +216,13 @@ def cluster_adapt(args) -> None:
   xpk_exit(0)
 
 
-def _validate_cluster_create_args(args, system: SystemCharacteristics):
+def _validate_cluster_create_args(
+    args,
+    system: SystemCharacteristics,
+):
   if FeatureFlags.SUB_SLICING_ENABLED and args.sub_slicing:
     validate_sub_slicing_system(system)
     _validate_sub_slicing_reservation(args)
-  _validate_num_slices_and_set_default(args)
   if args.super_slicing:
     validate_super_slicing_system(system)
     _validate_super_slicing_reservation(args)
@@ -281,12 +286,16 @@ def _validate_gsc_reservation(args, creation_description: str):
       xpk_exit(1)
 
 
-def _validate_num_slices_and_set_default(args):
+def _set_cluster_topology_defaults(
+    args,
+    system: SystemCharacteristics,
+) -> list[ReservationCapacity] | None:
   if args.num_cubes is not None and not args.super_slicing:
     xpk_print('--num-cubes can only be used with --super-slicing')
     xpk_exit(1)
-
-  if (
+  if args.num_cubes is not None and args.num_slices is None:
+    args.num_slices = args.num_cubes
+  elif (
       args.num_cubes is not None
       and args.num_slices is not None
       and args.num_cubes != args.num_slices
@@ -294,7 +303,68 @@ def _validate_num_slices_and_set_default(args):
     xpk_print('--num-cubes must not be different from --num-slices')
     xpk_exit(1)
 
+  available_capacity = None
+  capacity_type, return_code = get_capacity_type(args)
+  if return_code != 0:
+    xpk_exit(return_code)
+
+  if capacity_type == CapacityType.RESERVATION and args.reservation and FeatureFlags.RESERVATIONS_VALIDATION_ENABLED:
+    xpk_print('Assessing reservation capacity to determine number of slices...')
+    reservations = get_reservations_list(args)
+    
+    vms_per_pool = (
+        getattr(args, 'num_nodes', None)
+        if system.accelerator_type == AcceleratorType.GPU
+        else system.vms_per_slice
+    )
+    if vms_per_pool is None and system.accelerator_type == AcceleratorType.GPU:
+      vms_per_pool = 1
+
+    temp_capacity, return_code = assess_available_slices(
+        reservations,
+        force_sub_block_targeting=args.super_slicing,
+        system=system,
+        vms_per_slice=vms_per_pool,
+    )
+    if return_code != 0:
+      xpk_print('Error assessing available slices.')
+      xpk_exit(return_code)
+
+    if system.accelerator_type == AcceleratorType.GPU and getattr(args, 'num_nodes', None) is None:
+      total_vms = sum(cap.available_slices for cap in temp_capacity)
+      if total_vms > 0:
+        xpk_print(f'Automatically setting --num-nodes to {total_vms}')
+        args.num_nodes = total_vms
+        available_capacity = []
+        for cap in temp_capacity:
+          available_capacity.append(ReservationCapacity(
+            reservation=cap.reservation,
+            available_slices=cap.available_slices // args.num_nodes
+          ))
+      else:
+        available_capacity = temp_capacity
+    else:
+      available_capacity = temp_capacity
+
+  if system.accelerator_type == AcceleratorType.GPU:
+    args.num_nodes = 2 if getattr(args, 'num_nodes', None) is None else args.num_nodes
+
+  if (
+      args.num_slices is None
+      and args.num_cubes is None
+      and args.reservation
+      and available_capacity is not None
+  ):
+    total_available = sum(cap.available_slices for cap in available_capacity)
+    if total_available > 0:
+      xpk_print(f'Automatically setting --num-slices to {total_available}')
+      args.num_slices = total_available
+
   args.num_slices = args.num_slices or args.num_cubes or 1
+  if args.super_slicing:
+    args.num_cubes = args.num_slices
+
+  return available_capacity
 
 
 def cluster_create(args) -> None:
@@ -319,6 +389,8 @@ def cluster_create(args) -> None:
 
   xpk_print(f'Starting cluster create for cluster {args.cluster}:', flush=True)
   add_zone_and_project(args)
+
+  available_capacity = _set_cluster_topology_defaults(args, system)
 
   _validate_cluster_create_args(args, system)
   _log_cluster_create_telemetry(args)
@@ -413,7 +485,7 @@ def cluster_create(args) -> None:
   assert gke_node_pool_version
 
   run_gke_node_pool_create_command_code = run_gke_node_pool_create_command(
-      args, system, gke_node_pool_version
+      args, system, gke_node_pool_version, available_capacity=available_capacity
   )
   if run_gke_node_pool_create_command_code != 0:
     xpk_exit(run_gke_node_pool_create_command_code)

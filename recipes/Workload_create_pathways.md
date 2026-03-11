@@ -42,7 +42,7 @@ docker buildx build --platform=linux/amd64 -f 4b6736a12db8ea0f78ce793fd0d4ee0c94
 docker tag dry-run-runner gcr.io/golden-project/dry-run-runner:prefix-current
 [XPK] Task: `Upload Docker Image` is implemented by the following command not running since it is a dry run. 
 docker push gcr.io/golden-project/dry-run-runner:prefix-current
-[XPK] Temp file (db6773a981cdacdfee9a4ef7d3d0d772237d912e85ce2f24111e38d73b9e6b6f) content: 
+[XPK] Temp file (5394ec8d9ca40eb8e048844d5622be8da9ac27cc9565535366c11a379ea35f58) content: 
 apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
 metadata:
@@ -213,12 +213,12 @@ spec:
               
             containers:
               - name: pathways-worker
-               image: us-docker.pkg.dev/cloud-tpu-v2-images/pathways/server:latest
-               imagePullPolicy: Always
-               args:
-               - --server_port=29005
-               - --resource_manager_address=$(PATHWAYS_HEAD):29001
-               - --gcs_scratch_location=gs://cloud-pathways-staging/tmp
+                image: us-docker.pkg.dev/cloud-tpu-v2-images/pathways/server:latest
+                imagePullPolicy: Always
+                args:
+                - --server_port=29005
+                - --resource_manager_address=$(PATHWAYS_HEAD):29001
+                - --gcs_scratch_location=gs://cloud-pathways-staging/tmp
                 env:
                 - name: TPU_MIN_LOG_LEVEL
                   value: "0"
@@ -282,7 +282,7 @@ spec:
   suspend: false
 
 [XPK] Task: `Creating Workload` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f db6773a981cdacdfee9a4ef7d3d0d772237d912e85ce2f24111e38d73b9e6b6f
+kubectl apply -f 5394ec8d9ca40eb8e048844d5622be8da9ac27cc9565535366c11a379ea35f58
 [XPK] Task: `GKE Dashboard List` is implemented by the following command not running since it is a dry run. 
 gcloud monitoring dashboards list --project=golden-project --filter="displayName:'GKE - TPU Monitoring Dashboard'" --format="value(name)" --verbosity=error
 [XPK] Check statistics and outlier mode of GKE metrics here: https://console.cloud.google.com/monitoring/dashboards/builder/0?project=golden-project&f.rlabel.cluster_name.ClusterName=golden-cluster. To view the metric data for your workload, select golden-workload from the JobName filter on the dashboard.

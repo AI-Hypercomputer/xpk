@@ -730,6 +730,32 @@ func TestWorkloadReconciler(t *testing.T) {
 					Obj(),
 			},
 		},
+		"should not create Slices (and delete existing) if AdmissionCheck is in Retry state": {
+			request: baseRequest,
+			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				worker2Node.DeepCopy(),
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckStateWithRequeue(kueue.CheckStateRetry, "retrying", ptr.To(int32(10)))).
+					Obj(),
+				baseSlice1Wrapper.DeepCopy(),
+				baseSlice2Wrapper.DeepCopy(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckStateWithRequeue(kueue.CheckStateRetry, "retrying", ptr.To(int32(10)))).
+					Obj(),
+			},
+		},
 		"shouldn't create a Slice because there’s no AdmissionCheck": {
 			request: baseRequest,
 			objs: []client.Object{
@@ -1672,9 +1698,6 @@ func TestWorkloadReconciler(t *testing.T) {
 						`Slices are in states: 1 ACTIVE, 1 FAILED. Errors: Error by test`, ptr.To(int32(10)))).
 					Obj(),
 			},
-			wantSlices: []slice.Slice{
-				*baseSlice1Wrapper.Clone().Active().Obj(),
-			},
 			wantEvents: []utiltesting.EventRecord{
 				buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, AdmissionCheckUpdatedEventType,
 					fmt.Sprintf(`Admission check %q updated state from "Pending" to "Retry"`, baseACName)),
@@ -1733,9 +1756,6 @@ func TestWorkloadReconciler(t *testing.T) {
 						"Slice has been deleted", ptr.To(int32(10)))).
 					Obj(),
 			},
-			wantSlices: []slice.Slice{
-				*baseSlice2Wrapper.Clone().Active().Obj(),
-			},
 		},
 		"should evict workload if slice is deleted unexpectedly": {
 			request: baseRequest,
@@ -1765,7 +1785,6 @@ func TestWorkloadReconciler(t *testing.T) {
 			},
 			wantSlices: []slice.Slice{
 				*baseSlice1Wrapper.Clone().Active().DeletionTimestamp(now).Finalizers("accelerator.gke.io/slice-finalizer").Obj(),
-				*baseSlice2Wrapper.Clone().Active().Obj(),
 			},
 		},
 		"should use the first AdmissionCheck if more than one is found": {

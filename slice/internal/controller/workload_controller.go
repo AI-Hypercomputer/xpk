@@ -186,8 +186,10 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	if ac.State == kueue.CheckStateReady && (len(grouped.deleted) > 0 || len(slices) != totalDesiredSlices(wl, nodes)) {
 		log.V(3).Info("Slice has been deleted, evicting workload")
-		err := r.evictWorkload(ctx, wl, ac, "Slice has been deleted")
-		return ctrl.Result{}, err
+		if err := r.evictWorkload(ctx, wl, ac, "Slice has been deleted"); err != nil {
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{}, r.deleteSlicesForEvictedWorkload(ctx, grouped)
 	}
 
 	if len(grouped.deleted) > 0 {
@@ -215,6 +217,10 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	err = r.syncAdmissionCheckStatus(ctx, wl, ac, slices)
 	if err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	if ac.State == kueue.CheckStateRetry {
+		return ctrl.Result{}, r.deleteSlicesForEvictedWorkload(ctx, grouped)
 	}
 
 	// Delete any Slices that are in a failed or stale state.
@@ -393,6 +399,20 @@ func (r *WorkloadReconciler) deleteSlices(ctx context.Context, slices []*v1beta1
 	return nil
 }
 
+func (r *WorkloadReconciler) deleteSlicesForEvictedWorkload(ctx context.Context, grouped groupedSlices) error {
+	numSlicesToDelete := len(grouped.active) + len(grouped.initializing) + len(grouped.toDelete)
+	if numSlicesToDelete == 0 {
+		return nil
+	}
+	log := ctrl.LoggerFrom(ctx)
+	toDelete := make([]*v1beta1.Slice, 0, numSlicesToDelete)
+	toDelete = append(toDelete, grouped.active...)
+	toDelete = append(toDelete, grouped.initializing...)
+	toDelete = append(toDelete, grouped.toDelete...)
+	log.V(3).Info("AdmissionCheck is Retry, deleting all Slices")
+	return r.deleteSlices(ctx, toDelete)
+}
+
 func (r *WorkloadReconciler) ownerPodsFinished(ctx context.Context, wl *kueue.Workload) (bool, error) {
 	if isJobSetOwner(wl) {
 		return r.jobSetPodsFinished(ctx, wl)
@@ -551,6 +571,11 @@ func (r *WorkloadReconciler) syncSlices(
 	slices []v1beta1.Slice,
 	nodes map[string]corev1.Node,
 ) ([]v1beta1.Slice, error) {
+	// this is to prevent from creating slices when AC is Retry
+	// and the workload still has the old Admission
+	if ac.State != kueue.CheckStatePending {
+		return nil, nil
+	}
 	existingSlicesByName := make(map[string]*v1beta1.Slice, len(slices))
 	for _, slice := range slices {
 		existingSlicesByName[slice.Name] = &slice
@@ -729,7 +754,7 @@ func (r *WorkloadReconciler) validatePartitionCount(
 
 func (r *WorkloadReconciler) evictWorkload(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, message string) error {
 	ac.State = kueue.CheckStateRetry
-	ac.RequeueAfterSeconds = ptr.To(int32(10))
+	ac.RequeueAfterSeconds = ptr.To(int32(r.retryDelayOnSliceFailure.Round(time.Second).Seconds()))
 	ac.Message = api.TruncateConditionMessage(message)
 	return r.updateWorkloadAdmissionCheckStatus(ctx, wl, ac)
 }
@@ -803,6 +828,10 @@ func groupSlicesByState(slices []v1beta1.Slice, activationTimeout time.Duration)
 }
 
 func (r *WorkloadReconciler) prepareAdmissionCheckStatus(wl *kueue.Workload, ac *kueue.AdmissionCheckState, slices []v1beta1.Slice) {
+	// wait for Kueue to reset check to Pending after eviction
+	if ac.State == kueue.CheckStateRetry {
+		return
+	}
 	slicesByState := groupSlicesByState(slices, r.activationTimeout)
 
 	switch {

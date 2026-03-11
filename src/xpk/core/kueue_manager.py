@@ -40,7 +40,7 @@ from ..core.commands import (
 from ..utils.file import write_tmp_file
 from ..utils.console import xpk_print, xpk_exit, ask_for_user_consent
 from ..utils.templates import TEMPLATE_PATH, get_templates_absolute_path
-from packaging.version import Version
+from packaging.version import Version, InvalidVersion
 
 KUEUE_VERSION = Version("v0.15.2")
 LATEST_BREAKING_VERSION = Version("v0.15.0")
@@ -113,7 +113,13 @@ class KueueManager:
     return_code, installed_version = get_installed_kueue_version()
 
     if return_code == 0 and installed_version:
-      if installed_version > self.kueue_version:
+      if isinstance(installed_version, str):
+        xpk_print(
+            "Cluster has an unknown or custom Kueue version installed. Skipping"
+            " installation."
+        )
+        return 0
+      elif installed_version > self.kueue_version:
         xpk_print(
             f"Cluster has a newer Kueue version, {installed_version}. Skipping"
             " installation."
@@ -532,7 +538,16 @@ class KueueManager:
 
 def get_installed_kueue_version(
     dry_run_version: Version | None = None,
-) -> tuple[int, Version | None]:
+) -> tuple[int, Version | str | None]:
+  """Gets the currently installed Kueue version from the cluster.
+
+  Returns a tuple containing:
+  - The return code of the kubectl command.
+  - The version information:
+    - None if the command fails or the value is empty (e.g. Kueue not installed).
+    - A Version object if the image tag can be parsed as a valid version.
+    - A string if the image tag contains a custom SHA or is unparseable.
+  """
   command = (
       "kubectl get deployment kueue-controller-manager -n kueue-system -o"
       " jsonpath='{.spec.template.spec.containers[0].image}'"
@@ -547,12 +562,17 @@ def get_installed_kueue_version(
           else ""
       ),
   )
-  if return_code != 0:
+  if return_code != 0 or not val:
     return return_code, None
-  version_tag = val.split(":")
-  if len(version_tag) == 1:
-    return 1, None
-  return return_code, Version(version_tag[-1])
+
+  if "@sha256:" in val or ":" not in val:
+    return return_code, val
+
+  version_tag = val.split(":")[-1]
+  try:
+    return return_code, Version(version_tag)
+  except InvalidVersion:
+    return return_code, val
 
 
 def has_sub_slicing_enabled() -> tuple[int, bool | None]:

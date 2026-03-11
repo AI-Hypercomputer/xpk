@@ -64,10 +64,6 @@ def ensure_pathways_workload_prerequisites(args, system) -> bool:
   Returns:
     True once conditions satisfy and variables are set. Exits otherwise.
   """
-  # Ensure that PathwaysJob is installed and available on the cluster.
-  if not check_if_pathways_job_is_installed(args):
-    xpk_exit(1)
-
   # Ensure command is provided if not using Pathways in headless mode
   if args.command is None and not args.headless:
     xpk_print(
@@ -96,11 +92,11 @@ def ensure_pathways_workload_prerequisites(args, system) -> bool:
     xpk_print('Currently, Pathways workloads can only be run on TPUs.')
     xpk_exit(1)
 
+  # Note: The legacy Go controller supported 'colocate_head_with_workers' to run the proxy/RM on TPU nodes.
+  # This feature is deprecated in the new JobSet migration. The pathways-head will run on the CPU node pool.
+
   # Set proxy address to be consumed in helper methods and displayed to user.
   args.pathways_proxy_address = get_proxy_address(args)
-
-  # Set the job which determines the life of other Pathways jobs
-  args.targetReplicatedJob = 'proxy' if args.headless else 'main'
 
   return True
 
@@ -149,14 +145,14 @@ def get_pathways_unified_query_link(args) -> str:
   return f'https://console.cloud.google.com/logs/query;query={encoded_filter}'
 
 
-def append_custom_pathways_flags(custom_args, prev_indentation=8) -> str:
+def append_custom_pathways_flags(custom_args, base_indentation=16) -> str:
   """Append custom Pathways args to Pathways components using a YAML with proper indentation.
 
   Returns:
     yaml (string): yaml with additional args appended.
   """
   yaml = """"""
-  indentation = ' ' * (prev_indentation + 2)
+  indentation = ' ' * base_indentation
   if custom_args:
     custom_args = custom_args.split(' ')
     for arg in custom_args:
@@ -170,63 +166,173 @@ def append_custom_pathways_proxy_server(args) -> str:
   Returns:
       yaml (string): yaml with custom proxy server appended.
   """
-  yaml = """"""
-  if args.proxy_server_image or args.custom_pathways_proxy_server_args:
-    yaml = """- componentType: proxy_server"""
-  indentation = (
-      ' ' * 8
-  )  # Currently 8, based on the YAML, may need to update in the future.
-  if args.proxy_server_image:
-    yaml += '\n' + indentation + 'image: ' + args.proxy_server_image
+  image = (
+      args.proxy_server_image
+      if getattr(args, 'proxy_server_image', None)
+      else 'us-docker.pkg.dev/cloud-tpu-v2-images/pathways/proxy_server:latest'
+  )
+  yaml = f"""              - name: pathways-proxy
+                image: {image}
+                imagePullPolicy: Always
+                args:
+                - --server_port=29000
+                - --resource_manager_address=$(PATHWAYS_HEAD):29001
+                - --gcs_scratch_location={args.pathways_gcs_location}"""
+  if getattr(args, 'elastic_slices', 0) > 0:
+    yaml += f'\n                - --num_elastic_slices={args.elastic_slices}'
   if args.custom_pathways_proxy_server_args:
-    yaml += '\n' + indentation + 'customFlags: '
     yaml += append_custom_pathways_flags(
-        args.custom_pathways_proxy_server_args, len(indentation)
+        args.custom_pathways_proxy_server_args, base_indentation=16
     )
+  yaml += """
+                env:
+                - name: PATHWAYS_HEAD
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.labels['jobset.sigs.k8s.io/coordinator']
+                ports:
+                - containerPort: 29000
+                  protocol: TCP
+                resources:
+                  limits:
+                    cpu: "16"
+                    memory: 100G
+                restartPolicy: Always"""
   return yaml
 
 
-def append_custom_pathways_server(args) -> str:
+def append_custom_pathways_server(args, system: SystemCharacteristics) -> str:
   """Append custom Pathways server component using a YAML with proper indentation.
 
   Returns:
       yaml (string): yaml with custom pathways server appended.
   """
-  yaml = """"""
-  if args.server_image or args.custom_pathways_server_args:
-    yaml = """- componentType: pathways_server"""
-  indentation = (
-      ' ' * 8
-  )  # Currently 8, based on the YAML, may need to update in the future.
-  if args.server_image:
-    yaml += '\n' + indentation + 'image: ' + args.server_image
+  image = (
+      args.server_image
+      if getattr(args, 'server_image', None)
+      else 'us-docker.pkg.dev/cloud-tpu-v2-images/pathways/server:latest'
+  )
+
+  instance_type = (
+      f'{system.pathways_tpu_version}:{system.topology}'
+      if system.pathways_tpu_version
+      else system.gce_machine_type
+  )
+
+  yaml = f"""              - name: pathways-rm
+                image: {image}
+                imagePullPolicy: Always
+                args:
+                - --server_port=29001
+                - --gcs_scratch_location={args.pathways_gcs_location}
+                - --node_type=resource_manager
+                - --instance_count={args.num_slices}
+                - --instance_type={instance_type}"""
   if args.custom_pathways_server_args:
-    yaml += '\n' + indentation + 'customFlags: '
     yaml += append_custom_pathways_flags(
-        args.custom_pathways_server_args, len(indentation)
+        args.custom_pathways_server_args, base_indentation=16
     )
+  yaml += """
+                env:
+                - name: REPLICATED_JOB_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.annotations['jobset.sigs.k8s.io/replicatedjob-name']
+                - name: JOBSET_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.annotations['jobset.sigs.k8s.io/jobset-name']
+                - name: HOST_ADDRESS
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.labels['jobset.sigs.k8s.io/coordinator']
+                - name: TPU_SKIP_MDS_QUERY
+                  value: "true"
+                ports:
+                - containerPort: 29001
+                  protocol: TCP
+                - containerPort: 29002
+                  protocol: TCP
+                resources:
+                  limits:
+                    cpu: "8"
+                    memory: 32G
+                restartPolicy: Always"""
   return yaml
 
 
-def append_custom_pathways_worker(args) -> str:
+def append_custom_pathways_worker(args, system: SystemCharacteristics) -> str:
   """Append custom Pathways worker component using a YAML with proper indentation.
 
   Returns:
       yaml (string): yaml with custom pathways server appended.
   """
-  yaml = """"""
-  if args.server_image or args.custom_pathways_worker_args:
-    yaml = """- componentType: worker"""
-  indentation = (
-      ' ' * 8
-  )  # Currently 8, based on the YAML, may need to update in the future.
-  if args.server_image:
-    yaml += '\n' + indentation + 'image: ' + args.server_image
+  image = (
+      getattr(args, 'worker_image', None)
+      or getattr(args, 'server_image', None)
+      or 'us-docker.pkg.dev/cloud-tpu-v2-images/pathways/server:latest'
+  )
+
+  yaml = f"""- name: pathways-worker
+                image: {image}
+                imagePullPolicy: Always
+                args:
+                - --server_port=29005
+                - --resource_manager_address=$(PATHWAYS_HEAD):29001
+                - --gcs_scratch_location={args.pathways_gcs_location}"""
   if args.custom_pathways_worker_args:
-    yaml += '\n' + indentation + 'customFlags: '
     yaml += append_custom_pathways_flags(
-        args.custom_pathways_worker_args, len(indentation)
+        args.custom_pathways_worker_args, base_indentation=16
     )
+  yaml += f"""
+                env:
+                - name: TPU_MIN_LOG_LEVEL
+                  value: "0"
+                - name: TF_CPP_MIN_LOG_LEVEL
+                  value: "0"
+                - name: XCLOUD_ENVIRONMENT
+                  value: GCP
+                - name: MEGASCALE_GRPC_ENABLE_XOR_TRACER
+                  value: "false"
+                - name: MEGASCALE_NUM_SLICES
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.labels['jobset.sigs.k8s.io/replicatedjob-replicas']
+                - name: JOBSET_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.annotations['jobset.sigs.k8s.io/jobset-name']
+                - name: REPLICATED_JOB_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.annotations['jobset.sigs.k8s.io/replicatedjob-name']
+                - name: MEGASCALE_SLICE_ID
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.labels['jobset.sigs.k8s.io/job-index']
+                - name: PATHWAYS_HEAD
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.labels['jobset.sigs.k8s.io/coordinator']
+                - name: MEGASCALE_COORDINATOR_ADDRESS
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.labels['jobset.sigs.k8s.io/coordinator']
+                ports:
+                - containerPort: 29005
+                  protocol: TCP
+                - containerPort: 29006
+                  protocol: TCP
+                - containerPort: 8471
+                  protocol: TCP
+                - containerPort: 8080
+                  protocol: TCP
+                resources:
+                  limits:
+                    google.com/tpu: "{int(system.chips_per_vm)}"
+                volumeMounts:
+                - mountPath: /tmp
+                  name: shared-tmp"""
   return yaml
 
 
@@ -238,11 +344,8 @@ def append_custom_colocated_python_sidecar(args) -> str:
   """
   yaml = """"""
   if args.colocated_python_sidecar_image:
-    yaml = """- componentType: colocated_python_sidecar"""
-    indentation = (
-        ' ' * 8
-    )  # Currently 8, based on the YAML, may need to update in the future.
-    yaml += '\n' + indentation + 'image: ' + args.colocated_python_sidecar_image
+    yaml = f"""              - name: colocated-python-sidecar
+                image: {args.colocated_python_sidecar_image}"""
   return yaml
 
 
@@ -257,32 +360,32 @@ def get_user_workload_for_pathways(
     str:
       Pathways server port as a YAML string
   """
-  user_workload_yaml = """
-          metadata:
-          spec:
-            containers:
-              {container}
-            nodeSelector:
-              cloud.google.com/gke-nodepool: cpu-np
-            hostNetwork: true
-            dnsPolicy: ClusterFirstWithHostNet
-            restartPolicy: Never
-            volumes:
-            - hostPath:
-                path: /tmp
-                type: DirectoryOrCreate
-              name: shared-tmp
-    """
   if args.headless:
     return ''
   else:
     container, _ = get_user_workload_container(
         args, system, parallel_containers
     )
-    return user_workload_yaml.format(
-        args=args,
-        container=container,
-    )
+
+    env_injection = """
+                - name: PATHWAYS_HEAD
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.labels['jobset.sigs.k8s.io/coordinator']
+                - name: JAX_PLATFORMS
+                  value: proxy
+                - name: XCLOUD_ENVIRONMENT
+                  value: GCP
+                - name: JAX_BACKEND_TARGET
+                  value: grpc://$(PATHWAYS_HEAD):29000"""
+
+    # Inject the Pathways environment variables into the container's env list.
+    # The `get_main_container` template hardcodes `env: {env}` on a single line.
+    # We replace `env:` with `env:` + our injected block, and if `{env}` originally
+    # contained user variables, they simply append sequentially after our injected block.
+    container = container.replace('env:', 'env:' + env_injection)
+
+    return container
 
 
 def get_proxy_address(args) -> str:

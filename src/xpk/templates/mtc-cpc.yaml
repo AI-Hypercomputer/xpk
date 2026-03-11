@@ -13,3 +13,6 @@ spec:
     operator: Exists
     effect: NoSchedule
   inMemoryVolumeSize:
+  mountOptions:
+  - implicit-dirs
+  - client-protocol=http1

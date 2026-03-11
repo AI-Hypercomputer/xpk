@@ -400,11 +400,12 @@ func (r *WorkloadReconciler) deleteSlices(ctx context.Context, slices []*v1beta1
 }
 
 func (r *WorkloadReconciler) deleteSlicesForEvictedWorkload(ctx context.Context, grouped groupedSlices) error {
-	if len(grouped.active)+len(grouped.initializing)+len(grouped.toDelete) == 0 {
+	numSlicesToDelete := len(grouped.active) + len(grouped.initializing) + len(grouped.toDelete)
+	if numSlicesToDelete == 0 {
 		return nil
 	}
 	log := ctrl.LoggerFrom(ctx)
-	toDelete := make([]*v1beta1.Slice, 0, len(grouped.active)+len(grouped.initializing)+len(grouped.toDelete))
+	toDelete := make([]*v1beta1.Slice, 0, numSlicesToDelete)
 	toDelete = append(toDelete, grouped.active...)
 	toDelete = append(toDelete, grouped.initializing...)
 	toDelete = append(toDelete, grouped.toDelete...)

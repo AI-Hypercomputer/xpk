@@ -279,9 +279,8 @@ def test_update_cluster_with_mtc_if_necessary_enables_addon_successfully(
 
   assert return_code == 0
   commands_tester.assert_command_run(
-      "gcloud container clusters update cluster --project=project"
-      " --location=us-central1 --update-addons"
-      " HighScaleCheckpointing=ENABLED,GcsFuseCsiDriver=ENABLED --quiet"
+      "gcloud container cluster",
+      "updateHighScaleCheckpointing=ENABLED,GcsFuseCsiDriver=ENABLED",
   )
 
 

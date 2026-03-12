@@ -368,7 +368,7 @@ def cluster_create(args) -> None:
       xpk_exit(update_cluster_command_code)
 
   # Enable MTC if not enabled already.
-  if hasattr(args, 'enable_mtc') and args.enable_mtc:
+  if getattr(args, 'enable_mtc', False):
     update_cluster_command_code = update_cluster_with_mtc_if_necessary(args)
     if update_cluster_command_code != 0:
       xpk_exit(update_cluster_command_code)

@@ -35,6 +35,26 @@ from packaging.version import Version
 _SUB_SLICING_MINIMUM_KUEUE_VERSION = Version('0.13.0')
 _SUPER_SLICING_MINIMUM_KUEUE_VERSION = Version('0.15.2')
 _SUPER_SLICING_MAX_CUBES = 144
+
+
+def _is_kueue_version_sufficient(
+    return_code: int,
+    current_version: Version | str | None,
+    minimum_version: Version,
+) -> bool:
+  if (
+      return_code != 0
+      or current_version is None
+      or isinstance(current_version, str)
+  ):
+    xpk_print(
+        'Warning: Could not determine Kueue version. Proceeding with workload'
+        ' submission, but scheduling might fail if Kueue is outdated.'
+    )
+    return True
+  return current_version >= minimum_version
+
+
 ONE_TO_ONE_REPLICA_NODE_POOL_ASSIGNMENT_ANNOTATION = (
     'alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool'
 )
@@ -181,11 +201,8 @@ def _check_sub_slicing_availability(
   return_code, current_version = get_installed_kueue_version(
       dry_run_version=_SUB_SLICING_MINIMUM_KUEUE_VERSION
   )
-
-  return (
-      return_code == 0
-      and current_version is not None
-      and current_version >= _SUB_SLICING_MINIMUM_KUEUE_VERSION
+  return _is_kueue_version_sufficient(
+      return_code, current_version, _SUB_SLICING_MINIMUM_KUEUE_VERSION
   )
 
 
@@ -205,11 +222,8 @@ def _check_super_slicing_availability(
   return_code, current_version = get_installed_kueue_version(
       dry_run_version=_SUPER_SLICING_MINIMUM_KUEUE_VERSION
   )
-
-  return (
-      return_code == 0
-      and current_version is not None
-      and current_version >= _SUPER_SLICING_MINIMUM_KUEUE_VERSION
+  return _is_kueue_version_sufficient(
+      return_code, current_version, _SUPER_SLICING_MINIMUM_KUEUE_VERSION
   )
 
 

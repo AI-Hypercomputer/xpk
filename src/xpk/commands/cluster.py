@@ -146,12 +146,6 @@ def cluster_adapt(args) -> None:
     if update_cluster_command_code != 0:
       xpk_exit(update_cluster_command_code)
 
-  # Enable MTC if not enabled already.
-  if args.enable_mtc:
-    update_cluster_command_code = update_cluster_with_mtc_if_necessary(args)
-    if update_cluster_command_code != 0:
-      xpk_exit(update_cluster_command_code)
-
   get_cluster_credentials(args)
 
   if not is_dry_run():

@@ -15,7 +15,6 @@ limitations under the License.
 """
 
 from unittest.mock import MagicMock
-import pytest
 from xpk.core.mtc import add_mtc_bucket_iam_member, create_mtc_cpc
 from argparse import Namespace
 

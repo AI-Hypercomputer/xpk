@@ -329,7 +329,7 @@ def test_workload_create_pathways_jobset_yaml(mocker):
   args.use_vertex_tensorboard = False
   args.headless = False
   args.num_slices = 2
-  args.elastic_slices = 0
+  args.elastic_slices = 2
   args.max_restarts = 1
   args.max_slice_restarts = 1
   args.termination_grace_period_seconds = 30
@@ -382,16 +382,25 @@ def test_workload_create_pathways_jobset_yaml(mocker):
       return_value=True,
   )
   mocker.patch(
-      'xpk.core.pathways.get_user_workload_container',
-      return_value=('- name: test-docker\n  image: test-image', '123'),
-  )
-  mocker.patch('xpk.commands.workload.create_tpu_topology', return_value='4x4')
-  mocker.patch(
-      'xpk.commands.workload.create_tpu_machine_type',
-      return_value='ct4p-hightpu-4t',
+      'xpk.commands.workload.get_user_workload_container',
+      return_value=(
+          (
+              '- name: test-docker\n  image: test-image\n  env:\n    - name:'
+              ' FOO\n      value: BAR'
+          ),
+          '123',
+      ),
   )
 
-  mock_write_file = mocker.patch('builtins.open', mocker.mock_open())
+  real_open = open
+  m_open = mocker.mock_open()
+
+  def custom_open(file, *args, **kwargs):
+    if str(file) == 'pw_manifest.yaml':
+      return m_open(file, *args, **kwargs)
+    return real_open(file, *args, **kwargs)
+
+  mocker.patch('builtins.open', side_effect=custom_open)
 
   mocker.patch(
       'xpk.commands.workload.write_tmp_file', return_value='/tmp/test.yaml'
@@ -405,10 +414,8 @@ def test_workload_create_pathways_jobset_yaml(mocker):
 
   workload_create(args)
 
-  mock_write_file.assert_called_once_with(
-      'pw_manifest.yaml', 'w', encoding='utf-8'
-  )
-  written_content = mock_write_file.return_value.write.call_args[0][0]
+  m_open.assert_called_once_with('pw_manifest.yaml', 'w', encoding='utf-8')
+  written_content = m_open.return_value.write.call_args[0][0]
 
   assert 'apiVersion: jobset.x-k8s.io/v1alpha2' in written_content
   assert 'kind: JobSet' in written_content
@@ -422,6 +429,14 @@ def test_workload_create_pathways_jobset_yaml(mocker):
   assert '- name: pathways-worker' in written_content
   assert f'replicas: {args.num_slices}' in written_content  # worker replicas
 
+  # Assert custom arguments are correctly injected
+  assert '- --custom_proxy_arg' in written_content
+  assert '- --custom_server_arg' in written_content
+  assert '- --custom_worker_arg' in written_content
+
+  # Assert elastic_slices is rendered
+  assert '- --num_elastic_slices=2' in written_content
+
   # Assert newly migrated JobSet specifics
   assert 'coordinator:' in written_content
   assert 'replicatedJob: pathways-head' in written_content
@@ -431,4 +446,14 @@ def test_workload_create_pathways_jobset_yaml(mocker):
   assert 'completionMode: Indexed' in written_content
   assert 'startupPolicyOrder: InOrder' in written_content
   assert 'operator: All' in written_content
-  assert f'backoffLimit: {workload_system.vms_per_slice * 4}' in written_content
+  assert (
+      f'backoffLimit: {args.max_slice_restarts * workload_system.vms_per_slice}'
+      in written_content
+  )
+  assert f'image: {args.proxy_server_image}' in written_content
+  assert f'image: {args.server_image}' in written_content
+  assert f'image: {args.colocated_python_sidecar_image}' in written_content
+  assert f'image: {args.worker_image}' in written_content
+  assert (
+      f'--gcs_scratch_location={args.pathways_gcs_location}' in written_content
+  )

@@ -41,14 +41,9 @@ from ..core.nap import (
 )
 from ..core.network import get_cluster_subnetworks
 from ..core.pathways import (
-    append_custom_colocated_python_sidecar,
-    append_custom_pathways_proxy_server,
-    append_custom_pathways_server,
-    append_custom_pathways_worker,
     check_if_pathways_job_is_installed,
     ensure_pathways_workload_prerequisites,
     get_pathways_unified_query_link,
-    get_user_workload_for_pathways,
     try_to_delete_pathwaysjob_first,
 )
 from ..core.resources import get_cluster_capacity_type, get_cluster_system_characteristics_from_config_map
@@ -58,9 +53,7 @@ from ..core.scheduling import (
     ONE_TO_ONE_REPLICA_NODE_POOL_ASSIGNMENT_ANNOTATION,
     WorkloadScheduling,
     check_if_workload_can_schedule,
-    create_tpu_machine_type,
     create_tpu_slice_topology_annotation,
-    create_tpu_topology,
     get_cpu_affinity,
     get_gpu_scheduler,
     create_sub_slicing_annotations,
@@ -262,85 +255,6 @@ spec:
                 key: nvidia.com/gpu
               containers:
               {container}
-"""
-# The indentation of PW_WORKLOAD_CREATE_YAML is intentional to allow reusing the user workload container YAML.
-PW_WORKLOAD_CREATE_YAML = """apiVersion: jobset.x-k8s.io/v1alpha2
-kind: JobSet
-metadata:
-  name: {args.workload}
-  labels:
-    kueue.x-k8s.io/queue-name: {local_queue_name}  # Name of the LocalQueue
-    xpk.google.com/workload: {args.workload}
-spec:
-  coordinator:
-    replicatedJob: pathways-head
-  network:
-    enableDNSHostnames: true
-    publishNotReadyAddresses: true
-  failurePolicy:
-    restartStrategy: Recreate
-  replicatedJobs:
-  - name: pathways-head
-    replicas: 1
-    template:
-      spec:
-        backoffLimit: 0
-        completionMode: Indexed
-        completions: 1
-        parallelism: 1
-        template:
-          metadata:
-            annotations:
-              alpha.jobset.sigs.k8s.io/exclusive-topology: kubernetes.io/hostname
-          spec:
-            hostNetwork: true
-            dnsPolicy: ClusterFirstWithHostNet
-            nodeSelector:
-              cloud.google.com/gke-nodepool: cpu-np
-              {autoprovisioning_args}
-{pathways_head_containers}
-            restartPolicy: Never
-            volumes:
-            - hostPath:
-                path: /tmp
-                type: DirectoryOrCreate
-              name: shared-tmp
-  - name: worker
-    replicas: {args.num_slices}
-    template:
-      spec:
-        backoffLimit: {worker_backoff_limit}
-        completionMode: Indexed
-        completions: {vms_per_slice}
-        parallelism: {vms_per_slice}
-        template:
-          metadata:
-            labels:
-              xpk.google.com/workload: {args.workload}
-            annotations:
-              alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool
-          spec:
-            hostNetwork: true
-            dnsPolicy: ClusterFirstWithHostNet
-            terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
-            priorityClassName: {args.priority}
-            nodeSelector:
-              {accelerator_label}
-              {node_selector_machine_label}
-              {placement_policy_label}
-              {autoprovisioning_args}
-            containers:
-              {custom_pathways_worker}
-            restartPolicy: OnFailure
-            volumes:
-            - hostPath:
-                path: /tmp
-                type: DirectoryOrCreate
-              name: shared-tmp
-  startupPolicy:
-    startupPolicyOrder: InOrder
-  {success_policy}
-  suspend: false
 """
 
 ARM_GPU_WORKLOAD_CREATE_JINJA_FILE = 'arm_gpu_workload_crate.yaml.j2'
@@ -636,7 +550,7 @@ def workload_create(args) -> None:
     ):
       if workload_system.device_type in a4x_device_types:
         template_env = Environment(
-            loader=FileSystemLoader(searchpath=get_templates_absolute_path())
+            loader=FileSystemLoader(searchpath=get_templates_absolute_path()), trim_blocks=True, lstrip_blocks=True, keep_trailing_newline=True
         )
         workload_create_yaml = template_env.get_template(
             ARM_GPU_WORKLOAD_CREATE_JINJA_FILE
@@ -695,46 +609,70 @@ def workload_create(args) -> None:
   elif args.use_pathways and ensure_pathways_workload_prerequisites(
       args, workload_system
   ):
-    if args.headless:
-      pathways_head_containers = f"""            containers:
-{append_custom_pathways_proxy_server(args)}
-{append_custom_pathways_server(args, workload_system)}
-{append_custom_colocated_python_sidecar(args)}"""
-      success_policy = ''
-    else:
-      pathways_head_containers = f"""            initContainers:
-{append_custom_pathways_proxy_server(args)}
-{append_custom_pathways_server(args, workload_system)}
-{append_custom_colocated_python_sidecar(args)}
-            containers:
-{get_user_workload_for_pathways(args, workload_system, parallel_containers)}"""
-      success_policy = """successPolicy:
-    operator: All
-    targetReplicatedJobs:
-    - pathways-head"""
-
     worker_backoff_limit = (
         (args.max_slice_restarts * workload_system.vms_per_slice)
         if getattr(args, 'elastic_slices', 0) > 0
         else (workload_system.vms_per_slice * 4)
     )
 
-    yml_string = PW_WORKLOAD_CREATE_YAML.format(
+    proxy_server_image = (
+        getattr(args, 'proxy_server_image', None)
+        or 'us-docker.pkg.dev/cloud-tpu-v2-images/pathways/proxy_server:latest'
+    )
+    server_image = (
+        getattr(args, 'server_image', None)
+        or 'us-docker.pkg.dev/cloud-tpu-v2-images/pathways/server:latest'
+    )
+    worker_image = getattr(args, 'worker_image', None) or server_image
+    instance_type = (
+        f'{workload_system.pathways_tpu_version}:{workload_system.topology}'
+        if workload_system.pathways_tpu_version
+        else workload_system.gce_machine_type
+    )
+    if args.headless:
+      user_workload_container = ''
+    else:
+      user_workload_container, _ = get_user_workload_container(
+          args, workload_system, parallel_containers
+      )
+
+      env_injection = """
+                - name: PATHWAYS_HEAD
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.labels['jobset.sigs.k8s.io/coordinator']
+                - name: JAX_PLATFORMS
+                  value: proxy
+                - name: XCLOUD_ENVIRONMENT
+                  value: GCP
+                - name: JAX_BACKEND_TARGET
+                  value: grpc://$(PATHWAYS_HEAD):29000"""
+
+      user_workload_container = user_workload_container.replace(
+          'env:', 'env:' + env_injection
+      )
+
+    template_env = Environment(
+        loader=FileSystemLoader(searchpath=get_templates_absolute_path()), trim_blocks=True, lstrip_blocks=True, keep_trailing_newline=True
+    )
+    workload_create_yaml = template_env.get_template(
+        'pathways_workload_create.yaml.j2'
+    )
+    yml_string = workload_create_yaml.render(
         args=args,
-        topology=create_tpu_topology(workload_system),
-        machine_type=create_tpu_machine_type(workload_system),
-        pathways_head_containers=pathways_head_containers,
-        custom_pathways_worker=append_custom_pathways_worker(
-            args, workload_system
-        ),
-        worker_backoff_limit=worker_backoff_limit,
-        success_policy=success_policy,
         local_queue_name=LOCAL_QUEUE_NAME,
-        autoprovisioning_args=autoprovisioning_args,
-        placement_policy_label=placement_policy_label,
+        proxy_server_image=proxy_server_image,
+        server_image=server_image,
+        instance_type=instance_type,
+        user_workload_container=user_workload_container,
+        worker_backoff_limit=worker_backoff_limit,
         vms_per_slice=workload_system.vms_per_slice,
+        workload_system=workload_system,
         accelerator_label=create_accelerator_label(workload_system),
         node_selector_machine_label=create_machine_label(workload_system),
+        placement_policy_label=placement_policy_label,
+        autoprovisioning_args=autoprovisioning_args,
+        worker_image=worker_image,
     )
   else:
     if use_sub_slicing:

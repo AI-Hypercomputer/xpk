@@ -1,0 +1,222 @@
+apiVersion: jobset.x-k8s.io/v1alpha2
+kind: JobSet
+metadata:
+  name: {{ args.workload }}
+  labels:
+    kueue.x-k8s.io/queue-name: {{ local_queue_name }}  # Name of the LocalQueue
+    xpk.google.com/workload: {{ args.workload }}
+spec:
+  coordinator:
+    replicatedJob: pathways-head
+  network:
+    enableDNSHostnames: true
+    publishNotReadyAddresses: true
+  failurePolicy:
+    restartStrategy: Recreate
+  replicatedJobs:
+  - name: pathways-head
+    replicas: 1
+    template:
+      spec:
+        backoffLimit: 0
+        completionMode: Indexed
+        completions: 1
+        parallelism: 1
+        template:
+          metadata:
+            annotations:
+              alpha.jobset.sigs.k8s.io/exclusive-topology: kubernetes.io/hostname
+          spec:
+            hostNetwork: true
+            dnsPolicy: ClusterFirstWithHostNet
+            nodeSelector:
+              cloud.google.com/gke-nodepool: cpu-np
+              {{ autoprovisioning_args }}
+{% if args.headless %}
+            containers:
+{% else %}
+            initContainers:
+{% endif %}
+              - name: pathways-proxy
+                image: {{ proxy_server_image }}
+                imagePullPolicy: Always
+                args:
+                - --server_port=29000
+                - --resource_manager_address=$(PATHWAYS_HEAD):29001
+                - --gcs_scratch_location={{ args.pathways_gcs_location }}
+{% if args.elastic_slices and args.elastic_slices|int > 0 %}
+                - --num_elastic_slices={{ args.elastic_slices }}
+{% endif %}
+{% if args.custom_pathways_proxy_server_args %}
+{% for arg in args.custom_pathways_proxy_server_args.split(' ') %}
+                - {{ arg }}
+{% endfor %}
+{% endif %}
+                env:
+                - name: PATHWAYS_HEAD
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.labels['jobset.sigs.k8s.io/coordinator']
+                ports:
+                - containerPort: 29000
+                  protocol: TCP
+                resources:
+                  limits:
+                    cpu: "16"
+                    memory: 100G
+                restartPolicy: Always
+              - name: pathways-rm
+                image: {{ server_image }}
+                imagePullPolicy: Always
+                args:
+                - --server_port=29001
+                - --gcs_scratch_location={{ args.pathways_gcs_location }}
+                - --node_type=resource_manager
+                - --instance_count={{ args.num_slices }}
+                - --instance_type={{ instance_type }}
+{% if args.custom_pathways_server_args %}
+{% for arg in args.custom_pathways_server_args.split(' ') %}
+                - {{ arg }}
+{% endfor %}
+{% endif %}
+                env:
+                - name: REPLICATED_JOB_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.annotations['jobset.sigs.k8s.io/replicatedjob-name']
+                - name: JOBSET_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.annotations['jobset.sigs.k8s.io/jobset-name']
+                - name: HOST_ADDRESS
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.labels['jobset.sigs.k8s.io/coordinator']
+                - name: TPU_SKIP_MDS_QUERY
+                  value: "true"
+                ports:
+                - containerPort: 29001
+                  protocol: TCP
+                - containerPort: 29002
+                  protocol: TCP
+                resources:
+                  limits:
+                    cpu: "8"
+                    memory: 32G
+                restartPolicy: Always
+{% if args.colocated_python_sidecar_image %}
+              - name: colocated-python-sidecar
+                image: {{ args.colocated_python_sidecar_image }}
+{% else %}
+
+{% endif %}
+{% if not args.headless %}
+            containers:
+{{ user_workload_container }}
+{% endif %}
+            restartPolicy: Never
+            volumes:
+            - hostPath:
+                path: /tmp
+                type: DirectoryOrCreate
+              name: shared-tmp
+  - name: worker
+    replicas: {{ args.num_slices }}
+    template:
+      spec:
+        backoffLimit: {{ worker_backoff_limit }}
+        completionMode: Indexed
+        completions: {{ vms_per_slice }}
+        parallelism: {{ vms_per_slice }}
+        template:
+          metadata:
+            labels:
+              xpk.google.com/workload: {{ args.workload }}
+            annotations:
+              alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool
+          spec:
+            hostNetwork: true
+            dnsPolicy: ClusterFirstWithHostNet
+            terminationGracePeriodSeconds: {{ args.termination_grace_period_seconds }}
+            priorityClassName: {{ args.priority }}
+            nodeSelector:
+              {{ accelerator_label }}
+              {{ node_selector_machine_label }}
+              {{ placement_policy_label }}
+              {{ autoprovisioning_args }}
+            containers:
+              - name: pathways-worker
+                image: {{ worker_image }}
+                imagePullPolicy: Always
+                args:
+                - --server_port=29005
+                - --resource_manager_address=$(PATHWAYS_HEAD):29001
+                - --gcs_scratch_location={{ args.pathways_gcs_location }}
+{% if args.custom_pathways_worker_args %}
+{% for arg in args.custom_pathways_worker_args.split(' ') %}
+                - {{ arg }}
+{% endfor %}
+{% endif %}
+                env:
+                - name: TPU_MIN_LOG_LEVEL
+                  value: "0"
+                - name: TF_CPP_MIN_LOG_LEVEL
+                  value: "0"
+                - name: XCLOUD_ENVIRONMENT
+                  value: GCP
+                - name: MEGASCALE_GRPC_ENABLE_XOR_TRACER
+                  value: "false"
+                - name: MEGASCALE_NUM_SLICES
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.labels['jobset.sigs.k8s.io/replicatedjob-replicas']
+                - name: JOBSET_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.annotations['jobset.sigs.k8s.io/jobset-name']
+                - name: REPLICATED_JOB_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.annotations['jobset.sigs.k8s.io/replicatedjob-name']
+                - name: MEGASCALE_SLICE_ID
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.labels['jobset.sigs.k8s.io/job-index']
+                - name: PATHWAYS_HEAD
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.labels['jobset.sigs.k8s.io/coordinator']
+                - name: MEGASCALE_COORDINATOR_ADDRESS
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.labels['jobset.sigs.k8s.io/coordinator']
+                ports:
+                - containerPort: 29005
+                  protocol: TCP
+                - containerPort: 29006
+                  protocol: TCP
+                - containerPort: 8471
+                  protocol: TCP
+                - containerPort: 8080
+                  protocol: TCP
+                resources:
+                  limits:
+                    google.com/tpu: "{{ workload_system.chips_per_vm|int }}"
+                volumeMounts:
+                - mountPath: /tmp
+                  name: shared-tmp
+            restartPolicy: OnFailure
+            volumes:
+            - hostPath:
+                path: /tmp
+                type: DirectoryOrCreate
+              name: shared-tmp
+  startupPolicy:
+    startupPolicyOrder: InOrder
+{% if not args.headless %}
+  successPolicy:
+    operator: All
+    targetReplicatedJobs:
+    - pathways-head
+{% endif %}
+  suspend: false

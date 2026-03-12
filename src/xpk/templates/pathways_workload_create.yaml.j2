@@ -5,6 +5,10 @@ metadata:
   labels:
     kueue.x-k8s.io/queue-name: {{ local_queue_name }}  # Name of the LocalQueue
     xpk.google.com/workload: {{ args.workload }}
+{% if jobset_annotations %}
+  annotations:
+    {{ jobset_annotations }}
+{% endif %}
 spec:
   coordinator:
     replicatedJob: pathways-head
@@ -144,8 +148,11 @@ spec:
           metadata:
             labels:
               xpk.google.com/workload: {{ args.workload }}
+{% if tpu_slice_topology_annotation %}
             annotations:
               alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool
+              {{ tpu_slice_topology_annotation }}
+{% endif %}
           spec:
             hostNetwork: true
             dnsPolicy: ClusterFirstWithHostNet

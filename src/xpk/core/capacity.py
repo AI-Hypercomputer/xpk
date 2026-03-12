@@ -354,7 +354,7 @@ def _find_matching_accelerator_resource(
         f'acceleratorTypes/{reservation_accelerator_type}'
     )
     for r in reserved_resources:
-      if r.accelerator_type == target_type_id:
+      if r.accelerator_type.lstrip('/') == target_type_id:
         return r
 
     # Try with Project Number:
@@ -364,7 +364,7 @@ def _find_matching_accelerator_resource(
         f'acceleratorTypes/{reservation_accelerator_type}'
     )
     for r in reserved_resources:
-      if r.accelerator_type == target_type_number:
+      if r.accelerator_type.lstrip('/') == target_type_number:
         return r
   else:
     for r in reserved_resources:

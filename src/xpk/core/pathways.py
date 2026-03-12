@@ -274,12 +274,12 @@ def append_custom_pathways_worker(args, system: SystemCharacteristics) -> str:
   )
 
   yaml = f"""- name: pathways-worker
-               image: {image}
-               imagePullPolicy: Always
-               args:
-               - --server_port=29005
-               - --resource_manager_address=$(PATHWAYS_HEAD):29001
-               - --gcs_scratch_location={args.pathways_gcs_location}"""
+                image: {image}
+                imagePullPolicy: Always
+                args:
+                - --server_port=29005
+                - --resource_manager_address=$(PATHWAYS_HEAD):29001
+                - --gcs_scratch_location={args.pathways_gcs_location}"""
   if args.custom_pathways_worker_args:
     yaml += append_custom_pathways_flags(
         args.custom_pathways_worker_args, base_indentation=16

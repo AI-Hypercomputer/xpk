@@ -15,6 +15,8 @@ limitations under the License.
 """
 
 import urllib
+import argparse
+from ..core.system_characteristics import SystemCharacteristics
 from ..core.blueprint.blueprint_generator import (
     a3high_device_type,
     a4x_device_types,
@@ -98,6 +100,8 @@ from . import cluster_gcluster
 from .common import is_GPU_TAS_possible
 from jinja2 import Environment, FileSystemLoader
 from ..utils.templates import get_templates_absolute_path
+
+_PATHWAYS_WORKLOAD_TEMPLATE = 'pathways_workload_create.yaml.j2'
 
 _SUPER_SLICING_WORKLOAD_NAME_LIMIT = 28
 """Maximum safe workload name length to avoid exceeding GCE's 63-character limit.
@@ -258,6 +262,86 @@ spec:
 """
 
 ARM_GPU_WORKLOAD_CREATE_JINJA_FILE = 'arm_gpu_workload_crate.yaml.j2'
+
+
+def _generate_pathways_workload_yaml(
+    args: argparse.Namespace,
+    workload_system: SystemCharacteristics,
+    parallel_containers: int,
+    placement_policy_label: str,
+    autoprovisioning_args: str | None,
+) -> str:
+  worker_backoff_limit = (
+      (args.max_slice_restarts * workload_system.vms_per_slice)
+      if getattr(args, 'elastic_slices', 0) > 0
+      else (workload_system.vms_per_slice * 4)
+  )
+
+  proxy_server_image = (
+      getattr(args, 'proxy_server_image', None)
+      or 'us-docker.pkg.dev/cloud-tpu-v2-images/pathways/proxy_server:latest'
+  )
+  server_image = (
+      getattr(args, 'server_image', None)
+      or 'us-docker.pkg.dev/cloud-tpu-v2-images/pathways/server:latest'
+  )
+  worker_image = getattr(args, 'worker_image', None) or server_image
+  instance_type = (
+      f'{workload_system.pathways_tpu_version}:{workload_system.topology}'
+      if workload_system.pathways_tpu_version
+      else workload_system.gce_machine_type
+  )
+  if args.headless:
+    user_workload_container = ''
+    user_workload_env_vars = []
+  else:
+    user_workload_container, _ = get_user_workload_container(
+        args, workload_system, parallel_containers
+    )
+
+    user_workload_env_vars = [
+        {
+            'name': 'PATHWAYS_HEAD',
+            'valueFrom': "metadata.labels['jobset.sigs.k8s.io/coordinator']",
+        },
+        {
+            'name': 'JAX_PLATFORMS',
+            'value': 'proxy',
+        },
+        {
+            'name': 'XCLOUD_ENVIRONMENT',
+            'value': 'GCP',
+        },
+        {
+            'name': 'JAX_BACKEND_TARGET',
+            'value': 'grpc://$(PATHWAYS_HEAD):29000',
+        },
+    ]
+
+  template_env = Environment(
+      loader=FileSystemLoader(searchpath=get_templates_absolute_path()),
+      trim_blocks=True,
+      lstrip_blocks=True,
+      keep_trailing_newline=True,
+  )
+  workload_create_yaml = template_env.get_template(_PATHWAYS_WORKLOAD_TEMPLATE)
+  return workload_create_yaml.render(
+      args=args,
+      local_queue_name=LOCAL_QUEUE_NAME,
+      proxy_server_image=proxy_server_image,
+      server_image=server_image,
+      instance_type=instance_type,
+      user_workload_container=user_workload_container,
+      user_workload_env_vars=user_workload_env_vars,
+      worker_backoff_limit=worker_backoff_limit,
+      vms_per_slice=workload_system.vms_per_slice,
+      workload_system=workload_system,
+      accelerator_label=create_accelerator_label(workload_system),
+      node_selector_machine_label=create_machine_label(workload_system),
+      placement_policy_label=placement_policy_label,
+      autoprovisioning_args=autoprovisioning_args,
+      worker_image=worker_image,
+  )
 
 
 def workload_create_pathways(args) -> None:
@@ -550,7 +634,7 @@ def workload_create(args) -> None:
     ):
       if workload_system.device_type in a4x_device_types:
         template_env = Environment(
-            loader=FileSystemLoader(searchpath=get_templates_absolute_path()), trim_blocks=True, lstrip_blocks=True, keep_trailing_newline=True
+            loader=FileSystemLoader(searchpath=get_templates_absolute_path())
         )
         workload_create_yaml = template_env.get_template(
             ARM_GPU_WORKLOAD_CREATE_JINJA_FILE
@@ -609,70 +693,12 @@ def workload_create(args) -> None:
   elif args.use_pathways and ensure_pathways_workload_prerequisites(
       args, workload_system
   ):
-    worker_backoff_limit = (
-        (args.max_slice_restarts * workload_system.vms_per_slice)
-        if getattr(args, 'elastic_slices', 0) > 0
-        else (workload_system.vms_per_slice * 4)
-    )
-
-    proxy_server_image = (
-        getattr(args, 'proxy_server_image', None)
-        or 'us-docker.pkg.dev/cloud-tpu-v2-images/pathways/proxy_server:latest'
-    )
-    server_image = (
-        getattr(args, 'server_image', None)
-        or 'us-docker.pkg.dev/cloud-tpu-v2-images/pathways/server:latest'
-    )
-    worker_image = getattr(args, 'worker_image', None) or server_image
-    instance_type = (
-        f'{workload_system.pathways_tpu_version}:{workload_system.topology}'
-        if workload_system.pathways_tpu_version
-        else workload_system.gce_machine_type
-    )
-    if args.headless:
-      user_workload_container = ''
-    else:
-      user_workload_container, _ = get_user_workload_container(
-          args, workload_system, parallel_containers
-      )
-
-      env_injection = """
-                - name: PATHWAYS_HEAD
-                  valueFrom:
-                    fieldRef:
-                      fieldPath: metadata.labels['jobset.sigs.k8s.io/coordinator']
-                - name: JAX_PLATFORMS
-                  value: proxy
-                - name: XCLOUD_ENVIRONMENT
-                  value: GCP
-                - name: JAX_BACKEND_TARGET
-                  value: grpc://$(PATHWAYS_HEAD):29000"""
-
-      user_workload_container = user_workload_container.replace(
-          'env:', 'env:' + env_injection
-      )
-
-    template_env = Environment(
-        loader=FileSystemLoader(searchpath=get_templates_absolute_path()), trim_blocks=True, lstrip_blocks=True, keep_trailing_newline=True
-    )
-    workload_create_yaml = template_env.get_template(
-        'pathways_workload_create.yaml.j2'
-    )
-    yml_string = workload_create_yaml.render(
+    yml_string = _generate_pathways_workload_yaml(
         args=args,
-        local_queue_name=LOCAL_QUEUE_NAME,
-        proxy_server_image=proxy_server_image,
-        server_image=server_image,
-        instance_type=instance_type,
-        user_workload_container=user_workload_container,
-        worker_backoff_limit=worker_backoff_limit,
-        vms_per_slice=workload_system.vms_per_slice,
         workload_system=workload_system,
-        accelerator_label=create_accelerator_label(workload_system),
-        node_selector_machine_label=create_machine_label(workload_system),
+        parallel_containers=parallel_containers,
         placement_policy_label=placement_policy_label,
         autoprovisioning_args=autoprovisioning_args,
-        worker_image=worker_image,
     )
   else:
     if use_sub_slicing:

@@ -31,7 +31,9 @@ spec:
             dnsPolicy: ClusterFirstWithHostNet
             nodeSelector:
               cloud.google.com/gke-nodepool: cpu-np
+{% if autoprovisioning_args %}
               {{ autoprovisioning_args }}
+{% endif %}
 {% if args.headless %}
             containers:
 {% else %}
@@ -107,12 +109,22 @@ spec:
 {% if args.colocated_python_sidecar_image %}
               - name: colocated-python-sidecar
                 image: {{ args.colocated_python_sidecar_image }}
-{% else %}
-
 {% endif %}
 {% if not args.headless %}
             containers:
-{{ user_workload_container }}
+{% set extra_env %}
+{% for var in user_workload_env_vars %}
+                - name: {{ var.name }}
+{% if var.value is defined %}
+                  value: {{ var.value }}
+{% elif var.valueFrom is defined %}
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: {{ var.valueFrom }}
+{% endif %}
+{% endfor %}
+{%- endset %}
+{{ user_workload_container.lstrip('\n') | replace('env:', 'env:\n' ~ extra_env.rstrip('\n')) }}
 {% endif %}
             restartPolicy: Never
             volumes:
@@ -140,10 +152,18 @@ spec:
             terminationGracePeriodSeconds: {{ args.termination_grace_period_seconds }}
             priorityClassName: {{ args.priority }}
             nodeSelector:
+{% if accelerator_label %}
               {{ accelerator_label }}
+{% endif %}
+{% if node_selector_machine_label %}
               {{ node_selector_machine_label }}
+{% endif %}
+{% if placement_policy_label %}
               {{ placement_policy_label }}
+{% endif %}
+{% if autoprovisioning_args %}
               {{ autoprovisioning_args }}
+{% endif %}
             containers:
               - name: pathways-worker
                 image: {{ worker_image }}

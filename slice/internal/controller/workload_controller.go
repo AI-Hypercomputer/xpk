@@ -641,6 +641,7 @@ func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workloa
 			continue
 		}
 		slice := core.SliceWithMetadata(wl, psa.Name, i)
+		slice.Annotations[core.RetryOnFailureAnnotation] = "true"
 		// Since Slice is a cluster-scoped object and Workload is namespaced,
 		// we cannot set a controller owner reference. The Workload's namespace and name
 		// are stored as annotations on the Slice for lookup.

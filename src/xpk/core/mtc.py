@@ -16,10 +16,10 @@ limitations under the License.
 
 import requests
 import yaml
-from google.cloud import storage as gcp_storage
 
 from ..core.cluster import JOBSET_VERSION
 from ..core.cluster import setup_k8s_env
+from ..core.commands import run_command_with_updates
 from ..utils import templates
 from ..utils.console import xpk_exit
 from ..utils.console import xpk_print
@@ -36,9 +36,6 @@ def add_mtc_bucket_iam_member(args) -> None:
   This grants the gke-checkpointing-multitier-node service account
   the necessary roles/storage.objectUser role.
   """
-  storage_client = gcp_storage.Client()
-  bucket = storage_client.bucket(args.mtc_gcs_bucket)
-  policy = bucket.get_iam_policy(requested_policy_version=3)
   role = "roles/storage.objectUser"
 
   member = (
@@ -47,9 +44,20 @@ def add_mtc_bucket_iam_member(args) -> None:
       "subject/ns/gke-managed-checkpointing/sa/gke-checkpointing-multitier-node"
   )
 
-  policy.bindings.append({"role": role, "members": {member}})
-  bucket.set_iam_policy(policy)
-  xpk_print(f"Added {member} with role {role} to {args.mtc_gcs_bucket}.")
+  command = (
+      "gcloud storage buckets add-iam-policy-binding"
+      f" gs://{args.mtc_gcs_bucket}"
+      f" --member='{member}'"
+      f" --role='{role}'"
+      f" --project={args.project} --quiet"
+  )
+  xpk_print(f"Adding {member} with role {role} to {args.mtc_gcs_bucket}.")
+  return_code = run_command_with_updates(
+      command, "Add IAM policy binding to MTC GCS bucket", args
+  )
+  if return_code != 0:
+    xpk_print("Failed to add IAM policy binding to MTC GCS bucket.")
+    xpk_exit(return_code)
 
 
 def create_mtc_cpc(

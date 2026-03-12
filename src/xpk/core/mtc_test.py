@@ -14,37 +14,38 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from unittest.mock import MagicMock
+import pytest
+from pytest_mock import MockerFixture
 from xpk.core.mtc import add_mtc_bucket_iam_member, create_mtc_cpc
 from argparse import Namespace
+from .testing.commands_tester import CommandsTester
 
 
-def test_add_mtc_bucket_iam_member(mocker):
-  mock_client_class = mocker.patch("xpk.core.mtc.gcp_storage.Client")
-  mock_client = mock_client_class.return_value
-  mock_bucket = mock_client.bucket.return_value
-  mock_policy = MagicMock()
-  mock_policy.bindings = []
-  mock_bucket.get_iam_policy.return_value = mock_policy
+@pytest.fixture(autouse=True)
+def commands_tester(mocker: MockerFixture) -> CommandsTester:
+  return CommandsTester(mocker)
 
+
+def test_add_mtc_bucket_iam_member(commands_tester: CommandsTester):
   args = Namespace(
       mtc_gcs_bucket="my-test-bucket",
       project_number="1234567890",
       project="my-project",
   )
 
+  commands_tester.set_result_for_command(
+      (0, ""), "gcloud storage buckets add-iam-policy-binding"
+  )
+
   add_mtc_bucket_iam_member(args)
 
-  mock_client.bucket.assert_called_once_with("my-test-bucket")
-  mock_bucket.get_iam_policy.assert_called_once_with(requested_policy_version=3)
-
   expected_member = "principal://iam.googleapis.com/projects/1234567890/locations/global/workloadIdentityPools/my-project.svc.id.goog/subject/ns/gke-managed-checkpointing/sa/gke-checkpointing-multitier-node"
-
-  assert len(mock_policy.bindings) == 1
-  assert mock_policy.bindings[0]["role"] == "roles/storage.objectUser"
-  assert expected_member in mock_policy.bindings[0]["members"]
-
-  mock_bucket.set_iam_policy.assert_called_once_with(mock_policy)
+  commands_tester.assert_command_run(
+      "gcloud storage buckets add-iam-policy-binding gs://my-test-bucket"
+      f" --member='{expected_member}'"
+      " --role='roles/storage.objectUser'"
+      " --project=my-project --quiet"
+  )
 
 
 def test_create_mtc_cpc(mocker):

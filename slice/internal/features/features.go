@@ -25,7 +25,10 @@ import (
 )
 
 const (
-	//
+	// UseRetryMechanismForSliceCreation enables the retry-on-failure mechanism for Slice creation.
+	// When enabled, each Slice is annotated and the Slice Controller (in KCP) automatically
+	// retries on creation failures (including upon partition ID conflicts).
+	// If a Slice fails to form within the timeout, we evict the Workload.
 	UseRetryMechanismForSliceCreation featuregate.Feature = "UseRetryMechanismForSliceCreation"
 )
 

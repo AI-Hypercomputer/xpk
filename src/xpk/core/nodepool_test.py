@@ -1169,7 +1169,9 @@ def test_run_gke_node_pool_create_command_skips_reservation_check_when_no_nodepo
       "xpk.core.nodepool.get_cluster_location", return_value="us-central1"
   )
   mocker.patch("xpk.core.nodepool.ask_for_user_consent", return_value=True)
-  mocker.patch("xpk.core.nodepool.check_cluster_resources", return_value=(True, True))
+  mocker.patch(
+      "xpk.core.nodepool.check_cluster_resources", return_value=(True, True)
+  )
   args = mocker.Mock(
       num_slices=2,
       reservation="reservation1,reservation2",
@@ -1203,25 +1205,18 @@ def test_run_gke_node_pool_create_command_skips_reservation_check_when_no_nodepo
       docker_platform=DockerPlatform.AMD,
   )
 
-  # Using `commands_tester` to setup mock reservation instead of `mocker.patch`. 
-  # We make the reservation completely empty to simulate "no available capacity".
   setup_mock_reservation(
       commands_tester,
       specific_reservation=SpecificReservation(
           count=0, in_use_count=0, machine_type="ct4p-hightpu-4t"
       ),
   )
-  
-  # Existing node pools matching the desired ones means we don't need to create any.
+
   commands_tester.set_result_for_command(
-      (0, "test-cluster-np-0\ntest-cluster-np-1"), "gcloud beta container node-pools list"
+      (0, "test-cluster-np-0\ntest-cluster-np-1"),
+      "gcloud beta container node-pools list",
   )
 
   result = run_gke_node_pool_create_command(args, system, "1.2.3")
 
-  # Because `len(node_pools_to_create) == 0`, the reservation's capacity is NOT checked,
-  # and the function should return 0 (success) instead of failing due to 0 capacity.
   assert result == 0
-
-
-

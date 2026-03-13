@@ -110,7 +110,7 @@ jobs:
             - name: Create test script to execute in workloads
               run: echo -e '#!/bin/bash \n echo "Hello world from a test script!"' > workload.sh
             - name: Run a base-docker-image workload
-              run: xpk workload create --cluster $TPU_CLUSTER_NAME --workload $WORKLOAD_NAME  --command "bash workload.sh"  --tpu-type=v4-8 --num-slices=2 --zone=us-central2-b
+              run: CRANE_WORKLOADS_ENABLED=False xpk workload create --cluster $TPU_CLUSTER_NAME --workload $WORKLOAD_NAME  --command "bash workload.sh"  --tpu-type=v4-8 --num-slices=2 --zone=us-central2-b
             - name: List out the workloads on the cluster
               run: xpk workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
             - name: Run xpk inspector with the workload created above

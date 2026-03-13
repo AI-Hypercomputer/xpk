@@ -50,6 +50,7 @@ import (
 
 	"tpu-slice-controller/api/v1beta1"
 	"tpu-slice-controller/internal/core"
+	"tpu-slice-controller/internal/features"
 	"tpu-slice-controller/internal/topology"
 	"tpu-slice-controller/internal/util/api"
 	"tpu-slice-controller/internal/util/node"
@@ -826,35 +827,43 @@ func groupSlicesByState(slices []v1beta1.Slice, activationTimeout time.Duration)
 	return slicesByState
 }
 
-func (r *WorkloadReconciler) prepareAdmissionCheckStatus(wl *kueue.Workload, ac *kueue.AdmissionCheckState, slices []v1beta1.Slice) {
-	// wait for Kueue to reset check to Pending after eviction
-	if ac.State == kueue.CheckStateRetry {
-		return
-	}
-	slicesByState := groupSlicesByState(slices, r.activationTimeout)
+func calculateEffectiveSliceCounts(slicesByState map[core.SliceState][]v1beta1.Slice, wl *kueue.Workload, podSetRequiresHealthy map[string]bool) (int, int) {
+	effectiveActiveCount := len(slicesByState[core.SliceStateActive])
+	effectiveFailedCount := len(slicesByState[core.SliceStateFailed])
 
-	switch {
-	case len(slices) == len(slicesByState[core.SliceStateActive])+len(slicesByState[core.SliceStateActiveDegraded]):
-		ac.State = kueue.CheckStateReady
-		var podSetUpdates []kueue.PodSetUpdate
-		for _, ps := range wl.Spec.PodSets {
-			if topology := core.GetTPUTopology(ps.Template); topology != "" {
-				podSetUpdates = append(podSetUpdates, kueue.PodSetUpdate{
-					Name: ps.Name,
-					NodeSelector: map[string]string{
-						core.TPUTopologyAnnotation: topology,
-					},
-				})
+	if features.Enabled(features.FailOnUntoleratedDegradedSlice) {
+		for _, slice := range slicesByState[core.SliceStateActiveDegraded] {
+			psName := slice.Annotations[core.OwnerPodSetNameAnnotation]
+			// The second part of the condition `(psName == "" && workloadRequestedOnlyHealthySlices(wl))` is for backward compatibility
+			// for slices created before the OwnerPodSetNameAnnotation was introduced.
+			if (psName != "" && podSetRequiresHealthy[psName]) || (psName == "" && workloadRequestedOnlyHealthySlices(wl)) {
+				effectiveFailedCount++
+			} else {
+				effectiveActiveCount++
 			}
 		}
-		ac.PodSetUpdates = podSetUpdates
-	case len(slicesByState[core.SliceStateFailed]) > 0:
-		ac.State = kueue.CheckStateRetry
-		ac.RequeueAfterSeconds = ptr.To(int32(r.retryDelayOnSliceFailure.Round(time.Second).Seconds()))
-	case len(slicesByState[core.SliceStateCreated])+len(slicesByState[core.SliceStateActivating]) > 0:
-		ac.State = kueue.CheckStatePending
+	} else {
+		effectiveActiveCount += len(slicesByState[core.SliceStateActiveDegraded])
 	}
+	return effectiveActiveCount, effectiveFailedCount
+}
 
+func buildPodSetUpdates(wl *kueue.Workload) []kueue.PodSetUpdate {
+	var podSetUpdates []kueue.PodSetUpdate
+	for _, ps := range wl.Spec.PodSets {
+		if topology := core.GetTPUTopology(ps.Template); topology != "" {
+			podSetUpdates = append(podSetUpdates, kueue.PodSetUpdate{
+				Name: ps.Name,
+				NodeSelector: map[string]string{
+					core.TPUTopologyAnnotation: topology,
+				},
+			})
+		}
+	}
+	return podSetUpdates
+}
+
+func buildAdmissionCheckMessage(slicesByState map[core.SliceState][]v1beta1.Slice, effectiveFailedCount int, wl *kueue.Workload, podSetRequiresHealthy map[string]bool) string {
 	var stateMessages []string
 	for _, state := range core.SliceStates {
 		if count := len(slicesByState[state]); count > 0 {
@@ -862,17 +871,80 @@ func (r *WorkloadReconciler) prepareAdmissionCheckStatus(wl *kueue.Workload, ac 
 		}
 	}
 
-	ac.Message = fmt.Sprintf("Slices are in states: %s", strings.Join(stateMessages, ", "))
+	message := fmt.Sprintf("Slices are in states: %s", strings.Join(stateMessages, ", "))
 
-	if len(slicesByState[core.SliceStateFailed]) > 0 {
+	if effectiveFailedCount > 0 {
 		var errMessages []string
 		for _, slice := range slicesByState[core.SliceStateFailed] {
 			cond := meta.FindStatusCondition(slice.Status.Conditions, v1beta1.SliceStateConditionType)
-			errMessages = append(errMessages, cond.Message)
+			if cond != nil {
+				errMessages = append(errMessages, cond.Message)
+			}
 		}
-		ac.Message += ". Errors: " + strings.Join(errMessages, "; ")
+		if features.Enabled(features.FailOnUntoleratedDegradedSlice) {
+			for _, slice := range slicesByState[core.SliceStateActiveDegraded] {
+				psName := slice.Annotations[core.OwnerPodSetNameAnnotation]
+				if (psName != "" && !podSetRequiresHealthy[psName]) || (psName == "" && !workloadRequestedOnlyHealthySlices(wl)) {
+					continue
+				}
+				cond := meta.FindStatusCondition(slice.Status.Conditions, v1beta1.SliceStateConditionType)
+				if cond != nil {
+					errMessages = append(errMessages, fmt.Sprintf("%s (degraded)", cond.Message))
+				} else {
+					errMessages = append(errMessages, fmt.Sprintf("Slice %s is degraded", slice.Name))
+				}
+			}
+		}
+		message += ". Errors: " + strings.Join(errMessages, "; ")
 	}
-	ac.Message = api.TruncateConditionMessage(ac.Message)
+	return api.TruncateConditionMessage(message)
+}
+
+func (r *WorkloadReconciler) prepareAdmissionCheckStatus(wl *kueue.Workload, ac *kueue.AdmissionCheckState, slices []v1beta1.Slice) {
+	// wait for Kueue to reset check to Pending after eviction
+	if ac.State == kueue.CheckStateRetry {
+		return
+	}
+	slicesByState := groupSlicesByState(slices, r.activationTimeout)
+
+	podSetRequiresHealthy := make(map[string]bool)
+	if features.Enabled(features.FailOnUntoleratedDegradedSlice) {
+		for _, ps := range wl.Spec.PodSets {
+			podSetRequiresHealthy[string(ps.Name)] = podSetRequestedOnlyHealthySlices(ps)
+		}
+	}
+
+	effectiveActiveCount, effectiveFailedCount := calculateEffectiveSliceCounts(slicesByState, wl, podSetRequiresHealthy)
+
+	switch {
+	case len(slices) == effectiveActiveCount:
+		ac.State = kueue.CheckStateReady
+		ac.PodSetUpdates = buildPodSetUpdates(wl)
+	case effectiveFailedCount > 0:
+		ac.State = kueue.CheckStateRetry
+		ac.RequeueAfterSeconds = ptr.To(int32(r.retryDelayOnSliceFailure.Round(time.Second).Seconds()))
+	case len(slicesByState[core.SliceStateCreated])+len(slicesByState[core.SliceStateActivating]) > 0:
+		ac.State = kueue.CheckStatePending
+	}
+	ac.Message = buildAdmissionCheckMessage(slicesByState, effectiveFailedCount, wl, podSetRequiresHealthy)
+}
+
+func workloadRequestedOnlyHealthySlices(wl *kueue.Workload) bool {
+	for _, ps := range wl.Spec.PodSets {
+		// if a least one podset requested only healthy
+		if podSetRequestedOnlyHealthySlices(ps) {
+			return true
+		}
+	}
+	return false
+}
+
+func podSetRequestedOnlyHealthySlices(ps kueue.PodSet) bool {
+	if v, ok := ps.Template.Spec.NodeSelector[core.TPUSliceHealthNodeSelectorKey]; ok {
+		return v == core.TPUSliceHealthNodeSelectorHealthy
+	}
+
+	return !core.NodeAffinityAllowsValue(ps.Template.Spec.Affinity, core.TPUSliceHealthNodeSelectorKey, core.TPUSliceHealthNodeSelectorDegraded)
 }
 
 // SetupWithManager sets up the controller with the Manager.

@@ -365,6 +365,14 @@ func (s *SliceWrapper) OwnerWorkloadAnnotations(ns, name string) *SliceWrapper {
 	return s
 }
 
+func (s *SliceWrapper) Annotation(key, value string) *SliceWrapper {
+	if s.Annotations == nil {
+		s.Annotations = make(map[string]string)
+	}
+	s.Annotations[key] = value
+	return s
+}
+
 func (s *SliceWrapper) PartitionIDs(ids ...string) *SliceWrapper {
 	s.Spec.PartitionIds = ids
 	return s
@@ -390,6 +398,11 @@ func (s *SliceWrapper) Activating() *SliceWrapper {
 		Reason:             string(core.MMIGHealthStatusActivating),
 		Message:            "Activating by test",
 	}
+	apimeta.SetStatusCondition(&s.Status.Conditions, cond)
+	return s
+}
+
+func (s *SliceWrapper) Condition(cond metav1.Condition) *SliceWrapper {
 	apimeta.SetStatusCondition(&s.Status.Conditions, cond)
 	return s
 }

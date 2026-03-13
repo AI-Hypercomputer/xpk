@@ -811,7 +811,7 @@ func TestWorkloadReconciler(t *testing.T) {
 			},
 			wantResult: reconcile.Result{RequeueAfter: initializationRetryAfter},
 		},
-		"should create Slices with retry annotation when feature gate is enabled": {
+		"should create Slices with retry annotation with retry on failure enabled": {
 			enableRetryMechanism: true,
 			request:              baseRequest,
 			objs: []client.Object{

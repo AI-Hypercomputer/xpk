@@ -1160,15 +1160,14 @@ def test_run_gke_node_pool_create_command_no_ignore_errors_returns_1(
 
   assert result == 1
 
-def test_run_gke_node_pool_create_command_skips_reservation_check_when_no_nodepools_to_create(
+
+def test_run_gke_node_pool_create_command_skips_reservation_check_when_no_nodepools_to_create_with_empty_reservation(
     mocker,
     commands_tester: CommandsTester,
 ):
   mocker.patch(
       "xpk.core.nodepool.get_cluster_location", return_value="us-central1"
   )
-  mocker.patch("xpk.core.capacity.verify_reservations_exist", return_value=0)
-  mock_get_reservations = mocker.patch("xpk.core.nodepool.get_reservations_list")
   mocker.patch("xpk.core.nodepool.ask_for_user_consent", return_value=True)
   mocker.patch("xpk.core.nodepool.check_cluster_resources", return_value=(True, True))
   args = mocker.Mock(
@@ -1203,6 +1202,15 @@ def test_run_gke_node_pool_create_command_skips_reservation_check_when_no_nodepo
       supports_accelerator_network_profile=True,
       docker_platform=DockerPlatform.AMD,
   )
+
+  # Using `commands_tester` to setup mock reservation instead of `mocker.patch`. 
+  # We make the reservation completely empty to simulate "no available capacity".
+  setup_mock_reservation(
+      commands_tester,
+      specific_reservation=SpecificReservation(
+          count=0, in_use_count=0, machine_type="ct4p-hightpu-4t"
+      ),
+  )
   
   # Existing node pools matching the desired ones means we don't need to create any.
   commands_tester.set_result_for_command(
@@ -1211,6 +1219,9 @@ def test_run_gke_node_pool_create_command_skips_reservation_check_when_no_nodepo
 
   result = run_gke_node_pool_create_command(args, system, "1.2.3")
 
+  # Because `len(node_pools_to_create) == 0`, the reservation's capacity is NOT checked,
+  # and the function should return 0 (success) instead of failing due to 0 capacity.
   assert result == 0
-  mock_get_reservations.assert_not_called()
+
+
 

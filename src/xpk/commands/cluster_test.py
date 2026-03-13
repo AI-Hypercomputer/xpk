@@ -131,6 +131,9 @@ def construct_args(**kwargs: Any) -> Namespace:
       managed_mldiagnostics=False,
       output_manifest_file='',
       num_cubes=None,
+      enable_private_endpoint=False,
+      private_endpoint_subnetwork=None,
+      enable_master_global_access=False,
   )
   args_dict.update(kwargs)
   return Namespace(**args_dict)

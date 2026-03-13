@@ -109,6 +109,8 @@ class BlueprintGenerator:
       gcs_bucket: Optional[str | None] = None,
       capacity_type: CapacityType = CapacityType.ON_DEMAND,
       system_node_pool_min_node_count: int = 2,
+      enable_private_endpoint: bool = False,
+      private_endpoint_subnetwork: str | None = None,
   ) -> BlueprintGeneratorOutput:
     """Create A3 mega blueprint and directory containing its dependencies.
 
@@ -164,7 +166,7 @@ class BlueprintGenerator:
             "min_master_version": cluster_version,
             "prefix_with_deployment_name": False,
             "name_suffix": cluster_name,
-            "enable_private_endpoint": False,
+            "enable_private_endpoint": enable_private_endpoint,
             "enable_gcsfuse_csi": True,
             "enable_filestore_csi": True,
             "master_authorized_networks": [{
@@ -186,6 +188,10 @@ class BlueprintGenerator:
         },
         outputs=["instructions"],
     )
+    if private_endpoint_subnetwork:
+      gke_cluster.set_setting(
+          "private_endpoint_subnetwork", private_endpoint_subnetwork
+      )
     if release_channel != ReleaseChannel.RAPID:
       gke_cluster.set_setting(
           "maintenance_exclusions",
@@ -348,6 +354,8 @@ class BlueprintGenerator:
       auth_cidr: str,
       prefix: str = "",
       gcs_bucket: Optional[str | None] = None,
+      enable_private_endpoint: bool = False,
+      private_endpoint_subnetwork: str | None = None,
   ) -> BlueprintGeneratorOutput:
     """Create a simple gke cluster
 
@@ -379,9 +387,7 @@ class BlueprintGenerator:
         settings={
             "prefix_with_deployment_name": False,
             "name_suffix": cluster_name,
-            "enable_private_endpoint": (
-                "false"
-            ),  # Allows for access from authorized public IPs
+            "enable_private_endpoint": enable_private_endpoint,
             "master_authorized_networks": [{
                 "display_name": "deployment-machine",
                 "cidr_block": auth_cidr,
@@ -389,6 +395,10 @@ class BlueprintGenerator:
         },
         outputs=["instructions"],
     )
+    if private_endpoint_subnetwork:
+      gke_cluster.set_setting(
+          "private_endpoint_subnetwork", private_endpoint_subnetwork
+      )
 
     primary_group = DeploymentGroup(
         group="primary",
@@ -437,6 +447,8 @@ class BlueprintGenerator:
       mtu_size: int = 8896,
       system_node_pool_min_node_count: int = 2,
       capacity_type: CapacityType = CapacityType.ON_DEMAND,
+      enable_private_endpoint: bool = False,
+      private_endpoint_subnetwork: str | None = None,
   ) -> BlueprintGeneratorOutput:
     """Create A3 ultra blueprint.
 
@@ -537,7 +549,7 @@ class BlueprintGenerator:
             "enable_dcgm_monitoring": True,
             "enable_gcsfuse_csi": True,
             "enable_filestore_csi": enable_filestore_csi_driver,
-            "enable_private_endpoint": False,
+            "enable_private_endpoint": enable_private_endpoint,
             "master_authorized_networks": [{
                 "cidr_block": auth_cidr,
                 "display_name": "kubectl-access-network",
@@ -566,6 +578,10 @@ class BlueprintGenerator:
         },
         outputs=["instructions"],
     )
+    if private_endpoint_subnetwork:
+      a3_ultra_cluster.set_setting(
+          "private_endpoint_subnetwork", private_endpoint_subnetwork
+      )
     if release_channel != ReleaseChannel.RAPID:
       a3_ultra_cluster.set_setting(
           "maintenance_exclusions",
@@ -726,6 +742,8 @@ class BlueprintGenerator:
       prefix: str = "",
       system_node_pool_min_node_count: int = 2,
       capacity_type: CapacityType = CapacityType.ON_DEMAND,
+      enable_private_endpoint: bool = False,
+      private_endpoint_subnetwork: str | None = None,
   ) -> BlueprintGeneratorOutput:
     """Create A4 blueprint.
 
@@ -829,7 +847,7 @@ class BlueprintGenerator:
             "name_suffix": cluster_name,
             "enable_dcgm_monitoring": True,
             "enable_gcsfuse_csi": True,
-            "enable_private_endpoint": False,
+            "enable_private_endpoint": enable_private_endpoint,
             "master_authorized_networks": [{
                 "cidr_block": auth_cidr,
                 "display_name": "kubectl-access-network",
@@ -847,6 +865,10 @@ class BlueprintGenerator:
         },
         outputs=["instructions"],
     )
+    if private_endpoint_subnetwork:
+      a4_cluster.set_setting(
+          "private_endpoint_subnetwork", private_endpoint_subnetwork
+      )
     if release_channel != ReleaseChannel.RAPID:
       a4_cluster.set_setting(
           "maintenance_exclusions",

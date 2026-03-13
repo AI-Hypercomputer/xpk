@@ -361,6 +361,8 @@ def generate_blueprint(
           gcs_bucket=args.cluster_state_gcs_bucket,
           cluster_version=gke_control_plane_version,
           release_channel=release_channel,
+          enable_private_endpoint=args.enable_private_endpoint,
+          private_endpoint_subnetwork=args.private_endpoint_subnetwork,
       )
     if args.device_type == a3ultra_device_type:
       return bpg.generate_a3_ultra_blueprint(
@@ -384,6 +386,8 @@ def generate_blueprint(
           gcs_bucket=args.cluster_state_gcs_bucket,
           cluster_version=gke_control_plane_version,
           release_channel=release_channel,
+          enable_private_endpoint=args.enable_private_endpoint,
+          private_endpoint_subnetwork=args.private_endpoint_subnetwork,
       )
     if args.device_type == a4_device_type:
       return bpg.generate_a4_blueprint(
@@ -405,6 +409,8 @@ def generate_blueprint(
           system_node_pool_min_node_count=args.default_pool_cpu_num_nodes,
           cluster_version=gke_control_plane_version,
           release_channel=release_channel,
+          enable_private_endpoint=args.enable_private_endpoint,
+          private_endpoint_subnetwork=args.private_endpoint_subnetwork,
       )
   xpk_print('Device type is not supported.')
   xpk_exit(1)

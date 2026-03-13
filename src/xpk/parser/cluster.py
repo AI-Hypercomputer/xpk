@@ -728,6 +728,40 @@ def add_shared_cluster_create_optional_arguments(
       ),
   )
   parser_or_group.add_argument(
+      '--enable-private-endpoint',
+      action='store_true',
+      help=(
+          'Enables a fully private control plane endpoint for the GKE'
+          ' cluster. When set, the control plane has no public endpoint and'
+          ' can only be accessed from authorized internal networks. Implies'
+          ' --private. Use --private-endpoint-subnetwork to specify the'
+          ' subnet for the private endpoint.'
+      ),
+  )
+  parser_or_group.add_argument(
+      '--private-endpoint-subnetwork',
+      type=str,
+      default=None,
+      help=(
+          'The name or full path of the subnet to use for the private'
+          " control plane's endpoint. When set, the control plane's"
+          ' private endpoint IP is allocated from this subnet. Implies'
+          ' --enable-private-endpoint and --private.'
+          ' Example usage: --private-endpoint-subnetwork=my-cp-subnet'
+      ),
+  )
+  parser_or_group.add_argument(
+      '--enable-master-global-access',
+      action='store_true',
+      help=(
+          "Enables access to the private control plane's internal IP"
+          " address from any GCP region, not just the cluster's region."
+          ' Useful when VPN or other resources accessing the cluster are'
+          ' in a different region. Automatically enabled when'
+          ' --enable-private-endpoint is set.'
+      ),
+  )
+  parser_or_group.add_argument(
       '--enable-workload-identity',
       action='store_true',
       help='Enable Workload Identity Federation on the cluster and node-pools.',

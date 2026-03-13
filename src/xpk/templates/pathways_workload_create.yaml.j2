@@ -144,8 +144,15 @@ spec:
           metadata:
             labels:
               xpk.google.com/workload: {{ args.workload }}
+{% if jobset_annotations or tpu_slice_topology_annotation %}
             annotations:
-              alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool
+{% if jobset_annotations %}
+              {{ jobset_annotations }}
+{% endif %}
+{% if tpu_slice_topology_annotation %}
+              {{ tpu_slice_topology_annotation }}
+{% endif %}
+{% endif %}
           spec:
             hostNetwork: true
             dnsPolicy: ClusterFirstWithHostNet

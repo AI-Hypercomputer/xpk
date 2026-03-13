@@ -23,25 +23,12 @@ kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="Conf
 gcloud container clusters list --project=golden-project --filter=name=golden-cluster --format="value(location)"
 [XPK] Task: `Get All Node Pools` is implemented by the following command not running since it is a dry run. 
 gcloud beta container node-pools list --cluster golden-cluster --project=golden-project --location=us-central1 --format="csv[no-heading](name)"
-[XPK] Temp file (4b6736a12db8ea0f78ce793fd0d4ee0c94c652303f1dc0fecad085ea0993f688) content: 
-FROM python:3.10
+[XPK] Temp file (e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855) content: 
 
-  # Set the working directory in the container
-  WORKDIR /app
-
-  # Copy all files from local workspace into docker container
-  COPY . .
-
-  WORKDIR /app
-  
-[XPK] Building /tmp into docker image.
-[XPK] Task: `Building script_dir into docker image` is implemented by the following command not running since it is a dry run. 
-docker buildx build --platform=linux/amd64 -f 4b6736a12db8ea0f78ce793fd0d4ee0c94c652303f1dc0fecad085ea0993f688 -t dry-run-runner /tmp
-[XPK] Adding Docker Image: gcr.io/golden-project/dry-run-runner:prefix-current to golden-project
-[XPK] Task: `Tag Docker Image` is implemented by the following command not running since it is a dry run. 
-docker tag dry-run-runner gcr.io/golden-project/dry-run-runner:prefix-current
-[XPK] Task: `Upload Docker Image` is implemented by the following command not running since it is a dry run. 
-docker push gcr.io/golden-project/dry-run-runner:prefix-current
+[XPK] Adding /tmp to container image archive e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+[XPK] Task: `Upload Container Image` is implemented by the following command not running since it is a dry run. 
+crane mutate python:3.10 --append e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 --platform linux/amd64 --tag gcr.io/golden-project/dry-run-runner:prefix-current --workdir /app
+[XPK] Deleting container image archive e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
 [XPK] Temp file (8e311bca9f9f54ee09e88dbb12e7d20d536478aa69d990a59142ee6fb70da079) content: 
 apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet

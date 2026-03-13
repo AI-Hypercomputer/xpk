@@ -22,7 +22,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from xpk.core.telemetry import MetricsCollector
-from xpk.commands.cluster import _install_kueue, _validate_cluster_create_args, _get_coredns_replica_count, run_gke_cluster_create_command, cluster_create, _log_cluster_create_telemetry
+from xpk.commands.cluster import cluster_adapt, _install_kueue, _validate_cluster_create_args, _get_coredns_replica_count, run_gke_cluster_create_command, cluster_create, _log_cluster_create_telemetry
 from xpk.core.capacity import CapacityType
 from xpk.core.system_characteristics import SystemCharacteristics, UserFacingNameToSystemCharacteristics
 from xpk.core.testing.commands_tester import CommandsTester
@@ -894,8 +894,6 @@ def test_cluster_adapt_calls_install_kueue_slice_controller_if_super_slicing(
   mock_install_slice_controller = mocker.patch(
       'xpk.commands.cluster._install_kueue_slice_controller', return_value=0
   )
-
-  from xpk.commands.cluster import cluster_adapt  # pylint: disable=C0415
 
   cluster_adapt(args)
 

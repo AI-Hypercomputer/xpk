@@ -18,6 +18,7 @@ package webhooks
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -179,6 +180,70 @@ func TestDefault(t *testing.T) {
 				RequestAndLimit("rj1", core.TPUResourceName, "4").
 				Obj(),
 		},
+		"should set default values for subslice 2x2x1": {
+			defaultSliceHealthValues: []string{core.TPUSliceHealthNodeSelectorHealthy},
+			jobSet: testingjobjobset.MakeJobSet(baseJobSetName, utils.DefaultNamespace).
+				Queue("queue-name").
+				ReplicatedJobs(testingjobjobset.ReplicatedJobRequirements{
+					Name:        "rj1",
+					Parallelism: 4,
+					PodAnnotations: map[string]string{
+						core.TPUSliceTopologyAnnotation: "2x2x1",
+					},
+					NodeSelector: map[string]string{
+						"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
+					},
+				}).
+				Obj(),
+			wantJobSet: testingjobjobset.MakeJobSet(baseJobSetName, utils.DefaultNamespace).
+				Queue("queue-name").
+				ReplicatedJobs(testingjobjobset.ReplicatedJobRequirements{
+					Name:        "rj1",
+					Parallelism: 4,
+					PodAnnotations: map[string]string{
+						core.TPUSliceTopologyAnnotation:                 "2x2x1",
+						"kueue.x-k8s.io/podset-slice-size":              "4",
+						"kueue.x-k8s.io/podset-required-topology":       core.TPUBlockLabel,
+						"kueue.x-k8s.io/podset-slice-required-topology": "cloud.google.com/gke-tpu-partition-2x2x1-id",
+					},
+					NodeSelector: map[string]string{
+						"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
+					},
+				}).NodeAffinity("rj1", core.SubsliceHealthLabel("2x2x1"), []string{core.TPUSliceHealthNodeSelectorHealthy}).
+				Obj(),
+		},
+		"should set default values for subslice 2x4x4": {
+			defaultSliceHealthValues: []string{core.TPUSliceHealthNodeSelectorHealthy},
+			jobSet: testingjobjobset.MakeJobSet(baseJobSetName, utils.DefaultNamespace).
+				Queue("queue-name").
+				ReplicatedJobs(testingjobjobset.ReplicatedJobRequirements{
+					Name:        "rj1",
+					Parallelism: 4,
+					PodAnnotations: map[string]string{
+						core.TPUSliceTopologyAnnotation: "2x4x4",
+					},
+					NodeSelector: map[string]string{
+						"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
+					},
+				}).
+				Obj(),
+			wantJobSet: testingjobjobset.MakeJobSet(baseJobSetName, utils.DefaultNamespace).
+				Queue("queue-name").
+				ReplicatedJobs(testingjobjobset.ReplicatedJobRequirements{
+					Name:        "rj1",
+					Parallelism: 4,
+					PodAnnotations: map[string]string{
+						core.TPUSliceTopologyAnnotation:                 "2x4x4",
+						"kueue.x-k8s.io/podset-slice-size":              "4",
+						"kueue.x-k8s.io/podset-required-topology":       core.TPUBlockLabel,
+						"kueue.x-k8s.io/podset-slice-required-topology": "cloud.google.com/gke-tpu-partition-2x4x4-id",
+					},
+					NodeSelector: map[string]string{
+						"cloud.google.com/gke-tpu-accelerator": string(slice.TypeTpu7x),
+					},
+				}).NodeAffinity("rj1", core.SubsliceHealthLabel("2x4x4"), []string{core.TPUSliceHealthNodeSelectorHealthy}).
+				Obj(),
+		},
 		"shouldn't set default values because invalid topology annotation": {
 			jobSet: testingjobjobset.MakeJobSet(baseJobSetName, utils.DefaultNamespace).
 				Queue("queue-name").
@@ -320,7 +385,7 @@ func TestDefault(t *testing.T) {
 				}).
 				RequestAndLimit("rj1", core.TPUResourceName, "1").
 				Obj(),
-			wantErr: errors.New("invalid replicated job \"rj1\": configuration results in 16 TPUs requested per cube, but must be exactly 64 TPUs (full utilization)"),
+			wantErr: fmt.Errorf("invalid jobset %q: %w", baseJobSetName, errors.New("configuration results in 16 TPUs requested per cube, but must be exactly 64 TPUs (full utilization)")),
 		},
 		"should reject incorrectly configured replicated job not utilizing entire cube; multiple cubes": {
 			jobSet: testingjobjobset.MakeJobSet(baseJobSetName, utils.DefaultNamespace).
@@ -337,7 +402,7 @@ func TestDefault(t *testing.T) {
 				}).
 				RequestAndLimit("rj1", core.TPUResourceName, "4").
 				Obj(),
-			wantErr: errors.New("invalid replicated job \"rj1\": configuration results in 32 TPUs requested per cube, but must be exactly 64 TPUs (full utilization)"),
+			wantErr: fmt.Errorf("invalid jobset %q: %w", baseJobSetName, errors.New("configuration results in 32 TPUs requested per cube, but must be exactly 64 TPUs (full utilization)")),
 		},
 	}
 

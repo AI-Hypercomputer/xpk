@@ -23,6 +23,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta2"
 	"sigs.k8s.io/kueue/pkg/util/tas"
+
+	"tpu-slice-controller/internal/core"
 )
 
 // HostnameLevelIndex returns the index of the hostname level in the topology
@@ -40,7 +42,7 @@ type ParsedAssignment struct {
 	PartitionIDs []string
 }
 
-func ParseAssignment(topologyAssignment *kueue.TopologyAssignment, nodes map[string]corev1.Node) ParsedAssignment {
+func ParseAssignment(topologyAssignment *kueue.TopologyAssignment, nodes map[string]corev1.Node, labelKey string) ParsedAssignment {
 	parsedAssignment := ParsedAssignment{
 		PartitionIDs: make([]string, 0),
 	}
@@ -50,7 +52,7 @@ func ParseAssignment(topologyAssignment *kueue.TopologyAssignment, nodes map[str
 	hostnameLevelIndex := HostnameLevelIndex(topologyAssignment)
 	for domain := range tas.InternalSeqFrom(topologyAssignment) {
 		nodeName := domain.Values[hostnameLevelIndex]
-		if partitionID := getTPUPartitionIDValue(nodes, nodeName); !seenPartitionIDs.Has(partitionID) {
+		if partitionID := getTPUPartitionIDValue(nodes, nodeName, labelKey); !seenPartitionIDs.Has(partitionID) {
 			parsedAssignment.PartitionIDs = append(parsedAssignment.PartitionIDs, partitionID)
 			seenPartitionIDs.Insert(partitionID)
 		}
@@ -58,10 +60,17 @@ func ParseAssignment(topologyAssignment *kueue.TopologyAssignment, nodes map[str
 	return parsedAssignment
 }
 
-func ParseTopologyV7(tpuTopology string) ([]int64, error) {
+type TopologyType string
+
+const (
+	TopologyTypeSuperslice TopologyType = "Superslice"
+	TopologyTypeSubslice   TopologyType = "Subslice"
+)
+
+func ParseTopologyV7(tpuTopology string) ([]int64, TopologyType, error) {
 	dimensions := strings.Split(tpuTopology, "x")
 	if len(dimensions) != 3 {
-		return nil, fmt.Errorf("invalid topology format: %s, expected 3 dimensions", tpuTopology)
+		return nil, "", fmt.Errorf("invalid topology format: %s, expected 3 dimensions", tpuTopology)
 	}
 
 	dims := make([]int64, 3)
@@ -69,31 +78,49 @@ func ParseTopologyV7(tpuTopology string) ([]int64, error) {
 	for i, dim := range dimensions {
 		parsedDim, err := strconv.ParseInt(dim, 10, 32)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		dims[i] = parsedDim
 	}
+
+	if (dims[0] == 2 && dims[1] == 2 && dims[2] == 1) ||
+		(dims[0] == 2 && dims[1] == 2 && dims[2] == 2) ||
+		(dims[0] == 2 && dims[1] == 2 && dims[2] == 4) ||
+		(dims[0] == 2 && dims[1] == 4 && dims[2] == 4) {
+		return dims, TopologyTypeSubslice, nil
+	}
+
 	if dims[0] == 0 || dims[1] == 0 || dims[2] == 0 {
-		return nil, fmt.Errorf("topology dimensions cannot be zero: %s", tpuTopology)
+		return nil, "", fmt.Errorf("topology dimensions cannot be zero: %s", tpuTopology)
 	}
 	if dims[0]%4 != 0 || dims[1]%4 != 0 || dims[2]%4 != 0 {
-		return nil, fmt.Errorf("topology dimensions must be divisible by 4: %s", tpuTopology)
+		return nil, "", fmt.Errorf("topology dimensions must be divisible by 4: %s", tpuTopology)
 	}
 	if dims[0] > dims[1] || dims[1] > dims[2] {
-		return nil, fmt.Errorf("topology dimensions must be in non-decreasing order: %s", tpuTopology)
+		return nil, "", fmt.Errorf("topology dimensions must be in non-decreasing order: %s", tpuTopology)
 	}
 
-	return dims, nil
+	return dims, TopologyTypeSuperslice, nil
 }
 
-func CalculateSliceSize(tpuTopology string, parallelism int32) (int64, error) {
-	dims, err := ParseTopologyV7(tpuTopology)
+func GetPartitionIDLabel(nodes map[string]corev1.Node, spec corev1.PodTemplateSpec) string {
+	topology := core.GetTPUTopology(spec)
+	_, topologyType, err := ParseTopologyV7(topology)
 	if err != nil {
-		return 0, err
+		return ""
 	}
+	switch topologyType {
+	case TopologyTypeSuperslice:
+		return core.TPUSubBlockLabel
+	case TopologyTypeSubslice:
+		return core.SubsliceLevelLabel(topology)
+	}
+	return ""
+}
 
+func CalculateSliceSize(dims []int64, parallelism int32) int64 {
 	totalChips := dims[0] * dims[1] * dims[2]
 	subBlockCount := totalChips / 64
 
-	return int64(parallelism) / subBlockCount, nil
+	return int64(parallelism) / subBlockCount
 }

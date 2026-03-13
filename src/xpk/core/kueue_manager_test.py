@@ -332,6 +332,43 @@ def test_resource_update_for_super_slicing_cluster(
   )
 
 
+def test_resource_update_for_super_slicing_cluster_installs_slice_controller(
+    mock_commands: CommandsTester,
+    kueue_manager: KueueManager,
+    mock_patch_controller_manager_resources: MagicMock,
+):
+  set_installed_kueue_version(mock_commands, None)
+  kueue_config = dataclasses.replace(KUEUE_CONFIG, configure_super_slicing=True)
+
+  result = kueue_manager.install_or_upgrade(kueue_config)
+
+  assert result == 0
+  mock_commands.assert_command_run(
+      "kubectl apply -f"
+      " https://raw.githubusercontent.com/AI-Hypercomputer/xpk/refs/heads/slice-main/slice/manifests.yaml"
+  )
+
+
+def test_resource_update_without_super_slicing_cluster_does_not_install_slice_controller(
+    mock_commands: CommandsTester,
+    kueue_manager: KueueManager,
+    mock_patch_controller_manager_resources: MagicMock,
+):
+  set_installed_kueue_version(mock_commands, None)
+  kueue_config = dataclasses.replace(
+      KUEUE_CONFIG, configure_super_slicing=False
+  )
+  mock_commands.set_result_for_command((0, "100"), "kubectl get node")
+
+  result = kueue_manager.install_or_upgrade(kueue_config)
+
+  assert result == 0
+  mock_commands.assert_command_not_run(
+      "kubectl apply -f"
+      " https://raw.githubusercontent.com/AI-Hypercomputer/xpk/refs/heads/slice-main/slice/manifests.yaml"
+  )
+
+
 @patch("xpk.core.kueue_manager.write_tmp_file")
 def test_configure_generates_correct_manifest_for_tpu(
     write_tmp_file_mock: MagicMock,

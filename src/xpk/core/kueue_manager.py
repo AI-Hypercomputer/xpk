@@ -311,9 +311,16 @@ class KueueManager:
     if return_code != 0:
       return return_code
 
-    return self.__update_kueue_resources_if_necessary(
+    return_code = self.__update_kueue_resources_if_necessary(
         configure_super_slicing=kueue_config.configure_super_slicing
     )
+    if return_code != 0:
+      return return_code
+
+    if kueue_config.configure_super_slicing:
+      return_code = self.__install_kueue_slice_controller()
+
+    return return_code
 
   def __build_template_context(
       self,
@@ -534,6 +541,15 @@ class KueueManager:
           memory_limit_str, memory_capacity_MB_str
       )
     return cpu_limit, memory_limit_str
+
+  def __install_kueue_slice_controller(self) -> int:
+    command = (
+        "kubectl apply -f"
+        " https://raw.githubusercontent.com/AI-Hypercomputer/xpk/refs/heads/slice-main/slice/manifests.yaml"
+    )
+    return run_command_with_updates_retry(
+        command, "Install Kueue Slice Controller", num_retry_attempts=3
+    )
 
 
 def get_installed_kueue_version(

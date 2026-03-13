@@ -196,6 +196,7 @@ def cluster_adapt(args) -> None:
   if args.super_slicing:
     install_kueue_slice_controller_code = _install_kueue_slice_controller()
     if install_kueue_slice_controller_code != 0:
+      xpk_print('Installation of Kueue Slice Controller failed.')
       xpk_exit(install_kueue_slice_controller_code)
 
   if system.accelerator_type == AcceleratorType.GPU:
@@ -1351,7 +1352,6 @@ def _install_kueue_slice_controller() -> int:
       'kubectl apply -f'
       ' https://raw.githubusercontent.com/AI-Hypercomputer/xpk/refs/heads/slice-main/slice/manifests.yaml'
   )
-  xpk_print('Installing Kueue Slice Controller')
   return run_command_with_updates_retry(
       command, 'Install Kueue Slice Controller', num_retry_attempts=3
   )

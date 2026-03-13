@@ -296,7 +296,6 @@ kubectl apply -f 20ee412fd0eeeaf2c32856f66404b54a7a638654ffbf9afb7d8f50780311ed1
 [XPK] Try 1: Updating Controller Manager resources
 [XPK] Task: `Updating Controller Manager resources` is implemented by the following command not running since it is a dry run. 
 kubectl patch deployment kueue-controller-manager -n kueue-system --type='strategic' --patch='{"spec": {"replicas": 3, "template": {"spec": {"containers": [{"name": "manager", "resources": {"requests": {"cpu": "16", "memory": "64Gi"}, "limits": {"cpu": "16", "memory": "64Gi"}}}]}}}}'
-[XPK] Installing Kueue Slice Controller
 [XPK] Try 1: Install Kueue Slice Controller
 [XPK] Task: `Install Kueue Slice Controller` is implemented by the following command not running since it is a dry run. 
 kubectl apply -f https://raw.githubusercontent.com/AI-Hypercomputer/xpk/refs/heads/slice-main/slice/manifests.yaml

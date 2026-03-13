@@ -45,6 +45,7 @@ import (
 
 	slice "tpu-slice-controller/api/v1beta1"
 	"tpu-slice-controller/internal/core"
+	"tpu-slice-controller/internal/features"
 	utiltesting "tpu-slice-controller/internal/util/testing"
 	utiltestingjobsjobset "tpu-slice-controller/internal/util/testingjobs/jobset"
 	utiltestingjobspod "tpu-slice-controller/internal/util/testingjobs/pod"
@@ -187,6 +188,7 @@ func TestWorkloadReconciler(t *testing.T) {
 		wantErr                error
 		wantEvents             []utiltesting.EventRecord
 		wantResult             controllerruntime.Result
+		enableRetryMechanism   bool
 	}{
 		"should skip reconciliation because the Workload was not found": {
 			request:       types.NamespacedName{Name: "other-workload", Namespace: corev1.NamespaceDefault},
@@ -809,6 +811,39 @@ func TestWorkloadReconciler(t *testing.T) {
 			},
 			wantResult: reconcile.Result{RequeueAfter: initializationRetryAfter},
 		},
+		"should create Slices with retry annotation with retry on failure enabled": {
+			enableRetryMechanism: true,
+			request:              baseRequest,
+			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				worker2Node.DeepCopy(),
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStatePending, `Slices are in states: 2 CREATED`)).
+					Obj(),
+			},
+			wantSlices: []slice.Slice{
+				*baseSlice1Wrapper.Clone().Annotation(core.RetryOnFailureAnnotation, "true").Obj(),
+				*baseSlice2Wrapper.Clone().Annotation(core.RetryOnFailureAnnotation, "true").Obj(),
+			},
+			wantEvents: []utiltesting.EventRecord{
+				buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, SlicesCreatedEventType,
+					`The Slices "default-workload-ps1-0", "default-workload-ps2-0" have been created`),
+			},
+			wantResult: reconcile.Result{RequeueAfter: initializationRetryAfter},
+		},
 		"should create Slices if accelerator is defined in NodeAffinity": {
 			request: baseRequest,
 			objs: []client.Object{
@@ -981,6 +1016,85 @@ func TestWorkloadReconciler(t *testing.T) {
 			wantSlices: []slice.Slice{
 				*baseSlice1Wrapper.Clone().PartitionIDs("subblock1").Obj(),
 			},
+			wantResult: reconcile.Result{RequeueAfter: initializationRetryAfter},
+		},
+		"should create a Slice if Partition ID is already in use with retry on failure enabled": {
+			enableRetryMechanism: true,
+			request:              baseRequest,
+			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapper.Clone().
+					PodSets(
+						*utiltesting.MakePodSet("ps1", 2, ptr.To(int32(1))).
+							Annotation(core.TPUSliceTopologyAnnotation, "4x4x4").
+							NodeSelector("cloud.google.com/gke-tpu-accelerator", string(slice.TypeTpu7x)).
+							Obj(),
+						*utiltesting.MakePodSet("ps2", 2, ptr.To(int32(1))).
+							Annotation(core.TPUSliceTopologyAnnotation, "4x4x4").
+							NodeSelector("cloud.google.com/gke-tpu-accelerator", string(slice.TypeTpu7x)).
+							Obj(),
+					).
+					ReserveQuota(&kueue.Admission{
+						PodSetAssignments: []kueue.PodSetAssignment{
+							utiltesting.MakePodSetAssignment("ps1").
+								TopologyAssignment(baseLevels, []kueue.TopologyAssignmentSlice{
+									utiltesting.MakeTopologyAssignmentSliceUniversal(1, 2).
+										Value("worker1").
+										Obj(),
+								}).Obj(),
+							utiltesting.MakePodSetAssignment("ps2").
+								TopologyAssignment(baseLevels, []kueue.TopologyAssignmentSlice{
+									utiltesting.MakeTopologyAssignmentSliceUniversal(1, 2).
+										Value("worker1").
+										Obj(),
+								}).Obj(),
+						},
+					}, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					Obj(),
+				baseSlice1Wrapper.Clone().Annotation(core.RetryOnFailureAnnotation, "true").PartitionIDs("subblock1").Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapper.Clone().
+					PodSets(
+						*utiltesting.MakePodSet("ps1", 2, ptr.To(int32(1))).
+							Annotation(core.TPUSliceTopologyAnnotation, "4x4x4").
+							NodeSelector("cloud.google.com/gke-tpu-accelerator", string(slice.TypeTpu7x)).
+							Obj(),
+						*utiltesting.MakePodSet("ps2", 2, ptr.To(int32(1))).
+							Annotation(core.TPUSliceTopologyAnnotation, "4x4x4").
+							NodeSelector("cloud.google.com/gke-tpu-accelerator", string(slice.TypeTpu7x)).
+							Obj(),
+					).
+					ReserveQuota(&kueue.Admission{
+						PodSetAssignments: []kueue.PodSetAssignment{
+							utiltesting.MakePodSetAssignment("ps1").
+								TopologyAssignment(baseLevels, []kueue.TopologyAssignmentSlice{
+									utiltesting.MakeTopologyAssignmentSliceUniversal(1, 2).
+										Value("worker1").
+										Obj(),
+								}).Obj(),
+							utiltesting.MakePodSetAssignment("ps2").
+								TopologyAssignment(baseLevels, []kueue.TopologyAssignmentSlice{
+									utiltesting.MakeTopologyAssignmentSliceUniversal(1, 2).
+										Value("worker1").
+										Obj(),
+								}).Obj(),
+						},
+					}, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStatePending,
+						`Slices are in states: 2 CREATED`)).
+					Obj(),
+			},
+			wantSlices: []slice.Slice{
+				*baseSlice1Wrapper.Clone().Annotation(core.RetryOnFailureAnnotation, "true").PartitionIDs("subblock1").Obj(),
+				*baseSlice2Wrapper.Clone().Annotation(core.RetryOnFailureAnnotation, "true").PartitionIDs("subblock1").Obj(),
+			},
+			wantEvents: []utiltesting.EventRecord{buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, SlicesCreatedEventType, `The Slices "default-workload-ps2-0" have been created`)},
 			wantResult: reconcile.Result{RequeueAfter: initializationRetryAfter},
 		},
 		"should fail to create Slice if topology assignment has too few partitions": {
@@ -1727,6 +1841,36 @@ func TestWorkloadReconciler(t *testing.T) {
 				*baseSlice1Wrapper.Clone().Active().Obj(),
 			},
 		},
+		"should evict when a slice is stale during initialization with retry on failure enabled": {
+			enableRetryMechanism: true,
+			request:              baseRequest,
+			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				worker2Node.DeepCopy(),
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					Obj(),
+				baseSlice1Wrapper.Clone().Active().Obj(),
+				baseSlice2Wrapper.Clone().Stale().Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckStateWithRequeue(kueue.CheckStateRetry, `Slices are in states: 1 ACTIVE, 1 STALE`, ptr.To(int32(10)))).
+					Obj(),
+			},
+			wantEvents: []utiltesting.EventRecord{
+				buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, AdmissionCheckUpdatedEventType,
+					fmt.Sprintf(`Admission check %q updated state from "Pending" to "Retry"`, baseACName)),
+			},
+		},
 		"should evict workload if slice is missing unexpectedly": {
 			request: baseRequest,
 			objs: []client.Object{
@@ -1951,6 +2095,9 @@ func TestWorkloadReconciler(t *testing.T) {
 	}
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
+			if tc.enableRetryMechanism {
+				features.SetFeatureGateDuringTest(t, features.UseRetryMechanismForSliceCreation, true)
+			}
 			scheme := runtime.NewScheme()
 			utilruntime.Must(corev1.AddToScheme(scheme))
 			utilruntime.Must(batchv1.AddToScheme(scheme))

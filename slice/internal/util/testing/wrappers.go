@@ -365,6 +365,14 @@ func (s *SliceWrapper) OwnerWorkloadAnnotations(ns, name string) *SliceWrapper {
 	return s
 }
 
+func (s *SliceWrapper) Annotation(key, value string) *SliceWrapper {
+	if s.Annotations == nil {
+		s.Annotations = make(map[string]string)
+	}
+	s.Annotations[key] = value
+	return s
+}
+
 func (s *SliceWrapper) PartitionIDs(ids ...string) *SliceWrapper {
 	s.Spec.PartitionIds = ids
 	return s
@@ -422,7 +430,7 @@ func (s *SliceWrapper) Stale() *SliceWrapper {
 	cond := metav1.Condition{
 		Type:               v1beta1.SliceStateConditionType,
 		Status:             metav1.ConditionFalse,
-		LastTransitionTime: metav1.NewTime(time.Now().Add(-3 * time.Minute)),
+		LastTransitionTime: metav1.NewTime(time.Now().Add(-5 * time.Minute)),
 		Reason:             string(core.MMIGHealthStatusActivating),
 		Message:            "Stale by test",
 	}

@@ -50,6 +50,7 @@ import (
 
 	"tpu-slice-controller/api/v1beta1"
 	"tpu-slice-controller/internal/core"
+	"tpu-slice-controller/internal/features"
 	"tpu-slice-controller/internal/topology"
 	"tpu-slice-controller/internal/util/api"
 	"tpu-slice-controller/internal/util/node"
@@ -641,6 +642,9 @@ func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workloa
 			continue
 		}
 		slice := core.SliceWithMetadata(wl, psa.Name, i)
+		if features.Enabled(features.UseRetryMechanismForSliceCreation) {
+			slice.Annotations[core.RetryOnFailureAnnotation] = "true"
+		}
 		// Since Slice is a cluster-scoped object and Workload is namespaced,
 		// we cannot set a controller owner reference. The Workload's namespace and name
 		// are stored as annotations on the Slice for lookup.
@@ -694,6 +698,10 @@ func (r *WorkloadReconciler) validatePartitionConflicts(
 	ctx context.Context,
 	slicesToCreate []*v1beta1.Slice,
 ) error {
+	// if we use the retry mechanism, it is going to retry on partition conflicts
+	if features.Enabled(features.UseRetryMechanismForSliceCreation) {
+		return nil
+	}
 	log := ctrl.LoggerFrom(ctx)
 
 	allSlices, err := r.findAllSlices(ctx)
@@ -848,7 +856,7 @@ func (r *WorkloadReconciler) prepareAdmissionCheckStatus(wl *kueue.Workload, ac 
 			}
 		}
 		ac.PodSetUpdates = podSetUpdates
-	case len(slicesByState[core.SliceStateFailed]) > 0:
+	case len(slicesByState[core.SliceStateFailed]) > 0 || (features.Enabled(features.UseRetryMechanismForSliceCreation) && len(slicesByState[core.SliceStateStale]) > 0):
 		ac.State = kueue.CheckStateRetry
 		ac.RequeueAfterSeconds = ptr.To(int32(r.retryDelayOnSliceFailure.Round(time.Second).Seconds()))
 	case len(slicesByState[core.SliceStateCreated])+len(slicesByState[core.SliceStateActivating]) > 0:

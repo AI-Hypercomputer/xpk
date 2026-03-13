@@ -26,6 +26,7 @@ import (
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta2"
 
 	"tpu-slice-controller/api/v1beta1"
+	"tpu-slice-controller/internal/features"
 )
 
 const (
@@ -74,5 +75,5 @@ func isError(slice *v1beta1.Slice) bool {
 	if condReady == nil || condReady.Status == metav1.ConditionTrue {
 		return false
 	}
-	return condReady.Reason == string(MMIGHealthStatusFailed) || condReady.Reason == string(SliceCreationFailed)
+	return condReady.Reason == string(MMIGHealthStatusFailed) || (!features.Enabled(features.UseRetryMechanismForSliceCreation) && condReady.Reason == string(SliceCreationFailed))
 }

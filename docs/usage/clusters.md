@@ -362,13 +362,6 @@ xpk cluster create \
   --num-cubes=$NUM_CUBES
 ```
 
-**Post-creation Step:**
-After creating the cluster, you must install the Kueue Slice Controller:
-
-```shell
-kubectl apply -f https://raw.githubusercontent.com/AI-Hypercomputer/xpk/refs/heads/slice-main/slice/manifests.yaml
-```
-
 ## Running XPK on existing clusters
 
 In order to run XPK commands on a cluster it needs to be set up correctly. This is done automatically when creating a cluster using `xpk cluster create`. For clusters created differently (e.g.: with 'gcloud' or a Cluster Toolkit blueprint) there is a dedicated command: `xpk cluster adapt`. This command installs required config maps, kueue, jobset, CSI drivers etc.

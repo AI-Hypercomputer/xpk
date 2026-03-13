@@ -35,7 +35,11 @@ from ..core.cluster import (
     update_cluster_with_workload_identity_if_necessary,
 )
 from ..core.cluster_private import authorize_private_cluster_access_if_necessary
-from ..core.commands import run_command_for_value, run_command_with_updates
+from ..core.commands import (
+    run_command_for_value,
+    run_command_with_updates,
+    run_command_with_updates_retry,
+)
 from ..core.config import VERTEX_TENSORBOARD_FEATURE_FLAG
 from ..core.telemetry import MetricsCollector, MetricsEventMetadataKey
 from ..core.capacity import (
@@ -188,6 +192,11 @@ def cluster_adapt(args) -> None:
   install_kueue_code = _install_kueue(args, system, autoprovisioning_config)
   if install_kueue_code != 0:
     xpk_exit(install_kueue_code)
+
+  if args.super_slicing:
+    install_kueue_slice_controller_code = _install_kueue_slice_controller()
+    if install_kueue_slice_controller_code != 0:
+      xpk_exit(install_kueue_slice_controller_code)
 
   if system.accelerator_type == AcceleratorType.GPU:
     prepare_gpus(system)
@@ -444,6 +453,12 @@ def cluster_create(args) -> None:
   install_kueue_code = _install_kueue(args, system, autoprovisioning_config)
   if install_kueue_code != 0:
     xpk_exit(install_kueue_code)
+
+  if args.super_slicing:
+    install_kueue_slice_controller_code = _install_kueue_slice_controller()
+    if install_kueue_slice_controller_code != 0:
+      xpk_print('Installation of Kueue Slice Controller failed.')
+      xpk_exit(install_kueue_slice_controller_code)
 
   if system.accelerator_type == AcceleratorType.GPU:
     prepare_gpus(system)
@@ -1329,6 +1344,17 @@ def install_storage_csis(args):
     )
     if update_cluster_command_code != 0:
       xpk_exit(update_cluster_command_code)
+
+
+def _install_kueue_slice_controller() -> int:
+  command = (
+      'kubectl apply -f'
+      ' https://raw.githubusercontent.com/AI-Hypercomputer/xpk/refs/heads/slice-main/slice/manifests.yaml'
+  )
+  xpk_print('Installing Kueue Slice Controller')
+  return run_command_with_updates_retry(
+      command, 'Install Kueue Slice Controller', num_retry_attempts=3
+  )
 
 
 def _install_kueue(

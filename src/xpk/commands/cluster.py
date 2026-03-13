@@ -208,6 +208,11 @@ def cluster_adapt(args) -> None:
 
 
 def _validate_cluster_create_args(args, system: SystemCharacteristics):
+  if args.private_endpoint_subnetwork:
+    args.enable_private_endpoint = True
+  if args.enable_private_endpoint:
+    args.private = True
+
   if FeatureFlags.SUB_SLICING_ENABLED and args.sub_slicing:
     validate_sub_slicing_system(system)
     _validate_sub_slicing_reservation(args)
@@ -1232,7 +1237,6 @@ def run_gke_cluster_create_command(
       ' --enable-autoscaling'
       ' --total-min-nodes 1 --total-max-nodes 1000'
       f' --num-nodes {args.default_pool_cpu_num_nodes}'
-      ' --enable-dns-access'
       ' --autoscaling-profile=optimize-utilization'
       ' --labels=gke_product_type=xpk'
       f' --release-channel={release_channel.value.lower()}'
@@ -1244,8 +1248,22 @@ def run_gke_cluster_create_command(
   if args.gke_version:
     command += ' --no-enable-autoupgrade'
 
+  if not args.enable_private_endpoint:
+    command += ' --enable-dns-access'
+
   if args.private or args.authorized_networks is not None:
     command += ' --enable-master-authorized-networks --enable-private-nodes'
+
+  if args.enable_private_endpoint:
+    command += ' --enable-private-endpoint'
+
+  if args.enable_master_global_access:
+    command += ' --enable-master-global-access'
+
+  if args.private_endpoint_subnetwork:
+    command += (
+        f' --private-endpoint-subnetwork={args.private_endpoint_subnetwork}'
+    )
 
   if system.accelerator_type != AcceleratorType.GPU:
     command += ' --location-policy=BALANCED --scopes=storage-full,gke-default'

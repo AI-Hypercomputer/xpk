@@ -34,7 +34,7 @@ const (
 
 var defaultVersionedFeatureGates = map[featuregate.Feature]featuregate.VersionedSpecs{
 	UseRetryMechanismForSliceCreation: {
-		{Version: version.MustParse("0.1"), Default: false, PreRelease: featuregate.Beta},
+		{Version: version.MustParse("0.1"), Default: false, PreRelease: featuregate.Alpha},
 	},
 }
 

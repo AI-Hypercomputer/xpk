@@ -1159,3 +1159,64 @@ def test_run_gke_node_pool_create_command_no_ignore_errors_returns_1(
   result = run_gke_node_pool_create_command(args, system, "1.2.3")
 
   assert result == 1
+
+
+def test_run_gke_node_pool_create_command_skips_reservation_check_when_no_nodepools_to_create_with_empty_reservation(
+    mocker,
+    commands_tester: CommandsTester,
+):
+  mocker.patch(
+      "xpk.core.nodepool.get_cluster_location", return_value="us-central1"
+  )
+  mocker.patch("xpk.core.nodepool.ask_for_user_consent", return_value=True)
+  mocker.patch(
+      "xpk.core.nodepool.check_cluster_resources", return_value=(True, True)
+  )
+  args = mocker.Mock(
+      num_slices=2,
+      reservation="reservation1,reservation2",
+      tpu_type="v4-8",
+      device_type=None,
+      cluster="test-cluster",
+      project="test-project",
+      zone="us-central1-a",
+      on_demand=False,
+      spot=False,
+      flex=False,
+      enable_workload_identity=False,
+      enable_gcsfuse_csi_driver=False,
+      host_maintenance_interval="AS_NEEDED",
+      custom_nodepool_arguments="",
+      super_slicing=False,
+      enable_autoprovisioning=False,
+  )
+  system = SystemCharacteristics(
+      topology="2x2x1",
+      vms_per_slice=2,
+      gke_accelerator="tpu-v4",
+      gce_machine_type="ct4p-hightpu-4t",
+      chips_per_vm=4,
+      accelerator_type=AcceleratorType.TPU,
+      device_type="v4-8",
+      requires_workload_policy=False,
+      supports_sub_slicing=False,
+      supports_super_slicing=False,
+      supports_accelerator_network_profile=True,
+      docker_platform=DockerPlatform.AMD,
+  )
+
+  setup_mock_reservation(
+      commands_tester,
+      specific_reservation=SpecificReservation(
+          count=0, in_use_count=0, machine_type="ct4p-hightpu-4t"
+      ),
+  )
+
+  commands_tester.set_result_for_command(
+      (0, "test-cluster-np-0\ntest-cluster-np-1"),
+      "gcloud beta container node-pools list",
+  )
+
+  result = run_gke_node_pool_create_command(args, system, "1.2.3")
+
+  assert result == 0

@@ -23,48 +23,9 @@ permissions:
   contents: read
 
 jobs:
-  install-dependencies:
-    runs-on: ubuntu-22.04
-    strategy:
-      matrix:
-        python-version: ["3.10", "3.11"]
-    steps:
-    - uses: actions/checkout@v4
-    - uses: google-github-actions/setup-gcloud@v2
-      with:
-        version: '>= 363.0.0'
-        install_components: 'beta, gke-gcloud-auth-plugin'
-    - uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Check if cache exists
-      id: check-cache
-      uses: actions/cache@v3
-      with:
-        path: |
-          usr/local/bin/
-          ~/.cache/pip
-          ${{env.pythonLocation}}
-        key: xpk-deps-${{ matrix.python-version }}-${{github.run_id}}-${{github.run_attempt}}
-        lookup-only: true
-    - name: install dependencies
-      if : steps.check-cache.outputs.cache-hit != 'true'
-      run: make install-dev
-    - name: Cache dependencies
-      if : steps.check-cache.outputs.cache-hit != 'true'
-      uses: actions/cache/save@v3
-      with:
-        path: |
-          /usr/local/bin/kubectl-kueue
-          ~/.cache/pip
-          ${{env.pythonLocation}}
-        key: xpk-deps-${{ matrix.python-version }}-${{github.run_id}}-${{github.run_attempt}}
   linter:
-    needs: [install-dependencies]
     uses: ./.github/workflows/reusable_lint_and_format.yml
   verify-goldens:
-    needs: [install-dependencies]
     uses: ./.github/workflows/reusable_goldens.yaml
   run-unit-tests:
-    needs: [install-dependencies]
     uses: ./.github/workflows/reusable_unit_tests.yaml

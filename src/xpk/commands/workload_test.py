@@ -500,7 +500,8 @@ def test_workload_create_workload_exists_user_accepts_overwrite(
       'xpk.commands.workload.ask_for_user_consent', return_value=True
   )
   mock_check_pathways = mocker.patch(
-      'xpk.commands.workload.check_if_pathways_job_is_installed', return_value=False
+      'xpk.commands.workload.check_if_pathways_job_is_installed',
+      return_value=False,
   )
 
   workload_create(args)
@@ -529,13 +530,15 @@ def test_workload_create_workload_exists_user_accepts_overwrite_pathways(
   args.elastic_slices = 0
   workload_create_mocks.check_if_workload_exists.return_value = True
   mocker.patch(
-      'xpk.commands.workload.ensure_pathways_workload_prerequisites', return_value=True
+      'xpk.commands.workload.ensure_pathways_workload_prerequisites',
+      return_value=True,
   )
   mock_ask_for_user_consent = mocker.patch(
       'xpk.commands.workload.ask_for_user_consent', return_value=True
   )
   mocker.patch(
-      'xpk.commands.workload.check_if_pathways_job_is_installed', return_value=True
+      'xpk.commands.workload.check_if_pathways_job_is_installed',
+      return_value=True,
   )
   mock_try_delete = mocker.patch(
       'xpk.commands.workload.try_to_delete_pathwaysjob_first', return_value=True
@@ -547,4 +550,3 @@ def test_workload_create_workload_exists_user_accepts_overwrite_pathways(
       'test-workload already exists, do you want to overwrite it?'
   )
   mock_try_delete.assert_called_once_with(args, ['test-workload'])
-

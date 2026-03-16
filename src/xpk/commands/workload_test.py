@@ -457,3 +457,94 @@ def test_workload_create_pathways_jobset_yaml(mocker):
   assert (
       f'--gcs_scratch_location={args.pathways_gcs_location}' in written_content
   )
+
+
+def test_workload_create_workload_exists_user_declines_overwrite(
+    mocker,
+    workload_create_mocks: _WorkloadCreateMocks,
+):
+  args = MagicMock()
+  args.workload = 'test-workload'
+  workload_create_mocks.check_if_workload_exists.return_value = True
+  mock_ask_for_user_consent = mocker.patch(
+      'xpk.commands.workload.ask_for_user_consent', return_value=False
+  )
+  workload_create_mocks.xpk_exit.side_effect = SystemExit(1)
+
+  with pytest.raises(SystemExit):
+    workload_create(args)
+
+  mock_ask_for_user_consent.assert_called_once_with(
+      'test-workload already exists, do you want to overwrite it?'
+  )
+  workload_create_mocks.xpk_exit.assert_called_once_with(1)
+  workload_create_mocks.commands_tester.assert_command_not_run(
+      'kubectl delete jobset test-workload -n default'
+  )
+
+
+def test_workload_create_workload_exists_user_accepts_overwrite(
+    mocker,
+    workload_create_mocks: _WorkloadCreateMocks,
+):
+  args = MagicMock()
+  args.workload = 'test-workload'
+  args.num_nodes = 1
+  args.deploy_stacktrace_sidecar = False
+  args.ramdisk_directory = ''
+  args.use_pathways = False
+  args.zone = 'us-central1-a'
+  args.output_manifest_file = ''
+  workload_create_mocks.check_if_workload_exists.return_value = True
+  mock_ask_for_user_consent = mocker.patch(
+      'xpk.commands.workload.ask_for_user_consent', return_value=True
+  )
+  mock_check_pathways = mocker.patch(
+      'xpk.commands.workload.check_if_pathways_job_is_installed', return_value=False
+  )
+
+  workload_create(args)
+
+  mock_ask_for_user_consent.assert_called_once_with(
+      'test-workload already exists, do you want to overwrite it?'
+  )
+  mock_check_pathways.assert_called_once_with(args)
+  workload_create_mocks.commands_tester.assert_command_run(
+      'kubectl delete jobset test-workload -n default'
+  )
+
+
+def test_workload_create_workload_exists_user_accepts_overwrite_pathways(
+    mocker,
+    workload_create_mocks: _WorkloadCreateMocks,
+):
+  args = MagicMock()
+  args.workload = 'test-workload'
+  args.num_nodes = 1
+  args.deploy_stacktrace_sidecar = False
+  args.ramdisk_directory = ''
+  args.use_pathways = True
+  args.zone = 'us-central1-a'
+  args.output_manifest_file = ''
+  args.elastic_slices = 0
+  workload_create_mocks.check_if_workload_exists.return_value = True
+  mocker.patch(
+      'xpk.commands.workload.ensure_pathways_workload_prerequisites', return_value=True
+  )
+  mock_ask_for_user_consent = mocker.patch(
+      'xpk.commands.workload.ask_for_user_consent', return_value=True
+  )
+  mocker.patch(
+      'xpk.commands.workload.check_if_pathways_job_is_installed', return_value=True
+  )
+  mock_try_delete = mocker.patch(
+      'xpk.commands.workload.try_to_delete_pathwaysjob_first', return_value=True
+  )
+
+  workload_create(args)
+
+  mock_ask_for_user_consent.assert_called_once_with(
+      'test-workload already exists, do you want to overwrite it?'
+  )
+  mock_try_delete.assert_called_once_with(args, ['test-workload'])
+

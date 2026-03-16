@@ -392,11 +392,28 @@ def workload_create(args) -> None:
   workload_exists = check_if_workload_exists(args)
 
   if workload_exists:
-    xpk_print(
-        f'{args.workload} already exists, XPK will not create this workload.'
-        ' Please pick a new workload name'
+    will_delete = ask_for_user_consent(
+        f'{args.workload} already exists, do you want to overwrite it?'
     )
-    xpk_exit(1)
+    if will_delete:
+      xpk_print(f'Deleting {args.workload} to overwrite it...')
+      # If PathwaysJob exists, delete it.
+      if check_if_pathways_job_is_installed(
+          args
+      ) and try_to_delete_pathwaysjob_first(args, [args.workload]):
+        pass
+      else:
+        command = f'kubectl delete jobset {args.workload} -n default'
+        return_code = run_command_with_updates(command, 'Delete Workload')
+        if return_code != 0:
+          xpk_print(f'Delete Workload request returned ERROR {return_code}')
+          xpk_exit(return_code)
+    else:
+      xpk_print(
+          f'{args.workload} already exists, XPK will not create this workload.'
+          ' Please pick a new workload name'
+      )
+      xpk_exit(1)
 
   workload_system, return_code = get_system_characteristics(args)
   if return_code > 0 or workload_system is None:

@@ -281,7 +281,10 @@ def run_gke_node_pool_create_command(
       np for np in desired_node_pool_names if np not in node_pools_to_remain
   ]
   reservations_iter: Iterator[ReservationLink] | None = None
-  if capacity_type == CapacityType.RESERVATION:
+  if (
+      capacity_type == CapacityType.RESERVATION
+      and len(node_pools_to_create) > 0
+  ):
     reservations = get_reservations_list(args)
     if FeatureFlags.RESERVATIONS_VALIDATION_ENABLED:
       vms_per_pool = (

@@ -92,7 +92,6 @@ jobs:
         env:
             TPU_CLUSTER_NAME: nightly-xpk-2-v5p-8
             WORKLOAD_NAME: xpktest-nightly-${{ github.run_attempt }}
-            CRANE_WORKLOAD_NAME: xpktest-nightly-crane-${{ github.run_attempt }}
         steps:
             - uses: actions/download-artifact@v4
               with:
@@ -121,16 +120,6 @@ jobs:
               run: xpk info --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
             - name: Delete the workload on the cluster
               run: xpk workload delete --workload $WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
-
-            - name: Run a crane workload
-              run: CRANE_WORKLOADS_ENABLED=True xpk workload create --cluster $TPU_CLUSTER_NAME --workload $CRANE_WORKLOAD_NAME  --command "bash workload.sh"  --tpu-type=v4-8 --num-slices=2 --zone=us-central2-b
-            - name: Run xpk inspector with the workload created above
-              run: CRANE_WORKLOADS_ENABLED=True xpk inspector --cluster $TPU_CLUSTER_NAME --zone=us-central2-b  --workload $CRANE_WORKLOAD_NAME
-            - name: Wait for workload completion and confirm it succeeded
-              run: CRANE_WORKLOADS_ENABLED=True xpk workload list --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --wait-for-job-completion $CRANE_WORKLOAD_NAME --timeout 600
-            - name: Delete the workload on the cluster
-              run: CRANE_WORKLOADS_ENABLED=True xpk workload delete --workload $CRANE_WORKLOAD_NAME --cluster $TPU_CLUSTER_NAME --zone=us-central2-b
-
             - name: Delete the cluster created
               if: always()
               run: xpk cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b --force

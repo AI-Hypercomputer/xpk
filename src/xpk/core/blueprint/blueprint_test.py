@@ -219,3 +219,39 @@ def test_generate_a4_blueprint():
       )
 
   shutil.rmtree(tmp_test_dir)
+
+
+def test_generate_a3_mega_blueprint_reservation_no_placement():
+  prepare_test()
+  blueprint_name = "xpk-gke-a3-megagpu"
+  bp_generator = BlueprintGenerator(tmp_test_dir)
+  bp = bp_generator.generate_a3_mega_blueprint(
+      project_id="foo",
+      cluster_name="bar",
+      blueprint_name=blueprint_name,
+      prefix="prefix",
+      region="us-central1",
+      zone="us-central1-c",
+      auth_cidr="10.0.0.0/32",
+      reservation_placement_policy=None,
+      reservation="test-reservation",
+      capacity_type=CapacityType.RESERVATION,
+      system_node_pool_min_node_count=5,
+      release_channel=ReleaseChannel.RAPID,
+      cluster_version="1.2.3",
+  )
+
+  with open(bp.blueprint_file, encoding="utf-8") as generated_blueprint:
+    ctk_test = yaml.load(generated_blueprint)
+
+    # Assert there is no group_placement_0 module
+    primary_group_modules = ctk_test.deployment_groups[0].modules
+    module_ids = [m.id for m in primary_group_modules]
+    assert "group_placement_0" not in module_ids
+
+    # Assert that the nodepool does not use group_placement_0
+    for m in primary_group_modules:
+      if m.id == "a3_megagpu_pool_0":
+        assert m.use is None or "group_placement_0" not in m.use
+
+  shutil.rmtree(tmp_test_dir)

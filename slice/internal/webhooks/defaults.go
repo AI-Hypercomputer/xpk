@@ -17,11 +17,11 @@ limitations under the License.
 package webhooks
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/utils/ptr"
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
 
 	"tpu-slice-controller/internal/core"
@@ -38,19 +38,21 @@ func getTPUsRequestedPerPod(spec corev1.PodSpec) int64 {
 	return totalTPUs
 }
 
-func annotatePodTemplateSpecWithSliceHealth(template *corev1.PodTemplateSpec, defaultSliceHealthValues []string) {
-	// 1. If there is NodeSelector with TPUSliceHealthNodeSelectorKey, we do nothing.
-	if _, ok := template.Spec.NodeSelector[core.TPUSliceHealthNodeSelectorKey]; ok {
+func annotatePodTemplateSpecWithSliceHealth(template *corev1.PodTemplateSpec, parsedTopology topology.ParsedTopology, defaultSliceHealthValues []string) {
+	healthLabel := parsedTopology.HealthLabel()
+
+	// 1. If there is NodeSelector with healthLabel, we do nothing.
+	if _, ok := template.Spec.NodeSelector[healthLabel]; ok {
 		return
 	}
 
-	// 2. If there is NodeAffinity with TPUSliceHealthNodeSelectorKey, we do nothing.
+	// 2. If there is NodeAffinity with healthLabel, we do nothing.
 	if template.Spec.Affinity != nil &&
 		template.Spec.Affinity.NodeAffinity != nil &&
 		template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
 		for _, term := range template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
 			for _, req := range term.MatchExpressions {
-				if req.Key == core.TPUSliceHealthNodeSelectorKey {
+				if req.Key == healthLabel {
 					return
 				}
 			}
@@ -58,32 +60,27 @@ func annotatePodTemplateSpecWithSliceHealth(template *corev1.PodTemplateSpec, de
 	}
 
 	// 3. If neither of these, we add a NodeAffinity.
-	core.AddNodeAffinity(template, core.TPUSliceHealthNodeSelectorKey, defaultSliceHealthValues)
+	core.AddNodeAffinity(template, healthLabel, defaultSliceHealthValues)
 }
 
-func annotatePodTemplateSpecWithTopology(template *corev1.PodTemplateSpec, parallelism *int32, resourceName string, resourceKind string) error {
+func annotatePodTemplateSpecWithTopology(template *corev1.PodTemplateSpec, parsedTopology topology.ParsedTopology, parallelism *int32) error {
 	if template.Annotations == nil {
 		template.Annotations = make(map[string]string)
 	}
-
-	template.Annotations[kueue.PodSetRequiredTopologyAnnotation] = core.TPUBlockLabel
-	template.Annotations[kueue.PodSetSliceRequiredTopologyAnnotation] = core.TPUSubBlockLabel
-
-	pods := ptr.Deref(parallelism, 1)
-
-	sliceSize, err := topology.CalculateSliceSize(
-		template.Annotations[core.TPUSliceTopologyAnnotation],
-		pods,
-	)
-	if err != nil {
-		return err
+	if parallelism == nil {
+		return errors.New("parallelism must be set for Sub-/SuperSlice workloads")
 	}
+	pods := *parallelism
 	tpusRequestedPerPod := getTPUsRequestedPerPod(template.Spec)
-	tpusRequestedPerCube := tpusRequestedPerPod * sliceSize
-	if tpusRequestedPerCube != core.TPUsPerCube {
-		return fmt.Errorf("invalid %s %q: configuration results in %d TPUs requested per cube, but must be exactly %d TPUs (full utilization)", resourceKind, resourceName, tpusRequestedPerCube, core.TPUsPerCube)
+	sliceSize := parsedTopology.SliceSize(pods)
+	numberOfTPUsPerSlice := parsedTopology.NumberOfTPUsPerSlice()
+	// the number of TPUs specified in topology annotation
+	// must match the number of TPUs requested by the pods
+	if tpusRequestedPerPod*sliceSize != numberOfTPUsPerSlice {
+		return fmt.Errorf("configuration results in %d TPUs requested, but must be exactly %d TPUs (full utilization)", tpusRequestedPerPod*sliceSize, numberOfTPUsPerSlice)
 	}
-
+	template.Annotations[kueue.PodSetRequiredTopologyAnnotation] = core.TPUBlockLabel
+	template.Annotations[kueue.PodSetSliceRequiredTopologyAnnotation] = parsedTopology.RequiredSliceLevel()
 	template.Annotations[kueue.PodSetSliceSizeAnnotation] = strconv.FormatInt(sliceSize, 10)
 	return nil
 }

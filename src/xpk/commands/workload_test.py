@@ -487,14 +487,17 @@ def test_workload_create_workload_exists_user_accepts_overwrite(
     mocker,
     workload_create_mocks: _WorkloadCreateMocks,
 ):
-  args = MagicMock()
-  args.workload = 'test-workload'
-  args.num_nodes = 1
-  args.deploy_stacktrace_sidecar = False
-  args.ramdisk_directory = ''
-  args.use_pathways = False
-  args.zone = 'us-central1-a'
-  args.output_manifest_file = ''
+  mocker.patch('xpk.utils.execution_context.dry_run', True)
+  args = construct_args(
+      workload='test-workload',
+      command='echo test',
+      docker_name='test-docker',
+      num_nodes=1,
+      deploy_stacktrace_sidecar=False,
+      headless=False,
+      restart_on_exit_codes=None,
+      scheduler='default',
+  )
   workload_create_mocks.check_if_workload_exists.return_value = True
   mock_ask_for_user_consent = mocker.patch(
       'xpk.commands.workload.ask_for_user_consent', return_value=True
@@ -519,20 +522,17 @@ def test_workload_create_workload_exists_user_accepts_overwrite_pathways(
     mocker,
     workload_create_mocks: _WorkloadCreateMocks,
 ):
-  args = MagicMock()
-  args.workload = 'test-workload'
-  args.num_nodes = 1
-  args.deploy_stacktrace_sidecar = False
-  args.ramdisk_directory = ''
-  args.use_pathways = True
-  args.zone = 'us-central1-a'
-  args.output_manifest_file = ''
-  args.elastic_slices = 0
-  workload_create_mocks.check_if_workload_exists.return_value = True
-  mocker.patch(
-      'xpk.commands.workload.ensure_pathways_workload_prerequisites',
-      return_value=True,
+  mocker.patch('xpk.utils.execution_context.dry_run', True)
+  args = construct_args(
+      workload='test-workload',
+      command='echo test',
+      docker_name='test-docker',
+      num_nodes=1,
+      deploy_stacktrace_sidecar=False,
+      headless=False,
+      restart_on_exit_codes=None,
   )
+  workload_create_mocks.check_if_workload_exists.return_value = True
   mock_ask_for_user_consent = mocker.patch(
       'xpk.commands.workload.ask_for_user_consent', return_value=True
   )
@@ -543,6 +543,14 @@ def test_workload_create_workload_exists_user_accepts_overwrite_pathways(
   mock_try_delete = mocker.patch(
       'xpk.commands.workload.try_to_delete_pathwaysjob_first', return_value=True
   )
+
+  # ensure pathways logic avoids the else branch kubeconfig errors
+  mocker.patch(
+      'xpk.commands.workload.ensure_pathways_workload_prerequisites',
+      return_value=True,
+  )
+  args.use_pathways = True
+  args.elastic_slices = 0
 
   workload_create(args)
 

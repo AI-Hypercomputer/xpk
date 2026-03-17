@@ -392,11 +392,21 @@ def workload_create(args) -> None:
   workload_exists = check_if_workload_exists(args)
 
   if workload_exists:
-    xpk_print(
-        f'{args.workload} already exists, XPK will not create this workload.'
-        ' Please pick a new workload name'
+    will_delete = ask_for_user_consent(
+        f'{args.workload} already exists, do you want to overwrite it?'
     )
-    xpk_exit(1)
+    if will_delete:
+      xpk_print(f'Deleting {args.workload} to overwrite it...')
+      return_code = delete_workloads(args, [args.workload])
+      if return_code != 0:
+        xpk_print(f'Delete Workload request returned ERROR {return_code}')
+        xpk_exit(return_code)
+    else:
+      xpk_print(
+          f'{args.workload} already exists, XPK will not create this workload.'
+          ' Please pick a new workload name'
+      )
+      xpk_exit(1)
 
   workload_system, return_code = get_system_characteristics(args)
   if return_code > 0 or workload_system is None:
@@ -824,7 +834,7 @@ def workload_create(args) -> None:
           f' {pathways_proxy_link} '
       )
     xpk_print(
-        'Follow your Pathways workload and other resources here : '
+        'Follow your Pathways workload and other resources here: '
         f'{get_pathways_unified_query_link(args)}'
     )
   else:
@@ -877,6 +887,46 @@ def get_restart_exit_codes(args) -> list:
   return list(set(exit_codes))
 
 
+def delete_workloads(args, workloads: list[str]) -> int:
+  """Helper function to delete workloads.
+
+  Args:
+    args: user provided arguments for running the command.
+    workloads: list of workloads to delete.
+
+  Returns:
+    0 if successful and non-zero otherwise.
+  """
+  # If PathwaysJob exists, delete it.
+  if check_if_pathways_job_is_installed(
+      args
+  ) and try_to_delete_pathwaysjob_first(args, workloads):
+    return 0
+  # PathwaysJob workload does not exist, delete JobSet
+  commands = []
+  task_names = []
+  for workload in workloads:
+    args.workload = workload
+    command = f'kubectl delete jobset {workload} -n default'
+    task_name = f'WorkloadDelete-{workload}'
+    commands.append(command)
+    task_names.append(task_name)
+
+  # Not batching deletion for single workload
+  if len(workloads) == 1:
+    return_code = run_command_with_updates(commands[0], 'Delete Workload')
+  else:
+    maybe_failure = run_commands(
+        commands,
+        'Delete Workload',
+        task_names,
+        batch=100,
+    )
+    return_code = maybe_failure[0].return_code if maybe_failure else 0
+
+  return return_code
+
+
 def workload_delete(args) -> None:
   """Function around workload delete.
 
@@ -919,33 +969,7 @@ def workload_delete(args) -> None:
   elif not will_delete:
     xpk_print('Skipping delete command.')
   else:
-    # If PathwaysJob exists, delete it.
-    if check_if_pathways_job_is_installed(
-        args
-    ) and try_to_delete_pathwaysjob_first(args, workloads):
-      xpk_exit(0)
-    # PathwaysJob workload does not exist, delete JobSet
-    commands = []
-    task_names = []
-    for workload in workloads:
-      args.workload = workload
-      command = f'kubectl delete jobset {workload} -n default'
-      task_name = f'WorkloadDelete-{workload}'
-      commands.append(command)
-      task_names.append(task_name)
-
-    # Not batching deletion for single workload
-    if len(workloads) == 1:
-      return_code = run_command_with_updates(commands[0], 'Delete Workload')
-    else:
-      maybe_failure = run_commands(
-          commands,
-          'Delete Workload',
-          task_names,
-          batch=100,
-      )
-      return_code = maybe_failure[0].return_code if maybe_failure else 0
-
+    return_code = delete_workloads(args, workloads)
     if return_code != 0:
       xpk_print(f'Delete Workload request returned ERROR {return_code}')
       xpk_exit(return_code)

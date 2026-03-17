@@ -430,7 +430,7 @@ func (s *SliceWrapper) Stale() *SliceWrapper {
 	cond := metav1.Condition{
 		Type:               v1beta1.SliceStateConditionType,
 		Status:             metav1.ConditionFalse,
-		LastTransitionTime: metav1.NewTime(time.Now().Add(-6 * time.Minute)),
+		LastTransitionTime: metav1.NewTime(time.Now().Add(-3 * time.Minute)),
 		Reason:             string(core.MMIGHealthStatusActivating),
 		Message:            "Stale by test",
 	}

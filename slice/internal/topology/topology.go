@@ -16,6 +16,7 @@ package topology
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -23,6 +24,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta2"
 	"sigs.k8s.io/kueue/pkg/util/tas"
+
+	"tpu-slice-controller/internal/core"
 )
 
 // HostnameLevelIndex returns the index of the hostname level in the topology
@@ -40,7 +43,7 @@ type ParsedAssignment struct {
 	PartitionIDs []string
 }
 
-func ParseAssignment(topologyAssignment *kueue.TopologyAssignment, nodes map[string]corev1.Node) ParsedAssignment {
+func ParseAssignment(topologyAssignment *kueue.TopologyAssignment, nodes map[string]corev1.Node, labelKey string) ParsedAssignment {
 	parsedAssignment := ParsedAssignment{
 		PartitionIDs: make([]string, 0),
 	}
@@ -50,7 +53,7 @@ func ParseAssignment(topologyAssignment *kueue.TopologyAssignment, nodes map[str
 	hostnameLevelIndex := HostnameLevelIndex(topologyAssignment)
 	for domain := range tas.InternalSeqFrom(topologyAssignment) {
 		nodeName := domain.Values[hostnameLevelIndex]
-		if partitionID := getTPUPartitionIDValue(nodes, nodeName); !seenPartitionIDs.Has(partitionID) {
+		if partitionID := getTPUPartitionIDValue(nodes, nodeName, labelKey); !seenPartitionIDs.Has(partitionID) {
 			parsedAssignment.PartitionIDs = append(parsedAssignment.PartitionIDs, partitionID)
 			seenPartitionIDs.Insert(partitionID)
 		}
@@ -58,7 +61,26 @@ func ParseAssignment(topologyAssignment *kueue.TopologyAssignment, nodes map[str
 	return parsedAssignment
 }
 
-func ParseTopologyV7(tpuTopology string) ([]int64, error) {
+type TopologyType string
+
+const (
+	TopologyTypeSuperslice TopologyType = "Superslice"
+	TopologyTypeSubslice   TopologyType = "Subslice"
+)
+
+type ParsedTopology interface {
+	Dims() []int64
+	Type() TopologyType
+	RequiredSliceLevel() string
+	HealthLabel() string
+	NumberOfTPUsPerSlice() int64
+	DesiredNumberOfPartitions() int64
+	SliceSize(parallelism int32) int64
+}
+
+var SupportedSubsliceTopologies = sets.New("2x2x1", "2x2x2", "2x2x4", "2x4x4")
+
+func ParseTopologyV7(tpuTopology string) (ParsedTopology, error) {
 	dimensions := strings.Split(tpuTopology, "x")
 	if len(dimensions) != 3 {
 		return nil, fmt.Errorf("invalid topology format: %s, expected 3 dimensions", tpuTopology)
@@ -73,7 +95,12 @@ func ParseTopologyV7(tpuTopology string) ([]int64, error) {
 		}
 		dims[i] = parsedDim
 	}
-	if dims[0] == 0 || dims[1] == 0 || dims[2] == 0 {
+
+	if SupportedSubsliceTopologies.Has(tpuTopology) {
+		return subsliceTopology{dims: dims}, nil
+	}
+
+	if slices.Contains(dims, 0) {
 		return nil, fmt.Errorf("topology dimensions cannot be zero: %s", tpuTopology)
 	}
 	if dims[0]%4 != 0 || dims[1]%4 != 0 || dims[2]%4 != 0 {
@@ -83,17 +110,52 @@ func ParseTopologyV7(tpuTopology string) ([]int64, error) {
 		return nil, fmt.Errorf("topology dimensions must be in non-decreasing order: %s", tpuTopology)
 	}
 
-	return dims, nil
+	return supersliceTopology{dims: dims}, nil
 }
 
-func CalculateSliceSize(tpuTopology string, parallelism int32) (int64, error) {
-	dims, err := ParseTopologyV7(tpuTopology)
+func GetPartitionIDLabel(spec corev1.PodTemplateSpec) string {
+	topology := core.GetTPUTopology(spec)
+	parsed, err := ParseTopologyV7(topology)
 	if err != nil {
-		return 0, err
+		return ""
 	}
+	return parsed.RequiredSliceLevel()
+}
 
-	totalChips := dims[0] * dims[1] * dims[2]
-	subBlockCount := totalChips / 64
+type subsliceTopology struct {
+	dims []int64
+}
 
-	return int64(parallelism) / subBlockCount, nil
+func (s subsliceTopology) Dims() []int64      { return s.dims }
+func (s subsliceTopology) Type() TopologyType { return TopologyTypeSubslice }
+func (s subsliceTopology) RequiredSliceLevel() string {
+	return fmt.Sprintf("cloud.google.com/gke-tpu-partition-%dx%dx%d-id", s.dims[0], s.dims[1], s.dims[2])
+}
+func (s subsliceTopology) HealthLabel() string {
+	return fmt.Sprintf("cloud.google.com/gke-tpu-partition-%dx%dx%d-state", s.dims[0], s.dims[1], s.dims[2])
+}
+func (s subsliceTopology) NumberOfTPUsPerSlice() int64 {
+	return s.dims[0] * s.dims[1] * s.dims[2]
+}
+func (s subsliceTopology) DesiredNumberOfPartitions() int64 { return 1 }
+func (s subsliceTopology) SliceSize(parallelism int32) int64 {
+	return int64(parallelism)
+}
+
+type supersliceTopology struct {
+	dims []int64
+}
+
+func (s supersliceTopology) Dims() []int64               { return s.dims }
+func (s supersliceTopology) Type() TopologyType          { return TopologyTypeSuperslice }
+func (s supersliceTopology) RequiredSliceLevel() string  { return core.TPUSubBlockLabel }
+func (s supersliceTopology) HealthLabel() string         { return core.TPUSliceHealthNodeSelectorKey }
+func (s supersliceTopology) NumberOfTPUsPerSlice() int64 { return core.TPUsPerCube }
+func (s supersliceTopology) DesiredNumberOfPartitions() int64 {
+	return s.dims[0] * s.dims[1] * s.dims[2] / core.TPUsPerCube
+}
+func (s supersliceTopology) SliceSize(parallelism int32) int64 {
+	totalChips := s.dims[0] * s.dims[1] * s.dims[2]
+	subBlockCount := totalChips / core.TPUsPerCube
+	return int64(parallelism) / subBlockCount
 }

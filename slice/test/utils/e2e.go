@@ -168,3 +168,18 @@ func SetSliceReady(ctx context.Context, k8sClient client.Client, sliceKey client
 	}
 	LabelNodes(ctx, k8sClient, core.TPUTopologyAnnotation, topology, nodeNames)
 }
+
+func GetTPUCapacityForSubslicePartition(partitionID string) string {
+	switch partitionID {
+	case "f1":
+		return "4"
+	case "f2":
+		return "8"
+	case "f3":
+		return "16"
+	case "f4":
+		return "32"
+	default:
+		return "4"
+	}
+}

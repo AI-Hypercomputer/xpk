@@ -29,7 +29,7 @@ gcloud beta container node-pools list --cluster golden-cluster --project=golden-
 [XPK] Task: `Upload Container Image` is implemented by the following command not running since it is a dry run. 
 crane mutate python:3.10 --append e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 --platform linux/amd64 --tag gcr.io/golden-project/dry-run-runner:prefix-current --workdir /app
 [XPK] Deleting container image archive e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
-[XPK] Temp file (11ba85bc7b12ee1f6f5c2ee353d63540d4a49327a8509c77e7e00fc2c7ff10eb) content: 
+[XPK] Temp file (0678dfe212682ff519efebdd5b50719a953fd288b50b0dd5e42775d0bb87d332) content: 
 apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
 metadata:
@@ -251,6 +251,9 @@ spec:
                 - mountPath: /tmp
                   name: shared-tmp
             restartPolicy: OnFailure
+            tolerations:
+            - operator: "Exists"
+              key: google.com/tpu
             volumes:
             - hostPath:
                 path: /tmp
@@ -265,7 +268,7 @@ spec:
   suspend: false
 
 [XPK] Task: `Creating Workload` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f 11ba85bc7b12ee1f6f5c2ee353d63540d4a49327a8509c77e7e00fc2c7ff10eb
+kubectl apply -f 0678dfe212682ff519efebdd5b50719a953fd288b50b0dd5e42775d0bb87d332
 [XPK] Task: `GKE Dashboard List` is implemented by the following command not running since it is a dry run. 
 gcloud monitoring dashboards list --project=golden-project --filter="displayName:'GKE - TPU Monitoring Dashboard'" --format="value(name)" --verbosity=error
 [XPK] Check statistics and outlier mode of GKE metrics here: https://console.cloud.google.com/monitoring/dashboards/builder/0?project=golden-project&f.rlabel.cluster_name.ClusterName=golden-cluster. To view the metric data for your workload, select golden-workload from the JobName filter on the dashboard.

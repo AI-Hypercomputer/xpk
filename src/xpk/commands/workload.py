@@ -346,6 +346,7 @@ def _generate_pathways_workload_yaml(
       placement_policy_label=placement_policy_label,
       autoprovisioning_args=autoprovisioning_args,
       worker_image=worker_image,
+      is_tpu=workload_system.accelerator_type == AcceleratorType.TPU,
   )
 
 

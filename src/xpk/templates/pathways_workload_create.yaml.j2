@@ -233,6 +233,11 @@ spec:
                 - mountPath: /tmp
                   name: shared-tmp
             restartPolicy: OnFailure
+{% if is_tpu %}
+            tolerations:
+            - operator: "Exists"
+              key: google.com/tpu
+{% endif %}
             volumes:
             - hostPath:
                 path: /tmp

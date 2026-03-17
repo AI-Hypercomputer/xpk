@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import itertools
 import json
 from dataclasses import dataclass
 from enum import Enum
@@ -23,6 +24,13 @@ from typing import Any, Optional, Callable, Union
 from ..utils.console import xpk_exit, xpk_print
 from .commands import run_command_for_value
 from .gcloud_context import get_cluster_location
+
+_ACCELERATOR_LABELS = frozenset({
+    'cloud.google.com/gke-accelerator',
+    'cloud.google.com/gke-tpu-topology',
+    'cloud.google.com/gke-tpu-accelerator',
+    'cloud.google.com/tpu-topology',
+})
 
 
 def _safe_int(val: Any) -> int:
@@ -98,13 +106,34 @@ def _parse_workload_status(
     return _WorkloadStatus.UNKNOWN
 
 
+def _is_accelerator_pod_set(ps: dict[str, Any]) -> bool:
+  """Determines if a PodSet requests accelerator resources."""
+  spec = ps.get('template', {}).get('spec', {})
+  containers = spec.get('containers', []) + spec.get('initContainers', [])
+  for container in containers:
+    resources = container.get('resources', {})
+    requests = resources.get('requests', {})
+    limits = resources.get('limits', {})
+    if any(
+        'google.com/tpu' in key or 'nvidia.com/gpu' in key
+        for key in itertools.chain(requests, limits)
+    ):
+      return True
+
+  node_selector = spec.get('nodeSelector', {})
+  if not _ACCELERATOR_LABELS.isdisjoint(node_selector):
+    return True
+
+  return False
+
+
 def _parse_workload_item(item: dict[str, Any]) -> _WorkloadListRow:
-  owner_refs = item.get('metadata', {}).get('ownerReferences') or [{}]
+  owner_refs = item.get('metadata', {}).get('ownerReferences', [{}])
   jobset_name = owner_refs[0].get('name', '') or None
 
   created_time = item.get('metadata', {}).get('creationTimestamp', '') or None
 
-  pod_sets = item.get('spec', {}).get('podSets') or []
+  pod_sets = item.get('spec', {}).get('podSets', [])
   priority = item.get('spec', {}).get('priorityClassName', '') or None
   if not priority and pod_sets:
     priority = (
@@ -112,29 +141,48 @@ def _parse_workload_item(item: dict[str, Any]) -> _WorkloadListRow:
         .get('template', {})
         .get('spec', {})
         .get('priorityClassName', '')
-        or None
-    )
+    ) or None
+
+  accelerator_pod_set_names = {
+      ps.get('name')
+      for ps in pod_sets
+      if _is_accelerator_pod_set(ps) and ps.get('name')
+  }
 
   tpu_vms_needed = (
-      sum(_safe_int(ps.get('count')) for ps in pod_sets) if pod_sets else None
+      sum(
+          _safe_int(ps.get('count'))
+          for ps in pod_sets
+          if ps.get('name') in accelerator_pod_set_names
+      )
+      if pod_sets
+      else None
   )
 
   admission_status = item.get('status', {}).get('admission', {})
-  pod_set_assignments = admission_status.get('podSetAssignments') or []
+  pod_set_assignments = admission_status.get('podSetAssignments', [])
   tpu_vms_running_ran = (
-      sum(_safe_int(psa.get('count')) for psa in pod_set_assignments)
+      sum(
+          _safe_int(psa.get('count'))
+          for psa in pod_set_assignments
+          if psa.get('name') in accelerator_pod_set_names
+      )
       if pod_set_assignments
       else None
   )
 
-  reclaimable_pods = item.get('status', {}).get('reclaimablePods') or []
+  reclaimable_pods = item.get('status', {}).get('reclaimablePods', [])
   tpu_vms_done = (
-      sum(_safe_int(rp.get('count')) for rp in reclaimable_pods)
+      sum(
+          _safe_int(rp.get('count'))
+          for rp in reclaimable_pods
+          if rp.get('name') in accelerator_pod_set_names
+      )
       if reclaimable_pods
       else None
   )
 
-  conditions = item.get('status', {}).get('conditions') or [{}]
+  conditions = item.get('status', {}).get('conditions', [{}])
   status_str = conditions[-1].get('type', '')
   status = _parse_workload_status(status_str)
 

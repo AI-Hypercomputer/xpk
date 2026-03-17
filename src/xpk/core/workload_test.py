@@ -63,17 +63,31 @@ def _create_mock_workload_json(data: _MockWorkloadData):
       'spec': {
           'podSets': [
               {
+                  'name': f'worker-{i}',
                   'count': v,
-                  'template': {'spec': {'priorityClassName': data.priority}},
+                  'template': {
+                      'spec': {
+                          'priorityClassName': data.priority,
+                          'containers': [
+                              {'resources': {'limits': {'google.com/tpu': '4'}}}
+                          ],
+                      }
+                  },
               }
-              for v in data.needed
+              for i, v in enumerate(data.needed)
           ]
       },
       'status': {
           'admission': {
-              'podSetAssignments': [{'count': v} for v in data.running]
+              'podSetAssignments': [
+                  {'name': f'worker-{i}', 'count': v}
+                  for i, v in enumerate(data.running)
+              ]
           },
-          'reclaimablePods': [{'count': v} for v in data.done],
+          'reclaimablePods': [
+              {'name': f'worker-{i}', 'count': v}
+              for i, v in enumerate(data.done)
+          ],
           'conditions': [{
               'type': data.status,
               'message': data.message,
@@ -361,3 +375,41 @@ def test_parse_workload_item_priority_not_found():
   }
   row = _parse_workload_item(item)
   assert row.priority is None
+
+
+def test_parse_workload_item_excludes_pathways_head():
+  item = {
+      'metadata': {'creationTimestamp': '2024-01-01T00:00:00Z'},
+      'spec': {
+          'podSets': [
+              {
+                  'name': 'worker',
+                  'count': 32,
+                  'template': {
+                      'spec': {
+                          'containers': [
+                              {'resources': {'limits': {'google.com/tpu': '4'}}}
+                          ]
+                      }
+                  },
+              },
+              {'name': 'pathways-head', 'count': 1, 'template': {'spec': {}}},
+          ]
+      },
+      'status': {
+          'admission': {
+              'podSetAssignments': [
+                  {'name': 'worker', 'count': 32},
+                  {'name': 'pathways-head', 'count': 1},
+              ]
+          },
+          'reclaimablePods': [
+              {'name': 'worker', 'count': 32},
+              {'name': 'pathways-head', 'count': 1},
+          ],
+      },
+  }
+  row = _parse_workload_item(item)
+  assert row.tpu_vms_needed == 32
+  assert row.tpu_vms_running_ran == 32
+  assert row.tpu_vms_done == 32

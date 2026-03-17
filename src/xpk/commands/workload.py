@@ -824,7 +824,7 @@ def workload_create(args) -> None:
           f' {pathways_proxy_link} '
       )
     xpk_print(
-        'Follow your Pathways workload and other resources here : '
+        'Follow your Pathways workload and other resources here: '
         f'{get_pathways_unified_query_link(args)}'
     )
   else:

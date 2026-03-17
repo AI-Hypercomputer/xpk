@@ -18,6 +18,7 @@ package webhooks
 
 import (
 	"context"
+	"fmt"
 
 	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -26,6 +27,7 @@ import (
 	kueueconstants "sigs.k8s.io/kueue/pkg/controller/constants"
 
 	"tpu-slice-controller/internal/core"
+	"tpu-slice-controller/internal/topology"
 )
 
 type JobWebhook struct {
@@ -60,10 +62,15 @@ func (r *JobWebhook) Default(ctx context.Context, obj runtime.Object) error {
 		return nil
 	}
 	log.V(5).Info("Annotating Job")
-	annotatePodTemplateSpecWithSliceHealth(&job.Spec.Template, r.DefaultSliceHealthValues)
-	err := annotatePodTemplateSpecWithTopology(&job.Spec.Template, job.Spec.Parallelism, job.Name, "job")
+	tpuTopology := job.Spec.Template.Annotations[core.TPUSliceTopologyAnnotation]
+	parsed, err := topology.ParseTopologyV7(tpuTopology)
 	if err != nil {
 		return err
+	}
+	annotatePodTemplateSpecWithSliceHealth(&job.Spec.Template, parsed, r.DefaultSliceHealthValues)
+	err = annotatePodTemplateSpecWithTopology(&job.Spec.Template, parsed, job.Spec.Parallelism)
+	if err != nil {
+		return fmt.Errorf("invalid job %q: %w", job.Name, err)
 	}
 
 	return nil

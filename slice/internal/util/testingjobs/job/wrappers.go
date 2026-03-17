@@ -82,6 +82,13 @@ func (j *JobWrapper) Completions(p int32) *JobWrapper {
 	return j
 }
 
+func (j *JobWrapper) Indexed(indexed bool) *JobWrapper {
+	if indexed {
+		j.Spec.CompletionMode = ptr.To(batchv1.IndexedCompletion)
+	}
+	return j
+}
+
 func (j *JobWrapper) PodAnnotation(k, v string) *JobWrapper {
 	if j.Spec.Template.Annotations == nil {
 		j.Spec.Template.Annotations = make(map[string]string)

@@ -26,26 +26,55 @@ func TestParseTopology(t *testing.T) {
 	testCases := map[string]struct {
 		topology string
 		wantDims []int64
+		wantType TopologyType
 		wantErr  bool
 	}{
 		"valid 4x4x4": {
 			topology: "4x4x4",
 			wantDims: []int64{4, 4, 4},
+			wantType: TopologyTypeSuperslice,
 			wantErr:  false,
 		},
 		"valid 4x4x8": {
 			topology: "4x4x8",
 			wantDims: []int64{4, 4, 8},
+			wantType: TopologyTypeSuperslice,
 			wantErr:  false,
 		},
 		"valid 16x24x24": {
 			topology: "16x24x24",
 			wantDims: []int64{16, 24, 24},
+			wantType: TopologyTypeSuperslice,
 			wantErr:  false,
 		},
 		"valid 4x8x32": {
 			topology: "4x8x32",
 			wantDims: []int64{4, 8, 32},
+			wantType: TopologyTypeSuperslice,
+			wantErr:  false,
+		},
+		"valid subslice 2x2x1": {
+			topology: "2x2x1",
+			wantDims: []int64{2, 2, 1},
+			wantType: TopologyTypeSubslice,
+			wantErr:  false,
+		},
+		"valid subslice 2x2x2": {
+			topology: "2x2x2",
+			wantDims: []int64{2, 2, 2},
+			wantType: TopologyTypeSubslice,
+			wantErr:  false,
+		},
+		"valid subslice 2x2x4": {
+			topology: "2x2x4",
+			wantDims: []int64{2, 2, 4},
+			wantType: TopologyTypeSubslice,
+			wantErr:  false,
+		},
+		"valid subslice 2x4x4": {
+			topology: "2x4x4",
+			wantDims: []int64{2, 4, 4},
+			wantType: TopologyTypeSubslice,
 			wantErr:  false,
 		},
 		"invalid format (2 dims)": {
@@ -84,15 +113,56 @@ func TestParseTopology(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			dims, err := ParseTopologyV7(tc.topology)
+			got, err := ParseTopologyV7(tc.topology)
 			if (err != nil) != tc.wantErr {
 				t.Errorf("parseTopology() error = %v, wantErr %v", err, tc.wantErr)
 				return
 			}
+			if !tc.wantErr && tc.wantType != got.Type() {
+				t.Errorf("parseTopology() gotType = %v, wantType %v", got.Type(), tc.wantType)
+			}
 			if !tc.wantErr {
-				if diff := cmp.Diff(tc.wantDims, dims); diff != "" {
+				if diff := cmp.Diff(tc.wantDims, got.Dims()); diff != "" {
 					t.Errorf("parseTopology() mismatch (-want +got):\n%s", diff)
 				}
+			}
+		})
+	}
+}
+
+func TestSliceSize(t *testing.T) {
+	testCases := map[string]struct {
+		topology    ParsedTopology
+		parallelism int32
+		wantSize    int64
+	}{
+		"valid 4x4x4": {
+			topology:    supersliceTopology{dims: []int64{4, 4, 4}},
+			parallelism: 16,
+			wantSize:    16,
+		},
+		"valid 4x4x8": {
+			topology:    supersliceTopology{dims: []int64{4, 4, 8}},
+			parallelism: 32,
+			wantSize:    16,
+		},
+		"valid subslice 2x2x2": {
+			topology:    subsliceTopology{dims: []int64{2, 2, 2}},
+			parallelism: 2,
+			wantSize:    2,
+		},
+		"valid subslice 2x4x4": {
+			topology:    subsliceTopology{dims: []int64{2, 4, 4}},
+			parallelism: 8,
+			wantSize:    8,
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			got := tc.topology.SliceSize(tc.parallelism)
+			if got != tc.wantSize {
+				t.Errorf("SliceSize() got = %v, want %v", got, tc.wantSize)
 			}
 		})
 	}

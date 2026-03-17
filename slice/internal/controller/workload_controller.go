@@ -792,7 +792,7 @@ func (r *WorkloadReconciler) syncAdmissionCheckStatus(ctx context.Context, wl *k
 	originalState := ac.State
 	originalMessage := ac.Message
 
-	r.prepareAdmissionCheckStatus(wl, ac, slices)
+	r.prepareAdmissionCheckStatus(ctx, wl, ac, slices)
 
 	// No changes.
 	if originalState == ac.State && ac.Message == originalMessage {
@@ -836,7 +836,8 @@ func groupSlicesByState(slices []v1beta1.Slice, activationTimeout time.Duration)
 	return slicesByState
 }
 
-func (r *WorkloadReconciler) prepareAdmissionCheckStatus(wl *kueue.Workload, ac *kueue.AdmissionCheckState, slices []v1beta1.Slice) {
+func (r *WorkloadReconciler) prepareAdmissionCheckStatus(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, slices []v1beta1.Slice) {
+	log := ctrl.LoggerFrom(ctx).V(2)
 	// wait for Kueue to reset check to Pending after eviction
 	if ac.State == kueue.CheckStateRetry {
 		return
@@ -858,7 +859,16 @@ func (r *WorkloadReconciler) prepareAdmissionCheckStatus(wl *kueue.Workload, ac 
 			}
 		}
 		ac.PodSetUpdates = podSetUpdates
-	case len(slicesByState[core.SliceStateFailed]) > 0 || (features.Enabled(features.UseRetryMechanismForSliceCreation) && len(slicesByState[core.SliceStateStale]) > 0):
+	case len(slicesByState[core.SliceStateFailed]) > 0:
+		ac.State = kueue.CheckStateRetry
+		ac.RequeueAfterSeconds = ptr.To(int32(r.retryDelayOnSliceFailure.Round(time.Second).Seconds()))
+	case (features.Enabled(features.UseRetryMechanismForSliceCreation) && len(slicesByState[core.SliceStateStale]) > 0):
+		var staleSliceNames []string
+		for _, s := range slicesByState[core.SliceStateStale] {
+			staleSliceNames = append(staleSliceNames, s.Name)
+		}
+		log.V(2).Info("Setting AdmissionCheck to Retry due to Slices that failed to initialize despite retry mechanism",
+			"staleSlices", staleSliceNames)
 		ac.State = kueue.CheckStateRetry
 		ac.RequeueAfterSeconds = ptr.To(int32(r.retryDelayOnSliceFailure.Round(time.Second).Seconds()))
 	case len(slicesByState[core.SliceStateCreated])+len(slicesByState[core.SliceStateActivating]) > 0:

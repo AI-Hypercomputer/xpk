@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -55,7 +56,6 @@ import (
 	"tpu-slice-controller/internal/util/api"
 	"tpu-slice-controller/internal/util/node"
 	utilpod "tpu-slice-controller/internal/util/pod"
-	utilslices "tpu-slice-controller/internal/util/slices"
 )
 
 const (
@@ -668,7 +668,7 @@ func (r *WorkloadReconciler) syncSlicesForAssignment(ctx context.Context, wl *ku
 		}
 
 		if existingSlice, exist := existingSlicesByName[sliceName]; exist {
-			if !utilslices.Equal(existingSlice.Spec.PartitionIds, expectedPartitionIDs) {
+			if !slices.Equal(existingSlice.Spec.PartitionIds, expectedPartitionIDs) {
 				if existingSlice.DeletionTimestamp.IsZero() {
 					log := ctrl.LoggerFrom(ctx).WithValues("slice", klog.KObj(existingSlice))
 					log.V(2).Info("Existing Slice has wrong partition IDs, deleting it")

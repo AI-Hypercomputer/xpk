@@ -28,17 +28,3 @@ func Map[From any, To any, S ~[]From](s S, mapFunc func(*From) To) []To {
 	}
 	return ret
 }
-
-// Equal reports whether two slices are equal: the same length and all
-// elements equal.
-func Equal[E comparable](s1, s2 []E) bool {
-	if len(s1) != len(s2) {
-		return false
-	}
-	for i, v := range s1 {
-		if v != s2[i] {
-			return false
-		}
-	}
-	return true
-}

@@ -576,7 +576,7 @@ func (r *WorkloadReconciler) syncSlices(
 ) ([]v1beta1.Slice, error) {
 	// this is to prevent from creating slices when AC is Retry
 	// and the workload still has the old Admission
-	if ac.State != kueue.CheckStatePending && ac.State != kueue.CheckStateReady {
+	if ac.State == kueue.CheckStateRetry || ac.State == kueue.CheckStateRejected {
 		return nil, nil
 	}
 	existingSlicesByName := make(map[string]*v1beta1.Slice, len(*slices))

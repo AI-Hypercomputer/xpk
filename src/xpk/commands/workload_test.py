@@ -459,6 +459,59 @@ def test_workload_create_pathways_jobset_yaml(mocker):
   )
 
 
+def test_workload_create_use_parallel_containers_disabled(
+    workload_create_mocks,
+    mocker,
+):
+  """Tests that disabling parallel_containers results in a single container."""
+
+  mocker.patch('xpk.utils.execution_context.dry_run', True)
+
+  mocker.patch(
+      'xpk.core.docker_container.setup_docker_image',
+      return_value=(0, 'dummy-image'),
+  )
+  mocker.patch(
+      'xpk.core.docker_container.get_gke_debugging_dashboard', return_value=None
+  )
+
+  system_characteristics = UserFacingNameToSystemCharacteristics['tpu7x-2x2x2']
+  workload_create_mocks.get_system_characteristics.return_value = (
+      system_characteristics,
+      0,
+  )
+
+  workload_create_mocks.get_user_workload_container.side_effect = (
+      real_get_user_workload_container
+  )
+
+  args = construct_args(
+      workload='test-workload',
+      command='echo hello',
+      num_nodes=1,
+      tpu_type='tpu7x-2x2x2',
+      restart_on_exit_codes=None,
+      docker_name='test-docker',
+      deploy_stacktrace_sidecar=False,
+      enable_debug_logs=False,
+      scheduler='default-scheduler',
+      use_parallel_containers=False,
+  )
+  workload_create(args)
+
+  assert workload_create_mocks.write_tmp_file.called
+  yaml_content = workload_create_mocks.write_tmp_file.call_args[0][0]
+  jobset = yaml.safe_load(yaml_content)
+
+  # Verify Containers
+  containers = jobset['spec']['replicatedJobs'][0]['template']['spec'][
+      'template'
+  ]['spec']['containers']
+
+  assert len(containers) == 1
+  assert containers[0]['name'] == 'test-docker'
+
+
 def test_workload_create_workload_exists_user_declines_overwrite(
     mocker,
     workload_create_mocks: _WorkloadCreateMocks,

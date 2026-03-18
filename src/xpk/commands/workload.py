@@ -270,6 +270,9 @@ def _generate_pathways_workload_yaml(
     parallel_containers: int,
     placement_policy_label: str,
     autoprovisioning_args: str | None,
+    node_selector_machine_label: str,
+    tpu_slice_topology_annotation: str,
+    jobset_annotations: str,
 ) -> str:
   worker_backoff_limit = (
       (args.max_slice_restarts * workload_system.vms_per_slice)
@@ -337,10 +340,13 @@ def _generate_pathways_workload_yaml(
       vms_per_slice=workload_system.vms_per_slice,
       workload_system=workload_system,
       accelerator_label=create_accelerator_label(workload_system),
-      node_selector_machine_label=create_machine_label(workload_system),
+      node_selector_machine_label=node_selector_machine_label,
+      tpu_slice_topology_annotation=tpu_slice_topology_annotation,
+      jobset_annotations=jobset_annotations,
       placement_policy_label=placement_policy_label,
       autoprovisioning_args=autoprovisioning_args,
       worker_image=worker_image,
+      is_tpu=workload_system.accelerator_type == AcceleratorType.TPU,
   )
 
 
@@ -617,6 +623,28 @@ def workload_create(args) -> None:
 
   # TODO(b/466943057): Add ANP label for NAP (if not possible, use CCC)
 
+  if use_sub_slicing:
+    xpk_print('Workload will be scheduled using the Sub-slicing feature.')
+  if use_super_slicing:
+    xpk_print('Workload will be scheduled using the Super-slicing feature.')
+
+  machine_label = (
+      create_machine_label(cluster_system)
+      if use_sub_slicing and cluster_system
+      else create_machine_label(workload_system)
+  )
+  node_selector_machine_label = machine_label if not use_super_slicing else ''
+  tpu_slice_topology_annotation = (
+      create_tpu_slice_topology_annotation(workload_system.topology)
+      if use_super_slicing
+      else ''
+  )
+  jobset_annotations = (
+      ''
+      if use_super_slicing or use_sub_slicing
+      else ONE_TO_ONE_REPLICA_NODE_POOL_ASSIGNMENT_ANNOTATION
+  )
+
   # Create the workload file based on accelerator type or workload type.
   if workload_system.accelerator_type == AcceleratorType.GPU:
     container, debugging_dashboard_id = get_user_workload_container(
@@ -709,32 +737,13 @@ def workload_create(args) -> None:
         parallel_containers=parallel_containers,
         placement_policy_label=placement_policy_label,
         autoprovisioning_args=autoprovisioning_args,
+        node_selector_machine_label=node_selector_machine_label,
+        tpu_slice_topology_annotation=tpu_slice_topology_annotation,
+        jobset_annotations=jobset_annotations,
     )
   else:
-    if use_sub_slicing:
-      xpk_print('Workload will be scheduled using the Sub-slicing feature.')
-    if use_super_slicing:
-      xpk_print('Workload will be scheduled using the Super-slicing feature.')
-
     container, debugging_dashboard_id = get_user_workload_container(
         args, workload_system, parallel_containers
-    )
-
-    machine_label = (
-        create_machine_label(cluster_system)
-        if use_sub_slicing and cluster_system
-        else create_machine_label(workload_system)
-    )
-    node_selector_machine_label = machine_label if not use_super_slicing else ''
-    tpu_slice_topology_annotation = (
-        create_tpu_slice_topology_annotation(workload_system.topology)
-        if use_super_slicing
-        else ''
-    )
-    jobset_annotations = (
-        ''
-        if use_super_slicing or use_sub_slicing
-        else ONE_TO_ONE_REPLICA_NODE_POOL_ASSIGNMENT_ANNOTATION
     )
 
     yml_string = WORKLOAD_CREATE_YAML.format(

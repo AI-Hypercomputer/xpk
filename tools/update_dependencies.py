@@ -95,8 +95,8 @@ _DEPENDENCIES: list[_DependencyInfo] = [
     ),
 ]
 
-_OS_MAP: dict[str, str] = {"linux": "linux", "darwin": "darwin"}
-_ARCH_MAP: dict[str, str] = {"amd64": "amd64", "arm64": "arm64"}
+_OS_MAP: list[str] = ["darwin", "linux"]
+_ARCH_MAP: list[str] = ["amd64", "arm64"]
 
 _SCRIPT_DIR = Path(__file__).parent.resolve()
 _OUTPUT_FILE = (
@@ -119,7 +119,7 @@ def _get_hash(url: str) -> str:
 
 def _get_dep_checksums(dep_info: _DependencyInfo) -> dict[str, str]:
   checksums: dict[str, str] = {}
-  for os_val, arch_val in product(_OS_MAP.values(), _ARCH_MAP.values()):
+  for os_val, arch_val in product(_OS_MAP, _ARCH_MAP):
     print(f" Calculating checksum for {os_val}_{arch_val}")
     mapped_arch = dep_info.arch_map.get(arch_val, arch_val)
     mapped_os = dep_info.os_map.get(os_val, os_val)

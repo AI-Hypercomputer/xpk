@@ -64,9 +64,9 @@ class _WorkloadListRow:
   jobset_name: Optional[str]
   created_time: Optional[str]
   priority: Optional[str]
-  tpu_vms_needed: Optional[int]
-  tpu_vms_running_ran: Optional[int]
-  tpu_vms_done: Optional[int]
+  tpu_gpu_needed: Optional[int]
+  tpu_gpu_running_ran: Optional[int]
+  tpu_gpu_done: Optional[int]
   status: Optional[_WorkloadStatus]
   status_message: Optional[str]
   status_time: Optional[str]
@@ -84,11 +84,11 @@ _WORKLOAD_COLUMNS: list[_WorkloadListColumn] = [
     _WorkloadListColumn('Jobset Name', lambda row: row.jobset_name),
     _WorkloadListColumn('Created Time', lambda row: row.created_time),
     _WorkloadListColumn('Priority', lambda row: row.priority),
-    _WorkloadListColumn('TPU VMs Needed', lambda row: row.tpu_vms_needed),
+    _WorkloadListColumn('TPU/GPU VMs Needed', lambda row: row.tpu_gpu_needed),
     _WorkloadListColumn(
-        'TPU VMs Running/Ran', lambda row: row.tpu_vms_running_ran
+        'TPU/GPU VMs Running/Ran', lambda row: row.tpu_gpu_running_ran
     ),
-    _WorkloadListColumn('TPU VMs Done', lambda row: row.tpu_vms_done),
+    _WorkloadListColumn('TPU/GPU VMs Done', lambda row: row.tpu_gpu_done),
     _WorkloadListColumn('Status', lambda row: row.status),
     _WorkloadListColumn('Status Message', lambda row: row.status_message),
     _WorkloadListColumn('Status Time', lambda row: row.status_time),
@@ -121,10 +121,7 @@ def _is_accelerator_pod_set(ps: dict[str, Any]) -> bool:
       return True
 
   node_selector = spec.get('nodeSelector', {})
-  if not _ACCELERATOR_LABELS.isdisjoint(node_selector):
-    return True
-
-  return False
+  return not _ACCELERATOR_LABELS.isdisjoint(node_selector)
 
 
 def _parse_workload_item(item: dict[str, Any]) -> _WorkloadListRow:
@@ -149,7 +146,7 @@ def _parse_workload_item(item: dict[str, Any]) -> _WorkloadListRow:
       if _is_accelerator_pod_set(ps) and ps.get('name')
   }
 
-  tpu_vms_needed = (
+  tpu_gpu_needed = (
       sum(
           _safe_int(ps.get('count'))
           for ps in pod_sets
@@ -161,7 +158,7 @@ def _parse_workload_item(item: dict[str, Any]) -> _WorkloadListRow:
 
   admission_status = item.get('status', {}).get('admission', {})
   pod_set_assignments = admission_status.get('podSetAssignments', [])
-  tpu_vms_running_ran = (
+  tpu_gpu_running_ran = (
       sum(
           _safe_int(psa.get('count'))
           for psa in pod_set_assignments
@@ -172,7 +169,7 @@ def _parse_workload_item(item: dict[str, Any]) -> _WorkloadListRow:
   )
 
   reclaimable_pods = item.get('status', {}).get('reclaimablePods', [])
-  tpu_vms_done = (
+  tpu_gpu_done = (
       sum(
           _safe_int(rp.get('count'))
           for rp in reclaimable_pods
@@ -193,9 +190,9 @@ def _parse_workload_item(item: dict[str, Any]) -> _WorkloadListRow:
       jobset_name=jobset_name,
       created_time=created_time,
       priority=priority,
-      tpu_vms_needed=tpu_vms_needed,
-      tpu_vms_running_ran=tpu_vms_running_ran,
-      tpu_vms_done=tpu_vms_done,
+      tpu_gpu_needed=tpu_gpu_needed,
+      tpu_gpu_running_ran=tpu_gpu_running_ran,
+      tpu_gpu_done=tpu_gpu_done,
       status=status,
       status_message=status_message,
       status_time=status_time,
@@ -256,7 +253,7 @@ def _filter_workload(
 
   status = row_data.status
   message = row_data.status_message or ''
-  running_count = row_data.tpu_vms_running_ran or 0
+  running_count = row_data.tpu_gpu_running_ran or 0
 
   match filter_by_status:
     case _StatusFilter.EVERYTHING:

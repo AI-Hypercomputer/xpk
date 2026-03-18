@@ -145,9 +145,9 @@ def test_get_workload_list(commands_tester: CommandsTester):
   assert len(parsed_table) == 1
   assert parsed_table[0]['Jobset Name'] == 'job-test'
   assert parsed_table[0]['Status'] == 'Unknown'
-  assert parsed_table[0]['TPU VMs Needed'] == '32'
-  assert parsed_table[0]['TPU VMs Running/Ran'] == '32'
-  assert parsed_table[0]['TPU VMs Done'] == '0'
+  assert parsed_table[0]['TPU/GPU VMs Needed'] == '32'
+  assert parsed_table[0]['TPU/GPU VMs Running/Ran'] == '32'
+  assert parsed_table[0]['TPU/GPU VMs Done'] == '0'
   assert parsed_table[0]['Status Message'] == 'All good'
   assert parsed_table[0]['Created Time'] == '2024-01-01T00:00:00Z'
   assert parsed_table[0]['Status Time'] == '2024-01-01T00:01:00Z'
@@ -240,9 +240,9 @@ def test_get_workload_list_multiple_pod_sets(commands_tester: CommandsTester):
   parsed_table = _parse_workload_table(return_value)
   assert len(parsed_table) == 1
   assert parsed_table[0]['Jobset Name'] == 'multi-podset-job'
-  assert parsed_table[0]['TPU VMs Needed'] == '48'
-  assert parsed_table[0]['TPU VMs Running/Ran'] == '48'
-  assert parsed_table[0]['TPU VMs Done'] == '48'
+  assert parsed_table[0]['TPU/GPU VMs Needed'] == '48'
+  assert parsed_table[0]['TPU/GPU VMs Running/Ran'] == '48'
+  assert parsed_table[0]['TPU/GPU VMs Done'] == '48'
 
 
 @pytest.mark.parametrize(
@@ -410,6 +410,6 @@ def test_parse_workload_item_excludes_pathways_head():
       },
   }
   row = _parse_workload_item(item)
-  assert row.tpu_vms_needed == 32
-  assert row.tpu_vms_running_ran == 32
-  assert row.tpu_vms_done == 32
+  assert row.tpu_gpu_needed == 32
+  assert row.tpu_gpu_running_ran == 32
+  assert row.tpu_gpu_done == 32

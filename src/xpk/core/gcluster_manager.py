@@ -16,6 +16,7 @@ limitations under the License.
 
 from .cluster_toolkit.command_runner import CommandRunner
 from ..utils.console import xpk_exit, xpk_print
+from ..utils.feature_flags import FeatureFlags
 from .remote_state.remote_state_client import RemoteStateClient
 
 xpk_gcloud_cfg_path = '~/gcloud/cfg'
@@ -68,6 +69,8 @@ class GclusterManager:
     deploy_cmd = (
         f'{gcluster_deploy_command} {self._get_deployment_path(prefix)}/{deployment_name}'
     )
+    if FeatureFlags.NATIVE_CLUSTER_TOOLKIT_ENABLED:
+      deploy_cmd += ' --dependency-auto-download'
     if auto_approve is True:
       deploy_cmd += ' --auto-approve'
     if dry_run is True:
@@ -117,6 +120,8 @@ class GclusterManager:
     destroy_cmd = (
         f'{gcluster_destroy_command} {self._get_deployment_path(prefix)}/{deployment_name}'
     )
+    if FeatureFlags.NATIVE_CLUSTER_TOOLKIT_ENABLED:
+      destroy_cmd += ' --dependency-auto-download'
     if auto_approve is True:
       destroy_cmd += ' --auto-approve'
     if dry_run is True:

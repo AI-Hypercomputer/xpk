@@ -942,6 +942,36 @@ func TestWorkloadReconciler(t *testing.T) {
 			},
 			wantResult: reconcile.Result{RequeueAfter: initializationRetryAfter},
 		},
+		"should delete existing Slice if it has incorrect partition IDs": {
+			request: baseRequest,
+			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				worker2Node.DeepCopy(),
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStateReady, `Slices are in states: 2 ACTIVE`)).
+					Obj(),
+				baseSlice1Wrapper.Clone().Active().PartitionIDs("wrong-partition").Obj(),
+				baseSlice2Wrapper.Clone().Active().Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStatePending, `Slices are in states: 1 ACTIVE`)).
+					Obj(),
+			},
+			wantSlices: []slice.Slice{
+				*baseSlice2Wrapper.Clone().Active().Obj(),
+			},
+			wantEvents: []utiltesting.EventRecord{buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, AdmissionCheckUpdatedEventType, `Admission check "ac" updated state from "Ready" to "Pending"`)},
+		},
 		"should fail to create Slice if Partition ID is already in use": {
 			request: baseRequest,
 			objs: []client.Object{

@@ -17,9 +17,9 @@ limitations under the License.
 from abc import ABC, abstractmethod
 import docker
 from docker.errors import ContainerError, APIError, ImageNotFound, BuildError
-from ..utils.console import xpk_print, xpk_exit
-from ..utils.file import ensure_directory_exists
-from ..utils.objects import hash_string
+from ...utils.console import xpk_print, xpk_exit
+from ...utils.file import ensure_directory_exists
+from ...utils.objects import hash_string
 from shutil import copytree, copy
 import requests
 import os
@@ -39,7 +39,7 @@ dockerfile_gh_path = f"https://raw.githubusercontent.com/GoogleCloudPlatform/clu
 upload_dir_name = "uploads"
 
 
-from .cluster_toolkit.command_runner import CommandRunner
+from .command_runner import CommandRunner
 
 
 class DockerManager(CommandRunner):

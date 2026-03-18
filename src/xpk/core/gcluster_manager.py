@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from .docker_manager import CommandRunner
+from .cluster_toolkit.command_runner import CommandRunner
 from ..utils.console import xpk_exit, xpk_print
 from .remote_state.remote_state_client import RemoteStateClient
 

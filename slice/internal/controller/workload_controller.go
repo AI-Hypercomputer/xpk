@@ -50,6 +50,7 @@ import (
 
 	"tpu-slice-controller/api/v1beta1"
 	"tpu-slice-controller/internal/core"
+	"tpu-slice-controller/internal/features"
 	"tpu-slice-controller/internal/topology"
 	"tpu-slice-controller/internal/util/api"
 	"tpu-slice-controller/internal/util/node"
@@ -643,6 +644,9 @@ func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workloa
 			continue
 		}
 		slice := core.SliceWithMetadata(wl, psa.Name, i)
+		if features.Enabled(features.UseRetryMechanismForSliceCreation) {
+			slice.Annotations[core.RetryOnFailureAnnotation] = "true"
+		}
 		// Since Slice is a cluster-scoped object and Workload is namespaced,
 		// we cannot set a controller owner reference. The Workload's namespace and name
 		// are stored as annotations on the Slice for lookup.
@@ -696,6 +700,10 @@ func (r *WorkloadReconciler) validatePartitionConflicts(
 	ctx context.Context,
 	slicesToCreate []*v1beta1.Slice,
 ) error {
+	// if we use the retry mechanism, it is going to retry on partition conflicts
+	if features.Enabled(features.UseRetryMechanismForSliceCreation) {
+		return nil
+	}
 	log := ctrl.LoggerFrom(ctx)
 
 	allSlices, err := r.findAllSlices(ctx)
@@ -784,7 +792,7 @@ func (r *WorkloadReconciler) syncAdmissionCheckStatus(ctx context.Context, wl *k
 	originalState := ac.State
 	originalMessage := ac.Message
 
-	r.prepareAdmissionCheckStatus(wl, ac, slices)
+	r.prepareAdmissionCheckStatus(ctx, wl, ac, slices)
 
 	// No changes.
 	if originalState == ac.State && ac.Message == originalMessage {
@@ -828,7 +836,8 @@ func groupSlicesByState(slices []v1beta1.Slice, activationTimeout time.Duration)
 	return slicesByState
 }
 
-func (r *WorkloadReconciler) prepareAdmissionCheckStatus(wl *kueue.Workload, ac *kueue.AdmissionCheckState, slices []v1beta1.Slice) {
+func (r *WorkloadReconciler) prepareAdmissionCheckStatus(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, slices []v1beta1.Slice) {
+	log := ctrl.LoggerFrom(ctx).V(2)
 	// wait for Kueue to reset check to Pending after eviction
 	if ac.State == kueue.CheckStateRetry {
 		return
@@ -851,6 +860,15 @@ func (r *WorkloadReconciler) prepareAdmissionCheckStatus(wl *kueue.Workload, ac 
 		}
 		ac.PodSetUpdates = podSetUpdates
 	case len(slicesByState[core.SliceStateFailed]) > 0:
+		ac.State = kueue.CheckStateRetry
+		ac.RequeueAfterSeconds = ptr.To(int32(r.retryDelayOnSliceFailure.Round(time.Second).Seconds()))
+	case (features.Enabled(features.UseRetryMechanismForSliceCreation) && len(slicesByState[core.SliceStateStale]) > 0):
+		var staleSliceNames []string
+		for _, s := range slicesByState[core.SliceStateStale] {
+			staleSliceNames = append(staleSliceNames, s.Name)
+		}
+		log.V(2).Info("Setting AdmissionCheck to Retry due to Slices that failed to initialize despite retry mechanism",
+			"staleSlices", staleSliceNames)
 		ac.State = kueue.CheckStateRetry
 		ac.RequeueAfterSeconds = ptr.To(int32(r.retryDelayOnSliceFailure.Round(time.Second).Seconds()))
 	case len(slicesByState[core.SliceStateCreated])+len(slicesByState[core.SliceStateActivating]) > 0:
